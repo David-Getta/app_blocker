@@ -64,6 +64,18 @@ nem szülői felügyeleti vagy kártevő-elleni megoldás. Aki technikailag hozz
 és eltökélt, meg tudja kerülni. A cél a **súrlódás** növelése annyira, hogy a
 pillanatnyi impulzus ne legyen elég a feloldáshoz.
 
+### A privilegizált helper IPC-je
+
+A helper root/SYSTEM jogú, ezért a vele kommunikáló helyi socketet szűkítjük:
+- **macOS/Linux:** a socket `0o600` jogosultságú, és a *telepítő felhasználó*
+  uid-jére van `chown`-olva (a uid-et a GUI a telepítéskor a LaunchDaemon
+  argumentumába süti: `--owner-uid=<uid>`). Így csak az adott felhasználó (és a
+  root) tud csatlakozni — más felhasználó vagy alacsony jogú folyamat (pl.
+  `nobody`) nem. Fail-closed: ha az owner ismeretlen, root-only marad, nem
+  világ-nyitott.
+- **Windows:** named pipe, ami eleve helyi; egyedi DACL beállítása natív kód
+  nélkül nem megoldható, ezért ez ismert korlát (a jövőben szűkíthető).
+
 Ismert megkerülési utak (szándékosan nem próbáljuk „lelakatolni” a gépet):
 - Admin/root jogú felhasználó leállíthatja a helpert vagy a VPN-t. A rendszer
   ilyenkor a *blokkolt* állapotból indul újra, és a mobil appok feltűnő

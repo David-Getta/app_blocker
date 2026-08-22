@@ -18,6 +18,14 @@ export function runHelper(): void {
   const state = loadState();
   let dohApplied = state.dohApplied;
 
+  // The installing user's uid is baked into the daemon launch args, so the
+  // socket can be restricted to that account (see server.ts).
+  const ownerArg = process.argv.find((a) => a.startsWith('--owner-uid='));
+  const ownerUid = ownerArg ? Number(ownerArg.split('=')[1]) : undefined;
+  if (ownerUid !== undefined && Number.isFinite(ownerUid)) {
+    log(`socket will be restricted to uid ${ownerUid}`);
+  }
+
   const commit = () => {
     saveState(state);
     try {
@@ -60,6 +68,7 @@ export function runHelper(): void {
     commit,
     dohApplied: () => dohApplied,
     log,
+    ownerUid: ownerUid !== undefined && Number.isFinite(ownerUid) ? ownerUid : undefined,
   });
 }
 

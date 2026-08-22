@@ -8,14 +8,15 @@ import { execFile } from 'child_process';
 import {
   buildManagedBlock, extractManagedBlock, replaceManagedBlock,
 } from '../shared/blocklist';
+import { isBlockedNow } from '../shared/schedule';
 import type { HelperState } from './state';
 import { hostsFilePath } from './paths';
 
 export function activeHostnames(state: HelperState, now: number): string[] {
   const set = new Set<string>();
   for (const site of state.sites) {
-    const paused = site.pauseUntil !== null && site.pauseUntil > now;
-    if (paused) continue; // pending delete still blocks until it actually runs
+    // Combines pause, pending-delete and the weekly schedule.
+    if (!isBlockedNow(site, now)) continue;
     for (const h of site.hostnames) set.add(h);
   }
   return [...set].sort();

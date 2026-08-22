@@ -1,0 +1,115 @@
+// Weekly blocking schedules — pure, dependency-free logic shared by the helper
+// and mirrored by Kotlin/Swift. See docs/feature-schedules.md.
+//
+// Design invariant: tightening (more blocked time) is free; loosening (less
+// blocked time) must go through the same unlock challenges as a pause, so a
+// schedule edit can never be a friction bypass.
+
+export type Weekday = 0 | 1 | 2 | 3 | 4 | 5 | 6; // 0 = Sunday
+export type ScheduleMode = 'always' | 'scheduled_block' | 'scheduled_allow';
+
+export interface Band {
+  days: Weekday[];
+  /** local-time minutes from midnight, 0..1439 */
+  startMin: number;
+  /** local-time minutes from midnight, 1..1440; if <= startMin the band wraps past midnight */
+  endMin: number;
+}
+
+export interface Schedule {
+  mode: ScheduleMode;
+  bands: Band[];
+}
+
+export const ALWAYS: Schedule = { mode: 'always', bands: [] };
+
+export function isValidBand(b: Band): boolean {
+  if (!Array.isArray(b.days) || b.days.length === 0) return false;
+  if (b.days.some((d) => d < 0 || d > 6 || !Number.isInteger(d))) return false;
+  if (!Number.isInteger(b.startMin) || !Number.isInteger(b.endMin)) return false;
+  if (b.startMin < 0 || b.startMin > 1439) return false;
+  if (b.endMin < 1 || b.endMin > 1440) return false;
+  return true;
+}
+
+export function normalizeSchedule(s: Schedule | undefined | null): Schedule {
+  if (!s || s.mode === 'always') return ALWAYS;
+  const bands = (s.bands ?? []).filter(isValidBand);
+  if (bands.length === 0) return ALWAYS; // an empty schedule is just "always blocked"
+  return { mode: s.mode, bands };
+}
+
+/** Local weekday + minute-of-day for an epoch-ms instant. */
+function localParts(now: number): { day: Weekday; minute: number } {
+  const d = new Date(now);
+  return { day: d.getDay() as Weekday, minute: d.getHours() * 60 + d.getMinutes() };
+}
+
+/** True when `now` falls inside any band (handles midnight wrap and day rollover). */
+export function inAnyBand(bands: Band[], now: number): boolean {
+  const { day, minute } = localParts(now);
+  const prevDay = ((day + 6) % 7) as Weekday;
+  for (const b of bands) {
+    if (b.endMin > b.startMin) {
+      // same-day band
+      if (b.days.includes(day) && minute >= b.startMin && minute < b.endMin) return true;
+    } else {
+      // wraps past midnight: [start,1440) on the start day, [0,end) on the next day
+      if (b.days.includes(day) && minute >= b.startMin) return true;
+      if (b.days.includes(prevDay) && minute < b.endMin) return true;
+    }
+  }
+  return false;
+}
+
+/** The subset of a site the blocking decision needs. */
+export interface Blockable {
+  pauseUntil: number | null;
+  pendingDeleteAt: number | null;
+  schedule?: Schedule;
+}
+
+/**
+ * The authoritative "is this site blocked right now" decision, combining an
+ * active pause (always wins), a pending delete (blocks until it runs), and the
+ * weekly schedule.
+ */
+export function isBlockedNow(site: Blockable, now: number): boolean {
+  if (site.pauseUntil !== null && site.pauseUntil > now) return false;
+  if (site.pendingDeleteAt !== null) return true;
+  return isBlockedBySchedule(site.schedule ?? ALWAYS, now);
+}
+
+/** Whether the schedule alone (ignoring pause/delete) blocks at `now`. */
+export function isBlockedBySchedule(schedule: Schedule, now: number): boolean {
+  const s = normalizeSchedule(schedule);
+  switch (s.mode) {
+    case 'always': return true;
+    case 'scheduled_block': return inAnyBand(s.bands, now);
+    case 'scheduled_allow': return !inAnyBand(s.bands, now);
+  }
+}
+
+/**
+ * Would switching from `oldS` to `newS` reduce blocked time at any point in the
+ * next 7 days? Sampled at 15-minute resolution (deterministic, cheap). If yes,
+ * the change is a "loosening" and must be gated behind unlock challenges.
+ */
+export function isLoosening(oldS: Schedule, newS: Schedule, now: number): boolean {
+  const a = normalizeSchedule(oldS);
+  const b = normalizeSchedule(newS);
+  const STEP = 15 * 60_000;
+  const SAMPLES = (7 * 24 * 60) / 15; // 672 samples over one week
+  for (let i = 0; i < SAMPLES; i++) {
+    const t = now + i * STEP;
+    if (isBlockedBySchedule(a, t) && !isBlockedBySchedule(b, t)) return true;
+  }
+  return false;
+}
+
+/** Common presets for the UI. Times are local-clock minutes. */
+export const PRESET_BANDS: Record<string, Band> = {
+  workHours: { days: [1, 2, 3, 4, 5], startMin: 9 * 60, endMin: 17 * 60 },
+  evening: { days: [0, 1, 2, 3, 4, 5, 6], startMin: 22 * 60, endMin: 6 * 60 }, // wraps
+  weekend: { days: [0, 6], startMin: 0, endMin: 1440 },
+};

@@ -26,6 +26,9 @@ function xmlEscape(s: string): string {
 }
 
 function launchdPlist(): string {
+  // Bake the installing user's uid into the daemon args so the root helper can
+  // restrict its IPC socket to that account (see helper/server.ts).
+  const ownerUid = process.getuid ? process.getuid() : -1;
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -35,6 +38,7 @@ function launchdPlist(): string {
   <array>
     <string>${xmlEscape(process.execPath)}</string>
     <string>${xmlEscape(helperEntryPath())}</string>
+    <string>--owner-uid=${ownerUid}</string>
   </array>
   <key>EnvironmentVariables</key>
   <dict>

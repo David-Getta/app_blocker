@@ -8,6 +8,8 @@ struct Site: Codable, Identifiable, Equatable {
     let addedAt: Double
     var pauseUntil: Double?
     var pendingDeleteAt: Double?
+    /// optional weekly schedule; nil = always blocked
+    var schedule: ScheduleLogic.Schedule?
 }
 
 struct SessionRec: Codable, Equatable, Identifiable {
@@ -72,12 +74,15 @@ final class LakatStore: ObservableObject {
         }
     }
 
-    /// hostnames that must be blocked right now (paused sites excluded)
+    /// hostnames that must be blocked right now (pause + schedule aware)
     func blockedHostnamesNow(_ now: Double) -> Set<String> {
         var out = Set<String>()
         for site in state.sites {
-            let paused = (site.pauseUntil ?? 0) > now
-            if !paused { out.formUnion(site.hostnames) }
+            if ScheduleLogic.isBlockedNow(pauseUntil: site.pauseUntil,
+                                          pendingDeleteAt: site.pendingDeleteAt,
+                                          schedule: site.schedule, now: now) {
+                out.formUnion(site.hostnames)
+            }
         }
         return out
     }

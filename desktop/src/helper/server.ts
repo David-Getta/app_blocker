@@ -20,6 +20,8 @@ export interface ServerDeps {
   commit: () => void;
   dohApplied: () => boolean;
   log: (m: string) => void;
+  /** uid of the user allowed to talk to the (root) helper; undefined in dev */
+  ownerUid?: number;
 }
 
 export function statusOf(state: HelperState, dohApplied: boolean): StatusData {
@@ -146,7 +148,20 @@ export function startServer(deps: ServerDeps): net.Server {
   });
   server.listen(sock, () => {
     if (process.platform !== 'win32') {
-      try { fs.chmodSync(sock, 0o666); } catch { /* ok */ }
+      // The helper runs as root; the socket must NOT be world-writable, or any
+      // local user/process could drive the root daemon. Restrict it to the
+      // owner user (the account that installed the GUI) — connect() then
+      // requires ownership, which the OS enforces. Fails closed: if the owner
+      // is unknown we leave it root-only rather than world-open.
+      try {
+        fs.chmodSync(sock, 0o600);
+        if (deps.ownerUid !== undefined && deps.ownerUid >= 0) {
+          const gid = (() => { try { return fs.statSync(sock).gid; } catch { return process.getgid?.() ?? 0; } })();
+          fs.chownSync(sock, deps.ownerUid, gid);
+        }
+      } catch (e) {
+        deps.log(`socket permission hardening failed: ${String(e)}`);
+      }
     }
     deps.log(`helper listening on ${sock}`);
   });

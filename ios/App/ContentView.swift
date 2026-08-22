@@ -221,7 +221,8 @@ struct ContentView: View {
         store.mutate { s in
             s.sites.append(Site(id: store.newId("site"), domain: domain,
                                 hostnames: Blocklist.expandHostnames(domain, usePreset: usePreset),
-                                addedAt: nowMs(), pauseUntil: nil, pendingDeleteAt: nil))
+                                addedAt: nowMs(), pauseUntil: nil, pendingDeleteAt: nil,
+                                schedule: nil))
         }
         addInput = ""
         if tunnel.status != .connected { startProtection() }

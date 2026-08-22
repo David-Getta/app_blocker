@@ -5,6 +5,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
 import type { Step } from '../shared/challenges';
+import type { Schedule } from '../shared/schedule';
 import { stateFilePath } from './paths';
 
 export interface SiteRec {
@@ -14,6 +15,8 @@ export interface SiteRec {
   addedAt: number;
   pauseUntil: number | null;
   pendingDeleteAt: number | null;
+  /** optional weekly schedule; absent = always blocked */
+  schedule?: Schedule;
 }
 
 export interface SessionRec {

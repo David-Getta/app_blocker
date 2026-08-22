@@ -17,6 +17,8 @@ data class Site(
     val addedAt: Long,
     val pauseUntil: Long?,
     val pendingDeleteAt: Long?,
+    /** optional weekly schedule; null = always blocked */
+    val schedule: ScheduleLogic.Schedule? = null,
 )
 
 data class SessionRec(
@@ -67,17 +69,42 @@ object LakatStore {
 
     fun newId(prefix: String): String = "${prefix}_${UUID.randomUUID().toString().take(12)}"
 
-    /** hostnames that must be blocked right now (paused sites excluded) */
+    /** hostnames that must be blocked right now (pause + schedule aware) */
     fun blockedHostnamesNow(now: Long): Set<String> {
         val out = mutableSetOf<String>()
         for (site in _state.value.sites) {
-            val paused = site.pauseUntil != null && site.pauseUntil > now
-            if (!paused) out.addAll(site.hostnames)
+            if (ScheduleLogic.isBlockedNow(site.pauseUntil, site.pendingDeleteAt, site.schedule, now)) {
+                out.addAll(site.hostnames)
+            }
         }
         return out
     }
 
     // ------------------------------------------------------------- JSON i/o
+
+    private fun scheduleToJson(sch: ScheduleLogic.Schedule): JSONObject = JSONObject().apply {
+        put("mode", sch.mode.name)
+        put("bands", JSONArray(sch.bands.map { b ->
+            JSONObject().apply {
+                put("days", JSONArray(b.days.toList()))
+                put("startMin", b.startMin); put("endMin", b.endMin)
+            }
+        }))
+    }
+
+    private fun scheduleFromJson(o: JSONObject): ScheduleLogic.Schedule {
+        val mode = ScheduleLogic.Mode.valueOf(o.getString("mode"))
+        val bandsArr = o.optJSONArray("bands")
+        val bands = if (bandsArr == null) emptyList() else (0 until bandsArr.length()).map { i ->
+            val bo = bandsArr.getJSONObject(i)
+            val daysArr = bo.getJSONArray("days")
+            ScheduleLogic.Band(
+                days = (0 until daysArr.length()).map { daysArr.getInt(it) }.toSet(),
+                startMin = bo.getInt("startMin"), endMin = bo.getInt("endMin"),
+            )
+        }
+        return ScheduleLogic.Schedule(mode, bands)
+    }
 
     private fun toJson(s: AppState): JSONObject = JSONObject().apply {
         put("protectionOn", s.protectionOn)
@@ -88,6 +115,7 @@ object LakatStore {
                 put("addedAt", site.addedAt)
                 put("pauseUntil", site.pauseUntil ?: JSONObject.NULL)
                 put("pendingDeleteAt", site.pendingDeleteAt ?: JSONObject.NULL)
+                put("schedule", site.schedule?.let { scheduleToJson(it) } ?: JSONObject.NULL)
             }
         }))
         put("unlockLog", JSONArray(s.unlockLog))
@@ -167,6 +195,7 @@ object LakatStore {
                     addedAt = s.getLong("addedAt"),
                     pauseUntil = if (s.isNull("pauseUntil")) null else s.getLong("pauseUntil"),
                     pendingDeleteAt = if (s.isNull("pendingDeleteAt")) null else s.getLong("pendingDeleteAt"),
+                    schedule = if (s.isNull("schedule")) null else scheduleFromJson(s.getJSONObject("schedule")),
                 )
             }
         } ?: emptyList()
