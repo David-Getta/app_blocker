@@ -23,6 +23,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -34,6 +35,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -148,6 +150,7 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
     var addError by remember { mutableStateOf<String?>(null) }
     var pauseSite by remember { mutableStateOf<Site?>(null) }
     var deleteSite by remember { mutableStateOf<Site?>(null) }
+    var scheduleSite by remember { mutableStateOf<Site?>(null) }
     var flowError by remember { mutableStateOf<String?>(null) }
 
     fun addSite(raw: String) {
@@ -314,6 +317,7 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                     site = site, now = now, hasSession = state.session != null,
                     onPause = { pauseSite = site },
                     onDelete = { deleteSite = site },
+                    onSchedule = { scheduleSite = site },
                 )
             }
 
@@ -382,6 +386,17 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
         )
     }
 
+    // Schedule editor dialog
+    scheduleSite?.let { site ->
+        ScheduleDialog(
+            site = site,
+            onDismiss = { scheduleSite = null },
+            onApplied = { scheduleSite = null },
+            onChallenge = { scheduleSite = null; onOpenChallenge() },
+            onError = { scheduleSite = null; flowError = it },
+        )
+    }
+
     flowError?.let {
         AlertDialog(
             onDismissRequest = { flowError = null },
@@ -392,14 +407,94 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
     }
 }
 
+/** Preset bands offered in the schedule editor (0=Sunday..6=Saturday). */
+private val SCHEDULE_PRESETS = listOf(
+    Triple("Munkaidő (H–P 9–17)", "workHours", ScheduleLogic.Band(setOf(1, 2, 3, 4, 5), 9 * 60, 17 * 60)),
+    Triple("Esti lekapcsolás (22–06)", "evening", ScheduleLogic.Band(setOf(0, 1, 2, 3, 4, 5, 6), 22 * 60, 6 * 60)),
+    Triple("Hétvége (Szo–V egész nap)", "weekend", ScheduleLogic.Band(setOf(0, 6), 0, 1440)),
+)
+
 @Composable
-private fun SiteCard(site: Site, now: Long, hasSession: Boolean, onPause: () -> Unit, onDelete: () -> Unit) {
+private fun ScheduleDialog(
+    site: Site,
+    onDismiss: () -> Unit,
+    onApplied: () -> Unit,
+    onChallenge: () -> Unit,
+    onError: (String) -> Unit,
+) {
+    var mode by remember { mutableStateOf(site.schedule?.mode ?: ScheduleLogic.Mode.ALWAYS) }
+    val selected = remember {
+        mutableStateListOf<String>().apply {
+            val bands = site.schedule?.bands ?: emptyList()
+            for ((_, key, band) in SCHEDULE_PRESETS) if (bands.contains(band)) add(key)
+        }
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Menetrend: ${site.domain}") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    "Szigorítani (több tiltott idő) azonnal megy. Lazítani ugyanúgy próbatételekbe kerül, mint egy feloldás.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                val modes = listOf(
+                    ScheduleLogic.Mode.ALWAYS to "Mindig tiltva",
+                    ScheduleLogic.Mode.SCHEDULED_BLOCK to "Csak a kijelölt sávokban tiltva",
+                    ScheduleLogic.Mode.SCHEDULED_ALLOW to "A kijelölt sávokban szabad, egyébként tiltva",
+                )
+                for ((m, label) in modes) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        RadioButton(selected = mode == m, onClick = { mode = m })
+                        Text(label, style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+                if (mode != ScheduleLogic.Mode.ALWAYS) {
+                    Text("Sávok:", style = MaterialTheme.typography.bodySmall)
+                    for ((label, key, _) in SCHEDULE_PRESETS) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Checkbox(
+                                checked = selected.contains(key),
+                                onCheckedChange = { on -> if (on) selected.add(key) else selected.remove(key) },
+                            )
+                            Text(label, style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                val bands = if (mode == ScheduleLogic.Mode.ALWAYS) emptyList()
+                    else SCHEDULE_PRESETS.filter { selected.contains(it.second) }.map { it.third }
+                if (mode != ScheduleLogic.Mode.ALWAYS && bands.isEmpty()) {
+                    onError("Válassz legalább egy sávot, vagy a „Mindig tiltva" módot."); return@TextButton
+                }
+                try {
+                    val r = Referee.startScheduleChange(
+                        site.id, ScheduleLogic.Schedule(mode, bands), System.currentTimeMillis())
+                    if (r.applied) onApplied() else onChallenge()
+                } catch (e: Referee.RefereeException) {
+                    onError(e.message ?: "Ismeretlen hiba")
+                }
+            }) { Text("Alkalmaz") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Mégse") } },
+    )
+}
+
+@Composable
+private fun SiteCard(
+    site: Site, now: Long, hasSession: Boolean,
+    onPause: () -> Unit, onDelete: () -> Unit, onSchedule: () -> Unit,
+) {
     Card {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(site.domain, fontWeight = FontWeight.Bold)
             Text("${site.hostnames.size} hosztnév", style = MaterialTheme.typography.bodySmall)
             val paused = site.pauseUntil != null && site.pauseUntil > now
             val deleting = site.pendingDeleteAt != null
+            val scheduled = site.schedule != null && site.schedule.mode != ScheduleLogic.Mode.ALWAYS
             when {
                 paused -> {
                     Text(
@@ -428,10 +523,19 @@ private fun SiteCard(site: Site, now: Long, hasSession: Boolean, onPause: () -> 
                     }) { Text("Törlés visszavonása") }
                 }
                 else -> {
-                    Text("Blokkolva", color = MaterialTheme.colorScheme.secondary)
+                    val blockedNow = ScheduleLogic.isBlockedNow(site.pauseUntil, site.pendingDeleteAt, site.schedule, now)
+                    if (scheduled) {
+                        Text(
+                            if (blockedNow) "Most blokkolva (menetrend)" else "Most szabad (menetrend szerint)",
+                            color = if (blockedNow) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.tertiary,
+                        )
+                    } else {
+                        Text("Blokkolva", color = MaterialTheme.colorScheme.secondary)
+                    }
                     if (!hasSession) {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             OutlinedButton(onClick = onPause) { Text("Feloldás időre…") }
+                            OutlinedButton(onClick = onSchedule) { Text("Menetrend…") }
                             OutlinedButton(onClick = onDelete) { Text("Törlés…") }
                         }
                     }

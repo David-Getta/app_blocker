@@ -17,6 +17,7 @@ struct ContentView: View {
     @State private var addError: String?
     @State private var pauseSite: Site?
     @State private var deleteSite: Site?
+    @State private var scheduleSite: Site?
     @State private var flowError: String?
     @State private var successMsg: String?
     @State private var now = nowMs()
@@ -38,6 +39,16 @@ struct ContentView: View {
             }
             .navigationTitle("🔒 Lakat")
             .sheet(item: $pauseSite) { site in pauseSheet(site) }
+            .sheet(item: $scheduleSite) { site in
+                ScheduleEditor(site: site) { result in
+                    scheduleSite = nil
+                    switch result {
+                    case .applied: break
+                    case .challenge(let id): openSessionId = id
+                    case .error(let msg): flowError = msg
+                    }
+                }
+            }
             .sheet(item: sessionBinding) { ses in ChallengeView(session: ses) { msg in
                 successMsg = msg
             } }
@@ -148,10 +159,20 @@ struct ContentView: View {
                 Text("Törlés \(fmtRemain((site.pendingDeleteAt ?? 0) - now)) múlva").foregroundStyle(.red)
                 Button("Törlés visszavonása") { cancelDelete(site) }.buttonStyle(.bordered)
             } else {
-                Text("Blokkolva").foregroundStyle(.green)
+                let scheduled = site.schedule != nil && site.schedule?.mode != .always
+                let blockedNow = ScheduleLogic.isBlockedNow(pauseUntil: site.pauseUntil,
+                                                            pendingDeleteAt: site.pendingDeleteAt,
+                                                            schedule: site.schedule, now: now)
+                if scheduled {
+                    Text(blockedNow ? "Most blokkolva (menetrend)" : "Most szabad (menetrend szerint)")
+                        .foregroundStyle(blockedNow ? .green : .orange)
+                } else {
+                    Text("Blokkolva").foregroundStyle(.green)
+                }
                 if store.state.session == nil {
                     HStack {
                         Button("Feloldás időre…") { pauseSite = site }.buttonStyle(.bordered)
+                        Button("Menetrend…") { scheduleSite = site }.buttonStyle(.bordered)
                         Button("Törlés…") { deleteSite = site }.buttonStyle(.bordered)
                     }
                 }

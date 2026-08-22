@@ -20,6 +20,8 @@ struct SessionRec: Codable, Equatable, Identifiable {
     var steps: [ChallengeEngine.Step]
     var stepIndex: Int
     let createdAt: Double
+    /// when set, finishing applies this schedule instead of pausing (gated loosening)
+    var pendingSchedule: ScheduleLogic.Schedule?
 }
 
 struct AppState: Codable, Equatable {

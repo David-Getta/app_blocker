@@ -87,12 +87,21 @@ egyhetes szimulációval ellenőrizzük (`isLoosening(old, new, now)`), ami olcs
 determinisztikus. Ha lazítás → `referee.startSession('pause', …)` a szokásos
 próbákkal, és a váltás csak a sorozat teljesítése után íródik be.
 
-## UI (később)
+## UI (kész)
 
-- Oldalsoron egy „Menetrend" gomb → egyszerű heti rács (napok × órák), plusz a
-  három mód választó.
-- A gyakori sablonok: „Munkaidő (H–P 9–17)", „Esti lekapcsolás (22–06)",
-  „Hétvége".
+Mindhárom platformon van „Menetrend…" gomb az oldalsoron, ami egy szerkesztőt
+nyit: mód-választó (mindig tiltva / sávokban tiltva / sávokban szabad) + sáv-
+sablonok („Munkaidő H–P 9–17", „Esti lekapcsolás 22–06", „Hétvége"). Lazításnál
+a próbatétel-folyamat indul. Az oldalsor a menetrend szerinti aktuális állapotot
+is mutatja („most blokkolva" / „most szabad").
+
+- Desktop: renderer modal (screenshot: `docs/images/desktop-schedule.png`),
+  end-to-end tesztelve.
+- Android: Compose `ScheduleDialog` (AppUi.kt).
+- iOS/macOS: SwiftUI `ScheduleEditor` (App/ScheduleEditor.swift).
+
+Későbbi finomítás: szabadon szerkeszthető heti rács (napok × órák) a sablonok
+mellé.
 
 ## Tesztek
 

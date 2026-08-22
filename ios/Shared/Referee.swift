@@ -50,7 +50,8 @@ enum Referee {
             var steps = plan.steps
             armCurrent(&steps, 0, now)
             let session = SessionRec(id: LakatStore.shared.newId("ses"), kind: kind, siteId: siteId,
-                                     minutes: minutes, steps: steps, stepIndex: 0, createdAt: now)
+                                     minutes: minutes, steps: steps, stepIndex: 0, createdAt: now,
+                                     pendingSchedule: nil)
             state.session = session
             state.lastCombo = plan.comboKey
             created = session
@@ -63,12 +64,51 @@ enum Referee {
         state.sites = state.sites.map { site in
             guard site.id == s.siteId else { return site }
             var copy = site
-            if s.kind == .pause { copy.pauseUntil = now + Double(s.minutes ?? 15) * 60_000 }
+            if let sched = s.pendingSchedule { copy.schedule = sched } // gated loosening
+            else if s.kind == .pause { copy.pauseUntil = now + Double(s.minutes ?? 15) * 60_000 }
             else { copy.pendingDeleteAt = now + Double(ChallengeEngine.deletePendingMs) }
             return copy
         }
         state.unlockLog = state.unlockLog.filter { $0 > now - 30 * 24 * 3_600_000 } + [now]
         state.session = nil
+    }
+
+    struct ScheduleChangeResult { let applied: Bool; let session: SessionRec? }
+
+    /// Change a site's weekly schedule. Tightening applies immediately; loosening
+    /// requires the same challenges as a pause (mirrors desktop startScheduleChange).
+    @discardableResult
+    static func startScheduleChange(siteId: String, schedule: ScheduleLogic.Schedule,
+                                    now: Double) throws -> ScheduleChangeResult {
+        var result: ScheduleChangeResult?
+        var thrown: RefereeError?
+        LakatStore.shared.mutate { state in
+            guard let site = state.sites.first(where: { $0.id == siteId }) else {
+                thrown = RefereeError(message: "Ismeretlen oldal.", code: "NO_SITE"); return
+            }
+            if state.session != nil {
+                thrown = RefereeError(message: "Előbb fejezd be a folyamatban lévő kísérletet.", code: "BUSY"); return
+            }
+            let next = ScheduleLogic.normalize(schedule)
+            let current = ScheduleLogic.normalize(site.schedule ?? ScheduleLogic.always)
+            if !ScheduleLogic.isLoosening(current, next, now) {
+                state.sites = state.sites.map { $0.id == siteId ? { var c = $0; c.schedule = next; return c }() : $0 }
+                result = ScheduleChangeResult(applied: true, session: nil)
+                return
+            }
+            let tier = effectiveTier(state, kind: .pause, now: now)
+            let plan = ChallengeEngine.generatePlan(kind: .pause, tier: tier, lastCombo: state.lastCombo)
+            var steps = plan.steps
+            armCurrent(&steps, 0, now)
+            let session = SessionRec(id: LakatStore.shared.newId("ses"), kind: .pause, siteId: siteId,
+                                     minutes: nil, steps: steps, stepIndex: 0, createdAt: now,
+                                     pendingSchedule: next)
+            state.session = session
+            state.lastCombo = plan.comboKey
+            result = ScheduleChangeResult(applied: false, session: session)
+        }
+        if let e = thrown { throw e }
+        return result!
     }
 
     static func submitAnswer(sessionId: String, answer: String, now: Double) throws -> SubmitResult {
