@@ -16,7 +16,7 @@ body {
   min-height: 100vh;
 }
 .hero { text-align: center; padding: 64px 20px 32px; }
-.mark { font-size: 64px; }
+.mark { width: 96px; height: 96px; border-radius: 22px; box-shadow: 0 8px 32px rgba(47,111,224,.4); }
 .hero h1 { font-size: 3rem; letter-spacing: -0.02em; margin-top: 8px; }
 .tag { color: var(--dim); max-width: 620px; margin: 14px auto 0; font-size: 1.08rem; }
 

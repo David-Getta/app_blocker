@@ -1,3 +1,5 @@
+<p align="center"><img src="website/icon-512.png" alt="Lakat" width="96" /></p>
+
 # 🔒 Lakat
 
 Weboldal-blokkoló **önkontroll-app** négy platformra: **Android, Windows, macOS
@@ -24,6 +26,14 @@ attól, hogy sokszor csinálod.
 - **Súrlódásos, változatos feloldás** (lásd lentebb).
 - **Végleges törlés 24 órás türelmi idővel** — a legnehezebb út, ami impulzusból
   nem végezhető el.
+
+## Képernyőképek
+
+| Főképernyő (asztali) | Feloldási próbatétel |
+|---|---|
+| ![Főképernyő](docs/images/desktop-home.png) | ![Próbatétel](docs/images/desktop-challenge.png) |
+
+![Letöltőoldal](docs/images/website.png)
 
 ## Letöltés és frissítés — mint egy áruházból
 

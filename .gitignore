@@ -9,6 +9,7 @@ release/
 # Android
 .gradle/
 build/
+!desktop/build/
 local.properties
 captures/
 *.apk
