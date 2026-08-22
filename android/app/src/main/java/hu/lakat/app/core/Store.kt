@@ -29,6 +29,8 @@ data class SessionRec(
     val steps: List<Step>,
     val stepIndex: Int,
     val createdAt: Long,
+    /** when set, finishing applies this schedule instead of pausing (gated loosening) */
+    val pendingSchedule: ScheduleLogic.Schedule? = null,
 )
 
 data class AppState(
@@ -126,6 +128,7 @@ object LakatStore {
                 put("minutes", ses.minutes ?: JSONObject.NULL)
                 put("stepIndex", ses.stepIndex); put("createdAt", ses.createdAt)
                 put("steps", JSONArray(ses.steps.map { stepToJson(it) }))
+                put("pendingSchedule", ses.pendingSchedule?.let { scheduleToJson(it) } ?: JSONObject.NULL)
             }
         } ?: JSONObject.NULL)
     }
@@ -213,6 +216,8 @@ object LakatStore {
                 },
                 stepIndex = ses.getInt("stepIndex"),
                 createdAt = ses.getLong("createdAt"),
+                pendingSchedule = if (ses.isNull("pendingSchedule")) null
+                    else scheduleFromJson(ses.getJSONObject("pendingSchedule")),
             )
         }
         return AppState(

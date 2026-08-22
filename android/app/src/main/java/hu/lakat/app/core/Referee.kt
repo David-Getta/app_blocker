@@ -66,11 +66,47 @@ object Referee {
     private fun finish(state: AppState, s: SessionRec, now: Long): AppState {
         val sites = state.sites.map { site ->
             if (site.id != s.siteId) site
+            else if (s.pendingSchedule != null) site.copy(schedule = s.pendingSchedule) // gated loosening
             else if (s.kind == Kind.PAUSE) site.copy(pauseUntil = now + (s.minutes ?: 15) * 60_000L)
             else site.copy(pendingDeleteAt = now + ChallengeEngine.DELETE_PENDING_MS)
         }
         val log = state.unlockLog.filter { it > now - 30 * 24 * 3600_000L } + now
         return state.copy(sites = sites, unlockLog = log, session = null)
+    }
+
+    data class ScheduleChangeResult(val applied: Boolean, val session: SessionRec?)
+
+    /**
+     * Change a site's weekly schedule. Tightening applies immediately; loosening
+     * requires the same challenges as a pause (mirrors desktop startScheduleChange).
+     */
+    fun startScheduleChange(siteId: String, schedule: ScheduleLogic.Schedule, now: Long): ScheduleChangeResult {
+        var result: ScheduleChangeResult? = null
+        LakatStore.mutate { state ->
+            val site = state.sites.find { it.id == siteId }
+                ?: throw RefereeException("Ismeretlen oldal.", "NO_SITE")
+            if (state.session != null) {
+                throw RefereeException("Előbb fejezd be a folyamatban lévő kísérletet.", "BUSY")
+            }
+            val next = ScheduleLogic.normalize(schedule)
+            val current = ScheduleLogic.normalize(site.schedule ?: ScheduleLogic.ALWAYS)
+            if (!ScheduleLogic.isLoosening(current, next, now)) {
+                result = ScheduleChangeResult(applied = true, session = null)
+                return@mutate state.copy(sites = state.sites.map {
+                    if (it.id == siteId) it.copy(schedule = next) else it
+                })
+            }
+            val tier = effectiveTier(state, Kind.PAUSE, now)
+            val plan = ChallengeEngine.generatePlan(Kind.PAUSE, tier, state.lastCombo)
+            val session = SessionRec(
+                id = LakatStore.newId("ses"), kind = Kind.PAUSE, siteId = siteId, minutes = null,
+                steps = armCurrent(plan.steps, 0, now), stepIndex = 0, createdAt = now,
+                pendingSchedule = next,
+            )
+            result = ScheduleChangeResult(applied = false, session = session)
+            state.copy(session = session, lastCombo = plan.comboKey)
+        }
+        return result!!
     }
 
     private fun requireSession(state: AppState, sessionId: String, now: Long): SessionRec {
