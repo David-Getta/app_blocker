@@ -54,8 +54,11 @@ import hu.lakat.app.core.LakatStore
 import hu.lakat.app.core.Referee
 import hu.lakat.app.core.SessionRec
 import hu.lakat.app.core.Site
+import hu.lakat.app.update.UpdateChecker
 import hu.lakat.app.vpn.LakatVpnService
+import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 private fun fmtRemain(ms: Long): String {
     val total = (ms.coerceAtLeast(0) + 999) / 1000
@@ -117,6 +120,11 @@ fun LakatApp() {
 private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Unit) {
     val context = LocalContext.current
     val state by LakatStore.state.collectAsState()
+    val scope = rememberCoroutineScope()
+    var update by remember { mutableStateOf<UpdateChecker.Update?>(null) }
+    var updateBusy by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) { update = UpdateChecker.check() }
 
     val vpnConsent = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult(),
@@ -188,6 +196,30 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                     else MaterialTheme.colorScheme.error,
                     fontWeight = FontWeight.SemiBold,
                 )
+            }
+
+            // Update banner (direct-download track)
+            update?.let { upd ->
+                Card {
+                    Row(
+                        Modifier.fillMaxWidth().padding(12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text("Új verzió elérhető: ${upd.version}", modifier = Modifier.weight(1f),
+                            style = MaterialTheme.typography.bodyMedium)
+                        Button(
+                            enabled = !updateBusy,
+                            onClick = {
+                                updateBusy = true
+                                scope.launch {
+                                    runCatching { UpdateChecker.downloadAndInstall(context, upd) }
+                                    updateBusy = false
+                                }
+                            },
+                        ) { Text(if (updateBusy) "Letöltés…" else "Frissítés") }
+                    }
+                }
             }
 
             // Protection card

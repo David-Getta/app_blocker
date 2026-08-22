@@ -12,14 +12,35 @@ android {
         applicationId = "hu.lakat.app"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "0.1.0"
+        // A CI a git tagből állítja be (LAKAT_VERSION_*). Helyi buildhez marad a default.
+        versionCode = (System.getenv("LAKAT_VERSION_CODE") ?: "1").toInt()
+        versionName = System.getenv("LAKAT_VERSION_NAME") ?: "0.1.0"
+    }
+
+    // Kiadási aláírás env-ből (CI secret). Ha nincs, a debug kulcsra esik vissza,
+    // hogy a közvetlen terjesztésű APK mindig telepíthető és konzisztens legyen.
+    // Éles Play Store-hoz állítsd be a saját feltöltési kulcsod (docs/releasing.md).
+    signingConfigs {
+        create("release") {
+            val ksPath = System.getenv("LAKAT_KEYSTORE")
+            if (ksPath != null && file(ksPath).exists()) {
+                storeFile = file(ksPath)
+                storePassword = System.getenv("LAKAT_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("LAKAT_KEY_ALIAS")
+                keyPassword = System.getenv("LAKAT_KEY_PASSWORD")
+            }
+        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            signingConfig = if (System.getenv("LAKAT_KEYSTORE") != null) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
         }
     }
 
@@ -33,6 +54,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 

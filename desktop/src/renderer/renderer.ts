@@ -6,10 +6,20 @@ import type {
   SessionInfo, SiteInfo, StatusData, StepDisplay, SubmitResult,
 } from '../shared/protocol';
 
+interface UpdateState {
+  status: 'idle' | 'checking' | 'available' | 'downloading' | 'ready' | 'error' | 'unsupported';
+  version?: string;
+  percent?: number;
+  error?: string;
+}
 interface Bridge {
   call(op: string, payload?: Record<string, unknown>): Promise<
     { ok: true; data: unknown } | { ok: false; error: string; code?: string }>;
   install(): Promise<{ ok: true } | { ok: false; error: string }>;
+  checkUpdate(): Promise<{ ok: boolean; error?: string }>;
+  installUpdate(): Promise<{ ok: boolean; opened?: boolean }>;
+  getUpdateState(): Promise<UpdateState>;
+  onUpdateState(cb: (s: UpdateState) => void): void;
   platform: string;
 }
 declare global { interface Window { lakat: Bridge } }
@@ -560,9 +570,46 @@ function setupInstall(): void {
   });
 }
 
+// ------------------------------------------------------------ auto-update
+
+function renderUpdate(s: UpdateState): void {
+  const bar = $('updateBar');
+  const text = $('updateText');
+  const btn = $<HTMLButtonElement>('updateBtn');
+  btn.classList.add('hidden');
+  switch (s.status) {
+    case 'downloading':
+      bar.classList.remove('hidden');
+      text.textContent = `Frissítés letöltése${s.version ? ` (${s.version})` : ''}… ${s.percent ?? 0}%`;
+      break;
+    case 'ready':
+      bar.classList.remove('hidden');
+      text.textContent = `Frissítés kész${s.version ? ` (${s.version})` : ''} — újraindításkor települ.`;
+      btn.classList.remove('hidden');
+      break;
+    case 'error':
+      // Unsigned macOS builds cannot self-install; offer the manual download.
+      bar.classList.remove('hidden');
+      text.textContent = 'Új verzió érhető el a letöltőoldalon.';
+      btn.textContent = 'Letöltés megnyitása';
+      btn.classList.remove('hidden');
+      break;
+    default:
+      bar.classList.add('hidden');
+  }
+}
+
+function setupUpdater(): void {
+  const btn = $<HTMLButtonElement>('updateBtn');
+  btn.addEventListener('click', () => void window.lakat.installUpdate());
+  window.lakat.onUpdateState(renderUpdate);
+  void window.lakat.getUpdateState().then(renderUpdate).catch(() => { /* dev build */ });
+}
+
 setupAddCard();
 setupModal();
 setupInstall();
+setupUpdater();
 if ('Notification' in window && Notification.permission === 'default') {
   void Notification.requestPermission();
 }

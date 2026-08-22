@@ -25,6 +25,23 @@ attól, hogy sokszor csinálod.
 - **Végleges törlés 24 órás türelmi idővel** — a legnehezebb út, ami impulzusból
   nem végezhető el.
 
+## Letöltés és frissítés — mint egy áruházból
+
+A telepítés egy kattintás, és az appok **maguktól frissülnek**:
+
+- **Letöltőoldal:** `https://david-getta.github.io/app_blocker/` — felismeri a
+  platformodat, és a legfrissebb telepítőt kínálja. (A GitHub Pages
+  bekapcsolása után él; lásd [`docs/releasing.md`](docs/releasing.md).)
+- **Asztali (Windows/macOS):** az app a háttérben ellenőrzi és letölti az új
+  verziót, majd egy gombbal újraindulva telepíti — mint az áruházi frissítés.
+- **Android:** a Play Áruházon kívül telepítve is figyeli az új kiadást, és egy
+  gombbal frissít; Play Store-ból az áruház frissíti.
+- **iPhone:** App Store / TestFlight (az Apple szabályai miatt ez az út).
+
+Új verzió kiadása a fejlesztőnek **egyetlen parancs** (`git tag v0.2.0 && git
+push origin v0.2.0`) — a GitHub Actions megépíti mindhárom platformra és közzé
+teszi. Részletek: [`docs/releasing.md`](docs/releasing.md).
+
 ## A feloldás filozófiája
 
 A blokkolás bekapcsolása **egy kattintás**. Kikapcsolni **nem az** — ez a lényeg.
@@ -58,7 +75,9 @@ pontos tükre. Részletek: [`docs/architecture.md`](docs/architecture.md).
 desktop/   Electron app + privilegizált helper (Win/Mac)   → docs/desktop.md
 android/   Gradle projekt (Kotlin, Compose)                → docs/android.md
 ios/       XcodeGen projekt (iOS + macOS, közös Swift mag) → docs/ios-macos.md
-docs/      architektúra + próbatétel-spec
+website/   letöltő landing oldal (GitHub Pages)
+.github/   CI/CD: teszt, build és kiadás minden platformra → docs/releasing.md
+docs/      architektúra + próbatétel-spec + kiadási útmutató
 ```
 
 ## Gyors indítás

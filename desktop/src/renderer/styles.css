@@ -26,6 +26,17 @@ body {
 
 .hidden { display: none !important; }
 
+.update-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 8px 16px;
+  background: rgba(79,142,247,.16);
+  border-bottom: 1px solid rgba(79,142,247,.4);
+  font-size: 0.86rem;
+}
+
 .topbar {
   display: flex;
   align-items: center;

@@ -8,6 +8,7 @@ import { app, BrowserWindow, ipcMain } from 'electron';
 import * as path from 'path';
 import { HelperClient } from './helper-client';
 import { installHelper } from './install';
+import { initUpdater } from './updater';
 
 const HELPER_MODE = process.argv.includes('--helper');
 
@@ -73,6 +74,7 @@ if (HELPER_MODE) {
       });
 
       createWindow();
+      initUpdater();
       app.on('activate', () => {
         if (BrowserWindow.getAllWindows().length === 0) createWindow();
       });

@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="hu">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Lakat — töltsd le</title>
+  <meta name="description" content="Lakat: weboldal-blokkoló önkontroll-app Androidra, Windowsra, macOS-re és iPhone-ra." />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <header class="hero">
+    <div class="mark">🔒</div>
+    <h1>Lakat</h1>
+    <p class="tag">Weboldal-blokkoló önkontroll-app. Egy kattintás bekapcsolni,
+      igazi erőfeszítés kikapcsolni — Androidon, Windowson, macOS-en és iPhone-on.</p>
+  </header>
+
+  <main>
+    <!-- Elsődleges, platformra szabott letöltés -->
+    <section class="primary" id="primary">
+      <div class="detecting">Verzió keresése…</div>
+    </section>
+
+    <!-- Minden platform -->
+    <section class="all">
+      <h2>Minden platform</h2>
+      <div class="grid" id="grid"></div>
+    </section>
+
+    <section class="how">
+      <h2>Frissítés? Magától megy.</h2>
+      <p>A telepített app a háttérben ellenőrzi az új verziót és felajánlja a
+        frissítést — épp úgy, mint egy áruházból telepített alkalmazás. Nem kell
+        újra letöltögetni semmit.</p>
+    </section>
+
+    <section class="note">
+      <h2>Jó, ha tudod</h2>
+      <ul>
+        <li><strong>Windows / macOS:</strong> a telepítő egyszer kér rendszergazdai
+          jóváhagyást a védelemhez. macOS-en <em>nem</em> kér újra minden indításnál.</li>
+        <li><strong>Android:</strong> ha a Play Áruházon kívülről telepíted, a
+          rendszer egyszer rákérdez az „ismeretlen forrás” engedélyre.</li>
+        <li><strong>iPhone:</strong> az Apple szabályai miatt az iOS-t az App Store-ból
+          (vagy TestFlight tesztelőként) lehet telepíteni.</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer>
+    <a id="allReleases" href="#" target="_blank" rel="noopener">Összes verzió és kiadási jegyzet →</a>
+    <p class="fine">Önkontroll-eszköz, nem felügyeleti szoftver. A részletek a projekt dokumentációjában.</p>
+  </footer>
+
+  <script src="./download.js"></script>
+</body>
+</html>
