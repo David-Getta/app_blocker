@@ -113,6 +113,19 @@ jobs:
             cp "$AAB" "Lakat-${GITHUB_REF_NAME}.aab"
             gh release upload "${GITHUB_REF_NAME}" "Lakat-${GITHUB_REF_NAME}.aab" --repo "$GITHUB_REPOSITORY" --clobber
           fi
+      # Opcionális: automatikus Play Store feltöltés az internal track-re. Csak
+      # akkor fut, ha be van állítva a PLAY_SERVICE_ACCOUNT_JSON secret.
+      - name: Play Store feltöltés (ha van service account)
+        if: ${{ env.PLAY_JSON != '' }}
+        env:
+          PLAY_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: hu.lakat.app
+          releaseFiles: android/app/build/outputs/bundle/release/*.aab
+          track: internal
+          status: completed
 
   ios:
     name: iOS/macOS archívum (best-effort)
@@ -133,6 +146,41 @@ jobs:
             -destination 'generic/platform=iOS Simulator' \
             -configuration Release build \
             CODE_SIGNING_ALLOWED=NO | tail -30
+      # Opcionális: TestFlight feltöltés. Csak akkor fut, ha be van állítva az
+      # App Store Connect API-kulcs (ASC_KEY_ID / ASC_ISSUER_ID / ASC_KEY_P8).
+      # Ehhez érvényes provisioning + DEVELOPMENT_TEAM is kell (lásd docs).
+      - name: Archív + TestFlight (ha van ASC kulcs)
+        if: ${{ env.ASC_KEY_ID != '' }}
+        working-directory: ios
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+        run: |
+          mkdir -p ~/.appstoreconnect/private_keys
+          echo "$ASC_KEY_P8" > "$HOME/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8"
+          xcodebuild -project Lakat.xcodeproj -scheme LakatApp-iOS \
+            -configuration Release -archivePath "$RUNNER_TEMP/Lakat.xcarchive" \
+            -allowProvisioningUpdates \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            -authenticationKeyPath "$HOME/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8" \
+            archive
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store</string>
+            <key>destination</key><string>upload</string>
+          </dict></plist>
+          PLIST
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/Lakat.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
+            -exportPath "$RUNNER_TEMP/export" \
+            -allowProvisioningUpdates \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            -authenticationKeyPath "$HOME/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8"
 
   publish:
     name: Release élesítése

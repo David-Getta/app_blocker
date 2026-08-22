@@ -105,8 +105,13 @@ Cím: `https://david-getta.github.io/app_blocker/`
 3. Első feltöltéskor engedélyezd a **Play App Signing**-ot.
 4. Add meg az adatvédelmi tájékoztatót és a VPN-használat indoklását (DNS-szűrés
    a felhasználó saját eszközén — a forgalom nem hagyja el a készüléket).
-5. Automatizálható: a `bundleRelease` után `r0adkll/upload-google-play` action a
-   service-account JSON-nal (később hozzáadható).
+
+**Automatikus feltöltés** (opcionális): a release workflow már tartalmaz egy
+Play-feltöltő lépést, ami csak akkor fut, ha beállítod a
+`PLAY_SERVICE_ACCOUNT_JSON` secretet (Google Cloud service account JSON, a Play
+Console-ban „Users and permissions" → API access alatt jogosultsággal). Ekkor a
+`git tag` az `internal` track-re is feltölti az AAB-t. Az első feltöltést
+egyszer kézzel kell megtenni (a Play megköveteli).
 
 ### App Store (iOS + macOS)
 1. Apple Developer Program ($99/év).
@@ -117,6 +122,18 @@ Cím: `https://david-getta.github.io/app_blocker/`
    DNS-szűrő, nem gyűjt adatot, a forgalom nem hagyja el az eszközt.
 5. **TestFlight**: a leggyorsabb út, hogy „áruházszerűen” telepíthető legyen
    tesztelőknek, teljes App Store review nélkül.
+
+**Automatikus TestFlight feltöltés** (opcionális): a release workflow iOS jobja
+archivál és feltölt, ha beállítod az App Store Connect API-kulcs secreteket:
+`ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8` (a `.p8` kulcsfájl tartalma). Ehhez
+a `project.yml`-ben a `DEVELOPMENT_TEAM`-et is ki kell tölteni, és az App Store
+Connectben létre kell hozni az appot a `hu.lakat.app` azonosítóval. Az
+`-allowProvisioningUpdates` automatikusan kezeli a profilokat.
+| Secret | Mi ez |
+|--------|-------|
+| `ASC_KEY_ID` | App Store Connect API kulcs azonosító |
+| `ASC_ISSUER_ID` | az API kulcs issuer ID-ja |
+| `ASC_KEY_P8` | az `AuthKey_XXXX.p8` fájl teljes tartalma |
 
 ### Microsoft Store (Windows, opcionális)
 1. Partner Center fiók (egyszeri díj).
