@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="hu">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'" />
+  <title>Lakat</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">🔒</span>
+      <span class="brand-name">Lakat</span>
+    </div>
+    <div id="statusPill" class="pill pill-warn">Kapcsolódás…</div>
+  </header>
+
+  <main class="content">
+    <!-- Helper install card (shown when the daemon is not reachable) -->
+    <section id="installCard" class="card install-card hidden">
+      <h2>A védelem még nincs telepítve</h2>
+      <p>
+        A blokkolást egy rendszerszintű segédszolgáltatás végzi, ami a gép indulásakor
+        magától elindul. A telepítéshez <strong>egyetlen egyszeri</strong> rendszergazdai
+        jóváhagyás kell — utána soha többé nem kér engedélyt, újraindítás után sem.
+      </p>
+      <button id="installBtn" class="btn btn-primary">Védelem telepítése (egyszeri engedély)</button>
+      <p id="installError" class="error hidden"></p>
+    </section>
+
+    <!-- Add site -->
+    <section id="addCard" class="card hidden">
+      <h2>Oldal blokkolása</h2>
+      <form id="addForm" class="add-row">
+        <input id="addInput" type="text" placeholder="pl. www.youtube.com" autocomplete="off" spellcheck="false" />
+        <button type="submit" class="btn btn-primary">Blokkolás</button>
+      </form>
+      <label class="preset-toggle">
+        <input id="presetToggle" type="checkbox" checked />
+        Ismert szolgáltatásnál a társoldalak blokkolása is (pl. youtu.be, m.youtube.com)
+      </label>
+      <div class="chips" id="presetChips"></div>
+      <p id="addError" class="error hidden"></p>
+      <p class="hint">Oldalt felvenni mindig egy kattintás. Levenni — az szándékosan nem az.</p>
+    </section>
+
+    <!-- Ongoing session resume banner -->
+    <div id="resumeBanner" class="banner hidden">
+      <span id="resumeText">Folyamatban lévő feloldási kísérlet.</span>
+      <button id="resumeBtn" class="btn btn-small">Folytatás</button>
+    </div>
+
+    <!-- Site list -->
+    <section id="listCard" class="card hidden">
+      <h2>Blokkolt oldalak</h2>
+      <div id="siteList" class="site-list"></div>
+      <p id="emptyList" class="hint hidden">Még nincs blokkolt oldal. Add meg fent az elsőt.</p>
+    </section>
+
+    <p id="tierLine" class="tier-line hidden"></p>
+  </main>
+
+  <!-- Pause length chooser -->
+  <div id="pauseDialog" class="overlay hidden">
+    <div class="modal modal-small">
+      <h3>Mennyi időre oldanád fel?</h3>
+      <p class="hint">A feloldás előtt próbatételeket kell teljesíteni. A megadott idő után
+        a blokkolás magától visszakapcsol.</p>
+      <div class="pause-choices">
+        <button class="btn" data-minutes="15">15 perc</button>
+        <button class="btn" data-minutes="30">30 perc</button>
+        <button class="btn" data-minutes="60">60 perc</button>
+      </div>
+      <button id="pauseCancel" class="btn btn-ghost">Mégse</button>
+    </div>
+  </div>
+
+  <!-- Challenge session modal -->
+  <div id="sessionModal" class="overlay hidden">
+    <div class="modal">
+      <div class="modal-head">
+        <h3 id="sessionTitle">Feloldás</h3>
+        <span id="sessionProgress" class="pill pill-info"></span>
+      </div>
+      <p id="sessionSubtitle" class="hint"></p>
+      <div id="stepArea"></div>
+      <p id="stepMessage" class="error hidden"></p>
+      <div class="modal-actions">
+        <button id="abandonBtn" class="btn btn-ghost">Feladom — maradjon blokkolva</button>
+        <button id="closeModalBtn" class="btn btn-ghost">Ablak bezárása (a kísérlet megmarad)</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="./renderer.js"></script>
+</body>
+</html>

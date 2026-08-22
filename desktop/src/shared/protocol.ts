@@ -1,0 +1,78 @@
+// Wire protocol between the GUI app and the privileged helper.
+// Newline-delimited JSON over a unix domain socket (macOS) / named pipe (Windows).
+
+export type ChallengeType = 'TRANSCRIBE' | 'MATH_CHAIN' | 'MEMORY' | 'REVERSE' | 'DELAY';
+
+/** What the UI is allowed to see about the current step. Never contains expected answers. */
+export interface StepDisplay {
+  id: string;
+  type: ChallengeType;
+  /** TRANSCRIBE / REVERSE: the text to work from. */
+  text?: string;
+  /** MATH_CHAIN: current problem and position. */
+  math?: { question: string; index: number; total: number };
+  /** MEMORY: the code to memorize plus timing. The UI must hide it after showMs. */
+  memory?: { code: string; showMs: number; waitMs: number };
+  /** DELAY: when the claim window opens/closes (epoch ms). */
+  delay?: { minutes: number; claimableAt: number | null; claimWindowMs: number };
+}
+
+export interface SessionInfo {
+  id: string;
+  kind: 'pause' | 'delete';
+  siteId: string;
+  /** pause length that was requested (minutes), pause sessions only */
+  minutes?: number;
+  stepIndex: number;
+  stepCount: number;
+  current: StepDisplay;
+}
+
+export interface SiteInfo {
+  id: string;
+  domain: string;
+  hostnames: string[];
+  addedAt: number;
+  /** epoch ms until which blocking is paused, or null when actively blocked */
+  pauseUntil: number | null;
+  /** epoch ms when the site will actually be deleted, or null */
+  pendingDeleteAt: number | null;
+}
+
+export interface StatusData {
+  helperVersion: string;
+  platform: string;
+  sites: SiteInfo[];
+  /** difficulty tier 0..3 derived from recent unlocks */
+  tier: number;
+  unlocks7d: number;
+  session: SessionInfo | null;
+  dohPolicyApplied: boolean;
+  now: number;
+}
+
+export type HelperRequest =
+  | { id: number; op: 'status' }
+  | { id: number; op: 'add_site'; input: string; usePreset: boolean }
+  | { id: number; op: 'start_unlock'; siteId: string; minutes: number }
+  | { id: number; op: 'start_delete'; siteId: string }
+  | { id: number; op: 'submit'; sessionId: string; answer: string }
+  | { id: number; op: 'claim'; sessionId: string }
+  | { id: number; op: 'abandon'; sessionId: string }
+  | { id: number; op: 'cancel_delete'; siteId: string }
+  | { id: number; op: 'relock'; siteId: string };
+
+export interface SubmitResult {
+  accepted: boolean;
+  /** true when the whole session finished and the effect was applied */
+  sessionDone: boolean;
+  message?: string;
+  session: SessionInfo | null;
+}
+
+export type HelperResponse =
+  | { id: number; ok: true; data: unknown }
+  | { id: number; ok: false; error: string; code?: string };
+
+export const HELPER_VERSION = '0.1.0';
+export const PAUSE_CHOICES_MIN = [15, 30, 60];

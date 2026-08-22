@@ -1,0 +1,28 @@
+# Node / Electron
+node_modules/
+dist/
+dist-test/
+out/
+release/
+*.tsbuildinfo
+
+# Android
+.gradle/
+build/
+local.properties
+captures/
+*.apk
+*.aab
+
+# iOS / macOS
+DerivedData/
+xcuserdata/
+*.xcodeproj/
+!ios/README.md
+*.ipa
+Pods/
+
+# Egyéb
+.DS_Store
+Thumbs.db
+*.log
