@@ -28,6 +28,9 @@ object ChallengeEngine {
             val code: String,
             val showMs: Long,
             val waitMs: Long,
+            /** a bíró állítja be, amikor a lépés aktuálissá válik; az időzítés
+             *  ebből a szerveroldali bélyegből érvényesül */
+            val armedAt: Long?,
         ) : Step()
 
         data class Reverse(override val id: String, val text: String) : Step()
@@ -144,7 +147,7 @@ object ChallengeEngine {
         return when (type) {
             "TRANSCRIBE" -> Step.Transcribe(stepId(), makeTranscription(TRANSCRIBE_CHARS[t]))
             "MATH_CHAIN" -> Step.MathChain(stepId(), (1..MATH_LEN[t]).map { makeMathProblem(MATH_FACTOR_MAX[t]) }, 0)
-            "MEMORY" -> Step.Memory(stepId(), makeCode(MEMORY_LEN[t]), MEMORY_SHOW_MS[t], MEMORY_WAIT_MS[t])
+            "MEMORY" -> Step.Memory(stepId(), makeCode(MEMORY_LEN[t]), MEMORY_SHOW_MS[t], MEMORY_WAIT_MS[t], null)
             "REVERSE" -> Step.Reverse(stepId(), makeSentence(REVERSE_WORDS[t]))
             "DELAY" -> {
                 val (lo, hi) = (if (kind == Kind.DELETE) DELETE_DELAY_MIN else PAUSE_DELAY_MIN)[t]
@@ -172,7 +175,7 @@ object ChallengeEngine {
 
     fun reverse(s: String): String = s.reversed()
 
-    fun applyAnswer(step: Step, answer: String, tier: Int, kind: Kind): Outcome = when (step) {
+    fun applyAnswer(step: Step, answer: String, tier: Int, kind: Kind, now: Long): Outcome = when (step) {
         is Step.Transcribe ->
             if (answer == step.text) Outcome(ok = true, done = true, step = step)
             else Outcome(false, false, step,
@@ -193,8 +196,16 @@ object ChallengeEngine {
         }
 
         is Step.Memory ->
-            if (answer.trim().uppercase() == step.code) Outcome(true, true, step)
-            else Outcome(false, false, makeStep("MEMORY", tier, kind), "Nem ez volt a kód. Új kódot kapsz.")
+            // Az időzítés szerveroldali: a memorizálás + várakozás letelte előtt
+            // semmilyen válasz nem fogadható el (és nem is számít hibának).
+            if (step.armedAt == null || now < step.armedAt + step.showMs + step.waitMs) {
+                Outcome(false, false, step,
+                    "Még tart a memorizálás vagy a várakozás — a kivárást nem lehet megúszni.")
+            } else if (answer.trim().uppercase() == step.code) {
+                Outcome(true, true, step)
+            } else {
+                Outcome(false, false, makeStep("MEMORY", tier, kind), "Nem ez volt a kód. Új kódot kapsz.")
+            }
 
         is Step.Reverse ->
             if (answer == reverse(step.text)) Outcome(true, true, step)

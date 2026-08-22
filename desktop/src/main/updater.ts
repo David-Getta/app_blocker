@@ -63,8 +63,12 @@ export function initUpdater(): void {
   autoUpdater.on('download-progress', (p) => set({ status: 'downloading', percent: Math.round(p.percent) }));
   autoUpdater.on('update-downloaded', (info) => set({ status: 'ready', version: info.version }));
   autoUpdater.on('error', (err) => {
-    // macOS unsigned builds land here; offer the manual path instead.
-    set({ status: 'error', error: err == null ? 'ismeretlen hiba' : String(err.message ?? err) });
+    // Only surface an error state when a newer version was actually detected
+    // (e.g. unsigned macOS cannot apply it) — a plain network hiccup while
+    // checking must not tell the user to go download anything.
+    const message = err == null ? 'ismeretlen hiba' : String(err.message ?? err);
+    if (state.version) set({ status: 'error', error: message });
+    else set({ status: 'idle', error: message });
   });
 
   ipcMain.handle('lakat:check-update', async () => {

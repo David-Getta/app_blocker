@@ -78,13 +78,23 @@ function fmtClock(epochMs: number): string {
 
 // ------------------------------------------------------------ status poll
 
+let failStreak = 0;
+let everConnected = false;
+
 async function refresh(): Promise<void> {
   try {
     status = await call<StatusData>('status');
     helperUp = true;
+    everConnected = true;
+    failStreak = 0;
   } catch {
-    helperUp = false;
-    status = null;
+    // One flaky poll must not tear the UI down (or close a challenge modal
+    // mid-typing) — only flip to "down" after repeated failures.
+    failStreak += 1;
+    if (failStreak >= 2) {
+      helperUp = false;
+      status = null;
+    }
   }
   render();
 }
@@ -94,7 +104,11 @@ async function refresh(): Promise<void> {
 function render(): void {
   const pill = $('statusPill');
   if (!helperUp) {
-    pill.textContent = 'A védelem nincs telepítve';
+    if (failStreak < 2) {
+      pill.textContent = 'Kapcsolódás…';
+    } else {
+      pill.textContent = everConnected ? 'Újracsatlakozás a védelemhez…' : 'A védelem nincs telepítve';
+    }
     pill.className = 'pill pill-warn';
   } else {
     const n = status!.sites.length;
@@ -102,13 +116,15 @@ function render(): void {
     pill.className = 'pill pill-ok';
   }
 
-  $('installCard').classList.toggle('hidden', helperUp);
+  const showInstall = !helperUp && failStreak >= 2 && !everConnected;
+  $('installCard').classList.toggle('hidden', !showInstall);
   $('addCard').classList.toggle('hidden', !helperUp);
   $('listCard').classList.toggle('hidden', !helperUp);
   $('tierLine').classList.toggle('hidden', !helperUp);
 
   if (!helperUp) {
-    closeModal();
+    // Keep an open challenge modal alive: the session (and the user's typed
+    // answer) survives a helper restart, closing it would throw work away.
     return;
   }
 
@@ -426,21 +442,23 @@ function buildMemory(box: HTMLElement, session: SessionInfo, step: StepDisplay):
   const mem = step.memory!;
   box.appendChild(h('div', 'step-title', 'Memória-próba'));
   const phaseHint = h('div', 'hint',
-    `Jegyezd meg a kódot! ${Math.round(mem.showMs / 1000)} mp múlva eltűnik, majd ${Math.round(mem.waitMs / 1000)} mp várakozás után emlékezetből kell beírni.`);
-  const codeEl = h('div', 'big-code', mem.code);
+    `Jegyezd meg a kódot! ${Math.round(mem.showMs / 1000)} mp múlva végleg eltűnik, majd ${Math.round(mem.waitMs / 1000)} mp várakozás után emlékezetből kell beírni.`);
+  const codeEl = h('div', 'big-code', mem.code ?? '• • • • •');
   const countdown = h('div', 'countdown');
   box.append(phaseHint, codeEl, countdown);
 
-  const showDeadline = Date.now() + mem.showMs;
+  // Timing is server-armed (armedAt): reopening the window does NOT restart
+  // the show phase, and the helper refuses answers before the wait elapses.
+  const showDeadline = (mem.armedAt ?? Date.now()) + mem.showMs;
+  const waitDeadline = showDeadline + mem.waitMs;
   let inputBuilt = false;
   const t = setInterval(() => {
     const now = Date.now();
-    if (now < showDeadline) {
+    if (mem.code !== null && now < showDeadline) {
       countdown.textContent = `Eltűnik: ${fmtRemain(showDeadline - now)}`;
       return;
     }
     codeEl.textContent = '• • • • •';
-    const waitDeadline = showDeadline + mem.waitMs;
     if (now < waitDeadline) {
       phaseHint.textContent = 'Most várni kell — közben ne írd le sehova!';
       countdown.textContent = `Beírható: ${fmtRemain(waitDeadline - now)}`;

@@ -10,7 +10,7 @@ struct Site: Codable, Identifiable, Equatable {
     var pendingDeleteAt: Double?
 }
 
-struct SessionRec: Codable, Equatable {
+struct SessionRec: Codable, Equatable, Identifiable {
     let id: String
     let kind: ChallengeEngine.Kind
     let siteId: String
@@ -98,14 +98,33 @@ final class LakatStore: ObservableObject {
 
     private func watch() {
         // Refresh @Published state when the other process rewrites the file.
+        // Atomic writes replace the inode, which kills a plain fd watch after
+        // the first event — so on rename/delete we re-open and re-arm.
         if !FileManager.default.fileExists(atPath: fileURL.path) {
             writeToDisk(state)
         }
+        armWatch()
+    }
+
+    private func armWatch() {
+        source?.cancel()
+        source = nil
         let fd = open(fileURL.path, O_EVTONLY)
-        guard fd >= 0 else { return }
+        guard fd >= 0 else {
+            // File momentarily missing mid-replace; retry shortly.
+            queue.asyncAfter(deadline: .now() + 0.5) { [weak self] in self?.armWatch() }
+            return
+        }
         let src = DispatchSource.makeFileSystemObjectSource(
             fileDescriptor: fd, eventMask: [.write, .rename, .delete], queue: queue)
-        src.setEventHandler { [weak self] in self?.reload() }
+        src.setEventHandler { [weak self] in
+            guard let self = self else { return }
+            let events = src.data
+            self.reload()
+            if events.contains(.rename) || events.contains(.delete) {
+                self.armWatch() // inode replaced -> follow the new file
+            }
+        }
         src.setCancelHandler { close(fd) }
         src.resume()
         source = src

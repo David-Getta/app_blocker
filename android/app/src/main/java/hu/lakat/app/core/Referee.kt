@@ -42,7 +42,7 @@ object Referee {
             val plan = ChallengeEngine.generatePlan(kind, tier, state.lastCombo)
             val session = SessionRec(
                 id = LakatStore.newId("ses"), kind = kind, siteId = siteId, minutes = minutes,
-                steps = armIfDelay(plan.steps, 0, now), stepIndex = 0, createdAt = now,
+                steps = armCurrent(plan.steps, 0, now), stepIndex = 0, createdAt = now,
             )
             created = session
             state.copy(session = session, lastCombo = plan.comboKey)
@@ -50,14 +50,17 @@ object Referee {
         return created!!
     }
 
-    private fun armIfDelay(steps: List<Step>, index: Int, now: Long): List<Step> {
+    /** Időzítés-bélyegzés, amikor egy lépés aktuálissá válik (DELAY cél, MEMORY mutatási ablak). */
+    private fun armCurrent(steps: List<Step>, index: Int, now: Long): List<Step> {
         val step = steps.getOrNull(index) ?: return steps
-        if (step is Step.Delay && step.claimableAt == null) {
-            return steps.toMutableList().also {
-                it[index] = step.copy(claimableAt = now + step.minutes * 60_000L)
-            }
+        val armed: Step? = when {
+            step is Step.Delay && step.claimableAt == null ->
+                step.copy(claimableAt = now + step.minutes * 60_000L)
+            step is Step.Memory && step.armedAt == null -> step.copy(armedAt = now)
+            else -> null
         }
-        return steps
+        if (armed == null) return steps
+        return steps.toMutableList().also { it[index] = armed }
     }
 
     private fun finish(state: AppState, s: SessionRec, now: Long): AppState {
@@ -91,7 +94,7 @@ object Referee {
                 throw RefereeException("Ez a lépés várakozás — a Feloldás átvétele gombbal zárható.", "DELAY_STEP")
             }
             val tier = effectiveTier(state, s.kind, s.createdAt)
-            val outcome = ChallengeEngine.applyAnswer(step, answer, tier, s.kind)
+            val outcome = ChallengeEngine.applyAnswer(step, answer, tier, s.kind, now)
             var steps = s.steps.toMutableList().also { it[s.stepIndex] = outcome.step } as List<Step>
             if (outcome.ok && outcome.done) {
                 val nextIndex = s.stepIndex + 1
@@ -99,7 +102,7 @@ object Referee {
                     result = SubmitResult(accepted = true, sessionDone = true)
                     return@mutate finish(state, s, now)
                 }
-                steps = armIfDelay(steps, nextIndex, now)
+                steps = armCurrent(steps, nextIndex, now)
                 result = SubmitResult(accepted = true, sessionDone = false)
                 return@mutate state.copy(session = s.copy(steps = steps, stepIndex = nextIndex))
             }
@@ -140,7 +143,7 @@ object Referee {
                 result = SubmitResult(accepted = true, sessionDone = true)
                 return@mutate finish(state, s, now)
             }
-            val steps = armIfDelay(s.steps, nextIndex, now)
+            val steps = armCurrent(s.steps, nextIndex, now)
             result = SubmitResult(accepted = true, sessionDone = false)
             state.copy(session = s.copy(steps = steps, stepIndex = nextIndex))
         }

@@ -34,7 +34,12 @@ export interface MathChainStep {
   problems: { q: string; a: number }[];
   pos: number;
 }
-export interface MemoryStep { id: string; type: 'MEMORY'; code: string; showMs: number; waitMs: number }
+export interface MemoryStep {
+  id: string; type: 'MEMORY'; code: string; showMs: number; waitMs: number;
+  /** set by the referee when the step becomes current; timing is enforced
+   *  server-side from this stamp, so reopening the UI cannot re-show the code */
+  armedAt: number | null;
+}
 export interface ReverseStep { id: string; type: 'REVERSE'; text: string }
 export interface DelayStep {
   id: string; type: 'DELAY'; minutes: number;
@@ -162,6 +167,7 @@ export function makeStep(type: ChallengeType, tier: number, kind: 'pause' | 'del
         code: makeCode(rng, TIER_PARAMS.memoryLen[t]),
         showMs: TIER_PARAMS.memoryShowMs[t],
         waitMs: TIER_PARAMS.memoryWaitMs[t],
+        armedAt: null,
       };
     case 'REVERSE':
       return { id: stepId(), type, text: makeSentence(rng, TIER_PARAMS.reverseWords[t]) };
@@ -218,7 +224,9 @@ export function reverseString(s: string): string {
 }
 
 /** Validates one submitted answer against the current (non-DELAY) step. */
-export function applyAnswer(step: Step, answer: string, tier: number, kind: 'pause' | 'delete', rng: RNG): AnswerOutcome {
+export function applyAnswer(
+  step: Step, answer: string, tier: number, kind: 'pause' | 'delete', rng: RNG, now: number,
+): AnswerOutcome {
   switch (step.type) {
     case 'TRANSCRIBE': {
       if (answer === step.text) return { ok: true, done: true, step };
@@ -236,6 +244,11 @@ export function applyAnswer(step: Step, answer: string, tier: number, kind: 'pau
       return { ok: false, done: false, step: regenerated, message: 'Hibás eredmény — a lánc elölről indul, új feladatokkal.' };
     }
     case 'MEMORY': {
+      // Timing is server-authoritative: no answer is accepted until the
+      // memorize + forced-wait window has fully elapsed.
+      if (step.armedAt === null || now < step.armedAt + step.showMs + step.waitMs) {
+        return { ok: false, done: false, step, message: 'Még tart a memorizálás vagy a várakozás — a kivárást nem lehet megúszni.' };
+      }
       if (answer.trim().toUpperCase() === step.code) return { ok: true, done: true, step };
       const regenerated = makeStep('MEMORY', tier, kind, rng);
       return { ok: false, done: false, step: regenerated, message: 'Nem ez volt a kód. Új kódot kapsz.' };
@@ -250,8 +263,10 @@ export function applyAnswer(step: Step, answer: string, tier: number, kind: 'pau
   }
 }
 
-/** UI projection of a step: strips every expected answer. */
-export function toDisplay(step: Step): StepDisplay {
+/** UI projection of a step: strips every expected answer. The MEMORY code is
+ *  only included while the server-side show window is open, so reopening the
+ *  UI later cannot re-display it. */
+export function toDisplay(step: Step, now: number): StepDisplay {
   switch (step.type) {
     case 'TRANSCRIBE':
       return { id: step.id, type: step.type, text: step.text };
@@ -260,8 +275,16 @@ export function toDisplay(step: Step): StepDisplay {
         id: step.id, type: step.type,
         math: { question: step.problems[step.pos].q + ' = ?', index: step.pos, total: step.problems.length },
       };
-    case 'MEMORY':
-      return { id: step.id, type: step.type, memory: { code: step.code, showMs: step.showMs, waitMs: step.waitMs } };
+    case 'MEMORY': {
+      const showOpen = step.armedAt !== null && now < step.armedAt + step.showMs;
+      return {
+        id: step.id, type: step.type,
+        memory: {
+          code: showOpen ? step.code : null,
+          showMs: step.showMs, waitMs: step.waitMs, armedAt: step.armedAt,
+        },
+      };
+    }
     case 'REVERSE':
       return { id: step.id, type: step.type, text: step.text };
     case 'DELAY':

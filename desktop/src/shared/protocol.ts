@@ -11,8 +11,9 @@ export interface StepDisplay {
   text?: string;
   /** MATH_CHAIN: current problem and position. */
   math?: { question: string; index: number; total: number };
-  /** MEMORY: the code to memorize plus timing. The UI must hide it after showMs. */
-  memory?: { code: string; showMs: number; waitMs: number };
+  /** MEMORY: server-armed timing. `code` is only present while the show window
+   *  is open (armedAt + showMs); afterwards the server stops shipping it. */
+  memory?: { code: string | null; showMs: number; waitMs: number; armedAt: number | null };
   /** DELAY: when the claim window opens/closes (epoch ms). */
   delay?: { minutes: number; claimableAt: number | null; claimWindowMs: number };
 }

@@ -11,21 +11,21 @@ export class HelperClient {
   private buffer = '';
   private nextId = 1;
   private pending = new Map<number, Pending>();
-  private connecting = false;
+  private connectPromise: Promise<void> | null = null;
 
   get connected(): boolean {
     return this.socket !== null;
   }
 
+  /** Concurrent callers share the same in-flight connection attempt. */
   private connect(): Promise<void> {
     if (this.socket) return Promise.resolve();
-    if (this.connecting) return Promise.reject(new Error('HELPER_DOWN'));
-    this.connecting = true;
-    return new Promise((resolve, reject) => {
+    if (this.connectPromise) return this.connectPromise;
+    this.connectPromise = new Promise<void>((resolve, reject) => {
       const sock = net.createConnection(socketPath());
       sock.setEncoding('utf8');
       const fail = (err: Error) => {
-        this.connecting = false;
+        this.connectPromise = null;
         this.teardown();
         reject(err);
       };
@@ -33,13 +33,14 @@ export class HelperClient {
       sock.once('connect', () => {
         sock.removeListener('error', fail);
         this.socket = sock;
-        this.connecting = false;
+        this.connectPromise = null;
         sock.on('data', (chunk: string) => this.onData(chunk));
         sock.on('error', () => this.teardown());
         sock.on('close', () => this.teardown());
         resolve();
       });
     });
+    return this.connectPromise;
   }
 
   private teardown(): void {

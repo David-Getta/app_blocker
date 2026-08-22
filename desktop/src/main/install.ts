@@ -87,18 +87,27 @@ async function installMac(): Promise<void> {
 
 async function installWindows(): Promise<void> {
   const exe = process.execPath;
+  // The inner script must exit non-zero on any failure, and the outer
+  // (unelevated) powershell must propagate the elevated child's exit code —
+  // Start-Process -Wait alone always exits 0.
   const ps = [
-    `$ErrorActionPreference = 'Stop'`,
-    `schtasks /Create /F /TN "${TASK_NAME}" /SC ONSTART /RU SYSTEM /RL HIGHEST /TR '"${exe}" --helper'`,
-    `schtasks /Run /TN "${TASK_NAME}"`,
-  ].join('; ');
+    `try {`,
+    `  schtasks /Create /F /TN "${TASK_NAME}" /SC ONSTART /RU SYSTEM /RL HIGHEST /TR '"${exe}" --helper'`,
+    `  if ($LASTEXITCODE -ne 0) { exit 1 }`,
+    `  schtasks /Run /TN "${TASK_NAME}"`,
+    `  if ($LASTEXITCODE -ne 0) { exit 2 }`,
+    `  exit 0`,
+    `} catch { exit 3 }`,
+  ].join('\n');
   const psTmp = path.join(os.tmpdir(), 'lakat-install.ps1');
   fs.writeFileSync(psTmp, ps);
   const { code, out } = await runFile('powershell.exe', [
     '-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command',
-    `Start-Process powershell -Verb RunAs -Wait -WindowStyle Hidden -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File','${psTmp}'`,
+    `$p = Start-Process powershell -Verb RunAs -Wait -PassThru -WindowStyle Hidden -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File','${psTmp}'; exit $p.ExitCode`,
   ]);
-  if (code !== 0) throw new Error(`A telepítés nem sikerült: ${out.trim()}`);
+  if (code !== 0) {
+    throw new Error(`A telepítés nem sikerült (kód: ${code}). ${out.trim()}`.trim());
+  }
 }
 
 export async function installHelper(): Promise<void> {

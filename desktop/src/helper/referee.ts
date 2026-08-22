@@ -19,7 +19,7 @@ export class RefereeError extends Error {
   }
 }
 
-function sessionInfo(s: SessionRec): SessionInfo {
+function sessionInfo(s: SessionRec, now: number): SessionInfo {
   return {
     id: s.id,
     kind: s.kind,
@@ -27,19 +27,24 @@ function sessionInfo(s: SessionRec): SessionInfo {
     minutes: s.minutes,
     stepIndex: s.stepIndex,
     stepCount: s.steps.length,
-    current: toDisplay(s.steps[s.stepIndex]),
+    current: toDisplay(s.steps[s.stepIndex], now),
   };
 }
 
-function armIfDelay(s: SessionRec, now: number): void {
+/** Stamps timing state when a step becomes current (DELAY target, MEMORY show window). */
+function armCurrent(s: SessionRec, now: number): void {
   const step = s.steps[s.stepIndex];
-  if (step && step.type === 'DELAY' && step.claimableAt === null) {
+  if (!step) return;
+  if (step.type === 'DELAY' && step.claimableAt === null) {
     step.claimableAt = now + step.minutes * 60_000;
+  }
+  if (step.type === 'MEMORY' && step.armedAt === null) {
+    step.armedAt = now;
   }
 }
 
 export function currentSession(state: HelperState): SessionInfo | null {
-  return state.session ? sessionInfo(state.session) : null;
+  return state.session ? sessionInfo(state.session, Date.now()) : null;
 }
 
 export function effectiveTier(state: HelperState, kind: 'pause' | 'delete', now: number): number {
@@ -75,8 +80,8 @@ export function startSession(
     createdAt: now,
   };
   state.lastCombo = plan.comboKey;
-  armIfDelay(state.session, now);
-  return sessionInfo(state.session);
+  armCurrent(state.session, now);
+  return sessionInfo(state.session, now);
 }
 
 function finishSession(state: HelperState, now: number): void {
@@ -97,7 +102,7 @@ export function submitAnswer(state: HelperState, sessionId: string, answer: stri
     throw new RefereeError('Ez a lépés várakozás — a „Feloldás átvétele” gombbal zárható.', 'DELAY_STEP');
   }
   const tier = effectiveTier(state, s.kind, s.createdAt);
-  const outcome = applyAnswer(step, answer, tier, s.kind, rng);
+  const outcome = applyAnswer(step, answer, tier, s.kind, rng, now);
   s.steps[s.stepIndex] = outcome.step;
   if (outcome.ok && outcome.done) {
     s.stepIndex += 1;
@@ -105,10 +110,10 @@ export function submitAnswer(state: HelperState, sessionId: string, answer: stri
       finishSession(state, now);
       return { accepted: true, sessionDone: true, session: null };
     }
-    armIfDelay(s, now);
-    return { accepted: true, sessionDone: false, session: sessionInfo(s) };
+    armCurrent(s, now);
+    return { accepted: true, sessionDone: false, session: sessionInfo(s, now) };
   }
-  return { accepted: outcome.ok, sessionDone: false, message: outcome.message, session: sessionInfo(s) };
+  return { accepted: outcome.ok, sessionDone: false, message: outcome.message, session: sessionInfo(s, now) };
 }
 
 export function claimDelay(state: HelperState, sessionId: string, now: number): SubmitResult {
@@ -121,7 +126,7 @@ export function claimDelay(state: HelperState, sessionId: string, now: number): 
     const remainMin = Math.ceil((step.claimableAt - now) / 60_000);
     return {
       accepted: false, sessionDone: false,
-      message: `Még ${remainMin} percet várni kell.`, session: sessionInfo(s),
+      message: `Még ${remainMin} percet várni kell.`, session: sessionInfo(s, now),
     };
   }
   if (now > step.claimableAt + CLAIM_WINDOW_MS) {
@@ -136,8 +141,8 @@ export function claimDelay(state: HelperState, sessionId: string, now: number): 
     finishSession(state, now);
     return { accepted: true, sessionDone: true, session: null };
   }
-  armIfDelay(s, now);
-  return { accepted: true, sessionDone: false, session: sessionInfo(s) };
+  armCurrent(s, now);
+  return { accepted: true, sessionDone: false, session: sessionInfo(s, now) };
 }
 
 export function abandonSession(state: HelperState, sessionId: string): void {

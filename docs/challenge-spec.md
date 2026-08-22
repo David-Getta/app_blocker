@@ -35,7 +35,11 @@ váljon rutinná. Ezért:
 - **MATH_CHAIN** — fejszámolási lánc (3–9 feladat). **Egyetlen hiba az egész
   láncot elölről indítja, új feladatokkal.**
 - **MEMORY** — 8–14 karakteres kód megjegyzése; a kód eltűnik, majd kötelező
-  várakozás után emlékezetből kell beírni. Hibánál új kód.
+  várakozás után emlékezetből kell beírni. Hibánál új kód. **Az időzítés
+  szerveroldali**: amikor a lépés aktuálissá válik, a bíró lebélyegzi
+  (`armedAt`), a kódot csak a mutatási ablak alatt küldi ki a felületnek
+  (ablak bezárás/újranyitás nem mutatja meg újra), és a memorizálás +
+  várakozás letelte előtt semmilyen választ nem fogad el.
 - **REVERSE** — egy mondat karakterről karakterre visszafelé begépelése.
   Hibánál új mondat.
 - **DELAY** — kötelező, valós idejű várakozás (tiertől és típustól függően

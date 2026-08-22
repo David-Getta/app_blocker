@@ -30,14 +30,19 @@ function stateWithSite(): { state: HelperState; siteId: string } {
   return { state, siteId };
 }
 
-function solveStep(step: Step): string {
+function solveStep(step: Step, now: number): string {
   switch (step.type) {
     case 'TRANSCRIBE': return (step as TranscribeStep).text;
     case 'MATH_CHAIN': {
       const m = step as MathChainStep;
       return String(m.problems[m.pos].a);
     }
-    case 'MEMORY': return (step as MemoryStep).code;
+    case 'MEMORY': {
+      // simulate having sat through the show + wait window
+      const m = step as MemoryStep;
+      m.armedAt = now - m.showMs - m.waitMs - 1000;
+      return m.code;
+    }
     case 'REVERSE': return reverseString((step as ReverseStep).text);
     case 'DELAY': throw new Error('delay steps are claimed, not answered');
   }
@@ -52,7 +57,7 @@ test('full pause session: solve every step -> site pauses, then tick re-locks', 
   let guard = 0;
   while (state.session && guard++ < 200) {
     const step = state.session.steps[state.session.stepIndex];
-    referee.submitAnswer(state, state.session.id, solveStep(step), now);
+    referee.submitAnswer(state, state.session.id, solveStep(step, now), now);
   }
   assert.equal(state.session, null);
   const site = state.sites[0];
@@ -88,7 +93,7 @@ test('delete session always ends with DELAY; claim window is enforced', () => {
   // solve the active steps
   while (state.session!.steps[state.session!.stepIndex].type !== 'DELAY') {
     const step = state.session!.steps[state.session!.stepIndex];
-    referee.submitAnswer(state, state.session!.id, solveStep(step), now);
+    referee.submitAnswer(state, state.session!.id, solveStep(step, now), now);
   }
   const delay = state.session!.steps[state.session!.stepIndex] as DelayStep;
   assert.ok(delay.claimableAt !== null && delay.claimableAt > now);
@@ -117,7 +122,7 @@ test('missing the claim window voids the whole attempt', () => {
   referee.startSession(state, 'delete', siteId, undefined, now);
   while (state.session!.steps[state.session!.stepIndex].type !== 'DELAY') {
     const step = state.session!.steps[state.session!.stepIndex];
-    referee.submitAnswer(state, state.session!.id, solveStep(step), now);
+    referee.submitAnswer(state, state.session!.id, solveStep(step, now), now);
   }
   const delay = state.session!.steps[state.session!.stepIndex] as DelayStep;
   const tooLate = delay.claimableAt! + delay.claimWindowMs + 1;

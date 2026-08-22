@@ -143,7 +143,9 @@ class LakatVpnService : VpnService() {
             val payload = q.dnsPayload
             // Housekeeping piggybacks on DNS traffic + a UI-side timer.
             Referee.tick(System.currentTimeMillis())
-            if (resolverPool.activeCount >= 64) continue // shed load, client retries
+            // Shed load on a deep backlog (the pool has 8 threads; each task can
+            // block up to 8s on slow upstreams) — the client simply retries.
+            if (resolverPool.queue.size >= 128) continue
             resolverPool.execute { handleQuery(q, payload, output) }
         }
         _running.value = false

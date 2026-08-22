@@ -502,7 +502,7 @@ private fun ChallengeScreen(
             when (val step = session.steps.getOrNull(session.stepIndex)) {
                 is Step.Transcribe -> TranscribeStepUi(step, ::submit)
                 is Step.MathChain -> MathStepUi(step, ::submit)
-                is Step.Memory -> MemoryStepUi(step, ::submit)
+                is Step.Memory -> MemoryStepUi(step, now, ::submit)
                 is Step.Reverse -> ReverseStepUi(step, ::submit)
                 is Step.Delay -> DelayStepUi(step, now, onClaim = ::claim)
                 null -> onClose()
@@ -598,31 +598,19 @@ private fun MathStepUi(step: Step.MathChain, onSubmit: (String) -> Unit) {
 }
 
 @Composable
-private fun MemoryStepUi(step: Step.Memory, onSubmit: (String) -> Unit) {
+private fun MemoryStepUi(step: Step.Memory, now: Long, onSubmit: (String) -> Unit) {
     var input by rememberSaveable(step.id) { mutableStateOf("") }
-    var phase by remember(step.id) { mutableStateOf(0) } // 0=show 1=wait 2=input
-    var remainMs by remember(step.id) { mutableLongStateOf(step.showMs) }
-
-    LaunchedEffect(step.id) {
-        val showEnd = System.currentTimeMillis() + step.showMs
-        while (System.currentTimeMillis() < showEnd) {
-            remainMs = showEnd - System.currentTimeMillis()
-            delay(200)
-        }
-        phase = 1
-        val waitEnd = showEnd + step.waitMs
-        while (System.currentTimeMillis() < waitEnd) {
-            remainMs = waitEnd - System.currentTimeMillis()
-            delay(200)
-        }
-        phase = 2
-    }
+    // Az időzítés szerveroldali (armedAt): az app bezárása/újranyitása nem
+    // indítja újra a mutatási fázist, és a bíró a kivárás előtt nem fogad választ.
+    val armedAt = step.armedAt ?: now
+    val showEnd = armedAt + step.showMs
+    val waitEnd = showEnd + step.waitMs
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("Memória-próba", fontWeight = FontWeight.Bold)
-        when (phase) {
-            0 -> {
-                Text("Jegyezd meg a kódot! Hamarosan eltűnik.", style = MaterialTheme.typography.bodySmall)
+        when {
+            now < showEnd -> {
+                Text("Jegyezd meg a kódot! Hamarosan végleg eltűnik.", style = MaterialTheme.typography.bodySmall)
                 Card {
                     Text(
                         step.code,
@@ -635,11 +623,11 @@ private fun MemoryStepUi(step: Step.Memory, onSubmit: (String) -> Unit) {
                         letterSpacing = 6.sp,
                     )
                 }
-                Text("Eltűnik: ${fmtRemain(remainMs)}", textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+                Text("Eltűnik: ${fmtRemain(showEnd - now)}", textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
             }
-            1 -> {
+            now < waitEnd -> {
                 Text("Most várni kell — közben ne írd le sehova!", style = MaterialTheme.typography.bodySmall)
-                Text("Beírható: ${fmtRemain(remainMs)}", textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+                Text("Beírható: ${fmtRemain(waitEnd - now)}", textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
             }
             else -> {
                 Text("Írd be a kódot emlékezetből:", style = MaterialTheme.typography.bodySmall)

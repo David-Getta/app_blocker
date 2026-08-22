@@ -9,13 +9,13 @@ enum ChallengeEngine {
     enum Step: Codable, Equatable {
         case transcribe(id: String, text: String)
         case mathChain(id: String, problems: [Problem], pos: Int)
-        case memory(id: String, code: String, showMs: Int, waitMs: Int)
+        case memory(id: String, code: String, showMs: Int, waitMs: Int, armedAt: Double?)
         case reverse(id: String, text: String)
         case delay(id: String, minutes: Int, claimableAt: Double?, claimWindowMs: Int)
 
         var id: String {
             switch self {
-            case .transcribe(let id, _), .memory(let id, _, _, _),
+            case .transcribe(let id, _), .memory(let id, _, _, _, _),
                  .reverse(let id, _), .mathChain(let id, _, _), .delay(let id, _, _, _):
                 return id
             }
@@ -135,7 +135,7 @@ enum ChallengeEngine {
             return .mathChain(id: stepId(), problems: problems, pos: 0)
         case "MEMORY":
             return .memory(id: stepId(), code: makeCode(memoryLen[t]),
-                           showMs: memoryShowMs[t], waitMs: memoryWaitMs[t])
+                           showMs: memoryShowMs[t], waitMs: memoryWaitMs[t], armedAt: nil)
         case "REVERSE":
             return .reverse(id: stepId(), text: makeSentence(reverseWords[t]))
         case "DELAY":
@@ -165,7 +165,7 @@ enum ChallengeEngine {
 
     static func reverse(_ s: String) -> String { String(s.reversed()) }
 
-    static func applyAnswer(_ step: Step, answer: String, tier: Int, kind: Kind) -> Outcome {
+    static func applyAnswer(_ step: Step, answer: String, tier: Int, kind: Kind, now: Double) -> Outcome {
         switch step {
         case .transcribe(_, let text):
             if answer == text { return Outcome(ok: true, done: true, step: step, message: nil) }
@@ -183,7 +183,13 @@ enum ChallengeEngine {
             return Outcome(ok: false, done: false, step: makeStep("MATH_CHAIN", tier: tier, kind: kind),
                 message: "Hibás eredmény — a lánc elölről indul, új feladatokkal.")
 
-        case .memory(_, let code, _, _):
+        case .memory(_, let code, let showMs, let waitMs, let armedAt):
+            // Timing is server-authoritative: no answer is accepted before the
+            // memorize + forced-wait window has fully elapsed.
+            if armedAt == nil || now < armedAt! + Double(showMs + waitMs) {
+                return Outcome(ok: false, done: false, step: step,
+                    message: "Még tart a memorizálás vagy a várakozás — a kivárást nem lehet megúszni.")
+            }
             if answer.trimmingCharacters(in: .whitespaces).uppercased() == code {
                 return Outcome(ok: true, done: true, step: step, message: nil)
             }

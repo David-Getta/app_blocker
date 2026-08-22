@@ -115,6 +115,7 @@ object LakatStore {
             is Step.Memory -> {
                 put("type", "MEMORY"); put("code", step.code)
                 put("showMs", step.showMs); put("waitMs", step.waitMs)
+                put("armedAt", step.armedAt ?: JSONObject.NULL)
             }
             is Step.Reverse -> { put("type", "REVERSE"); put("text", step.text) }
             is Step.Delay -> {
@@ -139,7 +140,10 @@ object LakatStore {
                 },
                 o.getInt("pos"),
             )
-            "MEMORY" -> Step.Memory(id, o.getString("code"), o.getLong("showMs"), o.getLong("waitMs"))
+            "MEMORY" -> Step.Memory(
+                id, o.getString("code"), o.getLong("showMs"), o.getLong("waitMs"),
+                if (o.isNull("armedAt")) null else o.getLong("armedAt"),
+            )
             "REVERSE" -> Step.Reverse(id, o.getString("text"))
             "DELAY" -> Step.Delay(
                 id, o.getInt("minutes"),

@@ -49,13 +49,18 @@ struct ChallengeView: View {
 
     @ViewBuilder
     private func stepView(_ step: ChallengeEngine.Step) -> some View {
+        // .id(step.id) resets each step view's local @State when the referee
+        // regenerates a step after a wrong answer (new id -> fresh view).
         switch step {
-        case .transcribe(_, let text): TranscribeView(text: text) { submit($0) }
+        case .transcribe(let id, let text):
+            TranscribeView(text: text) { submit($0) }.id(id)
         case .mathChain(let id, let problems, let pos):
             MathView(id: id, problem: problems[pos], index: pos, total: problems.count) { submit($0) }
-        case .memory(let id, let code, let showMs, let waitMs):
-            MemoryView(id: id, code: code, showMs: showMs, waitMs: waitMs) { submit($0) }
-        case .reverse(_, let text): ReverseView(text: text) { submit($0) }
+        case .memory(let id, let code, let showMs, let waitMs, let armedAt):
+            MemoryView(code: code, showMs: showMs, waitMs: waitMs, armedAt: armedAt, now: now) { submit($0) }
+                .id(id)
+        case .reverse(let id, let text):
+            ReverseView(text: text) { submit($0) }.id(id)
         case .delay(_, let minutes, let claimableAt, let window):
             DelayView(minutes: minutes, claimableAt: claimableAt, windowMs: window, now: now) { claim() }
         }
@@ -131,39 +136,34 @@ private struct MathView: View {
 }
 
 private struct MemoryView: View {
-    let id: String; let code: String; let showMs: Int; let waitMs: Int
+    let code: String; let showMs: Int; let waitMs: Int
+    /// server-armed timestamp: leaving and re-entering does NOT restart the show phase
+    let armedAt: Double?
+    let now: Double
     let onSubmit: (String) -> Void
-    @State private var phase = 0
-    @State private var remain = 0.0
     @State private var input = ""
-    @State private var start = nowMs()
-    private let timer = Timer.publish(every: 0.2, on: .main, in: .common).autoconnect()
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        let armed = armedAt ?? now
+        let showEnd = armed + Double(showMs)
+        let waitEnd = showEnd + Double(waitMs)
+        return VStack(alignment: .leading, spacing: 8) {
             Text("Memória-próba").font(.headline)
-            switch phase {
-            case 0:
-                Text("Jegyezd meg a kódot! Hamarosan eltűnik.").font(.footnote).foregroundStyle(.secondary)
+            if now < showEnd {
+                Text("Jegyezd meg a kódot! Hamarosan végleg eltűnik.").font(.footnote).foregroundStyle(.secondary)
                 Text(code).font(.system(.largeTitle, design: .monospaced))
                     .kerning(6).frame(maxWidth: .infinity).padding()
                     .background(Color.gray.opacity(0.15)).cornerRadius(8)
-                Text("Eltűnik: \(fmtRemain(remain))").frame(maxWidth: .infinity)
-            case 1:
+                Text("Eltűnik: \(fmtRemain(showEnd - now))").frame(maxWidth: .infinity)
+            } else if now < waitEnd {
                 Text("Most várni kell — közben ne írd le sehova!").font(.footnote).foregroundStyle(.secondary)
-                Text("Beírható: \(fmtRemain(remain))").frame(maxWidth: .infinity)
-            default:
+                Text("Beírható: \(fmtRemain(waitEnd - now))").frame(maxWidth: .infinity)
+            } else {
                 Text("Írd be a kódot emlékezetből:").font(.footnote).foregroundStyle(.secondary)
                 TextField("Kód", text: $input).textFieldStyle(.roundedBorder)
                     .disableAutocorrection(true)
                 Button("Ellenőrzés") { onSubmit(input) }.buttonStyle(.borderedProminent)
             }
-        }
-        .onReceive(timer) { _ in
-            let elapsed = nowMs() - start
-            if elapsed < Double(showMs) { phase = 0; remain = Double(showMs) - elapsed }
-            else if elapsed < Double(showMs + waitMs) { phase = 1; remain = Double(showMs + waitMs) - elapsed }
-            else { phase = 2 }
         }
     }
 }

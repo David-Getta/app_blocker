@@ -13,11 +13,15 @@ enum Referee {
         return kind == .delete ? min(3, base + 1) : base
     }
 
-    private static func armIfDelay(_ steps: inout [ChallengeEngine.Step], _ index: Int, _ now: Double) {
+    /** Stamps timing state when a step becomes current (DELAY target, MEMORY show window). */
+    private static func armCurrent(_ steps: inout [ChallengeEngine.Step], _ index: Int, _ now: Double) {
         guard index < steps.count else { return }
         if case let .delay(id, minutes, claimableAt, window) = steps[index], claimableAt == nil {
             steps[index] = .delay(id: id, minutes: minutes,
                                   claimableAt: now + Double(minutes) * 60_000, claimWindowMs: window)
+        }
+        if case let .memory(id, code, showMs, waitMs, armedAt) = steps[index], armedAt == nil {
+            steps[index] = .memory(id: id, code: code, showMs: showMs, waitMs: waitMs, armedAt: now)
         }
     }
 
@@ -44,7 +48,7 @@ enum Referee {
             let tier = effectiveTier(state, kind: kind, now: now)
             let plan = ChallengeEngine.generatePlan(kind: kind, tier: tier, lastCombo: state.lastCombo)
             var steps = plan.steps
-            armIfDelay(&steps, 0, now)
+            armCurrent(&steps, 0, now)
             let session = SessionRec(id: LakatStore.shared.newId("ses"), kind: kind, siteId: siteId,
                                      minutes: minutes, steps: steps, stepIndex: 0, createdAt: now)
             state.session = session
@@ -83,7 +87,7 @@ enum Referee {
                 thrown = RefereeError(message: "Ez a lépés várakozás — a Feloldás átvétele gombbal zárható.", code: "DELAY_STEP"); return
             }
             let tier = effectiveTier(state, kind: s.kind, now: s.createdAt)
-            let outcome = ChallengeEngine.applyAnswer(step, answer: answer, tier: tier, kind: s.kind)
+            let outcome = ChallengeEngine.applyAnswer(step, answer: answer, tier: tier, kind: s.kind, now: now)
             s.steps[s.stepIndex] = outcome.step
             if outcome.ok && outcome.done {
                 s.stepIndex += 1
@@ -93,7 +97,7 @@ enum Referee {
                     result = SubmitResult(accepted: true, sessionDone: true, message: nil)
                     return
                 }
-                armIfDelay(&s.steps, s.stepIndex, now)
+                armCurrent(&s.steps, s.stepIndex, now)
                 state.session = s
                 result = SubmitResult(accepted: true, sessionDone: false, message: nil)
                 return
@@ -136,7 +140,7 @@ enum Referee {
                 result = SubmitResult(accepted: true, sessionDone: true, message: nil)
                 return
             }
-            armIfDelay(&s.steps, s.stepIndex, now)
+            armCurrent(&s.steps, s.stepIndex, now)
             state.session = s
             result = SubmitResult(accepted: true, sessionDone: false, message: nil)
         }
