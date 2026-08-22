@@ -33,6 +33,10 @@ attól, hogy sokszor csinálod.
 |---|---|
 | ![Főképernyő](docs/images/desktop-home.png) | ![Próbatétel](docs/images/desktop-challenge.png) |
 
+| Időzített menetrend |
+|---|
+| ![Menetrend](docs/images/desktop-schedule.png) |
+
 ![Letöltőoldal](docs/images/website.png)
 
 ## Letöltés és frissítés — mint egy áruházból

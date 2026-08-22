@@ -8,6 +8,7 @@ import type { HelperRequest, HelperResponse, StatusData } from '../shared/protoc
 import { HELPER_VERSION } from '../shared/protocol';
 import { normalizeDomain, expandHostnames } from '../shared/blocklist';
 import { computeTier } from '../shared/challenges';
+import { isBlockedNow } from '../shared/schedule';
 import type { HelperState, SiteRec } from './state';
 import { newId } from './state';
 import * as referee from './referee';
@@ -32,6 +33,8 @@ export function statusOf(state: HelperState, dohApplied: boolean): StatusData {
     sites: state.sites.map((s) => ({
       id: s.id, domain: s.domain, hostnames: s.hostnames, addedAt: s.addedAt,
       pauseUntil: s.pauseUntil, pendingDeleteAt: s.pendingDeleteAt,
+      schedule: s.schedule,
+      blockedNow: isBlockedNow(s, now),
     })),
     tier: computeTier(state.unlockLog, now),
     unlocks7d: state.unlockLog.filter((t) => t >= now - 7 * 24 * 3600_000).length,
@@ -110,6 +113,12 @@ function handle(req: HelperRequest, deps: ServerDeps): unknown {
       if (site) site.pauseUntil = null; // re-locking early is always one click
       deps.commit();
       return statusOf(state, deps.dohApplied());
+    }
+
+    case 'set_schedule': {
+      const result = referee.startScheduleChange(state, req.siteId, req.schedule, now);
+      deps.commit();
+      return result;
     }
   }
 }

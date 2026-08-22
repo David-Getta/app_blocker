@@ -3,8 +3,11 @@
 // and forwards answers.
 
 import type {
-  SessionInfo, SiteInfo, StatusData, StepDisplay, SubmitResult,
+  SessionInfo, SiteInfo, StatusData, StepDisplay, SubmitResult, SetScheduleResult,
 } from '../shared/protocol';
+// Explicit .js so the browser's native ESM loader resolves it at runtime
+// (TypeScript's bundler resolution does not rewrite the specifier).
+import { PRESET_BANDS, type Schedule, type ScheduleMode } from '../shared/schedule.js';
 
 interface UpdateState {
   status: 'idle' | 'checking' | 'available' | 'downloading' | 'ready' | 'error' | 'unsupported';
@@ -184,13 +187,22 @@ function siteRow(site: SiteInfo, st: StatusData): HTMLElement {
     cancel.addEventListener('click', () => void doSimple('cancel_delete', { siteId: site.id }));
     actions.appendChild(cancel);
   } else {
-    statusEl.appendChild(h('span', 'pill pill-ok', 'Blokkolva'));
+    const scheduled = site.schedule && site.schedule.mode !== 'always';
+    if (scheduled) {
+      statusEl.appendChild(site.blockedNow
+        ? h('span', 'pill pill-ok', 'Most blokkolva (menetrend)')
+        : h('span', 'pill pill-warn', 'Most szabad (menetrend szerint)'));
+    } else {
+      statusEl.appendChild(h('span', 'pill pill-ok', 'Blokkolva'));
+    }
     if (!st.session) {
       const unlock = h('button', 'btn btn-small', 'Feloldás időre…');
       unlock.addEventListener('click', () => openPauseDialog(site.id));
+      const sched = h('button', 'btn btn-small', 'Menetrend…');
+      sched.addEventListener('click', () => openScheduleDialog(site));
       const del = h('button', 'btn btn-small btn-danger', 'Végleges törlés…');
       del.addEventListener('click', () => void startDelete(site));
-      actions.append(unlock, del);
+      actions.append(unlock, sched, del);
     }
   }
 
@@ -258,6 +270,102 @@ async function startPause(minutes: number): Promise<void> {
     alert((e as Error).message);
   }
   pendingPauseSiteId = null;
+}
+
+// ------------------------------------------------------------- schedule editor
+
+const PRESET_LABELS: { key: keyof typeof PRESET_BANDS; label: string }[] = [
+  { key: 'workHours', label: 'Munkaidő (H–P 9–17)' },
+  { key: 'evening', label: 'Esti lekapcsolás (22–06)' },
+  { key: 'weekend', label: 'Hétvége (Szo–V egész nap)' },
+];
+
+function openScheduleDialog(site: SiteInfo): void {
+  const overlay = h('div', 'overlay');
+  const modal = h('div', 'modal modal-small');
+  modal.appendChild(h('h3', undefined, `Menetrend: ${site.domain}`));
+  modal.appendChild(h('p', 'hint',
+    'Szigorítani (több tiltott idő) azonnal megy. Lazítani — kevesebb tiltás — ' +
+    'ugyanúgy próbatételekbe kerül, mint egy feloldás.'));
+
+  const current: Schedule = site.schedule ?? { mode: 'always', bands: [] };
+  let mode: ScheduleMode = current.mode;
+  const selectedPresets = new Set<keyof typeof PRESET_BANDS>();
+  // seed preset selection from current bands (best effort by JSON match)
+  for (const { key } of PRESET_LABELS) {
+    if (current.bands.some((b) => JSON.stringify(b) === JSON.stringify(PRESET_BANDS[key]))) {
+      selectedPresets.add(key);
+    }
+  }
+
+  const modeWrap = h('div', 'sched-modes');
+  const modes: { v: ScheduleMode; label: string }[] = [
+    { v: 'always', label: 'Mindig tiltva' },
+    { v: 'scheduled_block', label: 'Csak a kijelölt sávokban tiltva' },
+    { v: 'scheduled_allow', label: 'A kijelölt sávokban szabad, egyébként tiltva' },
+  ];
+  const presetWrap = h('div', 'sched-presets');
+
+  function renderPresets(): void {
+    presetWrap.style.display = mode === 'always' ? 'none' : 'block';
+  }
+
+  for (const m of modes) {
+    const id = `mode_${m.v}`;
+    const row = h('label', 'sched-radio');
+    const radio = h('input') as HTMLInputElement;
+    radio.type = 'radio'; radio.name = 'schedmode'; radio.value = m.v; radio.id = id;
+    radio.checked = mode === m.v;
+    radio.addEventListener('change', () => { mode = m.v; renderPresets(); });
+    row.append(radio, document.createTextNode(' ' + m.label));
+    modeWrap.appendChild(row);
+  }
+
+  presetWrap.appendChild(h('div', 'hint', 'Sávok:'));
+  for (const { key, label } of PRESET_LABELS) {
+    const row = h('label', 'sched-radio');
+    const cb = h('input') as HTMLInputElement;
+    cb.type = 'checkbox'; cb.checked = selectedPresets.has(key);
+    cb.addEventListener('change', () => {
+      if (cb.checked) selectedPresets.add(key); else selectedPresets.delete(key);
+    });
+    row.append(cb, document.createTextNode(' ' + label));
+    presetWrap.appendChild(row);
+  }
+  renderPresets();
+
+  const err = h('p', 'error');
+  err.classList.add('hidden');
+  const apply = h('button', 'btn btn-primary', 'Alkalmaz');
+  apply.addEventListener('click', async () => {
+    const bands = mode === 'always' ? [] : [...selectedPresets].map((k) => PRESET_BANDS[k]);
+    if (mode !== 'always' && bands.length === 0) {
+      err.textContent = 'Válassz legalább egy sávot, vagy a „Mindig tiltva" módot.';
+      err.classList.remove('hidden');
+      return;
+    }
+    const schedule: Schedule = { mode, bands };
+    try {
+      const r = await call<SetScheduleResult>('set_schedule', { siteId: site.id, schedule });
+      document.body.removeChild(overlay);
+      if (r.applied) {
+        void refresh();
+      } else if (r.session) {
+        openModal(r.session); // loosening -> challenges
+      }
+    } catch (e) {
+      err.textContent = (e as Error).message;
+      err.classList.remove('hidden');
+    }
+  });
+  const cancel = h('button', 'btn btn-ghost', 'Mégse');
+  cancel.addEventListener('click', () => document.body.removeChild(overlay));
+
+  const actions = h('div', 'modal-actions');
+  actions.append(cancel, apply);
+  modal.append(modeWrap, presetWrap, err, actions);
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
 }
 
 async function startDelete(site: SiteInfo): Promise<void> {

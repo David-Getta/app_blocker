@@ -6,8 +6,9 @@ import {
   applyAnswer, computeTier, cryptoRng, generatePlan, toDisplay,
   CLAIM_WINDOW_MS, DELETE_PENDING_MS, SESSION_MAX_AGE_MS,
 } from '../shared/challenges';
-import type { SessionInfo, SubmitResult } from '../shared/protocol';
+import type { SessionInfo, SubmitResult, SetScheduleResult } from '../shared/protocol';
 import { PAUSE_CHOICES_MIN } from '../shared/protocol';
+import { isLoosening, normalizeSchedule, ALWAYS, type Schedule } from '../shared/schedule';
 import type { HelperState, SessionRec } from './state';
 import { newId } from './state';
 
@@ -88,11 +89,42 @@ function finishSession(state: HelperState, now: number): void {
   const s = state.session!;
   const site = state.sites.find((x) => x.id === s.siteId);
   if (site) {
-    if (s.kind === 'pause') site.pauseUntil = now + (s.minutes ?? 15) * 60_000;
+    if (s.pendingSchedule) site.schedule = s.pendingSchedule;   // gated loosening
+    else if (s.kind === 'pause') site.pauseUntil = now + (s.minutes ?? 15) * 60_000;
     else site.pendingDeleteAt = now + DELETE_PENDING_MS;
   }
   state.unlockLog = [...state.unlockLog.filter((t) => t > now - 30 * 24 * 3600_000), now];
   state.session = null;
+}
+
+/**
+ * Change a site's weekly schedule. Tightening (more blocked time) applies
+ * immediately; loosening (less blocked time) requires completing the same
+ * challenges as a pause, so a schedule edit can never be a friction bypass.
+ */
+export function startScheduleChange(
+  state: HelperState, siteId: string, schedule: Schedule, now: number,
+): SetScheduleResult {
+  const site = state.sites.find((s) => s.id === siteId);
+  if (!site) throw new RefereeError('Ismeretlen oldal.', 'NO_SITE');
+  if (state.session) throw new RefereeError('Előbb fejezd be a folyamatban lévő kísérletet.', 'BUSY');
+  const next = normalizeSchedule(schedule);
+  const current = normalizeSchedule(site.schedule ?? ALWAYS);
+  if (!isLoosening(current, next, now)) {
+    site.schedule = next; // tightening / neutral -> free
+    return { applied: true, session: null };
+  }
+  // loosening -> gate behind challenges (pause-tier), applied on completion
+  const tier = effectiveTier(state, 'pause', now);
+  const plan = generatePlan('pause', tier, state.lastCombo, rng);
+  state.session = {
+    id: newId('ses'), kind: 'pause', siteId,
+    steps: plan.steps, stepIndex: 0, createdAt: now,
+    pendingSchedule: next,
+  };
+  state.lastCombo = plan.comboKey;
+  armCurrent(state.session, now);
+  return { applied: false, session: sessionInfo(state.session, now) };
 }
 
 export function submitAnswer(state: HelperState, sessionId: string, answer: string, now: number): SubmitResult {

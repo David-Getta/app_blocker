@@ -131,6 +131,34 @@ test('missing the claim window voids the whole attempt', () => {
   assert.equal(state.sites[0].pendingDeleteAt, null);
 });
 
+test('schedule change: tightening applies immediately, loosening needs challenges', () => {
+  const { state, siteId } = stateWithSite();
+  const now = Date.now();
+  const workBlock = {
+    mode: 'scheduled_block' as const,
+    bands: [{ days: [1, 2, 3, 4, 5] as (0|1|2|3|4|5|6)[], startMin: 9 * 60, endMin: 17 * 60 }],
+  };
+  // always -> scheduled_block frees nights/weekends => loosening => gated
+  const loosen = referee.startScheduleChange(state, siteId, workBlock, now);
+  assert.equal(loosen.applied, false);
+  assert.ok(loosen.session);
+  assert.equal(state.sites[0].schedule, undefined); // not applied yet
+  // solve the challenges -> schedule now applied, no pause set
+  let guard = 0;
+  while (state.session && guard++ < 200) {
+    const step = state.session.steps[state.session.stepIndex];
+    referee.submitAnswer(state, state.session.id, solveStep(step, now), now);
+  }
+  assert.deepEqual(state.sites[0].schedule, workBlock);
+  assert.equal(state.sites[0].pauseUntil, null);
+
+  // scheduled_block -> always is tightening => applies immediately, no session
+  const tighten = referee.startScheduleChange(state, siteId, { mode: 'always', bands: [] }, now);
+  assert.equal(tighten.applied, true);
+  assert.equal(tighten.session, null);
+  assert.deepEqual(state.sites[0].schedule, { mode: 'always', bands: [] });
+});
+
 test('hosts file: apply, tamper-detect content, pause exclusion', () => {
   const { state } = stateWithSite();
   const now = Date.now();

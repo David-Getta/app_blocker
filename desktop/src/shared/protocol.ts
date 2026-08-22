@@ -38,6 +38,10 @@ export interface SiteInfo {
   pauseUntil: number | null;
   /** epoch ms when the site will actually be deleted, or null */
   pendingDeleteAt: number | null;
+  /** weekly schedule (absent = always blocked) */
+  schedule?: import('./schedule').Schedule;
+  /** whether the site is blocked at status time (pause + delete + schedule) */
+  blockedNow: boolean;
 }
 
 export interface StatusData {
@@ -61,7 +65,16 @@ export type HelperRequest =
   | { id: number; op: 'claim'; sessionId: string }
   | { id: number; op: 'abandon'; sessionId: string }
   | { id: number; op: 'cancel_delete'; siteId: string }
-  | { id: number; op: 'relock'; siteId: string };
+  | { id: number; op: 'relock'; siteId: string }
+  | { id: number; op: 'set_schedule'; siteId: string; schedule: import('./schedule').Schedule };
+
+/** Result of a set_schedule request. */
+export interface SetScheduleResult {
+  /** true when applied immediately (tightening); false when a challenge is required */
+  applied: boolean;
+  /** present when loosening requires completing challenges first */
+  session: SessionInfo | null;
+}
 
 export interface SubmitResult {
   accepted: boolean;

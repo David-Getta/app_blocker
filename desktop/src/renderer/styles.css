@@ -227,6 +227,9 @@ body {
 }
 .countdown { text-align: center; font-size: 1.4rem; font-variant-numeric: tabular-nums; margin: 14px 0; }
 .step-submit { margin-top: 12px; }
+.sched-modes { display: flex; flex-direction: column; gap: 8px; margin: 12px 0; }
+.sched-presets { margin: 8px 0; }
+.sched-radio { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; padding: 4px 0; cursor: pointer; }
 .math-q {
   font-size: 1.5rem;
   text-align: center;

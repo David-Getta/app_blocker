@@ -27,6 +27,9 @@ export interface SessionRec {
   steps: Step[];
   stepIndex: number;
   createdAt: number;
+  /** when set, finishing the session applies this schedule instead of pausing
+   *  (used to gate schedule LOOSENING behind the same challenges) */
+  pendingSchedule?: Schedule;
 }
 
 export interface HelperState {
