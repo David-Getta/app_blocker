@@ -8,7 +8,7 @@ import type { HelperRequest, HelperResponse, StatusData } from '../shared/protoc
 import { HELPER_VERSION } from '../shared/protocol';
 import { normalizeDomain, expandHostnames } from '../shared/blocklist';
 import { computeTier } from '../shared/challenges';
-import { isBlockedNow } from '../shared/schedule';
+import { isBlockedNowWithLimit, isLimitExhausted, normalizeLimit, usedTodaySeconds } from '../shared/limits';
 import {
   recordSample, summarize, series, labelOf, emptyUsage,
   MAX_KEY_LENGTH, MAX_LABEL_LENGTH, MAX_BATCH_SAMPLES,
@@ -44,7 +44,10 @@ export function statusOf(state: HelperState, dohApplied: boolean): StatusData {
       id: s.id, domain: s.domain, hostnames: s.hostnames, addedAt: s.addedAt,
       pauseUntil: s.pauseUntil, pendingDeleteAt: s.pendingDeleteAt,
       schedule: s.schedule,
-      blockedNow: isBlockedNow(s, now),
+      dailyLimitSeconds: s.dailyLimitSeconds,
+      usedTodaySeconds: Math.round(usedTodaySeconds(state.usage, s.domain, now)),
+      limitExhausted: isLimitExhausted(s, state.usage, now),
+      blockedNow: isBlockedNowWithLimit(s, state.usage, now),
     })),
     tier: computeTier(state.unlockLog, now),
     unlocks7d: state.unlockLog.filter((t) => t >= now - 7 * 24 * 3600_000).length,
@@ -132,6 +135,12 @@ function handle(req: HelperRequest, deps: ServerDeps): unknown {
       return result;
     }
 
+    case 'set_limit': {
+      const result = referee.startLimitChange(state, req.siteId, req.seconds, now);
+      deps.commit();
+      return result;
+    }
+
     case 'usage_batch': {
       // Everything here is untrusted: the helper runs as root/SYSTEM and its
       // state file is rewritten on every commit, so unvalidated keys, labels or
@@ -172,7 +181,16 @@ function handle(req: HelperRequest, deps: ServerDeps): unknown {
 
     case 'usage_enable': {
       // Turning measurement off is NOT a blocking weakening, so it needs no
-      // challenges — it is the user's own data.
+      // challenges — it is the user's own data. With ONE exception: a daily
+      // budget is spent from measured time, so switching measurement off would
+      // stop the budget from ever running out. That would be a silent bypass,
+      // so it is refused while a budget exists.
+      if (!req.enabled && state.sites.some((s) => normalizeLimit(s.dailyLimitSeconds) !== null)) {
+        throw new RefereeError(
+          'Amíg van napi időkeret beállítva, a mérés nem kapcsolható ki — abból fogy a keret.',
+          'LIMIT_NEEDS_USAGE',
+        );
+      }
       state.usage.enabled = req.enabled;
       deps.commit();
       return statusOf(state, deps.dohApplied());

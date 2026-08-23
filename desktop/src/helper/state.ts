@@ -18,6 +18,8 @@ export interface SiteRec {
   pendingDeleteAt: number | null;
   /** optional weekly schedule; absent = always blocked */
   schedule?: Schedule;
+  /** optional daily active-time budget in seconds; absent = no budget */
+  dailyLimitSeconds?: number;
 }
 
 export interface SessionRec {
@@ -31,6 +33,9 @@ export interface SessionRec {
   /** when set, finishing the session applies this schedule instead of pausing
    *  (used to gate schedule LOOSENING behind the same challenges) */
   pendingSchedule?: Schedule;
+  /** when set, finishing applies this daily budget instead of pausing;
+   *  null means "remove the budget" (both are gated loosenings) */
+  pendingLimit?: number | null;
 }
 
 /**

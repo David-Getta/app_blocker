@@ -6,9 +6,10 @@ import {
   applyAnswer, computeTier, comboKeyOf, cryptoRng, generatePlan, toDisplay,
   CLAIM_WINDOW_MS, DELETE_PENDING_MS, SESSION_MAX_AGE_MS, REROLL_COOLDOWN_MS,
 } from '../shared/challenges';
-import type { SessionInfo, SubmitResult, SetScheduleResult } from '../shared/protocol';
+import type { SessionInfo, SubmitResult, SetScheduleResult, SetLimitResult } from '../shared/protocol';
 import { PAUSE_CHOICES_MIN } from '../shared/protocol';
 import { isLoosening, normalizeSchedule, ALWAYS, type Schedule } from '../shared/schedule';
+import { isLimitLoosening, normalizeLimit } from '../shared/limits';
 import type { AbandonRec, HelperState, SessionRec } from './state';
 import { newId } from './state';
 
@@ -92,8 +93,10 @@ function finishSession(state: HelperState, now: number): void {
   const s = state.session!;
   const site = state.sites.find((x) => x.id === s.siteId);
   if (site) {
-    if (s.pendingSchedule) site.schedule = s.pendingSchedule;   // gated loosening
-    else if (s.kind === 'pause') site.pauseUntil = now + (s.minutes ?? 15) * 60_000;
+    if (s.pendingSchedule) site.schedule = s.pendingSchedule;                  // gated loosening
+    else if (s.pendingLimit !== undefined) {
+      site.dailyLimitSeconds = s.pendingLimit === null ? undefined : s.pendingLimit;
+    } else if (s.kind === 'pause') site.pauseUntil = now + (s.minutes ?? 15) * 60_000;
     else site.pendingDeleteAt = now + DELETE_PENDING_MS;
   }
   state.unlockLog = [...state.unlockLog.filter((t) => t > now - 30 * 24 * 3600_000), now];
@@ -127,6 +130,36 @@ export function startScheduleChange(
     id: newId('ses'), kind: 'pause', siteId,
     steps: plan.steps, stepIndex: 0, createdAt: now,
     pendingSchedule: next,
+  };
+  state.lastCombo = plan.comboKey;
+  armCurrent(state.session, now);
+  return { applied: false, session: sessionInfo(state.session, now) };
+}
+
+/**
+ * Change a site's daily budget. Introducing or lowering it is a tightening and
+ * applies immediately; raising or removing it buys time on the site, so it goes
+ * through the same challenges as a pause — the same rule the weekly schedule
+ * follows, for the same reason.
+ */
+export function startLimitChange(
+  state: HelperState, siteId: string, seconds: number | null, now: number,
+): SetLimitResult {
+  const site = state.sites.find((s) => s.id === siteId);
+  if (!site) throw new RefereeError('Ismeretlen oldal.', 'NO_SITE');
+  if (state.session) throw new RefereeError('Előbb fejezd be a folyamatban lévő kísérletet.', 'BUSY');
+  const next = normalizeLimit(seconds);
+  const current = normalizeLimit(site.dailyLimitSeconds);
+  if (!isLimitLoosening(current, next)) {
+    site.dailyLimitSeconds = next ?? undefined;
+    return { applied: true, session: null };
+  }
+  const tier = effectiveTier(state, 'pause', now);
+  const plan = generatePlan('pause', tier, state.lastCombo, rng, forcedCombo(state, siteId, now));
+  state.session = {
+    id: newId('ses'), kind: 'pause', siteId,
+    steps: plan.steps, stepIndex: 0, createdAt: now,
+    pendingLimit: next === null ? null : next,
   };
   state.lastCombo = plan.comboKey;
   armCurrent(state.session, now);

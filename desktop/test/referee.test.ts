@@ -16,6 +16,7 @@ import { defaultState, loadState, newId } from '../src/helper/state';
 import type { HelperState } from '../src/helper/state';
 import * as referee from '../src/helper/referee';
 import { applyBlocklist, activeHostnames } from '../src/helper/hosts';
+import { recordSample, siteKey } from '../src/shared/usage';
 import type { Step, DelayStep, MathChainStep, MemoryStep, ReverseStep, TranscribeStep } from '../src/shared/challenges';
 import { reverseString, REROLL_COOLDOWN_MS } from '../src/shared/challenges';
 
@@ -447,4 +448,66 @@ test('normal tick cadence is not treated as a clock jump', () => {
   assert.equal(state.sites[0].pendingDeleteAt, now + 60_000, 'untouched');
   referee.tick(state, now + 61_000);   // the deletion is genuinely due
   assert.equal(state.sites.length, 0, 'and it runs on time');
+});
+
+test('daily budget: tightening applies at once, loosening needs the challenges', () => {
+  const { state, siteId } = stateWithSite();
+  const now = Date.now();
+
+  // introducing a budget is a tightening
+  const add = referee.startLimitChange(state, siteId, 20 * 60, now);
+  assert.equal(add.applied, true);
+  assert.equal(state.sites[0].dailyLimitSeconds, 20 * 60);
+
+  // lowering it too
+  const lower = referee.startLimitChange(state, siteId, 10 * 60, now);
+  assert.equal(lower.applied, true);
+  assert.equal(state.sites[0].dailyLimitSeconds, 10 * 60);
+
+  // raising it buys time on the site -> gated
+  const raise = referee.startLimitChange(state, siteId, 60 * 60, now);
+  assert.equal(raise.applied, false);
+  assert.ok(raise.session);
+  assert.equal(state.sites[0].dailyLimitSeconds, 10 * 60, 'not applied yet');
+
+  let guard = 0;
+  while (state.session && guard++ < 200) {
+    const step = state.session.steps[state.session.stepIndex];
+    referee.submitAnswer(state, state.session.id, solveStep(step, now), now);
+  }
+  assert.equal(state.sites[0].dailyLimitSeconds, 60 * 60, 'applied on completion');
+  assert.equal(state.sites[0].pauseUntil, null, 'and it is not a pause');
+});
+
+test('removing the budget is also gated, and removal really removes it', () => {
+  const { state, siteId } = stateWithSite();
+  const now = Date.now();
+  referee.startLimitChange(state, siteId, 15 * 60, now);
+
+  const remove = referee.startLimitChange(state, siteId, null, now);
+  assert.equal(remove.applied, false, 'a free day must be earned');
+
+  let guard = 0;
+  while (state.session && guard++ < 200) {
+    const step = state.session.steps[state.session.stepIndex];
+    referee.submitAnswer(state, state.session.id, solveStep(step, now), now);
+  }
+  assert.equal(state.sites[0].dailyLimitSeconds, undefined);
+});
+
+test('a spent budget blocks the site in the hosts file', () => {
+  const { state, siteId } = stateWithSite();
+  const now = Date.now();
+  // free right now by schedule (a band that does not cover the moment)
+  state.sites[0].schedule = {
+    mode: 'scheduled_block',
+    bands: [{ days: [new Date(now).getDay() === 3 ? 4 : 3] as (0|1|2|3|4|5|6)[], startMin: 0, endMin: 1 }],
+  };
+  referee.startLimitChange(state, siteId, 600, now);
+  assert.deepEqual(activeHostnames(state, now), [], 'schedule allows it and the budget has room');
+
+  // …until today's measured time reaches the budget
+  recordSample(state.usage, siteKey('youtube.com'), 600, now, 'youtube.com');
+  assert.deepEqual(activeHostnames(state, now), ['www.youtube.com', 'youtube.com'],
+    'the spent budget blocks by itself');
 });

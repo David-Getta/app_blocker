@@ -40,7 +40,13 @@ export interface SiteInfo {
   pendingDeleteAt: number | null;
   /** weekly schedule (absent = always blocked) */
   schedule?: import('./schedule').Schedule;
-  /** whether the site is blocked at status time (pause + delete + schedule) */
+  /** daily active-time budget in seconds (absent = no budget) */
+  dailyLimitSeconds?: number;
+  /** active seconds spent on this site today, for the budget meter */
+  usedTodaySeconds: number;
+  /** true when today's budget is spent (and the site therefore blocks) */
+  limitExhausted: boolean;
+  /** whether the site is blocked at status time (pause + delete + schedule + budget) */
   blockedNow: boolean;
 }
 
@@ -69,6 +75,7 @@ export type HelperRequest =
   | { id: number; op: 'cancel_delete'; siteId: string }
   | { id: number; op: 'relock'; siteId: string }
   | { id: number; op: 'set_schedule'; siteId: string; schedule: import('./schedule').Schedule }
+  | { id: number; op: 'set_limit'; siteId: string; seconds: number | null }
   | { id: number; op: 'usage_batch'; samples: UsageSampleMsg[] }
   | { id: number; op: 'usage_stats'; focusKey?: string }
   | { id: number; op: 'usage_enable'; enabled: boolean }
@@ -92,6 +99,12 @@ export interface UsageStatsData {
 }
 
 /** Result of a set_schedule request. */
+/** Result of changing a daily budget: applied straight away, or gated. */
+export interface SetLimitResult {
+  applied: boolean;
+  session: SessionInfo | null;
+}
+
 export interface SetScheduleResult {
   /** true when applied immediately (tightening); false when a challenge is required */
   applied: boolean;

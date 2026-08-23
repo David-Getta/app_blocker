@@ -9,7 +9,7 @@ import type {
 // (TypeScript's bundler resolution does not rewrite the specifier).
 import { PRESET_BANDS, type Schedule, type ScheduleMode } from '../shared/schedule.js';
 import { formatDuration } from '../shared/usage.js';
-import type { UsageStatsData } from '../shared/protocol';
+import type { SetLimitResult, UsageStatsData } from '../shared/protocol';
 
 interface UpdateState {
   status: 'idle' | 'checking' | 'available' | 'downloading' | 'ready' | 'error' | 'unsupported';
@@ -202,20 +202,106 @@ function siteRow(site: SiteInfo, st: StatusData): HTMLElement {
     } else {
       statusEl.appendChild(h('span', 'pill pill-ok', 'Blokkolva'));
     }
+    if (site.dailyLimitSeconds) {
+      statusEl.appendChild(limitMeter(site));
+    }
     if (!st.session) {
       const unlock = h('button', 'btn btn-small', 'Feloldás időre…');
       unlock.addEventListener('click', () => openPauseDialog(site.id));
       const sched = h('button', 'btn btn-small', 'Menetrend…');
       sched.addEventListener('click', () => openScheduleDialog(site));
+      const limit = h('button', 'btn btn-small', 'Napi keret…');
+      limit.addEventListener('click', () => openLimitDialog(site));
       const del = h('button', 'btn btn-small btn-danger', 'Végleges törlés…');
       del.addEventListener('click', () => void startDelete(site));
-      actions.append(unlock, sched, del);
+      actions.append(unlock, sched, limit, del);
     }
   }
 
   main.appendChild(statusEl);
   row.append(main, actions);
   return row;
+}
+
+/**
+ * Today's budget as a bar. Dual-coded on purpose: the colour changes AND the
+ * text says what happened, so it reads the same for anyone who cannot tell the
+ * two colours apart.
+ */
+function limitMeter(site: SiteInfo): HTMLElement {
+  const limit = site.dailyLimitSeconds ?? 0;
+  const used = Math.min(site.usedTodaySeconds, limit);
+  const pct = limit > 0 ? Math.round((used / limit) * 100) : 0;
+  const wrap = h('div', 'limit-meter');
+  const label = site.limitExhausted
+    ? `Napi keret elfogyott (${formatDuration(limit)}) — holnap újraindul`
+    : `Napi keret: ${formatDuration(used)} / ${formatDuration(limit)}`;
+  wrap.appendChild(h('div', 'limit-label', label));
+  const bar = h('div', 'limit-bar');
+  const fill = h('div', site.limitExhausted ? 'limit-fill limit-fill-full' : 'limit-fill');
+  fill.style.width = `${Math.min(100, pct)}%`;
+  bar.appendChild(fill);
+  wrap.appendChild(bar);
+  return wrap;
+}
+
+const LIMIT_CHOICES_MIN = [10, 20, 30, 45, 60, 90, 120];
+
+function openLimitDialog(site: SiteInfo): void {
+  const overlay = h('div', 'overlay');
+  const modal = h('div', 'modal modal-small');
+  modal.appendChild(h('h3', undefined, `Napi keret: ${site.domain}`));
+  modal.appendChild(h('p', 'hint',
+    'Ha a mai aktív idő eléri a keretet, az oldal a nap hátralévő részére ' +
+    'magától visszazár, éjfélkor pedig a keret újraindul. Keretet bevezetni ' +
+    'vagy csökkenteni azonnal megy; emelni vagy megszüntetni ugyanúgy ' +
+    'próbatételekbe kerül, mint egy feloldás.'));
+
+  let chosen: number | null = site.dailyLimitSeconds ?? null;
+  const choices = h('div', 'pause-choices');
+  const buttons: HTMLButtonElement[] = [];
+  const mark = () => {
+    for (const b of buttons) {
+      const value = b.dataset.seconds === '' ? null : Number(b.dataset.seconds);
+      b.classList.toggle('btn-primary', value === chosen);
+    }
+  };
+  for (const min of LIMIT_CHOICES_MIN) {
+    const b = h('button', 'btn', `${min} perc`) as HTMLButtonElement;
+    b.dataset.seconds = String(min * 60);
+    b.addEventListener('click', () => { chosen = min * 60; mark(); });
+    buttons.push(b);
+    choices.appendChild(b);
+  }
+  const none = h('button', 'btn', 'Nincs keret') as HTMLButtonElement;
+  none.dataset.seconds = '';
+  none.addEventListener('click', () => { chosen = null; mark(); });
+  buttons.push(none);
+  choices.appendChild(none);
+  mark();
+
+  const err = h('p', 'error');
+  err.classList.add('hidden');
+  const apply = h('button', 'btn btn-primary', 'Alkalmaz');
+  apply.addEventListener('click', async () => {
+    try {
+      const r = await call<SetLimitResult>('set_limit', { siteId: site.id, seconds: chosen });
+      document.body.removeChild(overlay);
+      if (r.applied) void refresh();
+      else if (r.session) openModal(r.session); // loosening -> challenges
+    } catch (e) {
+      err.textContent = (e as Error).message;
+      err.classList.remove('hidden');
+    }
+  });
+  const cancel = h('button', 'btn btn-ghost', 'Mégse');
+  cancel.addEventListener('click', () => document.body.removeChild(overlay));
+
+  const actions = h('div', 'modal-actions');
+  actions.append(cancel, apply);
+  modal.append(choices, err, actions);
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
 }
 
 async function doSimple(op: string, payload: Record<string, unknown>): Promise<void> {

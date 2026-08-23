@@ -62,13 +62,15 @@ function fakeBridgeSource() {
     };
     const sites = [
       { id: 'site_1', domain: 'youtube.com', hostnames: ['youtube.com','www.youtube.com','m.youtube.com','youtu.be'],
-        addedAt: now - 86400000*9, pauseUntil: null, pendingDeleteAt: null, blockedNow: true },
+        addedAt: now - 86400000*9, pauseUntil: null, pendingDeleteAt: null,
+        dailyLimitSeconds: 1200, usedTodaySeconds: 900, limitExhausted: false, blockedNow: true },
       { id: 'site_2', domain: 'reddit.com', hostnames: ['reddit.com','www.reddit.com'],
         addedAt: now - 86400000*4, pauseUntil: null, pendingDeleteAt: null,
         schedule: { mode: 'scheduled_block', bands: [{ days: [1,2,3,4,5], startMin: 540, endMin: 1020 }] },
-        blockedNow: true },
+        usedTodaySeconds: 540, limitExhausted: false, blockedNow: true },
       { id: 'site_3', domain: 'instagram.com', hostnames: ['instagram.com','www.instagram.com'],
-        addedAt: now - 86400000*2, pauseUntil: null, pendingDeleteAt: null, blockedNow: true },
+        addedAt: now - 86400000*2, pauseUntil: null, pendingDeleteAt: null,
+        dailyLimitSeconds: 600, usedTodaySeconds: 600, limitExhausted: true, blockedNow: true },
     ];
     let session = null;
     const status = () => ({
@@ -172,6 +174,12 @@ async function main() {
   if (tiles !== 4) failures.push(`expected 4 stat tiles, saw ${tiles}`);
   const bars = await page.locator('#topSites .bar-row').count();
   if (bars === 0) failures.push('the weekly top-sites chart rendered no bars');
+
+  // the daily budget meter: one per site that has a budget
+  const meters = await page.locator('.limit-meter').count();
+  if (meters !== 2) failures.push(`expected 2 budget meters, saw ${meters}`);
+  const spent = await page.locator('.limit-meter', { hasText: 'elfogyott' }).count();
+  if (spent !== 1) failures.push('the spent budget is not called out in words');
 
   if (!CHECK_ONLY) {
     fs.mkdirSync(OUT, { recursive: true });

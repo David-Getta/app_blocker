@@ -300,3 +300,20 @@ body {
   user-select: none;
   -webkit-user-select: none;
 }
+
+/* --- napi időkeret mérő ------------------------------------------------ */
+.limit-meter { margin-top: 6px; max-width: 320px; }
+.limit-label { font-size: 12px; color: var(--muted); margin-bottom: 3px; }
+.limit-bar {
+  height: 6px;
+  background: #232b35;
+  border-radius: 3px;
+  overflow: hidden;
+}
+.limit-fill {
+  height: 100%;
+  background: #4f9dff;      /* ugyanaz a kék, mint a diagramoké */
+  border-radius: 3px;
+}
+/* Kettős kódolás: a szín mellett a felirat is kimondja, hogy elfogyott. */
+.limit-fill-full { background: #e8833a; }
