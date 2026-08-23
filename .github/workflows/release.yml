@@ -158,6 +158,13 @@ jobs:
           installers=0
           for f in *.dmg *.exe *-mac.zip *.blockmap latest*.yml; do
             [ -f "$f" ] || continue          # a nem illeszkedő glob önmagát adja
+            # A szóközös nevet a GitHub pontokra cseréli, az electron-builder
+            # publishere viszont kötőjelesre — így UGYANAZ a telepítő kétszer
+            # került fel, két néven (v0.1.2). Előbb kötőjelesítünk, hogy a
+            # --clobber tényleg ugyanarra az assetre üssön.
+            case "$f" in
+              *\ *) t=$(echo "$f" | tr " " "-"); mv -f "$f" "$t"; f="$t" ;;
+            esac
             case "$f" in *.dmg|*.exe) installers=$((installers + 1)) ;; esac
             echo "feltöltés: $f"
             gh release upload "$VERSION" "$f" --repo "$GITHUB_REPOSITORY" --clobber

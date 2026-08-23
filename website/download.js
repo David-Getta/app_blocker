@@ -109,9 +109,17 @@ fetch(API, { headers: { Accept: "application/vnd.github+json" } })
   .then((r) => (r.ok ? r.json() : Promise.reject(new Error("no release"))))
   .then((rel) => {
     const byPlat = { android: [], win: [], mac: [], ios: [] };
+    const seen = new Set();
     for (const asset of rel.assets || []) {
       const c = classify(asset.name);
       if (!c || !byPlat[c.plat]) continue;
+      // Ugyanaz a telepítő néha két néven kerül fel (a kiadási folyamat két
+      // feltöltője máshogy írja a szóközt). A felhasználó ilyenkor két
+      // egyforma „Windows telepítő” sort látna, és nem tudná, melyik kell.
+      // A felirat a platformon belül egyedi, tehát az első nyer.
+      const key = `${c.plat}|${c.label}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
       byPlat[c.plat].push({ url: asset.browser_download_url, label: c.label });
     }
     render(byPlat, rel.tag_name || "");
