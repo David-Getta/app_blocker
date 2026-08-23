@@ -16,6 +16,8 @@ import hu.lakat.app.R
 import hu.lakat.app.core.Blocklist
 import hu.lakat.app.core.LakatStore
 import hu.lakat.app.core.Referee
+import hu.lakat.app.core.UsageLogic
+import hu.lakat.app.usage.UsageTracker
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import java.io.FileInputStream
@@ -55,6 +57,7 @@ class LakatVpnService : VpnService() {
     }
 
     private var tun: ParcelFileDescriptor? = null
+    private var usageTimer: java.util.Timer? = null
     @Volatile private var stopping = false
     private var readerThread: Thread? = null
     private val resolverPool = Executors.newFixedThreadPool(8) as ThreadPoolExecutor
@@ -125,6 +128,25 @@ class LakatVpnService : VpnService() {
         _running.value = true
         LakatStore.mutate { it.copy(protectionOn = true) }
         readerThread = Thread({ readLoop(pfd) }, "lakat-tun-reader").also { it.start() }
+        startUsageSampling()
+    }
+
+    /**
+     * Active-time sampling runs on this always-on service so it keeps measuring
+     * with the UI closed. Ticks are cheap; the tracker itself decides whether
+     * the moment counts (screen on, unlocked, usage access granted).
+     */
+    private fun startUsageSampling() {
+        usageTimer?.cancel()
+        UsageTracker.resetClock()
+        usageTimer = java.util.Timer("lakat-usage", true).also { t ->
+            t.scheduleAtFixedRate(object : java.util.TimerTask() {
+                override fun run() {
+                    runCatching { UsageTracker.tick(this@LakatVpnService) }
+                        .onFailure { Log.w(TAG, "usage tick failed: $it") }
+                }
+            }, UsageLogic.SAMPLE_INTERVAL_MS, UsageLogic.SAMPLE_INTERVAL_MS)
+        }
     }
 
     private fun readLoop(pfd: ParcelFileDescriptor) {
@@ -156,6 +178,10 @@ class LakatVpnService : VpnService() {
             val name = DnsEngine.queryName(payload)
             val blocked = name != null &&
                 Blocklist.matches(name, LakatStore.blockedHostnamesNow(System.currentTimeMillis()))
+            // Feed the active-time tracker: a resolved (non-blocked) name is our
+            // only signal for which page a foreground browser is showing.
+            if (!blocked && name != null) UsageTracker.noteDomain(name, System.currentTimeMillis())
+
             val answer: ByteArray? = if (blocked) {
                 DnsEngine.buildNxdomain(payload)
             } else {
@@ -214,6 +240,8 @@ class LakatVpnService : VpnService() {
 
     private fun shutdown() {
         stopping = true
+        usageTimer?.cancel()
+        usageTimer = null
         _running.value = false
         LakatStore.mutate { it.copy(protectionOn = false) }
         try { tun?.close() } catch (_: Exception) { }
@@ -223,6 +251,7 @@ class LakatVpnService : VpnService() {
 
     override fun onDestroy() {
         stopping = true
+        usageTimer?.cancel()
         resolverPool.shutdownNow()
         try { tun?.close() } catch (_: Exception) { }
         super.onDestroy()

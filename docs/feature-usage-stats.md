@@ -100,6 +100,19 @@ Ez érzékeny adat. Ezért:
 - Az URL-ekből **csak a domaint** tároljuk (`youtube.com`), a teljes címet, a
   lekérdezési paramétereket és az oldalcímet soha.
 
+## Megvalósítás állapota
+
+| Platform | Mag | Mérő | Felület |
+|---|---|---|---|
+| **Desktop (Win/Mac)** | ✅ `shared/usage.ts`, tesztelt | ✅ `main/tracker.ts` (felhasználói munkamenetben) | ✅ statisztika-kártya |
+| **Android** | ✅ `core/Usage.kt`, JVM-en parity-tesztelt | ✅ `usage/UsageTracker.kt` (a VPN-szolgáltatásban) | ✅ `ui/StatsScreen.kt` |
+| **iOS/macOS** | — | ❌ nem lehetséges (lásd fent) | a felület kiírja, hogy nem elérhető |
+
+A desktop mérő a **GUI folyamatában** fut, mert a root/SYSTEM helper nem látja az
+előteret (macOS: nincs Aqua-hozzáférése; Windows: a SYSTEM a 0. munkamenetben
+van). Ezért a desktop mérés addig gyűjt, amíg a Lakat fut. Androidon a mérés a
+már úgyis futó VPN-szolgáltatásban van, tehát a felület bezárása nem állítja le.
+
 ## Tesztek
 
 - Mintavétel-aggregálás: nap-határ átlépés, tétlenség kihagyása, alvás utáni

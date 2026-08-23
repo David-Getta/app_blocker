@@ -39,6 +39,8 @@ data class AppState(
     val unlockLog: List<Long> = emptyList(),
     val lastCombo: String? = null,
     val session: SessionRec? = null,
+    /** active-time tracking history (never leaves the device) */
+    val usage: UsageLogic.UsageState = UsageLogic.UsageState(),
 )
 
 /**
@@ -84,6 +86,33 @@ object LakatStore {
 
     // ------------------------------------------------------------- JSON i/o
 
+    private fun usageToJson(u: UsageLogic.UsageState): JSONObject = JSONObject().apply {
+        put("enabled", u.enabled)
+        put("days", JSONArray(u.days.map { d ->
+            JSONObject().apply {
+                put("day", d.day)
+                put("seconds", JSONObject().apply { for ((k, v) in d.seconds) put(k, v) })
+            }
+        }))
+        put("labels", JSONObject().apply { for ((k, v) in u.labels) put(k, v) })
+    }
+
+    private fun usageFromJson(o: JSONObject): UsageLogic.UsageState {
+        val days = mutableListOf<UsageLogic.UsageDay>()
+        o.optJSONArray("days")?.let { arr ->
+            for (i in 0 until arr.length()) {
+                val d = arr.getJSONObject(i)
+                val secs = mutableMapOf<String, Double>()
+                val so = d.getJSONObject("seconds")
+                for (k in so.keys()) secs[k] = so.getDouble(k)
+                days.add(UsageLogic.UsageDay(d.getString("day"), secs))
+            }
+        }
+        val labels = mutableMapOf<String, String>()
+        o.optJSONObject("labels")?.let { lo -> for (k in lo.keys()) labels[k] = lo.getString(k) }
+        return UsageLogic.UsageState(days, labels, o.optBoolean("enabled", true))
+    }
+
     private fun scheduleToJson(sch: ScheduleLogic.Schedule): JSONObject = JSONObject().apply {
         put("mode", sch.mode.name)
         put("bands", JSONArray(sch.bands.map { b ->
@@ -121,6 +150,7 @@ object LakatStore {
             }
         }))
         put("unlockLog", JSONArray(s.unlockLog))
+        put("usage", usageToJson(s.usage))
         put("lastCombo", s.lastCombo ?: JSONObject.NULL)
         put("session", s.session?.let { ses ->
             JSONObject().apply {
@@ -222,6 +252,8 @@ object LakatStore {
         }
         return AppState(
             protectionOn = o.optBoolean("protectionOn", false),
+            usage = if (o.isNull("usage")) UsageLogic.UsageState()
+                    else usageFromJson(o.getJSONObject("usage")),
             sites = sites,
             unlockLog = unlockLog,
             lastCombo = if (o.isNull("lastCombo")) null else o.optString("lastCombo"),

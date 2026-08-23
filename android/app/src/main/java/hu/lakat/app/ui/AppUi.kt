@@ -56,7 +56,9 @@ import hu.lakat.app.core.LakatStore
 import hu.lakat.app.core.Referee
 import hu.lakat.app.core.SessionRec
 import hu.lakat.app.core.Site
+import hu.lakat.app.core.UsageLogic
 import hu.lakat.app.update.UpdateChecker
+import hu.lakat.app.usage.UsageTracker
 import hu.lakat.app.vpn.LakatVpnService
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.delay
@@ -320,6 +322,37 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                     onSchedule = { scheduleSite = site },
                 )
             }
+
+            // Usage statistics. The summary is derived from state.usage, so it is
+            // only recomputed when the stored history actually changes.
+            Spacer(Modifier.height(4.dp))
+            val usageSummary = remember(state.usage, now / 60_000) {
+                UsageLogic.summarize(state.usage, now)
+            }
+            val focusTarget = usageSummary.topWeekSites.firstOrNull()
+                ?: usageSummary.topWeekApps.firstOrNull()
+            StatsSection(
+                summary = usageSummary,
+                focusSeries = focusTarget?.let { UsageLogic.series(state.usage, it.key, now, 30) }
+                    ?: emptyList(),
+                focusLabel = focusTarget?.label ?: "",
+                blockedDomains = state.sites.map { it.domain }.toSet(),
+                hasUsageAccess = UsageTracker.hasUsageAccess(context),
+                onGrantAccess = { context.startActivity(UsageTracker.usageAccessIntent()) },
+                onToggleEnabled = {
+                    LakatStore.mutate { s ->
+                        val next = UsageLogic.snapshot(s.usage)
+                        next.enabled = !next.enabled
+                        s.copy(usage = next)
+                    }
+                },
+                onClear = {
+                    LakatStore.mutate { s ->
+                        val keep = s.usage.enabled
+                        s.copy(usage = UsageLogic.UsageState(enabled = keep))
+                    }
+                },
+            )
 
             val tier = ChallengeEngine.computeTier(state.unlockLog, now)
             val names = listOf("alap", "emelt", "magas", "maximális")
