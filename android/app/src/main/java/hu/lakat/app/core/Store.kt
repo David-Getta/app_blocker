@@ -33,12 +33,22 @@ data class SessionRec(
     val pendingSchedule: ScheduleLogic.Schedule? = null,
 )
 
+/** What an abandoned attempt leaves behind, so restarting cannot re-roll it. */
+data class AbandonRec(
+    val siteId: String,
+    val kind: Kind,
+    val comboKey: String,
+    val at: Long,
+)
+
 data class AppState(
     val protectionOn: Boolean = false,
     val sites: List<Site> = emptyList(),
     val unlockLog: List<Long> = emptyList(),
     val lastCombo: String? = null,
     val session: SessionRec? = null,
+    /** the last attempt given up on; see ChallengeEngine.REROLL_COOLDOWN_MS */
+    val lastAbandon: AbandonRec? = null,
     /** active-time tracking history (never leaves the device) */
     val usage: UsageLogic.UsageState = UsageLogic.UsageState(),
 )
@@ -165,6 +175,12 @@ object LakatStore {
         put("unlockLog", JSONArray(s.unlockLog))
         put("usage", usageToJson(s.usage))
         put("lastCombo", s.lastCombo ?: JSONObject.NULL)
+        put("lastAbandon", s.lastAbandon?.let { a ->
+            JSONObject().apply {
+                put("siteId", a.siteId); put("kind", a.kind.name)
+                put("comboKey", a.comboKey); put("at", a.at)
+            }
+        } ?: JSONObject.NULL)
         put("session", s.session?.let { ses ->
             JSONObject().apply {
                 put("id", ses.id); put("kind", ses.kind.name); put("siteId", ses.siteId)
@@ -275,6 +291,16 @@ object LakatStore {
                 )
             }
         }.getOrNull()?.takeIf { it.steps.isNotEmpty() && it.stepIndex in it.steps.indices }
+        val lastAbandon = if (o.isNull("lastAbandon")) null else runCatching {
+            o.getJSONObject("lastAbandon").let { a ->
+                AbandonRec(
+                    siteId = a.getString("siteId"),
+                    kind = Kind.valueOf(a.getString("kind")),
+                    comboKey = a.getString("comboKey"),
+                    at = a.getLong("at"),
+                )
+            }
+        }.getOrNull()
         return AppState(
             protectionOn = o.optBoolean("protectionOn", false),
             usage = if (o.isNull("usage")) UsageLogic.UsageState()
@@ -283,6 +309,7 @@ object LakatStore {
             unlockLog = unlockLog,
             lastCombo = if (o.isNull("lastCombo")) null else o.optString("lastCombo"),
             session = session,
+            lastAbandon = lastAbandon,
         )
     }
 }

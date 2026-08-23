@@ -3,8 +3,8 @@
 // forwards answers, so there is no "just flip the flag" shortcut in the UI.
 
 import {
-  applyAnswer, computeTier, cryptoRng, generatePlan, toDisplay,
-  CLAIM_WINDOW_MS, DELETE_PENDING_MS, SESSION_MAX_AGE_MS,
+  applyAnswer, computeTier, comboKeyOf, cryptoRng, generatePlan, toDisplay,
+  CLAIM_WINDOW_MS, DELETE_PENDING_MS, SESSION_MAX_AGE_MS, REROLL_COOLDOWN_MS,
 } from '../shared/challenges';
 import type { SessionInfo, SubmitResult, SetScheduleResult } from '../shared/protocol';
 import { PAUSE_CHOICES_MIN } from '../shared/protocol';
@@ -70,9 +70,12 @@ export function startSession(
   if (kind === 'delete' && site.pendingDeleteAt !== null) {
     throw new RefereeError('Ennek az oldalnak már folyamatban van a törlése.', 'ALREADY_DELETING');
   }
-  // Starting a new attempt abandons any previous one — progress is never banked.
+  // Starting a new attempt abandons any previous one — progress is never
+  // banked, and the abandoned attempt's challenge types are remembered so this
+  // is not a way to shop for an easier pair.
+  dropSession(state, now);
   const tier = effectiveTier(state, kind, now);
-  const plan = generatePlan(kind, tier, state.lastCombo, rng);
+  const plan = generatePlan(kind, tier, state.lastCombo, rng, forcedCombo(state, siteId, kind, now));
   state.session = {
     id: newId('ses'),
     kind, siteId, minutes,
@@ -95,6 +98,9 @@ function finishSession(state: HelperState, now: number): void {
   }
   state.unlockLog = [...state.unlockLog.filter((t) => t > now - 30 * 24 * 3600_000), now];
   state.session = null;
+  // Solved: the debt is paid, the next attempt draws freely again (and the
+  // variety rule keeps it different from this one).
+  state.lastAbandon = null;
 }
 
 /**
@@ -116,7 +122,7 @@ export function startScheduleChange(
   }
   // loosening -> gate behind challenges (pause-tier), applied on completion
   const tier = effectiveTier(state, 'pause', now);
-  const plan = generatePlan('pause', tier, state.lastCombo, rng);
+  const plan = generatePlan('pause', tier, state.lastCombo, rng, forcedCombo(state, siteId, 'pause', now));
   state.session = {
     id: newId('ses'), kind: 'pause', siteId,
     steps: plan.steps, stepIndex: 0, createdAt: now,
@@ -167,7 +173,7 @@ export function claimDelay(state: HelperState, sessionId: string, now: number): 
     };
   }
   if (now > step.claimableAt + CLAIM_WINDOW_MS) {
-    state.session = null;
+    dropSession(state, now);
     throw new RefereeError(
       'Lecsúsztál az átvételi ablakról — a feloldási kísérlet érvénytelen, elölről kell kezdeni.',
       'CLAIM_EXPIRED',
@@ -183,14 +189,45 @@ export function claimDelay(state: HelperState, sessionId: string, now: number): 
 }
 
 export function abandonSession(state: HelperState, sessionId: string): void {
-  if (state.session && state.session.id === sessionId) state.session = null;
+  if (state.session && state.session.id === sessionId) dropSession(state, Date.now());
+}
+
+/**
+ * Drops the running attempt and remembers WHAT it was, so restarting within the
+ * cooldown gets the same challenge types back. Cancelling is always allowed —
+ * it just must not be a cheaper route than finishing.
+ */
+function dropSession(state: HelperState, now: number): void {
+  const s = state.session;
+  if (!s) return;
+  const combo = comboKeyOf(s.steps.filter((st) => st.type !== 'DELAY').map((st) => st.type));
+  // The cooldown runs from the FIRST time this pair was given up on, not from
+  // the latest restart. Otherwise every restart would push the deadline out and
+  // the pair would stick to the site forever, which is not what is promised.
+  const prev = state.lastAbandon;
+  const sameAsBefore = !!prev && prev.siteId === s.siteId && prev.kind === s.kind
+    && prev.comboKey === combo && Number.isFinite(prev.at) && now - prev.at <= REROLL_COOLDOWN_MS;
+  state.lastAbandon = {
+    siteId: s.siteId, kind: s.kind, comboKey: combo, at: sameAsBefore ? prev!.at : now,
+  };
+  state.session = null;
+}
+
+/** The combo an abandoned attempt still owes, if the cooldown has not run out. */
+function forcedCombo(
+  state: HelperState, siteId: string, kind: 'pause' | 'delete', now: number,
+): string | null {
+  const a = state.lastAbandon;
+  if (!a || a.siteId !== siteId || a.kind !== kind) return null;
+  if (!Number.isFinite(a.at) || now - a.at > REROLL_COOLDOWN_MS || now < a.at) return null;
+  return a.comboKey;
 }
 
 function requireSession(state: HelperState, sessionId: string, now: number): SessionRec {
   const s = state.session;
   if (!s || s.id !== sessionId) throw new RefereeError('Nincs ilyen aktív feloldási kísérlet.', 'NO_SESSION');
   if (now - s.createdAt > SESSION_MAX_AGE_MS) {
-    state.session = null;
+    dropSession(state, now);
     throw new RefereeError('A feloldási kísérlet lejárt, kezdd elölről.', 'SESSION_EXPIRED');
   }
   return s;
@@ -208,7 +245,9 @@ export function tick(state: HelperState, now: number): boolean {
     const step = s.steps[s.stepIndex];
     const missedClaim = step?.type === 'DELAY' && step.claimableAt !== null
       && now > step.claimableAt + step.claimWindowMs;
-    if (missedClaim || now - s.createdAt > SESSION_MAX_AGE_MS) state.session = null;
+    // Sitting out the claim window is a way to end an attempt too, so it goes
+    // through the same bookkeeping: no reroll out of a pair you dislike.
+    if (missedClaim || now - s.createdAt > SESSION_MAX_AGE_MS) dropSession(state, now);
   }
   for (const site of state.sites) {
     if (site.pauseUntil !== null && site.pauseUntil <= now) {

@@ -188,17 +188,19 @@ export function generatePlan(
   tier: number,
   lastCombo: string | null,
   rng: RNG,
+  forceCombo?: string | null,
 ): { steps: Step[]; comboKey: string } {
-  let types: ChallengeType[];
-  do {
+  let types: ChallengeType[] | null = parseCombo(forceCombo);
+  while (types === null) {
     const pool = [...ACTIVE_POOL];
     // Fisher–Yates with the injected RNG
     for (let i = pool.length - 1; i > 0; i--) {
       const j = rng.int(0, i);
       [pool[i], pool[j]] = [pool[j], pool[i]];
     }
-    types = pool.slice(0, 2);
-  } while (lastCombo !== null && comboKeyOf(types) === lastCombo);
+    const draw = pool.slice(0, 2);
+    if (lastCombo === null || comboKeyOf(draw) !== lastCombo) types = draw;
+  }
   const comboKey = comboKeyOf(types);
   const steps = types.map((tp) => makeStep(tp, tier, kind, rng));
   if (tier >= 2 || kind === 'delete') steps.push(makeStep('DELAY', tier, kind, rng));
@@ -208,6 +210,32 @@ export function generatePlan(
 export function comboKeyOf(types: ChallengeType[]): string {
   return [...types].sort().join('+');
 }
+
+/**
+ * A combo key back into its two challenge types, or null if it is not one this
+ * build can serve (unknown name, wrong arity — e.g. state written by a newer
+ * version). Null means "draw a fresh plan", never "serve something broken".
+ */
+export function parseCombo(key: string | null | undefined): ChallengeType[] | null {
+  if (!key) return null;
+  const parts = key.split('+');
+  if (parts.length !== 2) return null;
+  if (!parts.every((p) => (ACTIVE_POOL as string[]).includes(p))) return null;
+  if (parts[0] === parts[1]) return null;
+  return parts as ChallengeType[];
+}
+
+/**
+ * How long an abandoned attempt keeps its challenge types.
+ *
+ * Without this, cancelling was a free reroll: every new attempt drew a fresh
+ * pair, so you could keep restarting until you got the pair you found easiest
+ * (say, no MEMORY step with its forced wait). Friction that can be re-rolled is
+ * not friction. Within this window the same PAIR comes back — with fresh
+ * content, so nothing is banked either: giving up can never make the next try
+ * cheaper than finishing this one.
+ */
+export const REROLL_COOLDOWN_MS = 60 * 60_000;
 
 // -------------------------------------------------------------- validation
 

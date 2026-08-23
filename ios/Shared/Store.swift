@@ -24,12 +24,22 @@ struct SessionRec: Codable, Equatable, Identifiable {
     var pendingSchedule: ScheduleLogic.Schedule?
 }
 
+/// What an abandoned attempt leaves behind, so restarting cannot re-roll it.
+struct AbandonRec: Codable, Equatable {
+    let siteId: String
+    let kind: ChallengeEngine.Kind
+    let comboKey: String
+    let at: Double
+}
+
 struct AppState: Codable, Equatable {
     var protectionOn: Bool = false
     var sites: [Site] = []
     var unlockLog: [Double] = []
     var lastCombo: String? = nil
     var session: SessionRec? = nil
+    /// the last attempt given up on; see ChallengeEngine.rerollCooldownMs
+    var lastAbandon: AbandonRec? = nil
 }
 
 /// Shared state persisted to a JSON file in the App Group container, so the

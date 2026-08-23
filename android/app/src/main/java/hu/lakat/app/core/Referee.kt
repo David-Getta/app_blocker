@@ -38,16 +38,52 @@ object Referee {
             if (kind == Kind.DELETE && site.pendingDeleteAt != null) {
                 throw RefereeException("Ennek az oldalnak már folyamatban van a törlése.", "ALREADY_DELETING")
             }
-            val tier = effectiveTier(state, kind, now)
-            val plan = ChallengeEngine.generatePlan(kind, tier, state.lastCombo)
+            // Új kísérlet elejti a régit — a haladás sosem bankolható, és a
+            // feladott kísérlet próbatípusait megjegyezzük, hogy ez ne legyen
+            // könnyebb pár utáni vadászat.
+            val dropped = dropSession(state, now)
+            val tier = effectiveTier(dropped, kind, now)
+            val plan = ChallengeEngine.generatePlan(
+                kind, tier, dropped.lastCombo, forcedCombo(dropped, siteId, kind, now),
+            )
             val session = SessionRec(
                 id = LakatStore.newId("ses"), kind = kind, siteId = siteId, minutes = minutes,
                 steps = armCurrent(plan.steps, 0, now), stepIndex = 0, createdAt = now,
             )
             created = session
-            state.copy(session = session, lastCombo = plan.comboKey)
+            dropped.copy(session = session, lastCombo = plan.comboKey)
         }
         return created!!
+    }
+
+    /**
+     * Elejti a futó kísérletet, és megjegyzi, MI volt: a hűtési időn belüli
+     * újraindítás ugyanazokat a próbatípusokat kapja vissza. Kilépni mindig
+     * szabad — csak ne legyen olcsóbb út, mint befejezni.
+     */
+    private fun dropSession(state: AppState, now: Long): AppState {
+        val s = state.session ?: return state
+        val combo = ChallengeEngine.comboKeyOf(
+            s.steps.filter { it !is Step.Delay }.map { ChallengeEngine.typeNameOf(it) },
+        )
+        // A hűtés az ELSŐ feladástól számít, nem a legutóbbi újraindítástól,
+        // különben minden újraindítás kitolná a határidőt, és a pár örökre
+        // rátapadna az oldalra.
+        val prev = state.lastAbandon
+        val sameAsBefore = prev != null && prev.siteId == s.siteId && prev.kind == s.kind &&
+            prev.comboKey == combo && now - prev.at <= ChallengeEngine.REROLL_COOLDOWN_MS
+        return state.copy(
+            session = null,
+            lastAbandon = AbandonRec(s.siteId, s.kind, combo, if (sameAsBefore) prev!!.at else now),
+        )
+    }
+
+    /** A feladott kísérlet által még „kötelező” kombináció, amíg le nem jár. */
+    private fun forcedCombo(state: AppState, siteId: String, kind: Kind, now: Long): String? {
+        val a = state.lastAbandon ?: return null
+        if (a.siteId != siteId || a.kind != kind) return null
+        if (now < a.at || now - a.at > ChallengeEngine.REROLL_COOLDOWN_MS) return null
+        return a.comboKey
     }
 
     /** Időzítés-bélyegzés, amikor egy lépés aktuálissá válik (DELAY cél, MEMORY mutatási ablak). */
@@ -71,7 +107,8 @@ object Referee {
             else site.copy(pendingDeleteAt = now + ChallengeEngine.DELETE_PENDING_MS)
         }
         val log = state.unlockLog.filter { it > now - 30 * 24 * 3600_000L } + now
-        return state.copy(sites = sites, unlockLog = log, session = null)
+        // Megoldva: a tartozás rendezve, a következő kísérlet újra szabadon húz.
+        return state.copy(sites = sites, unlockLog = log, session = null, lastAbandon = null)
     }
 
     data class ScheduleChangeResult(val applied: Boolean, val session: SessionRec?)
@@ -97,7 +134,9 @@ object Referee {
                 })
             }
             val tier = effectiveTier(state, Kind.PAUSE, now)
-            val plan = ChallengeEngine.generatePlan(Kind.PAUSE, tier, state.lastCombo)
+            val plan = ChallengeEngine.generatePlan(
+                Kind.PAUSE, tier, state.lastCombo, forcedCombo(state, siteId, Kind.PAUSE, now),
+            )
             val session = SessionRec(
                 id = LakatStore.newId("ses"), kind = Kind.PAUSE, siteId = siteId, minutes = null,
                 steps = armCurrent(plan.steps, 0, now), stepIndex = 0, createdAt = now,
@@ -115,7 +154,7 @@ object Referee {
             throw RefereeException("Nincs ilyen aktív feloldási kísérlet.", "NO_SESSION")
         }
         if (now - s.createdAt > ChallengeEngine.SESSION_MAX_AGE_MS) {
-            LakatStore.mutate { it.copy(session = null) }
+            LakatStore.mutate { dropSession(it, now) }
             throw RefereeException("A feloldási kísérlet lejárt, kezdd elölről.", "SESSION_EXPIRED")
         }
         return s
@@ -160,7 +199,7 @@ object Referee {
         if (pre != null && pre.id == sessionId) {
             val step = pre.steps[pre.stepIndex]
             if (step is Step.Delay && step.claimableAt != null && now > step.claimableAt + step.claimWindowMs) {
-                LakatStore.mutate { it.copy(session = null) }
+                LakatStore.mutate { dropSession(it, now) }
                 throw RefereeException(
                     "Lecsúsztál az átvételi ablakról — a feloldási kísérlet érvénytelen, elölről kell kezdeni.",
                     "CLAIM_EXPIRED",
@@ -192,8 +231,9 @@ object Referee {
     }
 
     fun abandon(sessionId: String) {
+        val now = System.currentTimeMillis()
         LakatStore.mutate { state ->
-            if (state.session?.id == sessionId) state.copy(session = null) else state
+            if (state.session?.id == sessionId) dropSession(state, now) else state
         }
     }
 
@@ -212,7 +252,9 @@ object Referee {
 
         LakatStore.mutate { state ->
             var next = state
-            if (sessionDead) next = next.copy(session = null)
+            // A várakozási ablak kihagyása is befejezés — ugyanaz a könyvelés,
+            // hogy ne lehessen vele nemszeretem párból kimenekülni.
+            if (sessionDead) next = dropSession(next, now)
             val sites = next.sites
                 .map { if (it.pauseUntil != null && it.pauseUntil <= now) it.copy(pauseUntil = null) else it }
                 .filter { it.pendingDeleteAt == null || it.pendingDeleteAt > now }

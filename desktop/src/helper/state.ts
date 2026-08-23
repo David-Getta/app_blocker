@@ -33,6 +33,14 @@ export interface SessionRec {
   pendingSchedule?: Schedule;
 }
 
+/** What an abandoned attempt leaves behind, so restarting cannot re-roll it. */
+export interface AbandonRec {
+  siteId: string;
+  kind: 'pause' | 'delete';
+  comboKey: string;
+  at: number;
+}
+
 export interface HelperState {
   version: 1;
   sites: SiteRec[];
@@ -40,6 +48,8 @@ export interface HelperState {
   unlockLog: number[];
   lastCombo: string | null;
   session: SessionRec | null;
+  /** the last attempt given up on; see REROLL_COOLDOWN_MS */
+  lastAbandon?: AbandonRec | null;
   dohApplied: boolean;
   /** active-time tracking history (stays on this machine) */
   usage: UsageState;

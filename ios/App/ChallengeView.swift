@@ -29,6 +29,8 @@ struct ChallengeView: View {
                             .font(.subheadline).foregroundStyle(Color.accentColor)
                         stepView(ses.steps[ses.stepIndex])
                         if let m = message { Text(m).foregroundStyle(.red).font(.footnote) }
+                        Text("A feladás nem sorsol könnyebb feladatot: egy órán belül ugyanezeket a próbatípusokat kapod vissza, csak friss tartalommal.")
+                            .font(.caption).foregroundStyle(.secondary)
                     } else {
                         Text("Nincs aktív lépés.")
                     }

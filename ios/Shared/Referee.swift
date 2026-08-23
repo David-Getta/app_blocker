@@ -13,6 +13,32 @@ enum Referee {
         return kind == .delete ? min(3, base + 1) : base
     }
 
+    /// Drops the running attempt and remembers WHAT it was, so restarting
+    /// within the cooldown gets the same challenge types back. Cancelling is
+    /// always allowed — it just must not be a cheaper route than finishing.
+    private static func dropSession(_ state: inout AppState, _ now: Double) {
+        guard let s = state.session else { return }
+        let combo = ChallengeEngine.comboKeyOf(
+            s.steps.filter { $0.typeName != "DELAY" }.map { $0.typeName })
+        // The cooldown runs from the FIRST time this pair was given up on, not
+        // from the latest restart — otherwise every restart would push the
+        // deadline out and the pair would stick to the site for ever.
+        let prev = state.lastAbandon
+        let sameAsBefore = prev != nil && prev!.siteId == s.siteId && prev!.kind == s.kind
+            && prev!.comboKey == combo && now - prev!.at <= ChallengeEngine.rerollCooldownMs
+        state.lastAbandon = AbandonRec(siteId: s.siteId, kind: s.kind, comboKey: combo,
+                                       at: sameAsBefore ? prev!.at : now)
+        state.session = nil
+    }
+
+    /// The combo an abandoned attempt still owes, while the cooldown holds.
+    private static func forcedCombo(_ state: AppState, _ siteId: String,
+                                    _ kind: ChallengeEngine.Kind, _ now: Double) -> String? {
+        guard let a = state.lastAbandon, a.siteId == siteId, a.kind == kind else { return nil }
+        if now < a.at || now - a.at > ChallengeEngine.rerollCooldownMs { return nil }
+        return a.comboKey
+    }
+
     /** Stamps timing state when a step becomes current (DELAY target, MEMORY show window). */
     private static func armCurrent(_ steps: inout [ChallengeEngine.Step], _ index: Int, _ now: Double) {
         guard index < steps.count else { return }
@@ -45,8 +71,13 @@ enum Referee {
             if kind == .delete && site.pendingDeleteAt != nil {
                 thrown = RefereeError(message: "Ennek az oldalnak már folyamatban van a törlése.", code: "ALREADY_DELETING"); return
             }
+            // A new attempt drops any previous one — progress is never banked,
+            // and its challenge types are remembered so this is not a way to
+            // shop for an easier pair.
+            dropSession(&state, now)
             let tier = effectiveTier(state, kind: kind, now: now)
-            let plan = ChallengeEngine.generatePlan(kind: kind, tier: tier, lastCombo: state.lastCombo)
+            let plan = ChallengeEngine.generatePlan(kind: kind, tier: tier, lastCombo: state.lastCombo,
+                                                    forceCombo: forcedCombo(state, siteId, kind, now))
             var steps = plan.steps
             armCurrent(&steps, 0, now)
             let session = SessionRec(id: LakatStore.shared.newId("ses"), kind: kind, siteId: siteId,
@@ -71,6 +102,8 @@ enum Referee {
         }
         state.unlockLog = state.unlockLog.filter { $0 > now - 30 * 24 * 3_600_000 } + [now]
         state.session = nil
+        // Solved: the debt is paid, the next attempt draws freely again.
+        state.lastAbandon = nil
     }
 
     struct ScheduleChangeResult { let applied: Bool; let session: SessionRec? }
@@ -97,7 +130,8 @@ enum Referee {
                 return
             }
             let tier = effectiveTier(state, kind: .pause, now: now)
-            let plan = ChallengeEngine.generatePlan(kind: .pause, tier: tier, lastCombo: state.lastCombo)
+            let plan = ChallengeEngine.generatePlan(kind: .pause, tier: tier, lastCombo: state.lastCombo,
+                                                    forceCombo: forcedCombo(state, siteId, .pause, now))
             var steps = plan.steps
             armCurrent(&steps, 0, now)
             let session = SessionRec(id: LakatStore.shared.newId("ses"), kind: .pause, siteId: siteId,
@@ -119,7 +153,7 @@ enum Referee {
                 thrown = RefereeError(message: "Nincs ilyen aktív feloldási kísérlet.", code: "NO_SESSION"); return
             }
             if now - s.createdAt > Double(ChallengeEngine.sessionMaxAgeMs) {
-                state.session = nil
+                dropSession(&state, now)
                 thrown = RefereeError(message: "A feloldási kísérlet lejárt, kezdd elölről.", code: "SESSION_EXPIRED"); return
             }
             let step = s.steps[s.stepIndex]
@@ -159,7 +193,7 @@ enum Referee {
         if let pre = LakatStore.shared.state.session, pre.id == sessionId,
            case let .delay(_, _, claimableAt?, window) = pre.steps[pre.stepIndex],
            now > claimableAt + Double(window) {
-            LakatStore.shared.mutate { $0.session = nil }
+            LakatStore.shared.mutate { dropSession(&$0, now) }
             throw RefereeError(
                 message: "Lecsúsztál az átvételi ablakról — a feloldási kísérlet érvénytelen, elölről kell kezdeni.",
                 code: "CLAIM_EXPIRED")
@@ -194,8 +228,9 @@ enum Referee {
     }
 
     static func abandon(sessionId: String) {
+        let now = Date().timeIntervalSince1970 * 1000
         LakatStore.shared.mutate { state in
-            if state.session?.id == sessionId { state.session = nil }
+            if state.session?.id == sessionId { dropSession(&state, now) }
         }
     }
 
@@ -213,7 +248,9 @@ enum Referee {
         guard sessionDead || pauseEnded || deleteDue else { return }
 
         LakatStore.shared.mutate { state in
-            if sessionDead { state.session = nil }
+            // Sitting out the claim window ends an attempt too: same bookkeeping,
+            // so it is not an escape hatch from a pair one dislikes.
+            if sessionDead { dropSession(&state, now) }
             state.sites = state.sites.compactMap { site in
                 var copy = site
                 if let p = copy.pauseUntil, p <= now { copy.pauseUntil = nil }

@@ -188,4 +188,53 @@ class RefereeTest {
         // old unlocks decay out of the window
         assertEquals(0, ChallengeEngine.computeTier(listOf(now - 10 * day, now - 20 * day), now))
     }
+    @Test fun `cancelling an attempt is not a way to re-roll an easier one`() {
+        // Mirrors the desktop test: friction that can be re-rolled is not
+        // friction. Giving up must hand back the same PAIR of challenges (with
+        // fresh content) until the cooldown runs out.
+        val id = addSite("youtube.com")
+        Referee.startSession(Kind.PAUSE, id, 15, now)
+        val first = LakatStore.state.value.session!!
+        val firstTypes = first.steps.map { ChallengeEngine.typeNameOf(it) }.sorted()
+        val firstIds = first.steps.map { it.id }
+
+        Referee.abandon(first.id)
+        assertNull(LakatStore.state.value.session)
+
+        Referee.startSession(Kind.PAUSE, id, 15, now + 60_000)
+        val second = LakatStore.state.value.session!!
+        assertEquals(firstTypes, second.steps.map { ChallengeEngine.typeNameOf(it) }.sorted(),
+            "the same challenge types come back")
+        assertFalse(second.steps.map { it.id } == firstIds, "but the content is regenerated")
+        assertEquals(0, second.stepIndex, "progress is not carried over")
+    }
+
+    @Test fun `the forced combo expires with its cooldown`() {
+        val id = addSite("youtube.com")
+        Referee.startSession(Kind.PAUSE, id, 15, now)
+        Referee.abandon(LakatStore.state.value.session!!.id)
+        val abandoned = LakatStore.state.value.lastAbandon!!.comboKey
+
+        Referee.startSession(Kind.PAUSE, id, 15, now + ChallengeEngine.REROLL_COOLDOWN_MS + 60_000)
+        val types = LakatStore.state.value.session!!.steps
+            .filter { it !is Step.Delay }
+            .map { ChallengeEngine.typeNameOf(it) }
+        assertFalse(ChallengeEngine.comboKeyOf(types) == abandoned,
+            "past the cooldown the draw is free again (and variety forces a different pair)")
+    }
+
+    @Test fun `solving clears the abandon debt`() {
+        val id = addSite("youtube.com")
+        Referee.startSession(Kind.PAUSE, id, 15, now)
+        Referee.abandon(LakatStore.state.value.session!!.id)
+        assertNotNull(LakatStore.state.value.lastAbandon)
+
+        Referee.startSession(Kind.PAUSE, id, 15, now + 60_000)
+        var guard = 0
+        while (LakatStore.state.value.session != null && guard++ < 200) {
+            val step = currentStep()
+            Referee.submitAnswer(LakatStore.state.value.session!!.id, solve(step), now + 60_000)
+        }
+        assertNull(LakatStore.state.value.lastAbandon, "solving pays the debt")
+    }
 }

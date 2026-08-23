@@ -72,11 +72,32 @@ DELAY lépés szünetnél tier ≥ 2-től, törlésnél mindig van.
 ## Sorozat felépítése
 
 ```
-generatePlan(kind, tier, lastCombo):
-  - válassz 2 KÜLÖNBÖZŐ aktív típust (TRANSCRIBE/MATH_CHAIN/MEMORY/REVERSE),
-    úgy, hogy a párosuk ne egyezzen az előző sorozatéval
+generatePlan(kind, tier, lastCombo, forceCombo):
+  - ha van forceCombo (feladott kísérlet tartozása): azt a párost használd
+  - különben válassz 2 KÜLÖNBÖZŐ aktív típust
+    (TRANSCRIBE/MATH_CHAIN/MEMORY/REVERSE), úgy, hogy a párosuk ne egyezzen az
+    előző sorozatéval
   - ha tier >= 2 VAGY kind == delete: fűzz hozzá egy DELAY lépést
 ```
+
+### Miért nem lehet újrapörgetni
+
+A pároséban van különbség: a MEMORY-ban benne van egy kötelező kivárás, a
+REVERSE gépelése lassabb, mint egy MATH_CHAIN. Ha a feladás új párost sorsolna,
+elég lett volna elég sokszor újrakezdeni, amíg jön a legkényelmesebb kettő — az
+a súrlódás pedig, amit újra lehet pörgetni, nem súrlódás.
+
+Ezért minden **befejezés-szerű esemény** (feladom gomb, új kísérlet indítása a
+régi helyett, a DELAY átvételi ablakának kihagyása, a session elévülése)
+ugyanoda könyvel: megjegyzi a párost és az időpontját. Egy órán belül
+(`REROLL_COOLDOWN_MS`) ugyanaz a **páros** jön vissza — de **friss tartalommal**
+és nulláról, tehát a haladás sem bankolható: kiszállni sosem olcsóbb, mint
+végigcsinálni. Az óra az **első** feladástól számít, nem a legutóbbi
+újraindítástól, különben a páros örökre az oldalra ragadna.
+
+Megoldás után a tartozás törlődik, és a következő kísérlet megint szabadon húz
+— a változatosságot ilyenkor a `lastCombo` szabály őrzi (nem lehet ugyanaz,
+mint az előző).
 
 ## Fontos szabályok
 
@@ -86,6 +107,8 @@ generatePlan(kind, tier, lastCombo):
   kiszűr), így nincs „csak írd át a flaget” rövidzárlat a felületről.
 - **A haladás nem bankolható.** Új kísérlet indítása eldobja a korábbit; a
   DELAY-t nem lehet „félretenni és később átvenni” az ablakon túl.
+- **A feladás nem sorsol könnyebbet.** Egy órán belül ugyanaz a próbatípus-páros
+  jön vissza (friss tartalommal) — lásd fent.
 - **A blokkolás alapból zár.** Ha bármi elromlik (lejárt session, elrontott
   hosts fájl), a rendszer a *blokkolt* állapot felé esik vissza, nem a nyitott
   felé.

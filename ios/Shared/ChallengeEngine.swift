@@ -20,6 +20,17 @@ enum ChallengeEngine {
                 return id
             }
         }
+
+        /// The same vocabulary the combo keys use.
+        var typeName: String {
+            switch self {
+            case .transcribe: return "TRANSCRIBE"
+            case .mathChain: return "MATH_CHAIN"
+            case .memory: return "MEMORY"
+            case .reverse: return "REVERSE"
+            case .delay: return "DELAY"
+            }
+        }
     }
 
     struct Problem: Codable, Equatable { let q: String; let a: Int }
@@ -29,6 +40,11 @@ enum ChallengeEngine {
     static let claimWindowMs = 10 * 60_000
     static let deletePendingMs = 24 * 3_600_000
     static let sessionMaxAgeMs = 6 * 3_600_000
+    /// How long an abandoned attempt keeps its challenge types. Without it,
+    /// cancelling was a free re-roll: one could restart until the easiest pair
+    /// came up, and friction that can be re-rolled is not friction. Within the
+    /// window the same PAIR returns — with fresh content, so nothing is banked.
+    static let rerollCooldownMs: Double = 60 * 60_000
     static let pauseChoicesMin = [15, 30, 60]
 
     private static let transcribeChars = [300, 420, 560, 720]
@@ -153,14 +169,27 @@ enum ChallengeEngine {
 
     static func comboKeyOf(_ types: [String]) -> String { types.sorted().joined(separator: "+") }
 
-    static func generatePlan(kind: Kind, tier: Int, lastCombo: String?) -> Plan {
-        var types: [String]
-        repeat {
-            types = Array(activePool.shuffled().prefix(2))
-        } while lastCombo != nil && comboKeyOf(types) == lastCombo
-        var steps = types.map { makeStep($0, tier: tier, kind: kind) }
+    /// A combo key back into its two challenge types, or nil if this build
+    /// cannot serve it (unknown name, wrong arity). Nil means "draw a fresh
+    /// plan", never "serve something broken".
+    static func parseCombo(_ key: String?) -> [String]? {
+        guard let key = key, !key.isEmpty else { return nil }
+        let parts = key.components(separatedBy: "+")
+        guard parts.count == 2, parts[0] != parts[1] else { return nil }
+        guard parts.allSatisfy({ activePool.contains($0) }) else { return nil }
+        return parts
+    }
+
+    static func generatePlan(kind: Kind, tier: Int, lastCombo: String?, forceCombo: String? = nil) -> Plan {
+        var types: [String]? = parseCombo(forceCombo)
+        while types == nil {
+            let draw = Array(activePool.shuffled().prefix(2))
+            if lastCombo == nil || comboKeyOf(draw) != lastCombo { types = draw }
+        }
+        let chosen = types!
+        var steps = chosen.map { makeStep($0, tier: tier, kind: kind) }
         if tier >= 2 || kind == .delete { steps.append(makeStep("DELAY", tier: tier, kind: kind)) }
-        return Plan(steps: steps, comboKey: comboKeyOf(types))
+        return Plan(steps: steps, comboKey: comboKeyOf(chosen))
     }
 
     static func reverse(_ s: String) -> String { String(s.reversed()) }

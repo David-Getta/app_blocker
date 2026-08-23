@@ -648,6 +648,11 @@ private fun ChallengeScreen(
 
             message?.let { Text(it, color = MaterialTheme.colorScheme.error) }
 
+            Text(
+                "A feladás nem sorsol könnyebb feladatot: egy órán belül ugyanezeket a " +
+                    "próbatípusokat kapod vissza, csak friss tartalommal.",
+                style = MaterialTheme.typography.bodySmall,
+            )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 TextButton(onClick = {
                     Referee.abandon(session.id)

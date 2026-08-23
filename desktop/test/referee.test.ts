@@ -17,7 +17,7 @@ import type { HelperState } from '../src/helper/state';
 import * as referee from '../src/helper/referee';
 import { applyBlocklist, activeHostnames } from '../src/helper/hosts';
 import type { Step, DelayStep, MathChainStep, MemoryStep, ReverseStep, TranscribeStep } from '../src/shared/challenges';
-import { reverseString } from '../src/shared/challenges';
+import { reverseString, REROLL_COOLDOWN_MS } from '../src/shared/challenges';
 
 function stateWithSite(): { state: HelperState; siteId: string } {
   const state = defaultState();
@@ -193,15 +193,23 @@ test('a wrong MEMORY answer leaves a step that can still be solved', () => {
 
   // plans are randomised; start attempts until the current step is a MEMORY one
   let first: MemoryStep | null = null;
+  let startedAt = now;
   for (let i = 0; i < 300 && !first; i++) {
-    referee.startSession(state, 'pause', siteId, 15, now);
+    // This test is about the MEMORY step, not the re-roll rule: clear the
+    // abandon debt so each attempt really is a fresh draw. (The rule itself has
+    // its own tests below — with it in place the loop would keep getting the
+    // very first pair back, for ever.)
+    state.session = null;      // no attempt to drop...
+    state.lastAbandon = null;  // ...and no debt from one, so the draw is free
+    startedAt = now + i * (REROLL_COOLDOWN_MS + 60_000);
+    referee.startSession(state, 'pause', siteId, 15, startedAt);
     const s = state.session!.steps[state.session!.stepIndex];
     if (s.type === 'MEMORY') first = s;
   }
   assert.ok(first, 'a MEMORY step shows up in a randomised plan');
-  assert.equal(first!.armedAt, now, 'the opening step is armed when the session starts');
+  assert.equal(first!.armedAt, startedAt, 'the opening step is armed when the session starts');
 
-  const after = now + first!.showMs + first!.waitMs + 1_000; // sat through the window
+  const after = startedAt + first!.showMs + first!.waitMs + 1_000; // sat through the window
   const res = referee.submitAnswer(state, state.session!.id, 'ROSSZKOD', after);
   assert.equal(res.accepted, false);
 
@@ -236,4 +244,73 @@ test('a short recurring free window is still a loosening', () => {
   const res = referee.startScheduleChange(state, siteId, sneaky, now);
   assert.equal(res.applied, false, 'even 13 free minutes a day must be earned');
   assert.ok(res.session);
+});
+
+test('cancelling an attempt is not a way to re-roll an easier one', () => {
+  // The friction is the point. If giving up drew a fresh pair of challenges,
+  // you could restart until you got the pair you find easiest (say, the one
+  // without MEMORY's forced wait) — friction you can re-roll is not friction.
+  const { state, siteId } = stateWithSite();
+  const now = Date.now();
+
+  referee.startSession(state, 'pause', siteId, 15, now);
+  const firstTypes = [...state.session!.steps.map((s) => s.type)].sort().join('+');
+  const firstIds = state.session!.steps.map((s) => s.id);
+
+  referee.abandonSession(state, state.session!.id);
+  assert.equal(state.session, null);
+
+  referee.startSession(state, 'pause', siteId, 15, now + 60_000);
+  assert.equal([...state.session!.steps.map((s) => s.type)].sort().join('+'), firstTypes,
+    'the same challenge types come back');
+  // …but nothing is banked either: fresh content, so cancelling is never cheaper
+  // than finishing.
+  const secondIds = state.session!.steps.map((s) => s.id);
+  assert.notDeepEqual(secondIds, firstIds, 'the content itself is regenerated');
+  assert.equal(state.session!.stepIndex, 0, 'progress is not carried over');
+});
+
+test('a solved attempt earns a freshly drawn one next time', () => {
+  const { state, siteId } = stateWithSite();
+  const now = Date.now();
+  referee.startSession(state, 'pause', siteId, 15, now);
+  let guard = 0;
+  while (state.session && guard++ < 200) {
+    const step = state.session.steps[state.session.stepIndex];
+    referee.submitAnswer(state, state.session.id, solveStep(step, now), now);
+  }
+  assert.equal(state.lastAbandon ?? null, null, 'the abandon debt is cleared by solving');
+});
+
+test('the forced combo expires with its cooldown', () => {
+  const { state, siteId } = stateWithSite();
+  const now = Date.now();
+  referee.startSession(state, 'pause', siteId, 15, now);
+  referee.abandonSession(state, state.session!.id);
+  const abandonedCombo = state.lastAbandon!.comboKey;
+
+  // Well past the cooldown the draw is free again — and the variety rule then
+  // guarantees it differs from the one just played.
+  referee.startSession(state, 'pause', siteId, 15, now + REROLL_COOLDOWN_MS + 60_000);
+  const types = state.session!.steps.filter((s) => s.type !== 'DELAY').map((s) => s.type);
+  assert.notEqual([...types].sort().join('+'), abandonedCombo);
+});
+
+test('missing the DELAY claim window does not re-roll the challenge either', () => {
+  const { state, siteId } = stateWithSite();
+  const now = Date.now();
+  // tier 3 forces a DELAY step into the plan
+  state.unlockLog = Array.from({ length: 8 }, (_, i) => now - (i + 1) * 3600_000);
+  referee.startSession(state, 'delete', siteId, undefined, now);
+  const types = state.session!.steps.filter((s) => s.type !== 'DELAY').map((s) => s.type);
+  assert.ok(state.session!.steps.some((s) => s.type === 'DELAY'), 'the plan has a waiting step');
+
+  // walk the clock past every claim window without claiming
+  referee.tick(state, now + 6 * 3600_000 + 1);
+  assert.equal(state.session, null, 'the stale attempt is gone');
+
+  referee.startSession(state, 'delete', siteId, undefined, now + 6 * 3600_000 + 2);
+  const again = state.session!.steps.filter((s) => s.type !== 'DELAY').map((s) => s.type);
+  assert.equal([...again].sort().join('+'), [...types].sort().join('+'),
+    'sitting out the wait is not a re-roll');
 });

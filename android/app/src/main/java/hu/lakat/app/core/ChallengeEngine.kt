@@ -49,6 +49,16 @@ object ChallengeEngine {
     const val CLAIM_WINDOW_MS: Long = 10 * 60_000L
     const val DELETE_PENDING_MS: Long = 24 * 3600_000L
     const val SESSION_MAX_AGE_MS: Long = 6 * 3600_000L
+
+    /**
+     * How long an abandoned attempt keeps its challenge types.
+     *
+     * Without this, cancelling was a free re-roll: every new attempt drew a
+     * fresh pair, so one could keep restarting until the easiest pair came up.
+     * Friction that can be re-rolled is not friction. Within this window the
+     * same PAIR comes back — with fresh content, so nothing is banked either.
+     */
+    const val REROLL_COOLDOWN_MS: Long = 60 * 60_000L
     val PAUSE_CHOICES_MIN = listOf(15, 30, 60)
 
     private val rnd = SecureRandom()
@@ -163,11 +173,34 @@ object ChallengeEngine {
 
     fun comboKeyOf(types: List<String>): String = types.sorted().joinToString("+")
 
-    fun generatePlan(kind: Kind, tier: Int, lastCombo: String?): Plan {
-        var types: List<String>
-        do {
-            types = ACTIVE_POOL.shuffled(rnd.asKotlinRandom()).take(2)
-        } while (lastCombo != null && comboKeyOf(types) == lastCombo)
+    /** A lépés típusneve — ugyanaz a szótár, amit a kombináció-kulcsok használnak. */
+    fun typeNameOf(step: Step): String = when (step) {
+        is Step.Transcribe -> "TRANSCRIBE"
+        is Step.MathChain -> "MATH_CHAIN"
+        is Step.Memory -> "MEMORY"
+        is Step.Reverse -> "REVERSE"
+        is Step.Delay -> "DELAY"
+    }
+
+    /**
+     * A combo key back into its two challenge types, or null if this build
+     * cannot serve it (unknown name, wrong arity — e.g. state from a newer
+     * version). Null means „draw a fresh plan”, never „serve something broken”.
+     */
+    fun parseCombo(key: String?): List<String>? {
+        if (key.isNullOrEmpty()) return null
+        val parts = key.split("+")
+        if (parts.size != 2 || parts[0] == parts[1]) return null
+        if (!parts.all { it in ACTIVE_POOL }) return null
+        return parts
+    }
+
+    fun generatePlan(kind: Kind, tier: Int, lastCombo: String?, forceCombo: String? = null): Plan {
+        var types: List<String>? = parseCombo(forceCombo)
+        while (types == null) {
+            val draw = ACTIVE_POOL.shuffled(rnd.asKotlinRandom()).take(2)
+            if (lastCombo == null || comboKeyOf(draw) != lastCombo) types = draw
+        }
         val steps = types.map { makeStep(it, tier, kind) }.toMutableList()
         if (tier >= 2 || kind == Kind.DELETE) steps.add(makeStep("DELAY", tier, kind))
         return Plan(steps, comboKeyOf(types))
