@@ -16,9 +16,15 @@ publish:
   repo: app_blocker
 mac:
   category: public.app-category.productivity
+  # Mindkét architektúra kell: a GitHub macOS futtatója ma Apple szilícium,
+  # és arch megadása nélkül CSAK arm64 telepítő készülne — egy Intel Mac-en
+  # az le sem futna. Külön arm64 és x64 csomag (nem universal), mert az
+  # universal build kétszer akkora letöltés mindkét gépnek.
   target:
-    - dmg
-    - zip
+    - target: dmg
+      arch: [arm64, x64]
+    - target: zip
+      arch: [arm64, x64]
   # The active-time tracker asks System Events / the browser for the frontmost
   # app and active tab via Apple Events. Without this usage string TCC denies the
   # request outright in a packaged build and measurement silently records

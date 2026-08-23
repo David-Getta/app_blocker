@@ -24,9 +24,16 @@ function classify(name) {
   const n = name.toLowerCase();
   if (n.endsWith(".apk")) return { plat: "android", label: "APK (közvetlen telepítés)" };
   if (n.endsWith(".aab")) return null; // Play Store feltöltéshez, nem végfelhasználónak
-  if (n.endsWith(".dmg")) return { plat: "mac", label: "macOS (.dmg)" };
+  // A két Mac-csomag ránézésre ugyanaz, pedig a rossz meg sem nyílik: a nevében
+  // az arm64 az Apple szilícium (M1/M2/M3…), a másik az Intel.
+  if (n.endsWith(".dmg")) {
+    return n.includes("arm64")
+      ? { plat: "mac", label: "macOS – Apple szilícium (M1/M2/M3…)" }
+      : { plat: "mac", label: "macOS – Intel" };
+  }
   if (n.endsWith(".exe")) return { plat: "win", label: "Windows telepítő (.exe)" };
-  if (n.endsWith(".zip") && n.includes("mac")) return { plat: "mac", label: "macOS (.zip)" };
+  // A -mac.zip az automatikus frissítés csomagja, nem kézi letöltésre való.
+  if (n.endsWith(".zip") && n.includes("mac")) return null;
   if (n.endsWith(".yml") || n.endsWith(".blockmap")) return null; // auto-update metaadat
   return { plat: "other", label: name };
 }
