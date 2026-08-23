@@ -101,8 +101,15 @@ android/   Gradle projekt (Kotlin, Compose)                → docs/android.md
 ios/       XcodeGen projekt (iOS + macOS, közös Swift mag) → docs/ios-macos.md
 website/   letöltő landing oldal (GitHub Pages)
 .github/   CI/CD: teszt, build és kiadás minden platformra → docs/releasing.md
-docs/      architektúra + próbatétel-spec + kiadási útmutató
+docs/      architektúra, próbatétel-spec, funkciótervek, kiadási útmutató
 ```
+
+Dokumentáció:
+[architektúra](docs/architecture.md) ·
+[próbatételek](docs/challenge-spec.md) ·
+[menetrend](docs/feature-schedules.md) ·
+[idő-mérés és statisztika](docs/feature-usage-stats.md) ·
+[kiadás](docs/releasing.md)
 
 ## Gyors indítás
 

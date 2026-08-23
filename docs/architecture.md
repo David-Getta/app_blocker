@@ -49,6 +49,38 @@ szabállyal (`isOnDemandEnabled = true`, connect-always) a rendszer automatikusa
 fenntartja — egyszeri engedélyezés után nem kér újra, és bekapcsol induláskor.
 Az app és az extension egy **App Group** megosztott fájlon osztozik.
 
+## Aktív idő mérése (statisztika)
+
+A mérés önálló alrendszer, a blokkolástól függetlenül ki-be kapcsolható. Külön
+tervdokumentum: [`feature-usage-stats.md`](feature-usage-stats.md).
+
+```
+   ┌──────────────┐   minta (5 mp)    ┌──────────────┐   köteg (30–60 mp)
+   │  platform-   │ ────────────────► │   mérő       │ ──────────────────►  tároló
+   │  szonda      │  előtér + tétlen  │  (puffer)    │   napi vödrök        (helyi)
+   └──────────────┘                   └──────────────┘
+```
+
+Fontos, hogy **hol** fut a mérő:
+
+- **Desktop:** a GUI folyamatában, mert a root/SYSTEM helper nem látja az
+  előteret (macOS-en nincs hozzáférése a felhasználó grafikus munkamenetéhez,
+  Windowson a SYSTEM a 0. munkamenetben izolált). A helper csak tárol. Ezért a
+  desktop mérés addig gyűjt, amíg a Lakat fut.
+- **Android:** a már úgyis futó VPN-szolgáltatásban, tehát a felület bezárása
+  nem állítja le.
+
+Két tervezési döntés, ami az adatok helyességét adja:
+
+1. **Egy minta egy célponthoz tartozik**, a legpontosabbhoz: böngészőfülnél az
+   oldalhoz, egyébként az apphoz. Így az összegek nem duplázódnak (a böngésző
+   ideje nem szerepel egyszerre az app és az oldal mellett is).
+2. **Az idő korlátozva van két helyen**: a mintavételnél a valós eltelt idő
+   legfeljebb két mintavételi periódus lehet (alvás/ébredés után ne írjon be
+   órákat), a tárolásnál pedig egy célpont egy napra nem kaphat 24 óránál
+   többet. A megőrzés darabszám-alapú, így elállított rendszeróra sem tud
+   valós előzményt törölni.
+
 ## Közös mag
 
 A `domain-normalizálás`, `preset-bővítés`, a teljes `próbatétel-motor`, a `bíró`
