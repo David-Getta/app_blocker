@@ -231,14 +231,19 @@ function renderSiteList(st: StatusData): void {
 
 function siteRow(site: SiteInfo, st: StatusData): HTMLElement {
   const row = h('div', 'site-row');
-  const main = h('div', 'site-main');
-  main.appendChild(h('div', 'site-domain', site.domain));
-  main.appendChild(h('div', 'site-sub', `${site.hostnames.length} hosztnév · felvéve: ${new Date(site.addedAt).toLocaleDateString('hu-HU')}`));
+  // Fejléc: a NÉV és az ÁLLAPOT egy sorban, mert ez a két dolog kell ránézésre.
+  // Minden más (mérő, műveletek) ez alá kerül, halványabban.
+  const head = h('div', 'site-head');
+  const ident = h('div', 'site-ident');
+  ident.appendChild(h('div', 'site-domain', site.domain));
+  ident.appendChild(h('div', 'site-sub', `${site.hostnames.length} hosztnév · felvéve: ${new Date(site.addedAt).toLocaleDateString('hu-HU')}`));
+  head.appendChild(ident);
 
   const now = st.now;
   const statusEl = h('div', 'site-status');
   const actions = h('div', 'site-actions');
 
+  let meterEl: HTMLElement | null = null;
   const paused = site.pauseUntil !== null && site.pauseUntil > now;
   const deleting = site.pendingDeleteAt !== null;
 
@@ -248,9 +253,7 @@ function siteRow(site: SiteInfo, st: StatusData): HTMLElement {
     // A keret a szünet alatt IS fogy — az idő akkor is elmegy az oldalra.
     // Ha ezt elrejtenénk, a szünet végén jönne a meglepetés, hogy az oldal
     // azonnal zár. Inkább látszódjon, amíg lehet vele kezdeni valamit.
-    if (site.dailyLimitSeconds) {
-      statusEl.appendChild(limitMeter(site, true));
-    }
+    if (site.dailyLimitSeconds) meterEl = limitMeter(site, true);
     const relock = h('button', 'btn btn-small', 'Blokkolás visszakapcsolása most');
     relock.addEventListener('click', () => void doSimple('relock', { siteId: site.id }));
     actions.appendChild(relock);
@@ -269,9 +272,7 @@ function siteRow(site: SiteInfo, st: StatusData): HTMLElement {
     } else {
       statusEl.appendChild(h('span', 'pill pill-ok', 'Blokkolva'));
     }
-    if (site.dailyLimitSeconds) {
-      statusEl.appendChild(limitMeter(site, false));
-    }
+    if (site.dailyLimitSeconds) meterEl = limitMeter(site, false);
     if (!st.session) {
       const unlock = h('button', 'btn btn-small', 'Feloldás időre…');
       unlock.addEventListener('click', () => openPauseDialog(site.id));
@@ -285,8 +286,10 @@ function siteRow(site: SiteInfo, st: StatusData): HTMLElement {
     }
   }
 
-  main.appendChild(statusEl);
-  row.append(main, actions);
+  head.appendChild(statusEl);
+  row.append(head);
+  if (meterEl) row.append(meterEl);
+  if (actions.childElementCount > 0) row.append(actions);
   return row;
 }
 
