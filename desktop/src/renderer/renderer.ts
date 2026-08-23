@@ -9,6 +9,7 @@ import type {
 // (TypeScript's bundler resolution does not rewrite the specifier).
 import { PRESET_BANDS, type Schedule, type ScheduleMode } from '../shared/schedule.js';
 import { formatDuration } from '../shared/usage.js';
+import { HELPER_VERSION } from '../shared/protocol.js';
 import type { SetLimitResult, UsageStatsData } from '../shared/protocol';
 
 interface UpdateState {
@@ -140,6 +141,7 @@ function render(): void {
 
   renderSiteList(status!);
   renderTier(status!);
+  renderHelperStaleBanner(status!);
   renderResumeBanner(status!);
   if (modalOpen) renderSession(status!.session);
 }
@@ -148,6 +150,28 @@ function renderTier(st: StatusData): void {
   const names = ['alap', 'emelt', 'magas', 'maximális'];
   $('tierLine').textContent =
     `Próbatétel-nehézség: ${names[st.tier]} (${st.tier + 1}/4) · ${st.unlocks7d} feloldás az elmúlt 7 napban — minél többször oldasz fel, annál nehezebb.`;
+}
+
+/**
+ * A futó helper régebbi protokollt beszél, mint ez a GUI.
+ *
+ * Ez frissítés után NORMÁLIS állapot: a GUI az új bundle-ből indul, a root
+ * démont viszont a launchd (illetve a Windows ütemező) csak a következő
+ * rendszerindításkor cseréli le. Amíg ez tart, az új parancsokat a régi helper
+ * nem ismeri — hangosan el is hasal rajtuk (UNKNOWN_OP) —, de a felhasználó
+ * ebből csak annyit látna, hogy „valami nem működik”. Ezért kimondjuk, és
+ * adunk rá egy gombot: a telepítő újrafuttatása kicseréli a démont, egyetlen
+ * jelszókérés árán, újraindítás nélkül.
+ */
+function renderHelperStaleBanner(st: StatusData): void {
+  const banner = $('helperStaleBanner');
+  const stale = !!st.helperVersion && st.helperVersion !== HELPER_VERSION;
+  banner.classList.toggle('hidden', !stale);
+  if (stale) {
+    $('helperStaleText').textContent =
+      `A háttérszolgáltatás még a régi verzió (${st.helperVersion}, az app ${HELPER_VERSION}). ` +
+      'Az újabb beállítások — például a napi keret — addig nem érvényesülnek.';
+  }
 }
 
 function renderResumeBanner(st: StatusData): void {
@@ -772,6 +796,21 @@ function setupModal(): void {
   });
   $('resumeBtn').addEventListener('click', () => {
     if (status?.session) openModal(status.session);
+  });
+  $('helperStaleBtn').addEventListener('click', async () => {
+    // Ugyanaz a telepítő, mint az első indításnál: bootout + bootstrap, tehát
+    // a régi démont lecseréli. Egy jelszókérés, újraindítás nélkül.
+    const btn = $<HTMLButtonElement>('helperStaleBtn');
+    btn.disabled = true;
+    const original = btn.textContent;
+    btn.textContent = 'Frissítés… (engedélykérés jöhet)';
+    const r = await window.lakat.install();
+    btn.disabled = false;
+    btn.textContent = original;
+    if (!r.ok) {
+      $('helperStaleText').textContent = `A frissítés nem sikerült: ${r.error}`;
+    }
+    await refresh();
   });
   for (const btn of $('pauseDialog').querySelectorAll<HTMLButtonElement>('button[data-minutes]')) {
     btn.addEventListener('click', () => void startPause(Number(btn.dataset.minutes)));

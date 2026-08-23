@@ -52,6 +52,15 @@ function serve() {
 }
 
 /** The scripted backend the fake bridge answers from. Kept deliberately small. */
+function helperVersion() {
+  // A protokollverziót a LEFORDÍTOTT forrásból olvassuk, nem másoljuk ide:
+  // különben a bumpolás után a füstteszt csendben rossz értéket használna.
+  const file = path.join(WEB, 'shared', 'protocol.js');
+  const m = fs.readFileSync(file, 'utf8').match(/HELPER_VERSION\s*=\s*['"]([^'"]+)['"]/);
+  if (!m) throw new Error(`nem található a HELPER_VERSION itt: ${file}`);
+  return m[1];
+}
+
 function fakeBridgeSource() {
   return `
     const now = Date.now();
@@ -73,8 +82,12 @@ function fakeBridgeSource() {
         dailyLimitSeconds: 600, usedTodaySeconds: 600, limitExhausted: true, blockedNow: true },
     ];
     let session = null;
+    // A GUI a saját protokollverziójához hasonlítja: a demóban EGYEZZEN, hogy a
+    // képernyőképeken ne üljön ott a „régi a háttérszolgáltatás” sáv. A
+    // nem-egyező esetet a füstteszt külön, szándékosan állítja elő.
+    window.__fakeHelperVersion = ${JSON.stringify(helperVersion())};
     const status = () => ({
-      helperVersion: 1, platform: 'darwin', sites, tier: 1, unlocks7d: 2,
+      helperVersion: window.__fakeHelperVersion, platform: 'darwin', sites, tier: 1, unlocks7d: 2,
       session, dohPolicyApplied: true, usageEnabled: true, now: Date.now(),
     });
     // 30 days, because that is what the helper actually sends (and what the
@@ -180,6 +193,23 @@ async function main() {
   if (meters !== 2) failures.push(`expected 2 budget meters, saw ${meters}`);
   const spent = await page.locator('.limit-meter', { hasText: 'elfogyott' }).count();
   if (spent !== 1) failures.push('the spent budget is not called out in words');
+
+  // Egyező protokollverziónál a figyelmeztető sáv NEM látszik...
+  if (await page.locator('#helperStaleBanner:not(.hidden)').count() !== 0) {
+    failures.push('the stale-helper banner shows even though the versions match');
+  }
+  // ...régi helpernél viszont MEGJELENIK, és meg is nevezi a két verziót.
+  // Ez a frissítés utáni valós állapot: az új GUI már fut, a root démont a
+  // launchd csak a következő indításkor cseréli. Ha ezt elhallgatnánk, a
+  // felhasználó annyit látna, hogy a napi keret „nem csinál semmit”.
+  await page.evaluate(() => { window.__fakeHelperVersion = '0.0.1-regi'; });
+  await page.waitForSelector('#helperStaleBanner:not(.hidden)', { timeout: 15_000 });
+  const staleText = await page.locator('#helperStaleText').textContent();
+  if (!staleText || !staleText.includes('0.0.1-regi')) {
+    failures.push(`the stale-helper banner does not name the running version: ${staleText}`);
+  }
+  await page.evaluate((v) => { window.__fakeHelperVersion = v; }, helperVersion());
+  await page.waitForSelector('#helperStaleBanner', { state: 'hidden', timeout: 15_000 });
 
   if (!CHECK_ONLY) {
     fs.mkdirSync(OUT, { recursive: true });

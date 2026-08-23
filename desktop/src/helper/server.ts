@@ -203,6 +203,20 @@ function handle(req: HelperRequest, deps: ServerDeps): unknown {
       deps.commit();
       return { ok: true };
     }
+
+    default: {
+      // Egy RÉGI helper (frissítés után a root démon a következő indításig a
+      // régi marad) nem ismeri az új parancsokat. Enélkül az ág egyszerűen
+      // kifutna, a válasz `data: undefined` lenne, a GUI meg azt hinné, hogy
+      // sikerült — vagyis a felhasználó beállítana egy napi keretet, és
+      // csendben SEMMI nem történne. Egy blokkoló appban ez a legrosszabb
+      // hibamód, ezért itt hangosan elhasal.
+      const op = (req as { op?: unknown }).op;
+      throw new RefereeError(
+        `A háttérszolgáltatás nem ismeri ezt a parancsot (${String(op)}) — valószínűleg régi verzió fut.`,
+        'UNKNOWN_OP',
+      );
+    }
   }
 }
 

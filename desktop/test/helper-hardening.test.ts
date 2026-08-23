@@ -76,6 +76,27 @@ function stateSize(): number {
   }
 }
 
+test('an unknown command fails loudly instead of silently doing nothing', async () => {
+  // Ez a frissítés utáni valós állapot: az új GUI már fut, a root démont
+  // viszont a launchd csak a következő indításkor cseréli le, tehát a régi
+  // helper kap egy olyan parancsot, amit nem ismer. Ha ilyenkor a switch
+  // egyszerűen kifutna, a válasz `ok: true, data: undefined` lenne, és a
+  // felhasználó azt hinné, beállította a napi keretet — közben semmi nem
+  // történt. Egy blokkoló appban ez a legrosszabb hibamód.
+  const r = await call('set_something_from_the_future', { siteId: 'x' });
+  assert.equal(r.ok, false, 'az ismeretlen parancs nem lehet sikeres');
+  assert.match(String(r.error), /nem ismeri ezt a parancsot/);
+  assert.equal((r as { code?: string }).code, 'UNKNOWN_OP');
+});
+
+test('a known command still answers normally after an unknown one', async () => {
+  // Az ismeretlen parancs nem ránthatja magával a kapcsolatot vagy a helpert.
+  const r = await call('status');
+  assert.equal(r.ok, true);
+  assert.equal(typeof (r.data as { helperVersion?: unknown }).helperVersion, 'string',
+    'a helper megmondja a protokollverzióját, ebből veszi észre a GUI az elavulást');
+});
+
 test('an oversized request line is refused instead of being buffered', async () => {
   // First line of defence: one request is one JSON line, so a client streaming
   // an endless line must be cut off rather than accumulated in memory.

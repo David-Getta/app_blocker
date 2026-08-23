@@ -124,5 +124,16 @@ export type HelperResponse =
   | { id: number; ok: true; data: unknown }
   | { id: number; ok: false; error: string; code?: string };
 
-export const HELPER_VERSION = '0.1.0';
+/**
+ * A helper PROTOKOLL-verziója — nem az app verziója.
+ *
+ * Bumpold, valahányszor új `op` kerül a HelperRequest unióba, vagy egy meglévő
+ * válasz alakja változik. A GUI ezt hasonlítja össze azzal, amit a futó helper
+ * mond magáról: frissítés után a root démon a következő indításig a RÉGI marad,
+ * és egy régi helper az új parancsokat nem ismeri.
+ *
+ * 0.2.0 — set_limit (napi időkeret), a status kiegészülve a keret mezőivel
+ * 0.1.0 — első kiadás
+ */
+export const HELPER_VERSION = '0.2.0';
 export const PAUSE_CHOICES_MIN = [15, 30, 60];

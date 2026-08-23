@@ -156,6 +156,24 @@ minden bizonytalan helyzet a tiltás felé dől:
 | iOS: az állapotfájl létezik, de nem dekódolható | üres állapot ráírása → **minden blokk véglegesen elveszik** | nem írunk fölé, és a felület jelzi |
 | A helper socketje nem tehető biztonságossá | root parancscsatorna nyitva | a helper nem indul el |
 | A mérési puffer megtelik / elavul | korlátlan növekedés, néma eldobás a másik oldalon | korlátos puffer, legrégebbi megy először, naplózott eldobás |
+| Frissítés után az új GUI a RÉGI helperrel beszél | az ismeretlen parancs `data: undefined`-dal „sikerül” → a felhasználó azt hiszi, beállította a napi keretet | a helper `UNKNOWN_OP`-pal elhasal, a GUI sávban jelzi, és egy gombbal cseréli a démont |
+
+### A frissítés utáni „régi helper” állapot
+
+A desktopon a GUI és a privilegizált helper **külön folyamat**, és a frissítés
+csak az elsőt cseréli le azonnal: a root démont a launchd (Windowson az
+ütemező) a következő rendszerindításig a régi bináris alapján futtatja. Ez a
+normál működés, nem hiba — de a két fél ilyenkor különböző protokollt beszél.
+
+Ezért van a `HELPER_VERSION` a `shared/protocol.ts`-ben. Bumpolni kell, amikor
+új `op` kerül a kérés-unióba vagy egy válasz alakja változik. A GUI minden
+status-lekérésnél összeveti a sajátjával, és eltérésnél sávot mutat, egy
+gombbal: a telepítő újrafuttatása `bootout` + `bootstrap`, tehát a démont
+egyetlen jelszókérés árán, újraindítás nélkül lecseréli.
+
+A védelem két rétegű, mert a sáv csak akkor segít, ha a felhasználó látja:
+a régi helper az ismeretlen parancsra `UNKNOWN_OP`-pal el is hasal, tehát ha
+valaki mégis kiadna egy új parancsot, hibát kap, nem néma sikert.
 
 A „sérült állapot” nem elméleti: elég egy áramszünet írás közben, vagy egy
 újabb verzió után visszatelepített régebbi build (a mentett fájlban olyan enum-

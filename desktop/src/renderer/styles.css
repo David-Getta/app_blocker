@@ -138,6 +138,13 @@ body {
   font-size: 0.9rem;
 }
 
+/* Figyelmeztető sáv. A szín MELLETT a szöveg is kimondja, mi a baj, tehát
+   annak is olvasható, aki a kék és a sárga sávot nem különbözteti meg. */
+.banner-warn {
+  background: rgba(240, 173, 78, .12);
+  border-color: rgba(240, 173, 78, .45);
+}
+
 .site-list { display: flex; flex-direction: column; gap: 10px; }
 .site-row {
   display: flex; align-items: center; justify-content: space-between; gap: 14px;
