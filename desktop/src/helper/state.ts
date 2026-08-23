@@ -64,6 +64,15 @@ export function loadState(): HelperState {
     if (parsed && parsed.version === 1 && Array.isArray(parsed.sites)) {
       // Forward migration: state files written before usage tracking existed.
       if (!parsed.usage || !Array.isArray(parsed.usage.days)) parsed.usage = emptyUsage();
+      if (!Array.isArray(parsed.unlockLog)) parsed.unlockLog = [];
+      // A session whose stepIndex does not address a real step can only wedge
+      // the referee — every operation on it reads steps[stepIndex]. Dropping it
+      // means the unlock attempt starts over, which is friction in the safe
+      // direction; keeping it would block pause AND delete indefinitely.
+      const ses = parsed.session;
+      if (ses && !(Array.isArray(ses.steps) && ses.stepIndex >= 0 && ses.stepIndex < ses.steps.length)) {
+        parsed.session = null;
+      }
       return parsed;
     }
   } catch {

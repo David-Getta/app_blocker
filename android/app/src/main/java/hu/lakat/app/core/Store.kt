@@ -98,18 +98,25 @@ object LakatStore {
     }
 
     private fun usageFromJson(o: JSONObject): UsageLogic.UsageState {
+        // Per-record tolerance, like the rest of fromJson: statistics are the
+        // least important thing in this file, and a single malformed day must
+        // not be able to take the blocklist down with it.
         val days = mutableListOf<UsageLogic.UsageDay>()
         o.optJSONArray("days")?.let { arr ->
             for (i in 0 until arr.length()) {
-                val d = arr.getJSONObject(i)
-                val secs = mutableMapOf<String, Double>()
-                val so = d.getJSONObject("seconds")
-                for (k in so.keys()) secs[k] = so.getDouble(k)
-                days.add(UsageLogic.UsageDay(d.getString("day"), secs))
+                runCatching {
+                    val d = arr.getJSONObject(i)
+                    val secs = mutableMapOf<String, Double>()
+                    val so = d.getJSONObject("seconds")
+                    for (k in so.keys()) secs[k] = so.getDouble(k)
+                    days.add(UsageLogic.UsageDay(d.getString("day"), secs))
+                }
             }
         }
         val labels = mutableMapOf<String, String>()
-        o.optJSONObject("labels")?.let { lo -> for (k in lo.keys()) labels[k] = lo.getString(k) }
+        o.optJSONObject("labels")?.let { lo ->
+            for (k in lo.keys()) runCatching { labels[k] = lo.getString(k) }
+        }
         return UsageLogic.UsageState(days, labels, o.optBoolean("enabled", true))
     }
 
@@ -124,7 +131,13 @@ object LakatStore {
     }
 
     private fun scheduleFromJson(o: JSONObject): ScheduleLogic.Schedule {
-        val mode = ScheduleLogic.Mode.valueOf(o.getString("mode"))
+        // Unknown mode -> ALWAYS, never an exception. valueOf() throws on a mode
+        // this build does not know (state written by a newer version, then a
+        // downgrade), and the whole load is wrapped in runCatching: one unknown
+        // string would silently reset the app to "nothing is blocked". Falling
+        // back to always-blocked keeps the failure on the safe side.
+        val mode = runCatching { ScheduleLogic.Mode.valueOf(o.getString("mode")) }
+            .getOrDefault(ScheduleLogic.Mode.ALWAYS)
         val bandsArr = o.optJSONArray("bands")
         val bands = if (bandsArr == null) emptyList() else (0 until bandsArr.length()).map { i ->
             val bo = bandsArr.getJSONObject(i)
@@ -215,41 +228,53 @@ object LakatStore {
         }
     }
 
+    /**
+     * Reads persisted state. Damage is contained per record on purpose: the
+     * caller can only fall back to an EMPTY state, which means every block
+     * silently disappears — the one outcome this app must never produce by
+     * accident. So one unreadable site costs that site, not the list, and an
+     * unreadable session costs the unlock attempt in progress (starting over
+     * is more friction, never less).
+     */
     private fun fromJson(o: JSONObject): AppState {
         val sites = o.optJSONArray("sites")?.let { arr ->
-            (0 until arr.length()).map { i ->
-                val s = arr.getJSONObject(i)
-                Site(
-                    id = s.getString("id"),
-                    domain = s.getString("domain"),
-                    hostnames = s.getJSONArray("hostnames").let { hs ->
-                        (0 until hs.length()).map { j -> hs.getString(j) }
-                    },
-                    addedAt = s.getLong("addedAt"),
-                    pauseUntil = if (s.isNull("pauseUntil")) null else s.getLong("pauseUntil"),
-                    pendingDeleteAt = if (s.isNull("pendingDeleteAt")) null else s.getLong("pendingDeleteAt"),
-                    schedule = if (s.isNull("schedule")) null else scheduleFromJson(s.getJSONObject("schedule")),
-                )
+            (0 until arr.length()).mapNotNull { i ->
+                runCatching {
+                    val s = arr.getJSONObject(i)
+                    Site(
+                        id = s.getString("id"),
+                        domain = s.getString("domain"),
+                        hostnames = s.getJSONArray("hostnames").let { hs ->
+                            (0 until hs.length()).map { j -> hs.getString(j) }
+                        },
+                        addedAt = s.getLong("addedAt"),
+                        pauseUntil = if (s.isNull("pauseUntil")) null else s.getLong("pauseUntil"),
+                        pendingDeleteAt = if (s.isNull("pendingDeleteAt")) null else s.getLong("pendingDeleteAt"),
+                        schedule = if (s.isNull("schedule")) null else scheduleFromJson(s.getJSONObject("schedule")),
+                    )
+                }.getOrNull()
             }
         } ?: emptyList()
         val unlockLog = o.optJSONArray("unlockLog")?.let { arr ->
-            (0 until arr.length()).map { i -> arr.getLong(i) }
+            (0 until arr.length()).mapNotNull { i -> runCatching { arr.getLong(i) }.getOrNull() }
         } ?: emptyList()
-        val session = if (o.isNull("session")) null else o.getJSONObject("session").let { ses ->
-            SessionRec(
-                id = ses.getString("id"),
-                kind = Kind.valueOf(ses.getString("kind")),
-                siteId = ses.getString("siteId"),
-                minutes = if (ses.isNull("minutes")) null else ses.getInt("minutes"),
-                steps = ses.getJSONArray("steps").let { arr ->
-                    (0 until arr.length()).map { i -> stepFromJson(arr.getJSONObject(i)) }
-                },
-                stepIndex = ses.getInt("stepIndex"),
-                createdAt = ses.getLong("createdAt"),
-                pendingSchedule = if (ses.isNull("pendingSchedule")) null
-                    else scheduleFromJson(ses.getJSONObject("pendingSchedule")),
-            )
-        }
+        val session = if (o.isNull("session")) null else runCatching {
+            o.getJSONObject("session").let { ses ->
+                SessionRec(
+                    id = ses.getString("id"),
+                    kind = Kind.valueOf(ses.getString("kind")),
+                    siteId = ses.getString("siteId"),
+                    minutes = if (ses.isNull("minutes")) null else ses.getInt("minutes"),
+                    steps = ses.getJSONArray("steps").let { arr ->
+                        (0 until arr.length()).map { i -> stepFromJson(arr.getJSONObject(i)) }
+                    },
+                    stepIndex = ses.getInt("stepIndex"),
+                    createdAt = ses.getLong("createdAt"),
+                    pendingSchedule = if (ses.isNull("pendingSchedule")) null
+                        else scheduleFromJson(ses.getJSONObject("pendingSchedule")),
+                )
+            }
+        }.getOrNull()?.takeIf { it.steps.isNotEmpty() && it.stepIndex in it.steps.indices }
         return AppState(
             protectionOn = o.optBoolean("protectionOn", false),
             usage = if (o.isNull("usage")) UsageLogic.UsageState()

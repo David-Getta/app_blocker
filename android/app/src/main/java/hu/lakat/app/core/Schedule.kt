@@ -74,12 +74,18 @@ object ScheduleLogic {
         return isBlockedBySchedule(schedule ?: ALWAYS, now)
     }
 
-    /** Would switching old -> new reduce blocked time in the next 7 days? */
+    /**
+     * Would switching old -> new reduce blocked time in the next 7 days?
+     *
+     * Sampled every minute: bands are whole minutes, so a minute step cannot
+     * step over any window this model can express. A coarser step let a short
+     * recurring free window install with no friction, defeating the gate.
+     */
     fun isLoosening(oldS: Schedule, newS: Schedule, now: Long): Boolean {
         val a = normalize(oldS)
         val b = normalize(newS)
-        val step = 15 * 60_000L
-        val samples = 7 * 24 * 60 / 15
+        val step = 60_000L
+        val samples = 7 * 24 * 60
         for (i in 0 until samples) {
             val t = now + i * step
             if (isBlockedBySchedule(a, t) && !isBlockedBySchedule(b, t)) return true

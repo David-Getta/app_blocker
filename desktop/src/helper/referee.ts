@@ -145,6 +145,11 @@ export function submitAnswer(state: HelperState, sessionId: string, answer: stri
     armCurrent(s, now);
     return { accepted: true, sessionDone: false, session: sessionInfo(s, now) };
   }
+  // A failed answer can hand back a REGENERATED step (a new memory code, a new
+  // sentence). It has to be armed too, or a MEMORY step would sit there with no
+  // armedAt: the code is never shown and every answer is refused as premature —
+  // the challenge becomes unsolvable.
+  armCurrent(s, now);
   return { accepted: outcome.ok, sessionDone: false, message: outcome.message, session: sessionInfo(s, now) };
 }
 

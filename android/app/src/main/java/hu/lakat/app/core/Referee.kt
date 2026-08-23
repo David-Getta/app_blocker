@@ -142,6 +142,11 @@ object Referee {
                 result = SubmitResult(accepted = true, sessionDone = false)
                 return@mutate state.copy(session = s.copy(steps = steps, stepIndex = nextIndex))
             }
+            // A failed answer can hand back a REGENERATED step (new memory code,
+            // new sentence). It must be armed too, or a MEMORY step would have no
+            // armedAt: the code is never shown and every answer is refused as
+            // premature — the challenge becomes unsolvable.
+            steps = armCurrent(steps, s.stepIndex, now)
             result = SubmitResult(accepted = outcome.ok, sessionDone = false, message = outcome.message)
             state.copy(session = s.copy(steps = steps))
         }

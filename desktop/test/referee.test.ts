@@ -182,3 +182,58 @@ test('hosts file: apply, tamper-detect content, pause exclusion', () => {
   hosts = fs.readFileSync(process.env.LAKAT_HOSTS!, 'utf8');
   assert.ok(!hosts.includes('youtube.com'));
 });
+
+test('a wrong MEMORY answer leaves a step that can still be solved', () => {
+  // Regression: the regenerated step came back with armedAt = null and nothing
+  // re-armed it. Its code was therefore never shown, and every further answer
+  // was refused as "still memorizing" — one typo made the unlock impossible
+  // for good, on every platform.
+  const { state, siteId } = stateWithSite();
+  const now = Date.now();
+
+  // plans are randomised; start attempts until the current step is a MEMORY one
+  let first: MemoryStep | null = null;
+  for (let i = 0; i < 300 && !first; i++) {
+    referee.startSession(state, 'pause', siteId, 15, now);
+    const s = state.session!.steps[state.session!.stepIndex];
+    if (s.type === 'MEMORY') first = s;
+  }
+  assert.ok(first, 'a MEMORY step shows up in a randomised plan');
+  assert.equal(first!.armedAt, now, 'the opening step is armed when the session starts');
+
+  const after = now + first!.showMs + first!.waitMs + 1_000; // sat through the window
+  const res = referee.submitAnswer(state, state.session!.id, 'ROSSZKOD', after);
+  assert.equal(res.accepted, false);
+
+  const next = state.session!.steps[state.session!.stepIndex] as MemoryStep;
+  assert.equal(next.type, 'MEMORY');
+  assert.notEqual(next.code, first!.code, 'a fresh code is issued after a miss');
+  assert.equal(next.armedAt, after, 'and it is armed, so its show window actually opens');
+
+  // the UI is handed the new code while the window is open
+  const display = referee.currentSession(state)!.current;
+  assert.equal(display.type, 'MEMORY');
+
+  // and the retry succeeds once the new window has elapsed
+  const retryAt = after + next.showMs + next.waitMs + 1_000;
+  const ok = referee.submitAnswer(state, state.session!.id, next.code, retryAt);
+  assert.equal(ok.accepted, true, 'the challenge stays solvable after a wrong answer');
+});
+
+test('a short recurring free window is still a loosening', () => {
+  // Regression: loosening detection sampled every 15 minutes, so a daily
+  // 13-minute allow window slipped between two samples and installed with no
+  // friction at all — a complete bypass of the unlock challenges.
+  const { state, siteId } = stateWithSite();
+  // Pinned to local noon so the old 15-minute grid lands on :00/:15/:30/:45 and
+  // provably steps over the 23:47–24:00 gap: this test fails on the old code
+  // every time, not just most of the time.
+  const now = new Date(2026, 4, 20, 12, 0, 0).getTime();
+  const sneaky = {
+    mode: 'scheduled_block' as const,
+    bands: [{ days: [0, 1, 2, 3, 4, 5, 6] as (0|1|2|3|4|5|6)[], startMin: 0, endMin: 1440 - 13 }],
+  };
+  const res = referee.startScheduleChange(state, siteId, sneaky, now);
+  assert.equal(res.applied, false, 'even 13 free minutes a day must be earned');
+  assert.ok(res.session);
+});

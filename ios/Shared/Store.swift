@@ -41,7 +41,11 @@ final class LakatStore: ObservableObject {
     static let shared = LakatStore()
 
     @Published private(set) var state = AppState()
+    /// The state file exists but could not be decoded. Nothing is written while
+    /// this is true, and the UI warns instead of silently doing nothing.
+    @Published private(set) var fileUnreadable = false
 
+    private var unreadableFile = false
     private let fileURL: URL
     private let queue = DispatchQueue(label: "hu.lakat.store")
     private var source: DispatchSourceFileSystemObject?
@@ -93,12 +97,42 @@ final class LakatStore: ObservableObject {
 
     private func load() { if let disk = readFromDisk() { state = disk } }
 
+    /**
+     * Reading fails in two very different ways and they must not be treated
+     * alike. No file at all is a fresh install. A file that exists but does not
+     * decode (written by a newer build, truncated by a battery death) is
+     * dangerous: the old code returned nil for both, so mutate() fell back to
+     * the empty in-memory state and then WROTE it — every block the user set up
+     * disappeared, permanently, without a word. Now the store refuses to write
+     * over a file it could not read and says so instead.
+     */
     private func readFromDisk() -> AppState? {
-        guard let data = try? Data(contentsOf: fileURL) else { return nil }
-        return try? JSONDecoder().decode(AppState.self, from: data)
+        guard let data = try? Data(contentsOf: fileURL) else {
+            setUnreadable(false) // nothing there yet is not a failure
+            return nil
+        }
+        guard var decoded = try? JSONDecoder().decode(AppState.self, from: data) else {
+            setUnreadable(true)
+            return nil
+        }
+        setUnreadable(false)
+        // A session whose stepIndex does not address a real step can only wedge
+        // the referee: every operation on it reads steps[stepIndex]. Dropping it
+        // costs the unlock attempt in progress, which is friction in the safe
+        // direction.
+        if let s = decoded.session, s.stepIndex < 0 || s.stepIndex >= s.steps.count {
+            decoded.session = nil
+        }
+        return decoded
+    }
+
+    private func setUnreadable(_ value: Bool) {
+        unreadableFile = value
+        DispatchQueue.main.async { if self.fileUnreadable != value { self.fileUnreadable = value } }
     }
 
     private func writeToDisk(_ s: AppState) {
+        guard !unreadableFile else { return } // never clobber state we failed to read
         guard let data = try? JSONEncoder().encode(s) else { return }
         try? data.write(to: fileURL, options: .atomic)
     }

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import * as assert from 'node:assert/strict';
 import { SampleBuffer } from '../src/shared/sample-buffer';
-import { dayKey } from '../src/shared/usage';
+import { dayKey, MAX_BATCH_SAMPLES, MAX_BUFFER_AGE_MS } from '../src/shared/usage';
 
 const NOW = new Date(2026, 4, 20, 15, 30).getTime();
 function yesterdayNoon(now: number): number {
@@ -66,7 +66,7 @@ test('a failed batch is restored and merged with what arrived meanwhile', () => 
   buf.add('app:x', 'X', 5, NOW);
   const inFlight = buf.take();
   buf.add('app:x', 'X', 7, NOW);   // recorded while the send was failing
-  buf.restore(inFlight);           // send failed -> put it back
+  buf.restore(inFlight, NOW);      // send failed -> put it back
 
   assert.equal(buf.size, 1, 'same target and day merge back into one entry');
   assert.equal(buf.take()[0].sample.seconds, 12, 'nothing measured is dropped');
@@ -78,6 +78,53 @@ test('restoring a batch for a different day does not collide', () => {
   buf.add('app:x', 'X', 5, yesterday);
   const inFlight = buf.take();
   buf.add('app:x', 'X', 7, NOW);
-  buf.restore(inFlight);
+  buf.restore(inFlight, NOW);
   assert.equal(buf.size, 2, 'yesterday and today remain distinct buckets');
+});
+
+test('slices too old for the helper to accept are dropped, not retried forever', () => {
+  // The helper refuses samples further than a week from now, so retrying an
+  // older one is not delivery — it only looks like it. Drop it here, where it
+  // can be counted and logged.
+  const buf = new SampleBuffer();
+  const ancient = NOW - MAX_BUFFER_AGE_MS - 3600_000;
+  buf.add('app:x', 'X', 5, ancient);
+  const inFlight = buf.take();
+  buf.restore(inFlight, NOW);
+
+  assert.equal(buf.size, 0, 'the aged-out slice is not put back');
+  assert.equal(buf.takeDropped(), 1, 'and the drop is reported');
+  assert.equal(buf.takeDropped(), 0, 'the counter resets when read');
+});
+
+test('a slice still inside the acceptance window is retried', () => {
+  const buf = new SampleBuffer();
+  const old = NOW - MAX_BUFFER_AGE_MS + 3600_000; // just inside
+  buf.add('app:x', 'X', 5, old);
+  buf.restore(buf.take(), NOW);
+  assert.equal(buf.size, 1);
+  assert.equal(buf.takeDropped(), 0);
+});
+
+test('the buffer stays within one batch even during a long outage', () => {
+  // Without a cap the pending map grows for as long as the helper is down, and
+  // take() would hand back more than one request can carry — the surplus would
+  // be truncated away on the other side without anyone noticing.
+  const buf = new SampleBuffer();
+  for (let i = 0; i < MAX_BATCH_SAMPLES + 250; i++) {
+    buf.add(`site:host${i}.example`, `host${i}`, 5, NOW - i * 1000);
+  }
+  assert.equal(buf.size, MAX_BATCH_SAMPLES, 'the buffer is bounded');
+  assert.equal(buf.takeDropped(), 250, 'the overflow is counted');
+});
+
+test('when the buffer overflows the oldest slices go first', () => {
+  const buf = new SampleBuffer();
+  buf.add('app:oldest', 'oldest', 5, NOW - 48 * 3600_000);
+  for (let i = 0; i < MAX_BATCH_SAMPLES; i++) {
+    buf.add(`site:host${i}.example`, `host${i}`, 5, NOW);
+  }
+  const keys = buf.take().map((b) => b.sample.key);
+  assert.ok(!keys.includes('app:oldest'), 'the oldest bucket is the one evicted');
+  assert.equal(keys.length, MAX_BATCH_SAMPLES);
 });

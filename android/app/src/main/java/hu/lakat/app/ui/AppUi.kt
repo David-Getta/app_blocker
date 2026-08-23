@@ -739,7 +739,9 @@ private fun MemoryStepUi(step: Step.Memory, now: Long, onSubmit: (String) -> Uni
     var input by rememberSaveable(step.id) { mutableStateOf("") }
     // Az időzítés szerveroldali (armedAt): az app bezárása/újranyitása nem
     // indítja újra a mutatási fázist, és a bíró a kivárás előtt nem fogad választ.
-    val armedAt = step.armedAt ?: now
+    // Ha még nincs bélyeg, az elsőt rögzítjük, különben a visszaszámláló
+    // másodpercenként újraindulna.
+    val armedAt = remember(step.id) { step.armedAt ?: now }
     val showEnd = armedAt + step.showMs
     val waitEnd = showEnd + step.waitMs
 

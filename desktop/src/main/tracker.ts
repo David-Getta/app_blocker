@@ -16,6 +16,7 @@ import {
   decideSample, domainFromBrowserUrl, SAMPLE_INTERVAL_MS, MAX_LABEL_LENGTH, type Foreground,
 } from '../shared/usage';
 import { SampleBuffer } from '../shared/sample-buffer';
+import { ProbeSupervisor } from '../shared/probe-supervisor';
 import type { UsageSampleMsg } from '../shared/protocol';
 
 /** Bundle ids / process names whose active tab we know how to read. */
@@ -150,14 +151,27 @@ while ($true) {
 /** Latest line from the Windows probe loop, refreshed in the background. */
 let winLatest: Foreground | null = null;
 let winProc: ReturnType<typeof spawn> | null = null;
+const winSupervisor = new ProbeSupervisor();
 
 function startWindowsProbe(intervalMs: number, log: (m: string) => void): void {
-  if (winProc) return;
+  const now = Date.now();
+  if (!winSupervisor.canStart(now)) return;
   const script = WIN_PROBE_LOOP.replace('__SLEEP_MS__', String(intervalMs));
-  const child = spawn('powershell.exe',
-    ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', script],
-    { windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] });
+  let child: ReturnType<typeof spawn>;
+  try {
+    child = spawn('powershell.exe',
+      ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', script],
+      { windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] });
+  } catch (e) {
+    // spawn() can throw synchronously (bad argv, EMFILE); that is a failed
+    // attempt like any other and must go through the backoff, not be swallowed.
+    winSupervisor.started(now);
+    const { failures } = winSupervisor.ended(now);
+    log(`windows probe could not be spawned (${failures}. kísérlet): ${String(e)}`);
+    return;
+  }
   winProc = child;
+  winSupervisor.started(now);
   let buffer = '';
   child.stdout?.setEncoding('utf8');
   child.stdout?.on('data', (chunk: string) => {
@@ -169,12 +183,23 @@ function startWindowsProbe(intervalMs: number, log: (m: string) => void): void {
       winLatest = parseWinLine(line);
     }
   });
-  child.on('exit', () => {
+
+  // Node emits 'error' (then 'close') when the spawn itself fails and never
+  // emits 'exit' in that case. Clearing state only on 'exit' therefore left
+  // winProc pointing at a child that never existed, and the restart guard then
+  // blocked every retry — Windows tracking died silently for the whole session.
+  // Every terminal event lands here instead, and only for the current child:
+  // a late event from a replaced probe must not shoot down its successor.
+  const finished = (why: string) => {
+    if (winProc !== child) return;
     winProc = null;
     winLatest = null;
-    log('windows probe exited; will restart on the next tick');
-  });
-  child.on('error', (e) => log(`windows probe failed to start: ${String(e)}`));
+    const { retryInMs, failures } = winSupervisor.ended(Date.now());
+    log(`windows probe ${why}; retry in ${Math.round(retryInMs / 1000)}s (${failures} egymás utáni hiba)`);
+  };
+  child.on('exit', () => finished('exited'));
+  child.on('close', () => finished('closed'));
+  child.on('error', (e) => finished(`failed: ${String(e)}`));
 }
 
 export function parseWinLine(line: string): Foreground | null {
@@ -196,9 +221,11 @@ export function parseWinLine(line: string): Foreground | null {
 }
 
 function stopWindowsProbe(): void {
-  winProc?.kill();
-  winProc = null;
+  const child = winProc;
+  winProc = null; // before kill(), so the exit handler sees it is no longer current
+  child?.kill();
   winLatest = null;
+  winSupervisor.reset();
 }
 
 async function probeForeground(log: (m: string) => void): Promise<Foreground | null> {
@@ -288,7 +315,11 @@ export class UsageTracker {
     const inFlight = this.buffer.take();
     try {
       const ok = await this.deps.send(inFlight.map((b) => b.sample)).catch(() => false);
-      if (!ok) this.buffer.restore(inFlight);
+      if (!ok) this.buffer.restore(inFlight, Date.now());
+      const dropped = this.buffer.takeDropped();
+      if (dropped > 0) {
+        this.deps.log(`usage: ${dropped} elavult mérési tétel eldobva (a segéd túl régóta elérhetetlen)`);
+      }
     } finally {
       this.flushing = false;
     }

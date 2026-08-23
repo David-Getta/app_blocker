@@ -11,7 +11,7 @@ import { computeTier } from '../shared/challenges';
 import { isBlockedNow } from '../shared/schedule';
 import {
   recordSample, summarize, series, labelOf, emptyUsage,
-  MAX_KEY_LENGTH, MAX_LABEL_LENGTH,
+  MAX_KEY_LENGTH, MAX_LABEL_LENGTH, MAX_BATCH_SAMPLES,
 } from '../shared/usage';
 import type { UsageStatsData } from '../shared/protocol';
 import type { HelperState, SiteRec } from './state';
@@ -20,8 +20,9 @@ import * as referee from './referee';
 import { RefereeError } from './referee';
 import { socketPath } from './paths';
 
-/** Hard limits on one usage_batch request (see the handler for why). */
-export const MAX_BATCH_SAMPLES = 512;
+/** Hard limit on one usage_batch request — shared with the tracker's buffer cap,
+ *  so a completely full buffer still fits into exactly one request. */
+export { MAX_BATCH_SAMPLES };
 const VALID_KEY = new RegExp(`^(app|site):.{1,${MAX_KEY_LENGTH - 5}}$`);
 
 export interface ServerDeps {
@@ -227,24 +228,40 @@ export function startServer(deps: ServerDeps): net.Server {
     });
     conn.on('error', () => { /* client went away */ });
   });
-  server.listen(sock, () => {
-    if (process.platform !== 'win32') {
-      // The helper runs as root; the socket must NOT be world-writable, or any
-      // local user/process could drive the root daemon. Restrict it to the
-      // owner user (the account that installed the GUI) — connect() then
-      // requires ownership, which the OS enforces. Fails closed: if the owner
-      // is unknown we leave it root-only rather than world-open.
-      try {
-        fs.chmodSync(sock, 0o600);
-        if (deps.ownerUid !== undefined && deps.ownerUid >= 0) {
-          const gid = (() => { try { return fs.statSync(sock).gid; } catch { return process.getgid?.() ?? 0; } })();
-          fs.chownSync(sock, deps.ownerUid, gid);
-        }
-      } catch (e) {
-        deps.log(`socket permission hardening failed: ${String(e)}`);
+  // The helper runs as root; the socket must NOT be world-writable, or any
+  // local user or process could drive the root daemon. Two separate steps:
+  //
+  //  1. Bind under a restrictive umask. chmod()-ing afterwards leaves a window
+  //     — however short — in which the socket exists with the process umask's
+  //     permissions and is already accepting connections. Under a umask the
+  //     kernel never creates it world-accessible in the first place. listen()
+  //     binds the path synchronously, so restoring the umask right after the
+  //     call is safe and keeps the change local to the bind.
+  //  2. Verify, and refuse to serve if it cannot be verified. Failing open
+  //     would mean a root-owned command socket that anyone can talk to.
+  const prevMask = process.platform === 'win32' ? null : process.umask(0o177);
+  try {
+    server.listen(sock, () => deps.log(`helper listening on ${sock}`));
+  } finally {
+    if (prevMask !== null) process.umask(prevMask);
+  }
+
+  if (process.platform !== 'win32') {
+    try {
+      fs.chmodSync(sock, 0o600);
+      // Hand it to the account that installed the GUI: connect() then requires
+      // ownership, which the OS enforces for us. Unknown owner stays root-only.
+      if (deps.ownerUid !== undefined && deps.ownerUid >= 0) {
+        fs.chownSync(sock, deps.ownerUid, fs.statSync(sock).gid);
       }
+      const mode = fs.statSync(sock).mode & 0o777;
+      if ((mode & 0o077) !== 0) throw new Error(`socket mode is ${mode.toString(8)}`);
+    } catch (e) {
+      deps.log(`socket permission hardening failed, refusing to serve: ${String(e)}`);
+      server.close();
+      try { fs.unlinkSync(sock); } catch { /* nothing to clean up */ }
+      throw new Error(`a helper socketje nem tehető biztonságossá: ${String(e)}`);
     }
-    deps.log(`helper listening on ${sock}`);
-  });
+  }
   return server;
 }

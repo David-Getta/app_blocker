@@ -142,6 +142,11 @@ enum Referee {
                 result = SubmitResult(accepted: true, sessionDone: false, message: nil)
                 return
             }
+            // A failed answer can hand back a REGENERATED step (new memory code,
+            // new sentence). It must be armed too, or a MEMORY step would have no
+            // armedAt: the code is never shown and every answer is refused as
+            // premature — the challenge becomes unsolvable.
+            armCurrent(&s.steps, s.stepIndex, now)
             state.session = s
             result = SubmitResult(accepted: outcome.ok, sessionDone: false, message: outcome.message)
         }

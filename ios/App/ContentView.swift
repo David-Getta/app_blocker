@@ -29,6 +29,7 @@ struct ContentView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
+                    if store.fileUnreadable { unreadableBanner }
                     protectionSection
                     addSection
                     if let ses = store.state.session { resumeBanner(ses) }
@@ -74,6 +75,19 @@ struct ContentView: View {
     }
 
     // MARK: - sections
+
+    /// Shown when the state file exists but cannot be decoded. The store then
+    /// writes nothing at all — so say why, instead of letting every action look
+    /// like it silently did nothing.
+    private var unreadableBanner: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("A mentett lista nem olvasható").font(.headline)
+            Text("A Lakat nem tudja értelmezni a mentett állapotot, ezért nem is ír fölé — így a beállításaid nem vesznek el. Ez általában akkor fordul elő, ha egy újabb verzió után régebbit telepítettél vissza. Frissíts a legfrissebb verzióra, és a lista magától újra előjön. Addig a már beállított blokkolások érvényben maradnak.")
+                .font(.footnote).foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding().background(Color.red.opacity(0.12)).cornerRadius(12)
+    }
 
     private var protectionSection: some View {
         Group {

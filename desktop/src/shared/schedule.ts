@@ -32,8 +32,14 @@ export function isValidBand(b: Band): boolean {
   return true;
 }
 
+const VALID_MODES: ScheduleMode[] = ['always', 'scheduled_block', 'scheduled_allow'];
+
 export function normalizeSchedule(s: Schedule | undefined | null): Schedule {
-  if (!s || s.mode === 'always') return ALWAYS;
+  // Fail closed on anything unrecognised. An unknown mode would fall through
+  // isBlockedBySchedule's switch and yield undefined — the site would be
+  // silently unblocked while still looking protected in the UI.
+  if (!s || !VALID_MODES.includes(s.mode)) return ALWAYS;
+  if (s.mode === 'always') return ALWAYS;
   const bands = (s.bands ?? []).filter(isValidBand);
   if (bands.length === 0) return ALWAYS; // an empty schedule is just "always blocked"
   return { mode: s.mode, bands };
@@ -92,14 +98,20 @@ export function isBlockedBySchedule(schedule: Schedule, now: number): boolean {
 
 /**
  * Would switching from `oldS` to `newS` reduce blocked time at any point in the
- * next 7 days? Sampled at 15-minute resolution (deterministic, cheap). If yes,
- * the change is a "loosening" and must be gated behind unlock challenges.
+ * next 7 days? If yes, the change is a "loosening" and must be gated behind
+ * unlock challenges.
+ *
+ * Sampled every minute, not every 15: bands are specified in whole minutes, so
+ * a minute step cannot step over any window this data model can express. A
+ * coarser step let a short recurring free window (say 13 minutes a day) install
+ * with no friction at all, which defeats the whole point of the gate. 10 080
+ * cheap evaluations, and only on a schedule change.
  */
 export function isLoosening(oldS: Schedule, newS: Schedule, now: number): boolean {
   const a = normalizeSchedule(oldS);
   const b = normalizeSchedule(newS);
-  const STEP = 15 * 60_000;
-  const SAMPLES = (7 * 24 * 60) / 15; // 672 samples over one week
+  const STEP = 60_000;
+  const SAMPLES = 7 * 24 * 60; // one week, minute by minute
   for (let i = 0; i < SAMPLES; i++) {
     const t = now + i * STEP;
     if (isBlockedBySchedule(a, t) && !isBlockedBySchedule(b, t)) return true;

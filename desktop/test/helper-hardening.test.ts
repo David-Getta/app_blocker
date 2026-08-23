@@ -175,3 +175,12 @@ test('a batch is capped and a day cannot hold unbounded targets', async () => {
   assert.ok(OTHER_SITE_KEY in today.seconds,
     'the folded-away tail is preserved in the catch-all, not silently dropped');
 });
+
+test('the helper socket is not reachable by other local users', () => {
+  // The helper runs as root and its socket is a command channel into it. If the
+  // file is group- or world-accessible, any local process can drive the root
+  // daemon: pause a block, delete a site, rewrite the hosts file.
+  if (process.platform === 'win32') return;
+  const mode = fs.statSync(process.env.LAKAT_SOCKET!).mode & 0o777;
+  assert.equal(mode & 0o077, 0, `socket mode is ${mode.toString(8)}, must be owner-only`);
+});

@@ -7,7 +7,19 @@ import Foundation
 /// time) must go through the same unlock challenges as a pause.
 enum ScheduleLogic {
 
-    enum Mode: String, Codable { case always = "always", block = "scheduled_block", allow = "scheduled_allow" }
+    enum Mode: String, Codable {
+        case always = "always", block = "scheduled_block", allow = "scheduled_allow"
+
+        /// Unknown mode -> always blocked, never a thrown error. A raw value this
+        /// build does not know (state written by a newer version, then a
+        /// downgrade) would fail the whole AppState decode, and the fallback for
+        /// that is an empty state: every block gone. Always-blocked is the safe
+        /// side of the same failure.
+        init(from decoder: Decoder) throws {
+            let raw = try decoder.singleValueContainer().decode(String.self)
+            self = Mode(rawValue: raw) ?? .always
+        }
+    }
 
     /// days: 0=Sunday..6=Saturday. startMin/endMin: local minutes from midnight.
     struct Band: Codable, Equatable {
@@ -76,11 +88,15 @@ enum ScheduleLogic {
     }
 
     /// Would switching old -> new reduce blocked time in the next 7 days?
+    ///
+    /// Sampled every minute: bands are whole minutes, so a minute step cannot
+    /// step over any window this model can express. A coarser step let a short
+    /// recurring free window install with no friction, defeating the gate.
     static func isLoosening(_ oldS: Schedule, _ newS: Schedule, _ now: Double) -> Bool {
         let a = normalize(oldS)
         let b = normalize(newS)
-        let step = 15.0 * 60_000
-        let samples = 7 * 24 * 60 / 15
+        let step = 60_000.0
+        let samples = 7 * 24 * 60
         for i in 0..<samples {
             let t = now + Double(i) * step
             if isBlockedBySchedule(a, t) && !isBlockedBySchedule(b, t) { return true }

@@ -52,6 +52,20 @@ export const OTHER_APP_KEY = 'app:(egyéb)';
 /** Length limits for anything that ends up as a stored key or label. */
 export const MAX_KEY_LENGTH = 128;
 export const MAX_LABEL_LENGTH = 96;
+/**
+ * Samples the helper accepts in one usage_batch request, and — deliberately the
+ * same number — (target, day) buckets a tracker may hold while the helper is
+ * unreachable. Equal on purpose: a completely full buffer must still fit into a
+ * single request, otherwise the surplus would be truncated away unnoticed.
+ */
+export const MAX_BATCH_SAMPLES = 512;
+/**
+ * How far back a buffered slice may reach before the tracker drops it. Kept
+ * inside the helper's ±7-day acceptance window: shipping something older only
+ * looks like delivery, the helper discards it as a nonsense timestamp. Reaching
+ * this needs a week-long helper outage with the GUI running throughout.
+ */
+export const MAX_BUFFER_AGE_MS = 6 * 24 * 3600_000;
 
 export function emptyUsage(): UsageState {
   return { days: [], labels: {}, enabled: true };
