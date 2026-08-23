@@ -193,7 +193,7 @@ enum Referee {
         if let pre = LakatStore.shared.state.session, pre.id == sessionId,
            case let .delay(_, _, claimableAt?, window) = pre.steps[pre.stepIndex],
            now > claimableAt + Double(window) {
-            LakatStore.shared.mutate { dropSession(&$0, now) }
+            LakatStore.shared.mutate { state in dropSession(&state, now) }
             throw RefereeError(
                 message: "Lecsúsztál az átvételi ablakról — a feloldási kísérlet érvénytelen, elölről kell kezdeni.",
                 code: "CLAIM_EXPIRED")
