@@ -34,6 +34,12 @@ attól, hogy sokszor csinálod.
   nem attól, hogy nyitva van. Napi/heti/havi bontás, top lista, 30 napos idősor,
   hét-a-héthez összevetés. Minden adat a gépeden marad, bármikor kikapcsolható
   és törölhető.
+- **Napi időkeret oldalanként** (asztali gép + Android): „napi 20 perc YouTube”.
+  Ha a mai aktív idő eléri a keretet, az oldal a nap hátralévő részére magától
+  visszazár, éjfélkor a keret újraindul. Keretet bevezetni vagy csökkenteni egy
+  kattintás, **emelni vagy megszüntetni ugyanúgy próbatételekbe kerül**, mint egy
+  feloldás. Amíg van keret, a mérés nem kapcsolható ki — abból fogy.
+  iPhone-on ez nem építhető meg (nincs ilyen mérési API), lásd a korlátokat.
 
 ## Képernyőképek
 
@@ -127,10 +133,13 @@ cd ios && xcodegen generate && open Lakat.xcodeproj
 ## Állapot és tesztelés
 
 - **Desktop:** teljes `node:test` lefedettség a blokklistára, a próbatétel-motorra,
-  a bíróra (session + hosts fájl end-to-end), a menetrendre és az idő-mérésre —
-  a segéd IPC-jét támadó integrációs teszttel együtt. ✅ Zöld.
+  a bíróra (session + hosts fájl end-to-end), a menetrendre, a napi keretre és az
+  idő-mérésre — a segéd IPC-jét támadó integrációs teszttel együtt. Mellette egy
+  Playwright-füstteszt hajtja végig a valódi felületet (feloldási folyamat,
+  beillesztés-tiltás, keret-mérő, a „régi a háttérszolgáltatás” és a „nem kap
+  adatot a mérés” figyelmeztetés). ✅ Zöld.
 - **Android:** a platformfüggetlen mag (`ChallengeEngine`, `Blocklist`,
-  `ScheduleLogic`, `UsageLogic`, `Referee`, `LakatStore`) és a bitszintű
+  `ScheduleLogic`, `UsageLogic`, `LimitLogic`, `Referee`, `LakatStore`) és a bitszintű
   `DnsEngine` JVM-en unit-tesztelt, Android SDK nélkül futtatva
   (`android/jvm-tests`). ✅ Zöld. A teljes APK-hoz SDK kell — a CI buildeli.
 - **iOS/macOS:** a projekt XcodeGennel generálható; a fordításhoz macOS + Xcode
@@ -159,18 +168,25 @@ felhasználó meg tudja kerülni (admin jogok, egyedi DNS/DoH-proxy stb.). A cé
 feloldáshoz. A megkerülési utakat nyíltan dokumentáljuk az
 [`docs/architecture.md`](docs/architecture.md) végén.
 
+Két konkrét dolog, amit érdemes előre tudni:
+
+- **iPhone-on nincs idő-mérés, tehát napi időkeret sincs.** Az Apple nem ad
+  appnak hozzáférést ahhoz, hogy más appokban vagy weboldalakon mennyi idő
+  telik; az egyetlen ilyen API külön, egyenként engedélyezett entitlementhez
+  kötött. A blokkolás és a heti menetrend iPhone-on is ugyanúgy működik.
+- **macOS-en a böngésző-DoH kikapcsolása nem zár, csak alapértelmezést állít.**
+  MDM-profil nélkül a Chromium ajánlásnak veszi a gépszintű beállítást, tehát
+  visszakapcsolható. Windowson ez házirend-kulcs, ott zár.
+
 ## Következő lépések (ötletek a bővítéshez)
 
 Amit a lista korábban tartalmazott és azóta elkészült: **időzített szabályok**
-(heti menetrend, a lazítás próbatételhez kötve) és a **statisztikák** (aktív idő
-oldalanként és appokként).
+(heti menetrend, a lazítás próbatételhez kötve), a **statisztikák** (aktív idő
+oldalanként és appokként) és a **napi időkeret** (a mérés és a blokkolás
+összekötve, [`docs/feature-daily-limit.md`](docs/feature-daily-limit.md)).
 
 Ami még hátravan:
 
-- **Napi időkeret oldalanként**: ha ma már elment rá X idő, a nap hátralévő
-  részére magától visszazár. A mérés és a blokkolás is megvan hozzá, csak össze
-  kell kötni — a keret emelése értelemszerűen próbatételbe kerülne. A terv kész:
-  [`docs/feature-daily-limit.md`](docs/feature-daily-limit.md).
 - **Kulcsszó-/kategória-alapú blokkolás** (a mostani DNS-szint egész
   domaineket lát, nem tartalmat).
 - **IP-szintű szabályok** az egyedi DNS/DoH-proxy megkerülés ellen.
