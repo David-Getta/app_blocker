@@ -1,79 +1,185 @@
+/* Breaker — letöltőoldal.
+ * Ugyanaz a paletta és ugyanaz a ritmus, mint az appban: aki letölti, ne
+ * érezze úgy, hogy két különböző terméket lát. */
+
 :root {
-  --bg: #0e1216;
-  --card: #1a2027;
-  --border: #2c353f;
-  --text: #e8edf2;
-  --dim: #93a1ae;
-  --accent: #4f8ef7;
-  --accent2: #4fc48b;
+  --bg: #0d1116;
+  --bg-elev: #12171d;
+  --surface: #1a2027;
+  --surface-2: #212a33;
+  --border: #2a333d;
+  --border-strong: #3a4551;
+
+  --text: #e9eef4;
+  --text-2: #a4b1be;
+  --text-3: #7b8794;
+
+  --accent: #5b8cff;
+  --accent-hover: #7ba3ff;
+  --accent-soft: rgba(91, 140, 255, .14);
+  --ok: #45c78d;
+
+  --s2: 8px; --s3: 12px; --s4: 16px; --s5: 20px;
+  --s6: 24px; --s7: 32px; --s8: 48px; --s9: 72px;
+
+  --radius: 16px;
+  --radius-sm: 11px;
 }
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
+
 body {
-  background: radial-gradient(1200px 600px at 50% -10%, #16202b, var(--bg));
+  background:
+    radial-gradient(900px 520px at 50% -8%, rgba(91,140,255,.13), transparent 70%),
+    var(--bg);
   color: var(--text);
-  font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable",
+    "Segoe UI", Inter, "Helvetica Neue", Arial, sans-serif;
   line-height: 1.6;
   min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
 }
-.hero { text-align: center; padding: 64px 20px 32px; }
-.mark { width: 96px; height: 96px; border-radius: 22px; box-shadow: 0 8px 32px rgba(47,111,224,.4); }
-.hero h1 { font-size: 3rem; letter-spacing: -0.02em; margin-top: 8px; }
-.tag { color: var(--dim); max-width: 620px; margin: 14px auto 0; font-size: 1.08rem; }
 
-main { max-width: 900px; margin: 0 auto; padding: 0 20px 60px; }
+a:focus-visible, button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: var(--radius-sm);
+}
 
-.primary { min-height: 96px; display: flex; justify-content: center; margin: 24px 0 40px; }
-.detecting { color: var(--dim); align-self: center; }
+/* ------------------------------------------------------------------ hero */
+
+.hero { text-align: center; padding: var(--s9) var(--s5) var(--s7); }
+.mark {
+  width: 88px; height: 88px; border-radius: 22px;
+  box-shadow: 0 12px 44px rgba(91,140,255,.32);
+}
+.hero h1 {
+  font-size: 3.1rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  margin-top: var(--s4);
+  line-height: 1.05;
+}
+.tag {
+  color: var(--text-2);
+  max-width: 580px;
+  margin: var(--s4) auto 0;
+  font-size: 1.06rem;
+}
+
+main { max-width: 880px; margin: 0 auto; padding: 0 var(--s5) var(--s9); }
+
+/* ----------------------------------------------------- fő letöltési kártya */
+
+.primary { min-height: 96px; display: flex; justify-content: center; margin: var(--s6) 0 var(--s8); }
+.detecting { color: var(--text-3); align-self: center; }
+
 .primary-card {
-  background: var(--card); border: 1px solid var(--border); border-radius: 16px;
-  padding: 24px 28px; text-align: center; max-width: 520px; width: 100%;
+  background: linear-gradient(180deg, var(--surface-2), var(--surface));
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  padding: var(--s7) var(--s7);
+  text-align: center;
+  max-width: 500px;
+  width: 100%;
+  box-shadow: 0 20px 50px rgba(0,0,0,.4);
 }
-.primary-card .plat { font-size: 1.3rem; font-weight: 700; }
-.primary-card .ver { color: var(--dim); font-size: 0.9rem; margin-top: 2px; }
+.primary-card .plat { font-size: 1.24rem; font-weight: 650; letter-spacing: -0.01em; }
+.primary-card .ver { color: var(--text-3); font-size: 0.88rem; margin-top: 2px; }
 
 .btn {
-  display: inline-block; margin-top: 16px; padding: 14px 28px;
-  background: var(--accent); color: #fff; border: none; border-radius: 12px;
-  font-size: 1.05rem; font-weight: 700; text-decoration: none; cursor: pointer;
+  display: inline-block;
+  margin-top: var(--s5);
+  padding: 13px 26px;
+  background: var(--accent);
+  color: #0b1220;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  font-size: 1rem;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background .14s ease, border-color .14s ease, transform .06s ease;
 }
-.btn:hover { background: #6ba1f8; }
-.btn.secondary { background: transparent; border: 1px solid var(--border); color: var(--text); }
-.btn.secondary:hover { border-color: var(--accent); }
+.btn:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+.btn:active { transform: translateY(1px); }
+.btn.secondary { background: transparent; border-color: var(--border-strong); color: var(--text); }
+.btn.secondary:hover { border-color: var(--accent); background: var(--accent-soft); }
 
-h2 { font-size: 1.25rem; margin: 40px 0 16px; }
+h2 {
+  font-size: 1.2rem;
+  font-weight: 650;
+  letter-spacing: -0.015em;
+  margin: var(--s8) 0 var(--s4);
+}
 
-.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; }
+/* ----------------------------------------------------------- kártyarácsok */
+
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(196px, 1fr)); gap: var(--s3); }
+
 .card {
-  background: var(--card); border: 1px solid var(--border); border-radius: 14px;
-  padding: 18px 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--s5);
+  transition: border-color .14s ease;
 }
-.card .ico { font-size: 28px; }
-.card .name { font-weight: 700; margin-top: 6px; }
-.card .files { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+.card:hover { border-color: var(--border-strong); }
+.card .ico { font-size: 26px; line-height: 1; }
+.card .name { font-weight: 650; margin-top: var(--s2); }
+.card .files { margin-top: var(--s3); display: flex; flex-direction: column; gap: var(--s2); }
 .card a.dl {
-  color: var(--accent); text-decoration: none; font-size: 0.92rem; font-weight: 600;
-  border: 1px solid var(--border); border-radius: 9px; padding: 8px 12px; display: block;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 600;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 9px 13px;
+  display: block;
+  transition: border-color .14s ease, background .14s ease;
 }
-.card a.dl:hover { border-color: var(--accent); }
-.card .muted { color: var(--dim); font-size: 0.85rem; }
+.card a.dl:hover { border-color: var(--accent); background: var(--accent-soft); }
+.card .muted { color: var(--text-3); font-size: 0.85rem; }
 
-.feat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; }
+.feat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: var(--s3); }
 .feat {
-  background: var(--card); border: 1px solid var(--border); border-radius: 14px;
-  padding: 18px 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--s5);
 }
-.feat-ico { font-size: 26px; }
-.feat h3 { font-size: 1rem; margin: 8px 0 6px; }
-.feat p { color: var(--dim); font-size: 0.9rem; }
-.feat strong { color: var(--text); font-weight: 600; }
+.feat-ico { font-size: 24px; line-height: 1; }
+.feat h3 { font-size: 0.98rem; font-weight: 650; margin: var(--s3) 0 var(--s2); }
+.feat p { color: var(--text-2); font-size: 0.9rem; }
+.feat strong { color: var(--text); font-weight: 650; }
 
-.how p, .note li { color: var(--dim); }
-.note ul { list-style: none; display: flex; flex-direction: column; gap: 10px; }
-.note li { padding-left: 18px; position: relative; }
-.note li::before { content: "•"; position: absolute; left: 0; color: var(--accent2); }
+.how p, .note li { color: var(--text-2); }
 
-footer { text-align: center; padding: 30px 20px 60px; border-top: 1px solid var(--border); }
-footer a { color: var(--accent); text-decoration: none; font-weight: 600; }
-.fine { color: var(--dim); font-size: 0.82rem; margin-top: 10px; }
+.note ul { list-style: none; display: flex; flex-direction: column; gap: var(--s3); }
+.note li { padding-left: var(--s5); position: relative; }
+.note li::before {
+  content: ""; position: absolute; left: 0; top: 0.62em;
+  width: 6px; height: 6px; border-radius: 999px; background: var(--ok);
+}
 
-@media (max-width: 520px) { .hero h1 { font-size: 2.2rem; } }
+footer {
+  text-align: center;
+  padding: var(--s7) var(--s5) var(--s9);
+  border-top: 1px solid var(--border);
+}
+footer a { color: var(--accent); text-decoration: none; font-weight: 650; }
+footer a:hover { color: var(--accent-hover); text-decoration: underline; }
+.fine { color: var(--text-3); font-size: 0.82rem; margin-top: var(--s3); }
+
+@media (max-width: 560px) {
+  .hero { padding: var(--s8) var(--s4) var(--s6); }
+  .hero h1 { font-size: 2.3rem; }
+  .primary-card { padding: var(--s6) var(--s5); }
+  main { padding: 0 var(--s4) var(--s8); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
