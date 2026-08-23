@@ -54,6 +54,7 @@ import hu.lakat.app.core.ChallengeEngine.Kind
 import hu.lakat.app.core.ChallengeEngine.Step
 import hu.lakat.app.core.LakatStore
 import hu.lakat.app.core.Referee
+import hu.lakat.app.core.ScheduleLogic
 import hu.lakat.app.core.SessionRec
 import hu.lakat.app.core.Site
 import hu.lakat.app.core.UsageLogic

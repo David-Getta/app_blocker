@@ -18,6 +18,10 @@ jobs:
         with:
           node-version: "20"
       - run: node scripts/check-text.js
+      # A Compose-fájlokat (hu.lakat.app.ui) csak a teljes Android build
+      # fordítja, ami percekbe telik — egy hiányzó import a saját mag-
+      # típusainkra itt másodpercek alatt kiderül.
+      - run: node scripts/check-kotlin-imports.js
 
   desktop:
     name: Desktop mag + tesztek
