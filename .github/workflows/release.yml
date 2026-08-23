@@ -41,7 +41,29 @@ jobs:
               --target "$GITHUB_SHA" \
               --draft \
               --title "Lakat $VERSION" \
-              --notes "Automatikus kiadás. A telepítők lent találhatók; a már telepített appok maguktól frissülnek."
+              --notes-file - <<'NOTES'
+          ## Letöltés
+
+          | Gép | Fájl |
+          |---|---|
+          | **Mac (Apple szilícium, M1/M2/M3…)** | `…-arm64.dmg` |
+          | **Mac (Intel)** | `….dmg` (arm64 nélkül) |
+          | **Windows** | `….exe` |
+          | **Android** | `Lakat-*.apk` |
+
+          ### macOS — első indítás
+          Nyisd meg a DMG-t, húzd a **Programok** mappába, majd a Lakat ikonon
+          **jobb gomb → Megnyitás**, és a párbeszédben újra **Megnyitás**. Ezt csak
+          egyszer kell: amíg nincs Apple fejlesztői aláírás, a Gatekeeper ismeretlen
+          fejlesztőként kezeli az appot. Ha „sérült” hibát írna, a letöltési karantén
+          jelzőt kell levenni:
+          `xattr -dr com.apple.quarantine /Applications/Lakat.app`
+
+          ### Frissítés
+          A telepített app magától megnézi, van-e újabb verzió, letölti a háttérben,
+          és egy gombnyomásra újraindulva már az újat futtatja — Windowson és
+          macOS-en is, Apple-tanúsítvány nélkül is.
+          NOTES
           fi
 
   desktop:

@@ -14,7 +14,7 @@ const fs = require('fs');
 const path = require('path');
 
 const ROOT = path.join(__dirname, '..');
-const EXTS = new Set(['.kt', '.swift', '.ts', '.tsx', '.js', '.html', '.md']);
+const EXTS = new Set(['.kt', '.swift', '.ts', '.tsx', '.js', '.html', '.md', '.yml', '.yaml']);
 const SKIP = new Set(['node_modules', '.git', 'dist', 'dist-test', 'build', '.gradle', 'out']);
 
 // Written as escapes so this file is not its own counterexample.
