@@ -199,8 +199,8 @@ test('a wrong MEMORY answer leaves a step that can still be solved', () => {
     // abandon debt so each attempt really is a fresh draw. (The rule itself has
     // its own tests below — with it in place the loop would keep getting the
     // very first pair back, for ever.)
-    state.session = null;      // no attempt to drop...
-    state.lastAbandon = null;  // ...and no debt from one, so the draw is free
+    state.session = null;   // no attempt to drop...
+    state.abandons = [];    // ...and no debt from one, so the draw is free
     startedAt = now + i * (REROLL_COOLDOWN_MS + 60_000);
     referee.startSession(state, 'pause', siteId, 15, startedAt);
     const s = state.session!.steps[state.session!.stepIndex];
@@ -279,7 +279,7 @@ test('a solved attempt earns a freshly drawn one next time', () => {
     const step = state.session.steps[state.session.stepIndex];
     referee.submitAnswer(state, state.session.id, solveStep(step, now), now);
   }
-  assert.equal(state.lastAbandon ?? null, null, 'the abandon debt is cleared by solving');
+  assert.deepEqual(state.abandons ?? [], [], 'the abandon debt is cleared by solving');
 });
 
 test('the forced combo expires with its cooldown', () => {
@@ -287,7 +287,7 @@ test('the forced combo expires with its cooldown', () => {
   const now = Date.now();
   referee.startSession(state, 'pause', siteId, 15, now);
   referee.abandonSession(state, state.session!.id);
-  const abandonedCombo = state.lastAbandon!.comboKey;
+  const abandonedCombo = state.abandons![0].comboKey;
 
   // Well past the cooldown the draw is free again — and the variety rule then
   // guarantees it differs from the one just played.
@@ -355,4 +355,48 @@ test('a state file with a valid session keeps it', () => {
   } finally {
     if (backup !== null) fs.writeFileSync(file, backup);
   }
+});
+
+test('a cancelled attempt on another site does not clear the first site\'s debt', () => {
+  // The one-slot version of this was still re-rollable: give up on site A, then
+  // start and cancel anything on site B, and site A drew a fresh pair again.
+  const { state, siteId } = stateWithSite();
+  const otherId = newId('site');
+  state.sites.push({
+    id: otherId, domain: 'reddit.com', hostnames: ['reddit.com'],
+    addedAt: Date.now(), pauseUntil: null, pendingDeleteAt: null,
+  });
+  const now = Date.now();
+
+  referee.startSession(state, 'pause', siteId, 15, now);
+  const owed = [...state.session!.steps.map((s) => s.type)].sort().join('+');
+  referee.abandonSession(state, state.session!.id);
+
+  // a detour through the other site
+  referee.startSession(state, 'pause', otherId, 15, now + 1000);
+  referee.abandonSession(state, state.session!.id);
+
+  referee.startSession(state, 'pause', siteId, 15, now + 2000);
+  assert.equal([...state.session!.steps.map((s) => s.type)].sort().join('+'), owed,
+    'the first site still owes its own pair');
+});
+
+test('cancelling the delete flow does not re-roll the pause flow', () => {
+  // Same hole, one step removed: pause and delete draw from the same pool, so
+  // a cancelled delete must not hand back a fresh pair for the pause attempt.
+  const { state, siteId } = stateWithSite();
+  const now = Date.now();
+
+  referee.startSession(state, 'pause', siteId, 15, now);
+  const owed = [...state.session!.steps.map((s) => s.type)].sort().join('+');
+  referee.abandonSession(state, state.session!.id);
+
+  referee.startSession(state, 'delete', siteId, undefined, now + 1000);
+  const deleteTypes = state.session!.steps.filter((s) => s.type !== 'DELAY')
+    .map((s) => s.type).sort().join('+');
+  assert.equal(deleteTypes, owed, 'the delete attempt inherits the same pair');
+  referee.abandonSession(state, state.session!.id);
+
+  referee.startSession(state, 'pause', siteId, 15, now + 2000);
+  assert.equal([...state.session!.steps.map((s) => s.type)].sort().join('+'), owed);
 });

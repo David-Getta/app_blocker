@@ -9,7 +9,7 @@ import {
 import type { SessionInfo, SubmitResult, SetScheduleResult } from '../shared/protocol';
 import { PAUSE_CHOICES_MIN } from '../shared/protocol';
 import { isLoosening, normalizeSchedule, ALWAYS, type Schedule } from '../shared/schedule';
-import type { HelperState, SessionRec } from './state';
+import type { AbandonRec, HelperState, SessionRec } from './state';
 import { newId } from './state';
 
 const rng = cryptoRng();
@@ -75,7 +75,7 @@ export function startSession(
   // is not a way to shop for an easier pair.
   dropSession(state, now);
   const tier = effectiveTier(state, kind, now);
-  const plan = generatePlan(kind, tier, state.lastCombo, rng, forcedCombo(state, siteId, kind, now));
+  const plan = generatePlan(kind, tier, state.lastCombo, rng, forcedCombo(state, siteId, now));
   state.session = {
     id: newId('ses'),
     kind, siteId, minutes,
@@ -98,9 +98,9 @@ function finishSession(state: HelperState, now: number): void {
   }
   state.unlockLog = [...state.unlockLog.filter((t) => t > now - 30 * 24 * 3600_000), now];
   state.session = null;
-  // Solved: the debt is paid, the next attempt draws freely again (and the
-  // variety rule keeps it different from this one).
-  state.lastAbandon = null;
+  // Solved: this site's debt is paid, its next attempt draws freely again (and
+  // the variety rule keeps it different from this one). Other sites keep theirs.
+  state.abandons = (state.abandons ?? []).filter((a) => a.siteId !== s.siteId);
 }
 
 /**
@@ -122,7 +122,7 @@ export function startScheduleChange(
   }
   // loosening -> gate behind challenges (pause-tier), applied on completion
   const tier = effectiveTier(state, 'pause', now);
-  const plan = generatePlan('pause', tier, state.lastCombo, rng, forcedCombo(state, siteId, 'pause', now));
+  const plan = generatePlan('pause', tier, state.lastCombo, rng, forcedCombo(state, siteId, now));
   state.session = {
     id: newId('ses'), kind: 'pause', siteId,
     steps: plan.steps, stepIndex: 0, createdAt: now,
@@ -201,27 +201,42 @@ function dropSession(state: HelperState, now: number): void {
   const s = state.session;
   if (!s) return;
   const combo = comboKeyOf(s.steps.filter((st) => st.type !== 'DELAY').map((st) => st.type));
+  const live = liveAbandons(state, now);
   // The cooldown runs from the FIRST time this pair was given up on, not from
   // the latest restart. Otherwise every restart would push the deadline out and
   // the pair would stick to the site forever, which is not what is promised.
-  const prev = state.lastAbandon;
-  const sameAsBefore = !!prev && prev.siteId === s.siteId && prev.kind === s.kind
-    && prev.comboKey === combo && Number.isFinite(prev.at) && now - prev.at <= REROLL_COOLDOWN_MS;
-  state.lastAbandon = {
-    siteId: s.siteId, kind: s.kind, comboKey: combo, at: sameAsBefore ? prev!.at : now,
-  };
+  const prev = live.find((a) => a.siteId === s.siteId);
+  const at = prev && prev.comboKey === combo ? prev.at : now;
+  state.abandons = [
+    ...live.filter((a) => a.siteId !== s.siteId),
+    { siteId: s.siteId, kind: s.kind, comboKey: combo, at },
+  ];
   state.session = null;
 }
 
-/** The combo an abandoned attempt still owes, if the cooldown has not run out. */
-function forcedCombo(
-  state: HelperState, siteId: string, kind: 'pause' | 'delete', now: number,
-): string | null {
-  const a = state.lastAbandon;
-  if (!a || a.siteId !== siteId || a.kind !== kind) return null;
-  if (!Number.isFinite(a.at) || now - a.at > REROLL_COOLDOWN_MS || now < a.at) return null;
-  return a.comboKey;
+/** Abandon debts that are still inside their cooldown (and bounded in number). */
+function liveAbandons(state: HelperState, now: number): AbandonRec[] {
+  const all = Array.isArray(state.abandons) ? state.abandons : [];
+  return all
+    .filter((a) => a && typeof a.siteId === 'string' && typeof a.comboKey === 'string'
+      && Number.isFinite(a.at) && now >= a.at && now - a.at <= REROLL_COOLDOWN_MS)
+    .slice(-MAX_ABANDONS);
 }
+
+/**
+ * The combo an abandoned attempt still owes, if the cooldown has not run out.
+ *
+ * The KIND is deliberately not compared: pause and delete draw from the same
+ * pool, so letting a cancelled delete hand back a fresh pair for the pause flow
+ * would just be the re-roll with an extra click.
+ */
+function forcedCombo(state: HelperState, siteId: string, now: number): string | null {
+  const a = liveAbandons(state, now).find((x) => x.siteId === siteId);
+  return a ? a.comboKey : null;
+}
+
+/** How many sites may carry a debt at once — a week of cancels cannot grow state. */
+const MAX_ABANDONS = 64;
 
 function requireSession(state: HelperState, sessionId: string, now: number): SessionRec {
   const s = state.session;

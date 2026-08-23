@@ -89,7 +89,11 @@ a súrlódás pedig, amit újra lehet pörgetni, nem súrlódás.
 
 Ezért minden **befejezés-szerű esemény** (feladom gomb, új kísérlet indítása a
 régi helyett, a DELAY átvételi ablakának kihagyása, a session elévülése)
-ugyanoda könyvel: megjegyzi a párost és az időpontját. Egy órán belül
+ugyanoda könyvel: megjegyzi a párost és az időpontját — **oldalanként**. Egyetlen
+közös rekord kevés lenne: akkor elég volna egy másik oldalon (vagy ugyanannak az
+oldalnak a törlés-folyamatában) elindítani és megszakítani egy kísérletet, és az
+eredeti tartozás eltűnne. A **típus** (szünet/törlés) viszont szándékosan nem
+számít: mindkettő ugyanabból a készletből húz. Egy órán belül
 (`REROLL_COOLDOWN_MS`) ugyanaz a **páros** jön vissza — de **friss tartalommal**
 és nulláról, tehát a haladás sem bankolható: kiszállni sosem olcsóbb, mint
 végigcsinálni. Az óra az **első** feladástól számít, nem a legutóbbi

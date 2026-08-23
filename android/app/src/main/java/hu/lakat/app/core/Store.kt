@@ -33,7 +33,13 @@ data class SessionRec(
     val pendingSchedule: ScheduleLogic.Schedule? = null,
 )
 
-/** What an abandoned attempt leaves behind, so restarting cannot re-roll it. */
+/**
+ * What an abandoned attempt leaves behind, so restarting cannot re-roll it.
+ *
+ * Kept PER SITE: with a single shared slot, starting and cancelling an attempt
+ * on any other site (or the delete flow on the same one) would evict the debt
+ * and hand back a fresh draw — the re-roll again, one step removed.
+ */
 data class AbandonRec(
     val siteId: String,
     val kind: Kind,
@@ -47,8 +53,8 @@ data class AppState(
     val unlockLog: List<Long> = emptyList(),
     val lastCombo: String? = null,
     val session: SessionRec? = null,
-    /** the last attempt given up on; see ChallengeEngine.REROLL_COOLDOWN_MS */
-    val lastAbandon: AbandonRec? = null,
+    /** attempts given up on, per site; see ChallengeEngine.REROLL_COOLDOWN_MS */
+    val abandons: List<AbandonRec> = emptyList(),
     /** active-time tracking history (never leaves the device) */
     val usage: UsageLogic.UsageState = UsageLogic.UsageState(),
 )
@@ -175,12 +181,12 @@ object LakatStore {
         put("unlockLog", JSONArray(s.unlockLog))
         put("usage", usageToJson(s.usage))
         put("lastCombo", s.lastCombo ?: JSONObject.NULL)
-        put("lastAbandon", s.lastAbandon?.let { a ->
+        put("abandons", JSONArray(s.abandons.map { a ->
             JSONObject().apply {
                 put("siteId", a.siteId); put("kind", a.kind.name)
                 put("comboKey", a.comboKey); put("at", a.at)
             }
-        } ?: JSONObject.NULL)
+        }))
         put("session", s.session?.let { ses ->
             JSONObject().apply {
                 put("id", ses.id); put("kind", ses.kind.name); put("siteId", ses.siteId)
@@ -291,16 +297,19 @@ object LakatStore {
                 )
             }
         }.getOrNull()?.takeIf { it.steps.isNotEmpty() && it.stepIndex in it.steps.indices }
-        val lastAbandon = if (o.isNull("lastAbandon")) null else runCatching {
-            o.getJSONObject("lastAbandon").let { a ->
-                AbandonRec(
-                    siteId = a.getString("siteId"),
-                    kind = Kind.valueOf(a.getString("kind")),
-                    comboKey = a.getString("comboKey"),
-                    at = a.getLong("at"),
-                )
+        val abandons = o.optJSONArray("abandons")?.let { arr ->
+            (0 until arr.length()).mapNotNull { i ->
+                runCatching {
+                    val a = arr.getJSONObject(i)
+                    AbandonRec(
+                        siteId = a.getString("siteId"),
+                        kind = Kind.valueOf(a.getString("kind")),
+                        comboKey = a.getString("comboKey"),
+                        at = a.getLong("at"),
+                    )
+                }.getOrNull()
             }
-        }.getOrNull()
+        } ?: emptyList()
         return AppState(
             protectionOn = o.optBoolean("protectionOn", false),
             usage = if (o.isNull("usage")) UsageLogic.UsageState()
@@ -309,7 +318,7 @@ object LakatStore {
             unlockLog = unlockLog,
             lastCombo = if (o.isNull("lastCombo")) null else o.optString("lastCombo"),
             session = session,
-            lastAbandon = lastAbandon,
+            abandons = abandons,
         )
     }
 }

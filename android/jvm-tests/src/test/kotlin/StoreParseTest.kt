@@ -94,20 +94,21 @@ class StoreParseTest {
         // It is what stops a cancelled attempt from being a free re-roll, so it
         // has to outlive an app restart — otherwise closing the app would be the
         // re-roll instead.
-        val state = AppState(lastAbandon = AbandonRec("site_1", Kind.PAUSE, "MEMORY+REVERSE", 1_700_000_000_000))
+        val state = AppState(abandons = listOf(
+            AbandonRec("site_1", Kind.PAUSE, "MEMORY+REVERSE", 1_700_000_000_000)))
         val round = parse(toJson.invoke(LakatStore, state).toString())
-        assertEquals(state.lastAbandon, round.lastAbandon)
+        assertEquals(state.abandons, round.abandons)
     }
 
     @Test fun `a corrupt abandon record costs only the re-roll guard`() {
-        val state = parse("""{"sites":[${site("youtube")}],"lastAbandon":{"siteId":"x","kind":"QUANTUM"}}""")
-        assertNull(state.lastAbandon)
+        val state = parse("""{"sites":[${site("youtube")}],"abandons":[{"siteId":"x","kind":"QUANTUM"}]}""")
+        assertTrue(state.abandons.isEmpty())
         assertEquals(1, state.sites.size, "and not the blocklist")
     }
 
     @Test fun `state written before this feature still loads`() {
         val state = parse("""{"sites":[${site("youtube")}]}""")
-        assertNull(state.lastAbandon)
+        assertTrue(state.abandons.isEmpty())
         assertEquals(1, state.sites.size)
     }
 }

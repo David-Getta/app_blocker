@@ -44,7 +44,7 @@ object Referee {
             val dropped = dropSession(state, now)
             val tier = effectiveTier(dropped, kind, now)
             val plan = ChallengeEngine.generatePlan(
-                kind, tier, dropped.lastCombo, forcedCombo(dropped, siteId, kind, now),
+                kind, tier, dropped.lastCombo, forcedCombo(dropped, siteId, now),
             )
             val session = SessionRec(
                 id = LakatStore.newId("ses"), kind = kind, siteId = siteId, minutes = minutes,
@@ -69,22 +69,33 @@ object Referee {
         // A hűtés az ELSŐ feladástól számít, nem a legutóbbi újraindítástól,
         // különben minden újraindítás kitolná a határidőt, és a pár örökre
         // rátapadna az oldalra.
-        val prev = state.lastAbandon
-        val sameAsBefore = prev != null && prev.siteId == s.siteId && prev.kind == s.kind &&
-            prev.comboKey == combo && now - prev.at <= ChallengeEngine.REROLL_COOLDOWN_MS
+        val live = liveAbandons(state, now)
+        val prev = live.firstOrNull { it.siteId == s.siteId }
+        val at = if (prev != null && prev.comboKey == combo) prev.at else now
         return state.copy(
             session = null,
-            lastAbandon = AbandonRec(s.siteId, s.kind, combo, if (sameAsBefore) prev!!.at else now),
+            abandons = live.filter { it.siteId != s.siteId } + AbandonRec(s.siteId, s.kind, combo, at),
         )
     }
 
-    /** A feladott kísérlet által még „kötelező” kombináció, amíg le nem jár. */
-    private fun forcedCombo(state: AppState, siteId: String, kind: Kind, now: Long): String? {
-        val a = state.lastAbandon ?: return null
-        if (a.siteId != siteId || a.kind != kind) return null
-        if (now < a.at || now - a.at > ChallengeEngine.REROLL_COOLDOWN_MS) return null
-        return a.comboKey
-    }
+    /** Még érvényes (hűtés alatti) tartozások, darabszámban is korlátozva. */
+    private fun liveAbandons(state: AppState, now: Long): List<AbandonRec> =
+        state.abandons
+            .filter { now >= it.at && now - it.at <= ChallengeEngine.REROLL_COOLDOWN_MS }
+            .takeLast(MAX_ABANDONS)
+
+    /** Egyszerre hány oldal vihet tartozást — a cancelek nem növelhetik korlátlanul az állapotot. */
+    private const val MAX_ABANDONS = 64
+
+    /**
+     * A feladott kísérlet által még „kötelező” kombináció, amíg le nem jár.
+     *
+     * A KIND szándékosan nem számít: a szünet és a törlés ugyanabból a
+     * készletből húz, így egy megszakított törlés nem adhat friss párost a
+     * szünethez — az csak egy kattintással több ugyanaz az újrapörgetés.
+     */
+    private fun forcedCombo(state: AppState, siteId: String, now: Long): String? =
+        liveAbandons(state, now).firstOrNull { it.siteId == siteId }?.comboKey
 
     /** Időzítés-bélyegzés, amikor egy lépés aktuálissá válik (DELAY cél, MEMORY mutatási ablak). */
     private fun armCurrent(steps: List<Step>, index: Int, now: Long): List<Step> {
@@ -107,8 +118,11 @@ object Referee {
             else site.copy(pendingDeleteAt = now + ChallengeEngine.DELETE_PENDING_MS)
         }
         val log = state.unlockLog.filter { it > now - 30 * 24 * 3600_000L } + now
-        // Megoldva: a tartozás rendezve, a következő kísérlet újra szabadon húz.
-        return state.copy(sites = sites, unlockLog = log, session = null, lastAbandon = null)
+        // Megoldva: ennek az oldalnak a tartozása rendezve, a többié marad.
+        return state.copy(
+            sites = sites, unlockLog = log, session = null,
+            abandons = state.abandons.filter { it.siteId != s.siteId },
+        )
     }
 
     data class ScheduleChangeResult(val applied: Boolean, val session: SessionRec?)
@@ -135,7 +149,7 @@ object Referee {
             }
             val tier = effectiveTier(state, Kind.PAUSE, now)
             val plan = ChallengeEngine.generatePlan(
-                Kind.PAUSE, tier, state.lastCombo, forcedCombo(state, siteId, Kind.PAUSE, now),
+                Kind.PAUSE, tier, state.lastCombo, forcedCombo(state, siteId, now),
             )
             val session = SessionRec(
                 id = LakatStore.newId("ses"), kind = Kind.PAUSE, siteId = siteId, minutes = null,

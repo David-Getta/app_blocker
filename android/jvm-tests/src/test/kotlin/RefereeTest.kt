@@ -213,7 +213,7 @@ class RefereeTest {
         val id = addSite("youtube.com")
         Referee.startSession(Kind.PAUSE, id, 15, now)
         Referee.abandon(LakatStore.state.value.session!!.id)
-        val abandoned = LakatStore.state.value.lastAbandon!!.comboKey
+        val abandoned = LakatStore.state.value.abandons.first().comboKey
 
         Referee.startSession(Kind.PAUSE, id, 15, now + ChallengeEngine.REROLL_COOLDOWN_MS + 60_000)
         val types = LakatStore.state.value.session!!.steps
@@ -227,7 +227,7 @@ class RefereeTest {
         val id = addSite("youtube.com")
         Referee.startSession(Kind.PAUSE, id, 15, now)
         Referee.abandon(LakatStore.state.value.session!!.id)
-        assertNotNull(LakatStore.state.value.lastAbandon)
+        assertTrue(LakatStore.state.value.abandons.isNotEmpty())
 
         Referee.startSession(Kind.PAUSE, id, 15, now + 60_000)
         var guard = 0
@@ -235,6 +235,22 @@ class RefereeTest {
             val step = currentStep()
             Referee.submitAnswer(LakatStore.state.value.session!!.id, solve(step), now + 60_000)
         }
-        assertNull(LakatStore.state.value.lastAbandon, "solving pays the debt")
+        assertTrue(LakatStore.state.value.abandons.isEmpty(), "solving pays the debt")
+    }
+    @Test fun `a cancelled attempt on another site does not clear the first site's debt`() {
+        val a = addSite("youtube.com")
+        val b = addSite("reddit.com")
+        Referee.startSession(Kind.PAUSE, a, 15, now)
+        val owed = LakatStore.state.value.session!!.steps
+            .map { ChallengeEngine.typeNameOf(it) }.sorted()
+        Referee.abandon(LakatStore.state.value.session!!.id)
+
+        Referee.startSession(Kind.PAUSE, b, 15, now + 1000)
+        Referee.abandon(LakatStore.state.value.session!!.id)
+
+        Referee.startSession(Kind.PAUSE, a, 15, now + 2000)
+        assertEquals(owed, LakatStore.state.value.session!!.steps
+            .map { ChallengeEngine.typeNameOf(it) }.sorted(),
+            "the first site still owes its own pair")
     }
 }

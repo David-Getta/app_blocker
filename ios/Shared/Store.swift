@@ -25,6 +25,10 @@ struct SessionRec: Codable, Equatable, Identifiable {
 }
 
 /// What an abandoned attempt leaves behind, so restarting cannot re-roll it.
+///
+/// Kept PER SITE: with a single shared slot, starting and cancelling an attempt
+/// on any other site (or the delete flow on the same one) would evict the debt
+/// and hand back a fresh draw — the re-roll again, one step removed.
 struct AbandonRec: Codable, Equatable {
     let siteId: String
     let kind: ChallengeEngine.Kind
@@ -38,8 +42,9 @@ struct AppState: Codable, Equatable {
     var unlockLog: [Double] = []
     var lastCombo: String? = nil
     var session: SessionRec? = nil
-    /// the last attempt given up on; see ChallengeEngine.rerollCooldownMs
-    var lastAbandon: AbandonRec? = nil
+    /// attempts given up on, per site; see ChallengeEngine.rerollCooldownMs.
+    /// Optional so a state file written before this existed still decodes.
+    var abandons: [AbandonRec]? = nil
 }
 
 /// Shared state persisted to a JSON file in the App Group container, so the

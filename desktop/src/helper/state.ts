@@ -33,7 +33,14 @@ export interface SessionRec {
   pendingSchedule?: Schedule;
 }
 
-/** What an abandoned attempt leaves behind, so restarting cannot re-roll it. */
+/**
+ * What an abandoned attempt leaves behind, so restarting cannot re-roll it.
+ *
+ * Kept PER SITE, and a single shared record would not do: with one slot,
+ * starting and cancelling an attempt on any other site (or the delete flow on
+ * the same one) would evict the debt and hand back a fresh draw — the re-roll
+ * again, one step removed.
+ */
 export interface AbandonRec {
   siteId: string;
   kind: 'pause' | 'delete';
@@ -48,8 +55,8 @@ export interface HelperState {
   unlockLog: number[];
   lastCombo: string | null;
   session: SessionRec | null;
-  /** the last attempt given up on; see REROLL_COOLDOWN_MS */
-  lastAbandon?: AbandonRec | null;
+  /** attempts given up on, per site; see REROLL_COOLDOWN_MS */
+  abandons?: AbandonRec[];
   dohApplied: boolean;
   /** active-time tracking history (stays on this machine) */
   usage: UsageState;

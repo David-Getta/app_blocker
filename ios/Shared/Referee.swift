@@ -23,20 +23,32 @@ enum Referee {
         // The cooldown runs from the FIRST time this pair was given up on, not
         // from the latest restart — otherwise every restart would push the
         // deadline out and the pair would stick to the site for ever.
-        let prev = state.lastAbandon
-        let sameAsBefore = prev != nil && prev!.siteId == s.siteId && prev!.kind == s.kind
-            && prev!.comboKey == combo && now - prev!.at <= ChallengeEngine.rerollCooldownMs
-        state.lastAbandon = AbandonRec(siteId: s.siteId, kind: s.kind, comboKey: combo,
-                                       at: sameAsBefore ? prev!.at : now)
+        let live = liveAbandons(state, now)
+        let prev = live.first { $0.siteId == s.siteId }
+        let at = (prev != nil && prev!.comboKey == combo) ? prev!.at : now
+        state.abandons = live.filter { $0.siteId != s.siteId }
+            + [AbandonRec(siteId: s.siteId, kind: s.kind, comboKey: combo, at: at)]
         state.session = nil
     }
 
+    /// How many sites may carry a debt at once — cancels cannot grow the state.
+    private static let maxAbandons = 64
+
+    /// Debts still inside their cooldown, bounded in number.
+    private static func liveAbandons(_ state: AppState, _ now: Double) -> [AbandonRec] {
+        let live = (state.abandons ?? []).filter {
+            now >= $0.at && now - $0.at <= ChallengeEngine.rerollCooldownMs
+        }
+        return live.count > maxAbandons ? Array(live.suffix(maxAbandons)) : live
+    }
+
     /// The combo an abandoned attempt still owes, while the cooldown holds.
-    private static func forcedCombo(_ state: AppState, _ siteId: String,
-                                    _ kind: ChallengeEngine.Kind, _ now: Double) -> String? {
-        guard let a = state.lastAbandon, a.siteId == siteId, a.kind == kind else { return nil }
-        if now < a.at || now - a.at > ChallengeEngine.rerollCooldownMs { return nil }
-        return a.comboKey
+    ///
+    /// The KIND is deliberately not compared: pause and delete draw from the
+    /// same pool, so letting a cancelled delete hand back a fresh pair for the
+    /// pause flow would just be the re-roll with an extra click.
+    private static func forcedCombo(_ state: AppState, _ siteId: String, _ now: Double) -> String? {
+        liveAbandons(state, now).first { $0.siteId == siteId }?.comboKey
     }
 
     /** Stamps timing state when a step becomes current (DELAY target, MEMORY show window). */
@@ -77,7 +89,7 @@ enum Referee {
             dropSession(&state, now)
             let tier = effectiveTier(state, kind: kind, now: now)
             let plan = ChallengeEngine.generatePlan(kind: kind, tier: tier, lastCombo: state.lastCombo,
-                                                    forceCombo: forcedCombo(state, siteId, kind, now))
+                                                    forceCombo: forcedCombo(state, siteId, now))
             var steps = plan.steps
             armCurrent(&steps, 0, now)
             let session = SessionRec(id: LakatStore.shared.newId("ses"), kind: kind, siteId: siteId,
@@ -102,8 +114,9 @@ enum Referee {
         }
         state.unlockLog = state.unlockLog.filter { $0 > now - 30 * 24 * 3_600_000 } + [now]
         state.session = nil
-        // Solved: the debt is paid, the next attempt draws freely again.
-        state.lastAbandon = nil
+        // Solved: this site's debt is paid, its next attempt draws freely again.
+        // Other sites keep theirs.
+        state.abandons = (state.abandons ?? []).filter { $0.siteId != s.siteId }
     }
 
     struct ScheduleChangeResult { let applied: Bool; let session: SessionRec? }
@@ -131,7 +144,7 @@ enum Referee {
             }
             let tier = effectiveTier(state, kind: .pause, now: now)
             let plan = ChallengeEngine.generatePlan(kind: .pause, tier: tier, lastCombo: state.lastCombo,
-                                                    forceCombo: forcedCombo(state, siteId, .pause, now))
+                                                    forceCombo: forcedCombo(state, siteId, now))
             var steps = plan.steps
             armCurrent(&steps, 0, now)
             let session = SessionRec(id: LakatStore.shared.newId("ses"), kind: .pause, siteId: siteId,
