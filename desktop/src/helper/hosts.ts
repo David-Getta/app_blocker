@@ -119,18 +119,33 @@ export async function applyDohPolicies(log: (m: string) => void): Promise<boolea
       return true;
     }
     if (process.platform === 'darwin') {
-      const set = (domain: string) =>
-        run('/usr/bin/defaults', ['write', domain, 'DnsOverHttpsMode', '-string', 'off']);
-      await set('/Library/Preferences/com.google.Chrome');
-      await set('/Library/Preferences/com.microsoft.Edge');
-      await set('/Library/Preferences/org.chromium.Chromium');
-      await set('/Library/Preferences/com.brave.Browser');
-      const ffDir = '/Applications/Firefox.app/Contents/Resources';
-      if (fs.existsSync(ffDir)) {
-        fs.mkdirSync(path.join(ffDir, 'distribution'), { recursive: true });
-        fs.writeFileSync(path.join(ffDir, 'distribution', 'policies.json'), FIREFOX_POLICY);
+      const set = (domain: string, key: string, value: string) =>
+        run('/usr/bin/defaults', ['write', domain, key, '-string', value]);
+      for (const domain of [
+        '/Library/Preferences/com.google.Chrome',
+        '/Library/Preferences/com.microsoft.Edge',
+        '/Library/Preferences/org.chromium.Chromium',
+        '/Library/Preferences/com.brave.Browser',
+      ]) {
+        await set(domain, 'DnsOverHttpsMode', 'off');
+        // A gépszintű plistet a felhasználóként futó böngészőnek OLVASNIA kell.
+        // A `defaults` a démon umaskjával hozza létre; ha az szigorú, a fájl
+        // létrejön, a böngésző viszont nem látja — a házirend némán hatástalan
+        // lenne, miközben a felület azt írja, hogy alkalmaztuk.
+        try { fs.chmodSync(`${domain}.plist`, 0o644); } catch { /* nincs ilyen böngésző */ }
       }
-      log('DoH policies applied (Chromium-family defaults, Firefox policies.json)');
+      // Firefox: NEM írunk a /Applications/Firefox.app-ba. A policies.json oda
+      // tenni dokumentált út, de az egy MÁSIK gyártó aláírt bundle-je: a
+      // beleírás érvényteleníti az aláírását, és a Firefox saját frissítője
+      // ettől elhasalhat. Egy blokkoló app nem tehet tönkre más appot azért,
+      // hogy szigorúbb legyen. A konfigurációs profil ugyanezt a házirendet
+      // adja, a bundle érintése nélkül.
+      await run('/usr/bin/defaults', [
+        'write', '/Library/Preferences/org.mozilla.firefox', 'DNSOverHTTPS',
+        '-dict', 'Enabled', '-bool', 'false', 'Locked', '-bool', 'true',
+      ]);
+      try { fs.chmodSync('/Library/Preferences/org.mozilla.firefox.plist', 0o644); } catch { /* ok */ }
+      log('DoH policies applied (Chromium-family + Firefox machine preferences)');
       return true;
     }
     return false;

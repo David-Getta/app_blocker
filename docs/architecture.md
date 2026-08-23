@@ -34,7 +34,10 @@ másodpercen belül visszaállítja.
   „csak amíg az app fut” megoldásokhoz képest.
 - **DNS-over-HTTPS elleni védelem:** a böngészők beépített DoH-ja megkerülné a
   hosts fájlt. A helper ezért gépszintű házirenddel kikapcsolja a DoH-t
-  Chrome/Edge/Firefox alatt (best effort, naplózva).
+  Chrome/Edge/Chromium/Brave/Firefox alatt (best effort, naplózva). Windowson
+  ez házirend-kulcs, tehát zár; **macOS-en MDM-profil nélkül csak alapértelmezés,
+  amit a felhasználó felül tud bírálni** — ezt a korlátok között is kimondjuk.
+  A Firefox app-bundle-jébe szándékosan NEM írunk (lásd lentebb).
 
 ### Android — VpnService DNS sinkhole
 Egy helyi `VpnService` (nem távoli VPN — a forgalom nem hagyja el a készüléket)
@@ -129,6 +132,18 @@ Ismert megkerülési utak (szándékosan nem próbáljuk „lelakatolni” a gé
   értesítést adnak, ha a védelmet kikapcsolták.
 - Egyedi/hardcode-olt DNS vagy DoH-proxy IP-cím megkerülheti a szűrőt (a hosts
   fájl és a sinkhole a névfeloldásra hat). Későbbi bővítés: IP-szintű szabályok.
+- **macOS-en a böngésző-DoH kikapcsolása nem zár, csak alapértelmezést állít.**
+  A Chromium a `/Library/Preferences`-ben talált értéket csak akkor kezeli
+  kötelező házirendként, ha az „forced” (MDM-profilból jön); enélkül ajánlásnak
+  veszi, tehát a felhasználó a böngésző beállításaiban visszakapcsolhatja.
+  Rendes zárás MDM/konfigurációs profilt igényelne. Ezért a felület csak annyit
+  állít, hogy a házirendet alkalmaztuk — nem azt, hogy a DoH nem kapcsolható be.
+- **Más gyártó appját nem rontjuk el a szigor kedvéért.** A Firefox
+  policies.json-t macOS-en az app bundle-jébe kellene tenni, ami érvényteleníti
+  a Firefox aláírását, és a saját frissítőjét is elronthatja. Ezt nem tesszük:
+  a gépszintű `org.mozilla.firefox` beállítás ugyanazt a házirendet adja, a
+  bundle érintése nélkül. Windowson a telepítési mappa `distribution/`
+  könyvtára a dokumentált hely, ott nincs ilyen mellékhatás.
 - iOS-en MDM/„supervised” mód nélkül a felhasználó a rendszerbeállításokban ki
   tudja kapcsolni a VPN-t; az on-demand szabály csökkenti ennek kényelmét.
 - **Óra-átállítás.** Mindhárom mag kiszűri: a várakozási határidők eltelt időt

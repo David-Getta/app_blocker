@@ -168,9 +168,13 @@ function renderHelperStaleBanner(st: StatusData): void {
   const stale = !!st.helperVersion && st.helperVersion !== HELPER_VERSION;
   banner.classList.toggle('hidden', !stale);
   if (stale) {
+    // Szándékosan nem nevez meg konkrét funkciót: az eltérés nem mondja meg,
+    // MELYIK parancsot nem ismeri a futó helper, csak azt, hogy nem ugyanazt a
+    // protokollt beszélik. Egy konkrét ígéret („a napi keret nem működik”) itt
+    // néha egyszerűen nem lenne igaz.
     $('helperStaleText').textContent =
       `A háttérszolgáltatás még a régi verzió (${st.helperVersion}, az app ${HELPER_VERSION}). ` +
-      'Az újabb beállítások — például a napi keret — addig nem érvényesülnek.';
+      'Amíg nem frissül, az újabb beállítások nem biztos, hogy érvényesülnek.';
   }
 }
 
