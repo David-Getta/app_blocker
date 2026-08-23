@@ -11,7 +11,7 @@
 // the active tab's domain, everything else to the application.
 
 import { powerMonitor } from 'electron';
-import { execFile } from 'child_process';
+import { execFile, spawn } from 'child_process';
 import { normalizeDomain } from '../shared/blocklist';
 import { decideSample, dayKey, SAMPLE_INTERVAL_MS, type Foreground } from '../shared/usage';
 import type { UsageSampleMsg } from '../shared/protocol';
@@ -68,7 +68,12 @@ async function macForeground(): Promise<Foreground | null> {
 
 // ---------------------------------------------------------------- Windows
 
-const WIN_PROBE = `
+// One long-lived PowerShell child does the probing in a loop and prints a line
+// per sample. Spawning a fresh powershell.exe every 5s — each one JIT-compiling
+// the P/Invoke shim with Add-Type — costs real CPU and battery, and on a slow
+// machine takes longer than the probe timeout, so nothing would ever be
+// recorded. The types are compiled once here instead.
+const WIN_PROBE_LOOP = `
 $ErrorActionPreference='SilentlyContinue'
 Add-Type @"
 using System;using System.Runtime.InteropServices;
@@ -77,41 +82,82 @@ public class LakatW {
   [DllImport("user32.dll")] public static extern int GetWindowThreadProcessId(IntPtr h, out int pid);
 }
 "@
-$h = [LakatW]::GetForegroundWindow()
-if ($h -eq [IntPtr]::Zero) { exit }
-$procId = 0
-[void][LakatW]::GetWindowThreadProcessId($h, [ref]$procId)
-$p = Get-Process -Id $procId
-$name = $p.ProcessName
-$desc = $p.Description
-if (-not $desc) { $desc = $name }
-$url = ''
-# Chromium/Firefox expose the address bar as an Edit control with a ValuePattern.
 try {
   Add-Type -AssemblyName UIAutomationClient -ErrorAction Stop
   Add-Type -AssemblyName UIAutomationTypes -ErrorAction Stop
-  $ae = [System.Windows.Automation.AutomationElement]::FromHandle($h)
-  if ($ae) {
-    $cond = New-Object System.Windows.Automation.PropertyCondition(
-      [System.Windows.Automation.AutomationElement]::ControlTypeProperty,
-      [System.Windows.Automation.ControlType]::Edit)
-    $edit = $ae.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $cond)
-    if ($edit) {
-      $vp = $edit.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern)
-      if ($vp) { $url = $vp.Current.Value }
+  $uia = $true
+} catch { $uia = $false }
+
+while ($true) {
+  $line = ''
+  $h = [LakatW]::GetForegroundWindow()
+  if ($h -ne [IntPtr]::Zero) {
+    $procId = 0
+    [void][LakatW]::GetWindowThreadProcessId($h, [ref]$procId)
+    $p = Get-Process -Id $procId
+    if ($p) {
+      $name = $p.ProcessName
+      $desc = $p.Description
+      if (-not $desc) { $desc = $name }
+      $url = ''
+      # Chromium/Firefox expose the address bar as an Edit control with a ValuePattern.
+      if ($uia) {
+        try {
+          $ae = [System.Windows.Automation.AutomationElement]::FromHandle($h)
+          if ($ae) {
+            $cond = New-Object System.Windows.Automation.PropertyCondition(
+              [System.Windows.Automation.AutomationElement]::ControlTypeProperty,
+              [System.Windows.Automation.ControlType]::Edit)
+            $edit = $ae.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $cond)
+            if ($edit) {
+              $vp = $edit.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern)
+              if ($vp) { $url = $vp.Current.Value }
+            }
+          }
+        } catch { }
+      }
+      $line = "$name|$desc|$url"
     }
   }
-} catch { }
-Write-Output $name
-Write-Output $desc
-Write-Output $url
+  Write-Output $line
+  [Console]::Out.Flush()
+  Start-Sleep -Milliseconds __SLEEP_MS__
+}
 `;
 
-async function winForeground(): Promise<Foreground | null> {
-  const out = await run('powershell.exe',
-    ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', WIN_PROBE]);
-  if (!out) return null;
-  const [name, desc, url] = out.split(/\r?\n/).map((s) => s.trim());
+/** Latest line from the Windows probe loop, refreshed in the background. */
+let winLatest: Foreground | null = null;
+let winProc: ReturnType<typeof spawn> | null = null;
+
+function startWindowsProbe(intervalMs: number, log: (m: string) => void): void {
+  if (winProc) return;
+  const script = WIN_PROBE_LOOP.replace('__SLEEP_MS__', String(intervalMs));
+  const child = spawn('powershell.exe',
+    ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', script],
+    { windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] });
+  winProc = child;
+  let buffer = '';
+  child.stdout?.setEncoding('utf8');
+  child.stdout?.on('data', (chunk: string) => {
+    buffer += chunk;
+    let nl: number;
+    while ((nl = buffer.indexOf('\n')) >= 0) {
+      const line = buffer.slice(0, nl).trim();
+      buffer = buffer.slice(nl + 1);
+      winLatest = parseWinLine(line);
+    }
+  });
+  child.on('exit', () => {
+    winProc = null;
+    winLatest = null;
+    log('windows probe exited; will restart on the next tick');
+  });
+  child.on('error', (e) => log(`windows probe failed to start: ${String(e)}`));
+}
+
+function parseWinLine(line: string): Foreground | null {
+  if (!line) return null;
+  const [name, desc, url] = line.split('|');
   if (!name) return null;
   const fg: Foreground = { appId: name, appName: desc || name };
   if (url && WIN_BROWSERS.has(name.toLowerCase())) {
@@ -121,9 +167,18 @@ async function winForeground(): Promise<Foreground | null> {
   return fg;
 }
 
-async function probeForeground(): Promise<Foreground | null> {
+function stopWindowsProbe(): void {
+  winProc?.kill();
+  winProc = null;
+  winLatest = null;
+}
+
+async function probeForeground(log: (m: string) => void): Promise<Foreground | null> {
   if (process.platform === 'darwin') return macForeground();
-  if (process.platform === 'win32') return winForeground();
+  if (process.platform === 'win32') {
+    startWindowsProbe(SAMPLE_INTERVAL_MS, log); // no-op once running; restarts if it died
+    return winLatest;
+  }
   return null;
 }
 
@@ -143,6 +198,7 @@ export class UsageTracker {
   private lastAt = Date.now();
   private pending = new Map<string, UsageSampleMsg>();
   private probing = false;
+  private flushing = false;
 
   constructor(private deps: TrackerDeps) {}
 
@@ -168,6 +224,7 @@ export class UsageTracker {
     if (this.flushTimer) clearInterval(this.flushTimer);
     this.timer = null;
     this.flushTimer = null;
+    stopWindowsProbe();
     void this.flush();
   }
 
@@ -177,7 +234,7 @@ export class UsageTracker {
     this.probing = true;
     try {
       const idleSeconds = powerMonitor.getSystemIdleTime();
-      const fg = await probeForeground();
+      const fg = await probeForeground(this.deps.log);
       const now = Date.now();
       const decision = decideSample({ lastAt: this.lastAt, now, idleSeconds, fg });
       this.lastAt = now;
@@ -201,11 +258,31 @@ export class UsageTracker {
     }
   }
 
-  /** Ships buffered samples; keeps them buffered if the helper is unreachable. */
+  /**
+   * Ships buffered samples. Delivery is at-least-once: if the send fails we keep
+   * the buffer and retry, which can double-count in the rare case where the
+   * helper stored the batch but the reply was lost. Losing measured time is the
+   * worse failure, so the retry wins.
+   */
   private async flush(): Promise<void> {
-    if (this.pending.size === 0) return;
-    const batch = [...this.pending.values()];
-    const ok = await this.deps.send(batch).catch(() => false);
-    if (ok) this.pending.clear();
+    if (this.flushing || this.pending.size === 0) return;
+    this.flushing = true;
+    // Take the buffer out first: ticks that land during the in-flight send
+    // accumulate into a fresh map instead of being cleared away with it.
+    const inFlight = this.pending;
+    this.pending = new Map();
+    try {
+      const ok = await this.deps.send([...inFlight.values()]).catch(() => false);
+      if (!ok) {
+        // put the unsent slices back, merging with anything recorded meanwhile
+        for (const [bucket, sample] of inFlight) {
+          const current = this.pending.get(bucket);
+          if (current) current.seconds += sample.seconds;
+          else this.pending.set(bucket, sample);
+        }
+      }
+    } finally {
+      this.flushing = false;
+    }
   }
 }

@@ -28,8 +28,14 @@ export interface UsageState {
 export const RETENTION_DAYS = 90;
 export const SAMPLE_INTERVAL_MS = 5_000;
 export const IDLE_THRESHOLD_MS = 60_000;
-/** Defensive cap: a single sample can never contribute more than this. */
-export const MAX_SAMPLE_SECONDS = 120;
+/**
+ * Defensive cap per recorded amount. This is NOT the per-tick limit (that lives
+ * in decideSample, clamped to two sample intervals) — trackers batch many ticks
+ * into one record, and a batch that waited out a long helper outage legitimately
+ * carries a lot of time. What is never legitimate is more than a day landing in
+ * a single day's bucket for one target.
+ */
+export const MAX_RECORD_SECONDS = 24 * 3600;
 
 export function emptyUsage(): UsageState {
   return { days: [], labels: {}, enabled: true };
@@ -91,7 +97,7 @@ export function recordSample(
 ): UsageState {
   if (!state.enabled) return state;
   if (!Number.isFinite(seconds) || seconds <= 0) return state;
-  const amount = Math.min(seconds, MAX_SAMPLE_SECONDS);
+  const amount = Math.min(seconds, MAX_RECORD_SECONDS);
 
   const today = dayKey(now);
   let bucket = state.days.find((d) => d.day === today);
@@ -107,16 +113,19 @@ export function recordSample(
 }
 
 /**
- * Drops buckets older than RETENTION_DAYS, plus labels nothing references.
+ * Keeps the newest RETENTION_DAYS buckets and drops labels nothing references.
  *
- * Only prunes the OLD end: buckets newer than `now` are kept. A sample carrying
- * an earlier timestamp (backfill, NTP correction, DST/clock change) must never
- * be able to delete newer history.
+ * Retention is bounded by COUNT, not by comparing against the current clock:
+ * a wrong system time (NTP correction, a user setting the date forward, a DST
+ * or timezone change) must never be able to wipe real history, in either
+ * direction. Counting also bounds storage exactly.
  */
-export function pruneOld(state: UsageState, now: number): UsageState {
-  const cutoff = dayKeysBack(now, RETENTION_DAYS)[0]; // oldest day still kept
+export function pruneOld(state: UsageState, _now?: number): UsageState {
   // day keys are YYYY-MM-DD, so lexicographic order is chronological
-  state.days = state.days.filter((d) => d.day >= cutoff);
+  state.days.sort((a, b) => (a.day < b.day ? -1 : a.day > b.day ? 1 : 0));
+  if (state.days.length > RETENTION_DAYS) {
+    state.days = state.days.slice(-RETENTION_DAYS);
+  }
   const used = new Set<string>();
   for (const d of state.days) for (const k of Object.keys(d.seconds)) used.add(k);
   for (const k of Object.keys(state.labels)) if (!used.has(k)) delete state.labels[k];

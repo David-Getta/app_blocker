@@ -4,7 +4,7 @@ import {
   emptyUsage, recordSample, pruneOld, dayKey, dayKeysBack, totalsForDays,
   rank, sumOf, series, weekOverWeek, summarize, formatDuration,
   siteKey, appKey, kindOf, idOf, labelOf,
-  RETENTION_DAYS, MAX_SAMPLE_SECONDS, decideSample, type UsageState,
+  RETENTION_DAYS, MAX_RECORD_SECONDS, decideSample, type UsageState,
 } from '../src/shared/usage';
 
 /** An instant N local days before `now` (stepped at noon, DST-safe). */
@@ -56,9 +56,12 @@ test('recordSample ignores invalid samples and honours the off switch', () => {
   recordSample(st, siteKey('a.com'), Number.NaN, NOW);
   assert.equal(st.days.length, 0, 'no bucket created for invalid samples');
 
-  // a wildly long sample (e.g. after sleep) is clamped, never trusted
+  // a batch that waited out a long outage is kept in full...
   recordSample(st, siteKey('a.com'), 8 * 3600, NOW);
-  assert.equal(st.days[0].seconds['site:a.com'], MAX_SAMPLE_SECONDS);
+  assert.equal(st.days[0].seconds['site:a.com'], 8 * 3600, 'batched time is not truncated');
+  // ...but more than a day for one target in one day is impossible, so it caps
+  recordSample(st, siteKey('b.com'), 40 * 3600, NOW);
+  assert.equal(st.days[0].seconds['site:b.com'], MAX_RECORD_SECONDS);
 
   const off: UsageState = { ...emptyUsage(), enabled: false };
   recordSample(off, siteKey('b.com'), 5, NOW);
@@ -74,16 +77,34 @@ test('samples land in separate buckets across day boundaries', () => {
   assert.equal(totalsForDays(st, [dayKey(NOW)])['site:a.com'], 20);
 });
 
-test('pruneOld drops buckets past retention and orphaned labels', () => {
+test('pruneOld bounds history by bucket count and cleans orphaned labels', () => {
   const st = emptyUsage();
-  recordSample(st, siteKey('old.com'), 10, daysAgo(NOW, RETENTION_DAYS + 5), 'Old');
-  recordSample(st, siteKey('new.com'), 10, NOW, 'New');
-  // recordSample prunes as it goes, so the ancient bucket is already gone
-  assert.equal(st.days.length, 1);
-  assert.equal(st.days[0].day, dayKey(NOW));
-  pruneOld(st, NOW);
-  assert.ok(!('site:old.com' in st.labels), 'label of a dropped target is cleaned up');
-  assert.equal(st.labels['site:new.com'], 'New');
+  // more days than retention allows
+  for (let i = RETENTION_DAYS + 10; i >= 0; i--) {
+    recordSample(st, siteKey('a.com'), 10, daysAgo(NOW, i), 'A');
+  }
+  assert.equal(st.days.length, RETENTION_DAYS, 'never more than RETENTION_DAYS buckets');
+  assert.equal(st.days[st.days.length - 1].day, dayKey(NOW), 'newest kept');
+
+  const st2 = emptyUsage();
+  recordSample(st2, siteKey('old.com'), 10, daysAgo(NOW, 5), 'Old');
+  recordSample(st2, siteKey('new.com'), 10, NOW, 'New');
+  st2.days = st2.days.filter((d) => d.day === dayKey(NOW)); // simulate the old day ageing out
+  pruneOld(st2, NOW);
+  assert.ok(!('site:old.com' in st2.labels), 'label of a dropped target is cleaned up');
+  assert.equal(st2.labels['site:new.com'], 'New');
+});
+
+test('a wrong system clock never wipes history (either direction)', () => {
+  const st = emptyUsage();
+  recordSample(st, siteKey('a.com'), 10, daysAgo(NOW, 1));
+  recordSample(st, siteKey('a.com'), 10, NOW);
+  const before = st.days.length;
+  // clock jumps a year forward, then a year back: retention must not delete
+  pruneOld(st, NOW + 365 * 24 * 3600_000);
+  assert.equal(st.days.length, before, 'forward jump keeps history');
+  pruneOld(st, NOW - 365 * 24 * 3600_000);
+  assert.equal(st.days.length, before, 'backward jump keeps history');
 });
 
 test('a late/backdated sample never deletes newer history (clock-jump safety)', () => {

@@ -46,8 +46,11 @@ interface UsageState {
 }
 ```
 
-Megőrzés: **90 nap** (ez néhány tíz kB), utána a régi napok automatikusan
-kiesnek.
+Megőrzés: a **legutóbbi 90 mért nap** (néhány tíz kB), utána a legrégebbi
+vödrök automatikusan kiesnek. A vágás **darabszám alapú**, nem a rendszerórához
+hasonlítunk: egy elállított óra (NTP-korrekció, kézi dátumváltás, időzóna) így
+egyik irányban sem tud valós előzményt törölni, és a tárhely is pontosan
+korlátozott.
 
 ## Statisztikák
 
@@ -117,5 +120,7 @@ már úgyis futó VPN-szolgáltatásban van, tehát a felület bezárása nem á
 
 - Mintavétel-aggregálás: nap-határ átlépés, tétlenség kihagyása, alvás utáni
   túlszámolás elleni védelem.
-- Megőrzés: 90 napon túli vödrök kiesnek.
+- Megőrzés: darabszám-korlát, és se előre, se hátra ugró óra nem töröl adatot.
+- Kötegelt (hosszabb kiesés utáni) idő nem csonkul, de egy célpont egy napra
+  nem kaphat 24 óránál többet.
 - Statisztikák: ma/7/30 nap, top lista, idősor, hét-a-héthez, üres állapot.

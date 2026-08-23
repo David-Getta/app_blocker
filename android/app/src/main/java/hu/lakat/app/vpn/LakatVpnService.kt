@@ -242,6 +242,7 @@ class LakatVpnService : VpnService() {
         stopping = true
         usageTimer?.cancel()
         usageTimer = null
+        runCatching { UsageTracker.flush() } // do not lose buffered measurement
         _running.value = false
         LakatStore.mutate { it.copy(protectionOn = false) }
         try { tun?.close() } catch (_: Exception) { }

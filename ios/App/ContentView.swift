@@ -33,6 +33,7 @@ struct ContentView: View {
                     addSection
                     if let ses = store.state.session { resumeBanner(ses) }
                     listSection
+                    StatsView(now: now)
                     tierLine
                 }
                 .padding()

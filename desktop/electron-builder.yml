@@ -19,6 +19,17 @@ mac:
   target:
     - dmg
     - zip
+  # The active-time tracker asks System Events / the browser for the frontmost
+  # app and active tab via Apple Events. Without this usage string TCC denies the
+  # request outright in a packaged build and measurement silently records
+  # nothing; with it, macOS shows the user a one-time consent prompt.
+  extendInfo:
+    NSAppleEventsUsageDescription: >-
+      A Lakat ezzel kérdezi le, melyik alkalmazás van előtérben és melyik
+      weboldal az aktív fül, hogy a képernyőidő-statisztikát elkészítse.
+      Az adat a gépeden marad.
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
   # Aláírás + közjegyzőzés (notarization) nélkül a Gatekeeper első indításkor
   # figyelmeztet. Fejlesztői tanúsítvánnyal töltsd ki:
   # identity: "Developer ID Application: ..."

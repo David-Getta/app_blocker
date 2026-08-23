@@ -45,11 +45,46 @@ object UsageTracker {
     private var lastAt = 0L
     private var cachedFgPackage: String? = null
 
-    /** Called by the VPN service for every DNS name it resolves (not blocked ones). */
-    fun noteDomain(domain: String, now: Long) {
-        // Ignore infrastructure lookups that no user ever "visits".
-        if (domain.endsWith("in-addr.arpa") || domain.endsWith(".local")) return
-        lastDomain.set(Sighting(domain, now))
+    /**
+     * Hosts that are never "the page you are on": CDNs, media, telemetry and
+     * analytics. Loading one page fires dozens of these, and without filtering
+     * the browser's time would be attributed to whichever asset host happened
+     * to resolve last instead of the site the user is actually reading.
+     */
+    private val INFRA_SUFFIXES = listOf(
+        "in-addr.arpa", ".local", ".arpa",
+        "gstatic.com", "googleapis.com", "googleusercontent.com", "googlevideo.com",
+        "google-analytics.com", "googletagmanager.com", "googlesyndication.com",
+        "doubleclick.net", "gvt1.com", "gvt2.com",
+        "cloudfront.net", "akamai.net", "akamaized.net", "akamaiedge.net",
+        "fbcdn.net", "cdninstagram.com", "licdn.com", "twimg.com", "redditstatic.com",
+        "cloudflare.com", "cloudflareinsights.com", "jsdelivr.net", "unpkg.com",
+        "sentry.io", "segment.io", "amplitude.com", "mixpanel.com", "hotjar.com",
+        "azureedge.net", "cdn77.org", "fastly.net", "edgekey.net", "llnwd.net",
+        "apple.com.akadns.net", "aaplimg.com", "mzstatic.com",
+        "ntp.org", "msftncsi.com", "msftconnecttest.com",
+    )
+
+    private fun isInfrastructure(domain: String): Boolean =
+        INFRA_SUFFIXES.any { domain == it.trimStart('.') || domain.endsWith(it) }
+
+    /**
+     * Called by the VPN service for every DNS name it resolves. The name is
+     * canonicalised to the domain the user would recognise: if it belongs to a
+     * site on the block list we use that site's own domain (so statistics and
+     * the block list line up), otherwise we strip the usual www./m. prefixes.
+     */
+    fun noteDomain(rawDomain: String, now: Long) {
+        val domain = rawDomain.lowercase()
+        if (isInfrastructure(domain)) return
+
+        val sites = LakatStore.state.value.sites
+        val canonical = sites.firstOrNull { site ->
+            domain == site.domain || domain.endsWith(".${site.domain}") ||
+                site.hostnames.any { it == domain }
+        }?.domain ?: domain.removePrefix("www.").removePrefix("m.")
+
+        lastDomain.set(Sighting(canonical, now))
     }
 
     fun hasUsageAccess(context: Context): Boolean {
@@ -131,15 +166,73 @@ object UsageTracker {
         val decision = UsageLogic.decideSample(lastAt, now, 0, fg)
         lastAt = now
         if (decision == null) return
-        LakatStore.mutate { s ->
-            UsageLogic.recordSample(s.usage, decision.key, decision.seconds, now, decision.label)
-            // New snapshot: StateFlow would not emit for an unchanged reference.
-            s.copy(usage = UsageLogic.snapshot(s.usage))
-        }
+        buffer(decision, now)
     }
 
     /** Screen-off / service restart: the gap must not be counted. */
     fun resetClock(now: Long = System.currentTimeMillis()) {
         lastAt = now
+        flush(now)
+    }
+
+    // ------------------------------------------------------------ buffering
+
+    /**
+     * Measured slices are buffered in memory and written to the store once a
+     * minute. Writing on every 5s tick would re-serialize the whole app state
+     * (up to 90 days of history) to SharedPreferences twelve times a minute
+     * from this background thread.
+     */
+    private const val FLUSH_INTERVAL_MS = 60_000L
+
+    private val pending = LinkedHashMap<String, UsageLogic.SampleDecision>()
+    private var lastFlush = 0L
+
+    @Synchronized
+    private fun buffer(decision: UsageLogic.SampleDecision, now: Long) {
+        // Key by (target, local day) so a buffer spanning midnight does not dump
+        // the earlier day's seconds into the later day's bucket.
+        val bucket = "${decision.key}@${UsageLogic.dayKey(now)}"
+        val existing = pending[bucket]
+        pending[bucket] = if (existing == null) decision
+            else existing.copy(seconds = existing.seconds + decision.seconds)
+        if (lastFlush == 0L) lastFlush = now
+        if (now - lastFlush >= FLUSH_INTERVAL_MS) flush(now)
+    }
+
+    /** Writes the buffer into the store as ONE state update. */
+    @Synchronized
+    fun flush(now: Long = System.currentTimeMillis()) {
+        lastFlush = now
+        if (pending.isEmpty()) return
+        val batch = pending.toMap()
+        pending.clear()
+        LakatStore.mutate { s ->
+            // Snapshot FIRST, then record into the copy: recording into the live
+            // object would mutate the value StateFlow already holds, the "new"
+            // value would compare equal to it, and nothing would ever be emitted.
+            val next = UsageLogic.snapshot(s.usage)
+            for ((bucket, d) in batch) {
+                val at = bucketTime(bucket, now)
+                UsageLogic.recordSample(next, d.key, d.seconds, at, d.label)
+            }
+            s.copy(usage = next)
+        }
+    }
+
+    /** Recovers an instant inside the buffered slice's own local day. */
+    private fun bucketTime(bucket: String, now: Long): Long {
+        val day = bucket.substringAfterLast('@')
+        if (day == UsageLogic.dayKey(now)) return now
+        // A buffered slice from an earlier day: land it at noon of that day.
+        val parts = day.split("-")
+        if (parts.size != 3) return now
+        val c = java.util.Calendar.getInstance()
+        val y = parts[0].toIntOrNull() ?: return now
+        val mo = parts[1].toIntOrNull() ?: return now
+        val d = parts[2].toIntOrNull() ?: return now
+        c.set(y, mo - 1, d, 12, 0, 0)
+        c.set(java.util.Calendar.MILLISECOND, 0)
+        return c.timeInMillis
     }
 }

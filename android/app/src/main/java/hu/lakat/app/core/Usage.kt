@@ -24,7 +24,8 @@ object UsageLogic {
     const val RETENTION_DAYS = 90
     const val SAMPLE_INTERVAL_MS = 5_000L
     const val IDLE_THRESHOLD_MS = 60_000L
-    const val MAX_SAMPLE_SECONDS = 120.0
+    /** Defensive cap per record: more than a day for one target in one day is impossible. */
+    const val MAX_RECORD_SECONDS = 24.0 * 3600
 
     /**
      * A detached copy of the whole history. [recordSample] mutates in place (to
@@ -49,7 +50,11 @@ object UsageLogic {
 
     fun dayKey(now: Long): String {
         val c = Calendar.getInstance().apply { timeInMillis = now }
-        return "%04d-%02d-%02d".format(
+        // Locale.ROOT: locales with native digit shapes (e.g. Arabic-Indic) would
+        // produce keys whose lexicographic order is no longer chronological, and
+        // retention plus every aggregation depends on that ordering.
+        return String.format(
+            java.util.Locale.ROOT, "%04d-%02d-%02d",
             c.get(Calendar.YEAR), c.get(Calendar.MONTH) + 1, c.get(Calendar.DAY_OF_MONTH))
     }
 
@@ -74,7 +79,7 @@ object UsageLogic {
     fun recordSample(state: UsageState, key: String, seconds: Double, now: Long, label: String? = null) {
         if (!state.enabled) return
         if (!seconds.isFinite() || seconds <= 0) return
-        val amount = minOf(seconds, MAX_SAMPLE_SECONDS)
+        val amount = minOf(seconds, MAX_RECORD_SECONDS)
 
         val today = dayKey(now)
         var bucket = state.days.find { it.day == today }
@@ -89,13 +94,18 @@ object UsageLogic {
     }
 
     /**
-     * Drops buckets older than [RETENTION_DAYS] plus unreferenced labels.
-     * Only prunes the OLD end — a sample carrying an earlier timestamp (backfill,
-     * clock correction) must never delete newer history.
+     * Keeps the newest [RETENTION_DAYS] buckets and drops unreferenced labels.
+     * Retention is bounded by COUNT, never by comparing against the current
+     * clock: a wrong system time must not be able to wipe real history in
+     * either direction. Counting also bounds storage exactly.
      */
-    fun pruneOld(state: UsageState, now: Long) {
-        val cutoff = dayKeysBack(now, RETENTION_DAYS).first()
-        state.days.retainAll { it.day >= cutoff }
+    fun pruneOld(state: UsageState, now: Long = 0L) {
+        state.days.sortBy { it.day }
+        if (state.days.size > RETENTION_DAYS) {
+            val keep = state.days.takeLast(RETENTION_DAYS)
+            state.days.clear()
+            state.days.addAll(keep)
+        }
         val used = state.days.flatMap { it.seconds.keys }.toSet()
         state.labels.keys.retainAll { it in used }
     }
