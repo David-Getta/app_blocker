@@ -68,9 +68,29 @@ function runFile(cmd: string, args: string[]): Promise<{ code: number; out: stri
   });
 }
 
+/**
+ * Egy csak-nekünk-szóló, kitalálhatatlan nevű, 0700-as könyvtár a temp alatt.
+ *
+ * Ami ide kerül, azt EMELT joggal olvassa be a rendszer (a plist mondja meg,
+ * mit futtasson a root minden bootnál). Kitalálható néven — mint eddig a
+ * `lakat-install.sh` — egy előre odakészített fájl a mienk helyére léphet.
+ * A véletlen név és a szűk mód ezt a fajta „várom, hogy megjelenj” támadást
+ * kizárja.
+ *
+ * Amit NEM zár ki: a SAJÁT felhasználóként már kódot futtató támadó a saját
+ * könyvtárába továbbra is beleír, tehát a kiírás és az emelt futtatás közötti
+ * pillanatban elvileg kicserélheti a tartalmat. Ez a maradék rés a
+ * docs/architecture.md korlátai közt is szerepel; a teljes megoldás az, hogy a
+ * privilegizált rész ne fájlból olvasson.
+ */
+function privateTempDir(): string {
+  return fs.mkdtempSync(path.join(app.getPath('temp'), 'lakat-'));
+}
+
 async function installMac(): Promise<void> {
-  const plistTmp = path.join(app.getPath('temp'), 'hu.lakat.helper.plist');
-  fs.writeFileSync(plistTmp, launchdPlist());
+  const dir = privateTempDir();
+  const plistTmp = path.join(dir, 'hu.lakat.helper.plist');
+  fs.writeFileSync(plistTmp, launchdPlist(), { mode: 0o600 });
   const script = [
     'set -e',
     'mkdir -p "/Library/Application Support/Lakat" /Library/Logs/Lakat',
@@ -80,12 +100,15 @@ async function installMac(): Promise<void> {
     `launchctl bootout system/${DAEMON_LABEL} 2>/dev/null || true`,
     `launchctl bootstrap system /Library/LaunchDaemons/${DAEMON_LABEL}.plist`,
   ].join('\n');
-  const scriptTmp = path.join(app.getPath('temp'), 'lakat-install.sh');
-  fs.writeFileSync(scriptTmp, script, { mode: 0o755 });
+  const scriptTmp = path.join(dir, 'install.sh');
+  fs.writeFileSync(scriptTmp, script, { mode: 0o700 });
   const { code, out } = await runFile('/usr/bin/osascript', [
     '-e',
     `do shell script "/bin/sh ${scriptTmp.replace(/"/g, '\\"')}" with administrator privileges`,
   ]);
+  // A takarítás sosem buktathatja meg a telepítést: ha a démon már fut, a
+  // felhasználó szempontjából kész vagyunk.
+  try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* nem baj */ }
   if (code !== 0) throw new Error(`A telepítés nem sikerült: ${out.trim()}`);
 }
 
@@ -103,12 +126,16 @@ async function installWindows(): Promise<void> {
     `  exit 0`,
     `} catch { exit 3 }`,
   ].join('\n');
-  const psTmp = path.join(os.tmpdir(), 'lakat-install.ps1');
+  // Ugyanaz, mint macOS-en: ezt a fájlt EMELT joggal (SYSTEM) futtatja le a
+  // rendszer, tehát a neve ne legyen kitalálható.
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'lakat-'));
+  const psTmp = path.join(dir, 'install.ps1');
   fs.writeFileSync(psTmp, ps);
   const { code, out } = await runFile('powershell.exe', [
     '-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command',
     `$p = Start-Process powershell -Verb RunAs -Wait -PassThru -WindowStyle Hidden -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File','${psTmp}'; exit $p.ExitCode`,
   ]);
+  try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* nem baj */ }
   if (code !== 0) {
     throw new Error(`A telepítés nem sikerült (kód: ${code}). ${out.trim()}`.trim());
   }

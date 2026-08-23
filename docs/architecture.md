@@ -138,6 +138,14 @@ Ismert megkerülési utak (szándékosan nem próbáljuk „lelakatolni” a gé
   veszi, tehát a felhasználó a böngésző beállításaiban visszakapcsolhatja.
   Rendes zárás MDM/konfigurációs profilt igényelne. Ezért a felület csak annyit
   állít, hogy a házirendet alkalmaztuk — nem azt, hogy a DoH nem kapcsolható be.
+- **A telepítő átmeneti fájljai.** A privilegizált telepítés egy shell-, illetve
+  PowerShell-szkriptet és egy plistet ír a felhasználó temp könyvtárába, és azt
+  futtatja emelt joggal. A név mostantól véletlen, a könyvtár 0700 — előre
+  odakészített fájl tehát nem léphet a helyünkre. Ami marad: a SAJÁT
+  felhasználóként már kódot futtató támadó a kiírás és az emelt futtatás közötti
+  pillanatban elvileg átírhatja a tartalmat, és ezzel root/SYSTEM jogot szerez.
+  A teljes megoldás az volna, hogy a privilegizált rész egyáltalán ne fájlból
+  olvasson (a parancsot a parancssorban kapja meg), ez még hátravan.
 - **Más gyártó appját nem rontjuk el a szigor kedvéért.** A Firefox
   policies.json-t macOS-en az app bundle-jébe kellene tenni, ami érvényteleníti
   a Firefox aláírását, és a saját frissítőjét is elronthatja. Ezt nem tesszük:
