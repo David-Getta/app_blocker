@@ -16,6 +16,8 @@ interface UpdateState {
   version?: string;
   percent?: number;
   error?: string;
+  /** the app applies the update itself (unsigned macOS build) */
+  selfManaged?: boolean;
 }
 interface Bridge {
   call(op: string, payload?: Record<string, unknown>): Promise<
@@ -881,11 +883,15 @@ function renderUpdate(s: UpdateState): void {
       break;
     case 'ready':
       bar.classList.remove('hidden');
-      text.textContent = `Frissítés kész${s.version ? ` (${s.version})` : ''} — újraindításkor települ.`;
+      text.textContent = `Frissítés kész${s.version ? ` (${s.version})` : ''} — egy kattintás, és újraindulva már az új verzió fut.`;
+      // Set the label on every branch: the error branch below changes it, and a
+      // later 'ready' state must not inherit "open the download page".
+      btn.textContent = 'Újraindítás és frissítés';
       btn.classList.remove('hidden');
       break;
     case 'error':
-      // Unsigned macOS builds cannot self-install; offer the manual download.
+      // The self-install failed (no write access to the app bundle, a broken
+      // download); the manual download always works.
       bar.classList.remove('hidden');
       text.textContent = 'Új verzió érhető el a letöltőoldalon.';
       btn.textContent = 'Letöltés megnyitása';

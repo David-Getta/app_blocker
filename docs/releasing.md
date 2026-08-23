@@ -70,15 +70,25 @@ keytool -genkeypair -v -keystore release.jks -keyalg RSA -keysize 2048 \
 Secret nélkül a release APK a debug kulccsal íródik alá — közvetlen
 terjesztéshez jó (és konzisztens), a Play Store-hoz viszont saját kulcs kell.
 
-### macOS (auto-update csak aláírva működik!)
+### macOS
 | Secret | Mi ez |
 |--------|-------|
 | `MAC_CSC_LINK` | a „Developer ID Application” tanúsítvány `.p12`-je base64-ben |
 | `MAC_CSC_KEY_PASSWORD` | a `.p12` jelszava |
 | `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID` | notarizációhoz |
 
-Aláírás nélkül a macOS app **elindul**, de nem tudja magát frissíteni; ilyenkor
-az app a letöltőoldalra irányít.
+**Aláírás nélkül is működik az egykattintásos frissítés.** A Squirrel.Mac (amit
+az electron-updater hajt) csak Developer ID-vel aláírt appra alkalmaz
+frissítést, ezért aláíratlan buildben az app *magától* frissít: letölti a
+kiadás `-mac.zip` csomagját, ellenőrzi a méretét és a `latest-mac.yml`-ből a
+sha512-t, `ditto`-val kicsomagolja (ez az egyetlen eszköz, ami egy .app-ot
+épségben hagy), leveszi a karantén jelzőt, kicseréli a bundle-t, és újraindul.
+Ha bármi hibázik, a régi app helyben marad, és a gomb a letöltőoldalt nyitja.
+A választás induláskor dől el: `codesign -dv` alapján van-e valódi Developer ID
+aláírás. Részletek: `desktop/src/main/mac-updater.ts`.
+
+Amit az aláírás így is hoz: eltűnik a Gatekeeper figyelmeztetés az első
+indításnál, és a frissítést az OS ellenőrzi, nem mi.
 
 ### Windows (opcionális)
 Kódaláíró tanúsítvánnyal eltűnik a SmartScreen-figyelmeztetés. Add meg a

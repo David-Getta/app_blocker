@@ -5,6 +5,8 @@ export interface UpdateState {
   version?: string;
   percent?: number;
   error?: string;
+  /** the app applies the update itself (unsigned macOS build) */
+  selfManaged?: boolean;
 }
 
 export interface LakatBridge {
