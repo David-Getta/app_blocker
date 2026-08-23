@@ -85,6 +85,9 @@ function fakeBridgeSource() {
     // A GUI a saját protokollverziójához hasonlítja: a demóban EGYEZZEN, hogy a
     // képernyőképeken ne üljön ott a „régi a háttérszolgáltatás” sáv. A
     // nem-egyező esetet a füstteszt külön, szándékosan állítja elő.
+    // A mérés alapból lát adatot; a „nem kap adatot” esetet a füstteszt
+    // szándékosan állítja elő.
+    window.__fakeTracker = { blocked: false, neverWorked: false, platform: 'darwin' };
     window.__fakeHelperVersion = ${JSON.stringify(helperVersion())};
     const status = () => ({
       helperVersion: window.__fakeHelperVersion, platform: 'darwin', sites, tier: 1, unlocks7d: 2,
@@ -142,6 +145,7 @@ function fakeBridgeSource() {
       checkUpdate: async () => ({ ok: true }),
       installUpdate: async () => ({ ok: true }),
       getUpdateState: async () => ({ status: 'idle' }),
+      getTrackerState: async () => window.__fakeTracker,
       onUpdateState: () => {},
     };
   `;
@@ -210,6 +214,29 @@ async function main() {
   }
   await page.evaluate((v) => { window.__fakeHelperVersion = v; }, helperVersion());
   await page.waitForSelector('#helperStaleBanner', { state: 'hidden', timeout: 15_000 });
+
+  // A mérés bekapcsolva, de a szonda nem lát semmit (macOS-en megtagadott
+  // automatizálási engedély). Ezt ki KELL írni: enélkül a statisztika örökre
+  // nulla, a napi keret sosem fogy, és a felület védelmet mutatna ott, ahol
+  // nincs. A szövegnek meg kell mondania, hol lehet megadni az engedélyt, és
+  // hogy ez a keretet is érinti.
+  if (await page.locator('#usageBlocked:not(.hidden)').count() !== 0) {
+    failures.push('the measurement warning shows even though the probe is fine');
+  }
+  await page.evaluate(() => {
+    window.__fakeTracker = { blocked: true, neverWorked: true, platform: 'darwin' };
+  });
+  await page.waitForSelector('#usageBlocked:not(.hidden)', { timeout: 15_000 });
+  const blockedText = (await page.locator('#usageBlocked').textContent()) || '';
+  for (const needle of ['Automatizálás', 'napi időkeret']) {
+    if (!blockedText.includes(needle)) {
+      failures.push(`the measurement warning does not mention "${needle}": ${blockedText}`);
+    }
+  }
+  await page.evaluate(() => {
+    window.__fakeTracker = { blocked: false, neverWorked: false, platform: 'darwin' };
+  });
+  await page.waitForSelector('#usageBlocked', { state: 'hidden', timeout: 15_000 });
 
   if (!CHECK_ONLY) {
     fs.mkdirSync(OUT, { recursive: true });

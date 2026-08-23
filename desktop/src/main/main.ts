@@ -96,6 +96,14 @@ if (HELPER_MODE) {
         log: (m) => console.log(`[lakat-tracker] ${m}`),
       });
       tracker.start();
+      // A mérés csendben elhasalhat: macOS-en, ha a felhasználó megtagadja az
+      // automatizálási engedélyt, az előtér-szonda örökre üres marad. Ezt a
+      // felület kiírja, ezért kell egy lekérdezhető állapot.
+      ipcMain.handle('lakat:tracker-state', () => ({
+        blocked: tracker.probeBlocked,
+        neverWorked: tracker.probeNeverWorked,
+        platform: process.platform,
+      }));
       // Keep the tracker's view of the switch fresh without extra IPC chatter.
       setInterval(() => {
         void client.call('status')

@@ -27,6 +27,7 @@ interface Bridge {
   checkUpdate(): Promise<{ ok: boolean; error?: string }>;
   installUpdate(): Promise<{ ok: boolean; opened?: boolean }>;
   getUpdateState(): Promise<UpdateState>;
+  getTrackerState(): Promise<{ blocked: boolean; neverWorked: boolean; platform: string }>;
   onUpdateState(cb: (s: UpdateState) => void): void;
   platform: string;
 }
@@ -98,6 +99,12 @@ async function refresh(): Promise<void> {
     // First successful connection: pull statistics right away rather than
     // waiting for the slow periodic refresh.
     if (!statsData) void refreshStats();
+    // A mérés-állapot két logikai értéke; a fő folyamatból jön, olcsó. Azért
+    // itt és nem a 30 másodperces statisztika-körben: ha a felhasználó most
+    // adta meg az engedélyt, a figyelmeztetés pár másodpercen belül tűnjön el.
+    trackerState = await Promise.resolve()
+      .then(() => window.lakat.getTrackerState())
+      .catch(() => trackerState);
   } catch {
     // One flaky poll must not tear the UI down (or close a challenge modal
     // mid-typing) — only flip to "down" after repeated failures.
@@ -142,6 +149,7 @@ function render(): void {
   renderSiteList(status!);
   renderTier(status!);
   renderHelperStaleBanner(status!);
+  renderProbeWarning(status!.usageEnabled);
   renderResumeBanner(status!);
   if (modalOpen) renderSession(status!.session);
 }
@@ -862,6 +870,8 @@ async function refreshStats(): Promise<void> {
   statsBusy = true;
   try {
     statsData = await call<UsageStatsData>('usage_stats');
+    // A mérés állapota a fő folyamatból jön (a szonda ott fut), a statisztika a
+    // helperből — ugyanabban a körben frissül mind a kettő.
     renderStats();
   } catch {
     // helper busy or down; keep the previous view rather than blanking it
@@ -939,6 +949,33 @@ function attachTip(el: HTMLElement, text: () => string): void {
   el.addEventListener('mouseleave', () => tip.classList.add('hidden'));
 }
 
+/** A legutóbb lekérdezett mérés-állapot; a poll frissíti. */
+let trackerState: { blocked: boolean; neverWorked: boolean; platform: string } | null = null;
+
+/**
+ * „A mérés be van kapcsolva, de nem kap adatot.”
+ *
+ * macOS-en az előtér lekérdezéséhez és a böngésző aktív fülének olvasásához
+ * engedély kell; az engedélykérő ablak magától jön fel az első méréskor. Ha a
+ * felhasználó nemet mond (vagy elkattintja), a szonda csendben üres marad: a
+ * statisztika örökre nulla, a napi keret pedig SOSEM fogy el — vagyis a
+ * felület védelmet mutatna ott, ahol nincs. Ezért kimondjuk, és megmondjuk,
+ * hol lehet megadni.
+ */
+function renderProbeWarning(measurementOn: boolean): void {
+  const el = $('usageBlocked');
+  const show = measurementOn && !!trackerState?.blocked;
+  el.classList.toggle('hidden', !show);
+  if (!show) return;
+  el.textContent = trackerState!.platform === 'darwin'
+    ? 'A mérés be van kapcsolva, de nem kap adatot. macOS-en ehhez engedély kell: '
+      + 'Rendszerbeállítások → Adatvédelem és biztonság → Automatizálás, ott a '
+      + 'Lakatnál kapcsold be a „System Events” és a böngésződ sorát. '
+      + 'Amíg nincs adat, a napi időkeret sem fogy.'
+    : 'A mérés be van kapcsolva, de nem kap adatot az előtérről. '
+      + 'Amíg nincs adat, a napi időkeret sem fogy.';
+}
+
 function renderStats(): void {
   const card = $('statsCard');
   card.classList.toggle('hidden', !helperUp);
@@ -948,6 +985,7 @@ function renderStats(): void {
   const enabled = status?.usageEnabled ?? s.enabled;
   $<HTMLButtonElement>('usageToggle').textContent = enabled ? 'Mérés kikapcsolása' : 'Mérés bekapcsolása';
   $('usageOff').classList.toggle('hidden', enabled);
+  renderProbeWarning(enabled);
   $('statsBody').classList.toggle('hidden', !enabled && s.daysTracked === 0);
 
   const tiles = $('statTiles');

@@ -9,6 +9,14 @@ export interface UpdateState {
   selfManaged?: boolean;
 }
 
+export interface TrackerState {
+  /** the foreground probe has come back empty several times in a row */
+  blocked: boolean;
+  /** it has never once seen anything — the first-run / permission-denied case */
+  neverWorked: boolean;
+  platform: string;
+}
+
 export interface LakatBridge {
   call(op: string, payload?: Record<string, unknown>): Promise<
     { ok: true; data: unknown } | { ok: false; error: string; code?: string }
@@ -17,6 +25,7 @@ export interface LakatBridge {
   checkUpdate(): Promise<{ ok: boolean; error?: string }>;
   installUpdate(): Promise<{ ok: boolean; opened?: boolean }>;
   getUpdateState(): Promise<UpdateState>;
+  getTrackerState(): Promise<TrackerState>;
   onUpdateState(cb: (s: UpdateState) => void): void;
   platform: string;
 }
@@ -27,6 +36,7 @@ const bridge: LakatBridge = {
   checkUpdate: () => ipcRenderer.invoke('lakat:check-update'),
   installUpdate: () => ipcRenderer.invoke('lakat:install-update'),
   getUpdateState: () => ipcRenderer.invoke('lakat:update-state'),
+  getTrackerState: () => ipcRenderer.invoke('lakat:tracker-state'),
   onUpdateState: (cb) => ipcRenderer.on('lakat:update-state', (_e, s: UpdateState) => cb(s)),
   platform: process.platform,
 };

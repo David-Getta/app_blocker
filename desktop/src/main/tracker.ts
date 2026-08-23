@@ -11,6 +11,7 @@
 // the active tab's domain, everything else to the application.
 
 import { powerMonitor } from 'electron';
+import { ProbeHealth } from '../shared/probe-health';
 import { execFile, spawn } from 'child_process';
 import {
   decideSample, domainFromBrowserUrl, SAMPLE_INTERVAL_MS, MAX_LABEL_LENGTH, type Foreground,
@@ -254,8 +255,13 @@ export class UsageTracker {
   private buffer = new SampleBuffer();
   private probing = false;
   private flushing = false;
+  private health = new ProbeHealth();
 
   constructor(private deps: TrackerDeps) {}
+
+  /** A mérés sorozatban nem lát semmit — a felület ezt kiírja. */
+  get probeBlocked(): boolean { return this.health.blocked; }
+  get probeNeverWorked(): boolean { return this.health.neverWorked; }
 
   start(): void {
     if (this.timer) return;
@@ -290,6 +296,7 @@ export class UsageTracker {
     try {
       const idleSeconds = powerMonitor.getSystemIdleTime();
       const fg = await probeForeground(this.deps.log);
+      this.health.record(fg !== null);
       const now = Date.now();
       const decision = decideSample({ lastAt: this.lastAt, now, idleSeconds, fg });
       this.lastAt = now;
@@ -297,6 +304,7 @@ export class UsageTracker {
       this.buffer.add(decision.key, decision.label, decision.seconds, now);
     } catch (e) {
       this.deps.log(`usage probe failed: ${String(e)}`);
+      this.health.record(false);
       this.lastAt = Date.now();
     } finally {
       this.probing = false;
