@@ -103,8 +103,14 @@ A helper root/SYSTEM jogú, ezért a vele kommunikáló helyi socketet szűkítj
   uid-jére van `chown`-olva (a uid-et a GUI a telepítéskor a LaunchDaemon
   argumentumába süti: `--owner-uid=<uid>`). Így csak az adott felhasználó (és a
   root) tud csatlakozni — más felhasználó vagy alacsony jogú folyamat (pl.
-  `nobody`) nem. Fail-closed: ha az owner ismeretlen, root-only marad, nem
-  világ-nyitott.
+  `nobody`) nem.
+  A sorrend is számít: a socket **szűk umask alatt jön létre** (`0o177`), nem
+  utólagos `chmod`-dal. A `bind()` és a `chmod()` közötti pillanatban a socket
+  már fogadja a kapcsolatokat — az a rés elég egy helyi folyamatnak. A
+  létrehozás után a helper **ellenőrzi** a jogosultságot, és ha nem tudja
+  bizonyítani, hogy csak a tulajdonos éri el, **nem szolgál ki** (leállítja a
+  szervert). Fail-closed: inkább ne induljon el, mint hogy egy root parancs-
+  csatorna nyitva maradjon.
 - **Windows:** named pipe, ami eleve helyi; egyedi DACL beállítása natív kód
   nélkül nem megoldható, ezért ez ismert korlát (a jövőben szűkíthető).
 
@@ -119,3 +125,24 @@ Ismert megkerülési utak (szándékosan nem próbáljuk „lelakatolni” a gé
 
 Ezeket a `docs/`-ban nyíltan dokumentáljuk, hogy az elvárások reálisak
 legyenek.
+
+## Hibatűrés: melyik irányba dőljön a rendszer
+
+Egy blokkoló appnál a hibáknak **iránya** van. Ha valami nem sikerül, két
+kimenetel közül lehet választani: „minden tiltva marad” vagy „minden feloldódik”.
+A második a rosszabb — az a felhasználó ellen dolgozik, ráadásul csendben. Ezért
+minden bizonytalan helyzet a tiltás felé dől:
+
+| Helyzet | Rossz (fail-open) | Amit csinálunk |
+|---|---|---|
+| Ismeretlen menetrend-mód a mentett állapotban | a döntés `undefined`/kivétel → az oldal szabad, de védettnek látszik | `always` (mindig tiltva) |
+| Egy oldal rekordja nem olvasható | az egész állapot eldobása → üres blokklista | csak azt az egy oldalt veszítjük el |
+| A feloldási próba (session) sérült | kivétel a DNS-útvonalon, vagy beragadt session | a session eldobása → elölről kell kezdeni (több súrlódás, nem kevesebb) |
+| `stepIndex` a lépéseken túlra mutat | minden művelet kivételre fut → a próba nem zárható le | a session nem töltődik be |
+| iOS: az állapotfájl létezik, de nem dekódolható | üres állapot ráírása → **minden blokk véglegesen elveszik** | nem írunk fölé, és a felület jelzi |
+| A helper socketje nem tehető biztonságossá | root parancscsatorna nyitva | a helper nem indul el |
+| A mérési puffer megtelik / elavul | korlátlan növekedés, néma eldobás a másik oldalon | korlátos puffer, legrégebbi megy először, naplózott eldobás |
+
+A „sérült állapot” nem elméleti: elég egy áramszünet írás közben, vagy egy
+újabb verzió után visszatelepített régebbi build (a mentett fájlban olyan enum-
+érték van, amit a régi kód nem ismer).

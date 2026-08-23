@@ -127,6 +127,34 @@ előteret (macOS: nincs Aqua-hozzáférése; Windows: a SYSTEM a 0. munkamenetbe
 van). Ezért a desktop mérés addig gyűjt, amíg a Lakat fut. Androidon a mérés a
 már úgyis futó VPN-szolgáltatásban van, tehát a felület bezárása nem állítja le.
 
+### A puffer korlátai (desktop)
+
+A mért szeletek nem kerülnek azonnal a helperhez: célpont + naptári nap szerint
+összevonva 30 másodpercenként megy egy köteg. Ha a küldés nem sikerül, a köteg
+visszakerül a pufferbe — a mért idő elvesztése rosszabb, mint a ritka
+dupla-számolás. Ennek viszont két határa van:
+
+- **Méret:** a puffer legfeljebb annyi (célpont, nap) rekeszt tart, amennyi
+  pontosan egy kérésbe fér (`MAX_BATCH_SAMPLES`). Ez nem véletlen egyezés:
+  különben a `take()` többet adna vissza, mint amennyit a helper elfogad, és a
+  fölösleg némán lecsonkolódna a túloldalon. Túlcsordulásnál a **legrégebbi**
+  rekesz megy először.
+- **Kor:** a helper a mostani időtől ±7 napnál távolabbi mintát nem fogad el
+  (értelmetlen időbélyeg elleni védelem). Egy ennél régebbi szelet újraküldése
+  tehát nem kézbesítés, csak annak látszik — ezért a mérő maga dobja el, és
+  naplózza. Ide egy több mint egy hetes, folyamatos helper-kiesés kell.
+
+### Ha a Windows-szonda nem indul el
+
+Az előtér-figyelés Windowson egy hosszú életű PowerShell-gyermekfolyamat. Ha ez
+nem tud elindulni, a Node **nem** `exit`, hanem `error`/`close` eseményt küld —
+emiatt korábban a „fut már” őr minden újraindítást letiltott, és a mérés némán
+megállt a munkamenet hátralévő részére. Az életciklust most egy külön, tesztelt
+`ProbeSupervisor` kezeli: minden lezáró esemény oda fut be, az egymás utáni
+sikertelen indítások pedig növekvő várakozást kapnak (5s → 15s → 1p → 5p), így
+sem beragadni, sem 5 másodpercenként újraéledni nem tud. Egy percnél tovább élt
+szonda kilépése nem hiba: utána azonnal újraindulhat.
+
 ## Tesztek
 
 - Mintavétel-aggregálás: nap-határ átlépés, tétlenség kihagyása, alvás utáni
@@ -141,3 +169,8 @@ már úgyis futó VPN-szolgáltatásban van, tehát a felület bezárása nem á
   korlátozott számú célpontot tárol — a maradék egy „egyéb” gyűjtőbe kerül, hogy
   az összeg pontos maradjon. Integrációs teszt játssza el a támadást a valódi
   szerver ellen, és igazolja, hogy a mentés utána is működik.
+- Puffer: nap-határon nem keveredik, sikertelen küldés után nem vész el, a
+  méret- és kor-korlát betartva, túlcsorduláskor a legrégebbi megy először.
+- Szonda-felügyelet: egy sikertelen indítás nem tiltja le a további
+  próbálkozásokat, az ismételt hiba növekvő várakozást kap, egy egészségesen
+  futott szonda kilépése pedig nem számít hibának.
