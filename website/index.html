@@ -74,11 +74,14 @@
         <li><strong>Windows / macOS:</strong> a telepítő egyszer kér rendszergazdai
           jóváhagyást a védelemhez. macOS-en <em>nem</em> kér újra minden indításnál.</li>
         <li><strong>macOS első indítás:</strong> amíg nincs Apple fejlesztői
-          aláírás, a Gatekeeper ismeretlen fejlesztőként kezeli az appot. Nyisd
-          meg a DMG-t, húzd az <em>Alkalmazások</em> mappába, majd a Lakat ikonon
-          <em>jobb gomb → Megnyitás</em>, és a párbeszédben újra <em>Megnyitás</em>.
-          Ezt csak egyszer kell. Ha „sérült” hibát ír, a letöltési karantén jelzőt
-          kell levenni: <code>xattr -dr com.apple.quarantine /Applications/Lakat.app</code></li>
+          aláírás, a macOS 15 (Sequoia) és újabb kukába teszi az appot
+          („Rosszindulatú szoftver blokkolva”) — ez nem valódi kártevőt jelent,
+          csak azt, hogy nincs aláírva. Töltsd le a <strong>DMG</strong>-t (ne a
+          <code>-mac.zip</code>-et, az a frissítéshez van), húzd az
+          <em>Alkalmazások</em> mappába, majd egyszer futtasd Terminálban:
+          <code>xattr -dr com.apple.quarantine /Applications/Lakat.app</code> —
+          ez a letöltési karantén jelzőt veszi le, semmi mást nem kapcsol ki.
+          Ha a rendszer már kukába tette, előbb húzd vissza.</li>
         <li><strong>Android:</strong> ha a Play Áruházon kívülről telepíted, a
           rendszer egyszer rákérdez az „ismeretlen forrás” engedélyre.</li>
         <li><strong>iPhone:</strong> az Apple szabályai miatt az iOS-t az App Store-ból

@@ -51,13 +51,28 @@ jobs:
           | **Windows** | `….exe` |
           | **Android** | `Lakat-*.apk` |
 
-          ### macOS — első indítás
-          Nyisd meg a DMG-t, húzd a **Programok** mappába, majd a Lakat ikonon
-          **jobb gomb → Megnyitás**, és a párbeszédben újra **Megnyitás**. Ezt csak
-          egyszer kell: amíg nincs Apple fejlesztői aláírás, a Gatekeeper ismeretlen
-          fejlesztőként kezeli az appot. Ha „sérült” hibát írna, a letöltési karantén
-          jelzőt kell levenni:
-          `xattr -dr com.apple.quarantine /Applications/Lakat.app`
+          ### macOS — első indítás (fontos!)
+          Amíg nincs Apple fejlesztői aláírás, a **macOS 15 (Sequoia) és újabb**
+          nem elégszik meg a régi „jobb gomb → Megnyitás” trükkel: kukába teszi az
+          appot *„Rosszindulatú szoftver blokkolva”* üzenettel. Ez nem valódi
+          kártevőt jelent — csak azt, hogy az app nincs aláírva és közjegyzőzve.
+
+          Így megy mégis, két lépésben:
+
+          1. Töltsd le a **DMG**-t (ne a `-mac.zip`-et, az a frissítéshez van),
+             nyisd meg, és húzd a **Programok** mappába.
+          2. Nyiss egy Terminált (Spotlight → „Terminál”), és futtasd:
+
+          ```
+          xattr -dr com.apple.quarantine /Applications/Lakat.app
+          ```
+
+          Ezután a Lakat sima duplakattintással indul. Ha a rendszer már kukába
+          tette, előbb húzd vissza a kukából a Programok mappába, aztán futtasd a
+          parancsot.
+
+          A parancs a **letöltési karantén jelzőt** veszi le arról az appról, amit
+          te magad töltöttél le — semmi mást nem kapcsol ki a gépeden.
 
           ### Frissítés
           A telepített app magától megnézi, van-e újabb verzió, letölti a háttérben,
