@@ -185,6 +185,10 @@ jobs:
   publish:
     name: Release élesítése
     needs: [desktop, android]
+    # Az asztali telepítők a feltétel: ha az Android job elhasal, a kiadás
+    # attól még menjen ki (különben egy mobil hiba miatt a Mac/Windows
+    # letöltés is draftban ragadna, és a letöltőoldal üresen maradna).
+    if: ${{ always() && needs.desktop.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

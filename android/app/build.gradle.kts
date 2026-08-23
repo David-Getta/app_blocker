@@ -20,11 +20,18 @@ android {
     // Kiadási aláírás env-ből (CI secret). Ha nincs, a debug kulcsra esik vissza,
     // hogy a közvetlen terjesztésű APK mindig telepíthető és konzisztens legyen.
     // Éles Play Store-hoz állítsd be a saját feltöltési kulcsod (docs/releasing.md).
+    // A kulcs MEGLÉTE dönt, nem a változó létezése: a CI mindig beállítja a
+    // LAKAT_KEYSTORE-t, csak épp üres sztringre, ha nincs secret. A régi
+    // `!= null` vizsgálat emiatt a release configot választotta storeFile
+    // nélkül, és a packageRelease „Keystore file not set" hibával elhasalt —
+    // vagyis az első kiadás sosem készült volna el.
+    val keystorePath = System.getenv("LAKAT_KEYSTORE")?.takeIf { it.isNotBlank() }
+    val keystoreFile = keystorePath?.let { file(it) }?.takeIf { it.exists() }
+
     signingConfigs {
         create("release") {
-            val ksPath = System.getenv("LAKAT_KEYSTORE")
-            if (ksPath != null && file(ksPath).exists()) {
-                storeFile = file(ksPath)
+            if (keystoreFile != null) {
+                storeFile = keystoreFile
                 storePassword = System.getenv("LAKAT_KEYSTORE_PASSWORD")
                 keyAlias = System.getenv("LAKAT_KEY_ALIAS")
                 keyPassword = System.getenv("LAKAT_KEY_PASSWORD")
@@ -36,9 +43,11 @@ android {
         release {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            signingConfig = if (System.getenv("LAKAT_KEYSTORE") != null) {
+            signingConfig = if (keystoreFile != null) {
                 signingConfigs.getByName("release")
             } else {
+                // Debug kulcs: telepíthető APK a közvetlen terjesztéshez. Play
+                // Store-hoz saját feltöltési kulcs kell (docs/releasing.md).
                 signingConfigs.getByName("debug")
             }
         }
