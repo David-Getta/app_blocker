@@ -62,6 +62,56 @@
       <p id="emptyList" class="hint hidden">Még nincs blokkolt oldal. Add meg fent az elsőt.</p>
     </section>
 
+    <!-- Usage statistics -->
+    <section id="statsCard" class="card hidden">
+      <div class="stats-head">
+        <h2>Statisztika — mire megy el az idő</h2>
+        <div class="stats-actions">
+          <button id="usageToggle" class="btn btn-small"></button>
+          <button id="usageClear" class="btn btn-small btn-danger">Előzmény törlése</button>
+        </div>
+      </div>
+      <p class="hint">
+        Csak az az idő számít, amikor ténylegesen ott vagy: az ablak fókuszban van és
+        nem vagy tétlen. A böngészőben töltött idő az <strong>aktív fül oldalához</strong>
+        kerül. Minden mérés ezen a gépen marad.
+      </p>
+
+      <div id="usageOff" class="hint hidden">A mérés jelenleg ki van kapcsolva.</div>
+
+      <div id="statsBody">
+        <div class="tiles" id="statTiles"></div>
+
+        <div class="chart-block">
+          <h3 class="chart-title">Legtöbb idő az elmúlt 7 napban</h3>
+          <div class="legend" id="usageLegend">
+            <span class="legend-item"><span class="swatch swatch-a"></span>nem blokkolt</span>
+            <span class="legend-item"><span class="swatch swatch-b"></span>blokkolt oldal</span>
+          </div>
+          <div class="bar-list" id="topSites"></div>
+          <p class="empty-note hidden" id="topSitesEmpty">Még nincs mért oldal-adat.</p>
+        </div>
+
+        <div class="chart-block">
+          <h3 class="chart-title">Alkalmazások az elmúlt 7 napban</h3>
+          <div class="bar-list" id="topApps"></div>
+          <p class="empty-note hidden" id="topAppsEmpty">Még nincs mért alkalmazás-adat.</p>
+        </div>
+
+        <div class="chart-block">
+          <h3 class="chart-title" id="seriesTitle">Napi bontás</h3>
+          <div class="daily-chart" id="dailyChart"></div>
+          <div class="axis-row"><span id="axisStart"></span><span id="axisEnd"></span></div>
+        </div>
+
+        <div class="chart-block" id="wowBlock">
+          <h3 class="chart-title">Ez a hét az előzőhöz képest</h3>
+          <div class="wow-list" id="wowList"></div>
+        </div>
+      </div>
+      <div id="chartTip" class="chart-tip hidden"></div>
+    </section>
+
     <p id="tierLine" class="tier-line hidden"></p>
   </main>
 

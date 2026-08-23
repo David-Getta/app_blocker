@@ -1,0 +1,308 @@
+// Active-time usage tracking: aggregation and statistics.
+//
+// "Active time" means time the user was actually IN a target (focused window,
+// active browser tab, not idle) — not how long it was open. The measurement
+// itself is done by platform trackers; this module only aggregates samples into
+// daily buckets and answers statistical questions about them.
+//
+// Pure and dependency-free, so the same logic is mirrored by Kotlin/Swift.
+// See docs/feature-usage-stats.md.
+
+export type TargetKind = 'app' | 'site';
+
+/** Daily bucket of active seconds, keyed by target ("app:…" / "site:…"). */
+export interface UsageDay {
+  /** local calendar day, YYYY-MM-DD */
+  day: string;
+  seconds: Record<string, number>;
+}
+
+export interface UsageState {
+  days: UsageDay[];
+  /** target key -> human readable label */
+  labels: Record<string, string>;
+  /** user can switch measurement off entirely */
+  enabled: boolean;
+}
+
+export const RETENTION_DAYS = 90;
+export const SAMPLE_INTERVAL_MS = 5_000;
+export const IDLE_THRESHOLD_MS = 60_000;
+/** Defensive cap: a single sample can never contribute more than this. */
+export const MAX_SAMPLE_SECONDS = 120;
+
+export function emptyUsage(): UsageState {
+  return { days: [], labels: {}, enabled: true };
+}
+
+// ------------------------------------------------------------------- keys
+
+export function siteKey(domain: string): string {
+  return `site:${domain}`;
+}
+
+export function appKey(id: string): string {
+  return `app:${id}`;
+}
+
+export function kindOf(key: string): TargetKind {
+  return key.startsWith('site:') ? 'site' : 'app';
+}
+
+export function idOf(key: string): string {
+  return key.slice(key.indexOf(':') + 1);
+}
+
+// ------------------------------------------------------------------- days
+
+/** Local calendar day of an instant, as YYYY-MM-DD. */
+export function dayKey(now: number): string {
+  const d = new Date(now);
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${m}-${day}`;
+}
+
+/**
+ * The last `count` local day keys ending with today, oldest first.
+ * Steps at noon so DST transitions cannot skip or duplicate a day.
+ */
+export function dayKeysBack(now: number, count: number): string[] {
+  const base = new Date(now);
+  base.setHours(12, 0, 0, 0);
+  const out: string[] = [];
+  for (let i = count - 1; i >= 0; i--) {
+    const d = new Date(base);
+    d.setDate(base.getDate() - i);
+    out.push(dayKey(d.getTime()));
+  }
+  return out;
+}
+
+// -------------------------------------------------------------- recording
+
+/**
+ * Adds `seconds` of active time to `key` in today's bucket. Returns the same
+ * state object (mutated) so trackers can call it on a hot path cheaply.
+ * Invalid or absurd sample lengths are clamped rather than trusted.
+ */
+export function recordSample(
+  state: UsageState, key: string, seconds: number, now: number, label?: string,
+): UsageState {
+  if (!state.enabled) return state;
+  if (!Number.isFinite(seconds) || seconds <= 0) return state;
+  const amount = Math.min(seconds, MAX_SAMPLE_SECONDS);
+
+  const today = dayKey(now);
+  let bucket = state.days.find((d) => d.day === today);
+  if (!bucket) {
+    bucket = { day: today, seconds: {} };
+    state.days.push(bucket);
+    state.days.sort((a, b) => (a.day < b.day ? -1 : a.day > b.day ? 1 : 0));
+  }
+  bucket.seconds[key] = (bucket.seconds[key] ?? 0) + amount;
+  if (label) state.labels[key] = label;
+  pruneOld(state, now);
+  return state;
+}
+
+/**
+ * Drops buckets older than RETENTION_DAYS, plus labels nothing references.
+ *
+ * Only prunes the OLD end: buckets newer than `now` are kept. A sample carrying
+ * an earlier timestamp (backfill, NTP correction, DST/clock change) must never
+ * be able to delete newer history.
+ */
+export function pruneOld(state: UsageState, now: number): UsageState {
+  const cutoff = dayKeysBack(now, RETENTION_DAYS)[0]; // oldest day still kept
+  // day keys are YYYY-MM-DD, so lexicographic order is chronological
+  state.days = state.days.filter((d) => d.day >= cutoff);
+  const used = new Set<string>();
+  for (const d of state.days) for (const k of Object.keys(d.seconds)) used.add(k);
+  for (const k of Object.keys(state.labels)) if (!used.has(k)) delete state.labels[k];
+  return state;
+}
+
+// ------------------------------------------------------------ aggregation
+
+/** Sums seconds per target over the given day keys. */
+export function totalsForDays(state: UsageState, days: string[]): Record<string, number> {
+  const wanted = new Set(days);
+  const out: Record<string, number> = {};
+  for (const d of state.days) {
+    if (!wanted.has(d.day)) continue;
+    for (const [k, s] of Object.entries(d.seconds)) out[k] = (out[k] ?? 0) + s;
+  }
+  return out;
+}
+
+export interface TargetTotal {
+  key: string;
+  label: string;
+  kind: TargetKind;
+  seconds: number;
+}
+
+export function labelOf(state: UsageState, key: string): string {
+  return state.labels[key] ?? idOf(key);
+}
+
+/** Targets sorted by time spent, optionally filtered to apps or sites. */
+export function rank(
+  state: UsageState, totals: Record<string, number>,
+  opts: { kind?: TargetKind; limit?: number } = {},
+): TargetTotal[] {
+  const rows = Object.entries(totals)
+    .filter(([k]) => (opts.kind ? kindOf(k) === opts.kind : true))
+    .map(([k, s]) => ({ key: k, label: labelOf(state, k), kind: kindOf(k), seconds: s }))
+    .sort((a, b) => b.seconds - a.seconds);
+  return opts.limit ? rows.slice(0, opts.limit) : rows;
+}
+
+export function sumOf(totals: Record<string, number>): number {
+  return Object.values(totals).reduce((a, b) => a + b, 0);
+}
+
+/** Per-day series for one target over the last `count` days, oldest first. */
+export function series(
+  state: UsageState, key: string, now: number, count: number,
+): { day: string; seconds: number }[] {
+  const days = dayKeysBack(now, count);
+  const byDay = new Map(state.days.map((d) => [d.day, d.seconds]));
+  return days.map((day) => ({ day, seconds: byDay.get(day)?.[key] ?? 0 }));
+}
+
+export interface WeekDelta {
+  key: string;
+  label: string;
+  kind: TargetKind;
+  thisWeek: number;
+  lastWeek: number;
+  /** percentage change; null when there is no previous-week baseline */
+  deltaPct: number | null;
+}
+
+/** This-week vs previous-week comparison for the busiest targets. */
+export function weekOverWeek(state: UsageState, now: number, limit = 5): WeekDelta[] {
+  const last14 = dayKeysBack(now, 14);
+  const prev = last14.slice(0, 7);
+  const cur = last14.slice(7);
+  const curTotals = totalsForDays(state, cur);
+  const prevTotals = totalsForDays(state, prev);
+  const keys = new Set([...Object.keys(curTotals), ...Object.keys(prevTotals)]);
+  return [...keys]
+    .map((key) => {
+      const thisWeek = curTotals[key] ?? 0;
+      const lastWeek = prevTotals[key] ?? 0;
+      return {
+        key,
+        label: labelOf(state, key),
+        kind: kindOf(key),
+        thisWeek,
+        lastWeek,
+        deltaPct: lastWeek > 0 ? ((thisWeek - lastWeek) / lastWeek) * 100 : null,
+      };
+    })
+    .sort((a, b) => b.thisWeek - a.thisWeek)
+    .slice(0, limit);
+}
+
+export interface UsageSummary {
+  enabled: boolean;
+  todaySeconds: number;
+  yesterdaySeconds: number;
+  last7Seconds: number;
+  last30Seconds: number;
+  topToday: TargetTotal[];
+  topWeekSites: TargetTotal[];
+  topWeekApps: TargetTotal[];
+  weekOverWeek: WeekDelta[];
+  /** how many days of history exist at all */
+  daysTracked: number;
+}
+
+export function summarize(state: UsageState, now: number, topLimit = 8): UsageSummary {
+  const today = dayKey(now);
+  const yesterday = dayKeysBack(now, 2)[0];
+  const todayTotals = totalsForDays(state, [today]);
+  const weekTotals = totalsForDays(state, dayKeysBack(now, 7));
+  return {
+    enabled: state.enabled,
+    todaySeconds: sumOf(todayTotals),
+    yesterdaySeconds: sumOf(totalsForDays(state, [yesterday])),
+    last7Seconds: sumOf(weekTotals),
+    last30Seconds: sumOf(totalsForDays(state, dayKeysBack(now, 30))),
+    topToday: rank(state, todayTotals, { limit: topLimit }),
+    topWeekSites: rank(state, weekTotals, { kind: 'site', limit: topLimit }),
+    topWeekApps: rank(state, weekTotals, { kind: 'app', limit: topLimit }),
+    weekOverWeek: weekOverWeek(state, now),
+    daysTracked: state.days.length,
+  };
+}
+
+// ----------------------------------------------------------- sampling rule
+
+/** What the platform probe reports about the focused window right now. */
+export interface Foreground {
+  /** stable app identifier (bundle id on macOS, process name on Windows) */
+  appId: string;
+  /** human readable app name */
+  appName: string;
+  /** active tab domain, when the focused app is a browser and it could be read */
+  domain?: string;
+}
+
+export interface SampleDecision {
+  key: string;
+  label: string;
+  seconds: number;
+}
+
+/**
+ * Decides what a single tick should record. Pure, so the tricky parts (idle,
+ * sleep/wake, missing foreground) are unit-testable without spawning processes.
+ *
+ * Attribution rule: a sample counts towards exactly ONE target — the most
+ * specific one. In a browser with a readable tab that is the site; otherwise the
+ * app. This keeps totals exact (no double counting of browser time).
+ */
+export function decideSample(opts: {
+  lastAt: number;
+  now: number;
+  /** seconds since the last user input, as reported by the OS */
+  idleSeconds: number;
+  fg: Foreground | null;
+  intervalMs?: number;
+  idleThresholdMs?: number;
+}): SampleDecision | null {
+  const intervalMs = opts.intervalMs ?? SAMPLE_INTERVAL_MS;
+  const idleThresholdMs = opts.idleThresholdMs ?? IDLE_THRESHOLD_MS;
+
+  // Idle (or asleep/locked) time is never active time.
+  if (!Number.isFinite(opts.idleSeconds) || opts.idleSeconds * 1000 >= idleThresholdMs) return null;
+  if (!opts.fg) return null;
+
+  // Clamp the elapsed span: after sleep/wake or a stalled tick the wall-clock
+  // gap can be hours, but the user was not actually present for it.
+  const rawElapsed = opts.now - opts.lastAt;
+  if (!Number.isFinite(rawElapsed) || rawElapsed <= 0) return null;
+  const seconds = Math.min(rawElapsed, intervalMs * 2) / 1000;
+
+  if (opts.fg.domain) {
+    return { key: siteKey(opts.fg.domain), label: opts.fg.domain, seconds };
+  }
+  return { key: appKey(opts.fg.appId), label: opts.fg.appName, seconds };
+}
+
+// -------------------------------------------------------------- formatting
+
+/** Hungarian human-readable duration: "2 ó 15 p", "45 p", "30 mp". */
+export function formatDuration(seconds: number): string {
+  const s = Math.max(0, Math.round(seconds));
+  if (s < 60) return `${s} mp`;
+  const min = Math.round(s / 60);
+  if (min < 60) return `${min} p`;
+  const h = Math.floor(min / 60);
+  const rem = min % 60;
+  return rem === 0 ? `${h} ó` : `${h} ó ${rem} p`;
+}

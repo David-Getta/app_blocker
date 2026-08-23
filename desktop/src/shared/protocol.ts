@@ -53,6 +53,8 @@ export interface StatusData {
   unlocks7d: number;
   session: SessionInfo | null;
   dohPolicyApplied: boolean;
+  /** whether active-time measurement is switched on */
+  usageEnabled: boolean;
   now: number;
 }
 
@@ -66,7 +68,28 @@ export type HelperRequest =
   | { id: number; op: 'abandon'; sessionId: string }
   | { id: number; op: 'cancel_delete'; siteId: string }
   | { id: number; op: 'relock'; siteId: string }
-  | { id: number; op: 'set_schedule'; siteId: string; schedule: import('./schedule').Schedule };
+  | { id: number; op: 'set_schedule'; siteId: string; schedule: import('./schedule').Schedule }
+  | { id: number; op: 'usage_batch'; samples: UsageSampleMsg[] }
+  | { id: number; op: 'usage_stats'; focusKey?: string }
+  | { id: number; op: 'usage_enable'; enabled: boolean }
+  | { id: number; op: 'usage_clear' };
+
+/** One recorded slice of active time, as measured by the user-session tracker. */
+export interface UsageSampleMsg {
+  key: string;
+  label: string;
+  seconds: number;
+  /** epoch ms the slice ended at (decides which day it lands in) */
+  at: number;
+}
+
+export interface UsageStatsData {
+  summary: import('./usage').UsageSummary;
+  /** 30-day daily series for the focused target (or the busiest one) */
+  focusKey: string | null;
+  focusLabel: string;
+  focusSeries: { day: string; seconds: number }[];
+}
 
 /** Result of a set_schedule request. */
 export interface SetScheduleResult {

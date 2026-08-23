@@ -8,6 +8,8 @@ import type {
 // Explicit .js so the browser's native ESM loader resolves it at runtime
 // (TypeScript's bundler resolution does not rewrite the specifier).
 import { PRESET_BANDS, type Schedule, type ScheduleMode } from '../shared/schedule.js';
+import { formatDuration } from '../shared/usage.js';
+import type { UsageStatsData } from '../shared/protocol';
 
 interface UpdateState {
   status: 'idle' | 'checking' | 'available' | 'downloading' | 'ready' | 'error' | 'unsupported';
@@ -90,6 +92,9 @@ async function refresh(): Promise<void> {
     helperUp = true;
     everConnected = true;
     failStreak = 0;
+    // First successful connection: pull statistics right away rather than
+    // waiting for the slow periodic refresh.
+    if (!statsData) void refreshStats();
   } catch {
     // One flaky poll must not tear the UI down (or close a challenge modal
     // mid-typing) — only flip to "down" after repeated failures.
@@ -696,6 +701,172 @@ function setupInstall(): void {
   });
 }
 
+// ------------------------------------------------------------- statistics
+
+let statsData: UsageStatsData | null = null;
+let statsBusy = false;
+
+/** Domains currently on the block list — used to mark them in the charts. */
+function blockedDomains(): Set<string> {
+  return new Set((status?.sites ?? []).map((s) => s.domain));
+}
+
+async function refreshStats(): Promise<void> {
+  if (statsBusy || !helperUp) return;
+  statsBusy = true;
+  try {
+    statsData = await call<UsageStatsData>('usage_stats');
+    renderStats();
+  } catch {
+    // helper busy or down; keep the previous view rather than blanking it
+  } finally {
+    statsBusy = false;
+  }
+}
+
+function tile(value: string, label: string): HTMLElement {
+  const el = h('div', 'tile');
+  el.appendChild(h('div', 'tile-value', value));
+  el.appendChild(h('div', 'tile-label', label));
+  return el;
+}
+
+/** Horizontal bar list: one measure across named targets, so one hue —
+ *  the second hue means "this site is on your block list", and every bar
+ *  that uses it also carries a written badge (never colour alone). */
+function renderBarList(host: HTMLElement, rows: { key: string; label: string; seconds: number }[],
+                       emptyEl: HTMLElement, markBlocked: boolean): void {
+  host.textContent = '';
+  emptyEl.classList.toggle('hidden', rows.length > 0);
+  if (rows.length === 0) return;
+  const max = Math.max(...rows.map((r) => r.seconds), 1);
+  const blocked = blockedDomains();
+  for (const row of rows) {
+    const isBlocked = markBlocked && blocked.has(row.label);
+    const wrap = h('div', 'bar-row');
+    const name = h('div', 'bar-name', row.label);
+    if (isBlocked) {
+      const badge = h('span', 'badge', 'blokkolt');
+      name.appendChild(badge);
+    }
+    const value = h('div', 'bar-value', formatDuration(row.seconds));
+    const track = h('div', 'bar-track');
+    const fill = h('div', `bar-fill${isBlocked ? ' blocked' : ''}`);
+    fill.style.width = `${Math.max(1, (row.seconds / max) * 100)}%`;
+    track.appendChild(fill);
+    wrap.append(name, value, track);
+    attachTip(wrap, () =>
+      `${row.label} — ${formatDuration(row.seconds)}${isBlocked ? ' · blokkolt oldal' : ''}`);
+    host.appendChild(wrap);
+  }
+}
+
+function renderDaily(series: { day: string; seconds: number }[], title: string): void {
+  const host = $('dailyChart');
+  host.textContent = '';
+  $('seriesTitle').textContent = title
+    ? `Napi bontás — ${title} (30 nap)`
+    : 'Napi bontás (30 nap)';
+  const max = Math.max(...series.map((d) => d.seconds), 1);
+  for (const d of series) {
+    const bar = h('div', `day-bar${d.seconds === 0 ? ' empty' : ''}`);
+    bar.style.height = d.seconds === 0 ? '2px' : `${Math.max(3, (d.seconds / max) * 100)}%`;
+    attachTip(bar, () => `${d.day} — ${formatDuration(d.seconds)}`);
+    host.appendChild(bar);
+  }
+  $('axisStart').textContent = series[0]?.day ?? '';
+  $('axisEnd').textContent = series[series.length - 1]?.day ?? '';
+}
+
+/** Shared hover tooltip: hit target is the whole mark, tip follows the cursor. */
+function attachTip(el: HTMLElement, text: () => string): void {
+  const tip = $('chartTip');
+  el.addEventListener('mouseenter', () => {
+    tip.textContent = text();
+    tip.classList.remove('hidden');
+  });
+  el.addEventListener('mousemove', (e) => {
+    const ev = e as MouseEvent;
+    tip.style.left = `${Math.min(ev.clientX + 14, window.innerWidth - tip.offsetWidth - 8)}px`;
+    tip.style.top = `${ev.clientY + 16}px`;
+  });
+  el.addEventListener('mouseleave', () => tip.classList.add('hidden'));
+}
+
+function renderStats(): void {
+  const card = $('statsCard');
+  card.classList.toggle('hidden', !helperUp);
+  if (!helperUp || !statsData) return;
+  const s = statsData.summary;
+
+  const enabled = status?.usageEnabled ?? s.enabled;
+  $<HTMLButtonElement>('usageToggle').textContent = enabled ? 'Mérés kikapcsolása' : 'Mérés bekapcsolása';
+  $('usageOff').classList.toggle('hidden', enabled);
+  $('statsBody').classList.toggle('hidden', !enabled && s.daysTracked === 0);
+
+  const tiles = $('statTiles');
+  tiles.textContent = '';
+  tiles.append(
+    tile(formatDuration(s.todaySeconds), 'ma'),
+    tile(formatDuration(s.yesterdaySeconds), 'tegnap'),
+    tile(formatDuration(s.last7Seconds), 'utolsó 7 nap'),
+    tile(formatDuration(s.last30Seconds), 'utolsó 30 nap'),
+  );
+
+  renderBarList($('topSites'), s.topWeekSites, $('topSitesEmpty'), true);
+  renderBarList($('topApps'), s.topWeekApps, $('topAppsEmpty'), false);
+  $('usageLegend').classList.toggle('hidden', s.topWeekSites.length === 0);
+  renderDaily(statsData.focusSeries, statsData.focusLabel);
+
+  const wow = $('wowList');
+  wow.textContent = '';
+  $('wowBlock').classList.toggle('hidden', s.weekOverWeek.length === 0);
+  for (const row of s.weekOverWeek) {
+    const line = h('div', 'wow-row');
+    line.appendChild(h('span', undefined, row.label));
+    let text: string;
+    let cls: string;
+    if (row.deltaPct === null) {
+      text = `új — ${formatDuration(row.thisWeek)}`;
+      cls = 'wow-delta wow-flat';
+    } else {
+      const pct = Math.round(row.deltaPct);
+      // Dead zone: a couple of percent either way is noise, not a trend, so it
+      // stays neutral instead of shouting in red or green.
+      const flat = Math.abs(pct) <= 5;
+      const arrow = flat ? '＝' : pct > 0 ? '▲' : '▼';
+      text = `${arrow} ${pct > 0 ? '+' : ''}${pct}% · ${formatDuration(row.thisWeek)}`;
+      cls = `wow-delta ${flat ? 'wow-flat' : pct > 0 ? 'wow-up' : 'wow-down'}`;
+    }
+    line.appendChild(h('span', cls, text));
+    wow.appendChild(line);
+  }
+}
+
+function setupStats(): void {
+  $('usageToggle').addEventListener('click', async () => {
+    const enabled = status?.usageEnabled ?? true;
+    try {
+      status = await call<StatusData>('usage_enable', { enabled: !enabled });
+      await refreshStats();
+      render();
+    } catch (e) {
+      alert((e as Error).message);
+    }
+  });
+  $('usageClear').addEventListener('click', async () => {
+    if (!confirm('Biztosan törlöd a teljes mérési előzményt? Ez nem vonható vissza.')) return;
+    try {
+      await call('usage_clear');
+      await refreshStats();
+    } catch (e) {
+      alert((e as Error).message);
+    }
+  });
+  void refreshStats();
+  setInterval(() => void refreshStats(), 30_000);
+}
+
 // ------------------------------------------------------------ auto-update
 
 function renderUpdate(s: UpdateState): void {
@@ -736,6 +907,7 @@ setupAddCard();
 setupModal();
 setupInstall();
 setupUpdater();
+setupStats();
 if ('Notification' in window && Notification.permission === 'default') {
   void Notification.requestPermission();
 }

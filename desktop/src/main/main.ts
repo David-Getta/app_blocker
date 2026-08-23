@@ -9,6 +9,8 @@ import * as path from 'path';
 import { HelperClient } from './helper-client';
 import { installHelper } from './install';
 import { initUpdater } from './updater';
+import { UsageTracker } from './tracker';
+import type { StatusData } from '../shared/protocol';
 
 const HELPER_MODE = process.argv.includes('--helper');
 
@@ -75,6 +77,32 @@ if (HELPER_MODE) {
 
       createWindow();
       initUpdater();
+
+      // Active-time measurement runs in this (user-session) process; the helper
+      // stores what it measures. Off until the helper says it is enabled.
+      let usageEnabled = false;
+      void client.call('status').then((s) => { usageEnabled = (s as StatusData).usageEnabled; })
+        .catch(() => { /* helper not installed yet */ });
+      const tracker = new UsageTracker({
+        send: async (samples) => {
+          try {
+            await client.call('usage_batch', { samples });
+            return true;
+          } catch {
+            return false; // helper down: keep buffering, retry on the next flush
+          }
+        },
+        isEnabled: () => usageEnabled,
+        log: (m) => console.log(`[lakat-tracker] ${m}`),
+      });
+      tracker.start();
+      // Keep the tracker's view of the switch fresh without extra IPC chatter.
+      setInterval(() => {
+        void client.call('status')
+          .then((s) => { usageEnabled = (s as StatusData).usageEnabled; })
+          .catch(() => { /* ignore */ });
+      }, 60_000);
+      app.on('before-quit', () => tracker.stop());
       app.on('activate', () => {
         if (BrowserWindow.getAllWindows().length === 0) createWindow();
       });

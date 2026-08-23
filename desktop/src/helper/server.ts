@@ -9,6 +9,8 @@ import { HELPER_VERSION } from '../shared/protocol';
 import { normalizeDomain, expandHostnames } from '../shared/blocklist';
 import { computeTier } from '../shared/challenges';
 import { isBlockedNow } from '../shared/schedule';
+import { recordSample, summarize, series, labelOf, emptyUsage } from '../shared/usage';
+import type { UsageStatsData } from '../shared/protocol';
 import type { HelperState, SiteRec } from './state';
 import { newId } from './state';
 import * as referee from './referee';
@@ -40,6 +42,7 @@ export function statusOf(state: HelperState, dohApplied: boolean): StatusData {
     unlocks7d: state.unlockLog.filter((t) => t >= now - 7 * 24 * 3600_000).length,
     session: referee.currentSession(state),
     dohPolicyApplied: dohApplied,
+    usageEnabled: state.usage.enabled,
     now,
   };
 }
@@ -119,6 +122,46 @@ function handle(req: HelperRequest, deps: ServerDeps): unknown {
       const result = referee.startScheduleChange(state, req.siteId, req.schedule, now);
       deps.commit();
       return result;
+    }
+
+    case 'usage_batch': {
+      // Samples come from the user-session tracker; they only ever add time.
+      for (const s of req.samples) {
+        recordSample(state.usage, s.key, s.seconds, s.at, s.label);
+      }
+      deps.commit();
+      return { ok: true, recorded: req.samples.length };
+    }
+
+    case 'usage_stats': {
+      const summary = summarize(state.usage, now);
+      const focusKey = req.focusKey
+        ?? summary.topWeekSites[0]?.key
+        ?? summary.topWeekApps[0]?.key
+        ?? null;
+      const data: UsageStatsData = {
+        summary,
+        focusKey,
+        focusLabel: focusKey ? labelOf(state.usage, focusKey) : '',
+        focusSeries: focusKey ? series(state.usage, focusKey, now, 30) : [],
+      };
+      return data;
+    }
+
+    case 'usage_enable': {
+      // Turning measurement off is NOT a blocking weakening, so it needs no
+      // challenges — it is the user's own data.
+      state.usage.enabled = req.enabled;
+      deps.commit();
+      return statusOf(state, deps.dohApplied());
+    }
+
+    case 'usage_clear': {
+      const wasEnabled = state.usage.enabled;
+      state.usage = emptyUsage();
+      state.usage.enabled = wasEnabled;
+      deps.commit();
+      return { ok: true };
     }
   }
 }

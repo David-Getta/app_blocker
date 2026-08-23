@@ -227,6 +227,67 @@ body {
 }
 .countdown { text-align: center; font-size: 1.4rem; font-variant-numeric: tabular-nums; margin: 14px 0; }
 .step-submit { margin-top: 12px; }
+/* ---------------------------------------------------------- statistics
+   Data-mark colours are the validated dark-surface categorical slots 1 and 2
+   (checked against this app's #1a2027 surface). Text never wears a series
+   colour — identity is carried by the mark plus a written label. */
+:root {
+  --series-1: #3987e5;   /* time spent */
+  --series-2: #d95926;   /* time spent on a site that is on the block list */
+  --grid: #2c353f;
+}
+
+.stats-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.stats-actions { display: flex; gap: 8px; }
+
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin: 14px 0 4px; }
+.tile { background: var(--bg-input); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+.tile-value { font-size: 1.45rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.tile-label { color: var(--text-dim); font-size: 0.78rem; margin-top: 2px; }
+
+.chart-block { margin-top: 22px; }
+.chart-title { font-size: 0.92rem; margin: 0 0 10px; font-weight: 700; }
+.empty-note { color: var(--text-dim); font-size: 0.85rem; margin: 4px 0 0; }
+
+.legend { display: flex; gap: 14px; margin-bottom: 10px; font-size: 0.78rem; color: var(--text-dim); }
+.legend-item { display: flex; align-items: center; gap: 6px; }
+.swatch { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+.swatch-a { background: var(--series-1); }
+.swatch-b { background: var(--series-2); }
+
+.bar-list { display: flex; flex-direction: column; gap: 10px; }
+.bar-row { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; align-items: center; }
+.bar-name { font-size: 0.88rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bar-value { font-size: 0.84rem; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.bar-track { grid-column: 1 / -1; height: 8px; background: var(--bg-input); border-radius: 4px; overflow: hidden; }
+.bar-fill { height: 100%; border-radius: 4px; background: var(--series-1); }
+.bar-fill.blocked { background: var(--series-2); }
+.badge {
+  font-size: 0.68rem; padding: 1px 7px; border-radius: 999px; margin-left: 6px;
+  border: 1px solid var(--border); color: var(--text-dim); vertical-align: middle;
+}
+
+.daily-chart {
+  display: flex; align-items: flex-end; gap: 2px; height: 96px;
+  border-bottom: 1px solid var(--grid); padding-bottom: 0;
+}
+.day-bar { flex: 1; min-width: 3px; background: var(--series-1); border-radius: 4px 4px 0 0; min-height: 1px; }
+.day-bar.empty { background: var(--border); }
+.axis-row { display: flex; justify-content: space-between; color: var(--text-dim); font-size: 0.75rem; margin-top: 6px; }
+
+.wow-list { display: flex; flex-direction: column; gap: 8px; }
+.wow-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 0.86rem; }
+.wow-delta { font-variant-numeric: tabular-nums; }
+.wow-up { color: var(--danger); }
+.wow-down { color: var(--ok); }
+.wow-flat { color: var(--text-dim); }
+
+.chart-tip {
+  position: fixed; z-index: 100; pointer-events: none;
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px;
+  padding: 6px 10px; font-size: 0.8rem; box-shadow: 0 6px 20px rgba(0,0,0,.45);
+}
+
 .sched-modes { display: flex; flex-direction: column; gap: 8px; margin: 12px 0; }
 .sched-presets { margin: 8px 0; }
 .sched-radio { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; padding: 4px 0; cursor: pointer; }

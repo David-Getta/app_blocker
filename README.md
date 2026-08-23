@@ -26,6 +26,14 @@ attól, hogy sokszor csinálod.
 - **Súrlódásos, változatos feloldás** (lásd lentebb).
 - **Végleges törlés 24 órás türelmi idővel** — a legnehezebb út, ami impulzusból
   nem végezhető el.
+- **Időzített menetrend**: egy oldal tiltható csak bizonyos sávokban (pl. munkaidő),
+  vagy fordítva, csak bizonyos sávokban engedélyezhető. Szigorítani egy kattintás,
+  **lazítani ugyanúgy próbatételekbe kerül**, mint egy feloldás.
+- **Aktív idő mérése és statisztikák**: melyik oldalon és appban mennyit töltesz —
+  **csak amikor tényleg ott vagy** (fókuszban lévő ablak, aktív fül, nem tétlen),
+  nem attól, hogy nyitva van. Napi/heti/havi bontás, top lista, 30 napos idősor,
+  hét-a-héthez összevetés. Minden adat a gépeden marad, bármikor kikapcsolható
+  és törölhető.
 
 ## Képernyőképek
 
@@ -36,6 +44,8 @@ attól, hogy sokszor csinálod.
 | Időzített menetrend |
 |---|
 | ![Menetrend](docs/images/desktop-schedule.png) |
+
+![Statisztika](docs/images/desktop-stats.png)
 
 ![Letöltőoldal](docs/images/website.png)
 

@@ -6,6 +6,7 @@ import * as path from 'path';
 import * as crypto from 'crypto';
 import type { Step } from '../shared/challenges';
 import type { Schedule } from '../shared/schedule';
+import { emptyUsage, type UsageState } from '../shared/usage';
 import { stateFilePath } from './paths';
 
 export interface SiteRec {
@@ -40,10 +41,15 @@ export interface HelperState {
   lastCombo: string | null;
   session: SessionRec | null;
   dohApplied: boolean;
+  /** active-time tracking history (stays on this machine) */
+  usage: UsageState;
 }
 
 export function defaultState(): HelperState {
-  return { version: 1, sites: [], unlockLog: [], lastCombo: null, session: null, dohApplied: false };
+  return {
+    version: 1, sites: [], unlockLog: [], lastCombo: null, session: null,
+    dohApplied: false, usage: emptyUsage(),
+  };
 }
 
 export function newId(prefix: string): string {
@@ -55,7 +61,11 @@ export function loadState(): HelperState {
   try {
     const raw = fs.readFileSync(file, 'utf8');
     const parsed = JSON.parse(raw) as HelperState;
-    if (parsed && parsed.version === 1 && Array.isArray(parsed.sites)) return parsed;
+    if (parsed && parsed.version === 1 && Array.isArray(parsed.sites)) {
+      // Forward migration: state files written before usage tracking existed.
+      if (!parsed.usage || !Array.isArray(parsed.usage.days)) parsed.usage = emptyUsage();
+      return parsed;
+    }
   } catch {
     // missing or corrupt -> start fresh
   }
