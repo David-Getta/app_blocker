@@ -27,6 +27,7 @@ import {
   appBundlePath as bundleOf, compareVersions, manifestEntryFor, parseLatestMacYml, pickMacAsset,
   type ReleaseAsset,
 } from '../shared/update-manifest';
+import { relaunchScript } from '../shared/mac-relaunch';
 
 const OWNER = 'David-Getta';
 const REPO = 'app_blocker';
@@ -229,9 +230,14 @@ export async function applyUpdate(zipPath: string, bundle: string): Promise<void
     fs.renameSync(backup, bundle); // put the working app back
     throw e;
   }
-  fs.rmSync(backup, { recursive: true, force: true });
 
-  // Detached, so it survives our own exit.
-  spawn('open', ['-n', bundle], { detached: true, stdio: 'ignore' }).unref();
-  setTimeout(() => app.quit(), 400);
+  // A régi bundle NEM törlődik itt: abból fut ez a kód. A takarítást (a régi
+  // bundle és a letöltés pár száz megabájtos munkamappája) és az indítást is a
+  // leválasztott héjprogram végzi, MIUTÁN kiléptünk — különben az új példány
+  // nem kapja meg az egypéldány-zárat, és azonnal kilépne.
+  // Lásd shared/mac-relaunch.ts.
+  spawn('/bin/sh', ['-c', relaunchScript(process.pid, bundle, [backup, path.dirname(zipPath)])], {
+    detached: true, stdio: 'ignore',
+  }).unref();
+  app.quit();
 }
