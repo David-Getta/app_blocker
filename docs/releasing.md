@@ -34,6 +34,29 @@ a Release címe mindig egyezik.
 > A már telepített asztali és Android (közvetlen) appok a következő indításkor
 > **maguktól felfrissülnek** erre a kiadásra.
 
+### Ha egy kiadás félresikerül
+
+**Ne szakítsd meg a futó kiadást.** A megszakítás nem áll meg tisztán: ami addig
+felkerült, az fent marad. (A publish job feltétele emiatt `!cancelled()`, hogy a
+félkész kiadás legalább draftban maradjon — de a már feltöltött fájlokat ez sem
+szedi le.) Ha mégis meg kell szakítani, a javítás **ugyanarra a verzióra**
+újraindítani a workflow-t: a build utáni feltöltés `--clobber`-rel megy, tehát a
+friss fájlok felülírják a régieket.
+
+Ezt nem véletlenül tudjuk: a v0.1.1-nél pontosan ez ment félre. Egy megszakított
+futás feltöltötte az aláírás előtti macOS bundle-t, az `electron-builder`
+publishere pedig a javított újraépítésnél **csendben** kihagyta a feltöltést
+(„existing type not compatible with publishing type”), miközben a job sikeresnek
+látszott. A kiadáson így a rossz fájlok maradtak. Azóta a feltöltés külön
+lépésben, `gh release upload --clobber`-rel történik, és el is hasal, ha nem
+épült telepítő vagy hiányzik a `latest*.yml`.
+
+**Ellenőrzés kiadás után** (egy percbe kerül, és pont ezt fogta volna meg):
+
+- a macOS build logjában ott van-e az `ad-hoc signed Lakat.app` sor,
+- az asseteken a feltöltés ideje a MOSTANI futásé-e,
+- a `latest-mac.yml` és a `latest.yml` fent van-e (enélkül nincs frissítés).
+
 ---
 
 ## 2. Hogyan frissül magától az app

@@ -1,7 +1,8 @@
 # Funkcióterv: napi időkeret oldalanként
 
-Státusz: **tervezve, még nincs implementálva.** Ez a dokumentum a következő
-lépés terve, hogy ne kelljen újra kitalálni.
+Státusz: **kész asztali gépen és Androidon; iOS-en még nincs.** A dokumentum
+alja mondja meg, pontosan mi hol tart. Ami alatta áll, az a terv — azért marad
+itt, mert a döntések indoklása később is kell.
 
 ## Mit old meg
 
@@ -75,10 +76,40 @@ Két dolog, ami első ránézésre nem nyilvánvaló:
 - A keret emelésénél ugyanaz a próbatétel-ablak nyílik, mint a menetrend
   lazításánál, és a felület elmondja, miért.
 
-## Tesztek, amiket meg kell írni
+## Tesztek
+
+Mindegyik megvan, mindkét magban (`desktop/test/limits.test.ts`,
+`android/jvm-tests/src/test/kotlin/LimitsTest.kt`):
 
 - A keret elfogyása blokkol, akkor is, ha a menetrend szerint szabad lenne.
-- Éjfél után újraindul (a napi vödör vált).
-- A keret csökkentése azonnal érvényes, az emelése próbatételhez kötött.
+- Éjfél után újraindul (a napi vödör vált), és más oldal ideje nem számít bele.
+- A keret csökkentése azonnal érvényes, az emelése próbatételhez kötött —
+  és az emelés csak a próbasorozat végén lép életbe, feladáskor sosem.
 - A keret nem kerülhető meg a mérés kikapcsolásával.
+- Az elfogyott keret tényleg bekerül a blokklistába (hosts fájl, illetve
+  `blockedHostnamesNow`), nem csak a felületen látszik.
 - A meglévő véletlenszerű interakció-teszt invariánsai a kerettel is állnak.
+
+## Mi valósult meg, hol
+
+| Rész | Asztali (TS) | Android (Kotlin) | iOS (Swift) |
+|---|---|---|---|
+| Keret-logika | `shared/limits.ts` | `core/Limits.kt` | — |
+| Tárolás | `helper/state.ts` | `core/Store.kt` | — |
+| Bíró (irány-szabály) | `helper/referee.ts` | `core/Referee.kt` | — |
+| Blokkolási döntés | `helper/hosts.ts` | `LakatStore.blockedHostnamesNow` | — |
+| Mérés-kapcsoló zárolása | `helper/server.ts` (`usage_enable`) | `Referee.setUsageEnabled` | — |
+| Felület | `renderer.ts` (keret-mérő + párbeszéd) | `ui/AppUi.kt` (`LimitMeter`, `LimitDialog`) | — |
+
+Az iOS-mag ugyanezt a hat sort várja; a logika szó szerinti tükör, a
+`docs/architecture.md` mondja meg, melyik fájl minek a párja.
+
+Két apróság, ami a tervben még nem volt kimondva, de a megvalósításnál kellett:
+
+- **A szünet erősebb a keretnél.** Az aktív szünetet próbatételekkel fizette ki
+  a felhasználó; ha egy elfogyott keret csendben felülírná, az a fizetséget
+  tenné értéktelenné. Ezért a döntési sorrend legelején áll.
+- **A keret levételét a bíró `-1`-gyel jelöli** a függőben lévő változásban
+  (Androidon `pendingLimit = -1`), mert a „nincs keret” és a „0 másodperces
+  keret” két különböző dolog, és a tárolt `null` nem tudná megkülönböztetni
+  őket a „nem változik” esettől.
