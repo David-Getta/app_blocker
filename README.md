@@ -161,7 +161,20 @@ feloldáshoz. A megkerülési utakat nyíltan dokumentáljuk az
 
 ## Következő lépések (ötletek a bővítéshez)
 
-- Időzített szabályok (pl. munkaidőben mindig tiltva).
-- Kulcsszó-/kategória-alapú blokkolás.
-- IP-szintű szabályok az egyedi DNS-megkerülés ellen.
-- Statisztikák, „párban zárolás” (egy megbízott is kell a feloldáshoz).
+Amit a lista korábban tartalmazott és azóta elkészült: **időzített szabályok**
+(heti menetrend, a lazítás próbatételhez kötve) és a **statisztikák** (aktív idő
+oldalanként és appokként).
+
+Ami még hátravan:
+
+- **Napi időkeret oldalanként**: ha ma már elment rá X idő, a nap hátralévő
+  részére magától visszazár. A mérés és a blokkolás is megvan hozzá, csak
+  össze kell kötni — a keret emelése értelemszerűen próbatételbe kerülne.
+- **Kulcsszó-/kategória-alapú blokkolás** (a mostani DNS-szint egész
+  domaineket lát, nem tartalmat).
+- **IP-szintű szabályok** az egyedi DNS/DoH-proxy megkerülés ellen.
+- **„Párban zárolás”**: a feloldáshoz egy megbízott jóváhagyása is kell.
+- **Windows named pipe szűkítése** egyedi DACL-lel (ma helyi, de nem
+  felhasználóhoz kötött — lásd `docs/architecture.md`).
+- **iOS-mag fordítási ellenőrzése CI-ban** (macOS runner kell hozzá); a Swift
+  kód ma a tesztelt TS/Kotlin mag tükre, de fordítással nincs igazolva.
