@@ -28,6 +28,9 @@
 
   --accent: #5b8cff;
   --accent-hover: #7ba3ff;
+  /* Az akcentusra kerülő szöveg: sötét témában VILÁGOS kékre sötét felirat a
+     jó kontraszt, világos témában sötét kékre fehér. Ezért saját token. */
+  --on-accent: #0b1220;
   --accent-soft: rgba(91, 140, 255, .14);
   --accent-ring: rgba(91, 140, 255, .45);
 
@@ -41,6 +44,10 @@
   /* --- ritmus: minden térköz ebből a skálából jön */
   --s1: 4px;  --s2: 8px;  --s3: 12px; --s4: 16px;
   --s5: 20px; --s6: 24px; --s7: 32px; --s8: 44px;
+
+  /* Sávok háttere. Nem a --bg, mert világos témában az szinte azonos lenne a
+     kártya színével, és a mérőnek eltűnne a medre. */
+  --track: #0d1116;
 
   --radius: 14px;
   --radius-sm: 10px;
@@ -185,7 +192,7 @@ body {
 .btn:disabled:hover { background: var(--surface-2); border-color: var(--border); }
 
 .btn-primary {
-  background: var(--accent); border-color: var(--accent); color: #0b1220;
+  background: var(--accent); border-color: var(--accent); color: var(--on-accent);
   box-shadow: 0 1px 0 rgba(255,255,255,.14) inset;
 }
 .btn-primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
@@ -336,7 +343,7 @@ body {
 .limit-label { font-size: 0.8rem; color: var(--text-2); margin-bottom: var(--s1); }
 .limit-bar {
   height: 6px;
-  background: var(--bg);
+  background: var(--track);
   border-radius: 999px;
   overflow: hidden;
 }
@@ -519,7 +526,7 @@ body {
 .bar-value { font-size: 0.83rem; color: var(--text-2); font-variant-numeric: tabular-nums; }
 .bar-track {
   grid-column: 1 / -1; height: 8px;
-  background: var(--bg); border-radius: 999px; overflow: hidden;
+  background: var(--track); border-radius: 999px; overflow: hidden;
 }
 .bar-fill { height: 100%; border-radius: 999px; background: var(--series-1); }
 .bar-fill.blocked { background: var(--series-2); }
@@ -568,4 +575,60 @@ body {
 /* Aki csökkentett mozgást kért a rendszerben, az ne kapjon animációt. */
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
+}
+
+/* ------------------------------------------------------------ világos téma
+ *
+ * A rendszer beállítását követjük. Csak a TOKENEK cserélődnek — egyetlen
+ * komponens sem tud róla, hogy melyik témában rajzolódik.
+ *
+ * A diagramszínek itt MÁSOK, és nem szemre lettek választva: a fehér felületre
+ * a sötét témás pár kontrasztja kevés lenne. A --series-1/2 párost a paletta-
+ * ellenőrző futtatásával kaptuk (világosság-sáv, telítettség-küszöb,
+ * színtévesztés-távolság, kontraszt a felülethez) — a #1f6fd0 / #e05a1e
+ * mindegyiken átmegy, normál látásnál 34,3 ΔE távolsággal.
+ */
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #eef2f7;
+    --bg-elev: #ffffff;
+    --surface: #ffffff;
+    --surface-2: #f5f8fb;
+    --surface-3: #e8eef5;
+
+    --border: #dde4ec;
+    --border-strong: #c3ccd8;
+
+    --text: #111820;
+    --text-2: #4a5764;
+    --text-3: #6b7885;
+
+    --accent: #2f6fe0;
+    --accent-hover: #1f5cc4;
+    --accent-soft: rgba(47, 111, 224, .10);
+    --accent-ring: rgba(47, 111, 224, .45);
+    --on-accent: #ffffff;
+
+    --danger: #c02a35;
+    --danger-soft: rgba(192, 42, 53, .10);
+    --ok: #1f7d57;
+    --ok-soft: rgba(31, 125, 87, .12);
+    --warn: #8a6100;
+    --warn-soft: rgba(138, 97, 0, .12);
+
+    --track: #dfe6ee;
+    --series-1: #1f6fd0;
+    --series-2: #e05a1e;
+    --grid: #dde4ec;
+
+    --shadow-1: 0 1px 2px rgba(16, 24, 32, .06);
+    --shadow-2: 0 6px 18px rgba(16, 24, 32, .10);
+    --shadow-3: 0 24px 60px rgba(16, 24, 32, .20);
+  }
+
+  /* A párbeszéd mögötti fátyol világos alapon nem lehet majdnem fekete. */
+  .overlay { background: rgba(17, 24, 32, .32); }
+
+  /* A fejléc átmenete sötétben mélységet ad, világosban piszkos lenne. */
+  .topbar { background: var(--bg-elev); }
 }

@@ -315,6 +315,39 @@ async function main() {
     await page.screenshot({ path: path.join(OUT, 'desktop-schedule.png'), fullPage: false });
   }
 
+  // ------------------------------------------------------- világos téma
+  // A felület a rendszer beállítását követi, tehát KÉT megjelenése van. Ha
+  // csak a sötétet néznénk, egy világosban olvashatatlan szín addig maradna
+  // bent, amíg valaki panaszkodik. A rács MINDEN cellája ugyanaz a kód, csak
+  // más tokenekkel — ezért elég a főképernyőt végigjárni.
+  const lightPage = await browser.newPage({
+    viewport: { width: 1180, height: 900 },
+    deviceScaleFactor: 2,
+    colorScheme: 'light',
+  });
+  await lightPage.addInitScript(fakeBridgeSource());
+  await lightPage.goto(`http://127.0.0.1:${port}/renderer/index.html`);
+  await lightPage.waitForSelector('#siteList .site-row', { timeout: 15_000 });
+  if (await lightPage.locator('#siteList .site-row').count() !== 3) {
+    failures.push('the light theme does not render the site list');
+  }
+  await lightPage.waitForSelector('#statTiles .tile', { timeout: 15_000 });
+  if (await lightPage.locator('.limit-meter').count() !== 2) {
+    failures.push('the budget meters are missing in the light theme');
+  }
+  // A tokencsere tényleg megtörtént-e: sötétben szinte fekete a háttér.
+  const lightBg = await lightPage.evaluate(
+    () => getComputedStyle(document.body).backgroundColor,
+  );
+  const lightSum = (lightBg.match(/\d+/g) || []).slice(0, 3).reduce((a, b) => a + Number(b), 0);
+  if (lightSum < 500) {
+    failures.push(`the light theme did not take effect, body background is ${lightBg}`);
+  }
+  if (!CHECK_ONLY) {
+    await lightPage.screenshot({ path: path.join(OUT, 'desktop-home-light.png'), fullPage: false });
+  }
+  await lightPage.close();
+
   await browser.close();
   server.close();
 
