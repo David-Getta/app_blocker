@@ -345,7 +345,7 @@ function openScheduleDialog(site: SiteInfo): void {
   apply.addEventListener('click', async () => {
     const bands = mode === 'always' ? [] : [...selectedPresets].map((k) => PRESET_BANDS[k]);
     if (mode !== 'always' && bands.length === 0) {
-      err.textContent = 'Válassz legalább egy sávot, vagy a „Mindig tiltva" módot.';
+      err.textContent = 'Válassz legalább egy sávot, vagy a „Mindig tiltva” módot.';
       err.classList.remove('hidden');
       return;
     }

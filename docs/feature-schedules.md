@@ -7,7 +7,7 @@
 
 Eddig egy oldal vagy blokkolva van, vagy (feloldás után) egy ideig nem. Sokaknak
 viszont **idő-alapú** szabály kell: „munkaidőben (H–P 9–17) legyen tiltva a
-YouTube", vagy „este 22 után minden közösségi oldal". Ez a funkció ezt adja hozzá
+YouTube”, vagy „este 22 után minden közösségi oldal”. Ez a funkció ezt adja hozzá
 úgy, hogy **a súrlódás-filozófia sértetlen marad**.
 
 ## Fogalom
@@ -17,10 +17,10 @@ egy sáv = `{ napok, kezdés, vég }`. A menetrend háromféle módban működhe
 
 - **`always`** (alap): mindig blokkolva (a jelenlegi viselkedés).
 - **`scheduled_block`**: csak a megadott sávokban blokkolva, azon kívül szabad.
-- **`scheduled_allow`**: fordítva — a sávokban szabad („engedélyezett ablak"),
+- **`scheduled_allow`**: fordítva — a sávokban szabad („engedélyezett ablak”),
   azon kívül blokkolva.
 
-A tényleges „blokkolt-e most" döntést egy tiszta függvény adja:
+A tényleges „blokkolt-e most” döntést egy tiszta függvény adja:
 `isBlockedNow(site, now)`, ami a meglévő `pauseUntil` / `pendingDeleteAt`
 logikával kombinálódik (a szünet mindig felülír, a menetrend csak akkor számít,
 ha nincs aktív szünet).
@@ -31,13 +31,13 @@ Menetrendet **hozzáadni/szigorítani** olcsó (egy művelet), mint az oldal
 felvétele. **Lazítani** viszont — kevesebb blokkolt sáv, `scheduled_allow`
 szélesítése, vagy menetrend törlése — ugyanaz a **próbatétel-sorozat**, mint egy
 feloldás, mert az is a védelem gyengítése. A bíró (`referee`) dönti el, melyik
-irány „szigorítás" és melyik „lazítás":
+irány „szigorítás” és melyik „lazítás”:
 
 - Új sáv, ami **növeli** a blokkolt időt → azonnal életbe lép.
 - Bármi, ami **csökkenti** a blokkolt időt → próbatételhez kötött (a `pause`
   típusú sorozat, az aktuális tierrel).
 
-Így nem lehet a menetrenddel megkerülni a súrlódást („átállítom allow-ra és kész").
+Így nem lehet a menetrenddel megkerülni a súrlódást („átállítom allow-ra és kész”).
 
 ## Adatmodell (kiegészítés)
 
@@ -78,7 +78,7 @@ A hosts-motor / DNS-sinkhole `activeHostnames` / `blockedHostnamesNow` ezt a
 `isBlockedNow`-t hívja a puszta `pauseUntil` helyett. A helper `tick`-je 15 mp-
 enként újraértékel, így a sávhatárokon magától vált — feloldási esemény nélkül is.
 
-## „Lazítás" detektálása
+## „Lazítás” detektálása
 
 Egy menetrend-váltás akkor lazítás (és így próbatételhez kötött), ha van olyan
 jövőbeli időpont a következő 7 napban, amikor az **új** szabály szerint szabad,
@@ -89,11 +89,11 @@ próbákkal, és a váltás csak a sorozat teljesítése után íródik be.
 
 ## UI (kész)
 
-Mindhárom platformon van „Menetrend…" gomb az oldalsoron, ami egy szerkesztőt
+Mindhárom platformon van „Menetrend…” gomb az oldalsoron, ami egy szerkesztőt
 nyit: mód-választó (mindig tiltva / sávokban tiltva / sávokban szabad) + sáv-
-sablonok („Munkaidő H–P 9–17", „Esti lekapcsolás 22–06", „Hétvége"). Lazításnál
+sablonok („Munkaidő H–P 9–17”, „Esti lekapcsolás 22–06”, „Hétvége”). Lazításnál
 a próbatétel-folyamat indul. Az oldalsor a menetrend szerinti aktuális állapotot
-is mutatja („most blokkolva" / „most szabad").
+is mutatja („most blokkolva” / „most szabad”).
 
 - Desktop: renderer modal (screenshot: `docs/images/desktop-schedule.png`),
   end-to-end tesztelve.

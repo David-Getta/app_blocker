@@ -501,7 +501,7 @@ private fun ScheduleDialog(
                 val bands = if (mode == ScheduleLogic.Mode.ALWAYS) emptyList()
                     else SCHEDULE_PRESETS.filter { selected.contains(it.second) }.map { it.third }
                 if (mode != ScheduleLogic.Mode.ALWAYS && bands.isEmpty()) {
-                    onError("Válassz legalább egy sávot, vagy a „Mindig tiltva" módot."); return@TextButton
+                    onError("Válassz legalább egy sávot, vagy a „Mindig tiltva” módot."); return@TextButton
                 }
                 try {
                     val r = Referee.startScheduleChange(

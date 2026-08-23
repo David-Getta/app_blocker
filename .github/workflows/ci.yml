@@ -6,6 +6,19 @@ on:
   pull_request:
 
 jobs:
+  # A magyar idézőjel („ ”) záró jelét ASCII "-re elgépelve a Kotlin sztring
+  # lezáratlan marad: fordítási hiba, amit eddig csak a teljes Android build
+  # mutatott meg. Ez a lépés másodpercek alatt kifogja.
+  text:
+    name: Szöveg-ellenőrzés
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: node scripts/check-text.js
+
   desktop:
     name: Desktop mag + tesztek
     runs-on: ubuntu-latest

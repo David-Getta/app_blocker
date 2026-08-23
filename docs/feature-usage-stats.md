@@ -9,7 +9,7 @@ Mérje, hogy **melyik weboldalon és melyik appban mennyi időt töltünk** — 
 **csak azt az időt**, amikor ténylegesen ott vagyunk, nem azt, hogy meddig van
 megnyitva. Egy háttérben nyitva felejtett YouTube-fül nem gyűjthet órákat.
 
-## Az „aktív idő" definíciója
+## Az „aktív idő” definíciója
 
 Egy másodperc akkor számít bele egy célpont (app vagy oldal) idejébe, ha
 **mindhárom** igaz:
@@ -34,7 +34,7 @@ egy 8 órás alvás nem ír be 8 órát.
 
 ## Adatmodell
 
-Napi „vödrökbe" (bucket) aggregálunk, célpont-kulcsonként másodpercben:
+Napi „vödrökbe” (bucket) aggregálunk, célpont-kulcsonként másodpercben:
 
 ```ts
 type TargetKind = 'app' | 'site';
@@ -59,7 +59,7 @@ korlátozott.
 - **Napi idősor** egy célpontra (oszlopdiagramhoz).
 - **Hét-a-héthez** összevetés: nőtt vagy csökkent az adott célpont ideje.
 - **Blokkolt oldalak**: mennyi időt töltöttünk rajtuk a feloldott (szünet)
-  időszakokban — ez mutatja, mennyit „nyertünk vissza" a blokkolással.
+  időszakokban — ez mutatja, mennyit „nyertünk vissza” a blokkolással.
 
 ## Platformonkénti megvalósítás és őszinte korlátok
 
@@ -70,7 +70,7 @@ korlátozott.
 | **Android** | `UsageStatsManager` (a felhasználó adja meg a hozzáférést) | böngésző előtérben + a VPN DNS-lekérései alapján hozzárendelve | képernyő ki/be + `UsageStats` |
 | **iOS** | **nem lehetséges** rendszerszinten (sandbox) | nem lehetséges | — |
 
-**macOS**: az aktív fül URL-jéhez az „Automatizálás" engedély kell (egyszeri
+**macOS**: az aktív fül URL-jéhez az „Automatizálás” engedély kell (egyszeri
 rendszer-kérdés böngészőnként). Ha a felhasználó nem adja meg, az app-szintű
 mérés akkor is működik, csak az oldal-bontás marad el.
 
@@ -85,7 +85,7 @@ jelöljük. Mivel a VPN az egész készülék DNS-forgalmát látja, szigorú sz
 csak akkor rendelünk hozzá nevet, ha **épp böngésző van előtérben**, a
 megfigyelés élettartama rövid (8 mp), app-váltáskor eldobjuk, és a CDN /
 média / telemetria hosztokat kiszűrjük. Így egy háttérben futó app lekérése nem
-jelenik meg „meglátogatott oldalként".
+jelenik meg „meglátogatott oldalként”.
 
 **iOS**: az Apple nem enged más appok használatának mérésére semmilyen API-t
 (a Screen Time / DeviceActivity keretrendszer külön, Apple által engedélyezett
@@ -138,6 +138,6 @@ már úgyis futó VPN-szolgáltatásban van, tehát a felület bezárása nem á
 - Ellenálló képesség: a privilegizált helper `usage_batch` végpontja validált
   bemenetet vár (kulcs-forma és -hossz, címke-hossz, véges és ±7 napon belüli
   időbélyeg, kötegméret), a kérés-sor mérete korlátozott, és egy nap legfeljebb
-  korlátozott számú célpontot tárol — a maradék egy „egyéb" gyűjtőbe kerül, hogy
+  korlátozott számú célpontot tárol — a maradék egy „egyéb” gyűjtőbe kerül, hogy
   az összeg pontos maradjon. Integrációs teszt játssza el a támadást a valódi
   szerver ellen, és igazolja, hogy a mentés utána is működik.

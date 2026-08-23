@@ -109,7 +109,7 @@ Cím: `https://david-getta.github.io/app_blocker/`
 **Automatikus feltöltés** (opcionális): a release workflow már tartalmaz egy
 Play-feltöltő lépést, ami csak akkor fut, ha beállítod a
 `PLAY_SERVICE_ACCOUNT_JSON` secretet (Google Cloud service account JSON, a Play
-Console-ban „Users and permissions" → API access alatt jogosultsággal). Ekkor a
+Console-ban „Users and permissions” → API access alatt jogosultsággal). Ekkor a
 `git tag` az `internal` track-re is feltölti az AAB-t. Az első feltöltést
 egyszer kézzel kell megtenni (a Play megköveteli).
 
