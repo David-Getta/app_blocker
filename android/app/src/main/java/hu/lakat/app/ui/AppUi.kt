@@ -130,6 +130,8 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
     val scope = rememberCoroutineScope()
     var update by remember { mutableStateOf<UpdateChecker.Update?>(null) }
     var updateBusy by remember { mutableStateOf(false) }
+    var updateNote by remember { mutableStateOf<String?>(null) }
+    var needsInstallPermission by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) { update = UpdateChecker.check() }
 
@@ -220,13 +222,51 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                         Button(
                             enabled = !updateBusy,
                             onClick = {
+                                if (needsInstallPermission) {
+                                    // A második koppintás már a beállításba visz:
+                                    // ott adható meg az engedély, enélkül a
+                                    // rendszertelepítő el sem indul.
+                                    context.startActivity(UpdateChecker.installPermissionIntent(context))
+                                    needsInstallPermission = false
+                                    updateNote = null
+                                    return@Button
+                                }
                                 updateBusy = true
+                                updateNote = null
                                 scope.launch {
-                                    runCatching { UpdateChecker.downloadAndInstall(context, upd) }
+                                    when (val r = UpdateChecker.downloadAndInstall(context, upd)) {
+                                        is UpdateChecker.InstallResult.Started -> updateNote = null
+                                        is UpdateChecker.InstallResult.NeedsPermission -> {
+                                            needsInstallPermission = true
+                                            updateNote = "A telepítéshez engedély kell " +
+                                                "(ismeretlen forrásból származó appok, a Lakatnál). " +
+                                                "Koppints újra, és odaviszlek."
+                                        }
+                                        is UpdateChecker.InstallResult.Failed ->
+                                            updateNote = "A frissítés nem sikerült: ${r.message}"
+                                    }
                                     updateBusy = false
                                 }
                             },
-                        ) { Text(if (updateBusy) "Letöltés…" else "Frissítés") }
+                        ) {
+                            Text(
+                                when {
+                                    updateBusy -> "Letöltés…"
+                                    needsInstallPermission -> "Beállítás megnyitása"
+                                    else -> "Frissítés"
+                                },
+                            )
+                        }
+                    }
+                    // A gomb magától nem mond semmit, ha nem sikerül: eddig a
+                    // felhasználó annyit látott, hogy visszaugrik „Frissítés”-re.
+                    updateNote?.let {
+                        Text(
+                            it,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 12.dp),
+                        )
                     }
                 }
             }
