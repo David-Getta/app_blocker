@@ -78,6 +78,13 @@ jobs:
           A telepített app magától megnézi, van-e újabb verzió, letölti a háttérben,
           és egy gombnyomásra újraindulva már az újat futtatja — Windowson és
           macOS-en is, Apple-tanúsítvány nélkül is.
+
+          Frissítés után megjelenhet egy sáv arról, hogy a háttérszolgáltatás még a
+          régi verzió. Ez normális — a blokkolást végző szolgáltatást a rendszer
+          csak újraindításkor cserélné le magától. A sávban lévő gomb egy
+          jelszókérés árán, azonnal lecseréli. Amíg nem teszed meg, a blokkolás
+          változatlanul működik, csak a legújabb beállítások nem biztos, hogy
+          érvényesülnek.
           NOTES
           fi
 
