@@ -252,7 +252,56 @@ object Referee {
     }
 
     /** housekeeping: re-lock ended pauses, run due deletions, drop dead sessions */
+    /**
+     * Két karbantartó kör között ennél nagyobb ugrás nem eltelt idő: a kör
+     * másodpercenként fut, tehát pár percnél nagyobb különbség vagy az óra
+     * átállítása, vagy a készülék alvása.
+     */
+    const val CLOCK_JUMP_THRESHOLD_MS: Long = 2 * 60_000L
+
+    /** Az utolsó kör ideje. Memóriában, mert minden körben menteni pazarlás lenne. */
+    @Volatile private var lastTickAt: Long = 0L
+
+    /**
+     * A várakozás itt maga a próba, és amit az óra átállítása legyőz, az nem
+     * próba: előre állított rendszerórával a DELAY lépés azonnal átvehető lenne,
+     * a törlés türelmi ideje pedig azonnal lejárna. Ezért a *védő* határidőket
+     * (várakozás célpontja, folyamatban lévő törlés, a kísérlet kora) annyival
+     * toljuk ki, amennyit a fali óra ugrott — vagyis eltelt időt mérnek, nem
+     * dátumot. Az alvás kívülről ugyanígy néz ki, és ugyanígy kezeljük: alvás
+     * közben nem telik a várakozás (ez a szigorúbb irány).
+     *
+     * A pauseUntil szándékosan kimarad: ott az előre ugró óra korábban zár
+     * vissza, a szigorítást pedig nem kell védeni.
+     */
+    private fun absorbClockJump(now: Long) {
+        val last = lastTickAt
+        lastTickAt = now
+        if (last == 0L) return
+        val jump = now - last
+        if (jump <= CLOCK_JUMP_THRESHOLD_MS) return
+        val shift = jump - CLOCK_JUMP_THRESHOLD_MS
+
+        LakatStore.mutate { state ->
+            val session = state.session?.let { s ->
+                val step = s.steps.getOrNull(s.stepIndex)
+                val steps = if (step is Step.Delay && step.claimableAt != null) {
+                    s.steps.toMutableList().also { it[s.stepIndex] = step.copy(claimableAt = step.claimableAt + shift) }
+                } else {
+                    s.steps
+                }
+                // …és az ugrás miatt a kísérlet se évüljön el
+                s.copy(steps = steps, createdAt = s.createdAt + shift)
+            }
+            val sites = state.sites.map {
+                if (it.pendingDeleteAt != null) it.copy(pendingDeleteAt = it.pendingDeleteAt + shift) else it
+            }
+            state.copy(session = session, sites = sites)
+        }
+    }
+
     fun tick(now: Long) {
+        absorbClockJump(now)
         // Cheap pre-check: this runs on the DNS hot path, only mutate when needed.
         val st = LakatStore.state.value
         val sessionDead = st.session?.let { s ->

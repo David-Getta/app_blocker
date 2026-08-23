@@ -253,4 +253,36 @@ class RefereeTest {
             .map { ChallengeEngine.typeNameOf(it) }.sorted(),
             "the first site still owes its own pair")
     }
+    @Test fun `moving the system clock forward does not skip a waiting step`() {
+        // Mirrors the desktop test: waiting IS the challenge, so a clock change
+        // must not be able to finish it.
+        val id = addSite("youtube.com")
+        LakatStore.mutate { s -> s.copy(unlockLog = (1..8).map { now - it * 3600_000L }) } // tier 3
+        Referee.startSession(Kind.DELETE, id, null, now)
+        solveUntil { it is Step.Delay }
+        val before = LakatStore.state.value.session!!.steps
+            .filterIsInstance<Step.Delay>().first().claimableAt!!
+
+        Referee.tick(now)                                  // baseline
+        val jumped = now + 365L * 24 * 3600_000            // "next year", in one step
+        Referee.tick(jumped)
+
+        val after = LakatStore.state.value.session!!.steps
+            .filterIsInstance<Step.Delay>().first().claimableAt!!
+        assertTrue(after > jumped, "the waiting target moved with the clock")
+        assertTrue(after > before)
+        val claim = Referee.claimDelay(LakatStore.state.value.session!!.id, jumped)
+        assertFalse(claim.accepted, "claiming is still refused")
+    }
+
+    @Test fun `a pending deletion cannot be rushed by the clock`() {
+        val id = addSite("youtube.com")
+        LakatStore.mutate { s ->
+            s.copy(sites = s.sites.map { if (it.id == id) it.copy(pendingDeleteAt = now + 24 * 3600_000L) else it })
+        }
+        Referee.tick(now)
+        Referee.tick(now + 48 * 3600_000L)
+        assertEquals(1, LakatStore.state.value.sites.size, "the site is still there")
+        assertTrue(LakatStore.state.value.sites[0].pendingDeleteAt!! > now + 48 * 3600_000L)
+    }
 }

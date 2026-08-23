@@ -122,12 +122,12 @@ Ismert megkerülési utak (szándékosan nem próbáljuk „lelakatolni” a gé
   fájl és a sinkhole a névfeloldásra hat). Későbbi bővítés: IP-szintű szabályok.
 - iOS-en MDM/„supervised” mód nélkül a felhasználó a rendszerbeállításokban ki
   tudja kapcsolni a VPN-t; az on-demand szabály csökkenti ennek kényelmét.
-- **Óra-átállítás mobilon.** Az asztali segéd már kiszűri (a várakozási
-  határidők eltelt időt mérnek, nem dátumot — lásd `docs/challenge-spec.md`),
-  de az Android/iOS mag még dátum szerint számol, így ott egy előre állított
-  rendszeróra rövidíti a DELAY lépést és a törlés türelmi idejét. Ugyanaz a
-  megoldás átvezethető: a magok is periodikusan futnak (VPN-szolgáltatás,
-  illetve a tunnel), tehát van hol észrevenni az ugrást.
+- **Óra-átállítás iOS-en.** Az asztali segéd és az Android mag már kiszűri (a
+  várakozási határidők eltelt időt mérnek, nem dátumot — lásd
+  `docs/challenge-spec.md`), az iOS/macOS mag viszont még dátum szerint számol,
+  így ott egy előre állított rendszeróra rövidíti a DELAY lépést és a törlés
+  türelmi idejét. Ugyanaz a megoldás átvezethető: a tunnel is periodikusan fut,
+  tehát van hol észrevenni az ugrást.
 
 Ezeket a `docs/`-ban nyíltan dokumentáljuk, hogy az elvárások reálisak
 legyenek.
