@@ -16,6 +16,8 @@
 // which one it is talking to.
 
 import { app, BrowserWindow, ipcMain, shell } from 'electron';
+import * as fs from 'fs';
+import * as path from 'path';
 import {
   appBundlePath, applyUpdate, checkMacUpdate, downloadUpdate, hasDeveloperIdSignature,
   type MacUpdate,
@@ -100,6 +102,13 @@ function macFallbackEngine(bundle: string): Engine {
   let downloadedZip: string | null = null;
   let busy = false;
 
+  /** A letöltés saját ideiglenes mappában van; ha eldobjuk, vigyük a mappát is. */
+  const discardDownload = (): void => {
+    if (!downloadedZip) return;
+    try { fs.rmSync(path.dirname(downloadedZip), { recursive: true, force: true }); } catch { /* ok */ }
+    downloadedZip = null;
+  };
+
   return {
     check: async () => {
       if (busy) return;
@@ -107,15 +116,32 @@ function macFallbackEngine(bundle: string): Engine {
       set({ status: 'checking', selfManaged: true });
       try {
         const update = await checkMacUpdate();
-        if (!update) { set({ status: 'idle', version: undefined, percent: undefined }); return; }
+        if (!update) {
+          discardDownload();
+          pending = null;
+          set({ status: 'idle', version: undefined, percent: undefined });
+          return;
+        }
+        // Az ellenőrzés 6 óránként fut. Ha ugyanazt a verziót már letöltöttük és
+        // a fájl megvan, NE töltsük le újra: aki nem nyomja meg rögtön az
+        // „újraindítás” gombot, annak ez naponta négyszer ~90 MB lenne, és
+        // minden kör hagyna is maga után egy ekkora ideiglenes mappát.
+        if (pending?.version === update.version && downloadedZip && fs.existsSync(downloadedZip)) {
+          set({ status: 'ready', version: update.version, percent: 100 });
+          return;
+        }
+        // Új verzió jött a korábban letöltött helyett: a régi csomag felesleges.
+        discardDownload();
         pending = update;
         set({ status: 'downloading', version: update.version, percent: 0 });
         downloadedZip = await downloadUpdate(update, (percent) => set({ status: 'downloading', percent }));
         set({ status: 'ready', version: update.version, percent: 100 });
       } catch (e) {
         const message = (e as Error).message;
-        // A failed check is not news; a failed download of a version we already
-        // told the user about is.
+        // A félbemaradt letöltés fájlja nem használható, és nagy: ne maradjon ott.
+        discardDownload();
+        // A sikertelen ellenőrzés nem hír; egy már bejelentett verzió sikertelen
+        // letöltése igen.
         if (pending) set({ status: 'error', error: message });
         else set({ status: 'idle', error: message });
       } finally {

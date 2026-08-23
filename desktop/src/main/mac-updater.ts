@@ -141,6 +141,20 @@ export async function downloadUpdate(
   update: MacUpdate, onProgress: (percent: number) => void,
 ): Promise<string> {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'lakat-update-'));
+  try {
+    return await downloadInto(dir, update, onProgress);
+  } catch (e) {
+    // Bármi hasal el, a félkész ~90 MB ne maradjon a temp mappában. A hívó
+    // csak a hibát látja; a takarítás itt a legbiztosabb, mert csak itt tudjuk,
+    // melyik mappa a miénk.
+    fs.rmSync(dir, { recursive: true, force: true });
+    throw e;
+  }
+}
+
+async function downloadInto(
+  dir: string, update: MacUpdate, onProgress: (percent: number) => void,
+): Promise<string> {
   const dest = path.join(dir, update.assetName);
   const res = await get(update.assetUrl, {});
   const expected = Number(res.headers['content-length'] ?? update.size ?? 0);
@@ -172,13 +186,11 @@ export async function downloadUpdate(
   });
 
   if (update.size && received !== update.size) {
-    fs.rmSync(dir, { recursive: true, force: true });
     throw new Error(`a letöltött fájl mérete nem stimmel (${received} ≠ ${update.size})`);
   }
   if (update.sha512) {
     const actual = hash.digest('base64');
     if (actual !== update.sha512) {
-      fs.rmSync(dir, { recursive: true, force: true });
       throw new Error('a letöltött fájl ellenőrzőösszege nem egyezik');
     }
   }
