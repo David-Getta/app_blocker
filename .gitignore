@@ -1,0 +1,33 @@
+# Node / Electron
+node_modules/
+dist/
+dist-test/
+out/
+release/
+*.tsbuildinfo
+
+# Android
+.gradle/
+build/
+!desktop/build/
+local.properties
+captures/
+*.apk
+*.aab
+
+# iOS / macOS
+DerivedData/
+xcuserdata/
+*.xcodeproj/
+!ios/README.md
+*.ipa
+Pods/
+
+# Egyéb
+.DS_Store
+Thumbs.db
+*.log
+
+# Gradle test harness output
+android/jvm-tests/.gradle/
+android/jvm-tests/build/

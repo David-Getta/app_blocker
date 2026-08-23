@@ -1,0 +1,29 @@
+{
+  "name": "lakat-desktop",
+  "productName": "Lakat",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Weboldal-blokkoló önkontroll app — Windows és macOS",
+  "author": "Lakat",
+  "license": "UNLICENSED",
+  "main": "dist/main/main.js",
+  "scripts": {
+    "clean": "node scripts/clean.js",
+    "build": "npm run clean && tsc -p tsconfig.json && tsc -p tsconfig.renderer.json && node scripts/copy-static.js && node scripts/check-esm-specifiers.js",
+    "start": "npm run build && electron .",
+    "helper:dev": "npm run build && node dist/helper/index.js",
+    "test": "npm run build && tsc -p tsconfig.test.json && node scripts/run-tests.js",
+    "dist": "npm run build && electron-builder",
+    "ui:check": "npm run build && node scripts/ui-shots.js --check",
+    "ui:shots": "npm run build && node scripts/ui-shots.js"
+  },
+  "dependencies": {
+    "electron-updater": "^6.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.5.0",
+    "electron": "^31.3.0",
+    "electron-builder": "^24.13.3",
+    "typescript": "^5.5.4"
+  }
+}

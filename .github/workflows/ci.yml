@@ -1,0 +1,92 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  # A magyar idézőjel („ ”) záró jelét ASCII "-re elgépelve a Kotlin sztring
+  # lezáratlan marad: fordítási hiba, amit eddig csak a teljes Android build
+  # mutatott meg. Ez a lépés másodpercek alatt kifogja.
+  text:
+    name: Szöveg-ellenőrzés
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: node scripts/check-text.js
+      # A Compose-fájlokat (hu.lakat.app.ui) csak a teljes Android build
+      # fordítja, ami percekbe telik — egy hiányzó import a saját mag-
+      # típusainkra itt másodpercek alatt kiderül.
+      - run: node scripts/check-kotlin-imports.js
+
+  desktop:
+    name: Desktop mag + tesztek
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: npm ci
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+      - run: npm test
+
+  # A renderert semmi más nem futtatja: egy hiányzó .js kiterjesztés vagy egy
+  # null elem-lekérés némán üres ablakot ad. Ez betölti és végigkattintja.
+  ui-smoke:
+    name: Renderer füstteszt (Playwright)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: npm ci
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+      - run: npm run build
+      - run: npm i --no-save playwright@1.56.1
+      - run: npx playwright install --with-deps chromium
+      - run: node scripts/ui-shots.js --check
+
+  android-core-tests:
+    name: Android mag tesztek (JVM, SDK nélkül)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: android/jvm-tests
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+      - run: gradle test --no-daemon
+
+  android-build:
+    name: Android build (assembleDebug)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: android
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: android-actions/setup-android@v3
+      - run: chmod +x gradlew
+      - run: ./gradlew assembleDebug --no-daemon

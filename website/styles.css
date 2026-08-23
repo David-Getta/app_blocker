@@ -1,0 +1,79 @@
+:root {
+  --bg: #0e1216;
+  --card: #1a2027;
+  --border: #2c353f;
+  --text: #e8edf2;
+  --dim: #93a1ae;
+  --accent: #4f8ef7;
+  --accent2: #4fc48b;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: radial-gradient(1200px 600px at 50% -10%, #16202b, var(--bg));
+  color: var(--text);
+  font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+  line-height: 1.6;
+  min-height: 100vh;
+}
+.hero { text-align: center; padding: 64px 20px 32px; }
+.mark { width: 96px; height: 96px; border-radius: 22px; box-shadow: 0 8px 32px rgba(47,111,224,.4); }
+.hero h1 { font-size: 3rem; letter-spacing: -0.02em; margin-top: 8px; }
+.tag { color: var(--dim); max-width: 620px; margin: 14px auto 0; font-size: 1.08rem; }
+
+main { max-width: 900px; margin: 0 auto; padding: 0 20px 60px; }
+
+.primary { min-height: 96px; display: flex; justify-content: center; margin: 24px 0 40px; }
+.detecting { color: var(--dim); align-self: center; }
+.primary-card {
+  background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+  padding: 24px 28px; text-align: center; max-width: 520px; width: 100%;
+}
+.primary-card .plat { font-size: 1.3rem; font-weight: 700; }
+.primary-card .ver { color: var(--dim); font-size: 0.9rem; margin-top: 2px; }
+
+.btn {
+  display: inline-block; margin-top: 16px; padding: 14px 28px;
+  background: var(--accent); color: #fff; border: none; border-radius: 12px;
+  font-size: 1.05rem; font-weight: 700; text-decoration: none; cursor: pointer;
+}
+.btn:hover { background: #6ba1f8; }
+.btn.secondary { background: transparent; border: 1px solid var(--border); color: var(--text); }
+.btn.secondary:hover { border-color: var(--accent); }
+
+h2 { font-size: 1.25rem; margin: 40px 0 16px; }
+
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; }
+.card {
+  background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+  padding: 18px 20px;
+}
+.card .ico { font-size: 28px; }
+.card .name { font-weight: 700; margin-top: 6px; }
+.card .files { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+.card a.dl {
+  color: var(--accent); text-decoration: none; font-size: 0.92rem; font-weight: 600;
+  border: 1px solid var(--border); border-radius: 9px; padding: 8px 12px; display: block;
+}
+.card a.dl:hover { border-color: var(--accent); }
+.card .muted { color: var(--dim); font-size: 0.85rem; }
+
+.feat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; }
+.feat {
+  background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+  padding: 18px 20px;
+}
+.feat-ico { font-size: 26px; }
+.feat h3 { font-size: 1rem; margin: 8px 0 6px; }
+.feat p { color: var(--dim); font-size: 0.9rem; }
+.feat strong { color: var(--text); font-weight: 600; }
+
+.how p, .note li { color: var(--dim); }
+.note ul { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+.note li { padding-left: 18px; position: relative; }
+.note li::before { content: "•"; position: absolute; left: 0; color: var(--accent2); }
+
+footer { text-align: center; padding: 30px 20px 60px; border-top: 1px solid var(--border); }
+footer a { color: var(--accent); text-decoration: none; font-weight: 600; }
+.fine { color: var(--dim); font-size: 0.82rem; margin-top: 10px; }
+
+@media (max-width: 520px) { .hero h1 { font-size: 2.2rem; } }

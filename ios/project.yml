@@ -1,0 +1,81 @@
+# XcodeGen projekt-definíció. Generáld az Xcode projektet:
+#   brew install xcodegen && cd ios && xcodegen generate
+# majd nyisd meg a Lakat.xcodeproj-ot.
+#
+# A signing-hoz állítsd be a DEVELOPMENT_TEAM-et (lásd docs/ios-macos.md).
+
+name: Lakat
+options:
+  bundleIdPrefix: hu.lakat
+  deploymentTarget:
+    iOS: "16.0"
+    macOS: "13.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    DEVELOPMENT_TEAM: "" # ← ide a saját Team ID-d
+    SWIFT_VERSION: "5.9"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    CODE_SIGN_STYLE: Automatic
+
+targets:
+  # ---------------------------------------------------------------- iOS app
+  LakatApp-iOS:
+    type: application
+    platform: iOS
+    sources:
+      - path: App
+      - path: Shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: hu.lakat.app
+        INFOPLIST_FILE: App/Info-iOS.plist
+        CODE_SIGN_ENTITLEMENTS: App/Lakat-iOS.entitlements
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        TARGETED_DEVICE_FAMILY: "1,2"
+    dependencies:
+      - target: PacketTunnel-iOS
+        embed: true
+
+  PacketTunnel-iOS:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: PacketTunnel
+      - path: Shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: hu.lakat.app.tunnel
+        INFOPLIST_FILE: PacketTunnel/Info.plist
+        CODE_SIGN_ENTITLEMENTS: PacketTunnel/PacketTunnel-iOS.entitlements
+
+  # -------------------------------------------------------------- macOS app
+  LakatApp-macOS:
+    type: application
+    platform: macOS
+    sources:
+      - path: App
+      - path: Shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: hu.lakat.app
+        INFOPLIST_FILE: App/Info-macOS.plist
+        CODE_SIGN_ENTITLEMENTS: App/Lakat-macOS.entitlements
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+    dependencies:
+      - target: PacketTunnel-macOS
+        embed: true
+
+  PacketTunnel-macOS:
+    type: app-extension
+    platform: macOS
+    sources:
+      - path: PacketTunnel
+      - path: Shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: hu.lakat.app.tunnel
+        INFOPLIST_FILE: PacketTunnel/Info.plist
+        CODE_SIGN_ENTITLEMENTS: PacketTunnel/PacketTunnel-macOS.entitlements

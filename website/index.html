@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="hu">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Lakat — töltsd le</title>
+  <meta name="description" content="Lakat: weboldal-blokkoló önkontroll-app Androidra, Windowsra, macOS-re és iPhone-ra." />
+  <link rel="icon" type="image/png" sizes="64x64" href="./favicon.png" />
+  <link rel="apple-touch-icon" href="./icon-512.png" />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <header class="hero">
+    <img class="mark" src="./icon-512.png" alt="Lakat ikon" width="96" height="96" />
+    <h1>Lakat</h1>
+    <p class="tag">Weboldal-blokkoló önkontroll-app. Egy kattintás bekapcsolni,
+      igazi erőfeszítés kikapcsolni — Androidon, Windowson, macOS-en és iPhone-on.</p>
+  </header>
+
+  <main>
+    <!-- Elsődleges, platformra szabott letöltés -->
+    <section class="primary" id="primary">
+      <div class="detecting">Verzió keresése…</div>
+    </section>
+
+    <!-- Minden platform -->
+    <section class="all">
+      <h2>Minden platform</h2>
+      <div class="grid" id="grid"></div>
+    </section>
+
+    <section class="features">
+      <h2>Mit tud</h2>
+      <div class="feat-grid">
+        <div class="feat">
+          <div class="feat-ico">🚫</div>
+          <h3>Blokkolás, ami tényleg blokkol</h3>
+          <p>A tiltás DNS-szinten történik, ezért minden böngészőben és appban hat —
+            <strong>inkognitó és vendég módban is</strong>, nem csak ott, ahová kiegészítőt telepítesz.</p>
+        </div>
+        <div class="feat">
+          <div class="feat-ico">🧗</div>
+          <h3>A feloldás nem egy gomb</h3>
+          <p>Több lépéses, mindig újragenerált próbatételek: átgépelés, fejszámolási lánc,
+            memória-kód, visszafelé gépelés, valós idejű várakozás. Aki gyakran old fel,
+            annak <strong>nehezebb</strong> lesz — nem könnyebb.</p>
+        </div>
+        <div class="feat">
+          <div class="feat-ico">🗓️</div>
+          <h3>Időzített menetrend</h3>
+          <p>Tiltás csak munkaidőben, vagy fordítva: szabad csak egy szűk ablakban.
+            Szigorítani egy kattintás — <strong>lazítani ugyanúgy próbatételekbe kerül</strong>.</p>
+        </div>
+        <div class="feat">
+          <div class="feat-ico">📊</div>
+          <h3>Mire megy el az idő</h3>
+          <p>Méri, melyik oldalon és appban mennyit töltesz — de <strong>csak amikor tényleg
+            ott vagy</strong>, nem attól, hogy nyitva van. Napi, heti és havi bontás.
+            Minden adat a gépeden marad.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="how">
+      <h2>Frissítés? Magától megy.</h2>
+      <p>A telepített app a háttérben ellenőrzi az új verziót és felajánlja a
+        frissítést — épp úgy, mint egy áruházból telepített alkalmazás. Nem kell
+        újra letöltögetni semmit.</p>
+    </section>
+
+    <section class="note">
+      <h2>Jó, ha tudod</h2>
+      <ul>
+        <li><strong>Windows / macOS:</strong> a telepítő egyszer kér rendszergazdai
+          jóváhagyást a védelemhez. macOS-en <em>nem</em> kér újra minden indításnál.</li>
+        <li><strong>macOS első indítás:</strong> amíg nincs Apple fejlesztői
+          aláírás, a Gatekeeper ismeretlen fejlesztőként kezeli az appot. Nyisd
+          meg a DMG-t, húzd az <em>Alkalmazások</em> mappába, majd a Lakat ikonon
+          <em>jobb gomb → Megnyitás</em>, és a párbeszédben újra <em>Megnyitás</em>.
+          Ezt csak egyszer kell. Ha „sérült” hibát ír, a letöltési karantén jelzőt
+          kell levenni: <code>xattr -dr com.apple.quarantine /Applications/Lakat.app</code></li>
+        <li><strong>Android:</strong> ha a Play Áruházon kívülről telepíted, a
+          rendszer egyszer rákérdez az „ismeretlen forrás” engedélyre.</li>
+        <li><strong>iPhone:</strong> az Apple szabályai miatt az iOS-t az App Store-ból
+          (vagy TestFlight tesztelőként) lehet telepíteni.</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer>
+    <a id="allReleases" href="#" target="_blank" rel="noopener">Összes verzió és kiadási jegyzet →</a>
+    <p class="fine">Önkontroll-eszköz, nem felügyeleti szoftver. A részletek a projekt dokumentációjában.</p>
+  </footer>
+
+  <script src="./download.js"></script>
+</body>
+</html>
