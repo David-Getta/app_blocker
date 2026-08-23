@@ -88,6 +88,7 @@ function fakeBridgeSource() {
     // A mérés alapból lát adatot; a „nem kap adatot” esetet a füstteszt
     // szándékosan állítja elő.
     window.__fakeTracker = { blocked: false, neverWorked: false, platform: 'darwin' };
+    window.__fakeUpdate = { status: 'idle' };
     window.__fakeHelperVersion = ${JSON.stringify(helperVersion())};
     const status = () => ({
       helperVersion: window.__fakeHelperVersion, platform: 'darwin', sites, tier: 1, unlocks7d: 2,
@@ -143,10 +144,12 @@ function fakeBridgeSource() {
       },
       install: async () => ({ ok: true }),
       checkUpdate: async () => ({ ok: true }),
-      installUpdate: async () => ({ ok: true }),
-      getUpdateState: async () => ({ status: 'idle' }),
+      getUpdateState: async () => window.__fakeUpdate,
       getTrackerState: async () => window.__fakeTracker,
-      onUpdateState: () => {},
+      // A füstteszt innen hajtja a frissítési sávot: ugyanaz a csatorna, amit
+      // a fő folyamat használ.
+      onUpdateState: (cb) => { window.__pushUpdate = cb; },
+      installUpdate: async () => { window.__installCalled = (window.__installCalled || 0) + 1; return { ok: true }; },
     };
   `;
 }
@@ -237,6 +240,38 @@ async function main() {
     window.__fakeTracker = { blocked: false, neverWorked: false, platform: 'darwin' };
   });
   await page.waitForSelector('#usageBlocked', { state: 'hidden', timeout: 15_000 });
+
+  // A frissítési sáv — ez a projekt egyik ígérete („egy gombnyomás”), tehát
+  // nézzük meg, hogy tényleg megjelenik, egyszer indít, és hiba esetén
+  // megmondja az OKOT is, nem csak azt, hogy „valami nem sikerült”.
+  if (await page.locator('#updateBar:not(.hidden)').count() !== 0) {
+    failures.push('the update bar shows while there is no update');
+  }
+  await page.evaluate(() => window.__pushUpdate({ status: 'downloading', version: '9.9.9', percent: 42 }));
+  const dl = (await page.locator('#updateText').textContent()) || '';
+  if (!dl.includes('42') || !dl.includes('9.9.9')) {
+    failures.push(`the download progress does not name version and percent: ${dl}`);
+  }
+  await page.evaluate(() => window.__pushUpdate({ status: 'ready', version: '9.9.9' }));
+  await page.waitForSelector('#updateBtn:not(.hidden)', { timeout: 10_000 });
+  await page.locator('#updateBtn').click();
+  if (!(await page.locator('#updateBtn').isDisabled())) {
+    failures.push('the update button stays clickable during the swap');
+  }
+  await page.locator('#updateBtn').click({ force: true }).catch(() => { /* letiltva, ez a jó */ });
+  const installCalls = await page.evaluate(() => window.__installCalled || 0);
+  if (installCalls !== 1) failures.push(`the update was started ${installCalls} times, expected exactly 1`);
+
+  await page.evaluate(() => window.__pushUpdate({ status: 'error', error: 'nincs írási jog' }));
+  const errText = (await page.locator('#updateText').textContent()) || '';
+  if (!errText.includes('nincs írási jog')) {
+    failures.push(`the update error does not say why: ${errText}`);
+  }
+  if (await page.locator('#updateBtn').isDisabled()) {
+    failures.push('the button stays disabled after a failed update, so there is no way out');
+  }
+  await page.evaluate(() => window.__pushUpdate({ status: 'idle' }));
+  await page.waitForSelector('#updateBar', { state: 'hidden', timeout: 10_000 });
 
   if (!CHECK_ONLY) {
     fs.mkdirSync(OUT, { recursive: true });

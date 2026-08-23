@@ -1058,6 +1058,7 @@ function renderUpdate(s: UpdateState): void {
   const text = $('updateText');
   const btn = $<HTMLButtonElement>('updateBtn');
   btn.classList.add('hidden');
+  btn.disabled = false;
   switch (s.status) {
     case 'downloading':
       bar.classList.remove('hidden');
@@ -1073,9 +1074,13 @@ function renderUpdate(s: UpdateState): void {
       break;
     case 'error':
       // The self-install failed (no write access to the app bundle, a broken
-      // download); the manual download always works.
+      // download); the manual download always works. Az OKOT is kiírjuk: enélkül
+      // egy jogosultsági hiba és egy megszakadt letöltés ugyanúgy néz ki, és
+      // nem lehet tudni, érdemes-e újrapróbálni.
       bar.classList.remove('hidden');
-      text.textContent = 'Új verzió érhető el a letöltőoldalon.';
+      text.textContent = s.error
+        ? `Új verzió érhető el a letöltőoldalon. (A frissítés nem sikerült: ${s.error})`
+        : 'Új verzió érhető el a letöltőoldalon.';
       btn.textContent = 'Letöltés megnyitása';
       btn.classList.remove('hidden');
       break;
@@ -1086,7 +1091,14 @@ function renderUpdate(s: UpdateState): void {
 
 function setupUpdater(): void {
   const btn = $<HTMLButtonElement>('updateBtn');
-  btn.addEventListener('click', () => void window.lakat.installUpdate());
+  btn.addEventListener('click', () => {
+    // A csere közben az app kilép; egy második kattintás már egy félig
+    // kicserélt bundle-re futna. A gomb ezért azonnal letiltja magát, és a
+    // következő állapotfrissítés engedi vissza (pl. ha a csere hibára futott).
+    btn.disabled = true;
+    btn.textContent = 'Frissítés…';
+    void window.lakat.installUpdate();
+  });
   window.lakat.onUpdateState(renderUpdate);
   void window.lakat.getUpdateState().then(renderUpdate).catch(() => { /* dev build */ });
 }
