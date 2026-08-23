@@ -114,6 +114,10 @@ object Referee {
         val sites = state.sites.map { site ->
             if (site.id != s.siteId) site
             else if (s.pendingSchedule != null) site.copy(schedule = s.pendingSchedule) // gated loosening
+            // -1 = „vedd le a keretet”; bármi más a beállítandó keret
+            else if (s.pendingLimit != null) site.copy(
+                dailyLimitSeconds = if (s.pendingLimit < 0) null else s.pendingLimit,
+            )
             else if (s.kind == Kind.PAUSE) site.copy(pauseUntil = now + (s.minutes ?: 15) * 60_000L)
             else site.copy(pendingDeleteAt = now + ChallengeEngine.DELETE_PENDING_MS)
         }
@@ -160,6 +164,65 @@ object Referee {
             state.copy(session = session, lastCombo = plan.comboKey)
         }
         return result!!
+    }
+
+    data class LimitChangeResult(val applied: Boolean, val session: SessionRec?)
+
+    /**
+     * Napi keret állítása. Bevezetni vagy csökkenteni szigorítás: azonnal
+     * érvényes. Emelni vagy megszüntetni több időt vesz az oldalon, tehát
+     * ugyanazokba a próbatételekbe kerül, mint egy feloldás — ugyanaz a
+     * szabály, mint a menetrendnél, ugyanabból az okból.
+     */
+    fun startLimitChange(siteId: String, seconds: Long?, now: Long): LimitChangeResult {
+        var result: LimitChangeResult? = null
+        LakatStore.mutate { state ->
+            val site = state.sites.find { it.id == siteId }
+                ?: throw RefereeException("Ismeretlen oldal.", "NO_SITE")
+            if (state.session != null) {
+                throw RefereeException("Előbb fejezd be a folyamatban lévő kísérletet.", "BUSY")
+            }
+            val next = LimitLogic.normalizeLimit(seconds)
+            val current = LimitLogic.normalizeLimit(site.dailyLimitSeconds)
+            if (!LimitLogic.isLimitLoosening(current, next)) {
+                result = LimitChangeResult(applied = true, session = null)
+                return@mutate state.copy(sites = state.sites.map {
+                    if (it.id == siteId) it.copy(dailyLimitSeconds = next) else it
+                })
+            }
+            val tier = effectiveTier(state, Kind.PAUSE, now)
+            val plan = ChallengeEngine.generatePlan(
+                Kind.PAUSE, tier, state.lastCombo, forcedCombo(state, siteId, now),
+            )
+            val session = SessionRec(
+                id = LakatStore.newId("ses"), kind = Kind.PAUSE, siteId = siteId, minutes = null,
+                steps = armCurrent(plan.steps, 0, now), stepIndex = 0, createdAt = now,
+                pendingLimit = next ?: -1L,
+            )
+            result = LimitChangeResult(applied = false, session = session)
+            state.copy(session = session, lastCombo = plan.comboKey)
+        }
+        return result!!
+    }
+
+    /**
+     * Mérés ki/be. Kikapcsolni nem lazítás — a saját adata —, EGY kivétellel:
+     * a napi keret a mért időből fogy, tehát mérés nélkül sosem fogyna el.
+     * Az csendes megkerülés lenne, ezért amíg van keret, a mérés nem
+     * kapcsolható ki. (A desktop helper usage_enable ágának tükre.)
+     */
+    fun setUsageEnabled(enabled: Boolean) {
+        LakatStore.mutate { state ->
+            if (!enabled && state.sites.any { LimitLogic.normalizeLimit(it.dailyLimitSeconds) != null }) {
+                throw RefereeException(
+                    "Amíg van napi időkeret beállítva, a mérés nem kapcsolható ki — abból fogy a keret.",
+                    "LIMIT_NEEDS_USAGE",
+                )
+            }
+            val next = UsageLogic.snapshot(state.usage)
+            next.enabled = enabled
+            state.copy(usage = next)
+        }
     }
 
     private fun requireSession(state: AppState, sessionId: String, now: Long): SessionRec {

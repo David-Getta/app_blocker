@@ -24,6 +24,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -53,6 +54,7 @@ import hu.lakat.app.core.ChallengeEngine
 import hu.lakat.app.core.ChallengeEngine.Kind
 import hu.lakat.app.core.ChallengeEngine.Step
 import hu.lakat.app.core.LakatStore
+import hu.lakat.app.core.LimitLogic
 import hu.lakat.app.core.Referee
 import hu.lakat.app.core.ScheduleLogic
 import hu.lakat.app.core.SessionRec
@@ -154,6 +156,7 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
     var pauseSite by remember { mutableStateOf<Site?>(null) }
     var deleteSite by remember { mutableStateOf<Site?>(null) }
     var scheduleSite by remember { mutableStateOf<Site?>(null) }
+    var limitSite by remember { mutableStateOf<Site?>(null) }
     var flowError by remember { mutableStateOf<String?>(null) }
 
     fun addSite(raw: String) {
@@ -318,9 +321,11 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
             for (site in state.sites) {
                 SiteCard(
                     site = site, now = now, hasSession = state.session != null,
+                    usage = state.usage,
                     onPause = { pauseSite = site },
                     onDelete = { deleteSite = site },
                     onSchedule = { scheduleSite = site },
+                    onLimit = { limitSite = site },
                 )
             }
 
@@ -341,10 +346,12 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                 hasUsageAccess = UsageTracker.hasUsageAccess(context),
                 onGrantAccess = { context.startActivity(UsageTracker.usageAccessIntent()) },
                 onToggleEnabled = {
-                    LakatStore.mutate { s ->
-                        val next = UsageLogic.snapshot(s.usage)
-                        next.enabled = !next.enabled
-                        s.copy(usage = next)
+                    // Napi keret mellett a mérés nem kapcsolható ki: abból fogy
+                    // a keret, kikapcsolva sosem fogyna el. A referee mondja ki.
+                    try {
+                        Referee.setUsageEnabled(!state.usage.enabled)
+                    } catch (e: Referee.RefereeException) {
+                        flowError = e.message
                     }
                 },
                 onClear = {
@@ -428,6 +435,17 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
             onApplied = { scheduleSite = null },
             onChallenge = { scheduleSite = null; onOpenChallenge() },
             onError = { scheduleSite = null; flowError = it },
+        )
+    }
+
+    // Daily budget dialog
+    limitSite?.let { site ->
+        LimitDialog(
+            site = site,
+            onDismiss = { limitSite = null },
+            onApplied = { limitSite = null },
+            onChallenge = { limitSite = null; onOpenChallenge() },
+            onError = { limitSite = null; flowError = it },
         )
     }
 
@@ -517,10 +535,11 @@ private fun ScheduleDialog(
     )
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun SiteCard(
-    site: Site, now: Long, hasSession: Boolean,
-    onPause: () -> Unit, onDelete: () -> Unit, onSchedule: () -> Unit,
+    site: Site, usage: UsageLogic.UsageState, now: Long, hasSession: Boolean,
+    onPause: () -> Unit, onDelete: () -> Unit, onSchedule: () -> Unit, onLimit: () -> Unit,
 ) {
     Card {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -557,7 +576,7 @@ private fun SiteCard(
                     }) { Text("Törlés visszavonása") }
                 }
                 else -> {
-                    val blockedNow = ScheduleLogic.isBlockedNow(site.pauseUntil, site.pendingDeleteAt, site.schedule, now)
+                    val blockedNow = LimitLogic.isBlockedNowWithLimit(site, usage, now)
                     if (scheduled) {
                         Text(
                             if (blockedNow) "Most blokkolva (menetrend)" else "Most szabad (menetrend szerint)",
@@ -566,10 +585,12 @@ private fun SiteCard(
                     } else {
                         Text("Blokkolva", color = MaterialTheme.colorScheme.secondary)
                     }
+                    LimitMeter(site, usage, now)
                     if (!hasSession) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             OutlinedButton(onClick = onPause) { Text("Feloldás időre…") }
                             OutlinedButton(onClick = onSchedule) { Text("Menetrend…") }
+                            OutlinedButton(onClick = onLimit) { Text("Napi keret…") }
                             OutlinedButton(onClick = onDelete) { Text("Törlés…") }
                         }
                     }
@@ -577,6 +598,88 @@ private fun SiteCard(
             }
         }
     }
+}
+
+/**
+ * Mai keret egy sávon. Kettős kódolás: a szín MELLETT a felirat is kimondja,
+ * hogy elfogyott-e — így annak is olvasható, aki a két színt nem különbözteti meg.
+ */
+@Composable
+private fun LimitMeter(site: Site, usage: UsageLogic.UsageState, now: Long) {
+    val limit = LimitLogic.normalizeLimit(site.dailyLimitSeconds) ?: return
+    val used = LimitLogic.usedTodaySeconds(usage, site.domain, now)
+    val exhausted = used >= limit
+    val fraction = (used / limit).coerceIn(0.0, 1.0).toFloat()
+    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+        Text(
+            if (exhausted) {
+                "Napi keret elfogyott (${UsageLogic.formatDuration(limit.toDouble())}) — holnap újraindul"
+            } else {
+                "Napi keret: ${UsageLogic.formatDuration(used)} / ${UsageLogic.formatDuration(limit.toDouble())}"
+            },
+            style = MaterialTheme.typography.bodySmall,
+        )
+        LinearProgressIndicator(
+            progress = { fraction },
+            modifier = Modifier.fillMaxWidth(),
+            color = if (exhausted) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+        )
+    }
+}
+
+private val LIMIT_CHOICES_MIN = listOf(10, 20, 30, 45, 60, 90, 120)
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun LimitDialog(
+    site: Site,
+    onDismiss: () -> Unit,
+    onApplied: () -> Unit,
+    onChallenge: () -> Unit,
+    onError: (String) -> Unit,
+) {
+    var chosen by remember { mutableStateOf(site.dailyLimitSeconds) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Napi keret: ${site.domain}") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    "Ha a mai aktív idő eléri a keretet, az oldal a nap hátralévő " +
+                        "részére magától visszazár, éjfélkor pedig a keret újraindul. " +
+                        "Keretet bevezetni vagy csökkenteni azonnal megy; emelni vagy " +
+                        "megszüntetni ugyanúgy próbatételekbe kerül, mint egy feloldás.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    for (min in LIMIT_CHOICES_MIN) {
+                        val seconds = min * 60L
+                        if (chosen == seconds) {
+                            Button(onClick = { chosen = seconds }) { Text("$min perc") }
+                        } else {
+                            OutlinedButton(onClick = { chosen = seconds }) { Text("$min perc") }
+                        }
+                    }
+                    if (chosen == null) {
+                        Button(onClick = { chosen = null }) { Text("Nincs keret") }
+                    } else {
+                        OutlinedButton(onClick = { chosen = null }) { Text("Nincs keret") }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                try {
+                    val r = Referee.startLimitChange(site.id, chosen, System.currentTimeMillis())
+                    if (r.applied) onApplied() else onChallenge()
+                } catch (e: Referee.RefereeException) {
+                    onError(e.message ?: "Ismeretlen hiba")
+                }
+            }) { Text("Alkalmaz") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Mégse") } },
+    )
 }
 
 // ========================================================= CHALLENGE SCREEN
