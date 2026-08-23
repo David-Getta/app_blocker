@@ -554,6 +554,10 @@ private fun SiteCard(
                         "Szünetel még ${fmtRemain(site.pauseUntil!! - now)}",
                         color = MaterialTheme.colorScheme.tertiary,
                     )
+                    // A keret a szünet alatt IS fogy — az idő akkor is elmegy az
+                    // oldalra. Ha ezt elrejtenénk, a szünet végén jönne a
+                    // meglepetés, hogy az oldal azonnal zár.
+                    LimitMeter(site, usage, now, duringPause = true)
                     OutlinedButton(onClick = {
                         LakatStore.mutate { s ->
                             s.copy(sites = s.sites.map {
@@ -585,7 +589,7 @@ private fun SiteCard(
                     } else {
                         Text("Blokkolva", color = MaterialTheme.colorScheme.secondary)
                     }
-                    LimitMeter(site, usage, now)
+                    LimitMeter(site, usage, now, duringPause = false)
                     if (!hasSession) {
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             OutlinedButton(onClick = onPause) { Text("Feloldás időre…") }
@@ -605,17 +609,22 @@ private fun SiteCard(
  * hogy elfogyott-e — így annak is olvasható, aki a két színt nem különbözteti meg.
  */
 @Composable
-private fun LimitMeter(site: Site, usage: UsageLogic.UsageState, now: Long) {
+private fun LimitMeter(site: Site, usage: UsageLogic.UsageState, now: Long, duringPause: Boolean) {
     val limit = LimitLogic.normalizeLimit(site.dailyLimitSeconds) ?: return
     val used = LimitLogic.usedTodaySeconds(usage, site.domain, now)
     val exhausted = used >= limit
     val fraction = (used / limit).coerceIn(0.0, 1.0).toFloat()
+    val whole = UsageLogic.formatDuration(limit.toDouble())
     Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
         Text(
-            if (exhausted) {
-                "Napi keret elfogyott (${UsageLogic.formatDuration(limit.toDouble())}) — holnap újraindul"
-            } else {
-                "Napi keret: ${UsageLogic.formatDuration(used)} / ${UsageLogic.formatDuration(limit.toDouble())}"
+            when {
+                // A szünet erősebb a keretnél, tehát az oldal MOST még megy —
+                // de a szünet végén már nem fog. Mondjuk ki előre.
+                exhausted && duringPause -> "Napi keret elfogyott ($whole) — a szünet végén visszazár"
+                exhausted -> "Napi keret elfogyott ($whole) — holnap újraindul"
+                duringPause ->
+                    "Napi keret: ${UsageLogic.formatDuration(used)} / $whole — a szünet alatt is fogy"
+                else -> "Napi keret: ${UsageLogic.formatDuration(used)} / $whole"
             },
             style = MaterialTheme.typography.bodySmall,
         )

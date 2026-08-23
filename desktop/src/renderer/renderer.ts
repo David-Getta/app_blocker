@@ -184,6 +184,12 @@ function siteRow(site: SiteInfo, st: StatusData): HTMLElement {
   if (paused) {
     const p = h('span', 'pill pill-warn', `Szünetel még ${fmtRemain(site.pauseUntil! - now)}`);
     statusEl.appendChild(p);
+    // A keret a szünet alatt IS fogy — az idő akkor is elmegy az oldalra.
+    // Ha ezt elrejtenénk, a szünet végén jönne a meglepetés, hogy az oldal
+    // azonnal zár. Inkább látszódjon, amíg lehet vele kezdeni valamit.
+    if (site.dailyLimitSeconds) {
+      statusEl.appendChild(limitMeter(site, true));
+    }
     const relock = h('button', 'btn btn-small', 'Blokkolás visszakapcsolása most');
     relock.addEventListener('click', () => void doSimple('relock', { siteId: site.id }));
     actions.appendChild(relock);
@@ -203,7 +209,7 @@ function siteRow(site: SiteInfo, st: StatusData): HTMLElement {
       statusEl.appendChild(h('span', 'pill pill-ok', 'Blokkolva'));
     }
     if (site.dailyLimitSeconds) {
-      statusEl.appendChild(limitMeter(site));
+      statusEl.appendChild(limitMeter(site, false));
     }
     if (!st.session) {
       const unlock = h('button', 'btn btn-small', 'Feloldás időre…');
@@ -228,14 +234,23 @@ function siteRow(site: SiteInfo, st: StatusData): HTMLElement {
  * text says what happened, so it reads the same for anyone who cannot tell the
  * two colours apart.
  */
-function limitMeter(site: SiteInfo): HTMLElement {
+function limitMeter(site: SiteInfo, duringPause: boolean): HTMLElement {
   const limit = site.dailyLimitSeconds ?? 0;
   const used = Math.min(site.usedTodaySeconds, limit);
   const pct = limit > 0 ? Math.round((used / limit) * 100) : 0;
   const wrap = h('div', 'limit-meter');
-  const label = site.limitExhausted
-    ? `Napi keret elfogyott (${formatDuration(limit)}) — holnap újraindul`
-    : `Napi keret: ${formatDuration(used)} / ${formatDuration(limit)}`;
+  let label: string;
+  if (site.limitExhausted && duringPause) {
+    // A szünet erősebb a keretnél, tehát az oldal MOST még megy — de a szünet
+    // végén már nem fog. Ezt előre kimondjuk, ne a bezáródás mondja el.
+    label = `Napi keret elfogyott (${formatDuration(limit)}) — a szünet végén visszazár`;
+  } else if (site.limitExhausted) {
+    label = `Napi keret elfogyott (${formatDuration(limit)}) — holnap újraindul`;
+  } else if (duringPause) {
+    label = `Napi keret: ${formatDuration(used)} / ${formatDuration(limit)} — a szünet alatt is fogy`;
+  } else {
+    label = `Napi keret: ${formatDuration(used)} / ${formatDuration(limit)}`;
+  }
   wrap.appendChild(h('div', 'limit-label', label));
   const bar = h('div', 'limit-bar');
   const fill = h('div', site.limitExhausted ? 'limit-fill limit-fill-full' : 'limit-fill');
