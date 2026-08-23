@@ -277,7 +277,7 @@ enum Referee {
         let shift = jump - clockJumpThresholdMs
 
         LakatStore.shared.mutate { state in
-            if var s = state.session {
+            if var s = state.session, s.steps.indices.contains(s.stepIndex) {
                 if case let .delay(id, minutes, claimableAt?, window) = s.steps[s.stepIndex] {
                     s.steps[s.stepIndex] = .delay(id: id, minutes: minutes,
                                                   claimableAt: claimableAt + shift, claimWindowMs: window)
