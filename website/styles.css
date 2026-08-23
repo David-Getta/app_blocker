@@ -57,6 +57,16 @@ h2 { font-size: 1.25rem; margin: 40px 0 16px; }
 .card a.dl:hover { border-color: var(--accent); }
 .card .muted { color: var(--dim); font-size: 0.85rem; }
 
+.feat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; }
+.feat {
+  background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+  padding: 18px 20px;
+}
+.feat-ico { font-size: 26px; }
+.feat h3 { font-size: 1rem; margin: 8px 0 6px; }
+.feat p { color: var(--dim); font-size: 0.9rem; }
+.feat strong { color: var(--text); font-weight: 600; }
+
 .how p, .note li { color: var(--dim); }
 .note ul { list-style: none; display: flex; flex-direction: column; gap: 10px; }
 .note li { padding-left: 18px; position: relative; }
