@@ -19,6 +19,8 @@ data class Site(
     val pendingDeleteAt: Long?,
     /** optional weekly schedule; null = always blocked */
     val schedule: ScheduleLogic.Schedule? = null,
+    /** napi aktív-idő keret másodpercben; null = nincs keret */
+    val dailyLimitSeconds: Long? = null,
 )
 
 data class SessionRec(
@@ -31,6 +33,9 @@ data class SessionRec(
     val createdAt: Long,
     /** when set, finishing applies this schedule instead of pausing (gated loosening) */
     val pendingSchedule: ScheduleLogic.Schedule? = null,
+    /** when set, finishing applies this daily budget instead of pausing;
+     *  a -1 érték azt jelenti: „vedd le a keretet” (mindkettő kapuzott lazítás) */
+    val pendingLimit: Long? = null,
 )
 
 /**
@@ -89,13 +94,12 @@ object LakatStore {
 
     fun newId(prefix: String): String = "${prefix}_${UUID.randomUUID().toString().take(12)}"
 
-    /** hostnames that must be blocked right now (pause + schedule aware) */
+    /** hostnames that must be blocked right now (pause + schedule + napi keret) */
     fun blockedHostnamesNow(now: Long): Set<String> {
+        val state = _state.value
         val out = mutableSetOf<String>()
-        for (site in _state.value.sites) {
-            if (ScheduleLogic.isBlockedNow(site.pauseUntil, site.pendingDeleteAt, site.schedule, now)) {
-                out.addAll(site.hostnames)
-            }
+        for (site in state.sites) {
+            if (LimitLogic.isBlockedNowWithLimit(site, state.usage, now)) out.addAll(site.hostnames)
         }
         return out
     }
@@ -176,6 +180,7 @@ object LakatStore {
                 put("pauseUntil", site.pauseUntil ?: JSONObject.NULL)
                 put("pendingDeleteAt", site.pendingDeleteAt ?: JSONObject.NULL)
                 put("schedule", site.schedule?.let { scheduleToJson(it) } ?: JSONObject.NULL)
+                put("dailyLimitSeconds", site.dailyLimitSeconds ?: JSONObject.NULL)
             }
         }))
         put("unlockLog", JSONArray(s.unlockLog))
@@ -194,6 +199,7 @@ object LakatStore {
                 put("stepIndex", ses.stepIndex); put("createdAt", ses.createdAt)
                 put("steps", JSONArray(ses.steps.map { stepToJson(it) }))
                 put("pendingSchedule", ses.pendingSchedule?.let { scheduleToJson(it) } ?: JSONObject.NULL)
+                put("pendingLimit", ses.pendingLimit ?: JSONObject.NULL)
             }
         } ?: JSONObject.NULL)
     }
@@ -273,6 +279,7 @@ object LakatStore {
                         pauseUntil = if (s.isNull("pauseUntil")) null else s.getLong("pauseUntil"),
                         pendingDeleteAt = if (s.isNull("pendingDeleteAt")) null else s.getLong("pendingDeleteAt"),
                         schedule = if (s.isNull("schedule")) null else scheduleFromJson(s.getJSONObject("schedule")),
+                        dailyLimitSeconds = if (s.isNull("dailyLimitSeconds")) null else s.getLong("dailyLimitSeconds"),
                     )
                 }.getOrNull()
             }
@@ -294,6 +301,7 @@ object LakatStore {
                     createdAt = ses.getLong("createdAt"),
                     pendingSchedule = if (ses.isNull("pendingSchedule")) null
                         else scheduleFromJson(ses.getJSONObject("pendingSchedule")),
+                    pendingLimit = if (ses.isNull("pendingLimit")) null else ses.getLong("pendingLimit"),
                 )
             }
         }.getOrNull()?.takeIf { it.steps.isNotEmpty() && it.stepIndex in it.steps.indices }

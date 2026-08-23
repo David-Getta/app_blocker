@@ -8,6 +8,10 @@ files:
   - node_modules/**
 asar: true
 
+# Aláírás-utómunka: tanúsítvány nélkül ad-hoc aláírjuk a macOS bundle-t,
+# különben Apple szilíciumon el sem indul. Lásd scripts/after-pack.js.
+afterPack: scripts/after-pack.js
+
 # Automatikus frissítés forrása: GitHub Releases. A `gh` tulajdonos/repo a
 # CI-ban a GH_TOKEN-ből is jön; itt rögzítjük az alapértelmezettet.
 publish:
