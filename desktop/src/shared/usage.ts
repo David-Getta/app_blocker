@@ -8,7 +8,9 @@
 // Pure and dependency-free, so the same logic is mirrored by Kotlin/Swift.
 // See docs/feature-usage-stats.md.
 
-import { normalizeDomain } from './blocklist';
+// Explicit .js: the renderer runs this through the browser's native ESM
+// loader, which does not add extensions (TypeScript leaves the specifier as-is).
+import { normalizeDomain } from './blocklist.js';
 
 export type TargetKind = 'app' | 'site';
 

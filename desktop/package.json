@@ -8,7 +8,7 @@
   "license": "UNLICENSED",
   "main": "dist/main/main.js",
   "scripts": {
-    "build": "tsc -p tsconfig.json && tsc -p tsconfig.renderer.json && node scripts/copy-static.js",
+    "build": "tsc -p tsconfig.json && tsc -p tsconfig.renderer.json && node scripts/copy-static.js && node scripts/check-esm-specifiers.js",
     "start": "npm run build && electron .",
     "helper:dev": "npm run build && node dist/helper/index.js",
     "test": "npm run build && tsc -p tsconfig.test.json && node --test \"dist-test/test/*.test.js\"",
