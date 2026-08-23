@@ -1,4 +1,6 @@
+import hu.lakat.app.core.AbandonRec
 import hu.lakat.app.core.AppState
+import hu.lakat.app.core.ChallengeEngine.Kind
 import hu.lakat.app.core.LakatStore
 import hu.lakat.app.core.ScheduleLogic
 import org.json.JSONObject
@@ -24,6 +26,10 @@ class StoreParseTest {
         .apply { isAccessible = true }
 
     private fun parse(raw: String): AppState = fromJson.invoke(LakatStore, JSONObject(raw)) as AppState
+
+    private val toJson = LakatStore::class.java
+        .getDeclaredMethod("toJson", AppState::class.java)
+        .apply { isAccessible = true }
 
     private fun site(id: String, extra: String = "") =
         """{"id":"$id","domain":"$id.com","hostnames":["$id.com"],"addedAt":1,
@@ -83,5 +89,25 @@ class StoreParseTest {
         assertEquals(1, state.sites.size)
         assertEquals(1, state.usage.days.size, "only the unreadable day is lost")
         assertEquals(42.0, state.usage.days[0].seconds["app:slack"])
+    }
+    @Test fun `the abandon record survives a save and load`() {
+        // It is what stops a cancelled attempt from being a free re-roll, so it
+        // has to outlive an app restart — otherwise closing the app would be the
+        // re-roll instead.
+        val state = AppState(lastAbandon = AbandonRec("site_1", Kind.PAUSE, "MEMORY+REVERSE", 1_700_000_000_000))
+        val round = parse(toJson.invoke(LakatStore, state).toString())
+        assertEquals(state.lastAbandon, round.lastAbandon)
+    }
+
+    @Test fun `a corrupt abandon record costs only the re-roll guard`() {
+        val state = parse("""{"sites":[${site("youtube")}],"lastAbandon":{"siteId":"x","kind":"QUANTUM"}}""")
+        assertNull(state.lastAbandon)
+        assertEquals(1, state.sites.size, "and not the blocklist")
+    }
+
+    @Test fun `state written before this feature still loads`() {
+        val state = parse("""{"sites":[${site("youtube")}]}""")
+        assertNull(state.lastAbandon)
+        assertEquals(1, state.sites.size)
     }
 }

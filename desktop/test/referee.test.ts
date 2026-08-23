@@ -12,7 +12,7 @@ fs.writeFileSync(process.env.LAKAT_HOSTS, '127.0.0.1 localhost\n');
 
 import { test } from 'node:test';
 import * as assert from 'node:assert/strict';
-import { defaultState, newId } from '../src/helper/state';
+import { defaultState, loadState, newId } from '../src/helper/state';
 import type { HelperState } from '../src/helper/state';
 import * as referee from '../src/helper/referee';
 import { applyBlocklist, activeHostnames } from '../src/helper/hosts';
@@ -313,4 +313,46 @@ test('missing the DELAY claim window does not re-roll the challenge either', () 
   const again = state.session!.steps.filter((s) => s.type !== 'DELAY').map((s) => s.type);
   assert.equal([...again].sort().join('+'), [...types].sort().join('+'),
     'sitting out the wait is not a re-roll');
+});
+
+test('a state file whose session points past its steps is not loaded', () => {
+  // Every referee operation reads steps[stepIndex]. An out-of-range index —
+  // from a half-written file after a crash — would throw on every attempt to
+  // finish OR cancel it, leaving the site wedged until the session aged out.
+  const file = process.env.LAKAT_STATE!;
+  const backup = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : null;
+  try {
+    fs.writeFileSync(file, JSON.stringify({
+      version: 1, sites: [], unlockLog: [], lastCombo: null, dohApplied: false,
+      usage: { days: [], labels: {}, enabled: true },
+      session: {
+        id: 'ses_x', kind: 'pause', siteId: 'site_x', steps: [
+          { id: 'st1', type: 'TRANSCRIBE', text: 'abc' },
+        ], stepIndex: 5, createdAt: Date.now(),
+      },
+    }));
+    const loaded = loadState();
+    assert.equal(loaded.session, null, 'the unusable session is dropped');
+  } finally {
+    if (backup !== null) fs.writeFileSync(file, backup);
+  }
+});
+
+test('a state file with a valid session keeps it', () => {
+  const file = process.env.LAKAT_STATE!;
+  const backup = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : null;
+  try {
+    fs.writeFileSync(file, JSON.stringify({
+      version: 1, sites: [], unlockLog: [], lastCombo: null, dohApplied: false,
+      usage: { days: [], labels: {}, enabled: true },
+      session: {
+        id: 'ses_x', kind: 'pause', siteId: 'site_x', steps: [
+          { id: 'st1', type: 'TRANSCRIBE', text: 'abc' },
+        ], stepIndex: 0, createdAt: Date.now(),
+      },
+    }));
+    assert.equal(loadState().session?.id, 'ses_x');
+  } finally {
+    if (backup !== null) fs.writeFileSync(file, backup);
+  }
 });
