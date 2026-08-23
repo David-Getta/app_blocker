@@ -6,6 +6,7 @@ import android.net.VpnService
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -23,6 +24,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -42,6 +44,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
@@ -581,19 +584,46 @@ private fun SiteCard(
     site: Site, usage: UsageLogic.UsageState, now: Long, hasSession: Boolean,
     onPause: () -> Unit, onDelete: () -> Unit, onSchedule: () -> Unit, onLimit: () -> Unit,
 ) {
+    val paused = site.pauseUntil != null && site.pauseUntil > now
+    val deleting = site.pendingDeleteAt != null
+    val scheduled = site.schedule != null && site.schedule.mode != ScheduleLogic.Mode.ALWAYS
+    val blockedNow = LimitLogic.isBlockedNowWithLimit(site, usage, now)
+
     Card {
-        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(site.domain, fontWeight = FontWeight.Bold)
-            Text("${site.hostnames.size} hosztnév", style = MaterialTheme.typography.bodySmall)
-            val paused = site.pauseUntil != null && site.pauseUntil > now
-            val deleting = site.pendingDeleteAt != null
-            val scheduled = site.schedule != null && site.schedule.mode != ScheduleLogic.Mode.ALWAYS
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            // Fejléc: a NÉV és az ÁLLAPOT egy sorban — ez a kettő kell ránézésre.
+            // Minden más ez alá kerül, halkabban.
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.Top,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(site.domain, style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "${site.hostnames.size} hosztnév",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                when {
+                    paused -> StatusChip(
+                        "Szünetel még ${fmtRemain(site.pauseUntil!! - now)}",
+                        MaterialTheme.colorScheme.tertiary,
+                    )
+                    deleting -> StatusChip(
+                        "Törlés ${fmtRemain(site.pendingDeleteAt!! - now)} múlva",
+                        MaterialTheme.colorScheme.error,
+                    )
+                    scheduled -> StatusChip(
+                        if (blockedNow) "Most blokkolva (menetrend)" else "Most szabad (menetrend)",
+                        if (blockedNow) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.tertiary,
+                    )
+                    else -> StatusChip("Blokkolva", MaterialTheme.colorScheme.secondary)
+                }
+            }
             when {
                 paused -> {
-                    Text(
-                        "Szünetel még ${fmtRemain(site.pauseUntil!! - now)}",
-                        color = MaterialTheme.colorScheme.tertiary,
-                    )
                     // A keret a szünet alatt IS fogy — az idő akkor is elmegy az
                     // oldalra. Ha ezt elrejtenénk, a szünet végén jönne a
                     // meglepetés, hogy az oldal azonnal zár.
@@ -607,10 +637,6 @@ private fun SiteCard(
                     }) { Text("Blokkolás visszakapcsolása most") }
                 }
                 deleting -> {
-                    Text(
-                        "Törlés ${fmtRemain(site.pendingDeleteAt!! - now)} múlva",
-                        color = MaterialTheme.colorScheme.error,
-                    )
                     OutlinedButton(onClick = {
                         BreakerStore.mutate { s ->
                             s.copy(sites = s.sites.map {
@@ -620,27 +646,53 @@ private fun SiteCard(
                     }) { Text("Törlés visszavonása") }
                 }
                 else -> {
-                    val blockedNow = LimitLogic.isBlockedNowWithLimit(site, usage, now)
-                    if (scheduled) {
-                        Text(
-                            if (blockedNow) "Most blokkolva (menetrend)" else "Most szabad (menetrend szerint)",
-                            color = if (blockedNow) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.tertiary,
-                        )
-                    } else {
-                        Text("Blokkolva", color = MaterialTheme.colorScheme.secondary)
-                    }
                     LimitMeter(site, usage, now, duringPause = false)
                     if (!hasSession) {
-                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedButton(onClick = onPause) { Text("Feloldás időre…") }
-                            OutlinedButton(onClick = onSchedule) { Text("Menetrend…") }
-                            OutlinedButton(onClick = onLimit) { Text("Napi keret…") }
-                            OutlinedButton(onClick = onDelete) { Text("Törlés…") }
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                        // A műveletek nem főszereplők: keret nélküli szöveggombok,
+                        // nem négy egyforma körvonalas gomb. A törlés utolsó, és
+                        // egyedül visel hibaszínt — így nem téveszthető össze a
+                        // rutinműveletekkel. (Súlyozott térköz itt szándékosan
+                        // nincs: telefonszélességen a sor úgyis tördelődik, és a
+                        // rugalmas hézag ilyenkor széttolná a tördelt sorokat.)
+                        FlowRow(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(2.dp),
+                        ) {
+                            TextButton(onClick = onPause) { Text("Feloldás időre…") }
+                            TextButton(onClick = onSchedule) { Text("Menetrend…") }
+                            TextButton(onClick = onLimit) { Text("Napi keret…") }
+                            TextButton(onClick = onDelete) {
+                                Text("Törlés…", color = MaterialTheme.colorScheme.error)
+                            }
                         }
                     }
                 }
             }
         }
+    }
+}
+
+/**
+ * Állapotjelző a kártya fejlécében.
+ *
+ * A színt MINDIG kíséri felirat: aki a zöldet és a sárgát nem különbözteti meg,
+ * annak is meg kell tudnia, hogy az oldal most tiltva van-e.
+ */
+@Composable
+private fun StatusChip(text: String, tone: Color) {
+    Surface(
+        color = tone.copy(alpha = 0.14f),
+        contentColor = tone,
+        shape = MaterialTheme.shapes.small,
+        border = BorderStroke(1.dp, tone.copy(alpha = 0.3f)),
+    ) {
+        Text(
+            text,
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+        )
     }
 }
 
