@@ -148,6 +148,7 @@ function render(): void {
 
   renderSiteList(status!);
   renderTier(status!);
+  renderLegacyHelperBanner(status!);
   renderHelperStaleBanner(status!);
   renderProbeWarning(status!.usageEnabled);
   renderResumeBanner(status!);
@@ -158,6 +159,30 @@ function renderTier(st: StatusData): void {
   const names = ['alap', 'emelt', 'magas', 'maximális'];
   $('tierLine').textContent =
     `Próbatétel-nehézség: ${names[st.tier]} (${st.tier + 1}/4) · ${st.unlocks7d} feloldás az elmúlt 7 napban — minél többször oldasz fel, annál nehezebb.`;
+}
+
+/**
+ * Egy KORÁBBI NÉVEN telepített segéd még fut.
+ *
+ * Az app 0.1.4-ig Lakat volt; a névváltással a segéd is új azonosítót kapott,
+ * a régi LaunchDaemon viszont nem tűnik el magától — a rendszer minden bootnál
+ * elindítja. Ilyenkor két root démon dolgozik ugyanazon a hosts fájlon, és
+ * mindkettő figyeli a változást: körbe-körbe írják felül egymást, folyamatos
+ * DNS-ürítéssel. Ez a felhasználónak annyiból állna, hogy „valami furcsa”, és
+ * semmilyen felület nem mondaná meg, mi.
+ */
+function renderLegacyHelperBanner(st: StatusData): void {
+  const banner = $('legacyHelperBanner');
+  const show = st.legacyHelperRunning === true;
+  banner.classList.toggle('hidden', !show);
+  if (show) {
+    $('legacyHelperText').textContent =
+      'Egy korábbi verzió (Lakat) háttérszolgáltatása még fut, és ugyanazt a rendszerfájlt '
+      + 'írja, mint a Breaker. Amíg ez így van, maradhatnak olyan tiltások, amiket itt nem '
+      + 'látsz. Terminálban ez állítja le: '
+      + 'sudo launchctl bootout system/hu.lakat.helper && '
+      + 'sudo rm -f /Library/LaunchDaemons/hu.lakat.helper.plist';
+  }
 }
 
 /**

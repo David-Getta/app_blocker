@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import * as assert from 'node:assert/strict';
 import {
   normalizeDomain, expandHostnames, buildManagedBlock, replaceManagedBlock,
-  extractManagedBlock, MARKER_BEGIN, MARKER_END,
+  extractManagedBlock, MARKER_BEGIN, MARKER_END, hasLegacyBlock, stripLegacyBlocks,
 } from '../src/shared/blocklist';
 
 test('normalizeDomain accepts messy user input', () => {
@@ -85,7 +85,9 @@ test('a block written under the old name is cleaned up', () => {
     '10.0.0.5 sajat-gep',
   ].join('\n') + '\n';
 
-  const out = replaceManagedBlock(hosts, buildManagedBlock(['reddit.com'], 'darwin'));
+  assert.equal(hasLegacyBlock(hosts), true, 'a régi blokk felismerhető');
+  // Ahogy a segéd csinálja: előbb takarít, aztán írja a sajátját.
+  const out = replaceManagedBlock(stripLegacyBlocks(hosts), buildManagedBlock(['reddit.com'], 'darwin'));
   assert.ok(!out.includes('LAKAT BLOCK'), 'a régi jelölők eltűntek');
   assert.ok(!out.includes('youtube.com'), 'a régi blokk sorai is eltűntek');
   assert.ok(out.includes('127.0.0.1 localhost'), 'a felhasználó saját sorai megmaradtak');
@@ -97,7 +99,7 @@ test('an unterminated old block does not swallow the rest of the file', () => {
   // Félbeszakadt írás után maradhat nyitó jelölő záró nélkül. Ilyenkor a
   // fájl végéig takarítunk — de csak azért, mert az EGÉSZ maradék a szemét.
   const hosts = '127.0.0.1 localhost\n\n# >>> LAKAT BLOCK BEGIN\n0.0.0.0 youtube.com\n';
-  const out = replaceManagedBlock(hosts, '');
+  const out = replaceManagedBlock(stripLegacyBlocks(hosts), '');
   assert.ok(!out.includes('LAKAT'), 'a csonka blokk eltűnt');
   assert.ok(!out.includes('youtube.com'));
   assert.ok(out.includes('127.0.0.1 localhost'), 'a fájl eleje megmaradt');
@@ -105,7 +107,7 @@ test('an unterminated old block does not swallow the rest of the file', () => {
 
 test('cleaning up the old name is idempotent', () => {
   const hosts = '127.0.0.1 localhost\n';
-  const once = replaceManagedBlock(hosts, buildManagedBlock(['a.com'], 'darwin'));
-  const twice = replaceManagedBlock(once, buildManagedBlock(['a.com'], 'darwin'));
+  const once = replaceManagedBlock(stripLegacyBlocks(hosts), buildManagedBlock(['a.com'], 'darwin'));
+  const twice = replaceManagedBlock(stripLegacyBlocks(once), buildManagedBlock(['a.com'], 'darwin'));
   assert.equal(twice, once);
 });

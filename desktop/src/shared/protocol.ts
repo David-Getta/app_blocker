@@ -61,6 +61,8 @@ export interface StatusData {
   dohPolicyApplied: boolean;
   /** whether active-time measurement is switched on */
   usageEnabled: boolean;
+  /** egy korábbi néven telepített segéd láthatóan még fut (lásd hosts.ts) */
+  legacyHelperRunning?: boolean;
   now: number;
 }
 

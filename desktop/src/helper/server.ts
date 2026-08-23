@@ -19,6 +19,7 @@ import { newId } from './state';
 import * as referee from './referee';
 import { RefereeError } from './referee';
 import { socketPath } from './paths';
+import { legacyHelperSuspected } from './hosts';
 
 /** Hard limit on one usage_batch request — shared with the tracker's buffer cap,
  *  so a completely full buffer still fits into exactly one request. */
@@ -54,6 +55,7 @@ export function statusOf(state: HelperState, dohApplied: boolean): StatusData {
     session: referee.currentSession(state),
     dohPolicyApplied: dohApplied,
     usageEnabled: state.usage.enabled,
+    legacyHelperRunning: legacyHelperSuspected(),
     now,
   };
 }

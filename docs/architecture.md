@@ -189,6 +189,7 @@ minden bizonytalan helyzet a tiltás felé dől:
 | iOS: az állapotfájl létezik, de nem dekódolható | üres állapot ráírása → **minden blokk véglegesen elveszik** | nem írunk fölé, és a felület jelzi |
 | A helper socketje nem tehető biztonságossá | root parancscsatorna nyitva | a helper nem indul el |
 | A mérési puffer megtelik / elavul | korlátlan növekedés, néma eldobás a másik oldalon | korlátos puffer, legrégebbi megy először, naplózott eldobás |
+| Egy korábbi néven telepített segéd is fut (átnevezés után) | két démon körbe-körbe írja felül egymást a hosts fájlban, folyamatos DNS-ürítéssel, némán | a sorozatos visszatérésre abbahagyjuk a takarítást (a régi blokk marad = több tiltás), és a felület kiírja, mi állítja le |
 | Frissítés után az új GUI a RÉGI helperrel beszél | az ismeretlen parancs `data: undefined`-dal „sikerül” → a felhasználó azt hiszi, beállította a napi keretet | a helper `UNKNOWN_OP`-pal elhasal, a GUI sávban jelzi, és egy gombbal cseréli a démont |
 
 ### A frissítés utáni „régi helper” állapot

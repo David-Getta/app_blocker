@@ -74,6 +74,11 @@ export const LEGACY_MARKERS: ReadonlyArray<readonly [string, string]> = [
   ['# >>> LAKAT BLOCK BEGIN', '# <<< LAKAT BLOCK END'],
 ];
 
+/** Van-e a fájlban korábbi néven írt kezelt blokk? */
+export function hasLegacyBlock(hostsContent: string): boolean {
+  return LEGACY_MARKERS.some(([begin]) => hostsContent.includes(begin));
+}
+
 /** Kivágja a korábbi néven írt kezelt blokkokat. Idempotens. */
 export function stripLegacyBlocks(hostsContent: string): string {
   let out = hostsContent.replace(/\r\n/g, '\n');
@@ -112,8 +117,7 @@ export function buildManagedBlock(hostnames: string[], platform: string): string
  * Preserves everything outside the markers. Idempotent.
  */
 export function replaceManagedBlock(hostsContent: string, block: string): string {
-  // A régi néven írt blokkok itt tűnnek el: minden hosts-írás egyben takarítás is.
-  const normalized = stripLegacyBlocks(hostsContent);
+  const normalized = hostsContent.replace(/\r\n/g, '\n');
   const begin = normalized.indexOf(MARKER_BEGIN);
   const end = normalized.indexOf(MARKER_END);
   let before: string;

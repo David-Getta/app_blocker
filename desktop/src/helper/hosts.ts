@@ -6,7 +6,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { execFile } from 'child_process';
 import {
-  buildManagedBlock, extractManagedBlock, replaceManagedBlock,
+  buildManagedBlock, extractManagedBlock, hasLegacyBlock, replaceManagedBlock, stripLegacyBlocks,
 } from '../shared/blocklist';
 import { isBlockedNowWithLimit } from '../shared/limits';
 import type { HelperState } from './state';
@@ -38,7 +38,53 @@ export async function flushDnsCache(): Promise<void> {
 }
 
 /** Rewrites the managed block to match state. Returns true when the file changed. */
-export function applyBlocklist(state: HelperState, now: number): boolean {
+// ------------------------------------------- a korábbi verzió segédje
+
+/**
+ * Fut-e még egy KORÁBBI néven telepített segéd?
+ *
+ * A régi (Lakat) LaunchDaemon az átnevezés után nem tűnik el magától: külön
+ * azonosítója van, a rendszer minden bootnál elindítja. Ha fut, a két segéd
+ * ugyanazon a hosts fájlon dolgozik, és mindkettő figyeli a változást — mi
+ * kitakarítjuk a régi blokkot, a régi visszaírja, mi megint kitakarítjuk.
+ * Végtelen pingpong, folyamatos DNS-ürítéssel, és EGYIK felület sem mutatja.
+ *
+ * Ezért számoljuk, hányszor bukkan fel újra a régi blokk. Ha rövid időn belül
+ * többször, az nem maradék, hanem élő démon: abbahagyjuk a takarítást, és
+ * szólunk. A takarítás abbahagyása a biztonságos irány — a régi blokk marad,
+ * tehát TÖBB oldal van tiltva, nem kevesebb (lásd a hibatűrés táblázatot).
+ */
+const LEGACY_WINDOW_MS = 2 * 60_000;
+const LEGACY_HITS_FOR_ALARM = 3;
+let legacyHits: number[] = [];
+let legacySuspected = false;
+
+/** Igaz, ha egy korábbi verzió segédje láthatóan MÉG FUT. */
+export function legacyHelperSuspected(): boolean {
+  return legacySuspected;
+}
+
+/** Csak tesztből: visszaállítja a felismerés állapotát. */
+export function resetLegacyDetection(): void {
+  legacyHits = [];
+  legacySuspected = false;
+}
+
+function noteLegacyBlock(now: number, log: (m: string) => void): void {
+  legacyHits = legacyHits.filter((t) => now - t < LEGACY_WINDOW_MS);
+  legacyHits.push(now);
+  if (!legacySuspected && legacyHits.length >= LEGACY_HITS_FOR_ALARM) {
+    legacySuspected = true;
+    log(
+      'a korábbi verzió segédje láthatóan még fut: a régi blokk többször visszatért. ' +
+      'A takarítást leállítom, hogy ne veszekedjen a két démon a hosts fájlon.',
+    );
+  }
+}
+
+export function applyBlocklist(
+  state: HelperState, now: number, log: (m: string) => void = () => { /* néma */ },
+): boolean {
   const file = hostsFilePath();
   const block = buildManagedBlock(activeHostnames(state, now), process.platform);
   let current = '';
@@ -50,7 +96,12 @@ export function applyBlocklist(state: HelperState, now: number): boolean {
   if (extractManagedBlock(current) === block && (block !== '' || !current.includes('BREAKER BLOCK'))) {
     return false;
   }
-  let next = replaceManagedBlock(current, block);
+  // A régi néven írt blokk takarítása — de csak amíg nem derül ki, hogy egy
+  // korábbi segéd MÉG FUT. Akkor inkább ott hagyjuk: két démon, ami körbe-körbe
+  // írja felül egymást, rosszabb, mint egy fölösleges blokk.
+  if (hasLegacyBlock(current) && !legacySuspected) noteLegacyBlock(now, log);
+  const base = legacySuspected ? current : stripLegacyBlocks(current);
+  let next = replaceManagedBlock(base, block);
   if (process.platform === 'win32') next = next.replace(/\n/g, '\r\n');
   const tmp = path.join(path.dirname(file), `.breaker-hosts.tmp`);
   try {

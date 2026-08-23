@@ -20,6 +20,7 @@ fs.writeFileSync(process.env.BREAKER_HOSTS, '127.0.0.1 localhost\n');
 import { test, before, after } from 'node:test';
 import * as assert from 'node:assert/strict';
 import { startServer, MAX_BATCH_SAMPLES } from '../src/helper/server';
+import { applyBlocklist, legacyHelperSuspected, resetLegacyDetection } from '../src/helper/hosts';
 import { defaultState, saveState, type HelperState } from '../src/helper/state';
 import { MAX_TARGETS_PER_DAY, OTHER_SITE_KEY } from '../src/shared/usage';
 
@@ -204,4 +205,51 @@ test('the helper socket is not reachable by other local users', () => {
   if (process.platform === 'win32') return;
   const mode = fs.statSync(process.env.BREAKER_SOCKET!).mode & 0o777;
   assert.equal(mode & 0o077, 0, `socket mode is ${mode.toString(8)}, must be owner-only`);
+});
+
+// ------------------------------- a korábbi verzió segédjének felismerése
+
+test('a legacy block that keeps coming back is reported, not fought', async () => {
+  // Az átnevezés után a régi (Lakat) LaunchDaemon nem tűnik el magától. Ha fut,
+  // két root démon írja ugyanazt a hosts fájlt, és mindkettő figyeli a
+  // változást: körbe-körbe írnák felül egymást, folyamatos DNS-ürítéssel — és
+  // a felhasználó csak annyit látna, hogy „valami furcsa”.
+  const hostsFile = process.env.BREAKER_HOSTS!;
+  const legacy = [
+    '# >>> LAKAT BLOCK BEGIN — ezt a részt a Lakat kezeli, kézzel ne szerkeszd',
+    '0.0.0.0 regi-oldal.example',
+    '# <<< LAKAT BLOCK END',
+  ].join('\n');
+
+  resetLegacyDetection();
+  assert.equal(legacyHelperSuspected(), false, 'induláskor nincs gyanú');
+
+  // Első két visszatérés még lehet maradék: takarítjuk, nem szólunk.
+  for (let i = 0; i < 2; i++) {
+    fs.writeFileSync(hostsFile, `127.0.0.1 localhost\n\n${legacy}\n`);
+    applyBlocklist(state, Date.now());
+    assert.ok(!fs.readFileSync(hostsFile, 'utf8').includes('LAKAT BLOCK'),
+      'amíg nincs gyanú, kitakarítjuk');
+  }
+  assert.equal(legacyHelperSuspected(), false, 'két visszatérés még nem élő démon');
+
+  // A harmadik viszont már nem maradék, hanem valaki visszaírja.
+  fs.writeFileSync(hostsFile, `127.0.0.1 localhost\n\n${legacy}\n`);
+  applyBlocklist(state, Date.now());
+  assert.equal(legacyHelperSuspected(), true, 'a sorozatos visszatérés élő démont jelent');
+
+  // Innentől NEM veszekszünk: a régi blokk maradhat. Ez a biztonságos irány —
+  // több oldal marad tiltva, nem kevesebb.
+  fs.writeFileSync(hostsFile, `127.0.0.1 localhost\n\n${legacy}\n`);
+  applyBlocklist(state, Date.now());
+  assert.ok(fs.readFileSync(hostsFile, 'utf8').includes('LAKAT BLOCK'),
+    'gyanú után békén hagyjuk a régi blokkot');
+});
+
+test('the status tells the GUI about the legacy helper', async () => {
+  const r = await call('status');
+  assert.equal(r.ok, true);
+  assert.equal((r.data as { legacyHelperRunning?: boolean }).legacyHelperRunning, true,
+    'a felület enélkül nem tudná kiírni, mi a baj');
+  resetLegacyDetection();
 });
