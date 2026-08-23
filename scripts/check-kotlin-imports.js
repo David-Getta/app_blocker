@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 // Catches a missing import of one of OUR OWN Kotlin core types.
 //
-// Why: the Compose UI files (hu.lakat.app.ui) are the only Kotlin sources that
+// Why: the Compose UI files (hu.breaker.app.ui) are the only Kotlin sources that
 // nothing here can compile — the JVM test harness deliberately leaves them out
 // (they need the Android SDK and Compose), so a missing `import
-// hu.lakat.app.core.X` first shows up as a red CI build minutes later, buried
+// hu.breaker.app.core.X` first shows up as a red CI build minutes later, buried
 // under dozens of cascading "unresolved reference" messages in unrelated lines.
 // This check reads the declarations out of the core package and verifies every
 // other file that says `X.` actually imports X. Runs in milliseconds.

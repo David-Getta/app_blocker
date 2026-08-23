@@ -25,9 +25,9 @@ npm start
 Jogosultság nélküli teszthez a helper átirányítható írható fájlokra:
 
 ```bash
-LAKAT_STATE=/tmp/lakat/state.json \
-LAKAT_HOSTS=/tmp/lakat/hosts \
-LAKAT_SOCKET=/tmp/lakat/lakat.sock \
+BREAKER_STATE=/tmp/breaker/state.json \
+BREAKER_HOSTS=/tmp/breaker/hosts \
+BREAKER_SOCKET=/tmp/breaker/breaker.sock \
 node dist/helper/index.js
 ```
 
@@ -39,10 +39,10 @@ npm run dist       # electron-builder → release/ (macOS: dmg/zip, Windows: nsi
 
 A GUI-ban a **„Védelem telepítése (egyszeri engedély)”** gomb telepíti a
 helpert:
-- **macOS:** LaunchDaemon `/Library/LaunchDaemons/hu.lakat.helper.plist`, egyetlen
+- **macOS:** LaunchDaemon `/Library/LaunchDaemons/hu.breaker.helper.plist`, egyetlen
   admin jóváhagyással. Ezután minden bootnál automatikusan indul — **nincs
   többé engedélykérés induláskor.**
-- **Windows:** `LakatHelper` SYSTEM ütemezett feladat, egyetlen UAC-jóváhagyással,
+- **Windows:** `BreakerHelper` SYSTEM ütemezett feladat, egyetlen UAC-jóváhagyással,
   `ONSTART` triggerrel.
 
 ## Aláírás (ajánlott éles használatra)

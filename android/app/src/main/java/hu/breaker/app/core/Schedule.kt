@@ -1,4 +1,4 @@
-package hu.lakat.app.core
+package hu.breaker.app.core
 
 import java.util.Calendar
 

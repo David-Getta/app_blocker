@@ -34,6 +34,47 @@ a Release címe mindig egyezik.
 > A már telepített asztali és Android (közvetlen) appok a következő indításkor
 > **maguktól felfrissülnek** erre a kiadásra.
 
+### Átállás a korábbi névről (Lakat → Breaker)
+
+Az app 0.1.4-ig **Lakat** volt. A 0.2.0 névváltással minden azonosító
+megváltozott (`hu.lakat.app` → `hu.breaker.app`, a segéd `hu.lakat.helper` →
+`hu.breaker.helper`, az Android `applicationId`, az iOS bundle ID-k és az App
+Group). Ezek nem „átnevezhetők”: a rendszer szempontjából ez egy MÁSIK app.
+
+Ami ebből következik, és amit ki kell mondani:
+
+- **A Breaker nem frissítésként érkezik a Lakat mellé, hanem külön appként.**
+  A régit kézzel kell eltávolítani.
+- **A régi macOS segéd magától tovább futna.** A LaunchDaemon minden
+  rendszerindításkor elindulna, és a hosts fájlban lévő blokkját is tartaná —
+  egy olyan app blokkolna oldalakat, amiről az új felület semmit nem tud.
+
+A régi telepítés eltávolítása macOS-en:
+
+```
+sudo launchctl bootout system/hu.lakat.helper
+sudo rm -f /Library/LaunchDaemons/hu.lakat.helper.plist
+sudo rm -rf "/Library/Application Support/Lakat" /Library/Logs/Lakat
+rm -rf /Applications/Lakat.app
+```
+
+Windowson a régi ütemezett feladat neve `LakatHelper`:
+
+```
+schtasks /Delete /TN "LakatHelper" /F
+```
+
+Androidon egyszerűen töröld a régi appot; a két csomagnév különbözik, tehát
+egymás mellett is megférnek.
+
+**A hosts fájlt nem kell kézzel javítani.** Az új segéd minden íráskor
+kitakarítja a régi néven írt blokkot is (`stripLegacyBlocks`), tehát a
+`# >>> LAKAT BLOCK` sorok az első blokkolásnál eltűnnek. Ez azért fontos, mert
+enélkül maradna pár örökre blokkolt oldal, amiről egyetlen felület sem tud —
+ez a legnehezebben kideríthető hibafajta.
+
+---
+
 ### Ha egy kiadás félresikerül
 
 **Ne szakítsd meg a futó kiadást.** A megszakítás nem áll meg tisztán: ami addig
@@ -53,7 +94,7 @@ lépésben, `gh release upload --clobber`-rel történik, és el is hasal, ha ne
 
 **Ellenőrzés kiadás után** (egy percbe kerül, és pont ezt fogta volna meg):
 
-- a macOS build logjában ott van-e az `ad-hoc signed Lakat.app` sor,
+- a macOS build logjában ott van-e az `ad-hoc signed Breaker.app` sor,
 - az asseteken a feltöltés ideje a MOSTANI futásé-e,
 - a `latest-mac.yml` és a `latest.yml` fent van-e (enélkül nincs frissítés).
 
@@ -88,7 +129,7 @@ Actions:
 Kulcs létrehozása:
 ```bash
 keytool -genkeypair -v -keystore release.jks -keyalg RSA -keysize 2048 \
-  -validity 10000 -alias lakat
+  -validity 10000 -alias breaker
 ```
 Secret nélkül a release APK a debug kulccsal íródik alá — közvetlen
 terjesztéshez jó (és konzisztens), a Play Store-hoz viszont saját kulcs kell.
@@ -134,7 +175,7 @@ Cím: `https://david-getta.github.io/app_blocker/`
 
 ### Google Play (Android)
 1. Google Play Console fiók (egyszeri $25).
-2. Töltsd fel a workflow által készített **AAB**-t (`Lakat-vX.Y.Z.aab`).
+2. Töltsd fel a workflow által készített **AAB**-t (`Breaker-vX.Y.Z.aab`).
 3. Első feltöltéskor engedélyezd a **Play App Signing**-ot.
 4. Add meg az adatvédelmi tájékoztatót és a VPN-használat indoklását (DNS-szűrés
    a felhasználó saját eszközén — a forgalom nem hagyja el a készüléket).
@@ -148,7 +189,7 @@ egyszer kézzel kell megtenni (a Play megköveteli).
 
 ### App Store (iOS + macOS)
 1. Apple Developer Program ($99/év).
-2. App Store Connectben hozd létre az appot a `hu.lakat.app` azonosítóval.
+2. App Store Connectben hozd létre az appot a `hu.breaker.app` azonosítóval.
 3. Xcode-ban vagy fastlane-nel: `xcodebuild archive` → `exportArchive` →
    `xcrun altool`/`notarytool` feltöltés, vagy `fastlane pilot` (TestFlight).
 4. A Network Extension (packet-tunnel) indoklása kell a review-hoz: helyi
@@ -160,7 +201,7 @@ egyszer kézzel kell megtenni (a Play megköveteli).
 archivál és feltölt, ha beállítod az App Store Connect API-kulcs secreteket:
 `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8` (a `.p8` kulcsfájl tartalma). Ehhez
 a `project.yml`-ben a `DEVELOPMENT_TEAM`-et is ki kell tölteni, és az App Store
-Connectben létre kell hozni az appot a `hu.lakat.app` azonosítóval. Az
+Connectben létre kell hozni az appot a `hu.breaker.app` azonosítóval. Az
 `-allowProvisioningUpdates` automatikusan kezeli a profilokat.
 | Secret | Mi ez |
 |--------|-------|

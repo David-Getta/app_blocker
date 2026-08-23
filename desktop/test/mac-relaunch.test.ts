@@ -7,11 +7,11 @@ import * as path from 'node:path';
 import { relaunchScript, shQuote, RELAUNCH_WAIT_STEPS } from '../src/shared/mac-relaunch';
 
 test('the new instance is started only AFTER the old one is gone', () => {
-  // Ez a teszt lényege. A Lakat egypéldányos: ha még futunk, amikor az újat
+  // Ez a teszt lényege. A Breaker egypéldányos: ha még futunk, amikor az újat
   // elindítjuk, az új nem kapja meg a zárat és azonnal kilép — utána a régi is
   // kilép, és a felhasználónak nem marad futó appja. A várakozásnak tehát meg
   // KELL előznie az indítást.
-  const s = relaunchScript(4321, '/Applications/Lakat.app', ['/Applications/Lakat.app.old-4321']);
+  const s = relaunchScript(4321, '/Applications/Breaker.app', ['/Applications/Breaker.app.old-4321']);
   const wait = s.indexOf('kill -0 4321');
   const open = s.indexOf('open -n');
   assert.ok(wait >= 0, 'megvárja a régi példány kilépését');
@@ -20,7 +20,7 @@ test('the new instance is started only AFTER the old one is gone', () => {
 
 test('the old bundle is deleted only after we are gone, and before the new start', () => {
   // A régi bundle-ből fut a kód, amíg élünk: futás közben törölni kockázat.
-  const s = relaunchScript(7, '/Applications/Lakat.app', ['/Applications/Lakat.app.old-7']);
+  const s = relaunchScript(7, '/Applications/Breaker.app', ['/Applications/Breaker.app.old-7']);
   const wait = s.indexOf('kill -0 7');
   const rm = s.indexOf('rm -rf');
   const open = s.indexOf('open -n');
@@ -48,13 +48,13 @@ test('the quoting really holds when a shell runs it', () => {
   // már nem létező pid-re vár (azonnal továbbmegy), és az `open` helyett a
   // PATH elejére tett saját szkriptünk fut, ami leírja, mit kapott.
   if (process.platform === 'win32') return; // nincs POSIX héj
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'lakat-relaunch-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'breaker-relaunch-'));
   const out = path.join(dir, 'got.txt');
   const fakeBin = path.join(dir, 'bin');
   fs.mkdirSync(fakeBin);
   fs.writeFileSync(path.join(fakeBin, 'open'), `#!/bin/sh\nprintf '%s\\n' "$2" > ${JSON.stringify(out)}\n`, { mode: 0o755 });
 
-  const weird = path.join(dir, `Lakat 'x'.app`);
+  const weird = path.join(dir, `Breaker 'x'.app`);
   fs.mkdirSync(weird);
   const backup = path.join(dir, 'backup.app');
   fs.mkdirSync(backup);

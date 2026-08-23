@@ -9,7 +9,7 @@ private func fmtRemain(_ ms: Double) -> String {
 }
 
 struct ContentView: View {
-    @EnvironmentObject var store: LakatStore
+    @EnvironmentObject var store: BreakerStore
     @EnvironmentObject var tunnel: TunnelController
 
     @State private var addInput = ""
@@ -39,7 +39,7 @@ struct ContentView: View {
                 }
                 .padding()
             }
-            .navigationTitle("🔒 Lakat")
+            .navigationTitle("🔒 Breaker")
             .sheet(item: $pauseSite) { site in pauseSheet(site) }
             .sheet(item: $scheduleSite) { site in
                 ScheduleEditor(site: site) { result in
@@ -82,7 +82,7 @@ struct ContentView: View {
     private var unreadableBanner: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("A mentett lista nem olvasható").font(.headline)
-            Text("A Lakat nem tudja értelmezni a mentett állapotot, ezért nem is ír fölé — így a beállításaid nem vesznek el. Ez általában akkor fordul elő, ha egy újabb verzió után régebbit telepítettél vissza. Frissíts a legfrissebb verzióra, és a lista magától újra előjön. Addig a már beállított blokkolások érvényben maradnak.")
+            Text("A Breaker nem tudja értelmezni a mentett állapotot, ezért nem is ír fölé — így a beállításaid nem vesznek el. Ez általában akkor fordul elő, ha egy újabb verzió után régebbit telepítettél vissza. Frissíts a legfrissebb verzióra, és a lista magától újra előjön. Addig a már beállított blokkolások érvényben maradnak.")
                 .font(.footnote).foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)

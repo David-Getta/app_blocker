@@ -52,10 +52,10 @@ struct AppState: Codable, Equatable {
 /// Shared state persisted to a JSON file in the App Group container, so the
 /// SwiftUI app and the Packet Tunnel extension read/write the same source of
 /// truth. A file coordinator keeps cross-process writes atomic.
-final class LakatStore: ObservableObject {
+final class BreakerStore: ObservableObject {
 
-    static let appGroup = "group.hu.lakat.app"
-    static let shared = LakatStore()
+    static let appGroup = "group.hu.breaker.app"
+    static let shared = BreakerStore()
 
     @Published private(set) var state = AppState()
     /// The state file exists but could not be decoded. Nothing is written while
@@ -64,12 +64,12 @@ final class LakatStore: ObservableObject {
 
     private var unreadableFile = false
     private let fileURL: URL
-    private let queue = DispatchQueue(label: "hu.lakat.store")
+    private let queue = DispatchQueue(label: "hu.breaker.store")
     private var source: DispatchSourceFileSystemObject?
 
     private init() {
         let container = FileManager.default
-            .containerURL(forSecurityApplicationGroupIdentifier: LakatStore.appGroup)
+            .containerURL(forSecurityApplicationGroupIdentifier: BreakerStore.appGroup)
             ?? FileManager.default.temporaryDirectory
         fileURL = container.appendingPathComponent("state.json")
         load()

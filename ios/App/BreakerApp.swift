@@ -1,8 +1,8 @@
 import SwiftUI
 
 @main
-struct LakatApp: App {
-    @StateObject private var store = LakatStore.shared
+struct BreakerApp: App {
+    @StateObject private var store = BreakerStore.shared
     @StateObject private var tunnel = TunnelController()
 
     var body: some Scene {

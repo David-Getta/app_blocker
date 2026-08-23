@@ -47,7 +47,7 @@ open class Context {
     }
     private val prefs = FakePrefs()
     open val applicationContext: Context get() = this
-    open val packageName: String get() = "hu.lakat.app"
+    open val packageName: String get() = "hu.breaker.app"
     open val packageManager: PackageManager get() = PackageManager()
     open fun getSharedPreferences(name: String, mode: Int): SharedPreferences = prefs
     open fun getSystemService(name: String): Any? = when (name) {

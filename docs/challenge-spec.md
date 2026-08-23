@@ -6,7 +6,7 @@ platform ugyanezt valósítja meg, közös kódból vagy annak pontos tükrözé
 | Platform | Fájl |
 |----------|------|
 | Desktop (Win/Mac) | `desktop/src/shared/challenges.ts` |
-| Android | `android/app/src/main/java/hu/lakat/app/core/ChallengeEngine.kt` |
+| Android | `android/app/src/main/java/hu/breaker/app/core/ChallengeEngine.kt` |
 | iOS/macOS | `ios/Shared/ChallengeEngine.swift` |
 
 ## Miért nem elég egy gomb

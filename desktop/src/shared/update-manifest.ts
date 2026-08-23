@@ -42,8 +42,8 @@ function normalize(v: string): number[] {
 /**
  * The zip to download for this Mac.
  *
- * electron-builder names them `Lakat-1.2.3-mac.zip` (Intel),
- * `Lakat-1.2.3-arm64-mac.zip` (Apple silicon) and `…-universal-mac.zip`.
+ * electron-builder names them `Breaker-1.2.3-mac.zip` (Intel),
+ * `Breaker-1.2.3-arm64-mac.zip` (Apple silicon) and `…-universal-mac.zip`.
  * A universal build runs everywhere, so it is the fallback — but never the
  * first choice, because it is roughly twice the download.
  *
@@ -104,8 +104,8 @@ export function manifestEntryFor(
 }
 
 /**
- * The `.app` bundle an executable lives in — `/Applications/Lakat.app` for
- * `/Applications/Lakat.app/Contents/MacOS/Lakat`.
+ * The `.app` bundle an executable lives in — `/Applications/Breaker.app` for
+ * `/Applications/Breaker.app/Contents/MacOS/Breaker`.
  *
  * Null when the executable is not inside a bundle (a dev run, or a build run
  * straight from a directory), which is exactly when self-updating must not be

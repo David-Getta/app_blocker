@@ -6,7 +6,7 @@
 // unlock challenges and re-applies the block if the file is tampered with.
 //
 // Dev mode: `sudo npm run helper:dev`, or unprivileged with
-// LAKAT_STATE/LAKAT_HOSTS/LAKAT_SOCKET pointing at writable paths.
+// BREAKER_STATE/BREAKER_HOSTS/BREAKER_SOCKET pointing at writable paths.
 
 import { loadState, saveState } from './state';
 import { applyBlocklist, applyDohPolicies, watchHosts } from './hosts';
@@ -14,7 +14,7 @@ import { startServer } from './server';
 import { tick } from './referee';
 
 export function runHelper(): void {
-  const log = (m: string) => console.log(`[lakat-helper ${new Date().toISOString()}] ${m}`);
+  const log = (m: string) => console.log(`[breaker-helper ${new Date().toISOString()}] ${m}`);
   const state = loadState();
   let dohApplied = state.dohApplied;
 

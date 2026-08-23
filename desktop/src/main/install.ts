@@ -12,8 +12,8 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 
-const DAEMON_LABEL = 'hu.lakat.helper';
-const TASK_NAME = 'LakatHelper';
+const DAEMON_LABEL = 'hu.breaker.helper';
+const TASK_NAME = 'BreakerHelper';
 
 function helperEntryPath(): string {
   // Inside the packaged app this resolves into app.asar; Electron's node mode
@@ -46,8 +46,8 @@ function launchdPlist(): string {
   </dict>
   <key>RunAtLoad</key><true/>
   <key>KeepAlive</key><true/>
-  <key>StandardOutPath</key><string>/Library/Logs/Lakat/helper.log</string>
-  <key>StandardErrorPath</key><string>/Library/Logs/Lakat/helper.log</string>
+  <key>StandardOutPath</key><string>/Library/Logs/Breaker/helper.log</string>
+  <key>StandardErrorPath</key><string>/Library/Logs/Breaker/helper.log</string>
 </dict>
 </plist>
 `;
@@ -73,7 +73,7 @@ function runFile(cmd: string, args: string[]): Promise<{ code: number; out: stri
  *
  * Ami ide kerül, azt EMELT joggal olvassa be a rendszer (a plist mondja meg,
  * mit futtasson a root minden bootnál). Kitalálható néven — mint eddig a
- * `lakat-install.sh` — egy előre odakészített fájl a mienk helyére léphet.
+ * `breaker-install.sh` — egy előre odakészített fájl a mienk helyére léphet.
  * A véletlen név és a szűk mód ezt a fajta „várom, hogy megjelenj” támadást
  * kizárja.
  *
@@ -84,16 +84,16 @@ function runFile(cmd: string, args: string[]): Promise<{ code: number; out: stri
  * privilegizált rész ne fájlból olvasson.
  */
 function privateTempDir(): string {
-  return fs.mkdtempSync(path.join(app.getPath('temp'), 'lakat-'));
+  return fs.mkdtempSync(path.join(app.getPath('temp'), 'breaker-'));
 }
 
 async function installMac(): Promise<void> {
   const dir = privateTempDir();
-  const plistTmp = path.join(dir, 'hu.lakat.helper.plist');
+  const plistTmp = path.join(dir, 'hu.breaker.helper.plist');
   fs.writeFileSync(plistTmp, launchdPlist(), { mode: 0o600 });
   const script = [
     'set -e',
-    'mkdir -p "/Library/Application Support/Lakat" /Library/Logs/Lakat',
+    'mkdir -p "/Library/Application Support/Breaker" /Library/Logs/Breaker',
     `cp ${shQuote(plistTmp)} /Library/LaunchDaemons/${DAEMON_LABEL}.plist`,
     `chown root:wheel /Library/LaunchDaemons/${DAEMON_LABEL}.plist`,
     `chmod 644 /Library/LaunchDaemons/${DAEMON_LABEL}.plist`,
@@ -128,7 +128,7 @@ async function installWindows(): Promise<void> {
   ].join('\n');
   // Ugyanaz, mint macOS-en: ezt a fájlt EMELT joggal (SYSTEM) futtatja le a
   // rendszer, tehát a neve ne legyen kitalálható.
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'lakat-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'breaker-'));
   const psTmp = path.join(dir, 'install.ps1');
   fs.writeFileSync(psTmp, ps);
   const { code, out } = await runFile('powershell.exe', [

@@ -47,12 +47,12 @@ export function applyBlocklist(state: HelperState, now: number): boolean {
   } catch {
     current = '';
   }
-  if (extractManagedBlock(current) === block && (block !== '' || !current.includes('LAKAT BLOCK'))) {
+  if (extractManagedBlock(current) === block && (block !== '' || !current.includes('BREAKER BLOCK'))) {
     return false;
   }
   let next = replaceManagedBlock(current, block);
   if (process.platform === 'win32') next = next.replace(/\n/g, '\r\n');
-  const tmp = path.join(path.dirname(file), `.lakat-hosts.tmp`);
+  const tmp = path.join(path.dirname(file), `.breaker-hosts.tmp`);
   try {
     fs.writeFileSync(tmp, next);
     fs.renameSync(tmp, file);

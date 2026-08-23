@@ -1,13 +1,13 @@
 import android.content.Context
-import hu.lakat.app.core.AppState
-import hu.lakat.app.core.Blocklist
-import hu.lakat.app.core.ChallengeEngine
-import hu.lakat.app.core.ChallengeEngine.Kind
-import hu.lakat.app.core.ChallengeEngine.Step
-import hu.lakat.app.core.LakatStore
-import hu.lakat.app.core.Referee
-import hu.lakat.app.core.ScheduleLogic
-import hu.lakat.app.core.Site
+import hu.breaker.app.core.AppState
+import hu.breaker.app.core.Blocklist
+import hu.breaker.app.core.ChallengeEngine
+import hu.breaker.app.core.ChallengeEngine.Kind
+import hu.breaker.app.core.ChallengeEngine.Step
+import hu.breaker.app.core.BreakerStore
+import hu.breaker.app.core.Referee
+import hu.breaker.app.core.ScheduleLogic
+import hu.breaker.app.core.Site
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -26,13 +26,13 @@ class RefereeTest {
     private val now = System.currentTimeMillis()
 
     @BeforeTest fun reset() {
-        LakatStore.init(Context())
-        LakatStore.mutate { AppState() }
+        BreakerStore.init(Context())
+        BreakerStore.mutate { AppState() }
     }
 
     private fun addSite(domain: String): String {
-        val id = LakatStore.newId("site")
-        LakatStore.mutate { s ->
+        val id = BreakerStore.newId("site")
+        BreakerStore.mutate { s ->
             s.copy(sites = s.sites + Site(
                 id = id, domain = domain,
                 hostnames = Blocklist.expandHostnames(domain, false),
@@ -43,7 +43,7 @@ class RefereeTest {
     }
 
     private fun currentStep(): Step {
-        val s = LakatStore.state.value.session!!
+        val s = BreakerStore.state.value.session!!
         return s.steps[s.stepIndex]
     }
 
@@ -52,7 +52,7 @@ class RefereeTest {
         is Step.Transcribe -> step.text
         is Step.MathChain -> step.problems[step.pos].a.toString()
         is Step.Memory -> {
-            LakatStore.mutate { s ->
+            BreakerStore.mutate { s ->
                 val ses = s.session!!
                 val steps = ses.steps.toMutableList()
                 steps[ses.stepIndex] = step.copy(armedAt = now - step.showMs - step.waitMs - 1000)
@@ -66,8 +66,8 @@ class RefereeTest {
 
     private fun solveUntil(stop: (Step) -> Boolean) {
         var guard = 0
-        while (LakatStore.state.value.session != null && !stop(currentStep()) && guard++ < 200) {
-            Referee.submitAnswer(LakatStore.state.value.session!!.id, solve(currentStep()), now)
+        while (BreakerStore.state.value.session != null && !stop(currentStep()) && guard++ < 200) {
+            Referee.submitAnswer(BreakerStore.state.value.session!!.id, solve(currentStep()), now)
         }
     }
 
@@ -77,38 +77,38 @@ class RefereeTest {
         assertEquals(2, ses.steps.size, "tier 0 has two active steps and no forced wait")
 
         solveUntil { false }
-        assertNull(LakatStore.state.value.session, "session finished")
-        var site = LakatStore.state.value.sites[0]
+        assertNull(BreakerStore.state.value.session, "session finished")
+        var site = BreakerStore.state.value.sites[0]
         assertNotNull(site.pauseUntil)
         assertTrue(site.pauseUntil!! > now)
-        assertEquals(1, LakatStore.state.value.unlockLog.size)
-        assertTrue(LakatStore.blockedHostnamesNow(now).isEmpty(), "paused -> nothing blocked")
+        assertEquals(1, BreakerStore.state.value.unlockLog.size)
+        assertTrue(BreakerStore.blockedHostnamesNow(now).isEmpty(), "paused -> nothing blocked")
 
         Referee.tick(site.pauseUntil!! + 1)
-        site = LakatStore.state.value.sites[0]
+        site = BreakerStore.state.value.sites[0]
         assertNull(site.pauseUntil, "tick re-locks after the pause expires")
     }
 
     @Test fun `a wrong answer neither advances nor unlocks`() {
         val id = addSite("reddit.com")
         Referee.startSession(Kind.PAUSE, id, 30, now)
-        val r = Referee.submitAnswer(LakatStore.state.value.session!!.id, "biztosan nem jó", now)
+        val r = Referee.submitAnswer(BreakerStore.state.value.session!!.id, "biztosan nem jó", now)
         assertFalse(r.accepted)
-        assertEquals(0, LakatStore.state.value.session!!.stepIndex)
-        assertNull(LakatStore.state.value.sites[0].pauseUntil)
+        assertEquals(0, BreakerStore.state.value.session!!.stepIndex)
+        assertNull(BreakerStore.state.value.sites[0].pauseUntil)
     }
 
     @Test fun `a memory code is refused until the memorise and wait window elapses`() {
         val id = addSite("x.com")
         var found = false
         for (attempt in 0 until 40) {
-            LakatStore.mutate { it.copy(session = null, lastCombo = null) }
+            BreakerStore.mutate { it.copy(session = null, lastCombo = null) }
             Referee.startSession(Kind.PAUSE, id, 15, now)
             val step = currentStep()
             if (step is Step.Memory) {
                 found = true
                 assertNotNull(step.armedAt, "armed when it became current")
-                val res = Referee.submitAnswer(LakatStore.state.value.session!!.id, step.code, now + 500)
+                val res = Referee.submitAnswer(BreakerStore.state.value.session!!.id, step.code, now + 500)
                 assertFalse(res.accepted, "even the correct code is premature")
                 assertEquals(step.code, (currentStep() as Step.Memory).code,
                     "a premature answer must not burn the code")
@@ -121,24 +121,24 @@ class RefereeTest {
     @Test fun `deleting ends with a forced wait and a 24h grace period`() {
         val id = addSite("tiktok.com")
         Referee.startSession(Kind.DELETE, id, null, now)
-        assertTrue(LakatStore.state.value.session!!.steps.last() is Step.Delay)
+        assertTrue(BreakerStore.state.value.session!!.steps.last() is Step.Delay)
 
         solveUntil { it is Step.Delay }
         val delay = currentStep() as Step.Delay
         assertNotNull(delay.claimableAt)
         assertTrue(delay.claimableAt!! > now)
 
-        assertFalse(Referee.claimDelay(LakatStore.state.value.session!!.id, now).accepted, "too early")
+        assertFalse(Referee.claimDelay(BreakerStore.state.value.session!!.id, now).accepted, "too early")
 
         val inWindow = delay.claimableAt!! + 1000
-        assertTrue(Referee.claimDelay(LakatStore.state.value.session!!.id, inWindow).sessionDone)
-        val site = LakatStore.state.value.sites[0]
+        assertTrue(Referee.claimDelay(BreakerStore.state.value.session!!.id, inWindow).sessionDone)
+        val site = BreakerStore.state.value.sites[0]
         assertNotNull(site.pendingDeleteAt)
         assertTrue(site.pendingDeleteAt!! > inWindow + 23 * 3600_000L, "~24h grace")
-        assertTrue(LakatStore.blockedHostnamesNow(inWindow).isNotEmpty(), "still blocked during grace")
+        assertTrue(BreakerStore.blockedHostnamesNow(inWindow).isNotEmpty(), "still blocked during grace")
 
         Referee.tick(site.pendingDeleteAt!! + 1)
-        assertTrue(LakatStore.state.value.sites.isEmpty(), "removed only after the grace period")
+        assertTrue(BreakerStore.state.value.sites.isEmpty(), "removed only after the grace period")
     }
 
     @Test fun `missing the claim window voids the whole attempt`() {
@@ -150,13 +150,13 @@ class RefereeTest {
 
         var code: String? = null
         try {
-            Referee.claimDelay(LakatStore.state.value.session!!.id, tooLate)
+            Referee.claimDelay(BreakerStore.state.value.session!!.id, tooLate)
         } catch (e: Referee.RefereeException) {
             code = e.code
         }
         assertEquals("CLAIM_EXPIRED", code)
-        assertNull(LakatStore.state.value.session, "the attempt is void")
-        assertNull(LakatStore.state.value.sites[0].pendingDeleteAt, "and nothing was deleted")
+        assertNull(BreakerStore.state.value.session, "the attempt is void")
+        assertNull(BreakerStore.state.value.sites[0].pendingDeleteAt, "and nothing was deleted")
     }
 
     @Test fun `tightening a schedule is free but loosening needs challenges`() {
@@ -168,16 +168,16 @@ class RefereeTest {
         // always-blocked -> only weekdays 9-17 frees up evenings: that is loosening
         val loosen = Referee.startScheduleChange(id, work, now)
         assertFalse(loosen.applied)
-        assertNotNull(LakatStore.state.value.session)
-        assertNull(LakatStore.state.value.sites[0].schedule, "not applied before the challenges")
+        assertNotNull(BreakerStore.state.value.session)
+        assertNull(BreakerStore.state.value.sites[0].schedule, "not applied before the challenges")
 
         solveUntil { false }
-        assertEquals(work, LakatStore.state.value.sites[0].schedule, "applied once earned")
-        assertNull(LakatStore.state.value.sites[0].pauseUntil, "a schedule change is not a pause")
+        assertEquals(work, BreakerStore.state.value.sites[0].schedule, "applied once earned")
+        assertNull(BreakerStore.state.value.sites[0].pauseUntil, "a schedule change is not a pause")
 
         val tighten = Referee.startScheduleChange(id, ScheduleLogic.ALWAYS, now)
         assertTrue(tighten.applied, "going back to always-blocked is free")
-        assertNull(LakatStore.state.value.session)
+        assertNull(BreakerStore.state.value.session)
     }
 
     @Test fun `difficulty rises with recent unlocks`() {
@@ -194,15 +194,15 @@ class RefereeTest {
         // fresh content) until the cooldown runs out.
         val id = addSite("youtube.com")
         Referee.startSession(Kind.PAUSE, id, 15, now)
-        val first = LakatStore.state.value.session!!
+        val first = BreakerStore.state.value.session!!
         val firstTypes = first.steps.map { ChallengeEngine.typeNameOf(it) }.sorted()
         val firstIds = first.steps.map { it.id }
 
         Referee.abandon(first.id)
-        assertNull(LakatStore.state.value.session)
+        assertNull(BreakerStore.state.value.session)
 
         Referee.startSession(Kind.PAUSE, id, 15, now + 60_000)
-        val second = LakatStore.state.value.session!!
+        val second = BreakerStore.state.value.session!!
         assertEquals(firstTypes, second.steps.map { ChallengeEngine.typeNameOf(it) }.sorted(),
             "the same challenge types come back")
         assertFalse(second.steps.map { it.id } == firstIds, "but the content is regenerated")
@@ -212,11 +212,11 @@ class RefereeTest {
     @Test fun `the forced combo expires with its cooldown`() {
         val id = addSite("youtube.com")
         Referee.startSession(Kind.PAUSE, id, 15, now)
-        Referee.abandon(LakatStore.state.value.session!!.id)
-        val abandoned = LakatStore.state.value.abandons.first().comboKey
+        Referee.abandon(BreakerStore.state.value.session!!.id)
+        val abandoned = BreakerStore.state.value.abandons.first().comboKey
 
         Referee.startSession(Kind.PAUSE, id, 15, now + ChallengeEngine.REROLL_COOLDOWN_MS + 60_000)
-        val types = LakatStore.state.value.session!!.steps
+        val types = BreakerStore.state.value.session!!.steps
             .filter { it !is Step.Delay }
             .map { ChallengeEngine.typeNameOf(it) }
         assertFalse(ChallengeEngine.comboKeyOf(types) == abandoned,
@@ -226,30 +226,30 @@ class RefereeTest {
     @Test fun `solving clears the abandon debt`() {
         val id = addSite("youtube.com")
         Referee.startSession(Kind.PAUSE, id, 15, now)
-        Referee.abandon(LakatStore.state.value.session!!.id)
-        assertTrue(LakatStore.state.value.abandons.isNotEmpty())
+        Referee.abandon(BreakerStore.state.value.session!!.id)
+        assertTrue(BreakerStore.state.value.abandons.isNotEmpty())
 
         Referee.startSession(Kind.PAUSE, id, 15, now + 60_000)
         var guard = 0
-        while (LakatStore.state.value.session != null && guard++ < 200) {
+        while (BreakerStore.state.value.session != null && guard++ < 200) {
             val step = currentStep()
-            Referee.submitAnswer(LakatStore.state.value.session!!.id, solve(step), now + 60_000)
+            Referee.submitAnswer(BreakerStore.state.value.session!!.id, solve(step), now + 60_000)
         }
-        assertTrue(LakatStore.state.value.abandons.isEmpty(), "solving pays the debt")
+        assertTrue(BreakerStore.state.value.abandons.isEmpty(), "solving pays the debt")
     }
     @Test fun `a cancelled attempt on another site does not clear the first site's debt`() {
         val a = addSite("youtube.com")
         val b = addSite("reddit.com")
         Referee.startSession(Kind.PAUSE, a, 15, now)
-        val owed = LakatStore.state.value.session!!.steps
+        val owed = BreakerStore.state.value.session!!.steps
             .map { ChallengeEngine.typeNameOf(it) }.sorted()
-        Referee.abandon(LakatStore.state.value.session!!.id)
+        Referee.abandon(BreakerStore.state.value.session!!.id)
 
         Referee.startSession(Kind.PAUSE, b, 15, now + 1000)
-        Referee.abandon(LakatStore.state.value.session!!.id)
+        Referee.abandon(BreakerStore.state.value.session!!.id)
 
         Referee.startSession(Kind.PAUSE, a, 15, now + 2000)
-        assertEquals(owed, LakatStore.state.value.session!!.steps
+        assertEquals(owed, BreakerStore.state.value.session!!.steps
             .map { ChallengeEngine.typeNameOf(it) }.sorted(),
             "the first site still owes its own pair")
     }
@@ -257,32 +257,32 @@ class RefereeTest {
         // Mirrors the desktop test: waiting IS the challenge, so a clock change
         // must not be able to finish it.
         val id = addSite("youtube.com")
-        LakatStore.mutate { s -> s.copy(unlockLog = (1..8).map { now - it * 3600_000L }) } // tier 3
+        BreakerStore.mutate { s -> s.copy(unlockLog = (1..8).map { now - it * 3600_000L }) } // tier 3
         Referee.startSession(Kind.DELETE, id, null, now)
         solveUntil { it is Step.Delay }
-        val before = LakatStore.state.value.session!!.steps
+        val before = BreakerStore.state.value.session!!.steps
             .filterIsInstance<Step.Delay>().first().claimableAt!!
 
         Referee.tick(now)                                  // baseline
         val jumped = now + 365L * 24 * 3600_000            // "next year", in one step
         Referee.tick(jumped)
 
-        val after = LakatStore.state.value.session!!.steps
+        val after = BreakerStore.state.value.session!!.steps
             .filterIsInstance<Step.Delay>().first().claimableAt!!
         assertTrue(after > jumped, "the waiting target moved with the clock")
         assertTrue(after > before)
-        val claim = Referee.claimDelay(LakatStore.state.value.session!!.id, jumped)
+        val claim = Referee.claimDelay(BreakerStore.state.value.session!!.id, jumped)
         assertFalse(claim.accepted, "claiming is still refused")
     }
 
     @Test fun `a pending deletion cannot be rushed by the clock`() {
         val id = addSite("youtube.com")
-        LakatStore.mutate { s ->
+        BreakerStore.mutate { s ->
             s.copy(sites = s.sites.map { if (it.id == id) it.copy(pendingDeleteAt = now + 24 * 3600_000L) else it })
         }
         Referee.tick(now)
         Referee.tick(now + 48 * 3600_000L)
-        assertEquals(1, LakatStore.state.value.sites.size, "the site is still there")
-        assertTrue(LakatStore.state.value.sites[0].pendingDeleteAt!! > now + 48 * 3600_000L)
+        assertEquals(1, BreakerStore.state.value.sites.size, "the site is still there")
+        assertTrue(BreakerStore.state.value.sites[0].pendingDeleteAt!! > now + 48 * 3600_000L)
     }
 }

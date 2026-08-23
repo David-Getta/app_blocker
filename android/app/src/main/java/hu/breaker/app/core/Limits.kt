@@ -1,4 +1,4 @@
-package hu.lakat.app.core
+package hu.breaker.app.core
 
 /**
  * Napi aktív-idő keret oldalanként — a desktop/src/shared/limits.ts tükre.

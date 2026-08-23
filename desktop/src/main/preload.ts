@@ -17,7 +17,7 @@ export interface TrackerState {
   platform: string;
 }
 
-export interface LakatBridge {
+export interface BreakerBridge {
   call(op: string, payload?: Record<string, unknown>): Promise<
     { ok: true; data: unknown } | { ok: false; error: string; code?: string }
   >;
@@ -30,15 +30,15 @@ export interface LakatBridge {
   platform: string;
 }
 
-const bridge: LakatBridge = {
-  call: (op, payload) => ipcRenderer.invoke('lakat:call', op, payload ?? {}),
-  install: () => ipcRenderer.invoke('lakat:install'),
-  checkUpdate: () => ipcRenderer.invoke('lakat:check-update'),
-  installUpdate: () => ipcRenderer.invoke('lakat:install-update'),
-  getUpdateState: () => ipcRenderer.invoke('lakat:update-state'),
-  getTrackerState: () => ipcRenderer.invoke('lakat:tracker-state'),
-  onUpdateState: (cb) => ipcRenderer.on('lakat:update-state', (_e, s: UpdateState) => cb(s)),
+const bridge: BreakerBridge = {
+  call: (op, payload) => ipcRenderer.invoke('breaker:call', op, payload ?? {}),
+  install: () => ipcRenderer.invoke('breaker:install'),
+  checkUpdate: () => ipcRenderer.invoke('breaker:check-update'),
+  installUpdate: () => ipcRenderer.invoke('breaker:install-update'),
+  getUpdateState: () => ipcRenderer.invoke('breaker:update-state'),
+  getTrackerState: () => ipcRenderer.invoke('breaker:tracker-state'),
+  onUpdateState: (cb) => ipcRenderer.on('breaker:update-state', (_e, s: UpdateState) => cb(s)),
   platform: process.platform,
 };
 
-contextBridge.exposeInMainWorld('lakat', bridge);
+contextBridge.exposeInMainWorld('breaker', bridge);

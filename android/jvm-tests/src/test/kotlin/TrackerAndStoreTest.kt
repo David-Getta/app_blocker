@@ -1,11 +1,11 @@
 import android.content.Context
-import hu.lakat.app.core.AppState
-import hu.lakat.app.core.Blocklist
-import hu.lakat.app.core.LakatStore
-import hu.lakat.app.core.ScheduleLogic
-import hu.lakat.app.core.Site
-import hu.lakat.app.core.UsageLogic
-import hu.lakat.app.usage.UsageTracker
+import hu.breaker.app.core.AppState
+import hu.breaker.app.core.Blocklist
+import hu.breaker.app.core.BreakerStore
+import hu.breaker.app.core.ScheduleLogic
+import hu.breaker.app.core.Site
+import hu.breaker.app.core.UsageLogic
+import hu.breaker.app.usage.UsageTracker
 import java.util.Calendar
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.test.BeforeTest
@@ -26,10 +26,10 @@ class TrackerAndStoreTest {
     private val now = System.currentTimeMillis()
 
     @BeforeTest fun reset() {
-        LakatStore.init(Context())
-        LakatStore.mutate { AppState() }
+        BreakerStore.init(Context())
+        BreakerStore.mutate { AppState() }
         UsageTracker.flush(now) // drain anything a previous test buffered
-        LakatStore.mutate { AppState() }
+        BreakerStore.mutate { AppState() }
     }
 
     // Reach the private buffering path so the real code is what gets exercised.
@@ -54,19 +54,19 @@ class TrackerAndStoreTest {
     @Test fun `measurement is buffered and written once, not on every tick`() {
         buffer("app:slack", 5.0, now)
         buffer("app:slack", 5.0, now)
-        assertTrue(LakatStore.state.value.usage.days.isEmpty(),
+        assertTrue(BreakerStore.state.value.usage.days.isEmpty(),
             "writing the whole state every 5s would hammer SharedPreferences")
 
         UsageTracker.flush(now)
         val today = UsageLogic.dayKey(now)
-        assertEquals(10.0, LakatStore.state.value.usage.days.first { it.day == today }.seconds["app:slack"])
+        assertEquals(10.0, BreakerStore.state.value.usage.days.first { it.day == today }.seconds["app:slack"])
     }
 
     @Test fun `an empty flush does not touch the store`() {
         UsageTracker.flush(now)
-        val before = LakatStore.state.value
+        val before = BreakerStore.state.value
         UsageTracker.flush(now)
-        assertSame(before, LakatStore.state.value)
+        assertSame(before, BreakerStore.state.value)
     }
 
     @Test fun `time buffered before midnight stays on its own day`() {
@@ -75,7 +75,7 @@ class TrackerAndStoreTest {
         buffer("site:youtube.com", 20.0, now)
         UsageTracker.flush(now)
 
-        val usage = LakatStore.state.value.usage
+        val usage = BreakerStore.state.value.usage
         val yKey = UsageLogic.dayKey(yesterday)
         assertEquals(30.0, usage.days.first { it.day == yKey }.seconds["site:youtube.com"])
         assertEquals(20.0, usage.days.first { it.day == UsageLogic.dayKey(now) }.seconds["site:youtube.com"])
@@ -84,10 +84,10 @@ class TrackerAndStoreTest {
     @Test fun `successive tracker writes emit a distinct state`() {
         buffer("app:x", 5.0, now)
         UsageTracker.flush(now)
-        val first = LakatStore.state.value
+        val first = BreakerStore.state.value
         buffer("app:x", 5.0, now)
         UsageTracker.flush(now)
-        val second = LakatStore.state.value
+        val second = BreakerStore.state.value
 
         assertTrue(first != second, "otherwise StateFlow never emits and the UI never updates")
         assertEquals(5.0, first.usage.days[0].seconds["app:x"], "the earlier state is not mutated after the fact")
@@ -159,7 +159,7 @@ class TrackerAndStoreTest {
 
     @Test fun `a blocked site's hostnames are canonicalised to that site`() {
         pretendBrowserForeground()
-        LakatStore.mutate { s ->
+        BreakerStore.mutate { s ->
             s.copy(sites = listOf(Site(
                 id = "s1", domain = "youtube.com",
                 hostnames = Blocklist.expandHostnames("youtube.com", true),
@@ -174,14 +174,14 @@ class TrackerAndStoreTest {
 
     // ------------------------------------------------------------ persistence
 
-    private val toJson = LakatStore::class.java
+    private val toJson = BreakerStore::class.java
         .getDeclaredMethod("toJson", AppState::class.java).apply { isAccessible = true }
-    private val fromJson = LakatStore::class.java
+    private val fromJson = BreakerStore::class.java
         .getDeclaredMethod("fromJson", org.json.JSONObject::class.java).apply { isAccessible = true }
 
     private fun roundTrip(state: AppState): AppState {
-        val json = toJson.invoke(LakatStore, state).toString()
-        return fromJson.invoke(LakatStore, org.json.JSONObject(json)) as AppState
+        val json = toJson.invoke(BreakerStore, state).toString()
+        return fromJson.invoke(BreakerStore, org.json.JSONObject(json)) as AppState
     }
 
     @Test fun `usage history survives a save and load`() {
@@ -189,7 +189,7 @@ class TrackerAndStoreTest {
         buffer("app:com.slack", 60.0, now)
         UsageTracker.flush(now)
 
-        val back = roundTrip(LakatStore.state.value)
+        val back = roundTrip(BreakerStore.state.value)
         assertEquals(1, back.usage.days.size)
         assertEquals(120.0, back.usage.days[0].seconds["site:youtube.com"])
         assertEquals("com.slack", back.usage.labels["app:com.slack"])
@@ -197,10 +197,10 @@ class TrackerAndStoreTest {
     }
 
     @Test fun `the measurement off switch survives a save and load`() {
-        LakatStore.mutate { s ->
+        BreakerStore.mutate { s ->
             val u = UsageLogic.snapshot(s.usage); u.enabled = false; s.copy(usage = u)
         }
-        assertTrue(!roundTrip(LakatStore.state.value).usage.enabled)
+        assertTrue(!roundTrip(BreakerStore.state.value).usage.enabled)
     }
 
     @Test fun `schedules and sessions survive a save and load`() {
@@ -208,21 +208,21 @@ class TrackerAndStoreTest {
             ScheduleLogic.Mode.SCHEDULED_BLOCK,
             listOf(ScheduleLogic.Band(setOf(1, 2, 3, 4, 5), 9 * 60, 17 * 60)),
         )
-        LakatStore.mutate { s ->
+        BreakerStore.mutate { s ->
             s.copy(sites = listOf(Site(
                 id = "s1", domain = "twitch.tv",
                 hostnames = Blocklist.expandHostnames("twitch.tv", false),
                 addedAt = now, pauseUntil = null, pendingDeleteAt = null, schedule = work,
             )))
         }
-        val back = roundTrip(LakatStore.state.value)
+        val back = roundTrip(BreakerStore.state.value)
         assertEquals(work, back.sites[0].schedule)
     }
 
     @Test fun `a state file written before usage tracking existed still loads`() {
         val legacy = org.json.JSONObject(
             """{"protectionOn":false,"sites":[],"unlockLog":[],"lastCombo":null,"session":null}""")
-        val migrated = fromJson.invoke(LakatStore, legacy) as AppState
+        val migrated = fromJson.invoke(BreakerStore, legacy) as AppState
         assertNotNull(migrated.usage)
         assertTrue(migrated.usage.days.isEmpty())
         assertTrue(migrated.usage.enabled, "tracking defaults to on for existing installs")

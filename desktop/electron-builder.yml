@@ -1,5 +1,5 @@
-appId: hu.lakat.app
-productName: Lakat
+appId: hu.breaker.app
+productName: Breaker
 directories:
   output: release
 files:
@@ -35,7 +35,7 @@ mac:
   # nothing; with it, macOS shows the user a one-time consent prompt.
   extendInfo:
     NSAppleEventsUsageDescription: >-
-      A Lakat ezzel kérdezi le, melyik alkalmazás van előtérben és melyik
+      A Breaker ezzel kérdezi le, melyik alkalmazás van előtérben és melyik
       weboldal az aktív fül, hogy a képernyőidő-statisztikát elkészítse.
       Az adat a gépeden marad.
   entitlements: build/entitlements.mac.plist

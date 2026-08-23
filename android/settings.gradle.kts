@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Lakat"
+rootProject.name = "Breaker"
 include(":app")

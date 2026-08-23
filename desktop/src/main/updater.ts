@@ -45,7 +45,7 @@ let engine: Engine | null = null;
 
 function broadcast(): void {
   for (const win of BrowserWindow.getAllWindows()) {
-    win.webContents.send('lakat:update-state', state);
+    win.webContents.send('breaker:update-state', state);
   }
 }
 
@@ -197,7 +197,7 @@ export function initUpdater(): void {
 }
 
 function wireIpc(): void {
-  ipcMain.handle('lakat:check-update', async () => {
+  ipcMain.handle('breaker:check-update', async () => {
     if (!engine) return { ok: true };
     try {
       await engine.check();
@@ -207,13 +207,13 @@ function wireIpc(): void {
     }
   });
 
-  ipcMain.handle('lakat:install-update', async () => {
+  ipcMain.handle('breaker:install-update', async () => {
     if (!engine) { void shell.openExternal(RELEASES_URL); return { ok: true, opened: true }; }
     const r = await engine.install();
     return { ok: true, ...r };
   });
 
-  ipcMain.handle('lakat:update-state', () => state);
+  ipcMain.handle('breaker:update-state', () => state);
 }
 
 function startChecking(): void {

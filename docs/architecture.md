@@ -1,6 +1,6 @@
 # Architektúra
 
-A Lakat egy weboldal-blokkoló önkontroll-app négy platformra. A blokkolás
+A Breaker egy weboldal-blokkoló önkontroll-app négy platformra. A blokkolás
 mindenhol **DNS-szinten** történik, mert az egyetlen olyan pont, amit egyszerre
 lát minden böngésző és minden alkalmazás — így a tiltás **inkognitó/privát és
 vendég módban is él**, nem csak egy böngészőben.
@@ -69,7 +69,7 @@ Fontos, hogy **hol** fut a mérő:
 - **Desktop:** a GUI folyamatában, mert a root/SYSTEM helper nem látja az
   előteret (macOS-en nincs hozzáférése a felhasználó grafikus munkamenetéhez,
   Windowson a SYSTEM a 0. munkamenetben izolált). A helper csak tárol. Ezért a
-  desktop mérés addig gyűjt, amíg a Lakat fut.
+  desktop mérés addig gyűjt, amíg a Breaker fut.
 - **Android:** a már úgyis futó VPN-szolgáltatásban, tehát a felület bezárása
   nem állítja le.
 - **iOS/macOS (Network Extension):** **nincs mérés, és nem is lehet.** Az Apple
@@ -103,7 +103,7 @@ mag és a bitszintű DNS-motor JVM-en unit-tesztelt.
 
 ## Biztonsági modell és őszinte korlátok
 
-A Lakat **önkontroll-eszköz elszánt, de önmagával együttműködő felhasználónak**,
+A Breaker **önkontroll-eszköz elszánt, de önmagával együttműködő felhasználónak**,
 nem szülői felügyeleti vagy kártevő-elleni megoldás. Aki technikailag hozzáértő
 és eltökélt, meg tudja kerülni. A cél a **súrlódás** növelése annyira, hogy a
 pillanatnyi impulzus ne legyen elég a feloldáshoz.

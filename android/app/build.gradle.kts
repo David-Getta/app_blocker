@@ -5,36 +5,36 @@ plugins {
 }
 
 android {
-    namespace = "hu.lakat.app"
+    namespace = "hu.breaker.app"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "hu.lakat.app"
+        applicationId = "hu.breaker.app"
         minSdk = 26
         targetSdk = 34
-        // A CI a git tagből állítja be (LAKAT_VERSION_*). Helyi buildhez marad a default.
-        versionCode = (System.getenv("LAKAT_VERSION_CODE") ?: "1").toInt()
-        versionName = System.getenv("LAKAT_VERSION_NAME") ?: "0.1.0"
+        // A CI a git tagből állítja be (BREAKER_VERSION_*). Helyi buildhez marad a default.
+        versionCode = (System.getenv("BREAKER_VERSION_CODE") ?: "1").toInt()
+        versionName = System.getenv("BREAKER_VERSION_NAME") ?: "0.1.0"
     }
 
     // Kiadási aláírás env-ből (CI secret). Ha nincs, a debug kulcsra esik vissza,
     // hogy a közvetlen terjesztésű APK mindig telepíthető és konzisztens legyen.
     // Éles Play Store-hoz állítsd be a saját feltöltési kulcsod (docs/releasing.md).
     // A kulcs MEGLÉTE dönt, nem a változó létezése: a CI mindig beállítja a
-    // LAKAT_KEYSTORE-t, csak épp üres sztringre, ha nincs secret. A régi
+    // BREAKER_KEYSTORE-t, csak épp üres sztringre, ha nincs secret. A régi
     // `!= null` vizsgálat emiatt a release configot választotta storeFile
     // nélkül, és a packageRelease „Keystore file not set" hibával elhasalt —
     // vagyis az első kiadás sosem készült volna el.
-    val keystorePath = System.getenv("LAKAT_KEYSTORE")?.takeIf { it.isNotBlank() }
+    val keystorePath = System.getenv("BREAKER_KEYSTORE")?.takeIf { it.isNotBlank() }
     val keystoreFile = keystorePath?.let { file(it) }?.takeIf { it.exists() }
 
     signingConfigs {
         create("release") {
             if (keystoreFile != null) {
                 storeFile = keystoreFile
-                storePassword = System.getenv("LAKAT_KEYSTORE_PASSWORD")
-                keyAlias = System.getenv("LAKAT_KEY_ALIAS")
-                keyPassword = System.getenv("LAKAT_KEY_PASSWORD")
+                storePassword = System.getenv("BREAKER_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("BREAKER_KEY_ALIAS")
+                keyPassword = System.getenv("BREAKER_KEY_PASSWORD")
             }
         }
     }

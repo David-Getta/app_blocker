@@ -1,4 +1,4 @@
-package hu.lakat.app.core
+package hu.breaker.app.core
 
 /**
  * Domain normalization and preset expansion.

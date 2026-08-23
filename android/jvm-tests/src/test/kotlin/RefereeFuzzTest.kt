@@ -1,12 +1,12 @@
 import android.content.Context
-import hu.lakat.app.core.AppState
-import hu.lakat.app.core.ChallengeEngine
-import hu.lakat.app.core.ChallengeEngine.Kind
-import hu.lakat.app.core.ChallengeEngine.Step
-import hu.lakat.app.core.LakatStore
-import hu.lakat.app.core.Referee
-import hu.lakat.app.core.ScheduleLogic
-import hu.lakat.app.core.Site
+import hu.breaker.app.core.AppState
+import hu.breaker.app.core.ChallengeEngine
+import hu.breaker.app.core.ChallengeEngine.Kind
+import hu.breaker.app.core.ChallengeEngine.Step
+import hu.breaker.app.core.BreakerStore
+import hu.breaker.app.core.Referee
+import hu.breaker.app.core.ScheduleLogic
+import hu.breaker.app.core.Site
 import java.util.Random
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -25,8 +25,8 @@ import kotlin.test.assertTrue
 class RefereeFuzzTest {
 
     @BeforeTest fun reset() {
-        LakatStore.init(Context())
-        LakatStore.mutate { AppState() }
+        BreakerStore.init(Context())
+        BreakerStore.mutate { AppState() }
     }
 
     private fun correctAnswer(step: Step, now: Long): String = when (step) {
@@ -34,7 +34,7 @@ class RefereeFuzzTest {
         is Step.MathChain -> step.problems[step.pos].a.toString()
         is Step.Memory -> {
             // pretend the show + wait window has elapsed
-            LakatStore.mutate { st ->
+            BreakerStore.mutate { st ->
                 val s = st.session!!
                 val steps = s.steps.toMutableList()
                 steps[s.stepIndex] = step.copy(armedAt = now - step.showMs - step.waitMs - 1000)
@@ -46,21 +46,21 @@ class RefereeFuzzTest {
         is Step.Delay -> ""
     }
 
-    private fun pausedIds(now: Long) = LakatStore.state.value.sites
+    private fun pausedIds(now: Long) = BreakerStore.state.value.sites
         .filter { it.pauseUntil != null && it.pauseUntil > now }.map { it.id }.toSet()
 
-    private fun deletingIds() = LakatStore.state.value.sites
+    private fun deletingIds() = BreakerStore.state.value.sites
         .filter { it.pendingDeleteAt != null }.map { it.id }.toSet()
 
-    private fun schedules() = LakatStore.state.value.sites
+    private fun schedules() = BreakerStore.state.value.sites
         .associate { it.id to (it.schedule?.toString() ?: "null") }
 
     private fun runSequence(seed: Long, steps: Int) {
         val r = Random(seed)
-        LakatStore.mutate { AppState() }
+        BreakerStore.mutate { AppState() }
         val ids = (0 until 3).map { i ->
-            val id = LakatStore.newId("site")
-            LakatStore.mutate { s ->
+            val id = BreakerStore.newId("site")
+            BreakerStore.mutate { s ->
                 s.copy(sites = s.sites + Site(id, "site$i.example", listOf("site$i.example"), 0, null, null))
             }
             id
@@ -77,7 +77,7 @@ class RefereeFuzzTest {
             val pick = r.nextDouble()
             val siteId = ids[r.nextInt(ids.size)]
             try {
-                val session = LakatStore.state.value.session
+                val session = BreakerStore.state.value.session
                 when {
                     pick < 0.18 -> Referee.startSession(
                         if (r.nextDouble() < 0.8) Kind.PAUSE else Kind.DELETE,
@@ -121,9 +121,9 @@ class RefereeFuzzTest {
                     assertTrue(completed, why("site $id's schedule changed without completing the challenges"))
                 }
             }
-            assertTrue(LakatStore.state.value.abandons.size <= 64, why("the abandon list grew without bound"))
+            assertTrue(BreakerStore.state.value.abandons.size <= 64, why("the abandon list grew without bound"))
 
-            val s = LakatStore.state.value.session
+            val s = BreakerStore.state.value.session
             if (s != null) {
                 val cur = s.steps[s.stepIndex]
                 if (cur is Step.Delay && cur.claimableAt != null && now < cur.claimableAt) {

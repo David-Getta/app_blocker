@@ -31,8 +31,8 @@ sourceSets {
             srcDir("../app/src/main/java")
             include(
                 "android/**",
-                "hu/lakat/app/core/**",
-                "hu/lakat/app/usage/**",
+                "hu/breaker/app/core/**",
+                "hu/breaker/app/usage/**",
             )
         }
     }

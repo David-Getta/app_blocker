@@ -1,6 +1,6 @@
-import hu.lakat.app.core.UsageLogic
-import hu.lakat.app.core.UsageLogic.Foreground
-import hu.lakat.app.core.UsageLogic.TargetKind
+import hu.breaker.app.core.UsageLogic
+import hu.breaker.app.core.UsageLogic.Foreground
+import hu.breaker.app.core.UsageLogic.TargetKind
 import java.util.Calendar
 import kotlin.test.Test
 import kotlin.test.assertEquals

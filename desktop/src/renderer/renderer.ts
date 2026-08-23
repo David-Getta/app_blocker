@@ -1,4 +1,4 @@
-// Lakat GUI logic. Pure view layer: every decision (challenge content,
+// Breaker GUI logic. Pure view layer: every decision (challenge content,
 // validation, timing) is made by the privileged helper; this file only renders
 // and forwards answers.
 
@@ -31,7 +31,7 @@ interface Bridge {
   onUpdateState(cb: (s: UpdateState) => void): void;
   platform: string;
 }
-declare global { interface Window { lakat: Bridge } }
+declare global { interface Window { breaker: Bridge } }
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string): T =>
   document.getElementById(id) as T;
@@ -50,7 +50,7 @@ class CallError extends Error {
 }
 
 async function call<T>(op: string, payload?: Record<string, unknown>): Promise<T> {
-  const r = await window.lakat.call(op, payload);
+  const r = await window.breaker.call(op, payload);
   if (!r.ok) throw new CallError(r.error, r.code);
   return r.data as T;
 }
@@ -103,7 +103,7 @@ async function refresh(): Promise<void> {
     // itt és nem a 30 másodperces statisztika-körben: ha a felhasználó most
     // adta meg az engedélyt, a figyelmeztetés pár másodpercen belül tűnjön el.
     trackerState = await Promise.resolve()
-      .then(() => window.lakat.getTrackerState())
+      .then(() => window.breaker.getTrackerState())
       .catch(() => trackerState);
   } catch {
     // One flaky poll must not tear the UI down (or close a challenge modal
@@ -780,7 +780,7 @@ function buildDelay(box: HTMLElement, session: SessionInfo, step: StepDisplay): 
       claimBtn.disabled = false;
       if (notifiedStepId !== step.id && 'Notification' in window && Notification.permission === 'granted') {
         notifiedStepId = step.id;
-        new Notification('Lakat', { body: 'Letelt a várakozás — 10 perced van átvenni a feloldást.' });
+        new Notification('Breaker', { body: 'Letelt a várakozás — 10 perced van átvenni a feloldást.' });
       }
     } else {
       countdown.textContent = 'Az átvételi ablak lejárt.';
@@ -816,7 +816,7 @@ function setupModal(): void {
     btn.disabled = true;
     const original = btn.textContent;
     btn.textContent = 'Frissítés… (engedélykérés jöhet)';
-    const r = await window.lakat.install();
+    const r = await window.breaker.install();
     btn.disabled = false;
     btn.textContent = original;
     if (!r.ok) {
@@ -839,7 +839,7 @@ function setupInstall(): void {
     btn.disabled = true;
     btn.textContent = 'Telepítés… (engedélykérés jöhet)';
     $('installError').classList.add('hidden');
-    const r = await window.lakat.install();
+    const r = await window.breaker.install();
     if (!r.ok) {
       $('installError').textContent = r.error;
       $('installError').classList.remove('hidden');
@@ -970,7 +970,7 @@ function renderProbeWarning(measurementOn: boolean): void {
   el.textContent = trackerState!.platform === 'darwin'
     ? 'A mérés be van kapcsolva, de nem kap adatot. macOS-en ehhez engedély kell: '
       + 'Rendszerbeállítások → Adatvédelem és biztonság → Automatizálás, ott a '
-      + 'Lakatnál kapcsold be a „System Events” és a böngésződ sorát. '
+      + 'Breakernél kapcsold be a „System Events” és a böngésződ sorát. '
       + 'Amíg nincs adat, a napi időkeret sem fogy.'
     : 'A mérés be van kapcsolva, de nem kap adatot az előtérről. '
       + 'Amíg nincs adat, a napi időkeret sem fogy.';
@@ -1097,10 +1097,10 @@ function setupUpdater(): void {
     // következő állapotfrissítés engedi vissza (pl. ha a csere hibára futott).
     btn.disabled = true;
     btn.textContent = 'Frissítés…';
-    void window.lakat.installUpdate();
+    void window.breaker.installUpdate();
   });
-  window.lakat.onUpdateState(renderUpdate);
-  void window.lakat.getUpdateState().then(renderUpdate).catch(() => { /* dev build */ });
+  window.breaker.onUpdateState(renderUpdate);
+  void window.breaker.getUpdateState().then(renderUpdate).catch(() => { /* dev build */ });
 }
 
 setupAddCard();

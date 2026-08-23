@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Lakat</string>
-    <string name="vpn_notification_title">Lakat védelem aktív</string>
+    <string name="app_name">Breaker</string>
+    <string name="vpn_notification_title">Breaker védelem aktív</string>
     <string name="vpn_notification_text">A blokkolt oldalak DNS-szinten nem érhetők el.</string>
-    <string name="vpn_revoked_title">A Lakat védelem kikapcsolt!</string>
-    <string name="vpn_revoked_text">Egy másik alkalmazás vagy beállítás leállította a VPN-t. Nyisd meg a Lakatot a visszakapcsoláshoz.</string>
+    <string name="vpn_revoked_title">A Breaker védelem kikapcsolt!</string>
+    <string name="vpn_revoked_text">Egy másik alkalmazás vagy beállítás leállította a VPN-t. Nyisd meg a Breakert a visszakapcsoláshoz.</string>
 </resources>

@@ -3,7 +3,7 @@
 // Ez pontosan azért van külön, tesztelhető modulban, mert a sorrend nem
 // mindegy, és rossz sorrendben a hiba néma: az app egyszerűen eltűnik.
 //
-// A Lakat egypéldányos (requestSingleInstanceLock). Ha még futunk, amikor az
+// A Breaker egypéldányos (requestSingleInstanceLock). Ha még futunk, amikor az
 // újat elindítjuk, az új példány NEM kapja meg a zárat, és azonnal kilép —
 // utána a régi is kilép, és a felhasználónak nem marad futó appja. Frissített
 // app a lemezen, üres képernyő: pont az a kézi munka, ami elől a funkció

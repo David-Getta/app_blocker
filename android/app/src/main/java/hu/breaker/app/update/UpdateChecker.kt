@@ -1,4 +1,4 @@
-package hu.lakat.app.update
+package hu.breaker.app.update
 
 import android.content.Context
 import android.content.Intent
@@ -6,8 +6,8 @@ import android.net.Uri
 import android.os.Build
 import android.provider.Settings
 import androidx.core.content.FileProvider
-import hu.lakat.app.BuildConfig
-import hu.lakat.app.core.UpdateLogic
+import hu.breaker.app.BuildConfig
+import hu.breaker.app.core.UpdateLogic
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -96,7 +96,7 @@ object UpdateChecker {
             if (!canInstall(context)) return@withContext InstallResult.NeedsPermission
 
             val dir = File(context.cacheDir, "updates").apply { mkdirs() }
-            val name = "lakat-${update.version}.apk"
+            val name = "breaker-${update.version}.apk"
             val apk = File(dir, name)
             val part = File(dir, UpdateLogic.partName(name))
             // A korábbi verziók csomagjai már semmire nem jók.
@@ -146,7 +146,7 @@ object UpdateChecker {
             conn.connectTimeout = 8000
             conn.readTimeout = 8000
             conn.setRequestProperty("Accept", "application/vnd.github+json")
-            conn.setRequestProperty("User-Agent", "Lakat-Android")
+            conn.setRequestProperty("User-Agent", "Breaker-Android")
             if (conn.responseCode != 200) return null
             conn.inputStream.bufferedReader().readText()
         } catch (_: Exception) {

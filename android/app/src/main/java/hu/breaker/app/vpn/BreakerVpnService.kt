@@ -1,4 +1,4 @@
-package hu.lakat.app.vpn
+package hu.breaker.app.vpn
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -11,13 +11,13 @@ import android.net.VpnService
 import android.os.Build
 import android.os.ParcelFileDescriptor
 import android.util.Log
-import hu.lakat.app.MainActivity
-import hu.lakat.app.R
-import hu.lakat.app.core.Blocklist
-import hu.lakat.app.core.LakatStore
-import hu.lakat.app.core.Referee
-import hu.lakat.app.core.UsageLogic
-import hu.lakat.app.usage.UsageTracker
+import hu.breaker.app.MainActivity
+import hu.breaker.app.R
+import hu.breaker.app.core.Blocklist
+import hu.breaker.app.core.BreakerStore
+import hu.breaker.app.core.Referee
+import hu.breaker.app.core.UsageLogic
+import hu.breaker.app.usage.UsageTracker
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import java.io.FileInputStream
@@ -33,25 +33,25 @@ import java.util.concurrent.ThreadPoolExecutor
  * ordinary traffic flows untouched; every DNS lookup passes through us and
  * blocked names get NXDOMAIN — in every app and browser, incognito included.
  */
-class LakatVpnService : VpnService() {
+class BreakerVpnService : VpnService() {
 
     companion object {
-        const val ACTION_START = "hu.lakat.app.START"
-        const val ACTION_STOP = "hu.lakat.app.STOP"
-        private const val TAG = "LakatVpn"
-        private const val CHANNEL_ID = "lakat_vpn"
+        const val ACTION_START = "hu.breaker.app.START"
+        const val ACTION_STOP = "hu.breaker.app.STOP"
+        private const val TAG = "BreakerVpn"
+        private const val CHANNEL_ID = "breaker_vpn"
         private const val NOTIF_ID = 1
 
         private val _running = MutableStateFlow(false)
         val running: StateFlow<Boolean> get() = _running
 
         fun start(context: Context) {
-            val intent = Intent(context, LakatVpnService::class.java).setAction(ACTION_START)
+            val intent = Intent(context, BreakerVpnService::class.java).setAction(ACTION_START)
             context.startForegroundService(intent)
         }
 
         fun stop(context: Context) {
-            val intent = Intent(context, LakatVpnService::class.java).setAction(ACTION_STOP)
+            val intent = Intent(context, BreakerVpnService::class.java).setAction(ACTION_STOP)
             context.startService(intent)
         }
     }
@@ -65,7 +65,7 @@ class LakatVpnService : VpnService() {
 
     override fun onCreate() {
         super.onCreate()
-        LakatStore.init(this)
+        BreakerStore.init(this)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -86,7 +86,7 @@ class LakatVpnService : VpnService() {
     private fun startForegroundWithNotification() {
         val nm = getSystemService(NotificationManager::class.java)
         nm.createNotificationChannel(
-            NotificationChannel(CHANNEL_ID, "Lakat védelem", NotificationManager.IMPORTANCE_LOW),
+            NotificationChannel(CHANNEL_ID, "Breaker védelem", NotificationManager.IMPORTANCE_LOW),
         )
         val pi = PendingIntent.getActivity(
             this, 0, Intent(this, MainActivity::class.java),
@@ -108,7 +108,7 @@ class LakatVpnService : VpnService() {
 
     private fun establishAndRun() {
         val builder = Builder()
-            .setSession("Lakat")
+            .setSession("Breaker")
             .setMtu(1500)
             .addAddress(DnsEngine.TUN_ADDR4, 24)
             .addAddress(DnsEngine.TUN_ADDR6, 64)
@@ -126,8 +126,8 @@ class LakatVpnService : VpnService() {
         tun = pfd
         stopping = false
         _running.value = true
-        LakatStore.mutate { it.copy(protectionOn = true) }
-        readerThread = Thread({ readLoop(pfd) }, "lakat-tun-reader").also { it.start() }
+        BreakerStore.mutate { it.copy(protectionOn = true) }
+        readerThread = Thread({ readLoop(pfd) }, "breaker-tun-reader").also { it.start() }
         startUsageSampling()
     }
 
@@ -139,10 +139,10 @@ class LakatVpnService : VpnService() {
     private fun startUsageSampling() {
         usageTimer?.cancel()
         UsageTracker.resetClock()
-        usageTimer = java.util.Timer("lakat-usage", true).also { t ->
+        usageTimer = java.util.Timer("breaker-usage", true).also { t ->
             t.scheduleAtFixedRate(object : java.util.TimerTask() {
                 override fun run() {
-                    runCatching { UsageTracker.tick(this@LakatVpnService) }
+                    runCatching { UsageTracker.tick(this@BreakerVpnService) }
                         .onFailure { Log.w(TAG, "usage tick failed: $it") }
                 }
             }, UsageLogic.SAMPLE_INTERVAL_MS, UsageLogic.SAMPLE_INTERVAL_MS)
@@ -177,7 +177,7 @@ class LakatVpnService : VpnService() {
         try {
             val name = DnsEngine.queryName(payload)
             val blocked = name != null &&
-                Blocklist.matches(name, LakatStore.blockedHostnamesNow(System.currentTimeMillis()))
+                Blocklist.matches(name, BreakerStore.blockedHostnamesNow(System.currentTimeMillis()))
             // Feed the active-time tracker: a resolved (non-blocked) name is our
             // only signal for which page a foreground browser is showing.
             if (!blocked && name != null) UsageTracker.noteDomain(name, System.currentTimeMillis())
@@ -220,7 +220,7 @@ class LakatVpnService : VpnService() {
         shutdown()
         val nm = getSystemService(NotificationManager::class.java)
         nm.createNotificationChannel(
-            NotificationChannel(CHANNEL_ID, "Lakat védelem", NotificationManager.IMPORTANCE_HIGH),
+            NotificationChannel(CHANNEL_ID, "Breaker védelem", NotificationManager.IMPORTANCE_HIGH),
         )
         val pi = PendingIntent.getActivity(
             this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE,
@@ -244,7 +244,7 @@ class LakatVpnService : VpnService() {
         usageTimer = null
         runCatching { UsageTracker.flush() } // do not lose buffered measurement
         _running.value = false
-        LakatStore.mutate { it.copy(protectionOn = false) }
+        BreakerStore.mutate { it.copy(protectionOn = false) }
         try { tun?.close() } catch (_: Exception) { }
         tun = null
         stopForeground(STOP_FOREGROUND_REMOVE)

@@ -1,4 +1,4 @@
-import hu.lakat.app.core.UpdateLogic
+import hu.breaker.app.core.UpdateLogic
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -47,19 +47,19 @@ class UpdateLogicTest {
         // Az .aab a Play Store feltöltési formátuma; telepíteni nem lehet.
         // Ha ezt választanánk, a felhasználó letöltene 6 MB-ot, hogy aztán a
         // rendszertelepítő értelmezhetetlen hibát adjon.
-        val assets = listOf("Lakat-v0.1.4.aab", "latest.yml", "Lakat-v0.1.4.apk", "Lakat-0.1.4.dmg")
-        assertEquals("Lakat-v0.1.4.apk", UpdateLogic.pickApk(assets))
+        val assets = listOf("Breaker-v0.1.4.aab", "latest.yml", "Breaker-v0.1.4.apk", "Breaker-0.1.4.dmg")
+        assertEquals("Breaker-v0.1.4.apk", UpdateLogic.pickApk(assets))
     }
 
     @Test fun `no apk means no update offer`() {
-        assertNull(UpdateLogic.pickApk(listOf("Lakat-v0.1.4.aab", "latest.yml")))
+        assertNull(UpdateLogic.pickApk(listOf("Breaker-v0.1.4.aab", "latest.yml")))
         assertNull(UpdateLogic.pickApk(emptyList()))
     }
 
     @Test fun `the partial download has a different name from the finished one`() {
         // Erre áll az egész: a félbemaradt letöltésből sosem lehet
         // „telepíthetőnek látszó” APK, mert a végleges nevet csak átnevezés adja.
-        val name = "lakat-0.1.4.apk"
+        val name = "breaker-0.1.4.apk"
         assertTrue(UpdateLogic.partName(name) != name)
         assertFalse(UpdateLogic.partName(name).endsWith(".apk"))
     }

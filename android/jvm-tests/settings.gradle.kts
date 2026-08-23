@@ -1,1 +1,1 @@
-rootProject.name = "lakat-jvm-tests"
+rootProject.name = "breaker-jvm-tests"

@@ -1,9 +1,9 @@
-<p align="center"><img src="website/icon-512.png" alt="Lakat" width="96" /></p>
+<p align="center"><img src="website/icon-512.png" alt="Breaker" width="96" /></p>
 
-# 🔒 Lakat
+# 🔒 Breaker
 
 Weboldal-blokkoló **önkontroll-app** négy platformra: **Android, Windows, macOS
-és iPhone**. Megadsz egy weboldalt (pl. `www.youtube.com`), és a Lakat
+és iPhone**. Megadsz egy weboldalt (pl. `www.youtube.com`), és a Breaker
 letiltja — úgy, hogy **inkognitó és vendég módban se** legyen elérhető.
 
 A feloldás szándékosan **nem egyetlen gomb**: valódi erőfeszítést igénylő,
@@ -127,7 +127,7 @@ cd desktop && npm install && npm test && npm start
 cd android && ./gradlew assembleDebug
 
 # iOS / macOS (macOS + Xcode kell)
-cd ios && xcodegen generate && open Lakat.xcodeproj
+cd ios && xcodegen generate && open Breaker.xcodeproj
 ```
 
 ## Állapot és tesztelés
@@ -139,7 +139,7 @@ cd ios && xcodegen generate && open Lakat.xcodeproj
   beillesztés-tiltás, keret-mérő, a „régi a háttérszolgáltatás” és a „nem kap
   adatot a mérés” figyelmeztetés). ✅ Zöld.
 - **Android:** a platformfüggetlen mag (`ChallengeEngine`, `Blocklist`,
-  `ScheduleLogic`, `UsageLogic`, `LimitLogic`, `Referee`, `LakatStore`) és a bitszintű
+  `ScheduleLogic`, `UsageLogic`, `LimitLogic`, `Referee`, `BreakerStore`) és a bitszintű
   `DnsEngine` JVM-en unit-tesztelt, Android SDK nélkül futtatva
   (`android/jvm-tests`). ✅ Zöld. A teljes APK-hoz SDK kell — a CI buildeli.
 - **iOS/macOS:** a projekt XcodeGennel generálható; a fordításhoz macOS + Xcode
@@ -161,7 +161,7 @@ A CI mindet futtatja minden pusholásnál.
 
 ## Őszinte korlátok
 
-A Lakat **önkontroll-eszköz** olyasvalakinek, aki *segíteni akar magának* — nem
+A Breaker **önkontroll-eszköz** olyasvalakinek, aki *segíteni akar magának* — nem
 kártevő-elleni és nem szülői felügyeleti szoftver. Elszánt, technikailag hozzáértő
 felhasználó meg tudja kerülni (admin jogok, egyedi DNS/DoH-proxy stb.). A cél a
 **súrlódás** akkora növelése, hogy a pillanatnyi késztetés ne legyen elég a

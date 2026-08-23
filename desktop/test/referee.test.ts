@@ -1,14 +1,14 @@
 // End-to-end referee + hosts engine tests, run against temp files via the
-// LAKAT_STATE / LAKAT_HOSTS env overrides.
+// BREAKER_STATE / BREAKER_HOSTS env overrides.
 
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 
-const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'lakat-test-'));
-process.env.LAKAT_STATE = path.join(tmp, 'state.json');
-process.env.LAKAT_HOSTS = path.join(tmp, 'hosts');
-fs.writeFileSync(process.env.LAKAT_HOSTS, '127.0.0.1 localhost\n');
+const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'breaker-test-'));
+process.env.BREAKER_STATE = path.join(tmp, 'state.json');
+process.env.BREAKER_HOSTS = path.join(tmp, 'hosts');
+fs.writeFileSync(process.env.BREAKER_HOSTS, '127.0.0.1 localhost\n');
 
 import { test } from 'node:test';
 import * as assert from 'node:assert/strict';
@@ -164,7 +164,7 @@ test('hosts file: apply, tamper-detect content, pause exclusion', () => {
   const { state } = stateWithSite();
   const now = Date.now();
   assert.equal(applyBlocklist(state, now), true);
-  let hosts = fs.readFileSync(process.env.LAKAT_HOSTS!, 'utf8');
+  let hosts = fs.readFileSync(process.env.BREAKER_HOSTS!, 'utf8');
   assert.ok(hosts.includes('0.0.0.0 youtube.com'));
   assert.ok(hosts.includes('127.0.0.1 localhost'));
 
@@ -172,15 +172,15 @@ test('hosts file: apply, tamper-detect content, pause exclusion', () => {
   assert.equal(applyBlocklist(state, now), false);
 
   // manual tamper -> re-apply restores
-  fs.writeFileSync(process.env.LAKAT_HOSTS!, '127.0.0.1 localhost\n');
+  fs.writeFileSync(process.env.BREAKER_HOSTS!, '127.0.0.1 localhost\n');
   assert.equal(applyBlocklist(state, now), true);
-  hosts = fs.readFileSync(process.env.LAKAT_HOSTS!, 'utf8');
+  hosts = fs.readFileSync(process.env.BREAKER_HOSTS!, 'utf8');
   assert.ok(hosts.includes('0.0.0.0 youtube.com'));
 
   // paused site drops out of the hosts file
   state.sites[0].pauseUntil = now + 60_000;
   assert.equal(applyBlocklist(state, now), true);
-  hosts = fs.readFileSync(process.env.LAKAT_HOSTS!, 'utf8');
+  hosts = fs.readFileSync(process.env.BREAKER_HOSTS!, 'utf8');
   assert.ok(!hosts.includes('youtube.com'));
 });
 
@@ -320,7 +320,7 @@ test('a state file whose session points past its steps is not loaded', () => {
   // Every referee operation reads steps[stepIndex]. An out-of-range index —
   // from a half-written file after a crash — would throw on every attempt to
   // finish OR cancel it, leaving the site wedged until the session aged out.
-  const file = process.env.LAKAT_STATE!;
+  const file = process.env.BREAKER_STATE!;
   const backup = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : null;
   try {
     fs.writeFileSync(file, JSON.stringify({
@@ -340,7 +340,7 @@ test('a state file whose session points past its steps is not loaded', () => {
 });
 
 test('a state file with a valid session keeps it', () => {
-  const file = process.env.LAKAT_STATE!;
+  const file = process.env.BREAKER_STATE!;
   const backup = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : null;
   try {
     fs.writeFileSync(file, JSON.stringify({

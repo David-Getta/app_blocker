@@ -1,14 +1,14 @@
 import android.content.Context
-import hu.lakat.app.core.AppState
-import hu.lakat.app.core.Blocklist
-import hu.lakat.app.core.ChallengeEngine.Kind
-import hu.lakat.app.core.ChallengeEngine.Step
-import hu.lakat.app.core.LakatStore
-import hu.lakat.app.core.LimitLogic
-import hu.lakat.app.core.Referee
-import hu.lakat.app.core.ScheduleLogic
-import hu.lakat.app.core.Site
-import hu.lakat.app.core.UsageLogic
+import hu.breaker.app.core.AppState
+import hu.breaker.app.core.Blocklist
+import hu.breaker.app.core.ChallengeEngine.Kind
+import hu.breaker.app.core.ChallengeEngine.Step
+import hu.breaker.app.core.BreakerStore
+import hu.breaker.app.core.LimitLogic
+import hu.breaker.app.core.Referee
+import hu.breaker.app.core.ScheduleLogic
+import hu.breaker.app.core.Site
+import hu.breaker.app.core.UsageLogic
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -27,8 +27,8 @@ class LimitsTest {
     private val now = System.currentTimeMillis()
 
     @BeforeTest fun reset() {
-        LakatStore.init(Context())
-        LakatStore.mutate { AppState() }
+        BreakerStore.init(Context())
+        BreakerStore.mutate { AppState() }
     }
 
     private fun usageWith(domain: String, seconds: Double, at: Long = now): UsageLogic.UsageState {
@@ -125,8 +125,8 @@ class LimitsTest {
     // ------------------------------------------------------- referee + store
 
     private fun addSite(domain: String, limit: Long? = null): String {
-        val id = LakatStore.newId("site")
-        LakatStore.mutate { s ->
+        val id = BreakerStore.newId("site")
+        BreakerStore.mutate { s ->
             s.copy(sites = s.sites + Site(
                 id = id, domain = domain, hostnames = Blocklist.expandHostnames(domain, false),
                 addedAt = now, pauseUntil = null, pendingDeleteAt = null, dailyLimitSeconds = limit,
@@ -135,19 +135,19 @@ class LimitsTest {
         return id
     }
 
-    private fun siteById(id: String): Site = LakatStore.state.value.sites.first { it.id == id }
+    private fun siteById(id: String): Site = BreakerStore.state.value.sites.first { it.id == id }
 
     /** A folyó kísérlet megoldása végig — a MEMORY lépést visszadátumozza. */
     private fun solveSession() {
         var guard = 0
-        while (LakatStore.state.value.session != null && guard++ < 200) {
-            val ses = LakatStore.state.value.session!!
+        while (BreakerStore.state.value.session != null && guard++ < 200) {
+            val ses = BreakerStore.state.value.session!!
             val step = ses.steps[ses.stepIndex]
             val answer = when (step) {
                 is Step.Transcribe -> step.text
                 is Step.MathChain -> step.problems[step.pos].a.toString()
                 is Step.Memory -> {
-                    LakatStore.mutate { s ->
+                    BreakerStore.mutate { s ->
                         val cur = s.session!!
                         val steps = cur.steps.toMutableList()
                         steps[cur.stepIndex] = step.copy(armedAt = now - step.showMs - step.waitMs - 1000)
@@ -170,7 +170,7 @@ class LimitsTest {
         val id = addSite("youtube.com")
         val introduced = Referee.startLimitChange(id, 1200, now)
         assertTrue(introduced.applied, "keret bevezetése azonnal érvényes")
-        assertNull(LakatStore.state.value.session, "nem indít próbatételt")
+        assertNull(BreakerStore.state.value.session, "nem indít próbatételt")
         assertEquals(1200L, siteById(id).dailyLimitSeconds)
 
         val lowered = Referee.startLimitChange(id, 600, now)
@@ -182,19 +182,19 @@ class LimitsTest {
         val id = addSite("youtube.com", limit = 600)
         val r = Referee.startLimitChange(id, 3600, now)
         assertFalse(r.applied, "emelés nem érvényes azonnal")
-        assertNotNull(LakatStore.state.value.session, "próbatétel indult")
+        assertNotNull(BreakerStore.state.value.session, "próbatétel indult")
         assertEquals(600L, siteById(id).dailyLimitSeconds, "a keret a kísérlet alatt még a régi")
 
         solveSession()
-        assertNull(LakatStore.state.value.session)
+        assertNull(BreakerStore.state.value.session)
         assertEquals(3600L, siteById(id).dailyLimitSeconds, "a kísérlet végén lép életbe")
     }
 
     @Test fun `abandoning the challenge leaves the budget where it was`() {
         val id = addSite("youtube.com", limit = 600)
         Referee.startLimitChange(id, 3600, now)
-        Referee.abandon(LakatStore.state.value.session!!.id)
-        assertNull(LakatStore.state.value.session)
+        Referee.abandon(BreakerStore.state.value.session!!.id)
+        assertNull(BreakerStore.state.value.session)
         assertEquals(600L, siteById(id).dailyLimitSeconds, "feladott kísérlet semmit nem változtat")
     }
 
@@ -217,23 +217,23 @@ class LimitsTest {
         val id = addSite("youtube.com", limit = 600)
         val e = assertFailsWith<Referee.RefereeException> { Referee.setUsageEnabled(false) }
         assertEquals("LIMIT_NEEDS_USAGE", e.code)
-        assertTrue(LakatStore.state.value.usage.enabled, "a mérés bekapcsolva maradt")
+        assertTrue(BreakerStore.state.value.usage.enabled, "a mérés bekapcsolva maradt")
 
         // Keret nélkül viszont a saját adatáról a felhasználó dönt.
         Referee.startLimitChange(id, null, now)
         solveSession()
         Referee.setUsageEnabled(false)
-        assertFalse(LakatStore.state.value.usage.enabled)
+        assertFalse(BreakerStore.state.value.usage.enabled)
     }
 
     @Test fun `an exhausted budget actually pulls the hostnames into the blocklist`() {
         val id = addSite("youtube.com", limit = 600)
-        LakatStore.mutate { s ->
+        BreakerStore.mutate { s ->
             val u = UsageLogic.snapshot(s.usage)
             UsageLogic.recordSample(u, UsageLogic.siteKey("youtube.com"), 900.0, now)
             s.copy(usage = u)
         }
-        val blocked = LakatStore.blockedHostnamesNow(now)
+        val blocked = BreakerStore.blockedHostnamesNow(now)
         assertTrue(blocked.containsAll(siteById(id).hostnames),
             "a keret elfogyott, tehát a DNS-szűrőnek is tiltania kell")
     }

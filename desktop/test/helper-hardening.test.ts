@@ -11,11 +11,11 @@ import * as os from 'node:os';
 import * as net from 'node:net';
 import * as path from 'node:path';
 
-const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'lakat-hard-'));
-process.env.LAKAT_STATE = path.join(tmp, 'state.json');
-process.env.LAKAT_HOSTS = path.join(tmp, 'hosts');
-process.env.LAKAT_SOCKET = path.join(tmp, 'lakat.sock');
-fs.writeFileSync(process.env.LAKAT_HOSTS, '127.0.0.1 localhost\n');
+const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'breaker-hard-'));
+process.env.BREAKER_STATE = path.join(tmp, 'state.json');
+process.env.BREAKER_HOSTS = path.join(tmp, 'hosts');
+process.env.BREAKER_SOCKET = path.join(tmp, 'breaker.sock');
+fs.writeFileSync(process.env.BREAKER_HOSTS, '127.0.0.1 localhost\n');
 
 import { test, before, after } from 'node:test';
 import * as assert from 'node:assert/strict';
@@ -51,7 +51,7 @@ let nextId = 1;
 /** One request/response round trip over the real socket. */
 function call(op: string, payload: Record<string, unknown> = {}): Promise<{ ok: boolean; data?: unknown; error?: string }> {
   return new Promise((resolve, reject) => {
-    const sock = net.createConnection(process.env.LAKAT_SOCKET!);
+    const sock = net.createConnection(process.env.BREAKER_SOCKET!);
     let buf = '';
     const id = nextId++;
     sock.setEncoding('utf8');
@@ -70,7 +70,7 @@ function call(op: string, payload: Record<string, unknown> = {}): Promise<{ ok: 
 
 function stateSize(): number {
   try {
-    return fs.statSync(process.env.LAKAT_STATE!).size;
+    return fs.statSync(process.env.BREAKER_STATE!).size;
   } catch {
     return 0;
   }
@@ -142,7 +142,7 @@ test('the helper can still persist after the hostile batches', async () => {
   const res = await call('add_site', { input: 'reddit.com', usePreset: false });
   assert.equal(res.ok, true, 'add_site still works');
 
-  const onDisk = JSON.parse(fs.readFileSync(process.env.LAKAT_STATE!, 'utf8'));
+  const onDisk = JSON.parse(fs.readFileSync(process.env.BREAKER_STATE!, 'utf8'));
   const domains = (onDisk.sites as { domain: string }[]).map((s) => s.domain);
   assert.deepEqual(domains.sort(), ['reddit.com', 'youtube.com'],
     'both sites survive a restart, not just the in-memory view');
@@ -168,7 +168,7 @@ test('malformed samples are skipped, valid ones in the same batch still count', 
 test('a far-future timestamp cannot evict real history', async () => {
   const stats = await call('usage_stats');
   assert.equal(stats.ok, true);
-  const onDisk = JSON.parse(fs.readFileSync(process.env.LAKAT_STATE!, 'utf8')) as HelperState;
+  const onDisk = JSON.parse(fs.readFileSync(process.env.BREAKER_STATE!, 'utf8')) as HelperState;
   const days = onDisk.usage.days.map((d) => d.day);
   // Retention keeps at most RETENTION_DAYS buckets; a rejected far-future
   // sample must not have created one that pushes today's data out.
@@ -188,7 +188,7 @@ test('a batch is capped and a day cannot hold unbounded targets', async () => {
   // and again, to push well past the per-day target cap
   await call('usage_batch', { samples: samples.slice(MAX_BATCH_SAMPLES) });
 
-  const onDisk = JSON.parse(fs.readFileSync(process.env.LAKAT_STATE!, 'utf8')) as HelperState;
+  const onDisk = JSON.parse(fs.readFileSync(process.env.BREAKER_STATE!, 'utf8')) as HelperState;
   const today = onDisk.usage.days[onDisk.usage.days.length - 1];
   const targetCount = Object.keys(today.seconds).length;
   assert.ok(targetCount <= MAX_TARGETS_PER_DAY,
@@ -202,6 +202,6 @@ test('the helper socket is not reachable by other local users', () => {
   // file is group- or world-accessible, any local process can drive the root
   // daemon: pause a block, delete a site, rewrite the hosts file.
   if (process.platform === 'win32') return;
-  const mode = fs.statSync(process.env.LAKAT_SOCKET!).mode & 0o777;
+  const mode = fs.statSync(process.env.BREAKER_SOCKET!).mode & 0o777;
   assert.equal(mode & 0o077, 0, `socket mode is ${mode.toString(8)}, must be owner-only`);
 });

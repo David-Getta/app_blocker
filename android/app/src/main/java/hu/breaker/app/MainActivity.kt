@@ -1,4 +1,4 @@
-package hu.lakat.app
+package hu.breaker.app
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -9,16 +9,16 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
-import hu.lakat.app.core.LakatStore
-import hu.lakat.app.ui.LakatApp
+import hu.breaker.app.core.BreakerStore
+import hu.breaker.app.ui.BreakerApp
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        LakatStore.init(this)
+        BreakerStore.init(this)
         setContent {
-            LakatTheme {
-                LakatApp()
+            BreakerTheme {
+                BreakerApp()
             }
         }
     }
@@ -38,7 +38,7 @@ private val LightColors = lightColorScheme(
 )
 
 @Composable
-fun LakatTheme(content: @Composable () -> Unit) {
+fun BreakerTheme(content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = if (isSystemInDarkTheme()) DarkColors else LightColors,
         content = content,

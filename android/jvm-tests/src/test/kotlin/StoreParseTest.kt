@@ -1,8 +1,8 @@
-import hu.lakat.app.core.AbandonRec
-import hu.lakat.app.core.AppState
-import hu.lakat.app.core.ChallengeEngine.Kind
-import hu.lakat.app.core.LakatStore
-import hu.lakat.app.core.ScheduleLogic
+import hu.breaker.app.core.AbandonRec
+import hu.breaker.app.core.AppState
+import hu.breaker.app.core.ChallengeEngine.Kind
+import hu.breaker.app.core.BreakerStore
+import hu.breaker.app.core.ScheduleLogic
 import org.json.JSONObject
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -21,13 +21,13 @@ import kotlin.test.assertTrue
  */
 class StoreParseTest {
 
-    private val fromJson = LakatStore::class.java
+    private val fromJson = BreakerStore::class.java
         .getDeclaredMethod("fromJson", JSONObject::class.java)
         .apply { isAccessible = true }
 
-    private fun parse(raw: String): AppState = fromJson.invoke(LakatStore, JSONObject(raw)) as AppState
+    private fun parse(raw: String): AppState = fromJson.invoke(BreakerStore, JSONObject(raw)) as AppState
 
-    private val toJson = LakatStore::class.java
+    private val toJson = BreakerStore::class.java
         .getDeclaredMethod("toJson", AppState::class.java)
         .apply { isAccessible = true }
 
@@ -96,7 +96,7 @@ class StoreParseTest {
         // re-roll instead.
         val state = AppState(abandons = listOf(
             AbandonRec("site_1", Kind.PAUSE, "MEMORY+REVERSE", 1_700_000_000_000)))
-        val round = parse(toJson.invoke(LakatStore, state).toString())
+        val round = parse(toJson.invoke(BreakerStore, state).toString())
         assertEquals(state.abandons, round.abandons)
     }
 

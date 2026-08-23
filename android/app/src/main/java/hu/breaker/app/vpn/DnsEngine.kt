@@ -1,4 +1,4 @@
-package hu.lakat.app.vpn
+package hu.breaker.app.vpn
 
 /**
  * Minimal DNS-over-TUN packet handling.

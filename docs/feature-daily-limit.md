@@ -64,7 +64,7 @@ Két dolog, ami első ránézésre nem nyilvánvaló:
    mérést nem lehet kikapcsolni; a felület ezt írja is ki. (A kikapcsolás
    egyébként ingyenes marad, mert az a saját adat — de itt már blokkolási
    következménye van.)
-2. **A desktop mérő a GUI-ban fut**, tehát a keret csak akkor fogy, amíg a Lakat
+2. **A desktop mérő a GUI-ban fut**, tehát a keret csak akkor fogy, amíg a Breaker
    fut. Ez őszintén kiírandó a felületen; a helper enélkül nem tud a fogyásról.
    (Alternatíva később: a helper is számolhatna, ha kap egy „még mindig aktív”
    jelzést.)
@@ -97,7 +97,7 @@ Mindegyik megvan, mindkét magban (`desktop/test/limits.test.ts`,
 | Keret-logika | `shared/limits.ts` | `core/Limits.kt` | — |
 | Tárolás | `helper/state.ts` | `core/Store.kt` | — |
 | Bíró (irány-szabály) | `helper/referee.ts` | `core/Referee.kt` | — |
-| Blokkolási döntés | `helper/hosts.ts` | `LakatStore.blockedHostnamesNow` | — |
+| Blokkolási döntés | `helper/hosts.ts` | `BreakerStore.blockedHostnamesNow` | — |
 | Mérés-kapcsoló zárolása | `helper/server.ts` (`usage_enable`) | `Referee.setUsageEnabled` | — |
 | Felület | `renderer.ts` (keret-mérő + párbeszéd) | `ui/AppUi.kt` (`LimitMeter`, `LimitDialog`) | — |
 

@@ -1,9 +1,9 @@
-package hu.lakat.app.core
+package hu.breaker.app.core
 
 import android.content.Context
 import android.content.SharedPreferences
-import hu.lakat.app.core.ChallengeEngine.Kind
-import hu.lakat.app.core.ChallengeEngine.Step
+import hu.breaker.app.core.ChallengeEngine.Kind
+import hu.breaker.app.core.ChallengeEngine.Step
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import org.json.JSONArray
@@ -68,9 +68,9 @@ data class AppState(
  * Single source of truth, persisted to app-private SharedPreferences as JSON.
  * The VPN service and the UI both observe [state].
  */
-object LakatStore {
+object BreakerStore {
 
-    private const val PREFS = "lakat_state"
+    private const val PREFS = "breaker_state"
     private const val KEY = "state_json"
 
     private lateinit var prefs: SharedPreferences

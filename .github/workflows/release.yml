@@ -40,7 +40,7 @@ jobs:
               --repo "$GITHUB_REPOSITORY" \
               --target "$GITHUB_SHA" \
               --draft \
-              --title "Lakat $VERSION" \
+              --title "Breaker $VERSION" \
               --notes-file - <<'NOTES'
           ## Letöltés
 
@@ -49,7 +49,7 @@ jobs:
           | **Mac (Apple szilícium, M1/M2/M3…)** | `…-arm64.dmg` |
           | **Mac (Intel)** | `….dmg` (arm64 nélkül) |
           | **Windows** | `….exe` |
-          | **Android** | `Lakat-*.apk` |
+          | **Android** | `Breaker-*.apk` |
 
           ### macOS — első indítás (fontos!)
           Amíg nincs Apple fejlesztői aláírás, a **macOS 15 (Sequoia) és újabb**
@@ -64,10 +64,10 @@ jobs:
           2. Nyiss egy Terminált (Spotlight → „Terminál”), és futtasd:
 
           ```
-          xattr -dr com.apple.quarantine /Applications/Lakat.app
+          xattr -dr com.apple.quarantine /Applications/Breaker.app
           ```
 
-          Ezután a Lakat sima duplakattintással indul. Ha a rendszer már kukába
+          Ezután a Breaker sima duplakattintással indul. Ha a rendszer már kukába
           tette, előbb húzd vissza a kukából a Programok mappába, aztán futtasd a
           parancsot.
 
@@ -210,14 +210,14 @@ jobs:
       - run: chmod +x gradlew
       - name: Build (APK a közvetlen terjesztéshez, AAB a Play Store-hoz)
         env:
-          LAKAT_KEYSTORE: ${{ steps.keystore.outputs.path }}
-          LAKAT_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          LAKAT_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          LAKAT_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-          LAKAT_VERSION_NAME: ${{ env.VERSION }}
-          LAKAT_VERSION_CODE: ${{ github.run_number }}
+          BREAKER_KEYSTORE: ${{ steps.keystore.outputs.path }}
+          BREAKER_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          BREAKER_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          BREAKER_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          BREAKER_VERSION_NAME: ${{ env.VERSION }}
+          BREAKER_VERSION_CODE: ${{ github.run_number }}
         run: |
-          export LAKAT_VERSION_NAME="${LAKAT_VERSION_NAME#v}"
+          export BREAKER_VERSION_NAME="${BREAKER_VERSION_NAME#v}"
           ./gradlew assembleRelease bundleRelease --no-daemon
       - name: Assetek átnevezése és feltöltése
         env:
@@ -225,11 +225,11 @@ jobs:
         run: |
           APK=$(find app/build/outputs/apk/release -name "*.apk" | head -n1)
           AAB=$(find app/build/outputs/bundle/release -name "*.aab" | head -n1)
-          cp "$APK" "Lakat-${VERSION}.apk"
-          gh release upload "$VERSION" "Lakat-${VERSION}.apk" --repo "$GITHUB_REPOSITORY" --clobber
+          cp "$APK" "Breaker-${VERSION}.apk"
+          gh release upload "$VERSION" "Breaker-${VERSION}.apk" --repo "$GITHUB_REPOSITORY" --clobber
           if [ -n "$AAB" ]; then
-            cp "$AAB" "Lakat-${VERSION}.aab"
-            gh release upload "$VERSION" "Lakat-${VERSION}.aab" --repo "$GITHUB_REPOSITORY" --clobber
+            cp "$AAB" "Breaker-${VERSION}.aab"
+            gh release upload "$VERSION" "Breaker-${VERSION}.aab" --repo "$GITHUB_REPOSITORY" --clobber
           fi
       # Opcionális: automatikus Play Store feltöltés az internal track-re. Csak
       # akkor fut, ha be van állítva a PLAY_SERVICE_ACCOUNT_JSON secret.
@@ -240,7 +240,7 @@ jobs:
         uses: r0adkll/upload-google-play@v1
         with:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
-          packageName: hu.lakat.app
+          packageName: hu.breaker.app
           releaseFiles: android/app/build/outputs/bundle/release/*.aab
           track: internal
           status: completed
@@ -260,7 +260,7 @@ jobs:
       - name: Fordítás ellenőrzése (iOS szimulátor, aláírás nélkül)
         working-directory: ios
         run: |
-          xcodebuild -project Lakat.xcodeproj -scheme LakatApp-iOS \
+          xcodebuild -project Breaker.xcodeproj -scheme BreakerApp-iOS \
             -destination 'generic/platform=iOS Simulator' \
             -configuration Release build \
             CODE_SIGNING_ALLOWED=NO | tail -30
@@ -277,8 +277,8 @@ jobs:
         run: |
           mkdir -p ~/.appstoreconnect/private_keys
           echo "$ASC_KEY_P8" > "$HOME/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8"
-          xcodebuild -project Lakat.xcodeproj -scheme LakatApp-iOS \
-            -configuration Release -archivePath "$RUNNER_TEMP/Lakat.xcarchive" \
+          xcodebuild -project Breaker.xcodeproj -scheme BreakerApp-iOS \
+            -configuration Release -archivePath "$RUNNER_TEMP/Breaker.xcarchive" \
             -allowProvisioningUpdates \
             -authenticationKeyID "$ASC_KEY_ID" \
             -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
@@ -292,7 +292,7 @@ jobs:
             <key>destination</key><string>upload</string>
           </dict></plist>
           PLIST
-          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/Lakat.xcarchive" \
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/Breaker.xcarchive" \
             -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
             -exportPath "$RUNNER_TEMP/export" \
             -allowProvisioningUpdates \

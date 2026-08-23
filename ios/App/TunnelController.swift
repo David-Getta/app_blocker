@@ -37,10 +37,10 @@ final class TunnelController: ObservableObject {
     func installAndStart() async throws {
         let mgr = manager ?? NETunnelProviderManager()
         let proto = NETunnelProviderProtocol()
-        proto.providerBundleIdentifier = "hu.lakat.app.tunnel"
-        proto.serverAddress = "Lakat (helyi DNS-szűrő)"
+        proto.providerBundleIdentifier = "hu.breaker.app.tunnel"
+        proto.serverAddress = "Breaker (helyi DNS-szűrő)"
         mgr.protocolConfiguration = proto
-        mgr.localizedDescription = "Lakat védelem"
+        mgr.localizedDescription = "Breaker védelem"
         mgr.isEnabled = true
 
         // Always-on: reconnect on demand so the OS keeps it up without the app.

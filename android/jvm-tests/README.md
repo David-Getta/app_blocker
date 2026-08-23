@@ -10,7 +10,7 @@ gradle test        # vagy: ../gradlew -p . test
 
 ## Miért van rá szükség
 
-A Lakat lényegi logikája (blokklista, próbatétel-motor, bíró, menetrend,
+A Breaker lényegi logikája (blokklista, próbatétel-motor, bíró, menetrend,
 idő-mérés, állapot-perzisztencia) alig érinti az Androidot: mindössze a
 `Context`, a `SharedPreferences` és néhány rendszerszolgáltatás kell hozzá.
 Ezeket a `src/stubs/` alatt kiváltjuk, így a **valódi, szállított forrásfájlok**

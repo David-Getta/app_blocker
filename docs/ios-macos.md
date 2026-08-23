@@ -10,16 +10,16 @@
 
 ```bash
 cd ios
-xcodegen generate      # létrehozza a Lakat.xcodeproj-ot a project.yml alapján
-open Lakat.xcodeproj
+xcodegen generate      # létrehozza a Breaker.xcodeproj-ot a project.yml alapján
+open Breaker.xcodeproj
 ```
 
 Xcode-ban:
 1. Állítsd be a **DEVELOPMENT_TEAM**-et a `project.yml`-ben (vagy a target
    Signing & Capabilities fülén) mindhárom targetnél.
-2. Ellenőrizd, hogy az **App Group** (`group.hu.lakat.app`) engedélyezve van az
+2. Ellenőrizd, hogy az **App Group** (`group.hu.breaker.app`) engedélyezve van az
    app és a Packet Tunnel extension targeten is (közös állapot ezen keresztül).
-3. Válaszd a `LakatApp-iOS` vagy `LakatApp-macOS` sémát és futtasd.
+3. Válaszd a `BreakerApp-iOS` vagy `BreakerApp-macOS` sémát és futtasd.
 
 ## Miért nem kér engedélyt minden indításkor (macOS)
 A `TunnelController` a VPN-konfigot **on-demand** módban menti

@@ -124,7 +124,7 @@ Ez érzékeny adat. Ezért:
 
 A desktop mérő a **GUI folyamatában** fut, mert a root/SYSTEM helper nem látja az
 előteret (macOS: nincs Aqua-hozzáférése; Windows: a SYSTEM a 0. munkamenetben
-van). Ezért a desktop mérés addig gyűjt, amíg a Lakat fut. Androidon a mérés a
+van). Ezért a desktop mérés addig gyűjt, amíg a Breaker fut. Androidon a mérés a
 már úgyis futó VPN-szolgáltatásban van, tehát a felület bezárása nem állítja le.
 
 ### A puffer korlátai (desktop)

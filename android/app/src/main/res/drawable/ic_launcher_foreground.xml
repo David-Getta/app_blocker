@@ -7,7 +7,7 @@
     <group
         android:translateX="24"
         android:translateY="24">
-        <!-- lakat-test -->
+        <!-- breaker-test -->
         <path
             android:fillColor="#FFFFFF"
             android:pathData="M20.4,25.2 H39.6 A4.2,4.2 0 0 1 43.8,29.4 V42.6 A4.2,4.2 0 0 1 39.6,46.8 H20.4 A4.2,4.2 0 0 1 16.2,42.6 V29.4 A4.2,4.2 0 0 1 20.4,25.2 Z" />

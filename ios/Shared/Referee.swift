@@ -1,7 +1,7 @@
 import Foundation
 
 /// Session referee — mirrors desktop/src/helper/referee.ts. All transitions go
-/// through LakatStore.mutate so they persist atomically across processes.
+/// through BreakerStore.mutate so they persist atomically across processes.
 enum Referee {
 
     struct RefereeError: Error { let message: String; let code: String }
@@ -68,7 +68,7 @@ enum Referee {
                              minutes: Int?, now: Double) throws -> SessionRec {
         var created: SessionRec?
         var thrown: RefereeError?
-        LakatStore.shared.mutate { state in
+        BreakerStore.shared.mutate { state in
             guard let site = state.sites.first(where: { $0.id == siteId }) else {
                 thrown = RefereeError(message: "Ismeretlen oldal.", code: "NO_SITE"); return
             }
@@ -92,7 +92,7 @@ enum Referee {
                                                     forceCombo: forcedCombo(state, siteId, now))
             var steps = plan.steps
             armCurrent(&steps, 0, now)
-            let session = SessionRec(id: LakatStore.shared.newId("ses"), kind: kind, siteId: siteId,
+            let session = SessionRec(id: BreakerStore.shared.newId("ses"), kind: kind, siteId: siteId,
                                      minutes: minutes, steps: steps, stepIndex: 0, createdAt: now,
                                      pendingSchedule: nil)
             state.session = session
@@ -128,7 +128,7 @@ enum Referee {
                                     now: Double) throws -> ScheduleChangeResult {
         var result: ScheduleChangeResult?
         var thrown: RefereeError?
-        LakatStore.shared.mutate { state in
+        BreakerStore.shared.mutate { state in
             guard let site = state.sites.first(where: { $0.id == siteId }) else {
                 thrown = RefereeError(message: "Ismeretlen oldal.", code: "NO_SITE"); return
             }
@@ -147,7 +147,7 @@ enum Referee {
                                                     forceCombo: forcedCombo(state, siteId, now))
             var steps = plan.steps
             armCurrent(&steps, 0, now)
-            let session = SessionRec(id: LakatStore.shared.newId("ses"), kind: .pause, siteId: siteId,
+            let session = SessionRec(id: BreakerStore.shared.newId("ses"), kind: .pause, siteId: siteId,
                                      minutes: nil, steps: steps, stepIndex: 0, createdAt: now,
                                      pendingSchedule: next)
             state.session = session
@@ -161,7 +161,7 @@ enum Referee {
     static func submitAnswer(sessionId: String, answer: String, now: Double) throws -> SubmitResult {
         var result: SubmitResult?
         var thrown: RefereeError?
-        LakatStore.shared.mutate { state in
+        BreakerStore.shared.mutate { state in
             guard var s = state.session, s.id == sessionId else {
                 thrown = RefereeError(message: "Nincs ilyen aktív feloldási kísérlet.", code: "NO_SESSION"); return
             }
@@ -203,17 +203,17 @@ enum Referee {
 
     static func claimDelay(sessionId: String, now: Double) throws -> SubmitResult {
         // Expiry clears the session in its own committed mutation first.
-        if let pre = LakatStore.shared.state.session, pre.id == sessionId,
+        if let pre = BreakerStore.shared.state.session, pre.id == sessionId,
            case let .delay(_, _, claimableAt?, window) = pre.steps[pre.stepIndex],
            now > claimableAt + Double(window) {
-            LakatStore.shared.mutate { state in dropSession(&state, now) }
+            BreakerStore.shared.mutate { state in dropSession(&state, now) }
             throw RefereeError(
                 message: "Lecsúsztál az átvételi ablakról — a feloldási kísérlet érvénytelen, elölről kell kezdeni.",
                 code: "CLAIM_EXPIRED")
         }
         var result: SubmitResult?
         var thrown: RefereeError?
-        LakatStore.shared.mutate { state in
+        BreakerStore.shared.mutate { state in
             guard var s = state.session, s.id == sessionId else {
                 thrown = RefereeError(message: "Nincs ilyen aktív feloldási kísérlet.", code: "NO_SESSION"); return
             }
@@ -242,7 +242,7 @@ enum Referee {
 
     static func abandon(sessionId: String) {
         let now = Date().timeIntervalSince1970 * 1000
-        LakatStore.shared.mutate { state in
+        BreakerStore.shared.mutate { state in
             if state.session?.id == sessionId { dropSession(&state, now) }
         }
     }
@@ -276,7 +276,7 @@ enum Referee {
         guard jump > clockJumpThresholdMs else { return }
         let shift = jump - clockJumpThresholdMs
 
-        LakatStore.shared.mutate { state in
+        BreakerStore.shared.mutate { state in
             if var s = state.session, s.steps.indices.contains(s.stepIndex) {
                 if case let .delay(id, minutes, claimableAt?, window) = s.steps[s.stepIndex] {
                     s.steps[s.stepIndex] = .delay(id: id, minutes: minutes,
@@ -295,7 +295,7 @@ enum Referee {
 
     static func tick(now: Double) {
         absorbClockJump(now)
-        let st = LakatStore.shared.state
+        let st = BreakerStore.shared.state
         var sessionDead = false
         if let s = st.session {
             if case let .delay(_, _, claimableAt?, window) = s.steps[s.stepIndex],
@@ -306,7 +306,7 @@ enum Referee {
         let deleteDue = st.sites.contains { ($0.pendingDeleteAt ?? .infinity) <= now && $0.pendingDeleteAt != nil }
         guard sessionDead || pauseEnded || deleteDue else { return }
 
-        LakatStore.shared.mutate { state in
+        BreakerStore.shared.mutate { state in
             // Sitting out the claim window ends an attempt too: same bookkeeping,
             // so it is not an escape hatch from a pair one dislikes.
             if sessionDead { dropSession(&state, now) }

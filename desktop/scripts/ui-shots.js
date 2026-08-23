@@ -7,7 +7,7 @@
 //      happened twice; here it fails loudly instead.
 //   2. It refreshes docs/images/*.png so the README shows the current UI.
 //
-// The Electron bridge (window.lakat) is replaced by an in-page fake backed by a
+// The Electron bridge (window.breaker) is replaced by an in-page fake backed by a
 // small scripted state, so no helper, no root, no Electron — just Chromium.
 //
 // Run: node scripts/ui-shots.js            (writes docs/images, exits non-zero on any page error)
@@ -120,7 +120,7 @@ function fakeBridgeSource() {
       focusSeries: series,
       focusLabel: 'youtube.com',
     };
-    window.lakat = {
+    window.breaker = {
       platform: 'darwin',
       call: async (op, payload) => {
         if (op === 'status') return { ok: true, data: status() };

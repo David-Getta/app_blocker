@@ -1,4 +1,4 @@
-package hu.lakat.app.core
+package hu.breaker.app.core
 
 /**
  * A frissítés-ellenőrzés tiszta része — a desktop `shared/update-manifest.ts`

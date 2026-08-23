@@ -13,10 +13,10 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 
-const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'lakat-fuzz-'));
-process.env.LAKAT_STATE = path.join(tmp, 'state.json');
-process.env.LAKAT_HOSTS = path.join(tmp, 'hosts');
-fs.writeFileSync(process.env.LAKAT_HOSTS, '127.0.0.1 localhost\n');
+const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'breaker-fuzz-'));
+process.env.BREAKER_STATE = path.join(tmp, 'state.json');
+process.env.BREAKER_HOSTS = path.join(tmp, 'hosts');
+fs.writeFileSync(process.env.BREAKER_HOSTS, '127.0.0.1 localhost\n');
 
 import { test } from 'node:test';
 import * as assert from 'node:assert/strict';

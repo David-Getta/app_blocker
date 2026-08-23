@@ -31,7 +31,7 @@ if (HELPER_MODE) {
       height: 760,
       minWidth: 780,
       minHeight: 560,
-      title: 'Lakat',
+      title: 'Breaker',
       backgroundColor: '#101418',
       webPreferences: {
         preload: path.join(__dirname, 'preload.js'),
@@ -57,7 +57,7 @@ if (HELPER_MODE) {
     });
 
     app.whenReady().then(() => {
-      ipcMain.handle('lakat:call', async (_e, op: string, payload: Record<string, unknown>) => {
+      ipcMain.handle('breaker:call', async (_e, op: string, payload: Record<string, unknown>) => {
         try {
           return { ok: true, data: await client.call(op, payload ?? {}) };
         } catch (err) {
@@ -66,7 +66,7 @@ if (HELPER_MODE) {
         }
       });
 
-      ipcMain.handle('lakat:install', async () => {
+      ipcMain.handle('breaker:install', async () => {
         try {
           await installHelper();
           return { ok: true };
@@ -93,13 +93,13 @@ if (HELPER_MODE) {
           }
         },
         isEnabled: () => usageEnabled,
-        log: (m) => console.log(`[lakat-tracker] ${m}`),
+        log: (m) => console.log(`[breaker-tracker] ${m}`),
       });
       tracker.start();
       // A mérés csendben elhasalhat: macOS-en, ha a felhasználó megtagadja az
       // automatizálási engedélyt, az előtér-szonda örökre üres marad. Ezt a
       // felület kiírja, ezért kell egy lekérdezhető állapot.
-      ipcMain.handle('lakat:tracker-state', () => ({
+      ipcMain.handle('breaker:tracker-state', () => ({
         blocked: tracker.probeBlocked,
         neverWorked: tracker.probeNeverWorked,
         platform: process.platform,

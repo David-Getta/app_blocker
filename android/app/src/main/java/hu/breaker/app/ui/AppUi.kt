@@ -1,4 +1,4 @@
-package hu.lakat.app.ui
+package hu.breaker.app.ui
 
 import android.Manifest
 import android.app.Activity
@@ -49,20 +49,20 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import hu.lakat.app.core.Blocklist
-import hu.lakat.app.core.ChallengeEngine
-import hu.lakat.app.core.ChallengeEngine.Kind
-import hu.lakat.app.core.ChallengeEngine.Step
-import hu.lakat.app.core.LakatStore
-import hu.lakat.app.core.LimitLogic
-import hu.lakat.app.core.Referee
-import hu.lakat.app.core.ScheduleLogic
-import hu.lakat.app.core.SessionRec
-import hu.lakat.app.core.Site
-import hu.lakat.app.core.UsageLogic
-import hu.lakat.app.update.UpdateChecker
-import hu.lakat.app.usage.UsageTracker
-import hu.lakat.app.vpn.LakatVpnService
+import hu.breaker.app.core.Blocklist
+import hu.breaker.app.core.ChallengeEngine
+import hu.breaker.app.core.ChallengeEngine.Kind
+import hu.breaker.app.core.ChallengeEngine.Step
+import hu.breaker.app.core.BreakerStore
+import hu.breaker.app.core.LimitLogic
+import hu.breaker.app.core.Referee
+import hu.breaker.app.core.ScheduleLogic
+import hu.breaker.app.core.SessionRec
+import hu.breaker.app.core.Site
+import hu.breaker.app.core.UsageLogic
+import hu.breaker.app.update.UpdateChecker
+import hu.breaker.app.usage.UsageTracker
+import hu.breaker.app.vpn.BreakerVpnService
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -77,9 +77,9 @@ private fun fmtRemain(ms: Long): String {
 }
 
 @Composable
-fun LakatApp() {
-    val state by LakatStore.state.collectAsState()
-    val vpnRunning by LakatVpnService.running.collectAsState()
+fun BreakerApp() {
+    val state by BreakerStore.state.collectAsState()
+    val vpnRunning by BreakerVpnService.running.collectAsState()
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var challengeOpen by rememberSaveable { mutableStateOf(false) }
 
@@ -126,7 +126,7 @@ fun LakatApp() {
 @Composable
 private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Unit) {
     val context = LocalContext.current
-    val state by LakatStore.state.collectAsState()
+    val state by BreakerStore.state.collectAsState()
     val scope = rememberCoroutineScope()
     var update by remember { mutableStateOf<UpdateChecker.Update?>(null) }
     var updateBusy by remember { mutableStateOf(false) }
@@ -138,7 +138,7 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
     val vpnConsent = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult(),
     ) { result ->
-        if (result.resultCode == Activity.RESULT_OK) LakatVpnService.start(context)
+        if (result.resultCode == Activity.RESULT_OK) BreakerVpnService.start(context)
     }
     val notifPermission = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -149,7 +149,7 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
             notifPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
         val consent = VpnService.prepare(context)
-        if (consent != null) vpnConsent.launch(consent) else LakatVpnService.start(context)
+        if (consent != null) vpnConsent.launch(consent) else BreakerVpnService.start(context)
     }
 
     var addInput by rememberSaveable { mutableStateOf("") }
@@ -168,13 +168,13 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
             addError = "Ez nem tűnik érvényes címnek."
             return
         }
-        if (LakatStore.state.value.sites.any { it.domain == domain }) {
+        if (BreakerStore.state.value.sites.any { it.domain == domain }) {
             addError = "Ez az oldal már a listán van."
             return
         }
-        LakatStore.mutate { s ->
+        BreakerStore.mutate { s ->
             s.copy(sites = s.sites + Site(
-                id = LakatStore.newId("site"),
+                id = BreakerStore.newId("site"),
                 domain = domain,
                 hostnames = Blocklist.expandHostnames(domain, usePreset),
                 addedAt = System.currentTimeMillis(),
@@ -200,7 +200,7 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("🔒 Lakat", fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                Text("🔒 Breaker", fontSize = 22.sp, fontWeight = FontWeight.Bold)
                 Text(
                     if (vpnRunning) "Védelem aktív" else "Védelem kikapcsolva",
                     color = if (vpnRunning) MaterialTheme.colorScheme.secondary
@@ -239,7 +239,7 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                                         is UpdateChecker.InstallResult.NeedsPermission -> {
                                             needsInstallPermission = true
                                             updateNote = "A telepítéshez engedély kell " +
-                                                "(ismeretlen forrásból származó appok, a Lakatnál). " +
+                                                "(ismeretlen forrásból származó appok, a Breakernél). " +
                                                 "Koppints újra, és odaviszlek."
                                         }
                                         is UpdateChecker.InstallResult.Failed ->
@@ -286,7 +286,7 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                     }
                 }
             } else if (state.sites.isEmpty()) {
-                OutlinedButton(onClick = { LakatVpnService.stop(context) }) {
+                OutlinedButton(onClick = { BreakerVpnService.stop(context) }) {
                     Text("Védelem kikapcsolása")
                 }
             } else {
@@ -395,7 +395,7 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                     }
                 },
                 onClear = {
-                    LakatStore.mutate { s ->
+                    BreakerStore.mutate { s ->
                         val keep = s.usage.enabled
                         s.copy(usage = UsageLogic.UsageState(enabled = keep))
                     }
@@ -599,7 +599,7 @@ private fun SiteCard(
                     // meglepetés, hogy az oldal azonnal zár.
                     LimitMeter(site, usage, now, duringPause = true)
                     OutlinedButton(onClick = {
-                        LakatStore.mutate { s ->
+                        BreakerStore.mutate { s ->
                             s.copy(sites = s.sites.map {
                                 if (it.id == site.id) it.copy(pauseUntil = null) else it
                             })
@@ -612,7 +612,7 @@ private fun SiteCard(
                         color = MaterialTheme.colorScheme.error,
                     )
                     OutlinedButton(onClick = {
-                        LakatStore.mutate { s ->
+                        BreakerStore.mutate { s ->
                             s.copy(sites = s.sites.map {
                                 if (it.id == site.id) it.copy(pendingDeleteAt = null) else it
                             })
@@ -740,7 +740,7 @@ private fun ChallengeScreen(
     onClose: () -> Unit,
     onSuccess: (String) -> Unit,
 ) {
-    val state by LakatStore.state.collectAsState()
+    val state by BreakerStore.state.collectAsState()
     val site = state.sites.find { it.id == session.siteId }
     var message by remember { mutableStateOf<String?>(null) }
 

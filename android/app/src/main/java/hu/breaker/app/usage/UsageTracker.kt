@@ -1,4 +1,4 @@
-package hu.lakat.app.usage
+package hu.breaker.app.usage
 
 import android.app.AppOpsManager
 import android.app.KeyguardManager
@@ -10,8 +10,8 @@ import android.os.Build
 import android.os.PowerManager
 import android.os.Process
 import android.provider.Settings
-import hu.lakat.app.core.LakatStore
-import hu.lakat.app.core.UsageLogic
+import hu.breaker.app.core.BreakerStore
+import hu.breaker.app.core.UsageLogic
 import java.util.concurrent.atomic.AtomicReference
 
 /**
@@ -116,7 +116,7 @@ object UsageTracker {
         val domain = rawDomain.lowercase()
         if (isInfrastructure(domain)) return
 
-        val sites = LakatStore.state.value.sites
+        val sites = BreakerStore.state.value.sites
         val canonical = sites.firstOrNull { site ->
             domain == site.domain || domain.endsWith(".${site.domain}") ||
                 site.hostnames.any { it == domain }
@@ -199,7 +199,7 @@ object UsageTracker {
      * clamped so a missed or delayed tick cannot inflate the measurement.
      */
     fun tick(context: Context, now: Long = System.currentTimeMillis()) {
-        if (!LakatStore.state.value.usage.enabled) { lastAt = now; return }
+        if (!BreakerStore.state.value.usage.enabled) { lastAt = now; return }
         if (!hasUsageAccess(context)) { lastAt = now; return }
         if (!userPresent(context)) { lastAt = now; return }
         if (lastAt == 0L) { lastAt = now; return }
@@ -250,7 +250,7 @@ object UsageTracker {
         if (pending.isEmpty()) return
         val batch = pending.toMap()
         pending.clear()
-        LakatStore.mutate { s ->
+        BreakerStore.mutate { s ->
             // Snapshot FIRST, then record into the copy: recording into the live
             // object would mutate the value StateFlow already holds, the "new"
             // value would compare equal to it, and nothing would ever be emitted.

@@ -1,12 +1,12 @@
 # XcodeGen projekt-definíció. Generáld az Xcode projektet:
 #   brew install xcodegen && cd ios && xcodegen generate
-# majd nyisd meg a Lakat.xcodeproj-ot.
+# majd nyisd meg a Breaker.xcodeproj-ot.
 #
 # A signing-hoz állítsd be a DEVELOPMENT_TEAM-et (lásd docs/ios-macos.md).
 
-name: Lakat
+name: Breaker
 options:
-  bundleIdPrefix: hu.lakat
+  bundleIdPrefix: hu.breaker
   deploymentTarget:
     iOS: "16.0"
     macOS: "13.0"
@@ -22,7 +22,7 @@ settings:
 
 targets:
   # ---------------------------------------------------------------- iOS app
-  LakatApp-iOS:
+  BreakerApp-iOS:
     type: application
     platform: iOS
     sources:
@@ -30,9 +30,9 @@ targets:
       - path: Shared
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: hu.lakat.app
+        PRODUCT_BUNDLE_IDENTIFIER: hu.breaker.app
         INFOPLIST_FILE: App/Info-iOS.plist
-        CODE_SIGN_ENTITLEMENTS: App/Lakat-iOS.entitlements
+        CODE_SIGN_ENTITLEMENTS: App/Breaker-iOS.entitlements
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         TARGETED_DEVICE_FAMILY: "1,2"
     dependencies:
@@ -47,12 +47,12 @@ targets:
       - path: Shared
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: hu.lakat.app.tunnel
+        PRODUCT_BUNDLE_IDENTIFIER: hu.breaker.app.tunnel
         INFOPLIST_FILE: PacketTunnel/Info.plist
         CODE_SIGN_ENTITLEMENTS: PacketTunnel/PacketTunnel-iOS.entitlements
 
   # -------------------------------------------------------------- macOS app
-  LakatApp-macOS:
+  BreakerApp-macOS:
     type: application
     platform: macOS
     sources:
@@ -60,9 +60,9 @@ targets:
       - path: Shared
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: hu.lakat.app
+        PRODUCT_BUNDLE_IDENTIFIER: hu.breaker.app
         INFOPLIST_FILE: App/Info-macOS.plist
-        CODE_SIGN_ENTITLEMENTS: App/Lakat-macOS.entitlements
+        CODE_SIGN_ENTITLEMENTS: App/Breaker-macOS.entitlements
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
     dependencies:
       - target: PacketTunnel-macOS
@@ -76,6 +76,6 @@ targets:
       - path: Shared
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: hu.lakat.app.tunnel
+        PRODUCT_BUNDLE_IDENTIFIER: hu.breaker.app.tunnel
         INFOPLIST_FILE: PacketTunnel/Info.plist
         CODE_SIGN_ENTITLEMENTS: PacketTunnel/PacketTunnel-macOS.entitlements

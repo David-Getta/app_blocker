@@ -6,7 +6,7 @@ struct ChallengeView: View {
     let session: SessionRec
     let onSuccess: (String) -> Void
 
-    @EnvironmentObject var store: LakatStore
+    @EnvironmentObject var store: BreakerStore
     @Environment(\.dismiss) private var dismiss
     @State private var message: String?
     @State private var now = nowMs()

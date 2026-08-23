@@ -1,4 +1,4 @@
-package hu.lakat.app.ui
+package hu.breaker.app.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -24,7 +24,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import hu.lakat.app.core.UsageLogic
+import hu.breaker.app.core.UsageLogic
 
 /** Validated dark-surface categorical slots (same values as the desktop charts). */
 private val SERIES_1 = Color(0xFF3987E5) // time spent
@@ -99,7 +99,7 @@ fun StatsSection(
                 LegendItem(SERIES_2, "blokkolt oldal")
             }
             Text(
-                "Az oldal-idő közelítés: a böngésző előtérben van és a Lakat DNS-szűrője " +
+                "Az oldal-idő közelítés: a böngésző előtérben van és a Breaker DNS-szűrője " +
                     "ezt a domaint látta utoljára.",
                 style = MaterialTheme.typography.bodySmall,
             )

@@ -6,9 +6,9 @@ import SwiftUI
 /// *other* apps or on *other* websites (the Screen Time / DeviceActivity
 /// framework needs a separate, Apple-approved entitlement aimed at parental
 /// controls). So instead of pretending, this screen says so plainly and shows
-/// the data Lakat genuinely owns: the user's own blocking history.
+/// the data Breaker genuinely owns: the user's own blocking history.
 struct StatsView: View {
-    @EnvironmentObject var store: LakatStore
+    @EnvironmentObject var store: BreakerStore
     let now: Double
 
     private func unlocks(inLastDays days: Int) -> Int {
@@ -44,7 +44,7 @@ struct StatsView: View {
             Text("""
                  Az iOS nem enged semmilyen appnak hozzáférést ahhoz, hogy más appokban \
                  vagy weboldalakon mennyi időt töltesz — ez rendszerszintű korlát, nem a \
-                 Lakat hiányossága. A részletes „mire megy el az idő” statisztika ezért \
+                 Breaker hiányossága. A részletes „mire megy el az idő” statisztika ezért \
                  az asztali és az Android verzióban érhető el. Az iPhone beépített \
                  Képernyőidő funkciója tud hasonlót mutatni.
                  """)

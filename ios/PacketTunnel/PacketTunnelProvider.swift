@@ -8,7 +8,7 @@ import Foundation
 class PacketTunnelProvider: NEPacketTunnelProvider {
 
     private let upstreams = ["1.1.1.1", "8.8.8.8"]
-    private let resolveQueue = DispatchQueue(label: "hu.lakat.resolve", attributes: .concurrent)
+    private let resolveQueue = DispatchQueue(label: "hu.breaker.resolve", attributes: .concurrent)
 
     override func startTunnel(options: [String: NSObject]?,
                               completionHandler: @escaping (Error?) -> Void) {
@@ -31,7 +31,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
 
         setTunnelNetworkSettings(settings) { [weak self] error in
             if let error = error { completionHandler(error); return }
-            LakatStore.shared.mutate { $0.protectionOn = true }
+            BreakerStore.shared.mutate { $0.protectionOn = true }
             self?.readLoop()
             completionHandler(nil)
         }
@@ -39,7 +39,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
 
     override func stopTunnel(with reason: NEProviderStopReason,
                              completionHandler: @escaping () -> Void) {
-        LakatStore.shared.mutate { $0.protectionOn = false }
+        BreakerStore.shared.mutate { $0.protectionOn = false }
         completionHandler()
     }
 
@@ -47,7 +47,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         packetFlow.readPackets { [weak self] packets, protocols in
             guard let self = self else { return }
             Referee.tick(now: nowMs())
-            let blocked = LakatStore.shared.blockedHostnamesNow(nowMs())
+            let blocked = BreakerStore.shared.blockedHostnamesNow(nowMs())
             for (idx, packet) in packets.enumerated() {
                 let family = protocols[idx].int32Value
                 self.handle(packet: [UInt8](packet), family: family, blocked: blocked)

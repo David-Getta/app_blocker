@@ -1,11 +1,11 @@
-package hu.lakat.app.core
+package hu.breaker.app.core
 
-import hu.lakat.app.core.ChallengeEngine.Kind
-import hu.lakat.app.core.ChallengeEngine.Step
+import hu.breaker.app.core.ChallengeEngine.Kind
+import hu.breaker.app.core.ChallengeEngine.Step
 
 /**
- * Session referee on top of LakatStore — mirrors desktop/src/helper/referee.ts.
- * All state transitions go through LakatStore.mutate so they persist atomically.
+ * Session referee on top of BreakerStore — mirrors desktop/src/helper/referee.ts.
+ * All state transitions go through BreakerStore.mutate so they persist atomically.
  */
 object Referee {
 
@@ -24,7 +24,7 @@ object Referee {
 
     fun startSession(kind: Kind, siteId: String, minutes: Int?, now: Long): SessionRec {
         var created: SessionRec? = null
-        LakatStore.mutate { state ->
+        BreakerStore.mutate { state ->
             val site = state.sites.find { it.id == siteId }
                 ?: throw RefereeException("Ismeretlen oldal.", "NO_SITE")
             if (kind == Kind.PAUSE) {
@@ -47,7 +47,7 @@ object Referee {
                 kind, tier, dropped.lastCombo, forcedCombo(dropped, siteId, now),
             )
             val session = SessionRec(
-                id = LakatStore.newId("ses"), kind = kind, siteId = siteId, minutes = minutes,
+                id = BreakerStore.newId("ses"), kind = kind, siteId = siteId, minutes = minutes,
                 steps = armCurrent(plan.steps, 0, now), stepIndex = 0, createdAt = now,
             )
             created = session
@@ -137,7 +137,7 @@ object Referee {
      */
     fun startScheduleChange(siteId: String, schedule: ScheduleLogic.Schedule, now: Long): ScheduleChangeResult {
         var result: ScheduleChangeResult? = null
-        LakatStore.mutate { state ->
+        BreakerStore.mutate { state ->
             val site = state.sites.find { it.id == siteId }
                 ?: throw RefereeException("Ismeretlen oldal.", "NO_SITE")
             if (state.session != null) {
@@ -156,7 +156,7 @@ object Referee {
                 Kind.PAUSE, tier, state.lastCombo, forcedCombo(state, siteId, now),
             )
             val session = SessionRec(
-                id = LakatStore.newId("ses"), kind = Kind.PAUSE, siteId = siteId, minutes = null,
+                id = BreakerStore.newId("ses"), kind = Kind.PAUSE, siteId = siteId, minutes = null,
                 steps = armCurrent(plan.steps, 0, now), stepIndex = 0, createdAt = now,
                 pendingSchedule = next,
             )
@@ -176,7 +176,7 @@ object Referee {
      */
     fun startLimitChange(siteId: String, seconds: Long?, now: Long): LimitChangeResult {
         var result: LimitChangeResult? = null
-        LakatStore.mutate { state ->
+        BreakerStore.mutate { state ->
             val site = state.sites.find { it.id == siteId }
                 ?: throw RefereeException("Ismeretlen oldal.", "NO_SITE")
             if (state.session != null) {
@@ -195,7 +195,7 @@ object Referee {
                 Kind.PAUSE, tier, state.lastCombo, forcedCombo(state, siteId, now),
             )
             val session = SessionRec(
-                id = LakatStore.newId("ses"), kind = Kind.PAUSE, siteId = siteId, minutes = null,
+                id = BreakerStore.newId("ses"), kind = Kind.PAUSE, siteId = siteId, minutes = null,
                 steps = armCurrent(plan.steps, 0, now), stepIndex = 0, createdAt = now,
                 pendingLimit = next ?: -1L,
             )
@@ -212,7 +212,7 @@ object Referee {
      * kapcsolható ki. (A desktop helper usage_enable ágának tükre.)
      */
     fun setUsageEnabled(enabled: Boolean) {
-        LakatStore.mutate { state ->
+        BreakerStore.mutate { state ->
             if (!enabled && state.sites.any { LimitLogic.normalizeLimit(it.dailyLimitSeconds) != null }) {
                 throw RefereeException(
                     "Amíg van napi időkeret beállítva, a mérés nem kapcsolható ki — abból fogy a keret.",
@@ -231,7 +231,7 @@ object Referee {
             throw RefereeException("Nincs ilyen aktív feloldási kísérlet.", "NO_SESSION")
         }
         if (now - s.createdAt > ChallengeEngine.SESSION_MAX_AGE_MS) {
-            LakatStore.mutate { dropSession(it, now) }
+            BreakerStore.mutate { dropSession(it, now) }
             throw RefereeException("A feloldási kísérlet lejárt, kezdd elölről.", "SESSION_EXPIRED")
         }
         return s
@@ -239,7 +239,7 @@ object Referee {
 
     fun submitAnswer(sessionId: String, answer: String, now: Long): SubmitResult {
         var result: SubmitResult? = null
-        LakatStore.mutate { state ->
+        BreakerStore.mutate { state ->
             val s = requireSession(state, sessionId, now)
             val step = s.steps[s.stepIndex]
             if (step is Step.Delay) {
@@ -272,11 +272,11 @@ object Referee {
     fun claimDelay(sessionId: String, now: Long): SubmitResult {
         // Expiry clears the session as a separate committed mutation, so the
         // exception below cannot roll it back.
-        val pre = LakatStore.state.value.session
+        val pre = BreakerStore.state.value.session
         if (pre != null && pre.id == sessionId) {
             val step = pre.steps[pre.stepIndex]
             if (step is Step.Delay && step.claimableAt != null && now > step.claimableAt + step.claimWindowMs) {
-                LakatStore.mutate { dropSession(it, now) }
+                BreakerStore.mutate { dropSession(it, now) }
                 throw RefereeException(
                     "Lecsúsztál az átvételi ablakról — a feloldási kísérlet érvénytelen, elölről kell kezdeni.",
                     "CLAIM_EXPIRED",
@@ -284,7 +284,7 @@ object Referee {
             }
         }
         var result: SubmitResult? = null
-        LakatStore.mutate { state ->
+        BreakerStore.mutate { state ->
             val s = requireSession(state, sessionId, now)
             val step = s.steps[s.stepIndex]
             if (step !is Step.Delay || step.claimableAt == null) {
@@ -309,7 +309,7 @@ object Referee {
 
     fun abandon(sessionId: String) {
         val now = System.currentTimeMillis()
-        LakatStore.mutate { state ->
+        BreakerStore.mutate { state ->
             if (state.session?.id == sessionId) dropSession(state, now) else state
         }
     }
@@ -345,7 +345,7 @@ object Referee {
         if (jump <= CLOCK_JUMP_THRESHOLD_MS) return
         val shift = jump - CLOCK_JUMP_THRESHOLD_MS
 
-        LakatStore.mutate { state ->
+        BreakerStore.mutate { state ->
             val session = state.session?.let { s ->
                 val step = s.steps.getOrNull(s.stepIndex)
                 val steps = if (step is Step.Delay && step.claimableAt != null) {
@@ -366,7 +366,7 @@ object Referee {
     fun tick(now: Long) {
         absorbClockJump(now)
         // Cheap pre-check: this runs on the DNS hot path, only mutate when needed.
-        val st = LakatStore.state.value
+        val st = BreakerStore.state.value
         val sessionDead = st.session?.let { s ->
             val step = s.steps[s.stepIndex]
             (step is Step.Delay && step.claimableAt != null && now > step.claimableAt + step.claimWindowMs) ||
@@ -376,7 +376,7 @@ object Referee {
         val deleteDue = st.sites.any { it.pendingDeleteAt != null && it.pendingDeleteAt <= now }
         if (!sessionDead && !pauseEnded && !deleteDue) return
 
-        LakatStore.mutate { state ->
+        BreakerStore.mutate { state ->
             var next = state
             // A várakozási ablak kihagyása is befejezés — ugyanaz a könyvelés,
             // hogy ne lehessen vele nemszeretem párból kimenekülni.

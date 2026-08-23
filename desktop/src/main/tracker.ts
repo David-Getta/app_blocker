@@ -85,7 +85,7 @@ const WIN_PROBE_LOOP = `
 $ErrorActionPreference='SilentlyContinue'
 Add-Type @"
 using System;using System.Runtime.InteropServices;
-public class LakatW {
+public class BreakerW {
   [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
   [DllImport("user32.dll")] public static extern int GetWindowThreadProcessId(IntPtr h, out int pid);
 }
@@ -98,10 +98,10 @@ try {
 
 while ($true) {
   $line = ''
-  $h = [LakatW]::GetForegroundWindow()
+  $h = [BreakerW]::GetForegroundWindow()
   if ($h -ne [IntPtr]::Zero) {
     $procId = 0
-    [void][LakatW]::GetWindowThreadProcessId($h, [ref]$procId)
+    [void][BreakerW]::GetWindowThreadProcessId($h, [ref]$procId)
     $p = Get-Process -Id $procId
     if ($p) {
       $name = $p.ProcessName

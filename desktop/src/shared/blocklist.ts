@@ -54,8 +54,42 @@ export function expandHostnames(domain: string, usePreset: boolean): string[] {
   return [...set].sort();
 }
 
-export const MARKER_BEGIN = '# >>> LAKAT BLOCK BEGIN — ezt a részt a Lakat kezeli, kézzel ne szerkeszd';
-export const MARKER_END = '# <<< LAKAT BLOCK END';
+export const MARKER_BEGIN = '# >>> BREAKER BLOCK BEGIN — ezt a részt a Breaker kezeli, kézzel ne szerkeszd';
+export const MARKER_END = '# <<< BREAKER BLOCK END';
+
+/**
+ * A korábbi név (Lakat) jelölői.
+ *
+ * Az app 0.1.4-ig Lakat volt, és a hosts fájlba ezekkel a sorokkal írt. Az
+ * átnevezéssel a segéd is új azonosítót kapott, tehát a RÉGI démon (és a
+ * blokkja) nem tűnik el magától: aki csak a Breakert telepíti, annak a régi
+ * sorok ott maradnának a hosts fájlban — örökre blokkolva pár oldalt úgy, hogy
+ * semmilyen felület nem tud róluk.
+ *
+ * Ezért az új segéd minden íráskor kitakarítja őket. Ez a fajta hulladék épp az
+ * a hiba, amit egy blokkoló appnál a legnehezebb kideríteni, mert semmilyen
+ * felület nem mutatja: „ez az oldal nincs is a listán, mégsem megy”.
+ */
+export const LEGACY_MARKERS: ReadonlyArray<readonly [string, string]> = [
+  ['# >>> LAKAT BLOCK BEGIN', '# <<< LAKAT BLOCK END'],
+];
+
+/** Kivágja a korábbi néven írt kezelt blokkokat. Idempotens. */
+export function stripLegacyBlocks(hostsContent: string): string {
+  let out = hostsContent.replace(/\r\n/g, '\n');
+  for (const [begin, end] of LEGACY_MARKERS) {
+    for (;;) {
+      const b = out.indexOf(begin);
+      if (b < 0) break;
+      const e = out.indexOf(end, b);
+      // Nyitó jelölő záró nélkül: a fájl végéig tartónak vesszük, mert egy
+      // félbeszakadt írás után pont az a maradék, amit takarítani kell.
+      const cut = e < 0 ? out.length : e + end.length;
+      out = out.slice(0, b) + out.slice(cut);
+    }
+  }
+  return out;
+}
 
 /**
  * Renders the managed block for the given hostnames. Empty list -> empty string.
@@ -78,7 +112,8 @@ export function buildManagedBlock(hostnames: string[], platform: string): string
  * Preserves everything outside the markers. Idempotent.
  */
 export function replaceManagedBlock(hostsContent: string, block: string): string {
-  const normalized = hostsContent.replace(/\r\n/g, '\n');
+  // A régi néven írt blokkok itt tűnnek el: minden hosts-írás egyben takarítás is.
+  const normalized = stripLegacyBlocks(hostsContent);
   const begin = normalized.indexOf(MARKER_BEGIN);
   const end = normalized.indexOf(MARKER_END);
   let before: string;

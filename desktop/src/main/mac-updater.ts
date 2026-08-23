@@ -32,7 +32,7 @@ import { relaunchScript } from '../shared/mac-relaunch';
 const OWNER = 'David-Getta';
 const REPO = 'app_blocker';
 const LATEST_API = `https://api.github.com/repos/${OWNER}/${REPO}/releases/latest`;
-const USER_AGENT = 'Lakat-Desktop-Updater';
+const USER_AGENT = 'Breaker-Desktop-Updater';
 const MAX_REDIRECTS = 5;
 /** A desktop app zip is tens of megabytes; anything far past that is not ours. */
 const MAX_DOWNLOAD_BYTES = 600 * 1024 * 1024;
@@ -83,7 +83,7 @@ async function getText(url: string, headers: Record<string, string> = {}): Promi
 
 // -------------------------------------------------------------- app bundle
 
-/** `/Applications/Lakat.app` for this process. Pure part in shared/, so it is tested. */
+/** `/Applications/Breaker.app` for this process. Pure part in shared/, so it is tested. */
 export function appBundlePath(execPath = process.execPath): string | null {
   return bundleOf(execPath);
 }
@@ -140,7 +140,7 @@ export async function checkMacUpdate(currentVersion = app.getVersion()): Promise
 export async function downloadUpdate(
   update: MacUpdate, onProgress: (percent: number) => void,
 ): Promise<string> {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'lakat-update-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'breaker-update-'));
   try {
     return await downloadInto(dir, update, onProgress);
   } catch (e) {
