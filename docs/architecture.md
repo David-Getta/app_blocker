@@ -69,6 +69,15 @@ Fontos, hogy **hol** fut a mérő:
   desktop mérés addig gyűjt, amíg a Lakat fut.
 - **Android:** a már úgyis futó VPN-szolgáltatásban, tehát a felület bezárása
   nem állítja le.
+- **iOS/macOS (Network Extension):** **nincs mérés, és nem is lehet.** Az Apple
+  nem ad appnak hozzáférést ahhoz, hogy MÁS appokban vagy weboldalakon mennyi
+  aktív idő telik; az egyetlen ilyen API (`DeviceActivity` / `FamilyControls`)
+  külön, Apple által egyenként engedélyezett entitlementhez kötött, és
+  szülői felügyeletre szánták. A csomagalagút lát DNS-kérdéseket, de a
+  kérdésszám nem aktív idő — és a követelmény kifejezetten az, hogy csak az
+  számítson, amíg tényleg az adott dolog előtt ülünk. Ezért az iOS
+  statisztika-képernyő ezt kimondja, ahelyett hogy becsülgetne. Emiatt a
+  **napi időkeret sem működhet iOS-en**: nincs miből fogynia.
 
 Két tervezési döntés, ami az adatok helyességét adja:
 

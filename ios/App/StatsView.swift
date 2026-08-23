@@ -49,6 +49,17 @@ struct StatsView: View {
                  Képernyőidő funkciója tud hasonlót mutatni.
                  """)
                 .font(.footnote).foregroundStyle(.secondary)
+
+            // Ugyanez a korlát egy funkciót is elvisz. Jobb kimondani, mint hogy a
+            // felhasználó a másik gépén meglássa, és azt higgye, itt elrontottuk.
+            Text("""
+                 Emiatt a napi időkeret („legfeljebb napi 20 perc erre az oldalra”) sem \
+                 érhető el iPhone-on: a keret mért aktív időből fogyna, mérés nélkül \
+                 pedig sosem fogyna el. Egy ilyen keret úgy nézne ki, mintha védene, \
+                 közben semmit nem csinálna. Az oldal teljes tiltása és a heti menetrend \
+                 itt is ugyanúgy működik.
+                 """)
+                .font(.footnote).foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()

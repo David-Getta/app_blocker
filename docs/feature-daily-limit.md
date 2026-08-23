@@ -101,8 +101,23 @@ Mindegyik megvan, mindkét magban (`desktop/test/limits.test.ts`,
 | Mérés-kapcsoló zárolása | `helper/server.ts` (`usage_enable`) | `Referee.setUsageEnabled` | — |
 | Felület | `renderer.ts` (keret-mérő + párbeszéd) | `ui/AppUi.kt` (`LimitMeter`, `LimitDialog`) | — |
 
-Az iOS-mag ugyanezt a hat sort várja; a logika szó szerinti tükör, a
-`docs/architecture.md` mondja meg, melyik fájl minek a párja.
+### Miért üres az iOS oszlop
+
+Nem elmaradás: **iOS-en ez a funkció nem építhető meg** a mai jogosultságokkal.
+A keret mért aktív időből fogy, az Apple viszont nem enged appnak hozzáférést
+ahhoz, hogy más appokban vagy weboldalakon mennyi idő telik. Az egyetlen ilyen
+API a `DeviceActivity` / `FamilyControls`, ami külön, Apple által egyenként
+engedélyezett entitlementhez kötött (szülői felügyeletre szánták).
+
+A csomagalagút lát DNS-kérdéseket, de abból „aktív időt” számolni becslés lenne,
+és pont az ígéret sérülne: csak az számítson, amíg tényleg az adott dolog előtt
+ülünk. Egy sosem fogyó keret pedig rosszabb a semminél — úgy néz ki, mintha
+védene.
+
+Ha később megjön az entitlement, a hat sorból öt szó szerint átvehető
+(`Limits.swift`, `Site.dailyLimitSeconds`, `Referee.startLimitChange`, a
+blokkolási döntés és a felület); csak a mérés forrása más — a `DeviceActivity`
+riportjai a saját mintavétel helyett.
 
 Két apróság, ami a tervben még nem volt kimondva, de a megvalósításnál kellett:
 
