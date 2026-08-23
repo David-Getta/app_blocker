@@ -8,6 +8,8 @@
 // Pure and dependency-free, so the same logic is mirrored by Kotlin/Swift.
 // See docs/feature-usage-stats.md.
 
+import { normalizeDomain } from './blocklist';
+
 export type TargetKind = 'app' | 'site';
 
 /** Daily bucket of active seconds, keyed by target ("app:…" / "site:…"). */
@@ -36,6 +38,18 @@ export const IDLE_THRESHOLD_MS = 60_000;
  * a single day's bucket for one target.
  */
 export const MAX_RECORD_SECONDS = 24 * 3600;
+/**
+ * Distinct targets kept per day. Without a cap, anything that can invent target
+ * names — a page fetching random subdomains, a local process feeding the helper
+ * — grows the stored state without bound. Beyond this the smallest entries are
+ * folded into a catch-all so the numbers stay honest instead of disappearing.
+ */
+export const MAX_TARGETS_PER_DAY = 200;
+export const OTHER_SITE_KEY = 'site:(egyéb)';
+export const OTHER_APP_KEY = 'app:(egyéb)';
+/** Length limits for anything that ends up as a stored key or label. */
+export const MAX_KEY_LENGTH = 128;
+export const MAX_LABEL_LENGTH = 96;
 
 export function emptyUsage(): UsageState {
   return { days: [], labels: {}, enabled: true };
@@ -107,9 +121,31 @@ export function recordSample(
     state.days.sort((a, b) => (a.day < b.day ? -1 : a.day > b.day ? 1 : 0));
   }
   bucket.seconds[key] = (bucket.seconds[key] ?? 0) + amount;
-  if (label) state.labels[key] = label;
+  if (label) state.labels[key] = label.slice(0, MAX_LABEL_LENGTH);
+  coalesceDay(bucket);
   pruneOld(state, now);
   return state;
+}
+
+/**
+ * Folds the smallest targets of an over-full day into a per-kind catch-all.
+ * The day's total is preserved exactly — only the breakdown loses its tail.
+ */
+export function coalesceDay(bucket: UsageDay): void {
+  const keys = Object.keys(bucket.seconds);
+  if (keys.length <= MAX_TARGETS_PER_DAY) return;
+  const catchAll = new Set([OTHER_SITE_KEY, OTHER_APP_KEY]);
+  const ranked = keys
+    .filter((k) => !catchAll.has(k))
+    .sort((a, b) => bucket.seconds[b] - bucket.seconds[a]);
+  // leave room for the two catch-all entries
+  const keep = new Set(ranked.slice(0, Math.max(0, MAX_TARGETS_PER_DAY - catchAll.size)));
+  for (const k of ranked) {
+    if (keep.has(k)) continue;
+    const target = kindOf(k) === 'site' ? OTHER_SITE_KEY : OTHER_APP_KEY;
+    bucket.seconds[target] = (bucket.seconds[target] ?? 0) + bucket.seconds[k];
+    delete bucket.seconds[k];
+  }
 }
 
 /**
@@ -301,6 +337,19 @@ export function decideSample(opts: {
     return { key: siteKey(opts.fg.domain), label: opts.fg.domain, seconds };
   }
   return { key: appKey(opts.fg.appId), label: opts.fg.appName, seconds };
+}
+
+/**
+ * The domain a browser probe may turn into a tracked site.
+ *
+ * Only an absolute http(s) URL qualifies. Probes read the address bar through
+ * accessibility APIs, and the same APIs expose every text field on the page —
+ * a compose box, a search field, a login form. Requiring a real URL means a
+ * failed read costs a site breakdown, never a record of what the user typed.
+ */
+export function domainFromBrowserUrl(url: string): string | null {
+  if (typeof url !== 'string' || !/^https?:\/\//i.test(url)) return null;
+  return normalizeDomain(url);
 }
 
 // -------------------------------------------------------------- formatting

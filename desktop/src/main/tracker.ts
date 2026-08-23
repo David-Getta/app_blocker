@@ -12,8 +12,9 @@
 
 import { powerMonitor } from 'electron';
 import { execFile, spawn } from 'child_process';
-import { normalizeDomain } from '../shared/blocklist';
-import { decideSample, SAMPLE_INTERVAL_MS, type Foreground } from '../shared/usage';
+import {
+  decideSample, domainFromBrowserUrl, SAMPLE_INTERVAL_MS, MAX_LABEL_LENGTH, type Foreground,
+} from '../shared/usage';
 import { SampleBuffer } from '../shared/sample-buffer';
 import type { UsageSampleMsg } from '../shared/protocol';
 
@@ -51,7 +52,11 @@ async function macForeground(): Promise<Foreground | null> {
   if (!out) return null;
   const [appName, appId] = out.split('\n').map((s) => s.trim());
   if (!appName) return null;
-  const fg: Foreground = { appId: appId || appName, appName };
+  // Truncate before anything is stored: an app can name itself whatever it likes.
+  const fg: Foreground = {
+    appId: (appId || appName).slice(0, MAX_LABEL_LENGTH),
+    appName: appName.slice(0, MAX_LABEL_LENGTH),
+  };
 
   const flavour = MAC_BROWSERS[fg.appId];
   if (!flavour) return fg;
@@ -61,7 +66,7 @@ async function macForeground(): Promise<Foreground | null> {
     : `tell application id "${fg.appId}" to return URL of active tab of front window`;
   const url = await run('/usr/bin/osascript', ['-e', script]);
   if (url) {
-    const domain = normalizeDomain(url);
+    const domain = domainFromBrowserUrl(url);
     if (domain) fg.domain = domain;
   }
   return fg;
@@ -101,18 +106,34 @@ while ($true) {
       $desc = $p.Description
       if (-not $desc) { $desc = $name }
       $url = ''
-      # Chromium/Firefox expose the address bar as an Edit control with a ValuePattern.
+      # Chromium/Firefox expose the address bar as an Edit control with a
+      # ValuePattern — but so does every text field ON the page. Taking the
+      # first Edit in the window would read compose boxes, search fields and
+      # login forms (a Chrome PWA / --app= window has no omnibox at all, yet is
+      # still process "chrome"). So: skip password and offscreen elements, and
+      # accept a value only if it is an absolute http(s) URL. A false negative
+      # costs a site breakdown; a false positive would capture what the user
+      # typed.
       if ($uia) {
         try {
           $ae = [System.Windows.Automation.AutomationElement]::FromHandle($h)
           if ($ae) {
-            $cond = New-Object System.Windows.Automation.PropertyCondition(
-              [System.Windows.Automation.AutomationElement]::ControlTypeProperty,
-              [System.Windows.Automation.ControlType]::Edit)
-            $edit = $ae.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $cond)
-            if ($edit) {
-              $vp = $edit.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern)
-              if ($vp) { $url = $vp.Current.Value }
+            $cond = New-Object System.Windows.Automation.AndCondition(
+              (New-Object System.Windows.Automation.PropertyCondition(
+                [System.Windows.Automation.AutomationElement]::ControlTypeProperty,
+                [System.Windows.Automation.ControlType]::Edit)),
+              (New-Object System.Windows.Automation.PropertyCondition(
+                [System.Windows.Automation.AutomationElement]::IsPasswordProperty, $false)),
+              (New-Object System.Windows.Automation.PropertyCondition(
+                [System.Windows.Automation.AutomationElement]::IsOffscreenProperty, $false)))
+            $edits = $ae.FindAll([System.Windows.Automation.TreeScope]::Descendants, $cond)
+            $limit = [Math]::Min($edits.Count, 8)
+            for ($i = 0; $i -lt $limit -and $url -eq ''; $i++) {
+              $vp = $edits[$i].GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern)
+              if ($vp) {
+                $v = $vp.Current.Value
+                if ($v -match '^https?://') { $url = $v }
+              }
             }
           }
         } catch { }
@@ -156,13 +177,19 @@ function startWindowsProbe(intervalMs: number, log: (m: string) => void): void {
   child.on('error', (e) => log(`windows probe failed to start: ${String(e)}`));
 }
 
-function parseWinLine(line: string): Foreground | null {
+export function parseWinLine(line: string): Foreground | null {
   if (!line) return null;
   const [name, desc, url] = line.split('|');
   if (!name) return null;
-  const fg: Foreground = { appId: name, appName: desc || name };
+  const fg: Foreground = {
+    appId: name.slice(0, MAX_LABEL_LENGTH),
+    appName: (desc || name).slice(0, MAX_LABEL_LENGTH),
+  };
+  // Second check, in JS: the probe only prints absolute http(s) URLs, but the
+  // consequence of a stray page-input value getting through is that what the
+  // user typed becomes a stored "site". Verify rather than trust.
   if (url && WIN_BROWSERS.has(name.toLowerCase())) {
-    const domain = normalizeDomain(url);
+    const domain = domainFromBrowserUrl(url);
     if (domain) fg.domain = domain;
   }
   return fg;

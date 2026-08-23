@@ -113,7 +113,38 @@ class TrackerAndStoreTest {
         return f.get(s) as String
     }
 
+    /** The tracker only attributes DNS while a browser is foreground. */
+    private fun pretendBrowserForeground() {
+        UsageTracker::class.java.getDeclaredField("cachedFgPackage")
+            .apply { isAccessible = true }.set(UsageTracker, "com.android.chrome")
+    }
+
+    @Test fun `DNS is only attributed while a browser is in the foreground`() {
+        // the VPN sees DNS for the whole device; another app's lookup is not a
+        // page the user was reading
+        UsageTracker::class.java.getDeclaredField("cachedFgPackage")
+            .apply { isAccessible = true }.set(UsageTracker, "com.some.other.app")
+        lastDomainRef.set(null)
+        noteDomain("api.example.com")
+        assertNull(sightedDomain(), "a background app's lookup is not attributed")
+
+        pretendBrowserForeground()
+        noteDomain("api.example.com")
+        assertEquals("example.com", sightedDomain())
+    }
+
+    @Test fun `random subdomains collapse to the registrable domain`() {
+        pretendBrowserForeground()
+        lastDomainRef.set(null)
+        noteDomain("a1b2c3.tracker.example")
+        assertEquals("tracker.example", sightedDomain(),
+            "a page inventing subdomains must not invent stored targets")
+        noteDomain("shop.foo.co.uk")
+        assertEquals("foo.co.uk", sightedDomain(), "multi-part suffixes are respected")
+    }
+
     @Test fun `asset and telemetry hosts are never mistaken for the page`() {
+        pretendBrowserForeground()
         lastDomainRef.set(null)
         noteDomain("fonts.gstatic.com")
         assertNull(sightedDomain(), "a CDN host is not a page")
@@ -127,6 +158,7 @@ class TrackerAndStoreTest {
     }
 
     @Test fun `a blocked site's hostnames are canonicalised to that site`() {
+        pretendBrowserForeground()
         LakatStore.mutate { s ->
             s.copy(sites = listOf(Site(
                 id = "s1", domain = "youtube.com",

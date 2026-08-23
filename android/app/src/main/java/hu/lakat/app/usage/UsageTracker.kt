@@ -36,8 +36,12 @@ object UsageTracker {
         "com.vivaldi.browser", "com.kiwibrowser.browser",
     )
 
-    /** How recent a DNS sighting must be to be treated as "the current page". */
-    private const val DOMAIN_FRESH_MS = 30_000L
+    /**
+     * How recent a DNS sighting must be to be treated as "the current page".
+     * Short on purpose: the VPN sees DNS from the whole device, so the longer
+     * this window is, the more chance an unrelated app's lookup lands inside it.
+     */
+    private const val DOMAIN_FRESH_MS = 8_000L
 
     private data class Sighting(val domain: String, val at: Long)
 
@@ -69,12 +73,41 @@ object UsageTracker {
         INFRA_SUFFIXES.any { domain == it.trimStart('.') || domain.endsWith(it) }
 
     /**
-     * Called by the VPN service for every DNS name it resolves. The name is
-     * canonicalised to the domain the user would recognise: if it belongs to a
-     * site on the block list we use that site's own domain (so statistics and
-     * the block list line up), otherwise we strip the usual www./m. prefixes.
+     * Multi-part public suffixes, so "foo.co.uk" is not reduced to "co.uk".
+     * Deliberately short — this is a size guard, not a full public-suffix list.
+     */
+    private val MULTI_PART_SUFFIXES = setOf(
+        "co.uk", "org.uk", "ac.uk", "gov.uk", "co.jp", "or.jp", "ne.jp",
+        "com.au", "net.au", "org.au", "co.nz", "com.br", "com.cn", "com.tr",
+        "co.in", "co.za", "co.kr", "com.mx", "com.ar", "com.pl", "com.sg",
+    )
+
+    /** Reduces a hostname to the domain a person would recognise. */
+    private fun registrableDomain(host: String): String {
+        val parts = host.split('.')
+        if (parts.size <= 2) return host
+        val lastTwo = parts.takeLast(2).joinToString(".")
+        val keep = if (lastTwo in MULTI_PART_SUFFIXES) 3 else 2
+        return parts.takeLast(minOf(keep, parts.size)).joinToString(".")
+    }
+
+    /**
+     * Called by the VPN service for every DNS name it resolves.
+     *
+     * Two things matter here. First, the VPN sees DNS for the WHOLE device, so a
+     * background app's lookup must not be recorded as a page the user was
+     * reading — a sighting is only kept while a browser is actually in the
+     * foreground, and is dropped the moment the foreground app changes.
+     * Second, the name is reduced to the registrable domain (or the matching
+     * block-list entry), so a page fetching random subdomains cannot invent an
+     * unbounded number of stored targets.
      */
     fun noteDomain(rawDomain: String, now: Long) {
+        // Only attribute while a browser is foreground: anything else is another
+        // app's traffic, and we would be guessing.
+        val fgPackage = cachedFgPackage
+        if (fgPackage == null || fgPackage !in BROWSERS) return
+
         val domain = rawDomain.lowercase()
         if (isInfrastructure(domain)) return
 
@@ -82,7 +115,7 @@ object UsageTracker {
         val canonical = sites.firstOrNull { site ->
             domain == site.domain || domain.endsWith(".${site.domain}") ||
                 site.hostnames.any { it == domain }
-        }?.domain ?: domain.removePrefix("www.").removePrefix("m.")
+        }?.domain ?: registrableDomain(domain.removePrefix("www.").removePrefix("m."))
 
         lastDomain.set(Sighting(canonical, now))
     }
@@ -128,7 +161,12 @@ object UsageTracker {
             }
             if (resumed) latest = e.packageName
         }
-        if (latest != null) cachedFgPackage = latest
+        if (latest != null && latest != cachedFgPackage) {
+            // The foreground app changed: a DNS sighting from the previous app's
+            // session must not be carried over to the new one.
+            cachedFgPackage = latest
+            lastDomain.set(null)
+        }
         return cachedFgPackage
     }
 

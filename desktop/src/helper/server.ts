@@ -9,13 +9,20 @@ import { HELPER_VERSION } from '../shared/protocol';
 import { normalizeDomain, expandHostnames } from '../shared/blocklist';
 import { computeTier } from '../shared/challenges';
 import { isBlockedNow } from '../shared/schedule';
-import { recordSample, summarize, series, labelOf, emptyUsage } from '../shared/usage';
+import {
+  recordSample, summarize, series, labelOf, emptyUsage,
+  MAX_KEY_LENGTH, MAX_LABEL_LENGTH,
+} from '../shared/usage';
 import type { UsageStatsData } from '../shared/protocol';
 import type { HelperState, SiteRec } from './state';
 import { newId } from './state';
 import * as referee from './referee';
 import { RefereeError } from './referee';
 import { socketPath } from './paths';
+
+/** Hard limits on one usage_batch request (see the handler for why). */
+export const MAX_BATCH_SAMPLES = 512;
+const VALID_KEY = new RegExp(`^(app|site):.{1,${MAX_KEY_LENGTH - 5}}$`);
 
 export interface ServerDeps {
   getState: () => HelperState;
@@ -125,12 +132,26 @@ function handle(req: HelperRequest, deps: ServerDeps): unknown {
     }
 
     case 'usage_batch': {
-      // Samples come from the user-session tracker; they only ever add time.
-      for (const s of req.samples) {
-        recordSample(state.usage, s.key, s.seconds, s.at, s.label);
+      // Everything here is untrusted: the helper runs as root/SYSTEM and its
+      // state file is rewritten on every commit, so unvalidated keys, labels or
+      // timestamps let anything that can reach the socket grow that file
+      // without bound — and once it passes what JSON.stringify can produce,
+      // NOTHING can be persisted again. Validate before recording.
+      const samples = Array.isArray(req.samples) ? req.samples.slice(0, MAX_BATCH_SAMPLES) : [];
+      let recorded = 0;
+      for (const s of samples) {
+        if (!s || typeof s.key !== 'string' || !VALID_KEY.test(s.key)) continue;
+        if (typeof s.seconds !== 'number' || !Number.isFinite(s.seconds) || s.seconds <= 0) continue;
+        if (typeof s.at !== 'number' || !Number.isFinite(s.at)) continue;
+        // A far-off timestamp could evict real history via retention, so a
+        // sample may only land within a week of now in either direction.
+        if (Math.abs(s.at - now) > 7 * 24 * 3600_000) continue;
+        const label = typeof s.label === 'string' ? s.label.slice(0, MAX_LABEL_LENGTH) : undefined;
+        recordSample(state.usage, s.key, s.seconds, s.at, label);
+        recorded += 1;
       }
       deps.commit();
-      return { ok: true, recorded: req.samples.length };
+      return { ok: true, recorded };
     }
 
     case 'usage_stats': {
@@ -172,10 +193,18 @@ export function startServer(deps: ServerDeps): net.Server {
     try { fs.mkdirSync(path.dirname(sock), { recursive: true }); } catch { /* ok */ }
     try { fs.unlinkSync(sock); } catch { /* ok */ }
   }
+  // One request is a single JSON line; anything far past that is not a client
+  // we want to keep talking to.
+  const MAX_LINE_BYTES = 1024 * 1024;
   const server = net.createServer((conn) => {
     let buffer = '';
     conn.on('data', (chunk) => {
       buffer += chunk.toString('utf8');
+      if (buffer.length > MAX_LINE_BYTES) {
+        deps.log('client sent an oversized request line; closing the connection');
+        conn.destroy();
+        return;
+      }
       let nl: number;
       while ((nl = buffer.indexOf('\n')) >= 0) {
         const line = buffer.slice(0, nl).trim();

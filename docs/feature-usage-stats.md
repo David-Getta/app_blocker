@@ -81,7 +81,11 @@ a felületen, nem hazudunk pontosságot.
 **Android**: az `UsageStatsManager` pontos előtér-időt ad appokra. Oldalakra a
 böngészőn belül nincs rendszer-API; a VPN-ben látott DNS-lekéréseket rendeljük
 az éppen előtérben lévő böngészőhöz — ez **közelítés**, a felületen így is
-jelöljük.
+jelöljük. Mivel a VPN az egész készülék DNS-forgalmát látja, szigorú szűrés van:
+csak akkor rendelünk hozzá nevet, ha **épp böngésző van előtérben**, a
+megfigyelés élettartama rövid (8 mp), app-váltáskor eldobjuk, és a CDN /
+média / telemetria hosztokat kiszűrjük. Így egy háttérben futó app lekérése nem
+jelenik meg „meglátogatott oldalként".
 
 **iOS**: az Apple nem enged más appok használatának mérésére semmilyen API-t
 (a Screen Time / DeviceActivity keretrendszer külön, Apple által engedélyezett
@@ -101,7 +105,14 @@ Ez érzékeny adat. Ezért:
   kapcsolhatja** a mérést. A mérés kikapcsolása nem próbatételes — ez nem
   blokkolás-gyengítés, hanem a saját adatáról szóló döntés.
 - Az URL-ekből **csak a domaint** tároljuk (`youtube.com`), a teljes címet, a
-  lekérdezési paramétereket és az oldalcímet soha.
+  lekérdezési paramétereket és az oldalcímet soha. A domaint a **regisztrálható
+  szintre** redukáljuk, így egy oldal nem tud véletlen aldomainekkel korlátlan
+  bejegyzést létrehozni.
+- A böngésző címsorát kisegítő technológiákon át olvassuk, amik az oldal
+  **összes beviteli mezőjét** is látják. Ezért csak **abszolút http(s) URL**-t
+  fogadunk el: ha a szonda mást talál (megírt üzenet, keresőmező, bejelentkezési
+  űrlap), inkább nem mérünk oldal-bontást, mint hogy a begépelt szöveg tárolásra
+  kerüljön. Jelszó- és képernyőn kívüli mezőket eleve átugrunk.
 
 ## Megvalósítás állapota
 
@@ -124,3 +135,9 @@ már úgyis futó VPN-szolgáltatásban van, tehát a felület bezárása nem á
 - Kötegelt (hosszabb kiesés utáni) idő nem csonkul, de egy célpont egy napra
   nem kaphat 24 óránál többet.
 - Statisztikák: ma/7/30 nap, top lista, idősor, hét-a-héthez, üres állapot.
+- Ellenálló képesség: a privilegizált helper `usage_batch` végpontja validált
+  bemenetet vár (kulcs-forma és -hossz, címke-hossz, véges és ±7 napon belüli
+  időbélyeg, kötegméret), a kérés-sor mérete korlátozott, és egy nap legfeljebb
+  korlátozott számú célpontot tárol — a maradék egy „egyéb" gyűjtőbe kerül, hogy
+  az összeg pontos maradjon. Integrációs teszt játssza el a támadást a valódi
+  szerver ellen, és igazolja, hogy a mentés utána is működik.

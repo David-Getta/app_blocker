@@ -209,6 +209,29 @@ class UsageLogicTest {
         assertNull(UsageLogic.decideSample(now + 1000, now, 1000, fg), "backwards clock")
     }
 
+    @Test fun `a day cannot hold unbounded targets and the tail is not lost`() {
+        val st = UsageLogic.UsageState()
+        // a page fetching random subdomains, or anything else inventing names
+        for (i in 0 until UsageLogic.MAX_TARGETS_PER_DAY + 150) {
+            UsageLogic.recordSample(st, "site:flood$i.example", (i + 1).toDouble(), now)
+        }
+        val bucket = st.days[0]
+        assertTrue(bucket.seconds.size <= UsageLogic.MAX_TARGETS_PER_DAY,
+            "kept ${bucket.seconds.size}, cap is ${UsageLogic.MAX_TARGETS_PER_DAY}")
+        assertTrue(UsageLogic.OTHER_SITE_KEY in bucket.seconds, "the folded tail goes to a catch-all")
+
+        val n = UsageLogic.MAX_TARGETS_PER_DAY + 150
+        val expectedTotal = (n.toDouble() * (n + 1)) / 2
+        assertEquals(expectedTotal, bucket.seconds.values.sum(), "no measured time is dropped")
+        assertTrue("site:flood${n - 1}.example" in bucket.seconds, "the largest target survives")
+    }
+
+    @Test fun `long labels are truncated before they are stored`() {
+        val st = UsageLogic.UsageState()
+        UsageLogic.recordSample(st, "site:a.com", 5.0, now, "x".repeat(10_000))
+        assertEquals(UsageLogic.MAX_LABEL_LENGTH, st.labels["site:a.com"]!!.length)
+    }
+
     @Test fun `durations format the way a person reads them`() {
         assertEquals("0 mp", UsageLogic.formatDuration(0.0))
         assertEquals("30 mp", UsageLogic.formatDuration(30.0))

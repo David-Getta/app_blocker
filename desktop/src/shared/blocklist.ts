@@ -57,8 +57,12 @@ export function expandHostnames(domain: string, usePreset: boolean): string[] {
 export const MARKER_BEGIN = '# >>> LAKAT BLOCK BEGIN — ezt a részt a Lakat kezeli, kézzel ne szerkeszd';
 export const MARKER_END = '# <<< LAKAT BLOCK END';
 
-/** Renders the managed block for the given hostnames. Empty list -> empty string. */
-export function buildManagedBlock(hostnames: string[], platform: NodeJS.Platform): string {
+/**
+ * Renders the managed block for the given hostnames. Empty list -> empty string.
+ * `platform` is a plain string (not NodeJS.Platform) so this module stays free
+ * of Node types — it is also compiled for the browser-side renderer.
+ */
+export function buildManagedBlock(hostnames: string[], platform: string): string {
   if (hostnames.length === 0) return '';
   const lines: string[] = [MARKER_BEGIN];
   for (const h of hostnames) {

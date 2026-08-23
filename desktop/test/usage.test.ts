@@ -4,7 +4,8 @@ import {
   emptyUsage, recordSample, pruneOld, dayKey, dayKeysBack, totalsForDays,
   rank, sumOf, series, weekOverWeek, summarize, formatDuration,
   siteKey, appKey, kindOf, idOf, labelOf,
-  RETENTION_DAYS, MAX_RECORD_SECONDS, decideSample, type UsageState,
+  RETENTION_DAYS, MAX_RECORD_SECONDS, MAX_TARGETS_PER_DAY, MAX_LABEL_LENGTH,
+  OTHER_SITE_KEY, decideSample, domainFromBrowserUrl, type UsageState,
 } from '../src/shared/usage';
 
 /** An instant N local days before `now` (stepped at noon, DST-safe). */
@@ -239,6 +240,49 @@ test('decideSample: sleep/wake gaps cannot inflate a sample', () => {
   // a non-advancing or backwards clock records nothing
   assert.equal(decideSample({ lastAt: NOW, now: NOW, idleSeconds: 1, fg }), null);
   assert.equal(decideSample({ lastAt: NOW + 1000, now: NOW, idleSeconds: 1, fg }), null);
+});
+
+test('only a real URL from a browser becomes a tracked site', () => {
+  // A probe reads the address bar through accessibility APIs, which also expose
+  // every text field on the page. Anything that is not an absolute http(s) URL
+  // must be refused, or what the user typed would become a stored "site".
+  assert.equal(domainFromBrowserUrl('https://www.youtube.com/watch?v=x'), 'youtube.com');
+  assert.equal(domainFromBrowserUrl('http://example.com'), 'example.com');
+
+  // typed into a compose box, a search field or a login form
+  assert.equal(domainFromBrowserUrl('Szia! Holnap ráérek, hívj nyugodtan'), null);
+  assert.equal(domainFromBrowserUrl('alice@clinic.example'), null, 'an email is not a site');
+  assert.equal(domainFromBrowserUrl('clinic.example'), null, 'a bare hostname is not a URL');
+  assert.equal(domainFromBrowserUrl('hunter2'), null);
+  assert.equal(domainFromBrowserUrl(''), null);
+  assert.equal(domainFromBrowserUrl('file:///Users/me/napló.txt'), null, 'only http(s)');
+  assert.equal(domainFromBrowserUrl('javascript:alert(1)'), null);
+});
+
+test('a day cannot hold unbounded targets and the tail is not lost', () => {
+  const st = emptyUsage();
+  // a page fetching random subdomains, or anything else inventing target names
+  for (let i = 0; i < MAX_TARGETS_PER_DAY + 150; i++) {
+    recordSample(st, siteKey(`flood${i}.example`), i + 1, NOW);
+  }
+  const bucket = st.days[0];
+  const keys = Object.keys(bucket.seconds);
+  assert.ok(keys.length <= MAX_TARGETS_PER_DAY, `kept ${keys.length}, cap is ${MAX_TARGETS_PER_DAY}`);
+  assert.ok(keys.includes(OTHER_SITE_KEY), 'the folded tail goes to a catch-all');
+
+  // the day's TOTAL is preserved exactly — only the breakdown loses its tail
+  const expectedTotal = ((MAX_TARGETS_PER_DAY + 150) * (MAX_TARGETS_PER_DAY + 151)) / 2;
+  assert.equal(sumOf(bucket.seconds), expectedTotal, 'no measured time is dropped');
+
+  // the biggest targets are the ones kept
+  assert.ok(keys.includes(siteKey(`flood${MAX_TARGETS_PER_DAY + 149}.example`)),
+    'the largest target survives');
+});
+
+test('long labels are truncated before they are stored', () => {
+  const st = emptyUsage();
+  recordSample(st, siteKey('a.com'), 5, NOW, 'x'.repeat(10_000));
+  assert.equal(st.labels[siteKey('a.com')].length, MAX_LABEL_LENGTH);
 });
 
 test('formatDuration is human readable in Hungarian', () => {

@@ -26,6 +26,17 @@ object UsageLogic {
     const val IDLE_THRESHOLD_MS = 60_000L
     /** Defensive cap per record: more than a day for one target in one day is impossible. */
     const val MAX_RECORD_SECONDS = 24.0 * 3600
+    /**
+     * Distinct targets kept per day. Without a cap, anything that can invent
+     * target names — a page fetching random subdomains — grows the stored state
+     * without bound. Beyond this the smallest entries fold into a catch-all so
+     * the totals stay honest instead of disappearing.
+     */
+    const val MAX_TARGETS_PER_DAY = 200
+    const val OTHER_SITE_KEY = "site:(egyéb)"
+    const val OTHER_APP_KEY = "app:(egyéb)"
+    /** Length limit for anything stored as a label. */
+    const val MAX_LABEL_LENGTH = 96
 
     /**
      * A detached copy of the whole history. [recordSample] mutates in place (to
@@ -89,8 +100,29 @@ object UsageLogic {
             state.days.sortBy { it.day }
         }
         bucket.seconds[key] = (bucket.seconds[key] ?: 0.0) + amount
-        if (label != null) state.labels[key] = label
+        if (label != null) state.labels[key] = label.take(MAX_LABEL_LENGTH)
+        coalesceDay(bucket)
         pruneOld(state, now)
+    }
+
+    /**
+     * Folds the smallest targets of an over-full day into a per-kind catch-all.
+     * The day's total is preserved exactly — only the breakdown loses its tail.
+     */
+    fun coalesceDay(bucket: UsageDay) {
+        if (bucket.seconds.size <= MAX_TARGETS_PER_DAY) return
+        val catchAll = setOf(OTHER_SITE_KEY, OTHER_APP_KEY)
+        val ranked = bucket.seconds.entries
+            .filter { it.key !in catchAll }
+            .sortedByDescending { it.value }
+            .map { it.key }
+        val keep = ranked.take(maxOf(0, MAX_TARGETS_PER_DAY - catchAll.size)).toSet()
+        for (k in ranked) {
+            if (k in keep) continue
+            val target = if (kindOf(k) == TargetKind.SITE) OTHER_SITE_KEY else OTHER_APP_KEY
+            bucket.seconds[target] = (bucket.seconds[target] ?: 0.0) + (bucket.seconds[k] ?: 0.0)
+            bucket.seconds.remove(k)
+        }
     }
 
     /**
