@@ -75,9 +75,11 @@ function fakeBridgeSource() {
       helperVersion: 1, platform: 'darwin', sites, tier: 1, unlocks7d: 2,
       session, dohPolicyApplied: true, usageEnabled: true, now: Date.now(),
     });
+    // 30 days, because that is what the helper actually sends (and what the
+    // chart title claims) — a shorter demo series would make the screenshot lie.
     const series = [];
-    const mins = [42, 66, 30, 81, 54, 95, 72, 38, 61, 88, 47, 70, 33, 58];
-    for (let i = 13; i >= 0; i--) series.push({ day: day(i), seconds: mins[13-i] * 60 });
+    const mins = [38,52,20,64,45,71,58,26,49,66,35,57,24,44,61,29,53,70,41,33,68,47,25,59,36,74,42,30,55,63];
+    for (let i = 29; i >= 0; i--) series.push({ day: day(i), seconds: mins[29-i] * 60 });
     const t = (key, label, kind, seconds) => ({ key, label, kind, seconds });
     const stats = {
       summary: {
@@ -200,6 +202,17 @@ async function main() {
   await page.waitForSelector('#stepMessage:not(.hidden)', { timeout: 10_000 });
   if (!CHECK_ONLY) {
     await page.screenshot({ path: path.join(OUT, 'desktop-challenge.png'), fullPage: false });
+  }
+
+  // Back out, then the schedule editor: the other flow with real friction rules.
+  await page.getByRole('button', { name: /Feladom/ }).click();
+  await page.waitForSelector('#sessionModal.hidden', { state: 'attached', timeout: 10_000 });
+  await page.locator('#siteList .site-row').first()
+    .getByRole('button', { name: /Menetrend/ }).click();
+  // the editor is built on the fly (no id), so anchor on its heading
+  await page.getByRole('heading', { name: /Menetrend:/ }).waitFor({ timeout: 10_000 });
+  if (!CHECK_ONLY) {
+    await page.screenshot({ path: path.join(OUT, 'desktop-schedule.png'), fullPage: false });
   }
 
   await browser.close();
