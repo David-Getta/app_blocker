@@ -253,7 +253,46 @@ function requireSession(state: HelperState, sessionId: string, now: number): Ses
  * re-lock ended pauses and execute due deletions.
  * Returns true when the blocklist needs re-applying.
  */
+/**
+ * A jump bigger than this between two housekeeping ticks is not elapsed time.
+ * The loop runs every few seconds, so anything past a couple of minutes is
+ * either the clock being moved or the machine having been asleep.
+ */
+export const CLOCK_JUMP_THRESHOLD_MS = 2 * 60_000;
+
+/**
+ * Waiting is a challenge here, and a challenge that a clock change defeats is
+ * not a challenge: setting the system clock forward would make a DELAY step
+ * claimable at once and a pending deletion run early. So the deadlines that
+ * PROTECT (the waiting target, its claim window, a pending deletion) are pushed
+ * by whatever the wall clock jumped, i.e. they measure elapsed time rather than
+ * a date. Suspend/hibernate looks the same from here and is treated the same:
+ * the wait does not run while the machine is off, which is the strict side.
+ *
+ * pauseUntil is deliberately NOT adjusted: a jump that ends an unlock early
+ * blocks more, and tightening never needs protecting.
+ */
+function absorbClockJump(state: HelperState, now: number): void {
+  const last = state.lastTickAt;
+  state.lastTickAt = now;
+  if (last === undefined || !Number.isFinite(last)) return;
+  const jump = now - last;
+  if (jump <= CLOCK_JUMP_THRESHOLD_MS) return; // ordinary tick cadence
+
+  const shift = jump - CLOCK_JUMP_THRESHOLD_MS;
+  const s = state.session;
+  if (s) {
+    const step = s.steps[s.stepIndex];
+    if (step?.type === 'DELAY' && step.claimableAt !== null) step.claimableAt += shift;
+    s.createdAt += shift; // …and the attempt does not age out from the jump either
+  }
+  for (const site of state.sites) {
+    if (site.pendingDeleteAt !== null) site.pendingDeleteAt += shift;
+  }
+}
+
 export function tick(state: HelperState, now: number): boolean {
+  absorbClockJump(state, now);
   let dirty = false;
   const s = state.session;
   if (s) {

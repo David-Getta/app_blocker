@@ -400,3 +400,51 @@ test('cancelling the delete flow does not re-roll the pause flow', () => {
   referee.startSession(state, 'pause', siteId, 15, now + 2000);
   assert.equal([...state.session!.steps.map((s) => s.type)].sort().join('+'), owed);
 });
+
+test('moving the system clock forward does not skip a waiting step', () => {
+  // Waiting IS the challenge here. If a DELAY could be claimed by setting the
+  // clock forward, the hardest step in the whole system would cost two clicks.
+  const { state, siteId } = stateWithSite();
+  const now = Date.now();
+  state.unlockLog = Array.from({ length: 8 }, (_, i) => now - (i + 1) * 3600_000); // tier 3
+  referee.startSession(state, 'delete', siteId, undefined, now);
+  while (state.session!.steps[state.session!.stepIndex].type !== 'DELAY') {
+    const step = state.session!.steps[state.session!.stepIndex];
+    referee.submitAnswer(state, state.session!.id, solveStep(step, now), now);
+  }
+  const delay = state.session!.steps[state.session!.stepIndex] as DelayStep;
+  const target = delay.claimableAt!;
+  referee.tick(state, now); // establishes the tick baseline
+
+  // "next year", in one step
+  const jumped = now + 365 * 24 * 3600_000;
+  referee.tick(state, jumped);
+  const after = state.session!.steps[state.session!.stepIndex] as DelayStep;
+  assert.ok(after.claimableAt! > jumped,
+    'the waiting target moved with the clock, so the wait still lies ahead');
+  const claim = referee.claimDelay(state, state.session!.id, jumped);
+  assert.equal(claim.accepted, false, 'claiming is still refused');
+  assert.match(claim.message ?? '', /várni kell/);
+  assert.ok(after.claimableAt! - target > 0);
+});
+
+test('a pending deletion cannot be rushed by the clock either', () => {
+  const { state, siteId } = stateWithSite();
+  const now = Date.now();
+  state.sites[0].pendingDeleteAt = now + 24 * 3600_000;
+  referee.tick(state, now);
+  referee.tick(state, now + 48 * 3600_000);
+  assert.equal(state.sites.length, 1, 'the site is still there');
+  assert.ok(state.sites[0].pendingDeleteAt! > now + 48 * 3600_000);
+});
+
+test('normal tick cadence is not treated as a clock jump', () => {
+  const { state, siteId } = stateWithSite();
+  const now = Date.now();
+  state.sites[0].pendingDeleteAt = now + 60_000;
+  referee.tick(state, now);
+  referee.tick(state, now + 15_000);   // ordinary tick
+  assert.equal(state.sites[0].pendingDeleteAt, now + 60_000, 'untouched');
+  referee.tick(state, now + 61_000);   // the deletion is genuinely due
+  assert.equal(state.sites.length, 0, 'and it runs on time');
+});

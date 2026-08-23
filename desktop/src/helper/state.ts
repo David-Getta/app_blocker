@@ -57,6 +57,8 @@ export interface HelperState {
   session: SessionRec | null;
   /** attempts given up on, per site; see REROLL_COOLDOWN_MS */
   abandons?: AbandonRec[];
+  /** wall clock at the previous housekeeping tick, to notice clock jumps */
+  lastTickAt?: number;
   dohApplied: boolean;
   /** active-time tracking history (stays on this machine) */
   usage: UsageState;

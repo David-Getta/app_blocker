@@ -113,6 +113,14 @@ mint az előző).
   DELAY-t nem lehet „félretenni és később átvenni” az ablakon túl.
 - **A feladás nem sorsol könnyebbet.** Egy órán belül ugyanaz a próbatípus-páros
   jön vissza (friss tartalommal) — lásd fent.
+- **Az óra átállítása nem rövidíti a várakozást.** A DELAY lépés és a törlés
+  24 órás türelmi ideje eltelt időt mér, nem dátumot: a segéd minden
+  karbantartó körben nézi, mennyit ugrott a fali óra, és a *védő* határidőket
+  (várakozás célpontja, folyamatban lévő törlés, a kísérlet kora) ugyanannyival
+  kitolja. A `pauseUntil` szándékosan kimarad — egy előre ugró óra ott korábban
+  visszazár, ami szigorítás. A gép alvása kívülről ugyanígy néz ki, és ugyanígy
+  kezeljük: alvás közben nem telik a várakozás. Mobilon ez még nincs átvezetve
+  (lásd `docs/architecture.md`, ismert korlátok).
 - **A blokkolás alapból zár.** Ha bármi elromlik (lejárt session, elrontott
   hosts fájl), a rendszer a *blokkolt* állapot felé esik vissza, nem a nyitott
   felé.
