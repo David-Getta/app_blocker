@@ -42,6 +42,27 @@ jobs:
               --draft \
               --title "Breaker $VERSION" \
               --notes-file - <<'NOTES'
+          ## Névváltás: a Lakatból Breaker lett
+
+          Ha van fent **Lakat** (v0.1.x), azt a rendszer MÁS appnak látja: a
+          Breaker nem frissítésként érkezik mellé, és a régi háttérszolgáltatás
+          magától tovább futna — a hosts fájlban lévő blokkjával együtt.
+
+          A Breaker telepítése után futtasd le egyszer, Terminálban:
+
+          ```
+          sudo launchctl bootout system/hu.lakat.helper
+          sudo rm -f /Library/LaunchDaemons/hu.lakat.helper.plist
+          sudo rm -rf "/Library/Application Support/Lakat" /Library/Logs/Lakat
+          rm -rf /Applications/Lakat.app
+          ```
+
+          Windowson a régi ütemezett feladat: `schtasks /Delete /TN "LakatHelper" /F`.
+          Androidon egyszerűen töröld a régi appot.
+
+          A hosts fájlt **nem kell** kézzel javítani: a Breaker az első
+          blokkolásnál kitakarítja a régi néven írt sorokat is.
+
           ## Letöltés
 
           | Gép | Fájl |
