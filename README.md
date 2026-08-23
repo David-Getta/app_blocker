@@ -168,8 +168,9 @@ oldalanként és appokként).
 Ami még hátravan:
 
 - **Napi időkeret oldalanként**: ha ma már elment rá X idő, a nap hátralévő
-  részére magától visszazár. A mérés és a blokkolás is megvan hozzá, csak
-  össze kell kötni — a keret emelése értelemszerűen próbatételbe kerülne.
+  részére magától visszazár. A mérés és a blokkolás is megvan hozzá, csak össze
+  kell kötni — a keret emelése értelemszerűen próbatételbe kerülne. A terv kész:
+  [`docs/feature-daily-limit.md`](docs/feature-daily-limit.md).
 - **Kulcsszó-/kategória-alapú blokkolás** (a mostani DNS-szint egész
   domaineket lát, nem tartalmat).
 - **IP-szintű szabályok** az egyedi DNS/DoH-proxy megkerülés ellen.

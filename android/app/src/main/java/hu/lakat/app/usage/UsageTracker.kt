@@ -45,9 +45,14 @@ object UsageTracker {
 
     private data class Sighting(val domain: String, val at: Long)
 
+    // Three threads meet here: the sampling tick (scheduled executor), the DNS
+    // filter (VPN thread, calls noteDomain), and the screen-off receiver (main
+    // thread, calls resetClock). The sighting is already atomic; these two need
+    // @Volatile or the DNS thread can keep reading a stale foreground package —
+    // and then attribute a page to the wrong app, or to no app at all.
     private val lastDomain = AtomicReference<Sighting?>(null)
-    private var lastAt = 0L
-    private var cachedFgPackage: String? = null
+    @Volatile private var lastAt = 0L
+    @Volatile private var cachedFgPackage: String? = null
 
     /**
      * Hosts that are never "the page you are on": CDNs, media, telemetry and
