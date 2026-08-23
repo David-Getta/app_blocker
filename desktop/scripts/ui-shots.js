@@ -69,7 +69,7 @@ function fakeBridgeSource() {
       const m = String(d.getMonth()+1).padStart(2,'0');
       return d.getFullYear() + '-' + m + '-' + String(d.getDate()).padStart(2,'0');
     };
-    const sites = [
+    window.__fakeSites = [
       { id: 'site_1', domain: 'youtube.com', hostnames: ['youtube.com','www.youtube.com','m.youtube.com','youtu.be'],
         addedAt: now - 86400000*9, pauseUntil: null, pendingDeleteAt: null,
         dailyLimitSeconds: 1200, usedTodaySeconds: 900, limitExhausted: false, blockedNow: true },
@@ -91,7 +91,8 @@ function fakeBridgeSource() {
     window.__fakeUpdate = { status: 'idle' };
     window.__fakeHelperVersion = ${JSON.stringify(helperVersion())};
     const status = () => ({
-      helperVersion: window.__fakeHelperVersion, platform: 'darwin', sites, tier: 1, unlocks7d: 2,
+      helperVersion: window.__fakeHelperVersion, platform: 'darwin',
+      sites: window.__fakeSites, tier: 1, unlocks7d: 2,
       session, dohPolicyApplied: true, usageEnabled: true, now: Date.now(),
     });
     // 30 days, because that is what the helper actually sends (and what the
@@ -172,7 +173,14 @@ async function main() {
 
   const { server, port } = await serve();
   const browser = await chromium.launch();
-  const page = await browser.newPage({ viewport: { width: 1180, height: 900 }, deviceScaleFactor: 2 });
+  // A témát KI KELL MONDANI. A Playwright alapértelmezése a világos, tehát
+  // enélkül a „sötét” ellenőrzés is világosban futna — és a sötét téma
+  // ellenőrizetlen maradna, miközben a képernyőképek is átbillennének.
+  const page = await browser.newPage({
+    viewport: { width: 1180, height: 900 },
+    deviceScaleFactor: 2,
+    colorScheme: 'dark',
+  });
 
   // Any page-level failure is a test failure: a blank window is exactly what
   // this script exists to catch.
@@ -196,6 +204,14 @@ async function main() {
   if (bars === 0) failures.push('the weekly top-sites chart rendered no bars');
 
   // the daily budget meter: one per site that has a budget
+  // A sötét ág tényleg sötét-e? A világos ágnál ugyanez a mérés fut fordítva;
+  // a kettő együtt zárja ki, hogy egy témát véletlenül sose nézzünk meg.
+  const darkBg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+  const darkSum = (darkBg.match(/\d+/g) || []).slice(0, 3).reduce((a, b) => a + Number(b), 0);
+  if (darkSum > 200) {
+    failures.push(`the dark theme is not in effect, body background is ${darkBg}`);
+  }
+
   const meters = await page.locator('.limit-meter').count();
   if (meters !== 2) failures.push(`expected 2 budget meters, saw ${meters}`);
   const spent = await page.locator('.limit-meter', { hasText: 'elfogyott' }).count();
@@ -313,6 +329,59 @@ async function main() {
   await page.getByRole('heading', { name: /Menetrend:/ }).waitFor({ timeout: 10_000 });
   if (!CHECK_ONLY) {
     await page.screenshot({ path: path.join(OUT, 'desktop-schedule.png'), fullPage: false });
+  }
+
+  // ------------------------------------------- szünetelő és törlésre váró oldal
+  //
+  // Ezt a két állapotot eddig SEMMI nem ellenőrizte, pedig a felhasználó
+  // mindkettőt látni fogja, és mindkettőben más gomb az egyetlen kiút. Ha egy
+  // átalakítás elrontja őket, az addig marad bent, amíg valaki bele nem fut.
+  await page.evaluate((now) => {
+    window.__fakeSites = [
+      {
+        id: 'site_p', domain: 'youtube.com', hostnames: ['youtube.com'],
+        addedAt: now - 86400000, pauseUntil: now + 22 * 60_000, pendingDeleteAt: null,
+        dailyLimitSeconds: 1200, usedTodaySeconds: 1200, limitExhausted: true, blockedNow: false,
+      },
+      {
+        id: 'site_d', domain: 'reddit.com', hostnames: ['reddit.com'],
+        addedAt: now - 86400000, pauseUntil: null, pendingDeleteAt: now + 8 * 3600_000,
+        usedTodaySeconds: 0, limitExhausted: false, blockedNow: true,
+      },
+    ];
+  }, Date.now());
+  // A menetrend-szerkesztő még nyitva van az előző lépésből; csukjuk be, hogy
+  // a lista látszódjon.
+  await page.getByRole('button', { name: /^Mégse$/ }).click().catch(() => { /* már zárva */ });
+  // A státusz-lekérdezés 2 másodpercenként fut: a listát MEG KELL VÁRNI, nem
+  // elég ránézni. (Ezen bukott el először ez a teszt.)
+  await page.waitForFunction(
+    () => document.querySelectorAll('#siteList .site-row').length === 2,
+    { timeout: 15_000 },
+  );
+
+  const pausedRow = page.locator('#siteList .site-row').first();
+  if (!(await pausedRow.getByRole('button', { name: /visszakapcsolása/ }).count())) {
+    failures.push('a paused site offers no way to re-lock it early');
+  }
+  // A szünet alatt is fogy a keret — ezt ki KELL írni, mert a szünet végén
+  // különben váratlanul zár be az oldal.
+  const pausedMeter = (await pausedRow.locator('.limit-meter').textContent()) || '';
+  if (!pausedMeter.includes('szünet')) {
+    failures.push(`the paused row does not say the budget keeps draining: ${pausedMeter}`);
+  }
+
+  const deletingRow = page.locator('#siteList .site-row').nth(1);
+  if (!(await deletingRow.getByRole('button', { name: /visszavonása/ }).count())) {
+    failures.push('a pending deletion cannot be cancelled from the list');
+  }
+  // Törlés közben NE legyen ott a feloldás és a törlés gomb: ilyenkor egyetlen
+  // értelmes művelet van, a visszavonás.
+  if (await deletingRow.getByRole('button', { name: /Feloldás|Végleges törlés/ }).count()) {
+    failures.push('the deleting row still offers unlock or delete');
+  }
+  if (!CHECK_ONLY) {
+    await page.screenshot({ path: path.join(OUT, 'desktop-states.png'), fullPage: false });
   }
 
   // ------------------------------------------------------- világos téma
