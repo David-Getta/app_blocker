@@ -24,7 +24,7 @@ import * as os from 'os';
 import * as path from 'path';
 import { execFile, spawn } from 'child_process';
 import {
-  compareVersions, manifestEntryFor, parseLatestMacYml, pickMacAsset,
+  appBundlePath as bundleOf, compareVersions, manifestEntryFor, parseLatestMacYml, pickMacAsset,
   type ReleaseAsset,
 } from '../shared/update-manifest';
 
@@ -82,11 +82,9 @@ async function getText(url: string, headers: Record<string, string> = {}): Promi
 
 // -------------------------------------------------------------- app bundle
 
-/** `/Applications/Lakat.app` for `/Applications/Lakat.app/Contents/MacOS/Lakat`. */
+/** `/Applications/Lakat.app` for this process. Pure part in shared/, so it is tested. */
 export function appBundlePath(execPath = process.execPath): string | null {
-  const marker = '.app/';
-  const i = execPath.indexOf(marker);
-  return i === -1 ? null : execPath.slice(0, i + marker.length - 1);
+  return bundleOf(execPath);
 }
 
 /**

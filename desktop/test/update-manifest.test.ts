@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import * as assert from 'node:assert/strict';
 import {
-  compareVersions, pickMacAsset, parseLatestMacYml, manifestEntryFor,
+  appBundlePath, compareVersions, pickMacAsset, parseLatestMacYml, manifestEntryFor,
 } from '../src/shared/update-manifest';
 
 const asset = (name: string) => ({ name, url: `https://example/${name}` });
@@ -69,4 +69,19 @@ test('a malformed manifest degrades instead of throwing', () => {
   const partial = parseLatestMacYml('files:\n  - url: a.zip\n');
   assert.equal(partial.files[0].url, 'a.zip');
   assert.equal(partial.files[0].sha512, undefined, 'no checksum is a missing check, not a crash');
+});
+
+test('the app bundle is derived from the executable path', () => {
+  assert.equal(
+    appBundlePath('/Applications/Lakat.app/Contents/MacOS/Lakat'),
+    '/Applications/Lakat.app');
+  assert.equal(
+    appBundlePath('/Users/valaki/Downloads/Lakat.app/Contents/MacOS/Lakat'),
+    '/Users/valaki/Downloads/Lakat.app');
+});
+
+test('outside a bundle there is nothing to replace', () => {
+  // dev run / Linux / a loose build directory: the self-updater must not fire
+  assert.equal(appBundlePath('/usr/local/bin/lakat'), null);
+  assert.equal(appBundlePath('C:\\Program Files\\Lakat\\Lakat.exe'), null);
 });

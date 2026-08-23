@@ -102,3 +102,17 @@ export function manifestEntryFor(
 ): MacManifestEntry | null {
   return manifest.files.find((f) => f.url === name) ?? null;
 }
+
+/**
+ * The `.app` bundle an executable lives in — `/Applications/Lakat.app` for
+ * `/Applications/Lakat.app/Contents/MacOS/Lakat`.
+ *
+ * Null when the executable is not inside a bundle (a dev run, or a build run
+ * straight from a directory), which is exactly when self-updating must not be
+ * attempted.
+ */
+export function appBundlePath(execPath: string): string | null {
+  const marker = '.app/';
+  const i = execPath.indexOf(marker);
+  return i === -1 ? null : execPath.slice(0, i + marker.length - 1);
+}
