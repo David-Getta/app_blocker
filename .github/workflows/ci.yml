@@ -22,7 +22,22 @@ jobs:
           ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
       - run: npm test
 
-  android-core:
+  android-core-tests:
+    name: Android mag tesztek (JVM, SDK nélkül)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: android/jvm-tests
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+      - run: gradle test --no-daemon
+
+  android-build:
     name: Android build (assembleDebug)
     runs-on: ubuntu-latest
     defaults:
