@@ -126,13 +126,29 @@ cd ios && xcodegen generate && open Lakat.xcodeproj
 
 ## Állapot és tesztelés
 
-- **Desktop:** teljes `node:test` lefedettség a blokklistára, a próbatétel-motorra
-  és a bíróra (session + hosts fájl end-to-end). ✅ Zöld.
-- **Android:** a platformfüggetlen mag (`ChallengeEngine`, `Blocklist`) és a
-  bitszintű `DnsEngine` JVM-en unit-tesztelt. ✅ Zöld. A teljes APK-hoz Android
-  SDK kell.
+- **Desktop:** teljes `node:test` lefedettség a blokklistára, a próbatétel-motorra,
+  a bíróra (session + hosts fájl end-to-end), a menetrendre és az idő-mérésre —
+  a segéd IPC-jét támadó integrációs teszttel együtt. ✅ Zöld.
+- **Android:** a platformfüggetlen mag (`ChallengeEngine`, `Blocklist`,
+  `ScheduleLogic`, `UsageLogic`, `Referee`, `LakatStore`) és a bitszintű
+  `DnsEngine` JVM-en unit-tesztelt, Android SDK nélkül futtatva
+  (`android/jvm-tests`). ✅ Zöld. A teljes APK-hoz SDK kell — a CI buildeli.
 - **iOS/macOS:** a projekt XcodeGennel generálható; a fordításhoz macOS + Xcode
-  szükséges.
+  szükséges. A Swift mag a tesztelt TS/Kotlin mag tükre, de itt fordítással nincs
+  ellenőrizve.
+
+Amit érdemes futtatni fejlesztés közben:
+
+| Parancs | Mit ellenőriz |
+|---|---|
+| `cd desktop && npm test` | a teljes desktop tesztkészlet (build + fordítás + futtatás) |
+| `cd desktop && npm run ui:check` | a renderer tényleg betöltődik és végigkattintható (fejetlen Chromium) |
+| `cd desktop && npm run ui:shots` | ugyanaz, plusz frissíti a `docs/images` képeket |
+| `cd android/jvm-tests && gradle test` | az Android mag SDK nélkül |
+| `node scripts/check-text.js` | magyar idézőjel-párok (Kotlinban lezáratlan sztring = fordítási hiba) |
+| `node scripts/check-kotlin-imports.js` | hiányzó import a saját mag-típusainkra a Compose-fájlokban |
+
+A CI mindet futtatja minden pusholásnál.
 
 ## Őszinte korlátok
 
