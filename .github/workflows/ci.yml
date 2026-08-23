@@ -39,6 +39,27 @@ jobs:
           ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
       - run: npm test
 
+  # A renderert semmi más nem futtatja: egy hiányzó .js kiterjesztés vagy egy
+  # null elem-lekérés némán üres ablakot ad. Ez betölti és végigkattintja.
+  ui-smoke:
+    name: Renderer füstteszt (Playwright)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: npm ci
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+      - run: npm run build
+      - run: npm i --no-save playwright@1.56.1
+      - run: npx playwright install --with-deps chromium
+      - run: node scripts/ui-shots.js --check
+
   android-core-tests:
     name: Android mag tesztek (JVM, SDK nélkül)
     runs-on: ubuntu-latest
