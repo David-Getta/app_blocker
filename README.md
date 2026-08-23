@@ -156,6 +156,7 @@ Amit érdemes futtatni fejlesztés közben:
 | `cd android/jvm-tests && gradle test` | az Android mag SDK nélkül |
 | `node scripts/check-text.js` | magyar idézőjel-párok (Kotlinban lezáratlan sztring = fordítási hiba) |
 | `node scripts/check-kotlin-imports.js` | hiányzó import a saját mag-típusainkra a Compose-fájlokban |
+| `node scripts/check-core-sync.js` | a TS/Kotlin/Swift mag számai (nehézségi szintek, határidők) egyeznek-e |
 
 A CI mindet futtatja minden pusholásnál.
 

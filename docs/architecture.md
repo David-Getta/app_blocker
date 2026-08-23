@@ -98,7 +98,17 @@ Két tervezési döntés, ami az adatok helyességét adja:
 A `domain-normalizálás`, `preset-bővítés`, a teljes `próbatétel-motor`, a `bíró`
 (session-kezelés) és a `tier`-számítás minden platformon azonos algoritmus.
 Referenciaimplementáció a TypeScript (`desktop/src/shared`), amelyet
-`node --test` fed le; a Kotlin és Swift változat ennek pontos tükre. A Kotlin
+`node --test` fed le; a Kotlin és Swift változat ennek pontos tükre.
+
+Hogy a „pontos tükör” ne csak szándék maradjon, a CI ellenőrzi is:
+`scripts/check-core-sync.js` a HÁROM FORRÁSBÓL olvassa ki a döntő számokat
+(nehézségi szintek négy fokozata, a várakozási ablak, a törlés türelmi ideje, a
+kísérlet elévülése, a feladás hűtési ideje, az óraugrás küszöbe, a
+feladás-nyilvántartás korlátja, a szünethosszok és a memóriakód ábécéje), és
+elhasal, ha bármelyik eltér. Enélkül egy nehézségi paraméter átírása a
+desktopon csendben elcsúszhatna a másik kettőtől: ugyanaz az app, két
+különböző szigorúsággal, hibaüzenet nélkül. A szkript szándékosan nem másolja
+be az értékeket — akkor ugyanaz a csúszás történne, csak eggyel odébb. A Kotlin
 mag és a bitszintű DNS-motor JVM-en unit-tesztelt.
 
 ## Biztonsági modell és őszinte korlátok

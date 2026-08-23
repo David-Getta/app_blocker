@@ -22,6 +22,10 @@ jobs:
       # fordítja, ami percekbe telik — egy hiányzó import a saját mag-
       # típusainkra itt másodpercek alatt kiderül.
       - run: node scripts/check-kotlin-imports.js
+      # A három mag ugyanazt a szabályrendszert futtatja; ha a számok
+      # szétcsúsznak, a felhasználó ugyanazt az appot kapja két különböző
+      # szigorúsággal, és semmi nem jelzi.
+      - run: node scripts/check-core-sync.js
 
   desktop:
     name: Desktop mag + tesztek
