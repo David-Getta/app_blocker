@@ -19,7 +19,9 @@ struct SessionRec: Codable, Equatable, Identifiable {
     let minutes: Int?
     var steps: [ChallengeEngine.Step]
     var stepIndex: Int
-    let createdAt: Double
+    /// var, not let: a forward clock jump pushes it, so the jump cannot age the
+    /// attempt out (see Referee.absorbClockJump).
+    var createdAt: Double
     /// when set, finishing applies this schedule instead of pausing (gated loosening)
     var pendingSchedule: ScheduleLogic.Schedule?
 }

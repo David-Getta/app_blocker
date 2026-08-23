@@ -248,7 +248,53 @@ enum Referee {
     }
 
     /// housekeeping: re-lock ended pauses, run due deletions, drop dead sessions
+    /// A gap bigger than this between two housekeeping ticks is not elapsed
+    /// time: the loop runs every second, so anything past a couple of minutes
+    /// is either the clock being moved or the device having been asleep.
+    static let clockJumpThresholdMs: Double = 2 * 60_000
+
+    /// When the previous tick ran. In memory on purpose: writing it out every
+    /// second would be pointless churn, and after a restart it only matters
+    /// from the next tick on.
+    private static var lastTickAt: Double = 0
+
+    /// Waiting IS the challenge here, and a challenge a clock change defeats is
+    /// not a challenge: with the system clock moved forward a DELAY step would
+    /// be claimable at once and a pending deletion would run early. So the
+    /// deadlines that PROTECT (the waiting target, a pending deletion, the age
+    /// of the attempt) are pushed by whatever the wall clock jumped — they
+    /// measure elapsed time, not a date. Sleep looks identical from here and is
+    /// treated the same: the wait does not run while the device is off.
+    ///
+    /// pauseUntil is deliberately left alone: a jump that ends an unlock early
+    /// blocks more, and tightening never needs protecting.
+    private static func absorbClockJump(_ now: Double) {
+        let last = lastTickAt
+        lastTickAt = now
+        guard last != 0 else { return }
+        let jump = now - last
+        guard jump > clockJumpThresholdMs else { return }
+        let shift = jump - clockJumpThresholdMs
+
+        LakatStore.shared.mutate { state in
+            if var s = state.session {
+                if case let .delay(id, minutes, claimableAt?, window) = s.steps[s.stepIndex] {
+                    s.steps[s.stepIndex] = .delay(id: id, minutes: minutes,
+                                                  claimableAt: claimableAt + shift, claimWindowMs: window)
+                }
+                s.createdAt += shift // …so the jump cannot age the attempt out either
+                state.session = s
+            }
+            state.sites = state.sites.map { site in
+                var copy = site
+                if let d = copy.pendingDeleteAt { copy.pendingDeleteAt = d + shift }
+                return copy
+            }
+        }
+    }
+
     static func tick(now: Double) {
+        absorbClockJump(now)
         let st = LakatStore.shared.state
         var sessionDead = false
         if let s = st.session {

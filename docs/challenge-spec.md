@@ -119,9 +119,9 @@ mint az előző).
   (várakozás célpontja, folyamatban lévő törlés, a kísérlet kora) ugyanannyival
   kitolja. A `pauseUntil` szándékosan kimarad — egy előre ugró óra ott korábban
   visszazár, ami szigorítás. A gép alvása kívülről ugyanígy néz ki, és ugyanígy
-  kezeljük: alvás közben nem telik a várakozás. Androidon ugyanez működik (a
-  kör a VPN-szolgáltatásban fut); iOS-en még nincs átvezetve (lásd
-  `docs/architecture.md`, ismert korlátok).
+  kezeljük: alvás közben nem telik a várakozás. Mindhárom platformon él — a kör
+  az asztali segédben, az Android VPN-szolgáltatásban, illetve az iOS/macOS
+  tunnelben fut.
 - **A blokkolás alapból zár.** Ha bármi elromlik (lejárt session, elrontott
   hosts fájl), a rendszer a *blokkolt* állapot felé esik vissza, nem a nyitott
   felé.
