@@ -13,7 +13,8 @@
 import { powerMonitor } from 'electron';
 import { execFile, spawn } from 'child_process';
 import { normalizeDomain } from '../shared/blocklist';
-import { decideSample, dayKey, SAMPLE_INTERVAL_MS, type Foreground } from '../shared/usage';
+import { decideSample, SAMPLE_INTERVAL_MS, type Foreground } from '../shared/usage';
+import { SampleBuffer } from '../shared/sample-buffer';
 import type { UsageSampleMsg } from '../shared/protocol';
 
 /** Bundle ids / process names whose active tab we know how to read. */
@@ -196,7 +197,7 @@ export class UsageTracker {
   private timer: NodeJS.Timeout | null = null;
   private flushTimer: NodeJS.Timeout | null = null;
   private lastAt = Date.now();
-  private pending = new Map<string, UsageSampleMsg>();
+  private buffer = new SampleBuffer();
   private probing = false;
   private flushing = false;
 
@@ -239,17 +240,7 @@ export class UsageTracker {
       const decision = decideSample({ lastAt: this.lastAt, now, idleSeconds, fg });
       this.lastAt = now;
       if (!decision) return;
-      // Buffer per (target, local day): a batch that spans midnight must not
-      // dump the earlier day's seconds into the later day's bucket.
-      const bucket = `${decision.key}@${dayKey(now)}`;
-      const existing = this.pending.get(bucket);
-      if (existing) {
-        existing.seconds += decision.seconds;
-      } else {
-        this.pending.set(bucket, {
-          key: decision.key, label: decision.label, seconds: decision.seconds, at: now,
-        });
-      }
+      this.buffer.add(decision.key, decision.label, decision.seconds, now);
     } catch (e) {
       this.deps.log(`usage probe failed: ${String(e)}`);
       this.lastAt = Date.now();
@@ -265,22 +256,12 @@ export class UsageTracker {
    * worse failure, so the retry wins.
    */
   private async flush(): Promise<void> {
-    if (this.flushing || this.pending.size === 0) return;
+    if (this.flushing || this.buffer.size === 0) return;
     this.flushing = true;
-    // Take the buffer out first: ticks that land during the in-flight send
-    // accumulate into a fresh map instead of being cleared away with it.
-    const inFlight = this.pending;
-    this.pending = new Map();
+    const inFlight = this.buffer.take();
     try {
-      const ok = await this.deps.send([...inFlight.values()]).catch(() => false);
-      if (!ok) {
-        // put the unsent slices back, merging with anything recorded meanwhile
-        for (const [bucket, sample] of inFlight) {
-          const current = this.pending.get(bucket);
-          if (current) current.seconds += sample.seconds;
-          else this.pending.set(bucket, sample);
-        }
-      }
+      const ok = await this.deps.send(inFlight.map((b) => b.sample)).catch(() => false);
+      if (!ok) this.buffer.restore(inFlight);
     } finally {
       this.flushing = false;
     }
