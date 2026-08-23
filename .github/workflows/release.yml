@@ -139,6 +139,33 @@ jobs:
             fi
           fi
           npm run dist -- --publish always
+      # Az electron-builder publishere CSENDBEN kihagyja a feltöltést, ha a
+      # release már nem draft („existing type not compatible”) — a job attól
+      # még sikeresnek látszik, és a kiadáson egy korábbi build fájljai
+      # maradnak. Pontosan ez történt a v0.1.1-nél: egy megszakított futás
+      # feltöltötte az aláíratlan DMG-ket, az újraépítés jóit meg eldobta.
+      # Ezért a build UTÁN mindig felül is írjuk, amit most építettünk —
+      # ugyanazzal a --clobber feltöltéssel, amit az Android job is használ.
+      - name: Assetek feltöltése (felülírással)
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Sima POSIX-glob, semmi bashizmus: a macOS futtatók /bin/bash-a 3.2,
+          # ott nincs mapfile.
+          set -eu
+          cd release
+          installers=0
+          for f in *.dmg *.exe *-mac.zip *.blockmap latest*.yml; do
+            [ -f "$f" ] || continue          # a nem illeszkedő glob önmagát adja
+            case "$f" in *.dmg|*.exe) installers=$((installers + 1)) ;; esac
+            echo "feltöltés: $f"
+            gh release upload "$VERSION" "$f" --repo "$GITHUB_REPOSITORY" --clobber
+          done
+          [ "$installers" -gt 0 ] || { echo "nem épült telepítő" >&2; exit 1; }
+          # A frissítés ezen a manifesten áll vagy bukik; ha nincs, ne adjunk ki
+          # olyan verziót, amire a telepített appok nem tudnak felfrissülni.
+          ls latest*.yml >/dev/null
 
   android:
     name: Android APK + AAB
@@ -265,7 +292,9 @@ jobs:
     # Az asztali telepítők a feltétel: ha az Android job elhasal, a kiadás
     # attól még menjen ki (különben egy mobil hiba miatt a Mac/Windows
     # letöltés is draftban ragadna, és a letöltőoldal üresen maradna).
-    if: ${{ always() && needs.desktop.result == 'success' }}
+    # A !cancelled() fontos: az always() a MEGSZAKÍTOTT futásra is igaz, így egy
+    # félbehagyott kiadás élesítette a draftot a félkész fájlokkal (v0.1.1).
+    if: ${{ !cancelled() && needs.desktop.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
