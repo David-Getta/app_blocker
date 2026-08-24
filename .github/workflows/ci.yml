@@ -93,6 +93,26 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - run: gradle test --no-daemon
 
+  ios-build:
+    name: iOS fordítás (aláírás nélkül)
+    runs-on: macos-latest
+    # A Swift magot eddig CSAK a kiadási munkafolyamat fordította — vagyis egy
+    # fordítási hiba napokig bent maradhatott, és csak kiadáskor derült volna
+    # ki. Ez a job minden push-nál lefordítja, aláírás nélkül.
+    steps:
+      - uses: actions/checkout@v4
+      - run: brew install xcodegen
+      - name: Projekt generálása
+        working-directory: ios
+        run: xcodegen generate
+      - name: Fordítás
+        working-directory: ios
+        run: |
+          xcodebuild -project Breaker.xcodeproj -scheme BreakerApp-iOS \
+            -destination 'generic/platform=iOS Simulator' \
+            -configuration Debug build \
+            CODE_SIGNING_ALLOWED=NO | tail -40
+
   android-build:
     name: Android build (assembleDebug)
     runs-on: ubuntu-latest
