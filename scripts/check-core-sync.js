@@ -67,6 +67,10 @@ ts.limits = read('desktop/src/shared/limits.ts');
 kt.limits = read('android/app/src/main/java/hu/breaker/app/core/Limits.kt');
 sw.limits = read('ios/Shared/Limits.swift');
 
+ts.rules = read('desktop/src/shared/urlrules.ts');
+kt.rules = read('android/app/src/main/java/hu/breaker/app/core/UrlRules.kt');
+sw.rules = read('ios/Shared/UrlRules.swift');
+
 function scalar(text, re, label) {
   const m = text.match(re);
   if (!m) return { missing: label };
@@ -156,6 +160,17 @@ const CHECKS = [
     scalar(ts.limits, /MAX_DIGEST_TARGETS\s*=\s*([^;]+);/, 'ts'),
     scalar(kt.limits, /MAX_DIGEST_TARGETS\s*=\s*(.+)/, 'kt'),
     scalar(sw.limits, /maxDigestTargets\s*=\s*(.+)/, 'swift')],
+  // Részleges szabályok. Ha az egyik magban 50, a másikban 20 a felső korlát,
+  // a szinkron a huszonegyediket az egyik eszközön elfogadja, a másikon eldobja
+  // — és a felhasználó csak annyit lát, hogy a szabály „eltűnt”.
+  ['MAX_RULES_PER_SITE',
+    scalar(ts.rules, /MAX_RULES_PER_SITE\s*=\s*([^;]+);/, 'ts'),
+    scalar(kt.rules, /MAX_RULES_PER_SITE\s*=\s*(.+)/, 'kt'),
+    scalar(sw.rules, /maxRulesPerSite\s*=\s*(.+)/, 'swift')],
+  ['MAX_RULE_PATH_LENGTH',
+    scalar(ts.rules, /MAX_RULE_PATH_LENGTH\s*=\s*([^;]+);/, 'ts'),
+    scalar(kt.rules, /MAX_RULE_PATH_LENGTH\s*=\s*(.+)/, 'kt'),
+    scalar(sw.rules, /maxRulePathLength\s*=\s*(.+)/, 'swift')],
   ['MAX_ALIAS_LENGTH',
     scalar(ts.alias, /MAX_ALIAS_LENGTH\s*=\s*([^;]+);/, 'ts'),
     scalar(kt.alias, /MAX_ALIAS_LENGTH[^=]*=\s*(.+)/, 'kt'),
