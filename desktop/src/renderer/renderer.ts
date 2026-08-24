@@ -299,6 +299,34 @@ function setupSyncCard(): void {
     },
   ));
 
+  $('syncForgotBtn').addEventListener('click', () => {
+    // Nem külön képernyő: a kód a meglévő űrlap mellé nyílik ki, mert a
+    // kiszolgáló címe és a fiókazonosító ugyanaz marad — csak a jelszó helyett
+    // a kód nyit.
+    $('syncRecoveryBox').classList.toggle('hidden');
+  });
+
+  $('syncRecoverBtn').addEventListener('click', () => void withBusy(
+    $<HTMLButtonElement>('syncRecoverBtn'), 'Belépés…', async () => {
+      const v = syncFormValues();
+      const r = await call<{ status: StatusData }>('sync_recovery', {
+        serverUrl: v.serverUrl,
+        accountId: v.accountId,
+        recoveryCode: $<HTMLInputElement>('syncRecoveryCode').value,
+        // A kóddal belépve RÖGTÖN új jelszót állítunk be: enélkül a fiókba
+        // csak a kóddal lehetne visszajutni, és a következő elvesztésnél már
+        // semmi nem maradna.
+        newPassword: v.password,
+        deviceName: deviceName(),
+      });
+      status = r.status;
+      $<HTMLInputElement>('syncPassword').value = '';
+      $<HTMLInputElement>('syncRecoveryCode').value = '';
+      $('syncRecoveryBox').classList.add('hidden');
+      render();
+    },
+  ));
+
   $('syncNowBtn').addEventListener('click', () => void withBusy(
     $<HTMLButtonElement>('syncNowBtn'), 'Szinkron…', async () => {
       const r = await call<{ status: StatusData }>('sync_now', {});

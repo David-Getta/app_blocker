@@ -550,6 +550,21 @@ async function main() {
   if (await page.locator('#syncPassword').getAttribute('type') !== 'password') {
     failures.push('the sync password field is not masked');
   }
+  // Elfelejtett jelszó: a helyreállító kód nem külön képernyő, hanem a meglévő
+  // űrlap mellé nyílik. Ha ez a gomb elveszne, a kódnak nem lenne hol beírni —
+  // vagyis a kiadott mentőöv semmit sem érne.
+  if (!(await page.locator('#syncRecoveryBox').isHidden())) {
+    failures.push('the recovery box is open before it is asked for');
+  }
+  await page.getByRole('button', { name: 'Elfelejtett jelszó' }).click();
+  await page.waitForFunction(
+    () => !document.getElementById('syncRecoveryBox').classList.contains('hidden'),
+    undefined, { timeout: 10_000 },
+  );
+  if (!(await page.locator('#syncRecoveryCode').count())) {
+    failures.push('there is nowhere to type the recovery code');
+  }
+  await page.getByRole('button', { name: 'Elfelejtett jelszó' }).click();
   // Bejelentkezve más a kártya: a beviteli mezők eltűnnek, a szinkron gomb jön.
   await page.evaluate(() => {
     window.__fakeSync = {

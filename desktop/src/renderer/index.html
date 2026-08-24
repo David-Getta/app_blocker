@@ -155,6 +155,19 @@
         <div class="sync-actions">
           <button id="syncSignInBtn" class="btn btn-primary">Belépés</button>
           <button id="syncSignUpBtn" class="btn">Új fiók</button>
+          <button id="syncForgotBtn" class="btn btn-small btn-ghost">Elfelejtett jelszó</button>
+        </div>
+        <div id="syncRecoveryBox" class="hidden">
+          <p class="hint">
+            Írd be a <strong>helyreállító kódot</strong>, és adj meg egy új jelszót.
+            A fenti jelszó mezőbe az ÚJ jelszó kerüljön.
+          </p>
+          <div class="sync-form">
+            <input id="syncRecoveryCode" type="text" placeholder="a helyreállító kód" autocomplete="off" spellcheck="false" />
+          </div>
+          <div class="sync-actions">
+            <button id="syncRecoverBtn" class="btn btn-primary">Belépés a kóddal</button>
+          </div>
         </div>
         <p id="syncError" class="error hidden"></p>
         <p class="hint">
