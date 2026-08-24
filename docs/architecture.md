@@ -203,6 +203,49 @@ A fedőnév beállítása és levétele **nem kerül próbatételbe**. A súrló
 ahol a védelem gyengülne; itt nem gyengül semmi: az oldal ugyanúgy blokkolva
 marad, a hosts fájl egy bájtot sem változik.
 
+## A lista elrejtése
+
+A fedőnév oldalanként dolgozik. Van, akinek ennél több kell: **ne is látszódjon,
+mi van blokkolva** — se induláskor, se a statisztikában. Erre való a
+`hideSiteList` beállítás.
+
+Két külön dolog, és pont ez a lényege:
+
+- **`hideSiteList`** — tárolt beállítás a segédben: „rejtve induljon”.
+- **`listOpenThisSession`** — a felület modulszintű változója, ami minden
+  indításkor `false`. A „Lista megnyitása” ezt állítja át.
+
+Így a lista minden induláskor csukva van, de aki tényleg dolgozni akar vele, egy
+kattintással hozzáfér — nem kell próbatétel, mert a rejtés nem véd semmit, csak
+nem emlékeztet.
+
+A rejtés az **egész ablakra** szól, nem csak a listakártyára:
+
+| Hol | Rejtve mi látszik |
+|---|---|
+| a lista | „3 oldal van blokkolva” — a darabszám marad, a nevek nem |
+| gyorsgombok a felvevő kártyán | nincsenek (pont a tipikus címek állnak rajtuk) |
+| a beviteli mező példája és a társoldal-jelölő | általános szöveg, cím nélkül |
+| statisztika | `1. rejtett oldal`, `2. rejtett oldal` — a „blokkolt” jelölés és az idő marad |
+| fejléc-jelvény | „Védelem aktív — 3 oldal blokkolva” (csak szám) |
+
+A sorszám a lista sorrendjéből jön, tehát két frissítés között nem ugrál, és
+ugyanazt az oldalt mindig ugyanaz a szám jelöli. Akinek van **fedőneve**, annál a
+fedőnév erősebb: azt épp azért adta meg, hogy az látszódjon.
+
+A listakártya rejtve **ki is üríti** a sorokat, nem csak eltakarja őket. Így a
+rejtett állapot ugyanaz akkor is, ha indulásból az, és akkor is, ha most
+kapcsolták rá.
+
+A füstteszt ezt a teljes látható szövegre (`innerText`) nézi meg: rejtett
+listánál egyetlen blokkolt cím sem lehet ott sehol. Ez fogta meg, hogy a
+statisztika a saját, ritkább körén frissül, és a rejtés bekapcsolása után még fél
+percig kiírta a címeket — ugyanaz a hiba, mint a fedőnévnél.
+
+Amit **nem** csinál: nem biztonsági határ ez sem. A hosts fájlban ott a cím, és a
+darabszámot szándékosan meghagyjuk. A cél az emlékeztetés megszüntetése, nem a
+titkolózás.
+
 ## Hibatűrés: melyik irányba dőljön a rendszer
 
 Egy blokkoló appnál a hibáknak **iránya** van. Ha valami nem sikerül, két

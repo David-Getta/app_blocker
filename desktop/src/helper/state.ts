@@ -69,6 +69,14 @@ export interface HelperState {
   dohApplied: boolean;
   /** active-time tracking history (stays on this machine) */
   usage: UsageState;
+  /**
+   * Rejtve induljon-e a blokkolt oldalak listája.
+   *
+   * Beállítás, nem pillanatnyi állapot: a felület minden indításkor rejtve
+   * kezdi, és a munkamenetre nyitható meg. Így az app megnyitása önmagában nem
+   * szembesít azzal, mi van blokkolva.
+   */
+  hideSiteList?: boolean;
 }
 
 export function defaultState(): HelperState {

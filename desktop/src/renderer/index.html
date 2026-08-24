@@ -42,7 +42,7 @@
       </form>
       <label class="preset-toggle">
         <input id="presetToggle" type="checkbox" checked />
-        Ismert szolgáltatásnál a társoldalak blokkolása is (pl. youtu.be, m.youtube.com)
+        <span id="presetToggleText">Ismert szolgáltatásnál a társoldalak blokkolása is (pl. youtu.be, m.youtube.com)</span>
       </label>
       <div class="chips" id="presetChips"></div>
       <p id="addError" class="error hidden"></p>
@@ -68,9 +68,18 @@
 
     <!-- Site list -->
     <section id="listCard" class="card hidden">
-      <h2>Blokkolt oldalak</h2>
-      <div id="siteList" class="site-list"></div>
-      <p id="emptyList" class="hint hidden">Még nincs blokkolt oldal. Add meg fent az elsőt.</p>
+      <div class="list-head">
+        <h2>Blokkolt oldalak</h2>
+        <button id="hideListBtn" class="btn btn-small btn-ghost hidden">Lista elrejtése</button>
+      </div>
+      <div id="listHidden" class="list-hidden hidden">
+        <p id="listHiddenText" class="hint"></p>
+        <button id="showListBtn" class="btn btn-small">Lista megnyitása</button>
+      </div>
+      <div id="listBody">
+        <div id="siteList" class="site-list"></div>
+        <p id="emptyList" class="hint hidden">Még nincs blokkolt oldal. Add meg fent az elsőt.</p>
+      </div>
     </section>
 
     <!-- Usage statistics -->

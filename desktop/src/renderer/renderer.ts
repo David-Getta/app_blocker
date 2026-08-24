@@ -98,6 +98,27 @@ function fmtClock(epochMs: number): string {
 const revealedUntil = new Map<string, number>();
 
 /**
+ * Nyitva van-e MOST a lista, ha egyébként rejtettre van állítva.
+ *
+ * Szándékosan modulszintű és NEM tárolt: a beállítás „rejtve induljon” értelmű,
+ * a megnyitás pedig csak erre a munkamenetre szól. Így az app
+ * következő indítása megint nem szembesít azzal, mi van blokkolva — miközben
+ * aki most tényleg dolgozni akar a listával, egy kattintással hozzáfér.
+ */
+let listOpenThisSession = false;
+
+/**
+ * Rejtve van-e MOST a blokkolt oldalak listája.
+ *
+ * Ezt az egy kérdést az ablak TÖBB pontja is felteszi — a lista, a
+ * gyorsgombok és a statisztika címkéi is. Ha bármelyik kimaradna, a rejtés
+ * annyit érne, mint egy lyukas zsák: elég egyetlen hely, ahol ott a cím.
+ */
+function isListHidden(st: StatusData): boolean {
+  return st.hideSiteList === true && !listOpenThisSession;
+}
+
+/**
  * A statisztika a saját, ritkább körén frissül — de a CÍMKÉI az oldallistából
  * jönnek (fedőnév, „blokkolt” jelölés). Ha az oldallista változik, a diagram
  * fél percig a régit mutatná: fedőnév beállítása után ott maradna a valódi cím.
@@ -108,7 +129,11 @@ const revealedUntil = new Map<string, number>();
  */
 let siteSignature = '';
 function sitesFingerprint(st: StatusData): string {
-  return st.sites.map((x) => `${x.id}:${x.domain}:${x.alias ?? ''}`).join('|');
+  // A rejtés is bele tartozik: rejtett listánál a statisztika címkéi mások.
+  // Nélküle a rejtés bekapcsolása után a diagramon még fél percig ott állt a
+  // cím — ugyanaz a hiba, mint a fedőnévnél, ugyanaz a teszt fogta meg.
+  return `${isListHidden(st) ? 'H' : '-'}|`
+    + st.sites.map((x) => `${x.id}:${x.domain}:${x.alias ?? ''}`).join('|');
 }
 
 // ------------------------------------------------------------ status poll
@@ -178,6 +203,7 @@ function render(): void {
     if (statsData) renderStats();
   }
 
+  renderAddCard(status!);
   renderSiteList(status!);
   renderTier(status!);
   renderLegacyHelperBanner(status!);
@@ -255,6 +281,34 @@ function renderResumeBanner(st: StatusData): void {
 }
 
 function renderSiteList(st: StatusData): void {
+  // Rejtett lista: a kártya megmarad (látszódjon, hogy VAN mit rejteni), de a
+  // tartalma nem. A darabszámot kiírjuk — a kérés az volt, hogy MIK vannak
+  // blokkolva ne látszódjon, nem az, hogy hány.
+  const hidden = isListHidden(st);
+  $('listHidden').classList.toggle('hidden', !hidden);
+  $('listBody').classList.toggle('hidden', hidden);
+  // A fejlécgomb a BEÁLLÍTÁST kapcsolja, nem a pillanatnyi láthatóságot: ha
+  // rejtettre van állítva, de most nyitva van, akkor a gomb a rejtést kapcsolja
+  // KI. Enélkül nem lenne mód visszavonni a beállítást.
+  const hideBtn = $<HTMLButtonElement>('hideListBtn');
+  // Üres listánál nincs mit rejteni — kivéve ha a beállítás már be van
+  // kapcsolva: akkor kell a gomb, hogy vissza lehessen vonni.
+  hideBtn.classList.toggle('hidden', hidden || (st.sites.length === 0 && st.hideSiteList !== true));
+  hideBtn.textContent = st.hideSiteList === true ? 'Ne rejtse ezután' : 'Lista elrejtése';
+  if (hidden) {
+    // A sorokat ki is ÜRÍTJÜK, nem csak eltakarjuk. Így a rejtett állapot
+    // ugyanaz akkor is, ha indulásból az, és akkor is, ha most kapcsolták rá —
+    // és nem marad ott a DOM-ban egy lista, amit egy fejlesztői eszköz vagy egy
+    // félresikerült CSS bármikor visszahoz.
+    $('siteList').textContent = '';
+    const n = st.sites.length;
+    $('listHiddenText').textContent = n === 0
+      ? 'A lista el van rejtve. Még nincs benne egyetlen oldal sem.'
+      : `${n} oldal van blokkolva. A lista el van rejtve, hogy a puszta megnyitás `
+        + 'se emlékeztessen rájuk. Megnyitva csak eddig a bezárásig marad.';
+    return;
+  }
+
   const list = $('siteList');
   list.textContent = '';
   $('emptyList').classList.toggle('hidden', st.sites.length > 0);
@@ -511,14 +565,40 @@ async function doSimple(op: string, payload: Record<string, unknown>): Promise<v
 
 // ------------------------------------------------------------- add site
 
-function setupAddCard(): void {
+const PRESET_CHIPS = [
+  'youtube.com', 'facebook.com', 'instagram.com', 'tiktok.com',
+  'x.com', 'reddit.com', 'twitch.tv', 'netflix.com',
+];
+
+/**
+ * A felvevő kártya — a gyorsgombokkal és a példákkal együtt.
+ *
+ * Rejtett listánál ez is elnémul. Nem szőrözés: a gyorsgombokon PONT azok a
+ * címek állnak, amiket az ember tipikusan blokkol, a beviteli mező példája meg
+ * ugyanaz. Hiába rejtenénk el a listát, ha egy kártyával feljebb ott sorakozik
+ * ugyanaz nyolc gombon — a rejtés célja az emlékeztetés megszüntetése, nem egy
+ * lista összecsukása.
+ */
+function renderAddCard(st: StatusData): void {
+  const hidden = isListHidden(st);
   const chips = $('presetChips');
-  for (const name of ['youtube.com', 'facebook.com', 'instagram.com', 'tiktok.com', 'x.com', 'reddit.com', 'twitch.tv', 'netflix.com']) {
-    const chip = h('button', 'chip', name);
-    chip.type = 'button';
-    chip.addEventListener('click', () => void addSite(name));
-    chips.appendChild(chip);
+  chips.textContent = '';
+  chips.classList.toggle('hidden', hidden);
+  if (!hidden) {
+    for (const name of PRESET_CHIPS) {
+      const chip = h('button', 'chip', name);
+      chip.type = 'button';
+      chip.addEventListener('click', () => void addSite(name));
+      chips.appendChild(chip);
+    }
   }
+  $<HTMLInputElement>('addInput').placeholder = hidden ? 'a cím, amit blokkolni akarsz' : 'pl. www.youtube.com';
+  $('presetToggleText').textContent = hidden
+    ? 'Ismert szolgáltatásnál a társoldalak blokkolása is (a mobilos és a rövidített címek)'
+    : 'Ismert szolgáltatásnál a társoldalak blokkolása is (pl. youtu.be, m.youtube.com)';
+}
+
+function setupAddCard(): void {
   $('addForm').addEventListener('submit', (e) => {
     e.preventDefault();
     const input = $<HTMLInputElement>('addInput');
@@ -954,6 +1034,20 @@ function setupModal(): void {
   $('resumeBtn').addEventListener('click', () => {
     if (status?.session) openModal(status.session);
   });
+  $('showListBtn').addEventListener('click', () => {
+    // Csak erre a munkamenetre nyitjuk meg: a BEÁLLÍTÁS marad „rejtve”.
+    listOpenThisSession = true;
+    render();
+  });
+  $('hideListBtn').addEventListener('click', async () => {
+    const turningOn = status?.hideSiteList !== true;
+    // Bekapcsoláskor rögtön össze is csukjuk; kikapcsoláskor nyitva marad.
+    listOpenThisSession = !turningOn;
+    try {
+      status = await call<StatusData>('set_hide_list', { hidden: turningOn });
+    } catch { /* a következő lekérdezés úgyis hozza */ }
+    render();
+  });
   $('helperStaleBtn').addEventListener('click', async () => {
     // Ugyanaz a telepítő, mint az első indításnál: bootout + bootstrap, tehát
     // a régi démont lecseréli. Egy jelszókérés, újraindítás nélkül.
@@ -1045,8 +1139,18 @@ function tile(value: string, label: string): HTMLElement {
  * villogna.
  */
 function statLabel(label: string): string {
-  const site = status?.sites.find((x) => x.domain === label);
-  return site ? displayName(site) : label;
+  const st = status;
+  if (!st) return label;
+  const idx = st.sites.findIndex((x) => x.domain === label);
+  if (idx < 0) return label;
+  const site = st.sites[idx];
+  // Rejtett listánál a statisztikában is elfedjük a címet — különben pont az
+  // állna itt, amit két kártyával feljebb elrejtettünk, ráadásul „blokkolt”
+  // címkével. A sorszám a lista sorrendjéből jön, tehát két frissítés között
+  // nem ugrál, és ugyanazt az oldalt mindig ugyanaz a szám jelöli.
+  // A fedőnév erősebb: azt épp azért adta meg, hogy AZ látszódjon.
+  if (isListHidden(st) && !isAliased(site)) return `${idx + 1}. rejtett oldal`;
+  return displayName(site);
 }
 
 /** Horizontal bar list: one measure across named targets, so one hue —

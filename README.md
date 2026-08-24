@@ -41,6 +41,12 @@ attól, hogy sokszor csinálod.
   statisztikában is. A valódi cím nem tűnik el, egy gombbal **hat másodpercre**
   előhívható, aztán magától visszabújik. Ez inger-eltávolítás, nem titkosítás:
   a hosts fájlban ott a cím, és ezt a felület is kimondja.
+- **A teljes lista elrejthető** (asztali gép): egy kapcsoló, és az app minden
+  induláskor csukott listával nyílik — csak annyi látszik, hogy „3 oldal van
+  blokkolva”. A rejtés az egész ablakra szól: a statisztikában `1. rejtett oldal`
+  áll a cím helyett (az idő és a „blokkolt” jelölés marad), és a felvevő kártya
+  gyorsgombjai is eltűnnek, mert épp a tipikus címek állnak rajtuk. Megnyitni egy
+  kattintás, de csak a bezárásig marad nyitva.
 - **Napi időkeret oldalanként** (asztali gép + Android): „napi 20 perc YouTube”.
   Ha a mai aktív idő eléri a keretet, az oldal a nap hátralévő részére magától
   visszazár, éjfélkor a keret újraindul. Keretet bevezetni vagy csökkenteni egy
@@ -54,9 +60,9 @@ attól, hogy sokszor csinálod.
 |---|---|
 | ![Főképernyő](docs/images/desktop-home.png) | ![Próbatétel](docs/images/desktop-challenge.png) |
 
-| Időzített menetrend |
-|---|
-| ![Menetrend](docs/images/desktop-schedule.png) |
+| Időzített menetrend | Elrejtett lista |
+|---|---|
+| ![Menetrend](docs/images/desktop-schedule.png) | ![Elrejtett lista](docs/images/desktop-list-hidden.png) |
 
 ![Statisztika](docs/images/desktop-stats.png)
 
@@ -144,7 +150,9 @@ cd ios && xcodegen generate && open Breaker.xcodeproj
   idő-mérésre — a segéd IPC-jét támadó integrációs teszttel együtt. Mellette egy
   Playwright-füstteszt hajtja végig a valódi felületet (feloldási folyamat,
   beillesztés-tiltás, keret-mérő, a „régi a háttérszolgáltatás” és a „nem kap
-  adatot a mérés” figyelmeztetés). ✅ Zöld.
+  adatot a mérés” figyelmeztetés, a fedőnév és a lista elrejtése — utóbbi arra is,
+  hogy újraindítás után is rejtve marad, és hogy közben az ablakban sehol nem
+  marad ott egy blokkolt cím). Mindez sötét és világos témában is. ✅ Zöld.
 - **Android:** a platformfüggetlen mag (`ChallengeEngine`, `Blocklist`,
   `ScheduleLogic`, `UsageLogic`, `LimitLogic`, `Referee`, `BreakerStore`) és a bitszintű
   `DnsEngine` JVM-en unit-tesztelt, Android SDK nélkül futtatva

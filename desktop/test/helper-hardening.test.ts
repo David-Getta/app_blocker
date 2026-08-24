@@ -253,3 +253,52 @@ test('the status tells the GUI about the legacy helper', async () => {
     'a felület enélkül nem tudná kiírni, mi a baj');
   resetLegacyDetection();
 });
+
+// A fedőnév és a lista elrejtése a socketen át érkezik, tehát ugyanúgy nem
+// megbízható bemenet egy root folyamatnak, mint bármi más. Két dolgot kell
+// állítania: (1) próbatétel nélkül menjen — egyik sem gyengíti a blokkolást,
+// (2) a szemetet a HELPER tisztítsa meg, ne a felület, mert a felület
+// megkerülhető: aki a sockethez fér, közvetlenül is küldhet.
+
+test('an alias is normalised by the helper, not trusted from the caller', async () => {
+  const added = await call('add_site', { input: 'pelda-fedonev.example' });
+  assert.equal(added.ok, true, JSON.stringify(added));
+  const site = (added.data as { sites: { id: string; domain: string }[] }).sites
+    .find((s) => s.domain === 'pelda-fedonev.example')!;
+
+  // Vezérlőkarakter és túl hosszú név — mind a socketen érkezik.
+  const hostile = `  A\u0000vide\u001fos\u007f${'x'.repeat(200)}`;
+  const r = await call('set_alias', { siteId: site.id, alias: hostile });
+  assert.equal(r.ok, true, JSON.stringify(r));
+  const stored = (r.data as { sites: { id: string; alias?: string }[] }).sites
+    .find((s) => s.id === site.id)!.alias!;
+  assert.ok(!/[\u0000-\u001f\u007f-\u009f]/.test(stored),
+    `vezérlőkarakter maradt a mentett állapotban: ${JSON.stringify(stored)}`);
+  assert.ok(stored.length <= 40, `túl hosszú maradt: ${stored.length}`);
+
+  // Üres fedőnév = nincs fedőnév, nem üres sztring a mentett állapotban.
+  const cleared = await call('set_alias', { siteId: site.id, alias: '   ' });
+  assert.equal((cleared.data as { sites: { id: string; alias?: string }[] }).sites
+    .find((s) => s.id === site.id)!.alias, undefined);
+});
+
+test('an alias on an unknown site is refused, not silently ignored', async () => {
+  const r = await call('set_alias', { siteId: 'site_nincs_ilyen', alias: 'akármi' });
+  assert.equal(r.ok, false);
+});
+
+test('hiding the list is a stored setting, and survives a helper restart', async () => {
+  const on = await call('set_hide_list', { hidden: true });
+  assert.equal(on.ok, true, JSON.stringify(on));
+  assert.equal((on.data as { hideSiteList?: boolean }).hideSiteList, true);
+  // Nem elég a memóriában: az app újraindulása után is rejtve kell lennie.
+  assert.equal(JSON.parse(fs.readFileSync(process.env.BREAKER_STATE!, 'utf8')).hideSiteList, true);
+
+  const off = await call('set_hide_list', { hidden: false });
+  assert.equal((off.data as { hideSiteList?: boolean }).hideSiteList, false);
+  assert.equal(JSON.parse(fs.readFileSync(process.env.BREAKER_STATE!, 'utf8')).hideSiteList, false);
+
+  // Bármi mást küldve se rejtsen: csak a kifejezett true kapcsolja be.
+  const junk = await call('set_hide_list', { hidden: 'igen' as unknown as boolean });
+  assert.equal((junk.data as { hideSiteList?: boolean }).hideSiteList, false);
+});

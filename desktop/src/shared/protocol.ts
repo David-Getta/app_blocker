@@ -63,6 +63,8 @@ export interface StatusData {
   dohPolicyApplied: boolean;
   /** whether active-time measurement is switched on */
   usageEnabled: boolean;
+  /** rejtve induljon-e a blokkolt oldalak listája (felületi beállítás) */
+  hideSiteList?: boolean;
   /** egy korábbi néven telepített segéd láthatóan még fut (lásd hosts.ts) */
   legacyHelperRunning?: boolean;
   now: number;
@@ -83,6 +85,8 @@ export type HelperRequest =
   // A fedőnév NEM lazítás: az oldal ettől ugyanúgy blokkolva marad, csak nem a
   // címe áll a listán. Ezért próbatétel nélkül állítható, mindkét irányba.
   | { id: number; op: 'set_alias'; siteId: string; alias: string | null }
+  // A lista elrejtése szintén tisztán felületi: a blokkolás nem változik tőle.
+  | { id: number; op: 'set_hide_list'; hidden: boolean }
   | { id: number; op: 'usage_batch'; samples: UsageSampleMsg[] }
   | { id: number; op: 'usage_stats'; focusKey?: string }
   | { id: number; op: 'usage_enable'; enabled: boolean }
@@ -139,7 +143,8 @@ export type HelperResponse =
  * mond magáról: frissítés után a root démon a következő indításig a RÉGI marad,
  * és egy régi helper az új parancsokat nem ismeri.
  *
- * 0.3.0 — set_alias (fedőnév), a status kiegészülve az alias mezővel
+ * 0.3.0 — set_alias (fedőnév) és set_hide_list (lista elrejtése), a status
+ *         kiegészülve az alias és a hideSiteList mezővel
  * 0.2.0 — set_limit (napi időkeret), a status kiegészülve a keret mezőivel
  * 0.1.0 — első kiadás
  */

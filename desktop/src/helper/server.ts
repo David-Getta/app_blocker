@@ -57,6 +57,7 @@ export function statusOf(state: HelperState, dohApplied: boolean): StatusData {
     session: referee.currentSession(state),
     dohPolicyApplied: dohApplied,
     usageEnabled: state.usage.enabled,
+    hideSiteList: state.hideSiteList === true,
     legacyHelperRunning: legacyHelperSuspected(),
     now,
   };
@@ -155,6 +156,14 @@ function handle(req: HelperRequest, deps: ServerDeps): unknown {
       const alias = normalizeAlias(req.alias);
       if (alias === undefined) delete site.alias;
       else site.alias = alias;
+      deps.commit();
+      return statusOf(state, deps.dohApplied());
+    }
+
+    case 'set_hide_list': {
+      // Ugyanaz a gondolat, mint a fedőnévnél: a lista elrejtése nem gyengíti a
+      // blokkolást egy hajszálnyit sem, tehát nem jár érte próbatétel.
+      state.hideSiteList = req.hidden === true;
       deps.commit();
       return statusOf(state, deps.dohApplied());
     }

@@ -90,9 +90,15 @@ function fakeBridgeSource() {
     window.__fakeTracker = { blocked: false, neverWorked: false, platform: 'darwin' };
     window.__fakeUpdate = { status: 'idle' };
     window.__fakeHelperVersion = ${JSON.stringify(helperVersion())};
+    // A „lista elrejtése” beállítást a HÁTTÉRSZOLGÁLTATÁS tárolja, nem az ablak.
+    // Itt a sessionStorage áll a helyére, hogy az újratöltés (= app-újraindítás)
+    // után is megmaradjon: épp ez a beállítás lényege, tehát a teszt is csak így
+    // tud róla igazat mondani.
+    window.__fakeHideList = sessionStorage.getItem('fakeHideList') === '1';
     const status = () => ({
       helperVersion: window.__fakeHelperVersion, platform: 'darwin',
       sites: window.__fakeSites, tier: 1, unlocks7d: 2,
+      hideSiteList: window.__fakeHideList,
       session, dohPolicyApplied: true, usageEnabled: true, now: Date.now(),
     });
     // 30 days, because that is what the helper actually sends (and what the
@@ -141,6 +147,11 @@ function fakeBridgeSource() {
             session } };
         }
         if (op === 'abandon') { session = null; return { ok: true, data: {} }; }
+        if (op === 'set_hide_list') {
+          window.__fakeHideList = payload.hidden === true;
+          sessionStorage.setItem('fakeHideList', window.__fakeHideList ? '1' : '0');
+          return { ok: true, data: status() };
+        }
         if (op === 'set_alias') {
           const site = window.__fakeSites.find((x) => x.id === payload.siteId);
           if (site) {
@@ -356,7 +367,7 @@ async function main() {
   await page.waitForFunction(
     () => (document.querySelector('#siteList .site-row .site-domain') || {}).textContent
       ?.includes('A videós'),
-    { timeout: 10_000 },
+    undefined, { timeout: 10_000 },
   );
 
   const listText = (await page.locator('#siteList').textContent()) || '';
@@ -380,13 +391,13 @@ async function main() {
   await page.waitForFunction(
     () => (document.querySelector('#siteList .site-row .site-domain') || {}).textContent
       ?.includes('youtube.com'),
-    { timeout: 10_000 },
+    undefined, { timeout: 10_000 },
   );
   // ...és vissza is bújik magától, emberi beavatkozás nélkül.
   await page.waitForFunction(
     () => (document.querySelector('#siteList .site-row .site-domain') || {}).textContent
       ?.includes('A videós'),
-    { timeout: 20_000 },
+    undefined, { timeout: 20_000 },
   );
 
   // A fedőnév levehető, és akkor újra a cím áll ott.
@@ -396,8 +407,77 @@ async function main() {
   await page.waitForFunction(
     () => (document.querySelector('#siteList .site-row .site-domain') || {}).textContent
       ?.includes('youtube.com'),
-    { timeout: 10_000 },
+    undefined, { timeout: 10_000 },
   );
+
+  // ------------------------------------------------------- a lista elrejtése
+  //
+  // A kérés nem az volt, hogy egy gomb összecsukja a listát, hanem hogy az app
+  // MEGNYITÁSAKOR se álljon ott, mi van blokkolva. Két dolgot kell tehát
+  // bizonyítani: (1) rejtve egyetlen cím se maradjon a listakártyán — nem elég,
+  // ha csak nincs kigörgetve; és (2) a beállítás TÚLÉLJE az újraindítást,
+  // különben minden induláskor újra kellene rejteni, és nem érne semmit.
+  await page.getByRole('button', { name: 'Lista elrejtése' }).click();
+  await page.waitForFunction(
+    () => document.querySelectorAll('#siteList .site-row').length === 0
+      && !document.getElementById('listHidden').classList.contains('hidden'),
+    undefined, { timeout: 10_000 },
+  );
+  // A rejtés az EGÉSZ ablakra szól, nem csak a listakártyára: a statisztika
+  // címkéi és a felvevő kártya gyorsgombjai ugyanúgy kiírnák a címet. Ezért itt
+  // a teljes szöveget nézzük meg — így egy jövőbeli, máshol megjelenő cím is
+  // elbukik, nem csak az, amire most gondoltunk.
+  // innerText, nem textContent: a LÁTHATÓ szöveg a kérdés. (Egy becsukott
+  // párbeszédben ott maradhat a legutóbbi címe — az nem jelenik meg senkinek,
+  // viszont textContent-tel hamis riasztást adna.) A listakártyát külön,
+  // DOM-szinten is megnézzük lentebb.
+  const hiddenBody = await page.locator('body').innerText() || '';
+  for (const leak of ['youtube', 'reddit', 'instagram']) {
+    if (hiddenBody.toLowerCase().includes(leak)) {
+      const at = hiddenBody.toLowerCase().indexOf(leak);
+      failures.push(`while the list is hidden the window still names a blocked site (${leak}): `
+        + `…${hiddenBody.slice(Math.max(0, at - 60), at + 40).replace(/\s+/g, ' ').trim()}…`);
+    }
+  }
+  const hiddenCard = (await page.locator('#listCard').textContent()) || '';
+  // A darabszám viszont MARADJON: azt kérte, hogy MIK vannak blokkolva ne
+  // látszódjon, nem azt, hogy hány.
+  if (!hiddenCard.includes('3 oldal')) {
+    failures.push(`the collapsed list does not say how many sites are blocked: ${hiddenCard.trim()}`);
+  }
+  if (!CHECK_ONLY) {
+    await page.screenshot({ path: path.join(OUT, 'desktop-list-hidden.png'), fullPage: false });
+  }
+
+  // Megnyitni egy kattintás — de csak erre a munkamenetre.
+  await page.getByRole('button', { name: 'Lista megnyitása' }).click();
+  await page.waitForFunction(
+    () => document.querySelectorAll('#siteList .site-row').length === 3,
+    undefined, { timeout: 10_000 },
+  );
+
+  // Újraindítás után megint rejtve. Enélkül ez csak egy összecsukó gomb volna.
+  await page.reload();
+  await page.waitForFunction(
+    () => !document.getElementById('listHidden').classList.contains('hidden'),
+    undefined, { timeout: 15_000 },
+  );
+  if (await page.locator('#siteList .site-row').count() !== 0) {
+    failures.push('after a restart the hidden list is rendered anyway');
+  }
+
+  // És visszavonható: megnyitás, majd a fejlécgomb kikapcsolja a beállítást —
+  // ennek szintén túl kell élnie egy újraindítást.
+  await page.getByRole('button', { name: 'Lista megnyitása' }).click();
+  await page.getByRole('button', { name: 'Ne rejtse ezután' }).click();
+  await page.reload();
+  await page.waitForFunction(
+    () => document.querySelectorAll('#siteList .site-row').length === 3,
+    undefined, { timeout: 15_000 },
+  );
+  if (!(await page.getByRole('button', { name: 'Lista elrejtése' }).count())) {
+    failures.push('the hide setting cannot be turned back on after being switched off');
+  }
 
   // ------------------------------------------- szünetelő és törlésre váró oldal
   //
@@ -422,7 +502,7 @@ async function main() {
   // elég ránézni. (Ezen bukott el először ez a teszt.)
   await page.waitForFunction(
     () => document.querySelectorAll('#siteList .site-row').length === 2,
-    { timeout: 15_000 },
+    undefined, { timeout: 15_000 },
   );
 
   const pausedRow = page.locator('#siteList .site-row').first();

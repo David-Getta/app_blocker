@@ -274,6 +274,23 @@ body {
 
 /* ------------------------------------------------------- blokkolt oldalak */
 
+.list-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--s3); margin-bottom: var(--s4);
+}
+.list-head h2 { margin: 0; }
+
+/* Összecsukott lista: nyugodt, nem riasztó. Az a lényege, hogy NE hívjon. */
+.list-hidden {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--s4); flex-wrap: wrap;
+  background: var(--surface-2);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: var(--s4);
+}
+.list-hidden .hint { margin: 0; max-width: 46ch; }
+
 .site-list { display: flex; flex-direction: column; gap: var(--s3); }
 
 /* Az oldalsor a felület legsűrűbb pontja. Ezért NEM egy sor: felül a
