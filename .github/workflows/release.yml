@@ -44,6 +44,37 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
+          **Felső menüsor — nincs több tekerés.** Eddig minden egymás alatt volt
+          egyetlen hosszú lapon: a fiókhoz a képernyő aljáig kellett görgetni, és
+          a statisztika meg a blokklista egymást takarta. Mostantól három fül van
+          a fejlécben — **Oldalak · Munkamenetek · Statisztika** —, és egyszerre
+          egy dolog van a képernyőn.
+
+          **A fiók a jobb felső sarokban van, egy ikon mögött.** Rákattintva
+          oldalról benyílik. Az ikonból az is látszik, hogy be vagy-e lépve:
+          kijelentkezve egy alak, belépve a fiókazonosítód kezdőbetűje. Az Esc
+          bezárja — ami csak egérrel csukható, az billentyűzettel csapdába ejt.
+
+          **A kinézet testreszabható.** A fiók melletti ikon nyitja: négyféle
+          háttér (Nyugalom, Aurora, Rács, Tiszta), és külön kapcsoló arra, hogy
+          mozogjon-e. Aki zavarónak találja a mozgást, megállíthatja, a hátteret
+          viszont megtarthatja. Ha a rendszeredben be van kapcsolva a
+          „csökkentett mozgás”, az erősebb ennél a kapcsolónál.
+
+          A választás a gépeden marad. A NÉZET viszont szándékosan nem: az app
+          mindig az Oldalak nézettel nyílik, mert a blokklista az, amiért az app
+          van.
+
+          ### Javítva
+
+          - **A munkameneteknél az „Új csomag” gomb nem csinált semmit.** A gomb
+            ott volt, kezelő viszont nem tartozott hozzá: rá lehetett kattintani,
+            és nem történt semmi. A funkció így elérhetetlen volt — az egyetlen
+            út a gyorsbillentyűs rétegen át vezetett, ahol viszont csomagot
+            felvenni nem lehet.
+
+          ### Ami a v0.4.0-ban jött
+
           **Teljesen új felület.** Nem átszínezés: a hierarchiát mostantól a
           tipográfia és a térköz adja, nem a keretek. Eddig minden be volt
           keretezve — kártya a kártyában, sor a sorban —, és attól minden
