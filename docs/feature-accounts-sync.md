@@ -132,6 +132,22 @@ külső szolgáltatást, a saját gépén vagy egy ingyenes kis konténerben fut
 | Asztali felület (regisztráció, belépés, eszközlista) | kész |
 | Android és iPhone | utána |
 
+## Mikor szinkronizál magától
+
+A felhasználó nem fogja nyomkodni a „Szinkronizálás most” gombot. Ha csak kézzel
+menne, a másik gépen felvett oldal órákig nem érne ide — és pont ez az, amiért az
+egész funkció van. A segéd ezért magától is dolgozik:
+
+| Mikor | Miért |
+|---|---|
+| induláskor | a gép bekapcsolása után rögtön a többiekhez igazodik |
+| minden változás után 20 másodperc csenddel | egy műveletsor (felvétel, keret, menetrend) EGY feltöltés legyen, ne három |
+| tízpercenként | hogy a másik gép írását magától is észrevegye |
+
+Egy elhasalt kör nem naplózódik újra meg újra: offline gépnél az percenként
+ismétlődő, haszontalan sor lenne. Az állapotba viszont bekerül, és a felület
+kiírja, hogy mi nem megy.
+
 ## Ami a segédben fut, és miért
 
 A szinkron kliensoldala a **segédben** van, nem a felületen. Két oka van:
