@@ -264,3 +264,44 @@ test('a second sync with nothing changed does not push a new version', async () 
   await syncNow(a, 22_000);
   assert.equal(a.sync!.sitesVersion, first, 'harmadik kör sem');
 });
+
+/**
+ * Egy VALÓDI Android-payload — nem kézzel írt, hanem a Kotlin
+ * `SyncClient.sitesToJson` kimenete, ide másolva.
+ *
+ * Jól látszik rajta, hogy a mezők sorrendje teljesen kevert (az org.json
+ * hasítótáblát használ). Pont ezért kell a beérkezett rekordokat kanonizálni:
+ * enélkül minden kör „változást” látna.
+ */
+const ANDROID_PAYLOAD = `[{"schedule":{"mode":"scheduled_block","bands":[{"endMin":1020,"days":[1,2,3,4,5],"startMin":540}]},"dailyLimitSeconds":600,"addedAt":1000,"rev":3,"updatedBy":"telefon","domain":"youtube.com","pauseUntil":null,"alias":"A videós","hostnames":["youtube.com","youtu.be"],"id":"s1","pendingDeleteAt":2000,"updatedAt":4000},{"addedAt":5000,"rev":1,"updatedBy":"telefon","domain":"reddit.com","pauseUntil":null,"hostnames":["reddit.com"],"id":"s2","pendingDeleteAt":null,"updatedAt":6000}]`;
+
+test('what Android writes, the desktop reads correctly', () => {
+  const sites = normalizeIncomingSites(JSON.parse(ANDROID_PAYLOAD));
+  assert.equal(sites.length, 2);
+
+  const [yt, rd] = sites;
+  assert.equal(yt.domain, 'youtube.com');
+  assert.deepEqual(yt.hostnames, ['youtube.com', 'youtu.be']);
+  assert.equal(yt.pendingDeleteAt, 2_000, 'a törlésre várás átjön');
+  assert.equal(yt.dailyLimitSeconds, 600);
+  assert.equal(yt.alias, 'A videós', 'az ékezet is ép marad');
+  assert.equal(yt.rev, 3);
+  assert.equal(yt.updatedBy, 'telefon');
+  // A menetrend módja a KÖZÖS szöveg, nem a Kotlin enum neve. Ha ez elcsúszna,
+  // a gép „mindig tiltva”-ként olvasná a munkaidős menetrendet — vagy fordítva,
+  // és az a rosszabb, mert az feloldás.
+  assert.equal(yt.schedule?.mode, 'scheduled_block');
+  assert.deepEqual(yt.schedule?.bands, [{ days: [1, 2, 3, 4, 5], startMin: 540, endMin: 1020 }]);
+  // A szünet sosem érkezik kívülről, akkor sem, ha a másik oldal kiírta.
+  assert.equal(yt.pauseUntil, null);
+
+  assert.equal(rd.pendingDeleteAt, null);
+  assert.equal(rd.dailyLimitSeconds, undefined);
+  assert.equal(rd.alias, undefined);
+});
+
+test('the same Android payload twice is not seen as a change', () => {
+  const a = normalizeIncomingSites(JSON.parse(ANDROID_PAYLOAD));
+  const b = normalizeIncomingSites(JSON.parse(ANDROID_PAYLOAD));
+  assert.equal(JSON.stringify(a), JSON.stringify(b));
+});
