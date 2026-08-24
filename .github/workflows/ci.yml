@@ -64,6 +64,20 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: node scripts/ui-shots.js --check
 
+  sync-server:
+    name: Szinkron-kiszolgáló tesztek
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      # Nincs npm ci: a kiszolgálónak szándékosan nincs függősége.
+      - run: npm test
+
   android-core-tests:
     name: Android mag tesztek (JVM, SDK nélkül)
     runs-on: ubuntu-latest

@@ -1,0 +1,13 @@
+{
+  "name": "breaker-sync-server",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Breaker szinkron-kiszolgáló — verziózott, titkosított blobok, függőség nélkül",
+  "license": "MIT",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test test/server.test.js"
+  },
+  "engines": { "node": ">=20" }
+}
