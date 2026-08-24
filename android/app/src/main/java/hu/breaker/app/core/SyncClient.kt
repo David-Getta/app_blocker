@@ -326,16 +326,48 @@ object SyncClient {
     }
 
     /** A többi eszköz mérése, visszafejtve — csak akkor kérjük, ha tényleg megnézik. */
-    data class DeviceUsage(val deviceId: String, val name: String, val last7Seconds: Long, val self: Boolean)
+    data class TopTarget(val label: String, val seconds: Long)
 
-    fun pullDevices(state: AppState, now: Long): List<DeviceUsage> {
+    data class DeviceUsage(
+        val deviceId: String,
+        val name: String,
+        val self: Boolean,
+        val todaySeconds: Long,
+        val last7Seconds: Long,
+        /**
+         * A hét három legtöbb időt vivő célpontja. A címke NYERS: hogy fedőnév
+         * kerül-e a helyére, vagy a „rejtett oldal” felirat, azt a felület
+         * dönti el — a kliens nem tudhatja, hogy a listát épp rejtik-e.
+         */
+        val top: List<TopTarget> = emptyList(),
+    )
+
+    /**
+     * Minden eszköz EGYÜTT.
+     *
+     * Ez az a szám, ami tényleg számít: nem az, hogy mennyi ment el a gépen és
+     * külön mennyi a telefonon, hanem hogy MENNYI ÖSSZESEN. Fejben összeadni
+     * senki nem fogja.
+     */
+    data class CombinedUsage(
+        val deviceCount: Int,
+        val todaySeconds: Long,
+        val last7Seconds: Long,
+        val top: List<TopTarget> = emptyList(),
+    )
+
+    data class DevicesResult(val combined: CombinedUsage, val devices: List<DeviceUsage>)
+
+    fun pullDevices(state: AppState, now: Long): DevicesResult {
         val acc = state.sync ?: throw SyncException("Nincs bejelentkezve.", "NO_ACCOUNT")
         val key = SyncCrypto.unb64(acc.dataKey)
         val all = call(acc.serverUrl, "/v1/usage-all", JSONObject().apply {
             put("accountId", acc.accountId); put("authKey", acc.authKey)
         })
-        val arr = all.optJSONArray("devices") ?: return emptyList()
+        val arr = all.optJSONArray("devices")
+            ?: return DevicesResult(CombinedUsage(0, 0, 0), emptyList())
         val out = mutableListOf<DeviceUsage>()
+        val usages = mutableListOf<UsageLogic.UsageState>()
         for (i in 0 until arr.length()) {
             // Rekordonként tűrünk: egy sérült blob ne vigye el a többi eszközt.
             runCatching {
@@ -345,14 +377,37 @@ object SyncClient {
                 val name = if (nameBlob.isEmpty()) id else SyncCrypto.decrypt(key, nameBlob)
                 val usage = if (d.isNull("payload")) null
                     else usageFromJson(SyncCrypto.decrypt(key, d.getString("payload")))
+                if (usage != null) usages.add(usage)
+                val sum = usage?.let { UsageLogic.summarize(it, now) }
                 out.add(DeviceUsage(
                     deviceId = id, name = name, self = id == acc.deviceId,
-                    last7Seconds = usage?.let { UsageLogic.summarize(it, now).last7Seconds.toLong() } ?: 0,
+                    todaySeconds = sum?.todaySeconds?.toLong() ?: 0,
+                    last7Seconds = sum?.last7Seconds?.toLong() ?: 0,
+                    top = sum?.let { topOf(it) } ?: emptyList(),
                 ))
             }
         }
-        return out
+        // Az összesítés UGYANAZON a `summarize`-on megy át, mint az
+        // eszközönkénti — csak előbb egyetlen mérés-állapottá fésüljük a
+        // blobokat. Két külön összegző előbb-utóbb más számot mutatna.
+        val together = UsageLogic.summarize(UsageLogic.combineUsage(usages), now)
+        return DevicesResult(
+            CombinedUsage(
+                deviceCount = out.size,
+                todaySeconds = together.todaySeconds.toLong(),
+                last7Seconds = together.last7Seconds.toLong(),
+                top = topOf(together),
+            ),
+            out,
+        )
     }
+
+    /** A hét három legtöbb időt vivő célpontja, weboldalak és appok együtt. */
+    private fun topOf(sum: UsageLogic.Summary): List<TopTarget> =
+        (sum.topWeekSites + sum.topWeekApps)
+            .sortedByDescending { it.seconds }
+            .take(3)
+            .map { TopTarget(it.label, it.seconds.toLong()) }
 
     // A mérés JSON-alakja ugyanaz, amit a segéd is használ — a `BreakerStore`
     // privát átalakítói nem érhetők el innen, ezért itt van a párja.

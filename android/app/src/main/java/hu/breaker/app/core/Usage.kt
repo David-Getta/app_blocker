@@ -227,6 +227,61 @@ object UsageLogic {
         )
     }
 
+    // --------------------------------------------------- több eszköz együtt
+
+    /**
+     * Több eszköz mérését EGYETLEN mérés-állapottá fésüli — a
+     * `desktop/src/shared/usage.ts` `combineUsage` párja.
+     *
+     * Miért kell: a kérdés, ami tényleg számít, nem az eszközönkénti bontás.
+     * Nem az, hogy mennyi ment el YouTube-ra a gépen, és külön mennyi a
+     * telefonon, hanem hogy MENNYI MENT EL ÖSSZESEN. Két eszközön külön-külön
+     * napi húsz perc együtt negyven — és pont a negyven az a szám, amivel a
+     * felhasználó küzd.
+     *
+     * A visszaadott állapot ugyanolyan `UsageState`, tehát a `summarize` és a
+     * `rank` VÁLTOZATLANUL használható rajta. Ez szándékos: egy második
+     * összegző implementáció előbb-utóbb elcsúszna az elsőtől, és a két nézet
+     * más számot mutatna ugyanarra a kérdésre.
+     *
+     * A napkulcs annak az eszköznek a HELYI naptári napja, amelyik felvette; a
+     * címke pedig onnan jön, ahol a LEGTÖBB időt mérték az adott célponton —
+     * így nem a hívás sorrendjén múlik.
+     */
+    fun combineUsage(states: List<UsageState>): UsageState {
+        val byDay = linkedMapOf<String, MutableMap<String, Double>>()
+        val bestLabel = mutableMapOf<String, Pair<Double, String>>()
+
+        for (st in states) {
+            val mine = mutableMapOf<String, Double>()
+            for (d in st.days) {
+                val bucket = byDay.getOrPut(d.day) { mutableMapOf() }
+                for ((k, sec) in d.seconds) {
+                    if (!sec.isFinite() || sec <= 0) continue
+                    bucket[k] = (bucket[k] ?: 0.0) + sec
+                    mine[k] = (mine[k] ?: 0.0) + sec
+                }
+            }
+            for ((k, sec) in mine) {
+                val label = st.labels[k]
+                if (label.isNullOrEmpty()) continue
+                val cur = bestLabel[k]
+                if (cur == null || sec > cur.first) bestLabel[k] = sec to label
+            }
+        }
+
+        return UsageState(
+            // Rendezve, mert a `series` és a diagramok sorrendet feltételeznek.
+            days = byDay.entries.sortedBy { it.key }
+                .map { UsageDay(it.key, it.value) }.toMutableList(),
+            labels = bestLabel.mapValues { it.value.second }.toMutableMap(),
+            // Ha BÁRMELYIK eszköz mér, az összesített szám valódi. A helyi
+            // kapcsoló kikapcsolt állapota nem teszi hamissá azt, amit a
+            // telefon mért.
+            enabled = states.any { it.enabled },
+        )
+    }
+
     // ------------------------------------------------------------- sampling
 
     data class Foreground(val appId: String, val appName: String, val domain: String? = null)

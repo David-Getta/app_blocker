@@ -45,7 +45,7 @@ struct ContentView: View {
                     if let ses = store.state.session { resumeBanner(ses) }
                     listSection
                     StatsView(now: now)
-                    SyncCard()
+                    SyncCard(siteLabel: siteLabel)
                     tierLine
                 }
                 .padding()
@@ -131,6 +131,19 @@ struct ContentView: View {
     /// lyukas zsák: elég egyetlen hely, ahol ott a cím.
     private var listHidden: Bool {
         store.state.hideSiteList == true && !listOpenThisSession
+    }
+
+    /// A címke-tölcsér, amit a szinkron-kártya is használ.
+    ///
+    /// A másik eszköz mérése NYERS címkékkel érkezik: a kliens nem tudhatja,
+    /// hogy a felületen épp rejtve van-e a lista. A döntés itt van, ahol az
+    /// információ — enélkül a rejtés pont ott lyukadna ki, ahol senki nem
+    /// keresi.
+    private func siteLabel(_ raw: String) -> String {
+        guard let idx = store.state.sites.firstIndex(where: { $0.domain == raw }) else { return raw }
+        let site = store.state.sites[idx]
+        if listHidden { return AliasLogic.maskedLabel(site, index: idx) }
+        return AliasLogic.displayName(site)
     }
 
     private var addSection: some View {

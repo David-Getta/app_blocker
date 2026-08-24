@@ -260,10 +260,38 @@ enum SyncClient {
         let id: String
         let name: String
         let isSelf: Bool
+        let todaySeconds: Double
+        let last7Seconds: Double
+        /// A hét három legtöbb időt vivő célpontja azon az eszközön.
+        ///
+        /// A címke NYERS. Hogy fedőnév kerül-e a helyére, vagy a
+        /// „rejtett oldal” felirat, azt a felület dönti el: a kliens nem
+        /// tudhatja, hogy a listát épp rejtik-e.
+        let top: [UsageStats.Target]
     }
 
-    /// A fiókhoz tartozó eszközök — a nevük is titkosítva jön.
-    static func devices(_ state: AppState) async throws -> [DeviceInfo] {
+    /// Minden eszköz EGYÜTT.
+    ///
+    /// Ez az a szám, ami tényleg számít: nem az, hogy mennyi ment el a gépen és
+    /// külön mennyi az androidos telefonon, hanem hogy MENNYI ÖSSZESEN.
+    struct CombinedInfo {
+        let deviceCount: Int
+        let todaySeconds: Double
+        let last7Seconds: Double
+        let top: [UsageStats.Target]
+    }
+
+    struct DevicesResult {
+        let combined: CombinedInfo
+        let devices: [DeviceInfo]
+    }
+
+    /// A fiókhoz tartozó eszközök és a mérésük — a nevük is titkosítva jön.
+    ///
+    /// iPhone-on ez a statisztika EGYETLEN forrása: az Apple nem enged mérni
+    /// más appokban töltött időt, a gép és az androidos telefon viszont mér, és
+    /// azt a fiókon át ide is elhozza.
+    static func devices(_ state: AppState, now: Date = Date()) async throws -> DevicesResult {
         guard let acc = state.sync, let keyData = Data(base64Encoded: acc.dataKey) else {
             throw SyncError("Nincs bejelentkezve.", "NO_ACCOUNT")
         }
@@ -272,12 +300,38 @@ enum SyncClient {
             "accountId": acc.accountId, "authKey": acc.authKey,
         ])
         let list = all["devices"] as? [[String: Any]] ?? []
-        return list.compactMap { d in
+        var usages: [UsageStats.State] = []
+        let infos: [DeviceInfo] = list.compactMap { d in
             guard let id = d["deviceId"] as? String else { return nil }
             let blob = d["nameBlob"] as? String ?? ""
-            // Rekordonként tűrünk: egy sérült név ne vigye el a többi eszközt.
+            // Rekordonként tűrünk: egy sérült név vagy mérés ne vigye el a
+            // többi eszközt.
             let name = blob.isEmpty ? id : ((try? SyncCrypto.decrypt(key, blob)) ?? id)
-            return DeviceInfo(id: id, name: name, isSelf: id == acc.deviceId)
+            var summary: UsageStats.Summary?
+            if let payload = d["payload"] as? String,
+               let text = try? SyncCrypto.decrypt(key, payload),
+               let usage = UsageStats.parse(text) {
+                usages.append(usage)
+                summary = UsageStats.summarize(usage, now: now)
+            }
+            return DeviceInfo(
+                id: id, name: name, isSelf: id == acc.deviceId,
+                todaySeconds: summary?.todaySeconds ?? 0,
+                last7Seconds: summary?.last7Seconds ?? 0,
+                top: summary?.top ?? []
+            )
         }
+        // Az összesítés UGYANAZON a `summarize`-on megy át, mint az
+        // eszközönkénti — csak előbb egyetlen állapottá fésüljük a blobokat.
+        let together = UsageStats.summarize(UsageStats.combine(usages), now: now)
+        return DevicesResult(
+            combined: CombinedInfo(
+                deviceCount: infos.count,
+                todaySeconds: together.todaySeconds,
+                last7Seconds: together.last7Seconds,
+                top: together.top
+            ),
+            devices: infos
+        )
     }
 }

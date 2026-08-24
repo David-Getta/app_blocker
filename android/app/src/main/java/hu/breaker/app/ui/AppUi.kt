@@ -53,6 +53,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import hu.breaker.app.core.AliasLogic
@@ -520,7 +521,7 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                 },
             )
 
-            SyncCard(state, scope)
+            SyncCard(state, scope, siteLabel)
 
             val tier = ChallengeEngine.computeTier(state.unlockLog, now)
             val names = listOf("alap", "emelt", "magas", "maximális")
@@ -1255,6 +1256,12 @@ private fun DelayStepUi(step: Step.Delay, now: Long, onClaim: () -> Unit) {
 private fun SyncCard(
     state: AppState,
     scope: kotlinx.coroutines.CoroutineScope,
+    /**
+     * UGYANAZ a címke-tölcsér, mint a saját statisztikáé. Ha a lista rejtve
+     * van, a MÁSIK eszköz adata sem nevezheti meg a blokkolt oldalt — enélkül
+     * a rejtés pont ott lyukadna ki, ahol senki nem keresi.
+     */
+    siteLabel: (String) -> String,
 ) {
     var server by rememberSaveable { mutableStateOf("") }
     var account by rememberSaveable { mutableStateOf("") }
@@ -1265,7 +1272,7 @@ private fun SyncCard(
     var busy by remember { mutableStateOf(false) }
     var localError by remember { mutableStateOf<String?>(null) }
     var recovery by remember { mutableStateOf<String?>(null) }
-    var devices by remember { mutableStateOf<List<SyncClient.DeviceUsage>?>(null) }
+    var devices by remember { mutableStateOf<SyncClient.DevicesResult?>(null) }
 
     /**
      * Minden hálózati művelet háttérszálon; a felület közben letiltva.
@@ -1355,15 +1362,29 @@ private fun SyncCard(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                devices?.let { list ->
-                    for (d in list) {
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text(if (d.self) "${d.name} (ez az eszköz)" else d.name,
-                                style = MaterialTheme.typography.bodySmall)
-                            Text("${UsageLogic.formatDuration(d.last7Seconds.toDouble())} / 7 nap",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
+                devices?.let { res ->
+                    // Elöl az ÖSSZESÍTETT szám: nem az, hogy mennyi ment el a
+                    // gépen és külön mennyi itt, hanem hogy mennyi összesen.
+                    // Egy eszköznél nincs mit összesíteni, ott csak zaj lenne.
+                    if (res.combined.deviceCount > 1) {
+                        DeviceBlock(
+                            title = "Mind a(z) ${res.combined.deviceCount} eszköz együtt",
+                            todaySeconds = res.combined.todaySeconds,
+                            last7Seconds = res.combined.last7Seconds,
+                            top = res.combined.top,
+                            siteLabel = siteLabel,
+                            emphasis = true,
+                        )
+                    }
+                    for (d in res.devices) {
+                        DeviceBlock(
+                            title = if (d.self) "${d.name} (ez az eszköz)" else d.name,
+                            todaySeconds = d.todaySeconds,
+                            last7Seconds = d.last7Seconds,
+                            top = d.top,
+                            siteLabel = siteLabel,
+                            emphasis = false,
+                        )
                     }
                 }
                 FlowRowActions(busy = busy,
@@ -1409,6 +1430,62 @@ private fun SyncCard(
             },
             confirmButton = { TextButton(onClick = { recovery = null }) { Text("Felírtam") } },
         )
+    }
+}
+
+/**
+ * Egy eszköz (vagy az összes együtt) egy blokkban: mai idő, heti idő, és a hét
+ * három legtöbb időt vivő célpontja.
+ *
+ * A címkék a `siteLabel` tölcséren mennek át — a segéd és a kliens NYERS
+ * címkét ad, mert nem tudhatják, hogy a felületen épp rejtve van-e a lista.
+ */
+@Composable
+private fun DeviceBlock(
+    title: String,
+    todaySeconds: Long,
+    last7Seconds: Long,
+    top: List<SyncClient.TopTarget>,
+    siteLabel: (String) -> String,
+    emphasis: Boolean,
+) {
+    Column(
+        Modifier.fillMaxWidth().padding(top = 6.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(
+                title,
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = if (emphasis) FontWeight.Bold else FontWeight.Normal,
+                modifier = Modifier.weight(1f, fill = false),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                "ma ${UsageLogic.formatDuration(todaySeconds.toDouble())} · " +
+                    "7 nap ${UsageLogic.formatDuration(last7Seconds.toDouble())}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        for (t in top) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(
+                    siteLabel(t.label),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f, fill = false),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    UsageLogic.formatDuration(t.seconds.toDouble()),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
     }
 }
 

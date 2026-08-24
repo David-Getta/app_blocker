@@ -13,6 +13,11 @@ struct SyncCard: View {
     // nem itt szedjük elő. Így egy nézet sem tarthat véletlenül másik példányt.
     @EnvironmentObject var store: BreakerStore
 
+    /// UGYANAZ a címke-tölcsér, mint a saját listáé. Ha a lista rejtve van, a
+    /// MÁSIK eszköz adata sem nevezheti meg a blokkolt oldalt — enélkül a
+    /// rejtés pont ott lyukadna ki, ahol senki nem keresi.
+    var siteLabel: (String) -> String = { $0 }
+
     @State private var server = ""
     @State private var account = ""
     // A jelszó nem kerül @AppStorage-ba és sehova máshova: csak addig él, amíg
@@ -21,7 +26,7 @@ struct SyncCard: View {
     @State private var busy = false
     @State private var localError: String?
     @State private var recoveryCode: String?
-    @State private var devices: [SyncClient.DeviceInfo] = []
+    @State private var devices: SyncClient.DevicesResult?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -98,23 +103,72 @@ struct SyncCard: View {
                 .font(.footnote)
             Text(acc.lastSyncAt == nil ? "Még nem volt szinkron." : "Legutóbbi szinkron: \(clock(acc.lastSyncAt!))")
                 .font(.footnote).foregroundStyle(.secondary)
-            ForEach(devices) { d in
-                Text(d.isSelf ? "\(d.name) (ez az eszköz)" : d.name)
-                    .font(.footnote).foregroundStyle(.secondary)
+            if let res = devices {
+                // Elöl az ÖSSZESÍTETT szám: nem az, hogy mennyi ment el a
+                // gépen és külön mennyi máshol, hanem hogy mennyi összesen.
+                // Egy eszköznél nincs mit összesíteni, ott csak zaj lenne.
+                if res.combined.deviceCount > 1 {
+                    deviceBlock(
+                        title: "Mind a(z) \(res.combined.deviceCount) eszköz együtt",
+                        today: res.combined.todaySeconds,
+                        week: res.combined.last7Seconds,
+                        top: res.combined.top,
+                        emphasis: true
+                    )
+                }
+                ForEach(res.devices) { d in
+                    deviceBlock(
+                        title: d.isSelf ? "\(d.name) (ez az eszköz)" : d.name,
+                        today: d.todaySeconds,
+                        week: d.last7Seconds,
+                        top: d.top,
+                        emphasis: false
+                    )
+                }
+                // Az iPhone maga NEM mér, és ezt ki kell mondani: enélkül a
+                // nulla óra úgy nézne ki, mint egy hiba. Az Apple nem enged
+                // appnak hozzáférni ahhoz, hogy más appokban mennyi idő telik.
+                Text("Ez a készülék nem mér időt — az Apple ezt nem engedi appnak. A fenti számokat a géped és az androidos telefonod mérte.")
+                    .font(.caption2).foregroundStyle(.secondary)
             }
             HStack {
                 Button("Szinkronizálás most") { run { try await syncNow() } }
                     .buttonStyle(.borderedProminent).disabled(busy)
-                Button("Eszközök") { run { devices = try await SyncClient.devices(store.state) } }
+                Button("Eszközök és idejük") { run { devices = try await SyncClient.devices(store.state) } }
                     .buttonStyle(.bordered).disabled(busy)
                 // Nincs megerősítés: a kijelentkezés nem visz el semmit. Egy
                 // „biztos?” azt sugallná, hogy veszélyes.
                 Button("Kijelentkezés") {
                     _ = store.mutate { $0 = SyncClient.signOut($0) }
-                    devices = []
+                    devices = nil
                 }.disabled(busy)
             }
         }
+    }
+
+    /// Egy eszköz (vagy az összes együtt) egy blokkban: mai idő, heti idő, és a
+    /// hét három legtöbb időt vivő célpontja.
+    private func deviceBlock(
+        title: String, today: Double, week: Double,
+        top: [UsageStats.Target], emphasis: Bool
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack {
+                Text(title).font(.footnote).fontWeight(emphasis ? .semibold : .regular)
+                Spacer()
+                Text("ma \(UsageStats.formatDuration(today)) · 7 nap \(UsageStats.formatDuration(week))")
+                    .font(.footnote).foregroundStyle(.secondary)
+            }
+            ForEach(top, id: \.key) { t in
+                HStack {
+                    Text(siteLabel(t.label)).font(.caption2).foregroundStyle(.secondary)
+                    Spacer()
+                    Text(UsageStats.formatDuration(t.seconds))
+                        .font(.caption2).foregroundStyle(.secondary)
+                }
+            }
+        }
+        .padding(.top, 4)
     }
 
     // MARK: - műveletek
