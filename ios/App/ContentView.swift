@@ -50,7 +50,7 @@ struct ContentView: View {
                 }
                 .padding()
             }
-            .navigationTitle("🔒 Breaker")
+            .navigationTitle("Breaker")
             .sheet(item: $pauseSite) { site in pauseSheet(site) }
             .sheet(item: $aliasSite) { site in aliasSheet(site) }
             .sheet(item: $scheduleSite) { site in
@@ -98,7 +98,7 @@ struct ContentView: View {
                 .font(.footnote).foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding().background(Color.red.opacity(0.12)).cornerRadius(12)
+        .padding().background(Color.red.opacity(0.11), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
     private var protectionSection: some View {
@@ -114,7 +114,7 @@ struct ContentView: View {
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding().background(Color.orange.opacity(0.12)).cornerRadius(12)
+                .padding().background(Color.orange.opacity(0.11), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
             } else if store.state.sites.isEmpty {
                 Button("Védelem kikapcsolása") { Task { await tunnel.stop() } }
             } else {
@@ -148,7 +148,7 @@ struct ContentView: View {
 
     private var addSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Oldal blokkolása").font(.headline)
+            SectionLabel("Oldal blokkolása")
             HStack {
                 TextField(listHidden ? "a cím, amit blokkolni akarsz" : "pl. www.youtube.com",
                           text: $addInput)
@@ -192,13 +192,13 @@ struct ContentView: View {
             Spacer()
             Button("Folytatás") { openSessionId = ses.id }
         }
-        .padding().background(Color.accentColor.opacity(0.12)).cornerRadius(10)
+        .breakerCard()
     }
 
     private var listSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text("Blokkolt oldalak").font(.headline)
+                SectionLabel("Blokkolt oldalak")
                 Spacer()
                 // A gomb a BEÁLLÍTÁST kapcsolja, nem a pillanatnyi láthatóságot:
                 // ha rejtettre van állítva, de most nyitva van, akkor a rejtést
@@ -224,7 +224,7 @@ struct ContentView: View {
                     Button("Megnyitás") { listOpenThisSession = true }.buttonStyle(.bordered)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding().background(Color.gray.opacity(0.12)).cornerRadius(10)
+                .breakerCard()
             } else {
                 if store.state.sites.isEmpty {
                     Text("Még nincs blokkolt oldal.").font(.footnote).foregroundStyle(.secondary)
@@ -280,7 +280,7 @@ struct ContentView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding().background(Color.gray.opacity(0.12)).cornerRadius(10)
+        .breakerCard()
     }
 
     private var tierLine: some View {

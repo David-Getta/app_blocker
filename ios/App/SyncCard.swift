@@ -30,7 +30,7 @@ struct SyncCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Fiók és eszközök").font(.headline)
+            SectionLabel("Fiók és eszközök")
             if let acc = store.state.sync {
                 signedIn(acc)
             } else {
@@ -41,7 +41,7 @@ struct SyncCard: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding().background(Color.gray.opacity(0.12)).cornerRadius(10)
+        .breakerCard()
         // Szinkron a képernyő megnyitásakor. A telefonon nincs értelme
         // percenként ébresztgetni a hálózatot: az app akkor számít, amikor épp
         // nézed. Viszont AKKOR számítson — aki a gépén felvett egy oldalt, azt

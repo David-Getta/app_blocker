@@ -26,7 +26,7 @@ struct StatsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Statisztika").font(.headline)
+            SectionLabel("Statisztika")
 
             HStack(spacing: 10) {
                 tile("\(store.state.sites.count)", "figyelt oldal")
@@ -63,7 +63,7 @@ struct StatsView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .background(Color.gray.opacity(0.12))
+        .background(BreakerStyle.surfaceNested)
         .cornerRadius(10)
     }
 
@@ -74,7 +74,7 @@ struct StatsView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
-        .background(Color.gray.opacity(0.12))
+        .background(BreakerStyle.surfaceNested)
         .cornerRadius(8)
     }
 }
