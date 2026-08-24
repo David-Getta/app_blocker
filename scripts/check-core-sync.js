@@ -53,11 +53,15 @@ const kt = {
   sync: read('android/app/src/main/java/hu/breaker/app/core/SyncCrypto.kt'),
 };
 const sw = {
+  pairing: read('ios/Shared/Pairing.swift'),
   engine: read('ios/Shared/ChallengeEngine.swift'),
   referee: read('ios/Shared/Referee.swift'),
   alias: read('ios/Shared/Alias.swift'),
   sync: read('ios/Shared/SyncCrypto.swift'),
 };
+
+ts.pairing = read('desktop/src/shared/sync/pairing.ts');
+kt.pairing = read('android/app/src/main/java/hu/breaker/app/core/Pairing.kt');
 
 function scalar(text, re, label) {
   const m = text.match(re);
@@ -168,10 +172,24 @@ const CHECKS = [
     scalar(ts.sync, /SCRYPT_P\s*=\s*([^;]+);/, 'ts'),
     scalar(kt.sync, /SCRYPT_P[^=]*=\s*(.+)/, 'kt'),
     scalar(sw.sync, /scryptP[^=]*=\s*(.+)/, 'swift')],
+  // A párosító kód közös állandói. Ha ezek elcsúsznak, a gépen kiírt kód a
+  // telefonon nem nyílik ki — vagy ami rosszabb, MÁS címet ad.
+  ['DEFAULT_SYNC_PORT',
+    scalar(ts.pairing, /DEFAULT_SYNC_PORT\s*=\s*([^;]+);/, 'ts'),
+    scalar(kt.pairing, /DEFAULT_SYNC_PORT[^=]*=\s*(.+)/, 'kt'),
+    scalar(sw.pairing, /defaultPort[^=]*=\s*(.+)/, 'swift')],
+  ['MAX_CODE_CHARS',
+    scalar(ts.pairing, /MAX_CODE_CHARS\s*=\s*([^;]+);/, 'ts'),
+    scalar(kt.pairing, /MAX_CODE_CHARS[^=]*=\s*(.+)/, 'kt'),
+    scalar(sw.pairing, /maxCodeChars[^=]*=\s*(.+)/, 'swift')],
 ];
 
 // A kódábécé nem szám, de ha eltér, a memória-próba más jeleket adna.
 const ALPHABETS = [
+  ['PAIRING_ALPHABET',
+    (ts.pairing.match(/ALPHABET\s*=\s*'([^']+)'/) || [])[1],
+    (kt.pairing.match(/ALPHABET\s*=\s*"([^"]+)"/) || [])[1],
+    (sw.pairing.match(/alphabet\s*=\s*Array\("([^"]+)"\)/) || [])[1]],
   ['CODE_ALPHABET',
     (ts.challenges.match(/CODE_ALPHABET\s*=\s*'([^']+)'/) || [])[1],
     (kt.engine.match(/CODE_ALPHABET\s*=\s*"([^"]+)"/) || [])[1],

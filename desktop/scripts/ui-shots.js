@@ -187,7 +187,11 @@ function fakeBridgeSource() {
       // láthassa a be- és kikapcsolt állapotot.
       getSyncServer: async () => window.__fakeHost || { running: false },
       startSyncServer: async () => {
-        window.__fakeHost = { running: true, url: 'http://192.168.1.10:8787' };
+        window.__fakeHost = {
+          running: true,
+          url: 'http://192.168.1.10:8787',
+          localUrl: 'http://127.0.0.1:8787',
+        };
         return window.__fakeHost;
       },
       stopSyncServer: async () => { window.__fakeHost = { running: false }; return window.__fakeHost; },
@@ -589,6 +593,29 @@ async function main() {
   for (const id of ['syncServer', 'syncAccount', 'syncPassword']) {
     if (!(await page.locator(`#${id}`).count())) failures.push(`missing sync field: ${id}`);
   }
+  // A cím mezője NEM kötelező. Ez volt az a pont, ahol a szinkron meghalt: aki
+  // idáig eljutott, ott feladta, mert egy IP-címet kellett volna begépelnie.
+  const serverPlaceholder = await page.locator('#syncServer').getAttribute('placeholder');
+  if (!/üresen/i.test(serverPlaceholder || '')) {
+    failures.push(`a cím mezője nem mondja meg, hogy elhagyható: ${serverPlaceholder}`);
+  }
+  // A gépen futó kiszolgáló a PÁROSÍTÓ KÓDOT írja ki, nem az IP-címet.
+  await page.getByRole('button', { name: /Kiszolgáló indítása/ }).click();
+  await page.waitForFunction(
+    () => document.querySelector('#syncHostState .pair-code') !== null,
+    undefined, { timeout: 10_000 },
+  ).catch(() => failures.push('a kiszolgáló nem írta ki a párosító kódot'));
+  const pairCode = (await page.locator('#syncHostState .pair-code').innerText().catch(() => '')) || '';
+  if (!/^[0-9A-Z-]{4,14}$/.test(pairCode)) failures.push(`furcsa párosító kód: ${pairCode}`);
+  const hostText = (await page.locator('#syncHostState').innerText()) || '';
+  if (!hostText.includes('192.168.1.10')) {
+    failures.push('a teljes cím eltűnt — kell annak, akinél a kód nem megy');
+  }
+  await page.getByRole('button', { name: /Kiszolgáló leállítása/ }).click();
+  await page.waitForFunction(
+    () => document.getElementById('syncHostState').classList.contains('hidden'),
+    undefined, { timeout: 10_000 },
+  );
   if (await page.locator('#syncPassword').getAttribute('type') !== 'password') {
     failures.push('the sync password field is not masked');
   }

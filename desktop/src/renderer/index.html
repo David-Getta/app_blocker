@@ -173,7 +173,12 @@
           <p id="syncHostState" class="hint hidden"></p>
         </div>
         <div class="sync-form">
-          <input id="syncServer" type="text" placeholder="a kiszolgáló címe (pl. http://192.168.1.10:8787)" autocomplete="off" spellcheck="false" />
+          <!--
+            A mező ÜRESEN is jó: akkor ezen a gépen készül a fiók, és ha kell,
+            a kiszolgáló is magától elindul. Eddig kötelező volt ide írni egy
+            IP-címet — az volt az a pont, ahol a szinkron meghalt.
+          -->
+          <input id="syncServer" type="text" placeholder="párosító kód vagy cím — üresen: ezen a gépen" autocomplete="off" spellcheck="false" />
           <input id="syncAccount" type="text" placeholder="fiókazonosító (pl. az e-mail-címed)" autocomplete="off" spellcheck="false" />
           <input id="syncPassword" type="password" placeholder="jelszó (legalább 10 karakter)" autocomplete="off" />
         </div>

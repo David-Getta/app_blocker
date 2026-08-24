@@ -14,6 +14,14 @@ export interface SyncServerState {
   running: boolean;
   /** amit a másik eszközbe be kell írni */
   url?: string;
+  /**
+   * Ugyanez a kiszolgáló, de a SAJÁT gépről nézve.
+   *
+   * A helyi felhasználáshoz ez a megbízható: a hálózati cím a Wi-Fi váltásával
+   * megváltozik, a 127.0.0.1 viszont sosem. Enélkül a saját gépen bejelentkezés
+   * után a fiók egy olyan címre hivatkozna, ami holnap már mást jelent.
+   */
+  localUrl?: string;
   /** hol tárolja az adatot ez a gép */
   dataDir?: string;
   error?: string;

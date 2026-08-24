@@ -44,17 +44,19 @@ export function startSyncServer(userDataDir: string): SyncServerState {
       state = { running: false, error: serverError(e) };
       server = null;
     });
+    const localUrl = `http://127.0.0.1:${SYNC_PORT}`;
     app.listen(SYNC_PORT, () => {
       const host = lanAddress();
       state = {
         running: true,
-        url: host ? `http://${host}:${SYNC_PORT}` : `http://127.0.0.1:${SYNC_PORT}`,
+        url: host ? `http://${host}:${SYNC_PORT}` : localUrl,
+        localUrl,
         dataDir,
       };
     });
     server = app;
     // A listen aszinkron; addig is mondjuk meg, hogy elindult a folyamat.
-    state = { running: true, url: undefined, dataDir };
+    state = { running: true, url: undefined, localUrl, dataDir };
     return state;
   } catch (e) {
     state = { running: false, error: (e as Error).message };

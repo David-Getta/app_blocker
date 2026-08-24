@@ -22,6 +22,8 @@ export interface SyncServerState {
   running: boolean;
   /** amit a másik eszközbe be kell írni */
   url?: string;
+  /** ugyanez a saját gépről nézve (127.0.0.1) — a Wi-Fi váltásával sem változik */
+  localUrl?: string;
   dataDir?: string;
   error?: string;
 }

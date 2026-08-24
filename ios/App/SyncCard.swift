@@ -71,7 +71,7 @@ struct SyncCard: View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Ha ugyanabba a fiókba lépsz be a többi eszközödön is, nem kell mindenhol újra felvenned a listát — és látod a többi eszköz statisztikáját. A blokkolt oldalak és a mért idők titkosítva mennek fel: a kiszolgáló nem látja őket.")
                 .font(.footnote).foregroundStyle(.secondary)
-            TextField("pl. http://192.168.1.10:8787", text: $server)
+            TextField("párosító kód a gépről (vagy teljes cím)", text: $server)
                 .textFieldStyle(.roundedBorder)
                 #if os(iOS)
                 .autocapitalization(.none)
@@ -183,9 +183,23 @@ struct SyncCard: View {
         }
     }
 
+    /// A beírt szöveg feloldása: párosító KÓD vagy teljes cím.
+    ///
+    /// A gépen kiírt öt karaktert begépelni még megteszi az ember; egy
+    /// IP-címet a legtöbben nem — és pont ott halt meg eddig a szinkron.
+    private func resolvedServer() throws -> String {
+        guard let url = Pairing.resolveServerInput(server) else {
+            throw SyncClient.SyncError(
+                "Ez nem tűnik érvényes párosító kódnak vagy címnek. A kód a gépen, a fiókkártyán áll.",
+                "BAD_SERVER"
+            )
+        }
+        return url
+    }
+
     private func signIn() async throws {
         let next = try await SyncClient.signIn(
-            state: store.state, serverUrl: server, accountId: account.trimmed(),
+            state: store.state, serverUrl: try resolvedServer(), accountId: account.trimmed(),
             password: password, deviceName: deviceName()
         )
         _ = store.mutate { $0 = next }
@@ -195,7 +209,7 @@ struct SyncCard: View {
 
     private func signUp() async throws {
         let (next, code) = try await SyncClient.signUp(
-            state: store.state, serverUrl: server, accountId: account.trimmed(),
+            state: store.state, serverUrl: try resolvedServer(), accountId: account.trimmed(),
             password: password, deviceName: deviceName()
         )
         _ = store.mutate { $0 = next }

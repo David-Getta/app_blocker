@@ -76,6 +76,7 @@ import hu.breaker.app.core.Referee
 import hu.breaker.app.core.ScheduleLogic
 import hu.breaker.app.core.SessionRec
 import hu.breaker.app.core.Site
+import hu.breaker.app.core.Pairing
 import hu.breaker.app.core.SyncClient
 import hu.breaker.app.core.UsageLogic
 import hu.breaker.app.update.UpdateChecker
@@ -1332,9 +1333,13 @@ private fun SyncCard(
                         "nem látja őket.",
                     style = MaterialTheme.typography.bodySmall,
                 )
+                // A mező PÁROSÍTÓ KÓDOT is elfogad, nem csak címet. A gépen
+                // kiírt öt karaktert begépelni még megteszi az ember; egy
+                // IP-címet a legtöbben nem — és pont ott halt meg eddig a
+                // szinkron.
                 OutlinedTextField(
                     value = server, onValueChange = { server = it },
-                    placeholder = { Text("pl. http://192.168.1.10:8787") },
+                    placeholder = { Text("párosító kód a gépről (vagy teljes cím)") },
                     singleLine = true, modifier = Modifier.fillMaxWidth(),
                 )
                 OutlinedTextField(
@@ -1351,8 +1356,14 @@ private fun SyncCard(
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(enabled = !busy, onClick = {
                         background {
+                            val url = Pairing.resolveServerInput(server)
+                                ?: throw SyncClient.SyncException(
+                                    "Ez nem tűnik érvényes párosító kódnak vagy címnek. " +
+                                        "A kód a gépen, a fiókkártyán áll.",
+                                    "BAD_SERVER",
+                                )
                             val next = SyncClient.signIn(
-                                BreakerStore.state.value, server, account.trim(), password, deviceName(),
+                                BreakerStore.state.value, url, account.trim(), password, deviceName(),
                             )
                             BreakerStore.mutate { next }
                             password = ""
@@ -1362,8 +1373,14 @@ private fun SyncCard(
                     }) { Text(if (busy) "Belépés…" else "Belépés") }
                     OutlinedButton(enabled = !busy, onClick = {
                         background {
+                            val url = Pairing.resolveServerInput(server)
+                                ?: throw SyncClient.SyncException(
+                                    "Ez nem tűnik érvényes párosító kódnak vagy címnek. " +
+                                        "A kód a gépen, a fiókkártyán áll.",
+                                    "BAD_SERVER",
+                                )
                             val (next, code) = SyncClient.signUp(
-                                BreakerStore.state.value, server, account.trim(), password, deviceName(),
+                                BreakerStore.state.value, url, account.trim(), password, deviceName(),
                             )
                             BreakerStore.mutate { next }
                             password = ""

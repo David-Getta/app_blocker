@@ -758,6 +758,18 @@ body {
 /* Az összesített sor a lista feje, nem egy eszköz a többi közül. */
 .sync-device-all .sync-device-head { font-weight: 600; }
 
+/* A párosító kód: ez az, amit a másik eszközbe be kell gépelni, tehát a
+   kártya legnagyobb eleme. Ha keresgélni kell hozzá, senki nem teszi meg. */
+.pair-code {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 1.7rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  margin: var(--s2) 0 var(--s1);
+  color: var(--text);
+  user-select: all;
+}
+
 .sync-host {
   margin-top: var(--s5);
   padding: var(--s4) var(--s5);

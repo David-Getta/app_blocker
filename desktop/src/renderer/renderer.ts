@@ -15,6 +15,9 @@ import {
 import { HELPER_VERSION } from '../shared/protocol.js';
 // A .js itt sem elhagyható: a böngésző natív ESM-betöltője oldja fel futásidőben.
 import { normalizeRule, ruleLabel } from '../shared/urlrules.js';
+import {
+  encodePairingCode, formatPairingCode, resolveServerInput,
+} from '../shared/sync/pairing.js';
 import type {
   SetLimitResult, SetRuleResult, SyncCombinedInfo, SyncDeviceInfo, UsageStatsData,
 } from '../shared/protocol';
@@ -31,6 +34,8 @@ interface SyncServerState {
   running: boolean;
   /** amit a másik eszközbe be kell írni */
   url?: string;
+  /** ugyanez a saját gépről nézve (127.0.0.1) — a Wi-Fi váltásával sem változik */
+  localUrl?: string;
   dataDir?: string;
   error?: string;
 }
@@ -271,9 +276,51 @@ async function withBusy(btn: HTMLButtonElement, label: string, fn: () => Promise
   }
 }
 
-function syncFormValues(): { serverUrl: string; accountId: string; password: string } {
+/**
+ * A kiszolgáló címe — és ami ennél fontosabb: mikor NEM kell megadni.
+ *
+ * Eddig kötelező volt begépelni valamit, például `http://192.168.1.10:8787`.
+ * Ez az a pont, ahol a funkció meghalt: aki idáig eljutott, ott feladta. Egy
+ * technikailag tökéletes szinkron, amit senki nem kapcsol be, nulla értékű.
+ *
+ * Mostantól az ÜRES mező azt jelenti: „ezen a gépen”. Ha a beépített kiszolgáló
+ * még nem fut, elindítjuk — a felhasználónak nem kell tudnia, mi az az IP-cím,
+ * és nem is kell megkeresnie a sajátját.
+ *
+ * Ha írt valamit, az lehet teljes cím VAGY párosító kód; egy mező, kétféle
+ * bemenet. Külön mező azt jelentené, hogy előbb el kell dönteni, melyikbe kell
+ * írni — pont az a fajta apró döntés, amitől abbahagyják.
+ */
+async function resolveSyncServer(): Promise<string> {
+  const typed = $<HTMLInputElement>('syncServer').value.trim();
+  if (typed) {
+    const resolved = resolveServerInput(typed);
+    if (!resolved) {
+      throw new Error(
+        'Ez nem tűnik érvényes címnek vagy párosító kódnak. Ha ezen a gépen '
+        + 'akarod tartani a fiókot, hagyd üresen a mezőt.',
+      );
+    }
+    return resolved;
+  }
+
+  let st = await window.breaker.getSyncServer();
+  if (!st.running) st = await window.breaker.startSyncServer();
+  // A `listen` aszinkron: a cím egy pillanattal később áll össze. Megvárjuk,
+  // mert enélkül az első fiók készítése hibára futna — és a felhasználó azt
+  // hinné, hogy nem működik.
+  for (let i = 0; i < 20 && !st.localUrl; i++) {
+    await new Promise((r) => setTimeout(r, 100));
+    st = await window.breaker.getSyncServer();
+  }
+  if (st.error) throw new Error(st.error);
+  if (!st.localUrl) throw new Error('A kiszolgáló nem indult el ezen a gépen.');
+  return st.localUrl;
+}
+
+async function syncFormValues(): Promise<{ serverUrl: string; accountId: string; password: string }> {
   return {
-    serverUrl: $<HTMLInputElement>('syncServer').value.trim(),
+    serverUrl: await resolveSyncServer(),
     accountId: $<HTMLInputElement>('syncAccount').value.trim(),
     password: $<HTMLInputElement>('syncPassword').value,
   };
@@ -296,9 +343,22 @@ async function refreshSyncHost(): Promise<void> {
     return;
   }
   if (st.running) {
-    line.textContent = st.url
-      ? `Fut. A másik eszközön ezt írd be: ${st.url} — amíg ez az app nem fut, nincs szinkron.`
-      : 'Indul…';
+    if (!st.url) {
+      line.textContent = 'Indul…';
+      return;
+    }
+    // A másik eszközre a KÓD megy, nem az IP-cím. Ugyanaz az információ, de öt
+    // karakter — és pont ezen a ponton adta fel eddig mindenki.
+    const code = encodePairingCode(st.url);
+    line.textContent = '';
+    if (code) {
+      line.appendChild(h('div', undefined, 'Fut. A telefonon ezt a kódot írd be:'));
+      line.appendChild(h('div', 'pair-code', formatPairingCode(code)));
+      line.appendChild(h('div', 'hint', `Vagy a teljes cím: ${st.url}. Amíg ez az app nem fut, nincs szinkron.`));
+    } else {
+      line.appendChild(h('div', undefined, `Fut. A másik eszközön ezt írd be: ${st.url}`));
+      line.appendChild(h('div', 'hint', 'Amíg ez az app nem fut, nincs szinkron.'));
+    }
   }
 }
 
@@ -307,7 +367,7 @@ function setupSyncCard(): void {
 
   $('syncSignUpBtn').addEventListener('click', () => void withBusy(
     $<HTMLButtonElement>('syncSignUpBtn'), 'Fiók készítése…', async () => {
-      const v = syncFormValues();
+      const v = await syncFormValues();
       const r = await call<{ recoveryCode: string; status: StatusData }>('sync_signup', {
         ...v, deviceName: deviceName(),
       });
@@ -328,7 +388,7 @@ function setupSyncCard(): void {
   $('syncSignInBtn').addEventListener('click', () => void withBusy(
     $<HTMLButtonElement>('syncSignInBtn'), 'Belépés…', async () => {
       const r = await call<{ status: StatusData }>('sync_signin', {
-        ...syncFormValues(), deviceName: deviceName(),
+        ...(await syncFormValues()), deviceName: deviceName(),
       });
       status = r.status;
       $<HTMLInputElement>('syncPassword').value = '';
@@ -360,7 +420,7 @@ function setupSyncCard(): void {
 
   $('syncRecoverBtn').addEventListener('click', () => void withBusy(
     $<HTMLButtonElement>('syncRecoverBtn'), 'Belépés…', async () => {
-      const v = syncFormValues();
+      const v = await syncFormValues();
       const r = await call<{ status: StatusData }>('sync_recovery', {
         serverUrl: v.serverUrl,
         accountId: v.accountId,
