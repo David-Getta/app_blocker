@@ -7,17 +7,19 @@ import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -26,11 +28,11 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -43,37 +45,42 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import hu.breaker.app.core.AliasLogic
 import hu.breaker.app.core.AppState
 import hu.breaker.app.core.Blocklist
+import hu.breaker.app.core.BreakerStore
 import hu.breaker.app.core.ChallengeEngine
 import hu.breaker.app.core.ChallengeEngine.Kind
 import hu.breaker.app.core.ChallengeEngine.Step
-import hu.breaker.app.core.BreakerStore
 import hu.breaker.app.core.LimitLogic
 import hu.breaker.app.core.Referee
 import hu.breaker.app.core.ScheduleLogic
 import hu.breaker.app.core.SessionRec
-import hu.breaker.app.core.SyncClient
 import hu.breaker.app.core.Site
+import hu.breaker.app.core.SyncClient
 import hu.breaker.app.core.UsageLogic
 import hu.breaker.app.update.UpdateChecker
 import hu.breaker.app.usage.UsageTracker
 import hu.breaker.app.vpn.BreakerVpnService
-import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -261,12 +268,17 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("🔒 Breaker", fontSize = 22.sp, fontWeight = FontWeight.Bold)
-                Text(
-                    if (vpnRunning) "Védelem aktív" else "Védelem kikapcsolva",
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(9.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    BreakerMark()
+                    Text("Breaker", style = MaterialTheme.typography.titleLarge)
+                }
+                StatusDot(
+                    text = if (vpnRunning) "Védelem aktív" else "Védelem kikapcsolva",
                     color = if (vpnRunning) MaterialTheme.colorScheme.secondary
                     else MaterialTheme.colorScheme.error,
-                    fontWeight = FontWeight.SemiBold,
                 )
             }
 
@@ -361,7 +373,7 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
             // Add site
             Card {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Oldal blokkolása", fontWeight = FontWeight.Bold)
+                    SectionLabel("Oldal blokkolása")
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         OutlinedTextField(
                             value = addInput,
@@ -433,7 +445,7 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("Blokkolt oldalak", fontWeight = FontWeight.Bold)
+                SectionLabel("Blokkolt oldalak")
                 // A gomb a BEÁLLÍTÁST kapcsolja, nem a pillanatnyi láthatóságot:
                 // ha rejtettre van állítva, de most nyitva van, akkor a rejtést
                 // kapcsolja KI. Enélkül nem lenne mód visszavonni.
@@ -468,22 +480,31 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                         Button(onClick = { listOpenThisSession = true }) { Text("Megnyitás") }
                     }
                 }
+            } else if (state.sites.isEmpty()) {
+                Text("Még nincs blokkolt oldal.", style = MaterialTheme.typography.bodySmall)
             } else {
-                if (state.sites.isEmpty()) {
-                    Text("Még nincs blokkolt oldal.", style = MaterialTheme.typography.bodySmall)
-                }
-                for (site in state.sites) {
-                    SiteCard(
-                        site = site, now = now, hasSession = state.session != null,
-                        usage = state.usage,
-                        revealedUntil = revealedUntil[site.id],
-                        onReveal = { revealedUntil[site.id] = System.currentTimeMillis() + AliasLogic.REVEAL_MS },
-                        onPause = { pauseSite = site },
-                        onDelete = { deleteSite = site },
-                        onSchedule = { scheduleSite = site },
-                        onLimit = { limitSite = site },
-                        onAlias = { aliasSite = site },
-                    )
+                Card {
+                    Column {
+                        state.sites.forEachIndexed { index, site ->
+                            if (index > 0) {
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                            }
+                            SiteCard(
+                                site = site, now = now, hasSession = state.session != null,
+                                usage = state.usage,
+                                revealedUntil = revealedUntil[site.id],
+                                onReveal = {
+                                    revealedUntil[site.id] =
+                                        System.currentTimeMillis() + AliasLogic.REVEAL_MS
+                                },
+                                onPause = { pauseSite = site },
+                                onDelete = { deleteSite = site },
+                                onSchedule = { scheduleSite = site },
+                                onLimit = { limitSite = site },
+                                onAlias = { aliasSite = site },
+                            )
+                        }
+                    }
                 }
             }
 
@@ -776,7 +797,10 @@ private fun SiteCard(
     val scheduled = site.schedule != null && site.schedule.mode != ScheduleLogic.Mode.ALWAYS
     val blockedNow = LimitLogic.isBlockedNowWithLimit(site, usage, now)
 
-    Card {
+    // Nincs saját kártyája: a sorokat a LISTA kártyája fogja össze, egymástól
+    // pedig hajszálvonal választja el őket. Külön kártyákban tíz oldal
+    // kártyafalnak látszott, és semmi nem volt fontosabb a másiknál.
+    Column {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             // Fejléc: a NÉV és az ÁLLAPOT egy sorban — ez a kettő kell ránézésre.
             // Minden más ez alá kerül, halkabban.
@@ -1298,7 +1322,7 @@ private fun SyncCard(
 
     Card {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text("Fiók és eszközök", fontWeight = FontWeight.Bold)
+            SectionLabel("Fiók és eszközök")
             val acc = state.sync
             if (acc == null) {
                 Text(
@@ -1487,6 +1511,71 @@ private fun DeviceBlock(
             }
         }
     }
+}
+
+/**
+ * A védjegy: MEGSZAKÍTOTT gyűrű — a kör, ami nem zárul be.
+ *
+ * Rajzolva, nem emojival. Az emoji minden készüléken és minden Android-verzión
+ * máshogy néz ki, és egy márkajel nem függhet a rendszer betűkészletétől —
+ * ugyanez a döntés az asztali felületen és az ikonon is.
+ */
+@Composable
+private fun BreakerMark(size: Dp = 22.dp) {
+    val color = MaterialTheme.colorScheme.onBackground
+    Canvas(Modifier.size(size)) {
+        val stroke = this.size.minDimension * 0.135f
+        val inset = stroke / 2f
+        // A rés FELÜL, 72 fokos. Keskenyebbnél apró méretben összezáródna, és a
+        // jel sima karikának látszana.
+        drawArc(
+            color = color,
+            startAngle = -90f + 36f,
+            sweepAngle = 288f,
+            useCenter = false,
+            topLeft = Offset(inset, inset),
+            size = Size(this.size.width - stroke, this.size.height - stroke),
+            style = Stroke(width = stroke, cap = StrokeCap.Round),
+        )
+    }
+}
+
+/**
+ * Állapot: halk szöveg + színes pötty.
+ *
+ * A teljesen színes felirat ugyanakkora hangsúlyt kapott, mint az elsődleges
+ * gomb — pedig csak közöl, nem hív cselekvésre. A kettős kódolás megmarad: a
+ * jelentést a FELIRAT mondja ki, a szín csak megerősíti.
+ */
+@Composable
+private fun StatusDot(text: String, color: Color) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(7.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Canvas(Modifier.size(7.dp)) { drawCircle(color) }
+        Text(
+            text,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+/**
+ * Szakaszcím: apró, ritkított, NAGYBETŰS, halk.
+ *
+ * Eddig ugyanakkora és ugyanolyan sötét volt, mint a tartalom, tehát versenyzett
+ * vele. Egy cím dolga az, hogy megnevezze a szakaszt — nem az, hogy elvigye a
+ * tekintetet a tartalomról.
+ */
+@Composable
+private fun SectionLabel(text: String) {
+    Text(
+        text.uppercase(),
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
 }
 
 @OptIn(ExperimentalLayoutApi::class)

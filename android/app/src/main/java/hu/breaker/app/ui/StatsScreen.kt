@@ -56,7 +56,7 @@ fun StatsSection(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("Statisztika", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Text("Statisztika", style = MaterialTheme.typography.titleLarge)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(onClick = onToggleEnabled) {
                     Text(if (summary.enabled) "Mérés ki" else "Mérés be")
@@ -102,7 +102,7 @@ fun StatsSection(
         }
 
         if (summary.topWeekSites.isNotEmpty()) {
-            Text("Oldalak (7 nap)", fontWeight = FontWeight.Bold)
+            StatsSectionLabel("Oldalak (7 nap)")
             Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                 LegendItem(SERIES_1, "nem blokkolt")
                 LegendItem(SERIES_2, "blokkolt oldal")
@@ -116,7 +116,7 @@ fun StatsSection(
         }
 
         if (summary.topWeekApps.isNotEmpty()) {
-            Text("Alkalmazások (7 nap)", fontWeight = FontWeight.Bold)
+            StatsSectionLabel("Alkalmazások (7 nap)")
             BarList(summary.topWeekApps, emptySet(), markBlocked = false, labelOf = labelOf)
         }
 
@@ -134,7 +134,7 @@ fun StatsSection(
         }
 
         if (summary.weekOverWeek.isNotEmpty()) {
-            Text("Ez a hét az előzőhöz képest", fontWeight = FontWeight.Bold)
+            StatsSectionLabel("Ez a hét az előzőhöz képest")
             for (row in summary.weekOverWeek) WeekDeltaRow(row, labelOf)
         }
     }
@@ -144,7 +144,7 @@ fun StatsSection(
 private fun StatTile(label: String, seconds: Double, modifier: Modifier = Modifier) {
     Card(modifier) {
         Column(Modifier.padding(12.dp)) {
-            Text(UsageLogic.formatDuration(seconds), fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            Text(UsageLogic.formatDuration(seconds), style = MaterialTheme.typography.headlineSmall)
             Text(label, style = MaterialTheme.typography.bodySmall)
         }
     }
@@ -156,6 +156,16 @@ private fun LegendItem(color: Color, label: String) {
         Box(Modifier.width(10.dp).height(10.dp).clip(RoundedCornerShape(3.dp)).background(color))
         Text(label, style = MaterialTheme.typography.bodySmall)
     }
+}
+
+/** Szakaszcím: apró, ritkított, NAGYBETŰS, halk — mint a főképernyőn. */
+@Composable
+private fun StatsSectionLabel(text: String) {
+    Text(
+        text.uppercase(),
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
 }
 
 @Composable
