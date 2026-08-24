@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A szinkron-kiszolgálót a FELHASZNÁLÓ futtatja, és a leggyakoribb eset az, hogy
+  a saját gépén, a saját hálózatán — ott pedig nincs tanúsítvány, tehát nincs
+  HTTPS sem. Android 9-től a titkosítatlan HTTP alapból tiltott, így enélkül a
+  „http://192.168.x.y:8787” cím némán elhasalna, és a felhasználó csak annyit
+  látna, hogy „a kiszolgáló nem érhető el”.
+
+  Amit ez NEM jelent: az app nem küld semmi érdemlegeset titkosítatlanul. A
+  blokklista és a mért idők a kliensen titkosítódnak (SyncCrypto), tehát a
+  dróton csak átlátszatlan blobok utaznak. Ami védtelen marad, az a belépőkulcs
+  — ezért mondja ki a server/README, hogy nyilvános hálózatra HTTPS kell elé.
+
+  A frissítés-ellenőrzés és minden más forgalom változatlanul HTTPS-en megy.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

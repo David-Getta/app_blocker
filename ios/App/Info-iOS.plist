@@ -2,6 +2,23 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+    <!--
+      A szinkron-kiszolgálót a FELHASZNÁLÓ futtatja, jellemzően a saját gépén, a
+      saját hálózatán — ott nincs tanúsítvány, tehát nincs HTTPS sem. Az ATS
+      alapból tiltja a titkosítatlan HTTP-t, így enélkül a „http://192.168.x.y”
+      cím némán elhasalna.
+
+      NSAllowsLocalNetworking: CSAK a helyi hálózatra enged, az internetre nem.
+      Ez a szűk kivétel, nem az „engedjünk el mindent”.
+
+      A tartalom amúgy is titkosítva megy (SyncCrypto): a dróton átlátszatlan
+      blobok utaznak.
+    -->
+    <key>NSAppTransportSecurity</key>
+    <dict>
+        <key>NSAllowsLocalNetworking</key>
+        <true/>
+    </dict>
     <key>CFBundleDisplayName</key>
     <string>Breaker</string>
     <key>CFBundleShortVersionString</key>

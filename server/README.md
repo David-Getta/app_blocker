@@ -56,8 +56,12 @@ Amit tudni érdemes:
 - **Amíg a gép alszik, nincs szinkron.** A telefon ilyenkor a legutóbbi
   állapotot mutatja, és a fiókkártyán látszik, mikor volt utoljára szinkron.
   Semmi nem vész el: a következő elérésnél összefésül.
-- A helyi hálózaton belül a **belépőkulcs titkosítatlanul utazik**. Otthoni
-  hálózaton ez általában elfogadható; ha nem az, tegyél elé HTTPS-t (lentebb).
+- A helyi hálózaton belül a **belépőkulcs titkosítatlanul utazik** — a tartalom
+  nem, az a kliensen titkosítódik. Otthoni hálózaton ez általában elfogadható;
+  ha nem az, tegyél elé HTTPS-t (lentebb). Az appok emiatt csak a HELYI
+  hálózatra engedik a titkosítatlan kapcsolatot: iPhone-on az
+  `NSAllowsLocalNetworking`, Androidon egy külön hálózati beállítás — az
+  internet felé mindkettő HTTPS-t vár.
 - Ha a telefon nem éri el, szinte mindig a gép **tűzfala** az ok: a 8787-es
   portra be kell engedni a bejövő kapcsolatot.
 
