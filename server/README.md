@@ -40,6 +40,10 @@ Egy dolgot ki is mond: **amíg az az app nem fut (vagy a gép alszik), nincs
 szinkron.** Semmi nem vész el — a következő elérésnél összefésül —, de a telefon
 addig a legutóbbi állapotot mutatja.
 
+A beépített kiszolgáló **magától bezárja a regisztrációt**, amint van egy fiók:
+onnantól a hálózaton más nem tud fiókot nyitni rajta. A bejelentkezés persze
+továbbra is megy — épp az kell a többi eszközhöz.
+
 Ha külön, folyamatosan futó kiszolgálót akarsz, onnantól ez a doksi szól róla.
 
 ## Kézzel: a saját gépeden, a saját hálózatodon
