@@ -732,3 +732,9 @@ body {
   font-size: 0.9rem;
 }
 .sync-device .muted { color: var(--text-3); }
+.sync-device { display: grid; gap: 4px; }
+.sync-device-head { display: flex; justify-content: space-between; gap: var(--s4); }
+.sync-device-line {
+  display: flex; justify-content: space-between; gap: var(--s4);
+  font-size: 0.85rem; color: var(--text-2);
+}

@@ -235,14 +235,23 @@ async function handle(req: HelperRequest, deps: ServerDeps): Promise<unknown> {
       const me = state.sync?.deviceId;
       const now = Date.now();
       return {
-        devices: raw.map((d) => ({
-          deviceId: d.deviceId,
-          name: d.name,
-          self: d.deviceId === me,
-          last7Seconds: Math.round(
-            d.usage ? summarize(d.usage as never, now).last7Seconds : 0,
-          ),
-        })),
+        devices: raw.map((d) => {
+          const sum = d.usage ? summarize(d.usage as never, now) : null;
+          return {
+            deviceId: d.deviceId,
+            name: d.name,
+            self: d.deviceId === me,
+            todaySeconds: Math.round(sum?.todaySeconds ?? 0),
+            last7Seconds: Math.round(sum?.last7Seconds ?? 0),
+            // A hét legtöbb idejét vivő három célpont. NYERS címkékkel: a
+            // felület dönti el, hogy fedőnév vagy „rejtett oldal” kerül-e a
+            // helyükre — a segéd nem tudhatja, hogy a listát épp rejtik-e.
+            top: (sum ? [...sum.topWeekSites, ...sum.topWeekApps] : [])
+              .sort((a, b) => b.seconds - a.seconds)
+              .slice(0, 3)
+              .map((t) => ({ label: t.label, seconds: Math.round(t.seconds) })),
+          };
+        }),
       };
     }
 

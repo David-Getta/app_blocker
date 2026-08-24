@@ -149,6 +149,15 @@ function fakeBridgeSource() {
             session } };
         }
         if (op === 'abandon') { session = null; return { ok: true, data: {} }; }
+        if (op === 'sync_devices') {
+          return { ok: true, data: { devices: [
+            { deviceId: 'd1', name: 'Mac gép', self: true, todaySeconds: 3480,
+              last7Seconds: 26400, top: [
+                { label: 'youtube.com', seconds: 9600 }, { label: 'Slack', seconds: 7200 } ] },
+            { deviceId: 'd2', name: 'Telefon', self: false, todaySeconds: 1200,
+              last7Seconds: 9000, top: [{ label: 'reddit.com', seconds: 5400 }] },
+          ] } };
+        }
         if (op === 'set_hide_list') {
           window.__fakeHideList = payload.hidden === true;
           sessionStorage.setItem('fakeHideList', window.__fakeHideList ? '1' : '0');
@@ -581,6 +590,48 @@ async function main() {
   }
   const who = (await page.locator('#syncWho').innerText()) || '';
   if (!who.includes('david@example')) failures.push(`the account is not named: ${who}`);
+
+  // A többi eszköz statisztikája — ez volt a kérés másik fele. És ami itt a
+  // legkönnyebben elromlik: a másik eszköz adata NEM nevezheti meg a blokkolt
+  // oldalt, ha a lista rejtve van. Ott lyukadna ki a rejtés, ahol senki nem
+  // keresi.
+  await page.getByRole('button', { name: 'Eszközök és idejük' }).click();
+  await page.waitForFunction(
+    () => document.querySelectorAll('#syncDevices .sync-device').length === 2,
+    undefined, { timeout: 10_000 },
+  );
+  const devText = (await page.locator('#syncDevices').innerText()) || '';
+  for (const want of ['Mac gép', 'Telefon', 'youtube.com', 'reddit.com']) {
+    if (!devText.includes(want)) failures.push(`the device list is missing ${want}`);
+  }
+  // Nem újratöltéssel: a hamis híd az induláskor visszaállna, és ilyenkor épp
+  // a FUTÓ állapotot akarjuk átbillenteni.
+  await page.evaluate(() => { window.__fakeHideList = true; });
+  await page.waitForFunction(
+    () => document.querySelectorAll('#siteList .site-row').length === 0,
+    undefined, { timeout: 10_000 },
+  );
+  await page.getByRole('button', { name: 'Eszközök és idejük' }).click();
+  await page.waitForFunction(
+    () => document.querySelectorAll('#syncDevices .sync-device').length === 2,
+    undefined, { timeout: 10_000 },
+  );
+  const hiddenDevText = (await page.locator('#syncDevices').innerText()) || '';
+  for (const leak of ['youtube', 'reddit']) {
+    if (hiddenDevText.toLowerCase().includes(leak)) {
+      failures.push(`the other device's stats name a blocked site while the list is hidden: ${leak}`);
+    }
+  }
+  if (!hiddenDevText.includes('rejtett oldal')) {
+    failures.push('the masked label is missing from the other device stats');
+  }
+  // Vissza a rejtés előtti állapotba. A darabszámot nem kötjük meg: ekkorra a
+  // teszt már átírta a hamis oldallistát a szünetelő/törlésre váró esethez.
+  await page.evaluate(() => { window.__fakeHideList = false; });
+  await page.waitForFunction(
+    () => document.querySelectorAll('#siteList .site-row').length > 0,
+    undefined, { timeout: 10_000 },
+  );
   if (!CHECK_ONLY) {
     // Odagörgetünk: a kártya a lap alján ül, enélkül a képen a főképernyő
     // teteje lenne — vagyis pont az nem, amit dokumentálni akarunk.

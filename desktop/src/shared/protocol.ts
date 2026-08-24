@@ -72,8 +72,17 @@ export interface SyncDeviceInfo {
   name: string;
   /** ez az eszköz-e, amin épp ülünk */
   self: boolean;
+  /** mért idő ma, másodpercben */
+  todaySeconds: number;
   /** összesített mért idő az elmúlt 7 napban, másodpercben */
   last7Seconds: number;
+  /**
+   * A hét legtöbb idejét vivő célpontjai azon az eszközön.
+   *
+   * A `label` NYERS: a felület dolga fedőnévre vagy „rejtett oldal”-ra
+   * cserélni. A segéd nem tudhatja, hogy a felületen épp rejtve van-e a lista.
+   */
+  top: { label: string; seconds: number }[];
 }
 
 export interface StatusData {

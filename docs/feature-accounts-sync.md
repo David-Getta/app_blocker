@@ -77,7 +77,13 @@ gépen — a szinkron sosem állna meg.
 
 A **statisztika** ennél egyszerűbb: eszközönként, naponként, célpontonként áll
 össze, ütközés nincs. Minden eszköz csak a SAJÁT napjait tölti fel, és a többiét
-csak olvassa.
+csak olvassa. A felületen eszközönként látszik a mai és a heti idő, meg a hét
+három legtöbb időt vivő célpontja.
+
+A címkék ugyanazon a tölcséren mennek át, mint a saját statisztika: **ha a lista
+rejtve van, a másik eszköz adata sem nevezheti meg az oldalt.** Enélkül a rejtés
+pont ott lyukadna ki, ahol senki nem keresi — és a füstteszt ezt külön
+ellenőrzi.
 
 ## Titkosítás: a kiszolgáló nem látja
 

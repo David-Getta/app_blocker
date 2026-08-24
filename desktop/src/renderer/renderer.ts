@@ -354,10 +354,27 @@ function setupSyncCard(): void {
         return;
       }
       for (const d of r.devices) {
-        const row = h('div', 'sync-device');
-        row.appendChild(h('span', undefined, d.self ? `${d.name} (ez a gép)` : d.name));
-        row.appendChild(h('span', 'muted', `${formatDuration(d.last7Seconds)} / 7 nap`));
-        host.appendChild(row);
+        const card = h('div', 'sync-device');
+        const head = h('div', 'sync-device-head');
+        head.appendChild(h('span', undefined, d.self ? `${d.name} (ez a gép)` : d.name));
+        head.appendChild(h('span', 'muted',
+          `ma ${formatDuration(d.todaySeconds)} · 7 nap ${formatDuration(d.last7Seconds)}`));
+        card.appendChild(head);
+        if (d.top.length === 0) {
+          card.appendChild(h('div', 'muted', 'Nincs mért idő erről az eszközről.'));
+        } else {
+          for (const t of d.top) {
+            const line = h('div', 'sync-device-line');
+            // A címke UGYANAZON a tölcséren megy át, mint a saját statisztika:
+            // ha a lista rejtve van, a másik eszköz adata sem nevezheti meg az
+            // oldalt. Enélkül a rejtés pont ott lyukadna ki, ahol senki nem
+            // keresi.
+            line.appendChild(h('span', undefined, statLabel(t.label)));
+            line.appendChild(h('span', 'muted', formatDuration(t.seconds)));
+            card.appendChild(line);
+          }
+        }
+        host.appendChild(card);
       }
     },
   ));
