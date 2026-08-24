@@ -21,6 +21,7 @@ import * as referee from './referee';
 import { RefereeError } from './referee';
 import { socketPath } from './paths';
 import { legacyHelperSuspected } from './hosts';
+import * as sync from './sync-client';
 
 /** Hard limit on one usage_batch request — shared with the tracker's buffer cap,
  *  so a completely full buffer still fits into exactly one request. */
@@ -58,12 +59,27 @@ export function statusOf(state: HelperState, dohApplied: boolean): StatusData {
     dohPolicyApplied: dohApplied,
     usageEnabled: state.usage.enabled,
     hideSiteList: state.hideSiteList === true,
+    sync: state.sync && {
+      // Csak amit a felületnek látnia kell. A kulcsok nem kerülnek ki innen.
+      serverUrl: state.sync.serverUrl,
+      accountId: state.sync.accountId,
+      deviceName: state.sync.deviceName,
+      lastSyncAt: state.sync.lastSyncAt,
+      lastError: state.sync.lastError,
+    },
     legacyHelperRunning: legacyHelperSuspected(),
     now,
   };
 }
 
-function handle(req: HelperRequest, deps: ServerDeps): unknown {
+/**
+ * Egy parancs végrehajtása.
+ *
+ * `async`, mert a szinkron hálózatra megy. A hívó SORBAN dolgozza fel a
+ * kéréseket (lásd a kapcsolatonkénti sort lentebb): két párhuzamos szinkron-kör
+ * ugyanazon az állapoton egymás alól húzná ki a talajt.
+ */
+async function handle(req: HelperRequest, deps: ServerDeps): Promise<unknown> {
   const state = deps.getState();
   const now = Date.now();
   switch (req.op) {
@@ -168,6 +184,68 @@ function handle(req: HelperRequest, deps: ServerDeps): unknown {
       return statusOf(state, deps.dohApplied());
     }
 
+    // ------------------------------------------------------------- szinkron
+    //
+    // Mind a segédben fut, nem a felületen: itt van a blokklista igazsága és az
+    // adatkulcs is. Egyik művelet SEM old fel semmit — a kijelentkezés is csak
+    // a fiókot kapcsolja le, a listához nem nyúl.
+
+    case 'sync_signup': {
+      const { recoveryCode } = await sync.signUp(
+        state, req.serverUrl, req.accountId, req.password, req.deviceName,
+      );
+      deps.commit();
+      const r = await sync.syncNow(state, Date.now());
+      deps.commit();
+      return { recoveryCode, sites: r.sites, status: statusOf(state, deps.dohApplied()) };
+    }
+
+    case 'sync_signin': {
+      await sync.signIn(state, req.serverUrl, req.accountId, req.password, req.deviceName);
+      deps.commit();
+      const r = await sync.syncNow(state, Date.now());
+      deps.commit();
+      return { sites: r.sites, status: statusOf(state, deps.dohApplied()) };
+    }
+
+    case 'sync_recovery': {
+      await sync.signInWithRecovery(
+        state, req.serverUrl, req.accountId, req.recoveryCode, req.newPassword, req.deviceName,
+      );
+      deps.commit();
+      const r = await sync.syncNow(state, Date.now());
+      deps.commit();
+      return { sites: r.sites, status: statusOf(state, deps.dohApplied()) };
+    }
+
+    case 'sync_signout': {
+      sync.signOut(state);
+      deps.commit();
+      return statusOf(state, deps.dohApplied());
+    }
+
+    case 'sync_now': {
+      const r = await sync.syncNow(state, Date.now());
+      deps.commit();
+      return { ...r, status: statusOf(state, deps.dohApplied()) };
+    }
+
+    case 'sync_devices': {
+      const raw = await sync.pullAllUsage(state);
+      const me = state.sync?.deviceId;
+      const now = Date.now();
+      return {
+        devices: raw.map((d) => ({
+          deviceId: d.deviceId,
+          name: d.name,
+          self: d.deviceId === me,
+          last7Seconds: Math.round(
+            d.usage ? summarize(d.usage as never, now).last7Seconds : 0,
+          ),
+        })),
+      };
+    }
+
     case 'usage_batch': {
       // Everything here is untrusted: the helper runs as root/SYSTEM and its
       // state file is rewritten on every commit, so unvalidated keys, labels or
@@ -258,6 +336,7 @@ export function startServer(deps: ServerDeps): net.Server {
   const MAX_LINE_BYTES = 1024 * 1024;
   const server = net.createServer((conn) => {
     let buffer = '';
+    let queue: Promise<void> = Promise.resolve();
     conn.on('data', (chunk) => {
       buffer += chunk.toString('utf8');
       if (buffer.length > MAX_LINE_BYTES) {
@@ -270,19 +349,25 @@ export function startServer(deps: ServerDeps): net.Server {
         const line = buffer.slice(0, nl).trim();
         buffer = buffer.slice(nl + 1);
         if (!line) continue;
-        let resp: HelperResponse;
-        let reqId = 0;
-        try {
-          const req = JSON.parse(line) as HelperRequest;
-          reqId = req.id;
-          resp = { id: req.id, ok: true, data: handle(req, deps) };
-        } catch (e) {
-          const code = e instanceof RefereeError ? e.code : 'INTERNAL';
-          const msg = e instanceof Error ? e.message : String(e);
-          resp = { id: reqId, ok: false, error: msg, code };
-          if (code === 'INTERNAL') deps.log(`request failed: ${msg}`);
-        }
-        conn.write(JSON.stringify(resp) + '\n');
+        // Kapcsolatonként EGY sor: a válaszok sorrendje megmarad, és két
+        // parancs sosem fut egyszerre ugyanazon az állapoton. A szinkron óta ez
+        // nem elméleti kérdés — az hálózatra megy, tehát tényleg várakozik.
+        queue = queue.then(async () => {
+          let resp: HelperResponse;
+          let reqId = 0;
+          try {
+            const req = JSON.parse(line) as HelperRequest;
+            reqId = req.id;
+            resp = { id: req.id, ok: true, data: await handle(req, deps) };
+          } catch (e) {
+            const code = e instanceof RefereeError ? e.code
+              : (e as { code?: string }).code ?? 'INTERNAL';
+            const msg = e instanceof Error ? e.message : String(e);
+            resp = { id: reqId, ok: false, error: msg, code };
+            if (code === 'INTERNAL') deps.log(`request failed: ${msg}`);
+          }
+          conn.write(JSON.stringify(resp) + '\n');
+        });
       }
     });
     conn.on('error', () => { /* client went away */ });

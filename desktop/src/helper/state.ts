@@ -22,6 +22,16 @@ export interface SiteRec {
   dailyLimitSeconds?: number;
   /** fedőnév: ha van, a felület EZT mutatja a cím helyett (lásd shared/alias.ts) */
   alias?: string;
+
+  // --- szinkron (lásd helper/revisions.ts és shared/sync/merge.ts) ---
+  /** hányszor változott érdemben ez a rekord; ez dönt az összefésülésnél */
+  rev?: number;
+  /** mikor változott utoljára (ms) */
+  updatedAt?: number;
+  /** melyik eszközön — a döntetlen eltörésére */
+  updatedBy?: string;
+  /** a szinkron-mezők lenyomata a legutóbbi léptetéskor; ebből látszik, hogy változott-e */
+  revFp?: string;
 }
 
 export interface SessionRec {
@@ -77,6 +87,35 @@ export interface HelperState {
    * szembesít azzal, mi van blokkolva.
    */
   hideSiteList?: boolean;
+
+  /**
+   * Fiók a szinkronhoz. Hiányzik = nincs bejelentkezve.
+   *
+   * A `dataKey` szándékosan ITT van, a segéd root-védett állapotfájljában: a
+   * végpontok közti titkosítás a KISZOLGÁLÓ ellen véd, nem a saját géped ellen.
+   * Ha a felület tárolná, minden felhasználói folyamat elolvashatná.
+   */
+  sync?: SyncAccount;
+}
+
+export interface SyncAccount {
+  serverUrl: string;
+  accountId: string;
+  /** ezen a gépen ez az eszközazonosító — a döntetlen eltörésére is ez megy */
+  deviceId: string;
+  /** amit a kiszolgálónak küldünk; a jelszó sosem kerül ide */
+  authKey: string;
+  /** az adatkulcs base64-ben; ezzel titkosítjuk a feltöltött tartalmat */
+  dataKey: string;
+  /** eszköznév, amit a többi eszközön látni fogsz (titkosítva megy fel) */
+  deviceName: string;
+  /** a `sites` gyűjtemény verziója, amire a legutóbbi feltöltésünk épült */
+  sitesVersion?: number;
+  /** a saját `usage` blobunk verziója */
+  usageVersion?: number;
+  lastSyncAt?: number;
+  /** az utolsó hiba, hogy a felület meg tudja mondani, mi nem megy */
+  lastError?: string;
 }
 
 export function defaultState(): HelperState {

@@ -52,6 +52,30 @@ export interface SiteInfo {
   blockedNow: boolean;
 }
 
+/**
+ * Amit a felület a szinkronról tudhat.
+ *
+ * Az adatkulcs és a belépőkulcs SZÁNDÉKOSAN nincs benne: azok a segéd
+ * root-védett állapotában maradnak. A felület csak annyit lát, ami a
+ * megjelenítéshez kell.
+ */
+export interface SyncStatus {
+  serverUrl: string;
+  accountId: string;
+  deviceName: string;
+  lastSyncAt?: number;
+  lastError?: string;
+}
+
+export interface SyncDeviceInfo {
+  deviceId: string;
+  name: string;
+  /** ez az eszköz-e, amin épp ülünk */
+  self: boolean;
+  /** összesített mért idő az elmúlt 7 napban, másodpercben */
+  last7Seconds: number;
+}
+
 export interface StatusData {
   helperVersion: string;
   platform: string;
@@ -65,6 +89,8 @@ export interface StatusData {
   usageEnabled: boolean;
   /** rejtve induljon-e a blokkolt oldalak listája (felületi beállítás) */
   hideSiteList?: boolean;
+  /** a szinkron állapota, ha van fiók */
+  sync?: SyncStatus;
   /** egy korábbi néven telepített segéd láthatóan még fut (lásd hosts.ts) */
   legacyHelperRunning?: boolean;
   now: number;
@@ -87,6 +113,12 @@ export type HelperRequest =
   | { id: number; op: 'set_alias'; siteId: string; alias: string | null }
   // A lista elrejtése szintén tisztán felületi: a blokkolás nem változik tőle.
   | { id: number; op: 'set_hide_list'; hidden: boolean }
+  | { id: number; op: 'sync_signup'; serverUrl: string; accountId: string; password: string; deviceName: string }
+  | { id: number; op: 'sync_signin'; serverUrl: string; accountId: string; password: string; deviceName: string }
+  | { id: number; op: 'sync_recovery'; serverUrl: string; accountId: string; recoveryCode: string; newPassword: string; deviceName: string }
+  | { id: number; op: 'sync_signout' }
+  | { id: number; op: 'sync_now' }
+  | { id: number; op: 'sync_devices' }
   | { id: number; op: 'usage_batch'; samples: UsageSampleMsg[] }
   | { id: number; op: 'usage_stats'; focusKey?: string }
   | { id: number; op: 'usage_enable'; enabled: boolean }
@@ -145,8 +177,10 @@ export type HelperResponse =
  *
  * 0.3.0 — set_alias (fedőnév) és set_hide_list (lista elrejtése), a status
  *         kiegészülve az alias és a hideSiteList mezővel
+ * 0.4.0 — fiók és eszközök közti szinkron: sync_* parancsok, a status
+ *         kiegészülve a sync mezővel
  * 0.2.0 — set_limit (napi időkeret), a status kiegészülve a keret mezőivel
  * 0.1.0 — első kiadás
  */
-export const HELPER_VERSION = '0.3.0';
+export const HELPER_VERSION = '0.4.0';
 export const PAUSE_CHOICES_MIN = [15, 30, 60];

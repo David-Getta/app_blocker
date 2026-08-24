@@ -106,6 +106,19 @@ export function normalizeRecoveryCode(code: string): string {
     .replace(/O/g, '0').replace(/[IL]/g, '1');
 }
 
+/**
+ * Belépőkulcs a helyreállító kódból.
+ *
+ * Külön ág a jelszóétól: a kód pont arra való, hogy elfelejtett jelszóval is be
+ * lehessen jutni. Aki ezt megszerzi, be tud lépni — de a burkolt adatkulcsot
+ * csak magával a kóddal tudja kinyitni, mert az egy MÁSIK alkulcs.
+ */
+export function recoveryAuthKey(code: string): string {
+  const norm = normalizeRecoveryCode(code);
+  if (norm.length < 16) throw new Error('A helyreállító kód túl rövid.');
+  return subKey(Buffer.from(norm, 'utf8'), 'recovery-auth').toString('base64');
+}
+
 /** Kulcsburkoló egy helyreállító kódból. */
 export function recoveryKey(code: string): Buffer {
   const norm = normalizeRecoveryCode(code);
@@ -169,6 +182,7 @@ export interface Enrollment {
   serverSide: {
     accountId: string;
     authKey: string;
+    recoveryAuthKey: string;
     wrappedByPassword: string;
     wrappedByRecovery: string;
   };
@@ -184,6 +198,11 @@ export function enroll(accountId: string, password: string): Enrollment {
     serverSide: {
       accountId,
       authKey: subKey(root, 'auth').toString('base64'),
+      // A helyreállító kódnak SAJÁT belépőkulcsa is van. Enélkül a kód
+      // használhatatlan lenne: a rendes belépőkulcs a jelszóból származik,
+      // tehát elfelejtett jelszóval be sem lehetne jutni ahhoz a burkolathoz,
+      // amit a kód nyitna.
+      recoveryAuthKey: recoveryAuthKey(recoveryCode),
       wrappedByPassword: wrapDataKey(subKey(root, 'kek'), dataKey),
       wrappedByRecovery: wrapDataKey(recoveryKey(recoveryCode), dataKey),
     },

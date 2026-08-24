@@ -125,6 +125,30 @@ külső szolgáltatást, a saját gépén vagy egy ingyenes kis konténerben fut
 | Összefésülési mag + tesztek (`shared/sync/merge.ts`) | kész |
 | Titkosítási mag + tesztek (`shared/sync/crypto.ts`) | kész |
 | Protokoll (kérés/válasz alakok) | kész |
-| Kiszolgáló (Node + SQLite + Docker) | következik |
+| Kiszolgáló (Node, függőség nélkül, Dockerrel) | kész — `server/` |
+| Verziószám-vezetés a segédben (`helper/revisions.ts`) | kész |
+| Szinkron-kliens a segédben (`helper/sync-client.ts`) | kész |
+| Segéd-parancsok (`sync_signup`, `sync_signin`, …) | kész |
 | Asztali felület (regisztráció, belépés, eszközlista) | következik |
 | Android és iPhone | utána |
+
+## Ami a segédben fut, és miért
+
+A szinkron kliensoldala a **segédben** van, nem a felületen. Két oka van:
+
+1. Itt van a blokklista igazsága. Ha a felület intézné, egy módosított kliens
+   kikerülhetné a „nem old fel semmit” szabályt.
+2. Itt van az **adatkulcs** is. A végpontok közti titkosítás a KISZOLGÁLÓ ellen
+   véd, nem a saját géped ellen — de attól még nem kell, hogy minden felhasználói
+   folyamat elolvashassa.
+
+A `rev` számlálókat egyetlen fogópont vezeti: a segéd `commit()`-ja. Minden
+rekordhoz eltesszük a szinkron-mezők lenyomatát; ha az változott, a számláló nő.
+A lenyomat a mentett állapotban van, tehát egy újraindítás nem hajtja fel a
+számlálót a semmiért. Kézzel vezetve reménytelen lenne: tucatnyi helyen módosul
+egy rekord, és egyetlen kihagyott hely elég ahhoz, hogy egy változás sose menjen
+át a másik eszközre.
+
+A **szünet fel se megy** a kiszolgálóra, és a letöltött adat nem is írja felül a
+helyit. Nem elég az összefésülésre bízni: egy ÚJ eszköznek nincs saját, szigorúbb
+rekordja, tehát azt venné át, ami jött — szünetestül.

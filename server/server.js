@@ -64,10 +64,16 @@ function createApp(store, opts = {}) {
     const acc = store.readAccount(body.accountId);
     // Ugyanaz a válasz nem létező fiókra és rossz kulcsra: különben a
     // hibaüzenetből ki lehetne deríteni, kinek van itt fiókja.
-    if (!acc || !timingEqual(acc.authHash, hashAuth(body.authKey, acc.salt))) {
+    if (!acc) return { error: 'Hibás fiók vagy jelszó.', code: 'BAD_AUTH', status: 401 };
+    const byPassword = timingEqual(acc.authHash, hashAuth(body.authKey, acc.salt));
+    // A helyreállító kódnak saját belépőkulcsa van: elfelejtett jelszóval is be
+    // kell tudni jutni, különben a kód semmit nem ér.
+    const byRecovery = !!acc.recoveryAuthHash
+      && timingEqual(acc.recoveryAuthHash, hashAuth(body.authKey, acc.recoverySalt));
+    if (!byPassword && !byRecovery) {
       return { error: 'Hibás fiók vagy jelszó.', code: 'BAD_AUTH', status: 401 };
     }
-    return { acc };
+    return { acc, viaRecovery: byRecovery && !byPassword };
   }
 
   function touchDevice(acc, deviceId, nameBlob) {
@@ -92,10 +98,17 @@ function createApp(store, opts = {}) {
         return { status: 409, json: { error: 'Ez a fiókazonosító foglalt.', code: 'TAKEN' } };
       }
       const salt = crypto.randomBytes(16).toString('hex');
+      // KÜLÖN só a helyreállító ágnak. A jelszócsere ugyanis sót cserél, és ha
+      // közös lenne, a csere csendben tönkretenné a helyreállító kódot — pont
+      // azt, ami az utolsó mentőöv.
+      const recoverySalt = crypto.randomBytes(16).toString('hex');
       store.writeAccount(body.accountId, {
         accountId: body.accountId,
         salt,
+        recoverySalt,
         authHash: hashAuth(body.authKey, salt),
+        recoveryAuthHash: typeof body.recoveryAuthKey === 'string'
+          ? hashAuth(body.recoveryAuthKey, recoverySalt) : undefined,
         wrappedByPassword: body.wrappedByPassword,
         wrappedByRecovery: body.wrappedByRecovery,
         devices: [],
@@ -133,8 +146,15 @@ function createApp(store, opts = {}) {
         return { status: 400, json: { error: 'Hiányzó új kulcsok.', code: 'BAD_REQUEST' } };
       }
       const salt = crypto.randomBytes(16).toString('hex');
+      // Csak a JELSZÓ ága forog. A helyreállító ág saját sóval megy, tehát a
+      // jelszócsere nem teszi tönkre a kódot — ha viszont a kliens új kódot is
+      // ad, azt átvesszük, saját friss sóval.
       a.acc.salt = salt;
       a.acc.authHash = hashAuth(body.newAuthKey, salt);
+      if (typeof body.recoveryAuthKey === 'string') {
+        a.acc.recoverySalt = crypto.randomBytes(16).toString('hex');
+        a.acc.recoveryAuthHash = hashAuth(body.recoveryAuthKey, a.acc.recoverySalt);
+      }
       a.acc.wrappedByPassword = body.newWrappedByPassword;
       if (isBlob(body.newWrappedByRecovery)) a.acc.wrappedByRecovery = body.newWrappedByRecovery;
       store.writeAccount(body.accountId, a.acc);
@@ -255,6 +275,9 @@ if (require.main === module) {
   const port = Number(process.env.PORT || 8787);
   const app = createApp(new Store(dir), { openSignup: process.env.BREAKER_OPEN_SIGNUP !== '0' });
   app.listen(port, () => {
-    console.log(`Breaker szinkron-kiszolgáló: http://0.0.0.0:${port} (tár: ${dir})`);
+    // A TÉNYLEGES portot írjuk ki, nem a kértet: PORT=0 esetén a rendszer oszt
+    // ki egyet, és a kiírt cím különben használhatatlan lenne.
+    const actual = app.address().port;
+    console.log(`Breaker szinkron-kiszolgáló: http://0.0.0.0:${actual} (tár: ${dir})`);
   });
 }

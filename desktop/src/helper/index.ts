@@ -12,6 +12,7 @@ import { loadState, saveState } from './state';
 import { applyBlocklist, applyDohPolicies, watchHosts } from './hosts';
 import { startServer } from './server';
 import { tick } from './referee';
+import { bumpRevisions } from './revisions';
 
 export function runHelper(): void {
   const log = (m: string) => console.log(`[breaker-helper ${new Date().toISOString()}] ${m}`);
@@ -27,6 +28,11 @@ export function runHelper(): void {
   }
 
   const commit = () => {
+    // Egyetlen fogópont a szinkron verziószámaihoz: ami itt nem megy át, az
+    // sosem jut el a másik eszközre. Az eszközazonosító csak akkor van, ha be
+    // van jelentkezve — enélkül is léptetünk, hogy a későbbi belépéskor már
+    // helyes számlálók menjenek fel.
+    bumpRevisions(state, state.sync?.deviceId ?? 'local', Date.now());
     saveState(state);
     try {
       applyBlocklist(state, Date.now());
