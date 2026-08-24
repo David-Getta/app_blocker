@@ -94,6 +94,20 @@ viszont NEM megy át — a végén hasonlító tartománynév a leggyakoribb meg
 nyelvenként eltérnek; egy pontos egyezésre épülő lista mindenkinél máshogy
 viselkedne, és senki nem értené, miért.
 
+## Mennyi idő alatt ér el a böngészőig
+
+A bővítmény **húsz másodpercenként** kérdezi meg az appot. Nem egy percenként,
+és nem is öt másodpercenként:
+
+- aki elindít egy munkamenetet, és utána még egy percig megnyithatja a
+  YouTube-ot, az nem fog megbízni benne;
+- öt másodpercenként viszont fölösleges terhelés lenne, és a munkamenet
+  percekben él, nem másodpercekben.
+
+Ez azt is jelenti, hogy a munkamenet indítása után **legfeljebb húsz
+másodpercig** még átmehet egy oldal. Ezt nem takarjuk el: a réteg a szándékot
+támogatja, nem egy elektromos kerítés.
+
 ## A lejárat IDŐPONT, nem állapot
 
 A bővítmény a munkamenet végét **helyben** nézi, nem az apptól kérdezi:

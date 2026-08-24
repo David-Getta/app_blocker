@@ -19,8 +19,15 @@ const KEY = 'breaker.applink';
 export const FIRST_PORT = 8788;
 export const PORT_TRIES = 10;
 export const TOKEN_HEADER = 'x-breaker-token';
-/** Ennél sűrűbben nincs értelme kérdezni; a szolgáltatás-worker sokszor ébred. */
-export const REFRESH_MS = 60 * 1000;
+/**
+ * Ennél sűrűbben nincs értelme kérdezni; a szolgáltatás-worker sokszor ébred.
+ *
+ * Húsz másodperc, nem egy perc: a MUNKAMENET miatt. Aki elindít egy
+ * munkamenetet, és utána még egy percig megnyithatja a YouTube-ot, az nem fog
+ * megbízni benne. Egy kérés a saját gépen belül húsz másodpercenként semmibe
+ * nem kerül.
+ */
+export const REFRESH_MS = 20 * 1000;
 
 /** @returns {Promise<{token: string|null, port: number|null, rules: {host:string,path:string}[], fetchedAt: number, error: string|null}>} */
 export async function loadLink() {
