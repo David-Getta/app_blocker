@@ -60,7 +60,11 @@ export function startSyncServer(userDataDir: string): SyncServerState {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const mod = require(path.join(__dirname, '..', 'sync-server', 'server.js'));
     const dataDir = path.join(userDataDir, 'sync-data');
-    const app = mod.createApp(new mod.Store(dataDir));
+    const store = new mod.Store(dataDir);
+    // A regisztráció csak AMÍG nincs egyetlen fiók sem. A gép a saját
+    // hálózatán szolgál ki: az első fiók után más ne tudjon újat nyitni rajta,
+    // se véletlenül, se szándékosan.
+    const app = mod.createApp(store, { openSignup: () => !store.hasAnyAccount() });
     app.on('error', (e: Error) => {
       state = { running: false, error: serverError(e) };
       server = null;

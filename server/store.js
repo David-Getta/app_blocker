@@ -30,6 +30,15 @@ class Store {
 
   // ------------------------------------------------------------ fiókok
 
+  /** Van-e egyáltalán fiók. A beépített kiszolgáló ezzel zárja be magát. */
+  hasAnyAccount() {
+    try {
+      return fs.readdirSync(path.join(this.dir, 'accounts')).some((f) => f.endsWith('.json'));
+    } catch {
+      return false;
+    }
+  }
+
   accountPath(accountId) {
     return path.join(this.dir, 'accounts', `${keyOf(accountId)}.json`);
   }

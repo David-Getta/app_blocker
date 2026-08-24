@@ -54,7 +54,12 @@ function isBlob(s) {
 }
 
 function createApp(store, opts = {}) {
-  const openSignup = opts.openSignup !== false;
+  // Lehet függvény is: a beépített (asztali appból indított) kiszolgáló így
+  // tudja azt mondani, hogy „csak amíg nincs egyetlen fiók sem”. Az első fiók
+  // után a hálózaton más nem tud újat nyitni nálad.
+  const signupAllowed = typeof opts.openSignup === 'function'
+    ? opts.openSignup
+    : () => opts.openSignup !== false;
 
   /** Fiók + jogosultság egy lépésben. Minden végpont ezen megy át. */
   function authed(body) {
@@ -105,7 +110,9 @@ function createApp(store, opts = {}) {
 
   const routes = {
     '/v1/signup'(body) {
-      if (!openSignup) return { status: 403, json: { error: 'A regisztráció ki van kapcsolva.', code: 'CLOSED' } };
+      if (!signupAllowed()) {
+        return { status: 403, json: { error: 'A regisztráció ki van kapcsolva.', code: 'CLOSED' } };
+      }
       if (!isId(body.accountId)) return { status: 400, json: { error: 'Érvénytelen fiókazonosító.', code: 'BAD_REQUEST' } };
       if (!isBlob(body.wrappedByPassword) || !isBlob(body.wrappedByRecovery)) {
         return { status: 400, json: { error: 'Hiányzó kulcsok.', code: 'BAD_REQUEST' } };

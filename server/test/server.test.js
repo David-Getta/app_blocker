@@ -196,3 +196,23 @@ test('an account cannot collect devices without bound', async () => {
   assert.ok(r.json.devices.some((d) => d.deviceId === 'dev-utolso'));
   assert.ok(!r.json.devices.some((d) => d.deviceId === 'dev-0'));
 });
+
+test('signup can close itself after the first account', async () => {
+  // Ezt használja a beépített (asztali appból indított) kiszolgáló: az első
+  // fiók után a hálózaton más ne tudjon újat nyitni rajta.
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'breaker-once-'));
+  const store = new Store(dir);
+  const once = createApp(store, { openSignup: () => !store.hasAnyAccount() });
+  await new Promise((r) => once.listen(0, '127.0.0.1', r));
+  const url = `http://127.0.0.1:${once.address().port}/v1/signup`;
+  const body = (id) => JSON.stringify({
+    accountId: id, authKey: 'K', wrappedByPassword: 'brk1.a.b.c', wrappedByRecovery: 'brk1.a.b.c',
+  });
+  const headers = { 'content-type': 'application/json' };
+
+  const first = await fetch(url, { method: 'POST', headers, body: body('elso@example') });
+  assert.equal(first.status, 200, 'az első fiók létrejön');
+  const second = await fetch(url, { method: 'POST', headers, body: body('masodik@example') });
+  assert.equal(second.status, 403, 'a második már nem');
+  once.close();
+})
