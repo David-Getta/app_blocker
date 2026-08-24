@@ -228,3 +228,39 @@ test('a payload that is not even an array yields nothing', () => {
   assert.deepEqual(normalizeIncomingSites('{}' as unknown), []);
   assert.deepEqual(normalizeIncomingSites(null), []);
 });
+
+test('key order from another platform does not look like a change', () => {
+  // A Kotlin és a Swift kliens MÁS sorrendben írja ki a mezőket, és a nileket
+  // ki is hagyhatja. Ha a beérkezett rekordot nyersen tartanánk meg, a
+  // JSON-összevetés minden körben különbséget látna — a szinkron
+  // fölöslegesen feltöltene, a verziószám a végtelenségig nőne, és a
+  // kiszolgáló tíz percenként írna egyet a semmiért.
+  const androidOrder = {
+    id: 'a', domain: 'youtube.com', hostnames: ['youtube.com'], addedAt: 1,
+    pauseUntil: null, pendingDeleteAt: null, rev: 2, updatedAt: 5, updatedBy: 'telefon',
+  };
+  const swiftOrder = {
+    addedAt: 1, domain: 'youtube.com', hostnames: ['youtube.com'], id: 'a',
+    pendingDeleteAt: null, rev: 2, updatedAt: 5, updatedBy: 'telefon',
+  };
+  assert.equal(
+    JSON.stringify(normalizeIncomingSites([androidOrder])),
+    JSON.stringify(normalizeIncomingSites([swiftOrder])),
+  );
+});
+
+test('a second sync with nothing changed does not push a new version', async () => {
+  // Enélkül a verziószám a végtelenségig nőne, és a kiszolgáló minden tíz
+  // percben írna egyet a semmiért — a mezők sorrendje ugyanis elég volt ahhoz,
+  // hogy két azonos lista különbözőnek látsszon.
+  const a = device([site({ id: 'v1', domain: 'verzio.example', addedAt: 20_000 })]);
+  await signIn(a, url, ACCOUNT, 'uj-jelszo-lett-most', 'Verziópróba');
+  await syncNow(a, 20_000);
+  const first = a.sync!.sitesVersion;
+  assert.ok(first && first > 0);
+
+  await syncNow(a, 21_000);
+  assert.equal(a.sync!.sitesVersion, first, 'második kör: nincs új verzió');
+  await syncNow(a, 22_000);
+  assert.equal(a.sync!.sitesVersion, first, 'harmadik kör sem');
+});

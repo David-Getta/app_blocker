@@ -195,7 +195,7 @@ function toSyncSites(sites: SiteRec[], deviceId: string): SyncSite[] {
     pauseUntil: null, pendingDeleteAt: s.pendingDeleteAt,
     schedule: s.schedule, dailyLimitSeconds: s.dailyLimitSeconds, alias: s.alias,
     rev: s.rev ?? 1, updatedAt: s.updatedAt ?? s.addedAt, updatedBy: s.updatedBy ?? deviceId,
-  }));
+  })).map((s) => cleanSite(s as unknown as Record<string, unknown>));
 }
 
 /**
@@ -231,17 +231,32 @@ function fromSyncSites(merged: SyncSite[], local: SiteRec[]): SiteRec[] {
  */
 export function normalizeIncomingSites(parsed: unknown): SyncSite[] {
   if (!Array.isArray(parsed)) return [];
+  // Nem szórjuk szét a beérkezett objektumot (`...s`), hanem ÚJRAÉPÍTJÜK, fix
+  // mezősorrendben. Két okból: az ismeretlen mezők nem szivárognak be a
+  // blokklistába, és a JSON-alak összevethető marad — enélkül két
+  // szerkezetileg azonos lista különbözőnek látszana pusztán a kulcsok
+  // sorrendje miatt, és a szinkron minden körben fölöslegesen feltöltene.
   return parsed
     .filter((s) => s && typeof s.id === 'string' && typeof s.domain === 'string')
-    .map((s) => ({
-      ...s,
-      pauseUntil: null,
-      pendingDeleteAt: s.pendingDeleteAt ?? null,
-      hostnames: Array.isArray(s.hostnames) ? s.hostnames : [],
-      rev: Number.isInteger(s.rev) ? s.rev : 1,
-      updatedAt: Number.isFinite(s.updatedAt) ? s.updatedAt : 0,
-      updatedBy: typeof s.updatedBy === 'string' ? s.updatedBy : '',
-    }));
+    .map((s) => cleanSite(s));
+}
+
+/** Egy szinkron-rekord kanonikus alakja: fix mezők, fix sorrend. */
+function cleanSite(s: Record<string, unknown>): SyncSite {
+  return {
+    id: s.id as string,
+    domain: s.domain as string,
+    hostnames: Array.isArray(s.hostnames) ? (s.hostnames as string[]) : [],
+    addedAt: Number.isFinite(s.addedAt) ? (s.addedAt as number) : 0,
+    pauseUntil: null,
+    pendingDeleteAt: typeof s.pendingDeleteAt === 'number' ? s.pendingDeleteAt : null,
+    schedule: (s.schedule as SyncSite['schedule']) ?? undefined,
+    dailyLimitSeconds: typeof s.dailyLimitSeconds === 'number' ? s.dailyLimitSeconds : undefined,
+    alias: typeof s.alias === 'string' ? s.alias : undefined,
+    rev: Number.isInteger(s.rev) ? (s.rev as number) : 1,
+    updatedAt: Number.isFinite(s.updatedAt) ? (s.updatedAt as number) : 0,
+    updatedBy: typeof s.updatedBy === 'string' ? s.updatedBy : '',
+  };
 }
 
 function decodeSites(acc: SyncAccount, payload: string | undefined): SyncSite[] {
@@ -250,8 +265,27 @@ function decodeSites(acc: SyncAccount, payload: string | undefined): SyncSite[] 
   return normalizeIncomingSites(JSON.parse(decrypt(key, payload)));
 }
 
+/**
+ * Két lista tartalmilag egyezik-e.
+ *
+ * KANONIKUS alakon hasonlít, nem a nyers JSON-on: a mezők sorrendje nem
+ * jelenthet különbséget. Enélkül minden szinkron-kör feltöltene egy „új”
+ * verziót, a verziószám a végtelenségig nőne, és a kiszolgáló minden tíz
+ * percben írna egyet a semmiért.
+ */
 function sameSites(a: SyncSite[], b: SyncSite[]): boolean {
-  return JSON.stringify(a) === JSON.stringify(b);
+  return JSON.stringify(a.map(canonical)) === JSON.stringify(b.map(canonical));
+}
+
+function canonical(s: SyncSite): unknown[] {
+  return [
+    s.id, s.domain, [...s.hostnames].sort(), s.addedAt,
+    s.pendingDeleteAt ?? null,
+    s.schedule ? [s.schedule.mode, s.schedule.bands] : null,
+    s.dailyLimitSeconds ?? null,
+    s.alias ?? null,
+    s.rev, s.updatedAt, s.updatedBy,
+  ];
 }
 
 export interface SyncResult {
