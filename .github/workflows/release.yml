@@ -77,9 +77,15 @@ jobs:
           Dockerfile is tartozik hozzá. Amíg nem indítasz egyet, a fiókkártya
           egyszerűen nem csinál semmit — minden más változatlanul működik.
 
-          A legegyszerűbb út: a **saját gépeden, a saját hálózatodon**. A
-          `server/` mappában `node server.js`, az appokba pedig a gép helyi
-          címe (`http://192.168.x.y:8787`). Részletek: `server/README.md`.
+          A legegyszerűbb út: **az asztali appból**. A „Fiók és eszközök”
+          kártyán ott a *Kiszolgáló indítása ezen a gépen* gomb — elindítja, és
+          kiírja azt a címet, amit a telefonba be kell gépelni. Nem kell hozzá
+          se terminál, se Node. Egy dolgot ki is mond: amíg az az app nem fut
+          (vagy a gép alszik), nincs szinkron; semmi nem vész el, a telefon
+          addig a legutóbbi állapotot mutatja.
+
+          Ha folyamatosan futó kiszolgálót akarsz, a `server/` mappa és a
+          `server/README.md` szól róla.
 
           ### Ebben a verzióban javítva
 
@@ -91,6 +97,9 @@ jobs:
             pedig ütemezett egy újabb kört: a háttérszolgáltatás húsz
             másodpercenként verte volna a kiszolgálót. Az ütemezés külön, tesztelt
             részbe került.
+          - **A jelszóra alsó hosszkorlát került (10 karakter).** Ez a jelszó
+            nem egy weboldal belépője: ez tartja a kulcsot, ami az adatot
+            nyitja.
 
           ## Névváltás: a Lakatból Breaker lett
 
