@@ -59,9 +59,9 @@ jobs:
 
           Mindkettő megvan **asztali gépen, Androidon és iPhone-on** is.
 
-          **Fiók és eszközök közti szinkron** — asztali gépen és **Androidon**
-          is. Belépsz ugyanabba a fiókba a másik eszközödön, és nem kell újra
-          felvenned a listát; a többi eszköz statisztikáját is látod. A blokkolt
+          **Fiók és eszközök közti szinkron** — mostantól **mind a három
+          platformon**. Belépsz ugyanabba a fiókba a másik eszközödön, és nem
+          kell újra felvenned a listát; a többi eszközt is látod. A blokkolt
           oldalak és a mért idők **titkosítva** mennek fel — a kiszolgáló nem
           látja őket, és mivel nem ért belőlük semmit, nem is kell megbízni
           benne. A kiszolgáló néhány száz sor, függőség nélkül, magadnak is
@@ -71,6 +71,11 @@ jobs:
           Elfelejtett jelszóhoz a regisztrációnál kapott **helyreállító kód** az
           út vissza — az app belépőképernyőjén az „Elfelejtett jelszó” gomb
           mögött. A kiszolgáló ebben sem tud segíteni: nem lát bele.
+
+          Ehhez **kell egy kiszolgáló**, amit magadnak kell elindítanod: a
+          `server/` mappában van, néhány száz sor Node, függőség nélkül, és
+          Dockerfile is tartozik hozzá. Amíg nem indítasz egyet, a fiókkártya
+          egyszerűen nem csinál semmit — minden más változatlanul működik.
 
           ## Névváltás: a Lakatból Breaker lett
 
