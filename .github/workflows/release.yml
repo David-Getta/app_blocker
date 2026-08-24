@@ -107,6 +107,24 @@ jobs:
           Ha rejtve van a lista, az összesített sor sem nevezi meg az oldalt:
           ugyanaz a fedőnév vagy `1. rejtett oldal` áll ott is.
 
+          **Részleges tiltás: nem az egész oldal, csak egy darabja.** Például a
+          YouTube-on egy-egy csatorna. Ezt a Breaker DNS-motorja **nem tudja
+          megcsinálni**, és ez nem hiányzó munka: a DNS csak a hosztnevet látja
+          (`youtube.com`), az utat (`/@valaki`) nem — az már a titkosított
+          kérésen belül van. Ami a teljes címet látja, az maga a böngésző, ezért
+          ehhez egy **böngésző-bővítmény** jár (a kiadás mellett,
+          `Breaker-bovitmeny-*.zip`).
+
+          Cserébe **gyengébb réteg, és ezt ki is mondjuk**: csak abban a
+          böngészőben él, ahova telepítve van; vendég módban egyáltalán nem fut;
+          inkognitóban alapból ki van kapcsolva. A teljes oldal tiltása marad
+          DNS-szintű és megkerülhetetlen — ez az **ingert** veszi el, nem a
+          hozzáférést.
+
+          A bővítmény nem csak a megnyitást állítja meg: a csatorna videóit a
+          főoldali ajánlóból is eltünteti. Szabályt felvenni azonnal érvényes,
+          levenni tíz perc várakozás — addig még tilt.
+
           ### Ebben a verzióban javítva
 
           - **Telefonon a helyi kiszolgáló nem volt elérhető.** Android 9-től és
@@ -280,6 +298,26 @@ jobs:
           # A frissítés ezen a manifesten áll vagy bukik; ha nincs, ne adjunk ki
           # olyan verziót, amire a telepített appok nem tudnak felfrissülni.
           ls latest*.yml >/dev/null
+
+  extension:
+    name: Böngésző-bővítmény (zip)
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Csomagolatlanul is betölthető a mappa, de csak akkor, ha valaki
+      # klónozza a projektet. Egy zip a kiadás mellé annyit jelent, hogy a
+      # letöltőoldalról is elérhető — enélkül a funkció papíron létezne.
+      - name: Zip
+        run: |
+          cd extension
+          zip -r "../Breaker-bovitmeny-${VERSION}.zip" . -x '*.DS_Store'
+      - name: Feltöltés
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "$VERSION" "Breaker-bovitmeny-${VERSION}.zip" \
+            --repo "$GITHUB_REPOSITORY" --clobber
 
   android:
     name: Android APK + AAB

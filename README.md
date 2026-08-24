@@ -60,6 +60,16 @@ attól, hogy sokszor csinálod.
   A kiszolgálót az **asztali app egy gombbal el is indítja**, tehát nem kell
   hozzá se terminál, se Node. Lépésről lépésre:
   [`docs/feature-accounts-sync.md`](docs/feature-accounts-sync.md).
+- **Részleges tiltás** (böngésző-bővítmény): nem az egész oldal, csak egy
+  darabja — például a YouTube-on egy-egy csatorna. Ezt a DNS-motor **nem tudja
+  megcsinálni**, és ez nem hiányzó munka: a DNS csak a hosztnevet látja
+  (`youtube.com`), az utat (`/@valaki`) nem, mert az a titkosított kérésen belül
+  van. Ami a teljes címet látja, az a böngésző — innen a bővítmény. Cserébe
+  **gyengébb réteg**: csak abban a böngészőben él, vendég módban egyáltalán nem
+  fut, inkognitóban külön be kell kapcsolni. A teljes oldal tiltása marad
+  DNS-szintű és megkerülhetetlen; ez az **ingert** veszi el.
+  [`extension/`](extension/README.md) ·
+  [`docs/feature-partial-block.md`](docs/feature-partial-block.md).
 - **Napi időkeret oldalanként** (asztali gép + Android): „napi 20 perc YouTube”.
   Ha a mai aktív idő eléri a keretet, az oldal a nap hátralévő részére magától
   visszazár, éjfélkor a keret újraindul. Keretet bevezetni vagy csökkenteni egy
