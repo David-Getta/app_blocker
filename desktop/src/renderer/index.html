@@ -25,7 +25,47 @@
       </span>
       <span class="brand-name">Breaker</span>
     </div>
-    <div id="statusPill" class="pill pill-warn">Kapcsolódás…</div>
+
+    <!--
+      Felső menüsor. Eddig minden EGYMÁS ALATT volt egyetlen hosszú lapon: a
+      fiókhoz a képernyő aljáig kellett tekerni, és a statisztika meg a
+      blokklista egymást takarta. A fülekkel egyszerre EGY dolog van a
+      képernyőn, és mindegyik egy kattintásra van.
+    -->
+    <nav class="tabs" id="tabs" aria-label="Fő nézetek">
+      <button class="tab" data-view="sites" aria-current="page">Oldalak</button>
+      <button class="tab" data-view="focus">Munkamenetek</button>
+      <button class="tab" data-view="stats">Statisztika</button>
+    </nav>
+
+    <div class="topbar-right">
+      <div id="statusPill" class="pill pill-warn">Kapcsolódás…</div>
+      <!--
+        A két sarokikon. A fiók és a kinézet nem NÉZET, hanem odalépés: ritkán
+        kell, és nem akarod, hogy elvegye a helyet a listától. Ezért panel,
+        nem fül.
+      -->
+      <!-- Kinézet: félig kitöltött kör — ez a bevett jel a megjelenésre. -->
+      <button id="themeBtn" class="icon-btn" title="Kinézet" aria-label="Kinézet">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="8.4" fill="none" stroke="currentColor" stroke-width="1.7"/>
+          <path d="M12 3.6a8.4 8.4 0 0 1 0 16.8z" fill="currentColor"/>
+        </svg>
+      </button>
+      <!--
+        Fiók. Kijelentkezve egy alak, belépve a fiókazonosító kezdőbetűje: így
+        egy pillantásból látszik, hogy be vagy-e lépve — a panelt sem kell
+        kinyitni hozzá.
+      -->
+      <button id="accountBtn" class="icon-btn" title="Fiók és eszközök" aria-label="Fiók és eszközök">
+        <svg id="accountGlyph" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="12" cy="8.6" r="3.6" stroke="currentColor" stroke-width="1.7"/>
+          <path d="M4.8 19.4c1.1-3.3 3.9-5 7.2-5s6.1 1.7 7.2 5" stroke="currentColor"
+                stroke-width="1.7" stroke-linecap="round"/>
+        </svg>
+        <span id="accountInitial" class="avatar hidden"></span>
+      </button>
+    </div>
   </header>
 
   <div id="updateBar" class="update-bar hidden">
@@ -34,6 +74,18 @@
   </div>
 
   <main class="content">
+    <!--
+      A háttér. Külön réteg, a tartalom MÖGÖTT: így a mozgása sosem tolja el a
+      szöveget, és nem is fogja el a kattintásokat (pointer-events: none).
+      A típusát a `data-bg` attribútum adja a body-n, a felület állítja.
+    -->
+    <div class="bg-layer" aria-hidden="true">
+      <span class="bg-blob bg-blob-1"></span>
+      <span class="bg-blob bg-blob-2"></span>
+      <span class="bg-blob bg-blob-3"></span>
+      <span class="bg-grid"></span>
+    </div>
+
     <!-- Helper install card (shown when the daemon is not reachable) -->
     <section id="installCard" class="card install-card hidden">
       <h2>A védelem még nincs telepítve</h2>
@@ -47,21 +99,6 @@
     </section>
 
     <!-- Add site -->
-    <section id="addCard" class="card hidden">
-      <h2>Oldal blokkolása</h2>
-      <form id="addForm" class="add-row">
-        <input id="addInput" type="text" placeholder="pl. www.youtube.com" autocomplete="off" spellcheck="false" />
-        <button type="submit" class="btn btn-primary">Blokkolás</button>
-      </form>
-      <label class="preset-toggle">
-        <input id="presetToggle" type="checkbox" checked />
-        <span id="presetToggleText">Ismert szolgáltatásnál a társoldalak blokkolása is (pl. youtu.be, m.youtube.com)</span>
-      </label>
-      <div class="chips" id="presetChips"></div>
-      <p id="addError" class="error hidden"></p>
-      <p class="hint">Oldalt felvenni mindig egy kattintás. Levenni — az szándékosan nem az.</p>
-    </section>
-
     <!-- Egy korábbi néven telepített segéd még fut és felülírja a hosts fájlt -->
     <div id="legacyHelperBanner" class="banner banner-warn hidden">
       <span id="legacyHelperText"></span>
@@ -79,6 +116,22 @@
       <button id="resumeBtn" class="btn btn-small">Folytatás</button>
     </div>
 
+    <div class="view" data-view="sites">
+    <section id="addCard" class="card hidden">
+      <h2>Oldal blokkolása</h2>
+      <form id="addForm" class="add-row">
+        <input id="addInput" type="text" placeholder="pl. www.youtube.com" autocomplete="off" spellcheck="false" />
+        <button type="submit" class="btn btn-primary">Blokkolás</button>
+      </form>
+      <label class="preset-toggle">
+        <input id="presetToggle" type="checkbox" checked />
+        <span id="presetToggleText">Ismert szolgáltatásnál a társoldalak blokkolása is (pl. youtu.be, m.youtube.com)</span>
+      </label>
+      <div class="chips" id="presetChips"></div>
+      <p id="addError" class="error hidden"></p>
+      <p class="hint">Oldalt felvenni mindig egy kattintás. Levenni — az szándékosan nem az.</p>
+    </section>
+
     <!-- Site list -->
     <section id="listCard" class="card hidden">
       <div class="list-head">
@@ -95,9 +148,12 @@
       </div>
     </section>
 
+    </div><!-- /view sites -->
+
+    <div class="view hidden" data-view="focus">
     <!--
       Munkamenetek. A blokklista feketelista, ez fehérlista — most csak EZ
-      mehet. Külön kártya, mert ellentétes irányból közelít, és összekeverve a
+      mehet. Külön nézet, mert ellentétes irányból közelít, és összekeverve a
       kettőt senki nem értené.
     -->
     <section id="focusCard" class="card hidden">
@@ -110,6 +166,9 @@
       <div id="focusPacks" class="focus-packs"></div>
     </section>
 
+    </div><!-- /view focus -->
+
+    <div class="view hidden" data-view="stats">
     <!-- Usage statistics -->
     <section id="statsCard" class="card hidden">
       <div class="stats-head">
@@ -161,10 +220,27 @@
       <div id="chartTip" class="chart-tip hidden"></div>
     </section>
 
-    <!-- Fiók és eszközök közti szinkron -->
-    <section id="syncCard" class="card hidden">
+    </div><!-- /view stats -->
+
+    <p id="tierLine" class="tier-line hidden"></p>
+  </main>
+
+  <!--
+    Fiók és eszközök. NEM fül, hanem oldalról benyíló panel: ritkán kell, és a
+    listától nem venne el helyet. A sarokban lévő ikon nyitja.
+  -->
+  <div id="accountScrim" class="scrim hidden"></div>
+  <aside id="accountPanel" class="drawer hidden" aria-label="Fiók és eszközök">
+    <div class="drawer-head">
+      <h2>Fiók és eszközök</h2>
+      <button id="accountClose" class="icon-btn" aria-label="Bezárás">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+      </button>
+    </div>
+    <section id="syncCard" class="drawer-body">
       <div class="list-head">
-        <h2>Fiók és eszközök</h2>
         <button id="syncNowBtn" class="btn btn-small btn-ghost hidden">Szinkronizálás most</button>
       </div>
 
@@ -231,9 +307,35 @@
         </div>
       </div>
     </section>
+  </aside>
 
-    <p id="tierLine" class="tier-line hidden"></p>
-  </main>
+  <!--
+    Kinézet. A háttér ízlés dolga, és pont ezért kell tudni állítani: aki
+    zavarónak találja a mozgást, egy kattintással megállítja.
+  -->
+  <div id="themeScrim" class="scrim hidden"></div>
+  <aside id="themePanel" class="drawer drawer-narrow hidden" aria-label="Kinézet">
+    <div class="drawer-head">
+      <h2>Kinézet</h2>
+      <button id="themeClose" class="icon-btn" aria-label="Bezárás">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+      </button>
+    </div>
+    <div class="drawer-body">
+      <p class="micro">Háttér</p>
+      <div id="bgChoices" class="bg-choices"></div>
+      <label class="toggle-row">
+        <input id="bgMotion" type="checkbox" />
+        <span>Mozogjon a háttér</span>
+      </label>
+      <p class="hint">
+        A mozgás lassú és halk — de ha zavar, itt kikapcsolható. Ha a
+        rendszeredben be van állítva a „csökkentett mozgás”, magától áll.
+      </p>
+    </div>
+  </aside>
 
   <!-- Pause length chooser -->
   <div id="pauseDialog" class="overlay hidden">

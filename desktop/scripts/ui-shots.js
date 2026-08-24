@@ -251,6 +251,26 @@ function fakeBridgeSource() {
   `;
 }
 
+/**
+ * Fülváltás. A felület mostantól nem egyetlen hosszú lap: egyszerre egy nézet
+ * látszik, és a füstteszt is úgy jár rajta, ahogy egy ember tenné.
+ */
+async function goTo(page, view) {
+  await page.locator(`.tab[data-view="${view}"]`).click();
+  await page.waitForFunction(
+    (v) => !document.querySelector(`.view[data-view="${v}"]`)?.classList.contains('hidden'),
+    view, { timeout: 10_000 },
+  );
+}
+
+/** A fiók panel a sarokikonról nyílik, nem fülről. */
+async function openAccount(page) {
+  if (await page.locator('#accountPanel.hidden').count()) {
+    await page.locator('#accountBtn').click();
+    await page.waitForSelector('#accountPanel:not(.hidden)', { timeout: 10_000 });
+  }
+}
+
 async function main() {
   if (!fs.existsSync(path.join(WEB, 'renderer', 'index.html'))) {
     console.error('build first: npm run build');
@@ -303,6 +323,7 @@ async function main() {
     () => !document.getElementById('focusRunning')?.classList.contains('hidden'),
     undefined, { timeout: 10_000 },
   );
+  await goTo(page, 'focus');
   await page.locator('#focusRunning').getByRole('button', { name: /^Leállítás/ }).click();
   await page.waitForFunction(
     () => !document.getElementById('sessionModal')?.classList.contains('hidden'),
@@ -360,6 +381,7 @@ async function main() {
   // derül ki, hogy ehhez a funkcióhoz bővítmény kell. Ha a kód nem jelenne meg,
   // a szabályokat kétszer kellene felvenni — az appban és a bővítményben is.
   await page.evaluate(() => { window.__fakeBridge = { running: true, port: 8788, token: 'ABCD-EFGH-JKMN-PQRS' }; });
+  await goTo(page, 'sites');
   await page.locator('#siteList .site-row').first()
     .getByRole('button', { name: /^Részek/ }).click();
   await page.waitForSelector('.modal .bridge-box .pair-code', { timeout: 10_000 })
@@ -376,6 +398,7 @@ async function main() {
     failures.push(`hiányzik a „másik eszközön” sor a keret alól (${JSON.stringify(notes)})`);
   }
 
+  await goTo(page, 'stats');
   await page.waitForSelector('#statTiles .tile', { timeout: 15_000 });
   const tiles = await page.locator('#statTiles .tile').count();
   if (tiles !== 4) failures.push(`expected 4 stat tiles, saw ${tiles}`);
@@ -470,11 +493,15 @@ async function main() {
 
   if (!CHECK_ONLY) {
     fs.mkdirSync(OUT, { recursive: true });
+    // A kezdőkép az OLDALAK nézet: az app is azzal nyílik.
+    await goTo(page, 'sites');
     await page.screenshot({ path: path.join(OUT, 'desktop-home.png'), fullPage: false });
+    await goTo(page, 'stats');
     await page.locator('#statsCard').screenshot({ path: path.join(OUT, 'desktop-stats.png') });
   }
 
   // Drive the unlock flow: pause -> challenge modal with a wrong answer.
+  await goTo(page, 'sites');
   await page.locator('#siteList .site-row').first()
     .getByRole('button', { name: /^Feloldás$/ }).click();
   await page.waitForSelector('#pauseDialog:not(.hidden)', { timeout: 10_000 });
@@ -695,6 +722,7 @@ async function main() {
   // mondja el, mit csinál, a felhasználó abban a hitben lép be, hogy a listája
   // valahol olvashatóan fekszik — vagy abban a hitben lép ki, hogy a blokkjai
   // eltűnnek. Ezért a kártya SZÖVEGÉT is megnézzük, nem csak azt, hogy ott van-e.
+  await openAccount(page);
   const syncText = (await page.locator('#syncCard').innerText()) || '';
   if (!/titkosítva/i.test(syncText)) {
     failures.push('the sync card does not say the data goes up encrypted');
@@ -859,7 +887,9 @@ async function main() {
   if (await lightPage.locator('#siteList .site-row').count() !== 3) {
     failures.push('the light theme does not render the site list');
   }
+  await goTo(lightPage, 'stats');
   await lightPage.waitForSelector('#statTiles .tile', { timeout: 15_000 });
+  await goTo(lightPage, 'sites');
   if (await lightPage.locator('.limit-meter').count() !== 2) {
     failures.push('the budget meters are missing in the light theme');
   }
@@ -880,6 +910,61 @@ async function main() {
   // `youtube.com/@valaki` címet, azt hiszi, egy csatornát tilt le — a blokkolás
   // viszont DNS-szintű, tehát az EGÉSZ youtube.com esne el. Semmi nem hibázik,
   // csak nem az történik, amit kért.
+  // ------------------------------------------------------ menüsor és kinézet
+  //
+  // A fülek azért vannak, hogy ne kelljen tekerni. Ha egy fül nem vált nézetet,
+  // vagy két nézet egyszerre látszik, az pont az ellenkezőjét éri el.
+  // A korábbi szakasz nyitva hagyta a fiók panelt; a fátyol elfogná a
+  // kattintást, és a füstteszt egy nem létező hibát jelentene.
+  await page.keyboard.press('Escape');
+  await page.waitForSelector('#accountPanel.hidden', { state: 'attached', timeout: 10_000 })
+    .catch(() => {});
+  await goTo(page, 'focus');
+  const visibleViews = await page.locator('.view:not(.hidden)').count();
+  if (visibleViews !== 1) failures.push(`egyszerre ${visibleViews} nézet látszik, nem egy`);
+  const current = await page.locator('.tab[aria-current="page"]').getAttribute('data-view');
+  if (current !== 'focus') failures.push(`a kiválasztott fül nem követi a nézetet: ${current}`);
+
+  // A fiók a SAROKIKONRÓL nyílik, nem fülről — és az Esc bezárja. Egy panel,
+  // ami csak egérrel csukható, billentyűzettel csapdába ejt.
+  await page.locator('#accountBtn').click();
+  await page.waitForSelector('#accountPanel:not(.hidden)', { timeout: 10_000 })
+    .catch(() => failures.push('a fiók-ikon nem nyitotta meg a panelt'));
+  await page.keyboard.press('Escape');
+  // `state: 'attached'`, mert a `.hidden` elem `display: none` — a Playwright
+  // alapból LÁTHATÓ elemre vár, és arra ez sosem teljesülne.
+  await page.waitForSelector('#accountPanel.hidden', { state: 'attached', timeout: 10_000 })
+    .catch(() => failures.push('az Esc nem zárta be a fiók panelt'));
+
+  // A háttér testreszabható, és a választás MEGMARAD: enélkül minden
+  // indításkor újra be kellene állítani, amit egy hét után senki nem csinál.
+  await page.locator('#themeBtn').click();
+  await page.waitForSelector('#themePanel:not(.hidden)', { timeout: 10_000 })
+    .catch(() => failures.push('a kinézet-ikon nem nyitotta meg a panelt'));
+  await page.locator('.bg-choice[data-bg="aurora"]').click();
+  if (await page.evaluate(() => document.body.dataset.bg) !== 'aurora') {
+    failures.push('a háttér választása nem érvényesült');
+  }
+  // A mozgás külön kapcsoló: aki zavarónak találja, megállíthatja.
+  await page.locator('#bgMotion').uncheck();
+  if (await page.evaluate(() => document.body.dataset.motion) !== 'off') {
+    failures.push('a mozgás kikapcsolása nem érvényesült');
+  }
+  await page.locator('#bgMotion').check();
+  await page.reload();
+  await page.waitForSelector('#siteList .site-row', { timeout: 15_000 });
+  if (await page.evaluate(() => document.body.dataset.bg) !== 'aurora') {
+    failures.push('a háttér-választás nem élte túl az újratöltést');
+  }
+  // Újratöltés után viszont mindig az OLDALAK nézet fogad: a blokklista az,
+  // amiért az app van.
+  const afterReload = await page.locator('.tab[aria-current="page"]').getAttribute('data-view');
+  if (afterReload !== 'sites') failures.push(`újraindítás után nem az Oldalak fogad: ${afterReload}`);
+
+  // A fiók panelt bezárjuk, és visszalépünk az Oldalak nézetbe: a felvevő mező
+  // ott van, és egy nyitva felejtett panel takarná.
+  await page.locator('#accountScrim').click().catch(() => {});
+  await goTo(page, 'sites');
   const beforeAdd = await page.locator('#siteList .site-row').count();
   await page.locator('#addInput').fill('https://www.youtube.com/@valaki');
   await page.locator('#addForm button[type=submit]').click();

@@ -245,6 +245,115 @@ function render(): void {
   if (modalOpen) renderSession(status!.session);
 }
 
+// ------------------------------------------------------------------ nézetek
+//
+// Eddig minden EGYMÁS ALATT volt egyetlen hosszú lapon: a fiókhoz a képernyő
+// aljáig kellett tekerni. A fülekkel egyszerre EGY dolog van a képernyőn.
+//
+// A választás a MUNKAMENETRE szól, nem tartósan: az app mindig az „Oldalak”
+// nézettel nyílik. Ez szándékos — a blokklista az, amiért az app van, és nem
+// akarjuk, hogy egy múltkori kattintás miatt a statisztika fogadjon.
+
+type ViewName = 'sites' | 'focus' | 'stats';
+let currentView: ViewName = 'sites';
+
+function setView(view: ViewName): void {
+  currentView = view;
+  for (const el of Array.from(document.querySelectorAll<HTMLElement>('.view'))) {
+    el.classList.toggle('hidden', el.dataset.view !== view);
+  }
+  for (const tab of Array.from(document.querySelectorAll<HTMLElement>('.tab'))) {
+    if (tab.dataset.view === view) tab.setAttribute('aria-current', 'page');
+    else tab.removeAttribute('aria-current');
+  }
+  // A statisztika csak akkor kér adatot, amikor tényleg nézik: enélkül minden
+  // indításkor lefutna egy olyan lekérdezés, aminek az eredményét senki nem
+  // látja.
+  if (view === 'stats') void refreshStats();
+  window.scrollTo({ top: 0 });
+}
+
+// ------------------------------------------------------------------ panelek
+
+function openDrawer(panel: string, scrim: string): void {
+  $(panel).classList.remove('hidden');
+  $(scrim).classList.remove('hidden');
+}
+
+function closeDrawer(panel: string, scrim: string): void {
+  $(panel).classList.add('hidden');
+  $(scrim).classList.add('hidden');
+}
+
+// ------------------------------------------------------------------ kinézet
+//
+// A háttér ízlés dolga, és pont ezért állítható. A választás a GÉPEN marad
+// (localStorage): ez felületi beállítás, semmi köze a blokkoláshoz — a segéd
+// root-védett állapotában nincs helye.
+
+const BG_KEY = 'breaker.bg';
+const MOTION_KEY = 'breaker.bg.motion';
+
+interface BgChoice { id: string; name: string; swatch: string }
+
+const BG_CHOICES: BgChoice[] = [
+  {
+    id: 'nyugalom',
+    name: 'Nyugalom',
+    swatch: 'radial-gradient(120% 100% at 10% 100%, #1d3a6b 0%, transparent 60%), #0f1216',
+  },
+  {
+    id: 'aurora',
+    name: 'Aurora',
+    swatch: 'radial-gradient(90% 90% at 15% 100%, #1d3a6b 0%, transparent 55%),'
+      + ' radial-gradient(80% 80% at 90% 0%, #16514f 0%, transparent 55%), #0f1216',
+  },
+  { id: 'racs', name: 'Rács', swatch: 'linear-gradient(#191c21 1px, transparent 1px) 0 0 / 12px 12px, #0f1216' },
+  { id: 'tiszta', name: 'Tiszta', swatch: '#0f1216' },
+];
+
+function readPref(key: string, fallback: string): string {
+  try {
+    return window.localStorage.getItem(key) ?? fallback;
+  } catch {
+    // Privát mód vagy letiltott tároló: a kinézet ettől még működjön.
+    return fallback;
+  }
+}
+
+function writePref(key: string, value: string): void {
+  try {
+    window.localStorage.setItem(key, value);
+  } catch { /* a beállítás elvesztése nem ér annyit, hogy elhasaljon tőle a felület */ }
+}
+
+function applyBackground(): void {
+  const bg = readPref(BG_KEY, 'nyugalom');
+  const motion = readPref(MOTION_KEY, 'on');
+  document.body.dataset.bg = BG_CHOICES.some((c) => c.id === bg) ? bg : 'nyugalom';
+  document.body.dataset.motion = motion === 'off' ? 'off' : 'on';
+  const box = $('bgChoices');
+  if (box.childElementCount === 0) {
+    for (const choice of BG_CHOICES) {
+      const b = h('button', 'bg-choice');
+      b.dataset.bg = choice.id;
+      const sw = h('span', 'swatch');
+      sw.style.background = choice.swatch;
+      b.appendChild(sw);
+      b.appendChild(h('span', 'label', choice.name));
+      b.addEventListener('click', () => {
+        writePref(BG_KEY, choice.id);
+        applyBackground();
+      });
+      box.appendChild(b);
+    }
+  }
+  for (const b of Array.from(box.children) as HTMLElement[]) {
+    b.setAttribute('aria-pressed', String(b.dataset.bg === document.body.dataset.bg));
+  }
+  ($('bgMotion') as HTMLInputElement).checked = document.body.dataset.motion === 'on';
+}
+
 // -------------------------------------------------------------- munkamenetek
 //
 // A blokklista feketelista: mi NE menjen. A munkamenet fehérlista: most CSAK ez
@@ -492,6 +601,13 @@ function openFocusEditor(pack: FocusPack | null): void {
 function renderSyncCard(st: StatusData): void {
   $('syncCard').classList.remove('hidden');
   const on = !!st.sync;
+  // A sarokikonból látszik, hogy be vagy-e lépve: a fiókazonosító kezdőbetűje
+  // áll benne. Enélkül a panelt ki kellene nyitni ahhoz, hogy megtudd.
+  $('accountBtn').classList.toggle('signed-in', on);
+  $('accountGlyph').classList.toggle('hidden', on);
+  $('accountInitial').classList.toggle('hidden', !on);
+  $('accountInitial').textContent = (st.sync?.accountId ?? '').trim().charAt(0).toUpperCase() || '·';
+  $('accountBtn').title = on ? `Fiók: ${st.sync?.accountId}` : 'Fiók és eszközök';
   $('syncSignedOut').classList.toggle('hidden', on);
   $('syncSignedIn').classList.toggle('hidden', !on);
   $('syncNowBtn').classList.toggle('hidden', !on);
@@ -1748,6 +1864,29 @@ function setupModal(): void {
   // A legcsendesebb hibafajta — a felület hibátlannak látszik, a funkció meg
   // elérhetetlen. A füstteszt most már megnyomja.
   $('focusNewBtn').addEventListener('click', () => openFocusEditor(null));
+
+  for (const tab of Array.from(document.querySelectorAll<HTMLElement>('.tab'))) {
+    tab.addEventListener('click', () => setView((tab.dataset.view as ViewName) ?? 'sites'));
+  }
+  $('accountBtn').addEventListener('click', () => openDrawer('accountPanel', 'accountScrim'));
+  $('accountClose').addEventListener('click', () => closeDrawer('accountPanel', 'accountScrim'));
+  $('accountScrim').addEventListener('click', () => closeDrawer('accountPanel', 'accountScrim'));
+  $('themeBtn').addEventListener('click', () => openDrawer('themePanel', 'themeScrim'));
+  $('themeClose').addEventListener('click', () => closeDrawer('themePanel', 'themeScrim'));
+  $('themeScrim').addEventListener('click', () => closeDrawer('themePanel', 'themeScrim'));
+  $('bgMotion').addEventListener('change', (e) => {
+    writePref(MOTION_KEY, (e.target as HTMLInputElement).checked ? 'on' : 'off');
+    applyBackground();
+  });
+  // Az Esc a legfelső réteget zárja. Egy panel, ami csak egérrel csukható be,
+  // billentyűzettel csapdába ejt.
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    if (!$('themePanel').classList.contains('hidden')) closeDrawer('themePanel', 'themeScrim');
+    else if (!$('accountPanel').classList.contains('hidden')) closeDrawer('accountPanel', 'accountScrim');
+  });
+  applyBackground();
+  setView('sites');
   $('showListBtn').addEventListener('click', () => {
     // Csak erre a munkamenetre nyitjuk meg: a BEÁLLÍTÁS marad „rejtve”.
     listOpenThisSession = true;
