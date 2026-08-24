@@ -151,7 +151,7 @@ object SyncClient {
         SyncMerge.SyncSite(
             id = s.id, domain = s.domain, hostnames = s.hostnames, addedAt = s.addedAt,
             pendingDeleteAt = s.pendingDeleteAt, schedule = s.schedule,
-            dailyLimitSeconds = s.dailyLimitSeconds, alias = s.alias,
+            dailyLimitSeconds = s.dailyLimitSeconds, alias = s.alias, rules = s.rules,
             rev = maxOf(s.rev, 1), updatedAt = s.updatedAt, updatedBy = s.updatedBy,
         )
     }
@@ -167,7 +167,8 @@ object SyncClient {
                     pauseUntil = mine?.pauseUntil,
                     pendingDeleteAt = m.pendingDeleteAt,
                     schedule = m.schedule, dailyLimitSeconds = m.dailyLimitSeconds,
-                    alias = m.alias, rev = m.rev, updatedAt = m.updatedAt, updatedBy = m.updatedBy,
+                    alias = m.alias, rules = m.rules,
+                    rev = m.rev, updatedAt = m.updatedAt, updatedBy = m.updatedBy,
                 )
             )
         }
@@ -204,6 +205,13 @@ object SyncClient {
                 })
                 if (s.dailyLimitSeconds != null) put("dailyLimitSeconds", s.dailyLimitSeconds)
                 if (s.alias != null) put("alias", s.alias)
+                // A kulcs csak akkor kerül bele, ha VAN mit mondani: a hiányzó
+                // kulcs azt jelenti, hogy nincs tudomásunk szabályokról, az
+                // üres tömb azt, hogy voltak és levették. A kettő nem cserélhető
+                // fel (lásd SyncMerge.mergeRules).
+                if (s.rules != null) put("rules", JSONArray(s.rules.map { r ->
+                    JSONObject().apply { put("host", r.host); put("path", r.path) }
+                }))
                 put("rev", s.rev); put("updatedAt", s.updatedAt); put("updatedBy", s.updatedBy)
             })
         }
@@ -227,11 +235,27 @@ object SyncClient {
                     schedule = if (o.isNull("schedule")) null else scheduleFromJson(o.getJSONObject("schedule")),
                     dailyLimitSeconds = if (o.isNull("dailyLimitSeconds")) null else o.getLong("dailyLimitSeconds"),
                     alias = AliasLogic.normalize(if (o.isNull("alias")) null else o.optString("alias")),
+                    rules = rulesFromJson(o),
                     rev = o.optInt("rev", 1),
                     updatedAt = o.optLong("updatedAt", 0),
                     updatedBy = o.optString("updatedBy", ""),
                 ))
             }
+        }
+        return out
+    }
+
+    /** A hiányzó kulcs `null`, nem üres lista — a kettő mást jelent. */
+    private fun rulesFromJson(o: JSONObject): List<UrlRules.UrlRule>? {
+        if (o.isNull("rules")) return null
+        val arr = o.optJSONArray("rules") ?: return null
+        val out = ArrayList<UrlRules.UrlRule>()
+        for (i in 0 until arr.length()) {
+            val r = arr.optJSONObject(i) ?: continue
+            val norm = UrlRules.normalizeRule(r.optString("host") + r.optString("path")) ?: continue
+            if (out.any { UrlRules.sameRule(it, norm) }) continue
+            if (out.size >= UrlRules.MAX_RULES_PER_SITE) break
+            out.add(norm)
         }
         return out
     }

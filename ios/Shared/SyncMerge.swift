@@ -24,6 +24,14 @@ enum SyncMerge {
         var schedule: ScheduleLogic.Schedule?
         var dailyLimitSeconds: Double?
         var alias: String?
+        /// Részleges szabályok (`youtube.com/@valaki`).
+        ///
+        /// A `nil` és az ÜRES TÖMB két különböző dolog, és ezen múlik, hogy egy
+        /// régi kliens le tudja-e törölni a szabályokat. A `nil` jelentése:
+        /// nem tudok erről a mezőről. A `[]` jelentése: volt, és el lett
+        /// távolítva. Lásd `mergeRules`. A `JSONEncoder` a nilt alapból
+        /// kihagyja — pont ez kell.
+        var rules: [UrlRules.UrlRule]?
         var rev: Int
         var updatedAt: Double
         var updatedBy: String
@@ -45,6 +53,7 @@ enum SyncMerge {
             try c.encodeIfPresent(schedule, forKey: .schedule)
             try c.encodeIfPresent(dailyLimitSeconds, forKey: .dailyLimitSeconds)
             try c.encodeIfPresent(alias, forKey: .alias)
+            try c.encodeIfPresent(rules, forKey: .rules)
             try c.encode(rev, forKey: .rev)
             try c.encode(updatedAt, forKey: .updatedAt)
             try c.encode(updatedBy, forKey: .updatedBy)
@@ -115,14 +124,74 @@ enum SyncMerge {
         if a.rev != b.rev {
             let newer = a.rev > b.rev ? a : b
             let older = a.rev > b.rev ? b : a
-            return carryPendingDelete(newer, older)
+            return withRules(carryPendingDelete(newer, older), a, b)
         }
         let strict = compareStrictness(a, b)
         if strict != 0 {
-            return strict < 0 ? carryPendingDelete(a, b) : carryPendingDelete(b, a)
+            return withRules(strict < 0 ? carryPendingDelete(a, b) : carryPendingDelete(b, a), a, b)
         }
-        if a.updatedAt != b.updatedAt { return a.updatedAt > b.updatedAt ? a : b }
-        return a.updatedBy <= b.updatedBy ? a : b
+        let winner: SyncSite
+        if a.updatedAt != b.updatedAt { winner = a.updatedAt > b.updatedAt ? a : b }
+        else { winner = a.updatedBy <= b.updatedBy ? a : b }
+        return withRules(winner, a, b)
+    }
+
+    private static func withRules(_ winner: SyncSite, _ a: SyncSite, _ b: SyncSite) -> SyncSite {
+        var out = winner
+        out.rules = mergeRules(a, b)
+        return out
+    }
+
+    /// A részleges szabályok összefésülése — a rekord többi mezőjétől KÜLÖN.
+    ///
+    /// Miért nem elég a nyertes rekord szabálylistája:
+    ///
+    ///  1. **Egyenlő revnél EGYESÍTÜNK.** A szabály tisztán hozzáadás: felvenni
+    ///     szigorítás. Ha ilyenkor egy egész listát választanánk, két eszközön
+    ///     egyszerre felvett két szabályból az egyik némán elveszne.
+    ///  2. **Nagyobb rev nyer** — ott van mögötte a próbatétel, tehát az
+    ///     eltávolítás is átmegy. Egyesítés itt feltámasztaná a kifizetett
+    ///     törlést.
+    ///  3. **A `nil` NEM ugyanaz, mint a `[]`.** Egy RÉGI app-verzió nem ismeri
+    ///     ezt a mezőt: ami átmegy rajta, abból eltűnik. Ha a hiányt mindenestül
+    ///     törlésnek vennénk, elég lenne egy frissítetlen eszköz a fiókban, és a
+    ///     gépen felvett összes szabály csendben eltűnne.
+    private static func mergeRules(_ a: SyncSite, _ b: SyncSite) -> [UrlRules.UrlRule]? {
+        let ar = cleanRules(a.rules)
+        let br = cleanRules(b.rules)
+        guard let ar = ar else { return br }
+        guard let br = br else { return ar }
+        if a.rev == b.rev { return unionRules(ar, br) }
+        return a.rev > b.rev ? ar : br
+    }
+
+    /// Szemétszűrés: a szinkronon át érkező szabály ugyanolyan megbízhatatlan,
+    /// mint bármi más, ami kívülről jön.
+    private static func cleanRules(_ rules: [UrlRules.UrlRule]?) -> [UrlRules.UrlRule]? {
+        guard let rules = rules else { return nil }
+        var out: [UrlRules.UrlRule] = []
+        for r in rules {
+            // Ugyanazon a magon megy át, mint a kézzel beírt szabály.
+            guard let norm = UrlRules.normalizeRule(r.host + r.path) else { continue }
+            if out.contains(where: { UrlRules.sameRule($0, norm) }) { continue }
+            if out.count >= UrlRules.maxRulesPerSite { break }
+            out.append(norm)
+        }
+        return out
+    }
+
+    private static func unionRules(
+        _ a: [UrlRules.UrlRule], _ b: [UrlRules.UrlRule]
+    ) -> [UrlRules.UrlRule] {
+        var out = a
+        for r in b {
+            if out.contains(where: { UrlRules.sameRule($0, r) }) { continue }
+            if out.count >= UrlRules.maxRulesPerSite { break }
+            out.append(r)
+        }
+        // Stabil sorrend, hogy két eszköz bájtra ugyanazt a listát kapja —
+        // különben örökké oda-vissza írnák egymást, mert a tartalom „változott”.
+        return out.sorted { $0.host + $0.path < $1.host + $1.path }
     }
 
     /// A törlésre várás nem tűnhet el csendben — a türelmi idővel együtt megy át.

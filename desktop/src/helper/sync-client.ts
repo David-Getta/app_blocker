@@ -195,6 +195,7 @@ function toSyncSites(sites: SiteRec[], deviceId: string): SyncSite[] {
     id: s.id, domain: s.domain, hostnames: s.hostnames, addedAt: s.addedAt,
     pauseUntil: null, pendingDeleteAt: s.pendingDeleteAt,
     schedule: s.schedule, dailyLimitSeconds: s.dailyLimitSeconds, alias: s.alias,
+    rules: s.rules,
     rev: s.rev ?? 1, updatedAt: s.updatedAt ?? s.addedAt, updatedBy: s.updatedBy ?? deviceId,
   })).map((s) => cleanSite(s as unknown as Record<string, unknown>));
 }
@@ -214,6 +215,7 @@ function fromSyncSites(merged: SyncSite[], local: SiteRec[]): SiteRec[] {
     pauseUntil: byId.get(m.id)?.pauseUntil ?? null,
     pendingDeleteAt: m.pendingDeleteAt,
     schedule: m.schedule, dailyLimitSeconds: m.dailyLimitSeconds, alias: m.alias,
+    rules: m.rules,
     rev: m.rev, updatedAt: m.updatedAt, updatedBy: m.updatedBy,
   } as SiteRec));
 }
@@ -254,6 +256,11 @@ function cleanSite(s: Record<string, unknown>): SyncSite {
     schedule: (s.schedule as SyncSite['schedule']) ?? undefined,
     dailyLimitSeconds: typeof s.dailyLimitSeconds === 'number' ? s.dailyLimitSeconds : undefined,
     alias: typeof s.alias === 'string' ? s.alias : undefined,
+    // Az `undefined` itt JELENTÉS, nem hiány: „ez a kliens nem tud a mezőről”.
+    // Ezért NEM alakítjuk üres tömbbé — az azt jelentené, hogy minden szabály
+    // törölve, és egy frissítetlen telefon a fiókban csendben letörölné a gépen
+    // felvetteket (lásd merge.ts `mergeRules`).
+    rules: Array.isArray(s.rules) ? (s.rules as SyncSite['rules']) : undefined,
     rev: Number.isInteger(s.rev) ? (s.rev as number) : 1,
     updatedAt: Number.isFinite(s.updatedAt) ? (s.updatedAt as number) : 0,
     updatedBy: typeof s.updatedBy === 'string' ? s.updatedBy : '',
@@ -285,6 +292,9 @@ function canonical(s: SyncSite): unknown[] {
     s.schedule ? [s.schedule.mode, s.schedule.bands] : null,
     s.dailyLimitSeconds ?? null,
     s.alias ?? null,
+    // Rendezve: a sorrend nem jelent semmit, viszont ha számítana, minden kör
+    // „változást” látna, és fölöslegesen feltöltene.
+    s.rules ? s.rules.map((r) => `${r.host}${r.path}`).sort() : null,
     s.rev, s.updatedAt, s.updatedBy,
   ];
 }

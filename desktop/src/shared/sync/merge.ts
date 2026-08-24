@@ -25,6 +25,7 @@
 import type { Schedule, Band, Weekday } from '../schedule.js';
 import { ALWAYS, normalizeSchedule } from '../schedule.js';
 import { normalizeAlias } from '../alias.js';
+import { MAX_RULES_PER_SITE, normalizeRule, sameRule, type UrlRule } from '../urlrules.js';
 
 /**
  * Egy oldal a szinkronban.
@@ -43,6 +44,15 @@ export interface SyncSite {
   schedule?: Schedule;
   dailyLimitSeconds?: number;
   alias?: string;
+  /**
+   * Részleges szabályok (`youtube.com/@valaki`).
+   *
+   * `undefined` és `[]` KÉT KÜLÖNBÖZŐ dolog, és ezen múlik, hogy egy régi
+   * kliens le tudja-e törölni a szabályokat. Az `undefined` jelentése: nem
+   * tudok erről a mezőről. Az `[]` jelentése: volt, és el lett távolítva.
+   * Lásd `mergeRules`.
+   */
+  rules?: UrlRule[];
   /** hányszor módosult ez a rekord; csak nő */
   rev: number;
   /** mikor módosult utoljára (ms) */
@@ -161,19 +171,90 @@ export function mergeSite(a: SyncSite, b: SyncSite): SyncSite {
     const older = a.rev > b.rev ? b : a;
     // Nagyobb rev: a változtatás mögött ott a munka (próbatétel), tehát lazítás
     // is átmehet. A törlésre várást viszont NEM ejtjük el csendben: lásd lent.
-    return carryPendingDelete(newer, older);
+    return withRules(carryPendingDelete(newer, older), newer, older);
   }
 
   // Egyenlő rev: senki nem „újabb”. Ilyenkor a szigorúbb nyer — egy
   // versenyhelyzet sosem oldhat fel semmit.
   const strict = compareStrictness(a, b);
-  if (strict !== 0) return carryPendingDelete(strict < 0 ? a : b, strict < 0 ? b : a);
+  if (strict !== 0) {
+    return withRules(carryPendingDelete(strict < 0 ? a : b, strict < 0 ? b : a), a, b);
+  }
 
   // Teljesen egyforma szigorúság: a döntetlent az idő, majd az eszközazonosító
   // töri el, hogy determinisztikus legyen. (A fedőnév és a hosztnevek térhetnek
   // el; ezek nem befolyásolják a blokkolást.)
-  if (a.updatedAt !== b.updatedAt) return a.updatedAt > b.updatedAt ? a : b;
-  return a.updatedBy <= b.updatedBy ? a : b;
+  const winner = a.updatedAt !== b.updatedAt
+    ? (a.updatedAt > b.updatedAt ? a : b)
+    : (a.updatedBy <= b.updatedBy ? a : b);
+  return withRules(winner, a, b);
+}
+
+function withRules(winner: SyncSite, a: SyncSite, b: SyncSite): SyncSite {
+  const rules = mergeRules(a, b);
+  if (rules === undefined) {
+    if (winner.rules === undefined) return winner;
+    const { rules: _drop, ...rest } = winner;
+    return rest;
+  }
+  return { ...winner, rules };
+}
+
+/**
+ * A részleges szabályok összefésülése — a rekord többi mezőjétől KÜLÖN.
+ *
+ * Miért nem elég a nyertes rekord szabálylistája:
+ *
+ *   1. **Egyenlő revnél EGYESÍTÜNK.** A szabály tisztán hozzáadás: egy szabály
+ *      felvétele szigorítás. Ha ilyenkor egy egész listát választanánk, két
+ *      eszközön egyszerre felvett két szabályból az egyik némán elveszne — a
+ *      felhasználó pedig azt hinné, hogy felvette.
+ *   2. **Nagyobb rev nyer** — ott van mögötte a próbatétel, tehát az eltávolítás
+ *      is átmegy. Egyesítés itt feltámasztaná a kifizetett törlést.
+ *   3. **A `undefined` NEM ugyanaz, mint az `[]`.** Egy RÉGI app-verzió nem
+ *      ismeri ezt a mezőt: ha egyszer átmegy rajta egy rekord, a mező eltűnik
+ *      belőle. Ha ezt „minden szabály törölve”-ként értenénk, elég lenne egy
+ *      frissítetlen telefon a fiókban, és a gépen felvett összes szabály
+ *      csendben eltűnne. Ezért a „nem tudok a mezőről” nem törölhet: olyankor a
+ *      másik oldal listája marad.
+ */
+function mergeRules(a: SyncSite, b: SyncSite): UrlRule[] | undefined {
+  const ar = cleanRules(a.rules);
+  const br = cleanRules(b.rules);
+  if (ar === undefined) return br;
+  if (br === undefined) return ar;
+  if (a.rev === b.rev) return unionRules(ar, br);
+  return a.rev > b.rev ? ar : br;
+}
+
+/** Szemétszűrés: a szinkronon át érkező szabály ugyanolyan megbízhatatlan, mint bármi más. */
+function cleanRules(rules: UrlRule[] | undefined): UrlRule[] | undefined {
+  if (rules === undefined || rules === null) return undefined;
+  if (!Array.isArray(rules)) return undefined;
+  const out: UrlRule[] = [];
+  for (const r of rules) {
+    if (!r || typeof r.host !== 'string' || typeof r.path !== 'string') continue;
+    // Ugyanazon a maganon megy át, mint a kézzel beírt szabály: így a másik
+    // eszközről érkező alak nem lehet olyan, amit itt sosem fogadnánk el.
+    const norm = normalizeRule(`${r.host}${r.path}`);
+    if (!norm) continue;
+    if (out.some((x) => sameRule(x, norm))) continue;
+    if (out.length >= MAX_RULES_PER_SITE) break;
+    out.push(norm);
+  }
+  return out;
+}
+
+function unionRules(a: UrlRule[], b: UrlRule[]): UrlRule[] {
+  const out = [...a];
+  for (const r of b) {
+    if (out.some((x) => sameRule(x, r))) continue;
+    if (out.length >= MAX_RULES_PER_SITE) break;
+    out.push(r);
+  }
+  // Stabil sorrend, hogy két eszköz bájtra ugyanazt a listát kapja — különben
+  // örökké oda-vissza írnák egymást, mert a tartalom „változott”.
+  return out.sort((x, y) => (x.host + x.path < y.host + y.path ? -1 : 1));
 }
 
 /**

@@ -32,11 +32,18 @@ class SyncMergeTest {
         pendingDeleteAt: Long? = null,
         schedule: ScheduleLogic.Schedule? = null,
         dailyLimitSeconds: Long? = null,
+        rules: List<hu.breaker.app.core.UrlRules.UrlRule>? = null,
         rev: Int = 1,
         updatedAt: Long = 5_000,
         updatedBy: String = "gep-a",
-    ) = SyncSite(id, domain, hostnames, addedAt, pendingDeleteAt, schedule,
-        dailyLimitSeconds, null, rev, updatedAt, updatedBy)
+        // NEVESÍTVE, nem sorrend szerint: egy új mező a SyncSite-ban így nem
+        // csúsztatja el csendben az összes többit.
+    ) = SyncSite(
+        id = id, domain = domain, hostnames = hostnames, addedAt = addedAt,
+        pendingDeleteAt = pendingDeleteAt, schedule = schedule,
+        dailyLimitSeconds = dailyLimitSeconds, alias = null, rules = rules,
+        rev = rev, updatedAt = updatedAt, updatedBy = updatedBy,
+    )
 
     @Test
     fun `a schedule is measured by structure, so two timezones agree`() {

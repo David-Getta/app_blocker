@@ -29,6 +29,10 @@ enum SyncRevisions {
             bands,
             s.dailyLimitSeconds.map { String($0) } ?? "-",
             s.alias ?? "-",
+            // RENDEZVE: a sorrend nem jelent semmit, viszont ha beleszámítana,
+            // egy átrendeződés fölöslegesen léptetné a számlálót, és minden
+            // körben feltöltést indítana.
+            s.rules.map { $0.map { r in r.host + r.path }.sorted().joined(separator: ",") } ?? "-",
         ].joined(separator: " ")
     }
 

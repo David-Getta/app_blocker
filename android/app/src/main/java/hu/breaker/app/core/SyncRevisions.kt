@@ -34,6 +34,10 @@ object SyncRevisions {
             bands,
             s.dailyLimitSeconds?.toString() ?: "-",
             s.alias ?: "-",
+            // RENDEZVE: a sorrend nem jelent semmit, viszont ha beleszámítana,
+            // egy átrendeződés fölöslegesen léptetné a számlálót, és minden
+            // körben feltöltést indítana.
+            s.rules?.map { it.host + it.path }?.sorted()?.joinToString(",") ?: "-",
         ).joinToString(" ")
     }
 

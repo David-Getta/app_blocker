@@ -163,6 +163,9 @@ enum SyncClient {
                 // le. Enélkül elég lenne egyszer megnyitni a telefont ahhoz,
                 // hogy a keret eltűnjön a gépről is.
                 dailyLimitSeconds: s.dailyLimitSeconds, alias: s.alias,
+                // Ugyanez a hordozás a részleges szabályokra: itt sem
+                // érvényesülnek, de a telefon nem törölheti le őket a gépről.
+                rules: s.rules,
                 rev: max(s.rev ?? 1, 1), updatedAt: s.updatedAt ?? s.addedAt,
                 updatedBy: s.updatedBy ?? ""
             )
@@ -179,7 +182,8 @@ enum SyncClient {
                 pauseUntil: byId[m.id]?.pauseUntil,
                 pendingDeleteAt: m.pendingDeleteAt,
                 schedule: m.schedule, alias: m.alias,
-                dailyLimitSeconds: m.dailyLimitSeconds
+                dailyLimitSeconds: m.dailyLimitSeconds,
+                rules: m.rules
             )
             out.rev = m.rev
             out.updatedAt = m.updatedAt

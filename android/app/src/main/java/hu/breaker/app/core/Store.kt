@@ -23,6 +23,17 @@ data class Site(
     val dailyLimitSeconds: Long? = null,
     /** fedőnév: ha van, a felület ezt írja ki a cím helyett (AliasLogic) */
     val alias: String? = null,
+    /**
+     * Részleges szabályok: az oldal egy-egy darabja (pl. `/@valaki`).
+     *
+     * ANDROIDON EZEKET SEMMI NEM ÉRVÉNYESÍTI — a Chrome-nak telefonon nincs
+     * bővítmény-rendszere, a DNS-motor pedig a hosztnévnél tovább nem lát.
+     * Tárolni és szinkronizálni MÉGIS kell őket, mert enélkül a telefon minden
+     * szinkron-körben LETÖRÖLNÉ a gépen felvett szabályokat: ami átmegy egy
+     * kliensen, ami nem ismeri a mezőt, abból eltűnik. Lásd
+     * docs/feature-partial-block.md.
+     */
+    val rules: List<UrlRules.UrlRule>? = null,
 
     // --- szinkron (lásd SyncMerge) ---
     /** hányszor változott érdemben ez a rekord; ez dönt az összefésülésnél */
@@ -206,6 +217,28 @@ object BreakerStore {
         }))
     }
 
+    /**
+     * Részleges szabályok visszaolvasása.
+     *
+     * A HIÁNYZÓ kulcs `null`-t ad, nem üres listát: a kettő mást jelent (lásd
+     * SyncMerge.mergeRules). Minden szabály ugyanazon a magon megy át, mint a
+     * kézzel beírt — így egy kézzel szerkesztett állapotfájlból sem kerülhet be
+     * olyan alak, amit egyébként sosem fogadnánk el.
+     */
+    private fun rulesFromJson(s: JSONObject): List<UrlRules.UrlRule>? {
+        if (s.isNull("rules")) return null
+        val arr = s.optJSONArray("rules") ?: return null
+        val out = ArrayList<UrlRules.UrlRule>()
+        for (i in 0 until arr.length()) {
+            val r = arr.optJSONObject(i) ?: continue
+            val norm = UrlRules.normalizeRule(r.optString("host") + r.optString("path")) ?: continue
+            if (out.any { UrlRules.sameRule(it, norm) }) continue
+            if (out.size >= UrlRules.MAX_RULES_PER_SITE) break
+            out.add(norm)
+        }
+        return out
+    }
+
     private fun scheduleFromJson(o: JSONObject): ScheduleLogic.Schedule {
         // Unknown mode -> ALWAYS, never an exception. valueOf() throws on a mode
         // this build does not know (state written by a newer version, then a
@@ -248,6 +281,14 @@ object BreakerStore {
                 put("schedule", site.schedule?.let { scheduleToJson(it) } ?: JSONObject.NULL)
                 put("dailyLimitSeconds", site.dailyLimitSeconds ?: JSONObject.NULL)
                 put("alias", site.alias ?: JSONObject.NULL)
+                // A hiányzó kulcs és az üres tömb KÉT KÜLÖNBÖZŐ dolog: az első
+                // azt jelenti, hogy nincs tudomásunk szabályokról, a második
+                // azt, hogy voltak és levették. Lásd SyncMerge.mergeRules.
+                put("rules", site.rules?.let { rs ->
+                    JSONArray(rs.map { r ->
+                        JSONObject().apply { put("host", r.host); put("path", r.path) }
+                    })
+                } ?: JSONObject.NULL)
                 put("rev", site.rev)
                 put("updatedAt", site.updatedAt)
                 put("updatedBy", site.updatedBy)
@@ -367,6 +408,7 @@ object BreakerStore {
                         // Betöltéskor is normalizálunk: egy régebbi (vagy kézzel
                         // szerkesztett) állapotból is csak tiszta név jöhet be.
                         alias = AliasLogic.normalize(if (s.isNull("alias")) null else s.optString("alias")),
+                        rules = rulesFromJson(s),
                         rev = s.optInt("rev", 0),
                         updatedAt = s.optLong("updatedAt", 0),
                         updatedBy = s.optString("updatedBy", ""),

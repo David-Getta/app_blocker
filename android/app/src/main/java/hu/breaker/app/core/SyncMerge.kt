@@ -36,6 +36,15 @@ object SyncMerge {
         val schedule: ScheduleLogic.Schedule? = null,
         val dailyLimitSeconds: Long? = null,
         val alias: String? = null,
+        /**
+         * Részleges szabályok (`youtube.com/@valaki`).
+         *
+         * A `null` és az ÜRES LISTA két különböző dolog, és ezen múlik, hogy egy
+         * régi kliens le tudja-e törölni a szabályokat. A `null` jelentése:
+         * nem tudok erről a mezőről. Az üres listáé: volt, és el lett
+         * távolítva. Lásd `mergeRules`.
+         */
+        val rules: List<UrlRules.UrlRule>? = null,
         val rev: Int = 1,
         val updatedAt: Long = 0,
         val updatedBy: String = "",
@@ -118,14 +127,77 @@ object SyncMerge {
         if (a.rev != b.rev) {
             val newer = if (a.rev > b.rev) a else b
             val older = if (a.rev > b.rev) b else a
-            return carryPendingDelete(newer, older)
+            return withRules(carryPendingDelete(newer, older), a, b)
         }
         val strict = compareStrictness(a, b)
         if (strict != 0) {
-            return if (strict < 0) carryPendingDelete(a, b) else carryPendingDelete(b, a)
+            val winner = if (strict < 0) carryPendingDelete(a, b) else carryPendingDelete(b, a)
+            return withRules(winner, a, b)
         }
-        if (a.updatedAt != b.updatedAt) return if (a.updatedAt > b.updatedAt) a else b
-        return if (a.updatedBy <= b.updatedBy) a else b
+        val winner = when {
+            a.updatedAt != b.updatedAt -> if (a.updatedAt > b.updatedAt) a else b
+            else -> if (a.updatedBy <= b.updatedBy) a else b
+        }
+        return withRules(winner, a, b)
+    }
+
+    private fun withRules(winner: SyncSite, a: SyncSite, b: SyncSite): SyncSite {
+        val rules = mergeRules(a, b)
+        return if (rules == winner.rules) winner else winner.copy(rules = rules)
+    }
+
+    /**
+     * A részleges szabályok összefésülése — a rekord többi mezőjétől KÜLÖN.
+     *
+     * Miért nem elég a nyertes rekord szabálylistája:
+     *
+     *  1. **Egyenlő revnél EGYESÍTÜNK.** A szabály tisztán hozzáadás: felvenni
+     *     szigorítás. Ha ilyenkor egy egész listát választanánk, két eszközön
+     *     egyszerre felvett két szabályból az egyik némán elveszne — a
+     *     felhasználó pedig azt hinné, hogy felvette.
+     *  2. **Nagyobb rev nyer** — ott van mögötte a próbatétel, tehát az
+     *     eltávolítás is átmegy. Egyesítés itt feltámasztaná a kifizetett
+     *     törlést.
+     *  3. **A `null` NEM ugyanaz, mint az üres lista.** Egy RÉGI app-verzió nem
+     *     ismeri ezt a mezőt: ami átmegy rajta, abból eltűnik. Ha a hiányt
+     *     mindenestül törlésnek vennénk, elég lenne egy frissítetlen eszköz a
+     *     fiókban, és a gépen felvett összes szabály csendben eltűnne.
+     */
+    private fun mergeRules(a: SyncSite, b: SyncSite): List<UrlRules.UrlRule>? {
+        val ar = cleanRules(a.rules)
+        val br = cleanRules(b.rules)
+        if (ar == null) return br
+        if (br == null) return ar
+        if (a.rev == b.rev) return unionRules(ar, br)
+        return if (a.rev > b.rev) ar else br
+    }
+
+    /** Szemétszűrés: a szinkronon át érkező szabály ugyanolyan megbízhatatlan, mint bármi más. */
+    private fun cleanRules(rules: List<UrlRules.UrlRule>?): List<UrlRules.UrlRule>? {
+        if (rules == null) return null
+        val out = ArrayList<UrlRules.UrlRule>()
+        for (r in rules) {
+            // Ugyanazon a magon megy át, mint a kézzel beírt szabály.
+            val norm = UrlRules.normalizeRule(r.host + r.path) ?: continue
+            if (out.any { UrlRules.sameRule(it, norm) }) continue
+            if (out.size >= UrlRules.MAX_RULES_PER_SITE) break
+            out.add(norm)
+        }
+        return out
+    }
+
+    private fun unionRules(
+        a: List<UrlRules.UrlRule>, b: List<UrlRules.UrlRule>,
+    ): List<UrlRules.UrlRule> {
+        val out = ArrayList(a)
+        for (r in b) {
+            if (out.any { UrlRules.sameRule(it, r) }) continue
+            if (out.size >= UrlRules.MAX_RULES_PER_SITE) break
+            out.add(r)
+        }
+        // Stabil sorrend, hogy két eszköz bájtra ugyanazt a listát kapja —
+        // különben örökké oda-vissza írnák egymást, mert a tartalom „változott”.
+        return out.sortedBy { it.host + it.path }
     }
 
     /**

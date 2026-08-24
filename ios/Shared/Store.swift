@@ -19,6 +19,18 @@ struct Site: Codable, Identifiable, Equatable {
     /// androidos telefon feltölti, mennyit mért ma, és a `LimitLogic` azt is
     /// beszámítja. Ha a napi húsz perc a gépen elfogyott, itt is zárva van.
     var dailyLimitSeconds: Double?
+    /// Részleges szabályok: az oldal egy-egy darabja (pl. `/@valaki`).
+    ///
+    /// iPHONE-ON EZEKET SEMMI NEM ÉRVÉNYESÍTI — a Safari kiterjesztése külön
+    /// alkalmazás, a DNS-motor pedig a hosztnévnél tovább nem lát. Tárolni és
+    /// szinkronizálni MÉGIS kell őket, mert enélkül a telefon minden
+    /// szinkron-körben LETÖRÖLNÉ a gépen felvett szabályokat: ami átmegy egy
+    /// kliensen, ami nem ismeri a mezőt, abból eltűnik.
+    ///
+    /// A `nil` és a `[]` KÜLÖNBÖZŐ: az első azt jelenti, hogy nem tudunk
+    /// szabályokról, a második azt, hogy voltak és levették őket (lásd
+    /// `SyncMerge.mergeRules`).
+    var rules: [UrlRules.UrlRule]?
 
     // --- szinkron (lásd SyncRevisions és SyncMerge) ---
     /// hányszor változott érdemben ez a rekord
