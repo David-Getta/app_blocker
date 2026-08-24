@@ -24,6 +24,7 @@ import { mergeSiteLists, type SyncSite } from '../shared/sync/merge.js';
 import { MAX_PAYLOAD_BYTES, SYNC_PROTOCOL } from '../shared/sync/protocol.js';
 import type { HelperState, SiteRec, SyncAccount } from './state';
 import { adoptRevision, bumpRevisions } from './revisions';
+import { makeTodayDigest, normalizeTodayDigest, type TodayDigest } from '../shared/limits.js';
 
 /** Ennél tovább egy szinkron-kör nem tarthat; a segéd nem állhat meg miatta. */
 export const SYNC_TIMEOUT_MS = 15_000;
@@ -298,6 +299,54 @@ export interface SyncResult {
 }
 
 /**
+ * A mai összegzés oda-vissza: feltöltjük a miénket, lehozzuk a többiét.
+ *
+ * MIÉRT KÜLÖN a nagy szinkrontól. Ez néhány száz bájt, és a BLOKKOLÁSI DÖNTÉS
+ * függ tőle: ha a telefonon elment a napi húsz perc, azt a gépnek is tudnia
+ * kell. A teljes mérést (`usage`) viszont pazarlás lenne ilyen sűrűn mozgatni,
+ * mert az csak statisztika.
+ *
+ * Ha ez elhasal, a helyi mérés dönt — vagyis az app pontosan úgy viselkedik,
+ * mint a funkció előtt. Nem lazább: a távoli másodpercek csak hozzáadnak.
+ */
+export async function syncToday(state: HelperState, now: number): Promise<number> {
+  const acc = requireAccount(state);
+  const key = Buffer.from(acc.dataKey, 'base64');
+
+  const payload = encrypt(key, JSON.stringify(makeTodayDigest(state.usage, acc.deviceId, now)));
+  if (payload.length <= MAX_PAYLOAD_BYTES) {
+    const cur = await call(acc.serverUrl, '/v1/pull', {
+      accountId: acc.accountId, authKey: acc.authKey, collection: 'today', deviceId: acc.deviceId,
+    });
+    const r = await call(acc.serverUrl, '/v1/push', {
+      accountId: acc.accountId, authKey: acc.authKey, collection: 'today',
+      deviceId: acc.deviceId, baseVersion: cur.version, payload,
+      nameBlob: encrypt(key, acc.deviceName),
+    });
+    if (r.ok) acc.todayVersion = r.version;
+  }
+
+  const all = await call(acc.serverUrl, '/v1/today-all', {
+    accountId: acc.accountId, authKey: acc.authKey,
+  });
+  const devices: TodayDigest[] = [];
+  for (const d of all.devices ?? []) {
+    // A SAJÁT sorunk kimarad. Enélkül minden percünk kétszer számítana, és a
+    // közös keret feleakkora lenne, mint amit a felhasználó beállított.
+    if (!d || typeof d.deviceId !== 'string' || d.deviceId === acc.deviceId) continue;
+    try {
+      const parsed = d.payload ? JSON.parse(decrypt(key, d.payload)) : null;
+      // Az eszközazonosító a KISZOLGÁLÓTÓL jön, nem a blob belsejéből: így egy
+      // eszköz nem beszélhet a másik nevében.
+      const norm = normalizeTodayDigest(parsed, d.deviceId);
+      if (norm) devices.push(norm);
+    } catch { /* egy sérült sor ne vigye el a többi eszközét */ }
+  }
+  state.sharedToday = { selfDeviceId: acc.deviceId, devices };
+  return devices.length;
+}
+
+/**
  * Egy teljes szinkron-kör.
  *
  * A hívó felelőssége menteni (`commit`), ha `changed` igaz — a mentés a
@@ -353,6 +402,9 @@ export async function syncNow(state: HelperState, now: number): Promise<SyncResu
   // külön, és nem rántja magával a kört.
   let devices = 0;
   try {
+    // Előbb a mai összegzés: ez apró, és ettől függ a KÖZÖS napi keret. Ha a
+    // nagy mérés-blob elhasalna, a keret akkor is helyes marad.
+    await syncToday(state, now);
     const usagePayload = encrypt(key, JSON.stringify(state.usage));
     if (usagePayload.length <= MAX_PAYLOAD_BYTES) {
       const cur = await call(acc.serverUrl, '/v1/pull', {

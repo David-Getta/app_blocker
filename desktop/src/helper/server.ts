@@ -10,7 +10,9 @@ import { normalizeDomain, expandHostnames } from '../shared/blocklist';
 import { computeTier } from '../shared/challenges';
 import { normalizeAlias } from '../shared/alias';
 import { normalizeRule } from '../shared/urlrules';
-import { isBlockedNowWithLimit, isLimitExhausted, normalizeLimit, usedTodaySeconds } from '../shared/limits';
+import {
+  isBlockedNowWithLimit, isLimitExhausted, normalizeLimit, sharedTodaySeconds, usedTodayEverywhere,
+} from '../shared/limits';
 import {
   recordSample, summarize, series, labelOf, emptyUsage, combineUsage,
   MAX_KEY_LENGTH, MAX_LABEL_LENGTH, MAX_BATCH_SAMPLES,
@@ -66,9 +68,12 @@ export function statusOf(state: HelperState, dohApplied: boolean): StatusData {
       alias: s.alias,
       rules: s.rules,
       dailyLimitSeconds: s.dailyLimitSeconds,
-      usedTodaySeconds: Math.round(usedTodaySeconds(state.usage, s.domain, now)),
-      limitExhausted: isLimitExhausted(s, state.usage, now),
-      blockedNow: isBlockedNowWithLimit(s, state.usage, now),
+      // A keret KÖZÖS: a mérő a többi eszköz mai idejét is tartalmazza,
+      // különben a felület mást mutatna, mint ami alapján blokkolunk.
+      usedTodaySeconds: Math.round(usedTodayEverywhere(state.usage, state.sharedToday, s.domain, now)),
+      usedTodayElsewhere: Math.round(sharedTodaySeconds(state.sharedToday, s.domain, now)),
+      limitExhausted: isLimitExhausted(s, state.usage, now, state.sharedToday),
+      blockedNow: isBlockedNowWithLimit(s, state.usage, now, state.sharedToday),
     })),
     tier: computeTier(state.unlockLog, now),
     unlocks7d: state.unlockLog.filter((t) => t >= now - 7 * 24 * 3600_000).length,

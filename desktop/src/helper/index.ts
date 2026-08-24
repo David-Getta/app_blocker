@@ -13,7 +13,7 @@ import { applyBlocklist, applyDohPolicies, watchHosts } from './hosts';
 import { startServer } from './server';
 import { tick } from './referee';
 import { bumpRevisions } from './revisions';
-import { syncNow } from './sync-client';
+import { syncNow, syncToday } from './sync-client';
 import { createSyncSchedule } from './sync-schedule';
 
 export function runHelper(): void {
@@ -115,6 +115,39 @@ export function runHelper(): void {
 
   setInterval(() => void syncSchedule.runNow('időzített'), SYNC_INTERVAL_MS);
   void syncSchedule.runNow('indulás');
+
+  // ------------------------------------------------- közös napi keret
+  //
+  // A napi keret eszközök között közös, és ehhez a mai összegzésnek FRISSNEK
+  // kell lennie: tízperces körökkel a telefonon elhasznált idő tíz percet
+  // késne, vagyis a húszperces keret akár harminc is lehetne.
+  //
+  // Ezért ez külön, sűrűbben fut — de csak akkor, ha van mit őriznie. Ha
+  // egyetlen oldalon sincs napi keret, a hívás semmit nem befolyásolna, tehát
+  // el is marad.
+  const TODAY_INTERVAL_MS = 2 * 60_000;
+  setInterval(() => {
+    if (!state.sync) return;
+    if (!state.sites.some((s) => (s.dailyLimitSeconds ?? 0) > 0)) return;
+    void syncToday(state, Date.now()).then(
+      () => {
+        // FIGYELEM: itt NEM `commit()` van, szándékosan.
+        //
+        // A commit ütemez egy szinkron-kört (`notifyCommit`), tehát ez a
+        // kétperces időzítő kétpercenként hozná vissza a teljes kört — pont azt
+        // a hurkot, amit a `sync-schedule.ts` külön fájllal és tesztekkel zár.
+        // Itt csak két dolog kell: az állapot maradjon meg újraindulás után, és
+        // a keret azonnal blokkoljon, ha közben elfogyott.
+        saveState(state);
+        try {
+          applyBlocklist(state, Date.now());
+        } catch (e) {
+          log(`hosts apply failed: ${String(e)}`);
+        }
+      },
+      () => { /* offline: marad a helyi mérés, a következő kör újrapróbálja */ },
+    );
+  }, TODAY_INTERVAL_MS);
 
   startServer({
     getState: () => state,

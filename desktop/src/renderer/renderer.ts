@@ -724,6 +724,12 @@ function limitMeter(site: SiteInfo, duringPause: boolean): HTMLElement {
     label = `Napi keret: ${formatDuration(used)} / ${formatDuration(limit)}`;
   }
   wrap.appendChild(h('div', 'limit-label', label));
+  // A keret KÖZÖS az eszközök között. Enélkül úgy nézne ki, mintha az app
+  // rosszul számolna: a gépen öt perc telt el, a mérő mégis húszat mutat.
+  const elsewhere = site.usedTodayElsewhere ?? 0;
+  if (elsewhere > 0) {
+    wrap.appendChild(h('div', 'limit-note', `Ebből ${formatDuration(elsewhere)} másik eszközön`));
+  }
   const bar = h('div', 'limit-bar');
   const fill = h('div', site.limitExhausted ? 'limit-fill limit-fill-full' : 'limit-fill');
   fill.style.width = `${Math.min(100, pct)}%`;

@@ -90,12 +90,23 @@ class Store {
     return { ok: true, version: next.version };
   }
 
-  /** Minden eszköz mérése egy körben — ebből lesz a „többi eszköz statisztikája”. */
-  listUsage(accountId, devices) {
+  /**
+   * Egy eszközönkénti gyűjtemény MINDEN eszközre, egy körben.
+   *
+   * Ebből lesz a „többi eszköz statisztikája” (`usage`), és ebből a napi keret
+   * közös számolása is (`today`) — az utóbbi szándékosan külön, apró
+   * gyűjtemény: a teljes mérést tíz percenként letölteni minden eszközről
+   * pazarlás lenne, a mai néhány szám viszont pár száz bájt.
+   */
+  listPerDevice(accountId, devices, collection) {
     return devices.map((d) => {
-      const b = this.readBlob(accountId, 'usage', d.deviceId);
+      const b = this.readBlob(accountId, collection, d.deviceId);
       return { deviceId: d.deviceId, nameBlob: d.nameBlob, version: b.version, payload: b.payload };
     });
+  }
+
+  listUsage(accountId, devices) {
+    return this.listPerDevice(accountId, devices, 'usage');
   }
 }
 

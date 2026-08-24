@@ -68,7 +68,9 @@ test('a wrong key and a missing account are indistinguishable', async () => {
 });
 
 test('nothing is served without the auth key', async () => {
-  for (const url of ['/v1/pull', '/v1/push', '/v1/usage-all', '/v1/forget-device', '/v1/rekey']) {
+  for (const url of [
+    '/v1/pull', '/v1/push', '/v1/usage-all', '/v1/today-all', '/v1/forget-device', '/v1/rekey',
+  ]) {
     const r = await post(url, { accountId: ACC.accountId, authKey: 'ROSSZ' });
     assert.equal(r.status, 401, `${url} kiadott valamit hitelesítés nélkül`);
   }
@@ -216,3 +218,54 @@ test('signup can close itself after the first account', async () => {
   assert.equal(second.status, 403, 'a második már nem');
   once.close();
 })
+
+test('the daily digest is its own per-device collection', async () => {
+  // A napi keret akkor ér valamit, ha eszközök KÖZÖTT közös: „napi 20 perc”
+  // ne jelentsen két gépen negyvenet. Ehhez minden eszköz feltölti a mai
+  // összegzését — külön, apró gyűjteményben, mert a teljes mérést tíz
+  // percenként letölteni minden eszközről pazarlás lenne.
+  //
+  // Saját fiókkal, mert a fenti jelszócsere elforgatta a közös belépőkulcsot:
+  // egy teszt, ami egy MÁSIK teszt mellékhatásától függ, előbb-utóbb olyankor
+  // bukik el, amikor semmi baj nincs.
+  const acc = { accountId: 'mai@example', authKey: 'K' };
+  await post('/v1/signup', {
+    ...acc, wrappedByPassword: 'brk1.a.b.c', wrappedByRecovery: 'brk1.a.b.c',
+  });
+  await post('/v1/push', {
+    ...acc, collection: 'today', deviceId: 'gep-a', baseVersion: 0, payload: 'brk1.ma.a.a',
+  });
+  await post('/v1/push', {
+    ...acc, collection: 'today', deviceId: 'gep-b', baseVersion: 0, payload: 'brk1.ma.b.b',
+  });
+  await post('/v1/push', {
+    ...acc, collection: 'usage', deviceId: 'gep-a', baseVersion: 0, payload: 'brk1.meres.a.a',
+  });
+
+  const all = await post('/v1/today-all', acc);
+  assert.equal(all.status, 200);
+  const byId = Object.fromEntries(all.json.devices.map((d) => [d.deviceId, d.payload]));
+  assert.equal(byId['gep-a'], 'brk1.ma.a.a');
+  assert.equal(byId['gep-b'], 'brk1.ma.b.b', 'az egyik eszköz feltöltése nem üti a másikét');
+
+  // És NEM keveredik a méréssel: külön fájl, külön verziószám.
+  const usage = await post('/v1/pull', { ...acc, collection: 'usage', deviceId: 'gep-a' });
+  assert.equal(usage.json.payload, 'brk1.meres.a.a', 'a mai összegzés nem írta felül a mérést');
+});
+
+test('an unknown collection is refused on both sides', async () => {
+  // Eddig két külön feltétel sorolta fel a gyűjteményeket (pull és push).
+  // Egy új gyűjteménynél elég lett volna az egyiket elfelejteni: a kliens
+  // feltölthetne valamit, amit soha nem tud visszaolvasni — és semmi nem
+  // hibázna közben.
+  const acc = { accountId: 'ismeretlen@example', authKey: 'K' };
+  await post('/v1/signup', {
+    ...acc, wrappedByPassword: 'brk1.a.b.c', wrappedByRecovery: 'brk1.a.b.c',
+  });
+  const push = await post('/v1/push', {
+    ...acc, collection: 'nincs-ilyen', deviceId: 'gep-a', baseVersion: 0, payload: 'brk1.x.x.x',
+  });
+  assert.equal(push.status, 400, 'ismeretlen gyűjteményt nem veszünk át');
+  const pull = await post('/v1/pull', { ...acc, collection: 'nincs-ilyen', deviceId: 'gep-a' });
+  assert.equal(pull.status, 400, 'és nem is adunk ki');
+});

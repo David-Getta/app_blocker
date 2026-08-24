@@ -7,6 +7,7 @@ import * as crypto from 'crypto';
 import type { Step } from '../shared/challenges';
 import type { Schedule } from '../shared/schedule';
 import { emptyUsage, type UsageState } from '../shared/usage';
+import type { SharedToday } from '../shared/limits';
 import type { UrlRule } from '../shared/urlrules';
 import { stateFilePath } from './paths';
 
@@ -107,6 +108,16 @@ export interface HelperState {
    * Ha a felület tárolná, minden felhasználói folyamat elolvashatná.
    */
   sync?: SyncAccount;
+
+  /**
+   * A többi eszköz mai összegzése — ebből lesz a KÖZÖS napi keret.
+   *
+   * Azért van elmentve, és nem csak a memóriában: ha a gép újraindul, vagy a
+   * szinkron épp nem érhető el, a délelőtt a telefonon elhasznált keret ne
+   * induljon újra nulláról. Elavulni nem tud, mert minden sor a saját napját
+   * hozza — éjfélkor magától kiürül.
+   */
+  sharedToday?: SharedToday;
 }
 
 export interface SyncAccount {
@@ -124,6 +135,8 @@ export interface SyncAccount {
   sitesVersion?: number;
   /** a saját `usage` blobunk verziója */
   usageVersion?: number;
+  /** a saját mai összegzésünk verziója (a közös napi kerethez) */
+  todayVersion?: number;
   lastSyncAt?: number;
   /** az utolsó hiba, hogy a felület meg tudja mondani, mi nem megy */
   lastError?: string;
@@ -156,6 +169,12 @@ export function loadState(): HelperState {
       const ses = parsed.session;
       if (ses && !(Array.isArray(ses.steps) && ses.stepIndex >= 0 && ses.stepIndex < ses.steps.length)) {
         parsed.session = null;
+      }
+      // A közös keret adatai kívülről jönnek: ha nem a várt alakúak, inkább
+      // ne legyenek. Egy hibás sor itt a blokkolási döntést befolyásolná.
+      const shared = parsed.sharedToday;
+      if (shared && !(typeof shared.selfDeviceId === 'string' && Array.isArray(shared.devices))) {
+        delete parsed.sharedToday;
       }
       return parsed;
     }

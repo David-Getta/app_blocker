@@ -28,11 +28,20 @@ export function usedTodaySeconds(usage: UsageState, domain: string, now: number)
   return Number.isFinite(seconds) && seconds > 0 ? seconds : 0;
 }
 
-/** Whether today's budget is used up. No budget = never exhausted. */
-export function isLimitExhausted(site: Limitable, usage: UsageState, now: number): boolean {
+/**
+ * Whether today's budget is used up. No budget = never exhausted.
+ *
+ * A `shared` a többi eszköz mai összegzése. Ha nincs (nincs szinkron, vagy még
+ * nem jött le), a helyi mérés dönt — vagyis pontosan úgy viselkedik, mint
+ * korábban. A távoli másodpercek csak hozzáadnak, tehát ettől a keret sosem
+ * lesz bővebb.
+ */
+export function isLimitExhausted(
+  site: Limitable, usage: UsageState, now: number, shared?: SharedToday | null,
+): boolean {
   const limit = site.dailyLimitSeconds;
   if (!Number.isFinite(limit) || (limit as number) <= 0) return false;
-  return usedTodaySeconds(usage, site.domain, now) >= (limit as number);
+  return usedTodayEverywhere(usage, shared, site.domain, now) >= (limit as number);
 }
 
 /**
@@ -43,10 +52,12 @@ export function isLimitExhausted(site: Limitable, usage: UsageState, now: number
  * with a challenge, and having it silently overridden by a budget would make
  * the unlock the user just earned worthless. Everything else blocks.
  */
-export function isBlockedNowWithLimit(site: Limitable, usage: UsageState, now: number): boolean {
+export function isBlockedNowWithLimit(
+  site: Limitable, usage: UsageState, now: number, shared?: SharedToday | null,
+): boolean {
   if (site.pauseUntil !== null && site.pauseUntil > now) return false;
   if (isBlockedNow(site, now)) return true;
-  return isLimitExhausted(site, usage, now);
+  return isLimitExhausted(site, usage, now, shared);
 }
 
 /**
@@ -72,4 +83,114 @@ export function normalizeLimit(value: number | undefined | null): number | null 
   if (!Number.isFinite(value) || value <= 0) return null;
   // A day is the ceiling: a bigger "budget" is the same as having none.
   return Math.min(Math.round(value), 24 * 3600);
+}
+
+// ---------------------------------------------------------------------------
+// A napi keret eszközök között közös
+// ---------------------------------------------------------------------------
+//
+// A keret eddig eszközönként külön ketyegett: „napi 20 perc YouTube” a gépen
+// húsz percet jelentett, a telefonon még húszat. Aki a keretet komolyan
+// gondolja, annak ez nem keret, hanem javaslat — és pont az a fajta kiskapu,
+// amit az app egyébként mindenhol zár.
+//
+// Ezért minden eszköz feltölti, mennyit mért MA, és mindegyik hozzáadja a
+// többiét a sajátjához.
+//
+// MIÉRT BIZTONSÁGOS. A távoli számok csak HOZZÁADNAK. Bármit is küld a másik
+// eszköz, attól a keret csak hamarabb fogy el, sosem később — a szigorítás
+// pedig mindig ingyen van. Ha a szinkron áll, marad a helyi mérés: az app
+// olyan lesz, mint eddig, nem lazább.
+
+/** Amit egy eszköz ma mért. Csak a mai nap, csak a számok — pár száz bájt. */
+export interface TodayDigest {
+  deviceId: string;
+  /** az ADOTT eszköz helyi naptári napja, YYYY-MM-DD */
+  day: string;
+  /** cél kulcsa ("site:…" / "app:…") -> másodperc */
+  seconds: Record<string, number>;
+}
+
+/** A többi eszköz mai összegzése, és hogy közülük melyik vagyunk mi. */
+export interface SharedToday {
+  /** a saját eszközazonosítónk — az ő sorát KI KELL hagyni */
+  selfDeviceId: string;
+  devices: TodayDigest[];
+}
+
+/** Ennél több célt egy összegzésbe nem teszünk (és nem is fogadunk el). */
+export const MAX_DIGEST_TARGETS = 200;
+
+/** A saját mai összegzésünk, feltöltésre kész. */
+export function makeTodayDigest(usage: UsageState, deviceId: string, now: number): TodayDigest {
+  const day = dayKey(now);
+  const bucket = usage.days.find((d) => d.day === day);
+  const seconds: Record<string, number> = {};
+  if (bucket) {
+    // A legnagyobbak maradnak: a keret szempontjából a hosszú tételek
+    // számítanak, a néhány másodperces szemét nem.
+    const entries = Object.entries(bucket.seconds)
+      .filter(([, s]) => Number.isFinite(s) && s > 0)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, MAX_DIGEST_TARGETS);
+    for (const [k, s] of entries) seconds[k] = Math.round(s);
+  }
+  return { deviceId, day, seconds };
+}
+
+/**
+ * Amit a kiszolgálóról kaptunk -> használható összegzés, vagy null.
+ *
+ * A `deviceId` KÍVÜLRŐL jön (a kiszolgáló mondja meg, kié a sor), nem a blob
+ * belsejéből: különben egy eszköz a másik nevében beszélhetne, és a saját
+ * sorunkat is kihagyhatatlanná tehetné.
+ */
+export function normalizeTodayDigest(parsed: unknown, deviceId: string): TodayDigest | null {
+  if (!parsed || typeof parsed !== 'object') return null;
+  const raw = parsed as Partial<TodayDigest>;
+  if (typeof raw.day !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(raw.day)) return null;
+  const seconds: Record<string, number> = {};
+  const src = raw.seconds && typeof raw.seconds === 'object' ? raw.seconds : {};
+  let kept = 0;
+  for (const [k, v] of Object.entries(src)) {
+    if (kept >= MAX_DIGEST_TARGETS) break;
+    if (typeof k !== 'string' || k === '') continue;
+    if (typeof v !== 'number' || !Number.isFinite(v) || v <= 0) continue;
+    // Egy nap egy célra legfeljebb egy nap lehet. Ennél nagyobb szám nem
+    // mérésből származik, és az egész keretet azonnal elégetné.
+    seconds[k] = Math.min(Math.round(v), 24 * 3600);
+    kept++;
+  }
+  return { deviceId, day: raw.day, seconds };
+}
+
+/**
+ * A TÖBBI eszköz mai másodpercei egy oldalra.
+ *
+ * Két dolog marad ki, és mindkettő hibából származna:
+ *   - a saját sorunk (a szinkron a mi összegzésünket is visszaadja) — enélkül
+ *     minden percünk kétszer számítana, és a keret feleannyi lenne;
+ *   - a nem mai nap — a másik eszköz más időzónában más napot ír, és a tegnapi
+ *     perceit ma nem szabad felszámolni.
+ */
+export function sharedTodaySeconds(
+  shared: SharedToday | null | undefined, domain: string, now: number,
+): number {
+  if (!shared || !Array.isArray(shared.devices)) return 0;
+  const today = dayKey(now);
+  const key = siteKey(domain);
+  let total = 0;
+  for (const d of shared.devices) {
+    if (!d || d.deviceId === shared.selfDeviceId || d.day !== today) continue;
+    const s = d.seconds?.[key];
+    if (typeof s === 'number' && Number.isFinite(s) && s > 0) total += s;
+  }
+  return total;
+}
+
+/** Ma elhasznált idő MINDEN eszközön együtt. */
+export function usedTodayEverywhere(
+  usage: UsageState, shared: SharedToday | null | undefined, domain: string, now: number,
+): number {
+  return usedTodaySeconds(usage, domain, now) + sharedTodaySeconds(shared, domain, now);
 }

@@ -26,6 +26,23 @@ const MAX_PAYLOAD = 1_000_000;
 const PROTOCOL = 1;
 
 /**
+ * A tárolható gyűjtemények — EGY helyen felsorolva.
+ *
+ * Eddig két külön feltételben szerepelt ugyanez a lista (pull és push), és egy
+ * új gyűjtemény hozzáadásakor elég lett volna az egyiket elfelejteni: a kliens
+ * feltölthetne valamit, amit soha nem tud visszaolvasni. Ilyenkor semmi nem
+ * hibázik, az adat mégsem jön vissza.
+ *
+ * `perDevice`: eszközönként külön blob (a mérés és a mai összegzés ilyen), vagy
+ * a fiók egészére közös (a blokklista).
+ */
+const COLLECTIONS = {
+  sites: { perDevice: false },
+  usage: { perDevice: true },
+  today: { perDevice: true },
+};
+
+/**
  * A belépőkulcs hashelése.
  *
  * SHA-256 elég, és ez nem hanyagság: a kliens NEM a jelszót küldi, hanem egy
@@ -187,18 +204,18 @@ function createApp(store, opts = {}) {
     '/v1/pull'(body) {
       const a = authed(body);
       if (a.error) return { status: a.status, json: { error: a.error, code: a.code } };
-      if (body.collection !== 'sites' && body.collection !== 'usage') {
+      if (!COLLECTIONS[body.collection]) {
         return { status: 400, json: { error: 'Ismeretlen gyűjtemény.', code: 'BAD_REQUEST' } };
       }
       const b = store.readBlob(body.accountId, body.collection,
-        body.collection === 'usage' ? body.deviceId : undefined);
+        COLLECTIONS[body.collection].perDevice ? body.deviceId : undefined);
       return { status: 200, json: b };
     },
 
     '/v1/push'(body) {
       const a = authed(body);
       if (a.error) return { status: a.status, json: { error: a.error, code: a.code } };
-      if (body.collection !== 'sites' && body.collection !== 'usage') {
+      if (!COLLECTIONS[body.collection]) {
         return { status: 400, json: { error: 'Ismeretlen gyűjtemény.', code: 'BAD_REQUEST' } };
       }
       if (!isBlob(body.payload)) {
@@ -211,7 +228,7 @@ function createApp(store, opts = {}) {
       store.writeAccount(body.accountId, a.acc);
       const r = store.writeBlob(
         body.accountId, body.collection,
-        body.collection === 'usage' ? body.deviceId : undefined,
+        COLLECTIONS[body.collection].perDevice ? body.deviceId : undefined,
         body.baseVersion, body.payload,
       );
       return { status: r.ok ? 200 : 409, json: r };
@@ -221,6 +238,23 @@ function createApp(store, opts = {}) {
       const a = authed(body);
       if (a.error) return { status: a.status, json: { error: a.error, code: a.code } };
       return { status: 200, json: { devices: store.listUsage(body.accountId, a.acc.devices) } };
+    },
+
+    /**
+     * A mai összegzés MINDEN eszközről.
+     *
+     * Ebből lesz a közös napi keret: ha „napi 20 perc YouTube” van beállítva,
+     * az ne jelentsen két eszközön negyvenet. A `usage`-től azért külön
+     * gyűjtemény, mert azt tíz percenként letölteni minden eszközről pazarlás
+     * lenne — ez viszont pár száz bájt.
+     */
+    '/v1/today-all'(body) {
+      const a = authed(body);
+      if (a.error) return { status: a.status, json: { error: a.error, code: a.code } };
+      return {
+        status: 200,
+        json: { devices: store.listPerDevice(body.accountId, a.acc.devices, 'today') },
+      };
     },
 
     /**

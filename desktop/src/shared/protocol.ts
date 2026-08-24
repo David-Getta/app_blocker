@@ -53,6 +53,14 @@ export interface SiteInfo {
   rules?: import('./urlrules').UrlRule[];
   /** active seconds spent on this site today, for the budget meter */
   usedTodaySeconds: number;
+  /**
+   * Ebből mennyi jött MÁS eszközről.
+   *
+   * A keret közös: ha a telefonon elment tizenöt perc, itt már csak öt van a
+   * húszból. A felületnek ezt ki kell mondania, különben úgy néz ki, mintha az
+   * app rosszul számolna.
+   */
+  usedTodayElsewhere: number;
   /** true when today's budget is spent (and the site therefore blocks) */
   limitExhausted: boolean;
   /** whether the site is blocked at status time (pause + delete + schedule + budget) */

@@ -72,7 +72,8 @@ function fakeBridgeSource() {
     window.__fakeSites = [
       { id: 'site_1', domain: 'youtube.com', hostnames: ['youtube.com','www.youtube.com','m.youtube.com','youtu.be'],
         addedAt: now - 86400000*9, pauseUntil: null, pendingDeleteAt: null,
-        dailyLimitSeconds: 1200, usedTodaySeconds: 900, limitExhausted: false, blockedNow: true },
+        dailyLimitSeconds: 1200, usedTodaySeconds: 900, usedTodayElsewhere: 420,
+        limitExhausted: false, blockedNow: true },
       { id: 'site_2', domain: 'reddit.com', hostnames: ['reddit.com','www.reddit.com'],
         addedAt: now - 86400000*4, pauseUntil: null, pendingDeleteAt: null,
         schedule: { mode: 'scheduled_block', bands: [{ days: [1,2,3,4,5], startMin: 540, endMin: 1020 }] },
@@ -242,6 +243,14 @@ async function main() {
   await page.waitForSelector('#siteList .site-row', { timeout: 15_000 });
   const siteCount = await page.locator('#siteList .site-row').count();
   if (siteCount !== 3) failures.push(`expected 3 site rows, saw ${siteCount}`);
+
+  // A napi keret KÖZÖS az eszközök között: a mérő a teljes elhasznált időt
+  // mutatja. Ki kell mondani, mennyi ment el máshol — enélkül úgy néz ki,
+  // mintha az app rosszul számolna.
+  const notes = await page.locator('#siteList .limit-note').allTextContents();
+  if (!notes.some((t) => /másik eszközön/.test(t))) {
+    failures.push(`hiányzik a „másik eszközön” sor a keret alól (${JSON.stringify(notes)})`);
+  }
 
   await page.waitForSelector('#statTiles .tile', { timeout: 15_000 });
   const tiles = await page.locator('#statTiles .tile').count();
