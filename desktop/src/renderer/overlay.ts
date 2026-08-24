@@ -22,6 +22,7 @@ interface OverlayBridge {
   call(op: string, payload?: Record<string, unknown>): Promise<
     { ok: true; data: unknown } | { ok: false; error: string; code?: string }>;
   hideOverlay(): Promise<void>;
+  showMain(): Promise<void>;
   getOverlayState(): Promise<{ shortcutOk: boolean; warnApp: string | null }>;
 }
 const bridge = (window as unknown as { breaker: OverlayBridge }).breaker;
@@ -120,9 +121,9 @@ function render(): void {
     const stop = h('button', 'ghost', 'Leállítás…');
     stop.addEventListener('click', () => {
       // Az appban van a próbatétel. Innen nem lehet leállítani, mert akkor a
-      // munkamenet egy billentyűkombináció lenne.
-      close();
-      void call('status');
+      // munkamenet egy billentyűkombináció lenne — a gomb tehát ELŐHOZZA az
+      // appot, nem csak bezárja a réteget.
+      void bridge.showMain();
     });
     row.appendChild(stop);
     body.appendChild(row);

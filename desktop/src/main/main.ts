@@ -185,6 +185,19 @@ if (HELPER_MODE) {
       ipcMain.handle('breaker:overlay-state', () => ({ shortcutOk, warnApp: takeWarning() }));
       ipcMain.handle('breaker:overlay-toggle', () => { toggleOverlay(); });
       ipcMain.handle('breaker:overlay-hide', () => { hideOverlay(); });
+      // A rétegről a leállítás az APPBA visz: ott van a próbatétel. Enélkül a
+      // gomb bezárná a réteget, és látszólag nem történne semmi.
+      ipcMain.handle('breaker:show-main', () => {
+        hideOverlay();
+        const [first] = BrowserWindow.getAllWindows();
+        if (first && !first.isDestroyed()) {
+          if (first.isMinimized()) first.restore();
+          first.show();
+          first.focus();
+        } else {
+          createWindow();
+        }
+      });
 
       app.on('before-quit', () => {
         tracker.stop();

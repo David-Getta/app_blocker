@@ -234,6 +234,7 @@ function fakeBridgeSource() {
       getBridgeInfo: async () => window.__fakeBridge || { running: false },
       getOverlayState: async () => ({ shortcutOk: true, warnApp: window.__fakeWarn || null }),
       hideOverlay: async () => { window.__overlayHidden = true; },
+      showMain: async () => { window.__mainShown = true; },
       toggleOverlay: async () => {},
       startSyncServer: async () => {
         window.__fakeHost = {
@@ -937,6 +938,13 @@ async function main() {
   if (!/Most csak ez mehet/.test(runText)) {
     failures.push(`a futó munkamenet nem sorolja fel, mi mehet: ${runText}`);
   }
+  // A leállítás gombja az APPOT hozza elő: ott van a próbatétel. Ha csak
+  // bezárná a réteget, a felhasználó azt látná, hogy nem történik semmi.
+  await over.getByRole('button', { name: /^Leállítás/ }).click();
+  if (!(await over.evaluate(() => window.__mainShown === true))) {
+    failures.push('a réteg leállítás-gombja nem hozta elő az appot');
+  }
+
   // Az Esc zárja. Egy ottfelejtett, mindig felül lévő réteg a legrosszabb, amit
   // ez a funkció tehet.
   await over.keyboard.press('Escape');
