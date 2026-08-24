@@ -716,6 +716,46 @@ async function main() {
   }
   await lightPage.close();
 
+  // A felvevő mező legrosszabb csendes hibája: aki bemásolja a
+  // `youtube.com/@valaki` címet, azt hiszi, egy csatornát tilt le — a blokkolás
+  // viszont DNS-szintű, tehát az EGÉSZ youtube.com esne el. Semmi nem hibázik,
+  // csak nem az történik, amit kért.
+  const beforeAdd = await page.locator('#siteList .site-row').count();
+  await page.locator('#addInput').fill('https://www.youtube.com/@valaki');
+  await page.locator('#addForm button[type=submit]').click();
+  await page.waitForFunction(
+    () => !document.getElementById('addError').classList.contains('hidden'),
+    undefined, { timeout: 10_000 },
+  );
+  const warn = (await page.locator('#addError').innerText()) || '';
+  for (const want of ['EGÉSZ youtube.com', 'bővítmény', 'nyomd meg újra']) {
+    if (!warn.includes(want)) failures.push(`a figyelmeztetésből hiányzik: ${want} (${warn})`);
+  }
+  if ((await page.locator('#siteList .site-row').count()) !== beforeAdd) {
+    failures.push('az első megnyomás mégis felvette az oldalt — nem volt figyelmeztetés');
+  }
+  // A második megnyomás viszont TOVÁBBENGED: nem tiltjuk meg, csak megmondjuk
+  // előre. (Hogy a felvétel utána sikerül-e, a segéden múlik; itt az számít,
+  // hogy a figyelmeztetés nem áll az útjába másodszor is.)
+  await page.locator('#addForm button[type=submit]').click();
+  await page.waitForFunction(
+    () => {
+      const el = document.getElementById('addError');
+      return el.classList.contains('hidden') || !el.textContent.includes('nyomd meg újra');
+    },
+    undefined, { timeout: 10_000 },
+  ).catch(() => failures.push('a második megnyomás is csak figyelmeztetett'));
+  // Sima cím esetén NINCS figyelmeztetés — különben mindenki átlapozná.
+  await page.locator('#addInput').fill('pelda-oldal.hu');
+  await page.locator('#addForm button[type=submit]').click();
+  await page.waitForFunction(
+    () => {
+      const el = document.getElementById('addError');
+      return el.classList.contains('hidden') || !el.textContent.includes('EGÉSZ');
+    },
+    undefined, { timeout: 10_000 },
+  ).catch(() => failures.push('út nélküli címnél is figyelmeztetett'));
+
   await browser.close();
   server.close();
 

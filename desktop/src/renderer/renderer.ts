@@ -13,6 +13,8 @@ import {
   displayName, displayNameNow, isAliased, MAX_ALIAS_LENGTH, REVEAL_MS,
 } from '../shared/alias.js';
 import { HELPER_VERSION } from '../shared/protocol.js';
+// A .js itt sem elhagyható: a böngésző natív ESM-betöltője oldja fel futásidőben.
+import { normalizeRule } from '../shared/urlrules.js';
 import type {
   SetLimitResult, SyncCombinedInfo, SyncDeviceInfo, UsageStatsData,
 } from '../shared/protocol';
@@ -844,9 +846,42 @@ function setupAddCard(): void {
   });
 }
 
+/**
+ * Figyelmeztetés, ha a beírt címben ÚT is van.
+ *
+ * Ez a mezőnek a legrosszabb csendes hibája: aki bemásolja a
+ * `youtube.com/@valaki` címet, azt hiszi, egy csatornát tilt le — a blokkolás
+ * viszont DNS-szintű, tehát az utat el sem látja, és az EGÉSZ youtube.com
+ * elesik. Semmi nem hibázik, csak nem az történik, amit kért.
+ *
+ * Nem tiltjuk meg: lehet, hogy tényleg az egész oldalt akarja. De előbb
+ * mondjuk meg, mi fog történni, és azt is, hogy mi kell a másikhoz.
+ */
+function pathWarning(value: string): string | null {
+  const rule = normalizeRule(value);
+  if (!rule) return null;
+  return `Csak jelzem: ez az EGÉSZ ${rule.host} oldalt tiltja le, nem csak a `
+    + `${rule.path} részét — a blokkolás DNS-szintű, és a DNS az utat nem látja. `
+    + 'Ha tényleg csak azt a részt szeretnéd, ahhoz a böngésző-bővítmény kell '
+    + '(extension/ mappa a projektben). Ha az egész oldal a cél, nyomd meg újra.';
+}
+
+/** A legutóbb figyelmeztetett érték — a második megnyomás már felveszi. */
+let warnedFor: string | null = null;
+
 async function addSite(value: string): Promise<void> {
   const errEl = $('addError');
   errEl.classList.add('hidden');
+
+  const warning = pathWarning(value);
+  if (warning && warnedFor !== value.trim()) {
+    warnedFor = value.trim();
+    errEl.textContent = warning;
+    errEl.classList.remove('hidden');
+    return;
+  }
+  warnedFor = null;
+
   try {
     status = await call<StatusData>('add_site', {
       input: value,

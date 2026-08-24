@@ -25,7 +25,10 @@
 // Ez a fájl a szabály MAGJA: mit írhat be az ember, és milyen URL esik alá.
 // Pure, függőség nélkül, hogy a Kotlin/Swift oldal pontosan tükrözhesse.
 
-import { normalizeDomain } from './blocklist';
+// A `.js` a böngésző natív ESM-betöltője miatt kell: ezt a fájlt a felület is
+// betölti, és ott nincs, ami a kiterjesztést pótolja. A TypeScript
+// bundler-feloldása nem írja át a hivatkozást.
+import { normalizeDomain } from './blocklist.js';
 
 /** Legfeljebb ennyi szabály tartozhat egy oldalhoz. */
 export const MAX_RULES_PER_SITE = 50;
