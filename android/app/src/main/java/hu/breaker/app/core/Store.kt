@@ -23,6 +23,16 @@ data class Site(
     val dailyLimitSeconds: Long? = null,
     /** fedőnév: ha van, a felület ezt írja ki a cím helyett (AliasLogic) */
     val alias: String? = null,
+
+    // --- szinkron (lásd SyncMerge) ---
+    /** hányszor változott érdemben ez a rekord; ez dönt az összefésülésnél */
+    val rev: Int = 0,
+    /** mikor változott utoljára (ms) */
+    val updatedAt: Long = 0,
+    /** melyik eszközön — a döntetlen eltörésére */
+    val updatedBy: String = "",
+    /** a szinkron-mezők lenyomata a legutóbbi léptetéskor */
+    val revFp: String? = null,
 )
 
 data class SessionRec(
@@ -72,6 +82,27 @@ data class AppState(
      * önmagában nem szembesít azzal, mi van blokkolva.
      */
     val hideSiteList: Boolean = false,
+    /** fiók a szinkronhoz; null = nincs bejelentkezve */
+    val sync: SyncAccount? = null,
+)
+
+/**
+ * Fiók a szinkronhoz.
+ *
+ * Az `dataKey` az app SAJÁT, privát tárában marad (SharedPreferences, csak
+ * ennek az appnak olvasható). A végpontok közti titkosítás a KISZOLGÁLÓ ellen
+ * véd, nem a saját készüléked ellen.
+ */
+data class SyncAccount(
+    val serverUrl: String,
+    val accountId: String,
+    val deviceId: String,
+    val authKey: String,
+    /** az adatkulcs base64-ben */
+    val dataKey: String,
+    val deviceName: String,
+    val lastSyncAt: Long? = null,
+    val lastError: String? = null,
 )
 
 /**
@@ -97,7 +128,13 @@ object BreakerStore {
 
     @Synchronized
     fun mutate(fn: (AppState) -> AppState) {
-        val next = fn(_state.value)
+        // EGYETLEN fogópont a szinkron verziószámaihoz. Kézzel vezetni
+        // reménytelen lenne: tucatnyi helyen módosul egy rekord (szünet,
+        // menetrend, keret, fedőnév, törlés indítása és visszavonása), és elég
+        // egyetlen kihagyott hely ahhoz, hogy egy változás SOSE menjen át a
+        // másik eszközre — vagy fordítva, hogy egy régi állapot felülírja az
+        // újat.
+        val next = SyncRevisions.bump(fn(_state.value), System.currentTimeMillis())
         _state.value = next
         prefs.edit().putString(KEY, toJson(next).toString()).apply()
     }
@@ -183,6 +220,15 @@ object BreakerStore {
     private fun toJson(s: AppState): JSONObject = JSONObject().apply {
         put("protectionOn", s.protectionOn)
         put("hideSiteList", s.hideSiteList)
+        put("sync", s.sync?.let { a ->
+            JSONObject().apply {
+                put("serverUrl", a.serverUrl); put("accountId", a.accountId)
+                put("deviceId", a.deviceId); put("authKey", a.authKey)
+                put("dataKey", a.dataKey); put("deviceName", a.deviceName)
+                put("lastSyncAt", a.lastSyncAt ?: JSONObject.NULL)
+                put("lastError", a.lastError ?: JSONObject.NULL)
+            }
+        } ?: JSONObject.NULL)
         put("sites", JSONArray(s.sites.map { site ->
             JSONObject().apply {
                 put("id", site.id); put("domain", site.domain)
@@ -193,6 +239,10 @@ object BreakerStore {
                 put("schedule", site.schedule?.let { scheduleToJson(it) } ?: JSONObject.NULL)
                 put("dailyLimitSeconds", site.dailyLimitSeconds ?: JSONObject.NULL)
                 put("alias", site.alias ?: JSONObject.NULL)
+                put("rev", site.rev)
+                put("updatedAt", site.updatedAt)
+                put("updatedBy", site.updatedBy)
+                put("revFp", site.revFp ?: JSONObject.NULL)
             }
         }))
         put("unlockLog", JSONArray(s.unlockLog))
@@ -295,6 +345,10 @@ object BreakerStore {
                         // Betöltéskor is normalizálunk: egy régebbi (vagy kézzel
                         // szerkesztett) állapotból is csak tiszta név jöhet be.
                         alias = AliasLogic.normalize(if (s.isNull("alias")) null else s.optString("alias")),
+                        rev = s.optInt("rev", 0),
+                        updatedAt = s.optLong("updatedAt", 0),
+                        updatedBy = s.optString("updatedBy", ""),
+                        revFp = if (s.isNull("revFp")) null else s.optString("revFp"),
                     )
                 }.getOrNull()
             }
@@ -343,6 +397,21 @@ object BreakerStore {
             session = session,
             abandons = abandons,
             hideSiteList = o.optBoolean("hideSiteList", false),
+            // Egy sérült fiókbejegyzés a szinkront viszi el, a blokklistát nem:
+            // a kettő közül a lista a fontos.
+            sync = if (o.isNull("sync")) null else runCatching {
+                val a = o.getJSONObject("sync")
+                SyncAccount(
+                    serverUrl = a.getString("serverUrl"),
+                    accountId = a.getString("accountId"),
+                    deviceId = a.getString("deviceId"),
+                    authKey = a.getString("authKey"),
+                    dataKey = a.getString("dataKey"),
+                    deviceName = a.optString("deviceName", "Telefon"),
+                    lastSyncAt = if (a.isNull("lastSyncAt")) null else a.getLong("lastSyncAt"),
+                    lastError = if (a.isNull("lastError")) null else a.optString("lastError"),
+                )
+            }.getOrNull(),
         )
     }
 }

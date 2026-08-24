@@ -1,8 +1,8 @@
 # Fiók és eszközök közti szinkron
 
 > Állapot: **asztali gépen működik**. A tervet és az összefésülés szabályait ez
-> a doksi rögzíti; a mag, a kiszolgáló, a segéd kliensoldala és az asztali
-> felület megvan. A telefonok ezután jönnek.
+> a doksi rögzíti; a mag, a kiszolgáló, a segéd kliensoldala, az asztali felület
+> és az Android is megvan. Az iPhone ezután jön.
 
 ## Mit old meg
 
@@ -130,7 +130,31 @@ külső szolgáltatást, a saját gépén vagy egy ingyenes kis konténerben fut
 | Szinkron-kliens a segédben (`helper/sync-client.ts`) | kész |
 | Segéd-parancsok (`sync_signup`, `sync_signin`, …) | kész |
 | Asztali felület (regisztráció, belépés, eszközlista) | kész |
-| Android és iPhone | utána |
+| Android: mag, kliens és felület | kész |
+| iPhone | utána |
+
+## Ugyanaz a mag három nyelven
+
+Az scrypt a nehéz pont: sem a JDK-ban, sem az Android platform API-jában nincs.
+Ami elérhető volna, az vagy külső natív függőség, vagy a platform rejtett
+Bouncy Castle példánya, ami nem publikus API. A jelszóból származó kulcsnak
+viszont **pontosan ugyanannak** kell kijönnie telefonon és gépen, különben a
+másik eszközön nem lehet belépni. Ezért van saját, tiszta Kotlin megvalósítás
+(`core/Scrypt.kt`), az RFC 7914 vektoraival ellenőrizve.
+
+Az `N` emiatt 2^15 (32 MB), nem 2^16: ugyanennek le kell futnia telefonon is, és
+egy régebbi Android alkalmazás-heapje 64 MB-nál elhasalna. A memóriakötöttség —
+ami az scrypt lényege — megmarad.
+
+Amit a tesztek bizonyítanak, és amit másképp nem lehetne:
+
+- az Android mag kibontja azokat a burkolatokat, amiket a **valódi asztali kód**
+  gyártott, és ugyanazt a belépőkulcsot állítja elő. Ezek az értékek nincsenek a
+  tesztben kiszámolva, csak bemásolva — ha bármi elcsúszik (kulcsszármaztatás,
+  HKDF-címke, blob-formátum, base64), a burkolat nem nyílik ki;
+- az Android kliens a **valódi kiszolgálóval** fut végig (gyerekfolyamatként
+  indított `server/server.js`): két eszköz, egyesített lista, helyben maradó
+  szünet, kijelentkezés után is megmaradó blokkok.
 
 ## Mikor szinkronizál magától
 

@@ -51,10 +51,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import hu.breaker.app.core.AliasLogic
+import hu.breaker.app.core.AppState
 import hu.breaker.app.core.Blocklist
 import hu.breaker.app.core.ChallengeEngine
 import hu.breaker.app.core.ChallengeEngine.Kind
@@ -64,6 +66,7 @@ import hu.breaker.app.core.LimitLogic
 import hu.breaker.app.core.Referee
 import hu.breaker.app.core.ScheduleLogic
 import hu.breaker.app.core.SessionRec
+import hu.breaker.app.core.SyncClient
 import hu.breaker.app.core.Site
 import hu.breaker.app.core.UsageLogic
 import hu.breaker.app.update.UpdateChecker
@@ -492,6 +495,8 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                     }
                 },
             )
+
+            SyncCard(state, scope)
 
             val tier = ChallengeEngine.computeTier(state.unlockLog, now)
             val names = listOf("alap", "emelt", "magas", "maximális")
@@ -1210,3 +1215,193 @@ private fun DelayStepUi(step: Step.Delay, now: Long, onClaim: () -> Unit) {
         Button(enabled = inWindow, onClick = onClaim) { Text("Feloldás átvétele") }
     }
 }
+
+// -------------------------------------------------------------------- fiók
+
+/**
+ * Fiók és eszközök közti szinkron.
+ *
+ * Amit a kártya KIMOND, mert enélkül félreérthető lenne: a blokkolt oldalak és
+ * a mért idők titkosítva mennek fel, és a kijelentkezés egyetlen blokkot sem
+ * visz el. Az első nélkül a felhasználó abban a hitben lépne be, hogy a
+ * listája valahol olvashatóan fekszik; a második nélkül abban a hitben nem
+ * merne kilépni.
+ */
+@Composable
+private fun SyncCard(
+    state: AppState,
+    scope: kotlinx.coroutines.CoroutineScope,
+) {
+    var server by rememberSaveable { mutableStateOf("") }
+    var account by rememberSaveable { mutableStateOf("") }
+    // A jelszó SZÁNDÉKOSAN nem rememberSaveable: az a mentett példányállapotba
+    // kerülne, amit a rendszer lemezre is írhat. Egy elforgatás után újra be kell
+    // gépelni — ez a helyes ár.
+    var password by remember { mutableStateOf("") }
+    var busy by remember { mutableStateOf(false) }
+    var localError by remember { mutableStateOf<String?>(null) }
+    var recovery by remember { mutableStateOf<String?>(null) }
+    var devices by remember { mutableStateOf<List<SyncClient.DeviceUsage>?>(null) }
+
+    /**
+     * Minden hálózati művelet háttérszálon; a felület közben letiltva.
+     *
+     * Nem `run` a neve: az a Kotlin stdlib függvénye, és egy helyi azonos nevű
+     * függvény árnyékolná — pont az a fajta csendes zavar, amit egy átnéző nem
+     * vesz észre.
+     */
+    fun background(work: () -> Unit) {
+        if (busy) return
+        busy = true
+        localError = null
+        scope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                work()
+            } catch (e: Exception) {
+                localError = e.message ?: "Ismeretlen hiba."
+            } finally {
+                busy = false
+            }
+        }
+    }
+
+    Card {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text("Fiók és eszközök", fontWeight = FontWeight.Bold)
+            val acc = state.sync
+            if (acc == null) {
+                Text(
+                    "Ha ugyanabba a fiókba lépsz be a többi eszközödön is, nem kell mindenhol " +
+                        "újra felvenned a listát — és látod a többi eszköz statisztikáját. A " +
+                        "blokkolt oldalak és a mért idők titkosítva mennek fel: a kiszolgáló " +
+                        "nem látja őket.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                OutlinedTextField(
+                    value = server, onValueChange = { server = it },
+                    placeholder = { Text("a kiszolgáló címe") },
+                    singleLine = true, modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = account, onValueChange = { account = it },
+                    placeholder = { Text("fiókazonosító") },
+                    singleLine = true, modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = password, onValueChange = { password = it },
+                    placeholder = { Text("jelszó") },
+                    singleLine = true, modifier = Modifier.fillMaxWidth(),
+                    visualTransformation = PasswordVisualTransformation(),
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(enabled = !busy, onClick = {
+                        background {
+                            val next = SyncClient.signIn(
+                                BreakerStore.state.value, server, account.trim(), password, deviceName(),
+                            )
+                            BreakerStore.mutate { next }
+                            password = ""
+                            val r = SyncClient.syncNow(BreakerStore.state.value, System.currentTimeMillis())
+                            BreakerStore.mutate { r.state }
+                        }
+                    }) { Text(if (busy) "Belépés…" else "Belépés") }
+                    OutlinedButton(enabled = !busy, onClick = {
+                        background {
+                            val (next, code) = SyncClient.signUp(
+                                BreakerStore.state.value, server, account.trim(), password, deviceName(),
+                            )
+                            BreakerStore.mutate { next }
+                            password = ""
+                            val r = SyncClient.syncNow(BreakerStore.state.value, System.currentTimeMillis())
+                            BreakerStore.mutate { r.state }
+                            recovery = code
+                        }
+                    }) { Text("Új fiók") }
+                }
+                Text(
+                    "Kijelentkezni bármikor lehet, és egyetlen blokkot sem visz el — a szinkron nem kibúvó.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else {
+                Text("${acc.accountId} — ez az eszköz: ${acc.deviceName}",
+                    style = MaterialTheme.typography.bodySmall)
+                Text(
+                    acc.lastSyncAt?.let { "Legutóbbi szinkron: ${fmtClock(it)}" } ?: "Még nem volt szinkron.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                devices?.let { list ->
+                    for (d in list) {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text(if (d.self) "${d.name} (ez az eszköz)" else d.name,
+                                style = MaterialTheme.typography.bodySmall)
+                            Text("${UsageLogic.formatDuration(d.last7Seconds.toDouble())} / 7 nap",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                }
+                FlowRowActions(busy = busy,
+                    onSync = {
+                        background {
+                            val r = SyncClient.syncNow(BreakerStore.state.value, System.currentTimeMillis())
+                            BreakerStore.mutate { r.state }
+                        }
+                    },
+                    onDevices = {
+                        background {
+                            devices = SyncClient.pullDevices(BreakerStore.state.value, System.currentTimeMillis())
+                        }
+                    },
+                    onSignOut = {
+                        // Nincs megerősítés: a kijelentkezés nem visz el semmit.
+                        // Egy „biztos?” azt sugallná, hogy veszélyes.
+                        BreakerStore.mutate { SyncClient.signOut(it) }
+                        devices = null
+                    })
+            }
+            localError?.let { Text(it, color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall) }
+        }
+    }
+
+    // A helyreállító kódot EGYSZER látja, és meg is állítjuk vele: ha a jelszót
+    // és ezt is elveszti, a kiszolgáló nem tud segíteni — nem lát bele.
+    recovery?.let { code ->
+        AlertDialog(
+            onDismissRequest = { recovery = null },
+            title = { Text("Helyreállító kód") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("Írd fel, és tedd el biztos helyre:", style = MaterialTheme.typography.bodySmall)
+                    Text(code, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                    Text(
+                        "Ha elfelejted a jelszót, EZ az egyetlen út vissza. A kiszolgáló nem tud " +
+                            "segíteni, mert nem látja az adataidat.",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+            },
+            confirmButton = { TextButton(onClick = { recovery = null }) { Text("Felírtam") } },
+        )
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun FlowRowActions(busy: Boolean, onSync: () -> Unit, onDevices: () -> Unit, onSignOut: () -> Unit) {
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Button(enabled = !busy, onClick = onSync) { Text(if (busy) "Szinkron…" else "Szinkronizálás most") }
+        OutlinedButton(enabled = !busy, onClick = onDevices) { Text("Eszközök") }
+        TextButton(enabled = !busy, onClick = onSignOut) { Text("Kijelentkezés") }
+    }
+}
+
+private fun deviceName(): String {
+    val model = android.os.Build.MODEL ?: "Telefon"
+    return model.take(30)
+}
+
+private fun fmtClock(ms: Long): String =
+    java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date(ms))
