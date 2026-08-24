@@ -88,6 +88,21 @@ jobs:
           venni, oldalanként; felvenni egy kattintás, **levenni próbatétel** —
           ugyanúgy, mint a feloldást.
 
+          **A napi keret mostantól KÖZÖS az eszközeid között.** Eddig
+          eszközönként külön ketyegett: a „napi 20 perc YouTube” a gépen húsz
+          percet jelentett, a telefonon még húszat — két eszközzel negyven,
+          hárommal hatvan. Aki a keretet komolyan gondolta, annak ez nem keret
+          volt, hanem javaslat. Most minden eszköz feltölti, mennyit mért ma
+          (titkosítva, pár száz bájt), és mindegyik hozzáadja a többiét a
+          sajátjához. A mérő alatt oda is van írva, mennyi ment el máshol.
+
+          Ezzel **iPhone-on végre ér is valamit a napi keret**. Eddig a
+          beállítás átment a szinkronon, de a telefonon soha semmi nem nézte
+          meg: aki a gépen napi húsz percet állított be, az a telefonján
+          korlátlanul használhatta ugyanazt az oldalt. Mérni ott továbbra sem
+          tudunk (az Apple nem enged hozzá), de ha a keret a gépen elfogyott,
+          az oldal az iPhone-on is zárva van.
+
           **Az összes eszközöd ideje egyben.** A fiókkártyán legelöl az áll,
           hogy mennyi ment el ÖSSZESEN — nem eszközönként külön. Két eszközön
           napi húsz-húsz perc az együtt negyven, és fejben ezt senki nem adja
@@ -119,7 +134,8 @@ jobs:
           indítja el. Elfelejtett jelszóhoz a regisztrációnál kapott
           helyreállító kód az út vissza.
 
-          **Napi időkeret oldalanként**, **időzített menetrend**, és
+          **Napi időkeret oldalanként** (ebben a verzióban lett közös az
+          eszközök között — lásd fentebb), **időzített menetrend**, és
           **próbatételek**, amik nem lesznek könnyebbek attól, hogy sokszor
           oldasz fel.
 
