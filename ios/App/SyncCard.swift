@@ -66,7 +66,7 @@ struct SyncCard: View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Ha ugyanabba a fiókba lépsz be a többi eszközödön is, nem kell mindenhol újra felvenned a listát — és látod a többi eszköz statisztikáját. A blokkolt oldalak és a mért idők titkosítva mennek fel: a kiszolgáló nem látja őket.")
                 .font(.footnote).foregroundStyle(.secondary)
-            TextField("a kiszolgáló címe", text: $server)
+            TextField("pl. http://192.168.1.10:8787", text: $server)
                 .textFieldStyle(.roundedBorder)
                 #if os(iOS)
                 .autocapitalization(.none)

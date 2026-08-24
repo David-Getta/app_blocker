@@ -1303,7 +1303,7 @@ private fun SyncCard(
                 )
                 OutlinedTextField(
                     value = server, onValueChange = { server = it },
-                    placeholder = { Text("a kiszolgáló címe") },
+                    placeholder = { Text("pl. http://192.168.1.10:8787") },
                     singleLine = true, modifier = Modifier.fillMaxWidth(),
                 )
                 OutlinedTextField(
