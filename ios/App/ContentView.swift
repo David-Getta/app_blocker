@@ -45,6 +45,7 @@ struct ContentView: View {
                     if let ses = store.state.session { resumeBanner(ses) }
                     listSection
                     StatsView(now: now)
+                    SyncCard()
                     tierLine
                 }
                 .padding()
