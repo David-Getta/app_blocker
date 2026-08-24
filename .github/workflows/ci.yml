@@ -63,6 +63,9 @@ jobs:
       - run: npm i --no-save playwright@1.56.1
       - run: npx playwright install --with-deps chromium
       - run: node scripts/ui-shots.js --check
+      # A bővítmény beállítási lapja ugyanabban a böngészőben, ugyanabból a
+      # telepítésből — külön futóért nem éri meg egy tíz másodperces ellenőrzés.
+      - run: node scripts/extension-ui.js
 
   sync-server:
     name: Szinkron-kiszolgáló tesztek

@@ -97,6 +97,13 @@ A `desktop/test/extension-storage.test.ts` pedig a **ténylegesen kiszállított
 `storage.js`-t futtatja egy hamis `chrome.storage.local` fölött, mert pont az a
 kérdés, hogy amit a böngészőbe töltünk, az mit csinál.
 
+A LAPOT külön füstteszt nyitja meg, valódi böngészőben
+(`desktop/scripts/extension-ui.js`, a CI-ban is fut): felvesz egy szabályt,
+elrontott bevitellel hibát vár, elindítja a levételt és megnézi, hogy a
+visszaszámlálás alatt még tilt. Enélkül egy elgépelt azonosító vagy egy be nem
+töltődő modul ugyanolyan csendes hiba lenne: a lap megjelenik, a gomb ott van,
+és nem történik semmi.
+
 ## Ami még hátra van
 
 - [ ] A szabályok átvétele az appból (most a bővítmény a sajátjait tárolja)
