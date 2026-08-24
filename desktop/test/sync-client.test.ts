@@ -12,7 +12,8 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { spawn, type ChildProcess } from 'node:child_process';
 import {
-  signIn, signInWithRecovery, signOut, signUp, syncNow, normalizeServerUrl, SyncError,
+  signIn, signInWithRecovery, signOut, signUp, syncNow, normalizeServerUrl,
+  normalizeIncomingSites, SyncError,
 } from '../src/helper/sync-client';
 import { bumpRevisions } from '../src/helper/revisions';
 import { defaultState, type HelperState, type SiteRec } from '../src/helper/state';
@@ -198,4 +199,32 @@ test('a bad server address is refused before anything is sent', async () => {
 
 test('syncing without an account fails loudly instead of doing nothing', async () => {
   await assert.rejects(() => syncNow(device(), 18_000), /Nincs bejelentkezve/);
+});
+
+test('a record with a missing pendingDeleteAt is not treated as deleting', () => {
+  // A Swift JSONEncoder alapból kihagyja a nil mezőket. Ha ezt nem
+  // egyenesítenénk ki, `undefined` érkezne, ami NEM null — és az összefésülés
+  // minden oldalt törlésre várónak látna. A lista sosem konvergálna, közben
+  // semmilyen hiba nem jelezne.
+  const [s] = normalizeIncomingSites([{ id: 'a', domain: 'youtube.com', addedAt: 1, hostnames: ['youtube.com'] }]);
+  assert.equal(s.pendingDeleteAt, null);
+  assert.equal(s.pauseUntil, null, 'a szünet sosem érkezik kívülről');
+  assert.equal(s.rev, 1, 'hiányzó rev esetén 1');
+  assert.equal(s.updatedBy, '');
+});
+
+test('junk in the payload is dropped, not carried into the block list', () => {
+  const out = normalizeIncomingSites([
+    null,
+    { domain: 'nincs-id.example' },
+    { id: 'b' },
+    { id: 'c', domain: 'reddit.com', addedAt: 2, hostnames: 'nem tömb' },
+  ]);
+  assert.deepEqual(out.map((s) => s.id), ['c']);
+  assert.deepEqual(out[0].hostnames, [], 'a rossz típusú hosztnév-lista üresre esik');
+});
+
+test('a payload that is not even an array yields nothing', () => {
+  assert.deepEqual(normalizeIncomingSites('{}' as unknown), []);
+  assert.deepEqual(normalizeIncomingSites(null), []);
 });

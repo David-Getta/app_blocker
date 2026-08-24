@@ -217,11 +217,37 @@ function fromSyncSites(merged: SyncSite[], local: SiteRec[]): SiteRec[] {
   } as SiteRec));
 }
 
+/**
+ * A távolról érkezett rekordok kiegyenesítése.
+ *
+ * A HIÁNYZÓ mezőket itt kezeljük, nem az összefésülésben. A `pendingDeleteAt`
+ * típusa `number | null`, és a fésülés `!== null`-t néz: ha egy kliens
+ * kihagyná a kulcsot (a Swift `JSONEncoder` alapból kihagyja a nileket),
+ * `undefined` érkezne, ami NEM null — vagyis minden oldal úgy nézne ki, mintha
+ * törlésre várna, és a lista sosem konvergálna. Egy helyen olcsó megvédeni,
+ * sok helyen reménytelen.
+ *
+ * A `pauseUntil` mindig null: a szünet eszközfüggő, és nem is megy fel.
+ */
+export function normalizeIncomingSites(parsed: unknown): SyncSite[] {
+  if (!Array.isArray(parsed)) return [];
+  return parsed
+    .filter((s) => s && typeof s.id === 'string' && typeof s.domain === 'string')
+    .map((s) => ({
+      ...s,
+      pauseUntil: null,
+      pendingDeleteAt: s.pendingDeleteAt ?? null,
+      hostnames: Array.isArray(s.hostnames) ? s.hostnames : [],
+      rev: Number.isInteger(s.rev) ? s.rev : 1,
+      updatedAt: Number.isFinite(s.updatedAt) ? s.updatedAt : 0,
+      updatedBy: typeof s.updatedBy === 'string' ? s.updatedBy : '',
+    }));
+}
+
 function decodeSites(acc: SyncAccount, payload: string | undefined): SyncSite[] {
   if (!payload) return [];
   const key = Buffer.from(acc.dataKey, 'base64');
-  const parsed = JSON.parse(decrypt(key, payload));
-  return Array.isArray(parsed) ? parsed : [];
+  return normalizeIncomingSites(JSON.parse(decrypt(key, payload)));
 }
 
 function sameSites(a: SyncSite[], b: SyncSite[]): boolean {

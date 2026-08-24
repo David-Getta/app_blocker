@@ -27,6 +27,28 @@ enum SyncMerge {
         var rev: Int
         var updatedAt: Double
         var updatedBy: String
+
+        /// A `pendingDeleteAt` KIÍRÁSA kötelező, nem elhagyható.
+        ///
+        /// A `JSONEncoder` alapból kihagyja a nil mezőket. A TypeScript oldalon
+        /// viszont a típus `number | null`, és az összefésülés `!== null`-t néz:
+        /// egy hiányzó kulcsból `undefined` lesz, ami NEM egyenlő null-lal —
+        /// vagyis minden oldal úgy nézne ki, mintha törlésre várna. Ezért itt
+        /// kézzel írjuk ki, nullal együtt.
+        func encode(to encoder: Encoder) throws {
+            var c = encoder.container(keyedBy: CodingKeys.self)
+            try c.encode(id, forKey: .id)
+            try c.encode(domain, forKey: .domain)
+            try c.encode(hostnames, forKey: .hostnames)
+            try c.encode(addedAt, forKey: .addedAt)
+            try c.encode(pendingDeleteAt, forKey: .pendingDeleteAt)
+            try c.encodeIfPresent(schedule, forKey: .schedule)
+            try c.encodeIfPresent(dailyLimitSeconds, forKey: .dailyLimitSeconds)
+            try c.encodeIfPresent(alias, forKey: .alias)
+            try c.encode(rev, forKey: .rev)
+            try c.encode(updatedAt, forKey: .updatedAt)
+            try c.encode(updatedBy, forKey: .updatedBy)
+        }
     }
 
     // MARK: - szigorúság

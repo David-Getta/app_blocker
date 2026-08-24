@@ -12,6 +12,20 @@ struct Site: Codable, Identifiable, Equatable {
     var schedule: ScheduleLogic.Schedule?
     /// fedőnév: ha van, a felület ezt írja ki a cím helyett (AliasLogic)
     var alias: String?
+    /// napi keret másodpercben — iPhone-on NEM érvényesül (nincs ilyen mérési
+    /// API), de MEGŐRIZZÜK: ha a gépen beállítottak egyet, a telefon
+    /// szinkronja nem törölheti le. Ez a mező pusztán hordozó.
+    var dailyLimitSeconds: Double?
+
+    // --- szinkron (lásd SyncRevisions és SyncMerge) ---
+    /// hányszor változott érdemben ez a rekord
+    var rev: Int?
+    /// mikor változott utoljára (ms)
+    var updatedAt: Double?
+    /// melyik eszközön — a döntetlen eltörésére
+    var updatedBy: String?
+    /// a szinkron-mezők lenyomata a legutóbbi léptetéskor
+    var revFp: String?
 }
 
 struct SessionRec: Codable, Equatable, Identifiable {
@@ -56,6 +70,24 @@ struct AppState: Codable, Equatable {
     /// önmagában nem szembesít azzal, mi van blokkolva. Optional, hogy egy
     /// korábbi verzió által írt állapot is dekódolható maradjon.
     var hideSiteList: Bool? = nil
+    /// fiók a szinkronhoz; nil = nincs bejelentkezve
+    var sync: SyncAccount? = nil
+}
+
+/// Fiók a szinkronhoz.
+///
+/// A `dataKey` az app saját, védett tárolójában marad. A végpontok közti
+/// titkosítás a KISZOLGÁLÓ ellen véd, nem a saját készüléked ellen.
+struct SyncAccount: Codable, Equatable {
+    var serverUrl: String
+    var accountId: String
+    var deviceId: String
+    var authKey: String
+    /// az adatkulcs base64-ben
+    var dataKey: String
+    var deviceName: String
+    var lastSyncAt: Double?
+    var lastError: String?
 }
 
 /// Shared state persisted to a JSON file in the App Group container, so the
