@@ -27,11 +27,16 @@ export const BLOB_PREFIX = 'brk1';
 /**
  * scrypt-paraméterek.
  *
- * N = 2^16, r = 8, p = 1 → nagyjából 64 MB memória és pár tized másodperc egy
+ * N = 2^15, r = 8, p = 1 → nagyjából 32 MB memória és pár tized másodperc egy
  * mai gépen. Ez a lassúság a lényeg: ez teszi drágává a jelszó kitalálását
  * annak, aki a kiszolgálóra betört.
+ *
+ * Miért nem 2^16: ugyanennek a kulcsszármaztatásnak TELEFONON is le kell futnia,
+ * különben a másik eszközön nem lehetne belépni. Egy régebbi Android
+ * alkalmazás-heapje 64 MB-nál elhasalna — 32 MB még belefér, és a
+ * memóriakötöttség (ami az scrypt lényege) megmarad.
  */
-export const SCRYPT_N = 1 << 16;
+export const SCRYPT_N = 1 << 15;
 export const SCRYPT_R = 8;
 export const SCRYPT_P = 1;
 // A Node alapértelmezett 32 MB-os korlátja kevés ehhez. Az scrypt igénye
