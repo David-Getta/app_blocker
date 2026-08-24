@@ -343,6 +343,16 @@ async function main() {
     undefined, { timeout: 10_000 },
   ).catch(() => failures.push('a lejárt munkamenet ott maradt'));
 
+  // Az „Új csomag” gomb: a HTML-ben megvolt, kezelő nélkül — rákattintva nem
+  // történt semmi. A felület hibátlannak látszott, a funkció meg elérhetetlen
+  // volt. Ezért nyomjuk meg tényleg, és nézzük meg, hogy előjön-e a szerkesztő.
+  await page.getByRole('button', { name: 'Új csomag' }).click();
+  await page.waitForFunction(
+    () => [...document.querySelectorAll('.modal h3')].some((h) => h.textContent === 'Új csomag'),
+    undefined, { timeout: 10_000 },
+  ).catch(() => failures.push('az „Új csomag” gomb nem nyitotta meg a szerkesztőt'));
+  await page.locator('.modal').getByRole('button', { name: 'Mégse' }).click();
+
   // A napi keret KÖZÖS az eszközök között: a mérő a teljes elhasznált időt
   // mutatja. Ki kell mondani, mennyi ment el máshol — enélkül úgy néz ki,
   // mintha az app rosszul számolna.

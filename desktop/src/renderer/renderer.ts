@@ -1744,6 +1744,10 @@ function setupModal(): void {
   $('resumeBtn').addEventListener('click', () => {
     if (status?.session) openModal(status.session);
   });
+  // Ez a gomb a HTML-ben megvolt, kezelő nélkül: rákattintva NEM TÖRTÉNT SEMMI.
+  // A legcsendesebb hibafajta — a felület hibátlannak látszik, a funkció meg
+  // elérhetetlen. A füstteszt most már megnyomja.
+  $('focusNewBtn').addEventListener('click', () => openFocusEditor(null));
   $('showListBtn').addEventListener('click', () => {
     // Csak erre a munkamenetre nyitjuk meg: a BEÁLLÍTÁS marad „rejtve”.
     listOpenThisSession = true;
