@@ -193,6 +193,20 @@ Egy elhasalt kör nem naplózódik újra meg újra: offline gépnél az percenk�
 ismétlődő, haszontalan sor lenne. Az állapotba viszont bekerül, és a felület
 kiírja, hogy mi nem megy.
 
+Az ütemezés **külön fájlban** van (`helper/sync-schedule.ts`), tesztekkel — mert
+a huzalozás egy csúnya hurkot rejt, amit ránézésre semmi nem árul el:
+
+```
+a szinkron a végén MENT,
+a mentés viszont ÜTEMEZ egy szinkront (hogy a változás felmenjen),
+az a szinkron megint ment…
+```
+
+Így a segéd húsz másodpercenként, örökre verte volna a kiszolgálót — miközben
+minden egyes függvény külön-külön helyes. Ezért tart számon az ütemező egy
+futás közbeni állapotot: a kör saját mentése nem ütemez újat. Ezt öt teszt őrzi, köztük az is,
+hogy két kör sosem fut egyszerre ugyanazon az állapoton.
+
 ## Ami a segédben fut, és miért
 
 A szinkron kliensoldala a **segédben** van, nem a felületen. Két oka van:

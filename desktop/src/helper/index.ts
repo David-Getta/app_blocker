@@ -14,6 +14,7 @@ import { startServer } from './server';
 import { tick } from './referee';
 import { bumpRevisions } from './revisions';
 import { syncNow } from './sync-client';
+import { createSyncSchedule } from './sync-schedule';
 
 export function runHelper(): void {
   const log = (m: string) => console.log(`[breaker-helper ${new Date().toISOString()}] ${m}`);
@@ -40,15 +41,11 @@ export function runHelper(): void {
   // kézzel menne, a másik gépen felvett oldal órákig nem érne ide — és pont ez
   // az, amiért az egész funkció van.
   //
-  // Két ütem: időzítve, és egy változás után rövid csenddel. A csend azért kell,
-  // hogy egy műveletsor (felvétel, keret, menetrend) EGY feltöltés legyen, ne
-  // három.
-  let syncTimer: NodeJS.Timeout | null = null;
-  let syncing = false;
-
-  const runSync = async (why: string) => {
-    if (syncing || !state.sync) return;
-    syncing = true;
+  // Az ÜTEMEZÉS külön fájlban van (`sync-schedule.ts`), tesztekkel: a huzalozás
+  // egy csúnya hurkot rejt, amit ránézésre semmi nem árul el — a szinkron a
+  // végén ment, a mentés pedig ütemez egy szinkront, az megint ment…
+  const runSync = async (why: string): Promise<void> => {
+    if (!state.sync) return;
     try {
       const r = await syncNow(state, Date.now());
       commit();
@@ -63,15 +60,15 @@ export function runHelper(): void {
         saveState(state);
         log(`sync (${why}) failed: ${msg}`);
       }
-    } finally {
-      syncing = false;
     }
   };
 
-  const scheduleSync = () => {
-    if (!state.sync || syncTimer) return;
-    syncTimer = setTimeout(() => { syncTimer = null; void runSync('változás'); }, SYNC_DEBOUNCE_MS);
-  };
+  const syncSchedule = createSyncSchedule({
+    hasAccount: () => !!state.sync,
+    run: runSync,
+    setTimer: (fn, ms) => setTimeout(fn, ms),
+    clearTimer: (h) => clearTimeout(h as NodeJS.Timeout),
+  }, SYNC_DEBOUNCE_MS);
 
   const commit = () => {
     // Egyetlen fogópont a szinkron verziószámaihoz: ami itt nem megy át, az
@@ -85,7 +82,7 @@ export function runHelper(): void {
     } catch (e) {
       log(`hosts apply failed: ${String(e)}`);
     }
-    scheduleSync();
+    syncSchedule.notifyCommit();
   };
 
   log(`starting on ${process.platform}, ${state.sites.length} site(s) in list`);
@@ -116,8 +113,8 @@ export function runHelper(): void {
     }
   }, 15_000);
 
-  setInterval(() => void runSync('időzített'), SYNC_INTERVAL_MS);
-  void runSync('indulás');
+  setInterval(() => void syncSchedule.runNow('időzített'), SYNC_INTERVAL_MS);
+  void syncSchedule.runNow('indulás');
 
   startServer({
     getState: () => state,
