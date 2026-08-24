@@ -130,6 +130,16 @@ megbízni.
 Az app belépőképernyőjén megadható a kiszolgáló címe. Így aki nem akar semmilyen
 külső szolgáltatást, a saját gépén vagy egy ingyenes kis konténerben futtatja.
 
+És mivel a kiszolgálónak nincs egyetlen függősége sem, **be van építve az
+asztali appba**: egy gomb elindítja, és kiírja a címet, amit a telefonba be kell
+gépelni. Enélkül a szinkron papíron létezne, gyakorlatban nem — terminált
+nyitni, Node-ot telepíteni és szolgáltatást futtatni a legtöbben nem fognak, és
+igazuk lenne.
+
+A beépített kiszolgáló ára ki van mondva a felületen: **amíg az app nem fut
+(vagy a gép alszik), nincs szinkron.** Semmi nem vész el, csak a másik eszköz
+addig a legutóbbi állapotot mutatja.
+
 ## Ütemezés
 
 | Lépés | Állapot |

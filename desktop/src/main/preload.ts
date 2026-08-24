@@ -17,6 +17,15 @@ export interface TrackerState {
   platform: string;
 }
 
+/** A gépen futó szinkron-kiszolgáló állapota. */
+export interface SyncServerState {
+  running: boolean;
+  /** amit a másik eszközbe be kell írni */
+  url?: string;
+  dataDir?: string;
+  error?: string;
+}
+
 export interface BreakerBridge {
   call(op: string, payload?: Record<string, unknown>): Promise<
     { ok: true; data: unknown } | { ok: false; error: string; code?: string }
@@ -26,6 +35,9 @@ export interface BreakerBridge {
   installUpdate(): Promise<{ ok: boolean; opened?: boolean }>;
   getUpdateState(): Promise<UpdateState>;
   getTrackerState(): Promise<TrackerState>;
+  getSyncServer(): Promise<SyncServerState>;
+  startSyncServer(): Promise<SyncServerState>;
+  stopSyncServer(): Promise<SyncServerState>;
   onUpdateState(cb: (s: UpdateState) => void): void;
   platform: string;
 }
@@ -37,6 +49,9 @@ const bridge: BreakerBridge = {
   installUpdate: () => ipcRenderer.invoke('breaker:install-update'),
   getUpdateState: () => ipcRenderer.invoke('breaker:update-state'),
   getTrackerState: () => ipcRenderer.invoke('breaker:tracker-state'),
+  getSyncServer: () => ipcRenderer.invoke('breaker:sync-server-state'),
+  startSyncServer: () => ipcRenderer.invoke('breaker:sync-server-start'),
+  stopSyncServer: () => ipcRenderer.invoke('breaker:sync-server-stop'),
   onUpdateState: (cb) => ipcRenderer.on('breaker:update-state', (_e, s: UpdateState) => cb(s)),
   platform: process.platform,
 };

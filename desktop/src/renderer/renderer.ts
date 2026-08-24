@@ -23,6 +23,13 @@ interface UpdateState {
   /** the app applies the update itself (unsigned macOS build) */
   selfManaged?: boolean;
 }
+interface SyncServerState {
+  running: boolean;
+  /** amit a másik eszközbe be kell írni */
+  url?: string;
+  dataDir?: string;
+  error?: string;
+}
 interface Bridge {
   call(op: string, payload?: Record<string, unknown>): Promise<
     { ok: true; data: unknown } | { ok: false; error: string; code?: string }>;
@@ -31,6 +38,9 @@ interface Bridge {
   installUpdate(): Promise<{ ok: boolean; opened?: boolean }>;
   getUpdateState(): Promise<UpdateState>;
   getTrackerState(): Promise<{ blocked: boolean; neverWorked: boolean; platform: string }>;
+  getSyncServer(): Promise<SyncServerState>;
+  startSyncServer(): Promise<SyncServerState>;
+  stopSyncServer(): Promise<SyncServerState>;
   onUpdateState(cb: (s: UpdateState) => void): void;
   platform: string;
 }
@@ -265,6 +275,29 @@ function syncFormValues(): { serverUrl: string; accountId: string; password: str
   };
 }
 
+/**
+ * A gépen futó kiszolgáló állapota.
+ *
+ * A saját cím KIÍRVA áll ott, nem elrejtve: ezt kell a telefonba begépelni, és
+ * ha keresgélni kell hozzá, senki nem fogja megtenni.
+ */
+async function refreshSyncHost(): Promise<void> {
+  const st = await window.breaker.getSyncServer();
+  const btn = $<HTMLButtonElement>('syncHostBtn');
+  const line = $('syncHostState');
+  btn.textContent = st.running ? 'Kiszolgáló leállítása' : 'Kiszolgáló indítása ezen a gépen';
+  line.classList.toggle('hidden', !st.running && !st.error);
+  if (st.error) {
+    line.textContent = st.error;
+    return;
+  }
+  if (st.running) {
+    line.textContent = st.url
+      ? `Fut. A másik eszközön ezt írd be: ${st.url} — amíg ez az app nem fut, nincs szinkron.`
+      : 'Indul…';
+  }
+}
+
 function setupSyncCard(): void {
   const deviceName = () => `${window.breaker.platform === 'win32' ? 'Windows' : 'Mac'} gép`;
 
@@ -298,6 +331,21 @@ function setupSyncCard(): void {
       render();
     },
   ));
+
+  $('syncHostBtn').addEventListener('click', () => {
+    // A frissítés a `withBusy` UTÁN fut: az visszaállítja a gomb eredeti
+    // feliratát, tehát ami belül íródna ki, azt rögtön felül is írná.
+    void withBusy($<HTMLButtonElement>('syncHostBtn'), 'Egy pillanat…', async () => {
+      const st = await window.breaker.getSyncServer();
+      if (st.running) await window.breaker.stopSyncServer();
+      else await window.breaker.startSyncServer();
+    }).then(() => {
+      void refreshSyncHost();
+      // A listen aszinkron: a cím egy pillanattal később áll össze.
+      setTimeout(() => void refreshSyncHost(), 400);
+    });
+  });
+  void refreshSyncHost();
 
   $('syncForgotBtn').addEventListener('click', () => {
     // Nem külön képernyő: a kód a meglévő űrlap mellé nyílik ki, mert a

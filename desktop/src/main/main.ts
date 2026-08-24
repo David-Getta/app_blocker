@@ -5,6 +5,7 @@
 //                    + dist/helper/index.js directly, bypassing this file)
 
 import { app, BrowserWindow, ipcMain } from 'electron';
+import { registerSyncServerIpc } from './sync-server';
 import * as path from 'path';
 import { HelperClient } from './helper-client';
 import { installHelper } from './install';
@@ -104,6 +105,10 @@ if (HELPER_MODE) {
         neverWorked: tracker.probeNeverWorked,
         platform: process.platform,
       }));
+      // A szinkron-kiszolgáló EBBEN az appban is elindítható. Enélkül a
+      // szinkron papíron létezik, gyakorlatban nem: terminált nyitni és külön
+      // szolgáltatást futtatni a legtöbben nem fognak — és igazuk lenne.
+      registerSyncServerIpc(app.getPath('userData'));
       // Keep the tracker's view of the switch fresh without extra IPC chatter.
       setInterval(() => {
         void client.call('status')

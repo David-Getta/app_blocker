@@ -147,12 +147,16 @@
           A blokkolt oldalak és a mért idők <strong>titkosítva</strong> mennek
           fel: a kiszolgáló nem látja őket.
         </p>
-        <p class="hint">
-          Ehhez kell egy kiszolgáló, amit magadnak indítasz el. A legegyszerűbb a
-          saját gépeden, a saját hálózatodon: a projektben a <code>server/</code>
-          mappa, benne <code>node server.js</code> — a telefon ugyanarról a
-          Wi-Fi-ről eléri.
-        </p>
+        <div class="sync-host">
+          <p class="hint">
+            Ehhez kell egy kiszolgáló. A legegyszerűbb, ha <strong>ez a gép</strong>
+            az: egy kapcsoló, és a telefonod ugyanarról a Wi-Fi-ről eléri.
+          </p>
+          <div class="sync-actions">
+            <button id="syncHostBtn" class="btn btn-small">Kiszolgáló indítása ezen a gépen</button>
+          </div>
+          <p id="syncHostState" class="hint hidden"></p>
+        </div>
         <div class="sync-form">
           <input id="syncServer" type="text" placeholder="a kiszolgáló címe (pl. http://192.168.1.10:8787)" autocomplete="off" spellcheck="false" />
           <input id="syncAccount" type="text" placeholder="fiókazonosító (pl. az e-mail-címed)" autocomplete="off" spellcheck="false" />

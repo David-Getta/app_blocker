@@ -30,10 +30,21 @@ Ha csak magadnak futtatod, érdemes az első fiók létrehozása után
 `BREAKER_OPEN_SIGNUP=0`-val újraindítani: onnantól a címet ismerve sem tud
 senki fiókot nyitni nálad.
 
-## A leggyorsabb út: a saját gépeden, a saját hálózatodon
+## A leggyorsabb út: az ASZTALI APPBÓL
 
-Ha csak a saját eszközeidet akarod összekötni, nem kell se domain, se felhő.
-A gépeden elindítod, a telefon meg ugyanarról a Wi-Fi-ről eléri:
+Ehhez nem kell se terminál, se Node: az asztali Breakerben a „Fiók és eszközök”
+kártyán ott a **Kiszolgáló indítása ezen a gépen** gomb. Elindítja, és kiírja
+azt a címet, amit a telefonba be kell gépelni.
+
+Egy dolgot ki is mond: **amíg az az app nem fut (vagy a gép alszik), nincs
+szinkron.** Semmi nem vész el — a következő elérésnél összefésül —, de a telefon
+addig a legutóbbi állapotot mutatja.
+
+Ha külön, folyamatosan futó kiszolgálót akarsz, onnantól ez a doksi szól róla.
+
+## Kézzel: a saját gépeden, a saját hálózatodon
+
+Ugyanaz, csak terminálból:
 
 ```bash
 cd server && node server.js

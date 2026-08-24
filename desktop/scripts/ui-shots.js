@@ -179,6 +179,14 @@ function fakeBridgeSource() {
       getTrackerState: async () => window.__fakeTracker,
       // A füstteszt innen hajtja a frissítési sávot: ugyanaz a csatorna, amit
       // a fő folyamat használ.
+      // A gépen futó kiszolgáló: a hamis híd is tud róla, hogy a füstteszt
+      // láthassa a be- és kikapcsolt állapotot.
+      getSyncServer: async () => window.__fakeHost || { running: false },
+      startSyncServer: async () => {
+        window.__fakeHost = { running: true, url: 'http://192.168.1.10:8787' };
+        return window.__fakeHost;
+      },
+      stopSyncServer: async () => { window.__fakeHost = { running: false }; return window.__fakeHost; },
       onUpdateState: (cb) => { window.__pushUpdate = cb; },
       installUpdate: async () => { window.__installCalled = (window.__installCalled || 0) + 1; return { ok: true }; },
     };
@@ -553,6 +561,27 @@ async function main() {
   if (!/egyetlen blokkot sem visz el/i.test(syncText)) {
     failures.push('the sync card does not say that signing out keeps the blocks');
   }
+  // A kiszolgáló ebben az appban is elindítható — enélkül a szinkron papíron
+  // létezik, gyakorlatban nem. A cím KIÍRVA kell hogy legyen: ezt kell a
+  // telefonba begépelni.
+  await page.getByRole('button', { name: 'Kiszolgáló indítása ezen a gépen' }).click();
+  await page.waitForFunction(
+    () => (document.getElementById('syncHostState').textContent || '').includes('192.168.1.10'),
+    undefined, { timeout: 10_000 },
+  );
+  const hostLine = (await page.locator('#syncHostState').innerText()) || '';
+  if (!/nincs szinkron/i.test(hostLine)) {
+    failures.push(`the host line does not say that the app must keep running: ${hostLine}`);
+  }
+  if (!(await page.getByRole('button', { name: 'Kiszolgáló leállítása' }).count())) {
+    failures.push('the running server cannot be stopped');
+  }
+  await page.getByRole('button', { name: 'Kiszolgáló leállítása' }).click();
+  await page.waitForFunction(
+    () => document.getElementById('syncHostState').classList.contains('hidden'),
+    undefined, { timeout: 10_000 },
+  );
+
   for (const id of ['syncServer', 'syncAccount', 'syncPassword']) {
     if (!(await page.locator(`#${id}`).count())) failures.push(`missing sync field: ${id}`);
   }
