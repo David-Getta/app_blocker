@@ -14,9 +14,9 @@ import {
 } from '../shared/alias.js';
 import { HELPER_VERSION } from '../shared/protocol.js';
 // A .js itt sem elhagyható: a böngésző natív ESM-betöltője oldja fel futásidőben.
-import { normalizeRule } from '../shared/urlrules.js';
+import { normalizeRule, ruleLabel } from '../shared/urlrules.js';
 import type {
-  SetLimitResult, SyncCombinedInfo, SyncDeviceInfo, UsageStatsData,
+  SetLimitResult, SetRuleResult, SyncCombinedInfo, SyncDeviceInfo, UsageStatsData,
 } from '../shared/protocol';
 
 interface UpdateState {
@@ -625,9 +625,12 @@ function siteRow(site: SiteInfo, st: StatusData): HTMLElement {
       limit.addEventListener('click', () => openLimitDialog(site));
       const alias = h('button', 'btn btn-small', isAliased(site) ? 'Fedőnév…' : 'Név elrejtése…');
       alias.addEventListener('click', () => openAliasDialog(site));
+      const parts = h('button', 'btn btn-small',
+        site.rules?.length ? `Csak egy rész… (${site.rules.length})` : 'Csak egy rész…');
+      parts.addEventListener('click', () => openRulesDialog(site));
       const del = h('button', 'btn btn-small btn-danger', 'Végleges törlés…');
       del.addEventListener('click', () => void startDelete(site));
-      actions.append(unlock, sched, limit, alias, del);
+      actions.append(unlock, sched, limit, alias, parts, del);
     }
   }
 
@@ -735,6 +738,91 @@ function openAliasDialog(site: SiteInfo): void {
   document.body.appendChild(overlay);
   input.focus();
   input.select();
+}
+
+/**
+ * Részleges tiltás: az oldal egy darabja.
+ *
+ * A párbeszéd legfontosabb része nem a lista, hanem a MAGYARÁZAT. Aki ide
+ * eljut, azt hiszi, hogy ez ugyanolyan erős, mint a többi tiltás — pedig nem
+ * az, és egy önkontroll-appnál a hamis biztonságérzet rosszabb, mint a
+ * bevallott korlát.
+ */
+function openRulesDialog(site: SiteInfo): void {
+  const overlay = h('div', 'overlay');
+  const modal = h('div', 'modal');
+  modal.appendChild(h('h3', undefined, `Csak egy rész: ${displayName(site)}`));
+  modal.appendChild(h('p', 'hint',
+    'Nem az egész oldal, csak egy darabja — például egy csatorna. Illeszd be a '
+    + 'címét úgy, ahogy a böngészőben látod.'));
+
+  const warn = h('div', 'rules-warning');
+  warn.appendChild(h('strong', undefined, 'Ehhez böngésző-bővítmény kell, és gyengébb réteg.'));
+  warn.appendChild(h('p', undefined,
+    'A Breaker DNS-szinten tilt, a DNS viszont csak a hosztnevet látja — az utat '
+    + '(a cím perjel utáni részét) nem, mert az a titkosított kérésen belül van. '
+    + 'Ezért ezt a böngésző-bővítmény érvényesíti: csak abban a böngészőben, '
+    + 'ahova telepítve van; vendég módban egyáltalán nem fut; inkognitóban külön '
+    + 'be kell kapcsolni. Az egész oldal tiltása marad a megkerülhetetlen.'));
+  modal.appendChild(warn);
+
+  const list = h('div', 'rules-list');
+  const rules = site.rules ?? [];
+  if (rules.length === 0) {
+    list.appendChild(h('p', 'hint', 'Még nincs egyetlen részleges szabály sem ezen az oldalon.'));
+  }
+  for (const rule of rules) {
+    const line = h('div', 'rules-line');
+    line.appendChild(h('span', 'rules-name', ruleLabel(rule)));
+    const drop = h('button', 'btn btn-tiny btn-ghost', 'Levétel…');
+    drop.title = 'A levétel próbatétel — ugyanúgy, mint a feloldás.';
+    drop.addEventListener('click', () => void apply(ruleLabel(rule), true));
+    line.appendChild(drop);
+    list.appendChild(line);
+  }
+  modal.appendChild(list);
+
+  const input = h('input', 'alias-input') as HTMLInputElement;
+  input.type = 'text';
+  input.placeholder = `pl. ${site.domain}/@valaki`;
+  input.spellcheck = false;
+  modal.appendChild(input);
+  modal.appendChild(h('p', 'hint',
+    'Felvenni egy kattintás. Levenni próbatétel — ugyanúgy, mint a feloldást.'));
+
+  const err = h('p', 'error hidden');
+  modal.appendChild(err);
+
+  const actions = h('div', 'modal-actions');
+  const cancel = h('button', 'btn btn-small btn-ghost', 'Bezárás');
+  cancel.addEventListener('click', () => overlay.remove());
+  const add = h('button', 'btn btn-small btn-primary', 'Hozzáadás');
+  add.addEventListener('click', () => void apply(input.value, false));
+  const right = h('div', 'row-gap');
+  right.append(cancel, add);
+  actions.append(h('div', 'row-gap'), right);
+  modal.appendChild(actions);
+
+  async function apply(value: string, remove: boolean): Promise<void> {
+    try {
+      const r = await call<SetRuleResult & { status: StatusData }>('set_rule', {
+        siteId: site.id, input: value, remove,
+      });
+      status = r.status;
+      overlay.remove();
+      render();
+    } catch (e) {
+      err.textContent = (e as Error).message;
+      err.classList.remove('hidden');
+    }
+  }
+
+  input.addEventListener('keydown', (ev) => {
+    if ((ev as KeyboardEvent).key === 'Enter') void apply(input.value, false);
+  });
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+  input.focus();
 }
 
 function openLimitDialog(site: SiteInfo): void {

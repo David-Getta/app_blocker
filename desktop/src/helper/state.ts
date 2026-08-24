@@ -7,6 +7,7 @@ import * as crypto from 'crypto';
 import type { Step } from '../shared/challenges';
 import type { Schedule } from '../shared/schedule';
 import { emptyUsage, type UsageState } from '../shared/usage';
+import type { UrlRule } from '../shared/urlrules';
 import { stateFilePath } from './paths';
 
 export interface SiteRec {
@@ -22,6 +23,14 @@ export interface SiteRec {
   dailyLimitSeconds?: number;
   /** fedőnév: ha van, a felület EZT mutatja a cím helyett (lásd shared/alias.ts) */
   alias?: string;
+  /**
+   * Részleges szabályok: az oldal egy-egy darabja (pl. `/@valaki`).
+   *
+   * Ezeket a DNS-motor NEM tudja érvényesíteni — a hosztnévnél tovább nem lát.
+   * A böngésző-bővítmény veszi át őket; a segéd tárolja és szinkronizálja, hogy
+   * ne kelljen minden gépen újra felvenni. Lásd docs/feature-partial-block.md.
+   */
+  rules?: UrlRule[];
 
   // --- szinkron (lásd helper/revisions.ts és shared/sync/merge.ts) ---
   /** hányszor változott érdemben ez a rekord; ez dönt az összefésülésnél */
@@ -48,6 +57,8 @@ export interface SessionRec {
   /** when set, finishing applies this daily budget instead of pausing;
    *  null means "remove the budget" (both are gated loosenings) */
   pendingLimit?: number | null;
+  /** ha van, a teljesítés EZT a részleges szabályt veszi le (lazítás) */
+  pendingRuleRemoval?: UrlRule;
 }
 
 /**

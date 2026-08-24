@@ -9,6 +9,7 @@ import { HELPER_VERSION } from '../shared/protocol';
 import { normalizeDomain, expandHostnames } from '../shared/blocklist';
 import { computeTier } from '../shared/challenges';
 import { normalizeAlias } from '../shared/alias';
+import { normalizeRule } from '../shared/urlrules';
 import { isBlockedNowWithLimit, isLimitExhausted, normalizeLimit, usedTodaySeconds } from '../shared/limits';
 import {
   recordSample, summarize, series, labelOf, emptyUsage, combineUsage,
@@ -63,6 +64,7 @@ export function statusOf(state: HelperState, dohApplied: boolean): StatusData {
       pauseUntil: s.pauseUntil, pendingDeleteAt: s.pendingDeleteAt,
       schedule: s.schedule,
       alias: s.alias,
+      rules: s.rules,
       dailyLimitSeconds: s.dailyLimitSeconds,
       usedTodaySeconds: Math.round(usedTodaySeconds(state.usage, s.domain, now)),
       limitExhausted: isLimitExhausted(s, state.usage, now),
@@ -189,6 +191,25 @@ async function handle(req: HelperRequest, deps: ServerDeps): Promise<unknown> {
       else site.alias = alias;
       deps.commit();
       return statusOf(state, deps.dohApplied());
+    }
+
+    case 'set_rule': {
+      // Részleges szabály: az oldal EGY DARABJA (pl. `/@valaki`).
+      //
+      // Ezt a DNS-motor nem tudja érvényesíteni — a hosztnévnél tovább nem lát
+      // —, tehát a segéd itt csak TÁROL és SZINKRONIZÁL. Érvényesíteni a
+      // böngésző-bővítmény fogja. A felület ezért ki is mondja, hogy ez
+      // gyengébb réteg, mint a teljes oldal tiltása.
+      const rule = normalizeRule(req.input);
+      if (!rule) {
+        throw new RefereeError(
+          'Ehhez út is kell, például youtube.com/@valaki — enélkül az egész oldalról lenne szó.',
+          'BAD_RULE',
+        );
+      }
+      const r = referee.startRuleChange(state, req.siteId, rule, req.remove === true, Date.now());
+      deps.commit();
+      return { ...r, status: statusOf(state, deps.dohApplied()) };
     }
 
     case 'set_hide_list': {

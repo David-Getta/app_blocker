@@ -44,6 +44,13 @@ export interface SiteInfo {
   dailyLimitSeconds?: number;
   /** fedőnév: ha van, a felület ezt mutatja a cím helyett */
   alias?: string;
+  /**
+   * Részleges szabályok (pl. `/@valaki`).
+   *
+   * Ezeket a DNS-motor nem érvényesíti — a böngésző-bővítmény veszi át őket.
+   * A felület ezért külön is kimondja, hogy ez gyengébb réteg.
+   */
+  rules?: import('./urlrules').UrlRule[];
   /** active seconds spent on this site today, for the budget meter */
   usedTodaySeconds: number;
   /** true when today's budget is spent (and the site therefore blocks) */
@@ -92,6 +99,17 @@ export interface SyncDeviceInfo {
  * külön mennyi a telefonon, hanem hogy MENNYI ÖSSZESEN. Két eszközön napi húsz
  * perc együtt negyven.
  */
+/**
+ * Részleges szabály felvételének/levételének eredménye.
+ *
+ * `applied: true` = megtörtént (szigorítás, ingyen van).
+ * `applied: false` + session = próbatétel indult (lazítás).
+ */
+export interface SetRuleResult {
+  applied: boolean;
+  session: SessionInfo | null;
+}
+
 export interface SyncCombinedInfo {
   /** hány eszköz adata van benne */
   deviceCount: number;
@@ -138,6 +156,7 @@ export type HelperRequest =
   | { id: number; op: 'set_alias'; siteId: string; alias: string | null }
   // A lista elrejtése szintén tisztán felületi: a blokkolás nem változik tőle.
   | { id: number; op: 'set_hide_list'; hidden: boolean }
+  | { id: number; op: 'set_rule'; siteId: string; input: string; remove: boolean }
   | { id: number; op: 'sync_signup'; serverUrl: string; accountId: string; password: string; deviceName: string }
   | { id: number; op: 'sync_signin'; serverUrl: string; accountId: string; password: string; deviceName: string }
   | { id: number; op: 'sync_recovery'; serverUrl: string; accountId: string; recoveryCode: string; newPassword: string; deviceName: string }

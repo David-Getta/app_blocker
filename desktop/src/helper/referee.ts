@@ -6,10 +6,13 @@ import {
   applyAnswer, computeTier, comboKeyOf, cryptoRng, generatePlan, toDisplay,
   CLAIM_WINDOW_MS, DELETE_PENDING_MS, SESSION_MAX_AGE_MS, REROLL_COOLDOWN_MS,
 } from '../shared/challenges';
-import type { SessionInfo, SubmitResult, SetScheduleResult, SetLimitResult } from '../shared/protocol';
+import type {
+  SessionInfo, SubmitResult, SetScheduleResult, SetLimitResult, SetRuleResult,
+} from '../shared/protocol';
 import { PAUSE_CHOICES_MIN } from '../shared/protocol';
 import { isLoosening, normalizeSchedule, ALWAYS, type Schedule } from '../shared/schedule';
 import { isLimitLoosening, normalizeLimit } from '../shared/limits';
+import { MAX_RULES_PER_SITE, sameRule, type UrlRule } from '../shared/urlrules';
 import type { AbandonRec, HelperState, SessionRec } from './state';
 import { newId } from './state';
 
@@ -94,7 +97,10 @@ function finishSession(state: HelperState, now: number): void {
   const site = state.sites.find((x) => x.id === s.siteId);
   if (site) {
     if (s.pendingSchedule) site.schedule = s.pendingSchedule;                  // gated loosening
-    else if (s.pendingLimit !== undefined) {
+    else if (s.pendingRuleRemoval) {
+      const drop = s.pendingRuleRemoval;
+      site.rules = (site.rules ?? []).filter((r) => !sameRule(r, drop));
+    } else if (s.pendingLimit !== undefined) {
       site.dailyLimitSeconds = s.pendingLimit === null ? undefined : s.pendingLimit;
     } else if (s.kind === 'pause') site.pauseUntil = now + (s.minutes ?? 15) * 60_000;
     else site.pendingDeleteAt = now + DELETE_PENDING_MS;
@@ -160,6 +166,54 @@ export function startLimitChange(
     id: newId('ses'), kind: 'pause', siteId,
     steps: plan.steps, stepIndex: 0, createdAt: now,
     pendingLimit: next === null ? null : next,
+  };
+  state.lastCombo = plan.comboKey;
+  armCurrent(state.session, now);
+  return { applied: false, session: sessionInfo(state.session, now) };
+}
+
+/**
+ * Részleges szabály felvétele vagy levétele.
+ *
+ * Ugyanaz a szabály, mint mindenhol: a SZIGORÍTÁS ingyen van, a LAZÍTÁS
+ * próbatétel. Egy szabály felvétele szigorítás (kevesebb érhető el), a levétele
+ * lazítás — és ha az egy gomb lenne, a részleges tiltás pont annyit érne, mint
+ * egy kikapcsoló.
+ *
+ * A szabályt a hívó adja már normalizálva; itt csak a döntés van.
+ */
+export function startRuleChange(
+  state: HelperState, siteId: string, rule: UrlRule, remove: boolean, now: number,
+): SetRuleResult {
+  const site = state.sites.find((s) => s.id === siteId);
+  if (!site) throw new RefereeError('Ismeretlen oldal.', 'NO_SITE');
+  const rules = site.rules ?? [];
+
+  if (!remove) {
+    if (rules.some((r) => sameRule(r, rule))) {
+      return { applied: true, session: null }; // már ott van; nincs mit tenni
+    }
+    if (rules.length >= MAX_RULES_PER_SITE) {
+      throw new RefereeError(
+        `Egy oldalhoz legfeljebb ${MAX_RULES_PER_SITE} részleges szabály tartozhat.`,
+        'TOO_MANY_RULES',
+      );
+    }
+    site.rules = [...rules, rule];
+    return { applied: true, session: null };
+  }
+
+  if (!rules.some((r) => sameRule(r, rule))) {
+    throw new RefereeError('Nincs ilyen részleges szabály ezen az oldalon.', 'NO_RULE');
+  }
+  if (state.session) throw new RefereeError('Előbb fejezd be a folyamatban lévő kísérletet.', 'BUSY');
+
+  const tier = effectiveTier(state, 'pause', now);
+  const plan = generatePlan('pause', tier, state.lastCombo, rng, forcedCombo(state, siteId, now));
+  state.session = {
+    id: newId('ses'), kind: 'pause', siteId,
+    steps: plan.steps, stepIndex: 0, createdAt: now,
+    pendingRuleRemoval: rule,
   };
   state.lastCombo = plan.comboKey;
   armCurrent(state.session, now);
