@@ -246,6 +246,14 @@ export interface TrackerDeps {
   /** measurement is skipped entirely while this returns false */
   isEnabled: () => boolean;
   log: (m: string) => void;
+  /**
+   * Az ÉPP előtérben lévő app, minden mintavételnél.
+   *
+   * A mérés amúgy is megkérdezi; a munkamenet ugyanezt az adatot használja
+   * („ez az app nincs a listán”). Egy MÁSODIK szonda ugyanerre fölösleges
+   * terhelés lenne — és a kettő előbb-utóbb máshogy válaszolna.
+   */
+  onForeground?: (fg: Foreground | null) => void;
 }
 
 export class UsageTracker {
@@ -297,6 +305,7 @@ export class UsageTracker {
       const idleSeconds = powerMonitor.getSystemIdleTime();
       const fg = await probeForeground(this.deps.log);
       this.health.record(fg !== null);
+      this.deps.onForeground?.(fg);
       const now = Date.now();
       const decision = decideSample({ lastAt: this.lastAt, now, idleSeconds, fg });
       this.lastAt = now;

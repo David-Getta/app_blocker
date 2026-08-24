@@ -178,3 +178,38 @@ export function formatRemaining(ms: number): string {
   }
   return total <= 1 ? 'kevesebb mint egy perc' : `${total} perc`;
 }
+
+/**
+ * Figyelmeztessünk-e erre az előtérben lévő appra.
+ *
+ * A munkamenet alatt az appokat NEM tudjuk letiltani — egy futó programot nem
+ * lövünk ki, mert az adatot veszíthet, és a Breaker sosem tesz olyat, amit a
+ * felhasználó nem kért. Amit tudunk: szólni, hogy ez most nincs a listán.
+ *
+ * A SAJÁT appunk mindig átmegy. Ha a Breaker ablaka is figyelmeztetést váltana
+ * ki, a réteg önmagát hívná elő, és a képernyő használhatatlan lenne.
+ */
+export function shouldWarnAboutApp(
+  pack: FocusPack, appId: string, appName: string,
+): boolean {
+  const id = (appId ?? '').toLowerCase();
+  const name = (appName ?? '').toLowerCase();
+  if (!id && !name) return false;
+  if (id.includes('breaker') || name.includes('breaker')) return false;
+  return !isAppAllowed(pack, appName) && !isAppAllowed(pack, appId);
+}
+
+/**
+ * Ennél sűrűbben ugyanarra az appra nem szólunk.
+ *
+ * Egy réteg, ami minden ötödik másodpercben felugrik, nem figyelmeztetés,
+ * hanem büntetés — és a felhasználó a munkamenetet fogja kikapcsolni, nem az
+ * appot bezárni.
+ */
+export const APP_WARN_COOLDOWN_MS = 3 * 60_000;
+
+/** Esedékes-e a figyelmeztetés (az előző óta eltelt-e a türelmi idő). */
+export function warnDue(lastWarnAt: number | null, now: number): boolean {
+  if (lastWarnAt === null) return true;
+  return now - lastWarnAt >= APP_WARN_COOLDOWN_MS;
+}

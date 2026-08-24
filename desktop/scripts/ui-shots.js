@@ -178,6 +178,33 @@ function fakeBridgeSource() {
           sessionStorage.setItem('fakeHideList', window.__fakeHideList ? '1' : '0');
           return { ok: true, data: status() };
         }
+        if (op === 'focus_start') {
+          window.__fakeRun = {
+            packId: payload.packId, startedAt: Date.now(),
+            endsAt: Date.now() + payload.minutes * 60000,
+          };
+          return { ok: true, data: status() };
+        }
+        if (op === 'focus_change') {
+          // Hosszabbítás azonnal; rövidítés próbatétel — a hamis híd is így
+          // viselkedik, különben a füstteszt egy nem létező utat járna.
+          if (window.__fakeRun && payload.endsAt !== null
+              && payload.endsAt >= window.__fakeRun.endsAt) {
+            window.__fakeRun = { ...window.__fakeRun, endsAt: payload.endsAt };
+            return { ok: true, data: { applied: true, session: null, status: status() } };
+          }
+          return { ok: true, data: { applied: false, session: null, status: status() } };
+        }
+        if (op === 'focus_save') {
+          const pack = { ...payload.pack, id: payload.pack.id || 'pack_uj' };
+          const at = window.__fakePacks.findIndex((p) => p.id === pack.id);
+          if (at >= 0) window.__fakePacks[at] = pack; else window.__fakePacks.push(pack);
+          return { ok: true, data: status() };
+        }
+        if (op === 'focus_delete') {
+          window.__fakePacks = window.__fakePacks.filter((p) => p.id !== payload.packId);
+          return { ok: true, data: status() };
+        }
         if (op === 'set_alias') {
           const site = window.__fakeSites.find((x) => x.id === payload.siteId);
           if (site) {
@@ -198,6 +225,9 @@ function fakeBridgeSource() {
       // láthassa a be- és kikapcsolt állapotot.
       getSyncServer: async () => window.__fakeHost || { running: false },
       getBridgeInfo: async () => window.__fakeBridge || { running: false },
+      getOverlayState: async () => ({ shortcutOk: true, warnApp: window.__fakeWarn || null }),
+      hideOverlay: async () => { window.__overlayHidden = true; },
+      toggleOverlay: async () => {},
       startSyncServer: async () => {
         window.__fakeHost = {
           running: true,
@@ -841,6 +871,46 @@ async function main() {
     },
     undefined, { timeout: 10_000 },
   ).catch(() => failures.push('út nélküli címnél is figyelmeztetett'));
+
+  // ------------------------------------------------------- a gyorsbillentyűs réteg
+  //
+  // Ez egy külön LAP, saját HTML-lel és saját szkripttel. Eddig semmi nem
+  // nyitotta meg: egy elgépelt azonosító vagy egy be nem töltődő modul itt
+  // ugyanolyan csendes hiba lenne, mint bárhol — a réteg előjönne, és nem
+  // történne semmi.
+  const over = await browser.newPage();
+  over.on('pageerror', (e) => failures.push(`hiba a rétegen: ${e.message}`));
+  await over.addInitScript(fakeBridgeSource());
+  await over.goto(`http://127.0.0.1:${port}/renderer/overlay.html`);
+  await over.waitForSelector('.pack', { timeout: 15_000 })
+    .catch(() => failures.push('a réteg nem listázta ki a csomagokat'));
+  const overNames = await over.locator('.pack-name').allTextContents();
+  if (!overNames.includes('Nyelvtanulás')) {
+    failures.push(`a rétegen nincsenek csomagok (${JSON.stringify(overNames)})`);
+  }
+  // Számbillentyű: a réteg egy másodpercet kap, és az egérhez nyúlni fél
+  // másodperc. Ha ez nem megy, a funkció lényege veszik el.
+  await over.keyboard.press('1');
+  await over.waitForFunction(
+    () => document.body.innerText.includes('Meddig tartson'),
+    undefined, { timeout: 10_000 },
+  ).catch(() => failures.push('számbillentyűre nem jött elő a hossz-választás'));
+  await over.getByRole('button', { name: '50 perc' }).click();
+  await over.waitForFunction(
+    () => document.body.innerText.includes('perc') && document.querySelector('.focus-left, .left'),
+    undefined, { timeout: 10_000 },
+  ).catch(() => failures.push('az indítás után nem látszik a futó munkamenet'));
+  const runText = await over.locator('.running').first().innerText().catch(() => '');
+  if (!/Most csak ez mehet/.test(runText)) {
+    failures.push(`a futó munkamenet nem sorolja fel, mi mehet: ${runText}`);
+  }
+  // Az Esc zárja. Egy ottfelejtett, mindig felül lévő réteg a legrosszabb, amit
+  // ez a funkció tehet.
+  await over.keyboard.press('Escape');
+  const hidden = await over.evaluate(() => window.__overlayHidden === true);
+  if (!hidden) failures.push('az Esc nem zárta be a réteget');
+  await over.close();
+  await page.evaluate(() => { window.__fakeRun = null; });
 
   await browser.close();
   server.close();

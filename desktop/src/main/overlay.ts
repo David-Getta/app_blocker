@@ -24,6 +24,11 @@ import { BrowserWindow, globalShortcut, screen } from 'electron';
 export const OVERLAY_SHORTCUT = 'CommandOrControl+Alt+B';
 
 let win: BrowserWindow | null = null;
+/**
+ * Ha van, a réteg NEM a csomaglistát mutatja, hanem azt, hogy ez az app nincs
+ * a listán. Egyszer használatos: a réteg elolvassa, és ezzel törlődik.
+ */
+let pendingWarning: string | null = null;
 
 function build(): BrowserWindow {
   // A teljes képernyőt lefedjük, de átlátszóan: a réteg RÁÜL arra, amit épp
@@ -73,6 +78,31 @@ export function toggleOverlay(): void {
   }
   win.showInactive();
   win.focus();
+}
+
+/**
+ * A réteg előhívása figyelmeztetésként.
+ *
+ * Nem tiltás: egy futó programot nem lövünk ki. Amit tudunk, az annyi, hogy
+ * szólunk — és a felület ki is mondja, hogy ez gyengébb réteg, mint a
+ * böngészőben érvényesített fehérlista.
+ */
+export function warnAboutApp(appName: string): void {
+  pendingWarning = appName;
+  if (!win || win.isDestroyed()) win = build();
+  if (!win.isVisible()) {
+    win.showInactive();
+    win.focus();
+  } else {
+    win.webContents.send('breaker:overlay-warn', appName);
+  }
+}
+
+/** A réteg egyszer olvassa ki, és ezzel törli. */
+export function takeWarning(): string | null {
+  const w = pendingWarning;
+  pendingWarning = null;
+  return w;
 }
 
 export function hideOverlay(): void {

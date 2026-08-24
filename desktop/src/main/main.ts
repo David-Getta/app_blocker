@@ -7,7 +7,11 @@
 import { app, BrowserWindow, ipcMain } from 'electron';
 import { registerSyncServerIpc } from './sync-server';
 import { registerRulesBridge, stopRulesBridge } from './rules-bridge-ipc';
-import { hideOverlay, registerOverlayShortcut, toggleOverlay, unregisterOverlayShortcut } from './overlay';
+import {
+  hideOverlay, registerOverlayShortcut, takeWarning, toggleOverlay, unregisterOverlayShortcut,
+  warnAboutApp,
+} from './overlay';
+import { shouldWarnAboutApp, warnDue } from '../shared/focus';
 import * as path from 'path';
 import { HelperClient } from './helper-client';
 import { installHelper } from './install';
@@ -84,6 +88,11 @@ if (HELPER_MODE) {
       // Active-time measurement runs in this (user-session) process; the helper
       // stores what it measures. Off until the helper says it is enabled.
       let usageEnabled = false;
+      // A futó munkamenet a segédben él; itt csak a legutóbb LÁTOTT állapot van,
+      // hogy az előtér-szonda ne kérdezze meg minden öt másodpercben.
+      let focusPack: import('../shared/focus').FocusPack | null = null;
+      let focusEndsAt: number | null = null;
+      let lastAppWarnAt: number | null = null;
       void client.call('status').then((s) => { usageEnabled = (s as StatusData).usageEnabled; })
         .catch(() => { /* helper not installed yet */ });
       const tracker = new UsageTracker({
@@ -97,6 +106,18 @@ if (HELPER_MODE) {
         },
         isEnabled: () => usageEnabled,
         log: (m) => console.log(`[breaker-tracker] ${m}`),
+        // A munkamenet appokra vonatkozó fele. TILTANI nem tudunk — egy futó
+        // programot nem lövünk ki —, de szólni igen. Ugyanazt a szondát
+        // használjuk, amit a mérés: egy második ugyanerre fölösleges terhelés
+        // lenne, és a kettő előbb-utóbb máshogy válaszolna.
+        onForeground: (fg) => {
+          if (!fg || !focusPack || !focusEndsAt || focusEndsAt <= Date.now()) return;
+          if (!shouldWarnAboutApp(focusPack, fg.appId, fg.appName)) return;
+          const now = Date.now();
+          if (!warnDue(lastAppWarnAt, now)) return;
+          lastAppWarnAt = now;
+          warnAboutApp(fg.appName || fg.appId);
+        },
       });
       tracker.start();
       // A mérés csendben elhasalhat: macOS-en, ha a felhasználó megtagadja az
@@ -141,16 +162,27 @@ if (HELPER_MODE) {
         },
       );
       // Keep the tracker's view of the switch fresh without extra IPC chatter.
-      setInterval(() => {
+      const refreshFocus = (): void => {
         void client.call('status')
-          .then((s) => { usageEnabled = (s as StatusData).usageEnabled; })
+          .then((s) => {
+            const st = s as StatusData;
+            usageEnabled = st.usageEnabled;
+            const run = st.focusRun;
+            focusEndsAt = run && run.endsAt > Date.now() ? run.endsAt : null;
+            focusPack = run ? (st.focusPacks ?? []).find((p) => p.id === run.packId) ?? null : null;
+            if (!focusEndsAt) lastAppWarnAt = null;
+          })
           .catch(() => { /* ignore */ });
-      }, 60_000);
+      };
+      refreshFocus();
+      // Húsz másodperc: a munkamenet percekben él, de az indítás UTÁN ne kelljen
+      // egy percet várni arra, hogy a réteg tudomást vegyen róla.
+      setInterval(refreshFocus, 20_000);
       // A gyorsbillentyűs réteg: egy mozdulattal indítható munkamenet. A
       // regisztráció elbukhat (másik program elvette a kombinációt) — ez nem
       // hiba, a felület megmondja, és a réteg az appból is nyitható.
       const shortcutOk = registerOverlayShortcut();
-      ipcMain.handle('breaker:overlay-state', () => ({ shortcutOk }));
+      ipcMain.handle('breaker:overlay-state', () => ({ shortcutOk, warnApp: takeWarning() }));
       ipcMain.handle('breaker:overlay-toggle', () => { toggleOverlay(); });
       ipcMain.handle('breaker:overlay-hide', () => { hideOverlay(); });
 

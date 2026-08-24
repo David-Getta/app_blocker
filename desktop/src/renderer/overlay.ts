@@ -22,6 +22,7 @@ interface OverlayBridge {
   call(op: string, payload?: Record<string, unknown>): Promise<
     { ok: true; data: unknown } | { ok: false; error: string; code?: string }>;
   hideOverlay(): Promise<void>;
+  getOverlayState(): Promise<{ shortcutOk: boolean; warnApp: string | null }>;
 }
 const bridge = (window as unknown as { breaker: OverlayBridge }).breaker;
 
@@ -47,6 +48,12 @@ async function call<T>(op: string, payload?: Record<string, unknown>): Promise<T
 }
 
 let status: Status | null = null;
+/**
+ * Ha van, a réteg NEM a csomaglistát mutatja, hanem azt, hogy ez az app nincs
+ * a listán. Az appokat nem tudjuk letiltani — egy futó programot nem lövünk ki
+ * —, de szólni tudunk.
+ */
+let warnApp: string | null = null;
 /** Melyik csomagnál tartunk a hossz-választásban (null = még a listánál). */
 let choosing: FocusPack | null = null;
 
@@ -66,6 +73,28 @@ function render(): void {
   }
 
   const run = status.focusRun;
+
+  if (warnApp && run && run.endsAt > Date.now()) {
+    const pack = status.focusPacks.find((p) => p.id === run.packId);
+    $('kicker').textContent = 'Nincs a listán';
+    $('title').textContent = warnApp;
+    const box = h('div', 'running');
+    box.appendChild(h('div', 'what',
+      `Most ${pack?.name ?? 'egy munkamenet'} fut — ez az app nincs benne. `
+      + `Még ${formatRemaining(run.endsAt - Date.now())} van hátra.`));
+    box.appendChild(h('div', 'what',
+      'Bezárni nem tudjuk helyetted, és nem is fogjuk: egy futó program adatot '
+      + 'veszíthet. Ezt a döntést neked kell meghoznod.'));
+    body.appendChild(box);
+    const row = h('div', 'mins');
+    const ok = h('button', 'primary', 'Értem');
+    ok.addEventListener('click', () => { warnApp = null; close(); });
+    row.appendChild(ok);
+    body.appendChild(row);
+    foot.textContent = 'A böngészőben a fehérlista tényleg tilt; az appoknál csak szólni tudunk.';
+    return;
+  }
+
   if (run && run.endsAt > Date.now()) {
     $('kicker').textContent = 'Fut';
     const pack = status.focusPacks.find((p) => p.id === run.packId);
@@ -185,6 +214,12 @@ async function refresh(): Promise<void> {
   } catch {
     status = null;
   }
+  try {
+    // Egyszer olvasható: ha a réteg máskor is előjön, ne a régi figyelmeztetés
+    // fogadja.
+    const st = await bridge.getOverlayState();
+    if (st.warnApp) warnApp = st.warnApp;
+  } catch { /* a réteg enélkül is használható */ }
   render();
 }
 

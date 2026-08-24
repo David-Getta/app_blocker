@@ -122,3 +122,22 @@ test('the remaining time reads like a human wrote it', () => {
   assert.equal(formatRemaining(30_000), 'kevesebb mint egy perc');
   assert.equal(formatRemaining(0), 'kevesebb mint egy perc');
 });
+
+test('the session warns about an app that is not on the list', async () => {
+  const { shouldWarnAboutApp, warnDue, APP_WARN_COOLDOWN_MS } = await import('../src/shared/focus');
+  const p = pack({ allowApps: ['Word', 'DeepL'] });
+  assert.equal(shouldWarnAboutApp(p, 'com.valve.steam', 'Steam'), true);
+  assert.equal(shouldWarnAboutApp(p, 'com.microsoft.Word', 'Microsoft Word'), false);
+  // Az azonosító is számít, nem csak a név: Windowson a folyamatnév jön.
+  assert.equal(shouldWarnAboutApp(p, 'WINWORD.EXE', ''), false);
+  // A SAJÁT appunk sosem: különben a réteg önmagát hívná elő, és a képernyő
+  // használhatatlan lenne.
+  assert.equal(shouldWarnAboutApp(p, 'hu.breaker.app', 'Breaker'), false);
+  assert.equal(shouldWarnAboutApp(p, '', ''), false);
+
+  // Türelmi idő: egy réteg, ami minden öt másodpercben felugrik, nem
+  // figyelmeztetés, hanem büntetés — és a munkamenetet fogják kikapcsolni.
+  assert.equal(warnDue(null, NOW), true);
+  assert.equal(warnDue(NOW, NOW + 1000), false);
+  assert.equal(warnDue(NOW, NOW + APP_WARN_COOLDOWN_MS), true);
+});
