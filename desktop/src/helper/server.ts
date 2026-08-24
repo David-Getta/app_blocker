@@ -249,12 +249,19 @@ async function handle(req: HelperRequest, deps: ServerDeps): Promise<unknown> {
       const raw = await sync.pullAllUsage(state);
       const me = state.sync?.deviceId;
       const now = Date.now();
+      // A SAJÁT sorunk a HELYI mérésből jön, nem a kiszolgálóról letöltött
+      // blobból. A feltöltés percekkel korábbi is lehet, és akkor a fiókkártya
+      // más „ma” értéket mutatna, mint a statisztika-képernyő ugyanabban a
+      // pillanatban. Az ilyen ellentmondás adathibának néz ki, pedig csak a
+      // feltöltés ideje látszik rajta.
+      const usageOf = (d: { deviceId: string; usage: unknown }): unknown =>
+        (d.deviceId === me ? state.usage : d.usage);
       // Az összesített nézet UGYANAZON a `summarize`-on megy át, mint az
       // eszközönkénti — csak előbb egyetlen mérés-állapottá fésüljük a
       // blobokat. Két külön összegző implementáció előbb-utóbb más számot
       // mutatna ugyanarra a kérdésre.
       const together = summarize(
-        combineUsage(raw.map((d) => d.usage).filter(Boolean) as never[]), now,
+        combineUsage(raw.map(usageOf).filter(Boolean) as never[]), now,
       );
       return {
         combined: {
@@ -264,16 +271,14 @@ async function handle(req: HelperRequest, deps: ServerDeps): Promise<unknown> {
           top: topOf(together),
         },
         devices: raw.map((d) => {
-          const sum = d.usage ? summarize(d.usage as never, now) : null;
+          const u = usageOf(d);
+          const sum = u ? summarize(u as never, now) : null;
           return {
             deviceId: d.deviceId,
             name: d.name,
             self: d.deviceId === me,
             todaySeconds: Math.round(sum?.todaySeconds ?? 0),
             last7Seconds: Math.round(sum?.last7Seconds ?? 0),
-            // A hét legtöbb idejét vivő három célpont. NYERS címkékkel: a
-            // felület dönti el, hogy fedőnév vagy „rejtett oldal” kerül-e a
-            // helyükre — a segéd nem tudhatja, hogy a listát épp rejtik-e.
             top: sum ? topOf(sum) : [],
           };
         }),

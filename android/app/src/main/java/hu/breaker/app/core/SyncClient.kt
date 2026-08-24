@@ -375,7 +375,13 @@ object SyncClient {
                 val id = d.getString("deviceId")
                 val nameBlob = d.optString("nameBlob", "")
                 val name = if (nameBlob.isEmpty()) id else SyncCrypto.decrypt(key, nameBlob)
-                val usage = if (d.isNull("payload")) null
+                // A SAJÁT sorunk a HELYI mérésből jön, nem a letöltött blobból.
+                // A feltöltés percekkel korábbi is lehet, és akkor a fiókkártya
+                // más „ma” értéket mutatna, mint a statisztika-képernyő ugyanabban
+                // a pillanatban. Az ilyen ellentmondás adathibának néz ki, pedig
+                // csak a feltöltés ideje látszik rajta.
+                val usage = if (id == acc.deviceId) state.usage
+                    else if (d.isNull("payload")) null
                     else usageFromJson(SyncCrypto.decrypt(key, d.getString("payload")))
                 if (usage != null) usages.add(usage)
                 val sum = usage?.let { UsageLogic.summarize(it, now) }

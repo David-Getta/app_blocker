@@ -61,7 +61,7 @@ jobs:
 
           **Fiók és eszközök közti szinkron** — mostantól **mind a három
           platformon**. Belépsz ugyanabba a fiókba a másik eszközödön, és nem
-          kell újra felvenned a listát; a többi eszközt is látod. A blokkolt
+          kell újra felvenned a listát; a többi eszköz idejét is látod. A blokkolt
           oldalak és a mért idők **titkosítva** mennek fel — a kiszolgáló nem
           látja őket, és mivel nem ért belőlük semmit, nem is kell megbízni
           benne. A kiszolgáló néhány száz sor, függőség nélkül, magadnak is
@@ -86,6 +86,26 @@ jobs:
 
           Ha folyamatosan futó kiszolgálót akarsz, a `server/` mappa és a
           `server/README.md` szól róla.
+
+          **Az összes eszközöd ideje egyben.** A fiókkártyán legelöl az áll,
+          hogy mennyi ment el ÖSSZESEN — nem eszközönként külön. Két eszközön
+          napi húsz-húsz perc az együtt negyven, és fejben ezt senki nem adja
+          össze. Alatta eszközönként a mai és a heti idő, meg a hét három
+          legtöbb időt vivő célpontja.
+
+          A weboldalak tényleg összeadódnak (ugyanaz a cím a gépen és a
+          telefonon egy sor), két böngésző-app viszont két külön sor marad —
+          mert nem ugyanaz a program.
+
+          **iPhone-on ez az egyetlen statisztika, ami valaha látszani fog.** Az
+          Apple nem enged appnak hozzáférni ahhoz, hogy más appokban vagy
+          weboldalakon mennyi aktív idő telik, tehát a készülék maga semmit nem
+          mér. Amit viszont megtehet: elolvasni, amit a géped és az androidos
+          telefonod mért. A kártya ki is mondja, hogy a számokat nem az iPhone
+          mérte — enélkül a nulla óra hibának nézne ki.
+
+          Ha rejtve van a lista, az összesített sor sem nevezi meg az oldalt:
+          ugyanaz a fedőnév vagy `1. rejtett oldal` áll ott is.
 
           ### Ebben a verzióban javítva
 
