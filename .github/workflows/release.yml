@@ -42,6 +42,32 @@ jobs:
               --draft \
               --title "Breaker $VERSION" \
               --notes-file - <<'NOTES'
+          ## Mi újság ebben a verzióban
+
+          **Fedőnév a blokkolt oldalakhoz.** A lista maga is ingerforrás: aki
+          megnyitja az appot, és ott áll előtte a `youtube.com`, az már fél
+          lépéssel közelebb van. Minden oldalnak adható saját név, és onnantól a
+          felületen az látszik — a soron, a párbeszédek címében, a
+          próbatétel-ablakban és a statisztikában is. A valódi cím nem tűnik el:
+          egy gombbal **hat másodpercre** előhívható, aztán magától visszabújik.
+
+          **A teljes lista elrejthető.** Egy kapcsoló, és az app minden
+          induláskor csukott listával nyílik. Csak a darabszám látszik, a nevek
+          nem. A rejtés az egész felületre szól: a statisztikában
+          `1. rejtett oldal` áll a cím helyett, és a felvevő kártya gyorsgombjai
+          is eltűnnek. Megnyitni egy kattintás, de csak a bezárásig marad nyitva.
+
+          Mindkettő megvan **asztali gépen, Androidon és iPhone-on** is.
+
+          **Fiók és eszközök közti szinkron** (egyelőre asztali gépen). Belépsz
+          ugyanabba a fiókba a másik gépeden, és nem kell újra felvenned a
+          listát; a többi eszköz statisztikáját is látod. A blokkolt oldalak és a
+          mért idők **titkosítva** mennek fel — a kiszolgáló nem látja őket, és
+          mivel nem ért belőlük semmit, nem is kell megbízni benne. A kiszolgáló
+          néhány száz sor, függőség nélkül, magadnak is futtathatod (`server/`).
+          A kijelentkezés **egyetlen blokkot sem visz el**: a szinkron nem
+          kibúvó.
+
           ## Névváltás: a Lakatból Breaker lett
 
           Ha van fent **Lakat** (v0.1.x), azt a rendszer MÁS appnak látja: a
