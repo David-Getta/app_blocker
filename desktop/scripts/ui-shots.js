@@ -193,7 +193,14 @@ function fakeBridgeSource() {
             window.__fakeRun = { ...window.__fakeRun, endsAt: payload.endsAt };
             return { ok: true, data: { applied: true, session: null, status: status() } };
           }
-          return { ok: true, data: { applied: false, session: null, status: status() } };
+          // Rövidítés/leállítás: próbatétel. A hamis híd is ezt adja vissza,
+          // különben a füstteszt egy nem létező utat járna.
+          session = {
+            id: 'ses_focus', kind: 'pause', siteId: 'focus:pack_1', minutes: null,
+            stepIndex: 0, stepCount: 2,
+            current: { id: 'st_focus', type: 'TRANSCRIBE', text: 'masold at' },
+          };
+          return { ok: true, data: { applied: false, session, status: status() } };
         }
         if (op === 'focus_save') {
           const pack = { ...payload.pack, id: payload.pack.id || 'pack_uj' };
@@ -285,6 +292,32 @@ async function main() {
   const siteCount = await page.locator('#siteList .site-row').count();
   if (siteCount !== 3) failures.push(`expected 3 site rows, saw ${siteCount}`);
 
+  // A munkamenet leállítása is próbatétel, és a fejlécnek MEG KELL MONDANIA,
+  // mit csinál épp. A bíró ilyenkor `focus:<csomag>` azonosítót ad, ami nem egy
+  // oldal — enélkül a fejléc „Feloldás null percre:” lenne.
+  await page.evaluate(() => {
+    window.__fakeRun = { packId: 'pack_1', startedAt: Date.now(), endsAt: Date.now() + 60 * 60_000 };
+  });
+  await page.waitForFunction(
+    () => !document.getElementById('focusRunning')?.classList.contains('hidden'),
+    undefined, { timeout: 10_000 },
+  );
+  await page.locator('#focusRunning').getByRole('button', { name: /^Leállítás/ }).click();
+  await page.waitForFunction(
+    () => !document.getElementById('sessionModal')?.classList.contains('hidden'),
+    undefined, { timeout: 10_000 },
+  ).catch(() => failures.push('a munkamenet leállítása nem nyitott próbatételt'));
+  const focusTitle = await page.locator('#sessionTitle').textContent();
+  if (!/Munkamenet leállítása/.test(focusTitle || '')) {
+    failures.push(`a próbatétel fejléce nem mondja meg, mit csinál: ${focusTitle}`);
+  }
+  await page.locator('#sessionModal').getByRole('button', { name: /Bezárás|Mégse|Feladom/ })
+    .first().click().catch(() => {});
+  await page.evaluate(() => {
+    window.__fakeRun = null;
+    document.getElementById('sessionModal')?.classList.add('hidden');
+  });
+
   // Munkamenetek: „most csak EZ mehet”. A csomagnak látszania kell, és a
   // futó munkamenetnek meg kell mondania, mennyi van hátra — enélkül a
   // funkció nem indítható és nem követhető.
@@ -300,7 +333,7 @@ async function main() {
     undefined, { timeout: 10_000 },
   ).catch(() => failures.push('a futó munkamenet nem jelent meg'));
   const leftText = await page.locator('#focusRunning .focus-left').textContent().catch(() => '');
-  if (!/\d+ perc/.test(leftText || '')) {
+  if (!/\d+ (perc|óra|ó)/.test(leftText || '')) {
     failures.push(`a hátralévő idő nem olvasható: ${leftText}`);
   }
   await page.evaluate(() => { window.__fakeRun = null; });

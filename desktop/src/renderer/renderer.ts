@@ -1484,13 +1484,26 @@ function renderSession(session: SessionInfo | null): void {
     return;
   }
   const site = status?.sites.find((s) => s.id === session.siteId);
-  $('sessionTitle').textContent = session.kind === 'delete'
-    ? `Végleges törlés: ${site ? displayName(site) : ''}`
-    : `Feloldás ${session.minutes} percre: ${site ? displayName(site) : ''}`;
+  // A munkamenet leállítása is próbatétel, de NEM egy oldalhoz tartozik: a
+  // bíró ilyenkor `focus:<csomag>` azonosítót ad. Enélkül a fejléc azt írná ki,
+  // hogy „Feloldás null percre:” — és a felhasználó nem értené, mit csinál épp.
+  const focusPack = session.siteId.startsWith('focus:')
+    ? (status?.focusPacks ?? []).find((p) => `focus:${p.id}` === session.siteId)
+    : undefined;
+  if (session.siteId.startsWith('focus:')) {
+    $('sessionTitle').textContent = `Munkamenet leállítása: ${focusPack?.name ?? ''}`;
+    $('sessionSubtitle').textContent =
+      'A munkamenet addig FUT, amíg a próbák meg nincsenek. Hosszabbítani közben '
+      + 'is ingyen lehet — csak a rövidítés kerül ebbe.';
+  } else {
+    $('sessionTitle').textContent = session.kind === 'delete'
+      ? `Végleges törlés: ${site ? displayName(site) : ''}`
+      : `Feloldás ${session.minutes} percre: ${site ? displayName(site) : ''}`;
+    $('sessionSubtitle').textContent = session.kind === 'delete'
+      ? 'A próbák teljesítése után a törlés még 24 órát vár — addig visszavonható.'
+      : 'A próbák teljesítése után az oldal a választott ideig elérhető, majd magától visszazár.';
+  }
   $('sessionProgress').textContent = `${session.stepIndex + 1}/${session.stepCount}. próba`;
-  $('sessionSubtitle').textContent = session.kind === 'delete'
-    ? 'A próbák teljesítése után a törlés még 24 órát vár — addig visszavonható.'
-    : 'A próbák teljesítése után az oldal a választott ideig elérhető, majd magától visszazár.';
 
   if (session.current.id !== renderedStepId) {
     renderedStepId = session.current.id;
