@@ -77,6 +77,21 @@ jobs:
           Dockerfile is tartozik hozzá. Amíg nem indítasz egyet, a fiókkártya
           egyszerűen nem csinál semmit — minden más változatlanul működik.
 
+          A legegyszerűbb út: a **saját gépeden, a saját hálózatodon**. A
+          `server/` mappában `node server.js`, az appokba pedig a gép helyi
+          címe (`http://192.168.x.y:8787`). Részletek: `server/README.md`.
+
+          ### Ebben a verzióban javítva
+
+          - **Telefonon a helyi kiszolgáló nem volt elérhető.** Android 9-től és
+            iOS-en a titkosítatlan HTTP alapból tiltott, így a saját hálózaton
+            futó kiszolgáló címe szó nélkül elhasalt. Mostantól a HELYI hálózat
+            engedélyezett — az internet felé mindkét app továbbra is HTTPS-t vár.
+          - **Az automatikus szinkron hurkolt.** A kör végén mentett, a mentés
+            pedig ütemezett egy újabb kört: a háttérszolgáltatás húsz
+            másodpercenként verte volna a kiszolgálót. Az ütemezés külön, tesztelt
+            részbe került.
+
           ## Névváltás: a Lakatból Breaker lett
 
           Ha van fent **Lakat** (v0.1.x), azt a rendszer MÁS appnak látja: a
