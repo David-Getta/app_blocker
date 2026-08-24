@@ -27,6 +27,15 @@ object SyncCrypto {
 
     const val BLOB_PREFIX = "brk1"
 
+    /**
+     * Ennél rövidebb jelszóval nem lehet fiókot nyitni.
+     *
+     * A jelszó itt nem egy weboldal belépője: EZ tartja a kulcsot, ami az
+     * adatot nyitja. Aki a kiszolgálóra betör, offline próbálkozhat vele,
+     * korlátlanul — ott már csak az scrypt lassúsága és a jelszó hossza védi.
+     */
+    const val MIN_PASSWORD_LENGTH = 10
+
     /** scrypt-paraméterek — ugyanazok, mint a TS oldalon. */
     const val SCRYPT_N = 1 shl 15
     const val SCRYPT_R = 8

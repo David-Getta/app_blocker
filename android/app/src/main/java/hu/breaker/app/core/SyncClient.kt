@@ -94,6 +94,12 @@ object SyncClient {
         state: AppState, serverUrl: String, accountId: String, password: String, deviceName: String,
     ): Pair<AppState, String> {
         val url = normalizeServerUrl(serverUrl)
+        if (password.length < SyncCrypto.MIN_PASSWORD_LENGTH) {
+            throw SyncException(
+                "A jelszó legalább ${SyncCrypto.MIN_PASSWORD_LENGTH} karakter legyen.",
+                "WEAK_PASSWORD",
+            )
+        }
         val root = SyncCrypto.rootKey(password, accountId)
         val dataKey = ByteArray(32).also { java.security.SecureRandom().nextBytes(it) }
         val recoveryCode = newRecoveryCode()

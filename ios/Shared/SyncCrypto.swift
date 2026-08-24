@@ -16,6 +16,13 @@ enum SyncCrypto {
 
     static let blobPrefix = "brk1"
 
+    /// Ennél rövidebb jelszóval nem lehet fiókot nyitni.
+    ///
+    /// A jelszó itt nem egy weboldal belépője: EZ tartja a kulcsot, ami az
+    /// adatot nyitja. Aki a kiszolgálóra betör, offline próbálkozhat vele,
+    /// korlátlanul — ott már csak az scrypt lassúsága és a jelszó hossza védi.
+    static let minPasswordLength = 10
+
     /// scrypt-paraméterek — ugyanazok, mint a TS és a Kotlin oldalon.
     static let scryptN = 1 << 15
     static let scryptR = 8

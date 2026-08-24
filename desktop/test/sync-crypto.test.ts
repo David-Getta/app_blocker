@@ -4,7 +4,7 @@
 // adatot. Ha ez elromlik, a felhasználó blokklistája és a mért ideje — vagyis
 // pont az, amivel küzd — egy idegen gépen fekszik olvashatóan.
 //
-// A scrypt szándékosan lassú (64 MB, pár tized másodperc), ezért itt kevés
+// A scrypt szándékosan lassú (32 MB, pár tized másodperc), ezért itt kevés
 // kulcsszármaztatás van, és amit lehet, újrahasznosítunk.
 
 import { test } from 'node:test';
@@ -100,4 +100,17 @@ test('a wrapped key of the wrong size is refused', () => {
   const kek = recoveryKey(newRecoveryCode());
   const bogus = wrapDataKey(kek, Buffer.alloc(8, 7)); // nem 32 bájt
   assert.throws(() => unwrapDataKey(kek, bogus), 'a méret ellenőrizve');
+});
+
+test('a short password cannot open an account', () => {
+  // A jelszó itt nem egy weboldal belépője: EZ tartja a kulcsot, ami az adatot
+  // nyitja. Aki a kiszolgálóra betör, offline próbálkozhat vele, korlátlanul —
+  // ott már csak az scrypt lassúsága és a jelszó hossza védi.
+  assert.throws(() => enroll('acc_rovid', 'rovid'), /legalább 10/);
+  assert.throws(() => enroll('acc_rovid', ''), /legalább 10/);
+  assert.throws(
+    () => rewrapForNewPassword(ACCOUNT, enrollment.dataKey, 'rovid'),
+    /legalább 10/,
+    'jelszócserénél sem lehet gyengíteni',
+  );
 });

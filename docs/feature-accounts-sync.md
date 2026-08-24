@@ -110,6 +110,11 @@ A kiszolgáló így csak átlátszatlan blobokat lát: fiók-azonosító, eszkö
 gyűjtemény, verzió, titkosított tartalom. A blokkolt oldalak címét, a
 fedőneveket és a mért időket nem.
 
+A jelszóra van egy **alsó hosszkorlát: 10 karakter**, és ez nem formaság. A
+jelszó itt nem egy weboldal belépője: ez tartja a kulcsot, ami az adatot nyitja.
+Aki a kiszolgálóra betör, offline próbálkozhat vele, korlátlanul — ott már csak
+az scrypt lassúsága és a jelszó hossza védi.
+
 Ennek az ára őszintén: **elfelejtett jelszó = elveszett szinkron-adat**. Ezért a
 regisztrációnál kapsz egy **helyreállító kódot**, ami ugyanazt az adatkulcsot
 nyitja. Ha az is elvész, a helyi állapot akkor is megmarad minden eszközön — csak

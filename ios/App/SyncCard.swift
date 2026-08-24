@@ -79,7 +79,7 @@ struct SyncCard: View {
                 .autocapitalization(.none)
                 #endif
                 .disableAutocorrection(true)
-            SecureField("jelszó", text: $password)
+            SecureField("jelszó (legalább 10 karakter)", text: $password)
                 .textFieldStyle(.roundedBorder)
             HStack {
                 Button("Belépés") { run { try await signIn() } }

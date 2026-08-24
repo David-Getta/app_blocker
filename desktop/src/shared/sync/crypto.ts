@@ -25,6 +25,16 @@ import * as crypto from 'crypto';
 export const BLOB_PREFIX = 'brk1';
 
 /**
+ * Ennél rövidebb jelszóval nem lehet fiókot nyitni.
+ *
+ * A jelszó itt nem egy weboldal belépője: EZ tartja a kulcsot, ami az adatot
+ * nyitja. Aki a kiszolgálóra betör, offline próbálkozhat vele, korlátlanul —
+ * ott már csak az scrypt lassúsága és a jelszó hossza védi. Tíz karakter nem
+ * sok, de a „jelszo1” fajta próbálkozásokat kiszűri.
+ */
+export const MIN_PASSWORD_LENGTH = 10;
+
+/**
  * scrypt-paraméterek.
  *
  * N = 2^15, r = 8, p = 1 → nagyjából 32 MB memória és pár tized másodperc egy
@@ -194,6 +204,9 @@ export interface Enrollment {
 }
 
 export function enroll(accountId: string, password: string): Enrollment {
+  if (password.normalize('NFKC').length < MIN_PASSWORD_LENGTH) {
+    throw new Error(`A jelszó legalább ${MIN_PASSWORD_LENGTH} karakter legyen.`);
+  }
   const root = rootKey(password, accountId);
   const dataKey = newDataKey();
   const recoveryCode = newRecoveryCode();
@@ -235,6 +248,9 @@ export function unlockWithRecovery(code: string, wrappedByRecovery: string): Buf
 export function rewrapForNewPassword(
   accountId: string, dataKey: Buffer, newPassword: string,
 ): { authKey: string; wrappedByPassword: string } {
+  if (newPassword.normalize('NFKC').length < MIN_PASSWORD_LENGTH) {
+    throw new Error(`A jelszó legalább ${MIN_PASSWORD_LENGTH} karakter legyen.`);
+  }
   const root = rootKey(newPassword, accountId);
   return {
     authKey: subKey(root, 'auth').toString('base64'),

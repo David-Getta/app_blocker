@@ -1313,7 +1313,7 @@ private fun SyncCard(
                 )
                 OutlinedTextField(
                     value = password, onValueChange = { password = it },
-                    placeholder = { Text("jelszó") },
+                    placeholder = { Text("jelszó (legalább 10 karakter)") },
                     singleLine = true, modifier = Modifier.fillMaxWidth(),
                     visualTransformation = PasswordVisualTransformation(),
                 )
