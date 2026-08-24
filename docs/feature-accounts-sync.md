@@ -1,8 +1,9 @@
 # Fiók és eszközök közti szinkron
 
 > Állapot: **asztali gépen működik**. A tervet és az összefésülés szabályait ez
-> a doksi rögzíti; a mag, a kiszolgáló, a segéd kliensoldala, az asztali felület
-> és az Android is megvan. Az iPhone ezután jön.
+> a doksi rögzíti; a mag, a kiszolgáló és a felület mind a három platformon
+> megvan. Ami hiányzik: egy futó kiszolgáló, amit magadnak kell elindítanod
+> (`server/`).
 
 ## Mit old meg
 
@@ -131,7 +132,7 @@ külső szolgáltatást, a saját gépén vagy egy ingyenes kis konténerben fut
 | Segéd-parancsok (`sync_signup`, `sync_signin`, …) | kész |
 | Asztali felület (regisztráció, belépés, eszközlista) | kész |
 | Android: mag, kliens és felület | kész |
-| iPhone | utána |
+| iPhone és macOS: mag, kliens és felület | kész |
 
 ## Ugyanaz a mag három nyelven
 
@@ -155,6 +156,19 @@ Amit a tesztek bizonyítanak, és amit másképp nem lehetne:
 - az Android kliens a **valódi kiszolgálóval** fut végig (gyerekfolyamatként
   indított `server/server.js`): két eszköz, egyesített lista, helyben maradó
   szünet, kijelentkezés után is megmaradó blokkok.
+
+Egy dolog iPhone-on más: a **napi keret nem érvényesül** (nincs ilyen mérési
+API), de a rekordban MEGŐRIZZÜK. Enélkül elég lenne egyszer megnyitni a
+telefont ahhoz, hogy a gépen beállított keret eltűnjön mindenhonnan: a telefon
+egy keret nélküli rekordot tolna fel, és az összefésülés azt látná friss
+állapotnak.
+
+És egy, ami a három nyelv közötti átjárásban derült ki: a Swift `JSONEncoder`
+alapból **kihagyja a nil mezőket**. A TypeScript oldalon a `pendingDeleteAt`
+típusa `number | null`, és a fésülés `!== null`-t néz — egy hiányzó kulcsból
+`undefined` lesz, ami nem null, vagyis minden oldal úgy nézne ki, mintha
+törlésre várna. A Swift ezért kézzel írja ki a mezőt, a TS oldal pedig
+beérkezéskor kiegyenesíti a rekordokat.
 
 ## Mikor szinkronizál magától
 

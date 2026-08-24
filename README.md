@@ -47,7 +47,7 @@ attól, hogy sokszor csinálod.
   `1. rejtett oldal` áll a cím helyett (az idő és a „blokkolt” jelölés marad), és
   a felvevő kártya gyorsgombjai is eltűnnek, mert épp a tipikus címek állnak
   rajtuk. Megnyitni egy kattintás, de csak a bezárásig marad nyitva.
-- **Fiók és eszközök közti szinkron** (asztali gép + Android; iPhone utána):
+- **Fiók és eszközök közti szinkron** (mindhárom platform):
   belépsz ugyanabba a fiókba a másik gépeden, és nem kell újra felvenned a
   listát — a többi eszköz statisztikáját is látod. A blokkolt oldalak és a mért
   idők **titkosítva** mennek fel: a kiszolgáló csak átlátszatlan bájtokat lát,
