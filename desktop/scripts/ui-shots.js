@@ -95,10 +95,12 @@ function fakeBridgeSource() {
     // után is megmaradjon: épp ez a beállítás lényege, tehát a teszt is csak így
     // tud róla igazat mondani.
     window.__fakeHideList = sessionStorage.getItem('fakeHideList') === '1';
+    window.__fakeSync = undefined;
     const status = () => ({
       helperVersion: window.__fakeHelperVersion, platform: 'darwin',
       sites: window.__fakeSites, tier: 1, unlocks7d: 2,
       hideSiteList: window.__fakeHideList,
+      sync: window.__fakeSync,
       session, dohPolicyApplied: true, usageEnabled: true, now: Date.now(),
     });
     // 30 days, because that is what the helper actually sends (and what the
@@ -528,6 +530,49 @@ async function main() {
   if (!CHECK_ONLY) {
     await page.screenshot({ path: path.join(OUT, 'desktop-states.png'), fullPage: false });
   }
+
+  // ------------------------------------------------------------------ fiók
+  //
+  // A szinkron a legveszélyesebb funkció ebben az appban: ha a felület rosszul
+  // mondja el, mit csinál, a felhasználó abban a hitben lép be, hogy a listája
+  // valahol olvashatóan fekszik — vagy abban a hitben lép ki, hogy a blokkjai
+  // eltűnnek. Ezért a kártya SZÖVEGÉT is megnézzük, nem csak azt, hogy ott van-e.
+  const syncText = (await page.locator('#syncCard').innerText()) || '';
+  if (!/titkosítva/i.test(syncText)) {
+    failures.push('the sync card does not say the data goes up encrypted');
+  }
+  if (!/egyetlen blokkot sem visz el/i.test(syncText)) {
+    failures.push('the sync card does not say that signing out keeps the blocks');
+  }
+  for (const id of ['syncServer', 'syncAccount', 'syncPassword']) {
+    if (!(await page.locator(`#${id}`).count())) failures.push(`missing sync field: ${id}`);
+  }
+  if (await page.locator('#syncPassword').getAttribute('type') !== 'password') {
+    failures.push('the sync password field is not masked');
+  }
+  // Bejelentkezve más a kártya: a beviteli mezők eltűnnek, a szinkron gomb jön.
+  await page.evaluate(() => {
+    window.__fakeSync = {
+      serverUrl: 'https://sync.pelda.hu', accountId: 'david@example',
+      deviceName: 'Mac gép', lastSyncAt: Date.now() - 60_000,
+    };
+  });
+  await page.waitForFunction(
+    () => !document.getElementById('syncNowBtn').classList.contains('hidden'),
+    undefined, { timeout: 10_000 },
+  );
+  if (!(await page.locator('#syncSignedOut').isHidden())) {
+    failures.push('the sign-in form is still shown while signed in');
+  }
+  const who = (await page.locator('#syncWho').innerText()) || '';
+  if (!who.includes('david@example')) failures.push(`the account is not named: ${who}`);
+  if (!CHECK_ONLY) {
+    // Odagörgetünk: a kártya a lap alján ül, enélkül a képen a főképernyő
+    // teteje lenne — vagyis pont az nem, amit dokumentálni akarunk.
+    await page.locator('#syncCard').scrollIntoViewIfNeeded();
+    await page.screenshot({ path: path.join(OUT, 'desktop-sync.png'), fullPage: false });
+  }
+  await page.evaluate(() => { window.__fakeSync = undefined; });
 
   // ------------------------------------------------------- világos téma
   // A felület a rendszer beállítását követi, tehát KÉT megjelenése van. Ha

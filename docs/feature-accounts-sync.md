@@ -1,8 +1,8 @@
 # Fiók és eszközök közti szinkron
 
-> Állapot: **terv + mag**. A tervet és az összefésülés szabályait ez a doksi
-> rögzíti; a mag (`desktop/src/shared/sync/`) és a tesztjei megvannak. A
-> kiszolgáló és a felületek ezután jönnek.
+> Állapot: **asztali gépen működik**. A tervet és az összefésülés szabályait ez
+> a doksi rögzíti; a mag, a kiszolgáló, a segéd kliensoldala és az asztali
+> felület megvan. A telefonok ezután jönnek.
 
 ## Mit old meg
 
@@ -129,7 +129,7 @@ külső szolgáltatást, a saját gépén vagy egy ingyenes kis konténerben fut
 | Verziószám-vezetés a segédben (`helper/revisions.ts`) | kész |
 | Szinkron-kliens a segédben (`helper/sync-client.ts`) | kész |
 | Segéd-parancsok (`sync_signup`, `sync_signin`, …) | kész |
-| Asztali felület (regisztráció, belépés, eszközlista) | következik |
+| Asztali felület (regisztráció, belépés, eszközlista) | kész |
 | Android és iPhone | utána |
 
 ## Ami a segédben fut, és miért

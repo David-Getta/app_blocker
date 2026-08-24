@@ -697,3 +697,38 @@ body {
   /* A fejléc átmenete sötétben mélységet ad, világosban piszkos lenne. */
   .topbar { background: var(--bg-elev); }
 }
+
+/* --------------------------------------------------------------- szinkron
+   A fiókkártya a lap alján ül: fontos, de nem az első dolog, amivel az app
+   szembejön. A mezők egymás alatt, teljes szélességben — három rövid beviteli
+   mező egy sorban telefonszélességen összenyomódna, itt meg csak zsúfolt. */
+.sync-form { display: grid; gap: var(--s3); margin-top: var(--s4); }
+.sync-form input {
+  width: 100%;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  padding: 11px 14px;
+  font: inherit;
+  font-size: 0.95rem;
+  transition: border-color .13s ease, background .13s ease;
+}
+.sync-form input::placeholder { color: var(--text-3); }
+.sync-form input:focus {
+  outline: none;
+  border-color: var(--accent);
+  background: var(--bg-elev);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.sync-actions { display: flex; flex-wrap: wrap; gap: var(--s3); margin-top: var(--s4); }
+.sync-devices { display: grid; gap: var(--s2); margin-top: var(--s4); }
+.sync-device {
+  display: flex; justify-content: space-between; gap: var(--s4);
+  padding: 9px 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+}
+.sync-device .muted { color: var(--text-3); }

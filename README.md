@@ -47,6 +47,13 @@ attól, hogy sokszor csinálod.
   `1. rejtett oldal` áll a cím helyett (az idő és a „blokkolt” jelölés marad), és
   a felvevő kártya gyorsgombjai is eltűnnek, mert épp a tipikus címek állnak
   rajtuk. Megnyitni egy kattintás, de csak a bezárásig marad nyitva.
+- **Fiók és eszközök közti szinkron** (asztali gép; a telefonok utána jönnek):
+  belépsz ugyanabba a fiókba a másik gépeden, és nem kell újra felvenned a
+  listát — a többi eszköz statisztikáját is látod. A blokkolt oldalak és a mért
+  idők **titkosítva** mennek fel: a kiszolgáló csak átlátszatlan bájtokat lát,
+  és mivel nem ért belőlük semmit, nem is kell megbízni benne. A kiszolgáló
+  néhány száz sor, függőség nélkül, magadnak is futtathatod (`server/`).
+  A kijelentkezés **egyetlen blokkot sem visz el** — a szinkron nem kibúvó.
 - **Napi időkeret oldalanként** (asztali gép + Android): „napi 20 perc YouTube”.
   Ha a mai aktív idő eléri a keretet, az oldal a nap hátralévő részére magától
   visszazár, éjfélkor a keret újraindul. Keretet bevezetni vagy csökkenteni egy
@@ -116,6 +123,7 @@ pontos tükre. Részletek: [`docs/architecture.md`](docs/architecture.md).
 
 ```
 desktop/   Electron app + privilegizált helper (Win/Mac)   → docs/desktop.md
+server/    szinkron-kiszolgáló (Node, függőség nélkül)     → server/README.md
 android/   Gradle projekt (Kotlin, Compose)                → docs/android.md
 ios/       XcodeGen projekt (iOS + macOS, közös Swift mag) → docs/ios-macos.md
 website/   letöltő landing oldal (GitHub Pages)
@@ -128,6 +136,7 @@ Dokumentáció:
 [próbatételek](docs/challenge-spec.md) ·
 [menetrend](docs/feature-schedules.md) ·
 [idő-mérés és statisztika](docs/feature-usage-stats.md) ·
+[fiók és szinkron](docs/feature-accounts-sync.md) ·
 [kiadás](docs/releasing.md)
 
 ## Gyors indítás

@@ -133,6 +133,47 @@
       <div id="chartTip" class="chart-tip hidden"></div>
     </section>
 
+    <!-- Fiók és eszközök közti szinkron -->
+    <section id="syncCard" class="card hidden">
+      <div class="list-head">
+        <h2>Fiók és eszközök</h2>
+        <button id="syncNowBtn" class="btn btn-small btn-ghost hidden">Szinkronizálás most</button>
+      </div>
+
+      <div id="syncSignedOut">
+        <p class="hint">
+          Ha ugyanabba a fiókba lépsz be a többi gépeden is, nem kell mindenhol
+          újra felvenned a listát — és látod a többi eszköz statisztikáját.
+          A blokkolt oldalak és a mért idők <strong>titkosítva</strong> mennek
+          fel: a kiszolgáló nem látja őket.
+        </p>
+        <div class="sync-form">
+          <input id="syncServer" type="text" placeholder="a kiszolgáló címe (pl. sync.pelda.hu)" autocomplete="off" spellcheck="false" />
+          <input id="syncAccount" type="text" placeholder="fiókazonosító (pl. az e-mail-címed)" autocomplete="off" spellcheck="false" />
+          <input id="syncPassword" type="password" placeholder="jelszó" autocomplete="off" />
+        </div>
+        <div class="sync-actions">
+          <button id="syncSignInBtn" class="btn btn-primary">Belépés</button>
+          <button id="syncSignUpBtn" class="btn">Új fiók</button>
+        </div>
+        <p id="syncError" class="error hidden"></p>
+        <p class="hint">
+          Kijelentkezni bármikor lehet, és <strong>egyetlen blokkot sem visz el</strong>
+          — a szinkron nem kibúvó.
+        </p>
+      </div>
+
+      <div id="syncSignedIn" class="hidden">
+        <p id="syncWho" class="hint"></p>
+        <p id="syncState" class="hint"></p>
+        <div id="syncDevices" class="sync-devices"></div>
+        <div class="sync-actions">
+          <button id="syncDevicesBtn" class="btn btn-small">Eszközök és idejük</button>
+          <button id="syncSignOutBtn" class="btn btn-small btn-ghost">Kijelentkezés</button>
+        </div>
+      </div>
+    </section>
+
     <p id="tierLine" class="tier-line hidden"></p>
   </main>
 

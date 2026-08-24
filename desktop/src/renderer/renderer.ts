@@ -13,7 +13,7 @@ import {
   displayName, displayNameNow, isAliased, MAX_ALIAS_LENGTH, REVEAL_MS,
 } from '../shared/alias.js';
 import { HELPER_VERSION } from '../shared/protocol.js';
-import type { SetLimitResult, UsageStatsData } from '../shared/protocol';
+import type { SetLimitResult, SyncDeviceInfo, UsageStatsData } from '../shared/protocol';
 
 interface UpdateState {
   status: 'idle' | 'checking' | 'available' | 'downloading' | 'ready' | 'error' | 'unsupported';
@@ -204,6 +204,7 @@ function render(): void {
   }
 
   renderAddCard(status!);
+  renderSyncCard(status!);
   renderSiteList(status!);
   renderTier(status!);
   renderLegacyHelperBanner(status!);
@@ -211,6 +212,127 @@ function render(): void {
   renderProbeWarning(status!.usageEnabled);
   renderResumeBanner(status!);
   if (modalOpen) renderSession(status!.session);
+}
+
+// ------------------------------------------------------------------ szinkron
+
+/**
+ * A fiókkártya.
+ *
+ * A felület SEMMIT nem tud a kulcsokról: a jelszót átadja a segédnek, és onnan
+ * már csak annyi jön vissza, ami kiírható. Az adatkulcs a segéd root-védett
+ * állapotában marad — ott, ahol a blokklista is.
+ */
+function renderSyncCard(st: StatusData): void {
+  $('syncCard').classList.remove('hidden');
+  const on = !!st.sync;
+  $('syncSignedOut').classList.toggle('hidden', on);
+  $('syncSignedIn').classList.toggle('hidden', !on);
+  $('syncNowBtn').classList.toggle('hidden', !on);
+  if (!st.sync) return;
+  $('syncWho').textContent = `${st.sync.accountId} — ez az eszköz: ${st.sync.deviceName}`;
+  const last = st.sync.lastSyncAt
+    ? `Legutóbbi szinkron: ${new Date(st.sync.lastSyncAt).toLocaleTimeString('hu-HU')}`
+    : 'Még nem volt szinkron.';
+  $('syncState').textContent = st.sync.lastError
+    ? `${last} · Hiba: ${st.sync.lastError}`
+    : last;
+}
+
+/** A gombok köré ugyanaz a burok: letiltás, felirat, hibakiírás. */
+async function withBusy(btn: HTMLButtonElement, label: string, fn: () => Promise<void>): Promise<void> {
+  const original = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = label;
+  $('syncError').classList.add('hidden');
+  try {
+    await fn();
+  } catch (e) {
+    const el = $('syncError');
+    el.textContent = (e as Error).message;
+    el.classList.remove('hidden');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = original;
+  }
+}
+
+function syncFormValues(): { serverUrl: string; accountId: string; password: string } {
+  return {
+    serverUrl: $<HTMLInputElement>('syncServer').value.trim(),
+    accountId: $<HTMLInputElement>('syncAccount').value.trim(),
+    password: $<HTMLInputElement>('syncPassword').value,
+  };
+}
+
+function setupSyncCard(): void {
+  const deviceName = () => `${window.breaker.platform === 'win32' ? 'Windows' : 'Mac'} gép`;
+
+  $('syncSignUpBtn').addEventListener('click', () => void withBusy(
+    $<HTMLButtonElement>('syncSignUpBtn'), 'Fiók készítése…', async () => {
+      const v = syncFormValues();
+      const r = await call<{ recoveryCode: string; status: StatusData }>('sync_signup', {
+        ...v, deviceName: deviceName(),
+      });
+      status = r.status;
+      render();
+      // A helyreállító kódot EGYSZER látja. Ha elveszti a jelszót ÉS ezt is,
+      // a kiszolgáló nem tud segíteni — nem lát bele. Ezért nem sávban
+      // villantjuk, hanem megállítjuk vele.
+      alert(
+        'Írd fel ezt a helyreállító kódot, és tedd el biztos helyre:\n\n'
+        + `${r.recoveryCode}\n\n`
+        + 'Ha elfelejted a jelszót, EZ az egyetlen út vissza. A kiszolgáló nem '
+        + 'tud segíteni, mert nem látja az adataidat.',
+      );
+    },
+  ));
+
+  $('syncSignInBtn').addEventListener('click', () => void withBusy(
+    $<HTMLButtonElement>('syncSignInBtn'), 'Belépés…', async () => {
+      const r = await call<{ status: StatusData }>('sync_signin', {
+        ...syncFormValues(), deviceName: deviceName(),
+      });
+      status = r.status;
+      $<HTMLInputElement>('syncPassword').value = '';
+      render();
+    },
+  ));
+
+  $('syncNowBtn').addEventListener('click', () => void withBusy(
+    $<HTMLButtonElement>('syncNowBtn'), 'Szinkron…', async () => {
+      const r = await call<{ status: StatusData }>('sync_now', {});
+      status = r.status;
+      render();
+    },
+  ));
+
+  $('syncSignOutBtn').addEventListener('click', () => void withBusy(
+    $<HTMLButtonElement>('syncSignOutBtn'), 'Kilépés…', async () => {
+      // Nincs megerősítés: a kijelentkezés nem visz el semmit. Egy „biztos?”
+      // itt azt sugallná, hogy veszélyes — pedig pont az a lényeg, hogy nem az.
+      status = await call<StatusData>('sync_signout', {});
+      render();
+    },
+  ));
+
+  $('syncDevicesBtn').addEventListener('click', () => void withBusy(
+    $<HTMLButtonElement>('syncDevicesBtn'), 'Lekérés…', async () => {
+      const r = await call<{ devices: SyncDeviceInfo[] }>('sync_devices', {});
+      const host = $('syncDevices');
+      host.textContent = '';
+      if (r.devices.length === 0) {
+        host.appendChild(h('div', 'hint', 'Még nincs másik eszköz ebben a fiókban.'));
+        return;
+      }
+      for (const d of r.devices) {
+        const row = h('div', 'sync-device');
+        row.appendChild(h('span', undefined, d.self ? `${d.name} (ez a gép)` : d.name));
+        row.appendChild(h('span', 'muted', `${formatDuration(d.last7Seconds)} / 7 nap`));
+        host.appendChild(row);
+      }
+    },
+  ));
 }
 
 function renderTier(st: StatusData): void {
@@ -1370,6 +1492,7 @@ function setupUpdater(): void {
 }
 
 setupAddCard();
+setupSyncCard();
 setupModal();
 setupInstall();
 setupUpdater();
