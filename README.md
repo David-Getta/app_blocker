@@ -154,6 +154,9 @@ cd ios && xcodegen generate && open Breaker.xcodeproj
 
 ## Állapot és tesztelés
 
+- **Szinkron-kiszolgáló:** 11 teszt a valódi HTTP-n keresztül (`server/`), és
+  a kliensek is a VALÓDI kiszolgálóval futnak végig — asztalon és Androidon is,
+  gyerekfolyamatként indított kiszolgálóval. ✅ Zöld.
 - **Desktop:** teljes `node:test` lefedettség a blokklistára, a próbatétel-motorra,
   a bíróra (session + hosts fájl end-to-end), a menetrendre, a napi keretre és az
   idő-mérésre — a segéd IPC-jét támadó integrációs teszttel együtt. Mellette egy

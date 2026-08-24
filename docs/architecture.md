@@ -256,6 +256,18 @@ Amit **nem** csinál: nem biztonsági határ ez sem. A hosts fájlban ott a cím
 darabszámot szándékosan meghagyjuk. A cél az emlékeztetés megszüntetése, nem a
 titkolózás.
 
+## Fiók és szinkron
+
+Külön doksi: [`feature-accounts-sync.md`](feature-accounts-sync.md). A lényeg
+egy mondatban: a kiszolgáló **átlátszatlan blobokat** tárol, az összefésülés
+pedig **sosem lazít** — a kijelentkezés és az eszköz eltávolítása egyetlen
+blokkot sem visz el.
+
+Ami ide tartozik: a `rev` számlálókat mindhárom platformon **egyetlen fogópont**
+vezeti (asztalon a segéd `commit()`-ja, Androidon a `BreakerStore.mutate`).
+Tucatnyi helyen módosul egy rekord, és elég egyetlen kihagyott hely ahhoz, hogy
+egy változás sose menjen át a másik eszközre.
+
 ## Hibatűrés: melyik irányba dőljön a rendszer
 
 Egy blokkoló appnál a hibáknak **iránya** van. Ha valami nem sikerül, két
