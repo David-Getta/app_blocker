@@ -9,7 +9,20 @@
 <body>
   <header class="topbar">
     <div class="brand">
-      <span class="brand-mark">🔒</span>
+      <!--
+        A védjegy: egy MEGSZAKÍTOTT gyűrű — a kör, ami nem zárul be.
+        Nem lakat (az őrzést sugallna, pedig itt te magad zárod ki magad), és
+        nem bekapcsológomb (annak függőleges szára van, és bármikor
+        visszakapcsolható). A rés SZÉLES, hogy 26 képpontnál is látszódjon:
+        egy márkajel akkor jó, ha a legkisebb méretén is felismerhető.
+        Emoji helyett rajz, mert az emoji minden gépen máshogy néz ki.
+      -->
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M18.4 6.1a8.6 8.6 0 1 1-9.9-1.8" stroke="currentColor"
+                stroke-width="2.6" stroke-linecap="round" />
+        </svg>
+      </span>
       <span class="brand-name">Breaker</span>
     </div>
     <div id="statusPill" class="pill pill-warn">Kapcsolódás…</div>

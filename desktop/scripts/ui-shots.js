@@ -339,7 +339,7 @@ async function main() {
 
   // Drive the unlock flow: pause -> challenge modal with a wrong answer.
   await page.locator('#siteList .site-row').first()
-    .getByRole('button', { name: /Feloldás időre/ }).click();
+    .getByRole('button', { name: /^Feloldás$/ }).click();
   await page.waitForSelector('#pauseDialog:not(.hidden)', { timeout: 10_000 });
   await page.locator('#pauseDialog button[data-minutes="30"]').click();
   await page.waitForSelector('#sessionModal:not(.hidden)', { timeout: 10_000 });
@@ -383,7 +383,7 @@ async function main() {
   // kattintást; csukjuk be.
   await page.getByRole('button', { name: /^Mégse$/ }).click().catch(() => { /* már zárva */ });
   await page.locator('#siteList .site-row').first()
-    .getByRole('button', { name: /Név elrejtése/ }).click();
+    .getByRole('button', { name: /^Fedőnév$/ }).click();
   await page.getByRole('heading', { name: /Név elrejtése:/ }).waitFor({ timeout: 10_000 });
   await page.locator('.alias-input').fill('A videós');
   await page.getByRole('button', { name: /^Mentés$/ }).click();
@@ -425,7 +425,7 @@ async function main() {
 
   // A fedőnév levehető, és akkor újra a cím áll ott.
   await page.locator('#siteList .site-row').first()
-    .getByRole('button', { name: /Fedőnév…/ }).click();
+    .getByRole('button', { name: /^Fedőnév$/ }).click();
   await page.getByRole('button', { name: /Fedőnév levétele/ }).click();
   await page.waitForFunction(
     () => (document.querySelector('#siteList .site-row .site-domain') || {}).textContent
@@ -545,7 +545,7 @@ async function main() {
   }
   // Törlés közben NE legyen ott a feloldás és a törlés gomb: ilyenkor egyetlen
   // értelmes művelet van, a visszavonás.
-  if (await deletingRow.getByRole('button', { name: /Feloldás|Végleges törlés/ }).count()) {
+  if (await deletingRow.getByRole('button', { name: /^(Feloldás|Törlés)$/ }).count()) {
     failures.push('the deleting row still offers unlock or delete');
   }
   if (!CHECK_ONLY) {

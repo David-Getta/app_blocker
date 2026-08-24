@@ -617,18 +617,18 @@ function siteRow(site: SiteInfo, st: StatusData): HTMLElement {
     }
     if (site.dailyLimitSeconds) meterEl = limitMeter(site, false);
     if (!st.session) {
-      const unlock = h('button', 'btn btn-small', 'Feloldás időre…');
+      const unlock = h('button', 'btn btn-small', 'Feloldás');
       unlock.addEventListener('click', () => openPauseDialog(site.id));
-      const sched = h('button', 'btn btn-small', 'Menetrend…');
+      const sched = h('button', 'btn btn-small', 'Menetrend');
       sched.addEventListener('click', () => openScheduleDialog(site));
-      const limit = h('button', 'btn btn-small', 'Napi keret…');
+      const limit = h('button', 'btn btn-small', 'Napi keret');
       limit.addEventListener('click', () => openLimitDialog(site));
-      const alias = h('button', 'btn btn-small', isAliased(site) ? 'Fedőnév…' : 'Név elrejtése…');
+      const alias = h('button', 'btn btn-small', 'Fedőnév');
       alias.addEventListener('click', () => openAliasDialog(site));
       const parts = h('button', 'btn btn-small',
-        site.rules?.length ? `Csak egy rész… (${site.rules.length})` : 'Csak egy rész…');
+        site.rules?.length ? `Részek · ${site.rules.length}` : 'Részek');
       parts.addEventListener('click', () => openRulesDialog(site));
-      const del = h('button', 'btn btn-small btn-danger', 'Végleges törlés…');
+      const del = h('button', 'btn btn-small btn-danger', 'Törlés');
       del.addEventListener('click', () => void startDelete(site));
       actions.append(unlock, sched, limit, alias, parts, del);
     }
