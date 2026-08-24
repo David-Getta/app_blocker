@@ -268,6 +268,14 @@ vezeti (asztalon a segéd `commit()`-ja, Androidon a `BreakerStore.mutate`).
 Tucatnyi helyen módosul egy rekord, és elég egyetlen kihagyott hely ahhoz, hogy
 egy változás sose menjen át a másik eszközre.
 
+A szinkronnak van egy következménye a mérésre nézve is: a többi eszköz adata
+**olvashatóan** megérkezik, tehát a felület az **összes eszközt együtt** is meg
+tudja mutatni — és iPhone-on ez az egyetlen statisztika, ami valaha látszani
+fog (lásd fentebb, miért nem mérhet az iOS-app). Az összesítés egyetlen
+mérés-állapottá fésüli a blobokat, és arra ugyanaz az összegző fut, mint a
+helyi nézeten: két külön implementáció előbb-utóbb más számot mutatna ugyanarra
+a kérdésre.
+
 ## Hibatűrés: melyik irányba dőljön a rendszer
 
 Egy blokkoló appnál a hibáknak **iránya** van. Ha valami nem sikerül, két

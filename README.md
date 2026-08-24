@@ -49,7 +49,10 @@ attól, hogy sokszor csinálod.
   rajtuk. Megnyitni egy kattintás, de csak a bezárásig marad nyitva.
 - **Fiók és eszközök közti szinkron** (mindhárom platform):
   belépsz ugyanabba a fiókba a másik gépeden, és nem kell újra felvenned a
-  listát — a többi eszköz statisztikáját is látod. A blokkolt oldalak és a mért
+  listát — a többi eszköz statisztikáját is látod, és legelöl az **összes eszköz
+  együtt**: nem eszközönként külön, hanem hogy mennyi ment el összesen. iPhone-on
+  ez az egyetlen statisztika, ami valaha látszani fog (az Apple nem enged appnak
+  időt mérni más appokban), tehát ott pont ez adja a mérést. A blokkolt oldalak és a mért
   idők **titkosítva** mennek fel: a kiszolgáló csak átlátszatlan bájtokat lát,
   és mivel nem ért belőlük semmit, nem is kell megbízni benne. A kiszolgáló
   néhány száz sor, függőség nélkül, magadnak is futtathatod (`server/`).

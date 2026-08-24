@@ -102,10 +102,34 @@ A **statisztika** ennél egyszerűbb: eszközönként, naponként, célpontonké
 csak olvassa. A felületen eszközönként látszik a mai és a heti idő, meg a hét
 három legtöbb időt vivő célpontja.
 
+Legelöl viszont az **összes eszköz együtt** áll, és ez szándékos: a szám, ami
+tényleg számít, nem eszközönként van meg. Nem az, hogy mennyi ment el
+YouTube-ra a gépen és külön mennyi a telefonon, hanem hogy mennyi összesen. Két
+eszközön külön-külön napi húsz perc együtt negyven — fejben ezt senki nem adja
+össze.
+
+Az összesítés nem külön összegző kód: a blobokat egyetlen mérés-állapottá
+fésüli, és arra ugyanaz az összegző fut, mint a helyi nézeten. Két külön
+implementáció előbb-utóbb más számot mutatna ugyanarra a kérdésre. A címke
+onnan az eszközről jön, ahol a **legtöbb** időt mérték az adott célponton — ha
+a hálózati válaszok sorrendje döntené el, ugyanaz a nézet hol így, hol úgy
+nevezné meg ugyanazt.
+
+Ami összeadódik és ami nem: a `site:` kulcs minden platformon azonos, tehát a
+**weboldalak tényleg összeadódnak**. Két böngésző-app viszont két külön kulcs,
+és ez helyes — a telefonos és a gépes Chrome nem ugyanaz a program.
+
+**iPhone-on ez az egyetlen statisztika, ami valaha látszani fog.** Az Apple nem
+enged appnak hozzáférni ahhoz, hogy más appokban vagy weboldalakon mennyi aktív
+idő telik, tehát a készülék maga semmit nem mér. Amit viszont megtehet:
+elolvasni, amit a gép és az androidos telefon mért. A kártya ki is mondja, hogy
+a számokat nem ez a készülék mérte — enélkül a nulla óra úgy nézne ki, mint egy
+hiba.
+
 A címkék ugyanazon a tölcséren mennek át, mint a saját statisztika: **ha a lista
-rejtve van, a másik eszköz adata sem nevezheti meg az oldalt.** Enélkül a rejtés
-pont ott lyukadna ki, ahol senki nem keresi — és a füstteszt ezt külön
-ellenőrzi.
+rejtve van, sem a másik eszköz adata, sem az összesített sor nem nevezheti meg
+az oldalt.** Enélkül a rejtés pont ott lyukadna ki, ahol senki nem keresi — és a
+füstteszt ezt külön ellenőrzi.
 
 ## Titkosítás: a kiszolgáló nem látja
 
@@ -114,7 +138,7 @@ szinkron ezt csak úgy tarthatja meg, ha a kiszolgáló **nem tudja elolvasni**,
 amit tárol.
 
 ```
-jelszó ──scrypt(só = fiókazonosító, N=2^16, r=8)──> gyökérkulcs
+jelszó ──scrypt(só = fiókazonosító, N=2^15, r=8)──> gyökérkulcs
                                                      ├── HKDF("auth") ─> belépőkulcs ─> a kiszolgálóra megy (ott újra hashelve tárolják)
                                                      └── HKDF("kek") ──> kulcsburkoló ─> ezzel van becsomagolva az ADATKULCS
 ```
@@ -126,7 +150,8 @@ megtenni, hiszen nem lát bele.
 
 scrypt, nem Argon2id: az scrypt ott van a Node beépített `crypto` moduljában,
 tehát nem kell hozzá külső, natív függőség se a segédbe, se a telepítőbe. A
-paraméterek (64 MB, pár tized másodperc) ugyanazt a célt szolgálják.
+paraméterek (32 MB, pár tized másodperc) ugyanazt a célt szolgálják — hogy
+pontosan 32 és nem 64, annak külön oka van, lásd lejjebb.
 
 A kiszolgáló így csak átlátszatlan blobokat lát: fiók-azonosító, eszköz,
 gyűjtemény, verzió, titkosított tartalom. A blokkolt oldalak címét, a
