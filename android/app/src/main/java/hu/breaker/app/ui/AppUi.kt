@@ -78,6 +78,7 @@ import hu.breaker.app.core.SessionRec
 import hu.breaker.app.core.Site
 import hu.breaker.app.core.Pairing
 import hu.breaker.app.core.SyncClient
+import hu.breaker.app.core.UrlRules
 import hu.breaker.app.core.UsageLogic
 import hu.breaker.app.update.UpdateChecker
 import hu.breaker.app.usage.UsageTracker
@@ -202,6 +203,7 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
     var scheduleSite by remember { mutableStateOf<Site?>(null) }
     var limitSite by remember { mutableStateOf<Site?>(null) }
     var aliasSite by remember { mutableStateOf<Site?>(null) }
+    var rulesSite by remember { mutableStateOf<Site?>(null) }
     var flowError by remember { mutableStateOf<String?>(null) }
 
     // Ideiglenes felfedés oldalanként: meddig látszik a valódi cím. Szándékosan
@@ -503,6 +505,7 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                                 onSchedule = { scheduleSite = site },
                                 onLimit = { limitSite = site },
                                 onAlias = { aliasSite = site },
+                                onRules = { rulesSite = site },
                             )
                         }
                     }
@@ -633,6 +636,16 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
     }
 
     // Fedőnév dialógus
+    rulesSite?.let { site ->
+        RulesDialog(
+            site = site,
+            onDismiss = { rulesSite = null },
+            onChanged = { rulesSite = BreakerStore.state.value.sites.find { s -> s.id == site.id } },
+            onChallenge = { rulesSite = null; onOpenChallenge() },
+            onError = { rulesSite = null; flowError = it },
+        )
+    }
+
     aliasSite?.let { site ->
         AliasDialog(
             site = site,
@@ -792,7 +805,7 @@ private fun SiteCard(
     now: Long, hasSession: Boolean,
     revealedUntil: Long?, onReveal: () -> Unit,
     onPause: () -> Unit, onDelete: () -> Unit, onSchedule: () -> Unit, onLimit: () -> Unit,
-    onAlias: () -> Unit,
+    onAlias: () -> Unit, onRules: () -> Unit,
 ) {
     val paused = site.pauseUntil != null && site.pauseUntil > now
     val deleting = site.pendingDeleteAt != null
@@ -894,6 +907,10 @@ private fun SiteCard(
                             TextButton(onClick = onSchedule) { Text("Menetrend…") }
                             TextButton(onClick = onLimit) { Text("Napi keret…") }
                             TextButton(onClick = onAlias) { Text("Fedőnév…") }
+                            TextButton(onClick = onRules) {
+                                val n = site.rules?.size ?: 0
+                                Text(if (n > 0) "Részek · $n" else "Részek…")
+                            }
                             TextButton(onClick = onDelete) {
                                 Text("Törlés…", color = MaterialTheme.colorScheme.error)
                             }
@@ -979,6 +996,125 @@ private val LIMIT_CHOICES_MIN = listOf(10, 20, 30, 45, 60, 90, 120)
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
+/**
+ * Részleges szabályok: nem az egész oldal, csak egy darabja.
+ *
+ * MIÉRT VAN EZ A TELEFONON, HA ITT NEM ÉRVÉNYESÜL. A linket a telefonról
+ * másolja ki az ember — onnan oszt meg, ott látja a csatornát. Ha a szabályt
+ * csak a gépen lehetne felvenni, a leggyakoribb út lenne a legnehezebb.
+ * Amit felveszünk, az a fiókon át a gépre kerül, és ott a böngésző-bővítmény
+ * érvényesíti. A felület ezt KI IS MONDJA: nem hazudunk védelmet oda, ahol
+ * nincs.
+ */
+@Composable
+private fun RulesDialog(
+    site: Site,
+    onDismiss: () -> Unit,
+    onChanged: () -> Unit,
+    onChallenge: () -> Unit,
+    onError: (String) -> Unit,
+) {
+    var input by remember { mutableStateOf("") }
+    var error by remember { mutableStateOf<String?>(null) }
+    val rules = site.rules ?: emptyList()
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Csak egy rész: ${AliasLogic.displayName(site)}") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    "Nem az egész oldal, csak egy darabja — például egy csatorna. " +
+                        "Illeszd be a címét úgy, ahogy megosztod.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                Surface(
+                    color = MaterialTheme.colorScheme.error.copy(alpha = 0.10f),
+                    contentColor = MaterialTheme.colorScheme.error,
+                    shape = MaterialTheme.shapes.small,
+                ) {
+                    Text(
+                        "EZEN A TELEFONON EZ NEM TILT. A telefonos böngészőkben nincs " +
+                            "bővítmény-rendszer, a DNS pedig csak a hosztnevet látja — az " +
+                            "utat nem. Amit itt felveszel, az a gépeden érvényesül, a " +
+                            "böngésző-bővítményen keresztül. Az egész oldal tiltása " +
+                            "viszont itt is megkerülhetetlen.",
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(10.dp),
+                    )
+                }
+                if (rules.isEmpty()) {
+                    Text(
+                        "Még nincs egyetlen részleges szabály sem ezen az oldalon.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                for (rule in rules) {
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            UrlRules.ruleLabel(rule),
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.weight(1f),
+                        )
+                        TextButton(onClick = {
+                            try {
+                                val r = Referee.startRuleChange(
+                                    site.id, rule, remove = true, now = System.currentTimeMillis(),
+                                )
+                                if (r.applied) onChanged() else onChallenge()
+                            } catch (e: Referee.RefereeException) {
+                                onError(e.message ?: "Ismeretlen hiba")
+                            }
+                        }) { Text("Levétel…") }
+                    }
+                }
+                OutlinedTextField(
+                    value = input,
+                    onValueChange = { input = it; error = null },
+                    singleLine = true,
+                    label = { Text("pl. ${site.domain}/@valaki") },
+                    isError = error != null,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Text(
+                    "Felvenni egy koppintás. Levenni próbatétel — ugyanúgy, mint a feloldást.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                error?.let {
+                    Text(it, style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error)
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                val rule = UrlRules.normalizeRule(input)
+                if (rule == null) {
+                    // Megmondjuk, mit várunk. Csendben eldobva a felhasználó azt
+                    // hinné, hogy felvette a szabályt.
+                    error = "Ehhez út is kell, például ${site.domain}/@valaki."
+                    return@TextButton
+                }
+                try {
+                    val r = Referee.startRuleChange(
+                        site.id, rule, remove = false, now = System.currentTimeMillis(),
+                    )
+                    input = ""
+                    if (r.applied) onChanged() else onChallenge()
+                } catch (e: Referee.RefereeException) {
+                    error = e.message ?: "Ismeretlen hiba"
+                }
+            }) { Text("Hozzáadás") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Bezárás") } },
+    )
+}
+
 private fun LimitDialog(
     site: Site,
     onDismiss: () -> Unit,

@@ -59,6 +59,8 @@ data class SessionRec(
     /** when set, finishing applies this daily budget instead of pausing;
      *  a -1 érték azt jelenti: „vedd le a keretet” (mindkettő kapuzott lazítás) */
     val pendingLimit: Long? = null,
+    /** ha van, a teljesítés EZT a részleges szabályt veszi le (kapuzott lazítás) */
+    val pendingRuleRemoval: UrlRules.UrlRule? = null,
 )
 
 /**
@@ -325,6 +327,9 @@ object BreakerStore {
                 put("steps", JSONArray(ses.steps.map { stepToJson(it) }))
                 put("pendingSchedule", ses.pendingSchedule?.let { scheduleToJson(it) } ?: JSONObject.NULL)
                 put("pendingLimit", ses.pendingLimit ?: JSONObject.NULL)
+                put("pendingRuleRemoval", ses.pendingRuleRemoval?.let { r ->
+                    JSONObject().apply { put("host", r.host); put("path", r.path) }
+                } ?: JSONObject.NULL)
             }
         } ?: JSONObject.NULL)
     }
@@ -435,6 +440,10 @@ object BreakerStore {
                     pendingSchedule = if (ses.isNull("pendingSchedule")) null
                         else scheduleFromJson(ses.getJSONObject("pendingSchedule")),
                     pendingLimit = if (ses.isNull("pendingLimit")) null else ses.getLong("pendingLimit"),
+                    pendingRuleRemoval = if (ses.isNull("pendingRuleRemoval")) null else {
+                        val r = ses.getJSONObject("pendingRuleRemoval")
+                        UrlRules.normalizeRule(r.optString("host") + r.optString("path"))
+                    },
                 )
             }
         }.getOrNull()?.takeIf { it.steps.isNotEmpty() && it.stepIndex in it.steps.indices }

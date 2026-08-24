@@ -118,6 +118,10 @@ object Referee {
             else if (s.pendingLimit != null) site.copy(
                 dailyLimitSeconds = if (s.pendingLimit < 0) null else s.pendingLimit,
             )
+            else if (s.pendingRuleRemoval != null) site.copy(
+                rules = (site.rules ?: emptyList())
+                    .filterNot { UrlRules.sameRule(it, s.pendingRuleRemoval) },
+            )
             else if (s.kind == Kind.PAUSE) site.copy(pauseUntil = now + (s.minutes ?: 15) * 60_000L)
             else site.copy(pendingDeleteAt = now + ChallengeEngine.DELETE_PENDING_MS)
         }
@@ -200,6 +204,68 @@ object Referee {
                 pendingLimit = next ?: -1L,
             )
             result = LimitChangeResult(applied = false, session = session)
+            state.copy(session = session, lastCombo = plan.comboKey)
+        }
+        return result!!
+    }
+
+    data class RuleChangeResult(val applied: Boolean, val session: SessionRec?)
+
+    /**
+     * Részleges szabály felvétele vagy levétele.
+     *
+     * FELVENNI ingyen van: az szigorítás, és ha súrlódna, senki nem venne fel
+     * szabályt — a funkció nem létezne. LEVENNI viszont ugyanabba a
+     * próbatételbe kerül, mint egy feloldás: enélkül a részleges tiltás egyetlen
+     * gomb lenne, és pont az a lényeg, hogy ne az legyen.
+     *
+     * Androidon a szabályt semmi nem érvényesíti (nincs böngésző-bővítmény), a
+     * SÚRLÓDÁS viszont ugyanaz kell legyen. Ha itt egy kattintás lenne levenni,
+     * a telefon lenne a legolcsóbb kiskapu a gépen beállított szabályokhoz.
+     */
+    fun startRuleChange(
+        siteId: String, rule: UrlRules.UrlRule, remove: Boolean, now: Long,
+    ): RuleChangeResult {
+        var result: RuleChangeResult? = null
+        BreakerStore.mutate { state ->
+            val site = state.sites.find { it.id == siteId }
+                ?: throw RefereeException("Ismeretlen oldal.", "NO_SITE")
+            val rules = site.rules ?: emptyList()
+
+            if (!remove) {
+                if (rules.any { UrlRules.sameRule(it, rule) }) {
+                    result = RuleChangeResult(applied = true, session = null)
+                    return@mutate state   // mar ott van; nincs mit tenni
+                }
+                if (rules.size >= UrlRules.MAX_RULES_PER_SITE) {
+                    throw RefereeException(
+                        "Egy oldalhoz legfeljebb " + UrlRules.MAX_RULES_PER_SITE +
+                            " részleges szabály tartozhat.",
+                        "TOO_MANY_RULES",
+                    )
+                }
+                result = RuleChangeResult(applied = true, session = null)
+                return@mutate state.copy(sites = state.sites.map {
+                    if (it.id == siteId) it.copy(rules = rules + rule) else it
+                })
+            }
+
+            if (rules.none { UrlRules.sameRule(it, rule) }) {
+                throw RefereeException("Nincs ilyen részleges szabály ezen az oldalon.", "NO_RULE")
+            }
+            if (state.session != null) {
+                throw RefereeException("Előbb fejezd be a folyamatban lévő kísérletet.", "BUSY")
+            }
+            val tier = effectiveTier(state, Kind.PAUSE, now)
+            val plan = ChallengeEngine.generatePlan(
+                Kind.PAUSE, tier, state.lastCombo, forcedCombo(state, siteId, now),
+            )
+            val session = SessionRec(
+                id = BreakerStore.newId("ses"), kind = Kind.PAUSE, siteId = siteId, minutes = null,
+                steps = armCurrent(plan.steps, 0, now), stepIndex = 0, createdAt = now,
+                pendingRuleRemoval = rule,
+            )
+            result = RuleChangeResult(applied = false, session = session)
             state.copy(session = session, lastCombo = plan.comboKey)
         }
         return result!!
