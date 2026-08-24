@@ -10,6 +10,8 @@ struct Site: Codable, Identifiable, Equatable {
     var pendingDeleteAt: Double?
     /// optional weekly schedule; nil = always blocked
     var schedule: ScheduleLogic.Schedule?
+    /// fedőnév: ha van, a felület ezt írja ki a cím helyett (AliasLogic)
+    var alias: String?
 }
 
 struct SessionRec: Codable, Equatable, Identifiable {
@@ -47,6 +49,13 @@ struct AppState: Codable, Equatable {
     /// attempts given up on, per site; see ChallengeEngine.rerollCooldownMs.
     /// Optional so a state file written before this existed still decodes.
     var abandons: [AbandonRec]? = nil
+    /// Rejtve induljon-e a blokkolt oldalak listája.
+    ///
+    /// Beállítás, nem pillanatnyi állapot: a felület minden indításkor rejtve
+    /// kezdi, és csak a munkamenetre nyitható meg. Így az app megnyitása
+    /// önmagában nem szembesít azzal, mi van blokkolva. Optional, hogy egy
+    /// korábbi verzió által írt állapot is dekódolható maradjon.
+    var hideSiteList: Bool? = nil
 }
 
 /// Shared state persisted to a JSON file in the App Group container, so the

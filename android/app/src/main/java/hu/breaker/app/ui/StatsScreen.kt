@@ -36,6 +36,15 @@ fun StatsSection(
     focusSeries: List<Pair<String, Double>>,
     focusLabel: String,
     blockedDomains: Set<String>,
+    /**
+     * Amit egy célpontról ki szabad írni.
+     *
+     * A hívó dönti el: fedőnév, rejtett listánál sorszámozott álnév, egyébként
+     * maga a cím. Itt azért függvény, mert MINDEN címke ezen megy át — a sávok,
+     * a heti összevetés és a napi diagram címe is. Elég egyetlen kihagyott hely,
+     * és a fedőnév meg a rejtés annyit ér, mint egy lyukas zsák.
+     */
+    labelOf: (String) -> String = { it },
     hasUsageAccess: Boolean,
     onGrantAccess: () -> Unit,
     onToggleEnabled: () -> Unit,
@@ -103,17 +112,18 @@ fun StatsSection(
                     "ezt a domaint látta utoljára.",
                 style = MaterialTheme.typography.bodySmall,
             )
-            BarList(summary.topWeekSites, blockedDomains, markBlocked = true)
+            BarList(summary.topWeekSites, blockedDomains, markBlocked = true, labelOf = labelOf)
         }
 
         if (summary.topWeekApps.isNotEmpty()) {
             Text("Alkalmazások (7 nap)", fontWeight = FontWeight.Bold)
-            BarList(summary.topWeekApps, emptySet(), markBlocked = false)
+            BarList(summary.topWeekApps, emptySet(), markBlocked = false, labelOf = labelOf)
         }
 
         if (focusSeries.isNotEmpty()) {
             Text(
-                if (focusLabel.isEmpty()) "Napi bontás (30 nap)" else "Napi bontás — $focusLabel (30 nap)",
+                if (focusLabel.isEmpty()) "Napi bontás (30 nap)"
+                else "Napi bontás — ${labelOf(focusLabel)} (30 nap)",
                 fontWeight = FontWeight.Bold,
             )
             DailyChart(focusSeries)
@@ -125,7 +135,7 @@ fun StatsSection(
 
         if (summary.weekOverWeek.isNotEmpty()) {
             Text("Ez a hét az előzőhöz képest", fontWeight = FontWeight.Bold)
-            for (row in summary.weekOverWeek) WeekDeltaRow(row)
+            for (row in summary.weekOverWeek) WeekDeltaRow(row, labelOf)
         }
     }
 }
@@ -153,6 +163,7 @@ private fun BarList(
     rows: List<UsageLogic.TargetTotal>,
     blockedDomains: Set<String>,
     markBlocked: Boolean,
+    labelOf: (String) -> String,
 ) {
     val max = rows.maxOfOrNull { it.seconds }?.coerceAtLeast(1.0) ?: 1.0
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -162,7 +173,7 @@ private fun BarList(
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text(
                         // colour is never the only signal: blocked rows say so in words
-                        if (isBlocked) "${row.label} · blokkolt" else row.label,
+                        labelOf(row.label).let { if (isBlocked) "$it · blokkolt" else it },
                         maxLines = 1, overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f, fill = false),
                     )
@@ -208,9 +219,9 @@ private fun DailyChart(series: List<Pair<String, Double>>) {
 }
 
 @Composable
-private fun WeekDeltaRow(row: UsageLogic.WeekDelta) {
+private fun WeekDeltaRow(row: UsageLogic.WeekDelta, labelOf: (String) -> String) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(row.label, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+        Text(labelOf(row.label), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
         val pct = row.deltaPct
         if (pct == null) {
             Text("új — ${UsageLogic.formatDuration(row.thisWeek)}", style = MaterialTheme.typography.bodySmall)

@@ -8,6 +8,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -39,6 +40,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -52,6 +54,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import hu.breaker.app.core.AliasLogic
 import hu.breaker.app.core.Blocklist
 import hu.breaker.app.core.ChallengeEngine
 import hu.breaker.app.core.ChallengeEngine.Kind
@@ -162,7 +165,34 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
     var deleteSite by remember { mutableStateOf<Site?>(null) }
     var scheduleSite by remember { mutableStateOf<Site?>(null) }
     var limitSite by remember { mutableStateOf<Site?>(null) }
+    var aliasSite by remember { mutableStateOf<Site?>(null) }
     var flowError by remember { mutableStateOf<String?>(null) }
+
+    // Ideiglenes felfedés oldalanként: meddig látszik a valódi cím. Szándékosan
+    // nem mentjük — az app újranyitása után megint a fedőnév áll ott.
+    val revealedUntil = remember { mutableStateMapOf<String, Long>() }
+
+    // A lista MOST nyitva van-e, ha egyébként rejtettre van állítva. Ez sem
+    // mentett: a beállítás azt mondja, hogy rejtve INDULJON, a megnyitás pedig
+    // csak erre a munkamenetre szól.
+    var listOpenThisSession by remember { mutableStateOf(false) }
+    val listHidden = state.hideSiteList && !listOpenThisSession
+
+    /**
+     * Amit a statisztikában ki szabad írni egy célpontról.
+     *
+     * Ez az EGY tölcsér: a sávok, a heti összevetés és a napi diagram címe is
+     * ezen megy át. Ha bármelyik kimaradna, a fedőnév és a rejtés annyit érne,
+     * mint egy lyukas zsák — elég egyetlen hely, ahol ott a valódi cím.
+     */
+    val siteLabel: (String) -> String = { raw ->
+        val idx = state.sites.indexOfFirst { it.domain == raw }
+        when {
+            idx < 0 -> raw
+            listHidden -> AliasLogic.maskedLabel(state.sites[idx], idx)
+            else -> AliasLogic.displayName(state.sites[idx])
+        }
+    }
 
     fun addSite(raw: String) {
         addError = null
@@ -308,7 +338,12 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                         OutlinedTextField(
                             value = addInput,
                             onValueChange = { addInput = it },
-                            placeholder = { Text("pl. www.youtube.com") },
+                            placeholder = {
+                                Text(
+                                    if (listHidden) "a cím, amit blokkolni akarsz"
+                                    else "pl. www.youtube.com",
+                                )
+                            },
                             modifier = Modifier.weight(1f),
                             singleLine = true,
                         )
@@ -318,13 +353,20 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Checkbox(checked = usePreset, onCheckedChange = { usePreset = it })
                         Text(
-                            "Társoldalak blokkolása is (pl. youtu.be, m.youtube.com)",
+                            if (listHidden) "Társoldalak blokkolása is (a mobilos és a rövidített címek)"
+                            else "Társoldalak blokkolása is (pl. youtu.be, m.youtube.com)",
                             style = MaterialTheme.typography.bodySmall,
                         )
                     }
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        for (preset in listOf("youtube.com", "facebook.com", "instagram.com", "tiktok.com", "x.com", "reddit.com")) {
-                            OutlinedButton(onClick = { addSite(preset) }) { Text(preset) }
+                    // Rejtett listánál a gyorsgombok is elmaradnak: PONT azok a
+                    // címek állnak rajtuk, amiket az ember tipikusan blokkol.
+                    // Hiába rejtenénk a listát, ha eggyel feljebb ott sorakozik
+                    // ugyanaz hat gombon.
+                    if (!listHidden) {
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            for (preset in listOf("youtube.com", "facebook.com", "instagram.com", "tiktok.com", "x.com", "reddit.com")) {
+                                OutlinedButton(onClick = { addSite(preset) }) { Text(preset) }
+                            }
                         }
                     }
                     addError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
@@ -347,7 +389,8 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
-                            "Folyamatban: ${if (ses.kind == Kind.DELETE) "törlés" else "feloldás"} — ${site?.domain ?: ""}",
+                            "Folyamatban: ${if (ses.kind == Kind.DELETE) "törlés" else "feloldás"} — " +
+                                (site?.let { AliasLogic.displayName(it) } ?: ""),
                             modifier = Modifier.weight(1f),
                             style = MaterialTheme.typography.bodySmall,
                         )
@@ -357,19 +400,63 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
             }
 
             // Site list
-            Text("Blokkolt oldalak", fontWeight = FontWeight.Bold)
-            if (state.sites.isEmpty()) {
-                Text("Még nincs blokkolt oldal.", style = MaterialTheme.typography.bodySmall)
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("Blokkolt oldalak", fontWeight = FontWeight.Bold)
+                // A gomb a BEÁLLÍTÁST kapcsolja, nem a pillanatnyi láthatóságot:
+                // ha rejtettre van állítva, de most nyitva van, akkor a rejtést
+                // kapcsolja KI. Enélkül nem lenne mód visszavonni.
+                if (!listHidden && (state.sites.isNotEmpty() || state.hideSiteList)) {
+                    TextButton(onClick = {
+                        val turningOn = !state.hideSiteList
+                        listOpenThisSession = !turningOn
+                        BreakerStore.mutate { it.copy(hideSiteList = turningOn) }
+                    }) {
+                        Text(if (state.hideSiteList) "Ne rejtse ezután" else "Lista elrejtése")
+                    }
+                }
             }
-            for (site in state.sites) {
-                SiteCard(
-                    site = site, now = now, hasSession = state.session != null,
-                    usage = state.usage,
-                    onPause = { pauseSite = site },
-                    onDelete = { deleteSite = site },
-                    onSchedule = { scheduleSite = site },
-                    onLimit = { limitSite = site },
-                )
+            if (listHidden) {
+                // A darabszám marad: a kérés az volt, hogy MIK vannak blokkolva
+                // ne látszódjon, nem az, hogy hány.
+                Card {
+                    Row(
+                        Modifier.fillMaxWidth().padding(14.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            if (state.sites.isEmpty())
+                                "A lista el van rejtve. Még nincs benne egyetlen oldal sem."
+                            else "${state.sites.size} oldal van blokkolva. A lista el van rejtve, " +
+                                "hogy a puszta megnyitás se emlékeztessen rájuk. Megnyitva csak " +
+                                "eddig a bezárásig marad.",
+                            modifier = Modifier.weight(1f),
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                        Button(onClick = { listOpenThisSession = true }) { Text("Megnyitás") }
+                    }
+                }
+            } else {
+                if (state.sites.isEmpty()) {
+                    Text("Még nincs blokkolt oldal.", style = MaterialTheme.typography.bodySmall)
+                }
+                for (site in state.sites) {
+                    SiteCard(
+                        site = site, now = now, hasSession = state.session != null,
+                        usage = state.usage,
+                        revealedUntil = revealedUntil[site.id],
+                        onReveal = { revealedUntil[site.id] = System.currentTimeMillis() + AliasLogic.REVEAL_MS },
+                        onPause = { pauseSite = site },
+                        onDelete = { deleteSite = site },
+                        onSchedule = { scheduleSite = site },
+                        onLimit = { limitSite = site },
+                        onAlias = { aliasSite = site },
+                    )
+                }
             }
 
             // Usage statistics. The summary is derived from state.usage, so it is
@@ -386,6 +473,7 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                     ?: emptyList(),
                 focusLabel = focusTarget?.label ?: "",
                 blockedDomains = state.sites.map { it.domain }.toSet(),
+                labelOf = siteLabel,
                 hasUsageAccess = UsageTracker.hasUsageAccess(context),
                 onGrantAccess = { context.startActivity(UsageTracker.usageAccessIntent()) },
                 onToggleEnabled = {
@@ -451,7 +539,7 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
             title = { Text("Végleges törlés?") },
             text = {
                 Text(
-                    "A(z) ${site.domain} törléséhez a legnehezebb próbatételek tartoznak, és a törlés " +
+                    "A(z) ${AliasLogic.displayName(site)} törléséhez a legnehezebb próbatételek tartoznak, és a törlés " +
                         "csak 24 órával a teljesítésük UTÁN válik véglegessé. Addig bármikor visszavonhatod.",
                 )
             },
@@ -492,6 +580,25 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
         )
     }
 
+    // Fedőnév dialógus
+    aliasSite?.let { site ->
+        AliasDialog(
+            site = site,
+            onDismiss = { aliasSite = null },
+            onSave = { text ->
+                BreakerStore.mutate { st ->
+                    st.copy(sites = st.sites.map {
+                        if (it.id == site.id) it.copy(alias = AliasLogic.normalize(text)) else it
+                    })
+                }
+                // Új fedőnév után a felfedés nem élhet tovább: különben a
+                // beállítás pillanatában is a valódi cím maradna ott.
+                revealedUntil.remove(site.id)
+                aliasSite = null
+            },
+        )
+    }
+
     flowError?.let {
         AlertDialog(
             onDismissRequest = { flowError = null },
@@ -500,6 +607,54 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
             confirmButton = { TextButton(onClick = { flowError = null }) { Text("OK") } },
         )
     }
+}
+
+/**
+ * Fedőnév beállítása.
+ *
+ * Nincs próbatétel: a fedőnév a blokkolást egy hajszálnyit sem gyengíti — az
+ * oldal ugyanúgy tiltva marad, a szűrő ugyanazt a hosztnevet dobja el. A
+ * súrlódás ott van, ahol a védelem gyengülne.
+ */
+@Composable
+private fun AliasDialog(site: Site, onDismiss: () -> Unit, onSave: (String) -> Unit) {
+    var text by remember(site.id) { mutableStateOf(site.alias ?: "") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Fedőnév") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    "Ha adsz nevet, a felület ezt írja ki a cím helyett — a listán, a " +
+                        "párbeszédek címében és a statisztikában is. A valódi cím egy gombbal, " +
+                        "hat másodpercre előhívható.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = it.take(AliasLogic.MAX_ALIAS_LENGTH) },
+                    placeholder = { Text("pl. A videós") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Text(
+                    "Ez nem titkosítás: a blokk maga a készüléken ott van, a fedőnév csak " +
+                        "annyit tesz, hogy ne emlékeztessen.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        },
+        confirmButton = { TextButton(onClick = { onSave(text) }) { Text("Mentés") } },
+        dismissButton = {
+            Row {
+                if (site.alias != null) {
+                    TextButton(onClick = { onSave("") }) { Text("Fedőnév levétele") }
+                }
+                TextButton(onClick = onDismiss) { Text("Mégse") }
+            }
+        },
+    )
 }
 
 /** Preset bands offered in the schedule editor (0=Sunday..6=Saturday). */
@@ -526,7 +681,7 @@ private fun ScheduleDialog(
     }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Menetrend: ${site.domain}") },
+        title = { Text("Menetrend: ${AliasLogic.displayName(site)}") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(
@@ -582,7 +737,9 @@ private fun ScheduleDialog(
 @Composable
 private fun SiteCard(
     site: Site, usage: UsageLogic.UsageState, now: Long, hasSession: Boolean,
+    revealedUntil: Long?, onReveal: () -> Unit,
     onPause: () -> Unit, onDelete: () -> Unit, onSchedule: () -> Unit, onLimit: () -> Unit,
+    onAlias: () -> Unit,
 ) {
     val paused = site.pauseUntil != null && site.pauseUntil > now
     val deleting = site.pendingDeleteAt != null
@@ -599,12 +756,30 @@ private fun SiteCard(
                 verticalAlignment = Alignment.Top,
             ) {
                 Column(Modifier.weight(1f)) {
-                    Text(site.domain, style = MaterialTheme.typography.titleMedium)
+                    val aliased = AliasLogic.isAliased(site)
+                    val revealing = revealedUntil != null && now < revealedUntil
                     Text(
-                        "${site.hostnames.size} hosztnév",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        AliasLogic.displayNameNow(site, now, revealedUntil),
+                        style = MaterialTheme.typography.titleMedium,
                     )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            if (aliased && !revealing) "fedőnév alatt"
+                            else "${site.hostnames.size} hosztnév",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        // A valódi cím nem tűnik el, csak nem ül ott: néha
+                        // tényleg tudni kell, melyik sor melyik.
+                        if (aliased && !revealing) {
+                            TextButton(onClick = onReveal, contentPadding = PaddingValues(horizontal = 6.dp)) {
+                                Text("Mutasd", style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                    }
                 }
                 when {
                     paused -> StatusChip(
@@ -662,6 +837,7 @@ private fun SiteCard(
                             TextButton(onClick = onPause) { Text("Feloldás időre…") }
                             TextButton(onClick = onSchedule) { Text("Menetrend…") }
                             TextButton(onClick = onLimit) { Text("Napi keret…") }
+                            TextButton(onClick = onAlias) { Text("Fedőnév…") }
                             TextButton(onClick = onDelete) {
                                 Text("Törlés…", color = MaterialTheme.colorScheme.error)
                             }
@@ -742,7 +918,7 @@ private fun LimitDialog(
     var chosen by remember { mutableStateOf(site.dailyLimitSeconds) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Napi keret: ${site.domain}") },
+        title = { Text("Napi keret: ${AliasLogic.displayName(site)}") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(
@@ -831,8 +1007,9 @@ private fun ChallengeScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(
-                if (session.kind == Kind.DELETE) "Végleges törlés: ${site?.domain ?: ""}"
-                else "Feloldás ${session.minutes} percre: ${site?.domain ?: ""}",
+                if (session.kind == Kind.DELETE)
+                    "Végleges törlés: ${site?.let { AliasLogic.displayName(it) } ?: ""}"
+                else "Feloldás ${session.minutes} percre: ${site?.let { AliasLogic.displayName(it) } ?: ""}",
                 fontSize = 18.sp, fontWeight = FontWeight.Bold,
             )
             Text(

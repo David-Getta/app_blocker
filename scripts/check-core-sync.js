@@ -34,16 +34,19 @@ function numbersIn(text) {
 
 const ts = {
   challenges: read('desktop/src/shared/challenges.ts'),
+  alias: read('desktop/src/shared/alias.ts'),
   referee: read('desktop/src/helper/referee.ts'),
   protocol: read('desktop/src/shared/protocol.ts'),
 };
 const kt = {
   engine: read('android/app/src/main/java/hu/breaker/app/core/ChallengeEngine.kt'),
   referee: read('android/app/src/main/java/hu/breaker/app/core/Referee.kt'),
+  alias: read('android/app/src/main/java/hu/breaker/app/core/Alias.kt'),
 };
 const sw = {
   engine: read('ios/Shared/ChallengeEngine.swift'),
   referee: read('ios/Shared/Referee.swift'),
+  alias: read('ios/Shared/Alias.swift'),
 };
 
 function scalar(text, re, label) {
@@ -125,6 +128,17 @@ const CHECKS = [
     list(ts.challenges, /deleteDelayMin:\s*\[([^\n]+)\]/, 'ts'),
     list(kt.engine, /DELETE_DELAY_MIN\s*=\s*arrayOf\(([^)]*\)[^\n]*)/, 'kt'),
     list(sw.engine, /deleteDelayMin\s*=\s*\[([^\n]+)\]/, 'swift')],
+  // A fedőnév nem nehézségi paraméter, de itt is ugyanaz a csapda: ha az egyik
+  // magban 40, a másikban 60 a hosszkorlát, akkor ugyanaz a név az egyik
+  // eszközön elfér, a másikon csonkul — és senki nem ért semmit.
+  ['MAX_ALIAS_LENGTH',
+    scalar(ts.alias, /MAX_ALIAS_LENGTH\s*=\s*([^;]+);/, 'ts'),
+    scalar(kt.alias, /MAX_ALIAS_LENGTH[^=]*=\s*(.+)/, 'kt'),
+    scalar(sw.alias, /maxAliasLength[^=]*=\s*(.+)/, 'swift')],
+  ['REVEAL_MS',
+    scalar(ts.alias, /REVEAL_MS\s*=\s*([^;]+);/, 'ts'),
+    scalar(kt.alias, /REVEAL_MS[^=]*=\s*(.+)/, 'kt'),
+    scalar(sw.alias, /revealMs[^=]*=\s*(.+)/, 'swift')],
 ];
 
 // A kódábécé nem szám, de ha eltér, a memória-próba más jeleket adna.

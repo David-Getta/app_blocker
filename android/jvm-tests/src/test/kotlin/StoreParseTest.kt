@@ -6,6 +6,7 @@ import hu.breaker.app.core.ScheduleLogic
 import org.json.JSONObject
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -30,6 +31,9 @@ class StoreParseTest {
     private val toJson = BreakerStore::class.java
         .getDeclaredMethod("toJson", AppState::class.java)
         .apply { isAccessible = true }
+
+    /** rejtett listával induló állapot, csak a sites tömb nyitva hagyva */
+    private val HIDDEN_PREFIX = "{\"hideSiteList\":true,\"sites\":["
 
     private fun site(id: String, extra: String = "") =
         """{"id":"$id","domain":"$id.com","hostnames":["$id.com"],"addedAt":1,
@@ -110,5 +114,34 @@ class StoreParseTest {
         val state = parse("""{"sites":[${site("youtube")}]}""")
         assertTrue(state.abandons.isEmpty())
         assertEquals(1, state.sites.size)
+    }
+
+    @Test fun `the alias and the hidden list survive a save and load`() {
+        val withAlias = site("youtube", ",\"alias\":\"A videós\"")
+        val saved = toJson.invoke(BreakerStore, parse(HIDDEN_PREFIX + withAlias + "]}")).toString()
+        val back = parse(saved)
+        assertTrue(back.hideSiteList, "a rejtés beállítás, tehát újraindítás után is áll")
+        assertEquals("A videós", back.sites[0].alias)
+    }
+
+    @Test fun `a hostile alias in the state file is cleaned on load`() {
+        // A mentett állapotot egy korábbi verzió vagy egy kézi szerkesztés is
+        // írhatta. Vezérlőkarakter a soron láthatatlan maradna, a hosszkorlátba
+        // viszont beleszámítana — ezért betöltéskor is normalizálunk. A \u
+        // szekvenciák itt a JSON-nak szólnak, nem a Kotlinnak.
+        val junk = "A\\u0000vide\\u001Fós" + "x".repeat(200)
+        val state = parse("{\"sites\":[" + site("youtube", ",\"alias\":\"" + junk + "\"") + "]}")
+        val alias = state.sites[0].alias!!
+        assertTrue(alias.length <= 40, "a hosszkorlát a betöltésre is áll")
+        assertTrue(
+            alias.none { ch -> ch.code < 0x20 || ch.code in 0x7f..0x9f },
+            "vezérlőkarakter maradt a betöltött fedőnévben",
+        )
+    }
+
+    @Test fun `state written before the hidden list still loads with it off`() {
+        val state = parse("{\"sites\":[" + site("youtube") + "]}")
+        assertFalse(state.hideSiteList)
+        assertNull(state.sites[0].alias)
     }
 }

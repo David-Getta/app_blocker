@@ -199,6 +199,11 @@ Két dolog fontos ebben:
    eltávolítás, nem titkosítás — a párbeszéd szövege is így mondja, hogy senki
    ne higgye másnak.
 
+Mind a három magban ugyanaz: `desktop/src/shared/alias.ts`,
+`android/.../core/Alias.kt`, `ios/Shared/Alias.swift`. A két számot (40 karakter,
+6 másodperc) a `scripts/check-core-sync.js` őrzi — ha az egyik magban elcsúszna,
+ugyanaz a név az egyik eszközön elférne, a másikon csonkulna.
+
 A fedőnév beállítása és levétele **nem kerül próbatételbe**. A súrlódás ott van,
 ahol a védelem gyengülne; itt nem gyengül semmi: az oldal ugyanúgy blokkolva
 marad, a hosts fájl egy bájtot sem változik.
@@ -236,6 +241,11 @@ fedőnév erősebb: azt épp azért adta meg, hogy az látszódjon.
 A listakártya rejtve **ki is üríti** a sorokat, nem csak eltakarja őket. Így a
 rejtett állapot ugyanaz akkor is, ha indulásból az, és akkor is, ha most
 kapcsolták rá.
+
+Androidon és iPhone-on ugyanez a beállítás, ugyanazzal a két állapottal
+(`hideSiteList` a mentett állapotban, `listOpenThisSession` a felületen). iPhone-on
+a statisztika nem tud oldalanként bontani (nincs ilyen API), tehát ott nincs is mit
+elfedni benne.
 
 A füstteszt ezt a teljes látható szövegre (`innerText`) nézi meg: rejtett
 listánál egyetlen blokkolt cím sem lehet ott sehol. Ez fogta meg, hogy a

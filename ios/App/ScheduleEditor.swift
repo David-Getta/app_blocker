@@ -55,7 +55,7 @@ struct ScheduleEditor: View {
                     }
                 }
             }
-            .navigationTitle("Menetrend: \(site.domain)")
+            .navigationTitle("Menetrend: \(AliasLogic.displayName(site))")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Mégse") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) { Button("Alkalmaz") { apply() } }

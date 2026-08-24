@@ -21,6 +21,8 @@ data class Site(
     val schedule: ScheduleLogic.Schedule? = null,
     /** napi aktív-idő keret másodpercben; null = nincs keret */
     val dailyLimitSeconds: Long? = null,
+    /** fedőnév: ha van, a felület ezt írja ki a cím helyett (AliasLogic) */
+    val alias: String? = null,
 )
 
 data class SessionRec(
@@ -62,6 +64,14 @@ data class AppState(
     val abandons: List<AbandonRec> = emptyList(),
     /** active-time tracking history (never leaves the device) */
     val usage: UsageLogic.UsageState = UsageLogic.UsageState(),
+    /**
+     * Rejtve induljon-e a blokkolt oldalak listája.
+     *
+     * Beállítás, nem pillanatnyi állapot: a felület minden indításkor rejtve
+     * kezdi, és csak a munkamenetre nyitható meg. Így az app megnyitása
+     * önmagában nem szembesít azzal, mi van blokkolva.
+     */
+    val hideSiteList: Boolean = false,
 )
 
 /**
@@ -172,6 +182,7 @@ object BreakerStore {
 
     private fun toJson(s: AppState): JSONObject = JSONObject().apply {
         put("protectionOn", s.protectionOn)
+        put("hideSiteList", s.hideSiteList)
         put("sites", JSONArray(s.sites.map { site ->
             JSONObject().apply {
                 put("id", site.id); put("domain", site.domain)
@@ -181,6 +192,7 @@ object BreakerStore {
                 put("pendingDeleteAt", site.pendingDeleteAt ?: JSONObject.NULL)
                 put("schedule", site.schedule?.let { scheduleToJson(it) } ?: JSONObject.NULL)
                 put("dailyLimitSeconds", site.dailyLimitSeconds ?: JSONObject.NULL)
+                put("alias", site.alias ?: JSONObject.NULL)
             }
         }))
         put("unlockLog", JSONArray(s.unlockLog))
@@ -280,6 +292,9 @@ object BreakerStore {
                         pendingDeleteAt = if (s.isNull("pendingDeleteAt")) null else s.getLong("pendingDeleteAt"),
                         schedule = if (s.isNull("schedule")) null else scheduleFromJson(s.getJSONObject("schedule")),
                         dailyLimitSeconds = if (s.isNull("dailyLimitSeconds")) null else s.getLong("dailyLimitSeconds"),
+                        // Betöltéskor is normalizálunk: egy régebbi (vagy kézzel
+                        // szerkesztett) állapotból is csak tiszta név jöhet be.
+                        alias = AliasLogic.normalize(if (s.isNull("alias")) null else s.optString("alias")),
                     )
                 }.getOrNull()
             }
@@ -327,6 +342,7 @@ object BreakerStore {
             lastCombo = if (o.isNull("lastCombo")) null else o.optString("lastCombo"),
             session = session,
             abandons = abandons,
+            hideSiteList = o.optBoolean("hideSiteList", false),
         )
     }
 }

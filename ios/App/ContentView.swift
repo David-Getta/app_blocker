@@ -18,7 +18,17 @@ struct ContentView: View {
     @State private var pauseSite: Site?
     @State private var deleteSite: Site?
     @State private var scheduleSite: Site?
+    @State private var aliasSite: Site?
     @State private var flowError: String?
+
+    /// Ideiglenes felfedés oldalanként: meddig látszik a valódi cím.
+    /// Szándékosan nem mentjük — az app újranyitása után megint a fedőnév áll ott.
+    @State private var revealedUntil: [String: Double] = [:]
+
+    /// A lista MOST nyitva van-e, ha egyébként rejtettre van állítva. Ez sem
+    /// mentett: a beállítás azt mondja, hogy rejtve INDULJON, a megnyitás pedig
+    /// csak erre a munkamenetre szól.
+    @State private var listOpenThisSession = false
     @State private var successMsg: String?
     @State private var now = nowMs()
 
@@ -41,6 +51,7 @@ struct ContentView: View {
             }
             .navigationTitle("🔒 Breaker")
             .sheet(item: $pauseSite) { site in pauseSheet(site) }
+            .sheet(item: $aliasSite) { site in aliasSheet(site) }
             .sheet(item: $scheduleSite) { site in
                 ScheduleEditor(site: site) { result in
                     scheduleSite = nil
@@ -58,7 +69,7 @@ struct ContentView: View {
                 Button("Indítom a próbákat", role: .destructive) { startDelete(site) }
                 Button("Mégse", role: .cancel) { deleteSite = nil }
             } message: { site in
-                Text("A(z) \(site.domain) törléséhez a legnehezebb próbák tartoznak, és a törlés csak 24 órával a teljesítésük UTÁN válik véglegessé. Addig visszavonhatod.")
+                Text("A(z) \(AliasLogic.displayName(site)) törléséhez a legnehezebb próbák tartoznak, és a törlés csak 24 órával a teljesítésük UTÁN válik véglegessé. Addig visszavonhatod.")
             }
             .alert("Hoppá", isPresented: errorAlertBinding) {
                 Button("OK") { flowError = nil }
@@ -112,11 +123,21 @@ struct ContentView: View {
         }
     }
 
+    /// Rejtve van-e MOST a blokkolt oldalak listája.
+    ///
+    /// Ezt az egy kérdést a felület több pontja is felteszi — a lista és a
+    /// felvevő kártya is. Ha bármelyik kimaradna, a rejtés annyit érne, mint egy
+    /// lyukas zsák: elég egyetlen hely, ahol ott a cím.
+    private var listHidden: Bool {
+        store.state.hideSiteList == true && !listOpenThisSession
+    }
+
     private var addSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Oldal blokkolása").font(.headline)
             HStack {
-                TextField("pl. www.youtube.com", text: $addInput)
+                TextField(listHidden ? "a cím, amit blokkolni akarsz" : "pl. www.youtube.com",
+                          text: $addInput)
                     .textFieldStyle(.roundedBorder)
                     #if os(iOS)
                     .autocapitalization(.none)
@@ -125,12 +146,20 @@ struct ContentView: View {
                     .disableAutocorrection(true)
                 Button("Blokk") { addSite(addInput) }.buttonStyle(.borderedProminent)
             }
-            Toggle("Társoldalak blokkolása is (pl. youtu.be, m.youtube.com)", isOn: $usePreset)
+            Toggle(listHidden
+                   ? "Társoldalak blokkolása is (a mobilos és a rövidített címek)"
+                   : "Társoldalak blokkolása is (pl. youtu.be, m.youtube.com)",
+                   isOn: $usePreset)
                 .font(.footnote)
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack {
-                    ForEach(presets, id: \.self) { p in
-                        Button(p) { addSite(p) }.buttonStyle(.bordered).font(.caption)
+            // Rejtett listánál a gyorsgombok is elmaradnak: PONT azok a címek
+            // állnak rajtuk, amiket az ember tipikusan blokkol. Hiába rejtenénk
+            // a listát, ha eggyel feljebb ott sorakozik ugyanaz hat gombon.
+            if !listHidden {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack {
+                        ForEach(presets, id: \.self) { p in
+                            Button(p) { addSite(p) }.buttonStyle(.bordered).font(.caption)
+                        }
                     }
                 }
             }
@@ -143,7 +172,8 @@ struct ContentView: View {
     private func resumeBanner(_ ses: SessionRec) -> some View {
         let site = store.state.sites.first { $0.id == ses.siteId }
         return HStack {
-            Text("Folyamatban: \(ses.kind == .delete ? "törlés" : "feloldás") — \(site?.domain ?? "")")
+            Text("Folyamatban: \(ses.kind == .delete ? "törlés" : "feloldás") — "
+                 + (site.map { AliasLogic.displayName($0) } ?? ""))
                 .font(.footnote)
             Spacer()
             Button("Folytatás") { openSessionId = ses.id }
@@ -153,20 +183,61 @@ struct ContentView: View {
 
     private var listSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Blokkolt oldalak").font(.headline)
-            if store.state.sites.isEmpty {
-                Text("Még nincs blokkolt oldal.").font(.footnote).foregroundStyle(.secondary)
+            HStack {
+                Text("Blokkolt oldalak").font(.headline)
+                Spacer()
+                // A gomb a BEÁLLÍTÁST kapcsolja, nem a pillanatnyi láthatóságot:
+                // ha rejtettre van állítva, de most nyitva van, akkor a rejtést
+                // kapcsolja KI. Enélkül nem lenne mód visszavonni.
+                if !listHidden && (!store.state.sites.isEmpty || store.state.hideSiteList == true) {
+                    Button(store.state.hideSiteList == true ? "Ne rejtse ezután" : "Lista elrejtése") {
+                        let turningOn = store.state.hideSiteList != true
+                        listOpenThisSession = !turningOn
+                        store.mutate { $0.hideSiteList = turningOn }
+                    }
+                    .font(.caption)
+                }
             }
-            ForEach(store.state.sites) { site in siteCard(site) }
+            if listHidden {
+                // A darabszám marad: a kérés az volt, hogy MIK vannak blokkolva
+                // ne látszódjon, nem az, hogy hány.
+                HStack(alignment: .top) {
+                    Text(store.state.sites.isEmpty
+                         ? "A lista el van rejtve. Még nincs benne egyetlen oldal sem."
+                         : "\(store.state.sites.count) oldal van blokkolva. A lista el van rejtve, hogy a puszta megnyitás se emlékeztessen rájuk. Megnyitva csak eddig a bezárásig marad.")
+                        .font(.footnote).foregroundStyle(.secondary)
+                    Spacer()
+                    Button("Megnyitás") { listOpenThisSession = true }.buttonStyle(.bordered)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding().background(Color.gray.opacity(0.12)).cornerRadius(10)
+            } else {
+                if store.state.sites.isEmpty {
+                    Text("Még nincs blokkolt oldal.").font(.footnote).foregroundStyle(.secondary)
+                }
+                ForEach(store.state.sites) { site in siteCard(site) }
+            }
         }
     }
 
     private func siteCard(_ site: Site) -> some View {
         let paused = (site.pauseUntil ?? 0) > now
         let deleting = site.pendingDeleteAt != nil
+        let aliased = AliasLogic.isAliased(site)
+        let revealing = (revealedUntil[site.id] ?? 0) > now
         return VStack(alignment: .leading, spacing: 6) {
-            Text(site.domain).font(.headline)
-            Text("\(site.hostnames.count) hosztnév").font(.caption).foregroundStyle(.secondary)
+            Text(AliasLogic.displayNameNow(site, now: now, revealedUntil: revealedUntil[site.id]))
+                .font(.headline)
+            HStack(spacing: 8) {
+                Text(aliased && !revealing ? "fedőnév alatt" : "\(site.hostnames.count) hosztnév")
+                    .font(.caption).foregroundStyle(.secondary)
+                // A valódi cím nem tűnik el, csak nem ül ott: néha tényleg tudni
+                // kell, melyik sor melyik.
+                if aliased && !revealing {
+                    Button("Mutasd") { revealedUntil[site.id] = nowMs() + AliasLogic.revealMs }
+                        .font(.caption).buttonStyle(.borderless)
+                }
+            }
             if paused {
                 Text("Szünetel még \(fmtRemain((site.pauseUntil ?? 0) - now))").foregroundStyle(.orange)
                 Button("Blokkolás visszakapcsolása most") { relock(site) }.buttonStyle(.bordered)
@@ -188,6 +259,7 @@ struct ContentView: View {
                     HStack {
                         Button("Feloldás időre…") { pauseSite = site }.buttonStyle(.bordered)
                         Button("Menetrend…") { scheduleSite = site }.buttonStyle(.bordered)
+                        Button("Fedőnév…") { aliasSite = site }.buttonStyle(.bordered)
                         Button("Törlés…") { deleteSite = site }.buttonStyle(.bordered)
                     }
                 }
@@ -217,6 +289,27 @@ struct ContentView: View {
             }
             Button("Mégse") { pauseSite = nil }
         }.padding()
+    }
+
+    /// Fedőnév beállítása.
+    ///
+    /// Nincs próbatétel: a fedőnév a blokkolást egy hajszálnyit sem gyengíti —
+    /// az oldal ugyanúgy tiltva marad, az alagút ugyanazt a hosztnevet dobja el.
+    /// A súrlódás ott van, ahol a védelem gyengülne.
+    private func aliasSheet(_ site: Site) -> some View {
+        AliasSheet(site: site) { text in
+            store.mutate { s in
+                if let i = s.sites.firstIndex(where: { $0.id == site.id }) {
+                    s.sites[i].alias = AliasLogic.normalize(text)
+                }
+            }
+            // Új fedőnév után a felfedés nem élhet tovább: különben a beállítás
+            // pillanatában is a valódi cím maradna ott.
+            revealedUntil[site.id] = nil
+            aliasSite = nil
+        } onCancel: {
+            aliasSite = nil
+        }
     }
 
     // MARK: - actions
@@ -289,5 +382,56 @@ struct ContentView: View {
         store.mutate { s in
             if let i = s.sites.firstIndex(where: { $0.id == site.id }) { s.sites[i].pendingDeleteAt = nil }
         }
+    }
+}
+
+/// A fedőnév-lap tartalma.
+///
+/// Külön nézet, mert a beírt szöveg SAJÁT állapot: ha a szülőben élne, minden
+/// karakter újrarajzolná az egész főképernyőt, és a lap `item:` bindingje
+/// közben újra is építené a lapot.
+private struct AliasSheet: View {
+    let site: Site
+    let onSave: (String) -> Void
+    let onCancel: () -> Void
+
+    @State private var text: String
+
+    init(site: Site, onSave: @escaping (String) -> Void, onCancel: @escaping () -> Void) {
+        self.site = site
+        self.onSave = onSave
+        self.onCancel = onCancel
+        _text = State(initialValue: site.alias ?? "")
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Fedőnév").font(.headline)
+            Text("Ha adsz nevet, a felület ezt írja ki a cím helyett — a listán, a párbeszédek címében és a próbatétel-ablakban is. A valódi cím egy gombbal, hat másodpercre előhívható.")
+                .font(.footnote).foregroundStyle(.secondary)
+            // Vágó binding, nem .onChange: annak az egyparaméteres alakja
+            // iOS 17-től elavult, a kétparaméteres meg régebbin nincs meg. Így
+            // egyik SDK-n sem kell verziót figyelni.
+            TextField("pl. A videós", text: Binding(
+                get: { text },
+                set: { text = String($0.prefix(AliasLogic.maxAliasLength)) }
+            ))
+                .textFieldStyle(.roundedBorder)
+                #if os(iOS)
+                .autocapitalization(.none)
+                #endif
+                .disableAutocorrection(true)
+            Text("Ez nem titkosítás: a blokk maga a készüléken ott van, a fedőnév csak annyit tesz, hogy ne emlékeztessen.")
+                .font(.caption).foregroundStyle(.secondary)
+            HStack {
+                if site.alias != nil {
+                    Button("Fedőnév levétele") { onSave("") }.buttonStyle(.bordered)
+                }
+                Spacer()
+                Button("Mégse") { onCancel() }
+                Button("Mentés") { onSave(text) }.buttonStyle(.borderedProminent)
+            }
+        }
+        .padding()
     }
 }
