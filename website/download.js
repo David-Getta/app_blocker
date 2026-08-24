@@ -44,13 +44,57 @@ function classify(name) {
   return { plat: "other", label: name };
 }
 
+// Vonalas jelek, nem emoji — és nem is gyártói logók.
+//
+// Az emoji minden rendszeren máshogy néz ki (Windowson színes, macOS-en más
+// rajzolatú), tehát egy terméklapon nem márka, hanem véletlen. A gyártói
+// logók (alma, ablak, robot) viszont VÉDJEGYEK, és egy harmadik fél
+// letöltőoldalán nincs keresnivalójuk. Ezért semleges ESZKÖZ-rajzok állnak
+// itt: a platformot a felirat nevezi meg, a jel csak megkülönböztet.
+//
+// Mindegyik örökli a szövegszínt, tehát a témával együtt vált.
+const SVG = {
+  // Telefon alsó navigációs sávval.
+  android:
+    '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">'
+    + '<rect x="6" y="2.5" width="12" height="19" rx="2.6" stroke="currentColor" stroke-width="1.6"/>'
+    + '<path d="M9.5 18.4h5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>',
+  // Monitor talppal.
+  win:
+    '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">'
+    + '<rect x="2.5" y="4" width="19" height="12.5" rx="2.2" stroke="currentColor" stroke-width="1.6"/>'
+    + '<path d="M9 20h6M12 16.5V20" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>',
+  // Laptop: képernyő + alap.
+  mac:
+    '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">'
+    + '<rect x="4.5" y="4.5" width="15" height="10.5" rx="2" stroke="currentColor" stroke-width="1.6"/>'
+    + '<path d="M2 18.5h20" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>',
+  // Telefon a felső pirulával.
+  ios:
+    '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">'
+    + '<rect x="6.5" y="2.5" width="11" height="19" rx="2.8" stroke="currentColor" stroke-width="1.6"/>'
+    + '<path d="M10.6 5.4h2.8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+  // Böngészőablak — érthetőbb, mint egy puzzle-darab.
+  ext:
+    '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">'
+    + '<rect x="2.5" y="4.5" width="19" height="15" rx="2.4" stroke="currentColor" stroke-width="1.6"/>'
+    + '<path d="M2.5 9h19" stroke="currentColor" stroke-width="1.6"/>'
+    + '<circle cx="5.9" cy="6.8" r="0.8" fill="currentColor"/>'
+    + '<circle cx="8.5" cy="6.8" r="0.8" fill="currentColor"/></svg>',
+  // Letöltés.
+  other:
+    '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">'
+    + '<path d="M12 3.5v11m0 0 4-4m-4 4-4-4M4.5 17v2a1.5 1.5 0 0 0 1.5 1.5h12a1.5 1.5 0 0 0 1.5-1.5v-2"'
+    + ' stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+};
+
 const PLATFORMS = {
-  android: { ico: "🤖", name: "Android" },
-  win: { ico: "🪟", name: "Windows" },
-  mac: { ico: "🍎", name: "macOS" },
-  ios: { ico: "📱", name: "iPhone / iPad" },
-  ext: { ico: "🧩", name: "Böngésző — részleges tiltás" },
-  other: { ico: "💾", name: "Egyéb" },
+  android: { ico: SVG.android, name: "Android" },
+  win: { ico: SVG.win, name: "Windows" },
+  mac: { ico: SVG.mac, name: "macOS" },
+  ios: { ico: SVG.ios, name: "iPhone / iPad" },
+  ext: { ico: SVG.ext, name: "Böngésző — részleges tiltás" },
+  other: { ico: SVG.other, name: "Egyéb" },
 };
 
 function render(assetsByPlat, version) {
@@ -84,7 +128,13 @@ function render(assetsByPlat, version) {
   // Full grid.
   const grid = document.getElementById("grid");
   grid.innerHTML = "";
-  for (const key of ["android", "win", "mac", "ios"]) {
+  // A négy rendszer MINDIG szerepel (ha nincs hozzá fájl, azt is kimondjuk),
+  // a bővítmény viszont csak akkor, ha tényleg van a kiadásban — az nem
+  // platform, hanem külön letöltés, és egy üres kártya csak zavarna.
+  const keys = ["android", "win", "mac", "ios"];
+  if ((assetsByPlat.ext || []).length) keys.push("ext");
+
+  for (const key of keys) {
     const meta2 = PLATFORMS[key];
     const div = document.createElement("div");
     div.className = "card";
@@ -97,7 +147,7 @@ function render(assetsByPlat, version) {
         ? list.map((a) => `<a class="dl" href="${a.url}">${a.label}</a>`).join("")
         : `<span class="muted">Nincs telepítő ebben a kiadásban.</span>`;
     }
-    div.innerHTML = `<div class="ico">${meta2.ico}</div><div class="name">${meta2.name}</div>
+    div.innerHTML = `<div class="plat">${meta2.ico}${meta2.name}</div>
       <div class="files">${files}</div>`;
     grid.appendChild(div);
   }
@@ -115,7 +165,11 @@ function renderError() {
 fetch(API, { headers: { Accept: "application/vnd.github+json" } })
   .then((r) => (r.ok ? r.json() : Promise.reject(new Error("no release"))))
   .then((rel) => {
-    const byPlat = { android: [], win: [], mac: [], ios: [] };
+    // A vödrök a PLATFORMS-ból épülnek, nem kézzel felsorolva. Így egy új
+    // besorolás (mint a böngésző-bővítmény) nem tud CSENDBEN kiesni: pontosan
+    // ez történt vele — a classify „ext”-et adott, a gyűjtő meg eldobta, mert
+    // nem volt ilyen vödör. Semmi nem hibázott, a fájl mégsem jelent meg.
+    const byPlat = Object.fromEntries(Object.keys(PLATFORMS).map((k) => [k, []]));
     const seen = new Set();
     for (const asset of rel.assets || []) {
       const c = classify(asset.name);

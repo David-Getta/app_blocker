@@ -66,6 +66,9 @@ jobs:
       # A bővítmény beállítási lapja ugyanabban a böngészőben, ugyanabból a
       # telepítésből — külön futóért nem éri meg egy tíz másodperces ellenőrzés.
       - run: node scripts/extension-ui.js
+      # A letöltőoldal ugyanabban a böngészőben. Ez az a lap, amit a
+      # felhasználó ELŐSZÖR lát — ha a download.js elhasal, üres oldalt kap.
+      - run: node scripts/website-shot.js --check
 
   sync-server:
     name: Szinkron-kiszolgáló tesztek

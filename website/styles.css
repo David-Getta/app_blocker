@@ -1,185 +1,236 @@
 /* Breaker — letöltőoldal.
- * Ugyanaz a paletta és ugyanaz a ritmus, mint az appban: aki letölti, ne
- * érezze úgy, hogy két különböző terméket lát. */
+ *
+ * Ugyanaz a vizuális nyelv, mint az appban (desktop/src/renderer/styles.css):
+ * a hierarchiát a tipográfia és a térköz adja, nem a keretek; képernyőnként EGY
+ * hangsúlyos elem; a szín soha nem az egyetlen jelzés.
+ *
+ * Aki innen tölt le, öt perccel később az appot nyitja meg. Ha a kettő két
+ * külön terméknek látszik, az elsőre nem tűnik fel, de a bizalomból vesz el.
+ */
 
 :root {
-  --bg: #0d1116;
-  --bg-elev: #12171d;
-  --surface: #1a2027;
-  --surface-2: #212a33;
-  --border: #2a333d;
-  --border-strong: #3a4551;
+  --bg: #08090b;
+  --surface: #131519;
+  --surface-2: #191c21;
+  --surface-3: #22262d;
 
-  --text: #e9eef4;
-  --text-2: #a4b1be;
-  --text-3: #7b8794;
+  --border: rgba(255, 255, 255, .07);
+  --border-strong: rgba(255, 255, 255, .14);
+  --hairline: rgba(255, 255, 255, .06);
 
-  --accent: #5b8cff;
-  --accent-hover: #7ba3ff;
-  --accent-soft: rgba(91, 140, 255, .14);
-  --ok: #45c78d;
+  --text: #f2f4f7;
+  --text-2: #9aa4b0;
+  --text-3: #6a7481;
 
-  --s2: 8px; --s3: 12px; --s4: 16px; --s5: 20px;
-  --s6: 24px; --s7: 32px; --s8: 48px; --s9: 72px;
+  --primary: #f4f6f9;
+  --primary-hover: #ffffff;
+  --on-primary: #0b0d10;
+
+  --accent: #6f9bff;
+  --accent-soft: rgba(111, 155, 255, .13);
+  --accent-ring: rgba(111, 155, 255, .55);
+
+  --s1: 4px;  --s2: 8px;  --s3: 12px; --s4: 16px;
+  --s5: 20px; --s6: 28px; --s7: 40px; --s8: 56px;
 
   --radius: 16px;
   --radius-sm: 11px;
+
+  --ease: cubic-bezier(.2, .8, .2, 1);
+  --dur: .18s;
+
+  font-size: 16px;
 }
 
-* { box-sizing: border-box; margin: 0; padding: 0; }
+* { box-sizing: border-box; }
 
 body {
-  background:
-    radial-gradient(900px 520px at 50% -8%, rgba(91,140,255,.13), transparent 70%),
-    var(--bg);
+  margin: 0;
+  background: var(--bg);
   color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable",
     "Segoe UI", Inter, "Helvetica Neue", Arial, sans-serif;
-  line-height: 1.6;
-  min-height: 100vh;
+  line-height: 1.65;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-variant-numeric: tabular-nums;
 }
 
-a:focus-visible, button:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 3px;
-  border-radius: var(--radius-sm);
+:focus-visible { outline: 2px solid var(--accent-ring); outline-offset: 2px; border-radius: 8px; }
+
+main, .hero, footer { max-width: 760px; margin: 0 auto; padding: 0 var(--s6); }
+
+/* ------------------------------------------------------------------ hős */
+
+.hero {
+  text-align: center;
+  padding-top: var(--s8);
+  padding-bottom: var(--s7);
 }
-
-/* ------------------------------------------------------------------ hero */
-
-.hero { text-align: center; padding: var(--s9) var(--s5) var(--s7); }
 .mark {
-  width: 88px; height: 88px; border-radius: 22px;
-  box-shadow: 0 12px 44px rgba(91,140,255,.32);
+  width: 112px; height: 112px;
+  display: block; margin: 0 auto var(--s5);
 }
-.hero h1 {
-  font-size: 3.1rem;
-  font-weight: 700;
-  letter-spacing: -0.03em;
-  margin-top: var(--s4);
+h1 {
+  margin: 0;
+  font-size: 3.4rem;
+  font-weight: 620;
+  letter-spacing: -0.04em;
   line-height: 1.05;
 }
 .tag {
-  color: var(--text-2);
-  max-width: 580px;
   margin: var(--s4) auto 0;
-  font-size: 1.06rem;
+  max-width: 30ch;
+  font-size: 1.3rem;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+.tag-sub {
+  margin: var(--s3) auto 0;
+  max-width: 44ch;
+  color: var(--text-3);
+  font-size: 0.95rem;
 }
 
-main { max-width: 880px; margin: 0 auto; padding: 0 var(--s5) var(--s9); }
+/* ------------------------------------------------- elsődleges letöltés */
 
-/* ----------------------------------------------------- fő letöltési kártya */
+.detecting { color: var(--text-3); text-align: center; padding: var(--s6) 0; }
 
-.primary { min-height: 96px; display: flex; justify-content: center; margin: var(--s6) 0 var(--s8); }
-.detecting { color: var(--text-3); align-self: center; }
-
+/* Az oldal EGYETLEN hangsúlyos pontja. A többi szakasz ehhez képest halk. */
 .primary-card {
-  background: linear-gradient(180deg, var(--surface-2), var(--surface));
-  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: var(--s7) var(--s7);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
+  padding: var(--s6);
   text-align: center;
-  max-width: 500px;
-  width: 100%;
-  box-shadow: 0 20px 50px rgba(0,0,0,.4);
 }
-.primary-card .plat { font-size: 1.24rem; font-weight: 650; letter-spacing: -0.01em; }
-.primary-card .ver { color: var(--text-3); font-size: 0.88rem; margin-top: 2px; }
+.plat {
+  display: inline-flex; align-items: center; gap: 10px;
+  font-size: 1.05rem; font-weight: 600; letter-spacing: -0.01em;
+}
+.plat svg { width: 22px; height: 22px; flex: none; color: var(--text-2); }
+.ver { color: var(--text-3); font-size: 0.9rem; margin-top: var(--s2); }
 
 .btn {
   display: inline-block;
   margin-top: var(--s5);
   padding: 13px 26px;
-  background: var(--accent);
-  color: #0b1220;
-  border: 1px solid var(--accent);
+  background: var(--primary);
+  color: var(--on-primary);
+  border: 1px solid var(--primary);
   border-radius: var(--radius-sm);
   font-size: 1rem;
-  font-weight: 700;
+  font-weight: 600;
+  letter-spacing: -0.01em;
   text-decoration: none;
-  cursor: pointer;
-  transition: background .14s ease, border-color .14s ease, transform .06s ease;
+  transition: background var(--dur) var(--ease), transform .12s var(--ease);
 }
-.btn:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
-.btn:active { transform: translateY(1px); }
-.btn.secondary { background: transparent; border-color: var(--border-strong); color: var(--text); }
-.btn.secondary:hover { border-color: var(--accent); background: var(--accent-soft); }
+.btn:hover { background: var(--primary-hover); }
+.btn:active { transform: scale(.985); }
+.btn.secondary {
+  background: transparent;
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+.btn.secondary:hover { background: var(--surface-3); }
 
+/* ----------------------------------------------------------- szakaszok */
+
+section { margin-top: var(--s8); }
 h2 {
-  font-size: 1.2rem;
-  font-weight: 650;
-  letter-spacing: -0.015em;
-  margin: var(--s8) 0 var(--s4);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  margin: 0 0 var(--s5);
 }
+h3 { font-size: 1.02rem; font-weight: 600; letter-spacing: -0.015em; margin: 0 0 var(--s2); }
+p { margin: 0 0 var(--s3); color: var(--text-2); }
 
-/* ----------------------------------------------------------- kártyarácsok */
-
-.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(196px, 1fr)); gap: var(--s3); }
-
+/* Platformok: kártyák helyett hajszálvonallal elválasztott sorok — ugyanaz a
+   gondolat, mint az app oldallistájában. Négy egyforma doboz egymás mellett
+   ugyanolyan súlyú, tehát semmi nem vezeti a szemet. */
+.grid { display: grid; gap: 0; }
 .card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: var(--s5);
-  transition: border-color .14s ease;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: var(--s3) var(--s5);
+  padding: var(--s5) 0;
+  border-top: 1px solid var(--hairline);
 }
-.card:hover { border-color: var(--border-strong); }
-.card .ico { font-size: 26px; line-height: 1; }
-.card .name { font-weight: 650; margin-top: var(--s2); }
-.card .files { margin-top: var(--s3); display: flex; flex-direction: column; gap: var(--s2); }
-.card a.dl {
+.grid > .card:first-child { border-top: 0; }
+.card .plat { font-size: 0.98rem; }
+.files { display: flex; flex-wrap: wrap; gap: var(--s2); justify-content: flex-end; }
+.dl {
+  display: inline-block;
+  padding: 7px 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
   color: var(--text);
   text-decoration: none;
-  font-size: 0.9rem;
-  font-weight: 600;
+  font-size: 0.85rem;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease);
+}
+.dl:hover { background: var(--surface-3); border-color: rgba(255,255,255,.22); }
+.muted { color: var(--text-3); font-size: 0.88rem; }
+
+/* Amit tud: két oszlop, keret nélkül. A jel halvány, a CÍM a hangsúly. */
+.feat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--s7) var(--s6);
+}
+.feat-ico { color: var(--text-3); margin-bottom: var(--s3); }
+.feat-ico svg { width: 24px; height: 24px; display: block; }
+.feat p { font-size: 0.94rem; margin: 0; }
+.feat strong { color: var(--text); font-weight: 600; }
+
+.how p { max-width: 62ch; }
+
+.note ul { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--s4); }
+.note li {
+  color: var(--text-2);
+  font-size: 0.93rem;
+  padding-left: var(--s4);
+  border-left: 2px solid var(--hairline);
+}
+.note strong { color: var(--text); font-weight: 600; }
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.86em;
   background: var(--surface-2);
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 9px 13px;
-  display: block;
-  transition: border-color .14s ease, background .14s ease;
-}
-.card a.dl:hover { border-color: var(--accent); background: var(--accent-soft); }
-.card .muted { color: var(--text-3); font-size: 0.85rem; }
-
-.feat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: var(--s3); }
-.feat {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: var(--s5);
-}
-.feat-ico { font-size: 24px; line-height: 1; }
-.feat h3 { font-size: 0.98rem; font-weight: 650; margin: var(--s3) 0 var(--s2); }
-.feat p { color: var(--text-2); font-size: 0.9rem; }
-.feat strong { color: var(--text); font-weight: 650; }
-
-.how p, .note li { color: var(--text-2); }
-
-.note ul { list-style: none; display: flex; flex-direction: column; gap: var(--s3); }
-.note li { padding-left: var(--s5); position: relative; }
-.note li::before {
-  content: ""; position: absolute; left: 0; top: 0.62em;
-  width: 6px; height: 6px; border-radius: 999px; background: var(--ok);
+  border-radius: 6px;
+  padding: 1px 6px;
+  word-break: break-all;
 }
 
 footer {
+  margin-top: var(--s8);
+  padding-top: var(--s6);
+  padding-bottom: var(--s8);
+  border-top: 1px solid var(--hairline);
   text-align: center;
-  padding: var(--s7) var(--s5) var(--s9);
-  border-top: 1px solid var(--border);
 }
-footer a { color: var(--accent); text-decoration: none; font-weight: 650; }
-footer a:hover { color: var(--accent-hover); text-decoration: underline; }
-.fine { color: var(--text-3); font-size: 0.82rem; margin-top: var(--s3); }
-
-@media (max-width: 560px) {
-  .hero { padding: var(--s8) var(--s4) var(--s6); }
-  .hero h1 { font-size: 2.3rem; }
-  .primary-card { padding: var(--s6) var(--s5); }
-  main { padding: 0 var(--s4) var(--s8); }
-}
+footer a { color: var(--text-2); text-decoration: none; font-size: 0.92rem; }
+footer a:hover { color: var(--text); }
+.fine { color: var(--text-3); font-size: 0.83rem; margin-top: var(--s3); }
 
 @media (prefers-reduced-motion: reduce) {
-  * { transition: none !important; }
+  * { transition: none !important; animation: none !important; }
+}
+
+/* Keskeny képernyőn a platformsor egy oszlopba rendeződik, hogy a letöltő
+   gombok ne préselődjenek a névvel egy sorba. */
+@media (max-width: 560px) {
+  h1 { font-size: 2.6rem; }
+  .tag { font-size: 1.12rem; }
+  .card { grid-template-columns: 1fr; }
+  .files { justify-content: flex-start; }
 }
