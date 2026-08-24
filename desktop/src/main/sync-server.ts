@@ -12,6 +12,7 @@
 // a gép alszik), nincs szinkron. Semmi nem vész el — a következő elérésnél
 // összefésül —, de a telefon addig a legutóbbi állapotot mutatja.
 
+import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { ipcMain } from 'electron';
@@ -99,8 +100,41 @@ function serverError(e: Error & { code?: string }): string {
   return e.message;
 }
 
+/**
+ * Bekapcsolva marad-e a következő indításnál.
+ *
+ * Enélkül minden appindítás után újra kellene kattintani, a telefon pedig addig
+ * csendben nem érné el a kiszolgálót. A felhasználó azt látná, hogy hol megy,
+ * hol nem — az a legrosszabb fajta hiba, mert semmi nem magyarázza.
+ */
+function prefFile(userDataDir: string): string {
+  return path.join(userDataDir, 'sync-server.json');
+}
+
+function readPref(userDataDir: string): boolean {
+  try {
+    return JSON.parse(fs.readFileSync(prefFile(userDataDir), 'utf8')).on === true;
+  } catch {
+    return false;
+  }
+}
+
+function writePref(userDataDir: string, on: boolean): void {
+  try {
+    fs.mkdirSync(userDataDir, { recursive: true });
+    fs.writeFileSync(prefFile(userDataDir), JSON.stringify({ on }));
+  } catch { /* a beállítás elvesztése nem ér annyit, hogy elhasaljon tőle az app */ }
+}
+
 export function registerSyncServerIpc(userDataDir: string): void {
   ipcMain.handle('breaker:sync-server-state', () => syncServerState());
-  ipcMain.handle('breaker:sync-server-start', () => startSyncServer(userDataDir));
-  ipcMain.handle('breaker:sync-server-stop', () => stopSyncServer());
+  ipcMain.handle('breaker:sync-server-start', () => {
+    writePref(userDataDir, true);
+    return startSyncServer(userDataDir);
+  });
+  ipcMain.handle('breaker:sync-server-stop', () => {
+    writePref(userDataDir, false);
+    return stopSyncServer();
+  });
+  if (readPref(userDataDir)) startSyncServer(userDataDir);
 }
