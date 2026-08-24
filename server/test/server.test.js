@@ -181,3 +181,18 @@ test('signup can be closed off on a private server', async () => {
   assert.equal(r.status, 403);
   closed.close();
 });
+
+test('an account cannot collect devices without bound', async () => {
+  // Eszközönként külön mérés-blob tárolódik, tehát eszközazonosítókat gyártva
+  // egy fiók korlátlanul enné a lemezt.
+  const acc = { accountId: 'sok@example', authKey: 'K' };
+  await post('/v1/signup', { ...acc, wrappedByPassword: 'brk1.a.b.c', wrappedByRecovery: 'brk1.a.b.c' });
+  for (let i = 0; i < 25; i++) {
+    await post('/v1/signin', { ...acc, deviceId: `dev-${i}`, nameBlob: 'brk1.n.n.n' });
+  }
+  const r = await post('/v1/signin', { ...acc, deviceId: 'dev-utolso' });
+  assert.equal(r.json.devices.length, 20, 'a lista korlátos marad');
+  // A LEGRÉGEBBEN látott esik ki, nem az, aki most jelentkezett be.
+  assert.ok(r.json.devices.some((d) => d.deviceId === 'dev-utolso'));
+  assert.ok(!r.json.devices.some((d) => d.deviceId === 'dev-0'));
+});

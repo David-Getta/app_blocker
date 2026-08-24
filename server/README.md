@@ -112,6 +112,18 @@ kiszolgáló **elutasítja**, és visszaadja az aktuálisat. A kliens ekkor
 Enélkül két eszköz párhuzamos írása csendben eltüntetné az egyikét — és pont ez
 a legrosszabb, ami egy blokklistával történhet.
 
+## Korlátok
+
+| Mi | Mennyi | Miért |
+|---|---|---|
+| egy blob mérete | 1 MB | a kiszolgáló nem látja, mit tárol, tehát nem tud „ésszerű” méretet mérlegelni sem |
+| egy kérés törzse | 2 MB | a korlát a KAPCSOLATON van, nem a JSON-on: enélkül egy végtelen kérés a memóriát enné |
+| eszköz egy fiókban | 20 | eszközönként külön mérés-blob tárolódik; azonosítókat gyártva egy fiók korlátlanul enné a lemezt |
+
+A huszadik eszköz felett a **legrégebben látott** esik ki a listából, nem az,
+aki épp bejelentkezik. A kiesés csak a listázást érinti: a helyi blokkokhoz a
+kiszolgáló amúgy sem fér hozzá.
+
 ## Amit a kiszolgáló SOSEM tesz
 
 - **Nem old fel semmit.** Egy eszköz eltávolítása a fiókból csak a szinkronból

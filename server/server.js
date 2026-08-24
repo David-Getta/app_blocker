@@ -76,15 +76,31 @@ function createApp(store, opts = {}) {
     return { acc, viaRecovery: byRecovery && !byPassword };
   }
 
+  /**
+   * Hány eszköz tartozhat egy fiókhoz.
+   *
+   * Nem kényelmi korlát: eszközönként egy külön mérés-blob tárolódik, tehát
+   * eszközazonosítókat gyártva egy fiók korlátlanul tudná enni a lemezt. Húsz
+   * eszköz jóval több, mint amennyit bárki valóban használ.
+   */
+  const MAX_DEVICES = 20;
+
   function touchDevice(acc, deviceId, nameBlob) {
     if (!isId(deviceId)) return;
     const d = acc.devices.find((x) => x.deviceId === deviceId);
     if (d) {
       d.lastSeen = Date.now();
       if (isBlob(nameBlob)) d.nameBlob = nameBlob;
-    } else {
-      acc.devices.push({ deviceId, nameBlob: isBlob(nameBlob) ? nameBlob : '', lastSeen: Date.now() });
+      return;
     }
+    if (acc.devices.length >= MAX_DEVICES) {
+      // A LEGRÉGEBBEN látott eszköz esik ki, nem az új: aki most jelentkezik,
+      // az épp használja. A kiesés csak a listázást érinti — a helyi blokkokhoz
+      // a kiszolgáló amúgy sem fér hozzá.
+      acc.devices.sort((a, b) => (a.lastSeen || 0) - (b.lastSeen || 0));
+      acc.devices.shift();
+    }
+    acc.devices.push({ deviceId, nameBlob: isBlob(nameBlob) ? nameBlob : '', lastSeen: Date.now() });
   }
 
   const routes = {
