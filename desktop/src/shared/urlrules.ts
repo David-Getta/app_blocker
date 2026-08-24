@@ -59,6 +59,33 @@ export interface UrlRule {
  *   youtube.com          -> nincs út: ez az egész oldal, arra a sima tiltás van
  *   /@valaki             -> nincs hoszt: nem tudnánk, mihez tartozik
  */
+/**
+ * A mobil aldomain ugyanaz az oldal.
+ *
+ * Aki a telefonjáról másolja ki a linket, `m.youtube.com/@valaki`-t illeszt be.
+ * Ha ezt szó szerint vennénk, a szabály CSAK a mobil hoszton fogna — a gépen
+ * megnyitott ugyanolyan csatorna átmenne rajta, és semmi nem árulná el, miért.
+ *
+ * A `www.`-t a `normalizeDomain` már leszedi; ez a kettő ugyanaz az eset. Csak
+ * ITT csináljuk, a részleges szabályoknál: a DNS-szintű blokklista
+ * viselkedéséhez nem nyúlunk.
+ *
+ * Teljes közdomain-lista (PSL) nélkül ennél tovább nem megyünk: találgatni,
+ * hogy egy aldomain „ugyanaz az oldal”-e, több kárt okozna, mint hasznot.
+ */
+const ALIAS_PREFIXES = ['m.', 'mobile.'];
+
+function stripAliasPrefix(host: string): string {
+  for (const prefix of ALIAS_PREFIXES) {
+    if (host.startsWith(prefix)) {
+      const rest = host.slice(prefix.length);
+      // Legalább két címke maradjon: `m.hu`-ból nem csinálunk `hu`-t.
+      if (rest.split('.').length >= 2) return rest;
+    }
+  }
+  return host;
+}
+
 export function normalizeRule(input: string): UrlRule | null {
   if (typeof input !== 'string') return null;
   const raw = input.trim();
@@ -90,7 +117,7 @@ export function normalizeRule(input: string): UrlRule | null {
   // eslint-disable-next-line no-control-regex
   if (/[\u0000-\u0020]/.test(path)) return null;
 
-  return { host, path: lowerIfCaseless(path) };
+  return { host: stripAliasPrefix(host), path: lowerIfCaseless(path) };
 }
 
 /**

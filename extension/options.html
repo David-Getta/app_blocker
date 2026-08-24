@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="hu">
+<head>
+<meta charset="utf-8">
+<title>Breaker — részleges tiltás</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f6f7f9; --card: #ffffff; --ink: #16181d; --ink-2: #5b6270;
+    --line: #e3e6eb; --accent: #2f6fed; --warn: #b4530a; --warn-bg: #fdf3e7;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #14161a; --card: #1c1f25; --ink: #eef1f5; --ink-2: #a4acba;
+            --line: #2b2f37; --accent: #7aa2ff; --warn: #e9a95d; --warn-bg: #2a2119; }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 15px/1.6 -apple-system, "Segoe UI", system-ui, sans-serif;
+    padding: 32px 20px;
+  }
+  main { max-width: 40rem; margin: 0 auto; display: grid; gap: 18px; }
+  h1 { font-size: 1.35rem; margin: 0; }
+  .card {
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 14px; padding: 20px 22px;
+  }
+  .card h2 { font-size: 1rem; margin: 0 0 10px; }
+  p { margin: 0 0 10px; color: var(--ink-2); }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; }
+  input[type=text] {
+    flex: 1 1 16rem; min-width: 0; padding: 9px 11px; font: inherit;
+    background: var(--bg); color: var(--ink);
+    border: 1px solid var(--line); border-radius: 9px;
+  }
+  button {
+    font: inherit; padding: 9px 14px; border-radius: 9px; cursor: pointer;
+    border: 1px solid var(--line); background: var(--bg); color: var(--ink);
+  }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .limits { background: var(--warn-bg); border-color: var(--warn); }
+  .limits h2 { color: var(--warn); }
+  ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+  li {
+    display: flex; align-items: center; gap: 10px; justify-content: space-between;
+    padding: 9px 12px; background: var(--bg);
+    border: 1px solid var(--line); border-radius: 9px;
+  }
+  .name { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; word-break: break-all; }
+  .muted { color: var(--ink-2); font-size: 0.86rem; }
+  .error { color: #c0392b; margin: 8px 0 0; }
+  .empty { color: var(--ink-2); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Breaker — részleges tiltás</h1>
+
+  <section class="card">
+    <h2>Új szabály</h2>
+    <p>
+      Nem az egész oldal, csak egy darabja. Illeszd be a csatorna vagy az aloldal
+      címét — például <span class="name">youtube.com/@valaki</span>.
+    </p>
+    <div class="row">
+      <input type="text" id="input" placeholder="youtube.com/@valaki" autocomplete="off" spellcheck="false">
+      <button class="primary" id="add">Tiltás</button>
+    </div>
+    <p class="error" id="error" hidden></p>
+    <p class="muted">
+      Szabályt felvenni azonnal érvényes. Levenni viszont <span id="delay">tíz perc</span>
+      várakozás — addig marad a tiltás.
+    </p>
+  </section>
+
+  <section class="card">
+    <h2>Tiltott részek</h2>
+    <ul id="list"></ul>
+    <p class="empty" id="empty">Még nincs egyetlen szabály sem.</p>
+  </section>
+
+  <section class="card limits">
+    <h2>Amit ez a réteg NEM tud</h2>
+    <p>
+      Az egész oldal tiltása a Breaker appban DNS-szinten megy, és megkerülhetetlen:
+      inkognitóban, vendég módban és más alkalmazásokban is él.
+    </p>
+    <p>
+      <strong>Ez itt gyengébb réteg</strong>, mert csak a böngésző látja az utat
+      (<span class="name">/@valaki</span>) — a DNS nem. Ezért:
+      csak ebben a böngészőben él; <strong>vendég módban egyáltalán nem fut</strong>;
+      inkognitóban alapból ki van kapcsolva, azt külön be kell kapcsolni a
+      bővítmény beállításainál.
+    </p>
+    <p>
+      Aki azt akarja, hogy egy oldal egyáltalán ne menjen, az a Breaker appban
+      tiltsa le az egészet. Ez a réteg az <strong>ingert</strong> veszi el, nem a
+      hozzáférést.
+    </p>
+  </section>
+</main>
+<script type="module" src="options.js"></script>
+</body>
+</html>

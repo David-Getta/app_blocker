@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="hu">
+<head>
+<meta charset="utf-8">
+<title>Breaker — ez a rész tiltva van</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f6f7f9; --card: #ffffff; --ink: #16181d; --ink-2: #5b6270;
+    --line: #e3e6eb; --accent: #2f6fed;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #14161a; --card: #1c1f25; --ink: #eef1f5; --ink-2: #a4acba;
+            --line: #2b2f37; --accent: #7aa2ff; }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; display: grid; place-items: center;
+    background: var(--bg); color: var(--ink);
+    font: 15px/1.6 -apple-system, "Segoe UI", system-ui, sans-serif;
+    padding: 24px;
+  }
+  .card {
+    max-width: 30rem; width: 100%; background: var(--card);
+    border: 1px solid var(--line); border-radius: 14px; padding: 28px 30px;
+  }
+  h1 { font-size: 1.25rem; margin: 0 0 10px; }
+  p { margin: 0 0 12px; color: var(--ink-2); }
+  .rule {
+    display: inline-block; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    background: var(--bg); border: 1px solid var(--line); border-radius: 8px;
+    padding: 3px 8px; color: var(--ink); word-break: break-all;
+  }
+  a { color: var(--accent); }
+  .foot { margin: 18px 0 0; font-size: 0.85rem; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>Ezt a részt te tiltottad le.</h1>
+    <p>A szabály, ami megfogta:</p>
+    <p><span class="rule" id="rule">—</span></p>
+    <p>Az oldal többi része továbbra is elérhető — csak ez a darabja nem.</p>
+    <p class="foot">
+      Ha tényleg le akarod venni a szabályt, az a
+      <a href="options.html">Breaker beállításai</a> közt megy, és nem azonnal:
+      tíz percet várni kell rá. Addig marad a tiltás.
+    </p>
+  </div>
+<script src="blocked.js"></script>
+</body>
+</html>

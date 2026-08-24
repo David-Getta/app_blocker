@@ -37,7 +37,7 @@ feltörnénk: **maga a böngésző**. Egy böngésző-bővítmény látja a cím
 állítani a betöltést, és a megjelenített oldalról el is tudja tüntetni a
 találatokat.
 
-Ennek **ára van**, és a felület ki is fogja mondani:
+Ennek **ára van**, és a bővítmény beállítási lapja ki is mondja:
 
 | | Teljes oldal tiltása (DNS) | Részleges tiltás (bővítmény) |
 |---|---|---|
@@ -112,12 +112,25 @@ Két dolgot, és a második legalább annyira fontos:
 A részleges tiltás ugyanabba a rendszerbe illeszkedik, mint a többi:
 
 - **Szabályt felvenni ingyen van** — a szigorítás mindig azonnal érvényes.
-- **Szabályt levenni próbatétel**, ugyanúgy, mint a feloldás. Enélkül a
-  részleges tiltás egy gomb lenne, és pont az a lényeg, hogy ne az legyen.
+- **Szabályt levenni várakozás**: tíz perc, és addig tilt. Enélkül a részleges
+  tiltás egy kikapcsoló gomb lenne, és pont az a lényeg, hogy ne az legyen.
+- **Meggondolni magad ingyen van**: a visszaszámlálás bármikor megszakítható, és
+  a szabály újrafelvétele is visszavonja — a szigorítás sosem kerül semmibe.
+
+A várakozás itt szándékosan egyszerűbb, mint az app próbatételei: a bővítmény
+nem tud próbatételt bonyolítani a segéd nélkül, viszont az időt tudja mérni. Tíz
+perc nem sok, de pont annyi, hogy az impulzus elmúljon — és a részleges tiltás
+pont az impulzus ellen dolgozik. Amikor a szabályok az appból jönnek majd, a
+levétel is a rendes próbatételek mögé kerül.
 
 ## Állapot
 
 - [x] A szabály magja és a normalizálás, tesztekkel (`urlrules.ts`)
-- [ ] Tárolás az oldal mellett + felület (asztal)
-- [ ] Böngésző-bővítmény (Chrome/Edge/Brave MV3 + Firefox)
+- [x] Böngésző-bővítmény: tiltás, elrejtés, súrlódás, felület
+      ([`extension/`](../extension/README.md))
+- [ ] A szabályok átvétele az appból (most a bővítmény a sajátjait tárolja)
 - [ ] Kotlin és Swift tükör, hogy a szabályok szinkronban is menjenek
+
+A bővítmény **önmagában működik**: a szabályokat a saját beállítási lapján lehet
+felvenni, és a tárolójában tartja. Az appból való átvétel a következő lépés —
+addig a részleges szabályok nem szinkronizálnak a többi eszközre.

@@ -1,0 +1,34 @@
+{
+  "manifest_version": 3,
+  "name": "Breaker — részleges tiltás",
+  "version": "0.1.0",
+  "description": "Nem az egész oldalt, csak egy darabját: például a YouTube-on egy-egy csatornát.",
+  "default_locale": "hu",
+  "permissions": ["storage", "webNavigation"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_start",
+      "all_frames": false
+    }
+  ],
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
+  "action": {
+    "default_title": "Breaker — részleges tiltás"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["blocked.html", "rules-core.js"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

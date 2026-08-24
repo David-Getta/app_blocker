@@ -72,6 +72,18 @@ test('a channel is blocked, and a similarly named one is NOT', () => {
   assert.equal(matchesRule(rule, 'https://www.youtube.com/@abc/videos'), false);
 });
 
+test('a rule pasted from a phone covers the desktop site too', () => {
+  // Aki a telefonjáról másolja a linket, `m.youtube.com/@valaki`-t illeszt be.
+  // Szó szerint véve a szabály CSAK a mobil hoszton fogna, és a gépen
+  // megnyitott ugyanolyan csatorna átmenne rajta — némán.
+  assert.deepEqual(normalizeRule('https://m.youtube.com/@valaki'),
+    { host: 'youtube.com', path: '/@valaki' });
+  assert.deepEqual(normalizeRule('mobile.twitter.com/valaki'),
+    { host: 'twitter.com', path: '/valaki' });
+  // Viszont egy `m.`-mel kezdődő VALÓDI domainből nem csinálunk csonkot.
+  assert.deepEqual(normalizeRule('m.hu/valami'), { host: 'm.hu', path: '/valami' });
+});
+
 test('the mobile host is the same channel', () => {
   // `m.youtube.com/@valaki` ugyanoda visz. Ha csak a pontos hoszt számítana, a
   // telefonos nézet kiskapu lenne.
