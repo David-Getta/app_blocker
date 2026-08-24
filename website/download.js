@@ -34,6 +34,12 @@ function classify(name) {
   if (n.endsWith(".exe")) return { plat: "win", label: "Windows telepítő (.exe)" };
   // A -mac.zip az automatikus frissítés csomagja, nem kézi letöltésre való.
   if (n.endsWith(".zip") && n.includes("mac")) return null;
+  // A részleges tiltás böngésző-bővítménye. Külön kártyát kap, mert MÁS, mint a
+  // többi letöltés: kézzel kell betölteni, és gyengébb réteg — a nyers fájlnév
+  // ezt egyikét sem mondaná el.
+  if (n.includes("bovitmeny") && n.endsWith(".zip")) {
+    return { plat: "ext", label: "Böngésző-bővítmény (kicsomagolva betöltendő)" };
+  }
   if (n.endsWith(".yml") || n.endsWith(".blockmap")) return null; // auto-update metaadat
   return { plat: "other", label: name };
 }
@@ -43,6 +49,7 @@ const PLATFORMS = {
   win: { ico: "🪟", name: "Windows" },
   mac: { ico: "🍎", name: "macOS" },
   ios: { ico: "📱", name: "iPhone / iPad" },
+  ext: { ico: "🧩", name: "Böngésző — részleges tiltás" },
   other: { ico: "💾", name: "Egyéb" },
 };
 
