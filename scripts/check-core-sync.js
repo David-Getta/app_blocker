@@ -18,10 +18,17 @@ const path = require('path');
 const ROOT = __dirname.replace(/\/scripts$/, '');
 const read = (p) => fs.readFileSync(path.join(ROOT, p), 'utf8');
 
-/** "10 * 60_000" -> 600000. Csak összeadás/szorzás és számliterál. */
+/** "10 * 60_000" -> 600000. Csak összeadás/szorzás/eltolás és számliterál. */
 function evalNumber(expr) {
-  const cleaned = expr.replace(/_/g, '').replace(/[LlfFdD]\b/g, '').trim();
-  if (!/^[\d\s*+.()-]+$/.test(cleaned)) return NaN;
+  const cleaned = expr
+    .replace(/_/g, '')
+    // A Kotlin `shl` és a Swift/TS `<<` ugyanaz a művelet, csak más a jele.
+    // ELŐBB kell cserélni, mint a szám-utótagokat: különben a `shl` végi `l`-t
+    // a `[LlfFdD]\b` minta leszedné, és `sh` maradna a helyén.
+    .replace(/\bshl\b/g, '<<')
+    .replace(/[LlfFdD]\b/g, '')
+    .trim();
+  if (!/^[\d\s*+.()<-]+$/.test(cleaned)) return NaN;
   // eslint-disable-next-line no-new-func
   return Function(`"use strict"; return (${cleaned});`)();
 }
@@ -35,6 +42,7 @@ function numbersIn(text) {
 const ts = {
   challenges: read('desktop/src/shared/challenges.ts'),
   alias: read('desktop/src/shared/alias.ts'),
+  sync: read('desktop/src/shared/sync/crypto.ts'),
   referee: read('desktop/src/helper/referee.ts'),
   protocol: read('desktop/src/shared/protocol.ts'),
 };
@@ -42,11 +50,13 @@ const kt = {
   engine: read('android/app/src/main/java/hu/breaker/app/core/ChallengeEngine.kt'),
   referee: read('android/app/src/main/java/hu/breaker/app/core/Referee.kt'),
   alias: read('android/app/src/main/java/hu/breaker/app/core/Alias.kt'),
+  sync: read('android/app/src/main/java/hu/breaker/app/core/SyncCrypto.kt'),
 };
 const sw = {
   engine: read('ios/Shared/ChallengeEngine.swift'),
   referee: read('ios/Shared/Referee.swift'),
   alias: read('ios/Shared/Alias.swift'),
+  sync: read('ios/Shared/SyncCrypto.swift'),
 };
 
 function scalar(text, re, label) {
@@ -139,6 +149,21 @@ const CHECKS = [
     scalar(ts.alias, /REVEAL_MS\s*=\s*([^;]+);/, 'ts'),
     scalar(kt.alias, /REVEAL_MS[^=]*=\s*(.+)/, 'kt'),
     scalar(sw.alias, /revealMs[^=]*=\s*(.+)/, 'swift')],
+  // A szinkron kulcsszármaztatása: ha ez a három szám elcsúszik, ugyanaz a
+  // jelszó MÁS kulcsot ad a telefonon és a gépen — vagyis a másik eszközön nem
+  // lehet belépni. Csendben, mindenféle hibaüzenet nélkül.
+  ['SCRYPT_N',
+    scalar(ts.sync, /SCRYPT_N\s*=\s*([^;]+);/, 'ts'),
+    scalar(kt.sync, /SCRYPT_N[^=]*=\s*(.+)/, 'kt'),
+    scalar(sw.sync, /scryptN[^=]*=\s*(.+)/, 'swift')],
+  ['SCRYPT_R',
+    scalar(ts.sync, /SCRYPT_R\s*=\s*([^;]+);/, 'ts'),
+    scalar(kt.sync, /SCRYPT_R[^=]*=\s*(.+)/, 'kt'),
+    scalar(sw.sync, /scryptR[^=]*=\s*(.+)/, 'swift')],
+  ['SCRYPT_P',
+    scalar(ts.sync, /SCRYPT_P\s*=\s*([^;]+);/, 'ts'),
+    scalar(kt.sync, /SCRYPT_P[^=]*=\s*(.+)/, 'kt'),
+    scalar(sw.sync, /scryptP[^=]*=\s*(.+)/, 'swift')],
 ];
 
 // A kódábécé nem szám, de ha eltér, a memória-próba más jeleket adna.
