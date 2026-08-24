@@ -44,68 +44,30 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **Fedőnév a blokkolt oldalakhoz.** A lista maga is ingerforrás: aki
-          megnyitja az appot, és ott áll előtte a `youtube.com`, az már fél
-          lépéssel közelebb van. Minden oldalnak adható saját név, és onnantól a
-          felületen az látszik — a soron, a párbeszédek címében, a
-          próbatétel-ablakban és a statisztikában is. A valódi cím nem tűnik el:
-          egy gombbal **hat másodpercre** előhívható, aztán magától visszabújik.
+          **Teljesen új felület.** Nem átszínezés: a hierarchiát mostantól a
+          tipográfia és a térköz adja, nem a keretek. Eddig minden be volt
+          keretezve — kártya a kártyában, sor a sorban —, és attól minden
+          ugyanolyan fontosnak látszott. Most az oldalak egyetlen kártyán
+          belül, hajszálvonallal elválasztva élnek, a szakaszcímek
+          visszahúzódnak, és képernyőnként egy hangsúlyos elem van. Mind a négy
+          felület (Windows, macOS, Android, iPhone) ugyanabból a rendszerből
+          épül, ugyanazokkal a számokkal.
 
-          **A teljes lista elrejthető.** Egy kapcsoló, és az app minden
-          induláskor csukott listával nyílik. Csak a darabszám látszik, a nevek
-          nem. A rejtés az egész felületre szól: a statisztikában
-          `1. rejtett oldal` áll a cím helyett, és a felvevő kártya gyorsgombjai
-          is eltűnnek. Megnyitni egy kattintás, de csak a bezárásig marad nyitva.
+          Az **ikon** is új, és a jel végre azt mondja, amit az app csinál: egy
+          megszakított gyűrű — a kör, ami nem zárul be. Nem lakat: itt nem
+          őrizni kell valamit, hanem te magad zárod ki magad.
 
-          Mindkettő megvan **asztali gépen, Androidon és iPhone-on** is.
+          **A fiókhoz nem kell többé IP-címet begépelni.** Ez volt az a pont,
+          ahol a szinkron meghalt: fiókot csinálni csak úgy lehetett, ha előbb
+          beírtad, hogy `http://192.168.1.10:8787`. Mostantól:
 
-          **Fiók és eszközök közti szinkron** — mostantól **mind a három
-          platformon**. Belépsz ugyanabba a fiókba a másik eszközödön, és nem
-          kell újra felvenned a listát; a többi eszköz idejét is látod. A blokkolt
-          oldalak és a mért idők **titkosítva** mennek fel — a kiszolgáló nem
-          látja őket, és mivel nem ért belőlük semmit, nem is kell megbízni
-          benne. A kiszolgáló néhány száz sor, függőség nélkül, magadnak is
-          futtathatod (`server/`). A kijelentkezés **egyetlen blokkot sem visz
-          el**: a szinkron nem kibúvó.
-
-          Elfelejtett jelszóhoz a regisztrációnál kapott **helyreállító kód** az
-          út vissza — az app belépőképernyőjén az „Elfelejtett jelszó” gomb
-          mögött. A kiszolgáló ebben sem tud segíteni: nem lát bele.
-
-          Ehhez **kell egy kiszolgáló**, amit magadnak kell elindítanod: a
-          `server/` mappában van, néhány száz sor Node, függőség nélkül, és
-          Dockerfile is tartozik hozzá. Amíg nem indítasz egyet, a fiókkártya
-          egyszerűen nem csinál semmit — minden más változatlanul működik.
-
-          A legegyszerűbb út: **az asztali appból**. A „Fiók és eszközök”
-          kártyán ott a *Kiszolgáló indítása ezen a gépen* gomb — elindítja, és
-          kiírja azt a címet, amit a telefonba be kell gépelni. Nem kell hozzá
-          se terminál, se Node. Egy dolgot ki is mond: amíg az az app nem fut
-          (vagy a gép alszik), nincs szinkron; semmi nem vész el, a telefon
-          addig a legutóbbi állapotot mutatja.
-
-          Ha folyamatosan futó kiszolgálót akarsz, a `server/` mappa és a
-          `server/README.md` szól róla.
-
-          **Az összes eszközöd ideje egyben.** A fiókkártyán legelöl az áll,
-          hogy mennyi ment el ÖSSZESEN — nem eszközönként külön. Két eszközön
-          napi húsz-húsz perc az együtt negyven, és fejben ezt senki nem adja
-          össze. Alatta eszközönként a mai és a heti idő, meg a hét három
-          legtöbb időt vivő célpontja.
-
-          A weboldalak tényleg összeadódnak (ugyanaz a cím a gépen és a
-          telefonon egy sor), két böngésző-app viszont két külön sor marad —
-          mert nem ugyanaz a program.
-
-          **iPhone-on ez az egyetlen statisztika, ami valaha látszani fog.** Az
-          Apple nem enged appnak hozzáférni ahhoz, hogy más appokban vagy
-          weboldalakon mennyi aktív idő telik, tehát a készülék maga semmit nem
-          mér. Amit viszont megtehet: elolvasni, amit a géped és az androidos
-          telefonod mért. A kártya ki is mondja, hogy a számokat nem az iPhone
-          mérte — enélkül a nulla óra hibának nézne ki.
-
-          Ha rejtve van a lista, az összesített sor sem nevezi meg az oldalt:
-          ugyanaz a fedőnév vagy `1. rejtett oldal` áll ott is.
+          - **A gépen hagyd üresen a mezőt.** Az üres mező azt jelenti, hogy a
+            fiók ezen a gépen legyen: a kiszolgáló magától elindul, és az app a
+            saját helyi címét használja. Semmit nem kell megkeresned.
+          - **A telefonon egy rövid kód elég.** A gép kiírja, például `00GMR` —
+            öt karakter, nem egy IP-cím. Kötőjel, szóköz és kisbetű nem
+            számít, és ha elgépeled, azt a kód maga mondja meg (ellenőrző
+            összeg van benne), nem egy értelmezhetetlen „nem érhető el”.
 
           **Részleges tiltás: nem az egész oldal, csak egy darabja.** Például a
           YouTube-on egy-egy csatorna. Ezt a Breaker DNS-motorja **nem tudja
@@ -122,8 +84,44 @@ jobs:
           hozzáférést.
 
           A bővítmény nem csak a megnyitást állítja meg: a csatorna videóit a
-          főoldali ajánlóból is eltünteti. Szabályt felvenni azonnal érvényes,
-          levenni tíz perc várakozás — addig még tilt.
+          főoldali ajánlóból is eltünteti. A szabályokat az appban is fel lehet
+          venni, oldalanként; felvenni egy kattintás, **levenni próbatétel** —
+          ugyanúgy, mint a feloldást.
+
+          **Az összes eszközöd ideje egyben.** A fiókkártyán legelöl az áll,
+          hogy mennyi ment el ÖSSZESEN — nem eszközönként külön. Két eszközön
+          napi húsz-húsz perc az együtt negyven, és fejben ezt senki nem adja
+          össze. Alatta eszközönként a mai és a heti idő, meg a hét három
+          legtöbb időt vivő célpontja.
+
+          **iPhone-on ez az egyetlen statisztika, ami valaha látszani fog.** Az
+          Apple nem enged appnak hozzáférni ahhoz, hogy más appokban vagy
+          weboldalakon mennyi aktív idő telik, tehát a készülék maga semmit nem
+          mér. Amit viszont megtehet: elolvasni, amit a géped és az androidos
+          telefonod mért.
+
+          Ha rejtve van a lista, az összesített sor sem nevezi meg az oldalt:
+          ugyanaz a fedőnév vagy `1. rejtett oldal` áll ott is.
+
+          ### Ami korábbról már megvolt
+
+          **Fedőnév a blokkolt oldalakhoz** — a lista maga is ingerforrás.
+          Minden oldalnak adható saját név; a valódi cím egy gombbal hat
+          másodpercre előhívható.
+
+          **A teljes lista elrejthető** — az app minden induláskor csukott
+          listával nyílik, csak a darabszám látszik.
+
+          **Fiók és eszközök közti szinkron** mind a három platformon, végponttól
+          végpontig titkosítva: a kiszolgáló nem látja a blokklistádat és a mért
+          idődet. A kiszolgáló néhány száz sor, függőség nélkül, magadnak is
+          futtathatod (`server/`), de a legegyszerűbb, ha az asztali app
+          indítja el. Elfelejtett jelszóhoz a regisztrációnál kapott
+          helyreállító kód az út vissza.
+
+          **Napi időkeret oldalanként**, **időzített menetrend**, és
+          **próbatételek**, amik nem lesznek könnyebbek attól, hogy sokszor
+          oldasz fel.
 
           ### Ebben a verzióban javítva
 
