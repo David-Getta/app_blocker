@@ -762,6 +762,16 @@ body {
 
 /* A párosító kód: ez az, amit a másik eszközbe be kell gépelni, tehát a
    kártya legnagyobb eleme. Ha keresgélni kell hozzá, senki nem teszi meg. */
+/* A bővítmény összekötése a szabály-párbeszédben. */
+.bridge-box {
+  border: 1px solid var(--border);
+  border-radius: var(--r2, 10px);
+  padding: var(--s3, 12px);
+  margin: var(--s3, 12px) 0;
+}
+.bridge-box .pair-code { font-size: 1.25rem; }
+.bridge-box .hint { margin-bottom: 0; }
+
 .pair-code {
   font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   font-size: 1.7rem;

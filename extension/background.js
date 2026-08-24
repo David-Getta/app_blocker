@@ -12,6 +12,7 @@
 
 import { firstMatch, ruleLabel } from './rules-core.js';
 import { activeRules, load, sweep } from './storage.js';
+import { dueForRefresh, loadLink, pullFromApp, withAppRules } from './app-link.js';
 
 /** Csak a főkeret számít: egy beágyazott hirdetés nem „az oldal megnyitása”. */
 function isTopFrame(details) {
@@ -21,11 +22,30 @@ function isTopFrame(details) {
 async function decide(url) {
   const now = Date.now();
   const state = await load();
-  return firstMatch(activeRules(state, now), url);
+  const link = await loadLink();
+  // Az app szabályai HOZZÁADÓDNAK a sajátokhoz. Ha az app épp nem érhető el, az
+  // utoljára letöltött lista marad érvényben — vagyis tovább tilt, nem enged át.
+  return firstMatch(withAppRules(activeRules(state, now), link.rules), url);
+}
+
+/**
+ * Az app megkérdezése, ha esedékes.
+ *
+ * NEM várunk rá a döntés előtt: egy lassú vagy elérhetetlen app nem
+ * késleltetheti a navigációt. A friss lista a KÖVETKEZŐ döntésnél számít — az
+ * app szabályai amúgy is percekben változnak, nem másodpercekben.
+ */
+function refreshInBackground() {
+  void (async () => {
+    const link = await loadLink();
+    if (!dueForRefresh(link, Date.now())) return;
+    await pullFromApp();
+  })();
 }
 
 chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
   if (!isTopFrame(details)) return;
+  refreshInBackground();
   const hit = await decide(details.url);
   if (!hit) return;
   const target = chrome.runtime.getURL(
@@ -58,8 +78,8 @@ chrome.webNavigation.onHistoryStateUpdated.addListener(async (details) => {
 // A lejárt visszaszámlálású szabályokat valakinek ki kell takarítania. A
 // szolgáltatás-worker amúgy is felébred minden navigációnál, tehát itt a helye —
 // külön ébresztő nélkül.
-chrome.runtime.onStartup.addListener(() => { void sweep(); });
-chrome.runtime.onInstalled.addListener(() => { void sweep(); });
+chrome.runtime.onStartup.addListener(() => { void sweep(); void pullFromApp(); });
+chrome.runtime.onInstalled.addListener(() => { void sweep(); void pullFromApp(); });
 
 // A beállítások lapja innen kéri le, mi számít MOST aktívnak, hogy ne kelljen
 // két helyen ugyanazt az időkezelést megírni.
@@ -67,7 +87,8 @@ chrome.runtime.onMessage.addListener((msg, _sender, respond) => {
   if (msg?.type !== 'breaker:active-rules') return false;
   void (async () => {
     const state = await load();
-    respond({ rules: activeRules(state, Date.now()) });
+    const link = await loadLink();
+    respond({ rules: withAppRules(activeRules(state, Date.now()), link.rules) });
   })();
   return true; // aszinkron válasz
 });

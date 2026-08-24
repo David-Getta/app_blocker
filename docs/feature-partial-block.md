@@ -128,9 +128,51 @@ levétel is a rendes próbatételek mögé kerül.
 - [x] A szabály magja és a normalizálás, tesztekkel (`urlrules.ts`)
 - [x] Böngésző-bővítmény: tiltás, elrejtés, súrlódás, felület
       ([`extension/`](../extension/README.md))
-- [ ] A szabályok átvétele az appból (most a bővítmény a sajátjait tárolja)
-- [ ] Kotlin és Swift tükör, hogy a szabályok szinkronban is menjenek
+- [x] A szabályok átvétele az appból (helyi híd)
+- [x] Kotlin és Swift tükör, és szinkron a fiókon át
+- [ ] Aláírt bővítmény-csomag, hogy ne kelljen fejlesztői mód
+- [ ] Végponttól végpontig futó teszt valódi bővítmény-betöltéssel
 
-A bővítmény **önmagában működik**: a szabályokat a saját beállítási lapján lehet
-felvenni, és a tárolójában tartja. Az appból való átvétel a következő lépés —
-addig a részleges szabályok nem szinkronizálnak a többi eszközre.
+## A híd: hogyan veszi át a bővítmény az app szabályait
+
+A szabályokat az **appban** veszi fel az ember, mert ott van mögöttük a
+súrlódás: felvenni egy kattintás, levenni próbatétel. A bővítmény viszont csak
+a saját listáját ismerné — vagyis ugyanazt kétszer kellene begépelni, két
+helyre. Ami kétszer van, az előbb-utóbb szétcsúszik, és mindenki azt hiszi,
+hogy a másik fele is tilt.
+
+A bővítmény nem tud unix socketet olvasni (ott ül a segéd), és fájlt sem. Ami
+marad: egy HTTP-végpont. Ezért az asztali app egy **helyi hidat** nyit
+(`desktop/src/main/rules-bridge.ts`):
+
+| Döntés | Miért |
+|---|---|
+| Csak `127.0.0.1` | A szinkron-kiszolgáló a hálózat felé szolgál ki; ez SOHA. A blokklista nem megy ki a Wi-Fire. |
+| Kóddal védett | Enélkül a gépen futó bármelyik program elolvashatná, mi van blokkolva. |
+| Csak `GET`, egy útvonal | Ha lehetne rajta írni, a bővítmény lenne a legegyszerűbb kiskapu az egész appban. |
+| Nincs CORS-fejléc | A bővítmény a `host_permissions` jogán így is olvassa; egy weboldal nem. |
+| A port 8788-tól felfelé | A 8788 bármelyik másik program alatt lehet; az app ilyenkor a következőn indul, a bővítmény pedig végigpróbálja. |
+
+A kód az appban, a **Részek** párbeszédben van kiírva; a bővítmény
+beállításainál kell egyszer bemásolni.
+
+**Az app szabályai a bővítményből nem vehetők le.** Ez nem hiányzó gomb: ha
+onnan is le lehetne szedni őket, tíz perc várakozás váltaná ki a próbatételt.
+
+**Ha az app nincs nyitva**, a bővítmény az utoljára letöltött listát használja —
+vagyis tovább tilt, nem enged át. Ez a helyes irány: a hiba a szigorúbb oldalra
+dől. Egy elérhetetlen app soha nem jelent „nulla szabályt”, különben a
+legolcsóbb feloldás egy ablak bezárása lenne.
+
+## Szinkron: a szabályok a fiókon át
+
+A szabályok a `SyncSite` részei, és minden eszközre elmennek — akkor is, ahol
+nem érvényesülnek (Android, iPhone: ott nincs bővítmény-rendszer). Ez nem
+fölösleges: a szinkron nem dobhat el olyan mezőt, amit nem ért, különben a
+telefon minden körben letörölné a gépen felvett szabályokat.
+
+Az összefésülés a rekord többi mezőjétől külön kezeli őket
+(`shared/sync/merge.ts`, `mergeRules`): egyenlő `rev`-nél EGYESÍT (két eszközön
+egyszerre felvett szabályból egyik sem veszhet el), nagyobb `rev`-nél a
+nyertesé érvényes (az eltávolítás mögött ott a próbatétel), a **hiányzó mező**
+pedig nem törlés, hanem „nem tudok róla”.

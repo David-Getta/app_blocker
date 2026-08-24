@@ -6,6 +6,7 @@
 
 import { app, BrowserWindow, ipcMain } from 'electron';
 import { registerSyncServerIpc } from './sync-server';
+import { registerRulesBridge, stopRulesBridge } from './rules-bridge-ipc';
 import * as path from 'path';
 import { HelperClient } from './helper-client';
 import { installHelper } from './install';
@@ -109,13 +110,24 @@ if (HELPER_MODE) {
       // szinkron papíron létezik, gyakorlatban nem: terminált nyitni és külön
       // szolgáltatást futtatni a legtöbben nem fognak — és igazuk lenne.
       registerSyncServerIpc(app.getPath('userData'));
+      // A böngésző-bővítmény innen veszi a részleges szabályokat. Enélkül
+      // ugyanazt kétszer kellene begépelni, két külön listába — és ami kétszer
+      // van, az előbb-utóbb szétcsúszik.
+      registerRulesBridge(app.getPath('userData'), async () => {
+        const s = await client.call('status') as StatusData;
+        const out: { host: string; path: string }[] = [];
+        for (const site of s.sites ?? []) {
+          for (const r of site.rules ?? []) out.push({ host: r.host, path: r.path });
+        }
+        return out;
+      });
       // Keep the tracker's view of the switch fresh without extra IPC chatter.
       setInterval(() => {
         void client.call('status')
           .then((s) => { usageEnabled = (s as StatusData).usageEnabled; })
           .catch(() => { /* ignore */ });
       }, 60_000);
-      app.on('before-quit', () => tracker.stop());
+      app.on('before-quit', () => { tracker.stop(); stopRulesBridge(); });
       app.on('activate', () => {
         if (BrowserWindow.getAllWindows().length === 0) createWindow();
       });

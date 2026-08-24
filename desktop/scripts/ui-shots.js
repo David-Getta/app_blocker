@@ -187,6 +187,7 @@ function fakeBridgeSource() {
       // A gépen futó kiszolgáló: a hamis híd is tud róla, hogy a füstteszt
       // láthassa a be- és kikapcsolt állapotot.
       getSyncServer: async () => window.__fakeHost || { running: false },
+      getBridgeInfo: async () => window.__fakeBridge || { running: false },
       startSyncServer: async () => {
         window.__fakeHost = {
           running: true,
@@ -247,6 +248,21 @@ async function main() {
   // A napi keret KÖZÖS az eszközök között: a mérő a teljes elhasznált időt
   // mutatja. Ki kell mondani, mennyi ment el máshol — enélkül úgy néz ki,
   // mintha az app rosszul számolna.
+  // A böngésző-bővítmény összekötése: a kód a RÉSZEK párbeszédben van, mert ott
+  // derül ki, hogy ehhez a funkcióhoz bővítmény kell. Ha a kód nem jelenne meg,
+  // a szabályokat kétszer kellene felvenni — az appban és a bővítményben is.
+  await page.evaluate(() => { window.__fakeBridge = { running: true, port: 8788, token: 'ABCD-EFGH-JKMN-PQRS' }; });
+  await page.locator('#siteList .site-row').first()
+    .getByRole('button', { name: /^Részek/ }).click();
+  await page.waitForSelector('.modal .bridge-box .pair-code', { timeout: 10_000 })
+    .catch(() => failures.push('a szabály-párbeszédben nincs bővítmény-kód'));
+  const bridgeCode = await page.locator('.modal .bridge-box .pair-code').textContent()
+    .catch(() => '');
+  if ((bridgeCode || '').trim() !== 'ABCD-EFGH-JKMN-PQRS') {
+    failures.push(`rossz bővítmény-kód a párbeszédben: ${bridgeCode}`);
+  }
+  await page.locator('.modal').getByRole('button', { name: /^Bezárás$/ }).click();
+
   const notes = await page.locator('#siteList .limit-note').allTextContents();
   if (!notes.some((t) => /másik eszközön/.test(t))) {
     failures.push(`hiányzik a „másik eszközön” sor a keret alól (${JSON.stringify(notes)})`);

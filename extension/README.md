@@ -56,6 +56,22 @@ reddit.com/r/valami
   kikapcsoló gomb lenne, és pont az a lényeg, hogy ne az legyen.
 - **Meggondolni magad ingyen van**: a visszaszámlálás bármikor megszakítható.
 
+### Összekötés az appal
+
+Ha a Breaker asztali app is fut ezen a gépen, a szabályokat ott is fel lehet
+venni — és ott a levételük **próbatételbe kerül**, nem tíz perc várakozás.
+
+1. Az appban egy oldal sorában: **Részek** → ott van kiírva egy kód.
+2. Másold be a bővítmény beállításai közé (*Kapcsolat az appal*) → **Összekötés**.
+
+Ezután a bővítmény percenként lekéri az app szabályait, és a sajátjai MELLETT
+érvényesíti őket. Amit az appból kapott, azt itt **nem lehet levenni**: ha
+lehetne, a bővítmény lenne a legolcsóbb kiskapu az egész appban.
+
+Amíg az app nincs nyitva, a legutóbb letöltött lista marad érvényben — vagyis
+**tovább tilt**, nem enged át. A híd csak a saját gépen belül él (`127.0.0.1`),
+kóddal védett, és **csak olvas**: ezen az úton semmit nem lehet feloldani.
+
 ## Mit csinál pontosan
 
 1. **Megállítja a navigációt**, ha a cím a szabály alá esik — a saját tiltó lapja
@@ -77,6 +93,7 @@ valamit, amit a felhasználó nem tiltott le.
 |---|---|
 | `rules-core.js` | a szabály magja — a `desktop/src/shared/urlrules.ts` párja |
 | `storage.js` | tárolás és a súrlódás (felvétel ingyen, levétel várakozás) |
+| `app-link.js` | a kapcsolat az appal: kód, lekérés, gyorsítótár |
 | `background.js` | a navigáció megállítása (`webNavigation`) |
 | `content.js` | a találatok elrejtése az oldalról |
 | `options.html/js` | a szabályok kezelése |
@@ -119,7 +136,7 @@ huzalozás, nem a logika.
 
 ## Ami még hátra van
 
-- [ ] A szabályok átvétele az appból (most a bővítmény a sajátjait tárolja)
+- [x] A szabályok átvétele az appból (*Kapcsolat az appal*)
 - [x] Csomagolt zip a GitHub Releases mellé (`Breaker-bovitmeny-*.zip`)
 - [ ] Aláírt csomag (`.crx` / `.xpi`), hogy ne kelljen fejlesztői mód
 - [ ] Végponttól végpontig futó teszt valódi bővítmény-betöltéssel

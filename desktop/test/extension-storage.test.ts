@@ -170,3 +170,149 @@ test('the wait is long enough to outlast an impulse', async () => {
   assert.ok(ext.REMOVE_DELAY_MS >= 5 * 60_000, 'legalább öt perc');
   assert.ok(ext.MAX_RULES >= 50, 'ne fogyjon el a hely valódi használatnál');
 });
+
+// ---------------------------------------------------------------------------
+// A kapcsolat az appal
+// ---------------------------------------------------------------------------
+//
+// A szabályokat az appban veszi fel az ember (ott van mögöttük a próbatétel).
+// Ha ez a kapcsolat rosszul működik, két dolog történhet, és mindkettő csendes:
+//
+//   1. az app szabályai NEM érnek ide  -> a felhasználó azt hiszi, tilt, és nem;
+//   2. az app szabályai innen levehetők -> a bővítmény lesz a legolcsóbb kiskapu.
+
+interface LinkApi {
+  FIRST_PORT: number;
+  PORT_TRIES: number;
+  REFRESH_MS: number;
+  TOKEN_HEADER: string;
+  loadLink: () => Promise<{ token: string | null; port: number | null;
+    rules: { host: string; path: string }[]; fetchedAt: number; error: string | null }>;
+  setToken: (t: string) => Promise<string | null>;
+  forgetToken: () => Promise<void>;
+  pullFromApp: (now?: number, fetchImpl?: unknown) => Promise<{ ok: boolean;
+    rules?: { host: string; path: string }[]; error?: string }>;
+  dueForRefresh: (link: { token: string | null; fetchedAt: number }, now: number) => boolean;
+  withAppRules: (
+    local: { host: string; path: string }[], app: { host: string; path: string }[],
+  ) => { host: string; path: string; fromApp?: boolean }[];
+}
+
+function freshLink(): LinkApi {
+  const disk: Record<string, unknown> = {};
+  const chrome = {
+    storage: {
+      local: {
+        get: async (key: string) => ({ [key]: disk[key] }),
+        set: async (obj: Record<string, unknown>) => { Object.assign(disk, obj); },
+      },
+    },
+  };
+  const src = fs.readFileSync(path.join(extensionDir(), 'app-link.js'), 'utf8');
+  const names: string[] = [];
+  const body = src
+    .replace(/^import[^;]+;\s*$/gm, '')
+    .replace(/^export (const|async function|function) (\w+)/gm, (_m, kind, name) => {
+      names.push(name as string);
+      return `${kind} ${name}`;
+    });
+  // eslint-disable-next-line no-new-func
+  return new Function('chrome', 'fetch', `${body}\nreturn { ${names.join(', ')} };`)(
+    chrome, async () => { throw new Error('nincs hálózat'); },
+  ) as LinkApi;
+}
+
+/** Egy hamis app: adott porton válaszol, adott kóddal. */
+function fakeApp(port: number, token: string, rules: { host: string; path: string }[]) {
+  return async (url: string, init: { headers: Record<string, string> }) => {
+    const m = /^http:\/\/127\.0\.0\.1:(\d+)\/rules$/.exec(url);
+    if (!m) throw new Error('rossz cím');
+    if (Number(m[1]) !== port) throw new Error('ECONNREFUSED');
+    if (init.headers['x-breaker-token'] !== token) {
+      return { ok: false, status: 401, json: async () => ({ error: 'rossz kód' }) };
+    }
+    return { ok: true, status: 200, json: async () => ({ protocol: 1, rules }) };
+  };
+}
+
+test('the app rules arrive, even when the app moved to another port', async () => {
+  // A 8788 bármelyik másik program alatt lehet; az app ilyenkor a következőn
+  // indul. Ha csak az elsőt próbálnánk, a bővítmény némán maradna szabály
+  // nélkül — és a felhasználó azt hinné, hogy tilt.
+  const ext = freshLink();
+  await ext.setToken('ABCD-EFGH');
+  const app = fakeApp(8790, 'ABCD-EFGH', [{ host: 'youtube.com', path: '/@valaki' }]);
+  const r = await ext.pullFromApp(1000, app);
+  assert.equal(r.ok, true);
+  assert.deepEqual(r.rules, [{ host: 'youtube.com', path: '/@valaki' }]);
+  // A megtalált portot megjegyezzük: tíz kérés helyett egy.
+  assert.equal((await ext.loadLink()).port, 8790);
+});
+
+test('a wrong code says so, instead of looking like a network problem', async () => {
+  const ext = freshLink();
+  await ext.setToken('ROSSZ');
+  const app = fakeApp(8788, 'ABCD-EFGH', []);
+  const r = await ext.pullFromApp(1000, app);
+  assert.equal(r.ok, false);
+  assert.match(r.error ?? '', /kód/);
+});
+
+test('when the app is closed, the last known rules stay in force', async () => {
+  // EZ A LÉNYEG. Ha az elérhetetlen app „nulla szabályt” jelentene, elég lenne
+  // bezárni az appot ahhoz, hogy a részleges tiltás megszűnjön — vagyis a
+  // legolcsóbb feloldás egy ablak bezárása lenne.
+  const ext = freshLink();
+  await ext.setToken('ABCD-EFGH');
+  await ext.pullFromApp(1000, fakeApp(8788, 'ABCD-EFGH', [{ host: 'youtube.com', path: '/@a' }]));
+  const down = await ext.pullFromApp(2000, async () => { throw new Error('ECONNREFUSED'); });
+  assert.equal(down.ok, false);
+  const link = await ext.loadLink();
+  assert.deepEqual(link.rules, [{ host: 'youtube.com', path: '/@a' }], 'a lista megmarad');
+  assert.ok(link.error, 'de a felület megtudja, hogy nem friss');
+});
+
+test('an empty answer from a reachable app IS the answer', async () => {
+  // Ha az appban levették az összes szabályt (próbatétellel), annak ide is meg
+  // kell érkeznie — különben a bővítmény örökre tiltana valamit, amit a
+  // felhasználó már kifizetett.
+  const ext = freshLink();
+  await ext.setToken('ABCD-EFGH');
+  await ext.pullFromApp(1000, fakeApp(8788, 'ABCD-EFGH', [{ host: 'youtube.com', path: '/@a' }]));
+  const r = await ext.pullFromApp(2000, fakeApp(8788, 'ABCD-EFGH', []));
+  assert.equal(r.ok, true);
+  assert.deepEqual((await ext.loadLink()).rules, []);
+});
+
+test('changing or clearing the code never drops the rules', async () => {
+  // A szabályok eldobása lazítás lenne, méghozzá a legolcsóbb fajta: elég
+  // lenne kitörölni a kódot.
+  const ext = freshLink();
+  await ext.setToken('ABCD-EFGH');
+  await ext.pullFromApp(1000, fakeApp(8788, 'ABCD-EFGH', [{ host: 'youtube.com', path: '/@a' }]));
+  await ext.setToken('MASIK-KOD');
+  assert.equal((await ext.loadLink()).rules.length, 1);
+  await ext.forgetToken();
+  assert.equal((await ext.loadLink()).rules.length, 1);
+});
+
+test('the app rules are added to the local ones, never instead of them', async () => {
+  const ext = freshLink();
+  const local = [{ host: 'reddit.com', path: '/r/hirek' }];
+  const app = [{ host: 'youtube.com', path: '/@a' }, { host: 'reddit.com', path: '/r/hirek' }];
+  const merged = ext.withAppRules(local, app);
+  assert.equal(merged.length, 2, 'a duplikátum egy marad');
+  assert.deepEqual(merged.map((r) => `${r.host}${r.path}`).sort(),
+    ['reddit.com/r/hirek', 'youtube.com/@a']);
+  // Ami az appból jött, meg van jelölve: a felület ezért tudja letiltani rajta
+  // a „Levétel” gombot — levenni az appban kell, ahol próbatételbe kerül.
+  assert.equal(merged.find((r) => r.host === 'youtube.com')?.fromApp, true);
+  assert.equal(merged.find((r) => r.host === 'reddit.com')?.fromApp, undefined);
+});
+
+test('we do not ask the app on every navigation', async () => {
+  const ext = freshLink();
+  assert.equal(ext.dueForRefresh({ token: null, fetchedAt: 0 }, 10_000), false, 'kód nélkül soha');
+  assert.equal(ext.dueForRefresh({ token: 'K', fetchedAt: 0 }, ext.REFRESH_MS), true);
+  assert.equal(ext.dueForRefresh({ token: 'K', fetchedAt: 1000 }, 1000 + ext.REFRESH_MS - 1), false);
+});

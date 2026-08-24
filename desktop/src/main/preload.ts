@@ -28,6 +28,15 @@ export interface SyncServerState {
   error?: string;
 }
 
+/** A böngésző-bővítménynek szóló helyi híd állapota. */
+export interface RulesBridgeInfo {
+  running: boolean;
+  port?: number;
+  /** amit a bővítmény beállításai közé kell bemásolni */
+  token?: string;
+  error?: string;
+}
+
 export interface BreakerBridge {
   call(op: string, payload?: Record<string, unknown>): Promise<
     { ok: true; data: unknown } | { ok: false; error: string; code?: string }
@@ -38,6 +47,7 @@ export interface BreakerBridge {
   getUpdateState(): Promise<UpdateState>;
   getTrackerState(): Promise<TrackerState>;
   getSyncServer(): Promise<SyncServerState>;
+  getBridgeInfo(): Promise<RulesBridgeInfo>;
   startSyncServer(): Promise<SyncServerState>;
   stopSyncServer(): Promise<SyncServerState>;
   onUpdateState(cb: (s: UpdateState) => void): void;
@@ -52,6 +62,7 @@ const bridge: BreakerBridge = {
   getUpdateState: () => ipcRenderer.invoke('breaker:update-state'),
   getTrackerState: () => ipcRenderer.invoke('breaker:tracker-state'),
   getSyncServer: () => ipcRenderer.invoke('breaker:sync-server-state'),
+  getBridgeInfo: () => ipcRenderer.invoke('breaker:bridge-info'),
   startSyncServer: () => ipcRenderer.invoke('breaker:sync-server-start'),
   stopSyncServer: () => ipcRenderer.invoke('breaker:sync-server-stop'),
   onUpdateState: (cb) => ipcRenderer.on('breaker:update-state', (_e, s: UpdateState) => cb(s)),

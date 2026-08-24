@@ -39,6 +39,13 @@ interface SyncServerState {
   dataDir?: string;
   error?: string;
 }
+/** A böngésző-bővítménynek szóló helyi híd (lásd main/rules-bridge.ts). */
+interface RulesBridgeInfo {
+  running: boolean;
+  port?: number;
+  token?: string;
+  error?: string;
+}
 interface Bridge {
   call(op: string, payload?: Record<string, unknown>): Promise<
     { ok: true; data: unknown } | { ok: false; error: string; code?: string }>;
@@ -48,6 +55,7 @@ interface Bridge {
   getUpdateState(): Promise<UpdateState>;
   getTrackerState(): Promise<{ blocked: boolean; neverWorked: boolean; platform: string }>;
   getSyncServer(): Promise<SyncServerState>;
+  getBridgeInfo(): Promise<RulesBridgeInfo>;
   startSyncServer(): Promise<SyncServerState>;
   stopSyncServer(): Promise<SyncServerState>;
   onUpdateState(cb: (s: UpdateState) => void): void;
@@ -831,6 +839,29 @@ function openRulesDialog(site: SiteInfo): void {
     + 'ahova telepítve van; vendég módban egyáltalán nem fut; inkognitóban külön '
     + 'be kell kapcsolni. Az egész oldal tiltása marad a megkerülhetetlen.'));
   modal.appendChild(warn);
+
+  // A bővítmény összekötése. Ha ez nincs, a szabályokat kétszer kellene
+  // begépelni — itt is, meg a bővítményben is —, és ami kétszer van, az
+  // előbb-utóbb szétcsúszik.
+  const link = h('div', 'bridge-box');
+  modal.appendChild(link);
+  void window.breaker.getBridgeInfo().then((info) => {
+    link.textContent = '';
+    if (!info.running || !info.token || !info.port) {
+      link.appendChild(h('p', 'hint',
+        'A bővítmény összekötése most nem érhető el' + (info.error ? ` (${info.error})` : '')
+        + '. A szabályok attól még érvényesek, csak kézzel kell felvenni őket a '
+        + 'bővítményben is.'));
+      return;
+    }
+    link.appendChild(h('div', 'micro', 'A bővítmény összekötése'));
+    link.appendChild(h('div', 'pair-code', info.token));
+    link.appendChild(h('p', 'hint',
+      'Másold be a bővítmény beállításai közé. Ezután a bővítmény innen veszi a '
+      + 'szabályokat, és nem kell kétszer felvenni őket. Amíg ez az app nincs '
+      + 'nyitva, a bővítmény az utoljára letöltött listát használja — vagyis '
+      + 'tovább tilt, nem enged át.'));
+  });
 
   const list = h('div', 'rules-list');
   const rules = site.rules ?? [];

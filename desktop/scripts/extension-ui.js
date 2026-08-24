@@ -50,6 +50,18 @@ const FAKE_CHROME = `
     } },
     runtime: { getURL: (p) => p, sendMessage: async () => ({ rules: [] }) },
   };
+  // Hamis app a hídon. A lap ELŐTT kerül be, tehát ugyanazon az úton megy,
+  // mint élesben: a kód a fejlécben, a válasz JSON-ban.
+  window.__appRules = [{ host: 'youtube.com', path: '/@appbol' }];
+  window.fetch = async (url, init) => {
+    // Sima összehasonlítás, nem reguláris kifejezés: ez a szöveg egy
+    // sablonliterálban utazik, és ott a fordított perjelek elvesznének.
+    if (String(url) !== 'http://127.0.0.1:8788/rules') throw new Error('ECONNREFUSED');
+    if (init?.headers?.['x-breaker-token'] !== 'JOKOD') {
+      return { ok: false, status: 401, json: async () => ({ error: 'rossz kód' }) };
+    }
+    return { ok: true, status: 200, json: async () => ({ protocol: 1, rules: window.__appRules }) };
+  };
 `;
 
 async function main() {
@@ -132,6 +144,41 @@ async function main() {
     () => !document.querySelector('#list li')?.textContent?.includes('múlva'),
     undefined, { timeout: 10_000 },
   );
+
+  // Az appal való összekötés. Ez a funkció azon a ponton áll, ahol a részleges
+  // tiltás használhatatlanná válna: ha a szabályokat kétszer kellene felvenni,
+  // a két lista előbb-utóbb szétcsúszik, és mindenki azt hiszi, a másik fele is
+  // tilt.
+  await page.locator('#token').fill('ROSSZKOD');
+  await page.getByRole('button', { name: 'Összekötés' }).click();
+  await page.waitForFunction(
+    () => document.getElementById('linkState')?.textContent?.includes('kód'),
+    undefined, { timeout: 10_000 },
+  ).catch(() => failures.push('rossz kódnál nem mondja meg, mi a baj'));
+
+  await page.locator('#token').fill('JOKOD');
+  await page.getByRole('button', { name: 'Összekötés' }).click();
+  await page.waitForFunction(
+    () => document.getElementById('linkState')?.textContent?.includes('Összekötve'),
+    undefined, { timeout: 10_000 },
+  ).catch(() => failures.push('jó kóddal sem jött létre a kapcsolat'));
+
+  // Az app szabálya megjelenik a listában…
+  await page.waitForFunction(
+    () => [...document.querySelectorAll('#list li')].some(
+      (li) => li.textContent.includes('youtube.com/@appbol')),
+    undefined, { timeout: 10_000 },
+  ).catch(() => failures.push('az app szabálya nem jelent meg a listában'));
+
+  // …de LEVENNI nem lehet innen. Ha lehetne, a bővítmény lenne a legolcsóbb
+  // kiskapu: tíz perc várakozás egy próbatétel helyett.
+  const appRow = page.locator('#list li').filter({ hasText: 'youtube.com/@appbol' });
+  if (await appRow.getByRole('button', { name: 'Levétel' }).count() !== 0) {
+    failures.push('az appból jött szabály levehető a bővítményből');
+  }
+  if (!(await appRow.innerText()).includes('appból')) {
+    failures.push('nem látszik, hogy ez a szabály az appból jött');
+  }
 
   // A korlátokat kimondó rész nem opcionális: enélkül a felhasználó azt hinné,
   // ez ugyanolyan erős, mint a DNS-szintű tiltás.

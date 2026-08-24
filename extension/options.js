@@ -10,6 +10,7 @@ import { ruleLabel } from './rules-core.js';
 import {
   addRule, cancelRemoval, load, REMOVE_DELAY_MS, startRemoval, sweep,
 } from './storage.js';
+import { loadLink, pullFromApp, setToken, withAppRules } from './app-link.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -29,23 +30,34 @@ function remaining(ms) {
 async function render() {
   await sweep();
   const state = await load();
+  const link = await loadLink();
   const now = Date.now();
+  renderLink(link);
   const list = $('list');
   list.textContent = '';
-  const rules = [...state.rules].sort((a, b) => ruleLabel(a).localeCompare(ruleLabel(b)));
+  // Az appból jött szabályok ugyanabban a listában állnak: a felhasználót nem
+  // érdekli, melyik honnan való — az érdekli, mi van tiltva.
+  const rules = withAppRules(state.rules, link.rules)
+    .sort((a, b) => ruleLabel(a).localeCompare(ruleLabel(b)));
   $('empty').hidden = rules.length > 0;
 
   for (const rule of rules) {
     const li = el('li');
     const left = el('div');
     left.appendChild(el('div', 'name', ruleLabel(rule)));
-    if (rule.removeAt !== null && rule.removeAt > now) {
+    if (rule.fromApp) {
+      left.appendChild(el('div', 'muted', 'A Breaker appból — levenni ott lehet.'));
+    } else if (rule.removeAt !== null && rule.removeAt > now) {
       left.appendChild(el('div', 'muted',
         `Levétel ${remaining(rule.removeAt - now)} múlva — addig tilt.`));
     }
     li.appendChild(left);
 
-    if (rule.removeAt !== null && rule.removeAt > now) {
+    if (rule.fromApp) {
+      // NINCS gomb. Ha innen is le lehetne szedni, a bővítmény lenne a
+      // legegyszerűbb kiskapu az appban: tíz perc egy próbatétel helyett.
+      li.appendChild(el('span', 'muted', 'appból'));
+    } else if (rule.removeAt !== null && rule.removeAt > now) {
       const keep = el('button', undefined, 'Mégis maradjon');
       keep.addEventListener('click', async () => {
         await cancelRemoval(rule.host, rule.path);
@@ -62,6 +74,31 @@ async function render() {
     }
     list.appendChild(li);
   }
+}
+
+function renderLink(link) {
+  const state = $('linkState');
+  if (!link.token) {
+    state.textContent = 'Nincs összekötve.';
+    return;
+  }
+  if (link.error) {
+    // Kimondjuk, mi a baj. Egy néma „nincs kapcsolat” azt az érzetet keltené,
+    // hogy a szabályok is eltűntek — pedig azok érvényben maradnak.
+    state.textContent = `${link.error} A legutóbb letöltött ${link.rules.length} szabály érvényben marad.`;
+    return;
+  }
+  const mins = Math.round((Date.now() - link.fetchedAt) / 60000);
+  state.textContent = `Összekötve — ${link.rules.length} szabály az appból, `
+    + (mins < 1 ? 'az imént frissítve.' : `${mins} perce frissítve.`);
+}
+
+async function onConnect() {
+  const value = $('token').value;
+  await setToken(value);
+  await pullFromApp();
+  $('token').value = '';
+  await render();
 }
 
 async function onAdd() {
@@ -84,6 +121,10 @@ async function onAdd() {
 $('delay').textContent = `${Math.round(REMOVE_DELAY_MS / 60000)} perc`;
 
 $('add').addEventListener('click', () => { void onAdd(); });
+$('connect').addEventListener('click', () => { void onConnect(); });
+$('token').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') void onConnect();
+});
 $('input').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') void onAdd();
 });
