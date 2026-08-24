@@ -88,6 +88,15 @@ function fakeBridgeSource() {
     // nem-egyező esetet a füstteszt külön, szándékosan állítja elő.
     // A mérés alapból lát adatot; a „nem kap adatot” esetet a füstteszt
     // szándékosan állítja elő.
+    // Munkamenet-csomagok. Egy futó munkamenet külön képernyőképet érdemel,
+    // de az alap nézetben csak a lista áll ott.
+    window.__fakePacks = [
+      { id: 'pack_1', name: 'Nyelvtanulás', allowSites: ['translate.google.com', 'quizlet.com'],
+        allowApps: ['Word'], defaultMinutes: 50 },
+      { id: 'pack_2', name: 'Mély munka', allowSites: ['github.com'], allowApps: ['Code'],
+        defaultMinutes: 90 },
+    ];
+    window.__fakeRun = null;
     window.__fakeTracker = { blocked: false, neverWorked: false, platform: 'darwin' };
     window.__fakeUpdate = { status: 'idle' };
     window.__fakeHelperVersion = ${JSON.stringify(helperVersion())};
@@ -103,6 +112,7 @@ function fakeBridgeSource() {
       hideSiteList: window.__fakeHideList,
       sync: window.__fakeSync,
       session, dohPolicyApplied: true, usageEnabled: true, now: Date.now(),
+      focusPacks: window.__fakePacks, focusRun: window.__fakeRun,
     });
     // 30 days, because that is what the helper actually sends (and what the
     // chart title claims) — a shorter demo series would make the screenshot lie.
@@ -244,6 +254,30 @@ async function main() {
   await page.waitForSelector('#siteList .site-row', { timeout: 15_000 });
   const siteCount = await page.locator('#siteList .site-row').count();
   if (siteCount !== 3) failures.push(`expected 3 site rows, saw ${siteCount}`);
+
+  // Munkamenetek: „most csak EZ mehet”. A csomagnak látszania kell, és a
+  // futó munkamenetnek meg kell mondania, mennyi van hátra — enélkül a
+  // funkció nem indítható és nem követhető.
+  const packNames = await page.locator('#focusPacks .focus-name').allTextContents();
+  if (!packNames.includes('Nyelvtanulás')) {
+    failures.push(`a munkamenet-csomagok nem látszanak (${JSON.stringify(packNames)})`);
+  }
+  await page.evaluate(() => {
+    window.__fakeRun = { packId: 'pack_1', startedAt: Date.now(), endsAt: Date.now() + 42 * 60_000 };
+  });
+  await page.waitForFunction(
+    () => !document.getElementById('focusRunning')?.classList.contains('hidden'),
+    undefined, { timeout: 10_000 },
+  ).catch(() => failures.push('a futó munkamenet nem jelent meg'));
+  const leftText = await page.locator('#focusRunning .focus-left').textContent().catch(() => '');
+  if (!/\d+ perc/.test(leftText || '')) {
+    failures.push(`a hátralévő idő nem olvasható: ${leftText}`);
+  }
+  await page.evaluate(() => { window.__fakeRun = null; });
+  await page.waitForFunction(
+    () => document.getElementById('focusRunning')?.classList.contains('hidden'),
+    undefined, { timeout: 10_000 },
+  ).catch(() => failures.push('a lejárt munkamenet ott maradt'));
 
   // A napi keret KÖZÖS az eszközök között: a mérő a teljes elhasznált időt
   // mutatja. Ki kell mondani, mennyi ment el máshol — enélkül úgy néz ki,

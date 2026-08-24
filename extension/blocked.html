@@ -36,7 +36,7 @@
 </style>
 </head>
 <body>
-  <div class="card">
+  <div class="card" id="ruleCard" hidden>
     <h1>Ezt a részt te tiltottad le.</h1>
     <p>A szabály, ami megfogta:</p>
     <p><span class="rule" id="rule">—</span></p>
@@ -45,6 +45,22 @@
       Ha tényleg le akarod venni a szabályt, az a
       <a href="options.html">Breaker beállításai</a> közt megy, és nem azonnal:
       tíz percet várni kell rá. Addig marad a tiltás.
+    </p>
+  </div>
+
+  <div class="card" id="focusCard" hidden>
+    <h1>Most munkamenet fut.</h1>
+    <p><span class="rule" id="focusName">—</span></p>
+    <p id="focusLeft">—</p>
+    <p>
+      A munkamenet alatt <strong>csak az megy, amit felvettél</strong> — minden
+      más tiltva. Nem azért, mert ez az oldal rossz, hanem mert most nem ez van
+      soron.
+    </p>
+    <p class="foot">
+      A munkamenet magától lejár. Hamarabb leállítani a Breaker appban lehet,
+      és ugyanabba a próbatételbe kerül, mint egy feloldás — különben ez a
+      képernyő egy kikapcsoló gomb lenne.
     </p>
   </div>
 <script src="blocked.js"></script>

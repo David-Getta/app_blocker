@@ -10,6 +10,7 @@ import { normalizeDomain, expandHostnames } from '../shared/blocklist';
 import { computeTier } from '../shared/challenges';
 import { normalizeAlias } from '../shared/alias';
 import { normalizeRule } from '../shared/urlrules';
+import { isRunning, normalizePack } from '../shared/focus';
 import {
   isBlockedNowWithLimit, isLimitExhausted, normalizeLimit, sharedTodaySeconds, usedTodayEverywhere,
 } from '../shared/limits';
@@ -75,6 +76,10 @@ export function statusOf(state: HelperState, dohApplied: boolean): StatusData {
       limitExhausted: isLimitExhausted(s, state.usage, now, state.sharedToday),
       blockedNow: isBlockedNowWithLimit(s, state.usage, now, state.sharedToday),
     })),
+    focusPacks: state.focusPacks ?? [],
+    // A futó munkamenet csak akkor kerül ki, ha TÉNYLEG fut: a lejárt rekordot
+    // a tick takarítja, de a felület nem várhat rá.
+    focusRun: isRunning(state.focusRun, now) ? state.focusRun ?? null : null,
     tier: computeTier(state.unlockLog, now),
     unlocks7d: state.unlockLog.filter((t) => t >= now - 7 * 24 * 3600_000).length,
     session: referee.currentSession(state),
@@ -213,6 +218,43 @@ async function handle(req: HelperRequest, deps: ServerDeps): Promise<unknown> {
         );
       }
       const r = referee.startRuleChange(state, req.siteId, rule, req.remove === true, Date.now());
+      deps.commit();
+      return { ...r, status: statusOf(state, deps.dohApplied()) };
+    }
+
+    // ----------------------------------------------------- munkamenetek
+    //
+    // „Most csak EZ mehet.” A blokklista feketelista, ez fehérlista —
+    // ellentétes irányból ugyanaz a cél. Lásd shared/focus.ts.
+
+    case 'focus_save': {
+      // Az azonosítót a SEGÉD adja, ha még nincs: a felület ne találhasson ki
+      // olyan azonosítót, ami egy meglévő csomagot ír felül.
+      const pack = normalizePack({ ...req.pack, id: req.pack?.id || newId('pack') });
+      if (!pack) throw new RefereeError('A csomagnak név kell.', 'BAD_PACK');
+      referee.saveFocusPack(state, pack, Date.now());
+      deps.commit();
+      return statusOf(state, deps.dohApplied());
+    }
+
+    case 'focus_delete': {
+      referee.deleteFocusPack(state, String(req.packId), Date.now());
+      deps.commit();
+      return statusOf(state, deps.dohApplied());
+    }
+
+    case 'focus_start': {
+      referee.startFocus(state, String(req.packId), Number(req.minutes), Date.now());
+      deps.commit();
+      return statusOf(state, deps.dohApplied());
+    }
+
+    case 'focus_change': {
+      // `endsAt: null` = állítsd le most. Mindkettő ugyanazon a kapun megy át:
+      // hosszabbítani ingyen, rövidíteni próbatétellel.
+      const endsAt = req.endsAt === null || req.endsAt === undefined
+        ? null : Number(req.endsAt);
+      const r = referee.changeFocus(state, endsAt, Date.now());
       deps.commit();
       return { ...r, status: statusOf(state, deps.dohApplied()) };
     }

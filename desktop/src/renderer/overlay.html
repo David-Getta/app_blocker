@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="hu">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'" />
+  <title>Breaker — munkamenet</title>
+  <link rel="stylesheet" href="./overlay.css" />
+</head>
+<body>
+  <div class="scrim" id="scrim">
+    <section class="sheet" role="dialog" aria-label="Munkamenet indítása">
+      <header class="sheet-head">
+        <div>
+          <div class="micro" id="kicker">Munkamenet</div>
+          <h1 id="title">Most csak ez mehet</h1>
+        </div>
+        <div class="esc">Esc</div>
+      </header>
+
+      <div id="body"></div>
+
+      <footer class="sheet-foot" id="foot"></footer>
+    </section>
+  </div>
+  <script type="module" src="./overlay.js"></script>
+</body>
+</html>

@@ -7,6 +7,7 @@
 import { app, BrowserWindow, ipcMain } from 'electron';
 import { registerSyncServerIpc } from './sync-server';
 import { registerRulesBridge, stopRulesBridge } from './rules-bridge-ipc';
+import { hideOverlay, registerOverlayShortcut, toggleOverlay, unregisterOverlayShortcut } from './overlay';
 import * as path from 'path';
 import { HelperClient } from './helper-client';
 import { installHelper } from './install';
@@ -113,21 +114,51 @@ if (HELPER_MODE) {
       // A böngésző-bővítmény innen veszi a részleges szabályokat. Enélkül
       // ugyanazt kétszer kellene begépelni, két külön listába — és ami kétszer
       // van, az előbb-utóbb szétcsúszik.
-      registerRulesBridge(app.getPath('userData'), async () => {
-        const s = await client.call('status') as StatusData;
-        const out: { host: string; path: string }[] = [];
-        for (const site of s.sites ?? []) {
-          for (const r of site.rules ?? []) out.push({ host: r.host, path: r.path });
-        }
-        return out;
-      });
+      registerRulesBridge(
+        app.getPath('userData'),
+        async () => {
+          const s = await client.call('status') as StatusData;
+          const out: { host: string; path: string }[] = [];
+          for (const site of s.sites ?? []) {
+            for (const r of site.rules ?? []) out.push({ host: r.host, path: r.path });
+          }
+          return out;
+        },
+        async () => {
+          // A futó munkamenet FEHÉRLISTA: a böngésző az egyetlen hely, ahol ezt
+          // érvényesíteni lehet. A DNS a hosztnévnél tovább nem lát, és a
+          // „mindent tilts, kivéve ötöt” egy hosts-fájlban nem leírható.
+          const s = await client.call('status') as StatusData;
+          const run = s.focusRun;
+          if (!run) return { running: false };
+          const pack = (s.focusPacks ?? []).find((p) => p.id === run.packId);
+          return {
+            running: true,
+            name: pack?.name,
+            endsAt: run.endsAt,
+            allowSites: pack?.allowSites ?? [],
+          };
+        },
+      );
       // Keep the tracker's view of the switch fresh without extra IPC chatter.
       setInterval(() => {
         void client.call('status')
           .then((s) => { usageEnabled = (s as StatusData).usageEnabled; })
           .catch(() => { /* ignore */ });
       }, 60_000);
-      app.on('before-quit', () => { tracker.stop(); stopRulesBridge(); });
+      // A gyorsbillentyűs réteg: egy mozdulattal indítható munkamenet. A
+      // regisztráció elbukhat (másik program elvette a kombinációt) — ez nem
+      // hiba, a felület megmondja, és a réteg az appból is nyitható.
+      const shortcutOk = registerOverlayShortcut();
+      ipcMain.handle('breaker:overlay-state', () => ({ shortcutOk }));
+      ipcMain.handle('breaker:overlay-toggle', () => { toggleOverlay(); });
+      ipcMain.handle('breaker:overlay-hide', () => { hideOverlay(); });
+
+      app.on('before-quit', () => {
+        tracker.stop();
+        stopRulesBridge();
+        unregisterOverlayShortcut();
+      });
       app.on('activate', () => {
         if (BrowserWindow.getAllWindows().length === 0) createWindow();
       });

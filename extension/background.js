@@ -12,20 +12,60 @@
 
 import { firstMatch, ruleLabel } from './rules-core.js';
 import { activeRules, load, sweep } from './storage.js';
-import { dueForRefresh, loadLink, pullFromApp, withAppRules } from './app-link.js';
+import {
+  dueForRefresh, focusActive, focusAllows, loadLink, pullFromApp, withAppRules,
+} from './app-link.js';
 
 /** Csak a főkeret számít: egy beágyazott hirdetés nem „az oldal megnyitása”. */
 function isTopFrame(details) {
   return details.frameId === 0;
 }
 
+/**
+ * Megfogja-e valami ezt a címet.
+ *
+ * Kétféle ok van, és a sorrend számít:
+ *
+ *   1. FUT EGY MUNKAMENET -> fehérlista: ami nincs felsorolva, az tiltva. Ez
+ *      erősebb, mert mindenre vonatkozik, nem csak a felvett szabályokra.
+ *   2. Részleges szabályok -> feketelista: az oldal egy darabja.
+ *
+ * @returns null (mehet), vagy { reason, rule?, focus? }
+ */
 async function decide(url) {
   const now = Date.now();
   const state = await load();
   const link = await loadLink();
+
+  if (focusActive(link, now)) {
+    const host = hostOf(url);
+    // A bővítmény SAJÁT lapjai (a tiltó lap, a beállítások) sosem esnek bele:
+    // különben a munkamenet alatt nem lehetne megnézni, mi fut és meddig.
+    if (host && !focusAllows(link, host)) {
+      return { reason: 'focus', focus: link.focus };
+    }
+  }
+
   // Az app szabályai HOZZÁADÓDNAK a sajátokhoz. Ha az app épp nem érhető el, az
   // utoljára letöltött lista marad érvényben — vagyis tovább tilt, nem enged át.
-  return firstMatch(withAppRules(activeRules(state, now), link.rules), url);
+  const rule = firstMatch(withAppRules(activeRules(state, now), link.rules), url);
+  return rule ? { reason: 'rule', rule } : null;
+}
+
+/** A cím hosztja, `URL` nélkül — ugyanúgy, ahogy a szabály-mag csinálja. */
+function hostOf(url) {
+  const s = String(url ?? '').trim();
+  // Csak a valódi weboldalak számítanak. A `chrome://`, `about:` és a saját
+  // bővítmény-lapjaink nem: ha ezeket is tiltanánk, a munkamenet alatt a
+  // böngésző beállításai lennének elérhetetlenek — az pedig ijesztő, és nem
+  // is véd semmit.
+  if (!/^https?:\/\//i.test(s)) return null;
+  const rest = s.replace(/^https?:\/\//i, '').replace(/^[^/@]*@/, '');
+  const cut = rest.search(/[/?#]/);
+  let host = cut < 0 ? rest : rest.slice(0, cut);
+  const colon = host.indexOf(':');
+  if (colon >= 0) host = host.slice(0, colon);
+  return host.toLowerCase().replace(/\.+$/, '') || null;
 }
 
 /**
@@ -43,14 +83,24 @@ function refreshInBackground() {
   })();
 }
 
+/** A tiltó lap címe, a MEGFOGÓ okkal együtt: a lap megnevezi, mi állította meg. */
+function blockedUrl(hit) {
+  if (hit.reason === 'focus') {
+    const q = new URLSearchParams({
+      focus: hit.focus.name || 'Munkamenet',
+      endsAt: String(hit.focus.endsAt || 0),
+    });
+    return chrome.runtime.getURL(`blocked.html?${q.toString()}`);
+  }
+  return chrome.runtime.getURL(`blocked.html?rule=${encodeURIComponent(ruleLabel(hit.rule))}`);
+}
+
 chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
   if (!isTopFrame(details)) return;
   refreshInBackground();
   const hit = await decide(details.url);
   if (!hit) return;
-  const target = chrome.runtime.getURL(
-    `blocked.html?rule=${encodeURIComponent(ruleLabel(hit))}`,
-  );
+  const target = blockedUrl(hit);
   // A lapot NEM zárjuk be: a becsukódó lap ijesztő, és nem mondja meg, mi
   // történt. A saját lapunk viszont megnevezi a szabályt, ami megfogta.
   try {
@@ -67,9 +117,7 @@ chrome.webNavigation.onHistoryStateUpdated.addListener(async (details) => {
   if (!isTopFrame(details)) return;
   const hit = await decide(details.url);
   if (!hit) return;
-  const target = chrome.runtime.getURL(
-    `blocked.html?rule=${encodeURIComponent(ruleLabel(hit))}`,
-  );
+  const target = blockedUrl(hit);
   try {
     await chrome.tabs.update(details.tabId, { url: target });
   } catch { /* a lap eltűnt */ }

@@ -316,3 +316,76 @@ test('we do not ask the app on every navigation', async () => {
   assert.equal(ext.dueForRefresh({ token: 'K', fetchedAt: 0 }, ext.REFRESH_MS), true);
   assert.equal(ext.dueForRefresh({ token: 'K', fetchedAt: 1000 }, 1000 + ext.REFRESH_MS - 1), false);
 });
+
+// ---------------------------------------------------------------------------
+// Munkamenet: „most csak EZ mehet”
+// ---------------------------------------------------------------------------
+//
+// Ez a réteg fordítva működik, mint a szabályok: fehérlista. Két hiba
+// lehetséges, és mindkettő csendes — átenged valamit, amit nem soroltak fel,
+// vagy örökre bent ragad, mert a lejáratot nem veszi észre.
+
+interface FocusApi extends LinkApi {
+  focusActive: (link: unknown, now?: number) => boolean;
+  focusAllows: (link: unknown, host: string) => boolean;
+}
+
+function fakeAppWithFocus(
+  port: number, token: string, focus: Record<string, unknown>,
+) {
+  return async (url: string, init: { headers: Record<string, string> }) => {
+    const m = /^http:\/\/127\.0\.0\.1:(\d+)\/rules$/.exec(url);
+    if (!m || Number(m[1]) !== port) throw new Error('ECONNREFUSED');
+    if (init.headers['x-breaker-token'] !== token) {
+      return { ok: false, status: 401, json: async () => ({}) };
+    }
+    return { ok: true, status: 200, json: async () => ({ protocol: 1, rules: [], focus }) };
+  };
+}
+
+test('during a session only the listed hosts get through', async () => {
+  const ext = freshLink() as FocusApi;
+  await ext.setToken('K');
+  await ext.pullFromApp(1000, fakeAppWithFocus(8788, 'K', {
+    running: true, name: 'Nyelvtanulás', endsAt: 1000 + 3600_000,
+    allowSites: ['google.com', 'quizlet.com'],
+  }));
+  const link = await ext.loadLink();
+
+  assert.equal(ext.focusActive(link, 1000), true);
+  assert.equal(ext.focusAllows(link, 'google.com'), true);
+  assert.equal(ext.focusAllows(link, 'translate.google.com'), true, 'aldomain is mehet');
+  assert.equal(ext.focusAllows(link, 'youtube.com'), false);
+  // A végén hasonlító tartománynév a leggyakoribb megkerülés.
+  assert.equal(ext.focusAllows(link, 'notgoogle.com'), false);
+  assert.equal(ext.focusAllows(link, ''), false);
+});
+
+test('a session ends on its own clock, not on the app being open', async () => {
+  // Ha a lejáratot az apptól kérdeznénk, egy bezárt app örökre bent tartana a
+  // fehérlistában. Ha viszont az elérhetetlen app „nincs munkamenet”-et
+  // jelentene, az app bezárása lenne a feloldás. Egyik sem jó: a lejárat
+  // IDŐPONT, és azt helyben nézzük.
+  const ext = freshLink() as FocusApi;
+  await ext.setToken('K');
+  await ext.pullFromApp(1000, fakeAppWithFocus(8788, 'K', {
+    running: true, name: 'Nyelvtanulás', endsAt: 1000 + 60_000, allowSites: ['google.com'],
+  }));
+  const link = await ext.loadLink();
+  assert.equal(ext.focusActive(link, 1000 + 30_000), true, 'félidőben fut');
+  assert.equal(ext.focusActive(link, 1000 + 61_000), false, 'lejárat után nem');
+
+  // És amíg fut, az app elérhetetlensége nem oldja fel.
+  await ext.pullFromApp(1000 + 30_000, async () => { throw new Error('ECONNREFUSED'); });
+  assert.equal(ext.focusActive(await ext.loadLink(), 1000 + 30_000), true);
+});
+
+test('no session means the whitelist does not bite at all', async () => {
+  const ext = freshLink() as FocusApi;
+  await ext.setToken('K');
+  await ext.pullFromApp(1000, fakeAppWithFocus(8788, 'K', { running: false }));
+  const link = await ext.loadLink();
+  assert.equal(ext.focusActive(link, 1000), false);
+  // Enélkül a bővítmény munkamenet nélkül is mindent tiltana — használhatatlan.
+  assert.equal(ext.focusAllows(link, 'google.com'), false, 'nincs mit engednie');
+});

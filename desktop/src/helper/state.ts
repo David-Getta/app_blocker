@@ -8,6 +8,7 @@ import type { Step } from '../shared/challenges';
 import type { Schedule } from '../shared/schedule';
 import { emptyUsage, type UsageState } from '../shared/usage';
 import type { SharedToday } from '../shared/limits';
+import { normalizePack, type FocusPack, type FocusRun } from '../shared/focus';
 import type { UrlRule } from '../shared/urlrules';
 import { stateFilePath } from './paths';
 
@@ -60,6 +61,14 @@ export interface SessionRec {
   pendingLimit?: number | null;
   /** ha van, a teljesítés EZT a részleges szabályt veszi le (lazítás) */
   pendingRuleRemoval?: UrlRule;
+  /**
+   * Ha van, a teljesítés a futó munkamenetet rövidíti erre az időpontra.
+   *
+   * A -1 azt jelenti: állítsd le MOST. A kettőt meg kell különböztetni, mert a
+   * „nulla” egy érvényes időpont lenne, a hiányzó mező pedig azt jelenti, hogy
+   * ez a kísérlet nem a munkamenetről szól.
+   */
+  pendingFocusEnd?: number;
 }
 
 /**
@@ -118,6 +127,15 @@ export interface HelperState {
    * hozza — éjfélkor magától kiürül.
    */
   sharedToday?: SharedToday;
+
+  /**
+   * Munkamenet-csomagok: „most csak EZ mehet”.
+   *
+   * A blokklista feketelista, ez fehérlista. Lásd shared/focus.ts.
+   */
+  focusPacks?: FocusPack[];
+  /** a FUTÓ munkamenet, ha van */
+  focusRun?: FocusRun | null;
 }
 
 export interface SyncAccount {
@@ -172,6 +190,17 @@ export function loadState(): HelperState {
       }
       // A közös keret adatai kívülről jönnek: ha nem a várt alakúak, inkább
       // ne legyenek. Egy hibás sor itt a blokkolási döntést befolyásolná.
+      // A csomagok kívülről is jöhetnek (állapotfájl, később szinkron): amit
+      // nem tudunk értelmezni, azt inkább nem tartjuk meg.
+      if (parsed.focusPacks !== undefined) {
+        parsed.focusPacks = (Array.isArray(parsed.focusPacks) ? parsed.focusPacks : [])
+          .map((x) => normalizePack(x))
+          .filter((x): x is FocusPack => x !== null);
+      }
+      const run = parsed.focusRun;
+      if (run && !(typeof run.packId === 'string' && Number.isFinite(run.endsAt))) {
+        parsed.focusRun = null;
+      }
       const shared = parsed.sharedToday;
       if (shared && !(typeof shared.selfDeviceId === 'string' && Array.isArray(shared.devices))) {
         delete parsed.sharedToday;

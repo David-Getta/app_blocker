@@ -48,6 +48,9 @@ export interface BreakerBridge {
   getTrackerState(): Promise<TrackerState>;
   getSyncServer(): Promise<SyncServerState>;
   getBridgeInfo(): Promise<RulesBridgeInfo>;
+  getOverlayState(): Promise<{ shortcutOk: boolean }>;
+  toggleOverlay(): Promise<void>;
+  hideOverlay(): Promise<void>;
   startSyncServer(): Promise<SyncServerState>;
   stopSyncServer(): Promise<SyncServerState>;
   onUpdateState(cb: (s: UpdateState) => void): void;
@@ -63,6 +66,9 @@ const bridge: BreakerBridge = {
   getTrackerState: () => ipcRenderer.invoke('breaker:tracker-state'),
   getSyncServer: () => ipcRenderer.invoke('breaker:sync-server-state'),
   getBridgeInfo: () => ipcRenderer.invoke('breaker:bridge-info'),
+  getOverlayState: () => ipcRenderer.invoke('breaker:overlay-state'),
+  toggleOverlay: () => ipcRenderer.invoke('breaker:overlay-toggle'),
+  hideOverlay: () => ipcRenderer.invoke('breaker:overlay-hide'),
   startSyncServer: () => ipcRenderer.invoke('breaker:sync-server-start'),
   stopSyncServer: () => ipcRenderer.invoke('breaker:sync-server-stop'),
   onUpdateState: (cb) => ipcRenderer.on('breaker:update-state', (_e, s: UpdateState) => cb(s)),

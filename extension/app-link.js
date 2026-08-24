@@ -27,9 +27,21 @@ export async function loadLink() {
   const got = await chrome.storage.local.get(KEY);
   const raw = got?.[KEY] ?? {};
   const rules = Array.isArray(raw.rules) ? raw.rules : [];
+  const focus = raw.focus && typeof raw.focus === 'object' ? raw.focus : {};
   return {
     token: typeof raw.token === 'string' && raw.token ? raw.token : null,
     port: Number.isInteger(raw.port) ? raw.port : null,
+    // A futó munkamenet FEHÉRLISTA: ha fut, minden más tiltva. Ez is
+    // gyorsítótárazódik — ha az app nincs nyitva, a munkamenet ATTÓL MÉG megy
+    // tovább a lejáratáig. Bezárni az appot nem feloldás.
+    focus: {
+      running: focus.running === true && Number.isFinite(focus.endsAt),
+      name: typeof focus.name === 'string' ? focus.name : '',
+      endsAt: Number.isFinite(focus.endsAt) ? focus.endsAt : 0,
+      allowSites: Array.isArray(focus.allowSites)
+        ? focus.allowSites.filter((h) => typeof h === 'string' && h)
+        : [],
+    },
     // Rekordonként tűrünk: egy sérült bejegyzés ne vigye el a többit.
     rules: rules.filter((r) => r && typeof r.host === 'string' && typeof r.path === 'string')
       .map((r) => ({ host: r.host, path: r.path })),
@@ -108,11 +120,12 @@ export async function pullFromApp(now = Date.now(), fetchImpl = fetch) {
       ? body.rules.filter((r) => r && typeof r.host === 'string' && typeof r.path === 'string')
         .map((r) => ({ host: r.host, path: r.path }))
       : [];
+    const focus = body?.focus && typeof body.focus === 'object' ? body.focus : { running: false };
     // Az ÜRES lista is válasz: azt jelenti, hogy az appban levették az összeset.
     // Csak akkor fogadjuk el, ha a kérés tényleg sikerült — ha nem érjük el az
     // appot, a régi lista marad érvényben.
-    await saveLink({ ...link, port, rules, fetchedAt: now, error: null });
-    return { ok: true, rules };
+    await saveLink({ ...link, port, rules, focus, fetchedAt: now, error: null });
+    return { ok: true, rules, focus };
   }
 
   await saveLink({ ...link, error: lastError });
@@ -140,6 +153,31 @@ export function dueForRefresh(link, now) {
  * Egyesítés, nem választás. Mindkét oldal tiltás, és két tiltásból soha nem lesz
  * kevesebb tiltás.
  */
+/**
+ * Fut-e MOST munkamenet.
+ *
+ * A lejáratot HELYBEN nézzük, nem az apptól kérdezzük: ha az appot bezárták,
+ * a munkamenet a saját idejéig akkor is tart — de egy perccel sem tovább.
+ * Enélkül egy bezárt app örökre bent tartana a fehérlistában.
+ */
+export function focusActive(link, now = Date.now()) {
+  const f = link?.focus;
+  return !!f && f.running === true && f.endsAt > now;
+}
+
+/**
+ * Átmehet-e ez a cím a munkamenet alatt.
+ *
+ * Egyezés vagy ALDOMAIN: a `google.com` engedése a `translate.google.com`-ot is
+ * engedi. A `notgoogle.com` viszont NEM — a végén hasonlító tartománynév a
+ * leggyakoribb megkerülés.
+ */
+export function focusAllows(link, host) {
+  const h = String(host ?? '').trim().toLowerCase().replace(/\.+$/, '');
+  if (!h) return false;
+  return (link?.focus?.allowSites ?? []).some((a) => h === a || h.endsWith(`.${a}`));
+}
+
 export function withAppRules(localActive, appRules) {
   const out = [...localActive];
   for (const r of appRules) {

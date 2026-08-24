@@ -40,6 +40,22 @@ export interface BridgeRule {
 }
 
 /**
+ * A futó munkamenet, ahogy a bővítménynek kell.
+ *
+ * Ez FEHÉRLISTA: ha fut, minden más tiltva. A böngésző az egyetlen hely, ahol
+ * ezt tényleg érvényesíteni lehet — a DNS a hosztnévnél tovább nem lát, és
+ * „mindent tilts, kivéve ötöt” egy hosts-fájlban nem leírható.
+ */
+export interface BridgeFocus {
+  running: boolean;
+  /** a csomag neve, hogy a tiltó lap megnevezze, MI fut */
+  name?: string;
+  /** mikor jár le — a tiltó lap ebből mondja meg, mennyi van hátra */
+  endsAt?: number;
+  allowSites?: string[];
+}
+
+/**
  * Crockford base32 kód, négyes csoportokban.
  *
  * Ugyanaz az ábécé, mint a párosító kódnál: nincs benne I, L, O és U, mert
@@ -74,6 +90,8 @@ export function tokenMatches(want: string, got: unknown): boolean {
 export interface BridgeDeps {
   /** a pillanatnyi szabályok; a hívó tudja, honnan (a segéd állapotából) */
   getRules: () => Promise<BridgeRule[]>;
+  /** a futó munkamenet, ha van */
+  getFocus?: () => Promise<BridgeFocus>;
   token: string;
   /** csak teszthez: melyik portról induljon */
   startPort?: number;
@@ -104,7 +122,8 @@ export async function answer(
     return { status: 401, body: { error: 'Hiányzó vagy rossz kód.' } };
   }
   const rules = await deps.getRules();
-  return { status: 200, body: { protocol: BRIDGE_PROTOCOL, rules } };
+  const focus = deps.getFocus ? await deps.getFocus() : { running: false };
+  return { status: 200, body: { protocol: BRIDGE_PROTOCOL, rules, focus } };
 }
 
 /** A híd elindítása. A hívó felelőssége, hogy a kódot megmutassa a felületen. */

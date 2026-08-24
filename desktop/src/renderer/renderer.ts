@@ -16,6 +16,9 @@ import { HELPER_VERSION } from '../shared/protocol.js';
 // A .js itt sem elhagyható: a böngésző natív ESM-betöltője oldja fel futásidőben.
 import { normalizeRule, ruleLabel } from '../shared/urlrules.js';
 import {
+  formatRemaining, SESSION_CHOICES_MIN, type FocusPack,
+} from '../shared/focus.js';
+import {
   encodePairingCode, formatPairingCode, resolveServerInput,
 } from '../shared/sync/pairing.js';
 import type {
@@ -231,6 +234,7 @@ function render(): void {
   }
 
   renderAddCard(status!);
+  renderFocusCard(status!);
   renderSyncCard(status!);
   renderSiteList(status!);
   renderTier(status!);
@@ -239,6 +243,241 @@ function render(): void {
   renderProbeWarning(status!.usageEnabled);
   renderResumeBanner(status!);
   if (modalOpen) renderSession(status!.session);
+}
+
+// -------------------------------------------------------------- munkamenetek
+//
+// A blokklista feketelista: mi NE menjen. A munkamenet fehérlista: most CSAK ez
+// mehet. A kettő együtt él — a munkamenet sosem old fel semmit, amit a
+// blokklista tilt, csak hozzátesz.
+
+/** Hány perccel lehet egy kattintással hosszabbítani. */
+const FOCUS_EXTEND_MIN = [15, 30, 60];
+
+function renderFocusCard(st: StatusData): void {
+  // A RÉGEBBI háttérszolgáltatás ezt a két mezőt nem küldi. Ha itt elhasalnánk,
+  // a felület egésze üresen maradna — az egyetlen ok pedig egy hiányzó mező
+  // lenne, amiről semmi nem szólna. A frissítést a felület külön sávban kéri.
+  const packs = st.focusPacks ?? [];
+  $('focusCard').classList.remove('hidden');
+  const running = st.focusRun && st.focusRun.endsAt > Date.now() ? st.focusRun : null;
+  const runBox = $('focusRunning');
+  runBox.textContent = '';
+  runBox.classList.toggle('hidden', !running);
+
+  $('focusHint').textContent = running
+    ? 'Amíg tart, csak a csomagban felsoroltak mehetnek. Minden más tiltva.'
+    : 'Egy csomag megmondja, mi mehet — és a munkamenet alatt minden más tiltva. '
+      + `A réteg ${overlayShortcutLabel()} kombinációval bárhonnan előjön.`;
+
+  if (running) {
+    const pack = packs.find((p) => p.id === running.packId);
+    runBox.appendChild(h('div', 'micro', 'Most fut'));
+    runBox.appendChild(h('div', 'focus-left', formatRemaining(running.endsAt - Date.now())));
+    runBox.appendChild(h('div', 'hint',
+      pack ? `${pack.name} — mehet: ${[...pack.allowSites, ...pack.allowApps].join(', ') || 'semmi'}`
+        : 'Ismeretlen csomag.'));
+    const actions = h('div', 'focus-actions');
+    for (const min of FOCUS_EXTEND_MIN) {
+      const b = h('button', 'btn btn-small', `+${min} perc`);
+      b.addEventListener('click', () => void changeFocus(running.endsAt + min * 60_000));
+      actions.appendChild(b);
+    }
+    const stop = h('button', 'btn btn-small btn-danger', 'Leállítás…');
+    stop.title = 'A leállítás próbatétel — ugyanúgy, mint egy feloldás.';
+    stop.addEventListener('click', () => void changeFocus(null));
+    actions.appendChild(stop);
+    runBox.appendChild(actions);
+  }
+
+  const list = $('focusPacks');
+  list.textContent = '';
+  if (packs.length === 0) {
+    list.appendChild(h('p', 'hint',
+      'Még nincs csomagod. Egy csomag: egy név, és a lista arról, mi mehet alatta '
+      + '— például „Nyelvtanulás”, és benne a szótár meg a jegyzetfüzet.'));
+    return;
+  }
+  for (const pack of packs) {
+    const row = h('div', 'focus-pack');
+    const left = h('div');
+    left.appendChild(h('div', 'focus-name', pack.name));
+    const items = [...pack.allowSites, ...pack.allowApps];
+    left.appendChild(h('div', 'focus-sub',
+      items.length ? items.join(', ') : 'nincs engedélyezett tétel — minden tiltva'));
+    row.appendChild(left);
+
+    const actions = h('div', 'row-gap');
+    if (!running) {
+      const startBtn = h('button', 'btn btn-small btn-primary', 'Indítás');
+      startBtn.addEventListener('click', () => openFocusStartDialog(pack));
+      actions.appendChild(startBtn);
+    }
+    const edit = h('button', 'btn btn-small', 'Szerkesztés');
+    edit.addEventListener('click', () => openFocusEditor(pack));
+    actions.appendChild(edit);
+    row.appendChild(actions);
+    list.appendChild(row);
+  }
+}
+
+function overlayShortcutLabel(): string {
+  return window.breaker.platform === 'darwin' ? '⌘⌥B' : 'Ctrl+Alt+B';
+}
+
+async function changeFocus(endsAt: number | null): Promise<void> {
+  try {
+    const r = await call<{ applied: boolean; session: SessionInfo | null; status: StatusData }>(
+      'focus_change', { endsAt },
+    );
+    status = r.status;
+    if (r.session) openModal(r.session);
+    render();
+  } catch (e) {
+    $('focusHint').textContent = (e as Error).message;
+  }
+}
+
+/** Indítás: csak a hossz kell hozzá. Indítani ingyen van — ez a szigorítás iránya. */
+function openFocusStartDialog(pack: FocusPack): void {
+  const overlay = h('div', 'overlay');
+  const modal = h('div', 'modal modal-small');
+  modal.appendChild(h('h3', undefined, pack.name));
+  modal.appendChild(h('p', 'hint',
+    'Meddig tartson? Hosszabbítani közben ingyen lehet; leállítani viszont '
+    + 'ugyanabba a próbatételbe kerül, mint egy feloldás.'));
+  const row = h('div', 'chips');
+  let chosen = pack.defaultMinutes;
+  const paint = (): void => {
+    for (const el of Array.from(row.children)) {
+      el.classList.toggle('chip-on', Number((el as HTMLElement).dataset.min) === chosen);
+    }
+  };
+  for (const min of SESSION_CHOICES_MIN) {
+    const b = h('button', 'chip', `${min} perc`);
+    (b as HTMLElement).dataset.min = String(min);
+    b.addEventListener('click', () => { chosen = min; paint(); });
+    row.appendChild(b);
+  }
+  modal.appendChild(row);
+  paint();
+
+  const err = h('p', 'error hidden');
+  modal.appendChild(err);
+  const actions = h('div', 'modal-actions');
+  const cancel = h('button', 'btn btn-small btn-ghost', 'Mégse');
+  cancel.addEventListener('click', () => overlay.remove());
+  const go = h('button', 'btn btn-small btn-primary', 'Indítás');
+  go.addEventListener('click', () => void (async () => {
+    try {
+      status = await call<StatusData>('focus_start', { packId: pack.id, minutes: chosen });
+      overlay.remove();
+      render();
+    } catch (e) {
+      err.textContent = (e as Error).message;
+      err.classList.remove('hidden');
+    }
+  })());
+  const right = h('div', 'row-gap');
+  right.append(cancel, go);
+  actions.append(h('div', 'row-gap'), right);
+  modal.appendChild(actions);
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+}
+
+/**
+ * A csomag szerkesztője.
+ *
+ * Szabadon szerkeszthető — DE nem az, amelyik épp fut. A futó csomag befagy:
+ * enélkül a fehérlistához menet közben hozzá lehetne adni bármit, és a
+ * munkamenet önmagát oldaná fel, csendben.
+ */
+function openFocusEditor(pack: FocusPack | null): void {
+  const overlay = h('div', 'overlay');
+  const modal = h('div', 'modal');
+  modal.appendChild(h('h3', undefined, pack ? 'Csomag szerkesztése' : 'Új csomag'));
+  modal.appendChild(h('p', 'hint',
+    'A csomag FEHÉRLISTA: ami nincs rajta, az a munkamenet alatt tiltva. Ezért '
+    + 'nem kell felsorolni, mi zavar — csak azt, ami kell.'));
+
+  const box = h('div', 'focus-editor');
+  const name = h('input', 'alias-input') as HTMLInputElement;
+  name.type = 'text';
+  name.placeholder = 'pl. Nyelvtanulás';
+  name.value = pack?.name ?? '';
+  box.appendChild(h('label', undefined, 'A csomag neve'));
+  box.appendChild(name);
+
+  const sites = h('textarea', 'alias-input') as HTMLTextAreaElement;
+  sites.rows = 3;
+  sites.placeholder = 'egy soronként, pl. translate.google.com';
+  sites.value = (pack?.allowSites ?? []).join('\n');
+  box.appendChild(h('label', undefined, 'Engedélyezett oldalak (a böngészőben ez él)'));
+  box.appendChild(sites);
+
+  const apps = h('textarea', 'alias-input') as HTMLTextAreaElement;
+  apps.rows = 3;
+  apps.placeholder = 'egy soronként, pl. Word';
+  apps.value = (pack?.allowApps ?? []).join('\n');
+  box.appendChild(h('label', undefined, 'Engedélyezett appok'));
+  box.appendChild(apps);
+  modal.appendChild(box);
+
+  modal.appendChild(h('p', 'hint',
+    'Az oldalakat a böngésző-bővítmény érvényesíti — ott látszik a teljes cím. '
+    + 'Az appoknál a mérés látja, mi van előtérben, és a felület figyelmeztet; '
+    + 'bezárni egy appot nem tudunk, és nem is állítjuk, hogy tudunk.'));
+
+  const err = h('p', 'error hidden');
+  modal.appendChild(err);
+
+  const actions = h('div', 'modal-actions');
+  const left = h('div', 'row-gap');
+  if (pack) {
+    const del = h('button', 'btn btn-small btn-danger', 'Törlés');
+    del.addEventListener('click', () => void (async () => {
+      try {
+        status = await call<StatusData>('focus_delete', { packId: pack.id });
+        overlay.remove();
+        render();
+      } catch (e) {
+        err.textContent = (e as Error).message;
+        err.classList.remove('hidden');
+      }
+    })());
+    left.appendChild(del);
+  }
+  const cancel = h('button', 'btn btn-small btn-ghost', 'Mégse');
+  cancel.addEventListener('click', () => overlay.remove());
+  const save = h('button', 'btn btn-small btn-primary', 'Mentés');
+  save.addEventListener('click', () => void (async () => {
+    const lines = (t: string): string[] =>
+      t.split(/[\n,]/).map((x) => x.trim()).filter(Boolean);
+    try {
+      status = await call<StatusData>('focus_save', {
+        pack: {
+          id: pack?.id ?? '',
+          name: name.value,
+          allowSites: lines(sites.value),
+          allowApps: lines(apps.value),
+          defaultMinutes: pack?.defaultMinutes ?? 50,
+        },
+      });
+      overlay.remove();
+      render();
+    } catch (e) {
+      err.textContent = (e as Error).message;
+      err.classList.remove('hidden');
+    }
+  })());
+  const right = h('div', 'row-gap');
+  right.append(cancel, save);
+  actions.append(left, right);
+  modal.appendChild(actions);
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+  name.focus();
 }
 
 // ------------------------------------------------------------------ szinkron

@@ -8,7 +8,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { ipcMain } from 'electron';
 import {
-  newBridgeToken, startRulesBridge, type BridgeHandle, type BridgeRule,
+  newBridgeToken, startRulesBridge, type BridgeFocus, type BridgeHandle, type BridgeRule,
 } from './rules-bridge';
 
 export interface BridgeInfo {
@@ -54,12 +54,14 @@ export function bridgeInfo(): BridgeInfo {
 }
 
 export function registerRulesBridge(
-  userDataDir: string, getRules: () => Promise<BridgeRule[]>,
+  userDataDir: string,
+  getRules: () => Promise<BridgeRule[]>,
+  getFocus?: () => Promise<BridgeFocus>,
 ): void {
   ipcMain.handle('breaker:bridge-info', () => bridgeInfo());
   if (handle) return;
   const token = loadOrCreateToken(userDataDir);
-  void startRulesBridge({ token, getRules }).then(
+  void startRulesBridge({ token, getRules, getFocus }).then(
     (h) => { handle = h; info = { running: true, port: h.port, token }; },
     // A híd elmaradása nem hiba, amitől bármi más ne menne: a bővítmény ilyenkor
     // az utoljára letöltött listát használja, vagyis TOVÁBB TILT.

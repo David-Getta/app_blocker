@@ -864,3 +864,37 @@ body {
   /* A fejléc üvegje világosban fehérből induljon. */
   .topbar { background: rgba(255, 255, 255, .78); }
 }
+
+/* ---------------------------------------------------------- munkamenetek */
+/*
+ * A blokklista feketelista, ez fehérlista: „most csak EZ mehet”. A futó
+ * munkamenet ezért kap kiemelt helyet — amíg tart, ez a legfontosabb dolog a
+ * képernyőn.
+ */
+
+.focus-packs { display: grid; gap: 0; }
+
+.focus-pack {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s4);
+  padding: var(--s4) 0;
+  border-top: 1px solid var(--border);
+}
+.focus-pack:first-child { border-top: 0; }
+
+.focus-name { font-weight: 600; letter-spacing: -0.01em; }
+.focus-sub { font-size: 0.82rem; color: var(--text-3); margin-top: 2px; }
+
+.focus-running {
+  border: 1px solid var(--border-2, var(--border));
+  border-radius: 12px;
+  padding: var(--s4);
+  margin-bottom: var(--s4);
+}
+.focus-left { font-size: 1.9rem; font-weight: 650; letter-spacing: -0.03em; }
+.focus-actions { display: flex; flex-wrap: wrap; gap: var(--s2); margin-top: var(--s3); }
+
+.focus-editor { display: grid; gap: var(--s3); }
+.focus-editor label { font-size: 0.82rem; color: var(--text-2); }

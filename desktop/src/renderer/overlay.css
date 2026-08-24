@@ -1,0 +1,159 @@
+/*
+ * A gyorsbillentyűs réteg.
+ *
+ * Ez az egyetlen felület, ami RÁÜL arra, amit épp csinálsz. Ezért két dolgot
+ * kell egyszerre teljesítenie: azonnal olvashatónak kell lennie (mert egy
+ * másodpercet kap), és nem szabad eltakarnia a képernyőt (mert nem egy külön
+ * app, hanem egy réteg).
+ *
+ * A háttér ezért nem fekete, hanem sötétített és elmosott: látszik, hol vagy,
+ * de a figyelem itt van.
+ */
+
+:root {
+  color-scheme: dark;
+  --ink: #f5f7fa;
+  --ink-2: #a7b0bd;
+  --ink-3: #6d7684;
+  --line: rgba(255, 255, 255, 0.10);
+  --line-2: rgba(255, 255, 255, 0.16);
+  --sheet: rgba(22, 25, 30, 0.86);
+  --accent: #eef2f7;
+  --ok: #4ade80;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: transparent;
+  font: 15px/1.55 -apple-system, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  cursor: default;
+}
+
+.scrim {
+  height: 100%;
+  display: grid;
+  place-items: center;
+  padding: 6vh 24px;
+  background: rgba(8, 10, 13, 0.55);
+  backdrop-filter: blur(22px) saturate(120%);
+  -webkit-backdrop-filter: blur(22px) saturate(120%);
+  animation: fade 140ms ease-out;
+}
+
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+
+.sheet {
+  width: min(680px, 100%);
+  max-height: 88vh;
+  overflow: auto;
+  background: var(--sheet);
+  border: 1px solid var(--line-2);
+  border-radius: 20px;
+  padding: 26px 28px 22px;
+  box-shadow: 0 40px 80px rgba(0, 0, 0, 0.55), 0 2px 0 rgba(255, 255, 255, 0.05) inset;
+  animation: rise 160ms cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+
+@keyframes rise { from { transform: translateY(10px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+.sheet-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+h1 { font-size: 1.5rem; line-height: 1.2; margin: 2px 0 0; letter-spacing: -0.02em; }
+
+.micro {
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.esc {
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 3px 8px;
+}
+
+/* --------------------------------------------------------------- csomagok */
+
+.packs { display: grid; gap: 2px; }
+
+.pack {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 4px;
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+}
+.pack:last-child { border-bottom: 0; }
+.pack:hover, .pack:focus-visible { background: rgba(255, 255, 255, 0.04); outline: none; }
+
+.pack-name { font-size: 1.02rem; font-weight: 600; letter-spacing: -0.01em; }
+.pack-sub { font-size: 0.82rem; color: var(--ink-2); margin-top: 2px; }
+.pack-key {
+  font-size: 0.72rem;
+  color: var(--ink-3);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 2px 7px;
+  min-width: 22px;
+  text-align: center;
+}
+
+/* ------------------------------------------------------------- futó menet */
+
+.running { display: grid; gap: 6px; }
+.running .left { font-size: 2.6rem; font-weight: 650; letter-spacing: -0.03em; }
+.running .what { color: var(--ink-2); }
+
+.dot {
+  display: inline-block;
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--ok);
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+/* ------------------------------------------------------------------ hossz */
+
+.mins { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+
+button {
+  font: inherit;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--line-2);
+  border-radius: 10px;
+  padding: 8px 14px;
+  cursor: pointer;
+}
+button:hover { background: rgba(255, 255, 255, 0.11); }
+button.primary { background: var(--accent); color: #12151a; border-color: transparent; font-weight: 600; }
+button.primary:hover { background: #ffffff; }
+button.ghost { background: transparent; }
+
+.sheet-foot {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+  font-size: 0.82rem;
+  color: var(--ink-3);
+}
+
+.empty { color: var(--ink-2); padding: 10px 4px 4px; }

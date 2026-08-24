@@ -13,6 +13,9 @@ import { PAUSE_CHOICES_MIN } from '../shared/protocol';
 import { isLoosening, normalizeSchedule, ALWAYS, type Schedule } from '../shared/schedule';
 import { isLimitLoosening, normalizeLimit } from '../shared/limits';
 import { MAX_RULES_PER_SITE, sameRule, type UrlRule } from '../shared/urlrules';
+import {
+  isRunning, isSessionLoosening, normalizeMinutes, type FocusPack, type FocusRun,
+} from '../shared/focus';
 import type { AbandonRec, HelperState, SessionRec } from './state';
 import { newId } from './state';
 
@@ -94,6 +97,16 @@ export function startSession(
 
 function finishSession(state: HelperState, now: number): void {
   const s = state.session!;
+  // A munkamenet nem egy OLDALHOZ tartozik, hanem az egész géphez: ezért itt
+  // áll, a site-keresés előtt. A -1 azt jelenti: állítsd le most.
+  if (s.pendingFocusEnd !== undefined) {
+    if (s.pendingFocusEnd < 0) state.focusRun = null;
+    else if (state.focusRun) state.focusRun = { ...state.focusRun, endsAt: s.pendingFocusEnd };
+    state.unlockLog = [...state.unlockLog.filter((t) => t > now - 30 * 24 * 3600_000), now];
+    state.session = null;
+    state.abandons = (state.abandons ?? []).filter((a) => a.siteId !== s.siteId);
+    return;
+  }
   const site = state.sites.find((x) => x.id === s.siteId);
   if (site) {
     if (s.pendingSchedule) site.schedule = s.pendingSchedule;                  // gated loosening
@@ -399,5 +412,110 @@ export function tick(state: HelperState, now: number): boolean {
   const before = state.sites.length;
   state.sites = state.sites.filter((site) => site.pendingDeleteAt === null || site.pendingDeleteAt > now);
   if (state.sites.length !== before) dirty = true;
+  // A lejárt munkamenetet takarítjuk. A `isRunning` amúgy is hamisat adna rá,
+  // de a felület és a bővítmény az állapotot olvassa: egy ottfelejtett rekord
+  // örökre futó munkamenetnek látszana.
+  if (state.focusRun && !isRunning(state.focusRun, now)) {
+    state.focusRun = null;
+    dirty = true;
+  }
   return dirty;
+}
+
+// ---------------------------------------------------------------------------
+// Munkamenetek
+// ---------------------------------------------------------------------------
+
+export interface FocusStartResult {
+  run: FocusRun;
+}
+
+/**
+ * Munkamenet indítása. INGYEN van: ez a szigorítás iránya.
+ *
+ * Amíg fut egy munkamenet, újat nem lehet indítani. Enélkül a leállítás
+ * próbatételét meg lehetne kerülni: indítok egy „minden engedve” csomagot, és
+ * kész — a munkamenet egy kattintással semmivé válna.
+ */
+export function startFocus(
+  state: HelperState, packId: string, minutes: number, now: number,
+): FocusStartResult {
+  const pack = (state.focusPacks ?? []).find((p) => p.id === packId);
+  if (!pack) throw new RefereeError('Ismeretlen csomag.', 'NO_PACK');
+  if (isRunning(state.focusRun, now)) {
+    throw new RefereeError('Már fut egy munkamenet.', 'FOCUS_RUNNING');
+  }
+  const mins = normalizeMinutes(minutes);
+  if (mins === null) throw new RefereeError('Érvénytelen hossz.', 'BAD_MINUTES');
+  state.focusRun = { packId, startedAt: now, endsAt: now + mins * 60_000 };
+  return { run: state.focusRun };
+}
+
+export interface FocusChangeResult {
+  applied: boolean;
+  session: ReturnType<typeof sessionInfo> | null;
+  run: FocusRun | null;
+}
+
+/**
+ * A futó munkamenet vége odébb tolva — vagy a leállítása.
+ *
+ * HOSSZABBÍTANI ingyen van, RÖVIDÍTENI és LEÁLLÍTANI próbatételbe kerül.
+ * Ugyanaz a szabály, mint mindenhol: enélkül a munkamenet egy „mégsem” gomb
+ * lenne, és pont az a lényeg, hogy ne az legyen.
+ */
+export function changeFocus(
+  state: HelperState, nextEndsAt: number | null, now: number,
+): FocusChangeResult {
+  const run = state.focusRun;
+  if (!isRunning(run, now)) throw new RefereeError('Nem fut munkamenet.', 'NO_FOCUS');
+  const current = (run as FocusRun).endsAt;
+  const next = nextEndsAt === null ? now : nextEndsAt;
+
+  if (!isSessionLoosening(current, next)) {
+    state.focusRun = { ...(run as FocusRun), endsAt: next };
+    return { applied: true, session: null, run: state.focusRun };
+  }
+  if (state.session) throw new RefereeError('Előbb fejezd be a folyamatban lévő kísérletet.', 'BUSY');
+
+  const tier = effectiveTier(state, 'pause', now);
+  const plan = generatePlan('pause', tier, state.lastCombo, rng, null);
+  state.session = {
+    id: newId('ses'), kind: 'pause', siteId: `focus:${(run as FocusRun).packId}`,
+    steps: plan.steps, stepIndex: 0, createdAt: now,
+    // A -1 a „állítsd le most”; a nulla érvényes időpont lenne.
+    pendingFocusEnd: nextEndsAt === null ? -1 : nextEndsAt,
+  };
+  state.lastCombo = plan.comboKey;
+  armCurrent(state.session, now);
+  return { applied: false, session: sessionInfo(state.session, now), run: state.focusRun ?? null };
+}
+
+/**
+ * Csomag mentése. Szabadon szerkeszthető — DE nem az, amelyik ÉPP FUT.
+ *
+ * A futó csomag befagy. Enélkül a fehérlistához menet közben hozzá lehetne
+ * adni bármit, és a munkamenet önmagát oldaná fel — csendben, próbatétel
+ * nélkül.
+ */
+export function saveFocusPack(state: HelperState, pack: FocusPack, now: number): FocusPack[] {
+  if (isRunning(state.focusRun, now) && state.focusRun?.packId === pack.id) {
+    throw new RefereeError(
+      'Ez a csomag épp fut — amíg tart, nem szerkeszthető.', 'FOCUS_RUNNING',
+    );
+  }
+  const packs = [...(state.focusPacks ?? [])];
+  const at = packs.findIndex((p) => p.id === pack.id);
+  if (at >= 0) packs[at] = pack;
+  else packs.push(pack);
+  state.focusPacks = packs;
+  return packs;
+}
+
+export function deleteFocusPack(state: HelperState, packId: string, now: number): FocusPack[] {
+  if (isRunning(state.focusRun, now) && state.focusRun?.packId === packId) {
+    throw new RefereeError('Ez a csomag épp fut — előbb állítsd le.', 'FOCUS_RUNNING');
+  }
+  state.focusPacks = (state.focusPacks ?? []).filter((p) => p.id !== packId);
+  return state.focusPacks;
 }

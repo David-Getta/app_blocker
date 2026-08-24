@@ -142,6 +142,10 @@ export interface StatusData {
   hideSiteList?: boolean;
   /** a szinkron állapota, ha van fiók */
   sync?: SyncStatus;
+  /** munkamenet-csomagok: „most csak EZ mehet” (lásd shared/focus.ts) */
+  focusPacks: import('./focus').FocusPack[];
+  /** a FUTÓ munkamenet, ha van; a lejártat a segéd nem adja ki */
+  focusRun: import('./focus').FocusRun | null;
   /** egy korábbi néven telepített segéd láthatóan még fut (lásd hosts.ts) */
   legacyHelperRunning?: boolean;
   now: number;
@@ -174,7 +178,14 @@ export type HelperRequest =
   | { id: number; op: 'usage_batch'; samples: UsageSampleMsg[] }
   | { id: number; op: 'usage_stats'; focusKey?: string }
   | { id: number; op: 'usage_enable'; enabled: boolean }
-  | { id: number; op: 'usage_clear' };
+  | { id: number; op: 'usage_clear' }
+  // Munkamenetek. A csomag mentése és törlése ingyen van — de nem azé, amelyik
+  // épp fut. Az indítás szigorítás, tehát szintén ingyen; a `focus_change`
+  // viszont kétirányú: hosszabbítani ingyen, rövidíteni próbatétellel.
+  | { id: number; op: 'focus_save'; pack: import('./focus').FocusPack }
+  | { id: number; op: 'focus_delete'; packId: string }
+  | { id: number; op: 'focus_start'; packId: string; minutes: number }
+  | { id: number; op: 'focus_change'; endsAt: number | null };
 
 /** One recorded slice of active time, as measured by the user-session tracker. */
 export interface UsageSampleMsg {
