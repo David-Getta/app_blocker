@@ -13,40 +13,15 @@
 // összefésül —, de a telefon addig a legutóbbi állapotot mutatja.
 
 import * as fs from 'fs';
-import * as os from 'os';
 import * as path from 'path';
 import { ipcMain } from 'electron';
 import type { Server } from 'http';
-
-export interface SyncServerState {
-  running: boolean;
-  /** amit a másik eszközbe be kell írni */
-  url?: string;
-  /** hol tárolja az adatot ez a gép */
-  dataDir?: string;
-  error?: string;
-}
-
-/** Alapértelmezett port. Ugyanaz, mint a különálló kiszolgálóé. */
-export const SYNC_PORT = 8787;
+import { lanAddress, serverError, SYNC_PORT, type SyncServerState } from './sync-server-util';
+export type { SyncServerState };
+export { lanAddress, SYNC_PORT };
 
 let server: Server | null = null;
 let state: SyncServerState = { running: false };
-
-/**
- * A gép helyi hálózati címe.
- *
- * A `localhost` itt használhatatlan: azt a telefon nem éri el. A cél az első
- * NEM belső IPv4 cím — ezt kell beírni a másik eszközön.
- */
-export function lanAddress(): string | undefined {
-  for (const list of Object.values(os.networkInterfaces())) {
-    for (const net of list ?? []) {
-      if (net.family === 'IPv4' && !net.internal) return net.address;
-    }
-  }
-  return undefined;
-}
 
 export function syncServerState(): SyncServerState {
   return state;
@@ -95,13 +70,6 @@ export function stopSyncServer(): SyncServerState {
   }
   state = { running: false };
   return state;
-}
-
-function serverError(e: Error & { code?: string }): string {
-  if (e.code === 'EADDRINUSE') {
-    return `A ${SYNC_PORT}-es port foglalt — fut már egy kiszolgáló ezen a gépen?`;
-  }
-  return e.message;
 }
 
 /**

@@ -13,6 +13,28 @@ Két dolgot, pontosan azt, amit a kérés mond:
 2. **Lássam a többi eszköz statisztikáját**, ha ugyanabba a fiókba vagyok belépve
    mindegyiken.
 
+## Az első szinkron, lépésről lépésre
+
+1. **A gépen** nyisd meg a Breakert, görgess a *Fiók és eszközök* kártyáig, és
+   nyomd meg a **Kiszolgáló indítása ezen a gépen** gombot. Kiírja a címet
+   (`http://192.168.x.y:8787`) — ezt kell majd a telefonba beírni. A macOS
+   megkérdezheti, hogy engedélyezed-e a bejövő kapcsolatokat: igen.
+2. Ugyanott, a **kiszolgáló címe** mezőbe írd be ugyanezt a címet, a
+   **fiókazonosító** mezőbe bármit (például az e-mail-címedet), a jelszó
+   legalább 10 karakter legyen. Nyomd meg az **Új fiók** gombot.
+3. Felugrik a **helyreállító kód**. Írd fel, és tedd el. Ha a jelszót
+   elfelejted, ez az egyetlen út vissza — a kiszolgáló nem tud segíteni, mert
+   nem látja az adataidat.
+4. **A telefonon** (ugyanazon a Wi-Fi-n) nyisd meg a Breakert, görgess a *Fiók
+   és eszközök* kártyáig, írd be UGYANAZT a három adatot, és nyomd meg a
+   **Belépés** gombot.
+5. Kész: a lista összefésülődik. Ami a gépen volt, megjelenik a telefonon, és
+   fordítva — **semmi nem vész el**, mert a belépés egyesít, nem cserél.
+
+Amit érdemes tudni: amíg a gépen az app nem fut (vagy a gép alszik), nincs
+szinkron. Semmi nem vész el, a telefon addig a legutóbbi állapotot mutatja, és
+a következő elérésnél összefésül.
+
 ## Amit NEM old meg — és miért
 
 Ez a rész fontosabb a többinél. Egy blokkoló appnál minden új funkció egyben egy

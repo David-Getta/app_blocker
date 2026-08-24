@@ -54,6 +54,9 @@ attól, hogy sokszor csinálod.
   és mivel nem ért belőlük semmit, nem is kell megbízni benne. A kiszolgáló
   néhány száz sor, függőség nélkül, magadnak is futtathatod (`server/`).
   A kijelentkezés **egyetlen blokkot sem visz el** — a szinkron nem kibúvó.
+  A kiszolgálót az **asztali app egy gombbal el is indítja**, tehát nem kell
+  hozzá se terminál, se Node. Lépésről lépésre:
+  [`docs/feature-accounts-sync.md`](docs/feature-accounts-sync.md).
 - **Napi időkeret oldalanként** (asztali gép + Android): „napi 20 perc YouTube”.
   Ha a mai aktív idő eléri a keretet, az oldal a nap hátralévő részére magától
   visszazár, éjfélkor a keret újraindul. Keretet bevezetni vagy csökkenteni egy
