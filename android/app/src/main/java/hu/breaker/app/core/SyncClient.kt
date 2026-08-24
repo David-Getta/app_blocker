@@ -167,7 +167,14 @@ object SyncClient {
         }
     }
 
-    private fun sitesToJson(sites: List<SyncMerge.SyncSite>): String {
+    /**
+     * A feltöltött alak.
+     *
+     * `internal`, hogy tesztelhető legyen: a mezőnevek és a menetrend-módok
+     * SZÖVEGESEN egyeznek a TypeScript oldallal, és egy elgépelés itt nem
+     * fordítási hiba lenne, hanem csendes félreértés a másik eszközön.
+     */
+    internal fun sitesToJson(sites: List<SyncMerge.SyncSite>): String {
         val arr = JSONArray()
         for (s in sites) {
             arr.put(JSONObject().apply {
@@ -197,7 +204,7 @@ object SyncClient {
         return arr.toString()
     }
 
-    private fun sitesFromJson(text: String): List<SyncMerge.SyncSite> {
+    internal fun sitesFromJson(text: String): List<SyncMerge.SyncSite> {
         val arr = JSONArray(text)
         val out = mutableListOf<SyncMerge.SyncSite>()
         for (i in 0 until arr.length()) {
