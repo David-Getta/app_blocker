@@ -994,8 +994,6 @@ private fun LimitMeter(
 
 private val LIMIT_CHOICES_MIN = listOf(10, 20, 30, 45, 60, 90, 120)
 
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
 /**
  * Részleges szabályok: nem az egész oldal, csak egy darabja.
  *
@@ -1115,6 +1113,8 @@ private fun RulesDialog(
     )
 }
 
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
 private fun LimitDialog(
     site: Site,
     onDismiss: () -> Unit,

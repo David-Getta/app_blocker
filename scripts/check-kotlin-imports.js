@@ -81,13 +81,48 @@ for (const file of files) {
   }
 }
 
-if (problems.length === 0) {
+// ---------------------------------------------------------------------------
+// Árván maradt annotáció
+// ---------------------------------------------------------------------------
+//
+// Egy `@Composable` vagy `@OptIn` mindig a KÖVETKEZŐ deklarációra vonatkozik.
+// Ha közé és a függvény közé bekerül egy KDoc-blokk (`/**`), az annotáció
+// átcsúszik a következő függvényre — az eredetiről pedig lekerül.
+//
+// Ez pontosan az a hiba, ami egy új függvény beszúrásakor keletkezik, és a
+// fordítás előtt SEMMI nem jelzi: a fájl szabályos Kotlin marad, csak épp két
+// másik függvényre vonatkoznak az annotációk. A CI-ban ez egy kísérleti-API
+// hibaként jelenik meg, harminc sorral odébb.
+const orphans = [];
+for (const file of files) {
+  const lines = fs.readFileSync(file, 'utf8').split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    if (!/^\s*@(Composable|OptIn)\b/.test(lines[i])) continue;
+    // Ami az annotáció után jöhet: másik annotáció, vagy maga a deklaráció.
+    let j = i + 1;
+    while (j < lines.length && lines[j].trim() === '') j++;
+    const next = lines[j] ?? '';
+    if (/^\s*(@|(private |internal |public )?(fun|val|var|class|object)\b)/.test(next)) continue;
+    orphans.push({ file: path.relative(ROOT, file), line: i + 1, text: lines[i].trim() });
+  }
+}
+
+if (problems.length === 0 && orphans.length === 0) {
   console.log('kotlin import-ellenőrzés OK');
   process.exit(0);
 }
 
-console.error('Hiányzó import(ok) a saját mag-típusainkra:\n');
-for (const p of problems) console.error(`  ${p.file}: import ${p.missing}`);
-console.error('\nEz a Compose-fájlokban nem derül ki fordítás nélkül, és a CI-ban tucatnyi');
-console.error('félrevezető „unresolved reference” hibát szül máshol.');
+if (orphans.length > 0) {
+  console.error('Árván maradt annotáció (a következő sor nem deklaráció):\n');
+  for (const o of orphans) console.error(`  ${o.file}:${o.line}  ${o.text}`);
+  console.error('\nAz annotáció így a KÖVETKEZŐ függvényre vonatkozik, az eredetiről pedig');
+  console.error('lekerül — fordítás nélkül ez nem derül ki.\n');
+}
+
+if (problems.length > 0) {
+  console.error('Hiányzó import(ok) a saját mag-típusainkra:\n');
+  for (const p of problems) console.error(`  ${p.file}: import ${p.missing}`);
+  console.error('\nEz a Compose-fájlokban nem derül ki fordítás nélkül, és a CI-ban tucatnyi');
+  console.error('félrevezető „unresolved reference” hibát szül máshol.');
+}
 process.exit(1);
