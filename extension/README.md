@@ -104,7 +104,22 @@ visszaszámlálás alatt még tilt. Enélkül egy elgépelt azonosító vagy egy
 töltődő modul ugyanolyan csendes hiba lenne: a lap megjelenik, a gomb ott van,
 és nem történik semmi.
 
+## Amit a tesztek NEM fednek
+
+Őszintén: a bővítmény **valódi böngészőbe telepítve** még nem futott. A
+fejlesztői környezet fej nélküli Chromiumja a `--load-extension`-t nem
+támogatja — a szolgáltatás-worker el sem indul —, tehát a manifest, a
+jogosultságok és a `webNavigation`-horgok együttes működése az első valódi
+telepítéskor derül ki.
+
+Amit viszont igenis fed a CI: a szabály-magok egyezése, a súrlódás a
+ténylegesen kiszállított `storage.js`-en, és a beállítási lap valódi
+böngészőben. A fennmaradó kockázat tehát a bővítmény-keretrendszer felőli
+huzalozás, nem a logika.
+
 ## Ami még hátra van
 
 - [ ] A szabályok átvétele az appból (most a bővítmény a sajátjait tárolja)
-- [ ] Csomagolt kiadás (`.crx` / `.xpi`) a GitHub Releases mellé
+- [x] Csomagolt zip a GitHub Releases mellé (`Breaker-bovitmeny-*.zip`)
+- [ ] Aláírt csomag (`.crx` / `.xpi`), hogy ne kelljen fejlesztői mód
+- [ ] Végponttól végpontig futó teszt valódi bővítmény-betöltéssel
