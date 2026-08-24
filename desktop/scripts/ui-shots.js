@@ -141,6 +141,14 @@ function fakeBridgeSource() {
             session } };
         }
         if (op === 'abandon') { session = null; return { ok: true, data: {} }; }
+        if (op === 'set_alias') {
+          const site = window.__fakeSites.find((x) => x.id === payload.siteId);
+          if (site) {
+            const a = (payload.alias || '').trim();
+            if (a) site.alias = a; else delete site.alias;
+          }
+          return { ok: true, data: status() };
+        }
         return { ok: true, data: {} };
       },
       install: async () => ({ ok: true }),
@@ -331,6 +339,66 @@ async function main() {
     await page.screenshot({ path: path.join(OUT, 'desktop-schedule.png'), fullPage: false });
   }
 
+  // --------------------------------------------------------------- fedőnév
+  //
+  // A lista maga is ingerforrás, ezért lehet a címet fedőnév mögé tenni. A
+  // funkció akkor ér valamit, ha SEHOL nem szivárog ki a valódi cím — elég
+  // egyetlen hely, és az egész kidobható. Ezért nem csak a sort nézzük, hanem
+  // a statisztikát is, ahol a segéd a valódi domaint küldi címkeként.
+  // Az előző lépés menetrend-szerkesztője még nyitva van, és elfogná a
+  // kattintást; csukjuk be.
+  await page.getByRole('button', { name: /^Mégse$/ }).click().catch(() => { /* már zárva */ });
+  await page.locator('#siteList .site-row').first()
+    .getByRole('button', { name: /Név elrejtése/ }).click();
+  await page.getByRole('heading', { name: /Név elrejtése:/ }).waitFor({ timeout: 10_000 });
+  await page.locator('.alias-input').fill('A videós');
+  await page.getByRole('button', { name: /^Mentés$/ }).click();
+  await page.waitForFunction(
+    () => (document.querySelector('#siteList .site-row .site-domain') || {}).textContent
+      ?.includes('A videós'),
+    { timeout: 10_000 },
+  );
+
+  const listText = (await page.locator('#siteList').textContent()) || '';
+  if (listText.includes('youtube.com')) {
+    failures.push('the real domain is still on the list after an alias was set');
+  }
+  const statsText = (await page.locator('#statsCard').textContent()) || '';
+  if (statsText.includes('youtube.com')) {
+    failures.push('the real domain still shows in the statistics after an alias was set');
+  }
+  if (!statsText.includes('A videós')) {
+    failures.push('the statistics do not use the alias');
+  }
+  if (!CHECK_ONLY) {
+    await page.screenshot({ path: path.join(OUT, 'desktop-alias.png'), fullPage: false });
+  }
+
+  // A felfedés IDEIGLENES: megmutatja a címet, aztán magától visszabújik.
+  await page.locator('#siteList .site-row').first()
+    .getByRole('button', { name: /Mutasd/ }).click();
+  await page.waitForFunction(
+    () => (document.querySelector('#siteList .site-row .site-domain') || {}).textContent
+      ?.includes('youtube.com'),
+    { timeout: 10_000 },
+  );
+  // ...és vissza is bújik magától, emberi beavatkozás nélkül.
+  await page.waitForFunction(
+    () => (document.querySelector('#siteList .site-row .site-domain') || {}).textContent
+      ?.includes('A videós'),
+    { timeout: 20_000 },
+  );
+
+  // A fedőnév levehető, és akkor újra a cím áll ott.
+  await page.locator('#siteList .site-row').first()
+    .getByRole('button', { name: /Fedőnév…/ }).click();
+  await page.getByRole('button', { name: /Fedőnév levétele/ }).click();
+  await page.waitForFunction(
+    () => (document.querySelector('#siteList .site-row .site-domain') || {}).textContent
+      ?.includes('youtube.com'),
+    { timeout: 10_000 },
+  );
+
   // ------------------------------------------- szünetelő és törlésre váró oldal
   //
   // Ezt a két állapotot eddig SEMMI nem ellenőrizte, pedig a felhasználó
@@ -350,9 +418,6 @@ async function main() {
       },
     ];
   }, Date.now());
-  // A menetrend-szerkesztő még nyitva van az előző lépésből; csukjuk be, hogy
-  // a lista látszódjon.
-  await page.getByRole('button', { name: /^Mégse$/ }).click().catch(() => { /* már zárva */ });
   // A státusz-lekérdezés 2 másodpercenként fut: a listát MEG KELL VÁRNI, nem
   // elég ránézni. (Ezen bukott el először ez a teszt.)
   await page.waitForFunction(

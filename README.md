@@ -34,6 +34,13 @@ attól, hogy sokszor csinálod.
   nem attól, hogy nyitva van. Napi/heti/havi bontás, top lista, 30 napos idősor,
   hét-a-héthez összevetés. Minden adat a gépeden marad, bármikor kikapcsolható
   és törölhető.
+- **Fedőnév a blokkolt oldalakhoz** (asztali gép): a lista maga is ingerforrás —
+  aki megnyitja az appot, és ott áll előtte a `youtube.com`, az már fél lépéssel
+  közelebb van. Minden oldalnak adható saját név, és onnantól a felületen az
+  látszik: a soron, a párbeszédek címében, a próbatétel-ablakban és a
+  statisztikában is. A valódi cím nem tűnik el, egy gombbal **hat másodpercre**
+  előhívható, aztán magától visszabújik. Ez inger-eltávolítás, nem titkosítás:
+  a hosts fájlban ott a cím, és ezt a felület is kimondja.
 - **Napi időkeret oldalanként** (asztali gép + Android): „napi 20 perc YouTube”.
   Ha a mai aktív idő eléri a keretet, az oldal a nap hátralévő részére magától
   visszazár, éjfélkor a keret újraindul. Keretet bevezetni vagy csökkenteni egy

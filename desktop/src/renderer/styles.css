@@ -301,6 +301,54 @@ body {
 }
 .site-sub { color: var(--text-3); font-size: 0.79rem; margin-top: 1px; }
 
+/* --- fedőnév ---------------------------------------------------------- */
+
+.site-domain { display: flex; align-items: center; gap: var(--s2); }
+
+/* Felfedés közben a valódi cím más ritmusú betűvel áll, hogy egy pillantásra
+   látszódjon: ez most NEM a fedőnév, és mindjárt vissza is bújik. */
+.site-domain-revealed {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.94rem;
+  color: var(--text-2);
+}
+
+.btn-tiny {
+  padding: 2px 9px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  border-radius: 999px;
+  flex: none;
+}
+.peek-btn { background: transparent; border-color: var(--border); color: var(--text-3); }
+.peek-btn:hover { background: var(--surface-3); color: var(--text); border-color: var(--border-strong); }
+.peek-btn:disabled {
+  opacity: 1;
+  background: var(--accent-soft);
+  border-color: rgba(91, 140, 255, .32);
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.alias-input {
+  width: 100%;
+  margin-top: var(--s4);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  padding: 11px 14px;
+  font: inherit;
+  font-size: 0.95rem;
+}
+.alias-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.row-gap { display: flex; gap: var(--s2); }
+
 .site-actions {
   display: flex; gap: var(--s2);
   margin-top: var(--s3);

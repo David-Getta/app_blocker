@@ -173,6 +173,36 @@ Ismert megkerülési utak (szándékosan nem próbáljuk „lelakatolni” a gé
 Ezeket a `docs/`-ban nyíltan dokumentáljuk, hogy az elvárások reálisak
 legyenek.
 
+## Fedőnév (a lista mint ingerforrás)
+
+A blokkolás nem csak a hozzáférésről szól. Aki megnyitja az appot — akár csak
+azért, hogy „megnézze a statisztikát” —, és a listán ott áll a `youtube.com`,
+az kapott egy ingert. A név felidézi, mi van a másik oldalon.
+
+Ezért minden oldalnak adható **fedőnév**. Ha van, a felület azt mutatja a cím
+helyett, és a valódi cím egy gombbal, **hat másodpercre** hívható elő.
+
+Két dolog fontos ebben:
+
+1. **Minden megjelenítés EGY függvényen megy át** (`shared/alias.ts`,
+   `displayName` / `displayNameNow`). Hét helyen jelenik meg a név: a soron, a
+   napi keret és a menetrend párbeszéd címében, a törlés megerősítésében, a
+   folyamatban lévő kísérlet sávjában, a próbatétel-ablak címében és a
+   statisztika címkéiben. Elég egyetlen kihagyott hely, és a funkció annyit ér,
+   mint egy lyukas zsák — a füstteszt ezért nem csak a listát, hanem a
+   statisztikát is átnézi a fedőnév beállítása után. (Az első futáson pont a
+   statisztikán bukott el: az a saját, ritkább körén frissül, és fél percig a
+   régi címkét mutatta volna.)
+
+2. **Ez NEM biztonsági határ.** A hosts fájlban ott a cím, bárki megnézheti; a
+   segéd nem is tud a fedőnévről, mert az tisztán felületi dolog. Inger-
+   eltávolítás, nem titkosítás — a párbeszéd szövege is így mondja, hogy senki
+   ne higgye másnak.
+
+A fedőnév beállítása és levétele **nem kerül próbatételbe**. A súrlódás ott van,
+ahol a védelem gyengülne; itt nem gyengül semmi: az oldal ugyanúgy blokkolva
+marad, a hosts fájl egy bájtot sem változik.
+
 ## Hibatűrés: melyik irányba dőljön a rendszer
 
 Egy blokkoló appnál a hibáknak **iránya** van. Ha valami nem sikerül, két

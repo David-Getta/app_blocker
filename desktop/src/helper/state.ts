@@ -20,6 +20,8 @@ export interface SiteRec {
   schedule?: Schedule;
   /** optional daily active-time budget in seconds; absent = no budget */
   dailyLimitSeconds?: number;
+  /** fedőnév: ha van, a felület EZT mutatja a cím helyett (lásd shared/alias.ts) */
+  alias?: string;
 }
 
 export interface SessionRec {

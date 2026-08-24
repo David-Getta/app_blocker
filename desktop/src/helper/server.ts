@@ -8,6 +8,7 @@ import type { HelperRequest, HelperResponse, StatusData } from '../shared/protoc
 import { HELPER_VERSION } from '../shared/protocol';
 import { normalizeDomain, expandHostnames } from '../shared/blocklist';
 import { computeTier } from '../shared/challenges';
+import { normalizeAlias } from '../shared/alias';
 import { isBlockedNowWithLimit, isLimitExhausted, normalizeLimit, usedTodaySeconds } from '../shared/limits';
 import {
   recordSample, summarize, series, labelOf, emptyUsage,
@@ -45,6 +46,7 @@ export function statusOf(state: HelperState, dohApplied: boolean): StatusData {
       id: s.id, domain: s.domain, hostnames: s.hostnames, addedAt: s.addedAt,
       pauseUntil: s.pauseUntil, pendingDeleteAt: s.pendingDeleteAt,
       schedule: s.schedule,
+      alias: s.alias,
       dailyLimitSeconds: s.dailyLimitSeconds,
       usedTodaySeconds: Math.round(usedTodaySeconds(state.usage, s.domain, now)),
       limitExhausted: isLimitExhausted(s, state.usage, now),
@@ -141,6 +143,20 @@ function handle(req: HelperRequest, deps: ServerDeps): unknown {
       const result = referee.startLimitChange(state, req.siteId, req.seconds, now);
       deps.commit();
       return result;
+    }
+
+    case 'set_alias': {
+      // Fedőnév: a felületen a cím helyett ez látszik. NEM lazítás — az oldal
+      // ettől ugyanúgy blokkolva marad, a hosts fájl változatlan —, ezért nem
+      // jár érte próbatétel, és levenni is egy kattintás. A súrlódás ott van,
+      // ahol a blokkolás gyengülne; itt nem gyengül semmi.
+      const site = state.sites.find((s) => s.id === req.siteId);
+      if (!site) throw new RefereeError('Ismeretlen oldal.', 'NO_SITE');
+      const alias = normalizeAlias(req.alias);
+      if (alias === undefined) delete site.alias;
+      else site.alias = alias;
+      deps.commit();
+      return statusOf(state, deps.dohApplied());
     }
 
     case 'usage_batch': {

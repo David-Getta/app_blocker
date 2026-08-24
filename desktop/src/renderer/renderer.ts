@@ -9,6 +9,9 @@ import type {
 // (TypeScript's bundler resolution does not rewrite the specifier).
 import { PRESET_BANDS, type Schedule, type ScheduleMode } from '../shared/schedule.js';
 import { formatDuration } from '../shared/usage.js';
+import {
+  displayName, displayNameNow, isAliased, MAX_ALIAS_LENGTH, REVEAL_MS,
+} from '../shared/alias.js';
 import { HELPER_VERSION } from '../shared/protocol.js';
 import type { SetLimitResult, UsageStatsData } from '../shared/protocol';
 
@@ -85,6 +88,29 @@ function fmtClock(epochMs: number): string {
   return new Date(epochMs).toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' });
 }
 
+/**
+ * Melyik oldal valódi címe látszik MOST, és meddig.
+ *
+ * Modulszintű, mert a lista kétmásodpercenként újraépül: ha a felfedést a DOM
+ * tárolná, a következő frissítés eltüntetné. Nem a segédben tároljuk, mert ez
+ * nem védelmi állapot — a hosts fájlban ott a cím, ez inger-eltávolítás.
+ */
+const revealedUntil = new Map<string, number>();
+
+/**
+ * A statisztika a saját, ritkább körén frissül — de a CÍMKÉI az oldallistából
+ * jönnek (fedőnév, „blokkolt” jelölés). Ha az oldallista változik, a diagram
+ * fél percig a régit mutatná: fedőnév beállítása után ott maradna a valódi cím.
+ * Ezt a füstteszt fogta meg, nem én.
+ *
+ * Ezért eltesszük a lista lenyomatát, és ha változik, azonnal újrarajzoljuk a
+ * statisztikát. Sztring-összevetés kétmásodpercenként — ingyen van.
+ */
+let siteSignature = '';
+function sitesFingerprint(st: StatusData): string {
+  return st.sites.map((x) => `${x.id}:${x.domain}:${x.alias ?? ''}`).join('|');
+}
+
 // ------------------------------------------------------------ status poll
 
 let failStreak = 0;
@@ -144,6 +170,12 @@ function render(): void {
     // Keep an open challenge modal alive: the session (and the user's typed
     // answer) survives a helper restart, closing it would throw work away.
     return;
+  }
+
+  const sig = sitesFingerprint(status!);
+  if (sig !== siteSignature) {
+    siteSignature = sig;
+    if (statsData) renderStats();
   }
 
   renderSiteList(status!);
@@ -218,7 +250,7 @@ function renderResumeBanner(st: StatusData): void {
   if (show && st.session) {
     const site = st.sites.find((s) => s.id === st.session!.siteId);
     $('resumeText').textContent =
-      `Folyamatban lévő ${st.session.kind === 'delete' ? 'törlési' : 'feloldási'} kísérlet: ${site?.domain ?? ''} (${st.session.stepIndex + 1}/${st.session.stepCount}. próba)`;
+      `Folyamatban lévő ${st.session.kind === 'delete' ? 'törlési' : 'feloldási'} kísérlet: ${site ? displayName(site) : ''} (${st.session.stepIndex + 1}/${st.session.stepCount}. próba)`;
   }
 }
 
@@ -230,16 +262,33 @@ function renderSiteList(st: StatusData): void {
 }
 
 function siteRow(site: SiteInfo, st: StatusData): HTMLElement {
+  const now = st.now;
   const row = h('div', 'site-row');
   // Fejléc: a NÉV és az ÁLLAPOT egy sorban, mert ez a két dolog kell ránézésre.
   // Minden más (mérő, műveletek) ez alá kerül, halványabban.
   const head = h('div', 'site-head');
   const ident = h('div', 'site-ident');
-  ident.appendChild(h('div', 'site-domain', site.domain));
+  const shownName = displayNameNow(site, now, revealedUntil.get(site.id));
+  const nameEl = h('div', 'site-domain', shownName);
+  if (isAliased(site) && shownName === site.domain) nameEl.classList.add('site-domain-revealed');
+  ident.appendChild(nameEl);
+  if (isAliased(site)) {
+    const until = revealedUntil.get(site.id);
+    const showing = until !== undefined && now < until;
+    const peek = h('button', 'btn btn-tiny peek-btn',
+      showing ? `${Math.ceil((until! - now) / 1000)} mp` : 'Mutasd');
+    peek.title = showing
+      ? 'A valódi cím látszik; mindjárt visszabújik'
+      : `A valódi cím ${Math.round(REVEAL_MS / 1000)} másodpercre látszik`;
+    peek.disabled = showing;
+    peek.addEventListener('click', () => {
+      revealedUntil.set(site.id, Date.now() + REVEAL_MS);
+      render();
+    });
+    nameEl.appendChild(peek);
+  }
   ident.appendChild(h('div', 'site-sub', `${site.hostnames.length} hosztnév · felvéve: ${new Date(site.addedAt).toLocaleDateString('hu-HU')}`));
   head.appendChild(ident);
-
-  const now = st.now;
   const statusEl = h('div', 'site-status');
   const actions = h('div', 'site-actions');
 
@@ -280,9 +329,11 @@ function siteRow(site: SiteInfo, st: StatusData): HTMLElement {
       sched.addEventListener('click', () => openScheduleDialog(site));
       const limit = h('button', 'btn btn-small', 'Napi keret…');
       limit.addEventListener('click', () => openLimitDialog(site));
+      const alias = h('button', 'btn btn-small', isAliased(site) ? 'Fedőnév…' : 'Név elrejtése…');
+      alias.addEventListener('click', () => openAliasDialog(site));
       const del = h('button', 'btn btn-small btn-danger', 'Végleges törlés…');
       del.addEventListener('click', () => void startDelete(site));
-      actions.append(unlock, sched, limit, del);
+      actions.append(unlock, sched, limit, alias, del);
     }
   }
 
@@ -326,10 +377,76 @@ function limitMeter(site: SiteInfo, duringPause: boolean): HTMLElement {
 
 const LIMIT_CHOICES_MIN = [10, 20, 30, 45, 60, 90, 120];
 
+/**
+ * Fedőnév beállítása.
+ *
+ * Nincs benne próbatétel, és ez szándékos: a fedőnév nem lazítás. Az oldal
+ * ettől ugyanúgy blokkolva marad, a hosts fájl egy bájtot sem változik — csak
+ * nem a címe áll a listán. Súrlódást oda teszünk, ahol a védelem gyengülne.
+ */
+function openAliasDialog(site: SiteInfo): void {
+  const overlay = h('div', 'overlay');
+  const modal = h('div', 'modal modal-small');
+  modal.appendChild(h('h3', undefined, `Név elrejtése: ${displayName(site)}`));
+  modal.appendChild(h('p', 'hint',
+    'A listán a cím helyett ez a név fog állni. A valódi cím nem tűnik el: a '
+    + `név mellett egy gombbal ${Math.round(REVEAL_MS / 1000)} másodpercre `
+    + 'előhívható, aztán magától visszabújik. A statisztikában is a fedőnév '
+    + 'látszik majd.'));
+
+  const input = h('input', 'alias-input') as HTMLInputElement;
+  input.type = 'text';
+  input.maxLength = MAX_ALIAS_LENGTH;
+  input.placeholder = 'pl. A videós';
+  input.value = site.alias ?? '';
+  input.spellcheck = false;
+  modal.appendChild(input);
+
+  const err = h('p', 'error hidden');
+  modal.appendChild(err);
+
+  const actions = h('div', 'modal-actions');
+  const left = h('div', 'row-gap');
+  if (isAliased(site)) {
+    const clear = h('button', 'btn btn-small btn-ghost', 'Fedőnév levétele');
+    clear.addEventListener('click', () => void apply(null));
+    left.appendChild(clear);
+  }
+  const cancel = h('button', 'btn btn-small btn-ghost', 'Mégse');
+  cancel.addEventListener('click', () => overlay.remove());
+  const save = h('button', 'btn btn-small btn-primary', 'Mentés');
+  save.addEventListener('click', () => void apply(input.value));
+  const right = h('div', 'row-gap');
+  right.append(cancel, save);
+  actions.append(left, right);
+  modal.appendChild(actions);
+
+  async function apply(value: string | null): Promise<void> {
+    try {
+      status = await call<StatusData>('set_alias', { siteId: site.id, alias: value });
+      // Névváltáskor a korábbi felfedésnek nincs értelme.
+      revealedUntil.delete(site.id);
+      overlay.remove();
+      render();
+    } catch (e) {
+      err.textContent = (e as Error).message;
+      err.classList.remove('hidden');
+    }
+  }
+
+  input.addEventListener('keydown', (ev) => {
+    if ((ev as KeyboardEvent).key === 'Enter') void apply(input.value);
+  });
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+  input.focus();
+  input.select();
+}
+
 function openLimitDialog(site: SiteInfo): void {
   const overlay = h('div', 'overlay');
   const modal = h('div', 'modal modal-small');
-  modal.appendChild(h('h3', undefined, `Napi keret: ${site.domain}`));
+  modal.appendChild(h('h3', undefined, `Napi keret: ${displayName(site)}`));
   modal.appendChild(h('p', 'hint',
     'Ha a mai aktív idő eléri a keretet, az oldal a nap hátralévő részére ' +
     'magától visszazár, éjfélkor pedig a keret újraindul. Keretet bevezetni ' +
@@ -455,7 +572,7 @@ const PRESET_LABELS: { key: keyof typeof PRESET_BANDS; label: string }[] = [
 function openScheduleDialog(site: SiteInfo): void {
   const overlay = h('div', 'overlay');
   const modal = h('div', 'modal modal-small');
-  modal.appendChild(h('h3', undefined, `Menetrend: ${site.domain}`));
+  modal.appendChild(h('h3', undefined, `Menetrend: ${displayName(site)}`));
   modal.appendChild(h('p', 'hint',
     'Szigorítani (több tiltott idő) azonnal megy. Lazítani — kevesebb tiltás — ' +
     'ugyanúgy próbatételekbe kerül, mint egy feloldás.'));
@@ -542,7 +659,7 @@ function openScheduleDialog(site: SiteInfo): void {
 
 async function startDelete(site: SiteInfo): Promise<void> {
   const sure = confirm(
-    `Biztosan törölnéd a(z) ${site.domain} blokkolását?\n\n` +
+    `Biztosan törölnéd a(z) ${displayName(site)} blokkolását?\n\n` +
     'A törléshez a legnehezebb próbatételek tartoznak, és a törlés csak 24 órával ' +
     'a teljesítésük UTÁN válik véglegessé. Addig bármikor, egy kattintással visszavonhatod.');
   if (!sure) return;
@@ -591,8 +708,8 @@ function renderSession(session: SessionInfo | null): void {
   }
   const site = status?.sites.find((s) => s.id === session.siteId);
   $('sessionTitle').textContent = session.kind === 'delete'
-    ? `Végleges törlés: ${site?.domain ?? ''}`
-    : `Feloldás ${session.minutes} percre: ${site?.domain ?? ''}`;
+    ? `Végleges törlés: ${site ? displayName(site) : ''}`
+    : `Feloldás ${session.minutes} percre: ${site ? displayName(site) : ''}`;
   $('sessionProgress').textContent = `${session.stepIndex + 1}/${session.stepCount}. próba`;
   $('sessionSubtitle').textContent = session.kind === 'delete'
     ? 'A próbák teljesítése után a törlés még 24 órát vár — addig visszavonható.'
@@ -915,6 +1032,23 @@ function tile(value: string, label: string): HTMLElement {
   return el;
 }
 
+/**
+ * A statisztika sorain is a fedőnév álljon.
+ *
+ * A segéd a valódi domaint küldi címkeként — nem is tudhat a fedőnévről, mert
+ * az felületi dolog. Ha ezt kihagynánk, a felhasználó elrejtené a nevet a
+ * listán, aztán néhány sorral lejjebb szembejönne vele a diagramban: a funkció
+ * pont annyit érne, mint egy lyukas zsák.
+ *
+ * A pillanatnyi felfedést itt SZÁNDÉKOSAN nem vesszük figyelembe: az egy adott
+ * sor művelete, a statisztika meg ritkábban frissül — a kettő együtt csak
+ * villogna.
+ */
+function statLabel(label: string): string {
+  const site = status?.sites.find((x) => x.domain === label);
+  return site ? displayName(site) : label;
+}
+
 /** Horizontal bar list: one measure across named targets, so one hue —
  *  the second hue means "this site is on your block list", and every bar
  *  that uses it also carries a written badge (never colour alone). */
@@ -928,7 +1062,7 @@ function renderBarList(host: HTMLElement, rows: { key: string; label: string; se
   for (const row of rows) {
     const isBlocked = markBlocked && blocked.has(row.label);
     const wrap = h('div', 'bar-row');
-    const name = h('div', 'bar-name', row.label);
+    const name = h('div', 'bar-name', statLabel(row.label));
     if (isBlocked) {
       const badge = h('span', 'badge', 'blokkolt');
       name.appendChild(badge);
@@ -940,7 +1074,7 @@ function renderBarList(host: HTMLElement, rows: { key: string; label: string; se
     track.appendChild(fill);
     wrap.append(name, value, track);
     attachTip(wrap, () =>
-      `${row.label} — ${formatDuration(row.seconds)}${isBlocked ? ' · blokkolt oldal' : ''}`);
+      `${statLabel(row.label)} — ${formatDuration(row.seconds)}${isBlocked ? ' · blokkolt oldal' : ''}`);
     host.appendChild(wrap);
   }
 }
@@ -1028,14 +1162,14 @@ function renderStats(): void {
   renderBarList($('topSites'), s.topWeekSites, $('topSitesEmpty'), true);
   renderBarList($('topApps'), s.topWeekApps, $('topAppsEmpty'), false);
   $('usageLegend').classList.toggle('hidden', s.topWeekSites.length === 0);
-  renderDaily(statsData.focusSeries, statsData.focusLabel);
+  renderDaily(statsData.focusSeries, statLabel(statsData.focusLabel));
 
   const wow = $('wowList');
   wow.textContent = '';
   $('wowBlock').classList.toggle('hidden', s.weekOverWeek.length === 0);
   for (const row of s.weekOverWeek) {
     const line = h('div', 'wow-row');
-    line.appendChild(h('span', undefined, row.label));
+    line.appendChild(h('span', undefined, statLabel(row.label)));
     let text: string;
     let cls: string;
     if (row.deltaPct === null) {
