@@ -182,6 +182,13 @@ egész funkció van. A segéd ezért magától is dolgozik:
 | minden változás után 20 másodperc csenddel | egy műveletsor (felvétel, keret, menetrend) EGY feltöltés legyen, ne három |
 | tízpercenként | hogy a másik gép írását magától is észrevegye |
 
+Telefonon más a ritmus: ott a **megnyitáskor** szinkronizál. Percenként
+ébresztgetni a hálózatot értelmetlen lenne — az app akkor számít, amikor épp
+nézed. Viszont akkor számítson: aki a gépén felvett egy oldalt, azt a telefonján
+a megnyitáskor lássa, ne csak akkor, ha eszébe jut megnyomni egy gombot. Ha
+épp nincs hálózat, a megnyitás nem hibaüzenettel kezdődik — a fiókkártyán ott
+áll, mikor volt utoljára szinkron.
+
 Egy elhasalt kör nem naplózódik újra meg újra: offline gépnél az percenként
 ismétlődő, haszontalan sor lenne. Az állapotba viszont bekerül, és a felület
 kiírja, hogy mi nem megy.

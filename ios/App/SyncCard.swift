@@ -37,6 +37,20 @@ struct SyncCard: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding().background(Color.gray.opacity(0.12)).cornerRadius(10)
+        // Szinkron a képernyő megnyitásakor. A telefonon nincs értelme
+        // percenként ébresztgetni a hálózatot: az app akkor számít, amikor épp
+        // nézed. Viszont AKKOR számítson — aki a gépén felvett egy oldalt, azt
+        // itt lássa, ne csak akkor, ha eszébe jut megnyomni egy gombot.
+        .task {
+            guard store.state.sync != nil else { return }
+            // Csendben: offline telefonnál a megnyitás ne hibaüzenettel
+            // kezdődjön. A kártyán ott van, mikor volt utoljára szinkron.
+            if let r = try? await SyncClient.syncNow(
+                store.state, now: Date().timeIntervalSince1970 * 1000
+            ) {
+                _ = store.mutate { $0 = r.state }
+            }
+        }
         .alert("Helyreállító kód", isPresented: recoveryAlert, presenting: recoveryCode) { _ in
             Button("Felírtam") { recoveryCode = nil }
         } message: { code in

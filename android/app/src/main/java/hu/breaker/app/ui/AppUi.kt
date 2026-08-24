@@ -73,8 +73,10 @@ import hu.breaker.app.update.UpdateChecker
 import hu.breaker.app.usage.UsageTracker
 import hu.breaker.app.vpn.BreakerVpnService
 import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private fun fmtRemain(ms: Long): String {
     val total = (ms.coerceAtLeast(0) + 999) / 1000
@@ -143,6 +145,28 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
     var needsInstallPermission by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) { update = UpdateChecker.check() }
+
+    // Szinkron az app megnyitásakor.
+    //
+    // A telefonon nincs értelme percenként ébresztgetni a hálózatot: az app
+    // akkor számít, amikor épp nézed. Viszont AKKOR számítson: aki a gépén
+    // felvett egy oldalt, azt a telefonján a megnyitáskor lássa, ne csak akkor,
+    // ha eszébe jut megnyomni egy gombot.
+    LaunchedEffect(Unit) {
+        if (BreakerStore.state.value.sync == null) return@LaunchedEffect
+        withContext(Dispatchers.IO) {
+            try {
+                val r = SyncClient.syncNow(BreakerStore.state.value, System.currentTimeMillis())
+                BreakerStore.mutate { r.state }
+            } catch (e: Exception) {
+                // Csendben: offline telefonnál a megnyitás nem hibaüzenettel
+                // kezdődik. A fiókkártyán ott lesz, mikor volt utoljára szinkron.
+                BreakerStore.mutate { st ->
+                    st.sync?.let { st.copy(sync = it.copy(lastError = e.message)) } ?: st
+                }
+            }
+        }
+    }
 
     val vpnConsent = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult(),
@@ -1254,7 +1278,7 @@ private fun SyncCard(
         if (busy) return
         busy = true
         localError = null
-        scope.launch(kotlinx.coroutines.Dispatchers.IO) {
+        scope.launch(Dispatchers.IO) {
             try {
                 work()
             } catch (e: Exception) {
