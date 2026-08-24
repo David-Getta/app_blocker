@@ -380,3 +380,70 @@ export function formatDuration(seconds: number): string {
   const rem = min % 60;
   return rem === 0 ? `${h} ó` : `${h} ó ${rem} p`;
 }
+
+// ------------------------------------------------------- több eszköz együtt
+
+/**
+ * Több eszköz mérését EGYETLEN mérés-állapottá fésüli össze.
+ *
+ * Miért kell: a kérdés, ami tényleg számít, nem az eszközönkénti bontás.
+ * Nem az, hogy mennyi ment el YouTube-ra a gépen, és külön mennyi a telefonon,
+ * hanem hogy MENNYI MENT EL ÖSSZESEN. Két eszközön külön-külön napi húsz perc
+ * együtt negyven — és pont a negyven az a szám, amivel a felhasználó küzd.
+ *
+ * A visszaadott állapot ugyanolyan `UsageState`, ezért a `summarize`, a `rank`
+ * és a `series` VÁLTOZATLANUL használható rajta. Ez szándékos: egy második
+ * összegző implementáció előbb-utóbb elcsúszna az elsőtől, és a két nézet más
+ * számot mutatna ugyanarra a kérdésre.
+ *
+ * Két dolog, amit érdemes kimondani:
+ *
+ * - A napkulcs annak az eszköznek a HELYI naptári napja, amelyik felvette. Két
+ *   időzóna között ez néhány órányi átfedést jelent a nap határán. Nincs jobb
+ *   megoldás: a nyers mintákat nem tartjuk meg, csak a napi vödröket — és a
+ *   „ma” úgyis azt jelenti, amit az ember a saját napjának érez.
+ * - A címke onnan az eszközről jön, amelyik a LEGTÖBB időt mérte az adott
+ *   célponton. Így nem a hívás sorrendjén múlik, és a legjellemzőbb helyről
+ *   származik. (A `site:` kulcsok minden platformon azonosak, tehát a
+ *   weboldalak tényleg összeadódnak; két külön app viszont két külön kulcs,
+ *   és az helyes — a telefonos és a gépes böngésző nem ugyanaz.)
+ */
+export function combineUsage(states: UsageState[]): UsageState {
+  const byDay = new Map<string, Record<string, number>>();
+  // kulcs -> [legtöbb másodperc egy eszközön, az ahhoz tartozó címke]
+  const bestLabel = new Map<string, { seconds: number; label: string }>();
+
+  for (const st of states) {
+    if (!st || !Array.isArray(st.days)) continue;
+    const mine: Record<string, number> = {};
+    for (const d of st.days) {
+      if (!d || typeof d.day !== 'string' || !d.seconds) continue;
+      let bucket = byDay.get(d.day);
+      if (!bucket) { bucket = {}; byDay.set(d.day, bucket); }
+      for (const [k, s] of Object.entries(d.seconds)) {
+        if (typeof s !== 'number' || !Number.isFinite(s) || s <= 0) continue;
+        bucket[k] = (bucket[k] ?? 0) + s;
+        mine[k] = (mine[k] ?? 0) + s;
+      }
+    }
+    for (const [k, s] of Object.entries(mine)) {
+      const label = st.labels?.[k];
+      if (typeof label !== 'string' || label === '') continue;
+      const cur = bestLabel.get(k);
+      if (!cur || s > cur.seconds) bestLabel.set(k, { seconds: s, label });
+    }
+  }
+
+  const labels: Record<string, string> = {};
+  for (const [k, v] of bestLabel) labels[k] = v.label;
+
+  return {
+    // A napok rendezve, mert a `series` és a diagramok sorrendet feltételeznek.
+    days: [...byDay.entries()].sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([day, seconds]) => ({ day, seconds })),
+    labels,
+    // Ha BÁRMELYIK eszköz mér, az összesített szám valódi. A helyi kapcsoló
+    // kikapcsolt állapota nem teszi hamissá azt, amit a telefon mért.
+    enabled: states.some((s) => s?.enabled === true),
+  };
+}

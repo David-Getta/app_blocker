@@ -85,6 +85,22 @@ export interface SyncDeviceInfo {
   top: { label: string; seconds: number }[];
 }
 
+/**
+ * A fiók ÖSSZES eszköze együtt.
+ *
+ * Ez az a szám, ami tényleg számít: nem az, hogy mennyi ment el a gépen és
+ * külön mennyi a telefonon, hanem hogy MENNYI ÖSSZESEN. Két eszközön napi húsz
+ * perc együtt negyven.
+ */
+export interface SyncCombinedInfo {
+  /** hány eszköz adata van benne */
+  deviceCount: number;
+  todaySeconds: number;
+  last7Seconds: number;
+  /** NYERS címkék, ugyanúgy, mint eszközönként */
+  top: { label: string; seconds: number }[];
+}
+
 export interface StatusData {
   helperVersion: string;
   platform: string;

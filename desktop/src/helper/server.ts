@@ -11,9 +11,10 @@ import { computeTier } from '../shared/challenges';
 import { normalizeAlias } from '../shared/alias';
 import { isBlockedNowWithLimit, isLimitExhausted, normalizeLimit, usedTodaySeconds } from '../shared/limits';
 import {
-  recordSample, summarize, series, labelOf, emptyUsage,
+  recordSample, summarize, series, labelOf, emptyUsage, combineUsage,
   MAX_KEY_LENGTH, MAX_LABEL_LENGTH, MAX_BATCH_SAMPLES,
 } from '../shared/usage';
+import type { UsageSummary } from '../shared/usage';
 import type { UsageStatsData } from '../shared/protocol';
 import type { HelperState, SiteRec } from './state';
 import { newId } from './state';
@@ -22,6 +23,20 @@ import { RefereeError } from './referee';
 import { socketPath } from './paths';
 import { legacyHelperSuspected } from './hosts';
 import * as sync from './sync-client';
+
+/**
+ * A hét három legtöbb időt vivő célpontja, weboldalak és appok együtt.
+ *
+ * A címkék NYERSEN mennek ki. Hogy fedőnév kerül-e a helyükre, vagy a
+ * „rejtett oldal” felirat, azt a felület dönti el: a segéd nem tudhatja, hogy
+ * a listát épp rejtik-e.
+ */
+function topOf(sum: UsageSummary): { label: string; seconds: number }[] {
+  return [...sum.topWeekSites, ...sum.topWeekApps]
+    .sort((a, b) => b.seconds - a.seconds)
+    .slice(0, 3)
+    .map((t) => ({ label: t.label, seconds: Math.round(t.seconds) }));
+}
 
 /** Hard limit on one usage_batch request — shared with the tracker's buffer cap,
  *  so a completely full buffer still fits into exactly one request. */
@@ -234,7 +249,20 @@ async function handle(req: HelperRequest, deps: ServerDeps): Promise<unknown> {
       const raw = await sync.pullAllUsage(state);
       const me = state.sync?.deviceId;
       const now = Date.now();
+      // Az összesített nézet UGYANAZON a `summarize`-on megy át, mint az
+      // eszközönkénti — csak előbb egyetlen mérés-állapottá fésüljük a
+      // blobokat. Két külön összegző implementáció előbb-utóbb más számot
+      // mutatna ugyanarra a kérdésre.
+      const together = summarize(
+        combineUsage(raw.map((d) => d.usage).filter(Boolean) as never[]), now,
+      );
       return {
+        combined: {
+          deviceCount: raw.length,
+          todaySeconds: Math.round(together.todaySeconds),
+          last7Seconds: Math.round(together.last7Seconds),
+          top: topOf(together),
+        },
         devices: raw.map((d) => {
           const sum = d.usage ? summarize(d.usage as never, now) : null;
           return {
@@ -246,10 +274,7 @@ async function handle(req: HelperRequest, deps: ServerDeps): Promise<unknown> {
             // A hét legtöbb idejét vivő három célpont. NYERS címkékkel: a
             // felület dönti el, hogy fedőnév vagy „rejtett oldal” kerül-e a
             // helyükre — a segéd nem tudhatja, hogy a listát épp rejtik-e.
-            top: (sum ? [...sum.topWeekSites, ...sum.topWeekApps] : [])
-              .sort((a, b) => b.seconds - a.seconds)
-              .slice(0, 3)
-              .map((t) => ({ label: t.label, seconds: Math.round(t.seconds) })),
+            top: sum ? topOf(sum) : [],
           };
         }),
       };

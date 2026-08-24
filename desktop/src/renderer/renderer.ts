@@ -13,7 +13,9 @@ import {
   displayName, displayNameNow, isAliased, MAX_ALIAS_LENGTH, REVEAL_MS,
 } from '../shared/alias.js';
 import { HELPER_VERSION } from '../shared/protocol.js';
-import type { SetLimitResult, SyncDeviceInfo, UsageStatsData } from '../shared/protocol';
+import type {
+  SetLimitResult, SyncCombinedInfo, SyncDeviceInfo, UsageStatsData,
+} from '../shared/protocol';
 
 interface UpdateState {
   status: 'idle' | 'checking' | 'available' | 'downloading' | 'ready' | 'error' | 'unsupported';
@@ -394,12 +396,33 @@ function setupSyncCard(): void {
 
   $('syncDevicesBtn').addEventListener('click', () => void withBusy(
     $<HTMLButtonElement>('syncDevicesBtn'), 'Lekérés…', async () => {
-      const r = await call<{ devices: SyncDeviceInfo[] }>('sync_devices', {});
+      const r = await call<{ devices: SyncDeviceInfo[]; combined?: SyncCombinedInfo }>(
+        'sync_devices', {},
+      );
       const host = $('syncDevices');
       host.textContent = '';
       if (r.devices.length === 0) {
         host.appendChild(h('div', 'hint', 'Még nincs másik eszköz ebben a fiókban.'));
         return;
+      }
+      // Elöl az ÖSSZESÍTETT szám. Ez az, ami tényleg számít: nem az, hogy
+      // mennyi ment el a gépen és külön mennyi a telefonon, hanem hogy mennyi
+      // összesen. Egy eszköznél nincs mit összesíteni, ott csak zaj lenne.
+      if (r.combined && r.combined.deviceCount > 1) {
+        const c = r.combined;
+        const card = h('div', 'sync-device sync-device-all');
+        const head = h('div', 'sync-device-head');
+        head.appendChild(h('span', undefined, `Mind a(z) ${c.deviceCount} eszköz együtt`));
+        head.appendChild(h('span', 'muted',
+          `ma ${formatDuration(c.todaySeconds)} · 7 nap ${formatDuration(c.last7Seconds)}`));
+        card.appendChild(head);
+        for (const t of c.top) {
+          const line = h('div', 'sync-device-line');
+          line.appendChild(h('span', undefined, statLabel(t.label)));
+          line.appendChild(h('span', 'muted', formatDuration(t.seconds)));
+          card.appendChild(line);
+        }
+        host.appendChild(card);
       }
       for (const d of r.devices) {
         const card = h('div', 'sync-device');

@@ -738,6 +738,13 @@ body {
   display: flex; justify-content: space-between; gap: var(--s4);
   font-size: 0.85rem; color: var(--text-2);
 }
+/* Az összesített sor a lista feje, nem egy eszköz a többi közül — ezért emelt
+   háttér és hangsúlyos felirat, hogy elsőre az legyen olvasható. */
+.sync-device-all {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+.sync-device-all .sync-device-head { font-weight: 600; }
 .sync-host {
   margin-top: var(--s4);
   padding: var(--s3) var(--s4);

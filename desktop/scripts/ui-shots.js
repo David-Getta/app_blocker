@@ -150,13 +150,17 @@ function fakeBridgeSource() {
         }
         if (op === 'abandon') { session = null; return { ok: true, data: {} }; }
         if (op === 'sync_devices') {
-          return { ok: true, data: { devices: [
-            { deviceId: 'd1', name: 'Mac gép', self: true, todaySeconds: 3480,
-              last7Seconds: 26400, top: [
-                { label: 'youtube.com', seconds: 9600 }, { label: 'Slack', seconds: 7200 } ] },
-            { deviceId: 'd2', name: 'Telefon', self: false, todaySeconds: 1200,
-              last7Seconds: 9000, top: [{ label: 'reddit.com', seconds: 5400 }] },
-          ] } };
+          return { ok: true, data: {
+            combined: { deviceCount: 2, todaySeconds: 4680, last7Seconds: 35400, top: [
+              { label: 'youtube.com', seconds: 9600 }, { label: 'Slack', seconds: 7200 },
+              { label: 'reddit.com', seconds: 5400 } ] },
+            devices: [
+              { deviceId: 'd1', name: 'Mac gép', self: true, todaySeconds: 3480,
+                last7Seconds: 26400, top: [
+                  { label: 'youtube.com', seconds: 9600 }, { label: 'Slack', seconds: 7200 } ] },
+              { deviceId: 'd2', name: 'Telefon', self: false, todaySeconds: 1200,
+                last7Seconds: 9000, top: [{ label: 'reddit.com', seconds: 5400 }] },
+            ] } };
         }
         if (op === 'set_hide_list') {
           window.__fakeHideList = payload.hidden === true;
@@ -626,12 +630,22 @@ async function main() {
   // keresi.
   await page.getByRole('button', { name: 'Eszközök és idejük' }).click();
   await page.waitForFunction(
-    () => document.querySelectorAll('#syncDevices .sync-device').length === 2,
+    () => document.querySelectorAll('#syncDevices .sync-device').length === 3,
     undefined, { timeout: 10_000 },
   );
   const devText = (await page.locator('#syncDevices').innerText()) || '';
   for (const want of ['Mac gép', 'Telefon', 'youtube.com', 'reddit.com']) {
     if (!devText.includes(want)) failures.push(`the device list is missing ${want}`);
+  }
+  // Az ÖSSZESÍTETT sor: ez az a szám, ami tényleg számít. És elöl kell álljon —
+  // ha a lista végére kerülne, senki nem találkozna vele.
+  const allCard = page.locator('#syncDevices .sync-device').first();
+  const allText = (await allCard.innerText()) || '';
+  if (!/Mind a\(z\) 2 eszköz együtt/.test(allText)) {
+    failures.push(`the combined row is not first: ${allText.split('\n')[0]}`);
+  }
+  if (!allText.includes('1 ó 18 p')) {
+    failures.push(`the combined today total is wrong: ${allText}`);
   }
   // Nem újratöltéssel: a hamis híd az induláskor visszaállna, és ilyenkor épp
   // a FUTÓ állapotot akarjuk átbillenteni.
@@ -642,7 +656,7 @@ async function main() {
   );
   await page.getByRole('button', { name: 'Eszközök és idejük' }).click();
   await page.waitForFunction(
-    () => document.querySelectorAll('#syncDevices .sync-device').length === 2,
+    () => document.querySelectorAll('#syncDevices .sync-device').length === 3,
     undefined, { timeout: 10_000 },
   );
   const hiddenDevText = (await page.locator('#syncDevices').innerText()) || '';
