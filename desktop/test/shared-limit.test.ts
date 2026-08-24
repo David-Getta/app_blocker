@@ -13,6 +13,7 @@ import {
   isBlockedNowWithLimit, isLimitExhausted, makeTodayDigest, normalizeTodayDigest,
   sharedTodaySeconds, usedTodayEverywhere, type SharedToday,
 } from '../src/shared/limits';
+import { isBlockedNow } from '../src/shared/schedule';
 import { dayKey, emptyUsage, siteKey, type UsageState } from '../src/shared/usage';
 
 const NOW = new Date(2026, 4, 20, 15, 0).getTime();
@@ -24,8 +25,23 @@ function usageWith(domain: string, seconds: number, at = NOW): UsageState {
   return u;
 }
 
+/**
+ * Menetrend, ami MOST enged: így a döntést tényleg a keret hozza.
+ *
+ * Menetrend nélkül az oldal mindig tiltva van, és a teszt akkor is zöld lenne,
+ * ha a közös keretből egy szó sem működne.
+ */
+const FREE = {
+  mode: 'scheduled_block' as const,
+  bands: [{ days: [0, 1, 2, 3, 4, 5, 6] as (0|1|2|3|4|5|6)[], startMin: 0, endMin: 1 }],
+};
+/** Éjfél után egy perccel a fenti sáv MÉGIS tilt; ilyenkor ez az igazság. */
+const BLOCKED_BY_BAND = isBlockedNow(
+  { pauseUntil: null, pendingDeleteAt: null, schedule: FREE }, NOW,
+);
+
 const site = (extra: Record<string, unknown> = {}) => ({
-  domain: 'youtube.com', pauseUntil: null, pendingDeleteAt: null, ...extra,
+  domain: 'youtube.com', pauseUntil: null, pendingDeleteAt: null, schedule: FREE, ...extra,
 } as Parameters<typeof isBlockedNowWithLimit>[0]);
 
 const shared = (devices: { deviceId: string; day?: string; seconds: Record<string, number> }[]):
@@ -43,6 +59,8 @@ test('the budget is one budget, not one per device', () => {
 
   assert.equal(isLimitExhausted(s, here, NOW), false, 'egyedül a gépen még nem');
   assert.equal(isLimitExhausted(s, here, NOW, phone), true, 'együtt viszont igen');
+  assert.equal(isBlockedNowWithLimit(s, here, NOW), BLOCKED_BY_BAND,
+    'keret alatt csak a menetrend dönt');
   assert.equal(isBlockedNowWithLimit(s, here, NOW, phone), true, 'és emiatt blokkol is');
   assert.equal(usedTodayEverywhere(here, phone, 'youtube.com', NOW), 1320);
 });
@@ -78,6 +96,7 @@ test('without sync the app behaves exactly as before', () => {
   for (const none of [null, undefined, { selfDeviceId: 'ez-a-gep', devices: [] }]) {
     assert.equal(isLimitExhausted(s, here, NOW, none), true);
     assert.equal(isLimitExhausted(s, usageWith('youtube.com', 10), NOW, none), false);
+    assert.equal(isBlockedNowWithLimit(s, usageWith('youtube.com', 10), NOW, none), BLOCKED_BY_BAND);
   }
 });
 

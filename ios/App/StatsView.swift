@@ -17,10 +17,10 @@ struct StatsView: View {
     }
 
     private var blockedCount: Int {
+        // A napi keret is számít: ha a gépen elfogyott, ez az oldal itt is
+        // zárva van, és a számnak azt kell mutatnia, ami tényleg igaz.
         store.state.sites.filter {
-            ScheduleLogic.isBlockedNow(pauseUntil: $0.pauseUntil,
-                                       pendingDeleteAt: $0.pendingDeleteAt,
-                                       schedule: $0.schedule, now: now)
+            LimitLogic.isBlockedNowWithLimit($0, UsageStats.State(), store.state.sharedToday, now)
         }.count
     }
 

@@ -492,7 +492,7 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                             }
                             SiteCard(
                                 site = site, now = now, hasSession = state.session != null,
-                                usage = state.usage,
+                                usage = state.usage, shared = state.sharedToday,
                                 revealedUntil = revealedUntil[site.id],
                                 onReveal = {
                                     revealedUntil[site.id] =
@@ -788,7 +788,8 @@ private fun ScheduleDialog(
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun SiteCard(
-    site: Site, usage: UsageLogic.UsageState, now: Long, hasSession: Boolean,
+    site: Site, usage: UsageLogic.UsageState, shared: LimitLogic.SharedToday?,
+    now: Long, hasSession: Boolean,
     revealedUntil: Long?, onReveal: () -> Unit,
     onPause: () -> Unit, onDelete: () -> Unit, onSchedule: () -> Unit, onLimit: () -> Unit,
     onAlias: () -> Unit,
@@ -796,7 +797,7 @@ private fun SiteCard(
     val paused = site.pauseUntil != null && site.pauseUntil > now
     val deleting = site.pendingDeleteAt != null
     val scheduled = site.schedule != null && site.schedule.mode != ScheduleLogic.Mode.ALWAYS
-    val blockedNow = LimitLogic.isBlockedNowWithLimit(site, usage, now)
+    val blockedNow = LimitLogic.isBlockedNowWithLimit(site, usage, now, shared)
 
     // Nincs saját kártyája: a sorokat a LISTA kártyája fogja össze, egymástól
     // pedig hajszálvonal választja el őket. Külön kártyákban tíz oldal
@@ -857,7 +858,7 @@ private fun SiteCard(
                     // A keret a szünet alatt IS fogy — az idő akkor is elmegy az
                     // oldalra. Ha ezt elrejtenénk, a szünet végén jönne a
                     // meglepetés, hogy az oldal azonnal zár.
-                    LimitMeter(site, usage, now, duringPause = true)
+                    LimitMeter(site, usage, shared, now, duringPause = true)
                     OutlinedButton(onClick = {
                         BreakerStore.mutate { s ->
                             s.copy(sites = s.sites.map {
@@ -876,7 +877,7 @@ private fun SiteCard(
                     }) { Text("Törlés visszavonása") }
                 }
                 else -> {
-                    LimitMeter(site, usage, now, duringPause = false)
+                    LimitMeter(site, usage, shared, now, duringPause = false)
                     if (!hasSession) {
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                         // A műveletek nem főszereplők: keret nélküli szöveggombok,
@@ -932,9 +933,15 @@ private fun StatusChip(text: String, tone: Color) {
  * hogy elfogyott-e — így annak is olvasható, aki a két színt nem különbözteti meg.
  */
 @Composable
-private fun LimitMeter(site: Site, usage: UsageLogic.UsageState, now: Long, duringPause: Boolean) {
+private fun LimitMeter(
+    site: Site, usage: UsageLogic.UsageState, shared: LimitLogic.SharedToday?,
+    now: Long, duringPause: Boolean,
+) {
     val limit = LimitLogic.normalizeLimit(site.dailyLimitSeconds) ?: return
-    val used = LimitLogic.usedTodaySeconds(usage, site.domain, now)
+    // A keret KÖZÖS: a mérő a többi eszköz mai idejét is tartalmazza, különben
+    // a felület mást mutatna, mint ami alapján blokkolunk.
+    val used = LimitLogic.usedTodayEverywhere(usage, shared, site.domain, now)
+    val elsewhere = LimitLogic.sharedTodaySeconds(shared, site.domain, now)
     val exhausted = used >= limit
     val fraction = (used / limit).coerceIn(0.0, 1.0).toFloat()
     val whole = UsageLogic.formatDuration(limit.toDouble())
@@ -951,6 +958,15 @@ private fun LimitMeter(site: Site, usage: UsageLogic.UsageState, now: Long, duri
             },
             style = MaterialTheme.typography.bodySmall,
         )
+        // Enélkül úgy nézne ki, mintha az app rosszul számolna: a telefonon öt
+        // perc telt el, a mérő mégis húszat mutat.
+        if (elsewhere > 0) {
+            Text(
+                "Ebből ${UsageLogic.formatDuration(elsewhere)} másik eszközön",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
         LinearProgressIndicator(
             progress = { fraction },
             modifier = Modifier.fillMaxWidth(),

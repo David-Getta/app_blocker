@@ -302,6 +302,9 @@ object SyncClient {
         // blokklista attól már szinkronban van — ezért fut külön.
         var devices = 0
         runCatching {
+            // Előbb a mai összegzés: ez apró, és ettől függ a KÖZÖS napi keret.
+            // Ha a nagy mérés-blob elhasalna, a keret akkor is helyes marad.
+            current = syncToday(current, now)
             val usagePayload = SyncCrypto.encrypt(key, usageToJson(current.usage))
             if (usagePayload.length <= MAX_PAYLOAD_BYTES) {
                 val cur = call(acc.serverUrl, "/v1/pull", JSONObject().apply {
@@ -414,6 +417,68 @@ object SyncClient {
             .sortedByDescending { it.seconds }
             .take(3)
             .map { TopTarget(it.label, it.seconds.toLong()) }
+
+    /**
+     * A mai összegzés oda-vissza: feltöltjük a miénket, lehozzuk a többiét.
+     *
+     * MIÉRT KÜLÖN a nagy szinkrontól. Ez néhány száz bájt, és a BLOKKOLÁSI
+     * DÖNTÉS függ tőle: ha a gépen elment a napi húsz perc, azt a telefonnak is
+     * tudnia kell. A teljes mérést (`usage`) viszont pazarlás lenne ilyen sűrűn
+     * mozgatni, mert az csak statisztika.
+     *
+     * Ha ez elhasal, a helyi mérés dönt — vagyis az app pontosan úgy
+     * viselkedik, mint a funkció előtt. Nem lazább: a távoli másodpercek csak
+     * hozzáadnak.
+     */
+    fun syncToday(state: AppState, now: Long): AppState {
+        val acc = state.sync ?: return state
+        val key = SyncCrypto.unb64(acc.dataKey)
+
+        val digest = LimitLogic.makeTodayDigest(state.usage, acc.deviceId, now)
+        val payload = SyncCrypto.encrypt(key, digestToJson(digest))
+        if (payload.length <= MAX_PAYLOAD_BYTES) {
+            val cur = call(acc.serverUrl, "/v1/pull", JSONObject().apply {
+                put("accountId", acc.accountId); put("authKey", acc.authKey)
+                put("collection", "today"); put("deviceId", acc.deviceId)
+            })
+            call(acc.serverUrl, "/v1/push", JSONObject().apply {
+                put("accountId", acc.accountId); put("authKey", acc.authKey)
+                put("collection", "today"); put("deviceId", acc.deviceId)
+                put("baseVersion", cur.optInt("version", 0)); put("payload", payload)
+                put("nameBlob", SyncCrypto.encrypt(key, acc.deviceName))
+            })
+        }
+
+        val all = call(acc.serverUrl, "/v1/today-all", JSONObject().apply {
+            put("accountId", acc.accountId); put("authKey", acc.authKey)
+        })
+        val devices = mutableListOf<LimitLogic.TodayDigest>()
+        val arr = all.optJSONArray("devices") ?: JSONArray()
+        for (i in 0 until arr.length()) {
+            val d = arr.optJSONObject(i) ?: continue
+            val deviceId = d.optString("deviceId", "")
+            // A SAJÁT sorunk kimarad. Enélkül minden percünk kétszer számítana,
+            // és a közös keret feleakkora lenne, mint amit beállítottak.
+            if (deviceId.isEmpty() || deviceId == acc.deviceId) continue
+            val blob = d.optString("payload", "")
+            if (blob.isEmpty()) continue
+            runCatching {
+                val o = JSONObject(SyncCrypto.decrypt(key, blob))
+                val secs = o.optJSONObject("seconds") ?: JSONObject()
+                val map = secs.keys().asSequence().associateWith { k -> secs.optDouble(k, 0.0) }
+                // Az eszközazonosító a KISZOLGÁLÓTÓL jön, nem a blob belsejéből:
+                // így egy eszköz nem beszélhet a másik nevében.
+                LimitLogic.normalizeTodayDigest(o.optString("day", ""), map, deviceId)
+            }.getOrNull()?.let { devices.add(it) }
+        }
+        return state.copy(sharedToday = LimitLogic.SharedToday(acc.deviceId, devices))
+    }
+
+    private fun digestToJson(d: LimitLogic.TodayDigest): String = JSONObject().apply {
+        put("deviceId", d.deviceId)
+        put("day", d.day)
+        put("seconds", JSONObject().apply { for ((k, v) in d.seconds) put(k, v) })
+    }.toString()
 
     // A mérés JSON-alakja ugyanaz, amit a segéd is használ — a `BreakerStore`
     // privát átalakítói nem érhetők el innen, ezért itt van a párja.

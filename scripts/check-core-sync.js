@@ -63,6 +63,10 @@ const sw = {
 ts.pairing = read('desktop/src/shared/sync/pairing.ts');
 kt.pairing = read('android/app/src/main/java/hu/breaker/app/core/Pairing.kt');
 
+ts.limits = read('desktop/src/shared/limits.ts');
+kt.limits = read('android/app/src/main/java/hu/breaker/app/core/Limits.kt');
+sw.limits = read('ios/Shared/Limits.swift');
+
 function scalar(text, re, label) {
   const m = text.match(re);
   if (!m) return { missing: label };
@@ -145,6 +149,13 @@ const CHECKS = [
   // A fedőnév nem nehézségi paraméter, de itt is ugyanaz a csapda: ha az egyik
   // magban 40, a másikban 60 a hosszkorlát, akkor ugyanaz a név az egyik
   // eszközön elfér, a másikon csonkul — és senki nem ért semmit.
+  // A közös napi keret: ha az egyik mag kétszáz célt fogad el, a másik ötvenet,
+  // ugyanaz az összegzés az egyik eszközön teljes, a másikon csonka — és a
+  // keret máshol fogyna el. Csendben, mindenféle hibaüzenet nélkül.
+  ['MAX_DIGEST_TARGETS',
+    scalar(ts.limits, /MAX_DIGEST_TARGETS\s*=\s*([^;]+);/, 'ts'),
+    scalar(kt.limits, /MAX_DIGEST_TARGETS\s*=\s*(.+)/, 'kt'),
+    scalar(sw.limits, /maxDigestTargets\s*=\s*(.+)/, 'swift')],
   ['MAX_ALIAS_LENGTH',
     scalar(ts.alias, /MAX_ALIAS_LENGTH\s*=\s*([^;]+);/, 'ts'),
     scalar(kt.alias, /MAX_ALIAS_LENGTH[^=]*=\s*(.+)/, 'kt'),

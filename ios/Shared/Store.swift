@@ -12,9 +12,12 @@ struct Site: Codable, Identifiable, Equatable {
     var schedule: ScheduleLogic.Schedule?
     /// fedőnév: ha van, a felület ezt írja ki a cím helyett (AliasLogic)
     var alias: String?
-    /// napi keret másodpercben — iPhone-on NEM érvényesül (nincs ilyen mérési
-    /// API), de MEGŐRIZZÜK: ha a gépen beállítottak egyet, a telefon
-    /// szinkronja nem törölheti le. Ez a mező pusztán hordozó.
+    /// Napi keret másodpercben.
+    ///
+    /// Mérni iPhone-on nem tudunk (nincs ilyen API a `DeviceActivity`
+    /// entitlement nélkül), de a keret ettől még ÉRVÉNYESÜL: a gép és az
+    /// androidos telefon feltölti, mennyit mért ma, és a `LimitLogic` azt is
+    /// beszámítja. Ha a napi húsz perc a gépen elfogyott, itt is zárva van.
     var dailyLimitSeconds: Double?
 
     // --- szinkron (lásd SyncRevisions és SyncMerge) ---
@@ -72,6 +75,14 @@ struct AppState: Codable, Equatable {
     var hideSiteList: Bool? = nil
     /// fiók a szinkronhoz; nil = nincs bejelentkezve
     var sync: SyncAccount? = nil
+    /// A többi eszköz mai összegzése — ebből lesz a KÖZÖS napi keret.
+    ///
+    /// Azért van elmentve, és nem csak a memóriában: ha az appot kilövik, vagy
+    /// a szinkron épp nem érhető el, a délelőtt a gépen elhasznált keret ne
+    /// induljon újra nulláról. Elavulni nem tud, mert minden sor a saját napját
+    /// hozza — éjfélkor magától kiürül. Optional, hogy egy korábbi verzió által
+    /// írt állapot is dekódolható maradjon.
+    var sharedToday: LimitLogic.SharedToday? = nil
 }
 
 /// Fiók a szinkronhoz.
@@ -138,13 +149,15 @@ final class BreakerStore: ObservableObject {
         }
     }
 
-    /// hostnames that must be blocked right now (pause + schedule aware)
+    /// hostnames that must be blocked right now (szünet + menetrend + napi keret)
+    ///
+    /// A napi keret is beleszámít: iPhone-on nem mérünk, de a többi eszköz mai
+    /// összegzése ide is megérkezik. Enélkül a gépen beállított keret a
+    /// telefonon nem jelentene semmit — és semmi nem jelezné.
     func blockedHostnamesNow(_ now: Double) -> Set<String> {
         var out = Set<String>()
         for site in state.sites {
-            if ScheduleLogic.isBlockedNow(pauseUntil: site.pauseUntil,
-                                          pendingDeleteAt: site.pendingDeleteAt,
-                                          schedule: site.schedule, now: now) {
+            if LimitLogic.isBlockedNowWithLimit(site, UsageStats.State(), state.sharedToday, now) {
                 out.formUnion(site.hostnames)
             }
         }

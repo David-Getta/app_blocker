@@ -41,6 +41,16 @@ enum UsageStats {
         let top: [Target]
     }
 
+    // ------------------------------------------------------------- célkulcsok
+
+    /// `site:pelda.hu` — ugyanaz az alak, amit a másik két mag ír.
+    ///
+    /// A mérést iPhone-on nem mi végezzük, de a kulcsot MEG KELL tudni
+    /// építeni: a közös napi keret pont ezzel keresi ki, mennyi ment el egy
+    /// oldalra a többi eszközön (lásd `LimitLogic`).
+    static func siteKey(_ domain: String) -> String { "site:\(domain)" }
+    static func appKey(_ id: String) -> String { "app:\(id)" }
+
     // ------------------------------------------------------------- napkulcsok
 
     /// Helyi naptári nap, `YYYY-MM-DD`. Ugyanaz az alak, amit a másik két mag ír.

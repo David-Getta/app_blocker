@@ -234,6 +234,27 @@ struct ContentView: View {
         }
     }
 
+    /// A napi keret állapota — annyi, amennyit iPhone-on igazul ki lehet írni.
+    ///
+    /// Mérni itt nem tudunk, tehát ez a szám TELJES EGÉSZÉBEN a gépről és az
+    /// androidos telefonról jön. Ezt ki is mondjuk: enélkül úgy tűnne, mintha a
+    /// telefon mérne, és a felhasználó a saját telefonos idejét keresné benne.
+    @ViewBuilder
+    private func limitLine(_ site: Site) -> some View {
+        if let limit = LimitLogic.normalizeLimit(site.dailyLimitSeconds) {
+            let now = nowMs()
+            let used = LimitLogic.sharedTodaySeconds(store.state.sharedToday, site.domain, now)
+            let whole = UsageStats.formatDuration(limit)
+            if used >= limit {
+                Text("Napi keret elfogyott (\(whole)) — holnap újraindul")
+                    .font(.caption).foregroundStyle(.secondary)
+            } else {
+                Text("Napi keret: \(UsageStats.formatDuration(used)) / \(whole) — másik eszközökön mérve")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+        }
+    }
+
     private func siteCard(_ site: Site) -> some View {
         let paused = (site.pauseUntil ?? 0) > now
         let deleting = site.pendingDeleteAt != nil
@@ -260,15 +281,16 @@ struct ContentView: View {
                 Button("Törlés visszavonása") { cancelDelete(site) }.buttonStyle(.bordered)
             } else {
                 let scheduled = site.schedule != nil && site.schedule?.mode != .always
-                let blockedNow = ScheduleLogic.isBlockedNow(pauseUntil: site.pauseUntil,
-                                                            pendingDeleteAt: site.pendingDeleteAt,
-                                                            schedule: site.schedule, now: now)
+                let blockedNow = LimitLogic.isBlockedNowWithLimit(
+                    site, UsageStats.State(), store.state.sharedToday, now
+                )
                 if scheduled {
                     Text(blockedNow ? "Most blokkolva (menetrend)" : "Most szabad (menetrend szerint)")
                         .foregroundStyle(blockedNow ? .green : .orange)
                 } else {
                     Text("Blokkolva").foregroundStyle(.green)
                 }
+                limitLine(site)
                 if store.state.session == nil {
                     HStack {
                         Button("Feloldás időre…") { pauseSite = site }.buttonStyle(.bordered)

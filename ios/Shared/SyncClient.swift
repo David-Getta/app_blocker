@@ -240,6 +240,16 @@ enum SyncClient {
             }
         }
 
+        // A mai összegzés a többi eszközről — ebből lesz a KÖZÖS napi keret.
+        //
+        // iPhone-on nem MÉRÜNK, tehát nincs mit feltölteni; csak lehozunk. Ha ez
+        // elhasal, a keret ugyanúgy viselkedik, mint korábban (vagyis itt nem
+        // tilt) — nem lazább annál, mint ami eddig is volt.
+        if let shared = try? await pullSharedToday(acc, key) {
+            current.sharedToday = shared
+            changed = true
+        }
+
         var devices = 0
         // A többi eszköz száma nem kritikus: ha ez elhasal, a blokklista attól
         // már szinkronban van.
@@ -254,6 +264,36 @@ enum SyncClient {
         account.lastError = nil
         current.sync = account
         return SyncResult(state: current, changed: changed, devices: devices)
+    }
+
+    /// A többi eszköz mai összegzése, visszafejtve.
+    ///
+    /// A `deviceId` a KISZOLGÁLÓTÓL jön, nem a blob belsejéből: így egy eszköz
+    /// nem beszélhet a másik nevében — például a miénkében, amivel a saját
+    /// sorunk kihagyását kerülné meg.
+    private static func pullSharedToday(
+        _ acc: SyncAccount, _ key: [UInt8]
+    ) async throws -> LimitLogic.SharedToday {
+        let all = try await call(acc.serverUrl, "/v1/today-all", [
+            "accountId": acc.accountId, "authKey": acc.authKey,
+        ])
+        var devices: [LimitLogic.TodayDigest] = []
+        for row in (all["devices"] as? [[String: Any]]) ?? [] {
+            guard let deviceId = row["deviceId"] as? String, !deviceId.isEmpty,
+                  deviceId != acc.deviceId,
+                  let blob = row["payload"] as? String, !blob.isEmpty else { continue }
+            // Rekordonként tűrünk: egy sérült sor ne vigye el a többi eszközét.
+            guard let text = try? SyncCrypto.decrypt(key, blob),
+                  let obj = (try? JSONSerialization.jsonObject(with: Data(text.utf8)))
+                      as? [String: Any] else { continue }
+            let seconds = (obj["seconds"] as? [String: Any])?.compactMapValues { $0 as? Double }
+            if let d = LimitLogic.normalizeTodayDigest(
+                day: obj["day"] as? String, seconds: seconds, deviceId: deviceId
+            ) {
+                devices.append(d)
+            }
+        }
+        return LimitLogic.SharedToday(selfDeviceId: acc.deviceId, devices: devices)
     }
 
     struct DeviceInfo: Identifiable {

@@ -84,6 +84,15 @@ data class AppState(
     val hideSiteList: Boolean = false,
     /** fiók a szinkronhoz; null = nincs bejelentkezve */
     val sync: SyncAccount? = null,
+    /**
+     * A többi eszköz mai összegzése — ebből lesz a KÖZÖS napi keret.
+     *
+     * Azért van elmentve, és nem csak a memóriában: ha az appot kilövik, vagy a
+     * szinkron épp nem érhető el, a délelőtt a gépen elhasznált keret ne
+     * induljon újra nulláról. Elavulni nem tud, mert minden sor a saját napját
+     * hozza — éjfélkor magától kiürül.
+     */
+    val sharedToday: LimitLogic.SharedToday? = null,
 )
 
 /**
@@ -146,7 +155,7 @@ object BreakerStore {
         val state = _state.value
         val out = mutableSetOf<String>()
         for (site in state.sites) {
-            if (LimitLogic.isBlockedNowWithLimit(site, state.usage, now)) out.addAll(site.hostnames)
+            if (LimitLogic.isBlockedNowWithLimit(site, state.usage, now, state.sharedToday)) out.addAll(site.hostnames)
         }
         return out
     }
@@ -247,6 +256,19 @@ object BreakerStore {
         }))
         put("unlockLog", JSONArray(s.unlockLog))
         put("usage", usageToJson(s.usage))
+        // A közös napi keret adatai. Kis blob, de blokkolási döntés függ tőle,
+        // ezért újraindulás után is meg kell maradnia.
+        put("sharedToday", s.sharedToday?.let { sh ->
+            JSONObject().apply {
+                put("selfDeviceId", sh.selfDeviceId)
+                put("devices", JSONArray(sh.devices.map { d ->
+                    JSONObject().apply {
+                        put("deviceId", d.deviceId); put("day", d.day)
+                        put("seconds", JSONObject(d.seconds.mapValues { it.value }))
+                    }
+                }))
+            }
+        } ?: JSONObject.NULL)
         put("lastCombo", s.lastCombo ?: JSONObject.NULL)
         put("abandons", JSONArray(s.abandons.map { a ->
             JSONObject().apply {
@@ -411,6 +433,21 @@ object BreakerStore {
                     lastSyncAt = if (a.isNull("lastSyncAt")) null else a.getLong("lastSyncAt"),
                     lastError = if (a.isNull("lastError")) null else a.optString("lastError"),
                 )
+            }.getOrNull(),
+            // Kívülről jött adat: ha nem a várt alakú, inkább ne legyen. Egy
+            // hibás sor itt a blokkolási döntést befolyásolná.
+            sharedToday = if (o.isNull("sharedToday")) null else runCatching {
+                val sh = o.getJSONObject("sharedToday")
+                val arr = sh.optJSONArray("devices") ?: JSONArray()
+                val devices = (0 until arr.length()).mapNotNull { i ->
+                    val d = arr.getJSONObject(i)
+                    val secs = d.optJSONObject("seconds") ?: JSONObject()
+                    val map = secs.keys().asSequence().associateWith { k -> secs.optDouble(k, 0.0) }
+                    LimitLogic.normalizeTodayDigest(
+                        d.optString("day", ""), map, d.optString("deviceId", ""),
+                    )
+                }
+                LimitLogic.SharedToday(sh.getString("selfDeviceId"), devices)
             }.getOrNull(),
         )
     }

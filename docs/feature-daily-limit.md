@@ -1,8 +1,9 @@
 # Funkcióterv: napi időkeret oldalanként
 
-Státusz: **kész asztali gépen és Androidon; iOS-en még nincs.** A dokumentum
-alja mondja meg, pontosan mi hol tart. Ami alatta áll, az a terv — azért marad
-itt, mert a döntések indoklása később is kell.
+Státusz: **kész asztali gépen és Androidon; iPhone-on részben** (mérni ott nem
+lehet, de a keret a többi eszköz méréséből ott is zár). A keret **eszközök
+között közös**. A dokumentum alja mondja meg, pontosan mi hol tart. Ami alatta
+áll, az a terv — azért marad itt, mert a döntések indoklása később is kell.
 
 ## Mit old meg
 
@@ -94,30 +95,76 @@ Mindegyik megvan, mindkét magban (`desktop/test/limits.test.ts`,
 
 | Rész | Asztali (TS) | Android (Kotlin) | iOS (Swift) |
 |---|---|---|---|
-| Keret-logika | `shared/limits.ts` | `core/Limits.kt` | — |
-| Tárolás | `helper/state.ts` | `core/Store.kt` | — |
+| Keret-logika | `shared/limits.ts` | `core/Limits.kt` | `Shared/Limits.swift` |
+| Tárolás | `helper/state.ts` | `core/Store.kt` | `Shared/Store.swift` |
 | Bíró (irány-szabály) | `helper/referee.ts` | `core/Referee.kt` | — |
-| Blokkolási döntés | `helper/hosts.ts` | `BreakerStore.blockedHostnamesNow` | — |
-| Mérés-kapcsoló zárolása | `helper/server.ts` (`usage_enable`) | `Referee.setUsageEnabled` | — |
-| Felület | `renderer.ts` (keret-mérő + párbeszéd) | `ui/AppUi.kt` (`LimitMeter`, `LimitDialog`) | — |
+| Blokkolási döntés | `helper/hosts.ts` | `BreakerStore.blockedHostnamesNow` | `BreakerStore.blockedHostnamesNow` |
+| Mérés-kapcsoló zárolása | `helper/server.ts` (`usage_enable`) | `Referee.setUsageEnabled` | — (nincs mérés) |
+| Mai összegzés feltöltése | `helper/sync-client.ts` (`syncToday`) | `SyncClient.syncToday` | — (nincs mit mérni) |
+| Mai összegzés letöltése | `helper/sync-client.ts` | `SyncClient.syncToday` | `SyncClient.pullSharedToday` |
+| Felület | `renderer.ts` (keret-mérő + párbeszéd) | `ui/AppUi.kt` (`LimitMeter`, `LimitDialog`) | `ContentView.limitLine` |
 
-### Miért üres az iOS oszlop
+### Mi hiányzik iPhone-on, és miért
 
-Nem elmaradás: **iOS-en ez a funkció nem építhető meg** a mai jogosultságokkal.
-A keret mért aktív időből fogy, az Apple viszont nem enged appnak hozzáférést
-ahhoz, hogy más appokban vagy weboldalakon mennyi idő telik. Az egyetlen ilyen
-API a `DeviceActivity` / `FamilyControls`, ami külön, Apple által egyenként
-engedélyezett entitlementhez kötött (szülői felügyeletre szánták).
+**Mérni nem tudunk.** A keret mért aktív időből fogy, az Apple viszont nem enged
+appnak hozzáférést ahhoz, hogy más appokban vagy weboldalakon mennyi idő telik.
+Az egyetlen ilyen API a `DeviceActivity` / `FamilyControls`, ami külön, Apple
+által egyenként engedélyezett entitlementhez kötött (szülői felügyeletre
+szánták). A csomagalagút lát DNS-kérdéseket, de abból „aktív időt” számolni
+becslés lenne, és pont az ígéret sérülne: csak az számítson, amíg tényleg az
+adott dolog előtt ülünk.
 
-A csomagalagút lát DNS-kérdéseket, de abból „aktív időt” számolni becslés lenne,
-és pont az ígéret sérülne: csak az számítson, amíg tényleg az adott dolog előtt
-ülünk. Egy sosem fogyó keret pedig rosszabb a semminél — úgy néz ki, mintha
-védene.
+**A keret viszont ÉRVÉNYESÜL.** Amióta a keret eszközök között közös, az iPhone
+lehozza, mennyit mért ma a gép és az androidos telefon, és azt beszámítja. Ha a
+napi húsz perc a gépen elfogyott, az oldal az iPhone-on is zárva van.
 
-Ha később megjön az entitlement, a hat sorból öt szó szerint átvehető
-(`Limits.swift`, `Site.dailyLimitSeconds`, `Referee.startLimitChange`, a
-blokkolási döntés és a felület); csak a mérés forrása más — a `DeviceActivity`
-riportjai a saját mintavétel helyett.
+Eddig a `dailyLimitSeconds` iPhone-on puszta hordozó volt: átment a szinkronon,
+és soha semmi nem nézte meg. Vagyis aki a gépen keretet állított be, az a
+telefonján korlátlanul használhatta ugyanazt az oldalt — és semmi nem jelezte,
+hogy a beállítása ott nem jelent semmit. Pont az a fajta csendes hiba, ami
+rosszabb a hiányzó funkciónál: úgy néz ki, mintha védene.
+
+Ami továbbra sem megy iPhone-on: a keret **beállítása** (a bíró és a felület
+hiányzik, mert a mérés nélkül a helyi szám úgyis nulla lenne), és a saját idő
+beszámítása. Ha megjön az entitlement, ez a két sor is átvehető.
+
+## A keret eszközök között közös
+
+Ez volt a funkció legnagyobb lyuka: a keret eszközönként külön ketyegett.
+„Napi 20 perc YouTube” a gépen húsz percet jelentett, a telefonon még húszat —
+két eszközzel negyven, hárommal hatvan. Aki a keretet komolyan gondolja, annak
+ez nem keret volt, hanem javaslat.
+
+Most minden mérő eszköz feltölti a **mai összegzését**: egyetlen nap, célonként
+egy szám, titkosítva, pár száz bájt. Minden eszköz lehozza a többiét, és
+hozzáadja a sajátjához.
+
+```
+gép:     ma 12 perc YouTube          ─┐
+telefon: ma 10 perc YouTube          ─┴─►  22 perc  >  20 perc keret  →  zár
+```
+
+**Miért nem kell megbíznunk a másik eszközben.** A távoli számok csak
+HOZZÁADNAK. Bármit is küld a másik eszköz, attól a keret csak hamarabb fogy el,
+sosem később — a szigorítás pedig ebben a rendszerben mindig ingyen van. Ha a
+szinkron áll, marad a helyi mérés: az app olyan, mint korábban, nem lazább.
+
+Három dolog, ami nélkül ez csendben rosszul működne:
+
+- **A saját sorunk nem számíthat kétszer.** A kiszolgáló a mi összegzésünket is
+  visszaadja. Ha bekerülne, minden percünk duplán számítana, és a húszperces
+  keret tíz perc után fogyna el — a felhasználó pedig joggal gondolná, hogy az
+  app hibás.
+- **A másik eszköz tegnapja nem a mi mánk.** Minden összegzés a SAJÁT naptári
+  napját hozza. Más időzónában lévő eszköz tegnapi órái enélkül ma azonnal
+  elégetnék a keretet.
+- **Az eszközazonosító a kiszolgálótól jön**, nem a titkosított tartalom
+  belsejéből. Különben egy eszköz a másik nevében beszélhetne — például a
+  miénkében, amivel az első pontot kerülné meg.
+
+**Frissesség.** A mai összegzés külön, kétperces körben megy, nem a tízperces
+teljes szinkronban: ettől BLOKKOLÁSI DÖNTÉS függ, a teljes mérés pedig csak
+statisztika. Így a keret legfeljebb pár perccel csúszhat el — nem tízzel.
 
 Két apróság, ami a tervben még nem volt kimondva, de a megvalósításnál kellett:
 
