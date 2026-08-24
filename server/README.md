@@ -30,6 +30,37 @@ Ha csak magadnak futtatod, érdemes az első fiók létrehozása után
 `BREAKER_OPEN_SIGNUP=0`-val újraindítani: onnantól a címet ismerve sem tud
 senki fiókot nyitni nálad.
 
+## A leggyorsabb út: a saját gépeden, a saját hálózatodon
+
+Ha csak a saját eszközeidet akarod összekötni, nem kell se domain, se felhő.
+A gépeden elindítod, a telefon meg ugyanarról a Wi-Fi-ről eléri:
+
+```bash
+cd server && node server.js
+```
+
+Kell a gép helyi IP-címe:
+
+```bash
+# macOS
+ipconfig getifaddr en0
+# Linux
+hostname -I | awk '{print $1}'
+```
+
+Az appban a kiszolgáló címe ekkor `http://192.168.x.y:8787` (a saját címeddel).
+A gépen `http://127.0.0.1:8787` is jó.
+
+Amit tudni érdemes:
+
+- **Amíg a gép alszik, nincs szinkron.** A telefon ilyenkor a legutóbbi
+  állapotot mutatja, és a fiókkártyán látszik, mikor volt utoljára szinkron.
+  Semmi nem vész el: a következő elérésnél összefésül.
+- A helyi hálózaton belül a **belépőkulcs titkosítatlanul utazik**. Otthoni
+  hálózaton ez általában elfogadható; ha nem az, tegyél elé HTTPS-t (lentebb).
+- Ha a telefon nem éri el, szinte mindig a gép **tűzfala** az ok: a 8787-es
+  portra be kell engedni a bejövő kapcsolatot.
+
 ## Dockerrel
 
 ```bash
