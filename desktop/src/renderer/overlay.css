@@ -133,6 +133,18 @@ h1 { font-size: 1.5rem; line-height: 1.2; margin: 2px 0 0; letter-spacing: -0.02
 /* ------------------------------------------------------------------ hossz */
 
 .mins { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+/* A percre pontos mező a gyorsgombok alatt, azonos magassággal. */
+.mins-field {
+  font: inherit;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--line-2);
+  border-radius: 10px;
+  padding: 8px 12px;
+  width: 92px;
+  text-align: right;
+}
+.mins-field:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
 
 button {
   font: inherit;

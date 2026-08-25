@@ -36,6 +36,17 @@ feloldás — pontosan úgy, ahogy a menetrend lazítása
 ([`feature-schedules.md`](feature-schedules.md)). Ez a szabály már megvan, csak
 alkalmazni kell rá.
 
+## A keret percre pontos
+
+A felület felkínál néhány szokásos keretet (10 / 20 / 30 / 45 / 60 / 90 / 120
+perc), de a szám **szabadon átírható**: 1 perctől egy napig bármi megadható.
+Aki napi 35 percet szán valamire, annak a 30 kevés, a 45 sok — és ha csak a
+gomblistából lehet választani, a keret nem az ő döntése, hanem a gomblistáé.
+
+A „nincs keret” külön választás marad, nem a mező kiürítése: a nulla és a
+„nincs” két különböző dolog, és egy üres mező nem mondja meg, melyikre
+gondoltál.
+
 ## Adatmodell
 
 A `Site` rekord kap egy opcionális mezőt (mindhárom platformon, visszafelé

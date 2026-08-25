@@ -41,6 +41,16 @@
     <div class="topbar-right">
       <div id="statusPill" class="pill pill-warn">Kapcsolódás…</div>
       <!--
+        Futó munkamenet jelzése. Eddig CSAK a Munkamenetek fülön látszott, hogy
+        épp fut egy — a másik két fülről nézve az app úgy nézett ki, mintha
+        semmi nem menne. Egy fehérlistás munkamenetnél ez a legrosszabb
+        tévedés: a felhasználó nem érti, miért nem jön be egy oldal. Ez a
+        jelzés minden nézetben ott van, és odavisz.
+      -->
+      <button id="focusPill" class="pill pill-run hidden" title="Futó munkamenet">
+        <span id="focusPillText"></span>
+      </button>
+      <!--
         A két sarokikon. A fiók és a kinézet nem NÉZET, hanem odalépés: ritkán
         kell, és nem akarod, hogy elvegye a helyet a listától. Ezért panel,
         nem fül.

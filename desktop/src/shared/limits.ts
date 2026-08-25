@@ -9,8 +9,10 @@
 // See docs/feature-daily-limit.md. Pure and dependency-free, like the rest of
 // the shared core, so Kotlin/Swift can mirror it exactly.
 
-import { isBlockedNow, type Blockable } from './schedule';
-import { dayKey, siteKey, type UsageState } from './usage';
+// A .js kiterjesztés kötelező: ez a fájl a felületre is bekerül, és a böngésző
+// natív ESM-betöltője kiterjesztés nélkül nem oldja fel a hivatkozást.
+import { isBlockedNow, type Blockable } from './schedule.js';
+import { dayKey, siteKey, type UsageState } from './usage.js';
 
 export interface Limitable extends Blockable {
   /** the registrable domain, i.e. how the tracker keys this site */
@@ -77,12 +79,21 @@ export function isLimitLoosening(
   return nxt > cur;
 }
 
+/**
+ * The ceiling on a daily budget, in minutes.
+ *
+ * A day is the most a daily budget can ever mean, so this is where the free
+ * minute field stops. It lives next to normalizeLimit so the surface and the
+ * referee cannot drift apart on what "too much" is.
+ */
+export const MAX_LIMIT_MINUTES = 24 * 60;
+
 /** A usable budget, or null for "no budget". Nonsense values mean no budget. */
 export function normalizeLimit(value: number | undefined | null): number | null {
   if (value === undefined || value === null) return null;
   if (!Number.isFinite(value) || value <= 0) return null;
   // A day is the ceiling: a bigger "budget" is the same as having none.
-  return Math.min(Math.round(value), 24 * 3600);
+  return Math.min(Math.round(value), MAX_LIMIT_MINUTES * 60);
 }
 
 // ---------------------------------------------------------------------------

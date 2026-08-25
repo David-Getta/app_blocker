@@ -26,6 +26,10 @@ jobs:
       # szétcsúsznak, a felhasználó ugyanazt az appot kapja két különböző
       # szigorúsággal, és semmi nem jelzi.
       - run: node scripts/check-core-sync.js
+      # Az „Új csomag” gomb egy kiadáson át NEM CSINÁLT SEMMIT: a jelölés
+      # megvolt, a kezelő nem. Semmi nem hasalt el tőle — se fordítás, se
+      # teszt —, csak a gomb nem működött. Ez a lépés pont ezt fogja ki.
+      - run: node scripts/check-ui-wiring.js
 
   desktop:
     name: Desktop mag + tesztek

@@ -33,6 +33,24 @@ indítható. Az Esc bezárja.
 A réteg **semmit nem old fel**. A leállítás gombja az appot nyitja meg, ahol a
 próbatétel van — ha innen menne, a munkamenet egy billentyűkombináció lenne.
 
+## A hossz percre pontos
+
+Indításkor a felület felkínál néhány szokásos hosszt (15 / 25 / 50 / 90 / 120
+perc), **de a szám szabadon átírható**: 1-től 480 percig bármi megadható. Ez a
+rétegben is megvan, nem csak az appban — épp a sietős esetben lenne rossz, ha
+csak ott lenne.
+
+Miért nem elég a gomblista: aki tudja, hogy negyvenhárom perce van ebédig, az
+eddig kénytelen volt fölé vagy alá lőni. Egy önkontroll-appnál a „nagyjából
+annyi” pont a rossz irány — fölé lőve előbb akar leállítani (és az próbatétel),
+alá lőve pedig magától lejár, mielőtt kész lenne.
+
+Hosszabbítani menet közben is lehet percre pontosan. A hosszabbítás
+**szigorítás** — tovább tart a munkamenet —, ezért ingyen van.
+
+Minden csomagnak van **szokásos hossza**: indításkor ezt kínálja fel a felület.
+A csomag szerkesztőjében állítható.
+
 ## Súrlódás: ugyanaz a szabály, mint mindenhol
 
 | Művelet | Ár | Miért |

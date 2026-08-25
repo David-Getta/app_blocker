@@ -15,8 +15,10 @@ import {
 import { HELPER_VERSION } from '../shared/protocol.js';
 // A .js itt sem elhagyható: a böngésző natív ESM-betöltője oldja fel futásidőben.
 import { normalizeRule, ruleLabel } from '../shared/urlrules.js';
+import { MAX_LIMIT_MINUTES } from '../shared/limits.js';
 import {
-  formatRemaining, SESSION_CHOICES_MIN, type FocusPack,
+  formatRemaining, MAX_ALLOW_ENTRIES, MAX_PACK_NAME, MAX_SESSION_MINUTES,
+  SESSION_CHOICES_MIN, type FocusPack,
 } from '../shared/focus.js';
 import {
   encodePairingCode, formatPairingCode, resolveServerInput,
@@ -234,6 +236,7 @@ function render(): void {
   }
 
   renderAddCard(status!);
+  renderFocusPill(status!);
   renderFocusCard(status!);
   renderSyncCard(status!);
   renderSiteList(status!);
@@ -363,6 +366,36 @@ function applyBackground(): void {
 /** Hány perccel lehet egy kattintással hosszabbítani. */
 const FOCUS_EXTEND_MIN = [15, 30, 60];
 
+/**
+ * A futó munkamenet jelzése a felső sorban.
+ *
+ * A munkamenet FEHÉRLISTA: amíg megy, minden más tiltva. Ha ez csak a
+ * Munkamenetek fülön látszik, akkor a másik két nézetből úgy tűnik, mintha az
+ * app nem csinálna semmit — és a felhasználó a hibát fogja keresni, nem a
+ * munkamenetet. Ezért a jelzés minden nézetben ott van, és rákattintva
+ * odalép.
+ */
+function renderFocusPill(st: StatusData): void {
+  const pill = $('focusPill');
+  const run = st.focusRun && st.focusRun.endsAt > Date.now() ? st.focusRun : null;
+  pill.classList.toggle('hidden', !run);
+  if (!run) return;
+  const pack = (st.focusPacks ?? []).find((p) => p.id === run.packId);
+  const left = formatRemaining(run.endsAt - Date.now());
+  $('focusPillText').textContent = `${pack?.name ?? 'Munkamenet'} · ${left}`;
+  pill.title = `Fut egy munkamenet — ${left} van hátra. Amíg tart, csak a csomagban felsoroltak mehetnek.`;
+}
+
+/**
+ * A hosszabbítás-mezőbe gépelt szám, két újrarajzolás között.
+ *
+ * A futó munkamenet doboza MÁSODPERCENKÉNT újraépül (a hátralévő idő nem
+ * állhat meg), és ezzel a benne lévő mező is elveszne: a felhasználó beírná a
+ * 4-est, és mire a 3-at leütné, a mező már üres lenne. A gépelt érték ezért
+ * NEM a mezőben lakik, hanem itt.
+ */
+let focusExtendDraft = '';
+
 function renderFocusCard(st: StatusData): void {
   // A RÉGEBBI háttérszolgáltatás ezt a két mezőt nem küldi. Ha itt elhasalnánk,
   // a felület egésze üresen maradna — az egyetlen ok pedig egy hiányzó mező
@@ -371,6 +404,12 @@ function renderFocusCard(st: StatusData): void {
   $('focusCard').classList.remove('hidden');
   const running = st.focusRun && st.focusRun.endsAt > Date.now() ? st.focusRun : null;
   const runBox = $('focusRunning');
+  // A fókuszt is vissza kell adni: ha a felhasználó épp a mezőben áll, az
+  // újraépítés kirakná belőle, és a következő leütés a semmibe menne.
+  // Csak a MEZŐRE szól: ha a felhasználó egy gombra kattintott, a fókusz ne
+  // ugorjon át tőle a mezőbe.
+  const active = document.activeElement;
+  const hadFocus = active instanceof HTMLInputElement && runBox.contains(active);
   runBox.textContent = '';
   runBox.classList.toggle('hidden', !running);
 
@@ -383,6 +422,11 @@ function renderFocusCard(st: StatusData): void {
     const pack = packs.find((p) => p.id === running.packId);
     runBox.appendChild(h('div', 'micro', 'Most fut'));
     runBox.appendChild(h('div', 'focus-left', formatRemaining(running.endsAt - Date.now())));
+    // A hátralévő idő mellett a VÉGE is kiírva. „Még 1 ó 12 p” önmagában
+    // fejszámolás; a felhasználó viszont órában gondolkodik: addig, amíg el
+    // nem kell indulnia.
+    runBox.appendChild(h('div', 'micro',
+      `eddig: ${new Date(running.endsAt).toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' })}`));
     runBox.appendChild(h('div', 'hint',
       pack ? `${pack.name} — mehet: ${[...pack.allowSites, ...pack.allowApps].join(', ') || 'semmi'}`
         : 'Ismeretlen csomag.'));
@@ -392,11 +436,42 @@ function renderFocusCard(st: StatusData): void {
       b.addEventListener('click', () => void changeFocus(running.endsAt + min * 60_000));
       actions.appendChild(b);
     }
+    // Percre pontos hosszabbítás. A hosszabbítás SZIGORÍTÁS — tovább tart a
+    // munkamenet —, ezért ingyen van, és nyugodtan lehet szabad mező.
+    const more = h('input', 'alias-input minute-field') as HTMLInputElement;
+    more.type = 'number';
+    more.min = '1';
+    more.max = String(MAX_SESSION_MINUTES);
+    more.step = '1';
+    more.placeholder = 'perc';
+    more.setAttribute('aria-label', 'hosszabbítás percben');
+    more.value = focusExtendDraft;
+    more.addEventListener('input', () => { focusExtendDraft = more.value; });
+    const addBtn = h('button', 'btn btn-small', 'Hozzáad');
+    const addMore = (): void => {
+      const n = Number(more.value);
+      if (!Number.isFinite(n) || n < 1) {
+        $('focusHint').textContent = `Írd be percben, mennyivel hosszabbítanád (1–${MAX_SESSION_MINUTES}).`;
+        return;
+      }
+      const add = Math.min(Math.round(n), MAX_SESSION_MINUTES);
+      focusExtendDraft = '';
+      void changeFocus(running.endsAt + add * 60_000);
+    };
+    addBtn.addEventListener('click', addMore);
+    more.addEventListener('keydown', (e) => {
+      if ((e as KeyboardEvent).key === 'Enter') addMore();
+    });
+    actions.append(more, addBtn);
     const stop = h('button', 'btn btn-small btn-danger', 'Leállítás…');
     stop.title = 'A leállítás próbatétel — ugyanúgy, mint egy feloldás.';
     stop.addEventListener('click', () => void changeFocus(null));
     actions.appendChild(stop);
     runBox.appendChild(actions);
+    // A `setSelectionRange` itt NEM használható: számmezőn kivételt dob
+    // ("does not support selection"). Nem is kell: az érték már be van írva, és
+    // a fókusz a szám végére áll.
+    if (hadFocus) more.focus();
   }
 
   const list = $('focusPacks');
@@ -408,9 +483,18 @@ function renderFocusCard(st: StatusData): void {
     return;
   }
   for (const pack of packs) {
-    const row = h('div', 'focus-pack');
+    const isRunning = running?.packId === pack.id;
+    const row = h('div', `focus-pack${isRunning ? ' focus-pack-on' : ''}`);
     const left = h('div');
-    left.appendChild(h('div', 'focus-name', pack.name));
+    // A jelölés a név MELLÉ kerül, nem BELÉ: a `.focus-name` maradjon pontosan
+    // a csomag neve — különben a név „Nyelvtanulásfut” lesz mindenkinek, aki
+    // kiolvassa (képernyőolvasó, teszt, másolás).
+    const nameRow = h('div', 'focus-name-row');
+    nameRow.appendChild(h('div', 'focus-name', pack.name));
+    // Melyik csomag fut: eddig csak a doboz tetején állt a neve, a listában
+    // semmi nem jelezte. Két hasonló nevű csomagnál ez tényleges tévedés.
+    if (isRunning) nameRow.appendChild(h('span', 'tag', 'fut'));
+    left.appendChild(nameRow);
     const items = [...pack.allowSites, ...pack.allowApps];
     left.appendChild(h('div', 'focus-sub',
       items.length ? items.join(', ') : 'nincs engedélyezett tétel — minden tiltva'));
@@ -422,8 +506,17 @@ function renderFocusCard(st: StatusData): void {
       startBtn.addEventListener('click', () => openFocusStartDialog(pack));
       actions.appendChild(startBtn);
     }
-    const edit = h('button', 'btn btn-small', 'Szerkesztés');
-    edit.addEventListener('click', () => openFocusEditor(pack));
+    const edit = h('button', 'btn btn-small', 'Szerkesztés') as HTMLButtonElement;
+    if (isRunning) {
+      // A segéd a futó csomag mentését visszautasítja — enélkül a felület
+      // felkínálna egy szerkesztőt, amiből a Mentés mindig hibára fut. Itt
+      // mondjuk meg előre, MIÉRT nem megy.
+      edit.disabled = true;
+      edit.title = 'A futó csomag befagy: amíg megy a munkamenet, nem szerkeszthető. '
+        + 'Enélkül menet közben hozzá lehetne adni bármit a fehérlistához.';
+    } else {
+      edit.addEventListener('click', () => openFocusEditor(pack));
+    }
     actions.appendChild(edit);
     row.appendChild(actions);
     list.appendChild(row);
@@ -447,6 +540,64 @@ async function changeFocus(endsAt: number | null): Promise<void> {
   }
 }
 
+/**
+ * Perc-választó: gyorsgombok ÉS egy szabad mező.
+ *
+ * A gyorsgombok a gyakori eseteket adják egy kattintással, a mező viszont
+ * nélkülözhetetlen: „huszonöt perc” nem mindenkinek huszonöt perc. Aki
+ * negyvenhárom percet akar, mert annyi van ebédig, az eddig kénytelen volt
+ * fölé vagy alá lőni — és egy önkontroll-appnál a „nagyjából annyi” pont a
+ * rossz irány.
+ *
+ * @returns a doboz, és egy függvény, ami a PILLANATNYI értéket adja vissza.
+ */
+function minutePicker(
+  choices: number[], initial: number, max: number, onPick?: () => void,
+): { box: HTMLElement; value: () => number | null } {
+  let chosen: number | null = initial;
+  const box = h('div');
+  const row = h('div', 'chips');
+  const field = h('input', 'alias-input minute-field') as HTMLInputElement;
+
+  const paint = (): void => {
+    for (const el of Array.from(row.children)) {
+      el.classList.toggle('chip-on', Number((el as HTMLElement).dataset.min) === chosen);
+    }
+  };
+  for (const min of choices) {
+    const b = h('button', 'chip', `${min} perc`);
+    (b as HTMLElement).dataset.min = String(min);
+    b.addEventListener('click', () => {
+      chosen = min;
+      field.value = String(min);
+      paint();
+      onPick?.();
+    });
+    row.appendChild(b);
+  }
+  box.appendChild(row);
+
+  field.type = 'number';
+  field.min = '1';
+  field.max = String(max);
+  field.step = '1';
+  field.value = String(initial);
+  field.setAttribute('aria-label', 'hossz percben');
+  field.addEventListener('input', () => {
+    const n = Number(field.value);
+    chosen = Number.isFinite(n) && n >= 1 ? Math.min(Math.round(n), max) : null;
+    paint();
+    onPick?.();
+  });
+  const line = h('div', 'minute-row');
+  line.appendChild(field);
+  line.appendChild(h('span', 'hint', `perc (1–${max})`));
+  box.appendChild(line);
+  paint();
+
+  return { box, value: () => chosen };
+}
+
 /** Indítás: csak a hossz kell hozzá. Indítani ingyen van — ez a szigorítás iránya. */
 function openFocusStartDialog(pack: FocusPack): void {
   const overlay = h('div', 'overlay');
@@ -455,21 +606,8 @@ function openFocusStartDialog(pack: FocusPack): void {
   modal.appendChild(h('p', 'hint',
     'Meddig tartson? Hosszabbítani közben ingyen lehet; leállítani viszont '
     + 'ugyanabba a próbatételbe kerül, mint egy feloldás.'));
-  const row = h('div', 'chips');
-  let chosen = pack.defaultMinutes;
-  const paint = (): void => {
-    for (const el of Array.from(row.children)) {
-      el.classList.toggle('chip-on', Number((el as HTMLElement).dataset.min) === chosen);
-    }
-  };
-  for (const min of SESSION_CHOICES_MIN) {
-    const b = h('button', 'chip', `${min} perc`);
-    (b as HTMLElement).dataset.min = String(min);
-    b.addEventListener('click', () => { chosen = min; paint(); });
-    row.appendChild(b);
-  }
-  modal.appendChild(row);
-  paint();
+  const picker = minutePicker(SESSION_CHOICES_MIN, pack.defaultMinutes, MAX_SESSION_MINUTES);
+  modal.appendChild(picker.box);
 
   const err = h('p', 'error hidden');
   modal.appendChild(err);
@@ -478,6 +616,14 @@ function openFocusStartDialog(pack: FocusPack): void {
   cancel.addEventListener('click', () => overlay.remove());
   const go = h('button', 'btn btn-small btn-primary', 'Indítás');
   go.addEventListener('click', () => void (async () => {
+    const chosen = picker.value();
+    if (chosen === null) {
+      // Megmondjuk, mit várunk. Egy néma gomb itt azt jelentené, hogy a
+      // felhasználó a mezőt nézi, és nem érti, miért nem indul semmi.
+      err.textContent = `Írj be egy hosszat percben (1–${MAX_SESSION_MINUTES}).`;
+      err.classList.remove('hidden');
+      return;
+    }
     try {
       status = await call<StatusData>('focus_start', { packId: pack.id, minutes: chosen });
       overlay.remove();
@@ -515,8 +661,31 @@ function openFocusEditor(pack: FocusPack | null): void {
   name.type = 'text';
   name.placeholder = 'pl. Nyelvtanulás';
   name.value = pack?.name ?? '';
+  // A segéd a nevet ennyinél levágja. Ha itt nem lenne korlát, a felhasználó
+  // beírna egy hosszú nevet, és mentés után egy MÁSIK nevet kapna vissza,
+  // magyarázat nélkül.
+  name.maxLength = MAX_PACK_NAME;
   box.appendChild(h('label', undefined, 'A csomag neve'));
   box.appendChild(name);
+
+  const lines = (t: string): string[] =>
+    t.split(/[\n,]/).map((x) => x.trim()).filter(Boolean);
+
+  /** Számláló a mező alatt: a segéd a fölösleget csendben eldobná. */
+  const counter = (field: HTMLTextAreaElement): HTMLElement => {
+    const out = h('div', 'micro count');
+    const paint = (): void => {
+      const n = lines(field.value).length;
+      out.textContent = `${n} / ${MAX_ALLOW_ENTRIES} tétel`;
+      out.classList.toggle('over', n > MAX_ALLOW_ENTRIES);
+      if (n > MAX_ALLOW_ENTRIES) {
+        out.textContent = `${n} / ${MAX_ALLOW_ENTRIES} tétel — az első ${MAX_ALLOW_ENTRIES} marad meg`;
+      }
+    };
+    field.addEventListener('input', paint);
+    paint();
+    return out;
+  };
 
   const sites = h('textarea', 'alias-input') as HTMLTextAreaElement;
   sites.rows = 3;
@@ -524,6 +693,7 @@ function openFocusEditor(pack: FocusPack | null): void {
   sites.value = (pack?.allowSites ?? []).join('\n');
   box.appendChild(h('label', undefined, 'Engedélyezett oldalak (a böngészőben ez él)'));
   box.appendChild(sites);
+  box.appendChild(counter(sites));
 
   const apps = h('textarea', 'alias-input') as HTMLTextAreaElement;
   apps.rows = 3;
@@ -531,6 +701,15 @@ function openFocusEditor(pack: FocusPack | null): void {
   apps.value = (pack?.allowApps ?? []).join('\n');
   box.appendChild(h('label', undefined, 'Engedélyezett appok'));
   box.appendChild(apps);
+  box.appendChild(counter(apps));
+
+  // Ez eddig fixen 50 perc volt, és sehol nem lehetett átállítani: a csomag
+  // „szokásos hossza” egy olyan beállítás volt, amit a felhasználó nem ért el.
+  const lengthPicker = minutePicker(
+    SESSION_CHOICES_MIN, pack?.defaultMinutes ?? 50, MAX_SESSION_MINUTES,
+  );
+  box.appendChild(h('label', undefined, 'Szokásos hossz (indításkor ezt kínáljuk fel)'));
+  box.appendChild(lengthPicker.box);
   modal.appendChild(box);
 
   modal.appendChild(h('p', 'hint',
@@ -544,8 +723,17 @@ function openFocusEditor(pack: FocusPack | null): void {
   const actions = h('div', 'modal-actions');
   const left = h('div', 'row-gap');
   if (pack) {
+    // Kétlépcsős törlés. Egy gondosan összerakott fehérlista egyetlen
+    // félrekattintással ne tűnjön el: az ELSŐ kattintás csak megkérdez.
     const del = h('button', 'btn btn-small btn-danger', 'Törlés');
+    let armed = false;
     del.addEventListener('click', () => void (async () => {
+      if (!armed) {
+        armed = true;
+        del.textContent = 'Biztos? Törlés';
+        del.title = 'A csomag és a benne felsorolt tételek törlődnek.';
+        return;
+      }
       try {
         status = await call<StatusData>('focus_delete', { packId: pack.id });
         overlay.remove();
@@ -553,6 +741,8 @@ function openFocusEditor(pack: FocusPack | null): void {
       } catch (e) {
         err.textContent = (e as Error).message;
         err.classList.remove('hidden');
+        armed = false;
+        del.textContent = 'Törlés';
       }
     })());
     left.appendChild(del);
@@ -561,8 +751,6 @@ function openFocusEditor(pack: FocusPack | null): void {
   cancel.addEventListener('click', () => overlay.remove());
   const save = h('button', 'btn btn-small btn-primary', 'Mentés');
   save.addEventListener('click', () => void (async () => {
-    const lines = (t: string): string[] =>
-      t.split(/[\n,]/).map((x) => x.trim()).filter(Boolean);
     try {
       status = await call<StatusData>('focus_save', {
         pack: {
@@ -570,7 +758,7 @@ function openFocusEditor(pack: FocusPack | null): void {
           name: name.value,
           allowSites: lines(sites.value),
           allowApps: lines(apps.value),
-          defaultMinutes: pack?.defaultMinutes ?? 50,
+          defaultMinutes: lengthPicker.value() ?? pack?.defaultMinutes ?? 50,
         },
       });
       overlay.remove();
@@ -1287,33 +1475,40 @@ function openLimitDialog(site: SiteInfo): void {
     'vagy csökkenteni azonnal megy; emelni vagy megszüntetni ugyanúgy ' +
     'próbatételekbe kerül, mint egy feloldás.'));
 
-  let chosen: number | null = site.dailyLimitSeconds ?? null;
-  const choices = h('div', 'pause-choices');
-  const buttons: HTMLButtonElement[] = [];
-  const mark = () => {
-    for (const b of buttons) {
-      const value = b.dataset.seconds === '' ? null : Number(b.dataset.seconds);
-      b.classList.toggle('btn-primary', value === chosen);
-    }
-  };
-  for (const min of LIMIT_CHOICES_MIN) {
-    const b = h('button', 'btn', `${min} perc`) as HTMLButtonElement;
-    b.dataset.seconds = String(min * 60);
-    b.addEventListener('click', () => { chosen = min * 60; mark(); });
-    buttons.push(b);
-    choices.appendChild(b);
+  // A keret is percre pontos: a gyors gombok mellett ott a szabad mező. Aki
+  // napi 35 percet szán valamire, annak a 30 kevés, a 45 sok — és ha csak
+  // ezek közül lehet választani, a keret nem az ő döntése lesz, hanem a
+  // gomblistáé.
+  const current = site.dailyLimitSeconds ?? null;
+  let noLimit = current === null;
+  const picker = minutePicker(
+    LIMIT_CHOICES_MIN,
+    current === null ? 30 : Math.max(1, Math.round(current / 60)),
+    MAX_LIMIT_MINUTES,
+    () => { noLimit = false; paintNone(); },
+  );
+  const none = h('button', 'chip', 'Nincs keret') as HTMLButtonElement;
+  function paintNone(): void {
+    none.classList.toggle('chip-on', noLimit);
+    // A mező marad olvasható, csak jelezzük, hogy most nem ő dönt.
+    picker.box.classList.toggle('muted-box', noLimit);
   }
-  const none = h('button', 'btn', 'Nincs keret') as HTMLButtonElement;
-  none.dataset.seconds = '';
-  none.addEventListener('click', () => { chosen = null; mark(); });
-  buttons.push(none);
-  choices.appendChild(none);
-  mark();
+  none.addEventListener('click', () => { noLimit = true; paintNone(); });
+  const noneRow = h('div', 'chips');
+  noneRow.appendChild(none);
+  paintNone();
 
   const err = h('p', 'error');
   err.classList.add('hidden');
   const apply = h('button', 'btn btn-primary', 'Alkalmaz');
   apply.addEventListener('click', async () => {
+    const minutes = picker.value();
+    if (!noLimit && minutes === null) {
+      err.textContent = `Írj be egy keretet percben (1–${MAX_LIMIT_MINUTES}), vagy válaszd a „Nincs keret” lehetőséget.`;
+      err.classList.remove('hidden');
+      return;
+    }
+    const chosen = noLimit ? null : (minutes as number) * 60;
     try {
       const r = await call<SetLimitResult>('set_limit', { siteId: site.id, seconds: chosen });
       document.body.removeChild(overlay);
@@ -1329,7 +1524,7 @@ function openLimitDialog(site: SiteInfo): void {
 
   const actions = h('div', 'modal-actions');
   actions.append(cancel, apply);
-  modal.append(choices, err, actions);
+  modal.append(picker.box, noneRow, err, actions);
   overlay.appendChild(modal);
   document.body.appendChild(overlay);
 }
@@ -1864,6 +2059,10 @@ function setupModal(): void {
   // A legcsendesebb hibafajta — a felület hibátlannak látszik, a funkció meg
   // elérhetetlen. A füstteszt most már megnyomja.
   $('focusNewBtn').addEventListener('click', () => openFocusEditor(null));
+  // A felső sori jelzés nem csak tájékoztat: odavisz, ahol csinálni lehet vele
+  // valamit. Egy jelzés, amire rá lehet kattintani, de nem történik semmi,
+  // rosszabb, mint ha ott sem lenne.
+  $('focusPill').addEventListener('click', () => setView('focus'));
 
   for (const tab of Array.from(document.querySelectorAll<HTMLElement>('.tab'))) {
     tab.addEventListener('click', () => setView((tab.dataset.view as ViewName) ?? 'sites'));

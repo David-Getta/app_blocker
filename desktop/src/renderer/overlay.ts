@@ -9,7 +9,10 @@
 // a próbatétel van — ha innen menne, a munkamenet egy billentyűkombináció
 // lenne, és pont az a lényeg, hogy ne az legyen.
 
-import { formatRemaining, SESSION_CHOICES_MIN, type FocusPack, type FocusRun } from '../shared/focus.js';
+import {
+  formatRemaining, MAX_SESSION_MINUTES, SESSION_CHOICES_MIN,
+  type FocusPack, type FocusRun,
+} from '../shared/focus.js';
 
 /**
  * Amit a rétegnek a hídból ismernie kell.
@@ -144,10 +147,46 @@ function render(): void {
       b.addEventListener('click', () => void start(choosing as FocusPack, min));
       row.appendChild(b);
     }
+    body.appendChild(row);
+
+    // Percre pontos hossz a rétegben is. A gyorsgombok a gyakori esetek; ez
+    // pedig az, amikor a felhasználó tudja, hogy 43 perce van ebédig. Ha csak
+    // az appban lenne meg, a réteg éppen a sietős esetben lenne rosszabb.
+    const exact = h('div', 'mins');
+    const field = h('input', 'mins-field') as HTMLInputElement;
+    field.type = 'number';
+    field.min = '1';
+    field.max = String(MAX_SESSION_MINUTES);
+    field.step = '1';
+    field.value = String(choosing.defaultMinutes);
+    field.setAttribute('aria-label', 'hossz percben');
+    const go = (): void => {
+      const n = Number(field.value);
+      if (!Number.isFinite(n) || n < 1) {
+        foot.textContent = `Írj be egy hosszat percben (1–${MAX_SESSION_MINUTES}).`;
+        return;
+      }
+      void start(choosing as FocusPack, Math.min(Math.round(n), MAX_SESSION_MINUTES));
+    };
+    field.addEventListener('keydown', (e) => {
+      const ev = e as KeyboardEvent;
+      // Az Esc MINDIG a rétegé: ha itt is elnyelnénk, a mezőből nem lehetne
+      // kilépni billentyűvel — pont abban a rétegben, aminek a lényege, hogy
+      // egy mozdulattal jön és megy.
+      if (ev.key === 'Escape') return;
+      // A réteg számbillentyűs indítása globális; a többi leütés a mezőé.
+      ev.stopPropagation();
+      if (ev.key === 'Enter') go();
+    });
+    exact.appendChild(field);
+    const startBtn = h('button', 'primary', 'Indítás');
+    startBtn.addEventListener('click', go);
+    exact.appendChild(startBtn);
     const back = h('button', 'ghost', 'Vissza');
     back.addEventListener('click', () => { choosing = null; render(); });
-    row.appendChild(back);
-    body.appendChild(row);
+    exact.appendChild(back);
+    body.appendChild(exact);
+
     foot.textContent = 'Indítani ingyen van — a munkamenet alatt minden más tiltva.';
     return;
   }
@@ -157,6 +196,14 @@ function render(): void {
     body.appendChild(h('p', 'empty',
       'Még nincs csomagod. Az appban tudsz felvenni egyet: adsz neki nevet, és '
       + 'felsorolod, mi mehet alatta.'));
+    // Idáig ez zsákutca volt: a réteg megmondta, hogy az appban kell csinálni
+    // valamit, de nem vitt oda — a felhasználónak magától kellett rájönnie,
+    // hogy előbb be kell zárnia, aztán megkeresnie az ablakot.
+    const row = h('div', 'mins');
+    const open = h('button', 'primary', 'Csomag felvétele az appban');
+    open.addEventListener('click', () => { void bridge.showMain(); });
+    row.appendChild(open);
+    body.appendChild(row);
     foot.textContent = 'A csomag fehérlista: ami nincs rajta, az a munkamenet alatt tiltva.';
     return;
   }

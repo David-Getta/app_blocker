@@ -212,6 +212,14 @@ function fakeBridgeSource() {
           window.__fakePacks = window.__fakePacks.filter((p) => p.id !== payload.packId);
           return { ok: true, data: status() };
         }
+        if (op === 'set_limit') {
+          // A keret bevezetése/csökkentése azonnal megy; emelni-megszüntetni
+          // próbatétel. A füstteszt a bevezetést járja, mert az az azonnali út.
+          window.__lastLimit = payload.seconds;
+          const s = window.__fakeSites.find((x) => x.id === payload.siteId);
+          if (s) s.dailyLimitSeconds = payload.seconds === null ? undefined : payload.seconds;
+          return { ok: true, data: { applied: true, session: null } };
+        }
         if (op === 'set_alias') {
           const site = window.__fakeSites.find((x) => x.id === payload.siteId);
           if (site) {
@@ -373,6 +381,93 @@ async function main() {
     undefined, { timeout: 10_000 },
   ).catch(() => failures.push('az „Új csomag” gomb nem nyitotta meg a szerkesztőt'));
   await page.locator('.modal').getByRole('button', { name: 'Mégse' }).click();
+
+  // PERCRE PONTOS HOSSZ. A gyorsgombok a gyakori eseteket fedik; a szabad mező
+  // azt, amikor a felhasználó tudja, hogy 43 perce van ebédig. Ha ez csak a
+  // jelölésben lenne meg, de az érték nem menne át az indításba, a felület
+  // hazudna: beírnád a 43-at, és 50 percet kapnál.
+  await page.locator('#focusPacks .focus-pack').first()
+    .getByRole('button', { name: 'Indítás' }).click();
+  await page.waitForSelector('.modal .minute-field', { timeout: 10_000 })
+    .catch(() => failures.push('az indítás-párbeszédben nincs percre pontos mező'));
+  await page.locator('.modal .minute-field').fill('43');
+  await page.locator('.modal').getByRole('button', { name: 'Indítás' }).click();
+  const startedFor = await page.evaluate(
+    () => Math.round((window.__fakeRun.endsAt - window.__fakeRun.startedAt) / 60000),
+  ).catch(() => null);
+  if (startedFor !== 43) {
+    failures.push(`a beírt hossz nem ment át az indításba: ${startedFor} perc lett 43 helyett`);
+  }
+
+  // A hosszabbítás is percre pontos — és HOSSZABBÍTANI ingyen van, mert az a
+  // szigorítás iránya.
+  await page.waitForFunction(
+    () => !document.getElementById('focusRunning')?.classList.contains('hidden'),
+    undefined, { timeout: 10_000 },
+  );
+  const beforeExtend = await page.evaluate(() => window.__fakeRun.endsAt);
+  await page.locator('#focusRunning .minute-field').click();
+  await page.locator('#focusRunning .minute-field').fill('7');
+  // A futó munkamenet doboza MÁSODPERCENKÉNT újraépül (a hátralévő idő nem
+  // állhat meg). A gépelt szám ezt túl kell hogy élje — enélkül a felhasználó
+  // beírná a 4-est, és mire a 3-at leütné, a mező már üres lenne. Ezért
+  // várunk ki egy teljes frissítési kört, mielőtt megnyomjuk a gombot.
+  await page.waitForTimeout(2600);
+  const kept = await page.locator('#focusRunning .minute-field').inputValue().catch(() => '');
+  if (kept !== '7') {
+    failures.push(`az újrarajzolás kitörölte a hosszabbítás-mezőt: „${kept}” maradt „7” helyett`);
+  }
+  await page.locator('#focusRunning').getByRole('button', { name: 'Hozzáad' }).click();
+  const added = await page.evaluate(
+    (b) => Math.round((window.__fakeRun.endsAt - b) / 60000), beforeExtend,
+  );
+  if (added !== 7) failures.push(`a percre pontos hosszabbítás nem működik: +${added} perc`);
+
+  // A FUTÓ csomagot nem lehet szerkeszteni: a segéd visszautasítja. Ha a gomb
+  // aktív maradna, a Mentés mindig hibára futna — a felület olyasmit kínálna,
+  // amit nem tud teljesíteni.
+  const editDisabled = await page.locator('#focusPacks .focus-pack-on')
+    .getByRole('button', { name: 'Szerkesztés' }).isDisabled().catch(() => null);
+  if (editDisabled !== true) {
+    failures.push('a futó csomag szerkesztés-gombja aktív maradt');
+  }
+
+  // A futó munkamenet a TÖBBI nézetből is látszik. Fehérlistás munkamenetnél ez
+  // nem csinosítás: enélkül a felhasználó a másik fülön azt hiszi, hogy az app
+  // romlott el, amikor egy oldal nem jön be.
+  await goTo(page, 'sites');
+  const pillVisible = await page.locator('#focusPill').isVisible().catch(() => false);
+  if (!pillVisible) failures.push('a futó munkamenet nem látszik az Oldalak nézetből');
+  const pillText = await page.locator('#focusPillText').textContent().catch(() => '');
+  if (!/Nyelvtanulás/.test(pillText || '')) {
+    failures.push(`a felső sori jelzés nem mondja meg, melyik csomag fut: ${pillText}`);
+  }
+  // Nem dobhat: ha a jelzés nem látszik, azt FENT már jelentettük, és a többi
+  // hiba is érdekel — egy kivétel itt eldobná az addig összegyűjtött listát.
+  await page.locator('#focusPill').click({ timeout: 5_000 }).catch(() => {});
+  const backOnFocus = await page.locator('.view[data-view="focus"]').isVisible().catch(() => false);
+  if (!backOnFocus) failures.push('a felső sori jelzésre kattintva nem lép a Munkamenetek fülre');
+
+  await page.evaluate(() => { window.__fakeRun = null; });
+  await page.waitForFunction(
+    () => document.getElementById('focusPill')?.classList.contains('hidden'),
+    undefined, { timeout: 10_000 },
+  ).catch(() => failures.push('a lejárt munkamenet jelzése ott maradt a felső sorban'));
+
+  // A NAPI KERET is percre pontos. Eddig csak előre megadott gombok voltak, és
+  // a párbeszédet a füstteszt egyáltalán nem nyitotta ki — a jelölés bármikor
+  // elcsúszhatott volna a kódtól úgy, hogy semmi nem jelzi.
+  await goTo(page, 'sites');
+  await page.locator('#siteList .site-row').first()
+    .getByRole('button', { name: 'Napi keret' }).click();
+  await page.waitForSelector('.modal .minute-field', { timeout: 10_000 })
+    .catch(() => failures.push('a napi keret párbeszédében nincs percre pontos mező'));
+  await page.locator('.modal .minute-field').fill('37');
+  await page.locator('.modal').getByRole('button', { name: 'Alkalmaz' }).click();
+  const lastLimit = await page.evaluate(() => window.__lastLimit);
+  if (lastLimit !== 37 * 60) {
+    failures.push(`a beírt napi keret nem ment át: ${lastLimit} másodperc lett 2220 helyett`);
+  }
 
   // A napi keret KÖZÖS az eszközök között: a mérő a teljes elhasznált időt
   // mutatja. Ki kell mondani, mennyi ment el máshol — enélkül úgy néz ki,
