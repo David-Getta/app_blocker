@@ -14,6 +14,32 @@
 // A fordítás ezt SOHA nem fogja ki: egy nem hívott függvény tökéletesen
 // érvényes kód.
 //
+// MIT FED. A lista lentebb pontosan megmondja, de csoportosítva ezek:
+//
+//   - a blokklista tényleges alkalmazása (hosts fájl, DNS-szűrő, alagút);
+//   - ami eldönti, melyik név kerül a tiltásba (szünet, menetrend, napi keret);
+//   - a munkamenet fehérlistája mind a négy felületen;
+//   - a munkamenet naplója: lezárás, egyesítés, összegzés;
+//   - a súrlódás eszkalációja (a fok kiszámítása);
+//   - a részleges tiltás a böngészőben;
+//   - a szinkron körei;
+//   - a frissítés-keresés;
+//   - két figyelmeztetés, ami nélkül a felhasználó nem tudná meg, hogy a
+//     munkamenetet épp nem érvényesíti senki.
+//
+// MIT NEM FED — és ezt ki kell mondani, mert egy harmincegy pontos ellenőrző
+// könnyen ad hamis biztonságérzetet:
+//
+//   - ez SZÖVEGET keres, nem hívási gráfot. Ha a hívás egy soha le nem futó
+//     ágban áll, az ellenőrző elégedett;
+//   - ha a döntést MEGKÉRDEZIK, de az eredményét eldobják, nem szól;
+//   - ha rossz bemenettel hívják (más `now`, más lista), nem szól;
+//   - ha a függvény maga romlik el, nem szól — arra a tesztek vannak.
+//
+// Vagyis ez azt garantálja, hogy a döntés a HELYÉN van, nem azt, hogy jó. A
+// kettő közül viszont az elsőt nem fogta ki eddig SEMMI, és a projekt hibái
+// épp abból a fajtából valók.
+//
 // Futtatás: node scripts/check-enforcement.js
 
 const fs = require('fs');
