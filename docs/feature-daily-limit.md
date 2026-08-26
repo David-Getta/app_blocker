@@ -139,6 +139,44 @@ Ami továbbra sem megy iPhone-on: a keret **beállítása** (a bíró és a fel�
 hiányzik, mert a mérés nélkül a helyi szám úgyis nulla lenne), és a saját idő
 beszámítása. Ha megjön az entitlement, ez a két sor is átvehető.
 
+## Az óra átállítása ITT nem zárható be — és ezt kimondjuk
+
+A munkamenetnél az órabállítás kiskapuját be lehetett zárni: a menet vége
+IDŐPONT, tehát az ugrást el lehet nyelni, és a szabály egy mondatban igaz
+mindkét olvasatra — „amennyi hátra volt, annyi van hátra” ugyanaz a válasz az
+átállított órára és az alvó gépre is.
+
+A napi keretnél ez NEM megy, és a különbség nem lustaság:
+
+- a keret egy NAPHOZ tartozik, nem egy időtartamhoz. Ha az óra előreugrik egy
+  nappal, az eszköz új napot lát, és a keret nulláról indul;
+- az alvó gép ugyanígy néz ki. Aki este lecsukja a laptopot és reggel nyitja
+  ki, annak a napváltás VALÓDI — és ott a helyes viselkedés pont az, hogy a
+  keret újraindul;
+- a két esetet a segéd nem tudja megkülönböztetni, és itt a „biztonságos
+  irány” a gyakori esetben ROSSZ. A munkamenetnél nem így volt: ott a
+  szigorúbb választás mindkét olvasatban helyes maradt.
+
+Egy második vélemény elvben létezne: a többi eszköz is megmondja, milyen napot
+lát (`TodayDigest.day`). Csakhogy a kiszolgáló nem küld IDŐBÉLYEGET a
+sorokhoz — csak egy verziószámot —, tehát egy három napja kikapcsolt gép sora
+pontosan úgy néz ki, mint egy jó órájú gépé egy rossz órájú mellett. Egy
+riasztás, ami minden hosszabb szünet után téveszt, rosszabb a semminél: a
+felhasználó megtanulja figyelmen kívül hagyni, és akkor majd az igazit is.
+
+Ami tehát IGAZ:
+
+- a napi keret feltételezi, hogy a gép órája nagyjából jó. Aki egy napot előre
+  állítja, friss keretet kap azon az eszközön;
+- ez viszont az egész rendszert érinti (naptár, üzenetek, minden), tehát nem
+  „két perc munka”, mint a munkamenetnél volt — inkább a VPN-kapcsolóhoz
+  hasonló, kimondott kiút;
+- az oldal TELJES tiltása és a menetrend nem függ ettől: a hosts-blokk óra
+  nélkül is áll.
+
+Ha a kiszolgáló egyszer időbélyeget is ad az eszközsorokhoz, a második vélemény
+megbízhatóvá válik, és akkor érdemes megírni. Addig ez a szakasz a válasz.
+
 ## A keret eszközök között közös
 
 Ez volt a funkció legnagyobb lyuka: a keret eszközönként külön ketyegett.
