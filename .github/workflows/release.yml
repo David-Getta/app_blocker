@@ -44,6 +44,55 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
+          **A munkamenet-statisztika mostantól minden eszközödről szól.** A
+          menetet a v0.4.3 óta a telefonodon is el lehet indítani és le lehet
+          állítani — a naplója viszont csak a gépen létezett. Aki a telefonján
+          ült le dolgozni, azt látta, hogy a héten egyszer sem: a funkció fele
+          némán hiányzott, és pont az az eszköz maradt ki, ami kéznél van.
+
+          Mostantól minden eszköz vezeti a saját naplóját, és a napló utazik a
+          fiókodon. Ha ugyanazt a menetet két eszköz is lezárja — a telefonon
+          próbatétellel, a gép meg később, a szinkronból véve észre —, az EGY
+          menet marad, nem kettő.
+
+          **A statisztika a telefonon és az iPhone-on is látszik.** Androidon a
+          mérési hozzáférés kapuja FÖLÖTT: a munkamenetnek semmi köze a
+          méréshez, nem az Androidtól kérjük, hanem a saját naplónkból jön.
+          iPhone-on pedig ez az egyetlen idő-statisztika, ami valaha igazi
+          lesz — az Apple nem enged hozzáférést ahhoz, mennyi időt töltesz más
+          appokban, a munkamenet viszont a miénk.
+
+          **A MAGÁTÓL LEJÁRT menet is bekerül.** Eddig csak a próbatétellel
+          leállítottak — vagyis pont azok hiányoztak, amiket VÉGIGVITTÉL, és a
+          statisztika azt mondta volna, hogy sosem sikerül.
+
+          #### Javítva
+
+          - **Az óra átállításával le lehetett állítani a futó munkamenetet.**
+            Nyolc órát előreugorva a menet „lejárt”, és nem is csak azon a
+            gépen: a lejárás a szinkronon át a telefont is leállította. Két
+            perc munkával megkerülhető volt az a próbatétel, ami a
+            leállításhoz kell.
+
+            A szabály mostantól egy mondat: **amennyi hátra volt, annyi van
+            hátra.** Ugyanez a válasz az alvó gépre is — ha lecsukod a
+            laptopot tíz perccel a menet vége előtt, reggel tíz perc lesz
+            hátra. Azt a tíz percet nem töltötted fókuszban.
+
+          - **A gép megmondja, ha a munkamenetet nem érvényesíti senki.** A
+            fehérlistát a gépen KIZÁRÓLAG a böngésző-bővítmény tudja
+            betartatni. Ha nem volt összekötve, az indítás csendben nem
+            tiltott semmit a böngészőben: az app futó menetet mutatott, te
+            fókuszban hitted magad, közben minden nyitva maradt. Most szól. A
+            blokklista ilyenkor is él — ezt a szöveg ki is mondja.
+
+          - **A letöltőoldal azt írta ki, hogy nincs kiadott verzió, amikor
+            volt.** Minden hibára ugyanaz a mondat jött, pedig a leggyakoribb
+            ok a GitHub óránkénti kérés-korlátja. A látogató azt olvasta, hogy
+            nincs mit letölteni, miközben nyolc kiadás állt a másik oldalon.
+
+          ### Ami a v0.4.3-ban jött
+
           **A munkamenet mostantól a telefonodon is érvényes.** Eddig csak a
           gépen létezett, és ez a funkció felét elvette: elindítottad a
           „Nyelvtanulás” csomagot, felvetted a telefont, és ott minden mehetett.
@@ -93,7 +142,7 @@ jobs:
           leálltál, nem a csomaggal van baj: rövidebb menetet érdemes indítani,
           és az működni fog. A statisztika helyben marad, ahogy a többi mérés is.
 
-          ### Ami a v0.4.2-ben jött
+          #### Ami a v0.4.2-ben jött
 
           **A munkamenet hossza percre pontos.** Eddig csak a felkínált
           gombokból lehetett választani (15 / 25 / 50 / 90 / 120 perc). Aki
