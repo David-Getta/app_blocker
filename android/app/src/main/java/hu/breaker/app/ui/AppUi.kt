@@ -293,7 +293,7 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
             // A `now` a másodpercenként frissülő óra: enélkül a hátralévő idő
             // csak akkor mozdulna, ha az ÁLLAPOT változik — vagyis állna.
             FocusRunningCard(state, now, onError = { flowError = it })
-            FocusPacksCard(state, onError = { flowError = it })
+            FocusPacksCard(state, vpnRunning, onError = { flowError = it })
 
             // Update banner (direct-download track)
             update?.let { upd ->
@@ -1883,7 +1883,7 @@ private fun FocusRunningCard(state: AppState, now: Long, onError: (String) -> Un
  * kényelmes gépelni. A telefon indítja és betartatja őket.
  */
 @Composable
-private fun FocusPacksCard(state: AppState, onError: (String) -> Unit) {
+private fun FocusPacksCard(state: AppState, vpnRunning: Boolean, onError: (String) -> Unit) {
     val now = System.currentTimeMillis()
     if (state.focusPacks.isEmpty()) return
     if (Focus.isRunning(state.focusRun, now)) return
@@ -1896,6 +1896,17 @@ private fun FocusPacksCard(state: AppState, onError: (String) -> Unit) {
                 "Amíg tart, csak a csomagban felsoroltak jönnek be. Minden más tiltva.",
                 style = MaterialTheme.typography.bodySmall,
             )
+            // A menetet a DNS-szűrő tartatja be. Ha az nem fut, az indítás
+            // CSENDBEN nem csinálna semmit: a felhasználó azt hinné, hogy
+            // fókuszban van, közben minden nyitva. Ezt ki kell mondani.
+            if (!vpnRunning) {
+                Text(
+                    "A védelem most nincs bekapcsolva — a munkamenetet a DNS-szűrő tartatja " +
+                        "be, tehát addig nem tiltana semmit. Kapcsold be fent.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
             OutlinedTextField(
                 value = minutes,
                 onValueChange = { minutes = it.filter { c -> c.isDigit() }.take(4) },

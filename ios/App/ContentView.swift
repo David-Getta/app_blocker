@@ -180,6 +180,13 @@ struct ContentView: View {
                 Text("Munkamenet indítása").font(.caption).foregroundStyle(.secondary)
                 Text("Amíg tart, csak a csomagban felsoroltak jönnek be. Minden más tiltva.")
                     .font(.footnote).foregroundStyle(.secondary)
+                // A menetet a DNS-szűrő tartatja be. Ha az alagút nem fut, az
+                // indítás CSENDBEN nem csinálna semmit: a felhasználó azt hinné,
+                // hogy fókuszban van, közben minden nyitva.
+                if tunnel.status != .connected {
+                    Text("A védelem most nincs bekapcsolva — a munkamenetet a DNS-szűrő tartatja be, tehát addig nem tiltana semmit. Kapcsold be fent.")
+                        .font(.footnote).foregroundStyle(.red)
+                }
                 TextField("Hossz percben (üresen a csomag szokásos hossza)", text: $focusMinutes)
                     .keyboardType(.numberPad)
                     .textFieldStyle(.roundedBorder)
