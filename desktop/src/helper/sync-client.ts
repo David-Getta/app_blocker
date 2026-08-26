@@ -27,6 +27,7 @@ import { adoptFocusRevision, adoptRevision, bumpRevisions } from './revisions';
 import {
   emptyFocus, mergeFocus, normalizeSyncFocus, sameFocus, type SyncFocus,
 } from '../shared/sync/focus-merge.js';
+import { closeRun, MAX_FOCUS_LOG, type FocusRun } from '../shared/focus.js';
 import { makeTodayDigest, normalizeTodayDigest, type TodayDigest } from '../shared/limits.js';
 
 /** Ennél tovább egy szinkron-kör nem tarthat; a segéd nem állhat meg miatta. */
@@ -383,6 +384,17 @@ async function syncFocusRound(
     const merged = mergeFocus(mine, remote);
 
     if (!sameFocus(merged, mine)) {
+      // HA A MENET MÁSHOL ÉRT VÉGET, ide is bekerül a naplóba.
+      //
+      // A statisztikát eddig csak a helyi bíró töltötte: ő látja, ha a menet
+      // lejár vagy ha itt állítod le próbatétellel. Egy TELEFONON leállított
+      // menet viszont a szinkronon át érkezik — a `focusRun` egyszerűen
+      // eltűnik —, és a statisztikából hiányozna. Aki a telefonján állítja le a
+      // menetet, az azt látná, hogy a héten nem is használta.
+      //
+      // Kettőzés nincs: ha a leállítás ITT történt, a helyi `focusRun` ekkorra
+      // már null, tehát ez az ág nem fut le.
+      logRunEndedElsewhere(state, mine.run, merged.run, Date.now());
       state.focusPacks = merged.packs;
       state.focusRun = merged.run;
       state.focusRev = merged.rev;
@@ -417,6 +429,25 @@ async function syncFocusRound(
     }
   }
   return changed;
+}
+
+/**
+ * Naplózza, ha egy MÁSIK eszköz zárta le a nálunk futó menetet.
+ *
+ * Csak akkor ír, ha nálunk tényleg FUTOTT valami, és a másik oldal
+ * megrövidítette vagy leállította. A hosszabbítás nem lezárás.
+ */
+function logRunEndedElsewhere(
+  state: HelperState, mine: FocusRun | null, merged: FocusRun | null, now: number,
+): void {
+  if (!mine || mine.endsAt <= now) return;          // nálunk nem futott
+  if (merged && merged.endsAt >= mine.endsAt) return; // hosszabbítás vagy azonos
+  const pack = (state.focusPacks ?? []).find((p) => p.id === mine.packId);
+  const endedAt = merged ? merged.endsAt : now;
+  state.focusLog = [
+    ...(state.focusLog ?? []),
+    closeRun(mine, pack?.name ?? 'Ismeretlen csomag', endedAt, true),
+  ].slice(-MAX_FOCUS_LOG);
 }
 
 /** A helyi állapot szinkron-alakja. */

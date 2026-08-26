@@ -213,6 +213,39 @@ test('a stale device cannot switch off a running session', async () => {
   assert.equal(back.focusRun?.packId, 'pack_1', 'a menet nem kapcsolódhat ki magától');
 });
 
+test('a session stopped on another device still reaches the statistics', async () => {
+  // A statisztikát eddig csak a helyi bíró töltötte. Egy TELEFONON leállított
+  // menet a szinkronon át érkezik — a futás egyszerűen eltűnik —, és a
+  // statisztikából hiányozna: aki a telefonján állítja le a menetet, azt látná,
+  // hogy a héten nem is használta.
+  const a = device([site()]);
+  await signIn(a, url, ACCOUNT, PASSWORD, 'Munkagép');
+  a.focusPacks = [{
+    id: 'pack_log', name: 'Mély munka',
+    allowSites: ['github.com'], allowApps: [], defaultMinutes: 90,
+  }];
+  a.focusRun = { packId: 'pack_log', startedAt: 20_000, endsAt: Date.now() + 3_600_000 };
+  await syncNow(a, 20_100);
+
+  // A „telefon”: megkapja a menetet, majd NAGYOBB számlálóval leállítja —
+  // pontosan úgy, ahogy egy teljesített próbatétel után történik.
+  const phone = device();
+  await signIn(phone, url, ACCOUNT, PASSWORD, 'Telefon');
+  await syncNow(phone, 21_000);
+  assert.equal(phone.focusRun?.packId, 'pack_log');
+  phone.focusRun = null as HelperState['focusRun'];
+  phone.focusRev = (phone.focusRev ?? 0) + 5;
+  phone.focusUpdatedAt = 22_000;
+  await syncNow(phone, 22_000);
+
+  // A gép következő köre látja, hogy vége — és beírja a naplóba.
+  const before = (a.focusLog ?? []).length;
+  await syncNow(a, 23_000);
+  assert.equal(a.focusRun, null, 'a menet tényleg leállt');
+  assert.equal((a.focusLog ?? []).length, before + 1, 'és bekerült a statisztikába');
+  assert.equal(a.focusLog!.at(-1)!.packName, 'Mély munka');
+});
+
 test('signing out never removes a single block', async () => {
   // Ha törölne, a kijelentkezés lenne a világ legegyszerűbb feloldása.
   const a = device();
