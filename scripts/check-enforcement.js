@@ -278,6 +278,29 @@ const WIRES = [
     needle: 'focusSyncError',
     lost: 'az iPhone-on nem derülne ki, hogy a munkamenet szinkronja elhasalt',
   },
+
+  // A FELADÁS ADÓSSÁGA. Aki félbehagy egy próbatételt, ugyanazt a párost kapja
+  // vissza egy ideig — enélkül a „feladom” INGYENES ÚJRASORSOLÁS lenne: nem
+  // tetszik a kapott páros, feladom, húzok újat, amíg könnyű nem jön.
+  //
+  // Ha a `forcedCombo` kimaradna a terv készítéséből, semmi nem hasalna el: a
+  // terv elkészülne, csak épp frissen sorsolva. Az egész ígéret — hogy nem
+  // lesz könnyebb attól, hogy sokszor csinálod — csendben megszűnne.
+  {
+    file: 'desktop/src/helper/referee.ts',
+    needle: 'forcedCombo(state, siteId, now)',
+    lost: 'a gépen a feladás ingyenes újrasorsolássá válna',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/Referee.kt',
+    needle: 'forcedCombo(',
+    lost: 'a telefonon a feladás ingyenes újrasorsolássá válna',
+  },
+  {
+    file: 'ios/Shared/Referee.swift',
+    needle: 'forcedCombo(',
+    lost: 'az iPhone-on a feladás ingyenes újrasorsolássá válna',
+  },
 ];
 
 /**
