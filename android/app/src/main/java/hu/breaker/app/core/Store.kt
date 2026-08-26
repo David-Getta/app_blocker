@@ -141,8 +141,10 @@ data class AppState(
      * Miért nem sikerült a munkamenet szinkronja — vagy null, ha sikerült.
      *
      * NEM MENTJÜK a lemezre: átmeneti állapot, a következő kör újraszámolja.
-     * Egy régi mentésből visszatöltött hibaüzenet rosszabb a semminél, mert
-     * olyasmiről szólna, ami már nincs.
+     * Egy régi mentésből visszatöltött hibaüzenet olyasmiről szólna, ami már
+     * nincs. (A mentés itt kézzel felsorolt mezőkből épül, ezért elég nem
+     * felvenni; iPhone-on az `AppState` `Codable`-ja mindent elment, ott ez
+     * nem megy — lásd az ottani megjegyzést.)
      */
     val focusSyncError: String? = null,
 )

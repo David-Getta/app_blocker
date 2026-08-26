@@ -126,9 +126,15 @@ struct AppState: Codable, Equatable {
     var focusRevFp: String? = nil
     /// Miért nem sikerült a munkamenet szinkronja — vagy nil, ha sikerült.
     ///
-    /// NEM MENTJÜK a lemezre: átmeneti állapot, a következő kör újraszámolja.
-    /// Egy régi mentésből visszatöltött hibaüzenet rosszabb a semminél, mert
-    /// olyasmiről szólna, ami már nincs.
+    /// Ez a mező a mentésbe is BELEKERÜL, mert az `AppState` `Codable`-ja minden
+    /// tulajdonságot elment. Az androidos oldalon nem: ott a mentés kézzel
+    /// felsorolt mezőkből épül. A különbség apró, és nem hallgatjuk el: itt
+    /// indítás után egy pillanatra még a KORÁBBI hibaüzenet állhat, amíg az
+    /// első szinkron-kör le nem fut és ki nem törli.
+    ///
+    /// Azért `Optional`, és ez nem stílus: a Swift automatikus dekódolása a
+    /// hiányzó kulcsra opcionálisnál `nil`-t ad, nem-opcionálisnál viszont
+    /// HIBÁT DOB — egy korábbi verzió mentése akkor olvashatatlan lenne.
     var focusSyncError: String? = nil
 }
 
