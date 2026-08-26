@@ -388,3 +388,80 @@ test('the same Android payload twice is not seen as a change', () => {
   const b = normalizeIncomingSites(JSON.parse(ANDROID_PAYLOAD));
   assert.equal(JSON.stringify(a), JSON.stringify(b));
 });
+
+test('a naplók MINDKÉT eszközről összeérnek', async () => {
+  // EZ A MUNKAMENET-STATISZTIKA LÉNYEGE, végigmérve a VALÓDI körön: nem az
+  // összefésülés egységtesztje, hanem két eszköz, egy kiszolgáló, titkosított
+  // blob — és a kérdés, hogy a statisztika tényleg a fiók egészéről szól-e.
+  //
+  // Amíg a napló csak a gépen létezett, aki a telefonján ült le dolgozni, azt
+  // látta, hogy a héten egyszer sem.
+  const pack = {
+    id: 'pack_log', name: 'Nyelvtanulás',
+    allowSites: ['quizlet.com'], allowApps: [], defaultMinutes: 50,
+  };
+  const row = (startedAt: number, endedAt: number) => ({
+    packId: 'pack_log', packName: 'Nyelvtanulás',
+    startedAt, endedAt, plannedEndsAt: endedAt, stopped: false,
+  });
+
+  const a = device([site()]);
+  await signIn(a, url, ACCOUNT, 'uj-jelszo-lett-most', 'Munkagép');
+  a.focusPacks = [pack];
+  a.focusLog = [row(100_000, 103_000)];
+  await syncNow(a, 200_000);
+
+  const b = device();
+  await signIn(b, url, ACCOUNT, 'uj-jelszo-lett-most', 'Telefon');
+  b.focusLog = [row(300_000, 306_000)];
+  await syncNow(b, 400_000);
+
+  const mine = (log: typeof a.focusLog) =>
+    (log ?? []).filter((e) => e.packId === 'pack_log').map((e) => e.startedAt);
+  assert.deepEqual(
+    mine(b.focusLog), [100_000, 300_000],
+    'a telefon a saját sora mellé megkapja a gépét is',
+  );
+
+  // És VISSZAFELÉ is: a gép következő köre lehozza a telefonon lezárult menetet.
+  await syncNow(a, 500_000);
+  assert.deepEqual(
+    mine(a.focusLog), [100_000, 300_000],
+    'a gép statisztikájában ott a telefonon lezárult menet is',
+  );
+});
+
+test('ugyanazt a menetet két eszköz lezárva sem lesz belőle kettő', async () => {
+  // A GYAKORI ESET, nem a kivétel: a telefonon próbatétellel leállítod, a gép
+  // meg később, a szinkronból veszi észre. Ha nem fésülődne össze, minden ilyen
+  // menet kettőnek számítana, és a statisztika a duplájára nőne.
+  const row = (endedAt: number) => ({
+    packId: 'pack_kozos', packName: 'Nyelvtanulás',
+    startedAt: 900_000, endedAt, plannedEndsAt: 960_000, stopped: true,
+  });
+
+  const a = device([site()]);
+  await signIn(a, url, ACCOUNT, 'uj-jelszo-lett-most', 'Munkagép');
+  a.focusLog = [row(930_000)];              // a gép később vette észre
+  await syncNow(a, 1_000_000);
+
+  const b = device();
+  await signIn(b, url, ACCOUNT, 'uj-jelszo-lett-most', 'Telefon');
+  b.focusLog = [row(925_000)];              // a telefonon állt le, korábban
+  await syncNow(b, 1_100_000);
+
+  // A fiók a tesztek között KÖZÖS, tehát a korábbi menetek is ott vannak a
+  // naplóban. A saját csomagunkra szűrünk — a kérdés az, hogy EBBŐL az egy
+  // menetből egy sor lett-e, nem az, hogy összesen hány sor van.
+  const onB = (b.focusLog ?? []).filter((e) => e.packId === 'pack_kozos');
+  assert.equal(onB.length, 1, 'egy menet — egy sor');
+  assert.equal(
+    onB[0].endedAt, 925_000,
+    'a menet akkor ért véget, amikor véget ért — nem akkor, amikor a másik észbe kapott',
+  );
+
+  await syncNow(a, 1_200_000);
+  const onA = (a.focusLog ?? []).filter((e) => e.packId === 'pack_kozos');
+  assert.equal(onA.length, 1, 'a gépen sem lesz belőle kettő');
+  assert.equal(onA[0].endedAt, 925_000);
+});
