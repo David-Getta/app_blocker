@@ -232,7 +232,7 @@ Amit érdemes futtatni fejlesztés közben:
 | `node scripts/check-kotlin-imports.js` | hiányzó import a saját mag-típusainkra a Compose-fájlokban |
 | `node scripts/check-core-sync.js` | a TS/Kotlin/Swift mag számai (nehézségi szintek, határidők) egyeznek-e |
 | `node scripts/check-ui-wiring.js` | van-e olyan gomb a felületen, amihez nem tartozik kezelő |
-| `node scripts/check-enforcement.js` | a döntést tényleg MEGKÉRDEZI-e valaki (31 pont) |
+| `node scripts/check-enforcement.js` | a döntést tényleg MEGKÉRDEZI-e valaki (a hosts fájltól a frissítés-keresésig) |
 | `node scripts/check-infra-allow.js` | a munkamenet kivétellistája szűk maradt-e |
 
 A CI mindet futtatja minden pusholásnál.
