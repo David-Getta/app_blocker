@@ -78,6 +78,14 @@ jobs:
           alagút-viselkedés csak igazi készüléken derül ki. A logika és a
           fordítás le van fedve; VPN-t a CI nem futtat.
 
+          **Statisztika a munkamenetekről.** Az app eddig azt mérte, MIRE megy
+          el az idő. Ez a másik oldal: hányszor ültél le dolgozni, és hányat
+          vittél végig — mai és heti bontásban, a leggyakoribb csomaggal.
+
+          A „korán leállítva” sor szándékosan nem szégyenpad. Ha ötből négyszer
+          leálltál, nem a csomaggal van baj: rövidebb menetet érdemes indítani,
+          és az működni fog. A statisztika helyben marad, ahogy a többi mérés is.
+
           ### Ami a v0.4.2-ben jött
 
           **A munkamenet hossza percre pontos.** Eddig csak a felkínált
