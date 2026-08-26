@@ -122,6 +122,16 @@ típusok), a Kotlint drót-teszt fedi — Swiftben viszont nincs teszt, és a
 `Codable` a TULAJDONSÁGNEVEKBŐL képzi a kulcsokat, tehát egy átnevezés némán
 megváltoztatja a drót-alakot.
 
+Az őr mindkét irányba kérdez. Az egyik irány: megvan-e minden várt név mind a
+három nyelven. Ez önmagában átengedte a fél-átnevezést — ha egy kulcs két
+helyen keletkezik, és csak az egyik csúszik el, a másik „megvan”. A `day`
+pont ilyen: a mai összegzést és a mérést is ő azonosítja. A másik irány ezért
+azt kérdezi, hogy a Kotlinban keletkező kulcsok közül van-e olyan, amit senki
+nem őriz. Aminek nincs Swift/TS párja, az vagy a kiszolgálónak szól
+(hitelesítés, titkosított blobok), vagy nyíltan adósság — soronként indokolva,
+a szkript tetején. Így egy elgépelt kulcs és egy tükrözetlen új mező sem
+csúszhat a drótra észrevétlenül.
+
 **Harmadik réteg: a huzalozás** (`scripts/check-enforcement.js`). Az egyező
 számok és a stimmelő mezőnevek sem érnek semmit, ha a döntést nem kérdezi meg
 senki. Ez a projekt visszatérő hibafajtája: a mag megvan, teszt is van rá, csak
