@@ -10,9 +10,9 @@
 import { test } from 'node:test';
 import * as assert from 'node:assert/strict';
 import {
-  formatRemaining, isAppAllowed, isRunning, isSessionLoosening, isSiteAllowed,
+  closeRun, formatRemaining, isAppAllowed, isRunning, isSessionLoosening, isSiteAllowed,
   MAX_ALLOW_ENTRIES, MAX_SESSION_MINUTES, normalizeMinutes, normalizePack, remainingMs,
-  type FocusPack,
+  summarizeFocus, type FocusLogEntry, type FocusPack,
 } from '../src/shared/focus';
 
 const NOW = 1_800_000_000_000;
@@ -141,3 +141,70 @@ test('the session warns about an app that is not on the list', async () => {
   assert.equal(warnDue(NOW, NOW + 1000), false);
   assert.equal(warnDue(NOW, NOW + APP_WARN_COOLDOWN_MS), true);
 });
+
+// ---------------------------------------------------------------------------
+// A lezárult munkamenetek naplója
+// ---------------------------------------------------------------------------
+//
+// Az app eddig azt mérte, MIRE megy el az idő. Ez a másik oldal: hányszor ültél
+// le dolgozni, és hányat vittél végig.
+
+test('az összegzés csak az ablakba eső meneteket számolja', () => {
+  const log = [
+    entry({ endedAt: 500 }),                     // az ablak ELŐTT
+    entry({ startedAt: 1_000, endedAt: 2_000 }),
+    entry({ startedAt: 2_000, endedAt: 3_000 }),
+    entry({ endedAt: 9_999 }),                   // az ablak UTÁN
+  ];
+  const sum = summarizeFocus(log, 1_000, 5_000);
+  assert.equal(sum.sessions, 2);
+  assert.equal(sum.totalMs, 2_000);
+});
+
+test('a korán véget ért menet akkor is annak számít, ha nem „leállítás” volt', () => {
+  // A próbatétel utáni RÖVIDÍTÉS is korai vég: a menet nem addig tartott,
+  // ameddig terveztük. Ha csak a `stopped` jelzőt néznénk, a rövidítés
+  // láthatatlan maradna — pedig pont ugyanaz a döntés.
+  const log = [
+    entry({ startedAt: 0, endedAt: 400, plannedEndsAt: 1_000, stopped: false }),
+    entry({ startedAt: 0, endedAt: 1_000, plannedEndsAt: 1_000, stopped: false }),
+  ];
+  const sum = summarizeFocus(log, 0, 5_000);
+  assert.equal(sum.stoppedEarly, 1);
+});
+
+test('a leggyakoribb csomag neve jön vissza', () => {
+  const log = [
+    entry({ packName: 'Nyelvtanulás' }),
+    entry({ packName: 'Nyelvtanulás' }),
+    entry({ packName: 'Mély munka' }),
+  ];
+  assert.equal(summarizeFocus(log, 0, 5_000).topPack, 'Nyelvtanulás');
+});
+
+test('üres napló üres összegzés, nem kivétel', () => {
+  for (const empty of [undefined, []]) {
+    const sum = summarizeFocus(empty, 0, 1_000);
+    assert.deepEqual(sum, { sessions: 0, totalMs: 0, stoppedEarly: 0, topPack: null });
+  }
+});
+
+test('a naplósor megőrzi a csomag AKKORI nevét', () => {
+  // A csomag azóta átnevezhető vagy törölhető. Egy statisztika, ami ismeretlen
+  // csomagot ír ki a múlt hétre, semmit nem ér.
+  const row = closeRun(
+    { packId: 'p1', startedAt: 100, endsAt: 1_100 }, 'Nyelvtanulás', 900, true,
+  );
+  assert.equal(row.packName, 'Nyelvtanulás');
+  assert.equal(row.plannedEndsAt, 1_100);
+  assert.equal(row.endedAt, 900);
+  assert.equal(row.stopped, true);
+});
+
+function entry(over: Partial<FocusLogEntry> = {}): FocusLogEntry {
+  return {
+    packId: 'p1', packName: 'Nyelvtanulás',
+    startedAt: 1_000, endedAt: 2_000, plannedEndsAt: 2_000, stopped: false,
+    ...over,
+  };
+}

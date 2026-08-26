@@ -174,3 +174,32 @@ szonda kilépése nem hiba: utána azonnal újraindulhat.
 - Szonda-felügyelet: egy sikertelen indítás nem tiltja le a további
   próbálkozásokat, az ismételt hiba növekvő várakozást kap, egy egészségesen
   futott szonda kilépése pedig nem számít hibának.
+
+## Munkamenetek a statisztikán
+
+Az app azt méri, **mire** megy el az idő. A munkamenet a másik oldal: hányszor
+ültél le dolgozni, és hányat vittél végig.
+
+A segéd minden lezárult menetről eltesz egy sort (`FocusLogEntry`), és a
+statisztika ebből számol mai és heti összegzést. A napló **helyi marad**, nem
+megy fel a kiszolgálóra — ez mérés, nem beállítás, és a mérés eddig sem hagyta
+el a gépet.
+
+Két apróság, ami nem apróság:
+
+- **A csomag NEVE is bekerül a sorba**, nem csak az azonosítója. A csomag azóta
+  átnevezhető vagy törölhető, és egy statisztika, ami ismeretlen csomagot ír ki
+  a múlt hétre, semmit nem ér.
+- **A magától lejárt menetnél a TERVEZETT vég kerül be**, nem a takarítás
+  pillanata. A `tick` késhet pár másodpercet, és egy „51 perces” ötvenperces
+  menet apró, de fölösleges hazugság lenne.
+
+### A „korán leállítva” sor
+
+Ez az a szám, amiből tanulni lehet. Nem szégyenpad: aki látja, hogy ötből
+négyszer leállt, az nem a csomagot fogja hibáztatni, hanem rövidebb menetet
+indít — és az működni fog. Ezért van kiírva, és ezért van mellé mondat is.
+
+Korai végnek számít a próbatétel utáni **rövidítés** is, nem csak a leállítás:
+a menet nem addig tartott, ameddig terveztük. Ha csak a „leállítva” jelzőt
+néznénk, a rövidítés láthatatlan maradna — pedig pont ugyanaz a döntés.

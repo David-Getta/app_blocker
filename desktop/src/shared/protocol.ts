@@ -210,6 +210,16 @@ export interface UsageStatsData {
   focusKey: string | null;
   focusLabel: string;
   focusSeries: { day: string; seconds: number }[];
+  /**
+   * A munkamenetek összegzése — ma és a héten.
+   *
+   * Az app eddig azt mérte, MIRE megy el az idő. Ez a másik oldal: hányszor
+   * ültél le dolgozni, és hányat vittél végig. A „korán leállítva” az a szám,
+   * amiből tanulni lehet — nem szégyenpad, hanem visszajelzés arról, hogy
+   * rövidebb menetet kellene indítani.
+   */
+  focusToday: import('./focus').FocusSummary;
+  focusWeek: import('./focus').FocusSummary;
 }
 
 /** Result of a set_schedule request. */

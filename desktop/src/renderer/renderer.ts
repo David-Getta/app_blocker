@@ -2297,6 +2297,47 @@ function renderProbeWarning(measurementOn: boolean): void {
       + 'Amíg nincs adat, a napi időkeret sem fogy.';
 }
 
+/**
+ * A munkamenetek összegzése a statisztikán.
+ *
+ * Az app eddig azt mérte, MIRE megy el az idő. Ez a másik oldal: hányszor
+ * ültél le dolgozni, és hányat vittél végig.
+ *
+ * A „korán leállítva” nem szégyenpad. Aki látja, hogy ötből négyszer leállt,
+ * az nem a csomagot fogja hibáztatni, hanem rövidebb menetet indít — és az
+ * működni fog. Ezért van kiírva, és ezért van mellé mondat is.
+ */
+function renderFocusStats(): void {
+  const week = statsData?.focusWeek;
+  const today = statsData?.focusToday;
+  // Nulla menetnél nem mutatunk üres blokkot: egy minden nap ott álló
+  // nullás doboz nem információ, csak zaj.
+  const show = !!week && week.sessions > 0;
+  $('focusStats').classList.toggle('hidden', !show);
+  if (!show || !week || !today) return;
+
+  const box = $('focusTiles');
+  box.textContent = '';
+  box.append(
+    tile(String(today.sessions), 'menet ma'),
+    tile(formatDuration(Math.round(today.totalMs / 1000)), 'fókuszban ma'),
+    tile(String(week.sessions), 'menet a héten'),
+    tile(formatDuration(Math.round(week.totalMs / 1000)), 'fókuszban a héten'),
+  );
+
+  const parts: string[] = [];
+  if (week.topPack) parts.push(`A hét leggyakoribb csomagja: ${week.topPack}.`);
+  if (week.stoppedEarly > 0) {
+    parts.push(
+      `${week.stoppedEarly} menet ért véget a tervezettnél korábban. `
+      + 'Ha ez sokszor fordul elő, nem a csomaggal van baj: rövidebb menetet érdemes indítani.',
+    );
+  } else {
+    parts.push('A héten minden menetet végigvittél.');
+  }
+  $('focusStatsNote').textContent = parts.join(' ');
+}
+
 function renderStats(): void {
   const card = $('statsCard');
   card.classList.toggle('hidden', !helperUp);
@@ -2317,6 +2358,8 @@ function renderStats(): void {
     tile(formatDuration(s.last7Seconds), 'utolsó 7 nap'),
     tile(formatDuration(s.last30Seconds), 'utolsó 30 nap'),
   );
+
+  renderFocusStats();
 
   renderBarList($('topSites'), s.topWeekSites, $('topSitesEmpty'), true);
   renderBarList($('topApps'), s.topWeekApps, $('topAppsEmpty'), false);

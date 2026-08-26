@@ -10,7 +10,7 @@ import { normalizeDomain, expandHostnames } from '../shared/blocklist';
 import { computeTier } from '../shared/challenges';
 import { normalizeAlias } from '../shared/alias';
 import { normalizeRule } from '../shared/urlrules';
-import { isRunning, normalizePack } from '../shared/focus';
+import { isRunning, normalizePack, summarizeFocus } from '../shared/focus';
 import {
   isBlockedNowWithLimit, isLimitExhausted, normalizeLimit, sharedTodaySeconds, usedTodayEverywhere,
 } from '../shared/limits';
@@ -55,6 +55,13 @@ export interface ServerDeps {
   log: (m: string) => void;
   /** uid of the user allowed to talk to the (root) helper; undefined in dev */
   ownerUid?: number;
+}
+
+/** A mai nap kezdete helyi idő szerint. */
+function startOfDay(now: number): number {
+  const d = new Date(now);
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
 }
 
 export function statusOf(state: HelperState, dohApplied: boolean): StatusData {
@@ -388,6 +395,10 @@ async function handle(req: HelperRequest, deps: ServerDeps): Promise<unknown> {
         focusKey,
         focusLabel: focusKey ? labelOf(state.usage, focusKey) : '',
         focusSeries: focusKey ? series(state.usage, focusKey, now, 30) : [],
+        // A nap kezdete a HELYI naptár szerint: éjfélkor vált, nem huszonnégy
+        // órával ezelőtt. Egy „ma” felirat alatt tegnap esti menetek állnának.
+        focusToday: summarizeFocus(state.focusLog, startOfDay(now), now),
+        focusWeek: summarizeFocus(state.focusLog, startOfDay(now) - 6 * 86_400_000, now),
       };
       return data;
     }

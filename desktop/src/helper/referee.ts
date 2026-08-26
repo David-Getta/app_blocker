@@ -14,7 +14,8 @@ import { isLoosening, normalizeSchedule, ALWAYS, type Schedule } from '../shared
 import { isLimitLoosening, normalizeLimit } from '../shared/limits';
 import { MAX_RULES_PER_SITE, sameRule, type UrlRule } from '../shared/urlrules';
 import {
-  isRunning, isSessionLoosening, normalizeMinutes, type FocusPack, type FocusRun,
+  closeRun, isRunning, isSessionLoosening, MAX_FOCUS_LOG, normalizeMinutes,
+  type FocusPack, type FocusRun,
 } from '../shared/focus';
 import type { AbandonRec, HelperState, SessionRec } from './state';
 import { newId } from './state';
@@ -95,13 +96,34 @@ export function startSession(
   return sessionInfo(state.session, now);
 }
 
+/**
+ * Egy lezárult munkamenet a naplóba.
+ *
+ * A csomag NEVÉT is elmentjük, nem csak az azonosítóját: a csomag azóta
+ * átnevezhető vagy törölhető, és egy statisztika, ami „ismeretlen csomag”-ot
+ * ír ki a múlt hétre, semmit nem ér.
+ */
+function logFocusEnd(state: HelperState, endedAt: number, stopped: boolean): void {
+  const run = state.focusRun;
+  if (!run) return;
+  const pack = (state.focusPacks ?? []).find((p) => p.id === run.packId);
+  const entry = closeRun(run, pack?.name ?? 'Ismeretlen csomag', endedAt, stopped);
+  state.focusLog = [...(state.focusLog ?? []), entry].slice(-MAX_FOCUS_LOG);
+}
+
 function finishSession(state: HelperState, now: number): void {
   const s = state.session!;
   // A munkamenet nem egy OLDALHOZ tartozik, hanem az egész géphez: ezért itt
   // áll, a site-keresés előtt. A -1 azt jelenti: állítsd le most.
   if (s.pendingFocusEnd !== undefined) {
-    if (s.pendingFocusEnd < 0) state.focusRun = null;
-    else if (state.focusRun) state.focusRun = { ...state.focusRun, endsAt: s.pendingFocusEnd };
+    if (s.pendingFocusEnd < 0) {
+      // A naplót ITT írjuk, nem a `tick`-ben: csak innen derül ki, hogy a menet
+      // PRÓBATÉTELLEL ért véget, nem magától. A kettő nem ugyanaz a mondat.
+      logFocusEnd(state, now, true);
+      state.focusRun = null;
+    } else if (state.focusRun) {
+      state.focusRun = { ...state.focusRun, endsAt: s.pendingFocusEnd };
+    }
     state.unlockLog = [...state.unlockLog.filter((t) => t > now - 30 * 24 * 3600_000), now];
     state.session = null;
     state.abandons = (state.abandons ?? []).filter((a) => a.siteId !== s.siteId);
@@ -416,6 +438,10 @@ export function tick(state: HelperState, now: number): boolean {
   // de a felület és a bővítmény az állapotot olvassa: egy ottfelejtett rekord
   // örökre futó munkamenetnek látszana.
   if (state.focusRun && !isRunning(state.focusRun, now)) {
+    // Magától járt le: a naplóba a TERVEZETT vég kerül, nem a mostani idő. A
+    // takarítás késhet pár másodpercet, és egy „51 perces” ötvenperces menet
+    // apró, de fölösleges hazugság lenne.
+    logFocusEnd(state, state.focusRun.endsAt, false);
     state.focusRun = null;
     dirty = true;
   }

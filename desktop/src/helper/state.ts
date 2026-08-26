@@ -8,7 +8,9 @@ import type { Step } from '../shared/challenges';
 import type { Schedule } from '../shared/schedule';
 import { emptyUsage, type UsageState } from '../shared/usage';
 import type { SharedToday } from '../shared/limits';
-import { normalizePack, type FocusPack, type FocusRun } from '../shared/focus';
+import {
+  normalizePack, type FocusLogEntry, type FocusPack, type FocusRun,
+} from '../shared/focus';
 import type { UrlRule } from '../shared/urlrules';
 import { stateFilePath } from './paths';
 
@@ -158,6 +160,13 @@ export interface HelperState {
    * telefonra, és a felhasználó azt hinné, a funkció rossz.
    */
   focusSyncError?: string;
+  /**
+   * A LEZÁRULT munkamenetek naplója.
+   *
+   * Helyi marad, nem megy fel a kiszolgálóra: ez mérés, nem beállítás — és a
+   * mérés eddig sem hagyta el a gépet. A statisztika ebből dolgozik.
+   */
+  focusLog?: FocusLogEntry[];
 }
 
 export interface SyncAccount {

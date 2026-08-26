@@ -200,6 +200,18 @@
       <div id="statsBody">
         <div class="tiles" id="statTiles"></div>
 
+        <!--
+          A munkamenetek. Az app eddig azt mérte, MIRE megy el az idő; ez a
+          másik oldal: hányszor ültél le dolgozni, és hányat vittél végig.
+          Csak akkor jelenik meg, ha van mit mutatni — egy üres blokk, ami
+          minden nap ott áll nullákkal, csak zaj.
+        -->
+        <div id="focusStats" class="chart-block hidden">
+          <h3 class="chart-title">Munkamenetek</h3>
+          <div class="tiles" id="focusTiles"></div>
+          <p id="focusStatsNote" class="hint"></p>
+        </div>
+
         <div class="chart-block">
           <h3 class="chart-title">Legtöbb idő az elmúlt 7 napban</h3>
           <div class="legend" id="usageLegend">

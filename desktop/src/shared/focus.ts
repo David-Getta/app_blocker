@@ -208,6 +208,89 @@ export function shouldWarnAboutApp(
  */
 export const APP_WARN_COOLDOWN_MS = 3 * 60_000;
 
+// ---------------------------------------------------------------------------
+// A lezárult munkamenetek naplója
+// ---------------------------------------------------------------------------
+//
+// MIÉRT KELL. Az app méri, mire megy el az idő — a munkamenetről viszont eddig
+// SEMMI nem maradt. Pedig pont ez az a szám, ami a felhasználóról szól: nem az,
+// hogy mennyit volt fenn a YouTube-on, hanem hogy hányszor ült le dolgozni, és
+// hányszor állt fel a végénél korábban.
+//
+// A korán leállítás nem szégyenpad: az adat maga a visszajelzés. Aki látja,
+// hogy ötből négyszer leállt, az nem a csomagot fogja hibáztatni, hanem
+// rövidebb menetet fog indítani — és az működni fog.
+
+/** Egy lezárult munkamenet. */
+export interface FocusLogEntry {
+  packId: string;
+  /** a csomag neve AKKOR — a csomag azóta átnevezhető vagy törölhető */
+  packName: string;
+  startedAt: number;
+  /** mikor ért véget ténylegesen */
+  endedAt: number;
+  /** mikorra volt tervezve — ebből látszik, hogy korábban ért-e véget */
+  plannedEndsAt: number;
+  /** próbatétellel leállítva (igaz), vagy magától lejárt (hamis) */
+  stopped: boolean;
+}
+
+/** Ennyi lezárult menetet tartunk meg. A statisztika úgyis hetekben gondolkodik. */
+export const MAX_FOCUS_LOG = 200;
+
+/** Egy naplósor a futó menetből. */
+export function closeRun(
+  run: FocusRun, packName: string, endedAt: number, stopped: boolean,
+): FocusLogEntry {
+  return {
+    packId: run.packId,
+    packName,
+    startedAt: run.startedAt,
+    endedAt,
+    plannedEndsAt: run.endsAt,
+    stopped,
+  };
+}
+
+export interface FocusSummary {
+  /** hány menet zárult le az ablakban */
+  sessions: number;
+  /** összesen ennyi ideig tartottak, ezredmásodpercben */
+  totalMs: number;
+  /** ennyit állítottál le a tervezettnél korábban */
+  stoppedEarly: number;
+  /** a leggyakoribb csomag neve, ha van */
+  topPack: string | null;
+}
+
+/**
+ * Összegzés egy időablakra.
+ *
+ * A „korán leállítva” az a sor, amit érdemes nézni: nem a menetek száma
+ * mond valamit rólad, hanem az, hányat vittél végig.
+ */
+export function summarizeFocus(
+  log: FocusLogEntry[] | undefined, since: number, now: number,
+): FocusSummary {
+  const rows = (log ?? []).filter((e) => e.endedAt >= since && e.endedAt <= now);
+  let totalMs = 0;
+  let stoppedEarly = 0;
+  const byPack = new Map<string, number>();
+  for (const e of rows) {
+    totalMs += Math.max(0, e.endedAt - e.startedAt);
+    // Nem a `stopped` jelző dönt, hanem a TÉNY: a próbatétel utáni rövidítés is
+    // korai vég, akkor is, ha utána még futott egy darabig.
+    if (e.endedAt < e.plannedEndsAt) stoppedEarly++;
+    byPack.set(e.packName, (byPack.get(e.packName) ?? 0) + 1);
+  }
+  let topPack: string | null = null;
+  let best = 0;
+  for (const [name, count] of byPack) {
+    if (count > best) { best = count; topPack = name; }
+  }
+  return { sessions: rows.length, totalMs, stoppedEarly, topPack };
+}
+
 /** Esedékes-e a figyelmeztetés (az előző óta eltelt-e a türelmi idő). */
 export function warnDue(lastWarnAt: number | null, now: number): boolean {
   if (lastWarnAt === null) return true;
