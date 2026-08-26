@@ -173,6 +173,26 @@ const WIRES = [
     needle: 'ChallengeEngine.computeTier',
     lost: 'az iPhone-on minden feloldás a legkönnyebb próbatételt kapná',
   },
+
+  // A RÉSZLEGES TILTÁS a böngészőben. A bővítmény két forrásból dolgozik: a
+  // saját szabályaiból és az appból lehúzottakból. Ha a kettő összefésülése
+  // (`withAppRules`) kimaradna, az appban felvett szabályok SOHA nem hatnának
+  // — a felületen ott állnának, a böngésző meg átengedné őket.
+  {
+    file: 'extension/background.js',
+    needle: 'withAppRules',
+    lost: 'az appban felvett részleges szabályok nem hatnának a böngészőben',
+  },
+  {
+    file: 'extension/background.js',
+    needle: 'firstMatch',
+    lost: 'a bővítmény semmilyen szabályt nem alkalmazna',
+  },
+  {
+    file: 'extension/background.js',
+    needle: 'dueForRefresh',
+    lost: 'a bővítmény befagyna az első listánál, és nem venné át a változásokat',
+  },
 ];
 
 /**
