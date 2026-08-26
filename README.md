@@ -77,15 +77,22 @@ attól, hogy sokszor csinálod.
   feloldás. Amíg van keret, a mérés nem kapcsolható ki — abból fogy.
   iPhone-on ez nem építhető meg (nincs ilyen mérési API), lásd a korlátokat.
 
-- **Munkamenetek: „most csak ez mehet”** (asztali gép). A blokklista arról szól,
+- **Munkamenetek: „most csak ez mehet”** (gép, Android, iPhone). A blokklista arról szól,
   mi NE menjen; a munkamenet fordítva: csinálsz egy csomagot (pl.
   „Nyelvtanulás”), felsorolod, mi mehet alatta, és megadod, meddig tartson.
   Amíg tart, **minden más tiltva**. Egy **gyorsbillentyűs réteg** (⌘⌥B, illetve
   Ctrl+Alt+B) bárhonnan előhozza, és számbillentyűvel indít — mert aki leül
   dolgozni, nem fog előbb ablakot keresni. Indítani és hosszabbítani ingyen van,
   **leállítani próbatétel**; a futó csomag közben nem szerkeszthető. A
-  fehérlistát a böngésző-bővítmény érvényesíti (csak ott látszik a teljes cím),
-  az appoknál a réteg **szól, de nem tilt** — lásd
+  fehérlistát a gépen a böngésző-bővítmény érvényesíti (csak ott látszik a
+  teljes cím), az appoknál a réteg **szól, de nem tilt**.
+
+  **A telefonon ez erősebb**: ott a DNS-szűrő minden névfeloldást lát, tehát
+  bővítmény nélkül betartatja a fehérlistát — szűk, tételesen indokolt
+  kivétellel (értesítés, kapcsolat-ellenőrzés, óra, a saját fiókkiszolgálód),
+  mert egy telefon, aminek minden névfeloldása elhasal, nem korlátozott, hanem
+  használhatatlan. Androidon indítani és leállítani is lehet; iPhone-on
+  egyelőre csak az érvényesítés. Lásd
   [`docs/feature-focus-sessions.md`](docs/feature-focus-sessions.md).
 
 ## Képernyőképek
