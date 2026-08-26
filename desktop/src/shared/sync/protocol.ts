@@ -19,7 +19,16 @@ export type Collection =
   /** a blokklista (SyncSite[]) */
   | 'sites'
   /** egy eszköz mért ideje, naponként */
-  | 'usage';
+  | 'usage'
+  /**
+   * a munkamenet: csomagok + a futó menet (SyncFocus).
+   *
+   * KÜLÖN gyűjtemény, nem a `sites` egy mezője. Nem kényelmi döntés: egy RÉGI
+   * kliens, ami nem ismeri a munkamenetet, egy ismeretlen MEZŐT csendben
+   * eldobna a `sites` blobból — és minden szinkron-körben letörölné a gépen
+   * felvett csomagokat. Egy ismeretlen GYŰJTEMÉNYHEZ viszont hozzá sem nyúl.
+   */
+  | 'focus';
 
 export interface SyncRequestBase {
   accountId: string;

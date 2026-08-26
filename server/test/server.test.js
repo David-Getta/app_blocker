@@ -118,6 +118,28 @@ test('usage is per device, and every device is readable in one call', async () =
   assert.equal(byId['gep-b'], 'brk1.b.b.b');
 });
 
+test('the focus session is one blob for the whole account', async () => {
+  // A munkamenetnek SAJÁT gyűjteménye van, nem a blokklista egy mezője. Ha
+  // mező lenne, egy régi kliens — ami nem ismeri — csendben eldobná a `sites`
+  // blobból, és minden szinkron-körben letörölné a gépen felvett csomagokat.
+  // Külön fiók, mert a megosztott fiók kulcsát egy másik teszt elforgatja.
+  const accF = { accountId: 'fokusz@example', authKey: 'K-FOKUSZ' };
+  await post('/v1/signup', {
+    ...accF, wrappedByPassword: 'brk1.a.b.c', wrappedByRecovery: 'brk1.a.b.c',
+  });
+  const push = await post('/v1/push', {
+    ...accF, collection: 'focus', deviceId: 'gep-a', baseVersion: 0, payload: 'brk1.f.f.f',
+  });
+  assert.equal(push.status, 200);
+  // NEM eszközönként: a telefonnak ugyanazt kell látnia, amit a gép feltöltött.
+  // Enélkül a gépen indított munkamenet a telefonra sosem érne el.
+  const fromPhone = await post('/v1/pull', { ...accF, collection: 'focus', deviceId: 'telefon' });
+  assert.equal(fromPhone.json.payload, 'brk1.f.f.f');
+  // És nem keveredik a blokklistával.
+  const sites = await post('/v1/pull', { ...accF, collection: 'sites' });
+  assert.notEqual(sites.json.payload, 'brk1.f.f.f');
+});
+
 test('forgetting a device only removes it from the account', async () => {
   // A helyi blokkokhoz a kiszolgáló nem is fér hozzá — de a mérése megmarad,
   // tehát a visszacsatlakozás nem veszít adatot.

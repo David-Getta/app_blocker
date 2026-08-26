@@ -40,6 +40,10 @@ const COLLECTIONS = {
   sites: { perDevice: false },
   usage: { perDevice: true },
   today: { perDevice: true },
+  // A munkamenet a fiók egészére közös: ha a gépen elindítasz egy fehérlistás
+  // menetet, a telefonon is annak kell érvényesnek lennie. Eszközönként külön
+  // blob itt pont a lényeget venné el.
+  focus: { perDevice: false },
 };
 
 /**
