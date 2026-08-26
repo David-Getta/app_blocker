@@ -94,7 +94,18 @@ attól, hogy sokszor csinálod.
   kivétellel (értesítés, kapcsolat-ellenőrzés, óra, a saját fiókkiszolgálód),
   mert egy telefon, aminek minden névfeloldása elhasal, nem korlátozott, hanem
   használhatatlan. Indítani és leállítani mindkét telefonon lehet — a
-  leállítás ott is próbatétel. Lásd
+  leállítás ott is próbatétel.
+
+  **Statisztika a menetekről, minden eszközről:** hányszor ültél le dolgozni és
+  hányat vittél végig, mai és heti bontásban. Minden eszköz vezeti a saját
+  naplóját, és a napló utazik a fiókon — ha ugyanazt a menetet két eszköz is
+  lezárja, az EGY menet marad. A „korán leállítva” sor szándékosan nem
+  szégyenpad: ha sokszor fordul elő, nem a csomaggal van baj, hanem a hosszal.
+
+  A gépen a fehérlistát KIZÁRÓLAG a bővítmény tudja betartatni, ezért az app és
+  a gyorsbillentyűs réteg is **szól, ha az nincs összekötve** — enélkül az
+  indítás csendben nem tiltana semmit a böngészőben. Az óra átállítása sem
+  rövidíti meg a menetet: amennyi hátra volt, annyi van hátra. Lásd
   [`docs/feature-focus-sessions.md`](docs/feature-focus-sessions.md).
 
 ## Képernyőképek
