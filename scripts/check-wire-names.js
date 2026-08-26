@@ -78,6 +78,17 @@ const GROUPS = [
     kt: 'android/app/src/main/java/hu/breaker/app/core/SyncClient.kt',
     swift: 'ios/Shared/Focus.swift',
   },
+  // A BLOKKLISTA. Ez a legfontosabb adat az appban: ha egy mezőneve
+  // szétcsúszik, a másik eszköz némán eldobja. Egy elveszett `pendingDeleteAt`
+  // például azt jelentené, hogy a telefonon a függő törlés sosem következik be
+  // — az app „törlés folyamatban”-t mutatna, és soha nem törölne.
+  {
+    what: 'egy blokkolt oldal',
+    names: ['domain', 'hostnames', 'addedAt', 'pendingDeleteAt', 'dailyLimitSeconds', 'alias', 'rules'],
+    ts: 'desktop/src/shared/sync/merge.ts',
+    kt: 'android/app/src/main/java/hu/breaker/app/core/SyncClient.kt',
+    swift: 'ios/Shared/SyncMerge.swift',
+  },
   {
     what: 'egy naplósor',
     names: ['packName', 'endedAt', 'plannedEndsAt', 'stopped'],
