@@ -44,6 +44,59 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
+          **A munkamenet hossza percre pontos.** Eddig csak a felkínált
+          gombokból lehetett választani (15 / 25 / 50 / 90 / 120 perc). Aki
+          tudja, hogy negyvenhárom perce van ebédig, az kénytelen volt fölé
+          vagy alá lőni — és egy önkontroll-appnál a „nagyjából annyi” pont a
+          rossz irány: fölé lőve leállítani akarsz, és az próbatétel; alá lőve
+          lejár, mielőtt kész lennél.
+
+          Mostantól a gyorsgombok mellett ott a szabad mező, mindenhol, ahol
+          percet kell megadni:
+
+          - munkamenet indítása — az appban **és** a gyorsbillentyűs rétegben,
+          - hosszabbítás menet közben (a hosszabbítás szigorítás, ezért ingyen),
+          - a csomag szokásos hossza — ez eddig fixen ötven perc volt, és sehol
+            nem lehetett átállítani,
+          - **napi keret** oldalanként.
+
+          A feloldás („szünet”) hossza szándékosan marad a 15 / 30 / 60 perces
+          listán: az lazítás, és ha szabadon megadható lenne, ugyanannak az egy
+          próbatételnek az árán lehetne nyolc órát kérni.
+
+          **A futó munkamenet mostantól minden nézetből látszik.** Eddig csak a
+          Munkamenetek fülön: a másik két fülről nézve az app úgy nézett ki,
+          mintha nem menne semmi — és amikor egy oldal nem jött be, a
+          felhasználó a hibát kereste, nem a munkamenetet. Egy fehérlistás
+          munkamenetnél ez a legrosszabb tévedés. Most a fejlécben áll, a
+          csomag nevével és a hátralévő idővel, és rákattintva odavisz. A futó
+          munkamenet doboza a végét is kiírja („eddig: 14:32”), nem csak azt,
+          mennyi van hátra.
+
+          ### Javítva
+
+          - **A futó csomag „Szerkesztés” gombja mindig hibára futott.** A gomb
+            aktív volt, a háttérszolgáltatás viszont a futó csomag mentését
+            visszautasítja — a felület tehát felkínált egy szerkesztőt, amiből
+            a Mentés sosem ment át. Most letiltva, és a buborékja megmondja,
+            miért fagy be a futó csomag.
+          - **A csomag törlése egyetlen kattintás volt.** Egy gondosan
+            összerakott fehérlista ne tűnjön el félrekattintásra: két lépés
+            lett.
+          - **A hosszkorlátokról semmi nem szólt.** A csomag nevét negyven
+            karakternél, a listákat negyven tételnél vágja le a
+            háttérszolgáltatás — eddig mentés után egyszerűen egy másik
+            csomagot kaptál vissza, magyarázat nélkül. Most korlátozott mező és
+            számláló van.
+          - **A gyorsbillentyűs réteg üres állapota zsákutca volt:** megmondta,
+            hogy az appban kell csomagot felvenni, de nem vitt oda. Most van
+            rajta gomb, ami megnyitja az appot.
+          - **A kiválasztott hossz-gombra nem jött visszajelzés,** és a kis
+            feliratok akkorák voltak, mint a törzsszöveg: két stílus hiányzott,
+            amit a felület egyébként használt.
+
+          ### Ami a v0.4.1-ben jött
+
           **Felső menüsor — nincs több tekerés.** Eddig minden egymás alatt volt
           egyetlen hosszú lapon: a fiókhoz a képernyő aljáig kellett görgetni, és
           a statisztika meg a blokklista egymást takarta. Mostantól három fül van
@@ -65,7 +118,7 @@ jobs:
           mindig az Oldalak nézettel nyílik, mert a blokklista az, amiért az app
           van.
 
-          ### Javítva
+          #### Akkor javítva
 
           - **A munkameneteknél az „Új csomag” gomb nem csinált semmit.** A gomb
             ott volt, kezelő viszont nem tartozott hozzá: rá lehetett kattintani,
@@ -201,7 +254,7 @@ jobs:
           **próbatételek**, amik nem lesznek könnyebbek attól, hogy sokszor
           oldasz fel.
 
-          ### Ebben a verzióban javítva
+          ### Régebbi javítások
 
           - **Telefonon a helyi kiszolgáló nem volt elérhető.** Android 9-től és
             iOS-en a titkosítatlan HTTP alapból tiltott, így a saját hálózaton
