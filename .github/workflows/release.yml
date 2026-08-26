@@ -67,12 +67,20 @@ jobs:
           saját fiókkiszolgálód — ez utóbbi azért, hogy a telefon lássa, ha egy
           MÁSIK eszközön leállítod a menetet. Böngészni egyiken sem lehet.
 
-          **Indítani egyelőre a gépen lehet**, és ez szándékos, nem félkész.
-          Indítani ingyen van, leállítani viszont próbatétel — ha a telefon
-          tudna indítani, de leállítani nem, egy nyolcórás menetből ott nem
-          lenne kiút. A telefonos indítás a próbatétel-motor teljes tükrével
-          együtt jön, egyben. Kiút addig is van, és nem titok: a rendszer
-          VPN-kapcsolója erősebb az appnál.
+          **Androidon indítani és leállítani is lehet** — a kettő egyszerre
+          került be, és ez nem esztétika. Indítani ingyen van, leállítani
+          viszont próbatétel: ha a telefon tudna indítani, de leállítani nem,
+          egy nyolcórás menetből ott nem lenne kiút. Vagy mindkettő, vagy egyik
+          sem. iPhone-on egyelőre csak az érvényesítés van meg; ott az indítás
+          ugyanígy, a próbatétel-motorral együtt fog jönni.
+
+          A csomagokat továbbra is a **gépen** állítod össze: ott látszik a
+          teljes lista, és ott kényelmes gépelni. A telefon indítja és
+          betartatja őket. A hossz ott is percre pontos — üres mezőnél a csomag
+          szokásos hossza, hogy az indítás egy koppintás maradjon.
+
+          Kiút emellett is van, és nem titok: a rendszer VPN-kapcsolója erősebb
+          az appnál.
 
           Amit a gépi ellenőrzés NEM fed, és ezt sem hallgatjuk el: a tényleges
           alagút-viselkedés csak igazi készüléken derül ki. A logika és a
