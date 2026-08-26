@@ -153,3 +153,69 @@ A bővítmény a munkamenet végét **helyben** nézi, nem az apptól kérdezi:
       nem hosts-fájl
 - [ ] A csomagok szinkronizálása eszközök között
 - [ ] A gyorsbillentyű átállítható legyen a felületről
+
+## A telefon eddig kiskapu volt
+
+A munkamenet a v0.4.2-ig **csak az asztali appban létezett**. Elindítod a gépen
+a „Nyelvtanulás” csomagot, aztán felveszed a telefont — és ott minden mehet.
+Egy fehérlistánál ez nem részleges lefedettség, hanem a funkció fele: pont az
+az eszköz maradt ki, ami kéznél van.
+
+A mag ezért mostantól **három nyelven** él (`Focus.kt`, `Focus.swift`), és a
+`scripts/check-core-sync.js` őrzi, hogy a számai ne csússzanak szét.
+
+### Telefonon a fehérlista ERŐSEBB, mint gépen
+
+Ez meglepő, de így van, és a mechanizmusból jön:
+
+| | Amit a réteg lát | Fehérlista? |
+|---|---|---|
+| **hosts fájl (gép)** | egy statikus névlista | **nem** — a világ összes nevét kellene felsorolni |
+| **böngésző-bővítmény (gép)** | a teljes URL | igen, de csak abban a böngészőben |
+| **VPN/alagút (telefon)** | **minden névfeloldás** | **igen** — bármire tud nemet mondani |
+
+A telefonon tehát nem kell bővítmény: a szűrő minden lekérdezést lát, és ami
+nincs a csomagon, arra NXDOMAIN a válasz.
+
+### Ezért kell a kivétellista — és ezért szűk
+
+Egy telefon, aminek MINDEN névfeloldása elhasal, nem korlátozott telefon,
+hanem használhatatlan: nem jön értesítés, a rendszer azt hiszi, nincs
+internet, és a felhasználó a munkamenetet fogja hibásnak tartani, nem a saját
+beállítását.
+
+A kivételek tételesen, indoklással (`Focus.INFRA_ALLOW`):
+
+| Mi | Miért |
+|---|---|
+| értesítés-kézbesítés (FCM / APNs) | enélkül nyolc órán át nem jön üzenet — a munkamenet nem arról szól, hogy elérhetetlen legyél |
+| kapcsolat-ellenőrzés | enélkül a rendszer hálózati hibát jelez, és a felhasználó „nincs net”-et lát, nem munkamenetet |
+| óra (NTP) | egy elcsúszott óra a munkamenet VÉGÉT is elcsúsztatná |
+| a saját fiókkiszolgálód | enélkül a telefon nem látná, ha egy MÁSIK eszközön leállítod — egy zár, amit a saját kulcsod sem ér el, nem zár |
+
+Böngészni egyiken sem lehet. A felület kimondja, hogy a lista létezik: egy
+titkos kivétel rosszabb lenne, mint egy nyílt.
+
+### A sorrend, ami nem esztétika
+
+`Focus.verdict` a döntés, és a sorrendje maga a szabályrendszer:
+
+1. **A blokklista mindig nyer.** A munkamenet sosem old fel semmit — csak
+   hozzátesz. Ha ez fordítva lenne, egy csomagba felvett `youtube.com`
+   feloldaná a tiltott YouTube-ot, próbatétel nélkül: a munkamenet lenne a
+   kiskapu a blokklistán.
+2. Nem fut munkamenet → a blokklista döntött.
+3. A csomagon rajta van → mehet.
+4. Rendszer-infrastruktúra → mehet.
+5. Minden más → tiltva, mert a munkamenet fehérlista.
+
+Az 1. pontot külön teszt őrzi, és a tesztet elrontva ellenőriztem, hogy
+tényleg elhasal.
+
+### Amit az appoknál a telefon NEM tud
+
+A csomag `allowApps` mezőjét a telefon **nem érvényesíti**. Androidon a
+rendszer-alagút appok szerinti szűrése külön mechanizmus (`addAllowedApplication`),
+iOS-en pedig egyáltalán nincs ilyen. A mezőt mégis tároljuk és szinkronizáljuk,
+mert a gépen érvényes, és a szinkron sosem dobhat el olyat, amit egy eszköz nem
+használ — különben a telefon minden körben letörölné a gépen felvett listát.

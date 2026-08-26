@@ -71,6 +71,10 @@ ts.rules = read('desktop/src/shared/urlrules.ts');
 kt.rules = read('android/app/src/main/java/hu/breaker/app/core/UrlRules.kt');
 sw.rules = read('ios/Shared/UrlRules.swift');
 
+ts.focus = read('desktop/src/shared/focus.ts');
+kt.focus = read('android/app/src/main/java/hu/breaker/app/core/Focus.kt');
+sw.focus = read('ios/Shared/Focus.swift');
+
 function scalar(text, re, label) {
   const m = text.match(re);
   if (!m) return { missing: label };
@@ -114,6 +118,22 @@ const CHECKS = [
     list(ts.protocol, /PAUSE_CHOICES_MIN\s*=\s*\[([^\]]+)\]/, 'ts'),
     list(kt.engine, /PAUSE_CHOICES_MIN\s*=\s*listOf\(([^)]+)\)/, 'kt'),
     list(sw.engine, /pauseChoicesMin\s*=\s*\[([^\]]+)\]/, 'swift')],
+  ['MAX_ALLOW_ENTRIES',
+    scalar(ts.focus, /MAX_ALLOW_ENTRIES\s*=\s*([^;]+);/, 'ts'),
+    scalar(kt.focus, /MAX_ALLOW_ENTRIES\s*=\s*(.+)/, 'kt'),
+    scalar(sw.focus, /maxAllowEntries\s*=\s*(.+)/, 'swift')],
+  ['MAX_PACK_NAME',
+    scalar(ts.focus, /MAX_PACK_NAME\s*=\s*([^;]+);/, 'ts'),
+    scalar(kt.focus, /MAX_PACK_NAME\s*=\s*(.+)/, 'kt'),
+    scalar(sw.focus, /maxPackName\s*=\s*(.+)/, 'swift')],
+  ['MAX_SESSION_MINUTES',
+    scalar(ts.focus, /MAX_SESSION_MINUTES\s*=\s*([^;]+);/, 'ts'),
+    scalar(kt.focus, /MAX_SESSION_MINUTES\s*=\s*(.+)/, 'kt'),
+    scalar(sw.focus, /maxSessionMinutes\s*=\s*(.+)/, 'swift')],
+  ['SESSION_CHOICES_MIN',
+    list(ts.focus, /SESSION_CHOICES_MIN\s*=\s*\[([^\]]+)\]/, 'ts'),
+    list(kt.focus, /SESSION_CHOICES_MIN\s*=\s*listOf\(([^)]+)\)/, 'kt'),
+    list(sw.focus, /sessionChoicesMin\s*=\s*\[([^\]]+)\]/, 'swift')],
   ['tier: transcribeChars',
     list(ts.challenges, /transcribeChars:\s*\[([^\]]+)\]/, 'ts'),
     list(kt.engine, /TRANSCRIBE_CHARS\s*=\s*intArrayOf\(([^)]+)\)/, 'kt'),
