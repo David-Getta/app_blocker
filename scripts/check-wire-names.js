@@ -16,8 +16,18 @@
 // tulajdonságnevekből képzi a kulcsokat, tehát egy átnevezés némán megváltoztatja
 // a drót-alakot. Ez az ellenőrző emiatt van.
 //
-// AMIT NEM FED: azt nem nézi, hogy a mező ÉRTÉKE ugyanaz-e, se azt, hogy
-// tényleg fel is kerül-e. Csak azt, hogy a NÉV mindhárom helyen szerepel.
+// AMIT NEM FED — és ezt ki kell mondani, különben hamis biztonságot ad:
+//
+//   - a mező ÉRTÉKÉT nem nézi, se azt, hogy tényleg fel is kerül-e a drótra;
+//   - és ami a legfontosabb: a FÉL-ÁTNEVEZÉST nem fogja ki. Ha egy név
+//     ugyanabban a fájlban két helyen keletkezik, és csak az egyik változik
+//     el, a másik „megvan”, tehát az ellenőrző hallgat. A Kotlin oldalon ez
+//     valóságos: a mai összegzést két külön hely is kiírja.
+//
+// Amit tehát tényleg garantál: egy TELJES átnevezés — Swift tulajdonság, TS
+// felület-mező, egyedi Kotlin kulcs — nem csúszhat át. Ez pont az a hibafajta,
+// amit iPhone-on semmi más nem fogna ki, mert ott nincs teszt, és a `Codable` a
+// tulajdonságnevekből képzi a kulcsokat.
 //
 // Futtatás: node scripts/check-wire-names.js
 
@@ -89,6 +99,19 @@ const GROUPS = [
     kt: 'android/app/src/main/java/hu/breaker/app/core/SyncClient.kt',
     swift: 'ios/Shared/SyncMerge.swift',
   },
+  // A MAI MÉRÉS ÖSSZEGZÉSE. Ezen áll a KÖZÖS napi keret: minden eszköz
+  // feltölti, mennyit mért ma, a többi meg hozzáadja a sajátjához. Ha a `day`
+  // neve elcsúszik, a fogadó oldal nem tudja eldönteni, hogy a sor MAI-e — és
+  // a szűrés (`d.day !== today`) mindent kidob. A keret ettől csendben
+  // visszaesne eszközönkéntire: a „napi 20 perc” két eszközzel megint negyven
+  // lenne, pontosan az a hiba, ami ellen a funkció készült.
+  {
+    what: 'a mai mérés összegzése',
+    names: ['deviceId', 'day', 'seconds'],
+    ts: 'desktop/src/shared/limits.ts',
+    kt: 'android/app/src/main/java/hu/breaker/app/core/SyncClient.kt',
+    swift: 'ios/Shared/Limits.swift',
+  },
   {
     what: 'egy naplósor',
     names: ['packName', 'endedAt', 'plannedEndsAt', 'stopped'],
@@ -107,7 +130,11 @@ const GROUPS = [
  *   - Swift: tulajdonság-deklaráció, mert a `Codable` ebből képzi a kulcsot.
  */
 const LANGS = [
-  { name: 'TypeScript', key: 'ts', pattern: (f) => new RegExp(`^\\s*${f}\\??:[^,]*;`, 'm') },
+  // A sor VÉGÉN álló pontosvessző választja el a felület-mezőt az objektum-
+  // literáltól (az vesszőre végződik). A típusban lévő vessző NEM zavarhat:
+  // az első próbám `[^,]*;`-t használt, és a `Record<string, number>` miatt a
+  // `seconds` mezőt hiányzónak jelentette — a minta bukott meg, nem a kód.
+  { name: 'TypeScript', key: 'ts', pattern: (f) => new RegExp(`^\\s*${f}\\??:[^;\\n]*;\\s*$`, 'm') },
   { name: 'Kotlin', key: 'kt', pattern: (f) => new RegExp(`put\\("${f}"`) },
   { name: 'Swift', key: 'swift', pattern: (f) => new RegExp(`\\b(let|var) ${f}:`) },
 ];
