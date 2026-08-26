@@ -231,8 +231,23 @@ Amit érdemes futtatni fejlesztés közben:
 | `node scripts/check-text.js` | magyar idézőjel-párok (Kotlinban lezáratlan sztring = fordítási hiba) |
 | `node scripts/check-kotlin-imports.js` | hiányzó import a saját mag-típusainkra a Compose-fájlokban |
 | `node scripts/check-core-sync.js` | a TS/Kotlin/Swift mag számai (nehézségi szintek, határidők) egyeznek-e |
+| `node scripts/check-ui-wiring.js` | van-e olyan gomb a felületen, amihez nem tartozik kezelő |
+| `node scripts/check-enforcement.js` | a döntést tényleg MEGKÉRDEZI-e valaki (31 pont) |
+| `node scripts/check-infra-allow.js` | a munkamenet kivétellistája szűk maradt-e |
 
 A CI mindet futtatja minden pusholásnál.
+
+**Miért van ennyi ellenőrző.** A projekt visszatérő hibafajtája nem a rossz
+logika, hanem a NÉMA hiba: a mag megvan, teszt is van rá, csak épp senki nem
+hívja — vagy a szöveg mond valamit, amit az app már nem tart be. Ilyenkor semmi
+nem hasal el: a fordítás jó, a tesztek zöldek, az app hibátlannak látszik, és a
+tiltás nem történik meg. A felhasználó pedig azt hiszi, védve van.
+
+Két valódi példa ebből a repóból: az „Új csomag” gomb egy kiadáson át ott volt
+kezelő nélkül, és a statisztika-képernyő hónapokig azt írta, hogy a mérés nem
+hagyja el a gépet — miközben a közös napi keret miatt már feltöltődött. Ezért
+minden ellenőrző úgy készült, hogy SZÁNDÉKOSAN elrontottuk a védett dolgot, és
+megnéztük, tényleg elhasal-e.
 
 ## Őszinte korlátok
 
