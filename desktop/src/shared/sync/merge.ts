@@ -24,7 +24,6 @@
 
 import type { Schedule, Band, Weekday } from '../schedule.js';
 import { ALWAYS, normalizeSchedule } from '../schedule.js';
-import { normalizeAlias } from '../alias.js';
 import { MAX_RULES_PER_SITE, normalizeRule, sameRule, type UrlRule } from '../urlrules.js';
 
 /**
@@ -329,19 +328,20 @@ function bySortKey(a: SyncSite, b: SyncSite): number {
   return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
 }
 
-/**
- * Egy helyi rekordból szinkron-rekord.
- *
- * A fedőnevet itt is normalizáljuk: a szinkronon át érkező adat ugyanolyan
- * megbízhatatlan, mint bármi más, ami kívülről jön.
- */
-export function toSyncSite(
-  site: Omit<SyncSite, 'rev' | 'updatedAt' | 'updatedBy'>,
-  rev: number, updatedAt: number, updatedBy: string,
-): SyncSite {
-  return {
-    ...site,
-    alias: normalizeAlias(site.alias),
-    rev, updatedAt, updatedBy,
-  };
-}
+// HOL NORMALIZÁLÓDIK A FEDŐNÉV — mert itt régen egy nem hívott függvény állt.
+//
+// Volt itt egy `toSyncSite`, ami feltöltéskor normalizálta volna a fedőnevet.
+// Soha senki nem hívta: a segéd kézzel építi a szinkron-rekordot. Egy nem
+// hívott függvény a legrosszabb fajta dokumentáció — úgy néz ki, mint a
+// szabály, közben nem az.
+//
+// A szabály valójában két helyen áll, és mindkettő ÉL:
+//
+//   - MENTÉSKOR, a bejáratnál: `helper/server.ts` a felvitt fedőnevet
+//     `normalizeAlias`-on engedi át, tehát a tárolt érték már tiszta;
+//   - MEGJELENÍTÉSKOR, minden platformon: `displayName` (TS), `AliasLogic`
+//     (Kotlin, Swift) újra normalizál. Ez a hálónk arra, ami mégis kívülről
+//     érkezne — a vezérlőkarakterek és a túl hosszú név nem jut a képernyőre.
+//
+// Ezért nem hiányzik itt semmi. Aki mégis ide nyúlna, előbb nézze meg azt a
+// kettőt.
