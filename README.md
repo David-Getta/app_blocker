@@ -91,8 +91,8 @@ attól, hogy sokszor csinálod.
   bővítmény nélkül betartatja a fehérlistát — szűk, tételesen indokolt
   kivétellel (értesítés, kapcsolat-ellenőrzés, óra, a saját fiókkiszolgálód),
   mert egy telefon, aminek minden névfeloldása elhasal, nem korlátozott, hanem
-  használhatatlan. Androidon indítani és leállítani is lehet; iPhone-on
-  egyelőre csak az érvényesítés. Lásd
+  használhatatlan. Indítani és leállítani mindkét telefonon lehet — a
+  leállítás ott is próbatétel. Lásd
   [`docs/feature-focus-sessions.md`](docs/feature-focus-sessions.md).
 
 ## Képernyőképek

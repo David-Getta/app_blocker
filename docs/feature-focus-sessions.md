@@ -226,14 +226,14 @@ használ — különben a telefon minden körben letörölné a gépen felvett l
 |---|---|---|---|---|
 | **Gép** | igen | igen | böngésző-bővítmény | igen |
 | **Android** | igen | igen | **DNS-szűrő (a VPN-ben)** | **igen** |
-| **iPhone** | igen | igen | **DNS-szűrő (az alagútban)** | még nem |
+| **iPhone** | igen | igen | **DNS-szűrő (az alagútban)** | **igen** |
 
-**Androidon indítani és leállítani is lehet — EGYSZERRE került be a kettő.**
+**Mindkét telefonon indítani és leállítani is lehet — EGYSZERRE került be a kettő.**
 Ez nem esztétika: indítani ingyen van, leállítani viszont próbatétel. Ha a
 telefon tudna indítani, de leállítani nem, akkor egy elindított nyolcórás
 menetből ott nem lenne kiút — és a Breaker soha nem tesz a felhasználóval
-olyat, amit az nem kért. Ezért a `Referee.startFocus` és a
-`Referee.changeFocus` egy lépésben jött, a próbatétel-motorral együtt.
+olyat, amit az nem kért. Ezért a `startFocus` és a `changeFocus` mindkét
+platformon egy lépésben jött, a próbatétel-motorral együtt.
 
 A csomagokat továbbra is a **gépen** állítod össze: ott látszik a teljes lista,
 és ott kényelmes gépelni. A telefon indítja és betartatja őket.

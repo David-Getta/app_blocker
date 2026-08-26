@@ -67,12 +67,11 @@ jobs:
           saját fiókkiszolgálód — ez utóbbi azért, hogy a telefon lássa, ha egy
           MÁSIK eszközön leállítod a menetet. Böngészni egyiken sem lehet.
 
-          **Androidon indítani és leállítani is lehet** — a kettő egyszerre
+          **Telefonon indítani és leállítani is lehet** — a kettő egyszerre
           került be, és ez nem esztétika. Indítani ingyen van, leállítani
           viszont próbatétel: ha a telefon tudna indítani, de leállítani nem,
           egy nyolcórás menetből ott nem lenne kiút. Vagy mindkettő, vagy egyik
-          sem. iPhone-on egyelőre csak az érvényesítés van meg; ott az indítás
-          ugyanígy, a próbatétel-motorral együtt fog jönni.
+          sem.
 
           A csomagokat továbbra is a **gépen** állítod össze: ott látszik a
           teljes lista, és ott kényelmes gépelni. A telefon indítja és
