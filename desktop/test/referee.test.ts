@@ -472,6 +472,61 @@ test('a pending deletion cannot be rushed by the clock either', () => {
   assert.ok(state.sites[0].pendingDeleteAt! > now + 48 * 3600_000);
 });
 
+test('az órát előreállítva sem lehet leállítani a futó munkamenetet', () => {
+  // A KIBÚVÓ, amit ez zár: a menet leállítása próbatétel. Ha az óra
+  // előreállítása „lejáratná” a menetet, a próbatétel megkerülhető lenne — és
+  // nem is csak ezen a gépen: a lejárás lépteti a szinkron-számlálót, a
+  // nagyobb `rev` pedig lazítani is tud, tehát a telefonon is leállna.
+  //
+  // A szabály egy mondat: amennyi hátra volt, annyi van hátra.
+  const { state } = stateWithSite();
+  const now = Date.now();
+  state.focusPacks = [{
+    id: 'p1', name: 'Nyelvtanulás', allowSites: ['quizlet.com'], allowApps: [], defaultMinutes: 50,
+  }];
+  state.focusRun = { packId: 'p1', startedAt: now, endsAt: now + 50 * 60_000 };
+  referee.tick(state, now); // ez állítja be az alapot
+
+  const jumped = now + 8 * 3600_000; // „nyolc órával később”, egy lépésben
+  referee.tick(state, jumped);
+
+  assert.ok(state.focusRun, 'a menet nem állt le');
+  const left = state.focusRun!.endsAt - jumped;
+  // Két perc a rendes ütem tűrése; ennyivel kevesebb marad, semmi több.
+  assert.ok(
+    left > 47 * 60_000 && left <= 50 * 60_000,
+    `nagyjából ötven percnek kell hátra lennie, de ${Math.round(left / 60_000)} perc van`,
+  );
+  assert.equal(
+    state.focusRun!.endsAt - state.focusRun!.startedAt, 50 * 60_000,
+    'a menet HOSSZA nem változott — a kezdés is tolódott, különben a napló hazudna',
+  );
+  assert.equal((state.focusLog ?? []).length, 0, 'és nem is került a naplóba lezártként');
+});
+
+test('a rendes ütem nem tolja el a futó munkamenetet', () => {
+  // A védekezés nem szólhat bele a hétköznapi működésbe: egy ötvenperces menet
+  // ötven perc múlva jár le, nem ötvenkettő múlva.
+  const { state } = stateWithSite();
+  const now = Date.now();
+  state.focusPacks = [{
+    id: 'p1', name: 'Nyelvtanulás', allowSites: ['quizlet.com'], allowApps: [], defaultMinutes: 50,
+  }];
+  state.focusRun = { packId: 'p1', startedAt: now, endsAt: now + 50 * 60_000 };
+  referee.tick(state, now);
+  referee.tick(state, now + 15_000);
+  assert.equal(state.focusRun!.endsAt, now + 50 * 60_000, 'érintetlen');
+
+  // És a saját idejében LE IS JÁR — a védekezés nem teszi örökössé.
+  //
+  // Rendes ütemben lépkedünk, mert a segéd is így ketyeg. Egyetlen ötvenperces
+  // ugrás maga is „óraugrás” lenne, és akkor nem azt mérnénk, amit akarunk.
+  for (let t = 15_000; t <= 50 * 60_000 + 60_000; t += 60_000) referee.tick(state, now + t);
+  assert.equal(state.focusRun, null, 'lejárt');
+  assert.equal((state.focusLog ?? []).length, 1, 'és bekerült a naplóba');
+  assert.equal(state.focusLog![0].stopped, false, 'magától járt le, nem állították le');
+});
+
 test('normal tick cadence is not treated as a clock jump', () => {
   const { state, siteId } = stateWithSite();
   const now = Date.now();

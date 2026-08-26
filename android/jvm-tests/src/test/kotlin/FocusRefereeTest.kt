@@ -95,4 +95,53 @@ class FocusRefereeTest {
     fun `ismeretlen csomagbol nem indul menet`() {
         assertFailsWith<Referee.RefereeException> { Referee.startFocus("nincs-ilyen", 50, now) }
     }
+
+    @Test
+    fun `az orat elorealitva sem lehet leallitani a futo menetet`() {
+        // A KIBÚVÓ, amit ez zár: a menet leállítása próbatétel. Ha az óra
+        // előreállítása „lejáratná” a menetet, a próbatétel megkerülhető lenne
+        // — és nem is csak itt: a lejárás lépteti a szinkron-számlálót, a
+        // nagyobb `rev` pedig lazítani is tud, tehát a gépen is leállna.
+        //
+        // A szabály egy mondat: amennyi hátra volt, annyi van hátra.
+        Referee.startFocus("p1", 50, now)
+        Referee.tick(now) // ez állítja be az alapot
+
+        val jumped = now + 8 * 3_600_000L // „nyolc órával később”, egy lépésben
+        Referee.tick(jumped)
+
+        val run = assertNotNull(BreakerStore.state.value.focusRun, "a menet nem állt le")
+        val left = run.endsAt - jumped
+        // Két perc a rendes ütem tűrése; ennyivel kevesebb marad, semmi több.
+        assertTrue(
+            left > 47 * 60_000L && left <= 50 * 60_000L,
+            "nagyjából ötven percnek kell hátra lennie, de ${left / 60_000} perc van",
+        )
+        assertEquals(
+            50 * 60_000L, run.endsAt - run.startedAt,
+            "a menet HOSSZA nem változott — a kezdés is tolódott, különben a napló hazudna",
+        )
+        assertTrue(BreakerStore.state.value.focusLog.isEmpty(), "és nem került a naplóba")
+    }
+
+    @Test
+    fun `a rendes utem nem tolja el a futo menetet, es a menet le is jar`() {
+        // A védekezés nem szólhat bele a hétköznapi működésbe, és nem is teheti
+        // örökössé a menetet.
+        Referee.startFocus("p1", 50, now)
+        val endsAt = assertNotNull(BreakerStore.state.value.focusRun).endsAt
+        Referee.tick(now)
+        Referee.tick(now + 15_000)
+        assertEquals(endsAt, BreakerStore.state.value.focusRun?.endsAt, "érintetlen")
+
+        // Rendes ütemben lépkedünk, mert a készülék is így ketyeg: egyetlen
+        // ötvenperces ugrás maga is „óraugrás” lenne.
+        var t = 15_000L
+        while (t <= 50 * 60_000L + 60_000L) { Referee.tick(now + t); t += 60_000L }
+        assertNull(BreakerStore.state.value.focusRun, "lejárt")
+        val log = BreakerStore.state.value.focusLog
+        assertEquals(1, log.size, "és bekerült a naplóba")
+        assertTrue(!log[0].stopped, "magától járt le, nem állították le")
+        assertEquals("Nyelvtanulás", log[0].packName, "a NÉV is bekerült")
+    }
 }

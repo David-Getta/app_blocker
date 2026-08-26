@@ -457,7 +457,20 @@ object Referee {
             val sites = state.sites.map {
                 if (it.pendingDeleteAt != null) it.copy(pendingDeleteAt = it.pendingDeleteAt + shift) else it
             }
-            state.copy(session = session, sites = sites)
+            // A FUTÓ MUNKAMENET IS ELTOLÓDIK — enélkül az óra előreállítása
+            // ingyen leállítaná, a számláló léptetne, és a szinkron ezt szét is
+            // vinné a többi eszközre.
+            //
+            // A SZABÁLY EGY MONDAT: amennyi hátra volt, annyi van hátra. Ugyanez
+            // a válasz a felfüggesztett készülékre is: a kettőt nem tudjuk
+            // megkülönböztetni, de nem is kell.
+            //
+            // A kezdés is tolódik, nem csak a vég: enélkül a naplóba egy
+            // ötvenperces menet órásként kerülne be, és a statisztika hazudna.
+            val run = state.focusRun?.let {
+                it.copy(startedAt = it.startedAt + shift, endsAt = it.endsAt + shift)
+            }
+            state.copy(session = session, sites = sites, focusRun = run)
         }
     }
 

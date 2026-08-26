@@ -411,6 +411,27 @@ function absorbClockJump(state: HelperState, now: number): void {
   for (const site of state.sites) {
     if (site.pendingDeleteAt !== null) site.pendingDeleteAt += shift;
   }
+  // A FUTÓ MUNKAMENET IS ELTOLÓDIK — enélkül az óra előreállítása ingyen
+  // leállítaná. Nyolc órát előreugorva a menet „lejárna”, a számláló léptetne,
+  // és a szinkron ezt szét is vinné a többi eszközre: két perc munkával
+  // megkerülve az a próbatétel, ami a leállításhoz kellene.
+  //
+  // A SZABÁLY EGY MONDAT: amennyi hátra volt, annyi van hátra.
+  //
+  // Ugyanez a válasz az alvásra is, és ez nem véletlen: a segéd nem tudja
+  // megkülönböztetni az átállított órát a felfüggesztett géptől, de nem is
+  // kell. Ha lecsukod a laptopot tíz perccel a menet vége előtt, reggel tíz
+  // perc lesz hátra. Azt a tíz percet nem töltötted fókuszban.
+  //
+  // A kezdés is tolódik, nem csak a vég: enélkül a naplóba egy ötvenperces
+  // menet nyolc és fél órásként kerülne be, és a statisztika hazudna.
+  if (state.focusRun) {
+    state.focusRun = {
+      ...state.focusRun,
+      startedAt: state.focusRun.startedAt + shift,
+      endsAt: state.focusRun.endsAt + shift,
+    };
+  }
 }
 
 export function tick(state: HelperState, now: number): boolean {
