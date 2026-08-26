@@ -86,6 +86,21 @@ jobs:
             fókuszban hitted magad, közben minden nyitva maradt. Most szól. A
             blokklista ilyenkor is él — ezt a szöveg ki is mondja.
 
+          - **Az app azt állította, hogy a mérés nem hagyja el a gépet — pedig
+            fiókkal bejelentkezve felkerül.** A közös napi keret a v0.4.0 óta úgy
+            működik, hogy minden eszköz feltölti, mennyit mért ma; a
+            munkamenet-napló most ugyanígy utazik. A statisztika-képernyő szövege
+            viszont a régi mondatot vitte tovább, és a fiókkártya mellette már az
+            igazat írta.
+
+            Egy elavult adatvédelmi mondat rosszabb, mint egy hiányzó: a
+            felhasználó arra alapoz, és nem tudja meg, hogy már nem áll. Mostantól
+            mind a hat helyen ugyanaz szerepel — az appban, a doksiban, a
+            letöltőoldalon és itt: **fiók nélkül semmi nem hagyja el az eszközt;
+            bejelentkezve a mérés és a munkamenet-napló felkerül a SAJÁT
+            fiókkiszolgálódra, végponttól végpontig titkosítva.** A kiszolgáló nem
+            látja, mit mértél, és telemetria sehol nincs.
+
           - **A letöltőoldal azt írta ki, hogy nincs kiadott verzió, amikor
             volt.** Minden hibára ugyanaz a mondat jött, pedig a leggyakoribb
             ok a GitHub óránkénti kérés-korlátja. A látogató azt olvasta, hogy
@@ -140,7 +155,7 @@ jobs:
 
           A „korán leállítva” sor szándékosan nem szégyenpad. Ha ötből négyszer
           leálltál, nem a csomaggal van baj: rövidebb menetet érdemes indítani,
-          és az működni fog. A statisztika helyben marad, ahogy a többi mérés is.
+          és az működni fog.
 
           #### Ami a v0.4.2-ben jött
 

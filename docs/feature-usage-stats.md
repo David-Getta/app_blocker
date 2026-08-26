@@ -97,8 +97,23 @@ mérés nem elérhető. Ezt a felületen egyértelműen kiírjuk.
 
 Ez érzékeny adat. Ezért:
 
-- **Minden mérés a készüléken marad.** Nincs feltöltés, nincs szinkron, nincs
-  telemetria.
+- **Fiók nélkül minden mérés a készüléken marad.** Nincs feltöltés, nincs
+  szinkron.
+- **Fiókkal bejelentkezve a mérés FELKERÜL a saját fiókkiszolgálódra**, a
+  munkamenet-naplóval együtt. Ez nem mellékhatás, hanem két funkció ára: a
+  közös napi keret (egy eszközön elhasznált perc a másikon is fogy) és az
+  eszközök közötti munkamenet-statisztika máshogy nem működhet.
+
+  Amit a kiszolgáló LÁT: mennyi bájt jött, melyik eszköztől, mikor. Amit NEM
+  lát: hogy mit mértél, milyen oldalon, mennyit — a blob végponttól végpontig
+  titkosított, és a kulcs sosem hagyja el az eszközeidet. A kiszolgálót
+  ráadásul te futtatod (`server/`), legegyszerűbben az asztali appból.
+
+  Ez a szakasz azért van ilyen hosszan kiírva, mert korábban azt állította,
+  hogy „nincs feltöltés, nincs szinkron” — ami a v0.4.0 óta nem volt igaz. Egy
+  elavult adatvédelmi mondat rosszabb, mint egy hiányzó: a felhasználó arra
+  alapoz, és nem tudja meg, hogy már nem áll.
+- **Telemetria SEHOL nincs.** Se hozzánk, se harmadik félhez, fiókkal sem.
 - A tárolás az adott platform védett, app-privát helyén történik (a desktopon a
   helper root/SYSTEM könyvtárában, mobilon az app-privát tárban).
 - A felhasználó **egy gombbal törölheti** a teljes előzményt, és **ki is

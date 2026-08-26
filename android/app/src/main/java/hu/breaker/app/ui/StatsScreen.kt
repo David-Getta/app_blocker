@@ -85,7 +85,10 @@ fun StatsSection(
 
         Text(
             "Csak az az idő számít, amikor tényleg ott vagy: az app előtérben van, " +
-                "a képernyő be van kapcsolva és nincs zárolva. Minden adat a készüléken marad.",
+                "a képernyő be van kapcsolva és nincs zárolva. Fiók nélkül semmi nem " +
+                "hagyja el a készüléket; bejelentkezve a mérés és a munkamenet-napló " +
+                "felkerül a saját fiókkiszolgálódra is, végponttól végpontig " +
+                "titkosítva — a kiszolgáló nem látja. Telemetria sehol nincs.",
             style = MaterialTheme.typography.bodySmall,
         )
 

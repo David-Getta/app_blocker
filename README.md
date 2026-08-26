@@ -32,8 +32,10 @@ attól, hogy sokszor csinálod.
 - **Aktív idő mérése és statisztikák**: melyik oldalon és appban mennyit töltesz —
   **csak amikor tényleg ott vagy** (fókuszban lévő ablak, aktív fül, nem tétlen),
   nem attól, hogy nyitva van. Napi/heti/havi bontás, top lista, 30 napos idősor,
-  hét-a-héthez összevetés. Minden adat a gépeden marad, bármikor kikapcsolható
-  és törölhető.
+  hét-a-héthez összevetés. Fiók nélkül minden adat a gépeden marad; bejelentkezve
+  a mérés a saját fiókkiszolgálódra is felkerül, végponttól végpontig titkosítva
+  (ebből lesz a közös napi keret). Telemetria sehol nincs. Bármikor
+  kikapcsolható és törölhető.
 - **Fedőnév a blokkolt oldalakhoz** (mindhárom platform): a lista maga is
   ingerforrás — aki megnyitja az appot, és ott áll előtte a `youtube.com`, az már
   fél lépéssel közelebb van. Minden oldalnak adható saját név, és onnantól a
