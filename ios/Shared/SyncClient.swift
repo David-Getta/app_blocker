@@ -316,9 +316,34 @@ enum SyncClient {
 
         // A MUNKAMENET. A blokklista után megy, mert az a fontosabb: ha a kör
         // itt hasal el, a tiltás attól már szinkronban van.
-        if let after = try? await syncFocusRound(current, acc, key) {
+        // NEM NÉMÁN. Egy RÉGI fiókkiszolgáló nem ismeri a `focus` gyűjteményt,
+        // és 400-zal felel — a munkamenet ilyenkor sosem ér át, és a
+        // felhasználó ezt semmiből nem tudná meg. Azt hinné, a funkció rossz.
+        //
+        // A kört ettől még nem állítjuk meg: a blokklista fontosabb, és az már
+        // szinkronban van. Csak megjegyezzük, hogy a felület kiírhassa.
+        do {
+            var after = try await syncFocusRound(current, acc, key)
             if after != current { changed = true }
+            if after.focusSyncError != nil {
+                after.focusSyncError = nil
+                changed = true
+            }
             current = after
+        } catch {
+            let code = (error as? SyncError)?.code
+            let msg: String
+            if code == "BAD_REQUEST" || code == "SERVER" {
+                msg = "A fiókkiszolgálód nem ismeri a munkamenetet — valószínűleg "
+                    + "régebbi verzió. Amíg nem frissül, a munkamenet csak ezen "
+                    + "az eszközön él."
+            } else {
+                msg = (error as? SyncError)?.message ?? "A munkamenet szinkronja nem sikerült."
+            }
+            if current.focusSyncError != msg {
+                current.focusSyncError = msg
+                changed = true
+            }
         }
 
         // A mai összegzés a többi eszközről — ebből lesz a KÖZÖS napi keret.

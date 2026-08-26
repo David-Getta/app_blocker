@@ -257,6 +257,27 @@ const WIRES = [
     needle: 'UpdateChecker.check',
     lost: 'a telefon soha nem venné észre, hogy van újabb verzió',
   },
+
+  // A MUNKAMENET-SZINKRON HIBÁJA mind a három felületen látszik. A leggyakoribb
+  // ok egy régi fiókkiszolgáló, ami nem ismeri a `focus` gyűjteményt: a gépen
+  // elindított menet ilyenkor SOSEM ér át, és a felhasználó semmiből nem tudná
+  // meg, miért — azt hinné, a funkció rossz. A hibát rögzíteni kevés; ki is
+  // kell írni, különben csak az állapotban ül.
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: 'focusSyncError',
+    lost: 'a gépen nem derülne ki, hogy a munkamenet szinkronja elhasalt',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/AppUi.kt',
+    needle: 'focusSyncError',
+    lost: 'a telefonon nem derülne ki, hogy a munkamenet szinkronja elhasalt',
+  },
+  {
+    file: 'ios/App/ContentView.swift',
+    needle: 'focusSyncError',
+    lost: 'az iPhone-on nem derülne ki, hogy a munkamenet szinkronja elhasalt',
+  },
 ];
 
 /**

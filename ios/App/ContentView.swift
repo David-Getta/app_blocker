@@ -45,6 +45,7 @@ struct ContentView: View {
                 VStack(alignment: .leading, spacing: 16) {
                     if store.fileUnreadable { unreadableBanner }
                     protectionSection
+                    focusSyncErrorBanner
                     focusRunningSection
                     focusPacksSection
                     addSection
@@ -193,6 +194,24 @@ struct ContentView: View {
     /// kettő EGYSZERRE került be: ha a telefon tudna indítani, de leállítani
     /// nem, egy nyolcórás menetből ott nem lenne kiút.
     ///
+    /// HA A MUNKAMENET SZINKRONJA ELHASALT, azt ki kell írni.
+    ///
+    /// A leggyakoribb ok egy régi fiókkiszolgáló, ami nem ismeri a `focus`
+    /// gyűjteményt: a gépen elindított menet ilyenkor SOSEM ér ide, és a
+    /// felhasználó semmiből nem tudná meg, miért. Azt hinné, a funkció rossz.
+    @ViewBuilder
+    private var focusSyncErrorBanner: some View {
+        if let msg = store.state.focusSyncError {
+            Text(msg)
+                .font(.footnote)
+                .foregroundStyle(.red)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding()
+                .background(BreakerStyle.surfaceNested)
+                .cornerRadius(10)
+        }
+    }
+
     /// A csomagokat a GÉPEN állítod össze — ott látszik a teljes lista, és ott
     /// kényelmes gépelni. A telefon indítja és betartatja őket.
     @ViewBuilder

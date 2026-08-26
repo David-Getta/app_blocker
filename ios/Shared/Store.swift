@@ -124,6 +124,12 @@ struct AppState: Codable, Equatable {
     var focusUpdatedBy: String? = nil
     /// a lenyomat, amiből kiderül, hogy változott-e
     var focusRevFp: String? = nil
+    /// Miért nem sikerült a munkamenet szinkronja — vagy nil, ha sikerült.
+    ///
+    /// NEM MENTJÜK a lemezre: átmeneti állapot, a következő kör újraszámolja.
+    /// Egy régi mentésből visszatöltött hibaüzenet rosszabb a semminél, mert
+    /// olyasmiről szólna, ami már nincs.
+    var focusSyncError: String? = nil
 }
 
 /// Fiók a szinkronhoz.

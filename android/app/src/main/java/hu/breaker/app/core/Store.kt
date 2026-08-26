@@ -137,6 +137,14 @@ data class AppState(
     val focusUpdatedBy: String? = null,
     /** a lenyomat, amiből kiderül, hogy változott-e (lásd SyncRevisions) */
     val focusRevFp: String? = null,
+    /**
+     * Miért nem sikerült a munkamenet szinkronja — vagy null, ha sikerült.
+     *
+     * NEM MENTJÜK a lemezre: átmeneti állapot, a következő kör újraszámolja.
+     * Egy régi mentésből visszatöltött hibaüzenet rosszabb a semminél, mert
+     * olyasmiről szólna, ami már nincs.
+     */
+    val focusSyncError: String? = null,
 )
 
 /**

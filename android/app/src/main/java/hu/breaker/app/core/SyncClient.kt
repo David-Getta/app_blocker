@@ -518,10 +518,34 @@ object SyncClient {
         // A MUNKAMENET. A blokklista után megy, mert az a fontosabb: ha a kör
         // itt hasal el, a tiltás attól már szinkronban van. Külön `runCatching`
         // ugyanezért — egy munkamenet-hiba ne vigye magával az egész kört.
+        // NEM NÉMÁN. Egy RÉGI fiókkiszolgáló nem ismeri a `focus` gyűjteményt,
+        // és 400-zal felel — a munkamenet ilyenkor sosem ér át, és a
+        // felhasználó ezt semmiből nem tudná meg. Azt hinné, a funkció rossz.
+        //
+        // A kört ettől még nem állítjuk meg: a blokklista fontosabb, és az már
+        // szinkronban van. Csak megjegyezzük, hogy a felület kiírhassa —
+        // ugyanúgy, ahogy a gépen.
         runCatching {
             val before = current
             current = syncFocusRound(current, acc, key)
             if (current !== before) changed = true
+            if (current.focusSyncError != null) {
+                current = current.copy(focusSyncError = null)
+                changed = true
+            }
+        }.onFailure { e ->
+            val code = (e as? SyncException)?.code
+            val msg = if (code == "BAD_REQUEST" || code == "SERVER") {
+                "A fiókkiszolgálód nem ismeri a munkamenetet — valószínűleg " +
+                    "régebbi verzió. Amíg nem frissül, a munkamenet csak ezen " +
+                    "az eszközön él."
+            } else {
+                e.message ?: "A munkamenet szinkronja nem sikerült."
+            }
+            if (current.focusSyncError != msg) {
+                current = current.copy(focusSyncError = msg)
+                changed = true
+            }
         }
 
         // A mérés eszközönként külön blob: itt nincs ütközés. Ha ez elhasal, a

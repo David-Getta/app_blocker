@@ -292,6 +292,20 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
             // miért nem jön be egy oldal, és az appot hinné rossznak.
             // A `now` a másodpercenként frissülő óra: enélkül a hátralévő idő
             // csak akkor mozdulna, ha az ÁLLAPOT változik — vagyis állna.
+            // HA A MUNKAMENET SZINKRONJA ELHASALT, azt ki kell írni. A leggyakoribb
+            // ok egy régi fiókkiszolgáló, ami nem ismeri a `focus` gyűjteményt: a
+            // gépen elindított menet ilyenkor SOSEM ér ide, és a felhasználó
+            // semmiből nem tudná meg, miért. Azt hinné, a funkció rossz.
+            state.focusSyncError?.let { msg ->
+                Card {
+                    Text(
+                        msg,
+                        Modifier.padding(14.dp),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            }
             FocusRunningCard(state, now, onError = { flowError = it })
             FocusPacksCard(state, vpnRunning, onError = { flowError = it })
 
