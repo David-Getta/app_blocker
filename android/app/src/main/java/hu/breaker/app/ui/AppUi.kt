@@ -290,7 +290,9 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
             // csomagban felsoroltak jönnek be, minden más NXDOMAIN. Ha ez nem
             // látszana, a felhasználó egy hálózati hibát keresne — nem értené,
             // miért nem jön be egy oldal, és az appot hinné rossznak.
-            FocusRunningCard(state, onError = { flowError = it })
+            // A `now` a másodpercenként frissülő óra: enélkül a hátralévő idő
+            // csak akkor mozdulna, ha az ÁLLAPOT változik — vagyis állna.
+            FocusRunningCard(state, now, onError = { flowError = it })
             FocusPacksCard(state, onError = { flowError = it })
 
             // Update banner (direct-download track)
@@ -1786,8 +1788,7 @@ private fun FlowRowActions(busy: Boolean, onSync: () -> Unit, onDevices: () -> U
  * hogy „nem jön be semmi”, és hálózati hibát keresne.
  */
 @Composable
-private fun FocusRunningCard(state: AppState, onError: (String) -> Unit) {
-    val now = System.currentTimeMillis()
+private fun FocusRunningCard(state: AppState, now: Long, onError: (String) -> Unit) {
     val run = state.focusRun
     if (run == null || !Focus.isRunning(run, now)) return
     val pack = state.focusPacks.firstOrNull { it.id == run.packId } ?: return

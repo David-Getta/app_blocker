@@ -113,7 +113,8 @@ struct ContentView: View {
     /// azt látná, hogy „nem jön be semmi”, és hálózati hibát keresne.
     @ViewBuilder
     private var focusRunningSection: some View {
-        let now = Date().timeIntervalSince1970 * 1000
+        // A `now` a másodpercenként frissülő óra: enélkül a hátralévő idő csak
+        // akkor mozdulna, ha az ÁLLAPOT változik — vagyis állna.
         if let run = store.state.focusRun, Focus.isRunning(run, now: now),
            let pack = (store.state.focusPacks ?? []).first(where: { $0.id == run.packId }) {
             VStack(alignment: .leading, spacing: 6) {
@@ -173,7 +174,6 @@ struct ContentView: View {
     /// kényelmes gépelni. A telefon indítja és betartatja őket.
     @ViewBuilder
     private var focusPacksSection: some View {
-        let now = Date().timeIntervalSince1970 * 1000
         let packs = store.state.focusPacks ?? []
         if !packs.isEmpty, !Focus.isRunning(store.state.focusRun, now: now) {
             VStack(alignment: .leading, spacing: 8) {
