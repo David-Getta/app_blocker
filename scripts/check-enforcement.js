@@ -193,6 +193,27 @@ const WIRES = [
     needle: 'dueForRefresh',
     lost: 'a bővítmény befagyna az első listánál, és nem venné át a változásokat',
   },
+
+  // AMI ELDÖNTI, MELYIK NÉV KERÜL A TILTÁSBA. Itt találkozik a lista az
+  // idővel: a szünet, a menetrend és a NAPI KERET mind ezen a döntésen
+  // keresztül hat. Ha nem kérdeznénk meg, a keret csendben nem csinálna
+  // semmit — a felületen ott ketyegne a mérő, elfogyna, és nem történne
+  // semmi. Ugyanígy a menetrend: a beállított sáv díszlet lenne.
+  {
+    file: 'desktop/src/helper/hosts.ts',
+    needle: 'isBlockedNowWithLimit',
+    lost: 'a gépen a szünet, a menetrend és a napi keret egyike sem hatna',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/Store.kt',
+    needle: 'LimitLogic.isBlockedNowWithLimit',
+    lost: 'a telefon szűrője nem venné figyelembe a keretet és a menetrendet',
+  },
+  {
+    file: 'ios/Shared/Store.swift',
+    needle: 'LimitLogic.isBlockedNowWithLimit',
+    lost: 'az iPhone alagútja nem venné figyelembe a keretet és a menetrendet',
+  },
 ];
 
 /**
