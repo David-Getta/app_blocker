@@ -41,6 +41,7 @@ struct ContentView: View {
                 VStack(alignment: .leading, spacing: 16) {
                     if store.fileUnreadable { unreadableBanner }
                     protectionSection
+                    focusRunningSection
                     addSection
                     if let ses = store.state.session { resumeBanner(ses) }
                     listSection
@@ -99,6 +100,46 @@ struct ContentView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding().background(Color.red.opacity(0.11), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
+    /// A futó munkamenet.
+    ///
+    /// iPhone-on a munkamenet FEHÉRLISTA, és az alagút tényleg érvényesíti: ami
+    /// nincs a csomagon, arra NXDOMAIN a válasz. Ez erősebb, mint amit a gép
+    /// tud — és pont ezért kell kimondani, mi történik. Enélkül a felhasználó
+    /// azt látná, hogy „nem jön be semmi”, és hálózati hibát keresne.
+    @ViewBuilder
+    private var focusRunningSection: some View {
+        let now = Date().timeIntervalSince1970 * 1000
+        if let run = store.state.focusRun, Focus.isRunning(run, now: now),
+           let pack = (store.state.focusPacks ?? []).first(where: { $0.id == run.packId }) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Munkamenet fut").font(.caption).foregroundStyle(.secondary)
+                Text(pack.name).font(.headline)
+                Text("Még \(Focus.formatRemaining(run.endsAt - now)) — eddig: \(clockText(run.endsAt))")
+                    .font(.subheadline)
+                Text(pack.allowSites.isEmpty
+                     ? "Ebben a csomagban nincs engedélyezett oldal — minden más tiltva."
+                     : "Most csak ez mehet: \(pack.allowSites.joined(separator: ", ")). Minden más tiltva.")
+                    .font(.footnote)
+                // A kivétellista LÉTEZÉSÉT kimondjuk. Egy titkos kivétel
+                // rosszabb lenne, mint egy nyílt: a felhasználó előbb-utóbb
+                // észreveszi, hogy valami mégis átment, és onnantól semmiben
+                // nem hisz.
+                Text("Az értesítések, a kapcsolat-ellenőrzés és az óra átmennek — enélkül a telefon nem korlátozott lenne, hanem elromlott. Böngészni egyiken sem lehet.")
+                    .font(.caption).foregroundStyle(.secondary)
+                Text("Leállítani a gépen lehet, próbatétellel — ahogy egy feloldást is. A munkamenet a saját idejéig magától lejár.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding().background(Color.accentColor.opacity(0.11), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        }
+    }
+
+    private func clockText(_ ms: Double) -> String {
+        let f = DateFormatter()
+        f.dateFormat = "HH:mm"
+        return f.string(from: Date(timeIntervalSince1970: ms / 1000))
     }
 
     private var protectionSection: some View {
