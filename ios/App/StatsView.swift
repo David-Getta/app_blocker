@@ -24,6 +24,44 @@ struct StatsView: View {
         }.count
     }
 
+    /// A mai nap kezdete HELYI idő szerint.
+    ///
+    /// Nem `now - 24 óra`: az reggel nyolckor a tegnap esti menetet is mainak
+    /// mondaná. Ugyanaz a számítás, mint a gépen és az androidos appban.
+    private func startOfDay(_ ms: Double) -> Double {
+        let day = Calendar.current.startOfDay(for: Date(timeIntervalSince1970: ms / 1000))
+        return day.timeIntervalSince1970 * 1000
+    }
+
+    private var focusToday: Focus.Summary {
+        Focus.summarizeFocus(store.state.focusLog ?? [], since: startOfDay(now), now: now)
+    }
+
+    private var focusWeek: Focus.Summary {
+        Focus.summarizeFocus(
+            store.state.focusLog ?? [],
+            since: startOfDay(now) - 6 * 24 * 3_600_000, now: now
+        )
+    }
+
+    private var focusNote: String {
+        var parts: [String] = []
+        if let top = focusWeek.topPack { parts.append("A hét leggyakoribb csomagja: \(top).") }
+        // A korai vég szándékosan NEM szégyenpad: ha sokszor fordul elő, nem a
+        // csomaggal van baj, hanem a hosszal.
+        parts.append(
+            focusWeek.stoppedEarly > 0
+                ? "\(focusWeek.stoppedEarly) menet ért véget a tervezettnél korábban. "
+                    + "Ha ez sokszor fordul elő, nem a csomaggal van baj: rövidebb menetet "
+                    + "érdemes indítani."
+                : "A héten minden menetet végigvittél."
+        )
+        // MINDEN ESZKÖZ menete beleszámít, és ezt ki kell mondani: a mérés
+        // eszközönként külön áll, a munkamenet viszont a fiók egészére szól.
+        parts.append("Minden eszközöd menete beleszámít.")
+        return parts.joined(separator: " ")
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             SectionLabel("Statisztika")
@@ -35,6 +73,29 @@ struct StatsView: View {
             HStack(spacing: 10) {
                 tile("\(unlocks(inLastDays: 7))", "feloldás / 7 nap")
                 tile("\(unlocks(inLastDays: 30))", "feloldás / 30 nap")
+            }
+
+            // MUNKAMENETEK. Ez az EGYETLEN idő-statisztika, ami iPhone-on is
+            // igazi: nem az Apple-től kellene kérni, hanem a mi naplónkból jön
+            // — a menet lezárásakor mi írjuk. A menetet itt is lehet indítani
+            // és leállítani, tehát itt is meg kell mutatni; enélkül aki a
+            // telefonján dolgozik, azt látná, hogy a héten le sem ült.
+            //
+            // Nulla menetnél nem áll itt üres doboz: egy minden nap ott lévő
+            // nullás sor nem információ, csak zaj.
+            if focusWeek.sessions > 0 {
+                Divider()
+                SectionLabel("Munkamenetek")
+                HStack(spacing: 10) {
+                    tile("\(focusToday.sessions)", "menet ma")
+                    tile(UsageStats.formatDuration(focusToday.totalMs / 1000), "fókuszban ma")
+                }
+                HStack(spacing: 10) {
+                    tile("\(focusWeek.sessions)", "menet a héten")
+                    tile(UsageStats.formatDuration(focusWeek.totalMs / 1000), "fókuszban a héten")
+                }
+                Text(focusNote)
+                    .font(.footnote).foregroundStyle(.secondary)
             }
 
             Divider()

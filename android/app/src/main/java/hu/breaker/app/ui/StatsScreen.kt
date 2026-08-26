@@ -24,6 +24,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import hu.breaker.app.core.Focus
 import hu.breaker.app.core.UsageLogic
 
 /** Validated dark-surface categorical slots (same values as the desktop charts). */
@@ -33,6 +34,15 @@ private val SERIES_2 = Color(0xFFD95926) // time spent on a site that is blocked
 @Composable
 fun StatsSection(
     summary: UsageLogic.Summary,
+    /**
+     * A munkamenet-statisztika — MINDEN eszközről.
+     *
+     * Semmi köze a méréshez: nem az Android hozzáférés-engedélyéből jön, hanem
+     * a saját naplónkból, amit a menet lezárásakor írunk. Ezért látszik akkor
+     * is, ha a mérés ki van kapcsolva vagy nincs engedélye.
+     */
+    focusToday: Focus.FocusSummary,
+    focusWeek: Focus.FocusSummary,
     focusSeries: List<Pair<String, Double>>,
     focusLabel: String,
     blockedDomains: Set<String>,
@@ -64,6 +74,14 @@ fun StatsSection(
                 OutlinedButton(onClick = onClear) { Text("Törlés") }
             }
         }
+
+        // A MUNKAMENET-STATISZTIKA ELÖL ÁLL, a hozzáférés-kapu FÖLÖTT.
+        //
+        // Nem a mérésből jön, hanem a saját naplónkból: a menet lezárásakor
+        // írjuk, engedély nélkül is. Ha a kapu alatt lenne, egy mérés nélküli
+        // telefonon az app azt mondaná, hogy nincs mit mutatni — pedig pontosan
+        // tudja, hányszor ültél le dolgozni.
+        FocusStatsBlock(focusToday, focusWeek)
 
         Text(
             "Csak az az idő számít, amikor tényleg ott vagy: az app előtérben van, " +
@@ -136,6 +154,53 @@ fun StatsSection(
         if (summary.weekOverWeek.isNotEmpty()) {
             StatsSectionLabel("Ez a hét az előzőhöz képest")
             for (row in summary.weekOverWeek) WeekDeltaRow(row, labelOf)
+        }
+    }
+}
+
+/**
+ * Munkamenetek — hányszor ültél le, és mennyit vittél végig.
+ *
+ * Nulla menetnél nem mutatunk üres dobozt: egy minden nap ott álló nullás sor
+ * nem információ, csak zaj.
+ */
+@Composable
+private fun FocusStatsBlock(today: Focus.FocusSummary, week: Focus.FocusSummary) {
+    if (week.sessions == 0) return
+    StatsSectionLabel("Munkamenetek")
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+        CountTile(today.sessions.toString(), "menet ma", Modifier.weight(1f))
+        StatTile("fókuszban ma", today.totalMs / 1000.0, Modifier.weight(1f))
+    }
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+        CountTile(week.sessions.toString(), "menet a héten", Modifier.weight(1f))
+        StatTile("fókuszban a héten", week.totalMs / 1000.0, Modifier.weight(1f))
+    }
+    val parts = mutableListOf<String>()
+    week.topPack?.let { parts.add("A hét leggyakoribb csomagja: $it.") }
+    // A „korán leállítva” szándékosan NEM szégyenpad. Ha sokszor fordul elő,
+    // nem a csomaggal van baj, hanem a hosszal.
+    parts.add(
+        if (week.stoppedEarly > 0) {
+            "${week.stoppedEarly} menet ért véget a tervezettnél korábban. Ha ez sokszor " +
+                "fordul elő, nem a csomaggal van baj: rövidebb menetet érdemes indítani."
+        } else {
+            "A héten minden menetet végigvittél."
+        },
+    )
+    // MINDEN ESZKÖZ menete beleszámít, és ezt ki kell mondani: a mérés
+    // eszközönként külön áll, a munkamenet viszont a fiók egészére szól.
+    parts.add("Minden eszközöd menete beleszámít.")
+    Text(parts.joinToString(" "), style = MaterialTheme.typography.bodySmall)
+}
+
+/** Ugyanaz a doboz, mint a StatTile, csak darabszámmal — az nem időtartam. */
+@Composable
+private fun CountTile(value: String, label: String, modifier: Modifier = Modifier) {
+    Card(modifier) {
+        Column(Modifier.padding(12.dp)) {
+            Text(value, style = MaterialTheme.typography.headlineSmall)
+            Text(label, style = MaterialTheme.typography.bodySmall)
         }
     }
 }

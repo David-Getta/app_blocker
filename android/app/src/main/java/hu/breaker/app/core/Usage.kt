@@ -59,6 +59,21 @@ object UsageLogic {
 
     // ------------------------------------------------------------------ days
 
+    /**
+     * A mai nap kezdete HELYI idő szerint.
+     *
+     * Nem `now - 24 óra`: az reggel nyolckor a tegnap esti menetet is mainak
+     * mondaná. Ugyanaz a számítás, mint a gépen (`helper/server.ts`).
+     */
+    fun startOfDay(now: Long): Long {
+        val c = Calendar.getInstance().apply {
+            timeInMillis = now
+            set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+        }
+        return c.timeInMillis
+    }
+
     fun dayKey(now: Long): String {
         val c = Calendar.getInstance().apply { timeInMillis = now }
         // Locale.ROOT: locales with native digit shapes (e.g. Arabic-Indic) would

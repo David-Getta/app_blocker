@@ -544,6 +544,13 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                 ?: usageSummary.topWeekApps.firstOrNull()
             StatsSection(
                 summary = usageSummary,
+                // A NAP KEZDETE helyi idő szerint — ugyanaz a számítás, mint a
+                // gépen. Nem a `now - 24 óra`, mert az reggel nyolckor a tegnap
+                // esti menetet is mainak mondaná.
+                focusToday = Focus.summarizeFocus(state.focusLog, UsageLogic.startOfDay(now), now),
+                focusWeek = Focus.summarizeFocus(
+                    state.focusLog, UsageLogic.startOfDay(now) - 6 * 86_400_000L, now,
+                ),
                 focusSeries = focusTarget?.let { UsageLogic.series(state.usage, it.key, now, 30) }
                     ?: emptyList(),
                 focusLabel = focusTarget?.label ?: "",
