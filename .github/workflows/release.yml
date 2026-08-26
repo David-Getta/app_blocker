@@ -44,6 +44,42 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
+          **A munkamenet mostantól a telefonodon is érvényes.** Eddig csak a
+          gépen létezett, és ez a funkció felét elvette: elindítottad a
+          „Nyelvtanulás” csomagot, felvetted a telefont, és ott minden mehetett.
+          Egy fehérlistánál pont az az eszköz maradt ki, ami kéznél van.
+
+          A csomagok és a futó menet mostantól átutaznak a fiókodon, és a telefon
+          DNS-szűrője **tényleg betartatja** a fehérlistát: ami nincs a csomagon,
+          az nem jön be.
+
+          **Telefonon ez ERŐSEBB, mint gépen** — és ez nem hangzatos állítás,
+          hanem a mechanizmus. A gépen a hosts fájlba nem írható le, hogy
+          „mindent tilts, kivéve ötöt” (a világ összes nevét kellene felsorolni),
+          ezért ott ehhez böngésző-bővítmény kell. A telefonos alagút viszont
+          MINDEN névfeloldást lát.
+
+          **Van egy szűk kivétellista, és nem titkoljuk.** Egy telefon, aminek
+          minden névfeloldása elhasal, nem korlátozott telefon, hanem
+          használhatatlan: nem jön értesítés, a rendszer azt hiszi, nincs
+          internet, és nem a beállításodat hibáztatnád, hanem az appot. Ezért
+          átmegy az értesítés-kézbesítés, a kapcsolat-ellenőrzés, az óra, és a
+          saját fiókkiszolgálód — ez utóbbi azért, hogy a telefon lássa, ha egy
+          MÁSIK eszközön leállítod a menetet. Böngészni egyiken sem lehet.
+
+          **Indítani egyelőre a gépen lehet**, és ez szándékos, nem félkész.
+          Indítani ingyen van, leállítani viszont próbatétel — ha a telefon
+          tudna indítani, de leállítani nem, egy nyolcórás menetből ott nem
+          lenne kiút. A telefonos indítás a próbatétel-motor teljes tükrével
+          együtt jön, egyben. Kiút addig is van, és nem titok: a rendszer
+          VPN-kapcsolója erősebb az appnál.
+
+          Amit a gépi ellenőrzés NEM fed, és ezt sem hallgatjuk el: a tényleges
+          alagút-viselkedés csak igazi készüléken derül ki. A logika és a
+          fordítás le van fedve; VPN-t a CI nem futtat.
+
+          ### Ami a v0.4.2-ben jött
+
           **A munkamenet hossza percre pontos.** Eddig csak a felkínált
           gombokból lehetett választani (15 / 25 / 50 / 90 / 120 perc). Aki
           tudja, hogy negyvenhárom perce van ebédig, az kénytelen volt fölé
@@ -73,7 +109,7 @@ jobs:
           munkamenet doboza a végét is kiírja („eddig: 14:32”), nem csak azt,
           mennyi van hátra.
 
-          ### Javítva
+          #### Akkor javítva
 
           - **A futó csomag „Szerkesztés” gombja mindig hibára futott.** A gomb
             aktív volt, a háttérszolgáltatás viszont a futó csomag mentését
