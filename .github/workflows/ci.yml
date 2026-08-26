@@ -30,6 +30,10 @@ jobs:
       # megvolt, a kezelő nem. Semmi nem hasalt el tőle — se fordítás, se
       # teszt —, csak a gomb nem működött. Ez a lépés pont ezt fogja ki.
       - run: node scripts/check-ui-wiring.js
+      # A projekt visszatérő hibafajtája nem a rossz logika, hanem a
+      # HUZALOZATLAN logika: a mag megvan, teszt is van rá, csak épp senki nem
+      # hívja. Fordítás nem fogja ki — egy nem hívott függvény érvényes kód.
+      - run: node scripts/check-enforcement.js
 
   desktop:
     name: Desktop mag + tesztek
