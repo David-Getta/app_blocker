@@ -56,7 +56,12 @@ export interface BreakerBridge {
   getTrackerState(): Promise<TrackerState>;
   getSyncServer(): Promise<SyncServerState>;
   getBridgeInfo(): Promise<RulesBridgeInfo>;
-  getOverlayState(): Promise<{ shortcutOk: boolean }>;
+  getOverlayState(): Promise<{
+    shortcutOk: boolean;
+    warnApp?: string | null;
+    /** igaz, ha a bővítmény két percnél régebben jelentkezett (vagy soha) */
+    extensionStale?: boolean;
+  }>;
   toggleOverlay(): Promise<void>;
   hideOverlay(): Promise<void>;
   showMain(): Promise<void>;

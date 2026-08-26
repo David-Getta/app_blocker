@@ -61,6 +61,18 @@ export function bridgeInfo(): BridgeInfo {
   return info;
 }
 
+/**
+ * Jelentkezett-e a bővítmény az utóbbi két percben.
+ *
+ * A bővítmény húsz másodpercenként kérdez; két percnél régebbi lehúzás azt
+ * jelenti, hogy nincs ott. A híd FUTÁSA önmagában nem bizonyíték — és a
+ * különbség a munkamenetnél számít, mert a fehérlistát a gépen kizárólag a
+ * bővítmény érvényesíti.
+ */
+export function extensionSeenRecently(now = Date.now()): boolean {
+  return lastPullAt > 0 && now - lastPullAt < 2 * 60_000;
+}
+
 export function registerRulesBridge(
   userDataDir: string,
   getRules: () => Promise<BridgeRule[]>,

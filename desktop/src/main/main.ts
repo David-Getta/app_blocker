@@ -6,7 +6,7 @@
 
 import { app, BrowserWindow, ipcMain } from 'electron';
 import { registerSyncServerIpc } from './sync-server';
-import { registerRulesBridge, stopRulesBridge } from './rules-bridge-ipc';
+import { extensionSeenRecently, registerRulesBridge, stopRulesBridge } from './rules-bridge-ipc';
 import {
   hideOverlay, registerOverlayShortcut, takeWarning, toggleOverlay, unregisterOverlayShortcut,
   warnAboutApp,
@@ -182,7 +182,16 @@ if (HELPER_MODE) {
       // regisztráció elbukhat (másik program elvette a kombinációt) — ez nem
       // hiba, a felület megmondja, és a réteg az appból is nyitható.
       const shortcutOk = registerOverlayShortcut();
-      ipcMain.handle('breaker:overlay-state', () => ({ shortcutOk, warnApp: takeWarning() }));
+      // A BŐVÍTMÉNY HIÁNYA a rétegben is látszik. Ez a leggyakoribb indítási
+      // út — „aki leül tanulni, nem fog előbb ablakot keresni” —, tehát ha a
+      // figyelmeztetés csak az appban lenne meg, a legtöbb ember sosem látná,
+      // és pont az indításnál nem tudná meg, hogy a menet a böngészőben nem
+      // fog tiltani semmit.
+      ipcMain.handle('breaker:overlay-state', () => ({
+        shortcutOk,
+        warnApp: takeWarning(),
+        extensionStale: !extensionSeenRecently(),
+      }));
       ipcMain.handle('breaker:overlay-toggle', () => { toggleOverlay(); });
       ipcMain.handle('breaker:overlay-hide', () => { hideOverlay(); });
       // A rétegről a leállítás az APPBA visz: ott van a próbatétel. Enélkül a

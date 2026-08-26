@@ -26,7 +26,9 @@ interface OverlayBridge {
     { ok: true; data: unknown } | { ok: false; error: string; code?: string }>;
   hideOverlay(): Promise<void>;
   showMain(): Promise<void>;
-  getOverlayState(): Promise<{ shortcutOk: boolean; warnApp: string | null }>;
+  getOverlayState(): Promise<{
+    shortcutOk: boolean; warnApp: string | null; extensionStale?: boolean;
+  }>;
 }
 const bridge = (window as unknown as { breaker: OverlayBridge }).breaker;
 
@@ -37,6 +39,19 @@ interface Status {
 }
 
 const $ = (id: string): HTMLElement => document.getElementById(id) as HTMLElement;
+
+/**
+ * A lábjegyzet szövege, ha a fehérlistát ITT nem érvényesíti senki.
+ *
+ * A lábjegyzetbe kerül, nem külön sorba: a réteg lényege, hogy egy pillantás
+ * alatt átlátható, és egy plusz doboz pont attól venné el. A `null` azt
+ * jelenti, hogy minden rendben — olyankor a szokásos mondat áll ott.
+ */
+function extWarning(): string | null {
+  if (!extensionStale) return null;
+  return 'A böngésző-bővítmény nincs összekötve — a fehérlistát a gépen ő '
+    + 'érvényesíti, enélkül a böngészőben nem tilt semmit. A blokklista él.';
+}
 
 function h(tag: string, cls?: string, text?: string): HTMLElement {
   const el = document.createElement(tag);
@@ -58,6 +73,14 @@ let status: Status | null = null;
  * —, de szólni tudunk.
  */
 let warnApp: string | null = null;
+/**
+ * Nincs összekötve a böngésző-bővítmény.
+ *
+ * A gépen a munkamenet fehérlistáját KIZÁRÓLAG ő tudja betartatni: a DNS a
+ * hosztnévnél tovább nem lát. Enélkül az indítás csendben nem tilt semmit a
+ * böngészőben — és épp ez a réteg az, ahonnan a legtöbben indítanak.
+ */
+let extensionStale = false;
 /** Melyik csomagnál tartunk a hossz-választásban (null = még a listánál). */
 let choosing: FocusPack | null = null;
 
@@ -131,7 +154,8 @@ function render(): void {
     row.appendChild(stop);
     body.appendChild(row);
 
-    foot.textContent = 'Hosszabbítani ingyen van. Leállítani az appban lehet, próbatétellel.';
+    foot.textContent = extWarning()
+      ?? 'Hosszabbítani ingyen van. Leállítani az appban lehet, próbatétellel.';
     return;
   }
 
@@ -187,7 +211,8 @@ function render(): void {
     exact.appendChild(back);
     body.appendChild(exact);
 
-    foot.textContent = 'Indítani ingyen van — a munkamenet alatt minden más tiltva.';
+    foot.textContent = extWarning()
+      ?? 'Indítani ingyen van — a munkamenet alatt minden más tiltva.';
     return;
   }
 
@@ -267,6 +292,7 @@ async function refresh(): Promise<void> {
     // fogadja.
     const st = await bridge.getOverlayState();
     if (st.warnApp) warnApp = st.warnApp;
+    extensionStale = st.extensionStale === true;
   } catch { /* a réteg enélkül is használható */ }
   render();
 }

@@ -241,7 +241,13 @@ function fakeBridgeSource() {
       // láthassa a be- és kikapcsolt állapotot.
       getSyncServer: async () => window.__fakeHost || { running: false },
       getBridgeInfo: async () => window.__fakeBridge || { running: false },
-      getOverlayState: async () => ({ shortcutOk: true, warnApp: window.__fakeWarn || null }),
+      getOverlayState: async () => ({
+        shortcutOk: true,
+        warnApp: window.__fakeWarn || null,
+        // Alapból ÖSSZEKÖTÖTT bővítményt színlelünk: így a figyelmeztetés
+        // megjelenése mindig szándékos, nem a hamis híd mellékhatása.
+        extensionStale: window.__fakeExtStale === true,
+      }),
       hideOverlay: async () => { window.__overlayHidden = true; },
       showMain: async () => { window.__mainShown = true; },
       toggleOverlay: async () => {},
@@ -1168,6 +1174,21 @@ async function main() {
   if (!(await over.evaluate(() => window.__mainShown === true))) {
     failures.push('a réteg leállítás-gombja nem hozta elő az appot');
   }
+
+  // A BŐVÍTMÉNY HIÁNYA A RÉTEGEN IS LÁTSZIK. Ez a leggyakoribb indítási út:
+  // ha a figyelmeztetés csak az appban lenne meg, a legtöbben sosem látnák, és
+  // pont az indításnál nem tudnák meg, hogy a menet a böngészőben nem tilt.
+  const footOk = await over.locator('#foot').innerText().catch(() => '');
+  if (/bővítmény/i.test(footOk)) {
+    failures.push('a réteg összekötött bővítmény mellett is riaszt');
+  }
+  await over.evaluate(() => { window.__fakeExtStale = true; });
+  await over.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await over.waitForFunction(
+    () => /bővítmény/i.test(document.getElementById('foot')?.innerText || ''),
+    undefined, { timeout: 10_000 },
+  ).catch(() => failures.push('a réteg nem szól arról, hogy nincs bővítmény'));
+  await over.evaluate(() => { window.__fakeExtStale = false; });
 
   // Az Esc zárja. Egy ottfelejtett, mindig felül lévő réteg a legrosszabb, amit
   // ez a funkció tehet.
