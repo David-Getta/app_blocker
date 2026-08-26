@@ -42,6 +42,8 @@ const SURFACES = [
 ];
 
 const problems = [];
+/** Amire a kód hivatkozik, de a jelölésben nincs. */
+const missing = [];
 
 for (const surface of SURFACES) {
   const htmlPath = path.join(ROOT, surface.html);
@@ -93,8 +95,45 @@ function isWired(id, code, lines) {
   return vars.some((v) => new RegExp(`\\b${v}\\.(addEventListener|onclick)`).test(code));
 }
 
+// A MÁSIK IRÁNY: a kód olyan azonosítóra hivatkozik, ami a jelölésben nincs.
+//
+// Ez rosszabb, mint a kezelő nélküli gomb: a `$('valami')` `null`-t ad,
+// és a `null.textContent` KIVÉTELT dob. Egy elgépelt vagy átnevezett
+// azonosító így nem egy funkciót visz el, hanem a felület egész
+// megjelenítését — attól a ponttól semmi nem rajzolódik ki.
+//
+// Fordítás nem fogja ki: a `getElementById` visszatérési típusa itt
+// `HTMLElement`, nem `HTMLElement | null`, mert a segédfüggvény ezt így
+// ígéri. Az ígéretet viszont senki nem tartatta be — mostantól igen.
+for (const surface of SURFACES) {
+  const htmlPath = path.join(ROOT, surface.html);
+  if (!fs.existsSync(htmlPath)) continue;
+  const html = fs.readFileSync(htmlPath, 'utf8');
+  const ids = new Set([...html.matchAll(/\bid="([^"]+)"/g)].map((m) => m[1]));
+  for (const file of surface.code) {
+    const full = path.join(ROOT, file);
+    if (!fs.existsSync(full)) continue;
+    const code = fs.readFileSync(full, 'utf8');
+    // Csak a `$('...')` és a `getElementById('...')` alakot nézzük: ezek
+    // ígérik, hogy az elem LÉTEZIK. Egy `querySelector` nem ígér semmit.
+    for (const m of code.matchAll(/(?:\$(?:<[^>]*>)?|getElementById)\(\s*'([^']+)'\s*\)/g)) {
+      const id = m[1];
+      if (ids.has(id)) continue;
+      missing.push({ file, id, html: surface.html });
+    }
+  }
+}
+
+if (missing.length > 0) {
+  console.error('A kód olyan azonosítót keres, ami a jelölésben nincs:\n');
+  for (const m of missing) console.error(`  ${m.file}: #${m.id} (nincs a ${m.html}-ben)`);
+  console.error('\nEz futásidejű kivétel: a keresés null-t ad, és attól a ponttól');
+  console.error('a felület nem rajzolódik tovább. Egy átnevezés ennyibe kerül.');
+  process.exit(1);
+}
+
 if (problems.length === 0) {
-  console.log('felület-huzalozás OK (minden gombhoz tartozik kezelő)');
+  console.log('felület-huzalozás OK (kezelők és azonosítók is a helyükön)');
   process.exit(0);
 }
 
