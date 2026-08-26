@@ -95,6 +95,20 @@ struct AppState: Codable, Equatable {
     /// hozza — éjfélkor magától kiürül. Optional, hogy egy korábbi verzió által
     /// írt állapot is dekódolható maradjon.
     var sharedToday: LimitLogic.SharedToday? = nil
+    /// Munkamenet-csomagok: „most csak EZ mehet”.
+    ///
+    /// A blokklista feketelista, ez FEHÉRLISTA. iPhone-on ez ERŐSEBB, mint a
+    /// gépen: a csomagalagút minden névfeloldást lát. Optional, hogy egy
+    /// korábbi verzió által írt állapot is dekódolható maradjon.
+    var focusPacks: [Focus.Pack]? = nil
+    /// a FUTÓ munkamenet — a fiók egészére szól, nem eszközönként
+    var focusRun: Focus.Run? = nil
+    /// a munkamenet szinkron-számlálója; lásd shared/sync/focus-merge.ts
+    var focusRev: Double? = nil
+    var focusUpdatedAt: Double? = nil
+    var focusUpdatedBy: String? = nil
+    /// a lenyomat, amiből kiderül, hogy változott-e
+    var focusRevFp: String? = nil
 }
 
 /// Fiók a szinkronhoz.
@@ -174,6 +188,33 @@ final class BreakerStore: ObservableObject {
             }
         }
         return out
+    }
+
+    /// A FUTÓ munkamenet, ha tényleg fut.
+    func runningFocus(_ now: Double) -> Focus.Run? {
+        guard let run = state.focusRun, Focus.isRunning(run, now: now) else { return nil }
+        return run
+    }
+
+    /// A futó menet csomagja.
+    ///
+    /// Ha a csomag nincs meg, nem tippelünk — a fehérlista TARTALMA nem az a
+    /// dolog, amit kitalálni szabad. Ilyenkor nil jön vissza, tehát a szűrő úgy
+    /// dönt, mintha nem futna semmi: a blokklista marad. Ez a biztonságos
+    /// irány — kevesebb kárt okoz, mint mindent eltiltani egy hiányzó rekord
+    /// miatt.
+    func runningFocusPack(_ now: Double) -> Focus.Pack? {
+        guard let run = runningFocus(now) else { return nil }
+        return (state.focusPacks ?? []).first { $0.id == run.packId }
+    }
+
+    /// A fiókkiszolgáló hosztneve, ha van fiók.
+    ///
+    /// A szűrőnek azért kell, mert a munkamenet alatt sem tilthatjuk el:
+    /// enélkül a telefon nem látná, ha egy MÁSIK eszközön leállítod a menetet.
+    func syncHost() -> String? {
+        guard let raw = state.sync?.serverUrl, let url = URL(string: raw) else { return nil }
+        return url.host
     }
 
     // MARK: - persistence

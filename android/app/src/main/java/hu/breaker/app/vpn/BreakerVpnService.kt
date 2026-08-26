@@ -13,8 +13,8 @@ import android.os.ParcelFileDescriptor
 import android.util.Log
 import hu.breaker.app.MainActivity
 import hu.breaker.app.R
-import hu.breaker.app.core.Blocklist
 import hu.breaker.app.core.BreakerStore
+import hu.breaker.app.core.Focus
 import hu.breaker.app.core.Referee
 import hu.breaker.app.core.UsageLogic
 import hu.breaker.app.usage.UsageTracker
@@ -176,11 +176,27 @@ class BreakerVpnService : VpnService() {
     private fun handleQuery(q: DnsEngine.UdpQuery, payload: ByteArray, output: FileOutputStream) {
         try {
             val name = DnsEngine.queryName(payload)
-            val blocked = name != null &&
-                Blocklist.matches(name, BreakerStore.blockedHostnamesNow(System.currentTimeMillis()))
+            val now = System.currentTimeMillis()
+            // A döntés MAGA a `Focus.verdict` — a sorrendje ott van leírva, és a
+            // legfontosabb pontja, hogy a BLOKKLISTA MINDIG NYER. A munkamenet
+            // sosem old fel semmit, csak hozzátesz; enélkül egy csomagba felvett
+            // `youtube.com` próbatétel nélkül feloldaná a tiltott YouTube-ot.
+            val verdict = if (name == null) {
+                Focus.Verdict.ALLOW
+            } else {
+                Focus.verdict(
+                    name,
+                    BreakerStore.runningFocus(now),
+                    BreakerStore.runningFocusPack(now),
+                    now,
+                    BreakerStore.blockedHostnamesNow(now),
+                    BreakerStore.syncHost(),
+                )
+            }
+            val blocked = verdict != Focus.Verdict.ALLOW
             // Feed the active-time tracker: a resolved (non-blocked) name is our
             // only signal for which page a foreground browser is showing.
-            if (!blocked && name != null) UsageTracker.noteDomain(name, System.currentTimeMillis())
+            if (!blocked && name != null) UsageTracker.noteDomain(name, now)
 
             val answer: ByteArray? = if (blocked) {
                 DnsEngine.buildNxdomain(payload)

@@ -60,8 +60,61 @@ object SyncRevisions {
                 site.copy(rev = site.rev + 1, updatedAt = now, updatedBy = deviceId, revFp = fp)
             }
         }
-        return if (changed) state.copy(sites = sites) else state
+        var next = if (changed) state.copy(sites = sites) else state
+        next = bumpFocus(next, deviceId, now)
+        return next
     }
+
+    /**
+     * A munkamenet lenyomata.
+     *
+     * A FUTÓ menet benne van, ellentétben az oldalak szünetével — és ez a
+     * különbség szándékos. A szünet eszközfüggő és fel sem megy a kiszolgálóra;
+     * a munkamenet viszont a fiók egészére szól. Ha a futás kimaradna, az
+     * indítás sosem léptetné a számlálót, és a másik eszköz sosem tudná meg,
+     * hogy fut valami.
+     */
+    fun focusFingerprint(state: AppState): String {
+        val packs = state.focusPacks.sortedBy { it.id }.joinToString("|") { p ->
+            listOf(
+                p.id, p.name,
+                p.allowSites.sorted().joinToString(","),
+                p.allowApps.sorted().joinToString(","),
+                p.defaultMinutes.toString(),
+            ).joinToString(";")
+        }
+        val run = state.focusRun?.let { "${it.packId};${it.startedAt};${it.endsAt}" } ?: "-"
+        val md = MessageDigest.getInstance("SHA-256")
+        val d = md.digest("$packs//$run".toByteArray(Charsets.UTF_8))
+        return d.take(8).joinToString("") { b -> Integer.toHexString(b.toInt() and 0xff).padStart(2, '0') }
+    }
+
+    /**
+     * A munkamenet számlálójának léptetése.
+     *
+     * AZ ÜRESSÉG NEM SZERKESZTÉS. Egy telefon, ami még sosem látott
+     * munkamenetet, ne lépjen 1-re pusztán attól, hogy először számolunk neki
+     * lenyomatot — különben az első szinkronnál az ÜRES listája nyerne az
+     * „utolsó író nyer” szabály szerint, és CSENDBEN letörölné a gépen felvett
+     * összes csomagot. Az oldalaknál ez nem fordulhat elő, mert ott rekordonként
+     * megy a számláló; itt EGY blob utazik, tehát külön ki kell mondani.
+     */
+    fun bumpFocus(state: AppState, deviceId: String, now: Long): AppState {
+        val fp = focusFingerprint(state)
+        if (state.focusRevFp == fp) return state
+        if (state.focusRevFp == null && state.focusPacks.isEmpty() && state.focusRun == null) {
+            return state.copy(focusRevFp = fp)
+        }
+        return state.copy(
+            focusRev = state.focusRev + 1,
+            focusUpdatedAt = now,
+            focusUpdatedBy = deviceId,
+            focusRevFp = fp,
+        )
+    }
+
+    /** Egy távolról átvett munkamenet lenyomatának újraszámolása. */
+    fun adoptFocus(state: AppState): AppState = state.copy(focusRevFp = focusFingerprint(state))
 
     /**
      * Egy távolról érkezett rekord átvétele.

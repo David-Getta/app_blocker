@@ -245,6 +245,84 @@ object SyncClient {
         return out
     }
 
+    // ------------------------------------------------------------ munkamenet
+
+    internal fun focusToJson(f: FocusSync.SyncFocus): String = JSONObject().apply {
+        put("packs", JSONArray(f.packs.map { p ->
+            JSONObject().apply {
+                put("id", p.id)
+                put("name", p.name)
+                put("allowSites", JSONArray(p.allowSites))
+                put("allowApps", JSONArray(p.allowApps))
+                put("defaultMinutes", p.defaultMinutes)
+            }
+        }))
+        if (f.run == null) put("run", JSONObject.NULL) else put("run", JSONObject().apply {
+            put("packId", f.run.packId)
+            put("startedAt", f.run.startedAt)
+            put("endsAt", f.run.endsAt)
+        })
+        put("rev", f.rev)
+        put("updatedAt", f.updatedAt)
+        put("updatedBy", f.updatedBy)
+    }.toString()
+
+    /**
+     * Kívülről jött blob -> használható állapot.
+     *
+     * Csomagonként tűrünk: egy sérült sor ne vigye el a többit — és főleg ne
+     * vigye el a FUTÓ menetet, mert akkor a felhasználó azt látná, hogy a
+     * munkamenet magától kikapcsolt.
+     */
+    internal fun focusFromJson(text: String, fallbackDevice: String): FocusSync.SyncFocus {
+        val o = JSONObject(text)
+        val packs = mutableListOf<Focus.FocusPack>()
+        val arr = o.optJSONArray("packs")
+        for (i in 0 until (arr?.length() ?: 0)) {
+            runCatching {
+                val p = arr!!.getJSONObject(i)
+                val id = p.optString("id")
+                val name = p.optString("name").trim().take(Focus.MAX_PACK_NAME)
+                if (id.isEmpty() || name.isEmpty()) return@runCatching
+                if (packs.any { it.id == id } || packs.size >= FocusSync.MAX_PACKS) return@runCatching
+                packs.add(Focus.FocusPack(
+                    id = id,
+                    name = name,
+                    allowSites = stringList(p, "allowSites") { Focus.normalizeAllowSite(it) },
+                    allowApps = stringList(p, "allowApps") { Focus.normalizeAllowApp(it) },
+                    defaultMinutes = Focus.normalizeMinutes(p.optDouble("defaultMinutes")) ?: 25,
+                ))
+            }
+        }
+        val rawRun = if (o.isNull("run")) null else o.optJSONObject("run")?.let {
+            Focus.FocusRun(
+                packId = it.optString("packId"),
+                startedAt = it.optLong("startedAt", 0),
+                endsAt = it.optLong("endsAt", 0),
+            )
+        }
+        return FocusSync.SyncFocus(
+            packs = packs,
+            run = FocusSync.cleanRun(rawRun, packs),
+            rev = o.optLong("rev", 0),
+            updatedAt = o.optLong("updatedAt", 0),
+            updatedBy = o.optString("updatedBy").ifEmpty { fallbackDevice },
+        )
+    }
+
+    private fun stringList(
+        o: JSONObject, key: String, normalize: (String) -> String?,
+    ): List<String> {
+        val arr = o.optJSONArray(key) ?: return emptyList()
+        val out = mutableListOf<String>()
+        for (i in 0 until arr.length()) {
+            val n = normalize(arr.optString(i)) ?: continue
+            if (out.contains(n) || out.size >= Focus.MAX_ALLOW_ENTRIES) continue
+            out.add(n)
+        }
+        return out
+    }
+
     /** A hiányzó kulcs `null`, nem üres lista — a kettő mást jelent. */
     private fun rulesFromJson(o: JSONObject): List<UrlRules.UrlRule>? {
         if (o.isNull("rules")) return null
@@ -280,6 +358,69 @@ object SyncClient {
     }
 
     data class SyncResult(val state: AppState, val changed: Boolean, val devices: Int)
+
+    /**
+     * A munkamenet szinkronja: csomagok + a futó menet.
+     *
+     * Ugyanaz a menet, mint a blokklistánál — húzd le, fésüld össze, told fel.
+     * A különbség az összefésülés szabályában van (`FocusSync`): ott a
+     * szigorúbb nyer, és lazítani csak nagyobb `rev` tud.
+     */
+    private fun syncFocusRound(state: AppState, acc: SyncAccount, key: ByteArray): AppState {
+        var current = state
+        for (attempt in 0..MAX_CONFLICT_RETRIES) {
+            val pulled = call(acc.serverUrl, "/v1/pull", JSONObject().apply {
+                put("accountId", acc.accountId); put("authKey", acc.authKey); put("collection", "focus")
+            })
+            val version = pulled.optInt("version", 0)
+            // Egy sérült blob ÜRES állapot, nem kivétel: ha itt elhasalnánk, egy
+            // elrontott bájt megállítaná az egész szinkront — a blokklistáét is.
+            val remote = if (pulled.isNull("payload")) FocusSync.SyncFocus(updatedBy = acc.deviceId)
+                else runCatching {
+                    focusFromJson(SyncCrypto.decrypt(key, pulled.getString("payload")), acc.deviceId)
+                }.getOrElse { FocusSync.SyncFocus(updatedBy = acc.deviceId) }
+
+            val mine = FocusSync.SyncFocus(
+                packs = current.focusPacks,
+                run = current.focusRun,
+                rev = current.focusRev,
+                updatedAt = current.focusUpdatedAt,
+                updatedBy = current.focusUpdatedBy ?: acc.deviceId,
+            )
+            val merged = FocusSync.merge(mine, remote)
+
+            if (!FocusSync.same(merged, mine)) {
+                current = current.copy(
+                    focusPacks = merged.packs,
+                    focusRun = merged.run,
+                    focusRev = merged.rev,
+                    focusUpdatedAt = merged.updatedAt,
+                    focusUpdatedBy = merged.updatedBy,
+                )
+                // A lenyomatot ÚJRASZÁMOLJUK, nem a másik eszközét vesszük át:
+                // enélkül a következő mentés fölöslegesen léptetné a számlálót,
+                // és a két eszköz örökké írogatná egymást.
+                current = SyncRevisions.adoptFocus(current)
+            }
+            if (FocusSync.same(merged, remote) && version > 0) return current
+
+            val payload = SyncCrypto.encrypt(key, focusToJson(merged))
+            if (payload.length > MAX_PAYLOAD_BYTES) {
+                throw SyncException("A munkamenet-csomagok túl nagyok a szinkronhoz.", "TOO_BIG")
+            }
+            val push = call(acc.serverUrl, "/v1/push", JSONObject().apply {
+                put("accountId", acc.accountId); put("authKey", acc.authKey)
+                put("collection", "focus"); put("deviceId", acc.deviceId)
+                put("baseVersion", version); put("payload", payload)
+                put("nameBlob", SyncCrypto.encrypt(key, acc.deviceName))
+            })
+            if (push.optBoolean("ok", false)) return current
+            if (attempt == MAX_CONFLICT_RETRIES) {
+                throw SyncException("A munkamenet szinkronja nem tudott lezárulni.", "CONFLICT")
+            }
+        }
+        return current
+    }
 
     /**
      * Egy teljes szinkron-kör. BLOKKOL — háttérszálról hívandó.
@@ -320,6 +461,15 @@ object SyncClient {
             if (attempt == MAX_CONFLICT_RETRIES) {
                 throw SyncException("A szinkron nem tudott lezárulni: egy másik eszköz épp ír.", "CONFLICT")
             }
+        }
+
+        // A MUNKAMENET. A blokklista után megy, mert az a fontosabb: ha a kör
+        // itt hasal el, a tiltás attól már szinkronban van. Külön `runCatching`
+        // ugyanezért — egy munkamenet-hiba ne vigye magával az egész kört.
+        runCatching {
+            val before = current
+            current = syncFocusRound(current, acc, key)
+            if (current !== before) changed = true
         }
 
         // A mérés eszközönként külön blob: itt nincs ütközés. Ha ez elhasal, a

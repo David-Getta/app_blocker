@@ -219,3 +219,30 @@ rendszer-alagút appok szerinti szűrése külön mechanizmus (`addAllowedApplic
 iOS-en pedig egyáltalán nincs ilyen. A mezőt mégis tároljuk és szinkronizáljuk,
 mert a gépen érvényes, és a szinkron sosem dobhat el olyat, amit egy eszköz nem
 használ — különben a telefon minden körben letörölné a gépen felvett listát.
+
+## Hol tart most a mobil (v0.4.3)
+
+| | Csomagok tárolása | Szinkron | Fehérlista érvényesítése | Munkamenet indítása |
+|---|---|---|---|---|
+| **Gép** | igen | igen | böngésző-bővítmény | igen |
+| **Android** | igen | igen | **DNS-szűrő (a VPN-ben)** | még nem |
+| **iPhone** | igen | igen | **DNS-szűrő (az alagútban)** | még nem |
+
+**Indítani egyelőre a gépen lehet.** Ez szándékos, nem félkész: indítani ingyen
+van, LEÁLLÍTANI viszont próbatétel. Ha a telefon tudna indítani, de leállítani
+nem, akkor egy elindított nyolcórás menetből a telefonon nem lenne kiút — és a
+Breaker soha nem tesz a felhasználóval olyat, amit az nem kért. A telefonos
+indítás a próbatétel-motor teljes tükrével együtt jön, egyben.
+
+Kiút addig is van, és nem titok: a rendszer VPN-kapcsolója erősebb az appnál.
+Ha ott kikapcsolod az alagutat, a szűrés megáll — a blokklistánál is így van.
+
+## Amit ez a réteg NEM fed
+
+- **Az appok listáját** (`allowApps`) a telefon nem érvényesíti. Androidon az
+  alagút appok szerinti szűrése külön mechanizmus, iOS-en pedig egyáltalán
+  nincs ilyen. A mezőt mégis tároljuk és szinkronizáljuk, mert a gépen érvényes.
+- **A tényleges alagút-viselkedés** csak igazi készüléken derül ki. A CI a
+  logikát fedi (magok, összefésülés, számlálók), és a fordítást — de VPN-t nem
+  futtat. Ezt nem hallgatjuk el: a „minden letesztelve” itt pont annyira lenne
+  igaz, mint a hamis biztonságérzet, ami ellen az egész app szól.

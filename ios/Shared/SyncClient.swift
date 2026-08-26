@@ -200,6 +200,70 @@ enum SyncClient {
     }
 
     /// Egy teljes szinkron-kör.
+    /// A munkamenet szinkronja: csomagok + a futó menet.
+    ///
+    /// Ugyanaz a menet, mint a blokklistánál — húzd le, fésüld össze, told fel.
+    /// A különbség az összefésülés szabályában van (`FocusSync`): ott a
+    /// szigorúbb nyer, és lazítani csak nagyobb `rev` tud.
+    private static func syncFocusRound(
+        _ state: AppState, _ acc: SyncAccount, _ key: [UInt8]
+    ) async throws -> AppState {
+        var current = state
+        for attempt in 0...maxConflictRetries {
+            let pulled = try await call(acc.serverUrl, "/v1/pull", [
+                "accountId": acc.accountId, "authKey": acc.authKey, "collection": "focus",
+            ])
+            let version = pulled["version"] as? Int ?? 0
+            // Egy sérült blob ÜRES állapot, nem kivétel: ha itt elhasalnánk, egy
+            // elrontott bájt megállítaná az egész szinkront — a blokklistáét is.
+            var remote = FocusSync.SyncFocus(updatedBy: acc.deviceId)
+            if let blob = pulled["payload"] as? String,
+               let text = try? SyncCrypto.decrypt(key, blob),
+               let decoded = try? JSONDecoder().decode(
+                   FocusSync.SyncFocus.self, from: Data(text.utf8)) {
+                remote = FocusSync.normalize(decoded, fallbackDevice: acc.deviceId)
+            }
+
+            let mine = FocusSync.SyncFocus(
+                packs: current.focusPacks ?? [],
+                run: current.focusRun,
+                rev: current.focusRev ?? 0,
+                updatedAt: current.focusUpdatedAt ?? 0,
+                updatedBy: current.focusUpdatedBy ?? acc.deviceId
+            )
+            let merged = FocusSync.merge(mine, remote)
+
+            if !FocusSync.same(merged, mine) {
+                current.focusPacks = merged.packs
+                current.focusRun = merged.run
+                current.focusRev = merged.rev
+                current.focusUpdatedAt = merged.updatedAt
+                current.focusUpdatedBy = merged.updatedBy
+                // A lenyomatot ÚJRASZÁMOLJUK, nem a másik eszközét vesszük át:
+                // enélkül a következő mentés fölöslegesen léptetné a számlálót,
+                // és a két eszköz örökké írogatná egymást.
+                current = SyncRevisions.adoptFocus(current)
+            }
+            if FocusSync.same(merged, remote) && version > 0 { return current }
+
+            let encoded = try JSONEncoder().encode(merged)
+            let payload = try SyncCrypto.encrypt(key, String(decoding: encoded, as: UTF8.self))
+            if payload.utf8.count > maxPayloadBytes {
+                throw SyncError("A munkamenet-csomagok túl nagyok a szinkronhoz.", "TOO_BIG")
+            }
+            let push = try await call(acc.serverUrl, "/v1/push", [
+                "accountId": acc.accountId, "authKey": acc.authKey, "collection": "focus",
+                "deviceId": acc.deviceId, "baseVersion": version, "payload": payload,
+                "nameBlob": try SyncCrypto.encrypt(key, acc.deviceName),
+            ])
+            if push["ok"] as? Bool == true { return current }
+            if attempt == maxConflictRetries {
+                throw SyncError("A munkamenet szinkronja nem tudott lezárulni.", "CONFLICT")
+            }
+        }
+        return current
+    }
+
     static func syncNow(_ state: AppState, now: Double) async throws -> SyncResult {
         guard let acc = state.sync else { throw SyncError("Nincs bejelentkezve.", "NO_ACCOUNT") }
         guard let keyData = Data(base64Encoded: acc.dataKey) else {
@@ -242,6 +306,13 @@ enum SyncClient {
             if attempt == maxConflictRetries {
                 throw SyncError("A szinkron nem tudott lezárulni: egy másik eszköz épp ír.", "CONFLICT")
             }
+        }
+
+        // A MUNKAMENET. A blokklista után megy, mert az a fontosabb: ha a kör
+        // itt hasal el, a tiltás attól már szinkronban van.
+        if let after = try? await syncFocusRound(current, acc, key) {
+            if after != current { changed = true }
+            current = after
         }
 
         // A mai összegzés a többi eszközről — ebből lesz a KÖZÖS napi keret.

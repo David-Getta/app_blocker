@@ -66,6 +66,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import hu.breaker.app.core.AliasLogic
 import hu.breaker.app.core.AppState
+import hu.breaker.app.core.Focus
 import hu.breaker.app.core.Blocklist
 import hu.breaker.app.core.BreakerStore
 import hu.breaker.app.core.ChallengeEngine
@@ -284,6 +285,12 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                     else MaterialTheme.colorScheme.error,
                 )
             }
+
+            // FUTÓ MUNKAMENET. Ez a telefonon fehérlista: amíg megy, csak a
+            // csomagban felsoroltak jönnek be, minden más NXDOMAIN. Ha ez nem
+            // látszana, a felhasználó egy hálózati hibát keresne — nem értené,
+            // miért nem jön be egy oldal, és az appot hinné rossznak.
+            FocusRunningCard(state)
 
             // Update banner (direct-download track)
             update?.let { upd ->
@@ -1754,6 +1761,56 @@ private fun FlowRowActions(busy: Boolean, onSync: () -> Unit, onDevices: () -> U
         Button(enabled = !busy, onClick = onSync) { Text(if (busy) "Szinkron…" else "Szinkronizálás most") }
         OutlinedButton(enabled = !busy, onClick = onDevices) { Text("Eszközök") }
         TextButton(enabled = !busy, onClick = onSignOut) { Text("Kijelentkezés") }
+    }
+}
+
+/**
+ * A futó munkamenet kártyája.
+ *
+ * A telefonon a munkamenet FEHÉRLISTA, és a DNS-szűrő tényleg érvényesíti: ami
+ * nincs a csomagon, arra NXDOMAIN a válasz. Ez erősebb, mint amit a gép tud —
+ * és pont ezért kell kimondani, mi történik. Enélkül a felhasználó azt látná,
+ * hogy „nem jön be semmi”, és hálózati hibát keresne.
+ */
+@Composable
+private fun FocusRunningCard(state: AppState) {
+    val now = System.currentTimeMillis()
+    val run = state.focusRun
+    if (run == null || !Focus.isRunning(run, now)) return
+    val pack = state.focusPacks.firstOrNull { it.id == run.packId } ?: return
+
+    Card {
+        Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            SectionLabel("Munkamenet fut")
+            Text(pack.name, style = MaterialTheme.typography.titleMedium)
+            Text(
+                "Még ${Focus.formatRemaining(run.endsAt - now)} — eddig: ${fmtClock(run.endsAt)}",
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            Text(
+                if (pack.allowSites.isEmpty()) {
+                    "Ebben a csomagban nincs engedélyezett oldal — minden más tiltva."
+                } else {
+                    "Most csak ez mehet: ${pack.allowSites.joinToString(", ")}. Minden más tiltva."
+                },
+                style = MaterialTheme.typography.bodySmall,
+            )
+            // A kivétellista LÉTEZÉSÉT kimondjuk. Egy titkos kivétel rosszabb
+            // lenne, mint egy nyílt: a felhasználó előbb-utóbb észreveszi, hogy
+            // valami mégis átment, és onnantól semmiben nem hisz.
+            Text(
+                "Az értesítések, a kapcsolat-ellenőrzés és az óra átmennek — enélkül a " +
+                    "telefon nem korlátozott lenne, hanem elromlott. Böngészni egyiken sem lehet.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                "Leállítani a gépen lehet, próbatétellel — ahogy egy feloldást is. " +
+                    "A munkamenet a saját idejéig magától lejár.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 

@@ -59,7 +59,25 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     private func handle(packet: [UInt8], family: Int32, blocked: Set<String>) {
         guard let q = DnsEngine.parseUdp(packet) else { return }
         let name = DnsEngine.queryName(q.dnsPayload)
-        let isBlocked = name != nil && Blocklist.matches(name!, blocked: blocked)
+        // A döntés MAGA a `Focus.verdict` — a sorrendje ott van leírva, és a
+        // legfontosabb pontja, hogy a BLOKKLISTA MINDIG NYER. A munkamenet
+        // sosem old fel semmit, csak hozzátesz; enélkül egy csomagba felvett
+        // `youtube.com` próbatétel nélkül feloldaná a tiltott YouTube-ot.
+        let now = nowMs()
+        let store = BreakerStore.shared
+        let isBlocked: Bool
+        if let name {
+            isBlocked = Focus.verdict(
+                name,
+                run: store.runningFocus(now),
+                pack: store.runningFocusPack(now),
+                now: now,
+                blocked: blocked,
+                syncHost: store.syncHost()
+            ) != .allow
+        } else {
+            isBlocked = false
+        }
 
         if isBlocked {
             guard let nx = DnsEngine.buildNxdomain(q.dnsPayload) else { return }

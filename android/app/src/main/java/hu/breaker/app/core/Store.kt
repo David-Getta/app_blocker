@@ -119,6 +119,8 @@ data class AppState(
     val focusRev: Long = 0,
     val focusUpdatedAt: Long = 0,
     val focusUpdatedBy: String? = null,
+    /** a lenyomat, amiből kiderül, hogy változott-e (lásd SyncRevisions) */
+    val focusRevFp: String? = null,
 )
 
 /**
@@ -362,6 +364,26 @@ object BreakerStore {
                 }))
             }
         } ?: JSONObject.NULL)
+        // A munkamenet. Blokkolási döntés függ tőle (fehérlista!), ezért
+        // újraindulás után is meg kell maradnia — enélkül az app kilövése
+        // feloldás lenne, próbatétel nélkül.
+        put("focusPacks", JSONArray(s.focusPacks.map { p ->
+            JSONObject().apply {
+                put("id", p.id); put("name", p.name)
+                put("allowSites", JSONArray(p.allowSites))
+                put("allowApps", JSONArray(p.allowApps))
+                put("defaultMinutes", p.defaultMinutes)
+            }
+        }))
+        put("focusRun", s.focusRun?.let { r ->
+            JSONObject().apply {
+                put("packId", r.packId); put("startedAt", r.startedAt); put("endsAt", r.endsAt)
+            }
+        } ?: JSONObject.NULL)
+        put("focusRev", s.focusRev)
+        put("focusUpdatedAt", s.focusUpdatedAt)
+        put("focusUpdatedBy", s.focusUpdatedBy ?: JSONObject.NULL)
+        put("focusRevFp", s.focusRevFp ?: JSONObject.NULL)
         put("lastCombo", s.lastCombo ?: JSONObject.NULL)
         put("abandons", JSONArray(s.abandons.map { a ->
             JSONObject().apply {
@@ -475,6 +497,9 @@ object BreakerStore {
         val unlockLog = o.optJSONArray("unlockLog")?.let { arr ->
             (0 until arr.length()).mapNotNull { i -> runCatching { arr.getLong(i) }.getOrNull() }
         } ?: emptyList()
+        // Egyszer olvassuk ki: a futás érvényessége a csomagoktól függ, és két
+        // külön elemzés két külön listát adna, ha a blob közben nem is változik.
+        val focusPacks = focusPacksFromJson(o)
         val session = if (o.isNull("session")) null else runCatching {
             o.getJSONObject("session").let { ses ->
                 SessionRec(
@@ -550,6 +575,60 @@ object BreakerStore {
                 }
                 LimitLogic.SharedToday(sh.getString("selfDeviceId"), devices)
             }.getOrNull(),
+            focusPacks = focusPacks,
+            // A futás csak akkor él, ha a csomagja megvan: nem tippelünk, mert a
+            // fehérlista TARTALMA nem az a dolog, amit kitalálni szabad.
+            focusRun = FocusSync.cleanRun(focusRunFromJson(o), focusPacks),
+            focusRev = o.optLong("focusRev", 0),
+            focusUpdatedAt = o.optLong("focusUpdatedAt", 0),
+            focusUpdatedBy = if (o.isNull("focusUpdatedBy")) null else o.optString("focusUpdatedBy"),
+            focusRevFp = if (o.isNull("focusRevFp")) null else o.optString("focusRevFp"),
         )
+    }
+
+    /** Csomagonként tűrünk: egy sérült sor ne vigye el a többit. */
+    private fun focusPacksFromJson(o: JSONObject): List<Focus.FocusPack> {
+        val arr = o.optJSONArray("focusPacks") ?: return emptyList()
+        val out = mutableListOf<Focus.FocusPack>()
+        for (i in 0 until arr.length()) {
+            runCatching {
+                val p = arr.getJSONObject(i)
+                val id = p.optString("id")
+                val name = p.optString("name").trim().take(Focus.MAX_PACK_NAME)
+                if (id.isEmpty() || name.isEmpty()) return@runCatching
+                if (out.any { it.id == id }) return@runCatching
+                out.add(Focus.FocusPack(
+                    id = id,
+                    name = name,
+                    allowSites = jsonStrings(p, "allowSites") { Focus.normalizeAllowSite(it) },
+                    allowApps = jsonStrings(p, "allowApps") { Focus.normalizeAllowApp(it) },
+                    defaultMinutes = Focus.normalizeMinutes(p.optDouble("defaultMinutes")) ?: 25,
+                ))
+            }
+        }
+        return out
+    }
+
+    private fun focusRunFromJson(o: JSONObject): Focus.FocusRun? {
+        if (o.isNull("focusRun")) return null
+        val r = o.optJSONObject("focusRun") ?: return null
+        return Focus.FocusRun(
+            packId = r.optString("packId"),
+            startedAt = r.optLong("startedAt", 0),
+            endsAt = r.optLong("endsAt", 0),
+        )
+    }
+
+    private fun jsonStrings(
+        o: JSONObject, key: String, normalize: (String) -> String?,
+    ): List<String> {
+        val arr = o.optJSONArray(key) ?: return emptyList()
+        val out = mutableListOf<String>()
+        for (i in 0 until arr.length()) {
+            val n = normalize(arr.optString(i)) ?: continue
+            if (out.contains(n) || out.size >= Focus.MAX_ALLOW_ENTRIES) continue
+            out.add(n)
+        }
+        return out
     }
 }

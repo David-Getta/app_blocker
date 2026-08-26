@@ -55,6 +55,57 @@ enum SyncRevisions {
             out.revFp = fp
             return out
         }
+        return bumpFocus(next, deviceId: deviceId, now: now)
+    }
+
+    /// A munkamenet lenyomata.
+    ///
+    /// A FUTÓ menet benne van, ellentétben az oldalak szünetével — és ez a
+    /// különbség szándékos. A szünet eszközfüggő és fel sem megy a
+    /// kiszolgálóra; a munkamenet viszont a fiók egészére szól. Ha a futás
+    /// kimaradna, az indítás sosem léptetné a számlálót, és a másik eszköz
+    /// sosem tudná meg, hogy fut valami.
+    static func focusFingerprint(_ state: AppState) -> String {
+        let packs = (state.focusPacks ?? []).sorted { $0.id < $1.id }.map { p in
+            [
+                p.id, p.name,
+                p.allowSites.sorted().joined(separator: ","),
+                p.allowApps.sorted().joined(separator: ","),
+                String(p.defaultMinutes),
+            ].joined(separator: ";")
+        }.joined(separator: "|")
+        let run = state.focusRun.map { "\($0.packId);\($0.startedAt);\($0.endsAt)" } ?? "-"
+        let digest = SHA256.hash(data: Data("\(packs)//\(run)".utf8))
+        return digest.prefix(8).map { String(format: "%02x", $0) }.joined()
+    }
+
+    /// A munkamenet számlálójának léptetése.
+    ///
+    /// AZ ÜRESSÉG NEM SZERKESZTÉS. Egy telefon, ami még sosem látott
+    /// munkamenetet, ne lépjen 1-re pusztán attól, hogy először számolunk neki
+    /// lenyomatot — különben az első szinkronnál az ÜRES listája nyerne az
+    /// utolsó írót előnyben részesítő szabály szerint, és CSENDBEN letörölné a
+    /// gépen felvett összes csomagot. Az oldalaknál ez nem fordulhat elő, mert
+    /// ott rekordonként megy a számláló; itt EGY blob utazik.
+    static func bumpFocus(_ state: AppState, deviceId: String, now: Double) -> AppState {
+        let fp = focusFingerprint(state)
+        if state.focusRevFp == fp { return state }
+        var next = state
+        if state.focusRevFp == nil && (state.focusPacks ?? []).isEmpty && state.focusRun == nil {
+            next.focusRevFp = fp
+            return next
+        }
+        next.focusRev = (state.focusRev ?? 0) + 1
+        next.focusUpdatedAt = now
+        next.focusUpdatedBy = deviceId
+        next.focusRevFp = fp
+        return next
+    }
+
+    /// Egy távolról átvett munkamenet lenyomatának újraszámolása.
+    static func adoptFocus(_ state: AppState) -> AppState {
+        var next = state
+        next.focusRevFp = focusFingerprint(state)
         return next
     }
 
