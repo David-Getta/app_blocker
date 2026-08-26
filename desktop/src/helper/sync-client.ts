@@ -23,7 +23,10 @@ import {
 import { mergeSiteLists, type SyncSite } from '../shared/sync/merge.js';
 import { MAX_PAYLOAD_BYTES, SYNC_PROTOCOL } from '../shared/sync/protocol.js';
 import type { HelperState, SiteRec, SyncAccount } from './state';
-import { adoptRevision, bumpRevisions } from './revisions';
+import { adoptFocusRevision, adoptRevision, bumpRevisions } from './revisions';
+import {
+  emptyFocus, mergeFocus, normalizeSyncFocus, sameFocus, type SyncFocus,
+} from '../shared/sync/focus-merge.js';
 import { makeTodayDigest, normalizeTodayDigest, type TodayDigest } from '../shared/limits.js';
 
 /** Ennél tovább egy szinkron-kör nem tarthat; a segéd nem állhat meg miatta. */
@@ -357,6 +360,94 @@ export async function syncToday(state: HelperState, now: number): Promise<number
 }
 
 /**
+ * A munkamenet szinkronja: csomagok + a futó menet.
+ *
+ * Ugyanaz a menet, mint a blokklistánál — húzd le, fésüld össze, told fel —,
+ * mert ugyanaz a kockázat: két eszköz párhuzamos írása egyik oldalát sem
+ * tüntetheti el. A különbség az összefésülés szabályában van
+ * (`shared/sync/focus-merge.ts`): ott a szigorúbb nyer, és lazítani csak
+ * nagyobb `rev` tud.
+ *
+ * @returns változott-e a HELYI állapot (a hívónak menteni kell)
+ */
+async function syncFocusRound(
+  state: HelperState, acc: SyncAccount, key: Buffer,
+): Promise<boolean> {
+  let changed = false;
+  for (let attempt = 0; attempt <= MAX_CONFLICT_RETRIES; attempt++) {
+    const pulled = await call(acc.serverUrl, '/v1/pull', {
+      accountId: acc.accountId, authKey: acc.authKey, collection: 'focus',
+    });
+    const remote = decodeFocus(acc, pulled.payload);
+    const mine = localFocus(state, acc.deviceId);
+    const merged = mergeFocus(mine, remote);
+
+    if (!sameFocus(merged, mine)) {
+      state.focusPacks = merged.packs;
+      state.focusRun = merged.run;
+      state.focusRev = merged.rev;
+      state.focusUpdatedAt = merged.updatedAt;
+      state.focusUpdatedBy = merged.updatedBy;
+      // A lenyomatot ÚJRASZÁMOLJUK, nem az övét vesszük át: enélkül a következő
+      // mentés fölöslegesen léptetné a számlálót, és a két eszköz örökké
+      // írogatná egymást.
+      adoptFocusRevision(state);
+      changed = true;
+    }
+    if (sameFocus(merged, remote) && pulled.version > 0) {
+      acc.focusVersion = pulled.version;
+      return changed; // a kiszolgálón már pontosan ez van
+    }
+
+    const payload = encrypt(key, JSON.stringify(merged));
+    if (payload.length > MAX_PAYLOAD_BYTES) {
+      throw new SyncError('A munkamenet-csomagok túl nagyok a szinkronhoz.', 'TOO_BIG');
+    }
+    const push = await call(acc.serverUrl, '/v1/push', {
+      accountId: acc.accountId, authKey: acc.authKey, collection: 'focus',
+      deviceId: acc.deviceId, baseVersion: pulled.version, payload,
+      nameBlob: encrypt(key, acc.deviceName),
+    });
+    if (push.ok) {
+      acc.focusVersion = push.version;
+      return changed;
+    }
+    if (attempt === MAX_CONFLICT_RETRIES) {
+      throw new SyncError('A munkamenet szinkronja nem tudott lezárulni.', 'CONFLICT');
+    }
+  }
+  return changed;
+}
+
+/** A helyi állapot szinkron-alakja. */
+function localFocus(state: HelperState, deviceId: string): SyncFocus {
+  return {
+    packs: state.focusPacks ?? [],
+    run: state.focusRun ?? null,
+    rev: state.focusRev ?? 0,
+    updatedAt: state.focusUpdatedAt ?? 0,
+    updatedBy: state.focusUpdatedBy ?? deviceId,
+  };
+}
+
+/**
+ * A letöltött blob kibontása.
+ *
+ * Egy sérült vagy régi formátumú blob ÜRES állapotot ad, nem kivételt: ha itt
+ * elhasalnánk, egy elrontott bájt megállítaná az egész szinkront — a
+ * blokklistáét is.
+ */
+function decodeFocus(acc: SyncAccount, payload: string | null | undefined): SyncFocus {
+  if (!payload) return emptyFocus(acc.deviceId);
+  try {
+    const key = Buffer.from(acc.dataKey, 'base64');
+    return normalizeSyncFocus(JSON.parse(decrypt(key, payload)), acc.deviceId);
+  } catch {
+    return emptyFocus(acc.deviceId);
+  }
+}
+
+/**
  * Egy teljes szinkron-kör.
  *
  * A hívó felelőssége menteni (`commit`), ha `changed` igaz — a mentés a
@@ -406,6 +497,13 @@ export async function syncNow(state: HelperState, now: number): Promise<SyncResu
       throw new SyncError('A szinkron nem tudott lezárulni: egy másik eszköz épp ír.', 'CONFLICT');
     }
   }
+
+  // A MUNKAMENET. A blokklista után megy, mert az a fontosabb: ha a kör itt
+  // hasal el, a tiltás attól már szinkronban van. Külön `try`, ugyanezért — egy
+  // munkamenet-hiba ne vigye magával az egész kört.
+  try {
+    if (await syncFocusRound(state, acc, key)) changed = true;
+  } catch { /* a blokklista ettől már szinkronban van */ }
 
   // A mérés eszközönként külön blob: itt nincs ütközés, csak a saját sorunkat
   // írjuk. Ha ez elhasal, a blokklista attól már szinkronban van — ezért fut

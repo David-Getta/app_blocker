@@ -163,6 +163,56 @@ test('a stale looser version cannot undo a tightening', async () => {
   assert.equal(after.dailyLimitSeconds, 600, 'a régi, lazább rekord nem törölte a keretet');
 });
 
+test('a session started on one device reaches the other', async () => {
+  // EZ AZ EGÉSZ MOBIL-MUNKAMENET LÉNYEGE. Amíg a menet csak a gépen létezett,
+  // a telefon kiskapu volt: elindítod a „Nyelvtanulás” csomagot, felveszed a
+  // telefont, és ott minden mehet.
+  const a = device([site()]);
+  await signIn(a, url, ACCOUNT, PASSWORD, 'Munkagép');
+  a.focusPacks = [{
+    id: 'pack_1', name: 'Nyelvtanulás',
+    allowSites: ['quizlet.com'], allowApps: ['Word'], defaultMinutes: 50,
+  }];
+  a.focusRun = { packId: 'pack_1', startedAt: 10_000, endsAt: 10_000 + 50 * 60_000 };
+  await syncNow(a, 10_100);
+
+  const b = device();
+  await signIn(b, url, ACCOUNT, PASSWORD, 'Telefon');
+  await syncNow(b, 11_000);
+  assert.deepEqual(b.focusPacks?.map((p) => p.name), ['Nyelvtanulás']);
+  assert.equal(b.focusRun?.packId, 'pack_1', 'a telefonnak tudnia kell, hogy fut egy menet');
+  assert.equal(b.focusRun?.endsAt, 10_000 + 50 * 60_000);
+});
+
+test('a stale device cannot switch off a running session', async () => {
+  // A kibúvó, amit ez zár: a telefonon marad egy régi állapot, ami szerint nem
+  // fut semmi. Feltölti, és a gépen próbatétel nélkül eltűnik a munkamenet.
+  const a = device([site()]);
+  await signIn(a, url, ACCOUNT, PASSWORD, 'Munkagép');
+  await syncNow(a, 12_000);
+  assert.equal(a.focusRun?.packId, 'pack_1', 'a gép a futó menettel indul');
+
+  // A „régi” eszköz: ismeri a csomagot, de nála nem fut semmi, és a számlálója
+  // is elmaradt — pontosan az az állapot, ami egy kimaradt kör után marad.
+  const stale = device();
+  await signIn(stale, url, ACCOUNT, PASSWORD, 'Regi telefon');
+  stale.focusPacks = a.focusPacks;
+  // A típussal együtt írjuk be a nullt: e nélkül a fordító a mezőt `null`-ra
+  // szűkíti, és az alatta lévő ellenőrzés ÜRESSÉ válna — mindig igaz lenne,
+  // akkor is, ha a szinkron nem hozná át a futó menetet.
+  stale.focusRun = null as HelperState['focusRun'];
+  stale.focusRev = 0;
+  stale.focusUpdatedAt = 0;
+  await syncNow(stale, 13_000);
+  assert.equal(stale.focusRun?.packId, 'pack_1', 'a régi eszköz megkapja a futó menetet');
+
+  // És a gépen sem tűnt el.
+  const back = device();
+  await signIn(back, url, ACCOUNT, PASSWORD, 'Munkagép');
+  await syncNow(back, 14_000);
+  assert.equal(back.focusRun?.packId, 'pack_1', 'a menet nem kapcsolódhat ki magától');
+});
+
 test('signing out never removes a single block', async () => {
   // Ha törölne, a kijelentkezés lenne a világ legegyszerűbb feloldása.
   const a = device();

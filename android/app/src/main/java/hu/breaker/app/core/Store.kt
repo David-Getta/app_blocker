@@ -106,6 +106,19 @@ data class AppState(
      * hozza — éjfélkor magától kiürül.
      */
     val sharedToday: LimitLogic.SharedToday? = null,
+    /**
+     * Munkamenet-csomagok: „most csak EZ mehet”.
+     *
+     * A blokklista feketelista, ez FEHÉRLISTA. A telefonon ez erősebb, mint a
+     * gépen: a szűrő minden névfeloldást lát. Lásd core/Focus.kt.
+     */
+    val focusPacks: List<Focus.FocusPack> = emptyList(),
+    /** a FUTÓ munkamenet, ha van — a fiók egészére szól, nem eszközönként */
+    val focusRun: Focus.FocusRun? = null,
+    /** a munkamenet szinkron-számlálója; lásd shared/sync/focus-merge.ts */
+    val focusRev: Long = 0,
+    val focusUpdatedAt: Long = 0,
+    val focusUpdatedBy: String? = null,
 )
 
 /**
@@ -171,6 +184,43 @@ object BreakerStore {
             if (LimitLogic.isBlockedNowWithLimit(site, state.usage, now, state.sharedToday)) out.addAll(site.hostnames)
         }
         return out
+    }
+
+    /**
+     * A FUTÓ munkamenet csomagja, ha van — a DNS-szűrő ebből dolgozik.
+     *
+     * Ha a futás csomagja nincs meg, nem tippelünk: a fehérlista TARTALMA nem
+     * az a dolog, amit kitalálni szabad. Ilyenkor `null` jön vissza, tehát a
+     * szűrő úgy dönt, mintha nem futna semmi — a blokklista marad. Ez a
+     * biztonságos irány: kevesebb kárt okoz, mint mindent eltiltani egy
+     * hiányzó rekord miatt.
+     */
+    fun runningFocusPack(now: Long): Focus.FocusPack? {
+        val state = _state.value
+        val run = state.focusRun ?: return null
+        if (!Focus.isRunning(run, now)) return null
+        return state.focusPacks.firstOrNull { it.id == run.packId }
+    }
+
+    /** A futó menet maga, ha tényleg fut. */
+    fun runningFocus(now: Long): Focus.FocusRun? {
+        val run = _state.value.focusRun ?: return null
+        return if (Focus.isRunning(run, now)) run else null
+    }
+
+    /**
+     * A fiókkiszolgáló hosztneve, ha van fiók.
+     *
+     * A szűrőnek azért kell, mert a munkamenet alatt sem tilthatjuk el: enélkül
+     * a telefon nem látná, ha egy MÁSIK eszközön leállítod a menetet.
+     */
+    fun syncHost(): String? {
+        val url = _state.value.sync?.serverUrl ?: return null
+        return try {
+            java.net.URI(url).host
+        } catch (_: Exception) {
+            null
+        }
     }
 
     // ------------------------------------------------------------- JSON i/o

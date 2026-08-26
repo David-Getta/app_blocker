@@ -62,7 +62,75 @@ export function bumpRevisions(state: HelperState, deviceId: string, now: number)
     site.revFp = fp;
     changed++;
   }
+  if (bumpFocusRevision(state, deviceId, now)) changed++;
   return changed;
+}
+
+/**
+ * A munkamenet lenyomata.
+ *
+ * A futó menet BENNE VAN, ellentétben az oldalak szünetével — és ez a
+ * különbség szándékos. A szünet eszközfüggő és fel sem megy a kiszolgálóra; a
+ * munkamenet viszont a fiók egészére szól: ha a gépen elindítasz egy
+ * fehérlistás menetet, a telefonon is annak kell érvényesnek lennie. Ha a futás
+ * kimaradna a lenyomatból, az indítás sosem léptetné a számlálót, és a telefon
+ * soha nem tudná meg, hogy fut valami.
+ */
+function focusFingerprint(state: HelperState): string {
+  const packs = [...(state.focusPacks ?? [])]
+    .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+    .map((p) => [p.id, p.name, [...p.allowSites].sort(), [...p.allowApps].sort(), p.defaultMinutes]);
+  const run = state.focusRun
+    ? [state.focusRun.packId, state.focusRun.startedAt, state.focusRun.endsAt]
+    : null;
+  return crypto.createHash('sha256').update(JSON.stringify([packs, run]))
+    .digest('hex').slice(0, 16);
+}
+
+/** @returns változott-e a munkamenet ezen a gépen az előző kör óta */
+export function bumpFocusRevision(
+  state: HelperState, deviceId: string, now: number,
+): boolean {
+  const fp = focusFingerprint(state);
+  if (state.focusRevFp === fp) return false;
+
+  // AZ ÜRESSÉG NEM SZERKESZTÉS. Egy eszköz, ami még sosem látott munkamenetet,
+  // ne lépjen 1-re pusztán attól, hogy először számolunk neki lenyomatot.
+  //
+  // Ha léptetne, a következő történne, és ez NEM elméleti: a telefon először
+  // szinkronizál, a semmiből 1-es számlálót kap, az ideje pedig frissebb, mint
+  // a gépé — így az „utolsó író nyer” szabály szerint az ÜRES listája nyerne, és
+  // csendben letörölné a gépen felvett összes csomagot. Pont az a hibaosztály,
+  // ami a részleges szabályoknál egyszer már majdnem megtörtént.
+  //
+  // Az oldalaknál ez nem fordulhat elő, mert ott rekordonként megy a számláló,
+  // és egy üres listán nincs mit léptetni. Itt EGY blob utazik, tehát külön ki
+  // kell mondani.
+  if (state.focusRevFp === undefined && isEmptyFocus(state)) {
+    state.focusRevFp = fp;
+    return false;
+  }
+
+  state.focusRev = (state.focusRev ?? 0) + 1;
+  state.focusUpdatedAt = now;
+  state.focusUpdatedBy = deviceId;
+  state.focusRevFp = fp;
+  return true;
+}
+
+function isEmptyFocus(state: HelperState): boolean {
+  return (state.focusPacks ?? []).length === 0 && !state.focusRun;
+}
+
+/**
+ * Egy távolról átvett munkamenet lenyomatának újraszámolása.
+ *
+ * Ugyanaz az ok, mint az oldalaknál: ha a két oldal ugyanarra a tartalomra
+ * jutott, a következő `commit()` ne léptesse fölöslegesen a számlálót, mert
+ * abból végtelen oda-vissza írás lesz.
+ */
+export function adoptFocusRevision(state: HelperState): void {
+  state.focusRevFp = focusFingerprint(state);
 }
 
 /**

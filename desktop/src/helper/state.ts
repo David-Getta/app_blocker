@@ -136,6 +136,19 @@ export interface HelperState {
   focusPacks?: FocusPack[];
   /** a FUTÓ munkamenet, ha van */
   focusRun?: FocusRun | null;
+  /**
+   * A munkamenet szinkron-számlálója.
+   *
+   * Ugyanaz a szerep, mint az oldalak `rev` mezőjének: ez dönti el, mikor mehet
+   * át egy LAZÍTÁS (rövidítés, leállítás) a másik eszközre. Nőni csak akkor tud,
+   * ha a munkamenet ténylegesen megváltozott ezen a gépen — leállítani pedig
+   * csak próbatétellel lehet, tehát a nagyobb szám mögött ott a munka.
+   */
+  focusRev?: number;
+  focusUpdatedAt?: number;
+  focusUpdatedBy?: string;
+  /** a lenyomat, amiből kiderül, hogy változott-e (lásd revisions.ts) */
+  focusRevFp?: string;
 }
 
 export interface SyncAccount {
@@ -151,6 +164,8 @@ export interface SyncAccount {
   deviceName: string;
   /** a `sites` gyűjtemény verziója, amire a legutóbbi feltöltésünk épült */
   sitesVersion?: number;
+  /** a munkamenet-gyűjtemény utolsó ismert verziója a kiszolgálón */
+  focusVersion?: number;
   /** a saját `usage` blobunk verziója */
   usageVersion?: number;
   /** a saját mai összegzésünk verziója (a közös napi kerethez) */
