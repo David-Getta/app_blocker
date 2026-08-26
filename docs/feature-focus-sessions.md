@@ -100,6 +100,15 @@ interface FocusPack {
 }
 
 interface FocusRun { packId: string; startedAt: number; endsAt: number }
+
+interface FocusLogEntry {
+  packId: string;
+  packName: string;          // a NÉV is, mert a csomag azóta átnevezhető
+  startedAt: number;
+  endedAt: number;           // mikor ért véget TÉNYLEGESEN
+  plannedEndsAt: number;     // ebből látszik, hogy korábban ért-e véget
+  stopped: boolean;          // próbatétellel, vagy magától járt le
+}
 ```
 
 **Az aldomain átmegy**: a `google.com` engedése a `translate.google.com`-ot is
@@ -111,6 +120,52 @@ viszont NEM megy át — a végén hasonlító tartománynév a leggyakoribb meg
 `Microsoft Word` ablakot is. Az ablakcímek és folyamatnevek gépenként és
 nyelvenként eltérnek; egy pontos egyezésre épülő lista mindenkinél máshogy
 viselkedne, és senki nem értené, miért.
+
+## A napló MÁS szabályt követ, mint a többi
+
+A szinkronban három dolog utazik együtt, és a harmadik szándékosan kilóg:
+
+| Mi | Mi ez | Hogyan fésülődik |
+|---|---|---|
+| csomagok | beállítás | utolsó író nyer |
+| futó menet | **engedély** | a szigorúbb nyer; lazítani csak nagyobb `rev` |
+| napló | **a múlt feljegyzése** | EGYESÍTÉS, a `rev`-hez semmi köze |
+
+A különbség nem következetlenség. A csomagok és a futás azt mondják meg, mi
+*történhet* — ezért vonatkozik rájuk a súrlódás iránya. A napló azt mondja meg,
+mi *történt*: nem enged meg semmit, nem old fel semmit, és egy elveszett sora
+nem kibúvó, csak pontatlan statisztika.
+
+Ha a napló léptetné a számlálót, egy statisztika-bejegyzés le tudna állítani egy
+futó menetet a másik eszközön, próbatétel nélkül. Ezért marad ki a `rev`
+lenyomatából (`helper/revisions.ts`) — de benne VAN a „van-e mit feltölteni”
+vizsgálatban (`sameFocus`), különben egy telefonon lezárult menet sosem érne fel.
+A kettő nem ugyanaz a kérdés: az egyik azt méri, ki dönthet, a másik azt, hogy
+van-e új adat.
+
+**Két sor akkor ugyanaz, ha a csomag és a KEZDÉS egyezik.** Ez a gyakori eset,
+nem a kivétel: a telefonon próbatétellel leállítod, a gép meg később, a
+szinkronból veszi észre — enélkül minden ilyen menet kettőnek számítana.
+Ütközésnél a korábbi vég nyer: a menet akkor ért véget, amikor véget ért, nem
+akkor, amikor a másik eszköz észbe kapott.
+
+## Az óra átállítása nem rövidíti a menetet
+
+A leállítás próbatétel — a lejárás viszont sokáig nem volt védve. Nyolc órát
+előreugorva az óra a menetet „lejárttá” tette, és mivel a lejárás lépteti a
+`rev`-et, a szinkron ezt a többi eszközre is átvitte.
+
+A szabály egy mondat: **amennyi hátra volt, annyi van hátra.** Az `absorbClockJump`
+a futó menet kezdését és végét is eltolja az ugrással.
+
+Ugyanez a válasz az alvó gépre, és ez nem kompromisszum: az app nem tudja
+megkülönböztetni az átállított órát a felfüggesztett géptől, de nem is kell.
+Ha lecsukod a laptopot tíz perccel a vége előtt, reggel tíz perc lesz hátra —
+azt a tíz percet nem töltötted fókuszban. Ugyanez igaz, ha a
+háttérszolgáltatás közben nem futott: akkor a fehérlistát sem tartatta be senki.
+
+A KEZDÉS is tolódik, nem csak a vég. Enélkül a naplóba egy ötvenperces menet
+nyolc és fél órásként kerülne be.
 
 ## Mennyi idő alatt ér el a böngészőig
 
@@ -145,13 +200,15 @@ A bővítmény a munkamenet végét **helyben** nézi, nem az apptól kérdezi:
 | Gyorsbillentyűs réteg | `desktop/src/main/overlay.ts`, `renderer/overlay.*` |
 | A fehérlista kiadása a bővítménynek | `desktop/src/main/rules-bridge.ts` |
 | A fehérlista érvényesítése | `extension/background.js`, `extension/app-link.js` |
+| Összefésülés eszközök között | `desktop/src/shared/sync/focus-merge.ts` + Kotlin/Swift tükör |
+| Napló és összegzés | `desktop/src/shared/focus.ts` (`closeIfEnded`, `summarizeFocus`) |
+| Statisztika a felületen | `renderer.ts`, `ui/StatsScreen.kt`, `App/StatsView.swift` |
 
 ## Ami még hátra van
 
 - [ ] Az appok tényleges tiltása (ma figyelmeztetés), platformonként külön
 - [ ] Rendszerszintű fehérlista weboldalakra: ehhez helyi DNS-feloldó kell,
       nem hosts-fájl
-- [ ] A csomagok szinkronizálása eszközök között
 - [ ] A gyorsbillentyű átállítható legyen a felületről
 
 ## A telefon eddig kiskapu volt
@@ -220,13 +277,22 @@ iOS-en pedig egyáltalán nincs ilyen. A mezőt mégis tároljuk és szinkroniz�
 mert a gépen érvényes, és a szinkron sosem dobhat el olyat, amit egy eszköz nem
 használ — különben a telefon minden körben letörölné a gépen felvett listát.
 
-## Hol tart most a mobil (v0.4.3)
+## Hol tart most a mobil (v0.4.4)
 
-| | Csomagok tárolása | Szinkron | Fehérlista érvényesítése | Munkamenet indítása |
-|---|---|---|---|---|
-| **Gép** | igen | igen | böngésző-bővítmény | igen |
-| **Android** | igen | igen | **DNS-szűrő (a VPN-ben)** | **igen** |
-| **iPhone** | igen | igen | **DNS-szűrő (az alagútban)** | **igen** |
+| | Csomagok tárolása | Szinkron | Fehérlista érvényesítése | Indítás | Statisztika |
+|---|---|---|---|---|---|
+| **Gép** | igen | igen | böngésző-bővítmény | igen | igen |
+| **Android** | igen | igen | **DNS-szűrő (a VPN-ben)** | igen | **igen** |
+| **iPhone** | igen | igen | **DNS-szűrő (az alagútban)** | igen | **igen** |
+
+A statisztika oszlopa a v0.4.4-ben lett teljes. Addig a napló csak a gépen
+létezett, holott a menetet a telefonon is le lehetett zárni: aki ott ült le
+dolgozni, azt látta, hogy a héten egyszer sem.
+
+iPhone-on ez az EGYETLEN idő-statisztika, ami valaha igazi lesz. Az Apple nem
+enged hozzáférést ahhoz, mennyi időt töltesz más appokban — a munkamenet
+viszont a miénk: mi indítjuk, mi zárjuk le, mi írjuk a naplót. Androidon pedig
+a mérési hozzáférés KAPUJA FÖLÖTT áll, ugyanezért: nem az Androidtól kérjük.
 
 **Mindkét telefonon indítani és leállítani is lehet — EGYSZERRE került be a kettő.**
 Ez nem esztétika: indítani ingyen van, leállítani viszont próbatétel. Ha a
