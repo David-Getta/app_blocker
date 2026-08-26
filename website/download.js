@@ -153,17 +153,61 @@ function render(assetsByPlat, version) {
   }
 }
 
-function renderError() {
+/**
+ * Amikor a lekérdezés nem jött össze.
+ *
+ * KÉT KÜLÖN MONDAT KELL, mert két külön dolog történhet, és az egyikre a másik
+ * válasza HAZUGSÁG. Az oldal eddig minden hibára a „még nincs kiadott verzió”
+ * mondatot írta ki — pedig a leggyakoribb ok nem ez, hanem a GitHub óránkénti
+ * kérés-korlátja (címenként hatvan hívás), ami egy megosztott hálózaton
+ * könnyen elfogy. A látogató tehát azt olvasta, hogy nincs mit letölteni,
+ * miközben nyolc kiadás állt a másik oldalon — és elment.
+ *
+ * Ez a letöltőoldal: ha itt hazudunk, az app el sem jut a felhasználóhoz.
+ *
+ * @param kind "rate" | "off" | "none"
+ */
+function renderError(kind) {
   const primary = document.getElementById("primary");
+  const text = {
+    rate: [
+      "A verziólista most nem érhető el",
+      "A GitHub óránkénti kérés-korlátjába futottunk. A letöltések ettől "
+        + "ott vannak — a gomb odavisz.",
+    ],
+    off: [
+      "Nem sikerült lekérdezni a verziót",
+      "Lehet, hogy nincs internetkapcsolat. A letöltések a kiadások oldalán "
+        + "ilyenkor is megtalálhatók.",
+    ],
+    none: [
+      "Még nincs kiadott verzió",
+      "Amint megjelenik az első kiadás, itt lesz letölthető.",
+    ],
+  }[kind] || text_fallback();
   primary.innerHTML = `<div class="primary-card">
-    <div class="plat">Még nincs kiadott verzió</div>
-    <div class="ver">Amint megjelenik az első kiadás, itt lesz letölthető.</div>
+    <div class="plat">${text[0]}</div>
+    <div class="ver">${text[1]}</div>
     <a class="btn secondary" href="${RELEASES}" target="_blank" rel="noopener">Kiadások megnyitása</a>
   </div>`;
 }
 
+/** Ismeretlen ok: az óvatos mondat, ami egyik esetben sem hazudik. */
+function text_fallback() {
+  return [
+    "Nem sikerült lekérdezni a verziót",
+    "A letöltések a kiadások oldalán ilyenkor is megtalálhatók.",
+  ];
+}
+
 fetch(API, { headers: { Accept: "application/vnd.github+json" } })
-  .then((r) => (r.ok ? r.json() : Promise.reject(new Error("no release"))))
+  .then((r) => {
+    if (r.ok) return r.json();
+    // 403 és 429: kérés-korlát. 404: tényleg nincs kiadás. Minden más: ismeretlen.
+    const kind = r.status === 403 || r.status === 429 ? "rate"
+      : r.status === 404 ? "none" : "";
+    return Promise.reject(new Error(kind));
+  })
   .then((rel) => {
     // A vödrök a PLATFORMS-ból épülnek, nem kézzel felsorolva. Így egy új
     // besorolás (mint a böngésző-bővítmény) nem tud CSENDBEN kiesni: pontosan
@@ -185,4 +229,6 @@ fetch(API, { headers: { Accept: "application/vnd.github+json" } })
     }
     render(byPlat, rel.tag_name || "");
   })
-  .catch(renderError);
+  // A `fetch` MAGA is elhasalhat (nincs hálózat, közbeszóló tűzfal): olyankor
+  // nincs státuszkód, és a hibaüzenet üres. Az az „off” eset.
+  .catch((e) => renderError(e && e.message ? e.message : "off"));
