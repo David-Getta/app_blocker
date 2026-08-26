@@ -337,8 +337,9 @@ function bySortKey(a: SyncSite, b: SyncSite): number {
 //
 // A szabály valójában két helyen áll, és mindkettő ÉL:
 //
-//   - MENTÉSKOR, a bejáratnál: `helper/server.ts` a felvitt fedőnevet
-//     `normalizeAlias`-on engedi át, tehát a tárolt érték már tiszta;
+//   - MENTÉSKOR, a bejáratnál, MIND A HÁROM platformon: `helper/server.ts`,
+//     `ui/AppUi.kt` és `App/ContentView.swift` a felvitt fedőnevet
+//     normalizáláson engedi át, tehát a tárolt érték már tiszta;
 //   - MEGJELENÍTÉSKOR, minden platformon: `displayName` (TS), `AliasLogic`
 //     (Kotlin, Swift) újra normalizál. Ez a hálónk arra, ami mégis kívülről
 //     érkezne — a vezérlőkarakterek és a túl hosszú név nem jut a képernyőre.
