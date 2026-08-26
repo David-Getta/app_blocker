@@ -9,7 +9,7 @@ import type { Schedule } from '../shared/schedule';
 import { emptyUsage, type UsageState } from '../shared/usage';
 import type { SharedToday } from '../shared/limits';
 import {
-  normalizePack, type FocusLogEntry, type FocusPack, type FocusRun,
+  MAX_FOCUS_LOG, normalizePack, type FocusLogEntry, type FocusPack, type FocusRun,
 } from '../shared/focus';
 import type { UrlRule } from '../shared/urlrules';
 import { stateFilePath } from './paths';
@@ -229,6 +229,20 @@ export function loadState(): HelperState {
         parsed.focusPacks = (Array.isArray(parsed.focusPacks) ? parsed.focusPacks : [])
           .map((x) => normalizePack(x))
           .filter((x): x is FocusPack => x !== null);
+      }
+      // A napló is kívülről jön. Ha nem tömb, a statisztika `filter`-e KIVÉTELT
+      // dobna — és a felhasználó egy üres statisztika-képernyőt látna, aminek
+      // semmi köze nem lenne a méréshez. Ami nem értelmezhető, az kiesik; a
+      // sorok külön-külön is, mert egy rossz sor ne vigye el az egész hetet.
+      if (parsed.focusLog !== undefined) {
+        parsed.focusLog = (Array.isArray(parsed.focusLog) ? parsed.focusLog : [])
+          .filter((e): e is FocusLogEntry => !!e && typeof e === 'object'
+            && typeof (e as FocusLogEntry).packId === 'string'
+            && typeof (e as FocusLogEntry).packName === 'string'
+            && Number.isFinite((e as FocusLogEntry).startedAt)
+            && Number.isFinite((e as FocusLogEntry).endedAt)
+            && Number.isFinite((e as FocusLogEntry).plannedEndsAt))
+          .slice(-MAX_FOCUS_LOG);
       }
       const run = parsed.focusRun;
       if (run && !(typeof run.packId === 'string' && Number.isFinite(run.endsAt))) {

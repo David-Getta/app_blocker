@@ -339,6 +339,39 @@ test('a state file whose session points past its steps is not loaded', () => {
   }
 });
 
+test('a corrupted focus log does not take the statistics down with it', () => {
+  // A napló kívülről jön (állapotfájl). Ha nem tömb, a statisztika `filter`-e
+  // KIVÉTELT dobna — és a felhasználó egy üres statisztika-képernyőt látna,
+  // aminek semmi köze nem lenne a méréshez.
+  const file = process.env.BREAKER_STATE!;
+  const backup = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : null;
+  try {
+    fs.writeFileSync(file, JSON.stringify({
+      version: 1, sites: [], unlockLog: [], lastCombo: null, dohApplied: false,
+      usage: { days: [], labels: {}, enabled: true }, session: null,
+      focusLog: 'ez nem tömb',
+    }));
+    assert.deepEqual(loadState().focusLog, [], 'a szemét kiesik, nem dob');
+
+    // És egyetlen rossz SOR sem viszi el a többit.
+    fs.writeFileSync(file, JSON.stringify({
+      version: 1, sites: [], unlockLog: [], lastCombo: null, dohApplied: false,
+      usage: { days: [], labels: {}, enabled: true }, session: null,
+      focusLog: [
+        null,
+        { packId: 'p1' },
+        {
+          packId: 'p1', packName: 'Jó', startedAt: 1, endedAt: 2,
+          plannedEndsAt: 2, stopped: false,
+        },
+      ],
+    }));
+    assert.equal(loadState().focusLog?.length, 1);
+  } finally {
+    if (backup !== null) fs.writeFileSync(file, backup);
+  }
+});
+
 test('a state file with a valid session keeps it', () => {
   const file = process.env.BREAKER_STATE!;
   const backup = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : null;
