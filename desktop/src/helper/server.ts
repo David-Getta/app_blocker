@@ -77,6 +77,7 @@ export function statusOf(state: HelperState, dohApplied: boolean): StatusData {
       blockedNow: isBlockedNowWithLimit(s, state.usage, now, state.sharedToday),
     })),
     focusPacks: state.focusPacks ?? [],
+    focusSyncError: state.focusSyncError,
     // A futó munkamenet csak akkor kerül ki, ha TÉNYLEG fut: a lejárt rekordot
     // a tick takarítja, de a felület nem várhat rá.
     focusRun: isRunning(state.focusRun, now) ? state.focusRun ?? null : null,

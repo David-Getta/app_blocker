@@ -503,7 +503,21 @@ export async function syncNow(state: HelperState, now: number): Promise<SyncResu
   // munkamenet-hiba ne vigye magával az egész kört.
   try {
     if (await syncFocusRound(state, acc, key)) changed = true;
-  } catch { /* a blokklista ettől már szinkronban van */ }
+    delete state.focusSyncError;
+  } catch (e) {
+    // NEM némán. Egy RÉGI fiókkiszolgáló nem ismeri a `focus` gyűjteményt, és
+    // 400-zal felel — a munkamenet ilyenkor sosem ér át a telefonra, és a
+    // felhasználó ezt semmiből nem tudná meg. Azt hinné, a funkció rossz.
+    //
+    // A kört ettől még nem állítjuk meg: a blokklista fontosabb, és az már
+    // szinkronban van. Csak megjegyezzük, hogy a felület kiírhassa.
+    const err = e as SyncError;
+    state.focusSyncError = err?.code === 'BAD_REQUEST' || err?.code === 'SERVER'
+      ? 'A fiókkiszolgálód nem ismeri a munkamenetet — valószínűleg régebbi verzió. '
+        + 'Amíg nem frissül, a munkamenet csak ezen a gépen él.'
+      : (err?.message ?? 'A munkamenet szinkronja nem sikerült.');
+    changed = true;
+  }
 
   // A mérés eszközönként külön blob: itt nincs ütközés, csak a saját sorunkat
   // írjuk. Ha ez elhasal, a blokklista attól már szinkronban van — ezért fut

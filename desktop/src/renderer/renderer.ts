@@ -807,6 +807,9 @@ function renderSyncCard(st: StatusData): void {
   $('syncState').textContent = st.sync.lastError
     ? `${last} · Hiba: ${st.sync.lastError}`
     : last;
+  const focusErr = st.focusSyncError;
+  $('syncFocusError').textContent = focusErr ?? '';
+  $('syncFocusError').classList.toggle('hidden', !focusErr);
 }
 
 /** A gombok köré ugyanaz a burok: letiltás, felirat, hibakiírás. */

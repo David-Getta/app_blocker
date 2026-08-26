@@ -111,6 +111,7 @@ function fakeBridgeSource() {
       sites: window.__fakeSites, tier: 1, unlocks7d: 2,
       hideSiteList: window.__fakeHideList,
       sync: window.__fakeSync,
+      focusSyncError: window.__fakeFocusSyncError,
       session, dohPolicyApplied: true, usageEnabled: true, now: Date.now(),
       focusPacks: window.__fakePacks, focusRun: window.__fakeRun,
     });
@@ -906,6 +907,20 @@ async function main() {
   }
   const who = (await page.locator('#syncWho').innerText()) || '';
   if (!who.includes('david@example')) failures.push(`the account is not named: ${who}`);
+
+  // A MUNKAMENET SZINKRONJÁNAK HIBÁJA nem lehet néma. A köre szándékosan nem
+  // állítja meg az egész szinkront (a blokklista fontosabb) — enélkül viszont
+  // egy régi fiókkiszolgálónál a menet sosem érne át a telefonra, és a
+  // felhasználó azt hinné, a funkció rossz.
+  if (!(await page.locator('#syncFocusError').isHidden())) {
+    failures.push('a munkamenet-hiba sávja hiba nélkül is látszik');
+  }
+  await page.evaluate(() => { window.__fakeFocusSyncError = 'A kiszolgálód régi.'; });
+  await page.waitForFunction(
+    () => !document.getElementById('syncFocusError').classList.contains('hidden'),
+    undefined, { timeout: 10_000 },
+  ).catch(() => failures.push('a munkamenet szinkron-hibája nem jelenik meg sehol'));
+  await page.evaluate(() => { window.__fakeFocusSyncError = undefined; });
 
   // A többi eszköz statisztikája — ez volt a kérés másik fele. És ami itt a
   // legkönnyebben elromlik: a másik eszköz adata NEM nevezheti meg a blokkolt

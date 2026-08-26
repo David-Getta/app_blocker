@@ -149,6 +149,15 @@ export interface HelperState {
   focusUpdatedBy?: string;
   /** a lenyomat, amiből kiderül, hogy változott-e (lásd revisions.ts) */
   focusRevFp?: string;
+  /**
+   * Miért nem megy a munkamenet szinkronja, ha nem megy.
+   *
+   * Külön mező, mert a munkamenet köre SZÁNDÉKOSAN nem állítja meg az egész
+   * szinkront (a blokklista fontosabb). Enélkül viszont a hiba néma lenne: egy
+   * régi fiókkiszolgáló nem ismeri a gyűjteményt, a menet sosem érne át a
+   * telefonra, és a felhasználó azt hinné, a funkció rossz.
+   */
+  focusSyncError?: string;
 }
 
 export interface SyncAccount {

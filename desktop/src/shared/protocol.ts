@@ -146,6 +146,14 @@ export interface StatusData {
   focusPacks: import('./focus').FocusPack[];
   /** a FUTÓ munkamenet, ha van; a lejártat a segéd nem adja ki */
   focusRun: import('./focus').FocusRun | null;
+  /**
+   * Miért nem megy a munkamenet szinkronja, ha nem megy.
+   *
+   * A munkamenet köre szándékosan nem állítja meg az egész szinkront (a
+   * blokklista fontosabb) — enélkül viszont a hiba NÉMA lenne, és a felhasználó
+   * azt hinné, a funkció rossz.
+   */
+  focusSyncError?: string;
   /** egy korábbi néven telepített segéd láthatóan még fut (lásd hosts.ts) */
   legacyHelperRunning?: boolean;
   now: number;

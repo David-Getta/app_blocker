@@ -310,6 +310,13 @@
       <div id="syncSignedIn" class="hidden">
         <p id="syncWho" class="hint"></p>
         <p id="syncState" class="hint"></p>
+        <!--
+          A munkamenet szinkronja külön hasalhat el, mint a blokklistáé — és
+          szándékosan nem állítja meg a kört. Enélkül viszont a hiba NÉMA lenne:
+          egy régi fiókkiszolgáló nem ismeri a gyűjteményt, a menet sosem érne
+          át a telefonra, és a felhasználó azt hinné, a funkció rossz.
+        -->
+        <p id="syncFocusError" class="error hidden"></p>
         <div id="syncDevices" class="sync-devices"></div>
         <div class="sync-actions">
           <button id="syncDevicesBtn" class="btn btn-small">Eszközök és idejük</button>
