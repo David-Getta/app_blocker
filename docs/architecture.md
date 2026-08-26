@@ -170,6 +170,26 @@ Ismert megkerülési utak (szándékosan nem próbáljuk „lelakatolni” a gé
   után az első kör csak új alapvonalat vesz fel. A készülék kikapcsolt ideje
   ezért nem számít bele a várakozásba — ez a szigorúbb irány.
 
+  Ugyanez véd a FUTÓ MUNKAMENETRE is: az ugrást elnyeljük, tehát amennyi hátra
+  volt, annyi van hátra. Ez korábban rés volt — az óra előreállítása „lejárttá”
+  tette a menetet, és a lejárás a szinkronon át a többi eszközre is átvitte a
+  leállást, próbatétel nélkül. A részletek és az ára:
+  `docs/feature-focus-sessions.md`.
+
+  **A NAPI KERETNÉL viszont nem zárható be**, és ezt kimondjuk: a keret egy
+  NAPHOZ tartozik, nem egy időtartamhoz, a napváltás pedig egy alvó gépnél
+  valódi. A két esetet nem lehet megkülönböztetni, és itt a szigorúbb választás
+  a gyakori esetben lenne rossz. Aki egy napot előre állít, friss keretet kap
+  azon az eszközön — cserébe az egész rendszere rossz időt mutat. Indoklás:
+  `docs/feature-daily-limit.md`.
+- **A saját fiókkiszolgálód címe átmegy a munkamenet fehérlistáján**, mert
+  enélkül a telefon nem tudná meg, hogy egy MÁSIK eszközön leállítottad a
+  menetet. A címet viszont a felhasználó adja meg: aki oda a `youtube.com`-ot
+  írja, megnyitja magának a YouTube-ot a menet alatt — cserébe elveszíti a
+  szinkronját, vagyis a közös blokklistát és a közös napi keretet is. Kimondott,
+  költséges kiút, mint a VPN-kapcsoló. A munkamenet többi kivételét gépi
+  ellenőrző tartja szűken (`scripts/check-infra-allow.js`).
+
 Ezeket a `docs/`-ban nyíltan dokumentáljuk, hogy az elvárások reálisak
 legyenek.
 
