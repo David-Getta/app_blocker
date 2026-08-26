@@ -234,6 +234,7 @@ Amit érdemes futtatni fejlesztés közben:
 | `node scripts/check-ui-wiring.js` | van-e olyan gomb a felületen, amihez nem tartozik kezelő |
 | `node scripts/check-enforcement.js` | a döntést tényleg MEGKÉRDEZI-e valaki (a hosts fájltól a frissítés-keresésig) |
 | `node scripts/check-infra-allow.js` | a munkamenet kivétellistája szűk maradt-e |
+| `node scripts/check-wire-names.js` | a dróton menő mezőnevek egyeznek-e mind a három nyelvben |
 
 A CI mindet futtatja minden pusholásnál.
 

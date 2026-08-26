@@ -39,6 +39,12 @@ jobs:
       # helyett az egész tartományt megnyitná — pont azt, ami elől a
       # felhasználó elzárta magát. Semmi nem hasalna el tőle.
       - run: node scripts/check-infra-allow.js
+      # A szinkron JSON-t cserél, és a mezőnevek szövegek. Egy átnevezés az
+      # egyik nyelvben nem fordítási hiba a másikban — ott hiányzó mező lesz
+      # belőle, amire a feldolgozó alapértéket tesz. iPhone-on ezt semmi más
+      # nem fogja ki: ott nincs teszt, és a Codable a tulajdonságnevekből
+      # képzi a kulcsokat.
+      - run: node scripts/check-wire-names.js
 
   desktop:
     name: Desktop mag + tesztek
