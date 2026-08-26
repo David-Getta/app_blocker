@@ -156,8 +156,13 @@ public enum Focus {
     public static let infraAllow = [
         // Értesítések. Enélkül nyolc órán át nem jön üzenet — a munkamenet nem
         // arról szól, hogy elérhetetlen legyél.
+        // A `push.apple.com` a NUMEROZOTT courier-hosztok miatt kell
+        // (`1-courier.push.apple.com`, `2-courier…`): azokat egyenként
+        // felsorolni nem lehet. A végződés-illesztés miatt ez a sor a
+        // `courier.push.apple.com`-ot is lefedi, tehát külön nem szerepel —
+        // egy fölösleges sor itt nem ártalmatlan, hanem zaj a projekt
+        // legérzékenyebb listáján.
         "push.apple.com",
-        "courier.push.apple.com",
         // Kapcsolat-ellenőrzés. Ha ez elhasal, a rendszer hálózati hibát jelez,
         // és a felhasználó azt látja, hogy „nincs net”, nem azt, hogy fut egy
         // munkamenet.

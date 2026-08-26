@@ -34,6 +34,11 @@ jobs:
       # HUZALOZATLAN logika: a mag megvan, teszt is van rá, csak épp senki nem
       # hívja. Fordítás nem fogja ki — egy nem hívott függvény érvényes kód.
       - run: node scripts/check-enforcement.js
+      # A munkamenet kivétellistája az EGYETLEN szándékos lyuk a fehérlistán, és
+      # végződés szerint illeszkedik: egy `google.com` a `mtalk.google.com`
+      # helyett az egész tartományt megnyitná — pont azt, ami elől a
+      # felhasználó elzárta magát. Semmi nem hasalna el tőle.
+      - run: node scripts/check-infra-allow.js
 
   desktop:
     name: Desktop mag + tesztek
