@@ -99,6 +99,17 @@ const GROUPS = [
     kt: 'android/app/src/main/java/hu/breaker/app/core/SyncClient.kt',
     swift: 'ios/Shared/SyncMerge.swift',
   },
+  // AZ IDŐZÍTETT MENETRED. Egy oldal sávjai — „csak munkaidőben tiltva”. Ha
+  // egy neve elcsúszik, a másik eszköz értelmezhetetlen menetrendet kap, és a
+  // biztonságos irányba dől: „mindig tiltva”. A felhasználó azt látná, hogy a
+  // telefonján az oldal a szabad sávban is zárva van, és nem értené, miért.
+  {
+    what: 'egy menetrend',
+    names: ['mode', 'bands', 'days', 'startMin', 'endMin'],
+    ts: 'desktop/src/shared/schedule.ts',
+    kt: 'android/app/src/main/java/hu/breaker/app/core/SyncClient.kt',
+    swift: 'ios/Shared/Schedule.swift',
+  },
   // A MAI MÉRÉS ÖSSZEGZÉSE. Ezen áll a KÖZÖS napi keret: minden eszköz
   // feltölti, mennyit mért ma, a többi meg hozzáadja a sajátjához. Ha a `day`
   // neve elcsúszik, a fogadó oldal nem tudja eldönteni, hogy a sor MAI-e — és
