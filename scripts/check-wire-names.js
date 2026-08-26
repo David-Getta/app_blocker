@@ -19,10 +19,15 @@
 // AMIT NEM FED — és ezt ki kell mondani, különben hamis biztonságot ad:
 //
 //   - a mező ÉRTÉKÉT nem nézi, se azt, hogy tényleg fel is kerül-e a drótra;
-//   - és ami a legfontosabb: a FÉL-ÁTNEVEZÉST nem fogja ki. Ha egy név
-//     ugyanabban a fájlban két helyen keletkezik, és csak az egyik változik
-//     el, a másik „megvan”, tehát az ellenőrző hallgat. A Kotlin oldalon ez
-//     valóságos: a mai összegzést két külön hely is kiírja.
+//   - egy kulcs, amit MÁSIK blob is használ, elfedi a saját elcsúszását. A
+//     `day` valóságos eset: a mai összegzés és a mérés blobja is kiírja. Ha
+//     csak a mérésé csúszik el, a kulcs attól még „ismert” marad.
+//
+// A FÉL-ÁTNEVEZÉST viszont már kifogja — a lenti fordított ellenőrzés miatt.
+// Az elsőre kézenfekvő irány („megvan-e minden várt név”) önmagában
+// átengedte: ha egy név két helyen keletkezik, és csak az egyik változik el, a
+// másik „megvan”, tehát az őr hallgat. Ezért a kulcsokat a másik irányból is
+// megnézzük: minden `put("…")` kulcsnak szerepelnie kell VALAMELYIK listán.
 //
 // Amit tehát tényleg garantál: egy TELJES átnevezés — Swift tulajdonság, TS
 // felület-mező, egyedi Kotlin kulcs — nem csúszhat át. Ez pont az a hibafajta,
@@ -183,8 +188,66 @@ for (const group of GROUPS) {
   }
 }
 
+/**
+ * A FORDÍTOTT KÉRDÉS: keletkezik-e olyan kulcs, amit senki nem őriz.
+ *
+ * A fenti ellenőrzés azt kérdezi, hogy minden VÁRT név megvan-e. Ez a szakasz
+ * a másik irányból zár: minden Kotlinban keletkező JSON-kulcsnak szerepelnie
+ * kell valamelyik lenti listán. Egy elgépelt vagy félig átnevezett kulcs így
+ * nem marad ismeretlen, hanem hiba lesz — és egy ÚJ mező sem csúszhat a drótra
+ * anélkül, hogy valaki eldöntötte volna, melyik listára való.
+ *
+ * Miért pont a Kotlin oldalon. Mert ott a kulcs SZÖVEG (`put("day", …)`),
+ * tehát ott lehet elgépelni. Swiftben a `Codable` a tulajdonságnévből képzi,
+ * TypeScriptben a fordító nézi — ott nincs mit összeszedni.
+ */
+
+// Ami a KISZOLGÁLÓNAK szól, nem a másik eszköznek. Ezeknek nincs Swift/TS
+// párja mezőnévként: a kiszolgáló egyetlen megvalósítás, a párjuk a
+// `desktop/src/server` — ez kliens–kiszolgáló szerződés, nem három nyelv
+// egyeztetése. A tartalmuk ráadásul vagy titkosított (`payload`, `nameBlob`),
+// vagy maga a hitelesítés.
+const ENVELOPE = new Set([
+  'protocol', 'accountId', 'authKey', 'recoveryAuthKey',
+  'wrappedByPassword', 'wrappedByRecovery',
+  'collection', 'baseVersion', 'payload', 'nameBlob',
+]);
+
+// Ami tényleg a drótra megy, de három nyelven MÉG nincs őrizve. A lista
+// szándékosan kényelmetlen olvasmány: minden sora egy adósság. Attól, hogy egy
+// név itt szerepel, még ugyanúgy elcsúszhat — csak épp tudunk róla.
+const NOT_GUARDED = new Map([
+  ['id', 'oldal- és csomagazonosító'],
+  ['name', 'a csomag neve'],
+  ['pauseUntil', 'a szüneteltetés vége a blokklistán'],
+  ['schedule', 'a menetrend al-objektumának kulcsa'],
+  ['host', 'a részleges tiltás szabálya'],
+  ['path', 'a részleges tiltás szabálya'],
+  ['enabled', 'a mérés blobja'],
+  ['labels', 'a mérés blobja'],
+]);
+
+const known = new Set([...ENVELOPE, ...NOT_GUARDED.keys()]);
+for (const group of GROUPS) for (const n of group.names) known.add(n);
+
+for (const rel of new Set(GROUPS.map((g) => g.kt))) {
+  const text = readStripped(rel);
+  if (text === null) continue;
+  const seen = new Set();
+  for (const m of text.matchAll(/put\("([A-Za-z_][A-Za-z0-9_]*)"/g)) seen.add(m[1]);
+  for (const key of [...seen].sort()) {
+    if (known.has(key)) continue;
+    problems.push(
+      `${rel.split('/').pop()}: a(z) „${key}” kulcs a drótra megy, de egyik listán sincs rajta. `
+      + 'Ha átnevezés vagy elgépelés, a másik eszköz némán eldobja; ha új mező, '
+      + 'akkor vagy a GROUPS-ba való (és kell hozzá Swift/TS pár), vagy az '
+      + 'ENVELOPE/NOT_GUARDED listára, indoklással.',
+    );
+  }
+}
+
 if (problems.length === 0) {
-  console.log(`drót-nevek OK (${checked} mező, mind a három nyelvben)`);
+  console.log(`drót-nevek OK (${checked} mező mind a három nyelvben, és ${known.size} ismert kulcs a Kotlin oldalon)`);
   process.exit(0);
 }
 
