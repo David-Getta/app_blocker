@@ -167,6 +167,30 @@ háttérszolgáltatás közben nem futott: akkor a fehérlistát sem tartatta be
 A KEZDÉS is tolódik, nem csak a vég. Enélkül a naplóba egy ötvenperces menet
 nyolc és fél órásként kerülne be.
 
+### Aminek ez az ára — kimondva
+
+Ha KÉT eszköz van, és az egyik aludt, a másik ébren volt, a kettő nem ugyanazt
+látta:
+
+- az ébren lévő eszköz a menetet a saját idejében lezárta, és ezzel léptette a
+  szinkron-számlálót;
+- az alvó eszköz ébredéskor elnyelte az ugrást, tehát nála a menet MÉG FUT — és
+  ez is lépteti a számlálót.
+
+Azonos `rev` mellett a szigorúbb nyer, tehát a futó menet: az ébren lévő
+eszközön a menet VISSZATÉR. Ez a súrlódás irányából következik, és
+próbatétellel leállítható — de meglepő, és nem hallgatjuk el.
+
+A statisztikában ez ráadásul KÉT sort adhat egy menetre: a naplósor azonossága
+a csomag és a KEZDÉS párja, az alvó eszközön viszont a kezdés eltolódott. Nem
+kibúvó és nem adatvesztés, csak egy fölös sor.
+
+A tiszta megoldás valószínűleg az, hogy az ugrás elnyelése NE léptesse a
+számlálót — az elnyelés nem döntés, csak helyi újraértelmezés —, mert akkor az
+ébren lévő eszköz lezárása (nagyobb `rev`) nyerne. Ez viszont a `rev`
+jelentését érinti, és egy ilyen változtatást nem szabad átgondolatlanul,
+kiadás közben becsúsztatni. Addig ez a szakasz a válasz.
+
 ## Mennyi idő alatt ér el a böngészőig
 
 A bővítmény **húsz másodpercenként** kérdezi meg az appot. Nem egy percenként,
