@@ -132,6 +132,47 @@ const WIRES = [
     needle: 'extWarning',
     lost: 'a gyorsbillentyűs rétegben nem derülne ki, hogy nincs bővítmény',
   },
+
+  // AMIÉRT AZ EGÉSZ APP VAN. A blokklista a hosts fájlba írásával lép életbe;
+  // ha ezt nem hívja senki, az app tökéletesnek LÁTSZIK — a lista ott van, a
+  // felület zöld, az állapot „védve” —, és közben SEMMI nincs tiltva.
+  //
+  // Ez a legrosszabb elképzelhető néma hiba ebben a projektben, és éppen ezért
+  // állt eddig őrizetlenül: annyira alapvető, hogy eszünkbe sem jutott.
+  {
+    file: 'desktop/src/helper/index.ts',
+    needle: 'applyBlocklist',
+    lost: 'a gépen SEMMI nem lenne tiltva — a hosts fájlba nem kerülne be a lista',
+  },
+  {
+    file: 'desktop/src/helper/index.ts',
+    needle: 'watchHosts',
+    lost: 'a hosts fájlból kézzel kitörölt blokk nem kerülne vissza',
+  },
+  {
+    file: 'desktop/src/helper/index.ts',
+    needle: 'applyDohPolicies',
+    lost: 'a böngésző saját DNS-e megkerülné a tiltást',
+  },
+
+  // A SÚRLÓDÁS ESZKALÁCIÓJA. Enélkül minden próbatétel a legkönnyebb fokon
+  // maradna, és a „nem lesz könnyebb attól, hogy sokszor csinálod” ígéret
+  // csendben megszűnne — a táblázat ott lenne, csak épp senki nem kérdezné meg.
+  {
+    file: 'desktop/src/helper/referee.ts',
+    needle: 'computeTier',
+    lost: 'a gépen minden feloldás a legkönnyebb próbatételt kapná',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/Referee.kt',
+    needle: 'ChallengeEngine.computeTier',
+    lost: 'a telefonon minden feloldás a legkönnyebb próbatételt kapná',
+  },
+  {
+    file: 'ios/Shared/Referee.swift',
+    needle: 'ChallengeEngine.computeTier',
+    lost: 'az iPhone-on minden feloldás a legkönnyebb próbatételt kapná',
+  },
 ];
 
 /**
