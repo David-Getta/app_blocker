@@ -61,6 +61,14 @@ data class SessionRec(
     val pendingLimit: Long? = null,
     /** ha van, a teljesítés EZT a részleges szabályt veszi le (kapuzott lazítás) */
     val pendingRuleRemoval: UrlRules.UrlRule? = null,
+    /**
+     * Ha van, a teljesítés a MUNKAMENET végét tolja el — vagy leállítja.
+     *
+     * A -1 azt jelenti: „állítsd le most”. A nulla nem lenne jó jelölés, mert az
+     * érvényes időpont. A munkamenet nem egy OLDALHOZ tartozik, hanem az egész
+     * készülékhez, ezért a teljesítés ezt az ágat az oldal-keresés ELŐTT nézi.
+     */
+    val pendingFocusEnd: Long? = null,
 )
 
 /**
@@ -402,6 +410,10 @@ object BreakerStore {
                 put("pendingRuleRemoval", ses.pendingRuleRemoval?.let { r ->
                     JSONObject().apply { put("host", r.host); put("path", r.path) }
                 } ?: JSONObject.NULL)
+                // Enélkül egy app-újraindítás a folyamatban lévő LEÁLLÍTÁST
+                // közönséges feloldássá változtatná: a próbatétel végén a bíró
+                // nem tudná, mit kért a felhasználó.
+                put("pendingFocusEnd", ses.pendingFocusEnd ?: JSONObject.NULL)
             }
         } ?: JSONObject.NULL)
     }
@@ -519,6 +531,8 @@ object BreakerStore {
                         val r = ses.getJSONObject("pendingRuleRemoval")
                         UrlRules.normalizeRule(r.optString("host") + r.optString("path"))
                     },
+                    pendingFocusEnd = if (ses.isNull("pendingFocusEnd")) null
+                        else ses.getLong("pendingFocusEnd"),
                 )
             }
         }.getOrNull()?.takeIf { it.steps.isNotEmpty() && it.stepIndex in it.steps.indices }

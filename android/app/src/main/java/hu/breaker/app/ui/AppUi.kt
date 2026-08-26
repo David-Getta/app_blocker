@@ -290,7 +290,8 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
             // csomagban felsoroltak jönnek be, minden más NXDOMAIN. Ha ez nem
             // látszana, a felhasználó egy hálózati hibát keresne — nem értené,
             // miért nem jön be egy oldal, és az appot hinné rossznak.
-            FocusRunningCard(state)
+            FocusRunningCard(state, onError = { flowError = it })
+            FocusPacksCard(state, onError = { flowError = it })
 
             // Update banner (direct-download track)
             update?.let { upd ->
@@ -438,9 +439,21 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
+                        // A munkamenet leállítása NEM oldalhoz tartozik: a
+                        // `siteId` ott `focus:<csomag>`, tehát a fenti keresés
+                        // üresen tér vissza. Enélkül a sáv azt írná ki, hogy
+                        // „Folyamatban: feloldás — ”, név nélkül.
+                        val focusPack = ses.pendingFocusEnd?.let {
+                            state.focusPacks.find { p -> "focus:" + p.id == ses.siteId }
+                        }
                         Text(
-                            "Folyamatban: ${if (ses.kind == Kind.DELETE) "törlés" else "feloldás"} — " +
-                                (site?.let { AliasLogic.displayName(it) } ?: ""),
+                            if (ses.pendingFocusEnd != null) {
+                                "Folyamatban: munkamenet leállítása — " +
+                                    (focusPack?.name ?: "munkamenet")
+                            } else {
+                                "Folyamatban: ${if (ses.kind == Kind.DELETE) "törlés" else "feloldás"} — " +
+                                    (site?.let { AliasLogic.displayName(it) } ?: "")
+                            },
                             modifier = Modifier.weight(1f),
                             style = MaterialTheme.typography.bodySmall,
                         )
@@ -1773,11 +1786,12 @@ private fun FlowRowActions(busy: Boolean, onSync: () -> Unit, onDevices: () -> U
  * hogy „nem jön be semmi”, és hálózati hibát keresne.
  */
 @Composable
-private fun FocusRunningCard(state: AppState) {
+private fun FocusRunningCard(state: AppState, onError: (String) -> Unit) {
     val now = System.currentTimeMillis()
     val run = state.focusRun
     if (run == null || !Focus.isRunning(run, now)) return
     val pack = state.focusPacks.firstOrNull { it.id == run.packId } ?: return
+    var extra by remember { mutableStateOf("") }
 
     Card {
         Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -1804,12 +1818,114 @@ private fun FocusRunningCard(state: AppState) {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            // HOSSZABBÍTANI ingyen van — ez a szigorítás iránya.
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                for (min in listOf(15, 30, 60)) {
+                    OutlinedButton(onClick = {
+                        runCatching {
+                            Referee.changeFocus(run.endsAt + min * 60_000L, System.currentTimeMillis())
+                        }.onFailure { onError(it.message ?: "Nem sikerült.") }
+                    }) { Text("+$min p") }
+                }
+            }
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                OutlinedTextField(
+                    value = extra,
+                    onValueChange = { extra = it.filter { c -> c.isDigit() }.take(4) },
+                    label = { Text("perc") },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f),
+                )
+                OutlinedButton(onClick = {
+                    val mins = extra.toIntOrNull()
+                    if (mins == null || mins < 1) {
+                        onError("Írd be percben, mennyivel hosszabbítanád.")
+                    } else {
+                        runCatching {
+                            Referee.changeFocus(
+                                run.endsAt + minOf(mins, Focus.MAX_SESSION_MINUTES) * 60_000L,
+                                System.currentTimeMillis(),
+                            )
+                        }.onFailure { onError(it.message ?: "Nem sikerült.") }
+                        extra = ""
+                    }
+                }) { Text("Hozzáad") }
+            }
+            // LEÁLLÍTANI próbatétel — ugyanaz, mint egy feloldásnál. A gomb
+            // csak elindítja; a munkamenet addig ÉRVÉNYES marad, különben a
+            // puszta kérés feloldás lenne.
+            TextButton(onClick = {
+                runCatching { Referee.changeFocus(null, System.currentTimeMillis()) }
+                    .onFailure { onError(it.message ?: "Nem sikerült.") }
+            }) { Text("Leállítás…") }
             Text(
-                "Leállítani a gépen lehet, próbatétellel — ahogy egy feloldást is. " +
-                    "A munkamenet a saját idejéig magától lejár.",
+                "A leállítás próbatétel — ahogy egy feloldás is. A munkamenet a saját " +
+                    "idejéig magától lejár.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+        }
+    }
+}
+
+/**
+ * A csomagok listája — innen indul egy munkamenet.
+ *
+ * INDÍTANI ingyen van (ez a szigorítás iránya), LEÁLLÍTANI próbatétel. A
+ * hosszat percre pontosan lehet megadni: a gyorsgombok a gyakori eseteket
+ * fedik, a mező azt, amikor tudod, hogy negyvenhárom perced van ebédig.
+ *
+ * A csomagokat a GÉPEN lehet összeállítani — ott látszik a teljes lista, és ott
+ * kényelmes gépelni. A telefon indítja és betartatja őket.
+ */
+@Composable
+private fun FocusPacksCard(state: AppState, onError: (String) -> Unit) {
+    val now = System.currentTimeMillis()
+    if (state.focusPacks.isEmpty()) return
+    if (Focus.isRunning(state.focusRun, now)) return
+
+    var minutes by remember { mutableStateOf("") }
+    Card {
+        Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            SectionLabel("Munkamenet indítása")
+            Text(
+                "Amíg tart, csak a csomagban felsoroltak jönnek be. Minden más tiltva.",
+                style = MaterialTheme.typography.bodySmall,
+            )
+            OutlinedTextField(
+                value = minutes,
+                onValueChange = { minutes = it.filter { c -> c.isDigit() }.take(4) },
+                label = { Text("Hossz percben (üresen a csomag szokásos hossza)") },
+                singleLine = true,
+            )
+            for (pack in state.focusPacks) {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(pack.name, style = MaterialTheme.typography.bodyMedium)
+                        Text(
+                            if (pack.allowSites.isEmpty()) "nincs engedélyezett oldal"
+                            else pack.allowSites.joinToString(", "),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Button(onClick = {
+                        // Üres mező = a csomag szokásos hossza. Így az indítás
+                        // egy koppintás marad annak, aki nem akar számolni.
+                        val mins = minutes.toIntOrNull() ?: pack.defaultMinutes
+                        runCatching { Referee.startFocus(pack.id, mins, System.currentTimeMillis()) }
+                            .onFailure { onError(it.message ?: "Nem sikerült elindítani.") }
+                        minutes = ""
+                    }) { Text("Indítás") }
+                }
+            }
         }
     }
 }

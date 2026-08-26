@@ -225,17 +225,22 @@ használ — különben a telefon minden körben letörölné a gépen felvett l
 | | Csomagok tárolása | Szinkron | Fehérlista érvényesítése | Munkamenet indítása |
 |---|---|---|---|---|
 | **Gép** | igen | igen | böngésző-bővítmény | igen |
-| **Android** | igen | igen | **DNS-szűrő (a VPN-ben)** | még nem |
+| **Android** | igen | igen | **DNS-szűrő (a VPN-ben)** | **igen** |
 | **iPhone** | igen | igen | **DNS-szűrő (az alagútban)** | még nem |
 
-**Indítani egyelőre a gépen lehet.** Ez szándékos, nem félkész: indítani ingyen
-van, LEÁLLÍTANI viszont próbatétel. Ha a telefon tudna indítani, de leállítani
-nem, akkor egy elindított nyolcórás menetből a telefonon nem lenne kiút — és a
-Breaker soha nem tesz a felhasználóval olyat, amit az nem kért. A telefonos
-indítás a próbatétel-motor teljes tükrével együtt jön, egyben.
+**Androidon indítani és leállítani is lehet — EGYSZERRE került be a kettő.**
+Ez nem esztétika: indítani ingyen van, leállítani viszont próbatétel. Ha a
+telefon tudna indítani, de leállítani nem, akkor egy elindított nyolcórás
+menetből ott nem lenne kiút — és a Breaker soha nem tesz a felhasználóval
+olyat, amit az nem kért. Ezért a `Referee.startFocus` és a
+`Referee.changeFocus` egy lépésben jött, a próbatétel-motorral együtt.
 
-Kiút addig is van, és nem titok: a rendszer VPN-kapcsolója erősebb az appnál.
-Ha ott kikapcsolod az alagutat, a szűrés megáll — a blokklistánál is így van.
+A csomagokat továbbra is a **gépen** állítod össze: ott látszik a teljes lista,
+és ott kényelmes gépelni. A telefon indítja és betartatja őket.
+
+Kiút emellett is van, és nem titok: a rendszer VPN-kapcsolója erősebb az
+appnál. Ha ott kikapcsolod az alagutat, a szűrés megáll — a blokklistánál is
+így van.
 
 ## Amit ez a réteg NEM fed
 

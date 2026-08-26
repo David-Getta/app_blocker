@@ -111,6 +111,19 @@ object Referee {
     }
 
     private fun finish(state: AppState, s: SessionRec, now: Long): AppState {
+        // A MUNKAMENET nem egy oldalhoz tartozik, hanem az egész készülékhez:
+        // ezért áll itt, az oldal-keresés ELŐTT. A -1 azt jelenti: állítsd le
+        // most.
+        if (s.pendingFocusEnd != null) {
+            val nextRun = if (s.pendingFocusEnd < 0) null
+                else state.focusRun?.copy(endsAt = s.pendingFocusEnd)
+            return state.copy(
+                focusRun = nextRun,
+                unlockLog = state.unlockLog.filter { it > now - 30 * 24 * 3600_000L } + now,
+                session = null,
+                abandons = state.abandons.filter { it.siteId != s.siteId },
+            )
+        }
         val sites = state.sites.map { site ->
             if (site.id != s.siteId) site
             else if (s.pendingSchedule != null) site.copy(schedule = s.pendingSchedule) // gated loosening
@@ -452,5 +465,76 @@ object Referee {
                 .filter { it.pendingDeleteAt == null || it.pendingDeleteAt > now }
             next.copy(sites = sites)
         }
+    }
+
+    // ----------------------------------------------------------- munkamenet
+
+    data class FocusChangeResult(val applied: Boolean, val session: SessionRec?)
+
+    /**
+     * Munkamenet indítása. INGYEN van — ez a szigorítás iránya.
+     *
+     * Egyszerre egy menet fut. Enélkül a leállítás próbatételét meg lehetne
+     * kerülni: indítok egy „minden engedve” csomagot, és kész.
+     */
+    fun startFocus(packId: String, minutes: Int, now: Long) {
+        BreakerStore.mutate { state ->
+            val pack = state.focusPacks.find { it.id == packId }
+                ?: throw RefereeException("Ismeretlen csomag.", "NO_PACK")
+            if (Focus.isRunning(state.focusRun, now)) {
+                throw RefereeException("Már fut egy munkamenet.", "FOCUS_RUNNING")
+            }
+            val mins = Focus.normalizeMinutes(minutes.toDouble())
+                ?: throw RefereeException("Érvénytelen hossz.", "BAD_MINUTES")
+            state.copy(
+                focusRun = Focus.FocusRun(pack.id, now, now + mins * 60_000L),
+            )
+        }
+    }
+
+    /**
+     * A futó menet vége odébb tolva — vagy a leállítása.
+     *
+     * HOSSZABBÍTANI ingyen van, RÖVIDÍTENI és LEÁLLÍTANI próbatételbe kerül.
+     * Ugyanaz a szabály, mint mindenhol: enélkül a munkamenet egy „mégsem”
+     * gomb lenne, és pont az a lényeg, hogy ne az legyen.
+     *
+     * @param nextEndsAt az új vég, vagy null = állítsd le most
+     */
+    fun changeFocus(nextEndsAt: Long?, now: Long): FocusChangeResult {
+        var applied = false
+        var created: SessionRec? = null
+        BreakerStore.mutate { state ->
+            val run = state.focusRun
+            if (!Focus.isRunning(run, now)) {
+                throw RefereeException("Nem fut munkamenet.", "NO_FOCUS")
+            }
+            val current = run!!.endsAt
+            val next = nextEndsAt ?: now
+
+            if (!Focus.isSessionLoosening(current, next)) {
+                applied = true
+                return@mutate state.copy(focusRun = run.copy(endsAt = next))
+            }
+            if (state.session != null) {
+                throw RefereeException("Előbb fejezd be a folyamatban lévő kísérletet.", "BUSY")
+            }
+            val dropped = dropSession(state, now)
+            val tier = effectiveTier(dropped, Kind.PAUSE, now)
+            val plan = ChallengeEngine.generatePlan(Kind.PAUSE, tier, dropped.lastCombo, null)
+            val session = SessionRec(
+                id = BreakerStore.newId("ses"), kind = Kind.PAUSE,
+                // A munkamenet nem oldalhoz tartozik; a jelölés mégis kell, mert
+                // a feladott kísérletek nyilvántartása oldalanként megy.
+                siteId = "focus:" + run.packId,
+                minutes = null,
+                steps = armCurrent(plan.steps, 0, now), stepIndex = 0, createdAt = now,
+                // A -1 a „állítsd le most”; a nulla érvényes időpont lenne.
+                pendingFocusEnd = nextEndsAt ?: -1L,
+            )
+            created = session
+            dropped.copy(session = session, lastCombo = plan.comboKey)
+        }
+        return FocusChangeResult(applied, created)
     }
 }
