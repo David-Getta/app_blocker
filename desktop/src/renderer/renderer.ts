@@ -834,12 +834,27 @@ function renderSyncCard(st: StatusData): void {
   $('syncNowBtn').classList.toggle('hidden', !on);
   if (!st.sync) return;
   $('syncWho').textContent = `${st.sync.accountId} — ez az eszköz: ${st.sync.deviceName}`;
-  const last = st.sync.lastSyncAt
-    ? `Legutóbbi szinkron: ${new Date(st.sync.lastSyncAt).toLocaleTimeString('hu-HU')}`
-    : 'Még nem volt szinkron.';
-  $('syncState').textContent = st.sync.lastError
-    ? `${last} · Hiba: ${st.sync.lastError}`
-    : last;
+  // Hiba esetén a SIKERES szinkron és az utolsó PRÓBÁLKOZÁS külön áll.
+  //
+  // Egyetlen időbélyeg itt félrevezet: aki egy tíz órával korábbi szinkron-időt
+  // lát egy hibaüzenet mellett, azt hiszi, az app délben feladta.
+  // Pedig tíz percenként újrapróbálja — csak semmi nem mutatta. A friss
+  // próbálkozás-idő ezt mondja ki; és ha AZ is órákkal ezelőtti, akkor
+  // tényleg leállt a kör, ami viszont valódi hiba, és így végre látszik.
+  const clock = (t: number): string => new Date(t).toLocaleTimeString('hu-HU');
+  const ok = st.sync.lastSyncAt
+    ? `Legutóbbi sikeres szinkron: ${clock(st.sync.lastSyncAt)}`
+    : 'Még nem volt sikeres szinkron.';
+  if (!st.sync.lastError) {
+    $('syncState').textContent = st.sync.lastSyncAt
+      ? `Legutóbbi szinkron: ${clock(st.sync.lastSyncAt)}`
+      : 'Még nem volt szinkron.';
+  } else {
+    const tried = st.sync.lastAttemptAt
+      ? ` · Utolsó próbálkozás: ${clock(st.sync.lastAttemptAt)}`
+      : '';
+    $('syncState').textContent = `${ok}${tried} · Hiba: ${st.sync.lastError}`;
+  }
   const focusErr = st.focusSyncError;
   $('syncFocusError').textContent = focusErr ?? '';
   $('syncFocusError').classList.toggle('hidden', !focusErr);

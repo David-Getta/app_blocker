@@ -100,6 +100,7 @@ export function statusOf(state: HelperState, dohApplied: boolean): StatusData {
       accountId: state.sync.accountId,
       deviceName: state.sync.deviceName,
       lastSyncAt: state.sync.lastSyncAt,
+      lastAttemptAt: state.sync.lastAttemptAt,
       lastError: state.sync.lastError,
     },
     legacyHelperRunning: legacyHelperSuspected(),

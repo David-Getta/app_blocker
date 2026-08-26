@@ -44,20 +44,28 @@ export function runHelper(): void {
   // Az ÜTEMEZÉS külön fájlban van (`sync-schedule.ts`), tesztekkel: a huzalozás
   // egy csúnya hurkot rejt, amit ránézésre semmi nem árul el — a szinkron a
   // végén ment, a mentés pedig ütemez egy szinkront, az megint ment…
+  /** Az utoljára NAPLÓZOTT szinkron-hiba — csak a naplózás ritkításához. */
+  let lastLoggedSyncError: string | null = null;
   const runSync = async (why: string): Promise<void> => {
     if (!state.sync) return;
+    state.sync.lastAttemptAt = Date.now();
     try {
       const r = await syncNow(state, Date.now());
       commit();
       if (r.changed) log(`sync (${why}): a lista változott, ${r.sites} oldal`);
     } catch (e) {
-      // Nem naplózzuk minden körben ugyanazt: offline gépnél az percenként
-      // ismétlődő, haszontalan sor lenne. Az állapotba viszont bekerül, és a
-      // felület kiírja.
       const msg = (e as Error).message;
-      if (state.sync && state.sync.lastError !== msg) {
-        state.sync.lastError = msg;
-        saveState(state);
+      // A PRÓBÁLKOZÁS ideje akkor is elmentődik, ha a hibaüzenet ugyanaz, mint
+      // az előző körben. Ez a fontos rész: a felhasználó ebből látja, hogy az
+      // app MÉG PRÓBÁLKOZIK. Ha csak változás esetén mentenénk, egy órákig
+      // ismétlődő hiba mellett az időbélyeg befagyna, és a képernyő pontosan
+      // úgy nézne ki, mintha a szinkron leállt volna.
+      if (state.sync) state.sync.lastError = msg;
+      saveState(state);
+      // A NAPLÓBA viszont csak a változás megy: offline gépnél a tízpercenként
+      // ismétlődő azonos sor haszontalan.
+      if (state.sync && lastLoggedSyncError !== msg) {
+        lastLoggedSyncError = msg;
         log(`sync (${why}) failed: ${msg}`);
       }
     }

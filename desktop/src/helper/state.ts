@@ -188,7 +188,18 @@ export interface SyncAccount {
   usageVersion?: number;
   /** a saját mai összegzésünk verziója (a közös napi kerethez) */
   todayVersion?: number;
+  /** az utolsó kör, ami VÉGIG lefutott */
   lastSyncAt?: number;
+  /**
+   * Az utolsó PRÓBÁLKOZÁS — sikeres és sikertelen egyaránt.
+   *
+   * Külön mező, mert e nélkül egy befagyott időbélyeg kétértelmű: nem lehet
+   * megmondani, hogy a szinkron tíz órája sikertelen és tíz percenként újra
+   * próbálja, vagy hogy a kör MAGA állt le és azóta hozzá se kezdett. A
+   * kettő közül a második valódi hiba, az első csak offline gép — a
+   * felhasználó pedig ugyanazt látta mindkettőre.
+   */
+  lastAttemptAt?: number;
   /** az utolsó hiba, hogy a felület meg tudja mondani, mi nem megy */
   lastError?: string;
 }

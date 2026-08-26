@@ -46,23 +46,55 @@ async function call(serverUrl: string, path: string, body: unknown): Promise<any
   const url = new URL(path, serverUrl).toString();
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), SYNC_TIMEOUT_MS);
-  let res: Response;
+  // Az időkorlát a TÖRZS beolvasására is kiterjed, nem csak a fejlécre.
+  //
+  // Ez nem elmélet. A `clearTimeout` korábban közvetlenül a `fetch` után állt,
+  // tehát egy kiszolgáló, ami fejlécet küld, majd a törzset soha nem fejezi be,
+  // ÖRÖKRE megállította volna itt a kört. És a következmény nem egy elmaradt
+  // szinkron: az ütemező `running` jelzője csak akkor törlődik, ha a kör
+  // BEFEJEZŐDIK, tehát onnantól minden későbbi kör azonnal visszafordult
+  // volna. A szinkron a folyamat hátralévő életére halott — hibaüzenet nélkül,
+  // befagyott időbélyeggel. Pontosan az a csendes hiba, ami ellen az egész
+  // ellenőrző-készlet szól.
   try {
-    res = await fetch(url, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ ...(body as object), protocol: SYNC_PROTOCOL }),
-      signal: ctrl.signal,
-    });
-  } catch (e) {
-    throw new SyncError(`A kiszolgáló nem érhető el: ${(e as Error).message}`, 'OFFLINE');
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ ...(body as object), protocol: SYNC_PROTOCOL }),
+        signal: ctrl.signal,
+      });
+    } catch (e) {
+      throw new SyncError(`A kiszolgáló nem érhető el: ${(e as Error).message}`, 'OFFLINE');
+    }
+    return await readJson(res, ctrl);
   } finally {
     clearTimeout(timer);
   }
+}
+
+/**
+ * A válasz feldolgozása — külön függvény, hogy a `call` időkorlátja körbeérje.
+ *
+ * Azért van kivezetve, mert a hibaágai tesztelhetők: a hívó nem tud olyan
+ * kiszolgálót indítani, ami fejlécet küld, majd tizenöt másodpercig hallgat,
+ * anélkül hogy a tesztkészlet is tizenöt másodperccel lassulna.
+ */
+export async function readJson(res: Response, ctrl: AbortController): Promise<any> {
   let json: any;
   try {
     json = await res.json();
   } catch {
+    // A megszakítás ide is elér, és MÁS a jelentése, mint a hibás címnek: a
+    // cím jó volt, a kiszolgáló válaszolt is — csak nem fejezte be.
+    if (ctrl.signal.aborted) {
+      throw new SyncError(
+        `A kiszolgáló elkezdett válaszolni, de ${SYNC_TIMEOUT_MS / 1000} másodperc alatt `
+        + 'nem fejezte be. Lehet, hogy túlterhelt.',
+        'OFFLINE',
+      );
+    }
     throw new SyncError('A kiszolgáló nem JSON-t küldött — biztos jó a cím?', 'BAD_SERVER');
   }
   // A 409 nem hiba, hanem a protokoll része: „közben más írt”.

@@ -983,6 +983,44 @@ async function main() {
   const who = (await page.locator('#syncWho').innerText()) || '';
   if (!who.includes('david@example')) failures.push(`the account is not named: ${who}`);
 
+  // HIBA ESETÉN a sikeres szinkron és az utolsó próbálkozás KÜLÖN áll.
+  //
+  // Ez egy valódi képernyőből jött: tíz órával korábbi szinkron-időbélyeg egy
+  // friss, „a kiszolgáló nem érhető el” hiba mellett. Így az app úgy néz ki,
+  // mintha délben feladta volna — pedig tíz
+  // percenként újrapróbálja. A két időpont szétválasztva mondja ezt meg; és ha
+  // a próbálkozás ideje is régi, akkor tényleg megállt a kör — az viszont
+  // valódi hiba, és pont ezért kell látszania.
+  await page.evaluate(() => {
+    window.__fakeSync = {
+      serverUrl: 'https://sync.pelda.hu', accountId: 'david@example',
+      deviceName: 'Mac gép',
+      lastSyncAt: Date.now() - 10 * 3600_000,
+      lastAttemptAt: Date.now() - 60_000,
+      lastError: 'A kiszolgáló nem érhető el: fetch failed',
+    };
+  });
+  await page.waitForFunction(
+    () => document.getElementById('syncState').textContent.includes('próbálkozás'),
+    undefined, { timeout: 10_000 },
+  ).catch(() => failures.push('hiba mellett nem látszik, mikor próbálkozott utoljára'));
+  const stateLine = (await page.locator('#syncState').innerText()) || '';
+  if (!stateLine.includes('sikeres szinkron')) {
+    failures.push(`hiba mellett a régi időpontot nem nevezi sikeresnek: ${stateLine}`);
+  }
+  // Hiba NÉLKÜL viszont egyetlen időpont álljon ott: a két sor csak akkor
+  // segít, ha van mit szétválasztani.
+  await page.evaluate(() => {
+    window.__fakeSync = {
+      serverUrl: 'https://sync.pelda.hu', accountId: 'david@example',
+      deviceName: 'Mac gép', lastSyncAt: Date.now() - 60_000,
+    };
+  });
+  await page.waitForFunction(
+    () => !document.getElementById('syncState').textContent.includes('próbálkozás'),
+    undefined, { timeout: 10_000 },
+  ).catch(() => failures.push('hiba nélkül is a próbálkozás-idő látszik'));
+
   // A MUNKAMENET SZINKRONJÁNAK HIBÁJA nem lehet néma. A köre szándékosan nem
   // állítja meg az egész szinkront (a blokklista fontosabb) — enélkül viszont
   // egy régi fiókkiszolgálónál a menet sosem érne át a telefonra, és a

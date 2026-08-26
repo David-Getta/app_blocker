@@ -79,6 +79,8 @@ export interface SyncStatus {
   accountId: string;
   deviceName: string;
   lastSyncAt?: number;
+  /** az utolsó próbálkozás ideje — sikertelen kör is léptet rajta */
+  lastAttemptAt?: number;
   lastError?: string;
 }
 
