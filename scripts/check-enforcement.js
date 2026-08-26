@@ -214,6 +214,23 @@ const WIRES = [
     needle: 'LimitLogic.isBlockedNowWithLimit',
     lost: 'az iPhone alagútja nem venné figyelembe a keretet és a menetrendet',
   },
+
+  // A FRISSÍTÉS. „Olyan egyszerű, mint egy áruházból” — ez az ígéret azon áll,
+  // hogy az app magától MEGNÉZI, van-e újabb verzió. Ha a keresés hívása
+  // kimaradna, semmi nem hibázna: az app menne tovább, a felhasználó meg
+  // hónapokig a régi verziót futtatná, benne minden azóta javított hibával.
+  // Épp azért csendes, mert a frissítés hiánya nem hibaüzenet — csak nem
+  // történik semmi.
+  {
+    file: 'desktop/src/main/main.ts',
+    needle: 'initUpdater',
+    lost: 'az asztali app soha nem venné észre, hogy van újabb verzió',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/AppUi.kt',
+    needle: 'UpdateChecker.check',
+    lost: 'a telefon soha nem venné észre, hogy van újabb verzió',
+  },
 ];
 
 /**
