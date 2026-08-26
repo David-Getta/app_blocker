@@ -34,6 +34,14 @@ export interface RulesBridgeInfo {
   port?: number;
   /** amit a bővítmény beállításai közé kell bemásolni */
   token?: string;
+  /**
+   * Mikor húzta le a bővítmény utoljára a szabályokat (0 = még soha).
+   *
+   * A híd FUTÁSA és a bővítmény JELENLÉTE két külön dolog. A munkamenet
+   * fehérlistáját a gépen kizárólag a bővítmény érvényesíti, tehát ha ez a
+   * szám régi, a menet nem tiltana semmit a böngészőben.
+   */
+  lastPullAt?: number;
   error?: string;
 }
 

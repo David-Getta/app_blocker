@@ -21,6 +21,14 @@ export interface BridgeInfo {
 
 let handle: BridgeHandle | null = null;
 let info: BridgeInfo = { running: false };
+/**
+ * Mikor húzta le a bővítmény utoljára a szabályokat.
+ *
+ * Nulla = még soha. A híd FUTÁSA és a bővítmény JELENLÉTE két külön dolog;
+ * a különbség a munkamenetnél számít, mert a fehérlistát a gépen kizárólag a
+ * bővítmény érvényesíti.
+ */
+let lastPullAt = 0;
 
 function tokenFile(userDataDir: string): string {
   return path.join(userDataDir, 'extension-bridge.json');
@@ -58,10 +66,17 @@ export function registerRulesBridge(
   getRules: () => Promise<BridgeRule[]>,
   getFocus?: () => Promise<BridgeFocus>,
 ): void {
-  ipcMain.handle('breaker:bridge-info', () => bridgeInfo());
+  ipcMain.handle('breaker:bridge-info', () => ({ ...bridgeInfo(), lastPullAt }));
   if (handle) return;
   const token = loadOrCreateToken(userDataDir);
-  void startRulesBridge({ token, getRules, getFocus }).then(
+  void startRulesBridge({
+    token,
+    getRules,
+    getFocus,
+    // A LEHÚZÁS ténye. Ebből tudja meg a felület, hogy a bővítmény tényleg ott
+    // van — nem csak a kiszolgáló fut.
+    notePull: () => { lastPullAt = Date.now(); },
+  }).then(
     (h) => { handle = h; info = { running: true, port: h.port, token }; },
     // A híd elmaradása nem hiba, amitől bármi más ne menne: a bővítmény ilyenkor
     // az utoljára letöltött listát használja, vagyis TOVÁBB TILT.

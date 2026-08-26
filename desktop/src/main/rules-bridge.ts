@@ -95,6 +95,14 @@ export interface BridgeDeps {
   token: string;
   /** csak teszthez: melyik portról induljon */
   startPort?: number;
+  /**
+   * Meghívjuk minden SIKERES lehúzásnál.
+   *
+   * Ebből tudja meg az app, hogy a bővítmény tényleg ott van — nem csak a
+   * kiszolgáló fut. A munkamenet fehérlistáját a gépen KIZÁRÓLAG a bővítmény
+   * érvényesíti, tehát ez a különbség nem részletkérdés.
+   */
+  notePull?: () => void;
 }
 
 export interface BridgeHandle {
@@ -123,6 +131,11 @@ export async function answer(
   }
   const rules = await deps.getRules();
   const focus = deps.getFocus ? await deps.getFocus() : { running: false };
+  // Feljegyezzük, hogy VOLT lehúzás. Enélkül az app csak azt tudja, hogy a híd
+  // FUT — azt nem, hogy beszél-e vele bárki. A kettő között pedig ott a
+  // legcsendesebb hiba: a felhasználó elindít egy munkamenetet, a fehérlistát
+  // viszont senki nem érvényesíti, és minden nyitva marad.
+  deps.notePull?.();
   return { status: 200, body: { protocol: BRIDGE_PROTOCOL, rules, focus } };
 }
 

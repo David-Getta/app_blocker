@@ -383,6 +383,25 @@ async function main() {
   ).catch(() => failures.push('az „Új csomag” gomb nem nyitotta meg a szerkesztőt'));
   await page.locator('.modal').getByRole('button', { name: 'Mégse' }).click();
 
+  // A BŐVÍTMÉNY HIÁNYA nem lehet néma. A gépen a fehérlistát KIZÁRÓLAG a
+  // böngésző-bővítmény tudja betartatni; ha nincs összekötve, az indítás
+  // csendben nem tilt semmit a böngészőben — a felhasználó pedig azt hinné,
+  // fókuszban van, közben minden nyitva.
+  const extWarnShown = await page.locator('#focusExtWarn').isVisible().catch(() => false);
+  if (!extWarnShown) {
+    failures.push('nincs figyelmeztetés arról, hogy a bővítmény nincs összekötve');
+  }
+  // Friss lehúzással viszont NEM zavarunk: aki összekötötte, ne lásson riasztást.
+  await page.evaluate(() => {
+    window.__fakeBridge = {
+      running: true, port: 8788, token: 'ABCD-EFGH-JKMN-PQRS', lastPullAt: Date.now(),
+    };
+  });
+  await page.waitForFunction(
+    () => document.getElementById('focusExtWarn')?.classList.contains('hidden'),
+    undefined, { timeout: 10_000 },
+  ).catch(() => failures.push('a friss bővítmény-kapcsolat mellett is riaszt'));
+
   // PERCRE PONTOS HOSSZ. A gyorsgombok a gyakori eseteket fedik; a szabad mező
   // azt, amikor a felhasználó tudja, hogy 43 perce van ebédig. Ha ez csak a
   // jelölésben lenne meg, de az érték nem menne át az indításba, a felület

@@ -171,6 +171,13 @@
         <h2>Munkamenetek</h2>
         <button id="focusNewBtn" class="btn btn-small">Új csomag</button>
       </div>
+      <!--
+        A gépen a fehérlistát KIZÁRÓLAG a böngésző-bővítmény tudja betartatni:
+        a DNS a hosztnévnél tovább nem lát. Ha nincs összekötve, az indítás
+        csendben nem tiltana semmit a böngészőben — a felhasználó pedig azt
+        hinné, fókuszban van, közben minden nyitva.
+      -->
+      <p id="focusExtWarn" class="error hidden"></p>
       <p class="hint" id="focusHint"></p>
       <div id="focusRunning" class="focus-running hidden"></div>
       <div id="focusPacks" class="focus-packs"></div>

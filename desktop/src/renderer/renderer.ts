@@ -49,6 +49,8 @@ interface RulesBridgeInfo {
   running: boolean;
   port?: number;
   token?: string;
+  /** mikor húzta le a bővítmény utoljára a szabályokat (0 = még soha) */
+  lastPullAt?: number;
   error?: string;
 }
 interface Bridge {
@@ -396,6 +398,36 @@ function renderFocusPill(st: StatusData): void {
  */
 let focusExtendDraft = '';
 
+/**
+ * Szól, ha a munkamenet fehérlistáját ITT nem érvényesíti senki.
+ *
+ * A gépen a fehérlistát KIZÁRÓLAG a böngésző-bővítmény tudja betartatni: a
+ * DNS a hosztnévnél tovább nem lát, és „mindent tilts, kivéve ötöt” egy
+ * hosts-fájlban nem leírható. Ha a bővítmény nincs összekötve, a munkamenet
+ * indítása CSENDBEN nem tilt semmit a böngészőben — a felhasználó azt hinné,
+ * fókuszban van, közben minden nyitva.
+ *
+ * Ugyanaz a hibafajta, mint a telefonon a kikapcsolt védelem: az app olyasmit
+ * ígér, amit épp nem tud betartani.
+ */
+function renderFocusExtensionWarning(): void {
+  const box = $('focusExtWarn');
+  void window.breaker.getBridgeInfo().then((info) => {
+    // A bővítmény húsz másodpercenként kérdez; két percnél régebbi lehúzás azt
+    // jelenti, hogy nincs ott. A híd FUTÁSA önmagában nem elég bizonyíték.
+    const fresh = !!info.lastPullAt && Date.now() - info.lastPullAt < 2 * 60_000;
+    box.classList.toggle('hidden', fresh);
+    if (fresh) return;
+    box.textContent = info.lastPullAt
+      ? 'A böngésző-bővítmény egy ideje nem jelentkezett. A munkamenet '
+        + 'fehérlistáját a gépen ő érvényesíti — amíg nincs ott, a böngészőben '
+        + 'nem tilt semmit.'
+      : 'A böngésző-bővítmény nincs összekötve. A munkamenet fehérlistáját a '
+        + 'gépen KIZÁRÓLAG ő tudja betartatni — enélkül az indítás a '
+        + 'böngészőben nem tilt semmit. A blokklista attól még él.';
+  }).catch(() => { /* a kártya enélkül is használható */ });
+}
+
 function renderFocusCard(st: StatusData): void {
   // A RÉGEBBI háttérszolgáltatás ezt a két mezőt nem küldi. Ha itt elhasalnánk,
   // a felület egésze üresen maradna — az egyetlen ok pedig egy hiányzó mező
@@ -413,6 +445,7 @@ function renderFocusCard(st: StatusData): void {
   runBox.textContent = '';
   runBox.classList.toggle('hidden', !running);
 
+  renderFocusExtensionWarning();
   $('focusHint').textContent = running
     ? 'Amíg tart, csak a csomagban felsoroltak mehetnek. Minden más tiltva.'
     : 'Egy csomag megmondja, mi mehet — és a munkamenet alatt minden más tiltva. '
