@@ -81,7 +81,7 @@ const GROUPS = [
   },
   {
     what: 'egy csomag',
-    names: ['allowSites', 'allowApps', 'defaultMinutes'],
+    names: ['id', 'name', 'allowSites', 'allowApps', 'defaultMinutes'],
     ts: 'desktop/src/shared/focus.ts',
     kt: 'android/app/src/main/java/hu/breaker/app/core/SyncClient.kt',
     swift: 'ios/Shared/Focus.swift',
@@ -99,7 +99,8 @@ const GROUPS = [
   // — az app „törlés folyamatban”-t mutatna, és soha nem törölne.
   {
     what: 'egy blokkolt oldal',
-    names: ['domain', 'hostnames', 'addedAt', 'pendingDeleteAt', 'dailyLimitSeconds', 'alias', 'rules'],
+    names: ['id', 'domain', 'hostnames', 'addedAt', 'pendingDeleteAt', 'schedule',
+      'dailyLimitSeconds', 'alias', 'rules'],
     ts: 'desktop/src/shared/sync/merge.ts',
     kt: 'android/app/src/main/java/hu/breaker/app/core/SyncClient.kt',
     swift: 'ios/Shared/SyncMerge.swift',
@@ -127,6 +128,16 @@ const GROUPS = [
     ts: 'desktop/src/shared/limits.ts',
     kt: 'android/app/src/main/java/hu/breaker/app/core/SyncClient.kt',
     swift: 'ios/Shared/Limits.swift',
+  },
+  // EGY RÉSZLEGES SZABÁLY (`youtube.com/@valaki`). A két mező együtt egy
+  // szabály; ha az `path` neve elcsúszik, a fogadó oldal üres útvonalat kap,
+  // ami az EGÉSZ gazdagépre illeszkedne. A részleges tiltásból teljes lenne.
+  {
+    what: 'egy részleges szabály',
+    names: ['host', 'path'],
+    ts: 'desktop/src/shared/urlrules.ts',
+    kt: 'android/app/src/main/java/hu/breaker/app/core/SyncClient.kt',
+    swift: 'ios/Shared/UrlRules.swift',
   },
   {
     what: 'egy naplósor',
@@ -217,14 +228,13 @@ const ENVELOPE = new Set([
 // szándékosan kényelmetlen olvasmány: minden sora egy adósság. Attól, hogy egy
 // név itt szerepel, még ugyanúgy elcsúszhat — csak épp tudunk róla.
 const NOT_GUARDED = new Map([
-  ['id', 'oldal- és csomagazonosító'],
-  ['name', 'a csomag neve'],
-  ['pauseUntil', 'a szüneteltetés vége a blokklistán'],
-  ['schedule', 'a menetrend al-objektumának kulcsa'],
-  ['host', 'a részleges tiltás szabálya'],
-  ['path', 'a részleges tiltás szabálya'],
-  ['enabled', 'a mérés blobja'],
-  ['labels', 'a mérés blobja'],
+  // Ez NEM adósság, hanem szándék: a szünet eszközfüggő és rövid életű, egy
+  // próbatétel egy eszközön nem oldhat fel mindenhol. A Kotlin ezért állandó
+  // `null`-t ír a helyére, a Swift ki se mondja — és ez rendben van, mert a
+  // hiányzó és a null itt ugyanaz: nulla, vagyis a legszigorúbb.
+  ['pauseUntil', 'szándékosan mindig null a dróton — a szünet nem szinkronizál'],
+  ['enabled', 'a mérés blobja — a mérés maga még nincs három nyelven őrizve'],
+  ['labels', 'a mérés blobja — ugyanaz'],
 ]);
 
 const known = new Set([...ENVELOPE, ...NOT_GUARDED.keys()]);
