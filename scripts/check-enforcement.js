@@ -65,6 +65,73 @@ const WIRES = [
     needle: 'syncFocusRound',
     lost: 'az iPhone szinkronja nem hozná le a munkamenetet',
   },
+
+  // A MENET LEZÁRÁSA. Ha ezt nem hívja senki, a menet a saját idejében
+  // „lejár” ugyan (az `isRunning` hamisat ad rá), de a naplóba SOHA nem kerül
+  // be — és a statisztikából pont azok a menetek hiányoznának, amiket a
+  // felhasználó végigvitt. Az a statisztika rosszabb a semminél: azt mondaná,
+  // hogy sosem sikerül.
+  {
+    file: 'desktop/src/helper/referee.ts',
+    needle: 'closeIfEnded',
+    lost: 'a gépen a magától lejárt menet nem kerülne a statisztikába',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/Referee.kt',
+    needle: 'Focus.closeIfEnded',
+    lost: 'a telefonon a magától lejárt menet nem kerülne a statisztikába',
+  },
+  {
+    file: 'ios/Shared/Referee.swift',
+    needle: 'Focus.closeIfEnded',
+    lost: 'az iPhone-on a magától lejárt menet nem kerülne a statisztikába',
+  },
+
+  // A NAPLÓ EGYESÍTÉSE. Enélkül a szinkron az „utolsó író nyer” szabályt
+  // követné a naplóra is: a másik eszköz sorai csendben eltűnnének, és a
+  // felhasználó azt látná, hogy fél hete nem dolgozott.
+  {
+    file: 'desktop/src/helper/sync-client.ts',
+    needle: 'mergeLog',
+    lost: 'a gépen a többi eszköz menetei kiesnének a statisztikából',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/SyncClient.kt',
+    needle: 'FocusSync.mergeLog',
+    lost: 'a telefonon a többi eszköz menetei kiesnének a statisztikából',
+  },
+  {
+    file: 'ios/Shared/SyncClient.swift',
+    needle: 'FocusSync.mergeLog',
+    lost: 'az iPhone-on a többi eszköz menetei kiesnének a statisztikából',
+  },
+
+  // A STATISZTIKA KISZÁMOLÁSA a két telefonon. A gépen ezt a segéd végzi
+  // (`summarizeFocus` fentebb); itt a felület kéri el.
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/AppUi.kt',
+    needle: 'Focus.summarizeFocus',
+    lost: 'a telefonon a munkamenet-statisztika üresen állna',
+  },
+  {
+    file: 'ios/App/StatsView.swift',
+    needle: 'Focus.summarizeFocus',
+    lost: 'az iPhone-on a munkamenet-statisztika üresen állna',
+  },
+
+  // A FIGYELMEZTETÉS arról, hogy a fehérlistát a gépen nem érvényesíti senki.
+  // A logika megvan, de ha nem hívja senki, a felhasználó ugyanúgy nem tudja
+  // meg — és pont ez a funkció lényege.
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: 'renderFocusExtensionWarning',
+    lost: 'az appban nem derülne ki, hogy a bővítmény nincs összekötve',
+  },
+  {
+    file: 'desktop/src/renderer/overlay.ts',
+    needle: 'extWarning',
+    lost: 'a gyorsbillentyűs rétegben nem derülne ki, hogy nincs bővítmény',
+  },
 ];
 
 /**
