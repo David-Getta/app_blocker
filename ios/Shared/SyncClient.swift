@@ -254,7 +254,8 @@ enum SyncClient {
             let encoded = try JSONEncoder().encode(merged)
             let payload = try SyncCrypto.encrypt(key, String(decoding: encoded, as: UTF8.self))
             if payload.utf8.count > maxPayloadBytes {
-                throw SyncError("A munkamenet-csomagok túl nagyok a szinkronhoz.", "TOO_BIG")
+                throw SyncError("A munkamenet adatai túl nagyok a szinkronhoz — a csomagok vagy a napló. "
+                    + "A menet ettől még fut, csak a többi eszközre nem ér át.", "TOO_BIG")
             }
             let push = try await call(acc.serverUrl, "/v1/push", [
                 "accountId": acc.accountId, "authKey": acc.authKey, "collection": "focus",

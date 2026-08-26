@@ -420,7 +420,8 @@ async function syncFocusRound(
 
     const payload = encrypt(key, JSON.stringify(merged));
     if (payload.length > MAX_PAYLOAD_BYTES) {
-      throw new SyncError('A munkamenet-csomagok túl nagyok a szinkronhoz.', 'TOO_BIG');
+      throw new SyncError('A munkamenet adatai túl nagyok a szinkronhoz — a csomagok vagy a napló. '
+        + 'A menet ettől még fut, csak a többi eszközre nem ér át.', 'TOO_BIG');
     }
     const push = await call(acc.serverUrl, '/v1/push', {
       accountId: acc.accountId, authKey: acc.authKey, collection: 'focus',

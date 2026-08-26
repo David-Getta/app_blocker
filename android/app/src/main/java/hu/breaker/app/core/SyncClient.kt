@@ -457,7 +457,8 @@ object SyncClient {
 
             val payload = SyncCrypto.encrypt(key, focusToJson(merged))
             if (payload.length > MAX_PAYLOAD_BYTES) {
-                throw SyncException("A munkamenet-csomagok túl nagyok a szinkronhoz.", "TOO_BIG")
+                throw SyncException("A munkamenet adatai túl nagyok a szinkronhoz — a csomagok vagy a napló. " +
+                        "A menet ettől még fut, csak a többi eszközre nem ér át.", "TOO_BIG")
             }
             val push = call(acc.serverUrl, "/v1/push", JSONObject().apply {
                 put("accountId", acc.accountId); put("authKey", acc.authKey)
