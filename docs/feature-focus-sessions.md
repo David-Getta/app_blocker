@@ -185,11 +185,33 @@ A statisztikában ez ráadásul KÉT sort adhat egy menetre: a naplósor azonoss
 a csomag és a KEZDÉS párja, az alvó eszközön viszont a kezdés eltolódott. Nem
 kibúvó és nem adatvesztés, csak egy fölös sor.
 
-A tiszta megoldás valószínűleg az, hogy az ugrás elnyelése NE léptesse a
-számlálót — az elnyelés nem döntés, csak helyi újraértelmezés —, mert akkor az
-ébren lévő eszköz lezárása (nagyobb `rev`) nyerne. Ez viszont a `rev`
-jelentését érinti, és egy ilyen változtatást nem szabad átgondolatlanul,
-kiadás közben becsúsztatni. Addig ez a szakasz a válasz.
+Az irány, ami MEGOLDANÁ: az ugrás elnyelése ne léptesse a `rev`-et. Az elnyelés
+nem döntés, csak helyi újraértelmezés — ha nem léptetne, az ébren lévő eszköz
+lezárása (nagyobb `rev`) nyerne, és az a helyes.
+
+Két kézenfekvő megvalósítása van, és MINDKETTŐNEK van csapdája. Aki nekifut, ezt
+olvassa el előbb:
+
+1. **Eltolás után `adoptFocusRevision`.** Ez a lenyomatot ÚJRASZÁMOLJA, tehát
+   elnyeli azt is, ami az előző mentés óta egyébként változott — például egy
+   épp felvett csomagot. Az a szerkesztés soha nem léptetné a számlálót, és
+   soha nem érne át a többi eszközre. Csendben. Az ablak kicsi (a szerkesztés
+   azonnal ment), de nem nulla, és pont az a hibafajta, ami ellen az egész
+   ellenőrző-készlet szól.
+
+2. **A lenyomat a futás HOSSZÁT nézze, ne az abszolút időpontjait.** Ettől egy
+   egyenletes eltolás nem is látszik változásnak, és nem kell külön elnyelni.
+   Csakhogy a lenyomat a lemezen is ott van az előző verzióból: formátumváltás
+   után az első kör mindenkinél léptet egyet. Ez önmagában ártalmatlan — kivéve
+   egy ÜRES eszközön, ahol az „üresség nem szerkesztés” őr csak akkor véd, ha a
+   lenyomat még `undefined`. Egy elavult lenyomat mellett nem véd, és az üres
+   lista megint letörölhetné a gépen felvett csomagokat. Pont az a hiba, ami
+   egyszer már majdnem megtörtént.
+
+A második út a jobb, de kell hozzá az őr kiterjesztése is (üres állapot SOHA ne
+léptessen), és annak külön következménye van: az „összes csomag törlése” nem
+érne át a többi eszközre. Az a lazítás iránya, tehát valószínűleg elfogadható —
+de ez már három összefüggő döntés, nem egy javítás. Addig ez a szakasz a válasz.
 
 ## Mennyi idő alatt ér el a böngészőig
 
