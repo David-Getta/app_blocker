@@ -94,7 +94,7 @@ enum Referee {
             armCurrent(&steps, 0, now)
             let session = SessionRec(id: BreakerStore.shared.newId("ses"), kind: kind, siteId: siteId,
                                      minutes: minutes, steps: steps, stepIndex: 0, createdAt: now,
-                                     pendingSchedule: nil)
+                                     pendingSchedule: nil, pendingFocusEnd: nil)
             state.session = session
             state.lastCombo = plan.comboKey
             created = session
@@ -104,6 +104,21 @@ enum Referee {
     }
 
     private static func finish(_ state: inout AppState, _ s: SessionRec, _ now: Double) {
+        // A MUNKAMENET nem egy oldalhoz tartozik, hanem az egész készülékhez:
+        // ezért áll itt, az oldal-keresés ELŐTT. A -1 azt jelenti: állítsd le
+        // most.
+        if let pending = s.pendingFocusEnd {
+            if pending < 0 {
+                state.focusRun = nil
+            } else if var run = state.focusRun {
+                run = Focus.Run(packId: run.packId, startedAt: run.startedAt, endsAt: pending)
+                state.focusRun = run
+            }
+            state.unlockLog = state.unlockLog.filter { $0 > now - 30 * 24 * 3_600_000 } + [now]
+            state.session = nil
+            state.abandons = (state.abandons ?? []).filter { $0.siteId != s.siteId }
+            return
+        }
         state.sites = state.sites.map { site in
             guard site.id == s.siteId else { return site }
             var copy = site
@@ -149,7 +164,7 @@ enum Referee {
             armCurrent(&steps, 0, now)
             let session = SessionRec(id: BreakerStore.shared.newId("ses"), kind: .pause, siteId: siteId,
                                      minutes: nil, steps: steps, stepIndex: 0, createdAt: now,
-                                     pendingSchedule: next)
+                                     pendingSchedule: next, pendingFocusEnd: nil)
             state.session = session
             state.lastCombo = plan.comboKey
             result = ScheduleChangeResult(applied: false, session: session)
@@ -317,5 +332,85 @@ enum Referee {
                 return copy
             }
         }
+    }
+
+    // MARK: - munkamenet
+
+    struct FocusChangeResult { let applied: Bool; let session: SessionRec? }
+
+    /// Munkamenet indítása. INGYEN van — ez a szigorítás iránya.
+    ///
+    /// Egyszerre egy menet fut. Enélkül a leállítás próbatételét meg lehetne
+    /// kerülni: indítok egy „minden engedve” csomagot, és kész.
+    static func startFocus(packId: String, minutes: Int, now: Double) throws {
+        var thrown: RefereeError?
+        BreakerStore.shared.mutate { state in
+            guard let pack = (state.focusPacks ?? []).first(where: { $0.id == packId }) else {
+                thrown = RefereeError(message: "Ismeretlen csomag.", code: "NO_PACK"); return
+            }
+            if Focus.isRunning(state.focusRun, now: now) {
+                thrown = RefereeError(message: "Már fut egy munkamenet.", code: "FOCUS_RUNNING"); return
+            }
+            guard let mins = Focus.normalizeMinutes(Double(minutes)) else {
+                thrown = RefereeError(message: "Érvénytelen hossz.", code: "BAD_MINUTES"); return
+            }
+            state.focusRun = Focus.Run(
+                packId: pack.id, startedAt: now, endsAt: now + Double(mins) * 60_000
+            )
+        }
+        if let e = thrown { throw e }
+    }
+
+    /// A futó menet vége odébb tolva — vagy a leállítása.
+    ///
+    /// HOSSZABBÍTANI ingyen van, RÖVIDÍTENI és LEÁLLÍTANI próbatételbe kerül.
+    /// Ugyanaz a szabály, mint mindenhol: enélkül a munkamenet egy „mégsem”
+    /// gomb lenne, és pont az a lényeg, hogy ne az legyen.
+    ///
+    /// - Parameter nextEndsAt: az új vég, vagy nil = állítsd le most
+    @discardableResult
+    static func changeFocus(nextEndsAt: Double?, now: Double) throws -> FocusChangeResult {
+        var result: FocusChangeResult?
+        var thrown: RefereeError?
+        BreakerStore.shared.mutate { state in
+            guard let run = state.focusRun, Focus.isRunning(run, now: now) else {
+                thrown = RefereeError(message: "Nem fut munkamenet.", code: "NO_FOCUS"); return
+            }
+            let next = nextEndsAt ?? now
+            if !Focus.isSessionLoosening(currentEndsAt: run.endsAt, nextEndsAt: next) {
+                state.focusRun = Focus.Run(
+                    packId: run.packId, startedAt: run.startedAt, endsAt: next
+                )
+                result = FocusChangeResult(applied: true, session: nil)
+                return
+            }
+            if state.session != nil {
+                thrown = RefereeError(
+                    message: "Előbb fejezd be a folyamatban lévő kísérletet.", code: "BUSY"
+                )
+                return
+            }
+            dropSession(&state, now)
+            let tier = effectiveTier(state, kind: .pause, now: now)
+            let plan = ChallengeEngine.generatePlan(kind: .pause, tier: tier,
+                                                    lastCombo: state.lastCombo, forceCombo: nil)
+            var steps = plan.steps
+            armCurrent(&steps, 0, now)
+            let session = SessionRec(
+                id: BreakerStore.shared.newId("ses"), kind: .pause,
+                // A munkamenet nem oldalhoz tartozik; a jelölés mégis kell, mert
+                // a feladott kísérletek nyilvántartása oldalanként megy.
+                siteId: "focus:" + run.packId,
+                minutes: nil, steps: steps, stepIndex: 0, createdAt: now,
+                pendingSchedule: nil,
+                // A -1 a „állítsd le most”; a nulla érvényes időpont lenne.
+                pendingFocusEnd: nextEndsAt ?? -1
+            )
+            state.session = session
+            state.lastCombo = plan.comboKey
+            result = FocusChangeResult(applied: false, session: session)
+        }
+        if let e = thrown { throw e }
+        return result!
     }
 }

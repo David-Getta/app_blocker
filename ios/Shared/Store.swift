@@ -55,6 +55,14 @@ struct SessionRec: Codable, Equatable, Identifiable {
     var createdAt: Double
     /// when set, finishing applies this schedule instead of pausing (gated loosening)
     var pendingSchedule: ScheduleLogic.Schedule?
+    /// Ha van, a teljesítés a MUNKAMENET végét tolja el — vagy leállítja.
+    ///
+    /// A -1 azt jelenti: „állítsd le most”. A nulla nem lenne jó jelölés, mert
+    /// az érvényes időpont. A munkamenet nem egy OLDALHOZ tartozik, hanem az
+    /// egész készülékhez, ezért a teljesítés ezt az ágat az oldal-keresés ELŐTT
+    /// nézi. Optional, hogy egy korábbi verzió által írt állapot is dekódolható
+    /// maradjon.
+    var pendingFocusEnd: Double?
 }
 
 /// What an abandoned attempt leaves behind, so restarting cannot re-roll it.

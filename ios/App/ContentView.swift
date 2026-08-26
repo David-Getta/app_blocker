@@ -20,6 +20,8 @@ struct ContentView: View {
     @State private var scheduleSite: Site?
     @State private var aliasSite: Site?
     @State private var flowError: String?
+    /// A munkamenet-indítás hossza percben; üresen a csomag szokásos hossza.
+    @State private var focusMinutes = ""
 
     /// Ideiglenes felfedés oldalanként: meddig látszik a valódi cím.
     /// Szándékosan nem mentjük — az app újranyitása után megint a fedőnév áll ott.
@@ -42,6 +44,7 @@ struct ContentView: View {
                     if store.fileUnreadable { unreadableBanner }
                     protectionSection
                     focusRunningSection
+                    focusPacksSection
                     addSection
                     if let ses = store.state.session { resumeBanner(ses) }
                     listSection
@@ -128,11 +131,90 @@ struct ContentView: View {
                 // nem hisz.
                 Text("Az értesítések, a kapcsolat-ellenőrzés és az óra átmennek — enélkül a telefon nem korlátozott lenne, hanem elromlott. Böngészni egyiken sem lehet.")
                     .font(.caption).foregroundStyle(.secondary)
-                Text("Leállítani a gépen lehet, próbatétellel — ahogy egy feloldást is. A munkamenet a saját idejéig magától lejár.")
+                // HOSSZABBÍTANI ingyen van — ez a szigorítás iránya.
+                HStack {
+                    ForEach([15, 30, 60], id: \.self) { min in
+                        Button("+\(min) p") {
+                            try? Referee.changeFocus(
+                                nextEndsAt: run.endsAt + Double(min) * 60_000,
+                                now: Date().timeIntervalSince1970 * 1000
+                            )
+                        }
+                        .buttonStyle(.bordered)
+                    }
+                }
+                // LEÁLLÍTANI próbatétel — ugyanaz, mint egy feloldásnál. A gomb
+                // csak elindítja; a menet addig ÉRVÉNYES marad, különben a
+                // puszta kérés feloldás lenne.
+                Button("Leállítás…") {
+                    do {
+                        try Referee.changeFocus(
+                            nextEndsAt: nil, now: Date().timeIntervalSince1970 * 1000
+                        )
+                    } catch {
+                        flowError = (error as? Referee.RefereeError)?.message ?? "Nem sikerült."
+                    }
+                }
+                Text("A leállítás próbatétel — ahogy egy feloldás is. A munkamenet a saját idejéig magától lejár.")
                     .font(.caption).foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding().background(Color.accentColor.opacity(0.11), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        }
+    }
+
+    /// A csomagok listája — innen indul egy munkamenet.
+    ///
+    /// INDÍTANI ingyen van (ez a szigorítás iránya), LEÁLLÍTANI próbatétel. A
+    /// kettő EGYSZERRE került be: ha a telefon tudna indítani, de leállítani
+    /// nem, egy nyolcórás menetből ott nem lenne kiút.
+    ///
+    /// A csomagokat a GÉPEN állítod össze — ott látszik a teljes lista, és ott
+    /// kényelmes gépelni. A telefon indítja és betartatja őket.
+    @ViewBuilder
+    private var focusPacksSection: some View {
+        let now = Date().timeIntervalSince1970 * 1000
+        let packs = store.state.focusPacks ?? []
+        if !packs.isEmpty, !Focus.isRunning(store.state.focusRun, now: now) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Munkamenet indítása").font(.caption).foregroundStyle(.secondary)
+                Text("Amíg tart, csak a csomagban felsoroltak jönnek be. Minden más tiltva.")
+                    .font(.footnote).foregroundStyle(.secondary)
+                TextField("Hossz percben (üresen a csomag szokásos hossza)", text: $focusMinutes)
+                    .keyboardType(.numberPad)
+                    .textFieldStyle(.roundedBorder)
+                ForEach(packs, id: \.id) { pack in
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(pack.name).font(.subheadline)
+                            Text(pack.allowSites.isEmpty
+                                 ? "nincs engedélyezett oldal"
+                                 : pack.allowSites.joined(separator: ", "))
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Button("Indítás") {
+                            // Üres mező = a csomag szokásos hossza. Így az
+                            // indítás egy koppintás marad annak, aki nem akar
+                            // számolni.
+                            let mins = Int(focusMinutes) ?? pack.defaultMinutes
+                            do {
+                                try Referee.startFocus(
+                                    packId: pack.id, minutes: mins,
+                                    now: Date().timeIntervalSince1970 * 1000
+                                )
+                                focusMinutes = ""
+                            } catch {
+                                flowError = (error as? Referee.RefereeError)?.message
+                                    ?? "Nem sikerült elindítani."
+                            }
+                        }
+                        .buttonStyle(.bordered)
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding().background(Color.secondary.opacity(0.09), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         }
     }
 
