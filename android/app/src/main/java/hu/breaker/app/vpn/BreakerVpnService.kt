@@ -57,6 +57,8 @@ class BreakerVpnService : VpnService() {
     }
 
     private var tun: ParcelFileDescriptor? = null
+    /** Az utolsó kiírt értesítés-szöveg kulcsa — csak változásnál rajzolunk újra. */
+    private var lastNotifKey: String? = null
     private var usageTimer: java.util.Timer? = null
     @Volatile private var stopping = false
     private var readerThread: Thread? = null
@@ -88,22 +90,64 @@ class BreakerVpnService : VpnService() {
         nm.createNotificationChannel(
             NotificationChannel(CHANNEL_ID, "Breaker védelem", NotificationManager.IMPORTANCE_LOW),
         )
-        val pi = PendingIntent.getActivity(
-            this, 0, Intent(this, MainActivity::class.java),
-            PendingIntent.FLAG_IMMUTABLE,
-        )
-        val notif: Notification = Notification.Builder(this, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_lock_lock)
-            .setContentTitle(getString(R.string.vpn_notification_title))
-            .setContentText(getString(R.string.vpn_notification_text))
-            .setContentIntent(pi)
-            .setOngoing(true)
-            .build()
+        val notif = buildNotification()
         if (Build.VERSION.SDK_INT >= 34) {
             startForeground(NOTIF_ID, notif, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
         } else {
             startForeground(NOTIF_ID, notif)
         }
+    }
+
+    /**
+     * A tartós értesítés — MUNKAMENET ALATT mást mond.
+     *
+     * A telefonon a fehérlistás menetnek nincs „letiltva” oldala: a DNS-válasz
+     * elmarad, a böngésző pedig egy hálózati hibát mutat. Az egyetlen hely, ahol
+     * a felhasználó megnézi, mi történik, ez az értesítés. Ha ilyenkor is azt
+     * írná, hogy „a blokkolt oldalak nem érhetők el”, az félrevezetés lenne:
+     * nem a blokkolt oldalak nem érhetők el, hanem MINDEN, ami nincs a csomagon.
+     */
+    private fun buildNotification(): Notification {
+        val pi = PendingIntent.getActivity(
+            this, 0, Intent(this, MainActivity::class.java),
+            PendingIntent.FLAG_IMMUTABLE,
+        )
+        val now = System.currentTimeMillis()
+        val run = BreakerStore.runningFocus(now)
+        val pack = BreakerStore.runningFocusPack(now)
+        val title: String
+        val text: String
+        if (run != null) {
+            title = getString(R.string.vpn_focus_title, pack?.name ?: "Munkamenet")
+            text = getString(R.string.vpn_focus_text, Focus.formatRemaining(run.endsAt - now))
+        } else {
+            title = getString(R.string.vpn_notification_title)
+            text = getString(R.string.vpn_notification_text)
+        }
+        return Notification.Builder(this, CHANNEL_ID)
+            .setSmallIcon(android.R.drawable.ic_lock_lock)
+            .setContentTitle(title)
+            .setContentText(text)
+            .setContentIntent(pi)
+            .setOngoing(true)
+            .build()
+    }
+
+    /**
+     * Az értesítés frissítése, ha változott a mondanivalója.
+     *
+     * Csak akkor ír, ha tényleg más a szöveg: egy percenként újrarajzolt
+     * értesítés fölösleges munka, és néhány rendszeren villog is tőle a sáv.
+     */
+    private fun refreshNotification() {
+        val now = System.currentTimeMillis()
+        val run = BreakerStore.runningFocus(now)
+        val key = if (run == null) "-" else {
+            "${run.packId}:${Focus.formatRemaining(run.endsAt - now)}"
+        }
+        if (key == lastNotifKey) return
+        lastNotifKey = key
+        getSystemService(NotificationManager::class.java).notify(NOTIF_ID, buildNotification())
     }
 
     private fun establishAndRun() {
@@ -144,6 +188,11 @@ class BreakerVpnService : VpnService() {
                 override fun run() {
                     runCatching { UsageTracker.tick(this@BreakerVpnService) }
                         .onFailure { Log.w(TAG, "usage tick failed: $it") }
+                    // Ugyanezen a körön frissül az értesítés is: a munkamenet
+                    // hátralévő ideje ott a legfontosabb, mert a telefonon nincs
+                    // „letiltva” oldal, ami megmondaná, mi történik.
+                    runCatching { refreshNotification() }
+                        .onFailure { Log.w(TAG, "notification refresh failed: $it") }
                 }
             }, UsageLogic.SAMPLE_INTERVAL_MS, UsageLogic.SAMPLE_INTERVAL_MS)
         }

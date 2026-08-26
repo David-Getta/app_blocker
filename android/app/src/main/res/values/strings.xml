@@ -3,6 +3,13 @@
     <string name="app_name">Breaker</string>
     <string name="vpn_notification_title">Breaker védelem aktív</string>
     <string name="vpn_notification_text">A blokkolt oldalak DNS-szinten nem érhetők el.</string>
+    <!--
+      Munkamenet alatt MÁST mond. A telefonon a fehérlistás menetnek nincs
+      „letiltva” oldala: a böngésző csak hálózati hibát mutat. Ez az értesítés
+      az egyetlen hely, ahol kiderül, mi történik.
+    -->
+    <string name="vpn_focus_title">Munkamenet fut: %1$s</string>
+    <string name="vpn_focus_text">Csak a csomagban felsoroltak jönnek be. Még %1$s van hátra.</string>
     <string name="vpn_revoked_title">A Breaker védelem kikapcsolt!</string>
     <string name="vpn_revoked_text">Egy másik alkalmazás vagy beállítás leállította a VPN-t. Nyisd meg a Breakert a visszakapcsoláshoz.</string>
 </resources>
