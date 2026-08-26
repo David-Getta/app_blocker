@@ -44,8 +44,26 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          Ez javító kiadás a v0.4.4 fölé. Ha azt már feltelepítetted,
-          érdemes frissíteni.
+          **A telefonod is szól, ha a munkamenet szinkronja elhasal.** A gépen
+          ezt már megmondtuk, a két telefonon viszont a hiba teljesen
+          elnyelődött. Ha a fiókkiszolgálód régebbi verzió és nem ismeri a
+          munkamenetet, a gépen elindított menet SOSEM ér át a telefonra — és
+          eddig a telefon nem szólt egy szót sem. Annyit láttál volna, hogy a
+          munkamenet a telefonodon nem működik — és az appot hibáztatod.
+
+          Most mindhárom felület ugyanazt mondja, és azt is, hogy mi marad
+          működő: a blokklista szinkronja ettől függetlenül él tovább.
+
+          - **A méret-hibaüzenet megint pontos.** Amióta a munkamenet-napló is
+            a szinkronban utazik, a „túl nagy” hiba oka nem csak a csomagok
+            lehetnek — az üzenet viszont továbbra is csomagokat emlegetett. A
+            csomagjaidat kezdted volna ritkítani egy olyan hiba miatt, aminek
+            semmi köze hozzájuk. Azt is kimondja most, ami ilyenkor igaz: a
+            menet ettől még FUT, csak a többi eszközre nem ér át.
+
+          ### Ami a v0.4.5-ben jött
+
+          Javító kiadás a v0.4.4 fölé.
 
           - **A munkamenet-napló szinkronja beragadhatott egy körbe.** Ha két
             menet ugyanabban a másodpercben ért véget ugyanabból a csomagból,
@@ -77,7 +95,7 @@ jobs:
             fiókkiszolgálódra, végponttól végpontig titkosítva.** A
             kiszolgáló nem látja, mit mértél, és telemetria sehol nincs.
 
-          ### Ami a v0.4.4-ben jött
+          #### Ami a v0.4.4-ben jött
 
           **A munkamenet-statisztika mostantól minden eszközödről szól.** A
           menetet a v0.4.3 óta a telefonodon is el lehet indítani és le lehet
