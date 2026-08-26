@@ -114,8 +114,9 @@ mag és a bitszintű DNS-motor JVM-en unit-tesztelt.
 A számok mellett a **dróton menő MEZŐNEVEK** is őrizve vannak
 (`scripts/check-wire-names.js`): a szinkron JSON-t cserél, és egy átnevezés az
 egyik nyelvben nem fordítási hiba a másikban — ott hiányzó mező lesz belőle,
-amire a feldolgozó alapértéket tesz. Négy blob, harmincegy mező: a blokklista,
-a munkamenet a naplójával, a mai mérés összegzése és a menetrend.
+amire a feldolgozó alapértéket tesz. Négy blob, benne nyolc alak és
+harminchét mező: a blokklista a menetrendjével és a részleges szabályaival, a
+munkamenet a csomagjaival és a naplójával, a mai mérés összegzése.
 
 Ez főleg az iPhone miatt kell. A TypeScriptet a fordító védi (a mezőnevek ott
 típusok), a Kotlint drót-teszt fedi — Swiftben viszont nincs teszt, és a
