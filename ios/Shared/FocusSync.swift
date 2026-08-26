@@ -23,19 +23,50 @@ public enum FocusSync {
     public struct SyncFocus: Codable, Equatable {
         public var packs: [Focus.Pack]
         public var run: Focus.Run?
+        /// A LEZÁRULT menetek naplója — ebből lesz a statisztika.
+        ///
+        /// Szándékosan MÁS a szabálya, mint a fenti kettőnek. A csomagok és a
+        /// futás ENGEDÉLYEK: azt mondják meg, mi történhet, tehát rájuk
+        /// vonatkozik a súrlódás iránya, és a `rev` őrzi őket. A napló a MÚLT
+        /// feljegyzése: nem enged meg semmit, és egy elveszett sora nem kibúvó,
+        /// csak pontatlan statisztika.
+        ///
+        /// Ezért a napló EGYESÍTÉS, nem döntés. Aki egységesíteni akarja a
+        /// hármat, ezt olvassa el előbb: a `rev` léptetése egy naplósorért azt
+        /// jelentené, hogy egy statisztika-bejegyzés le tud állítani egy futó
+        /// menetet a másik eszközön.
+        public var log: [Focus.LogEntry]
         public var rev: Double
         public var updatedAt: Double
         public var updatedBy: String
 
         public init(
-            packs: [Focus.Pack] = [], run: Focus.Run? = nil,
+            packs: [Focus.Pack] = [], run: Focus.Run? = nil, log: [Focus.LogEntry] = [],
             rev: Double = 0, updatedAt: Double = 0, updatedBy: String = ""
         ) {
             self.packs = packs
             self.run = run
+            self.log = log
             self.rev = rev
             self.updatedAt = updatedAt
             self.updatedBy = updatedBy
+        }
+
+        /// SAJÁT dekódolás, mert a `log` mező RÉGEBBI blobokból hiányzik.
+        ///
+        /// A Swift automatikus `Codable`-ja a hiányzó kulcsra hibát DOB — a
+        /// mező alapértéke ilyenkor nem lép életbe. Egy még nem frissült gép
+        /// blobja tehát az egész munkamenet-szinkront megölné: a telefon üres
+        /// állapotra esne vissza, és a felhasználó azt látná, hogy a csomagjai
+        /// eltűntek. Ugyanez vár minden ezután hozzáadott mezőre.
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            packs = try c.decodeIfPresent([Focus.Pack].self, forKey: .packs) ?? []
+            run = try c.decodeIfPresent(Focus.Run.self, forKey: .run)
+            log = try c.decodeIfPresent([Focus.LogEntry].self, forKey: .log) ?? []
+            rev = try c.decodeIfPresent(Double.self, forKey: .rev) ?? 0
+            updatedAt = try c.decodeIfPresent(Double.self, forKey: .updatedAt) ?? 0
+            updatedBy = try c.decodeIfPresent(String.self, forKey: .updatedBy) ?? ""
         }
     }
 
@@ -49,6 +80,8 @@ public enum FocusSync {
         return SyncFocus(
             packs: newer.packs,
             run: mergeRun(local, incoming),
+            // EGYESÍTÉS, nem választás: lásd a `log` mező magyarázatát.
+            log: mergeLog(local.log, incoming.log),
             rev: max(local.rev, incoming.rev),
             updatedAt: max(local.updatedAt, incoming.updatedAt),
             updatedBy: newer.updatedBy
@@ -77,6 +110,45 @@ public enum FocusSync {
         return ar.endsAt >= br.endsAt ? ar : br
     }
 
+    /// Két napló egyesítése.
+    ///
+    /// A sor AZONOSSÁGA a `packId` + `startedAt` pár. Egyszerre egy menet fut az
+    /// egész fiókban, tehát ez a pár egyértelmű — és pont ezért fésülődik össze
+    /// helyesen az a gyakori eset, amikor UGYANAZT a menetet két eszköz is
+    /// lezárja: a telefon próbatétellel, a gép meg később, a szinkronból véve
+    /// észre. Enélkül minden ilyen menet kettőnek számítana.
+    ///
+    /// Ütközésnél a KORÁBBI vég nyer, mert az van közelebb a valósághoz.
+    /// Azonos végnél a próbatételes leállítás — azt az egyik oldal láthatta,
+    /// a másik nem.
+    public static func mergeLog(
+        _ a: [Focus.LogEntry], _ b: [Focus.LogEntry]
+    ) -> [Focus.LogEntry] {
+        var byKey: [String: Focus.LogEntry] = [:]
+        for e in a + b {
+            let key = "\(e.packId)|\(e.startedAt)"
+            byKey[key] = byKey[key].map { better($0, e) } ?? e
+        }
+        return capLog(Array(byKey.values))
+    }
+
+    private static func better(_ x: Focus.LogEntry, _ y: Focus.LogEntry) -> Focus.LogEntry {
+        if x.endedAt != y.endedAt { return x.endedAt < y.endedAt ? x : y }
+        if x.stopped != y.stopped { return x.stopped ? x : y }
+        return x
+    }
+
+    /// Idősorrend, és a LEGÚJABBAK maradnak.
+    ///
+    /// A statisztika a mai napot és a hetet nézi; ha valamit el kell dobni, az a
+    /// legrégebbi sor. Fordítva a mai menetek esnének ki, és pont az a képernyő
+    /// lenne üres, amit a felhasználó néz.
+    public static func capLog(_ rows: [Focus.LogEntry]) -> [Focus.LogEntry] {
+        rows.sorted {
+            $0.endedAt != $1.endedAt ? $0.endedAt < $1.endedAt : $0.packId < $1.packId
+        }.suffix(Focus.maxFocusLog).map { $0 }
+    }
+
     /// A futó menet megtisztítása: ha a csomagja nincs meg, eldobjuk.
     ///
     /// Nem tippelünk. A fehérlista TARTALMA nem az a dolog, amit kitalálni
@@ -102,7 +174,12 @@ public enum FocusSync {
             ].joined(separator: ";")
         }.joined(separator: "|")
         let run = f.run.map { "\($0.packId);\($0.startedAt);\($0.endsAt)" } ?? "-"
-        return "\(packs)//\(run)//\(f.rev)"
+        // A NAPLÓ IS BENNE VAN — enélkül egy itt lezárult menet sosem érne fel
+        // a kiszolgálóra: a kör azt látná, hogy „nincs mit feltölteni”.
+        let log = f.log.map {
+            "\($0.packId);\($0.startedAt);\($0.endedAt);\($0.plannedEndsAt);\($0.stopped)"
+        }.joined(separator: "|")
+        return "\(packs)//\(run)//\(log)//\(f.rev)"
     }
 
     /// Egy kívülről jött blob használható alakja.
@@ -127,6 +204,10 @@ public enum FocusSync {
         return SyncFocus(
             packs: packs,
             run: cleanRun(raw.run, packs: packs),
+            // A naplót NEM kötjük a csomagokhoz: egy menet naplósora akkor is
+            // igaz marad, ha a csomagot azóta törölték. Épp ezért van benne a
+            // NÉV is, nem csak az azonosító.
+            log: capLog(raw.log),
             rev: raw.rev,
             updatedAt: raw.updatedAt,
             updatedBy: raw.updatedBy.isEmpty ? fallbackDevice : raw.updatedBy

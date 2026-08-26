@@ -110,6 +110,20 @@ object Referee {
         return steps.toMutableList().also { it[index] = armed }
     }
 
+    /**
+     * Egy menet lezárása a naplóba — a statisztika ebből lesz.
+     *
+     * A csomag NEVÉT is elmentjük, nem csak az azonosítóját: a csomag azóta
+     * átnevezhető vagy törölhető, és egy statisztika, ami „ismeretlen csomag”-ot
+     * ír ki a múlt hétre, semmit nem ér.
+     */
+    private fun logFocusEnd(state: AppState, endedAt: Long, stopped: Boolean): List<Focus.FocusLogEntry> {
+        val run = state.focusRun ?: return state.focusLog
+        val pack = state.focusPacks.firstOrNull { it.id == run.packId }
+        val entry = Focus.closeRun(run, pack?.name ?: "Ismeretlen csomag", endedAt, stopped)
+        return (state.focusLog + entry).takeLast(Focus.MAX_FOCUS_LOG)
+    }
+
     private fun finish(state: AppState, s: SessionRec, now: Long): AppState {
         // A MUNKAMENET nem egy oldalhoz tartozik, hanem az egész készülékhez:
         // ezért áll itt, az oldal-keresés ELŐTT. A -1 azt jelenti: állítsd le
@@ -117,8 +131,13 @@ object Referee {
         if (s.pendingFocusEnd != null) {
             val nextRun = if (s.pendingFocusEnd < 0) null
                 else state.focusRun?.copy(endsAt = s.pendingFocusEnd)
+            // A naplót ITT írjuk, nem a `tick`-ben: csak innen derül ki, hogy a
+            // menet PRÓBATÉTELLEL ért véget, nem magától. A kettő nem ugyanaz a
+            // mondat, és a statisztikában sem ugyanaz a sor.
+            val log = if (s.pendingFocusEnd < 0) logFocusEnd(state, now, true) else state.focusLog
             return state.copy(
                 focusRun = nextRun,
+                focusLog = log,
                 unlockLog = state.unlockLog.filter { it > now - 30 * 24 * 3600_000L } + now,
                 session = null,
                 abandons = state.abandons.filter { it.siteId != s.siteId },
@@ -453,7 +472,12 @@ object Referee {
         } ?: false
         val pauseEnded = st.sites.any { it.pauseUntil != null && it.pauseUntil <= now }
         val deleteDue = st.sites.any { it.pendingDeleteAt != null && it.pendingDeleteAt <= now }
-        if (!sessionDead && !pauseEnded && !deleteDue) return
+        // A MAGÁTÓL lejárt menet is lezárul — enélkül csak a próbatétellel
+        // leállított menetek kerülnének a statisztikába, vagyis pont azok
+        // hiányoznának, amiket a felhasználó VÉGIGVITT. Az a statisztika
+        // rosszabb a semminél: azt mondaná, hogy sosem sikerül.
+        val focusEnded = st.focusRun != null && st.focusRun.endsAt <= now
+        if (!sessionDead && !pauseEnded && !deleteDue && !focusEnded) return
 
         BreakerStore.mutate { state ->
             var next = state
@@ -463,7 +487,9 @@ object Referee {
             val sites = next.sites
                 .map { if (it.pauseUntil != null && it.pauseUntil <= now) it.copy(pauseUntil = null) else it }
                 .filter { it.pendingDeleteAt == null || it.pendingDeleteAt > now }
-            next.copy(sites = sites)
+            val closed = Focus.closeIfEnded(next.focusRun, next.focusPacks, next.focusLog, now)
+            next = next.copy(sites = sites)
+            if (closed == null) next else next.copy(focusRun = closed.run, focusLog = closed.log)
         }
     }
 

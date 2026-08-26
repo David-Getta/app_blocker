@@ -114,4 +114,124 @@ class FocusSyncTest {
         val bumped = SyncRevisions.bumpFocus(started, "gep", 2_000)
         assertEquals(withPack.focusRev + 1, bumped.focusRev)
     }
+
+    // -----------------------------------------------------------------------
+    // A NAPLÓ. Más a szabálya, mint a fenti kettőnek, és a különbség szándékos:
+    // a csomagok és a futás ENGEDÉLYEK, a napló a MÚLT feljegyzése.
+
+    private fun entry(
+        packId: String = "p1", startedAt: Long = 1_000, endedAt: Long = 4_000,
+        plannedEndsAt: Long = 4_000, stopped: Boolean = false,
+    ) = Focus.FocusLogEntry(packId, "Nyelvtanulás", startedAt, endedAt, plannedEndsAt, stopped)
+
+    @Test
+    fun `a naplo EGYESUL, egyik eszkoz sorai sem vesznek el`() {
+        // A döntetlen-eltörést SZÁNDÉKOSAN a másik oldal javára állítjuk. Ha a
+        // napló az „utolsó író nyer” szabályt követné — mint a csomagok —, a gép
+        // sorai eltűnnének, és a felhasználó azt látná, hogy fél hete nem
+        // dolgozott.
+        val gep = FocusSync.SyncFocus(
+            log = listOf(entry(startedAt = 1_000, endedAt = 4_000)),
+            rev = 3, updatedAt = 100, updatedBy = "eszkoz-a",
+        )
+        val telefon = FocusSync.SyncFocus(
+            log = listOf(entry(startedAt = 9_000, endedAt = 12_000)),
+            rev = 3, updatedAt = 500, updatedBy = "eszkoz-z",
+        )
+        for (m in listOf(FocusSync.merge(gep, telefon), FocusSync.merge(telefon, gep))) {
+            assertEquals(listOf(1_000L, 9_000L), m.log.map { it.startedAt })
+        }
+    }
+
+    @Test
+    fun `ugyanazt a menetet ketszer lezarva EGY sor lesz, a korabbi veggel`() {
+        // Ez a gyakori eset, nem a kivétel: a telefonon próbatétellel leállítod,
+        // a gép meg később, a szinkronból veszi észre. Ha nem fésülődne össze,
+        // minden ilyen menet KETTŐNEK számítana.
+        val telefon = FocusSync.SyncFocus(log = listOf(entry(endedAt = 3_000, stopped = true)))
+        val gep = FocusSync.SyncFocus(log = listOf(entry(endedAt = 3_500, stopped = true)))
+        for (m in listOf(FocusSync.merge(telefon, gep), FocusSync.merge(gep, telefon))) {
+            assertEquals(1, m.log.size, "egy menet — egy sor")
+            assertEquals(3_000, m.log[0].endedAt, "a menet akkor ért véget, amikor véget ért")
+        }
+    }
+
+    @Test
+    fun `a naplo NEM tud leallitani egy futo menetet`() {
+        // EZ A LÉNYEG. Ha a napló a `rev`-hez lenne kötve, egy statisztika-sor
+        // léptetné a számlálót, a nagyobb `rev` pedig azt jelentené, hogy annak
+        // az eszköznek a „nem fut” állapota nyer — vagyis egy naplósorral ki
+        // lehetne kapcsolni a másik gépen futó menetet, próbatétel nélkül.
+        val fut = FocusSync.SyncFocus(
+            packs = listOf(pack()), run = Focus.FocusRun("p1", 0, 10_000),
+            rev = 4, updatedAt = 100, updatedBy = "eszkoz-a",
+        )
+        val sokNaplo = FocusSync.SyncFocus(
+            packs = listOf(pack()), run = null,
+            log = (0 until 20).map { entry(startedAt = it * 100L, endedAt = it * 100L + 50) },
+            rev = 4, updatedAt = 900, updatedBy = "eszkoz-z",
+        )
+        assertNotEquals(null, FocusSync.merge(fut, sokNaplo).run, "a menet fut tovább")
+        assertNotEquals(null, FocusSync.merge(sokNaplo, fut).run, "sorrendtől függetlenül")
+    }
+
+    @Test
+    fun `egy naplosor VAN mit feltolteni`() {
+        // A kör a `same`-re hallgat: ha az „ugyanaz”-t mond, nem tölt fel. Ha a
+        // napló kimaradna belőle, az itt lezárult menet örökre a telefonon
+        // maradna, és a gépen a statisztika hiányos lenne — némán.
+        val ures = FocusSync.SyncFocus(rev = 2, updatedAt = 100)
+        val naplos = FocusSync.SyncFocus(log = listOf(entry()), rev = 2, updatedAt = 100)
+        assertTrue(!FocusSync.same(ures, naplos))
+        assertTrue(FocusSync.same(naplos, naplos))
+    }
+
+    @Test
+    fun `a naplo felso hatara a LEGREGEBBI sorokat dobja el`() {
+        // Fordítva a mai menetek esnének ki, és pont az a képernyő lenne üres,
+        // amit a felhasználó néz.
+        val sok = (0 until Focus.MAX_FOCUS_LOG + 30).map {
+            entry(startedAt = it * 10L, endedAt = it * 10L + 5)
+        }
+        val m = FocusSync.merge(FocusSync.SyncFocus(log = sok), FocusSync.SyncFocus())
+        assertEquals(Focus.MAX_FOCUS_LOG, m.log.size)
+        assertEquals(
+            (Focus.MAX_FOCUS_LOG + 29) * 10L + 5, m.log.last().endedAt,
+            "a legfrissebb sor bent maradt",
+        )
+    }
+
+    @Test
+    fun `a magatol lejart menet lezarul a naploba`() {
+        // Enélkül csak a próbatétellel leállított menetek kerülnének a
+        // statisztikába — vagyis pont azok hiányoznának, amiket a felhasználó
+        // VÉGIGVITT. Az a statisztika rosszabb a semminél: azt mondaná, hogy
+        // sosem sikerül.
+        val run = Focus.FocusRun("p1", 0, 5_000)
+        assertEquals(null, Focus.closeIfEnded(run, listOf(pack()), emptyList(), 4_999),
+            "amíg fut, nincs teendő")
+        val closed = Focus.closeIfEnded(run, listOf(pack()), emptyList(), 5_000)!!
+        assertEquals(null, closed.run)
+        assertEquals(1, closed.log.size)
+        // A TERVEZETT vég kerül be, nem a mostani idő: a takarítás késhet pár
+        // másodpercet, és egy „51 perces” ötvenperces menet apró, de fölösleges
+        // hazugság lenne.
+        assertEquals(5_000, closed.log[0].endedAt)
+        assertTrue(!closed.log[0].stopped, "magától járt le, nem állították le")
+        assertEquals("Nyelvtanulás", closed.log[0].packName, "a NÉV is bekerül")
+    }
+
+    @Test
+    fun `az osszegzes a korai vegeket a TENY alapjan szamolja`() {
+        // Nem a `stopped` jelző dönt: a próbatétel utáni RÖVIDÍTÉS is korai vég,
+        // akkor is, ha utána még futott egy darabig.
+        val log = listOf(
+            entry(startedAt = 0, endedAt = 3_000, plannedEndsAt = 9_000, stopped = false),
+            entry(packId = "p2", startedAt = 10_000, endedAt = 20_000, plannedEndsAt = 20_000),
+        )
+        val s = Focus.summarizeFocus(log, 0, 100_000)
+        assertEquals(2, s.sessions)
+        assertEquals(13_000, s.totalMs)
+        assertEquals(1, s.stoppedEarly, "a rövidítés is korai vég")
+    }
 }

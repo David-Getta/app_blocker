@@ -130,6 +130,13 @@ const CHECKS = [
     scalar(ts.focus, /MAX_SESSION_MINUTES\s*=\s*([^;]+);/, 'ts'),
     scalar(kt.focus, /MAX_SESSION_MINUTES\s*=\s*(.+)/, 'kt'),
     scalar(sw.focus, /maxSessionMinutes\s*=\s*(.+)/, 'swift')],
+  // A NAPLÓ HOSSZA. Ha szétcsúszna, a három eszköz más-más menetet vágna le a
+  // végéről, és minden szinkron-kör oda-vissza írogatná a különbséget: az egyik
+  // eszköz visszatenné, amit a másik levágott, a végtelenségig.
+  ['MAX_FOCUS_LOG',
+    scalar(ts.focus, /MAX_FOCUS_LOG\s*=\s*([^;]+);/, 'ts'),
+    scalar(kt.focus, /MAX_FOCUS_LOG\s*=\s*(.+)/, 'kt'),
+    scalar(sw.focus, /maxFocusLog\s*=\s*(.+)/, 'swift')],
   ['SESSION_CHOICES_MIN',
     list(ts.focus, /SESSION_CHOICES_MIN\s*=\s*\[([^\]]+)\]/, 'ts'),
     list(kt.focus, /SESSION_CHOICES_MIN\s*=\s*listOf\(([^)]+)\)/, 'kt'),

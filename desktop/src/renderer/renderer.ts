@@ -2368,6 +2368,11 @@ function renderFocusStats(): void {
   } else {
     parts.push('A héten minden menetet végigvittél.');
   }
+  // MINDEN ESZKÖZ menete beleszámít, és ezt ki kell mondani. A mérés (mire megy
+  // el az idő) eszközönként külön áll, a munkamenet viszont a fiók egészére
+  // szól: a telefonon indított menet ugyanúgy menet. Ha a szám erről hallgatna,
+  // aki a telefonján dolgozik, azt hinné, hogy az app nem látta.
+  parts.push('Minden eszközöd menete beleszámít.');
   $('focusStatsNote').textContent = parts.join(' ');
 }
 

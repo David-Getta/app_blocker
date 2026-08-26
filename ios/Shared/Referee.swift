@@ -103,12 +103,31 @@ enum Referee {
         return created!
     }
 
+    /// Egy menet lezárása a naplóba — a statisztika ebből lesz.
+    ///
+    /// A csomag NEVÉT is elmentjük, nem csak az azonosítóját: a csomag azóta
+    /// átnevezhető vagy törölhető, és egy statisztika, ami „ismeretlen csomag”-ot
+    /// ír ki a múlt hétre, semmit nem ér.
+    private static func logFocusEnd(
+        _ state: inout AppState, endedAt: Double, stopped: Bool
+    ) {
+        guard let run = state.focusRun else { return }
+        let name = (state.focusPacks ?? []).first { $0.id == run.packId }?.name
+            ?? "Ismeretlen csomag"
+        let entry = Focus.closeRun(run, packName: name, endedAt: endedAt, stopped: stopped)
+        state.focusLog = ((state.focusLog ?? []) + [entry]).suffix(Focus.maxFocusLog).map { $0 }
+    }
+
     private static func finish(_ state: inout AppState, _ s: SessionRec, _ now: Double) {
         // A MUNKAMENET nem egy oldalhoz tartozik, hanem az egész készülékhez:
         // ezért áll itt, az oldal-keresés ELŐTT. A -1 azt jelenti: állítsd le
         // most.
         if let pending = s.pendingFocusEnd {
             if pending < 0 {
+                // A naplót ITT írjuk: csak innen derül ki, hogy a menet
+                // PRÓBATÉTELLEL ért véget, nem magától. A kettő nem ugyanaz a
+                // mondat, és a statisztikában sem ugyanaz a sor.
+                logFocusEnd(&state, endedAt: now, stopped: true)
                 state.focusRun = nil
             } else if var run = state.focusRun {
                 run = Focus.Run(packId: run.packId, startedAt: run.startedAt, endsAt: pending)
@@ -319,7 +338,12 @@ enum Referee {
         }
         let pauseEnded = st.sites.contains { ($0.pauseUntil ?? .infinity) <= now && $0.pauseUntil != nil }
         let deleteDue = st.sites.contains { ($0.pendingDeleteAt ?? .infinity) <= now && $0.pendingDeleteAt != nil }
-        guard sessionDead || pauseEnded || deleteDue else { return }
+        // A MAGÁTÓL lejárt menet is lezárul — enélkül csak a próbatétellel
+        // leállított menetek kerülnének a statisztikába, vagyis pont azok
+        // hiányoznának, amiket a felhasználó VÉGIGVITT. Az a statisztika
+        // rosszabb a semminél: azt mondaná, hogy sosem sikerül.
+        let focusEnded = (st.focusRun?.endsAt ?? .infinity) <= now
+        guard sessionDead || pauseEnded || deleteDue || focusEnded else { return }
 
         BreakerStore.shared.mutate { state in
             // Sitting out the claim window ends an attempt too: same bookkeeping,
@@ -330,6 +354,13 @@ enum Referee {
                 if let p = copy.pauseUntil, p <= now { copy.pauseUntil = nil }
                 if let d = copy.pendingDeleteAt, d <= now { return nil }
                 return copy
+            }
+            if let closed = Focus.closeIfEnded(
+                state.focusRun, packs: state.focusPacks ?? [],
+                log: state.focusLog ?? [], now: now
+            ) {
+                state.focusRun = closed.run
+                state.focusLog = closed.log
             }
         }
     }

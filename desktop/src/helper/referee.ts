@@ -14,7 +14,7 @@ import { isLoosening, normalizeSchedule, ALWAYS, type Schedule } from '../shared
 import { isLimitLoosening, normalizeLimit } from '../shared/limits';
 import { MAX_RULES_PER_SITE, sameRule, type UrlRule } from '../shared/urlrules';
 import {
-  closeRun, isRunning, isSessionLoosening, MAX_FOCUS_LOG, normalizeMinutes,
+  closeIfEnded, closeRun, isRunning, isSessionLoosening, MAX_FOCUS_LOG, normalizeMinutes,
   type FocusPack, type FocusRun,
 } from '../shared/focus';
 import type { AbandonRec, HelperState, SessionRec } from './state';
@@ -437,12 +437,17 @@ export function tick(state: HelperState, now: number): boolean {
   // A lejárt munkamenetet takarítjuk. A `isRunning` amúgy is hamisat adna rá,
   // de a felület és a bővítmény az állapotot olvassa: egy ottfelejtett rekord
   // örökre futó munkamenetnek látszana.
-  if (state.focusRun && !isRunning(state.focusRun, now)) {
-    // Magától járt le: a naplóba a TERVEZETT vég kerül, nem a mostani idő. A
-    // takarítás késhet pár másodpercet, és egy „51 perces” ötvenperces menet
-    // apró, de fölösleges hazugság lenne.
-    logFocusEnd(state, state.focusRun.endsAt, false);
-    state.focusRun = null;
+  // Magától járt le: a naplóba a TERVEZETT vég kerül, nem a mostani idő. A
+  // takarítás késhet pár másodpercet, és egy „51 perces” ötvenperces menet
+  // apró, de fölösleges hazugság lenne.
+  //
+  // KÖZÖS függvény, mert a telefonnak is pontosan ez kell — ott is lehet menetet
+  // indítani, tehát ott is le kell zárulnia. Ha külön írnánk meg, a két
+  // statisztika előbb-utóbb más számot mondana ugyanarról a hétről.
+  const closed = closeIfEnded(state.focusRun, state.focusPacks ?? [], state.focusLog, now);
+  if (closed) {
+    state.focusLog = closed.log;
+    state.focusRun = closed.run;
     dirty = true;
   }
   return dirty;

@@ -252,6 +252,30 @@ export function closeRun(
   };
 }
 
+/**
+ * Egy LEJÁRT menet lezárása a naplóba.
+ *
+ * A magban van, nem a segédben, mert mind a három platformnak ugyanez kell: a
+ * menetet a telefonon is lehet indítani, tehát ott is le kell zárulnia. Ha csak
+ * a gép naplózna, aki a telefonján dolgozik, azt látná, hogy a héten le sem ült.
+ *
+ * @returns az új napló és futás, vagy null, ha nincs teendő
+ */
+export function closeIfEnded(
+  run: FocusRun | null | undefined,
+  packs: FocusPack[],
+  log: FocusLogEntry[] | undefined,
+  now: number,
+): { run: null; log: FocusLogEntry[] } | null {
+  if (!run || run.endsAt > now) return null;
+  const pack = packs.find((p) => p.id === run.packId);
+  // A csomag NEVÉT is elmentjük, nem csak az azonosítóját: a csomag azóta
+  // átnevezhető vagy törölhető, és egy statisztika, ami „ismeretlen csomag”-ot
+  // ír ki a múlt hétre, semmit nem ér.
+  const entry = closeRun(run, pack?.name ?? 'Ismeretlen csomag', run.endsAt, false);
+  return { run: null, log: [...(log ?? []), entry].slice(-MAX_FOCUS_LOG) };
+}
+
 export interface FocusSummary {
   /** hány menet zárult le az ablakban */
   sessions: number;

@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import {
   emptyFocus, mergeFocus, normalizeSyncFocus, sameFocus, type SyncFocus,
 } from '../src/shared/sync/focus-merge';
-import type { FocusPack } from '../src/shared/focus';
+import { MAX_FOCUS_LOG, type FocusLogEntry, type FocusPack } from '../src/shared/focus';
 
 const pack = (id: string, sites: string[] = ['quizlet.com']): FocusPack => ({
   id, name: `csomag ${id}`, allowSites: sites, allowApps: ['Word'], defaultMinutes: 50,
@@ -137,4 +137,111 @@ test('a szemét blob üres állapot lesz, nem kivétel', () => {
     assert.equal(parsed.run, null);
     assert.equal(parsed.updatedBy, 'eszkoz-a');
   }
+});
+
+// ---------------------------------------------------------------------------
+// A NAPLÓ. Más a szabálya, mint a fenti kettőnek, és a különbség szándékos:
+// a csomagok és a futás ENGEDÉLYEK, a napló a MÚLT feljegyzése. Ezért
+// egyesítjük, nem választunk.
+
+const entry = (over: Partial<FocusLogEntry> = {}): FocusLogEntry => ({
+  packId: 'p1', packName: 'Nyelvtanulás',
+  startedAt: 1_000, endedAt: 4_000, plannedEndsAt: 4_000, stopped: false,
+  ...over,
+});
+
+test('a napló EGYESÜL: egyik eszköz sorai sem vesznek el', () => {
+  // A döntetlen-eltörést SZÁNDÉKOSAN a másik oldal javára állítjuk. Ha a napló
+  // az „utolsó író nyer” szabályt követné — mint a csomagok —, a gép sorai
+  // eltűnnének, és a felhasználó azt látná, hogy fél hete nem dolgozott.
+  const gep = focus({
+    log: [entry({ startedAt: 1_000, endedAt: 4_000 })],
+    rev: 3, updatedAt: 100, updatedBy: 'eszkoz-a',
+  });
+  const telefon = focus({
+    log: [entry({ startedAt: 9_000, endedAt: 12_000 })],
+    rev: 3, updatedAt: 500, updatedBy: 'eszkoz-z',
+  });
+
+  for (const merged of [mergeFocus(gep, telefon), mergeFocus(telefon, gep)]) {
+    assert.equal(merged.log.length, 2, 'mindkét eszköz sora megmarad');
+    assert.deepEqual(merged.log.map((e) => e.startedAt), [1_000, 9_000]);
+  }
+});
+
+test('ugyanazt a menetet kétszer lezárva EGY sor lesz, a korábbi véggel', () => {
+  // Ez a gyakori eset, nem a kivétel: a telefonon próbatétellel leállítod, a
+  // gép meg később, a szinkronból veszi észre. Ha nem fésülődne össze, minden
+  // ilyen menet KETTŐNEK számítana, és a statisztika a duplájára nőne.
+  const telefon = focus({ log: [entry({ endedAt: 3_000, stopped: true })] });
+  const gep = focus({ log: [entry({ endedAt: 3_500, stopped: true })] });
+
+  for (const merged of [mergeFocus(telefon, gep), mergeFocus(gep, telefon)]) {
+    assert.equal(merged.log.length, 1, 'egy menet — egy sor');
+    assert.equal(merged.log[0].endedAt, 3_000, 'a menet akkor ért véget, amikor véget ért');
+  }
+});
+
+test('a napló NEM tud leállítani egy futó menetet', () => {
+  // EZ A LÉNYEG. Ha a napló a `rev`-hez lenne kötve, egy statisztika-sor
+  // léptetné a számlálót, a nagyobb `rev` pedig azt jelentené, hogy annak az
+  // eszköznek a „nem fut” állapota nyer — vagyis egy naplósorral ki lehetne
+  // kapcsolni a másik gépen futó menetet, próbatétel nélkül.
+  const fut = focus({
+    run: { packId: 'p1', startedAt: 0, endsAt: 10_000 },
+    packs: [pack('p1')], rev: 4, updatedAt: 100, updatedBy: 'eszkoz-a',
+  });
+  const sokNaplo = focus({
+    packs: [pack('p1')], run: null,
+    log: Array.from({ length: 20 }, (_, i) => entry({ startedAt: i * 100, endedAt: i * 100 + 50 })),
+    rev: 4, updatedAt: 900, updatedBy: 'eszkoz-z',
+  });
+  assert.ok(mergeFocus(fut, sokNaplo).run, 'a menet fut tovább');
+  assert.ok(mergeFocus(sokNaplo, fut).run, 'sorrendtől függetlenül');
+});
+
+test('egy naplósor VAN mit feltölteni — különben sosem érne fel', () => {
+  // A kör a `sameFocus`-ra hallgat: ha az „ugyanaz”-t mond, nem tölt fel. Ha a
+  // napló kimaradna belőle, a telefonon lezárult menet örökre a telefonon
+  // maradna, és a gépen a statisztika hiányos lenne — némán.
+  const ures = focus({ rev: 2, updatedAt: 100 });
+  const naplos = focus({ log: [entry()], rev: 2, updatedAt: 100 });
+  assert.equal(sameFocus(ures, naplos), false);
+  assert.equal(sameFocus(naplos, naplos), true);
+});
+
+test('az összefésülés sorrendfüggetlen és idempotens a naplóval együtt is', () => {
+  const a = focus({ log: [entry({ startedAt: 1_000 })], rev: 2, updatedAt: 100, updatedBy: 'a' });
+  const b = focus({ log: [entry({ startedAt: 5_000, endedAt: 8_000 })], rev: 2, updatedAt: 100, updatedBy: 'b' });
+  assert.equal(sameFocus(mergeFocus(a, b), mergeFocus(b, a)), true);
+  const once = mergeFocus(a, b);
+  assert.equal(sameFocus(mergeFocus(once, b), once), true, 'a második kör nem mozdít semmit');
+});
+
+test('a napló felső határa a LEGRÉGEBBI sorokat dobja el', () => {
+  // Fordítva a mai menetek esnének ki, és pont az a képernyő lenne üres, amit
+  // a felhasználó néz.
+  const sok = Array.from({ length: MAX_FOCUS_LOG + 30 }, (_, i) =>
+    entry({ startedAt: i * 10, endedAt: i * 10 + 5 }));
+  const merged = mergeFocus(focus({ log: sok }), focus({}));
+  assert.equal(merged.log.length, MAX_FOCUS_LOG);
+  assert.equal(merged.log[merged.log.length - 1].endedAt, (MAX_FOCUS_LOG + 29) * 10 + 5,
+    'a legfrissebb sor bent maradt');
+});
+
+test('egy rossz naplósor nem viszi el a többit', () => {
+  const raw = {
+    packs: [], run: null, rev: 1, updatedAt: 5, updatedBy: 'a',
+    log: [
+      entry({ startedAt: 1_000 }),
+      { packId: 42, endedAt: 9 },            // rossz azonosító
+      { packId: 'p2', endedAt: 0 },          // nincs vége
+      null,
+      { packId: 'p3', endedAt: 7_000 },      // hiányos, de menthető
+    ],
+  };
+  const n = normalizeSyncFocus(raw, 'eszkoz-a');
+  assert.deepEqual(n.log.map((e) => e.packId), ['p1', 'p3']);
+  assert.equal(n.log[1].packName, 'Ismeretlen csomag', 'név nélkül sem esik ki');
+  assert.equal(n.log[1].plannedEndsAt, 7_000, 'terv nélkül a tényleges vég a terv');
 });

@@ -123,6 +123,14 @@ data class AppState(
     val focusPacks: List<Focus.FocusPack> = emptyList(),
     /** a FUTÓ munkamenet, ha van — a fiók egészére szól, nem eszközönként */
     val focusRun: Focus.FocusRun? = null,
+    /**
+     * A LEZÁRULT menetek naplója — ebből lesz a statisztika.
+     *
+     * A telefonon ugyanúgy kell, mint a gépen: a menetet MÁR itt is lehet
+     * indítani és leállítani, tehát ha csak a gép naplózna, a telefonon
+     * lefutott menetek nem léteznének.
+     */
+    val focusLog: List<Focus.FocusLogEntry> = emptyList(),
     /** a munkamenet szinkron-számlálója; lásd shared/sync/focus-merge.ts */
     val focusRev: Long = 0,
     val focusUpdatedAt: Long = 0,
@@ -388,6 +396,13 @@ object BreakerStore {
                 put("packId", r.packId); put("startedAt", r.startedAt); put("endsAt", r.endsAt)
             }
         } ?: JSONObject.NULL)
+        put("focusLog", JSONArray(s.focusLog.map { e ->
+            JSONObject().apply {
+                put("packId", e.packId); put("packName", e.packName)
+                put("startedAt", e.startedAt); put("endedAt", e.endedAt)
+                put("plannedEndsAt", e.plannedEndsAt); put("stopped", e.stopped)
+            }
+        }))
         put("focusRev", s.focusRev)
         put("focusUpdatedAt", s.focusUpdatedAt)
         put("focusUpdatedBy", s.focusUpdatedBy ?: JSONObject.NULL)
@@ -593,6 +608,9 @@ object BreakerStore {
             // A futás csak akkor él, ha a csomagja megvan: nem tippelünk, mert a
             // fehérlista TARTALMA nem az a dolog, amit kitalálni szabad.
             focusRun = FocusSync.cleanRun(focusRunFromJson(o), focusPacks),
+            // A NAPLÓ nem függ a csomagoktól: egy lezárult menet sora akkor is
+            // igaz marad, ha a csomagot azóta törölték.
+            focusLog = focusLogFromJson(o),
             focusRev = o.optLong("focusRev", 0),
             focusUpdatedAt = o.optLong("focusUpdatedAt", 0),
             focusUpdatedBy = if (o.isNull("focusUpdatedBy")) null else o.optString("focusUpdatedBy"),
@@ -621,6 +639,32 @@ object BreakerStore {
             }
         }
         return out
+    }
+
+    /**
+     * A napló betöltése. Egy sérült sor nem viheti el a többit — és főleg nem
+     * viheti el az egész mentett állapotot.
+     */
+    private fun focusLogFromJson(o: JSONObject): List<Focus.FocusLogEntry> {
+        val arr = o.optJSONArray("focusLog") ?: return emptyList()
+        val out = mutableListOf<Focus.FocusLogEntry>()
+        for (i in 0 until arr.length()) {
+            runCatching {
+                val e = arr.getJSONObject(i)
+                val packId = e.optString("packId")
+                val endedAt = e.optLong("endedAt", 0)
+                if (packId.isEmpty() || endedAt <= 0) return@runCatching
+                out.add(Focus.FocusLogEntry(
+                    packId = packId,
+                    packName = e.optString("packName").ifEmpty { "Ismeretlen csomag" },
+                    startedAt = e.optLong("startedAt", 0),
+                    endedAt = endedAt,
+                    plannedEndsAt = e.optLong("plannedEndsAt", endedAt),
+                    stopped = e.optBoolean("stopped", false),
+                ))
+            }
+        }
+        return FocusSync.capLog(out)
     }
 
     private fun focusRunFromJson(o: JSONObject): Focus.FocusRun? {

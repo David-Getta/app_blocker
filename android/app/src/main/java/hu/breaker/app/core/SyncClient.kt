@@ -262,6 +262,19 @@ object SyncClient {
             put("startedAt", f.run.startedAt)
             put("endsAt", f.run.endsAt)
         })
+        // A NAPLÓ IS FELMEGY. Enélkül a telefonon lezárult menetek sosem
+        // kerülnének be a statisztikába — aki a telefonján dolgozik, azt
+        // látná, hogy a héten le sem ült.
+        put("log", JSONArray(f.log.map { e ->
+            JSONObject().apply {
+                put("packId", e.packId)
+                put("packName", e.packName)
+                put("startedAt", e.startedAt)
+                put("endedAt", e.endedAt)
+                put("plannedEndsAt", e.plannedEndsAt)
+                put("stopped", e.stopped)
+            }
+        }))
         put("rev", f.rev)
         put("updatedAt", f.updatedAt)
         put("updatedBy", f.updatedBy)
@@ -304,10 +317,43 @@ object SyncClient {
         return FocusSync.SyncFocus(
             packs = packs,
             run = FocusSync.cleanRun(rawRun, packs),
+            // A naplót NEM kötjük a csomagokhoz: egy menet sora akkor is igaz
+            // marad, ha a csomagot azóta törölték. Épp ezért van benne a NÉV
+            // is, nem csak az azonosító.
+            log = focusLogFromJson(o),
             rev = o.optLong("rev", 0),
             updatedAt = o.optLong("updatedAt", 0),
             updatedBy = o.optString("updatedBy").ifEmpty { fallbackDevice },
         )
+    }
+
+    /**
+     * Naplósorok egy kívülről jött blobból.
+     *
+     * Soronként tűrünk: egy rossz sor miatt elveszíteni a többit ugyanaz a
+     * hiba lenne, mint egy rossz csomag miatt eldobni a futó menetet.
+     */
+    private fun focusLogFromJson(o: JSONObject): List<Focus.FocusLogEntry> {
+        val arr = o.optJSONArray("log") ?: return emptyList()
+        val out = mutableListOf<Focus.FocusLogEntry>()
+        for (i in 0 until arr.length()) {
+            runCatching {
+                val e = arr.getJSONObject(i)
+                val packId = e.optString("packId")
+                val endedAt = e.optLong("endedAt", 0)
+                if (packId.isEmpty() || endedAt <= 0) return@runCatching
+                out.add(Focus.FocusLogEntry(
+                    packId = packId,
+                    packName = e.optString("packName").ifEmpty { "Ismeretlen csomag" }
+                        .take(Focus.MAX_PACK_NAME),
+                    startedAt = e.optLong("startedAt", 0),
+                    endedAt = endedAt,
+                    plannedEndsAt = e.optLong("plannedEndsAt", endedAt),
+                    stopped = e.optBoolean("stopped", false),
+                ))
+            }
+        }
+        return FocusSync.capLog(out)
     }
 
     private fun stringList(
@@ -383,6 +429,7 @@ object SyncClient {
             val mine = FocusSync.SyncFocus(
                 packs = current.focusPacks,
                 run = current.focusRun,
+                log = current.focusLog,
                 rev = current.focusRev,
                 updatedAt = current.focusUpdatedAt,
                 updatedBy = current.focusUpdatedBy ?: acc.deviceId,
@@ -393,6 +440,10 @@ object SyncClient {
                 current = current.copy(
                     focusPacks = merged.packs,
                     focusRun = merged.run,
+                    // A NAPLÓ a többi eszköztől is megjön — ettől lesz a
+                    // statisztika a fiók egészéről szóló szám. Egyesítés, tehát
+                    // a helyi sorok nem vesznek el.
+                    focusLog = FocusSync.mergeLog(merged.log, current.focusLog),
                     focusRev = merged.rev,
                     focusUpdatedAt = merged.updatedAt,
                     focusUpdatedBy = merged.updatedBy,

@@ -216,6 +216,118 @@ public enum Focus {
         return .blockedByFocus
     }
 
+    // -----------------------------------------------------------------------
+    // A LEZÁRULT menetek naplója — ebből lesz a statisztika.
+    //
+    // Az iPhone-on ugyanúgy kell, mint a gépen, és ez nem másolásból következik:
+    // a menetet MÁR itt is lehet indítani és leállítani, tehát ha csak a gép
+    // naplózna, az itt lefutott menetek egyszerűen nem léteznének.
+
+    /// Ennyi sort tartunk — a statisztika a mai napot és a hetet nézi.
+    public static let maxFocusLog = 200
+
+    public struct LogEntry: Codable, Equatable {
+        public let packId: String
+        /// a csomag neve AKKOR — a csomag azóta átnevezhető vagy törölhető
+        public let packName: String
+        public let startedAt: Double
+        /// mikor ért véget ténylegesen
+        public let endedAt: Double
+        /// mikorra volt tervezve — ebből látszik, hogy korábban ért-e véget
+        public let plannedEndsAt: Double
+        /// próbatétellel leállítva (igaz), vagy magától lejárt (hamis)
+        public let stopped: Bool
+
+        public init(
+            packId: String, packName: String, startedAt: Double,
+            endedAt: Double, plannedEndsAt: Double, stopped: Bool
+        ) {
+            self.packId = packId
+            self.packName = packName
+            self.startedAt = startedAt
+            self.endedAt = endedAt
+            self.plannedEndsAt = plannedEndsAt
+            self.stopped = stopped
+        }
+    }
+
+    /// Egy naplósor a futó menetből.
+    public static func closeRun(
+        _ run: Run, packName: String, endedAt: Double, stopped: Bool
+    ) -> LogEntry {
+        LogEntry(
+            packId: run.packId, packName: packName, startedAt: run.startedAt,
+            endedAt: endedAt, plannedEndsAt: run.endsAt, stopped: stopped
+        )
+    }
+
+    /// Amit a lezárás ad vissza: az új napló, és a futás (mindig nil).
+    public struct Close {
+        public let run: Run?
+        public let log: [LogEntry]
+    }
+
+    /// Egy LEJÁRT menet lezárása a naplóba.
+    ///
+    /// A magban van, nem a felületen, mert mind a három platformnak ugyanez
+    /// kell. A `nil` azt jelenti: nincs teendő — így a hívó nyugodtan
+    /// meghívhatja minden körben, fölösleges mentés nélkül.
+    public static func closeIfEnded(
+        _ run: Run?, packs: [Pack], log: [LogEntry], now: Double
+    ) -> Close? {
+        guard let run, run.endsAt <= now else { return nil }
+        // A csomag NEVÉT is elmentjük, nem csak az azonosítóját: a csomag azóta
+        // átnevezhető vagy törölhető: egy statisztika, ami a múlt hétre csak
+        // ismeretlen csomagot ír ki, semmit nem ér.
+        let name = packs.first { $0.id == run.packId }?.name ?? "Ismeretlen csomag"
+        let entry = closeRun(run, packName: name, endedAt: run.endsAt, stopped: false)
+        return Close(run: nil, log: (log + [entry]).suffix(maxFocusLog).map { $0 })
+    }
+
+    public struct Summary: Equatable {
+        /// hány menet zárult le az ablakban
+        public let sessions: Int
+        /// összesen ennyi ideig tartottak, ezredmásodpercben
+        public let totalMs: Double
+        /// ennyit állítottál le a tervezettnél korábban
+        public let stoppedEarly: Int
+        /// a leggyakoribb csomag neve, ha van
+        public let topPack: String?
+    }
+
+    /// Összegzés egy időablakra.
+    ///
+    /// A „korán leállítva” szándékosan nem szégyenpad: ha ötből négyszer
+    /// leálltál, nem a csomaggal van baj, hanem a hosszal — rövidebb menetet
+    /// érdemes indítani, és az működni fog.
+    public static func summarizeFocus(
+        _ log: [LogEntry], since: Double, now: Double
+    ) -> Summary {
+        let rows = log.filter { $0.endedAt >= since && $0.endedAt <= now }
+        var totalMs: Double = 0
+        var stoppedEarly = 0
+        var byPack: [String: Int] = [:]
+        var order: [String] = []
+        for e in rows {
+            totalMs += max(0, e.endedAt - e.startedAt)
+            // Nem a `stopped` jelző dönt, hanem a TÉNY: a próbatétel utáni
+            // rövidítés is korai vég, akkor is, ha utána még futott egy darabig.
+            if e.endedAt < e.plannedEndsAt { stoppedEarly += 1 }
+            if byPack[e.packName] == nil { order.append(e.packName) }
+            byPack[e.packName, default: 0] += 1
+        }
+        var topPack: String?
+        var best = 0
+        for name in order where (byPack[name] ?? 0) > best {
+            best = byPack[name] ?? 0
+            topPack = name
+        }
+        return Summary(
+            sessions: rows.count, totalMs: totalMs,
+            stoppedEarly: stoppedEarly, topPack: topPack
+        )
+    }
+
     /// Ahogy a felületen áll: „Nyelvtanulás — 42 perc van hátra”.
     public static func formatRemaining(_ ms: Double) -> String {
         let total = max(0, Int((ms / 60_000).rounded(.up)))

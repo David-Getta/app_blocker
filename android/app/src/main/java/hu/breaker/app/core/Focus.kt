@@ -219,6 +219,105 @@ object Focus {
         return Verdict.BLOCKED_BY_FOCUS
     }
 
+
+    // -----------------------------------------------------------------------
+    // A LEZÁRULT menetek naplója — ebből lesz a statisztika.
+    //
+    // A telefonon ugyanúgy kell, mint a gépen, és ez nem másolásból következik:
+    // a menetet MÁR itt is lehet indítani és leállítani, tehát ha csak a gép
+    // naplózna, a telefonon lefutott menetek egyszerűen nem léteznének. Aki a
+    // telefonján dolgozik, azt látná, hogy a héten nem ült le egyszer sem.
+
+    /** Ennyi sort tartunk — a statisztika a mai napot és a hetet nézi. */
+    const val MAX_FOCUS_LOG = 200
+
+    data class FocusLogEntry(
+        val packId: String,
+        /** a csomag neve AKKOR — a csomag azóta átnevezhető vagy törölhető */
+        val packName: String,
+        val startedAt: Long,
+        /** mikor ért véget ténylegesen */
+        val endedAt: Long,
+        /** mikorra volt tervezve — ebből látszik, hogy korábban ért-e véget */
+        val plannedEndsAt: Long,
+        /** próbatétellel leállítva (igaz), vagy magától lejárt (hamis) */
+        val stopped: Boolean,
+    )
+
+    /** Egy naplósor a futó menetből. */
+    fun closeRun(run: FocusRun, packName: String, endedAt: Long, stopped: Boolean) =
+        FocusLogEntry(
+            packId = run.packId,
+            packName = packName,
+            startedAt = run.startedAt,
+            endedAt = endedAt,
+            plannedEndsAt = run.endsAt,
+            stopped = stopped,
+        )
+
+    /** Amit a lezárás ad vissza: az új napló, és a futás (mindig null). */
+    data class FocusClose(val run: FocusRun?, val log: List<FocusLogEntry>)
+
+    /**
+     * Egy LEJÁRT menet lezárása a naplóba.
+     *
+     * A magban van, nem a felületen, mert mind a három platformnak ugyanez
+     * kell. A `null` azt jelenti: nincs teendő — így a hívó nyugodtan
+     * meghívhatja minden körben, fölösleges mentés nélkül.
+     *
+     * @return az új állapot, vagy null, ha nincs mit lezárni
+     */
+    fun closeIfEnded(
+        run: FocusRun?,
+        packs: List<FocusPack>,
+        log: List<FocusLogEntry>,
+        now: Long,
+    ): FocusClose? {
+        if (run == null || run.endsAt > now) return null
+        val pack = packs.firstOrNull { it.id == run.packId }
+        // A csomag NEVÉT is elmentjük, nem csak az azonosítóját: a csomag azóta
+        // átnevezhető vagy törölhető: egy statisztika, ami a múlt hétre csak
+        // ismeretlen csomagot ír ki, semmit nem ér.
+        val entry = closeRun(run, pack?.name ?: "Ismeretlen csomag", run.endsAt, false)
+        return FocusClose(null, (log + entry).takeLast(MAX_FOCUS_LOG))
+    }
+
+    data class FocusSummary(
+        /** hány menet zárult le az ablakban */
+        val sessions: Int = 0,
+        /** összesen ennyi ideig tartottak, ezredmásodpercben */
+        val totalMs: Long = 0,
+        /** ennyit állítottál le a tervezettnél korábban */
+        val stoppedEarly: Int = 0,
+        /** a leggyakoribb csomag neve, ha van */
+        val topPack: String? = null,
+    )
+
+    /**
+     * Összegzés egy időablakra.
+     *
+     * A „korán leállítva” szándékosan nem szégyenpad: ha ötből négyszer
+     * leálltál, nem a csomaggal van baj, hanem a hosszal — rövidebb menetet
+     * érdemes indítani, és az működni fog.
+     */
+    fun summarizeFocus(log: List<FocusLogEntry>?, since: Long, now: Long): FocusSummary {
+        val rows = (log ?: emptyList()).filter { it.endedAt in since..now }
+        var totalMs = 0L
+        var stoppedEarly = 0
+        val byPack = LinkedHashMap<String, Int>()
+        for (e in rows) {
+            totalMs += maxOf(0L, e.endedAt - e.startedAt)
+            // Nem a `stopped` jelző dönt, hanem a TÉNY: a próbatétel utáni
+            // rövidítés is korai vég, akkor is, ha utána még futott egy darabig.
+            if (e.endedAt < e.plannedEndsAt) stoppedEarly++
+            byPack[e.packName] = (byPack[e.packName] ?: 0) + 1
+        }
+        var topPack: String? = null
+        var best = 0
+        for ((name, count) in byPack) if (count > best) { best = count; topPack = name }
+        return FocusSummary(rows.size, totalMs, stoppedEarly, topPack)
+    }
+
     /** Ahogy a felületen áll: „Nyelvtanulás — 42 perc van hátra”. */
     fun formatRemaining(ms: Long): String {
         val total = maxOf(0L, (ms + 59_999L) / 60_000L).toInt()

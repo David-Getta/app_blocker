@@ -227,6 +227,7 @@ enum SyncClient {
             let mine = FocusSync.SyncFocus(
                 packs: current.focusPacks ?? [],
                 run: current.focusRun,
+                log: current.focusLog ?? [],
                 rev: current.focusRev ?? 0,
                 updatedAt: current.focusUpdatedAt ?? 0,
                 updatedBy: current.focusUpdatedBy ?? acc.deviceId
@@ -236,6 +237,10 @@ enum SyncClient {
             if !FocusSync.same(merged, mine) {
                 current.focusPacks = merged.packs
                 current.focusRun = merged.run
+                // A NAPLÓ a többi eszköztől is megjön — ettől lesz a
+                // statisztika a fiók egészéről szóló szám. Egyesítés, tehát a
+                // helyi sorok nem vesznek el.
+                current.focusLog = FocusSync.mergeLog(merged.log, current.focusLog ?? [])
                 current.focusRev = merged.rev
                 current.focusUpdatedAt = merged.updatedAt
                 current.focusUpdatedBy = merged.updatedBy

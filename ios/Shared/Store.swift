@@ -111,6 +111,13 @@ struct AppState: Codable, Equatable {
     var focusPacks: [Focus.Pack]? = nil
     /// a FUTÓ munkamenet — a fiók egészére szól, nem eszközönként
     var focusRun: Focus.Run? = nil
+    /// A LEZÁRULT menetek naplója — ebből lesz a statisztika.
+    ///
+    /// Itt ugyanúgy kell, mint a gépen: a menetet MÁR itt is lehet indítani és
+    /// leállítani, tehát ha csak a gép naplózna, az itt lefutott menetek nem
+    /// léteznének. Optional, hogy egy korábbi verzió állapota is dekódolható
+    /// maradjon.
+    var focusLog: [Focus.LogEntry]? = nil
     /// a munkamenet szinkron-számlálója; lásd shared/sync/focus-merge.ts
     var focusRev: Double? = nil
     var focusUpdatedAt: Double? = nil

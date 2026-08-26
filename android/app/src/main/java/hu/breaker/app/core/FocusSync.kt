@@ -27,6 +27,21 @@ object FocusSync {
     data class SyncFocus(
         val packs: List<Focus.FocusPack> = emptyList(),
         val run: Focus.FocusRun? = null,
+        /**
+         * A LEZÁRULT menetek naplója — ebből lesz a statisztika.
+         *
+         * Szándékosan MÁS a szabálya, mint a fenti kettőnek. A csomagok és a
+         * futás ENGEDÉLYEK: azt mondják meg, mi történhet, tehát rájuk
+         * vonatkozik a súrlódás iránya, és a `rev` őrzi őket. A napló a MÚLT
+         * feljegyzése: nem enged meg semmit, és egy elveszett sora nem kibúvó,
+         * csak pontatlan statisztika.
+         *
+         * Ezért a napló EGYESÍTÉS, nem döntés. Aki egységesíteni akarja a
+         * hármat, ezt olvassa el előbb: a `rev` léptetése egy naplósorért azt
+         * jelentené, hogy egy statisztika-bejegyzés le tud állítani egy futó
+         * menetet a másik eszközön.
+         */
+        val log: List<Focus.FocusLogEntry> = emptyList(),
         val rev: Long = 0,
         val updatedAt: Long = 0,
         val updatedBy: String = "",
@@ -44,6 +59,8 @@ object FocusSync {
         return SyncFocus(
             packs = newer.packs,
             run = mergeRun(local, incoming),
+            // EGYESÍTÉS, nem választás: lásd a `log` mező magyarázatát.
+            log = mergeLog(local.log, incoming.log),
             rev = maxOf(local.rev, incoming.rev),
             updatedAt = maxOf(local.updatedAt, incoming.updatedAt),
             updatedBy = newer.updatedBy,
@@ -78,6 +95,48 @@ object FocusSync {
     }
 
     /**
+     * Két napló egyesítése.
+     *
+     * A sor AZONOSSÁGA a `packId` + `startedAt` pár. Egyszerre egy menet fut az
+     * egész fiókban, tehát ez a pár egyértelmű — és pont ezért fésülődik össze
+     * helyesen az a gyakori eset, amikor UGYANAZT a menetet két eszköz is
+     * lezárja: a telefon próbatétellel, a gép meg később, a szinkronból véve
+     * észre. Enélkül minden ilyen menet kettőnek számítana.
+     *
+     * Ütközésnél a KORÁBBI vég nyer, mert az van közelebb a valósághoz.
+     * Azonos végnél a próbatételes leállítás — azt az egyik oldal láthatta,
+     * a másik nem.
+     */
+    fun mergeLog(
+        a: List<Focus.FocusLogEntry>,
+        b: List<Focus.FocusLogEntry>,
+    ): List<Focus.FocusLogEntry> {
+        val byKey = LinkedHashMap<String, Focus.FocusLogEntry>()
+        for (e in a + b) {
+            val key = "${e.packId}|${e.startedAt}"
+            val prev = byKey[key]
+            byKey[key] = if (prev == null) e else better(prev, e)
+        }
+        return capLog(byKey.values.toList())
+    }
+
+    private fun better(x: Focus.FocusLogEntry, y: Focus.FocusLogEntry): Focus.FocusLogEntry {
+        if (x.endedAt != y.endedAt) return if (x.endedAt < y.endedAt) x else y
+        if (x.stopped != y.stopped) return if (x.stopped) x else y
+        return x
+    }
+
+    /**
+     * Idősorrend, és a LEGÚJABBAK maradnak.
+     *
+     * A statisztika a mai napot és a hetet nézi; ha valamit el kell dobni, az a
+     * legrégebbi sor. Fordítva a mai menetek esnének ki, és pont az a képernyő
+     * lenne üres, amit a felhasználó néz.
+     */
+    fun capLog(rows: List<Focus.FocusLogEntry>): List<Focus.FocusLogEntry> =
+        rows.sortedWith(compareBy({ it.endedAt }, { it.packId })).takeLast(Focus.MAX_FOCUS_LOG)
+
+    /**
      * A futó menet megtisztítása: ha a csomagja nincs meg, eldobjuk.
      *
      * Nem tippelünk. A fehérlista TARTALMA nem az a dolog, amit kitalálni
@@ -103,7 +162,12 @@ object FocusSync {
             ).joinToString(";")
         }
         val run = f.run?.let { "${it.packId};${it.startedAt};${it.endsAt}" } ?: "-"
-        return "$packs//$run//${f.rev}"
+        // A NAPLÓ IS BENNE VAN — enélkül egy itt lezárult menet sosem érne fel
+        // a kiszolgálóra: a kör azt látná, hogy „nincs mit feltölteni”.
+        val log = f.log.joinToString("|") {
+            "${it.packId};${it.startedAt};${it.endedAt};${it.plannedEndsAt};${it.stopped}"
+        }
+        return "$packs//$run//$log//${f.rev}"
     }
 
     /**

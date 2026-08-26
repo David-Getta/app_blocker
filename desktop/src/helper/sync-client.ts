@@ -25,7 +25,7 @@ import { MAX_PAYLOAD_BYTES, SYNC_PROTOCOL } from '../shared/sync/protocol.js';
 import type { HelperState, SiteRec, SyncAccount } from './state';
 import { adoptFocusRevision, adoptRevision, bumpRevisions } from './revisions';
 import {
-  emptyFocus, mergeFocus, normalizeSyncFocus, sameFocus, type SyncFocus,
+  emptyFocus, mergeFocus, mergeLog, normalizeSyncFocus, sameFocus, type SyncFocus,
 } from '../shared/sync/focus-merge.js';
 import { closeRun, MAX_FOCUS_LOG, type FocusRun } from '../shared/focus.js';
 import { makeTodayDigest, normalizeTodayDigest, type TodayDigest } from '../shared/limits.js';
@@ -397,6 +397,13 @@ async function syncFocusRound(
       logRunEndedElsewhere(state, mine.run, merged.run, Date.now());
       state.focusPacks = merged.packs;
       state.focusRun = merged.run;
+      // A NAPLÓ a másik eszközöktől is megjön — ettől lesz a statisztika a
+      // fiók egészéről szóló szám, nem csak erről a gépről szóló. A `mergeFocus`
+      // ezt EGYESÍTÉSSEL végzi, tehát a helyi sorok nem vesznek el.
+      //
+      // A `logRunEndedElsewhere` FÖLÖTTE fut, szándékosan: az a sor, amit ő ír,
+      // már benne kell legyen abban, amit legközelebb feltöltünk.
+      state.focusLog = mergeLog(merged.log, state.focusLog ?? []);
       state.focusRev = merged.rev;
       state.focusUpdatedAt = merged.updatedAt;
       state.focusUpdatedBy = merged.updatedBy;
@@ -455,6 +462,7 @@ function localFocus(state: HelperState, deviceId: string): SyncFocus {
   return {
     packs: state.focusPacks ?? [],
     run: state.focusRun ?? null,
+    log: state.focusLog ?? [],
     rev: state.focusRev ?? 0,
     updatedAt: state.focusUpdatedAt ?? 0,
     updatedBy: state.focusUpdatedBy ?? deviceId,

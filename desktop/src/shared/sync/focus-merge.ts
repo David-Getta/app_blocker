@@ -27,7 +27,8 @@
 // A doksi: docs/feature-focus-sessions.md
 
 import {
-  MAX_ALLOW_ENTRIES, normalizePack, type FocusPack, type FocusRun,
+  MAX_ALLOW_ENTRIES, MAX_FOCUS_LOG, normalizePack,
+  type FocusLogEntry, type FocusPack, type FocusRun,
 } from '../focus.js';
 
 /** Legfeljebb ennyi csomag utazhat — a felületen sem fér ki több. */
@@ -45,13 +46,29 @@ export interface SyncFocus {
   packs: FocusPack[];
   /** a futó munkamenet, vagy null, ha nem fut */
   run: FocusRun | null;
+  /**
+   * A LEZÁRULT menetek naplója — ebből lesz a statisztika.
+   *
+   * Szándékosan MÁS a szabálya, mint a fenti kettőnek, és ez nem
+   * következetlenség. A csomagok és a futás ENGEDÉLYEK: azt mondják meg, mi
+   * történhet, tehát rájuk vonatkozik a súrlódás iránya, és a `rev` őrzi őket.
+   * A napló a MÚLT feljegyzése: nem enged meg semmit, nem old fel semmit, és
+   * egy elveszett sora nem kibúvó, csak pontatlan statisztika.
+   *
+   * Ezért a napló EGYESÍTÉS, nem döntés: minden eszköz sora bekerül, és a
+   * `rev`-hez semmi köze. Aki később egységesíteni akarja a hármat, ezt a
+   * bekezdést olvassa el előbb: a `rev` léptetése egy naplósorért azt
+   * jelentené, hogy egy statisztika-bejegyzés le tud állítani egy futó
+   * menetet a másik eszközön.
+   */
+  log: FocusLogEntry[];
   rev: number;
   updatedAt: number;
   updatedBy: string;
 }
 
 export function emptyFocus(deviceId: string): SyncFocus {
-  return { packs: [], run: null, rev: 0, updatedAt: 0, updatedBy: deviceId };
+  return { packs: [], run: null, log: [], rev: 0, updatedAt: 0, updatedBy: deviceId };
 }
 
 /**
@@ -72,6 +89,10 @@ export function normalizeSyncFocus(raw: unknown, fallbackDevice: string): SyncFo
   return {
     packs,
     run: normalizeRun(o.run, packs),
+    // A naplót NEM kötjük a csomagokhoz: egy menet naplósora akkor is igaz
+    // marad, ha a csomagot azóta törölték. Épp ezért van benne a NÉV is, nem
+    // csak az azonosító.
+    log: normalizeLog(o.log),
     rev: numberOr(o.rev, 0),
     updatedAt: numberOr(o.updatedAt, 0),
     updatedBy: typeof o.updatedBy === 'string' && o.updatedBy ? o.updatedBy : fallbackDevice,
@@ -95,6 +116,85 @@ function normalizeRun(raw: unknown, packs: FocusPack[]): FocusRun | null {
   return { packId: r.packId, startedAt, endsAt };
 }
 
+/**
+ * Kívülről jött naplósorok használható alakja.
+ *
+ * Ami nem értelmezhető, az kiesik — egyesével, nem az egész napló. Egy rossz
+ * sor miatt elveszíteni a többit ugyanaz a hiba lenne, mint egy rossz csomag
+ * miatt eldobni a futó menetet.
+ */
+function normalizeLog(raw: unknown): FocusLogEntry[] {
+  const out: FocusLogEntry[] = [];
+  for (const item of Array.isArray(raw) ? raw : []) {
+    const e = normalizeLogEntry(item);
+    if (e) out.push(e);
+  }
+  return capLog(out);
+}
+
+export function normalizeLogEntry(raw: unknown): FocusLogEntry | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const e = raw as Partial<FocusLogEntry>;
+  if (typeof e.packId !== 'string' || !e.packId) return null;
+  const endedAt = numberOr(e.endedAt, 0);
+  if (endedAt <= 0) return null;
+  const startedAt = numberOr(e.startedAt, 0);
+  return {
+    packId: e.packId,
+    packName: typeof e.packName === 'string' && e.packName
+      ? e.packName.slice(0, MAX_PACK_NAME_IN_LOG) : 'Ismeretlen csomag',
+    startedAt,
+    endedAt,
+    plannedEndsAt: numberOr(e.plannedEndsAt, endedAt),
+    stopped: e.stopped === true,
+  };
+}
+
+/** A naplóban tárolt névnek is van felső határa — kívülről jött szöveg. */
+const MAX_PACK_NAME_IN_LOG = 40;
+
+/**
+ * Két napló egyesítése.
+ *
+ * A sor AZONOSSÁGA a `packId` + `startedAt` pár. Egyszerre egy menet fut az
+ * egész fiókban, tehát ez a pár egyértelmű — és pont ezért fésülődik össze
+ * helyesen az a gyakori eset, amikor UGYANAZT a menetet két eszköz is lezárja:
+ * a telefon próbatétellel, a gép meg később, a szinkronból véve észre.
+ *
+ * Ütközésnél a KORÁBBI vég nyer, mert az van közelebb a valósághoz: a menet
+ * akkor ért véget, amikor véget ért, nem akkor, amikor a másik eszköz észbe
+ * kapott. Azonos végnél a próbatételes leállítás nyer — azt az egyik oldal
+ * láthatta, a másik nem.
+ */
+export function mergeLog(a: FocusLogEntry[], b: FocusLogEntry[]): FocusLogEntry[] {
+  const byKey = new Map<string, FocusLogEntry>();
+  for (const e of [...a, ...b]) {
+    const key = `${e.packId}|${e.startedAt}`;
+    const prev = byKey.get(key);
+    byKey.set(key, prev ? better(prev, e) : e);
+  }
+  return capLog([...byKey.values()]);
+}
+
+function better(x: FocusLogEntry, y: FocusLogEntry): FocusLogEntry {
+  if (x.endedAt !== y.endedAt) return x.endedAt < y.endedAt ? x : y;
+  if (x.stopped !== y.stopped) return x.stopped ? x : y;
+  return x;
+}
+
+/**
+ * Idősorrend, és a LEGÚJABBAK maradnak.
+ *
+ * A statisztika a mai napot és a hetet nézi; ha valamit el kell dobni, az a
+ * legrégebbi sor. Fordítva a mai menetek esnének ki, és a képernyő, amit a
+ * felhasználó néz, pont az lenne üres.
+ */
+function capLog(rows: FocusLogEntry[]): FocusLogEntry[] {
+  return rows
+    .sort((p, q) => (p.endedAt - q.endedAt) || (p.packId < q.packId ? -1 : 1))
+    .slice(-MAX_FOCUS_LOG);
+}
+
 function numberOr(v: unknown, fallback: number): number {
   return typeof v === 'number' && Number.isFinite(v) ? v : fallback;
 }
@@ -114,6 +214,8 @@ export function mergeFocus(local: SyncFocus, incoming: SyncFocus): SyncFocus {
   return {
     packs: newer.packs,
     run: mergeRun(local, incoming),
+    // EGYESÍTÉS, nem választás: lásd a `SyncFocus.log` magyarázatát.
+    log: mergeLog(local.log, incoming.log),
     rev: Math.max(local.rev, incoming.rev),
     updatedAt: Math.max(local.updatedAt, incoming.updatedAt),
     // Az eszközazonosító a győztesé: enélkül a döntetlen-eltörés nem lenne
@@ -171,6 +273,13 @@ function stable(f: SyncFocus): unknown {
         defaultMinutes: p.defaultMinutes,
       })),
     run: f.run ? { packId: f.run.packId, startedAt: f.run.startedAt, endsAt: f.run.endsAt } : null,
+    // A NAPLÓ IS BENNE VAN — enélkül egy telefonon lezárult menet sosem érne
+    // fel a kiszolgálóra: a kör azt látná, hogy „nincs mit feltölteni”.
+    //
+    // Ez NEM ugyanaz, mint a `rev` lenyomata (`revisions.ts`), és a kettőt nem
+    // szabad összevonni: ez azt méri, van-e mit FELTÖLTENI, az meg azt, hogy
+    // ki DÖNTHET. Egy naplósor az elsőre igen, a másodikra nem.
+    log: f.log.map((e) => [e.packId, e.startedAt, e.endedAt, e.plannedEndsAt, e.stopped]),
     rev: f.rev,
   };
 }
