@@ -22,6 +22,8 @@ struct ContentView: View {
     @State private var flowError: String?
     /// A munkamenet-indítás hossza percben; üresen a csomag szokásos hossza.
     @State private var focusMinutes = ""
+    /// Hosszabbítás percben, futó menet alatt.
+    @State private var focusExtra = ""
 
     /// Ideiglenes felfedés oldalanként: meddig látszik a valódi cím.
     /// Szándékosan nem mentjük — az app újranyitása után megint a fedőnév áll ott.
@@ -143,6 +145,27 @@ struct ContentView: View {
                         }
                         .buttonStyle(.bordered)
                     }
+                }
+                // Percre pontos hosszabbítás — ugyanaz, mint Androidon és a
+                // gépen. A gyorsgombok a gyakori eseteket fedik; ez az, amikor
+                // tudod, hogy pontosan mennyi kell még.
+                HStack {
+                    TextField("perc", text: $focusExtra)
+                        .keyboardType(.numberPad)
+                        .textFieldStyle(.roundedBorder)
+                    Button("Hozzáad") {
+                        guard let mins = Int(focusExtra), mins >= 1 else {
+                            flowError = "Írd be percben, mennyivel hosszabbítanád."
+                            return
+                        }
+                        try? Referee.changeFocus(
+                            nextEndsAt: run.endsAt
+                                + Double(min(mins, Focus.maxSessionMinutes)) * 60_000,
+                            now: Date().timeIntervalSince1970 * 1000
+                        )
+                        focusExtra = ""
+                    }
+                    .buttonStyle(.bordered)
                 }
                 // LEÁLLÍTANI próbatétel — ugyanaz, mint egy feloldásnál. A gomb
                 // csak elindítja; a menet addig ÉRVÉNYES marad, különben a
