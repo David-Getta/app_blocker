@@ -44,6 +44,41 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
+          Ez javító kiadás a v0.4.4 fölé. Ha azt már feltelepítetted,
+          érdemes frissíteni.
+
+          - **A munkamenet-napló szinkronja beragadhatott egy körbe.** Ha két
+            menet ugyanabban a másodpercben ért véget ugyanabból a csomagból,
+            a két eszköz ugyanazt a naplót MÁS sorrendben rakta össze — és
+            mindkettő azt látta, hogy a másiknál valami más van. Ettől minden
+            körben feltöltöttek, a végtelenségig. Nem adatvesztés, de a
+            fiókkiszolgálód szüntelenül dolgozott volna.
+
+            A rendezés mostantól teljes, tehát a két eszköz ugyanarra az
+            eredményre jut, bármilyen sorrendben kapja a sorokat.
+
+          - **A gyorsbillentyűs réteg is szól, ha nincs böngésző-bővítmény.**
+            A figyelmeztetés eddig csak a Munkamenetek fülön volt meg — de a
+            menetek többsége nem onnan indul, hanem éppen a rétegből. Így a
+            legtöbben sosem látták volna, és pont az indítás pillanatában nem
+            tudták volna meg, hogy a menet a böngészőben nem tilt semmit.
+
+          - **Az app azt állította, hogy a mérés nem hagyja el a gépet —
+            pedig fiókkal bejelentkezve felkerül.** A közös napi keret a
+            v0.4.0 óta úgy működik, hogy minden eszköz feltölti, mennyit mért
+            ma; a munkamenet-napló most ugyanígy utazik. A statisztika
+            szövege viszont a régi mondatot vitte tovább, miközben a
+            fiókkártya közvetlenül mellette már az igazat írta.
+
+            Egy elavult adatvédelmi mondat rosszabb, mint egy hiányzó: arra
+            alapozol, és nem tudod meg, hogy már nem áll. Mostantól mindenhol
+            ugyanaz szerepel: **fiók nélkül semmi nem hagyja el az eszközt;
+            bejelentkezve a mérés és a munkamenet-napló felkerül a SAJÁT
+            fiókkiszolgálódra, végponttól végpontig titkosítva.** A
+            kiszolgáló nem látja, mit mértél, és telemetria sehol nincs.
+
+          ### Ami a v0.4.4-ben jött
+
           **A munkamenet-statisztika mostantól minden eszközödről szól.** A
           menetet a v0.4.3 óta a telefonodon is el lehet indítani és le lehet
           állítani — a naplója viszont csak a gépen létezett. Aki a telefonján
@@ -66,7 +101,7 @@ jobs:
           leállítottak — vagyis pont azok hiányoztak, amiket VÉGIGVITTÉL, és a
           statisztika azt mondta volna, hogy sosem sikerül.
 
-          #### Javítva
+          #### Akkor javítva
 
           - **Az óra átállításával le lehetett állítani a futó munkamenetet.**
             Nyolc órát előreugorva a menet „lejárt”, és nem is csak azon a
@@ -106,7 +141,7 @@ jobs:
             ok a GitHub óránkénti kérés-korlátja. A látogató azt olvasta, hogy
             nincs mit letölteni, miközben nyolc kiadás állt a másik oldalon.
 
-          ### Ami a v0.4.3-ban jött
+          #### Ami a v0.4.3-ban jött
 
           **A munkamenet mostantól a telefonodon is érvényes.** Eddig csak a
           gépen létezett, és ez a funkció felét elvette: elindítottad a
