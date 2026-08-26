@@ -140,12 +140,24 @@ function fakeBridgeSource() {
       },
       focusSeries: series,
       focusLabel: 'youtube.com',
+      // A MUNKAMENET-STATISZTIKA. Külön a méréstől, mert más a forrása: nem
+      // abból jön, mire megy el az idő, hanem a menetek naplójából.
+      focusToday: { sessions: 2, totalMs: 95 * 60_000, stoppedEarly: 0, topPack: 'Nyelvtanulás' },
+      focusWeek: { sessions: 9, totalMs: 7 * 3600_000, stoppedEarly: 2, topPack: 'Nyelvtanulás' },
     };
     window.breaker = {
       platform: 'darwin',
       call: async (op, payload) => {
         if (op === 'status') return { ok: true, data: status() };
-        if (op === 'usage_stats') return { ok: true, data: stats };
+        if (op === 'usage_stats') {
+          // Nulla menetnél a felületnek EL KELL rejtenie a blokkot; ezt is
+          // állítjuk, nem csak a kirajzolást.
+          if (window.__fakeNoFocusStats) {
+            const zero = { sessions: 0, totalMs: 0, stoppedEarly: 0, topPack: null };
+            return { ok: true, data: { ...stats, focusToday: zero, focusWeek: zero } };
+          }
+          return { ok: true, data: stats };
+        }
         if (op === 'start_unlock') {
           session = {
             id: 'ses_demo', kind: 'pause', siteId: payload.siteId, minutes: payload.minutes,
@@ -525,6 +537,44 @@ async function main() {
   if (tiles !== 4) failures.push(`expected 4 stat tiles, saw ${tiles}`);
   const bars = await page.locator('#topSites .bar-row').count();
   if (bars === 0) failures.push('the weekly top-sites chart rendered no bars');
+
+  // A MUNKAMENET-STATISZTIKA. Eddig semmi nem nézte meg: a `summarizeFocus`
+  // számait fedték tesztek, de azt nem, hogy a felület ki is írja őket. Egy
+  // átnevezett azonosító vagy egy kivétel itt ugyanolyan csendes hiba lenne,
+  // mint bárhol — a fül betöltődne, és a blokk egyszerűen nem lenne ott.
+  const focusTiles = await page.locator('#focusTiles .tile').count();
+  if (focusTiles !== 4) {
+    failures.push(`a munkamenet-statisztika nem négy dobozt mutat, hanem ${focusTiles}`);
+  }
+  const focusNote = await page.locator('#focusStatsNote').innerText().catch(() => '');
+  if (!/Nyelvtanulás/.test(focusNote)) {
+    failures.push(`a munkamenet-statisztika nem nevezi meg a leggyakoribb csomagot: ${focusNote}`);
+  }
+  // MINDEN ESZKÖZ menete beleszámít, és ezt ki kell mondani: a mérés
+  // eszközönként külön áll, a munkamenet viszont a fiók egészére szól.
+  if (!/[Mm]inden eszköz/.test(focusNote)) {
+    failures.push(`nincs kimondva, hogy minden eszköz menete beleszámít: ${focusNote}`);
+  }
+
+  // Nulla menetnél viszont NEM áll ott üres doboz: egy minden nap ott lévő
+  // nullás sor nem információ, csak zaj.
+  //
+  // ÚJRATÖLTÉSSEL állítjuk, nem egy eseménnyel: a statisztikát a felület
+  // harmincmásodpercenként kérdezi újra, tehát egy odapiszkált jelzőtől nem
+  // rajzolna újra — a teszt meg csendben semmit nem mérne.
+  await page.addInitScript(() => { window.__fakeNoFocusStats = true; });
+  await page.reload();
+  await goTo(page, 'stats');
+  await page.waitForFunction(
+    () => document.getElementById('focusStats')?.classList.contains('hidden'),
+    undefined, { timeout: 15_000 },
+  ).catch(() => failures.push('nulla menetnél is ott áll a munkamenet-statisztika'));
+
+  await page.addInitScript(() => { window.__fakeNoFocusStats = false; });
+  await page.reload();
+  await goTo(page, 'stats');
+  await page.waitForSelector('#focusTiles .tile', { timeout: 15_000 })
+    .catch(() => failures.push('a munkamenet-statisztika nem jött vissza'));
 
   // the daily budget meter: one per site that has a budget
   // A sötét ág tényleg sötét-e? A világos ágnál ugyanez a mérés fut fordítva;
