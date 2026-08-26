@@ -299,6 +299,28 @@ A kivételek tételesen, indoklással (`Focus.INFRA_ALLOW`):
 Böngészni egyiken sem lehet. A felület kimondja, hogy a lista létezik: egy
 titkos kivétel rosszabb lenne, mint egy nyílt.
 
+**A listát gépi ellenőrző őrzi** (`scripts/check-infra-allow.js`), mert ez az
+EGYETLEN szándékos lyuk a fehérlistán, és VÉGZŐDÉS szerint illeszkedik: egy
+`google.com` a `mtalk.google.com` helyett az egész tartományt megnyitná. Az
+ellenőrző azt nézi, hogy a lista szűk MARADJON — legfeljebb tizenkét tétel,
+legalább három címke, egyik sor se fedje le a másikat. Azt nem tudja
+megítélni, hogy egy bejegyzés indokolt-e; az emberi bírálat marad.
+
+**Az utolsó sor KIVÉTEL a szigor alól, és ezt kimondjuk.** A fiókkiszolgáló
+címét a FELHASZNÁLÓ adja meg, tehát elvben bármi lehet — aki oda a
+`youtube.com`-ot írja, a munkamenet alatt megnyitja magának a YouTube-ot.
+
+Nem zárjuk be, mert az ára a funkció: a telefon enélkül nem tudná meg, hogy
+egy másik eszközön leállítottad a menetet, és egy nyolcórás menetből ott nem
+lenne kiút. A kibúvónak viszont valódi ára van — aki így tesz, elveszíti a
+szinkronját, vagyis a közös blokklistát és a közös napi keretet is.
+
+Ez ugyanabba a fiókba tartozik, mint a rendszer VPN-kapcsolója: nem
+elfelejtett rés, hanem kimondott, költséges kiút. A Breaker önkontroll-eszköz,
+nem felügyeleti szoftver — aki elszántan meg akarja kerülni, meg tudja. A
+dolgunk az, hogy ez soha ne legyen KÉNYELMESEBB, mint végigcsinálni a
+próbatételt.
+
 ### A sorrend, ami nem esztétika
 
 `Focus.verdict` a döntés, és a sorrendje maga a szabályrendszer:
