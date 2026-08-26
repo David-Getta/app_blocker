@@ -245,3 +245,46 @@ test('egy rossz naplósor nem viszi el a többit', () => {
   assert.equal(n.log[1].packName, 'Ismeretlen csomag', 'név nélkül sem esik ki');
   assert.equal(n.log[1].plannedEndsAt, 7_000, 'terv nélkül a tényleges vég a terv');
 });
+
+test('a napló EGYETLEN sorrendre jut akkor is, ha a sorok döntetlenek', () => {
+  // EZ EGY VALÓDI HIBA VOLT, és a legcsúnyább fajtából: nem hibás adat, hanem
+  // NEM KONVERGÁLÓ szinkron.
+  //
+  // A rendezés `endedAt`, majd `packId` szerint ment — ha mindkettő egyezett, a
+  // hasonlító nem döntött. Egy eldöntetlen hasonlító mellett a sorrend a BEMENET
+  // sorrendjétől függ, az pedig a két eszközön szükségszerűen más: az egyiknél
+  // `merge(helyi, távoli)`, a másiknál `merge(másik helyi, távoli)`.
+  //
+  // Következmény: a két eszköz ugyanazt a HALMAZT más sorrendben sorosítja, a
+  // `sameFocus` örökre „különbözőt” mond, és minden körben feltöltenek. A
+  // felhasználó ebből annyit látna, hogy a fiókkiszolgáló szüntelenül dolgozik.
+  //
+  // Ugyanez a döntetlen a SOR TARTALMÁBAN is megvolt: azonos vég és azonos
+  // „leállítva” mellett a tervezett vég szabadon maradt.
+  const tie = (over: Partial<FocusLogEntry>): FocusLogEntry => entry({ endedAt: 5_000, ...over });
+  const a = focus({
+    log: [
+      tie({ packId: 'p1', startedAt: 100, plannedEndsAt: 9_000 }),
+      tie({ packId: 'p1', startedAt: 200 }),
+      tie({ packId: 'p2', startedAt: 300 }),
+    ],
+  });
+  const b = focus({
+    log: [
+      tie({ packId: 'p2', startedAt: 300 }),
+      tie({ packId: 'p1', startedAt: 100, plannedEndsAt: 4_000 }),
+      tie({ packId: 'p1', startedAt: 200 }),
+    ],
+  });
+
+  const ab = mergeFocus(a, b);
+  const ba = mergeFocus(b, a);
+  assert.deepEqual(
+    ab.log, ba.log,
+    'a két oldal ugyanarra a sorrendre és ugyanazokra a sorokra jut',
+  );
+  assert.equal(sameFocus(ab, ba), true, 'tehát nincs mit feltölteni egymásnak');
+  // És a következő kör sem mozdít semmit — enélkül a hurok csak lassabb lenne.
+  assert.equal(sameFocus(mergeFocus(ab, b), ab), true);
+  assert.equal(sameFocus(mergeFocus(ba, a), ba), true);
+});

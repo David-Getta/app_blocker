@@ -132,9 +132,21 @@ public enum FocusSync {
         return capLog(Array(byKey.values))
     }
 
+    /// Két változat UGYANARRÓL a menetről — melyik marad.
+    ///
+    /// TELJES rendezés kell: ha a végén marad döntetlen, a válasz a hívás
+    /// sorrendjétől függ, az pedig a két eszközön más. Onnantól ugyanazt a
+    /// menetet másképp sorosítják, a `same` örökre „különbözőt” mond, és minden
+    /// körben feltöltenek — nem hibás adat, hanem NEM KONVERGÁLÓ szinkron.
+    ///
+    /// A tervezett vég is holtverseny lehet: az egyik eszköz még a hosszabbítás
+    /// előtti tervet ismerte. Ilyenkor a KÉSŐBBI terv marad.
     private static func better(_ x: Focus.LogEntry, _ y: Focus.LogEntry) -> Focus.LogEntry {
         if x.endedAt != y.endedAt { return x.endedAt < y.endedAt ? x : y }
         if x.stopped != y.stopped { return x.stopped ? x : y }
+        if x.plannedEndsAt != y.plannedEndsAt {
+            return x.plannedEndsAt > y.plannedEndsAt ? x : y
+        }
         return x
     }
 
@@ -144,8 +156,15 @@ public enum FocusSync {
     /// legrégebbi sor. Fordítva a mai menetek esnének ki, és pont az a képernyő
     /// lenne üres, amit a felhasználó néz.
     public static func capLog(_ rows: [Focus.LogEntry]) -> [Focus.LogEntry] {
-        rows.sorted {
-            $0.endedAt != $1.endedAt ? $0.endedAt < $1.endedAt : $0.packId < $1.packId
+        // A `startedAt` a HARMADIK kulcs, és nem díszítés: a `packId` +
+        // `startedAt` pár egyedi, tehát ettől lesz a rendezés TELJES. A Swift
+        // `sorted` ráadásul nem is ígér stabilitást — eldöntetlen hasonlító
+        // mellett a sorrend itt még kevésbé kiszámítható, és a szinkron sosem
+        // konvergálna.
+        rows.sorted { a, b in
+            if a.endedAt != b.endedAt { return a.endedAt < b.endedAt }
+            if a.packId != b.packId { return a.packId < b.packId }
+            return a.startedAt < b.startedAt
         }.suffix(Focus.maxFocusLog).map { $0 }
     }
 

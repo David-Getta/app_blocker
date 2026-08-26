@@ -120,9 +120,23 @@ object FocusSync {
         return capLog(byKey.values.toList())
     }
 
+    /**
+     * Két változat UGYANARRÓL a menetről — melyik marad.
+     *
+     * TELJES rendezés kell: ha a végén marad döntetlen, a válasz a hívás
+     * sorrendjétől függ, az pedig a két eszközön más. Onnantól ugyanazt a
+     * menetet másképp sorosítják, a `same` örökre „különbözőt” mond, és minden
+     * körben feltöltenek — nem hibás adat, hanem NEM KONVERGÁLÓ szinkron.
+     *
+     * A tervezett vég is holtverseny lehet: az egyik eszköz még a hosszabbítás
+     * előtti tervet ismerte. Ilyenkor a KÉSŐBBI terv marad.
+     */
     private fun better(x: Focus.FocusLogEntry, y: Focus.FocusLogEntry): Focus.FocusLogEntry {
         if (x.endedAt != y.endedAt) return if (x.endedAt < y.endedAt) x else y
         if (x.stopped != y.stopped) return if (x.stopped) x else y
+        if (x.plannedEndsAt != y.plannedEndsAt) {
+            return if (x.plannedEndsAt > y.plannedEndsAt) x else y
+        }
         return x
     }
 
@@ -134,7 +148,12 @@ object FocusSync {
      * lenne üres, amit a felhasználó néz.
      */
     fun capLog(rows: List<Focus.FocusLogEntry>): List<Focus.FocusLogEntry> =
-        rows.sortedWith(compareBy({ it.endedAt }, { it.packId })).takeLast(Focus.MAX_FOCUS_LOG)
+        // A `startedAt` a HARMADIK kulcs, és nem díszítés: a `packId` +
+        // `startedAt` pár egyedi, tehát ettől lesz a rendezés TELJES. Enélkül a
+        // döntetlen sorok sorrendje a bemenettől függne — az meg a két eszközön
+        // más, és a szinkron sosem konvergálna.
+        rows.sortedWith(compareBy({ it.endedAt }, { it.packId }, { it.startedAt }))
+            .takeLast(Focus.MAX_FOCUS_LOG)
 
     /**
      * A futó menet megtisztítása: ha a csomagja nincs meg, eldobjuk.

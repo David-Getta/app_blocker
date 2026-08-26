@@ -176,9 +176,23 @@ export function mergeLog(a: FocusLogEntry[], b: FocusLogEntry[]): FocusLogEntry[
   return capLog([...byKey.values()]);
 }
 
+/**
+ * Két változat UGYANARRÓL a menetről — melyik marad.
+ *
+ * TELJES rendezés kell, nem „elég jó”: ha a végén marad döntetlen, a válasz a
+ * hívás sorrendjétől függ, az pedig a két eszközön szükségszerűen más. Onnantól
+ * ugyanazt a menetet másképp sorosítják, a `sameFocus` örökre „különbözőt”
+ * mond, és minden körben feltöltenek — nem hibás adat, hanem NEM KONVERGÁLÓ
+ * szinkron.
+ *
+ * A tervezett vég is holtverseny lehet, és ez nem elméleti: az egyik eszköz még
+ * a hosszabbítás előtti tervet ismerte, a másik már a hosszabbítottat. Ilyenkor
+ * a KÉSŐBBI terv marad, mert az a frissebb tudás.
+ */
 function better(x: FocusLogEntry, y: FocusLogEntry): FocusLogEntry {
   if (x.endedAt !== y.endedAt) return x.endedAt < y.endedAt ? x : y;
   if (x.stopped !== y.stopped) return x.stopped ? x : y;
+  if (x.plannedEndsAt !== y.plannedEndsAt) return x.plannedEndsAt > y.plannedEndsAt ? x : y;
   return x;
 }
 
@@ -191,7 +205,13 @@ function better(x: FocusLogEntry, y: FocusLogEntry): FocusLogEntry {
  */
 function capLog(rows: FocusLogEntry[]): FocusLogEntry[] {
   return rows
-    .sort((p, q) => (p.endedAt - q.endedAt) || (p.packId < q.packId ? -1 : 1))
+    // A `startedAt` a HARMADIK kulcs, és nem díszítés: a `packId` + `startedAt`
+    // pár egyedi, tehát ettől lesz a rendezés TELJES. Enélkül két azonos időben
+    // végződő, azonos csomagú sor sorrendje a bemenet sorrendjétől függne — az
+    // meg a két eszközön más, és a szinkron sosem konvergálna.
+    .sort((p, q) => (p.endedAt - q.endedAt)
+      || (p.packId < q.packId ? -1 : p.packId > q.packId ? 1 : 0)
+      || (p.startedAt - q.startedAt))
     .slice(-MAX_FOCUS_LOG);
 }
 

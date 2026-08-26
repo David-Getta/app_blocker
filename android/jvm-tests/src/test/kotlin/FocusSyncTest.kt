@@ -234,4 +234,32 @@ class FocusSyncTest {
         assertEquals(13_000, s.totalMs)
         assertEquals(1, s.stoppedEarly, "a rövidítés is korai vég")
     }
+
+    @Test
+    fun `a naplo EGYETLEN sorrendre jut akkor is, ha a sorok dontetlenek`() {
+        // EZ EGY VALÓDI HIBA VOLT, és a legcsúnyább fajtából: nem hibás adat,
+        // hanem NEM KONVERGÁLÓ szinkron.
+        //
+        // A rendezés `endedAt`, majd `packId` szerint ment — ha mindkettő
+        // egyezett, a hasonlító nem döntött, és a sorrend a BEMENET sorrendjétől
+        // függött. Az pedig a két eszközön szükségszerűen más. Következmény: a
+        // két eszköz ugyanazt a HALMAZT más sorrendben sorosítja, a `same`
+        // örökre „különbözőt” mond, és minden körben feltöltenek.
+        fun tie(packId: String, startedAt: Long, planned: Long = 5_000) =
+            entry(packId = packId, startedAt = startedAt, endedAt = 5_000, plannedEndsAt = planned)
+
+        val a = FocusSync.SyncFocus(
+            log = listOf(tie("p1", 100, 9_000), tie("p1", 200), tie("p2", 300)),
+        )
+        val b = FocusSync.SyncFocus(
+            log = listOf(tie("p2", 300), tie("p1", 100, 4_000), tie("p1", 200)),
+        )
+        val ab = FocusSync.merge(a, b)
+        val ba = FocusSync.merge(b, a)
+        assertEquals(ab.log, ba.log, "a két oldal ugyanarra a sorrendre és sorokra jut")
+        assertTrue(FocusSync.same(ab, ba), "tehát nincs mit feltölteni egymásnak")
+        // És a következő kör sem mozdít semmit — enélkül a hurok csak lassabb lenne.
+        assertTrue(FocusSync.same(FocusSync.merge(ab, b), ab))
+        assertTrue(FocusSync.same(FocusSync.merge(ba, a), ba))
+    }
 }
