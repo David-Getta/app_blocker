@@ -111,6 +111,23 @@ különböző szigorúsággal, hibaüzenet nélkül. A szkript szándékosan nem
 be az értékeket — akkor ugyanaz a csúszás történne, csak eggyel odébb. A Kotlin
 mag és a bitszintű DNS-motor JVM-en unit-tesztelt.
 
+A számok mellett a **dróton menő MEZŐNEVEK** is őrizve vannak
+(`scripts/check-wire-names.js`): a szinkron JSON-t cserél, és egy átnevezés az
+egyik nyelvben nem fordítási hiba a másikban — ott hiányzó mező lesz belőle,
+amire a feldolgozó alapértéket tesz. Négy blob, harmincegy mező: a blokklista,
+a munkamenet a naplójával, a mai mérés összegzése és a menetrend.
+
+Ez főleg az iPhone miatt kell. A TypeScriptet a fordító védi (a mezőnevek ott
+típusok), a Kotlint drót-teszt fedi — Swiftben viszont nincs teszt, és a
+`Codable` a TULAJDONSÁGNEVEKBŐL képzi a kulcsokat, tehát egy átnevezés némán
+megváltoztatja a drót-alakot.
+
+**Harmadik réteg: a huzalozás** (`scripts/check-enforcement.js`). Az egyező
+számok és a stimmelő mezőnevek sem érnek semmit, ha a döntést nem kérdezi meg
+senki. Ez a projekt visszatérő hibafajtája: a mag megvan, teszt is van rá, csak
+épp nincs meghívva — és egy nem hívott függvény tökéletesen érvényes kód.
+Harminchét pont, a hosts fájlba írástól a próbatételek sorsolásáig.
+
 ## Biztonsági modell és őszinte korlátok
 
 A Breaker **önkontroll-eszköz elszánt, de önmagával együttműködő felhasználónak**,
