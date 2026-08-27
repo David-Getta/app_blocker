@@ -118,6 +118,11 @@ jobs:
           bővítmény csendben a régi szabálylistával működött tovább: az appban
           felvett új tiltás sosem ért át, a levett sosem szűnt meg.
 
+          Ehhez tartozik, hogy az app **egy lekérdezésből válaszol** a
+          bővítménynek, nem kettőből. Eddig a szabályokat és a futó
+          munkamenetet külön, egymás után kérdezte meg — a rossz esetben ez a
+          dupla idejébe telt, és a bővítmény közben továbblépett volna.
+
           ### Ami a v0.4.6-ban jött
 
           **A telefonod is szól, ha a munkamenet szinkronja elhasal.** A gépen
