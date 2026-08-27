@@ -100,6 +100,19 @@ const WIRES = [
     needle: 'Utoljára mért idő',
     lost: 'az utolsó mérés ideje nem jutna képernyőre',
   },
+  // MIKOR MÉRTÜNK UTOLJÁRA — a TELEFONON is. A nulla ott ugyanolyan néma, mint
+  // a gépen: nem derül ki belőle, hogy tényleg nem használtad a készüléket,
+  // vagy hogy a mérés hasalt el.
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/usage/UsageTracker.kt',
+    needle: 'usageLastSampleAt = latest',
+    lost: 'a telefon nem jegyezné fel, mikor mért utoljára',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/StatsScreen.kt',
+    needle: 'lastSampleLine(lastSampleAt)',
+    lost: 'a telefonon az utolsó mérés ideje nem jutna képernyőre',
+  },
   // A SZONDA HATÁRIDEJE. A `probing` jelző csak a kör BEFEJEZÉSEKOR törlődik,
   // tehát egyetlen beragadt lekérdezés a folyamat hátralévő életére megállítja
   // a mérést — és a szonda-egészség sem szólal meg, mert az hibát számol, nem

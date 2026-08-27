@@ -571,6 +571,7 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                 blockedDomains = state.sites.map { it.domain }.toSet(),
                 labelOf = siteLabel,
                 hasUsageAccess = UsageTracker.hasUsageAccess(context),
+                lastSampleAt = state.usageLastSampleAt,
                 onGrantAccess = { context.startActivity(UsageTracker.usageAccessIntent()) },
                 onToggleEnabled = {
                     // Napi keret mellett a mérés nem kapcsolható ki: abból fogy

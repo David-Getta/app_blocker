@@ -96,6 +96,16 @@ data class AppState(
     /** active-time tracking history (never leaves the device) */
     val usage: UsageLogic.UsageState = UsageLogic.UsageState(),
     /**
+     * Mikor rögzítettünk UTOLJÁRA mért időt.
+     *
+     * A statisztikán a nulla önmagában NÉMA: nem lehet megmondani belőle, hogy
+     * tényleg nem használtad a telefont, vagy hogy a mérés hasalt el. Ez a
+     * mező teszi különbséggé a kettőt. Helyi diagnosztika, nem adat — a
+     * szinkronizált mérés-blobban szándékosan nincs benne, mert a MÁSIK
+     * eszközödnek semmit nem mondana arról, hogy itt mikor mértünk.
+     */
+    val usageLastSampleAt: Long? = null,
+    /**
      * Rejtve induljon-e a blokkolt oldalak listája.
      *
      * Beállítás, nem pillanatnyi állapot: a felület minden indításkor rejtve
@@ -377,6 +387,7 @@ object BreakerStore {
         }))
         put("unlockLog", JSONArray(s.unlockLog))
         put("usage", usageToJson(s.usage))
+        put("usageLastSampleAt", s.usageLastSampleAt ?: JSONObject.NULL)
         // A közös napi keret adatai. Kis blob, de blokkolási döntés függ tőle,
         // ezért újraindulás után is meg kell maradnia.
         put("sharedToday", s.sharedToday?.let { sh ->
@@ -578,6 +589,8 @@ object BreakerStore {
             protectionOn = o.optBoolean("protectionOn", false),
             usage = if (o.isNull("usage")) UsageLogic.UsageState()
                     else usageFromJson(o.getJSONObject("usage")),
+            usageLastSampleAt =
+                if (o.isNull("usageLastSampleAt")) null else o.optLong("usageLastSampleAt"),
             sites = sites,
             unlockLog = unlockLog,
             lastCombo = if (o.isNull("lastCombo")) null else o.optString("lastCombo"),

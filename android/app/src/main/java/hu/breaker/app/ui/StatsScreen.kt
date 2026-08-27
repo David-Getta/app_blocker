@@ -56,6 +56,14 @@ fun StatsSection(
      */
     labelOf: (String) -> String = { it },
     hasUsageAccess: Boolean,
+    /**
+     * Mikor rögzítettünk utoljára mért időt, vagy `null`, ha még soha.
+     *
+     * A nulla önmagában néma: nem lehet megmondani belőle, hogy tényleg nem
+     * használtad a telefont, vagy hogy a mérés hasalt el. Ez a sor teszi a
+     * kettőt megkülönböztethetővé, anélkül hogy naplót kellene nézni hozzá.
+     */
+    lastSampleAt: Long?,
     onGrantAccess: () -> Unit,
     onToggleEnabled: () -> Unit,
     onClear: () -> Unit,
@@ -117,6 +125,7 @@ fun StatsSection(
             StatTile("ma", summary.todaySeconds, Modifier.weight(1f))
             StatTile("tegnap", summary.yesterdaySeconds, Modifier.weight(1f))
         }
+        Text(lastSampleLine(lastSampleAt), style = MaterialTheme.typography.bodySmall)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
             StatTile("utolsó 7 nap", summary.last7Seconds, Modifier.weight(1f))
             StatTile("utolsó 30 nap", summary.last30Seconds, Modifier.weight(1f))
@@ -318,5 +327,25 @@ private fun WeekDeltaRow(row: UsageLogic.WeekDelta, labelOf: (String) -> String)
                 color = color, style = MaterialTheme.typography.bodySmall,
             )
         }
+    }
+}
+
+/**
+ * „Mikor mértünk utoljára?”
+ *
+ * A DÁTUM is kiírandó, ha nem ma volt: egy csupasz óraérték mellé a szem
+ * automatikusan a mai napot képzeli — és pont az a kérdés, hogy ma volt-e
+ * egyáltalán.
+ */
+private fun lastSampleLine(at: Long?): String {
+    if (at == null) return "Még egyetlen mért időt sem rögzítettünk ezen a készüléken."
+    val cal = java.util.Calendar.getInstance()
+    val today = UsageLogic.dayKey(cal.timeInMillis)
+    val clock = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale("hu")).format(java.util.Date(at))
+    return if (UsageLogic.dayKey(at) == today) {
+        "Utoljára mért idő: ma $clock."
+    } else {
+        val day = UsageLogic.dayKey(at)
+        "Utoljára mért idő: $day $clock — azóta a mérés nem rögzített semmit."
     }
 }

@@ -94,6 +94,23 @@ class StoreParseTest {
         assertEquals(1, state.usage.days.size, "only the unreadable day is lost")
         assertEquals(42.0, state.usage.days[0].seconds["app:slack"])
     }
+    @Test fun `az utolso meres ideje tulel egy mentest`() {
+        // Ez a mező teszi a statisztikán a nullát olvashatóvá. Egy mai nullás
+        // érték önmagában nem árulja el, hogy tényleg nem használtad a
+        // telefont, vagy hogy a mérés hasalt el. Ha nem élné túl az
+        // újraindítást, minden indítás után azt állítaná, hogy még soha nem
+        // mértünk — vagyis pont a rosszabbik felét mondaná.
+        val saved = toJson.invoke(BreakerStore, AppState(usageLastSampleAt = 1_700_000_000_000)) as JSONObject
+        assertEquals(1_700_000_000_000, parse(saved.toString()).usageLastSampleAt)
+
+        // A RÉGI mentésben nincs ilyen mező, és attól nem hasalhat el a
+        // betöltés: a telefon különben üres állapotra esne vissza, és a
+        // felhasználó azt látná, hogy a blokklistája eltűnt.
+        val state = parse("""{"sites":[${site("youtube")}]}""")
+        assertEquals(1, state.sites.size)
+        assertNull(state.usageLastSampleAt)
+    }
+
     @Test fun `the abandon record survives a save and load`() {
         // It is what stops a cancelled attempt from being a free re-roll, so it
         // has to outlive an app restart — otherwise closing the app would be the

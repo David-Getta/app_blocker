@@ -255,11 +255,16 @@ object UsageTracker {
             // object would mutate the value StateFlow already holds, the "new"
             // value would compare equal to it, and nothing would ever be emitted.
             val next = UsageLogic.snapshot(s.usage)
+            var latest = s.usageLastSampleAt ?: 0L
             for ((bucket, d) in batch) {
                 val at = bucketTime(bucket, now)
                 UsageLogic.recordSample(next, d.key, d.seconds, at, d.label)
+                // A LEGKÉSŐBBI rögzített minta ideje. Nem a `now`: egy köteg
+                // korábbi napból való szeletet is hozhat, és a kérdés az, hogy
+                // mikor MÉRTÜNK, nem az, hogy mikor íródott ki.
+                if (at > latest) latest = at
             }
-            s.copy(usage = next)
+            s.copy(usage = next, usageLastSampleAt = latest)
         }
     }
 
