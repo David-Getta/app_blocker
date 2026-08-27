@@ -36,6 +36,13 @@ attól, hogy sokszor csinálod.
   a mérés a saját fiókkiszolgálódra is felkerül, végponttól végpontig titkosítva
   (ebből lesz a közös napi keret). Telemetria sehol nincs. Bármikor
   kikapcsolható és törölhető.
+
+  A statisztikán a **nulla nem néma**: az app kiírja, mikor rögzített utoljára
+  mért időt. Abból, hogy „ma 0 mp”, önmagában nem derülne ki, hogy tényleg nem
+  használtad a gépet, vagy hogy a mérés hasalt el valahol — és a kettőnek más a
+  teendője. Ugyanígy szól akkor is, ha a szonda nem kap adatot (macOS-en
+  jellemzően engedély kell hozzá; frissítés után a rendszer vissza is veheti),
+  és akkor is, ha a mért idő eljut a segédig, de ott nem sikerül eltárolni.
 - **Fedőnév a blokkolt oldalakhoz** (mindhárom platform): a lista maga is
   ingerforrás — aki megnyitja az appot, és ott áll előtte a `youtube.com`, az már
   fél lépéssel közelebb van. Minden oldalnak adható saját név, és onnantól a
