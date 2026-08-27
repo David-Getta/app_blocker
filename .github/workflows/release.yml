@@ -44,6 +44,43 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
+          Ez a kiadás egy valódi képernyőből született: a statisztikán nulla
+          állt a mai napra, miközben a gép használatban volt — és semmi nem
+          mondta meg, miért. Három hiba volt mögötte, mind a három olyan, ami
+          nem hasal el, csak elhallgat.
+
+          **A mért idő elveszhetett a segédnél, szó nélkül.** A segéd minden
+          mintát ellenőriz, és amit nem fogad el, azt eldobja — a kérés attól
+          még sikeres, a válaszban pedig ott van, hogy hányat rögzített
+          ténylegesen. Ezt a számot viszont senki nem olvasta el. Egy csupa
+          eldobott köteg sikeres kézbesítésnek látszott, a puffer kiürült, és a
+          mért idő végleg elveszett. A statisztika örökre nulla maradt volna, a
+          napi keret pedig sosem fogyott volna el — vagyis az app védelmet
+          mutatott volna ott, ahol nincs. Most kiírja, ha ez történik.
+
+          **A statisztikán a nulla mostantól olvasható.** Eddig nem lehetett
+          megmondani belőle, hogy tényleg nem használtad a gépet, vagy hogy a
+          mérés hasalt el. Az app ezért kiírja, mikor rögzített utoljára mért
+          időt: „ma 12:41”, vagy dátummal, ha nem ma volt. Ha fél órája még
+          mértünk, a nulla igaz. Ha tegnapi dátum áll ott, az önmagában a
+          válasz.
+
+          **A szinkron állapotsora nem hazudik többé.** Egyetlen időpont állt
+          ott, és az csak akkor lépett, ha a kör végigfutott — így egy hiba
+          mellett úgy nézett ki, mintha az app órákkal korábban feladta volna,
+          pedig tíz percenként újrapróbálja. Mostantól a sikeres szinkron és az
+          utolsó próbálkozás külön áll. Ha a próbálkozás ideje is régi, akkor
+          tényleg megállt a kör — és most már az is látszik.
+
+          **És egy hiba, ami eddig végleg megbéníthatta a szinkront.** A
+          hálózati időkorlát csak a válasz fejlécéig ért. Egy kiszolgáló, ami
+          válaszolni kezd, majd nem fejezi be, örökre megállított egy kört — és
+          onnantól minden későbbi kör azonnal visszafordult volna, mert az
+          ütemező futás-jelzője sosem törlődött. A szinkron az app hátralévő
+          életére halott lett volna, hibaüzenet nélkül, befagyott időbélyeggel.
+
+          ### Ami a v0.4.6-ban jött
+
           **A telefonod is szól, ha a munkamenet szinkronja elhasal.** A gépen
           ezt már megmondtuk, a két telefonon viszont a hiba teljesen
           elnyelődött. Ha a fiókkiszolgálód régebbi verzió és nem ismeri a
@@ -61,7 +98,7 @@ jobs:
             semmi köze hozzájuk. Azt is kimondja most, ami ilyenkor igaz: a
             menet ettől még FUT, csak a többi eszközre nem ér át.
 
-          ### Ami a v0.4.5-ben jött
+          #### Ami a v0.4.5-ben jött
 
           Javító kiadás a v0.4.4 fölé.
 
@@ -95,7 +132,7 @@ jobs:
             fiókkiszolgálódra, végponttól végpontig titkosítva.** A
             kiszolgáló nem látja, mit mértél, és telemetria sehol nincs.
 
-          #### Ami a v0.4.4-ben jött
+          ##### Ami a v0.4.4-ben jött
 
           **A munkamenet-statisztika mostantól minden eszközödről szól.** A
           menetet a v0.4.3 óta a telefonodon is el lehet indítani és le lehet
