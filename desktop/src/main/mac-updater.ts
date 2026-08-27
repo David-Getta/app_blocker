@@ -28,6 +28,9 @@ import {
   type ReleaseAsset,
 } from '../shared/update-manifest';
 import { relaunchScript } from '../shared/mac-relaunch';
+import { cachedPackageUsable, cleanupStaleUpdates, updateCachePath } from '../shared/update-cache';
+
+export { cleanupStaleUpdates };
 
 const OWNER = 'David-Getta';
 const REPO = 'app_blocker';
@@ -140,17 +143,29 @@ export async function checkMacUpdate(currentVersion = app.getVersion()): Promise
 export async function downloadUpdate(
   update: MacUpdate, onProgress: (percent: number) => void,
 ): Promise<string> {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'breaker-update-'));
+  const dest = updateCachePath(update.version, update.assetName);
+  const dir = path.dirname(dest);
+
+  // MÁR MEGVAN? Ez az, ami az újraindítást túléli: a hívó memóriája elveszett,
+  // a fájl viszont ott van, és igazolható. Enélkül minden indítás után újra
+  // menne a ~90 MB.
+  if (cachedPackageUsable(dest, update)) {
+    onProgress(100);
+    return dest;
+  }
+
+  fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
   try {
     return await downloadInto(dir, update, onProgress);
   } catch (e) {
-    // Bármi hasal el, a félkész ~90 MB ne maradjon a temp mappában. A hívó
-    // csak a hibát látja; a takarítás itt a legbiztosabb, mert csak itt tudjuk,
+    // Bármi hasal el, a félkész ~90 MB ne maradjon a lemezen. A hívó csak a
+    // hibát látja; a takarítás itt a legbiztosabb, mert csak itt tudjuk,
     // melyik mappa a miénk.
     fs.rmSync(dir, { recursive: true, force: true });
     throw e;
   }
 }
+
 
 async function downloadInto(
   dir: string, update: MacUpdate, onProgress: (percent: number) => void,

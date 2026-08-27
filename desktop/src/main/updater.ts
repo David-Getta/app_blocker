@@ -19,7 +19,8 @@ import { app, BrowserWindow, ipcMain, shell } from 'electron';
 import * as fs from 'fs';
 import * as path from 'path';
 import {
-  appBundlePath, applyUpdate, checkMacUpdate, downloadUpdate, hasDeveloperIdSignature,
+  appBundlePath, applyUpdate, checkMacUpdate, cleanupStaleUpdates, downloadUpdate,
+  hasDeveloperIdSignature,
   type MacUpdate,
 } from './mac-updater';
 
@@ -118,6 +119,9 @@ function macFallbackEngine(bundle: string): Engine {
         const update = await checkMacUpdate();
         if (!update) {
           discardDownload();
+          // Nincs mit telepíteni, tehát nincs mit ŐRIZNI sem: egy korábbi
+          // futásból ottmaradt csomag ilyenkor tiszta szemét.
+          cleanupStaleUpdates();
           pending = null;
           set({ status: 'idle', version: undefined, percent: undefined });
           return;
@@ -132,6 +136,10 @@ function macFallbackEngine(bundle: string): Engine {
         }
         // Új verzió jött a korábban letöltött helyett: a régi csomag felesleges.
         discardDownload();
+        // ÉS a korábbi FUTÁSOKBÓL ottmaradtak is. A memóriában tartott út az
+        // app leállásakor elveszett, tehát azokat a `discardDownload` sosem
+        // érte el — csendben gyűltek, fejenként ~90 MB.
+        cleanupStaleUpdates(update.version);
         pending = update;
         set({ status: 'downloading', version: update.version, percent: 0 });
         downloadedZip = await downloadUpdate(update, (percent) => set({ status: 'downloading', percent }));
