@@ -29,6 +29,31 @@ export const TOKEN_HEADER = 'x-breaker-token';
  */
 export const REFRESH_MS = 20 * 1000;
 
+/**
+ * Ennyit várunk EGY portra, mielőtt továbblépünk.
+ *
+ * A kérés a saját géped 127.0.0.1 címére megy, tehát a válasz ezredmásodperces
+ * nagyságrendű — három másodperc bőven elég. Időkorlát NÉLKÜL viszont egy port,
+ * amin valami MÁS ül és fogadja a kapcsolatot, de sosem válaszol, örökre
+ * megállítaná a lekérdezést: a `fetch`-nek a böngészőben nincs alapértelmezett
+ * határideje. A bővítmény ilyenkor csendben a RÉGI szabálylistával működne
+ * tovább, és semmi nem szólna róla — az appban felvett új tiltás sosem érne át.
+ */
+export const PORT_TIMEOUT_MS = 3000;
+
+/**
+ * `promise`, de legfeljebb `ms`-ig.
+ *
+ * A megszakítást a hívó a `signal`-lal is elküldi; ez a verseny amiatt kell,
+ * hogy a határidő akkor is működjön, ha a `fetch` valamiért nem reagál rá.
+ */
+function withTimeout(promise, ms) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => { setTimeout(() => reject(new Error('időtúllépés')), ms); }),
+  ]);
+}
+
 /** @returns {Promise<{token: string|null, port: number|null, rules: {host:string,path:string}[], fetchedAt: number, error: string|null}>} */
 export async function loadLink() {
   const got = await chrome.storage.local.get(KEY);
@@ -89,7 +114,7 @@ export async function forgetToken() {
  *
  * @returns {Promise<{ok: boolean, rules?: {host:string,path:string}[], error?: string}>}
  */
-export async function pullFromApp(now = Date.now(), fetchImpl = fetch) {
+export async function pullFromApp(now = Date.now(), fetchImpl = fetch, timeoutMs = PORT_TIMEOUT_MS) {
   const link = await loadLink();
   if (!link.token) return { ok: false, error: 'Nincs beállítva kód.' };
 
@@ -100,13 +125,23 @@ export async function pullFromApp(now = Date.now(), fetchImpl = fetch) {
   let lastError = 'Az app nem érhető el ezen a gépen.';
   for (const port of ports) {
     let res;
+    // A megszakítás a VALÓDI kérést is leállítja, nem csak a várakozást: egy
+    // félbehagyott, de tovább élő kapcsolat portonként gyűlne.
+    const ctrl = typeof AbortController === 'function' ? new AbortController() : null;
     try {
-      res = await fetchImpl(`http://127.0.0.1:${port}/rules`, {
+      res = await withTimeout(fetchImpl(`http://127.0.0.1:${port}/rules`, {
         headers: { [TOKEN_HEADER]: link.token },
         cache: 'no-store',
-      });
+        ...(ctrl ? { signal: ctrl.signal } : {}),
+      }), timeoutMs);
     } catch {
-      continue; // ezen a porton nincs semmi
+      if (ctrl) ctrl.abort();
+      // A `lastError` SZÁNDÉKOSAN marad, ami volt: ha egy korábbi port már
+      // adott értelmes választ (például „a kód nem jó”), azt nem szabad
+      // felülírni egy „itt nincs semmi”-vel. Az első próbám pont ezen bukott
+      // el — a rossz kódra hálózati hibát írt volna ki, és a felhasználó a
+      // portot kereste volna.
+      continue; // ezen a porton nincs semmi, vagy nem válaszol
     }
     if (res.status === 401) {
       // Válaszolt VALAKI, csak nem ismeri a kódot. Ez nem hálózati hiba, hanem
@@ -118,8 +153,12 @@ export async function pullFromApp(now = Date.now(), fetchImpl = fetch) {
     if (!res.ok) { lastError = `Az app hibát adott (${res.status}).`; continue; }
     let body;
     try {
-      body = await res.json();
+      // A TÖRZS beolvasására is kiterjed a határidő. Egy kiszolgáló, ami
+      // fejlécet küld, majd a törzset nem fejezi be, különben ugyanúgy
+      // megállítana mindent — csak eggyel később.
+      body = await withTimeout(res.json(), timeoutMs);
     } catch {
+      if (ctrl) ctrl.abort();
       lastError = 'Az app válasza értelmezhetetlen.';
       continue;
     }

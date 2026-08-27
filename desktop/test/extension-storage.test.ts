@@ -190,7 +190,7 @@ interface LinkApi {
     rules: { host: string; path: string }[]; fetchedAt: number; error: string | null }>;
   setToken: (t: string) => Promise<string | null>;
   forgetToken: () => Promise<void>;
-  pullFromApp: (now?: number, fetchImpl?: unknown) => Promise<{ ok: boolean;
+  pullFromApp: (now?: number, fetchImpl?: unknown, timeoutMs?: number) => Promise<{ ok: boolean;
     rules?: { host: string; path: string }[]; error?: string }>;
   dueForRefresh: (link: { token: string | null; fetchedAt: number }, now: number) => boolean;
   withAppRules: (
@@ -247,6 +247,50 @@ test('the app rules arrive, even when the app moved to another port', async () =
   assert.deepEqual(r.rules, [{ host: 'youtube.com', path: '/@valaki' }]);
   // A megtalált portot megjegyezzük: tíz kérés helyett egy.
   assert.equal((await ext.loadLink()).port, 8790);
+});
+
+test('egy néma port nem állítja meg a keresést', async () => {
+  // EZ A LÉNYEG. A `fetch`-nek a böngészőben nincs alapértelmezett határideje.
+  // Ha a 8788-on valami MÁS ül, fogadja a kapcsolatot, de sosem válaszol, a
+  // lekérdezés időkorlát nélkül örökre ott állna — a bővítmény csendben a régi
+  // szabálylistával működne tovább, és az appban felvett új tiltás sosem érne
+  // át. Semmi nem szólna róla.
+  const ext = freshLink();
+  await ext.setToken('ABCD-EFGH');
+  const app = fakeApp(8790, 'ABCD-EFGH', [{ host: 'youtube.com', path: '/@valaki' }]);
+  const nema = (url: string, init: unknown) => (
+    url.includes(':8788/')
+      ? new Promise(() => { /* soha nem válaszol */ })
+      : (app as (u: string, i: unknown) => Promise<unknown>)(url, init)
+  );
+  // VERSENY, nem puszta `await`: határidő nélkül a hívás örökre várna, és a
+  // futtató csendben kevesebb tesztet jelentene — hiba nélkül. Egy eltűnt
+  // teszt rosszabb egy pirosnál, mert a szám ránézésre ugyanolyan zöld.
+  const r = await Promise.race([
+    ext.pullFromApp(1000, nema, 30),
+    new Promise<{ ok: boolean }>((res) => { setTimeout(() => res({ ok: false }), 500); }),
+  ]) as { ok: boolean; rules?: { host: string; path: string }[] };
+  assert.equal(r.ok, true, 'a néma portot átugorja, és megtalálja az appot');
+  assert.deepEqual(r.rules, [{ host: 'youtube.com', path: '/@valaki' }]);
+});
+
+test('a néma TÖRZS sem állítja meg a keresést', async () => {
+  // A fejléc megjön, a törzs nem fejeződik be. Határidő nélkül ez ugyanaz a
+  // megállás, csak eggyel később — a `res.json()` várna örökre.
+  const ext = freshLink();
+  await ext.setToken('ABCD-EFGH');
+  const app = fakeApp(8790, 'ABCD-EFGH', [{ host: 'youtube.com', path: '/@valaki' }]);
+  const csonka = (url: string, init: unknown) => (
+    url.includes(':8788/')
+      ? Promise.resolve({ status: 200, ok: true, json: () => new Promise(() => {}) })
+      : (app as (u: string, i: unknown) => Promise<unknown>)(url, init)
+  );
+  const r = await Promise.race([
+    ext.pullFromApp(1000, csonka, 30),
+    new Promise<{ ok: boolean }>((res) => { setTimeout(() => res({ ok: false }), 500); }),
+  ]) as { ok: boolean; rules?: { host: string; path: string }[] };
+  assert.equal(r.ok, true, 'a néma törzset átugorja, és megtalálja az appot');
+  assert.deepEqual(r.rules, [{ host: 'youtube.com', path: '/@valaki' }]);
 });
 
 test('a wrong code says so, instead of looking like a network problem', async () => {
