@@ -111,6 +111,13 @@ jobs:
           lezárást: a menet visszatért. Mostantól a menet HOSSZA számít, nem az
           abszolút időpontjai — egy eltolástól az nem változik.
 
+          **A böngésző-bővítmény szabályai sem fagyhatnak be.** A bővítmény húsz
+          másodpercenként megkeresi az appot a saját gépeden, tíz porton
+          végigpásztázva. Ha az egyiken valami más ült, ami fogadta a
+          kapcsolatot, de sosem válaszolt, a keresés ott megállt — és a
+          bővítmény csendben a régi szabálylistával működött tovább: az appban
+          felvett új tiltás sosem ért át, a levett sosem szűnt meg.
+
           ### Ami a v0.4.6-ban jött
 
           **A telefonod is szól, ha a munkamenet szinkronja elhasal.** A gépen
