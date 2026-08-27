@@ -33,6 +33,20 @@ import { makeTodayDigest, normalizeTodayDigest, type TodayDigest } from '../shar
 /** Ennél tovább egy szinkron-kör nem tarthat; a segéd nem állhat meg miatta. */
 export const SYNC_TIMEOUT_MS = 15_000;
 
+/**
+ * A válasz TÖRZSÉNEK saját ideje.
+ *
+ * Külön keret, és nem finomkodás: a blob egy megabájt is lehet, ami egy rossz
+ * mobilneten simán több mint tizenöt másodperc. Ha a fejléccel OSZTOZNA az
+ * időn, egy lassú kapcsolaton minden kör elhasalna — pedig korábban átment,
+ * mert a törzsnek egyáltalán nem volt határideje. Az egyik hiba helyett a
+ * másikba estünk volna.
+ *
+ * A lényeg nem a pontos szám, hanem hogy VAN határidő: egy kiszolgáló, ami
+ * elkezd válaszolni és nem fejezi be, ne állíthassa meg örökre a kört.
+ */
+export const SYNC_BODY_TIMEOUT_MS = 60_000;
+
 /** Hányszor próbáljuk újra, ha közben más eszköz írt. */
 const MAX_CONFLICT_RETRIES = 3;
 
@@ -42,10 +56,25 @@ export class SyncError extends Error {
 
 // ------------------------------------------------------------------ HTTP
 
-async function call(serverUrl: string, path: string, body: unknown): Promise<any> {
+/** A belső hívók rövid neve; a paraméteres alak a `postJson`. */
+const call = (serverUrl: string, path: string, body: unknown): Promise<any> =>
+  postJson(serverUrl, path, body);
+
+/**
+ * Egy JSON-kérés a fiókkiszolgálóra.
+ *
+ * A két időkeret PARAMÉTER, mert enélkül a „a törzs saját keretet kap”
+ * tulajdonságot nem lehetne ellenőrizni: valós tizenöt másodperces határidővel
+ * a teszt nem tudná megkülönböztetni a megosztott és a külön keretet, és
+ * csendben mindent átengedne. Alapértelmezésben a valódi számok mennek.
+ */
+export async function postJson(
+  serverUrl: string, path: string, body: unknown,
+  headMs = SYNC_TIMEOUT_MS, bodyMs = SYNC_BODY_TIMEOUT_MS,
+): Promise<any> {
   const url = new URL(path, serverUrl).toString();
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), SYNC_TIMEOUT_MS);
+  let timer = setTimeout(() => ctrl.abort(), headMs);
   // Az időkorlát a TÖRZS beolvasására is kiterjed, nem csak a fejlécre.
   //
   // Ez nem elmélet. A `clearTimeout` korábban közvetlenül a `fetch` után állt,
@@ -68,7 +97,11 @@ async function call(serverUrl: string, path: string, body: unknown): Promise<any
     } catch (e) {
       throw new SyncError(`A kiszolgáló nem érhető el: ${(e as Error).message}`, 'OFFLINE');
     }
-    return await readJson(res, ctrl);
+    // A fejléc megvan: innentől a TÖRZS kap saját keretet. A fejlécre elment
+    // idő ne vegye el egy nagy blob letöltésének idejét.
+    clearTimeout(timer);
+    timer = setTimeout(() => ctrl.abort(), bodyMs);
+    return await readJson(res, ctrl, bodyMs);
   } finally {
     clearTimeout(timer);
   }
@@ -81,7 +114,9 @@ async function call(serverUrl: string, path: string, body: unknown): Promise<any
  * kiszolgálót indítani, ami fejlécet küld, majd tizenöt másodpercig hallgat,
  * anélkül hogy a tesztkészlet is tizenöt másodperccel lassulna.
  */
-export async function readJson(res: Response, ctrl: AbortController): Promise<any> {
+export async function readJson(
+  res: Response, ctrl: AbortController, bodyMs = SYNC_BODY_TIMEOUT_MS,
+): Promise<any> {
   let json: any;
   try {
     json = await res.json();
@@ -90,8 +125,8 @@ export async function readJson(res: Response, ctrl: AbortController): Promise<an
     // cím jó volt, a kiszolgáló válaszolt is — csak nem fejezte be.
     if (ctrl.signal.aborted) {
       throw new SyncError(
-        `A kiszolgáló elkezdett válaszolni, de ${SYNC_TIMEOUT_MS / 1000} másodperc alatt `
-        + 'nem fejezte be. Lehet, hogy túlterhelt.',
+        `A kiszolgáló elkezdett válaszolni, de ${bodyMs / 1000} másodperc `
+        + 'alatt nem fejezte be. Lehet, hogy túlterhelt, vagy nagyon lassú a kapcsolat.',
         'OFFLINE',
       );
     }
