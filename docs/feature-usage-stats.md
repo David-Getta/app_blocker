@@ -190,6 +190,35 @@ szonda kilépése nem hiba: utána azonnal újraindulhat.
   próbálkozásokat, az ismételt hiba növekvő várakozást kap, egy egészségesen
   futott szonda kilépése pedig nem számít hibának.
 
+### A mérés két csendes elhasalása
+
+A statisztikában a nulla nem mond semmit magától: lehet, hogy tényleg nem
+használtad a gépet, és lehet, hogy a mérés hasalt el. Két külön helyen tud
+elhasalni, és a felhasználó **mindkettőből ugyanazt a nullát látja** — a
+teendő viszont más, ezért két külön jelzés van rá.
+
+1. **A szonda nem lát semmit.** macOS-en engedély kell hozzá; ha nincs meg,
+   az `osascript` hibázik, és minta se készül. Három üres lekérdezés után az
+   app kiírja, hol lehet megadni az engedélyt (`ProbeHealth`).
+2. **A szonda lát, de a mért idő nem jut el a tárolóig.** A segéd minden
+   mintát ellenőriz — kulcs alakja, hossz, időbélyeg a mai naptól legfeljebb
+   egy hétre —, és amit nem fogad el, azt szó nélkül eldobja. A válasz ettől
+   még sikeres, benne a ténylegesen rögzítettek számával.
+
+A második sokáig **teljesen néma volt**: a küldés csak azt nézte, megérkezett-e
+a kérés, a `recorded` mezőt senki nem olvasta el. Egy csupa eldobott köteg így
+sikeres kézbesítésnek látszott, a puffer kiürült, és a mért idő VÉGLEG
+elveszett. Következmény: a statisztika örökre nulla, a napi keret pedig sosem
+fogy el — vagyis a felület védelmet mutat ott, ahol nincs. Pontosan az, ami
+ellen az első figyelmeztetés készült, csak egy réteggel lejjebb, ahol az nem
+lát. A `DeliveryHealth` ezt fogja meg: három egymást követő olyan küldés után
+szól, amit átvettek, de egyetlen sort sem rögzítettek belőle.
+
+A **kettőt szét kell tartani**. A segéd elérhetetlensége nem adatvesztés: a
+puffer megtartja a mintákat, és a következő kör újrapróbálja. Ha azt is
+veszteségnek vennénk, a mérés minden zökkenőre riasztana — és a riasztás, ami
+gyakran téved, pont annyit ér, mint a csend.
+
 ## Munkamenetek a statisztikán
 
 Az app azt méri, **mire** megy el az idő. A munkamenet a másik oldal: hányszor

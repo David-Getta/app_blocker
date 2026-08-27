@@ -97,7 +97,7 @@ function fakeBridgeSource() {
         defaultMinutes: 90 },
     ];
     window.__fakeRun = null;
-    window.__fakeTracker = { blocked: false, neverWorked: false, platform: 'darwin' };
+    window.__fakeTracker = { blocked: false, neverWorked: false, samplesDropped: false, platform: 'darwin' };
     window.__fakeUpdate = { status: 'idle' };
     window.__fakeHelperVersion = ${JSON.stringify(helperVersion())};
     // A „lista elrejtése” beállítást a HÁTTÉRSZOLGÁLTATÁS tárolja, nem az ablak.
@@ -616,7 +616,7 @@ async function main() {
     failures.push('the measurement warning shows even though the probe is fine');
   }
   await page.evaluate(() => {
-    window.__fakeTracker = { blocked: true, neverWorked: true, platform: 'darwin' };
+    window.__fakeTracker = { blocked: true, neverWorked: true, samplesDropped: false, platform: 'darwin' };
   });
   await page.waitForSelector('#usageBlocked:not(.hidden)', { timeout: 15_000 });
   const blockedText = (await page.locator('#usageBlocked').textContent()) || '';
@@ -626,7 +626,38 @@ async function main() {
     }
   }
   await page.evaluate(() => {
-    window.__fakeTracker = { blocked: false, neverWorked: false, platform: 'darwin' };
+    window.__fakeTracker = { blocked: false, neverWorked: false, samplesDropped: false, platform: 'darwin' };
+  });
+  await page.waitForSelector('#usageBlocked', { state: 'hidden', timeout: 15_000 });
+
+  // A MÁSIK csendes elhasalás: a szonda lát, a mért idő mégis elveszik.
+  //
+  // A segéd minden mintát ellenőriz, és amit nem fogad el, azt szó nélkül
+  // eldobja — a kérés attól még sikeres. Ilyenkor a szonda-figyelmeztetés
+  // hallgat (jogosan, hiszen a szonda dolgozik), a statisztika viszont
+  // nullát mutat, és a napi keret sem fogy. A felhasználó ugyanazt a nullát
+  // látja, mint az engedélyhiánynál, de a teendő MÁS — az engedélyre
+  // hivatkozó mondat itt rossz helyre küldené.
+  await page.evaluate(() => {
+    window.__fakeTracker = {
+      blocked: false, neverWorked: false, samplesDropped: true, platform: 'darwin',
+    };
+  });
+  await page.waitForSelector('#usageBlocked:not(.hidden)', { timeout: 15_000 })
+    .catch(() => failures.push('az eldobott mérési minták nem látszanak sehol'));
+  const droppedText = (await page.locator('#usageBlocked').textContent()) || '';
+  if (droppedText.includes('Automatizálás')) {
+    failures.push(`a kézbesítési hibára az engedély-mondat jön: ${droppedText}`);
+  }
+  for (const needle of ['eltárolni', 'napi időkeret', 'helper.log']) {
+    if (!droppedText.includes(needle)) {
+      failures.push(`a kézbesítési figyelmeztetésből hiányzik: ${needle}`);
+    }
+  }
+  await page.evaluate(() => {
+    window.__fakeTracker = {
+      blocked: false, neverWorked: false, samplesDropped: false, platform: 'darwin',
+    };
   });
   await page.waitForSelector('#usageBlocked', { state: 'hidden', timeout: 15_000 });
 

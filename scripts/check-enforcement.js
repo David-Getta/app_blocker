@@ -76,6 +76,26 @@ const WIRES = [
     needle: 'summarizeFocus',
     lost: 'a munkamenet-statisztika üresen állna, mert senki nem számolná ki',
   },
+  // A MÉRÉS KÉZBESÍTÉSE. A segéd minden mintát ellenőriz, és amit nem fogad
+  // el, azt szó nélkül eldobja — a kérés attól még sikeres. Ha ezt a két
+  // pontot bárki kiveszi, a mért idő megint némán elvész: a szonda dolgozik,
+  // a felület nullát mutat, és a napi keret sosem fogy el.
+  {
+    file: 'desktop/src/main/tracker.ts',
+    needle: 'delivery.record',
+    lost: 'a mérés nem venné észre, ha a segéd sorozatban egyetlen mintát sem '
+      + 'rögzít — a mért idő némán elveszne, figyelmeztetés nélkül',
+  },
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    // A tű a MONDAT, nem a mezőnév: a `samplesDropped` a típusdeklarációkban
+    // is szerepel, tehát a megjelenítés törlése után is „megvolt” — az első
+    // próbám pont ezen csúszott át. A szöveg viszont csak ott van, ahol
+    // tényleg képernyőre kerül.
+    needle: 'nem sikerül eltárolni',
+    lost: 'az elveszett mérési minták nem jutnának képernyőre: a felhasználó '
+      + 'ugyanazt a nullát látná, mint engedélyhiánynál, rossz teendővel',
+  },
   {
     file: 'desktop/src/helper/sync-client.ts',
     needle: 'syncFocusRound',

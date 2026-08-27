@@ -12,6 +12,7 @@
 
 import { powerMonitor } from 'electron';
 import { ProbeHealth } from '../shared/probe-health';
+import { DeliveryHealth } from '../shared/delivery-health';
 import { execFile, spawn } from 'child_process';
 import {
   decideSample, domainFromBrowserUrl, SAMPLE_INTERVAL_MS, MAX_LABEL_LENGTH, type Foreground,
@@ -241,8 +242,16 @@ async function probeForeground(log: (m: string) => void): Promise<Foreground | n
 // ---------------------------------------------------------------- sampler
 
 export interface TrackerDeps {
-  /** ship a batch of samples to the helper; resolves false when it could not be sent */
-  send: (samples: UsageSampleMsg[]) => Promise<boolean>;
+  /**
+   * A minták elküldése a segédnek.
+   *
+   * A `recorded` szándékosan része a válasznak: a segéd minden mintát
+   * ellenőriz, és amit nem fogad el, azt szó nélkül eldobja. Ha csak azt
+   * néznénk, hogy MEGÉRKEZETT-E, egy csupa eldobott köteg sikeres
+   * kézbesítésnek látszana — a puffer kiürülne, a mért idő elveszne, és
+   * semmi nem szólna róla.
+   */
+  send: (samples: UsageSampleMsg[]) => Promise<{ delivered: boolean; recorded: number }>;
   /** measurement is skipped entirely while this returns false */
   isEnabled: () => boolean;
   log: (m: string) => void;
@@ -264,12 +273,15 @@ export class UsageTracker {
   private probing = false;
   private flushing = false;
   private health = new ProbeHealth();
+  private delivery = new DeliveryHealth();
 
   constructor(private deps: TrackerDeps) {}
 
   /** A mérés sorozatban nem lát semmit — a felület ezt kiírja. */
   get probeBlocked(): boolean { return this.health.blocked; }
   get probeNeverWorked(): boolean { return this.health.neverWorked; }
+  /** A segéd átveszi a mintákat, de egyet sem rögzít — a mért idő elveszik. */
+  get samplesDropped(): boolean { return this.delivery.dropping; }
 
   start(): void {
     if (this.timer) return;
@@ -331,8 +343,16 @@ export class UsageTracker {
     this.flushing = true;
     const inFlight = this.buffer.take();
     try {
-      const ok = await this.deps.send(inFlight.map((b) => b.sample)).catch(() => false);
-      if (!ok) this.buffer.restore(inFlight, Date.now());
+      const r = await this.deps.send(inFlight.map((b) => b.sample))
+        .catch(() => ({ delivered: false, recorded: 0 }));
+      this.delivery.record({ ...r, sent: inFlight.length });
+      if (!r.delivered) this.buffer.restore(inFlight, Date.now());
+      else if (inFlight.length > 0 && r.recorded === 0) {
+        // A NAPLÓBA is bekerül, mert ez az az eset, amit a felhasználó a
+        // képernyőn csak nullaként lát: a mérés fut, a szonda lát, és az idő
+        // mégis eltűnik. A napló mondja meg, hogy hány tétel veszett el.
+        this.deps.log(`usage: a segéd ${inFlight.length} mintából egyet sem rögzített`);
+      }
       const dropped = this.buffer.takeDropped();
       if (dropped > 0) {
         this.deps.log(`usage: ${dropped} elavult mérési tétel eldobva (a segéd túl régóta elérhetetlen)`);

@@ -98,10 +98,17 @@ if (HELPER_MODE) {
       const tracker = new UsageTracker({
         send: async (samples) => {
           try {
-            await client.call('usage_batch', { samples });
-            return true;
+            // A VÁLASZT is elolvassuk. A segéd minden mintát ellenőriz, és
+            // amit nem fogad el, azt szó nélkül eldobja — a kérés attól még
+            // sikeres. Ha csak ennyit néznénk, egy csupa eldobott köteg
+            // kézbesítettnek látszana, a puffer kiürülne, és a mért idő
+            // némán elveszne.
+            const r = await client.call('usage_batch', { samples }) as { recorded?: number };
+            return { delivered: true, recorded: Number(r?.recorded ?? 0) };
           } catch {
-            return false; // helper down: keep buffering, retry on the next flush
+            // A segéd nem érhető el: a puffer megtartja a mintákat, és a
+            // következő kör újrapróbálja. Ez NEM adatvesztés.
+            return { delivered: false, recorded: 0 };
           }
         },
         isEnabled: () => usageEnabled,
@@ -126,6 +133,7 @@ if (HELPER_MODE) {
       ipcMain.handle('breaker:tracker-state', () => ({
         blocked: tracker.probeBlocked,
         neverWorked: tracker.probeNeverWorked,
+        samplesDropped: tracker.samplesDropped,
         platform: process.platform,
       }));
       // A szinkron-kiszolgáló EBBEN az appban is elindítható. Enélkül a

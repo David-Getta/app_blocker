@@ -14,6 +14,14 @@ export interface TrackerState {
   blocked: boolean;
   /** it has never once seen anything — the first-run / permission-denied case */
   neverWorked: boolean;
+  /**
+   * A segéd átveszi a mintákat, de sorozatban egyet sem rögzít.
+   *
+   * A `blocked` egy réteggel feljebb néz: ott a szonda nem lát semmit. Ez az
+   * ellenkezője — a szonda LÁT, a mérés fut, és az idő mégis elveszik. A
+   * felhasználó mindkettőből ugyanazt a nullát látja, a teendő viszont más.
+   */
+  samplesDropped: boolean;
   platform: string;
 }
 

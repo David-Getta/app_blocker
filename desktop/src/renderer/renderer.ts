@@ -60,7 +60,9 @@ interface Bridge {
   checkUpdate(): Promise<{ ok: boolean; error?: string }>;
   installUpdate(): Promise<{ ok: boolean; opened?: boolean }>;
   getUpdateState(): Promise<UpdateState>;
-  getTrackerState(): Promise<{ blocked: boolean; neverWorked: boolean; platform: string }>;
+  getTrackerState(): Promise<{
+    blocked: boolean; neverWorked: boolean; samplesDropped: boolean; platform: string;
+  }>;
   getSyncServer(): Promise<SyncServerState>;
   getBridgeInfo(): Promise<RulesBridgeInfo>;
   startSyncServer(): Promise<SyncServerState>;
@@ -2319,7 +2321,9 @@ function attachTip(el: HTMLElement, text: () => string): void {
 }
 
 /** A legutóbb lekérdezett mérés-állapot; a poll frissíti. */
-let trackerState: { blocked: boolean; neverWorked: boolean; platform: string } | null = null;
+let trackerState: {
+  blocked: boolean; neverWorked: boolean; samplesDropped: boolean; platform: string;
+} | null = null;
 
 /**
  * „A mérés be van kapcsolva, de nem kap adatot.”
@@ -2333,6 +2337,17 @@ let trackerState: { blocked: boolean; neverWorked: boolean; platform: string } |
  */
 function renderProbeWarning(measurementOn: boolean): void {
   const el = $('usageBlocked');
+  // A KÉZBESÍTÉS hibája előbbre való, mint a szondáé: ha a mért idő eljut a
+  // segédig és ott vész el, akkor a szonda dolgozik, tehát a macOS-engedélyre
+  // hivatkozó mondat rossz helyre küldené a felhasználót.
+  if (measurementOn && trackerState?.samplesDropped) {
+    el.classList.remove('hidden');
+    el.textContent = 'A mérés fut és lát is adatot, de a mért időt nem sikerül eltárolni: '
+      + 'a segéd sorozatban egyetlen mintát sem fogad el. Amíg ez tart, a mai idő '
+      + 'nullán marad, és a napi időkeret sem fogy. A részletek a segéd naplójában '
+      + 'vannak (macOS: /Library/Logs/Breaker/helper.log).';
+    return;
+  }
   const show = measurementOn && !!trackerState?.blocked;
   el.classList.toggle('hidden', !show);
   if (!show) return;
