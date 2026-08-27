@@ -78,6 +78,15 @@ export async function loadLink() {
     rules: rules.filter((r) => r && typeof r.host === 'string' && typeof r.path === 'string')
       .map((r) => ({ host: r.host, path: r.path })),
     fetchedAt: Number.isFinite(raw.fetchedAt) ? raw.fetchedAt : 0,
+    /**
+     * Mikor PRÓBÁLKOZTUNK utoljára — a sikertelen kör is léptet rajta.
+     *
+     * A `fetchedAt` csak sikernél lép, mert az mondja meg, mennyire friss a
+     * SZABÁLYLISTA. Ha viszont csak azt néznénk, akkor egy zárva lévő app
+     * mellett minden egyes lapbetöltés újraindítaná a tízportos keresést —
+     * és a felhasználó nem is tudná, miért lassul a böngészője.
+     */
+    attemptedAt: Number.isFinite(raw.attemptedAt) ? raw.attemptedAt : 0,
     error: typeof raw.error === 'string' ? raw.error : null,
   };
 }
@@ -174,7 +183,9 @@ export async function pullFromApp(now = Date.now(), fetchImpl = fetch, timeoutMs
     return { ok: true, rules, focus };
   }
 
-  await saveLink({ ...link, error: lastError });
+  // A PRÓBA idejét megjegyezzük, a szabálylistát viszont nem bántjuk: az app
+  // elérhetetlensége nem jelenti azt, hogy nincsenek szabályok.
+  await saveLink({ ...link, error: lastError, attemptedAt: now });
   return { ok: false, error: lastError };
 }
 
@@ -190,7 +201,11 @@ function range(from, count) {
  */
 export function dueForRefresh(link, now) {
   if (!link.token) return false;
-  return now - link.fetchedAt >= REFRESH_MS;
+  // A KÉSŐBBI a kettő közül: a sikeres lekérdezés és a sikertelen PRÓBA is
+  // számít. Enélkül egy elérhetetlen app mellett minden lapbetöltés újraindítja
+  // a keresést — a `fetchedAt` ugyanis csak sikernél lép.
+  const last = Math.max(link.fetchedAt, link.attemptedAt ?? 0);
+  return now - last >= REFRESH_MS;
 }
 
 /**

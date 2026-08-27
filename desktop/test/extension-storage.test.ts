@@ -192,7 +192,9 @@ interface LinkApi {
   forgetToken: () => Promise<void>;
   pullFromApp: (now?: number, fetchImpl?: unknown, timeoutMs?: number) => Promise<{ ok: boolean;
     rules?: { host: string; path: string }[]; error?: string }>;
-  dueForRefresh: (link: { token: string | null; fetchedAt: number }, now: number) => boolean;
+  dueForRefresh: (
+    link: { token: string | null; fetchedAt: number; attemptedAt?: number }, now: number,
+  ) => boolean;
   withAppRules: (
     local: { host: string; path: string }[], app: { host: string; path: string }[],
   ) => { host: string; path: string; fromApp?: boolean }[];
@@ -291,6 +293,30 @@ test('a néma TÖRZS sem állítja meg a keresést', async () => {
   ]) as { ok: boolean; rules?: { host: string; path: string }[] };
   assert.equal(r.ok, true, 'a néma törzset átugorja, és megtalálja az appot');
   assert.deepEqual(r.rules, [{ host: 'youtube.com', path: '/@valaki' }]);
+});
+
+test('a SIKERTELEN kör is elhalasztja a következőt', async () => {
+  // Enélkül egy zárva lévő app mellett MINDEN lapbetöltés újraindítaná a
+  // tízportos keresést. A `fetchedAt` ugyanis csak sikernél lép, tehát arra a
+  // kérdésre, hogy letelt-e a húsz másodperc, örökre igen lenne a válasz. A
+  // felhasználó annyit venne észre, hogy lassul a böngészője.
+  const ext = freshLink();
+  await ext.setToken('ABCD-EFGH');
+  const senki = () => Promise.reject(new Error('nincs ott semmi'));
+  // A PRÓBA IDEJE messze legyen a nullától: sikertelen körnél a `fetchedAt`
+  // nulla marad, tehát kis időbélyegekkel a két szabály ugyanazt adná, és a
+  // teszt csendben mindent átengedne. Az első változatom pont ezen bukott el.
+  const t0 = 10 * ext.REFRESH_MS;
+  const r = await ext.pullFromApp(t0, senki, 30);
+  assert.equal(r.ok, false);
+
+  const link = await ext.loadLink();
+  assert.equal(ext.dueForRefresh(link, t0 + 1000), false, 'egy másodperccel később még nem');
+  assert.equal(ext.dueForRefresh(link, t0 + ext.REFRESH_MS), true, 'húsz másodperc után igen');
+
+  // A SZABÁLYLISTÁT viszont nem bántja: az app elérhetetlensége nem jelenti
+  // azt, hogy nincsenek szabályok.
+  assert.equal(link.fetchedAt, 0, 'a friss lekérdezés ideje nem hazudik');
 });
 
 test('a wrong code says so, instead of looking like a network problem', async () => {
