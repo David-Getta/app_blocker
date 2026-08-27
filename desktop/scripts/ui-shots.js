@@ -301,6 +301,25 @@ async function openAccount(page) {
   }
 }
 
+/**
+ * A panel bezárása: a statisztika-fül gombjai csak alatta érhetők el.
+ *
+ * Escape-pel, mert az a felület saját útja (a záró gombra kattintás a
+ * fedőréteg miatt nem mindig megy át), és mert így azt is ellenőrizzük, hogy
+ * a billentyűzetes bezárás működik.
+ */
+async function closeAccountPanel(page) {
+  // TÖBBSZÖR is megnyomjuk: az Esc a LEGFELSŐ réteget zárja, tehát ha a
+  // téma-panel is nyitva van, az első nyomás azt viszi el. Ez nem a teszt
+  // szeszélye — a felület szándékosan így működik.
+  for (let i = 0; i < 3; i += 1) {
+    if (!(await page.locator('#accountPanel:not(.hidden)').count())) return;
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(150);
+  }
+  await page.waitForSelector('#accountPanel.hidden', { timeout: 5_000 });
+}
+
 async function main() {
   if (!fs.existsSync(path.join(WEB, 'renderer', 'index.html'))) {
     console.error('build first: npm run build');
@@ -1180,6 +1199,40 @@ async function main() {
     await page.locator('#syncCard').scrollIntoViewIfNeeded();
     await page.screenshot({ path: path.join(OUT, 'desktop-sync.png'), fullPage: false });
   }
+  // A DIAGNOSZTIKA-GOMB. A leggyakoribb kérdés ennél a funkciónál az, hogy
+  // miért nulla a mai nap — és a válasz mindig ugyanabból a néhány adatból jön
+  // ki. A gomb ezt teszi beilleszthetővé.
+  //
+  // A LEGFONTOSABB állítás viszont az, hogy MI NINCS benne: cím, fedőnév,
+  // fióknév. A szöveget bárhová be lehet illeszteni, tehát nem tartalmazhat
+  // olyat, amit a felhasználó nem szánt nyilvánosnak.
+  // A fiók-panelt be kell csukni, és a statisztika fülre menni: a gomb ott
+  // van. És FONTOS, hogy ITT fussunk — ekkorra van hamis fiók, hamis oldal
+  // és hamis csomag az állapotban, tehát tényleg VAN mit kiszivárogtatni.
+  await closeAccountPanel(page);
+  await goTo(page, 'stats');
+  let diagText = '';
+  await page.evaluate(() => {
+    window.__diag = '';
+    navigator.clipboard.writeText = async (t) => { window.__diag = t; };
+  });
+  await page.getByRole('button', { name: 'Diagnosztika másolása' }).click();
+  await page.waitForFunction(() => (window.__diag || '').length > 0, undefined, { timeout: 10_000 })
+    .catch(() => failures.push('a diagnosztika gomb nem másol semmit'));
+  diagText = await page.evaluate(() => window.__diag || '');
+  for (const needle of ['Mérés bekapcsolva', 'Utoljára mért idő', 'Utolsó sikeres szinkron']) {
+    if (!diagText.includes(needle)) {
+      failures.push(`a diagnosztikából hiányzik: ${needle}`);
+    }
+  }
+  // A hamis adatok között ott van a youtube.com és a fióknév — egyiknek sem
+  // szabad megjelennie a kimásolható szövegben.
+  for (const leak of ['youtube.com', 'david@example', 'sync.pelda.hu', 'Nyelvtanulás']) {
+    if (diagText.includes(leak)) {
+      failures.push(`a diagnosztika KISZIVÁROGTAT: ${leak}`);
+    }
+  }
+
   await page.evaluate(() => { window.__fakeSync = undefined; });
 
   // ------------------------------------------------------- világos téma

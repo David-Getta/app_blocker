@@ -2510,6 +2510,53 @@ function renderStats(): void {
   }
 }
 
+/**
+ * A mérés és a szinkron állapota, EGY beilleszthető szövegben.
+ *
+ * Miért van rá gomb. A leggyakoribb kérdés ennél a funkciónál az, hogy miért
+ * nulla a mai nap — és a válasz mindig ugyanabból a néhány adatból jön ki:
+ * be van-e kapcsolva a mérés, lát-e a szonda, eljut-e az idő a tárolóig,
+ * mikor mértünk utoljára. Ezt képernyőképekből összerakni fárasztó és
+ * pontatlan; így viszont egy beillesztés az egész.
+ *
+ * AMI SZÁNDÉKOSAN NINCS BENNE: cím, fedőnév, fióknév, kiszolgáló-cím. A
+ * szöveget bárhová be lehet illeszteni, tehát nem tartalmazhat olyat, amit a
+ * felhasználó nem szánt nyilvánosnak. A blokkolt oldalak SZÁMA még elfér —
+ * abból nem derül ki, melyek azok.
+ */
+function diagnosticsText(): string {
+  const st = status;
+  const clock = (t?: number | null): string =>
+    (t ? new Date(t).toLocaleString('hu-HU') : 'soha');
+  const yn = (b: boolean | undefined): string => (b ? 'igen' : 'nem');
+  const sum = statsData?.summary;
+  return [
+    'Breaker — diagnosztika',
+    `Idő: ${new Date().toLocaleString('hu-HU')}`,
+    `Rendszer: ${window.breaker.platform}`,
+    `Segéd verziója: ${st?.helperVersion ?? '—'} (az app ${HELPER_VERSION})`,
+    '',
+    `Mérés bekapcsolva: ${yn(st?.usageEnabled)}`,
+    `Szonda lát-e adatot: ${trackerState ? yn(!trackerState.blocked) : '—'}`,
+    `Látott-e valaha: ${trackerState ? yn(!trackerState.neverWorked) : '—'}`,
+    `Eldobott mérési minták: ${trackerState ? yn(trackerState.samplesDropped) : '—'}`,
+    `Utoljára mért idő: ${clock(statsData?.lastSampleAt)}`,
+    `Ma / 7 nap (mp): ${Math.round(sum?.todaySeconds ?? 0)} / ${Math.round(sum?.last7Seconds ?? 0)}`,
+    `Mért napok száma: ${sum?.daysTracked ?? 0}`,
+    '',
+    `Fiók: ${st?.sync ? 'van' : 'nincs'}`,
+    `Utolsó sikeres szinkron: ${clock(st?.sync?.lastSyncAt)}`,
+    `Utolsó szinkron-próba: ${clock(st?.sync?.lastAttemptAt)}`,
+    `Szinkron hibája: ${st?.sync?.lastError ?? '—'}`,
+    `Munkamenet-szinkron hibája: ${st?.focusSyncError ?? '—'}`,
+    '',
+    `Blokkolt oldalak száma: ${st?.sites?.length ?? 0}`,
+    `Munkamenet-csomagok: ${st?.focusPacks?.length ?? 0}`,
+    `Fut-e munkamenet: ${yn(!!st?.focusRun)}`,
+    `Védelem (DoH-házirend): ${yn(st?.dohPolicyApplied)}`,
+  ].join('\n');
+}
+
 function setupStats(): void {
   $('usageToggle').addEventListener('click', async () => {
     const enabled = status?.usageEnabled ?? true;
@@ -2520,6 +2567,21 @@ function setupStats(): void {
     } catch (e) {
       alert((e as Error).message);
     }
+  });
+  $('usageDiag').addEventListener('click', async () => {
+    const btn = $<HTMLButtonElement>('usageDiag');
+    const original = btn.textContent;
+    try {
+      await navigator.clipboard.writeText(diagnosticsText());
+      btn.textContent = 'Vágólapra másolva';
+    } catch {
+      // A vágólap megtagadható. Ilyenkor sem maradhat el a szöveg: kiírjuk,
+      // hogy legalább kijelölhető legyen — egy néma gomb rosszabb a semminél.
+      alert(diagnosticsText());
+      btn.textContent = original;
+      return;
+    }
+    setTimeout(() => { btn.textContent = original; }, 2000);
   });
   $('usageClear').addEventListener('click', async () => {
     if (!confirm('Biztosan törlöd a teljes mérési előzményt? Ez nem vonható vissza.')) return;

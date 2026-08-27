@@ -113,6 +113,13 @@ const WIRES = [
     needle: 'lastSampleLine(lastSampleAt)',
     lost: 'a telefonon az utolsó mérés ideje nem jutna képernyőre',
   },
+  // A DIAGNOSZTIKA-SZÖVEG. A leggyakoribb kérdés ennél a funkciónál az, hogy
+  // miért nulla a mai nap; a válasz mindig ugyanabból a néhány adatból jön ki.
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: 'diagnosticsText()',
+    lost: 'a mérés állapotát megint képernyőképekből kellene kitalálni',
+  },
   // A SZONDA HATÁRIDEJE. A `probing` jelző csak a kör BEFEJEZÉSEKOR törlődik,
   // tehát egyetlen beragadt lekérdezés a folyamat hátralévő életére megállítja
   // a mérést — és a szonda-egészség sem szólal meg, mert az hibát számol, nem

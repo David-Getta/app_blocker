@@ -192,6 +192,14 @@
         <h2>Statisztika — mire megy el az idő</h2>
         <div class="stats-actions">
           <button id="usageToggle" class="btn btn-small"></button>
+          <!--
+            Diagnosztika a vágólapra. Ez a gomb azért van, mert a nullás mai
+            statisztika okát képernyőképekből kitalálni fárasztó és
+            pontatlan — a mérés állapota viszont pár sorban leírható.
+            SZÁNDÉKOSAN nem tartalmaz se címeket, se fióknevet: a szöveget a
+            felhasználó bárhová beillesztheti.
+          -->
+          <button id="usageDiag" class="btn btn-small">Diagnosztika másolása</button>
           <button id="usageClear" class="btn btn-small btn-danger">Előzmény törlése</button>
         </div>
       </div>
