@@ -167,51 +167,59 @@ háttérszolgáltatás közben nem futott: akkor a fehérlistát sem tartatta be
 A KEZDÉS is tolódik, nem csak a vég. Enélkül a naplóba egy ötvenperces menet
 nyolc és fél órásként kerülne be.
 
-### Aminek ez az ára — kimondva
+### Aminek ez az ára volt — és hogyan zárult be
 
-Ha KÉT eszköz van, és az egyik aludt, a másik ébren volt, a kettő nem ugyanazt
-látta:
+Sokáig ez volt a funkció legkellemetlenebb pontja. Ha KÉT eszköz van, és az
+egyik aludt, a másik ébren volt, a kettő nem ugyanazt látta:
 
 - az ébren lévő eszköz a menetet a saját idejében lezárta, és ezzel léptette a
   szinkron-számlálót;
-- az alvó eszköz ébredéskor elnyelte az ugrást, tehát nála a menet MÉG FUT — és
-  ez is lépteti a számlálót.
+- az alvó eszköz ébredéskor elnyelte az ugrást, tehát nála a menet MÉG FUTOTT —
+  és ez is léptetett.
 
 Azonos `rev` mellett a szigorúbb nyer, tehát a futó menet: az ébren lévő
-eszközön a menet VISSZATÉR. Ez a súrlódás irányából következik, és
-próbatétellel leállítható — de meglepő, és nem hallgatjuk el.
+eszközön a menet VISSZATÉRT. Próbatétellel leállítható volt, de meglepő.
 
-A statisztikában ez ráadásul KÉT sort adhat egy menetre: a naplósor azonossága
-a csomag és a KEZDÉS párja, az alvó eszközön viszont a kezdés eltolódott. Nem
-kibúvó és nem adatvesztés, csak egy fölös sor.
+**A javítás: a lenyomat a futás HOSSZÁT nézi, nem az abszolút időpontjait.**
 
-Az irány, ami MEGOLDANÁ: az ugrás elnyelése ne léptesse a `rev`-et. Az elnyelés
-nem döntés, csak helyi újraértelmezés — ha nem léptetne, az ébren lévő eszköz
-lezárása (nagyobb `rev`) nyerne, és az a helyes.
+Az elnyelés nem döntés, csak helyi újraértelmezés — a felhasználó nem csinált
+semmit. A kezdés és a vég ugyanannyival tolódik, tehát a hossz VÁLTOZATLAN, és
+így nincs is mit léptetni. Az ébren lévő eszköz lezárása (nagyobb `rev`) nyer,
+és az a helyes. Ami valódi döntés — meghosszabbítás, leállítás, másik csomag —,
+attól a hossz vagy a csomag változik, tehát ugyanúgy léptet, mint eddig.
 
-Két kézenfekvő megvalósítása van, és MINDKETTŐNEK van csapdája. Aki nekifut, ezt
-olvassa el előbb:
+#### A formátumváltás csapdája, és miért nincs ablaka
 
-1. **Eltolás után `adoptFocusRevision`.** Ez a lenyomatot ÚJRASZÁMOLJA, tehát
-   elnyeli azt is, ami az előző mentés óta egyébként változott — például egy
-   épp felvett csomagot. Az a szerkesztés soha nem léptetné a számlálót, és
-   soha nem érne át a többi eszközre. Csendben. Az ablak kicsi (a szerkesztés
-   azonnal ment), de nem nulla, és pont az a hibafajta, ami ellen az egész
-   ellenőrző-készlet szól.
+A lenyomat a lemezen is ott van az előző verzióból. Ha a frissítés utáni első
+kör vakon léptetne, az egy ÜRES eszközön azt jelentené, hogy az üres lista
+1-es számlálóval és friss időbélyeggel legyőzi a gépen felvett csomagokat —
+pont az a hiba, ami egyszer már majdnem megtörtént. Az „üresség nem szerkesztés”
+őr itt nem véd, mert az csak akkor véd, ha a lenyomat még `undefined`.
 
-2. **A lenyomat a futás HOSSZÁT nézze, ne az abszolút időpontjait.** Ettől egy
-   egyenletes eltolás nem is látszik változásnak, és nem kell külön elnyelni.
-   Csakhogy a lenyomat a lemezen is ott van az előző verzióból: formátumváltás
-   után az első kör mindenkinél léptet egyet. Ez önmagában ártalmatlan — kivéve
-   egy ÜRES eszközön, ahol az „üresség nem szerkesztés” őr csak akkor véd, ha a
-   lenyomat még `undefined`. Egy elavult lenyomat mellett nem véd, és az üres
-   lista megint letörölhetné a gépen felvett csomagokat. Pont az a hiba, ami
-   egyszer már majdnem megtörtént.
+A megoldás: a lenyomat **megmondja a saját formátumát** (`2|` előtag), és a
+RÉGI algoritmus megmarad — kizárólag a váltás felismerésére. Ha a lemezen régi
+alakú lenyomatot találunk, a régi algoritmussal számolunk egyet a MAI
+állapotra:
 
-A második út a jobb, de kell hozzá az őr kiterjesztése is (üres állapot SOHA ne
-léptessen), és annak külön következménye van: az „összes csomag törlése” nem
-érne át a többi eszközre. Az a lazítás iránya, tehát valószínűleg elfogadható —
-de ez már három összefüggő döntés, nem egy javítás. Addig ez a szakasz a válasz.
+- **egyezik** → azóta nem történt semmi, csak a formátum változott. Átvesszük
+  az újat, léptetés nélkül;
+- **eltér** → volt valódi szerkesztés, és az ugyanúgy léptet, mint bármikor.
+
+Így a váltásnak nincs ablaka: sem egy szerkesztést nem nyel el, sem
+fölöslegesen nem léptet. A régi függvényre ne épüljön semmi új — az egyetlen
+dolga ez az egy döntés.
+
+#### Ami ezzel vakfolt lett — kimondva
+
+Ha ugyanazt a csomagot ugyanolyan hosszan leállítod és újraindítod EGY mentési
+ablakon belül (~20 másodperc), a lenyomat azonos marad, tehát a számláló nem
+lép. A tartalom viszont ilyenkor is felmegy, és azonos számlálónál a szigorúbb
+— a később végződő — menet nyer. Ez tehát legfeljebb pár másodperc csúszás a
+másik eszköz vég-időpontján, nem kibúvó.
+
+A statisztikában maradhat egy fölös naplósor, ha az alvó eszköz a saját,
+eltolt kezdésével zárja le ugyanazt a menetet: a naplósor azonossága a csomag
+és a KEZDÉS párja. Nem adatvesztés, csak egy sorral több.
 
 ## Mennyi idő alatt ér el a böngészőig
 

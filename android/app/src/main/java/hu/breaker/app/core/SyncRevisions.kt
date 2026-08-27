@@ -74,8 +74,18 @@ object SyncRevisions {
      * indítás sosem léptetné a számlálót, és a másik eszköz sosem tudná meg,
      * hogy fut valami.
      */
-    fun focusFingerprint(state: AppState): String {
-        val packs = state.focusPacks.sortedBy { it.id }.joinToString("|") { p ->
+    /**
+     * A lenyomat formátumának jele.
+     *
+     * Azért van benne, hogy a formátumváltás FELISMERHETŐ legyen. Enélkül egy
+     * régi alakú lenyomat egyszerűen másnak látszana, és a frissítés utáni
+     * első kör mindenkinél léptetne egyet — egy ÜRES telefonon pedig ez azt
+     * jelentené, hogy az üres lista legyőzi a gépen felvett csomagokat.
+     */
+    const val FOCUS_FP_V2 = "2|"
+
+    private fun packsPart(state: AppState): String =
+        state.focusPacks.sortedBy { it.id }.joinToString("|") { p ->
             listOf(
                 p.id, p.name,
                 p.allowSites.sorted().joinToString(","),
@@ -83,10 +93,37 @@ object SyncRevisions {
                 p.defaultMinutes.toString(),
             ).joinToString(";")
         }
-        val run = state.focusRun?.let { "${it.packId};${it.startedAt};${it.endsAt}" } ?: "-"
+
+    private fun digest(text: String): String {
         val md = MessageDigest.getInstance("SHA-256")
-        val d = md.digest("$packs//$run".toByteArray(Charsets.UTF_8))
+        val d = md.digest(text.toByteArray(Charsets.UTF_8))
         return d.take(8).joinToString("") { b -> Integer.toHexString(b.toInt() and 0xff).padStart(2, '0') }
+    }
+
+    /**
+     * A RÉGI lenyomat — kizárólag a formátumváltás felismeréséhez.
+     *
+     * Ne épüljön rá semmi új. Az egyetlen dolga, hogy a mentésben talált, régi
+     * alakú lenyomatról el tudjuk dönteni: az azóta VÁLTOZATLAN állapothoz
+     * tartozik-e, vagy közben valódi szerkesztés is történt.
+     */
+    fun focusFingerprintV1(state: AppState): String {
+        val run = state.focusRun?.let { "${it.packId};${it.startedAt};${it.endsAt}" } ?: "-"
+        return digest("${packsPart(state)}//$run")
+    }
+
+    fun focusFingerprint(state: AppState): String {
+        // A futás HOSSZA számít, nem az abszolút időpontjai.
+        //
+        // Ez zárja be az óra-átállítás rését. Alvásból ébredve az app elnyeli
+        // az ugrást: a kezdést és a véget UGYANANNYIVAL tolja el, hogy a menet
+        // ne legyen lejárt. Abszolút időpontokkal ez változásnak látszott,
+        // tehát léptette a számlálót — és így az alvó eszköz „még fut”
+        // állapota legyőzte az ébren lévő eszköz szabályos lezárását. Az
+        // elnyelés viszont nem döntés, csak helyi újraértelmezés; a HOSSZ
+        // pedig egy egyenletes eltolástól nem változik.
+        val run = state.focusRun?.let { "${it.packId};${it.endsAt - it.startedAt}" } ?: "-"
+        return FOCUS_FP_V2 + digest("${packsPart(state)}//$run")
     }
 
     /**
@@ -103,6 +140,16 @@ object SyncRevisions {
         val fp = focusFingerprint(state)
         if (state.focusRevFp == fp) return state
         if (state.focusRevFp == null && state.focusPacks.isEmpty() && state.focusRun == null) {
+            return state.copy(focusRevFp = fp)
+        }
+        // FORMÁTUMVÁLTÁS. A mentésben még a régi alakú lenyomat van; ettől
+        // önmagában nem történt semmi. A régi algoritmussal döntjük el, volt-e
+        // valódi változás: ha egyezik, csak a formátum változott — átvesszük
+        // az újat léptetés nélkül. Ha eltér, akkor VOLT szerkesztés, és az
+        // ugyanúgy léptet. Így a váltásnak nincs ablaka: sem szerkesztést nem
+        // nyel el, sem fölöslegesen nem léptet egy üres telefonon.
+        val old = state.focusRevFp
+        if (old != null && !old.startsWith(FOCUS_FP_V2) && old == focusFingerprintV1(state)) {
             return state.copy(focusRevFp = fp)
         }
         return state.copy(

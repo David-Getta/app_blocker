@@ -76,15 +76,62 @@ export function bumpRevisions(state: HelperState, deviceId: string, now: number)
  * kimaradna a lenyomatból, az indítás sosem léptetné a számlálót, és a telefon
  * soha nem tudná meg, hogy fut valami.
  */
-function focusFingerprint(state: HelperState): string {
-  const packs = [...(state.focusPacks ?? [])]
+/**
+ * A lenyomat formátumának jele.
+ *
+ * Azért van benne, hogy a formátumváltás FELISMERHETŐ legyen. Enélkül egy
+ * régi alakú lenyomat egyszerűen „másnak” látszana, és a frissítés utáni első
+ * kör mindenkinél léptetne egyet — ami egy ÜRES eszközön azt jelentené, hogy
+ * az üres lista legyőzi a gépen felvett csomagokat. Pont az a hiba, ami
+ * egyszer már majdnem megtörtént.
+ */
+const FOCUS_FP_V2 = '2|';
+
+function packsPart(state: HelperState): unknown[] {
+  return [...(state.focusPacks ?? [])]
     .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
     .map((p) => [p.id, p.name, [...p.allowSites].sort(), [...p.allowApps].sort(), p.defaultMinutes]);
+}
+
+function digest(value: unknown): string {
+  return crypto.createHash('sha256').update(JSON.stringify(value)).digest('hex').slice(0, 16);
+}
+
+/**
+ * A RÉGI lenyomat — kizárólag a formátumváltás felismeréséhez.
+ *
+ * Ne épüljön rá semmi új. Az egyetlen dolga, hogy a lemezen talált, régi alakú
+ * lenyomatról el tudjuk dönteni: az azóta VÁLTOZATLAN állapothoz tartozik-e,
+ * vagy közben valódi szerkesztés is történt. Enélkül a váltás vagy elnyelne
+ * egy szerkesztést, vagy fölöslegesen léptetne — és mindkettőnek ára van.
+ */
+function focusFingerprintV1(state: HelperState): string {
   const run = state.focusRun
     ? [state.focusRun.packId, state.focusRun.startedAt, state.focusRun.endsAt]
     : null;
-  return crypto.createHash('sha256').update(JSON.stringify([packs, run]))
-    .digest('hex').slice(0, 16);
+  return digest([packsPart(state), run]);
+}
+
+function focusFingerprint(state: HelperState): string {
+  // A futás HOSSZA számít, nem az abszolút időpontjai.
+  //
+  // Ez zárja be az óra-átállítás rését. Alvásból ébredve a segéd elnyeli az
+  // ugrást: a kezdést és a véget UGYANANNYIVAL tolja el, hogy a menet ne
+  // legyen „lejárt”. Abszolút időpontokkal ez változásnak látszott, tehát
+  // léptette a számlálót — és így az alvó eszköz „még fut” állapota legyőzte
+  // az ébren lévő eszköz szabályos lezárását. Az elnyelés viszont nem döntés,
+  // csak helyi újraértelmezés; a HOSSZ pedig egy egyenletes eltolástól nem
+  // változik, tehát nincs is mit léptetni.
+  //
+  // AMI EZZEL VAKFOLT LESZ, kimondva: ha ugyanazt a csomagot ugyanolyan
+  // hosszan leállítod és újraindítod EGY mentési ablakon belül (~20 mp), a
+  // lenyomat azonos marad, tehát a számláló nem lép. A tartalom viszont
+  // ilyenkor is felmegy, és azonos számlálónál a szigorúbb — a később végződő
+  // — menet nyer, tehát ez legfeljebb pár másodperc csúszás, nem kibúvó.
+  const run = state.focusRun
+    ? [state.focusRun.packId, state.focusRun.endsAt - state.focusRun.startedAt]
+    : null;
+  return FOCUS_FP_V2 + digest([packsPart(state), run]);
 }
 
 /** @returns változott-e a munkamenet ezen a gépen az előző kör óta */
@@ -93,6 +140,21 @@ export function bumpFocusRevision(
 ): boolean {
   const fp = focusFingerprint(state);
   if (state.focusRevFp === fp) return false;
+
+  // FORMÁTUMVÁLTÁS. A lemezen még a régi alakú lenyomat van; ettől önmagában
+  // nem történt semmi. A régi algoritmussal döntjük el, volt-e valódi
+  // változás: ha a régi lenyomat egyezik a MAI állapot régi lenyomatával,
+  // akkor csak a formátum változott — átvesszük az újat, léptetés nélkül.
+  // Ha eltér, akkor VOLT szerkesztés, és az ugyanúgy léptet, mint bármikor.
+  //
+  // Így a váltásnak nincs ablaka: sem egy szerkesztést nem nyel el, sem
+  // fölöslegesen nem léptet egy üres eszközön.
+  if (state.focusRevFp !== undefined && !state.focusRevFp.startsWith(FOCUS_FP_V2)) {
+    if (state.focusRevFp === focusFingerprintV1(state)) {
+      state.focusRevFp = fp;
+      return false;
+    }
+  }
 
   // AZ ÜRESSÉG NEM SZERKESZTÉS. Egy eszköz, ami még sosem látott munkamenetet,
   // ne lépjen 1-re pusztán attól, hogy először számolunk neki lenyomatot.

@@ -104,6 +104,57 @@ class FocusSyncTest {
     }
 
     @Test
+    fun `az ora-ugras elnyelese nem lepteti a szamlalot`() {
+        // Alvásból ébredve az app elnyeli az óra ugrását: a futó menet
+        // kezdését és végét ugyanannyival tolja el, hogy ne legyen lejárt. Ez
+        // NEM döntés, csak helyi újraértelmezés — a felhasználó nem csinált
+        // semmit.
+        //
+        // A lenyomat viszont korábban az abszolút időpontokat nézte, tehát az
+        // eltolás változásnak látszott és léptetett. Következmény: az alvó
+        // telefon „még fut” állapota legyőzte az ébren lévő gép szabályos,
+        // próbatétellel megszerzett lezárását — a menet VISSZATÉRT.
+        val base = SyncRevisions.bumpFocus(
+            AppState(focusPacks = listOf(pack("p1"))).copy(
+                focusRun = Focus.FocusRun("p1", 1_000_000, 1_000_000 + 50 * 60_000),
+            ),
+            "telefon", 1_000,
+        )
+        val shift = 8L * 3_600_000
+        val shifted = base.copy(
+            focusRun = base.focusRun!!.copy(
+                startedAt = base.focusRun!!.startedAt + shift,
+                endsAt = base.focusRun!!.endsAt + shift,
+            ),
+        )
+        val after = SyncRevisions.bumpFocus(shifted, "telefon", 2_000)
+        assertEquals(base.focusRev, after.focusRev, "egy eltolás nem szerkesztés")
+
+        // A HOSSZ változása viszont valódi döntés, és léptet.
+        val longer = shifted.copy(
+            focusRun = shifted.focusRun!!.copy(endsAt = shifted.focusRun!!.endsAt + 600_000),
+        )
+        assertEquals(base.focusRev + 1, SyncRevisions.bumpFocus(longer, "telefon", 3_000).focusRev)
+    }
+
+    @Test
+    fun `a formatumvaltas onmagaban nem leptet, a szerkesztest megsem nyeli el`() {
+        // Frissítés után a mentésben a RÉGI alakú lenyomat van. Ha ilyenkor a
+        // kör vakon léptetne, egy üres telefon 1-esre ugrana, és az üres
+        // listája legyőzhetné a gépen felvett csomagokat.
+        val st = AppState(focusPacks = listOf(pack("p1")))
+        val old = st.copy(focusRevFp = SyncRevisions.focusFingerprintV1(st), focusRev = 4)
+        val migrated = SyncRevisions.bumpFocus(old, "telefon", 5_000)
+        assertEquals(4, migrated.focusRev, "a formátumváltás nem szerkesztés")
+        assertTrue(migrated.focusRevFp!!.startsWith(SyncRevisions.FOCUS_FP_V2))
+
+        // De ha közben VOLT szerkesztés, azt nem nyelheti el: az a változás
+        // különben soha nem érne át a többi eszközre — csendben.
+        val edited = old.copy(focusPacks = listOf(pack("p1"), pack("p2")))
+        assertEquals(5, SyncRevisions.bumpFocus(edited, "telefon", 6_000).focusRev)
+    }
+
+    @Test
     fun `az indulo menet is lepteti a szamlalot`() {
         // Ha a futás kimaradna a lenyomatból, az indítás sosem léptetne, és a
         // másik eszköz soha nem tudná meg, hogy fut valami.

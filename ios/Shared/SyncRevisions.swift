@@ -58,6 +58,39 @@ enum SyncRevisions {
         return bumpFocus(next, deviceId: deviceId, now: now)
     }
 
+    /// A lenyomat formátumának jele.
+    ///
+    /// Azért van benne, hogy a formátumváltás FELISMERHETŐ legyen. Enélkül egy
+    /// régi alakú lenyomat egyszerűen másnak látszana, és a frissítés utáni
+    /// első kör mindenkinél léptetne egyet — egy ÜRES telefonon pedig ez azt
+    /// jelentené, hogy az üres lista legyőzi a gépen felvett csomagokat.
+    static let focusFpV2 = "2|"
+
+    private static func packsPart(_ state: AppState) -> String {
+        (state.focusPacks ?? []).sorted { $0.id < $1.id }.map { p in
+            [
+                p.id, p.name,
+                p.allowSites.sorted().joined(separator: ","),
+                p.allowApps.sorted().joined(separator: ","),
+                String(p.defaultMinutes),
+            ].joined(separator: ";")
+        }.joined(separator: "|")
+    }
+
+    private static func digestHex(_ text: String) -> String {
+        SHA256.hash(data: Data(text.utf8)).prefix(8).map { String(format: "%02x", $0) }.joined()
+    }
+
+    /// A RÉGI lenyomat — kizárólag a formátumváltás felismeréséhez.
+    ///
+    /// Ne épüljön rá semmi új. Az egyetlen dolga, hogy a mentésben talált,
+    /// régi alakú lenyomatról el tudjuk dönteni: az azóta VÁLTOZATLAN
+    /// állapothoz tartozik-e, vagy közben valódi szerkesztés is történt.
+    static func focusFingerprintV1(_ state: AppState) -> String {
+        let run = state.focusRun.map { "\($0.packId);\($0.startedAt);\($0.endsAt)" } ?? "-"
+        return digestHex("\(packsPart(state))//\(run)")
+    }
+
     /// A munkamenet lenyomata.
     ///
     /// A FUTÓ menet benne van, ellentétben az oldalak szünetével — és ez a
@@ -66,17 +99,17 @@ enum SyncRevisions {
     /// kimaradna, az indítás sosem léptetné a számlálót, és a másik eszköz
     /// sosem tudná meg, hogy fut valami.
     static func focusFingerprint(_ state: AppState) -> String {
-        let packs = (state.focusPacks ?? []).sorted { $0.id < $1.id }.map { p in
-            [
-                p.id, p.name,
-                p.allowSites.sorted().joined(separator: ","),
-                p.allowApps.sorted().joined(separator: ","),
-                String(p.defaultMinutes),
-            ].joined(separator: ";")
-        }.joined(separator: "|")
-        let run = state.focusRun.map { "\($0.packId);\($0.startedAt);\($0.endsAt)" } ?? "-"
-        let digest = SHA256.hash(data: Data("\(packs)//\(run)".utf8))
-        return digest.prefix(8).map { String(format: "%02x", $0) }.joined()
+        // A futás HOSSZA számít, nem az abszolút időpontjai.
+        //
+        // Ez zárja be az óra-átállítás rését. Alvásból ébredve az app elnyeli
+        // az ugrást: a kezdést és a véget UGYANANNYIVAL tolja el, hogy a menet
+        // ne legyen lejárt. Abszolút időpontokkal ez változásnak látszott,
+        // tehát léptette a számlálót — és így az alvó eszköz „még fut”
+        // állapota legyőzte az ébren lévő eszköz szabályos lezárását. Az
+        // elnyelés viszont nem döntés, csak helyi újraértelmezés; a HOSSZ
+        // pedig egy egyenletes eltolástól nem változik.
+        let run = state.focusRun.map { "\($0.packId);\($0.endsAt - $0.startedAt)" } ?? "-"
+        return focusFpV2 + digestHex("\(packsPart(state))//\(run)")
     }
 
     /// A munkamenet számlálójának léptetése.
@@ -92,6 +125,18 @@ enum SyncRevisions {
         if state.focusRevFp == fp { return state }
         var next = state
         if state.focusRevFp == nil && (state.focusPacks ?? []).isEmpty && state.focusRun == nil {
+            next.focusRevFp = fp
+            return next
+        }
+        // FORMÁTUMVÁLTÁS. A mentésben még a régi alakú lenyomat van; ettől
+        // önmagában nem történt semmi. A régi algoritmussal döntjük el, volt-e
+        // valódi változás: ha egyezik, csak a formátum változott — átvesszük
+        // az újat léptetés nélkül. Ha eltér, akkor VOLT szerkesztés, és az
+        // ugyanúgy léptet. Így a váltásnak nincs ablaka: sem szerkesztést nem
+        // nyel el, sem fölöslegesen nem léptet egy üres telefonon.
+        if let old = state.focusRevFp,
+           !old.hasPrefix(focusFpV2),
+           old == focusFingerprintV1(state) {
             next.focusRevFp = fp
             return next
         }
