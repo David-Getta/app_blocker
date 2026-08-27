@@ -72,6 +72,10 @@ jobs:
           mértünk, a nulla igaz. Ha tegnapi dátum áll ott, az önmagában a
           válasz.
 
+          Ugyanez a sor **a telefonodon is ott van** — Androidon a hiányzó
+          engedélyt eddig is jelezte az app, de azt nem, hogy engedéllyel is
+          nulla maradt-e a mai nap.
+
           **A szinkron állapotsora nem hazudik többé.** Egyetlen időpont állt
           ott, és az csak akkor lépett, ha a kör végigfutott — így egy hiba
           mellett úgy nézett ki, mintha az app órákkal korábban feladta volna,
