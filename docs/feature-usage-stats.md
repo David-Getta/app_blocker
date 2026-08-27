@@ -223,6 +223,30 @@ ellen az első figyelmeztetés készült, csak egy réteggel lejjebb, ahol az ne
 lát. A `DeliveryHealth` ezt fogja meg: három egymást követő olyan küldés után
 szól, amit átvettek, de egyetlen sort sem rögzítettek belőle.
 
+### A harmadik néma eset: a beragadt szonda
+
+A két figyelmeztetés akkor szólal meg, ha a mérés FELISMERI a hibát — az egyik
+üres válaszokat számol, a másik eldobott mintákat. Van azonban egy eset, ahol
+egyik sem lát semmit, mert nem történik SEMMI.
+
+A mérési kör tart egy „épp fut egy lekérdezés” jelzőt, hogy egy lassú szonda ne
+torlódjon fel önmaga mögött. Ez a jelző csak a kör BEFEJEZÉSEKOR törlődik. Ha
+tehát a szonda ígérete sosem teljesül, minden későbbi kör azonnal visszafordul:
+a mérés a folyamat hátralévő életére leáll — és a szonda-egészség meg sem
+szólal, mert az HIBÁT számol, nem elmaradást. A felhasználó csak a nullát látja.
+
+macOS-en ez nem elméleti: az `osascript` megállhat az engedélykérő ablakon. Az
+`execFile` saját időkorlátja SIGTERM-et küld, de a visszahívás csak akkor fut
+le, ha a folyamat tényleg meg is hal.
+
+Ezért van a lekérdezésnek SAJÁT, a hívón belüli határideje (`withDeadline`).
+Ha letelik, a kör „nem láttam semmit”-ként könyveli, és megy tovább — az
+elhagyott lekérdezés eredményét eldobjuk. Egy elmaradt minta ára eltörpül
+amellett, hogy a mérés csendben leáll.
+
+Ez ugyanaz a hibafajta, mint a szinkron körénél: egy futás-jelző, amit csak a
+befejezés töröl, plusz egy művelet, ami sosem fejeződik be.
+
 ### A nulla legyen olvasható
 
 A két figyelmeztetés akkor szólal meg, ha az app FEL TUDJA ismerni a hibát. Van

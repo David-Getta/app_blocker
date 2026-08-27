@@ -12,6 +12,7 @@
 
 import { powerMonitor } from 'electron';
 import { ProbeHealth } from '../shared/probe-health';
+import { withDeadline } from '../shared/deadline';
 import { DeliveryHealth } from '../shared/delivery-health';
 import { execFile, spawn } from 'child_process';
 import {
@@ -37,6 +38,23 @@ const WIN_BROWSERS = new Set(['chrome', 'msedge', 'brave', 'vivaldi', 'firefox',
 
 const FLUSH_INTERVAL_MS = 30_000;
 const PROBE_TIMEOUT_MS = 4_000;
+/**
+ * Ennyi után a kör FELADJA a szondát, és üresnek könyveli.
+ *
+ * Az `execFile` saját időkorlátja (`PROBE_TIMEOUT_MS`) SIGTERM-et küld — de a
+ * visszahívás csak akkor fut le, ha a folyamat tényleg meg is hal. macOS-en az
+ * `osascript` megállhat az engedélykérő ablakon, és a kilövése sem biztos.
+ *
+ * Ha a visszahívás elmarad, a szonda ígérete sosem teljesül: a `probing` jelző
+ * pedig csak a kör BEFEJEZÉSEKOR törlődik, tehát onnantól minden későbbi kör
+ * azonnal visszafordul. A mérés a folyamat hátralévő életére leáll — és a
+ * legrosszabb: a szonda-egészség sem szólal meg, mert az hibát számol, nem
+ * elmaradást. A felhasználó csak a nullát látja, figyelmeztetés nélkül.
+ *
+ * Ezért van saját, a hívón belüli határidő. Hosszabb az `execFile`-énál, hogy
+ * a szabályos kilövésnek legyen ideje lefutni.
+ */
+const PROBE_DEADLINE_MS = 10_000;
 
 function run(cmd: string, args: string[]): Promise<string | null> {
   return new Promise((resolve) => {
@@ -315,7 +333,12 @@ export class UsageTracker {
     this.probing = true;
     try {
       const idleSeconds = powerMonitor.getSystemIdleTime();
-      const fg = await probeForeground(this.deps.log);
+      // A határidő NEM az `execFile`-é: ez azt zárja, hogy a szonda ígérete
+      // egyáltalán nem teljesül. Enélkül egyetlen beragadt lekérdezés a
+      // folyamat hátralévő életére megállítaná a mérést, némán.
+      const fg = await withDeadline<Foreground | null>(
+        probeForeground(this.deps.log), PROBE_DEADLINE_MS, null,
+      );
       this.health.record(fg !== null);
       this.deps.onForeground?.(fg);
       const now = Date.now();

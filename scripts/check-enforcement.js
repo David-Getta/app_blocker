@@ -100,6 +100,19 @@ const WIRES = [
     needle: 'Utoljára mért idő',
     lost: 'az utolsó mérés ideje nem jutna képernyőre',
   },
+  // A SZONDA HATÁRIDEJE. A `probing` jelző csak a kör BEFEJEZÉSEKOR törlődik,
+  // tehát egyetlen beragadt lekérdezés a folyamat hátralévő életére megállítja
+  // a mérést — és a szonda-egészség sem szólal meg, mert az hibát számol, nem
+  // elmaradást. A felhasználó csak a nullát látja.
+  {
+    file: 'desktop/src/main/tracker.ts',
+    // A tű a HÍVÁS, nem a név: az `import` sor a hívás törlése után is
+    // tartalmazná a nevet, és az őr hallgatna. Ez a második eset ma, ahol a
+    // puszta név elfedte a törlést — a szűkítés nem finomkodás.
+    needle: 'withDeadline<Foreground | null>(',
+    lost: 'egy beragadt előtér-lekérdezés némán megállítaná a mérést a folyamat '
+      + 'hátralévő életére, figyelmeztetés nélkül',
+  },
   // A KÉT ENGEDÉLY-ESET. Ugyanaz a nulla, két külön teendővel: aki még soha nem
   // adta meg az engedélyt, annak meg kell adnia; akitől a rendszer frissítéskor
   // visszavette, annak ÚJRA. Egy közös mondat az egyik felét rossz helyre küldi.
