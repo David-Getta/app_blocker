@@ -2361,6 +2361,37 @@ function renderProbeWarning(measurementOn: boolean): void {
 }
 
 /**
+ * „Mikor mértünk utoljára?”
+ *
+ * A statisztikán a nulla önmagában NÉMA. Lehet, hogy tényleg nem használtad a
+ * gépet — és lehet, hogy a mérés elhasalt valahol a szonda és a tároló között.
+ * A felhasználó ugyanazt a nullát látja mindkettőre, és semmiből nem tudja
+ * eldönteni, melyikről van szó.
+ *
+ * Ez a sor teszi ténnyé: ha ma reggel óta nem került be egyetlen szelet sem,
+ * az látszik. Ha viszont fél órája még mértünk, akkor a nulla igaz, és nincs
+ * mit keresni. Egyik esetben sem kell naplót olvasni hozzá.
+ */
+function renderLastSample(measurementOn: boolean): void {
+  const el = $('lastSample');
+  const at = statsData?.lastSampleAt ?? null;
+  if (!measurementOn) { el.textContent = ''; return; }
+  if (at === null) {
+    el.textContent = 'Még egyetlen mért időt sem rögzítettünk ezen a gépen.';
+    return;
+  }
+  const d = new Date(at);
+  const sameDay = new Date().toDateString() === d.toDateString();
+  // A DÁTUM is kiírandó, ha nem ma volt. Egy csupasz óraérték „12:41” mellé a
+  // szem automatikusan a mai napot képzeli — és pont az a kérdés, hogy ma
+  // volt-e egyáltalán.
+  el.textContent = sameDay
+    ? `Utoljára mért idő: ma ${d.toLocaleTimeString('hu-HU')}.`
+    : `Utoljára mért idő: ${d.toLocaleDateString('hu-HU')} ${d.toLocaleTimeString('hu-HU')} `
+      + '— azóta a mérés nem rögzített semmit.';
+}
+
+/**
  * A munkamenetek összegzése a statisztikán.
  *
  * Az app eddig azt mérte, MIRE megy el az idő. Ez a másik oldal: hányszor
@@ -2427,6 +2458,7 @@ function renderStats(): void {
     tile(formatDuration(s.last30Seconds), 'utolsó 30 nap'),
   );
 
+  renderLastSample(enabled);
   renderFocusStats();
 
   renderBarList($('topSites'), s.topWeekSites, $('topSitesEmpty'), true);

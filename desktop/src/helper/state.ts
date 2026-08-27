@@ -103,6 +103,15 @@ export interface HelperState {
   /** active-time tracking history (stays on this machine) */
   usage: UsageState;
   /**
+   * Mikor rögzítettünk UTOLJÁRA mért időt.
+   *
+   * Nem a szinkronizált mérés-blobban van, hanem itt: ez helyi diagnosztika,
+   * nem adat. A statisztikán a nulla önmagában néma — nem lehet megmondani
+   * belőle, hogy tényleg nem használtad a gépet, vagy a mérés hasalt el. Ez a
+   * mező teszi különbséggé a kettőt.
+   */
+  usageLastSampleAt?: number;
+  /**
    * Rejtve induljon-e a blokkolt oldalak listája.
    *
    * Beállítás, nem pillanatnyi állapot: a felület minden indításkor rejtve

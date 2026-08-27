@@ -86,6 +86,20 @@ const WIRES = [
     lost: 'a mérés nem venné észre, ha a segéd sorozatban egyetlen mintát sem '
       + 'rögzít — a mért idő némán elveszne, figyelmeztetés nélkül',
   },
+  // MIKOR MÉRTÜNK UTOLJÁRA. Enélkül a statisztikán a nulla néma marad: nem
+  // lehet megmondani belőle, hogy tényleg nem használtad a gépet, vagy a mérés
+  // hasalt el. A segédnek fel kell jegyeznie, a felületnek ki kell írnia.
+  {
+    file: 'desktop/src/helper/server.ts',
+    needle: 'usageLastSampleAt = s.at',
+    lost: 'a segéd nem jegyezné fel, mikor mért utoljára — a statisztikán a '
+      + 'nulla megkülönböztethetetlen maradna az elhasalt méréstől',
+  },
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: 'Utoljára mért idő',
+    lost: 'az utolsó mérés ideje nem jutna képernyőre',
+  },
   {
     file: 'desktop/src/renderer/renderer.ts',
     // A tű a MONDAT, nem a mezőnév: a `samplesDropped` a típusdeklarációkban

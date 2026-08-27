@@ -222,6 +222,14 @@ export interface UsageStatsData {
    */
   focusToday: import('./focus').FocusSummary;
   focusWeek: import('./focus').FocusSummary;
+  /**
+   * Mikor rögzített a segéd UTOLJÁRA mért időt — vagy `null`, ha még soha.
+   *
+   * A nulla önmagában nem mond semmit: lehet, hogy tényleg nem használtad a
+   * gépet, és lehet, hogy a mérés elhasalt. Ez a mező különbözteti meg a
+   * kettőt, anélkül hogy naplót kellene olvasni hozzá.
+   */
+  lastSampleAt: number | null;
 }
 
 /** Result of a set_schedule request. */

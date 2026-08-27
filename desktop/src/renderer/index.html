@@ -208,6 +208,12 @@
 
       <div id="statsBody">
         <div class="tiles" id="statTiles"></div>
+        <!--
+          Mikor mértünk utoljára. A nulla önmagában néma: nem lehet megmondani
+          belőle, hogy tényleg nem használtad a gépet, vagy a mérés hasalt el.
+          Ez a sor teszi a kettőt megkülönböztethetővé.
+        -->
+        <p id="lastSample" class="hint"></p>
 
         <!--
           A munkamenetek. Az app eddig azt mérte, MIRE megy el az idő; ez a

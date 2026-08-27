@@ -379,6 +379,10 @@ async function handle(req: HelperRequest, deps: ServerDeps): Promise<unknown> {
         if (Math.abs(s.at - now) > 7 * 24 * 3600_000) continue;
         const label = typeof s.label === 'string' ? s.label.slice(0, MAX_LABEL_LENGTH) : undefined;
         recordSample(state.usage, s.key, s.seconds, s.at, label);
+        // A LEGKÉSŐBBI elfogadott minta ideje. Nem a `now`: egy köteg
+        // percekkel korábbi szeleteket is hozhat, és a kérdés az, hogy mikor
+        // MÉRTÜNK, nem az, hogy mikor ért ide a csomag.
+        if (s.at > (state.usageLastSampleAt ?? 0)) state.usageLastSampleAt = s.at;
         recorded += 1;
       }
       deps.commit();
@@ -400,6 +404,7 @@ async function handle(req: HelperRequest, deps: ServerDeps): Promise<unknown> {
         // órával ezelőtt. Egy „ma” felirat alatt tegnap esti menetek állnának.
         focusToday: summarizeFocus(state.focusLog, startOfDay(now), now),
         focusWeek: summarizeFocus(state.focusLog, startOfDay(now) - 6 * 86_400_000, now),
+        lastSampleAt: state.usageLastSampleAt ?? null,
       };
       return data;
     }

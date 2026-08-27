@@ -214,6 +214,30 @@ ellen az első figyelmeztetés készült, csak egy réteggel lejjebb, ahol az ne
 lát. A `DeliveryHealth` ezt fogja meg: három egymást követő olyan küldés után
 szól, amit átvettek, de egyetlen sort sem rögzítettek belőle.
 
+### A nulla legyen olvasható
+
+A két figyelmeztetés akkor szólal meg, ha az app FEL TUDJA ismerni a hibát. Van
+viszont egy harmadik eset, amit senki nem ismer fel: a statisztikán álló nulla
+maga. Abból nem derül ki, hogy tényleg nem használtad a gépet, vagy hogy a
+mérés valahol elhasalt — és a felhasználó ugyanazt látja mindkettőre.
+
+Ezért a segéd feljegyzi, mikor rögzített UTOLJÁRA mért időt, és a statisztika
+ezt ki is írja: „utoljára mért idő: ma 12:41”, vagy dátummal, ha nem ma volt.
+Ha fél órája még mértünk, a nulla igaz, és nincs mit keresni. Ha viszont
+tegnapi dátum áll ott, az önmagában a válasz.
+
+Két részlet, ami nélkül a mező hazudna:
+
+- csak **elfogadott** minta lépteti. Ha egy eldobott köteg is állítaná, épp az
+  ellenkezőjét mondaná: azt, hogy mértünk, pedig semmi nem került be;
+- a **legkésőbbi minta** ideje számít, nem a kötegé. Egy köteg percekkel
+  korábbi szeleteket is hozhat — a kérdés az, hogy mikor mértünk, nem az, hogy
+  mikor ért ide a csomag.
+
+A mező **nem** a szinkronizált mérés-blobban van: ez helyi diagnosztika, nem
+adat. A másik eszközödnek semmit nem mondana arról, hogy a te gépeden mikor
+mértünk utoljára.
+
 A **kettőt szét kell tartani**. A segéd elérhetetlensége nem adatvesztés: a
 puffer megtartja a mintákat, és a következő kör újrapróbálja. Ha azt is
 veszteségnek vennénk, a mérés minden zökkenőre riasztana — és a riasztás, ami

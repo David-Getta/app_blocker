@@ -144,6 +144,7 @@ function fakeBridgeSource() {
       // abból jön, mire megy el az idő, hanem a menetek naplójából.
       focusToday: { sessions: 2, totalMs: 95 * 60_000, stoppedEarly: 0, topPack: 'Nyelvtanulás' },
       focusWeek: { sessions: 9, totalMs: 7 * 3600_000, stoppedEarly: 2, topPack: 'Nyelvtanulás' },
+      lastSampleAt: Date.now() - 5 * 60_000,
     };
     window.breaker = {
       platform: 'darwin',
@@ -156,7 +157,9 @@ function fakeBridgeSource() {
             const zero = { sessions: 0, totalMs: 0, stoppedEarly: 0, topPack: null };
             return { ok: true, data: { ...stats, focusToday: zero, focusWeek: zero } };
           }
-          return { ok: true, data: stats };
+          // A folt a füstteszté: egyetlen mezőt cserél a hamis adaton, hogy
+          // ugyanazt a képernyőt több állapotban is meg lehessen nézni.
+          return { ok: true, data: { ...stats, ...(window.__fakeStatsPatch || {}) } };
         }
         if (op === 'start_unlock') {
           session = {
@@ -660,6 +663,42 @@ async function main() {
     };
   });
   await page.waitForSelector('#usageBlocked', { state: 'hidden', timeout: 15_000 });
+
+  // MIKOR MÉRTÜNK UTOLJÁRA. A statisztikán a nulla önmagában néma: nem lehet
+  // megmondani belőle, hogy tényleg nem használtad a gépet, vagy a mérés
+  // hasalt el. Három esetet nézünk, mert mind a háromnak MÁS a jelentése.
+  const freshLine = (await page.locator('#lastSample').innerText()) || '';
+  if (!freshLine.includes('ma ')) {
+    failures.push(`a mai mérés ideje nem mai napként jelenik meg: ${freshLine}`);
+  }
+  // Ha nem MA volt, a dátumnak is ott kell lennie: egy csupasz óraérték mellé
+  // a szem automatikusan a mai napot képzeli — és pont az a kérdés, hogy ma
+  // volt-e egyáltalán.
+  // A statisztika harmincmásodpercenként frissül magától, tehát a folt
+  // beállítása önmagában nem rajzoltatna újra — a fülváltás viszont igen
+  // (`view === 'stats'` esetén újratölt). Enélkül a teszt csendben a RÉGI
+  // képernyőt mérné, és mindent átengedne.
+  await page.evaluate(() => {
+    window.__fakeStatsPatch = { lastSampleAt: Date.now() - 3 * 86_400_000 };
+  });
+  await goTo(page, 'sites');
+  await goTo(page, 'stats');
+  await page.waitForFunction(
+    () => document.getElementById('lastSample').textContent.includes('azóta'),
+    undefined, { timeout: 10_000 },
+  ).catch(() => failures.push('a régi mérési idő mellől hiányzik, hogy azóta nem mértünk'));
+  // És ha MÉG SOHA nem mértünk, azt is ki kell mondani — az a legrosszabb
+  // eset, mert ott a felhasználó azt hinné, csak most kezdte.
+  await page.evaluate(() => { window.__fakeStatsPatch = { lastSampleAt: null }; });
+  await goTo(page, 'sites');
+  await goTo(page, 'stats');
+  await page.waitForFunction(
+    () => document.getElementById('lastSample').textContent.includes('egyetlen'),
+    undefined, { timeout: 10_000 },
+  ).catch(() => failures.push('a „még soha nem mértünk” eset nem jelenik meg'));
+  await page.evaluate(() => { window.__fakeStatsPatch = undefined; });
+  await goTo(page, 'sites');
+  await goTo(page, 'stats');
 
   // A frissítési sáv — ez a projekt egyik ígérete („egy gombnyomás”), tehát
   // nézzük meg, hogy tényleg megjelenik, egyszer indít, és hiba esetén

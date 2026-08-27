@@ -166,6 +166,44 @@ test('malformed samples are skipped, valid ones in the same batch still count', 
   assert.equal((res.data as { recorded: number }).recorded, 1, 'exactly one sample was accepted');
 });
 
+test('az utolsó mérés ideje csak ELFOGADOTT mintától lép', async () => {
+  // Ez a mező a statisztikán a nullát teszi értelmezhetővé: nem lehet
+  // megmondani belőle, hogy tényleg nem használtad a gépet, vagy a mérés
+  // elhasalt. Ha egy ELDOBOTT minta is léptetné, épp az ellenkezőjét
+  // állítaná: azt mondaná, hogy mértünk, pedig semmi nem került be.
+  //
+  // A fájl tesztjei KÖZÖS segéd-állapoton futnak, és a korábbiak már
+  // rögzítettek mintát a mostani időre. Ezért nézünk előre: így az állítás
+  // arról szól, amit EZ a teszt tett, nem arról, amit egy korábbi hagyott ott.
+  const base = Date.now() + 1_000;
+  const read = async (): Promise<number> =>
+    ((await call('usage_stats', {})).data as { lastSampleAt: number }).lastSampleAt;
+
+  await call('usage_batch', { samples: [{ key: 'site:x.com', label: 'x', seconds: 5, at: base }] });
+  assert.equal(await read(), base);
+
+  // Csupa érvénytelen köteg — a mező nem mozdulhat.
+  await call('usage_batch', {
+    samples: [
+      { key: 'nonsense', label: 'x', seconds: 5, at: base + 10_000 },
+      { key: 'site:y.com', label: 'y', seconds: 5, at: base + 400 * 24 * 3600_000 },
+    ],
+  });
+  assert.equal(await read(), base, 'egy eldobott köteg nem állíthatja, hogy mértünk');
+
+  // A LEGKÉSŐBBI elfogadott minta ideje számít, nem a köteg sorrendje: egy
+  // köteg percekkel korábbi szeleteket is hozhat, és a kérdés az, hogy mikor
+  // MÉRTÜNK, nem az, hogy mikor ért ide a csomag.
+  await call('usage_batch', {
+    samples: [
+      { key: 'site:z.com', label: 'z', seconds: 5, at: base + 3_000 },
+      { key: 'site:z.com', label: 'z', seconds: 5, at: base + 2_000 },
+    ],
+  });
+  assert.equal(await read(), base + 3_000);
+});
+
+
 test('a far-future timestamp cannot evict real history', async () => {
   const stats = await call('usage_stats');
   assert.equal(stats.ok, true);
