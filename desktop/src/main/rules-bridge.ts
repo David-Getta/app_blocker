@@ -129,8 +129,16 @@ export async function answer(
     // aki próbálgat.
     return { status: 401, body: { error: 'Hiányzó vagy rossz kód.' } };
   }
-  const rules = await deps.getRules();
-  const focus = deps.getFocus ? await deps.getFocus() : { running: false };
+  // PÁRHUZAMOSAN, nem egymás után. A kettő ugyanabból az egy állapotból jön, és
+  // a hívó össze is vonja őket EGY lekérdezéssé — sorosan viszont nem tudná,
+  // mert a második csak az első befejezése után indulna. A különbség nem
+  // kozmetika: a bővítmény három másodperc után továbblép, a sorosan kétszer
+  // lekérdezett állapot pedig ennek a duplájába is telhet, és akkor a
+  // szabályok CSENDBEN nem frissülnének.
+  const [rules, focus] = await Promise.all([
+    deps.getRules(),
+    deps.getFocus ? deps.getFocus() : Promise.resolve({ running: false }),
+  ]);
   // Feljegyezzük, hogy VOLT lehúzás. Enélkül az app csak azt tudja, hogy a híd
   // FUT — azt nem, hogy beszél-e vele bárki. A kettő között pedig ott a
   // legcsendesebb hiba: a felhasználó elindít egy munkamenetet, a fehérlistát

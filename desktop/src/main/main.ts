@@ -143,10 +143,28 @@ if (HELPER_MODE) {
       // A böngésző-bővítmény innen veszi a részleges szabályokat. Enélkül
       // ugyanazt kétszer kellene begépelni, két külön listába — és ami kétszer
       // van, az előbb-utóbb szétcsúszik.
+      // EGY állapot-lekérdezés kérésenként, nem kettő.
+      //
+      // A híd két dolgot ad vissza (a szabályokat és a futó munkamenetet), és
+      // mindkettő ugyanabból az egy állapotból jön. A `Promise.all` miatt a
+      // kettő EGYSZERRE indul, tehát ez az összevonás valóban egyetlen hívásra
+      // fogja őket. Nem gyorsítás kedvéért: a bővítmény három másodperc után
+      // továbblép, és két soros lekérdezés ennek a duplájába is telhet.
+      //
+      // Nem „fut-e épp” jelző, hanem MAGA az ígéret: az mindig befejeződik (a
+      // segéd-kliensnek van időkorlátja), tehát nem tud beragadni.
+      let statusInFlight: Promise<StatusData> | null = null;
+      const sharedStatus = (): Promise<StatusData> => {
+        if (!statusInFlight) {
+          statusInFlight = (client.call('status') as Promise<StatusData>)
+            .finally(() => { statusInFlight = null; });
+        }
+        return statusInFlight;
+      };
       registerRulesBridge(
         app.getPath('userData'),
         async () => {
-          const s = await client.call('status') as StatusData;
+          const s = await sharedStatus();
           const out: { host: string; path: string }[] = [];
           for (const site of s.sites ?? []) {
             for (const r of site.rules ?? []) out.push({ host: r.host, path: r.path });
@@ -157,7 +175,7 @@ if (HELPER_MODE) {
           // A futó munkamenet FEHÉRLISTA: a böngésző az egyetlen hely, ahol ezt
           // érvényesíteni lehet. A DNS a hosztnévnél tovább nem lát, és a
           // „mindent tilts, kivéve ötöt” egy hosts-fájlban nem leírható.
-          const s = await client.call('status') as StatusData;
+          const s = await sharedStatus();
           const run = s.focusRun;
           if (!run) return { running: false };
           const pack = (s.focusPacks ?? []).find((p) => p.id === run.packId);

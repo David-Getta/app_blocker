@@ -110,3 +110,29 @@ test('a busy port does not kill the bridge', async () => {
     second.close();
   }
 });
+
+test('a szabályok és a munkamenet EGYSZERRE indul, nem egymás után', async () => {
+  // A kettő ugyanabból az egy állapotból jön, és a hívó össze is vonja őket egy
+  // lekérdezéssé — de csak akkor tudja, ha PÁRHUZAMOSAN indulnak. Sorosan a
+  // második csak az első befejezése után kezdődne, tehát két külön lekérdezés
+  // lenne belőle, dupla késleltetéssel.
+  //
+  // Ez nem sebességi finomkodás: a bővítmény három másodperc után továbblép,
+  // és a dupla késleltetés ezt átlépheti — a szabályok pedig CSENDBEN nem
+  // frissülnének. A böngésző a régi listával menne tovább.
+  let focusStarted = false;
+  let sawFocusStart = false;
+  const d = {
+    token: 'ABCD-EFGH',
+    getRules: async () => {
+      // Elengedjük a vezérlést: ha a kettő párhuzamos, a másik ezalatt elindul.
+      await new Promise((r) => { setTimeout(r, 20); });
+      sawFocusStart = focusStarted;
+      return RULES;
+    },
+    getFocus: async () => { focusStarted = true; return { running: false }; },
+  };
+  const r = await answer(d, 'GET', '/rules', { [TOKEN_HEADER]: 'ABCD-EFGH' });
+  assert.equal(r.status, 200);
+  assert.equal(sawFocusStart, true, 'a munkamenet lekérdezése nem várta meg a szabályokét');
+});
