@@ -201,7 +201,10 @@ Ismert megkerülési utak (szándékosan nem próbáljuk „lelakatolni” a gé
   Ugyanez véd a FUTÓ MUNKAMENETRE is: az ugrást elnyeljük, tehát amennyi hátra
   volt, annyi van hátra. Ez korábban rés volt — az óra előreállítása „lejárttá”
   tette a menetet, és a lejárás a szinkronon át a többi eszközre is átvitte a
-  leállást, próbatétel nélkül. A részletek és az ára:
+  leállást, próbatétel nélkül. Az elnyelés MÁR A SZINKRON-SZÁMLÁLÓT SEM lépteti:
+  a lenyomat a futás hosszát nézi, nem az abszolút időpontjait, tehát egy alvó
+  eszköz „még fut” állapota nem győzi le a másik eszközön próbatétellel
+  megszerzett lezárást. A részletek és a megmaradt vakfolt:
   `docs/feature-focus-sessions.md`.
 
   **A NAPI KERETNÉL viszont nem zárható be**, és ezt kimondjuk: a keret egy
@@ -210,6 +213,23 @@ Ismert megkerülési utak (szándékosan nem próbáljuk „lelakatolni” a gé
   a gyakori esetben lenne rossz. Aki egy napot előre állít, friss keretet kap
   azon az eszközön — cserébe az egész rendszere rossz időt mutat. Indoklás:
   `docs/feature-daily-limit.md`.
+- **Ha a MÉRÉS vak, a napi keret nem fogy el.** A keret mért időből fogy, tehát
+  amíg a szonda nem lát semmit — macOS-en jellemzően azért, mert az
+  automatizálási engedély hiányzik vagy egy frissítés visszavette —, a keret
+  soha nem ürül ki, és a rá épülő tiltás nem lép életbe. Az app EZT KIÍRJA, és
+  meg is mondja, hol adható vissza az engedély.
+
+  Hogy ez mennyire nem elméleti, azt a saját kódunk mondja ki: a mérés
+  KÉZZEL nem is kapcsolható ki, amíg van beállított napi keret, mert az
+  „csendes kibúvó lenne”. Ugyanez a kibúvó egy elveszett engedélyen keresztül
+  viszont nyitva áll.
+
+  Miért nem zárjuk be egyszerűen. A következetes irány az lenne, hogy vak
+  mérésnél a keretet KIMERÜLTNEK tekintjük (a rendszer a szigorú irányba dőljön).
+  Csakhogy ennek az ára is valódi: egy lejárt rendszerengedéstől — amiről a
+  felhasználó nem tehet — egyszerre záródna be minden keretes oldala, akár
+  napokra. Ez a döntés a felhasználóé, nem a miénk; amíg nem választott, a
+  látható figyelmeztetés a válasz, nem a néma tűrés.
 - **A saját fiókkiszolgálód címe átmegy a munkamenet fehérlistáján**, mert
   enélkül a telefon nem tudná meg, hogy egy MÁSIK eszközön leállítottad a
   menetet. A címet viszont a felhasználó adja meg: aki oda a `youtube.com`-ot
