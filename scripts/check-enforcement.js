@@ -100,6 +100,15 @@ const WIRES = [
     needle: 'Utoljára mért idő',
     lost: 'az utolsó mérés ideje nem jutna képernyőre',
   },
+  // A KÉT ENGEDÉLY-ESET. Ugyanaz a nulla, két külön teendővel: aki még soha nem
+  // adta meg az engedélyt, annak meg kell adnia; akitől a rendszer frissítéskor
+  // visszavette, annak ÚJRA. Egy közös mondat az egyik felét rossz helyre küldi.
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: 'trackerState!.neverWorked',
+    lost: 'a frissítés utáni engedélyvesztés ugyanazt a mondatot kapná, mint az '
+      + 'első indítás — pedig a teendő más',
+  },
   {
     file: 'desktop/src/renderer/renderer.ts',
     // A tű a MONDAT, nem a mezőnév: a `samplesDropped` a típusdeklarációkban

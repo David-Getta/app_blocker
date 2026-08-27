@@ -628,6 +628,24 @@ async function main() {
       failures.push(`the measurement warning does not mention "${needle}": ${blockedText}`);
     }
   }
+  // A MÉG SOHA NEM MŰKÖDÖTT eset: itt az engedélykérő ablakot kattintotta el a
+  // felhasználó, tehát azt kell megmondani, hol adhatja meg kézzel.
+  if (!blockedText.includes('még egyszer sem')) {
+    failures.push(`az első indítás esete nincs megkülönböztetve: ${blockedText}`);
+  }
+  // A KORÁBBAN MŰKÖDÖTT eset viszont MÁS teendő. Amíg nincs Apple fejlesztői
+  // aláírás, a macOS minden új változatot külön appnak lát, és frissítés után
+  // visszaveszi az automatizálási engedélyt. Aki ezt nem tudja, csak annyit
+  // lát, hogy a mérés elromlott — pedig nem az app hasalt el.
+  await page.evaluate(() => {
+    window.__fakeTracker = {
+      blocked: true, neverWorked: false, samplesDropped: false, platform: 'darwin',
+    };
+  });
+  await page.waitForFunction(
+    () => document.getElementById('usageBlocked').textContent.includes('FRISSÍTÉS'),
+    undefined, { timeout: 15_000 },
+  ).catch(() => failures.push('a frissítés utáni engedélyvesztés esete nincs megkülönböztetve'));
   await page.evaluate(() => {
     window.__fakeTracker = { blocked: false, neverWorked: false, samplesDropped: false, platform: 'darwin' };
   });

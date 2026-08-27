@@ -2351,12 +2351,31 @@ function renderProbeWarning(measurementOn: boolean): void {
   const show = measurementOn && !!trackerState?.blocked;
   el.classList.toggle('hidden', !show);
   if (!show) return;
-  el.textContent = trackerState!.platform === 'darwin'
-    ? 'A mérés be van kapcsolva, de nem kap adatot. macOS-en ehhez engedély kell: '
-      + 'Rendszerbeállítások → Adatvédelem és biztonság → Automatizálás, ott a '
-      + 'Breakernél kapcsold be a „System Events” és a böngésződ sorát. '
-      + 'Amíg nincs adat, a napi időkeret sem fogy.'
-    : 'A mérés be van kapcsolva, de nem kap adatot az előtérről. '
+  if (trackerState!.platform !== 'darwin') {
+    el.textContent = 'A mérés be van kapcsolva, de nem kap adatot az előtérről. '
+      + 'Amíg nincs adat, a napi időkeret sem fogy.';
+    return;
+  }
+  const where = 'Rendszerbeállítások → Adatvédelem és biztonság → Automatizálás, ott a '
+    + 'Breakernél kapcsold be a „System Events” és a böngésződ sorát.';
+  // KÉT KÜLÖN ESET, két külön teendővel. Sokáig ugyanazt a mondatot kapta
+  // mind a kettő, pedig a felhasználó dolga más:
+  //
+  //   - ha MÉG SOHA nem működött, akkor az engedélykérő ablakot kattintotta el
+  //     (vagy meg sem jelent), és most kézzel kell megadnia;
+  //   - ha KORÁBBAN MŰKÖDÖTT és most nem, akkor jellemzően frissítés történt.
+  //     Amíg nincs Apple fejlesztői aláírás, a macOS minden új változatot KÜLÖN
+  //     appnak lát, és az automatizálási engedélyt újra kell adni. Aki ezt nem
+  //     tudja, csak annyit lát, hogy a mérés „elromlott” — pedig nem az app
+  //     hasalt el, hanem a rendszer vette vissza az engedélyt.
+  el.textContent = trackerState!.neverWorked
+    ? `A mérés be van kapcsolva, de még egyszer sem kapott adatot. macOS-en ehhez `
+      + `engedély kell; az engedélykérő ablak az első méréskor jön fel, és ha `
+      + `elkattintottad, itt adhatod meg: ${where} Amíg nincs adat, a napi `
+      + 'időkeret sem fogy.'
+    : `A mérés korábban kapott adatot, most viszont nem. macOS-en ez jellemzően `
+      + `FRISSÍTÉS után fordul elő: amíg nincs Apple fejlesztői aláírás, a rendszer `
+      + `az új változatot külön appnak látja, és az engedélyt újra kell adni: ${where} `
       + 'Amíg nincs adat, a napi időkeret sem fogy.';
 }
 

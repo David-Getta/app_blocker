@@ -199,7 +199,16 @@ teendő viszont más, ezért két külön jelzés van rá.
 
 1. **A szonda nem lát semmit.** macOS-en engedély kell hozzá; ha nincs meg,
    az `osascript` hibázik, és minta se készül. Három üres lekérdezés után az
-   app kiírja, hol lehet megadni az engedélyt (`ProbeHealth`).
+   app szól (`ProbeHealth`) — és KÉT KÜLÖN mondattal, mert a teendő más:
+
+   - **még soha nem működött**: az engedélykérő ablakot elkattintották (vagy
+     meg sem jelent), tehát kézzel kell megadni;
+   - **korábban működött, most nem**: ez jellemzően FRISSÍTÉS után történik.
+     Amíg nincs Apple fejlesztői aláírás, a macOS minden új változatot külön
+     appnak lát, és az automatizálási engedélyt újra kell adni. Aki ezt nem
+     tudja, csak annyit lát, hogy a mérés elromlott — pedig nem az app hasalt
+     el, hanem a rendszer vette vissza az engedélyt. Ez a különbség sokáig ott
+     volt az állapotban (`neverWorked`), csak épp senki nem olvasta el.
 2. **A szonda lát, de a mért idő nem jut el a tárolóig.** A segéd minden
    mintát ellenőriz — kulcs alakja, hossz, időbélyeg a mai naptól legfeljebb
    egy hétre —, és amit nem fogad el, azt szó nélkül eldobja. A válasz ettől
