@@ -363,6 +363,42 @@ minden bizonytalan helyzet a tiltás felé dől:
 | Egy korábbi néven telepített segéd is fut (átnevezés után) | két démon körbe-körbe írja felül egymást a hosts fájlban, folyamatos DNS-ürítéssel, némán | a sorozatos visszatérésre abbahagyjuk a takarítást (a régi blokk marad = több tiltás), és a felület kiírja, mi állítja le |
 | Frissítés után az új GUI a RÉGI helperrel beszél | az ismeretlen parancs `data: undefined`-dal „sikerül” → a felhasználó azt hiszi, beállította a napi keretet | a helper `UNKNOWN_OP`-pal elhasal, a GUI sávban jelzi, és egy gombbal cseréli a démont |
 
+### A visszatérő hiba: futás-jelző + soha be nem fejeződő művelet
+
+Ez a projekt legmakacsabb hibamintája, és egyetlen nap alatt NÉGY helyen
+találtuk meg. Érdemes felismerni, mert mindegyik példány CSENDES: nem hibázik,
+nem naplóz, nem jelez — egyszerűen nem történik többé semmi.
+
+A recept két hozzávalós:
+
+1. egy „épp fut egy kör” jelző, hogy a művelet ne torlódjon fel önmaga mögött,
+   és amit **csak a befejezés töröl**;
+2. egy művelet, aminek **nincs felső időkorlátja**.
+
+Ha a második egyszer beragad, az első örökre bezárul: onnantól minden későbbi
+kör azonnal visszafordul. A rendszer nem elromlik, hanem MEGÁLL — és a
+felhasználó csak a következményt látja (nulla statisztikát, régi
+szabálylistát, befagyott időbélyeget), az okot nem.
+
+Ahol előfordult:
+
+| Hol | Mi ragadhatott be | Mi állt le tőle |
+|---|---|---|
+| Szinkron-kör (`sync-schedule` + `call`) | a válasz TÖRZSÉNEK olvasása (az időkorlát csak a fejlécig ért) | a szinkron a folyamat hátralévő életére |
+| Mérés (`UsageTracker.tick`) | az `osascript` az engedélykérő ablakon | a mérés — és a szonda-figyelmeztetés SEM szólalt meg, mert az hibát számol, nem elmaradást |
+| Bővítmény (`pullFromApp`) | egy port, ami fogadja a kapcsolatot, de nem válaszol (a böngésző `fetch`-ének nincs alapértelmezett határideje) | a szabályok frissítése |
+| Bővítmény, második fele | — | minden lapbetöltés újraindította a keresést, mert a sikertelen kör nem léptette az időbélyeget |
+
+A szabály tehát: **ha van futás-jelző, a művelethez kell felső időkorlát is.**
+A kettő együtt jár. És a határidőnek a művelet EGÉSZÉRE kell vonatkoznia, nem
+csak az első lépésére — a fejléc megvárása még nem a válasz.
+
+Egy csapda a javításban, amibe bele is estünk: a törzsre kiterjesztett
+határidőt először a fejléccel KÖZÖS keretből vettük. Egy megabájtos blob egy
+rossz mobilneten viszont több, mint a fejlécre szabott idő — vagyis a javítás
+minden lassú kapcsolaton elrontotta volna azt, ami addig működött. A két
+szakasz külön keretet kap.
+
 ### A frissítés utáni „régi helper” állapot
 
 A desktopon a GUI és a privilegizált helper **külön folyamat**, és a frissítés
