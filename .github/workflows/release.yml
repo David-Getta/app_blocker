@@ -58,6 +58,13 @@ jobs:
           napi keret pedig sosem fogyott volna el — vagyis az app védelmet
           mutatott volna ott, ahol nincs. Most kiírja, ha ez történik.
 
+          **És egy beragadt lekérdezés sem állíthatja le csendben a mérést.** A
+          mérési kör tart egy „épp fut egy lekérdezés” jelzőt, ami csak a kör
+          befejezésekor törlődik. Ha a lekérdezés sosem fejeződött be — macOS-en
+          az engedélykérő ablakon meg tud állni —, minden későbbi kör azonnal
+          visszafordult, és a mérés az app hátralévő életére leállt.
+          Figyelmeztetés nélkül, mert itt nem hiba történt, hanem semmi.
+
           **A statisztikán a nulla mostantól olvasható.** Eddig nem lehetett
           megmondani belőle, hogy tényleg nem használtad a gépet, vagy hogy a
           mérés hasalt el. Az app ezért kiírja, mikor rögzített utoljára mért
