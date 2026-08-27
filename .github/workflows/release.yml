@@ -79,6 +79,12 @@ jobs:
           ütemező futás-jelzője sosem törlődött. A szinkron az app hátralévő
           életére halott lett volna, hibaüzenet nélkül, befagyott időbélyeggel.
 
+          **A frissítés nem tölti le újra ugyanazt a 90 MB-ot.** Eddig a letöltött
+          csomag útja csak a memóriában élt: az app újraindítása után a
+          letöltés elölről kezdődött, a korábbi ~90 MB pedig ottmaradt a
+          lemezen, és semmi nem takarította el. Mostantól a csomag túléli az
+          újraindítást, és a fölöslegessé vált verziók törlődnek.
+
           **Ha a mérés engedélye frissítéskor elveszett, most megmondja.** macOS-en
           az előtér olvasásához engedély kell. Amíg nincs Apple fejlesztői
           aláírás, a rendszer minden új változatot KÜLÖN appnak lát, és
