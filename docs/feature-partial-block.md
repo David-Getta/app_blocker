@@ -164,6 +164,28 @@ vagyis tovább tilt, nem enged át. Ez a helyes irány: a hiba a szigorúbb olda
 dől. Egy elérhetetlen app soha nem jelent „nulla szabályt”, különben a
 legolcsóbb feloldás egy ablak bezárása lenne.
 
+### A keresés két határa
+
+A bővítmény húsz másodpercenként keresi meg az appot a saját gépeden, a
+127.0.0.1 tíz portján végigmenve (az app a szabadon lévő elsőn indul). Két
+dolog van körülötte, és mindkettő ugyanazt a csendes hibát zárja.
+
+**Portonkénti időkorlát (3 mp).** A böngésző `fetch`-ének nincs
+alapértelmezett határideje. Ha az egyik porton valami MÁS ül, ami fogadja a
+kapcsolatot, de sosem válaszol — egy fejlesztői kiszolgáló, egy proxy —, a
+keresés ott áll meg örökre. A bővítmény csendben a régi listával működne
+tovább: az appban felvett új tiltás sosem érne át, a levett sosem szűnne meg,
+és semmi nem szólna róla. A határidő a válasz TÖRZSÉRE is kiterjed, különben
+ugyanez történne, csak eggyel később.
+
+**A sikertelen próbát is megjegyezzük.** A „letelt-e a húsz másodperc” kérdés
+korábban csak a SIKERES lekérdezés idejét nézte — azt pedig a sikertelen kör
+nem lépteti. Egy zárva lévő app mellett tehát a válasz örökre igen volt, és
+minden lapbetöltés újraindította a tízportos pásztázást. A próbálkozás ideje
+külön mezőben van, mert a szabálylista FRISSESSÉGÉT továbbra is csak a sikeres
+kör mondhatja meg: az app elérhetetlensége nem jelenti azt, hogy nincsenek
+szabályok.
+
 ## Szinkron: a szabályok a fiókon át
 
 A szabályok a `SyncSite` részei, és minden eszközre elmennek — akkor is, ahol
