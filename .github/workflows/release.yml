@@ -79,6 +79,21 @@ jobs:
           ütemező futás-jelzője sosem törlődött. A szinkron az app hátralévő
           életére halott lett volna, hibaüzenet nélkül, befagyott időbélyeggel.
 
+          **Ha a mérés engedélye frissítéskor elveszett, most megmondja.** macOS-en
+          az előtér olvasásához engedély kell. Amíg nincs Apple fejlesztői
+          aláírás, a rendszer minden új változatot KÜLÖN appnak lát, és
+          frissítés után visszaveszi az engedélyt — te meg csak annyit látsz,
+          hogy a mérés „elromlott”. Az app eddig ilyenkor is azt írta ki, hogy
+          add meg az engedélyt, mintha még soha nem adtad volna meg. Most a két
+          esetet külön mondja, mert a teendő is más.
+
+          **És egy régi rés a munkameneteken.** Ha a gép aludt, ébredéskor az
+          app elnyeli az óra ugrását, hogy a futó menet ne legyen „lejárt”. Ez
+          eddig szerkesztésnek látszott, és így az alvó eszköz „még fut”
+          állapota legyőzte a másik eszközön próbatétellel megszerzett
+          lezárást: a menet visszatért. Mostantól a menet HOSSZA számít, nem az
+          abszolút időpontjai — egy eltolástól az nem változik.
+
           ### Ami a v0.4.6-ban jött
 
           **A telefonod is szól, ha a munkamenet szinkronja elhasal.** A gépen
