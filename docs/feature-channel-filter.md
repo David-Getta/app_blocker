@@ -50,6 +50,17 @@ A `@forma` és a `channel/…` forma ugyanahhoz a csatornához tartozhat, de ezt
 címből nem lehet tudni — ha egy engedélyezett csatornát valaki a másik formán
 ér el, a tiltó lapról leolvasható kulcsot érdemes szó szerint felvenni.
 
+## Együtt a napi kerettel
+
+A szűrő azt dönti el, MI nyílhat meg; a napi keret azt, MEDDIG. A kettő
+szándékosan nem egy funkció: az időkeret az oldal blokklista-rekordján él
+(`dailyLimitSeconds`), DNS-szinten érvényesül — minden böngészőben és
+appban, nem csak ott, ahol a bővítmény fut. Aki a szűrős oldalára fent
+kerettel veszi fel az oldalt, annál a kettő együtt fog: csak az
+engedélyezett csatornák, és összesen is legfeljebb annyi idő. Egy külön,
+bővítmény-szintű „csatorna-keret” ugyanennek egy gyengébb másodpéldánya
+lenne — és ami kétszer van, az szétcsúszik.
+
 ## A második réteg: hírfolyam és lejátszó
 
 A cím alapú tiltás egyedül azt jelentené, hogy a tiltott csatorna OLDALA nem
