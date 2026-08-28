@@ -3,7 +3,6 @@
   "name": "Breaker — részleges tiltás",
   "version": "0.1.0",
   "description": "Nem az egész oldalt, csak egy darabját: például a YouTube-on egy-egy csatornát.",
-  "default_locale": "hu",
   "permissions": ["storage", "webNavigation"],
   "host_permissions": ["<all_urls>"],
   "background": {
