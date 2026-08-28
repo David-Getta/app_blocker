@@ -167,7 +167,10 @@ enum UsageStats {
               let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             return nil
         }
-        var days: [Day] = []
+        // A helyi változók neve SZÁNDÉKOSAN nem a mezőnév: a drótnév-őr a
+        // `let/var days:` alakú deklarációt keresi, és egy azonos nevű helyi
+        // változó eltakarná a State-tulajdonság átnevezését.
+        var parsedDays: [Day] = []
         for raw in obj["days"] as? [[String: Any]] ?? [] {
             guard let day = raw["day"] as? String,
                   let secs = raw["seconds"] as? [String: Any] else { continue }
@@ -177,13 +180,13 @@ enum UsageStats {
                 guard let n = num, n.isFinite, n > 0 else { continue }
                 out[k] = n
             }
-            days.append(Day(day: day, seconds: out))
+            parsedDays.append(Day(day: day, seconds: out))
         }
-        var labels: [String: String] = [:]
+        var parsedLabels: [String: String] = [:]
         for (k, v) in obj["labels"] as? [String: Any] ?? [:] {
-            if let s = v as? String { labels[k] = s }
+            if let s = v as? String { parsedLabels[k] = s }
         }
-        return State(days: days, labels: labels, enabled: obj["enabled"] as? Bool ?? true)
+        return State(days: parsedDays, labels: parsedLabels, enabled: obj["enabled"] as? Bool ?? true)
     }
 
     // -------------------------------------------------------------- kiírás

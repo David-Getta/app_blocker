@@ -146,6 +146,20 @@ const GROUPS = [
     kt: 'android/app/src/main/java/hu/breaker/app/core/SyncClient.kt',
     swift: 'ios/Shared/Focus.swift',
   },
+  // A MÉRÉS BLOBJA. Sokáig a „nem őrzött” listán ült adósságként. Az eszközök
+  // egymás mért idejét is mutatják (a fiókkártya összesített blokkja ebből
+  // él): egy elcsúszott mezőnév itt azt jelenti, hogy a másik eszköz ideje
+  // némán nullának látszik — pont az a hibafajta, amiért ez az őr létezik.
+  // A `day`, `seconds` és `days` kulcsokat Kotlin-oldalon másik blob is
+  // használja (lásd a fejléc figyelmeztetését a takarásról), a TS- és
+  // Swift-deklarációjukat viszont ez a csoport most már fájlra pontosan nézi.
+  {
+    what: 'a mérés blobja',
+    names: ['enabled', 'days', 'labels', 'day', 'seconds'],
+    ts: 'desktop/src/shared/usage.ts',
+    kt: 'android/app/src/main/java/hu/breaker/app/core/SyncClient.kt',
+    swift: 'ios/Shared/UsageStats.swift',
+  },
 ];
 
 /**
@@ -233,8 +247,6 @@ const NOT_GUARDED = new Map([
   // `null`-t ír a helyére, a Swift ki se mondja — és ez rendben van, mert a
   // hiányzó és a null itt ugyanaz: nulla, vagyis a legszigorúbb.
   ['pauseUntil', 'szándékosan mindig null a dróton — a szünet nem szinkronizál'],
-  ['enabled', 'a mérés blobja — a mérés maga még nincs három nyelven őrizve'],
-  ['labels', 'a mérés blobja — ugyanaz'],
 ]);
 
 const known = new Set([...ENVELOPE, ...NOT_GUARDED.keys()]);
