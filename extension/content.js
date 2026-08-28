@@ -42,21 +42,7 @@
 
   let rules = [];
   let channels = [];
-  try {
-    const answer = await chrome.runtime.sendMessage({ type: 'breaker:active-rules' });
-    rules = Array.isArray(answer?.rules) ? answer.rules : [];
-    channels = Array.isArray(answer?.channels) ? answer.channels : [];
-  } catch {
-    // A háttér épp alszik vagy frissül. Rejtés nélkül maradunk — a navigáció
-    // megállítása attól még megvan, és az a fontosabb réteg.
-    return;
-  }
-  // Csak azok a szűrők érdekesek, amelyek ERRE az oldalra szólnak — a többi
-  // oldalon a csatorna-logika el sem indul, ne is fogyasszon semmit.
-  const pageFilters = channels.filter(
-    (f) => f && chan.hostMatchesFilter(String(location.hostname ?? '').toLowerCase(), f.host),
-  );
-  if (rules.length === 0 && pageFilters.length === 0) return;
+  let pageFilters = [];
 
   /** A kártya, amit el kell tüntetni: a link néhány szinttel feljebbi doboza. */
   function cardOf(link) {
@@ -286,19 +272,61 @@
     }, 250);
   }
 
-  hideMatches(document);
-  queueAuthorCheck();
-
   // A hírfolyam görgetés közben tölt be. Egyszeri futtatás csak azt takarná el,
   // ami az első képernyőn volt — a többi szépen megjelenne. Ugyanez a figyelő
   // veszi észre az egylapos váltást is: a metaadat cseréje DOM-változás.
-  const observer = new MutationObserver((records) => {
-    for (const rec of records) {
-      for (const node of rec.addedNodes) {
-        if (node.nodeType === 1) hideMatches(node);
+  // LUSTÁN indul: amíg se szabály, se ide szóló szűrő nincs, egy figyelő sem
+  // dolgozik — a bővítmény ott nem fogyaszthat, ahol nincs dolga.
+  let observer = null;
+  function ensureObserver() {
+    if (observer) return;
+    observer = new MutationObserver((records) => {
+      for (const rec of records) {
+        for (const node of rec.addedNodes) {
+          if (node.nodeType === 1) hideMatches(node);
+        }
       }
-    }
+      queueAuthorCheck();
+    });
+    observer.observe(document.documentElement, { childList: true, subtree: true });
+  }
+
+  function applyConfig(newRules, newChannels) {
+    rules = Array.isArray(newRules) ? newRules : [];
+    channels = Array.isArray(newChannels) ? newChannels : [];
+    // Csak azok a szűrők érdekesek, amelyek ERRE az oldalra szólnak — a többi
+    // oldalon a csatorna-logika el sem indul, ne is fogyasszon semmit.
+    pageFilters = channels.filter(
+      (f) => f && chan.hostMatchesFilter(String(location.hostname ?? '').toLowerCase(), f.host),
+    );
+    if (rules.length === 0 && pageFilters.length === 0) return;
+    ensureObserver();
+    hideMatches(document);
     queueAuthorCheck();
-  });
-  observer.observe(document.documentElement, { childList: true, subtree: true });
+  }
+
+  async function fetchConfig() {
+    const answer = await chrome.runtime.sendMessage({ type: 'breaker:active-rules' });
+    applyConfig(answer?.rules, answer?.channels);
+  }
+
+  try {
+    await fetchConfig();
+  } catch {
+    // A háttér épp alszik vagy frissül. Rejtés nélkül indulunk — a navigáció
+    // megállítása attól még megvan, és az a fontosabb réteg. A tár-figyelő
+    // lent ettől még él: ha a háttér később ír, innen is felébredünk.
+  }
+
+  // A szűrők és szabályok menet közben is változnak: az app frissíti a
+  // hátteret, az a tárat. E nélkül egy régóta nyitva lévő lap a betöltéskori
+  // állapotot őrizné — az újonnan bekapcsolt szűrő a régi lapokon
+  // újratöltésig nem rejtene semmit, és senki nem értené, miért.
+  try {
+    chrome.storage.onChanged.addListener((changes, area) => {
+      if (area !== 'local') return;
+      if (!Object.keys(changes).some((k) => k.startsWith('breaker.'))) return;
+      fetchConfig().catch(() => { /* a háttér épp alszik */ });
+    });
+  } catch { /* nagyon régi böngésző — marad a betöltéskori állapot */ }
 })();

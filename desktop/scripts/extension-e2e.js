@@ -7,10 +7,11 @@
 // úgy nézne ki, mintha „csak épp nem tiltana”. Pont az a hibafajta, amit
 // szem nélkül senki nem venne észre.
 //
-// A teszt egy helyi kamu videó-oldalt szolgál ki, és a bővítménybe egy
-// előre beültetett csatorna-szűrővel (127.0.0.1, engedélyezve: @jo) végigmegy
-// a rétegeken:
+// A teszt egy helyi kamu videó-oldalt szolgál ki, és egy beültetett
+// csatorna-szűrővel (127.0.0.1, engedélyezve: @jo) végigmegy a rétegeken:
 //
+//   0. a szűrő MENET KÖZBEN érkezik: a nyitott lapon újratöltés nélkül
+//      kezd rejteni (a tár-figyelő útvonala);
 //   1. hírfolyam: a nem engedélyezett csatorna VIDEÓKÁRTYÁJA eltűnik; a
 //      komment és az egész polc nem — azok nem kártyák;
 //   2. lejátszó-oldal: a lap metaadata (JSON-LD, mikroadat, beágyazott
@@ -123,6 +124,9 @@ async function main() {
     args: [`--disable-extensions-except=${EXT}`, `--load-extension=${EXT}`],
   });
 
+  // Bő keret: a CI futója lassabb és ingadozóbb, mint egy fejlesztői gép,
+  // és egy terhelési tüske miatt piros őr rosszabb, mint egy lassabb zöld.
+  const WAIT_MS = 15000;
   const failures = [];
   const check = (ok, name) => { if (!ok) failures.push(name); console.log(`${ok ? 'OK ' : 'HIBA'} ${name}`); };
 
@@ -134,16 +138,29 @@ async function main() {
     // API-kat, a beállítás-lap viszont teljes jogú — és útközben azt is
     // bizonyítja, hogy a lap egyáltalán betölt.
     const extId = new URL(sw.url()).host;
+    const seeder = await context.newPage();
+    await seeder.goto(`chrome-extension://${extId}/options.html`);
+
     const page = await context.newPage();
-    await page.goto(`chrome-extension://${extId}/options.html`);
-    await page.evaluate((link) => chrome.storage.local.set({ 'breaker.applink': link }), LINK);
+
+    // ------------------------------------- 0. a szűrő menet közben érkezik
+    // Nyitva lévő lapon kapcsolják be a szűrőt: a kártyának újratöltés
+    // NÉLKÜL kell eltűnnie. E nélkül egy régóta nyitott lap a betöltéskori
+    // (üres) állapotot őrizné a lap élete végéig.
+    await page.goto(`${base}/`);
+    await page.waitForTimeout(600);
+    check(await page.isVisible('#cardRossz'), 'szűrő nélkül a kártya látszik');
+    await seeder.evaluate((link) => chrome.storage.local.set({ 'breaker.applink': link }), LINK);
+    const liveHidden = await page.waitForSelector('#cardRossz', { state: 'hidden', timeout: WAIT_MS })
+      .then(() => true).catch(() => false);
+    check(liveHidden, 'a menet közben bekapcsolt szűrő újratöltés nélkül is rejt');
 
     // ------------------------------------------------ 1. hírfolyam-rejtés
     await page.goto(`${base}/`);
-    const hidden = await page.waitForSelector('#cardRossz', { state: 'hidden', timeout: 8000 })
+    const hidden = await page.waitForSelector('#cardRossz', { state: 'hidden', timeout: WAIT_MS })
       .then(() => true).catch(() => false);
     check(hidden, 'a nem engedélyezett csatorna videókártyája eltűnik');
-    const ruleHidden = await page.waitForSelector('#cardRule', { state: 'hidden', timeout: 8000 })
+    const ruleHidden = await page.waitForSelector('#cardRule', { state: 'hidden', timeout: WAIT_MS })
       .then(() => true).catch(() => false);
     check(ruleHidden, 'a részleges szabály kártyája továbbra is eltűnik');
     // A többinek LÁTHATÓNAK kell maradnia. Ez pont fordítva bizonyít, mint a
@@ -160,7 +177,7 @@ async function main() {
       [`${base}/watch?v=player12345`, 'beágyazott lejátszó-adat: a rossz feltöltő videója tiltó lapra fut'],
     ]) {
       await page.goto(caseUrl);
-      const blocked = await page.waitForURL(/blocked\.html/, { timeout: 8000 })
+      const blocked = await page.waitForURL(/blocked\.html/, { timeout: WAIT_MS })
         .then(() => true).catch(() => false);
       check(blocked, name);
       if (blocked) {
@@ -194,14 +211,19 @@ async function main() {
         author: { '@type': 'Person', name: 'Rossz', url: `${b}/@rossz` },
       });
     }, base);
-    const spaBlocked = await page.waitForURL(/blocked\.html/, { timeout: 8000 })
+    const spaBlocked = await page.waitForURL(/blocked\.html/, { timeout: WAIT_MS })
       .then(() => true).catch(() => false);
     check(spaBlocked, 'egylapos váltásnál a frissült metaadat alapján tilt');
 
     // ------------------------------------ 5. a címből döntő réteg is él még
+    // Előbb el a tiltó lapról: a /@rossz navigációt a háttér még commit
+    // előtt átirányítja, tehát ha a lap egy KORÁBBI blocked.html-en állna,
+    // a várakozás arra mondana igazat — a régi címre, a régi paraméterekkel.
+    await page.goto(`${base}/`);
     await page.goto(`${base}/@rossz`).catch(() => { /* a navigációt elkapja a tiltás */ });
-    const urlBlocked = await page.waitForURL(/blocked\.html/, { timeout: 8000 })
+    const urlBlocked = await page.waitForURL(/blocked\.html/, { timeout: WAIT_MS })
       .then(() => true).catch(() => false);
+    if (!urlBlocked) console.log(`   (a lap itt állt: ${page.url()})`);
     check(urlBlocked, 'a csatorna-lap címről tiltódik (régi réteg)');
     if (urlBlocked) {
       check(!page.url().includes('by=video'),
