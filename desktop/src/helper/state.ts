@@ -5,6 +5,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
 import type { Step } from '../shared/challenges';
+import type { ChannelFilter } from '../shared/channels';
 import type { Schedule } from '../shared/schedule';
 import { emptyUsage, type UsageState } from '../shared/usage';
 import type { SharedToday } from '../shared/limits';
@@ -64,6 +65,11 @@ export interface SessionRec {
   /** ha van, a teljesítés EZT a részleges szabályt veszi le (lazítás) */
   pendingRuleRemoval?: UrlRule;
   /**
+   * Ha van, a teljesítés a csatorna-szűrőt cseréli erre (lazítás: kikapcsolás,
+   * új engedélyezett csatorna, gazdagép-csere). A `next: null` a törlés.
+   */
+  pendingChannelFilter?: { id: string; next: ChannelFilter | null };
+  /**
    * Ha van, a teljesítés a futó munkamenetet rövidíti erre az időpontra.
    *
    * A -1 azt jelenti: állítsd le MOST. A kettőt meg kell különböztetni, mert a
@@ -102,6 +108,14 @@ export interface HelperState {
   dohApplied: boolean;
   /** active-time tracking history (stays on this machine) */
   usage: UsageState;
+  /**
+   * Csatorna-szűrők: „ezen az oldalon csak a felsorolt csatornák nyílnak meg”.
+   *
+   * A blokklistától FÜGGETLEN: az oldal nincs tiltva, csak a nem engedélyezett
+   * csatornái. A tiltást a böngésző-bővítmény végzi (csak ő látja az
+   * útvonalat); a segéd a rekordok gazdája és a súrlódás kapuja.
+   */
+  channelFilters?: ChannelFilter[];
   /**
    * Mikor rögzítettünk UTOLJÁRA mért időt.
    *

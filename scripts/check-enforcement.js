@@ -113,6 +113,32 @@ const WIRES = [
     needle: 'lastSampleLine(lastSampleAt)',
     lost: 'a telefonon az utolsó mérés ideje nem jutna képernyőre',
   },
+  // A CSATORNA-SZŰRŐ LÁNCA. Négy szem, és bármelyik kiesésével a szűrő
+  // némán díszletté válik: az appban ott áll, a böngésző meg mindent enged.
+  {
+    file: 'extension/background.js',
+    needle: 'channelVerdict(url, link.channels)',
+    lost: 'a böngésző nem kérdezné meg a csatorna-szűrőt — az appban minden '
+      + 'beállítva, és mégis minden csatorna nyílna',
+  },
+  {
+    file: 'desktop/src/main/main.ts',
+    needle: '.filter((f) => f.enabled)',
+    lost: 'a bekapcsolt szűrők nem jutnának le a hídra a bővítményhez',
+  },
+  {
+    file: 'desktop/src/main/rules-bridge.ts',
+    // A tű a VÁLASZ teste, nem a mezőnevek: a puszta felsorolás a
+    // Promise.all szétszedésében is szerepel, és az elfedte a törlést.
+    needle: 'BRIDGE_PROTOCOL, rules, focus, channels',
+    lost: 'a híd válaszából kimaradna a csatorna-lista',
+  },
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: 'renderChannelCard(status!)',
+    lost: 'a csatorna-szűrők kártyája nem jelenne meg — a szűrő láthatatlan '
+      + 'és kezelhetetlen lenne',
+  },
   // A MAI NAP KÜLÖN LISTÁJA. A mag régóta kiszámolta (`topToday`), csak épp
   // senki nem kérdezte meg — a felhasználó kérte ki magának a funkciót.
   {

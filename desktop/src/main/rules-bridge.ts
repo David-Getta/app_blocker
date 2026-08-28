@@ -92,6 +92,8 @@ export interface BridgeDeps {
   getRules: () => Promise<BridgeRule[]>;
   /** a futó munkamenet, ha van */
   getFocus?: () => Promise<BridgeFocus>;
+  /** a BEKAPCSOLT csatorna-szűrők — a kikapcsoltak a böngészőre nem tartoznak */
+  getChannels?: () => Promise<{ host: string; allow: string[] }[]>;
   token: string;
   /** csak teszthez: melyik portról induljon */
   startPort?: number;
@@ -135,16 +137,17 @@ export async function answer(
   // kozmetika: a bővítmény három másodperc után továbblép, a sorosan kétszer
   // lekérdezett állapot pedig ennek a duplájába is telhet, és akkor a
   // szabályok CSENDBEN nem frissülnének.
-  const [rules, focus] = await Promise.all([
+  const [rules, focus, channels] = await Promise.all([
     deps.getRules(),
     deps.getFocus ? deps.getFocus() : Promise.resolve({ running: false }),
+    deps.getChannels ? deps.getChannels() : Promise.resolve([]),
   ]);
   // Feljegyezzük, hogy VOLT lehúzás. Enélkül az app csak azt tudja, hogy a híd
   // FUT — azt nem, hogy beszél-e vele bárki. A kettő között pedig ott a
   // legcsendesebb hiba: a felhasználó elindít egy munkamenetet, a fehérlistát
   // viszont senki nem érvényesíti, és minden nyitva marad.
   deps.notePull?.();
-  return { status: 200, body: { protocol: BRIDGE_PROTOCOL, rules, focus } };
+  return { status: 200, body: { protocol: BRIDGE_PROTOCOL, rules, focus, channels } };
 }
 
 /** A híd elindítása. A hívó felelőssége, hogy a kódot megmutassa a felületen. */

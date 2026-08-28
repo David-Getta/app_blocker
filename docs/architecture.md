@@ -230,6 +230,13 @@ Ismert megkerülési utak (szándékosan nem próbáljuk „lelakatolni” a gé
   felhasználó nem tehet — egyszerre záródna be minden keretes oldala, akár
   napokra. Ez a döntés a felhasználóé, nem a miénk; amíg nem választott, a
   látható figyelmeztetés a válasz, nem a néma tűrés.
+- **A csatorna-szűrő hatóköre a bővítményé.** Csak abban a böngészőben él,
+  ahová a bővítményt betöltötted; inkognitóban és vendég módban alapból nem
+  fut, a telefonokra nem terjed ki, és egy videóról a címe nem árulja el a
+  csatornáját — a videók keresésből elérhetők maradnak. Mindezt a felhasználó
+  kifejezetten elfogadta, a doksi és a felület pedig kimondja
+  (`docs/feature-channel-filter.md`). A lazítás itt is próbatétel: a szűrő
+  kapcsolható, de a kikapcsolás nem egy gomb.
 - **A saját fiókkiszolgálód címe átmegy a munkamenet fehérlistáján**, mert
   enélkül a telefon nem tudná meg, hogy egy MÁSIK eszközön leállítottad a
   menetet. A címet viszont a felhasználó adja meg: aki oda a `youtube.com`-ot

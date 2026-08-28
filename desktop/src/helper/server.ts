@@ -69,6 +69,7 @@ export function statusOf(state: HelperState, dohApplied: boolean): StatusData {
   return {
     helperVersion: HELPER_VERSION,
     platform: process.platform,
+    channelFilters: state.channelFilters ?? [],
     sites: state.sites.map((s) => ({
       id: s.id, domain: s.domain, hostnames: s.hostnames, addedAt: s.addedAt,
       pauseUntil: s.pauseUntil, pendingDeleteAt: s.pendingDeleteAt,
@@ -210,6 +211,21 @@ async function handle(req: HelperRequest, deps: ServerDeps): Promise<unknown> {
       else site.alias = alias;
       deps.commit();
       return statusOf(state, deps.dohApplied());
+    }
+
+    case 'channel_filter_save': {
+      // Csatorna-szűrő: „csak a felsorolt csatornák nyílnak meg”. A tiltást a
+      // böngésző-bővítmény végzi (csak ő látja az útvonalat); a segéd a rekord
+      // gazdája és a súrlódás kapuja — lazítani itt sem egy gomb.
+      const r = referee.startChannelFilterSave(state, req.filter, now);
+      deps.commit();
+      return { ...r, status: statusOf(state, deps.dohApplied()) };
+    }
+
+    case 'channel_filter_delete': {
+      const r = referee.startChannelFilterDelete(state, req.filterId, now);
+      deps.commit();
+      return { ...r, status: statusOf(state, deps.dohApplied()) };
     }
 
     case 'set_rule': {

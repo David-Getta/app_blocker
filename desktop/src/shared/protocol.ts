@@ -156,6 +156,11 @@ export interface StatusData {
    * azt hinné, a funkció rossz.
    */
   focusSyncError?: string;
+  /**
+   * Csatorna-szűrők: „ezen az oldalon csak a felsorolt csatornák nyílnak meg”.
+   * A tiltást a böngésző-bővítmény végzi; a felület innen mutatja a listát.
+   */
+  channelFilters: import('./channels').ChannelFilter[];
   /** egy korábbi néven telepített segéd láthatóan még fut (lásd hosts.ts) */
   legacyHelperRunning?: boolean;
   now: number;
@@ -179,6 +184,12 @@ export type HelperRequest =
   // A lista elrejtése szintén tisztán felületi: a blokkolás nem változik tőle.
   | { id: number; op: 'set_hide_list'; hidden: boolean }
   | { id: number; op: 'set_rule'; siteId: string; input: string; remove: boolean }
+  // Csatorna-szűrő: mentés (új vagy csere) és törlés. A lazítás — kikapcsolás,
+  // új engedélyezett csatorna bekapcsolt szűrőn, törlés bekapcsolt állapotban —
+  // próbatételt indít, a szigorítás azonnal érvényes.
+  | { id: number; op: 'channel_filter_save';
+      filter: { id?: string; host: string; allow: string[]; enabled: boolean } }
+  | { id: number; op: 'channel_filter_delete'; filterId: string }
   | { id: number; op: 'sync_signup'; serverUrl: string; accountId: string; password: string; deviceName: string }
   | { id: number; op: 'sync_signin'; serverUrl: string; accountId: string; password: string; deviceName: string }
   | { id: number; op: 'sync_recovery'; serverUrl: string; accountId: string; recoveryCode: string; newPassword: string; deviceName: string }
@@ -273,5 +284,5 @@ export type HelperResponse =
  * 0.2.0 — set_limit (napi időkeret), a status kiegészülve a keret mezőivel
  * 0.1.0 — első kiadás
  */
-export const HELPER_VERSION = '0.4.0';
+export const HELPER_VERSION = '0.5.0';
 export const PAUSE_CHOICES_MIN = [15, 30, 60];

@@ -187,7 +187,9 @@ interface LinkApi {
   REFRESH_MS: number;
   TOKEN_HEADER: string;
   loadLink: () => Promise<{ token: string | null; port: number | null;
-    rules: { host: string; path: string }[]; fetchedAt: number; error: string | null }>;
+    rules: { host: string; path: string }[];
+    channels: { host: string; allow: string[] }[];
+    fetchedAt: number; error: string | null }>;
   setToken: (t: string) => Promise<string | null>;
   forgetToken: () => Promise<void>;
   pullFromApp: (now?: number, fetchImpl?: unknown, timeoutMs?: number) => Promise<{ ok: boolean;
@@ -458,4 +460,52 @@ test('no session means the whitelist does not bite at all', async () => {
   assert.equal(ext.focusActive(link, 1000), false);
   // Enélkül a bővítmény munkamenet nélkül is mindent tiltana — használhatatlan.
   assert.equal(ext.focusAllows(link, 'google.com'), false, 'nincs mit engednie');
+});
+
+// ------------------------------------------------------- csatorna-szűrők
+
+function fakeAppWithChannels(port: number, token: string, body: Record<string, unknown>) {
+  return async (url: string, init: { headers: Record<string, string> }) => {
+    const m = /^http:\/\/127\.0\.0\.1:(\d+)\/rules$/.exec(url);
+    if (!m || Number(m[1]) !== port) throw new Error('ECONNREFUSED');
+    if (init.headers['x-breaker-token'] !== token) {
+      return { ok: false, status: 401, json: async () => ({}) };
+    }
+    return { ok: true, status: 200, json: async () => ({ protocol: 1, rules: [], ...body }) };
+  };
+}
+
+test('a csatorna-szűrők megérkeznek és a gyorsítótár is őrzi őket', async () => {
+  const ext = freshLink();
+  await ext.setToken('ABCD-EFGH');
+  const app = fakeAppWithChannels(8788, 'ABCD-EFGH', {
+    channels: [
+      { host: 'youtube.com', allow: ['@jo', '@masik'] },
+      { host: 42, allow: ['@szemet'] },          // rossz rekord: kiesik
+      { host: 'tiktok.com', allow: 'nem-lista' }, // ez is
+    ],
+  });
+  const r = await ext.pullFromApp(1000, app);
+  assert.equal(r.ok, true);
+  const link = await ext.loadLink();
+  assert.deepEqual(link.channels, [{ host: 'youtube.com', allow: ['@jo', '@masik'] }],
+    'a jó rekord megvan, a szemét kiesett');
+
+  // AZ APP BEZÁRÁSA NEM FELOLDÁS. Ha az app nem érhető el, az utoljára
+  // letöltött szűrő él tovább — különben a legolcsóbb kiskapu egy ablak
+  // bezárása lenne, pont mint a szabályoknál.
+  const senki = () => Promise.reject(new Error('nincs ott'));
+  await ext.pullFromApp(2000, senki, 30);
+  assert.deepEqual((await ext.loadLink()).channels,
+    [{ host: 'youtube.com', allow: ['@jo', '@masik'] }]);
+});
+
+test('egy RÉGI app válasza (channels mező nélkül) üres listát ad, nem hibát', async () => {
+  const ext = freshLink();
+  await ext.setToken('ABCD-EFGH');
+  const app = fakeAppWithChannels(8788, 'ABCD-EFGH', {});
+  const r = await ext.pullFromApp(1000, app);
+  assert.equal(r.ok, true);
+  assert.deepEqual((await ext.loadLink()).channels, [],
+    'a hiányzó mező nem hiba: a szűrés egyszerűen nem fut, ahogy eddig sem');
 });

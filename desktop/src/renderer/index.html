@@ -158,6 +158,45 @@
       </div>
     </section>
 
+    <!--
+      Csatorna-szűrő: MEGFORDÍTOTT részleges tiltás. Nem az oldalt tiltja,
+      hanem az oldalon belül csak a felsorolt csatornákat engedi — kapcsolható,
+      mint a munkamenet. A tiltást a böngésző-bővítmény végzi: a DNS a
+      hosztnévnél tovább nem lát.
+    -->
+    <section id="channelCard" class="card hidden">
+      <div class="list-head">
+        <h2>Csatorna-szűrő</h2>
+        <button id="chanNewBtn" class="btn btn-small">Új szűrő</button>
+      </div>
+      <p class="hint">
+        Egy videómegosztón vagy hasonló oldalon csak az itt felsorolt
+        csatornák nyílnak meg; a többi csatorna tiltva, amíg a szűrő be van
+        kapcsolva.
+        A kezdőlap és a keresés szabad marad. Bekapcsolni egy kattintás,
+        <strong>kikapcsolni vagy új csatornát engedélyezni próbatétel</strong> —
+        mint a munkameneteknél. A szűrő a böngésző-bővítményben él: ahhoz
+        a böngészőhöz tartozik, amelyikbe a bővítményt betöltötted.
+      </p>
+      <div id="channelList" class="site-list"></div>
+      <form id="chanForm" class="hidden">
+        <input id="chanHost" type="text" placeholder="oldal, pl. youtube.com"
+          autocomplete="off" spellcheck="false" />
+        <textarea id="chanAllow" rows="4"
+          placeholder="engedélyezett csatornák, soronként egy — pl. @kurzgesagt vagy a csatorna címe"
+          spellcheck="false"></textarea>
+        <label class="preset-toggle">
+          <input id="chanEnabled" type="checkbox" checked />
+          <span>A szűrő bekapcsolva induljon</span>
+        </label>
+        <div class="modal-actions">
+          <button type="button" id="chanCancel" class="btn btn-ghost">Mégse</button>
+          <button type="submit" id="chanSave" class="btn btn-primary">Mentés</button>
+        </div>
+        <p id="chanError" class="error hidden"></p>
+      </form>
+    </section>
+
     </div><!-- /view sites -->
 
     <div class="view hidden" data-view="focus">

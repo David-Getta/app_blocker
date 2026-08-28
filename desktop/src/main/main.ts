@@ -186,6 +186,15 @@ if (HELPER_MODE) {
             allowSites: pack?.allowSites ?? [],
           };
         },
+        async () => {
+          // A csatorna-szűrő is a bővítményé: a DNS a hosztnévnél tovább nem
+          // lát, egy @csatorna az útvonalban él. Csak a BEKAPCSOLTAK mennek le
+          // — a kikapcsolt szűrő a böngészőre nem tartozik.
+          const s = await sharedStatus();
+          return (s.channelFilters ?? [])
+            .filter((f) => f.enabled)
+            .map((f) => ({ host: f.host, allow: f.allow }));
+        },
       );
       // Keep the tracker's view of the switch fresh without extra IPC chatter.
       const refreshFocus = (): void => {

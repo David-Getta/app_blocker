@@ -225,6 +225,7 @@ function render(): void {
   $('installCard').classList.toggle('hidden', !showInstall);
   $('addCard').classList.toggle('hidden', !helperUp);
   $('listCard').classList.toggle('hidden', !helperUp);
+  $('channelCard').classList.toggle('hidden', !helperUp);
   $('tierLine').classList.toggle('hidden', !helperUp);
 
   if (!helperUp) {
@@ -240,6 +241,7 @@ function render(): void {
   }
 
   renderAddCard(status!);
+  renderChannelCard(status!);
   renderFocusPill(status!);
   renderFocusCard(status!);
   renderSyncCard(status!);
@@ -1115,6 +1117,129 @@ function setupSyncCard(): void {
       }
     },
   ));
+}
+
+/** A szerkesztő alatt lévő szűrő azonosítója; null = új szűrő készül. */
+let editingChannelFilterId: string | null = null;
+
+/**
+ * A csatorna-szűrők kártyája.
+ *
+ * A sorok a segéd állapotából jönnek — a felület itt is csak TÜKÖR: a
+ * lazítás-kapukat a segéd tartja, a gomb csak elindítja a kérést, és ha
+ * próbatétel jön vissza, kinyitja ugyanazt a modalt, mint minden más lazítás.
+ */
+function renderChannelCard(st: StatusData): void {
+  const host = $('channelList');
+  host.textContent = '';
+  const filters = st.channelFilters ?? [];
+  for (const f of filters) {
+    const row = h('div', 'site-row');
+    const head = h('div', 'site-head');
+    // A REJTETT LISTA ide is elér. A lista elrejtése arról szól, hogy a
+    // blokkolt oldal NEVE ne álljon a képernyőn ingerforrásként — és a szűrő
+    // gazdagépe tipikusan pont egy ilyen oldal. Rejtett listánál ezért a
+    // hosztot ugyanaz a tölcsér fedi el, mint a statisztikát, a csatornákat
+    // pedig csak megszámoljuk: egy @név is megnevezné, miről van szó.
+    const hidden = status ? isListHidden(status) : false;
+    const name = h('div', 'site-name', hidden ? statLabel(f.host) : f.host);
+    const state = h('span', 'muted', f.enabled
+      ? ` — bekapcsolva, ${f.allow.length} engedélyezett csatorna`
+      : ` — kikapcsolva (${f.allow.length} csatorna)`);
+    name.appendChild(state);
+    head.appendChild(name);
+    row.appendChild(head);
+    const chips = h('div', 'muted', hidden
+      ? `${f.allow.length} engedélyezett csatorna (a lista rejtve)`
+      : f.allow.join(', '));
+    chips.style.overflowWrap = 'anywhere';
+    row.appendChild(chips);
+
+    const actions = h('div', 'site-actions');
+    const toggle = h('button', 'btn btn-small', f.enabled ? 'Kikapcsolás' : 'Bekapcsolás');
+    toggle.addEventListener('click', () => {
+      void submitChannelFilter({ id: f.id, host: f.host, allow: f.allow, enabled: !f.enabled });
+    });
+    const edit = h('button', 'btn btn-small btn-ghost', 'Szerkesztés');
+    if (status && isListHidden(status)) edit.classList.add('hidden');
+    edit.addEventListener('click', () => {
+      editingChannelFilterId = f.id;
+      $<HTMLInputElement>('chanHost').value = f.host;
+      $<HTMLTextAreaElement>('chanAllow').value = f.allow.join('\n');
+      $<HTMLInputElement>('chanEnabled').checked = f.enabled;
+      $('chanForm').classList.remove('hidden');
+    });
+    const del = h('button', 'btn btn-small btn-ghost', 'Törlés');
+    del.addEventListener('click', () => {
+      void (async () => {
+        try {
+          const r = await call<{ applied: boolean; session: SessionInfo | null }>(
+            'channel_filter_delete', { filterId: f.id },
+          );
+          if (r.applied) void refresh();
+          else if (r.session) openModal(r.session);
+        } catch (e) {
+          alert((e as Error).message);
+        }
+      })();
+    });
+    actions.append(toggle, edit, del);
+    row.appendChild(actions);
+    host.appendChild(row);
+  }
+  if (filters.length === 0) {
+    // A példa a beviteli mező helykitöltőjében áll, nem itt: a rejtett lista
+    // őre a látható szöveget nézi, és egy konkrét oldalnév itt inger lenne.
+    host.appendChild(h('p', 'hint',
+      'Még nincs csatorna-szűrő. Add meg az oldalt, alá az engedélyezett '
+      + 'csatornákat — @nevekkel vagy a csatorna címével.'));
+  }
+}
+
+/** A mentés közös útja: siker -> frissítés; lazítás -> próbatétel-modal. */
+async function submitChannelFilter(filter: {
+  id?: string; host: string; allow: string[]; enabled: boolean;
+}): Promise<void> {
+  const err = $('chanError');
+  err.classList.add('hidden');
+  try {
+    const r = await call<{ applied: boolean; session: SessionInfo | null }>(
+      'channel_filter_save', { filter },
+    );
+    editingChannelFilterId = null;
+    $('chanForm').classList.add('hidden');
+    if (r.applied) void refresh();
+    else if (r.session) openModal(r.session);
+  } catch (e) {
+    err.textContent = (e as Error).message;
+    err.classList.remove('hidden');
+  }
+}
+
+function setupChannelCard(): void {
+  $('chanNewBtn').addEventListener('click', () => {
+    editingChannelFilterId = null;
+    $<HTMLInputElement>('chanHost').value = '';
+    $<HTMLTextAreaElement>('chanAllow').value = '';
+    $<HTMLInputElement>('chanEnabled').checked = true;
+    $('chanError').classList.add('hidden');
+    $('chanForm').classList.remove('hidden');
+  });
+  $('chanCancel').addEventListener('click', () => {
+    $('chanForm').classList.add('hidden');
+    $('chanError').classList.add('hidden');
+  });
+  $('chanForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const allow = $<HTMLTextAreaElement>('chanAllow').value
+      .split('\n').map((x) => x.trim()).filter(Boolean);
+    void submitChannelFilter({
+      id: editingChannelFilterId ?? undefined,
+      host: $<HTMLInputElement>('chanHost').value,
+      allow,
+      enabled: $<HTMLInputElement>('chanEnabled').checked,
+    });
+  });
 }
 
 function renderTier(st: StatusData): void {
@@ -2663,6 +2788,7 @@ setupModal();
 setupInstall();
 setupUpdater();
 setupStats();
+setupChannelCard();
 if ('Notification' in window && Notification.permission === 'default') {
   void Notification.requestPermission();
 }

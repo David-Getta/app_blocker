@@ -63,6 +63,15 @@ export async function loadLink() {
   return {
     token: typeof raw.token === 'string' && raw.token ? raw.token : null,
     port: Number.isInteger(raw.port) ? raw.port : null,
+    // A csatorna-szűrők is gyorsítótárazódnak, ugyanazért, amiért a szabályok:
+    // ha az app épp nincs nyitva, az utoljára letöltött állapot él tovább —
+    // vagyis tovább szűr, nem enged át. Bezárni az appot nem feloldás.
+    channels: (Array.isArray(raw.channels) ? raw.channels : [])
+      .filter((f) => f && typeof f.host === 'string' && f.host && Array.isArray(f.allow))
+      .map((f) => ({
+        host: f.host,
+        allow: f.allow.filter((k) => typeof k === 'string' && k),
+      })),
     // A futó munkamenet FEHÉRLISTA: ha fut, minden más tiltva. Ez is
     // gyorsítótárazódik — ha az app nincs nyitva, a munkamenet ATTÓL MÉG megy
     // tovább a lejáratáig. Bezárni az appot nem feloldás.
@@ -176,11 +185,19 @@ export async function pullFromApp(now = Date.now(), fetchImpl = fetch, timeoutMs
         .map((r) => ({ host: r.host, path: r.path }))
       : [];
     const focus = body?.focus && typeof body.focus === 'object' ? body.focus : { running: false };
+    // Egy RÉGI app válaszában nincs `channels` mező — az nem hiba, hanem üres
+    // lista: a szűrés ilyenkor egyszerűen nem fut, ahogy eddig sem futott.
+    const channels = (Array.isArray(body?.channels) ? body.channels : [])
+      .filter((f) => f && typeof f.host === 'string' && f.host && Array.isArray(f.allow))
+      .map((f) => ({
+        host: f.host,
+        allow: f.allow.filter((k) => typeof k === 'string' && k),
+      }));
     // Az ÜRES lista is válasz: azt jelenti, hogy az appban levették az összeset.
     // Csak akkor fogadjuk el, ha a kérés tényleg sikerült — ha nem érjük el az
     // appot, a régi lista marad érvényben.
-    await saveLink({ ...link, port, rules, focus, fetchedAt: now, error: null });
-    return { ok: true, rules, focus };
+    await saveLink({ ...link, port, rules, focus, channels, fetchedAt: now, error: null });
+    return { ok: true, rules, focus, channels };
   }
 
   // A PRÓBA idejét megjegyezzük, a szabálylistát viszont nem bántjuk: az app

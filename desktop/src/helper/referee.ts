@@ -12,6 +12,9 @@ import type {
 import { PAUSE_CHOICES_MIN } from '../shared/protocol';
 import { isLoosening, normalizeSchedule, ALWAYS, type Schedule } from '../shared/schedule';
 import { isLimitLoosening, normalizeLimit } from '../shared/limits';
+import {
+  isFilterLoosening, sanitizeFilter, MAX_CHANNEL_FILTERS, type ChannelFilter,
+} from '../shared/channels';
 import { MAX_RULES_PER_SITE, sameRule, type UrlRule } from '../shared/urlrules';
 import {
   closeIfEnded, closeRun, isRunning, isSessionLoosening, MAX_FOCUS_LOG, normalizeMinutes,
@@ -129,6 +132,20 @@ function finishSession(state: HelperState, now: number): void {
     state.abandons = (state.abandons ?? []).filter((a) => a.siteId !== s.siteId);
     return;
   }
+  // A csatorna-szűrő sem egy OLDALHOZ tartozik: a saját listáján él, a
+  // site-keresés előtt kell alkalmazni — különben a „nincs ilyen oldal” ágon
+  // némán elveszne a kifizetett lazítás.
+  if (s.pendingChannelFilter) {
+    const p = s.pendingChannelFilter;
+    const list = state.channelFilters ?? [];
+    state.channelFilters = p.next === null
+      ? list.filter((f) => f.id !== p.id)
+      : list.map((f) => (f.id === p.id ? p.next! : f));
+    state.unlockLog = [...state.unlockLog.filter((t) => t > now - 30 * 24 * 3600_000), now];
+    state.session = null;
+    state.abandons = (state.abandons ?? []).filter((a) => a.siteId !== s.siteId);
+    return;
+  }
   const site = state.sites.find((x) => x.id === s.siteId);
   if (site) {
     if (s.pendingSchedule) site.schedule = s.pendingSchedule;                  // gated loosening
@@ -201,6 +218,83 @@ export function startLimitChange(
     id: newId('ses'), kind: 'pause', siteId,
     steps: plan.steps, stepIndex: 0, createdAt: now,
     pendingLimit: next === null ? null : next,
+  };
+  state.lastCombo = plan.comboKey;
+  armCurrent(state.session, now);
+  return { applied: false, session: sessionInfo(state.session, now) };
+}
+
+/**
+ * Csatorna-szűrő mentése (új vagy meglévő cseréje).
+ *
+ * A szabály ugyanaz, mint a menetrendnél és a napi keretnél: a SZIGORÍTÁS
+ * ingyen van (új szűrő, bekapcsolás, engedélyezett csatorna levétele), a
+ * LAZÍTÁS próbatétel (kikapcsolás, új engedélyezett csatorna bekapcsolt
+ * szűrőn, gazdagép-csere). A felhasználó kifejezetten ezt kérte: kapcsolható,
+ * mint a munkamenet — és a munkamenetet leállítani sem egy gomb.
+ */
+export function startChannelFilterSave(
+  state: HelperState, raw: { id?: string; host: string; allow: string[]; enabled: boolean },
+  now: number,
+): SetRuleResult {
+  if (state.session) throw new RefereeError('Előbb fejezd be a folyamatban lévő kísérletet.', 'BUSY');
+  const clean = sanitizeFilter(raw);
+  if (!clean) {
+    throw new RefereeError(
+      'A szűrőhöz oldal (pl. youtube.com) és legalább egy érvényes csatorna kell '
+      + '(pl. @csatornanev vagy a csatorna címe).', 'BAD_FILTER',
+    );
+  }
+  const list = state.channelFilters ?? [];
+  const current = raw.id ? list.find((f) => f.id === raw.id) : undefined;
+  if (raw.id && !current) throw new RefereeError('Nincs ilyen csatorna-szűrő.', 'NO_FILTER');
+  // Egy oldalra EGY szűrő: két lista ugyanarra a gazdagépre azt jelentené,
+  // hogy az egyik engedélyez, a másik tilt, és a sorrendjük döntene — némán.
+  const clash = list.find((f) => f.host === clean.host && f.id !== current?.id);
+  if (clash) throw new RefereeError('Erre az oldalra már van csatorna-szűrő.', 'DUP_FILTER');
+  if (!current && list.length >= MAX_CHANNEL_FILTERS) {
+    throw new RefereeError('Ennyi szűrő elég is — előbb törölj egyet.', 'TOO_MANY');
+  }
+  const next: ChannelFilter = { id: current?.id ?? newId('chf'), ...clean };
+  if (!isFilterLoosening(current, clean)) {
+    state.channelFilters = current
+      ? list.map((f) => (f.id === current.id ? next : f))
+      : [...list, next];
+    return { applied: true, session: null };
+  }
+  const tier = effectiveTier(state, 'pause', now);
+  const plan = generatePlan('pause', tier, state.lastCombo, rng, forcedCombo(state, next.id, now));
+  state.session = {
+    id: newId('ses'), kind: 'pause', siteId: next.id,
+    steps: plan.steps, stepIndex: 0, createdAt: now,
+    pendingChannelFilter: { id: next.id, next },
+  };
+  state.lastCombo = plan.comboKey;
+  armCurrent(state.session, now);
+  return { applied: false, session: sessionInfo(state.session, now) };
+}
+
+/**
+ * Csatorna-szűrő törlése. Kikapcsolt szűrőé ingyen (nem tilt semmit);
+ * bekapcsolté lazítás — a szűrő eltűnésével minden csatorna kinyílna.
+ */
+export function startChannelFilterDelete(
+  state: HelperState, id: string, now: number,
+): SetRuleResult {
+  if (state.session) throw new RefereeError('Előbb fejezd be a folyamatban lévő kísérletet.', 'BUSY');
+  const list = state.channelFilters ?? [];
+  const current = list.find((f) => f.id === id);
+  if (!current) throw new RefereeError('Nincs ilyen csatorna-szűrő.', 'NO_FILTER');
+  if (!current.enabled) {
+    state.channelFilters = list.filter((f) => f.id !== id);
+    return { applied: true, session: null };
+  }
+  const tier = effectiveTier(state, 'pause', now);
+  const plan = generatePlan('pause', tier, state.lastCombo, rng, forcedCombo(state, id, now));
+  state.session = {
+    id: newId('ses'), kind: 'pause', siteId: id,
+    steps: plan.steps, stepIndex: 0, createdAt: now,
+    pendingChannelFilter: { id, next: null },
   };
   state.lastCombo = plan.comboKey;
   armCurrent(state.session, now);

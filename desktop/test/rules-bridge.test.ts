@@ -136,3 +136,25 @@ test('a szabályok és a munkamenet EGYSZERRE indul, nem egymás után', async (
   assert.equal(r.status, 200);
   assert.equal(sawFocusStart, true, 'a munkamenet lekérdezése nem várta meg a szabályokét');
 });
+
+test('a csatorna-szűrők is lemennek a hídon — és üresen is mező marad', async () => {
+  // A bővítmény ebből tudja, MIT szűrjön. Ha a mező kimaradna, a szűrő az
+  // appban létezne, a böngészőben meg semmit nem csinálna — a leg­csendesebb
+  // hibafajta, ami ellen az egész ellenőrző-készlet szól.
+  const d = {
+    token: 'ABCD-EFGH',
+    getRules: async () => RULES,
+    getChannels: async () => [{ host: 'youtube.com', allow: ['@jo'] }],
+  };
+  const r = await answer(d, 'GET', '/rules', { [TOKEN_HEADER]: 'ABCD-EFGH' });
+  assert.equal(r.status, 200);
+  assert.deepEqual(
+    (r.body as { channels: unknown }).channels,
+    [{ host: 'youtube.com', allow: ['@jo'] }],
+  );
+
+  // Szűrők nélkül ÜRES lista megy, nem hiányzó mező: a bővítmény oldalán a
+  // „nincs szűrő” és a „régi app” így két külön eset marad.
+  const none = await answer(deps(), 'GET', '/rules', { [TOKEN_HEADER]: 'ABCD-EFGH' });
+  assert.deepEqual((none.body as { channels: unknown }).channels, []);
+});

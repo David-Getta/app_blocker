@@ -44,6 +44,26 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
+          **Csatorna-szűrő: egy oldalon csak az engedélyezett csatornák nyílnak
+          meg.** Az Oldalak fülön felveszel egy szűrőt — például
+          `youtube.com`, alá az engedélyezett csatornák (`@nevekkel` vagy a
+          csatorna címével) —, és amíg be van kapcsolva, a többi
+          csatorna-oldal nem nyílik meg. Nem teljes tiltás: a kezdőlap és a
+          keresés szabad marad. Bekapcsolni egy kattintás, **kikapcsolni vagy
+          új csatornát engedélyezni próbatétel** — pontosan úgy, mint a
+          munkameneteknél, különben a szűrő csak egy jegyzet lenne.
+
+          Két dolgot érdemes tudni, és mindkettőt kimondjuk. A szűrő a
+          **böngésző-bővítményben** él, mert csatornát csak az láthat, aki a
+          teljes címet látja — a DNS nem ilyen. Abban a böngészőben véd, ahová
+          a bővítményt betöltötted; inkognitóra nem terjed ki. És amit a cím
+          nem árul el, arról nem hazudunk: egy videóról a címe nem mondja meg,
+          melyik csatornáé, ezért a videók keresésből elérhetők maradnak — a
+          csatornák OLDALAI vannak tiltva. A tiltó lap mindig kiírja, milyen
+          kulcsot látott, tehát az engedélyezéshez nem kell találgatni.
+
+          ### Ami a v0.4.8-ban jött
+
           **A mai napnak külön statisztikája van.** Eddig a mai nap egy szám
           volt a csempesorban — hogy MIRE ment el, azt a hétnapos listából
           kellett kihámozni, abban viszont a hét eleje elnyomja a mát: egy
@@ -61,7 +81,7 @@ jobs:
           küldözgetni. A szövegben nincs cím, fedőnév, fióknév és
           kiszolgáló-cím: bárhová beilleszthető.
 
-          ### Ami a v0.4.7-ben jött
+          #### Ami a v0.4.7-ben jött
 
           Ez a kiadás egy valódi képernyőből született: a statisztikán nulla
           állt a mai napra, miközben a gép használatban volt — és semmi nem
@@ -141,59 +161,6 @@ jobs:
           bővítménynek, nem kettőből. Eddig a szabályokat és a futó
           munkamenetet külön, egymás után kérdezte meg — a rossz esetben ez a
           dupla idejébe telt, és a bővítmény közben továbblépett volna.
-
-          #### Ami a v0.4.6-ban jött
-
-          **A telefonod is szól, ha a munkamenet szinkronja elhasal.** A gépen
-          ezt már megmondtuk, a két telefonon viszont a hiba teljesen
-          elnyelődött. Ha a fiókkiszolgálód régebbi verzió és nem ismeri a
-          munkamenetet, a gépen elindított menet SOSEM ér át a telefonra — és
-          eddig a telefon nem szólt egy szót sem. Annyit láttál volna, hogy a
-          munkamenet a telefonodon nem működik — és az appot hibáztatod.
-
-          Most mindhárom felület ugyanazt mondja, és azt is, hogy mi marad
-          működő: a blokklista szinkronja ettől függetlenül él tovább.
-
-          - **A méret-hibaüzenet megint pontos.** Amióta a munkamenet-napló is
-            a szinkronban utazik, a „túl nagy” hiba oka nem csak a csomagok
-            lehetnek — az üzenet viszont továbbra is csomagokat emlegetett. A
-            csomagjaidat kezdted volna ritkítani egy olyan hiba miatt, aminek
-            semmi köze hozzájuk. Azt is kimondja most, ami ilyenkor igaz: a
-            menet ettől még FUT, csak a többi eszközre nem ér át.
-
-          ##### Ami a v0.4.5-ben jött
-
-          Javító kiadás a v0.4.4 fölé.
-
-          - **A munkamenet-napló szinkronja beragadhatott egy körbe.** Ha két
-            menet ugyanabban a másodpercben ért véget ugyanabból a csomagból,
-            a két eszköz ugyanazt a naplót MÁS sorrendben rakta össze — és
-            mindkettő azt látta, hogy a másiknál valami más van. Ettől minden
-            körben feltöltöttek, a végtelenségig. Nem adatvesztés, de a
-            fiókkiszolgálód szüntelenül dolgozott volna.
-
-            A rendezés mostantól teljes, tehát a két eszköz ugyanarra az
-            eredményre jut, bármilyen sorrendben kapja a sorokat.
-
-          - **A gyorsbillentyűs réteg is szól, ha nincs böngésző-bővítmény.**
-            A figyelmeztetés eddig csak a Munkamenetek fülön volt meg — de a
-            menetek többsége nem onnan indul, hanem éppen a rétegből. Így a
-            legtöbben sosem látták volna, és pont az indítás pillanatában nem
-            tudták volna meg, hogy a menet a böngészőben nem tilt semmit.
-
-          - **Az app azt állította, hogy a mérés nem hagyja el a gépet —
-            pedig fiókkal bejelentkezve felkerül.** A közös napi keret a
-            v0.4.0 óta úgy működik, hogy minden eszköz feltölti, mennyit mért
-            ma; a munkamenet-napló most ugyanígy utazik. A statisztika
-            szövege viszont a régi mondatot vitte tovább, miközben a
-            fiókkártya közvetlenül mellette már az igazat írta.
-
-            Egy elavult adatvédelmi mondat rosszabb, mint egy hiányzó: arra
-            alapozol, és nem tudod meg, hogy már nem áll. Mostantól mindenhol
-            ugyanaz szerepel: **fiók nélkül semmi nem hagyja el az eszközt;
-            bejelentkezve a mérés és a munkamenet-napló felkerül a SAJÁT
-            fiókkiszolgálódra, végponttól végpontig titkosítva.** A
-            kiszolgáló nem látja, mit mértél, és telemetria sehol nincs.
 
           NOTES
           fi

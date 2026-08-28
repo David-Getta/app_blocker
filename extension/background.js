@@ -10,6 +10,7 @@
 // és pont a pontatlanság lenne a baj: elvenne valamit, amit a felhasználó nem
 // tiltott le.
 
+import { channelVerdict } from './channels.js';
 import { firstMatch, ruleLabel } from './rules-core.js';
 import { activeRules, load, sweep } from './storage.js';
 import {
@@ -45,6 +46,12 @@ async function decide(url) {
       return { reason: 'focus', focus: link.focus };
     }
   }
+
+  // A CSATORNA-SZŰRŐ: az oldalon csak a felsorolt csatornák nyílnak meg. A
+  // sorrend szándékos — a munkamenet erősebb (mindenre szól), a szűrő a
+  // részleges szabályok ELŐTT jön, mert konkrétabb okot tud mondani.
+  const chan = channelVerdict(url, link.channels);
+  if (chan) return { reason: 'channel', channel: chan };
 
   // Az app szabályai HOZZÁADÓDNAK a sajátokhoz. Ha az app épp nem érhető el, az
   // utoljára letöltött lista marad érvényben — vagyis tovább tilt, nem enged át.
@@ -90,6 +97,12 @@ function blockedUrl(hit) {
       focus: hit.focus.name || 'Munkamenet',
       endsAt: String(hit.focus.endsAt || 0),
     });
+    return chrome.runtime.getURL(`blocked.html?${q.toString()}`);
+  }
+  if (hit.reason === 'channel') {
+    // A lap kiírja, MILYEN kulcsot látott: az engedélyezéshez így nem kell
+    // találgatni, hogy a szűrő minek olvasta a címet.
+    const q = new URLSearchParams({ channel: hit.channel.key, channelHost: hit.channel.host });
     return chrome.runtime.getURL(`blocked.html?${q.toString()}`);
   }
   return chrome.runtime.getURL(`blocked.html?rule=${encodeURIComponent(ruleLabel(hit.rule))}`);

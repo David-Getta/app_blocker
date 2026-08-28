@@ -46,6 +46,13 @@ attól, hogy sokszor csinálod.
   teendője. Ugyanígy szól akkor is, ha a szonda nem kap adatot (macOS-en
   jellemzően engedély kell hozzá; frissítés után a rendszer vissza is veheti),
   és akkor is, ha a mért idő eljut a segédig, de ott nem sikerül eltárolni.
+- **Csatorna-szűrő** (asztali böngésző): egy oldalon — például a YouTube-on —
+  csak az általad felsorolt csatornák nyílnak meg; a többi csatorna-oldal
+  tiltva, amíg a szűrő be van kapcsolva. Nem teljes tiltás: a kezdőlap és a
+  keresés szabad. Bekapcsolni egy kattintás, **kikapcsolni vagy új csatornát
+  engedélyezni próbatétel** — mint a munkameneteknél. A böngésző-bővítményben
+  él (a DNS címet nem lát), tehát abban a böngészőben véd, ahová a bővítményt
+  betöltötted — inkognitóra nem terjed ki, és ezt nem is állítjuk.
 - **Fedőnév a blokkolt oldalakhoz** (mindhárom platform): a lista maga is
   ingerforrás — aki megnyitja az appot, és ott áll előtte a `youtube.com`, az már
   fél lépéssel közelebb van. Minden oldalnak adható saját név, és onnantól a

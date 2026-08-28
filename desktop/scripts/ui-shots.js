@@ -98,6 +98,10 @@ function fakeBridgeSource() {
     ];
     window.__fakeRun = null;
     window.__fakeTracker = { blocked: false, neverWorked: false, samplesDropped: false, platform: 'darwin' };
+    // Egy meglévő csatorna-szűrő, hogy a kártya sorai is látszódjanak.
+    window.__fakeChannelFilters = [
+      { id: 'chf_demo', host: 'youtube.com', allow: ['@kurzgesagt', '@veritasium'], enabled: true },
+    ];
     window.__fakeUpdate = { status: 'idle' };
     window.__fakeHelperVersion = ${JSON.stringify(helperVersion())};
     // A „lista elrejtése” beállítást a HÁTTÉRSZOLGÁLTATÁS tárolja, nem az ablak.
@@ -114,6 +118,7 @@ function fakeBridgeSource() {
       focusSyncError: window.__fakeFocusSyncError,
       session, dohPolicyApplied: true, usageEnabled: true, now: Date.now(),
       focusPacks: window.__fakePacks, focusRun: window.__fakeRun,
+      channelFilters: window.__fakeChannelFilters,
     });
     // 30 days, because that is what the helper actually sends (and what the
     // chart title claims) — a shorter demo series would make the screenshot lie.
@@ -160,6 +165,39 @@ function fakeBridgeSource() {
           // A folt a füstteszté: egyetlen mezőt cserél a hamis adaton, hogy
           // ugyanazt a képernyőt több állapotban is meg lehessen nézni.
           return { ok: true, data: { ...stats, ...(window.__fakeStatsPatch || {}) } };
+        }
+        if (op === 'channel_filter_save') {
+          const f = payload.filter;
+          // A hamis kapu ugyanazt a szabályt követi, mint a valódi: lazítás
+          // (kikapcsolás vagy új csatorna bekapcsolt szűrőn) próbatételt ad.
+          const cur = window.__fakeChannelFilters.find((x) => x.id === f.id);
+          const loosening = cur && cur.enabled
+            && (!f.enabled || f.allow.some((k) => !cur.allow.includes(k)));
+          if (loosening) {
+            session = {
+              id: 'ses_chan', kind: 'pause', siteId: f.id,
+              stepIndex: 0, stepCount: 2,
+              current: { id: 'st1', type: 'TRANSCRIBE', text: 'csatorna próba szöveg' },
+            };
+            return { ok: true, data: { applied: false, session, status: status() } };
+          }
+          if (cur) Object.assign(cur, f);
+          else window.__fakeChannelFilters.push({ ...f, id: 'chf_' + Date.now() });
+          return { ok: true, data: { applied: true, session: null, status: status() } };
+        }
+        if (op === 'channel_filter_delete') {
+          const cur = window.__fakeChannelFilters.find((x) => x.id === payload.filterId);
+          if (cur && cur.enabled) {
+            session = {
+              id: 'ses_chan_del', kind: 'pause', siteId: payload.filterId,
+              stepIndex: 0, stepCount: 2,
+              current: { id: 'st1', type: 'TRANSCRIBE', text: 'törlés próba szöveg' },
+            };
+            return { ok: true, data: { applied: false, session, status: status() } };
+          }
+          window.__fakeChannelFilters = window.__fakeChannelFilters
+            .filter((x) => x.id !== payload.filterId);
+          return { ok: true, data: { applied: true, session: null, status: status() } };
         }
         if (op === 'start_unlock') {
           session = {
@@ -552,6 +590,47 @@ async function main() {
   if (!notes.some((t) => /másik eszközön/.test(t))) {
     failures.push(`hiányzik a „másik eszközön” sor a keret alól (${JSON.stringify(notes)})`);
   }
+
+  // ------------------------------------------------------ csatorna-szűrő
+  //
+  // A felhasználó kérte funkció: egy oldalon csak a felsorolt csatornák
+  // nyílnak meg, kapcsolhatóan. A felületen három dolognak KELL igaznak
+  // lennie, és mindhárom csendben tudna elromlani:
+  //
+  //   1. a kártya mutatja a szűrőt és az állapotát;
+  //   2. a KIKAPCSOLÁS nem kapcsol, hanem próbatételt nyit — ha ez elromlik,
+  //      a szűrő egy jegyzet, nem súrlódás;
+  //   3. új szűrő felvétele (szigorítás) azonnal érvényes.
+  const chanRow = (await page.locator('#channelList .site-row').innerText()) || '';
+  if (!chanRow.includes('youtube.com') || !chanRow.includes('@kurzgesagt')) {
+    failures.push(`a csatorna-szűrő sora hiányos: ${chanRow}`);
+  }
+  if (!chanRow.includes('bekapcsolva')) {
+    failures.push('a szűrő állapota (bekapcsolva) nincs kiírva');
+  }
+  await page.locator('#channelList').getByRole('button', { name: 'Kikapcsolás' }).click();
+  const chanModalOpened = await page
+    .waitForSelector('#sessionModal:not(.hidden)', { timeout: 10_000 })
+    .then(() => true)
+    .catch(() => { failures.push('a szűrő kikapcsolása nem nyitott próbatételt'); return false; });
+  if (chanModalOpened) {
+    await page.getByRole('button', { name: /Feladom/ }).click();
+    await page.waitForSelector('#sessionModal', { state: 'hidden', timeout: 10_000 });
+  }
+  // A feladás után a szűrő MARAD bekapcsolva — a lazítás nem történt meg.
+  const stillOn = (await page.locator('#channelList .site-row').innerText()) || '';
+  if (!stillOn.includes('bekapcsolva')) {
+    failures.push('a feladott próbatétel után a szűrő mégis kikapcsolt');
+  }
+  // Új szűrő: szigorítás, azonnal érvényes.
+  await page.locator('#chanNewBtn').click();
+  await page.fill('#chanHost', 'tiktok.com');
+  await page.fill('#chanAllow', '@hasznos\nhttps://www.tiktok.com/@masik');
+  await page.locator('#chanSave').click();
+  await page.waitForFunction(
+    () => document.querySelectorAll('#channelList .site-row').length === 2,
+    undefined, { timeout: 10_000 },
+  ).catch(() => failures.push('az új csatorna-szűrő nem jelent meg a listán'));
 
   await goTo(page, 'stats');
   await page.waitForSelector('#statTiles .tile', { timeout: 15_000 });
@@ -1240,6 +1319,12 @@ async function main() {
     // teteje lenne — vagyis pont az nem, amit dokumentálni akarunk.
     await page.locator('#syncCard').scrollIntoViewIfNeeded();
     await page.screenshot({ path: path.join(OUT, 'desktop-sync.png'), fullPage: false });
+    // A fiók-panel ilyenkor még nyitva lehet, és a fedőrétege eltakarja a
+    // füleket — előbb be kell csukni, különben a fülre kattintás beragad.
+    await closeAccountPanel(page);
+    await goTo(page, 'sites');
+    await page.locator('#channelCard').scrollIntoViewIfNeeded();
+    await page.locator('#channelCard').screenshot({ path: path.join(OUT, 'desktop-channels.png') });
   }
   // A DIAGNOSZTIKA-GOMB. A leggyakoribb kérdés ennél a funkciónál az, hogy
   // miért nulla a mai nap — és a válasz mindig ugyanabból a néhány adatból jön
