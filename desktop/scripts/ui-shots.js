@@ -626,6 +626,23 @@ async function main() {
   await page.locator('#chanNewBtn').click();
   await page.fill('#chanHost', 'tiktok.com');
   await page.fill('#chanAllow', '@hasznos\nhttps://www.tiktok.com/@masik');
+  // Az élő próba: mentés ELŐTT mondja meg, mit tenne a szűrő egy címmel —
+  // és a három átengedő okot is szétszedi. Ha ez elromlik, senki nem venné
+  // észre: a mentés ugyanúgy működne, csak a mező hallgatna.
+  const probeCases = [
+    ['https://www.tiktok.com/@rossz', 'MEGFOGNÁ'],
+    ['https://www.tiktok.com/@hasznos/video/123', 'Engedélyezett csatorna'],
+    ['https://mas-oldal.hu/@rossz', 'nem erre az oldalra'],
+    ['https://www.tiktok.com/', 'Nem csatorna-alakú'],
+  ];
+  for (const [probeUrl, expected] of probeCases) {
+    await page.fill('#chanProbe', probeUrl);
+    const probeOut = (await page.locator('#chanProbeOut').innerText().catch(() => '')) || '';
+    if (!probeOut.includes(expected)) {
+      failures.push(`a próba erre: ${probeUrl} ezt írta: „${probeOut}” — várt rész: ${expected}`);
+    }
+  }
+  await page.fill('#chanProbe', '');
   await page.locator('#chanSave').click();
   await page.waitForFunction(
     () => document.querySelectorAll('#channelList .site-row').length === 2,

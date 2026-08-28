@@ -191,6 +191,12 @@
           <input id="chanEnabled" type="checkbox" checked />
           <span>A szűrő bekapcsolva induljon</span>
         </label>
+        <!-- Élő próba: mentés ELŐTT derüljön ki, jól van-e összerakva a
+             lista — mentés után már a böngésző mondaná meg, kerülőúton. -->
+        <input id="chanProbe" type="text"
+          placeholder="próba: illessz be egy címet, és kiderül, mit tenne vele a szűrő"
+          autocomplete="off" spellcheck="false" />
+        <p id="chanProbeOut" class="hint hidden"></p>
         <div class="modal-actions">
           <button type="button" id="chanCancel" class="btn btn-ghost">Mégse</button>
           <button type="submit" id="chanSave" class="btn btn-primary">Mentés</button>

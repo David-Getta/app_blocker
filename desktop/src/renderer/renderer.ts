@@ -23,6 +23,10 @@ import {
 import {
   encodePairingCode, formatPairingCode, resolveServerInput,
 } from '../shared/sync/pairing.js';
+import {
+  channelKeyFromPath, channelVerdict, contentIdOf, hostMatchesFilter,
+  normalizeChannelEntry, normalizeFilterHost,
+} from '../shared/channels.js';
 import type {
   SetLimitResult, SetRuleResult, SyncCombinedInfo, SyncDeviceInfo, UsageStatsData,
 } from '../shared/protocol';
@@ -1167,6 +1171,8 @@ function renderChannelCard(st: StatusData): void {
       $<HTMLInputElement>('chanHost').value = f.host;
       $<HTMLTextAreaElement>('chanAllow').value = f.allow.join('\n');
       $<HTMLInputElement>('chanEnabled').checked = f.enabled;
+      $<HTMLInputElement>('chanProbe').value = '';
+      $('chanProbeOut').classList.add('hidden');
       $('chanForm').classList.remove('hidden');
     });
     const del = h('button', 'btn btn-small btn-ghost', 'Törlés');
@@ -1216,15 +1222,82 @@ async function submitChannelFilter(filter: {
   }
 }
 
+/**
+ * Élő próba: mit tenne a MOST beírt (még mentetlen) szűrő egy címmel.
+ *
+ * Nem a mentett állapotot kérdezi, hanem az űrlapét — pont mentés ELŐTT kell
+ * tudni, hogy a lista jól van-e összerakva. A magyarázat a három átengedő
+ * okot is szétszedi: a „mehet” önmagában nem mondaná meg, hogy azért-e, mert
+ * engedélyezett, vagy mert nem is erre az oldalra szól a cím.
+ */
+function renderChannelProbe(): void {
+  const out = $('chanProbeOut');
+  const raw = $<HTMLInputElement>('chanProbe').value.trim();
+  if (!raw) {
+    out.classList.add('hidden');
+    return;
+  }
+  out.classList.remove('hidden');
+  const host = normalizeFilterHost($<HTMLInputElement>('chanHost').value);
+  if (!host) {
+    out.textContent = 'Előbb az oldal kell (fent) — enélkül nincs mihez mérni.';
+    return;
+  }
+  const allow = $<HTMLTextAreaElement>('chanAllow').value.split('\n')
+    .map((x) => normalizeChannelEntry(x.trim()))
+    .filter((x): x is string => !!x);
+  // A kikapcsolt szűrő nem tilt — de a próba arra való, hogy a listát
+  // ellenőrizd, ezért úgy válaszol, MINTHA be lenne kapcsolva, és ezt meg
+  // is mondja.
+  const offNote = $<HTMLInputElement>('chanEnabled').checked
+    ? '' : ' (A szűrő most ki van kapcsolva — ez a bekapcsolt viselkedés.)';
+  const url = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+  const v = channelVerdict(url, [{ host, allow }]);
+  if (v) {
+    out.textContent = `Ezt a szűrő MEGFOGNÁ — a kulcs, amit a címben lát: ${v.key}${offNote}`;
+    return;
+  }
+  let u: URL;
+  try {
+    u = new URL(url);
+  } catch {
+    out.textContent = 'Ez nem tűnik címnek.';
+    return;
+  }
+  if (!hostMatchesFilter(u.hostname.toLowerCase(), host)) {
+    out.textContent = 'Ez a cím nem erre az oldalra szól — a szűrő nem foglalkozik vele.';
+    return;
+  }
+  const key = channelKeyFromPath(u.pathname);
+  if (key) {
+    out.textContent = `Engedélyezett csatorna (${key}) — mehet.${offNote}`;
+    return;
+  }
+  if (contentIdOf(url)) {
+    out.textContent = 'Lejátszó-cím: a cím nem mondja meg a csatornát — böngészés '
+      + `közben a lap adata (a feltöltő) dönt.${offNote}`;
+    return;
+  }
+  out.textContent = `Nem csatorna-alakú cím (kezdőlap, keresés, lista) — szabad.${offNote}`;
+}
+
 function setupChannelCard(): void {
   $('chanNewBtn').addEventListener('click', () => {
     editingChannelFilterId = null;
     $<HTMLInputElement>('chanHost').value = '';
     $<HTMLTextAreaElement>('chanAllow').value = '';
     $<HTMLInputElement>('chanEnabled').checked = true;
+    $<HTMLInputElement>('chanProbe').value = '';
+    $('chanProbeOut').classList.add('hidden');
     $('chanError').classList.add('hidden');
     $('chanForm').classList.remove('hidden');
   });
+  // A próba minden érintett mezőre újraszámol: a kérdés nem csak a próba-cím,
+  // hanem az is, hogy a lista éppen hogyan áll.
+  for (const id of ['chanProbe', 'chanHost', 'chanAllow']) {
+    $(id).addEventListener('input', renderChannelProbe);
+  }
+  $('chanEnabled').addEventListener('change', renderChannelProbe);
   $('chanCancel').addEventListener('click', () => {
     $('chanForm').classList.add('hidden');
     $('chanError').classList.add('hidden');
