@@ -44,6 +44,27 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
+          **Csatorna-idő: melyik csatorna vitte az időt?** Ahol bekapcsolt
+          csatorna-szűrő van, a bővítmény mostantól méri is, melyik csatorna
+          mennyi időt visz — másodpercre, de csak amíg a lap ténylegesen
+          előtérben van. A listák (ma + elmúlt 7 nap) a bővítmény beállítási
+          lapján állnak. Máshol nem gyűjt semmit, és az adat a gépeden marad:
+          nem megy se az appba, se a fiókba.
+
+          **Élő próba a szűrő űrlapján.** Mentés előtt beilleszthetsz egy
+          címet, és azonnal kiderül, mit tenne vele a szűrő — megfogná-e, és
+          ha nem, miért nem: engedélyezett csatorna, nem ide szóló cím, vagy
+          nem csatorna-alakú cím. A lejátszó-címeknél azt is kimondja, hogy
+          ott böngészés közben a lap adata (a feltöltő) dönt.
+
+          A bővítményt a böngésző nem frissíti magától: töltsd le az új
+          `Breaker-bovitmeny` zipet, csomagold ki a régi helyére, és a
+          `chrome://extensions` lapon nyomj rá frissítést. Ha a v0.4.9-es
+          zipet töltötted be és hibát kaptál, ez a zip a javított — a hibáról
+          lentebb, a v0.4.10-nél.
+
+          ### Ami a v0.4.10-ben jött
+
           **A csatorna-szűrő mostantól a videókat is fogja, nem csak a
           csatornák oldalait.** Eddig kimondott korlát volt, hogy egy videóról
           a címe nem árulja el, melyik csatornáé — a nem engedélyezett
@@ -71,13 +92,7 @@ jobs:
           mert a bővítményt mostantól minden kiadás előtt egy valódi
           böngészőben, igazi bővítményként betöltve teszteljük.
 
-          A bővítményt a böngésző nem frissíti magától: töltsd le az új
-          `Breaker-bovitmeny` zipet, csomagold ki a régi helyére, és a
-          `chrome://extensions` lapon nyomj rá frissítést (vagy vedd le és
-          töltsd be újra). Az appban semmit nem kell átállítanod — a szűrőid
-          az appban élnek.
-
-          ### Ami a v0.4.9-ben jött
+          #### Ami a v0.4.9-ben jött
 
           **Csatorna-szűrő: egy oldalon csak az engedélyezett csatornák nyílnak
           meg.** Az Oldalak fülön felveszel egy szűrőt — például
@@ -96,25 +111,6 @@ jobs:
           melyik csatornáé, ezért a videók keresésből elérhetők maradnak — a
           csatornák OLDALAI vannak tiltva. A tiltó lap mindig kiírja, milyen
           kulcsot látott, tehát az engedélyezéshez nem kell találgatni.
-
-          #### Ami a v0.4.8-ban jött
-
-          **A mai napnak külön statisztikája van.** Eddig a mai nap egy szám
-          volt a csempesorban — hogy MIRE ment el, azt a hétnapos listából
-          kellett kihámozni, abban viszont a hét eleje elnyomja a mát: egy
-          kétórás hétfő mellett a mai húsz perc nem látszik. A statisztika
-          tetején mostantól külön blokk áll: „Mire ment ma az idő” — oldal és
-          app együtt, idő szerint, a blokkolt oldalakon jelvénnyel. Ha ma még
-          nincs adat, a blokk nem üresen áll ott, hanem eltűnik; hogy miért
-          nulla, azt az „utoljára mért idő” sor mondja meg. A telefonon
-          ugyanígy; az iPhone-on a fiókkártya összesített blokkja mutatja,
-          minden eszköz méréséből együtt.
-
-          **Diagnosztika egy gombbal.** A statisztika-képernyőn egy gomb a
-          vágólapra teszi a mérés és a szinkron teljes állapotát — hogy egy
-          „miért nulla a mai nap” kérdéshez ne képernyőképeket kelljen
-          küldözgetni. A szövegben nincs cím, fedőnév, fióknév és
-          kiszolgáló-cím: bárhová beilleszthető.
 
           NOTES
           fi
