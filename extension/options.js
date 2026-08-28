@@ -89,7 +89,13 @@ function renderLink(link) {
     return;
   }
   const mins = Math.round((Date.now() - link.fetchedAt) / 60000);
-  state.textContent = `Összekötve — ${link.rules.length} szabály az appból, `
+  // A csatorna-szűrő is innen jön: ha lejött, mondjuk ki. Enélkül a
+  // felhasználó csak a tiltó lapon szembesülne vele, hogy a szűrő itt fut.
+  const chan = (link.channels ?? []).length;
+  const chanText = chan > 0
+    ? `, ${chan} csatorna-szűrő`
+    : '';
+  state.textContent = `Összekötve — ${link.rules.length} szabály az appból${chanText}, `
     + (mins < 1 ? 'az imént frissítve.' : `${mins} perce frissítve.`);
 }
 
