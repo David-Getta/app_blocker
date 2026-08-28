@@ -87,6 +87,16 @@ Szövegre szándékosan **nem** keresünk: a csatorna neve előfordul olyan hely
 is, ahol nem róla van szó (komment, videócím), és egy szöveges találat elvenne
 valamit, amit a felhasználó nem tiltott le.
 
+3. **A csatorna-szűrőt is érvényesíti** (az appban felvett fehérlistát):
+   a csatorna-alakú címeket a navigációnál fogja meg; a hírfolyamban a nem
+   engedélyezett csatornák VIDEÓKÁRTYÁIT rejti el (csak azt a dobozt, ami
+   videóra is mutat — a komment nem kártya, az egész polc nem kártya); a
+   lejátszó-oldalon pedig a lap saját metaadatából (JSON-LD, mikroadat, a
+   lejátszó beágyazott adata) olvassa ki a feltöltőt, és ha az nem
+   engedélyezett, tiltó lapra visz. A metaadat csak akkor számít, ha a
+   MOSTANI videót nevezi meg — egylapos váltásnál az előző videó adata nem
+   ítélhet. A döntés a háttérben születik, a friss szűrő-listával.
+
 ## Fájlok
 
 | Fájl | Mi ez |
@@ -94,8 +104,9 @@ valamit, amit a felhasználó nem tiltott le.
 | `rules-core.js` | a szabály magja — a `desktop/src/shared/urlrules.ts` párja |
 | `storage.js` | tárolás és a súrlódás (felvétel ingyen, levétel várakozás) |
 | `app-link.js` | a kapcsolat az appal: kód, lekérés, gyorsítótár |
-| `background.js` | a navigáció megállítása (`webNavigation`) |
-| `content.js` | a találatok elrejtése az oldalról |
+| `channels.js` | a csatorna-szűrő magja — a `desktop/src/shared/channels.ts` párja |
+| `background.js` | a navigáció megállítása (`webNavigation`) és a feltöltő-döntés |
+| `content.js` | a találatok elrejtése + a lejátszó-oldal feltöltőjének kiolvasása |
 | `options.html/js` | a szabályok kezelése |
 | `blocked.html/js` | a tiltó lap |
 

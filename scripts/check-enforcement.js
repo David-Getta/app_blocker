@@ -139,6 +139,39 @@ const WIRES = [
     lost: 'a csatorna-szűrők kártyája nem jelenne meg — a szűrő láthatatlan '
       + 'és kezelhetetlen lenne',
   },
+  // A CSATORNA-SZŰRŐ MÁSODIK RÉTEGE: a hírfolyam-tisztítás és a lejátszó-lap
+  // feltöltője. Ez öt szem, és mindegyik kiesése néma: a bővítmény betöltődik,
+  // a régi réteg működik, csak épp a videók maradnának elérhetők.
+  {
+    file: 'extension/manifest.json',
+    // E nélkül a tartalom-szkript importja NÉMÁN hal meg, és vele a rejtés
+    // meg a feltöltő-keresés is — a bővítmény-füstteszt ezt fogta ki először.
+    needle: '"channels.js"',
+    lost: 'a tartalom-szkript nem tudná betölteni a csatorna-magot',
+  },
+  {
+    file: 'extension/content.js',
+    needle: 'chan.channelVerdict(href, pageFilters)',
+    lost: 'a nem engedélyezett csatornák videókártyái ott maradnának a '
+      + 'hírfolyamban',
+  },
+  {
+    file: 'extension/content.js',
+    needle: "type: 'breaker:page-author'",
+    lost: 'a lejátszó-oldal feltöltőjéről senki nem szólna a háttérnek',
+  },
+  {
+    file: 'extension/background.js',
+    needle: 'authorVerdict(sender.url',
+    lost: 'a feltöltő-jelzésből nem lenne döntés — a rossz csatorna videója '
+      + 'lejátszódna',
+  },
+  {
+    file: 'extension/background.js',
+    needle: 'channels: link.channels',
+    lost: 'a tartalom-szkript nem kapná meg a szűrőket, tehát se rejtés, se '
+      + 'feltöltő-keresés',
+  },
   // A MAI NAP KÜLÖN LISTÁJA. A mag régóta kiszámolta (`topToday`), csak épp
   // senki nem kérdezte meg — a felhasználó kérte ki magának a funkciót.
   {

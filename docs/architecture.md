@@ -232,9 +232,12 @@ Ismert megkerülési utak (szándékosan nem próbáljuk „lelakatolni” a gé
   látható figyelmeztetés a válasz, nem a néma tűrés.
 - **A csatorna-szűrő hatóköre a bővítményé.** Csak abban a böngészőben él,
   ahová a bővítményt betöltötted; inkognitóban és vendég módban alapból nem
-  fut, a telefonokra nem terjed ki, és egy videóról a címe nem árulja el a
-  csatornáját — a videók keresésből elérhetők maradnak. Mindezt a felhasználó
-  kifejezetten elfogadta, a doksi és a felület pedig kimondja
+  fut, a telefonokra nem terjed ki. Egy videóról a CÍME nem árulja el a
+  csatornáját — ezt a lyukat a második réteg szűkíti: a hírfolyamban a nem
+  engedélyezett csatorna videókártyái eltűnnek, a lejátszó-oldal pedig tilt,
+  ha a lap metaadata megnevezi a feltöltőt (elavulás-őrrel, hogy egylapos
+  váltásnál az előző videó adata ne ítéljen). Ami ezután marad: metaadat
+  nélküli lejátszók és csatorna-link nélküli kártyák — kimondva
   (`docs/feature-channel-filter.md`). A lazítás itt is próbatétel: a szűrő
   kapcsolható, de a kikapcsolás nem egy gomb.
 - **A saját fiókkiszolgálód címe átmegy a munkamenet fehérlistáján**, mert

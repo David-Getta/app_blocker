@@ -33,15 +33,62 @@ Amit a CÍM elárul:
 - `@névvel` kezdődő első útvonal-szakasz (YouTube, TikTok): `@név`;
 - a YouTube régi formái: `channel/AZONOSÍTÓ`, `c/NÉV`, `user/NÉV`.
 
-Amit a cím nem árul el, arról nem hazudunk: egy `/watch?v=…` videóról a cím
-nem mondja meg, melyik csatornáé — a videók tehát a kezdőlapról vagy
-keresésből elérhetők maradnak akkor is, ha a csatornájuk oldala tiltva van.
-Ugyanez áll a `/shorts/…` címekre. Ez kimondott korlát; a tiltó lap mindig
-kiírja, MILYEN kulcsot látott, tehát az engedélyezéshez nem kell találgatni.
+Amit a cím nem árul el, arról a CÍM ALAPJÁN nem hazudunk: egy `/watch?v=…`
+videóról a cím nem mondja meg, melyik csatornáé. Ezt a lyukat a második réteg
+szűkíti (lásd lent) — de ahol az sem lát, ott a videó elérhető marad, és ezt
+kimondjuk. A tiltó lap mindig kiírja, MILYEN kulcsot látott, tehát az
+engedélyezéshez nem kell találgatni.
 
 A `@forma` és a `channel/…` forma ugyanahhoz a csatornához tartozhat, de ezt
 címből nem lehet tudni — ha egy engedélyezett csatornát valaki a másik formán
 ér el, a tiltó lapról leolvasható kulcsot érdemes szó szerint felvenni.
+
+## A második réteg: hírfolyam és lejátszó
+
+A cím alapú tiltás egyedül azt jelentené, hogy a tiltott csatorna OLDALA nem
+nyílik meg, a videói viszont a kezdőlapról és keresésből igen. A tartalom-
+szkript ezért két további dolgot csinál, mindkettőt a bekapcsolt szűrők
+alapján:
+
+**Hírfolyam-tisztítás.** Az a videókártya, amin nem engedélyezett csatornára
+mutató link van, eltűnik — de csak ha a doboz VIDEÓRA is mutat
+(`contentIdOf`). A csatorna-link önmagában (egy komment szerzője, egy
+említés) nem videókártya, és elrejteni olyat venne el, amit a felhasználó nem
+szűrt. Ha a legszűkebb videós ős kettőnél több különböző videót tartalmaz, az
+egy egész polc vagy szakasz — arról egyetlen link nem dönthet. A lejátszót
+tartalmazó dobozt sosem rejtjük.
+
+**A lejátszó-oldal feltöltője.** A `/watch` cím hallgat, de a LAP megmondja,
+kié a videó — a saját metaadatában. Három forrás, a szemantikustól a nyersebb
+felé: JSON-LD (`VideoObject.author.url`), schema.org-mikroadat
+(`itemprop="author"` → `url`, VideoObject-hatókörben vagy a laphoz tartozását
+a `videoId` metával bizonyítva), végül a lejátszó beágyazott adata
+(`ownerProfileUrl`, csak ha ugyanaz a szkript a mostani `videoId`-t is
+megnevezi). A kiolvasott feltöltő-címről az `authorVerdict` dönt — a
+HÁTTÉRBEN, a friss szűrő-listával: a lap tartalmában futó kód csak jelölt,
+nem bíró.
+
+Két szabály tartja ezt egyenesben:
+
+- **Elavulás-őr.** Egylapos váltásnál az előző videó metaadata még a DOM-ban
+  lóghat. Ezért a metaadat csak akkor számít, ha a MOSTANI videót nevezi meg
+  (`contentIdOf` a címből ↔ azonosító a metaadatban). A tévedés két iránya
+  nem egyforma: a ki nem mondott ítélet a következő navigációnál újra esélyt
+  kap, a téves tiltás viszont a szűrőt járatja le.
+- **A megengedő forrás nyer.** Ha több forrás mást mond, és bármelyik
+  engedélyezett csatornát nevez meg, a lap marad. Csak akkor tiltunk, ha van
+  azonosított feltöltő, és egyik jelölt sem engedélyezett.
+
+Ami ezek UTÁN is kint marad, az kimondott korlát: lejátszó, amelynek lapja
+nem nevezi meg a feltöltőt; videókártya, amin nincs csatorna-link (például a
+lejátszó melletti ajánló, ahol a csatornanév csak szöveg); és minden, ami nem
+ebben a böngészőben történik. A tiltó lap ilyenkor is megmondja, mit látott —
+`by=video` esetén azt is, hogy a kulcs a lap adatából jött, nem a címből.
+
+Mindezt a `desktop/scripts/extension-e2e.js` őrzi: VALÓDI Chromiumban, a
+valódi bővítményt betöltve játssza végig a rétegeket egy kamu videó-oldalon —
+a rejtést, a három metaadat-forrást, az elavulás-őrt, az egylapos váltást és
+a régi címalapú réteget is.
 
 ## Súrlódás — mint a munkameneteknél
 
@@ -70,7 +117,12 @@ TELJESÍTÉSEKOR lép életbe — addig a szűrő a régi alakjában él.
    (`channels: [{host, allow}]`) — a kikapcsolt a böngészőre nem tartozik.
 3. A bővítmény gyorsítótárazza (az app bezárása nem feloldás), és minden
    navigációnál — a SPA-lépéseknél is — megkérdezi a `channelVerdict`-et.
-4. A tiltó lap megnevezi a látott kulcsot és az oldalt.
+4. A tartalom-szkript ugyanezekkel a szűrőkkel rejti a nem engedélyezett
+   csatornák videókártyáit, és a lejátszó-oldal metaadatából kiolvasott
+   feltöltőt jelzi a háttérnek — ott az `authorVerdict` dönt (második réteg,
+   lásd fent).
+5. A tiltó lap megnevezi a látott kulcsot és az oldalt — `by=video` esetén
+   azt is, hogy a kulcs a lap adatából jött.
 
 A logika két példányban él (`extension/channels.js` + a TS iker), és a
 paritásukat teszt őrzi, amely a KISZÁLLÍTOTT bővítmény-bájtokat futtatja

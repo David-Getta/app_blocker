@@ -10,7 +10,7 @@
 // és pont a pontatlanság lenne a baj: elvenne valamit, amit a felhasználó nem
 // tiltott le.
 
-import { channelVerdict } from './channels.js';
+import { authorVerdict, channelVerdict } from './channels.js';
 import { firstMatch, ruleLabel } from './rules-core.js';
 import { activeRules, load, sweep } from './storage.js';
 import {
@@ -101,8 +101,12 @@ function blockedUrl(hit) {
   }
   if (hit.reason === 'channel') {
     // A lap kiírja, MILYEN kulcsot látott: az engedélyezéshez így nem kell
-    // találgatni, hogy a szűrő minek olvasta a címet.
+    // találgatni, hogy a szűrő minek olvasta a címet vagy a lap adatát.
     const q = new URLSearchParams({ channel: hit.channel.key, channelHost: hit.channel.host });
+    // Ha a kulcs nem a CÍMBŐL jött, hanem a lap adatából (a videó
+    // feltöltője), a tiltó lap másképp fogalmaz — különben az ember a
+    // címben keresné a csatornát, és nem találná.
+    if (hit.source === 'video') q.set('by', 'video');
     return chrome.runtime.getURL(`blocked.html?${q.toString()}`);
   }
   return chrome.runtime.getURL(`blocked.html?rule=${encodeURIComponent(ruleLabel(hit.rule))}`);
@@ -143,13 +147,43 @@ chrome.runtime.onStartup.addListener(() => { void sweep(); void pullFromApp(); }
 chrome.runtime.onInstalled.addListener(() => { void sweep(); void pullFromApp(); });
 
 // A beállítások lapja innen kéri le, mi számít MOST aktívnak, hogy ne kelljen
-// két helyen ugyanazt az időkezelést megírni.
+// két helyen ugyanazt az időkezelést megírni. A tartalom-szkript ugyaninnen
+// kapja a csatorna-szűrőket is: azokkal rejti a nem engedélyezett csatornák
+// videókártyáit, és azok mondják meg, kell-e egyáltalán feltöltőt keresnie.
 chrome.runtime.onMessage.addListener((msg, _sender, respond) => {
   if (msg?.type !== 'breaker:active-rules') return false;
   void (async () => {
     const state = await load();
     const link = await loadLink();
-    respond({ rules: withAppRules(activeRules(state, Date.now()), link.rules) });
+    respond({
+      rules: withAppRules(activeRules(state, Date.now()), link.rules),
+      channels: link.channels,
+    });
+  })();
+  return true; // aszinkron válasz
+});
+
+// A tartalom-szkript jelzése: a lejátszó-oldal metaadata szerint a videót ez
+// a csatorna töltötte fel. A DÖNTÉS ITT születik, a friss szűrő-listával — a
+// lap tartalmában futó kód csak jelölt, nem bíró: ami onnan jön, azt
+// ellenőrizzük, nem elhisszük. A tévedés rossz iránya itt is a tiltás felé
+// lejt: legfeljebb egy lap tiltja le saját magát.
+chrome.runtime.onMessage.addListener((msg, sender, respond) => {
+  if (msg?.type !== 'breaker:page-author') return false;
+  void (async () => {
+    const tabId = sender?.tab?.id;
+    // Csak a főkeret lapjáról fogadunk szót — egy beágyazott keret nem az
+    // oldal, amit az ember megnyitott. A lap címét a böngészőtől kérdezzük
+    // (sender.url), nem az üzenetből: azt a lap nem tudja meghamisítani.
+    if (typeof tabId !== 'number' || sender.frameId !== 0) { respond({}); return; }
+    const link = await loadLink();
+    const hit = authorVerdict(sender.url ?? '', String(msg.authorUrl ?? ''), link.channels);
+    if (!hit) { respond({}); return; }
+    const target = blockedUrl({ reason: 'channel', channel: hit, source: 'video' });
+    try {
+      await chrome.tabs.update(tabId, { url: target });
+    } catch { /* a lap közben eltűnt */ }
+    respond({ blocked: true });
   })();
   return true; // aszinkron válasz
 });

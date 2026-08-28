@@ -12,8 +12,11 @@
 //   - `@névvel` kezdődő első szakasz (YouTube, TikTok): `@név`;
 //   - YouTube régi formái: `channel/AZONOSÍTÓ`, `c/NÉV`, `user/NÉV`.
 //
-// Amit a cím NEM árul el, azt nem is állítjuk: egy /watch?v=… videóról a cím
-// nem mondja meg, melyik csatornáé. Ez kimondott korlát, nem elhallgatott.
+// Amit a cím NEM árul el, azt a CÍMBŐL nem is állítjuk: egy /watch?v=… videóról
+// a cím nem mondja meg, melyik csatornáé. Amit viszont a LAP elárul magáról —
+// a videó feltöltőjét a saját metaadatában —, azt a tartalom-szkript kiolvassa,
+// és az `authorVerdict` dönt róla. A kettő együtt fedi le a lejátszót: a cím,
+// ahol a cím beszél, a lap adata, ahol a cím hallgat.
 //
 // A fájl SZÁNDÉKOSAN függőség nélküli: a bővítmény betölti modulként, a
 // desktop tesztjei pedig a kiszállított bájtokat futtatják — így a két oldal
@@ -107,6 +110,23 @@ export function hostMatchesFilter(host, filterHost) {
  *   MILYEN kulcsot látott, hogy az engedélyezéshez ne kelljen találgatni
  */
 export function channelVerdict(url, channels) {
+  const p = urlParts(url);
+  if (!p) return null;
+  for (const f of channels ?? []) {
+    if (!f || !hostMatchesFilter(p.host, f.host)) continue;
+    const key = channelKeyFromPath(p.path);
+    if (key === null) continue;
+    const allow = Array.isArray(f.allow) ? f.allow : [];
+    if (!allow.includes(key)) return { host: f.host, key };
+  }
+  return null;
+}
+
+/**
+ * Egy http(s) cím hosztja és útvonala, `URL` nélkül — a `user:pass@` alak
+ * miatt kézzel: a @ előtti rész nem a hoszt, és nem is csatorna.
+ */
+function urlParts(url) {
   const s = String(url ?? '').trim();
   if (!/^https?:\/\//i.test(s)) return null;
   const rest = s.replace(/^https?:\/\//i, '').replace(/^[^/@]*@/, '');
@@ -115,10 +135,63 @@ export function channelVerdict(url, channels) {
   const colon = host.indexOf(':');
   if (colon >= 0) host = host.slice(0, colon);
   host = host.replace(/\.+$/, '');
-  const path = slash < 0 ? '/' : rest.slice(slash);
+  if (!host) return null;
+  return { host, path: slash < 0 ? '/' : rest.slice(slash) };
+}
+
+/**
+ * A VIDEÓ azonosítója a címből, ha a cím lejátszóra mutat — különben null.
+ *
+ * Két dolog épül rá, és mindkettőnek pont ez kell:
+ *
+ *   - a kártya-ismérv: a hírfolyamban azt a dobozt rejtjük, amiben a nem
+ *     engedélyezett csatorna linkje MELLETT videóra mutató link is van —
+ *     a csatorna-link önmagában (egy komment szerzője) nem videókártya;
+ *   - az elavulás-őr: a lap metaadatát csak akkor hisszük el, ha a MOSTANI
+ *     videót nevezi meg — egylapos váltásnál az előző videó adata még ott
+ *     lóghat a DOM-ban.
+ *
+ * A kis- és nagybetű ITT SZÁMÍT: a videó-azonosítók érzékenyek rá, ezért nem
+ * kisbetűsítünk, ahogy a csatorna-kulcsoknál tesszük.
+ */
+export function contentIdOf(url) {
+  const s = String(url ?? '').trim();
+  let path = null;
+  if (s.startsWith('/')) path = s;
+  else path = urlParts(s)?.path ?? null;
+  if (!path) return null;
+  const v = path.match(/[?&]v=([A-Za-z0-9_-]{4,})/);
+  if (v) return v[1];
+  const segs = path.split(/[?#]/)[0].split('/').filter(Boolean);
+  const idLike = (x) => /^[A-Za-z0-9_-]{4,}$/.test(x);
+  if (segs.length >= 2 && ['shorts', 'embed', 'video', 'live', 'v'].includes(segs[0].toLowerCase())
+    && idLike(segs[1])) {
+    return segs[1];
+  }
+  // A `/@valaki/video/123` alak (TikTok): az azonosító a harmadik szakasz.
+  if (segs.length >= 3 && segs[1].toLowerCase() === 'video' && idLike(segs[2])) return segs[2];
+  return null;
+}
+
+/**
+ * Megfogja-e a szűrő ezt a lapot A FELTÖLTŐJE alapján.
+ *
+ * A LAP címe dönti el, melyik szűrő alá esik; a FELTÖLTŐ címe adja a kulcsot.
+ * A feltöltőnek ugyanarra a gazdagépre kell mutatnia: egy máshova mutató
+ * szerző-link nem ennek az oldalnak a csatornája, arról nem mondunk ítéletet.
+ *
+ * @param pageUrl a megnyitott lap címe
+ * @param authorUrl a lap metaadatából kiolvasott feltöltő-cím
+ * @param channels [{host, allow:[kulcsok]}] — csak a BEKAPCSOLT szűrők
+ */
+export function authorVerdict(pageUrl, authorUrl, channels) {
+  const page = urlParts(pageUrl);
+  const author = urlParts(authorUrl);
+  if (!page || !author) return null;
   for (const f of channels ?? []) {
-    if (!f || !hostMatchesFilter(host, f.host)) continue;
-    const key = channelKeyFromPath(path);
+    if (!f || !hostMatchesFilter(page.host, f.host)) continue;
+    if (!hostMatchesFilter(author.host, f.host)) continue;
+    const key = channelKeyFromPath(author.path);
     if (key === null) continue;
     const allow = Array.isArray(f.allow) ? f.allow : [];
     if (!allow.includes(key)) return { host: f.host, key };

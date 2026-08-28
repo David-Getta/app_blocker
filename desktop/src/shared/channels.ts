@@ -77,14 +77,10 @@ export function hostMatchesFilter(host: string | null, filterHost: string): bool
 }
 
 /**
- * Megfogja-e a csatorna-szűrő ezt a címet — az iker a bővítménybelivel.
- *
- * A felületen az élő ELŐNÉZET használja („ezt a címet a szűrő megfogná”), a
- * tényleges tiltást a bővítményben futó példány végzi.
+ * Egy http(s) cím hosztja és útvonala, `URL` nélkül — a `user:pass@` alak
+ * miatt kézzel: a @ előtti rész nem a hoszt, és nem is csatorna.
  */
-export function channelVerdict(
-  url: string, channels: { host: string; allow: string[] }[],
-): { host: string; key: string } | null {
+function urlParts(url: string): { host: string; path: string } | null {
   const s = String(url ?? '').trim();
   if (!/^https?:\/\//i.test(s)) return null;
   const rest = s.replace(/^https?:\/\//i, '').replace(/^[^/@]*@/, '');
@@ -93,10 +89,74 @@ export function channelVerdict(
   const colon = host.indexOf(':');
   if (colon >= 0) host = host.slice(0, colon);
   host = host.replace(/\.+$/, '');
-  const path = slash < 0 ? '/' : rest.slice(slash);
+  if (!host) return null;
+  return { host, path: slash < 0 ? '/' : rest.slice(slash) };
+}
+
+/**
+ * Megfogja-e a csatorna-szűrő ezt a címet — az iker a bővítménybelivel.
+ *
+ * A felületen az élő ELŐNÉZET használja („ezt a címet a szűrő megfogná”), a
+ * tényleges tiltást a bővítményben futó példány végzi.
+ */
+export function channelVerdict(
+  url: string, channels: { host: string; allow: string[] }[],
+): { host: string; key: string } | null {
+  const p = urlParts(url);
+  if (!p) return null;
   for (const f of channels ?? []) {
-    if (!f || !hostMatchesFilter(host, f.host)) continue;
-    const key = channelKeyFromPath(path);
+    if (!f || !hostMatchesFilter(p.host, f.host)) continue;
+    const key = channelKeyFromPath(p.path);
+    if (key === null) continue;
+    const allow = Array.isArray(f.allow) ? f.allow : [];
+    if (!allow.includes(key)) return { host: f.host, key };
+  }
+  return null;
+}
+
+/**
+ * A VIDEÓ azonosítója a címből, ha a cím lejátszóra mutat — különben null.
+ *
+ * A bővítménybeli példány kommentje mondja el, mi épül rá (kártya-ismérv és
+ * elavulás-őr). A kis- és nagybetű ITT SZÁMÍT: a videó-azonosítók érzékenyek
+ * rá, ezért nem kisbetűsítünk, ahogy a csatorna-kulcsoknál tesszük.
+ */
+export function contentIdOf(url: string): string | null {
+  const s = String(url ?? '').trim();
+  let path: string | null = null;
+  if (s.startsWith('/')) path = s;
+  else path = urlParts(s)?.path ?? null;
+  if (!path) return null;
+  const v = path.match(/[?&]v=([A-Za-z0-9_-]{4,})/);
+  if (v) return v[1];
+  const segs = path.split(/[?#]/)[0].split('/').filter(Boolean);
+  const idLike = (x: string) => /^[A-Za-z0-9_-]{4,}$/.test(x);
+  if (segs.length >= 2 && ['shorts', 'embed', 'video', 'live', 'v'].includes(segs[0].toLowerCase())
+    && idLike(segs[1])) {
+    return segs[1];
+  }
+  // A `/@valaki/video/123` alak (TikTok): az azonosító a harmadik szakasz.
+  if (segs.length >= 3 && segs[1].toLowerCase() === 'video' && idLike(segs[2])) return segs[2];
+  return null;
+}
+
+/**
+ * Megfogja-e a szűrő ezt a lapot A FELTÖLTŐJE alapján.
+ *
+ * A LAP címe dönti el, melyik szűrő alá esik; a FELTÖLTŐ címe adja a kulcsot.
+ * A feltöltőnek ugyanarra a gazdagépre kell mutatnia: egy máshova mutató
+ * szerző-link nem ennek az oldalnak a csatornája, arról nem mondunk ítéletet.
+ */
+export function authorVerdict(
+  pageUrl: string, authorUrl: string, channels: { host: string; allow: string[] }[],
+): { host: string; key: string } | null {
+  const page = urlParts(pageUrl);
+  const author = urlParts(authorUrl);
+  if (!page || !author) return null;
+  for (const f of channels ?? []) {
+    if (!f || !hostMatchesFilter(page.host, f.host)) continue;
+    if (!hostMatchesFilter(author.host, f.host)) continue;
+    const key = channelKeyFromPath(author.path);
     if (key === null) continue;
     const allow = Array.isArray(f.allow) ? f.allow : [];
     if (!allow.includes(key)) return { host: f.host, key };

@@ -66,6 +66,30 @@ const URL_INPUTS = [
 
 const CHANNELS = [{ host: 'youtube.com', allow: ['@jo', 'channel/ucjo'] }];
 
+/** Lejátszó-alakú és nem lejátszó-alakú címek — a contentIdOf bemenetei. */
+const CONTENT_INPUTS = [
+  'https://www.youtube.com/watch?v=dQw4w9WgXcQ', '/watch?v=abc123', '/watch',
+  '/watch?list=PL1&v=X_y-z9', '/shorts/AbCd1234', '/embed/xyz9', '/live/abcd',
+  '/v/abcd', '/video/12345', '/@valaki/video/7345', '/@valaki', '/', '',
+  '/shorts/', '/shorts/a', 'https://youtu.be/rovid', 'nem-cím',
+  'https://www.youtube.com/watch?v=CsupaNagy_-', '/results?search_query=v=x',
+];
+
+/** (lap, feltöltő) párok — az authorVerdict bemenetei. */
+const AUTHOR_INPUTS: [string, string][] = [
+  ['https://www.youtube.com/watch?v=abc', 'https://www.youtube.com/@rossz'],
+  ['https://www.youtube.com/watch?v=abc', 'https://www.youtube.com/@jo'],
+  ['https://www.youtube.com/watch?v=abc', 'http://www.youtube.com/channel/UCjo'],
+  ['https://www.youtube.com/watch?v=abc', 'https://www.youtube.com/channel/UCrossz'],
+  ['https://m.youtube.com/watch?v=abc', 'https://www.youtube.com/@rossz'],
+  ['https://www.youtube.com/watch?v=abc', 'https://mas-oldal.hu/@rossz'],
+  ['https://mas-oldal.hu/watch?v=abc', 'https://mas-oldal.hu/@rossz'],
+  ['https://www.youtube.com/watch?v=abc', '/@rossz'],
+  ['https://www.youtube.com/watch?v=abc', 'https://www.youtube.com/watch?v=def'],
+  ['chrome://settings', 'https://www.youtube.com/@rossz'],
+  ['https://www.youtube.com/watch?v=abc', ''],
+];
+
 test('a bővítmény és az app UGYANAZT a kulcsot adja minden bemenetre', () => {
   for (const input of ENTRY_INPUTS) {
     assert.equal(
@@ -91,6 +115,18 @@ test('a bővítmény és az app UGYANAZT a kulcsot adja minden bemenetre', () =>
       `channelVerdict eltér ezen: ${JSON.stringify(url)}`,
     );
   }
+  for (const url of CONTENT_INPUTS) {
+    assert.equal(
+      ext.contentIdOf(url), ts.contentIdOf(url),
+      `contentIdOf eltér ezen: ${JSON.stringify(url)}`,
+    );
+  }
+  for (const [page, author] of AUTHOR_INPUTS) {
+    assert.deepEqual(
+      ext.authorVerdict(page, author, CHANNELS), ts.authorVerdict(page, author, CHANNELS),
+      `authorVerdict eltér ezen: ${JSON.stringify([page, author])}`,
+    );
+  }
 });
 
 test('a korlátok is ugyanazok a két oldalon', () => {
@@ -113,6 +149,36 @@ test('a tiltás a csatorna-alakú címekre szűkül', () => {
   assert.deepEqual(v('https://www.youtube.com/channel/UCrossz'), { host: 'youtube.com', key: 'channel/ucrossz' });
   assert.equal(v('https://mas-oldal.hu/@rossz'), null, 'más oldalra a szűrő nem szól');
   assert.equal(v('chrome://settings', ), null, 'nem-web címekhez nem nyúlunk');
+});
+
+test('a videó-azonosító csak lejátszó-alakú címből jön, és megőrzi a betűméretet', () => {
+  const id = (u: string) => ext.contentIdOf(u);
+  assert.equal(id('https://www.youtube.com/watch?v=dQw4w9WgXcQ'), 'dQw4w9WgXcQ',
+    'a ?v= alak — és az azonosító kis- és nagybetűje érintetlen marad');
+  assert.equal(id('/shorts/AbCd1234'), 'AbCd1234');
+  assert.equal(id('/@valaki/video/7345'), '7345', 'a TikTok-alak: /@név/video/szám');
+  assert.equal(id('/watch'), null, 'videó-azonosító nélküli lejátszó-cím nem videó');
+  assert.equal(id('/@valaki'), null, 'a csatorna-lap nem videó');
+  assert.equal(id('/results?search_query=v=x'), null,
+    'a ?v= csak paraméterhatáron számít, szöveg belsejében nem');
+});
+
+test('a feltöltő alapján ugyanaz a fehérlista dönt, mint a cím alapján', () => {
+  const v = (page: string, author: string) => ext.authorVerdict(page, author, CHANNELS);
+  assert.deepEqual(v('https://www.youtube.com/watch?v=abc', 'https://www.youtube.com/@rossz'),
+    { host: 'youtube.com', key: '@rossz' });
+  assert.equal(v('https://www.youtube.com/watch?v=abc', 'https://www.youtube.com/@jo'), null,
+    'az engedélyezett csatorna videója mehet');
+  assert.equal(v('https://www.youtube.com/watch?v=abc', 'http://www.youtube.com/channel/UCjo'),
+    null, 'a channel/ forma is engedélyezhető — és a kis-nagybetű itt nem számít');
+  assert.equal(v('https://www.youtube.com/watch?v=abc', 'https://mas-oldal.hu/@rossz'), null,
+    'máshova mutató szerző-linkről nem mondunk ítéletet');
+  assert.equal(v('https://mas-oldal.hu/watch?v=abc', 'https://mas-oldal.hu/@rossz'), null,
+    'nem szűrt oldalra a szűrő nem szól');
+  assert.equal(v('https://www.youtube.com/watch?v=abc', '/@rossz'), null,
+    'viszonylagos címet a hívó dolga feloldani — itt nem találgatunk');
+  assert.equal(v('https://www.youtube.com/watch?v=abc', 'https://www.youtube.com/watch?v=def'),
+    null, 'egy videóra mutató „szerző” nem csatorna');
 });
 
 test('a felhasználónév a címben nem téveszti meg a hoszt-illesztést', () => {

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Breaker — részleges tiltás",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Nem az egész oldalt, csak egy darabját: például a YouTube-on egy-egy csatornát.",
   "permissions": ["storage", "webNavigation"],
   "host_permissions": ["<all_urls>"],
@@ -26,7 +26,7 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["blocked.html", "rules-core.js"],
+      "resources": ["blocked.html", "rules-core.js", "channels.js"],
       "matches": ["<all_urls>"]
     }
   ]

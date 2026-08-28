@@ -85,6 +85,11 @@ jobs:
       # A bővítmény beállítási lapja ugyanabban a böngészőben, ugyanabból a
       # telepítésből — külön futóért nem éri meg egy tíz másodperces ellenőrzés.
       - run: node scripts/extension-ui.js
+      # A bővítmény IGAZI bővítményként betöltve, kamu videó-oldalon: a
+      # manifest hibáit (egy rossz default_locale a betöltést is megakadályozza,
+      # egy hiányzó web_accessible_resources némán öli meg az importot) csak ez
+      # fogja ki — a lap-szintű teszt alatt a bővítmény akár be sem töltődhetne.
+      - run: node scripts/extension-e2e.js
       # A letöltőoldal ugyanabban a böngészőben. Ez az a lap, amit a
       # felhasználó ELŐSZÖR lát — ha a download.js elhasal, üres oldalt kap.
       - run: node scripts/website-shot.js --check

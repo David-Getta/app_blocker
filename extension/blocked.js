@@ -26,12 +26,21 @@ if (focus) {
   // Percenként frissül: egy beragadt szám azt sugallná, hogy nem telik az idő.
   setInterval(() => { el.textContent = left(); }, 30_000);
 } else if (params.get('channel')) {
-  // A csatorna-szűrő fogta meg. A lap kiírja, MILYEN kulcsot látott a címben:
-  // az engedélyezéshez így nem kell találgatni — azt kell felvenni, ami itt áll.
+  // A csatorna-szűrő fogta meg. A lap kiírja, MILYEN kulcsot látott: az
+  // engedélyezéshez így nem kell találgatni — azt kell felvenni, ami itt áll.
   document.getElementById('channelCard').hidden = false;
   document.getElementById('channelKey').textContent = params.get('channel');
   document.getElementById('channelHost').textContent =
     params.get('channelHost') || 'ez az oldal';
+  if (params.get('by') === 'video') {
+    // A kulcs nem a címből jött, hanem a lap saját adatából: a videó
+    // feltöltőjéből. Ezt ki kell mondani, különben az ember a címben keresné
+    // a csatornát — ott pedig nincs.
+    document.getElementById('channelTitle').textContent =
+      'Ennek a videónak a csatornája nincs az engedélyezettek közt.';
+    document.getElementById('channelSeen').textContent =
+      'A cím ezt nem árulja el, de a lap igen — a videót ez a csatorna töltötte fel:';
+  }
 } else {
   document.getElementById('ruleCard').hidden = false;
   const rule = params.get('rule');
