@@ -1341,6 +1341,11 @@ async function main() {
     await closeAccountPanel(page);
     await goTo(page, 'sites');
     await page.locator('#channelCard').scrollIntoViewIfNeeded();
+    // Az űrlap nyitva, az élő próbával: a kép így azt is elmondja, hogy a
+    // szűrő kipróbálható mentés előtt — a becsukott kártya ezt eltitkolná.
+    await page.locator('#channelList').getByRole('button', { name: 'Szerkesztés' }).click();
+    await page.fill('#chanProbe', 'https://www.youtube.com/@ismeretlen');
+    await page.waitForTimeout(200);
     await page.locator('#channelCard').screenshot({ path: path.join(OUT, 'desktop-channels.png') });
   }
   // A DIAGNOSZTIKA-GOMB. A leggyakoribb kérdés ennél a funkciónál az, hogy

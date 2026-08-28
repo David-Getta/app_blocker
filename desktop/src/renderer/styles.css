@@ -1140,3 +1140,11 @@ body[data-motion="on"][data-bg="nyugalom"] .bg-blob-1 { animation: drift-1 52s e
   .bg-blob { animation: none !important; }
   .drawer { animation: none; }
 }
+
+/* ---------------------------------------------------- csatorna-szűrő űrlap */
+
+/* Rács, nem folyó szöveg: az oldal-mező és a csatorna-lista egymás alatt,
+   teljes szélességben — enélkül a mezők a maradék helyre tördelődnek, és a
+   képernyőn úgy néz ki, mintha véletlenül kerültek volna oda. */
+#chanForm { display: grid; gap: var(--s2); margin-top: var(--s4); }
+#chanForm input[type="text"], #chanForm textarea { width: 100%; }
