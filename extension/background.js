@@ -112,32 +112,63 @@ function blockedUrl(hit) {
   return chrome.runtime.getURL(`blocked.html?rule=${encodeURIComponent(ruleLabel(hit.rule))}`);
 }
 
-chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
+// Kis, MEMÓRIABELI nyomkövető gyűrű: mit látott a navigáció-figyelő, és mit
+// döntött. Sosem íródik lemezre, és magától senkinek nem jelenik meg — akkor
+// olvasható ki, amikor egy várt tiltás elmaradt, és tudni kell, melyik láncszem
+// hallgatott: az esemény nem jött meg, a döntés hibázott, vagy az átirányítás
+// bukott el. A bővítmény-füstteszt pont ezt kérdezi le hibánál.
+const trace = [];
+function note(what) {
+  trace.push(`${Date.now()} ${what}`);
+  if (trace.length > 80) trace.shift();
+  self.__breakerTrace = trace;
+}
+
+async function enforce(kind, details) {
   if (!isTopFrame(details)) return;
-  refreshInBackground();
-  const hit = await decide(details.url);
+  let hit;
+  try {
+    hit = await decide(details.url);
+  } catch (err) {
+    // A döntés hibája NEM lehet néma átengedés némán: legalább a nyomban
+    // maradjon ott. (A tiltás maga ilyenkor a másik hálóra marad.)
+    note(`${kind} ${details.url} DÖNTÉS-HIBA ${err}`);
+    return;
+  }
+  note(`${kind} ${details.url} -> ${hit ? hit.reason : 'mehet'}`);
   if (!hit) return;
   const target = blockedUrl(hit);
   // A lapot NEM zárjuk be: a becsukódó lap ijesztő, és nem mondja meg, mi
   // történt. A saját lapunk viszont megnevezi a szabályt, ami megfogta.
   try {
     await chrome.tabs.update(details.tabId, { url: target });
-  } catch {
+  } catch (err) {
     // A lap közben eltűnhetett. Ez nem hiba, csak elkéstünk vele.
+    note(`átirányítás nem ment: ${err}`);
   }
+}
+
+chrome.webNavigation.onBeforeNavigate.addListener((details) => {
+  if (!isTopFrame(details)) return;
+  refreshInBackground();
+  void enforce('előtte', details);
+});
+
+// A MÁSODIK HÁLÓ: ugyanaz a döntés a navigáció MEGTÖRTÉNTEKOR is. Az
+// onBeforeNavigate egyetlen esély — a szolgáltatás-worker élete kezünkben
+// nincs, és egy ébredés közben elejtett esemény némán átengedne egy tiltott
+// lapot. A megerősített navigációról KÜLÖN esemény jön; a kettő együtt már
+// nem tud egyszerre elveszni. Az ára egy második (olcsó, tárból olvasó)
+// döntés navigációnként; kétszer átirányítani ugyanoda pedig nem baj.
+chrome.webNavigation.onCommitted.addListener((details) => {
+  void enforce('megtörtént', details);
 });
 
 // A YouTube egyetlen lapon belül vált csatornát (History API), tehát az
 // onBeforeNavigate nem fut le újra. Enélkül elég lenne a főoldalról rákattintani
 // a csatornára, és a tiltás átengedné — pont a leggyakoribb úton.
-chrome.webNavigation.onHistoryStateUpdated.addListener(async (details) => {
-  if (!isTopFrame(details)) return;
-  const hit = await decide(details.url);
-  if (!hit) return;
-  const target = blockedUrl(hit);
-  try {
-    await chrome.tabs.update(details.tabId, { url: target });
-  } catch { /* a lap eltűnt */ }
+chrome.webNavigation.onHistoryStateUpdated.addListener((details) => {
+  void enforce('lapon belül', details);
 });
 
 // A lejárt visszaszámlálású szabályokat valakinek ki kell takarítania. A

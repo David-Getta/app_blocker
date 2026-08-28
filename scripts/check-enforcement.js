@@ -172,6 +172,15 @@ const WIRES = [
     lost: 'a tartalom-szkript nem kapná meg a szűrőket, tehát se rejtés, se '
       + 'feltöltő-keresés',
   },
+  {
+    file: 'extension/background.js',
+    // A tiltás MÁSODIK hálója. Az onBeforeNavigate egyetlen esély: ha a
+    // szolgáltatás-worker ébredés közben elejti, a tiltott lap némán átmegy.
+    // A redundancia törlésétől semmi nem hasal el — pont ezért kell ide.
+    needle: 'chrome.webNavigation.onCommitted.addListener',
+    lost: 'a tiltás második hálója tűnne el — egy elejtett esemény némán '
+      + 'átengedne egy tiltott lapot',
+  },
   // A MAI NAP KÜLÖN LISTÁJA. A mag régóta kiszámolta (`topToday`), csak épp
   // senki nem kérdezte meg — a felhasználó kérte ki magának a funkciót.
   {

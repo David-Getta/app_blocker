@@ -130,6 +130,43 @@ async function main() {
   const failures = [];
   const check = (ok, name) => { if (!ok) failures.push(name); console.log(`${ok ? 'OK ' : 'HIBA'} ${name}`); };
 
+  /**
+   * A BÖNGÉSZŐ szerinti aktuális cím — nem a Playwrighté.
+   *
+   * Amikor a háttér `tabs.update`-je egy még folyamatban lévő navigációt
+   * szakít meg (pont ezt csinálja a tiltás), a Playwright lap-követése el
+   * tudja veszíteni a keretet: a `page.url()` a megszakított címen ragad,
+   * miközben a böngésző rég a tiltó lapon áll. A stressz-futások minden
+   * bukásában ez volt a kép — a navigációs előzmények aktuális bejegyzése
+   * a tiltó lap volt, a `page.url()` nem. Ezért a döntő szó az előzményeké.
+   */
+  async function browserUrl(page, context) {
+    const view = page.url();
+    let cdp = null;
+    try {
+      cdp = await context.newCDPSession(page);
+      const h = await cdp.send('Page.getNavigationHistory');
+      return h.entries[h.currentIndex]?.url ?? view;
+    } catch {
+      return view; // ha a CDP nem elérhető, marad a Playwright nézete
+    } finally {
+      if (cdp) await cdp.detach().catch(() => {});
+    }
+  }
+
+  /** Megvárja, hogy a böngésző a mintára illő címen álljon; a címet adja vissza. */
+  async function waitForBrowserUrl(page, context, re, ms) {
+    const t0 = Date.now();
+    for (;;) {
+      const view = page.url();
+      if (re.test(view)) return view;
+      const real = await browserUrl(page, context);
+      if (re.test(real)) return real;
+      if (Date.now() - t0 >= ms) return null;
+      await new Promise((r) => setTimeout(r, 200));
+    }
+  }
+
   try {
     let [sw] = context.serviceWorkers();
     if (!sw) sw = await context.waitForEvent('serviceworker', { timeout: 20000 });
@@ -177,12 +214,17 @@ async function main() {
       [`${base}/watch?v=player12345`, 'beágyazott lejátszó-adat: a rossz feltöltő videója tiltó lapra fut'],
     ]) {
       await page.goto(caseUrl);
-      const blocked = await page.waitForURL(/blocked\.html/, { timeout: WAIT_MS })
-        .then(() => true).catch(() => false);
-      check(blocked, name);
-      if (blocked) {
+      const blocked = await waitForBrowserUrl(page, context, /blocked\.html/, WAIT_MS);
+      check(!!blocked, name);
+      if (blocked && /blocked\.html/.test(page.url())) {
         const text = await page.evaluate(() => document.body.innerText);
         check(text.includes('@rossz') && text.includes('töltötte fel'),
+          `${name} — a tiltó lap megnevezi a kulcsot és a feltöltőt`);
+      } else if (blocked) {
+        // A böngésző a tiltó lapon áll, de a Playwright nézete leszakadt —
+        // a szövegig ilyenkor nem érünk el. A cím paraméterei attól még
+        // igazolják, mit ír ki a lap.
+        check(blocked.includes('channel=%40rossz'),
           `${name} — a tiltó lap megnevezi a kulcsot és a feltöltőt`);
       }
     }
@@ -196,7 +238,9 @@ async function main() {
     ]) {
       await page.goto(caseUrl);
       await page.waitForTimeout(1200); // szerző-ellenőrzés 250 ms-onként fut
-      check(page.url() === caseUrl, name);
+      // A böngésző szerinti címet nézzük: a Playwright nézete beragadhat a
+      // navigáció-versenynél, és egy TÉVES tiltást is eltakarna.
+      check(await browserUrl(page, context) === caseUrl, name);
     }
 
     // --------------------------- 4. egylapos váltás: a friss metaadat dönt
@@ -211,9 +255,8 @@ async function main() {
         author: { '@type': 'Person', name: 'Rossz', url: `${b}/@rossz` },
       });
     }, base);
-    const spaBlocked = await page.waitForURL(/blocked\.html/, { timeout: WAIT_MS })
-      .then(() => true).catch(() => false);
-    check(spaBlocked, 'egylapos váltásnál a frissült metaadat alapján tilt');
+    const spaBlocked = await waitForBrowserUrl(page, context, /blocked\.html/, WAIT_MS);
+    check(!!spaBlocked, 'egylapos váltásnál a frissült metaadat alapján tilt');
 
     // ------------------------------------ 5. a címből döntő réteg is él még
     // Előbb el a tiltó lapról: a /@rossz navigációt a háttér még commit
@@ -221,12 +264,33 @@ async function main() {
     // a várakozás arra mondana igazat — a régi címre, a régi paraméterekkel.
     await page.goto(`${base}/`);
     await page.goto(`${base}/@rossz`).catch(() => { /* a navigációt elkapja a tiltás */ });
-    const urlBlocked = await page.waitForURL(/blocked\.html/, { timeout: WAIT_MS })
-      .then(() => true).catch(() => false);
-    if (!urlBlocked) console.log(`   (a lap itt állt: ${page.url()})`);
-    check(urlBlocked, 'a csatorna-lap címről tiltódik (régi réteg)');
+    const urlBlocked = await waitForBrowserUrl(page, context, /blocked\.html/, WAIT_MS);
+    if (!urlBlocked) {
+      // Hibánál mondja el magát: hol állt a lap, és él-e egyáltalán a háttér
+      // — a kettő különbsége választja szét az elveszett eseményt a halott
+      // workertől.
+      console.log(`   (a lap itt állt: ${page.url()})`);
+      const bg = await seeder.evaluate(
+        () => chrome.runtime.sendMessage({ type: 'breaker:active-rules' })
+          .then((a) => `él, ${a?.rules?.length ?? '?'} szabály, ${a?.channels?.length ?? '?'} szűrő`)
+          .catch((e) => `nem válaszol: ${e}`),
+      ).catch((e) => `a beállítás-lap sem válaszol: ${e}`);
+      console.log(`   (a háttér: ${bg})`);
+      const tr = await sw.evaluate(() => (self.__breakerTrace ?? ['üres nyom']).slice(-15).join('\n'))
+        .catch((e) => `nyom nem olvasható: ${e}`);
+      console.log(`   (a háttér nyoma:\n${tr})`);
+      // A navigációs előzmények döntik el, KI nyert: ha a tiltó lap benne
+      // van, csak épp nem ő az utolsó, akkor két navigáció versenyzett, és a
+      // goto-é ért célba később.
+      const hist = await context.newCDPSession(page)
+        .then((cdp) => cdp.send('Page.getNavigationHistory'))
+        .then((h) => h.entries.map((e, i) => `${i === h.currentIndex ? '>' : ' '} ${e.url}`).join('\n'))
+        .catch((e) => `nem olvasható: ${e}`);
+      console.log(`   (előzmények:\n${hist})`);
+    }
+    check(!!urlBlocked, 'a csatorna-lap címről tiltódik (régi réteg)');
     if (urlBlocked) {
-      check(!page.url().includes('by=video'),
+      check(!urlBlocked.includes('by=video'),
         'a címből jött tiltás nem hivatkozik a feltöltőre');
     }
     await page.goto(`${base}/@jo`).catch(() => {});

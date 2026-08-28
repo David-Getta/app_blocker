@@ -409,6 +409,20 @@ rossz mobilneten viszont több, mint a fejlécre szabott idő — vagyis a javí
 minden lassú kapcsolaton elrontotta volna azt, ami addig működött. A két
 szakasz külön keretet kap.
 
+### A rokon hibaminta: egyetlen esemény mint egyetlen esély
+
+Ugyanennek a családnak a másik tagja: amikor egy KÖTELEZŐ művelet egyetlen
+eseményre van felfűzve, az esemény elvesztése néma kihagyás. A bővítmény
+tiltása sokáig csak az `onBeforeNavigate`-en múlt — a szolgáltatás-worker
+élete viszont nem a miénk, és egy ébredés közben elejtett esemény átengedte
+volna a tiltott lapot, nyom nélkül. A válasz kettős: (1) a döntés KÉT
+független eseményen fut (navigáció előtt és megtörténtekor — kétszer dönteni
+olcsó, egyszer kihagyni drága), és (2) a háttér memóriabeli nyomgyűrűt vezet
+arról, mit látott és mit döntött, hogy egy elmaradt tiltásról meg lehessen
+mondani, MELYIK láncszem hallgatott. A bővítmény-füstteszt stressz-futásai
+pont ezzel a nyommal különítették el a termék hibáját a tesztkörnyezet
+vakfoltjától.
+
 ### A frissítés utáni „régi helper” állapot
 
 A desktopon a GUI és a privilegizált helper **külön folyamat**, és a frissítés

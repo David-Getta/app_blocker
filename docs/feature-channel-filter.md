@@ -117,6 +117,12 @@ TELJESÍTÉSEKOR lép életbe — addig a szűrő a régi alakjában él.
    (`channels: [{host, allow}]`) — a kikapcsolt a böngészőre nem tartozik.
 3. A bővítmény gyorsítótárazza (az app bezárása nem feloldás), és minden
    navigációnál — a SPA-lépéseknél is — megkérdezi a `channelVerdict`-et.
+   KÉT független eseményen: a navigáció előtt és a megtörténtekor is. A
+   szolgáltatás-worker élete nem a miénk, és egyetlen ébredés közben
+   elejtett esemény néma átengedés lenne — két külön esemény együtt már nem
+   tud elveszni. A háttér egy memóriabeli nyomgyűrűt is vezet (mit látott,
+   mit döntött), hogy egy elmaradt tiltásnál meg lehessen mondani, melyik
+   láncszem hallgatott.
 4. A tartalom-szkript ugyanezekkel a szűrőkkel rejti a nem engedélyezett
    csatornák videókártyáit, és a lejátszó-oldal metaadatából kiolvasott
    feltöltőt jelzi a háttérnek — ott az `authorVerdict` dönt (második réteg,
