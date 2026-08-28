@@ -31,6 +31,20 @@ Ez elindítja a `Release` workflow-t (`.github/workflows/release.yml`), ami:
 A verziószám a **git tagből** jön (a `v` előtag nélkül), így az appok verziója és
 a Release címe mindig egyezik.
 
+### Ugyanez terminál nélkül (vagy ha a tag-push nem megy át)
+
+A workflow kézzel is indítható, és pontosan ugyanazt csinálja — a tagot ilyenkor
+a kiszolgáló oldalon hozza létre a draft release:
+
+1. GitHub → **Actions** → **Release** → **Run workflow**;
+2. ágnak a kiadandó ágat add meg, verziónak pl. `v0.4.12`-t;
+3. futtatás — a többi automatikus.
+
+Ez az út akkor is működik, amikor a `git push --tags` valamiért nem (céges
+proxy, szűkített token): a mai gyakorlatban a kiadások többsége így megy ki.
+A helyi tagot utána érdemes felhúzni:
+`git fetch origin tag v0.4.12`.
+
 > A már telepített asztali és Android (közvetlen) appok a következő indításkor
 > **maguktól felfrissülnek** erre a kiadásra.
 
