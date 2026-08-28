@@ -44,6 +44,41 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
+          **A csatorna-szűrő mostantól a videókat is fogja, nem csak a
+          csatornák oldalait.** Eddig kimondott korlát volt, hogy egy videóról
+          a címe nem árulja el, melyik csatornáé — a nem engedélyezett
+          csatorna videói ezért keresésből, kezdőlapról nézhetők maradtak.
+          Két új réteg szűkíti ezt:
+
+          - **A hírfolyam megtisztul.** Az a videókártya, amin nem
+            engedélyezett csatornára mutató link van, eltűnik a kezdőlapról
+            és a keresésből is. Csak a videókártya: egy komment vagy egy
+            egész polc nem tűnik el egyetlen link miatt.
+          - **A lejátszó-oldal a feltöltő alapján tilt.** A lap saját
+            metaadatából derül ki, ki töltötte fel a videót; ha nem
+            engedélyezett csatorna, jön a tiltó lap, és meg is nevezi, mit
+            látott. Egylapos váltásnál az előző videó ottfelejtett adata nem
+            ítél — csak az számít, ami a MOSTANI videót nevezi meg.
+
+          Ami ezek után is kint marad, azt továbbra is kimondjuk: lejátszó,
+          amelynek lapja nem nevezi meg a feltöltőt, és kártya, amin nincs
+          csatorna-link (például a lejátszó melletti ajánló, ahol a
+          csatornanév csak szöveg).
+
+          **Javítva: a bővítmény egyáltalán betölthető.** A manifest egy nem
+          létező fordítás-mappára hivatkozott, és emiatt a böngésző a
+          kicsomagolt bővítményt hibával elutasította. Ez most derült ki,
+          mert a bővítményt mostantól minden kiadás előtt egy valódi
+          böngészőben, igazi bővítményként betöltve teszteljük.
+
+          A bővítményt a böngésző nem frissíti magától: töltsd le az új
+          `Breaker-bovitmeny` zipet, csomagold ki a régi helyére, és a
+          `chrome://extensions` lapon nyomj rá frissítést (vagy vedd le és
+          töltsd be újra). Az appban semmit nem kell átállítanod — a szűrőid
+          az appban élnek.
+
+          ### Ami a v0.4.9-ben jött
+
           **Csatorna-szűrő: egy oldalon csak az engedélyezett csatornák nyílnak
           meg.** Az Oldalak fülön felveszel egy szűrőt — például
           `youtube.com`, alá az engedélyezett csatornák (`@nevekkel` vagy a
@@ -62,7 +97,7 @@ jobs:
           csatornák OLDALAI vannak tiltva. A tiltó lap mindig kiírja, milyen
           kulcsot látott, tehát az engedélyezéshez nem kell találgatni.
 
-          ### Ami a v0.4.8-ban jött
+          #### Ami a v0.4.8-ban jött
 
           **A mai napnak külön statisztikája van.** Eddig a mai nap egy szám
           volt a csempesorban — hogy MIRE ment el, azt a hétnapos listából
@@ -80,87 +115,6 @@ jobs:
           „miért nulla a mai nap” kérdéshez ne képernyőképeket kelljen
           küldözgetni. A szövegben nincs cím, fedőnév, fióknév és
           kiszolgáló-cím: bárhová beilleszthető.
-
-          #### Ami a v0.4.7-ben jött
-
-          Ez a kiadás egy valódi képernyőből született: a statisztikán nulla
-          állt a mai napra, miközben a gép használatban volt — és semmi nem
-          mondta meg, miért. Három hiba volt mögötte, mind a három olyan, ami
-          nem hasal el, csak elhallgat.
-
-          **A mért idő elveszhetett a segédnél, szó nélkül.** A segéd minden
-          mintát ellenőriz, és amit nem fogad el, azt eldobja — a kérés attól
-          még sikeres, a válaszban pedig ott van, hogy hányat rögzített
-          ténylegesen. Ezt a számot viszont senki nem olvasta el. Egy csupa
-          eldobott köteg sikeres kézbesítésnek látszott, a puffer kiürült, és a
-          mért idő végleg elveszett. A statisztika örökre nulla maradt volna, a
-          napi keret pedig sosem fogyott volna el — vagyis az app védelmet
-          mutatott volna ott, ahol nincs. Most kiírja, ha ez történik.
-
-          **És egy beragadt lekérdezés sem állíthatja le csendben a mérést.** A
-          mérési kör tart egy „épp fut egy lekérdezés” jelzőt, ami csak a kör
-          befejezésekor törlődik. Ha a lekérdezés sosem fejeződött be — macOS-en
-          az engedélykérő ablakon meg tud állni —, minden későbbi kör azonnal
-          visszafordult, és a mérés az app hátralévő életére leállt.
-          Figyelmeztetés nélkül, mert itt nem hiba történt, hanem semmi.
-
-          **A statisztikán a nulla mostantól olvasható.** Eddig nem lehetett
-          megmondani belőle, hogy tényleg nem használtad a gépet, vagy hogy a
-          mérés hasalt el. Az app ezért kiírja, mikor rögzített utoljára mért
-          időt: „ma 12:41”, vagy dátummal, ha nem ma volt. Ha fél órája még
-          mértünk, a nulla igaz. Ha tegnapi dátum áll ott, az önmagában a
-          válasz.
-
-          Ugyanez a sor **a telefonodon is ott van** — Androidon a hiányzó
-          engedélyt eddig is jelezte az app, de azt nem, hogy engedéllyel is
-          nulla maradt-e a mai nap.
-
-          **A szinkron állapotsora nem hazudik többé.** Egyetlen időpont állt
-          ott, és az csak akkor lépett, ha a kör végigfutott — így egy hiba
-          mellett úgy nézett ki, mintha az app órákkal korábban feladta volna,
-          pedig tíz percenként újrapróbálja. Mostantól a sikeres szinkron és az
-          utolsó próbálkozás külön áll. Ha a próbálkozás ideje is régi, akkor
-          tényleg megállt a kör — és most már az is látszik.
-
-          **És egy hiba, ami eddig végleg megbéníthatta a szinkront.** A
-          hálózati időkorlát csak a válasz fejlécéig ért. Egy kiszolgáló, ami
-          válaszolni kezd, majd nem fejezi be, örökre megállított egy kört — és
-          onnantól minden későbbi kör azonnal visszafordult volna, mert az
-          ütemező futás-jelzője sosem törlődött. A szinkron az app hátralévő
-          életére halott lett volna, hibaüzenet nélkül, befagyott időbélyeggel.
-
-          **A frissítés nem tölti le újra ugyanazt a 90 MB-ot.** Eddig a letöltött
-          csomag útja csak a memóriában élt: az app újraindítása után a
-          letöltés elölről kezdődött, a korábbi ~90 MB pedig ottmaradt a
-          lemezen, és semmi nem takarította el. Mostantól a csomag túléli az
-          újraindítást, és a fölöslegessé vált verziók törlődnek.
-
-          **Ha a mérés engedélye frissítéskor elveszett, most megmondja.** macOS-en
-          az előtér olvasásához engedély kell. Amíg nincs Apple fejlesztői
-          aláírás, a rendszer minden új változatot KÜLÖN appnak lát, és
-          frissítés után visszaveszi az engedélyt — te meg csak annyit látsz,
-          hogy a mérés „elromlott”. Az app eddig ilyenkor is azt írta ki, hogy
-          add meg az engedélyt, mintha még soha nem adtad volna meg. Most a két
-          esetet külön mondja, mert a teendő is más.
-
-          **És egy régi rés a munkameneteken.** Ha a gép aludt, ébredéskor az
-          app elnyeli az óra ugrását, hogy a futó menet ne legyen „lejárt”. Ez
-          eddig szerkesztésnek látszott, és így az alvó eszköz „még fut”
-          állapota legyőzte a másik eszközön próbatétellel megszerzett
-          lezárást: a menet visszatért. Mostantól a menet HOSSZA számít, nem az
-          abszolút időpontjai — egy eltolástól az nem változik.
-
-          **A böngésző-bővítmény szabályai sem fagyhatnak be.** A bővítmény húsz
-          másodpercenként megkeresi az appot a saját gépeden, tíz porton
-          végigpásztázva. Ha az egyiken valami más ült, ami fogadta a
-          kapcsolatot, de sosem válaszolt, a keresés ott megállt — és a
-          bővítmény csendben a régi szabálylistával működött tovább: az appban
-          felvett új tiltás sosem ért át, a levett sosem szűnt meg.
-
-          Ehhez tartozik, hogy az app **egy lekérdezésből válaszol** a
-          bővítménynek, nem kettőből. Eddig a szabályokat és a futó
-          munkamenetet külön, egymás után kérdezte meg — a rossz esetben ez a
-          dupla idejébe telt, és a bővítmény közben továbblépett volna.
 
           NOTES
           fi
