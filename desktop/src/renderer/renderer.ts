@@ -863,9 +863,11 @@ function renderSyncCard(st: StatusData): void {
       : '';
     $('syncState').textContent = `${ok}${tried} · Hiba: ${st.sync.lastError}`;
   }
-  const focusErr = st.focusSyncError;
-  $('syncFocusError').textContent = focusErr ?? '';
-  $('syncFocusError').classList.toggle('hidden', !focusErr);
+  // Két külön eredetű baj, egy hely: mindkettő arról szól, hogy valami nem ér
+  // át a többi eszközre — és mindkettő némán maradna, ha nem írnánk ki.
+  const syncWarn = [st.focusSyncError, st.channelsSyncError].filter(Boolean).join(' ');
+  $('syncFocusError').textContent = syncWarn;
+  $('syncFocusError').classList.toggle('hidden', !syncWarn);
 }
 
 /** A gombok köré ugyanaz a burok: letiltás, felirat, hibakiírás. */
@@ -2756,9 +2758,11 @@ function diagnosticsText(): string {
     `Utolsó szinkron-próba: ${clock(st?.sync?.lastAttemptAt)}`,
     `Szinkron hibája: ${st?.sync?.lastError ?? '—'}`,
     `Munkamenet-szinkron hibája: ${st?.focusSyncError ?? '—'}`,
+    `Csatorna-szűrő-szinkron hibája: ${st?.channelsSyncError ?? '—'}`,
     '',
     `Blokkolt oldalak száma: ${st?.sites?.length ?? 0}`,
     `Munkamenet-csomagok: ${st?.focusPacks?.length ?? 0}`,
+    `Csatorna-szűrők száma: ${st?.channelFilters?.length ?? 0}`,
     `Fut-e munkamenet: ${yn(!!st?.focusRun)}`,
     `Védelem (DoH-házirend): ${yn(st?.dohPolicyApplied)}`,
   ].join('\n');

@@ -175,6 +175,17 @@ export interface HelperState {
   /** a lenyomat, amiből kiderül, hogy változott-e (lásd revisions.ts) */
   focusRevFp?: string;
   /**
+   * A csatorna-szűrők szinkron-számlálója — a munkamenet mintájára.
+   *
+   * A szűrők EGY blobként utaznak, és a frissebb oldal nyer; lazítani itt is
+   * csak elvégzett munkával lehet, mert a `rev` csak a helyi kapun (referee)
+   * átment változás után nő.
+   */
+  channelsRev?: number;
+  channelsUpdatedAt?: number;
+  channelsUpdatedBy?: string;
+  channelsRevFp?: string;
+  /**
    * Miért nem megy a munkamenet szinkronja, ha nem megy.
    *
    * Külön mező, mert a munkamenet köre SZÁNDÉKOSAN nem állítja meg az egész
@@ -183,6 +194,8 @@ export interface HelperState {
    * telefonra, és a felhasználó azt hinné, a funkció rossz.
    */
   focusSyncError?: string;
+  /** Ugyanez a csatorna-szűrőkre: a kör nem áll meg tőle, de nem is néma. */
+  channelsSyncError?: string;
   /**
    * A LEZÁRULT munkamenetek naplója.
    *
@@ -207,6 +220,8 @@ export interface SyncAccount {
   sitesVersion?: number;
   /** a munkamenet-gyűjtemény utolsó ismert verziója a kiszolgálón */
   focusVersion?: number;
+  /** a csatorna-szűrők gyűjteményének utolsó ismert verziója a kiszolgálón */
+  channelsVersion?: number;
   /** a saját `usage` blobunk verziója */
   usageVersion?: number;
   /** a saját mai összegzésünk verziója (a közös napi kerethez) */

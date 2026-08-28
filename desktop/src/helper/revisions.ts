@@ -63,6 +63,7 @@ export function bumpRevisions(state: HelperState, deviceId: string, now: number)
     changed++;
   }
   if (bumpFocusRevision(state, deviceId, now)) changed++;
+  if (bumpChannelsRevision(state, deviceId, now)) changed++;
   return changed;
 }
 
@@ -193,6 +194,46 @@ function isEmptyFocus(state: HelperState): boolean {
  */
 export function adoptFocusRevision(state: HelperState): void {
   state.focusRevFp = focusFingerprint(state);
+}
+
+/**
+ * A csatorna-szűrők lenyomata — a szinkron szempontjából érdekes mezők.
+ *
+ * Az engedélylista RENDEZVE, mint a részleges szabályok: a sorrend nem jelent
+ * semmit, és ha beleszámítana, egy átrendeződés fölöslegesen léptetne. A
+ * szűrők azonosító szerint rendezve, mert a lista sorrendje sem jelentés.
+ */
+function channelsFingerprint(state: HelperState): string {
+  const rows = [...(state.channelFilters ?? [])]
+    .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+    .map((f) => [f.id, f.host, [...f.allow].sort(), f.enabled]);
+  return digest(rows);
+}
+
+/** @returns változott-e a csatorna-szűrők állapota ezen a gépen */
+export function bumpChannelsRevision(
+  state: HelperState, deviceId: string, now: number,
+): boolean {
+  const fp = channelsFingerprint(state);
+  if (state.channelsRevFp === fp) return false;
+  // AZ ÜRESSÉG NEM SZERKESZTÉS — ugyanaz a védelem, mint a munkamenetnél:
+  // egy eszköz, ami még sosem látott szűrőt, ne kapjon 1-es számlálót az
+  // első lenyomat-számolástól, mert frissebb idejével az ÜRES listája nyerne,
+  // és csendben letörölné a másik gépen felvett szűrőket.
+  if (state.channelsRevFp === undefined && (state.channelFilters ?? []).length === 0) {
+    state.channelsRevFp = fp;
+    return false;
+  }
+  state.channelsRev = (state.channelsRev ?? 0) + 1;
+  state.channelsUpdatedAt = now;
+  state.channelsUpdatedBy = deviceId;
+  state.channelsRevFp = fp;
+  return true;
+}
+
+/** Egy távolról átvett csatorna-lista lenyomatának újraszámolása. */
+export function adoptChannelsRevision(state: HelperState): void {
+  state.channelsRevFp = channelsFingerprint(state);
 }
 
 /**

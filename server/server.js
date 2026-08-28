@@ -44,6 +44,9 @@ const COLLECTIONS = {
   // menetet, a telefonon is annak kell érvényesnek lennie. Eszközönként külön
   // blob itt pont a lényeget venné el.
   focus: { perDevice: false },
+  // A csatorna-szűrők is a fiók egészéé: a rekordok közösek, érvényesíteni
+  // minden gépen a saját böngésző-bővítménye tudja őket.
+  channels: { perDevice: false },
 };
 
 /**

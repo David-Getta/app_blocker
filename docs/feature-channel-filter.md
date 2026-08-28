@@ -22,9 +22,16 @@ A felhasználó ezt a hatókört kifejezetten elfogadta: nem kell inkognitóban 
 szűrő sem. Ez ugyanaz a kimondott, gyengébb réteg, mint a részleges tiltásé.
 
 A telefonokon a szűrő NEM érvényesül (ott nincs bővítmény-rendszer, és a
-DNS-alapú szűrő címet nem lát). A rekordok a gép segédjében élnek, és nem
-szinkronizálódnak — ez asztali böngészős funkció, és ezt nem is állítjuk
-másnak.
+DNS-alapú szűrő címet nem lát). A REKORDOK viszont a fiókon át a gépek közt
+szinkronizálódnak (`channels` gyűjtemény, egy blob a fiók egészére): a másik
+gépen a saját bővítménye érvényesíti ugyanazt a listát. A fésülés szabálya a
+legegyszerűbb — a frissebb oldal nyer (`rev`, majd idő, majd eszköz) —, mert
+a súrlódást nem a szinkron tartja, hanem a helyi kapu: a `rev` csak a
+próbatétel-kapun átment változás után nő, tehát lazítani egy régi állapot
+visszajátszásával nem lehet, és egy vadonatúj, üres gép sem törölhet semmit
+(az üresség nem szerkesztés — lásd `revisions.ts`). Régi fiókkiszolgáló
+mellett a szűrők kimaradnak a szinkronból, és ezt a fiókkártya kiírja — néma
+kimaradás nincs.
 
 ## Mit tekintünk csatornának
 

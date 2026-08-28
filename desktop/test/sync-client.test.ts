@@ -465,3 +465,105 @@ test('ugyanazt a menetet két eszköz lezárva sem lesz belőle kettő', async (
   assert.equal(onA.length, 1, 'a gépen sem lesz belőle kettő');
   assert.equal(onA[0].endedAt, 925_000);
 });
+
+// ------------------------------------------------------- csatorna-szűrők
+
+const PW2 = 'uj-jelszo-lett-most'; // a jelszóváltós teszt óta ez él
+
+test('a csatorna-szűrők átérnek a másik gépre', async () => {
+  const a = device([site()]);
+  await signIn(a, url, ACCOUNT, PW2, 'Munkagép');
+  a.channelFilters = [{ id: 'chf_sync1', host: 'youtube.com', allow: ['@jo'], enabled: true }];
+  await syncNow(a, 1_300_000);
+
+  const b = device();
+  await signIn(b, url, ACCOUNT, PW2, 'Másik gép');
+  await syncNow(b, 1_310_000);
+  assert.deepEqual(
+    b.channelFilters,
+    [{ id: 'chf_sync1', host: 'youtube.com', allow: ['@jo'], enabled: true }],
+    'a másik gép bővítménye csak így tudja érvényesíteni ugyanazt',
+  );
+});
+
+test('egy üres, új gép nem törli le a szűrőket', async () => {
+  // A kibúvó-osztály, amit a munkamenetnél már egyszer bezártunk: az új eszköz
+  // frissebb idejű, üres listája nem nyerhet — az üresség nem szerkesztés.
+  const fresh = device();
+  await signIn(fresh, url, ACCOUNT, PW2, 'Vadonatúj gép');
+  await syncNow(fresh, 1_400_000);
+  assert.equal(fresh.channelFilters?.length, 1, 'az új gép a szűrőket KAPJA, nem törli');
+
+  const check = device();
+  await signIn(check, url, ACCOUNT, PW2, 'Ellenőrző');
+  await syncNow(check, 1_410_000);
+  assert.equal(check.channelFilters?.length, 1, 'a kiszolgálón is megmaradtak');
+});
+
+test('a lazítás rev-munkával ér át, és mindkét gép ugyanoda jut', async () => {
+  const a = device([site()]);
+  await signIn(a, url, ACCOUNT, PW2, 'Munkagép');
+  await syncNow(a, 1_500_000);
+  assert.equal(a.channelFilters?.[0]?.enabled, true);
+
+  // A kikapcsolás a helyi kapun (referee) át történik — itt az EREDMÉNYÉT
+  // játsszuk el: a lista változik, a syncNow lépteti a számlálót.
+  a.channelFilters = [{ ...a.channelFilters![0], enabled: false }];
+  await syncNow(a, 1_510_000);
+
+  const b = device();
+  await signIn(b, url, ACCOUNT, PW2, 'Másik gép');
+  await syncNow(b, 1_520_000);
+  assert.equal(b.channelFilters?.[0]?.enabled, false,
+    'a próbatétellel megszerzett kikapcsolás a másik gépen is érvényes');
+});
+
+test('egy RÉGI kiszolgáló mellett a kör nem hal meg, és nem is néma', async () => {
+  // A régi kiszolgáló nem ismeri a `channels` gyűjteményt. A blokklistának
+  // ettől még szinkronban KELL maradnia, a csatorna-szűrőkről pedig ki kell
+  // derülnie, hogy nem érnek át — különben a felhasználó azt hinné, átértek.
+  const fs2 = await import('node:fs');
+  const path2 = await import('node:path');
+  const os2 = await import('node:os');
+  const { spawn: spawn2 } = await import('node:child_process');
+
+  const oldDir = fs2.mkdtempSync(path2.join(os2.tmpdir(), 'breaker-old-server-'));
+  const src = fs2.readFileSync(findServer(__dirname), 'utf8');
+  const stripped = src.replace(/^\s*channels: \{ perDevice: false \},\s*$/m, '');
+  if (stripped === src) throw new Error('nem sikerült régi kiszolgálót faragni');
+  const oldServer = path2.join(oldDir, 'server.js');
+  fs2.writeFileSync(oldServer, stripped);
+  // A store.js-t a régi kiszolgáló is a saját mappájából keresi.
+  fs2.copyFileSync(path2.join(path2.dirname(findServer(__dirname)), 'store.js'),
+    path2.join(oldDir, 'store.js'));
+
+  const oldChild = spawn2(process.execPath, [oldServer], {
+    env: { ...process.env, PORT: '0', BREAKER_SYNC_DIR: path2.join(oldDir, 'data') },
+    stdio: ['ignore', 'pipe', 'inherit'],
+  });
+  try {
+    const oldUrl = await new Promise<string>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('a régi kiszolgáló nem indult el')), 10_000);
+      oldChild.stdout!.on('data', (buf: Buffer) => {
+        const m = /(http:\/\/[\d.]+:\d+)/.exec(buf.toString());
+        if (m) { clearTimeout(timer); resolve(m[1].replace('0.0.0.0', '127.0.0.1')); }
+      });
+    });
+
+    const a = device([site({ id: 'site_old', domain: 'reddit.com', hostnames: ['reddit.com'] })]);
+    await signUp(a, oldUrl, 'regi@example', PASSWORD, 'Munkagép');
+    a.channelFilters = [{ id: 'chf_old', host: 'youtube.com', allow: ['@jo'], enabled: true }];
+    await syncNow(a, 1_600_000);
+    assert.ok(a.channelsSyncError, 'a hibának LÁTSZANIA kell — néma kimaradás nincs');
+    assert.match(a.channelsSyncError!, /régebbi/);
+
+    const b = device();
+    await signIn(b, oldUrl, 'regi@example', PASSWORD, 'Másik gép');
+    await syncNow(b, 1_610_000);
+    assert.equal(b.sites.length, 1, 'a blokklista a régi kiszolgálón is átér');
+    assert.equal(b.channelFilters?.length ?? 0, 0, 'a szűrők tényleg nem érnek át — és ezt ki is írtuk');
+  } finally {
+    oldChild.kill();
+    fs2.rmSync(oldDir, { recursive: true, force: true });
+  }
+});

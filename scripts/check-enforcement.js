@@ -202,6 +202,21 @@ const WIRES = [
     needle: 'void renderChannelTime();',
     lost: 'a mért csatorna-idő ki lenne számolva, képernyőre nem jutna',
   },
+  // A CSATORNA-SZŰRŐK SZINKRONJA. A kör és a számláló-léptetés két külön
+  // szem: a kör nélkül a szűrők sosem indulnak útnak, a léptetés nélkül a
+  // lazítás sosem nyerne a másik gépen — és egyik hiánya sem hasal el.
+  {
+    file: 'desktop/src/helper/sync-client.ts',
+    needle: 'await syncChannelsRound(state, acc, key)',
+    lost: 'a csatorna-szűrők sosem érnének át a másik gépre — az appban minden '
+      + 'rendben látszana',
+  },
+  {
+    file: 'desktop/src/helper/revisions.ts',
+    needle: 'bumpChannelsRevision(state, deviceId, now)',
+    lost: 'a szűrő-változás nem léptetne számlálót — a lazítás sosem nyerne a '
+      + 'másik gépen, a szigorítás pedig egy régi állapottal is felülíródhatna',
+  },
   // A MAI NAP KÜLÖN LISTÁJA. A mag régóta kiszámolta (`topToday`), csak épp
   // senki nem kérdezte meg — a felhasználó kérte ki magának a funkciót.
   {

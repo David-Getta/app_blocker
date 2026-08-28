@@ -23,10 +23,15 @@ import {
 import { mergeSiteLists, type SyncSite } from '../shared/sync/merge.js';
 import { MAX_PAYLOAD_BYTES, SYNC_PROTOCOL } from '../shared/sync/protocol.js';
 import type { HelperState, SiteRec, SyncAccount } from './state';
-import { adoptFocusRevision, adoptRevision, bumpRevisions } from './revisions';
+import {
+  adoptChannelsRevision, adoptFocusRevision, adoptRevision, bumpRevisions,
+} from './revisions';
 import {
   emptyFocus, mergeFocus, mergeLog, normalizeSyncFocus, sameFocus, type SyncFocus,
 } from '../shared/sync/focus-merge.js';
+import {
+  emptyChannels, mergeChannels, normalizeSyncChannels, sameChannels, type SyncChannels,
+} from '../shared/sync/channels-merge.js';
 import { closeRun, MAX_FOCUS_LOG, type FocusRun } from '../shared/focus.js';
 import { makeTodayDigest, normalizeTodayDigest, type TodayDigest } from '../shared/limits.js';
 
@@ -525,6 +530,88 @@ function logRunEndedElsewhere(
   ].slice(-MAX_FOCUS_LOG);
 }
 
+/**
+ * A csatorna-szűrők szinkronja: az egész lista egy blobként.
+ *
+ * Ugyanaz a menet, mint a munkamenetnél — húzd le, fésüld össze, told fel —,
+ * de a fésülés szabálya a legegyszerűbb: a frissebb oldal listája nyer
+ * (`shared/sync/channels-merge.ts`). Lazítani itt is csak elvégzett munkával
+ * lehet: a `rev` a helyi próbatétel-kapun átment változás után nő.
+ *
+ * A tiltás a bővítményben él, tehát a szinkron itt a REKORDOKAT viszi át:
+ * a másik gépen a saját bővítménye érvényesíti őket.
+ *
+ * @returns változott-e a HELYI állapot (a hívónak menteni kell)
+ */
+async function syncChannelsRound(
+  state: HelperState, acc: SyncAccount, key: Buffer,
+): Promise<boolean> {
+  let changed = false;
+  for (let attempt = 0; attempt <= MAX_CONFLICT_RETRIES; attempt++) {
+    const pulled = await call(acc.serverUrl, '/v1/pull', {
+      accountId: acc.accountId, authKey: acc.authKey, collection: 'channels',
+    });
+    const remote = decodeChannels(acc, pulled.payload);
+    const mine = localChannels(state, acc.deviceId);
+    const merged = mergeChannels(mine, remote);
+
+    if (!sameChannels(merged, mine)) {
+      state.channelFilters = merged.filters;
+      state.channelsRev = merged.rev;
+      state.channelsUpdatedAt = merged.updatedAt;
+      state.channelsUpdatedBy = merged.updatedBy;
+      // A lenyomatot ÚJRASZÁMOLJUK, nem az övét vesszük át — különben a
+      // következő mentés fölöslegesen léptetne, és a két eszköz örökké
+      // írogatná egymást.
+      adoptChannelsRevision(state);
+      changed = true;
+    }
+    if (sameChannels(merged, remote) && pulled.version > 0) {
+      acc.channelsVersion = pulled.version;
+      return changed; // a kiszolgálón már pontosan ez van
+    }
+
+    const payload = encrypt(key, JSON.stringify(merged));
+    if (payload.length > MAX_PAYLOAD_BYTES) {
+      throw new SyncError('A csatorna-szűrők adatai túl nagyok a szinkronhoz. '
+        + 'A szűrés ettől még él, csak a többi gépre nem ér át.', 'TOO_BIG');
+    }
+    const push = await call(acc.serverUrl, '/v1/push', {
+      accountId: acc.accountId, authKey: acc.authKey, collection: 'channels',
+      deviceId: acc.deviceId, baseVersion: pulled.version, payload,
+      nameBlob: encrypt(key, acc.deviceName),
+    });
+    if (push.ok) {
+      acc.channelsVersion = push.version;
+      return changed;
+    }
+    if (attempt === MAX_CONFLICT_RETRIES) {
+      throw new SyncError('A csatorna-szűrők szinkronja nem tudott lezárulni.', 'CONFLICT');
+    }
+  }
+  return changed;
+}
+
+function localChannels(state: HelperState, deviceId: string): SyncChannels {
+  return {
+    filters: state.channelFilters ?? [],
+    rev: state.channelsRev ?? 0,
+    updatedAt: state.channelsUpdatedAt ?? 0,
+    updatedBy: state.channelsUpdatedBy ?? deviceId,
+  };
+}
+
+/** Sérült vagy régi blob: üres állapot, nem kivétel — mint a munkamenetnél. */
+function decodeChannels(acc: SyncAccount, payload: string | null | undefined): SyncChannels {
+  if (!payload) return emptyChannels(acc.deviceId);
+  try {
+    const key = Buffer.from(acc.dataKey, 'base64');
+    return normalizeSyncChannels(JSON.parse(decrypt(key, payload)), acc.deviceId);
+  } catch {
+    return emptyChannels(acc.deviceId);
+  }
+}
+
 /** A helyi állapot szinkron-alakja. */
 function localFocus(state: HelperState, deviceId: string): SyncFocus {
   return {
@@ -623,6 +710,21 @@ export async function syncNow(state: HelperState, now: number): Promise<SyncResu
       ? 'A fiókkiszolgálód nem ismeri a munkamenetet — valószínűleg régebbi verzió. '
         + 'Amíg nem frissül, a munkamenet csak ezen a gépen él.'
       : (err?.message ?? 'A munkamenet szinkronja nem sikerült.');
+    changed = true;
+  }
+
+  // A CSATORNA-SZŰRŐK. Ugyanazzal a védelemmel, mint a munkamenet: külön
+  // `try`, mert egy régi fiókkiszolgáló nem ismeri a gyűjteményt, és az nem
+  // ránthatja magával a kört — de néma sem maradhat.
+  try {
+    if (await syncChannelsRound(state, acc, key)) changed = true;
+    delete state.channelsSyncError;
+  } catch (e) {
+    const err = e as SyncError;
+    state.channelsSyncError = err?.code === 'BAD_REQUEST' || err?.code === 'SERVER'
+      ? 'A fiókkiszolgálód nem ismeri a csatorna-szűrőket — valószínűleg régebbi '
+        + 'verzió. Amíg nem frissül, a szűrők csak ezen a gépen élnek.'
+      : (err?.message ?? 'A csatorna-szűrők szinkronja nem sikerült.');
     changed = true;
   }
 

@@ -140,6 +140,21 @@ test('the focus session is one blob for the whole account', async () => {
   assert.notEqual(sites.json.payload, 'brk1.f.f.f');
 });
 
+test('the channel filters are one blob for the whole account', async () => {
+  // Ugyanaz az ok, mint a munkamenetnél: saját gyűjtemény, a fiók egészére
+  // közös — a másik gép bővítménye csak így tudja ugyanazt érvényesíteni.
+  const accC = { accountId: 'csatorna@example', authKey: 'K-CSATORNA' };
+  await post('/v1/signup', {
+    ...accC, wrappedByPassword: 'brk1.a.b.c', wrappedByRecovery: 'brk1.a.b.c',
+  });
+  const push = await post('/v1/push', {
+    ...accC, collection: 'channels', deviceId: 'gep-a', baseVersion: 0, payload: 'brk1.c.c.c',
+  });
+  assert.equal(push.status, 200);
+  const fromOther = await post('/v1/pull', { ...accC, collection: 'channels', deviceId: 'gep-b' });
+  assert.equal(fromOther.json.payload, 'brk1.c.c.c');
+});
+
 test('forgetting a device only removes it from the account', async () => {
   // A helyi blokkokhoz a kiszolgáló nem is fér hozzá — de a mérése megmarad,
   // tehát a visszacsatlakozás nem veszít adatot.

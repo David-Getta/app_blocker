@@ -156,6 +156,8 @@ export interface StatusData {
    * azt hinné, a funkció rossz.
    */
   focusSyncError?: string;
+  /** ugyanez a csatorna-szűrők szinkronjára */
+  channelsSyncError?: string;
   /**
    * Csatorna-szűrők: „ezen az oldalon csak a felsorolt csatornák nyílnak meg”.
    * A tiltást a böngésző-bővítmény végzi; a felület innen mutatja a listát.

@@ -86,6 +86,7 @@ export function statusOf(state: HelperState, dohApplied: boolean): StatusData {
     })),
     focusPacks: state.focusPacks ?? [],
     focusSyncError: state.focusSyncError,
+    channelsSyncError: state.channelsSyncError,
     // A futó munkamenet csak akkor kerül ki, ha TÉNYLEG fut: a lejárt rekordot
     // a tick takarítja, de a felület nem várhat rá.
     focusRun: isRunning(state.focusRun, now) ? state.focusRun ?? null : null,
