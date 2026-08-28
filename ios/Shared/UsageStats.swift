@@ -39,6 +39,10 @@ enum UsageStats {
         let last7Seconds: Double
         /// A hét legtöbb időt vivő célpontjai, weboldalak és appok együtt.
         let top: [Target]
+        /// Ugyanez CSAK A MAI napból. Külön lista, mert a heti eleje elnyomja
+        /// a mát: egy kétórás hétfő mellett a mai húsz perc nem látszik. A
+        /// tükör a desktop `topToday` mezője.
+        let topToday: [Target]
     }
 
     // ------------------------------------------------------------- célkulcsok
@@ -94,16 +98,21 @@ enum UsageStats {
     static func summarize(_ state: State, now: Date, topLimit: Int = 3) -> Summary {
         let todayTotals = totals(state, days: [dayKey(now)])
         let weekTotals = totals(state, days: dayKeysBack(now, 7))
-        let top = weekTotals
-            .map { Target(key: $0.key, label: label(state, $0.key), seconds: $0.value) }
-            // A másodperc után a kulcs is dönt, hogy két egyforma érték sorrendje
-            // ne a szótár bejárásán múljon — az futásonként más lehet.
-            .sorted { $0.seconds == $1.seconds ? $0.key < $1.key : $0.seconds > $1.seconds }
-            .prefix(topLimit)
+        // A másodperc után a kulcs is dönt, hogy két egyforma érték sorrendje
+        // ne a szótár bejárásán múljon — az futásonként más lehet.
+        func ranked(_ totals: [String: Double]) -> [Target] {
+            Array(
+                totals
+                    .map { Target(key: $0.key, label: label(state, $0.key), seconds: $0.value) }
+                    .sorted { $0.seconds == $1.seconds ? $0.key < $1.key : $0.seconds > $1.seconds }
+                    .prefix(topLimit)
+            )
+        }
         return Summary(
             todaySeconds: todayTotals.values.reduce(0, +),
             last7Seconds: weekTotals.values.reduce(0, +),
-            top: Array(top)
+            top: ranked(weekTotals),
+            topToday: ranked(todayTotals)
         )
     }
 

@@ -560,6 +560,48 @@ async function main() {
   const bars = await page.locator('#topSites .bar-row').count();
   if (bars === 0) failures.push('the weekly top-sites chart rendered no bars');
 
+  // A MAI NAP KÜLÖN. A csempesorban eddig is volt egy mai szám, de hogy MIRE
+  // ment el, azt csak a hétnapos listából lehetett kihámozni — abban viszont a
+  // hét eleje elnyomja a mát. A blokknak látszania kell, és a mai lista
+  // vegyes: oldal és app együtt.
+  if (await page.locator('#todayBlock.hidden').count()) {
+    failures.push('a mai nap blokkja nem jelenik meg, pedig van mai adat');
+  }
+  const todayBars = await page.locator('#topToday .bar-row').count();
+  if (todayBars === 0) failures.push('a mai listában nincs egyetlen sor sem');
+  const todayText = (await page.locator('#topToday').innerText()) || '';
+  if (!todayText.includes('Slack')) {
+    failures.push(`a mai listából hiányzik az app-sor: ${todayText}`);
+  }
+  // A blokkolt oldal jelvénye itt is jár: e nélkül a mai lista kevesebbet
+  // mondana, mint a heti.
+  if (!(await page.locator('#topToday .badge').count())) {
+    failures.push('a mai listán nincs blokkolt-jelvény a blokkolt oldalon');
+  }
+  // ÜRES mai nap = a blokk ELTŰNIK. Egy minden reggel ott álló üres doboz nem
+  // információ, csak zaj; hogy miért nulla, azt az „utoljára mért idő” sor
+  // mondja meg. A foltot a valódi összegzőből építjük, csak a mai listát
+  // ürítjük ki — így a többi állítás adata nem változik.
+  await page.evaluate(async () => {
+    const r = await window.breaker.call('usage_stats');
+    window.__fakeStatsPatch = { summary: { ...r.data.summary, topToday: [] } };
+  });
+  await goTo(page, 'sites');
+  await goTo(page, 'stats');
+  // FIGYELEM: itt nem a `.hidden` SZELEKTORRA várunk — a Playwright alapból
+  // látható elemre vár, a `.hidden` osztályú elem meg pont nem az, tehát a
+  // várakozás akkor is kifutna, amikor a blokk HELYESEN tűnt el. Az első
+  // változat pont ezen bukott: a felület jól működött, a teszt várt rosszul.
+  await page.waitForSelector('#todayBlock', { state: 'hidden', timeout: 10_000 })
+    .catch(() => failures.push('a mai blokk üres listával is ott marad'));
+  await page.evaluate(() => { window.__fakeStatsPatch = undefined; });
+  await goTo(page, 'sites');
+  await goTo(page, 'stats');
+  // Hibaággal, hogy a többi állítás jelentése akkor is végigfusson, ha ez
+  // elhasal — egy félbevágott hibalista kevesebbet mond egy teljesnél.
+  await page.waitForSelector('#todayBlock:not(.hidden)', { timeout: 10_000 })
+    .catch(() => failures.push('a mai blokk nem tér vissza, miután megint van adat'));
+
   // A MUNKAMENET-STATISZTIKA. Eddig semmi nem nézte meg: a `summarizeFocus`
   // számait fedték tesztek, de azt nem, hogy a felület ki is írja őket. Egy
   // átnevezett azonosító vagy egy kivétel itt ugyanolyan csendes hiba lenne,

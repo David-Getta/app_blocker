@@ -2262,9 +2262,11 @@ function statLabel(label: string): string {
  *  the second hue means "this site is on your block list", and every bar
  *  that uses it also carries a written badge (never colour alone). */
 function renderBarList(host: HTMLElement, rows: { key: string; label: string; seconds: number }[],
-                       emptyEl: HTMLElement, markBlocked: boolean): void {
+                       emptyEl: HTMLElement | null, markBlocked: boolean): void {
   host.textContent = '';
-  emptyEl.classList.toggle('hidden', rows.length > 0);
+  // Az üres-szöveg elhagyható: a mai blokk üresen NEM szöveget mutat, hanem
+  // eltűnik — egy minden reggel ott álló „még nincs adat” sor csak zaj.
+  emptyEl?.classList.toggle('hidden', rows.length > 0);
   if (rows.length === 0) return;
   const max = Math.max(...rows.map((r) => r.seconds), 1);
   const blocked = blockedDomains();
@@ -2480,6 +2482,13 @@ function renderStats(): void {
   renderLastSample(enabled);
   renderFocusStats();
 
+  // A MAI lista vegyes: oldalak és appok együtt, idő szerint. A kérdés itt az,
+  // hogy MA mire ment el — a fajta másodlagos. A hétnapos listák maradnak
+  // szétszedve, mert ott az összevetés a lényeg. Üresen az egész blokk
+  // eltűnik: hogy miért nulla, azt az „utoljára mért idő” sor mondja meg,
+  // nem egy üres doboz.
+  $('todayBlock').classList.toggle('hidden', s.topToday.length === 0);
+  renderBarList($('topToday'), s.topToday, null, true);
   renderBarList($('topSites'), s.topWeekSites, $('topSitesEmpty'), true);
   renderBarList($('topApps'), s.topWeekApps, $('topAppsEmpty'), false);
   $('usageLegend').classList.toggle('hidden', s.topWeekSites.length === 0);

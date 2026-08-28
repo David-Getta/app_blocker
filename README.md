@@ -37,6 +37,9 @@ attól, hogy sokszor csinálod.
   (ebből lesz a közös napi keret). Telemetria sehol nincs. Bármikor
   kikapcsolható és törölhető.
 
+  A **mai napnak külön blokkja van** („Mire ment ma az idő”): oldal és app
+  együtt, idő szerint — a heti listákban a hét eleje elnyomná a mát.
+
   A statisztikán a **nulla nem néma**: az app kiírja, mikor rögzített utoljára
   mért időt. Abból, hogy „ma 0 mp”, önmagában nem derülne ki, hogy tényleg nem
   használtad a gépet, vagy hogy a mérés hasalt el valahol — és a kettőnek más a

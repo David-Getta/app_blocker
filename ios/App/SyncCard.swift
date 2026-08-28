@@ -113,7 +113,8 @@ struct SyncCard: View {
                         today: res.combined.todaySeconds,
                         week: res.combined.last7Seconds,
                         top: res.combined.top,
-                        emphasis: true
+                        emphasis: true,
+                        todayTop: res.combined.topToday
                     )
                 }
                 ForEach(res.devices) { d in
@@ -150,7 +151,8 @@ struct SyncCard: View {
     /// hét három legtöbb időt vivő célpontja.
     private func deviceBlock(
         title: String, today: Double, week: Double,
-        top: [UsageStats.Target], emphasis: Bool
+        top: [UsageStats.Target], emphasis: Bool,
+        todayTop: [UsageStats.Target] = []
     ) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             HStack {
@@ -159,16 +161,32 @@ struct SyncCard: View {
                 Text("ma \(UsageStats.formatDuration(today)) · 7 nap \(UsageStats.formatDuration(week))")
                     .font(.footnote).foregroundStyle(.secondary)
             }
-            ForEach(top, id: \.key) { t in
-                HStack {
-                    Text(siteLabel(t.label)).font(.caption2).foregroundStyle(.secondary)
-                    Spacer()
-                    Text(UsageStats.formatDuration(t.seconds))
-                        .font(.caption2).foregroundStyle(.secondary)
+            // A MAI nap külön, a heti lista ELÉ: a hét eleje elnyomná a mát —
+            // egy kétórás hétfő mellett a mai húsz perc nem látszana. Csak az
+            // összesített blokk kapja, és üresen a felirat sem jelenik meg.
+            if !todayTop.isEmpty {
+                Text("Ma a legtöbb").font(.caption2).fontWeight(.semibold)
+                ForEach(todayTop, id: \.key) { t in
+                    statRow(t)
                 }
+                Text("A héten").font(.caption2).fontWeight(.semibold)
+            }
+            ForEach(top, id: \.key) { t in
+                statRow(t)
             }
         }
         .padding(.top, 4)
+    }
+
+    /// Egy célpont-sor. A címke a `siteLabel` tölcséren megy át: fedőnév és
+    /// rejtett lista ITT dől el — a mai és a heti sor nem térhet el ebben.
+    private func statRow(_ t: UsageStats.Target) -> some View {
+        HStack {
+            Text(siteLabel(t.label)).font(.caption2).foregroundStyle(.secondary)
+            Spacer()
+            Text(UsageStats.formatDuration(t.seconds))
+                .font(.caption2).foregroundStyle(.secondary)
+        }
     }
 
     // MARK: - műveletek

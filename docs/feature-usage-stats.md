@@ -276,6 +276,28 @@ puffer megtartja a mintákat, és a következő kör újrapróbálja. Ha azt is
 veszteségnek vennénk, a mérés minden zökkenőre riasztana — és a riasztás, ami
 gyakran téved, pont annyit ér, mint a csend.
 
+## A mai nap külön
+
+A csempesorban mindig is ott volt egy mai összeg, de hogy MIRE ment el, azt
+csak a hétnapos listákból lehetett kihámozni — azokban viszont a hét eleje
+elnyomja a mát: egy kétórás hétfői YouTube mellett a mai húsz perc nem
+látszik. Ezért a statisztika tetején külön blokk áll: „Mire ment ma az idő”.
+
+Három döntés van benne, mindhárom szándékos:
+
+- **vegyes lista.** Oldal és app együtt, idő szerint — a kérdés az, hogy MA
+  mire ment el, a fajta másodlagos. A heti listák maradnak szétszedve, mert
+  ott az összevetés a lényeg;
+- **üresen eltűnik.** Egy minden reggel ott álló üres doboz nem információ,
+  csak zaj. Hogy MIÉRT nulla, azt az „utoljára mért idő” sor mondja meg;
+- **ugyanazon a címke-tölcséren megy át**, mint minden más (fedőnév, rejtett
+  lista, blokkolt-jelvény) — elég egyetlen kihagyott hely, és a rejtés annyit
+  ér, mint egy lyukas zsák.
+
+A mag mindhárom nyelven ugyanazt számolja (`topToday`); iPhone-on — ahol az
+app maga nem mér — a fiókkártya összesített blokkja mutatja, minden eszköz
+méréséből együtt.
+
 ## Munkamenetek a statisztikán
 
 Az app azt méri, **mire** megy el az idő. A munkamenet a másik oldal: hányszor

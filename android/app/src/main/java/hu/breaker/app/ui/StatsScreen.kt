@@ -131,6 +131,15 @@ fun StatsSection(
             StatTile("utolsó 30 nap", summary.last30Seconds, Modifier.weight(1f))
         }
 
+        // A MAI NAP KÜLÖN. A csempesorban eddig is volt egy mai szám, de hogy
+        // MIRE ment el, azt csak a hétnapos listából lehetett kihámozni — abban
+        // viszont a hét eleje elnyomja a mát. Üresen a blokk eltűnik; hogy
+        // MIÉRT nulla, azt az „utoljára mért idő” sor mondja meg.
+        if (summary.topToday.isNotEmpty()) {
+            StatsSectionLabel("Mire ment ma az idő")
+            BarList(summary.topToday, blockedDomains, markBlocked = true, labelOf = labelOf)
+        }
+
         if (summary.topWeekSites.isNotEmpty()) {
             StatsSectionLabel("Oldalak (7 nap)")
             Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {

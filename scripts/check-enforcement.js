@@ -113,6 +113,18 @@ const WIRES = [
     needle: 'lastSampleLine(lastSampleAt)',
     lost: 'a telefonon az utolsó mérés ideje nem jutna képernyőre',
   },
+  // A MAI NAP KÜLÖN LISTÁJA. A mag régóta kiszámolta (`topToday`), csak épp
+  // senki nem kérdezte meg — a felhasználó kérte ki magának a funkciót.
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: "renderBarList($('topToday')",
+    lost: 'a mai nap listája megint csak ki lenne számolva, kirajzolva nem',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/StatsScreen.kt',
+    needle: 'BarList(summary.topToday',
+    lost: 'a telefonon a mai nap listája nem jutna képernyőre',
+  },
   // A DIAGNOSZTIKA-SZÖVEG. A leggyakoribb kérdés ennél a funkciónál az, hogy
   // miért nulla a mai nap; a válasz mindig ugyanabból a néhány adatból jön ki.
   {

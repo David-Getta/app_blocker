@@ -235,6 +235,18 @@
           <p id="focusStatsNote" class="hint"></p>
         </div>
 
+        <!--
+          A MAI NAP külön. A csempesorban eddig is ott volt egy szám a mai
+          napról, de hogy MIRE ment el, azt csak a hétnapos listából lehetett
+          kihámozni — abban viszont a hét eleje elnyomja a mát: egy kétórás
+          hétfői YouTube mellett a mai húsz perc nem látszik. Üresen a blokk
+          eltűnik; hogy MIÉRT nulla, azt az „utoljára mért idő” sor mondja meg.
+        -->
+        <div class="chart-block hidden" id="todayBlock">
+          <h3 class="chart-title">Mire ment ma az idő</h3>
+          <div class="bar-list" id="topToday"></div>
+        </div>
+
         <div class="chart-block">
           <h3 class="chart-title">Legtöbb idő az elmúlt 7 napban</h3>
           <div class="legend" id="usageLegend">

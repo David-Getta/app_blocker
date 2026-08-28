@@ -178,11 +178,16 @@ class UsageLogicTest {
         assertEquals(3, s.daysTracked)
         assertEquals(listOf("site:youtube.com"), s.topWeekSites.map { it.key })
         assertEquals(listOf("app:Slack"), s.topWeekApps.map { it.key })
+        // A MAI lista vegyes és csak a mai napból áll: a tegnapi 90 másodperc
+        // nem számít bele, az app és az oldal viszont EGYÜTT, idő szerint.
+        assertEquals(listOf("site:youtube.com", "app:Slack"), s.topToday.map { it.key })
+        assertEquals(listOf(120.0, 60.0), s.topToday.map { it.seconds })
     }
 
     @Test fun `empty state summarises to zeros`() {
         val s = UsageLogic.summarize(UsageLogic.UsageState(), now)
         assertEquals(0.0, s.todaySeconds)
+        assertTrue(s.topToday.isEmpty())
         assertTrue(s.topWeekSites.isEmpty())
         assertTrue(s.weekOverWeek.isEmpty())
     }

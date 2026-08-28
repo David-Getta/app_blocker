@@ -425,6 +425,9 @@ enum SyncClient {
         let todaySeconds: Double
         let last7Seconds: Double
         let top: [UsageStats.Target]
+        /// A MAI nap toplistája, minden eszköz méréséből együtt. A címke itt
+        /// is NYERS — a fedőnév és a rejtés a felület dolga.
+        let topToday: [UsageStats.Target]
     }
 
     struct DevicesResult {
@@ -475,7 +478,8 @@ enum SyncClient {
                 deviceCount: infos.count,
                 todaySeconds: together.todaySeconds,
                 last7Seconds: together.last7Seconds,
-                top: together.top
+                top: together.top,
+                topToday: together.topToday
             ),
             devices: infos
         )

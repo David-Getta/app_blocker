@@ -44,6 +44,25 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
+          **A mai napnak külön statisztikája van.** Eddig a mai nap egy szám
+          volt a csempesorban — hogy MIRE ment el, azt a hétnapos listából
+          kellett kihámozni, abban viszont a hét eleje elnyomja a mát: egy
+          kétórás hétfő mellett a mai húsz perc nem látszik. A statisztika
+          tetején mostantól külön blokk áll: „Mire ment ma az idő” — oldal és
+          app együtt, idő szerint, a blokkolt oldalakon jelvénnyel. Ha ma még
+          nincs adat, a blokk nem üresen áll ott, hanem eltűnik; hogy miért
+          nulla, azt az „utoljára mért idő” sor mondja meg. A telefonon
+          ugyanígy; az iPhone-on a fiókkártya összesített blokkja mutatja,
+          minden eszköz méréséből együtt.
+
+          **Diagnosztika egy gombbal.** A statisztika-képernyőn egy gomb a
+          vágólapra teszi a mérés és a szinkron teljes állapotát — hogy egy
+          „miért nulla a mai nap” kérdéshez ne képernyőképeket kelljen
+          küldözgetni. A szövegben nincs cím, fedőnév, fióknév és
+          kiszolgáló-cím: bárhová beilleszthető.
+
+          ### Ami a v0.4.7-ben jött
+
           Ez a kiadás egy valódi képernyőből született: a statisztikán nulla
           állt a mai napra, miközben a gép használatban volt — és semmi nem
           mondta meg, miért. Három hiba volt mögötte, mind a három olyan, ami
@@ -123,7 +142,7 @@ jobs:
           munkamenetet külön, egymás után kérdezte meg — a rossz esetben ez a
           dupla idejébe telt, és a bővítmény közben továbblépett volna.
 
-          ### Ami a v0.4.6-ban jött
+          #### Ami a v0.4.6-ban jött
 
           **A telefonod is szól, ha a munkamenet szinkronja elhasal.** A gépen
           ezt már megmondtuk, a két telefonon viszont a hiba teljesen
@@ -142,7 +161,7 @@ jobs:
             semmi köze hozzájuk. Azt is kimondja most, ami ilyenkor igaz: a
             menet ettől még FUT, csak a többi eszközre nem ér át.
 
-          #### Ami a v0.4.5-ben jött
+          ##### Ami a v0.4.5-ben jött
 
           Javító kiadás a v0.4.4 fölé.
 
@@ -176,411 +195,6 @@ jobs:
             fiókkiszolgálódra, végponttól végpontig titkosítva.** A
             kiszolgáló nem látja, mit mértél, és telemetria sehol nincs.
 
-          ##### Ami a v0.4.4-ben jött
-
-          **A munkamenet-statisztika mostantól minden eszközödről szól.** A
-          menetet a v0.4.3 óta a telefonodon is el lehet indítani és le lehet
-          állítani — a naplója viszont csak a gépen létezett. Aki a telefonján
-          ült le dolgozni, azt látta, hogy a héten egyszer sem: a funkció fele
-          némán hiányzott, és pont az az eszköz maradt ki, ami kéznél van.
-
-          Mostantól minden eszköz vezeti a saját naplóját, és a napló utazik a
-          fiókodon. Ha ugyanazt a menetet két eszköz is lezárja — a telefonon
-          próbatétellel, a gép meg később, a szinkronból véve észre —, az EGY
-          menet marad, nem kettő.
-
-          **A statisztika a telefonon és az iPhone-on is látszik.** Androidon a
-          mérési hozzáférés kapuja FÖLÖTT: a munkamenetnek semmi köze a
-          méréshez, nem az Androidtól kérjük, hanem a saját naplónkból jön.
-          iPhone-on pedig ez az egyetlen idő-statisztika, ami valaha igazi
-          lesz — az Apple nem enged hozzáférést ahhoz, mennyi időt töltesz más
-          appokban, a munkamenet viszont a miénk.
-
-          **A MAGÁTÓL LEJÁRT menet is bekerül.** Eddig csak a próbatétellel
-          leállítottak — vagyis pont azok hiányoztak, amiket VÉGIGVITTÉL, és a
-          statisztika azt mondta volna, hogy sosem sikerül.
-
-          #### Akkor javítva
-
-          - **Az óra átállításával le lehetett állítani a futó munkamenetet.**
-            Nyolc órát előreugorva a menet „lejárt”, és nem is csak azon a
-            gépen: a lejárás a szinkronon át a telefont is leállította. Két
-            perc munkával megkerülhető volt az a próbatétel, ami a
-            leállításhoz kell.
-
-            A szabály mostantól egy mondat: **amennyi hátra volt, annyi van
-            hátra.** Ugyanez a válasz az alvó gépre is — ha lecsukod a
-            laptopot tíz perccel a menet vége előtt, reggel tíz perc lesz
-            hátra. Azt a tíz percet nem töltötted fókuszban.
-
-          - **A gép megmondja, ha a munkamenetet nem érvényesíti senki.** A
-            fehérlistát a gépen KIZÁRÓLAG a böngésző-bővítmény tudja
-            betartatni. Ha nem volt összekötve, az indítás csendben nem
-            tiltott semmit a böngészőben: az app futó menetet mutatott, te
-            fókuszban hitted magad, közben minden nyitva maradt. Most szól. A
-            blokklista ilyenkor is él — ezt a szöveg ki is mondja.
-
-          - **Az app azt állította, hogy a mérés nem hagyja el a gépet — pedig
-            fiókkal bejelentkezve felkerül.** A közös napi keret a v0.4.0 óta úgy
-            működik, hogy minden eszköz feltölti, mennyit mért ma; a
-            munkamenet-napló most ugyanígy utazik. A statisztika-képernyő szövege
-            viszont a régi mondatot vitte tovább, és a fiókkártya mellette már az
-            igazat írta.
-
-            Egy elavult adatvédelmi mondat rosszabb, mint egy hiányzó: a
-            felhasználó arra alapoz, és nem tudja meg, hogy már nem áll. Mostantól
-            mind a hat helyen ugyanaz szerepel — az appban, a doksiban, a
-            letöltőoldalon és itt: **fiók nélkül semmi nem hagyja el az eszközt;
-            bejelentkezve a mérés és a munkamenet-napló felkerül a SAJÁT
-            fiókkiszolgálódra, végponttól végpontig titkosítva.** A kiszolgáló nem
-            látja, mit mértél, és telemetria sehol nincs.
-
-          - **A letöltőoldal azt írta ki, hogy nincs kiadott verzió, amikor
-            volt.** Minden hibára ugyanaz a mondat jött, pedig a leggyakoribb
-            ok a GitHub óránkénti kérés-korlátja. A látogató azt olvasta, hogy
-            nincs mit letölteni, miközben nyolc kiadás állt a másik oldalon.
-
-          #### Ami a v0.4.3-ban jött
-
-          **A munkamenet mostantól a telefonodon is érvényes.** Eddig csak a
-          gépen létezett, és ez a funkció felét elvette: elindítottad a
-          „Nyelvtanulás” csomagot, felvetted a telefont, és ott minden mehetett.
-          Egy fehérlistánál pont az az eszköz maradt ki, ami kéznél van.
-
-          A csomagok és a futó menet mostantól átutaznak a fiókodon, és a telefon
-          DNS-szűrője **tényleg betartatja** a fehérlistát: ami nincs a csomagon,
-          az nem jön be.
-
-          **Telefonon ez ERŐSEBB, mint gépen** — és ez nem hangzatos állítás,
-          hanem a mechanizmus. A gépen a hosts fájlba nem írható le, hogy
-          „mindent tilts, kivéve ötöt” (a világ összes nevét kellene felsorolni),
-          ezért ott ehhez böngésző-bővítmény kell. A telefonos alagút viszont
-          MINDEN névfeloldást lát.
-
-          **Van egy szűk kivétellista, és nem titkoljuk.** Egy telefon, aminek
-          minden névfeloldása elhasal, nem korlátozott telefon, hanem
-          használhatatlan: nem jön értesítés, a rendszer azt hiszi, nincs
-          internet, és nem a beállításodat hibáztatnád, hanem az appot. Ezért
-          átmegy az értesítés-kézbesítés, a kapcsolat-ellenőrzés, az óra, és a
-          saját fiókkiszolgálód — ez utóbbi azért, hogy a telefon lássa, ha egy
-          MÁSIK eszközön leállítod a menetet. Böngészni egyiken sem lehet.
-
-          **Telefonon indítani és leállítani is lehet** — a kettő egyszerre
-          került be, és ez nem esztétika. Indítani ingyen van, leállítani
-          viszont próbatétel: ha a telefon tudna indítani, de leállítani nem,
-          egy nyolcórás menetből ott nem lenne kiút. Vagy mindkettő, vagy egyik
-          sem.
-
-          A csomagokat továbbra is a **gépen** állítod össze: ott látszik a
-          teljes lista, és ott kényelmes gépelni. A telefon indítja és
-          betartatja őket. A hossz ott is percre pontos — üres mezőnél a csomag
-          szokásos hossza, hogy az indítás egy koppintás maradjon.
-
-          Kiút emellett is van, és nem titok: a rendszer VPN-kapcsolója erősebb
-          az appnál.
-
-          Amit a gépi ellenőrzés NEM fed, és ezt sem hallgatjuk el: a tényleges
-          alagút-viselkedés csak igazi készüléken derül ki. A logika és a
-          fordítás le van fedve; VPN-t a CI nem futtat.
-
-          **Statisztika a munkamenetekről.** Az app eddig azt mérte, MIRE megy
-          el az idő. Ez a másik oldal: hányszor ültél le dolgozni, és hányat
-          vittél végig — mai és heti bontásban, a leggyakoribb csomaggal.
-
-          A „korán leállítva” sor szándékosan nem szégyenpad. Ha ötből négyszer
-          leálltál, nem a csomaggal van baj: rövidebb menetet érdemes indítani,
-          és az működni fog.
-
-          #### Ami a v0.4.2-ben jött
-
-          **A munkamenet hossza percre pontos.** Eddig csak a felkínált
-          gombokból lehetett választani (15 / 25 / 50 / 90 / 120 perc). Aki
-          tudja, hogy negyvenhárom perce van ebédig, az kénytelen volt fölé
-          vagy alá lőni — és egy önkontroll-appnál a „nagyjából annyi” pont a
-          rossz irány: fölé lőve leállítani akarsz, és az próbatétel; alá lőve
-          lejár, mielőtt kész lennél.
-
-          Mostantól a gyorsgombok mellett ott a szabad mező, mindenhol, ahol
-          percet kell megadni:
-
-          - munkamenet indítása — az appban **és** a gyorsbillentyűs rétegben,
-          - hosszabbítás menet közben (a hosszabbítás szigorítás, ezért ingyen),
-          - a csomag szokásos hossza — ez eddig fixen ötven perc volt, és sehol
-            nem lehetett átállítani,
-          - **napi keret** oldalanként.
-
-          A feloldás („szünet”) hossza szándékosan marad a 15 / 30 / 60 perces
-          listán: az lazítás, és ha szabadon megadható lenne, ugyanannak az egy
-          próbatételnek az árán lehetne nyolc órát kérni.
-
-          **A futó munkamenet mostantól minden nézetből látszik.** Eddig csak a
-          Munkamenetek fülön: a másik két fülről nézve az app úgy nézett ki,
-          mintha nem menne semmi — és amikor egy oldal nem jött be, a
-          felhasználó a hibát kereste, nem a munkamenetet. Egy fehérlistás
-          munkamenetnél ez a legrosszabb tévedés. Most a fejlécben áll, a
-          csomag nevével és a hátralévő idővel, és rákattintva odavisz. A futó
-          munkamenet doboza a végét is kiírja („eddig: 14:32”), nem csak azt,
-          mennyi van hátra.
-
-          #### Akkor javítva
-
-          - **A futó csomag „Szerkesztés” gombja mindig hibára futott.** A gomb
-            aktív volt, a háttérszolgáltatás viszont a futó csomag mentését
-            visszautasítja — a felület tehát felkínált egy szerkesztőt, amiből
-            a Mentés sosem ment át. Most letiltva, és a buborékja megmondja,
-            miért fagy be a futó csomag.
-          - **A csomag törlése egyetlen kattintás volt.** Egy gondosan
-            összerakott fehérlista ne tűnjön el félrekattintásra: két lépés
-            lett.
-          - **A hosszkorlátokról semmi nem szólt.** A csomag nevét negyven
-            karakternél, a listákat negyven tételnél vágja le a
-            háttérszolgáltatás — eddig mentés után egyszerűen egy másik
-            csomagot kaptál vissza, magyarázat nélkül. Most korlátozott mező és
-            számláló van.
-          - **A gyorsbillentyűs réteg üres állapota zsákutca volt:** megmondta,
-            hogy az appban kell csomagot felvenni, de nem vitt oda. Most van
-            rajta gomb, ami megnyitja az appot.
-          - **A kiválasztott hossz-gombra nem jött visszajelzés,** és a kis
-            feliratok akkorák voltak, mint a törzsszöveg: két stílus hiányzott,
-            amit a felület egyébként használt.
-
-          ### Ami a v0.4.1-ben jött
-
-          **Felső menüsor — nincs több tekerés.** Eddig minden egymás alatt volt
-          egyetlen hosszú lapon: a fiókhoz a képernyő aljáig kellett görgetni, és
-          a statisztika meg a blokklista egymást takarta. Mostantól három fül van
-          a fejlécben — **Oldalak · Munkamenetek · Statisztika** —, és egyszerre
-          egy dolog van a képernyőn.
-
-          **A fiók a jobb felső sarokban van, egy ikon mögött.** Rákattintva
-          oldalról benyílik. Az ikonból az is látszik, hogy be vagy-e lépve:
-          kijelentkezve egy alak, belépve a fiókazonosítód kezdőbetűje. Az Esc
-          bezárja — ami csak egérrel csukható, az billentyűzettel csapdába ejt.
-
-          **A kinézet testreszabható.** A fiók melletti ikon nyitja: négyféle
-          háttér (Nyugalom, Aurora, Rács, Tiszta), és külön kapcsoló arra, hogy
-          mozogjon-e. Aki zavarónak találja a mozgást, megállíthatja, a hátteret
-          viszont megtarthatja. Ha a rendszeredben be van kapcsolva a
-          „csökkentett mozgás”, az erősebb ennél a kapcsolónál.
-
-          A választás a gépeden marad. A NÉZET viszont szándékosan nem: az app
-          mindig az Oldalak nézettel nyílik, mert a blokklista az, amiért az app
-          van.
-
-          #### Akkor javítva
-
-          - **A munkameneteknél az „Új csomag” gomb nem csinált semmit.** A gomb
-            ott volt, kezelő viszont nem tartozott hozzá: rá lehetett kattintani,
-            és nem történt semmi. A funkció így elérhetetlen volt — az egyetlen
-            út a gyorsbillentyűs rétegen át vezetett, ahol viszont csomagot
-            felvenni nem lehet.
-
-          ### Ami a v0.4.0-ban jött
-
-          **Teljesen új felület.** Nem átszínezés: a hierarchiát mostantól a
-          tipográfia és a térköz adja, nem a keretek. Eddig minden be volt
-          keretezve — kártya a kártyában, sor a sorban —, és attól minden
-          ugyanolyan fontosnak látszott. Most az oldalak egyetlen kártyán
-          belül, hajszálvonallal elválasztva élnek, a szakaszcímek
-          visszahúzódnak, és képernyőnként egy hangsúlyos elem van. Mind a négy
-          felület (Windows, macOS, Android, iPhone) ugyanabból a rendszerből
-          épül, ugyanazokkal a számokkal.
-
-          Az **ikon** is új, és a jel végre azt mondja, amit az app csinál: egy
-          megszakított gyűrű — a kör, ami nem zárul be. Nem lakat: itt nem
-          őrizni kell valamit, hanem te magad zárod ki magad.
-
-          **A fiókhoz nem kell többé IP-címet begépelni.** Ez volt az a pont,
-          ahol a szinkron meghalt: fiókot csinálni csak úgy lehetett, ha előbb
-          beírtad, hogy `http://192.168.1.10:8787`. Mostantól:
-
-          - **A gépen hagyd üresen a mezőt.** Az üres mező azt jelenti, hogy a
-            fiók ezen a gépen legyen: a kiszolgáló magától elindul, és az app a
-            saját helyi címét használja. Semmit nem kell megkeresned.
-          - **A telefonon egy rövid kód elég.** A gép kiírja, például `00GMR` —
-            öt karakter, nem egy IP-cím. Kötőjel, szóköz és kisbetű nem
-            számít, és ha elgépeled, azt a kód maga mondja meg (ellenőrző
-            összeg van benne), nem egy értelmezhetetlen „nem érhető el”.
-
-          **Részleges tiltás: nem az egész oldal, csak egy darabja.** Például a
-          YouTube-on egy-egy csatorna. Ezt a Breaker DNS-motorja **nem tudja
-          megcsinálni**, és ez nem hiányzó munka: a DNS csak a hosztnevet látja
-          (`youtube.com`), az utat (`/@valaki`) nem — az már a titkosított
-          kérésen belül van. Ami a teljes címet látja, az maga a böngésző, ezért
-          ehhez egy **böngésző-bővítmény** jár (a kiadás mellett,
-          `Breaker-bovitmeny-*.zip`).
-
-          Cserébe **gyengébb réteg, és ezt ki is mondjuk**: csak abban a
-          böngészőben él, ahova telepítve van; vendég módban egyáltalán nem fut;
-          inkognitóban alapból ki van kapcsolva. A teljes oldal tiltása marad
-          DNS-szintű és megkerülhetetlen — ez az **ingert** veszi el, nem a
-          hozzáférést.
-
-          A bővítmény nem csak a megnyitást állítja meg: a csatorna videóit a
-          főoldali ajánlóból is eltünteti. A szabályokat az appban is fel lehet
-          venni, oldalanként; felvenni egy kattintás, **levenni próbatétel** —
-          ugyanúgy, mint a feloldást.
-
-          **Munkamenetek: „most csak ez mehet”.** A blokklista arról szól, mi
-          NE menjen. Van azonban egy másik igény, ami ellentétes irányból
-          közelít: leülsz nyelvet tanulni, és a következő ötven percben csak a
-          szótár és a jegyzetfüzet kell. Mindent felsorolni, ami zavarhat,
-          reménytelen — a világon minden zavarhat. Felsorolni, ami kell: öt
-          tétel. A munkamenet ezért **fehérlista**.
-
-          Csinálsz egy csomagot (például „Nyelvtanulás”), felsorolod, mi mehet
-          alatta, és indításkor megadod, meddig tartson. Amíg tart, minden más
-          tiltva.
-
-          Az egész azon áll, hogy **egy mozdulattal induljon**: aki leül
-          tanulni, nem fog előbb ablakot keresni és fület váltani — addigra már
-          a YouTube-on van. Ezért van **gyorsbillentyűs réteg** (⌘⌥B Macen,
-          Ctrl+Alt+B Windowson): rááll arra, amit épp csinálsz, és
-          számbillentyűvel indít. Az Esc bezárja.
-
-          A súrlódás iránya itt is ugyanaz: **indítani és hosszabbítani ingyen
-          van, leállítani próbatétel**. A futó csomag közben nem szerkeszthető —
-          enélkül a fehérlistához menet közben hozzá lehetne adni bármit, és a
-          munkamenet önmagát oldaná fel. Egyszerre egy munkamenet fut, mert
-          különben elég lenne indítani egy „minden engedve” csomagot.
-
-          Amit ez a réteg **tud és nem tud**, kimondva: a fehérlistát a
-          böngésző-bővítmény érvényesíti, mert csak ott látszik a teljes cím. Az
-          appoknál a mérés látja, mi van előtérben, és a felület figyelmeztet —
-          egy futó programot nem lövünk ki, és nem is állítjuk, hogy tudunk.
-
-          Ha bezárod az appot, a munkamenet **a saját idejéig akkor is tart** —
-          bezárni nem feloldás. De egy perccel sem tovább.
-
-          **A napi keret mostantól KÖZÖS az eszközeid között.** Eddig
-          eszközönként külön ketyegett: a „napi 20 perc YouTube” a gépen húsz
-          percet jelentett, a telefonon még húszat — két eszközzel negyven,
-          hárommal hatvan. Aki a keretet komolyan gondolta, annak ez nem keret
-          volt, hanem javaslat. Most minden eszköz feltölti, mennyit mért ma
-          (titkosítva, pár száz bájt), és mindegyik hozzáadja a többiét a
-          sajátjához. A mérő alatt oda is van írva, mennyi ment el máshol.
-
-          Ezzel **iPhone-on végre ér is valamit a napi keret**. Eddig a
-          beállítás átment a szinkronon, de a telefonon soha semmi nem nézte
-          meg: aki a gépen napi húsz percet állított be, az a telefonján
-          korlátlanul használhatta ugyanazt az oldalt. Mérni ott továbbra sem
-          tudunk (az Apple nem enged hozzá), de ha a keret a gépen elfogyott,
-          az oldal az iPhone-on is zárva van.
-
-          **Az összes eszközöd ideje egyben.** A fiókkártyán legelöl az áll,
-          hogy mennyi ment el ÖSSZESEN — nem eszközönként külön. Két eszközön
-          napi húsz-húsz perc az együtt negyven, és fejben ezt senki nem adja
-          össze. Alatta eszközönként a mai és a heti idő, meg a hét három
-          legtöbb időt vivő célpontja.
-
-          **iPhone-on ez az egyetlen statisztika, ami valaha látszani fog.** Az
-          Apple nem enged appnak hozzáférni ahhoz, hogy más appokban vagy
-          weboldalakon mennyi aktív idő telik, tehát a készülék maga semmit nem
-          mér. Amit viszont megtehet: elolvasni, amit a géped és az androidos
-          telefonod mért.
-
-          Ha rejtve van a lista, az összesített sor sem nevezi meg az oldalt:
-          ugyanaz a fedőnév vagy `1. rejtett oldal` áll ott is.
-
-          ### Ami korábbról már megvolt
-
-          **Fedőnév a blokkolt oldalakhoz** — a lista maga is ingerforrás.
-          Minden oldalnak adható saját név; a valódi cím egy gombbal hat
-          másodpercre előhívható.
-
-          **A teljes lista elrejthető** — az app minden induláskor csukott
-          listával nyílik, csak a darabszám látszik.
-
-          **Fiók és eszközök közti szinkron** mind a három platformon, végponttól
-          végpontig titkosítva: a kiszolgáló nem látja a blokklistádat és a mért
-          idődet. A kiszolgáló néhány száz sor, függőség nélkül, magadnak is
-          futtathatod (`server/`), de a legegyszerűbb, ha az asztali app
-          indítja el. Elfelejtett jelszóhoz a regisztrációnál kapott
-          helyreállító kód az út vissza.
-
-          **Napi időkeret oldalanként** (ebben a verzióban lett közös az
-          eszközök között — lásd fentebb), **időzített menetrend**, és
-          **próbatételek**, amik nem lesznek könnyebbek attól, hogy sokszor
-          oldasz fel.
-
-          ### Régebbi javítások
-
-          - **Telefonon a helyi kiszolgáló nem volt elérhető.** Android 9-től és
-            iOS-en a titkosítatlan HTTP alapból tiltott, így a saját hálózaton
-            futó kiszolgáló címe szó nélkül elhasalt. Mostantól a HELYI hálózat
-            engedélyezett — az internet felé mindkét app továbbra is HTTPS-t vár.
-          - **Az automatikus szinkron hurkolt.** A kör végén mentett, a mentés
-            pedig ütemezett egy újabb kört: a háttérszolgáltatás húsz
-            másodpercenként verte volna a kiszolgálót. Az ütemezés külön, tesztelt
-            részbe került.
-          - **A jelszóra alsó hosszkorlát került (10 karakter).** Ez a jelszó
-            nem egy weboldal belépője: ez tartja a kulcsot, ami az adatot
-            nyitja.
-
-          ## Névváltás: a Lakatból Breaker lett
-
-          Ha van fent **Lakat** (v0.1.x), azt a rendszer MÁS appnak látja: a
-          Breaker nem frissítésként érkezik mellé, és a régi háttérszolgáltatás
-          magától tovább futna — a hosts fájlban lévő blokkjával együtt.
-
-          A Breaker telepítése után futtasd le egyszer, Terminálban:
-
-          ```
-          sudo launchctl bootout system/hu.lakat.helper
-          sudo rm -f /Library/LaunchDaemons/hu.lakat.helper.plist
-          sudo rm -rf "/Library/Application Support/Lakat" /Library/Logs/Lakat
-          rm -rf /Applications/Lakat.app
-          ```
-
-          Windowson a régi ütemezett feladat: `schtasks /Delete /TN "LakatHelper" /F`.
-          Androidon egyszerűen töröld a régi appot.
-
-          A hosts fájlt **nem kell** kézzel javítani: a Breaker az első
-          blokkolásnál kitakarítja a régi néven írt sorokat is.
-
-          ## Letöltés
-
-          | Gép | Fájl |
-          |---|---|
-          | **Mac (Apple szilícium, M1/M2/M3…)** | `…-arm64.dmg` |
-          | **Mac (Intel)** | `….dmg` (arm64 nélkül) |
-          | **Windows** | `….exe` |
-          | **Android** | `Breaker-*.apk` |
-
-          ### macOS — első indítás (fontos!)
-          Amíg nincs Apple fejlesztői aláírás, a **macOS 15 (Sequoia) és újabb**
-          nem elégszik meg a régi „jobb gomb → Megnyitás” trükkel: kukába teszi az
-          appot *„Rosszindulatú szoftver blokkolva”* üzenettel. Ez nem valódi
-          kártevőt jelent — csak azt, hogy az app nincs aláírva és közjegyzőzve.
-
-          Így megy mégis, két lépésben:
-
-          1. Töltsd le a **DMG**-t (ne a `-mac.zip`-et, az a frissítéshez van),
-             nyisd meg, és húzd a **Programok** mappába.
-          2. Nyiss egy Terminált (Spotlight → „Terminál”), és futtasd:
-
-          ```
-          xattr -dr com.apple.quarantine /Applications/Breaker.app
-          ```
-
-          Ezután a Breaker sima duplakattintással indul. Ha a rendszer már kukába
-          tette, előbb húzd vissza a kukából a Programok mappába, aztán futtasd a
-          parancsot.
-
-          A parancs a **letöltési karantén jelzőt** veszi le arról az appról, amit
-          te magad töltöttél le — semmi mást nem kapcsol ki a gépeden.
-
-          ### Frissítés
-          A telepített app magától megnézi, van-e újabb verzió, letölti a háttérben,
-          és egy gombnyomásra újraindulva már az újat futtatja — Windowson és
-          macOS-en is, Apple-tanúsítvány nélkül is.
-
-          Frissítés után megjelenhet egy sáv arról, hogy a háttérszolgáltatás még a
-          régi verzió. Ez normális — a blokkolást végző szolgáltatást a rendszer
-          csak újraindításkor cserélné le magától. A sávban lévő gomb egy
-          jelszókérés árán, azonnal lecseréli. Amíg nem teszed meg, a blokkolás
-          változatlanul működik, csak a legújabb beállítások nem biztos, hogy
-          érvényesülnek.
           NOTES
           fi
 

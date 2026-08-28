@@ -218,6 +218,15 @@ object UsageLogic {
         val yesterdaySeconds: Double,
         val last7Seconds: Double,
         val last30Seconds: Double,
+        /**
+         * A MAI nap toplistája, oldal és app VEGYESEN, idő szerint.
+         *
+         * Szándékosan nincs fajtára bontva: a kérdés itt az, hogy ma mire
+         * ment el az idő — a heti listák maradnak szétszedve, mert ott az
+         * összevetés a lényeg. A tükör a `desktop/src/shared/usage.ts`
+         * `topToday` mezője: ott sincs fajta-szűrés.
+         */
+        val topToday: List<TargetTotal>,
         val topWeekSites: List<TargetTotal>,
         val topWeekApps: List<TargetTotal>,
         val weekOverWeek: List<WeekDelta>,
@@ -235,6 +244,7 @@ object UsageLogic {
             yesterdaySeconds = sumOf(totalsForDays(state, listOf(yesterday))),
             last7Seconds = sumOf(weekTotals),
             last30Seconds = sumOf(totalsForDays(state, dayKeysBack(now, 30))),
+            topToday = rank(state, todayTotals, kind = null, limit = topLimit),
             topWeekSites = rank(state, weekTotals, TargetKind.SITE, topLimit),
             topWeekApps = rank(state, weekTotals, TargetKind.APP, topLimit),
             weekOverWeek = weekOverWeek(state, now),
