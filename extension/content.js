@@ -39,6 +39,7 @@
     import(chrome.runtime.getURL('rules-core.js')),
     import(chrome.runtime.getURL('channels.js')),
   ]);
+  const TIME_FLUSH_SECONDS = 10;
 
   let rules = [];
   let channels = [];
@@ -219,6 +220,32 @@
   /** Melyik címre szólt már jelentés — egylapos váltásnál újra kell nézni. */
   let reportedFor = null;
 
+  /**
+   * A LAP csatornája, ha megmondható: a címből, vagy a lap saját adatából.
+   * A csatorna-idő mérése használja — annak mindegy, hogy a csatorna
+   * engedélyezett-e, csak az, hogy MELYIK.
+   */
+  function pageChannelKey() {
+    const urlKey = chan.channelKeyFromPath(location.pathname);
+    if (urlKey) return urlKey;
+    const id = chan.contentIdOf(location.href);
+    let candidates = [...authorsFromJsonLd(id), ...authorsFromMicrodata(id)];
+    if (candidates.length === 0) candidates = authorsFromPlayerData(id);
+    for (const raw of candidates) {
+      let u;
+      try {
+        u = new URL(raw, location.href);
+      } catch {
+        continue;
+      }
+      const host = u.hostname.toLowerCase();
+      if (!pageFilters.some((f) => chan.hostMatchesFilter(host, f.host))) continue;
+      const key = chan.channelKeyFromPath(u.pathname);
+      if (key) return key;
+    }
+    return null;
+  }
+
   function checkPageAuthor() {
     if (pageFilters.length === 0 || reportedFor === location.href) return;
     // Csatorna-alakú címről a háttér már a navigációnál döntött; itt a
@@ -262,14 +289,65 @@
 
   /** Összevonva, késleltetve: a mutáció-vihar alatt elég negyedmásodpercenként. */
   let authorTimer = null;
+  /** A lap csatornája a mérésnek — a debounce frissíti, az óra csak olvassa. */
+  let cachedChannel = null;
   function queueAuthorCheck() {
     if (pageFilters.length === 0 || authorTimer) return;
     authorTimer = setTimeout(() => {
       authorTimer = null;
       try {
+        cachedChannel = { url: location.href, key: pageChannelKey() };
+      } catch {
+        cachedChannel = null;
+      }
+      try {
         checkPageAuthor();
       } catch { /* a lap fura DOM-ja ne állítsa le a rejtést */ }
     }, 250);
+  }
+
+  // ---------------------------------------------------------------------
+  // CSATORNA-IDŐ. Ha a lap csatornája megmondható, mérjük is, mennyi időt
+  // visz — másodpercenként, de csak amíg a lap látszik ÉS az ablak fókuszban
+  // van: a háttérben szóló lap nem „használat”. Az írás a háttérben történik
+  // (egy író, sorban), a tartalom-szkript csak jelent. Csak szűrős oldalon
+  // fut — máshol a bővítmény nem gyűjt semmit.
+  // ---------------------------------------------------------------------
+  let pendingKey = null;
+  let pendingSec = 0;
+  function flushTime() {
+    if (!pendingKey || pendingSec <= 0 || pageFilters.length === 0) return;
+    const msg = {
+      type: 'breaker:channel-time',
+      host: pageFilters[0].host,
+      key: pendingKey,
+      seconds: pendingSec,
+    };
+    pendingSec = 0;
+    try {
+      const p = chrome.runtime.sendMessage(msg);
+      if (p && typeof p.catch === 'function') p.catch(() => { /* a háttér alszik */ });
+    } catch { /* a lap élete végén a csatorna már zárva lehet */ }
+  }
+  let ticker = null;
+  function ensureTicker() {
+    if (ticker) return;
+    ticker = setInterval(() => {
+      if (pageFilters.length === 0) return;
+      if (document.visibilityState !== 'visible' || !document.hasFocus()) return;
+      const key = cachedChannel && cachedChannel.url === location.href
+        ? cachedChannel.key : null;
+      if (!key) return;
+      // Kulcsváltásnál (egylapos navigáció) előbb a régi kerül kiírásra.
+      if (pendingKey && pendingKey !== key) flushTime();
+      pendingKey = key;
+      pendingSec += 1;
+      if (pendingSec >= TIME_FLUSH_SECONDS) flushTime();
+    }, 1000);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') flushTime();
+    });
+    addEventListener('pagehide', () => { flushTime(); });
   }
 
   // A hírfolyam görgetés közben tölt be. Egyszeri futtatás csak azt takarná el,
@@ -301,6 +379,7 @@
     );
     if (rules.length === 0 && pageFilters.length === 0) return;
     ensureObserver();
+    if (pageFilters.length > 0) ensureTicker();
     hideMatches(document);
     queueAuthorCheck();
   }
@@ -325,7 +404,10 @@
   try {
     chrome.storage.onChanged.addListener((changes, area) => {
       if (area !== 'local') return;
-      if (!Object.keys(changes).some((k) => k.startsWith('breaker.'))) return;
+      // CSAK a beállítás-kulcsok érdekesek. A csatorna-idő kulcsa is
+      // `breaker.` előtagú, és tízmásodpercenként íródik — ha arra is
+      // frissítenénk, minden nyitott lap folyamatosan a hátteret hívná.
+      if (!changes['breaker.applink'] && !changes['breaker.partial']) return;
       fetchConfig().catch(() => { /* a háttér épp alszik */ });
     });
   } catch { /* nagyon régi böngésző — marad a betöltéskori állapot */ }

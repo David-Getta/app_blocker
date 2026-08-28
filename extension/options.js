@@ -11,6 +11,9 @@ import {
   addRule, cancelRemoval, load, REMOVE_DELAY_MS, startRemoval, sweep,
 } from './storage.js';
 import { loadLink, pullFromApp, setToken, withAppRules } from './app-link.js';
+import { dayKey, formatSeconds, lastDays, topChannels } from './chantime.js';
+
+const TIME_KEY = 'breaker.chantime';
 
 const $ = (id) => document.getElementById(id);
 
@@ -27,12 +30,37 @@ function remaining(ms) {
   return min <= 1 ? 'kevesebb mint egy perc' : `${min} perc`;
 }
 
+/** A csatorna-idő listái: ma és az elmúlt hét nap. */
+function renderTimeList(listId, emptyId, rows) {
+  const list = $(listId);
+  list.textContent = '';
+  $(emptyId).hidden = rows.length > 0;
+  for (const r of rows) {
+    const li = el('li');
+    const left = el('div');
+    left.appendChild(el('div', 'name', r.channel));
+    left.appendChild(el('div', 'muted', r.host));
+    li.appendChild(left);
+    li.appendChild(el('span', 'muted', formatSeconds(r.seconds)));
+    list.appendChild(li);
+  }
+}
+
+async function renderChannelTime() {
+  const got = await chrome.storage.local.get(TIME_KEY);
+  const state = got?.[TIME_KEY] ?? { days: {} };
+  const today = dayKey();
+  renderTimeList('timeToday', 'timeTodayEmpty', topChannels(state, [today]));
+  renderTimeList('timeWeek', 'timeWeekEmpty', topChannels(state, lastDays(today, 7)));
+}
+
 async function render() {
   await sweep();
   const state = await load();
   const link = await loadLink();
   const now = Date.now();
   renderLink(link);
+  void renderChannelTime();
   const list = $('list');
   list.textContent = '';
   // Az appból jött szabályok ugyanabban a listában állnak: a felhasználót nem

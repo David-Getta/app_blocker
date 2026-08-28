@@ -10,7 +10,8 @@
 // és pont a pontatlanság lenne a baj: elvenne valamit, amit a felhasználó nem
 // tiltott le.
 
-import { authorVerdict, channelVerdict } from './channels.js';
+import { authorVerdict, channelVerdict, MAX_CHANNEL_KEY_LENGTH } from './channels.js';
+import { addSeconds, dayKey, sweepDays } from './chantime.js';
 import { firstMatch, ruleLabel } from './rules-core.js';
 import { activeRules, load, sweep } from './storage.js';
 import {
@@ -192,6 +193,35 @@ chrome.runtime.onMessage.addListener((msg, _sender, respond) => {
     });
   })();
   return true; // aszinkron válasz
+});
+
+// A CSATORNA-IDŐ írása. A tartalom-szkriptek jelentik, mennyi időt vitt a
+// lapjuk csatornája; az írás ITT történik, egyetlen sorban — két lap
+// egyidejű jelentése ne veszítse el egymás másodperceit (a tár nem tud
+// tranzakciót). Ami a lapból jön, azt ellenőrizzük, nem elhisszük: csak
+// bekapcsolt szűrős oldalról fogadunk mérést, és egy jelentés legfeljebb
+// akkora lehet, amennyit a mérő két kiírás között egyáltalán összegyűjthet.
+const TIME_KEY = 'breaker.chantime';
+let timeWrite = Promise.resolve();
+async function recordChannelTime(msg) {
+  const host = typeof msg.host === 'string' ? msg.host : '';
+  const key = typeof msg.key === 'string' ? msg.key : '';
+  const seconds = Number(msg.seconds);
+  if (!host || !key || key.length > MAX_CHANNEL_KEY_LENGTH) return;
+  if (!Number.isFinite(seconds) || seconds <= 0) return;
+  const link = await loadLink();
+  if (!(link.channels ?? []).some((f) => f.host === host)) return;
+  const capped = Math.min(seconds, 120);
+  const got = await chrome.storage.local.get(TIME_KEY);
+  const today = dayKey();
+  const state = sweepDays(addSeconds(got?.[TIME_KEY] ?? {}, today, host, key, capped), today);
+  await chrome.storage.local.set({ [TIME_KEY]: state });
+}
+chrome.runtime.onMessage.addListener((msg, _sender, respond) => {
+  if (msg?.type !== 'breaker:channel-time') return false;
+  timeWrite = timeWrite.then(() => recordChannelTime(msg)).catch(() => { /* egy rossz írás ne törje a sort */ });
+  respond({});
+  return false; // a válasz azonnal megy, az írás a maga sorában fut
 });
 
 // A tartalom-szkript jelzése: a lejátszó-oldal metaadata szerint a videót ez

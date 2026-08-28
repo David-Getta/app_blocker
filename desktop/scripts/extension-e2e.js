@@ -243,6 +243,29 @@ async function main() {
       check(await browserUrl(page, context) === caseUrl, name);
     }
 
+    // ----------------------- 3,5. a csatorna-idő gyűlik, és meg is jelenik
+    // Az engedélyezett feltöltő lapján mérünk: a lap előtérben van, a
+    // csatorna azonosított — a másodperceknek gyűlniük kell. A kiírást a lap
+    // elrejtése váltja ki (láthatóság-váltás), mert a valóságban is az.
+    await page.goto(`${base}/watch?v=goodvid1234`);
+    await page.bringToFront();
+    await page.waitForTimeout(3500);
+    await seeder.bringToFront();
+    await page.waitForTimeout(500);
+    const timeState = await seeder.evaluate(async () => {
+      const got = await chrome.storage.local.get('breaker.chantime');
+      return JSON.stringify(got['breaker.chantime'] ?? {});
+    });
+    const measured = timeState.includes('@jo');
+    check(measured, 'a csatorna-idő gyűlik az engedélyezett csatorna lapján');
+    if (!measured) console.log(`   (a mért állapot: ${timeState})`);
+    await seeder.reload();
+    await seeder.waitForTimeout(400);
+    const optText = await seeder.evaluate(() => document.body.innerText);
+    check(optText.includes('Melyik csatorna vitte az időt?') && optText.includes('@jo'),
+      'a beállítás-lap mutatja a csatorna-időt');
+    await page.bringToFront();
+
     // --------------------------- 4. egylapos váltás: a friss metaadat dönt
     await page.goto(`${base}/watch?v=goodvid1234`);
     await page.waitForTimeout(600);

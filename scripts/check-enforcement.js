@@ -181,6 +181,27 @@ const WIRES = [
     lost: 'a tiltás második hálója tűnne el — egy elejtett esemény némán '
       + 'átengedne egy tiltott lapot',
   },
+  // A CSATORNA-IDŐ HÁRMASA: mérés a lapon, írás a háttérben, lista a
+  // beállításokon. Bármelyik kiesése néma: a szűrő ugyanúgy tilt, csak a
+  // „melyik csatorna vitte az időt” kérdésre nem felelne senki.
+  {
+    file: 'extension/content.js',
+    needle: 'if (pageFilters.length > 0) ensureTicker();',
+    lost: 'a csatorna-idő órája el sem indulna — a mérés némán nulla maradna',
+  },
+  {
+    file: 'extension/background.js',
+    // A tű a SORBA FŰZÖTT hívás, nem a puszta név: az a definícióban is
+    // szerepel, és elfedné a hívás törlését.
+    needle: 'timeWrite.then(() => recordChannelTime(msg))',
+    lost: 'a jelentett másodperceket senki nem írná be — a mérő dolgozna, '
+      + 'a tár üres maradna',
+  },
+  {
+    file: 'extension/options.js',
+    needle: 'void renderChannelTime();',
+    lost: 'a mért csatorna-idő ki lenne számolva, képernyőre nem jutna',
+  },
   // A MAI NAP KÜLÖN LISTÁJA. A mag régóta kiszámolta (`topToday`), csak épp
   // senki nem kérdezte meg — a felhasználó kérte ki magának a funkciót.
   {

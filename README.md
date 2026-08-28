@@ -55,7 +55,9 @@ attól, hogy sokszor csinálod.
   egy kattintás, **kikapcsolni vagy új csatornát engedélyezni próbatétel** —
   mint a munkameneteknél. A böngésző-bővítményben él (a DNS címet nem lát),
   tehát abban a böngészőben véd, ahová a bővítményt betöltötted — inkognitóra
-  nem terjed ki, és ezt nem is állítjuk.
+  nem terjed ki, és ezt nem is állítjuk. A szűrős oldalakon a bővítmény azt
+  is méri, **melyik csatorna mennyi időt vitt** (ma + elmúlt 7 nap, a
+  beállítási lapján); az adat a gépen marad.
 - **Fedőnév a blokkolt oldalakhoz** (mindhárom platform): a lista maga is
   ingerforrás — aki megnyitja az appot, és ott áll előtte a `youtube.com`, az már
   fél lépéssel közelebb van. Minden oldalnak adható saját név, és onnantól a

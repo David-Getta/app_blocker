@@ -90,6 +90,21 @@ valódi bővítményt betöltve játssza végig a rétegeket egy kamu videó-old
 a rejtést, a három metaadat-forrást, az elavulás-őrt, az egylapos váltást és
 a régi címalapú réteget is.
 
+## Csatorna-idő: melyik csatorna vitte az időt
+
+Ha a lap csatornája már azonosított (a szűrő miatt úgyis az), a bővítmény
+mérni is tudja, mennyi időt visz — másodpercenként, de csak amíg a lap
+látható ÉS az ablak fókuszban van: a háttérben szóló lap nem használat.
+Csak bekapcsolt szűrős oldalon mér; máshol nem gyűjt semmit. Az adat a
+böngésző tárában marad (`chantime.js`, 30 nap, napi sor-korlát), nem megy
+se az appba, se a fiókba — a listák (ma + elmúlt 7 nap) a bővítmény
+beállítási lapján állnak. Az írás a háttérben történik, egyetlen sorban,
+és ellenőrzött: csak szűrős oldalról, ésszerű adagokban fogad mérést.
+
+Kimondott határ: a beállítási lap nem tud az app rejtett listájáról — aki
+a gépén elrejti az oldalneveket, annak a bővítmény lapján a csatorna-nevek
+attól még látszanak.
+
 ## Súrlódás — mint a munkameneteknél
 
 A szabály ugyanaz, mint mindenhol az appban:

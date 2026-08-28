@@ -97,6 +97,12 @@ valamit, amit a felhasználó nem tiltott le.
    MOSTANI videót nevezi meg — egylapos váltásnál az előző videó adata nem
    ítélhet. A döntés a háttérben születik, a friss szűrő-listával.
 
+4. **Méri a csatorna-időt.** Ahol bekapcsolt csatorna-szűrő van, ott azt is
+   méri, MELYIK csatorna mennyi időt vitt — másodpercenként, de csak amíg a
+   lap ténylegesen előtérben van. Máshol nem gyűjt semmit, és az adat ezen a
+   gépen marad (a bővítmény tárában): nem megy se az appba, se a fiókba. A
+   listák a beállítási lapon állnak (ma + elmúlt 7 nap).
+
 ## Fájlok
 
 | Fájl | Mi ez |
@@ -105,6 +111,7 @@ valamit, amit a felhasználó nem tiltott le.
 | `storage.js` | tárolás és a súrlódás (felvétel ingyen, levétel várakozás) |
 | `app-link.js` | a kapcsolat az appal: kód, lekérés, gyorsítótár |
 | `channels.js` | a csatorna-szűrő magja — a `desktop/src/shared/channels.ts` párja |
+| `chantime.js` | a csatorna-idő magja (mérés-tárolás, listák) — csak itt él |
 | `background.js` | a navigáció megállítása (`webNavigation`) és a feltöltő-döntés |
 | `content.js` | a találatok elrejtése + a lejátszó-oldal feltöltőjének kiolvasása |
 | `options.html/js` | a szabályok kezelése |

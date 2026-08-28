@@ -50,6 +50,7 @@
   .muted { color: var(--ink-2); font-size: 0.86rem; }
   .error { color: #c0392b; margin: 8px 0 0; }
   .empty { color: var(--ink-2); }
+  .time-h { font-size: 0.86rem; margin: 12px 0 6px; color: var(--ink-2); font-weight: 600; }
 </style>
 </head>
 <body>
@@ -97,6 +98,23 @@
     <h2>Tiltott részek</h2>
     <ul id="list"></ul>
     <p class="empty" id="empty">Még nincs egyetlen szabály sem.</p>
+  </section>
+
+  <!-- Csatorna-idő: melyik csatorna mennyi időt vitt. Csak azokon az
+       oldalakon mér, ahol bekapcsolt csatorna-szűrő van — máshol a bővítmény
+       nem gyűjt semmit. Az adat ezen a gépen marad. -->
+  <section class="card">
+    <h2>Melyik csatorna vitte az időt?</h2>
+    <p class="hint-line">
+      Csak azokon az oldalakon mérünk, ahol bekapcsolt csatorna-szűrő van, és
+      csak amíg a lap ténylegesen előtérben van. Az adat ezen a gépen marad.
+    </p>
+    <h3 class="time-h">Ma</h3>
+    <ul id="timeToday" class="time-list"></ul>
+    <p class="empty" id="timeTodayEmpty">Ma még nincs mért csatorna-idő.</p>
+    <h3 class="time-h">Az elmúlt 7 nap</h3>
+    <ul id="timeWeek" class="time-list"></ul>
+    <p class="empty" id="timeWeekEmpty">A héten még nincs mért csatorna-idő.</p>
   </section>
 
   <section class="card limits">
