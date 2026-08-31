@@ -87,7 +87,8 @@ function fakeBridgeSource() {
         addedAt: now - 86400000, pauseUntil: null, pendingDeleteAt: null,
         schedule: { mode: 'scheduled_allow', bands: [{ days: [0,1,2,3,4,5,6], startMin: 0, endMin: 1440 }] },
         burstSeconds: 120, cooldownSeconds: 600, cooldownUntil: now + 7 * 60_000,
-        burstUsedSeconds: 0, usedTodaySeconds: 300, limitExhausted: false, blockedNow: true },
+        burstUsedSeconds: 0, usedTodaySeconds: 300, limitExhausted: false, blockedNow: true,
+        closedReason: 'cooldown', closedUntil: now + 7 * 60_000 },
     ];
     let session = null;
     // A GUI a saját protokollverziójához hasonlítja: a demóban EGYEZZEN, hogy a
@@ -761,6 +762,11 @@ async function main() {
   if (cooling !== 1) failures.push('the burst cooldown is not called out in words');
   if (await page.locator('.site-actions button', { hasText: 'Adag' }).count() < 1) {
     failures.push('the burst rule has no button on the site rows');
+  }
+  // A státusz-korong a zárás OKÁT mondja, nem csak a tényét: a hűtés alatt
+  // álló, menetrendes oldal nem „menetrend miatt” áll — az más mondat lenne.
+  if (await page.locator('.pill', { hasText: 'adag-szünet' }).count() !== 1) {
+    failures.push('the cooldown-blocked row does not name the burst as the reason');
   }
 
   // Egyező protokollverziónál a figyelmeztető sáv NEM látszik...

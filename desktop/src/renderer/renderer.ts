@@ -1476,9 +1476,19 @@ function siteRow(site: SiteInfo, st: StatusData): HTMLElement {
   } else {
     const scheduled = site.schedule && site.schedule.mode !== 'always';
     if (scheduled) {
-      statusEl.appendChild(site.blockedNow
-        ? h('span', 'pill pill-ok', 'Most blokkolva (menetrend)')
-        : h('span', 'pill pill-warn', 'Most szabad (menetrend szerint)'));
+      if (site.blockedNow) {
+        // A zárás OKA a segédtől jön (closedReason) — a menetrendes oldal
+        // hűtés vagy betelt keret miatt is állhat, és az más mondat.
+        let label = 'Most blokkolva (menetrend)';
+        if (site.closedReason === 'cooldown') label = 'Most blokkolva (adag-szünet)';
+        else if (site.closedReason === 'limit') label = 'Most blokkolva (mai keret)';
+        else if (site.closedReason === 'schedule' && (site.closedUntil ?? 0) > now) {
+          label = `Most blokkolva (menetrend) — nyit ${fmtRemain(site.closedUntil - now)} múlva`;
+        }
+        statusEl.appendChild(h('span', 'pill pill-ok', label));
+      } else {
+        statusEl.appendChild(h('span', 'pill pill-warn', 'Most szabad (menetrend szerint)'));
+      }
     } else {
       statusEl.appendChild(h('span', 'pill pill-ok', 'Blokkolva'));
     }

@@ -167,4 +167,5 @@ huzalozás, nem a logika.
 - [x] A szabályok átvétele az appból (*Kapcsolat az appal*)
 - [x] Csomagolt zip a GitHub Releases mellé (`Breaker-bovitmeny-*.zip`)
 - [ ] Aláírt csomag (`.crx` / `.xpi`), hogy ne kelljen fejlesztői mód
-- [ ] Végponttól végpontig futó teszt valódi bővítmény-betöltéssel
+- [x] Végponttól végpontig futó teszt valódi bővítmény-betöltéssel
+      (`desktop/scripts/extension-e2e.js` — minden ellenőrzőn fut)
