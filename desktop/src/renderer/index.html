@@ -420,6 +420,24 @@
           <button id="syncSignOutBtn" class="btn btn-small btn-ghost">Kijelentkezés</button>
         </div>
       </div>
+
+      <!--
+        Az app saját sora: verzió, frissítés, kilépés. A kilépés gombért a
+        felhasználó szólt — az ablak piros gombja is kilép, de aki nem
+        találja, annak itt van szövegesen. Ki kell mondani, mit NEM csinál:
+        a tiltás a háttérszolgáltatásé, kilépéskor is él tovább.
+      -->
+      <div class="app-row">
+        <p class="hint" id="appVersionRow">Breaker</p>
+        <div class="sync-actions">
+          <button id="checkUpdateBtn" class="btn btn-small">Frissítés keresése</button>
+          <button id="quitBtn" class="btn btn-small btn-ghost">Kilépés az appból</button>
+        </div>
+        <p class="hint">
+          A védelem kilépés után is él — a tiltást a háttérszolgáltatás tartja.
+          Ha van letöltött frissítés, kilépéskor magától települ.
+        </p>
+      </div>
     </section>
   </aside>
 

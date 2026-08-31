@@ -128,6 +128,11 @@ body {
   z-index: 20;
 }
 .topbar button, .topbar .pill { -webkit-app-region: no-drag; }
+/* Mac, beolvasztott címsor: a bal felső három ablak-gombnak hely kell. */
+.is-mac .topbar { padding-left: 84px; }
+
+/* Az app sora a fiók-panel alján: elválasztva a fiók dolgaitól. */
+.app-row { margin-top: var(--s6); padding-top: var(--s4); border-top: 1px solid var(--hairline); }
 
 .brand { display: flex; align-items: center; gap: 10px; }
 .brand-mark {

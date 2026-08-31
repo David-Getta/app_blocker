@@ -4,7 +4,7 @@
 //                    the same exe with this flag; macOS uses ELECTRON_RUN_AS_NODE
 //                    + dist/helper/index.js directly, bypassing this file)
 
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu } from 'electron';
 import { registerSyncServerIpc } from './sync-server';
 import { extensionSeenRecently, registerRulesBridge, stopRulesBridge } from './rules-bridge-ipc';
 import {
@@ -15,7 +15,7 @@ import { shouldWarnAboutApp, warnDue } from '../shared/focus';
 import * as path from 'path';
 import { HelperClient } from './helper-client';
 import { installHelper } from './install';
-import { initUpdater } from './updater';
+import { initUpdater, requestUpdateCheck } from './updater';
 import { UsageTracker } from './tracker';
 import type { StatusData } from '../shared/protocol';
 
@@ -40,6 +40,11 @@ if (HELPER_MODE) {
       minHeight: 560,
       title: 'Breaker',
       backgroundColor: '#101418',
+      // Mac-en a címsor beleolvad a saját fejlécünkbe, de a három gomb
+      // (bezárás, kicsinyítés, teljes képernyő) OTT MARAD — a fejléc CSS-e
+      // (drag / no-drag) eleve erre készült. Windowson marad a rendes keret:
+      // ott a hiddenInset épp a gombokat venné el.
+      ...(process.platform === 'darwin' ? { titleBarStyle: 'hiddenInset' as const } : {}),
       webPreferences: {
         preload: path.join(__dirname, 'preload.js'),
         contextIsolation: true,
@@ -48,7 +53,55 @@ if (HELPER_MODE) {
       },
     });
     win.setMenuBarVisibility(false);
+    // Az ablak fókuszba kerülése jó pillanat frissítést nézni: aki naphosszat
+    // futni hagyja az appot, az a hatóránkénti körök KÖZÖTT ülne régi
+    // verzión — pont ő járna a legrosszabbul. Türelmi idővel, hogy a sűrű
+    // váltogatás ne kérdezzen sokat.
+    win.on('focus', () => { requestUpdateCheck(); });
     void win.loadFile(path.join(__dirname, '..', 'ui', 'renderer', 'index.html'));
+  };
+
+  /**
+   * Magyar app-menü. Nem dísz: a felhasználó szó szerint nem talált kilépést.
+   * A szerep-alapú (role) tételek a rendszer viselkedését kapják — kilépés,
+   * kicsinyítés, teljes képernyő, másolás/beillesztés a beviteli mezőkhöz.
+   */
+  const buildMenu = () => {
+    if (process.platform !== 'darwin') return; // Windowson az ablak gombjai megvannak
+    Menu.setApplicationMenu(Menu.buildFromTemplate([
+      {
+        label: 'Breaker',
+        submenu: [
+          { role: 'hide', label: 'Breaker elrejtése' },
+          { role: 'unhide', label: 'Összes megjelenítése' },
+          { type: 'separator' },
+          // A kilépés NEM feloldás: a tiltást a háttérszolgáltatás tartja.
+          { role: 'quit', label: 'Kilépés a Breakerből' },
+        ],
+      },
+      {
+        label: 'Szerkesztés',
+        submenu: [
+          { role: 'undo', label: 'Visszavonás' },
+          { role: 'redo', label: 'Újra' },
+          { type: 'separator' },
+          { role: 'cut', label: 'Kivágás' },
+          { role: 'copy', label: 'Másolás' },
+          { role: 'paste', label: 'Beillesztés' },
+          { role: 'selectAll', label: 'Összes kijelölése' },
+        ],
+      },
+      {
+        label: 'Ablak',
+        submenu: [
+          { role: 'minimize', label: 'Kicsinyítés' },
+          { role: 'zoom', label: 'Nagyítás' },
+          { role: 'togglefullscreen', label: 'Teljes képernyő be/ki' },
+          { type: 'separator' },
+          { role: 'close', label: 'Ablak bezárása' },
+        ],
+      },
+    ]));
   };
 
   const gotLock = app.requestSingleInstanceLock();
@@ -82,6 +135,12 @@ if (HELPER_MODE) {
         }
       });
 
+      // Kilépés a felület gombjáról. A tiltást nem érinti (az a segédé), a
+      // letöltött frissítést viszont pont a kilépés engedi települni.
+      ipcMain.handle('breaker:quit', () => { app.quit(); });
+      ipcMain.handle('breaker:app-version', () => app.getVersion());
+
+      buildMenu();
       createWindow();
       initUpdater();
 

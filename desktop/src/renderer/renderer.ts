@@ -73,6 +73,8 @@ interface Bridge {
   startSyncServer(): Promise<SyncServerState>;
   stopSyncServer(): Promise<SyncServerState>;
   onUpdateState(cb: (s: UpdateState) => void): void;
+  appVersion?(): Promise<string>;
+  quitApp?(): Promise<void>;
   platform: string;
 }
 declare global { interface Window { breaker: Bridge } }
@@ -2455,9 +2457,33 @@ function setupModal(): void {
   for (const tab of Array.from(document.querySelectorAll<HTMLElement>('.tab'))) {
     tab.addEventListener('click', () => setView((tab.dataset.view as ViewName) ?? 'sites'));
   }
+  // Mac-en a címsor a fejlécbe olvad (hiddenInset), és a három ablak-gomb a
+  // bal felső sarokban ül — a fejlécnek helyet kell hagynia nekik.
+  document.body.classList.toggle('is-mac', window.breaker.platform === 'darwin');
+
   $('accountBtn').addEventListener('click', () => openDrawer('accountPanel', 'accountScrim'));
   $('accountClose').addEventListener('click', () => closeDrawer('accountPanel', 'accountScrim'));
   $('accountScrim').addEventListener('click', () => closeDrawer('accountPanel', 'accountScrim'));
+
+  // Az app sora a fiók-panelen: verzió, kézi frissítés-keresés, kilépés.
+  // A verzió kiírása nem hiúság: e nélkül nem lehet megmondani, hogy valaki
+  // a régi appban keresi-e az új funkciót.
+  void window.breaker.appVersion?.().then((v) => {
+    $('appVersionRow').textContent = `Breaker v${v}`;
+  }).catch(() => { /* régi preload: marad a puszta név */ });
+  $('checkUpdateBtn').addEventListener('click', () => {
+    const btn = $('checkUpdateBtn') as HTMLButtonElement;
+    btn.disabled = true;
+    btn.textContent = 'Keresés…';
+    void window.breaker.checkUpdate().then(async () => {
+      // Ha van újabb, a frissítés-sáv úgyis megszólal (onUpdateState). Ha
+      // nincs, azt itt kell kimondani — a néma gomb elromlottnak látszana.
+      const s = await window.breaker.getUpdateState();
+      btn.textContent = s.status === 'idle' ? 'Nincs újabb verzió' : 'Frissítés keresése';
+      setTimeout(() => { btn.textContent = 'Frissítés keresése'; btn.disabled = false; }, 2500);
+    }).catch(() => { btn.textContent = 'Frissítés keresése'; btn.disabled = false; });
+  });
+  $('quitBtn').addEventListener('click', () => { void window.breaker.quitApp?.(); });
   $('themeBtn').addEventListener('click', () => openDrawer('themePanel', 'themeScrim'));
   $('themeClose').addEventListener('click', () => closeDrawer('themePanel', 'themeScrim'));
   $('themeScrim').addEventListener('click', () => closeDrawer('themePanel', 'themeScrim'));

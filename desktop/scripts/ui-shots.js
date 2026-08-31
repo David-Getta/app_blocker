@@ -294,6 +294,8 @@ function fakeBridgeSource() {
       },
       install: async () => ({ ok: true }),
       checkUpdate: async () => ({ ok: true }),
+      appVersion: async () => '0.0.0-demó',
+      quitApp: async () => { window.__quitCalled = (window.__quitCalled || 0) + 1; },
       getUpdateState: async () => window.__fakeUpdate,
       getTrackerState: async () => window.__fakeTracker,
       // A füstteszt innen hajtja a frissítési sávot: ugyanaz a csatorna, amit
@@ -768,6 +770,16 @@ async function main() {
   if (await page.locator('.pill', { hasText: 'adag-szünet' }).count() !== 1) {
     failures.push('the cooldown-blocked row does not name the burst as the reason');
   }
+
+  // Az app sora a fiók-panelen: a verzió kiírva, a kilépés gomb pedig tényleg
+  // a hidat hívja — egy gomb, ami nem csinál semmit, rosszabb, mint ha ott
+  // sem lenne. (A panel rejtett; a DOM-kattintás így is a kezelőt üti meg.)
+  await page.waitForFunction(() =>
+    /^Breaker v/.test(document.getElementById('appVersionRow')?.textContent ?? ''), { timeout: 15_000 })
+    .catch(() => failures.push('the app version is not shown on the account panel'));
+  await page.evaluate(() => document.getElementById('quitBtn').click());
+  const quitCalled = await page.evaluate(() => window.__quitCalled || 0);
+  if (quitCalled !== 1) failures.push('the quit button does not reach the bridge');
 
   // Egyező protokollverziónál a figyelmeztető sáv NEM látszik...
   if (await page.locator('#helperStaleBanner:not(.hidden)').count() !== 0) {

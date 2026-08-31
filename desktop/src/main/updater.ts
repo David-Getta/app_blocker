@@ -224,8 +224,27 @@ function wireIpc(): void {
   ipcMain.handle('breaker:update-state', () => state);
 }
 
+let lastKickAt = 0;
+
+function kick(): void {
+  lastKickAt = Date.now();
+  void engine?.check().catch(() => { /* surfaced via state */ });
+}
+
 function startChecking(): void {
-  const kick = () => { void engine?.check().catch(() => { /* surfaced via state */ }); };
   setTimeout(kick, 8_000);          // shortly after launch
   setInterval(kick, CHECK_INTERVAL_MS);
+}
+
+/**
+ * Frissítés-ellenőrzés kérésre — türelmi idővel.
+ *
+ * Az ablak fókusza hívja: aki naphosszat futni hagyja az appot, a hatóránkénti
+ * körök között ülne régi verzión. A türelmi idő azért kell, hogy az ablakok
+ * közti sűrű váltogatás ne kérdezze a kiadási oldalt percenként.
+ */
+export function requestUpdateCheck(minGapMs = 30 * 60_000): void {
+  if (!engine) return;
+  if (Date.now() - lastKickAt < minGapMs) return;
+  kick();
 }

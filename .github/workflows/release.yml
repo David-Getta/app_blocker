@@ -44,6 +44,19 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
+          **Ablak-gombok, Kilépés gomb, látható frissítés.** Mac-en
+          visszatért a három ablak-gomb (bezárás, kicsinyítés, teljes
+          képernyő) — a címsor a fejlécbe olvad, a fejléc húzható. Magyar
+          app-menü lett Kilépéssel (Cmd+Q), a fiók-panelen pedig ott a
+          verziószám, egy Frissítés keresése gomb és egy Kilépés gomb — a
+          kilépés a tiltást nem érinti (azt a háttérszolgáltatás tartja),
+          a letöltött frissítés viszont pont kilépéskor települ. Az app
+          mostantól az ablak fókuszba kerülésekor is néz frissítést (fél-
+          órás türelemmel), nem csak hatóránként — aki napokig futni
+          hagyja, az sem ragad régi verzión.
+
+          ### Ami a v0.4.16-ban jött
+
           **A tiltott oldalon „töltött” idő nem fogyasztja a keretet.** A
           tiltott oldal hibalapján a fül címsorában ott marad a cím, és a
           mérő eddig mérhette — a hibalap-percek beleszámoltak a
@@ -57,7 +70,7 @@ jobs:
           mi van éppen zárva és miért — oldalanként az okkal és a hátralévő
           idővel, ugyanabból a friss listából, amiből a tiltó lap magyaráz.
 
-          ### Ami a v0.4.15-ben jött
+          #### Ami a v0.4.15-ben jött
 
           **A menetrendes zárás is visszaszámol.** A tiltó lap eddig a
           hűtésnél és a napi keretnél mondta meg, mikor nyílik az oldal — a
@@ -66,32 +79,6 @@ jobs:
           („Nyit: még kb. 2 óra”), és a lejáratkor ott is visszautat ad. A
           lejárat-szöveg okhoz illő: új napnál a keret újraindulását mondja,
           menetrendnél a nyitást, adagnál a szünet leteltét.
-
-          #### Ami a v0.4.14-ben jött
-
-          **A tiltó lap megmondja, miért zárva az oldal — és mikor nyílik.**
-          Eddig a DNS-szintű zárás (blokklista, menetrend, betelt napi keret,
-          adag-hűtés) nyers böngésző-hibalapot mutatott — „nem sikerült kapcsolódni”,
-          mintha a net romlott volna el. Mostantól — összekötött
-          bővítmény mellett — a Breaker saját lapja jön helyette: kimondja az
-          okot, hűtésnél és keretnél pedig visszaszámol a nyitásig
-          („Adag betelt — újranyílik magától: még kb. 7 perc”), a szünet
-          leteltekor pedig linket ad vissza az eredeti oldalra.
-
-          Ez magyarázat, nem érvényesítés: a tiltást továbbra is a DNS
-          tartja, bővítmény nélkül is — más böngészőben és inkognitóban
-          marad a hibalap, de a tiltás ott is él. És a lap csak friss
-          adatból beszél: ha az app nem fut, vagy a hűtés ideje lejárt,
-          inkább hallgat, mint hogy zárva-t mondjon egy már kinyílt oldalra.
-
-          **A telefonon az értesítés mondja meg.** Androidon tiltó lap nincs
-          (a böngésző hálózati hibát mutat) — futó hűtés alatt ezért a Breaker
-          tartós értesítése írja ki, melyik oldal szünetel és mennyi van
-          hátra, ugyanúgy, ahogy munkamenet alatt is az beszél.
-
-          Ehhez a bővítményt frissíteni kell: töltsd le az új
-          `Breaker-bovitmeny` zipet, csomagold ki a régi helyére, és a
-          `chrome://extensions` lapon nyomj rá frissítést.
 
           NOTES
           fi
