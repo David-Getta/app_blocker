@@ -48,8 +48,24 @@ export function isLimitExhausted(
 }
 
 /**
+ * MIÉRT zár az oldal — a tiltás oka, nem csak a ténye.
+ *
+ * `always`: nincs menetrend, az oldal sima blokklistás. `schedule`: van
+ * menetrend, és az most zárva tart. `cooldown`: a futó adag-hűtés.
+ * `limit`: a mai keret betelt.
+ */
+export type BlockReason = 'always' | 'schedule' | 'cooldown' | 'limit';
+
+/** A KÖVETKEZŐ helyi éjfél — a napi keret ekkor kezd újra. */
+export function nextDayStartMs(now: number): number {
+  const d = new Date(now);
+  d.setHours(24, 0, 0, 0);
+  return d.getTime();
+}
+
+/**
  * The whole blocking decision: pause, pending delete, weekly schedule, the
- * daily budget AND the burst cooldown.
+ * daily budget AND the burst cooldown — plus WHY, and until when.
  *
  * Order matters. An active pause still wins over everything — it was paid for
  * with a challenge, and having it silently overridden by a budget (or a
@@ -58,15 +74,39 @@ export function isLimitExhausted(
  *
  * A `burst` az adag-számláló EZEN a gépen (shared/burst.ts) — a hívó adja át,
  * mert az nem a rekordon él, hanem a segéd állapotában.
+ *
+ * Az `until` csak ott van kitöltve, ahol az idő TÉNY, nem becslés: a hűtés
+ * végénél és a keret napfordulójánál. A menetrend következő nyitása itt nincs
+ * kiszámolva — nulla, és a hívó dolga, hogy ne mutasson visszaszámlálót.
+ */
+export function blockReasonNow(
+  site: Limitable, usage: UsageState, now: number, shared?: SharedToday | null,
+  burst?: BurstState | null,
+): { reason: BlockReason; until: number } | null {
+  if (site.pauseUntil !== null && site.pauseUntil > now) return null;
+  if (isBlockedNow(site, now)) {
+    // A törlésre váró oldal a menetrendjétől FÜGGETLENÜL zár — az nem
+    // időzítés, hanem sima tiltás, tehát a címkéje is az.
+    const scheduled = site.pendingDeleteAt === null && !!site.schedule;
+    return { reason: scheduled ? 'schedule' : 'always', until: 0 };
+  }
+  if (isCoolingDown(burst, now)) return { reason: 'cooldown', until: burst!.cooldownUntil };
+  if (isLimitExhausted(site, usage, now, shared)) {
+    return { reason: 'limit', until: nextDayStartMs(now) };
+  }
+  return null;
+}
+
+/**
+ * Tilt-e MOST az oldal. Az ok-kereső DÖNT, ez csak megkérdezi — így a kettő
+ * fogalmilag nem tud szétcsúszni: nem lehet olyan tiltás, aminek nincs oka,
+ * és olyan ok sem, ami nem tilt.
  */
 export function isBlockedNowWithLimit(
   site: Limitable, usage: UsageState, now: number, shared?: SharedToday | null,
   burst?: BurstState | null,
 ): boolean {
-  if (site.pauseUntil !== null && site.pauseUntil > now) return false;
-  if (isBlockedNow(site, now)) return true;
-  if (isCoolingDown(burst, now)) return true;
-  return isLimitExhausted(site, usage, now, shared);
+  return blockReasonNow(site, usage, now, shared, burst) !== null;
 }
 
 /**

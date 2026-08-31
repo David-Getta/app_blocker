@@ -247,6 +247,27 @@ const WIRES = [
     lost: 'az adag-szabályt nem lehetne beállítani — a mag ott lenne, kapcsoló '
       + 'nélkül',
   },
+  // A ZÁRVA-MAGYARÁZAT LÁNCA. A tiltást a DNS tartja, ez a lánc csak a
+  // MIÉRT-et viszi a böngészőig — de pont ezért a kiesése a legcsendesebb:
+  // minden tiltana tovább, csak a felhasználó bámulna megint nyers hibalapot.
+  {
+    file: 'desktop/src/helper/server.ts',
+    needle: 'closedReason: why?.reason',
+    lost: 'a segéd nem mondaná meg a zárás okát — a híd üres listát adna, a '
+      + 'tiltó lap némán kimaradna',
+  },
+  {
+    file: 'desktop/src/main/main.ts',
+    needle: '!site.blockedNow || !site.closedReason',
+    lost: 'a zárva-lista nem épülne fel a hídra — a bővítmény sosem tudná meg, '
+      + 'mi van zárva és miért',
+  },
+  {
+    file: 'extension/background.js',
+    needle: 'closedFor(link, hostOf(url), now)',
+    lost: 'a bővítmény nem kérdezné meg, zárva-e az oldal — a hűtött oldalra '
+      + 'megint a nyers DNS-hibalap jönne',
+  },
   // A MAI NAP KÜLÖN LISTÁJA. A mag régóta kiszámolta (`topToday`), csak épp
   // senki nem kérdezte meg — a felhasználó kérte ki magának a funkciót.
   {

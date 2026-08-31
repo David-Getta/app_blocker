@@ -54,6 +54,29 @@ function withTimeout(promise, ms) {
   ]);
 }
 
+/**
+ * Ennyi ideig hisszük el a „zárva” listát a legutóbbi SIKERES lehúzás után.
+ *
+ * A szabályokkal ellentétben a zárva-lista PILLANATNYI állapot: a hűtés lejár,
+ * a keret éjfélkor újraindul, a megváltott feloldás azonnal nyit. Ha az app
+ * nincs ott, hogy frissítse, a magyarázó lap fél óra után hazudna — a tiltást
+ * úgyis a DNS tartja, a lapnak csak friss adatból szabad beszélnie. Három
+ * lehúzásnyi idő: egy-két kihagyott kör (alvó gép) még belefér.
+ */
+export const CLOSED_FRESH_MS = 3 * 20 * 1000;
+
+/** Egy zárva-bejegyzés szűrése: csak az ismert alak megy át. */
+function cleanClosed(list) {
+  const reasons = ['always', 'schedule', 'cooldown', 'limit'];
+  return (Array.isArray(list) ? list : [])
+    .filter((c) => c && typeof c.host === 'string' && c.host && reasons.includes(c.reason))
+    .map((c) => ({
+      host: c.host.toLowerCase(),
+      reason: c.reason,
+      until: Number.isFinite(c.until) && c.until > 0 ? c.until : 0,
+    }));
+}
+
 /** @returns {Promise<{token: string|null, port: number|null, rules: {host:string,path:string}[], fetchedAt: number, error: string|null}>} */
 export async function loadLink() {
   const got = await chrome.storage.local.get(KEY);
@@ -83,6 +106,9 @@ export async function loadLink() {
         ? focus.allowSites.filter((h) => typeof h === 'string' && h)
         : [],
     },
+    // A MOST zárva lévő hosztnevek, okkal — a tiltó lap ebből magyaráz. A
+    // frissessége számít, ezért a döntés nem innen, hanem a `closedFor`-ból jön.
+    closed: cleanClosed(raw.closed),
     // Rekordonként tűrünk: egy sérült bejegyzés ne vigye el a többit.
     rules: rules.filter((r) => r && typeof r.host === 'string' && typeof r.path === 'string')
       .map((r) => ({ host: r.host, path: r.path })),
@@ -193,11 +219,14 @@ export async function pullFromApp(now = Date.now(), fetchImpl = fetch, timeoutMs
         host: f.host,
         allow: f.allow.filter((k) => typeof k === 'string' && k),
       }));
+    // Egy régi app válaszában `closed` sincs — az sem hiba: a tiltó lap ilyenkor
+    // egyszerűen nem magyaráz, a DNS pedig ugyanúgy tilt, ahogy eddig.
+    const closed = cleanClosed(body?.closed);
     // Az ÜRES lista is válasz: azt jelenti, hogy az appban levették az összeset.
     // Csak akkor fogadjuk el, ha a kérés tényleg sikerült — ha nem érjük el az
     // appot, a régi lista marad érvényben.
-    await saveLink({ ...link, port, rules, focus, channels, fetchedAt: now, error: null });
-    return { ok: true, rules, focus, channels };
+    await saveLink({ ...link, port, rules, focus, channels, closed, fetchedAt: now, error: null });
+    return { ok: true, rules, focus, channels, closed };
   }
 
   // A PRÓBA idejét megjegyezzük, a szabálylistát viszont nem bántjuk: az app
@@ -254,6 +283,33 @@ export function focusAllows(link, host) {
   const h = String(host ?? '').trim().toLowerCase().replace(/\.+$/, '');
   if (!h) return false;
   return (link?.focus?.allowSites ?? []).some((a) => h === a || h.endsWith(`.${a}`));
+}
+
+/**
+ * Zárva van-e MOST ez a hosztnév az app szerint — és miért.
+ *
+ * Ez magyarázat, nem érvényesítés: a tiltást a DNS tartja, ez a lap szövegét
+ * adja. Ezért itt a hiba iránya a SZOKÁSOS FORDÍTOTTJA: kétes esetben inkább
+ * nem szólunk, mint hogy zárva-t mondjunk egy már kinyílt oldalra —
+ *
+ *   - csak PONTOS hosztnév-egyezés számít (a hosts-fájl is így zár);
+ *   - a lejáratos bejegyzés (hűtés, keret) a saját idejével lejár;
+ *   - az egész lista csak a legutóbbi sikeres lehúzás után CLOSED_FRESH_MS-ig
+ *     él: a lejárat nélküli zárás (sima tiltás, menetrend) is megnyílhat
+ *     időközben az appban, például egy megváltott feloldással.
+ *
+ * @returns {{host:string,reason:string,until:number}|null}
+ */
+export function closedFor(link, host, now = Date.now()) {
+  const h = String(host ?? '').trim().toLowerCase().replace(/\.+$/, '');
+  if (!h) return null;
+  if (!link || now - (link.fetchedAt ?? 0) > CLOSED_FRESH_MS) return null;
+  for (const c of link.closed ?? []) {
+    if (c.host !== h) continue;
+    if (c.until > 0 && c.until <= now) continue;
+    return c;
+  }
+  return null;
 }
 
 export function withAppRules(localActive, appRules) {

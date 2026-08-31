@@ -54,6 +54,14 @@ ugyanazért, amiért a napi keretet: próbatétellel fizettek érte.
 - **iPhone-on NEM érvényesül**: ott nincs előtér-mérés, amiből az adag
   gyűlne. A mezőket a Swift átviszi (különben a szinkron letörölné őket),
   a doksi és ez a fájl kimondja a korlátot.
+- **A böngészőben a tiltó lap magyaráz** (összekötött bővítmény mellett):
+  hűtésnél a nyers „nem sikerült kapcsolódni” hibalap helyett a bővítmény
+  saját lapja jön — kimondja, hogy az adag telt be, és visszaszámol a
+  nyitásig. Ez magyarázat, nem érvényesítés: a tiltást a DNS tartja, a lap
+  pedig csak FRISS adatból beszél (a segéd `closed` listája a hídon; ha az
+  app nem elérhető vagy a hűtés ideje lejárt, a lap inkább hallgat, mint
+  hogy zárva-t mondjon egy már kinyílt oldalra). Bővítmény nélkül — más
+  böngészőben, inkognitóban — marad a hibalap, a tiltás attól még él.
 
 ## Pontosság — kimondva
 

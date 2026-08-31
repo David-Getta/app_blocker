@@ -73,6 +73,10 @@ export interface SiteInfo {
   limitExhausted: boolean;
   /** whether the site is blocked at status time (pause + delete + schedule + budget) */
   blockedNow: boolean;
+  /** ha zár: MIÉRT — sima tiltás / menetrend / hűtés / mai keret */
+  closedReason?: import('./limits').BlockReason;
+  /** meddig zár (epoch ms) — hűtésnél és keretnél tény, egyébként 0 */
+  closedUntil: number;
 }
 
 /**
@@ -295,9 +299,11 @@ export type HelperResponse =
  *         kiegészülve az alias és a hideSiteList mezővel
  * 0.4.0 — fiók és eszközök közti szinkron: sync_* parancsok, a status
  *         kiegészülve a sync mezővel
+ * 0.6.1 — a status oldalanként megmondja a zárás OKÁT is (closedReason,
+ *         closedUntil) — a bővítmény tiltó-lapja ebből magyaráz
  * 0.6.0 — set_burst (adag-szabály), a status oldalanként a hűtés mezőivel
  * 0.2.0 — set_limit (napi időkeret), a status kiegészülve a keret mezőivel
  * 0.1.0 — első kiadás
  */
-export const HELPER_VERSION = '0.6.0';
+export const HELPER_VERSION = '0.6.1';
 export const PAUSE_CHOICES_MIN = [15, 30, 60];

@@ -320,6 +320,51 @@ async function main() {
     await page.waitForTimeout(400);
     const joVisible = await page.isVisible('#joCsatorna').catch(() => false);
     check(joVisible, 'az engedélyezett csatorna lapja megnyílik');
+
+    // --------------------------------- 6. az egészében zárt oldal tiltó lapja
+    // A segéd „zárva” listája: az egész hosztnévre szól, és a bővítmény a
+    // nyers DNS-hibalap HELYETT a saját lapját mutatja — okkal, lejárattal.
+    // A magyarázat csak friss listából beszélhet, ezért a beültetés mindig a
+    // fetchedAt-tal együtt megy.
+    const seedClosed = (closed, fetchedAt) => seeder.evaluate(
+      (arg) => chrome.storage.local.set({
+        'breaker.applink': { ...arg.link, closed: arg.closed, fetchedAt: arg.fetchedAt },
+      }),
+      { link: LINK, closed, fetchedAt },
+    );
+    await seedClosed([{ host: '127.0.0.1', reason: 'cooldown', until: Date.now() + 600_000 }],
+      Date.now());
+    await page.goto(`${base}/`).catch(() => { /* a navigációt elkapja a tiltás */ });
+    const closedBlocked = await waitForBrowserUrl(
+      page, context, /blocked\.html\?.*closedReason=cooldown/, WAIT_MS,
+    );
+    check(!!closedBlocked, 'a hűtés alatt álló oldal a tiltó lapra fut, okkal');
+    if (closedBlocked && /blocked\.html/.test(page.url())) {
+      const text = await page.evaluate(() => document.body.innerText);
+      check(text.includes('Adag betelt') && text.includes('Újranyílik'),
+        'a tiltó lap adag-nyelven magyaráz és visszaszámol');
+    } else if (closedBlocked) {
+      // A Playwright nézete leszakadt — a cím paraméterei igazolnak.
+      check(closedBlocked.includes('until='),
+        'a tiltó lap adag-nyelven magyaráz és visszaszámol');
+    }
+
+    // A LEJÁRT hűtés nem tilt: a DNS már kinyitott, a lapnak hallgatnia kell —
+    // akkor is, ha a bejegyzés még ott ül a tárban.
+    await seedClosed([{ host: '127.0.0.1', reason: 'cooldown', until: Date.now() - 1000 }],
+      Date.now());
+    await page.goto(`${base}/`);
+    await page.waitForTimeout(1200);
+    check((await browserUrl(page, context)) === `${base}/`, 'a lejárt hűtés nem tilt tovább');
+
+    // Az ELAVULT lista egészében néma — a lejárat nélküli zárás is. Az app
+    // zárva volt közben: bármi történhetett (megváltott feloldás, levett
+    // tiltás), a tiltást pedig úgyis a DNS tartja.
+    await seedClosed([{ host: '127.0.0.1', reason: 'always', until: 0 }],
+      Date.now() - 10 * 60_000);
+    await page.goto(`${base}/`);
+    await page.waitForTimeout(1200);
+    check((await browserUrl(page, context)) === `${base}/`, 'az elavult zárva-lista nem tilt');
   } finally {
     await context.close().catch(() => {});
     server.close();

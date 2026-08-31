@@ -44,6 +44,26 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
+          **A tiltó lap megmondja, miért zárva az oldal — és mikor nyílik.**
+          Eddig a DNS-szintű zárás (blokklista, menetrend, betelt napi keret,
+          adag-hűtés) nyers böngésző-hibalapot mutatott — „nem sikerült kapcsolódni”,
+          mintha a net romlott volna el. Mostantól — összekötött
+          bővítmény mellett — a Breaker saját lapja jön helyette: kimondja az
+          okot, hűtésnél és keretnél pedig visszaszámol a nyitásig
+          („Adag betelt — újranyílik magától: még kb. 7 perc”).
+
+          Ez magyarázat, nem érvényesítés: a tiltást továbbra is a DNS
+          tartja, bővítmény nélkül is — más böngészőben és inkognitóban
+          marad a hibalap, de a tiltás ott is él. És a lap csak friss
+          adatból beszél: ha az app nem fut, vagy a hűtés ideje lejárt,
+          inkább hallgat, mint hogy zárva-t mondjon egy már kinyílt oldalra.
+
+          Ehhez a bővítményt frissíteni kell: töltsd le az új
+          `Breaker-bovitmeny` zipet, csomagold ki a régi helyére, és a
+          `chrome://extensions` lapon nyomj rá frissítést.
+
+          ### Ami a v0.4.13-ban jött
+
           **Adag-szabály: ennyi használat után ennyi szünet.** Beállíthatod
           egy oldalra, hogy adott aktív használat után adott időre magától
           visszazárjon, aztán újra kinyíljon — például 2 perc Gemini után
@@ -65,7 +85,7 @@ jobs:
           eszközönkénti, és ezt is kimondjuk (a szinkron tízperces körei egy
           kétperces adaghoz túl lassúk lennének).
 
-          ### Ami a v0.4.12-ben jött
+          #### Ami a v0.4.12-ben jött
 
           **A csatorna-szűrőid átérnek a többi gépedre.** Eddig a szűrők csak
           azon a gépen éltek, ahol felvetted őket. Mostantól — ha be vagy
@@ -75,32 +95,6 @@ jobs:
           (kikapcsolni, új csatornát engedni) csak próbatétellel lehet, és ez
           a szinkronon át sem kerülhető meg — egy régi állapot visszajátszása
           vagy egy vadonatúj, üres gép nem töröl és nem lazít semmit.
-
-          Ha a fiókkiszolgálód régebbi verzió, a szűrők nem érnek át — ezt az
-          app kiírja a fiókkártyán, nem hallgatja el. A kiszolgáló frissítése:
-          ha az appból indítod, magától frissül az app frissítésével; ha
-          Dockerben fut, húzd újra a képet.
-
-          #### Ami a v0.4.11-ben jött
-
-          **Csatorna-idő: melyik csatorna vitte az időt?** Ahol bekapcsolt
-          csatorna-szűrő van, a bővítmény mostantól méri is, melyik csatorna
-          mennyi időt visz — másodpercre, de csak amíg a lap ténylegesen
-          előtérben van. A listák (ma + elmúlt 7 nap) a bővítmény beállítási
-          lapján állnak. Máshol nem gyűjt semmit, és az adat a gépeden marad:
-          nem megy se az appba, se a fiókba.
-
-          **Élő próba a szűrő űrlapján.** Mentés előtt beilleszthetsz egy
-          címet, és azonnal kiderül, mit tenne vele a szűrő — megfogná-e, és
-          ha nem, miért nem: engedélyezett csatorna, nem ide szóló cím, vagy
-          nem csatorna-alakú cím. A lejátszó-címeknél azt is kimondja, hogy
-          ott böngészés közben a lap adata (a feltöltő) dönt.
-
-          A bővítményt a böngésző nem frissíti magától: töltsd le az új
-          `Breaker-bovitmeny` zipet, csomagold ki a régi helyére, és a
-          `chrome://extensions` lapon nyomj rá frissítést. Ha a v0.4.9-es
-          zipet töltötted be és hibát kaptál, ez a zip a javított — a hibáról
-          lentebb, a v0.4.10-nél.
 
           NOTES
           fi

@@ -103,6 +103,16 @@ valamit, amit a felhasználó nem tiltott le.
    gépen marad (a bővítmény tárában): nem megy se az appba, se a fiókba. A
    listák a beállítási lapon állnak (ma + elmúlt 7 nap).
 
+5. **Megmagyarázza az egészében zárt oldalt.** Amit az app DNS-szinten zár
+   (blokklista, menetrend, betelt napi keret, adag-hűtés), azt a böngésző
+   nyers hibalappal mutatná — „nem sikerült kapcsolódni”, mintha a net romlott
+   volna el. Összekötött app mellett a bővítmény ilyenkor a saját lapját
+   mutatja: megnevezi az okot, hűtésnél és keretnél visszaszámol. Ez
+   MAGYARÁZAT, nem érvényesítés — a tiltást a DNS tartja, bővítmény nélkül is.
+   És csak friss adatból beszél: ha az app nem elérhető, vagy a bejegyzés
+   ideje lejárt, a lap inkább hallgat, mint hogy zárva-t mondjon egy már
+   kinyílt oldalra.
+
 ## Fájlok
 
 | Fájl | Mi ez |

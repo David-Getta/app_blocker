@@ -13,7 +13,7 @@ import { normalizeRule } from '../shared/urlrules';
 import { isRunning, normalizePack, summarizeFocus } from '../shared/focus';
 import { noteBurstUsage, normalizeBurst, type BurstRule } from '../shared/burst';
 import {
-  isBlockedNowWithLimit, isLimitExhausted, normalizeLimit, sharedTodaySeconds, usedTodayEverywhere,
+  blockReasonNow, isLimitExhausted, normalizeLimit, sharedTodaySeconds, usedTodayEverywhere,
 } from '../shared/limits';
 import {
   recordSample, summarize, series, labelOf, emptyUsage, combineUsage, siteKey,
@@ -71,27 +71,33 @@ export function statusOf(state: HelperState, dohApplied: boolean): StatusData {
     helperVersion: HELPER_VERSION,
     platform: process.platform,
     channelFilters: state.channelFilters ?? [],
-    sites: state.sites.map((s) => ({
-      id: s.id, domain: s.domain, hostnames: s.hostnames, addedAt: s.addedAt,
-      pauseUntil: s.pauseUntil, pendingDeleteAt: s.pendingDeleteAt,
-      schedule: s.schedule,
-      alias: s.alias,
-      rules: s.rules,
-      dailyLimitSeconds: s.dailyLimitSeconds,
-      burstSeconds: s.burstSeconds,
-      cooldownSeconds: s.cooldownSeconds,
-      // A hűtés vége és az adagból elhasznált idő — a felület ebből mondja
-      // meg, MIÉRT zárva az oldal, és mennyi fér még az adagba.
-      cooldownUntil: state.bursts?.[s.id]?.cooldownUntil ?? 0,
-      burstUsedSeconds: Math.round(state.bursts?.[s.id]?.usedSeconds ?? 0),
-      // A keret KÖZÖS: a mérő a többi eszköz mai idejét is tartalmazza,
-      // különben a felület mást mutatna, mint ami alapján blokkolunk.
-      usedTodaySeconds: Math.round(usedTodayEverywhere(state.usage, state.sharedToday, s.domain, now)),
-      usedTodayElsewhere: Math.round(sharedTodaySeconds(state.sharedToday, s.domain, now)),
-      limitExhausted: isLimitExhausted(s, state.usage, now, state.sharedToday),
-      blockedNow: isBlockedNowWithLimit(s, state.usage, now, state.sharedToday,
-        state.bursts?.[s.id]),
-    })),
+    sites: state.sites.map((s) => {
+      // EGY döntés, oka is van: a tiltás ténye és a miértje ugyanabból a
+      // hívásból jön, tehát nem tud kétfélét mondani.
+      const why = blockReasonNow(s, state.usage, now, state.sharedToday, state.bursts?.[s.id]);
+      return {
+        id: s.id, domain: s.domain, hostnames: s.hostnames, addedAt: s.addedAt,
+        pauseUntil: s.pauseUntil, pendingDeleteAt: s.pendingDeleteAt,
+        schedule: s.schedule,
+        alias: s.alias,
+        rules: s.rules,
+        dailyLimitSeconds: s.dailyLimitSeconds,
+        burstSeconds: s.burstSeconds,
+        cooldownSeconds: s.cooldownSeconds,
+        // A hűtés vége és az adagból elhasznált idő — a felület ebből mondja
+        // meg, MIÉRT zárva az oldal, és mennyi fér még az adagba.
+        cooldownUntil: state.bursts?.[s.id]?.cooldownUntil ?? 0,
+        burstUsedSeconds: Math.round(state.bursts?.[s.id]?.usedSeconds ?? 0),
+        // A keret KÖZÖS: a mérő a többi eszköz mai idejét is tartalmazza,
+        // különben a felület mást mutatna, mint ami alapján blokkolunk.
+        usedTodaySeconds: Math.round(usedTodayEverywhere(state.usage, state.sharedToday, s.domain, now)),
+        usedTodayElsewhere: Math.round(sharedTodaySeconds(state.sharedToday, s.domain, now)),
+        limitExhausted: isLimitExhausted(s, state.usage, now, state.sharedToday),
+        blockedNow: why !== null,
+        closedReason: why?.reason,
+        closedUntil: why?.until ?? 0,
+      };
+    }),
     focusPacks: state.focusPacks ?? [],
     focusSyncError: state.focusSyncError,
     channelsSyncError: state.channelsSyncError,

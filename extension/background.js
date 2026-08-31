@@ -15,7 +15,7 @@ import { addSeconds, dayKey, sweepDays } from './chantime.js';
 import { firstMatch, ruleLabel } from './rules-core.js';
 import { activeRules, load, sweep } from './storage.js';
 import {
-  dueForRefresh, focusActive, focusAllows, loadLink, pullFromApp, withAppRules,
+  closedFor, dueForRefresh, focusActive, focusAllows, loadLink, pullFromApp, withAppRules,
 } from './app-link.js';
 
 /** Csak a főkeret számít: egy beágyazott hirdetés nem „az oldal megnyitása”. */
@@ -47,6 +47,14 @@ async function decide(url) {
       return { reason: 'focus', focus: link.focus };
     }
   }
+
+  // Az EGÉSZBEN zárva lévő oldal (sima tiltás, menetrend, hűtés, betelt keret).
+  // A tiltást a DNS tartja — ez a lépés csak annyit tesz, hogy a nyers hibalap
+  // helyett a saját lapunk mondja meg, miért zárva, és mikor nyílik. A csatorna
+  // és a részleges szabály ELŐTT jön: azok az oldal darabjairól beszélnek, ez
+  // meg arról, hogy most az egész zárva — az a tágabb, tehát az az igazabb ok.
+  const closed = closedFor(link, hostOf(url), now);
+  if (closed) return { reason: 'closed', closed };
 
   // A CSATORNA-SZŰRŐ: az oldalon csak a felsorolt csatornák nyílnak meg. A
   // sorrend szándékos — a munkamenet erősebb (mindenre szól), a szűrő a
@@ -98,6 +106,15 @@ function blockedUrl(hit) {
       focus: hit.focus.name || 'Munkamenet',
       endsAt: String(hit.focus.endsAt || 0),
     });
+    return chrome.runtime.getURL(`blocked.html?${q.toString()}`);
+  }
+  if (hit.reason === 'closed') {
+    const q = new URLSearchParams({
+      closedHost: hit.closed.host,
+      closedReason: hit.closed.reason,
+    });
+    // A lejárat csak ott megy át, ahol tény: a lap ebből számol vissza.
+    if (hit.closed.until > 0) q.set('until', String(hit.closed.until));
     return chrome.runtime.getURL(`blocked.html?${q.toString()}`);
   }
   if (hit.reason === 'channel') {

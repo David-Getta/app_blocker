@@ -195,6 +195,22 @@ if (HELPER_MODE) {
             .filter((f) => f.enabled)
             .map((f) => ({ host: f.host, allow: f.allow }));
         },
+        async () => {
+          // A MOST zárva lévő hosztnevek, okkal. A DNS-réteg így is tilt; ez
+          // csak azért megy le, hogy a bővítmény a nyers hibalap helyett meg
+          // tudja mondani, miért zárva az oldal, és mikor nyílik újra.
+          // Pontosan azok a hosztnevek mennek, amiket a hosts-fájl is zár —
+          // a lap ne magyarázzon olyan címen, amit a DNS át is engedne.
+          const s = await sharedStatus();
+          const out: { host: string; reason: 'always' | 'schedule' | 'cooldown' | 'limit'; until: number }[] = [];
+          for (const site of s.sites ?? []) {
+            if (!site.blockedNow || !site.closedReason) continue;
+            for (const host of site.hostnames ?? []) {
+              out.push({ host, reason: site.closedReason, until: site.closedUntil ?? 0 });
+            }
+          }
+          return out;
+        },
       );
       // Keep the tracker's view of the switch fresh without extra IPC chatter.
       const refreshFocus = (): void => {

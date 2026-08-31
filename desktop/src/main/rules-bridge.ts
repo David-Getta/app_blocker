@@ -40,6 +40,21 @@ export interface BridgeRule {
 }
 
 /**
+ * Egy MOST zárva lévő hosztnév, okkal.
+ *
+ * A DNS-réteg (hosts-fájl) így is, úgy is tilt — ez a lista csak azért megy le,
+ * hogy a bővítmény a nyers hibalap HELYETT meg tudja mondani, MIÉRT nem nyílik
+ * az oldal, és mikor nyílik újra. Magyarázat, nem érvényesítés: ha a bővítmény
+ * nincs ott, a tiltás attól még tiltás.
+ */
+export interface BridgeClosed {
+  host: string;
+  reason: 'always' | 'schedule' | 'cooldown' | 'limit';
+  /** meddig (epoch ms) — hűtésnél és kereté; menetrendnél nulla */
+  until: number;
+}
+
+/**
  * A futó munkamenet, ahogy a bővítménynek kell.
  *
  * Ez FEHÉRLISTA: ha fut, minden más tiltva. A böngésző az egyetlen hely, ahol
@@ -94,6 +109,8 @@ export interface BridgeDeps {
   getFocus?: () => Promise<BridgeFocus>;
   /** a BEKAPCSOLT csatorna-szűrők — a kikapcsoltak a böngészőre nem tartoznak */
   getChannels?: () => Promise<{ host: string; allow: string[] }[]>;
+  /** a MOST zárva lévő hosztnevek, okkal — a tiltó lap ebből magyaráz */
+  getClosed?: () => Promise<BridgeClosed[]>;
   token: string;
   /** csak teszthez: melyik portról induljon */
   startPort?: number;
@@ -137,17 +154,18 @@ export async function answer(
   // kozmetika: a bővítmény három másodperc után továbblép, a sorosan kétszer
   // lekérdezett állapot pedig ennek a duplájába is telhet, és akkor a
   // szabályok CSENDBEN nem frissülnének.
-  const [rules, focus, channels] = await Promise.all([
+  const [rules, focus, channels, closed] = await Promise.all([
     deps.getRules(),
     deps.getFocus ? deps.getFocus() : Promise.resolve({ running: false }),
     deps.getChannels ? deps.getChannels() : Promise.resolve([]),
+    deps.getClosed ? deps.getClosed() : Promise.resolve([]),
   ]);
   // Feljegyezzük, hogy VOLT lehúzás. Enélkül az app csak azt tudja, hogy a híd
   // FUT — azt nem, hogy beszél-e vele bárki. A kettő között pedig ott a
   // legcsendesebb hiba: a felhasználó elindít egy munkamenetet, a fehérlistát
   // viszont senki nem érvényesíti, és minden nyitva marad.
   deps.notePull?.();
-  return { status: 200, body: { protocol: BRIDGE_PROTOCOL, rules, focus, channels } };
+  return { status: 200, body: { protocol: BRIDGE_PROTOCOL, rules, focus, channels, closed } };
 }
 
 /** A híd elindítása. A hívó felelőssége, hogy a kódot megmutassa a felületen. */

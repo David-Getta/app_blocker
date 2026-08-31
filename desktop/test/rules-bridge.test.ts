@@ -158,3 +158,25 @@ test('a csatorna-szűrők is lemennek a hídon — és üresen is mező marad', 
   const none = await answer(deps(), 'GET', '/rules', { [TOKEN_HEADER]: 'ABCD-EFGH' });
   assert.deepEqual((none.body as { channels: unknown }).channels, []);
 });
+
+test('a zárva lévő oldalak okostul lemennek a hídon — üresen is mező marad', async () => {
+  // Ebből magyaráz a bővítmény tiltó-lapja a nyers DNS-hibalap helyett. Ha a
+  // mező kimaradna, semmi nem törne el láthatóan — csak arra nem válaszolna
+  // senki, hogy miért nem megy az oldal, és meddig. Pont az ilyen csendes
+  // kimaradás ellen van ez a teszt.
+  const closed = [
+    { host: 'gemini.google.com', reason: 'cooldown' as const, until: 1_800_000_000_000 },
+    { host: 'youtube.com', reason: 'always' as const, until: 0 },
+  ];
+  const d = {
+    token: 'ABCD-EFGH',
+    getRules: async () => RULES,
+    getClosed: async () => closed,
+  };
+  const r = await answer(d, 'GET', '/rules', { [TOKEN_HEADER]: 'ABCD-EFGH' });
+  assert.equal(r.status, 200);
+  assert.deepEqual((r.body as { closed: unknown }).closed, closed);
+
+  const none = await answer(deps(), 'GET', '/rules', { [TOKEN_HEADER]: 'ABCD-EFGH' });
+  assert.deepEqual((none.body as { closed: unknown }).closed, []);
+});

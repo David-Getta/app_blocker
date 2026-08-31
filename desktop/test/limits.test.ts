@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import * as assert from 'node:assert/strict';
 import {
-  isBlockedNowWithLimit, isLimitExhausted, isLimitLoosening, normalizeLimit, usedTodaySeconds,
+  blockReasonNow, isBlockedNowWithLimit, isLimitExhausted, isLimitLoosening, nextDayStartMs,
+  normalizeLimit, usedTodaySeconds,
 } from '../src/shared/limits';
 import { dayKey, emptyUsage, siteKey, type UsageState } from '../src/shared/usage';
 
@@ -79,4 +80,64 @@ test('nonsense budgets are treated as no budget, and a day is the ceiling', () =
   assert.equal(normalizeLimit(Number.NaN), null);
   assert.equal(normalizeLimit(1200.4), 1200);
   assert.equal(normalizeLimit(99 * 3600), 24 * 3600);
+});
+
+// ---------------------------------------------------------------------------
+// A tiltás OKA — a döntés ezen a függvényen át megy, tehát a kettő nem tud
+// mást mondani: nincs ok nélküli tiltás, és nincs nem-tiltó ok.
+// ---------------------------------------------------------------------------
+
+// Menetrend, ami MOST enged: scheduled_block, aminek a sávja nem fedi a NOW-t.
+const OPEN_SCHEDULE = {
+  mode: 'scheduled_block' as const,
+  bands: [{ days: [0] as (0|1|2|3|4|5|6)[], startMin: 0, endMin: 60 }],
+};
+
+test('minden zárásnak neve van, és a sorrend a döntés sorrendje', () => {
+  const noUse = emptyUsage();
+
+  // Sima blokklistás oldal (nincs menetrend): mindig, lejárat nélkül.
+  assert.deepEqual(blockReasonNow(site(), noUse, NOW), { reason: 'always', until: 0 });
+
+  // Menetrend zár: a neve „schedule” — a mikor nyílikot az app mutatja meg.
+  const closedSched = {
+    mode: 'scheduled_allow' as const,
+    bands: [{ days: [0] as (0|1|2|3|4|5|6)[], startMin: 0, endMin: 60 }],
+  };
+  assert.deepEqual(blockReasonNow(site({ schedule: closedSched }), noUse, NOW),
+    { reason: 'schedule', until: 0 });
+
+  // A törlésre váró oldal menetrendtől FÜGGETLENÜL zár — a címkéje sima tiltás.
+  assert.deepEqual(
+    blockReasonNow(site({ schedule: OPEN_SCHEDULE, pendingDeleteAt: NOW + 3600_000 }), noUse, NOW),
+    { reason: 'always', until: 0 });
+
+  // Hűtés: a lejárat TÉNY — pontosan a hűtés vége.
+  const burst = { usedSeconds: 0, lastAt: NOW - 1000, cooldownUntil: NOW + 300_000 };
+  assert.deepEqual(blockReasonNow(site({ schedule: OPEN_SCHEDULE }), noUse, NOW, null, burst),
+    { reason: 'cooldown', until: NOW + 300_000 });
+
+  // Betelt keret: a lejárat a KÖVETKEZŐ helyi éjfél.
+  const spent = blockReasonNow(
+    site({ schedule: OPEN_SCHEDULE, dailyLimitSeconds: 600 }),
+    usageWith('youtube.com', 600), NOW);
+  assert.equal(spent?.reason, 'limit');
+  assert.equal(spent?.until, nextDayStartMs(NOW));
+  assert.ok((spent?.until ?? 0) > NOW, 'az éjfél előttünk van');
+  assert.equal(dayKey((spent?.until ?? 0) - 1), dayKey(NOW), 'az éjfél előtti pillanat még ma van');
+  assert.notEqual(dayKey(spent?.until ?? 0), dayKey(NOW), 'az éjfél már holnap');
+
+  // Nyitva: nincs ok. A megváltott feloldás pedig MINDENT legyőz — okostul.
+  assert.equal(blockReasonNow(site({ schedule: OPEN_SCHEDULE }), noUse, NOW), null);
+  assert.equal(
+    blockReasonNow(site({ dailyLimitSeconds: 600, pauseUntil: NOW + 60_000 }),
+      usageWith('youtube.com', 9999), NOW, null, burst),
+    null, 'a szünet a hűtésen és a kereten is átüt');
+
+  // A hűtés ERŐSEBB ok, mint a keret: ha mindkettő áll, a hűtés a neve —
+  // annak van közelebbi, valódi lejárata.
+  const both = blockReasonNow(
+    site({ schedule: OPEN_SCHEDULE, dailyLimitSeconds: 600 }),
+    usageWith('youtube.com', 600), NOW, null, burst);
+  assert.equal(both?.reason, 'cooldown');
 });

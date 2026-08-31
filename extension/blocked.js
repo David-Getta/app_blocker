@@ -25,6 +25,69 @@ if (focus) {
   el.textContent = left();
   // Percenként frissül: egy beragadt szám azt sugallná, hogy nem telik az idő.
   setInterval(() => { el.textContent = left(); }, 30_000);
+} else if (params.get('closedReason')) {
+  // Az EGÉSZ oldal zárva (a tiltást a DNS tartja; ez a lap csak megmondja,
+  // miért). Az ok négyféle, és a lap mind a négyről a maga nyelvén beszél —
+  // egy általános „tiltva” pont azt a kérdést hagyná nyitva, amiért ez a lap
+  // egyáltalán létezik: hogy MIKOR és MITŐL nyílik újra.
+  document.getElementById('closedCard').hidden = false;
+  document.getElementById('closedHost').textContent = params.get('closedHost') || 'ez az oldal';
+  const until = Number(params.get('until'));
+  const texts = {
+    cooldown: {
+      title: 'Adag betelt — most szünet van.',
+      body: 'Az adag-szabály, amit beállítottál: ennyi használat után ennyi '
+        + 'szünet. A szünet magától lejár, és az oldal magától kinyílik — '
+        + 'addig minden böngészőben és appban zárva.',
+      foot: 'Nagyobb adagot vagy rövidebb szünetet kérni a Breaker appban '
+        + 'lehet, és próbatételbe kerül. A már futó szünetet az sem engedi '
+        + 'el — az magától jár le.',
+      left: (min) => (min <= 1 ? 'Kevesebb mint egy perc, és újranyílik.'
+        : `Újranyílik magától: még kb. ${min} perc.`),
+    },
+    limit: {
+      title: 'A mai keret betelt.',
+      body: 'Ennyi fért ma ebbe az oldalba — a keret minden eszközöd idejét '
+        + 'együtt számolja, és éjfélkor újraindul.',
+      foot: 'Ma többet csak feloldással lehet: az a Breaker appban megy, és '
+        + 'próbatételbe kerül — különben a keret csak javaslat lenne.',
+      left: (min) => (min >= 90 ? `Éjfélkor újraindul — még kb. ${Math.round(min / 60)} óra.`
+        : `Éjfélkor újraindul — még kb. ${Math.max(min, 1)} perc.`),
+    },
+    schedule: {
+      title: 'Menetrend szerint most zárva.',
+      body: 'Ennek az oldalnak megszabtad, mikor nyithat — most épp zárva '
+        + 'tart. A pontos rendet a Breaker appban látod.',
+      foot: 'A menetrenden lazítani az appban lehet, próbatétellel — '
+        + 'szigorítani ingyen.',
+      left: null,
+    },
+    always: {
+      title: 'Ezt az oldalt te tiltottad le.',
+      body: 'A Breaker blokklistáján van, ezért minden böngészőben és appban '
+        + 'zárva — inkognitóban is.',
+      foot: 'Levenni a Breaker appban lehet, és próbatételbe kerül — épp '
+        + 'azért, hogy egy gyenge pillanat ne legyen elég hozzá.',
+      left: null,
+    },
+  };
+  const t = texts[params.get('closedReason')] ?? texts.always;
+  document.getElementById('closedTitle').textContent = t.title;
+  document.getElementById('closedBody').textContent = t.body;
+  document.getElementById('closedFoot').textContent = t.foot;
+  if (t.left && Number.isFinite(until) && until > 0) {
+    const el = document.getElementById('closedLeft');
+    el.hidden = false;
+    const paint = () => {
+      const min = Math.ceil((until - Date.now()) / 60000);
+      // Lejárt? Nem találgatunk („mindjárt”): megmondjuk, mit tegyen — a
+      // tiltás lapját a böngésző nem cseréli le magától az oldalra.
+      el.textContent = min <= 0 ? 'A szünet letelt — töltsd újra az oldalt.' : t.left(min);
+    };
+    paint();
+    // Fél percenként frissül: egy beragadt szám azt sugallná, hogy áll az idő.
+    setInterval(paint, 30_000);
+  }
 } else if (params.get('channel')) {
   // A csatorna-szűrő fogta meg. A lap kiírja, MILYEN kulcsot látott: az
   // engedélyezéshez így nem kell találgatni — azt kell felvenni, ami itt áll.
