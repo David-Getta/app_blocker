@@ -274,6 +274,16 @@ const WIRES = [
     lost: 'a telefonon a futó hűtésről senki nem szólna — a böngésző hibalapja '
       + 'meghibásodásnak látszana, nem szünetnek',
   },
+  // A MÉRÉS ŐSZINTESÉGE. A tiltott oldal hibalapján mért idő nem használat:
+  // ha mégis könyvelődne, a statisztika hazudna, és a hibalap-percek előre
+  // ürítenék a napi keretet. Androidon a tiltott DNS-kérés eleve nem kelt
+  // észlelést; a gépen ez az egy kapu dönt.
+  {
+    file: 'desktop/src/helper/server.ts',
+    needle: 'blockReasonNow(sampleSite, state.usage, s.at',
+    lost: 'a hibalapon mért percek a statisztikába és a napi keretbe folynának '
+      + '— a mérés hazudna, a keret magától fogyna',
+  },
   // A MAI NAP KÜLÖN LISTÁJA. A mag régóta kiszámolta (`topToday`), csak épp
   // senki nem kérdezte meg — a felhasználó kérte ki magának a funkciót.
   {

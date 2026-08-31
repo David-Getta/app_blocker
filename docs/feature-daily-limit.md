@@ -47,6 +47,19 @@ A „nincs keret” külön választás marad, nem a mező kiürítése: a nulla
 „nincs” két különböző dolog, és egy üres mező nem mondja meg, melyikre
 gondoltál.
 
+## Zárva mért idő nem fogyaszt
+
+A tiltott oldal hibalapján a fül címsorában ott marad a cím, és a mérő
+mérné — a hibalap-percek viszont nem használat. Ezért a mérés kapujában a
+zárva lévő oldal mintája **nem könyvelődik** (Androidon a tiltott DNS-kérés
+eleve nem kelt észlelést, a gépen a segéd hagyja ki — `usage_batch`,
+`skippedClosed`): a statisztika nem hazudik, és menetrendes zárás alatt
+gyűlt idő nem üríti előre a keretet. A megváltott szünet alatt mért idő
+valódi használat — az számít. A kihagyás elszámolt döntés, nem adatvesztés:
+a kézbesítés-őr nem riaszt tőle, és az utolsó mérés ideje is lép. A
+zárás-váltások körüli, legfeljebb egy kötegnyi (~fél perc) elmosódás a
+kötegelt mérés kimondott természete.
+
 ## Adatmodell
 
 A `Site` rekord kap egy opcionális mezőt (mindhárom platformon, visszafelé

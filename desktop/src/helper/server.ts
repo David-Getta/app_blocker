@@ -415,11 +415,14 @@ async function handle(req: HelperRequest, deps: ServerDeps): Promise<unknown> {
       // kulcsa a bejegyzett tartomány (site:…), pont az, amivel az oldal a
       // keretnél is elszámol.
       const burstSites = new Map<string, { id: string; rule: BurstRule }>();
+      const siteByKey = new Map<string, (typeof state.sites)[number]>();
       for (const site of state.sites) {
+        siteByKey.set(siteKey(site.domain), site);
         const rule = normalizeBurst(site.burstSeconds, site.cooldownSeconds);
         if (rule) burstSites.set(siteKey(site.domain), { id: site.id, rule });
       }
       let recorded = 0;
+      let skippedClosed = 0;
       for (const s of samples) {
         if (!s || typeof s.key !== 'string' || !VALID_KEY.test(s.key)) continue;
         if (typeof s.seconds !== 'number' || !Number.isFinite(s.seconds) || s.seconds <= 0) continue;
@@ -427,6 +430,23 @@ async function handle(req: HelperRequest, deps: ServerDeps): Promise<unknown> {
         // A far-off timestamp could evict real history via retention, so a
         // sample may only land within a week of now in either direction.
         if (Math.abs(s.at - now) > 7 * 24 * 3600_000) continue;
+        // A ZÁRVA lévő oldalon mért idő nem könyvelődik — tükörben az
+        // Androiddal, ahol a tiltott DNS-kérés eleve nem kelt észlelést. A
+        // tiltott oldal hibalapján a fül címsorában ott marad a cím, a mérő
+        // mérné; az így gyűlt másodpercek a statisztikát hazudtolnák meg, és
+        // menetrendes zárás alatt előre kiürítenék a napi keretet. A döntés
+        // a minta IDEJÉRE szól (a szünet alatt mért idő valódi használat);
+        // a váltások körüli, legfeljebb egy kötegnyi elmosódás a mérés már
+        // kimondott természete. A minta ettől még ELSZÁMOLT: szándékos
+        // döntés, nem adatvesztés — a kézbesítés-őr ne lássa eldobásnak, és
+        // az utolsó mérés ideje is lép tőle.
+        const sampleSite = siteByKey.get(s.key);
+        if (sampleSite && blockReasonNow(sampleSite, state.usage, s.at, state.sharedToday,
+          state.bursts?.[sampleSite.id]) !== null) {
+          skippedClosed += 1;
+          if (s.at > (state.usageLastSampleAt ?? 0)) state.usageLastSampleAt = s.at;
+          continue;
+        }
         const label = typeof s.label === 'string' ? s.label.slice(0, MAX_LABEL_LENGTH) : undefined;
         recordSample(state.usage, s.key, s.seconds, s.at, label);
         // Az ADAG-SZÁMLÁLÓ ugyanabból a mintából gyűlik, amiből a statisztika:
@@ -443,7 +463,7 @@ async function handle(req: HelperRequest, deps: ServerDeps): Promise<unknown> {
         recorded += 1;
       }
       deps.commit();
-      return { ok: true, recorded };
+      return { ok: true, recorded, skippedClosed };
     }
 
     case 'usage_stats': {

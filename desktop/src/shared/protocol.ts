@@ -299,11 +299,13 @@ export type HelperResponse =
  *         kiegészülve az alias és a hideSiteList mezővel
  * 0.4.0 — fiók és eszközök közti szinkron: sync_* parancsok, a status
  *         kiegészülve a sync mezővel
+ * 0.6.2 — a zárva lévő oldalon mért idő nem könyvelődik (usage_batch:
+ *         skippedClosed) — hibalap-percek nem fogyasztják a keretet
  * 0.6.1 — a status oldalanként megmondja a zárás OKÁT is (closedReason,
  *         closedUntil) — a bővítmény tiltó-lapja ebből magyaráz
  * 0.6.0 — set_burst (adag-szabály), a status oldalanként a hűtés mezőivel
  * 0.2.0 — set_limit (napi időkeret), a status kiegészülve a keret mezőivel
  * 0.1.0 — első kiadás
  */
-export const HELPER_VERSION = '0.6.1';
+export const HELPER_VERSION = '0.6.2';
 export const PAUSE_CHOICES_MIN = [15, 30, 60];

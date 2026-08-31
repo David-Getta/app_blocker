@@ -44,6 +44,17 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
+          **A tiltott oldalon „töltött” idő nem fogyasztja a keretet.** A
+          tiltott oldal hibalapján a fül címsorában ott marad a cím, és a
+          mérő eddig mérhette — a hibalap-percek beleszámoltak a
+          statisztikába, és menetrendes zárás alatt előre üríthették a napi
+          keretet. Mostantól a zárva lévő oldal mintája nem könyvelődik
+          (a telefonon ez eddig is így volt): a statisztika nem hazudik, a
+          keret csak valódi használatból fogy. A megváltott feloldás alatt
+          mért idő valódi használat — az továbbra is számít.
+
+          ### Ami a v0.4.15-ben jött
+
           **A menetrendes zárás is visszaszámol.** A tiltó lap eddig a
           hűtésnél és a napi keretnél mondta meg, mikor nyílik az oldal — a
           menetrendnél csak annyit, hogy „az appban látod”. Mostantól a
@@ -52,7 +63,7 @@ jobs:
           lejárat-szöveg okhoz illő: új napnál a keret újraindulását mondja,
           menetrendnél a nyitást, adagnál a szünet leteltét.
 
-          ### Ami a v0.4.14-ben jött
+          #### Ami a v0.4.14-ben jött
 
           **A tiltó lap megmondja, miért zárva az oldal — és mikor nyílik.**
           Eddig a DNS-szintű zárás (blokklista, menetrend, betelt napi keret,
@@ -77,29 +88,6 @@ jobs:
           Ehhez a bővítményt frissíteni kell: töltsd le az új
           `Breaker-bovitmeny` zipet, csomagold ki a régi helyére, és a
           `chrome://extensions` lapon nyomj rá frissítést.
-
-          #### Ami a v0.4.13-ban jött
-
-          **Adag-szabály: ennyi használat után ennyi szünet.** Beállíthatod
-          egy oldalra, hogy adott aktív használat után adott időre magától
-          visszazárjon, aztán újra kinyíljon — például 2 perc Gemini után
-          10 perc szünet. A napi keret testvére: a keret a napi összesenről
-          szól, ez arról, hogy egyszerre mennyi fér.
-
-          Így működik: az Oldalak fülön az oldal sorában az **Adag** gombbal
-          állítod be a két számot. A tiltás DNS-szinten történik, tehát
-          minden böngészőben és appban él (gépen és Androidon — az iPhone
-          nem mér előteret, ott ez a szabály nem érvényesül, és ezt
-          kimondjuk). Ha egy szünetnyi ideig nem használod az oldalt, a
-          számláló tiszta lappal indul. A sorban látszik, mennyi fér még az
-          adagba; hűtésnél visszaszámol.
-
-          A szabály iránya a megszokott: bevezetni vagy szigorítani egy
-          kattintás, **nagyobb adag, rövidebb szünet vagy a levétel
-          próbatételbe kerül** — a futó hűtést pedig a csere sem engedi el.
-          A beállítás a fiókodon át a többi eszközre is átér; a számláló
-          eszközönkénti, és ezt is kimondjuk (a szinkron tízperces körei egy
-          kétperces adaghoz túl lassúk lennének).
 
           NOTES
           fi

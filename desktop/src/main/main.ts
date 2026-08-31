@@ -103,8 +103,15 @@ if (HELPER_MODE) {
             // sikeres. Ha csak ennyit néznénk, egy csupa eldobott köteg
             // kézbesítettnek látszana, a puffer kiürülne, és a mért idő
             // némán elveszne.
-            const r = await client.call('usage_batch', { samples }) as { recorded?: number };
-            return { delivered: true, recorded: Number(r?.recorded ?? 0) };
+            const r = await client.call('usage_batch', { samples }) as {
+              recorded?: number; skippedClosed?: number;
+            };
+            // A zárva lévő oldalon mért, SZÁNDÉKOSAN nem könyvelt minta itt
+            // elszámoltnak számít: döntés volt, nem veszteség. Nélküle egy
+            // hibalapon nyitva felejtett fül pár perc után hamisan riasztana
+            // azzal, hogy a mért idő elveszik.
+            const handled = Number(r?.recorded ?? 0) + Number(r?.skippedClosed ?? 0);
+            return { delivered: true, recorded: handled };
           } catch {
             // A segéd nem érhető el: a puffer megtartja a mintákat, és a
             // következő kör újrapróbálja. Ez NEM adatvesztés.

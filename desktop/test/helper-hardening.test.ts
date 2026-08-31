@@ -340,3 +340,48 @@ test('hiding the list is a stored setting, and survives a helper restart', async
   const junk = await call('set_hide_list', { hidden: 'igen' as unknown as boolean });
   assert.equal((junk.data as { hideSiteList?: boolean }).hideSiteList, false);
 });
+
+test('a zárva lévő oldalon mért idő nem könyvelődik — de elszámolt', async () => {
+  // A tiltott oldal hibalapján a fül címsorában ott marad a cím, és a mérő
+  // mérné: a hibalap-percek a statisztikát hazudtolnák meg, menetrendes zárás
+  // alatt pedig előre kiürítenék a napi keretet. Androidon a tiltott
+  // DNS-kérés eleve nem kelt észlelést — a gépen itt, a könyvelés kapujában
+  // dől el ugyanez. A kihagyás viszont DÖNTÉS, nem veszteség: a válasz
+  // kimondja (skippedClosed), és az utolsó mérés ideje is lép tőle.
+  const now = Date.now();
+  state.sites.push(
+    { id: 'closed1', domain: 'zarva.example', hostnames: ['zarva.example'],
+      addedAt: now, pauseUntil: null, pendingDeleteAt: null },
+    { id: 'open1', domain: 'nyitva.example', hostnames: ['nyitva.example'],
+      addedAt: now, pauseUntil: now + 3600_000, pendingDeleteAt: null },
+  );
+
+  const res = await call('usage_batch', {
+    samples: [
+      { key: 'site:zarva.example', label: 'zárva', seconds: 30, at: now },
+      { key: 'site:nyitva.example', label: 'szünet alatt', seconds: 20, at: now },
+      { key: 'app:szerkeszto', label: 'Szerkesztő', seconds: 10, at: now },
+    ],
+  });
+  assert.equal(res.ok, true);
+  const data = res.data as { recorded: number; skippedClosed: number };
+  assert.equal(data.recorded, 2, 'a szünetes oldal és az app számít');
+  assert.equal(data.skippedClosed, 1, 'a zárva lévő oldal mintája elszámolt kihagyás');
+
+  const onDisk = JSON.parse(fs.readFileSync(process.env.BREAKER_STATE!, 'utf8')) as HelperState;
+  const today = onDisk.usage.days[onDisk.usage.days.length - 1].seconds;
+  assert.equal(today['site:zarva.example'], undefined, 'hibalap-idő nem került a statisztikába');
+  assert.ok((today['site:nyitva.example'] ?? 0) >= 20,
+    'a megváltott szünet alatt mért idő valódi használat — az számít');
+
+  // Az utolsó mérés ideje a kihagyott mintától IS lép: mértünk, csak nem
+  // könyveltük — a „mérés nem kap adatot” szonda ettől nem riaszthat.
+  const future = now + 5_000;
+  await call('usage_batch', {
+    samples: [{ key: 'site:zarva.example', label: 'zárva', seconds: 5, at: future }],
+  });
+  const stats = (await call('usage_stats', {})).data as { lastSampleAt: number };
+  assert.equal(stats.lastSampleAt, future);
+
+  state.sites = state.sites.filter((s) => s.id !== 'closed1' && s.id !== 'open1');
+});
