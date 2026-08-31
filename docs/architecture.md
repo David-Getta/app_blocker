@@ -373,6 +373,21 @@ minden bizonytalan helyzet a tiltás felé dől:
 | Egy korábbi néven telepített segéd is fut (átnevezés után) | két démon körbe-körbe írja felül egymást a hosts fájlban, folyamatos DNS-ürítéssel, némán | a sorozatos visszatérésre abbahagyjuk a takarítást (a régi blokk marad = több tiltás), és a felület kiírja, mi állítja le |
 | Frissítés után az új GUI a RÉGI helperrel beszél | az ismeretlen parancs `data: undefined`-dal „sikerül” → a felhasználó azt hiszi, beállította a napi keretet | a helper `UNKNOWN_OP`-pal elhasal, a GUI sávban jelzi, és egy gombbal cseréli a démont |
 
+### Az egy kivétel: a magyarázó réteg fordítva dől
+
+Egyetlen réteg van, ahol a hiba helyes iránya NEM a tiltás: a zárva-magyarázat
+(a bővítmény tiltó lapja a DNS-hibalap helyett, és a telefon értesítése futó
+hűtésnél). Ez a réteg nem érvényesít semmit — a tiltást a hosts-fájl és a
+DNS-szűrő tartja —, hanem BESZÉL. Egy elavult „zárva” felirat ezért nem
+szigorítás lenne, hanem hazugság: letagadná a lejárt hűtést, az éjféli
+keret-újraindulást, sőt a próbatétellel megváltott feloldást is.
+
+Ezért itt kétes esetben a hallgatás nyer: a bejegyzés a saját idejével lejár,
+az egész lista pedig csak a legutóbbi sikeres lehúzás után pár körig érvényes
+(`CLOSED_FRESH_MS`). Ha a magyarázat elhallgat, a felhasználó a nyers
+hibalapot látja — pontosan azt, amit eddig; ha viszont hazudna, a rendszer
+legdrágább tulajdonát költené: azt, hogy amit kiír, az igaz.
+
 ### A visszatérő hiba: futás-jelző + soha be nem fejeződő művelet
 
 Ez a projekt legmakacsabb hibamintája, és egyetlen nap alatt NÉGY helyen

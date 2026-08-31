@@ -106,8 +106,10 @@ attól, hogy sokszor csinálod.
   napi összesenről szól, ez arról, hogy egyszerre mennyi fér. Ha egy
   szünetnyi ideig nem használod az oldalt, a számláló tiszta lappal indul.
   Bevezetni vagy szigorítani egy kattintás, **nagyobb adag, rövidebb szünet
-  vagy a levétel próbatételbe kerül**. Részletek:
-  `docs/feature-burst-limit.md`.
+  vagy a levétel próbatételbe kerül**. A tiltás nem néma: a böngészőben a
+  bővítmény tiltó lapja megmondja az okot és visszaszámol (a szünet
+  leteltekor visszautat ad), a telefonon a tartós értesítés beszél.
+  Részletek: `docs/feature-burst-limit.md`.
 
 - **Munkamenetek: „most csak ez mehet”** (gép, Android, iPhone). A blokklista arról szól,
   mi NE menjen; a munkamenet fordítva: csinálsz egy csomagot (pl.
