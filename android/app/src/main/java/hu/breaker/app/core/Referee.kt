@@ -150,6 +150,10 @@ object Referee {
             else if (s.pendingLimit != null) site.copy(
                 dailyLimitSeconds = if (s.pendingLimit < 0) null else s.pendingLimit,
             )
+            else if (s.pendingBurst != null) site.copy(
+                burstSeconds = if (s.pendingBurst < 0) null else s.pendingBurst,
+                cooldownSeconds = if (s.pendingBurst < 0) null else s.pendingCooldown,
+            )
             else if (s.pendingRuleRemoval != null) site.copy(
                 rules = (site.rules ?: emptyList())
                     .filterNot { UrlRules.sameRule(it, s.pendingRuleRemoval) },
@@ -234,6 +238,51 @@ object Referee {
                 id = BreakerStore.newId("ses"), kind = Kind.PAUSE, siteId = siteId, minutes = null,
                 steps = armCurrent(plan.steps, 0, now), stepIndex = 0, createdAt = now,
                 pendingLimit = next ?: -1L,
+            )
+            result = LimitChangeResult(applied = false, session = session)
+            state.copy(session = session, lastCombo = plan.comboKey)
+        }
+        return result!!
+    }
+
+    /**
+     * Adag-szabály állítása: ennyi használat után ennyi szünet. Felvenni,
+     * kisebb adagra vagy hosszabb szünetre állítani szigorítás — azonnal él.
+     * Nagyobb adag, rövidebb szünet vagy a levétel próbatételbe kerül. A futó
+     * hűtést a csere nem engedi el: az magától jár le.
+     */
+    fun startBurstChange(
+        siteId: String, burstSeconds: Long?, cooldownSeconds: Long?, now: Long,
+    ): LimitChangeResult {
+        var result: LimitChangeResult? = null
+        BreakerStore.mutate { state ->
+            val site = state.sites.find { it.id == siteId }
+                ?: throw RefereeException("Ismeretlen oldal.", "NO_SITE")
+            if (state.session != null) {
+                throw RefereeException("Előbb fejezd be a folyamatban lévő kísérletet.", "BUSY")
+            }
+            val next = BurstLogic.normalize(burstSeconds, cooldownSeconds)
+            if (next == null && (burstSeconds != null || cooldownSeconds != null)) {
+                throw RefereeException("Az adaghoz mindkét szám kell: használat is, szünet is.", "BAD_BURST")
+            }
+            val current = BurstLogic.normalize(site.burstSeconds, site.cooldownSeconds)
+            if (!BurstLogic.isLoosening(current, next)) {
+                result = LimitChangeResult(applied = true, session = null)
+                return@mutate state.copy(sites = state.sites.map {
+                    if (it.id == siteId) it.copy(
+                        burstSeconds = next?.burstSeconds, cooldownSeconds = next?.cooldownSeconds,
+                    ) else it
+                })
+            }
+            val tier = effectiveTier(state, Kind.PAUSE, now)
+            val plan = ChallengeEngine.generatePlan(
+                Kind.PAUSE, tier, state.lastCombo, forcedCombo(state, siteId, now),
+            )
+            val session = SessionRec(
+                id = BreakerStore.newId("ses"), kind = Kind.PAUSE, siteId = siteId, minutes = null,
+                steps = armCurrent(plan.steps, 0, now), stepIndex = 0, createdAt = now,
+                pendingBurst = next?.burstSeconds ?: -1L,
+                pendingCooldown = next?.cooldownSeconds ?: -1L,
             )
             result = LimitChangeResult(applied = false, session = session)
             state.copy(session = session, lastCombo = plan.comboKey)

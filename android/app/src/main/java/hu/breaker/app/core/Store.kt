@@ -21,6 +21,10 @@ data class Site(
     val schedule: ScheduleLogic.Schedule? = null,
     /** napi aktív-idő keret másodpercben; null = nincs keret */
     val dailyLimitSeconds: Long? = null,
+    /** adag-szabály: ennyi használat után… (mp; csak a szünettel együtt értelmes) */
+    val burstSeconds: Long? = null,
+    /** …ennyi szünet (mp). A számláló nem itt él — az eszköz-helyi (AppState.bursts). */
+    val cooldownSeconds: Long? = null,
     /** fedőnév: ha van, a felület ezt írja ki a cím helyett (AliasLogic) */
     val alias: String? = null,
     /**
@@ -59,6 +63,9 @@ data class SessionRec(
     /** when set, finishing applies this daily budget instead of pausing;
      *  a -1 érték azt jelenti: „vedd le a keretet” (mindkettő kapuzott lazítás) */
     val pendingLimit: Long? = null,
+    /** -1 az adagon = „vedd le a szabályt”; egyébként a beállítandó pár (mp) */
+    val pendingBurst: Long? = null,
+    val pendingCooldown: Long? = null,
     /** ha van, a teljesítés EZT a részleges szabályt veszi le (kapuzott lazítás) */
     val pendingRuleRemoval: UrlRules.UrlRule? = null,
     /**
@@ -124,6 +131,13 @@ data class AppState(
      * hozza — éjfélkor magától kiürül.
      */
     val sharedToday: LimitLogic.SharedToday? = null,
+    /**
+     * Adag-számlálók oldalanként (kulcs: site id) — EZEN a készüléken.
+     *
+     * Szándékosan nem a Site rekordon és nem a dróton: a szinkron tízperces
+     * körökben jár, egy kétperces adaghoz az túl lassú. Lásd core/Burst.kt.
+     */
+    val bursts: Map<String, BurstLogic.State> = emptyMap(),
     /**
      * Munkamenet-csomagok: „most csak EZ mehet”.
      *
@@ -219,7 +233,8 @@ object BreakerStore {
         val state = _state.value
         val out = mutableSetOf<String>()
         for (site in state.sites) {
-            if (LimitLogic.isBlockedNowWithLimit(site, state.usage, now, state.sharedToday)) out.addAll(site.hostnames)
+            if (LimitLogic.isBlockedNowWithLimit(site, state.usage, now, state.sharedToday,
+                    state.bursts[site.id])) out.addAll(site.hostnames)
         }
         return out
     }
@@ -370,6 +385,8 @@ object BreakerStore {
                 put("pendingDeleteAt", site.pendingDeleteAt ?: JSONObject.NULL)
                 put("schedule", site.schedule?.let { scheduleToJson(it) } ?: JSONObject.NULL)
                 put("dailyLimitSeconds", site.dailyLimitSeconds ?: JSONObject.NULL)
+                put("burstSeconds", site.burstSeconds ?: JSONObject.NULL)
+                put("cooldownSeconds", site.cooldownSeconds ?: JSONObject.NULL)
                 put("alias", site.alias ?: JSONObject.NULL)
                 // A hiányzó kulcs és az üres tömb KÉT KÜLÖNBÖZŐ dolog: az első
                 // azt jelenti, hogy nincs tudomásunk szabályokról, a második
@@ -401,6 +418,15 @@ object BreakerStore {
                 }))
             }
         } ?: JSONObject.NULL)
+        // Az adag-számlálók. Blokkolási döntés függ tőlük: az app kilövése
+        // nem törölheti a futó hűtést — az feloldás lenne, próbatétel nélkül.
+        put("bursts", JSONObject(s.bursts.mapValues { (_, b) ->
+            JSONObject().apply {
+                put("usedSeconds", b.usedSeconds)
+                put("lastAt", b.lastAt)
+                put("cooldownUntil", b.cooldownUntil)
+            }
+        }))
         // A munkamenet. Blokkolási döntés függ tőle (fehérlista!), ezért
         // újraindulás után is meg kell maradnia — enélkül az app kilövése
         // feloldás lenne, próbatétel nélkül.
@@ -443,6 +469,8 @@ object BreakerStore {
                 put("steps", JSONArray(ses.steps.map { stepToJson(it) }))
                 put("pendingSchedule", ses.pendingSchedule?.let { scheduleToJson(it) } ?: JSONObject.NULL)
                 put("pendingLimit", ses.pendingLimit ?: JSONObject.NULL)
+                put("pendingBurst", ses.pendingBurst ?: JSONObject.NULL)
+                put("pendingCooldown", ses.pendingCooldown ?: JSONObject.NULL)
                 put("pendingRuleRemoval", ses.pendingRuleRemoval?.let { r ->
                     JSONObject().apply { put("host", r.host); put("path", r.path) }
                 } ?: JSONObject.NULL)
@@ -530,6 +558,8 @@ object BreakerStore {
                         pendingDeleteAt = if (s.isNull("pendingDeleteAt")) null else s.getLong("pendingDeleteAt"),
                         schedule = if (s.isNull("schedule")) null else scheduleFromJson(s.getJSONObject("schedule")),
                         dailyLimitSeconds = if (s.isNull("dailyLimitSeconds")) null else s.getLong("dailyLimitSeconds"),
+                        burstSeconds = if (s.isNull("burstSeconds")) null else s.getLong("burstSeconds"),
+                        cooldownSeconds = if (s.isNull("cooldownSeconds")) null else s.getLong("cooldownSeconds"),
                         // Betöltéskor is normalizálunk: egy régebbi (vagy kézzel
                         // szerkesztett) állapotból is csak tiszta név jöhet be.
                         alias = AliasLogic.normalize(if (s.isNull("alias")) null else s.optString("alias")),
@@ -563,6 +593,8 @@ object BreakerStore {
                     pendingSchedule = if (ses.isNull("pendingSchedule")) null
                         else scheduleFromJson(ses.getJSONObject("pendingSchedule")),
                     pendingLimit = if (ses.isNull("pendingLimit")) null else ses.getLong("pendingLimit"),
+                    pendingBurst = if (ses.isNull("pendingBurst")) null else ses.getLong("pendingBurst"),
+                    pendingCooldown = if (ses.isNull("pendingCooldown")) null else ses.getLong("pendingCooldown"),
                     pendingRuleRemoval = if (ses.isNull("pendingRuleRemoval")) null else {
                         val r = ses.getJSONObject("pendingRuleRemoval")
                         UrlRules.normalizeRule(r.optString("host") + r.optString("path"))
@@ -627,6 +659,18 @@ object BreakerStore {
                 }
                 LimitLogic.SharedToday(sh.getString("selfDeviceId"), devices)
             }.getOrNull(),
+            bursts = o.optJSONObject("bursts")?.let { bo ->
+                bo.keys().asSequence().mapNotNull { k ->
+                    runCatching {
+                        val b = bo.getJSONObject(k)
+                        k to BurstLogic.State(
+                            usedSeconds = b.optDouble("usedSeconds", 0.0),
+                            lastAt = b.optLong("lastAt", 0),
+                            cooldownUntil = b.optLong("cooldownUntil", 0),
+                        )
+                    }.getOrNull()
+                }.toMap()
+            } ?: emptyMap(),
             focusPacks = focusPacks,
             // A futás csak akkor él, ha a csomagja megvan: nem tippelünk, mert a
             // fehérlista TARTALMA nem az a dolog, amit kitalálni szabad.

@@ -101,6 +101,14 @@ attól, hogy sokszor csinálod.
   feloldás. Amíg van keret, a mérés nem kapcsolható ki — abból fogy.
   iPhone-on ez nem építhető meg (nincs ilyen mérési API), lásd a korlátokat.
 
+- **Adag-szabály oldalanként** (asztali gép + Android): „2 perc Gemini után
+  10 perc szünet, aztán magától kinyílik”. A napi keret testvére: a keret a
+  napi összesenről szól, ez arról, hogy egyszerre mennyi fér. Ha egy
+  szünetnyi ideig nem használod az oldalt, a számláló tiszta lappal indul.
+  Bevezetni vagy szigorítani egy kattintás, **nagyobb adag, rövidebb szünet
+  vagy a levétel próbatételbe kerül**. Részletek:
+  `docs/feature-burst-limit.md`.
+
 - **Munkamenetek: „most csak ez mehet”** (gép, Android, iPhone). A blokklista arról szól,
   mi NE menjen; a munkamenet fordítva: csinálsz egy csomagot (pl.
   „Nyelvtanulás”), felsorolod, mi mehet alatta, és megadod, meddig tartson.

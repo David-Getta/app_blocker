@@ -100,7 +100,7 @@ const GROUPS = [
   {
     what: 'egy blokkolt oldal',
     names: ['id', 'domain', 'hostnames', 'addedAt', 'pendingDeleteAt', 'schedule',
-      'dailyLimitSeconds', 'alias', 'rules'],
+      'dailyLimitSeconds', 'burstSeconds', 'cooldownSeconds', 'alias', 'rules'],
     ts: 'desktop/src/shared/sync/merge.ts',
     kt: 'android/app/src/main/java/hu/breaker/app/core/SyncClient.kt',
     swift: 'ios/Shared/SyncMerge.swift',

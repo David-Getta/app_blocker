@@ -35,6 +35,9 @@ object SyncMerge {
         val pendingDeleteAt: Long? = null,
         val schedule: ScheduleLogic.Schedule? = null,
         val dailyLimitSeconds: Long? = null,
+        /** adag-szabály: a kettő csak együtt értelmes (lásd core/Burst.kt) */
+        val burstSeconds: Long? = null,
+        val cooldownSeconds: Long? = null,
         val alias: String? = null,
         /**
          * Részleges szabályok (`youtube.com/@valaki`).
@@ -111,6 +114,17 @@ object SyncMerge {
         val aLim = a.dailyLimitSeconds ?: Long.MAX_VALUE
         val bLim = b.dailyLimitSeconds ?: Long.MAX_VALUE
         if (aLim != bLim) return if (aLim < bLim) -1 else 1
+
+        // Adag-szabály: kisebb adag szigorúbb; azonos adagnál a hosszabb
+        // szünet. A szabály nélküli a leglazább — mint a keretnél.
+        val aB = BurstLogic.normalize(a.burstSeconds, a.cooldownSeconds)
+        val bB = BurstLogic.normalize(b.burstSeconds, b.cooldownSeconds)
+        val aBurst = aB?.burstSeconds ?: Long.MAX_VALUE
+        val bBurst = bB?.burstSeconds ?: Long.MAX_VALUE
+        if (aBurst != bBurst) return if (aBurst < bBurst) -1 else 1
+        val aCool = aB?.cooldownSeconds ?: 0
+        val bCool = bB?.cooldownSeconds ?: 0
+        if (aCool != bCool) return if (aCool > bCool) -1 else 1
 
         return 0
     }

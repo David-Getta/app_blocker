@@ -22,6 +22,7 @@
 //
 // A doksi: docs/feature-accounts-sync.md
 
+import { normalizeBurst } from '../burst.js';
 import type { Schedule, Band, Weekday } from '../schedule.js';
 import { ALWAYS, normalizeSchedule } from '../schedule.js';
 import { MAX_RULES_PER_SITE, normalizeRule, sameRule, type UrlRule } from '../urlrules.js';
@@ -42,6 +43,10 @@ export interface SyncSite {
   pendingDeleteAt: number | null;
   schedule?: Schedule;
   dailyLimitSeconds?: number;
+  /** adag-szabály: ennyi használat után… (a kettő csak együtt értelmes) */
+  burstSeconds?: number;
+  /** …ennyi szünet. A SZÁMLÁLÓ nem utazik — az eszköz-helyi (shared/burst.ts). */
+  cooldownSeconds?: number;
   alias?: string;
   /**
    * Részleges szabályok (`youtube.com/@valaki`).
@@ -152,6 +157,15 @@ export function compareStrictness(a: SyncSite, b: SyncSite): number {
   const aLim = limitRank(a.dailyLimitSeconds);
   const bLim = limitRank(b.dailyLimitSeconds);
   if (aLim !== bLim) return aLim < bLim ? -1 : 1;
+
+  // Adag-szabály: kisebb adag szigorúbb; azonos adagnál a hosszabb szünet.
+  // A szabály nélküli rekord a legmegengedőbb — mint a keretnél.
+  const aBurst = limitRank(normalizeBurst(a.burstSeconds, a.cooldownSeconds)?.burstSeconds);
+  const bBurst = limitRank(normalizeBurst(b.burstSeconds, b.cooldownSeconds)?.burstSeconds);
+  if (aBurst !== bBurst) return aBurst < bBurst ? -1 : 1;
+  const aCool = normalizeBurst(a.burstSeconds, a.cooldownSeconds)?.cooldownSeconds ?? 0;
+  const bCool = normalizeBurst(b.burstSeconds, b.cooldownSeconds)?.cooldownSeconds ?? 0;
+  if (aCool !== bCool) return aCool > bCool ? -1 : 1;
 
   return 0;
 }

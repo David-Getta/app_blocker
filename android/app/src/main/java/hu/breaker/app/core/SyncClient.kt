@@ -151,7 +151,9 @@ object SyncClient {
         SyncMerge.SyncSite(
             id = s.id, domain = s.domain, hostnames = s.hostnames, addedAt = s.addedAt,
             pendingDeleteAt = s.pendingDeleteAt, schedule = s.schedule,
-            dailyLimitSeconds = s.dailyLimitSeconds, alias = s.alias, rules = s.rules,
+            dailyLimitSeconds = s.dailyLimitSeconds,
+            burstSeconds = s.burstSeconds, cooldownSeconds = s.cooldownSeconds,
+            alias = s.alias, rules = s.rules,
             rev = maxOf(s.rev, 1), updatedAt = s.updatedAt, updatedBy = s.updatedBy,
         )
     }
@@ -167,6 +169,7 @@ object SyncClient {
                     pauseUntil = mine?.pauseUntil,
                     pendingDeleteAt = m.pendingDeleteAt,
                     schedule = m.schedule, dailyLimitSeconds = m.dailyLimitSeconds,
+                    burstSeconds = m.burstSeconds, cooldownSeconds = m.cooldownSeconds,
                     alias = m.alias, rules = m.rules,
                     rev = m.rev, updatedAt = m.updatedAt, updatedBy = m.updatedBy,
                 )
@@ -204,6 +207,8 @@ object SyncClient {
                     }))
                 })
                 if (s.dailyLimitSeconds != null) put("dailyLimitSeconds", s.dailyLimitSeconds)
+                if (s.burstSeconds != null) put("burstSeconds", s.burstSeconds)
+                if (s.cooldownSeconds != null) put("cooldownSeconds", s.cooldownSeconds)
                 if (s.alias != null) put("alias", s.alias)
                 // A kulcs csak akkor kerül bele, ha VAN mit mondani: a hiányzó
                 // kulcs azt jelenti, hogy nincs tudomásunk szabályokról, az
@@ -234,6 +239,8 @@ object SyncClient {
                     pendingDeleteAt = if (o.isNull("pendingDeleteAt")) null else o.getLong("pendingDeleteAt"),
                     schedule = if (o.isNull("schedule")) null else scheduleFromJson(o.getJSONObject("schedule")),
                     dailyLimitSeconds = if (o.isNull("dailyLimitSeconds")) null else o.getLong("dailyLimitSeconds"),
+                    burstSeconds = if (o.isNull("burstSeconds")) null else o.getLong("burstSeconds"),
+                    cooldownSeconds = if (o.isNull("cooldownSeconds")) null else o.getLong("cooldownSeconds"),
                     alias = AliasLogic.normalize(if (o.isNull("alias")) null else o.optString("alias")),
                     rules = rulesFromJson(o),
                     rev = o.optInt("rev", 1),

@@ -42,6 +42,14 @@ export interface SiteInfo {
   schedule?: import('./schedule').Schedule;
   /** daily active-time budget in seconds (absent = no budget) */
   dailyLimitSeconds?: number;
+  /** adag-szabály: ennyi használat után… (másodperc; csak a szünettel együtt) */
+  burstSeconds?: number;
+  /** …ennyi szünet (másodperc) */
+  cooldownSeconds?: number;
+  /** a futó hűtés vége (epoch ms), vagy 0, ha nincs hűtés */
+  cooldownUntil: number;
+  /** a mostani adagból elhasznált másodpercek EZEN a gépen */
+  burstUsedSeconds: number;
   /** fedőnév: ha van, a felület ezt mutatja a cím helyett */
   alias?: string;
   /**
@@ -180,6 +188,10 @@ export type HelperRequest =
   | { id: number; op: 'relock'; siteId: string }
   | { id: number; op: 'set_schedule'; siteId: string; schedule: import('./schedule').Schedule }
   | { id: number; op: 'set_limit'; siteId: string; seconds: number | null }
+  | {
+    id: number; op: 'set_burst'; siteId: string;
+    burstSeconds: number | null; cooldownSeconds: number | null;
+  }
   // A fedőnév NEM lazítás: az oldal ettől ugyanúgy blokkolva marad, csak nem a
   // címe áll a listán. Ezért próbatétel nélkül állítható, mindkét irányba.
   | { id: number; op: 'set_alias'; siteId: string; alias: string | null }
@@ -283,8 +295,9 @@ export type HelperResponse =
  *         kiegészülve az alias és a hideSiteList mezővel
  * 0.4.0 — fiók és eszközök közti szinkron: sync_* parancsok, a status
  *         kiegészülve a sync mezővel
+ * 0.6.0 — set_burst (adag-szabály), a status oldalanként a hűtés mezőivel
  * 0.2.0 — set_limit (napi időkeret), a status kiegészülve a keret mezőivel
  * 0.1.0 — első kiadás
  */
-export const HELPER_VERSION = '0.5.0';
+export const HELPER_VERSION = '0.6.0';
 export const PAUSE_CHOICES_MIN = [15, 30, 60];

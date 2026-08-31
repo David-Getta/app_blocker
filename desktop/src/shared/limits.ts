@@ -11,6 +11,7 @@
 
 // A .js kiterjesztés kötelező: ez a fájl a felületre is bekerül, és a böngésző
 // natív ESM-betöltője kiterjesztés nélkül nem oldja fel a hivatkozást.
+import { isCoolingDown, type BurstState } from './burst.js';
 import { isBlockedNow, type Blockable } from './schedule.js';
 import { dayKey, siteKey, type UsageState } from './usage.js';
 
@@ -47,18 +48,24 @@ export function isLimitExhausted(
 }
 
 /**
- * The whole blocking decision: pause, pending delete, weekly schedule AND the
- * daily budget.
+ * The whole blocking decision: pause, pending delete, weekly schedule, the
+ * daily budget AND the burst cooldown.
  *
  * Order matters. An active pause still wins over everything — it was paid for
- * with a challenge, and having it silently overridden by a budget would make
- * the unlock the user just earned worthless. Everything else blocks.
+ * with a challenge, and having it silently overridden by a budget (or a
+ * cooldown) would make the unlock the user just earned worthless. Everything
+ * else blocks.
+ *
+ * A `burst` az adag-számláló EZEN a gépen (shared/burst.ts) — a hívó adja át,
+ * mert az nem a rekordon él, hanem a segéd állapotában.
  */
 export function isBlockedNowWithLimit(
   site: Limitable, usage: UsageState, now: number, shared?: SharedToday | null,
+  burst?: BurstState | null,
 ): boolean {
   if (site.pauseUntil !== null && site.pauseUntil > now) return false;
   if (isBlockedNow(site, now)) return true;
+  if (isCoolingDown(burst, now)) return true;
   return isLimitExhausted(site, usage, now, shared);
 }
 

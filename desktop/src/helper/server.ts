@@ -11,11 +11,12 @@ import { computeTier } from '../shared/challenges';
 import { normalizeAlias } from '../shared/alias';
 import { normalizeRule } from '../shared/urlrules';
 import { isRunning, normalizePack, summarizeFocus } from '../shared/focus';
+import { noteBurstUsage, normalizeBurst, type BurstRule } from '../shared/burst';
 import {
   isBlockedNowWithLimit, isLimitExhausted, normalizeLimit, sharedTodaySeconds, usedTodayEverywhere,
 } from '../shared/limits';
 import {
-  recordSample, summarize, series, labelOf, emptyUsage, combineUsage,
+  recordSample, summarize, series, labelOf, emptyUsage, combineUsage, siteKey,
   MAX_KEY_LENGTH, MAX_LABEL_LENGTH, MAX_BATCH_SAMPLES,
 } from '../shared/usage';
 import type { UsageSummary } from '../shared/usage';
@@ -77,12 +78,19 @@ export function statusOf(state: HelperState, dohApplied: boolean): StatusData {
       alias: s.alias,
       rules: s.rules,
       dailyLimitSeconds: s.dailyLimitSeconds,
+      burstSeconds: s.burstSeconds,
+      cooldownSeconds: s.cooldownSeconds,
+      // A hűtés vége és az adagból elhasznált idő — a felület ebből mondja
+      // meg, MIÉRT zárva az oldal, és mennyi fér még az adagba.
+      cooldownUntil: state.bursts?.[s.id]?.cooldownUntil ?? 0,
+      burstUsedSeconds: Math.round(state.bursts?.[s.id]?.usedSeconds ?? 0),
       // A keret KÖZÖS: a mérő a többi eszköz mai idejét is tartalmazza,
       // különben a felület mást mutatna, mint ami alapján blokkolunk.
       usedTodaySeconds: Math.round(usedTodayEverywhere(state.usage, state.sharedToday, s.domain, now)),
       usedTodayElsewhere: Math.round(sharedTodaySeconds(state.sharedToday, s.domain, now)),
       limitExhausted: isLimitExhausted(s, state.usage, now, state.sharedToday),
-      blockedNow: isBlockedNowWithLimit(s, state.usage, now, state.sharedToday),
+      blockedNow: isBlockedNowWithLimit(s, state.usage, now, state.sharedToday,
+        state.bursts?.[s.id]),
     })),
     focusPacks: state.focusPacks ?? [],
     focusSyncError: state.focusSyncError,
@@ -196,6 +204,17 @@ async function handle(req: HelperRequest, deps: ServerDeps): Promise<unknown> {
 
     case 'set_limit': {
       const result = referee.startLimitChange(state, req.siteId, req.seconds, now);
+      deps.commit();
+      return result;
+    }
+
+    case 'set_burst': {
+      // Az adag-szabály: ennyi használat után ennyi szünet. A lazítást a
+      // referee kapuzza — itt csak a kérés megy át rajta, és az eredmény
+      // rögzül.
+      const result = referee.startBurstChange(
+        state, req.siteId, req.burstSeconds, req.cooldownSeconds, now,
+      );
       deps.commit();
       return result;
     }
@@ -386,6 +405,14 @@ async function handle(req: HelperRequest, deps: ServerDeps): Promise<unknown> {
       // without bound — and once it passes what JSON.stringify can produce,
       // NOTHING can be persisted again. Validate before recording.
       const samples = Array.isArray(req.samples) ? req.samples.slice(0, MAX_BATCH_SAMPLES) : [];
+      // Az adag-szabályos oldalak kulcs szerint, egyszer kigyűjtve: a mérés
+      // kulcsa a bejegyzett tartomány (site:…), pont az, amivel az oldal a
+      // keretnél is elszámol.
+      const burstSites = new Map<string, { id: string; rule: BurstRule }>();
+      for (const site of state.sites) {
+        const rule = normalizeBurst(site.burstSeconds, site.cooldownSeconds);
+        if (rule) burstSites.set(siteKey(site.domain), { id: site.id, rule });
+      }
       let recorded = 0;
       for (const s of samples) {
         if (!s || typeof s.key !== 'string' || !VALID_KEY.test(s.key)) continue;
@@ -396,6 +423,13 @@ async function handle(req: HelperRequest, deps: ServerDeps): Promise<unknown> {
         if (Math.abs(s.at - now) > 7 * 24 * 3600_000) continue;
         const label = typeof s.label === 'string' ? s.label.slice(0, MAX_LABEL_LENGTH) : undefined;
         recordSample(state.usage, s.key, s.seconds, s.at, label);
+        // Az ADAG-SZÁMLÁLÓ ugyanabból a mintából gyűlik, amiből a statisztika:
+        // ha betelik, a commit lenti hosts-frissítése azonnal tilt is.
+        const b = burstSites.get(s.key);
+        if (b) {
+          state.bursts = state.bursts ?? {};
+          state.bursts[b.id] = noteBurstUsage(b.rule, state.bursts[b.id], s.seconds, s.at);
+        }
         // A LEGKÉSŐBBI elfogadott minta ideje. Nem a `now`: egy köteg
         // percekkel korábbi szeleteket is hozhat, és a kérdés az, hogy mikor
         // MÉRTÜNK, nem az, hogy mikor ért ide a csomag.

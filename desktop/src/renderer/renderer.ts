@@ -15,6 +15,7 @@ import {
 import { HELPER_VERSION } from '../shared/protocol.js';
 // A .js itt sem elhagyható: a böngésző natív ESM-betöltője oldja fel futásidőben.
 import { normalizeRule, ruleLabel } from '../shared/urlrules.js';
+import { MAX_BURST_MINUTES, MAX_COOLDOWN_MINUTES, normalizeBurst } from '../shared/burst.js';
 import { MAX_LIMIT_MINUTES } from '../shared/limits.js';
 import {
   formatRemaining, MAX_ALLOW_ENTRIES, MAX_PACK_NAME, MAX_SESSION_MINUTES,
@@ -1451,6 +1452,7 @@ function siteRow(site: SiteInfo, st: StatusData): HTMLElement {
   const actions = h('div', 'site-actions');
 
   let meterEl: HTMLElement | null = null;
+  let burstEl: HTMLElement | null = null;
   const paused = site.pauseUntil !== null && site.pauseUntil > now;
   const deleting = site.pendingDeleteAt !== null;
 
@@ -1461,6 +1463,7 @@ function siteRow(site: SiteInfo, st: StatusData): HTMLElement {
     // Ha ezt elrejtenénk, a szünet végén jönne a meglepetés, hogy az oldal
     // azonnal zár. Inkább látszódjon, amíg lehet vele kezdeni valamit.
     if (site.dailyLimitSeconds) meterEl = limitMeter(site, true);
+    burstEl = burstMeter(site, now);
     const relock = h('button', 'btn btn-small', 'Blokkolás visszakapcsolása most');
     relock.addEventListener('click', () => void doSimple('relock', { siteId: site.id }));
     actions.appendChild(relock);
@@ -1480,6 +1483,7 @@ function siteRow(site: SiteInfo, st: StatusData): HTMLElement {
       statusEl.appendChild(h('span', 'pill pill-ok', 'Blokkolva'));
     }
     if (site.dailyLimitSeconds) meterEl = limitMeter(site, false);
+    burstEl = burstMeter(site, now);
     if (!st.session) {
       const unlock = h('button', 'btn btn-small', 'Feloldás');
       unlock.addEventListener('click', () => openPauseDialog(site.id));
@@ -1487,6 +1491,8 @@ function siteRow(site: SiteInfo, st: StatusData): HTMLElement {
       sched.addEventListener('click', () => openScheduleDialog(site));
       const limit = h('button', 'btn btn-small', 'Napi keret');
       limit.addEventListener('click', () => openLimitDialog(site));
+      const burst = h('button', 'btn btn-small', 'Adag');
+      burst.addEventListener('click', () => openBurstDialog(site));
       const alias = h('button', 'btn btn-small', 'Fedőnév');
       alias.addEventListener('click', () => openAliasDialog(site));
       const parts = h('button', 'btn btn-small',
@@ -1494,13 +1500,14 @@ function siteRow(site: SiteInfo, st: StatusData): HTMLElement {
       parts.addEventListener('click', () => openRulesDialog(site));
       const del = h('button', 'btn btn-small btn-danger', 'Törlés');
       del.addEventListener('click', () => void startDelete(site));
-      actions.append(unlock, sched, limit, alias, parts, del);
+      actions.append(unlock, sched, limit, burst, alias, parts, del);
     }
   }
 
   head.appendChild(statusEl);
   row.append(head);
   if (meterEl) row.append(meterEl);
+  if (burstEl) row.append(burstEl);
   if (actions.childElementCount > 0) row.append(actions);
   return row;
 }
@@ -1543,6 +1550,40 @@ function limitMeter(site: SiteInfo, duringPause: boolean): HTMLElement {
 }
 
 const LIMIT_CHOICES_MIN = [10, 20, 30, 45, 60, 90, 120];
+/** Az adag jellemzően rövid (percek), a szünet hosszabb — a gyors gombok ezt tükrözik. */
+const BURST_CHOICES_MIN = [2, 5, 10, 15, 30];
+const COOLDOWN_CHOICES_MIN = [10, 15, 30, 60, 120];
+
+/**
+ * Az adag-szabály sora: mennyi fér még a mostani adagba, vagy meddig hűt.
+ *
+ * Ugyanaz a kettős kód, mint a keretnél: a színen kívül a szöveg is kimondja,
+ * mi történik — a hűtés nem büntetésnek néz ki, hanem visszaszámlálásnak.
+ */
+function burstMeter(site: SiteInfo, now: number): HTMLElement | null {
+  const rule = normalizeBurst(site.burstSeconds, site.cooldownSeconds);
+  if (!rule) return null;
+  const wrap = h('div', 'limit-meter');
+  const cooling = (site.cooldownUntil ?? 0) > now;
+  let label: string;
+  let pct: number;
+  if (cooling) {
+    label = `Adag betelt — szünet még ${fmtRemain(site.cooldownUntil - now)}, utána újraindul`;
+    pct = 100;
+  } else {
+    const used = Math.min(site.burstUsedSeconds ?? 0, rule.burstSeconds);
+    label = `Adag: ${formatDuration(used)} / ${formatDuration(rule.burstSeconds)}`
+      + ` — utána ${formatDuration(rule.cooldownSeconds)} szünet`;
+    pct = Math.round((used / rule.burstSeconds) * 100);
+  }
+  wrap.appendChild(h('div', 'limit-label', label));
+  const bar = h('div', 'limit-bar');
+  const fill = h('div', cooling ? 'limit-fill limit-fill-full' : 'limit-fill');
+  fill.style.width = `${Math.min(100, pct)}%`;
+  bar.appendChild(fill);
+  wrap.appendChild(bar);
+  return wrap;
+}
 
 /**
  * Fedőnév beállítása.
@@ -1778,6 +1819,90 @@ function openLimitDialog(site: SiteInfo): void {
   const actions = h('div', 'modal-actions');
   actions.append(cancel, apply);
   modal.append(picker.box, noneRow, err, actions);
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+}
+
+/**
+ * Adag-szabály: ennyi használat után ennyi szünet, aztán az oldal magától
+ * kinyílik. A napi keret testvére — a keret azt mondja, „ma összesen ennyi”,
+ * ez azt, hogy „egyszerre csak ennyi”.
+ */
+function openBurstDialog(site: SiteInfo): void {
+  const overlay = h('div', 'overlay');
+  const modal = h('div', 'modal modal-small');
+  modal.appendChild(h('h3', undefined, `Adag: ${displayName(site)}`));
+  modal.appendChild(h('p', 'hint',
+    'Ha az aktív használat eléri az adagot, az oldal ennyi szünetre magától '
+    + 'visszazár, majd újra kinyílik — például 2 perc után 10 perc szünet. '
+    + 'Ha egy szünetnyi ideig nem használod, a számláló tiszta lappal indul. '
+    + 'Az adag akkor él, amikor az oldal egyébként szabad (menetrend, keret '
+    + 'vagy feloldás alatt). Bevezetni vagy szigorítani azonnal megy; '
+    + 'nagyobb adag, rövidebb szünet vagy a szabály levétele próbatételbe '
+    + 'kerül, mint egy feloldás.'));
+
+  const rule = normalizeBurst(site.burstSeconds, site.cooldownSeconds);
+  let noRule = rule === null;
+  modal.appendChild(h('p', 'hint', 'Ennyi használat után…'));
+  const burstPick = minutePicker(
+    BURST_CHOICES_MIN,
+    rule ? Math.max(1, Math.round(rule.burstSeconds / 60)) : 2,
+    MAX_BURST_MINUTES,
+    () => { noRule = false; paintNone(); },
+  );
+  modal.appendChild(burstPick.box);
+  modal.appendChild(h('p', 'hint', '…ennyi szünet:'));
+  const coolPick = minutePicker(
+    COOLDOWN_CHOICES_MIN,
+    rule ? Math.max(1, Math.round(rule.cooldownSeconds / 60)) : 10,
+    MAX_COOLDOWN_MINUTES,
+    () => { noRule = false; paintNone(); },
+  );
+  modal.appendChild(coolPick.box);
+
+  const none = h('button', 'chip', 'Nincs adag-szabály') as HTMLButtonElement;
+  function paintNone(): void {
+    none.classList.toggle('chip-on', noRule);
+    burstPick.box.classList.toggle('muted-box', noRule);
+    coolPick.box.classList.toggle('muted-box', noRule);
+  }
+  none.addEventListener('click', () => { noRule = true; paintNone(); });
+  const noneRow = h('div', 'chips');
+  noneRow.appendChild(none);
+  paintNone();
+
+  const err = h('p', 'error');
+  err.classList.add('hidden');
+  const apply = h('button', 'btn btn-primary', 'Alkalmaz');
+  apply.addEventListener('click', async () => {
+    const burstMin = burstPick.value();
+    const coolMin = coolPick.value();
+    if (!noRule && (burstMin === null || coolMin === null)) {
+      err.textContent = 'Az adaghoz mindkét szám kell: használat is, szünet is — '
+        + 'vagy válaszd a „Nincs adag-szabály” lehetőséget.';
+      err.classList.remove('hidden');
+      return;
+    }
+    try {
+      const r = await call<SetLimitResult>('set_burst', {
+        siteId: site.id,
+        burstSeconds: noRule ? null : (burstMin as number) * 60,
+        cooldownSeconds: noRule ? null : (coolMin as number) * 60,
+      });
+      document.body.removeChild(overlay);
+      if (r.applied) void refresh();
+      else if (r.session) openModal(r.session); // lazítás -> próbatétel
+    } catch (e) {
+      err.textContent = (e as Error).message;
+      err.classList.remove('hidden');
+    }
+  });
+  const cancel = h('button', 'btn btn-ghost', 'Mégse');
+  cancel.addEventListener('click', () => document.body.removeChild(overlay));
+
+  const actions = h('div', 'modal-actions');
+  actions.append(cancel, apply);
+  modal.append(noneRow, err, actions);
   overlay.appendChild(modal);
   document.body.appendChild(overlay);
 }

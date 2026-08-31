@@ -23,6 +23,11 @@ enum SyncMerge {
         var pendingDeleteAt: Double?
         var schedule: ScheduleLogic.Schedule?
         var dailyLimitSeconds: Double?
+        /// Adag-szabály: a kettő csak együtt értelmes. Az iPhone nem mér
+        /// előteret, ezért itt nem érvényesül — de a mezőket át kell vinnie,
+        /// különben minden kör letörölné a gépeken beállított szabályt.
+        var burstSeconds: Double?
+        var cooldownSeconds: Double?
         var alias: String?
         /// Részleges szabályok (`youtube.com/@valaki`).
         ///
@@ -52,6 +57,8 @@ enum SyncMerge {
             try c.encode(pendingDeleteAt, forKey: .pendingDeleteAt)
             try c.encodeIfPresent(schedule, forKey: .schedule)
             try c.encodeIfPresent(dailyLimitSeconds, forKey: .dailyLimitSeconds)
+            try c.encodeIfPresent(burstSeconds, forKey: .burstSeconds)
+            try c.encodeIfPresent(cooldownSeconds, forKey: .cooldownSeconds)
             try c.encodeIfPresent(alias, forKey: .alias)
             try c.encodeIfPresent(rules, forKey: .rules)
             try c.encode(rev, forKey: .rev)
@@ -113,6 +120,17 @@ enum SyncMerge {
         let aLim = a.dailyLimitSeconds ?? .greatestFiniteMagnitude
         let bLim = b.dailyLimitSeconds ?? .greatestFiniteMagnitude
         if aLim != bLim { return aLim < bLim ? -1 : 1 }
+
+        // Adag-szabály: kisebb adag szigorúbb; azonos adagnál a hosszabb
+        // szünet. A fél-kitöltött (csak egyik mező) nem szabály.
+        let aHasB = (a.burstSeconds ?? 0) > 0 && (a.cooldownSeconds ?? 0) > 0
+        let bHasB = (b.burstSeconds ?? 0) > 0 && (b.cooldownSeconds ?? 0) > 0
+        let aBurst = aHasB ? a.burstSeconds! : .greatestFiniteMagnitude
+        let bBurst = bHasB ? b.burstSeconds! : .greatestFiniteMagnitude
+        if aBurst != bBurst { return aBurst < bBurst ? -1 : 1 }
+        let aCool = aHasB ? a.cooldownSeconds! : 0
+        let bCool = bHasB ? b.cooldownSeconds! : 0
+        if aCool != bCool { return aCool > bCool ? -1 : 1 }
 
         return 0
     }

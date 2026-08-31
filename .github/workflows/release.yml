@@ -44,6 +44,29 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
+          **Adag-szabály: ennyi használat után ennyi szünet.** Beállíthatod
+          egy oldalra, hogy adott aktív használat után adott időre magától
+          visszazárjon, aztán újra kinyíljon — például 2 perc Gemini után
+          10 perc szünet. A napi keret testvére: a keret a napi összesenről
+          szól, ez arról, hogy egyszerre mennyi fér.
+
+          Így működik: az Oldalak fülön az oldal sorában az **Adag** gombbal
+          állítod be a két számot. A tiltás DNS-szinten történik, tehát
+          minden böngészőben és appban él (gépen és Androidon — az iPhone
+          nem mér előteret, ott ez a szabály nem érvényesül, és ezt
+          kimondjuk). Ha egy szünetnyi ideig nem használod az oldalt, a
+          számláló tiszta lappal indul. A sorban látszik, mennyi fér még az
+          adagba; hűtésnél visszaszámol.
+
+          A szabály iránya a megszokott: bevezetni vagy szigorítani egy
+          kattintás, **nagyobb adag, rövidebb szünet vagy a levétel
+          próbatételbe kerül** — a futó hűtést pedig a csere sem engedi el.
+          A beállítás a fiókodon át a többi eszközre is átér; a számláló
+          eszközönkénti, és ezt is kimondjuk (a szinkron tízperces körei egy
+          kétperces adaghoz túl lassúk lennének).
+
+          ### Ami a v0.4.12-ben jött
+
           **A csatorna-szűrőid átérnek a többi gépedre.** Eddig a szűrők csak
           azon a gépen éltek, ahol felvetted őket. Mostantól — ha be vagy
           jelentkezve a fiókodba — a fiókon át a többi gépedre is átérnek,
@@ -58,7 +81,7 @@ jobs:
           ha az appból indítod, magától frissül az app frissítésével; ha
           Dockerben fut, húzd újra a képet.
 
-          ### Ami a v0.4.11-ben jött
+          #### Ami a v0.4.11-ben jött
 
           **Csatorna-idő: melyik csatorna vitte az időt?** Ahol bekapcsolt
           csatorna-szűrő van, a bővítmény mostantól méri is, melyik csatorna
@@ -78,35 +101,6 @@ jobs:
           `chrome://extensions` lapon nyomj rá frissítést. Ha a v0.4.9-es
           zipet töltötted be és hibát kaptál, ez a zip a javított — a hibáról
           lentebb, a v0.4.10-nél.
-
-          #### Ami a v0.4.10-ben jött
-
-          **A csatorna-szűrő mostantól a videókat is fogja, nem csak a
-          csatornák oldalait.** Eddig kimondott korlát volt, hogy egy videóról
-          a címe nem árulja el, melyik csatornáé — a nem engedélyezett
-          csatorna videói ezért keresésből, kezdőlapról nézhetők maradtak.
-          Két új réteg szűkíti ezt:
-
-          - **A hírfolyam megtisztul.** Az a videókártya, amin nem
-            engedélyezett csatornára mutató link van, eltűnik a kezdőlapról
-            és a keresésből is. Csak a videókártya: egy komment vagy egy
-            egész polc nem tűnik el egyetlen link miatt.
-          - **A lejátszó-oldal a feltöltő alapján tilt.** A lap saját
-            metaadatából derül ki, ki töltötte fel a videót; ha nem
-            engedélyezett csatorna, jön a tiltó lap, és meg is nevezi, mit
-            látott. Egylapos váltásnál az előző videó ottfelejtett adata nem
-            ítél — csak az számít, ami a MOSTANI videót nevezi meg.
-
-          Ami ezek után is kint marad, azt továbbra is kimondjuk: lejátszó,
-          amelynek lapja nem nevezi meg a feltöltőt, és kártya, amin nincs
-          csatorna-link (például a lejátszó melletti ajánló, ahol a
-          csatornanév csak szöveg).
-
-          **Javítva: a bővítmény egyáltalán betölthető.** A manifest egy nem
-          létező fordítás-mappára hivatkozott, és emiatt a böngésző a
-          kicsomagolt bővítményt hibával elutasította. Ez most derült ki,
-          mert a bővítményt mostantól minden kiadás előtt egy valódi
-          böngészőben, igazi bővítményként betöltve teszteljük.
 
           NOTES
           fi

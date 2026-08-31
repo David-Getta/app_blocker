@@ -10,6 +10,7 @@ import android.os.Build
 import android.os.PowerManager
 import android.os.Process
 import android.provider.Settings
+import hu.breaker.app.core.BurstLogic
 import hu.breaker.app.core.BreakerStore
 import hu.breaker.app.core.UsageLogic
 import java.util.concurrent.atomic.AtomicReference
@@ -256,15 +257,26 @@ object UsageTracker {
             // value would compare equal to it, and nothing would ever be emitted.
             val next = UsageLogic.snapshot(s.usage)
             var latest = s.usageLastSampleAt ?: 0L
+            // Az ADAG-SZÁMLÁLÓK ugyanabból a mintából gyűlnek, mint a
+            // statisztika: ha egy adag betelik, a következő névfeloldás már
+            // tilt (a szűrő minden döntésnél friss állapotot néz).
+            val burstRules = s.sites.mapNotNull { site ->
+                BurstLogic.normalize(site.burstSeconds, site.cooldownSeconds)
+                    ?.let { UsageLogic.siteKey(site.domain) to (site.id to it) }
+            }.toMap()
+            var bursts = s.bursts
             for ((bucket, d) in batch) {
                 val at = bucketTime(bucket, now)
                 UsageLogic.recordSample(next, d.key, d.seconds, at, d.label)
+                burstRules[d.key]?.let { (siteId, rule) ->
+                    bursts = bursts + (siteId to BurstLogic.noteUsage(rule, bursts[siteId], d.seconds, at))
+                }
                 // A LEGKÉSŐBBI rögzített minta ideje. Nem a `now`: egy köteg
                 // korábbi napból való szeletet is hozhat, és a kérdés az, hogy
                 // mikor MÉRTÜNK, nem az, hogy mikor íródott ki.
                 if (at > latest) latest = at
             }
-            s.copy(usage = next, usageLastSampleAt = latest)
+            s.copy(usage = next, usageLastSampleAt = latest, bursts = bursts)
         }
     }
 

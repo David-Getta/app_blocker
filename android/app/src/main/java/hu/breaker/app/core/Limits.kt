@@ -47,9 +47,13 @@ object LimitLogic {
      */
     fun isBlockedNowWithLimit(
         site: Site, usage: UsageLogic.UsageState, now: Long, shared: SharedToday? = null,
+        burst: BurstLogic.State? = null,
     ): Boolean {
         if (site.pauseUntil != null && site.pauseUntil > now) return false
         if (ScheduleLogic.isBlockedNow(site.pauseUntil, site.pendingDeleteAt, site.schedule, now)) return true
+        // Az adag-hűtés is tilt — a sorrend ugyanaz, mint a TS ikren: a
+        // megvásárolt szünet legyőzi, minden más alatta van.
+        if (BurstLogic.isCoolingDown(burst, now)) return true
         return isLimitExhausted(site.domain, site.dailyLimitSeconds, usage, now, shared)
     }
 

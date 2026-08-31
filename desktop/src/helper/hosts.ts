@@ -15,8 +15,10 @@ import { hostsFilePath } from './paths';
 export function activeHostnames(state: HelperState, now: number): string[] {
   const set = new Set<string>();
   for (const site of state.sites) {
-    // Combines pause, pending-delete, the weekly schedule and today's budget.
-    if (!isBlockedNowWithLimit(site, state.usage, now, state.sharedToday)) continue;
+    // Pause, pending-delete, weekly schedule, today's budget AND the burst
+    // cooldown, in one decision.
+    if (!isBlockedNowWithLimit(site, state.usage, now, state.sharedToday,
+      state.bursts?.[site.id])) continue;
     for (const h of site.hostnames) set.add(h);
   }
   return [...set].sort();

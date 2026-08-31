@@ -217,6 +217,36 @@ const WIRES = [
     lost: 'a szűrő-változás nem léptetne számlálót — a lazítás sosem nyerne a '
       + 'másik gépen, a szigorítás pedig egy régi állapottal is felülíródhatna',
   },
+  // AZ ADAG-SZABÁLY LÁNCA. A számláló a mérésből gyűlik, a tiltás a hosts
+  // fájlból lesz — négy szem két platformon, és bármelyik kiesése néma:
+  // a beállítás ott áll a felületen, az oldal meg csak nem zár be soha.
+  {
+    file: 'desktop/src/helper/server.ts',
+    needle: 'noteBurstUsage(b.rule, state.bursts[b.id]',
+    lost: 'a gépen mért idő nem gyűlne az adagba — az adag sosem telne be',
+  },
+  {
+    file: 'desktop/src/helper/hosts.ts',
+    needle: 'state.bursts?.[site.id]',
+    lost: 'a betelt adag nem jutna el a hosts fájlig — a hűtés csak kijelzés '
+      + 'lenne, tiltás nem',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/usage/UsageTracker.kt',
+    needle: 'BurstLogic.noteUsage(rule, bursts[siteId]',
+    lost: 'a telefonon mért idő nem gyűlne az adagba',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/Store.kt',
+    needle: 'state.bursts[site.id]',
+    lost: 'a telefonon a betelt adag nem tiltana — a DNS-szűrő nem tudna róla',
+  },
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: 'openBurstDialog(site)',
+    lost: 'az adag-szabályt nem lehetne beállítani — a mag ott lenne, kapcsoló '
+      + 'nélkül',
+  },
   // A MAI NAP KÜLÖN LISTÁJA. A mag régóta kiszámolta (`topToday`), csak épp
   // senki nem kérdezte meg — a felhasználó kérte ki magának a funkciót.
   {

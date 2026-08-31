@@ -65,6 +65,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import hu.breaker.app.core.AliasLogic
+import hu.breaker.app.core.BurstLogic
 import hu.breaker.app.core.AppState
 import hu.breaker.app.core.Focus
 import hu.breaker.app.core.Blocklist
@@ -203,6 +204,7 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
     var deleteSite by remember { mutableStateOf<Site?>(null) }
     var scheduleSite by remember { mutableStateOf<Site?>(null) }
     var limitSite by remember { mutableStateOf<Site?>(null) }
+    var burstSite by remember { mutableStateOf<Site?>(null) }
     var aliasSite by remember { mutableStateOf<Site?>(null) }
     var rulesSite by remember { mutableStateOf<Site?>(null) }
     var flowError by remember { mutableStateOf<String?>(null) }
@@ -531,6 +533,7 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                             SiteCard(
                                 site = site, now = now, hasSession = state.session != null,
                                 usage = state.usage, shared = state.sharedToday,
+                                burst = state.bursts[site.id],
                                 revealedUntil = revealedUntil[site.id],
                                 onReveal = {
                                     revealedUntil[site.id] =
@@ -540,6 +543,7 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                                 onDelete = { deleteSite = site },
                                 onSchedule = { scheduleSite = site },
                                 onLimit = { limitSite = site },
+                                onBurst = { burstSite = site },
                                 onAlias = { aliasSite = site },
                                 onRules = { rulesSite = site },
                             )
@@ -669,6 +673,16 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
     }
 
     // Daily budget dialog
+    burstSite?.let { site ->
+        BurstDialog(
+            site = site,
+            onDismiss = { burstSite = null },
+            onApplied = { burstSite = null },
+            onChallenge = { burstSite = null; onOpenChallenge() },
+            onError = { burstSite = null; flowError = it },
+        )
+    }
+
     limitSite?.let { site ->
         LimitDialog(
             site = site,
@@ -849,12 +863,13 @@ private fun SiteCard(
     now: Long, hasSession: Boolean,
     revealedUntil: Long?, onReveal: () -> Unit,
     onPause: () -> Unit, onDelete: () -> Unit, onSchedule: () -> Unit, onLimit: () -> Unit,
-    onAlias: () -> Unit, onRules: () -> Unit,
+    onBurst: () -> Unit, onAlias: () -> Unit, onRules: () -> Unit,
+    burst: BurstLogic.State? = null,
 ) {
     val paused = site.pauseUntil != null && site.pauseUntil > now
     val deleting = site.pendingDeleteAt != null
     val scheduled = site.schedule != null && site.schedule.mode != ScheduleLogic.Mode.ALWAYS
-    val blockedNow = LimitLogic.isBlockedNowWithLimit(site, usage, now, shared)
+    val blockedNow = LimitLogic.isBlockedNowWithLimit(site, usage, now, shared, burst)
 
     // Nincs saját kártyája: a sorokat a LISTA kártyája fogja össze, egymástól
     // pedig hajszálvonal választja el őket. Külön kártyákban tíz oldal
@@ -935,6 +950,7 @@ private fun SiteCard(
                 }
                 else -> {
                     LimitMeter(site, usage, shared, now, duringPause = false)
+                    BurstLine(site, burst, now)
                     if (!hasSession) {
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                         // A műveletek nem főszereplők: keret nélküli szöveggombok,
@@ -950,6 +966,7 @@ private fun SiteCard(
                             TextButton(onClick = onPause) { Text("Feloldás időre…") }
                             TextButton(onClick = onSchedule) { Text("Menetrend…") }
                             TextButton(onClick = onLimit) { Text("Napi keret…") }
+                            TextButton(onClick = onBurst) { Text("Adag…") }
                             TextButton(onClick = onAlias) { Text("Fedőnév…") }
                             TextButton(onClick = onRules) {
                                 val n = site.rules?.size ?: 0
@@ -1037,6 +1054,9 @@ private fun LimitMeter(
 }
 
 private val LIMIT_CHOICES_MIN = listOf(10, 20, 30, 45, 60, 90, 120)
+/** Az adag jellemzően rövid, a szünet hosszabb — a gyors gombok ezt tükrözik. */
+private val BURST_CHOICES_MIN = listOf(2, 5, 10, 15, 30)
+private val COOLDOWN_CHOICES_MIN = listOf(10, 15, 30, 60, 120)
 
 /**
  * Részleges szabályok: nem az egész oldal, csak egy darabja.
@@ -1200,6 +1220,106 @@ private fun LimitDialog(
             TextButton(onClick = {
                 try {
                     val r = Referee.startLimitChange(site.id, chosen, System.currentTimeMillis())
+                    if (r.applied) onApplied() else onChallenge()
+                } catch (e: Referee.RefereeException) {
+                    onError(e.message ?: "Ismeretlen hiba")
+                }
+            }) { Text("Alkalmaz") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Mégse") } },
+    )
+}
+
+/**
+ * Az adag-szabály sora a kártyán: mennyi fér még a mostani adagba, vagy
+ * meddig hűt. A szín mellett a szöveg is kimondja — a hűtés visszaszámlálás,
+ * nem büntetés.
+ */
+@Composable
+private fun BurstLine(site: Site, burst: BurstLogic.State?, now: Long) {
+    val rule = BurstLogic.normalize(site.burstSeconds, site.cooldownSeconds) ?: return
+    val cooling = burst != null && burst.cooldownUntil > now
+    val text = if (cooling) {
+        "Adag betelt — szünet még ${fmtRemain(burst!!.cooldownUntil - now)}, utána újraindul"
+    } else {
+        val used = (burst?.usedSeconds ?: 0.0).coerceAtMost(rule.burstSeconds.toDouble())
+        "Adag: ${UsageLogic.formatDuration(used)} / ${UsageLogic.formatDuration(rule.burstSeconds.toDouble())}" +
+            " — utána ${UsageLogic.formatDuration(rule.cooldownSeconds.toDouble())} szünet"
+    }
+    Text(
+        text,
+        style = MaterialTheme.typography.bodySmall,
+        color = if (cooling) MaterialTheme.colorScheme.secondary
+            else MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
+
+/** Adag-szabály szerkesztése: ennyi használat után ennyi szünet. */
+@Composable
+private fun BurstDialog(
+    site: Site,
+    onDismiss: () -> Unit,
+    onApplied: () -> Unit,
+    onChallenge: () -> Unit,
+    onError: (String) -> Unit,
+) {
+    val current = BurstLogic.normalize(site.burstSeconds, site.cooldownSeconds)
+    var burstMin by remember { mutableStateOf(current?.burstSeconds?.let { (it / 60).toInt() }) }
+    var coolMin by remember { mutableStateOf(current?.cooldownSeconds?.let { (it / 60).toInt() }) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Adag: ${AliasLogic.displayName(site)}") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    "Ha az aktív használat eléri az adagot, az oldal ennyi szünetre " +
+                        "magától visszazár, majd újra kinyílik — például 2 perc után " +
+                        "10 perc szünet. Ha egy szünetnyi ideig nem használod, a " +
+                        "számláló tiszta lappal indul. Bevezetni vagy szigorítani " +
+                        "azonnal megy; nagyobb adag, rövidebb szünet vagy a levétel " +
+                        "próbatételbe kerül, mint egy feloldás.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                Text("Ennyi használat után…", style = MaterialTheme.typography.labelMedium)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    for (min in BURST_CHOICES_MIN) {
+                        if (burstMin == min) {
+                            Button(onClick = { burstMin = min }) { Text("$min perc") }
+                        } else {
+                            OutlinedButton(onClick = { burstMin = min }) { Text("$min perc") }
+                        }
+                    }
+                }
+                Text("…ennyi szünet:", style = MaterialTheme.typography.labelMedium)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    for (min in COOLDOWN_CHOICES_MIN) {
+                        if (coolMin == min) {
+                            Button(onClick = { coolMin = min }) { Text("$min perc") }
+                        } else {
+                            OutlinedButton(onClick = { coolMin = min }) { Text("$min perc") }
+                        }
+                    }
+                }
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    if (burstMin == null && coolMin == null) {
+                        Button(onClick = { burstMin = null; coolMin = null }) { Text("Nincs adag-szabály") }
+                    } else {
+                        OutlinedButton(onClick = { burstMin = null; coolMin = null }) { Text("Nincs adag-szabály") }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                if ((burstMin == null) != (coolMin == null)) {
+                    onError("Az adaghoz mindkét szám kell: használat is, szünet is.")
+                    return@TextButton
+                }
+                try {
+                    val r = Referee.startBurstChange(
+                        site.id, burstMin?.let { it * 60L }, coolMin?.let { it * 60L },
+                        System.currentTimeMillis(),
+                    )
                     if (r.applied) onApplied() else onChallenge()
                 } catch (e: Referee.RefereeException) {
                     onError(e.message ?: "Ismeretlen hiba")

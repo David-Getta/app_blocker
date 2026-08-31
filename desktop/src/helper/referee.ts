@@ -11,6 +11,7 @@ import type {
 } from '../shared/protocol';
 import { PAUSE_CHOICES_MIN } from '../shared/protocol';
 import { isLoosening, normalizeSchedule, ALWAYS, type Schedule } from '../shared/schedule';
+import { isBurstLoosening, normalizeBurst } from '../shared/burst';
 import { isLimitLoosening, normalizeLimit } from '../shared/limits';
 import {
   isFilterLoosening, sanitizeFilter, MAX_CHANNEL_FILTERS, type ChannelFilter,
@@ -154,6 +155,9 @@ function finishSession(state: HelperState, now: number): void {
       site.rules = (site.rules ?? []).filter((r) => !sameRule(r, drop));
     } else if (s.pendingLimit !== undefined) {
       site.dailyLimitSeconds = s.pendingLimit === null ? undefined : s.pendingLimit;
+    } else if (s.pendingBurst !== undefined) {
+      site.burstSeconds = s.pendingBurst?.burstSeconds ?? undefined;
+      site.cooldownSeconds = s.pendingBurst?.cooldownSeconds ?? undefined;
     } else if (s.kind === 'pause') site.pauseUntil = now + (s.minutes ?? 15) * 60_000;
     else site.pendingDeleteAt = now + DELETE_PENDING_MS;
   }
@@ -218,6 +222,48 @@ export function startLimitChange(
     id: newId('ses'), kind: 'pause', siteId,
     steps: plan.steps, stepIndex: 0, createdAt: now,
     pendingLimit: next === null ? null : next,
+  };
+  state.lastCombo = plan.comboKey;
+  armCurrent(state.session, now);
+  return { applied: false, session: sessionInfo(state.session, now) };
+}
+
+/**
+ * Az adag-szabály cseréje: ennyi használat után ennyi szünet.
+ *
+ * Ugyanaz az irányszabály, mint a napi keretnél: felvenni, kisebb adagra vagy
+ * hosszabb szünetre állítani ingyen lehet; nagyobb adag, rövidebb szünet vagy
+ * a szabály levétele több oldalt ad vissza, tehát próbatételbe kerül.
+ *
+ * A futó hűtést a csere NEM engedi el: azt az addigi használat kereste meg,
+ * és magától lejár — a szabály cseréje a KÖVETKEZŐ adagra szól.
+ */
+export function startBurstChange(
+  state: HelperState, siteId: string,
+  burstSeconds: number | null, cooldownSeconds: number | null, now: number,
+): SetLimitResult {
+  const site = state.sites.find((s) => s.id === siteId);
+  if (!site) throw new RefereeError('Ismeretlen oldal.', 'NO_SITE');
+  if (state.session) throw new RefereeError('Előbb fejezd be a folyamatban lévő kísérletet.', 'BUSY');
+  const next = normalizeBurst(burstSeconds, cooldownSeconds);
+  // FÉL-KITÖLTÖTT kérés: az egyik szám hiányzik vagy értelmetlen, a másik nem.
+  // Ezt nem értelmezzük se törlésnek, se szabálynak — a hívó kap hibát, nem
+  // egy meglepetést.
+  if (next === null && (burstSeconds !== null || cooldownSeconds !== null)) {
+    throw new RefereeError('Az adaghoz mindkét szám kell: használat is, szünet is.', 'BAD_BURST');
+  }
+  const current = normalizeBurst(site.burstSeconds, site.cooldownSeconds);
+  if (!isBurstLoosening(current, next)) {
+    site.burstSeconds = next?.burstSeconds ?? undefined;
+    site.cooldownSeconds = next?.cooldownSeconds ?? undefined;
+    return { applied: true, session: null };
+  }
+  const tier = effectiveTier(state, 'pause', now);
+  const plan = generatePlan('pause', tier, state.lastCombo, rng, forcedCombo(state, siteId, now));
+  state.session = {
+    id: newId('ses'), kind: 'pause', siteId,
+    steps: plan.steps, stepIndex: 0, createdAt: now,
+    pendingBurst: next,
   };
   state.lastCombo = plan.comboKey;
   armCurrent(state.session, now);
@@ -549,6 +595,17 @@ export function tick(state: HelperState, now: number): boolean {
   const before = state.sites.length;
   state.sites = state.sites.filter((site) => site.pendingDeleteAt === null || site.pendingDeleteAt > now);
   if (state.sites.length !== before) dirty = true;
+  // Az adag-számlálók takarítása: a törölt oldalé, és aminek a hűtése rég
+  // lejárt és egy napja nem is gyűlt semmi. E nélkül az állapotfájl lassan,
+  // némán hízna — és a hízás pont az a hibafajta, ami sosem hasal el.
+  for (const [siteId, b] of Object.entries(state.bursts ?? {})) {
+    const gone = !state.sites.some((site) => site.id === siteId);
+    const stale = b.cooldownUntil <= now && now - b.lastAt > 24 * 3600_000;
+    if (gone || stale) {
+      delete state.bursts![siteId];
+      dirty = true;
+    }
+  }
   // A lejárt munkamenetet takarítjuk. A `isRunning` amúgy is hamisat adna rá,
   // de a felület és a bővítmény az állapotot olvassa: egy ottfelejtett rekord
   // örökre futó munkamenetnek látszana.

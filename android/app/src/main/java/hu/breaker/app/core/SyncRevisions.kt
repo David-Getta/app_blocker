@@ -33,6 +33,9 @@ object SyncRevisions {
             s.pendingDeleteAt?.toString() ?: "-",
             bands,
             s.dailyLimitSeconds?.toString() ?: "-",
+            // Az adag-szabály beállítása utazik; a számláló nem (eszköz-helyi).
+            s.burstSeconds?.toString() ?: "-",
+            s.cooldownSeconds?.toString() ?: "-",
             s.alias ?: "-",
             // RENDEZVE: a sorrend nem jelent semmit, viszont ha beleszámítana,
             // egy átrendeződés fölöslegesen léptetné a számlálót, és minden

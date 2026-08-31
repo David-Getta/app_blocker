@@ -34,6 +34,9 @@ function syncFields(s: SiteRec): string {
     s.pendingDeleteAt,
     s.schedule ?? null,
     s.dailyLimitSeconds ?? null,
+    // Az adag-szabály beállítása utazik; a számláló nem (eszköz-helyi).
+    s.burstSeconds ?? null,
+    s.cooldownSeconds ?? null,
     s.alias ?? null,
     // A részleges szabályok RENDEZVE: a sorrend nem jelent semmit, viszont ha
     // beleszámítana, egy átrendeződés (például egy felvétel-törlés páros)

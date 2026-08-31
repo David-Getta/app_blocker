@@ -331,6 +331,8 @@ function cleanSite(s: Record<string, unknown>): SyncSite {
     pendingDeleteAt: typeof s.pendingDeleteAt === 'number' ? s.pendingDeleteAt : null,
     schedule: (s.schedule as SyncSite['schedule']) ?? undefined,
     dailyLimitSeconds: typeof s.dailyLimitSeconds === 'number' ? s.dailyLimitSeconds : undefined,
+    burstSeconds: typeof s.burstSeconds === 'number' ? s.burstSeconds : undefined,
+    cooldownSeconds: typeof s.cooldownSeconds === 'number' ? s.cooldownSeconds : undefined,
     alias: typeof s.alias === 'string' ? s.alias : undefined,
     // Az `undefined` itt JELENTÉS, nem hiány: „ez a kliens nem tud a mezőről”.
     // Ezért NEM alakítjuk üres tömbbé — az azt jelentené, hogy minden szabály

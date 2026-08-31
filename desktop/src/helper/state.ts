@@ -26,6 +26,14 @@ export interface SiteRec {
   schedule?: Schedule;
   /** optional daily active-time budget in seconds; absent = no budget */
   dailyLimitSeconds?: number;
+  /**
+   * Adag-szabály: ennyi HASZNÁLAT után… (másodperc). Csak a szünettel együtt
+   * értelmes — lásd shared/burst.ts. A beállítás szinkronizálódik, a számláló
+   * nem (eszköz-helyi, a HelperState.bursts-ben él).
+   */
+  burstSeconds?: number;
+  /** …ennyi SZÜNET (másodperc). */
+  cooldownSeconds?: number;
   /** fedőnév: ha van, a felület EZT mutatja a cím helyett (lásd shared/alias.ts) */
   alias?: string;
   /**
@@ -64,6 +72,11 @@ export interface SessionRec {
   pendingLimit?: number | null;
   /** ha van, a teljesítés EZT a részleges szabályt veszi le (lazítás) */
   pendingRuleRemoval?: UrlRule;
+  /**
+   * Ha van, a teljesítés az adag-szabályt cseréli erre (lazítás: nagyobb
+   * adag, rövidebb szünet, vagy a szabály levétele — az a null).
+   */
+  pendingBurst?: { burstSeconds: number; cooldownSeconds: number } | null;
   /**
    * Ha van, a teljesítés a csatorna-szűrőt cseréli erre (lazítás: kikapcsolás,
    * új engedélyezett csatorna, gazdagép-csere). A `next: null` a törlés.
@@ -116,6 +129,14 @@ export interface HelperState {
    * útvonalat); a segéd a rekordok gazdája és a súrlódás kapuja.
    */
   channelFilters?: ChannelFilter[];
+  /**
+   * Adag-számlálók oldalanként (kulcs: site id) — EZEN a gépen.
+   *
+   * Szándékosan nem a SiteRec-en és nem a dróton: a szinkron tízperces
+   * körökben jár, egy kétperces adaghoz az túl lassú — ebből nem pontatlan
+   * közös számláló lesz, hanem őszintén eszközönkénti. Lásd shared/burst.ts.
+   */
+  bursts?: Record<string, import('../shared/burst').BurstState>;
   /**
    * Mikor rögzítettünk UTOLJÁRA mért időt.
    *

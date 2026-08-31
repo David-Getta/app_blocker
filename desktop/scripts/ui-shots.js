@@ -81,6 +81,13 @@ function fakeBridgeSource() {
       { id: 'site_3', domain: 'instagram.com', hostnames: ['instagram.com','www.instagram.com'],
         addedAt: now - 86400000*2, pauseUntil: null, pendingDeleteAt: null,
         dailyLimitSeconds: 600, usedTodaySeconds: 600, limitExhausted: true, blockedNow: true },
+      // Adag-szabályos oldal: menetrend szerint szabad, de 2 perc után 10 perc
+      // szünet — épp hűtés alatt, hogy a sor a képernyőképen is látsszon.
+      { id: 'site_4', domain: 'gemini.google.com', hostnames: ['gemini.google.com'],
+        addedAt: now - 86400000, pauseUntil: null, pendingDeleteAt: null,
+        schedule: { mode: 'scheduled_allow', bands: [{ days: [0,1,2,3,4,5,6], startMin: 0, endMin: 1440 }] },
+        burstSeconds: 120, cooldownSeconds: 600, cooldownUntil: now + 7 * 60_000,
+        burstUsedSeconds: 0, usedTodaySeconds: 300, limitExhausted: false, blockedNow: true },
     ];
     let session = null;
     // A GUI a saját protokollverziójához hasonlítja: a demóban EGYEZZEN, hogy a
@@ -398,7 +405,7 @@ async function main() {
   // The home screen is only "up" once the status poll has painted the sites.
   await page.waitForSelector('#siteList .site-row', { timeout: 15_000 });
   const siteCount = await page.locator('#siteList .site-row').count();
-  if (siteCount !== 3) failures.push(`expected 3 site rows, saw ${siteCount}`);
+  if (siteCount !== 4) failures.push(`expected 4 site rows, saw ${siteCount}`);
 
   // A munkamenet leállítása is próbatétel, és a fejlécnek MEG KELL MONDANIA,
   // mit csinál épp. A bíró ilyenkor `focus:<csomag>` azonosítót ad, ami nem egy
@@ -746,9 +753,15 @@ async function main() {
   }
 
   const meters = await page.locator('.limit-meter').count();
-  if (meters !== 2) failures.push(`expected 2 budget meters, saw ${meters}`);
+  if (meters !== 3) failures.push(`expected 3 budget/burst meters, saw ${meters}`);
   const spent = await page.locator('.limit-meter', { hasText: 'elfogyott' }).count();
   if (spent !== 1) failures.push('the spent budget is not called out in words');
+  // Az adag-szabály sora: a hűtés visszaszámlálásként olvasható, nem büntetésként.
+  const cooling = await page.locator('.limit-meter', { hasText: 'Adag betelt' }).count();
+  if (cooling !== 1) failures.push('the burst cooldown is not called out in words');
+  if (await page.locator('.site-actions button', { hasText: 'Adag' }).count() < 1) {
+    failures.push('the burst rule has no button on the site rows');
+  }
 
   // Egyező protokollverziónál a figyelmeztető sáv NEM látszik...
   if (await page.locator('#helperStaleBanner:not(.hidden)').count() !== 0) {
@@ -1045,7 +1058,7 @@ async function main() {
   const hiddenCard = (await page.locator('#listCard').textContent()) || '';
   // A darabszám viszont MARADJON: azt kérte, hogy MIK vannak blokkolva ne
   // látszódjon, nem azt, hogy hány.
-  if (!hiddenCard.includes('3 oldal')) {
+  if (!hiddenCard.includes('4 oldal')) {
     failures.push(`the collapsed list does not say how many sites are blocked: ${hiddenCard.trim()}`);
   }
   if (!CHECK_ONLY) {
@@ -1055,7 +1068,7 @@ async function main() {
   // Megnyitni egy kattintás — de csak erre a munkamenetre.
   await page.getByRole('button', { name: 'Lista megnyitása' }).click();
   await page.waitForFunction(
-    () => document.querySelectorAll('#siteList .site-row').length === 3,
+    () => document.querySelectorAll('#siteList .site-row').length === 4,
     undefined, { timeout: 10_000 },
   );
 
@@ -1075,7 +1088,7 @@ async function main() {
   await page.getByRole('button', { name: 'Ne rejtse ezután' }).click();
   await page.reload();
   await page.waitForFunction(
-    () => document.querySelectorAll('#siteList .site-row').length === 3,
+    () => document.querySelectorAll('#siteList .site-row').length === 4,
     undefined, { timeout: 15_000 },
   );
   if (!(await page.getByRole('button', { name: 'Lista elrejtése' }).count())) {
@@ -1397,13 +1410,13 @@ async function main() {
   await lightPage.addInitScript(fakeBridgeSource());
   await lightPage.goto(`http://127.0.0.1:${port}/renderer/index.html`);
   await lightPage.waitForSelector('#siteList .site-row', { timeout: 15_000 });
-  if (await lightPage.locator('#siteList .site-row').count() !== 3) {
+  if (await lightPage.locator('#siteList .site-row').count() !== 4) {
     failures.push('the light theme does not render the site list');
   }
   await goTo(lightPage, 'stats');
   await lightPage.waitForSelector('#statTiles .tile', { timeout: 15_000 });
   await goTo(lightPage, 'sites');
-  if (await lightPage.locator('.limit-meter').count() !== 2) {
+  if (await lightPage.locator('.limit-meter').count() !== 3) {
     failures.push('the budget meters are missing in the light theme');
   }
   // A tokencsere tényleg megtörtént-e: sötétben szinte fekete a háttér.
