@@ -12,7 +12,7 @@
 // A .js kiterjesztés kötelező: ez a fájl a felületre is bekerül, és a böngésző
 // natív ESM-betöltője kiterjesztés nélkül nem oldja fel a hivatkozást.
 import { isCoolingDown, type BurstState } from './burst.js';
-import { isBlockedNow, type Blockable } from './schedule.js';
+import { isBlockedNow, nextOpenAt, type Blockable, type Schedule } from './schedule.js';
 import { dayKey, siteKey, type UsageState } from './usage.js';
 
 export interface Limitable extends Blockable {
@@ -76,8 +76,9 @@ export function nextDayStartMs(now: number): number {
  * mert az nem a rekordon él, hanem a segéd állapotában.
  *
  * Az `until` csak ott van kitöltve, ahol az idő TÉNY, nem becslés: a hűtés
- * végénél és a keret napfordulójánál. A menetrend következő nyitása itt nincs
- * kiszámolva — nulla, és a hívó dolga, hogy ne mutasson visszaszámlálót.
+ * vége, a keret napfordulója, és a menetrend következő nyitása (nextOpenAt —
+ * nulla, ha a menetrend sosem nyit). A sima tiltásnál nulla: annak nincs
+ * lejárata, és a hívónak ott nem szabad visszaszámlálót mutatnia.
  */
 export function blockReasonNow(
   site: Limitable, usage: UsageState, now: number, shared?: SharedToday | null,
@@ -88,7 +89,10 @@ export function blockReasonNow(
     // A törlésre váró oldal a menetrendjétől FÜGGETLENÜL zár — az nem
     // időzítés, hanem sima tiltás, tehát a címkéje is az.
     const scheduled = site.pendingDeleteAt === null && !!site.schedule;
-    return { reason: scheduled ? 'schedule' : 'always', until: 0 };
+    if (!scheduled) return { reason: 'always', until: 0 };
+    // A menetrend nyitása kiszámolható tény — hadd számoljon vissza a lap.
+    const open = nextOpenAt(site.schedule as Schedule, now);
+    return { reason: 'schedule', until: open > now ? open : 0 };
   }
   if (isCoolingDown(burst, now)) return { reason: 'cooldown', until: burst!.cooldownUntil };
   if (isLimitExhausted(site, usage, now, shared)) {

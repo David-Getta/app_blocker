@@ -44,6 +44,16 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
+          **A menetrendes zárás is visszaszámol.** A tiltó lap eddig a
+          hűtésnél és a napi keretnél mondta meg, mikor nyílik az oldal — a
+          menetrendnél csak annyit, hogy „az appban látod”. Mostantól a
+          menetrend következő nyitását is kiszámoljuk, a lap visszaszámol
+          („Nyit: még kb. 2 óra”), és a lejáratkor ott is visszautat ad. A
+          lejárat-szöveg okhoz illő: új napnál a keret újraindulását mondja,
+          menetrendnél a nyitást, adagnál a szünet leteltét.
+
+          ### Ami a v0.4.14-ben jött
+
           **A tiltó lap megmondja, miért zárva az oldal — és mikor nyílik.**
           Eddig a DNS-szintű zárás (blokklista, menetrend, betelt napi keret,
           adag-hűtés) nyers böngésző-hibalapot mutatott — „nem sikerült kapcsolódni”,
@@ -68,7 +78,7 @@ jobs:
           `Breaker-bovitmeny` zipet, csomagold ki a régi helyére, és a
           `chrome://extensions` lapon nyomj rá frissítést.
 
-          ### Ami a v0.4.13-ban jött
+          #### Ami a v0.4.13-ban jött
 
           **Adag-szabály: ennyi használat után ennyi szünet.** Beállíthatod
           egy oldalra, hogy adott aktív használat után adott időre magától
@@ -90,17 +100,6 @@ jobs:
           A beállítás a fiókodon át a többi eszközre is átér; a számláló
           eszközönkénti, és ezt is kimondjuk (a szinkron tízperces körei egy
           kétperces adaghoz túl lassúk lennének).
-
-          #### Ami a v0.4.12-ben jött
-
-          **A csatorna-szűrőid átérnek a többi gépedre.** Eddig a szűrők csak
-          azon a gépen éltek, ahol felvetted őket. Mostantól — ha be vagy
-          jelentkezve a fiókodba — a fiókon át a többi gépedre is átérnek,
-          végponttól végpontig titkosítva, és ott a saját böngésző-bővítményük
-          érvényesíti ugyanazt a listát. A szabály a megszokott: lazítani
-          (kikapcsolni, új csatornát engedni) csak próbatétellel lehet, és ez
-          a szinkronon át sem kerülhető meg — egy régi állapot visszajátszása
-          vagy egy vadonatúj, üres gép nem töröl és nem lazít semmit.
 
           NOTES
           fi

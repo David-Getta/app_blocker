@@ -97,6 +97,32 @@ export function isBlockedBySchedule(schedule: Schedule, now: number): boolean {
 }
 
 /**
+ * A KÖVETKEZŐ pillanat (epoch ms), amikor a menetrend enged — vagy 0, ha egy
+ * héten belül sincs ilyen (a mindig tiltó menetrend sosem nyit magától).
+ *
+ * Perchatáron lépked, és minden lépésnél MAGÁT A DÖNTÉST kérdezi
+ * (isBlockedBySchedule) — nem másolja le a sáv-számtant. Így óraátállásnál
+ * is pontosan azt mondja, amit a tiltás tenni fog, mert ugyanazt kérdezi.
+ * Az ára legfeljebb nyolc napnyi perc egy sosem nyíló menetrendre; azt a
+ * mód-ellenőrzés úgyis levágja.
+ */
+export function nextOpenAt(schedule: Schedule, now: number): number {
+  const s = normalizeSchedule(schedule);
+  if (s.mode === 'always') return 0;
+  if (!isBlockedBySchedule(s, now)) return now;
+  const start = new Date(now);
+  start.setSeconds(0, 0);
+  let t = start.getTime();
+  // Nyolc napnyi perc: óraátállással együtt is bőven egy teljes hét. Ha ez
+  // alatt sincs nyitás, a menetrend gyakorlatilag mindig tilt.
+  for (let i = 0; i < 8 * 24 * 60; i++) {
+    t += 60_000;
+    if (!isBlockedBySchedule(s, t)) return t;
+  }
+  return 0;
+}
+
+/**
  * Would switching from `oldS` to `newS` reduce blocked time at any point in the
  * next 7 days? If yes, the change is a "loosening" and must be gated behind
  * unlock challenges.

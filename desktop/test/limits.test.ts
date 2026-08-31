@@ -99,13 +99,19 @@ test('minden zárásnak neve van, és a sorrend a döntés sorrendje', () => {
   // Sima blokklistás oldal (nincs menetrend): mindig, lejárat nélkül.
   assert.deepEqual(blockReasonNow(site(), noUse, NOW), { reason: 'always', until: 0 });
 
-  // Menetrend zár: a neve „schedule” — a mikor nyílikot az app mutatja meg.
+  // Menetrend zár: a neve „schedule”, a lejárata pedig a KÖVETKEZŐ nyitás —
+  // itt a jövő vasárnap éjfél (a sáv: vasárnap 0:00–1:00 szabad).
   const closedSched = {
     mode: 'scheduled_allow' as const,
     bands: [{ days: [0] as (0|1|2|3|4|5|6)[], startMin: 0, endMin: 60 }],
   };
-  assert.deepEqual(blockReasonNow(site({ schedule: closedSched }), noUse, NOW),
-    { reason: 'schedule', until: 0 });
+  const sched = blockReasonNow(site({ schedule: closedSched }), noUse, NOW);
+  assert.equal(sched?.reason, 'schedule');
+  assert.ok((sched?.until ?? 0) > NOW, 'a nyitás előttünk van');
+  const openAt = new Date(sched?.until ?? 0);
+  assert.equal(openAt.getDay(), 0, 'vasárnap nyit');
+  assert.equal(openAt.getHours(), 0);
+  assert.equal(openAt.getMinutes(), 0);
 
   // A törlésre váró oldal menetrendtől FÜGGETLENÜL zár — a címkéje sima tiltás.
   assert.deepEqual(

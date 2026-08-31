@@ -33,6 +33,13 @@ if (focus) {
   document.getElementById('closedCard').hidden = false;
   document.getElementById('closedHost').textContent = params.get('closedHost') || 'ez az oldal';
   const until = Number(params.get('until'));
+  // A hosszú várakozás emberi léptékben: perc, óra, nap — mindig „kb.”, mert
+  // a percre kerekítésnél pontosabbat úgysem ígérhetünk.
+  const roughly = (min) => {
+    if (min >= 2 * 1440) return `kb. ${Math.round(min / 1440)} nap`;
+    if (min >= 90) return `kb. ${Math.round(min / 60)} óra`;
+    return `kb. ${Math.max(min, 1)} perc`;
+  };
   const texts = {
     cooldown: {
       title: 'Adag betelt — most szünet van.',
@@ -43,7 +50,8 @@ if (focus) {
         + 'lehet, és próbatételbe kerül. A már futó szünetet az sem engedi '
         + 'el — az magától jár le.',
       left: (min) => (min <= 1 ? 'Kevesebb mint egy perc, és újranyílik.'
-        : `Újranyílik magától: még kb. ${min} perc.`),
+        : `Újranyílik magától: még ${roughly(min)}.`),
+      done: 'A szünet letelt — az oldal újra nyitva.',
     },
     limit: {
       title: 'A mai keret betelt.',
@@ -51,8 +59,8 @@ if (focus) {
         + 'együtt számolja, és éjfélkor újraindul.',
       foot: 'Ma többet csak feloldással lehet: az a Breaker appban megy, és '
         + 'próbatételbe kerül — különben a keret csak javaslat lenne.',
-      left: (min) => (min >= 90 ? `Éjfélkor újraindul — még kb. ${Math.round(min / 60)} óra.`
-        : `Éjfélkor újraindul — még kb. ${Math.max(min, 1)} perc.`),
+      left: (min) => `Éjfélkor újraindul — még ${roughly(min)}.`,
+      done: 'Új nap, új keret — az oldal újra nyitva.',
     },
     schedule: {
       title: 'Menetrend szerint most zárva.',
@@ -60,7 +68,8 @@ if (focus) {
         + 'tart. A pontos rendet a Breaker appban látod.',
       foot: 'A menetrenden lazítani az appban lehet, próbatétellel — '
         + 'szigorítani ingyen.',
-      left: null,
+      left: (min) => `Nyit: még ${roughly(min)}.`,
+      done: 'A menetrend szerint az oldal újra nyitva.',
     },
     always: {
       title: 'Ezt az oldalt te tiltottad le.',
@@ -69,6 +78,7 @@ if (focus) {
       foot: 'Levenni a Breaker appban lehet, és próbatételbe kerül — épp '
         + 'azért, hogy egy gyenge pillanat ne legyen elég hozzá.',
       left: null,
+      done: null,
     },
   };
   const t = texts[params.get('closedReason')] ?? texts.always;
@@ -88,9 +98,7 @@ if (focus) {
       if (min <= 0) {
         // Lejárt. Nem találgatunk („mindjárt”): a tiltás lapját a böngésző
         // magától nem cseréli vissza — adunk utat, ha van hová.
-        el.textContent = backTo
-          ? 'A szünet letelt — az oldal újra nyitva.'
-          : 'A szünet letelt — töltsd újra az oldalt.';
+        el.textContent = t.done + (backTo ? '' : ' Töltsd újra az oldalt.');
         if (backTo) {
           const back = document.getElementById('closedBack');
           back.hidden = false;

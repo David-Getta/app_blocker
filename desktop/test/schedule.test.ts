@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import * as assert from 'node:assert/strict';
 import {
-  isBlockedBySchedule, inAnyBand, isLoosening, normalizeSchedule, ALWAYS,
+  isBlockedBySchedule, inAnyBand, isLoosening, nextOpenAt, normalizeSchedule, ALWAYS,
   type Schedule, type Band,
 } from '../src/shared/schedule';
 
@@ -84,4 +84,32 @@ test('isLoosening: tightening is free, loosening is gated', () => {
   assert.equal(isLoosening(workHours, wider, now), false);
   // narrowing a block band frees time => loosening
   assert.equal(isLoosening(wider, workHours, now), true);
+});
+
+test('nextOpenAt: a következő nyitás percre pontos, a sosem nyíló nulla', () => {
+  // Hétköznap 9–17 tiltva (workHours). Hétfő 10:00-kor zárva → 17:00-kor nyit.
+  assert.equal(nextOpenAt(workHours, at(1, 10, 0)), at(1, 17, 0));
+  // Nyitott pillanatra maga a pillanat jön vissza — a hívó csak zártan kérdezi.
+  const openNow = at(1, 8, 0);
+  assert.equal(nextOpenAt(workHours, openNow), openNow);
+  // Éjfélen átforduló sáv: szerda 22:00-tól másnap 02:00-ig tilt.
+  const late: Schedule = {
+    mode: 'scheduled_block',
+    bands: [{ days: [3], startMin: 22 * 60, endMin: 2 * 60 }],
+  };
+  assert.equal(nextOpenAt(late, at(3, 23, 30)), at(4, 2, 0));
+  // Fordított irány: csak vasárnap hajnal szabad — szerdától vasárnapig várat.
+  const sundayOnly: Schedule = {
+    mode: 'scheduled_allow',
+    bands: [{ days: [0], startMin: 0, endMin: 60 }],
+  };
+  assert.equal(nextOpenAt(sundayOnly, at(3, 15, 0)), at(7, 0, 0));
+  // A sosem nyíló menetrendnek nincs következő nyitása — se a sima tiltásnak,
+  // se egy hézag nélküli sávozásnak.
+  assert.equal(nextOpenAt(ALWAYS, at(1, 10, 0)), 0);
+  const solid: Schedule = {
+    mode: 'scheduled_block',
+    bands: [{ days: [0, 1, 2, 3, 4, 5, 6], startMin: 0, endMin: 1440 }],
+  };
+  assert.equal(nextOpenAt(solid, at(1, 10, 0)), 0);
 });
