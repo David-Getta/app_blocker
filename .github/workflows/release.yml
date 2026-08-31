@@ -50,7 +50,8 @@ jobs:
           mintha a net romlott volna el. Mostantól — összekötött
           bővítmény mellett — a Breaker saját lapja jön helyette: kimondja az
           okot, hűtésnél és keretnél pedig visszaszámol a nyitásig
-          („Adag betelt — újranyílik magától: még kb. 7 perc”).
+          („Adag betelt — újranyílik magától: még kb. 7 perc”), a szünet
+          leteltekor pedig linket ad vissza az eredeti oldalra.
 
           Ez magyarázat, nem érvényesítés: a tiltást továbbra is a DNS
           tartja, bővítmény nélkül is — más böngészőben és inkognitóban

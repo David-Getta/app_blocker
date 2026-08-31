@@ -100,7 +100,7 @@ function refreshInBackground() {
 }
 
 /** A tiltó lap címe, a MEGFOGÓ okkal együtt: a lap megnevezi, mi állította meg. */
-function blockedUrl(hit) {
+function blockedUrl(hit, fromUrl) {
   if (hit.reason === 'focus') {
     const q = new URLSearchParams({
       focus: hit.focus.name || 'Munkamenet',
@@ -115,6 +115,11 @@ function blockedUrl(hit) {
     });
     // A lejárat csak ott megy át, ahol tény: a lap ebből számol vissza.
     if (hit.closed.until > 0) q.set('until', String(hit.closed.until));
+    // Az eredeti cím is megy — a szünet LETELTEKOR a lap ebből ad linket
+    // vissza az oldalra. Csak valódi webcím, és csak józan hosszban: a lap
+    // majd ellenőrzi újra, mielőtt linket csinál belőle.
+    const from = String(fromUrl ?? '');
+    if (/^https?:\/\//i.test(from) && from.length <= 2000) q.set('from', from);
     return chrome.runtime.getURL(`blocked.html?${q.toString()}`);
   }
   if (hit.reason === 'channel') {
@@ -155,7 +160,7 @@ async function enforce(kind, details) {
   }
   note(`${kind} ${details.url} -> ${hit ? hit.reason : 'mehet'}`);
   if (!hit) return;
-  const target = blockedUrl(hit);
+  const target = blockedUrl(hit, details.url);
   // A lapot NEM zárjuk be: a becsukódó lap ijesztő, és nem mondja meg, mi
   // történt. A saját lapunk viszont megnevezi a szabályt, ami megfogta.
   try {

@@ -349,6 +349,30 @@ async function main() {
         'a tiltó lap adag-nyelven magyaráz és visszaszámol');
     }
 
+    // A szünet LETELTEKOR a lap utat ad vissza: a visszaszámláló helyén link
+    // az eredeti címre. A lap magától nem navigál — a linken át a döntés
+    // úgyis újra lefut, tehát egy közben újraindult hűtés vissza is fogná.
+    const backUntil = Date.now() + 4000; // elég hosszú, hogy a döntés még hűtésben érje
+    await seedClosed([{ host: '127.0.0.1', reason: 'cooldown', until: backUntil }], Date.now());
+    await page.goto(`${base}/watch?v=goodvid1234`).catch(() => { /* elkapja a tiltás */ });
+    const shortBlocked = await waitForBrowserUrl(page, context, /blocked\.html\?.*closedReason=/, WAIT_MS);
+    check(!!shortBlocked, 'a rövid hűtés is tiltó lapra fut');
+    if (shortBlocked && /blocked\.html/.test(page.url())) {
+      // Megvárjuk a lejáratot, aztán újratöltünk: a lap 30 mp-enként festene
+      // át, de a betöltéskori ELSŐ festés is dönt — az újratöltés után a link
+      // már ott kell legyen, a paraméterben vitt EREDETI címmel.
+      await page.waitForTimeout(Math.max(0, backUntil - Date.now()) + 300);
+      await page.reload().catch(() => {});
+      await page.waitForTimeout(400);
+      const back = await page.evaluate(() => {
+        const a = document.getElementById('closedBackLink');
+        const p = document.getElementById('closedBack');
+        return p && a ? { hidden: p.hidden, href: a.href } : null;
+      }).catch(() => null);
+      check(!!back && back.hidden === false && back.href === `${base}/watch?v=goodvid1234`,
+        'a szünet leteltekor a lap visszautat ad az eredeti címre');
+    }
+
     // A LEJÁRT hűtés nem tilt: a DNS már kinyitott, a lapnak hallgatnia kell —
     // akkor is, ha a bejegyzés még ott ül a tárban.
     await seedClosed([{ host: '127.0.0.1', reason: 'cooldown', until: Date.now() - 1000 }],

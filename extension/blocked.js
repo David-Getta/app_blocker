@@ -78,11 +78,27 @@ if (focus) {
   if (t.left && Number.isFinite(until) && until > 0) {
     const el = document.getElementById('closedLeft');
     el.hidden = false;
+    // Az eredeti cím, amiről a tiltás lehozott — a lejáratkor ebből lesz link.
+    // Újra ellenőrizzük, pedig a háttér is tette: erre a lapra kézzel írt
+    // címmel is el lehet jutni, és innen csak valódi webcímre mutathat link.
+    const from = params.get('from');
+    const backTo = from && /^https?:\/\//i.test(from) && from.length <= 2000 ? from : null;
     const paint = () => {
       const min = Math.ceil((until - Date.now()) / 60000);
-      // Lejárt? Nem találgatunk („mindjárt”): megmondjuk, mit tegyen — a
-      // tiltás lapját a böngésző nem cseréli le magától az oldalra.
-      el.textContent = min <= 0 ? 'A szünet letelt — töltsd újra az oldalt.' : t.left(min);
+      if (min <= 0) {
+        // Lejárt. Nem találgatunk („mindjárt”): a tiltás lapját a böngésző
+        // magától nem cseréli vissza — adunk utat, ha van hová.
+        el.textContent = backTo
+          ? 'A szünet letelt — az oldal újra nyitva.'
+          : 'A szünet letelt — töltsd újra az oldalt.';
+        if (backTo) {
+          const back = document.getElementById('closedBack');
+          back.hidden = false;
+          document.getElementById('closedBackLink').href = backTo;
+        }
+      } else {
+        el.textContent = t.left(min);
+      }
     };
     paint();
     // Fél percenként frissül: egy beragadt szám azt sugallná, hogy áll az idő.
