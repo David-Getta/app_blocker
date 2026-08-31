@@ -13,6 +13,7 @@ import android.os.ParcelFileDescriptor
 import android.util.Log
 import hu.breaker.app.MainActivity
 import hu.breaker.app.R
+import hu.breaker.app.core.AliasLogic
 import hu.breaker.app.core.BreakerStore
 import hu.breaker.app.core.Focus
 import hu.breaker.app.core.Referee
@@ -115,11 +116,26 @@ class BreakerVpnService : VpnService() {
         val now = System.currentTimeMillis()
         val run = BreakerStore.runningFocus(now)
         val pack = BreakerStore.runningFocusPack(now)
+        // A hűtés a munkamenet UTÁN jön: a menet mindenre szól, az adag egy
+        // oldalra — a szélesebb állapot a fontosabb mondanivaló.
+        val cooling = if (run == null) BreakerStore.coolingSites(now) else emptyList()
         val title: String
         val text: String
         if (run != null) {
             title = getString(R.string.vpn_focus_title, pack?.name ?: "Munkamenet")
             text = getString(R.string.vpn_focus_text, Focus.formatRemaining(run.endsAt - now))
+        } else if (cooling.isNotEmpty()) {
+            // A telefonon a betelt adagnak nincs tiltó lapja — a böngésző csak
+            // hálózati hibát mutat. Ez az értesítés mondja meg, mi történt, és
+            // mikor nyílik újra; nélküle a hűtés meghibásodásnak látszana.
+            val remaining = Focus.formatRemaining(cooling.first().second - now)
+            if (cooling.size == 1) {
+                title = getString(R.string.vpn_burst_title, AliasLogic.displayName(cooling.first().first))
+                text = getString(R.string.vpn_burst_text, remaining)
+            } else {
+                title = getString(R.string.vpn_burst_title_many, cooling.size)
+                text = getString(R.string.vpn_burst_text_many, remaining)
+            }
         } else {
             title = getString(R.string.vpn_notification_title)
             text = getString(R.string.vpn_notification_text)
@@ -142,8 +158,16 @@ class BreakerVpnService : VpnService() {
     private fun refreshNotification() {
         val now = System.currentTimeMillis()
         val run = BreakerStore.runningFocus(now)
-        val key = if (run == null) "-" else {
+        val key = if (run != null) {
             "${run.packId}:${Focus.formatRemaining(run.endsAt - now)}"
+        } else {
+            // A hűtés is a kulcs része: induláskor, percváltásnál és lejáratkor
+            // átrajzolunk — közben nem.
+            val cooling = BreakerStore.coolingSites(now)
+            if (cooling.isEmpty()) "-" else {
+                "burst:${cooling.size}:${cooling.first().first.id}:" +
+                    Focus.formatRemaining(cooling.first().second - now)
+            }
         }
         if (key == lastNotifKey) return
         lastNotifKey = key

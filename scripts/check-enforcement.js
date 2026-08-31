@@ -268,6 +268,12 @@ const WIRES = [
     lost: 'a bővítmény nem kérdezné meg, zárva-e az oldal — a hűtött oldalra '
       + 'megint a nyers DNS-hibalap jönne',
   },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/vpn/BreakerVpnService.kt',
+    needle: 'BreakerStore.coolingSites(now)',
+    lost: 'a telefonon a futó hűtésről senki nem szólna — a böngésző hibalapja '
+      + 'meghibásodásnak látszana, nem szünetnek',
+  },
   // A MAI NAP KÜLÖN LISTÁJA. A mag régóta kiszámolta (`topToday`), csak épp
   // senki nem kérdezte meg — a felhasználó kérte ki magának a funkciót.
   {

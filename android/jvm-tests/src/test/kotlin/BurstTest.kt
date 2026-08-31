@@ -1,4 +1,8 @@
+import android.content.Context
+import hu.breaker.app.core.AppState
+import hu.breaker.app.core.BreakerStore
 import hu.breaker.app.core.BurstLogic
+import hu.breaker.app.core.Site
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -80,5 +84,36 @@ class BurstTest {
             BurstLogic.isLoosening(rule, BurstLogic.Rule(60, 60)),
             "vegyes módosításnál a lazító fele dönt",
         )
+    }
+
+    @Test
+    fun `a tar megmondja, mely oldalak hutese fut — a leghamarabb nyilo elol`() {
+        // Ebből beszél a VPN-szolgáltatás tartós értesítése: a telefonon a
+        // betelt adagnak nincs tiltó lapja, a böngésző csak hálózati hibát
+        // mutat — az értesítés az egyetlen hely, ami megmondja, mi történt.
+        BreakerStore.init(Context())
+        BreakerStore.mutate { AppState() }
+        val site = { id: String, domain: String ->
+            Site(id, domain, listOf(domain), t0, null, null,
+                burstSeconds = 120, cooldownSeconds = 600)
+        }
+        BreakerStore.mutate {
+            it.copy(
+                sites = listOf(site("a", "gemini.google.com"), site("b", "youtube.com"),
+                    site("c", "reddit.com")),
+                bursts = mapOf(
+                    "a" to BurstLogic.State(0.0, t0, t0 + 600_000),
+                    "b" to BurstLogic.State(0.0, t0, t0 + 60_000),
+                    "c" to BurstLogic.State(30.0, t0, 0), // gyűlik, de nem hűl
+                ),
+            )
+        }
+        val cooling = BreakerStore.coolingSites(t0 + 1000)
+        assertEquals(listOf("b", "a"), cooling.map { p -> p.first.id },
+            "csak a futó hűtések, a leghamarabb nyíló elöl")
+        assertEquals(t0 + 60_000, cooling.first().second)
+        assertTrue(BreakerStore.coolingSites(t0 + 601_000).isEmpty(),
+            "lejárt hűtés nem hűtés")
+        BreakerStore.mutate { AppState() }
     }
 }

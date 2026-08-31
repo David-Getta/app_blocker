@@ -58,6 +58,11 @@ jobs:
           adatból beszél: ha az app nem fut, vagy a hűtés ideje lejárt,
           inkább hallgat, mint hogy zárva-t mondjon egy már kinyílt oldalra.
 
+          **A telefonon az értesítés mondja meg.** Androidon tiltó lap nincs
+          (a böngésző hálózati hibát mutat) — futó hűtés alatt ezért a Breaker
+          tartós értesítése írja ki, melyik oldal szünetel és mennyi van
+          hátra, ugyanúgy, ahogy munkamenet alatt is az beszél.
+
           Ehhez a bővítményt frissíteni kell: töltsd le az új
           `Breaker-bovitmeny` zipet, csomagold ki a régi helyére, és a
           `chrome://extensions` lapon nyomj rá frissítést.

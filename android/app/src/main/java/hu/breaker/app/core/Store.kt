@@ -262,6 +262,24 @@ object BreakerStore {
     }
 
     /**
+     * A MOST hűtés alatt álló oldalak, a hűtésük végével — a leghamarabb
+     * nyíló elöl.
+     *
+     * A telefonon a betelt adagnak nincs tiltó lapja: a DNS-válasz elmarad, a
+     * böngésző hálózati hibát mutat. Az egyetlen hely, ahol a felhasználó
+     * megnézheti, mi történt, a tartós értesítés — az ebből a listából beszél.
+     */
+    fun coolingSites(now: Long): List<Pair<Site, Long>> {
+        val state = _state.value
+        return state.sites
+            .mapNotNull { site ->
+                val b = state.bursts[site.id] ?: return@mapNotNull null
+                if (BurstLogic.isCoolingDown(b, now)) site to b.cooldownUntil else null
+            }
+            .sortedBy { it.second }
+    }
+
+    /**
      * A fiókkiszolgáló hosztneve, ha van fiók.
      *
      * A szűrőnek azért kell, mert a munkamenet alatt sem tilthatjuk el: enélkül

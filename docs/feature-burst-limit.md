@@ -50,7 +50,11 @@ ugyanazért, amiért a napi keretet: próbatétellel fizettek érte.
 - **Gépen**: a segéd a `usage_batch` mintáiból könyvel, és a commit
   hosts-frissítése azonnal tilt; a hűtés lejártát a 15 mp-es tick nyitja.
 - **Androidon**: a mérő `flush`-a könyvel, a DNS-szűrő minden feloldásnál
-  friss `now`-val dönt — a hűtés ott is magától indul és jár le.
+  friss `now`-val dönt — a hűtés ott is magától indul és jár le. A telefonon
+  tiltó lap nincs (a DNS-válasz elmarad, a böngésző hálózati hibát mutat),
+  ezért futó hűtés alatt a **tartós értesítés** mondja meg, mi történt és
+  mennyi van hátra (`BreakerStore.coolingSites`) — ugyanazért, amiért
+  munkamenet alatt is az beszél.
 - **iPhone-on NEM érvényesül**: ott nincs előtér-mérés, amiből az adag
   gyűlne. A mezőket a Swift átviszi (különben a szinkron letörölné őket),
   a doksi és ez a fájl kimondja a korlátot.
