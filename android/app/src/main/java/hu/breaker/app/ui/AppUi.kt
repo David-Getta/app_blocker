@@ -1255,6 +1255,7 @@ private fun BurstLine(site: Site, burst: BurstLogic.State?, now: Long) {
 }
 
 /** Adag-szabály szerkesztése: ennyi használat után ennyi szünet. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun BurstDialog(
     site: Site,
