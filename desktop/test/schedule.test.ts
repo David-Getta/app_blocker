@@ -113,3 +113,42 @@ test('nextOpenAt: a következő nyitás percre pontos, a sosem nyíló nulla', (
   };
   assert.equal(nextOpenAt(solid, at(1, 10, 0)), 0);
 });
+
+test('nextOpenAt fuzz: amit mond, az tényleg nyitás — és nem késik', () => {
+  // Véletlen menetrendek százára három állítás:
+  //   1. a visszaadott pillanat tényleg nyitott;
+  //   2. az előtte lévő perchatár még zárt (nem késik feleslegesen);
+  //   3. nulla csak akkor jön, ha a rákövetkező nyolc nap perchatárain
+  //      tényleg nincs nyitás.
+  // A magot kérdezzük, nem másoljuk — a fuzz pont a kézi sáv-számtan ellen véd.
+  let seed = 0x5eed;
+  const rnd = (n: number): number => {
+    seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+    return seed % n;
+  };
+  for (let i = 0; i < 120; i++) {
+    const bands: Band[] = Array.from({ length: 1 + rnd(3) }, () => ({
+      days: Array.from({ length: 1 + rnd(7) }, () => rnd(7) as 0|1|2|3|4|5|6),
+      startMin: rnd(1440),
+      endMin: 1 + rnd(1440),
+    }));
+    const s: Schedule = { mode: rnd(2) === 0 ? 'scheduled_block' : 'scheduled_allow', bands };
+    const now = at(rnd(7), rnd(24), rnd(60));
+    if (!isBlockedBySchedule(s, now)) continue; // csak zártan kérdezzük
+    const open = nextOpenAt(s, now);
+    if (open === 0) {
+      for (let m = 1; m <= 8 * 24 * 60; m += 60) {
+        assert.equal(isBlockedBySchedule(s, now + m * 60_000), true,
+          `#${i}: nullát mondott, pedig ${m} perc múlva nyitna`);
+      }
+      continue;
+    }
+    assert.ok(open > now, `#${i}: a nyitás előttünk kell legyen`);
+    assert.equal(isBlockedBySchedule(s, open), false, `#${i}: a mondott pillanat zárt`);
+    // Az előtte lévő perchatár még zárt — kivéve, ha a nyitás egy percen belül van.
+    if (open - now > 60_000) {
+      assert.equal(isBlockedBySchedule(s, open - 60_000), true,
+        `#${i}: egy perccel korábban már nyitva volt — késve szól`);
+    }
+  }
+});

@@ -385,3 +385,38 @@ test('a zárva lévő oldalon mért idő nem könyvelődik — de elszámolt', a
 
   state.sites = state.sites.filter((s) => s.id !== 'closed1' && s.id !== 'open1');
 });
+
+test('kötegen belüli betelés: a hűtés a köteg további mintáit is kihagyja', async () => {
+  // A felhasználó esete: 2 perc Gemini után tilt. A mérés kötegben érkezik —
+  // ha a betelés UTÁNI szeletek (a hibalapon mért idő) még ugyanabban a
+  // kötegben könyvelődnének, az első hűtés azonnal túlszámolna. A kihagyás
+  // annak köszönhető, hogy a döntés mintánként, a MÁR frissült adag-állapoton
+  // fut — ez a teszt pont ezt a láncot szögezi le.
+  const now = Date.now();
+  state.sites.push({
+    id: 'burst1', domain: 'adag.example', hostnames: ['adag.example'],
+    addedAt: now, pauseUntil: null, pendingDeleteAt: null,
+    schedule: { mode: 'scheduled_allow', bands: [{ days: [0, 1, 2, 3, 4, 5, 6], startMin: 0, endMin: 1440 }] },
+    burstSeconds: 120, cooldownSeconds: 600,
+  });
+
+  const res = await call('usage_batch', {
+    samples: [
+      { key: 'site:adag.example', label: 'adag', seconds: 130, at: now },        // betelik
+      { key: 'site:adag.example', label: 'adag', seconds: 30, at: now + 1000 },  // már hűtésben
+    ],
+  });
+  assert.equal(res.ok, true);
+  const data = res.data as { recorded: number; skippedClosed: number };
+  assert.equal(data.recorded, 1, 'a betelésig mért szelet számít');
+  assert.equal(data.skippedClosed, 1, 'a betelés utáni szelet ugyanabban a kötegben már nem');
+
+  const onDisk = JSON.parse(fs.readFileSync(process.env.BREAKER_STATE!, 'utf8')) as HelperState;
+  const today = onDisk.usage.days[onDisk.usage.days.length - 1].seconds;
+  assert.equal(Math.round(today['site:adag.example'] ?? 0), 130,
+    'a statisztikában csak a valódi használat áll');
+  assert.ok((onDisk.bursts?.burst1?.cooldownUntil ?? 0) > now, 'a hűtés tényleg elindult');
+
+  state.sites = state.sites.filter((s) => s.id !== 'burst1');
+  delete state.bursts?.burst1;
+});
