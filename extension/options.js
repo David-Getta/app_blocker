@@ -10,7 +10,7 @@ import { ruleLabel } from './rules-core.js';
 import {
   addRule, cancelRemoval, load, REMOVE_DELAY_MS, startRemoval, sweep,
 } from './storage.js';
-import { loadLink, pullFromApp, setToken, withAppRules } from './app-link.js';
+import { CLOSED_FRESH_MS, loadLink, pullFromApp, setToken, withAppRules } from './app-link.js';
 import { dayKey, formatSeconds, lastDays, topChannels } from './chantime.js';
 
 const TIME_KEY = 'breaker.chantime';
@@ -60,6 +60,7 @@ async function render() {
   const link = await loadLink();
   const now = Date.now();
   renderLink(link);
+  renderClosedNow(link, now);
   void renderChannelTime();
   const list = $('list');
   list.textContent = '';
@@ -125,6 +126,35 @@ function renderLink(link) {
     : '';
   state.textContent = `Összekötve — ${link.rules.length} szabály az appból${chanText}, `
     + (mins < 1 ? 'az imént frissítve.' : `${mins} perce frissítve.`);
+}
+
+/**
+ * Mi van MOST zárva az app szerint — ugyanabból a listából, amiből a tiltó
+ * lap magyaráz. Csak friss adatból beszél, és a lejárt bejegyzést kihagyja:
+ * elavult zárva-t mondani rosszabb, mint hallgatni (a tiltást a DNS tartja).
+ */
+function renderClosedNow(link, now = Date.now()) {
+  const box = $('closedNow');
+  // Frissesség dönt, nem a kód megléte — ugyanúgy, ahogy a closedFor-nál:
+  // a lista magáért beszél, ha elég friss.
+  const fresh = now - (link.fetchedAt ?? 0) <= CLOSED_FRESH_MS;
+  const seen = new Set();
+  const parts = [];
+  const words = { always: 'tiltva', schedule: 'menetrend', cooldown: 'adag-szünet', limit: 'mai keret' };
+  for (const c of fresh ? link.closed ?? [] : []) {
+    if (seen.has(c.host)) continue;
+    seen.add(c.host);
+    let label = words[c.reason] ?? 'tiltva';
+    if (c.until > now) {
+      const min = Math.ceil((c.until - now) / 60000);
+      label += min >= 90 ? `, még kb. ${Math.round(min / 60)} ó` : `, még kb. ${Math.max(min, 1)} p`;
+    } else if (c.until > 0) {
+      continue; // a lejárt zárás már nem zárás
+    }
+    parts.push(`${c.host} (${label})`);
+  }
+  box.hidden = parts.length === 0;
+  box.textContent = parts.length > 0 ? `Most zárva: ${parts.join(' · ')}` : '';
 }
 
 async function onConnect() {

@@ -103,10 +103,22 @@ is mutatja („most blokkolva” / „most szabad”).
 Későbbi finomítás: szabadon szerkeszthető heti rács (napok × órák) a sablonok
 mellé.
 
+## A következő nyitás kiszámolható tény
+
+A `nextOpenAt(schedule, now)` (shared/schedule.ts) megmondja, mikor enged
+legközelebb a menetrend — percre lépkedve MAGÁT a tiltás-döntést kérdezi, nem
+másolja a sáv-számtant, így óraátállásnál sem mondhat mást, mint amit a
+tiltás tesz. A sosem nyíló menetrendre nullát ad. Ebből számol vissza a
+bővítmény tiltó lapja („Nyit: még kb. 2 óra”) és az oldalsor korongja
+(„nyit X múlva”). Csak az asztali státusz-út használja; a Kotlin/Swift
+magnak nincs rá fogyasztója, ezért ott szándékosan nincs tükre.
+
 ## Tesztek
 
 - `isBlockedBySchedule`: sávon belül/kívül, éjfélátnyúlás, több nap, allow vs
   block mód.
 - `isLoosening`: szigorítás=false, lazítás=true, always→block=szigorítás,
   block→allow általában lazítás, azonos menetrend=false.
+- `nextOpenAt`: percre pontos nyitás, éjfélátnyúlás, több napnyi várakozás,
+  a sosem nyíló nulla.
 - Integráció: menetrenddel a `activeHostnames` a sávhatáron vált.

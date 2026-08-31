@@ -53,6 +53,10 @@ jobs:
           keret csak valódi használatból fogy. A megváltott feloldás alatt
           mért idő valódi használat — az továbbra is számít.
 
+          Apróság mellé: a bővítmény beállítás-lapja mostantól ki is mondja,
+          mi van éppen zárva és miért — oldalanként az okkal és a hátralévő
+          idővel, ugyanabból a friss listából, amiből a tiltó lap magyaráz.
+
           ### Ami a v0.4.15-ben jött
 
           **A menetrendes zárás is visszaszámol.** A tiltó lap eddig a

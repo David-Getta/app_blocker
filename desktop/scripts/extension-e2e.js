@@ -373,6 +373,22 @@ async function main() {
         'a szünet leteltekor a lap visszautat ad az eredeti címre');
     }
 
+    // A beállítás-lap átlátszóság-sora: ugyanabból a listából mondja meg, mi
+    // van most zárva, amiből a tiltó lap magyaráz. Friss beültetés kell: az
+    // előző eset hűtése szándékosan már lejárt.
+    await seedClosed([{ host: '127.0.0.1', reason: 'cooldown', until: Date.now() + 600_000 }],
+      Date.now());
+    await seeder.reload();
+    await seeder.waitForTimeout(400);
+    const closedRow = await seeder.evaluate(() => {
+      const p = document.getElementById('closedNow');
+      return p ? { hidden: p.hidden, text: p.textContent } : null;
+    }).catch(() => null);
+    check(!!closedRow && closedRow.hidden === false
+      && String(closedRow.text).includes('Most zárva:')
+      && String(closedRow.text).includes('adag-szünet'),
+    'a beállítás-lap kimondja, mi van most zárva és miért');
+
     // A LEJÁRT hűtés nem tilt: a DNS már kinyitott, a lapnak hallgatnia kell —
     // akkor is, ha a bejegyzés még ott ül a tárban.
     await seedClosed([{ host: '127.0.0.1', reason: 'cooldown', until: Date.now() - 1000 }],
