@@ -44,6 +44,14 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
+          **Újdonságok gomb.** A fiók-panelen (jobb felső ikon) egy gombbal
+          megnyílik ez a kiadási jegyzet a böngészőben — eddig csak az látta,
+          aki magától idekattintott. Mellé kimondtuk a doksiban, hogy az óra
+          átállítása az adag-szünet lejáratát is érinti — ugyanaz a korlát,
+          mint a napi keretnél: a rendszeróra az igazság.
+
+          ### Ami a v0.4.19-ben jött
+
           **A statisztika a betelésekről is beszámol.** A Statisztika fül
           „Mire ment ma az idő” blokkja alatt mostantól ott áll, melyik
           oldalon hányszor telt be ma az adag — a nap történetének az a
@@ -54,7 +62,7 @@ jobs:
           lennie mindhárom platformon — az ilyen hiány volt a v0.4.18-ban
           javított iPhone-os rés gyökere, többé nem tud némán visszajönni.
 
-          ### Ami a v0.4.18-ban jött
+          #### Ami a v0.4.18-ban jött
 
           **Az adag-sor megmondja, hányszor telt be ma.** Az Oldalak fülön
           az adag-szabályos oldal sora mostantól a mai betelések számát is
@@ -70,19 +78,6 @@ jobs:
           A mezők most már a telefonon is megvannak, és az oldal sora ki
           is írja a szabályt — kimondva, hogy ott nem érvényesül (nincs
           előtér-mérés), csak hordozza.
-
-          #### Ami a v0.4.17-ben jött
-
-          **Ablak-gombok, Kilépés gomb, látható frissítés.** Mac-en
-          visszatért a három ablak-gomb (bezárás, kicsinyítés, teljes
-          képernyő) — a címsor a fejlécbe olvad, a fejléc húzható. Magyar
-          app-menü lett Kilépéssel (Cmd+Q), a fiók-panelen pedig ott a
-          verziószám, egy Frissítés keresése gomb és egy Kilépés gomb — a
-          kilépés a tiltást nem érinti (azt a háttérszolgáltatás tartja),
-          a letöltött frissítés viszont pont kilépéskor települ. Az app
-          mostantól az ablak fókuszba kerülésekor is néz frissítést (fél-
-          órás türelemmel), nem csak hatóránként — aki napokig futni
-          hagyja, az sem ragad régi verzión.
 
           NOTES
           fi
