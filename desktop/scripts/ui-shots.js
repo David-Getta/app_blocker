@@ -685,6 +685,11 @@ async function main() {
   if (!(await page.locator('#topToday .badge').count())) {
     failures.push('a mai listán nincs blokkolt-jelvény a blokkolt oldalon');
   }
+  // Az adag-betelések sora: a hamis gemini-oldal ma kétszer telt be.
+  const tripsText = (await page.locator('#tripsToday').innerText().catch(() => '')) || '';
+  if (!tripsText.includes('Adag-betelések ma') || !tripsText.includes('2×')) {
+    failures.push(`az adag-betelések sora hiányzik vagy hiányos: „${tripsText}”`);
+  }
   // ÜRES mai nap = a blokk ELTŰNIK. Egy minden reggel ott álló üres doboz nem
   // információ, csak zaj; hogy miért nulla, azt az „utoljára mért idő” sor
   // mondja meg. A foltot a valódi összegzőből építjük, csak a mai listát

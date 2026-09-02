@@ -2854,6 +2854,16 @@ function renderStats(): void {
   // nem egy üres doboz.
   $('todayBlock').classList.toggle('hidden', s.topToday.length === 0);
   renderBarList($('topToday'), s.topToday, null, true);
+  // Az adag-betelések: a nap történetének az a fele, amit a mérés nem mutat
+  // (a hűtésben töltött idő szándékosan nem könyvelődik). A címke ugyanazon a
+  // maszkoló úton megy, mint a többi statisztika-sor (rejtett lista, fedőnév).
+  const trips = (status?.sites ?? [])
+    .filter((x) => (x.burstTripsToday ?? 0) > 0)
+    .sort((a, b) => (b.burstTripsToday ?? 0) - (a.burstTripsToday ?? 0))
+    .map((x) => `${statLabel(x.domain)} ${x.burstTripsToday}×`);
+  $('tripsToday').classList.toggle('hidden', trips.length === 0);
+  $('tripsToday').textContent = trips.length > 0
+    ? `Adag-betelések ma: ${trips.join(' · ')}` : '';
   renderBarList($('topSites'), s.topWeekSites, $('topSitesEmpty'), true);
   renderBarList($('topApps'), s.topWeekApps, $('topAppsEmpty'), false);
   $('usageLegend').classList.toggle('hidden', s.topWeekSites.length === 0);

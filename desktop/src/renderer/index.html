@@ -295,6 +295,12 @@
         <div class="chart-block hidden" id="todayBlock">
           <h3 class="chart-title">Mire ment ma az idő</h3>
           <div class="bar-list" id="topToday"></div>
+          <!--
+            Az adag-betelések a nap történetének az a fele, ami a mérésből nem
+            látszik: a hűtésben töltött idő szándékosan nem könyvelődik. Üresen
+            a sor eltűnik — aki nem használ adag-szabályt, nem is találkozik vele.
+          -->
+          <p class="hint hidden" id="tripsToday"></p>
         </div>
 
         <div class="chart-block">

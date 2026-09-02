@@ -44,6 +44,18 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
+          **A statisztika a betelésekről is beszámol.** A Statisztika fül
+          „Mire ment ma az idő” blokkja alatt mostantól ott áll, melyik
+          oldalon hányszor telt be ma az adag — a nap történetének az a
+          fele, amit a mérés nem mutat, mert a szünetben töltött idő
+          szándékosan nem könyvelődik. A címke a megszokott maszkoló úton
+          megy (rejtett lista, fedőnév). Mellé egy belső őr is épült: a
+          szinkron minden oldal-mezőjének a helyi modellben is ott kell
+          lennie mindhárom platformon — az ilyen hiány volt a v0.4.18-ban
+          javított iPhone-os rés gyökere, többé nem tud némán visszajönni.
+
+          ### Ami a v0.4.18-ban jött
+
           **Az adag-sor megmondja, hányszor telt be ma.** Az Oldalak fülön
           az adag-szabályos oldal sora mostantól a mai betelések számát is
           mutatja („ma 2× betelt”) — gépen és Androidon is. Nem szégyenpad:
@@ -59,7 +71,7 @@ jobs:
           is írja a szabályt — kimondva, hogy ott nem érvényesül (nincs
           előtér-mérés), csak hordozza.
 
-          ### Ami a v0.4.17-ben jött
+          #### Ami a v0.4.17-ben jött
 
           **Ablak-gombok, Kilépés gomb, látható frissítés.** Mac-en
           visszatért a három ablak-gomb (bezárás, kicsinyítés, teljes
@@ -71,21 +83,6 @@ jobs:
           mostantól az ablak fókuszba kerülésekor is néz frissítést (fél-
           órás türelemmel), nem csak hatóránként — aki napokig futni
           hagyja, az sem ragad régi verzión.
-
-          #### Ami a v0.4.16-ban jött
-
-          **A tiltott oldalon „töltött” idő nem fogyasztja a keretet.** A
-          tiltott oldal hibalapján a fül címsorában ott marad a cím, és a
-          mérő eddig mérhette — a hibalap-percek beleszámoltak a
-          statisztikába, és menetrendes zárás alatt előre üríthették a napi
-          keretet. Mostantól a zárva lévő oldal mintája nem könyvelődik
-          (a telefonon ez eddig is így volt): a statisztika nem hazudik, a
-          keret csak valódi használatból fogy. A megváltott feloldás alatt
-          mért idő valódi használat — az továbbra is számít.
-
-          Apróság mellé: a bővítmény beállítás-lapja mostantól ki is mondja,
-          mi van éppen zárva és miért — oldalanként az okkal és a hátralévő
-          idővel, ugyanabból a friss listából, amiből a tiltó lap magyaráz.
 
           NOTES
           fi
