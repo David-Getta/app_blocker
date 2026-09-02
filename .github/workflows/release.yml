@@ -44,13 +44,24 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
+          **A gép is szól, amikor betelik az adag.** Eddig csak a telefon
+          értesített a futó szünetről — a gépen a betelés némán történt,
+          ha épp nem a Breakert vagy a böngészőt nézted. Mostantól az app
+          értesítést dob a betelés pillanatában (kiírja, mennyi múlva
+          nyit), és akkor is, amikor a szünet letelt és az oldal újra
+          nyitva. Őszinte korlát: csak amíg az app fut — a háttérben ülő
+          védelem magától nem tud értesíteni. Rejtett listánál a valódi
+          név az értesítésben sem látszik.
+
+          ### Ami a v0.4.20-ban jött
+
           **Újdonságok gomb.** A fiók-panelen (jobb felső ikon) egy gombbal
           megnyílik ez a kiadási jegyzet a böngészőben — eddig csak az látta,
           aki magától idekattintott. Mellé kimondtuk a doksiban, hogy az óra
           átállítása az adag-szünet lejáratát is érinti — ugyanaz a korlát,
           mint a napi keretnél: a rendszeróra az igazság.
 
-          ### Ami a v0.4.19-ben jött
+          #### Ami a v0.4.19-ben jött
 
           **A statisztika a betelésekről is beszámol.** A Statisztika fül
           „Mire ment ma az idő” blokkja alatt mostantól ott áll, melyik
@@ -61,23 +72,6 @@ jobs:
           szinkron minden oldal-mezőjének a helyi modellben is ott kell
           lennie mindhárom platformon — az ilyen hiány volt a v0.4.18-ban
           javított iPhone-os rés gyökere, többé nem tud némán visszajönni.
-
-          #### Ami a v0.4.18-ban jött
-
-          **Az adag-sor megmondja, hányszor telt be ma.** Az Oldalak fülön
-          az adag-szabályos oldal sora mostantól a mai betelések számát is
-          mutatja („ma 2× betelt”) — gépen és Androidon is. Nem szégyenpad:
-          azt mutatja meg, hogy a szabály tényleg dolgozik — és ha sokszor
-          telik be, az nem gyengeség, hanem jel, hogy az adag rövid. A
-          darabszám eszközönkénti, és éjfélkor tiszta lappal indul.
-
-          **Javítás: az iPhone nem törölheti le az adag-szabályt.** Az
-          iPhone-os app helyi rekordjából hiányoztak az adag-mezők, ezért
-          egy ott tett bármilyen oldal-szerkesztés (pl. fedőnév) a
-          szinkronon át letörölhette volna a gépen beállított szabályt.
-          A mezők most már a telefonon is megvannak, és az oldal sora ki
-          is írja a szabályt — kimondva, hogy ott nem érvényesül (nincs
-          előtér-mérés), csak hordozza.
 
           NOTES
           fi
