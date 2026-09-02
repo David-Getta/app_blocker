@@ -162,7 +162,12 @@ enum SyncClient {
                 // gépen beállítottak egyet, a telefon szinkronja nem törölheti
                 // le. Enélkül elég lenne egyszer megnyitni a telefont ahhoz,
                 // hogy a keret eltűnjön a gépről is.
-                dailyLimitSeconds: s.dailyLimitSeconds, alias: s.alias,
+                dailyLimitSeconds: s.dailyLimitSeconds,
+                // Az adag-szabály ugyanígy hordozott: itt nem érvényesül, de
+                // ha kimaradna, egy iPhone-os szerkesztés (nagyobb rev-vel)
+                // letörölné a gépeken beállított szabályt.
+                burstSeconds: s.burstSeconds, cooldownSeconds: s.cooldownSeconds,
+                alias: s.alias,
                 // Ugyanez a hordozás a részleges szabályokra: itt sem
                 // érvényesülnek, de a telefon nem törölheti le őket a gépről.
                 rules: s.rules,
@@ -183,6 +188,7 @@ enum SyncClient {
                 pendingDeleteAt: m.pendingDeleteAt,
                 schedule: m.schedule, alias: m.alias,
                 dailyLimitSeconds: m.dailyLimitSeconds,
+                burstSeconds: m.burstSeconds, cooldownSeconds: m.cooldownSeconds,
                 rules: m.rules
             )
             out.rev = m.rev

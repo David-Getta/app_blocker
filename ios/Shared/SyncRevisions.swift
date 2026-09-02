@@ -28,6 +28,8 @@ enum SyncRevisions {
             s.pendingDeleteAt.map { String($0) } ?? "-",
             bands,
             s.dailyLimitSeconds.map { String($0) } ?? "-",
+            s.burstSeconds.map { String($0) } ?? "-",
+            s.cooldownSeconds.map { String($0) } ?? "-",
             s.alias ?? "-",
             // RENDEZVE: a sorrend nem jelent semmit, viszont ha beleszámítana,
             // egy átrendeződés fölöslegesen léptetné a számlálót, és minden

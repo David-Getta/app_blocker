@@ -427,6 +427,21 @@ struct ContentView: View {
         }
     }
 
+    /// Az adag-szabály — kijelzés, nem érvényesítés.
+    ///
+    /// iPhone-on nincs előtér-mérés, amiből az adag gyűlne, tehát a szabály
+    /// itt nem érvényesül — a gépen és az androidos telefonon igen. Ezt ki
+    /// kell mondani: egy némán ott ülő beállítás azt sugallná, hogy itt is véd.
+    @ViewBuilder
+    private func burstLine(_ site: Site) -> some View {
+        if let burst = site.burstSeconds, let cool = site.cooldownSeconds, burst > 0, cool > 0 {
+            Text("Adag: \(UsageStats.formatDuration(burst)) használat után "
+                + "\(UsageStats.formatDuration(cool)) szünet — a gépen és Androidon "
+                + "érvényesül, ezen a telefonon nem (itt nincs mérés)")
+                .font(.caption).foregroundStyle(.secondary)
+        }
+    }
+
     private func siteCard(_ site: Site) -> some View {
         let paused = (site.pauseUntil ?? 0) > now
         let deleting = site.pendingDeleteAt != nil
@@ -463,6 +478,7 @@ struct ContentView: View {
                     Text("Blokkolva").foregroundStyle(.green)
                 }
                 limitLine(site)
+                burstLine(site)
                 if store.state.session == nil {
                     HStack {
                         Button("Feloldás időre…") { pauseSite = site }.buttonStyle(.bordered)

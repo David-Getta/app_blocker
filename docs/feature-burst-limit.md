@@ -56,8 +56,11 @@ ugyanazért, amiért a napi keretet: próbatétellel fizettek érte.
   mennyi van hátra (`BreakerStore.coolingSites`) — ugyanazért, amiért
   munkamenet alatt is az beszél.
 - **iPhone-on NEM érvényesül**: ott nincs előtér-mérés, amiből az adag
-  gyűlne. A mezőket a Swift átviszi (különben a szinkron letörölné őket),
-  a doksi és ez a fájl kimondja a korlátot.
+  gyűlne. A mezők viszont a HELYI rekordon is ott vannak, nem csak a
+  dróton — e nélkül a szinkron-leképezés eldobná őket, és egy iPhone-on
+  tett bármilyen oldal-szerkesztés (rev-emelés) letörölné a szabályt a
+  többi eszközről is (ez volt a v0.4.18 előtti hiba). A telefon ki is
+  írja a szabályt az oldal sorában, kimondva, hogy ott nem érvényesül.
 - **A böngészőben a tiltó lap magyaráz** (összekötött bővítmény mellett):
   hűtésnél a nyers „nem sikerült kapcsolódni” hibalap helyett a bővítmény
   saját lapja jön — kimondja, hogy az adag telt be, és visszaszámol a

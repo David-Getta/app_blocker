@@ -19,6 +19,16 @@ struct Site: Codable, Identifiable, Equatable {
     /// androidos telefon feltölti, mennyit mért ma, és a `LimitLogic` azt is
     /// beszámítja. Ha a napi húsz perc a gépen elfogyott, itt is zárva van.
     var dailyLimitSeconds: Double?
+    /// Adag-szabály: ennyi használat után… (mp; csak a szünettel együtt).
+    ///
+    /// iPhone-on NEM érvényesül (nincs előtér-mérés, amiből az adag gyűlne) —
+    /// de a mezőknek a HELYI rekordon is ott kell lenniük, nem csak a dróton:
+    /// e nélkül a szinkron-leképezés eldobja őket, és egy iPhone-on tett
+    /// bármilyen oldal-szerkesztés (rev-emelés) letörölné a szabályt a többi
+    /// eszközről is. Az pedig súrlódás-megkerülés lenne a telefonon át.
+    var burstSeconds: Double?
+    /// …ennyi szünet (mp) — lásd fent.
+    var cooldownSeconds: Double?
     /// Részleges szabályok: az oldal egy-egy darabja (pl. `/@valaki`).
     ///
     /// iPHONE-ON EZEKET SEMMI NEM ÉRVÉNYESÍTI — a Safari kiterjesztése külön

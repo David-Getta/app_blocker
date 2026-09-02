@@ -51,6 +51,14 @@ jobs:
           telik be, az nem gyengeség, hanem jel, hogy az adag rövid. A
           darabszám eszközönkénti, és éjfélkor tiszta lappal indul.
 
+          **Javítás: az iPhone nem törölheti le az adag-szabályt.** Az
+          iPhone-os app helyi rekordjából hiányoztak az adag-mezők, ezért
+          egy ott tett bármilyen oldal-szerkesztés (pl. fedőnév) a
+          szinkronon át letörölhette volna a gépen beállított szabályt.
+          A mezők most már a telefonon is megvannak, és az oldal sora ki
+          is írja a szabályt — kimondva, hogy ott nem érvényesül (nincs
+          előtér-mérés), csak hordozza.
+
           ### Ami a v0.4.17-ben jött
 
           **Ablak-gombok, Kilépés gomb, látható frissítés.** Mac-en
