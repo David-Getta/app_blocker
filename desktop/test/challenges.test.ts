@@ -148,10 +148,32 @@ test('toDisplay never leaks expected answers', () => {
   const rng = cryptoRng();
   const math = makeStep('MATH_CHAIN', 2, 'pause', rng) as MathChainStep;
   const display = toDisplay(math, NOW);
-  const json = JSON.stringify(display);
-  assert.ok(!json.includes(String(math.problems[0].a)));
+  // Szerkezeti állítás: a válasz MEZŐI nem utaznak. A korábbi alak a teljes
+  // JSON-ban kereste a válasz számjegyeit, és ritkán hamisan riasztott (CI,
+  // 2026-09-02): egy két-három jegyű szám legitim részletként felbukkanhat a
+  // kérdés szövegében vagy a lépés-azonosító hexében. A szivárgás nem
+  // számjegy-egybeesés, hanem az, ha a válasz mezője vagy értéke kikerül.
+  const keys = new Set<string>();
+  const walk = (v: unknown): void => {
+    if (Array.isArray(v)) { for (const x of v) walk(x); return; }
+    if (v && typeof v === 'object') {
+      for (const [k, x] of Object.entries(v as Record<string, unknown>)) {
+        keys.add(k);
+        walk(x);
+      }
+    }
+  };
+  walk(display);
+  assert.ok(!keys.has('problems'), 'a feladat-lista (válaszostul) nem mehet ki');
+  assert.ok(!keys.has('a'), 'a válasz mezője nem mehet ki');
+  // Az összeragasztás ellen: a kérdés kérdőjelre végződik, nem az eredményre.
+  assert.ok(display.math!.question.endsWith('= ?'));
+  assert.ok(!display.math!.question.includes(`= ${math.problems[0].a}`));
   const rev = makeStep('REVERSE', 0, 'pause', rng) as ReverseStep;
   const revJson = JSON.stringify(toDisplay(rev, NOW));
+  // Itt a részlet-keresés determinisztikus: a megfordított többszavas mondat
+  // csak akkor állhatna a JSON-ban, ha a mondat betűre palindrom lenne — a
+  // szólista és a mondatképzés (nagybetűs kezdés, 4+ szó) ezt kizárja.
   assert.ok(!revJson.includes(reverseString(rev.text)));
 });
 
