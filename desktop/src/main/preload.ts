@@ -80,6 +80,8 @@ export interface BreakerBridge {
   appVersion(): Promise<string>;
   /** kilépés a felületről; a tiltást nem érinti (az a segédé) */
   quitApp(): Promise<void>;
+  /** a kiadási jegyzetek megnyitása a böngészőben */
+  openReleases(): Promise<void>;
   platform: string;
 }
 
@@ -101,6 +103,7 @@ const bridge: BreakerBridge = {
   onUpdateState: (cb) => ipcRenderer.on('breaker:update-state', (_e, s: UpdateState) => cb(s)),
   appVersion: () => ipcRenderer.invoke('breaker:app-version'),
   quitApp: () => ipcRenderer.invoke('breaker:quit'),
+  openReleases: () => ipcRenderer.invoke('breaker:open-releases'),
   platform: process.platform,
 };
 

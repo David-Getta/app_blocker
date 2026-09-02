@@ -72,6 +72,12 @@ ugyanazért, amiért a napi keretet: próbatétellel fizettek érte.
 
 ## Pontosság — kimondva
 
+Az óra átállítása a hűtést is érinti: a lejárat rendszeridőben áll, tehát
+aki előretekeri az órát, annak a szünet hamarabb „jár le”. Ez ugyanaz a
+kimondott korlát, mint a napi keretnél (lásd feature-daily-limit.md) — a
+rendszeróra az igazság, és ezen becsapni csak saját magát tudja az ember.
+
+
 A mérés kötegekben érkezik (gépen ~fél percenként, telefonon hasonló
 ütemben), tehát az adag betelte és a tiltás közt PÁR MÁSODPERC csúszás
 lehet, a hűtés vége és a tényleges kinyílás közt legfeljebb egy tick (15 mp)

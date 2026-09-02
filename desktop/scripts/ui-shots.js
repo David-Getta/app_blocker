@@ -297,6 +297,7 @@ function fakeBridgeSource() {
       checkUpdate: async () => ({ ok: true }),
       appVersion: async () => '0.0.0-demó',
       quitApp: async () => { window.__quitCalled = (window.__quitCalled || 0) + 1; },
+      openReleases: async () => {},
       getUpdateState: async () => window.__fakeUpdate,
       getTrackerState: async () => window.__fakeTracker,
       // A füstteszt innen hajtja a frissítési sávot: ugyanaz a csatorna, amit

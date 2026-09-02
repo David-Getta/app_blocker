@@ -75,6 +75,7 @@ interface Bridge {
   onUpdateState(cb: (s: UpdateState) => void): void;
   appVersion?(): Promise<string>;
   quitApp?(): Promise<void>;
+  openReleases?(): Promise<void>;
   platform: string;
 }
 declare global { interface Window { breaker: Bridge } }
@@ -2488,6 +2489,7 @@ function setupModal(): void {
     }).catch(() => { btn.textContent = 'Frissítés keresése'; btn.disabled = false; });
   });
   $('quitBtn').addEventListener('click', () => { void window.breaker.quitApp?.(); });
+  $('whatsNewBtn').addEventListener('click', () => { void window.breaker.openReleases?.(); });
   $('themeBtn').addEventListener('click', () => openDrawer('themePanel', 'themeScrim'));
   $('themeClose').addEventListener('click', () => closeDrawer('themePanel', 'themeScrim'));
   $('themeScrim').addEventListener('click', () => closeDrawer('themePanel', 'themeScrim'));

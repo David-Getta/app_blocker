@@ -222,6 +222,9 @@ function wireIpc(): void {
   });
 
   ipcMain.handle('breaker:update-state', () => state);
+  // Az Újdonságok gomb: a kiadási jegyzetek a böngészőben. A jegyzet ott él
+  // és ott a leggazdagabb — az appban másolatot tartani szétcsúszás lenne.
+  ipcMain.handle('breaker:open-releases', () => { void shell.openExternal(RELEASES_URL); });
 }
 
 let lastKickAt = 0;
