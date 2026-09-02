@@ -214,6 +214,63 @@ for (const group of GROUPS) {
 }
 
 /**
+ * A HORDOZÁS: a drót-mező a HELYI modellen is legyen meg.
+ *
+ * A v0.4.18 előtti VALÓS rés: a Swift drót-típusa (SyncSite) vitte az
+ * adag-mezőket, a helyi Site viszont nem — a leképezés (from/toSyncSites)
+ * így eldobta őket, és egy iPhone-on tett bármilyen oldal-szerkesztés
+ * (rev-emelés) letörölte volna a szabályt az összes eszközről. Ez az őr
+ * akkor HALLGATOTT, mert csak a drót-típust nézte. Ezért most a helyi
+ * modelleket is nézzük, mezőnként.
+ *
+ * Takarás itt is lehet (egy másik típus azonos nevű mezője elfedi az
+ * átnevezést — a fejléc figyelmeztetése ide is áll); amit biztosan kifog,
+ * az az ÚJ drót-mező helyi hordozásának elmaradása — pont a megtalált
+ * hibafajta.
+ */
+const CARRY = {
+  what: 'egy blokkolt oldal HELYI hordozása',
+  names: ['id', 'domain', 'hostnames', 'addedAt', 'pendingDeleteAt', 'schedule',
+    'dailyLimitSeconds', 'burstSeconds', 'cooldownSeconds', 'alias', 'rules'],
+  files: [
+    {
+      name: 'TypeScript (helper SiteRec)',
+      rel: 'desktop/src/helper/state.ts',
+      pattern: (f) => new RegExp(`^\\s*${f}\\??:[^;\\n]*;\\s*$`, 'm'),
+    },
+    {
+      name: 'Kotlin (Store Site)',
+      rel: 'android/app/src/main/java/hu/breaker/app/core/Store.kt',
+      pattern: (f) => new RegExp(`\\bval ${f}:`),
+    },
+    {
+      name: 'Swift (Store Site)',
+      rel: 'ios/Shared/Store.swift',
+      pattern: (f) => new RegExp(`\\b(let|var) ${f}:`),
+    },
+  ],
+};
+for (const field of CARRY.names) {
+  checked++;
+  const missing = CARRY.files
+    .filter((file) => {
+      const text = readStripped(file.rel);
+      return text !== null && !file.pattern(field).test(text);
+    })
+    .map((file) => `${file.name} (${file.rel.split('/').pop()})`);
+  if (missing.length) {
+    problems.push(
+      `${CARRY.what}: a(z) „${field}” mező hiányzik innen: ${missing.join(', ')}. `
+      + 'A drót viszi, a helyi modell nem — a leképezés eldobná, és a következő '
+      + 'helyi szerkesztés (rev-emelés) letörölné a mezőt a többi eszközről.',
+    );
+  }
+}
+for (const file of CARRY.files) {
+  if (readStripped(file.rel) === null) problems.push(`${file.name}: a fájl nincs meg (${file.rel})`);
+}
+
+/**
  * A FORDÍTOTT KÉRDÉS: keletkezik-e olyan kulcs, amit senki nem őriz.
  *
  * A fenti ellenőrzés azt kérdezi, hogy minden VÁRT név megvan-e. Ez a szakasz
