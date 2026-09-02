@@ -154,6 +154,26 @@ async function main() {
     }
   }
 
+  /**
+   * A lap szövege — a KETTŐS tiltó-háló túlélésével.
+   *
+   * A döntés szándékosan két eseményen fut (onBeforeNavigate + onCommitted),
+   * és ugyanarra a tiltó lapra kétszer átirányítani nem hiba. Ha viszont az
+   * olvasás pont a két navigáció közé esik, a végrehajtási környezet
+   * megsemmisül alatta („Execution context was destroyed”) — ez a termék
+   * terve, nem a hibája, tehát a teszt dolga túlélni: pár próbálkozás.
+   */
+  async function bodyText(page) {
+    for (let t = 0; t < 4; t++) {
+      try {
+        return await page.evaluate(() => document.body.innerText);
+      } catch {
+        await page.waitForTimeout(400);
+      }
+    }
+    return '';
+  }
+
   /** Megvárja, hogy a böngésző a mintára illő címen álljon; a címet adja vissza. */
   async function waitForBrowserUrl(page, context, re, ms) {
     const t0 = Date.now();
@@ -217,7 +237,7 @@ async function main() {
       const blocked = await waitForBrowserUrl(page, context, /blocked\.html/, WAIT_MS);
       check(!!blocked, name);
       if (blocked && /blocked\.html/.test(page.url())) {
-        const text = await page.evaluate(() => document.body.innerText);
+        const text = await bodyText(page);
         check(text.includes('@rossz') && text.includes('töltötte fel'),
           `${name} — a tiltó lap megnevezi a kulcsot és a feltöltőt`);
       } else if (blocked) {
@@ -340,7 +360,7 @@ async function main() {
     );
     check(!!closedBlocked, 'a hűtés alatt álló oldal a tiltó lapra fut, okkal');
     if (closedBlocked && /blocked\.html/.test(page.url())) {
-      const text = await page.evaluate(() => document.body.innerText);
+      const text = await bodyText(page);
       check(text.includes('Adag betelt') && text.includes('Újranyílik'),
         'a tiltó lap adag-nyelven magyaráz és visszaszámol');
     } else if (closedBlocked) {
