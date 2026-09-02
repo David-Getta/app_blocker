@@ -274,6 +274,20 @@ const WIRES = [
     lost: 'a telefonon a futó hűtésről senki nem szólna — a böngésző hibalapja '
       + 'meghibásodásnak látszana, nem szünetnek',
   },
+  // Ugyanez a gépen két szem: a lépegető megkérdezése és a kirakás. Bármelyik
+  // kiesésével minden fordulna tovább — csak épp senki nem szólna.
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: 'stepBurstNotices(',
+    lost: 'a gépen a betelésről és a szünet leteltéről senki nem szólna — aki '
+      + 'nem az appot nézi, annak a hűtés némán történne',
+  },
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: 'showBurstNotice(n, nowForBurst)',
+    lost: 'a lépegető mondanivalója a padlóra esne — kiszámolt, kirakatlan '
+      + 'értesítés lenne',
+  },
   // A MÉRÉS ŐSZINTESÉGE. A tiltott oldal hibalapján mért idő nem használat:
   // ha mégis könyvelődne, a statisztika hazudna, és a hibalap-percek előre
   // ürítenék a napi keretet. Androidon a tiltott DNS-kérés eleve nem kelt

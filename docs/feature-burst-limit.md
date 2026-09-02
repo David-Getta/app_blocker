@@ -49,6 +49,14 @@ ugyanazért, amiért a napi keretet: próbatétellel fizettek érte.
   nem törli a futó hűtést.
 - **Gépen**: a segéd a `usage_batch` mintáiból könyvel, és a commit
   hosts-frissítése azonnal tilt; a hűtés lejártát a 15 mp-es tick nyitja.
+  A betelés pillanatában és a szünet leteltekor **az app értesítést dob**
+  (`shared/burst-notify.ts`: két egymás utáni státusz-kép különbségéből) —
+  az Android tartós értesítésének gépes párja. Őszinte korlát: csak amíg az
+  app fut, mert a segéd arc nélküli démon, értesítést dobni nem tud. Az
+  induláskor már futó hűtésre nem mond „most telt be”-t (a kezdetét nem
+  látta), a leteltét viszont bejelenti; a vége ELŐTT eltűnő hűtésről
+  (megváltott szünet, levett szabály, törölt oldal) hallgat — ott a
+  felhasználó maga cselekedett, és az értesítés tényt mond, nem találgat.
 - **Androidon**: a mérő `flush`-a könyvel, a DNS-szűrő minden feloldásnál
   friss `now`-val dönt — a hűtés ott is magától indul és jár le. A telefonon
   tiltó lap nincs (a DNS-válasz elmarad, a böngésző hálózati hibát mutat),
@@ -99,4 +107,5 @@ a lényegen (2 perc után zár, 10 perc múlva nyit) nem változtat.
 
 A magot mindkét oldalon teszt fedi (`desktop/test/burst.test.ts`,
 `android/jvm-tests/.../BurstTest.kt`) — ugyanazokkal a számokkal, hogy a két
-példány ne tudjon szétcsúszni; az öt bekötési pontot az érvényesítés-őr nézi.
+példány ne tudjon szétcsúszni; a hét bekötési pontot (a kettő új: a gépes
+értesítés lépegetője és kirakása) az érvényesítés-őr nézi.

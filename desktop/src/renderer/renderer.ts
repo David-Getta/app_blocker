@@ -16,6 +16,7 @@ import { HELPER_VERSION } from '../shared/protocol.js';
 // A .js itt sem elhagyható: a böngésző natív ESM-betöltője oldja fel futásidőben.
 import { normalizeRule, ruleLabel } from '../shared/urlrules.js';
 import { MAX_BURST_MINUTES, MAX_COOLDOWN_MINUTES, normalizeBurst } from '../shared/burst.js';
+import { stepBurstNotices, type BurstNotice, type BurstWatch } from '../shared/burst-notify.js';
 import { MAX_LIMIT_MINUTES } from '../shared/limits.js';
 import {
   formatRemaining, MAX_ALLOW_ENTRIES, MAX_PACK_NAME, MAX_SESSION_MINUTES,
@@ -111,6 +112,8 @@ let renderedStepId: string | null = null;
 let pendingPauseSiteId: string | null = null;
 let stepTimers: ReturnType<typeof setInterval>[] = [];
 let notifiedStepId: string | null = null;
+// Adag-értesítés: az előző kör hűtés-képe (null = az indulás utáni első kör).
+let burstWatches: Record<string, BurstWatch> | null = null;
 
 function clearStepTimers(): void {
   for (const t of stepTimers) clearInterval(t);
@@ -212,6 +215,19 @@ async function refresh(): Promise<void> {
   render();
 }
 
+/**
+ * Az adag-értesítés kirakása — ugyanazzal a feltétellel, mint a próbatétel
+ * átvétel-értesítése: engedély híján csendben marad, a felület (a sor mérője,
+ * a tiltó lap) enélkül is elmondja ugyanazt.
+ */
+function showBurstNotice(n: BurstNotice, now: number): void {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  const body = n.kind === 'tripped'
+    ? `${n.label}: az adag betelt — nyit ${fmtRemain(n.until - now)} múlva.`
+    : `${n.label}: az adag-szünet letelt, az oldal újra nyitva.`;
+  new Notification('Breaker', { body });
+}
+
 // ---------------------------------------------------------------- render
 
 function render(): void {
@@ -241,6 +257,21 @@ function render(): void {
     // answer) survives a helper restart, closing it would throw work away.
     return;
   }
+
+  // Adag-értesítés: két egymás utáni státusz-kép különbségéből derül ki a
+  // betelés és a szünet letelte. Itt a helye, mert csak élő segéd-kapcsolat
+  // mellett friss a kép — szakadás alatt a lépegető nem lép, így visszatérve
+  // sem mond „most telt be”-t egy rég futó hűtésre.
+  const nowForBurst = Date.now();
+  const stepped = stepBurstNotices(
+    burstWatches,
+    status!.sites.map((s) => ({
+      id: s.id, label: statLabel(s.domain), closedReason: s.closedReason, closedUntil: s.closedUntil,
+    })),
+    nowForBurst,
+  );
+  burstWatches = stepped.watches;
+  for (const n of stepped.notices) showBurstNotice(n, nowForBurst);
 
   const sig = sitesFingerprint(status!);
   if (sig !== siteSignature) {
