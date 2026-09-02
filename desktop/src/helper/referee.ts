@@ -13,6 +13,7 @@ import { PAUSE_CHOICES_MIN } from '../shared/protocol';
 import { isLoosening, normalizeSchedule, ALWAYS, type Schedule } from '../shared/schedule';
 import { isBurstLoosening, normalizeBurst } from '../shared/burst';
 import { isLimitLoosening, normalizeLimit } from '../shared/limits';
+import { dayKey } from '../shared/usage';
 import {
   isFilterLoosening, sanitizeFilter, MAX_CHANNEL_FILTERS, type ChannelFilter,
 } from '../shared/channels';
@@ -603,6 +604,14 @@ export function tick(state: HelperState, now: number): boolean {
     const stale = b.cooldownUntil <= now && now - b.lastAt > 24 * 3600_000;
     if (gone || stale) {
       delete state.bursts![siteId];
+      dirty = true;
+    }
+  }
+  // A napi betelés-darabszám ugyanígy: törölt oldalé és nem mai napé megy.
+  for (const [siteId, t] of Object.entries(state.burstTrips ?? {})) {
+    const gone = !state.sites.some((site) => site.id === siteId);
+    if (gone || t.day !== dayKey(now)) {
+      delete state.burstTrips![siteId];
       dirty = true;
     }
   }

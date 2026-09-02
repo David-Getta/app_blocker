@@ -50,6 +50,8 @@ export interface SiteInfo {
   cooldownUntil: number;
   /** a mostani adagból elhasznált másodpercek EZEN a gépen */
   burstUsedSeconds: number;
+  /** hányszor telt be MA az adag ezen a gépen (0 = ma még nem) */
+  burstTripsToday: number;
   /** fedőnév: ha van, a felület ezt mutatja a cím helyett */
   alias?: string;
   /**
@@ -299,6 +301,7 @@ export type HelperResponse =
  *         kiegészülve az alias és a hideSiteList mezővel
  * 0.4.0 — fiók és eszközök közti szinkron: sync_* parancsok, a status
  *         kiegészülve a sync mezővel
+ * 0.6.3 — a status oldalanként a mai betelés-darabszámmal (burstTripsToday)
  * 0.6.2 — a zárva lévő oldalon mért idő nem könyvelődik (usage_batch:
  *         skippedClosed) — hibalap-percek nem fogyasztják a keretet
  * 0.6.1 — a status oldalanként megmondja a zárás OKÁT is (closedReason,
@@ -307,5 +310,5 @@ export type HelperResponse =
  * 0.2.0 — set_limit (napi időkeret), a status kiegészülve a keret mezőivel
  * 0.1.0 — első kiadás
  */
-export const HELPER_VERSION = '0.6.2';
+export const HELPER_VERSION = '0.6.3';
 export const PAUSE_CHOICES_MIN = [15, 30, 60];

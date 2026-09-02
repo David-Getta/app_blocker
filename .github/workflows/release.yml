@@ -44,6 +44,15 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
+          **Az adag-sor megmondja, hányszor telt be ma.** Az Oldalak fülön
+          az adag-szabályos oldal sora mostantól a mai betelések számát is
+          mutatja („ma 2× betelt”) — gépen és Androidon is. Nem szégyenpad:
+          azt mutatja meg, hogy a szabály tényleg dolgozik — és ha sokszor
+          telik be, az nem gyengeség, hanem jel, hogy az adag rövid. A
+          darabszám eszközönkénti, és éjfélkor tiszta lappal indul.
+
+          ### Ami a v0.4.17-ben jött
+
           **Ablak-gombok, Kilépés gomb, látható frissítés.** Mac-en
           visszatért a három ablak-gomb (bezárás, kicsinyítés, teljes
           képernyő) — a címsor a fejlécbe olvad, a fejléc húzható. Magyar
@@ -55,7 +64,7 @@ jobs:
           órás türelemmel), nem csak hatóránként — aki napokig futni
           hagyja, az sem ragad régi verzión.
 
-          ### Ami a v0.4.16-ban jött
+          #### Ami a v0.4.16-ban jött
 
           **A tiltott oldalon „töltött” idő nem fogyasztja a keretet.** A
           tiltott oldal hibalapján a fül címsorában ott marad a cím, és a
@@ -69,16 +78,6 @@ jobs:
           Apróság mellé: a bővítmény beállítás-lapja mostantól ki is mondja,
           mi van éppen zárva és miért — oldalanként az okkal és a hátralévő
           idővel, ugyanabból a friss listából, amiből a tiltó lap magyaráz.
-
-          #### Ami a v0.4.15-ben jött
-
-          **A menetrendes zárás is visszaszámol.** A tiltó lap eddig a
-          hűtésnél és a napi keretnél mondta meg, mikor nyílik az oldal — a
-          menetrendnél csak annyit, hogy „az appban látod”. Mostantól a
-          menetrend következő nyitását is kiszámoljuk, a lap visszaszámol
-          („Nyit: még kb. 2 óra”), és a lejáratkor ott is visszautat ad. A
-          lejárat-szöveg okhoz illő: új napnál a keret újraindulását mondja,
-          menetrendnél a nyitást, adagnál a szünet leteltét.
 
           NOTES
           fi

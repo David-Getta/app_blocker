@@ -92,6 +92,9 @@ data class AbandonRec(
     val at: Long,
 )
 
+/** Egy nap betelés-darabszáma (helyi naptári nap). */
+data class BurstTrip(val day: String, val count: Int)
+
 data class AppState(
     val protectionOn: Boolean = false,
     val sites: List<Site> = emptyList(),
@@ -138,6 +141,11 @@ data class AppState(
      * körökben jár, egy kétperces adaghoz az túl lassú. Lásd core/Burst.kt.
      */
     val bursts: Map<String, BurstLogic.State> = emptyMap(),
+    /**
+     * Hányszor telt be MA az adag, oldalanként — a felületnek szól: azt
+     * mutatja meg, hogy a szabály tényleg dolgozik. Napfordulón tiszta lap.
+     */
+    val burstTrips: Map<String, BurstTrip> = emptyMap(),
     /**
      * Munkamenet-csomagok: „most csak EZ mehet”.
      *
@@ -445,6 +453,14 @@ object BreakerStore {
                 put("cooldownUntil", b.cooldownUntil)
             }
         }))
+        // A mai betelés-darabszám: csak kijelzés, de az app újraindítása ne
+        // nullázza — a „ma 3× betelt” a napról szól, nem a folyamat életéről.
+        put("burstTrips", JSONObject(s.burstTrips.mapValues { (_, t) ->
+            JSONObject().apply {
+                put("day", t.day)
+                put("count", t.count)
+            }
+        }))
         // A munkamenet. Blokkolási döntés függ tőle (fehérlista!), ezért
         // újraindulás után is meg kell maradnia — enélkül az app kilövése
         // feloldás lenne, próbatétel nélkül.
@@ -686,6 +702,14 @@ object BreakerStore {
                             lastAt = b.optLong("lastAt", 0),
                             cooldownUntil = b.optLong("cooldownUntil", 0),
                         )
+                    }.getOrNull()
+                }.toMap()
+            } ?: emptyMap(),
+            burstTrips = o.optJSONObject("burstTrips")?.let { to ->
+                to.keys().asSequence().mapNotNull { k ->
+                    runCatching {
+                        val t = to.getJSONObject(k)
+                        k to BurstTrip(t.getString("day"), t.getInt("count"))
                     }.getOrNull()
                 }.toMap()
             } ?: emptyMap(),

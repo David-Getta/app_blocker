@@ -66,6 +66,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import hu.breaker.app.core.AliasLogic
 import hu.breaker.app.core.BurstLogic
+import hu.breaker.app.core.BurstTrip
 import hu.breaker.app.core.AppState
 import hu.breaker.app.core.Focus
 import hu.breaker.app.core.Blocklist
@@ -534,6 +535,7 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                                 site = site, now = now, hasSession = state.session != null,
                                 usage = state.usage, shared = state.sharedToday,
                                 burst = state.bursts[site.id],
+                                trip = state.burstTrips[site.id],
                                 revealedUntil = revealedUntil[site.id],
                                 onReveal = {
                                     revealedUntil[site.id] =
@@ -865,6 +867,7 @@ private fun SiteCard(
     onPause: () -> Unit, onDelete: () -> Unit, onSchedule: () -> Unit, onLimit: () -> Unit,
     onBurst: () -> Unit, onAlias: () -> Unit, onRules: () -> Unit,
     burst: BurstLogic.State? = null,
+    trip: BurstTrip? = null,
 ) {
     val paused = site.pauseUntil != null && site.pauseUntil > now
     val deleting = site.pendingDeleteAt != null
@@ -950,7 +953,7 @@ private fun SiteCard(
                 }
                 else -> {
                     LimitMeter(site, usage, shared, now, duringPause = false)
-                    BurstLine(site, burst, now)
+                    BurstLine(site, burst, now, trip)
                     if (!hasSession) {
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                         // A műveletek nem főszereplők: keret nélküli szöveggombok,
@@ -1236,15 +1239,20 @@ private fun LimitDialog(
  * nem büntetés.
  */
 @Composable
-private fun BurstLine(site: Site, burst: BurstLogic.State?, now: Long) {
+private fun BurstLine(site: Site, burst: BurstLogic.State?, now: Long, trip: BurstTrip? = null) {
     val rule = BurstLogic.normalize(site.burstSeconds, site.cooldownSeconds) ?: return
     val cooling = burst != null && burst.cooldownUntil > now
-    val text = if (cooling) {
+    var text = if (cooling) {
         "Adag betelt — szünet még ${fmtRemain(burst!!.cooldownUntil - now)}, utána újraindul"
     } else {
         val used = (burst?.usedSeconds ?: 0.0).coerceAtMost(rule.burstSeconds.toDouble())
         "Adag: ${UsageLogic.formatDuration(used)} / ${UsageLogic.formatDuration(rule.burstSeconds.toDouble())}" +
             " — utána ${UsageLogic.formatDuration(rule.cooldownSeconds.toDouble())} szünet"
+    }
+    // A mai betelések azt mutatják, hogy a szabály tényleg dolgozik. Nem
+    // szégyenpad: aki sokszor betelik, annak az adag rövid.
+    if (trip != null && trip.day == UsageLogic.dayKey(now) && trip.count > 0) {
+        text += " · ma ${trip.count}× betelt"
     }
     Text(
         text,

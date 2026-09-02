@@ -16,7 +16,7 @@ import {
   blockReasonNow, isLimitExhausted, normalizeLimit, sharedTodaySeconds, usedTodayEverywhere,
 } from '../shared/limits';
 import {
-  recordSample, summarize, series, labelOf, emptyUsage, combineUsage, siteKey,
+  recordSample, summarize, series, labelOf, emptyUsage, combineUsage, siteKey, dayKey,
   MAX_KEY_LENGTH, MAX_LABEL_LENGTH, MAX_BATCH_SAMPLES,
 } from '../shared/usage';
 import type { UsageSummary } from '../shared/usage';
@@ -88,6 +88,10 @@ export function statusOf(state: HelperState, dohApplied: boolean): StatusData {
         // meg, MIÉRT zárva az oldal, és mennyi fér még az adagba.
         cooldownUntil: state.bursts?.[s.id]?.cooldownUntil ?? 0,
         burstUsedSeconds: Math.round(state.bursts?.[s.id]?.usedSeconds ?? 0),
+        burstTripsToday: (() => {
+          const t = state.burstTrips?.[s.id];
+          return t && t.day === dayKey(now) ? t.count : 0;
+        })(),
         // A keret KÖZÖS: a mérő a többi eszköz mai idejét is tartalmazza,
         // különben a felület mást mutatna, mint ami alapján blokkolunk.
         usedTodaySeconds: Math.round(usedTodayEverywhere(state.usage, state.sharedToday, s.domain, now)),
@@ -454,7 +458,19 @@ async function handle(req: HelperRequest, deps: ServerDeps): Promise<unknown> {
         const b = burstSites.get(s.key);
         if (b) {
           state.bursts = state.bursts ?? {};
+          const before = state.bursts[b.id]?.cooldownUntil ?? 0;
           state.bursts[b.id] = noteBurstUsage(b.rule, state.bursts[b.id], s.seconds, s.at);
+          // BETELÉS: a hűtés vége előrébb került. A napi darabszám a
+          // felületé — azt mutatja meg, hogy a szabály tényleg dolgozik.
+          // Napfordulón tiszta lappal indul, mint a keret.
+          if (state.bursts[b.id].cooldownUntil > before) {
+            state.burstTrips = state.burstTrips ?? {};
+            const today = dayKey(s.at);
+            const cur = state.burstTrips[b.id];
+            state.burstTrips[b.id] = cur?.day === today
+              ? { day: today, count: cur.count + 1 }
+              : { day: today, count: 1 };
+          }
         }
         // A LEGKÉSŐBBI elfogadott minta ideje. Nem a `now`: egy köteg
         // percekkel korábbi szeleteket is hozhat, és a kérdés az, hogy mikor

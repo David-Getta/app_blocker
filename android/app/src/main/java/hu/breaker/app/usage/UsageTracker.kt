@@ -11,6 +11,7 @@ import android.os.PowerManager
 import android.os.Process
 import android.provider.Settings
 import hu.breaker.app.core.BurstLogic
+import hu.breaker.app.core.BurstTrip
 import hu.breaker.app.core.BreakerStore
 import hu.breaker.app.core.UsageLogic
 import java.util.concurrent.atomic.AtomicReference
@@ -265,18 +266,30 @@ object UsageTracker {
                     ?.let { UsageLogic.siteKey(site.domain) to (site.id to it) }
             }.toMap()
             var bursts = s.bursts
+            // A mai betelés-darabszám: a nem mai és a törölt oldalhoz tartozó
+            // bejegyzés itt hullik ki — külön takarító kör nélkül.
+            val today = UsageLogic.dayKey(now)
+            val liveIds = s.sites.map { it.id }.toSet()
+            var trips = s.burstTrips.filter { (id, t) -> t.day == today && id in liveIds }
             for ((bucket, d) in batch) {
                 val at = bucketTime(bucket, now)
                 UsageLogic.recordSample(next, d.key, d.seconds, at, d.label)
                 burstRules[d.key]?.let { (siteId, rule) ->
+                    val before = bursts[siteId]?.cooldownUntil ?: 0L
                     bursts = bursts + (siteId to BurstLogic.noteUsage(rule, bursts[siteId], d.seconds, at))
+                    // BETELÉS: a hűtés vége előrébb került — a felület ebből
+                    // mondja, hányszor telt be ma az adag.
+                    if ((bursts[siteId]?.cooldownUntil ?: 0L) > before) {
+                        val cur = trips[siteId]
+                        trips = trips + (siteId to BurstTrip(today, (cur?.count ?: 0) + 1))
+                    }
                 }
                 // A LEGKÉSŐBBI rögzített minta ideje. Nem a `now`: egy köteg
                 // korábbi napból való szeletet is hozhat, és a kérdés az, hogy
                 // mikor MÉRTÜNK, nem az, hogy mikor íródott ki.
                 if (at > latest) latest = at
             }
-            s.copy(usage = next, usageLastSampleAt = latest, bursts = bursts)
+            s.copy(usage = next, usageLastSampleAt = latest, bursts = bursts, burstTrips = trips)
         }
     }
 

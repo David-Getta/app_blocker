@@ -84,7 +84,9 @@ a lényegen (2 perc után zár, 10 perc múlva nyit) nem változtat.
 3. A tiltás-döntés (`isBlockedNowWithLimit`) a hűtést is nézi — gépen a
    hosts-fájl, telefonon a DNS-szűrő ebből dolgozik.
 4. A felület mérő-sora megmondja, mennyi fér még az adagba, hűtésnél pedig
-   visszaszámol — a szín mellett szövegben is.
+   visszaszámol — a szín mellett szövegben is. Ugyanitt áll a MAI betelések
+   száma („ma 2× betelt”) — eszköz-helyi darabszám, napfordulón tiszta
+   lappal; azt mutatja meg, hogy a szabály tényleg dolgozik, és mennyit fog.
 
 A magot mindkét oldalon teszt fedi (`desktop/test/burst.test.ts`,
 `android/jvm-tests/.../BurstTest.kt`) — ugyanazokkal a számokkal, hogy a két

@@ -1,6 +1,7 @@
 import android.content.Context
 import hu.breaker.app.core.AppState
 import hu.breaker.app.core.Blocklist
+import hu.breaker.app.core.BurstTrip
 import hu.breaker.app.core.BreakerStore
 import hu.breaker.app.core.ScheduleLogic
 import hu.breaker.app.core.Site
@@ -226,5 +227,35 @@ class TrackerAndStoreTest {
         assertNotNull(migrated.usage)
         assertTrue(migrated.usage.days.isEmpty())
         assertTrue(migrated.usage.enabled, "tracking defaults to on for existing installs")
+    }
+
+    @Test fun `az adag betelese megszamolodik, hutes alatt nem no`() {
+        // A felület ebbol mondja: „ma 2× betelt”. A darabszám a betelés
+        // ÁTMENETÉN nő (a hűtés vége előrébb került), tehát a hűtés alatt
+        // érkező — a mag által amúgy is eldobott — minta nem növelheti.
+        val site = Site(
+            "b1", "adag.example", listOf("adag.example"), now, null, null,
+            burstSeconds = 10, cooldownSeconds = 600,
+        )
+        BreakerStore.mutate { it.copy(sites = listOf(site)) }
+
+        buffer("site:adag.example", 15.0, now)
+        UsageTracker.flush(now)
+        assertEquals(1, BreakerStore.state.value.burstTrips["b1"]?.count, "első betelés")
+
+        buffer("site:adag.example", 15.0, now)
+        UsageTracker.flush(now + 2_000)
+        assertEquals(1, BreakerStore.state.value.burstTrips["b1"]?.count,
+            "hűtés alatt a darabszám nem mozdul")
+
+        // A nem mai bejegyzés a következő könyvelésnél kihullik.
+        BreakerStore.mutate {
+            it.copy(burstTrips = mapOf("b1" to BurstTrip("2000-01-01", 9)))
+        }
+        buffer("app:egyeb", 5.0, now)
+        UsageTracker.flush(now + 4_000)
+        assertEquals(null, BreakerStore.state.value.burstTrips["b1"],
+            "a tegnapi darabszám nem a mai")
+        BreakerStore.mutate { AppState() }
     }
 }

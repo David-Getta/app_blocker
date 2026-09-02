@@ -87,7 +87,8 @@ function fakeBridgeSource() {
         addedAt: now - 86400000, pauseUntil: null, pendingDeleteAt: null,
         schedule: { mode: 'scheduled_allow', bands: [{ days: [0,1,2,3,4,5,6], startMin: 0, endMin: 1440 }] },
         burstSeconds: 120, cooldownSeconds: 600, cooldownUntil: now + 7 * 60_000,
-        burstUsedSeconds: 0, usedTodaySeconds: 300, limitExhausted: false, blockedNow: true,
+        burstUsedSeconds: 0, burstTripsToday: 2,
+        usedTodaySeconds: 300, limitExhausted: false, blockedNow: true,
         closedReason: 'cooldown', closedUntil: now + 7 * 60_000 },
     ];
     let session = null;
@@ -762,6 +763,10 @@ async function main() {
   // Az adag-szabály sora: a hűtés visszaszámlálásként olvasható, nem büntetésként.
   const cooling = await page.locator('.limit-meter', { hasText: 'Adag betelt' }).count();
   if (cooling !== 1) failures.push('the burst cooldown is not called out in words');
+  // A mai betelések száma is ott áll — ebből látszik, hogy a szabály dolgozik.
+  if (await page.locator('.limit-meter', { hasText: 'ma 2× betelt' }).count() !== 1) {
+    failures.push('the daily trip count is not shown on the burst row');
+  }
   if (await page.locator('.site-actions button', { hasText: 'Adag' }).count() < 1) {
     failures.push('the burst rule has no button on the site rows');
   }

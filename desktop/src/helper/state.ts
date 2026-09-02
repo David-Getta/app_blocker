@@ -138,6 +138,13 @@ export interface HelperState {
    */
   bursts?: Record<string, import('../shared/burst').BurstState>;
   /**
+   * Hányszor telt be MA az adag, oldalanként (kulcs: site id) — ezen a gépen.
+   *
+   * A felületnek szól: azt mutatja meg, hogy a szabály tényleg dolgozik. A
+   * `day` a helyi naptári nap; napfordulón a számláló tiszta lappal indul.
+   */
+  burstTrips?: Record<string, { day: string; count: number }>;
+  /**
    * Mikor rögzítettünk UTOLJÁRA mért időt.
    *
    * Nem a szinkronizált mérés-blobban van, hanem itt: ez helyi diagnosztika,

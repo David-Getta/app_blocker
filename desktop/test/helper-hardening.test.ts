@@ -417,6 +417,21 @@ test('kötegen belüli betelés: a hűtés a köteg további mintáit is kihagyj
     'a statisztikában csak a valódi használat áll');
   assert.ok((onDisk.bursts?.burst1?.cooldownUntil ?? 0) > now, 'a hűtés tényleg elindult');
 
+  // A betelés meg is számolódik — a felület ebből mondja, hányszor telt be ma.
+  assert.equal(onDisk.burstTrips?.burst1?.count, 1, 'egy betelés, egy darab');
+  const st = (await call('status', {})).data as {
+    sites: { id: string; burstTripsToday: number }[];
+  };
+  assert.equal(st.sites.find((s) => s.id === 'burst1')?.burstTripsToday, 1,
+    'a status kiadja a mai darabszámot');
+  // A hűtés alatt kihagyott minta nem betelés — a darabszám nem mozdul.
+  await call('usage_batch', {
+    samples: [{ key: 'site:adag.example', label: 'adag', seconds: 10, at: now + 2000 }],
+  });
+  const after = JSON.parse(fs.readFileSync(process.env.BREAKER_STATE!, 'utf8')) as HelperState;
+  assert.equal(after.burstTrips?.burst1?.count, 1);
+
   state.sites = state.sites.filter((s) => s.id !== 'burst1');
   delete state.bursts?.burst1;
+  delete state.burstTrips?.burst1;
 });

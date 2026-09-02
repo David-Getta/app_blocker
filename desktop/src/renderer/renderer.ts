@@ -1588,6 +1588,10 @@ function burstMeter(site: SiteInfo, now: number): HTMLElement | null {
       + ` — utána ${formatDuration(rule.cooldownSeconds)} szünet`;
     pct = Math.round((used / rule.burstSeconds) * 100);
   }
+  // A mai betelések száma azt mutatja meg, hogy a szabály tényleg dolgozik —
+  // és mennyit fog. Nem szégyenpad: aki sokszor betelik, annak az adag rövid.
+  const trips = site.burstTripsToday ?? 0;
+  if (trips > 0) label += ` · ma ${trips}× betelt`;
   wrap.appendChild(h('div', 'limit-label', label));
   const bar = h('div', 'limit-bar');
   const fill = h('div', cooling ? 'limit-fill limit-fill-full' : 'limit-fill');
