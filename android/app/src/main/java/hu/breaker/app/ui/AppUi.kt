@@ -608,6 +608,8 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                 focusSeries = focusTarget?.let { UsageLogic.series(state.usage, it.key, now, 30) }
                     ?: emptyList(),
                 focusLabel = focusTarget?.label ?: "",
+                // A hét napjai — a csempével azonos összeg, napokra bontva.
+                weekSeries = UsageLogic.totalSeries(state.usage, now, 7),
                 blockedDomains = state.sites.map { it.domain }.toSet(),
                 labelOf = siteLabel,
                 // A mai betelések oldalanként — a tegnapi bejegyzés nem számít,

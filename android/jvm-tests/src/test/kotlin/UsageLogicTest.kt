@@ -147,6 +147,21 @@ class UsageLogicTest {
         assertEquals(listOf(0.0, 0.0, 0.0), UsageLogic.series(st, "site:none.com", now, 3).map { it.second })
     }
 
+    @Test fun `totalSeries sums every target per day, zero-filled, matching the tile`() {
+        val st = UsageLogic.UsageState()
+        UsageLogic.recordSample(st, "site:a.com", 30.0, daysAgo(now, 6))
+        UsageLogic.recordSample(st, "app:com.slack", 45.0, daysAgo(now, 6))
+        UsageLogic.recordSample(st, "site:b.com", 10.0, daysAgo(now, 2))
+        UsageLogic.recordSample(st, "site:a.com", 20.0, now)
+        val s = UsageLogic.totalSeries(st, now, 7)
+        assertEquals(listOf(75.0, 0.0, 0.0, 0.0, 10.0, 0.0, 20.0), s.map { it.second })
+        assertEquals(UsageLogic.dayKey(now), s.last().first, "az utolsó a ma")
+        assertEquals(UsageLogic.summarize(st, now).last7Seconds, s.sumOf { it.second }, "ugyanaz, mint a csempén")
+        // A nyolc napja mért idő nem a hété.
+        UsageLogic.recordSample(st, "site:a.com", 99.0, daysAgo(now, 7))
+        assertEquals(105.0, UsageLogic.totalSeries(st, now, 7).sumOf { it.second })
+    }
+
     @Test fun `week over week compares the last 7 days with the 7 before`() {
         val st = UsageLogic.UsageState()
         UsageLogic.recordSample(st, "site:youtube.com", 100.0, daysAgo(now, 8), "YouTube")

@@ -45,6 +45,8 @@ fun StatsSection(
     focusWeek: Focus.FocusSummary,
     focusSeries: List<Pair<String, Double>>,
     focusLabel: String,
+    /** az elmúlt 7 nap napi összesenje (minden célpont), a legrégebbitől — a hét alakja */
+    weekSeries: List<Pair<String, Double>> = emptyList(),
     blockedDomains: Set<String>,
     /**
      * Amit egy célpontról ki szabad írni.
@@ -135,6 +137,15 @@ fun StatsSection(
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
             StatTile("utolsó 7 nap", summary.last7Seconds, Modifier.weight(1f))
             StatTile("utolsó 30 nap", summary.last30Seconds, Modifier.weight(1f))
+        }
+
+        // A HÉT NAPJAI. A csempe egy számban mondja a hetet; itt a hét ALAKJA
+        // látszik — a hétvégi kiugrás, a szerdai lyuk. Ugyanaz, mint a gépen:
+        // egy szín (az oszlop nem kategória), a mai nap a feliratával kiemelve,
+        // szám csak a mai és a legnagyobb oszlopon. Üresen a blokk eltűnik.
+        if (weekSeries.any { it.second > 0.0 }) {
+            StatsSectionLabel("Az elmúlt 7 nap, naponta")
+            WeekChart(weekSeries)
         }
 
         // A MAI NAP KÜLÖN. A csempesorban eddig is volt egy mai szám, de hogy
@@ -328,6 +339,53 @@ private fun DailyChart(series: List<Pair<String, Double>>) {
                     .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
                     .background(if (seconds <= 0.0) MaterialTheme.colorScheme.surfaceVariant else SERIES_1),
             )
+        }
+    }
+}
+
+/** A hét napjainak rövid neve, a `Calendar.DAY_OF_WEEK` sorrendjében (1 = vasárnap). */
+private val DAY_SHORT = listOf("V", "H", "K", "Sze", "Cs", "P", "Szo")
+
+/** Egy „ÉÉÉÉ-HH-NN” napkulcs hétköznapja, a fenti listába indexelve (0 = vasárnap). */
+private fun weekdayOf(day: String): Int {
+    val cal = java.util.Calendar.getInstance()
+    cal.clear()
+    cal.set(day.substring(0, 4).toInt(), day.substring(5, 7).toInt() - 1, day.substring(8, 10).toInt())
+    return cal.get(java.util.Calendar.DAY_OF_WEEK) - 1
+}
+
+@Composable
+private fun WeekChart(series: List<Pair<String, Double>>) {
+    val max = series.maxOfOrNull { it.second }?.coerceAtLeast(1.0) ?: 1.0
+    val today = UsageLogic.dayKey(System.currentTimeMillis())
+    val peak = series.indexOfFirst { it.second >= max }
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        series.forEachIndexed { i, (day, seconds) ->
+            val isToday = day == today
+            val labelled = (isToday || i == peak) && seconds > 0.0
+            Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                // A szám sora akkor is foglal, ha üres: az oszlopok alja egy vonalban marad.
+                Text(
+                    if (labelled) UsageLogic.formatDuration(seconds) else " ",
+                    style = MaterialTheme.typography.labelSmall, maxLines = 1,
+                )
+                Box(Modifier.fillMaxWidth().height(96.dp), contentAlignment = Alignment.BottomCenter) {
+                    val frac = (seconds / max).toFloat().coerceIn(0f, 1f)
+                    Box(
+                        Modifier
+                            .fillMaxWidth(0.72f)
+                            .height((96 * frac).dp.coerceAtLeast(2.dp))
+                            .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
+                            .background(if (seconds <= 0.0) MaterialTheme.colorScheme.surfaceVariant else SERIES_1),
+                    )
+                }
+                Text(
+                    if (isToday) "ma" else DAY_SHORT[weekdayOf(day)],
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal,
+                    color = if (isToday) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }

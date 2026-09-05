@@ -192,6 +192,17 @@ object UsageLogic {
         return dayKeysBack(now, count).map { day -> day to (byDay[day]?.get(key) ?: 0.0) }
     }
 
+    /**
+     * Napi ÖSSZESEN — minden célpont együtt — az utolsó [count] napra, a
+     * legrégebbitől. Ugyanaz a szám, amit a csempe egyben mond (a heti
+     * csempe), csak napokra bontva: a hét alakja innen látszik. A `usage.ts`
+     * `totalSeries` tükre.
+     */
+    fun totalSeries(state: UsageState, now: Long, count: Int): List<Pair<String, Double>> {
+        val byDay = state.days.associate { it.day to it.seconds }
+        return dayKeysBack(now, count).map { day -> day to sumOf(byDay[day] ?: emptyMap()) }
+    }
+
     data class WeekDelta(
         val key: String, val label: String, val kind: TargetKind,
         val thisWeek: Double, val lastWeek: Double, val deltaPct: Double?,
