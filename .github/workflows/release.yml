@@ -44,6 +44,28 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
+          **Az elmúlt 7 nap naponta, sávokban.** A csempe egy számban mondja
+          a hetet; a statisztika most a hét alakját is mutatja hét oszlopban —
+          a hétvégi kiugrást, a szerdai lyukat —, a csempével azonos
+          összeggel. A gépen és Androidon is. Szám csak a mai és a legnagyobb
+          oszlopon, a többi mutatásra mondja.
+
+          **A hosztnév-lista nevenként szinkronizál.** Eddig egy ritka
+          versenyhelyzetben a próbatétellel levett név visszajöhetett, ha a
+          másik gép ugyanabban a körben mást írt az oldalra. Most minden
+          felvétel és levétel jelet kap, és nevenként a frissebb jel dönt: a
+          kifizetett levétel nem vész el, a másik gép ingyenes felvétele sem.
+          Frissítsd mindkét gépet — a régi verzió a jelet nem ismeri.
+
+          **Az ablak az ígéret.** Egy másik csomag kézi menete eddig az egész
+          heti ablakot kiválthatta (8:59-kor indítva, nyolc órára). Most a
+          másik csomag menete az ablak kezdetén véget ér, és az ablak menete
+          indul — az indító párbeszéd előre megmondja, ha ez várható. A saját
+          csomag kézi menete nem szakad meg, és egy egyperces kézi menet sem
+          költi el az ablakot: csak az ablak saját menete számít annak.
+
+          ### Ami a v0.4.26-ban jött
+
           **A bővítmény is kimondja, ha a menet a heti ablak szerint indult.**
           A felugró lap egy mondatot told a munkamenet sorához, a tiltó lap egy
           sort mutat: aki nem maga indította, a böngészőben is tudja meg, miért
@@ -64,7 +86,8 @@ jobs:
           próbatételének fejléce mostantól „Heti ablak lazítása”, nem
           „Munkamenet leállítása”.
 
-          ### Ami a v0.4.25-ben jött
+          #### Ami a v0.4.25-ben jött
+
 
           **Heti visszatekintés hétfő reggel.** Az app egy értesítésben
           elmondja az elmúlt hét napot: mennyi mért idő, mire a legtöbb (és
@@ -81,18 +104,6 @@ jobs:
           **Az app szól, amikor a heti ablak menete indul** — aki nem maga
           indította, tudja meg, miért van minden zárva, és meddig. A csomag
           sora azt is kimondja, mikor indul legközelebb.
-
-          #### Ami a v0.4.24-ben jött
-
-
-          **Heti ablak: a munkamenet magától indul.** A csomag kaphat egy
-          ablakot („hétköznap 9:00–12:00”), és abban a menet magától indul,
-          az ablak végéig — a gépen és a telefonon is, mert az ablak a
-          csomaggal együtt szinkronizál. Felvenni és bővíteni egy kattintás;
-          szűkíteni vagy levenni próbatétel, mint a leállítás. A leállított
-          menet ugyanabban az ablakban nem indul újra: a napló az őr. Az
-          ablak a csomag szerkesztőjében állítható, legfeljebb nyolc óra; a
-          csomag sora kimondja, mikor indul legközelebb.
 
           NOTES
           fi
