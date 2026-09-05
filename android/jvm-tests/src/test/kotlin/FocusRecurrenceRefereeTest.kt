@@ -18,16 +18,19 @@ import kotlin.test.assertNull
  * tizenöt másodperces szeletet és az óra-ugrás kivételét.
  *
  * Az időpontok tesztenként mások, mert a tick tizenöt másodperces szelete és
- * az utolsó kör ideje az objektumban él, a tesztek között is.
+ * az utolsó kör ideje az objektumban él, a tesztek között is. És a többi
+ * tesztosztály ideje (1 800 000 000 000 ≈ 2027. január 15.) UTÁN vannak:
+ * ha előttük lennének, egy utánunk futó osztály első köre négy hónapos
+ * óra-ugrást látna, és eltolná a saját függő törlését.
  */
 class FocusRecurrenceRefereeTest {
 
     private fun at(y: Int, m: Int, d: Int, h: Int, min: Int = 0): Long =
         Calendar.getInstance().apply { clear(); set(y, m - 1, d, h, min) }.timeInMillis
 
-    // 2026. szeptember 7. hétfő, 9–12.
-    private val mon9 = at(2026, 9, 7, 9)
-    private val mon12 = at(2026, 9, 7, 12)
+    // 2027. március 1. hétfő, 9–12.
+    private val mon9 = at(2027, 3, 1,9)
+    private val mon12 = at(2027, 3, 1,12)
 
     @BeforeTest
     fun reset() {
@@ -49,9 +52,9 @@ class FocusRecurrenceRefereeTest {
 
     @Test
     fun `a tick az ablakban inditja a menetet, az ablak idejevel`() {
-        Referee.tick(at(2026, 9, 7, 8, 59))
+        Referee.tick(at(2027, 3, 1,8, 59))
         assertNull(BreakerStore.state.value.focusRun, "az ablak előtt semmi")
-        Referee.tick(at(2026, 9, 7, 9, 30))
+        Referee.tick(at(2027, 3, 1,9, 30))
         val run = BreakerStore.state.value.focusRun
         assertNotNull(run)
         assertEquals("p1", run.packId)
@@ -61,7 +64,7 @@ class FocusRecurrenceRefereeTest {
 
     @Test
     fun `a leallitott ablak-menet nem indul ujra ugyanabban az ablakban`() {
-        Referee.tick(at(2026, 9, 7, 9, 31))
+        Referee.tick(at(2027, 3, 1,9, 31))
         assertNotNull(BreakerStore.state.value.focusRun)
         // A próbatétel utáni leállítás nyoma: a napló sora, ami ebben az
         // ablakban kezdődött. (A próbatétel maga a RefereeTest dolga.)
@@ -69,21 +72,21 @@ class FocusRecurrenceRefereeTest {
             val run = it.focusRun!!
             it.copy(
                 focusRun = null,
-                focusLog = it.focusLog + Focus.closeRun(run, "Mély munka", at(2026, 9, 7, 9, 40), true),
+                focusLog = it.focusLog + Focus.closeRun(run, "Mély munka", at(2027, 3, 1,9, 40), true),
             )
         }
-        Referee.tick(at(2026, 9, 7, 9, 45))
+        Referee.tick(at(2027, 3, 1,9, 45))
         assertNull(BreakerStore.state.value.focusRun, "a napló az őr")
-        Referee.tick(at(2026, 9, 8, 9, 30))
-        assertEquals(at(2026, 9, 8, 9), BreakerStore.state.value.focusRun?.startedAt, "másnap újra")
+        Referee.tick(at(2027, 3, 2,9, 30))
+        assertEquals(at(2027, 3, 2,9), BreakerStore.state.value.focusRun?.startedAt, "másnap újra")
     }
 
     @Test
     fun `az ora-ugras az ablak-menetet nem tolja el`() {
-        Referee.tick(at(2026, 9, 7, 9, 32))
+        Referee.tick(at(2027, 3, 1,9, 32))
         // Egy órás lyuk a körök között: alvás vagy átállított óra — a telefon
         // nem tudja, és nem is kell tudnia.
-        Referee.tick(at(2026, 9, 7, 10, 30))
+        Referee.tick(at(2027, 3, 1,10, 30))
         val run = BreakerStore.state.value.focusRun
         assertNotNull(run)
         assertEquals(mon9, run.startedAt)
