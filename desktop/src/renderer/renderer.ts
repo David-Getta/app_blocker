@@ -19,6 +19,7 @@ import { HELPER_VERSION } from '../shared/protocol.js';
 import { normalizeRule, ruleLabel } from '../shared/urlrules.js';
 import { MAX_BURST_MINUTES, MAX_COOLDOWN_MINUTES, normalizeBurst } from '../shared/burst.js';
 import { stepBurstNotices, type BurstNotice, type BurstWatch } from '../shared/burst-notify.js';
+import { digestDue, digestText } from '../shared/digest.js';
 import {
   acceleratorFromKeyEvent, DEFAULT_OVERLAY_SHORTCUT, rejectText, shortcutLabel,
 } from '../shared/shortcut.js';
@@ -3036,11 +3037,39 @@ async function refreshStats(): Promise<void> {
     // A mérés állapota a fő folyamatból jön (a szonda ott fut), a statisztika a
     // helperből — ugyanabban a körben frissül mind a kettő.
     renderStats();
+    maybeDigest();
   } catch {
     // helper busy or down; keep the previous view rather than blanking it
   } finally {
     statsBusy = false;
   }
+}
+
+/**
+ * Heti visszatekintés: hétfő reggel egy értesítés az elmúlt 7 napról — egy
+ * hétről egyszer, gépenként (a kulcs a böngésző tárában). Engedély híján
+ * csendben marad, és a hetet sem könyveli el: majd szól, ha szólhat. A címkék
+ * a statisztika szabályát követik (rejtett lista, fedőnév) — az értesítés sem
+ * szivárogtathat ki olyan címet, amit a lista elrejt.
+ */
+function maybeDigest(): void {
+  if (!statsData || !status) return;
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  let last: string | null = null;
+  try { last = localStorage.getItem('breaker.digestWeek'); } catch { /* nincs tár */ }
+  const key = digestDue(last, Date.now());
+  if (!key) return;
+  const s = statsData.summary;
+  const text = digestText({
+    last7Seconds: s.last7Seconds,
+    topWeekSites: s.topWeekSites,
+    weekOverWeek: s.weekOverWeek,
+    focusWeek: statsData.focusWeek,
+    unlocks7d: status.unlocks7d,
+    daysTracked: s.daysTracked,
+  }, statLabel);
+  try { localStorage.setItem('breaker.digestWeek', key); } catch { /* nincs tár: legközelebb újra */ }
+  if (text) new Notification('Breaker — heti visszatekintés', { body: text });
 }
 
 function tile(value: string, label: string): HTMLElement {

@@ -35,7 +35,10 @@ attól, hogy sokszor csinálod.
   hét-a-héthez összevetés. Fiók nélkül minden adat a gépeden marad; bejelentkezve
   a mérés a saját fiókkiszolgálódra is felkerül, végponttól végpontig titkosítva
   (ebből lesz a közös napi keret). Telemetria sehol nincs. Bármikor
-  kikapcsolható és törölhető.
+  kikapcsolható és törölhető. Hétfő reggel az app egy **heti visszatekintést**
+  is küld értesítésben — az elmúlt 7 nap: mért idő, a legtöbb (és a trend),
+  menetek, feloldások, vagy hogy egy sem volt. Egy hétről egyszer, és csak
+  amíg az app fut; a rejtett vagy fedőnevű címet az értesítés sem mondja ki.
 
   A **mai napnak külön blokkja van** („Mire ment ma az idő”): oldal és app
   együtt, idő szerint — a heti listákban a hét eleje elnyomná a mát.

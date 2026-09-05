@@ -44,15 +44,25 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
+          **Heti visszatekintés hétfő reggel.** Az app egy értesítésben
+          elmondja az elmúlt hét napot: mennyi mért idő, mire a legtöbb (és
+          hogy áll az előző héthez képest), hány menet, hányat vittél
+          végig, hány feloldás — vagy hogy egy sem. Egy hétről egyszer,
+          és csak akkor, ha az app fut; a rejtett vagy fedőnevű címet az
+          értesítés sem mondja ki.
+
+          ### Ami a v0.4.24-ben jött
+
           **Heti ablak: a munkamenet magától indul.** A csomag kaphat egy
           ablakot („hétköznap 9:00–12:00”), és abban a menet magától indul,
           az ablak végéig — a gépen és a telefonon is, mert az ablak a
           csomaggal együtt szinkronizál. Felvenni és bővíteni egy kattintás;
           szűkíteni vagy levenni próbatétel, mint a leállítás. A leállított
           menet ugyanabban az ablakban nem indul újra: a napló az őr. Az
-          ablak a csomag szerkesztőjében állítható, legfeljebb nyolc óra.
+          ablak a csomag szerkesztőjében állítható, legfeljebb nyolc óra; a
+          csomag sora kimondja, mikor indul legközelebb.
 
-          ### Ami a v0.4.23-ban jött
+          #### Ami a v0.4.23-ban jött
 
           **A bővítményt az app hozza és tartja frissen.** Nem kell többé
           kiadásonként zipet letölteni: az app kimásolja a bővítményt egy
@@ -77,30 +87,6 @@ jobs:
           egy kattintás — csak az oldal aldomainje vagy ismert társoldala —,
           levenni próbatétel, mint a feloldás. Így engedhető például a YouTube
           Music a YouTube tiltása mellett. Az oldal saját címe nem vehető le.
-
-          #### Ami a v0.4.22-ben jött
-
-          **Önteszt: a zöld korong mostantól tényt mond.** A „Védelem aktív”
-          eddig azt jelentette, hogy a védelem fut — nem azt, hogy a tiltás
-          érvényesül is. A gép mostantól ötpercenként (és a Tiltás
-          ellenőrzése gombra azonnal) megkérdezi a rendszer névfeloldóját a
-          tiltott nevekről: ha valamelyik nem a tiltó címre oldódik (mert
-          egy VPN-kliens saját feloldót használ, vagy más program is írja a
-          hosts fájlt), a korong figyelmeztet, és a blokklista alatti sor
-          kimondja, melyik név hova megy. Őszinte korlát: a böngésző saját
-          DoH-ját az önteszt nem látja — arra a házirend van.
-
-          **Javítás Windowson: az IPv6-sor is a hosts fájlba kerül.** A
-          hosts-bejegyzés címcsaládonként érvényes; csak IPv4-sorral IPv6-os
-          hálózaton a böngésző a tiltott oldalt IPv6-on nyithatta meg. A
-          Mac-en ez eddig is rendben volt.
-
-          **A réteg gyorsbillentyűje átállítható.** A Munkamenetek kártyán
-          Módosítás, aztán a következő lenyomott kombináció lesz az új; ha
-          egy másik program foglalja a mostanit, a kártya ezt kimondja.
-
-          **Androidon a statisztika is mutatja a mai adag-beteléseket** —
-          ugyanaz a sor, mint a gépen, a fedőnév és a rejtés szabályával.
 
           NOTES
           fi

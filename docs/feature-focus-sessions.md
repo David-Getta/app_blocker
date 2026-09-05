@@ -304,6 +304,8 @@ A sáv-alak ugyanaz, mint az oldalak menetrendjében (napok, kezdés, vég;
 éjfélen átnyúlhat), és legfeljebb nyolc óra — egy huszonnégy órás „ablak” nem
 munkamenet lenne, hanem egy kikapcsolhatatlan fehérlista.
 
+![A csomag szerkesztője a heti ablak blokkjával](images/desktop-focus-editor.png)
+
 ### Súrlódás: ugyanaz a szabály
 
 | Művelet | Ár | Miért |

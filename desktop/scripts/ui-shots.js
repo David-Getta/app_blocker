@@ -527,6 +527,12 @@ async function main() {
     .getByRole('button', { name: 'Szerkesztés' }).click();
   const recModal = page.locator('.overlay:not(.hidden) .modal');
   await recModal.getByRole('heading', { name: 'Csomag szerkesztése' }).waitFor({ timeout: 10_000 });
+  if (!CHECK_ONLY) {
+    // A doksi képe: a csomag szerkesztője a heti ablak blokkjával — odagörgetve,
+    // mert a szerkesztő magasabb az ablaknál, és a blokk az alján van.
+    await recModal.locator('.recurrence-editor').scrollIntoViewIfNeeded();
+    await page.screenshot({ path: path.join(OUT, 'desktop-focus-editor.png'), fullPage: false });
+  }
   await recModal.locator('.chip', { hasText: /^Sze$/ }).click();
   await recModal.locator('input[type="time"]').nth(0).fill('09:00');
   await recModal.locator('input[type="time"]').nth(1).fill('12:00');

@@ -326,3 +326,35 @@ indít — és az működni fog. Ezért van kiírva, és ezért van mellé monda
 Korai végnek számít a próbatétel utáni **rövidítés** is, nem csak a leállítás:
 a menet nem addig tartott, ameddig terveztük. Ha csak a „leállítva” jelzőt
 néznénk, a rövidítés láthatatlan maradna — pedig pont ugyanaz a döntés.
+
+## Heti visszatekintés: hétfő reggel egy mondat
+
+A statisztika ott van az appban — de oda be kell menni, és pont az nem megy
+be, akinek a legtöbbet mondaná. Hétfő reggel héttől az app egy értesítésben
+elmondja az elmúlt hét napot:
+
+> Elmúlt 7 nap: 7 ó 20 p mért idő; a legtöbb: youtube.com 2 ó 40 p (▼ -33%
+> az előző héthez képest). 9 menet (7 ó 0 p, 2 korán leállítva). 3 feloldás.
+
+Ugyanaz a hang, mint a statisztikáé: a „korán leállítva” nem szégyenpad, a
+„Feloldás nélkül.” viszont igenis kimondható — ez a mondat vége, ha egy sem
+volt. Ha nincs miről beszélni (se mérés, se menet, se feloldás), nincs
+értesítés: egy üres mondat zaj lenne, nem tükör.
+
+Szabályok, kimondva:
+
+- **Egy hétről egyszer, gépenként.** A hét kulcsa (a hétfő dátuma) a felület
+  tárában marad; a következő hétfőn újra esedékes.
+- **Ha hétfőn nem futott az app**, az első megnyitáskor szól — még azon a
+  héten. A következő hétfőn már a következőről.
+- **Csak amíg az app fut.** A háttérben ülő védelem magától nem tud
+  értesíteni; ez ugyanaz a korlát, mint az adag-értesítésnél. Engedély
+  híján csendben marad, és a hetet sem könyveli el.
+- **Gördülő hét nap**, nem naptári hét — pontosan az, amit a statisztika
+  csempéi is mutatnak. A felirat „elmúlt 7 nap”-ot mond, nem „múlt hét”-et.
+- **A címkék a statisztika szabályát követik**: rejtett listánál sorszám,
+  fedőnévnél a fedőnév. Az értesítés sem szivárogtathat ki olyan címet, amit
+  a lista elrejt.
+
+A mag tiszta (`desktop/src/shared/digest.ts`: a hét kulcsa, az esedékesség,
+a szöveg), a felület a statisztika minden frissítése után kérdezi meg.
