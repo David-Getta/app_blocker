@@ -103,7 +103,8 @@ class FocusRecurrenceRefereeTest {
         assertEquals(at(2027, 3, 3, 9), run?.startedAt)
         val last = BreakerStore.state.value.focusLog.last()
         assertEquals("p2", last.packId)
-        assertEquals(at(2027, 3, 3, 9, 1), last.endedAt, "a naplóba a saját idejével")
+        // A 9:00-s kör zárta le: a naplóba az ablak kezdetével, nem a következő körrel.
+        assertEquals(at(2027, 3, 3, 9, 0), last.endedAt, "a naplóba a saját idejével")
         assertEquals(false, last.stopped, "nem leállítva: az ablak jött")
 
         // A saját csomag kézi menete nem szakad meg, és nem is költi el az ablakot.
