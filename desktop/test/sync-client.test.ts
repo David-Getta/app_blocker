@@ -567,3 +567,42 @@ test('egy RÉGI kiszolgáló mellett a kör nem hal meg, és nem is néma', asyn
     fs2.rmSync(oldDir, { recursive: true, force: true });
   }
 });
+
+test('a kifizetett hosztnév-levétel nem jön vissza a másik gép egyidejű írásától', async () => {
+  // A klasszikus döntetlen: A levesz egy nevet (próbatétel, rev n+1), B
+  // közben — még n-en — mást ír ugyanarra az oldalra (fedőnév), és ő is
+  // n+1-re lép. Egyenlő rev: régen a listák egyesültek, és a név visszajött.
+  const a = device([site({ id: 'site_hn', domain: 'twitch.tv', hostnames: ['m.twitch.tv', 'twitch.tv'], addedAt: 20_000 })]);
+  // Saját fiók: a közös fiók jelszava a korábbi tesztekben változhat.
+  await signUp(a, url, 'hosztnev@example', PASSWORD, 'Munkagép');
+  await syncNow(a, 20_000);
+
+  const b = device();
+  await signIn(b, url, 'hosztnev@example', PASSWORD, 'Telefon');
+  await syncNow(b, 21_000);
+  const mineB = b.sites.find((s) => s.domain === 'twitch.tv')!;
+  assert.deepEqual(mineB.hostnames, ['m.twitch.tv', 'twitch.tv']);
+
+  // A: a levétel (a próbatételt a hostnames-referee teszt fedi; itt a lista
+  // változik, és a commit eleji léptetés jelet ad).
+  const mineA = a.sites.find((s) => s.domain === 'twitch.tv')!;
+  mineA.hostnames = ['twitch.tv'];
+  bumpRevisions(a, 'gep-a', 22_000);
+  assert.equal(mineA.hostnameMarks?.['m.twitch.tv'], mineA.rev, 'a levétel jelet kap');
+  await syncNow(a, 22_000);
+
+  // B, a régi listával: egy másik mező módosul, és ugyanarra a rev-re lép.
+  mineB.alias = 'stream';
+  bumpRevisions(b, 'telefon', 23_000);
+  assert.equal(mineB.rev, mineA.rev, 'ugyanaz a rev — a döntetlen');
+  await syncNow(b, 23_000);
+  const afterB = b.sites.find((s) => s.domain === 'twitch.tv')!;
+  assert.deepEqual(afterB.hostnames, ['twitch.tv'], 'a levett név nem jött vissza');
+  assert.equal(afterB.alias, 'stream', 'a másik szerkesztés sem veszett el');
+
+  await syncNow(a, 24_000);
+  const afterA = a.sites.find((s) => s.domain === 'twitch.tv')!;
+  assert.deepEqual(afterA.hostnames, ['twitch.tv']);
+  assert.equal(afterA.alias, 'stream');
+  assert.deepEqual(afterA.hostnameMarks, afterB.hostnameMarks, 'a jel mindkét gépen ugyanaz');
+});

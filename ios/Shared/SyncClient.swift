@@ -172,7 +172,9 @@ enum SyncClient {
                 // érvényesülnek, de a telefon nem törölheti le őket a gépről.
                 rules: s.rules,
                 rev: max(s.rev ?? 1, 1), updatedAt: s.updatedAt ?? s.addedAt,
-                updatedBy: s.updatedBy ?? ""
+                updatedBy: s.updatedBy ?? "",
+                // A jelek is hordozottak: a gépen kifizetett levétel nyoma.
+                hostnameMarks: s.hostnameMarks
             )
         }
     }
@@ -194,6 +196,7 @@ enum SyncClient {
             out.rev = m.rev
             out.updatedAt = m.updatedAt
             out.updatedBy = m.updatedBy
+            out.hostnameMarks = m.hostnameMarks
             out.revFp = SyncRevisions.fingerprint(out)
             return out
         }

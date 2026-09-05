@@ -48,6 +48,12 @@ data class Site(
     val updatedBy: String = "",
     /** a szinkron-mezők lenyomata a legutóbbi léptetéskor */
     val revFp: String? = null,
+    /**
+     * A hosztnevek jelei (név → az a rev, amelyik felvette vagy levette) — a
+     * telefon nem ír ilyet, de HORDOZZA: enélkül egy telefonos szerkesztés
+     * letörölné a gépen kifizetett levétel nyomát. Lásd SyncMerge.
+     */
+    val hostnameMarks: Map<String, Int>? = null,
 )
 
 data class SessionRec(
@@ -426,6 +432,7 @@ object BreakerStore {
                 put("updatedAt", site.updatedAt)
                 put("updatedBy", site.updatedBy)
                 put("revFp", site.revFp ?: JSONObject.NULL)
+                put("hostnameMarks", site.hostnameMarks?.let { JSONObject(it) } ?: JSONObject.NULL)
             }
         }))
         put("unlockLog", JSONArray(s.unlockLog))
@@ -608,6 +615,7 @@ object BreakerStore {
                         updatedAt = s.optLong("updatedAt", 0),
                         updatedBy = s.optString("updatedBy", ""),
                         revFp = if (s.isNull("revFp")) null else s.optString("revFp"),
+                        hostnameMarks = SyncClient.marksFromJson(s),
                     )
                 }.getOrNull()
             }

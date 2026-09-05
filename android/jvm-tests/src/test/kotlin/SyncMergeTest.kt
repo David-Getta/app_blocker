@@ -170,4 +170,50 @@ class SyncMergeTest {
         assertEquals(0, SyncMerge.compareStrictness(plain, site()))
         assertTrue(SyncMerge.blockedMinutesPerWeek(null) > SyncMerge.blockedMinutesPerWeek(work))
     }
+
+    // ------------------------------------------------------------- jelek
+    //
+    // A név jele a rekord rev-je, amelyik felvette vagy levette. Enélkül egyenlő
+    // revnél az egyesítés visszahozná a kifizetett levételt, nagyobb revnél a
+    // kétszer író gép egyben vinné a régi listát. A merge-hostnames.test.ts
+    // tükre; a telefon jelet nem ír, de fésül és hordoz.
+
+    @Test fun `a marked removal beats the union at equal rev, and the other edit survives`() {
+        val removed = site(rev = 4, hostnames = listOf("youtube.com"), updatedAt = 100)
+            .copy(hostnameMarks = mapOf("music.youtube.com" to 4))
+        val other = site(rev = 4, hostnames = listOf("music.youtube.com", "youtube.com"), updatedAt = 200, updatedBy = "telefon")
+            .copy(alias = "tube")
+        for ((x, y) in listOf(removed to other, other to removed)) {
+            val m = SyncMerge.mergeSite(x, y)
+            assertEquals(listOf("youtube.com"), m.hostnames, "a kifizetett levétel áll")
+            assertEquals("tube", m.alias, "a másik szerkesztés nem veszett el")
+            assertEquals(mapOf("music.youtube.com" to 4), m.hostnameMarks, "a jel utazik tovább")
+        }
+    }
+
+    @Test fun `a newer record does not resurrect a marked removal, a newer mark re-adds, no mark means the wider list`() {
+        val removed = site(rev = 3, hostnames = listOf("youtube.com"))
+            .copy(hostnameMarks = mapOf("music.youtube.com" to 3))
+        val twice = site(rev = 5, hostnames = listOf("music.youtube.com", "youtube.com"), updatedBy = "telefon")
+        assertEquals(listOf("youtube.com"), SyncMerge.mergeSite(twice, removed).hostnames)
+        assertEquals(listOf("youtube.com"), SyncMerge.mergeSite(removed, twice).hostnames)
+
+        val readded = site(rev = 6, hostnames = listOf("music.youtube.com", "youtube.com"))
+            .copy(hostnameMarks = mapOf("music.youtube.com" to 6))
+        assertEquals(listOf("music.youtube.com", "youtube.com"), SyncMerge.mergeSite(removed, readded).hostnames)
+        assertEquals(mapOf("music.youtube.com" to 6), SyncMerge.mergeSite(readded, removed).hostnameMarks)
+
+        // A régebbi rekord ingyenes felvétele sem vész el a nagyobb rev mögött.
+        val newer = site(rev = 5, hostnames = listOf("youtube.com"))
+        val older = site(rev = 4, hostnames = listOf("m.youtube.com", "youtube.com"), updatedBy = "telefon")
+            .copy(hostnameMarks = mapOf("m.youtube.com" to 4))
+        assertEquals(listOf("m.youtube.com", "youtube.com"), SyncMerge.mergeSite(newer, older).hostnames)
+
+        // Jel nélkül (régi kliens) a bővebb nyer, és jel sem keletkezik.
+        val plain = site(rev = 4, hostnames = listOf("youtube.com"))
+        val legacy = site(rev = 4, hostnames = listOf("m.youtube.com", "youtube.com"), updatedBy = "telefon")
+        val m = SyncMerge.mergeSite(plain, legacy)
+        assertEquals(listOf("m.youtube.com", "youtube.com"), m.hostnames)
+        assertEquals(null, m.hostnameMarks)
+    }
 }

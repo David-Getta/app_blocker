@@ -38,6 +38,14 @@ export interface SyncSite {
   id: string;
   domain: string;
   hostnames: string[];
+  /**
+   * A hosztnevek JELEI: név → a rekord `rev`-je, amelyik a nevet utoljára
+   * felvette vagy levette (hogy melyik történt, azt a `hostnames` mondja
+   * meg). Az összefésülésnél a nagyobb jel dönt; jel nélkül — régi kliens,
+   * vagy az oldal felvételekor kapott nevek — a bővebb lista nyer. Lásd
+   * `withHostnames`.
+   */
+  hostnameMarks?: Record<string, number>;
   addedAt: number;
   pauseUntil: number | null;
   pendingDeleteAt: number | null;
@@ -184,7 +192,10 @@ export function mergeSite(a: SyncSite, b: SyncSite): SyncSite {
     const older = a.rev > b.rev ? b : a;
     // Nagyobb rev: a változtatás mögött ott a munka (próbatétel), tehát lazítás
     // is átmehet. A törlésre várást viszont NEM ejtjük el csendben: lásd lent.
-    return withRules(carryPendingDelete(newer, older), newer, older);
+    // A hosztnevek itt is nevenként, a jelük szerint fésülődnek: a régebbi
+    // rekord kifizetett levétele vagy ingyenes felvétele sem veszhet el attól,
+    // hogy a másik eszköz közben kétszer írt ugyanarra a rekordra.
+    return withHostnames(withRules(carryPendingDelete(newer, older), newer, older), a, b);
   }
 
   // Egyenlő rev: senki nem „újabb”. Ilyenkor a szigorúbb nyer — egy
@@ -204,15 +215,45 @@ export function mergeSite(a: SyncSite, b: SyncSite): SyncSite {
 }
 
 /**
- * Egyenlő revnél a hosztnevek EGYESÜLNEK. A hosztnév-lista a tiltás része
- * (ezek a nevek mennek a hosts fájlba): egy név levétele lazítás, ami csak
- * próbatétel után, rev-emeléssel mehet át — azt a nagyobb rev viszi (fent).
- * Egy versenyhelyzet (két eszköz ugyanazon a reven, mást-mást írva) sosem
- * oldhat fel semmit, tehát itt a bővebb lista nyer. Rendezve, hogy két eszköz
- * bájtra ugyanazt kapja. A Kotlin- és Swift-tükör ugyanezt teszi.
+ * A hosztnevek NEVENKÉNT fésülődnek, a jelük szerint.
+ *
+ * A hosztnév-lista a tiltás része (ezek a nevek mennek a hosts fájlba). Egy
+ * név levétele lazítás, ami csak próbatétel után mehet át; egy név felvétele
+ * ingyenes szigorítás. Minden ilyen lépés jelet kap: a rekord `rev`-jét,
+ * amelyik vitte (`hostnameMarks`). Nevenként a NAGYOBB jel dönt — ami annál
+ * áll (benne van vagy nincs), az marad. Egyenlő jelnél (ide tartozik a jel
+ * nélküli név is: régi kliens, az oldal felvételekor kapott nevek) a rekord
+ * dönt, ahogy eddig: eltérő revnél az újabb rekord állapota, egyenlő revnél a
+ * bővebb — versenyhelyzet sosem old fel.
+ *
+ * Miért nem elég a rekord rev-je. Egyenlő revnél az egyesítés visszahozná a
+ * kifizetett levételt, ha a másik eszköz ugyanabban a körben bármi mást írt
+ * a rekordra; nagyobb revnél a nyertes rekord egyben vinné a régi listáját,
+ * ha kétszer írt. A jel a NÉVHEZ tartozik, nem a rekordhoz — ezért egyik sem
+ * történhet meg. Rendezve, hogy két eszköz bájtra ugyanazt kapja. A Kotlin-
+ * és Swift-tükör ugyanezt teszi.
  */
 function withHostnames(merged: SyncSite, a: SyncSite, b: SyncSite): SyncSite {
-  return { ...merged, hostnames: [...new Set([...a.hostnames, ...b.hostnames])].sort() };
+  const names = new Set([
+    ...a.hostnames, ...b.hostnames,
+    ...Object.keys(a.hostnameMarks ?? {}), ...Object.keys(b.hostnameMarks ?? {}),
+  ]);
+  const hostnames: string[] = [];
+  const marks: Record<string, number> = {};
+  for (const h of [...names].sort()) {
+    const ma = a.hostnameMarks?.[h] ?? 0;
+    const mb = b.hostnameMarks?.[h] ?? 0;
+    const inA = a.hostnames.includes(h);
+    const inB = b.hostnames.includes(h);
+    const present = ma > mb ? inA : mb > ma ? inB
+      : a.rev !== b.rev ? (a.rev > b.rev ? inA : inB) : inA || inB;
+    if (present) hostnames.push(h);
+    if (Math.max(ma, mb) > 0) marks[h] = Math.max(ma, mb);
+  }
+  const out: SyncSite = { ...merged, hostnames };
+  if (Object.keys(marks).length > 0) out.hostnameMarks = marks;
+  else delete out.hostnameMarks;
+  return out;
 }
 
 function withRules(winner: SyncSite, a: SyncSite, b: SyncSite): SyncSite {

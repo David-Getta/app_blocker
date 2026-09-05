@@ -269,6 +269,7 @@ function requireAccount(state: HelperState): SyncAccount {
 function toSyncSites(sites: SiteRec[], deviceId: string): SyncSite[] {
   return sites.map((s) => ({
     id: s.id, domain: s.domain, hostnames: s.hostnames, addedAt: s.addedAt,
+    ...(s.hostnameMarks ? { hostnameMarks: s.hostnameMarks } : {}),
     pauseUntil: null, pendingDeleteAt: s.pendingDeleteAt,
     schedule: s.schedule, dailyLimitSeconds: s.dailyLimitSeconds, alias: s.alias,
     rules: s.rules,
@@ -288,6 +289,9 @@ function fromSyncSites(merged: SyncSite[], local: SiteRec[]): SiteRec[] {
   return merged.map((m) => adoptRevision({
     ...byId.get(m.id),
     id: m.id, domain: m.domain, hostnames: m.hostnames, addedAt: m.addedAt,
+    // A jelek az összefésülés eredményéből jönnek — a helyi, régebbi jel nem
+    // maradhat meg egy már eldőlt név mellett.
+    hostnameMarks: m.hostnameMarks,
     pauseUntil: byId.get(m.id)?.pauseUntil ?? null,
     pendingDeleteAt: m.pendingDeleteAt,
     schedule: m.schedule, dailyLimitSeconds: m.dailyLimitSeconds, alias: m.alias,
@@ -320,12 +324,32 @@ export function normalizeIncomingSites(parsed: unknown): SyncSite[] {
     .map((s) => cleanSite(s));
 }
 
+/** Ennél több jelet nem veszünk át egy oldalhoz — a kiszolgáló nem hizlalhatja a rekordot. */
+const MAX_MARKS_ACCEPTED = 64;
+
+/**
+ * A hosztnév-jelek kiegyenesítése: csak név → pozitív egész; ami más, kimarad;
+ * üresen nincs mező (a hiányzó és az üres itt ugyanaz: nincs jel).
+ */
+function cleanMarks(raw: unknown): Record<string, number> | undefined {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
+  const out: Record<string, number> = {};
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (!k || typeof v !== 'number' || !Number.isInteger(v) || v <= 0) continue;
+    out[k] = v;
+    if (Object.keys(out).length >= MAX_MARKS_ACCEPTED) break;
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
 /** Egy szinkron-rekord kanonikus alakja: fix mezők, fix sorrend. */
 function cleanSite(s: Record<string, unknown>): SyncSite {
+  const marks = cleanMarks(s.hostnameMarks);
   return {
     id: s.id as string,
     domain: s.domain as string,
     hostnames: Array.isArray(s.hostnames) ? (s.hostnames as string[]) : [],
+    ...(marks ? { hostnameMarks: marks } : {}),
     addedAt: Number.isFinite(s.addedAt) ? (s.addedAt as number) : 0,
     pauseUntil: null,
     pendingDeleteAt: typeof s.pendingDeleteAt === 'number' ? s.pendingDeleteAt : null,
@@ -366,6 +390,9 @@ function sameSites(a: SyncSite[], b: SyncSite[]): boolean {
 function canonical(s: SyncSite): unknown[] {
   return [
     s.id, s.domain, [...s.hostnames].sort(), s.addedAt,
+    // A jelek is számítanak: ha csak ők különböznek (egy régi kliens
+    // rekordja jel nélkül), akkor is fel kell menniük.
+    s.hostnameMarks ? Object.entries(s.hostnameMarks).sort() : null,
     s.pendingDeleteAt ?? null,
     s.schedule ? [s.schedule.mode, s.schedule.bands] : null,
     s.dailyLimitSeconds ?? null,

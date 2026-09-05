@@ -51,6 +51,10 @@ struct Site: Codable, Identifiable, Equatable {
     var updatedBy: String?
     /// a szinkron-mezők lenyomata a legutóbbi léptetéskor
     var revFp: String?
+    /// A hosztnevek jelei (név → az a rev, amelyik felvette vagy levette) —
+    /// az iPhone nem ír ilyet, de HORDOZZA: enélkül egy itteni szerkesztés
+    /// letörölné a gépen kifizetett levétel nyomát. Lásd SyncMerge.
+    var hostnameMarks: [String: Int]?
 }
 
 struct SessionRec: Codable, Equatable, Identifiable {

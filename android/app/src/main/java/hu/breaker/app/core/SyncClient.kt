@@ -155,6 +155,7 @@ object SyncClient {
             burstSeconds = s.burstSeconds, cooldownSeconds = s.cooldownSeconds,
             alias = s.alias, rules = s.rules,
             rev = maxOf(s.rev, 1), updatedAt = s.updatedAt, updatedBy = s.updatedBy,
+            hostnameMarks = s.hostnameMarks,
         )
     }
 
@@ -172,6 +173,7 @@ object SyncClient {
                     burstSeconds = m.burstSeconds, cooldownSeconds = m.cooldownSeconds,
                     alias = m.alias, rules = m.rules,
                     rev = m.rev, updatedAt = m.updatedAt, updatedBy = m.updatedBy,
+                    hostnameMarks = m.hostnameMarks,
                 )
             )
         }
@@ -218,9 +220,30 @@ object SyncClient {
                     JSONObject().apply { put("host", r.host); put("path", r.path) }
                 }))
                 put("rev", s.rev); put("updatedAt", s.updatedAt); put("updatedBy", s.updatedBy)
+                // A jelek csak akkor, ha vannak: a hiányzó és az üres itt ugyanaz.
+                if (s.hostnameMarks != null) put("hostnameMarks", JSONObject(s.hostnameMarks))
             })
         }
         return arr.toString()
+    }
+
+    /**
+     * A hosztnév-jelek kiegyenesítése: csak név → pozitív egész; ami más,
+     * kimarad; üresen null. Legfeljebb 64 — a kiszolgáló nem hizlalhatja a
+     * rekordot. A Store is ezzel olvas.
+     */
+    internal fun marksFromJson(o: JSONObject): Map<String, Int>? {
+        val m = o.optJSONObject("hostnameMarks") ?: return null
+        val out = LinkedHashMap<String, Int>()
+        val keys = m.keys()
+        while (keys.hasNext()) {
+            val k = keys.next()
+            if (k.isEmpty()) continue
+            val v = m.optInt(k, 0)
+            if (v > 0) out[k] = v
+            if (out.size >= 64) break
+        }
+        return if (out.isEmpty()) null else out
     }
 
     internal fun sitesFromJson(text: String): List<SyncMerge.SyncSite> {
@@ -246,6 +269,7 @@ object SyncClient {
                     rev = o.optInt("rev", 1),
                     updatedAt = o.optLong("updatedAt", 0),
                     updatedBy = o.optString("updatedBy", ""),
+                    hostnameMarks = marksFromJson(o),
                 ))
             }
         }

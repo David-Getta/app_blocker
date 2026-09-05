@@ -40,6 +40,13 @@ enum SyncMerge {
         var rev: Int
         var updatedAt: Double
         var updatedBy: String
+        /// A hosztnevek JELEI: név → a rekord rev-je, amelyik a nevet utoljára
+        /// felvette vagy levette (melyik történt, azt a `hostnames` mondja). A
+        /// nagyobb jel dönt az összefésülésnél; jel nélkül a bővebb nyer. Az
+        /// iPhone nem szerkeszt hosztnevet: hordozza és fésüli a jeleket. Lásd
+        /// `withHostnames` (merge.ts tükre). Utolsó tag, hogy a tagonkénti
+        /// inicializáló régi hívásai változatlanok maradjanak.
+        var hostnameMarks: [String: Int]? = nil
 
         /// A `pendingDeleteAt` KIÍRÁSA kötelező, nem elhagyható.
         ///
@@ -64,6 +71,7 @@ enum SyncMerge {
             try c.encode(rev, forKey: .rev)
             try c.encode(updatedAt, forKey: .updatedAt)
             try c.encode(updatedBy, forKey: .updatedBy)
+            try c.encodeIfPresent(hostnameMarks, forKey: .hostnameMarks)
         }
     }
 
@@ -142,7 +150,9 @@ enum SyncMerge {
         if a.rev != b.rev {
             let newer = a.rev > b.rev ? a : b
             let older = a.rev > b.rev ? b : a
-            return withRules(carryPendingDelete(newer, older), a, b)
+            // A hosztnevek itt is nevenként, a jelük szerint: a régebbi rekord
+            // kifizetett levétele nem veszhet el attól, hogy a másik kétszer írt.
+            return withHostnames(withRules(carryPendingDelete(newer, older), a, b), a, b)
         }
         let strict = compareStrictness(a, b)
         if strict != 0 {
@@ -154,13 +164,37 @@ enum SyncMerge {
         return withHostnames(withRules(winner, a, b), a, b)
     }
 
-    /// Egyenlő revnél a hosztnevek EGYESÜLNEK: a lista a tiltás része, egy név
-    /// levétele lazítás, ami csak rev-emeléssel mehet át — egy versenyhelyzet
-    /// sosem oldhat fel semmit. Rendezve, hogy két eszköz ugyanazt kapja. A
-    /// TypeScript- és Kotlin-tükör ugyanezt teszi (merge.ts withHostnames).
+    /// A hosztnevek NEVENKÉNT fésülődnek, a jelük szerint: a nagyobb jelnél
+    /// álló állapot (benne van vagy nincs) marad; egyenlő jelnél (a jel nélküli
+    /// név is ilyen) a rekord dönt, ahogy eddig — eltérő revnél az újabb, egyenlő
+    /// revnél a bővebb: versenyhelyzet sosem old fel. Rendezve, hogy két eszköz
+    /// ugyanazt kapja. A TypeScript- és Kotlin-tükör ugyanezt teszi (merge.ts
+    /// withHostnames).
     private static func withHostnames(_ merged: SyncSite, _ a: SyncSite, _ b: SyncSite) -> SyncSite {
+        let am = a.hostnameMarks ?? [:]
+        let bm = b.hostnameMarks ?? [:]
+        var names = Set(a.hostnames)
+        names.formUnion(b.hostnames)
+        names.formUnion(am.keys)
+        names.formUnion(bm.keys)
+        var hostnames: [String] = []
+        var marks: [String: Int] = [:]
+        for h in names.sorted() {
+            let ma = am[h] ?? 0
+            let mb = bm[h] ?? 0
+            let inA = a.hostnames.contains(h)
+            let inB = b.hostnames.contains(h)
+            let present: Bool
+            if ma > mb { present = inA }
+            else if mb > ma { present = inB }
+            else if a.rev != b.rev { present = a.rev > b.rev ? inA : inB }
+            else { present = inA || inB }
+            if present { hostnames.append(h) }
+            if max(ma, mb) > 0 { marks[h] = max(ma, mb) }
+        }
         var out = merged
-        out.hostnames = Array(Set(a.hostnames + b.hostnames)).sorted()
+        out.hostnames = hostnames
+        out.hostnameMarks = marks.isEmpty ? nil : marks
         return out
     }
 

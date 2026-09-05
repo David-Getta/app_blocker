@@ -51,6 +51,14 @@ object SyncMerge {
         val rev: Int = 1,
         val updatedAt: Long = 0,
         val updatedBy: String = "",
+        /**
+         * A hosztnevek JELEI: név → a rekord rev-je, amelyik a nevet utoljára
+         * felvette vagy levette (melyik történt, azt a `hostnames` mondja). A
+         * nagyobb jel dönt az összefésülésnél; jel nélkül a bővebb nyer. A
+         * telefon nem szerkeszt hosztnevet: hordozza és fésüli a jeleket, nem
+         * ír újat. Lásd `withHostnames` (merge.ts tükre).
+         */
+        val hostnameMarks: Map<String, Int>? = null,
     )
 
     // --------------------------------------------------------- szigorúság
@@ -141,7 +149,9 @@ object SyncMerge {
         if (a.rev != b.rev) {
             val newer = if (a.rev > b.rev) a else b
             val older = if (a.rev > b.rev) b else a
-            return withRules(carryPendingDelete(newer, older), a, b)
+            // A hosztnevek itt is nevenként, a jelük szerint: a régebbi rekord
+            // kifizetett levétele nem veszhet el attól, hogy a másik kétszer írt.
+            return withHostnames(withRules(carryPendingDelete(newer, older), a, b), a, b)
         }
         val strict = compareStrictness(a, b)
         if (strict != 0) {
@@ -156,14 +166,34 @@ object SyncMerge {
     }
 
     /**
-     * Egyenlő revnél a hosztnevek EGYESÜLNEK: a lista a tiltás része, egy név
-     * levétele lazítás, ami csak rev-emeléssel mehet át — egy versenyhelyzet
-     * sosem oldhat fel semmit. Rendezve, hogy két eszköz ugyanazt kapja. A
-     * TypeScript- és Swift-tükör ugyanezt teszi (merge.ts withHostnames).
+     * A hosztnevek NEVENKÉNT fésülődnek, a jelük szerint: a nagyobb jelnél
+     * álló állapot (benne van vagy nincs) marad; egyenlő jelnél (a jel nélküli
+     * név is ilyen) a rekord dönt, ahogy eddig — eltérő revnél az újabb, egyenlő
+     * revnél a bővebb: versenyhelyzet sosem old fel. Rendezve, hogy két eszköz
+     * ugyanazt kapja. A TypeScript- és Swift-tükör ugyanezt teszi (merge.ts
+     * withHostnames).
      */
     private fun withHostnames(merged: SyncSite, a: SyncSite, b: SyncSite): SyncSite {
-        val union = (a.hostnames + b.hostnames).distinct().sorted()
-        return if (union == merged.hostnames) merged else merged.copy(hostnames = union)
+        val am = a.hostnameMarks ?: emptyMap()
+        val bm = b.hostnameMarks ?: emptyMap()
+        val names = (a.hostnames + b.hostnames + am.keys + bm.keys).toSortedSet()
+        val hostnames = ArrayList<String>()
+        val marks = LinkedHashMap<String, Int>()
+        for (h in names) {
+            val ma = am[h] ?: 0
+            val mb = bm[h] ?: 0
+            val inA = h in a.hostnames
+            val inB = h in b.hostnames
+            val present = when {
+                ma > mb -> inA
+                mb > ma -> inB
+                a.rev != b.rev -> if (a.rev > b.rev) inA else inB
+                else -> inA || inB
+            }
+            if (present) hostnames.add(h)
+            if (maxOf(ma, mb) > 0) marks[h] = maxOf(ma, mb)
+        }
+        return merged.copy(hostnames = hostnames, hostnameMarks = if (marks.isEmpty()) null else marks)
     }
 
     private fun withRules(winner: SyncSite, a: SyncSite, b: SyncSite): SyncSite {

@@ -19,6 +19,14 @@ export interface SiteRec {
   id: string;
   domain: string;
   hostnames: string[];
+  /**
+   * A hosztnevek jelei (név → az a `rev`, amelyik felvette vagy levette) —
+   * a szinkron nevenkénti összefésüléséhez, lásd shared/sync/merge.ts. A
+   * `revisions.ts` írja, a `commit()` elején, a lista változásából.
+   */
+  hostnameMarks?: Record<string, number>;
+  /** a hosztnevek az utolsó rev-léptetéskor/átvételkor — ebből lesz a jel; helyi */
+  revHosts?: string[];
   addedAt: number;
   pauseUntil: number | null;
   pendingDeleteAt: number | null;

@@ -58,11 +58,16 @@ export function bumpRevisions(state: HelperState, deviceId: string, now: number)
   let changed = 0;
   for (const site of state.sites) {
     const fp = fingerprint(site);
-    if (site.revFp === fp) continue;
+    if (site.revFp === fp) {
+      // Frissítés utáni első kör: a lista még nincs eltéve — innentől van.
+      if (!site.revHosts) site.revHosts = [...site.hostnames];
+      continue;
+    }
     site.rev = (site.rev ?? 0) + 1;
     site.updatedAt = now;
     site.updatedBy = deviceId;
     site.revFp = fp;
+    markHostnames(site);
     changed++;
   }
   if (bumpFocusRevision(state, deviceId, now)) changed++;
@@ -255,5 +260,42 @@ export function adoptChannelsRevision(state: HelperState): void {
  * fölöslegesen a számlálót, és nem indul be egy végtelen oda-vissza írás.
  */
 export function adoptRevision(site: SiteRec): SiteRec {
-  return { ...site, revFp: fingerprint(site) };
+  return { ...site, revFp: fingerprint(site), revHosts: [...site.hostnames] };
+}
+
+/** Ennyi jelnél többet nem hordunk egy oldalon; a levett nevek jele a legrégebbitől esik ki. */
+const MAX_HOSTNAME_MARKS = 64;
+
+/**
+ * A hosztnevek jelei: ami az utolsó léptetés óta bekerült vagy kikerült, az
+ * ezt a rev-et kapja. A szinkron ebből tudja nevenként, melyik eszköz
+ * mondta az újabbat (shared/sync/merge.ts, `withHostnames`).
+ *
+ * Itt és nem a referee két pontján: a lista változásának EGY fogópontja
+ * van, ez — egy jövőbeli harmadik szerkesztő út se felejtheti el a jelet.
+ * Az első léptetés (nincs még eltett lista) jel nélkül megy: az oldal
+ * felvételekor kapott nevek nem kapnak jelet, azokra a bővebb-nyer szabály
+ * áll, ahogy a régi klienseknél is.
+ */
+function markHostnames(site: SiteRec): void {
+  const prev = site.revHosts;
+  site.revHosts = [...site.hostnames];
+  if (!prev || site.rev === undefined) return;
+  const before = new Set(prev);
+  const after = new Set(site.hostnames);
+  const marks = { ...(site.hostnameMarks ?? {}) };
+  for (const h of after) if (!before.has(h)) marks[h] = site.rev;
+  for (const h of before) if (!after.has(h)) marks[h] = site.rev;
+  // Korlát: a levett nevek jelei gyűlnek; a legrégebbiek esnek ki, a
+  // meglévő nevek jele marad.
+  const entries = Object.entries(marks);
+  if (entries.length > MAX_HOSTNAME_MARKS) {
+    const gone = entries.filter(([h]) => !after.has(h)).sort((x, y) => x[1] - y[1]);
+    for (const [h] of gone) {
+      if (Object.keys(marks).length <= MAX_HOSTNAME_MARKS) break;
+      delete marks[h];
+    }
+  }
+  if (Object.keys(marks).length > 0) site.hostnameMarks = marks;
+  else delete site.hostnameMarks;
 }

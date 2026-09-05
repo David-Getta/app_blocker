@@ -102,7 +102,7 @@ const GROUPS = [
   // — az app „törlés folyamatban”-t mutatna, és soha nem törölne.
   {
     what: 'egy blokkolt oldal',
-    names: ['id', 'domain', 'hostnames', 'addedAt', 'pendingDeleteAt', 'schedule',
+    names: ['id', 'domain', 'hostnames', 'hostnameMarks', 'addedAt', 'pendingDeleteAt', 'schedule',
       'dailyLimitSeconds', 'burstSeconds', 'cooldownSeconds', 'alias', 'rules'],
     ts: 'desktop/src/shared/sync/merge.ts',
     kt: 'android/app/src/main/java/hu/breaker/app/core/SyncClient.kt',
@@ -233,7 +233,7 @@ for (const group of GROUPS) {
  */
 const CARRY = {
   what: 'egy blokkolt oldal HELYI hordozása',
-  names: ['id', 'domain', 'hostnames', 'addedAt', 'pendingDeleteAt', 'schedule',
+  names: ['id', 'domain', 'hostnames', 'hostnameMarks', 'addedAt', 'pendingDeleteAt', 'schedule',
     'dailyLimitSeconds', 'burstSeconds', 'cooldownSeconds', 'alias', 'rules'],
   files: [
     {

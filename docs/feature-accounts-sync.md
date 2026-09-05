@@ -71,6 +71,22 @@ Ezért:
 - **Törlés átmegy, de a 24 órás türelmi idővel együtt.** A másik eszközön nem
   tűnik el azonnal az oldal: ugyanaddig a határidőig blokkol, és ott is
   visszavonható (a visszavonás szigorítás, tehát ingyen van).
+- **A hosztnevek nevenként fésülődnek, jelekkel.** Az oldal névlistája a
+  tiltás része (ezek a nevek mennek a hosts fájlba); egy név levétele
+  próbatétel, a felvétele ingyen. Mindkettő JELET kap: a rekord `rev`-jét,
+  amelyik vitte (`hostnameMarks`, név → rev). Nevenként a nagyobb jel dönt —
+  ami annál áll, benne van vagy nincs, az marad; egyenlő jelnél (a jel
+  nélküli név is ilyen: régi kliens, az oldal felvételekor kapott nevek) a
+  rekord dönt, ahogy a többi mezőnél: eltérő revnél az újabb, egyenlő revnél
+  a bővebb. Erre két eset miatt van szükség, és mindkettő a rekord-szintű
+  szabály lyuka volt: egyenlő revnél az egyesítés visszahozta a kifizetett
+  levételt, ha a másik gép ugyanabban a körben bármi mást írt az oldalra; és
+  nagyobb revnél a kétszer író gép egyben hozta a régi listáját. A jel a
+  névhez tartozik, nem a rekordhoz, ezért egyik sem történhet meg. A jelet a
+  gép segédje írja a `commit()` eleji léptetésben, a lista változásából; a
+  telefon jelet nem ír, csak hordozza és fésüli. Egy régebbi kliens a jelet
+  nem ismeri, és egyesít — amíg a fiókban ilyen is van, a levett név oda-vissza
+  járhat: frissítés után rendeződik.
 
 Mit jelent „szigorúbb”:
 

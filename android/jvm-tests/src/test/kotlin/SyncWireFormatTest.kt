@@ -198,4 +198,30 @@ class SyncWireFormatTest {
         assertEquals(2L, back.rev)
         assertEquals("gep", back.updatedBy)
     }
+
+    @Test
+    fun `hostname marks travel both ways, and garbage marks are dropped`() {
+        val marked = SyncMerge.SyncSite(
+            id = "s1", domain = "youtube.com", hostnames = listOf("youtube.com"),
+            addedAt = 1_000, rev = 4, updatedAt = 3_000, updatedBy = "gep",
+            hostnameMarks = mapOf("music.youtube.com" to 4, "m.youtube.com" to 2),
+        )
+        val json = SyncClient.sitesToJson(listOf(marked))
+        val o = JSONArray(json).getJSONObject(0)
+        assertEquals(4, o.getJSONObject("hostnameMarks").getInt("music.youtube.com"))
+        assertEquals(listOf(marked), SyncClient.sitesFromJson(json))
+
+        // Jel nélkül a kulcs sincs ott — a hiányzó és az üres ugyanaz.
+        val plain = marked.copy(hostnameMarks = null)
+        assertTrue(JSONArray(SyncClient.sitesToJson(listOf(plain))).getJSONObject(0).isNull("hostnameMarks"))
+        assertNull(SyncClient.sitesFromJson(SyncClient.sitesToJson(listOf(plain)))[0].hostnameMarks)
+
+        // Szemét: nem szám, nem pozitív, üres név — kimarad; ha semmi nem marad, null.
+        val garbage = """[{"id":"s1","domain":"x.com","hostnames":["x.com"],"addedAt":1,
+            "hostnameMarks":{"a.x.com":-1,"":2,"b.x.com":"x"},"rev":1}]"""
+        assertNull(SyncClient.sitesFromJson(garbage)[0].hostnameMarks)
+        val mixed = """[{"id":"s1","domain":"x.com","hostnames":["x.com"],"addedAt":1,
+            "hostnameMarks":{"a.x.com":3,"b.x.com":"x"},"rev":1}]"""
+        assertEquals(mapOf("a.x.com" to 3), SyncClient.sitesFromJson(mixed)[0].hostnameMarks)
+    }
 }

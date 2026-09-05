@@ -74,12 +74,11 @@ attól, hogy sokszor csinálod.
   lista szerkeszthető: **felvenni egy kattintás** (csak az oldal aldomainje vagy
   ismert társoldala lehet), **levenni próbatétel** — például a YouTube Music
   engedése a YouTube tiltása mellett. Az oldal saját címe nem vehető le, ahhoz
-  az oldalt kell törölni. Két gép ütköző listája egyesül; a levételt a
-  próbatétel utáni magasabb változat viszi át — versenyhelyzet sosem old fel.
-  Kimondott korlát: ha a másik gép ugyanabban a körben bármi mást módosított
-  az oldalon (egyenlő változat), a listák egyesülnek, és a levett név
-  visszajön — az irány a szigorúbb, de a próbatétel ára elveszett, és a nevet
-  újra le kell venni. A felület ilyenkor a listában megmutatja a nevet.
+  az oldalt kell törölni. A lista **nevenként** szinkronizál: minden felvétel
+  és levétel jelet kap (a változat számát), és a nagyobb jel dönt — a
+  kifizetett levétel akkor sem jön vissza, ha a másik gép közben mást írt
+  ugyanarra az oldalra; jel nélkül (régi kliens) a bővebb lista nyer, tehát
+  versenyhelyzet sosem old fel.
 - **A teljes lista elrejthető** (mindhárom platform): egy kapcsoló, és az app
   minden induláskor csukott listával nyílik — csak annyi látszik, hogy „3 oldal
   van blokkolva”. A rejtés az egész felületre szól: a statisztikában
