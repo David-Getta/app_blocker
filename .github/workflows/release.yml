@@ -44,6 +44,28 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
+          **A bővítmény is kimondja, ha a menet a heti ablak szerint indult.**
+          A felugró lap egy mondatot told a munkamenet sorához, a tiltó lap egy
+          sort mutat: aki nem maga indította, a böngészőben is tudja meg, miért
+          fut, és hogy a vége az ablak vége. (Bővítmény 0.4.1 — az app hozza,
+          a böngészőben elég a Frissítés gomb.)
+
+          **Az ablakos csomag két kiskapuja bezárva.** A heti ablakkal bíró
+          csomag fehérlistáját a Mentés eddig ingyen bővíthette, a Törlés gomb
+          pedig ingyen tüntette el — mindkettő az ablak levételének
+          próbatételét kerülte meg. Most a Mentés csak szűkít (az átnevezés és
+          a hossz szabad), a Törlés az ablak levételére mutat: egyszer
+          próbatétel, utána minden ingyen.
+
+          **A heti visszatekintés a főnézeten is szól.** Eddig csak a
+          statisztika fülön vagy az első kapcsolódáskor futhatott; most hétfőn
+          az app maga kéri le a számokat, ha esedékes. A csomag sora azt is
+          kimondja, ha a mai ablak menete már véget ért; a levétel
+          próbatételének fejléce mostantól „Heti ablak lazítása”, nem
+          „Munkamenet leállítása”.
+
+          ### Ami a v0.4.25-ben jött
+
           **Heti visszatekintés hétfő reggel.** Az app egy értesítésben
           elmondja az elmúlt hét napot: mennyi mért idő, mire a legtöbb (és
           hogy áll az előző héthez képest), hány menet, hányat vittél
@@ -60,7 +82,8 @@ jobs:
           indította, tudja meg, miért van minden zárva, és meddig. A csomag
           sora azt is kimondja, mikor indul legközelebb.
 
-          ### Ami a v0.4.24-ben jött
+          #### Ami a v0.4.24-ben jött
+
 
           **Heti ablak: a munkamenet magától indul.** A csomag kaphat egy
           ablakot („hétköznap 9:00–12:00”), és abban a menet magától indul,
@@ -70,32 +93,6 @@ jobs:
           menet ugyanabban az ablakban nem indul újra: a napló az őr. Az
           ablak a csomag szerkesztőjében állítható, legfeljebb nyolc óra; a
           csomag sora kimondja, mikor indul legközelebb.
-
-          #### Ami a v0.4.23-ban jött
-
-          **A bővítményt az app hozza és tartja frissen.** Nem kell többé
-          kiadásonként zipet letölteni: az app kimásolja a bővítményt egy
-          állandó mappába (az oldal Részek párbeszédében: Mappa megnyitása),
-          ezt kell egyszer betölteni a böngésző fejlesztői módjában, és
-          frissítés után elég a böngészőben a Frissítés gomb.
-
-          **Felugró lap a bővítmény ikonján.** Egy pillantás: összekötve
-          van-e az app, fut-e munkamenet, mi van most zárva és miért, hány
-          részleges szabály és csatorna-szűrő él. Módosítás ott nincs — a
-          Beállítások gomb odavisz.
-
-          **Androidon a szigorú Privát DNS megkerüli a szűrőt — az app most
-          kimondja.** Ha a rendszer Privát DNS-e megadott kiszolgálóra van
-          állítva, a névfeloldás a VPN mellett, titkosítva megy, és a tiltás
-          nem érvényesül. A korong és a tartós értesítés ezt mondja, a kártya
-          a hálózati beállításokhoz visz. Az Automatikus mód rendben van.
-
-          **Hosztnevek oldalanként.** Egy oldal tiltása több nevet takar
-          (youtube.com, www, music, youtu.be…), és ezek mennek a hosts fájlba.
-          A lista mostantól szerkeszthető a sor Hosztnevek gombjával: felvenni
-          egy kattintás — csak az oldal aldomainje vagy ismert társoldala —,
-          levenni próbatétel, mint a feloldás. Így engedhető például a YouTube
-          Music a YouTube tiltása mellett. Az oldal saját címe nem vehető le.
 
           NOTES
           fi
