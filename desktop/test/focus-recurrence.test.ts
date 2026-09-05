@@ -9,8 +9,8 @@
 import { test } from 'node:test';
 import * as assert from 'node:assert/strict';
 import {
-  dueRecurrence, isRecurrenceLoosening, isWindowRun, normalizeRecurrence, occurrenceAt,
-  RECURRENCE_MIN_REMAINING_MS, type FocusLogEntry, type FocusPack,
+  dueRecurrence, isRecurrenceLoosening, isWindowRun, nextOccurrence, normalizeRecurrence,
+  occurrenceAt, RECURRENCE_MIN_REMAINING_MS, type FocusLogEntry, type FocusPack,
 } from '../src/shared/focus';
 import type { Band, Weekday } from '../src/shared/schedule';
 import { defaultState, type HelperState } from '../src/helper/state';
@@ -103,6 +103,17 @@ test('dueRecurrence: több esedékes ablak közül determinisztikusan választ',
   const same = pack({ id: 'zz' });
   assert.equal(dueRecurrence([same, earlier], null, [], MON(10))!.pack.id, 'a-earlier',
     'azonos kezdésnél a kisebb azonosító — minden eszköz ugyanazt választja');
+});
+
+test('nextOccurrence: a mostani ablak, különben a legközelebbi kezdés', () => {
+  assert.deepEqual(nextOccurrence(WEEKDAYS, MON(10)), { startsAt: MON(9), endsAt: MON(12) }, 'benne vagyunk');
+  assert.deepEqual(nextOccurrence(WEEKDAYS, MON(13)), { startsAt: TUE(9), endsAt: TUE(12) }, 'holnap');
+  assert.deepEqual(nextOccurrence(WEEKDAYS, at(2026, 9, 11, 13, 0)), { startsAt: at(2026, 9, 14, 9, 0), endsAt: at(2026, 9, 14, 12, 0) },
+    'péntek délután → hétfő');
+  assert.deepEqual(nextOccurrence(WEEKDAYS, SUN(10)), { startsAt: MON(9), endsAt: MON(12) }, 'vasárnap → hétfő');
+  assert.deepEqual(nextOccurrence(NIGHT, TUE(1)), { startsAt: MON(22), endsAt: TUE(6) }, 'a hajnal a hétfői ablak');
+  assert.deepEqual(nextOccurrence(NIGHT, TUE(7)), { startsAt: at(2026, 9, 14, 22, 0), endsAt: at(2026, 9, 15, 6, 0) },
+    'kedd reggel → jövő hétfő este');
 });
 
 test('isWindowRun: az ablak menete igen; a kézi és a meghosszabbított nem', () => {

@@ -452,6 +452,25 @@ export function occurrenceAt(band: Band, now: number): Occurrence | null {
   return null;
 }
 
+/**
+ * A sáv KÖVETKEZŐ előfordulása: a mostani, ha `now` benne van, különben a
+ * legközelebbi kezdés a következő héten. A felület ebből mondja ki, mikor
+ * indul legközelebb a csomag — egy ablak, amiről nem tudni, mikor jön, nem
+ * megnyugtató, hanem meglepetés. Naponta egy jelölt: a kezdőnap sáv-napja.
+ */
+export function nextOccurrence(band: Band, now: number): Occurrence | null {
+  const current = occurrenceAt(band, now);
+  if (current) return current;
+  for (let d = 0; d <= 7; d++) {
+    const start = localAt(now, d, band.startMin);
+    if (start < now) continue;
+    if (!band.days.includes(new Date(start).getDay() as Weekday)) continue;
+    const occ = occurrenceAt(band, start);
+    if (occ) return occ;
+  }
+  return null;
+}
+
 export interface DueRecurrence extends Occurrence { pack: FocusPack }
 
 /**

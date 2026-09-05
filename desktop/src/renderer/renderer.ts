@@ -24,8 +24,8 @@ import {
 } from '../shared/shortcut.js';
 import { MAX_LIMIT_MINUTES } from '../shared/limits.js';
 import {
-  formatRemaining, MAX_ALLOW_ENTRIES, MAX_PACK_NAME, MAX_SESSION_MINUTES,
-  SESSION_CHOICES_MIN, type FocusPack,
+  formatRemaining, isWindowRun, MAX_ALLOW_ENTRIES, MAX_PACK_NAME, MAX_SESSION_MINUTES,
+  nextOccurrence, SESSION_CHOICES_MIN, type FocusPack,
 } from '../shared/focus.js';
 import {
   encodePairingCode, formatPairingCode, resolveServerInput,
@@ -525,7 +525,10 @@ function renderFocusCard(st: StatusData): void {
     // fejszámolás; a felhasználó viszont órában gondolkodik: addig, amíg el
     // nem kell indulnia.
     runBox.appendChild(h('div', 'micro',
-      `eddig: ${new Date(running.endsAt).toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' })}`));
+      `eddig: ${new Date(running.endsAt).toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' })}`
+      // Az ablak szerint indult menetnél ezt kimondjuk: aki nem maga indította,
+      // tudja meg, miért fut — és hogy a vége az ablak vége.
+      + (isWindowRun(running, packs) ? ' · a heti ablak szerint indult' : '')));
     runBox.appendChild(h('div', 'hint',
       pack ? `${pack.name} — mehet: ${[...pack.allowSites, ...pack.allowApps].join(', ') || 'semmi'}`
         : 'Ismeretlen csomag.'));
@@ -600,7 +603,8 @@ function renderFocusCard(st: StatusData): void {
     // Az ablak a soron is látszik: egy csomag, ami reggel magától indul, ne
     // legyen meglepetés — a felület mondja ki, mikor.
     if (pack.recurrence) {
-      left.appendChild(h('div', 'focus-sub', `magától indul: ${recurrenceLabel(pack.recurrence)}`));
+      left.appendChild(h('div', 'focus-sub',
+        `magától indul: ${recurrenceLabel(pack.recurrence)}${nextStartLabel(pack.recurrence)}`));
     }
     row.appendChild(left);
 
@@ -917,6 +921,26 @@ const DAY_ORDER: Weekday[] = [1, 2, 3, 4, 5, 6, 0];
 function minutesLabel(min: number): string {
   const m = min % 1440;
   return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+}
+
+/**
+ * „ · legközelebb: ma 09:00” / „holnap 09:00” / „hétfő 09:00” — vagy, ha az
+ * ablak épp él, „ · az ablak most él (…-ig)”. Egy ablak, amiről nem tudni,
+ * mikor jön, nem megnyugtató, hanem meglepetés.
+ */
+function nextStartLabel(b: Band): string {
+  const now = Date.now();
+  const occ = nextOccurrence(b, now);
+  if (!occ) return '';
+  if (occ.startsAt <= now) return ` · az ablak most él (${fmtClock(occ.endsAt)}-ig)`;
+  const start = new Date(occ.startsAt);
+  const today = new Date(now);
+  const dayDiff = Math.round(
+    (new Date(start.getFullYear(), start.getMonth(), start.getDate()).getTime()
+      - new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime()) / 86_400_000,
+  );
+  const when = dayDiff === 0 ? 'ma' : dayDiff === 1 ? 'holnap' : DAY_NAMES[start.getDay()];
+  return ` · legközelebb: ${when} ${fmtClock(occ.startsAt)}`;
 }
 
 /** „H–P 09:00–12:00”, „minden nap 22:00–06:00”, „H, Sze, P 18:00–20:00”. */

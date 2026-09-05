@@ -59,7 +59,7 @@ class FocusTest {
     }
 
     @Test
-    fun `menetrend szerinti inditas: az ablak kezdesevel, es a naplo az or`() {
+    fun `menetrend szerinti inditas - az ablak kezdesevel, es a naplo az or`() {
         val now = localMs(2026, 9, 7, 9, 30)
         val due = Focus.dueRecurrence(listOf(windowed()), null, emptyList(), now)!!
         assertEquals(localMs(2026, 9, 7, 9, 0), due.startsAt, "a kezdés az ablaké, nem a mostani perc")
@@ -90,7 +90,7 @@ class FocusTest {
     }
 
     @Test
-    fun `az ablak tisztitasa: ervenyes sav, legfeljebb nyolc ora`() {
+    fun `az ablak tisztitasa - ervenyes sav, legfeljebb nyolc ora`() {
         assertEquals(weekdays, Focus.cleanRecurrence(weekdays))
         assertNull(Focus.cleanRecurrence(ScheduleLogic.Band(emptySet(), 540, 720)), "nap nélkül nem")
         assertNull(Focus.cleanRecurrence(ScheduleLogic.Band(setOf(1), 0, 1440)), "huszonnégy óra nem munkamenet")
