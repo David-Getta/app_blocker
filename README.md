@@ -195,6 +195,41 @@ A telepítés egy kattintás, és az appok **maguktól frissülnek**:
 push origin v0.2.0`) — a GitHub Actions megépíti mindhárom platformra és közzé
 teszi. Részletek: [`docs/releasing.md`](docs/releasing.md).
 
+### Jó, ha tudod — telepítés után
+
+Ugyanaz a lista, ami a letöltőoldalon áll; itt azért, hogy a README-ből se
+hiányozzon.
+
+- **Windows / macOS:** a telepítő egyszer kér rendszergazdai jóváhagyást a
+  védelemhez (a segéd ettől tud a hosts fájlba írni). macOS-en nem kér újra
+  minden indításnál.
+- **macOS első indítás:** amíg nincs Apple fejlesztői aláírás, a macOS 15
+  (Sequoia) és újabb kukába teszi az appot („Rosszindulatú szoftver
+  blokkolva”) — ez nem kártevőt jelent, csak azt, hogy nincs aláírva. A
+  **DMG**-t töltsd le (a `-mac.zip` a frissítéshez van), húzd az
+  *Alkalmazások* mappába, majd egyszer Terminálban:
+  `xattr -dr com.apple.quarantine /Applications/Breaker.app` — ez a letöltési
+  karantén jelzőt veszi le, semmi mást nem kapcsol ki. Ha a rendszer már
+  kukába tette, előbb húzd vissza.
+- **Az idő mérése külön engedély:** a rendszer csak engedéllyel árulja el,
+  melyik ablak van előtérben — macOS-en az *Automatizálás* alatt, Androidon a
+  *Használati hozzáférés* alatt adható meg. Aláírás nélkül a macOS minden új
+  verziót külön appnak lát, tehát frissítés után újra kérheti; az app
+  kiírja, és megmondja, hol. Amíg nincs adat, a napi időkeret sem fogy.
+- **Android:** a Play Áruházon kívülről telepítve a rendszer egyszer rákérdez
+  az „ismeretlen forrás” engedélyre; a VPN-alagút engedélyét az első
+  bekapcsolás kéri.
+- **Ha egy tiltott oldal mégis megnyílik:** az önteszt ötpercenként nézi, a
+  rendszer feloldója tényleg a tiltó címre küldi-e a tiltott neveket, és
+  szól, ha nem (tipikusan egy VPN-kliens saját feloldója, vagy más program
+  is írja a hosts fájlt) — a *Tiltás ellenőrzése* gombbal azonnal is. Amit
+  nem lát: a böngésző saját DoH-ját (lásd lent, az őszinte korlátoknál).
+- **Böngésző-bővítmény:** az app kimásolja egy állandó mappába (az oldal
+  *Részek* párbeszédében: *Mappa megnyitása*); ezt kell **egyszer** betölteni
+  a böngésző fejlesztői módjában, frissítés után a böngészőben elég a
+  Frissítés gomb. Gyengébb réteg, mint a DNS-szintű tiltás: csak abban a
+  böngészőben él, vendég módban nem fut, inkognitóban külön engedély kell.
+
 ## A feloldás filozófiája
 
 A blokkolás bekapcsolása **egy kattintás**. Kikapcsolni **nem az** — ez a lényeg.
