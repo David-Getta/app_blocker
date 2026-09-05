@@ -123,7 +123,10 @@ struct ContentView: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text("Munkamenet fut").font(.caption).foregroundStyle(.secondary)
                 Text(pack.name).font(.headline)
-                Text("Még \(Focus.formatRemaining(run.endsAt - now)) — eddig: \(clockText(run.endsAt))")
+                // Az ablak szerint indult menetnél ezt kimondjuk: aki nem maga
+                // indította, tudja meg, miért fut — és hogy a vége az ablak vége.
+                Text("Még \(Focus.formatRemaining(run.endsAt - now)) — eddig: \(clockText(run.endsAt))"
+                     + (Focus.isWindowRun(run, packs: store.state.focusPacks ?? []) ? " · a heti ablak szerint indult" : ""))
                     .font(.subheadline)
                 Text(pack.allowSites.isEmpty
                      ? "Ebben a csomagban nincs engedélyezett oldal — minden más tiltva."

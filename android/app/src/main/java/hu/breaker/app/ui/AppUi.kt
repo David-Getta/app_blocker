@@ -2002,7 +2002,10 @@ private fun FocusRunningCard(state: AppState, now: Long, onError: (String) -> Un
             SectionLabel("Munkamenet fut")
             Text(pack.name, style = MaterialTheme.typography.titleMedium)
             Text(
-                "Még ${Focus.formatRemaining(run.endsAt - now)} — eddig: ${fmtClock(run.endsAt)}",
+                "Még ${Focus.formatRemaining(run.endsAt - now)} — eddig: ${fmtClock(run.endsAt)}" +
+                    // Az ablak szerint indult menetnél ezt kimondjuk: aki nem maga
+                    // indította, tudja meg, miért fut — és hogy a vége az ablak vége.
+                    if (Focus.isWindowRun(run, state.focusPacks)) " · a heti ablak szerint indult" else "",
                 style = MaterialTheme.typography.bodyMedium,
             )
             Text(
