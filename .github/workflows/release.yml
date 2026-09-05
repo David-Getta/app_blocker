@@ -44,6 +44,25 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
+          **A bővítményt az app hozza és tartja frissen.** Nem kell többé
+          kiadásonként zipet letölteni: az app kimásolja a bővítményt egy
+          állandó mappába (az oldal Részek párbeszédében: Mappa megnyitása),
+          ezt kell egyszer betölteni a böngésző fejlesztői módjában, és
+          frissítés után elég a böngészőben a Frissítés gomb.
+
+          **Felugró lap a bővítmény ikonján.** Egy pillantás: összekötve
+          van-e az app, fut-e munkamenet, mi van most zárva és miért, hány
+          részleges szabály és csatorna-szűrő él. Módosítás ott nincs — a
+          Beállítások gomb odavisz.
+
+          **Androidon a szigorú Privát DNS megkerüli a szűrőt — az app most
+          kimondja.** Ha a rendszer Privát DNS-e megadott kiszolgálóra van
+          állítva, a névfeloldás a VPN mellett, titkosítva megy, és a tiltás
+          nem érvényesül. A korong és a tartós értesítés ezt mondja, a kártya
+          a hálózati beállításokhoz visz. Az Automatikus mód rendben van.
+
+          ### Ami a v0.4.22-ben jött
+
           **Önteszt: a zöld korong mostantól tényt mond.** A „Védelem aktív”
           eddig azt jelentette, hogy a védelem fut — nem azt, hogy a tiltás
           érvényesül is. A gép mostantól ötpercenként (és a Tiltás
