@@ -44,6 +44,9 @@ function sessionInfo(s: SessionRec, now: number): SessionInfo {
     stepIndex: s.stepIndex,
     stepCount: s.steps.length,
     current: toDisplay(s.steps[s.stepIndex], now),
+    // A felület ebből tudja, hogy a `focus:` azonosító mögött nem a menet
+    // leállítása, hanem a heti ablak lazítása áll — más a fejléc.
+    ...(s.pendingRecurrence !== undefined ? { recurrence: true } : {}),
   };
 }
 
@@ -140,6 +143,16 @@ function finishSession(state: HelperState, now: number): void {
   // itt hajtjuk végre, mert idáig csak próbatétellel lehet eljutni — a lazítás
   // (szűkítés, levétel) ára ez a menet volt.
   if (s.pendingRecurrence !== undefined) {
+    // Verseny: a próbatétel alatt beérhetett az ablak, és a segéd elindította
+    // a menetét. A levétel vagy a szűkítés ára ezt a menetet is fedezi —
+    // különben kézi menetként futna tovább az ablak végéig, egy második
+    // próbatétel mögött, és az óra-ugrás elnyelése is tolni kezdené.
+    const run = state.focusRun;
+    if (run && run.packId === s.pendingRecurrence.packId && isRunning(run, now)
+      && isWindowRun(run, state.focusPacks ?? [])) {
+      logFocusEnd(state, now, true);
+      state.focusRun = null;
+    }
     applyRecurrence(state, s.pendingRecurrence.packId, s.pendingRecurrence.band);
     state.unlockLog = [...state.unlockLog.filter((t) => t > now - 30 * 24 * 3600_000), now];
     state.session = null;
@@ -789,6 +802,12 @@ export function changeFocus(
   return { applied: false, session: sessionInfo(state.session, now), run: state.focusRun ?? null };
 }
 
+/** Bővül-e a lista: van-e az újban olyan tétel, ami a régiben nem volt. */
+function expandsAllowList(prev: string[], next: string[]): boolean {
+  const had = new Set(prev.map((s) => s.trim().toLowerCase()));
+  return next.some((s) => !had.has(s.trim().toLowerCase()));
+}
+
 /**
  * Csomag mentése. Szabadon szerkeszthető — DE nem az, amelyik ÉPP FUT.
  *
@@ -809,6 +828,17 @@ export function saveFocusPack(state: HelperState, pack: FocusPack, now: number):
   // ablak marad, bármi jött a mentéssel — különben a „Mentés” gomb lenne a
   // kikapcsoló.
   const kept = at >= 0 ? packs[at].recurrence : undefined;
+  // Az ablakos csomag fehérlistája ingyen csak SZŰKÜLHET. Bővíteni lazítás:
+  // 8:59-kor felvenni a youtube.com-ot a kilences ablak alá ugyanaz, mint
+  // levenni az ablakot — annak pedig a próbatétel az ára. A név és a hossz
+  // szabad: azok nem nyitnak semmit.
+  if (kept && (expandsAllowList(packs[at].allowSites, pack.allowSites)
+    || expandsAllowList(packs[at].allowApps, pack.allowApps))) {
+    throw new RefereeError(
+      'Ezen a csomagon heti ablak van: a fehérlistát ingyen csak szűkíteni lehet. '
+      + 'Bővíteni az ablak levétele után (próbatétel) tudod.', 'FOCUS_WINDOWED',
+    );
+  }
   const next: FocusPack = { ...pack };
   delete next.recurrence;
   if (kept) next.recurrence = kept;
@@ -821,6 +851,14 @@ export function saveFocusPack(state: HelperState, pack: FocusPack, now: number):
 export function deleteFocusPack(state: HelperState, packId: string, now: number): FocusPack[] {
   if (isRunning(state.focusRun, now) && state.focusRun?.packId === packId) {
     throw new RefereeError('Ez a csomag épp fut — előbb állítsd le.', 'FOCUS_RUNNING');
+  }
+  // Ablakos csomagot törölni = az ablakot levenni, csak egy másik gombbal.
+  // Ugyanaz az ár: előbb a levétel (próbatétel), aztán a törlés ingyen.
+  if ((state.focusPacks ?? []).find((p) => p.id === packId)?.recurrence) {
+    throw new RefereeError(
+      'Ezen a csomagon heti ablak van — előbb vedd le (próbatétel), utána a csomag ingyen törölhető.',
+      'FOCUS_WINDOWED',
+    );
   }
   state.focusPacks = (state.focusPacks ?? []).filter((p) => p.id !== packId);
   return state.focusPacks;

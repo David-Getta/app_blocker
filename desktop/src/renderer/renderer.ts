@@ -208,8 +208,10 @@ async function refresh(): Promise<void> {
     everConnected = true;
     failStreak = 0;
     // First successful connection: pull statistics right away rather than
-    // waiting for the slow periodic refresh.
-    if (!statsData) void refreshStats();
+    // waiting for the slow periodic refresh. És hétfőn, amikor a heti
+    // visszatekintés esedékes: a főnézeten nyitva hagyott app különben
+    // újraindításig hallgatna, mert a statisztika csak a fülre lépve frissül.
+    if (!statsData || digestWanted()) void refreshStats();
     // A mérés-állapot két logikai értéke; a fő folyamatból jön, olcsó. Azért
     // itt és nem a 30 másodperces statisztika-körben: ha a felhasználó most
     // adta meg az engedélyt, a figyelmeztetés pár másodpercen belül tűnjön el.
@@ -641,7 +643,8 @@ function renderFocusCard(st: StatusData): void {
     // legyen meglepetés — a felület mondja ki, mikor.
     if (pack.recurrence) {
       left.appendChild(h('div', 'focus-sub',
-        `magától indul: ${recurrenceLabel(pack.recurrence)}${nextStartLabel(pack.recurrence)}`));
+        `magától indul: ${recurrenceLabel(pack.recurrence)}`
+        + nextStartLabel(pack.recurrence, (status?.focusSpent ?? []).includes(pack.id))));
     }
     row.appendChild(left);
 
@@ -965,11 +968,17 @@ function minutesLabel(min: number): string {
  * ablak épp él, „ · az ablak most él (…-ig)”. Egy ablak, amiről nem tudni,
  * mikor jön, nem megnyugtató, hanem meglepetés.
  */
-function nextStartLabel(b: Band): string {
+function nextStartLabel(b: Band, spent: boolean): string {
   const now = Date.now();
   const occ = nextOccurrence(b, now);
   if (!occ) return '';
-  if (occ.startsAt <= now) return ` · az ablak most él (${fmtClock(occ.endsAt)}-ig)`;
+  if (occ.startsAt <= now) {
+    // Az élő ablak menete már véget ért (leállítva vagy lerövidítve): a sor
+    // ne mondja, hogy „most él” — a segéd sem indítja újra ebben az ablakban.
+    return spent
+      ? ' · a mai ablak menete már véget ért'
+      : ` · az ablak most él (${fmtClock(occ.endsAt)}-ig)`;
+  }
   const start = new Date(occ.startsAt);
   const today = new Date(now);
   const dayDiff = Math.round(
@@ -1039,7 +1048,11 @@ function recurrenceEditor(pack: FocusPack, overlay: HTMLElement): HTMLElement {
   wrap.appendChild(h('p', 'hint',
     (current ? `Most: ${recurrenceLabel(current)}. ` : '')
     + 'Az ablakban a menet magától indul, és a végéig tart — a gépen és a telefonon is. '
-    + 'Felvenni és bővíteni egy kattintás; szűkíteni vagy levenni próbatétel. Legfeljebb nyolc óra.'));
+    + 'Felvenni és bővíteni egy kattintás; szűkíteni vagy levenni próbatétel. Legfeljebb nyolc óra.'
+    + (current
+      ? ' Amíg az ablak áll, a csomag fehérlistája ingyen csak szűkíthető, és a csomag nem '
+        + 'törölhető — előbb az ablak levétele.'
+      : '')));
   const note = h('p', 'error hidden');
   wrap.appendChild(note);
 
@@ -2685,7 +2698,13 @@ function renderSession(session: SessionInfo | null): void {
   const focusPack = session.siteId.startsWith('focus:')
     ? (status?.focusPacks ?? []).find((p) => `focus:${p.id}` === session.siteId)
     : undefined;
-  if (session.siteId.startsWith('focus:')) {
+  if (session.siteId.startsWith('focus:') && session.recurrence) {
+    // A heti ablak lazítása (levétel, szűkítés): semmi nem fut, az ablak áll.
+    $('sessionTitle').textContent = `Heti ablak lazítása: ${focusPack?.name ?? ''}`;
+    $('sessionSubtitle').textContent =
+      'Az ablak addig MARAD, amíg a próbák meg nincsenek — a levétel vagy a '
+      + 'szűkítés a teljesítéskor lép életbe. Bővíteni közben is ingyen lehet.';
+  } else if (session.siteId.startsWith('focus:')) {
     $('sessionTitle').textContent = `Munkamenet leállítása: ${focusPack?.name ?? ''}`;
     $('sessionSubtitle').textContent =
       'A munkamenet addig FUT, amíg a próbák meg nincsenek. Hosszabbítani közben '
@@ -3081,6 +3100,20 @@ async function refreshStats(): Promise<void> {
   }
 }
 
+let digestDoneKey: string | null = null;
+
+/**
+ * Esedékes-e a heti visszatekintés — olcsó kérdés, a néhány másodperces
+ * állapot-körben is feltehető; a statisztikát csak akkor kérjük le, ha igen.
+ */
+function digestWanted(): boolean {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return false;
+  let last: string | null = null;
+  try { last = localStorage.getItem('breaker.digestWeek'); } catch { return false; }
+  const key = digestDue(last, Date.now());
+  return key !== null && key !== digestDoneKey;
+}
+
 /**
  * Heti visszatekintés: hétfő reggel egy értesítés az elmúlt 7 napról — egy
  * hétről egyszer, gépenként (a kulcs a böngésző tárában). Engedély híján
@@ -3094,7 +3127,9 @@ function maybeDigest(): void {
   let last: string | null = null;
   try { last = localStorage.getItem('breaker.digestWeek'); } catch { /* nincs tár */ }
   const key = digestDue(last, Date.now());
-  if (!key) return;
+  if (!key || key === digestDoneKey) return;
+  // A memóriában is: ha a tár nem ír, ne szóljon minden körben újra.
+  digestDoneKey = key;
   const s = statsData.summary;
   const text = digestText({
     last7Seconds: s.last7Seconds,

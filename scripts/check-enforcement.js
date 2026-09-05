@@ -508,6 +508,24 @@ const WIRES = [
     lost: 'az ablak levétele nem a refereen menne át — egy gomb lenne, próbatétel nélkül',
   },
   {
+    file: 'desktop/src/helper/referee.ts',
+    needle: 'expandsAllowList(packs[at].allowSites, pack.allowSites)',
+    lost: 'az ablakos csomag fehérlistája a Mentéssel ingyen bővülne — a Mentés lenne '
+      + 'az ablak kikapcsolója',
+  },
+  {
+    file: 'desktop/src/helper/referee.ts',
+    needle: 'find((p) => p.id === packId)?.recurrence',
+    lost: 'az ablakos csomag a Törlés gombbal ingyen tűnne el — törölni és újra felvenni '
+      + 'kerülné meg a levétel próbatételét',
+  },
+  {
+    file: 'desktop/src/helper/referee.ts',
+    needle: 'isWindowRun(run, state.focusPacks ?? [])) {',
+    lost: 'a levétel próbatétele alatt beért ablak menete kézi menetként futna tovább az '
+      + 'ablak végéig, egy második próbatétel mögött',
+  },
+  {
     file: 'desktop/src/renderer/renderer.ts',
     needle: "'focus_recurrence'",
     lost: 'az ablak beállítása nem lenne elérhető — a mag ott lenne, kapcsoló nélkül',

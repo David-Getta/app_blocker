@@ -395,7 +395,10 @@ public enum Focus {
     /// munkamenet lenne, hanem egy kikapcsolhatatlan fehérlista.
     static func cleanRecurrence(_ b: ScheduleLogic.Band?) -> ScheduleLogic.Band? {
         guard let b, ScheduleLogic.isValidBand(b), bandMinutes(b) <= maxSessionMinutes else { return nil }
-        return b
+        // Rendezve, ismétlés nélkül — ahogy a gép és az Android is tárolja. A
+        // [2, 1] és az [1, 2] ugyanaz az ablak; ha eltérésnek számítana, a
+        // csomag fölöslegesen menne fel a kiszolgálóra.
+        return ScheduleLogic.Band(days: Array(Set(b.days)).sorted(), startMin: b.startMin, endMin: b.endMin)
     }
 
     private static func localCalendar() -> Calendar {

@@ -10,12 +10,13 @@ import { test } from 'node:test';
 import * as assert from 'node:assert/strict';
 import {
   dueRecurrence, isRecurrenceLoosening, isWindowRun, nextOccurrence, normalizeRecurrence,
-  occurrenceAt, RECURRENCE_MIN_REMAINING_MS, windowRunStarted, type FocusLogEntry, type FocusPack,
+  occurrenceAt, RECURRENCE_MIN_REMAINING_MS, spentWindows, windowRunStarted,
+  type FocusLogEntry, type FocusPack,
 } from '../src/shared/focus';
 import type { Band, Weekday } from '../src/shared/schedule';
 import { defaultState, type HelperState } from '../src/helper/state';
 import {
-  changeFocus, saveFocusPack, setFocusRecurrence, startFocus, submitAnswer, tick,
+  changeFocus, deleteFocusPack, saveFocusPack, setFocusRecurrence, startFocus, submitAnswer, tick,
 } from '../src/helper/referee';
 import { bumpFocusRevision } from '../src/helper/revisions';
 import { sameFocus, type SyncFocus } from '../src/shared/sync/focus-merge';
@@ -247,6 +248,75 @@ test('a Mentés ingyenes útján az ablak nem változik — a kapu a setFocusRec
   saveFocusPack(st, { ...BASE, name: 'Átnevezve', recurrence: { ...WEEKDAYS, endMin: 10 * 60 } }, NOW);
   assert.deepEqual(recurrenceOf(st), WEEKDAYS, 'a mentéssel küldött szűkebb ablak nem érvényesül');
   assert.equal(st.focusPacks![0].name, 'Átnevezve', 'a többi mező viszont menthető');
+});
+
+test('az ablakos csomag fehérlistája ingyen csak szűkül; törölni az ablak levétele után lehet', () => {
+  // Különben az ablak levételének kapuját két másik gomb kerülné meg: a
+  // „Mentés” (8:59-kor a youtube.com a kilences ablak alá) és a „Törlés”
+  // (törölni, aztán újra felvenni — ablak nélkül).
+  const st = stateWithPack();
+  setFocusRecurrence(st, 'p1', WEEKDAYS, NOW);
+  assert.throws(() => saveFocusPack(st, { ...BASE, allowSites: ['github.com', 'youtube.com'] }, NOW), /heti ablak/);
+  assert.throws(() => saveFocusPack(st, { ...BASE, allowApps: ['Discord'] }, NOW), /heti ablak/);
+  assert.throws(() => saveFocusPack(st, { ...BASE, allowSites: ['GitHub.com', 'x.com'] }, NOW), /heti ablak/,
+    'a kis-nagybetű nem számít, az új név igen');
+  saveFocusPack(st, { ...BASE, name: 'Szűkebb', allowSites: [] }, NOW);
+  assert.deepEqual(st.focusPacks![0].allowSites, [], 'szűkíteni és átnevezni ingyen');
+  assert.throws(() => deleteFocusPack(st, 'p1', NOW), /heti ablak/);
+  assert.equal(st.focusPacks!.length, 1);
+  setFocusRecurrence(st, 'p1', null, NOW);
+  solveWholeSession(st, NOW);
+  deleteFocusPack(st, 'p1', NOW);
+  assert.equal(st.focusPacks!.length, 0, 'az ablak levétele után a törlés ingyen');
+  // Ablak nélküli csomag: a bővítés is szabad, mint eddig.
+  saveFocusPack(st, BASE, NOW);
+  saveFocusPack(st, { ...BASE, allowSites: ['github.com', 'youtube.com'] }, NOW);
+  assert.equal(st.focusPacks![0].allowSites.length, 2);
+});
+
+test('a levétel próbatétele alatt beért ablak menete is a próbatétel ára', () => {
+  // 8:58-kor indul a levétel; 9:00-kor a segéd elindítja az ablak menetét;
+  // 9:03-kor kész a próbatétel. A menet ne maradjon ott kézi menetként az
+  // ablak végéig, egy második próbatétel mögött.
+  const st = stateWithPack();
+  setFocusRecurrence(st, 'p1', WEEKDAYS, NOW);
+  assert.equal(setFocusRecurrence(st, 'p1', null, MON(8, 58)).applied, false);
+  tick(st, MON(9, 1));
+  assert.ok(st.focusRun, 'az ablak a próbatétel alatt is indít');
+  solveWholeSession(st, MON(9, 3));
+  assert.equal(st.session, null);
+  assert.equal(recurrenceOf(st), undefined, 'az ablak lekerült');
+  assert.equal(st.focusRun, null, 'és a menete is lezárult');
+  const row = st.focusLog!.at(-1)!;
+  assert.equal(row.startedAt, MON(9));
+  assert.equal(row.endedAt, MON(9, 3));
+  assert.equal(row.stopped, true, 'próbatétellel ért véget');
+  assert.equal(tick(st, MON(9, 5)), false);
+  assert.equal(st.focusRun, null, 'ablak nélkül nem indul újra');
+});
+
+test('a kézi menet a próbatétel alatt nem az ablaké — azt a levétel nem zárja le', () => {
+  const st = stateWithPack();
+  setFocusRecurrence(st, 'p1', WEEKDAYS, NOW);
+  assert.equal(setFocusRecurrence(st, 'p1', null, MON(8, 50)).applied, false);
+  startFocus(st, 'p1', 30, MON(8, 55));
+  solveWholeSession(st, MON(8, 57));
+  assert.equal(recurrenceOf(st), undefined);
+  assert.deepEqual(st.focusRun, { packId: 'p1', startedAt: MON(8, 55), endsAt: MON(9, 25) },
+    'a kézi menet marad: azt a felhasználó indította, és a leállítása külön próbatétel');
+});
+
+test('spentWindows: az élő ablak, aminek a menete már véget ért', () => {
+  const st = stateWithPack();
+  setFocusRecurrence(st, 'p1', WEEKDAYS, NOW);
+  assert.deepEqual(spentWindows(st.focusPacks!, st.focusLog, MON(9, 30)), [], 'még semmi');
+  tick(st, MON(9, 30));
+  assert.deepEqual(spentWindows(st.focusPacks!, st.focusLog, MON(9, 35)), [], 'fut: nem elköltött');
+  changeFocus(st, null, MON(9, 40));
+  solveWholeSession(st, MON(9, 40));
+  assert.deepEqual(spentWindows(st.focusPacks!, st.focusLog, MON(9, 45)), ['p1'], 'leállítva: elköltött');
+  assert.deepEqual(spentWindows(st.focusPacks!, st.focusLog, MON(12, 5)), [], 'az ablak után nincs élő ablak');
+  assert.deepEqual(spentWindows(st.focusPacks!, st.focusLog, TUE(9, 30)), [], 'másnap tiszta lap');
 });
 
 test('a futó csomag ablaka is befagy', () => {

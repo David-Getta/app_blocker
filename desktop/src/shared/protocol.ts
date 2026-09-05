@@ -27,6 +27,8 @@ export interface SessionInfo {
   stepIndex: number;
   stepCount: number;
   current: StepDisplay;
+  /** a `focus:` azonosító mögött a csomag heti ablakának lazítása áll, nem a menet leállítása */
+  recurrence?: boolean;
 }
 
 export interface SiteInfo {
@@ -164,6 +166,8 @@ export interface StatusData {
   focusPacks: import('./focus').FocusPack[];
   /** a FUTÓ munkamenet, ha van; a lejártat a segéd nem adja ki */
   focusRun: import('./focus').FocusRun | null;
+  /** mely csomagok ÉLŐ heti ablaka van már elköltve (a menete véget ért) */
+  focusSpent?: string[];
   /**
    * Miért nem megy a munkamenet szinkronja, ha nem megy.
    *

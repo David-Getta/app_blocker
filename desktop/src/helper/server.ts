@@ -10,7 +10,7 @@ import { normalizeDomain, expandHostnames } from '../shared/blocklist';
 import { computeTier } from '../shared/challenges';
 import { normalizeAlias } from '../shared/alias';
 import { normalizeRule } from '../shared/urlrules';
-import { isRunning, normalizePack, summarizeFocus } from '../shared/focus';
+import { isRunning, normalizePack, spentWindows, summarizeFocus } from '../shared/focus';
 import { noteBurstUsage, normalizeBurst, type BurstRule } from '../shared/burst';
 import {
   blockReasonNow, isLimitExhausted, normalizeLimit, sharedTodaySeconds, usedTodayEverywhere,
@@ -119,6 +119,9 @@ export function statusOf(
     // A futó munkamenet csak akkor kerül ki, ha TÉNYLEG fut: a lejárt rekordot
     // a tick takarítja, de a felület nem várhat rá.
     focusRun: isRunning(state.focusRun, now) ? state.focusRun ?? null : null,
+    // Az élő ablak, aminek a menete ma már véget ért: a felület ne mondja
+    // rá, hogy „most él” — a segéd sem indítja újra ebben az ablakban.
+    focusSpent: spentWindows(state.focusPacks ?? [], state.focusLog, now),
     tier: computeTier(state.unlockLog, now),
     unlocks7d: state.unlockLog.filter((t) => t >= now - 7 * 24 * 3600_000).length,
     lastUnlockAt: state.unlockLog.length > 0 ? Math.max(...state.unlockLog) : null,

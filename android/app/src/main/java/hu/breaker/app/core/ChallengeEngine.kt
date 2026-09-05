@@ -105,7 +105,7 @@ object ChallengeEngine {
      * Hány napja volt az utolsó feloldás — vagy null, ha még egy sem volt.
      *
      * NAPTÁRI napokban, nem huszonnégy órás egységekben: a tegnap esti
-     * feloldás „tegnap”, akkor is, ha tíz órája volt. A `challenges.ts` tükre.
+     * feloldás „tegnap”, akkor is, ha tíz órája volt. A `digest.ts` tükre.
      */
     fun daysSinceUnlock(unlockLog: List<Long>, now: Long): Int? {
         val last = unlockLog.maxOrNull() ?: return null

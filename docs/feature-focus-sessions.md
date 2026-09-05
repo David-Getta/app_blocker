@@ -316,12 +316,23 @@ munkamenet lenne, hanem egy kikapcsolhatatlan fehérlista.
 | **Szűkítés, eltolás** | próbatétel | a régi ablak egy perce szabad lenne |
 | **Levétel** | próbatétel | lazítás |
 | **A futó csomag ablaka** | tiltott | a futó csomag befagy |
+| **A fehérlista bővítése, amíg az ablak áll** | tiltott — előbb az ablak levétele | 8:59-kor a youtube.com a kilences ablak alá ugyanaz, mint az ablak levétele |
+| **Az ablakos csomag törlése** | tiltott — előbb az ablak levétele | törölni és újra felvenni ablak nélküli csomagot adna |
 
 A lazítás kérdését ugyanaz a percenkénti mintavétel dönti el, mint a
 menetrendnél: van-e olyan perc a következő héten, amikor a régi ablak
 indítana, az új nem. Az ablak **külön gombbal** megy a csomag szerkesztőjében,
 nem a Mentés része: a Mentés ingyenes út, és a segéd a mentésnél a tárolt
-ablakot meg is tartja — különben a Mentés lenne a kikapcsoló.
+ablakot meg is tartja — különben a Mentés lenne a kikapcsoló. Ugyanezért a
+Mentés az ablakos csomag fehérlistáját **csak szűkíteni** engedi (kevesebb
+cím, kevesebb app — az átnevezés és a hossz szabad), és a Törlés gomb sem
+törli: a kapu az ablak levétele, egyszer, próbatétellel — utána minden
+ingyen.
+
+Ha a levétel próbatétele alatt ér be az ablak, a segéd elindítja a menetet —
+a próbatétel teljesítése **azt a menetet is lezárja** (a naplóban
+leállítottként), mert az ára ugyanaz. A közben kézzel indított menetet nem
+bántja: azt a felhasználó indította, annak a leállítása külön próbatétel.
 
 ### Az ablak az ígéret, nem a hossz
 
@@ -364,7 +375,15 @@ ablak, hanem sima menet.
   iránya a szigorúbb, és a leállítás ott is ugyanaz a próbatétel.
 - A naplóban az ablak ideje áll (9:00–12:00), nem az, hogy melyik eszköz mikor
   volt ébren. Ha az ablak közepén ért véget egy másik csomag kézi menete, a
-  két sor átfedhet — egy sorral több, nem kibúvó.
+  két sor átfedhet — egy sorral több, nem kibúvó. Ugyanez, ha UGYANANNAK a
+  csomagnak a kézi menete nyúlik át az ablak kezdetén (8:30–9:30): a végén az
+  ablak menete indul, 9:00-tól számolva — a statisztika a fél órát kétszer
+  számolja. Azért nem az „elköltött” ágon megy, mert akkor egy egyperces kézi
+  menet 8:59-kor kiváltaná a háromórás ablakot.
+- Az őszi óraátállítás éjszakáján a 2:00 és 3:00 közötti percek kétszer
+  vannak. Egy ebbe eső ablak-kezdést vagy -véget a három platform nem
+  biztosan ugyanarra a pillanatra tesz — évente egyszer két menet és két
+  naplósor lehet belőle. Napközbeni ablaknál nincs ilyen.
 - A telefonon az ablakot a DNS-útvonal köre nézi, tizenöt másodpercenként; az
   indítás legfeljebb ennyit késhet. A gépen a segéd köre pár másodperc.
 - A telefon a csomagot indítja és betartatja; az ablakot a gépen állítod be,

@@ -513,15 +513,38 @@ export function dueRecurrence(
     const occ = occurrenceAt(band, now);
     if (!occ) continue;
     if (occ.endsAt - now < RECURRENCE_MIN_REMAINING_MS) continue;
-    const spent = (log ?? []).some((e) =>
-      e.packId === pack.id && e.startedAt >= occ.startsAt && e.startedAt < occ.endsAt);
-    if (spent) continue;
+    if (spentIn(log, pack.id, occ)) continue;
     if (!best || occ.startsAt < best.startsAt
       || (occ.startsAt === best.startsAt && pack.id < best.pack.id)) {
       best = { pack, ...occ };
     }
   }
   return best;
+}
+
+/** Van-e a naplóban EBBEN az ablakban kezdett menet a csomagból — az ára ki van fizetve. */
+function spentIn(log: FocusLogEntry[] | undefined, packId: string, occ: Occurrence): boolean {
+  return (log ?? []).some((e) =>
+    e.packId === packId && e.startedAt >= occ.startsAt && e.startedAt < occ.endsAt);
+}
+
+/**
+ * Mely csomagok ÉLŐ ablaka van már elköltve: a naplóban van ebben az ablakban
+ * kezdett menetük. A felület ebből tudja, hogy „az ablak most él” helyett azt
+ * mondja, a mai menet már véget ért — ugyanaz az őr, amiért a segéd nem
+ * indítja újra.
+ */
+export function spentWindows(
+  packs: FocusPack[], log: FocusLogEntry[] | undefined, now: number,
+): string[] {
+  const out: string[] = [];
+  for (const pack of packs) {
+    const band = pack.recurrence;
+    if (!band || !isValidBand(band)) continue;
+    const occ = occurrenceAt(band, now);
+    if (occ && spentIn(log, pack.id, occ)) out.push(pack.id);
+  }
+  return out;
 }
 
 /**
