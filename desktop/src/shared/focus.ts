@@ -471,6 +471,23 @@ export function nextOccurrence(band: Band, now: number): Occurrence | null {
   return null;
 }
 
+/**
+ * Most tűnt-e fel egy ABLAK szerint indult menet — a felület ebből értesít.
+ * Akkor is, ha az app később nyílt meg, mint ahogy a menet indult: aki nem
+ * maga indította, tudja meg, miért van minden zárva. Ugyanaz a menet kétszer
+ * nem szól; a kézzel indított menet nem szól, azt a felhasználó indította.
+ */
+export function windowRunStarted(
+  prev: FocusRun | null | undefined,
+  next: FocusRun | null | undefined,
+  packs: FocusPack[],
+  now: number,
+): FocusRun | null {
+  if (!next || next.endsAt <= now) return null;
+  if (prev && prev.packId === next.packId && prev.startedAt === next.startedAt) return null;
+  return isWindowRun(next, packs) ? next : null;
+}
+
 export interface DueRecurrence extends Occurrence { pack: FocusPack }
 
 /**

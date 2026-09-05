@@ -56,6 +56,10 @@ jobs:
           — vagy hogy még egy sem. Naptári napokban: a tegnap esti feloldás
           tegnap, akkor is, ha tíz órája volt.
 
+          **Az app szól, amikor a heti ablak menete indul** — aki nem maga
+          indította, tudja meg, miért van minden zárva, és meddig. A csomag
+          sora azt is kimondja, mikor indul legközelebb.
+
           ### Ami a v0.4.24-ben jött
 
           **Heti ablak: a munkamenet magától indul.** A csomag kaphat egy

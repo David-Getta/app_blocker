@@ -347,6 +347,12 @@ saját idejében ért véget, az ablak hátralévő része jár.
 Egyszerre egy menet fut: ha az ablak kezdetén épp más csomag megy, az ablak
 vár, és amikor az véget ér, a hátralévő részre indul.
 
+A gépen az app **értesítést dob**, amikor az ablak menete feltűnik — akkor is,
+ha az app később nyílt meg, mint ahogy a menet indult. Aki nem maga indította,
+tudja meg, miért van minden zárva, és meddig. A kézzel indított menet nem szól:
+azt a felhasználó indította. Engedély híján a kártya és a felső sori jelzés
+mondja ugyanezt.
+
 ### Őszinte korlátok
 
 - Egy eszköz, ami a leállítás idején nem volt hálózaton, a szinkron
@@ -359,6 +365,9 @@ vár, és amikor az véget ér, a hátralévő részre indul.
   indítás legfeljebb ennyit késhet. A gépen a segéd köre pár másodperc.
 - A telefon a csomagot indítja és betartatja; az ablakot a gépen állítod be,
   ahol a csomag szerkesztője is van.
+- A gépen a segéd az ablak menetét akkor is elindítja, ha az app nem fut — de
+  a böngésző-bővítmény az apptól kérdezi a fehérlistát, tehát a böngészőben
+  csak futó app mellett érvényesül. A telefon szűrője ettől független.
 
 ## A telefon eddig kiskapu volt
 

@@ -26,7 +26,7 @@ import {
 import { MAX_LIMIT_MINUTES } from '../shared/limits.js';
 import {
   formatRemaining, isWindowRun, MAX_ALLOW_ENTRIES, MAX_PACK_NAME, MAX_SESSION_MINUTES,
-  nextOccurrence, SESSION_CHOICES_MIN, type FocusPack,
+  nextOccurrence, SESSION_CHOICES_MIN, windowRunStarted, type FocusPack, type FocusRun,
 } from '../shared/focus.js';
 import {
   encodePairingCode, formatPairingCode, resolveServerInput,
@@ -233,6 +233,23 @@ async function refresh(): Promise<void> {
  * átvétel-értesítése: engedély híján csendben marad, a felület (a sor mérője,
  * a tiltó lap) enélkül is elmondja ugyanazt.
  */
+/** Az utoljára látott futó menet — ebből derül ki, hogy MOST tűnt-e fel egy új. */
+let seenFocusRun: FocusRun | null = null;
+
+/**
+ * Az ablak szerint indult menet értesítése: aki nem maga indította, tudja
+ * meg, miért van minden zárva — és meddig. Engedély híján csendben marad; a
+ * kártya és a felső sori jelzés enélkül is mondja.
+ */
+function showWindowRunNotice(run: FocusRun): void {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  const pack = status?.focusPacks?.find((p) => p.id === run.packId);
+  new Notification('Breaker — munkamenet a heti ablak szerint', {
+    body: `${pack?.name ?? 'Csomag'} — eddig: ${fmtClock(run.endsAt)}. `
+      + 'Amíg tart, csak a csomagban felsoroltak mehetnek.',
+  });
+}
+
 function showBurstNotice(n: BurstNotice, now: number): void {
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
   const body = n.kind === 'tripped'
@@ -308,6 +325,11 @@ function render(): void {
   );
   burstWatches = stepped.watches;
   for (const n of stepped.notices) showBurstNotice(n, nowForBurst);
+  // A heti ablak menete, ha most tűnt fel — akkor is, ha az app később nyílt
+  // meg, mint ahogy a menet indult.
+  const windowRun = windowRunStarted(seenFocusRun, status!.focusRun, status!.focusPacks ?? [], nowForBurst);
+  seenFocusRun = status!.focusRun ?? null;
+  if (windowRun) showWindowRunNotice(windowRun);
   renderSelfTestLine();
 
   const sig = sitesFingerprint(status!);

@@ -10,7 +10,7 @@ import { test } from 'node:test';
 import * as assert from 'node:assert/strict';
 import {
   dueRecurrence, isRecurrenceLoosening, isWindowRun, nextOccurrence, normalizeRecurrence,
-  occurrenceAt, RECURRENCE_MIN_REMAINING_MS, type FocusLogEntry, type FocusPack,
+  occurrenceAt, RECURRENCE_MIN_REMAINING_MS, windowRunStarted, type FocusLogEntry, type FocusPack,
 } from '../src/shared/focus';
 import type { Band, Weekday } from '../src/shared/schedule';
 import { defaultState, type HelperState } from '../src/helper/state';
@@ -114,6 +114,18 @@ test('nextOccurrence: a mostani ablak, különben a legközelebbi kezdés', () =
   assert.deepEqual(nextOccurrence(NIGHT, TUE(1)), { startsAt: MON(22), endsAt: TUE(6) }, 'a hajnal a hétfői ablak');
   assert.deepEqual(nextOccurrence(NIGHT, TUE(7)), { startsAt: at(2026, 9, 14, 22, 0), endsAt: at(2026, 9, 15, 6, 0) },
     'kedd reggel → jövő hétfő este');
+});
+
+test('windowRunStarted: az ablak menete egyszer szól, a kézi és a lejárt nem', () => {
+  const packs = [pack()];
+  const win = { packId: 'p1', startedAt: MON(9), endsAt: MON(12) };
+  assert.deepEqual(windowRunStarted(null, win, packs, MON(9, 30)), win, 'először feltűnik — akkor is, ha az app később nyílt');
+  assert.equal(windowRunStarted(win, win, packs, MON(9, 31)), null, 'ugyanaz kétszer nem');
+  assert.equal(windowRunStarted(null, { packId: 'p1', startedAt: MON(9, 5), endsAt: MON(12) }, packs, MON(9, 30)), null,
+    'a kézi menetet a felhasználó indította');
+  assert.equal(windowRunStarted(null, win, packs, MON(12)), null, 'lejárt menet nem');
+  const next = { packId: 'p1', startedAt: TUE(9), endsAt: TUE(12) };
+  assert.deepEqual(windowRunStarted(win, next, packs, TUE(9, 1)), next, 'másnap az új menet szól');
 });
 
 test('isWindowRun: az ablak menete igen; a kézi és a meghosszabbított nem', () => {
