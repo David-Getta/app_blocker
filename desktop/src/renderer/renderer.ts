@@ -916,6 +916,21 @@ function openFocusStartDialog(pack: FocusPack): void {
   const picker = minutePicker(SESSION_CHOICES_MIN, pack.defaultMinutes, MAX_SESSION_MINUTES);
   modal.appendChild(picker.box);
 
+  // Egy MÁSIK csomag heti ablaka félbeszakítja ezt a menetet (az ablak az
+  // ígéret) — mondjuk ki előre, ne a kilences óra legyen a meglepetés.
+  const now = Date.now();
+  const cut = (status?.focusPacks ?? [])
+    .filter((p) => p.id !== pack.id && p.recurrence)
+    .map((p) => ({ name: p.name, occ: nextOccurrence(p.recurrence!, now) }))
+    .filter((x) => x.occ !== null && x.occ.startsAt > now
+      && x.occ.startsAt - now <= MAX_SESSION_MINUTES * 60_000)
+    .sort((a, b) => a.occ!.startsAt - b.occ!.startsAt)[0];
+  if (cut) {
+    modal.appendChild(h('p', 'hint',
+      `A(z) ${cut.name} heti ablaka ${fmtClock(cut.occ!.startsAt)}-kor indul: ha ez a menet addig `
+      + 'tart, ott véget ér, és az ablak menete indul.'));
+  }
+
   const err = h('p', 'error hidden');
   modal.appendChild(err);
   const actions = h('div', 'modal-actions');

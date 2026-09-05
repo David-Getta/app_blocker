@@ -364,9 +364,10 @@ menete megy, az az ablak kezdetén véget ér — a naplóba a saját idejével
 kerül, nem leállítottként —, és az ablak menete indul. Korábban az ablak
 várt, és ez kiskapu volt: egy 8:59-kor indított, nyolcórás eldobható menet az
 egész ablakot kiváltotta, próbatétel nélkül. Az ablak az ígéret; a kézi
-menetet az ablak köré kell tervezni. A saját csomag kézi menete nem szakad
-meg — az ugyanaz a fehérlista —, és amikor véget ér, az ablak hátralévő
-része indul.
+menetet az ablak köré kell tervezni — a gépen az indító párbeszéd előre
+kimondja, ha egy másik csomag ablaka a következő nyolc órában indul. A saját
+csomag kézi menete nem szakad meg — az ugyanaz a fehérlista —, és amikor
+véget ér, az ablak hátralévő része indul.
 
 A gépen az app **értesítést dob**, amikor az ablak menete feltűnik — akkor is,
 ha az app később nyílt meg, mint ahogy a menet indult. Aki nem maga indította,
