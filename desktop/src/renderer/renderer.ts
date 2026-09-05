@@ -10,7 +10,7 @@ import type {
 import {
   PRESET_BANDS, type Band, type Schedule, type ScheduleMode, type Weekday,
 } from '../shared/schedule.js';
-import { formatDuration } from '../shared/usage.js';
+import { dayKey, formatDuration } from '../shared/usage.js';
 import {
   displayName, displayNameNow, isAliased, MAX_ALIAS_LENGTH, REVEAL_MS,
 } from '../shared/alias.js';
@@ -3226,6 +3226,41 @@ function renderDaily(series: { day: string; seconds: number }[], title: string):
   $('axisEnd').textContent = series[series.length - 1]?.day ?? '';
 }
 
+/**
+ * Az elmúlt hét nap, naponta. A csempe egy számban mondja ugyanezt; itt a
+ * hét ALAKJA látszik. Egy sávszín: az oszlop nem kategória, a mai nap a
+ * feliratával van kiemelve. Szám csak a mai és a legnagyobb oszlopon — a
+ * többi mutatásra mondja —, hogy a diagram olvasható maradjon, ne táblázat.
+ * Üresen (nincs mért perc a héten, vagy régi segéd, ami nem küld sort) a
+ * blokk eltűnik.
+ */
+function renderWeek(series: { day: string; seconds: number }[] | undefined): void {
+  const host = $('weekChart');
+  host.textContent = '';
+  const rows = series ?? [];
+  const max = Math.max(0, ...rows.map((d) => d.seconds));
+  $('weekBlock').classList.toggle('hidden', rows.length === 0 || max === 0);
+  if (rows.length === 0 || max === 0) return;
+  const today = dayKey(Date.now());
+  const peak = rows.findIndex((d) => d.seconds === max);
+  rows.forEach((d, i) => {
+    const col = h('div', 'week-col');
+    const isToday = d.day === today;
+    const labelled = isToday || i === peak;
+    col.appendChild(h('div', 'week-val', labelled && d.seconds > 0 ? formatDuration(d.seconds) : ''));
+    const plot = h('div', 'week-plot');
+    const bar = h('div', `week-bar${d.seconds === 0 ? ' empty' : ''}`);
+    bar.style.height = d.seconds === 0 ? '2px' : `${Math.max(3, (d.seconds / max) * 100)}%`;
+    const date = new Date(Number(d.day.slice(0, 4)), Number(d.day.slice(5, 7)) - 1, Number(d.day.slice(8, 10)));
+    const dayName = DAY_NAMES[date.getDay() as Weekday];
+    attachTip(bar, () => `${dayName}, ${d.day} — ${formatDuration(d.seconds)}`);
+    plot.appendChild(bar);
+    col.appendChild(plot);
+    col.appendChild(h('div', `week-day${isToday ? ' today' : ''}`, isToday ? 'ma' : DAY_SHORT[date.getDay() as Weekday]));
+    host.appendChild(col);
+  });
+}
+
 /** Shared hover tooltip: hit target is the whole mark, tip follows the cursor. */
 function attachTip(el: HTMLElement, text: () => string): void {
   const tip = $('chartTip');
@@ -3399,6 +3434,7 @@ function renderStats(): void {
   );
 
   renderLastSample(enabled);
+  renderWeek(statsData.weekSeries);
   renderFocusStats();
 
   // A MAI lista vegyes: oldalak és appok együtt, idő szerint. A kérdés itt az,

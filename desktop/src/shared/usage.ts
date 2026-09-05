@@ -233,6 +233,19 @@ export function series(
   return days.map((day) => ({ day, seconds: byDay.get(day)?.[key] ?? 0 }));
 }
 
+/**
+ * Napi ÖSSZESEN — minden célpont együtt — az utolsó `count` napra, a
+ * legrégebbitől. Ugyanaz a szám, amit a csempe egyben mond („utolsó 7 nap”),
+ * csak napokra bontva: a hét alakja innen látszik.
+ */
+export function totalSeries(
+  state: UsageState, now: number, count: number,
+): { day: string; seconds: number }[] {
+  const days = dayKeysBack(now, count);
+  const byDay = new Map(state.days.map((d) => [d.day, d.seconds]));
+  return days.map((day) => ({ day, seconds: sumOf(byDay.get(day) ?? {}) }));
+}
+
 export interface WeekDelta {
   key: string;
   label: string;

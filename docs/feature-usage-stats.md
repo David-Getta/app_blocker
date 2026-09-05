@@ -298,6 +298,23 @@ A mag mindhárom nyelven ugyanazt számolja (`topToday`); iPhone-on — ahol az
 app maga nem mér — a fiókkártya összesített blokkja mutatja, minden eszköz
 méréséből együtt.
 
+## A hét napjai
+
+A csempe egy számban mondja az elmúlt hét napot; a „hét naponta” blokk a hét
+ALAKJÁT mutatja — a hétvégi kiugrást, a szerdai lyukat —, hét oszlopban, a
+csempével azonos összeggel (`totalSeries`: minden célpont együtt, naponta).
+Néhány szabály, ami nem esztétika:
+
+- **egy szín.** Az oszlop nem kategória, tehát nem kap külön színt; a mai nap
+  a feliratával („ma”, félkövér) van kiemelve, nem színnel;
+- **szám csak a mai és a legnagyobb oszlopon.** Hét szám hét oszlop fölött
+  már táblázat, nem diagram; a többi nap mutatásra mondja a napot, a dátumot
+  és az időt;
+- **üresen eltűnik** — egy hét mért perc nélkül, vagy egy régebbi segéd, ami
+  nem küld ilyen sort, nem üres diagramot ad, hanem semmit.
+
+![A statisztika lap a hét napjaival](images/desktop-stats.png)
+
 ## Munkamenetek a statisztikán
 
 Az app azt méri, **mire** megy el az idő. A munkamenet a másik oldal: hányszor

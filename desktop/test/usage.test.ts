@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import * as assert from 'node:assert/strict';
 import {
   emptyUsage, recordSample, pruneOld, dayKey, dayKeysBack, totalsForDays,
-  rank, sumOf, series, weekOverWeek, summarize, formatDuration,
+  rank, sumOf, series, totalSeries, weekOverWeek, summarize, formatDuration,
   siteKey, appKey, kindOf, idOf, labelOf,
   RETENTION_DAYS, MAX_RECORD_SECONDS, MAX_TARGETS_PER_DAY, MAX_LABEL_LENGTH,
   OTHER_SITE_KEY, decideSample, domainFromBrowserUrl, type UsageState,
@@ -152,6 +152,22 @@ test('series is zero-filled and ordered oldest first', () => {
   assert.equal(s[2].day, dayKey(NOW), 'last entry is today');
   // a target with no data at all yields zeros, not an empty array
   assert.deepEqual(series(st, siteKey('none.com'), NOW, 3).map((x) => x.seconds), [0, 0, 0]);
+});
+
+test('totalSeries: napi összesen minden célponttal, nullákkal, a csempével egyező összeggel', () => {
+  const st = emptyUsage();
+  recordSample(st, siteKey('a.com'), 30, daysAgo(NOW, 6));
+  recordSample(st, appKey('com.slack'), 45, daysAgo(NOW, 6));
+  recordSample(st, siteKey('b.com'), 10, daysAgo(NOW, 2));
+  recordSample(st, siteKey('a.com'), 20, NOW);
+  const s = totalSeries(st, NOW, 7);
+  assert.deepEqual(s.map((x) => x.seconds), [75, 0, 0, 0, 10, 0, 20]);
+  assert.equal(s[6].day, dayKey(NOW), 'az utolsó a ma');
+  assert.equal(s.reduce((a, x) => a + x.seconds, 0), summarize(st, NOW).last7Seconds,
+    'ugyanaz az összeg, mint a csempén');
+  // A nyolc napja mért idő nem a hété.
+  recordSample(st, siteKey('a.com'), 99, daysAgo(NOW, 7));
+  assert.equal(totalSeries(st, NOW, 7).reduce((a, x) => a + x.seconds, 0), 105);
 });
 
 test('weekOverWeek compares the last 7 days against the 7 before', () => {

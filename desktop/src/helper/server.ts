@@ -16,7 +16,7 @@ import {
   blockReasonNow, isLimitExhausted, normalizeLimit, sharedTodaySeconds, usedTodayEverywhere,
 } from '../shared/limits';
 import {
-  recordSample, summarize, series, labelOf, emptyUsage, combineUsage, siteKey, dayKey,
+  recordSample, summarize, series, totalSeries, labelOf, emptyUsage, combineUsage, siteKey, dayKey,
   MAX_KEY_LENGTH, MAX_LABEL_LENGTH, MAX_BATCH_SAMPLES,
 } from '../shared/usage';
 import type { UsageSummary } from '../shared/usage';
@@ -514,6 +514,7 @@ async function handle(req: HelperRequest, deps: ServerDeps): Promise<unknown> {
         focusKey,
         focusLabel: focusKey ? labelOf(state.usage, focusKey) : '',
         focusSeries: focusKey ? series(state.usage, focusKey, now, 30) : [],
+        weekSeries: totalSeries(state.usage, now, 7),
         // A nap kezdete a HELYI naptár szerint: éjfélkor vált, nem huszonnégy
         // órával ezelőtt. Egy „ma” felirat alatt tegnap esti menetek állnának.
         focusToday: summarizeFocus(state.focusLog, startOfDay(now), now),

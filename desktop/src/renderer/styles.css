@@ -744,6 +744,30 @@ body {
   color: var(--text-3); font-size: 0.73rem; margin-top: var(--s2);
 }
 
+/* A hét napjai: hét oszlop, egy sávszín (az oszlop nem kategória), a mai nap
+   a feliratával kiemelve, nem színnel. */
+.week-chart {
+  display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: var(--s3);
+}
+.week-col { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; }
+.week-val {
+  font-size: 0.72rem; color: var(--text-2); white-space: nowrap;
+  height: 1.1em; line-height: 1.1em;
+}
+.week-plot {
+  height: 96px; width: 100%; display: flex; align-items: flex-end; justify-content: center;
+  border-bottom: 1px solid var(--grid);
+}
+.week-bar {
+  width: 72%; max-width: 44px; min-height: 2px;
+  background: var(--series-1); border-radius: 4px 4px 0 0;
+  transition: opacity var(--dur) var(--ease);
+}
+.week-bar:hover { opacity: .72; }
+.week-bar.empty { background: rgba(255,255,255,.07); }
+.week-day { font-size: 0.73rem; color: var(--text-3); }
+.week-day.today { color: var(--text-1); font-weight: 600; }
+
 .wow-list { display: flex; flex-direction: column; gap: var(--s3); }
 .wow-row {
   display: flex; align-items: center; justify-content: space-between;
@@ -881,6 +905,7 @@ body {
   .modal { box-shadow: var(--shadow-3); }
   .site-row:hover { background: rgba(16, 20, 26, .022); }
   .day-bar.empty { background: rgba(16,20,26,.09); }
+  .week-bar.empty { background: rgba(16,20,26,.09); }
 
   /* A párbeszéd mögötti fátyol világos alapon nem lehet majdnem fekete. */
   .overlay { background: rgba(20, 24, 30, .3); }

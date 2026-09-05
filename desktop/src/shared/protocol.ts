@@ -260,6 +260,8 @@ export interface UsageStatsData {
   focusKey: string | null;
   focusLabel: string;
   focusSeries: { day: string; seconds: number }[];
+  /** az elmúlt 7 nap napi ÖSSZESENJE (minden célpont), a legrégebbitől */
+  weekSeries?: { day: string; seconds: number }[];
   /**
    * A munkamenetek összegzése — ma és a héten.
    *

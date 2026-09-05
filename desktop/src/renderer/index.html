@@ -293,6 +293,17 @@
         <p id="lastSample" class="hint"></p>
 
         <!--
+          A hét napjai. A csempe egy számban mondja az elmúlt hét napot; itt
+          a hét ALAKJA látszik — a hétvégi kiugrás, a szerdai lyuk. Szám csak
+          a mai és a legnagyobb oszlopon, a többi mutatásra mondja. Üresen a
+          blokk eltűnik.
+        -->
+        <div class="chart-block hidden" id="weekBlock">
+          <h3 class="chart-title">Az elmúlt 7 nap, naponta</h3>
+          <div class="week-chart" id="weekChart"></div>
+        </div>
+
+        <!--
           A munkamenetek. Az app eddig azt mérte, MIRE megy el az idő; ez a
           másik oldal: hányszor ültél le dolgozni, és hányat vittél végig.
           Csak akkor jelenik meg, ha van mit mutatni — egy üres blokk, ami

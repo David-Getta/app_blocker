@@ -158,6 +158,11 @@ function fakeBridgeSource() {
       },
       focusSeries: series,
       focusLabel: 'youtube.com',
+      // A hét napjai: a mai, a tegnapi és a heti összeg egyezik a csempékkel
+      // (58 p, 1 ó 28 p, 7 ó 20 p).
+      weekSeries: [6, 5, 4, 3, 2, 1, 0].map((back, i) => ({
+        day: day(back), seconds: [2700, 4500, 1800, 5400, 3240, 5280, 3480][i],
+      })),
       // A MUNKAMENET-STATISZTIKA. Külön a méréstől, mert más a forrása: nem
       // abból jön, mire megy el az idő, hanem a menetek naplójából.
       focusToday: { sessions: 2, totalMs: 95 * 60_000, stoppedEarly: 0, topPack: 'Nyelvtanulás' },
