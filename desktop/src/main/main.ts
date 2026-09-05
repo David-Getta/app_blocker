@@ -11,6 +11,7 @@ import {
   hideOverlay, takeWarning, toggleOverlay, unregisterOverlayShortcut, warnAboutApp,
 } from './overlay';
 import { setupOverlayShortcut } from './overlay-shortcut';
+import { setupExtensionFolder } from './extension-folder';
 import { shouldWarnAboutApp, warnDue } from '../shared/focus';
 import * as path from 'path';
 import { HelperClient } from './helper-client';
@@ -206,6 +207,9 @@ if (HELPER_MODE) {
       // szinkron papíron létezik, gyakorlatban nem: terminált nyitni és külön
       // szolgáltatást futtatni a legtöbben nem fognak — és igazuk lenne.
       registerSyncServerIpc(app.getPath('userData'));
+      // A bővítmény mappája: az app csomagolja ki és tartja frissen, a
+      // böngészőbe egyszer kell betölteni — nem minden kiadásnál újra.
+      setupExtensionFolder(app.getPath('userData'), (m) => console.log(`[extension] ${m}`));
       // A böngésző-bővítmény innen veszi a részleges szabályokat. Enélkül
       // ugyanazt kétszer kellene begépelni, két külön listába — és ami kétszer
       // van, az előbb-utóbb szétcsúszik.

@@ -8,6 +8,17 @@ files:
   - node_modules/**
 asar: true
 
+# A böngésző-bővítmény az app részeként érkezik: induláskor az app kimásolja
+# a userData/extension mappába, és frissíti, ha a tartalma változott (lásd
+# src/main/extension-folder.ts). A böngészőbe ezt a mappát kell EGYSZER
+# betölteni. A README nem kell a felhasználó gépére.
+extraResources:
+  - from: ../extension
+    to: extension
+    filter:
+      - "**/*"
+      - "!README.md"
+
 # Aláírás-utómunka: tanúsítvány nélkül ad-hoc aláírjuk a macOS bundle-t,
 # különben Apple szilíciumon el sem indul. Lásd scripts/after-pack.js.
 afterPack: scripts/after-pack.js

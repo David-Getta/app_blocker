@@ -29,10 +29,19 @@ oldal egyáltalán ne menjen, az az appban tiltsa le az egészet. Ez a réteg az
 
 ## Telepítés (fejlesztői mód)
 
+**Honnan a mappa.** Az asztali app a bővítményt a saját részeként hozza, és
+induláskor kimásolja egy állandó mappába (a felhasználói adatok közé,
+`…/Breaker/extension`); az oldal **Részek** párbeszédében a *Mappa
+megnyitása* gomb odavisz. Ezt a mappát kell **egyszer** betölteni: az app
+minden frissítéskor frissíti (tartalom-lenyomat alapján, nem a verziószám
+szerint), utána a böngészőben elég a bővítmény *Frissítés* gombja vagy egy
+újraindítás. A kiadás melletti zip annak való, aki az app nélkül használná.
+
 **Chrome / Edge / Brave**
 
 1. `chrome://extensions` → **Fejlesztői mód** bekapcsolva
-2. **Kicsomagolt bővítmény betöltése** → válaszd ki ezt az `extension/` mappát
+2. **Kicsomagolt bővítmény betöltése** → válaszd ki az app mappáját (vagy
+   fejlesztéshez ezt az `extension/` mappát)
 3. A bővítmény *Részletek* lapján, ha inkognitóban is kell:
    **Engedélyezés inkognitó módban**
 

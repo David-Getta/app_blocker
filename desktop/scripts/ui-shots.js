@@ -320,6 +320,11 @@ function fakeBridgeSource() {
         window.__fakeShortcut = { accelerator: 'CommandOrControl+Alt+B', registered: true, isDefault: true };
         return { ok: true, info: window.__fakeShortcut };
       },
+      // A bővítmény mappája: a Részek párbeszéd mutatja, a gomb megnyitná.
+      getExtensionFolder: async () => ({
+        path: '/Users/demo/Library/Application Support/Breaker/extension', version: '0.4.0', refreshed: false,
+      }),
+      openExtensionFolder: async () => { window.__folderOpened = (window.__folderOpened || 0) + 1; },
       getUpdateState: async () => window.__fakeUpdate,
       getTrackerState: async () => window.__fakeTracker,
       // A füstteszt innen hajtja a frissítési sávot: ugyanaz a csatorna, amit

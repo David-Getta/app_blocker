@@ -84,6 +84,9 @@ interface Bridge {
   getOverlayShortcut?(): Promise<OverlayShortcutView>;
   setOverlayShortcut?(accelerator: string): Promise<OverlayShortcutOutcome>;
   resetOverlayShortcut?(): Promise<OverlayShortcutOutcome>;
+  /** a bővítmény mappája, amit az app tart frissen; a régi híd nem tudja */
+  getExtensionFolder?(): Promise<{ path: string; version: string | null; refreshed: boolean; error?: string }>;
+  openExtensionFolder?(): Promise<void>;
   platform: string;
 }
 declare global { interface Window { breaker: Bridge } }
@@ -1921,6 +1924,25 @@ function openRulesDialog(site: SiteInfo): void {
       + 'nyitva, a bővítmény az utoljára letöltött listát használja — vagyis '
       + 'tovább tilt, nem enged át.'));
   });
+
+  // A bővítmény MAPPÁJA. Az app csomagolja ki és tartja frissen; a böngészőbe
+  // ezt kell egyszer betölteni — nem minden kiadásnál újra letölteni a zipet.
+  const folderBox = h('div', 'bridge-box');
+  modal.appendChild(folderBox);
+  void window.breaker.getExtensionFolder?.().then((f) => {
+    if (!f) return;
+    folderBox.appendChild(h('div', 'micro', `A bővítmény mappája${f.version ? ` (${f.version})` : ''}`));
+    folderBox.appendChild(h('div', 'folder-path', f.path));
+    const open = h('button', 'btn btn-small', 'Mappa megnyitása');
+    open.addEventListener('click', () => { void window.breaker.openExtensionFolder?.(); });
+    folderBox.appendChild(open);
+    folderBox.appendChild(h('p', 'hint', f.error
+      ? `A mappát most nem sikerült frissíteni: ${f.error}. A bővítmény a kiadás zipjéből kézzel is betölthető.`
+      : 'Chrome, Edge, Brave: chrome://extensions → Fejlesztői mód → Kicsomagolt bővítmény betöltése → '
+        + 'ez a mappa. Egyszer kell: az app minden frissítéskor frissíti a mappát, utána a böngészőben a '
+        + 'bővítmény Frissítés gombja (vagy egy újraindítás) elég. Firefox ideiglenesen tölt be '
+        + '(about:debugging), ott újraindítás után újra kell.'));
+  }).catch(() => { /* régi híd: a zip-út marad */ });
 
   const list = h('div', 'rules-list');
   const rules = site.rules ?? [];

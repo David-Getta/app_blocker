@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import type { OverlayShortcutInfo, OverlayShortcutResult } from './overlay-shortcut';
+import type { ExtensionFolderInfo } from './extension-folder';
 
 export interface UpdateState {
   status: 'idle' | 'checking' | 'available' | 'downloading' | 'ready' | 'error' | 'unsupported';
@@ -87,6 +88,9 @@ export interface BreakerBridge {
   getOverlayShortcut(): Promise<OverlayShortcutInfo>;
   setOverlayShortcut(accelerator: string): Promise<OverlayShortcutResult>;
   resetOverlayShortcut(): Promise<OverlayShortcutResult>;
+  /** a bővítmény mappája, amit az app tart frissen — a böngészőbe ezt kell betölteni */
+  getExtensionFolder(): Promise<ExtensionFolderInfo>;
+  openExtensionFolder(): Promise<void>;
   platform: string;
 }
 
@@ -112,6 +116,8 @@ const bridge: BreakerBridge = {
   getOverlayShortcut: () => ipcRenderer.invoke('breaker:overlay-shortcut'),
   setOverlayShortcut: (accelerator) => ipcRenderer.invoke('breaker:overlay-shortcut-set', accelerator),
   resetOverlayShortcut: () => ipcRenderer.invoke('breaker:overlay-shortcut-reset'),
+  getExtensionFolder: () => ipcRenderer.invoke('breaker:extension-folder'),
+  openExtensionFolder: () => ipcRenderer.invoke('breaker:open-extension-folder'),
   platform: process.platform,
 };
 

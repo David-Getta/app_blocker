@@ -457,6 +457,15 @@ const WIRES = [
     lost: 'a szivárgó önteszt nem jutna a státusz-korongra — a segéd mérné, '
       + 'a felület zöldet mutatna',
   },
+  // A BŐVÍTMÉNY MAPPÁJA. Ha az app nem tartaná frissen, a böngészőben egy régi
+  // bővítmény futna egy új app mellett — és a felület egy mappára mutatna,
+  // amit senki nem frissít.
+  {
+    file: 'desktop/src/main/main.ts',
+    needle: "setupExtensionFolder(app.getPath('userData')",
+    lost: 'a bővítmény mappája nem frissülne — a böngészőben régi bővítmény '
+      + 'futna egy új app mellett, a felület meg egy nem frissülő mappára mutatna',
+  },
   // A MENTETT GYORSBILLENTYŰ. Ha a fő folyamat nem a mentett kombinációt
   // regisztrálná, a felület mást mutatna, mint ami a rendszerben él — az
   // átállítás látszólag sikerülne, a réteg meg a régire (vagy semmire) nyílna.
