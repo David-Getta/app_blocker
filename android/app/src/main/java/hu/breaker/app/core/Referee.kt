@@ -575,7 +575,19 @@ object Referee {
             // állítja elő, a szinkron a kettőt egynek látja.
             val due = Focus.dueRecurrence(next.focusPacks, next.focusRun, next.focusLog, now)
             if (due != null) {
-                next = next.copy(focusRun = Focus.FocusRun(due.pack.id, due.startsAt, due.endsAt))
+                // Egy MÁSIK csomag kézi menete az ablak kezdetén véget ér — az
+                // ablak az ígéret. A naplóba a saját idejével, nem leállítottként:
+                // nem a felhasználó állította le, az ablak jött.
+                val running = next.focusRun
+                var log = next.focusLog
+                if (running != null && Focus.isRunning(running, now)) {
+                    val name = next.focusPacks.firstOrNull { it.id == running.packId }?.name ?: "Ismeretlen csomag"
+                    log = (log + Focus.closeRun(running, name, now, false)).takeLast(Focus.MAX_FOCUS_LOG)
+                }
+                next = next.copy(
+                    focusRun = Focus.FocusRun(due.pack.id, due.startsAt, due.endsAt),
+                    focusLog = log,
+                )
             }
             next
         }

@@ -148,9 +148,12 @@ function finishSession(state: HelperState, now: number): void {
     // különben kézi menetként futna tovább az ablak végéig, egy második
     // próbatétel mögött, és az óra-ugrás elnyelése is tolni kezdené.
     const run = state.focusRun;
-    if (run && run.packId === s.pendingRecurrence.packId && isRunning(run, now)
-      && isWindowRun(run, state.focusPacks ?? [])) {
-      logFocusEnd(state, now, true);
+    if (run && run.packId === s.pendingRecurrence.packId && isWindowRun(run, state.focusPacks ?? [])) {
+      // Fut: a próbatétel zárja le. Lejárt, de a kör még nem takarította el:
+      // a tervezett végével zárjuk — különben ablak nélkül maradna, és a
+      // következő kör óra-ugrás-elnyelése kézi menetként tolná tovább.
+      if (isRunning(run, now)) logFocusEnd(state, now, true);
+      else logFocusEnd(state, run.endsAt, false);
       state.focusRun = null;
     }
     applyRecurrence(state, s.pendingRecurrence.packId, s.pendingRecurrence.band);
@@ -727,6 +730,11 @@ export function tick(state: HelperState, now: number): boolean {
   // telefon ugyanezt teszi; a szinkron a két azonos menetet egynek látja.
   const due = dueRecurrence(state.focusPacks ?? [], state.focusRun, state.focusLog, now);
   if (due) {
+    // Egy MÁSIK csomag kézi menete az ablak kezdetén véget ér — az ablak az
+    // ígéret. A naplóba a saját idejével kerül, nem leállítottként: nem a
+    // felhasználó állította le, az ablak jött. (A csomag saját menete mellett
+    // a `dueRecurrence` nem ad esedékest.)
+    if (isRunning(state.focusRun, now)) logFocusEnd(state, now, false);
     state.focusRun = { packId: due.pack.id, startedAt: due.startsAt, endsAt: due.endsAt };
     dirty = true;
   }

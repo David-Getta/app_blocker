@@ -644,7 +644,10 @@ function renderFocusCard(st: StatusData): void {
     if (pack.recurrence) {
       left.appendChild(h('div', 'focus-sub',
         `magától indul: ${recurrenceLabel(pack.recurrence)}`
-        + nextStartLabel(pack.recurrence, (status?.focusSpent ?? []).includes(pack.id))));
+        // Amíg a csomag menete fut (kézzel, a leállított ablak után), nem
+        // mondjuk mellé, hogy „már véget ért” — a fut-címke elég.
+        + nextStartLabel(pack.recurrence, (status?.focusSpent ?? []).includes(pack.id)
+          && status?.focusRun?.packId !== pack.id)));
     }
     row.appendChild(left);
 
@@ -3089,10 +3092,13 @@ async function refreshStats(): Promise<void> {
   statsBusy = true;
   try {
     statsData = await call<UsageStatsData>('usage_stats');
+    // A visszatekintés a kirajzolás ELŐTT: ha a rajzolás elhasal, a hét
+    // kulcsa akkor is beáll — különben a kétmásodperces kör egész héten
+    // újra és újra lekérné a statisztikát.
+    maybeDigest();
     // A mérés állapota a fő folyamatból jön (a szonda ott fut), a statisztika a
     // helperből — ugyanabban a körben frissül mind a kettő.
     renderStats();
-    maybeDigest();
   } catch {
     // helper busy or down; keep the previous view rather than blanking it
   } finally {

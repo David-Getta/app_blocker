@@ -350,14 +350,23 @@ időpont. A meghosszabbított ablak-menet már kézi menetnek számít.
 ### A napló az őr
 
 A leállítás próbatétel — de mi akadályozza meg, hogy a következő kör egy perc
-múlva újraindítsa? **A napló.** A leállított (vagy lerövidített) menet sora
-ebben az ablakban kezdődött, és amíg ilyen sor van, az ablak nem indít újra.
-A napló szinkronizál, tehát a másik eszköz sem. Másnap az ablak tiszta lappal
-indul. Az ablak ELŐTT kézzel indított menet nem fogyasztja el az ablakot: az a
-saját idejében ért véget, az ablak hátralévő része jár.
+múlva újraindítsa? **A napló.** A leállított (vagy lerövidített) menet sora az
+ablak SAJÁT menete — a kezdése az ablak kezdése —, és amíg ilyen sor van, az
+ablak nem indít újra. A napló szinkronizál, tehát a másik eszköz sem. Másnap
+az ablak tiszta lappal indul. Csak a saját menet számít: a csomag kézzel
+indított menete az ablakon belül — akár egyperces, a kör tizenöt másodperces
+résében elkapva — nem fogyasztja el az ablakot; amikor véget ér, az ablak
+menete indul. Az ablak ELŐTT kézzel indított menet sem: az a saját idejében
+ér véget, az ablak hátralévő része jár.
 
-Egyszerre egy menet fut: ha az ablak kezdetén épp más csomag megy, az ablak
-vár, és amikor az véget ér, a hátralévő részre indul.
+Egyszerre egy menet fut. Ha az ablak kezdetén épp egy **másik** csomag kézi
+menete megy, az az ablak kezdetén véget ér — a naplóba a saját idejével
+kerül, nem leállítottként —, és az ablak menete indul. Korábban az ablak
+várt, és ez kiskapu volt: egy 8:59-kor indított, nyolcórás eldobható menet az
+egész ablakot kiváltotta, próbatétel nélkül. Az ablak az ígéret; a kézi
+menetet az ablak köré kell tervezni. A saját csomag kézi menete nem szakad
+meg — az ugyanaz a fehérlista —, és amikor véget ér, az ablak hátralévő
+része indul.
 
 A gépen az app **értesítést dob**, amikor az ablak menete feltűnik — akkor is,
 ha az app később nyílt meg, mint ahogy a menet indult. Aki nem maga indította,
@@ -380,6 +389,12 @@ ablak, hanem sima menet.
   ablak menete indul, 9:00-tól számolva — a statisztika a fél órát kétszer
   számolja. Azért nem az „elköltött” ágon megy, mert akkor egy egyperces kézi
   menet 8:59-kor kiváltaná a háromórás ablakot.
+- A csomaglista egyben szinkronizál (utolsó író nyer, azonos változatnál a
+  frissebb). Ha a gépen most vettél fel egy ablakot, és a telefon ugyanabban
+  a körben — még a régi listával — elindított egy menetet, a telefon listája
+  nyerhet, és az ablak csendben eltűnik. A felvétel ingyen van, tehát
+  újra felvehető; de ki kell mondani, mert a felület nem szól róla. A
+  csomagonkénti összefésülés (mint a hosztneveknél) a tervben van.
 - Az őszi óraátállítás éjszakáján a 2:00 és 3:00 közötti percek kétszer
   vannak. Egy ebbe eső ablak-kezdést vagy -véget a három platform nem
   biztosan ugyanarra a pillanatra tesz — évente egyszer két menet és két

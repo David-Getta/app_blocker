@@ -415,16 +415,21 @@ object Focus {
         log: List<FocusLogEntry>,
         now: Long,
     ): DueRecurrence? {
-        if (isRunning(run, now)) return null
         var best: DueRecurrence? = null
         for (pack in packs) {
             val band = pack.recurrence ?: continue
             if (!ScheduleLogic.isValidBand(band)) continue
+            // A csomag SAJÁT futó menete mellett nincs mit indítani. Egy MÁSIK
+            // csomag kézi menete nem tartja vissza az ablakot: a hívó (a kör)
+            // zárja le az ablak kezdetén — különben egy 8:59-kor indított,
+            // nyolcórás eldobható menet az egész ablakot kiváltaná.
+            if (isRunning(run, now) && run!!.packId == pack.id) continue
             val occ = occurrenceAt(band, now) ?: continue
             if (occ.endsAt - now < RECURRENCE_MIN_REMAINING_MS) continue
-            val spent = log.any {
-                it.packId == pack.id && it.startedAt >= occ.startsAt && it.startedAt < occ.endsAt
-            }
+            // Csak az ablak SAJÁT menete (a kezdése az ablak kezdése) számít
+            // elköltöttnek: a csomag egyperces kézi menete az ablakon belül nem
+            // váltja ki a háromórás ablakot.
+            val spent = log.any { it.packId == pack.id && it.startedAt == occ.startsAt }
             if (spent) continue
             val b = best
             if (b == null || occ.startsAt < b.startsAt ||

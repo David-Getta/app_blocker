@@ -493,11 +493,13 @@ export interface DueRecurrence extends Occurrence { pack: FocusPack }
 /**
  * Melyik csomag ablaka esedékes MOST — vagy null.
  *
- * Nem indul, ha fut valami (egyszerre egy menet); ha a naplóban van EBBEN az
- * ablakban kezdődött menet ebből a csomagból (leállítva vagy lerövidítve — a
- * próbatétel ára ki van fizetve); vagy ha egy percnél kevesebb van hátra.
- * Több esedékes ablak közül a korábban kezdődő, azonos kezdésnél a kisebb
- * azonosítójú — hogy minden eszköz ugyanazt válassza.
+ * Nem indul, ha a csomag SAJÁT menete fut; ha a naplóban ott az ablak saját
+ * menete (leállítva vagy lerövidítve — a próbatétel ára ki van fizetve); vagy
+ * ha egy percnél kevesebb van hátra. Egy MÁSIK csomag kézi menete nem tartja
+ * vissza: a hívó (a referee köre) zárja le az ablak kezdetén — különben egy
+ * 8:59-kor indított, nyolcórás eldobható menet az egész ablakot kiváltaná,
+ * próbatétel nélkül. Több esedékes ablak közül a korábban kezdődő, azonos
+ * kezdésnél a kisebb azonosítójú — hogy minden eszköz ugyanazt válassza.
  */
 export function dueRecurrence(
   packs: FocusPack[],
@@ -505,11 +507,11 @@ export function dueRecurrence(
   log: FocusLogEntry[] | undefined,
   now: number,
 ): DueRecurrence | null {
-  if (isRunning(run, now)) return null;
   let best: DueRecurrence | null = null;
   for (const pack of packs) {
     const band = pack.recurrence;
     if (!band || !isValidBand(band)) continue;
+    if (isRunning(run, now) && run!.packId === pack.id) continue;
     const occ = occurrenceAt(band, now);
     if (!occ) continue;
     if (occ.endsAt - now < RECURRENCE_MIN_REMAINING_MS) continue;
@@ -522,10 +524,14 @@ export function dueRecurrence(
   return best;
 }
 
-/** Van-e a naplóban EBBEN az ablakban kezdett menet a csomagból — az ára ki van fizetve. */
+/**
+ * Az ablak SAJÁT menete van-e a naplóban (a kezdése az ablak kezdése) — az
+ * ára ki van fizetve. Csak a sajátja: a csomag kézi menete az ablakon belül,
+ * akár egyperces, nem fogyasztja el az ablakot — különben egy perc kézi menet
+ * a tizenöt másodperces kör-résben kiváltaná a háromórás ablakot.
+ */
 function spentIn(log: FocusLogEntry[] | undefined, packId: string, occ: Occurrence): boolean {
-  return (log ?? []).some((e) =>
-    e.packId === packId && e.startedAt >= occ.startsAt && e.startedAt < occ.endsAt);
+  return (log ?? []).some((e) => e.packId === packId && e.startedAt === occ.startsAt);
 }
 
 /**

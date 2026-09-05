@@ -403,6 +403,13 @@ enum Referee {
             if let due = Focus.dueRecurrence(
                 state.focusPacks ?? [], run: state.focusRun, log: state.focusLog ?? [], now: now
             ) {
+                // Egy MÁSIK csomag kézi menete az ablak kezdetén véget ér — az
+                // ablak az ígéret. A naplóba a saját idejével, nem leállítottként.
+                if let running = state.focusRun, Focus.isRunning(running, now: now) {
+                    let name = (state.focusPacks ?? []).first { $0.id == running.packId }?.name ?? "Ismeretlen csomag"
+                    let entry = Focus.closeRun(running, packName: name, endedAt: now, stopped: false)
+                    state.focusLog = ((state.focusLog ?? []) + [entry]).suffix(Focus.maxFocusLog).map { $0 }
+                }
                 state.focusRun = Focus.Run(packId: due.pack.id, startedAt: due.startsAt, endsAt: due.endsAt)
             }
         }

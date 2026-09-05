@@ -82,6 +82,43 @@ class FocusRecurrenceRefereeTest {
     }
 
     @Test
+    fun `egy masik csomag kezi menete az ablak kezdeten veget er, a sajate nem`() {
+        // 2027. március 3. szerda és 4. csütörtök — a többi teszt ideje UTÁN.
+        BreakerStore.mutate {
+            it.copy(
+                focusPacks = it.focusPacks + Focus.FocusPack(
+                    id = "p2", name = "Más", allowSites = emptyList(), allowApps = emptyList(), defaultMinutes = 50,
+                ),
+            )
+        }
+        // Az óra-ugrás elnyelése miatt előbb egy üres kör: a napnyi ugrást ne a
+        // kézi menet nyelje el. Utána rendes ütemben.
+        Referee.tick(at(2027, 3, 3, 8, 58))
+        // Egy nyolcórás, eldobható menet 8:59-kor — eddig az egész ablakot kiváltotta.
+        Referee.startFocus("p2", 480, at(2027, 3, 3, 8, 59))
+        Referee.tick(at(2027, 3, 3, 9, 0))
+        Referee.tick(at(2027, 3, 3, 9, 1))
+        val run = BreakerStore.state.value.focusRun
+        assertEquals("p1", run?.packId, "az ablak jött, a másik csomag menete véget ért")
+        assertEquals(at(2027, 3, 3, 9), run?.startedAt)
+        val last = BreakerStore.state.value.focusLog.last()
+        assertEquals("p2", last.packId)
+        assertEquals(at(2027, 3, 3, 9, 1), last.endedAt, "a naplóba a saját idejével")
+        assertEquals(false, last.stopped, "nem leállítva: az ablak jött")
+
+        // A saját csomag kézi menete nem szakad meg, és nem is költi el az ablakot.
+        BreakerStore.mutate { it.copy(focusRun = null) }
+        Referee.tick(at(2027, 3, 4, 8, 59))
+        Referee.startFocus("p1", 5, at(2027, 3, 4, 9) + 5_000)
+        Referee.tick(at(2027, 3, 4, 9) + 20_000)
+        assertEquals(at(2027, 3, 4, 9) + 5_000, BreakerStore.state.value.focusRun?.startedAt, "a kézi menet marad")
+        for (m in 1..6) Referee.tick(at(2027, 3, 4, 9, m))
+        val window = BreakerStore.state.value.focusRun
+        assertEquals(at(2027, 3, 4, 9), window?.startedAt, "a kézi menet után az ablak menete indul, az ablak kezdésével")
+        assertEquals(at(2027, 3, 4, 12), window?.endsAt)
+    }
+
+    @Test
     fun `az ora-ugras az ablak-menetet nem tolja el`() {
         Referee.tick(at(2027, 3, 1,9, 32))
         // Egy órás lyuk a körök között: alvás vagy átállított óra — a telefon

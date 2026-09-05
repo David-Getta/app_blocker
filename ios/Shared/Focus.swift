@@ -460,15 +460,20 @@ public enum Focus {
     static func dueRecurrence(
         _ packs: [Pack], run: Run?, log: [LogEntry], now: Double
     ) -> DueRecurrence? {
-        if isRunning(run, now: now) { return nil }
         var best: DueRecurrence?
         for pack in packs {
             guard let band = pack.recurrence, ScheduleLogic.isValidBand(band) else { continue }
+            // A csomag SAJÁT futó menete mellett nincs mit indítani. Egy MÁSIK
+            // csomag kézi menete nem tartja vissza az ablakot: a hívó (a kör)
+            // zárja le az ablak kezdetén — különben egy 8:59-kor indított,
+            // nyolcórás eldobható menet az egész ablakot kiváltaná.
+            if let run, isRunning(run, now: now), run.packId == pack.id { continue }
             guard let occ = occurrenceAt(band, now: now) else { continue }
             if occ.endsAt - now < recurrenceMinRemainingMs { continue }
-            let spent = log.contains {
-                $0.packId == pack.id && $0.startedAt >= occ.startsAt && $0.startedAt < occ.endsAt
-            }
+            // Csak az ablak SAJÁT menete (a kezdése az ablak kezdése) számít
+            // elköltöttnek: a csomag egyperces kézi menete az ablakon belül nem
+            // váltja ki a háromórás ablakot.
+            let spent = log.contains { $0.packId == pack.id && $0.startedAt == occ.startsAt }
             if spent { continue }
             if let b = best,
                !(occ.startsAt < b.startsAt || (occ.startsAt == b.startsAt && pack.id < b.pack.id)) {

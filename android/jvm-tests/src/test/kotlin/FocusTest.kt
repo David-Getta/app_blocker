@@ -69,12 +69,19 @@ class FocusTest {
             "ablakon kívül nem",
         )
 
-        val running = Focus.FocusRun("other", now - 1000, now + 1000)
-        assertNull(Focus.dueRecurrence(listOf(windowed()), running, emptyList(), now), "egyszerre egy menet")
+        // A csomag SAJÁT futó menete mellett nincs esedékes; egy MÁSIK csomag
+        // kézi menete nem tartja vissza az ablakot — azt a kör zárja le.
+        val own = Focus.FocusRun("pack_1", now - 1000, now + 1000)
+        assertNull(Focus.dueRecurrence(listOf(windowed()), own, emptyList(), now), "a saját menete fut")
+        val other = Focus.FocusRun("other", now - 1000, now + 1000)
+        assertTrue(Focus.dueRecurrence(listOf(windowed()), other, emptyList(), now) != null, "a másik csomag menete nem véd")
 
-        // A leállított menet sora ebben az ablakban kezdődött: nem indul újra.
+        // A leállított menet sora az ablak SAJÁT menete (a kezdése az ablaké): nem indul újra.
         val stopped = Focus.FocusLogEntry("pack_1", "x", due.startsAt, now, due.endsAt, true)
         assertNull(Focus.dueRecurrence(listOf(windowed()), null, listOf(stopped), now + 60_000))
+        // A csomag kézi menete az ablakon belül (nem az ablak kezdésével) nem költi el.
+        val manual = Focus.FocusLogEntry("pack_1", "x", due.startsAt + 5_000, due.startsAt + 65_000, due.startsAt + 65_000, false)
+        assertTrue(Focus.dueRecurrence(listOf(windowed()), null, listOf(manual), now + 60_000) != null, "az egyperces kézi menet nem váltja ki")
         // Másnap viszont igen.
         assertTrue(
             Focus.dueRecurrence(listOf(windowed()), null, listOf(stopped), localMs(2026, 9, 8, 9, 30)) != null,

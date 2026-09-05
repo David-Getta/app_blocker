@@ -75,11 +75,15 @@ test('dueRecurrence: az ablakban indul, az ablak kezdésével és végével', ()
     'ablak nélkül nem');
 });
 
-test('dueRecurrence: futó menet mellett nem indul — egyszerre egy', () => {
-  const run = { packId: 'p2', startedAt: MON(9), endsAt: MON(10) };
-  assert.equal(dueRecurrence([pack()], run, [], MON(9, 30)), null);
-  assert.ok(dueRecurrence([pack()], { ...run, endsAt: MON(9, 20) }, [], MON(9, 30)),
+test('dueRecurrence: a csomag saját futó menete mellett nem indul; a másik csomagé nem véd', () => {
+  const own = { packId: 'p1', startedAt: MON(9), endsAt: MON(10) };
+  assert.equal(dueRecurrence([pack()], own, [], MON(9, 30)), null, 'a sajátja fut');
+  assert.ok(dueRecurrence([pack()], { ...own, endsAt: MON(9, 20) }, [], MON(9, 30)),
     'a lejárt menet nem számít');
+  // Egy MÁSIK csomag kézi menete nem tartja vissza az ablakot — azt a kör
+  // zárja le az ablak kezdetén, különben egy eldobható menet kiváltaná.
+  const other = { packId: 'p2', startedAt: MON(8, 59), endsAt: MON(17) };
+  assert.ok(dueRecurrence([pack()], other, [], MON(9, 30)), 'a másik csomag menete nem véd');
 });
 
 test('dueRecurrence: a napló az őr — ami ebben az ablakban indult, nem indul újra', () => {
@@ -293,6 +297,56 @@ test('a levétel próbatétele alatt beért ablak menete is a próbatétel ára'
   assert.equal(row.stopped, true, 'próbatétellel ért véget');
   assert.equal(tick(st, MON(9, 5)), false);
   assert.equal(st.focusRun, null, 'ablak nélkül nem indul újra');
+});
+
+test('egy másik csomag kézi menete az ablak kezdetén véget ér — az ablak az ígéret', () => {
+  // Eddig az ablak várt, amíg a másik menet tart: egy 8:59-kor indított,
+  // nyolcórás eldobható menet az egész ablakot kiváltotta, próbatétel nélkül.
+  const st = stateWithPack();
+  setFocusRecurrence(st, 'p1', WEEKDAYS, NOW);
+  saveFocusPack(st, { id: 'p2', name: 'Más', allowSites: [], allowApps: [], defaultMinutes: 50 }, NOW);
+  startFocus(st, 'p2', 480, MON(8, 59));
+  assert.equal(tick(st, MON(9, 1)), true);
+  assert.deepEqual(st.focusRun, { packId: 'p1', startedAt: MON(9), endsAt: MON(12) }, 'az ablak jött');
+  const row = st.focusLog!.at(-1)!;
+  assert.equal(row.packId, 'p2');
+  assert.equal(row.endedAt, MON(9, 1), 'a másik menet a naplóba a saját idejével');
+  assert.equal(row.stopped, false, 'nem leállítva: az ablak jött');
+});
+
+test('a saját csomag kézi menete az ablakon belül nem szakad meg, és nem költi el az ablakot', () => {
+  // Egy perc kézi menet a kör tizenöt másodperces résében — nem válthatja
+  // ki a háromórás ablakot.
+  const st = stateWithPack();
+  setFocusRecurrence(st, 'p1', WEEKDAYS, NOW);
+  startFocus(st, 'p1', 5, MON(9) + 5_000);
+  tick(st, MON(9) + 20_000);
+  assert.equal(st.focusRun?.startedAt, MON(9) + 5_000, 'a kézi menet marad');
+  // Rendes kör-ütemben, hogy az óra-ugrás elnyelése ne tolja a kézi menetet.
+  for (let m = 1; m <= 6; m++) tick(st, MON(9, m));
+  assert.deepEqual(st.focusRun, { packId: 'p1', startedAt: MON(9), endsAt: MON(12) },
+    'a kézi menet után az ablak menete indul, az ablak kezdésével');
+  assert.equal(st.focusLog!.at(-1)!.startedAt, MON(9) + 5_000, 'a kézi menet a naplóban');
+});
+
+test('a levétel próbatétele lejárt, még nem takarított ablak-menetet is lezár', () => {
+  // Levétel 8:58-kor; az ablak 9:01-kor indít; a gép alszik; a próbatétel
+  // 12:00 után készül el, a kör még nem takarította el a lejárt menetet.
+  // Nem maradhat ott ablak nélkül: a következő kör kézi menetként tolná.
+  const st = stateWithPack();
+  setFocusRecurrence(st, 'p1', WEEKDAYS, NOW);
+  setFocusRecurrence(st, 'p1', null, MON(8, 58));
+  tick(st, MON(9, 1));
+  assert.ok(st.focusRun);
+  solveWholeSession(st, MON(12) + 30_000);
+  assert.equal(st.focusRun, null, 'a lejárt menet is lezárult');
+  const row = st.focusLog!.at(-1)!;
+  assert.equal(row.startedAt, MON(9));
+  assert.equal(row.endedAt, MON(12), 'a tervezett végével');
+  assert.equal(row.stopped, false, 'magától járt le, nem a próbatétel állította le');
+  assert.equal(recurrenceOf(st), undefined);
+  tick(st, MON(12, 1));
+  assert.equal(st.focusRun, null, 'semmi nem támad fel');
 });
 
 test('a kézi menet a próbatétel alatt nem az ablaké — azt a levétel nem zárja le', () => {
