@@ -98,6 +98,7 @@ interface FocusPack {
   allowSites: string[];      // aldomainek is átmennek
   allowApps: string[];       // részleges, kis-nagybetű-független egyezés
   defaultMinutes: number;
+  recurrence?: Band;         // heti ablak: napok, kezdés, vég — magától indul
 }
 
 interface FocusRun { packId: string; startedAt: number; endsAt: number }
