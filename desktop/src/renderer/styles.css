@@ -1177,5 +1177,6 @@ body[data-motion="on"][data-bg="nyugalom"] .bg-blob-1 { animation: drift-1 52s e
 }
 
 /* A heti ablak két időmezője egymás mellett: a teljes szélesség itt fölösleges. */
-.time-field { width: 8.5em; flex: 0 0 auto; }
+.time-field { width: 10.5em; flex: 0 0 auto; }
 .recurrence-editor .chips { margin-top: 0; }
+.recurrence-times { align-items: center; }

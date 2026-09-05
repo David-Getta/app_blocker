@@ -989,7 +989,7 @@ function recurrenceEditor(pack: FocusPack, overlay: HTMLElement): HTMLElement {
   paint();
   wrap.appendChild(chips);
 
-  const times = h('div', 'row-gap');
+  const times = h('div', 'row-gap recurrence-times');
   const start = h('input', 'alias-input time-field') as HTMLInputElement;
   start.type = 'time';
   start.value = minutesLabel(current?.startMin ?? 9 * 60);
@@ -998,9 +998,9 @@ function recurrenceEditor(pack: FocusPack, overlay: HTMLElement): HTMLElement {
   end.type = 'time';
   end.value = minutesLabel(current?.endMin ?? 12 * 60);
   end.setAttribute('aria-label', 'vég');
-  times.append(start, h('span', 'micro', '–'), end);
+  times.append(start, h('span', undefined, '–'), end);
   wrap.appendChild(times);
-  wrap.appendChild(h('p', 'micro',
+  wrap.appendChild(h('p', 'hint',
     (current ? `Most: ${recurrenceLabel(current)}. ` : '')
     + 'Az ablakban a menet magától indul, és a végéig tart — a gépen és a telefonon is. '
     + 'Felvenni és bővíteni egy kattintás; szűkíteni vagy levenni próbatétel. Legfeljebb nyolc óra.'));
@@ -1115,7 +1115,7 @@ function openFocusEditor(pack: FocusPack | null): void {
   // nincs azonosító, amihez kötni lehetne — előbb a mentés.
   box.appendChild(h('label', undefined, 'Magától induljon (heti ablak)'));
   if (pack) box.appendChild(recurrenceEditor(pack, overlay));
-  else box.appendChild(h('p', 'micro', 'A csomag mentése után állítható be.'));
+  else box.appendChild(h('p', 'hint', 'A csomag mentése után állítható be.'));
   modal.appendChild(box);
 
   modal.appendChild(h('p', 'hint',
