@@ -189,6 +189,44 @@ async function main() {
     }
   }
 
+  // A FELUGRÓ LAP. Az ikonra kattintva eddig nem történt semmi; most egy
+  // pillantás: összekötve-e, fut-e munkamenet, mi van zárva — ugyanabból a
+  // tárolt állapotból, ugyanazokkal a frissességi szabályokkal, mint a tiltó
+  // lap. A tárolt állapotot a lap ELŐTT adjuk be (a hamis chrome után fut).
+  await page.addInitScript(`
+    window.__disk['breaker.applink'] = {
+      token: 'JOKOD', port: 8788, rules: [{ host: 'youtube.com', path: '/@valaki' }],
+      channels: [{ host: 'youtube.com', allow: ['@x'] }],
+      focus: { running: true, name: 'Nyelvtanulás', endsAt: Date.now() + 42 * 60000, allowSites: ['duolingo.com'] },
+      closed: [
+        { host: 'youtube.com', reason: 'always', until: 0 },
+        { host: 'gemini.google.com', reason: 'cooldown', until: Date.now() + 9 * 60000 },
+        { host: 'lejart.example', reason: 'limit', until: Date.now() - 1000 },
+      ],
+      fetchedAt: Date.now(), attemptedAt: Date.now(), error: null,
+    };
+  `);
+  await page.goto(`http://127.0.0.1:${port}/popup.html`);
+  await page.waitForFunction(
+    () => /Összekötve/.test(document.getElementById('state')?.textContent || ''),
+    undefined, { timeout: 10_000 },
+  ).catch(() => failures.push('a felugró lap nem mondja, hogy összekötve van'));
+  const popupText = await page.locator('body').innerText();
+  for (const must of ['Nyelvtanulás', 'gemini.google.com', 'adag-szünet', 'youtube.com', 'Részleges szabályok: 1']) {
+    if (!popupText.includes(must)) failures.push(`a felugró lapról hiányzik: ${must}`);
+  }
+  if (popupText.includes('lejart.example')) failures.push('a lejárt zárás ott maradt a felugró lapon');
+  // A Beállítások gomb tényleg a beállításokhoz visz — és a lap bezáródik.
+  await page.evaluate(() => {
+    window.__optionsOpened = 0;
+    window.chrome.runtime.openOptionsPage = () => { window.__optionsOpened += 1; };
+    window.close = () => { window.__closed = true; };
+  });
+  await page.getByRole('button', { name: 'Beállítások' }).click();
+  const opened = await page.evaluate(() => [window.__optionsOpened, window.__closed === true]);
+  if (opened[0] !== 1) failures.push('a Beállítások gomb nem nyitja a beállításokat');
+  if (!opened[1]) failures.push('a Beállítások gomb után a felugró lap nyitva maradt');
+
   await browser.close();
   server.close();
 

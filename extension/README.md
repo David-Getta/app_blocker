@@ -72,6 +72,17 @@ Amíg az app nincs nyitva, a legutóbb letöltött lista marad érvényben — v
 **tovább tilt**, nem enged át. A híd csak a saját gépen belül él (`127.0.0.1`),
 kóddal védett, és **csak olvas**: ezen az úton semmit nem lehet feloldani.
 
+### A felugró lap (az ikonra kattintva)
+
+Egy pillantás, módosítás nélkül: összekötve van-e az app és mennyire friss,
+amit tud; fut-e munkamenet (név, hátralévő idő, hány cím engedett); mi van
+**most zárva** az app szerint (okkal és hátralévő idővel); hány részleges
+szabály és csatorna-szűrő él. Ugyanabból a tárolt állapotból beszél, amiből a
+tiltó lap, és ugyanazokkal a szabályokkal: a zárva-lista csak három
+lehúzásnyi ideig számít frissnek, a lejárt bejegyzés nem zárás, a munkamenet
+lejáratát helyben nézi. Összekötetlenül az app állapotáról nem beszél. A
+Beállítások gomb a beállítási lapra visz — minden, ami módosítás, ott van.
+
 ## Mit csinál pontosan
 
 1. **Megállítja a navigációt**, ha a cím a szabály alá esik — a saját tiltó lapja
@@ -126,6 +137,7 @@ valamit, amit a felhasználó nem tiltott le.
 | `content.js` | a találatok elrejtése + a lejátszó-oldal feltöltőjének kiolvasása |
 | `options.html/js` | a szabályok kezelése |
 | `blocked.html/js` | a tiltó lap |
+| `popup.html/js` + `popup-core.js` | a felugró lap az ikonon; a mag tiszta, a kiszállított bájtokon tesztelt |
 
 ## Hogy a szabály ne jelentsen mást itt és az appban
 

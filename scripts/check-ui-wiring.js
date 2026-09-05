@@ -39,6 +39,11 @@ const SURFACES = [
     html: 'extension/options.html',
     code: ['extension/options.js'],
   },
+  {
+    name: 'bővítmény felugró lapja',
+    html: 'extension/popup.html',
+    code: ['extension/popup.js'],
+  },
 ];
 
 const problems = [];

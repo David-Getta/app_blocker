@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="hu">
+<head>
+<meta charset="utf-8">
+<title>Breaker</title>
+<style>
+  body {
+    margin: 0; min-width: 300px; max-width: 340px; padding: 12px 14px;
+    font: 13px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+    color: #e8ecf2; background: #14161b;
+  }
+  h1 { font-size: 14px; margin: 0 0 6px; letter-spacing: .02em; }
+  .row { margin: 8px 0; }
+  .muted { color: #9aa3b2; }
+  .warn { color: #f0b35a; }
+  .ok { color: #7dd3a0; }
+  ul { margin: 4px 0 0; padding-left: 18px; }
+  li { margin: 2px 0; }
+  button {
+    margin-top: 10px; padding: 6px 10px; border-radius: 8px; cursor: pointer;
+    border: 1px solid #3a4150; background: #20242c; color: inherit; font: inherit;
+  }
+  button:hover { background: #2a2f39; }
+  .foot { margin: 10px 0 0; font-size: 11.5px; color: #7f8797; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+  <h1>Breaker</h1>
+  <!-- Összekötve-e az app, és mennyire friss, amit tudunk. -->
+  <div id="state" class="row"></div>
+  <!-- A futó munkamenet: név, hátralévő idő, hány cím engedett. -->
+  <div id="focus" class="row" hidden></div>
+  <!-- Mi van MOST zárva az app szerint — csak friss listából. -->
+  <div id="closedBox" class="row" hidden>
+    <div id="closedTitle"></div>
+    <ul id="closedList"></ul>
+    <div id="closedMore" class="muted" hidden></div>
+  </div>
+  <div id="counts" class="row muted"></div>
+  <button id="openOptions">Beállítások</button>
+  <p class="foot">A teljes oldal-tiltást az app tartja DNS-szinten — ez a lap csak
+    elmondja, mi van most. Vendég módban a bővítmény nem fut, inkognitóban
+    csak akkor, ha engedélyezed.</p>
+  <script type="module" src="popup.js"></script>
+</body>
+</html>
