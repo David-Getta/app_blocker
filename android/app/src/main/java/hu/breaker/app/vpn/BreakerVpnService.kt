@@ -121,7 +121,13 @@ class BreakerVpnService : VpnService() {
         val cooling = if (run == null) BreakerStore.coolingSites(now) else emptyList()
         val title: String
         val text: String
-        if (run != null) {
+        // A szigorú Privát DNS a legfontosabb mondanivaló: a szűrő fut, a
+        // rendszer mégis mellette viszi a névfeloldást — a tiltás nem érvényesül.
+        val strictDns = PrivateDns.strictHostname(this)
+        if (strictDns != null) {
+            title = getString(R.string.vpn_privatedns_title)
+            text = getString(R.string.vpn_privatedns_text, strictDns)
+        } else if (run != null) {
             title = getString(R.string.vpn_focus_title, pack?.name ?: "Munkamenet")
             text = getString(R.string.vpn_focus_text, Focus.formatRemaining(run.endsAt - now))
         } else if (cooling.isNotEmpty()) {
@@ -158,7 +164,10 @@ class BreakerVpnService : VpnService() {
     private fun refreshNotification() {
         val now = System.currentTimeMillis()
         val run = BreakerStore.runningFocus(now)
-        val key = if (run != null) {
+        // A Privát DNS állapota is a kulcs része: átállításkor azonnal
+        // átrajzolunk, közben nem.
+        val strictKey = if (PrivateDns.strictHostname(this) != null) "strict:" else ""
+        val key = strictKey + if (run != null) {
             "${run.packId}:${Focus.formatRemaining(run.endsAt - now)}"
         } else {
             // A hűtés is a kulcs része: induláskor, percváltásnál és lejáratkor

@@ -14,6 +14,8 @@
     <string name="vpn_burst_text">Szünet — még %1$s, utána magától kinyílik.</string>
     <string name="vpn_burst_title_many">Adag betelt: %1$d oldal szünetel</string>
     <string name="vpn_burst_text_many">A leghamarabbi %1$s múlva nyílik magától.</string>
+    <string name="vpn_privatedns_title">A tiltás most nem érvényesül</string>
+    <string name="vpn_privatedns_text">A rendszer szigorú Privát DNS-e (%1$s) megkerüli a Breaker szűrőjét. Beállítások → Hálózat és internet → Privát DNS: állítsd Automatikusra.</string>
     <string name="vpn_revoked_title">A Breaker védelem kikapcsolt!</string>
     <string name="vpn_revoked_text">Egy másik alkalmazás vagy beállítás leállította a VPN-t. Nyisd meg a Breakert a visszakapcsoláshoz.</string>
 </resources>

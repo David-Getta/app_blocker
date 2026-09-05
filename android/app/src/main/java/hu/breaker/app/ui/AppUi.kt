@@ -86,6 +86,7 @@ import hu.breaker.app.core.UsageLogic
 import hu.breaker.app.update.UpdateChecker
 import hu.breaker.app.usage.UsageTracker
 import hu.breaker.app.vpn.BreakerVpnService
+import hu.breaker.app.vpn.PrivateDns
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -269,6 +270,13 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                 .padding(18.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
+            // PRIVÁT DNS. A rendszer szigorú Privát DNS-e a VPN mellett, TLS-en
+            // viszi a névfeloldást — a szűrő nem látja, a tiltás nem érvényesül,
+            // és az app közben zöldet mutatna. Kényszeríteni nem tudjuk,
+            // kimondani igen. Néhány másodpercenként újraolvassuk (a `now`
+            // kulcs), hogy a beállítás átállítása után a kártya magától tűnjön el.
+            val strictDns = remember(now / 5000) { PrivateDns.strictHostname(context) }
+
             // Header
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -283,10 +291,36 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                     Text("Breaker", style = MaterialTheme.typography.titleLarge)
                 }
                 StatusDot(
-                    text = if (vpnRunning) "Védelem aktív" else "Védelem kikapcsolva",
-                    color = if (vpnRunning) MaterialTheme.colorScheme.secondary
+                    text = when {
+                        !vpnRunning -> "Védelem kikapcsolva"
+                        strictDns != null -> "A tiltás nem érvényesül"
+                        else -> "Védelem aktív"
+                    },
+                    color = if (vpnRunning && strictDns == null) MaterialTheme.colorScheme.secondary
                     else MaterialTheme.colorScheme.error,
                 )
+            }
+
+            if (vpnRunning && strictDns != null) {
+                Card {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            "A Privát DNS megkerüli a szűrőt",
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                        Text(
+                            "A rendszer Privát DNS beállítása szigorú módban áll („$strictDns”): a " +
+                                "névfeloldás titkosítva, közvetlenül annak a kiszolgálónak megy — a " +
+                                "Breaker szűrője mellett. Amíg így van, a tiltás NEM érvényesül. Állítsd " +
+                                "Automatikusra vagy kapcsold ki: Beállítások → Hálózat és internet → Privát DNS.",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                        OutlinedButton(onClick = { context.startActivity(PrivateDns.settingsIntent()) }) {
+                            Text("Hálózati beállítások")
+                        }
+                    }
+                }
             }
 
             // FUTÓ MUNKAMENET. Ez a telefonon fehérlista: amíg megy, csak a

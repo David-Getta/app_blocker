@@ -300,6 +300,13 @@ Két konkrét dolog, amit érdemes előre tudni:
 - **macOS-en a böngésző-DoH kikapcsolása nem zár, csak alapértelmezést állít.**
   MDM-profil nélkül a Chromium ajánlásnak veszi a gépszintű beállítást, tehát
   visszakapcsolható. Windowson ez házirend-kulcs, ott zár.
+- **Androidon a rendszer szigorú Privát DNS-e megkerüli a szűrőt** (megadott
+  kiszolgálónévvel a névfeloldás TLS-en, a VPN mellett megy). Kényszeríteni
+  nem tudjuk; az app észleli, a korong és a tartós értesítés kimondja, és a
+  hálózati beállításokhoz visz. Az „Automatikus” mód rendben van.
+- **A gépen az önteszt tényt mond, nem garanciát:** ötpercenként a rendszer
+  feloldóját kérdezi a tiltott nevekről, és szól, ha nem a tiltó címre
+  oldódnak — a böngésző saját DoH-ját viszont nem látja.
 
 ## Következő lépések (ötletek a bővítéshez)
 

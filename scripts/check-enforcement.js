@@ -274,6 +274,22 @@ const WIRES = [
     lost: 'a telefonon a futó hűtésről senki nem szólna — a böngésző hibalapja '
       + 'meghibásodásnak látszana, nem szünetnek',
   },
+  // A SZIGORÚ PRIVÁT DNS a telefon legcsendesebb kiskapuja: a rendszer a VPN
+  // mellett, TLS-en viszi a névfeloldást, a szűrő nem látja. Kényszeríteni
+  // nem tudjuk, kimondani igen — a főképernyőn ÉS az értesítésben; ha
+  // bármelyik hallgatna, a telefon zöldet mutatna egy megkerült szűrő mellett.
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/AppUi.kt',
+    needle: 'PrivateDns.strictHostname(context)',
+    lost: 'a főképernyő zöldet mutatna, miközben a szigorú Privát DNS megkerüli '
+      + 'a szűrőt',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/vpn/BreakerVpnService.kt',
+    needle: 'PrivateDns.strictHostname(this)',
+    lost: 'a tartós értesítés „Védelem aktív”-ot mondana egy megkerült szűrő '
+      + 'mellett — pont ott, ahova a telefonon nézni lehet',
+  },
   // Ugyanez a gépen két szem: a lépegető megkérdezése és a kirakás. Bármelyik
   // kiesésével minden fordulna tovább — csak épp senki nem szólna.
   {

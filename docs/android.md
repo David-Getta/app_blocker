@@ -30,6 +30,15 @@ cd android
   kikényszeríteni MDM/eszközadminisztrátor nélkül — ez tudatos döntés.
 - A beépített DNS-over-HTTPS-t használó appok elméletileg megkerülhetik; a
   rendszerszintű DNS-t viszont szűrjük.
+- **A rendszer szigorú Privát DNS-e megkerüli a szűrőt** (Beállítások →
+  Hálózat és internet → Privát DNS, megadott kiszolgálónévvel): a
+  névfeloldás TLS-en, közvetlenül a megadott kiszolgálónak megy, a VPN
+  mellett — a tiltás ilyenkor nem érvényesül. Kényszeríteni nem tudjuk
+  (rendszerbeállítás), kimondani igen: az app észleli (`vpn/PrivateDns.kt`),
+  a főképernyő korongja és a tartós értesítés is ezt mondja, a kártya a
+  hálózati beállításokhoz visz. Az „Automatikus” mód nem gond: ott a rendszer
+  a VPN DNS-ét próbálja TLS-en, nem kap választ, és sima kérdéssel folytatja,
+  amit a szűrő lát.
 
 ## A közös mag tesztelése JVM-en
 A `core/ChallengeEngine.kt`, `core/Blocklist.kt` és a `vpn/DnsEngine.kt` tiszta
