@@ -106,6 +106,8 @@ function blockedUrl(hit, fromUrl) {
       focus: hit.focus.name || 'Munkamenet',
       endsAt: String(hit.focus.endsAt || 0),
     });
+    // A heti ablak menete: a lap mondja ki, hogy nem gombnyomásra indult.
+    if (hit.focus.window === true) q.set('window', '1');
     return chrome.runtime.getURL(`blocked.html?${q.toString()}`);
   }
   if (hit.reason === 'closed') {

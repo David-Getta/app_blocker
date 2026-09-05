@@ -9,6 +9,8 @@ const focus = params.get('focus');
 if (focus) {
   document.getElementById('focusCard').hidden = false;
   document.getElementById('focusName').textContent = focus;
+  // Nem gombnyomásra indult: aki nem maga indította, itt tudja meg, miért fut.
+  if (params.get('window') === '1') document.getElementById('focusWindow').hidden = false;
   const endsAt = Number(params.get('endsAt'));
   const left = () => {
     const ms = endsAt - Date.now();

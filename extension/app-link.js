@@ -105,6 +105,9 @@ export async function loadLink() {
       allowSites: Array.isArray(focus.allowSites)
         ? focus.allowSites.filter((h) => typeof h === 'string' && h)
         : [],
+      // A heti ablak szerint indult (nem gombnyomásra): a felugró és a tiltó
+      // lap ezt kimondja, hogy aki nem maga indította, tudja, miért fut.
+      window: focus.window === true,
     },
     // A MOST zárva lévő hosztnevek, okkal — a tiltó lap ebből magyaráz. A
     // frissessége számít, ezért a döntés nem innen, hanem a `closedFor`-ból jön.

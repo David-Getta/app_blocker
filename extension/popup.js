@@ -21,7 +21,8 @@ async function render() {
   focus.hidden = d.focus === null;
   if (d.focus) {
     focus.textContent = `Munkamenet: ${d.focus.name} — még ${d.focus.left}. `
-      + `${d.focus.allowed} cím engedve, minden más tiltva.`;
+      + `${d.focus.allowed} cím engedve, minden más tiltva.`
+      + (d.focus.window ? ' A heti ablak szerint indult; a vége az ablak vége.' : '');
   }
 
   const box = $('closedBox');

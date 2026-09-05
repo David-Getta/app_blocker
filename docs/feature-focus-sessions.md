@@ -352,7 +352,10 @@ A gépen az app **értesítést dob**, amikor az ablak menete feltűnik — akko
 ha az app később nyílt meg, mint ahogy a menet indult. Aki nem maga indította,
 tudja meg, miért van minden zárva, és meddig. A kézzel indított menet nem szól:
 azt a felhasználó indította. Engedély híján a kártya és a felső sori jelzés
-mondja ugyanezt.
+mondja ugyanezt. A böngészőben is ott van: a bővítmény felugró lapja és a
+tiltó lapja kimondja, ha a menet az ablak szerint indult — a híd viszi át a
+jelet a többi adattal együtt, és egy régebbi app, ami nem küld ilyet, nem
+ablak, hanem sima menet.
 
 ### Őszinte korlátok
 

@@ -51,7 +51,13 @@ export function describePopup(link, now, freshMs) {
 
   const f = link?.focus;
   const focus = f && f.running === true && f.endsAt > now
-    ? { name: f.name || 'Munkamenet', left: spanText(f.endsAt - now), allowed: (f.allowSites ?? []).length }
+    ? {
+      name: f.name || 'Munkamenet',
+      left: spanText(f.endsAt - now),
+      allowed: (f.allowSites ?? []).length,
+      // A heti ablak menete: a lap kimondja, hogy nem gombnyomásra indult.
+      window: f.window === true,
+    }
     : null;
 
   let state;

@@ -84,7 +84,9 @@ kóddal védett, és **csak olvas**: ezen az úton semmit nem lehet feloldani.
 ### A felugró lap (az ikonra kattintva)
 
 Egy pillantás, módosítás nélkül: összekötve van-e az app és mennyire friss,
-amit tud; fut-e munkamenet (név, hátralévő idő, hány cím engedett); mi van
+amit tud; fut-e munkamenet (név, hátralévő idő, hány cím engedett — és ha a
+heti ablak szerint indult, azt is kimondja, mert aki nem maga indította, nem
+tudná, miért fut); mi van
 **most zárva** az app szerint (okkal és hátralévő idővel); hány részleges
 szabály és csatorna-szűrő él. Ugyanabból a tárolt állapotból beszél, amiből a
 tiltó lap, és ugyanazokkal a szabályokkal: a zárva-lista csak három

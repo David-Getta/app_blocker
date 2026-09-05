@@ -189,6 +189,7 @@ interface LinkApi {
   loadLink: () => Promise<{ token: string | null; port: number | null;
     rules: { host: string; path: string }[];
     channels: { host: string; allow: string[] }[];
+    focus: { running: boolean; name: string; endsAt: number; allowSites: string[]; window: boolean };
     fetchedAt: number; error: string | null }>;
   setToken: (t: string) => Promise<string | null>;
   forgetToken: () => Promise<void>;
@@ -450,6 +451,22 @@ test('a session ends on its own clock, not on the app being open', async () => {
   // És amíg fut, az app elérhetetlensége nem oldja fel.
   await ext.pullFromApp(1000 + 30_000, async () => { throw new Error('ECONNREFUSED'); });
   assert.equal(ext.focusActive(await ext.loadLink(), 1000 + 30_000), true);
+});
+
+test('a heti ablak jele túléli a tárolást, a hiánya pedig hamis', async () => {
+  // A híd mondja meg, hogy a menet az ablak szerint indult; a bővítmény
+  // tárolja, és a felugró meg a tiltó lap ebből beszél. Egy régebbi app,
+  // ami nem küld ilyet, nem ablak — nem „ismeretlen”.
+  const ext = freshLink() as FocusApi;
+  await ext.setToken('K');
+  await ext.pullFromApp(1000, fakeAppWithFocus(8788, 'K', {
+    running: true, name: 'Mély munka', endsAt: 1000 + 3600_000, allowSites: ['github.com'], window: true,
+  }));
+  assert.equal((await ext.loadLink()).focus.window, true);
+  await ext.pullFromApp(2000, fakeAppWithFocus(8788, 'K', {
+    running: true, name: 'Mély munka', endsAt: 2000 + 3600_000, allowSites: ['github.com'],
+  }));
+  assert.equal((await ext.loadLink()).focus.window, false);
 });
 
 test('no session means the whitelist does not bite at all', async () => {

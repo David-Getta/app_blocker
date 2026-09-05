@@ -24,7 +24,7 @@ interface Popup {
   describePopup: (link: unknown, now: number, freshMs: number) => {
     state: { kind: string; text: string };
     fresh: boolean;
-    focus: { name: string; left: string; allowed: number } | null;
+    focus: { name: string; left: string; allowed: number; window: boolean } | null;
     closed: { host: string; reason: string; left: string | null }[];
     closedMore: number;
     rules: number;
@@ -99,11 +99,27 @@ test('a munkamenet csak amíg tart — a lejáratot helyben nézzük', () => {
   const running = p.describePopup(link({
     focus: { running: true, name: 'Nyelvtanulás', endsAt: NOW + 42 * 60_000, allowSites: ['duolingo.com', 'deepl.com'] },
   }), NOW, FRESH);
-  assert.deepEqual(running.focus, { name: 'Nyelvtanulás', left: '42 p', allowed: 2 });
+  assert.deepEqual(running.focus, { name: 'Nyelvtanulás', left: '42 p', allowed: 2, window: false });
   const ended = p.describePopup(link({
     focus: { running: true, name: 'Nyelvtanulás', endsAt: NOW - 1, allowSites: [] },
   }), NOW, FRESH);
   assert.equal(ended.focus, null);
+});
+
+test('a heti ablak menete: a jel átjön, és csak a valódi igaz számít', () => {
+  // Aki nem maga indította, a felugró lapon is tudja meg, miért fut — de egy
+  // „yes” vagy egy 1 a hídról nem ablak: a jel csak boolean igazként él.
+  const p = load();
+  const windowed = p.describePopup(link({
+    focus: { running: true, name: 'Mély munka', endsAt: NOW + 60 * 60_000, allowSites: ['github.com'], window: true },
+  }), NOW, FRESH);
+  assert.equal(windowed.focus?.window, true);
+  for (const bad of ['yes', 1, undefined, null]) {
+    const d = p.describePopup(link({
+      focus: { running: true, name: 'Mély munka', endsAt: NOW + 60 * 60_000, allowSites: [], window: bad },
+    }), NOW, FRESH);
+    assert.equal(d.focus?.window, false, `window=${String(bad)}`);
+  }
 });
 
 test('sok zárva név: plafon és összegző szám', () => {

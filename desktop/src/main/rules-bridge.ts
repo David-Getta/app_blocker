@@ -68,6 +68,8 @@ export interface BridgeFocus {
   /** mikor jár le — a tiltó lap ebből mondja meg, mennyi van hátra */
   endsAt?: number;
   allowSites?: string[];
+  /** a heti ablak szerint indult, nem gombnyomásra — a vége az ablak vége */
+  window?: boolean;
 }
 
 /**

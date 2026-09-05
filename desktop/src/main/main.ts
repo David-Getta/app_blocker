@@ -12,7 +12,7 @@ import {
 } from './overlay';
 import { setupOverlayShortcut } from './overlay-shortcut';
 import { setupExtensionFolder } from './extension-folder';
-import { shouldWarnAboutApp, warnDue } from '../shared/focus';
+import { isWindowRun, shouldWarnAboutApp, warnDue } from '../shared/focus';
 import * as path from 'path';
 import { HelperClient } from './helper-client';
 import { installHelper } from './install';
@@ -248,12 +248,15 @@ if (HELPER_MODE) {
           const s = await sharedStatus();
           const run = s.focusRun;
           if (!run) return { running: false };
-          const pack = (s.focusPacks ?? []).find((p) => p.id === run.packId);
+          const packs = s.focusPacks ?? [];
+          const pack = packs.find((p) => p.id === run.packId);
           return {
             running: true,
             name: pack?.name,
             endsAt: run.endsAt,
             allowSites: pack?.allowSites ?? [],
+            // Aki nem maga indította, a böngészőben is tudja meg, miért fut.
+            window: isWindowRun(run, packs),
           };
         },
         async () => {

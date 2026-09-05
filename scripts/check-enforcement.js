@@ -263,6 +263,18 @@ const WIRES = [
       + 'mi van zárva és miért',
   },
   {
+    file: 'desktop/src/main/main.ts',
+    needle: 'window: isWindowRun(run, packs)',
+    lost: 'a híd nem mondaná meg a bővítménynek, hogy a menet a heti ablak '
+      + 'szerint indult — a felugró és a tiltó lap gombnyomásnak hinné',
+  },
+  {
+    file: 'extension/background.js',
+    needle: "if (hit.focus.window === true) q.set('window', '1')",
+    lost: 'a tiltó lap nem tudná meg, hogy a menet az ablak szerint indult — '
+      + 'a sor, ami ezt kimondja, örökre rejtve maradna',
+  },
+  {
     file: 'extension/background.js',
     needle: 'closedFor(link, hostOf(url), now)',
     lost: 'a bővítmény nem kérdezné meg, zárva-e az oldal — a hűtött oldalra '
