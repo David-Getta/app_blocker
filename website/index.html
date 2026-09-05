@@ -144,6 +144,15 @@
           rendszer egyszer rákérdez az „ismeretlen forrás” engedélyre.</li>
         <li><strong>iPhone:</strong> az Apple szabályai miatt az iOS-t az App Store-ból
           (vagy TestFlight tesztelőként) lehet telepíteni.</li>
+        <li><strong>Ha egy tiltott oldal mégis megnyílik:</strong> az app ötpercenként
+          maga ellenőrzi, hogy a rendszer névfeloldója tényleg a tiltó címre
+          küldi-e a tiltott neveket, és <strong>szól, ha nem</strong> (tipikusan:
+          egy VPN-kliens saját feloldót használ, vagy más program is írja a
+          hosts fájlt) — a <em>Tiltás ellenőrzése</em> gombbal azonnal is
+          megnézheted. Amit ez nem lát: a böngésző saját „biztonságos DNS”
+          (DoH) beállítását — azt gépszintű házirenddel kapcsolja ki, ami
+          macOS-en csak alapértelmezés, nem kényszer. A Breaker súrlódás, nem
+          lakat: aki rendszergazdaként szándékosan megkerüli, az meg tudja.</li>
         <li><strong>Böngésző-bővítmény (részleges tiltás):</strong> ezzel nem az
           egész oldalt, hanem egy darabját lehet tiltani — például a YouTube-on
           egy-egy csatornát. A zipet ki kell csomagolni, és a böngésző fejlesztői

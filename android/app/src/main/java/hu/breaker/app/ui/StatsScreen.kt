@@ -55,6 +55,12 @@ fun StatsSection(
      * és a fedőnév meg a rejtés annyit ér, mint egy lyukas zsák.
      */
     labelOf: (String) -> String = { it },
+    /**
+     * Adag-betelések ma, oldalanként (domain → darabszám), a legtöbbször
+     * betelt elöl. A hívó a mai kulcsra szűri; itt csak kiírjuk, a címke a
+     * `labelOf`-on át megy, mint minden más.
+     */
+    burstTripsToday: List<Pair<String, Int>> = emptyList(),
     hasUsageAccess: Boolean,
     /**
      * Mikor rögzítettünk utoljára mért időt, vagy `null`, ha még soha.
@@ -138,6 +144,18 @@ fun StatsSection(
         if (summary.topToday.isNotEmpty()) {
             StatsSectionLabel("Mire ment ma az idő")
             BarList(summary.topToday, blockedDomains, markBlocked = true, labelOf = labelOf)
+        }
+
+        // ADAG-BETELÉSEK MA — a nap történetének az a fele, amit a mérés nem
+        // mutat: a szünetben töltött idő szándékosan nem könyvelődik. Nem
+        // szégyenpad: azt mutatja, hogy a szabály dolgozik. Ugyanaz a sor, mint
+        // a gépen; a címke a fedőnév/rejtés útján megy.
+        if (burstTripsToday.isNotEmpty()) {
+            Text(
+                "Adag-betelések ma: " +
+                    burstTripsToday.joinToString(", ") { (label, n) -> "${labelOf(label)} ${n}×" },
+                style = MaterialTheme.typography.bodySmall,
+            )
         }
 
         if (summary.topWeekSites.isNotEmpty()) {

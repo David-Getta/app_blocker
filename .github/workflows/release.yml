@@ -63,6 +63,9 @@ jobs:
           Módosítás, aztán a következő lenyomott kombináció lesz az új; ha
           egy másik program foglalja a mostanit, a kártya ezt kimondja.
 
+          **Androidon a statisztika is mutatja a mai adag-beteléseket** —
+          ugyanaz a sor, mint a gépen, a fedőnév és a rejtés szabályával.
+
           ### Ami a v0.4.21-ben jött
 
           **A gép is szól, amikor betelik az adag.** Eddig csak a telefon

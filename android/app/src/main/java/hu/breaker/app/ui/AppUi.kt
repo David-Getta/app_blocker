@@ -576,6 +576,16 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                 focusLabel = focusTarget?.label ?: "",
                 blockedDomains = state.sites.map { it.domain }.toSet(),
                 labelOf = siteLabel,
+                // A mai betelések oldalanként — a tegnapi bejegyzés nem számít,
+                // akkor sem, ha a flush még nem takarította ki.
+                burstTripsToday = run {
+                    val today = UsageLogic.dayKey(now)
+                    state.sites.mapNotNull { site ->
+                        state.burstTrips[site.id]
+                            ?.takeIf { it.day == today && it.count > 0 }
+                            ?.let { site.domain to it.count }
+                    }.sortedByDescending { it.second }
+                },
                 hasUsageAccess = UsageTracker.hasUsageAccess(context),
                 lastSampleAt = state.usageLastSampleAt,
                 onGrantAccess = { context.startActivity(UsageTracker.usageAccessIntent()) },
