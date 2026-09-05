@@ -24,6 +24,26 @@ import type { FocusSummary } from './focus.js';
 /** Hétfőn ettől az órától esedékes (helyi idő). */
 export const DIGEST_HOUR = 7;
 
+/**
+ * Hány napja volt az utolsó feloldás — vagy null, ha még egy sem volt.
+ *
+ * NAPTÁRI napokban, nem huszonnégy órás egységekben: a tegnap esti feloldás
+ * „tegnap”, akkor is, ha tíz órája volt — az ember napokban gondolkodik. A
+ * „feloldás nélkül” ugyanúgy kimondható tény, mint a nehézségi szint: a
+ * statisztika és a visszatekintés is ezt a hangot üti meg. Itt él, nem a
+ * `challenges.ts`-ben, mert a felület is használja, az pedig a Node
+ * `crypto`-t nem látja.
+ */
+export function daysSinceUnlock(unlockLog: number[], now: number): number | null {
+  if (unlockLog.length === 0) return null;
+  const last = Math.max(...unlockLog);
+  const dayStart = (t: number): number => {
+    const d = new Date(t);
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  };
+  return Math.max(0, Math.round((dayStart(now) - dayStart(last)) / 86_400_000));
+}
+
 /** A hét kulcsa: a hétfő helyi dátuma, ÉÉÉÉ-HH-NN. */
 export function weekKey(now: number): string {
   const d = new Date(now);

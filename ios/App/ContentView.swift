@@ -502,7 +502,16 @@ struct ContentView: View {
     private var tierLine: some View {
         let tier = ChallengeEngine.computeTier(store.state.unlockLog, now: now)
         let names = ["alap", "emelt", "magas", "maximális"]
-        return Text("Próbatétel-nehézség: \(names[tier]) (\(tier + 1)/4) — minél többször oldasz fel, annál nehezebb.")
+        // Az utolsó feloldás napokban — a „feloldás nélkül” ugyanúgy kimondható
+        // tény, mint a nehézségi szint.
+        let streak: String
+        switch ChallengeEngine.daysSinceUnlock(store.state.unlockLog, now: now) {
+        case nil: streak = "feloldás még nem volt"
+        case 0?: streak = "utolsó feloldás: ma"
+        case 1?: streak = "utolsó feloldás: tegnap"
+        case let d?: streak = "utolsó feloldás: \(d) napja"
+        }
+        return Text("Próbatétel-nehézség: \(names[tier]) (\(tier + 1)/4) · \(streak) — minél többször oldasz fel, annál nehezebb.")
             .font(.caption).foregroundStyle(.secondary)
             .frame(maxWidth: .infinity, alignment: .center)
     }

@@ -121,6 +121,7 @@ export function statusOf(
     focusRun: isRunning(state.focusRun, now) ? state.focusRun ?? null : null,
     tier: computeTier(state.unlockLog, now),
     unlocks7d: state.unlockLog.filter((t) => t >= now - 7 * 24 * 3600_000).length,
+    lastUnlockAt: state.unlockLog.length > 0 ? Math.max(...state.unlockLog) : null,
     session: referee.currentSession(state),
     dohPolicyApplied: dohApplied,
     usageEnabled: state.usage.enabled,

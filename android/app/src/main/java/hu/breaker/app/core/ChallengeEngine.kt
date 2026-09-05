@@ -1,6 +1,7 @@
 package hu.breaker.app.core
 
 import java.security.SecureRandom
+import java.util.Calendar
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.random.asKotlinRandom
@@ -98,6 +99,22 @@ object ChallengeEngine {
     private fun stepId(): String {
         seq = (seq + 1) % 1_000_000
         return "st_${System.currentTimeMillis().toString(36)}_${seq}_${rnd.nextInt(0xFFFFFF)}"
+    }
+
+    /**
+     * Hány napja volt az utolsó feloldás — vagy null, ha még egy sem volt.
+     *
+     * NAPTÁRI napokban, nem huszonnégy órás egységekben: a tegnap esti
+     * feloldás „tegnap”, akkor is, ha tíz órája volt. A `challenges.ts` tükre.
+     */
+    fun daysSinceUnlock(unlockLog: List<Long>, now: Long): Int? {
+        val last = unlockLog.maxOrNull() ?: return null
+        fun dayStart(t: Long): Long = Calendar.getInstance().apply {
+            timeInMillis = t
+            set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+        }.timeInMillis
+        return max(0L, Math.round((dayStart(now) - dayStart(last)) / 86_400_000.0)).toInt()
     }
 
     fun computeTier(unlockLog: List<Long>, now: Long): Int {

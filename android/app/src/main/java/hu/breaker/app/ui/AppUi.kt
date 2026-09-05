@@ -644,8 +644,16 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
 
             val tier = ChallengeEngine.computeTier(state.unlockLog, now)
             val names = listOf("alap", "emelt", "magas", "maximális")
+            // Az utolsó feloldás napokban — a „feloldás nélkül” ugyanúgy
+            // kimondható tény, mint a nehézségi szint.
+            val streak = when (val d = ChallengeEngine.daysSinceUnlock(state.unlockLog, now)) {
+                null -> "feloldás még nem volt"
+                0 -> "utolsó feloldás: ma"
+                1 -> "utolsó feloldás: tegnap"
+                else -> "utolsó feloldás: $d napja"
+            }
             Text(
-                "Próbatétel-nehézség: ${names[tier]} (${tier + 1}/4) — minél többször oldasz fel, annál nehezebb.",
+                "Próbatétel-nehézség: ${names[tier]} (${tier + 1}/4) · $streak — minél többször oldasz fel, annál nehezebb.",
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.fillMaxWidth(),
                 textAlign = TextAlign.Center,

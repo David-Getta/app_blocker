@@ -150,6 +150,8 @@ export interface StatusData {
   /** difficulty tier 0..3 derived from recent unlocks */
   tier: number;
   unlocks7d: number;
+  /** az utolsó feloldás ideje (epoch ms), vagy null, ha még egy sem volt */
+  lastUnlockAt?: number | null;
   session: SessionInfo | null;
   dohPolicyApplied: boolean;
   /** whether active-time measurement is switched on */

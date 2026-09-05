@@ -89,6 +89,18 @@ enum ChallengeEngine {
         return "st_\(ts)_\(seq)_\(Int.random(in: 0..<0xFFFFFF))"
     }
 
+    /// Hány napja volt az utolsó feloldás — vagy nil, ha még egy sem volt.
+    /// NAPTÁRI napokban, nem huszonnégy órás egységekben: a tegnap esti
+    /// feloldás „tegnap”, akkor is, ha tíz órája volt. A `digest.ts` tükre.
+    static func daysSinceUnlock(_ unlockLog: [Double], now: Double) -> Int? {
+        guard let last = unlockLog.max() else { return nil }
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone.current
+        let today = cal.startOfDay(for: Date(timeIntervalSince1970: now / 1000))
+        let then = cal.startOfDay(for: Date(timeIntervalSince1970: last / 1000))
+        return max(0, Int((today.timeIntervalSince(then) / 86_400).rounded()))
+    }
+
     static func computeTier(_ unlockLog: [Double], now: Double) -> Int {
         let weekAgo = now - 7 * 24 * 3_600_000
         let n = unlockLog.filter { $0 >= weekAgo && $0 <= now }.count

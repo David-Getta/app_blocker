@@ -19,7 +19,7 @@ import { HELPER_VERSION } from '../shared/protocol.js';
 import { normalizeRule, ruleLabel } from '../shared/urlrules.js';
 import { MAX_BURST_MINUTES, MAX_COOLDOWN_MINUTES, normalizeBurst } from '../shared/burst.js';
 import { stepBurstNotices, type BurstNotice, type BurstWatch } from '../shared/burst-notify.js';
-import { digestDue, digestText } from '../shared/digest.js';
+import { daysSinceUnlock, digestDue, digestText } from '../shared/digest.js';
 import {
   acceleratorFromKeyEvent, DEFAULT_OVERLAY_SHORTCUT, rejectText, shortcutLabel,
 } from '../shared/shortcut.js';
@@ -239,6 +239,20 @@ function showBurstNotice(n: BurstNotice, now: number): void {
     ? `${n.label}: az adag betelt — nyit ${fmtRemain(n.until - now)} múlva.`
     : `${n.label}: az adag-szünet letelt, az oldal újra nyitva.`;
   new Notification('Breaker', { body });
+}
+
+/**
+ * „ · utolsó feloldás: ma / tegnap / N napja” — vagy hogy még nem volt. A
+ * „feloldás nélkül” ugyanúgy kimondható tény, mint a nehézségi szint. Üres,
+ * ha a segéd még nem küldi a mezőt (régebbi háttérszolgáltatás).
+ */
+function unlockStreakLabel(lastUnlockAt: number | null | undefined): string {
+  if (lastUnlockAt === undefined) return '';
+  const d = daysSinceUnlock(lastUnlockAt === null ? [] : [lastUnlockAt], Date.now());
+  if (d === null) return ' · feloldás még nem volt';
+  if (d === 0) return ' · utolsó feloldás: ma';
+  if (d === 1) return ' · utolsó feloldás: tegnap';
+  return ` · utolsó feloldás: ${d} napja`;
 }
 
 // ---------------------------------------------------------------- render
@@ -1685,7 +1699,7 @@ function setupChannelCard(): void {
 function renderTier(st: StatusData): void {
   const names = ['alap', 'emelt', 'magas', 'maximális'];
   $('tierLine').textContent =
-    `Próbatétel-nehézség: ${names[st.tier]} (${st.tier + 1}/4) · ${st.unlocks7d} feloldás az elmúlt 7 napban — minél többször oldasz fel, annál nehezebb.`;
+    `Próbatétel-nehézség: ${names[st.tier]} (${st.tier + 1}/4) · ${st.unlocks7d} feloldás az elmúlt 7 napban${unlockStreakLabel(st.lastUnlockAt)} — minél többször oldasz fel, annál nehezebb.`;
 }
 
 /**

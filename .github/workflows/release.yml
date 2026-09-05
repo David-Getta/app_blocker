@@ -51,6 +51,11 @@ jobs:
           és csak akkor, ha az app fut; a rejtett vagy fedőnevű címet az
           értesítés sem mondja ki.
 
+          **„Utolsó feloldás: N napja.”** A próbatétel-nehézség sora a
+          gépen és a telefonon is kimondja, mikor volt az utolsó feloldás
+          — vagy hogy még egy sem. Naptári napokban: a tegnap esti feloldás
+          tegnap, akkor is, ha tíz órája volt.
+
           ### Ami a v0.4.24-ben jött
 
           **Heti ablak: a munkamenet magától indul.** A csomag kaphat egy
