@@ -426,6 +426,15 @@ const WIRES = [
     needle: 'renderFocusExtensionWarning',
     lost: 'az appban nem derülne ki, hogy a bővítmény nincs összekötve',
   },
+  // A MENTETT GYORSBILLENTYŰ. Ha a fő folyamat nem a mentett kombinációt
+  // regisztrálná, a felület mást mutatna, mint ami a rendszerben él — az
+  // átállítás látszólag sikerülne, a réteg meg a régire (vagy semmire) nyílna.
+  {
+    file: 'desktop/src/main/main.ts',
+    needle: "setupOverlayShortcut(app.getPath('userData'))",
+    lost: 'a mentett kombináció nem regisztrálódna indításkor — a felület mást '
+      + 'mutatna, mint ami a rendszerben él',
+  },
   {
     file: 'desktop/src/renderer/overlay.ts',
     needle: 'extWarning',

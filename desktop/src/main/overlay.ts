@@ -124,6 +124,16 @@ export function registerOverlayShortcut(accelerator = OVERLAY_SHORTCUT): boolean
   }
 }
 
+/**
+ * EGY kombináció elengedése — átállításkor a régit engedjük el, nem mindent.
+ * Nem hiba, ha nem volt a miénk: akkor épp azért állítunk át, mert foglalt.
+ */
+export function releaseOverlayShortcut(accelerator: string): void {
+  try {
+    globalShortcut.unregister(accelerator);
+  } catch { /* nem volt regisztrálva */ }
+}
+
 export function unregisterOverlayShortcut(): void {
   try {
     globalShortcut.unregisterAll();

@@ -1153,3 +1153,16 @@ body[data-motion="on"][data-bg="nyugalom"] .bg-blob-1 { animation: drift-1 52s e
    képernyőn úgy néz ki, mintha véletlenül kerültek volna oda. */
 #chanForm { display: grid; gap: var(--s2); margin-top: var(--s4); }
 #chanForm input[type="text"], #chanForm textarea { width: 100%; }
+
+/* A gyorsbillentyű sora a Munkamenetek kártyán: felirat, gombok, üzenet egy sorban. */
+.shortcut-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s3);
+  margin: var(--s3) 0 var(--s4);
+}
+.shortcut-row.is-capturing #shortcutChangeBtn {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

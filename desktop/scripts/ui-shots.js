@@ -298,6 +298,20 @@ function fakeBridgeSource() {
       appVersion: async () => '0.0.0-demó',
       quitApp: async () => { window.__quitCalled = (window.__quitCalled || 0) + 1; },
       openReleases: async () => {},
+      // A gyorsbillentyű: a hamis híd elfogadja az átállítást és a
+      // visszaállítást, és feljegyzi, mit kapott — a füstteszt ebből tudja,
+      // hogy a rögzítő mód tényleg a hídig ér.
+      getOverlayShortcut: async () => window.__fakeShortcut
+        || { accelerator: 'CommandOrControl+Alt+B', registered: true, isDefault: true },
+      setOverlayShortcut: async (accelerator) => {
+        window.__lastShortcut = accelerator;
+        window.__fakeShortcut = { accelerator, registered: true, isDefault: false };
+        return { ok: true, info: window.__fakeShortcut };
+      },
+      resetOverlayShortcut: async () => {
+        window.__fakeShortcut = { accelerator: 'CommandOrControl+Alt+B', registered: true, isDefault: true };
+        return { ok: true, info: window.__fakeShortcut };
+      },
       getUpdateState: async () => window.__fakeUpdate,
       getTrackerState: async () => window.__fakeTracker,
       // A füstteszt innen hajtja a frissítési sávot: ugyanaz a csatorna, amit
@@ -472,6 +486,32 @@ async function main() {
     undefined, { timeout: 10_000 },
   ).catch(() => failures.push('az „Új csomag” gomb nem nyitotta meg a szerkesztőt'));
   await page.locator('.modal').getByRole('button', { name: 'Mégse' }).click();
+
+  // A GYORSBILLENTYŰ ÁTÁLLÍTÁSA. A rögzítő mód a következő lenyomott
+  // kombinációt küldi a hídnak; a felirat és a visszaállító gomb követi.
+  // Darwin-t színlelünk, tehát a Ctrl itt külön módosító (⌃), nem a fő.
+  const shortcutBefore = await page.locator('#shortcutLabel').textContent().catch(() => '');
+  if (!/⌘⌥B/.test(shortcutBefore || '')) {
+    failures.push(`a gyorsbillentyű felirata nem az alapértelmezett: ${shortcutBefore}`);
+  }
+  await page.locator('#shortcutChangeBtn').click();
+  await page.keyboard.press('Control+Shift+K');
+  const shortcutReached = await page.waitForFunction(
+    () => window.__lastShortcut === 'Control+Shift+K', undefined, { timeout: 10_000 },
+  ).then(() => true).catch(() => false);
+  if (!shortcutReached) {
+    const got = await page.evaluate(() => window.__lastShortcut);
+    failures.push(`a rögzített kombináció nem ért el a hídig: ${JSON.stringify(got)}`);
+  }
+  const shortcutAfter = await page.locator('#shortcutLabel').textContent().catch(() => '');
+  if (!/⌃⇧K/.test(shortcutAfter || '')) {
+    failures.push(`a gyorsbillentyű felirata nem követte az átállítást: ${shortcutAfter}`);
+  }
+  await page.locator('#shortcutResetBtn').click();
+  await page.waitForFunction(
+    () => /⌘⌥B/.test(document.getElementById('shortcutLabel')?.textContent || ''),
+    undefined, { timeout: 10_000 },
+  ).catch(() => failures.push('az alapértelmezett visszaállítás nem látszik a feliraton'));
 
   // A BŐVÍTMÉNY HIÁNYA nem lehet néma. A gépen a fehérlistát KIZÁRÓLAG a
   // böngésző-bővítmény tudja betartatni; ha nincs összekötve, az indítás

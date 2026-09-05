@@ -17,6 +17,9 @@ import { HELPER_VERSION } from '../shared/protocol.js';
 import { normalizeRule, ruleLabel } from '../shared/urlrules.js';
 import { MAX_BURST_MINUTES, MAX_COOLDOWN_MINUTES, normalizeBurst } from '../shared/burst.js';
 import { stepBurstNotices, type BurstNotice, type BurstWatch } from '../shared/burst-notify.js';
+import {
+  acceleratorFromKeyEvent, DEFAULT_OVERLAY_SHORTCUT, rejectText, shortcutLabel,
+} from '../shared/shortcut.js';
 import { MAX_LIMIT_MINUTES } from '../shared/limits.js';
 import {
   formatRemaining, MAX_ALLOW_ENTRIES, MAX_PACK_NAME, MAX_SESSION_MINUTES,
@@ -77,6 +80,10 @@ interface Bridge {
   appVersion?(): Promise<string>;
   quitApp?(): Promise<void>;
   openReleases?(): Promise<void>;
+  /** a réteg gyorsbillentyűje; a régi híd (frissítés előtt) nem tudja — akkor az alapértelmezés felirata áll */
+  getOverlayShortcut?(): Promise<OverlayShortcutView>;
+  setOverlayShortcut?(accelerator: string): Promise<OverlayShortcutOutcome>;
+  resetOverlayShortcut?(): Promise<OverlayShortcutOutcome>;
   platform: string;
 }
 declare global { interface Window { breaker: Bridge } }
@@ -493,6 +500,7 @@ function renderFocusCard(st: StatusData): void {
     ? 'Amíg tart, csak a csomagban felsoroltak mehetnek. Minden más tiltva.'
     : 'Egy csomag megmondja, mi mehet — és a munkamenet alatt minden más tiltva. '
       + `A réteg ${overlayShortcutLabel()} kombinációval bárhonnan előjön.`;
+  renderShortcutRow();
 
   if (running) {
     const pack = packs.find((p) => p.id === running.packId);
@@ -599,8 +607,105 @@ function renderFocusCard(st: StatusData): void {
   }
 }
 
+// ---------------------------------------------- overlay shortcut settings
+
+interface OverlayShortcutView { accelerator: string; registered: boolean; isDefault: boolean }
+type OverlayShortcutOutcome =
+  | { ok: true; info: OverlayShortcutView }
+  | { ok: false; error: string; info: OverlayShortcutView };
+
+/** Ami a fő folyamat szerint be van állítva (null = még nem kérdeztük meg). */
+let overlayShortcut: OverlayShortcutView | null = null;
+/** Rögzítő mód: a következő lenyomott kombináció lesz az új. */
+let capturingShortcut = false;
+/** Rögzítő módban az elutasítás oka (null = a szokásos kérő mondat). */
+let captureHint: string | null = null;
+/** Az utolsó átállítás eredménye — amíg valami felül nem írja. */
+let shortcutNote: { text: string; error: boolean } | null = null;
+
 function overlayShortcutLabel(): string {
-  return window.breaker.platform === 'darwin' ? '⌘⌥B' : 'Ctrl+Alt+B';
+  return shortcutLabel(overlayShortcut?.accelerator ?? DEFAULT_OVERLAY_SHORTCUT, window.breaker.platform);
+}
+
+async function refreshOverlayShortcut(): Promise<void> {
+  try {
+    const info = await window.breaker.getOverlayShortcut?.();
+    if (info) overlayShortcut = info;
+  } catch { /* régi híd: marad az alapértelmezés felirata */ }
+  renderShortcutRow();
+}
+
+/**
+ * A gyorsbillentyű sora: mi van beállítva, és a miénk-e. A „foglalt” nem
+ * hiba, hanem tény, amit ki kell mondani — enélkül a réteg némán nem nyílna,
+ * és az ember az appot hinné rossznak. A rögzítő mód szövege mindent felülír.
+ */
+function renderShortcutRow(): void {
+  $('shortcutLabel').textContent = `Gyorsbillentyű: ${overlayShortcutLabel()}`;
+  $('shortcutResetBtn').classList.toggle('hidden', overlayShortcut?.isDefault !== false);
+  let note = shortcutNote;
+  if (capturingShortcut) {
+    note = { text: captureHint ?? 'Nyomd le az új kombinációt… (Esc: mégse)', error: captureHint !== null };
+  } else if (overlayShortcut && !overlayShortcut.registered) {
+    note = {
+      text: 'Most foglalt — egy másik program használja. A réteg az appból nyitható; válassz másik kombinációt.',
+      error: true,
+    };
+  }
+  const msg = $('shortcutMsg');
+  msg.textContent = note?.text ?? '';
+  msg.classList.toggle('error', note?.error === true);
+  const change = $('shortcutChangeBtn');
+  change.textContent = capturingShortcut ? 'Mégse' : 'Módosítás';
+  change.parentElement?.classList.toggle('is-capturing', capturingShortcut);
+}
+
+async function applyOverlayShortcut(accelerator: string | null): Promise<void> {
+  try {
+    const r = accelerator === null
+      ? await window.breaker.resetOverlayShortcut?.()
+      : await window.breaker.setOverlayShortcut?.(accelerator);
+    if (!r) return;
+    overlayShortcut = r.info;
+    shortcutNote = r.ok
+      ? { text: `Kész: ${overlayShortcutLabel()} — a réteg mostantól ezzel jön elő.`, error: false }
+      : { text: r.error, error: true };
+  } catch (e) {
+    shortcutNote = { text: (e as Error).message, error: true };
+  }
+  renderShortcutRow();
+  // A munkamenet-tipp is a kombinációt írja — ne várjon a következő körre.
+  if (helperUp && status) render();
+}
+
+/**
+ * Rögzítő mód: a gomb után a KÖVETKEZŐ lenyomott kombináció lesz az új. A
+ * billentyű-esemény itt fogódik el (capture), hogy közben se gépelés, se
+ * más kezelő ne lássa — az Esc visszalép, a csak-módosító lenyomás még vár.
+ */
+function setupShortcutControls(): void {
+  const stop = (): void => { capturingShortcut = false; renderShortcutRow(); };
+  document.addEventListener('keydown', (e) => {
+    if (!capturingShortcut) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.key === 'Escape') { stop(); return; }
+    const parsed = acceleratorFromKeyEvent(e, window.breaker.platform);
+    if (!parsed.ok) {
+      if (parsed.reason !== 'modifier-only') { captureHint = rejectText(parsed.reason); renderShortcutRow(); }
+      return;
+    }
+    capturingShortcut = false;
+    void applyOverlayShortcut(parsed.accelerator);
+  }, true);
+  $('shortcutChangeBtn').addEventListener('click', () => {
+    if (capturingShortcut) { stop(); return; }
+    shortcutNote = null;
+    captureHint = null;
+    capturingShortcut = true;
+    renderShortcutRow();
+  });
+  $('shortcutResetBtn').addEventListener('click', () => { void applyOverlayShortcut(null); });
 }
 
 async function changeFocus(endsAt: number | null): Promise<void> {
@@ -3074,6 +3179,8 @@ setupInstall();
 setupUpdater();
 setupStats();
 setupChannelCard();
+setupShortcutControls();
+void refreshOverlayShortcut();
 if ('Notification' in window && Notification.permission === 'default') {
   void Notification.requestPermission();
 }

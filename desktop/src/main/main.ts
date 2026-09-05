@@ -8,9 +8,9 @@ import { app, BrowserWindow, ipcMain, Menu } from 'electron';
 import { registerSyncServerIpc } from './sync-server';
 import { extensionSeenRecently, registerRulesBridge, stopRulesBridge } from './rules-bridge-ipc';
 import {
-  hideOverlay, registerOverlayShortcut, takeWarning, toggleOverlay, unregisterOverlayShortcut,
-  warnAboutApp,
+  hideOverlay, takeWarning, toggleOverlay, unregisterOverlayShortcut, warnAboutApp,
 } from './overlay';
+import { setupOverlayShortcut } from './overlay-shortcut';
 import { shouldWarnAboutApp, warnDue } from '../shared/focus';
 import * as path from 'path';
 import { HelperClient } from './helper-client';
@@ -298,14 +298,16 @@ if (HELPER_MODE) {
       // A gyorsbillentyűs réteg: egy mozdulattal indítható munkamenet. A
       // regisztráció elbukhat (másik program elvette a kombinációt) — ez nem
       // hiba, a felület megmondja, és a réteg az appból is nyitható.
-      const shortcutOk = registerOverlayShortcut();
+      // A mentett kombináció regisztrálódik (nem az beégetett): az átállítás
+      // a Munkamenetek kártyán él, és újraindítás után is az marad.
+      const overlayShortcut = setupOverlayShortcut(app.getPath('userData'));
       // A BŐVÍTMÉNY HIÁNYA a rétegben is látszik. Ez a leggyakoribb indítási
       // út — „aki leül tanulni, nem fog előbb ablakot keresni” —, tehát ha a
       // figyelmeztetés csak az appban lenne meg, a legtöbb ember sosem látná,
       // és pont az indításnál nem tudná meg, hogy a menet a böngészőben nem
       // fog tiltani semmit.
       ipcMain.handle('breaker:overlay-state', () => ({
-        shortcutOk,
+        shortcutOk: overlayShortcut.registered(),
         warnApp: takeWarning(),
         extensionStale: !extensionSeenRecently(),
       }));

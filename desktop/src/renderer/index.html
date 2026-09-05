@@ -229,6 +229,18 @@
       -->
       <p id="focusExtWarn" class="error hidden"></p>
       <p class="hint" id="focusHint"></p>
+      <!--
+        A kombináció átállítható: rögzítő mód — a gomb után a következő
+        lenyomott kombináció lesz az új. A foglalt kombinációt a felirat
+        kimondja; egy másik program által elvett kombinációt elvenni nem
+        tudunk, csak elkerülni.
+      -->
+      <div class="shortcut-row">
+        <span id="shortcutLabel" class="micro"></span>
+        <button id="shortcutChangeBtn" class="btn btn-small btn-ghost">Módosítás</button>
+        <button id="shortcutResetBtn" class="btn btn-small btn-ghost hidden">Alapértelmezett</button>
+        <span id="shortcutMsg" class="micro"></span>
+      </div>
       <div id="focusRunning" class="focus-running hidden"></div>
       <div id="focusPacks" class="focus-packs"></div>
     </section>

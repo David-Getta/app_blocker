@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
+import type { OverlayShortcutInfo, OverlayShortcutResult } from './overlay-shortcut';
 
 export interface UpdateState {
   status: 'idle' | 'checking' | 'available' | 'downloading' | 'ready' | 'error' | 'unsupported';
@@ -82,6 +83,10 @@ export interface BreakerBridge {
   quitApp(): Promise<void>;
   /** a kiadási jegyzetek megnyitása a böngészőben */
   openReleases(): Promise<void>;
+  /** a réteg gyorsbillentyűje — mi van beállítva, és tényleg a miénk-e */
+  getOverlayShortcut(): Promise<OverlayShortcutInfo>;
+  setOverlayShortcut(accelerator: string): Promise<OverlayShortcutResult>;
+  resetOverlayShortcut(): Promise<OverlayShortcutResult>;
   platform: string;
 }
 
@@ -104,6 +109,9 @@ const bridge: BreakerBridge = {
   appVersion: () => ipcRenderer.invoke('breaker:app-version'),
   quitApp: () => ipcRenderer.invoke('breaker:quit'),
   openReleases: () => ipcRenderer.invoke('breaker:open-releases'),
+  getOverlayShortcut: () => ipcRenderer.invoke('breaker:overlay-shortcut'),
+  setOverlayShortcut: (accelerator) => ipcRenderer.invoke('breaker:overlay-shortcut-set', accelerator),
+  resetOverlayShortcut: () => ipcRenderer.invoke('breaker:overlay-shortcut-reset'),
   platform: process.platform,
 };
 

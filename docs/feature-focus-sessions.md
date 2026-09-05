@@ -26,7 +26,8 @@ Az egész funkció azon áll, hogy **egy mozdulattal induljon**. Aki leül tanul
 az nem fog előbb ablakot keresni, appot előhozni és fület váltani — addigra már
 a YouTube-on van.
 
-Ezért van egy **gyorsbillentyűs réteg** (⌘⌥B macOS-en, Ctrl+Alt+B Windowson):
+Ezért van egy **gyorsbillentyűs réteg** (alapból ⌘⌥B macOS-en, Ctrl+Alt+B
+Windowson — a kombináció a felületről átállítható):
 rááll arra, amit épp csinálsz, kilistázza a csomagokat, és számbillentyűvel
 indítható. Az Esc bezárja.
 
@@ -252,6 +253,7 @@ A bővítmény a munkamenet végét **helyben** nézi, nem az apptól kérdezi:
 | Bíró (indítás, hosszabbítás, leállítás) | `desktop/src/helper/referee.ts` |
 | Felület (csomagok, futó munkamenet) | `desktop/src/renderer/renderer.ts` |
 | Gyorsbillentyűs réteg | `desktop/src/main/overlay.ts`, `renderer/overlay.*` |
+| A gyorsbillentyű átállítása | `desktop/src/shared/shortcut.ts`, `main/overlay-shortcut.ts` |
 | A fehérlista kiadása a bővítménynek | `desktop/src/main/rules-bridge.ts` |
 | A fehérlista érvényesítése | `extension/background.js`, `extension/app-link.js` |
 | Összefésülés eszközök között | `desktop/src/shared/sync/focus-merge.ts` + Kotlin/Swift tükör |
@@ -263,7 +265,31 @@ A bővítmény a munkamenet végét **helyben** nézi, nem az apptól kérdezi:
 - [ ] Az appok tényleges tiltása (ma figyelmeztetés), platformonként külön
 - [ ] Rendszerszintű fehérlista weboldalakra: ehhez helyi DNS-feloldó kell,
       nem hosts-fájl
-- [ ] A gyorsbillentyű átállítható legyen a felületről
+- [x] A gyorsbillentyű átállítható a felületről (lásd lent)
+
+## A gyorsbillentyű átállítása
+
+A kombináció eddig be volt égetve (⌘⌥B / Ctrl+Alt+B), és ha egy másik
+program elvette, a réteg némán nem nyílt — a felület csak annyit tudott
+mondani, hogy foglalt. Mostantól a Munkamenetek kártyán **rögzítő mód** van:
+Módosítás, aztán a következő lenyomott kombináció lesz az új; Esc visszalép,
+az Alapértelmezett gomb visszaállít.
+
+A szabályok egy helyen élnek (`desktop/src/shared/shortcut.ts`), tesztekkel,
+mert két helyen kétféleképp eldőlve pont a csendes hibát szülnék:
+
+- **kombináció** = legalább egy valódi módosító (⌘/Ctrl vagy Alt) és pontosan
+  egy billentyű (betű, szám, F1–F12, szóköz). A csupasz betű és a Shift+betű
+  gépelés, nem parancs — egy ilyen regisztráció minden szövegmezőt elrontana;
+- a fő módosító platformonként más (⌘ macOS-en, Ctrl Windowson), de ugyanaz
+  az elmentett érték (`CommandOrControl`) mindkét rendszeren ugyanazt jelenti;
+- az elmentett szöveg is bemenet: sérült vagy kézzel átírt érték esetén az
+  alapértelmezés áll vissza, nem a semmi.
+
+Az átállítás csak akkor marad meg, ha a regisztráció **tényleg sikerült**;
+sikertelen kísérlet után a régi kombináció áll vissza, és a felület kimondja,
+ha az sem a miénk. Őszinte korlát: egy másik program által elvett
+kombinációt elvenni nem tudunk, csak elkerülni — ezért van az átállítás.
 
 ## A telefon eddig kiskapu volt
 

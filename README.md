@@ -114,8 +114,8 @@ attól, hogy sokszor csinálod.
 - **Munkamenetek: „most csak ez mehet”** (gép, Android, iPhone). A blokklista arról szól,
   mi NE menjen; a munkamenet fordítva: csinálsz egy csomagot (pl.
   „Nyelvtanulás”), felsorolod, mi mehet alatta, és megadod, meddig tartson.
-  Amíg tart, **minden más tiltva**. Egy **gyorsbillentyűs réteg** (⌘⌥B, illetve
-  Ctrl+Alt+B) bárhonnan előhozza, és számbillentyűvel indít — mert aki leül
+  Amíg tart, **minden más tiltva**. Egy **gyorsbillentyűs réteg** (alapból ⌘⌥B, illetve
+  Ctrl+Alt+B — a kombináció átállítható) bárhonnan előhozza, és számbillentyűvel indít — mert aki leül
   dolgozni, nem fog előbb ablakot keresni. Indítani és hosszabbítani ingyen van,
   **leállítani próbatétel**; a futó csomag közben nem szerkeszthető. A
   fehérlistát a gépen a böngésző-bővítmény érvényesíti (csak ott látszik a
