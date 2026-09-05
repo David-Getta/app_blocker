@@ -54,6 +54,39 @@ export function expandHostnames(domain: string, usePreset: boolean): string[] {
   return [...set].sort();
 }
 
+/** Egy oldalhoz ennyi hosztnév fér — a hosts fájl nem lista-tár. */
+export const MAX_HOSTNAMES_PER_SITE = 40;
+
+/**
+ * Egy KONKRÉT hosztnév normalizálása — a `normalizeDomain`-nel ellentétben a
+ * `www.` és minden aldomain megmarad, mert itt pont a konkrét név a lényeg
+ * (music.youtube.com ≠ youtube.com). Séma, felhasználó, port és út lekerül róla.
+ */
+export function normalizeHostname(input: string): string | null {
+  let s = input.trim().toLowerCase();
+  if (!s) return null;
+  s = s.replace(/^[a-z][a-z0-9+.-]*:\/\//, '');
+  s = s.replace(/^[^/@]*@/, '');
+  const slash = s.search(/[/?#]/);
+  if (slash >= 0) s = s.slice(0, slash);
+  const colon = s.indexOf(':');
+  if (colon >= 0) s = s.slice(0, colon);
+  s = s.replace(/\.+$/, '');
+  if (!DOMAIN_RE.test(s)) return null;
+  return s;
+}
+
+/**
+ * Ez a hosztnév ehhez az oldalhoz tartozik-e: maga a domain, egy aldomainje,
+ * vagy az ismert társoldalak egyike (youtu.be a youtube.com-hoz). Ami nem az,
+ * az másik oldal — azt külön kell felvenni, hogy a saját szabályai legyenek.
+ */
+export function hostnameBelongsTo(host: string, domain: string): boolean {
+  if (host === domain || host.endsWith(`.${domain}`)) return true;
+  const partners = PRESETS[domain] ?? [];
+  return partners.some((p) => host === p || host.endsWith(`.${p}`));
+}
+
 export const MARKER_BEGIN = '# >>> BREAKER BLOCK BEGIN — ezt a részt a Breaker kezeli, kézzel ne szerkeszd';
 export const MARKER_END = '# <<< BREAKER BLOCK END';
 

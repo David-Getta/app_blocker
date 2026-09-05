@@ -191,16 +191,28 @@ export function mergeSite(a: SyncSite, b: SyncSite): SyncSite {
   // versenyhelyzet sosem oldhat fel semmit.
   const strict = compareStrictness(a, b);
   if (strict !== 0) {
-    return withRules(carryPendingDelete(strict < 0 ? a : b, strict < 0 ? b : a), a, b);
+    return withHostnames(withRules(carryPendingDelete(strict < 0 ? a : b, strict < 0 ? b : a), a, b), a, b);
   }
 
   // Teljesen egyforma szigorúság: a döntetlent az idő, majd az eszközazonosító
-  // töri el, hogy determinisztikus legyen. (A fedőnév és a hosztnevek térhetnek
-  // el; ezek nem befolyásolják a blokkolást.)
+  // töri el, hogy determinisztikus legyen. (A fedőnév térhet el; a hosztnevek
+  // egyesülnek — lásd withHostnames.)
   const winner = a.updatedAt !== b.updatedAt
     ? (a.updatedAt > b.updatedAt ? a : b)
     : (a.updatedBy <= b.updatedBy ? a : b);
-  return withRules(winner, a, b);
+  return withHostnames(withRules(winner, a, b), a, b);
+}
+
+/**
+ * Egyenlő revnél a hosztnevek EGYESÜLNEK. A hosztnév-lista a tiltás része
+ * (ezek a nevek mennek a hosts fájlba): egy név levétele lazítás, ami csak
+ * próbatétel után, rev-emeléssel mehet át — azt a nagyobb rev viszi (fent).
+ * Egy versenyhelyzet (két eszköz ugyanazon a reven, mást-mást írva) sosem
+ * oldhat fel semmit, tehát itt a bővebb lista nyer. Rendezve, hogy két eszköz
+ * bájtra ugyanazt kapja. A Kotlin- és Swift-tükör ugyanezt teszi.
+ */
+function withHostnames(merged: SyncSite, a: SyncSite, b: SyncSite): SyncSite {
+  return { ...merged, hostnames: [...new Set([...a.hostnames, ...b.hostnames])].sort() };
 }
 
 function withRules(winner: SyncSite, a: SyncSite, b: SyncSite): SyncSite {

@@ -1716,12 +1716,14 @@ function siteRow(site: SiteInfo, st: StatusData): HTMLElement {
       burst.addEventListener('click', () => openBurstDialog(site));
       const alias = h('button', 'btn btn-small', 'Fedőnév');
       alias.addEventListener('click', () => openAliasDialog(site));
+      const hosts = h('button', 'btn btn-small', 'Hosztnevek');
+      hosts.addEventListener('click', () => openHostnamesDialog(site));
       const parts = h('button', 'btn btn-small',
         site.rules?.length ? `Részek · ${site.rules.length}` : 'Részek');
       parts.addEventListener('click', () => openRulesDialog(site));
       const del = h('button', 'btn btn-small btn-danger', 'Törlés');
       del.addEventListener('click', () => void startDelete(site));
-      actions.append(unlock, sched, limit, burst, alias, parts, del);
+      actions.append(unlock, sched, limit, burst, alias, hosts, parts, del);
     }
   }
 
@@ -2072,6 +2074,77 @@ function openLimitDialog(site: SiteInfo): void {
  * kinyílik. A napi keret testvére — a keret azt mondja, „ma összesen ennyi”,
  * ez azt, hogy „egyszerre csak ennyi”.
  */
+/**
+ * Az oldal hosztnevei — ezek mennek a hosts fájlba. Felvenni ingyen (csak az
+ * oldalhoz tartozó név), levenni próbatétel: a YouTube Music engedése a
+ * YouTube tiltása mellett pont egy ilyen levétel. Az oldal saját címe nem
+ * vehető le — ahhoz az oldalt kell törölni.
+ */
+function openHostnamesDialog(site: SiteInfo): void {
+  const overlay = h('div', 'overlay');
+  const modal = h('div', 'modal');
+  modal.appendChild(h('h3', undefined, `Hosztnevek: ${displayName(site)}`));
+  modal.appendChild(h('p', 'hint',
+    'Ezek a nevek mennek a tiltásba (a hosts fájlba). Felvenni egy kattintás — csak az '
+    + 'oldal aldomainje vagy ismert társoldala lehet; levenni próbatétel, ugyanúgy, mint a '
+    + 'feloldás. Példa: a YouTube Music engedése a YouTube tiltása mellett.'));
+
+  const list = h('div', 'rules-list');
+  for (const host of [...site.hostnames].sort()) {
+    const line = h('div', 'rules-line');
+    line.appendChild(h('span', 'rules-name', host));
+    if (host === site.domain) {
+      line.appendChild(h('span', 'micro', 'az oldal saját címe'));
+    } else {
+      const drop = h('button', 'btn btn-tiny btn-ghost', 'Levétel…');
+      drop.title = 'A levétel próbatétel — ugyanúgy, mint a feloldás.';
+      drop.addEventListener('click', () => void apply(host, true));
+      line.appendChild(drop);
+    }
+    list.appendChild(line);
+  }
+  modal.appendChild(list);
+
+  const input = h('input', 'alias-input') as HTMLInputElement;
+  input.type = 'text';
+  input.placeholder = `pl. music.${site.domain}`;
+  input.spellcheck = false;
+  modal.appendChild(input);
+  const err = h('p', 'error hidden');
+  modal.appendChild(err);
+
+  const actions = h('div', 'modal-actions');
+  const cancel = h('button', 'btn btn-small btn-ghost', 'Bezárás');
+  cancel.addEventListener('click', () => overlay.remove());
+  const add = h('button', 'btn btn-small btn-primary', 'Hozzáadás');
+  add.addEventListener('click', () => void apply(input.value, false));
+  const right = h('div', 'row-gap');
+  right.append(cancel, add);
+  actions.append(h('div', 'row-gap'), right);
+  modal.appendChild(actions);
+
+  async function apply(value: string, remove: boolean): Promise<void> {
+    try {
+      const r = await call<SetRuleResult & { status: StatusData }>('set_hostname', {
+        siteId: site.id, hostname: value, remove,
+      });
+      status = r.status;
+      overlay.remove();
+      render();
+    } catch (e) {
+      err.textContent = (e as Error).message;
+      err.classList.remove('hidden');
+    }
+  }
+
+  input.addEventListener('keydown', (ev) => {
+    if ((ev as KeyboardEvent).key === 'Enter') void apply(input.value, false);
+  });
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+  input.focus();
+}
+
 function openBurstDialog(site: SiteInfo): void {
   const overlay = h('div', 'overlay');
   const modal = h('div', 'modal modal-small');

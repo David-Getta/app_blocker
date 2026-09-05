@@ -65,6 +65,14 @@ attól, hogy sokszor csinálod.
   statisztikában is. A valódi cím nem tűnik el, egy gombbal **hat másodpercre**
   előhívható, aztán magától visszabújik. Ez inger-eltávolítás, nem titkosítás:
   a hosts fájlban ott a cím, és ezt a felület is kimondja.
+- **Hosztnevek oldalanként** (asztali gép; a lista szinkronnal a telefonra is
+  átmegy): egy oldal tiltása több nevet takar (`youtube.com`, `www.youtube.com`,
+  `music.youtube.com`, `youtu.be`…), és ezek a nevek mennek a hosts fájlba. A
+  lista szerkeszthető: **felvenni egy kattintás** (csak az oldal aldomainje vagy
+  ismert társoldala lehet), **levenni próbatétel** — például a YouTube Music
+  engedése a YouTube tiltása mellett. Az oldal saját címe nem vehető le, ahhoz
+  az oldalt kell törölni. Két gép ütköző listája egyesül; a levételt a
+  próbatétel utáni magasabb változat viszi át — versenyhelyzet sosem old fel.
 - **A teljes lista elrejthető** (mindhárom platform): egy kapcsoló, és az app
   minden induláskor csukott listával nyílik — csak annyi látszik, hogy „3 oldal
   van blokkolva”. A rejtés az egész felületre szól: a statisztikában

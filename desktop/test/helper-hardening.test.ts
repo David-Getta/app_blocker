@@ -454,3 +454,18 @@ test('self_test: kérésre lefut, és MINDEN status-válasz hordozza a jelentés
   const plain = (await call('status', {})).data as { selfTest?: SelfTestReport };
   assert.equal(plain.selfTest, undefined, 'jelentés nélkül a mező nincs ott');
 });
+
+test('set_hostname: a felvétel átmegy a segéden, az idegen név nem', async () => {
+  const st = (await call('status', {})).data as { sites: { id: string; domain: string }[] };
+  const yt = st.sites.find((s) => s.domain === 'youtube.com');
+  assert.ok(yt, 'a youtube.com az előző tesztekből ott van');
+  const res = await call('set_hostname', { siteId: yt!.id, hostname: 'https://Music.YouTube.com/' });
+  assert.equal(res.ok, true);
+  const data = res.data as { applied: boolean; status: { sites: { id: string; hostnames: string[] }[] } };
+  assert.equal(data.applied, true);
+  assert.ok(data.status.sites.find((s) => s.id === yt!.id)!.hostnames.includes('music.youtube.com'),
+    'a status már a bővült listát hozza');
+  const bad = await call('set_hostname', { siteId: yt!.id, hostname: 'reddit.com' });
+  assert.equal(bad.ok, false);
+  assert.equal((bad as { code?: string }).code, 'FOREIGN_HOSTNAME');
+});

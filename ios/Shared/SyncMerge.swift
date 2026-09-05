@@ -146,12 +146,22 @@ enum SyncMerge {
         }
         let strict = compareStrictness(a, b)
         if strict != 0 {
-            return withRules(strict < 0 ? carryPendingDelete(a, b) : carryPendingDelete(b, a), a, b)
+            return withHostnames(withRules(strict < 0 ? carryPendingDelete(a, b) : carryPendingDelete(b, a), a, b), a, b)
         }
         let winner: SyncSite
         if a.updatedAt != b.updatedAt { winner = a.updatedAt > b.updatedAt ? a : b }
         else { winner = a.updatedBy <= b.updatedBy ? a : b }
-        return withRules(winner, a, b)
+        return withHostnames(withRules(winner, a, b), a, b)
+    }
+
+    /// Egyenlő revnél a hosztnevek EGYESÜLNEK: a lista a tiltás része, egy név
+    /// levétele lazítás, ami csak rev-emeléssel mehet át — egy versenyhelyzet
+    /// sosem oldhat fel semmit. Rendezve, hogy két eszköz ugyanazt kapja. A
+    /// TypeScript- és Kotlin-tükör ugyanezt teszi (merge.ts withHostnames).
+    private static func withHostnames(_ merged: SyncSite, _ a: SyncSite, _ b: SyncSite) -> SyncSite {
+        var out = merged
+        out.hostnames = Array(Set(a.hostnames + b.hostnames)).sorted()
+        return out
     }
 
     private static func withRules(_ winner: SyncSite, _ a: SyncSite, _ b: SyncSite) -> SyncSite {

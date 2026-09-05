@@ -133,6 +133,24 @@ class SyncMergeTest {
     }
 
     @Test
+    fun `equal rev unions the hostnames, only a higher rev carries a removal`() {
+        // A hosztnév-lista a tiltás része. Egy név levétele lazítás, ami csak
+        // próbatétel után, rev-emeléssel mehet át; versenyhelyzet nem old fel.
+        val a = site(rev = 4, hostnames = listOf("youtube.com", "www.youtube.com"), updatedAt = 100)
+        val b = site(rev = 4, hostnames = listOf("youtube.com", "music.youtube.com"),
+            updatedAt = 200, updatedBy = "gep-b")
+        val union = listOf("music.youtube.com", "www.youtube.com", "youtube.com")
+        assertEquals(union, SyncMerge.mergeSite(a, b).hostnames, "a versenyhelyzet nem old fel")
+        assertEquals(union, SyncMerge.mergeSite(b, a).hostnames, "a sorrend nem számít")
+
+        val trimmed = site(rev = 5, hostnames = listOf("youtube.com"), updatedBy = "gep-b")
+        val old = site(rev = 4, hostnames = listOf("youtube.com", "music.youtube.com"))
+        assertEquals(listOf("youtube.com"), SyncMerge.mergeSite(trimmed, old).hostnames,
+            "a próbatétel mögötte van")
+        assertEquals(listOf("youtube.com"), SyncMerge.mergeSite(old, trimmed).hostnames)
+    }
+
+    @Test
     fun `merging is idempotent and order-independent`() {
         val a = listOf(site(id = "a", rev = 2, dailyLimitSeconds = 600))
         val b = listOf(site(id = "a", rev = 2, dailyLimitSeconds = 1200, updatedBy = "gep-b"))

@@ -206,6 +206,8 @@ export type HelperRequest =
   // A fedőnév NEM lazítás: az oldal ettől ugyanúgy blokkolva marad, csak nem a
   // címe áll a listán. Ezért próbatétel nélkül állítható, mindkét irányba.
   | { id: number; op: 'set_alias'; siteId: string; alias: string | null }
+  // Hosztnév felvétele ingyen (csak az oldalé lehet), levétele próbatétel.
+  | { id: number; op: 'set_hostname'; siteId: string; hostname: string; remove?: boolean }
   // A lista elrejtése szintén tisztán felületi: a blokkolás nem változik tőle.
   | { id: number; op: 'set_hide_list'; hidden: boolean }
   | { id: number; op: 'set_rule'; siteId: string; input: string; remove: boolean }
@@ -307,6 +309,7 @@ export type HelperResponse =
  *         kiegészülve az alias és a hideSiteList mezővel
  * 0.4.0 — fiók és eszközök közti szinkron: sync_* parancsok, a status
  *         kiegészülve a sync mezővel
+ * 0.6.5 — set_hostname (hosztnév felvétele ingyen, levétele próbatétellel)
  * 0.6.4 — self_test (a tiltás tényleg érvényesül-e a rendszer feloldójánál),
  *         a status a jelentéssel (selfTest)
  * 0.6.3 — a status oldalanként a mai betelés-darabszámmal (burstTripsToday)
@@ -318,5 +321,5 @@ export type HelperResponse =
  * 0.2.0 — set_limit (napi időkeret), a status kiegészülve a keret mezőivel
  * 0.1.0 — első kiadás
  */
-export const HELPER_VERSION = '0.6.4';
+export const HELPER_VERSION = '0.6.5';
 export const PAUSE_CHOICES_MIN = [15, 30, 60];

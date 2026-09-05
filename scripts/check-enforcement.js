@@ -457,6 +457,20 @@ const WIRES = [
     lost: 'a szivárgó önteszt nem jutna a státusz-korongra — a segéd mérné, '
       + 'a felület zöldet mutatna',
   },
+  // A HOSZTNEVEK SZERKESZTÉSE. A felvétel a hosts fájlba ír, a levétel
+  // próbatétel — ha a parancs nem a refereen menne át, a levétel egy gomb lenne.
+  {
+    file: 'desktop/src/helper/server.ts',
+    needle: 'referee.startHostnameChange(',
+    lost: 'a hosztnév levétele nem a refereen menne át — egy gomb lenne, '
+      + 'próbatétel nélkül',
+  },
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: 'openHostnamesDialog(site)',
+    lost: 'a hosztnevek szerkesztése nem lenne elérhető — a mag ott lenne, '
+      + 'kapcsoló nélkül',
+  },
   // A BŐVÍTMÉNY MAPPÁJA. Ha az app nem tartaná frissen, a böngészőben egy régi
   // bővítmény futna egy új app mellett — és a felület egy mappára mutatna,
   // amit senki nem frissít.

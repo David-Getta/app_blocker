@@ -513,6 +513,16 @@ async function handle(req: HelperRequest, deps: ServerDeps): Promise<unknown> {
       return data;
     }
 
+    case 'set_hostname': {
+      // Az oldal hosztnevei mennek a hosts fájlba: a felvétel szigorítás, a
+      // levétel lazítás — a döntés a refereeé, a commit a hosts fájlt is újraírja.
+      const r = referee.startHostnameChange(
+        state, req.siteId, String(req.hostname ?? ''), req.remove === true, Date.now(),
+      );
+      deps.commit();
+      return { ...r, status: statusOf(state, deps.dohApplied(), deps.selfTest()) };
+    }
+
     case 'self_test': {
       // Kérésre azonnal — a felület gombja. A periodikus kör ugyanezt hívja;
       // a válasz a szokásos status, benne a friss jelentéssel.

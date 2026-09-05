@@ -146,13 +146,24 @@ object SyncMerge {
         val strict = compareStrictness(a, b)
         if (strict != 0) {
             val winner = if (strict < 0) carryPendingDelete(a, b) else carryPendingDelete(b, a)
-            return withRules(winner, a, b)
+            return withHostnames(withRules(winner, a, b), a, b)
         }
         val winner = when {
             a.updatedAt != b.updatedAt -> if (a.updatedAt > b.updatedAt) a else b
             else -> if (a.updatedBy <= b.updatedBy) a else b
         }
-        return withRules(winner, a, b)
+        return withHostnames(withRules(winner, a, b), a, b)
+    }
+
+    /**
+     * Egyenlő revnél a hosztnevek EGYESÜLNEK: a lista a tiltás része, egy név
+     * levétele lazítás, ami csak rev-emeléssel mehet át — egy versenyhelyzet
+     * sosem oldhat fel semmit. Rendezve, hogy két eszköz ugyanazt kapja. A
+     * TypeScript- és Swift-tükör ugyanezt teszi (merge.ts withHostnames).
+     */
+    private fun withHostnames(merged: SyncSite, a: SyncSite, b: SyncSite): SyncSite {
+        val union = (a.hostnames + b.hostnames).distinct().sorted()
+        return if (union == merged.hostnames) merged else merged.copy(hostnames = union)
     }
 
     private fun withRules(winner: SyncSite, a: SyncSite, b: SyncSite): SyncSite {

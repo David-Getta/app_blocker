@@ -18,6 +18,7 @@ import {
   isFilterLoosening, sanitizeFilter, MAX_CHANNEL_FILTERS, type ChannelFilter,
 } from '../shared/channels';
 import { MAX_RULES_PER_SITE, sameRule, type UrlRule } from '../shared/urlrules';
+import { hostnameBelongsTo, MAX_HOSTNAMES_PER_SITE, normalizeHostname } from '../shared/blocklist';
 import {
   closeIfEnded, closeRun, isRunning, isSessionLoosening, MAX_FOCUS_LOG, normalizeMinutes,
   type FocusPack, type FocusRun,
@@ -154,6 +155,9 @@ function finishSession(state: HelperState, now: number): void {
     else if (s.pendingRuleRemoval) {
       const drop = s.pendingRuleRemoval;
       site.rules = (site.rules ?? []).filter((r) => !sameRule(r, drop));
+    } else if (s.pendingHostnameRemoval) {
+      const drop = s.pendingHostnameRemoval;
+      site.hostnames = site.hostnames.filter((x) => x !== drop);
     } else if (s.pendingLimit !== undefined) {
       site.dailyLimitSeconds = s.pendingLimit === null ? undefined : s.pendingLimit;
     } else if (s.pendingBurst !== undefined) {
@@ -390,6 +394,63 @@ export function startRuleChange(
     id: newId('ses'), kind: 'pause', siteId,
     steps: plan.steps, stepIndex: 0, createdAt: now,
     pendingRuleRemoval: rule,
+  };
+  state.lastCombo = plan.comboKey;
+  armCurrent(state.session, now);
+  return { applied: false, session: sessionInfo(state.session, now) };
+}
+
+/**
+ * Hosztnév felvétele vagy levétele egy oldalon.
+ *
+ * A hosts fájlba az oldal hosztnevei mennek: felvenni egyet szigorítás
+ * (ingyen), levenni lazítás (próbatétel) — például a YouTube Music engedése a
+ * YouTube tiltása mellett. Csak az oldalhoz tartozó név vehető fel (aldomain
+ * vagy ismert társoldal): ami másik oldal, azt külön kell felvenni, hogy a
+ * saját szabályai legyenek. Az oldal saját címe nem vehető le — ahhoz az
+ * oldalt kell törölni, és annak külön folyamata van.
+ */
+export function startHostnameChange(
+  state: HelperState, siteId: string, input: string, remove: boolean, now: number,
+): SetRuleResult {
+  const site = state.sites.find((s) => s.id === siteId);
+  if (!site) throw new RefereeError('Ismeretlen oldal.', 'NO_SITE');
+  const host = normalizeHostname(input);
+  if (!host) {
+    throw new RefereeError('Ez nem tűnik érvényes hosztnévnek (pl. music.youtube.com).', 'BAD_HOSTNAME');
+  }
+
+  if (!remove) {
+    if (site.hostnames.includes(host)) return { applied: true, session: null };
+    if (!hostnameBelongsTo(host, site.domain)) {
+      throw new RefereeError(
+        `A(z) ${host} másik oldal — vedd fel külön, hogy a saját szabályai legyenek.`,
+        'FOREIGN_HOSTNAME',
+      );
+    }
+    if (site.hostnames.length >= MAX_HOSTNAMES_PER_SITE) {
+      throw new RefereeError(
+        `Egy oldalhoz legfeljebb ${MAX_HOSTNAMES_PER_SITE} hosztnév tartozhat.`, 'TOO_MANY_HOSTNAMES',
+      );
+    }
+    site.hostnames = [...site.hostnames, host].sort();
+    return { applied: true, session: null };
+  }
+
+  if (host === site.domain) {
+    throw new RefereeError(
+      'Az oldal saját címét nem lehet levenni — ahhoz az oldalt kell törölni.', 'PRIMARY_HOSTNAME',
+    );
+  }
+  if (!site.hostnames.includes(host)) throw new RefereeError('Nincs ilyen hosztnév ezen az oldalon.', 'NO_HOSTNAME');
+  if (state.session) throw new RefereeError('Előbb fejezd be a folyamatban lévő kísérletet.', 'BUSY');
+
+  const tier = effectiveTier(state, 'pause', now);
+  const plan = generatePlan('pause', tier, state.lastCombo, rng, forcedCombo(state, siteId, now));
+  state.session = {
+    id: newId('ses'), kind: 'pause', siteId,
+    steps: plan.steps, stepIndex: 0, createdAt: now,
+    pendingHostnameRemoval: host,
   };
   state.lastCombo = plan.comboKey;
   armCurrent(state.session, now);

@@ -72,6 +72,8 @@ export interface SessionRec {
   pendingLimit?: number | null;
   /** ha van, a teljesítés EZT a részleges szabályt veszi le (lazítás) */
   pendingRuleRemoval?: UrlRule;
+  /** ha van, a teljesítés EZT a hosztnevet veszi le az oldalról (lazítás) */
+  pendingHostnameRemoval?: string;
   /**
    * Ha van, a teljesítés az adag-szabályt cseréli erre (lazítás: nagyobb
    * adag, rövidebb szünet, vagy a szabály levétele — az a null).

@@ -61,6 +61,13 @@ jobs:
           nem érvényesül. A korong és a tartós értesítés ezt mondja, a kártya
           a hálózati beállításokhoz visz. Az Automatikus mód rendben van.
 
+          **Hosztnevek oldalanként.** Egy oldal tiltása több nevet takar
+          (youtube.com, www, music, youtu.be…), és ezek mennek a hosts fájlba.
+          A lista mostantól szerkeszthető a sor Hosztnevek gombjával: felvenni
+          egy kattintás — csak az oldal aldomainje vagy ismert társoldala —,
+          levenni próbatétel, mint a feloldás. Így engedhető például a YouTube
+          Music a YouTube tiltása mellett. Az oldal saját címe nem vehető le.
+
           ### Ami a v0.4.22-ben jött
 
           **Önteszt: a zöld korong mostantól tényt mond.** A „Védelem aktív”

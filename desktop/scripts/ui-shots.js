@@ -295,6 +295,16 @@ function fakeBridgeSource() {
           }
           return { ok: true, data: status() };
         }
+        if (op === 'set_hostname') {
+          // Felvétel: azonnal, a lista bővül; a füstteszt csak a felvételt járja
+          // (a levétel próbatétel, az a segéd dolga).
+          window.__lastHostname = payload.hostname;
+          const s = window.__fakeSites.find((x) => x.id === payload.siteId);
+          if (s && !payload.remove && !s.hostnames.includes(payload.hostname)) {
+            s.hostnames = [...s.hostnames, payload.hostname].sort();
+          }
+          return { ok: true, data: { applied: true, session: null, status: status() } };
+        }
         if (op === 'self_test') {
           window.__selfTestCalls = (window.__selfTestCalls || 0) + 1;
           return { ok: true, data: status() };
@@ -1133,6 +1143,36 @@ async function main() {
   await page.waitForFunction(
     () => (document.querySelector('#siteList .site-row .site-domain') || {}).textContent
       ?.includes('youtube.com'),
+    undefined, { timeout: 10_000 },
+  );
+
+  // ------------------------------------------------------------- hosztnevek
+  //
+  // A hosts fájlba az oldal hosztnevei mennek. Felvenni ingyen lehet (az
+  // szigorítás), levenni csak próbatétel után — és a saját cím egyáltalán nem
+  // vehető le, ahhoz az oldalt kell törölni. A füstteszt a felvételt járja
+  // végig, és azt, hogy a párbeszéd a saját címet nem kínálja levételre.
+  await page.waitForFunction(() => !document.querySelector('.overlay:not(.hidden)'), undefined, { timeout: 10_000 });
+  await page.locator('#siteList .site-row').first()
+    .getByRole('button', { name: /^Hosztnevek$/ }).click();
+  await page.getByRole('heading', { name: /^Hosztnevek:/ }).waitFor({ timeout: 10_000 });
+  // A rejtett, statikus párbeszédekben (#pauseDialog, #sessionModal) is van
+  // .modal — csak a nyitott fedőréteg alattit nézzük.
+  const hostModal = page.locator('.overlay:not(.hidden) .modal');
+  if ((await hostModal.locator('.rules-line').count()) < 1) {
+    failures.push('the hostnames dialog lists no hostnames');
+  }
+  const hostDialogText = (await hostModal.textContent()) || '';
+  if (!hostDialogText.includes('az oldal saját címe')) {
+    failures.push('the hostnames dialog does not mark the site\'s own address as non-removable');
+  }
+  if (!hostDialogText.includes('Levétel')) {
+    failures.push('the hostnames dialog offers no removal for the extra hostnames');
+  }
+  await hostModal.locator('.alias-input').fill('extra.youtube.com');
+  await page.getByRole('button', { name: /^Hozzáadás$/ }).click();
+  await page.waitForFunction(
+    () => window.__lastHostname === 'extra.youtube.com' && !document.querySelector('.overlay:not(.hidden)'),
     undefined, { timeout: 10_000 },
   );
 
