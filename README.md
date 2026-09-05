@@ -311,7 +311,7 @@ felhasználó meg tudja kerülni (admin jogok, egyedi DNS/DoH-proxy stb.). A cé
 feloldáshoz. A megkerülési utakat nyíltan dokumentáljuk az
 [`docs/architecture.md`](docs/architecture.md) végén.
 
-Két konkrét dolog, amit érdemes előre tudni:
+Néhány konkrét dolog, amit érdemes előre tudni:
 
 - **iPhone-on nincs idő-mérés, tehát napi időkeret sincs.** Az Apple nem ad
   appnak hozzáférést ahhoz, hogy más appokban vagy weboldalakon mennyi idő
@@ -327,13 +327,21 @@ Két konkrét dolog, amit érdemes előre tudni:
 - **A gépen az önteszt tényt mond, nem garanciát:** ötpercenként a rendszer
   feloldóját kérdezi a tiltott nevekről, és szól, ha nem a tiltó címre
   oldódnak — a böngésző saját DoH-ját viszont nem látja.
+- **A gépi értesítések csak amíg az app fut** (adag-betelés, a heti ablak
+  menetének indulása, a hétfői visszatekintés): a háttérben ülő védelem
+  magától nem tud értesíteni. A heti ablak menetét a segéd az app nélkül is
+  elindítja, és a telefon szűrője betartatja — a böngészőben viszont a
+  bővítmény az apptól kérdezi a fehérlistát, tehát ott csak futó app mellett
+  érvényesül.
 
 ## Következő lépések (ötletek a bővítéshez)
 
 Amit a lista korábban tartalmazott és azóta elkészült: **időzített szabályok**
 (heti menetrend, a lazítás próbatételhez kötve), a **statisztikák** (aktív idő
-oldalanként és appokként) és a **napi időkeret** (a mérés és a blokkolás
-összekötve, [`docs/feature-daily-limit.md`](docs/feature-daily-limit.md)).
+oldalanként és appokként), a **napi időkeret** (a mérés és a blokkolás
+összekötve, [`docs/feature-daily-limit.md`](docs/feature-daily-limit.md)) és az
+**iOS-mag fordítási ellenőrzése a CI-ban** (macOS runneren, aláírás nélkül —
+a Swift-tükör minden pusholásnál fordul).
 
 Ami még hátravan:
 
@@ -343,5 +351,5 @@ Ami még hátravan:
 - **„Párban zárolás”**: a feloldáshoz egy megbízott jóváhagyása is kell.
 - **Windows named pipe szűkítése** egyedi DACL-lel (ma helyi, de nem
   felhasználóhoz kötött — lásd `docs/architecture.md`).
-- **iOS-mag fordítási ellenőrzése CI-ban** (macOS runner kell hozzá); a Swift
-  kód ma a tesztelt TS/Kotlin mag tükre, de fordítással nincs igazolva.
+- **iOS-mag tesztjei**: a Swift-tükör fordul a CI-ban, de futó teszt nincs
+  hozzá — a viselkedést a TS/Kotlin tesztek és a kézi egyeztetés fedi.
