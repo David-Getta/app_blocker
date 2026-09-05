@@ -2121,6 +2121,26 @@ private fun FocusPacksCard(state: AppState, vpnRunning: Boolean, onError: (Strin
                 label = { Text("Hossz percben (üresen a csomag szokásos hossza)") },
                 singleLine = true,
             )
+            // Egy csomag heti ablaka félbeszakítja a MÁSIK csomag kézi menetét
+            // (az ablak az ígéret) — mondjuk ki előre, ne a kilences óra legyen
+            // a meglepetés. A következő nyolc órán belüli legkorábbi ablak.
+            run {
+                val now = System.currentTimeMillis()
+                val next = state.focusPacks
+                    .mapNotNull { p -> p.recurrence?.let { b -> Focus.nextOccurrence(b, now) }?.let { p to it } }
+                    .filter { (_, occ) -> occ.startsAt > now && occ.startsAt - now <= Focus.MAX_SESSION_MINUTES * 60_000L }
+                    .minByOrNull { (_, occ) -> occ.startsAt }
+                if (next != null) {
+                    val (p, occ) = next
+                    val clock = java.text.SimpleDateFormat("HH:mm", java.util.Locale("hu")).format(java.util.Date(occ.startsAt))
+                    Text(
+                        "A(z) ${p.name} heti ablaka $clock-kor indul: egy másik csomag menete ott véget ér, " +
+                            "és az ablak menete indul.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
             for (pack in state.focusPacks) {
                 Row(
                     Modifier.fillMaxWidth(),

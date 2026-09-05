@@ -401,13 +401,32 @@ object Focus {
         return null
     }
 
+    /**
+     * A sáv KÖVETKEZŐ előfordulása: a mostani, ha épp benne vagyunk, különben
+     * a legközelebbi kezdés a következő héten. A `focus.ts` `nextOccurrence`
+     * tükre — a felület ebből mondja meg, mikor indul legközelebb, és hogy
+     * egy kézi menetet félbeszakít-e egy másik csomag ablaka.
+     */
+    fun nextOccurrence(band: ScheduleLogic.Band, now: Long): Occurrence? {
+        occurrenceAt(band, now)?.let { return it }
+        for (d in 0..7) {
+            val start = localAt(now, d, band.startMin)
+            if (start < now) continue
+            val day = Calendar.getInstance().apply { timeInMillis = start }.get(Calendar.DAY_OF_WEEK) - 1
+            if (day !in band.days) continue
+            occurrenceAt(band, start)?.let { return it }
+        }
+        return null
+    }
+
     data class DueRecurrence(val pack: FocusPack, val startsAt: Long, val endsAt: Long)
 
     /**
-     * Melyik csomag ablaka esedékes MOST — vagy null. Nem indul, ha fut
-     * valami; ha a naplóban van ebben az ablakban kezdődött menet ebből a
-     * csomagból; vagy ha egy percnél kevesebb van hátra. Több közül a
-     * korábban kezdődő, azonos kezdésnél a kisebb azonosítójú.
+     * Melyik csomag ablaka esedékes MOST — vagy null. Nem indul, ha a csomag
+     * saját menete fut; ha a naplóban ott az ablak saját menete; vagy ha egy
+     * percnél kevesebb van hátra. Egy másik csomag menete nem tartja vissza —
+     * azt a kör zárja le. Több közül a korábban kezdődő, azonos kezdésnél a
+     * kisebb azonosítójú.
      */
     fun dueRecurrence(
         packs: List<FocusPack>,

@@ -59,6 +59,22 @@ class FocusTest {
     }
 
     @Test
+    fun `a kovetkezo elofordulas - a mostani, kulonben a legkozelebbi kezdes`() {
+        // Hétfő 9:30: benne vagyunk — a mostani.
+        val live = Focus.nextOccurrence(weekdays, localMs(2026, 9, 7, 9, 30))!!
+        assertEquals(localMs(2026, 9, 7, 9, 0), live.startsAt)
+        // Hétfő 13:00: a keddi.
+        val tue = Focus.nextOccurrence(weekdays, localMs(2026, 9, 7, 13, 0))!!
+        assertEquals(localMs(2026, 9, 8, 9, 0), tue.startsAt)
+        assertEquals(localMs(2026, 9, 8, 12, 0), tue.endsAt)
+        // Péntek 13:00: a hétfői — a hétvégét átugorja.
+        val mon = Focus.nextOccurrence(weekdays, localMs(2026, 9, 11, 13, 0))!!
+        assertEquals(localMs(2026, 9, 14, 9, 0), mon.startsAt)
+        // Hétfő 8:59: a mai, egy perc múlva.
+        assertEquals(localMs(2026, 9, 7, 9, 0), Focus.nextOccurrence(weekdays, localMs(2026, 9, 7, 8, 59))!!.startsAt)
+    }
+
+    @Test
     fun `menetrend szerinti inditas - az ablak kezdesevel, es a naplo az or`() {
         val now = localMs(2026, 9, 7, 9, 30)
         val due = Focus.dueRecurrence(listOf(windowed()), null, emptyList(), now)!!
