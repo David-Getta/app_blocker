@@ -469,3 +469,23 @@ test('set_hostname: a felvétel átmegy a segéden, az idegen név nem', async (
   assert.equal(bad.ok, false);
   assert.equal((bad as { code?: string }).code, 'FOREIGN_HOSTNAME');
 });
+
+test('focus_recurrence: az ablak felvétele átmegy a segéden, az érvénytelen nem', async () => {
+  const saved = await call('focus_save', {
+    pack: { id: '', name: 'Reggel', allowSites: ['github.com'], allowApps: [], defaultMinutes: 50 },
+  });
+  assert.equal(saved.ok, true);
+  const packs = (saved.data as { focusPacks: { id: string }[] }).focusPacks;
+  const packId = packs[packs.length - 1].id;
+  const band = { days: [1, 2, 3, 4, 5], startMin: 540, endMin: 720 };
+  const ok = await call('focus_recurrence', { packId, band });
+  assert.equal(ok.ok, true);
+  const d = ok.data as {
+    applied: boolean; status: { focusPacks: { id: string; recurrence?: unknown }[] };
+  };
+  assert.equal(d.applied, true, 'a felvétel szigorítás: azonnal');
+  assert.deepEqual(d.status.focusPacks.find((p) => p.id === packId)!.recurrence, band);
+  const bad = await call('focus_recurrence', { packId, band: { days: [], startMin: 540, endMin: 720 } });
+  assert.equal(bad.ok, false);
+  assert.match(bad.error ?? '', /legalább egy nap/);
+});

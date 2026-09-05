@@ -309,6 +309,12 @@ async function handle(req: HelperRequest, deps: ServerDeps): Promise<unknown> {
       return statusOf(state, deps.dohApplied(), deps.selfTest());
     }
 
+    case 'focus_recurrence': {
+      const r = referee.setFocusRecurrence(state, String(req.packId), req.band ?? null, Date.now());
+      deps.commit();
+      return { ...r, status: statusOf(state, deps.dohApplied(), deps.selfTest()) };
+    }
+
     case 'focus_start': {
       referee.startFocus(state, String(req.packId), Number(req.minutes), Date.now());
       deps.commit();

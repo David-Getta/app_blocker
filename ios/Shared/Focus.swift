@@ -49,16 +49,32 @@ public enum Focus {
         public let allowApps: [String]
         /// amit induláskor felkínálunk, percben
         public let defaultMinutes: Int
+        /// Ismétlődés: ezeken a napokon, ebben az ablakban a menet MAGÁTÓL
+        /// indul, és az ablak végéig tart. Nil = csak kézzel indul. Ugyanaz a
+        /// sáv-alak, mint az oldalak menetrendjében. (A `Codable` a hiányzó
+        /// kulcsot nil-nek veszi: egy régebbi gép blobja is dekódolható.)
+        let recurrence: ScheduleLogic.Band?
 
         public init(
             id: String, name: String, allowSites: [String],
             allowApps: [String], defaultMinutes: Int
+        ) {
+            self.init(
+                id: id, name: name, allowSites: allowSites,
+                allowApps: allowApps, defaultMinutes: defaultMinutes, recurrence: nil
+            )
+        }
+
+        init(
+            id: String, name: String, allowSites: [String],
+            allowApps: [String], defaultMinutes: Int, recurrence: ScheduleLogic.Band?
         ) {
             self.id = id
             self.name = name
             self.allowSites = allowSites
             self.allowApps = allowApps
             self.defaultMinutes = defaultMinutes
+            self.recurrence = recurrence
         }
     }
 
@@ -348,5 +364,130 @@ public enum Focus {
         var h = host.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         while h.hasSuffix(".") { h.removeLast() }
         return h
+    }
+
+    // -----------------------------------------------------------------------
+    // Ismétlődő munkamenet: a csomag magától indul egy heti ablakban.
+    //
+    // A `focus.ts` azonos nevű szakaszának tükre — az indoklás ott van. A
+    // lényeg két mondat: AZ ABLAK AZ ÍGÉRET (a menet kezdése mindig az ablak
+    // kezdete, így minden eszköz ugyanazt a menetet állítja elő), és A NAPLÓ
+    // AZ ŐR (ami ebben az ablakban egyszer már indult, az nem indul újra —
+    // a leállítás próbatétele különben egy percig érne).
+    // -----------------------------------------------------------------------
+
+    /// Ennél kevesebb hátralévő idővel már nem indul menetrend szerinti menet.
+    public static let recurrenceMinRemainingMs: Double = 60_000
+
+    /// Egy ablak-előfordulás: mikor kezdődik és mikor ér véget (epoch ms).
+    public struct Occurrence: Equatable {
+        public let startsAt: Double
+        public let endsAt: Double
+    }
+
+    /// A sáv hossza percben (éjfélen átnyúlva is).
+    static func bandMinutes(_ b: ScheduleLogic.Band) -> Int {
+        b.endMin > b.startMin ? b.endMin - b.startMin : 1440 - b.startMin + b.endMin
+    }
+
+    /// Kívülről jött ismétlődés használható alakja, vagy nil: érvényes sáv, és
+    /// nem hosszabb egy menet plafonjánál — egy huszonnégy órás „ablak” nem
+    /// munkamenet lenne, hanem egy kikapcsolhatatlan fehérlista.
+    static func cleanRecurrence(_ b: ScheduleLogic.Band?) -> ScheduleLogic.Band? {
+        guard let b, ScheduleLogic.isValidBand(b), bandMinutes(b) <= maxSessionMinutes else { return nil }
+        return b
+    }
+
+    private static func localCalendar() -> Calendar {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone.current
+        return cal
+    }
+
+    /// Egy helyi időpont: a `now` napjától `dayOffset` nappal, `min` perccel éjfél után.
+    private static func localAt(_ now: Double, dayOffset: Int, min: Int) -> Double? {
+        let cal = localCalendar()
+        let ymd = cal.dateComponents([.year, .month, .day], from: Date(timeIntervalSince1970: now / 1000))
+        var dc = DateComponents()
+        dc.year = ymd.year
+        dc.month = ymd.month
+        // A naptár a túlcsordulást normalizálja (32-e a következő hónap
+        // elseje), és mezőkkel számol: az óraátállás napján a 9:00 az a 9:00.
+        dc.day = (ymd.day ?? 1) + dayOffset + min / 1440
+        dc.hour = (min % 1440) / 60
+        dc.minute = min % 60
+        dc.second = 0
+        return cal.date(from: dc).map { $0.timeIntervalSince1970 * 1000 }
+    }
+
+    /// A sáv MOSTANI előfordulása — vagy nil, ha `now` nincs benne.
+    static func occurrenceAt(_ band: ScheduleLogic.Band, now: Double) -> Occurrence? {
+        let c = localCalendar().dateComponents(
+            [.weekday, .hour, .minute], from: Date(timeIntervalSince1970: now / 1000)
+        )
+        let day = (c.weekday ?? 1) - 1
+        let minute = (c.hour ?? 0) * 60 + (c.minute ?? 0)
+        let prevDay = (day + 6) % 7
+        func occ(_ startOffset: Int, _ endOffset: Int) -> Occurrence? {
+            guard let s = localAt(now, dayOffset: startOffset, min: band.startMin),
+                  let e = localAt(now, dayOffset: endOffset, min: band.endMin) else { return nil }
+            return Occurrence(startsAt: s, endsAt: e)
+        }
+        if band.endMin > band.startMin {
+            if band.days.contains(day) && minute >= band.startMin && minute < band.endMin {
+                return occ(0, 0)
+            }
+            return nil
+        }
+        if band.days.contains(day) && minute >= band.startMin { return occ(0, 1) }
+        if band.days.contains(prevDay) && minute < band.endMin { return occ(-1, 0) }
+        return nil
+    }
+
+    struct DueRecurrence {
+        let pack: Pack
+        let startsAt: Double
+        let endsAt: Double
+    }
+
+    /// Melyik csomag ablaka esedékes MOST — vagy nil. Nem indul, ha fut valami;
+    /// ha a naplóban van ebben az ablakban kezdődött menet ebből a csomagból;
+    /// vagy ha egy percnél kevesebb van hátra. Több közül a korábban kezdődő,
+    /// azonos kezdésnél a kisebb azonosítójú.
+    static func dueRecurrence(
+        _ packs: [Pack], run: Run?, log: [LogEntry], now: Double
+    ) -> DueRecurrence? {
+        if isRunning(run, now: now) { return nil }
+        var best: DueRecurrence?
+        for pack in packs {
+            guard let band = pack.recurrence, ScheduleLogic.isValidBand(band) else { continue }
+            guard let occ = occurrenceAt(band, now: now) else { continue }
+            if occ.endsAt - now < recurrenceMinRemainingMs { continue }
+            let spent = log.contains {
+                $0.packId == pack.id && $0.startedAt >= occ.startsAt && $0.startedAt < occ.endsAt
+            }
+            if spent { continue }
+            if let b = best,
+               !(occ.startsAt < b.startsAt || (occ.startsAt == b.startsAt && pack.id < b.pack.id)) {
+                continue
+            }
+            best = DueRecurrence(pack: pack, startsAt: occ.startsAt, endsAt: occ.endsAt)
+        }
+        return best
+    }
+
+    /// Az ismétlődés kulcsa a lenyomatokhoz: napok rendezve, kezdés, vég — vagy „-”.
+    static func recurrenceKey(_ b: ScheduleLogic.Band?) -> String {
+        guard let b else { return "-" }
+        return "\(b.days.sorted().map(String.init).joined(separator: ","))/\(b.startMin)-\(b.endMin)"
+    }
+
+    /// Ablak-menet-e ez a futás: a csomag ismétlődésének egy előfordulása,
+    /// pontosan annak kezdésével és végével. Az óra-ugrás elnyelése az ilyet
+    /// nem tolja el — az ablak vége az ablak vége.
+    static func isWindowRun(_ run: Run, packs: [Pack]) -> Bool {
+        guard let band = packs.first(where: { $0.id == run.packId })?.recurrence,
+              let occ = occurrenceAt(band, now: run.startedAt) else { return false }
+        return occ.startsAt == run.startedAt && occ.endsAt == run.endsAt
     }
 }

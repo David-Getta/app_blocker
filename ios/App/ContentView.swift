@@ -240,6 +240,12 @@ struct ContentView: View {
                                  ? "nincs engedélyezett oldal"
                                  : pack.allowSites.joined(separator: ", "))
                                 .font(.caption).foregroundStyle(.secondary)
+                            // A heti ablak a telefonon is látszik: egy csomag, ami
+                            // reggel magától indul, ne legyen meglepetés.
+                            if let band = pack.recurrence {
+                                Text("magától indul: \(recurrenceLabel(band))")
+                                    .font(.caption).foregroundStyle(.secondary)
+                            }
                         }
                         Spacer()
                         Button("Indítás") {
@@ -658,4 +664,17 @@ private struct AliasSheet: View {
         }
         .padding()
     }
+}
+
+/// „H–P 09:00–12:00”, „minden nap 22:00–06:00”, „H, Sze, P 18:00–20:00” — mint a gépen.
+private func recurrenceLabel(_ b: ScheduleLogic.Band) -> String {
+    let names = ["V", "H", "K", "Sze", "Cs", "P", "Szo"]
+    let set = Set(b.days)
+    let days: String
+    if set.count == 7 { days = "minden nap" }
+    else if set == Set([1, 2, 3, 4, 5]) { days = "H–P" }
+    else if set == Set([0, 6]) { days = "Szo–V" }
+    else { days = [1, 2, 3, 4, 5, 6, 0].filter { set.contains($0) }.map { names[$0] }.joined(separator: ", ") }
+    func hm(_ min: Int) -> String { String(format: "%02d:%02d", (min % 1440) / 60, min % 60) }
+    return "\(days) \(hm(b.startMin))–\(hm(b.endMin))"
 }

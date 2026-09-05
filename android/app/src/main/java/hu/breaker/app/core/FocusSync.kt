@@ -178,6 +178,7 @@ object FocusSync {
                 p.allowSites.sorted().joinToString(","),
                 p.allowApps.sorted().joinToString(","),
                 p.defaultMinutes.toString(),
+                Focus.recurrenceKey(p.recurrence),
             ).joinToString(";")
         }
         val run = f.run?.let { "${it.packId};${it.startedAt};${it.endsAt}" } ?: "-"

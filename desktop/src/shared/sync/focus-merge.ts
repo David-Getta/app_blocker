@@ -291,6 +291,10 @@ function stable(f: SyncFocus): unknown {
         allowSites: [...p.allowSites].sort().slice(0, MAX_ALLOW_ENTRIES),
         allowApps: [...p.allowApps].sort().slice(0, MAX_ALLOW_ENTRIES),
         defaultMinutes: p.defaultMinutes,
+        // Az ismétlődés is beállítás: ha kimaradna, egy gépen felvett ablak
+        // sosem érne fel, mert a kör azt látná, hogy „nincs mit feltölteni”.
+        recurrence: p.recurrence
+          ? [[...p.recurrence.days].sort(), p.recurrence.startMin, p.recurrence.endMin] : null,
       })),
     run: f.run ? { packId: f.run.packId, startedAt: f.run.startedAt, endsAt: f.run.endsAt } : null,
     // A NAPLÓ IS BENNE VAN — enélkül egy telefonon lezárult menet sosem érne

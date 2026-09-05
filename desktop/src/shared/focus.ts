@@ -22,6 +22,7 @@
 // Pure és függőségmentes, hogy a Kotlin/Swift oldal pontosan tükrözhesse.
 
 import { normalizeDomain } from './blocklist.js';
+import { isLoosening, isValidBand, type Band, type Weekday } from './schedule.js';
 
 /** Egy csomagban ennyi engedélyezett tétel lehet. */
 export const MAX_ALLOW_ENTRIES = 40;
@@ -54,6 +55,12 @@ export interface FocusPack {
   allowApps: string[];
   /** amit induláskor felkínálunk, percben */
   defaultMinutes: number;
+  /**
+   * Ismétlődés: ezeken a napokon, ebben az ablakban a menet MAGÁTÓL indul,
+   * és az ablak végéig tart. Nincs = csak kézzel indul. Ugyanaz a sáv-alak,
+   * mint az oldalak menetrendjében (napok, kezdés, vég; éjfélen átnyúlhat).
+   */
+  recurrence?: Band;
 }
 
 export interface FocusRun {
@@ -117,12 +124,14 @@ export function normalizePack(raw: unknown): FocusPack | null {
     const n = typeof a === 'string' ? normalizeAllowApp(a) : null;
     if (n && !apps.includes(n) && apps.length < MAX_ALLOW_ENTRIES) apps.push(n);
   }
+  const recurrence = normalizeRecurrence(p.recurrence);
   return {
     id: p.id,
     name,
     allowSites: sites,
     allowApps: apps,
     defaultMinutes: normalizeMinutes(p.defaultMinutes) ?? 25,
+    ...(recurrence ? { recurrence } : {}),
   };
 }
 
@@ -319,4 +328,174 @@ export function summarizeFocus(
 export function warnDue(lastWarnAt: number | null, now: number): boolean {
   if (lastWarnAt === null) return true;
   return now - lastWarnAt >= APP_WARN_COOLDOWN_MS;
+}
+
+// ---------------------------------------------------------------------------
+// Ismétlődő munkamenet: a csomag magától indul egy heti ablakban
+// ---------------------------------------------------------------------------
+//
+// MIÉRT. A munkamenet egy mozdulattal indul — de a mozdulatot az embernek kell
+// megtennie, és pont a nehéz reggeleken nem teszi meg. Egy ablak
+// („hétköznap 9-től 12-ig”) ezt leveszi róla: az idő jön, a menet indul, a
+// gépen és a telefonon is.
+//
+// A SÚRLÓDÁS IRÁNYA ugyanaz, mint mindenhol: felvenni és bővíteni ingyen
+// (szigorítás), szűkíteni vagy levenni próbatétel (lazítás) — ez a referee
+// dolga, itt csak a kérdés van: lazítás-e.
+//
+// AZ ABLAK AZ ÍGÉRET, nem a hossz. A menet kezdése mindig az ablak kezdete,
+// akkor is, ha az eszköz később ébredt: így minden eszköz UGYANAZT a menetet
+// állítja elő (csomag + kezdés), a szinkron nem duplázza, a napló egy sort
+// kap. Az óra-ugrás elnyelése ezt a menetet nem tolja el (lásd a referee-t):
+// a délben végződő ablak délben végződik, nem tolódik a laptop alvásával.
+//
+// A NAPLÓ AZ ŐR az újraindítás ellen. Ha a menetet próbatétellel leállítod
+// (vagy lerövidíted), a naplóban marad egy sor, ami EBBEN az ablakban
+// kezdődött — és amíg ilyen sor van, az ablak nem indít újra. Enélkül a
+// következő kör egy perc múlva újraindítaná, és a leállítás próbatétele
+// semmit sem érne. A napló szinkronizál, tehát a másik eszköz sem indít újra.
+//
+// ŐSZINTE KORLÁT: egy eszköz, ami a leállítás idején nem volt hálózaton, a
+// szinkron megérkezéséig újraindíthatja a menetet az ablak hátralévő részére.
+// A hiba iránya a szigorúbb, és a leállítás ott is ugyanaz a próbatétel.
+
+/** Ennél kevesebb hátralévő idővel már nem indul menetrend szerinti menet. */
+export const RECURRENCE_MIN_REMAINING_MS = 60_000;
+
+/** Egy ablak-előfordulás: mikor kezdődik és mikor ér véget (epoch ms). */
+export interface Occurrence { startsAt: number; endsAt: number }
+
+/** A sáv hossza percben (éjfélen átnyúlva is). */
+export function bandMinutes(b: Band): number {
+  return b.endMin > b.startMin ? b.endMin - b.startMin : 1440 - b.startMin + b.endMin;
+}
+
+/**
+ * Kívülről jött ismétlődés használható alakja, vagy undefined.
+ *
+ * Érvényes sáv (legalább egy nap, 0–1439 kezdés, 1–1440 vég), és nem hosszabb
+ * egy menet plafonjánál: nyolc óránál tovább az ember nem tervez — egy
+ * huszonnégy órás „ablak” nem munkamenet lenne, hanem egy kikapcsolhatatlan
+ * fehérlista.
+ */
+export function normalizeRecurrence(raw: unknown): Band | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const b = raw as Partial<Band>;
+  const rawDays: unknown[] = Array.isArray(b.days) ? b.days : [];
+  const days = [...new Set(rawDays.filter((d): d is Weekday =>
+    typeof d === 'number' && Number.isInteger(d) && d >= 0 && d <= 6))].sort((x, y) => x - y);
+  const band: Band = { days, startMin: Number(b.startMin), endMin: Number(b.endMin) };
+  if (!isValidBand(band)) return undefined;
+  if (bandMinutes(band) > MAX_SESSION_MINUTES) return undefined;
+  return band;
+}
+
+/** Ugyanaz-e a két ismétlődés (vagy egyik sincs). */
+export function sameRecurrence(a: Band | null | undefined, b: Band | null | undefined): boolean {
+  if (!a || !b) return !a && !b;
+  const key = (x: Band): string => JSON.stringify([[...x.days].sort(), x.startMin, x.endMin]);
+  return key(a) === key(b);
+}
+
+/**
+ * Lazítás-e az ismétlődés cseréje: van-e olyan perc a következő héten, amikor
+ * a régi ablak indítana, az új nem. A levétel mindig az; a felvétel sosem.
+ * Ugyanaz a percenkénti mintavétel, mint az oldalak menetrendjénél.
+ */
+export function isRecurrenceLoosening(
+  current: Band | null | undefined, next: Band | null | undefined, now: number,
+): boolean {
+  if (!current) return false;
+  if (!next) return true;
+  return isLoosening(
+    { mode: 'scheduled_block', bands: [current] },
+    { mode: 'scheduled_block', bands: [next] },
+    now,
+  );
+}
+
+/** Egy helyi időpont: a `now` napjától `dayOffset` nappal, `min` perccel éjfél után. */
+function localAt(now: number, dayOffset: number, min: number): number {
+  const d = new Date(now);
+  // A Date konstruktor a túlcsordulást normalizálja (32-e a következő hónap
+  // elseje, a 24:00 a következő nap nulla órája), és mezőkkel számol: az
+  // óraátállás napján a 9:00 az a 9:00, nem éjfél plusz ötszáznegyven perc.
+  return new Date(
+    d.getFullYear(), d.getMonth(), d.getDate() + dayOffset + Math.floor(min / 1440),
+    Math.floor((min % 1440) / 60), min % 60,
+  ).getTime();
+}
+
+/**
+ * A sáv MOSTANI előfordulása — vagy null, ha `now` nincs benne.
+ *
+ * Ugyanaz a három eset, mint a menetrend `inAnyBand`-jében: aznapi sáv;
+ * éjfélen átnyúló sáv a kezdőnapon; és a kezdőnap utáni hajnal.
+ */
+export function occurrenceAt(band: Band, now: number): Occurrence | null {
+  const d = new Date(now);
+  const day = d.getDay() as Weekday;
+  const minute = d.getHours() * 60 + d.getMinutes();
+  const prevDay = ((day + 6) % 7) as Weekday;
+  if (band.endMin > band.startMin) {
+    if (band.days.includes(day) && minute >= band.startMin && minute < band.endMin) {
+      return { startsAt: localAt(now, 0, band.startMin), endsAt: localAt(now, 0, band.endMin) };
+    }
+    return null;
+  }
+  if (band.days.includes(day) && minute >= band.startMin) {
+    return { startsAt: localAt(now, 0, band.startMin), endsAt: localAt(now, 1, band.endMin) };
+  }
+  if (band.days.includes(prevDay) && minute < band.endMin) {
+    return { startsAt: localAt(now, -1, band.startMin), endsAt: localAt(now, 0, band.endMin) };
+  }
+  return null;
+}
+
+export interface DueRecurrence extends Occurrence { pack: FocusPack }
+
+/**
+ * Melyik csomag ablaka esedékes MOST — vagy null.
+ *
+ * Nem indul, ha fut valami (egyszerre egy menet); ha a naplóban van EBBEN az
+ * ablakban kezdődött menet ebből a csomagból (leállítva vagy lerövidítve — a
+ * próbatétel ára ki van fizetve); vagy ha egy percnél kevesebb van hátra.
+ * Több esedékes ablak közül a korábban kezdődő, azonos kezdésnél a kisebb
+ * azonosítójú — hogy minden eszköz ugyanazt válassza.
+ */
+export function dueRecurrence(
+  packs: FocusPack[],
+  run: FocusRun | null | undefined,
+  log: FocusLogEntry[] | undefined,
+  now: number,
+): DueRecurrence | null {
+  if (isRunning(run, now)) return null;
+  let best: DueRecurrence | null = null;
+  for (const pack of packs) {
+    const band = pack.recurrence;
+    if (!band || !isValidBand(band)) continue;
+    const occ = occurrenceAt(band, now);
+    if (!occ) continue;
+    if (occ.endsAt - now < RECURRENCE_MIN_REMAINING_MS) continue;
+    const spent = (log ?? []).some((e) =>
+      e.packId === pack.id && e.startedAt >= occ.startsAt && e.startedAt < occ.endsAt);
+    if (spent) continue;
+    if (!best || occ.startsAt < best.startsAt
+      || (occ.startsAt === best.startsAt && pack.id < best.pack.id)) {
+      best = { pack, ...occ };
+    }
+  }
+  return best;
+}
+
+/**
+ * Ablak-menet-e ez a futás: a csomag ismétlődésének egy előfordulása, pontosan
+ * annak kezdésével és végével. Az ilyen menetet az óra-ugrás elnyelése nem
+ * tolja el — az ablak vége az ablak vége. A meghosszabbított menet már nem az.
+ */
+export function isWindowRun(run: FocusRun, packs: FocusPack[]): boolean {
+  const band = packs.find((p) => p.id === run.packId)?.recurrence;
+  if (!band) return false;
+  const occ = occurrenceAt(band, run.startedAt);
+  return !!occ && occ.startsAt === run.startedAt && occ.endsAt === run.endsAt;
 }

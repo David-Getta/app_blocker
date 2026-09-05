@@ -516,12 +516,20 @@ object Referee {
             //
             // A kezdés is tolódik, nem csak a vég: enélkül a naplóba egy
             // ötvenperces menet órásként kerülne be, és a statisztika hazudna.
+            //
+            // Az ABLAK-menet kivétel: annak a vége az ablak vége, nem tolódik a
+            // készülék alvásával (Focus.isWindowRun) — különben a telefon és a
+            // gép két különböző menetet látna ugyanarról a délelőttről.
             val run = state.focusRun?.let {
-                it.copy(startedAt = it.startedAt + shift, endsAt = it.endsAt + shift)
+                if (Focus.isWindowRun(it, state.focusPacks)) it
+                else it.copy(startedAt = it.startedAt + shift, endsAt = it.endsAt + shift)
             }
             state.copy(session = session, sites = sites, focusRun = run)
         }
     }
+
+    /** Az ismétlődés-vizsgálat utolsó tizenöt másodperces szelete (lásd a tick-et). */
+    @Volatile private var lastDueSlot = -1L
 
     fun tick(now: Long) {
         absorbClockJump(now)
@@ -539,7 +547,18 @@ object Referee {
         // hiányoznának, amiket a felhasználó VÉGIGVITT. Az a statisztika
         // rosszabb a semminél: azt mondaná, hogy sosem sikerül.
         val focusEnded = st.focusRun != null && st.focusRun.endsAt <= now
-        if (!sessionDead && !pauseEnded && !deleteDue && !focusEnded) return
+        // MENETREND SZERINTI INDÍTÁS. Az ablakban, ha nem fut semmi, és a napló
+        // szerint ebben az ablakban még nem indult, a csomag menete magától
+        // indul. Ez a DNS-útvonalon fut, ezért tizenöt másodpercenként nézzük,
+        // nem minden kérdésnél — az ablak percekben él, nem másodpercekben.
+        val slot = now / 15_000
+        val focusDue = if (slot != lastDueSlot) {
+            lastDueSlot = slot
+            Focus.dueRecurrence(st.focusPacks, st.focusRun, st.focusLog, now) != null
+        } else {
+            false
+        }
+        if (!sessionDead && !pauseEnded && !deleteDue && !focusEnded && !focusDue) return
 
         BreakerStore.mutate { state ->
             var next = state
@@ -551,7 +570,14 @@ object Referee {
                 .filter { it.pendingDeleteAt == null || it.pendingDeleteAt > now }
             val closed = Focus.closeIfEnded(next.focusRun, next.focusPacks, next.focusLog, now)
             next = next.copy(sites = sites)
-            if (closed == null) next else next.copy(focusRun = closed.run, focusLog = closed.log)
+            if (closed != null) next = next.copy(focusRun = closed.run, focusLog = closed.log)
+            // Az ablak kezdésével és végével — a gép ugyanezt a menetet
+            // állítja elő, a szinkron a kettőt egynek látja.
+            val due = Focus.dueRecurrence(next.focusPacks, next.focusRun, next.focusLog, now)
+            if (due != null) {
+                next = next.copy(focusRun = Focus.FocusRun(due.pack.id, due.startsAt, due.endsAt))
+            }
+            next
         }
     }
 

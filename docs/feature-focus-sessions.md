@@ -259,6 +259,7 @@ A bővítmény a munkamenet végét **helyben** nézi, nem az apptól kérdezi:
 | Összefésülés eszközök között | `desktop/src/shared/sync/focus-merge.ts` + Kotlin/Swift tükör |
 | Napló és összegzés | `desktop/src/shared/focus.ts` (`closeIfEnded`, `summarizeFocus`) |
 | Statisztika a felületen | `renderer.ts`, `ui/StatsScreen.kt`, `App/StatsView.swift` |
+| Heti ablak (magától induló menet) | `focus.ts` (`occurrenceAt`, `dueRecurrence`, `isWindowRun`), `referee.ts` (`setFocusRecurrence`, `tick`), `Focus.kt` / `Focus.swift` + a `Referee` tükrök köre |
 
 ## Ami még hátra van
 
@@ -290,6 +291,72 @@ Az átállítás csak akkor marad meg, ha a regisztráció **tényleg sikerült*
 sikertelen kísérlet után a régi kombináció áll vissza, és a felület kimondja,
 ha az sem a miénk. Őszinte korlát: egy másik program által elvett
 kombinációt elvenni nem tudunk, csak elkerülni — ezért van az átállítás.
+
+## Heti ablak: a menet magától indul
+
+A munkamenet egy mozdulattal indul — de a mozdulatot az embernek kell
+megtennie, és pont a nehéz reggeleken nem teszi meg. A csomag ezért kaphat
+egy **heti ablakot** („hétköznap 9:00–12:00”): az ablakban a menet magától
+indul, és az ablak végéig tart — a gépen és a telefonon is, mert az ablak a
+csomaggal együtt szinkronizál.
+
+A sáv-alak ugyanaz, mint az oldalak menetrendjében (napok, kezdés, vég;
+éjfélen átnyúlhat), és legfeljebb nyolc óra — egy huszonnégy órás „ablak” nem
+munkamenet lenne, hanem egy kikapcsolhatatlan fehérlista.
+
+### Súrlódás: ugyanaz a szabály
+
+| Művelet | Ár | Miért |
+|---|---|---|
+| Ablak felvétele | ingyen | szigorítás |
+| Bővítés (több nap, hosszabb ablak) | ingyen | szigorítás |
+| **Szűkítés, eltolás** | próbatétel | a régi ablak egy perce szabad lenne |
+| **Levétel** | próbatétel | lazítás |
+| **A futó csomag ablaka** | tiltott | a futó csomag befagy |
+
+A lazítás kérdését ugyanaz a percenkénti mintavétel dönti el, mint a
+menetrendnél: van-e olyan perc a következő héten, amikor a régi ablak
+indítana, az új nem. Az ablak **külön gombbal** megy a csomag szerkesztőjében,
+nem a Mentés része: a Mentés ingyenes út, és a segéd a mentésnél a tárolt
+ablakot meg is tartja — különben a Mentés lenne a kikapcsoló.
+
+### Az ablak az ígéret, nem a hossz
+
+A menet kezdése **mindig az ablak kezdete**, akkor is, ha az eszköz később
+ébredt. Ez nem esztétika: így minden eszköz UGYANAZT a menetet állítja elő
+(csomag + kezdés), a szinkron a kettőt egynek látja, és a napló egy sort kap.
+Ha a gép 9:30-kor ébred, a menet 9:00-tól 12:00-ig szól — a telefon ugyanezt
+tartatta be 9:00 óta.
+
+Ugyanezért az **óra-ugrás elnyelése az ablak-menetet nem tolja el**: a délben
+végződő ablak délben végződik, nem tolódik a laptop alvásával. A kézi menetnél
+a hossz az ígéret („amennyi hátra volt, annyi van hátra”), az ablaknál az
+időpont. A meghosszabbított ablak-menet már kézi menetnek számít.
+
+### A napló az őr
+
+A leállítás próbatétel — de mi akadályozza meg, hogy a következő kör egy perc
+múlva újraindítsa? **A napló.** A leállított (vagy lerövidített) menet sora
+ebben az ablakban kezdődött, és amíg ilyen sor van, az ablak nem indít újra.
+A napló szinkronizál, tehát a másik eszköz sem. Másnap az ablak tiszta lappal
+indul. Az ablak ELŐTT kézzel indított menet nem fogyasztja el az ablakot: az a
+saját idejében ért véget, az ablak hátralévő része jár.
+
+Egyszerre egy menet fut: ha az ablak kezdetén épp más csomag megy, az ablak
+vár, és amikor az véget ér, a hátralévő részre indul.
+
+### Őszinte korlátok
+
+- Egy eszköz, ami a leállítás idején nem volt hálózaton, a szinkron
+  megérkezéséig újraindíthatja a menetet az ablak hátralévő részére. A hiba
+  iránya a szigorúbb, és a leállítás ott is ugyanaz a próbatétel.
+- A naplóban az ablak ideje áll (9:00–12:00), nem az, hogy melyik eszköz mikor
+  volt ébren. Ha az ablak közepén ért véget egy másik csomag kézi menete, a
+  két sor átfedhet — egy sorral több, nem kibúvó.
+- A telefonon az ablakot a DNS-útvonal köre nézi, tizenöt másodpercenként; az
+  indítás legfeljebb ennyit késhet. A gépen a segéd köre pár másodperc.
+- A telefon a csomagot indítja és betartatja; az ablakot a gépen állítod be,
+  ahol a csomag szerkesztője is van.
 
 ## A telefon eddig kiskapu volt
 

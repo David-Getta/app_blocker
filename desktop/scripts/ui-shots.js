@@ -245,6 +245,14 @@ function fakeBridgeSource() {
           sessionStorage.setItem('fakeHideList', window.__fakeHideList ? '1' : '0');
           return { ok: true, data: status() };
         }
+        if (op === 'focus_recurrence') {
+          // A heti ablak beállítása. A füstteszt a felvételt járja (ingyen);
+          // a levétel próbatétel, az a segéd dolga.
+          window.__lastRecurrence = { packId: payload.packId, band: payload.band };
+          const p = window.__fakePacks.find((x) => x.id === payload.packId);
+          if (p) { if (payload.band) p.recurrence = payload.band; else delete p.recurrence; }
+          return { ok: true, data: { applied: true, session: null, status: status() } };
+        }
         if (op === 'focus_start') {
           window.__fakeRun = {
             packId: payload.packId, startedAt: Date.now(),
@@ -509,6 +517,33 @@ async function main() {
     undefined, { timeout: 10_000 },
   ).catch(() => failures.push('az „Új csomag” gomb nem nyitotta meg a szerkesztőt'));
   await page.locator('.modal').getByRole('button', { name: 'Mégse' }).click();
+
+  // A HETI ABLAK. A csomag ismétlődése külön gombbal megy (a Mentés az
+  // ingyenes út, az ablak levétele próbatétel): a napok, a kezdés és a vég
+  // úgy érjen el a hídig, ahogy beállítottuk, és a sor mondja ki, mikor
+  // indul magától. Alapból a hétköznapok vannak jelölve; a szerdát kivesszük,
+  // hogy lássuk: a jelölés tényleg a kattintást követi.
+  await page.locator('#focusPacks .focus-pack').nth(1)
+    .getByRole('button', { name: 'Szerkesztés' }).click();
+  const recModal = page.locator('.overlay:not(.hidden) .modal');
+  await recModal.getByRole('heading', { name: 'Csomag szerkesztése' }).waitFor({ timeout: 10_000 });
+  await recModal.locator('.chip', { hasText: /^Sze$/ }).click();
+  await recModal.locator('input[type="time"]').nth(0).fill('09:00');
+  await recModal.locator('input[type="time"]').nth(1).fill('12:00');
+  await recModal.getByRole('button', { name: 'Ablak beállítása' }).click();
+  const recReached = await page.waitForFunction(() => {
+    const r = window.__lastRecurrence;
+    return !!r && r.packId === 'pack_2' && !!r.band && r.band.startMin === 540
+      && r.band.endMin === 720 && JSON.stringify(r.band.days) === '[1,2,4,5]';
+  }, undefined, { timeout: 10_000 }).then(() => true).catch(() => false);
+  if (!recReached) {
+    const got = await page.evaluate(() => JSON.stringify(window.__lastRecurrence));
+    failures.push(`a heti ablak nem úgy ért el a hídig, ahogy beállítottuk: ${got}`);
+  }
+  const packSub = await page.locator('#focusPacks .focus-pack').nth(1).textContent().catch(() => '');
+  if (!/magától indul: H, K, Cs, P 09:00–12:00/.test(packSub || '')) {
+    failures.push(`a csomag sora nem mondja ki a heti ablakot: ${packSub}`);
+  }
 
   // A GYORSBILLENTYŰ ÁTÁLLÍTÁSA. A rögzítő mód a következő lenyomott
   // kombinációt küldi a hídnak; a felirat és a visszaállító gomb követi.

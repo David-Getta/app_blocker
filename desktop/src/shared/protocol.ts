@@ -234,7 +234,10 @@ export type HelperRequest =
   | { id: number; op: 'focus_save'; pack: import('./focus').FocusPack }
   | { id: number; op: 'focus_delete'; packId: string }
   | { id: number; op: 'focus_start'; packId: string; minutes: number }
-  | { id: number; op: 'focus_change'; endsAt: number | null };
+  | { id: number; op: 'focus_change'; endsAt: number | null }
+  // A csomag ismétlődése (heti ablak, amiben magától indul). Felvenni és
+  // bővíteni ingyen; szűkíteni vagy levenni (`band: null`) próbatétel.
+  | { id: number; op: 'focus_recurrence'; packId: string; band: import('./schedule').Band | null };
 
 /** One recorded slice of active time, as measured by the user-session tracker. */
 export interface UsageSampleMsg {
@@ -310,6 +313,8 @@ export type HelperResponse =
  * 0.4.0 — fiók és eszközök közti szinkron: sync_* parancsok, a status
  *         kiegészülve a sync mezővel
  * 0.6.5 — set_hostname (hosztnév felvétele ingyen, levétele próbatétellel)
+ * 0.6.6 — focus_recurrence (a csomag heti ablaka: felvétel ingyen, szűkítés/levétel próbatétel);
+ *         a segéd az ablakban magától indítja a menetet
  * 0.6.4 — self_test (a tiltás tényleg érvényesül-e a rendszer feloldójánál),
  *         a status a jelentéssel (selfTest)
  * 0.6.3 — a status oldalanként a mai betelés-darabszámmal (burstTripsToday)
@@ -321,5 +326,5 @@ export type HelperResponse =
  * 0.2.0 — set_limit (napi időkeret), a status kiegészülve a keret mezőivel
  * 0.1.0 — első kiadás
  */
-export const HELPER_VERSION = '0.6.5';
+export const HELPER_VERSION = '0.6.6';
 export const PAUSE_CHOICES_MIN = [15, 30, 60];

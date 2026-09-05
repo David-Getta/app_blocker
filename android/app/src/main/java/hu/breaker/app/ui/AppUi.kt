@@ -2122,6 +2122,15 @@ private fun FocusPacksCard(state: AppState, vpnRunning: Boolean, onError: (Strin
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
+                        // A heti ablak a telefonon is látszik: egy csomag, ami
+                        // reggel magától indul, ne legyen meglepetés.
+                        pack.recurrence?.let { band ->
+                            Text(
+                                "magától indul: ${recurrenceLabel(band)}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     }
                     Button(onClick = {
                         // Üres mező = a csomag szokásos hossza. Így az indítás
@@ -2144,3 +2153,16 @@ private fun deviceName(): String {
 
 private fun fmtClock(ms: Long): String =
     java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date(ms))
+
+/** „H–P 09:00–12:00”, „minden nap 22:00–06:00”, „H, Sze, P 18:00–20:00” — mint a gépen. */
+private fun recurrenceLabel(b: ScheduleLogic.Band): String {
+    val names = listOf("V", "H", "K", "Sze", "Cs", "P", "Szo")
+    val days = when {
+        b.days.size == 7 -> "minden nap"
+        b.days == setOf(1, 2, 3, 4, 5) -> "H–P"
+        b.days == setOf(0, 6) -> "Szo–V"
+        else -> listOf(1, 2, 3, 4, 5, 6, 0).filter { it in b.days }.joinToString(", ") { names[it] }
+    }
+    fun hm(min: Int) = "%02d:%02d".format((min % 1440) / 60, min % 60)
+    return "$days ${hm(b.startMin)}–${hm(b.endMin)}"
+}

@@ -470,6 +470,12 @@ object BreakerStore {
                 put("allowSites", JSONArray(p.allowSites))
                 put("allowApps", JSONArray(p.allowApps))
                 put("defaultMinutes", p.defaultMinutes)
+                put("recurrence", p.recurrence?.let { b ->
+                    JSONObject().apply {
+                        put("days", JSONArray(b.days.toList()))
+                        put("startMin", b.startMin); put("endMin", b.endMin)
+                    }
+                } ?: JSONObject.NULL)
             }
         }))
         put("focusRun", s.focusRun?.let { r ->
@@ -744,6 +750,17 @@ object BreakerStore {
                     allowSites = jsonStrings(p, "allowSites") { Focus.normalizeAllowSite(it) },
                     allowApps = jsonStrings(p, "allowApps") { Focus.normalizeAllowApp(it) },
                     defaultMinutes = Focus.normalizeMinutes(p.optDouble("defaultMinutes")) ?: 25,
+                    // A heti ablak HELYBEN is megmarad: ha a mentés eldobná, a
+                    // következő feltöltés (utolsó író nyer) a gépről is letörölné.
+                    recurrence = Focus.cleanRecurrence(p.optJSONObject("recurrence")?.let { b ->
+                        runCatching {
+                            val d = b.getJSONArray("days")
+                            ScheduleLogic.Band(
+                                days = (0 until d.length()).map { d.getInt(it) }.toSet(),
+                                startMin = b.getInt("startMin"), endMin = b.getInt("endMin"),
+                            )
+                        }.getOrNull()
+                    }),
                 ))
             }
         }

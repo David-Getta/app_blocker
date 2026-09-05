@@ -262,6 +262,9 @@ object SyncClient {
                 put("allowSites", JSONArray(p.allowSites))
                 put("allowApps", JSONArray(p.allowApps))
                 put("defaultMinutes", p.defaultMinutes)
+                // A heti ablak is felmegy: enélkül a telefon feltöltése (utolsó
+                // író nyer) letörölné a gépen beállított ismétlődést.
+                put("recurrence", p.recurrence?.let { bandToJson(it) } ?: JSONObject.NULL)
             }
         }))
         if (f.run == null) put("run", JSONObject.NULL) else put("run", JSONObject().apply {
@@ -311,6 +314,7 @@ object SyncClient {
                     allowSites = stringList(p, "allowSites") { Focus.normalizeAllowSite(it) },
                     allowApps = stringList(p, "allowApps") { Focus.normalizeAllowApp(it) },
                     defaultMinutes = Focus.normalizeMinutes(p.optDouble("defaultMinutes")) ?: 25,
+                    recurrence = Focus.cleanRecurrence(p.optJSONObject("recurrence")?.let { bandFromJson(it) }),
                 ))
             }
         }
@@ -409,6 +413,21 @@ object SyncClient {
         }
         return ScheduleLogic.Schedule(mode, bands)
     }
+
+    /** Egy sáv a drótra — ugyanaz az alak, mint a menetrend sávjaié. */
+    private fun bandToJson(b: ScheduleLogic.Band): JSONObject = JSONObject().apply {
+        put("days", JSONArray(b.days.toList()))
+        put("startMin", b.startMin); put("endMin", b.endMin)
+    }
+
+    /** Egy sáv a drótról, vagy null, ha nem értelmezhető — a hívó tisztítja. */
+    private fun bandFromJson(b: JSONObject): ScheduleLogic.Band? = runCatching {
+        val days = b.getJSONArray("days")
+        ScheduleLogic.Band(
+            days = (0 until days.length()).map { days.getInt(it) }.toSet(),
+            startMin = b.getInt("startMin"), endMin = b.getInt("endMin"),
+        )
+    }.getOrNull()
 
     data class SyncResult(val state: AppState, val changed: Boolean, val devices: Int)
 

@@ -92,6 +92,11 @@ export interface SessionRec {
    * ez a kísérlet nem a munkamenetről szól.
    */
   pendingFocusEnd?: number;
+  /**
+   * Ha van, a teljesítés a csomag ismétlődését cseréli erre (lazítás: szűkítés
+   * vagy levétel — az a null). Nem oldalhoz tartozik, hanem egy csomaghoz.
+   */
+  pendingRecurrence?: { packId: string; band: import('../shared/schedule').Band | null };
 }
 
 /**

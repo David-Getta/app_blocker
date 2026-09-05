@@ -142,6 +142,15 @@ attól, hogy sokszor csinálod.
   lezárja, az EGY menet marad. A „korán leállítva” sor szándékosan nem
   szégyenpad: ha sokszor fordul elő, nem a csomaggal van baj, hanem a hosszal.
 
+  **Heti ablak: a menet magától indul** (gép + telefon). A csomag kaphat egy
+  ablakot („hétköznap 9:00–12:00”): abban a menet magától indul, és az ablak
+  végéig tart — a telefonon is, mert az ablak a csomaggal szinkronizál. Felvenni
+  és bővíteni egy kattintás, **szűkíteni vagy levenni próbatétel**; a
+  leállított menet ugyanabban az ablakban nem indul újra (a napló az őr). Az
+  ablak vége az ablak vége: a laptop alvása nem tolja el. Őszinte korlát: egy
+  eszköz, ami a leállításkor nem volt hálózaton, a szinkronig újraindíthatja a
+  hátralévő részre — a hiba iránya a szigorúbb, és a leállítás ott is próbatétel.
+
   A gépen a fehérlistát KIZÁRÓLAG a bővítmény tudja betartatni, ezért az app és
   a gyorsbillentyűs réteg is **szól, ha az nincs összekötve** — enélkül az
   indítás csendben nem tiltana semmit a böngészőben. Az óra átállítása sem

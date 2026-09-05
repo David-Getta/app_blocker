@@ -81,7 +81,10 @@ const GROUPS = [
   },
   {
     what: 'egy csomag',
-    names: ['id', 'name', 'allowSites', 'allowApps', 'defaultMinutes'],
+    // A `recurrence` a heti ablak: ha a neve elcsúszik, a telefon eldobja, a
+    // következő feltöltése pedig (utolsó író nyer) letörli a gépről is — a
+    // reggeli menet csendben elmarad.
+    names: ['id', 'name', 'allowSites', 'allowApps', 'defaultMinutes', 'recurrence'],
     ts: 'desktop/src/shared/focus.ts',
     kt: 'android/app/src/main/java/hu/breaker/app/core/SyncClient.kt',
     swift: 'ios/Shared/Focus.swift',

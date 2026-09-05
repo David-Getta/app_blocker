@@ -70,12 +70,16 @@ enum SyncRevisions {
 
     private static func packsPart(_ state: AppState) -> String {
         (state.focusPacks ?? []).sorted { $0.id < $1.id }.map { p in
-            [
+            ([
                 p.id, p.name,
                 p.allowSites.sorted().joined(separator: ","),
                 p.allowApps.sorted().joined(separator: ","),
                 String(p.defaultMinutes),
-            ].joined(separator: ";")
+                // Az ismétlődés is a csomag beállítása: a cseréje döntés, tehát
+                // léptet. CSAK HA VAN: egy ablak nélküli csomag lenyomata ugyanaz
+                // marad, mint a frissítés előtt — különben minden csomag egyszer
+                // fölöslegesen léptetne.
+            ] + (p.recurrence.map { [Focus.recurrenceKey($0)] } ?? [])).joined(separator: ";")
         }.joined(separator: "|")
     }
 

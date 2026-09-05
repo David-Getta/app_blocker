@@ -44,6 +44,16 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
+          **Heti ablak: a munkamenet magától indul.** A csomag kaphat egy
+          ablakot („hétköznap 9:00–12:00”), és abban a menet magától indul,
+          az ablak végéig — a gépen és a telefonon is, mert az ablak a
+          csomaggal együtt szinkronizál. Felvenni és bővíteni egy kattintás;
+          szűkíteni vagy levenni próbatétel, mint a leállítás. A leállított
+          menet ugyanabban az ablakban nem indul újra: a napló az őr. Az
+          ablak a csomag szerkesztőjében állítható, legfeljebb nyolc óra.
+
+          ### Ami a v0.4.23-ban jött
+
           **A bővítményt az app hozza és tartja frissen.** Nem kell többé
           kiadásonként zipet letölteni: az app kimásolja a bővítményt egy
           állandó mappába (az oldal Részek párbeszédében: Mappa megnyitása),
@@ -68,7 +78,7 @@ jobs:
           levenni próbatétel, mint a feloldás. Így engedhető például a YouTube
           Music a YouTube tiltása mellett. Az oldal saját címe nem vehető le.
 
-          ### Ami a v0.4.22-ben jött
+          #### Ami a v0.4.22-ben jött
 
           **Önteszt: a zöld korong mostantól tényt mond.** A „Védelem aktív”
           eddig azt jelentette, hogy a védelem fut — nem azt, hogy a tiltás
@@ -91,25 +101,6 @@ jobs:
 
           **Androidon a statisztika is mutatja a mai adag-beteléseket** —
           ugyanaz a sor, mint a gépen, a fedőnév és a rejtés szabályával.
-
-          ### Ami a v0.4.21-ben jött
-
-          **A gép is szól, amikor betelik az adag.** Eddig csak a telefon
-          értesített a futó szünetről — a gépen a betelés némán történt,
-          ha épp nem a Breakert vagy a böngészőt nézted. Mostantól az app
-          értesítést dob a betelés pillanatában (kiírja, mennyi múlva
-          nyit), és akkor is, amikor a szünet letelt és az oldal újra
-          nyitva. Őszinte korlát: csak amíg az app fut — a háttérben ülő
-          védelem magától nem tud értesíteni. Rejtett listánál a valódi
-          név az értesítésben sem látszik.
-
-          #### Ami a v0.4.20-ban jött
-
-          **Újdonságok gomb.** A fiók-panelen (jobb felső ikon) egy gombbal
-          megnyílik ez a kiadási jegyzet a böngészőben — eddig csak az látta,
-          aki magától idekattintott. Mellé kimondtuk a doksiban, hogy az óra
-          átállítása az adag-szünet lejáratát is érinti — ugyanaz a korlát,
-          mint a napi keretnél: a rendszeróra az igazság.
 
           NOTES
           fi

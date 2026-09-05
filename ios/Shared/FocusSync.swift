@@ -190,6 +190,7 @@ public enum FocusSync {
                 p.allowSites.sorted().joined(separator: ","),
                 p.allowApps.sorted().joined(separator: ","),
                 String(p.defaultMinutes),
+                Focus.recurrenceKey(p.recurrence),
             ].joined(separator: ";")
         }.joined(separator: "|")
         let run = f.run.map { "\($0.packId);\($0.startedAt);\($0.endsAt)" } ?? "-"
@@ -217,7 +218,8 @@ public enum FocusSync {
                 name: String(name.prefix(Focus.maxPackName)),
                 allowSites: normalized(p.allowSites, Focus.normalizeAllowSite),
                 allowApps: normalized(p.allowApps, Focus.normalizeAllowApp),
-                defaultMinutes: Focus.normalizeMinutes(Double(p.defaultMinutes)) ?? 25
+                defaultMinutes: Focus.normalizeMinutes(Double(p.defaultMinutes)) ?? 25,
+                recurrence: Focus.cleanRecurrence(p.recurrence)
             ))
         }
         return SyncFocus(

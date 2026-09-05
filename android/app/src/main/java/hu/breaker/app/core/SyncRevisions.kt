@@ -89,12 +89,16 @@ object SyncRevisions {
 
     private fun packsPart(state: AppState): String =
         state.focusPacks.sortedBy { it.id }.joinToString("|") { p ->
-            listOf(
+            (listOf(
                 p.id, p.name,
                 p.allowSites.sorted().joinToString(","),
                 p.allowApps.sorted().joinToString(","),
                 p.defaultMinutes.toString(),
-            ).joinToString(";")
+                // Az ismétlődés is a csomag beállítása: a cseréje döntés, tehát
+                // léptet. CSAK HA VAN: egy ablak nélküli csomag lenyomata ugyanaz
+                // marad, mint a frissítés előtt — különben minden csomag egyszer
+                // fölöslegesen léptetne.
+            ) + listOfNotNull(p.recurrence?.let { Focus.recurrenceKey(it) })).joinToString(";")
         }
 
     private fun digest(text: String): String {

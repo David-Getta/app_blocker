@@ -94,7 +94,15 @@ const FOCUS_FP_V2 = '2|';
 function packsPart(state: HelperState): unknown[] {
   return [...(state.focusPacks ?? [])]
     .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
-    .map((p) => [p.id, p.name, [...p.allowSites].sort(), [...p.allowApps].sort(), p.defaultMinutes]);
+    .map((p) => [
+      p.id, p.name, [...p.allowSites].sort(), [...p.allowApps].sort(), p.defaultMinutes,
+      // Az ismétlődés is a csomag beállítása: a cseréje döntés, tehát léptet.
+      // CSAK HA VAN: egy ablak nélküli csomag lenyomata ugyanaz marad, mint a
+      // frissítés előtt — különben minden eszköz minden csomagja egyszer
+      // fölöslegesen léptetne, és a régi formátum felismerése is elromlana.
+      ...(p.recurrence
+        ? [[[...p.recurrence.days].sort(), p.recurrence.startMin, p.recurrence.endMin]] : []),
+    ]);
 }
 
 function digest(value: unknown): string {

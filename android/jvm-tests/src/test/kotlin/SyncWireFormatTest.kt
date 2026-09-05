@@ -7,6 +7,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -18,6 +19,37 @@ import kotlin.test.assertTrue
  * munkaidős menetrendnek szánt — vagy fordítva.
  */
 class SyncWireFormatTest {
+
+    @Test
+    fun `a csomag heti ablaka oda-vissza atmegy a droton`() {
+        // Ha a `recurrence` a telefon feltöltéséből kimaradna, akkor az
+        // „utolsó író nyer” szabály a gépről is letörölné a reggeli ablakot.
+        val band = ScheduleLogic.Band(setOf(1, 2, 3, 4, 5), 9 * 60, 12 * 60)
+        val json = SyncClient.focusToJson(FocusSync.SyncFocus(
+            packs = listOf(Focus.FocusPack(
+                id = "p1", name = "Mély munka", allowSites = listOf("github.com"),
+                allowApps = emptyList(), defaultMinutes = 50, recurrence = band,
+            )),
+            run = null, log = emptyList(), rev = 1, updatedAt = 1, updatedBy = "telefon",
+        ))
+        val rec = JSONObject(json).getJSONArray("packs").getJSONObject(0).getJSONObject("recurrence")
+        assertEquals(540, rec.getInt("startMin"))
+        assertEquals(720, rec.getInt("endMin"))
+        assertEquals(5, rec.getJSONArray("days").length())
+        assertEquals(
+            band, SyncClient.focusFromJson(json, "telefon").packs[0].recurrence,
+            "amit felküldünk, azt kapjuk vissza",
+        )
+
+        // Ablak nélkül a kulcs null: a gép ezt „nincs”-nek olvassa, nem hibának
+        // — és egy régebbi gép blobjából hiányzó kulcs ugyanide jut.
+        val plain = SyncClient.focusToJson(FocusSync.SyncFocus(
+            packs = listOf(Focus.FocusPack("p2", "Sima", emptyList(), emptyList(), 25)),
+            run = null, log = emptyList(), rev = 1, updatedAt = 1, updatedBy = "telefon",
+        ))
+        assertTrue(JSONObject(plain).getJSONArray("packs").getJSONObject(0).isNull("recurrence"))
+        assertNull(SyncClient.focusFromJson(plain, "telefon").packs[0].recurrence)
+    }
 
     private val work = ScheduleLogic.Schedule(
         ScheduleLogic.Mode.SCHEDULED_BLOCK,

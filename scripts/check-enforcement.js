@@ -471,6 +471,35 @@ const WIRES = [
     lost: 'a hosztnevek szerkesztése nem lenne elérhető — a mag ott lenne, '
       + 'kapcsoló nélkül',
   },
+  // AZ ISMÉTLŐDŐ MUNKAMENET. A heti ablak három helyen indít (segéd, Android,
+  // iPhone); ha bármelyikből kiesik, azon az eszközön a reggeli menet csendben
+  // elmarad, és a felhasználó azt hiszi, be van állítva. A levétel kapuja a
+  // referee: ha a parancs nem azon menne át, az ablak egy kikapcsoló lenne.
+  {
+    file: 'desktop/src/helper/referee.ts',
+    needle: 'const due = dueRecurrence(state.focusPacks',
+    lost: 'a gépen az ablak sosem indítana menetet — a beállítás ott lenne, hatás nélkül',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/Referee.kt',
+    needle: 'Focus.dueRecurrence(next.focusPacks',
+    lost: 'a telefonon az ablak sosem indítana menetet — a gép nélkül a reggel szabad lenne',
+  },
+  {
+    file: 'ios/Shared/Referee.swift',
+    needle: 'if let due = Focus.dueRecurrence(',
+    lost: 'az iPhone-on az ablak sosem indítana menetet — a gép nélkül a reggel szabad lenne',
+  },
+  {
+    file: 'desktop/src/helper/server.ts',
+    needle: 'referee.setFocusRecurrence(',
+    lost: 'az ablak levétele nem a refereen menne át — egy gomb lenne, próbatétel nélkül',
+  },
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: "'focus_recurrence'",
+    lost: 'az ablak beállítása nem lenne elérhető — a mag ott lenne, kapcsoló nélkül',
+  },
   // A BŐVÍTMÉNY MAPPÁJA. Ha az app nem tartaná frissen, a böngészőben egy régi
   // bővítmény futna egy új app mellett — és a felület egy mappára mutatna,
   // amit senki nem frissít.

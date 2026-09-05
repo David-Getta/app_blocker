@@ -1,5 +1,7 @@
 package hu.breaker.app.core
 
+import java.util.Calendar
+
 /**
  * Munkamenetek: „most csak EZ mehet” — a `desktop/src/shared/focus.ts` tükre.
  *
@@ -51,6 +53,12 @@ object Focus {
         val allowApps: List<String>,
         /** amit induláskor felkínálunk, percben */
         val defaultMinutes: Int,
+        /**
+         * Ismétlődés: ezeken a napokon, ebben az ablakban a menet MAGÁTÓL
+         * indul, és az ablak végéig tart. Null = csak kézzel indul. Ugyanaz a
+         * sáv-alak, mint az oldalak menetrendjében.
+         */
+        val recurrence: ScheduleLogic.Band? = null,
     )
 
     data class FocusRun(
@@ -327,5 +335,119 @@ object Focus {
             return if (m == 0) "$h óra" else "$h ó $m p"
         }
         return if (total <= 1) "kevesebb mint egy perc" else "$total perc"
+    }
+
+    // -----------------------------------------------------------------------
+    // Ismétlődő munkamenet: a csomag magától indul egy heti ablakban.
+    //
+    // A `focus.ts` azonos nevű szakaszának tükre — az indoklás ott van. A
+    // lényeg két mondat: AZ ABLAK AZ ÍGÉRET (a menet kezdése mindig az ablak
+    // kezdete, így minden eszköz ugyanazt a menetet állítja elő), és A NAPLÓ
+    // AZ ŐR (ami ebben az ablakban egyszer már indult, az nem indul újra —
+    // a leállítás próbatétele különben egy percig érne).
+    // -----------------------------------------------------------------------
+
+    /** Ennél kevesebb hátralévő idővel már nem indul menetrend szerinti menet. */
+    const val RECURRENCE_MIN_REMAINING_MS = 60_000L
+
+    /** Egy ablak-előfordulás: mikor kezdődik és mikor ér véget (epoch ms). */
+    data class Occurrence(val startsAt: Long, val endsAt: Long)
+
+    /** A sáv hossza percben (éjfélen átnyúlva is). */
+    fun bandMinutes(b: ScheduleLogic.Band): Int =
+        if (b.endMin > b.startMin) b.endMin - b.startMin else 1440 - b.startMin + b.endMin
+
+    /**
+     * Kívülről jött ismétlődés használható alakja, vagy null: érvényes sáv,
+     * és nem hosszabb egy menet plafonjánál — egy huszonnégy órás „ablak” nem
+     * munkamenet lenne, hanem egy kikapcsolhatatlan fehérlista.
+     */
+    fun cleanRecurrence(b: ScheduleLogic.Band?): ScheduleLogic.Band? {
+        if (b == null || !ScheduleLogic.isValidBand(b)) return null
+        if (bandMinutes(b) > MAX_SESSION_MINUTES) return null
+        return b
+    }
+
+    /** Egy helyi időpont: a `now` napjától `dayOffset` nappal, `min` perccel éjfél után. */
+    private fun localAt(now: Long, dayOffset: Int, min: Int): Long {
+        val c = Calendar.getInstance().apply { timeInMillis = now }
+        c.set(Calendar.HOUR_OF_DAY, 0); c.set(Calendar.MINUTE, 0)
+        c.set(Calendar.SECOND, 0); c.set(Calendar.MILLISECOND, 0)
+        c.add(Calendar.DAY_OF_MONTH, dayOffset + min / 1440)
+        // Mezőkkel, nem percek hozzáadásával: az óraátállás napján a 9:00 az
+        // a 9:00, nem éjfél plusz ötszáznegyven perc.
+        c.set(Calendar.HOUR_OF_DAY, (min % 1440) / 60); c.set(Calendar.MINUTE, min % 60)
+        return c.timeInMillis
+    }
+
+    /** A sáv MOSTANI előfordulása — vagy null, ha `now` nincs benne. */
+    fun occurrenceAt(band: ScheduleLogic.Band, now: Long): Occurrence? {
+        val c = Calendar.getInstance().apply { timeInMillis = now }
+        val day = c.get(Calendar.DAY_OF_WEEK) - 1
+        val minute = c.get(Calendar.HOUR_OF_DAY) * 60 + c.get(Calendar.MINUTE)
+        val prevDay = (day + 6) % 7
+        if (band.endMin > band.startMin) {
+            if (day in band.days && minute >= band.startMin && minute < band.endMin) {
+                return Occurrence(localAt(now, 0, band.startMin), localAt(now, 0, band.endMin))
+            }
+            return null
+        }
+        if (day in band.days && minute >= band.startMin) {
+            return Occurrence(localAt(now, 0, band.startMin), localAt(now, 1, band.endMin))
+        }
+        if (prevDay in band.days && minute < band.endMin) {
+            return Occurrence(localAt(now, -1, band.startMin), localAt(now, 0, band.endMin))
+        }
+        return null
+    }
+
+    data class DueRecurrence(val pack: FocusPack, val startsAt: Long, val endsAt: Long)
+
+    /**
+     * Melyik csomag ablaka esedékes MOST — vagy null. Nem indul, ha fut
+     * valami; ha a naplóban van ebben az ablakban kezdődött menet ebből a
+     * csomagból; vagy ha egy percnél kevesebb van hátra. Több közül a
+     * korábban kezdődő, azonos kezdésnél a kisebb azonosítójú.
+     */
+    fun dueRecurrence(
+        packs: List<FocusPack>,
+        run: FocusRun?,
+        log: List<FocusLogEntry>,
+        now: Long,
+    ): DueRecurrence? {
+        if (isRunning(run, now)) return null
+        var best: DueRecurrence? = null
+        for (pack in packs) {
+            val band = pack.recurrence ?: continue
+            if (!ScheduleLogic.isValidBand(band)) continue
+            val occ = occurrenceAt(band, now) ?: continue
+            if (occ.endsAt - now < RECURRENCE_MIN_REMAINING_MS) continue
+            val spent = log.any {
+                it.packId == pack.id && it.startedAt >= occ.startsAt && it.startedAt < occ.endsAt
+            }
+            if (spent) continue
+            val b = best
+            if (b == null || occ.startsAt < b.startsAt ||
+                (occ.startsAt == b.startsAt && pack.id < b.pack.id)
+            ) {
+                best = DueRecurrence(pack, occ.startsAt, occ.endsAt)
+            }
+        }
+        return best
+    }
+
+    /** Az ismétlődés kulcsa a lenyomatokhoz: napok rendezve, kezdés, vég — vagy „-”. */
+    fun recurrenceKey(b: ScheduleLogic.Band?): String =
+        b?.let { "${it.days.sorted().joinToString(",")}/${it.startMin}-${it.endMin}" } ?: "-"
+
+    /**
+     * Ablak-menet-e ez a futás: a csomag ismétlődésének egy előfordulása,
+     * pontosan annak kezdésével és végével. Az óra-ugrás elnyelése az ilyet
+     * nem tolja el — az ablak vége az ablak vége.
+     */
+    fun isWindowRun(run: FocusRun, packs: List<FocusPack>): Boolean {
+        val band = packs.firstOrNull { it.id == run.packId }?.recurrence ?: return false
+        val occ = occurrenceAt(band, run.startedAt) ?: return false
+        return occ.startsAt == run.startedAt && occ.endsAt == run.endsAt
     }
 }

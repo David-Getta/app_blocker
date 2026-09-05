@@ -10,7 +10,7 @@ import type {
   SessionInfo, SubmitResult, SetScheduleResult, SetLimitResult, SetRuleResult,
 } from '../shared/protocol';
 import { PAUSE_CHOICES_MIN } from '../shared/protocol';
-import { isLoosening, normalizeSchedule, ALWAYS, type Schedule } from '../shared/schedule';
+import { isLoosening, normalizeSchedule, ALWAYS, type Band, type Schedule } from '../shared/schedule';
 import { isBurstLoosening, normalizeBurst } from '../shared/burst';
 import { isLimitLoosening, normalizeLimit } from '../shared/limits';
 import { dayKey } from '../shared/usage';
@@ -20,7 +20,8 @@ import {
 import { MAX_RULES_PER_SITE, sameRule, type UrlRule } from '../shared/urlrules';
 import { hostnameBelongsTo, MAX_HOSTNAMES_PER_SITE, normalizeHostname } from '../shared/blocklist';
 import {
-  closeIfEnded, closeRun, isRunning, isSessionLoosening, MAX_FOCUS_LOG, normalizeMinutes,
+  closeIfEnded, closeRun, dueRecurrence, isRecurrenceLoosening, isRunning, isSessionLoosening,
+  isWindowRun, MAX_FOCUS_LOG, normalizeMinutes, normalizeRecurrence, sameRecurrence,
   type FocusPack, type FocusRun,
 } from '../shared/focus';
 import type { AbandonRec, HelperState, SessionRec } from './state';
@@ -130,6 +131,16 @@ function finishSession(state: HelperState, now: number): void {
     } else if (state.focusRun) {
       state.focusRun = { ...state.focusRun, endsAt: s.pendingFocusEnd };
     }
+    state.unlockLog = [...state.unlockLog.filter((t) => t > now - 30 * 24 * 3600_000), now];
+    state.session = null;
+    state.abandons = (state.abandons ?? []).filter((a) => a.siteId !== s.siteId);
+    return;
+  }
+  // A csomag ISMÉTLŐDÉSE sem oldalhoz tartozik, hanem a csomaghoz. A cserét
+  // itt hajtjuk végre, mert idáig csak próbatétellel lehet eljutni — a lazítás
+  // (szűkítés, levétel) ára ez a menet volt.
+  if (s.pendingRecurrence !== undefined) {
+    applyRecurrence(state, s.pendingRecurrence.packId, s.pendingRecurrence.band);
     state.unlockLog = [...state.unlockLog.filter((t) => t > now - 30 * 24 * 3600_000), now];
     state.session = null;
     state.abandons = (state.abandons ?? []).filter((a) => a.siteId !== s.siteId);
@@ -627,7 +638,12 @@ function absorbClockJump(state: HelperState, now: number): void {
   //
   // A kezdés is tolódik, nem csak a vég: enélkül a naplóba egy ötvenperces
   // menet nyolc és fél órásként kerülne be, és a statisztika hazudna.
-  if (state.focusRun) {
+  //
+  // Az ABLAK-menet kivétel: annak a vége az ablak vége. Egy „hétköznap 9–12”
+  // menet délben végződik akkor is, ha a laptop közben aludt — az ablak az
+  // ígéret, nem a hossz (focus.ts). Ha eltolnánk, a telefon és a gép két
+  // különböző menetet látna ugyanarról a délelőttről.
+  if (state.focusRun && !isWindowRun(state.focusRun, state.focusPacks ?? [])) {
     state.focusRun = {
       ...state.focusRun,
       startedAt: state.focusRun.startedAt + shift,
@@ -690,6 +706,15 @@ export function tick(state: HelperState, now: number): boolean {
   if (closed) {
     state.focusLog = closed.log;
     state.focusRun = closed.run;
+    dirty = true;
+  }
+  // MENETREND SZERINTI INDÍTÁS. Az ablakban, ha nem fut semmi, és a napló
+  // szerint ebben az ablakban még nem indult, a csomag menete magától indul —
+  // az ablak kezdésével és végével (focus.ts: „az ablak az ígéret”). A
+  // telefon ugyanezt teszi; a szinkron a két azonos menetet egynek látja.
+  const due = dueRecurrence(state.focusPacks ?? [], state.focusRun, state.focusLog, now);
+  if (due) {
+    state.focusRun = { packId: due.pack.id, startedAt: due.startsAt, endsAt: due.endsAt };
     dirty = true;
   }
   return dirty;
@@ -779,8 +804,16 @@ export function saveFocusPack(state: HelperState, pack: FocusPack, now: number):
   }
   const packs = [...(state.focusPacks ?? [])];
   const at = packs.findIndex((p) => p.id === pack.id);
-  if (at >= 0) packs[at] = pack;
-  else packs.push(pack);
+  // Az ISMÉTLŐDÉS nem ezen az úton változik. Ez az út ingyenes; az ablak
+  // levétele viszont lazítás, aminek a `setFocusRecurrence` a kapuja. A tárolt
+  // ablak marad, bármi jött a mentéssel — különben a „Mentés” gomb lenne a
+  // kikapcsoló.
+  const kept = at >= 0 ? packs[at].recurrence : undefined;
+  const next: FocusPack = { ...pack };
+  delete next.recurrence;
+  if (kept) next.recurrence = kept;
+  if (at >= 0) packs[at] = next;
+  else packs.push(next);
   state.focusPacks = packs;
   return packs;
 }
@@ -791,4 +824,61 @@ export function deleteFocusPack(state: HelperState, packId: string, now: number)
   }
   state.focusPacks = (state.focusPacks ?? []).filter((p) => p.id !== packId);
   return state.focusPacks;
+}
+
+/** A csomag ismétlődésének cseréje a tárolt listán (null = levétel). */
+function applyRecurrence(state: HelperState, packId: string, band: Band | null): void {
+  state.focusPacks = (state.focusPacks ?? []).map((p) => {
+    if (p.id !== packId) return p;
+    const next: FocusPack = { ...p };
+    delete next.recurrence;
+    if (band) next.recurrence = band;
+    return next;
+  });
+}
+
+/**
+ * A csomag ismétlődésének beállítása: heti ablak, amiben a menet magától indul.
+ *
+ * Felvenni és bővíteni ingyen (szigorítás: több idő, amikor a fehérlista él);
+ * szűkíteni vagy levenni próbatétel — különben az ablak egy kikapcsolóval érne
+ * fel. A futó csomag itt is befagy: amíg a menete tart, az ablaka sem
+ * szerkeszthető. A lazítás kérdését a mag dönti el (`isRecurrenceLoosening`),
+ * ugyanazzal a percenkénti mintavétellel, mint az oldalak menetrendjénél.
+ */
+export function setFocusRecurrence(
+  state: HelperState, packId: string, input: unknown, now: number,
+): SetRuleResult {
+  const pack = (state.focusPacks ?? []).find((p) => p.id === packId);
+  if (!pack) throw new RefereeError('Ismeretlen csomag.', 'NO_PACK');
+  if (isRunning(state.focusRun, now) && state.focusRun?.packId === packId) {
+    throw new RefereeError(
+      'Ez a csomag épp fut — amíg tart, az ismétlődése sem szerkeszthető.', 'FOCUS_RUNNING',
+    );
+  }
+  const wantsNone = input === null || input === undefined;
+  const next = wantsNone ? null : (normalizeRecurrence(input) ?? null);
+  if (!wantsNone && !next) {
+    throw new RefereeError(
+      'Érvénytelen ablak: legalább egy nap kell, és legfeljebb nyolc óra.', 'BAD_RECURRENCE',
+    );
+  }
+  const current = pack.recurrence ?? null;
+  if (sameRecurrence(current, next)) return { applied: true, session: null };
+  if (!isRecurrenceLoosening(current, next, now)) {
+    applyRecurrence(state, packId, next);
+    return { applied: true, session: null };
+  }
+  if (state.session) throw new RefereeError('Előbb fejezd be a folyamatban lévő kísérletet.', 'BUSY');
+
+  const tier = effectiveTier(state, 'pause', now);
+  const plan = generatePlan('pause', tier, state.lastCombo, rng, null);
+  state.session = {
+    id: newId('ses'), kind: 'pause', siteId: `focus:${packId}`,
+    steps: plan.steps, stepIndex: 0, createdAt: now,
+    pendingRecurrence: { packId, band: next },
+  };
+  state.lastCombo = plan.comboKey;
+  armCurrent(state.session, now);
+  return { applied: false, session: sessionInfo(state.session, now) };
 }

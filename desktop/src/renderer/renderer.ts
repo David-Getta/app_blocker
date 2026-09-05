@@ -7,7 +7,9 @@ import type {
 } from '../shared/protocol';
 // Explicit .js so the browser's native ESM loader resolves it at runtime
 // (TypeScript's bundler resolution does not rewrite the specifier).
-import { PRESET_BANDS, type Schedule, type ScheduleMode } from '../shared/schedule.js';
+import {
+  PRESET_BANDS, type Band, type Schedule, type ScheduleMode, type Weekday,
+} from '../shared/schedule.js';
 import { formatDuration } from '../shared/usage.js';
 import {
   displayName, displayNameNow, isAliased, MAX_ALIAS_LENGTH, REVEAL_MS,
@@ -595,6 +597,11 @@ function renderFocusCard(st: StatusData): void {
     const items = [...pack.allowSites, ...pack.allowApps];
     left.appendChild(h('div', 'focus-sub',
       items.length ? items.join(', ') : 'nincs engedélyezett tétel — minden tiltva'));
+    // Az ablak a soron is látszik: egy csomag, ami reggel magától indul, ne
+    // legyen meglepetés — a felület mondja ki, mikor.
+    if (pack.recurrence) {
+      left.appendChild(h('div', 'focus-sub', `magától indul: ${recurrenceLabel(pack.recurrence)}`));
+    }
     row.appendChild(left);
 
     const actions = h('div', 'row-gap');
@@ -901,6 +908,121 @@ function openFocusStartDialog(pack: FocusPack): void {
  * enélkül a fehérlistához menet közben hozzá lehetne adni bármit, és a
  * munkamenet önmagát oldaná fel, csendben.
  */
+const DAY_SHORT = ['V', 'H', 'K', 'Sze', 'Cs', 'P', 'Szo'];
+const DAY_NAMES = ['vasárnap', 'hétfő', 'kedd', 'szerda', 'csütörtök', 'péntek', 'szombat'];
+/** A hét napjai a felületen: hétfővel kezdve, a mag 0 = vasárnap számozásával. */
+const DAY_ORDER: Weekday[] = [1, 2, 3, 4, 5, 6, 0];
+
+/** Perc-a-napban → „09:05”. Az 1440 (éjfél mint vég) „00:00”. */
+function minutesLabel(min: number): string {
+  const m = min % 1440;
+  return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+}
+
+/** „H–P 09:00–12:00”, „minden nap 22:00–06:00”, „H, Sze, P 18:00–20:00”. */
+function recurrenceLabel(b: Band): string {
+  const days = new Set<number>(b.days);
+  const exactly = (list: number[]): boolean =>
+    days.size === list.length && list.every((d) => days.has(d));
+  let dayText: string;
+  if (days.size === 7) dayText = 'minden nap';
+  else if (exactly([1, 2, 3, 4, 5])) dayText = 'H–P';
+  else if (exactly([0, 6])) dayText = 'Szo–V';
+  else dayText = DAY_ORDER.filter((d) => days.has(d)).map((d) => DAY_SHORT[d]).join(', ');
+  return `${dayText} ${minutesLabel(b.startMin)}–${minutesLabel(b.endMin)}`;
+}
+
+/**
+ * A csomag heti ablakának szerkesztője: napok, kezdés, vég.
+ *
+ * KÜLÖN gombja van, nem a Mentés része. A Mentés ingyenes út; az ablak
+ * szűkítése vagy levétele viszont próbatétel — ha egy úton mennének, a Mentés
+ * lenne a kikapcsoló. A segéd a mentésnél a tárolt ablakot meg is tartja.
+ */
+function recurrenceEditor(pack: FocusPack, overlay: HTMLElement): HTMLElement {
+  const wrap = h('div', 'recurrence-editor');
+  const current = pack.recurrence;
+  const selected = new Set<Weekday>(current?.days ?? [1, 2, 3, 4, 5]);
+  const chips = h('div', 'chips');
+  const paint = (): void => {
+    for (const c of Array.from(chips.children)) {
+      const d = Number((c as HTMLElement).dataset.day);
+      c.classList.toggle('chip-on', selected.has(d as Weekday));
+    }
+  };
+  for (const d of DAY_ORDER) {
+    const c = h('button', 'chip', DAY_SHORT[d]) as HTMLButtonElement;
+    c.type = 'button';
+    c.dataset.day = String(d);
+    c.setAttribute('aria-label', DAY_NAMES[d]);
+    c.addEventListener('click', () => {
+      if (selected.has(d)) selected.delete(d); else selected.add(d);
+      paint();
+    });
+    chips.appendChild(c);
+  }
+  paint();
+  wrap.appendChild(chips);
+
+  const times = h('div', 'row-gap');
+  const start = h('input', 'alias-input time-field') as HTMLInputElement;
+  start.type = 'time';
+  start.value = minutesLabel(current?.startMin ?? 9 * 60);
+  start.setAttribute('aria-label', 'kezdés');
+  const end = h('input', 'alias-input time-field') as HTMLInputElement;
+  end.type = 'time';
+  end.value = minutesLabel(current?.endMin ?? 12 * 60);
+  end.setAttribute('aria-label', 'vég');
+  times.append(start, h('span', 'micro', '–'), end);
+  wrap.appendChild(times);
+  wrap.appendChild(h('p', 'micro',
+    (current ? `Most: ${recurrenceLabel(current)}. ` : '')
+    + 'Az ablakban a menet magától indul, és a végéig tart — a gépen és a telefonon is. '
+    + 'Felvenni és bővíteni egy kattintás; szűkíteni vagy levenni próbatétel. Legfeljebb nyolc óra.'));
+  const note = h('p', 'error hidden');
+  wrap.appendChild(note);
+
+  const parse = (v: string): number | null => {
+    const m = /^(\d{1,2}):(\d{2})$/.exec(v);
+    return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+  };
+  const apply = async (band: Band | null): Promise<void> => {
+    try {
+      const r = await call<SetRuleResult & { status: StatusData }>('focus_recurrence', {
+        packId: pack.id, band,
+      });
+      status = r.status;
+      overlay.remove();
+      render();
+    } catch (e) {
+      note.textContent = (e as Error).message;
+      note.classList.remove('hidden');
+    }
+  };
+  const actions = h('div', 'row-gap');
+  const save = h('button', 'btn btn-small', current ? 'Ablak módosítása' : 'Ablak beállítása');
+  save.addEventListener('click', () => {
+    const s = parse(start.value);
+    const e = parse(end.value);
+    if (s === null || e === null || selected.size === 0) {
+      note.textContent = 'Válassz legalább egy napot, és adj meg kezdést és véget.';
+      note.classList.remove('hidden');
+      return;
+    }
+    // A „00:00” végként az éjfél: a sáv 1440-nel írja le, nem nullával.
+    void apply({ days: [...selected].sort((a, b) => a - b), startMin: s, endMin: e === 0 ? 1440 : e });
+  });
+  actions.appendChild(save);
+  if (current) {
+    const drop = h('button', 'btn btn-small btn-ghost', 'Ablak levétele…');
+    drop.title = 'A levétel próbatétel — ugyanúgy, mint a feloldás.';
+    drop.addEventListener('click', () => void apply(null));
+    actions.appendChild(drop);
+  }
+  wrap.appendChild(actions);
+  return wrap;
+}
+
 function openFocusEditor(pack: FocusPack | null): void {
   const overlay = h('div', 'overlay');
   const modal = h('div', 'modal');
@@ -963,6 +1085,12 @@ function openFocusEditor(pack: FocusPack | null): void {
   );
   box.appendChild(h('label', undefined, 'Szokásos hossz (indításkor ezt kínáljuk fel)'));
   box.appendChild(lengthPicker.box);
+
+  // ISMÉTLŐDÉS: heti ablak, amiben a menet magától indul. Új csomagnál még
+  // nincs azonosító, amihez kötni lehetne — előbb a mentés.
+  box.appendChild(h('label', undefined, 'Magától induljon (heti ablak)'));
+  if (pack) box.appendChild(recurrenceEditor(pack, overlay));
+  else box.appendChild(h('p', 'micro', 'A csomag mentése után állítható be.'));
   modal.appendChild(box);
 
   modal.appendChild(h('p', 'hint',

@@ -141,6 +141,13 @@ const CHECKS = [
     list(ts.focus, /SESSION_CHOICES_MIN\s*=\s*\[([^\]]+)\]/, 'ts'),
     list(kt.focus, /SESSION_CHOICES_MIN\s*=\s*listOf\(([^)]+)\)/, 'kt'),
     list(sw.focus, /sessionChoicesMin\s*=\s*\[([^\]]+)\]/, 'swift')],
+  // Az ismétlődő menet indítási küszöbe. Ha az egyik magban egy perc, a
+  // másikban tíz, a telefon és a gép az ablak végén más-más percben döntené
+  // el, indul-e még — és két eszköz két különböző menetet írna a naplóba.
+  ['RECURRENCE_MIN_REMAINING_MS',
+    scalar(ts.focus, /RECURRENCE_MIN_REMAINING_MS\s*=\s*([^;]+);/, 'ts'),
+    scalar(kt.focus, /RECURRENCE_MIN_REMAINING_MS\s*=\s*(.+)/, 'kt'),
+    scalar(sw.focus, /recurrenceMinRemainingMs[^=]*=\s*(.+)/, 'swift')],
   ['tier: transcribeChars',
     list(ts.challenges, /transcribeChars:\s*\[([^\]]+)\]/, 'ts'),
     list(kt.engine, /TRANSCRIBE_CHARS\s*=\s*intArrayOf\(([^)]+)\)/, 'kt'),

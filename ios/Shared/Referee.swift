@@ -334,7 +334,11 @@ enum Referee {
             //
             // A kezdés is tolódik, nem csak a vég: enélkül a naplóba egy
             // ötvenperces menet órásként kerülne be, és a statisztika hazudna.
-            if let run = state.focusRun {
+            //
+            // Az ABLAK-menet kivétel: annak a vége az ablak vége, nem tolódik a
+            // készülék alvásával (Focus.isWindowRun) — különben a telefon és a
+            // gép két különböző menetet látna ugyanarról a délelőttről.
+            if let run = state.focusRun, !Focus.isWindowRun(run, packs: state.focusPacks ?? []) {
                 state.focusRun = Focus.Run(
                     packId: run.packId,
                     startedAt: run.startedAt + shift,
@@ -343,6 +347,9 @@ enum Referee {
             }
         }
     }
+
+    /// Az ismétlődés-vizsgálat utolsó tizenöt másodperces szelete (lásd a tick-et).
+    private static var lastDueSlot = -1
 
     static func tick(now: Double) {
         absorbClockJump(now)
@@ -360,7 +367,19 @@ enum Referee {
         // hiányoznának, amiket a felhasználó VÉGIGVITT. Az a statisztika
         // rosszabb a semminél: azt mondaná, hogy sosem sikerül.
         let focusEnded = (st.focusRun?.endsAt ?? .infinity) <= now
-        guard sessionDead || pauseEnded || deleteDue || focusEnded else { return }
+        // MENETREND SZERINTI INDÍTÁS. Az ablakban, ha nem fut semmi, és a napló
+        // szerint ebben az ablakban még nem indult, a csomag menete magától
+        // indul. Tizenöt másodpercenként nézzük, nem minden körben — az ablak
+        // percekben él, nem másodpercekben.
+        let slot = Int(now / 15_000)
+        var focusDue = false
+        if slot != lastDueSlot {
+            lastDueSlot = slot
+            focusDue = Focus.dueRecurrence(
+                st.focusPacks ?? [], run: st.focusRun, log: st.focusLog ?? [], now: now
+            ) != nil
+        }
+        guard sessionDead || pauseEnded || deleteDue || focusEnded || focusDue else { return }
 
         BreakerStore.shared.mutate { state in
             // Sitting out the claim window ends an attempt too: same bookkeeping,
@@ -378,6 +397,13 @@ enum Referee {
             ) {
                 state.focusRun = closed.run
                 state.focusLog = closed.log
+            }
+            // Az ablak kezdésével és végével — a gép ugyanezt a menetet állítja
+            // elő, a szinkron a kettőt egynek látja.
+            if let due = Focus.dueRecurrence(
+                state.focusPacks ?? [], run: state.focusRun, log: state.focusLog ?? [], now: now
+            ) {
+                state.focusRun = Focus.Run(packId: due.pack.id, startedAt: due.startsAt, endsAt: due.endsAt)
             }
         }
     }

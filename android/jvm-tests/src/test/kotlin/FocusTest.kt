@@ -1,4 +1,6 @@
 import hu.breaker.app.core.Focus
+import hu.breaker.app.core.ScheduleLogic
+import java.util.Calendar
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -26,6 +28,74 @@ class FocusTest {
     )
 
     private val noBlocklist = emptyList<String>()
+
+    // ---------------------------------------------------------- heti ablak
+    //
+    // A `focus-recurrence.test.ts` tükre: az ablak az ígéret (a kezdés mindig
+    // az ablak kezdete, hogy a gép és a telefon ugyanazt a menetet állítsa
+    // elő), és a napló az őr (ami ebben az ablakban egyszer indult, nem indul
+    // újra — különben a leállítás próbatétele egy percig érne).
+
+    /** Helyi idő — a mag is helyi időben gondolkodik, mint a menetrend. */
+    private fun localMs(y: Int, m: Int, d: Int, h: Int, min: Int): Long =
+        Calendar.getInstance().apply { clear(); set(y, m - 1, d, h, min) }.timeInMillis
+
+    private val weekdays = ScheduleLogic.Band(setOf(1, 2, 3, 4, 5), 9 * 60, 12 * 60)
+    private fun windowed(id: String = "pack_1") = pack("github.com").copy(id = id, recurrence = weekdays)
+
+    @Test
+    fun `az ablak mostani elofordulasa helyi idoben, a veg mar nincs benne`() {
+        // 2026. szeptember 7. hétfő.
+        val occ = Focus.occurrenceAt(weekdays, localMs(2026, 9, 7, 9, 30))!!
+        assertEquals(localMs(2026, 9, 7, 9, 0), occ.startsAt)
+        assertEquals(localMs(2026, 9, 7, 12, 0), occ.endsAt)
+        assertNull(Focus.occurrenceAt(weekdays, localMs(2026, 9, 7, 12, 0)), "a vég perce már nincs benne")
+        assertNull(Focus.occurrenceAt(weekdays, localMs(2026, 9, 6, 10, 0)), "vasárnap nem")
+        // Éjfélen át: a hétfő esti ablak a kedd hajnalt is fedi.
+        val night = ScheduleLogic.Band(setOf(1), 22 * 60, 6 * 60)
+        val dawn = Focus.occurrenceAt(night, localMs(2026, 9, 8, 1, 0))!!
+        assertEquals(localMs(2026, 9, 7, 22, 0), dawn.startsAt)
+        assertEquals(localMs(2026, 9, 8, 6, 0), dawn.endsAt)
+    }
+
+    @Test
+    fun `menetrend szerinti inditas: az ablak kezdesevel, es a naplo az or`() {
+        val now = localMs(2026, 9, 7, 9, 30)
+        val due = Focus.dueRecurrence(listOf(windowed()), null, emptyList(), now)!!
+        assertEquals(localMs(2026, 9, 7, 9, 0), due.startsAt, "a kezdés az ablaké, nem a mostani perc")
+        assertEquals(localMs(2026, 9, 7, 12, 0), due.endsAt)
+        assertNull(
+            Focus.dueRecurrence(listOf(windowed()), null, emptyList(), localMs(2026, 9, 7, 8, 0)),
+            "ablakon kívül nem",
+        )
+
+        val running = Focus.FocusRun("other", now - 1000, now + 1000)
+        assertNull(Focus.dueRecurrence(listOf(windowed()), running, emptyList(), now), "egyszerre egy menet")
+
+        // A leállított menet sora ebben az ablakban kezdődött: nem indul újra.
+        val stopped = Focus.FocusLogEntry("pack_1", "x", due.startsAt, now, due.endsAt, true)
+        assertNull(Focus.dueRecurrence(listOf(windowed()), null, listOf(stopped), now + 60_000))
+        // Másnap viszont igen.
+        assertTrue(
+            Focus.dueRecurrence(listOf(windowed()), null, listOf(stopped), localMs(2026, 9, 8, 9, 30)) != null,
+        )
+        // Egy percnél kevesebb hátralévő idővel nem indul.
+        assertNull(Focus.dueRecurrence(listOf(windowed()), null, emptyList(), due.endsAt - 30_000))
+
+        assertTrue(Focus.isWindowRun(Focus.FocusRun("pack_1", due.startsAt, due.endsAt), listOf(windowed())))
+        assertFalse(
+            Focus.isWindowRun(Focus.FocusRun("pack_1", due.startsAt, due.endsAt + 60_000), listOf(windowed())),
+            "a meghosszabbított menet már kézi",
+        )
+    }
+
+    @Test
+    fun `az ablak tisztitasa: ervenyes sav, legfeljebb nyolc ora`() {
+        assertEquals(weekdays, Focus.cleanRecurrence(weekdays))
+        assertNull(Focus.cleanRecurrence(ScheduleLogic.Band(emptySet(), 540, 720)), "nap nélkül nem")
+        assertNull(Focus.cleanRecurrence(ScheduleLogic.Band(setOf(1), 0, 1440)), "huszonnégy óra nem munkamenet")
+        assertNull(Focus.cleanRecurrence(null))
+    }
 
     @Test
     fun `aldomain atmegy, a vegen hasonlito nev nem`() {
