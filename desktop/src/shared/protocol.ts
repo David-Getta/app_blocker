@@ -179,6 +179,11 @@ export interface StatusData {
   channelFilters: import('./channels').ChannelFilter[];
   /** egy korábbi néven telepített segéd láthatóan még fut (lásd hosts.ts) */
   legacyHelperRunning?: boolean;
+  /**
+   * Az utolsó önteszt: a tiltott nevek a rendszer feloldójával TÉNYLEG a
+   * tiltó címre oldódnak-e (lásd shared/selftest.ts). Hiányzik, amíg nem futott.
+   */
+  selfTest?: import('./selftest').SelfTestReport;
   now: number;
 }
 
@@ -219,6 +224,7 @@ export type HelperRequest =
   | { id: number; op: 'usage_batch'; samples: UsageSampleMsg[] }
   | { id: number; op: 'usage_stats'; focusKey?: string }
   | { id: number; op: 'usage_enable'; enabled: boolean }
+  | { id: number; op: 'self_test' }
   | { id: number; op: 'usage_clear' }
   // Munkamenetek. A csomag mentése és törlése ingyen van — de nem azé, amelyik
   // épp fut. Az indítás szigorítás, tehát szintén ingyen; a `focus_change`
@@ -301,6 +307,8 @@ export type HelperResponse =
  *         kiegészülve az alias és a hideSiteList mezővel
  * 0.4.0 — fiók és eszközök közti szinkron: sync_* parancsok, a status
  *         kiegészülve a sync mezővel
+ * 0.6.4 — self_test (a tiltás tényleg érvényesül-e a rendszer feloldójánál),
+ *         a status a jelentéssel (selfTest)
  * 0.6.3 — a status oldalanként a mai betelés-darabszámmal (burstTripsToday)
  * 0.6.2 — a zárva lévő oldalon mért idő nem könyvelődik (usage_batch:
  *         skippedClosed) — hibalap-percek nem fogyasztják a keretet
@@ -310,5 +318,5 @@ export type HelperResponse =
  * 0.2.0 — set_limit (napi időkeret), a status kiegészülve a keret mezőivel
  * 0.1.0 — első kiadás
  */
-export const HELPER_VERSION = '0.6.3';
+export const HELPER_VERSION = '0.6.4';
 export const PAUSE_CHOICES_MIN = [15, 30, 60];

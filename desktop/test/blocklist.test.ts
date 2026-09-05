@@ -59,9 +59,13 @@ test('managed block build/replace/extract round-trips', () => {
   assert.ok(removed.includes('127.0.0.1 localhost'));
 });
 
-test('windows block has no ::-lines and CRLF handling works', () => {
+test('a windowsos blokkban IS ott az IPv6-sor, és a CRLF-kezelés működik', () => {
+  // A v0.1 óta Windowson kimaradt a `::` sor — indok nélkül. A hosts-fájl
+  // bejegyzése címcsaládonként érvényes: csak IPv4-sorral az AAAA-kérdés a
+  // valódi DNS-hez mehet, és a böngésző IPv6-on nyitja meg a tiltott oldalt.
   const block = buildManagedBlock(['youtube.com'], 'win32');
-  assert.ok(!block.includes('::'));
+  assert.ok(block.includes('0.0.0.0 youtube.com'));
+  assert.ok(block.includes(':: youtube.com'), 'IPv6-sor Windowson is');
   const crlf = '127.0.0.1 localhost\r\n\r\n';
   const out = replaceManagedBlock(crlf, block);
   assert.ok(out.includes('0.0.0.0 youtube.com'));

@@ -112,6 +112,9 @@ function fakeBridgeSource() {
       { id: 'chf_demo', host: 'youtube.com', allow: ['@kurzgesagt', '@veritasium'], enabled: true },
     ];
     window.__fakeUpdate = { status: 'idle' };
+    // Az önteszt alapból RENDBEN: a képernyőképeken a sor a jó esetet mutatja,
+    // a szivárgó esetet a füstteszt külön játssza el.
+    window.__fakeSelfTest = { at: Date.now(), checked: 6, leaking: [], unresolved: 0 };
     window.__fakeHelperVersion = ${JSON.stringify(helperVersion())};
     // A „lista elrejtése” beállítást a HÁTTÉRSZOLGÁLTATÁS tárolja, nem az ablak.
     // Itt a sessionStorage áll a helyére, hogy az újratöltés (= app-újraindítás)
@@ -124,6 +127,7 @@ function fakeBridgeSource() {
       sites: window.__fakeSites, tier: 1, unlocks7d: 2,
       hideSiteList: window.__fakeHideList,
       sync: window.__fakeSync,
+      selfTest: window.__fakeSelfTest || undefined,
       focusSyncError: window.__fakeFocusSyncError,
       session, dohPolicyApplied: true, usageEnabled: true, now: Date.now(),
       focusPacks: window.__fakePacks, focusRun: window.__fakeRun,
@@ -289,6 +293,10 @@ function fakeBridgeSource() {
             const a = (payload.alias || '').trim();
             if (a) site.alias = a; else delete site.alias;
           }
+          return { ok: true, data: status() };
+        }
+        if (op === 'self_test') {
+          window.__selfTestCalls = (window.__selfTestCalls || 0) + 1;
           return { ok: true, data: status() };
         }
         return { ok: true, data: {} };
@@ -828,6 +836,34 @@ async function main() {
   await page.waitForFunction(() =>
     /^Breaker v/.test(document.getElementById('appVersionRow')?.textContent ?? ''), { timeout: 15_000 })
     .catch(() => failures.push('the app version is not shown on the account panel'));
+  // AZ ÖNTESZT. A zöld korong csak akkor igaz, ha a rendszer feloldója tényleg
+  // a tiltó címet adja. Szivárgásnál a korong figyelmeztet, a sor kimondja a
+  // címet; rendben-jelentésnél visszazöldül. A gomb a segédig ér.
+  await page.evaluate(() => {
+    window.__fakeSelfTest = {
+      at: Date.now(), checked: 3, unresolved: 0,
+      leaking: [{ host: 'youtube.com', addresses: ['142.250.74.206'] }],
+    };
+  });
+  await page.waitForFunction(
+    () => /A tiltás nem érvényesül/.test(document.getElementById('statusPill')?.textContent || ''),
+    undefined, { timeout: 10_000 },
+  ).catch(() => failures.push('a szivárgó önteszt nem látszik a státusz-korongon'));
+  const selfTestText = await page.locator('#selfTestLine').textContent().catch(() => '');
+  if (!/142\.250\.74\.206/.test(selfTestText || '')) {
+    failures.push(`az önteszt sora nem mondja ki a címet: ${selfTestText}`);
+  }
+  await page.evaluate(() => {
+    window.__fakeSelfTest = { at: Date.now(), checked: 6, leaking: [], unresolved: 0 };
+  });
+  await page.waitForFunction(
+    () => /Védelem aktív/.test(document.getElementById('statusPill')?.textContent || ''),
+    undefined, { timeout: 10_000 },
+  ).catch(() => failures.push('a rendben önteszt után a korong nem zöldült vissza'));
+  await page.evaluate(() => document.getElementById('selfTestBtn').click());
+  await page.waitForFunction(() => (window.__selfTestCalls || 0) >= 1, undefined, { timeout: 10_000 })
+    .catch(() => failures.push('a Tiltás ellenőrzése gomb nem ér el a segédig'));
+
   await page.evaluate(() => document.getElementById('quitBtn').click());
   const quitCalled = await page.evaluate(() => window.__quitCalled || 0);
   if (quitCalled !== 1) failures.push('the quit button does not reach the bridge');

@@ -98,15 +98,22 @@ export function stripLegacyBlocks(hostsContent: string): string {
 
 /**
  * Renders the managed block for the given hostnames. Empty list -> empty string.
- * `platform` is a plain string (not NodeJS.Platform) so this module stays free
- * of Node types — it is also compiled for the browser-side renderer.
+ * `_platform` is a plain string (not NodeJS.Platform) so this module stays free
+ * of Node types — it is also compiled for the browser-side renderer. A blokk
+ * alakja ma már nem függ tőle (lásd lent, az IPv6-sornál); a hívók miatt marad.
  */
-export function buildManagedBlock(hostnames: string[], platform: string): string {
+export function buildManagedBlock(hostnames: string[], _platform: string): string {
   if (hostnames.length === 0) return '';
   const lines: string[] = [MARKER_BEGIN];
   for (const h of hostnames) {
     lines.push(`0.0.0.0 ${h}`);
-    if (platform !== 'win32') lines.push(`:: ${h}`);
+    // Az IPv6-sor MINDEN rendszeren kell. A hosts-fájl bejegyzése
+    // címcsaládonként érvényes: ha egy névhez csak IPv4-sor van, az AAAA-kérdés
+    // a valódi DNS-hez mehet, és a böngésző IPv6-on nyitja meg a tiltott oldalt.
+    // A v0.1 óta Windowson kihagytuk — indok nélkül; a `::` ott is érvényes
+    // cím-alak, és ha egy rendszer mégsem értené, egy figyelmen kívül hagyott
+    // sor a legrosszabb eset, nem egy lyuk.
+    lines.push(`:: ${h}`);
   }
   lines.push(MARKER_END);
   return lines.join('\n');

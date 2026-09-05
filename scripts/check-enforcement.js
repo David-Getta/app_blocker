@@ -426,6 +426,21 @@ const WIRES = [
     needle: 'renderFocusExtensionWarning',
     lost: 'az appban nem derülne ki, hogy a bővítmény nincs összekötve',
   },
+  // AZ ÖNTESZT. A zöld korong csak akkor igaz, ha a rendszer feloldója a
+  // tiltott neveket a tiltó címre oldja. Két szem: a segéd kérdezzen magától,
+  // és a felület mondja ki, ha szivárog — bármelyik nélkül a hamis zöld marad.
+  {
+    file: 'desktop/src/helper/index.ts',
+    needle: 'runSelfTest(activeHostnames(state',
+    lost: 'az önteszt sosem futna le magától — a hamis zöld maradna, a segéd '
+      + 'tudná, a felület nem',
+  },
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: 'status!.selfTest?.leaking',
+    lost: 'a szivárgó önteszt nem jutna a státusz-korongra — a segéd mérné, '
+      + 'a felület zöldet mutatna',
+  },
   // A MENTETT GYORSBILLENTYŰ. Ha a fő folyamat nem a mentett kombinációt
   // regisztrálná, a felület mást mutatna, mint ami a rendszerben él — az
   // átállítás látszólag sikerülne, a réteg meg a régire (vagy semmire) nyílna.

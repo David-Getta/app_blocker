@@ -164,6 +164,32 @@ A helper root/SYSTEM jogú, ezért a vele kommunikáló helyi socketet szűkítj
 - **Windows:** named pipe, ami eleve helyi; egyedi DACL beállítása natív kód
   nélkül nem megoldható, ezért ez ismert korlát (a jövőben szűkíthető).
 
+### Önteszt: a tiltás tényleg érvényesül-e
+
+A „Védelem aktív” sokáig csak azt jelentette, hogy a segéd fut és beírta a
+sorait a hosts fájlba — nem azt, hogy a rendszer névfeloldója ezeket olvassa
+is. Egy VPN-kliens saját feloldóval, egy másik program, ami a hosts fájlt írja,
+vagy egy csak-IPv4-sor IPv6-os hálózaton mind úgy engedte volna át az oldalt,
+hogy az app zöldet mutat. Egy önkontroll-eszköznél a hamis zöld rosszabb a
+pirosnál.
+
+Ezért a segéd **ötpercenként (és indulás után hamar) megkérdezi a rendszer
+feloldóját** a tiltott nevekről — `dns.lookup`-pal, ugyanazon az úton, amin
+a böngésző jár, a hosts fájllal együtt; a `resolve` a DNS-kiszolgálót
+kérdezné közvetlenül, a hosts fájlt megkerülve, tehát pont azt nem mérné,
+amit kell. Ami nem a tiltó címre (`0.0.0.0` / `::`) oldódik, az
+**szivárgás**: a státusz-korong figyelmeztet, a blokklista alatti sor kimondja
+a nevet és a címet (a lista-elrejtés szabályával), a felület gombja azonnal
+újra kérdez (`self_test`, HELPER_VERSION 0.6.4). Az ítélet tiszta modul
+(`shared/selftest.ts`), a kérdező a segédben (`helper/selftest.ts`).
+
+Amit az önteszt NEM lát, kimondva: a böngésző beépített DNS-over-HTTPS-ét
+(arra a házirend van, lásd fent), és a kérdezés pillanata utáni változást.
+Tényt mond, nem garanciát — de a hamis zöldet megszünteti. Ugyanebből a
+gondolatból lett az IPv6-sor Windowson is: a hosts fájl bejegyzése
+címcsaládonként érvényes, és a v0.1 óta ott hiányzó `::` sor pont az a lyuk,
+amit egy ilyen önteszt IPv6-os hálózaton kimutatott volna.
+
 Ismert megkerülési utak (szándékosan nem próbáljuk „lelakatolni” a gépet):
 - Admin/root jogú felhasználó leállíthatja a helpert vagy a VPN-t. A rendszer
   ilyenkor a *blokkolt* állapotból indul újra, és a mobil appok feltűnő

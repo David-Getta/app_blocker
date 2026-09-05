@@ -146,8 +146,15 @@
     <section id="listCard" class="card hidden">
       <div class="list-head">
         <h2>Blokkolt oldalak</h2>
+        <!--
+          Önteszt: a tiltott nevek a RENDSZER feloldójával tényleg a tiltó
+          címre oldódnak-e. A zöld korong enélkül csak azt mondaná, hogy a
+          segéd fut — nem azt, hogy a tiltás érvényesül.
+        -->
+        <button id="selfTestBtn" class="btn btn-small btn-ghost">Tiltás ellenőrzése</button>
         <button id="hideListBtn" class="btn btn-small btn-ghost hidden">Lista elrejtése</button>
       </div>
+      <p id="selfTestLine" class="hint hidden"></p>
       <div id="listHidden" class="list-hidden hidden">
         <p id="listHiddenText" class="hint"></p>
         <button id="showListBtn" class="btn btn-small">Lista megnyitása</button>

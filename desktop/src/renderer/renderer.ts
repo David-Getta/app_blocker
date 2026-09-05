@@ -248,8 +248,17 @@ function render(): void {
     pill.className = 'pill pill-warn';
   } else {
     const n = status!.sites.length;
-    pill.textContent = n > 0 ? `Védelem aktív — ${n} oldal blokkolva` : 'Védelem aktív';
-    pill.className = 'pill pill-ok';
+    const leaking = status!.selfTest?.leaking ?? [];
+    if (leaking.length > 0) {
+      // Az önteszt szerint a rendszer feloldója nem a tiltó címet adja: a zöld
+      // itt hazugság lenne. A név a lista-elrejtés szabályával íródik ki.
+      const more = leaking.length > 1 ? ` (+${leaking.length - 1})` : '';
+      pill.textContent = `A tiltás nem érvényesül: ${hostLabel(leaking[0].host)}${more}`;
+      pill.className = 'pill pill-warn';
+    } else {
+      pill.textContent = n > 0 ? `Védelem aktív — ${n} oldal blokkolva` : 'Védelem aktív';
+      pill.className = 'pill pill-ok';
+    }
   }
 
   const showInstall = !helperUp && failStreak >= 2 && !everConnected;
@@ -279,6 +288,7 @@ function render(): void {
   );
   burstWatches = stepped.watches;
   for (const n of stepped.notices) showBurstNotice(n, nowForBurst);
+  renderSelfTestLine();
 
   const sig = sitesFingerprint(status!);
   if (sig !== siteSignature) {
@@ -605,6 +615,65 @@ function renderFocusCard(st: StatusData): void {
     row.appendChild(actions);
     list.appendChild(row);
   }
+}
+
+// ------------------------------------------------------------- self-test
+
+/**
+ * Egy hosztnév felirata a lista-elrejtés szabályával: rejtett listánál a
+ * sorszám, fedőnévnél a fedőnév — az önteszt sem szivárogtathatja ki, amit a
+ * lista elrejt.
+ */
+function hostLabel(host: string): string {
+  const site = status?.sites.find((s) => s.domain === host || s.hostnames.includes(host));
+  return site ? statLabel(site.domain) : host;
+}
+
+/**
+ * Az önteszt sora a blokklista alatt. Három állapot: szivárog (ez a lényeg,
+ * okokkal és a korláttal), nincs mit nézni, rendben — mindig az időponttal,
+ * mert egy órás jelentés nem ugyanaz, mint egy friss.
+ */
+function renderSelfTestLine(): void {
+  const el = $('selfTestLine');
+  const r = status?.selfTest;
+  if (!r) { el.classList.add('hidden'); return; }
+  const when = fmtClock(r.at);
+  if (r.leaking.length > 0) {
+    const list = r.leaking.map((l) => `${hostLabel(l.host)} → ${l.addresses.join(', ')}`).join('; ');
+    el.textContent = `Önteszt (${when}): a rendszer névfeloldója NEM a tiltó címet adja erre: ${list}. `
+      + 'Gyakori ok: VPN-kliens vagy más program saját feloldót használ, vagy a hosts fájlt más is írja. '
+      + 'A böngésző beépített DoH-ját az önteszt nem látja.';
+    el.className = 'error';
+  } else if (r.checked === 0) {
+    el.textContent = `Önteszt (${when}): most nincs tiltott név, amit ellenőrizni lehetne.`;
+    el.className = 'hint';
+  } else {
+    const unres = r.unresolved > 0
+      ? ` (${r.unresolved} név nem oldódott fel — hálózat nélkül ez normális)` : '';
+    el.textContent = `Önteszt (${when}): mind a ${r.checked} tiltott név a tiltó címre oldódik${unres}.`;
+    el.className = 'hint';
+  }
+}
+
+function setupSelfTest(): void {
+  const btn = $('selfTestBtn') as HTMLButtonElement;
+  btn.addEventListener('click', async () => {
+    btn.disabled = true;
+    btn.textContent = 'Ellenőrzés…';
+    try {
+      status = await call<StatusData>('self_test');
+      render();
+    } catch (e) {
+      const el = $('selfTestLine');
+      el.classList.remove('hidden');
+      el.className = 'error';
+      el.textContent = `Az önteszt nem futott le: ${(e as Error).message}`;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Tiltás ellenőrzése';
+    }
+  });
 }
 
 // ---------------------------------------------- overlay shortcut settings
@@ -3078,6 +3147,12 @@ function diagnosticsText(): string {
     `Csatorna-szűrők száma: ${st?.channelFilters?.length ?? 0}`,
     `Fut-e munkamenet: ${yn(!!st?.focusRun)}`,
     `Védelem (DoH-házirend): ${yn(st?.dohPolicyApplied)}`,
+    `Önteszt (a tiltás érvényesül-e a rendszer feloldójánál): ${(() => {
+      const r = st?.selfTest;
+      if (!r) return 'még nem futott';
+      if (r.leaking.length === 0) return `rendben (${r.checked} név, ${r.unresolved} feloldatlan, ${clock(r.at)})`;
+      return `NEM — ${r.leaking.map((l) => `${hostLabel(l.host)}=${l.addresses.join('|')}`).join(', ')} (${clock(r.at)})`;
+    })()}`,
   ].join('\n');
 }
 
@@ -3181,6 +3256,7 @@ setupStats();
 setupChannelCard();
 setupShortcutControls();
 void refreshOverlayShortcut();
+setupSelfTest();
 if ('Notification' in window && Notification.permission === 'default') {
   void Notification.requestPermission();
 }

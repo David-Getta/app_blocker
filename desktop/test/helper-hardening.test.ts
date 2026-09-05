@@ -23,9 +23,12 @@ import { startServer, MAX_BATCH_SAMPLES } from '../src/helper/server';
 import { applyBlocklist, legacyHelperSuspected, resetLegacyDetection } from '../src/helper/hosts';
 import { defaultState, saveState, type HelperState } from '../src/helper/state';
 import { MAX_TARGETS_PER_DAY, OTHER_SITE_KEY } from '../src/shared/usage';
+import type { SelfTestReport } from '../src/shared/selftest';
 
 let server: net.Server;
 let state: HelperState;
+/** Az önteszt a tesztben hamis: a kérdezés nem a szerver dolga, a hordozás igen. */
+let fakeSelfTest: SelfTestReport | null = null;
 
 before(async () => {
   state = defaultState();
@@ -34,6 +37,8 @@ before(async () => {
     commit: () => saveState(state),
     dohApplied: () => false,
     log: () => { /* quiet during tests */ },
+    selfTest: () => fakeSelfTest,
+    runSelfTest: async () => fakeSelfTest ?? { at: 0, checked: 0, leaking: [], unresolved: 0 },
   });
   // wait for listen()
   await new Promise<void>((resolve) => {
@@ -434,4 +439,18 @@ test('kötegen belüli betelés: a hűtés a köteg további mintáit is kihagyj
   state.sites = state.sites.filter((s) => s.id !== 'burst1');
   delete state.bursts?.burst1;
   delete state.burstTrips?.burst1;
+});
+
+test('self_test: kérésre lefut, és MINDEN status-válasz hordozza a jelentést', async () => {
+  fakeSelfTest = { at: 123, checked: 2, leaking: [{ host: 'x.example', addresses: ['1.2.3.4'] }], unresolved: 0 };
+  const res = await call('self_test', {});
+  assert.equal(res.ok, true);
+  assert.deepEqual((res.data as { selfTest?: SelfTestReport }).selfTest, fakeSelfTest);
+  // Nem csak a `status` parancs: egy másik parancs válasza (ami szintén status)
+  // sem ürítheti ki — különben a korong két másodpercenként villogna.
+  const other = (await call('set_hide_list', { hidden: false })).data as { selfTest?: SelfTestReport };
+  assert.deepEqual(other.selfTest, fakeSelfTest, 'a többi parancs válasza is hordozza');
+  fakeSelfTest = null;
+  const plain = (await call('status', {})).data as { selfTest?: SelfTestReport };
+  assert.equal(plain.selfTest, undefined, 'jelentés nélkül a mező nincs ott');
 });

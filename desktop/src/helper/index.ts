@@ -9,8 +9,10 @@
 // BREAKER_STATE/BREAKER_HOSTS/BREAKER_SOCKET pointing at writable paths.
 
 import { loadState, saveState } from './state';
-import { applyBlocklist, applyDohPolicies, watchHosts } from './hosts';
+import { activeHostnames, applyBlocklist, applyDohPolicies, watchHosts } from './hosts';
 import { startServer } from './server';
+import { runSelfTest } from './selftest';
+import type { SelfTestReport } from '../shared/selftest';
 import { tick } from './referee';
 import { bumpRevisions } from './revisions';
 import { syncNow, syncToday } from './sync-client';
@@ -157,11 +159,40 @@ export function runHelper(): void {
     );
   }, TODAY_INTERVAL_MS);
 
+  // ------------------------------------------------- önteszt
+  //
+  // A „Védelem aktív” csak akkor igaz, ha a rendszer feloldója a tiltott
+  // neveket a tiltó címre oldja. Ötpercenként megkérdezzük (és indulás után
+  // hamar), a felület gombja pedig azonnal — a jelentés a status része.
+  const SELF_TEST_INTERVAL_MS = 5 * 60_000;
+  let lastSelfTest: SelfTestReport | null = null;
+  const selfTestNow = async (): Promise<SelfTestReport> => {
+    const now = Date.now();
+    const report = await runSelfTest(activeHostnames(state, now), now);
+    const before = (lastSelfTest?.leaking ?? []).map((l) => l.host).join(',');
+    const after = report.leaking.map((l) => l.host).join(',');
+    // A naplóba csak a változás: egy órákig szivárgó név egyszer kerüljön be.
+    if (before !== after) {
+      log(after
+        ? `self-test: NOT enforced by the system resolver: ${after}`
+        : `self-test: all ${report.checked} blocked name(s) resolve to the sinkhole`);
+    }
+    lastSelfTest = report;
+    return report;
+  };
+  const selfTestQuietly = (): void => {
+    void selfTestNow().catch((e) => log(`self-test failed: ${String(e)}`));
+  };
+  setTimeout(selfTestQuietly, 20_000);
+  setInterval(selfTestQuietly, SELF_TEST_INTERVAL_MS);
+
   startServer({
     getState: () => state,
     commit,
     dohApplied: () => dohApplied,
     log,
+    selfTest: () => lastSelfTest,
+    runSelfTest: selfTestNow,
     ownerUid: ownerUid !== undefined && Number.isFinite(ownerUid) ? ownerUid : undefined,
   });
 }

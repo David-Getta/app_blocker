@@ -28,6 +28,7 @@ import { RefereeError } from './referee';
 import { socketPath } from './paths';
 import { legacyHelperSuspected } from './hosts';
 import * as sync from './sync-client';
+import type { SelfTestReport } from '../shared/selftest';
 
 /**
  * A hét három legtöbb időt vivő célpontja, weboldalak és appok együtt.
@@ -54,6 +55,10 @@ export interface ServerDeps {
   commit: () => void;
   dohApplied: () => boolean;
   log: (m: string) => void;
+  /** az utolsó önteszt jelentése (null = még nem futott) — a status hordozza */
+  selfTest: () => SelfTestReport | null;
+  /** önteszt most — a felület gombja kéri; a periodikus kör ugyanezt hívja */
+  runSelfTest: () => Promise<SelfTestReport>;
   /** uid of the user allowed to talk to the (root) helper; undefined in dev */
   ownerUid?: number;
 }
@@ -65,11 +70,17 @@ function startOfDay(now: number): number {
   return d.getTime();
 }
 
-export function statusOf(state: HelperState, dohApplied: boolean): StatusData {
+export function statusOf(
+  state: HelperState, dohApplied: boolean, selfTest: SelfTestReport | null = null,
+): StatusData {
   const now = Date.now();
   return {
     helperVersion: HELPER_VERSION,
     platform: process.platform,
+    // Az önteszt jelentése MINDEN status-válaszban: ha csak a `status` parancs
+    // hordozná, a többi parancs válasza (ami szintén status) kiürítené, és a
+    // korong két másodpercenként villogna.
+    selfTest: selfTest ?? undefined,
     channelFilters: state.channelFilters ?? [],
     sites: state.sites.map((s) => {
       // EGY döntés, oka is van: a tiltás ténye és a miértje ugyanabból a
@@ -140,7 +151,7 @@ async function handle(req: HelperRequest, deps: ServerDeps): Promise<unknown> {
   const now = Date.now();
   switch (req.op) {
     case 'status':
-      return statusOf(state, deps.dohApplied());
+      return statusOf(state, deps.dohApplied(), deps.selfTest());
 
     case 'add_site': {
       const domain = normalizeDomain(req.input);
@@ -159,7 +170,7 @@ async function handle(req: HelperRequest, deps: ServerDeps): Promise<unknown> {
       state.sites.push(site);
       deps.commit(); // adding a block is intentionally frictionless
       deps.log(`blocked ${domain} (${site.hostnames.length} hostnames)`);
-      return statusOf(state, deps.dohApplied());
+      return statusOf(state, deps.dohApplied(), deps.selfTest());
     }
 
     case 'start_unlock': {
@@ -189,21 +200,21 @@ async function handle(req: HelperRequest, deps: ServerDeps): Promise<unknown> {
     case 'abandon': {
       referee.abandonSession(state, req.sessionId);
       deps.commit();
-      return statusOf(state, deps.dohApplied());
+      return statusOf(state, deps.dohApplied(), deps.selfTest());
     }
 
     case 'cancel_delete': {
       const site = state.sites.find((s) => s.id === req.siteId);
       if (site) site.pendingDeleteAt = null; // cancelling a delete is always one click
       deps.commit();
-      return statusOf(state, deps.dohApplied());
+      return statusOf(state, deps.dohApplied(), deps.selfTest());
     }
 
     case 'relock': {
       const site = state.sites.find((s) => s.id === req.siteId);
       if (site) site.pauseUntil = null; // re-locking early is always one click
       deps.commit();
-      return statusOf(state, deps.dohApplied());
+      return statusOf(state, deps.dohApplied(), deps.selfTest());
     }
 
     case 'set_schedule': {
@@ -240,7 +251,7 @@ async function handle(req: HelperRequest, deps: ServerDeps): Promise<unknown> {
       if (alias === undefined) delete site.alias;
       else site.alias = alias;
       deps.commit();
-      return statusOf(state, deps.dohApplied());
+      return statusOf(state, deps.dohApplied(), deps.selfTest());
     }
 
     case 'channel_filter_save': {
@@ -249,13 +260,13 @@ async function handle(req: HelperRequest, deps: ServerDeps): Promise<unknown> {
       // gazdája és a súrlódás kapuja — lazítani itt sem egy gomb.
       const r = referee.startChannelFilterSave(state, req.filter, now);
       deps.commit();
-      return { ...r, status: statusOf(state, deps.dohApplied()) };
+      return { ...r, status: statusOf(state, deps.dohApplied(), deps.selfTest()) };
     }
 
     case 'channel_filter_delete': {
       const r = referee.startChannelFilterDelete(state, req.filterId, now);
       deps.commit();
-      return { ...r, status: statusOf(state, deps.dohApplied()) };
+      return { ...r, status: statusOf(state, deps.dohApplied(), deps.selfTest()) };
     }
 
     case 'set_rule': {
@@ -274,7 +285,7 @@ async function handle(req: HelperRequest, deps: ServerDeps): Promise<unknown> {
       }
       const r = referee.startRuleChange(state, req.siteId, rule, req.remove === true, Date.now());
       deps.commit();
-      return { ...r, status: statusOf(state, deps.dohApplied()) };
+      return { ...r, status: statusOf(state, deps.dohApplied(), deps.selfTest()) };
     }
 
     // ----------------------------------------------------- munkamenetek
@@ -289,19 +300,19 @@ async function handle(req: HelperRequest, deps: ServerDeps): Promise<unknown> {
       if (!pack) throw new RefereeError('A csomagnak név kell.', 'BAD_PACK');
       referee.saveFocusPack(state, pack, Date.now());
       deps.commit();
-      return statusOf(state, deps.dohApplied());
+      return statusOf(state, deps.dohApplied(), deps.selfTest());
     }
 
     case 'focus_delete': {
       referee.deleteFocusPack(state, String(req.packId), Date.now());
       deps.commit();
-      return statusOf(state, deps.dohApplied());
+      return statusOf(state, deps.dohApplied(), deps.selfTest());
     }
 
     case 'focus_start': {
       referee.startFocus(state, String(req.packId), Number(req.minutes), Date.now());
       deps.commit();
-      return statusOf(state, deps.dohApplied());
+      return statusOf(state, deps.dohApplied(), deps.selfTest());
     }
 
     case 'focus_change': {
@@ -311,7 +322,7 @@ async function handle(req: HelperRequest, deps: ServerDeps): Promise<unknown> {
         ? null : Number(req.endsAt);
       const r = referee.changeFocus(state, endsAt, Date.now());
       deps.commit();
-      return { ...r, status: statusOf(state, deps.dohApplied()) };
+      return { ...r, status: statusOf(state, deps.dohApplied(), deps.selfTest()) };
     }
 
     case 'set_hide_list': {
@@ -319,7 +330,7 @@ async function handle(req: HelperRequest, deps: ServerDeps): Promise<unknown> {
       // blokkolást egy hajszálnyit sem, tehát nem jár érte próbatétel.
       state.hideSiteList = req.hidden === true;
       deps.commit();
-      return statusOf(state, deps.dohApplied());
+      return statusOf(state, deps.dohApplied(), deps.selfTest());
     }
 
     // ------------------------------------------------------------- szinkron
@@ -335,7 +346,7 @@ async function handle(req: HelperRequest, deps: ServerDeps): Promise<unknown> {
       deps.commit();
       const r = await sync.syncNow(state, Date.now());
       deps.commit();
-      return { recoveryCode, sites: r.sites, status: statusOf(state, deps.dohApplied()) };
+      return { recoveryCode, sites: r.sites, status: statusOf(state, deps.dohApplied(), deps.selfTest()) };
     }
 
     case 'sync_signin': {
@@ -343,7 +354,7 @@ async function handle(req: HelperRequest, deps: ServerDeps): Promise<unknown> {
       deps.commit();
       const r = await sync.syncNow(state, Date.now());
       deps.commit();
-      return { sites: r.sites, status: statusOf(state, deps.dohApplied()) };
+      return { sites: r.sites, status: statusOf(state, deps.dohApplied(), deps.selfTest()) };
     }
 
     case 'sync_recovery': {
@@ -353,19 +364,19 @@ async function handle(req: HelperRequest, deps: ServerDeps): Promise<unknown> {
       deps.commit();
       const r = await sync.syncNow(state, Date.now());
       deps.commit();
-      return { sites: r.sites, status: statusOf(state, deps.dohApplied()) };
+      return { sites: r.sites, status: statusOf(state, deps.dohApplied(), deps.selfTest()) };
     }
 
     case 'sync_signout': {
       sync.signOut(state);
       deps.commit();
-      return statusOf(state, deps.dohApplied());
+      return statusOf(state, deps.dohApplied(), deps.selfTest());
     }
 
     case 'sync_now': {
       const r = await sync.syncNow(state, Date.now());
       deps.commit();
-      return { ...r, status: statusOf(state, deps.dohApplied()) };
+      return { ...r, status: statusOf(state, deps.dohApplied(), deps.selfTest()) };
     }
 
     case 'sync_devices': {
@@ -502,6 +513,13 @@ async function handle(req: HelperRequest, deps: ServerDeps): Promise<unknown> {
       return data;
     }
 
+    case 'self_test': {
+      // Kérésre azonnal — a felület gombja. A periodikus kör ugyanezt hívja;
+      // a válasz a szokásos status, benne a friss jelentéssel.
+      await deps.runSelfTest();
+      return statusOf(state, deps.dohApplied(), deps.selfTest());
+    }
+
     case 'usage_enable': {
       // Turning measurement off is NOT a blocking weakening, so it needs no
       // challenges — it is the user's own data. With ONE exception: a daily
@@ -516,7 +534,7 @@ async function handle(req: HelperRequest, deps: ServerDeps): Promise<unknown> {
       }
       state.usage.enabled = req.enabled;
       deps.commit();
-      return statusOf(state, deps.dohApplied());
+      return statusOf(state, deps.dohApplied(), deps.selfTest());
     }
 
     case 'usage_clear': {
