@@ -44,6 +44,27 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
+          **Önteszt: a zöld korong mostantól tényt mond.** A „Védelem aktív”
+          eddig azt jelentette, hogy a védelem fut — nem azt, hogy a tiltás
+          érvényesül is. A gép mostantól ötpercenként (és a Tiltás
+          ellenőrzése gombra azonnal) megkérdezi a rendszer névfeloldóját a
+          tiltott nevekről: ha valamelyik nem a tiltó címre oldódik (mert
+          egy VPN-kliens saját feloldót használ, vagy más program is írja a
+          hosts fájlt), a korong figyelmeztet, és a blokklista alatti sor
+          kimondja, melyik név hova megy. Őszinte korlát: a böngésző saját
+          DoH-ját az önteszt nem látja — arra a házirend van.
+
+          **Javítás Windowson: az IPv6-sor is a hosts fájlba kerül.** A
+          hosts-bejegyzés címcsaládonként érvényes; csak IPv4-sorral IPv6-os
+          hálózaton a böngésző a tiltott oldalt IPv6-on nyithatta meg. A
+          Mac-en ez eddig is rendben volt.
+
+          **A réteg gyorsbillentyűje átállítható.** A Munkamenetek kártyán
+          Módosítás, aztán a következő lenyomott kombináció lesz az új; ha
+          egy másik program foglalja a mostanit, a kártya ezt kimondja.
+
+          ### Ami a v0.4.21-ben jött
+
           **A gép is szól, amikor betelik az adag.** Eddig csak a telefon
           értesített a futó szünetről — a gépen a betelés némán történt,
           ha épp nem a Breakert vagy a böngészőt nézted. Mostantól az app
@@ -53,25 +74,13 @@ jobs:
           védelem magától nem tud értesíteni. Rejtett listánál a valódi
           név az értesítésben sem látszik.
 
-          ### Ami a v0.4.20-ban jött
+          #### Ami a v0.4.20-ban jött
 
           **Újdonságok gomb.** A fiók-panelen (jobb felső ikon) egy gombbal
           megnyílik ez a kiadási jegyzet a böngészőben — eddig csak az látta,
           aki magától idekattintott. Mellé kimondtuk a doksiban, hogy az óra
           átállítása az adag-szünet lejáratát is érinti — ugyanaz a korlát,
           mint a napi keretnél: a rendszeróra az igazság.
-
-          #### Ami a v0.4.19-ben jött
-
-          **A statisztika a betelésekről is beszámol.** A Statisztika fül
-          „Mire ment ma az idő” blokkja alatt mostantól ott áll, melyik
-          oldalon hányszor telt be ma az adag — a nap történetének az a
-          fele, amit a mérés nem mutat, mert a szünetben töltött idő
-          szándékosan nem könyvelődik. A címke a megszokott maszkoló úton
-          megy (rejtett lista, fedőnév). Mellé egy belső őr is épült: a
-          szinkron minden oldal-mezőjének a helyi modellben is ott kell
-          lennie mindhárom platformon — az ilyen hiány volt a v0.4.18-ban
-          javított iPhone-os rés gyökere, többé nem tud némán visszajönni.
 
           NOTES
           fi
