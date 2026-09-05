@@ -447,16 +447,32 @@ public enum Focus {
         return nil
     }
 
+    /// A sáv KÖVETKEZŐ előfordulása: a mostani, ha épp benne vagyunk, különben
+    /// a legközelebbi kezdés a következő héten. A `focus.ts` `nextOccurrence`
+    /// tükre — a felület ebből mondja meg, hogy egy kézi menetet félbeszakít-e
+    /// egy másik csomag ablaka.
+    static func nextOccurrence(_ band: ScheduleLogic.Band, now: Double) -> Occurrence? {
+        if let live = occurrenceAt(band, now: now) { return live }
+        for d in 0...7 {
+            guard let start = localAt(now, dayOffset: d, min: band.startMin), start >= now else { continue }
+            let weekday = (localCalendar().dateComponents([.weekday], from: Date(timeIntervalSince1970: start / 1000)).weekday ?? 1) - 1
+            if !band.days.contains(weekday) { continue }
+            if let occ = occurrenceAt(band, now: start) { return occ }
+        }
+        return nil
+    }
+
     struct DueRecurrence {
         let pack: Pack
         let startsAt: Double
         let endsAt: Double
     }
 
-    /// Melyik csomag ablaka esedékes MOST — vagy nil. Nem indul, ha fut valami;
-    /// ha a naplóban van ebben az ablakban kezdődött menet ebből a csomagból;
-    /// vagy ha egy percnél kevesebb van hátra. Több közül a korábban kezdődő,
-    /// azonos kezdésnél a kisebb azonosítójú.
+    /// Melyik csomag ablaka esedékes MOST — vagy nil. Nem indul, ha a csomag
+    /// saját menete fut; ha a naplóban ott az ablak saját menete; vagy ha egy
+    /// percnél kevesebb van hátra. Egy másik csomag menete nem tartja vissza —
+    /// azt a kör zárja le. Több közül a korábban kezdődő, azonos kezdésnél a
+    /// kisebb azonosítójú.
     static func dueRecurrence(
         _ packs: [Pack], run: Run?, log: [LogEntry], now: Double
     ) -> DueRecurrence? {

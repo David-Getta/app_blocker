@@ -235,6 +235,13 @@ struct ContentView: View {
                 TextField("Hossz percben (üresen a csomag szokásos hossza)", text: $focusMinutes)
                     .keyboardType(.numberPad)
                     .textFieldStyle(.roundedBorder)
+                // Egy csomag heti ablaka félbeszakítja a MÁSIK csomag kézi menetét
+                // (az ablak az ígéret) — mondjuk ki előre, ne a kilences óra legyen
+                // a meglepetés. A következő nyolc órán belüli legkorábbi ablak.
+                if let cut = nextWindowCut(packs) {
+                    Text("A(z) \(cut.name) heti ablaka \(cut.clock)-kor indul: egy másik csomag menete ott véget ér, és az ablak menete indul.")
+                        .font(.footnote).foregroundStyle(.secondary)
+                }
                 ForEach(packs, id: \.id) { pack in
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
@@ -676,6 +683,22 @@ private struct AliasSheet: View {
         }
         .padding()
     }
+}
+
+/// A következő nyolc órában induló legkorábbi heti ablak — a kézi menetet az
+/// szakítja félbe. Nil, ha nincs ilyen.
+private func nextWindowCut(_ packs: [Focus.Pack]) -> (name: String, clock: String)? {
+    let now = Date().timeIntervalSince1970 * 1000
+    var best: (name: String, startsAt: Double)?
+    for p in packs {
+        guard let band = p.recurrence, let occ = Focus.nextOccurrence(band, now: now) else { continue }
+        guard occ.startsAt > now, occ.startsAt - now <= Double(Focus.maxSessionMinutes) * 60_000 else { continue }
+        if best == nil || occ.startsAt < best!.startsAt { best = (p.name, occ.startsAt) }
+    }
+    guard let cut = best else { return nil }
+    let f = DateFormatter()
+    f.dateFormat = "HH:mm"
+    return (cut.name, f.string(from: Date(timeIntervalSince1970: cut.startsAt / 1000)))
 }
 
 /// „H–P 09:00–12:00”, „minden nap 22:00–06:00”, „H, Sze, P 18:00–20:00” — mint a gépen.
