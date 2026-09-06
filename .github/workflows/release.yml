@@ -44,6 +44,11 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
+          **Fókuszban, naponta.** A csempe egy számban mondja a hetet; a
+          statisztikán most hét oszlop mutatja, egyenletesen jött-e össze a
+          fókuszban töltött idő, vagy egy napból — a gépen, Androidon és
+          iPhone-on is. Egy menet a végének napjára számít egészben.
+
           **A menet és a csomagja együtt jár.** Ha az egyik eszközön
           törölted a csomagot, a másikon pedig ugyanabban a körben menetet
           indítottál rá, a szinkron eddig csomag nélküli menetet hagyhatott:
