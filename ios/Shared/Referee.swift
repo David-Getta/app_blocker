@@ -317,7 +317,12 @@ enum Referee {
     /// új alapvonalat vett fel: a folyamat leállítása + óra-előreállítás ingyen
     /// megrövidítette a várakozást. A gépen ez a szám mindig a mentett
     /// állapotban volt; most itt is túléli az újraindítást.
-    private static func absorbClockJump(_ now: Double) {
+    /// - Returns: a FRISS állapot. Nem díszítés: a `BreakerStore.state` a fő
+    ///   sorra dobva frissül, tehát közvetlenül egy mentés után még a RÉGI
+    ///   értéket adja. A kör pedig pont ilyenkor döntene — az elnyelés utáni
+    ///   pillanatban —, és a döntést a még el nem tolt határidőkre hozná.
+    @discardableResult
+    private static func absorbClockJump(_ now: Double) -> AppState {
         let last = BreakerStore.shared.loadLastTick()
         let fresh = last == 0
         let jump = fresh ? 0 : now - last
@@ -328,10 +333,10 @@ enum Referee {
             lastTickSavedAt = now
             BreakerStore.shared.saveLastTick(now)
         }
-        guard jumped else { return }
+        guard jumped else { return BreakerStore.shared.state }
         let shift = jump - clockJumpThresholdMs
 
-        BreakerStore.shared.mutate { state in
+        return BreakerStore.shared.mutate { state in
             if var s = state.session, s.steps.indices.contains(s.stepIndex) {
                 if case let .delay(id, minutes, claimableAt?, window) = s.steps[s.stepIndex] {
                     s.steps[s.stepIndex] = .delay(id: id, minutes: minutes,
@@ -373,8 +378,12 @@ enum Referee {
     private static var lastDueSlot = -1
 
     static func tick(now: Double) {
-        absorbClockJump(now)
-        let st = BreakerStore.shared.state
+        // A FRISS állapoton döntünk, nem a közzétetten: az elnyelés épp most
+        // tolta el a határidőket, a `BreakerStore.state` viszont csak a fő sor
+        // következő körében követi. Enélkül a kör az EL NEM TOLT lejáratot
+        // látná — vagyis pont azon a körön, ahol az óra-ugrás történt,
+        // működhetne az, ami ellen a védelem szól.
+        let st = absorbClockJump(now)
         var sessionDead = false
         if let s = st.session {
             if case let .delay(_, _, claimableAt?, window) = s.steps[s.stepIndex],

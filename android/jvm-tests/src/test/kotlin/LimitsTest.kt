@@ -29,6 +29,11 @@ class LimitsTest {
     @BeforeTest fun reset() {
         BreakerStore.init(Context())
         BreakerStore.mutate { AppState() }
+        // FRISS TELEPÍTÉS: a karbantartó kör alapvonala is nullázódik. Ez a
+        // szám mostantól a tárban él (hogy az app kilövése ne felejtse el),
+        // tehát a JVM-en belül a tesztek KÖZÖTT is átjárna: egy korábbi teszt
+        // köre miatt egy későbbi tesztben az idő-ugrás elnyelése indulna be.
+        BreakerStore.saveLastTick(0)
     }
 
     private fun usageWith(domain: String, seconds: Double, at: Long = now): UsageLogic.UsageState {

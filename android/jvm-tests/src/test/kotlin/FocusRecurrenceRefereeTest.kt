@@ -48,6 +48,10 @@ class FocusRecurrenceRefereeTest {
                 ),
             )
         }
+        // FRISS TELEPÍTÉS: a karbantartó kör alapvonala is nullázódik — a szám
+        // a tárban él (hogy az app kilövése ne felejtse el), tehát a tesztek
+        // között is átjárna.
+        BreakerStore.saveLastTick(0)
     }
 
     @Test

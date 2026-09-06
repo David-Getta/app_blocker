@@ -31,6 +31,13 @@ final class RefereeClockTests: XCTestCase {
                        "az ugrás után az új alapvonal azonnal kiíródik")
     }
 
+    /// A mentés a lemezre azonnal megy, a közzétett `state` viszont a fő sorra
+    /// van dobva. A tesztben nincs, ami megforgassa a fő sort, ezért megtesszük
+    /// mi — különben a régi értéket olvasnánk vissza.
+    private func pumpMainQueue() {
+        RunLoop.main.run(until: Date().addingTimeInterval(0.05))
+    }
+
     func testTheDeletionDeadlineMovesWithTheClockAfterARestart() {
         let site = Site(
             id: "site_ora", domain: "youtube.com", hostnames: ["youtube.com"],
@@ -40,12 +47,14 @@ final class RefereeClockTests: XCTestCase {
             state.sites = [site]
             state.session = nil
         }
+        pumpMainQueue()
         BreakerStore.shared.saveLastTick(now)
 
         // Két nappal előrébb állított óra, friss folyamat: a törlés NEM válik
         // esedékessé, a határidő az ugrással tolódik.
         let jumped = now + 48 * 3_600_000
         Referee.tick(now: jumped)
+        pumpMainQueue()
         let after = BreakerStore.shared.state.sites.first { $0.id == "site_ora" }
         XCTAssertNotNil(after, "az oldal még megvan, a törlés nem futott le")
         XCTAssertGreaterThan(after?.pendingDeleteAt ?? 0, jumped,
