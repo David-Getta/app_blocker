@@ -306,13 +306,22 @@ jobs:
       - name: Projekt generálása
         working-directory: ios
         run: xcodegen generate
+      # Nem cső: a `| tail` a tail kódját adta, a bukás elveszett (lásd a
+      # CI-t). Bukáskor a hibasorok jönnek elő, sikerkor csak a vége.
       - name: Fordítás ellenőrzése (iOS szimulátor, aláírás nélkül)
         working-directory: ios
         run: |
-          xcodebuild -project Breaker.xcodeproj -scheme BreakerApp-iOS \
-            -destination 'generic/platform=iOS Simulator' \
-            -configuration Release build \
-            CODE_SIGNING_ALLOWED=NO | tail -30
+          log="$RUNNER_TEMP/xcodebuild.log"
+          if xcodebuild -project Breaker.xcodeproj -scheme BreakerApp-iOS \
+               -destination 'generic/platform=iOS Simulator' \
+               -configuration Release build \
+               CODE_SIGNING_ALLOWED=NO > "$log" 2>&1; then
+            tail -20 "$log"
+          else
+            grep -E 'error:' "$log" | sort -u | head -80 || true
+            tail -30 "$log"
+            exit 1
+          fi
       # Opcionális: TestFlight feltöltés. Csak akkor fut, ha be van állítva az
       # App Store Connect API-kulcs (ASC_KEY_ID / ASC_ISSUER_ID / ASC_KEY_P8).
       # Ehhez érvényes provisioning + DEVELOPMENT_TEAM is kell (lásd docs).

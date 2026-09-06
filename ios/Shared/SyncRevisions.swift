@@ -22,20 +22,31 @@ enum SyncRevisions {
                 "\(b.days.sorted().map(String.init).joined(separator: "+")):\(b.startMin)-\(b.endMin)"
             }.joined(separator: ";")
         } ?? "-"
-        return [
+        // Darabokban, kimondott típussal: egy tömbliteral csupa `??`-lal és
+        // `map`-pel a fordítónak túl sok (unable to type-check in reasonable
+        // time) — és ezt a CI napokig elnyelte.
+        let pending: String = s.pendingDeleteAt.map { String($0) } ?? "-"
+        let limit: String = s.dailyLimitSeconds.map { String($0) } ?? "-"
+        let burst: String = s.burstSeconds.map { String($0) } ?? "-"
+        let cooldown: String = s.cooldownSeconds.map { String($0) } ?? "-"
+        // RENDEZVE: a sorrend nem jelent semmit, viszont ha beleszámítana,
+        // egy átrendeződés fölöslegesen léptetné a számlálót, és minden
+        // körben feltöltést indítana.
+        let rules: String = s.rules.map { list -> String in
+            list.map { r in r.host + r.path }.sorted().joined(separator: ",")
+        } ?? "-"
+        let parts: [String] = [
             s.domain,
             s.hostnames.sorted().joined(separator: ","),
-            s.pendingDeleteAt.map { String($0) } ?? "-",
+            pending,
             bands,
-            s.dailyLimitSeconds.map { String($0) } ?? "-",
-            s.burstSeconds.map { String($0) } ?? "-",
-            s.cooldownSeconds.map { String($0) } ?? "-",
+            limit,
+            burst,
+            cooldown,
             s.alias ?? "-",
-            // RENDEZVE: a sorrend nem jelent semmit, viszont ha beleszámítana,
-            // egy átrendeződés fölöslegesen léptetné a számlálót, és minden
-            // körben feltöltést indítana.
-            s.rules.map { $0.map { r in r.host + r.path }.sorted().joined(separator: ",") } ?? "-",
-        ].joined(separator: " ")
+            rules,
+        ]
+        return parts.joined(separator: " ")
     }
 
     static func fingerprint(_ s: Site) -> String {
@@ -69,17 +80,19 @@ enum SyncRevisions {
     static let focusFpV2 = "2|"
 
     private static func packsPart(_ state: AppState) -> String {
-        (state.focusPacks ?? []).sorted { $0.id < $1.id }.map { p in
-            ([
+        (state.focusPacks ?? []).sorted { $0.id < $1.id }.map { p -> String in
+            var fields: [String] = [
                 p.id, p.name,
                 p.allowSites.sorted().joined(separator: ","),
                 p.allowApps.sorted().joined(separator: ","),
                 String(p.defaultMinutes),
-                // Az ismétlődés is a csomag beállítása: a cseréje döntés, tehát
-                // léptet. CSAK HA VAN: egy ablak nélküli csomag lenyomata ugyanaz
-                // marad, mint a frissítés előtt — különben minden csomag egyszer
-                // fölöslegesen léptetne.
-            ] + (p.recurrence.map { [Focus.recurrenceKey($0)] } ?? [])).joined(separator: ";")
+            ]
+            // Az ismétlődés is a csomag beállítása: a cseréje döntés, tehát
+            // léptet. CSAK HA VAN: egy ablak nélküli csomag lenyomata ugyanaz
+            // marad, mint a frissítés előtt — különben minden csomag egyszer
+            // fölöslegesen léptetne.
+            if let rec = p.recurrence { fields.append(Focus.recurrenceKey(rec)) }
+            return fields.joined(separator: ";")
         }.joined(separator: "|")
     }
 

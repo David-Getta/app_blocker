@@ -302,7 +302,8 @@ public enum Focus {
         // ismeretlen csomagot ír ki, semmit nem ér.
         let name = packs.first { $0.id == run.packId }?.name ?? "Ismeretlen csomag"
         let entry = closeRun(run, packName: name, endedAt: run.endsAt, stopped: false)
-        return Close(run: nil, log: (log + [entry]).suffix(maxFocusLog).map { $0 })
+        let rows: [LogEntry] = log + [entry]
+        return Close(run: nil, log: Array(rows.suffix(maxFocusLog)))
     }
 
     public struct Summary: Equatable {

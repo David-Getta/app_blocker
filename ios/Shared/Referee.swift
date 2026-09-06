@@ -115,7 +115,8 @@ enum Referee {
         let name = (state.focusPacks ?? []).first { $0.id == run.packId }?.name
             ?? "Ismeretlen csomag"
         let entry = Focus.closeRun(run, packName: name, endedAt: endedAt, stopped: stopped)
-        state.focusLog = ((state.focusLog ?? []) + [entry]).suffix(Focus.maxFocusLog).map { $0 }
+        let rows: [Focus.LogEntry] = (state.focusLog ?? []) + [entry]
+        state.focusLog = Array(rows.suffix(Focus.maxFocusLog))
     }
 
     private static func finish(_ state: inout AppState, _ s: SessionRec, _ now: Double) {
@@ -172,7 +173,12 @@ enum Referee {
             let next = ScheduleLogic.normalize(schedule)
             let current = ScheduleLogic.normalize(site.schedule ?? ScheduleLogic.always)
             if !ScheduleLogic.isLoosening(current, next, now) {
-                state.sites = state.sites.map { $0.id == siteId ? { var c = $0; c.schedule = next; return c }() : $0 }
+                state.sites = state.sites.map { site in
+                    guard site.id == siteId else { return site }
+                    var copy = site
+                    copy.schedule = next
+                    return copy
+                }
                 result = ScheduleChangeResult(applied: true, session: nil)
                 return
             }
@@ -360,13 +366,22 @@ enum Referee {
                now > claimableAt + Double(window) { sessionDead = true }
             if now - s.createdAt > Double(ChallengeEngine.sessionMaxAgeMs) { sessionDead = true }
         }
-        let pauseEnded = st.sites.contains { ($0.pauseUntil ?? .infinity) <= now && $0.pauseUntil != nil }
-        let deleteDue = st.sites.contains { ($0.pendingDeleteAt ?? .infinity) <= now && $0.pendingDeleteAt != nil }
+        let pauseEnded = st.sites.contains { site in
+            guard let p = site.pauseUntil else { return false }
+            return p <= now
+        }
+        let deleteDue = st.sites.contains { site in
+            guard let d = site.pendingDeleteAt else { return false }
+            return d <= now
+        }
         // A MAGÁTÓL lejárt menet is lezárul — enélkül csak a próbatétellel
         // leállított menetek kerülnének a statisztikába, vagyis pont azok
         // hiányoznának, amiket a felhasználó VÉGIGVITT. Az a statisztika
         // rosszabb a semminél: azt mondaná, hogy sosem sikerül.
-        let focusEnded = (st.focusRun?.endsAt ?? .infinity) <= now
+        let focusEnded: Bool = {
+            guard let run = st.focusRun else { return false }
+            return run.endsAt <= now
+        }()
         // MENETREND SZERINTI INDÍTÁS. Az ablakban, ha nem fut semmi, és a napló
         // szerint ebben az ablakban még nem indult, a csomag menete magától
         // indul. Tizenöt másodpercenként nézzük, nem minden körben — az ablak
@@ -408,7 +423,8 @@ enum Referee {
                 if let running = state.focusRun, Focus.isRunning(running, now: now) {
                     let name = (state.focusPacks ?? []).first { $0.id == running.packId }?.name ?? "Ismeretlen csomag"
                     let entry = Focus.closeRun(running, packName: name, endedAt: now, stopped: false)
-                    state.focusLog = ((state.focusLog ?? []) + [entry]).suffix(Focus.maxFocusLog).map { $0 }
+                    let rows: [Focus.LogEntry] = (state.focusLog ?? []) + [entry]
+                    state.focusLog = Array(rows.suffix(Focus.maxFocusLog))
                 }
                 state.focusRun = Focus.Run(packId: due.pack.id, startedAt: due.startsAt, endsAt: due.endsAt)
             }

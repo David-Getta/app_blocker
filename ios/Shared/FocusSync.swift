@@ -346,11 +346,12 @@ public enum FocusSync {
         // `sorted` ráadásul nem is ígér stabilitást — eldöntetlen hasonlító
         // mellett a sorrend itt még kevésbé kiszámítható, és a szinkron sosem
         // konvergálna.
-        rows.sorted { a, b in
+        let ordered: [Focus.LogEntry] = rows.sorted { a, b in
             if a.endedAt != b.endedAt { return a.endedAt < b.endedAt }
             if a.packId != b.packId { return a.packId < b.packId }
             return a.startedAt < b.startedAt
-        }.suffix(Focus.maxFocusLog).map { $0 }
+        }
+        return Array(ordered.suffix(Focus.maxFocusLog))
     }
 
     /// A futó menet megtisztítása: ha a csomagja nincs meg, eldobjuk.

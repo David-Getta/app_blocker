@@ -48,6 +48,16 @@ enum SyncMerge {
         /// inicializáló régi hívásai változatlanok maradjanak.
         var hostnameMarks: [String: Int]? = nil
 
+        /// A kulcsok KÉZZEL. Amíg csak a kódolás volt saját, a fordító
+        /// előállította őket a dekódoláshoz; a saját dekódolás óta egyiket sem
+        /// állítja elő — és a hiányukat a CI elnyelte, a Swift mag napokig nem
+        /// fordult. Új mező → új kulcs IDE IS, különben nem utazik.
+        enum CodingKeys: String, CodingKey {
+            case id, domain, hostnames, addedAt, pendingDeleteAt, schedule
+            case dailyLimitSeconds, burstSeconds, cooldownSeconds, alias, rules
+            case rev, updatedAt, updatedBy, hostnameMarks
+        }
+
         init(
             id: String, domain: String, hostnames: [String], addedAt: Double,
             pendingDeleteAt: Double? = nil, schedule: ScheduleLogic.Schedule? = nil,

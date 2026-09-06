@@ -100,13 +100,16 @@ enum UsageStats {
         let weekTotals = totals(state, days: dayKeysBack(now, 7))
         // A másodperc után a kulcs is dönt, hogy két egyforma érték sorrendje
         // ne a szótár bejárásán múljon — az futásonként más lehet.
+        // Lépésenként, kimondott típussal: egy láncban a fordító feladta
+        // (unable to type-check in reasonable time), és ezt a CI elnyelte.
         func ranked(_ totals: [String: Double]) -> [Target] {
-            Array(
-                totals
-                    .map { Target(key: $0.key, label: label(state, $0.key), seconds: $0.value) }
-                    .sorted { $0.seconds == $1.seconds ? $0.key < $1.key : $0.seconds > $1.seconds }
-                    .prefix(topLimit)
-            )
+            var targets: [Target] = totals.map { entry in
+                Target(key: entry.key, label: label(state, entry.key), seconds: entry.value)
+            }
+            targets.sort { a, b in
+                a.seconds == b.seconds ? a.key < b.key : a.seconds > b.seconds
+            }
+            return Array(targets.prefix(topLimit))
         }
         return Summary(
             todaySeconds: todayTotals.values.reduce(0, +),
