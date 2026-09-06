@@ -81,7 +81,8 @@ enum SyncMerge {
             let c = try decoder.container(keyedBy: CodingKeys.self)
             id = try c.decode(String.self, forKey: .id)
             domain = try c.decode(String.self, forKey: .domain)
-            hostnames = try c.decode([String].self, forKey: .hostnames)
+            let hostsValue = try c.decode([String].self, forKey: .hostnames)
+            hostnames = hostsValue
             addedAt = try c.decodeIfPresent(Double.self, forKey: .addedAt) ?? 0
             pendingDeleteAt = try c.decodeIfPresent(Double.self, forKey: .pendingDeleteAt)
             schedule = try c.decodeIfPresent(ScheduleLogic.Schedule.self, forKey: .schedule)
@@ -90,10 +91,20 @@ enum SyncMerge {
             cooldownSeconds = try c.decodeIfPresent(Double.self, forKey: .cooldownSeconds)
             alias = try c.decodeIfPresent(String.self, forKey: .alias)
             rules = try c.decodeIfPresent([UrlRules.UrlRule].self, forKey: .rules)
-            rev = try c.decodeIfPresent(Int.self, forKey: .rev) ?? 1
+            let revValue = try c.decodeIfPresent(Int.self, forKey: .rev) ?? 1
+            rev = revValue
             updatedAt = try c.decodeIfPresent(Double.self, forKey: .updatedAt) ?? 0
             updatedBy = try c.decodeIfPresent(String.self, forKey: .updatedBy) ?? ""
-            hostnameMarks = (try? c.decodeIfPresent([String: Int].self, forKey: .hostnameMarks)) ?? nil
+            // Ugyanaz a szűrés, mint a gépen és Androidon (`cleanMarks`): csak
+            // pozitív, a rekord rev-jénél nem nagyobb jel, a plafonnal — egy
+            // kulccsal írt szemét ne járjon másképp itt, mint a másik kettőn.
+            let rawMarks = (try? c.decodeIfPresent([String: Int].self, forKey: .hostnameMarks)) ?? nil
+            var cleanedMarks: [String: Int]? = nil
+            if let m = rawMarks {
+                let valid = m.filter { !$0.key.isEmpty && $0.value > 0 && $0.value <= revValue }
+                cleanedMarks = SyncMerge.capHostnameMarks(valid, hostsValue)
+            }
+            hostnameMarks = cleanedMarks
         }
 
         /// A `pendingDeleteAt` KIÍRÁSA kötelező, nem elhagyható.

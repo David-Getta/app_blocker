@@ -1,3 +1,4 @@
+import Foundation
 import XCTest
 @testable import BreakerShared
 
@@ -127,6 +128,57 @@ final class FocusSyncTests: XCTestCase {
         let plain = focus(packs: [pack("p1")], rev: 5, updatedAt: 300, updatedBy: "telefon", packMarks: ["p1": 5])
         XCTAssertNotNil(FocusSync.merge(plain, with).packs.first?.recurrence)
         XCTAssertNotNil(FocusSync.merge(with, plain).packs.first?.recurrence)
+    }
+
+    func testDeletionMarkLeavesNoRunWithoutItsPack() {
+        // A gép törölte a csomagot (jellel), a telefon ugyanabban a körben
+        // menetet indított rá. A menet a szigorúbb: a csomagja marad, a jel
+        // a menetes blob rev-je. Csomag nélküli menet nem születik.
+        let deleted = focus(packs: [pack("p2")], rev: 7, updatedAt: 100, updatedBy: "gep", packMarks: ["p1": 7])
+        let running = focus(packs: [pack("p1"), pack("p2")], run: Focus.Run(packId: "p1", startedAt: 150, endsAt: 150 + 3_000_000), rev: 7, updatedAt: 200, updatedBy: "telefon")
+        for (x, y) in [(deleted, running), (running, deleted)] {
+            let m = FocusSync.merge(x, y)
+            XCTAssertEqual(m.packs.map { $0.id }.sorted(), ["p1", "p2"])
+            XCTAssertEqual(m.run?.packId, "p1")
+            XCTAssertEqual(m.packMarks?["p1"], 7)
+        }
+        // Nagyobb rev-vel jött törlés (próbatétel utáni leállítással): a
+        // menet is elveszett, és vele a csomag — nincs csomag nélküli menet.
+        var stopped = deleted
+        stopped.rev = 8
+        stopped.packMarks = ["p1": 8]
+        let m = FocusSync.merge(running, stopped)
+        XCTAssertNil(m.run)
+        XCTAssertEqual(m.packs.map { $0.id }, ["p2"])
+    }
+
+    func testMarkCapIsOneRulePresentPacksKeepTheirMark() {
+        var marks: [String: Int] = ["p-jelen": 3]
+        for i in 0..<70 { marks[String(format: "t%02d", i)] = 100 + (i % 7) }
+        let capped = FocusSync.capPackMarks(marks, ["p-jelen"])!
+        XCTAssertEqual(capped.count, FocusSync.maxPackMarks)
+        XCTAssertEqual(capped["p-jelen"], 3, "a jelen lévő csomag jele bent marad, pedig a legkisebb")
+        let gone = capped.filter { $0.key != "p-jelen" }.map { $0.value }
+        XCTAssertEqual(gone.filter { $0 > 100 }.count, 60)
+        XCTAssertEqual(gone.filter { $0 == 100 }.count, 3)
+        XCTAssertNil(FocusSync.capPackMarks([:], []))
+        // A bemenet is ezzel a plafonnal tisztít, és a rev fölötti jelet eldobja.
+        let raw = focus(packs: [pack("p-jelen")], rev: 150, updatedAt: 1, packMarks: marks)
+        let n = FocusSync.normalize(raw, fallbackDevice: "x")
+        XCTAssertEqual(n.packMarks?["p-jelen"], 3)
+        XCTAssertLessThanOrEqual(n.packMarks?.count ?? 0, FocusSync.maxPackMarks)
+        let tooHigh = focus(packs: [pack("p1")], rev: 3, updatedAt: 1, packMarks: ["p1": 9, "p2": 2])
+        XCTAssertEqual(FocusSync.normalize(tooHigh, fallbackDevice: "x").packMarks, ["p2": 2], "a rev fölötti jel kiesik")
+    }
+
+    func testNormalizeDropsTheMarkOfAPackThatFellOutButKeepsRealTombstones() {
+        // Egy üres nevű csomag kiesik a normalizálásban — a jele is, különben
+        // a jel meg a hiánya együtt sírkő lenne, és a csomag mindenhol
+        // törlődne. A valódi törlés jele (nincs ilyen csomag a listán) marad.
+        let raw = focus(packs: [pack("p1", name: "   "), pack("p2")], rev: 5, updatedAt: 1, packMarks: ["p1": 3, "p3": 2])
+        let n = FocusSync.normalize(raw, fallbackDevice: "x")
+        XCTAssertEqual(n.packs.map { $0.id }, ["p2"])
+        XCTAssertEqual(n.packMarks, ["p3": 2])
     }
 
     func testNormalizeKeepsOnlyRealMarksAndSameSeesThem() {

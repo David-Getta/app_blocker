@@ -88,6 +88,52 @@ class FocusSyncTest {
     }
 
     @Test
+    fun `a torles jele nem hagy csomag nelkuli menetet - a menet csomagja marad`() {
+        // A gép törölte a csomagot (jellel), a telefon ugyanabban a körben
+        // menetet indított rá. A menet a szigorúbb: a csomagja marad, a jel
+        // a menetes blob rev-je. Csomag nélküli menet — amit a fogadó eldob,
+        // a küldő meg minden körben újra feltölt — nem születik.
+        val deleted = FocusSync.SyncFocus(
+            packs = listOf(pack("p2")), packMarks = mapOf("p1" to 7),
+            rev = 7, updatedAt = 100, updatedBy = "gep",
+        )
+        val running = FocusSync.SyncFocus(
+            packs = listOf(pack("p1"), pack("p2")), run = Focus.FocusRun("p1", 150, 150 + 3_000_000),
+            rev = 7, updatedAt = 200, updatedBy = "telefon",
+        )
+        for ((x, y) in listOf(deleted to running, running to deleted)) {
+            val m = FocusSync.merge(x, y)
+            assertEquals(listOf("p1", "p2"), m.packs.map { it.id }.sorted())
+            assertEquals("p1", m.run?.packId)
+            assertEquals(7, m.packMarks?.get("p1"))
+        }
+        // Ha a törlés nagyobb rev-vel jött (próbatétel utáni leállítással),
+        // a menet is elveszett — és vele a csomag: nincs csomag nélküli menet.
+        val stopped = deleted.copy(rev = 8, packMarks = mapOf("p1" to 8))
+        val m = FocusSync.merge(running, stopped)
+        assertNull(m.run)
+        assertEquals(listOf("p2"), m.packs.map { it.id })
+    }
+
+    @Test
+    fun `a jelek plafonja egy szabaly - a jelen levo csomagok jele marad`() {
+        val marks = LinkedHashMap<String, Int>()
+        marks["p-jelen"] = 3
+        for (i in 0 until 70) marks["t%02d".format(i)] = 100 + (i % 7)
+        val capped = FocusSync.capPackMarks(marks, listOf("p-jelen"))!!
+        assertEquals(FocusSync.MAX_PACK_MARKS, capped.size)
+        assertEquals(3, capped["p-jelen"], "a jelen lévő csomag jele bent marad, pedig a legkisebb")
+        val gone = capped.filterKeys { it != "p-jelen" }.values
+        assertEquals(60, gone.count { it > 100 })
+        assertEquals(3, gone.count { it == 100 })
+        assertNull(FocusSync.capPackMarks(emptyMap(), emptyList()))
+        // A fésülés is ezzel a plafonnal ad vissza.
+        val a = FocusSync.SyncFocus(packs = listOf(pack("p-jelen")), packMarks = marks.entries.take(64).associate { it.key to it.value }, rev = 200, updatedAt = 1, updatedBy = "a")
+        val b = FocusSync.SyncFocus(packs = listOf(pack("p-jelen")), packMarks = marks.entries.drop(7).associate { it.key to it.value }, rev = 200, updatedAt = 2, updatedBy = "b")
+        assertTrue((FocusSync.merge(a, b).packMarks?.size ?: 0) <= FocusSync.MAX_PACK_MARKS)
+    }
+
+    @Test
     fun `az osszefesules sorrendfuggetlen es idempotens`() {
         val a = FocusSync.SyncFocus(packs = listOf(pack("p1")), rev = 3, updatedAt = 100, updatedBy = "a")
         val b = FocusSync.SyncFocus(packs = listOf(pack("p2")), rev = 3, updatedAt = 100, updatedBy = "b")

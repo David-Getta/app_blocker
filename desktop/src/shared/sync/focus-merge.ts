@@ -77,16 +77,49 @@ export interface SyncFocus {
 /** Ennél több csomag-jelet nem hordunk; a törölt csomagok legrégebbi jelei esnek ki. */
 export const MAX_PACK_MARKS = 64;
 
-/** A csomag-jelek kiegyenesítése: csak azonosító → pozitív egész; üresen nincs mező. */
-export function cleanPackMarks(raw: unknown): Record<string, number> | undefined {
+/**
+ * A jelek plafonja — EGY szabály mindenhol (fésülés, bemenet, léptetés, a
+ * három nyelvben): a jelen lévő csomagok jele mindig marad, a törölt
+ * csomagokéból a legnagyobb jelűek férnek be, holtversenyben az azonosító
+ * szerint. Üresen nincs mező. Ha négy helyen négyféle plafon vágna, 64
+ * fölött a gép, a telefon és a kiszolgáló három különböző listát tartana,
+ * és minden körben feltöltenének — nem hibás adat, hanem nem konvergáló
+ * szinkron. A `capHostnameMarks` párja.
+ */
+export function capPackMarks(
+  marks: Record<string, number>, presentIds: string[],
+): Record<string, number> | undefined {
+  const entries = Object.entries(marks);
+  if (entries.length === 0) return undefined;
+  if (entries.length <= MAX_PACK_MARKS) return marks;
+  const present = new Set(presentIds);
+  const out: Record<string, number> = {};
+  for (const [id, v] of entries) if (present.has(id)) out[id] = v;
+  const gone = entries.filter(([id]) => !present.has(id))
+    .sort((x, y) => (y[1] - x[1]) || (x[0] < y[0] ? -1 : x[0] > y[0] ? 1 : 0));
+  for (const [id, v] of gone) {
+    if (Object.keys(out).length >= MAX_PACK_MARKS) break;
+    out[id] = v;
+  }
+  return out;
+}
+
+/**
+ * A csomag-jelek kiegyenesítése: csak azonosító → pozitív egész, legfeljebb a
+ * blob `rev`-je (a jel annak a blobnak a rev-je, amelyik írta — nagyobb nem
+ * lehet, és a fésülés erre épít), a plafonnal (a jelen lévő csomagok jele
+ * marad). Üresen nincs mező.
+ */
+export function cleanPackMarks(
+  raw: unknown, presentIds: string[] = [], maxRev = Number.MAX_SAFE_INTEGER,
+): Record<string, number> | undefined {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
   const out: Record<string, number> = {};
   for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
-    if (!k || typeof v !== 'number' || !Number.isInteger(v) || v <= 0) continue;
+    if (!k || typeof v !== 'number' || !Number.isInteger(v) || v <= 0 || v > maxRev) continue;
     out[k] = v;
-    if (Object.keys(out).length >= MAX_PACK_MARKS) break;
   }
-  return Object.keys(out).length > 0 ? out : undefined;
+  return capPackMarks(out, presentIds);
 }
 
 export function emptyFocus(deviceId: string): SyncFocus {
@@ -104,11 +137,24 @@ export function emptyFocus(deviceId: string): SyncFocus {
 export function normalizeSyncFocus(raw: unknown, fallbackDevice: string): SyncFocus {
   const o = (raw && typeof raw === 'object' ? raw : {}) as Partial<SyncFocus>;
   const packs: FocusPack[] = [];
+  const seenIds: string[] = [];
   for (const p of Array.isArray(o.packs) ? o.packs : []) {
     const n = normalizePack(p);
     if (n && !packs.some((x) => x.id === n.id) && packs.length < MAX_PACKS) packs.push(n);
+    const rawId = p && typeof p === 'object' ? (p as { id?: unknown }).id : undefined;
+    if (typeof rawId === 'string' && rawId) seenIds.push(rawId);
   }
-  const packMarks = cleanPackMarks(o.packMarks);
+  // A KIESETT csomag jele is kiesik. Ami a listán volt, de itt nem
+  // értelmezhető (vagy a plafon fölött van), az nem törölt csomag: a jele
+  // meg a hiánya együtt sírkőnek látszana a fésülésben, és a csomag
+  // MINDENHOL törlődne — a gazdája is elveszítené. A valódi törlés jele
+  // (nincs ilyen csomag a listán) megmarad.
+  const rev = numberOr(o.rev, 0);
+  const rawMarks = cleanPackMarks(o.packMarks, packs.map((p) => p.id), rev);
+  const kept = rawMarks && Object.fromEntries(
+    Object.entries(rawMarks).filter(([id]) => !seenIds.includes(id) || packs.some((p) => p.id === id)),
+  );
+  const packMarks = kept && Object.keys(kept).length > 0 ? kept : undefined;
   return {
     packs,
     run: normalizeRun(o.run, packs),
@@ -117,7 +163,7 @@ export function normalizeSyncFocus(raw: unknown, fallbackDevice: string): SyncFo
     // csak az azonosító.
     log: normalizeLog(o.log),
     ...(packMarks ? { packMarks } : {}),
-    rev: numberOr(o.rev, 0),
+    rev,
     updatedAt: numberOr(o.updatedAt, 0),
     updatedBy: typeof o.updatedBy === 'string' && o.updatedBy ? o.updatedBy : fallbackDevice,
   };
@@ -295,8 +341,8 @@ export function mergeFocus(local: SyncFocus, incoming: SyncFocus): SyncFocus {
 function mergePacks(
   newer: SyncFocus, older: SyncFocus,
 ): { packs: FocusPack[]; packMarks: Record<string, number> | undefined } {
-  const nm = newer.packMarks ?? {};
-  const om = older.packMarks ?? {};
+  const nm = effectiveMarks(newer);
+  const om = effectiveMarks(older);
   const ids = [
     ...newer.packs.map((p) => p.id),
     ...older.packs.map((p) => p.id),
@@ -317,7 +363,38 @@ function mergePacks(
     if (chosen && packs.length < MAX_PACKS) packs.push(chosen);
     if (Math.max(mn, mo) > 0) marks[id] = Math.max(mn, mo);
   }
-  return { packs, packMarks: Object.keys(marks).length > 0 ? marks : undefined };
+  // Ugyanaz a plafon, mint a bemeneten és a léptetésnél — különben 64 fölött
+  // a három hely három listát tartana, és sosem érnének össze.
+  return { packs, packMarks: capPackMarks(marks, packs.map((p) => p.id)) };
+}
+
+/**
+ * A blob HATÁSOS jelei: a jelei, és a futó menet csomagján legalább a blob
+ * `rev`-je.
+ *
+ * A menet és a csomagja együtt jár. A csomagok és a menet külön dőlnek el,
+ * és a kettő össze tud akadni: az egyik eszköz törölte a csomagot (jellel),
+ * a másik ugyanabban a körben menetet indított rá. A törlés jele elvinné a
+ * csomagot, a menet meg maradna — csomag nélkül, amit a fogadó eldob, a
+ * menetet tartó eszközök viszont minden körben újra feltöltenének, mert a
+ * kiszolgálón sosem az áll, amit ők látnak. A menet a szigorúbb, tehát a
+ * csomagjának maradnia kell; a másik út — a menet dobása — egy ingyenes
+ * törléssel állítana le menetet, próbatétel nélkül.
+ *
+ * Miért JEL, és nem utólagos mentés: a jel a bemenet tulajdonsága, a mentés
+ * a köztes eredményé lenne, és három eszköznél a sorrendtől függene, melyik
+ * köztes menet mentett meg mit. A jel egyszerű: a sírkő csak akkor nyer a
+ * menet csomagja fölött, ha a jele nagyobb a menetes blob `rev`-jénél — de
+ * a jel sosem nagyobb a saját blobja `rev`-jénél, tehát ilyenkor a másik blob
+ * `rev`-je is nagyobb, és a menet is elveszett volna. Csomag nélküli menet
+ * így nem születik. A Kotlin- és Swift-tükör ugyanezt teszi.
+ */
+function effectiveMarks(f: SyncFocus): Record<string, number> {
+  const marks = { ...(f.packMarks ?? {}) };
+  if (f.run && f.rev > 0 && f.packs.some((p) => p.id === f.run!.packId)) {
+    marks[f.run.packId] = Math.max(marks[f.run.packId] ?? 0, f.rev);
+  }
+  return marks;
 }
 
 /**

@@ -87,8 +87,8 @@ object FocusSync {
      * nem ír, csak hordozza és fésüli. A merge.ts `mergePacks` tükre.
      */
     private fun mergePacks(newer: SyncFocus, older: SyncFocus): Pair<List<Focus.FocusPack>, Map<String, Int>?> {
-        val nm = newer.packMarks ?: emptyMap()
-        val om = older.packMarks ?: emptyMap()
+        val nm = effectiveMarks(newer)
+        val om = effectiveMarks(older)
         val ids = LinkedHashSet<String>()
         newer.packs.forEach { ids.add(it.id) }
         older.packs.forEach { ids.add(it.id) }
@@ -112,7 +112,50 @@ object FocusSync {
             if (chosen != null && packs.size < MAX_PACKS) packs.add(chosen)
             if (maxOf(mn, mo) > 0) marks[id] = maxOf(mn, mo)
         }
-        return packs to (if (marks.isEmpty()) null else marks)
+        // Ugyanaz a plafon, mint a bemeneten — különben 64 fölött a három
+        // hely három listát tartana, és sosem érnének össze.
+        return packs to capPackMarks(marks, packs.map { it.id })
+    }
+
+    /**
+     * A blob HATÁSOS jelei: a jelei, és a futó menet csomagján legalább a
+     * blob `rev`-je. A menet és a csomagja együtt jár: a törlés jele nem
+     * viheti el a csomagot, amíg a másik eszközön menet fut rajta — csomag
+     * nélküli menetet a fogadó eldobna, a menetet tartó eszköz meg minden
+     * körben újra feltöltené. A sírkő csak akkor nyer, ha a jele nagyobb a
+     * menetes blob rev-jénél, de akkor a másik blob rev-je is nagyobb, és a
+     * menet is elveszett volna. A focus-merge.ts `effectiveMarks` tükre.
+     */
+    private fun effectiveMarks(f: SyncFocus): Map<String, Int> {
+        val run = f.run ?: return f.packMarks ?: emptyMap()
+        if (f.rev <= 0 || f.packs.none { it.id == run.packId }) return f.packMarks ?: emptyMap()
+        val marks = LinkedHashMap(f.packMarks ?: emptyMap())
+        marks[run.packId] = maxOf(marks[run.packId] ?: 0, f.rev.toInt())
+        return marks
+    }
+
+    /** Ennél több csomag-jelet nem hordunk egy blobban. */
+    const val MAX_PACK_MARKS = 64
+
+    /**
+     * A jelek plafonja — EGY szabály a fésülésre és a bemenetre: a jelen
+     * lévő csomagok jele mindig marad, a törölt csomagokéból a legnagyobb
+     * jelűek férnek be, holtversenyben az azonosító szerint. Üresen null.
+     * A focus-merge.ts `capPackMarks` tükre.
+     */
+    fun capPackMarks(marks: Map<String, Int>, presentIds: Collection<String>): Map<String, Int>? {
+        if (marks.isEmpty()) return null
+        if (marks.size <= MAX_PACK_MARKS) return marks
+        val present = presentIds.toSet()
+        val out = LinkedHashMap<String, Int>()
+        for ((id, v) in marks) if (id in present) out[id] = v
+        val gone = marks.entries.filter { it.key !in present }
+            .sortedWith(compareByDescending<Map.Entry<String, Int>> { it.value }.thenBy { it.key })
+        for ((id, v) in gone) {
+            if (out.size >= MAX_PACK_MARKS) break
+            out[id] = v
+        }
+        return out
     }
 
     /**

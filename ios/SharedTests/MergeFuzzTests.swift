@@ -75,6 +75,10 @@ private func randomFocus(_ r: inout Lcg, _ device: String) -> FocusSync.SyncFocu
     for id in packIds {
         if r.next() < 0.4 { marks[id] = 1 + Int(r.next() * 5) }
     }
+    let revInt = 1 + Int(r.next() * 5)
+    // A jel sosem nagyobb a blob rev-jénél (a bemenet is így tisztít): a
+    // csomag nélküli menet lehetetlensége erre épül.
+    for id in marks.keys { marks[id] = min(marks[id]!, revInt) }
     // A menet lejárata és kezdése is csak pár értéket vesz fel: legyen sok
     // döntetlen, mert éppen a döntetlen-lánc az, ami sorrendfüggő tud lenni.
     var run: Focus.Run? = nil
@@ -84,7 +88,7 @@ private func randomFocus(_ r: inout Lcg, _ device: String) -> FocusSync.SyncFocu
         let endsAt = 610_000 + 60_000 * Double(Int(r.next() * 2))
         run = Focus.Run(packId: packId, startedAt: startedAt, endsAt: endsAt)
     }
-    let rev = Double(1 + Int(r.next() * 5))
+    let rev = Double(revInt)
     let updatedAt = Double(100 + Int(r.next() * 5))
     return FocusSync.SyncFocus(
         packs: packs, run: run, log: [], rev: rev, updatedAt: updatedAt, updatedBy: device,
@@ -145,10 +149,11 @@ final class MergeFuzzTests: XCTestCase {
                 "három eszköz (cab), mag \(seed)"
             )
             // A jeles csomag a nagyobb jel változatában marad: ha az egyik
-            // oldalon ablakos csomag áll a nagyobb jellel, az ablak marad.
+            // oldalon ablakos csomag áll a nagyobb jellel, az ablak marad. A
+            // futó menet csomagja a blob rev-jével számít jeleltnek.
             for p in a.packs {
-                let ma = a.packMarks?[p.id] ?? 0
-                let mb = b.packMarks?[p.id] ?? 0
+                let ma = effectiveMark(a, p.id)
+                let mb = effectiveMark(b, p.id)
                 if ma > mb && p.recurrence != nil {
                     XCTAssertNotNil(
                         ab.packs.first { $0.id == p.id }?.recurrence,
@@ -156,6 +161,18 @@ final class MergeFuzzTests: XCTestCase {
                     )
                 }
             }
+            // Csomag nélküli menet nem születik: a menet csomagja a listán van.
+            for m in [ab, abc] {
+                if let run = m.run {
+                    XCTAssertTrue(m.packs.contains { $0.id == run.packId }, "a menet csomagja a listán van, mag \(seed)")
+                }
+            }
         }
+    }
+
+    private func effectiveMark(_ f: FocusSync.SyncFocus, _ id: String) -> Int {
+        let own = f.packMarks?[id] ?? 0
+        if f.run?.packId == id && f.packs.contains(where: { $0.id == id }) { return max(own, Int(f.rev)) }
+        return own
     }
 }

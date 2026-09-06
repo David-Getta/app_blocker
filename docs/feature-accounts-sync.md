@@ -107,6 +107,31 @@ Ezért:
   újabb blob — ahogy eddig. A gép segédje írja a `commit()` eleji
   léptetésben, a csomagok lenyomatából; egy menet indítása léptet, de
   csomagot nem jelöl.
+- **A menet és a csomagja együtt jár.** A csomagok és a menet külön
+  dőlnek el, és a kettő össze tud akadni: az egyik eszköz törölte a
+  csomagot (jellel), a másik ugyanabban a körben menetet indított rá. A
+  törlés jele elvinné a csomagot, a menet meg maradna csomag nélkül — amit
+  a fogadó eldob, a menetet tartó eszköz viszont minden körben újra
+  feltöltene, mert a kiszolgálón sosem az áll, amit ő lát. Ezért a fésülés
+  a futó menet csomagját a blob `rev`-jével jeleltnek veszi (hatásos jel):
+  a sírkő csak akkor nyer, ha a jele nagyobb a menetes blob rev-jénél — de
+  akkor a másik blob rev-je is nagyobb, és a menet is elveszett volna.
+  Csomag nélküli menet így nem születik; a menet a szigorúbb, a törlés a
+  menet végéig „visszahozott”. Kimondott ára: ha a telefon a szinkron
+  nélkül több léptetést csinált (menet indítása, próbatételes leállítás,
+  újraindítás), a rev-je elmehet a gép közben felvett ablakának jele
+  fölé, és a menetes csomag régi változata nyer — a csomag marad, az
+  ablakot újra fel kell venni. Egy szinkron nélküli menet-indítás ezt nem
+  éri el: azonos jelnél az ablakos változat marad.
+- **A jelek plafonja egy szabály.** Legfeljebb 64 csomag-jel utazik; a jelen
+  lévő csomagok jele mindig marad, a törölt csomagokéból a legnagyobb
+  jelűek férnek be. Ugyanez a szabály a fésülésben, a bemenet
+  tisztításában és a gép léptetésében, mindhárom nyelvben — ha négy helyen
+  négyféle plafon vágna, 64 fölött a gép, a telefon és a kiszolgáló három
+  különböző listát tartana, és minden körben feltöltenének. A bemenet a
+  blob rev-jénél nagyobb jelet eldobja, és a normalizálásban kieső csomag
+  (üres név, a 30-as plafon fölött) jelét is: az nem törölt csomag, és a
+  jele meg a hiánya együtt sírkőnek látszana — a csomag mindenhol törlődne.
 
 Mit jelent „szigorúbb”:
 

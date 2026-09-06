@@ -85,18 +85,22 @@ function randomFocus(r: () => number, device: string): SyncFocus {
   }));
   const marks: Record<string, number> = {};
   for (const id of PACK_IDS) if (r() < 0.4) marks[id] = 1 + Math.floor(r() * 5);
+  const rev = 1 + Math.floor(r() * 5);
+  // A jel sosem nagyobb a blob rev-jénél (a bemenet is így tisztít): a
+  // csomag nélküli menet lehetetlensége erre épül.
+  for (const id of Object.keys(marks)) marks[id] = Math.min(marks[id], rev);
+  // A menet lejárata és kezdése is csak pár értéket vesz fel: legyen sok
+  // döntetlen, mert éppen a döntetlen-lánc az, ami sorrendfüggő tud lenni.
+  const run = r() < 0.4 && packs.length > 0
+    ? {
+        packId: packs[Math.floor(r() * packs.length)].id,
+        startedAt: 10 + 60_000 * Math.floor(r() * 2),
+        endsAt: 610_000 + 60_000 * Math.floor(r() * 2),
+      }
+    : null;
   return {
     ...emptyFocus(device), packs, ...(Object.keys(marks).length ? { packMarks: marks } : {}),
-    // A menet lejárata és kezdése is csak pár értéket vesz fel: legyen sok
-    // döntetlen, mert éppen a döntetlen-lánc az, ami sorrendfüggő tud lenni.
-    run: r() < 0.4 && packs.length > 0
-      ? {
-          packId: packs[Math.floor(r() * packs.length)].id,
-          startedAt: 10 + 60_000 * Math.floor(r() * 2),
-          endsAt: 610_000 + 60_000 * Math.floor(r() * 2),
-        }
-      : null,
-    rev: 1 + Math.floor(r() * 5), updatedAt: 100 + Math.floor(r() * 5), updatedBy: device,
+    run, rev, updatedAt: 100 + Math.floor(r() * 5), updatedBy: device,
   };
 }
 
@@ -120,12 +124,22 @@ test('munkamenet-blob: a csomagok halmaza és a jelek sorrendtől függetlenek',
     assert.equal(focusKey(abc), focusKey(mergeFocus(mergeFocus(c, a), b)), `három eszköz (cab), mag ${seed}`);
     // A jeles csomag a nagyobb jel változatában marad: ha az egyik oldalon
     // ablakos csomag áll a nagyobb jellel, az ablak az eredményben is ott van.
+    // A futó menet csomagja a blob rev-jével számít jeleltnek (hatásos jel).
     for (const p of a.packs) {
-      const ma = a.packMarks?.[p.id] ?? 0;
-      const mb = b.packMarks?.[p.id] ?? 0;
+      const ma = effectiveMark(a, p.id);
+      const mb = effectiveMark(b, p.id);
       if (ma > mb && p.recurrence) {
         assert.ok(ab.packs.find((x) => x.id === p.id)?.recurrence, `a nagyobb jel ablaka marad: ${p.id}, mag ${seed}`);
       }
     }
+    // Csomag nélküli menet nem születik: a menet csomagja mindig a listán van.
+    for (const m of [ab, mergeFocus(ab, c)]) {
+      if (m.run) assert.ok(m.packs.some((p) => p.id === m.run!.packId), `a menet csomagja a listán van, mag ${seed}`);
+    }
   }
 });
+
+function effectiveMark(f: SyncFocus, id: string): number {
+  const own = f.packMarks?.[id] ?? 0;
+  return f.run?.packId === id && f.packs.some((p) => p.id === id) ? Math.max(own, f.rev) : own;
+}

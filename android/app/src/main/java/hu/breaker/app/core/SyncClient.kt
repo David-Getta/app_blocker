@@ -243,7 +243,10 @@ object SyncClient {
             if (k.isEmpty()) continue
             val v = m.optInt(k, 0)
             if (v > 0 && v <= maxRev) out[k] = v
-            if (out.size >= 64) break
+            // A VALÓDI plafon a hívóé (`capHostnameMarks` / `capPackMarks`):
+            // az tudja, mely nevek vannak jelen, és azok jele marad. Itt csak
+            // a szemét ellen van korlát, hogy egy óriás objektum ne egyen memóriát.
+            if (out.size >= 1024) break
         }
         return if (out.isEmpty()) null else out
     }
@@ -330,11 +333,13 @@ object SyncClient {
     internal fun focusFromJson(text: String, fallbackDevice: String): FocusSync.SyncFocus {
         val o = JSONObject(text)
         val packs = mutableListOf<Focus.FocusPack>()
+        val seenIds = mutableListOf<String>()
         val arr = o.optJSONArray("packs")
         for (i in 0 until (arr?.length() ?: 0)) {
             runCatching {
                 val p = arr!!.getJSONObject(i)
                 val id = p.optString("id")
+                if (id.isNotEmpty()) seenIds.add(id)
                 val name = p.optString("name").trim().take(Focus.MAX_PACK_NAME)
                 if (id.isEmpty() || name.isEmpty()) return@runCatching
                 if (packs.any { it.id == id } || packs.size >= FocusSync.MAX_PACKS) return@runCatching
@@ -355,6 +360,16 @@ object SyncClient {
                 endsAt = it.optLong("endsAt", 0),
             )
         }
+        val rev = o.optLong("rev", 0)
+        // A jel legfeljebb a blob rev-je; a plafonnál a jelen lévő csomagok
+        // jele marad. A KIESETT csomag jele is kiesik: ami a listán volt, de
+        // itt nem értelmezhető (vagy a plafon fölött van), az nem törölt
+        // csomag — a jele meg a hiánya együtt sírkőnek látszana, és a csomag
+        // mindenhol törlődne. A valódi törlés jele (nincs ilyen csomag) marad.
+        val presentIds = packs.map { it.id }
+        val marks = marksFromJson(o, "packMarks", rev.coerceIn(0, Int.MAX_VALUE.toLong()).toInt())
+            ?.filterKeys { it !in seenIds || it in presentIds }
+            ?.let { FocusSync.capPackMarks(it, presentIds) }
         return FocusSync.SyncFocus(
             packs = packs,
             run = FocusSync.cleanRun(rawRun, packs),
@@ -362,10 +377,10 @@ object SyncClient {
             // marad, ha a csomagot azóta törölték. Épp ezért van benne a NÉV
             // is, nem csak az azonosító.
             log = focusLogFromJson(o),
-            rev = o.optLong("rev", 0),
+            rev = rev,
             updatedAt = o.optLong("updatedAt", 0),
             updatedBy = o.optString("updatedBy").ifEmpty { fallbackDevice },
-            packMarks = marksFromJson(o, "packMarks", Int.MAX_VALUE),
+            packMarks = marks,
         )
     }
 

@@ -7,7 +7,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  emptyFocus, mergeFocus, normalizeSyncFocus, sameFocus, type SyncFocus,
+  capPackMarks, emptyFocus, MAX_PACK_MARKS, mergeFocus, normalizeSyncFocus, sameFocus, type SyncFocus,
 } from '../src/shared/sync/focus-merge';
 import type { FocusPack } from '../src/shared/focus';
 import type { Band } from '../src/shared/schedule';
@@ -59,6 +59,66 @@ test('újra felvéve nagyobb jellel a törlés fölött; a csak a régebbin él�
   assert.deepEqual(m.packs.map((p) => p.id), ['p1', 'p3']);
   assert.equal(m.packs[0].name, 'új');
   assert.deepEqual(m.packMarks, { p1: 9, p3: 8 });
+});
+
+test('a törlés jele nem hagy csomag nélküli menetet: a menet csomagja marad', () => {
+  // A gép törölte a csomagot (jellel), a telefon ugyanabban a körben menetet
+  // indított rá. A menet a szigorúbb: a csomagja marad, a jele a menetes blob
+  // rev-je. Csomag nélküli menet — amit a fogadó eldob, a küldő meg minden
+  // körben újra feltölt — nem születik.
+  const deleted = focus({ packs: [pack('p2')], packMarks: { p1: 7 }, rev: 7, updatedAt: 100 });
+  const running = focus({
+    packs: [pack('p1'), pack('p2')], run: { packId: 'p1', startedAt: 150, endsAt: 150 + 3_000_000 },
+    rev: 7, updatedAt: 200, updatedBy: 'telefon',
+  });
+  for (const [x, y] of [[deleted, running], [running, deleted]] as const) {
+    const m = mergeFocus(x, y);
+    assert.deepEqual(m.packs.map((p) => p.id).sort(), ['p1', 'p2']);
+    assert.equal(m.run?.packId, 'p1');
+    assert.deepEqual(m.packMarks, { p1: 7 });
+  }
+  // Ha a törlés nagyobb rev-vel jött (próbatétel utáni leállítással), a
+  // menet is elveszett — és vele a csomag: nincs csomag nélküli menet.
+  const stopped = focus({ ...deleted, rev: 8, packMarks: { p1: 8 } });
+  const m = mergeFocus(running, stopped);
+  assert.equal(m.run, null);
+  assert.deepEqual(m.packs.map((p) => p.id), ['p2']);
+});
+
+test('a jelek plafonja egy szabály: a jelen lévő csomagok jele marad, a töröltekből a legfrissebbek', () => {
+  const marks: Record<string, number> = { 'p-jelen': 3 };
+  for (let i = 0; i < 70; i++) marks[`t${String(i).padStart(2, '0')}`] = 100 + (i % 7);
+  const capped = capPackMarks(marks, ['p-jelen'])!;
+  assert.equal(Object.keys(capped).length, MAX_PACK_MARKS);
+  assert.equal(capped['p-jelen'], 3, 'a jelen lévő csomag jele bent marad, pedig a legkisebb');
+  const gone = Object.entries(capped).filter(([id]) => id !== 'p-jelen').map(([, v]) => v);
+  assert.equal(gone.filter((v) => v > 100).length, 60);
+  assert.equal(gone.filter((v) => v === 100).length, 3);
+  assert.equal(capPackMarks({}, []), undefined);
+  // A fésülés és a bemenet is ezzel a plafonnal ad vissza.
+  const a = focus({ packs: [pack('p-jelen')], packMarks: Object.fromEntries(Object.entries(marks).slice(0, 64)), rev: 200 });
+  const b = focus({ packs: [pack('p-jelen')], packMarks: Object.fromEntries(Object.entries(marks).slice(7)), rev: 200, updatedBy: 'telefon' });
+  assert.ok(Object.keys(mergeFocus(a, b).packMarks!).length <= MAX_PACK_MARKS);
+  const n = normalizeSyncFocus({ ...a, packMarks: marks, rev: 150 }, 'x');
+  assert.equal(n.packMarks?.['p-jelen'], 3);
+  assert.ok(Object.keys(n.packMarks!).length <= MAX_PACK_MARKS);
+  // A rev fölötti jel a bemeneten kiesik: a jel annak a blobnak a rev-je, amelyik írta.
+  assert.deepEqual(normalizeSyncFocus({ ...focus({ packs: [pack('p1')], rev: 3 }), packMarks: { p1: 9, p2: 2 } }, 'x').packMarks, { p2: 2 });
+});
+
+test('a normalizálásban kieső csomag jele is kiesik, a valódi törlésé marad', () => {
+  // Egy üres nevű csomag kiesik — a jele is, különben a jel meg a hiánya
+  // együtt sírkő lenne, és a csomag mindenhol törlődne. A p3 jele valódi
+  // törlés (nincs ilyen csomag a listán): az marad.
+  const raw = {
+    packs: [pack('p1', { name: '   ' }), pack('p2')], run: null, log: [],
+    packMarks: { p1: 3, p3: 2 }, rev: 5, updatedAt: 1, updatedBy: 'gep',
+  };
+  const n = normalizeSyncFocus(raw, 'x');
+  assert.deepEqual(n.packs.map((p) => p.id), ['p2']);
+  assert.deepEqual(n.packMarks, { p3: 2 });
+  // Ha minden jel kiesik, nincs üres objektum.
+  assert.equal(normalizeSyncFocus({ ...raw, packMarks: { p1: 3 } }, 'x').packMarks, undefined);
 });
 
 test('a jelek átjönnek a dróton — csak a valódiak —, és a különbségük feltöltést ér', () => {

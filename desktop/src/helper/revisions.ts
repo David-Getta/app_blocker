@@ -18,7 +18,7 @@ import * as crypto from 'crypto';
 import type { HelperState, SiteRec } from './state';
 import type { FocusPack } from '../shared/focus';
 import { capHostnameMarks } from '../shared/sync/merge';
-import { MAX_PACK_MARKS } from '../shared/sync/focus-merge';
+import { capPackMarks } from '../shared/sync/focus-merge';
 
 /**
  * Amit a szinkron lát egy rekordból.
@@ -176,6 +176,10 @@ export function bumpFocusRevision(
   if (state.focusRevFp !== undefined && !state.focusRevFp.startsWith(FOCUS_FP_V2)) {
     if (state.focusRevFp === focusFingerprintV1(state)) {
       state.focusRevFp = fp;
+      // A csomagok lenyomata is innentől van: enélkül a váltás utáni ELSŐ
+      // szerkesztés jel nélkül menne, és az eredeti hiba (a telefon
+      // menet-indítása elviszi az ablakot) egyszer még megtörténhetne.
+      if (!state.focusRevPacks) state.focusRevPacks = packFingerprints(state);
       return false;
     }
   }
@@ -194,6 +198,9 @@ export function bumpFocusRevision(
   // kell mondani.
   if (state.focusRevFp === undefined && isEmptyFocus(state)) {
     state.focusRevFp = fp;
+    // Az üres lista lenyomata is el van téve: a friss gép ELSŐ csomagja
+    // így már jelet kap, nem a régi kliens szabálya áll rá.
+    if (!state.focusRevPacks) state.focusRevPacks = packFingerprints(state);
     return false;
   }
 
@@ -239,16 +246,10 @@ function markPacks(state: HelperState): void {
   const marks = { ...(state.focusPackMarks ?? {}) };
   for (const [id, f] of Object.entries(cur)) if (prev[id] !== f) marks[id] = state.focusRev;
   for (const id of Object.keys(prev)) if (!(id in cur)) marks[id] = state.focusRev;
-  // Korlát: a törölt csomagok jelei gyűlnek; a legrégebbiek esnek ki.
-  const entries = Object.entries(marks);
-  if (entries.length > MAX_PACK_MARKS) {
-    const gone = entries.filter(([id]) => !(id in cur)).sort((x, y) => x[1] - y[1]);
-    for (const [id] of gone) {
-      if (Object.keys(marks).length <= MAX_PACK_MARKS) break;
-      delete marks[id];
-    }
-  }
-  if (Object.keys(marks).length > 0) state.focusPackMarks = marks;
+  // Korlát: a törölt csomagok jelei gyűlnek; a legrégebbiek esnek ki — a
+  // fésülés és a bemenet plafonjával, hogy három hely ugyanazt tartsa.
+  const capped = capPackMarks(marks, Object.keys(cur));
+  if (capped) state.focusPackMarks = capped;
   else delete state.focusPackMarks;
 }
 

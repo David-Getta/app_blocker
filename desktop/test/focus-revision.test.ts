@@ -115,6 +115,32 @@ test('a formátumváltás nem NYELI EL a közben történt szerkesztést', () =>
   assert.equal(st.focusRev, before + 1);
 });
 
+test('a formátumváltás után az ELSŐ szerkesztés is jelet kap', () => {
+  // A váltás elteszi a csomagok lenyomatát is. Enélkül a váltás utáni első
+  // szerkesztés jel nélkül menne, és az eredeti hiba (a telefon menet-indítása
+  // elviszi a gépen felvett ablakot) egyszer még megtörténhetne.
+  const st = running();
+  st.focusRevFp = oldStyleFp(st);
+  st.focusRevPacks = undefined; // frissítés előttről: csomag-lenyomat még nincs
+  assert.equal(bumpFocusRevision(st, 'gep', NOW + 1000), false);
+  assert.ok(st.focusRevPacks, 'a csomagok lenyomata a váltással eltéve');
+  st.focusPacks = [{ ...PACK, recurrence: { days: [1, 2, 3, 4, 5], startMin: 540, endMin: 720 } }];
+  assert.equal(bumpFocusRevision(st, 'gep', NOW + 2000), true);
+  assert.deepEqual(st.focusPackMarks, { p1: st.focusRev }, 'az ablak felvétele jelet kapott');
+});
+
+test('üres eszközön az ELSŐ csomag is jelet kap', () => {
+  // Az üres első kör nem léptet, de a (üres) csomag-lenyomatot elteszi: a friss
+  // gép első csomagja így már jelet kap, nem a régi kliens szabálya áll rá.
+  const st = defaultState();
+  assert.equal(bumpFocusRevision(st, 'gep', NOW), false);
+  assert.equal(st.focusRev, undefined);
+  st.focusPacks = [PACK];
+  assert.equal(bumpFocusRevision(st, 'gep', NOW + 1000), true);
+  assert.equal(st.focusRev, 1);
+  assert.deepEqual(st.focusPackMarks, { p1: 1 });
+});
+
 test('ÜRES eszközön a formátumváltás sem léptet', () => {
   // A legfontosabb sor ebben a fájlban. Egy üres eszköz 1-es számlálóval és
   // friss időbélyeggel legyőzné a gépen felvett csomagokat, és csendben

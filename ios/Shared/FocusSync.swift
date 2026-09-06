@@ -144,8 +144,8 @@ public enum FocusSync {
     /// az újabb blobé, a csak a régebbin élő csomagok a végére. Az iPhone
     /// jelet nem ír, csak hordozza és fésüli. A merge.ts `mergePacks` tükre.
     private static func mergePacks(_ newer: SyncFocus, _ older: SyncFocus) -> ([Focus.Pack], [String: Int]?) {
-        let nm = newer.packMarks ?? [:]
-        let om = older.packMarks ?? [:]
+        let nm = effectiveMarks(newer)
+        let om = effectiveMarks(older)
         var ids: [String] = []
         let candidates = newer.packs.map { $0.id } + older.packs.map { $0.id }
             + Array(nm.keys).sorted() + Array(om.keys).sorted()
@@ -168,7 +168,53 @@ public enum FocusSync {
             if let p = chosen, packs.count < maxPacks { packs.append(p) }
             if max(mn, mo) > 0 { marks[id] = max(mn, mo) }
         }
-        return (packs, marks.isEmpty ? nil : marks)
+        // Ugyanaz a plafon, mint a bemeneten — különben 64 fölött a három
+        // hely három listát tartana, és sosem érnének össze.
+        return (packs, capPackMarks(marks, packs.map { $0.id }))
+    }
+
+    /// A blob HATÁSOS jelei: a jelei, és a futó menet csomagján legalább a
+    /// blob `rev`-je. A menet és a csomagja együtt jár: a törlés jele nem
+    /// viheti el a csomagot, amíg a másik eszközön menet fut rajta — csomag
+    /// nélküli menetet a fogadó eldobna, a menetet tartó eszköz meg minden
+    /// körben újra feltöltené. A sírkő csak akkor nyer, ha a jele nagyobb a
+    /// menetes blob rev-jénél, de akkor a másik blob rev-je is nagyobb, és a
+    /// menet is elveszett volna. A focus-merge.ts `effectiveMarks` tükre.
+    private static func effectiveMarks(_ f: SyncFocus) -> [String: Int] {
+        var marks = f.packMarks ?? [:]
+        let rev = revInt(f.rev)
+        guard let run = f.run, rev > 0, f.packs.contains(where: { $0.id == run.packId }) else { return marks }
+        marks[run.packId] = max(marks[run.packId] ?? 0, rev)
+        return marks
+    }
+
+    /// A blob rev-je egész számként — kívülről jött érték, tehát NEM
+    /// `Int(double)`: egy NaN vagy egy óriás szám azzal elvinné az appot.
+    private static func revInt(_ rev: Double) -> Int {
+        guard rev.isFinite, rev > 0, rev < 2_000_000_000 else { return 0 }
+        return Int(rev)
+    }
+
+    /// Ennél több csomag-jelet nem hordunk egy blobban.
+    static let maxPackMarks = 64
+
+    /// A jelek plafonja — EGY szabály a fésülésre és a bemenetre: a jelen
+    /// lévő csomagok jele mindig marad, a törölt csomagokéból a legnagyobb
+    /// jelűek férnek be, holtversenyben az azonosító szerint. Üresen nil.
+    /// A focus-merge.ts `capPackMarks` tükre.
+    static func capPackMarks(_ marks: [String: Int], _ presentIds: [String]) -> [String: Int]? {
+        if marks.isEmpty { return nil }
+        if marks.count <= maxPackMarks { return marks }
+        let present = Set(presentIds)
+        var out: [String: Int] = [:]
+        for (id, v) in marks where present.contains(id) { out[id] = v }
+        let gone = marks.filter { !present.contains($0.key) }
+            .sorted { $0.value != $1.value ? $0.value > $1.value : $0.key < $1.key }
+        for (id, v) in gone {
+            if out.count >= maxPackMarks { break }
+            out[id] = v
+        }
+        return out
     }
 
     /// A FUTÓ munkamenet összefésülése — a kockázatos fele.
@@ -288,15 +334,14 @@ public enum FocusSync {
         return "\(packs)//\(run)//\(log)//\(marks)//\(f.rev)"
     }
 
-    /// A csomag-jelek kiegyenesítése: csak azonosító → pozitív egész, legfeljebb 64.
-    private static func cleanMarks(_ raw: [String: Int]?) -> [String: Int]? {
+    /// A csomag-jelek kiegyenesítése: csak azonosító → pozitív egész, legfeljebb
+    /// a blob `rev`-je (a jel annak a blobnak a rev-je, amelyik írta), a
+    /// plafonnal (a jelen lévő csomagok jele marad). Üresen nil.
+    static func cleanMarks(_ raw: [String: Int]?, presentIds: [String], maxRev: Int) -> [String: Int]? {
         guard let raw else { return nil }
         var out: [String: Int] = [:]
-        for (k, v) in raw.sorted(by: { $0.key < $1.key }) where !k.isEmpty && v > 0 {
-            out[k] = v
-            if out.count >= 64 { break }
-        }
-        return out.isEmpty ? nil : out
+        for (k, v) in raw where !k.isEmpty && v > 0 && v <= maxRev { out[k] = v }
+        return capPackMarks(out, presentIds)
     }
 
     /// Egy kívülről jött blob használható alakja.
@@ -306,7 +351,9 @@ public enum FocusSync {
     /// eltüntetné, és a felhasználó azt látná, hogy magától kikapcsolt.
     public static func normalize(_ raw: SyncFocus, fallbackDevice: String) -> SyncFocus {
         var packs: [Focus.Pack] = []
+        var seenIds: [String] = []
         for p in raw.packs {
+            if !p.id.isEmpty { seenIds.append(p.id) }
             let name = p.name.trimmingCharacters(in: .whitespacesAndNewlines)
             if p.id.isEmpty || name.isEmpty { continue }
             if packs.contains(where: { $0.id == p.id }) || packs.count >= maxPacks { continue }
@@ -319,6 +366,13 @@ public enum FocusSync {
                 recurrence: Focus.cleanRecurrence(p.recurrence)
             ))
         }
+        // A KIESETT csomag jele is kiesik: ami a listán volt, de itt nem
+        // értelmezhető (vagy a plafon fölött van), az nem törölt csomag — a
+        // jele meg a hiánya együtt sírkőnek látszana, és a csomag mindenhol
+        // törlődne. A valódi törlés jele (nincs ilyen csomag a listán) marad.
+        let presentIds = packs.map { $0.id }
+        let cleaned = cleanMarks(raw.packMarks, presentIds: presentIds, maxRev: revInt(raw.rev))
+        let kept = cleaned?.filter { !seenIds.contains($0.key) || presentIds.contains($0.key) }
         return SyncFocus(
             packs: packs,
             run: cleanRun(raw.run, packs: packs),
@@ -329,7 +383,7 @@ public enum FocusSync {
             rev: raw.rev,
             updatedAt: raw.updatedAt,
             updatedBy: raw.updatedBy.isEmpty ? fallbackDevice : raw.updatedBy,
-            packMarks: cleanMarks(raw.packMarks)
+            packMarks: (kept?.isEmpty ?? true) ? nil : kept
         )
     }
 
