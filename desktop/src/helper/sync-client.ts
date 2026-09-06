@@ -645,11 +645,20 @@ function decodeChannels(acc: SyncAccount, payload: string | null | undefined): S
   }
 }
 
-/** A helyi állapot szinkron-alakja. */
+/**
+ * A helyi állapot szinkron-alakja.
+ *
+ * A menet csak a csomagjával együtt megy fel: egy csomag nélküli helyi menet
+ * (a betöltés normalizálása kidobta a csomagját) a dróton úgyis kiesne, a
+ * fésülés viszont megtartaná a szigorúbbat — és a gép minden körben újra
+ * feltöltené ugyanazt, amit a kiszolgáló sosem tart meg.
+ */
 function localFocus(state: HelperState, deviceId: string): SyncFocus {
+  const packs = state.focusPacks ?? [];
+  const run = state.focusRun ?? null;
   return {
-    packs: state.focusPacks ?? [],
-    run: state.focusRun ?? null,
+    packs,
+    run: run && packs.some((p) => p.id === run.packId) ? run : null,
     log: state.focusLog ?? [],
     ...(state.focusPackMarks ? { packMarks: state.focusPackMarks } : {}),
     rev: state.focusRev ?? 0,

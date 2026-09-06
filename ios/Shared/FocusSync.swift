@@ -88,10 +88,11 @@ public enum FocusSync {
         let localIsNewer = firstIsNewer(local, incoming)
         let newer = localIsNewer ? local : incoming
         let older = localIsNewer ? incoming : local
-        let (packs, packMarks) = mergePacks(newer, older)
+        let run = mergeRun(local, incoming)
+        let (packs, packMarks) = mergePacks(newer, older, runPackId: run?.packId)
         return SyncFocus(
             packs: packs,
-            run: mergeRun(local, incoming),
+            run: run,
             // EGYESÍTÉS, nem választás: lásd a `log` mező magyarázatát.
             log: mergeLog(local.log, incoming.log),
             rev: max(local.rev, incoming.rev),
@@ -113,7 +114,9 @@ public enum FocusSync {
         let nx = x.allowSites.count + x.allowApps.count
         let ny = y.allowSites.count + y.allowApps.count
         if nx != ny { return nx < ny ? x : y }
-        return packOrderKey(x) <= packOrderKey(y) ? x : y
+        // UTF-16 szerint, mint a gép és az Android — a Swift `<` máshogy dőlne
+        // nem-BMP karakternél.
+        return utf16Less(packOrderKey(y), packOrderKey(x)) ? y : x
     }
 
     /// A változat kulcsa a sorrendhez — bájtra ugyanez a három nyelvben.
@@ -135,7 +138,35 @@ public enum FocusSync {
     private static func firstIsNewer(_ a: SyncFocus, _ b: SyncFocus) -> Bool {
         if a.rev != b.rev { return a.rev > b.rev }
         if a.updatedAt != b.updatedAt { return a.updatedAt > b.updatedAt }
-        return a.updatedBy >= b.updatedBy
+        if a.updatedBy != b.updatedBy { return utf16Less(b.updatedBy, a.updatedBy) }
+        // AZONOS KULCS, más tartalom: egy fésülés után minden eszköz a győztes
+        // kulcsát veszi át, a tartalma viszont a saját fésülése. Ha az első
+        // argumentum nyerne, két eszköz örökké egymást írná felül. A TARTALOM
+        // dönt, ugyanazzal a kulccsal mindhárom nyelvben.
+        return !utf16Less(contentKey(b), contentKey(a))
+    }
+
+    /// UTF-16 kódegységek szerinti rendezés — a JavaScript és a Kotlin így
+    /// hasonlít; a Swift `<` Unicode-skalár és kanonikus egyezés szerint, ami
+    /// nem-BMP vagy bontott ékezetes névnél máshogy dőlne, és a gép meg az
+    /// iPhone örökké egymást választaná.
+    static func utf16Less(_ a: String, _ b: String) -> Bool {
+        a.utf16.lexicographicallyPrecedes(b.utf16)
+    }
+
+    /// Egész szám úgy, ahogy a gép írja („150”, nem „150.0”).
+    private static func intString(_ d: Double) -> String {
+        d.isFinite ? String(format: "%.0f", d) : "0"
+    }
+
+    /// A blob tartalmának kulcsa a döntetlenhez — bájtra ugyanez a három nyelvben.
+    private static func contentKey(_ f: SyncFocus) -> String {
+        let packs = f.packs.sorted { utf16Less($0.id, $1.id) }
+            .map { $0.id + "\u{1}" + packOrderKey($0) }.joined(separator: "\u{2}")
+        let run = f.run.map { "\($0.packId)/\(intString($0.startedAt))/\(intString($0.endsAt))" } ?? "-"
+        let marks = (f.packMarks ?? [:]).sorted { utf16Less($0.key, $1.key) }
+            .map { "\($0.key)=\($0.value)" }.joined(separator: ",")
+        return packs + "\u{3}" + run + "\u{3}" + marks
     }
 
     /// A csomagok CSOMAGONKÉNT fésülődnek, a jelük szerint: a nagyobb jelnél
@@ -143,34 +174,56 @@ public enum FocusSync {
     /// nélküli csomag is ilyen) az újabb blob állapota, ahogy eddig. A sorrend
     /// az újabb blobé, a csak a régebbin élő csomagok a végére. Az iPhone
     /// jelet nem ír, csak hordozza és fésüli. A merge.ts `mergePacks` tükre.
-    private static func mergePacks(_ newer: SyncFocus, _ older: SyncFocus) -> ([Focus.Pack], [String: Int]?) {
-        let nm = effectiveMarks(newer)
-        let om = effectiveMarks(older)
+    private static func mergePacks(
+        _ newer: SyncFocus, _ older: SyncFocus, runPackId: String?
+    ) -> ([Focus.Pack], [String: Int]?) {
+        let en = effectiveMarks(newer)
+        let eo = effectiveMarks(older)
+        let rn = newer.packMarks ?? [:]
+        let ro = older.packMarks ?? [:]
+        // A MENET CSOMAGJA ELÖL: a 30-as plafon vágásából sem eshet ki.
         var ids: [String] = []
-        let candidates = newer.packs.map { $0.id } + older.packs.map { $0.id }
-            + Array(nm.keys).sorted() + Array(om.keys).sorted()
+        let candidates = (runPackId.map { [$0] } ?? []) + newer.packs.map { $0.id } + older.packs.map { $0.id }
+            + Array(en.keys).sorted() + Array(eo.keys).sorted()
         for id in candidates where !ids.contains(id) { ids.append(id) }
-        var packs: [Focus.Pack] = []
+        var chosen: [(pack: Focus.Pack, marked: Bool)] = []
         var marks: [String: Int] = [:]
         for id in ids {
-            let mn = nm[id] ?? 0
-            let mo = om[id] ?? 0
+            let mn = en[id] ?? 0
+            let mo = eo[id] ?? 0
             let pn = newer.packs.first { $0.id == id }
             let po = older.packs.first { $0.id == id }
-            // Egyenlő POZITÍV jelnél a jelenlét nyer (az újabb változata) —
-            // sorrendtől független; jel nélkül az újabb blob állapota.
-            let chosen: Focus.Pack?
-            if mo > mn { chosen = po }
-            else if mn > mo { chosen = pn }
+            // Egyenlő POZITÍV jelnél a jelenlét nyer; két változat közül a
+            // VALÓDI jel dönt (a szerkesztés erősebb a menet indításánál),
+            // egyenlő valódi jelnél a `preferPack`; jel nélkül az újabb blob.
+            let pick: Focus.Pack?
+            if mo > mn { pick = po }
+            else if mn > mo { pick = pn }
             else if mn > 0 {
-                if let a = pn, let b = po { chosen = preferPack(a, b) } else { chosen = pn ?? po }
-            } else { chosen = pn }
-            if let p = chosen, packs.count < maxPacks { packs.append(p) }
+                if let a = pn, let b = po {
+                    let vn = rn[id] ?? 0
+                    let vo = ro[id] ?? 0
+                    pick = vn != vo ? (vn > vo ? a : b) : preferPack(a, b)
+                } else { pick = pn ?? po }
+            } else { pick = pn }
+            if let p = pick { chosen.append((pack: p, marked: id == runPackId || max(mn, mo) > 0)) }
             if max(mn, mo) > 0 { marks[id] = max(mn, mo) }
         }
-        // Ugyanaz a plafon, mint a bemeneten — különben 64 fölött a három
-        // hely három listát tartana, és sosem érnének össze.
+        let packs = capPacks(chosen)
+        // Ugyanaz a plafon, mint a bemeneten — különben a három hely három
+        // listát tartana, és sosem érnének össze.
         return (packs, capPackMarks(marks, packs.map { $0.id }))
+    }
+
+    /// A csomagok plafonja (30): a JELES csomag (és a menet csomagja) marad, a
+    /// jel nélküli esik ki előbb; a sorrend a fésülésé. A focus-merge.ts
+    /// `capPacks` tükre.
+    private static func capPacks(_ chosen: [(pack: Focus.Pack, marked: Bool)]) -> [Focus.Pack] {
+        if chosen.count <= maxPacks { return chosen.map { $0.pack } }
+        var keep = Set<String>()
+        for c in chosen where c.marked && keep.count < maxPacks { keep.insert(c.pack.id) }
+        for c in chosen where !c.marked && keep.count < maxPacks { keep.insert(c.pack.id) }
+        return chosen.filter { keep.contains($0.pack.id) }.map { $0.pack }
     }
 
     /// A blob HATÁSOS jelei: a jelei, és a futó menet csomagján legalább a
@@ -195,8 +248,11 @@ public enum FocusSync {
         return Int(rev)
     }
 
-    /// Ennél több csomag-jelet nem hordunk egy blobban.
-    static let maxPackMarks = 64
+    /// Ennél több csomag-jelet nem hordunk egy blobban. Szándékosan magas: egy
+    /// eldobott sírkő feltámaszthatja a csomagot a másik eszközön, tehát a
+    /// vágás nem lehet mindennapos — 256 jel több mint kétszáz valaha törölt
+    /// csomag, a lista maga 30-as.
+    static let maxPackMarks = 256
 
     /// A jelek plafonja — EGY szabály a fésülésre és a bemenetre: a jelen
     /// lévő csomagok jele mindig marad, a törölt csomagokéból a legnagyobb
@@ -380,7 +436,9 @@ public enum FocusSync {
             // igaz marad, ha a csomagot azóta törölték. Épp ezért van benne a
             // NÉV is, nem csak az azonosító.
             log: capLog(raw.log),
-            rev: raw.rev,
+            // Nemnegatív egész, mint a gépen és Androidon: egy tört rev-ből
+            // tört jel lenne, amit a visszaolvasás eldob.
+            rev: Double(revInt(raw.rev)),
             updatedAt: raw.updatedAt,
             updatedBy: raw.updatedBy.isEmpty ? fallbackDevice : raw.updatedBy,
             packMarks: (kept?.isEmpty ?? true) ? nil : kept

@@ -64,10 +64,11 @@ object FocusSync {
     fun merge(local: SyncFocus, incoming: SyncFocus): SyncFocus {
         val newer = pickNewer(local, incoming)
         val older = if (newer === local) incoming else local
-        val (packs, packMarks) = mergePacks(newer, older)
+        val run = mergeRun(local, incoming)
+        val (packs, packMarks) = mergePacks(newer, older, run?.packId)
         return SyncFocus(
             packs = packs,
-            run = mergeRun(local, incoming),
+            run = run,
             // EGYESÍTÉS, nem választás: lásd a `log` mező magyarázatát.
             log = mergeLog(local.log, incoming.log),
             rev = maxOf(local.rev, incoming.rev),
@@ -86,35 +87,59 @@ object FocusSync {
      * az újabb blobé, a csak a régebbin élő csomagok a végére. A telefon jelet
      * nem ír, csak hordozza és fésüli. A merge.ts `mergePacks` tükre.
      */
-    private fun mergePacks(newer: SyncFocus, older: SyncFocus): Pair<List<Focus.FocusPack>, Map<String, Int>?> {
-        val nm = effectiveMarks(newer)
-        val om = effectiveMarks(older)
+    private fun mergePacks(
+        newer: SyncFocus, older: SyncFocus, runPackId: String?,
+    ): Pair<List<Focus.FocusPack>, Map<String, Int>?> {
+        val en = effectiveMarks(newer)
+        val eo = effectiveMarks(older)
+        val rn = newer.packMarks ?: emptyMap()
+        val ro = older.packMarks ?: emptyMap()
+        // A MENET CSOMAGJA ELÖL: a 30-as plafon vágásából sem eshet ki.
         val ids = LinkedHashSet<String>()
+        if (runPackId != null) ids.add(runPackId)
         newer.packs.forEach { ids.add(it.id) }
         older.packs.forEach { ids.add(it.id) }
-        ids.addAll(nm.keys); ids.addAll(om.keys)
-        val packs = ArrayList<Focus.FocusPack>()
+        ids.addAll(en.keys); ids.addAll(eo.keys)
+        val chosen = ArrayList<Pair<Focus.FocusPack, Boolean>>()
         val marks = LinkedHashMap<String, Int>()
         for (id in ids) {
-            val mn = nm[id] ?: 0
-            val mo = om[id] ?: 0
+            val mn = en[id] ?: 0
+            val mo = eo[id] ?: 0
             val pn = newer.packs.firstOrNull { it.id == id }
             val po = older.packs.firstOrNull { it.id == id }
-            // Egyenlő POZITÍV jelnél a jelenlét nyer, két változat közül a
-            // `preferPack` — a blobtól független, ezért sorrendtől független;
-            // jel nélkül az újabb blob állapota.
-            val chosen = when {
+            // Egyenlő POZITÍV jelnél a jelenlét nyer; két változat közül a
+            // VALÓDI jel dönt (a szerkesztés erősebb a menet indításánál),
+            // egyenlő valódi jelnél a `preferPack`; jel nélkül az újabb blob.
+            val pick = when {
                 mo > mn -> po
                 mn > mo -> pn
-                mn > 0 -> if (pn != null && po != null) preferPack(pn, po) else pn ?: po
+                mn > 0 -> if (pn != null && po != null) {
+                    val vn = rn[id] ?: 0
+                    val vo = ro[id] ?: 0
+                    if (vn != vo) (if (vn > vo) pn else po) else preferPack(pn, po)
+                } else pn ?: po
                 else -> pn
             }
-            if (chosen != null && packs.size < MAX_PACKS) packs.add(chosen)
+            if (pick != null) chosen.add(pick to (id == runPackId || maxOf(mn, mo) > 0))
             if (maxOf(mn, mo) > 0) marks[id] = maxOf(mn, mo)
         }
-        // Ugyanaz a plafon, mint a bemeneten — különben 64 fölött a három
-        // hely három listát tartana, és sosem érnének össze.
+        val packs = capPacks(chosen)
+        // Ugyanaz a plafon, mint a bemeneten — különben a három hely három
+        // listát tartana, és sosem érnének össze.
         return packs to capPackMarks(marks, packs.map { it.id })
+    }
+
+    /**
+     * A csomagok plafonja (30): a JELES csomag (és a menet csomagja) marad, a
+     * jel nélküli esik ki előbb; a sorrend a fésülésé. A focus-merge.ts
+     * `capPacks` tükre.
+     */
+    private fun capPacks(chosen: List<Pair<Focus.FocusPack, Boolean>>): List<Focus.FocusPack> {
+        if (chosen.size <= MAX_PACKS) return chosen.map { it.first }
+        val keep = LinkedHashSet<Focus.FocusPack>()
+        for ((p, marked) in chosen) if (marked && keep.size < MAX_PACKS) keep.add(p)
+        for ((p, marked) in chosen) if (!marked && keep.size < MAX_PACKS) keep.add(p)
+        return chosen.filter { it.first in keep }.map { it.first }
     }
 
     /**
@@ -134,8 +159,13 @@ object FocusSync {
         return marks
     }
 
-    /** Ennél több csomag-jelet nem hordunk egy blobban. */
-    const val MAX_PACK_MARKS = 64
+    /**
+     * Ennél több csomag-jelet nem hordunk egy blobban. Szándékosan magas: egy
+     * eldobott sírkő feltámaszthatja a csomagot a másik eszközön, tehát a
+     * vágás nem lehet mindennapos — 256 jel több mint kétszáz valaha törölt
+     * csomag, a lista maga 30-as.
+     */
+    const val MAX_PACK_MARKS = 256
 
     /**
      * A jelek plafonja — EGY szabály a fésülésre és a bemenetre: a jelen
@@ -192,7 +222,20 @@ object FocusSync {
     private fun pickNewer(a: SyncFocus, b: SyncFocus): SyncFocus {
         if (a.rev != b.rev) return if (a.rev > b.rev) a else b
         if (a.updatedAt != b.updatedAt) return if (a.updatedAt > b.updatedAt) a else b
-        return if (a.updatedBy >= b.updatedBy) a else b
+        if (a.updatedBy != b.updatedBy) return if (a.updatedBy > b.updatedBy) a else b
+        // AZONOS KULCS, más tartalom: egy fésülés után minden eszköz a győztes
+        // kulcsát veszi át, a tartalma viszont a saját fésülése. Ha az első
+        // argumentum nyerne, két eszköz örökké egymást írná felül. A TARTALOM
+        // dönt, ugyanazzal a kulccsal mindhárom nyelvben.
+        return if (contentKey(a) <= contentKey(b)) a else b
+    }
+
+    /** A blob tartalmának kulcsa a döntetlenhez — bájtra ugyanez a három nyelvben. */
+    private fun contentKey(f: SyncFocus): String {
+        val packs = f.packs.sortedBy { it.id }.joinToString("\u0002") { it.id + "\u0001" + packOrderKey(it) }
+        val run = f.run?.let { "${it.packId}/${it.startedAt}/${it.endsAt}" } ?: "-"
+        val marks = (f.packMarks ?: emptyMap()).toSortedMap().entries.joinToString(",") { "${it.key}=${it.value}" }
+        return "$packs\u0003$run\u0003$marks"
     }
 
     /**

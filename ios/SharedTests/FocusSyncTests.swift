@@ -154,13 +154,13 @@ final class FocusSyncTests: XCTestCase {
 
     func testMarkCapIsOneRulePresentPacksKeepTheirMark() {
         var marks: [String: Int] = ["p-jelen": 3]
-        for i in 0..<70 { marks[String(format: "t%02d", i)] = 100 + (i % 7) }
+        for i in 0..<300 { marks[String(format: "t%03d", i)] = 100 + (i % 7) }
         let capped = FocusSync.capPackMarks(marks, ["p-jelen"])!
         XCTAssertEqual(capped.count, FocusSync.maxPackMarks)
         XCTAssertEqual(capped["p-jelen"], 3, "a jelen lévő csomag jele bent marad, pedig a legkisebb")
         let gone = capped.filter { $0.key != "p-jelen" }.map { $0.value }
-        XCTAssertEqual(gone.filter { $0 > 100 }.count, 60)
-        XCTAssertEqual(gone.filter { $0 == 100 }.count, 3)
+        XCTAssertEqual(gone.count, FocusSync.maxPackMarks - 1)
+        XCTAssertTrue(gone.allSatisfy { $0 > 100 }, "a legrégebbi (100-as) jelekből estek ki")
         XCTAssertNil(FocusSync.capPackMarks([:], []))
         // A bemenet is ezzel a plafonnal tisztít, és a rev fölötti jelet eldobja.
         let raw = focus(packs: [pack("p-jelen")], rev: 150, updatedAt: 1, packMarks: marks)
@@ -169,6 +169,43 @@ final class FocusSyncTests: XCTestCase {
         XCTAssertLessThanOrEqual(n.packMarks?.count ?? 0, FocusSync.maxPackMarks)
         let tooHigh = focus(packs: [pack("p1")], rev: 3, updatedAt: 1, packMarks: ["p1": 9, "p2": 2])
         XCTAssertEqual(FocusSync.normalize(tooHigh, fallbackDevice: "x").packMarks, ["p2": 2], "a rev fölötti jel kiesik")
+    }
+
+    func testRealMarkBeatsARunStartTheDesktopEditSurvives() {
+        // A gép rev 6-on bővítette az ablakot (jel 6); a telefon ugyanabban a
+        // körben — a régi változattal — menetet indított (hatásos jel 6).
+        // Egyenlő hatásos jel: a VÁLTOZAT a valódi jelé. A menet is marad.
+        let wide = ScheduleLogic.Band(days: [1, 2, 3, 4, 5], startMin: 540, endMin: 780)
+        let desktop = focus(packs: [pack("p1", recurrence: wide)], rev: 6, updatedAt: 100, updatedBy: "gep", packMarks: ["p1": 6])
+        let phone = focus(packs: [pack("p1", recurrence: win)], run: Focus.Run(packId: "p1", startedAt: 150, endsAt: 150 + 3_000_000), rev: 6, updatedAt: 200, updatedBy: "telefon")
+        for (x, y) in [(desktop, phone), (phone, desktop)] {
+            let m = FocusSync.merge(x, y)
+            XCTAssertEqual(m.packs.first?.recurrence, wide, "a gép bővített ablaka marad")
+            XCTAssertEqual(m.run?.packId, "p1", "a telefon menete is marad")
+            XCTAssertEqual(m.packMarks, ["p1": 6])
+        }
+    }
+
+    func testThePackCapKeepsTheRunsPackAndMarkedPacks() {
+        let full = (0..<30).map { pack(String(format: "f%02d", $0)) }
+        let newer = focus(packs: full, rev: 6, updatedAt: 200, updatedBy: "telefon")
+        let older = focus(packs: Array(full.prefix(29)) + [pack("q")], run: Focus.Run(packId: "q", startedAt: 10, endsAt: 600_010), rev: 6, updatedAt: 100, updatedBy: "gep")
+        for (x, y) in [(newer, older), (older, newer)] {
+            let m = FocusSync.merge(x, y)
+            XCTAssertEqual(m.packs.count, 30)
+            XCTAssertEqual(m.run?.packId, "q")
+            XCTAssertTrue(m.packs.contains { $0.id == "q" }, "a menet csomagja a listán van")
+        }
+        let marked = focus(packs: Array(full.prefix(29)) + [pack("w", recurrence: win)], rev: 7, updatedAt: 300, updatedBy: "gep", packMarks: ["w": 7])
+        let stale = focus(packs: full, rev: 6, updatedAt: 100, updatedBy: "telefon")
+        XCTAssertTrue(FocusSync.merge(stale, marked).packs.contains { $0.id == "w" }, "a jeles ablak marad")
+    }
+
+    func testIdenticalKeyDifferentContentTheContentDecidesInBothOrders() {
+        let x = focus(packs: [pack("p1", name: "X")], rev: 3, updatedAt: 100, updatedBy: "gep")
+        let y = focus(packs: [pack("p1", name: "Y")], rev: 3, updatedAt: 100, updatedBy: "gep")
+        XCTAssertEqual(FocusSync.merge(x, y).packs.first?.name, FocusSync.merge(y, x).packs.first?.name)
+        XCTAssertTrue(FocusSync.same(FocusSync.merge(x, y), FocusSync.merge(y, x)))
     }
 
     func testNormalizeDropsTheMarkOfAPackThatFellOutButKeepsRealTombstones() {

@@ -49,9 +49,19 @@ test('oldal: szimmetrikus, idempotens, és három eszköz bármilyen sorrendben 
   }
 });
 
-function focusKey(f: SyncFocus): string {
+/**
+ * A csomagok HALMAZA, a jelek, a menet és a rev — és a csomagok VÁLTOZATA is,
+ * kivéve azét, amin valamelyik bemenet menete fut. Ott a menet hatásos jele
+ * és egy valódi szerkesztés jele döntetlent adhat, amit a valódi jel visz —
+ * de három eszköznél a köztes eredmény már valódi jelként hordozza a
+ * menetét, és a változat a sorrendtől függhet (a csomag JELENLÉTE nem). Ezt
+ * a doksi kimondja; itt a jelenlétet mérjük rajta, a változatot nem.
+ */
+function focusKey(f: SyncFocus, runIds: Set<string>): string {
   return JSON.stringify([
-    [...f.packs].sort((x, y) => (x.id < y.id ? -1 : 1)).map((p) => [p.id, p.name, p.recurrence ?? null]),
+    [...f.packs].sort((x, y) => (x.id < y.id ? -1 : 1)).map((p) => (runIds.has(p.id)
+      ? [p.id]
+      : [p.id, p.name, [...p.allowSites].sort(), [...p.allowApps].sort(), p.defaultMinutes, p.recurrence ?? null])),
     f.packMarks ? Object.entries(f.packMarks).sort() : null,
     f.run, f.rev,
   ]);
@@ -61,12 +71,14 @@ test('munkamenet-blob: a csomagok halmaza és a jelek sorrendtől függetlenek',
   for (let seed = 1; seed <= 300; seed++) {
     const r = rng(seed);
     const [a, b, c] = DEVICES.map((d) => randomFocus(r, d));
+    const runIds = new Set([a, b, c].flatMap((f) => (f.run ? [f.run.packId] : [])));
+    const focusKey2 = (f: SyncFocus) => focusKey(f, runIds);
     const ab = mergeFocus(a, b);
-    assert.equal(focusKey(ab), focusKey(mergeFocus(b, a)), `szimmetria, mag ${seed}`);
-    assert.equal(focusKey(mergeFocus(ab, ab)), focusKey(ab), `idempotens, mag ${seed}`);
+    assert.equal(focusKey2(ab), focusKey2(mergeFocus(b, a)), `szimmetria, mag ${seed}`);
+    assert.equal(focusKey2(mergeFocus(ab, ab)), focusKey2(ab), `idempotens, mag ${seed}`);
     const abc = mergeFocus(ab, c);
-    assert.equal(focusKey(abc), focusKey(mergeFocus(mergeFocus(b, c), a)), `három eszköz (bca), mag ${seed}`);
-    assert.equal(focusKey(abc), focusKey(mergeFocus(mergeFocus(c, a), b)), `három eszköz (cab), mag ${seed}`);
+    assert.equal(focusKey2(abc), focusKey2(mergeFocus(mergeFocus(b, c), a)), `három eszköz (bca), mag ${seed}`);
+    assert.equal(focusKey2(abc), focusKey2(mergeFocus(mergeFocus(c, a), b)), `három eszköz (cab), mag ${seed}`);
     // A jeles csomag a nagyobb jel változatában marad: ha az egyik oldalon
     // ablakos csomag áll a nagyobb jellel, az ablak az eredményben is ott van.
     // A futó menet csomagja a blob rev-jével számít jeleltnek (hatásos jel).

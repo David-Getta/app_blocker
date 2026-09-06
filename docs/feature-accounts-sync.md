@@ -116,22 +116,46 @@ Ezért:
   a futó menet csomagját a blob `rev`-jével jeleltnek veszi (hatásos jel):
   a sírkő csak akkor nyer, ha a jele nagyobb a menetes blob rev-jénél — de
   akkor a másik blob rev-je is nagyobb, és a menet is elveszett volna.
-  Csomag nélküli menet így nem születik; a menet a szigorúbb, a törlés a
-  menet végéig „visszahozott”. Kimondott ára: ha a telefon a szinkron
-  nélkül több léptetést csinált (menet indítása, próbatételes leállítás,
-  újraindítás), a rev-je elmehet a gép közben felvett ablakának jele
-  fölé, és a menetes csomag régi változata nyer — a csomag marad, az
-  ablakot újra fel kell venni. Egy szinkron nélküli menet-indítás ezt nem
-  éri el: azonos jelnél az ablakos változat marad.
-- **A jelek plafonja egy szabály.** Legfeljebb 64 csomag-jel utazik; a jelen
-  lévő csomagok jele mindig marad, a törölt csomagokéból a legnagyobb
-  jelűek férnek be. Ugyanez a szabály a fésülésben, a bemenet
-  tisztításában és a gép léptetésében, mindhárom nyelvben — ha négy helyen
-  négyféle plafon vágna, 64 fölött a gép, a telefon és a kiszolgáló három
-  különböző listát tartana, és minden körben feltöltenének. A bemenet a
-  blob rev-jénél nagyobb jelet eldobja, és a normalizálásban kieső csomag
-  (üres név, a 30-as plafon fölött) jelét is: az nem törölt csomag, és a
-  jele meg a hiánya együtt sírkőnek látszana — a csomag mindenhol törlődne.
+  Csomag nélküli menet így nem születik — a 30-as csomagplafon vágásából
+  sem: a menet csomagja elöl áll, és a vágásnál a jeles csomag marad, a
+  jeltelen esik ki előbb. A menet a szigorúbb: a csomag visszajön, és a
+  jele a menetes blob rev-je lesz, tehát **a menet után is marad** — a
+  törlés semmisül meg, nem halasztódik; aki törölni akarja, újra törli
+  (ablakos csomagnál újra próbatétellel). Ez kimondott ár.
+- **A menet jele csak hatásos, a szerkesztésé valódi.** Ha a gép rev 6-on
+  szerkesztette a csomagot (jel 6), a telefon pedig ugyanabban a körben —
+  a régi változattal — menetet indított rá (hatásos jel 6), a JELENLÉT
+  nem kérdés, a VÁLTOZAT a valódi jelé: a gép szerkesztése marad, a
+  telefon menete is. Két eszközre ez mindig így dől el. Három eszköznél
+  van egy kimondott sarok: ha ugyanarra a csomagra egyszerre jut egy
+  menet, egy törlés és egy szerkesztés, mind azonos jellel, a csomag
+  jelenléte és a menet sorrendtől független, a változata viszont attól
+  függhet, ki ért előbb a kiszolgálóra — konvergál, csak nem mindegy,
+  melyik változatra. Ennél többet egy plusz mező nélkül nem lehet ígérni,
+  és a doksi inkább kimondja. Kimondott ár marad az is, hogy ha a telefon
+  a szinkron nélkül több léptetést csinált (menet, próbatételes leállítás,
+  újraindítás), a rev-je elmehet a gép jele fölé, és a régi változat nyer
+  — a csomag marad, a szerkesztést újra meg kell csinálni.
+- **Azonos kulcs, más tartalom: a tartalom dönt.** Egy fésülés után minden
+  eszköz a győztes (rev, idő, eszköz) kulcsát veszi át, a tartalma viszont
+  a saját fésülése — két ilyen blob kulcsa egyezik. Ha ilyenkor az „első
+  argumentum” nyerne, a két eszköz egymást választaná győztesnek, és
+  örökké egymást írná felül. Ezért azonos kulcsnál egy tartalom-kulcs dönt,
+  bájtra ugyanaz a három nyelvben (az iPhone UTF-16 szerint hasonlít, mint a
+  gép és az Android, nem a Swift saját rendezésével).
+- **A jelek plafonja egy szabály, és szándékosan magas.** Legfeljebb 256
+  csomag-jel utazik; a jelen lévő csomagok jele mindig marad, a törölt
+  csomagokéból a legnagyobb jelűek férnek be. Ugyanez a szabály a
+  fésülésben, a bemenet tisztításában és a gép léptetésében, mindhárom
+  nyelvben — ha négy helyen négyféle plafon vágna, a gép, a telefon és a
+  kiszolgáló három különböző listát tartana, és minden körben
+  feltöltenének. A plafon azért magas, mert egy eldobott sírkő a másik
+  eszközön feltámaszthatja a csomagot: 256 jel több mint kétszáz valaha
+  törölt csomag, a lista maga 30-as. A bemenet a blob rev-jénél nagyobb
+  jelet eldobja (a rev maga nemnegatív egész), és a normalizálásban kieső
+  csomag (üres név, a 30-as plafon fölött) jelét is: az nem törölt csomag,
+  és a jele meg a hiánya együtt sírkőnek látszana — a csomag mindenhol
+  törlődne.
 
 Mit jelent „szigorúbb”:
 

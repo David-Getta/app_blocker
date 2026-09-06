@@ -360,7 +360,8 @@ object SyncClient {
                 endsAt = it.optLong("endsAt", 0),
             )
         }
-        val rev = o.optLong("rev", 0)
+        // Nemnegatív egész, mint a gépen és az iPhone-on (az optLong csonkol).
+        val rev = o.optLong("rev", 0).coerceAtLeast(0)
         // A jel legfeljebb a blob rev-je; a plafonnál a jelen lévő csomagok
         // jele marad. A KIESETT csomag jele is kiesik: ami a listán volt, de
         // itt nem értelmezhető (vagy a plafon fölött van), az nem törölt

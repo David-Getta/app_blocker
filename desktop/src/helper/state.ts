@@ -345,7 +345,11 @@ export function loadState(): HelperState {
           .slice(-MAX_FOCUS_LOG);
       }
       const run = parsed.focusRun;
-      if (run && !(typeof run.packId === 'string' && Number.isFinite(run.endsAt))) {
+      // A menet csak a csomagjával együtt: ha a csomagját a betöltés
+      // kidobta, a menet értelmezhetetlen (mi mehetne alatta?), a szinkron
+      // meg minden körben újra feltöltené, amit a kiszolgáló sosem tart meg.
+      if (run && !(typeof run.packId === 'string' && Number.isFinite(run.endsAt)
+        && (parsed.focusPacks ?? []).some((p) => p.id === run.packId))) {
         parsed.focusRun = null;
       }
       const shared = parsed.sharedToday;

@@ -74,8 +74,13 @@ export interface SyncFocus {
   updatedBy: string;
 }
 
-/** Ennél több csomag-jelet nem hordunk; a törölt csomagok legrégebbi jelei esnek ki. */
-export const MAX_PACK_MARKS = 64;
+/**
+ * Ennél több csomag-jelet nem hordunk; a törölt csomagok legrégebbi jelei
+ * esnek ki. A plafon SZÁNDÉKOSAN magas: egy eldobott sírkő feltámaszthatja a
+ * csomagot a másik eszközön, tehát a vágás nem lehet mindennapos — 256 jel
+ * több mint kétszáz valaha törölt csomagot jelent, a lista maga 30-as.
+ */
+export const MAX_PACK_MARKS = 256;
 
 /**
  * A jelek plafonja — EGY szabály mindenhol (fésülés, bemenet, léptetés, a
@@ -149,7 +154,10 @@ export function normalizeSyncFocus(raw: unknown, fallbackDevice: string): SyncFo
   // meg a hiánya együtt sírkőnek látszana a fésülésben, és a csomag
   // MINDENHOL törlődne — a gazdája is elveszítené. A valódi törlés jele
   // (nincs ilyen csomag a listán) megmarad.
-  const rev = numberOr(o.rev, 0);
+  // A rev nemnegatív EGÉSZ: egy tört rev-ből a hatásos jel tört jelet írna,
+  // amit a visszaolvasás eldob — és a kör sosem érne össze. A Kotlin és a
+  // Swift ugyanígy csonkol.
+  const rev = Math.max(0, Math.floor(numberOr(o.rev, 0)));
   const rawMarks = cleanPackMarks(o.packMarks, packs.map((p) => p.id), rev);
   const kept = rawMarks && Object.fromEntries(
     Object.entries(rawMarks).filter(([id]) => !seenIds.includes(id) || packs.some((p) => p.id === id)),
@@ -301,10 +309,11 @@ function numberOr(v: unknown, fallback: number): number {
 export function mergeFocus(local: SyncFocus, incoming: SyncFocus): SyncFocus {
   const newer = pickNewer(local, incoming);
   const older = newer === local ? incoming : local;
-  const { packs, packMarks } = mergePacks(newer, older);
+  const run = mergeRun(local, incoming);
+  const { packs, packMarks } = mergePacks(newer, older, run?.packId);
   return {
     packs,
-    run: mergeRun(local, incoming),
+    run,
     // EGYESÍTÉS, nem választás: lásd a `SyncFocus.log` magyarázatát.
     log: mergeLog(local.log, incoming.log),
     ...(packMarks ? { packMarks } : {}),
@@ -316,8 +325,9 @@ export function mergeFocus(local: SyncFocus, incoming: SyncFocus): SyncFocus {
     // eszközzel szemben másképp dőlne el, mint a részei.
     updatedAt: newer.updatedAt,
     // Az eszközazonosító a győztesé: enélkül a döntetlen-eltörés nem lenne
-    // stabil, és a két eszköz felváltva írná felül egymást.
-    updatedBy: newer.updatedBy || older.updatedBy,
+    // stabil, és a két eszköz felváltva írná felül egymást. A bemenet
+    // tisztítása garantálja, hogy nem üres — a tükrök is pontosan ezt teszik.
+    updatedBy: newer.updatedBy,
   };
 }
 
@@ -339,33 +349,62 @@ export function mergeFocus(local: SyncFocus, incoming: SyncFocus): SyncFocus {
  * Swift-tükör ugyanezt teszi.
  */
 function mergePacks(
-  newer: SyncFocus, older: SyncFocus,
+  newer: SyncFocus, older: SyncFocus, runPackId?: string,
 ): { packs: FocusPack[]; packMarks: Record<string, number> | undefined } {
-  const nm = effectiveMarks(newer);
-  const om = effectiveMarks(older);
+  const en = effectiveMarks(newer);
+  const eo = effectiveMarks(older);
+  const rn = newer.packMarks ?? {};
+  const ro = older.packMarks ?? {};
+  // A MENET CSOMAGJA ELÖL: a 30-as plafon vágásából sem eshet ki — csomag
+  // nélküli menet a vágásból sem születhet.
   const ids = [
+    ...(runPackId ? [runPackId] : []),
     ...newer.packs.map((p) => p.id),
     ...older.packs.map((p) => p.id),
-    ...Object.keys(nm), ...Object.keys(om),
+    ...Object.keys(en), ...Object.keys(eo),
   ].filter((id, i, all) => all.indexOf(id) === i);
-  const packs: FocusPack[] = [];
+  const chosen: { pack: FocusPack; marked: boolean }[] = [];
   const marks: Record<string, number> = {};
   for (const id of ids) {
-    const mn = nm[id] ?? 0;
-    const mo = om[id] ?? 0;
+    const mn = en[id] ?? 0;
+    const mo = eo[id] ?? 0;
     const pn = newer.packs.find((p) => p.id === id);
     const po = older.packs.find((p) => p.id === id);
-    // Egyenlő POZITÍV jelnél a jelenlét nyer, két változat közül a
-    // `preferPack` — a blobtól független, ezért sorrendtől független; jel
-    // nélkül az újabb blob állapota.
-    const chosen = mo > mn ? po : mn > mo ? pn
-      : mn > 0 ? (pn && po ? preferPack(pn, po) : (pn ?? po)) : pn;
-    if (chosen && packs.length < MAX_PACKS) packs.push(chosen);
+    // Egyenlő POZITÍV jelnél a jelenlét nyer; két változat közül a VALÓDI
+    // jel dönt (a szerkesztés erősebb a menet indításánál — a menet jele
+    // csak hatásos), egyenlő valódi jelnél a `preferPack`, ami a két
+    // változatból jön, nem a hordozó blobból; jel nélkül az újabb blob.
+    let pick: FocusPack | undefined;
+    if (mo > mn) pick = po;
+    else if (mn > mo) pick = pn;
+    else if (mn > 0) {
+      if (pn && po) {
+        const vn = rn[id] ?? 0;
+        const vo = ro[id] ?? 0;
+        pick = vn !== vo ? (vn > vo ? pn : po) : preferPack(pn, po);
+      } else pick = pn ?? po;
+    } else pick = pn;
+    if (pick) chosen.push({ pack: pick, marked: id === runPackId || Math.max(mn, mo) > 0 });
     if (Math.max(mn, mo) > 0) marks[id] = Math.max(mn, mo);
   }
-  // Ugyanaz a plafon, mint a bemeneten és a léptetésnél — különben 64 fölött
-  // a három hely három listát tartana, és sosem érnének össze.
+  const packs = capPacks(chosen);
+  // Ugyanaz a plafon, mint a bemeneten és a léptetésnél — különben a három
+  // hely három listát tartana, és sosem érnének össze.
   return { packs, packMarks: capPackMarks(marks, packs.map((p) => p.id)) };
+}
+
+/**
+ * A csomagok plafonja (30): ha a két lista együtt több, a JELES csomag marad
+ * (és a menet csomagja), a jel nélküli esik ki előbb — egy frissen felvett,
+ * jeles ablak nem tűnhet el egy régi, jeltelen csomag mögött. A sorrend a
+ * fésülésé marad.
+ */
+function capPacks(chosen: { pack: FocusPack; marked: boolean }[]): FocusPack[] {
+  if (chosen.length <= MAX_PACKS) return chosen.map((c) => c.pack);
+  const keep = new Set<FocusPack>();
+  for (const c of chosen) if (c.marked && keep.size < MAX_PACKS) keep.add(c.pack);
+  for (const c of chosen) if (!c.marked && keep.size < MAX_PACKS) keep.add(c.pack);
+  return chosen.filter((c) => keep.has(c.pack)).map((c) => c.pack);
 }
 
 /**
@@ -434,7 +473,29 @@ function packOrderKey(p: FocusPack): string {
 function pickNewer(a: SyncFocus, b: SyncFocus): SyncFocus {
   if (a.rev !== b.rev) return a.rev > b.rev ? a : b;
   if (a.updatedAt !== b.updatedAt) return a.updatedAt > b.updatedAt ? a : b;
-  return a.updatedBy >= b.updatedBy ? a : b;
+  if (a.updatedBy !== b.updatedBy) return a.updatedBy > b.updatedBy ? a : b;
+  // AZONOS KULCS, más tartalom. Nem elméleti: egy fésülés után minden eszköz
+  // a győztes kulcsát veszi át, a tartalma viszont a saját fésülése — két
+  // ilyen blob kulcsa egyezik. Ha itt az első argumentum nyerne, a két eszköz
+  // egymást választaná győztesnek, és örökké egymást írná felül. A TARTALOM
+  // dönt, ugyanazzal a kulccsal mindhárom nyelvben.
+  return contentKey(a) <= contentKey(b) ? a : b;
+}
+
+/**
+ * A blob tartalmának kulcsa a döntetlenhez — bájtra ugyanez a három nyelvben
+ * (csak a csomagok, a menet és a jelek; a napló egyesül, nem dönt).
+ */
+function contentKey(f: SyncFocus): string {
+  const packs = [...f.packs]
+    .sort((x, y) => (x.id < y.id ? -1 : x.id > y.id ? 1 : 0))
+    .map((p) => `${p.id}\u0001${packOrderKey(p)}`)
+    .join('\u0002');
+  const run = f.run ? `${f.run.packId}/${f.run.startedAt}/${f.run.endsAt}` : '-';
+  const marks = Object.entries(f.packMarks ?? {})
+    .sort(([x], [y]) => (x < y ? -1 : x > y ? 1 : 0))
+    .map(([k, v]) => `${k}=${v}`).join(',');
+  return `${packs}\u0003${run}\u0003${marks}`;
 }
 
 /**

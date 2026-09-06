@@ -1,6 +1,7 @@
 import hu.breaker.app.core.AppState
 import hu.breaker.app.core.Focus
 import hu.breaker.app.core.FocusSync
+import hu.breaker.app.core.ScheduleLogic
 import hu.breaker.app.core.SyncRevisions
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -119,18 +120,72 @@ class FocusSyncTest {
     fun `a jelek plafonja egy szabaly - a jelen levo csomagok jele marad`() {
         val marks = LinkedHashMap<String, Int>()
         marks["p-jelen"] = 3
-        for (i in 0 until 70) marks["t%02d".format(i)] = 100 + (i % 7)
+        for (i in 0 until 300) marks["t%03d".format(i)] = 100 + (i % 7)
         val capped = FocusSync.capPackMarks(marks, listOf("p-jelen"))!!
         assertEquals(FocusSync.MAX_PACK_MARKS, capped.size)
         assertEquals(3, capped["p-jelen"], "a jelen lévő csomag jele bent marad, pedig a legkisebb")
         val gone = capped.filterKeys { it != "p-jelen" }.values
-        assertEquals(60, gone.count { it > 100 })
-        assertEquals(3, gone.count { it == 100 })
+        assertEquals(FocusSync.MAX_PACK_MARKS - 1, gone.size)
+        assertTrue(gone.all { it > 100 }, "a legrégebbi (100-as) jelekből estek ki")
         assertNull(FocusSync.capPackMarks(emptyMap(), emptyList()))
         // A fésülés is ezzel a plafonnal ad vissza.
-        val a = FocusSync.SyncFocus(packs = listOf(pack("p-jelen")), packMarks = marks.entries.take(64).associate { it.key to it.value }, rev = 200, updatedAt = 1, updatedBy = "a")
-        val b = FocusSync.SyncFocus(packs = listOf(pack("p-jelen")), packMarks = marks.entries.drop(7).associate { it.key to it.value }, rev = 200, updatedAt = 2, updatedBy = "b")
+        val a = FocusSync.SyncFocus(packs = listOf(pack("p-jelen")), packMarks = marks.entries.take(256).associate { it.key to it.value }, rev = 200, updatedAt = 1, updatedBy = "a")
+        val b = FocusSync.SyncFocus(packs = listOf(pack("p-jelen")), packMarks = marks.entries.drop(30).associate { it.key to it.value }, rev = 200, updatedAt = 2, updatedBy = "b")
         assertTrue((FocusSync.merge(a, b).packMarks?.size ?: 0) <= FocusSync.MAX_PACK_MARKS)
+    }
+
+    @Test
+    fun `a valodi jel legyozi a menet inditasat - a gep szerkesztese marad`() {
+        // A gép rev 6-on bővítette az ablakot (jel 6); a telefon ugyanabban a
+        // körben — a régi változattal — menetet indított (hatásos jel 6).
+        // Egyenlő hatásos jel: a VÁLTOZAT a valódi jelé. A menet is marad.
+        val wide = ScheduleLogic.Band(setOf(1, 2, 3, 4, 5), 540, 780)
+        val narrow = ScheduleLogic.Band(setOf(1, 2, 3, 4, 5), 540, 720)
+        val desktop = FocusSync.SyncFocus(
+            packs = listOf(pack("p1").copy(recurrence = wide)), packMarks = mapOf("p1" to 6),
+            rev = 6, updatedAt = 100, updatedBy = "gep",
+        )
+        val phone = FocusSync.SyncFocus(
+            packs = listOf(pack("p1").copy(recurrence = narrow)), run = Focus.FocusRun("p1", 150, 150 + 3_000_000),
+            rev = 6, updatedAt = 200, updatedBy = "telefon",
+        )
+        for ((x, y) in listOf(desktop to phone, phone to desktop)) {
+            val m = FocusSync.merge(x, y)
+            assertEquals(wide, m.packs[0].recurrence, "a gép bővített ablaka marad")
+            assertEquals("p1", m.run?.packId, "a telefon menete is marad")
+            assertEquals(mapOf("p1" to 6), m.packMarks)
+        }
+    }
+
+    @Test
+    fun `a 30-as plafon vagasabol a menet csomagja es a jeles csomag nem esik ki`() {
+        val full = (0 until 30).map { pack("f%02d".format(it)) }
+        val newer = FocusSync.SyncFocus(packs = full, rev = 6, updatedAt = 200, updatedBy = "telefon")
+        val older = FocusSync.SyncFocus(
+            packs = full.take(29) + pack("q"), run = Focus.FocusRun("q", 10, 600_010),
+            rev = 6, updatedAt = 100, updatedBy = "gep",
+        )
+        for ((x, y) in listOf(newer to older, older to newer)) {
+            val m = FocusSync.merge(x, y)
+            assertEquals(30, m.packs.size)
+            assertEquals("q", m.run?.packId)
+            assertTrue(m.packs.any { it.id == "q" }, "a menet csomagja a listán van")
+        }
+        val win = ScheduleLogic.Band(setOf(1, 2, 3, 4, 5), 540, 720)
+        val marked = FocusSync.SyncFocus(
+            packs = full.take(29) + pack("w").copy(recurrence = win), packMarks = mapOf("w" to 7),
+            rev = 7, updatedAt = 300, updatedBy = "gep",
+        )
+        val stale = FocusSync.SyncFocus(packs = full, rev = 6, updatedAt = 100, updatedBy = "telefon")
+        assertTrue(FocusSync.merge(stale, marked).packs.any { it.id == "w" }, "a jeles ablak marad")
+    }
+
+    @Test
+    fun `azonos kulcs, mas tartalom - a tartalom dont, mindket sorrendben ugyanugy`() {
+        val x = FocusSync.SyncFocus(packs = listOf(pack("p1").copy(name = "X")), rev = 3, updatedAt = 100, updatedBy = "gep")
+        val y = FocusSync.SyncFocus(packs = listOf(pack("p1").copy(name = "Y")), rev = 3, updatedAt = 100, updatedBy = "gep")
+        assertEquals(FocusSync.merge(x, y).packs[0].name, FocusSync.merge(y, x).packs[0].name)
+        assertTrue(FocusSync.same(FocusSync.merge(x, y), FocusSync.merge(y, x)))
     }
 
     @Test
