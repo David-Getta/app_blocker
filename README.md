@@ -32,8 +32,10 @@ attól, hogy sokszor csinálod.
 - **Aktív idő mérése és statisztikák**: melyik oldalon és appban mennyit töltesz —
   **csak amikor tényleg ott vagy** (fókuszban lévő ablak, aktív fül, nem tétlen),
   nem attól, hogy nyitva van. Napi/heti/havi bontás, top lista, 30 napos idősor,
-  az elmúlt 7 nap naponta sávokban (a hét alakja — gépen és Androidon),
-  hét-a-héthez összevetés. Fiók nélkül minden adat a gépeden marad; bejelentkezve
+  az elmúlt 7 nap naponta sávokban (a hét alakja — gépen és Androidon), a
+  fókuszban töltött idő naponta (mindhárom platformon; iPhone-on ez az
+  egyetlen diagram, mert ott csak a menetek adata igazi), hét-a-héthez
+  összevetés. Fiók nélkül minden adat a gépeden marad; bejelentkezve
   a mérés a saját fiókkiszolgálódra is felkerül, végponttól végpontig titkosítva
   (ebből lesz a közös napi keret). Telemetria sehol nincs. Bármikor
   kikapcsolható és törölhető. Hétfő reggel az app egy **heti visszatekintést**
