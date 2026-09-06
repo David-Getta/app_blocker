@@ -32,6 +32,7 @@ attól, hogy sokszor csinálod.
 - **Aktív idő mérése és statisztikák**: melyik oldalon és appban mennyit töltesz —
   **csak amikor tényleg ott vagy** (fókuszban lévő ablak, aktív fül, nem tétlen),
   nem attól, hogy nyitva van. Napi/heti/havi bontás, top lista, 30 napos idősor,
+  az elmúlt 7 nap naponta sávokban (a hét alakja — gépen és Androidon),
   hét-a-héthez összevetés. Fiók nélkül minden adat a gépeden marad; bejelentkezve
   a mérés a saját fiókkiszolgálódra is felkerül, végponttól végpontig titkosítva
   (ebből lesz a közös napi keret). Telemetria sehol nincs. Bármikor
@@ -153,7 +154,10 @@ attól, hogy sokszor csinálod.
   végéig tart — a telefonon is, mert az ablak a csomaggal szinkronizál. Felvenni
   és bővíteni egy kattintás, **szűkíteni vagy levenni próbatétel**; a
   leállított menet ugyanabban az ablakban nem indul újra (a napló az őr). Az
-  ablak vége az ablak vége: a laptop alvása nem tolja el. Őszinte korlát: egy
+  ablak vége az ablak vége: a laptop alvása nem tolja el. Az ablak az ígéret:
+  egy másik csomag kézi menete az ablak kezdetén véget ér (az indító lap előre
+  szól), a saját csomag egyperces kézi menete pedig nem költi el az ablakot.
+  Őszinte korlát: egy
   eszköz, ami a leállításkor nem volt hálózaton, a szinkronig újraindíthatja a
   hátralévő részre — a hiba iránya a szigorúbb, és a leállítás ott is próbatétel.
 
