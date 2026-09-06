@@ -167,6 +167,10 @@ function fakeBridgeSource() {
       // abból jön, mire megy el az idő, hanem a menetek naplójából.
       focusToday: { sessions: 2, totalMs: 95 * 60_000, stoppedEarly: 0, topPack: 'Nyelvtanulás' },
       focusWeek: { sessions: 9, totalMs: 7 * 3600_000, stoppedEarly: 2, topPack: 'Nyelvtanulás' },
+      // Fókuszban naponta: a heti összeg (7 ó) és a mai (1 ó 35 p) a csempékkel egyezik.
+      focusDays: [6, 5, 4, 3, 2, 1, 0].map((back, i) => ({
+        day: day(back), seconds: [3600, 4500, 0, 5400, 2700, 3300, 5700][i],
+      })),
       lastSampleAt: Date.now() - 5 * 60_000,
     };
     window.breaker = {

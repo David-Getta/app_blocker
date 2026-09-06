@@ -349,6 +349,23 @@ public enum Focus {
         )
     }
 
+    /// Fókuszban töltött idő NAPONTA az utolsó `count` napra, a legrégebbitől
+    /// — a hét alakja a menetekre. Egy menet a VÉGÉNEK napjára számít
+    /// egészben (nyolc óránál hosszabb menet nincs; a lezárás napja az, amire
+    /// az ember emlékszik). Ugyanaz a nap-fogalom, mint a mérésnél. A focus.ts
+    /// `focusDaySeries` tükre.
+    public static func daySeries(_ log: [LogEntry], now: Double, count: Int) -> [(day: String, seconds: Double)] {
+        let days = UsageStats.dayKeysBack(Date(timeIntervalSince1970: now / 1000), count)
+        var totals: [String: Double] = [:]
+        for d in days { totals[d] = 0 }
+        for e in log where e.endedAt <= now {
+            let key = UsageStats.dayKey(Date(timeIntervalSince1970: e.endedAt / 1000))
+            guard totals[key] != nil else { continue }
+            totals[key, default: 0] += max(0, e.endedAt - e.startedAt) / 1000
+        }
+        return days.map { (day: $0, seconds: (totals[$0] ?? 0).rounded()) }
+    }
+
     /// Ahogy a felületen áll: „Nyelvtanulás — 42 perc van hátra”.
     public static func formatRemaining(_ ms: Double) -> String {
         let total = max(0, Int((ms / 60_000).rounded(.up)))

@@ -47,6 +47,8 @@ fun StatsSection(
     focusLabel: String,
     /** az elmúlt 7 nap napi összesenje (minden célpont), a legrégebbitől — a hét alakja */
     weekSeries: List<Pair<String, Double>> = emptyList(),
+    /** fókuszban töltött idő naponta az elmúlt 7 napra (a menet a végének napjára számít) */
+    focusDays: List<Pair<String, Double>> = emptyList(),
     blockedDomains: Set<String>,
     /**
      * Amit egy célpontról ki szabad írni.
@@ -97,7 +99,7 @@ fun StatsSection(
         // írjuk, engedély nélkül is. Ha a kapu alatt lenne, egy mérés nélküli
         // telefonon az app azt mondaná, hogy nincs mit mutatni — pedig pontosan
         // tudja, hányszor ültél le dolgozni.
-        FocusStatsBlock(focusToday, focusWeek)
+        FocusStatsBlock(focusToday, focusWeek, focusDays)
 
         Text(
             "Csak az az idő számít, amikor tényleg ott vagy: az app előtérben van, " +
@@ -215,7 +217,10 @@ fun StatsSection(
  * nem információ, csak zaj.
  */
 @Composable
-private fun FocusStatsBlock(today: Focus.FocusSummary, week: Focus.FocusSummary) {
+private fun FocusStatsBlock(
+    today: Focus.FocusSummary, week: Focus.FocusSummary,
+    focusDays: List<Pair<String, Double>> = emptyList(),
+) {
     if (week.sessions == 0) return
     StatsSectionLabel("Munkamenetek")
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
@@ -242,6 +247,12 @@ private fun FocusStatsBlock(today: Focus.FocusSummary, week: Focus.FocusSummary)
     // eszközönként külön áll, a munkamenet viszont a fiók egészére szól.
     parts.add("Minden eszközöd menete beleszámít.")
     Text(parts.joinToString(" "), style = MaterialTheme.typography.bodySmall)
+    // A hét alakja a menetekre — ugyanaz a rajz, mint a mért időé fent:
+    // egyenletesen jött-e össze a hét, vagy egy napból. Üresen nincs.
+    if (focusDays.any { it.second > 0.0 }) {
+        StatsSectionLabel("Fókuszban, naponta")
+        WeekChart(focusDays)
+    }
 }
 
 /** Ugyanaz a doboz, mint a StatTile, csak darabszámmal — az nem időtartam. */

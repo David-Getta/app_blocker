@@ -344,6 +344,22 @@ Korai végnek számít a próbatétel utáni **rövidítés** is, nem csak a le�
 a menet nem addig tartott, ameddig terveztük. Ha csak a „leállítva” jelzőt
 néznénk, a rövidítés láthatatlan maradna — pedig pont ugyanaz a döntés.
 
+### Fókuszban, naponta
+
+A csempe egy számban mondja a hetet („7 ó fókuszban a héten”); a sávok azt,
+hogy **egyenletesen jött-e össze, vagy egy napból**. Ugyanaz a rajz, mint a
+mért időé fent — egy szín, a mai nap a feliratával kiemelve, szám csak a mai és
+a legnagyobb oszlopon —, hogy a két diagram ugyanúgy olvasódjon. Mindhárom
+platformon ugyanaz (`focusDaySeries` / `Focus.daySeries`); **iPhone-on ez az
+egyetlen diagram**, mert ott csak a menetek adata igazi.
+
+Egy menet a **végének napjára** számít egészben. Nyolc óránál hosszabb menet
+nincs; az éjfélen átnyúló ritka, és a lezárás napja az, amire az ember
+emlékszik — egy 23:30-tól 0:30-ig tartó menet a második napon áll egy órával,
+nem két fél órával. A nap fogalma a mérésével közös: helyi naptár, délben
+lépve, hogy az óraátállítás ne ejtsen ki és ne duplázzon napot. Üresen (nulla
+menet a héten) a blokk nincs — mint a többi.
+
 ## Heti visszatekintés: hétfő reggel egy mondat
 
 A statisztika ott van az appban — de oda be kell menni, és pont az nem megy

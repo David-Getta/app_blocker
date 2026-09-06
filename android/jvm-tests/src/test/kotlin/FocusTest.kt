@@ -241,4 +241,43 @@ class FocusTest {
         assertFalse(Focus.isAppAllowed(p, "Excel"))
         assertFalse(Focus.isAppAllowed(p, ""))
     }
+
+    private fun entry(startedAt: Long, endedAt: Long) = Focus.FocusLogEntry(
+        packId = "p1", packName = "Nyelvtanulás", startedAt = startedAt, endedAt = endedAt,
+        plannedEndsAt = endedAt, stopped = false,
+    )
+
+    private fun localTime(hour: Int, minute: Int): Long = Calendar.getInstance().apply {
+        set(2026, Calendar.SEPTEMBER, 5, hour, minute, 0); set(Calendar.MILLISECOND, 0)
+    }.timeInMillis
+
+    @Test
+    fun `naponta - a menet a vegenek napjara szamit, a het a legregebbitol a maiig`() {
+        val day = 86_400_000L
+        val hour = 3_600_000L
+        val now = localTime(20, 0)
+        val log = listOf(
+            entry(now - 3 * hour, now - 2 * hour),                     // ma, 1 óra
+            entry(now - day - hour, now - day),                         // tegnap, 1 óra
+            entry(now - day - 30 * 60_000L, now - day + 10 * 60_000L),  // tegnap, 40 perc
+            entry(now - 10 * day, now - 10 * day + hour),               // tíz napja: kiesik
+            entry(now + hour, now + 2 * hour),                          // a jövő: kiesik
+        )
+        val s = Focus.daySeries(log, now, 7)
+        assertEquals(7, s.size)
+        assertEquals(hu.breaker.app.core.UsageLogic.dayKey(now), s[6].first, "az utolsó oszlop a mai nap")
+        assertEquals(3600.0, s[6].second)
+        assertEquals(6000.0, s[5].second, "tegnap: egy óra és negyven perc")
+        assertEquals(listOf(0.0, 0.0, 0.0, 0.0, 0.0), s.take(5).map { it.second })
+    }
+
+    @Test
+    fun `az ejfelen atnyulo menet a vegenek napjara szamit egeszben`() {
+        val now = localTime(20, 0)
+        val midnight = localTime(0, 0)
+        val s = Focus.daySeries(listOf(entry(midnight - 30 * 60_000L, midnight + 30 * 60_000L)), now, 7)
+        assertEquals(3600.0, s[6].second, "a mai napon egy óra")
+        assertEquals(0.0, s[5].second, "tegnap semmi")
+        assertEquals(listOf(0.0, 0.0, 0.0), Focus.daySeries(emptyList(), now, 3).map { it.second })
+    }
 }

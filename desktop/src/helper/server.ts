@@ -10,7 +10,7 @@ import { normalizeDomain, expandHostnames } from '../shared/blocklist';
 import { computeTier } from '../shared/challenges';
 import { normalizeAlias } from '../shared/alias';
 import { normalizeRule } from '../shared/urlrules';
-import { isRunning, normalizePack, spentWindows, summarizeFocus } from '../shared/focus';
+import { focusDaySeries, isRunning, normalizePack, spentWindows, summarizeFocus } from '../shared/focus';
 import { noteBurstUsage, normalizeBurst, type BurstRule } from '../shared/burst';
 import {
   blockReasonNow, isLimitExhausted, normalizeLimit, sharedTodaySeconds, usedTodayEverywhere,
@@ -515,6 +515,7 @@ async function handle(req: HelperRequest, deps: ServerDeps): Promise<unknown> {
         focusLabel: focusKey ? labelOf(state.usage, focusKey) : '',
         focusSeries: focusKey ? series(state.usage, focusKey, now, 30) : [],
         weekSeries: totalSeries(state.usage, now, 7),
+        focusDays: focusDaySeries(state.focusLog, now, 7),
         // A nap kezdete a HELYI naptár szerint: éjfélkor vált, nem huszonnégy
         // órával ezelőtt. Egy „ma” felirat alatt tegnap esti menetek állnának.
         focusToday: summarizeFocus(state.focusLog, startOfDay(now), now),

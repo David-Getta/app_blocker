@@ -313,6 +313,16 @@
           <h3 class="chart-title">Munkamenetek</h3>
           <div class="tiles" id="focusTiles"></div>
           <p id="focusStatsNote" class="hint"></p>
+          <!--
+            Fókuszban, naponta. A csempe egy számban mondja a hetet; itt az
+            látszik, egyenletesen jött-e össze, vagy egy napból. Ugyanaz a
+            rajz, mint a mért időé fent — egy szín, a mai nap kiemelve, szám
+            csak a mai és a legnagyobb oszlopon. Üresen eltűnik.
+          -->
+          <div class="chart-block hidden" id="focusWeekBlock">
+            <h3 class="chart-title">Fókuszban, naponta</h3>
+            <div class="week-chart" id="focusWeekChart"></div>
+          </div>
         </div>
 
         <!--

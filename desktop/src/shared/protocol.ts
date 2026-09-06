@@ -262,6 +262,8 @@ export interface UsageStatsData {
   focusSeries: { day: string; seconds: number }[];
   /** az elmúlt 7 nap napi ÖSSZESENJE (minden célpont), a legrégebbitől */
   weekSeries?: { day: string; seconds: number }[];
+  /** fókuszban töltött idő naponta az elmúlt 7 napra (a menet a végének napjára számít) */
+  focusDays?: { day: string; seconds: number }[];
   /**
    * A munkamenetek összegzése — ma és a héten.
    *

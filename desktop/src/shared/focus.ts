@@ -23,6 +23,7 @@
 
 import { normalizeDomain } from './blocklist.js';
 import { isLoosening, isValidBand, type Band, type Weekday } from './schedule.js';
+import { dayKey, dayKeysBack } from './usage.js';
 
 /** Egy csomagban ennyi engedélyezett tétel lehet. */
 export const MAX_ALLOW_ENTRIES = 40;
@@ -322,6 +323,32 @@ export function summarizeFocus(
     if (count > best) { best = count; topPack = name; }
   }
   return { sessions: rows.length, totalMs, stoppedEarly, topPack };
+}
+
+/**
+ * Fókuszban töltött idő NAPONTA az utolsó `count` napra, a legrégebbitől —
+ * a hét alakja a menetekre: mikor ültél le, és mikor nem. A csempe egy
+ * számban mondja a hetet; ez azt, hogy egyenletesen jött-e össze, vagy egy
+ * napból.
+ *
+ * Egy menet a VÉGÉNEK napjára számít egészben. Nyolc óránál hosszabb menet
+ * nincs; az éjfélen átnyúló ritka, és a lezárás napja az, amire az ember
+ * emlékszik. Ugyanaz a nap-fogalom, mint a mérésnél (helyi naptár, délben
+ * lépve, hogy az óraátállítás ne ejtsen ki napot). A Kotlin- és Swift-tükör
+ * ugyanezt (`Focus.daySeries`).
+ */
+export function focusDaySeries(
+  log: FocusLogEntry[] | undefined, now: number, count: number,
+): { day: string; seconds: number }[] {
+  const days = dayKeysBack(now, count);
+  const totals = new Map<string, number>(days.map((d) => [d, 0]));
+  for (const e of log ?? []) {
+    if (e.endedAt > now) continue;
+    const key = dayKey(e.endedAt);
+    if (!totals.has(key)) continue;
+    totals.set(key, (totals.get(key) ?? 0) + Math.max(0, e.endedAt - e.startedAt) / 1000);
+  }
+  return days.map((day) => ({ day, seconds: Math.round(totals.get(day) ?? 0) }));
 }
 
 /** Esedékes-e a figyelmeztetés (az előző óta eltelt-e a türelmi idő). */

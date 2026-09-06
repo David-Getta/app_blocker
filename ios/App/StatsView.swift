@@ -96,6 +96,16 @@ struct StatsView: View {
                 }
                 Text(focusNote)
                     .font(.footnote).foregroundStyle(.secondary)
+                // A hét alakja a menetekre: egyenletesen jött-e össze, vagy egy
+                // napból. iPhone-on ez az EGYETLEN diagram, mert csak a menetek
+                // adata igazi itt. Üresen nincs.
+                let days = Focus.daySeries(store.state.focusLog ?? [], now: now, count: 7)
+                if days.contains(where: { $0.seconds > 0 }) {
+                    Text("Fókuszban, naponta")
+                        .font(.caption).fontWeight(.semibold).foregroundStyle(.secondary)
+                        .padding(.top, 4)
+                    FocusWeekBars(series: days)
+                }
             }
 
             Divider()
@@ -137,5 +147,50 @@ struct StatsView: View {
         .padding(12)
         .background(BreakerStyle.surfaceNested)
         .cornerRadius(8)
+    }
+}
+
+/// A hét alakja a menetekre — ugyanaz a rajz, mint a gépen és Androidon: egy
+/// szín (az oszlop nem kategória), a mai nap a feliratával kiemelve, szám csak
+/// a mai és a legnagyobb oszlopon, a többi mutatásra mondja.
+private struct FocusWeekBars: View {
+    let series: [(day: String, seconds: Double)]
+    private static let dayShort = ["V", "H", "K", "Sze", "Cs", "P", "Szo"]
+
+    var body: some View {
+        let top = series.map { $0.seconds }.max() ?? 0
+        let today = UsageStats.dayKey(Date())
+        let peak = top > 0 ? (series.firstIndex { $0.seconds >= top } ?? -1) : -1
+        HStack(alignment: .bottom, spacing: 6) {
+            ForEach(Array(series.enumerated()), id: \.offset) { i, item in
+                let isToday = item.day == today
+                let labelled = (isToday || i == peak) && item.seconds > 0
+                VStack(spacing: 4) {
+                    // A szám sora akkor is foglal, ha üres: az oszlopok alja egy vonalban marad.
+                    Text(labelled ? UsageStats.formatDuration(item.seconds) : " ")
+                        .font(.caption2).lineLimit(1).minimumScaleFactor(0.7)
+                    ZStack(alignment: .bottom) {
+                        Color.clear.frame(height: 96)
+                        RoundedRectangle(cornerRadius: 4, style: .continuous)
+                            .fill(item.seconds > 0 ? Color.accentColor : Color.secondary.opacity(0.25))
+                            .frame(height: top > 0 ? Swift.max(2, 96 * item.seconds / top) : 2)
+                    }
+                    Text(isToday ? "ma" : Self.dayShort[Self.weekday(item.day)])
+                        .font(.caption2)
+                        .fontWeight(isToday ? .bold : .regular)
+                        .foregroundStyle(isToday ? Color.primary : Color.secondary)
+                }
+                .frame(maxWidth: .infinity)
+            }
+        }
+    }
+
+    /// `YYYY-MM-DD` → 0 = vasárnap … 6 = szombat.
+    private static func weekday(_ key: String) -> Int {
+        let parts = key.split(separator: "-").compactMap { Int($0) }
+        guard parts.count == 3,
+              let d = Calendar.current.date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2]))
+        else { return 0 }
+        return Calendar.current.component(.weekday, from: d) - 1
     }
 }

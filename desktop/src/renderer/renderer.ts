@@ -3289,12 +3289,15 @@ function renderDaily(series: { day: string; seconds: number }[], title: string):
  * Üresen (nincs mért perc a héten, vagy régi segéd, ami nem küld sort) a
  * blokk eltűnik.
  */
-function renderWeek(series: { day: string; seconds: number }[] | undefined): void {
-  const host = $('weekChart');
+function renderWeek(
+  series: { day: string; seconds: number }[] | undefined,
+  blockId = 'weekBlock', chartId = 'weekChart',
+): void {
+  const host = $(chartId);
   host.textContent = '';
   const rows = series ?? [];
   const max = Math.max(0, ...rows.map((d) => d.seconds));
-  $('weekBlock').classList.toggle('hidden', rows.length === 0 || max === 0);
+  $(blockId).classList.toggle('hidden', rows.length === 0 || max === 0);
   if (rows.length === 0 || max === 0) return;
   const today = dayKey(Date.now());
   const peak = rows.findIndex((d) => d.seconds === max);
@@ -3448,6 +3451,9 @@ function renderFocusStats(): void {
     tile(String(week.sessions), 'menet a héten'),
     tile(formatDuration(Math.round(week.totalMs / 1000)), 'fókuszban a héten'),
   );
+  // A hét alakja a menetekre — ugyanaz a rajz, mint a mért időé. Régi segéd
+  // (nincs focusDays) mellett a blokk egyszerűen nem jelenik meg.
+  renderWeek(statsData?.focusDays, 'focusWeekBlock', 'focusWeekChart');
 
   const parts: string[] = [];
   if (week.topPack) parts.push(`A hét leggyakoribb csomagja: ${week.topPack}.`);

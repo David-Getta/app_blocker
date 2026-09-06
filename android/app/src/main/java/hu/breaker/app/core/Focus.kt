@@ -461,6 +461,26 @@ object Focus {
     }
 
     /** Az ismétlődés kulcsa a lenyomatokhoz: napok rendezve, kezdés, vég — vagy „-”. */
+    /**
+     * Fókuszban töltött idő NAPONTA az utolsó [count] napra, a legrégebbitől —
+     * a hét alakja a menetekre. Egy menet a VÉGÉNEK napjára számít egészben
+     * (nyolc óránál hosszabb menet nincs; a lezárás napja az, amire az ember
+     * emlékszik). Ugyanaz a nap-fogalom, mint a mérésnél. A focus.ts
+     * `focusDaySeries` tükre.
+     */
+    fun daySeries(log: List<FocusLogEntry>, now: Long, count: Int): List<Pair<String, Double>> {
+        val days = UsageLogic.dayKeysBack(now, count)
+        val totals = LinkedHashMap<String, Double>()
+        for (d in days) totals[d] = 0.0
+        for (e in log) {
+            if (e.endedAt > now) continue
+            val key = UsageLogic.dayKey(e.endedAt)
+            if (key !in totals) continue
+            totals[key] = totals.getValue(key) + maxOf(0L, e.endedAt - e.startedAt) / 1000.0
+        }
+        return days.map { it to Math.round(totals.getValue(it)).toDouble() }
+    }
+
     fun recurrenceKey(b: ScheduleLogic.Band?): String =
         b?.let { "${it.days.sorted().joinToString(",")}/${it.startMin}-${it.endMin}" } ?: "-"
 
