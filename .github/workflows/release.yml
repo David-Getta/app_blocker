@@ -64,6 +64,14 @@ jobs:
           tucat fut minden push-nál. Belső dolog, de ettől biztos, hogy amit
           a gépen beállítasz, a telefonon ugyanazt jelenti.
 
+          **A statisztika törlése nem tölti újra a napi keretet.** A keret a
+          mai mért időből fogy, a törlés viszont eddig a mai adatot is
+          elvitte: a keret ezzel ingyen, akárhányszor újraindult — miközben
+          a keret emelése próbatétel. Mostantól a törlés a régebbi napokat
+          viszi, a mai nap adata pedig megmarad, amíg van beállított keret
+          (keret nélkül továbbra is mindent töröl). A gép és a telefon is
+          megkérdezi előtte, és kimondja, mi marad.
+
           **A fejléc csak azt számolja, ami most zár.** A „4 oldal blokkolva”
           eddig a lista hosszát mondta akkor is, ha egy oldal szünetelt vagy
           a menetrend szerint épp nyitva volt. Most:
