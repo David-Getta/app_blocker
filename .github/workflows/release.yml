@@ -44,30 +44,49 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **Az elmúlt 7 nap naponta, sávokban.** A csempe egy számban mondja
-          a hetet; a statisztika most a hét alakját is mutatja hét oszlopban —
-          a hétvégi kiugrást, a szerdai lyukat —, a csempével azonos
-          összeggel. A gépen és Androidon is. Szám csak a mai és a legnagyobb
-          oszlopon, a többi mutatásra mondja.
+          **A menet és a csomagja együtt jár.** Ha az egyik eszközön
+          törölted a csomagot, a másikon pedig ugyanabban a körben menetet
+          indítottál rá, a szinkron eddig csomag nélküli menetet hagyhatott:
+          a fogadó eldobta, a küldő minden körben újra feltöltötte. Most a
+          menet a szigorúbb — a csomagja marad a menet végéig —, és a
+          szinkron megnyugszik. Három eszköz bármilyen sorrendben ugyanoda
+          jut; ezt egy véletlen magú próba őrzi.
 
-          **A hosztnév-lista nevenként szinkronizál.** Eddig egy ritka
-          versenyhelyzetben a próbatétellel levett név visszajöhetett, ha a
-          másik gép ugyanabban a körben mást írt az oldalra. Most minden
-          felvétel és levétel jelet kap, és nevenként a frissebb jel dönt: a
-          kifizetett levétel nem vész el, a másik gép ingyenes felvétele sem.
-          A munkamenet-csomagok ugyanígy, csomagonként: egy versenyben a gépen
-          frissen felvett heti ablak nem tűnik el attól, hogy a telefon
-          ugyanabban a körben elindított egy menetet. Frissítsd minden
-          eszközöd — a régi verzió a jelet nem ismeri.
+          **A három tükör ugyanazt fésüli.** A gép, az Android és az iPhone
+          összefésülése minden változtatásnál közös próbán megy át: 160
+          rögzített eset, és a három eredménynek bájtra egyeznie kell. Az
+          iPhone magjának eddig egyetlen tesztje sem futott — most több
+          tucat fut minden push-nál. Belső dolog, de ettől biztos, hogy amit
+          a gépen beállítasz, a telefonon ugyanazt jelenti.
 
-          **Az ablak az ígéret.** Egy másik csomag kézi menete eddig az egész
-          heti ablakot kiválthatta (8:59-kor indítva, nyolc órára). Most a
-          másik csomag menete az ablak kezdetén véget ér, és az ablak menete
-          indul — az indító párbeszéd előre megmondja, ha ez várható. A saját
-          csomag kézi menete nem szakad meg, és egy egyperces kézi menet sem
-          költi el az ablakot: csak az ablak saját menete számít annak.
+          **A fejléc csak azt számolja, ami most zár.** A „4 oldal
+          blokkolva” eddig a lista hosszát mondta akkor is, ha egy oldal
+          szünetelt vagy a menetrend szerint épp nyitva volt. Most: „1 oldal
+          blokkolva, 1 most szabad” — a rejtett lista kártyája ugyanígy,
+          mindhárom platformon.
 
-          ### Ami a v0.4.26-ban jött
+          **24 órás időmezők.** A heti ablak 9:00–12:00-ja angol rendszeren
+          „09:00 AM”-ként jelent meg a magyar felület közepén; most a
+          beépített mezők is magyarul mutatnak. Apróságok: „Minden eszköz
+          együtt (2)”, névelők a kiejtés szerint („az 1.”, „a 16.”).
+
+          ### Ami a v0.4.27-ben jött
+
+          **Az elmúlt 7 nap naponta, sávokban** — a statisztika a hét alakját
+          is mutatja hét oszlopban, a gépen és Androidon.
+
+          **A hosztnév-lista és a munkamenet-csomagok nevenként, illetve
+          csomagonként szinkronizálnak** jelekkel: a próbatétellel levett név
+          nem jön vissza egy versenyhelyzetben, és a gépen frissen felvett
+          heti ablak nem tűnik el attól, hogy a telefon ugyanabban a körben
+          menetet indított. Frissítsd minden eszközöd — a régi verzió a jelet
+          nem ismeri.
+
+          **Az ablak az ígéret.** Egy másik csomag kézi menete az ablak
+          kezdetén véget ér, és az ablak menete indul; az indító párbeszéd
+          előre megmondja, ha ez várható.
+
+          #### Ami a v0.4.26-ban jött
 
           **A bővítmény is kimondja, ha a menet a heti ablak szerint indult.**
           A felugró lap egy mondatot told a munkamenet sorához, a tiltó lap egy
@@ -88,24 +107,6 @@ jobs:
           kimondja, ha a mai ablak menete már véget ért; a levétel
           próbatételének fejléce mostantól „Heti ablak lazítása”, nem
           „Munkamenet leállítása”.
-
-          #### Ami a v0.4.25-ben jött
-
-          **Heti visszatekintés hétfő reggel.** Az app egy értesítésben
-          elmondja az elmúlt hét napot: mennyi mért idő, mire a legtöbb (és
-          hogy áll az előző héthez képest), hány menet, hányat vittél
-          végig, hány feloldás — vagy hogy egy sem. Egy hétről egyszer,
-          és csak akkor, ha az app fut; a rejtett vagy fedőnevű címet az
-          értesítés sem mondja ki.
-
-          **„Utolsó feloldás: N napja.”** A próbatétel-nehézség sora a
-          gépen és a telefonon is kimondja, mikor volt az utolsó feloldás
-          — vagy hogy még egy sem. Naptári napokban: a tegnap esti feloldás
-          tegnap, akkor is, ha tíz órája volt.
-
-          **Az app szól, amikor a heti ablak menete indul** — aki nem maga
-          indította, tudja meg, miért van minden zárva, és meddig. A csomag
-          sora azt is kimondja, mikor indul legközelebb.
 
           NOTES
           fi
