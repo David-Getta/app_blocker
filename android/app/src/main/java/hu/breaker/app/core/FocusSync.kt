@@ -71,7 +71,9 @@ object FocusSync {
             // EGYESÍTÉS, nem választás: lásd a `log` mező magyarázatát.
             log = mergeLog(local.log, incoming.log),
             rev = maxOf(local.rev, incoming.rev),
-            updatedAt = maxOf(local.updatedAt, incoming.updatedAt),
+            // Az idő a GYŐZTESÉ, nem a nagyobb: az eredmény kulcsa így az újabb
+            // blobé, és három eszköz bármilyen sorrendben ugyanoda jut.
+            updatedAt = newer.updatedAt,
             updatedBy = newer.updatedBy,
             packMarks = packMarks,
         )
@@ -96,11 +98,45 @@ object FocusSync {
         for (id in ids) {
             val mn = nm[id] ?: 0
             val mo = om[id] ?: 0
-            val chosen = if (mo > mn) older.packs.firstOrNull { it.id == id } else newer.packs.firstOrNull { it.id == id }
+            val pn = newer.packs.firstOrNull { it.id == id }
+            val po = older.packs.firstOrNull { it.id == id }
+            // Egyenlő POZITÍV jelnél a jelenlét nyer, két változat közül a
+            // `preferPack` — a blobtól független, ezért sorrendtől független;
+            // jel nélkül az újabb blob állapota.
+            val chosen = when {
+                mo > mn -> po
+                mn > mo -> pn
+                mn > 0 -> if (pn != null && po != null) preferPack(pn, po) else pn ?: po
+                else -> pn
+            }
             if (chosen != null && packs.size < MAX_PACKS) packs.add(chosen)
             if (maxOf(mn, mo) > 0) marks[id] = maxOf(mn, mo)
         }
         return packs to (if (marks.isEmpty()) null else marks)
+    }
+
+    /**
+     * Egyenlő jelű két változat közül melyik: az ablakos, aztán a szűkebb
+     * lista, végül a tartalom kulcsa szerint — a két változatból, nem a
+     * hordozó blobból. A focus-merge.ts `preferPack` tükre.
+     */
+    private fun preferPack(x: Focus.FocusPack, y: Focus.FocusPack): Focus.FocusPack {
+        val rx = if (x.recurrence != null) 1 else 0
+        val ry = if (y.recurrence != null) 1 else 0
+        if (rx != ry) return if (rx > ry) x else y
+        val nx = x.allowSites.size + x.allowApps.size
+        val ny = y.allowSites.size + y.allowApps.size
+        if (nx != ny) return if (nx < ny) x else y
+        return if (packOrderKey(x) <= packOrderKey(y)) x else y
+    }
+
+    /** A változat kulcsa a sorrendhez — bájtra ugyanez a három nyelvben. */
+    private fun packOrderKey(p: Focus.FocusPack): String {
+        val rec = p.recurrence?.let { b -> b.days.sorted().joinToString(",") + "/" + b.startMin + "/" + b.endMin } ?: ""
+        return listOf(
+            p.name, p.defaultMinutes.toString(),
+            p.allowSites.sorted().joinToString(","), p.allowApps.sorted().joinToString(","), rec,
+        ).joinToString("\u0001")
     }
 
     /**
@@ -121,13 +157,23 @@ object FocusSync {
      *
      * Egy régi, „nem fut” állapot visszajátszása nem kapcsol ki semmit; egy
      * hosszabbítás viszont próbatétel nélkül is átmegy, pontosan úgy, ahogy az
-     * appban.
+     * appban. Azonos rev-nél a szigorúbb nyer, TELJES rendezéssel: a később
+     * végződő, azonos lejáratnál a korábban indult, ha az is egyezik, a kisebb
+     * csomagazonosítójú — így nem az nyer, amelyik előbb ért a kiszolgálóra,
+     * és három eszköz bármilyen sorrendben ugyanoda jut.
      */
     private fun mergeRun(a: SyncFocus, b: SyncFocus): Focus.FocusRun? {
         if (a.rev != b.rev) return (if (a.rev > b.rev) a else b).run
         val ar = a.run ?: return b.run
         val br = b.run ?: return ar
-        return if (ar.endsAt >= br.endsAt) ar else br
+        return stricterRun(ar, br)
+    }
+
+    /** A szigorúbb menet, teljes rendezéssel — döntetlen nincs. */
+    private fun stricterRun(x: Focus.FocusRun, y: Focus.FocusRun): Focus.FocusRun {
+        if (x.endsAt != y.endsAt) return if (x.endsAt > y.endsAt) x else y
+        if (x.startedAt != y.startedAt) return if (x.startedAt < y.startedAt) x else y
+        return if (x.packId <= y.packId) x else y
     }
 
     /**

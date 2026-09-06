@@ -66,6 +66,28 @@ class FocusSyncTest {
     }
 
     @Test
+    fun `azonos lejaratu ket menet kozul a korabban indult nyer, nem az elobb erkezo`() {
+        // A régi „>=” az ELSŐ argumentumot tartotta meg: aki előbb ért a
+        // kiszolgálóra, az nyert, és két gép örökké egymást írta felül.
+        val early = FocusSync.SyncFocus(
+            packs = listOf(pack("p1"), pack("p2")), run = Focus.FocusRun("p2", 0, 9_000),
+            rev = 2, updatedAt = 100, updatedBy = "eszkoz-a",
+        )
+        val late = FocusSync.SyncFocus(
+            packs = listOf(pack("p1"), pack("p2")), run = Focus.FocusRun("p1", 1_000, 9_000),
+            rev = 2, updatedAt = 500, updatedBy = "eszkoz-z",
+        )
+        assertEquals("p2", FocusSync.merge(early, late).run?.packId)
+        assertEquals("p2", FocusSync.merge(late, early).run?.packId)
+
+        // Ha a kezdés is egyezik, a kisebb csomagazonosítójú — mindkét sorrendben.
+        val sameA = early.copy(run = Focus.FocusRun("p2", 0, 9_000))
+        val sameB = late.copy(run = Focus.FocusRun("p1", 0, 9_000))
+        assertEquals("p1", FocusSync.merge(sameA, sameB).run?.packId)
+        assertEquals("p1", FocusSync.merge(sameB, sameA).run?.packId)
+    }
+
+    @Test
     fun `az osszefesules sorrendfuggetlen es idempotens`() {
         val a = FocusSync.SyncFocus(packs = listOf(pack("p1")), rev = 3, updatedAt = 100, updatedBy = "a")
         val b = FocusSync.SyncFocus(packs = listOf(pack("p2")), rev = 3, updatedAt = 100, updatedBy = "b")

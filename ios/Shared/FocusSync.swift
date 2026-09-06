@@ -95,10 +95,36 @@ public enum FocusSync {
             // EGYESÍTÉS, nem választás: lásd a `log` mező magyarázatát.
             log: mergeLog(local.log, incoming.log),
             rev: max(local.rev, incoming.rev),
-            updatedAt: max(local.updatedAt, incoming.updatedAt),
+            // Az idő a GYŐZTESÉ, nem a nagyobb: az eredmény kulcsa így az újabb
+            // blobé, és három eszköz bármilyen sorrendben ugyanoda jut.
+            updatedAt: newer.updatedAt,
             updatedBy: newer.updatedBy,
             packMarks: packMarks
         )
+    }
+
+    /// Egyenlő jelű két változat közül melyik: az ablakos, aztán a szűkebb
+    /// lista, végül a tartalom kulcsa szerint — a két változatból, nem a
+    /// hordozó blobból. A focus-merge.ts `preferPack` tükre.
+    private static func preferPack(_ x: Focus.Pack, _ y: Focus.Pack) -> Focus.Pack {
+        let rx = x.recurrence != nil ? 1 : 0
+        let ry = y.recurrence != nil ? 1 : 0
+        if rx != ry { return rx > ry ? x : y }
+        let nx = x.allowSites.count + x.allowApps.count
+        let ny = y.allowSites.count + y.allowApps.count
+        if nx != ny { return nx < ny ? x : y }
+        return packOrderKey(x) <= packOrderKey(y) ? x : y
+    }
+
+    /// A változat kulcsa a sorrendhez — bájtra ugyanez a három nyelvben.
+    private static func packOrderKey(_ p: Focus.Pack) -> String {
+        let rec = p.recurrence.map { b in
+            b.days.sorted().map(String.init).joined(separator: ",") + "/" + String(b.startMin) + "/" + String(b.endMin)
+        } ?? ""
+        return [
+            p.name, String(p.defaultMinutes),
+            p.allowSites.sorted().joined(separator: ","), p.allowApps.sorted().joined(separator: ","), rec,
+        ].joined(separator: "\u{1}")
     }
 
     /// Melyik oldal FRISSEBB. Sorrend: `rev`, majd idő, majd eszközazonosító.
@@ -129,9 +155,16 @@ public enum FocusSync {
         for id in ids {
             let mn = nm[id] ?? 0
             let mo = om[id] ?? 0
-            let chosen = mo > mn
-                ? older.packs.first { $0.id == id }
-                : newer.packs.first { $0.id == id }
+            let pn = newer.packs.first { $0.id == id }
+            let po = older.packs.first { $0.id == id }
+            // Egyenlő POZITÍV jelnél a jelenlét nyer (az újabb változata) —
+            // sorrendtől független; jel nélkül az újabb blob állapota.
+            let chosen: Focus.Pack?
+            if mo > mn { chosen = po }
+            else if mn > mo { chosen = pn }
+            else if mn > 0 {
+                if let a = pn, let b = po { chosen = preferPack(a, b) } else { chosen = pn ?? po }
+            } else { chosen = pn }
             if let p = chosen, packs.count < maxPacks { packs.append(p) }
             if max(mn, mo) > 0 { marks[id] = max(mn, mo) }
         }
@@ -141,12 +174,23 @@ public enum FocusSync {
     /// A FUTÓ munkamenet összefésülése — a kockázatos fele.
     ///
     /// Egy régi, „nem fut” állapot visszajátszása nem kapcsol ki semmit; egy
-    /// hosszabbítás viszont próbatétel nélkül is átmegy.
+    /// hosszabbítás viszont próbatétel nélkül is átmegy. Azonos rev-nél a
+    /// szigorúbb nyer, TELJES rendezéssel: a később végződő, azonos lejáratnál
+    /// a korábban indult, ha az is egyezik, a kisebb csomagazonosítójú — így
+    /// nem az nyer, amelyik előbb ért a kiszolgálóra, és három eszköz
+    /// bármilyen sorrendben ugyanoda jut.
     private static func mergeRun(_ a: SyncFocus, _ b: SyncFocus) -> Focus.Run? {
         if a.rev != b.rev { return (a.rev > b.rev ? a : b).run }
         guard let ar = a.run else { return b.run }
         guard let br = b.run else { return ar }
-        return ar.endsAt >= br.endsAt ? ar : br
+        return stricterRun(ar, br)
+    }
+
+    /// A szigorúbb menet, teljes rendezéssel — döntetlen nincs.
+    private static func stricterRun(_ x: Focus.Run, _ y: Focus.Run) -> Focus.Run {
+        if x.endsAt != y.endsAt { return x.endsAt > y.endsAt ? x : y }
+        if x.startedAt != y.startedAt { return x.startedAt < y.startedAt ? x : y }
+        return x.packId <= y.packId ? x : y
     }
 
     /// Két napló egyesítése.

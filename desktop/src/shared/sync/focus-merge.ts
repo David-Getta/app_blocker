@@ -263,7 +263,12 @@ export function mergeFocus(local: SyncFocus, incoming: SyncFocus): SyncFocus {
     log: mergeLog(local.log, incoming.log),
     ...(packMarks ? { packMarks } : {}),
     rev: Math.max(local.rev, incoming.rev),
-    updatedAt: Math.max(local.updatedAt, incoming.updatedAt),
+    // Az idő a GYŐZTESÉ, nem a nagyobb: így az eredmény kulcsa (rev, idő,
+    // eszköz) pontosan az újabb blobé, és három eszköz bármilyen sorrendben
+    // ugyanoda jut a jel nélküli csomagokkal is. A nagyobb idő egy olyan
+    // blobot állítana elő, ami egyik eszközön sem létezett, és a harmadik
+    // eszközzel szemben másképp dőlne el, mint a részei.
+    updatedAt: newer.updatedAt,
     // Az eszközazonosító a győztesé: enélkül a döntetlen-eltörés nem lenne
     // stabil, és a két eszköz felváltva írná felül egymást.
     updatedBy: newer.updatedBy || older.updatedBy,
@@ -304,11 +309,42 @@ function mergePacks(
     const mo = om[id] ?? 0;
     const pn = newer.packs.find((p) => p.id === id);
     const po = older.packs.find((p) => p.id === id);
-    const chosen = mo > mn ? po : pn;
+    // Egyenlő POZITÍV jelnél a jelenlét nyer, két változat közül a
+    // `preferPack` — a blobtól független, ezért sorrendtől független; jel
+    // nélkül az újabb blob állapota.
+    const chosen = mo > mn ? po : mn > mo ? pn
+      : mn > 0 ? (pn && po ? preferPack(pn, po) : (pn ?? po)) : pn;
     if (chosen && packs.length < MAX_PACKS) packs.push(chosen);
     if (Math.max(mn, mo) > 0) marks[id] = Math.max(mn, mo);
   }
   return { packs, packMarks: Object.keys(marks).length > 0 ? marks : undefined };
+}
+
+/**
+ * Egyenlő jelű két változat közül melyik: az ablakos, aztán a szűkebb lista
+ * (kevesebb engedett tétel = szigorúbb), végül a tartalom kulcsa szerint.
+ * A döntés a két VÁLTOZATBÓL jön, nem a hordozó blobból — így három eszköz
+ * bármilyen sorrendben ugyanazt választja. A Kotlin- és Swift-tükör ugyanezt.
+ */
+function preferPack(x: FocusPack, y: FocusPack): FocusPack {
+  const rx = x.recurrence ? 1 : 0;
+  const ry = y.recurrence ? 1 : 0;
+  if (rx !== ry) return rx > ry ? x : y;
+  const nx = x.allowSites.length + x.allowApps.length;
+  const ny = y.allowSites.length + y.allowApps.length;
+  if (nx !== ny) return nx < ny ? x : y;
+  return packOrderKey(x) <= packOrderKey(y) ? x : y;
+}
+
+/** A változat kulcsa a sorrendhez — bájtra ugyanez a három nyelvben. */
+function packOrderKey(p: FocusPack): string {
+  const rec = p.recurrence
+    ? `${[...p.recurrence.days].sort((a, b) => a - b).join(',')}/${p.recurrence.startMin}/${p.recurrence.endMin}`
+    : '';
+  return [
+    p.name, String(p.defaultMinutes),
+    [...p.allowSites].sort().join(','), [...p.allowApps].sort().join(','), rec,
+  ].join('\u0001');
 }
 
 /**
@@ -330,17 +366,27 @@ function pickNewer(a: SyncFocus, b: SyncFocus): SyncFocus {
  *   - nagyobb `rev` -> az övé a döntés, akár leállítás is (megcsinálta a
  *     próbatételt);
  *   - azonos `rev` -> a SZIGORÚBB nyer: a futó erősebb a nem futónál, két futó
- *     közül a később végződő.
+ *     közül a később végződő; azonos lejáratnál a korábban indult (a
+ *     hosszabb), és ha az is egyezik, a kisebb csomagazonosítójú.
  *
  * Így egy régi, „nem fut” állapot visszajátszása nem kapcsol ki semmit, egy
  * hosszabbítás viszont próbatétel nélkül is átmegy — pontosan úgy, ahogy az
- * appban.
+ * appban. A döntetlen-lánc teljes rendezés: két azonos lejáratú menet közül
+ * nem az nyer, amelyik ELŐBB ért a kiszolgálóra, hanem mindig ugyanaz — így
+ * három eszköz bármilyen sorrendben ugyanoda jut (lásd a fuzz-tesztet).
  */
 function mergeRun(a: SyncFocus, b: SyncFocus): FocusRun | null {
   if (a.rev !== b.rev) return (a.rev > b.rev ? a : b).run;
   if (!a.run) return b.run;
   if (!b.run) return a.run;
-  return a.run.endsAt >= b.run.endsAt ? a.run : b.run;
+  return stricterRun(a.run, b.run);
+}
+
+/** A szigorúbb menet, teljes rendezéssel — döntetlen nincs. */
+function stricterRun(x: FocusRun, y: FocusRun): FocusRun {
+  if (x.endsAt !== y.endsAt) return x.endsAt > y.endsAt ? x : y;
+  if (x.startedAt !== y.startedAt) return x.startedAt < y.startedAt ? x : y;
+  return x.packId <= y.packId ? x : y;
 }
 
 /** Ugyanaz-e a két állapot (nincs mit feltölteni). */

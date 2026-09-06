@@ -129,7 +129,7 @@ A szinkronban három dolog utazik együtt, és a harmadik szándékosan kilóg:
 
 | Mi | Mi ez | Hogyan fésülődik |
 |---|---|---|
-| csomagok | beállítás | utolsó író nyer |
+| csomagok | beállítás | csomagonként: jel nélkül az újabb blob, jellel a nagyobb jel |
 | futó menet | **engedély** | a szigorúbb nyer; lazítani csak nagyobb `rev` |
 | napló | **a múlt feljegyzése** | EGYESÍTÉS, a `rev`-hez semmi köze |
 
@@ -218,6 +218,14 @@ ablakon belül (~20 másodperc), a lenyomat azonos marad, tehát a számláló n
 lép. A tartalom viszont ilyenkor is felmegy, és azonos számlálónál a szigorúbb
 — a később végződő — menet nyer. Ez tehát legfeljebb pár másodperc csúszás a
 másik eszköz vég-időpontján, nem kibúvó.
+
+A „szigorúbb” teljes rendezés, döntetlen nincs benne: a később végződő; azonos
+lejáratnál a korábban indult (a hosszabb); ha az is egyezik, a kisebb
+csomagazonosítójú. Az utolsó két lépcső ritkán dönt, de nélkülük két azonos
+lejáratú menet közül az nyert volna, amelyik ELŐBB ért a kiszolgálóra — és két
+gép örökké egymást írta volna felül. Egy véletlen magú fuzz-teszt
+(`test/merge-fuzz.test.ts`) őrzi, hogy három eszköz bármilyen sorrendben
+ugyanoda jusson.
 
 A statisztikában maradhat egy fölös naplósor, ha az alvó eszköz a saját,
 eltolt kezdésével zárja le ugyanazt a menetet: a naplósor azonossága a csomag

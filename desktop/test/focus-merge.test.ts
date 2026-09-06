@@ -69,6 +69,29 @@ test('a hosszabbítás azonos rev mellett is nyer, a rövidítés nem', () => {
   assert.equal(mergeFocus(longer, shorter).run?.endsAt, 9_000);
 });
 
+test('azonos lejáratú két menet: a korábban indult nyer, és nem az, amelyik előbb ért oda', () => {
+  // Két eszköz ugyanarra a másodpercre időzített lejárattal indított menetet
+  // (más csomagból). A régi „>=” az ELSŐ argumentumot tartotta meg: aki előbb
+  // ért a kiszolgálóra, az nyert, és két gép örökké egymást írta felül. Most
+  // a hosszabb (korábban indult) nyer, mindkét sorrendben; ha a kezdés is
+  // egyezik, a kisebb csomagazonosítójú.
+  const early = focus({
+    packs: [pack('p1'), pack('p2')], rev: 2, updatedAt: 100, updatedBy: 'eszkoz-a',
+    run: { packId: 'p2', startedAt: 0, endsAt: 9_000 },
+  });
+  const late = focus({
+    packs: [pack('p1'), pack('p2')], rev: 2, updatedAt: 500, updatedBy: 'eszkoz-z',
+    run: { packId: 'p1', startedAt: 1_000, endsAt: 9_000 },
+  });
+  assert.equal(mergeFocus(early, late).run?.packId, 'p2');
+  assert.equal(mergeFocus(late, early).run?.packId, 'p2');
+
+  const sameStartA = focus({ ...early, run: { packId: 'p2', startedAt: 0, endsAt: 9_000 } });
+  const sameStartB = focus({ ...late, run: { packId: 'p1', startedAt: 0, endsAt: 9_000 } });
+  assert.equal(mergeFocus(sameStartA, sameStartB).run?.packId, 'p1');
+  assert.equal(mergeFocus(sameStartB, sameStartA).run?.packId, 'p1');
+});
+
 test('az indítás azonos rev mellett is nyer a nem futóval szemben', () => {
   // Ez a szigorítás iránya: aki elindít egy munkamenetet a telefonon, azt a gép
   // következő szinkronja ne törölje le csak azért, mert nála épp nem futott.
