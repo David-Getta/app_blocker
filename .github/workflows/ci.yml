@@ -137,16 +137,23 @@ jobs:
       - name: Projekt generálása
         working-directory: ios
         run: xcodegen generate
+      # PIPEFAIL: a `| tail` nélküle a tail kódját adná, és a bukás
+      # elveszne — a lépés zöld lenne egy nem forduló fordításnál vagy egy
+      # bukó tesztnél is. Ez nem elmélet: pipefail nélkül egy bukó Swift-teszt
+      # zöld futást adott.
       - name: Fordítás
         working-directory: ios
         run: |
+          set -o pipefail
           xcodebuild -project Breaker.xcodeproj -scheme BreakerApp-iOS \
             -destination 'generic/platform=iOS Simulator' \
             -configuration Debug build \
             CODE_SIGNING_ALLOWED=NO | tail -40
       - name: Swift-tesztek (a mag, macOS-en)
         working-directory: ios
-        run: swift test 2>&1 | tail -60
+        run: |
+          set -o pipefail
+          swift test 2>&1 | tail -80
 
   android-build:
     name: Android build (assembleDebug)

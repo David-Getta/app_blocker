@@ -99,8 +99,17 @@ class MergeFuzzTest {
         return if (f.run?.packId == id && f.packs.any { it.id == id }) maxOf(own, f.rev.toInt()) else own
     }
 
-    private fun focusKey(f: FocusSync.SyncFocus): String {
-        val packs = f.packs.sortedBy { it.id }.joinToString(",") { "${it.id}:${it.name}:${Focus.recurrenceKey(it.recurrence)}" }
+    /**
+     * A csomagok halmaza, a jelek, a menet és a rev — és a csomagok VÁLTOZATA
+     * is, kivéve azét, amin valamelyik bemenet menete fut: ott három
+     * eszköznél a változat a sorrendtől függhet (a jelenlét nem) — a doksi
+     * kimondja, a gép fuzzja ugyanígy méri.
+     */
+    private fun focusKey(f: FocusSync.SyncFocus, runIds: Set<String>): String {
+        val packs = f.packs.sortedBy { it.id }.joinToString(",") {
+            if (it.id in runIds) it.id
+            else "${it.id}:${it.name}:${it.allowSites.sorted()}:${it.allowApps.sorted()}:${it.defaultMinutes}:${Focus.recurrenceKey(it.recurrence)}"
+        }
         val marks = (f.packMarks ?: emptyMap()).toSortedMap().entries.joinToString(",") { "${it.key}=${it.value}" }
         val run = f.run?.let { "${it.packId}/${it.startedAt}/${it.endsAt}" } ?: "-"
         return "$packs|$marks|$run|${f.rev}"
@@ -139,12 +148,14 @@ class MergeFuzzTest {
             val a = randomFocus(r, devices[0])
             val b = randomFocus(r, devices[1])
             val c = randomFocus(r, devices[2])
+            val runIds = listOfNotNull(a.run?.packId, b.run?.packId, c.run?.packId).toSet()
+            val key = { f: FocusSync.SyncFocus -> focusKey(f, runIds) }
             val ab = FocusSync.merge(a, b)
-            assertEquals(focusKey(ab), focusKey(FocusSync.merge(b, a)), "szimmetria, mag $seed")
-            assertEquals(focusKey(FocusSync.merge(ab, ab)), focusKey(ab), "idempotens, mag $seed")
+            assertEquals(key(ab), key(FocusSync.merge(b, a)), "szimmetria, mag $seed")
+            assertEquals(key(FocusSync.merge(ab, ab)), key(ab), "idempotens, mag $seed")
             val abc = FocusSync.merge(ab, c)
-            assertEquals(focusKey(abc), focusKey(FocusSync.merge(FocusSync.merge(b, c), a)), "három eszköz (bca), mag $seed")
-            assertEquals(focusKey(abc), focusKey(FocusSync.merge(FocusSync.merge(c, a), b)), "három eszköz (cab), mag $seed")
+            assertEquals(key(abc), key(FocusSync.merge(FocusSync.merge(b, c), a)), "három eszköz (bca), mag $seed")
+            assertEquals(key(abc), key(FocusSync.merge(FocusSync.merge(c, a), b)), "három eszköz (cab), mag $seed")
             // A jeles csomag a nagyobb jel változatában marad: ha az egyik
             // oldalon ablakos csomag áll a nagyobb jellel, az ablak marad. A
             // futó menet csomagja a blob rev-jével számít jeleltnek.

@@ -98,9 +98,17 @@ private func randomFocus(_ r: inout Lcg, _ device: String) -> FocusSync.SyncFocu
     )
 }
 
-private func focusKey(_ f: FocusSync.SyncFocus) -> String {
+/// A csomagok halmaza, a jelek, a menet és a rev — és a csomagok VÁLTOZATA
+/// is, kivéve azét, amin valamelyik bemenet menete fut: ott három eszköznél
+/// a változat a sorrendtől függhet (a jelenlét nem) — a doksi kimondja, a gép
+/// fuzzja ugyanígy méri.
+private func focusKey(_ f: FocusSync.SyncFocus, runIds: Set<String>) -> String {
     let packs = f.packs.sorted { $0.id < $1.id }
-        .map { "\($0.id):\($0.name):\(Focus.recurrenceKey($0.recurrence))" }.joined(separator: ",")
+        .map { p -> String in
+            runIds.contains(p.id)
+                ? p.id
+                : "\(p.id):\(p.name):\(p.allowSites.sorted()):\(p.allowApps.sorted()):\(p.defaultMinutes):\(Focus.recurrenceKey(p.recurrence))"
+        }.joined(separator: ",")
     let marks = (f.packMarks ?? [:]).sorted { $0.key < $1.key }
         .map { "\($0.key)=\($0.value)" }.joined(separator: ",")
     let run = f.run.map { "\($0.packId)/\($0.startedAt)/\($0.endsAt)" } ?? "-"
@@ -138,16 +146,18 @@ final class MergeFuzzTests: XCTestCase {
             let a = randomFocus(&r, devices[0])
             let b = randomFocus(&r, devices[1])
             let c = randomFocus(&r, devices[2])
+            let runIds = Set([a, b, c].compactMap { $0.run?.packId })
+            let key = { (f: FocusSync.SyncFocus) in focusKey(f, runIds: runIds) }
             let ab = FocusSync.merge(a, b)
-            XCTAssertEqual(focusKey(ab), focusKey(FocusSync.merge(b, a)), "szimmetria, mag \(seed)")
-            XCTAssertEqual(focusKey(FocusSync.merge(ab, ab)), focusKey(ab), "idempotens, mag \(seed)")
+            XCTAssertEqual(key(ab), key(FocusSync.merge(b, a)), "szimmetria, mag \(seed)")
+            XCTAssertEqual(key(FocusSync.merge(ab, ab)), key(ab), "idempotens, mag \(seed)")
             let abc = FocusSync.merge(ab, c)
             XCTAssertEqual(
-                focusKey(abc), focusKey(FocusSync.merge(FocusSync.merge(b, c), a)),
+                key(abc), key(FocusSync.merge(FocusSync.merge(b, c), a)),
                 "három eszköz (bca), mag \(seed)"
             )
             XCTAssertEqual(
-                focusKey(abc), focusKey(FocusSync.merge(FocusSync.merge(c, a), b)),
+                key(abc), key(FocusSync.merge(FocusSync.merge(c, a), b)),
                 "három eszköz (cab), mag \(seed)"
             )
             // A jeles csomag a nagyobb jel változatában marad: ha az egyik
