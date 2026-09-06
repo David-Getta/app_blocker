@@ -218,11 +218,35 @@ Ismert megkerülési utak (szándékosan nem próbáljuk „lelakatolni” a gé
   könyvtára a dokumentált hely, ott nincs ilyen mellékhatás.
 - iOS-en MDM/„supervised” mód nélkül a felhasználó a rendszerbeállításokban ki
   tudja kapcsolni a VPN-t; az on-demand szabály csökkenti ennek kényelmét.
+- **A FIÓK JELSZAVÁVAL hamis szinkron-rekord gyártható.** Az összefésülés a
+  `rev` számlálóban bízik: a nagyobb `rev` mögött ott a munka, tehát egy
+  lazítás is átmegy vele. A számláló helyben csak a próbatétel-kapun át nő —
+  de a kiszolgáló csak átlátszatlan blobot tárol, a titkosító kulcs pedig a
+  JELSZÓBÓL származik. Aki tehát tudja a saját fiókjelszavát, a saját appján
+  KÍVÜL is összerakhat egy nagy `rev`-ű, laza rekordot (menetrend nélkül,
+  keret nélkül, futó menet nélkül), felnyomhatja, és a többi eszköz próbatétel
+  nélkül átveszi. Ez a nem megbízható kiszolgáló modelljének ára: a kliens
+  eszközön futó felhasználót nem lehet kizárni a saját adatából. Amit ez
+  megváltoztat: a léc root/jailbreak alól a jelszó ismeretére csökken. Egy
+  LEGITIM másik kliens ilyet nem tud (visszajátszásnál, egyenlő `rev`-nél a
+  szigorúbb nyer). Aki ezt komolyan akarja zárni, annak a kiszolgálót kell
+  megbízhatóvá tennie — az viszont egy másik termék.
+- **Mobilon a próbatétel tartalma a mentett állapotban ül.** A memória-kód és
+  a beírandó mondat a gépen a root/SYSTEM segéd állapotfájljában van, és a
+  felület sosem kapja meg a várt választ (`toDisplay` kiszűri). A telefonokon
+  a közös mag app-privát tárában van, a felület pedig a nyers lépést olvassa:
+  root/jailbreak nélkül ez nem elérhető, de gyengébb elkülönítés, mint a gépen.
+  A már dokumentált „root jogú felhasználó” osztályba esik, csak itt kimondva.
 - **Óra-átállítás.** Mindhárom mag kiszűri: a várakozási határidők eltelt időt
   mérnek, nem dátumot (lásd `docs/challenge-spec.md`). A megoldás azon áll, hogy
-  a karbantartó kör rendszeresen fut; ha a folyamatot leállítják, az újraindulás
-  után az első kör csak új alapvonalat vesz fel. A készülék kikapcsolt ideje
-  ezért nem számít bele a várakozásba — ez a szigorúbb irány.
+  a karbantartó kör tudja, mikor futott utoljára — és ez a szám MINDHÁROM
+  platformon a lemezen van, nem a memóriában. Ez sokáig nem volt igaz: a
+  mobilokon memóriában élt, tehát az app kilövése (rendszerbeállítások →
+  kényszerített leállítás) után az első kör csak ÚJ alapvonalat vett fel, és
+  onnantól az óra előreállítása ingyen megrövidítette a várakozást meg a törlés
+  24 órás türelmi idejét. A gépen ez sosem állt fenn (a segéd az állapotfájlba
+  írja), most a telefonokon sem. A készülék kikapcsolt ideje továbbra sem
+  számít bele a várakozásba — ez a szigorúbb irány.
 
   Ugyanez véd a FUTÓ MUNKAMENETRE is: az ugrást elnyeljük, tehát amennyi hátra
   volt, annyi van hátra. Ez korábban rés volt — az óra előreállítása „lejárttá”

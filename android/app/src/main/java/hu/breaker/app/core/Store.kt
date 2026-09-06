@@ -220,6 +220,7 @@ object BreakerStore {
 
     private const val PREFS = "breaker_state"
     private const val KEY = "state_json"
+    private const val LAST_TICK_KEY = "last_tick_at"
 
     private lateinit var prefs: SharedPreferences
     private val _state = MutableStateFlow(AppState())
@@ -244,6 +245,29 @@ object BreakerStore {
         val next = SyncRevisions.bump(fn(_state.value), System.currentTimeMillis())
         _state.value = next
         prefs.edit().putString(KEY, toJson(next).toString()).apply()
+    }
+
+    /**
+     * Az utolsó karbantartó kör ideje — LEMEZEN, az állapoton KÍVÜL.
+     *
+     * Miért nem memóriában (eddig ott volt): az app kilövése után az első kör
+     * csak ÚJ alapvonalat vett fel, tehát a folyamat leállítása + az óra
+     * előreállítása INGYEN rövidítette a várakozást és a törlés türelmi idejét.
+     * A gépen ez a szám mindig a mentett állapotban volt; itt most már szintén
+     * túléli az újraindítást.
+     *
+     * Miért nem az AppState-ben: minden mentés a szinkron verziószámain megy
+     * át, ez a szám viszont helyi és másodpercenként változik — a fiókra
+     * semmi köze, és minden körben feltöltést indítana.
+     */
+    fun loadLastTick(): Long {
+        if (!::prefs.isInitialized) return 0L
+        return prefs.getString(LAST_TICK_KEY, null)?.toLongOrNull() ?: 0L
+    }
+
+    fun saveLastTick(now: Long) {
+        if (!::prefs.isInitialized) return
+        prefs.edit().putString(LAST_TICK_KEY, now.toString()).apply()
     }
 
     fun newId(prefix: String): String = "${prefix}_${UUID.randomUUID().toString().take(12)}"

@@ -482,8 +482,16 @@ object Referee {
      */
     const val CLOCK_JUMP_THRESHOLD_MS: Long = 2 * 60_000L
 
-    /** Az utolsó kör ideje. Memóriában, mert minden körben menteni pazarlás lenne. */
-    @Volatile private var lastTickAt: Long = 0L
+    /**
+     * Milyen ritkán írjuk ki az alapvonalat. Minden körben menteni pazarlás
+     * lenne (a kör minden DNS-kérésnél fut), viszont EL KELL, hogy férjen az
+     * ugrás-küszöb alá: így a késleltetett kiírás önmagában sosem látszik
+     * óra-ugrásnak.
+     */
+    private const val TICK_SAVE_INTERVAL_MS: Long = 60_000L
+
+    /** Mikor írtuk ki utoljára — csak a ritkításhoz, az alapvonal a lemezen van. */
+    @Volatile private var lastTickSavedAt: Long = 0L
 
     /**
      * A várakozás itt maga a próba, és amit az óra átállítása legyőz, az nem
@@ -496,13 +504,25 @@ object Referee {
      *
      * A pauseUntil szándékosan kimarad: ott az előre ugró óra korábban zár
      * vissza, a szigorítást pedig nem kell védeni.
+     *
+     * AZ ALAPVONAL A LEMEZRŐL JÖN (BreakerStore.loadLastTick), nem a
+     * memóriából. Amíg memóriában élt, az app KILÖVÉSE után az első kör csak
+     * új alapvonalat vett fel: a folyamat leállítása + óra-előreállítás ingyen
+     * megrövidítette a várakozást. A gépen ez a szám mindig a mentett
+     * állapotban volt; most itt is túléli az újraindítást.
      */
     private fun absorbClockJump(now: Long) {
-        val last = lastTickAt
-        lastTickAt = now
-        if (last == 0L) return
-        val jump = now - last
-        if (jump <= CLOCK_JUMP_THRESHOLD_MS) return
+        val last = BreakerStore.loadLastTick()
+        val fresh = last == 0L
+        val jump = if (fresh) 0L else now - last
+        val jumped = jump > CLOCK_JUMP_THRESHOLD_MS
+        // Kiírjuk: az első körben (legyen alapvonal), ugráskor (az új alapvonal
+        // ne vesszen el), visszafelé állított óránál, egyébként ritkítva.
+        if (fresh || jumped || now < lastTickSavedAt || now - lastTickSavedAt >= TICK_SAVE_INTERVAL_MS) {
+            lastTickSavedAt = now
+            BreakerStore.saveLastTick(now)
+        }
+        if (!jumped) return
         val shift = jump - CLOCK_JUMP_THRESHOLD_MS
 
         BreakerStore.mutate { state ->

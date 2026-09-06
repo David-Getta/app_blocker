@@ -342,6 +342,22 @@ const WIRES = [
     needle: 'UsageLogic.clearUsage(state.usage, hasLimit, now)',
     lost: 'a telefonon a Törlés gomb ingyen újratöltené a napi keretet',
   },
+  // AZ ÓRA-VÉDELEM ALAPVONALA A LEMEZRŐL. Amíg memóriában élt, az app
+  // kilövése + óra-előreállítás ingyen rövidítette a várakozást: az első kör
+  // csak új alapvonalat vett fel. A hívás kiesése ezt némán visszahozná — a
+  // kód fordulna, a tesztek a memóriás alapvonallal is átmennének.
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/Referee.kt',
+    needle: 'BreakerStore.loadLastTick()',
+    lost: 'a telefonon az app kilövése után az óra előreállítása ingyen '
+      + 'megrövidítené a várakozást és a törlés türelmi idejét',
+  },
+  {
+    file: 'ios/Shared/Referee.swift',
+    needle: 'BreakerStore.shared.loadLastTick()',
+    lost: 'iPhone-on az alagút újraindulása után az óra előreállítása ingyen '
+      + 'megrövidítené a várakozást',
+  },
   {
     file: 'android/app/src/main/java/hu/breaker/app/ui/AppUi.kt',
     needle: 'Referee.clearUsage(',

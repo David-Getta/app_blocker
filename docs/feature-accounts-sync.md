@@ -48,6 +48,14 @@ lehetséges **kibúvó** is. A szinkron különösen: ha rosszul csináljuk, a
 | Belépéskor a kiszolgáló listája írja felül a helyit | Egy üres (vagy régi) fiókkal be lehetne lépni, és ezzel letörölni a helyi blokkokat. Belépéskor **egyesítés** van, nem csere: a két lista UNIÓJA lesz az eredmény. |
 | A szünet (ideiglenes feloldás) is szinkronizáljon | Egy próbatétel egy eszközön feloldana MINDENHOL. A szünet szándékosan eszközfüggő és rövid életű. |
 
+Amit a szinkron NEM tud megvédeni, és ezt jobb kimondani: a `rev` számláló
+csak a KLIENSEKBEN nő a próbatétel-kapun át. A kiszolgáló átlátszatlan blobot
+lát, a kulcs pedig a jelszóból származik — aki tehát tudja a saját
+fiókjelszavát, kézzel is összerakhat egy nagy `rev`-ű, laza rekordot, és a
+többi eszköz átveszi. Ez a nem megbízható kiszolgáló ára; a részletek és az,
+hogy mit változtat (a lécet root helyett a jelszó ismeretére viszi), a
+`docs/architecture.md` megkerülési listájában.
+
 ## Az összefésülés szabálya
 
 Minden oldal-rekord hordoz egy `rev` számlálót (minden módosításnál nő) és egy

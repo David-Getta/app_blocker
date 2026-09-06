@@ -275,6 +275,34 @@ class RefereeTest {
         assertFalse(claim.accepted, "claiming is still refused")
     }
 
+    @Test fun `killing the app does not reset the clock baseline`() {
+        // EZ VOLT A RÉS: az alapvonal memóriában élt, tehát a folyamat
+        // leállítása után az első kör csak ÚJ alapvonalat vett fel — az óra
+        // előreállítása ingyen rövidítette a várakozást. Most a lemezen van,
+        // mint a gépen, tehát az újraindítás nem felejt.
+        val id = addSite("youtube.com")
+        BreakerStore.mutate { s -> s.copy(unlockLog = (1..8).map { now - it * 3600_000L }) }
+        Referee.startSession(Kind.DELETE, id, null, now)
+        solveUntil { it is Step.Delay }
+        val before = BreakerStore.state.value.session!!.steps
+            .filterIsInstance<Step.Delay>().first().claimableAt!!
+
+        // Az utolsó kör alapvonala a lemezen — ennyi maradt az appból, miután
+        // a rendszerbeállításokból kilőtték.
+        BreakerStore.saveLastTick(now)
+
+        // Új folyamat, előreállított órával: az első kör a LEMEZRŐL veszi az
+        // alapvonalat, tehát az ugrást elnyeli.
+        val jumped = now + 6 * 3600_000L
+        Referee.tick(jumped)
+        val after = BreakerStore.state.value.session!!.steps
+            .filterIsInstance<Step.Delay>().first().claimableAt!!
+        assertTrue(after > before, "a várakozás célpontja az ugrással tolódott")
+        assertTrue(after > jumped, "az átvétel az ugrás után sincs esedékes")
+        assertFalse(Referee.claimDelay(BreakerStore.state.value.session!!.id, jumped).accepted)
+        assertEquals(jumped, BreakerStore.loadLastTick(), "az új alapvonal is kiíródott")
+    }
+
     @Test fun `a pending deletion cannot be rushed by the clock`() {
         val id = addSite("youtube.com")
         BreakerStore.mutate { s ->

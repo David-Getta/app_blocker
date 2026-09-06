@@ -201,6 +201,25 @@ final class BreakerStore: ObservableObject {
 
     func newId(_ prefix: String) -> String { "\(prefix)_\(UUID().uuidString.prefix(12))" }
 
+    // MARK: - a karbantartó kör alapvonala
+
+    /// A megosztott beállítástár: az app ÉS az alagút ugyanazt a számot látja.
+    private let defaults = UserDefaults(suiteName: BreakerStore.appGroup) ?? .standard
+    private static let lastTickKey = "lastTickAt"
+
+    /// Az utolsó karbantartó kör ideje — a MENTÉSEN kívül, de LEMEZEN.
+    ///
+    /// Miért nem memóriában (eddig ott volt): az app kilövése után az első kör
+    /// csak ÚJ alapvonalat vett fel, tehát a folyamat leállítása + az óra
+    /// előreállítása INGYEN rövidítette a várakozást és a törlés türelmi
+    /// idejét. A gépen ez a szám mindig a mentett állapotban volt.
+    ///
+    /// Miért nem az AppState-ben: a mentés a szinkron verziószámain megy át,
+    /// ez a szám viszont helyi és másodpercenként változik.
+    func loadLastTick() -> Double { defaults.double(forKey: BreakerStore.lastTickKey) }
+
+    func saveLastTick(_ now: Double) { defaults.set(now, forKey: BreakerStore.lastTickKey) }
+
     // MARK: - mutate
 
     @discardableResult

@@ -122,6 +122,15 @@ mint az előző).
   kezeljük: alvás közben nem telik a várakozás. Mindhárom platformon él — a kör
   az asztali segédben, az Android VPN-szolgáltatásban, illetve az iOS/macOS
   tunnelben fut.
+
+  **Az alapvonal a LEMEZEN van, nem a memóriában.** Enélkül a védelem egy
+  folyamat-leállítással megkerülhető: az app kilövése után az első kör csak új
+  alapvonalat venne fel, és onnantól az előreállított óra ingyen rövidítené a
+  várakozást. A gépen ez a szám mindig a mentett állapotban volt; a mobilokon
+  sokáig memóriában élt, és ez valódi rés volt — most ott is a helyi tárban ül
+  (`BreakerStore.loadLastTick`), a szinkronon KÍVÜL, mert helyi szám. A kiírás
+  ritkítva megy (percenként), de a ritkítás ideje kisebb, mint az ugrás-küszöb,
+  tehát a késleltetett kiírás önmagában sosem látszik ugrásnak.
 - **A blokkolás alapból zár.** Ha bármi elromlik (lejárt session, elrontott
   hosts fájl), a rendszer a *blokkolt* állapot felé esik vissza, nem a nyitott
   felé.

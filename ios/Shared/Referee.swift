@@ -293,10 +293,13 @@ enum Referee {
     /// is either the clock being moved or the device having been asleep.
     static let clockJumpThresholdMs: Double = 2 * 60_000
 
-    /// When the previous tick ran. In memory on purpose: writing it out every
-    /// second would be pointless churn, and after a restart it only matters
-    /// from the next tick on.
-    private static var lastTickAt: Double = 0
+    /// Milyen ritkán írjuk ki az alapvonalat. Minden körben menteni pazarlás
+    /// lenne, viszont el kell férnie az ugrás-küszöb alatt: így a késleltetett
+    /// kiírás önmagában sosem látszik óra-ugrásnak.
+    private static let tickSaveIntervalMs: Double = 60_000
+
+    /// Mikor írtuk ki utoljára — csak a ritkításhoz; az alapvonal a lemezen van.
+    private static var lastTickSavedAt: Double = 0
 
     /// Waiting IS the challenge here, and a challenge a clock change defeats is
     /// not a challenge: with the system clock moved forward a DELAY step would
@@ -308,12 +311,24 @@ enum Referee {
     ///
     /// pauseUntil is deliberately left alone: a jump that ends an unlock early
     /// blocks more, and tightening never needs protecting.
+    ///
+    /// AZ ALAPVONAL A LEMEZRŐL JÖN (BreakerStore.loadLastTick), nem a
+    /// memóriából. Amíg memóriában élt, az app kilövése után az első kör csak
+    /// új alapvonalat vett fel: a folyamat leállítása + óra-előreállítás ingyen
+    /// megrövidítette a várakozást. A gépen ez a szám mindig a mentett
+    /// állapotban volt; most itt is túléli az újraindítást.
     private static func absorbClockJump(_ now: Double) {
-        let last = lastTickAt
-        lastTickAt = now
-        guard last != 0 else { return }
-        let jump = now - last
-        guard jump > clockJumpThresholdMs else { return }
+        let last = BreakerStore.shared.loadLastTick()
+        let fresh = last == 0
+        let jump = fresh ? 0 : now - last
+        let jumped = jump > clockJumpThresholdMs
+        // Kiírjuk: az első körben, ugráskor, visszafelé állított óránál,
+        // egyébként ritkítva.
+        if fresh || jumped || now < lastTickSavedAt || now - lastTickSavedAt >= tickSaveIntervalMs {
+            lastTickSavedAt = now
+            BreakerStore.shared.saveLastTick(now)
+        }
+        guard jumped else { return }
         let shift = jump - clockJumpThresholdMs
 
         BreakerStore.shared.mutate { state in
