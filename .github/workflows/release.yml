@@ -44,6 +44,17 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
+          **Az óra átállítása az app kilövése után sem rövidít — telefonokon
+          sem.** A várakozási próba és a törlés 24 órás türelme eltelt időt
+          mér, nem dátumot: ehhez a karbantartó körnek tudnia kell, mikor
+          futott utoljára. Ez a szám a telefonokon a memóriában élt, tehát az
+          appot a rendszerbeállításokból kilőve, majd az órát előreállítva a
+          védelem elfelejtette magát: a várakozás azonnal letelt, a törlés
+          esedékessé vált. Ingyen, próbatétel nélkül. Mostantól a szám a
+          telefonon is megmarad — a gépen mindig is így volt.
+
+          ### Ami a v0.4.28-ban jött
+
           **Fókuszban, naponta.** A csempe egy számban mondja a hetet; a
           statisztikán most hét oszlop mutatja, egyenletesen jött-e össze a
           fókuszban töltött idő, vagy egy napból — a gépen, Androidon és
@@ -84,7 +95,7 @@ jobs:
           „Minden eszköz együtt (2)”, névelők a kiejtés szerint
           („az 1.”, „a 16.”).
 
-          ### Ami a v0.4.27-ben jött
+          #### Ami a v0.4.27-ben jött
 
           **Az elmúlt 7 nap naponta, sávokban** — a statisztika a hét alakját
           is mutatja hét oszlopban, a gépen és Androidon.
@@ -99,28 +110,6 @@ jobs:
           **Az ablak az ígéret.** Egy másik csomag kézi menete az ablak
           kezdetén véget ér, és az ablak menete indul; az indító párbeszéd
           előre megmondja, ha ez várható.
-
-          #### Ami a v0.4.26-ban jött
-
-          **A bővítmény is kimondja, ha a menet a heti ablak szerint indult.**
-          A felugró lap egy mondatot told a munkamenet sorához, a tiltó lap egy
-          sort mutat: aki nem maga indította, a böngészőben is tudja meg, miért
-          fut, és hogy a vége az ablak vége. (Bővítmény 0.4.1 — az app hozza,
-          a böngészőben elég a Frissítés gomb.)
-
-          **Az ablakos csomag két kiskapuja bezárva.** A heti ablakkal bíró
-          csomag fehérlistáját a Mentés eddig ingyen bővíthette, a Törlés gomb
-          pedig ingyen tüntette el — mindkettő az ablak levételének
-          próbatételét kerülte meg. Most a Mentés csak szűkít (az átnevezés és
-          a hossz szabad), a Törlés az ablak levételére mutat: egyszer
-          próbatétel, utána minden ingyen.
-
-          **A heti visszatekintés a főnézeten is szól.** Eddig csak a
-          statisztika fülön vagy az első kapcsolódáskor futhatott; most hétfőn
-          az app maga kéri le a számokat, ha esedékes. A csomag sora azt is
-          kimondja, ha a mai ablak menete már véget ért; a levétel
-          próbatételének fejléce mostantól „Heti ablak lazítása”, nem
-          „Munkamenet leállítása”.
 
           NOTES
           fi
