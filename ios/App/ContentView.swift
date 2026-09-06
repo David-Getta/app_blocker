@@ -402,11 +402,19 @@ struct ContentView: View {
             }
             if listHidden {
                 // A darabszám marad: a kérés az volt, hogy MIK vannak blokkolva
-                // ne látszódjon, nem az, hogy hány.
+                // ne látszódjon, nem az, hogy hány. Ugyanaz a szám, mint a
+                // sorokban: ami MOST zár, az blokkolt; a szünetelő vagy menetrend
+                // szerint nyitott oldal „most szabad”.
+                let open = store.state.sites.filter {
+                    !LimitLogic.isBlockedNowWithLimit($0, UsageStats.State(), store.state.sharedToday, now)
+                }.count
+                let count = open == 0
+                    ? "\(store.state.sites.count) oldal van blokkolva."
+                    : "\(store.state.sites.count) oldal van a listán, ebből \(open) most szabad."
                 HStack(alignment: .top) {
                     Text(store.state.sites.isEmpty
                          ? "A lista el van rejtve. Még nincs benne egyetlen oldal sem."
-                         : "\(store.state.sites.count) oldal van blokkolva. A lista el van rejtve, hogy a puszta megnyitás se emlékeztessen rájuk. Megnyitva csak eddig a bezárásig marad.")
+                         : "\(count) A lista el van rejtve, hogy a puszta megnyitás se emlékeztessen rájuk. Megnyitva csak eddig a bezárásig marad.")
                         .font(.footnote).foregroundStyle(.secondary)
                     Spacer()
                     Button("Megnyitás") { listOpenThisSession = true }.buttonStyle(.bordered)

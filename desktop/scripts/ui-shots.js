@@ -437,7 +437,15 @@ async function main() {
   }
 
   const { server, port } = await serve();
-  const browser = await chromium.launch();
+  // Ugyanaz a nyelv, mint az appé (main.ts: `--lang=hu`): a beépített
+  // időmezők a Chromium nyelvét követik, angolul „09:00 AM”-et mutatnának
+  // a magyar felület közepén — a kép is azt rögzítené. A Playwright fej
+  // nélküli Chromiumja Linuxon a KÖRNYEZET nyelvéből indul ki (a `--lang`
+  // önmagában nem elég neki — kipróbálva), ezért mindkettőt megkapja.
+  const browser = await chromium.launch({
+    args: ['--lang=hu'],
+    env: { ...process.env, LANG: 'hu_HU.UTF-8', LC_ALL: 'hu_HU.UTF-8' },
+  });
   // A témát KI KELL MONDANI. A Playwright alapértelmezése a világos, tehát
   // enélkül a „sötét” ellenőrzés is világosban futna — és a sötét téma
   // ellenőrizetlen maradna, miközben a képernyőképek is átbillennének.
@@ -1506,7 +1514,7 @@ async function main() {
   // ha a lista végére kerülne, senki nem találkozna vele.
   const allCard = page.locator('#syncDevices .sync-device').first();
   const allText = (await allCard.innerText()) || '';
-  if (!/Mind a\(z\) 2 eszköz együtt/.test(allText)) {
+  if (!/Minden eszköz együtt \(2\)/.test(allText)) {
     failures.push(`the combined row is not first: ${allText.split('\n')[0]}`);
   }
   if (!allText.includes('1 ó 18 p')) {

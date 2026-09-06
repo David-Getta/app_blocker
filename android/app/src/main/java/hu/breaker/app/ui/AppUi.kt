@@ -544,10 +544,17 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
+                        // Ugyanaz a szám, mint a sorokban: ami MOST zár, az blokkolt; a
+                        // szünetelő vagy menetrend szerint nyitott oldal „most szabad”.
+                        val open = state.sites.count {
+                            !LimitLogic.isBlockedNowWithLimit(it, state.usage, now, state.sharedToday, state.bursts[it.id])
+                        }
+                        val count = if (open == 0) "${state.sites.size} oldal van blokkolva."
+                            else "${state.sites.size} oldal van a listán, ebből $open most szabad."
                         Text(
                             if (state.sites.isEmpty())
                                 "A lista el van rejtve. Még nincs benne egyetlen oldal sem."
-                            else "${state.sites.size} oldal van blokkolva. A lista el van rejtve, " +
+                            else "$count A lista el van rejtve, " +
                                 "hogy a puszta megnyitás se emlékeztessen rájuk. Megnyitva csak " +
                                 "eddig a bezárásig marad.",
                             modifier = Modifier.weight(1f),

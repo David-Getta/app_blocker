@@ -22,6 +22,12 @@ import type { StatusData } from '../shared/protocol';
 
 const HELPER_MODE = process.argv.includes('--helper');
 
+// Az app magyar, a Chromium belső nyelve is legyen az: a beépített idő- és
+// dátummezők (a heti ablak 9:00–12:00-ja) a Chromium nyelvét követik, nem a
+// lap `lang="hu"` jelzőjét — angol rendszeren „09:00 AM”-et mutatnának egy
+// magyar felület közepén. A kapcsoló csak az `app.whenReady()` előtt hat.
+app.commandLine.appendSwitch('lang', 'hu');
+
 if (HELPER_MODE) {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const { runHelper } = require('../helper/index') as typeof import('../helper/index');

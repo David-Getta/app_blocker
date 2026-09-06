@@ -332,11 +332,11 @@ A rejtés az **egész ablakra** szól, nem csak a listakártyára:
 
 | Hol | Rejtve mi látszik |
 |---|---|
-| a lista | „3 oldal van blokkolva” — a darabszám marad, a nevek nem |
+| a lista | „3 oldal van blokkolva” vagy „3 oldal van a listán, ebből 1 most szabad” — a darabszám marad, a nevek nem |
 | gyorsgombok a felvevő kártyán | nincsenek (pont a tipikus címek állnak rajtuk) |
 | a beviteli mező példája és a társoldal-jelölő | általános szöveg, cím nélkül |
 | statisztika | `1. rejtett oldal`, `2. rejtett oldal` — a „blokkolt” jelölés és az idő marad |
-| fejléc-jelvény | „Védelem aktív — 3 oldal blokkolva” (csak szám) |
+| fejléc-jelvény | „Védelem aktív — 3 oldal blokkolva” vagy „… 2 oldal blokkolva, 1 most szabad” (csak számok; az számít, ami MOST zár — a szünetelő vagy menetrend szerint nyitott oldal nem) |
 
 A sorszám a lista sorrendjéből jön, tehát két frissítés között nem ugrál, és
 ugyanazt az oldalt mindig ugyanaz a szám jelöli. Akinek van **fedőneve**, annál a

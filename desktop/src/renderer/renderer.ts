@@ -295,7 +295,15 @@ function render(): void {
       pill.textContent = `A tiltás nem érvényesül: ${hostLabel(leaking[0].host)}${more}`;
       pill.className = 'pill pill-warn';
     } else {
-      pill.textContent = n > 0 ? `Védelem aktív — ${n} oldal blokkolva` : 'Védelem aktív';
+      // Csak az számít blokkoltnak, ami MOST zár: a szünetelő, a menetrend
+      // szerint épp nyitva lévő vagy a még el nem fogyott keretű oldal nem az.
+      // „4 oldal blokkolva” egy szünetelő oldal mellett hazugság lenne — a
+      // sorok mást mondanának, mint a fejléc.
+      const blocked = status!.sites.filter((s) => s.blockedNow).length;
+      const open = n - blocked;
+      pill.textContent = n === 0 ? 'Védelem aktív'
+        : open === 0 ? `Védelem aktív — ${n} oldal blokkolva`
+          : `Védelem aktív — ${blocked} oldal blokkolva, ${open} most szabad`;
       pill.className = 'pill pill-ok';
     }
   }
@@ -1518,7 +1526,7 @@ function setupSyncCard(): void {
         const c = r.combined;
         const card = h('div', 'sync-device sync-device-all');
         const head = h('div', 'sync-device-head');
-        head.appendChild(h('span', undefined, `Mind a(z) ${c.deviceCount} eszköz együtt`));
+        head.appendChild(h('span', undefined, `Minden eszköz együtt (${c.deviceCount})`));
         head.appendChild(h('span', 'muted',
           `ma ${formatDuration(c.todaySeconds)} · 7 nap ${formatDuration(c.last7Seconds)}`));
         card.appendChild(head);
@@ -1838,9 +1846,13 @@ function renderSiteList(st: StatusData): void {
     // félresikerült CSS bármikor visszahoz.
     $('siteList').textContent = '';
     const n = st.sites.length;
+    // Ugyanaz a szám, mint a fejlécben: ami MOST zár, az blokkolt; a
+    // szünetelő vagy a menetrend szerint nyitott oldal „most szabad”.
+    const open = st.sites.filter((s) => !s.blockedNow).length;
+    const count = open === 0 ? `${n} oldal van blokkolva.` : `${n} oldal van a listán, ebből ${open} most szabad.`;
     $('listHiddenText').textContent = n === 0
       ? 'A lista el van rejtve. Még nincs benne egyetlen oldal sem.'
-      : `${n} oldal van blokkolva. A lista el van rejtve, hogy a puszta megnyitás `
+      : `${count} A lista el van rejtve, hogy a puszta megnyitás `
         + 'se emlékeztessen rájuk. Megnyitva csak eddig a bezárásig marad.';
     return;
   }
@@ -2660,9 +2672,31 @@ function openScheduleDialog(site: SiteInfo): void {
   document.body.appendChild(overlay);
 }
 
+/**
+ * Határozott névelő a név elé: „az instagram.com”, „a youtube.com”,
+ * „az 1. rejtett oldal”, „a 16. karakter”. Számnál a KIEJTÉS dönt (egy, öt,
+ * ötven, ezer → az), nem az írásjegy — az „a(z)” nem magyar mondat.
+ */
+function withArticle(name: string): string {
+  const trimmed = name.trim();
+  const num = /^\d+/.exec(trimmed);
+  const vowel = num
+    ? numberStartsWithVowel(Number(num[0]))
+    : 'aáeéiíoóöőuúüű'.includes(trimmed.charAt(0).toLowerCase());
+  return `${vowel ? 'az' : 'a'} ${name}`;
+}
+
+/** Magánhangzóval kezdődik-e a szám kimondva: egy, öt, ötven, ötszáz, ezer. */
+function numberStartsWithVowel(n: number): boolean {
+  if (n >= 1000) return numberStartsWithVowel(Math.floor(n / 1000)); // ezer, kétezer, ötezer
+  if (n >= 100) return n >= 200 && numberStartsWithVowel(Math.floor(n / 100)); // száz, kétszáz, ötszáz
+  if (n >= 10) return Math.floor(n / 10) === 5; // tíz, tizen-, húsz, …, ötven
+  return n === 1 || n === 5;
+}
+
 async function startDelete(site: SiteInfo): Promise<void> {
   const sure = confirm(
-    `Biztosan törölnéd a(z) ${displayName(site)} blokkolását?\n\n` +
+    `Biztosan törölnéd ${withArticle(displayName(site))} blokkolását?\n\n` +
     'A törléshez a legnehezebb próbatételek tartoznak, és a törlés csak 24 órával ' +
     'a teljesítésük UTÁN válik véglegessé. Addig bármikor, egy kattintással visszavonhatod.');
   if (!sure) return;
@@ -2834,7 +2868,7 @@ function buildTranscribe(box: HTMLElement, session: SessionInfo, step: StepDispl
       feedback.textContent = `Eddig hibátlan (${v.length}/${text.length} karakter).`;
       feedback.className = 'live-feedback good';
     } else {
-      feedback.textContent = `Eltérés a(z) ${i + 1}. karakternél.`;
+      feedback.textContent = `Eltérés ${withArticle(`${i + 1}.`)} karakternél.`;
       feedback.className = 'live-feedback bad';
     }
   });
