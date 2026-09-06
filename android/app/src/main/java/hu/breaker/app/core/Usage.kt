@@ -52,6 +52,26 @@ object UsageLogic {
         u.enabled,
     )
 
+    /**
+     * A mérési előzmény törlése — a MAI napot meghagyva, ha kell. A
+     * `desktop/src/shared/usage.ts` `clearUsage` tükre.
+     *
+     * A törlés a saját adatra vonatkozik, tehát alapból ingyen van. EGY
+     * kivétellel: a napi keret a MAI mért időből fogy, tehát ha a törlés a mai
+     * napot is elviszi, a keret azonnal újratelik — próbatétel nélküli
+     * LAZÍTÁS, korlátlanul ismételhetően. Ugyanaz a rés, ami miatt a mérés
+     * KIKAPCSOLÁSA is tiltott keret mellett; ott van kapu, itt eddig nem volt.
+     */
+    fun clearUsage(state: UsageState, keepToday: Boolean, now: Long): UsageState {
+        val next = UsageState(enabled = state.enabled)
+        if (!keepToday) return next
+        val today = state.days.find { it.day == dayKey(now) } ?: return next
+        next.days.add(UsageDay(today.day, today.seconds.toMutableMap()))
+        // A címkékből csak az marad, amire a mai nap hivatkozik.
+        for (k in today.seconds.keys) state.labels[k]?.let { next.labels[k] = it }
+        return next
+    }
+
     fun siteKey(domain: String) = "site:$domain"
     fun appKey(id: String) = "app:$id"
     fun kindOf(key: String) = if (key.startsWith("site:")) TargetKind.SITE else TargetKind.APP

@@ -16,7 +16,7 @@ import {
   blockReasonNow, isLimitExhausted, normalizeLimit, sharedTodaySeconds, usedTodayEverywhere,
 } from '../shared/limits';
 import {
-  recordSample, summarize, series, totalSeries, labelOf, emptyUsage, combineUsage, siteKey, dayKey,
+  recordSample, summarize, series, totalSeries, labelOf, emptyUsage, clearUsage, combineUsage, siteKey, dayKey,
   MAX_KEY_LENGTH, MAX_LABEL_LENGTH, MAX_BATCH_SAMPLES,
 } from '../shared/usage';
 import type { UsageSummary } from '../shared/usage';
@@ -560,9 +560,13 @@ async function handle(req: HelperRequest, deps: ServerDeps): Promise<unknown> {
     }
 
     case 'usage_clear': {
-      const wasEnabled = state.usage.enabled;
-      state.usage = emptyUsage();
-      state.usage.enabled = wasEnabled;
+      // A MAI NAP MARAD, amíg van beállított napi keret: abból fogy a keret,
+      // tehát a mai adat törlése azonnal újratöltené — próbatétel nélkül,
+      // korlátlanul. Ugyanaz a kibúvó, ami miatt a mérés kikapcsolása is
+      // tiltott keret mellett (lásd `usage_enable`); csak ez az ág eddig
+      // kapu nélkül állt. A régebbi napok törlése így is megy.
+      const hasLimit = state.sites.some((s) => normalizeLimit(s.dailyLimitSeconds) !== null);
+      state.usage = clearUsage(state.usage, hasLimit, Date.now());
       deps.commit();
       return { ok: true };
     }

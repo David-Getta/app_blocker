@@ -116,9 +116,15 @@ Ez érzékeny adat. Ezért:
 - **Telemetria SEHOL nincs.** Se hozzánk, se harmadik félhez, fiókkal sem.
 - A tárolás az adott platform védett, app-privát helyén történik (a desktopon a
   helper root/SYSTEM könyvtárában, mobilon az app-privát tárban).
-- A felhasználó **egy gombbal törölheti** a teljes előzményt, és **ki is
-  kapcsolhatja** a mérést. A mérés kikapcsolása nem próbatételes — ez nem
-  blokkolás-gyengítés, hanem a saját adatáról szóló döntés.
+- A felhasználó **egy gombbal törölheti** az előzményt, és **ki is
+  kapcsolhatja** a mérést. Egyik sem próbatételes — ez nem blokkolás-gyengítés,
+  hanem a saját adatáról szóló döntés. **Egy kivétel van, és pont ott, ahol a
+  mérésnek blokkolási következménye van:** amíg bármelyik oldalon áll napi
+  keret, a mérés nem kapcsolható ki, a törlés pedig a MAI napot meghagyja —
+  abból fogy a keret, tehát a mai adat törlése ingyen, korlátlanul újratöltené
+  (a keret EMELÉSE viszont próbatétel). A régebbi napok ilyenkor is törölhetők,
+  keret nélkül pedig minden. A megerősítő kérdés ezt kimondja, hogy a
+  megmaradó mai sor ne látsszon hibának.
 - Az URL-ekből **csak a domaint** tároljuk (`youtube.com`), a teljes címet, a
   lekérdezési paramétereket és az oldalcímet soha. A domaint a **regisztrálható
   szintre** redukáljuk, így egy oldal nem tud véletlen aldomainekkel korlátlan

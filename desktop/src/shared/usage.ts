@@ -71,6 +71,36 @@ export function emptyUsage(): UsageState {
   return { days: [], labels: {}, enabled: true };
 }
 
+/**
+ * A mérési előzmény törlése — a MAI napot meghagyva, ha kell.
+ *
+ * A törlés a saját adatra vonatkozik, tehát alapból ingyen van. EGY kivétellel:
+ * a napi keret a MAI mért időből fogy, tehát ha a törlés a mai napot is
+ * elviszi, a keret azonnal újratelik — és ez próbatétel nélküli LAZÍTÁS,
+ * korlátlanul ismételhetően. Ugyanaz a rés, ami miatt a mérés KIKAPCSOLÁSA is
+ * tiltott keret mellett; ott elhasalt egy kapun, itt viszont nem volt kapu.
+ *
+ * A múlt hetek törlése így is megy: csak a mai nap marad, és csak amíg van
+ * beállított keret.
+ */
+export function clearUsage(state: UsageState, keepToday: boolean, now: number): UsageState {
+  const next = emptyUsage();
+  next.enabled = state.enabled;
+  if (!keepToday) return next;
+  const key = dayKey(now);
+  const today = state.days.find((d) => d.day === key);
+  if (!today) return next;
+  next.days = [{ day: today.day, seconds: { ...today.seconds } }];
+  // A címkékből csak az marad, amire a mai nap hivatkozik: a többi a törölt
+  // napoké, és nélkülük a statisztika a kulcsot mutatná — de azok a napok
+  // amúgy sincsenek már meg.
+  for (const k of Object.keys(today.seconds)) {
+    const label = state.labels[k];
+    if (label !== undefined) next.labels[k] = label;
+  }
+  return next;
+}
+
 // ------------------------------------------------------------------- keys
 
 export function siteKey(domain: string): string {

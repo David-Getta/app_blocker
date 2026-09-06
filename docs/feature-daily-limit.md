@@ -82,14 +82,22 @@ limitExhausted(site, usage, now):
     vissza: használt >= site.dailyLimitSeconds
 ```
 
-Két dolog, ami első ránézésre nem nyilvánvaló:
+Három dolog, ami első ránézésre nem nyilvánvaló:
 
 1. **A mérés lehet kikapcsolva.** Ilyenkor nincs adat, tehát a keret nem tudna
    fogyni — ez csendes megkerülés lenne. Ha van bármelyik oldalon keret, a
    mérést nem lehet kikapcsolni; a felület ezt írja is ki. (A kikapcsolás
    egyébként ingyenes marad, mert az a saját adat — de itt már blokkolási
    következménye van.)
-2. **A desktop mérő a GUI-ban fut**, tehát a keret csak akkor fogy, amíg a Breaker
+2. **A mérés TÖRLÉSE ugyanez volt, kapu nélkül.** A keret a MAI mért időből
+   fogy, a „Statisztika törlése” gomb viszont a mai vödröt is elvitte: a keret
+   ezzel ingyen, korlátlanul újratöltődött, miközben az EMELÉSE próbatétel. Ez
+   valódi kiskapu volt, a v0.4.28-ban zárva: a törlés a régebbi napokat viszi,
+   a MAI nap adata pedig megmarad, amíg van beállított keret. A felület ezt
+   kimondja a megerősítő kérdésben (gépen és telefonon is). Kapu nélküli
+   „mindent törlök” nincs többé; keret nélkül viszont továbbra is mindent visz,
+   mert az a saját adat.
+3. **A desktop mérő a GUI-ban fut**, tehát a keret csak akkor fogy, amíg a Breaker
    fut. Ez őszintén kiírandó a felületen; a helper enélkül nem tud a fogyásról.
    (Alternatíva később: a helper is számolhatna, ha kap egy „még mindig aktív”
    jelzést.)
@@ -110,7 +118,10 @@ Mindegyik megvan, mindkét magban (`desktop/test/limits.test.ts`,
 - Éjfél után újraindul (a napi vödör vált), és más oldal ideje nem számít bele.
 - A keret csökkentése azonnal érvényes, az emelése próbatételhez kötött —
   és az emelés csak a próbasorozat végén lép életbe, feladáskor sosem.
-- A keret nem kerülhető meg a mérés kikapcsolásával.
+- A keret nem kerülhető meg a mérés kikapcsolásával — sem a törlésével: a mai
+  vödör keret mellett a törlés után is megvan, és az oldal zárva marad. A
+  gépen ez a segéd socketjén át is mérve van (`helper-hardening.test.ts`), nem
+  csak a magban.
 - Az elfogyott keret tényleg bekerül a blokklistába (hosts fájl, illetve
   `blockedHostnamesNow`), nem csak a felületen látszik.
 - A meglévő véletlenszerű interakció-teszt invariánsai a kerettel is állnak.

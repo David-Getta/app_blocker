@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import * as assert from 'node:assert/strict';
 import {
-  emptyUsage, recordSample, pruneOld, dayKey, dayKeysBack, totalsForDays,
+  emptyUsage, clearUsage, recordSample, pruneOld, dayKey, dayKeysBack, totalsForDays,
   rank, sumOf, series, totalSeries, weekOverWeek, summarize, formatDuration,
   siteKey, appKey, kindOf, idOf, labelOf,
   RETENTION_DAYS, MAX_RECORD_SECONDS, MAX_TARGETS_PER_DAY, MAX_LABEL_LENGTH,
@@ -310,4 +310,40 @@ test('formatDuration is human readable in Hungarian', () => {
   assert.equal(formatDuration(3600), '1 ó');
   assert.equal(formatDuration(2 * 3600 + 15 * 60), '2 ó 15 p');
   assert.equal(formatDuration(-5), '0 mp', 'negatives clamp to zero');
+});
+
+// ------------------------------------- a mérés törlése és a napi keret
+
+test('a törlés a mai napot meghagyja, ha van keret — különben mindent visz', () => {
+  let u = emptyUsage();
+  recordSample(u, siteKey('youtube.com'), 900, NOW, 'YouTube');
+  recordSample(u, siteKey('reddit.com'), 300, daysAgo(NOW, 3), 'Reddit');
+  assert.equal(u.days.length, 2);
+
+  // Keret mellett: a MAI nap marad, a régebbi napok mennek. Enélkül a
+  // Törlés gomb egy korlátlan, próbatétel nélküli keret-újratöltés lenne.
+  const kept = clearUsage(u, true, NOW);
+  assert.deepEqual(kept.days.map((d) => d.day), [dayKey(NOW)]);
+  assert.equal(kept.days[0].seconds[siteKey('youtube.com')], 900);
+  assert.equal(kept.labels[siteKey('youtube.com')], 'YouTube');
+  assert.equal(kept.labels[siteKey('reddit.com')], undefined, 'a törölt napok címkéi is mennek');
+
+  // Keret nélkül a saját adatáról a felhasználó dönt: minden törlődik.
+  const all = clearUsage(u, false, NOW);
+  assert.deepEqual(all.days, []);
+  assert.deepEqual(all.labels, {});
+
+  // A mérés ki/be állása mindkét ágon megmarad — a törlés nem kapcsol be
+  // semmit, amit a felhasználó kikapcsolt.
+  u = emptyUsage();
+  u.enabled = false;
+  assert.equal(clearUsage(u, true, NOW).enabled, false);
+  assert.equal(clearUsage(u, false, NOW).enabled, false);
+});
+
+test('a törlés a mai nap nélkül is működik (ma még nem mértünk)', () => {
+  const u = emptyUsage();
+  recordSample(u, siteKey('youtube.com'), 600, daysAgo(NOW, 2));
+  const kept = clearUsage(u, true, NOW);
+  assert.deepEqual(kept.days, [], 'nincs mai sor, amit meg kellene tartani');
 });

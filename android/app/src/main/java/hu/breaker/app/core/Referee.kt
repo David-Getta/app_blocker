@@ -372,6 +372,19 @@ object Referee {
         }
     }
 
+    /**
+     * A mérési előzmény törlése. A MAI NAP MARAD, amíg van beállított napi
+     * keret: abból fogy a keret, tehát a mai adat törlése azonnal újratöltené
+     * — próbatétel nélkül, korlátlanul. A régebbi napok törlése így is megy.
+     * (A desktop helper `usage_clear` ágának tükre.)
+     */
+    fun clearUsage(now: Long) {
+        BreakerStore.mutate { state ->
+            val hasLimit = state.sites.any { LimitLogic.normalizeLimit(it.dailyLimitSeconds) != null }
+            state.copy(usage = UsageLogic.clearUsage(state.usage, hasLimit, now))
+        }
+    }
+
     private fun requireSession(state: AppState, sessionId: String, now: Long): SessionRec {
         val s = state.session
         if (s == null || s.id != sessionId) {

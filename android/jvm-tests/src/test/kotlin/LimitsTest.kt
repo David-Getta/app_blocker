@@ -226,6 +226,35 @@ class LimitsTest {
         assertFalse(BreakerStore.state.value.usage.enabled)
     }
 
+    @Test fun `clearing the stats cannot refill today's budget`() {
+        // EZ VOLT A KISKAPU: a keret a mai mért időből fogy, a Törlés gomb
+        // viszont a mai vödröt is elvitte — vagyis a keret nullázása ingyen
+        // ment, akárhányszor, miközben az EMELÉSE próbatétel.
+        val id = addSite("youtube.com", limit = 600)
+        BreakerStore.mutate { s ->
+            val u = UsageLogic.snapshot(s.usage)
+            UsageLogic.recordSample(u, UsageLogic.siteKey("youtube.com"), 900.0, now, "YouTube")
+            UsageLogic.recordSample(u, UsageLogic.siteKey("reddit.com"), 300.0, now - 3 * 86_400_000L)
+            s.copy(usage = u)
+        }
+        assertTrue(LimitLogic.isBlockedNowWithLimit(siteById(id), BreakerStore.state.value.usage, now,
+            null, null), "a keret betelt, az oldal zárva")
+
+        Referee.clearUsage(now)
+        val after = BreakerStore.state.value.usage
+        assertEquals(listOf(UsageLogic.dayKey(now)), after.days.map { it.day }, "csak a mai nap maradt")
+        assertEquals(900.0, after.days[0].seconds[UsageLogic.siteKey("youtube.com")])
+        assertTrue(LimitLogic.isBlockedNowWithLimit(siteById(id), after, now, null, null),
+            "a törlés után is zárva: a mai mért idő megmaradt")
+
+        // Keret nélkül a saját adatáról a felhasználó dönt (a keret levétele
+        // maga próbatételbe kerül — fentebb tesztelve).
+        Referee.startLimitChange(id, null, now)
+        solveSession()
+        Referee.clearUsage(now)
+        assertTrue(BreakerStore.state.value.usage.days.isEmpty(), "keret nélkül minden törlődik")
+    }
+
     @Test fun `an exhausted budget actually pulls the hostnames into the blocklist`() {
         val id = addSite("youtube.com", limit = 600)
         BreakerStore.mutate { s ->

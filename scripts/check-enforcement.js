@@ -326,6 +326,28 @@ const WIRES = [
     lost: 'a hibalapon mért percek a statisztikába és a napi keretbe folynának '
       + '— a mérés hazudna, a keret magától fogyna',
   },
+  // A MÉRÉS TÖRLÉSE ÉS A KERET. A keret a MAI mért időből fogy, tehát a mai
+  // vödör törlése azonnal újratölti — próbatétel nélkül, korlátlanul. A mérés
+  // KIKAPCSOLÁSA emiatt régóta tiltott keret mellett; a törlés viszont kapu
+  // nélkül állt, és pontosan ugyanezt tudta. A kapu mindkét magban egy hívás,
+  // amit semmi más nem fogna ki.
+  {
+    file: 'desktop/src/helper/server.ts',
+    needle: 'clearUsage(state.usage, hasLimit,',
+    lost: 'a „Statisztika törlése” gomb ingyen, akárhányszor újratöltené a napi '
+      + 'keretet — miközben a keret emelése próbatétel',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/Referee.kt',
+    needle: 'UsageLogic.clearUsage(state.usage, hasLimit, now)',
+    lost: 'a telefonon a Törlés gomb ingyen újratöltené a napi keretet',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/AppUi.kt',
+    needle: 'Referee.clearUsage(',
+    lost: 'a Törlés gomb a kapu MELLETT törölne — a keret megint ingyen '
+      + 'újratöltődne',
+  },
   // A MAI NAP KÜLÖN LISTÁJA. A mag régóta kiszámolta (`topToday`), csak épp
   // senki nem kérdezte meg — a felhasználó kérte ki magának a funkciót.
   {

@@ -210,6 +210,7 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
     var aliasSite by remember { mutableStateOf<Site?>(null) }
     var rulesSite by remember { mutableStateOf<Site?>(null) }
     var flowError by remember { mutableStateOf<String?>(null) }
+    var confirmUsageClear by remember { mutableStateOf(false) }
 
     // Ideiglenes felfedés oldalanként: meddig látszik a valódi cím. Szándékosan
     // nem mentjük — az app újranyitása után megint a fedőnév áll ott.
@@ -642,12 +643,8 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                         flowError = e.message
                     }
                 },
-                onClear = {
-                    BreakerStore.mutate { s ->
-                        val keep = s.usage.enabled
-                        s.copy(usage = UsageLogic.UsageState(enabled = keep))
-                    }
-                },
+                // A törlés visszavonhatatlan: kérdezünk előtte, ahogy a gépen is.
+                onClear = { confirmUsageClear = true },
             )
 
             SyncCard(state, scope, siteLabel)
@@ -669,6 +666,29 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                 textAlign = TextAlign.Center,
             )
         }
+    }
+
+    // A mérési előzmény törlése — kérdéssel, mert nem vonható vissza. A MAI
+    // nap keret mellett megmarad; ezt kimondjuk, különben a megmaradó mai sor
+    // hibának látszana.
+    if (confirmUsageClear) {
+        AlertDialog(
+            onDismissRequest = { confirmUsageClear = false },
+            title = { Text("Törlöd a mérési előzményt?") },
+            text = {
+                Text(
+                    "Ez nem vonható vissza. Ha van beállított napi időkeret, "
+                        + "a MAI nap adata megmarad — abból fogy a keret."
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmUsageClear = false
+                    Referee.clearUsage(System.currentTimeMillis())
+                }) { Text("Törlés") }
+            },
+            dismissButton = { TextButton(onClick = { confirmUsageClear = false }) { Text("Mégse") } },
+        )
     }
 
     // Pause length dialog

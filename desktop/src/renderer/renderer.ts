@@ -3627,7 +3627,13 @@ function setupStats(): void {
     setTimeout(() => { btn.textContent = original; }, 2000);
   });
   $('usageClear').addEventListener('click', async () => {
-    if (!confirm('Biztosan törlöd a teljes mérési előzményt? Ez nem vonható vissza.')) return;
+    // A MAI nap kimarad a törlésből, amíg van beállított napi keret — ezt ki
+    // is mondjuk, mert egy „mindent törlök” ígéret után egy megmaradó mai sor
+    // hibának látszana. Nem az: abból fogy a keret.
+    if (!confirm(
+      'Biztosan törlöd a mérési előzményt? Ez nem vonható vissza. '
+      + 'Ha van beállított napi időkeret, a MAI nap adata megmarad — abból fogy a keret.',
+    )) return;
     try {
       await call('usage_clear');
       await refreshStats();

@@ -489,3 +489,41 @@ test('focus_recurrence: az ablak felvétele átmegy a segéden, az érvénytelen
   assert.equal(bad.ok, false);
   assert.match(bad.error ?? '', /legalább egy nap/);
 });
+
+test('usage_clear nem tölti újra a napi keretet — a mai nap marad', async () => {
+  // EZ VOLT A KISKAPU: a keret a mai mért időből fogy, a törlés gombja
+  // viszont a mai vödröt is elvitte. Vagyis a keret nullázása ingyen ment,
+  // tetszőleges sokszor — miközben a keret EMELÉSE próbatétel.
+  const now = Date.now();
+  state.sites.push({
+    id: 'kerets1', domain: 'keret.example', hostnames: ['keret.example'],
+    addedAt: now, pauseUntil: null, pendingDeleteAt: null, dailyLimitSeconds: 600,
+  });
+  await call('usage_batch', {
+    samples: [{ key: 'site:keret.example', label: 'keret', seconds: 900, at: now }],
+  });
+  const todaySeconds = (): number => {
+    const day = state.usage.days.find((d) => d.day === dayKeyOf(now));
+    return day ? Object.values(day.seconds).reduce((a, b) => a + b, 0) : 0;
+  };
+  const before = todaySeconds();
+  assert.ok(before > 0, 'a mai vödörben van mért idő');
+
+  const res = await call('usage_clear');
+  assert.equal(res.ok, true);
+  assert.equal(todaySeconds(), before, 'a mai mért idő nem nullázódott');
+  assert.deepEqual(state.usage.days.map((d) => d.day), [dayKeyOf(now)],
+    'a régebbi napok viszont törlődtek');
+
+  // A keret levétele után a saját adatáról a felhasználó dönt: a levétel maga
+  // próbatételbe kerül (máshol tesztelve), utána a törlés mindent visz.
+  state.sites = state.sites.filter((s) => s.id !== 'kerets1');
+  assert.equal((await call('usage_clear')).ok, true);
+  assert.equal(state.usage.days.length, 0, 'keret nélkül minden törlődik');
+});
+
+/** `YYYY-MM-DD` helyi idő szerint — a segéd `dayKey`-ének párja. */
+function dayKeyOf(ms: number): string {
+  const d = new Date(ms);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
