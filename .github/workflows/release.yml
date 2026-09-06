@@ -55,7 +55,10 @@ jobs:
           másik gép ugyanabban a körben mást írt az oldalra. Most minden
           felvétel és levétel jelet kap, és nevenként a frissebb jel dönt: a
           kifizetett levétel nem vész el, a másik gép ingyenes felvétele sem.
-          Frissítsd mindkét gépet — a régi verzió a jelet nem ismeri.
+          A munkamenet-csomagok ugyanígy, csomagonként: egy versenyben a gépen
+          frissen felvett heti ablak nem tűnik el attól, hogy a telefon
+          ugyanabban a körben elindított egy menetet. Frissítsd minden
+          eszközöd — a régi verzió a jelet nem ismeri.
 
           **Az ablak az ígéret.** Egy másik csomag kézi menete eddig az egész
           heti ablakot kiválthatta (8:59-kor indítva, nyolc órára). Most a
