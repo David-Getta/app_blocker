@@ -124,11 +124,13 @@ jobs:
       - run: gradle test --no-daemon
 
   ios-build:
-    name: iOS fordítás (aláírás nélkül)
+    name: iOS fordítás (aláírás nélkül) + Swift-tesztek
     runs-on: macos-latest
     # A Swift magot eddig CSAK a kiadási munkafolyamat fordította — vagyis egy
     # fordítási hiba napokig bent maradhatott, és csak kiadáskor derült volna
-    # ki. Ez a job minden push-nál lefordítja, aláírás nélkül.
+    # ki. Ez a job minden push-nál lefordítja, aláírás nélkül — és lefuttatja a
+    # Swift mag tesztjeit is (ios/Package.swift, SharedTests/): a tükör
+    # szabályai eddig csak fordultak, most futnak is.
     steps:
       - uses: actions/checkout@v4
       - run: brew install xcodegen
@@ -142,6 +144,9 @@ jobs:
             -destination 'generic/platform=iOS Simulator' \
             -configuration Debug build \
             CODE_SIGNING_ALLOWED=NO | tail -40
+      - name: Swift-tesztek (a mag, macOS-en)
+        working-directory: ios
+        run: swift test 2>&1 | tail -60
 
   android-build:
     name: Android build (assembleDebug)

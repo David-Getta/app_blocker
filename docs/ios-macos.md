@@ -43,3 +43,21 @@ A tiltás minden appban és böngészőben él, **privát módban is**.
 A `Shared/` mappa (`Blocklist.swift`, `ChallengeEngine.swift`, `Referee.swift`,
 `Store.swift`, `DnsEngine.swift`) a közös logika Swift változata, ugyanazzal az
 algoritmussal, mint a TypeScript (tesztelt) és Kotlin (JVM-en tesztelt) mag.
+
+### Tesztek: `swift test`
+A Swift mag sokáig CSAK fordult a CI-ban — egyetlen tesztje sem futott le
+soha, miközben a másik két nyelvnek több száz volt. Egy tükör, ami csak
+fordul, nem tükör. Az `ios/Package.swift` ugyanezt a `Shared/` mappát
+könyvtárként fordítja (az appot és az alagutat továbbra is az XcodeGen-projekt
+építi), a `SharedTests/` mappa tesztjei pedig macOS-en futnak:
+
+```sh
+cd ios && swift test
+```
+
+A CI iOS-jobja minden push-nál futtatja. Ami ott van: az összefésülések
+tükör-tesztjei (`FocusSyncTests`, `SyncMergeTests` — ugyanazok az esetek, mint a
+gépen és Androidon), és egy véletlen magú fuzz (`MergeFuzzTests`) UGYANAZZAL a
+véletlennel, mint a gépé: három eszköz bármilyen sorrendben ugyanoda jut. Ha a
+Swift tükör egy szabályban elcsúszik a másik kettőtől, itt bukik, nem egy
+felhasználó telefonján.

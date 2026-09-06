@@ -22,6 +22,9 @@ xcuserdata/
 !ios/README.md
 *.ipa
 Pods/
+# SwiftPM (ios/Package.swift — a Swift mag tesztjei)
+ios/.build/
+ios/.swiftpm/
 
 # Egyéb
 .DS_Store
