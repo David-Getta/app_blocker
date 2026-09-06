@@ -84,9 +84,29 @@ Ezért:
   nagyobb revnél a kétszer író gép egyben hozta a régi listáját. A jel a
   névhez tartozik, nem a rekordhoz, ezért egyik sem történhet meg. A jelet a
   gép segédje írja a `commit()` eleji léptetésben, a lista változásából; a
-  telefon jelet nem ír, csak hordozza és fésüli. Egy régebbi kliens a jelet
-  nem ismeri, és egyesít — amíg a fiókban ilyen is van, a levett név oda-vissza
-  járhat: frissítés után rendeződik.
+  telefon jelet nem ír, csak hordozza és fésüli. A jelek plafonja 64
+  oldalanként: a jelen lévő nevek jele mindig marad, a levettekből a
+  legfrissebbek; egy jó rekordban a jel sosem nagyobb a rekord `rev`-jénél,
+  a nagyobbat a bemenet eldobja. Egyenlő pozitív jelnél a jelenlét nyer —
+  ez sorrendtől független, és sosem lazább.
+- **Vegyes flotta — kimondott korlát.** Egy régebbi kliens a jelet nem
+  ismeri, és egyenlő változatnál egyesít. Amíg a fiókban ilyen is van, egy
+  új gépen kifizetett levétel oda-vissza járhat (a régi gép körönként
+  visszateszi, az új leveszi — a szerver verziója nő, a `rev` nem), a régi
+  gép fizetett levételét az új gép jele felülírhatja, és a régi gép ingyenes
+  visszavétele az új gépen sosem landol. Blokkolás egyik oldalon sem vész
+  el (mindegyik a saját, szigorúbb vagy kifizetett listáját tartja), de a
+  régi gép próbatétele hiába. A hurok megáll, amint a régi kliens frissül —
+  ezért érdemes minden gépet egyszerre frissíteni.
+- **A munkamenet-csomagok ugyanígy, csomagonként.** A csomaglista egy
+  blobban utazik, és a blob `rev`-jét a telefon egy menet indításával is
+  lépteti; jel nélkül egy azonos rev-ű, frissebb telefon-blob egyben hozta
+  a régi listáját, és a gépen frissen felvett ablak csendben eltűnt. Most
+  minden csomag felvétele, szerkesztése és törlése jelet kap (`packMarks`,
+  azonosító → blob-rev), csomagonként a nagyobb jel dönt, jel nélkül az
+  újabb blob — ahogy eddig. A gép segédje írja a `commit()` eleji
+  léptetésben, a csomagok lenyomatából; egy menet indítása léptet, de
+  csomagot nem jelöl.
 
 Mit jelent „szigorúbb”:
 

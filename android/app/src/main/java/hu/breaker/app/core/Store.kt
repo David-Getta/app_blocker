@@ -176,6 +176,12 @@ data class AppState(
     /** a lenyomat, amiből kiderül, hogy változott-e (lásd SyncRevisions) */
     val focusRevFp: String? = null,
     /**
+     * A csomagok jelei (azonosító → az a blob-rev, amelyik felvette,
+     * szerkesztette vagy törölte) — a telefon nem ír ilyet, de HORDOZZA, hogy
+     * a gépen felvett ablak ne tűnjön el egy versenyben. Lásd FocusSync.
+     */
+    val focusPackMarks: Map<String, Int>? = null,
+    /**
      * Miért nem sikerült a munkamenet szinkronja — vagy null, ha sikerült.
      *
      * NEM MENTJÜK a lemezre: átmeneti állapot, a következő kör újraszámolja.
@@ -501,6 +507,7 @@ object BreakerStore {
         put("focusUpdatedAt", s.focusUpdatedAt)
         put("focusUpdatedBy", s.focusUpdatedBy ?: JSONObject.NULL)
         put("focusRevFp", s.focusRevFp ?: JSONObject.NULL)
+        put("focusPackMarks", s.focusPackMarks?.let { JSONObject(it) } ?: JSONObject.NULL)
         put("lastCombo", s.lastCombo ?: JSONObject.NULL)
         put("abandons", JSONArray(s.abandons.map { a ->
             JSONObject().apply {
@@ -738,6 +745,7 @@ object BreakerStore {
             focusUpdatedAt = o.optLong("focusUpdatedAt", 0),
             focusUpdatedBy = if (o.isNull("focusUpdatedBy")) null else o.optString("focusUpdatedBy"),
             focusRevFp = if (o.isNull("focusRevFp")) null else o.optString("focusRevFp"),
+            focusPackMarks = SyncClient.marksFromJson(o, "focusPackMarks"),
         )
     }
 

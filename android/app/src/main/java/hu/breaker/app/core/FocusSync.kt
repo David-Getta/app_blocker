@@ -45,6 +45,13 @@ object FocusSync {
         val rev: Long = 0,
         val updatedAt: Long = 0,
         val updatedBy: String = "",
+        /**
+         * A csomagok JELEI: azonosító → a blob rev-je, amelyik a csomagot
+         * utoljára felvette, szerkesztette vagy törölte (a törölt csomag jele
+         * marad, a csomag nincs a listán). Csomagonként a nagyobb jel dönt;
+         * jel nélkül az újabb blob. A telefon jelet nem ír. Lásd `mergePacks`.
+         */
+        val packMarks: Map<String, Int>? = null,
     )
 
     /**
@@ -56,15 +63,44 @@ object FocusSync {
      */
     fun merge(local: SyncFocus, incoming: SyncFocus): SyncFocus {
         val newer = pickNewer(local, incoming)
+        val older = if (newer === local) incoming else local
+        val (packs, packMarks) = mergePacks(newer, older)
         return SyncFocus(
-            packs = newer.packs,
+            packs = packs,
             run = mergeRun(local, incoming),
             // EGYESÍTÉS, nem választás: lásd a `log` mező magyarázatát.
             log = mergeLog(local.log, incoming.log),
             rev = maxOf(local.rev, incoming.rev),
             updatedAt = maxOf(local.updatedAt, incoming.updatedAt),
             updatedBy = newer.updatedBy,
+            packMarks = packMarks,
         )
+    }
+
+    /**
+     * A csomagok CSOMAGONKÉNT fésülődnek, a jelük szerint: a nagyobb jelnél
+     * álló állapot (ez a változat, vagy nincs) marad; egyenlő jelnél (a jel
+     * nélküli csomag is ilyen) az újabb blob állapota, ahogy eddig. A sorrend
+     * az újabb blobé, a csak a régebbin élő csomagok a végére. A telefon jelet
+     * nem ír, csak hordozza és fésüli. A merge.ts `mergePacks` tükre.
+     */
+    private fun mergePacks(newer: SyncFocus, older: SyncFocus): Pair<List<Focus.FocusPack>, Map<String, Int>?> {
+        val nm = newer.packMarks ?: emptyMap()
+        val om = older.packMarks ?: emptyMap()
+        val ids = LinkedHashSet<String>()
+        newer.packs.forEach { ids.add(it.id) }
+        older.packs.forEach { ids.add(it.id) }
+        ids.addAll(nm.keys); ids.addAll(om.keys)
+        val packs = ArrayList<Focus.FocusPack>()
+        val marks = LinkedHashMap<String, Int>()
+        for (id in ids) {
+            val mn = nm[id] ?: 0
+            val mo = om[id] ?: 0
+            val chosen = if (mo > mn) older.packs.firstOrNull { it.id == id } else newer.packs.firstOrNull { it.id == id }
+            if (chosen != null && packs.size < MAX_PACKS) packs.add(chosen)
+            if (maxOf(mn, mo) > 0) marks[id] = maxOf(mn, mo)
+        }
+        return packs to (if (marks.isEmpty()) null else marks)
     }
 
     /**
@@ -187,7 +223,9 @@ object FocusSync {
         val log = f.log.joinToString("|") {
             "${it.packId};${it.startedAt};${it.endedAt};${it.plannedEndsAt};${it.stopped}"
         }
-        return "$packs//$run//$log//${f.rev}"
+        // A jelek is: ha csak ők különböznek, akkor is fel kell menniük.
+        val marks = (f.packMarks ?: emptyMap()).toSortedMap().entries.joinToString(",") { "${it.key}=${it.value}" }
+        return "$packs//$run//$log//$marks//${f.rev}"
     }
 
     /**

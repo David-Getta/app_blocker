@@ -16,6 +16,9 @@
 
 import * as crypto from 'crypto';
 import type { HelperState, SiteRec } from './state';
+import type { FocusPack } from '../shared/focus';
+import { capHostnameMarks } from '../shared/sync/merge';
+import { MAX_PACK_MARKS } from '../shared/sync/focus-merge';
 
 /**
  * Amit a szinkron lát egy rekordból.
@@ -156,7 +159,11 @@ export function bumpFocusRevision(
   state: HelperState, deviceId: string, now: number,
 ): boolean {
   const fp = focusFingerprint(state);
-  if (state.focusRevFp === fp) return false;
+  if (state.focusRevFp === fp) {
+    // Frissítés utáni első kör: a csomagok lenyomata még nincs eltéve — innentől van.
+    if (!state.focusRevPacks) state.focusRevPacks = packFingerprints(state);
+    return false;
+  }
 
   // FORMÁTUMVÁLTÁS. A lemezen még a régi alakú lenyomat van; ettől önmagában
   // nem történt semmi. A régi algoritmussal döntjük el, volt-e valódi
@@ -194,11 +201,55 @@ export function bumpFocusRevision(
   state.focusUpdatedAt = now;
   state.focusUpdatedBy = deviceId;
   state.focusRevFp = fp;
+  markPacks(state);
   return true;
 }
 
 function isEmptyFocus(state: HelperState): boolean {
   return (state.focusPacks ?? []).length === 0 && !state.focusRun;
+}
+
+/** Egy csomag lenyomata a jelekhez: ami a beállítása, sorrend nélkül. */
+function packFingerprint(p: FocusPack): string {
+  return JSON.stringify([
+    p.name, [...p.allowSites].sort(), [...p.allowApps].sort(), p.defaultMinutes,
+    p.recurrence ? [[...p.recurrence.days].sort(), p.recurrence.startMin, p.recurrence.endMin] : null,
+  ]);
+}
+
+function packFingerprints(state: HelperState): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const p of state.focusPacks ?? []) out[p.id] = packFingerprint(p);
+  return out;
+}
+
+/**
+ * A csomagok jelei: ami az utolsó léptetés óta bekerült, változott vagy
+ * kikerült, az ezt a blob-revet kapja. A szinkron ebből tudja csomagonként,
+ * melyik eszköz mondta az újabbat (shared/sync/focus-merge.ts, `mergePacks`).
+ * Egy fogópont, mint a hosztneveknél; a menet indítása is léptet, de attól
+ * egy csomag jele sem változik. Az első léptetés (nincs még eltett lenyomat)
+ * jel nélkül megy — a régi kliens szabálya áll rá.
+ */
+function markPacks(state: HelperState): void {
+  const prev = state.focusRevPacks;
+  const cur = packFingerprints(state);
+  state.focusRevPacks = cur;
+  if (!prev || state.focusRev === undefined) return;
+  const marks = { ...(state.focusPackMarks ?? {}) };
+  for (const [id, f] of Object.entries(cur)) if (prev[id] !== f) marks[id] = state.focusRev;
+  for (const id of Object.keys(prev)) if (!(id in cur)) marks[id] = state.focusRev;
+  // Korlát: a törölt csomagok jelei gyűlnek; a legrégebbiek esnek ki.
+  const entries = Object.entries(marks);
+  if (entries.length > MAX_PACK_MARKS) {
+    const gone = entries.filter(([id]) => !(id in cur)).sort((x, y) => x[1] - y[1]);
+    for (const [id] of gone) {
+      if (Object.keys(marks).length <= MAX_PACK_MARKS) break;
+      delete marks[id];
+    }
+  }
+  if (Object.keys(marks).length > 0) state.focusPackMarks = marks;
+  else delete state.focusPackMarks;
 }
 
 /**
@@ -210,6 +261,7 @@ function isEmptyFocus(state: HelperState): boolean {
  */
 export function adoptFocusRevision(state: HelperState): void {
   state.focusRevFp = focusFingerprint(state);
+  state.focusRevPacks = packFingerprints(state);
 }
 
 /**
@@ -263,9 +315,6 @@ export function adoptRevision(site: SiteRec): SiteRec {
   return { ...site, revFp: fingerprint(site), revHosts: [...site.hostnames] };
 }
 
-/** Ennyi jelnél többet nem hordunk egy oldalon; a levett nevek jele a legrégebbitől esik ki. */
-const MAX_HOSTNAME_MARKS = 64;
-
 /**
  * A hosztnevek jelei: ami az utolsó léptetés óta bekerült vagy kikerült, az
  * ezt a rev-et kapja. A szinkron ebből tudja nevenként, melyik eszköz
@@ -286,16 +335,10 @@ function markHostnames(site: SiteRec): void {
   const marks = { ...(site.hostnameMarks ?? {}) };
   for (const h of after) if (!before.has(h)) marks[h] = site.rev;
   for (const h of before) if (!after.has(h)) marks[h] = site.rev;
-  // Korlát: a levett nevek jelei gyűlnek; a legrégebbiek esnek ki, a
-  // meglévő nevek jele marad.
-  const entries = Object.entries(marks);
-  if (entries.length > MAX_HOSTNAME_MARKS) {
-    const gone = entries.filter(([h]) => !after.has(h)).sort((x, y) => x[1] - y[1]);
-    for (const [h] of gone) {
-      if (Object.keys(marks).length <= MAX_HOSTNAME_MARKS) break;
-      delete marks[h];
-    }
-  }
-  if (Object.keys(marks).length > 0) site.hostnameMarks = marks;
+  // Korlát: ugyanaz a szabály, mint a fésülésnél és a bemeneten
+  // (`capHostnameMarks`) — a meglévő nevek jele marad, a levettekből a
+  // legfrissebbek.
+  const capped = capHostnameMarks(marks, site.hostnames);
+  if (capped) site.hostnameMarks = capped;
   else delete site.hostnameMarks;
 }

@@ -184,16 +184,42 @@ object SyncMerge {
             val mb = bm[h] ?: 0
             val inA = h in a.hostnames
             val inB = h in b.hostnames
+            // Egyenlő POZITÍV jelnél a jelenlét nyer (szigorúbb, és sorrendtől
+            // független); jel nélkül a rekord dönt, ahogy eddig.
             val present = when {
                 ma > mb -> inA
                 mb > ma -> inB
+                ma > 0 -> inA || inB
                 a.rev != b.rev -> if (a.rev > b.rev) inA else inB
                 else -> inA || inB
             }
             if (present) hostnames.add(h)
             if (maxOf(ma, mb) > 0) marks[h] = maxOf(ma, mb)
         }
-        return merged.copy(hostnames = hostnames, hostnameMarks = if (marks.isEmpty()) null else marks)
+        return merged.copy(hostnames = hostnames, hostnameMarks = capHostnameMarks(marks, hostnames))
+    }
+
+    /** Ennél több hosztnév-jelet nem hordunk egy oldalon. */
+    const val MAX_HOSTNAME_MARKS = 64
+
+    /**
+     * A jelek plafonja — EGY szabály a fésülésre és a bemenetre: a jelen lévő
+     * nevek jele mindig marad, a levett nevekből a legnagyobb jelűek férnek
+     * be. Üresen null. A merge.ts `capHostnameMarks` tükre.
+     */
+    fun capHostnameMarks(marks: Map<String, Int>, hostnames: List<String>): Map<String, Int>? {
+        if (marks.isEmpty()) return null
+        if (marks.size <= MAX_HOSTNAME_MARKS) return LinkedHashMap(marks)
+        val present = hostnames.toSet()
+        val out = LinkedHashMap<String, Int>()
+        for ((h, v) in marks) if (h in present) out[h] = v
+        val gone = marks.entries.filter { it.key !in present }
+            .sortedWith(compareByDescending<Map.Entry<String, Int>> { it.value }.thenBy { it.key })
+        for ((h, v) in gone) {
+            if (out.size >= MAX_HOSTNAME_MARKS) break
+            out[h] = v
+        }
+        return out
     }
 
     private fun withRules(winner: SyncSite, a: SyncSite, b: SyncSite): SyncSite {
@@ -297,12 +323,16 @@ object SyncMerge {
             if (mine == null) { byDomain[s.domain] = s; continue }
             val keep = if (mine.addedAt <= s.addedAt) mine else s
             val drop = if (keep === mine) s else mine
-            byDomain[s.domain] = mergeSite(keep, drop.copy(id = keep.id)).copy(
+            val merged = mergeSite(keep, drop.copy(id = keep.id))
+            // A hosztneveket EGYESÍTJÜK: ha az egyik eszközön a társoldalak
+            // is fel voltak véve, a másikon meg nem, az egyesítés a szigorúbb.
+            // Csak a JEL NÉLKÜLI nevekre: a jelesről a mergeSite már döntött.
+            val marks = merged.hostnameMarks ?: emptyMap()
+            val extra = (keep.hostnames + drop.hostnames).filter { it !in marks }
+            byDomain[s.domain] = merged.copy(
                 id = keep.id,
                 addedAt = minOf(keep.addedAt, drop.addedAt),
-                // A hosztneveket EGYESÍTJÜK: ha az egyik eszközön a társoldalak
-                // is fel voltak véve, a másikon meg nem, az egyesítés a szigorúbb.
-                hostnames = (keep.hostnames + drop.hostnames).distinct().sorted(),
+                hostnames = (merged.hostnames + extra).distinct().sorted(),
             )
         }
         return byDomain.values.sortedWith(SORT)

@@ -20,7 +20,7 @@ import {
   decrypt, encrypt, enroll, recoveryAuthKey, rewrapForNewPassword, subKey, rootKey,
   unlockWithPassword, unlockWithRecovery,
 } from '../shared/sync/crypto.js';
-import { mergeSiteLists, type SyncSite } from '../shared/sync/merge.js';
+import { capHostnameMarks, mergeSiteLists, type SyncSite } from '../shared/sync/merge.js';
 import { MAX_PAYLOAD_BYTES, SYNC_PROTOCOL } from '../shared/sync/protocol.js';
 import type { HelperState, SiteRec, SyncAccount } from './state';
 import {
@@ -324,31 +324,32 @@ export function normalizeIncomingSites(parsed: unknown): SyncSite[] {
     .map((s) => cleanSite(s));
 }
 
-/** Ennél több jelet nem veszünk át egy oldalhoz — a kiszolgáló nem hizlalhatja a rekordot. */
-const MAX_MARKS_ACCEPTED = 64;
-
 /**
- * A hosztnév-jelek kiegyenesítése: csak név → pozitív egész; ami más, kimarad;
- * üresen nincs mező (a hiányzó és az üres itt ugyanaz: nincs jel).
+ * A hosztnév-jelek kiegyenesítése: csak név → pozitív egész, legfeljebb a
+ * rekord rev-je (egy jó rekordban a jel sosem nagyobb nála — egy nagyobb
+ * jel csak a kulccsal írt szemét lehet, és örökre tiltaná a visszavételt);
+ * ami más, kimarad; a plafon ugyanaz, mint a fésülésnél. Üresen nincs mező
+ * (a hiányzó és az üres itt ugyanaz: nincs jel).
  */
-function cleanMarks(raw: unknown): Record<string, number> | undefined {
+function cleanMarks(raw: unknown, hostnames: string[], rev: number): Record<string, number> | undefined {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
   const out: Record<string, number> = {};
   for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
-    if (!k || typeof v !== 'number' || !Number.isInteger(v) || v <= 0) continue;
+    if (!k || typeof v !== 'number' || !Number.isInteger(v) || v <= 0 || v > rev) continue;
     out[k] = v;
-    if (Object.keys(out).length >= MAX_MARKS_ACCEPTED) break;
   }
-  return Object.keys(out).length > 0 ? out : undefined;
+  return capHostnameMarks(out, hostnames);
 }
 
 /** Egy szinkron-rekord kanonikus alakja: fix mezők, fix sorrend. */
 function cleanSite(s: Record<string, unknown>): SyncSite {
-  const marks = cleanMarks(s.hostnameMarks);
+  const hostnames = Array.isArray(s.hostnames) ? (s.hostnames as string[]) : [];
+  const rev = Number.isFinite(s.rev) ? (s.rev as number) : 1;
+  const marks = cleanMarks(s.hostnameMarks, hostnames, rev);
   return {
     id: s.id as string,
     domain: s.domain as string,
-    hostnames: Array.isArray(s.hostnames) ? (s.hostnames as string[]) : [],
+    hostnames,
     ...(marks ? { hostnameMarks: marks } : {}),
     addedAt: Number.isFinite(s.addedAt) ? (s.addedAt as number) : 0,
     pauseUntil: null,
@@ -505,6 +506,9 @@ async function syncFocusRound(
       // A `logRunEndedElsewhere` FÖLÖTTE fut, szándékosan: az a sor, amit ő ír,
       // már benne kell legyen abban, amit legközelebb feltöltünk.
       state.focusLog = mergeLog(merged.log, state.focusLog ?? []);
+      // A jelek az összefésülés eredményéből: a helyi, régebbi jel nem
+      // maradhat meg egy már eldőlt csomag mellett.
+      state.focusPackMarks = merged.packMarks;
       state.focusRev = merged.rev;
       state.focusUpdatedAt = merged.updatedAt;
       state.focusUpdatedBy = merged.updatedBy;
@@ -647,6 +651,7 @@ function localFocus(state: HelperState, deviceId: string): SyncFocus {
     packs: state.focusPacks ?? [],
     run: state.focusRun ?? null,
     log: state.focusLog ?? [],
+    ...(state.focusPackMarks ? { packMarks: state.focusPackMarks } : {}),
     rev: state.focusRev ?? 0,
     updatedAt: state.focusUpdatedAt ?? 0,
     updatedBy: state.focusUpdatedBy ?? deviceId,

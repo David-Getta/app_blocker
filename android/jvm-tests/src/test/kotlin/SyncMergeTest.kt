@@ -3,6 +3,7 @@ import hu.breaker.app.core.SyncMerge
 import hu.breaker.app.core.SyncMerge.SyncSite
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -215,5 +216,25 @@ class SyncMergeTest {
         val m = SyncMerge.mergeSite(plain, legacy)
         assertEquals(listOf("m.youtube.com", "youtube.com"), m.hostnames)
         assertEquals(null, m.hostnameMarks)
+    }
+
+    @Test fun `equal positive marks with opposite presence keep the name, whatever the rev`() {
+        // Sorrendtől független, és sosem lazább: a jelenlét nyer.
+        val gone = site(rev = 9, hostnames = listOf("youtube.com")).copy(hostnameMarks = mapOf("music.youtube.com" to 4))
+        val here = site(rev = 4, hostnames = listOf("music.youtube.com", "youtube.com"), updatedBy = "telefon")
+            .copy(hostnameMarks = mapOf("music.youtube.com" to 4))
+        assertEquals(listOf("music.youtube.com", "youtube.com"), SyncMerge.mergeSite(gone, here).hostnames)
+        assertEquals(listOf("music.youtube.com", "youtube.com"), SyncMerge.mergeSite(here, gone).hostnames)
+    }
+
+    @Test fun `the marks cap keeps present names and the freshest removed ones`() {
+        val marks = LinkedHashMap<String, Int>()
+        marks["www.youtube.com"] = 3
+        for (i in 0 until 70) marks["h${i.toString().padStart(2, '0')}.youtube.com"] = 100 + (i % 7)
+        val capped = SyncMerge.capHostnameMarks(marks, listOf("www.youtube.com", "youtube.com"))!!
+        assertEquals(SyncMerge.MAX_HOSTNAME_MARKS, capped.size)
+        assertEquals(3, capped["www.youtube.com"], "a jelen lévő név jele marad")
+        assertEquals(60, capped.values.count { it > 100 }, "minden 101-es és fölötti megmaradt")
+        assertNull(SyncMerge.capHostnameMarks(emptyMap(), emptyList()))
     }
 }

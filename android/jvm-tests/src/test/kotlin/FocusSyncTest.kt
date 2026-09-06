@@ -313,4 +313,55 @@ class FocusSyncTest {
         assertTrue(FocusSync.same(FocusSync.merge(ab, b), ab))
         assertTrue(FocusSync.same(FocusSync.merge(ba, a), ba))
     }
+
+    // ------------------------------------------------------- csomag-jelek
+    //
+    // A blob rev-jét a telefon egy menet indításával is lépteti. Jel nélkül egy
+    // azonos rev-ű, frissebb telefon-blob egyben hozta a RÉGI listáját, és a
+    // gépen frissen felvett ablak csendben eltűnt. A focus-pack-marks.test.ts
+    // tükre; a telefon jelet nem ír, de fésül és hordoz.
+
+    @Test
+    fun `a gepen felvett ablak nem tunik el a telefon egyideju menet-inditasatol`() {
+        val band = hu.breaker.app.core.ScheduleLogic.Band(setOf(1, 2, 3, 4, 5), 9 * 60, 12 * 60)
+        val desktop = FocusSync.SyncFocus(
+            packs = listOf(pack().copy(recurrence = band)), rev = 6, updatedAt = 100, updatedBy = "gep",
+            packMarks = mapOf("p1" to 6),
+        )
+        // A telefon blobja SZÁNDÉKOSAN az újabb: azonos rev, frissebb idő, később
+        // rendezett azonosító — az „utolsó író nyer” őt választaná.
+        val phone = FocusSync.SyncFocus(
+            packs = listOf(pack()), run = Focus.FocusRun("p1", 150, 150 + 3_000_000),
+            rev = 6, updatedAt = 200, updatedBy = "telefon",
+        )
+        for ((x, y) in listOf(desktop to phone, phone to desktop)) {
+            val m = FocusSync.merge(x, y)
+            assertEquals(listOf("p1"), m.packs.map { it.id })
+            assertEquals(band, m.packs[0].recurrence, "az ablak marad")
+            assertTrue(m.run != null, "a telefon menete is marad")
+            assertEquals(mapOf("p1" to 6), m.packMarks)
+        }
+    }
+
+    @Test
+    fun `a torles jele legyozi a regebbi listat, jel nelkul az ujabb blob dont`() {
+        val deleted = FocusSync.SyncFocus(packs = listOf(pack("p2")), rev = 7, updatedAt = 100, updatedBy = "gep", packMarks = mapOf("p1" to 7))
+        val stale = FocusSync.SyncFocus(packs = listOf(pack("p1"), pack("p2")), rev = 6, updatedAt = 50, updatedBy = "telefon")
+        assertEquals(listOf("p2"), FocusSync.merge(stale, deleted).packs.map { it.id })
+        assertEquals(mapOf("p1" to 7), FocusSync.merge(deleted, stale).packMarks, "a sírkő utazik tovább")
+
+        val newer = FocusSync.SyncFocus(packs = listOf(pack("p2")), rev = 7, updatedAt = 100, updatedBy = "gep")
+        val older = FocusSync.SyncFocus(packs = listOf(pack("p1"), pack("p2")), rev = 6, updatedAt = 50, updatedBy = "telefon")
+        val m = FocusSync.merge(older, newer)
+        assertEquals(listOf("p2"), m.packs.map { it.id }, "jel nélkül az újabb blob listája")
+        assertNull(m.packMarks, "jel nélkül nem keletkezik jel")
+
+        // Újra felvéve nagyobb jellel a törlés fölött; a csak a régebbin élő a végére.
+        val readded = FocusSync.SyncFocus(packs = listOf(pack("p1").copy(name = "új")), rev = 9, updatedAt = 300, updatedBy = "gep", packMarks = mapOf("p1" to 9))
+        val tomb = FocusSync.SyncFocus(packs = listOf(pack("p3")), rev = 8, updatedAt = 200, updatedBy = "telefon", packMarks = mapOf("p1" to 7, "p3" to 8))
+        val r = FocusSync.merge(tomb, readded)
+        assertEquals(listOf("p1", "p3"), r.packs.map { it.id })
+        assertEquals("új", r.packs[0].name)
+        assertEquals(mapOf("p1" to 9, "p3" to 8), r.packMarks)
+    }
 }

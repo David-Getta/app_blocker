@@ -39,10 +39,16 @@ public enum FocusSync {
         public var rev: Double
         public var updatedAt: Double
         public var updatedBy: String
+        /// A csomagok JELEI: azonosító → a blob rev-je, amelyik a csomagot
+        /// utoljára felvette, szerkesztette vagy törölte (a törölt csomag jele
+        /// marad, a csomag nincs a listán). Csomagonként a nagyobb jel dönt;
+        /// jel nélkül az újabb blob. Az iPhone jelet nem ír. Lásd `mergePacks`.
+        public var packMarks: [String: Int]?
 
         public init(
             packs: [Focus.Pack] = [], run: Focus.Run? = nil, log: [Focus.LogEntry] = [],
-            rev: Double = 0, updatedAt: Double = 0, updatedBy: String = ""
+            rev: Double = 0, updatedAt: Double = 0, updatedBy: String = "",
+            packMarks: [String: Int]? = nil
         ) {
             self.packs = packs
             self.run = run
@@ -50,6 +56,7 @@ public enum FocusSync {
             self.rev = rev
             self.updatedAt = updatedAt
             self.updatedBy = updatedBy
+            self.packMarks = packMarks
         }
 
         /// SAJÁT dekódolás, mert a `log` mező RÉGEBBI blobokból hiányzik.
@@ -67,6 +74,8 @@ public enum FocusSync {
             rev = try c.decodeIfPresent(Double.self, forKey: .rev) ?? 0
             updatedAt = try c.decodeIfPresent(Double.self, forKey: .updatedAt) ?? 0
             updatedBy = try c.decodeIfPresent(String.self, forKey: .updatedBy) ?? ""
+            // A jelek TŰRŐEN: egy nem-egész érték ne vigye el az egész blobot.
+            packMarks = (try? c.decodeIfPresent([String: Int].self, forKey: .packMarks)) ?? nil
         }
     }
 
@@ -76,15 +85,19 @@ public enum FocusSync {
     /// csomagoknál az utolsó író nyer (ez beállítás — egy régi lista
     /// visszatérése bosszantó, de nem kibúvó), a futásnál a szigorúbb.
     public static func merge(_ local: SyncFocus, _ incoming: SyncFocus) -> SyncFocus {
-        let newer = pickNewer(local, incoming)
+        let localIsNewer = firstIsNewer(local, incoming)
+        let newer = localIsNewer ? local : incoming
+        let older = localIsNewer ? incoming : local
+        let (packs, packMarks) = mergePacks(newer, older)
         return SyncFocus(
-            packs: newer.packs,
+            packs: packs,
             run: mergeRun(local, incoming),
             // EGYESÍTÉS, nem választás: lásd a `log` mező magyarázatát.
             log: mergeLog(local.log, incoming.log),
             rev: max(local.rev, incoming.rev),
             updatedAt: max(local.updatedAt, incoming.updatedAt),
-            updatedBy: newer.updatedBy
+            updatedBy: newer.updatedBy,
+            packMarks: packMarks
         )
     }
 
@@ -93,10 +106,36 @@ public enum FocusSync {
     /// Az azonosító nem esztétika: ez teszi a döntést determinisztikussá.
     /// Enélkül két eszköz ugyanabban a másodpercben írva örökké oda-vissza
     /// cserélgetné a listát.
-    private static func pickNewer(_ a: SyncFocus, _ b: SyncFocus) -> SyncFocus {
-        if a.rev != b.rev { return a.rev > b.rev ? a : b }
-        if a.updatedAt != b.updatedAt { return a.updatedAt > b.updatedAt ? a : b }
-        return a.updatedBy >= b.updatedBy ? a : b
+    private static func firstIsNewer(_ a: SyncFocus, _ b: SyncFocus) -> Bool {
+        if a.rev != b.rev { return a.rev > b.rev }
+        if a.updatedAt != b.updatedAt { return a.updatedAt > b.updatedAt }
+        return a.updatedBy >= b.updatedBy
+    }
+
+    /// A csomagok CSOMAGONKÉNT fésülődnek, a jelük szerint: a nagyobb jelnél
+    /// álló állapot (ez a változat, vagy nincs) marad; egyenlő jelnél (a jel
+    /// nélküli csomag is ilyen) az újabb blob állapota, ahogy eddig. A sorrend
+    /// az újabb blobé, a csak a régebbin élő csomagok a végére. Az iPhone
+    /// jelet nem ír, csak hordozza és fésüli. A merge.ts `mergePacks` tükre.
+    private static func mergePacks(_ newer: SyncFocus, _ older: SyncFocus) -> ([Focus.Pack], [String: Int]?) {
+        let nm = newer.packMarks ?? [:]
+        let om = older.packMarks ?? [:]
+        var ids: [String] = []
+        let candidates = newer.packs.map { $0.id } + older.packs.map { $0.id }
+            + Array(nm.keys).sorted() + Array(om.keys).sorted()
+        for id in candidates where !ids.contains(id) { ids.append(id) }
+        var packs: [Focus.Pack] = []
+        var marks: [String: Int] = [:]
+        for id in ids {
+            let mn = nm[id] ?? 0
+            let mo = om[id] ?? 0
+            let chosen = mo > mn
+                ? older.packs.first { $0.id == id }
+                : newer.packs.first { $0.id == id }
+            if let p = chosen, packs.count < maxPacks { packs.append(p) }
+            if max(mn, mo) > 0 { marks[id] = max(mn, mo) }
+        }
+        return (packs, marks.isEmpty ? nil : marks)
     }
 
     /// A FUTÓ munkamenet összefésülése — a kockázatos fele.
@@ -199,7 +238,21 @@ public enum FocusSync {
         let log = f.log.map {
             "\($0.packId);\($0.startedAt);\($0.endedAt);\($0.plannedEndsAt);\($0.stopped)"
         }.joined(separator: "|")
-        return "\(packs)//\(run)//\(log)//\(f.rev)"
+        // A jelek is: ha csak ők különböznek, akkor is fel kell menniük.
+        let marks = (f.packMarks ?? [:]).sorted { $0.key < $1.key }
+            .map { "\($0.key)=\($0.value)" }.joined(separator: ",")
+        return "\(packs)//\(run)//\(log)//\(marks)//\(f.rev)"
+    }
+
+    /// A csomag-jelek kiegyenesítése: csak azonosító → pozitív egész, legfeljebb 64.
+    private static func cleanMarks(_ raw: [String: Int]?) -> [String: Int]? {
+        guard let raw else { return nil }
+        var out: [String: Int] = [:]
+        for (k, v) in raw.sorted(by: { $0.key < $1.key }) where !k.isEmpty && v > 0 {
+            out[k] = v
+            if out.count >= 64 { break }
+        }
+        return out.isEmpty ? nil : out
     }
 
     /// Egy kívülről jött blob használható alakja.
@@ -231,7 +284,8 @@ public enum FocusSync {
             log: capLog(raw.log),
             rev: raw.rev,
             updatedAt: raw.updatedAt,
-            updatedBy: raw.updatedBy.isEmpty ? fallbackDevice : raw.updatedBy
+            updatedBy: raw.updatedBy.isEmpty ? fallbackDevice : raw.updatedBy,
+            packMarks: cleanMarks(raw.packMarks)
         )
     }
 

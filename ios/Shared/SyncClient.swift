@@ -239,13 +239,16 @@ enum SyncClient {
                 log: current.focusLog ?? [],
                 rev: current.focusRev ?? 0,
                 updatedAt: current.focusUpdatedAt ?? 0,
-                updatedBy: current.focusUpdatedBy ?? acc.deviceId
+                updatedBy: current.focusUpdatedBy ?? acc.deviceId,
+                packMarks: current.focusPackMarks
             )
             let merged = FocusSync.merge(mine, remote)
 
             if !FocusSync.same(merged, mine) {
                 current.focusPacks = merged.packs
                 current.focusRun = merged.run
+                // A jelek az összefésülés eredményéből: az iPhone hordozza őket.
+                current.focusPackMarks = merged.packMarks
                 // A NAPLÓ a többi eszköztől is megjön — ettől lesz a
                 // statisztika a fiók egészéről szóló szám. Egyesítés, tehát a
                 // helyi sorok nem vesznek el.

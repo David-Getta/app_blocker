@@ -48,6 +48,54 @@ enum SyncMerge {
         /// inicializáló régi hívásai változatlanok maradjanak.
         var hostnameMarks: [String: Int]? = nil
 
+        init(
+            id: String, domain: String, hostnames: [String], addedAt: Double,
+            pendingDeleteAt: Double? = nil, schedule: ScheduleLogic.Schedule? = nil,
+            dailyLimitSeconds: Double? = nil, burstSeconds: Double? = nil,
+            cooldownSeconds: Double? = nil, alias: String? = nil,
+            rules: [UrlRules.UrlRule]? = nil, rev: Int, updatedAt: Double, updatedBy: String,
+            hostnameMarks: [String: Int]? = nil
+        ) {
+            self.id = id
+            self.domain = domain
+            self.hostnames = hostnames
+            self.addedAt = addedAt
+            self.pendingDeleteAt = pendingDeleteAt
+            self.schedule = schedule
+            self.dailyLimitSeconds = dailyLimitSeconds
+            self.burstSeconds = burstSeconds
+            self.cooldownSeconds = cooldownSeconds
+            self.alias = alias
+            self.rules = rules
+            self.rev = rev
+            self.updatedAt = updatedAt
+            self.updatedBy = updatedBy
+            self.hostnameMarks = hostnameMarks
+        }
+
+        /// SAJÁT dekódolás, hogy a jelek TŰRŐEN jöjjenek: egy nem-egész érték
+        /// egyetlen rekordban ne vigye el az egész listát — az iPhone ilyenkor a
+        /// saját listáját tolná fel a többiek helyett. A többi mező a régi
+        /// szigorral (a `rev` hiányát a gép is 1-nek veszi).
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            id = try c.decode(String.self, forKey: .id)
+            domain = try c.decode(String.self, forKey: .domain)
+            hostnames = try c.decode([String].self, forKey: .hostnames)
+            addedAt = try c.decodeIfPresent(Double.self, forKey: .addedAt) ?? 0
+            pendingDeleteAt = try c.decodeIfPresent(Double.self, forKey: .pendingDeleteAt)
+            schedule = try c.decodeIfPresent(ScheduleLogic.Schedule.self, forKey: .schedule)
+            dailyLimitSeconds = try c.decodeIfPresent(Double.self, forKey: .dailyLimitSeconds)
+            burstSeconds = try c.decodeIfPresent(Double.self, forKey: .burstSeconds)
+            cooldownSeconds = try c.decodeIfPresent(Double.self, forKey: .cooldownSeconds)
+            alias = try c.decodeIfPresent(String.self, forKey: .alias)
+            rules = try c.decodeIfPresent([UrlRules.UrlRule].self, forKey: .rules)
+            rev = try c.decodeIfPresent(Int.self, forKey: .rev) ?? 1
+            updatedAt = try c.decodeIfPresent(Double.self, forKey: .updatedAt) ?? 0
+            updatedBy = try c.decodeIfPresent(String.self, forKey: .updatedBy) ?? ""
+            hostnameMarks = (try? c.decodeIfPresent([String: Int].self, forKey: .hostnameMarks)) ?? nil
+        }
+
         /// A `pendingDeleteAt` KIÍRÁSA kötelező, nem elhagyható.
         ///
         /// A `JSONEncoder` alapból kihagyja a nil mezőket. A TypeScript oldalon
@@ -184,9 +232,12 @@ enum SyncMerge {
             let mb = bm[h] ?? 0
             let inA = a.hostnames.contains(h)
             let inB = b.hostnames.contains(h)
+            // Egyenlő POZITÍV jelnél a jelenlét nyer (szigorúbb, és sorrendtől
+            // független); jel nélkül a rekord dönt, ahogy eddig.
             let present: Bool
             if ma > mb { present = inA }
             else if mb > ma { present = inB }
+            else if ma > 0 { present = inA || inB }
             else if a.rev != b.rev { present = a.rev > b.rev ? inA : inB }
             else { present = inA || inB }
             if present { hostnames.append(h) }
@@ -194,7 +245,28 @@ enum SyncMerge {
         }
         var out = merged
         out.hostnames = hostnames
-        out.hostnameMarks = marks.isEmpty ? nil : marks
+        out.hostnameMarks = capHostnameMarks(marks, hostnames)
+        return out
+    }
+
+    /// Ennél több hosztnév-jelet nem hordunk egy oldalon.
+    static let maxHostnameMarks = 64
+
+    /// A jelek plafonja — EGY szabály a fésülésre: a jelen lévő nevek jele
+    /// mindig marad, a levett nevekből a legnagyobb jelűek férnek be. Üresen
+    /// nil. A merge.ts `capHostnameMarks` tükre.
+    static func capHostnameMarks(_ marks: [String: Int], _ hostnames: [String]) -> [String: Int]? {
+        if marks.isEmpty { return nil }
+        if marks.count <= maxHostnameMarks { return marks }
+        let present = Set(hostnames)
+        var out: [String: Int] = [:]
+        for (h, v) in marks where present.contains(h) { out[h] = v }
+        let gone = marks.filter { !present.contains($0.key) }
+            .sorted { $0.value != $1.value ? $0.value > $1.value : $0.key < $1.key }
+        for (h, v) in gone {
+            if out.count >= maxHostnameMarks { break }
+            out[h] = v
+        }
         return out
     }
 
@@ -296,8 +368,11 @@ enum SyncMerge {
             var merged = mergeSite(keep, drop)
             merged.id = keep.id
             merged.addedAt = min(keep.addedAt, dropOriginal.addedAt)
-            // A hosztneveket EGYESÍTJÜK: az egyesítés a szigorúbb.
-            merged.hostnames = Array(Set(keep.hostnames + dropOriginal.hostnames)).sorted()
+            // A hosztneveket EGYESÍTJÜK: az egyesítés a szigorúbb. Csak a JEL
+            // NÉLKÜLI nevekre: a jelesről a mergeSite már döntött.
+            let marks = merged.hostnameMarks ?? [:]
+            let extra = (keep.hostnames + dropOriginal.hostnames).filter { marks[$0] == nil }
+            merged.hostnames = Array(Set(merged.hostnames + extra)).sorted()
             byDomain[s.domain] = merged
         }
         return byDomain.values.sorted(by: sortKey)

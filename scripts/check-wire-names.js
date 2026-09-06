@@ -74,7 +74,7 @@ function stripComments(text) {
 const GROUPS = [
   {
     what: 'a munkamenet blobja',
-    names: ['packs', 'run', 'log', 'rev', 'updatedAt', 'updatedBy'],
+    names: ['packs', 'run', 'log', 'packMarks', 'rev', 'updatedAt', 'updatedBy'],
     ts: 'desktop/src/shared/sync/focus-merge.ts',
     kt: 'android/app/src/main/java/hu/breaker/app/core/SyncClient.kt',
     swift: 'ios/Shared/FocusSync.swift',

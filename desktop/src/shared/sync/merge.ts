@@ -245,14 +245,46 @@ function withHostnames(merged: SyncSite, a: SyncSite, b: SyncSite): SyncSite {
     const mb = b.hostnameMarks?.[h] ?? 0;
     const inA = a.hostnames.includes(h);
     const inB = b.hostnames.includes(h);
+    // Egyenlő POZITÍV jelnél a jelenlét nyer (szigorúbb, és a sorrendtől
+    // független); jel nélkül a rekord dönt, ahogy eddig.
     const present = ma > mb ? inA : mb > ma ? inB
-      : a.rev !== b.rev ? (a.rev > b.rev ? inA : inB) : inA || inB;
+      : ma > 0 ? (inA || inB)
+        : a.rev !== b.rev ? (a.rev > b.rev ? inA : inB) : inA || inB;
     if (present) hostnames.push(h);
     if (Math.max(ma, mb) > 0) marks[h] = Math.max(ma, mb);
   }
   const out: SyncSite = { ...merged, hostnames };
-  if (Object.keys(marks).length > 0) out.hostnameMarks = marks;
+  const capped = capHostnameMarks(marks, hostnames);
+  if (capped) out.hostnameMarks = capped;
   else delete out.hostnameMarks;
+  return out;
+}
+
+/** Ennél több hosztnév-jelet nem hordunk egy oldalon. */
+export const MAX_HOSTNAME_MARKS = 64;
+
+/**
+ * A jelek plafonja — EGY szabály a fésülésre, a bemenetre és a léptetésre:
+ * a jelen lévő nevek jele mindig marad (az oldal névlistája amúgy is
+ * korlátos), a levett nevekből a legnagyobb jelűek férnek be. Üresen
+ * undefined. A Kotlin- és Swift-tükör ugyanezt teszi.
+ */
+export function capHostnameMarks(
+  marks: Record<string, number>, hostnames: string[],
+): Record<string, number> | undefined {
+  const entries = Object.entries(marks);
+  if (entries.length === 0) return undefined;
+  if (entries.length <= MAX_HOSTNAME_MARKS) return { ...marks };
+  const present = new Set(hostnames);
+  const kept = entries.filter(([h]) => present.has(h));
+  const gone = entries.filter(([h]) => !present.has(h))
+    .sort((x, y) => y[1] - x[1] || (x[0] < y[0] ? -1 : 1));
+  const out: Record<string, number> = {};
+  for (const [h, v] of kept) out[h] = v;
+  for (const [h, v] of gone) {
+    if (Object.keys(out).length >= MAX_HOSTNAME_MARKS) break;
+    out[h] = v;
+  }
   return out;
 }
 
@@ -376,14 +408,19 @@ export function mergeSiteLists(local: SyncSite[], incoming: SyncSite[]): SyncSit
     // próbatétel a másik eszközön.
     const keep = mine.addedAt <= s.addedAt ? mine : s;
     const drop = keep === mine ? s : mine;
+    const merged = mergeSite({ ...keep }, { ...drop, id: keep.id });
+    // A hosztneveket EGYESÍTJÜK, nem választunk: ha az egyik eszközön a
+    // társoldalak is fel voltak véve, a másikon meg nem, akkor az egyesítés
+    // a szigorúbb — és pont az kell. Csak a JEL NÉLKÜLI nevekre: a jeles
+    // névről a `mergeSite` már döntött, az egyesítés nem hozhatja vissza a
+    // kifizetett levételt.
+    const marks = merged.hostnameMarks ?? {};
+    const extra = [...keep.hostnames, ...drop.hostnames].filter((h) => !(h in marks));
     byDomain.set(s.domain, {
-      ...mergeSite({ ...keep }, { ...drop, id: keep.id }),
+      ...merged,
       id: keep.id,
       addedAt: Math.min(keep.addedAt, drop.addedAt),
-      // A hosztneveket EGYESÍTJÜK, nem választunk: ha az egyik eszközön a
-      // társoldalak is fel voltak véve, a másikon meg nem, akkor az egyesítés
-      // a szigorúbb — és pont az kell.
-      hostnames: [...new Set([...keep.hostnames, ...drop.hostnames])].sort(),
+      hostnames: [...new Set([...merged.hostnames, ...extra])].sort(),
     });
   }
   return [...byDomain.values()].sort(bySortKey);

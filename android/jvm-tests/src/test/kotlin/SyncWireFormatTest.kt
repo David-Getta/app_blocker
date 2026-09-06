@@ -224,4 +224,32 @@ class SyncWireFormatTest {
             "hostnameMarks":{"a.x.com":3,"b.x.com":"x"},"rev":1}]"""
         assertEquals(mapOf("a.x.com" to 3), SyncClient.sitesFromJson(mixed)[0].hostnameMarks)
     }
+
+    @Test
+    fun `pack marks travel both ways on the focus blob, and garbage is dropped`() {
+        val f = FocusSync.SyncFocus(
+            packs = listOf(Focus.FocusPack("p1", "Mély munka", listOf("github.com"), emptyList(), 50)),
+            run = null, log = emptyList(), rev = 4, updatedAt = 1, updatedBy = "gep",
+            packMarks = mapOf("p1" to 4, "p0" to 2),
+        )
+        val json = SyncClient.focusToJson(f)
+        assertEquals(4, JSONObject(json).getJSONObject("packMarks").getInt("p1"))
+        assertEquals(f.packMarks, SyncClient.focusFromJson(json, "telefon").packMarks)
+
+        val plain = SyncClient.focusToJson(f.copy(packMarks = null))
+        assertTrue(!JSONObject(plain).has("packMarks"), "jel nélkül a kulcs sincs ott")
+        assertNull(SyncClient.focusFromJson(plain, "telefon").packMarks)
+
+        val garbage = """{"packs":[],"run":null,"log":[],"packMarks":{"":2,"p9":-1,"px":"x"},"rev":1}"""
+        assertNull(SyncClient.focusFromJson(garbage, "telefon").packMarks)
+    }
+
+    @Test
+    fun `hostname marks above the record rev are dropped on the way in`() {
+        // Egy jó rekordban a jel sosem nagyobb a rev-nél; a nagyobb csak a
+        // kulccsal írt szemét lehet, és örökre tiltaná a visszavételt.
+        val json = """[{"id":"s1","domain":"x.com","hostnames":["x.com"],"addedAt":1,
+            "hostnameMarks":{"a.x.com":3,"b.x.com":99},"rev":3}]"""
+        assertEquals(mapOf("a.x.com" to 3), SyncClient.sitesFromJson(json)[0].hostnameMarks)
+    }
 }

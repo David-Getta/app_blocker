@@ -215,6 +215,14 @@ export interface HelperState {
   focusRev?: number;
   focusUpdatedAt?: number;
   focusUpdatedBy?: string;
+  /**
+   * A csomagok jelei (azonosító → az a blob-rev, amelyik felvette,
+   * szerkesztette vagy törölte) — a szinkron csomagonkénti összefésüléséhez,
+   * lásd shared/sync/focus-merge.ts. A `revisions.ts` írja a `commit()` elején.
+   */
+  focusPackMarks?: Record<string, number>;
+  /** a csomagok lenyomata az utolsó léptetéskor/átvételkor — ebből lesz a jel; helyi */
+  focusRevPacks?: Record<string, string>;
   /** a lenyomat, amiből kiderül, hogy változott-e (lásd revisions.ts) */
   focusRevFp?: string;
   /**

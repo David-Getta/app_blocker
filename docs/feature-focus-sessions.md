@@ -390,12 +390,13 @@ ablak, hanem sima menet.
   ablak menete indul, 9:00-tól számolva — a statisztika a fél órát kétszer
   számolja. Azért nem az „elköltött” ágon megy, mert akkor egy egyperces kézi
   menet 8:59-kor kiváltaná a háromórás ablakot.
-- A csomaglista egyben szinkronizál (utolsó író nyer, azonos változatnál a
-  frissebb). Ha a gépen most vettél fel egy ablakot, és a telefon ugyanabban
-  a körben — még a régi listával — elindított egy menetet, a telefon listája
-  nyerhet, és az ablak csendben eltűnik. A felvétel ingyen van, tehát
-  újra felvehető; de ki kell mondani, mert a felület nem szól róla. A
-  csomagonkénti összefésülés (mint a hosztneveknél) a tervben van.
+- A csomaglista egy blobban utazik, de **csomagonként** fésülődik: minden
+  felvétel, szerkesztés és törlés jelet kap (a blob változat-számát), és
+  csomagonként a nagyobb jel dönt. Így ha a gépen most vettél fel egy
+  ablakot, és a telefon ugyanabban a körben — még a régi listával —
+  elindított egy menetet, az ablak megmarad, a telefon menete is. Jel nélkül
+  (régi kliens) az újabb blob dönt, ahogy régen; amíg a fiókban régi kliens
+  is van, a csomag oda-vissza járhat — frissítés után rendeződik.
 - Az őszi óraátállítás éjszakáján a 2:00 és 3:00 közötti percek kétszer
   vannak. Egy ebbe eső ablak-kezdést vagy -véget a három platform nem
   biztosan ugyanarra a pillanatra tesz — évente egyszer két menet és két

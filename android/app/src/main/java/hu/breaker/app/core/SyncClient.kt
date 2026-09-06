@@ -228,19 +228,21 @@ object SyncClient {
     }
 
     /**
-     * A hosztnév-jelek kiegyenesítése: csak név → pozitív egész; ami más,
-     * kimarad; üresen null. Legfeljebb 64 — a kiszolgáló nem hizlalhatja a
-     * rekordot. A Store is ezzel olvas.
+     * Jelek kiegyenesítése egy kulcs alól: csak név → pozitív egész, legfeljebb
+     * [maxRev] (egy jó rekordban a jel sosem nagyobb a rekord rev-jénél — a
+     * nagyobb csak a kulccsal írt szemét lehet); ami más, kimarad; üresen
+     * null. Legfeljebb 64 — a kiszolgáló nem hizlalhatja a rekordot. A Store
+     * is ezzel olvas.
      */
-    internal fun marksFromJson(o: JSONObject): Map<String, Int>? {
-        val m = o.optJSONObject("hostnameMarks") ?: return null
+    internal fun marksFromJson(o: JSONObject, key: String = "hostnameMarks", maxRev: Int = Int.MAX_VALUE): Map<String, Int>? {
+        val m = o.optJSONObject(key) ?: return null
         val out = LinkedHashMap<String, Int>()
         val keys = m.keys()
         while (keys.hasNext()) {
             val k = keys.next()
             if (k.isEmpty()) continue
             val v = m.optInt(k, 0)
-            if (v > 0) out[k] = v
+            if (v > 0 && v <= maxRev) out[k] = v
             if (out.size >= 64) break
         }
         return if (out.isEmpty()) null else out
@@ -269,7 +271,9 @@ object SyncClient {
                     rev = o.optInt("rev", 1),
                     updatedAt = o.optLong("updatedAt", 0),
                     updatedBy = o.optString("updatedBy", ""),
-                    hostnameMarks = marksFromJson(o),
+                    hostnameMarks = marksFromJson(o, "hostnameMarks", o.optInt("rev", 1))?.let {
+                        SyncMerge.capHostnameMarks(it, (0 until hosts.length()).map { i -> hosts.getString(i) })
+                    },
                 ))
             }
         }
@@ -312,6 +316,8 @@ object SyncClient {
         put("rev", f.rev)
         put("updatedAt", f.updatedAt)
         put("updatedBy", f.updatedBy)
+        // A csomag-jelek csak akkor, ha vannak: a hiányzó és az üres ugyanaz.
+        if (f.packMarks != null) put("packMarks", JSONObject(f.packMarks))
     }.toString()
 
     /**
@@ -359,6 +365,7 @@ object SyncClient {
             rev = o.optLong("rev", 0),
             updatedAt = o.optLong("updatedAt", 0),
             updatedBy = o.optString("updatedBy").ifEmpty { fallbackDevice },
+            packMarks = marksFromJson(o, "packMarks", Int.MAX_VALUE),
         )
     }
 
@@ -483,6 +490,7 @@ object SyncClient {
                 rev = current.focusRev,
                 updatedAt = current.focusUpdatedAt,
                 updatedBy = current.focusUpdatedBy ?: acc.deviceId,
+                packMarks = current.focusPackMarks,
             )
             val merged = FocusSync.merge(mine, remote)
 
@@ -490,6 +498,8 @@ object SyncClient {
                 current = current.copy(
                     focusPacks = merged.packs,
                     focusRun = merged.run,
+                    // A jelek az összefésülés eredményéből: a telefon hordozza őket.
+                    focusPackMarks = merged.packMarks,
                     // A NAPLÓ a többi eszköztől is megjön — ettől lesz a
                     // statisztika a fiók egészéről szóló szám. Egyesítés, tehát
                     // a helyi sorok nem vesznek el.

@@ -62,9 +62,31 @@ export interface SyncFocus {
    * menetet a másik eszközön.
    */
   log: FocusLogEntry[];
+  /**
+   * A csomagok JELEI: csomag-azonosító → a blob `rev`-je, amelyik a csomagot
+   * utoljára felvette, szerkesztette vagy törölte (a törölt csomag jele
+   * marad, a csomag nincs a listán). Csomagonként a nagyobb jel dönt; jel
+   * nélkül az újabb blob — ahogy eddig. Lásd `mergePacks`.
+   */
+  packMarks?: Record<string, number>;
   rev: number;
   updatedAt: number;
   updatedBy: string;
+}
+
+/** Ennél több csomag-jelet nem hordunk; a törölt csomagok legrégebbi jelei esnek ki. */
+export const MAX_PACK_MARKS = 64;
+
+/** A csomag-jelek kiegyenesítése: csak azonosító → pozitív egész; üresen nincs mező. */
+export function cleanPackMarks(raw: unknown): Record<string, number> | undefined {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
+  const out: Record<string, number> = {};
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (!k || typeof v !== 'number' || !Number.isInteger(v) || v <= 0) continue;
+    out[k] = v;
+    if (Object.keys(out).length >= MAX_PACK_MARKS) break;
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
 }
 
 export function emptyFocus(deviceId: string): SyncFocus {
@@ -86,6 +108,7 @@ export function normalizeSyncFocus(raw: unknown, fallbackDevice: string): SyncFo
     const n = normalizePack(p);
     if (n && !packs.some((x) => x.id === n.id) && packs.length < MAX_PACKS) packs.push(n);
   }
+  const packMarks = cleanPackMarks(o.packMarks);
   return {
     packs,
     run: normalizeRun(o.run, packs),
@@ -93,6 +116,7 @@ export function normalizeSyncFocus(raw: unknown, fallbackDevice: string): SyncFo
     // marad, ha a csomagot azóta törölték. Épp ezért van benne a NÉV is, nem
     // csak az azonosító.
     log: normalizeLog(o.log),
+    ...(packMarks ? { packMarks } : {}),
     rev: numberOr(o.rev, 0),
     updatedAt: numberOr(o.updatedAt, 0),
     updatedBy: typeof o.updatedBy === 'string' && o.updatedBy ? o.updatedBy : fallbackDevice,
@@ -231,17 +255,60 @@ function numberOr(v: unknown, fallback: number): number {
 export function mergeFocus(local: SyncFocus, incoming: SyncFocus): SyncFocus {
   const newer = pickNewer(local, incoming);
   const older = newer === local ? incoming : local;
+  const { packs, packMarks } = mergePacks(newer, older);
   return {
-    packs: newer.packs,
+    packs,
     run: mergeRun(local, incoming),
     // EGYESÍTÉS, nem választás: lásd a `SyncFocus.log` magyarázatát.
     log: mergeLog(local.log, incoming.log),
+    ...(packMarks ? { packMarks } : {}),
     rev: Math.max(local.rev, incoming.rev),
     updatedAt: Math.max(local.updatedAt, incoming.updatedAt),
     // Az eszközazonosító a győztesé: enélkül a döntetlen-eltörés nem lenne
     // stabil, és a két eszköz felváltva írná felül egymást.
     updatedBy: newer.updatedBy || older.updatedBy,
   };
+}
+
+/**
+ * A csomagok CSOMAGONKÉNT fésülődnek, a jelük szerint.
+ *
+ * A csomag jele a blob `rev`-je, amelyik utoljára felvette, szerkesztette
+ * vagy törölte. Csomagonként a NAGYOBB jel dönt — ami annál áll (ez a
+ * változat, vagy nincs), az marad. Egyenlő jelnél (a jel nélküli csomag is
+ * ilyen: régi kliens) az újabb blob állapota, ahogy eddig. A sorrend az
+ * újabb blobé, a csak a régebbin élő csomagok a végére.
+ *
+ * Miért kell. A csomaglista egy blobban utazik, és a blob `rev`-jét a
+ * telefon egy menet indításával is lépteti. Ha a gépen most vettél fel egy
+ * ablakot, és a telefon ugyanabban a körben — a régi listával — elindított
+ * egy menetet, azonos rev és frissebb idő mellett a telefon listája nyert,
+ * és az ablak csendben eltűnt. A jel a CSOMAGHOZ tartozik, nem a blobhoz.
+ * A telefonok jelet nem írnak, csak hordozzák és fésülik. A Kotlin- és
+ * Swift-tükör ugyanezt teszi.
+ */
+function mergePacks(
+  newer: SyncFocus, older: SyncFocus,
+): { packs: FocusPack[]; packMarks: Record<string, number> | undefined } {
+  const nm = newer.packMarks ?? {};
+  const om = older.packMarks ?? {};
+  const ids = [
+    ...newer.packs.map((p) => p.id),
+    ...older.packs.map((p) => p.id),
+    ...Object.keys(nm), ...Object.keys(om),
+  ].filter((id, i, all) => all.indexOf(id) === i);
+  const packs: FocusPack[] = [];
+  const marks: Record<string, number> = {};
+  for (const id of ids) {
+    const mn = nm[id] ?? 0;
+    const mo = om[id] ?? 0;
+    const pn = newer.packs.find((p) => p.id === id);
+    const po = older.packs.find((p) => p.id === id);
+    const chosen = mo > mn ? po : pn;
+    if (chosen && packs.length < MAX_PACKS) packs.push(chosen);
+    if (Math.max(mn, mo) > 0) marks[id] = Math.max(mn, mo);
+  }
+  return { packs, packMarks: Object.keys(marks).length > 0 ? marks : undefined };
 }
 
 /**
@@ -304,6 +371,9 @@ function stable(f: SyncFocus): unknown {
     // szabad összevonni: ez azt méri, van-e mit FELTÖLTENI, az meg azt, hogy
     // ki DÖNTHET. Egy naplósor az elsőre igen, a másodikra nem.
     log: f.log.map((e) => [e.packId, e.startedAt, e.endedAt, e.plannedEndsAt, e.stopped]),
+    // A jelek is: ha csak ők különböznek (egy régi kliens blobja jel nélkül),
+    // akkor is fel kell menniük.
+    packMarks: f.packMarks ? Object.entries(f.packMarks).sort() : null,
     rev: f.rev,
   };
 }
