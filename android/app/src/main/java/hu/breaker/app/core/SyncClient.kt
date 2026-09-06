@@ -368,9 +368,13 @@ object SyncClient {
         // csomag — a jele meg a hiánya együtt sírkőnek látszana, és a csomag
         // mindenhol törlődne. A valódi törlés jele (nincs ilyen csomag) marad.
         val presentIds = packs.map { it.id }
+        // Előbb a plafon, aztán a kiesett csomagok jelének dobása — ebben a
+        // sorrendben, mint a gép és az iPhone, hogy a plafon fölött is ugyanaz
+        // a halmaz maradjon.
         val marks = marksFromJson(o, "packMarks", rev.coerceIn(0, Int.MAX_VALUE.toLong()).toInt())
-            ?.filterKeys { it !in seenIds || it in presentIds }
             ?.let { FocusSync.capPackMarks(it, presentIds) }
+            ?.filterKeys { it !in seenIds || it in presentIds }
+            ?.takeIf { it.isNotEmpty() }
         return FocusSync.SyncFocus(
             packs = packs,
             run = FocusSync.cleanRun(rawRun, packs),
