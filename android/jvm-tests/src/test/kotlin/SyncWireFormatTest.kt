@@ -220,8 +220,9 @@ class SyncWireFormatTest {
         val garbage = """[{"id":"s1","domain":"x.com","hostnames":["x.com"],"addedAt":1,
             "hostnameMarks":{"a.x.com":-1,"":2,"b.x.com":"x"},"rev":1}]"""
         assertNull(SyncClient.sitesFromJson(garbage)[0].hostnameMarks)
+        // A jel legfeljebb a rekord rev-je lehet — itt a rev 3, a 3-as jel marad.
         val mixed = """[{"id":"s1","domain":"x.com","hostnames":["x.com"],"addedAt":1,
-            "hostnameMarks":{"a.x.com":3,"b.x.com":"x"},"rev":1}]"""
+            "hostnameMarks":{"a.x.com":3,"b.x.com":"x"},"rev":3}]"""
         assertEquals(mapOf("a.x.com" to 3), SyncClient.sitesFromJson(mixed)[0].hostnameMarks)
     }
 
