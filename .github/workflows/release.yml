@@ -59,16 +59,17 @@ jobs:
           tucat fut minden push-nál. Belső dolog, de ettől biztos, hogy amit
           a gépen beállítasz, a telefonon ugyanazt jelenti.
 
-          **A fejléc csak azt számolja, ami most zár.** A „4 oldal
-          blokkolva” eddig a lista hosszát mondta akkor is, ha egy oldal
-          szünetelt vagy a menetrend szerint épp nyitva volt. Most: „1 oldal
-          blokkolva, 1 most szabad” — a rejtett lista kártyája ugyanígy,
-          mindhárom platformon.
+          **A fejléc csak azt számolja, ami most zár.** A „4 oldal blokkolva”
+          eddig a lista hosszát mondta akkor is, ha egy oldal szünetelt vagy
+          a menetrend szerint épp nyitva volt. Most:
+          „1 oldal blokkolva, 1 most szabad” — a rejtett lista kártyája
+          ugyanígy, mindhárom platformon.
 
           **24 órás időmezők.** A heti ablak 9:00–12:00-ja angol rendszeren
           „09:00 AM”-ként jelent meg a magyar felület közepén; most a
-          beépített mezők is magyarul mutatnak. Apróságok: „Minden eszköz
-          együtt (2)”, névelők a kiejtés szerint („az 1.”, „a 16.”).
+          beépített mezők is magyarul mutatnak. Apróságok:
+          „Minden eszköz együtt (2)”, névelők a kiejtés szerint
+          („az 1.”, „a 16.”).
 
           ### Ami a v0.4.27-ben jött
 
