@@ -284,7 +284,19 @@ Amit a tesztek bizonyítanak, és amit másképp nem lehetne:
   HKDF-címke, blob-formátum, base64), a burkolat nem nyílik ki;
 - az Android kliens a **valódi kiszolgálóval** fut végig (gyerekfolyamatként
   indított `server/server.js`): két eszköz, egyesített lista, helyben maradó
-  szünet, kijelentkezés után is megmaradó blokkok.
+  szünet, kijelentkezés után is megmaradó blokkok;
+- **az összefésülés maga is megfelelőségi próbán megy át.** A tároló
+  gyökerében a `fixtures/merge-cases.json` a gép által kiszámolt
+  bemeneteket (véletlen, de rögzített magú oldalak és munkamenet-blobok
+  három eszközről) és a két, majd három eszköz összefésülésének
+  eredmény-kulcsát tartja; a gép tesztje írja és őrzi (elavul, ha a szabály
+  változik, és megmondja, hogyan kell frissíteni), a Kotlin
+  (`MergeFixtureTest`) és a Swift (`MergeFixtureTests`) teszt ugyanezt a
+  fájlt a saját drót-olvasóján át veszi, a saját fésülésével számol, és a
+  kulcsnak bájtra egyeznie kell. Mellette nyelvenként egy fuzz-teszt
+  (ugyanazzal a véletlennel, mint a gépé) nézi, hogy három eszköz bármilyen
+  sorrendben ugyanoda jut. Ha a tükör egy szabályban elcsúszik, a CI bukik
+  — a mag számával —, nem egy felhasználó telefonja.
 
 Egy dolog iPhone-on más: a **napi keret nem érvényesül** (nincs ilyen mérési
 API), de a rekordban MEGŐRIZZÜK. Enélkül elég lenne egyszer megnyitni a

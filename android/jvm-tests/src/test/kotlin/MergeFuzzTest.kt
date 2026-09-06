@@ -39,6 +39,8 @@ class MergeFuzzTest {
         val alias = if (r.next() < 0.3) "n${(r.next() * 3).toInt()}" else null
         val rev = 1 + (r.next() * 5).toInt()
         val updatedAt = 100L + (r.next() * 5).toInt()
+        // A jel sosem nagyobb a rekord rev-jénél — a bemenet is így tisztít.
+        for (h in marks.keys.toList()) marks[h] = minOf(marks.getValue(h), rev)
         return SyncMerge.SyncSite(
             id = "site_1", domain = "youtube.com", hostnames = hostnames, addedAt = 1_000,
             pendingDeleteAt = pending, dailyLimitSeconds = limit, alias = alias,

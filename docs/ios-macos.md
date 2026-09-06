@@ -57,7 +57,11 @@ cd ios && swift test
 
 A CI iOS-jobja minden push-nál futtatja. Ami ott van: az összefésülések
 tükör-tesztjei (`FocusSyncTests`, `SyncMergeTests` — ugyanazok az esetek, mint a
-gépen és Androidon), és egy véletlen magú fuzz (`MergeFuzzTests`) UGYANAZZAL a
-véletlennel, mint a gépé: három eszköz bármilyen sorrendben ugyanoda jut. Ha a
-Swift tükör egy szabályban elcsúszik a másik kettőtől, itt bukik, nem egy
+gépen és Androidon), egy véletlen magú fuzz (`MergeFuzzTests`) UGYANAZZAL a
+véletlennel, mint a gépé: három eszköz bármilyen sorrendben ugyanoda jut — és a
+megfelelőségi teszt (`MergeFixtureTests`): a tároló gyökerében álló
+`fixtures/merge-cases.json` a gép által kiszámolt bemeneteket és
+eredmény-kulcsokat tartja, a Swift a saját dekódolóján át olvassa őket, a saját
+fésülésével számol, és a kulcsnak bájtra egyeznie kell. Ha a Swift tükör egy
+szabályban elcsúszik a másik kettőtől, itt bukik — a mag számával —, nem egy
 felhasználó telefonján.

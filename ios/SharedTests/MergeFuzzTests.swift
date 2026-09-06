@@ -36,6 +36,8 @@ private func randomSite(_ r: inout Lcg, _ device: String) -> SyncMerge.SyncSite 
     let alias: String? = r.next() < 0.3 ? "n\(Int(r.next() * 3))" : nil
     let rev = 1 + Int(r.next() * 5)
     let updatedAt = 100 + Double(Int(r.next() * 5))
+    // A jel sosem nagyobb a rekord rev-jénél — a bemenet is így tisztít.
+    for h in marks.keys { marks[h] = min(marks[h]!, rev) }
     return SyncMerge.SyncSite(
         id: "site_1", domain: "youtube.com", hostnames: hostnames, addedAt: 1_000,
         pendingDeleteAt: pending, dailyLimitSeconds: limit, alias: alias,
