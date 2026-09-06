@@ -58,15 +58,19 @@ final class MergeFixtureTests: XCTestCase {
     }
 
     private func focusKey(_ f: FocusSync.SyncFocus) -> String {
-        let packs = f.packs.sorted { $0.id < $1.id }.map { p -> String in
-            let rec = p.recurrence.map { b in
-                b.days.sorted().map(String.init).joined(separator: ",") + "/" + String(b.startMin) + "/" + String(b.endMin)
-            } ?? "-"
-            return [
+        let packParts: [String] = f.packs.sorted { $0.id < $1.id }.map { p -> String in
+            var rec = "-"
+            if let b = p.recurrence {
+                let days: [String] = b.days.sorted().map { String($0) }
+                rec = "\(days.joined(separator: ","))/\(b.startMin)/\(b.endMin)"
+            }
+            let fields: [String] = [
                 p.id, p.name, p.allowSites.sorted().joined(separator: ","), p.allowApps.sorted().joined(separator: ","),
                 String(p.defaultMinutes), rec,
-            ].joined(separator: "|")
-        }.joined(separator: ";")
+            ]
+            return fields.joined(separator: "|")
+        }
+        let packs: String = packParts.joined(separator: ";")
         let marks = (f.packMarks ?? [:]).sorted { $0.key < $1.key }
             .map { "\($0.key)=\($0.value)" }.joined(separator: ",")
         let run = f.run.map { "\($0.packId)/\(int($0.startedAt))/\(int($0.endsAt))" } ?? "-"

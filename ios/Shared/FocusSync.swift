@@ -121,13 +121,20 @@ public enum FocusSync {
 
     /// A változat kulcsa a sorrendhez — bájtra ugyanez a három nyelvben.
     private static func packOrderKey(_ p: Focus.Pack) -> String {
-        let rec = p.recurrence.map { b in
-            b.days.sorted().map(String.init).joined(separator: ",") + "/" + String(b.startMin) + "/" + String(b.endMin)
-        } ?? ""
-        return [
+        // Lépésenként, kimondott típussal: a `+`-lánc egy `map` lezárásában a
+        // fordítónak túl sok volt (unable to type-check in reasonable time).
+        var rec = ""
+        if let b = p.recurrence {
+            let days: [String] = b.days.sorted().map { String($0) }
+            rec = "\(days.joined(separator: ","))/\(b.startMin)/\(b.endMin)"
+        }
+        let fields: [String] = [
             p.name, String(p.defaultMinutes),
-            p.allowSites.sorted().joined(separator: ","), p.allowApps.sorted().joined(separator: ","), rec,
-        ].joined(separator: "\u{1}")
+            p.allowSites.sorted().joined(separator: ","),
+            p.allowApps.sorted().joined(separator: ","),
+            rec,
+        ]
+        return fields.joined(separator: "\u{1}")
     }
 
     /// Melyik oldal FRISSEBB. Sorrend: `rev`, majd idő, majd eszközazonosító.
@@ -161,12 +168,14 @@ public enum FocusSync {
 
     /// A blob tartalmának kulcsa a döntetlenhez — bájtra ugyanez a három nyelvben.
     private static func contentKey(_ f: SyncFocus) -> String {
-        let packs = f.packs.sorted { utf16Less($0.id, $1.id) }
-            .map { $0.id + "\u{1}" + packOrderKey($0) }.joined(separator: "\u{2}")
-        let run = f.run.map { "\($0.packId)/\(intString($0.startedAt))/\(intString($0.endsAt))" } ?? "-"
-        let marks = (f.packMarks ?? [:]).sorted { utf16Less($0.key, $1.key) }
-            .map { "\($0.key)=\($0.value)" }.joined(separator: ",")
-        return packs + "\u{3}" + run + "\u{3}" + marks
+        let packParts: [String] = f.packs.sorted { utf16Less($0.id, $1.id) }
+            .map { p -> String in "\(p.id)\u{1}\(packOrderKey(p))" }
+        let packs: String = packParts.joined(separator: "\u{2}")
+        let run: String = f.run.map { "\($0.packId)/\(intString($0.startedAt))/\(intString($0.endsAt))" } ?? "-"
+        let markParts: [String] = (f.packMarks ?? [:]).sorted { utf16Less($0.key, $1.key) }
+            .map { "\($0.key)=\($0.value)" }
+        let marks: String = markParts.joined(separator: ",")
+        return "\(packs)\u{3}\(run)\u{3}\(marks)"
     }
 
     /// A csomagok CSOMAGONKÉNT fésülődnek, a jelük szerint: a nagyobb jelnél

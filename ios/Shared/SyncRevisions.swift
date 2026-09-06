@@ -17,11 +17,14 @@ enum SyncRevisions {
     /// A napi keret viszont BENNE van, pedig iPhone-on nem érvényesül — mert
     /// hordozzuk, és ha a gépen megváltoztatják, azt látnunk kell.
     private static func syncFields(_ s: Site) -> String {
-        let bands = s.schedule.map { sch in
-            sch.mode.rawValue + sch.bands.map { b in
-                "\(b.days.sorted().map(String.init).joined(separator: "+")):\(b.startMin)-\(b.endMin)"
-            }.joined(separator: ";")
-        } ?? "-"
+        var bands = "-"
+        if let sch = s.schedule {
+            let bandParts: [String] = sch.bands.map { b -> String in
+                let days: [String] = b.days.sorted().map { String($0) }
+                return "\(days.joined(separator: "+")):\(b.startMin)-\(b.endMin)"
+            }
+            bands = sch.mode.rawValue + bandParts.joined(separator: ";")
+        }
         // Darabokban, kimondott típussal: egy tömbliteral csupa `??`-lal és
         // `map`-pel a fordítónak túl sok (unable to type-check in reasonable
         // time) — és ezt a CI napokig elnyelte.

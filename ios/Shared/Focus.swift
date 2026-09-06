@@ -521,7 +521,8 @@ public enum Focus {
     /// Az ismétlődés kulcsa a lenyomatokhoz: napok rendezve, kezdés, vég — vagy „-”.
     static func recurrenceKey(_ b: ScheduleLogic.Band?) -> String {
         guard let b else { return "-" }
-        return "\(b.days.sorted().map(String.init).joined(separator: ","))/\(b.startMin)-\(b.endMin)"
+        let days: [String] = b.days.sorted().map { String($0) }
+        return "\(days.joined(separator: ","))/\(b.startMin)-\(b.endMin)"
     }
 
     /// Ablak-menet-e ez a futás: a csomag ismétlődésének egy előfordulása,

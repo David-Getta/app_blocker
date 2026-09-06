@@ -497,7 +497,7 @@ struct ContentView: View {
                 )
                 if scheduled {
                     Text(blockedNow ? "Most blokkolva (menetrend)" : "Most szabad (menetrend szerint)")
-                        .foregroundStyle(blockedNow ? .green : .orange)
+                        .foregroundStyle(blockedNow ? Color.green : Color.orange)
                 } else {
                     Text("Blokkolva").foregroundStyle(.green)
                 }

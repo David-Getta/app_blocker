@@ -107,7 +107,7 @@ private struct TranscribeView: View {
                  : prefixOK ? "Eddig hibátlan (\(input.count)/\(text.count))"
                  : "Van eltérés — nézd át.")
                 .font(.footnote)
-                .foregroundStyle(input.isEmpty ? .secondary : (prefixOK ? .green : .red))
+                .foregroundStyle(input.isEmpty ? Color.secondary : (prefixOK ? Color.green : Color.red))
             Button("Kész, ellenőrzés") { onSubmit(input) }.buttonStyle(.borderedProminent)
         }
     }
