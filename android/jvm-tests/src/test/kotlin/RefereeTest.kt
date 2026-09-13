@@ -244,11 +244,7 @@ class RefereeTest {
         assertTrue(BreakerStore.state.value.abandons.isNotEmpty())
 
         Referee.startSession(Kind.PAUSE, id, 15, now + 60_000)
-        var guard = 0
-        while (BreakerStore.state.value.session != null && guard++ < 200) {
-            val step = currentStep()
-            Referee.submitAnswer(BreakerStore.state.value.session!!.id, solve(step), now + 60_000)
-        }
+        solveUntil { false }
         assertTrue(BreakerStore.state.value.abandons.isEmpty(), "solving pays the debt")
     }
     @Test fun `a cancelled attempt on another site does not clear the first site's debt`() {
