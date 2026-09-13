@@ -3,7 +3,7 @@
 // forwards answers, so there is no "just flip the flag" shortcut in the UI.
 
 import {
-  applyAnswer, computeTier, comboKeyOf, cryptoRng, generatePlan, toDisplay,
+  applyAnswer, computeTier, comboKeyOf, cryptoRng, generatePlan, remainingHint, toDisplay,
   CLAIM_WINDOW_MS, DELETE_PENDING_MS, SESSION_MAX_AGE_MS, REROLL_COOLDOWN_MS,
 } from '../shared/challenges';
 import type {
@@ -41,8 +41,10 @@ function sessionInfo(s: SessionRec, now: number): SessionInfo {
     kind: s.kind,
     siteId: s.siteId,
     minutes: s.minutes,
-    stepIndex: s.stepIndex,
-    stepCount: s.steps.length,
+    // A PONTOS SZÁM ITT MARAD: a felület csak azt kapja meg, hogy van-e még
+    // legalább három lépés. Amit nem küldünk ki, azt a felület nem is tudja
+    // véletlenül kiírni.
+    remaining: remainingHint(s.stepIndex, s.steps.length),
     current: toDisplay(s.steps[s.stepIndex], now),
     // A felület ebből tudja, hogy a `focus:` azonosító mögött nem a menet
     // leállítása, hanem a heti ablak lazítása áll — más a fejléc.

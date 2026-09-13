@@ -8,7 +8,10 @@ letiltja — úgy, hogy **inkognitó és vendég módban se** legyen elérhető.
 
 A feloldás szándékosan **nem egyetlen gomb**: valódi erőfeszítést igénylő,
 **változatos próbatételeket** kell teljesíteni, amelyek **nem válnak könnyebbé**
-attól, hogy sokszor csinálod.
+attól, hogy sokszor csinálod. A sorozat legalább **három feladat plusz egy
+kötelező várakozás**, és minél gyakrabban oldasz fel, annál hosszabb. Azt, hogy
+**hány lépés van hátra, az app nem mondja meg** — a majdnem-kész érzés az, ami
+átlendít a feloldáson, és pont azt vesszük el.
 
 > Ez egy első, működő alap. A tulajdonságok később bővíthetők — a mag úgy készült,
 > hogy erre nyitott legyen.

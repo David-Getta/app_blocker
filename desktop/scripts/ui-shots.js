@@ -198,7 +198,7 @@ function fakeBridgeSource() {
           if (loosening) {
             session = {
               id: 'ses_chan', kind: 'pause', siteId: f.id,
-              stepIndex: 0, stepCount: 2,
+              remaining: 'many',
               current: { id: 'st1', type: 'TRANSCRIBE', text: 'csatorna próba szöveg' },
             };
             return { ok: true, data: { applied: false, session, status: status() } };
@@ -212,7 +212,7 @@ function fakeBridgeSource() {
           if (cur && cur.enabled) {
             session = {
               id: 'ses_chan_del', kind: 'pause', siteId: payload.filterId,
-              stepIndex: 0, stepCount: 2,
+              remaining: 'many',
               current: { id: 'st1', type: 'TRANSCRIBE', text: 'törlés próba szöveg' },
             };
             return { ok: true, data: { applied: false, session, status: status() } };
@@ -224,7 +224,7 @@ function fakeBridgeSource() {
         if (op === 'start_unlock') {
           session = {
             id: 'ses_demo', kind: 'pause', siteId: payload.siteId, minutes: payload.minutes,
-            stepIndex: 0, stepCount: 2,
+            remaining: 'many',
             current: { id: 'st_1', type: 'TRANSCRIBE',
               text: 'A pillanatnyi késztetés nem parancs; a figyelmem oda megy, ahová én küldöm.' },
           };
@@ -281,7 +281,7 @@ function fakeBridgeSource() {
           // különben a füstteszt egy nem létező utat járna.
           session = {
             id: 'ses_focus', kind: 'pause', siteId: 'focus:pack_1', minutes: null,
-            stepIndex: 0, stepCount: 2,
+            remaining: 'many',
             current: { id: 'st_focus', type: 'TRANSCRIBE', text: 'masold at' },
           };
           return { ok: true, data: { applied: false, session, status: status() } };

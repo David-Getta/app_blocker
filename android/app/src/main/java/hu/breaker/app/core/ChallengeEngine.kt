@@ -49,7 +49,31 @@ object ChallengeEngine {
 
     const val CLAIM_WINDOW_MS: Long = 10 * 60_000L
     const val DELETE_PENDING_MS: Long = 24 * 3600_000L
-    const val SESSION_MAX_AGE_MS: Long = 6 * 3600_000L
+
+    /**
+     * Ennyi idő után évül el egy kísérlet.
+     *
+     * A leghosszabb várakozás hat óra (törlés, maximális fok), és a munka is
+     * idő: ha az elévülés ennél szorosabb lenne, a legnehezebb szinten a
+     * kísérletet BEFEJEZNI sem lehetne — az nem szigor, hanem elrontott
+     * szabály.
+     */
+    const val SESSION_MAX_AGE_MS: Long = 14 * 3600_000L
+
+    /**
+     * A hátralévő lépések számát SOHA nem mondjuk meg.
+     *
+     * A „még kettő” tudása ugyanaz a lendület, mint a majdnem-kész érzés — és
+     * pont az viszi át az embert a feloldáson. Amit a felület mondhat: van még
+     * legalább ennyi. Ez mindig IGAZ, és nem árulja el, hol a vége.
+     */
+    const val REMAINING_FLOOR: Int = 3
+
+    enum class RemainingHint { MANY, FEW }
+
+    /** „Legalább három van még” vagy „van még” — pontos szám sehol. */
+    fun remainingHint(stepIndex: Int, stepCount: Int): RemainingHint =
+        if (stepCount - stepIndex >= REMAINING_FLOOR) RemainingHint.MANY else RemainingHint.FEW
 
     /**
      * How long an abandoned attempt keeps its challenge types.
@@ -65,15 +89,24 @@ object ChallengeEngine {
     private val rnd = SecureRandom()
     private var seq = 0
 
-    private val TRANSCRIBE_CHARS = intArrayOf(300, 420, 560, 720)
-    private val MATH_LEN = intArrayOf(3, 5, 7, 9)
-    private val MATH_FACTOR_MAX = intArrayOf(29, 39, 59, 79)
-    private val MEMORY_LEN = intArrayOf(8, 10, 12, 14)
-    private val MEMORY_SHOW_MS = longArrayOf(20_000, 18_000, 15_000, 12_000)
-    private val MEMORY_WAIT_MS = longArrayOf(20_000, 30_000, 40_000, 60_000)
-    private val REVERSE_WORDS = intArrayOf(4, 6, 8, 10)
-    private val PAUSE_DELAY_MIN = arrayOf(10 to 20, 20 to 40, 30 to 60, 45 to 90)
-    private val DELETE_DELAY_MIN = arrayOf(15 to 30, 30 to 50, 45 to 80, 60 to 120)
+    /**
+     * Hány AKTÍV próba egy kísérletben (a várakozás ezen felül jön).
+     *
+     * Kettő volt, és az kevésnek bizonyult: két feladat után az ember már
+     * „majdnem kész”, és a majdnem-kész pont az az érzés, ami átlendít a
+     * feloldáson. A típusok a négyes készletből jönnek; ha több lépés kell,
+     * mint ahány típus van, a típus ISMÉTLŐDIK — friss tartalommal.
+     */
+    private val ACTIVE_STEPS = intArrayOf(3, 4, 5, 6)
+    private val TRANSCRIBE_CHARS = intArrayOf(900, 1300, 1800, 2400)
+    private val MATH_LEN = intArrayOf(8, 12, 16, 20)
+    private val MATH_FACTOR_MAX = intArrayOf(59, 79, 99, 129)
+    private val MEMORY_LEN = intArrayOf(12, 14, 16, 20)
+    private val MEMORY_SHOW_MS = longArrayOf(12_000, 10_000, 8_000, 6_000)
+    private val MEMORY_WAIT_MS = longArrayOf(90_000, 150_000, 240_000, 360_000)
+    private val REVERSE_WORDS = intArrayOf(10, 14, 18, 24)
+    private val PAUSE_DELAY_MIN = arrayOf(30 to 45, 60 to 90, 90 to 150, 150 to 240)
+    private val DELETE_DELAY_MIN = arrayOf(45 to 70, 90 to 130, 150 to 210, 240 to 360)
 
     private val WORDS = (
         "alma bogrács cinege délután erdő füzet gomba határ időjárás jégvirág kanál lámpa " +
@@ -207,19 +240,56 @@ object ChallengeEngine {
     fun parseCombo(key: String?): List<String>? {
         if (key.isNullOrEmpty()) return null
         val parts = key.split("+")
-        if (parts.size != 2 || parts[0] == parts[1]) return null
+        // ISMÉTLŐDÉS MEGENGEDETT: több lépés jár, mint ahány típus van.
+        if (parts.size < 2 || parts.size > ACTIVE_STEPS[3]) return null
         if (!parts.all { it in ACTIVE_POOL }) return null
         return parts
     }
 
+    /** Hány aktív próba jár ehhez a fokhoz (a várakozás ezen felül van). */
+    fun activeStepCount(tier: Int): Int = ACTIVE_STEPS[max(0, min(3, tier))]
+
+    /** Ennyiszer próbálunk más kombinációt húzni, mint az előző kísérleté. */
+    private const val COMBO_REDRAW_TRIES = 8
+
+    /** `n` típus sorsolása: előbb mind a négy, utána ismétlés — friss tartalommal. */
+    private fun drawTypes(n: Int): List<String> {
+        val out = mutableListOf<String>()
+        while (out.size < n) {
+            for (t in ACTIVE_POOL.shuffled(rnd.asKotlinRandom())) {
+                if (out.size < n) out.add(t)
+            }
+        }
+        return out
+    }
+
+    /**
+     * A kísérlet lépéslistája: `ACTIVE_STEPS[tier]` aktív próba, és MINDIG egy
+     * várakozás — nem csak magas fokon vagy törlésnél.
+     *
+     * A feladott kísérlet típusait a hűtés alatt visszakapjuk (`forceCombo`).
+     * Ha az a lista RÖVIDEBB, mint amennyi most jár, FELTÖLTJÜK: egy régi
+     * állapot nem lehet a kevesebb munka útja.
+     */
     fun generatePlan(kind: Kind, tier: Int, lastCombo: String?, forceCombo: String? = null): Plan {
+        val want = activeStepCount(tier)
         var types: List<String>? = parseCombo(forceCombo)
-        while (types == null) {
-            val draw = ACTIVE_POOL.shuffled(rnd.asKotlinRandom()).take(2)
-            if (lastCombo == null || comboKeyOf(draw) != lastCombo) types = draw
+        if (types != null && types.size < want) types = types + drawTypes(want - types.size)
+        if (types == null) {
+            // Az ismétlődés elkerülése PRÓBÁLKOZÁS, nem követelmény: ha annyi
+            // lépés jár, ahány típus van, minden terv ugyanaz a halmaz, tehát
+            // nincs mit másikra cserélni — a korlát nélküli újrasorsolás
+            // örökre pörögne. A tartalom úgyis friss.
+            var draw = drawTypes(want)
+            var tries = 0
+            while (lastCombo != null && comboKeyOf(draw) == lastCombo && tries < COMBO_REDRAW_TRIES) {
+                draw = drawTypes(want)
+                tries++
+            }
+            types = draw
         }
         val steps = types.map { makeStep(it, tier, kind) }.toMutableList()
-        if (tier >= 2 || kind == Kind.DELETE) steps.add(makeStep("DELAY", tier, kind))
+        steps.add(makeStep("DELAY", tier, kind))
         return Plan(steps, comboKeyOf(types))
     }
 

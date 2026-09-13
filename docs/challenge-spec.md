@@ -19,8 +19,14 @@ váljon rutinná. Ezért:
 2. **Nem lesz könnyebb ismétléssel.** A tartalom (szöveg, számok, kód, mondat)
    *minden alkalommal frissen, véletlenszerűen* generálódik — nincs mit
    „betanulni”. Ráadásul a kombináció is változik (lásd lejjebb).
-3. **Változatosság.** Egy sorozat két különböző próbatípusból áll, és **soha nem
-   ismétlődik ugyanaz a páros kétszer egymás után** (`lastCombo`).
+3. **Változatosság.** Egy sorozat a fok szerinti számú próbatípusból áll (3–6),
+   és amíg van mit másikra cserélni, **nem ismétlődik ugyanaz a kombináció
+   kétszer egymás után** (`lastCombo`). Négy lépéstől felfelé a halmaz
+   kényszerű — ott a változatosságot a friss tartalom adja.
+6. **A hátralévő lépések számát nem mondjuk meg.** A felület annyit ír ki, hogy
+   van még legalább három feladat, vagy hogy van még — pontos számot soha. A
+   „még kettő” tudása ugyanaz a lendület, mint a majdnem-kész érzés, és pont az
+   viszi át az embert a feloldáson.
 4. **Növekvő ellenállás.** Ha valaki gyakran old fel, a nehézség automatikusan
    nő (tier 0→3 az elmúlt 7 nap feloldásai alapján).
 5. **A törlés a legnehezebb.** Egy oldal végleges levételéhez a legmagasabb
@@ -60,32 +66,47 @@ váljon rutinná. Ezért:
 
 Törlésnél a tier eggyel feljebb tolódik (max 3).
 
-| Tier | Átgépelés (karakter) | Matek-lánc | Memória-kód | Visszafelé (szó) | Szünet-várakozás | Törlés-várakozás |
-|------|----------------------|-----------|-------------|------------------|------------------|------------------|
-| 0 | 300 | 3 | 8 | 4 | (nincs) | 15–30 p |
-| 1 | 420 | 5 | 10 | 6 | (nincs) | 30–50 p |
-| 2 | 560 | 7 | 12 | 8 | 30–60 p | 45–80 p |
-| 3 | 720 | 9 | 14 | 10 | 45–90 p | 60–120 p |
+| Tier | Aktív próbák | Átgépelés (karakter) | Matek-lánc | Memória-kód | Visszafelé (szó) | Szünet-várakozás | Törlés-várakozás |
+|------|--------------|----------------------|-----------|-------------|------------------|------------------|------------------|
+| 0 | 3 | 900 | 8 | 12 | 10 | 30–45 p | 45–70 p |
+| 1 | 4 | 1300 | 12 | 14 | 14 | 60–90 p | 90–130 p |
+| 2 | 5 | 1800 | 16 | 16 | 18 | 90–150 p | 150–210 p |
+| 3 | 6 | 2400 | 20 | 20 | 24 | 150–240 p | 240–360 p |
 
-DELAY lépés szünetnél tier ≥ 2-től, törlésnél mindig van.
+A memória-kód mutatási ideje fordítva megy (12 → 6 másodperc), a kötelező
+kivárás pedig 90 másodperctől 6 percig nő.
+
+**DELAY lépés MINDEN sorozat végén van** — minden fokon, szünetnél is. A
+kísérlet elévülése (`SESSION_MAX_AGE_MS`) ezért 14 óra: a leghosszabb várakozás
+maga hat óra, és a munka is idő. Ha az elévülés ennél szorosabb lenne, a
+legnehezebb fokon a kísérletet befejezni sem lehetne — az nem szigor, hanem
+elrontott szabály.
 
 ## Sorozat felépítése
 
 ```
 generatePlan(kind, tier, lastCombo, forceCombo):
-  - ha van forceCombo (feladott kísérlet tartozása): azt a párost használd
-  - különben válassz 2 KÜLÖNBÖZŐ aktív típust
-    (TRANSCRIBE/MATH_CHAIN/MEMORY/REVERSE), úgy, hogy a párosuk ne egyezzen az
-    előző sorozatéval
-  - ha tier >= 2 VAGY kind == delete: fűzz hozzá egy DELAY lépést
+  - want = activeSteps[tier]            // 3 / 4 / 5 / 6
+  - ha van forceCombo (feladott kísérlet tartozása): azt használd, és ha
+    RÖVIDEBB, mint want, töltsd fel véletlen típusokkal (a feladás sosem lehet
+    a kevesebb munka útja; ha hosszabb, marad hosszabb)
+  - különben húzz `want` típust (TRANSCRIBE/MATH_CHAIN/MEMORY/REVERSE): előbb
+    mind a négyet, utána ismétlés — friss tartalommal; és próbáld úgy, hogy a
+    kombináció ne egyezzen az előzőével (korlátos számú próbálkozás, mert négy
+    lépéstől felfelé nincs másik halmaz)
+  - fűzz hozzá egy DELAY lépést — MINDIG
 ```
+
+A korlátos újrapróbálás nem kényelmi kérdés: négy aktív lépésnél minden terv
+ugyanaz a négy típus, tehát „másik kombináció” nem létezik. Korlát nélkül a
+sorsolás örökké pörögne (ezt a saját tesztjeink fogták ki).
 
 ### Miért nem lehet újrapörgetni
 
-A pároséban van különbség: a MEMORY-ban benne van egy kötelező kivárás, a
-REVERSE gépelése lassabb, mint egy MATH_CHAIN. Ha a feladás új párost sorsolna,
-elég lett volna elég sokszor újrakezdeni, amíg jön a legkényelmesebb kettő — az
-a súrlódás pedig, amit újra lehet pörgetni, nem súrlódás.
+A kombinációk között van különbség: a MEMORY-ban benne van egy kötelező
+kivárás, a REVERSE gépelése lassabb, mint egy MATH_CHAIN. Ha a feladás új
+kombinációt sorsolna, elég lett volna elég sokszor újrakezdeni, amíg jön a
+legkényelmesebb — az a súrlódás pedig, amit újra lehet pörgetni, nem súrlódás.
 
 Ezért minden **befejezés-szerű esemény** (feladom gomb, új kísérlet indítása a
 régi helyett, a DELAY átvételi ablakának kihagyása, a session elévülése)

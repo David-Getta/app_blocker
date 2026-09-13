@@ -148,6 +148,13 @@ const CHECKS = [
     scalar(ts.focus, /RECURRENCE_MIN_REMAINING_MS\s*=\s*([^;]+);/, 'ts'),
     scalar(kt.focus, /RECURRENCE_MIN_REMAINING_MS\s*=\s*(.+)/, 'kt'),
     scalar(sw.focus, /recurrenceMinRemainingMs[^=]*=\s*(.+)/, 'swift')],
+  // HÁNY LÉPÉS EGY KÍSÉRLET. Ha ez szétcsúszik, ugyanaz a fok az egyik
+  // eszközön három feladat, a másikon hat — vagyis a felhasználó a gyengébb
+  // eszközön old fel, és semmi nem jelzi.
+  ['tier: activeSteps',
+    list(ts.challenges, /activeSteps:\s*\[([^\]]+)\]/, 'ts'),
+    list(kt.engine, /ACTIVE_STEPS\s*=\s*intArrayOf\(([^)]+)\)/, 'kt'),
+    list(sw.engine, /activeSteps\s*=\s*\[([^\]]+)\]/, 'swift')],
   ['tier: transcribeChars',
     list(ts.challenges, /transcribeChars:\s*\[([^\]]+)\]/, 'ts'),
     list(kt.engine, /TRANSCRIBE_CHARS\s*=\s*intArrayOf\(([^)]+)\)/, 'kt'),

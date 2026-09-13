@@ -16,7 +16,7 @@ import {
 import type { Band, Weekday } from '../src/shared/schedule';
 import { defaultState, type HelperState } from '../src/helper/state';
 import {
-  changeFocus, deleteFocusPack, saveFocusPack, setFocusRecurrence, startFocus, submitAnswer, tick,
+  changeFocus, claimDelay, deleteFocusPack, saveFocusPack, setFocusRecurrence, startFocus, submitAnswer, tick,
 } from '../src/helper/referee';
 import { bumpFocusRevision } from '../src/helper/revisions';
 import { sameFocus, type SyncFocus } from '../src/shared/sync/focus-merge';
@@ -205,6 +205,14 @@ function solveWholeSession(state: HelperState, now: number): void {
   let guard = 0;
   while (state.session && guard++ < 200) {
     const step = state.session.steps[state.session.stepIndex];
+    if (step.type === 'DELAY') {
+      // A várakozó lépés nem válasszal megy: minden kísérlet ezzel végződik
+      // (minden fokon, szünetnél is), a bíró pedig a türelmi idő letelte után
+      // enged tovább. A teszt nem vár valódi órákat: a célpontot hozza előre.
+      step.claimableAt = now - 1;
+      claimDelay(state, state.session.id, now);
+      continue;
+    }
     submitAnswer(state, state.session.id, solveStep(step, now), now);
   }
 }

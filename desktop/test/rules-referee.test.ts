@@ -56,6 +56,14 @@ function solveWholeSession(state: HelperState, now: number): void {
   let guard = 0;
   while (state.session && guard++ < 200) {
     const step = state.session.steps[state.session.stepIndex];
+    if (step.type === 'DELAY') {
+      // A várakozó lépés nem válasszal megy: minden kísérlet ezzel végződik
+      // (minden fokon, szünetnél is), a bíró pedig a türelmi idő letelte után
+      // enged tovább. A teszt nem vár valódi órákat: a célpontot hozza előre.
+      step.claimableAt = now - 1;
+      referee.claimDelay(state, state.session.id, now);
+      continue;
+    }
     referee.submitAnswer(state, state.session.id, solveStep(step, now), now);
   }
 }

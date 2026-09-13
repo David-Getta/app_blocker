@@ -62,22 +62,54 @@ export function computeTier(unlockLog: number[], now: number): 0 | 1 | 2 | 3 {
 }
 
 export const TIER_PARAMS = {
-  transcribeChars: [300, 420, 560, 720],
-  mathLen: [3, 5, 7, 9],
-  mathFactorMax: [29, 39, 59, 79],
-  memoryLen: [8, 10, 12, 14],
-  memoryShowMs: [20_000, 18_000, 15_000, 12_000],
-  memoryWaitMs: [20_000, 30_000, 40_000, 60_000],
-  reverseWords: [4, 6, 8, 10],
+  /**
+   * Hány AKTÍV próba egy kísérletben (a várakozás ezen felül jön).
+   *
+   * Kettő volt, és az kevésnek bizonyult: két feladat után az ember már
+   * „majdnem kész”, és a majdnem-kész pont az az érzés, ami átlendít a
+   * feloldáson. A típusok a négyes készletből jönnek; ha több lépés kell,
+   * mint ahány típus van, a típus ISMÉTLŐDIK — friss tartalommal.
+   */
+  activeSteps: [3, 4, 5, 6],
+  transcribeChars: [900, 1300, 1800, 2400],
+  mathLen: [8, 12, 16, 20],
+  mathFactorMax: [59, 79, 99, 129],
+  memoryLen: [12, 14, 16, 20],
+  memoryShowMs: [12_000, 10_000, 8_000, 6_000],
+  memoryWaitMs: [90_000, 150_000, 240_000, 360_000],
+  reverseWords: [10, 14, 18, 24],
   /** [min,max] minutes of forced waiting, pause sessions */
-  pauseDelayMin: [[10, 20], [20, 40], [30, 60], [45, 90]],
+  pauseDelayMin: [[30, 45], [60, 90], [90, 150], [150, 240]],
   /** [min,max] minutes of forced waiting, delete sessions */
-  deleteDelayMin: [[15, 30], [30, 50], [45, 80], [60, 120]],
+  deleteDelayMin: [[45, 70], [90, 130], [150, 210], [240, 360]],
 } as const;
 
 export const CLAIM_WINDOW_MS = 10 * 60_000;
 export const DELETE_PENDING_MS = 24 * 3600_000;
-export const SESSION_MAX_AGE_MS = 6 * 3600_000;
+/**
+ * Ennyi idő után évül el egy kísérlet.
+ *
+ * A leghosszabb várakozás hat óra (törlés, maximális fok), és a munka is idő:
+ * ha az elévülés ennél szorosabb lenne, a legnehezebb szinten a kísérletet
+ * BEFEJEZNI sem lehetne — az nem szigor, hanem elrontott szabály.
+ */
+export const SESSION_MAX_AGE_MS = 14 * 3600_000;
+
+/**
+ * A hátralévő lépések számát SOHA nem mondjuk meg.
+ *
+ * Nem díszítés: a „még kettő” tudása ugyanaz a lendület, mint a majdnem-kész
+ * érzés — pont az viszi át az embert a feloldáson. Amit a felület mondhat: van
+ * még legalább ennyi. Ez mindig IGAZ, és nem árulja el, hol a vége.
+ */
+export const REMAINING_FLOOR = 3;
+
+export type RemainingHint = 'many' | 'few';
+
+/** „Legalább három van még” vagy „van még” — pontos szám sehol. */
+export function remainingHint(stepIndex: number, stepCount: number): RemainingHint {
+  return stepCount - stepIndex >= REMAINING_FLOOR ? 'many' : 'few';
+}
 
 // ------------------------------------------------------------ content pools
 
@@ -178,10 +210,40 @@ export function makeStep(type: ChallengeType, tier: number, kind: 'pause' | 'del
   }
 }
 
+/** Hány aktív próba jár ehhez a fokhoz (a várakozás ezen felül van). */
+export function activeStepCount(tier: number): number {
+  return TIER_PARAMS.activeSteps[Math.max(0, Math.min(3, tier))];
+}
+
+/** Ennyiszer próbálunk más kombinációt húzni, mint az előző kísérleté. */
+const COMBO_REDRAW_TRIES = 8;
+
+/** `n` típus sorsolása: előbb mind a négy, utána ismétlés — friss tartalommal. */
+function drawTypes(n: number, rng: RNG): ChallengeType[] {
+  const out: ChallengeType[] = [];
+  while (out.length < n) {
+    const pool = [...ACTIVE_POOL];
+    // Fisher–Yates with the injected RNG
+    for (let i = pool.length - 1; i > 0; i--) {
+      const j = rng.int(0, i);
+      [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+    for (const t of pool) {
+      if (out.length < n) out.push(t);
+    }
+  }
+  return out;
+}
+
 /**
  * Builds the step list for one unlock/delete attempt:
- *  - two distinct random active challenges (never the same pair twice in a row)
- *  - plus a forced waiting period at tier >= 2, and always for deletions
+ *  - `activeSteps[tier]` random active challenges (never the same set twice in
+ *    a row), types repeating when more steps are needed than types exist
+ *  - plus a forced waiting period — MINDIG, nem csak magas fokon vagy törlésnél
+ *
+ * A feladott kísérlet típusait a hűtés alatt visszakapjuk (`forceCombo`). Ha
+ * az a lista RÖVIDEBB, mint amennyi most jár, FELTÖLTJÜK: egy régi állapot
+ * nem lehet a kevesebb munka útja.
  */
 export function generatePlan(
   kind: 'pause' | 'delete',
@@ -190,20 +252,25 @@ export function generatePlan(
   rng: RNG,
   forceCombo?: string | null,
 ): { steps: Step[]; comboKey: string } {
+  const want = activeStepCount(tier);
   let types: ChallengeType[] | null = parseCombo(forceCombo);
-  while (types === null) {
-    const pool = [...ACTIVE_POOL];
-    // Fisher–Yates with the injected RNG
-    for (let i = pool.length - 1; i > 0; i--) {
-      const j = rng.int(0, i);
-      [pool[i], pool[j]] = [pool[j], pool[i]];
+  if (types !== null && types.length < want) {
+    types = [...types, ...drawTypes(want - types.length, rng)];
+  }
+  if (types === null) {
+    // Az ismétlődés elkerülése PRÓBÁLKOZÁS, nem követelmény — és ez nem
+    // kényelmi kérdés: ha annyi lépés jár, ahány típus van, akkor MINDEN terv
+    // ugyanaz a halmaz, tehát nincs mit másikra cserélni. A korlát nélküli
+    // újrasorsolás ilyenkor örökre pörögne. A tartalom úgyis friss.
+    let draw = drawTypes(want, rng);
+    for (let i = 0; i < COMBO_REDRAW_TRIES && lastCombo !== null && comboKeyOf(draw) === lastCombo; i++) {
+      draw = drawTypes(want, rng);
     }
-    const draw = pool.slice(0, 2);
-    if (lastCombo === null || comboKeyOf(draw) !== lastCombo) types = draw;
+    types = draw;
   }
   const comboKey = comboKeyOf(types);
   const steps = types.map((tp) => makeStep(tp, tier, kind, rng));
-  if (tier >= 2 || kind === 'delete') steps.push(makeStep('DELAY', tier, kind, rng));
+  steps.push(makeStep('DELAY', tier, kind, rng));
   return { steps, comboKey };
 }
 
@@ -212,16 +279,20 @@ export function comboKeyOf(types: ChallengeType[]): string {
 }
 
 /**
- * A combo key back into its two challenge types, or null if it is not one this
- * build can serve (unknown name, wrong arity — e.g. state written by a newer
- * version). Null means "draw a fresh plan", never "serve something broken".
+ * A combo key back into its challenge types, or null if it is not one this
+ * build can serve (unknown name, nonsense arity — e.g. state written by a
+ * newer version). Null means "draw a fresh plan", never "serve something
+ * broken".
+ *
+ * ISMÉTLŐDÉS MEGENGEDETT: több lépés jár, mint ahány típus van, tehát egy
+ * kulcsban ugyanaz a típus többször is szerepelhet. A hossz alsó határa
+ * kettő, a felső a legnagyobb foké — ennél hosszabb kulcs nem a miénk.
  */
 export function parseCombo(key: string | null | undefined): ChallengeType[] | null {
   if (!key) return null;
   const parts = key.split('+');
-  if (parts.length !== 2) return null;
+  if (parts.length < 2 || parts.length > TIER_PARAMS.activeSteps[3]) return null;
   if (!parts.every((p) => (ACTIVE_POOL as string[]).includes(p))) return null;
-  if (parts[0] === parts[1]) return null;
   return parts as ChallengeType[];
 }
 
@@ -301,7 +372,10 @@ export function toDisplay(step: Step, now: number): StepDisplay {
     case 'MATH_CHAIN':
       return {
         id: step.id, type: step.type,
-        math: { question: step.problems[step.pos].q + ' = ?', index: step.pos, total: step.problems.length },
+        // A LÁNC HOSSZA NEM MEGY KI: a „3/9” ugyanaz a lendület, mint a
+        // hátralévő lépések száma. Az index a felületnek kell (abból tudja,
+        // hogy új feladat jött), a teljes hossz nem.
+        math: { question: step.problems[step.pos].q + ' = ?', index: step.pos },
       };
     case 'MEMORY': {
       const showOpen = step.armedAt !== null && now < step.armedAt + step.showMs;

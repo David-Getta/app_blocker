@@ -1820,7 +1820,7 @@ function renderResumeBanner(st: StatusData): void {
   if (show && st.session) {
     const site = st.sites.find((s) => s.id === st.session!.siteId);
     $('resumeText').textContent =
-      `Folyamatban lévő ${st.session.kind === 'delete' ? 'törlési' : 'feloldási'} kísérlet: ${site ? displayName(site) : ''} (${st.session.stepIndex + 1}/${st.session.stepCount}. próba)`;
+      `Folyamatban lévő ${st.session.kind === 'delete' ? 'törlési' : 'feloldási'} kísérlet: ${site ? displayName(site) : ''} (${remainingText(st.session.remaining)})`;
   }
 }
 
@@ -2769,7 +2769,7 @@ function renderSession(session: SessionInfo | null): void {
       ? 'A próbák teljesítése után a törlés még 24 órát vár — addig visszavonható.'
       : 'A próbák teljesítése után az oldal a választott ideig elérhető, majd magától visszazár.';
   }
-  $('sessionProgress').textContent = `${session.stepIndex + 1}/${session.stepCount}. próba`;
+  $('sessionProgress').textContent = remainingText(session.remaining);
 
   if (session.current.id !== renderedStepId) {
     renderedStepId = session.current.id;
@@ -2792,6 +2792,19 @@ function guardInput(el: HTMLInputElement | HTMLTextAreaElement): void {
     }
     prevLen = el.value.length;
   });
+}
+
+/**
+ * Mit írunk ki a hátralévő lépésekről. PONTOS SZÁMOT SOHA.
+ *
+ * A „2/4. próba” azt üzente: mindjárt kész. Pont ez a lendület viszi át az
+ * embert a feloldáson, és pont ezt vesszük el. Amit mondunk, az mindig igaz:
+ * van még legalább három, vagy van még — hogy egy vagy kettő, nem derül ki.
+ */
+function remainingText(hint: SessionInfo['remaining']): string {
+  return hint === 'many'
+    ? 'Legalább 3 feladat van még hátra'
+    : 'Van még hátra feladat';
 }
 
 function buildStep(session: SessionInfo): void {
@@ -2843,7 +2856,7 @@ function handleSubmitResult(r: SubmitResult, kind: 'pause' | 'delete'): void {
     // MATH_CHAIN keeps its id between problems, so rebuild on accepted answers too.
     if (r.session.current.id !== renderedStepId || (r.accepted && r.session.current.type === 'MATH_CHAIN')) {
       renderedStepId = r.session.current.id;
-      $('sessionProgress').textContent = `${r.session.stepIndex + 1}/${r.session.stepCount}. próba`;
+      $('sessionProgress').textContent = remainingText(r.session.remaining);
       buildStep(r.session);
     }
   }
@@ -2877,7 +2890,7 @@ function buildTranscribe(box: HTMLElement, session: SessionInfo, step: StepDispl
 
 function buildMath(box: HTMLElement, session: SessionInfo, step: StepDisplay): void {
   const m = step.math!;
-  box.appendChild(h('div', 'step-title', `Fejszámolás-lánc — ${m.index + 1}/${m.total}. feladat`));
+  box.appendChild(h('div', 'step-title', 'Fejszámolás-lánc'));
   box.appendChild(h('div', 'hint', 'Hibás válasznál a teljes lánc elölről indul, új feladatokkal. Számológép helyett papírt!'));
   box.appendChild(h('div', 'math-q', m.question));
   const input = h('input', 'challenge-input') as HTMLInputElement;

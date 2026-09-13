@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import * as assert from 'node:assert/strict';
 import {
   applyAnswer, computeTier, generatePlan, makeStep, reverseString, toDisplay,
-  cryptoRng, comboKeyOf,
+  cryptoRng, comboKeyOf, remainingHint, TIER_PARAMS,
 } from '../src/shared/challenges';
 import type { RNG, Step, MathChainStep, MemoryStep, ReverseStep, TranscribeStep } from '../src/shared/challenges';
 
@@ -31,27 +31,75 @@ test('computeTier scales with recent unlocks', () => {
   assert.equal(computeTier([now - 10 * day, now - 20 * day], now), 0);
 });
 
-test('generatePlan: two distinct actives, DELAY rules, combo varies', () => {
+test('generatePlan: fokonként több aktív próba, a végén MINDIG várakozás', () => {
   const rng = seededRng(42);
-  for (let i = 0; i < 50; i++) {
-    const { steps } = generatePlan('pause', 0, null, rng);
-    assert.equal(steps.length, 2);
-    assert.notEqual(steps[0].type, steps[1].type);
-    assert.ok(steps.every((s) => s.type !== 'DELAY'));
+  for (const tier of [0, 1, 2, 3]) {
+    const want = TIER_PARAMS.activeSteps[tier];
+    for (let i = 0; i < 25; i++) {
+      const { steps } = generatePlan('pause', tier, null, rng);
+      // A várakozás MINDEN fokon ott van — nem csak magason és nem csak
+      // törlésnél. A szünet a legolcsóbb út, és az sem ingyen van.
+      assert.equal(steps.length, want + 1, `fok ${tier}`);
+      assert.equal(steps[steps.length - 1].type, 'DELAY');
+      assert.ok(steps.slice(0, want).every((s) => s.type !== 'DELAY'));
+      // Amíg kifér a négyes készletből, nincs ismétlés; efölött lehet.
+      if (want <= 4) {
+        assert.equal(new Set(steps.slice(0, want).map((s) => s.type)).size, want);
+      }
+    }
   }
-  const withDelay = generatePlan('pause', 2, null, rng);
-  assert.equal(withDelay.steps.length, 3);
-  assert.equal(withDelay.steps[2].type, 'DELAY');
   const del = generatePlan('delete', 0, null, rng);
   assert.equal(del.steps[del.steps.length - 1].type, 'DELAY');
 
-  // never the same combo twice in a row
+  // Amíg VAN mit másikra cserélni (kevesebb lépés, mint ahány típus), nem jön
+  // kétszer ugyanaz a kombináció.
   let last: string | null = null;
   for (let i = 0; i < 100; i++) {
-    const plan = generatePlan('pause', 1, last, rng);
+    const plan = generatePlan('pause', 0, last, rng);
     assert.notEqual(plan.comboKey, last);
     last = plan.comboKey;
   }
+});
+
+test('négy lépésnél a kombináció kényszerű — és ettől nem akad meg', () => {
+  // A négyes fokon minden terv MIND A NÉGY típust tartalmazza, tehát nincs
+  // másik kombináció. Az „ne ismétlődjön” szabály ilyenkor nem követelmény,
+  // csak próbálkozás — enélkül a sorsolás örökké pörögne. (Ez nem elmélet: a
+  // korlát nélküli változat megakasztotta a teszteket.)
+  const rng = seededRng(11);
+  const first = generatePlan('pause', 1, null, rng);
+  assert.equal(first.steps.length, 5, 'négy aktív + a várakozás');
+  const again = generatePlan('pause', 1, first.comboKey, rng);
+  assert.equal(again.comboKey, first.comboKey, 'ugyanaz a halmaz — mást nem lehet húzni');
+  // A tartalom viszont friss: ugyanaz a típus, más feladat.
+  const a = first.steps.find((x) => x.type === 'TRANSCRIBE') as TranscribeStep;
+  const b = again.steps.find((x) => x.type === 'TRANSCRIBE') as TranscribeStep;
+  assert.notEqual(a.text, b.text);
+});
+
+test('a feladott kísérlet rövid kulcsa NEM ad kevesebb munkát', () => {
+  const rng = seededRng(7);
+  // Egy régi (két típusú) kulcs a hűtésből: a típusok visszajönnek, de a
+  // lépésszám a MAI szabály szerinti — különben a régi állapot lenne a
+  // kevesebb munka útja.
+  const plan = generatePlan('pause', 3, null, rng, 'MEMORY+TRANSCRIBE');
+  assert.equal(plan.steps.length, TIER_PARAMS.activeSteps[3] + 1);
+  const types = plan.steps.slice(0, -1).map((s) => s.type);
+  assert.ok(types.includes('MEMORY') && types.includes('TRANSCRIBE'), 'a kifizetett páros visszajön');
+  // Egy hosszabb kulcs viszont nem csonkul: a padding csak felfelé megy.
+  const long = generatePlan('pause', 0, null, rng, 'MEMORY+REVERSE+TRANSCRIBE+MATH_CHAIN+MEMORY');
+  assert.equal(long.steps.length, 6, 'öt aktív + a várakozás');
+});
+
+test('a hátralévő lépések száma nem szivárog ki', () => {
+  // A felület CSAK ezt a két állapotot láthatja. A „még kettő” tudása ugyanaz
+  // a lendület, mint a majdnem-kész érzés — ezt vesszük el.
+  assert.equal(remainingHint(0, 7), 'many');
+  assert.equal(remainingHint(4, 7), 'many');
+  assert.equal(remainingHint(5, 7), 'few', 'kettő van hátra — de hogy kettő, az nem derül ki');
+  assert.equal(remainingHint(6, 7), 'few', 'az utolsó lépés sem kap lendületet');
+  // A legkisebb terv is legalább négy lépés, tehát az indulás mindig „many”.
+  assert.equal(remainingHint(0, TIER_PARAMS.activeSteps[0] + 1), 'many');
 });
 
 const NOW = 1_700_000_000_000;
@@ -184,12 +232,21 @@ test('comboKeyOf is order independent', () => {
 test('DELAY minutes fall inside the tier band', () => {
   const rng = cryptoRng();
   for (let tier = 0; tier <= 3; tier++) {
-    for (let i = 0; i < 20; i++) {
-      const d = makeStep('DELAY', tier, 'delete', rng);
-      assert.equal(d.type, 'DELAY');
-      if (d.type === 'DELAY') {
-        assert.ok(d.minutes >= 15 && d.minutes <= 120);
+    for (const kind of ['pause', 'delete'] as const) {
+      const [lo, hi] = kind === 'delete'
+        ? TIER_PARAMS.deleteDelayMin[tier]
+        : TIER_PARAMS.pauseDelayMin[tier];
+      for (let i = 0; i < 20; i++) {
+        const d = makeStep('DELAY', tier, kind, rng);
+        assert.equal(d.type, 'DELAY');
+        if (d.type === 'DELAY') {
+          assert.ok(d.minutes >= lo && d.minutes <= hi, `${kind} fok ${tier}: ${d.minutes}`);
+        }
       }
     }
+  }
+  // A törlés minden fokon DRÁGÁBB, mint a szünet — ez a rangsor a szabály.
+  for (let tier = 0; tier <= 3; tier++) {
+    assert.ok(TIER_PARAMS.deleteDelayMin[tier][0] > TIER_PARAMS.pauseDelayMin[tier][0]);
   }
 });

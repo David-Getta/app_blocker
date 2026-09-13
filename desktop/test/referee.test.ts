@@ -18,7 +18,7 @@ import * as referee from '../src/helper/referee';
 import { applyBlocklist, activeHostnames } from '../src/helper/hosts';
 import { recordSample, siteKey } from '../src/shared/usage';
 import type { Step, DelayStep, MathChainStep, MemoryStep, ReverseStep, TranscribeStep } from '../src/shared/challenges';
-import { reverseString, REROLL_COOLDOWN_MS } from '../src/shared/challenges';
+import { reverseString, REROLL_COOLDOWN_MS, SESSION_MAX_AGE_MS } from '../src/shared/challenges';
 
 function stateWithSite(): { state: HelperState; siteId: string } {
   const state = defaultState();
@@ -29,6 +29,15 @@ function stateWithSite(): { state: HelperState; siteId: string } {
     addedAt: Date.now(), pauseUntil: null, pendingDeleteAt: null,
   });
   return { state, siteId };
+}
+
+/**
+ * A kísérlet AKTÍV típusai kulccsá fűzve. A várakozás kimarad: minden terv
+ * azzal végződik, tehát a „melyik párost kaptam vissza” kérdésre nem mond
+ * semmit — a bíró kombináció-kulcsa is az aktív típusokból készül.
+ */
+function activeCombo(steps: Step[]): string {
+  return steps.filter((s) => s.type !== 'DELAY').map((s) => s.type).sort().join('+');
 }
 
 function solveStep(step: Step, now: number): string {
@@ -53,11 +62,21 @@ test('full pause session: solve every step -> site pauses, then tick re-locks', 
   const { state, siteId } = stateWithSite();
   const now = Date.now();
   const info = referee.startSession(state, 'pause', siteId, 15, now);
-  assert.equal(info.stepCount, 2); // tier 0 -> no DELAY
+  // A felület CSAK ennyit tud a hosszról: van még legalább három. A pontos
+  // szám szándékosan nem megy ki (lásd `remainingHint`).
+  assert.equal(info.remaining, 'many');
 
   let guard = 0;
   while (state.session && guard++ < 200) {
     const step = state.session.steps[state.session.stepIndex];
+    if (step.type === 'DELAY') {
+      // A várakozó lépés nem válasszal megy: minden kísérlet ezzel végződik
+      // (minden fokon, szünetnél is), a bíró pedig a türelmi idő letelte után
+      // enged tovább. A teszt nem vár valódi órákat: a célpontot hozza előre.
+      step.claimableAt = now - 1;
+      referee.claimDelay(state, state.session.id, now);
+      continue;
+    }
     referee.submitAnswer(state, state.session.id, solveStep(step, now), now);
   }
   assert.equal(state.session, null);
@@ -148,6 +167,12 @@ test('schedule change: tightening applies immediately, loosening needs challenge
   let guard = 0;
   while (state.session && guard++ < 200) {
     const step = state.session.steps[state.session.stepIndex];
+    if (step.type === 'DELAY') {
+      // Minden kísérlet várakozással végződik — a teszt a célpontot hozza előre.
+      step.claimableAt = now - 1;
+      referee.claimDelay(state, state.session.id, now);
+      continue;
+    }
     referee.submitAnswer(state, state.session.id, solveStep(step, now), now);
   }
   assert.deepEqual(state.sites[0].schedule, workBlock);
@@ -255,14 +280,14 @@ test('cancelling an attempt is not a way to re-roll an easier one', () => {
   const now = Date.now();
 
   referee.startSession(state, 'pause', siteId, 15, now);
-  const firstTypes = [...state.session!.steps.map((s) => s.type)].sort().join('+');
+  const firstTypes = activeCombo(state.session!.steps);
   const firstIds = state.session!.steps.map((s) => s.id);
 
   referee.abandonSession(state, state.session!.id);
   assert.equal(state.session, null);
 
   referee.startSession(state, 'pause', siteId, 15, now + 60_000);
-  assert.equal([...state.session!.steps.map((s) => s.type)].sort().join('+'), firstTypes,
+  assert.equal(activeCombo(state.session!.steps), firstTypes,
     'the same challenge types come back');
   // …but nothing is banked either: fresh content, so cancelling is never cheaper
   // than finishing.
@@ -278,6 +303,12 @@ test('a solved attempt earns a freshly drawn one next time', () => {
   let guard = 0;
   while (state.session && guard++ < 200) {
     const step = state.session.steps[state.session.stepIndex];
+    if (step.type === 'DELAY') {
+      // Minden kísérlet várakozással végződik — a teszt a célpontot hozza előre.
+      step.claimableAt = now - 1;
+      referee.claimDelay(state, state.session.id, now);
+      continue;
+    }
     referee.submitAnswer(state, state.session.id, solveStep(step, now), now);
   }
   assert.deepEqual(state.abandons ?? [], [], 'the abandon debt is cleared by solving');
@@ -306,11 +337,14 @@ test('missing the DELAY claim window does not re-roll the challenge either', () 
   const types = state.session!.steps.filter((s) => s.type !== 'DELAY').map((s) => s.type);
   assert.ok(state.session!.steps.some((s) => s.type === 'DELAY'), 'the plan has a waiting step');
 
-  // walk the clock past every claim window without claiming
-  referee.tick(state, now + 6 * 3600_000 + 1);
+  // Walk the clock past the attempt's own expiry without claiming. A
+  // SESSION_MAX_AGE_MS-nél kell elmenni: a legnehezebb fokon a várakozás maga
+  // órákban mérhető, tehát az elévülés is odébb van.
+  const stale = now + SESSION_MAX_AGE_MS + 1;
+  referee.tick(state, stale);
   assert.equal(state.session, null, 'the stale attempt is gone');
 
-  referee.startSession(state, 'delete', siteId, undefined, now + 6 * 3600_000 + 2);
+  referee.startSession(state, 'delete', siteId, undefined, stale + 1);
   const again = state.session!.steps.filter((s) => s.type !== 'DELAY').map((s) => s.type);
   assert.equal([...again].sort().join('+'), [...types].sort().join('+'),
     'sitting out the wait is not a re-roll');
@@ -403,7 +437,7 @@ test('a cancelled attempt on another site does not clear the first site\'s debt'
   const now = Date.now();
 
   referee.startSession(state, 'pause', siteId, 15, now);
-  const owed = [...state.session!.steps.map((s) => s.type)].sort().join('+');
+  const owed = activeCombo(state.session!.steps);
   referee.abandonSession(state, state.session!.id);
 
   // a detour through the other site
@@ -411,7 +445,7 @@ test('a cancelled attempt on another site does not clear the first site\'s debt'
   referee.abandonSession(state, state.session!.id);
 
   referee.startSession(state, 'pause', siteId, 15, now + 2000);
-  assert.equal([...state.session!.steps.map((s) => s.type)].sort().join('+'), owed,
+  assert.equal(activeCombo(state.session!.steps), owed,
     'the first site still owes its own pair');
 });
 
@@ -422,17 +456,28 @@ test('cancelling the delete flow does not re-roll the pause flow', () => {
   const now = Date.now();
 
   referee.startSession(state, 'pause', siteId, 15, now);
-  const owed = [...state.session!.steps.map((s) => s.type)].sort().join('+');
+  const owed = activeCombo(state.session!.steps);
   referee.abandonSession(state, state.session!.id);
 
   referee.startSession(state, 'delete', siteId, undefined, now + 1000);
-  const deleteTypes = state.session!.steps.filter((s) => s.type !== 'DELAY')
-    .map((s) => s.type).sort().join('+');
-  assert.equal(deleteTypes, owed, 'the delete attempt inherits the same pair');
+  const deleteTypes = state.session!.steps.filter((s) => s.type !== 'DELAY').map((s) => s.type);
+  // A KIFIZETETT TÍPUSOK VISSZAJÖNNEK — de a törlés fokán TÖBB lépés jár,
+  // tehát a lista bővülhet. Ami nem történhet: hogy a feladás után kevesebb
+  // vagy könnyebb munka legyen.
+  for (const t of owed.split('+')) {
+    assert.ok(deleteTypes.includes(t as (typeof deleteTypes)[number]),
+      `a feladott típus visszajön: ${t}`);
+  }
+  assert.ok(deleteTypes.length >= owed.split('+').length, 'a feladás nem rövidít');
   referee.abandonSession(state, state.session!.id);
 
+  // Vissza a szünethez: a tartozás ITT IS visszajön, és ha a törlés fokán
+  // közben BŐVÜLT a lista, a bővebb lista jön vissza. A feladás semmilyen
+  // irányból nem lehet a kevesebb munka útja.
   referee.startSession(state, 'pause', siteId, 15, now + 2000);
-  assert.equal([...state.session!.steps.map((s) => s.type)].sort().join('+'), owed);
+  const back = activeCombo(state.session!.steps).split('+');
+  for (const t of owed.split('+')) assert.ok(back.includes(t), `a tartozás visszajön: ${t}`);
+  assert.ok(back.length >= owed.split('+').length, 'a kerülő úttal sem lesz kevesebb');
 });
 
 test('moving the system clock forward does not skip a waiting step', () => {
@@ -561,6 +606,12 @@ test('daily budget: tightening applies at once, loosening needs the challenges',
   let guard = 0;
   while (state.session && guard++ < 200) {
     const step = state.session.steps[state.session.stepIndex];
+    if (step.type === 'DELAY') {
+      // Minden kísérlet várakozással végződik — a teszt a célpontot hozza előre.
+      step.claimableAt = now - 1;
+      referee.claimDelay(state, state.session.id, now);
+      continue;
+    }
     referee.submitAnswer(state, state.session.id, solveStep(step, now), now);
   }
   assert.equal(state.sites[0].dailyLimitSeconds, 60 * 60, 'applied on completion');
@@ -578,6 +629,12 @@ test('removing the budget is also gated, and removal really removes it', () => {
   let guard = 0;
   while (state.session && guard++ < 200) {
     const step = state.session.steps[state.session.stepIndex];
+    if (step.type === 'DELAY') {
+      // Minden kísérlet várakozással végződik — a teszt a célpontot hozza előre.
+      step.claimableAt = now - 1;
+      referee.claimDelay(state, state.session.id, now);
+      continue;
+    }
     referee.submitAnswer(state, state.session.id, solveStep(step, now), now);
   }
   assert.equal(state.sites[0].dailyLimitSeconds, undefined);

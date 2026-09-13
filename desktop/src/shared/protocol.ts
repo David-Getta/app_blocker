@@ -10,7 +10,8 @@ export interface StepDisplay {
   /** TRANSCRIBE / REVERSE: the text to work from. */
   text?: string;
   /** MATH_CHAIN: current problem and position. */
-  math?: { question: string; index: number; total: number };
+  /** a lánc HOSSZA szándékosan hiányzik — lásd `SessionInfo.remaining` */
+  math?: { question: string; index: number };
   /** MEMORY: server-armed timing. `code` is only present while the show window
    *  is open (armedAt + showMs); afterwards the server stops shipping it. */
   memory?: { code: string | null; showMs: number; waitMs: number; armedAt: number | null };
@@ -18,14 +19,24 @@ export interface StepDisplay {
   delay?: { minutes: number; claimableAt: number | null; claimWindowMs: number };
 }
 
+/** Lásd `SessionInfo.remaining` és a `challenges.ts` `remainingHint`-jét. */
+export type RemainingHint = 'many' | 'few';
+
 export interface SessionInfo {
   id: string;
   kind: 'pause' | 'delete';
   siteId: string;
   /** pause length that was requested (minutes), pause sessions only */
   minutes?: number;
-  stepIndex: number;
-  stepCount: number;
+  /**
+   * Mennyi van hátra — CSAK ENNYIRE PONTOSAN.
+   *
+   * A pontos szám szándékosan nem megy ki a felületre: a „még kettő” tudása
+   * ugyanaz a lendület, mint a majdnem-kész érzés, és pont az viszi át az
+   * embert a feloldáson. A `many` annyit mond, hogy van még legalább három;
+   * a `few` annyit, hogy van még. Hogy egy vagy kettő, az sosem derül ki.
+   */
+  remaining: RemainingHint;
   current: StepDisplay;
   /** a `focus:` azonosító mögött a csomag heti ablakának lazítása áll, nem a menet leállítása */
   recurrence?: boolean;

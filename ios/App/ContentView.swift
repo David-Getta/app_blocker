@@ -537,7 +537,7 @@ struct ContentView: View {
     private func pauseSheet(_ site: Site) -> some View {
         VStack(spacing: 16) {
             Text("Mennyi időre oldanád fel?").font(.headline)
-            Text("A feloldás előtt próbatételeket kell teljesíteni. A megadott idő után a blokkolás magától visszakapcsol.")
+            Text("A feloldás előtt próbatételeket kell teljesíteni — hogy hányat, azt nem mondjuk meg előre. A megadott idő után a blokkolás magától visszakapcsol.")
                 .font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
             HStack {
                 ForEach(ChallengeEngine.pauseChoicesMin, id: \.self) { m in

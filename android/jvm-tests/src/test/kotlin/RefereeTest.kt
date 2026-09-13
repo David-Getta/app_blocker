@@ -72,14 +72,23 @@ class RefereeTest {
     private fun solveUntil(stop: (Step) -> Boolean) {
         var guard = 0
         while (BreakerStore.state.value.session != null && !stop(currentStep()) && guard++ < 200) {
-            Referee.submitAnswer(BreakerStore.state.value.session!!.id, solve(currentStep()), now)
+            val id = BreakerStore.state.value.session!!.id
+            when (val step = currentStep()) {
+                // Minden kísérlet várakozással végződik — azt ÁTVENNI kell, nem
+                // megválaszolni. A teszt a nyitott ablakban vesz át.
+                is Step.Delay -> Referee.claimDelay(id, (step.claimableAt ?: now) + 1)
+                else -> Referee.submitAnswer(id, solve(step), now)
+            }
         }
     }
 
     @Test fun `a completed pause session pauses the site and tick re-locks it`() {
         val id = addSite("youtube.com")
         val ses = Referee.startSession(Kind.PAUSE, id, 15, now)
-        assertEquals(2, ses.steps.size, "tier 0 has two active steps and no forced wait")
+        // A legkisebb terv is három aktív próba PLUSZ a várakozás — és a
+        // pontos hosszt a felület sosem látja (lásd remainingHint).
+        assertEquals(ChallengeEngine.activeStepCount(0) + 1, ses.steps.size)
+        assertEquals(ChallengeEngine.Step.Delay::class, ses.steps.last()::class)
 
         solveUntil { false }
         assertNull(BreakerStore.state.value.session, "session finished")

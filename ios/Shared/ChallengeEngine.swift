@@ -39,7 +39,23 @@ enum ChallengeEngine {
 
     static let claimWindowMs = 10 * 60_000
     static let deletePendingMs = 24 * 3_600_000
-    static let sessionMaxAgeMs = 6 * 3_600_000
+    /// Ennyi idő után évül el egy kísérlet. A leghosszabb várakozás hat óra
+    /// (törlés, maximális fok), és a munka is idő: ha az elévülés ennél
+    /// szorosabb lenne, a legnehezebb szinten a kísérletet BEFEJEZNI sem
+    /// lehetne — az nem szigor, hanem elrontott szabály.
+    static let sessionMaxAgeMs = 14 * 3_600_000
+
+    /// A hátralévő lépések számát SOHA nem mondjuk meg. A „még kettő” tudása
+    /// ugyanaz a lendület, mint a majdnem-kész érzés — és pont az viszi át az
+    /// embert a feloldáson. Amit a felület mondhat: van még legalább ennyi.
+    static let remainingFloor = 3
+
+    enum RemainingHint { case many, few }
+
+    /// „Legalább három van még” vagy „van még” — pontos szám sehol.
+    static func remainingHint(stepIndex: Int, stepCount: Int) -> RemainingHint {
+        stepCount - stepIndex >= remainingFloor ? .many : .few
+    }
     /// How long an abandoned attempt keeps its challenge types. Without it,
     /// cancelling was a free re-roll: one could restart until the easiest pair
     /// came up, and friction that can be re-rolled is not friction. Within the
@@ -47,15 +63,21 @@ enum ChallengeEngine {
     static let rerollCooldownMs: Double = 60 * 60_000
     static let pauseChoicesMin = [15, 30, 60]
 
-    private static let transcribeChars = [300, 420, 560, 720]
-    private static let mathLen = [3, 5, 7, 9]
-    private static let mathFactorMax = [29, 39, 59, 79]
-    private static let memoryLen = [8, 10, 12, 14]
-    private static let memoryShowMs = [20_000, 18_000, 15_000, 12_000]
-    private static let memoryWaitMs = [20_000, 30_000, 40_000, 60_000]
-    private static let reverseWords = [4, 6, 8, 10]
-    private static let pauseDelayMin = [(10, 20), (20, 40), (30, 60), (45, 90)]
-    private static let deleteDelayMin = [(15, 30), (30, 50), (45, 80), (60, 120)]
+    /// Hány AKTÍV próba egy kísérletben (a várakozás ezen felül jön). Kettő
+    /// volt, és az kevésnek bizonyult: két feladat után az ember már
+    /// „majdnem kész”, és a majdnem-kész pont az az érzés, ami átlendít a
+    /// feloldáson. Ha több lépés kell, mint ahány típus van, a típus
+    /// ISMÉTLŐDIK — friss tartalommal.
+    private static let activeSteps = [3, 4, 5, 6]
+    private static let transcribeChars = [900, 1300, 1800, 2400]
+    private static let mathLen = [8, 12, 16, 20]
+    private static let mathFactorMax = [59, 79, 99, 129]
+    private static let memoryLen = [12, 14, 16, 20]
+    private static let memoryShowMs = [12_000, 10_000, 8_000, 6_000]
+    private static let memoryWaitMs = [90_000, 150_000, 240_000, 360_000]
+    private static let reverseWords = [10, 14, 18, 24]
+    private static let pauseDelayMin = [(30, 45), (60, 90), (90, 150), (150, 240)]
+    private static let deleteDelayMin = [(45, 70), (90, 130), (150, 210), (240, 360)]
 
     private static let words: [String] = (
         "alma bogrács cinege délután erdő füzet gomba határ időjárás jégvirág kanál lámpa " +
@@ -187,20 +209,57 @@ enum ChallengeEngine {
     static func parseCombo(_ key: String?) -> [String]? {
         guard let key = key, !key.isEmpty else { return nil }
         let parts = key.components(separatedBy: "+")
-        guard parts.count == 2, parts[0] != parts[1] else { return nil }
+        // ISMÉTLŐDÉS MEGENGEDETT: több lépés jár, mint ahány típus van.
+        guard parts.count >= 2, parts.count <= activeSteps[3] else { return nil }
         guard parts.allSatisfy({ activePool.contains($0) }) else { return nil }
         return parts
     }
 
+    /// Hány aktív próba jár ehhez a fokhoz (a várakozás ezen felül van).
+    static func activeStepCount(_ tier: Int) -> Int {
+        activeSteps[max(0, min(3, tier))]
+    }
+
+    /// Ennyiszer próbálunk más kombinációt húzni, mint az előző kísérleté.
+    private static let comboRedrawTries = 8
+
+    /// `n` típus sorsolása: előbb mind a négy, utána ismétlés — friss tartalommal.
+    private static func drawTypes(_ n: Int) -> [String] {
+        var out: [String] = []
+        while out.count < n {
+            for t in activePool.shuffled() where out.count < n { out.append(t) }
+        }
+        return out
+    }
+
+    /// A kísérlet lépéslistája: `activeSteps[tier]` aktív próba, és MINDIG egy
+    /// várakozás — nem csak magas fokon vagy törlésnél.
+    ///
+    /// A feladott kísérlet típusait a hűtés alatt visszakapjuk (`forceCombo`).
+    /// Ha az a lista RÖVIDEBB, mint amennyi most jár, FELTÖLTJÜK: egy régi
+    /// állapot nem lehet a kevesebb munka útja.
     static func generatePlan(kind: Kind, tier: Int, lastCombo: String?, forceCombo: String? = nil) -> Plan {
+        let want = activeStepCount(tier)
         var types: [String]? = parseCombo(forceCombo)
-        while types == nil {
-            let draw = Array(activePool.shuffled().prefix(2))
-            if lastCombo == nil || comboKeyOf(draw) != lastCombo { types = draw }
+        if let forced = types, forced.count < want {
+            types = forced + drawTypes(want - forced.count)
+        }
+        if types == nil {
+            // Az ismétlődés elkerülése PRÓBÁLKOZÁS, nem követelmény: ha annyi
+            // lépés jár, ahány típus van, minden terv ugyanaz a halmaz, tehát
+            // nincs mit másikra cserélni — a korlát nélküli újrasorsolás
+            // örökre pörögne. A tartalom úgyis friss.
+            var draw = drawTypes(want)
+            var tries = 0
+            while let last = lastCombo, comboKeyOf(draw) == last, tries < comboRedrawTries {
+                draw = drawTypes(want)
+                tries += 1
+            }
+            types = draw
         }
         let chosen = types!
         var steps = chosen.map { makeStep($0, tier: tier, kind: kind) }
-        if tier >= 2 || kind == .delete { steps.append(makeStep("DELAY", tier: tier, kind: kind)) }
+        steps.append(makeStep("DELAY", tier: tier, kind: kind))
         return Plan(steps: steps, comboKey: comboKeyOf(chosen))
     }
 

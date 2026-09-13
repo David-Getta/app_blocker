@@ -25,7 +25,13 @@ struct ChallengeView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
                     if let ses = live, ses.stepIndex < ses.steps.count {
-                        Text("\(ses.stepIndex + 1)/\(ses.steps.count). próba")
+                        // A PONTOS SZÁM NEM MEGY KI: a „2/4. próba” azt üzente,
+                        // hogy mindjárt kész — és pont ez a lendület visz át a
+                        // feloldáson. Ami marad, mindig igaz, de nem mondja meg,
+                        // hol a vége.
+                        Text(ChallengeEngine.remainingHint(
+                            stepIndex: ses.stepIndex, stepCount: ses.steps.count
+                        ) == .many ? "Legalább 3 feladat van még hátra" : "Van még hátra feladat")
                             .font(.subheadline).foregroundStyle(Color.accentColor)
                         stepView(ses.steps[ses.stepIndex])
                         if let m = message { Text(m).foregroundStyle(.red).font(.footnote) }
@@ -57,7 +63,7 @@ struct ChallengeView: View {
         case .transcribe(let id, let text):
             TranscribeView(text: text) { submit($0) }.id(id)
         case .mathChain(let id, let problems, let pos):
-            MathView(id: id, problem: problems[pos], index: pos, total: problems.count) { submit($0) }
+            MathView(id: id, problem: problems[pos], index: pos) { submit($0) }
         case .memory(let id, let code, let showMs, let waitMs, let armedAt):
             MemoryView(code: code, showMs: showMs, waitMs: waitMs, armedAt: armedAt, now: now) { submit($0) }
                 .id(id)
@@ -114,13 +120,17 @@ private struct TranscribeView: View {
 }
 
 private struct MathView: View {
-    let id: String; let problem: ChallengeEngine.Problem; let index: Int; let total: Int
+    let id: String; let problem: ChallengeEngine.Problem
+    /// Csak a nézet azonosításához kell (új feladatnál friss mező) — a lánc
+    /// hosszát szándékosan nem kapja meg, nehogy kiírható legyen.
+    let index: Int
     let onSubmit: (String) -> Void
     @State private var input = ""
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Fejszámolás-lánc — \(index + 1)/\(total). feladat").font(.headline)
+            // A lánc hossza sem megy ki — ugyanaz a lendület, mint a hátralévő lépések száma.
+            Text("Fejszámolás-lánc").font(.headline)
             Text("Hibás válasznál a teljes lánc elölről indul, új feladatokkal.")
                 .font(.footnote).foregroundStyle(.secondary)
             Text("\(problem.q) = ?")

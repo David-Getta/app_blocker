@@ -698,7 +698,7 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
             title = { Text("Mennyi időre oldanád fel?") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("A feloldás előtt próbatételeket kell teljesíteni. A megadott idő után a blokkolás magától visszakapcsol.")
+                    Text("A feloldás előtt próbatételeket kell teljesíteni — hogy hányat, azt nem mondjuk meg előre. A megadott idő után a blokkolás magától visszakapcsol.")
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         for (m in ChallengeEngine.PAUSE_CHOICES_MIN) {
                             OutlinedButton(onClick = {
@@ -1474,8 +1474,14 @@ private fun ChallengeScreen(
                 else "Feloldás ${session.minutes} percre: ${site?.let { AliasLogic.displayName(it) } ?: ""}",
                 fontSize = 18.sp, fontWeight = FontWeight.Bold,
             )
+            // A PONTOS SZÁM NEM MEGY KI. A „2/4. próba” azt üzente: mindjárt
+            // kész — és pont ez a lendület viszi át az embert a feloldáson. Ami
+            // marad, az mindig igaz, de nem árulja el, hol a vége.
             Text(
-                "${session.stepIndex + 1}/${session.steps.size}. próba",
+                when (ChallengeEngine.remainingHint(session.stepIndex, session.steps.size)) {
+                    ChallengeEngine.RemainingHint.MANY -> "Legalább 3 feladat van még hátra"
+                    ChallengeEngine.RemainingHint.FEW -> "Van még hátra feladat"
+                },
                 color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.SemiBold,
             )
@@ -1558,7 +1564,8 @@ private fun TranscribeStepUi(step: Step.Transcribe, onSubmit: (String) -> Unit) 
 private fun MathStepUi(step: Step.MathChain, onSubmit: (String) -> Unit) {
     var input by rememberSaveable(step.id, step.pos) { mutableStateOf("") }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("Fejszámolás-lánc — ${step.pos + 1}/${step.problems.size}. feladat", fontWeight = FontWeight.Bold)
+        // A lánc hossza sem megy ki — ugyanaz a lendület, mint a hátralévő lépések száma.
+        Text("Fejszámolás-lánc", fontWeight = FontWeight.Bold)
         Text(
             "Hibás válasznál a teljes lánc elölről indul, új feladatokkal. Papírt szabad, számológépet nem érdemes — magadat csapod be.",
             style = MaterialTheme.typography.bodySmall,
