@@ -336,7 +336,13 @@ object SyncClient {
      * vigye el a FUTÓ menetet, mert akkor a felhasználó azt látná, hogy a
      * munkamenet magától kikapcsolt.
      */
-    internal fun focusFromJson(text: String, fallbackDevice: String): FocusSync.SyncFocus {
+    /**
+     * @param now ha meg van adva, a LEJÁRT zárlat nem kerül be — a szinkron
+     *   határán ez a helyes (lásd LockdownLogic.live).
+     */
+    internal fun focusFromJson(
+        text: String, fallbackDevice: String, now: Long? = null,
+    ): FocusSync.SyncFocus {
         val o = JSONObject(text)
         val packs = mutableListOf<Focus.FocusPack>()
         val seenIds = mutableListOf<String>()
@@ -392,13 +398,14 @@ object SyncClient {
             updatedAt = o.optLong("updatedAt", 0),
             updatedBy = o.optString("updatedBy").ifEmpty { fallbackDevice },
             packMarks = marks,
-            // Kívülről jött adat: ami nem értelmes, az nincs.
+            // Kívülről jött adat: ami nem értelmes, az nincs — és `now` mellett
+            // a lejárt sem.
             lockdown = o.optJSONObject("lockdown")?.let { l ->
                 LockdownLogic.parse(
                     l.optDouble("until", 0.0),
                     if (l.isNull("startedAt")) null else l.optDouble("startedAt", 0.0),
                 )
-            },
+            }?.let { if (now == null) it else LockdownLogic.live(it, now) },
         )
     }
 
@@ -515,7 +522,7 @@ object SyncClient {
             // elrontott bájt megállítaná az egész szinkront — a blokklistáét is.
             val remote = if (pulled.isNull("payload")) FocusSync.SyncFocus(updatedBy = acc.deviceId)
                 else runCatching {
-                    focusFromJson(SyncCrypto.decrypt(key, pulled.getString("payload")), acc.deviceId)
+                    focusFromJson(SyncCrypto.decrypt(key, pulled.getString("payload")), acc.deviceId, now)
                 }.getOrElse { FocusSync.SyncFocus(updatedBy = acc.deviceId) }
 
             val mine = FocusSync.SyncFocus(
@@ -526,8 +533,9 @@ object SyncClient {
                 updatedAt = current.focusUpdatedAt,
                 updatedBy = current.focusUpdatedBy ?: acc.deviceId,
                 packMarks = current.focusPackMarks,
-                // Csak az ÉLŐ zárlat megy fel; a lejártat nincs értelme vinni.
-                lockdown = current.lockdown?.takeIf { it.until > now },
+                // Csak az ÉLŐ zárlat megy fel; a lejártat nincs értelme vinni — és
+                // a lejövő oldalon is csak az élő számít (focusFromJson + now).
+                lockdown = LockdownLogic.live(current.lockdown, now),
             )
             val merged = FocusSync.merge(mine, remote)
 

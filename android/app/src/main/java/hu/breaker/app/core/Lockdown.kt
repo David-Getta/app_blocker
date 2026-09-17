@@ -34,6 +34,13 @@ object LockdownLogic {
     /** Tart-e most zárlat. */
     fun isLocked(l: Lockdown?, now: Long): Boolean = l != null && l.until > now
 
+    /**
+     * Csak az ÉLŐ zárlat — a lejárt nincs. A szinkron határán kell: ha a
+     * helyi oldal nem viszi fel a lejártat, a lejövőt viszont átvenné, a kettő
+     * minden körben különbözne, és a telefon örökké „változást” látna.
+     */
+    fun live(l: Lockdown?, now: Long): Lockdown? = if (isLocked(l, now)) l else null
+
     /** Mennyi van még hátra, ms-ben. Nulla, ha nincs zárlat. */
     fun remainingMs(l: Lockdown?, now: Long): Long = if (isLocked(l, now)) l!!.until - now else 0L
 

@@ -45,6 +45,19 @@ export function isLocked(l: Lockdown | null | undefined, now: number): boolean {
   return !!l && Number.isFinite(l.until) && l.until > now;
 }
 
+/**
+ * Csak az ÉLŐ zárlat — a lejárt nincs.
+ *
+ * A szinkron határán kell: a lejárt zárlatot a helyi oldal nem viszi fel, a
+ * kiszolgálóról jövőt viszont a fésülés hűen átvenné, és a kettő minden
+ * körben különbözne — a segéd minden tíz percben „változást” látna, mentene
+ * és újraírná a hosts fájlt, örökké. Ha mindkét oldalon csak az élő számít,
+ * a kettő ugyanazt látja, és a kör megnyugszik.
+ */
+export function liveLockdown(l: Lockdown | null | undefined, now: number): Lockdown | undefined {
+  return isLocked(l, now) ? l! : undefined;
+}
+
 /** Mennyi van még hátra, ms-ben. Nulla, ha nincs zárlat. */
 export function lockdownRemainingMs(l: Lockdown | null | undefined, now: number): number {
   return isLocked(l, now) ? l!.until - now : 0;

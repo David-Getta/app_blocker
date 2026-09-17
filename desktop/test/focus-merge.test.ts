@@ -349,3 +349,15 @@ test('a dróton érkezett zárlat-szemét nem indít zárlatot', () => {
   // A végénél KÉSŐBBI kezdés hazugság; a vég vágja vissza.
   assert.deepEqual(ok.lockdown, { startedAt: 10, until: 10 });
 });
+
+test('a lejárt zárlat a szinkron határán nem számít — csak ha `now` mellett olvassuk', () => {
+  // A csapda: a helyi oldal nem viszi fel a lejártat, a kiszolgálóról jövőt
+  // viszont a fésülés hűen átvenné — és a kettő MINDEN körben különbözne.
+  const T0 = 1_736_160_000_000;
+  const HOUR = 3600_000;
+  const raw = { packs: [], run: null, log: [], rev: 3, updatedAt: 1, updatedBy: 'x',
+    lockdown: { startedAt: T0, until: T0 + HOUR } };
+  assert.equal(normalizeSyncFocus(raw, 'y').lockdown?.until, T0 + HOUR, 'now nélkül hűen');
+  assert.equal(normalizeSyncFocus(raw, 'y', T0 + 30 * 60_000).lockdown?.until, T0 + HOUR, 'élő marad');
+  assert.equal(normalizeSyncFocus(raw, 'y', T0 + 2 * HOUR).lockdown, undefined, 'a lejárt nincs');
+});

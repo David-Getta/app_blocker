@@ -30,7 +30,7 @@ import {
   MAX_ALLOW_ENTRIES, MAX_FOCUS_LOG, normalizePack,
   type FocusLogEntry, type FocusPack, type FocusRun,
 } from '../focus.js';
-import { mergeLockdown, parseLockdown, type Lockdown } from '../lockdown.js';
+import { liveLockdown, mergeLockdown, parseLockdown, type Lockdown } from '../lockdown.js';
 
 /** Legfeljebb ennyi csomag utazhat — a felületen sem fér ki több. */
 export const MAX_PACKS = 30;
@@ -149,7 +149,12 @@ export function emptyFocus(deviceId: string): SyncFocus {
  * hasalhat el egyetlen rossz csomagtól, mert akkor egy elrontott sor a futó
  * munkamenetet is eltüntetné.
  */
-export function normalizeSyncFocus(raw: unknown, fallbackDevice: string): SyncFocus {
+/**
+ * @param now ha meg van adva, a LEJÁRT zárlat nem kerül be — a szinkron
+ *   határán ez a helyes: a lejárt zárlat nem tilt semmit, a hordozása viszont
+ *   minden körben hamis változást mutatna (lásd `liveLockdown`).
+ */
+export function normalizeSyncFocus(raw: unknown, fallbackDevice: string, now?: number): SyncFocus {
   const o = (raw && typeof raw === 'object' ? raw : {}) as Partial<SyncFocus>;
   const packs: FocusPack[] = [];
   const seenIds: string[] = [];
@@ -181,8 +186,9 @@ export function normalizeSyncFocus(raw: unknown, fallbackDevice: string): SyncFo
     // csak az azonosító.
     log: normalizeLog(o.log),
     ...(packMarks ? { packMarks } : {}),
-    // A zárlat kívülről jött adat, mint minden más: ami nem értelmes, az nincs.
-    ...(parseLockdown(o.lockdown) ? { lockdown: parseLockdown(o.lockdown)! } : {}),
+    // A zárlat kívülről jött adat, mint minden más: ami nem értelmes, az nincs
+    // — és `now` mellett a lejárt sem.
+    ...(lockdownIn(o.lockdown, now) ? { lockdown: lockdownIn(o.lockdown, now)! } : {}),
     rev,
     updatedAt: numberOr(o.updatedAt, 0),
     updatedBy: typeof o.updatedBy === 'string' && o.updatedBy ? o.updatedBy : fallbackDevice,
@@ -581,4 +587,11 @@ function stable(f: SyncFocus): unknown {
     lockdown: f.lockdown ? [f.lockdown.startedAt, f.lockdown.until] : null,
     rev: f.rev,
   };
+}
+
+/** A beolvasott zárlat, `now` mellett csak ha még él. */
+function lockdownIn(raw: unknown, now: number | undefined): Lockdown | undefined {
+  const parsed = parseLockdown(raw);
+  if (!parsed) return undefined;
+  return now === undefined ? parsed : liveLockdown(parsed, now);
 }

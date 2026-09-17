@@ -230,7 +230,7 @@ enum SyncClient {
                let text = try? SyncCrypto.decrypt(key, blob),
                let decoded = try? JSONDecoder().decode(
                    FocusSync.SyncFocus.self, from: Data(text.utf8)) {
-                remote = FocusSync.normalize(decoded, fallbackDevice: acc.deviceId)
+                remote = FocusSync.normalize(decoded, fallbackDevice: acc.deviceId, now: now)
             }
 
             let mine = FocusSync.SyncFocus(
@@ -241,8 +241,9 @@ enum SyncClient {
                 updatedAt: current.focusUpdatedAt ?? 0,
                 updatedBy: current.focusUpdatedBy ?? acc.deviceId,
                 packMarks: current.focusPackMarks,
-                // Csak az ÉLŐ zárlat megy fel; a lejártat nincs értelme vinni.
-                lockdown: (current.lockdown?.until ?? 0) > now ? current.lockdown : nil
+                // Csak az ÉLŐ zárlat megy fel; a lejártat nincs értelme vinni — és
+                // a lejövő oldalon is csak az élő számít (normalize + now).
+                lockdown: LockdownLogic.live(current.lockdown, now)
             )
             let merged = FocusSync.merge(mine, remote)
 

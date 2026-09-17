@@ -431,7 +431,11 @@ public enum FocusSync {
     /// Ami nem értelmezhető, az kiesik — de a blob EGÉSZE nem hasalhat el
     /// egyetlen rossz csomagtól, mert akkor egy elrontott sor a FUTÓ menetet is
     /// eltüntetné, és a felhasználó azt látná, hogy magától kikapcsolt.
-    public static func normalize(_ raw: SyncFocus, fallbackDevice: String) -> SyncFocus {
+    /// - Parameter now: ha meg van adva, a LEJÁRT zárlat nem kerül be — a
+    ///   szinkron határán ez a helyes (lásd `LockdownLogic.live`).
+    public static func normalize(
+        _ raw: SyncFocus, fallbackDevice: String, now: Double? = nil
+    ) -> SyncFocus {
         var packs: [Focus.Pack] = []
         var seenIds: [String] = []
         for p in raw.packs {
@@ -468,10 +472,11 @@ public enum FocusSync {
             updatedAt: raw.updatedAt,
             updatedBy: raw.updatedBy.isEmpty ? fallbackDevice : raw.updatedBy,
             packMarks: (kept?.isEmpty ?? true) ? nil : kept,
-            // Kívülről jött adat: az értelmetlen vég nem zárlat.
-            lockdown: raw.lockdown.flatMap {
-                LockdownLogic.parse(["until": $0.until, "startedAt": $0.startedAt])
-            }
+            // Kívülről jött adat: az értelmetlen vég nem zárlat — és `now`
+            // mellett a lejárt sem.
+            lockdown: raw.lockdown
+                .flatMap { LockdownLogic.parse(["until": $0.until, "startedAt": $0.startedAt]) }
+                .flatMap { now == nil ? $0 : LockdownLogic.live($0, now!) }
         )
     }
 

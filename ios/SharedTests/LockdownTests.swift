@@ -83,6 +83,21 @@ final class LockdownTests: XCTestCase {
         XCTAssertEqual(LockdownLogic.remainingMs(nil, t0), 0)
     }
 
+    /// A csapda, amibe a legelső változat belelépett: a helyi oldal nem viszi
+    /// fel a lejártat, a kiszolgálóról jövőt viszont a fésülés hűen átvenné —
+    /// és a kettő MINDEN körben különbözne. Ezért `now` mellett a lejárt nincs.
+    func testExpiredLockdownIsNothingAtTheSyncBoundary() {
+        let raw = FocusSync.SyncFocus(
+            rev: 3, updatedAt: 1, updatedBy: "x",
+            lockdown: LockdownLogic.Lockdown(startedAt: t0, until: t0 + hour))
+        XCTAssertEqual(FocusSync.normalize(raw, fallbackDevice: "y").lockdown?.until, t0 + hour,
+                       "now nélkül hűen")
+        XCTAssertEqual(FocusSync.normalize(raw, fallbackDevice: "y", now: t0 + 30 * 60_000).lockdown?.until,
+                       t0 + hour, "élő marad")
+        XCTAssertNil(FocusSync.normalize(raw, fallbackDevice: "y", now: t0 + 2 * hour).lockdown,
+                     "a lejárt nincs")
+    }
+
     /// A SZINKRON MAGASVÍZJELE: a fésülés a munkamenet-blobon is a későbbi
     /// véget hozza, `rev`-re való tekintet nélkül. Enélkül egy hálózat nélkül
     /// maradt eszköz a régi állapotát feltolva feloldana.

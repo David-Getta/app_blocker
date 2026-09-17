@@ -606,3 +606,35 @@ test('a kifizetett hosztnév-levétel nem jön vissza a másik gép egyidejű í
   assert.equal(afterA.alias, 'stream');
   assert.deepEqual(afterA.hostnameMarks, afterB.hostnameMarks, 'a jel mindkét gépen ugyanaz');
 });
+
+test('a zárlat átér a másik eszközre, és lejárta után a kör megnyugszik', async () => {
+  // Két dolog egyszerre. Az első a funkció: a gépen indított zárlat a
+  // telefonon is él. A második egy csapda, amibe a legelső változat belelépett:
+  // a lejárt zárlatot a helyi oldal nem vitte fel, a kiszolgálóról jövőt
+  // viszont a fésülés hűen átvette — és a kettő MINDEN körben különbözött. A
+  // segéd tíz percenként „változást” látott, mentett és újraírta a hosts
+  // fájlt, örökké. Ezért itt a lejárat UTÁNI körökön az a kérdés, hogy
+  // változott-e bármi.
+  const a = device([site()]);
+  await signIn(a, url, ACCOUNT, PW2, 'Munkagép');
+  await syncNow(a, 40_000);
+  const quiet = await syncNow(a, 40_050);
+  assert.equal(quiet.changed, false, 'egy csendes kör alapból nem mutat változást');
+
+  a.lockdown = { startedAt: 40_100, until: 60_000 };
+  await syncNow(a, 40_100);
+
+  const b = device();
+  await signIn(b, url, ACCOUNT, PW2, 'Telefon');
+  await syncNow(b, 41_000);
+  assert.equal(b.lockdown?.until, 60_000, 'a zárlat átért a telefonra');
+
+  // Lejárt. Mindkét eszköz még hordozza a rekordot, a kiszolgáló blobja is.
+  const a1 = await syncNow(a, 70_000);
+  assert.equal(a1.changed, false, 'a gépen a lejárt zárlat nem számít változásnak');
+  const b1 = await syncNow(b, 71_000);
+  assert.equal(b1.changed, false, 'a telefonon sem');
+  const a2 = await syncNow(a, 72_000);
+  assert.equal(a2.changed, false, 'és a következő körben sem — a kör megnyugodott');
+  assert.equal((a.lockdown?.until ?? 0) > 72_000, false, 'a lejárt zárlat nem éledt fel');
+});

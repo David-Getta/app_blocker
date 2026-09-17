@@ -188,6 +188,20 @@ class SyncWireFormatTest {
     }
 
     @Test
+    fun `a lejart zarlat a szinkron hataran nem szamit`() {
+        // A csapda: a helyi oldal nem viszi fel a lejártat, a kiszolgálóról
+        // jövőt viszont a fésülés hűen átvenné — és a kettő minden körben
+        // különbözne. Ezért `now` mellett a lejárt nincs.
+        val t0 = 1_736_160_000_000L
+        val hour = 3_600_000L
+        val blob = """{"packs":[],"run":null,"log":[],"rev":3,"updatedAt":1,"updatedBy":"x",""" +
+            """"lockdown":{"startedAt":$t0,"until":${t0 + hour}}}"""
+        assertEquals(t0 + hour, SyncClient.focusFromJson(blob, "y").lockdown?.until, "now nélkül hűen")
+        assertEquals(t0 + hour, SyncClient.focusFromJson(blob, "y", t0 + 30 * 60_000).lockdown?.until, "élő marad")
+        assertNull(SyncClient.focusFromJson(blob, "y", t0 + 2 * hour).lockdown, "a lejárt nincs")
+    }
+
+    @Test
     fun `a naplo nelkuli regi blob nem hasal el`() {
         // Egy MÉG NEM FRISSÜLT gép blobjában nincs `log` mező. Ha ettől az
         // egész munkamenet-szinkron elhasalna, a telefon üres állapotra esne

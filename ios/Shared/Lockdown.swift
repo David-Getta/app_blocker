@@ -48,6 +48,13 @@ public enum LockdownLogic {
         return l.until > now
     }
 
+    /// Csak az ÉLŐ zárlat — a lejárt nincs. A szinkron határán kell: ha a
+    /// helyi oldal nem viszi fel a lejártat, a lejövőt viszont átvenné, a kettő
+    /// minden körben különbözne, és a telefon örökké változást látna.
+    static func live(_ l: Lockdown?, _ now: Double) -> Lockdown? {
+        isLocked(l, now) ? l : nil
+    }
+
     /// Mennyi van még hátra, ms-ben. Nulla, ha nincs zárlat.
     static func remainingMs(_ l: Lockdown?, _ now: Double) -> Double {
         isLocked(l, now) ? l!.until - now : 0

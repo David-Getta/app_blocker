@@ -29,6 +29,7 @@ import {
 import {
   emptyFocus, mergeFocus, mergeLog, normalizeSyncFocus, sameFocus, type SyncFocus,
 } from '../shared/sync/focus-merge.js';
+import { liveLockdown } from '../shared/lockdown';
 import {
   emptyChannels, mergeChannels, normalizeSyncChannels, sameChannels, type SyncChannels,
 } from '../shared/sync/channels-merge.js';
@@ -474,15 +475,15 @@ export async function syncToday(state: HelperState, now: number): Promise<number
  * @returns változott-e a HELYI állapot (a hívónak menteni kell)
  */
 async function syncFocusRound(
-  state: HelperState, acc: SyncAccount, key: Buffer,
+  state: HelperState, acc: SyncAccount, key: Buffer, now: number,
 ): Promise<boolean> {
   let changed = false;
   for (let attempt = 0; attempt <= MAX_CONFLICT_RETRIES; attempt++) {
     const pulled = await call(acc.serverUrl, '/v1/pull', {
       accountId: acc.accountId, authKey: acc.authKey, collection: 'focus',
     });
-    const remote = decodeFocus(acc, pulled.payload);
-    const mine = localFocus(state, acc.deviceId);
+    const remote = decodeFocus(acc, pulled.payload, now);
+    const mine = localFocus(state, acc.deviceId, now);
     const merged = mergeFocus(mine, remote);
 
     if (!sameFocus(merged, mine)) {
@@ -656,7 +657,7 @@ function decodeChannels(acc: SyncAccount, payload: string | null | undefined): S
  * fésülés viszont megtartaná a szigorúbbat — és a gép minden körben újra
  * feltöltené ugyanazt, amit a kiszolgáló sosem tart meg.
  */
-function localFocus(state: HelperState, deviceId: string): SyncFocus {
+function localFocus(state: HelperState, deviceId: string, now: number): SyncFocus {
   const packs = state.focusPacks ?? [];
   const run = state.focusRun ?? null;
   return {
@@ -666,8 +667,10 @@ function localFocus(state: HelperState, deviceId: string): SyncFocus {
     ...(state.focusPackMarks ? { packMarks: state.focusPackMarks } : {}),
     // A ZÁRLAT a munkamenet blobján utazik: nem oldalhoz tartozik, hanem az
     // egész eszközhöz — ugyanaz a szint, mint a futó menet. Csak az ÉLŐ megy
-    // fel; a lejártat nincs értelme a többi eszközre vinni.
-    ...(state.lockdown && state.lockdown.until > Date.now() ? { lockdown: state.lockdown } : {}),
+    // fel; a lejártat nincs értelme a többi eszközre vinni — és a lejövő
+    // oldalon is csak az élő számít (`decodeFocus`), különben a kettő minden
+    // körben különbözne.
+    ...(liveLockdown(state.lockdown, now) ? { lockdown: liveLockdown(state.lockdown, now)! } : {}),
     rev: state.focusRev ?? 0,
     updatedAt: state.focusUpdatedAt ?? 0,
     updatedBy: state.focusUpdatedBy ?? deviceId,
@@ -681,11 +684,11 @@ function localFocus(state: HelperState, deviceId: string): SyncFocus {
  * elhasalnánk, egy elrontott bájt megállítaná az egész szinkront — a
  * blokklistáét is.
  */
-function decodeFocus(acc: SyncAccount, payload: string | null | undefined): SyncFocus {
+function decodeFocus(acc: SyncAccount, payload: string | null | undefined, now: number): SyncFocus {
   if (!payload) return emptyFocus(acc.deviceId);
   try {
     const key = Buffer.from(acc.dataKey, 'base64');
-    return normalizeSyncFocus(JSON.parse(decrypt(key, payload)), acc.deviceId);
+    return normalizeSyncFocus(JSON.parse(decrypt(key, payload)), acc.deviceId, now);
   } catch {
     return emptyFocus(acc.deviceId);
   }
@@ -746,7 +749,7 @@ export async function syncNow(state: HelperState, now: number): Promise<SyncResu
   // hasal el, a tiltás attól már szinkronban van. Külön `try`, ugyanezért — egy
   // munkamenet-hiba ne vigye magával az egész kört.
   try {
-    if (await syncFocusRound(state, acc, key)) changed = true;
+    if (await syncFocusRound(state, acc, key, now)) changed = true;
     delete state.focusSyncError;
   } catch (e) {
     // NEM némán. Egy RÉGI fiókkiszolgáló nem ismeri a `focus` gyűjteményt, és
