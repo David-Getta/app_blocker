@@ -15,9 +15,23 @@ struct ChallengeView: View {
     private var live: SessionRec? { store.state.session?.id == session.id ? store.state.session : nil }
 
     private var doneText: String {
-        session.kind == .delete
-            ? "Kész. A törlés 24 óra múlva válik véglegessé — addig visszavonhatod."
-            : "Sikerült! Az oldal \(session.minutes ?? 0) percre elérhető, utána magától visszazár."
+        if session.kind == .delete {
+            return "Kész. A törlés 24 óra múlva válik véglegessé — addig visszavonhatod."
+        }
+        if session.pendingLockdownWindows != nil { return "Kész. A zárlat-ablak levétele életbe lépett." }
+        if session.pendingFocusEnd != nil { return "Kész. A munkamenet a kért módon zárult." }
+        if session.pendingSchedule != nil { return "Kész. A menetrend a kért módon változott." }
+        return "Sikerült! Az oldal \(session.minutes ?? 0) percre elérhető, utána magától visszazár."
+    }
+
+    /// A fejléc azt mondja, MI a tét — a menet leállítása vagy egy ablak
+    /// levétele nem „feloldás 0 percre”.
+    private var titleText: String {
+        if session.kind == .delete { return "Végleges törlés" }
+        if session.pendingLockdownWindows != nil { return "Zárlat-ablak levétele" }
+        if session.pendingFocusEnd != nil { return "Munkamenet leállítása" }
+        if session.pendingSchedule != nil { return "Menetrend lazítása" }
+        return "Feloldás \(session.minutes ?? 0) p"
     }
 
     var body: some View {
@@ -42,7 +56,7 @@ struct ChallengeView: View {
                     }
                 }.padding()
             }
-            .navigationTitle(session.kind == .delete ? "Végleges törlés" : "Feloldás \(session.minutes ?? 0) p")
+            .navigationTitle(titleText)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Feladom") { Referee.abandon(sessionId: session.id); dismiss() }

@@ -2,6 +2,7 @@ import android.content.Context
 import hu.breaker.app.core.AppState
 import hu.breaker.app.core.BreakerStore
 import hu.breaker.app.core.ChallengeEngine.Kind
+import hu.breaker.app.core.ChallengeEngine.Step
 import hu.breaker.app.core.Focus
 import hu.breaker.app.core.FocusSync
 import hu.breaker.app.core.LockdownLogic
@@ -196,6 +197,91 @@ class LockdownWindowTest {
         assertEquals(wed(13, 1) + 24 * hour, until)
         Referee.tick(wed(16))
         assertTrue(BreakerStore.state.value.lockdown!!.until > until + 2 * hour, "a kézi vég tolódott")
+    }
+
+    // ------------------------------------------------------- a bíró: szerkesztés
+
+    @Test fun addingIsFreeAndKeepsIds() {
+        val sun = at(2027, 3, 7, 12)
+        assertTrue(Referee.setLockdownWindows(listOf(work.copy(id = "")), sun).applied, "felvétel")
+        val first = BreakerStore.state.value.lockdownWindows
+        assertEquals(1, first.size)
+        assertTrue(first[0].id.startsWith("lw_"), "az azonosítót a bíró adja")
+        assertTrue(Referee.setLockdownWindows(first + night, sun).applied, "második ablak")
+        assertEquals(listOf(first[0].id, "w2"), BreakerStore.state.value.lockdownWindows.map { it.id })
+        // Ugyanaz a tartalom más azonosítóval: nincs teendő, és nem kereszteli át.
+        assertTrue(Referee.setLockdownWindows(listOf(work.copy(id = "zzz"), night), sun).applied)
+        assertEquals(listOf(first[0].id, "w2"), BreakerStore.state.value.lockdownWindows.map { it.id })
+        assertNull(BreakerStore.state.value.session, "egyik sem indított próbatételt")
+    }
+
+    @Test fun invalidAndWholeWeekAreRejected() {
+        val sun = at(2027, 3, 7, 12)
+        assertFailsWith<Referee.RefereeException> { Referee.setLockdownWindows(listOf(work.copy(days = emptySet())), sun) }
+        val e = assertFailsWith<Referee.RefereeException> {
+            Referee.setLockdownWindows(listOf(allDay("a", setOf(0, 1, 2, 3, 4, 5, 6))), sun)
+        }
+        assertEquals("NO_FREE_TIME", e.code)
+        assertTrue(BreakerStore.state.value.lockdownWindows.isEmpty())
+    }
+
+    @Test fun removalIsAChallengeAndFinishingApplies() {
+        val sun = at(2027, 3, 7, 12)
+        Referee.setLockdownWindows(listOf(work, night), sun)
+        val r = Referee.setLockdownWindows(listOf(work), sun)
+        assertFalse(r.applied, "levétel: próbatétel")
+        assertEquals("lockdown:windows", r.session!!.siteId)
+        assertEquals(listOf(work), r.session.pendingLockdownWindows)
+        assertEquals(listOf(work, night), BreakerStore.state.value.lockdownWindows, "amíg a próbatétel tart, az ablak marad")
+        assertFailsWith<Referee.RefereeException> { Referee.setLockdownWindows(emptyList(), sun) }
+        solveWholeSession(sun)
+        assertNull(BreakerStore.state.value.session)
+        assertEquals(listOf(work), BreakerStore.state.value.lockdownWindows, "a teljesítés után a levett ablak nincs")
+        assertEquals(1, BreakerStore.state.value.unlockLog.size, "a próbatétel a feloldások közé számít")
+        // Szűkítés is próbatétel; bővítés ingyen.
+        assertFalse(Referee.setLockdownWindows(listOf(work.copy(endMin = 12 * 60)), sun).applied)
+        solveWholeSession(sun)
+        assertEquals(12 * 60, BreakerStore.state.value.lockdownWindows[0].endMin)
+        assertTrue(Referee.setLockdownWindows(listOf(work.copy(endMin = 13 * 60)), sun).applied, "bővítés")
+    }
+
+    @Test fun removalInsideTheWindowDoesNotEvenStart() {
+        Referee.setLockdownWindows(listOf(work), at(2027, 3, 7, 12))
+        val thu = at(2027, 3, 11, 10)
+        val e = assertFailsWith<Referee.RefereeException> { Referee.setLockdownWindows(emptyList(), thu) }
+        assertEquals("LOCKDOWN", e.code)
+        assertNull(BreakerStore.state.value.session)
+        // Felvenni bent is ingyen — a szigorítás iránya.
+        assertTrue(Referee.setLockdownWindows(listOf(work, night), thu).applied)
+    }
+
+    /** Végigviszi a futó kísérletet — a várakozó lépést a célpontja után veszi át. */
+    private fun solveWholeSession(now: Long) {
+        var guard = 0
+        while (BreakerStore.state.value.session != null && guard++ < 200) {
+            val s = BreakerStore.state.value.session!!
+            when (val step = s.steps[s.stepIndex]) {
+                is Step.Delay -> Referee.claimDelay(s.id, (step.claimableAt ?: 0) + 1)
+                else -> Referee.submitAnswer(s.id, solveStep(step, now), now)
+            }
+        }
+    }
+
+    /** A helyes válasz; a MEMORY lépést visszadátumozzuk a várakozása mögé. */
+    private fun solveStep(step: Step, now: Long): String = when (step) {
+        is Step.Transcribe -> step.text
+        is Step.MathChain -> step.problems[step.pos].a.toString()
+        is Step.Memory -> {
+            BreakerStore.mutate { st ->
+                val ses = st.session!!
+                val steps = ses.steps.toMutableList()
+                steps[ses.stepIndex] = step.copy(armedAt = now - step.showMs - step.waitMs - 1000)
+                st.copy(session = ses.copy(steps = steps))
+            }
+            step.code
+        }
+        is Step.Reverse -> step.text.reversed()
+        is Step.Delay -> error("a várakozást átvenni kell")
     }
 
     // ---------------------------------------------------------------- szinkron

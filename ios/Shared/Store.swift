@@ -77,6 +77,10 @@ struct SessionRec: Codable, Equatable, Identifiable {
     /// nézi. Optional, hogy egy korábbi verzió által írt állapot is dekódolható
     /// maradjon.
     var pendingFocusEnd: Double?
+    /// Ha van, a teljesítés a zárlat-ablakok listáját cseréli erre (lazítás:
+    /// levétel vagy szűkítés). Nem oldalhoz tartozik, hanem az egész
+    /// készülékhez. Optional, hogy egy korábbi verzió mentése is dekódolható.
+    var pendingLockdownWindows: [LockdownLogic.LockdownWindow]? = nil
 }
 
 /// What an abandoned attempt leaves behind, so restarting cannot re-roll it.

@@ -216,6 +216,7 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
     var flowError by remember { mutableStateOf<String?>(null) }
     var confirmUsageClear by remember { mutableStateOf(false) }
     var lockdownDialog by remember { mutableStateOf(false) }
+    var lockdownWindowDialog by remember { mutableStateOf(false) }
 
     // Ideiglenes felfedés oldalanként: meddig látszik a valódi cím. Szándékosan
     // nem mentjük — az app újranyitása után megint a fedőnév áll ott.
@@ -535,7 +536,9 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                             state.focusPacks.find { p -> "focus:" + p.id == ses.siteId }
                         }
                         Text(
-                            if (ses.pendingFocusEnd != null) {
+                            if (ses.pendingLockdownWindows != null) {
+                                "Folyamatban: zárlat-ablak levétele"
+                            } else if (ses.pendingFocusEnd != null) {
                                 "Folyamatban: munkamenet leállítása — " +
                                     (focusPack?.name ?: "munkamenet")
                             } else {
@@ -706,21 +709,45 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                             else "Zárlat indítása"
                         )
                     }
-                    // A HETI ABLAKOK: a telefon hordozza és érvényesíti őket, de nem
-                    // szerkeszti — mint a csomag heti ablakát. A lista itt áll, a
-                    // zárlat alatt, mert ugyanaz a zárlat; és kimondjuk, hol állítható.
-                    if (state.lockdownWindows.isNotEmpty()) {
-                        for (w in state.lockdownWindows) {
+                    // A HETI ABLAKOK: ebben a sávban a zárlat magától él. Felvenni
+                    // ingyen; levenni próbatétel, és csak az ablakon kívül — a bíró
+                    // dönt, a lista itt áll, a zárlat alatt, mert ugyanaz a zárlat.
+                    for (w in state.lockdownWindows) {
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
                             Text(
-                                "Heti ablak: ${recurrenceLabel(w.band)} — ebben a sávban a zárlat magától él.",
+                                "Heti ablak: ${recurrenceLabel(w.band)}",
                                 style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.weight(1f),
                             )
+                            TextButton(onClick = {
+                                try {
+                                    val r = Referee.setLockdownWindows(
+                                        state.lockdownWindows.filter { it.id != w.id }, System.currentTimeMillis(),
+                                    )
+                                    if (!r.applied) onOpenChallenge()
+                                } catch (e: Referee.RefereeException) {
+                                    flowError = e.message
+                                }
+                            }) { Text("Levétel…") }
                         }
-                        Text(
-                            "Az ablakokat a gépen lehet felvenni és levenni; a levétel próbatétel, " +
-                                "és csak az ablakon kívül.",
-                            style = MaterialTheme.typography.bodySmall,
-                        )
+                    }
+                    Text(
+                        if (state.lockdownWindows.isEmpty()) {
+                            "Heti ablak: egy sáv (például hétköznap 9-től 17-ig), amiben a zárlat magától " +
+                                "él — minden héten, a gépen is. Felvenni egy koppintás; levenni próbatétel, " +
+                                "és csak az ablakon kívül."
+                        } else {
+                            "Ezekben a sávokban a zárlat magától él. Levenni próbatétel, és csak az " +
+                                "ablakon kívül — bent zárlat van."
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    if (state.lockdownWindows.size < LockdownLogic.MAX_LOCKDOWN_WINDOWS) {
+                        OutlinedButton(onClick = { lockdownWindowDialog = true }) { Text("Heti ablak felvétele") }
                     }
                 }
             }
@@ -766,6 +793,16 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                 }) { Text("Törlés") }
             },
             dismissButton = { TextButton(onClick = { confirmUsageClear = false }) { Text("Mégse") } },
+        )
+    }
+
+    if (lockdownWindowDialog) {
+        LockdownWindowDialog(
+            current = state.lockdownWindows,
+            onDismiss = { lockdownWindowDialog = false },
+            onApplied = { lockdownWindowDialog = false },
+            onChallenge = { lockdownWindowDialog = false; onOpenChallenge() },
+            onError = { flowError = it },
         )
     }
 
@@ -1471,6 +1508,68 @@ private fun BurstLine(site: Site, burst: BurstLogic.State?, now: Long, trip: Bur
 }
 
 /**
+ * Heti zárlat-ablak felvétele — a menetrend előre gyártott sávjaiból, mint a
+ * telefonos menetrend-szerkesztő. A már meglévő sávok nem választhatók újra.
+ * A teljes listát a bíró kapja: a felvétel szigorítás, azonnal megy; ha egy
+ * kijelölés mégis lazítana (nem lehet), a bíró mondja meg.
+ */
+@Composable
+private fun LockdownWindowDialog(
+    current: List<LockdownLogic.LockdownWindow>,
+    onDismiss: () -> Unit,
+    onApplied: () -> Unit,
+    onChallenge: () -> Unit,
+    onError: (String) -> Unit,
+) {
+    val have = current.map { LockdownLogic.windowKey(it.band) }.toSet()
+    val selected = remember { mutableStateListOf<String>() }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Heti ablak felvétele") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    "Az ablakban a zárlat magától él, az ablak végéig — a gépen is. Felvenni " +
+                        "ingyen van; levenni próbatétel, és csak az ablakon kívül. Az egész hét nem " +
+                        "zárható le: legalább egy szabad óra marad.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                for ((label, key, band) in SCHEDULE_PRESETS) {
+                    val already = LockdownLogic.windowKey(band) in have
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(
+                            checked = already || selected.contains(key),
+                            enabled = !already,
+                            onCheckedChange = { on -> if (on) selected.add(key) else selected.remove(key) },
+                        )
+                        Text(
+                            if (already) "$label — már felvéve" else label,
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                val added = SCHEDULE_PRESETS.filter { selected.contains(it.second) }.map { (_, _, band) ->
+                    LockdownLogic.LockdownWindow("", band.days, band.startMin, band.endMin)
+                }
+                if (added.isEmpty()) { onError("Válassz legalább egy sávot."); return@TextButton }
+                try {
+                    val r = Referee.setLockdownWindows(current + added, System.currentTimeMillis())
+                    if (r.applied) onApplied() else onChallenge()
+                } catch (e: Referee.RefereeException) {
+                    onError(e.message ?: "Ismeretlen hiba")
+                }
+            }) { Text("Felvétel") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Mégse") } },
+    )
+}
+
+
+/**
  * Zárlat indítása vagy hosszabbítása.
  *
  * A KIÍRANDÓ SZÓ nem biztonsági elem — aki idáig eljutott, az kiírja —, hanem a
@@ -1640,6 +1739,10 @@ private fun ChallengeScreen(
 
     val doneText = if (session.kind == Kind.DELETE) {
         "Kész. A törlés 24 óra múlva válik véglegessé — addig visszavonhatod."
+    } else if (session.pendingLockdownWindows != null) {
+        "Kész. A zárlat-ablak levétele életbe lépett."
+    } else if (session.pendingFocusEnd != null) {
+        "Kész. A munkamenet a kért módon zárult."
     } else {
         "Sikerült! Az oldal ${session.minutes} percre elérhető, utána magától visszazár."
     }

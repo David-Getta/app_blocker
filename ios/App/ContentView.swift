@@ -36,6 +36,7 @@ struct ContentView: View {
     @State private var successMsg: String?
     @State private var now = nowMs()
     @State private var lockdownSheet = false
+    @State private var lockdownWindowSheet = false
 
     private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
     private let presets = ["youtube.com", "facebook.com", "instagram.com", "tiktok.com", "x.com", "reddit.com"]
@@ -71,6 +72,16 @@ struct ContentView: View {
                         flowError = e.message
                     } catch {
                         flowError = "\(error)"
+                    }
+                }
+            }
+            .sheet(isPresented: $lockdownWindowSheet) {
+                LockdownWindowSheet(current: store.state.lockdownWindows ?? []) { result in
+                    lockdownWindowSheet = false
+                    switch result {
+                    case .applied: break
+                    case .challenge(let id): openSessionId = id
+                    case .error(let msg): flowError = msg
                     }
                 }
             }
@@ -340,19 +351,43 @@ struct ContentView: View {
                 .font(.footnote).foregroundStyle(.secondary)
             Button(live ? "Zárlat hosszabbítása" : "Zárlat indítása") { lockdownSheet = true }
                 .buttonStyle(.bordered)
-            // A HETI ABLAKOK: az iPhone hordozza és érvényesíti őket, de nem
-            // szerkeszti — mint a csomag heti ablakát. Kimondjuk, hol állítható.
+            // A HETI ABLAKOK: ebben a sávban a zárlat magától él. Felvenni ingyen;
+            // levenni próbatétel, és csak az ablakon kívül — a bíró dönt. A lista
+            // itt áll, a zárlat alatt, mert ugyanaz a zárlat.
             let windows = store.state.lockdownWindows ?? []
-            if !windows.isEmpty {
-                ForEach(windows, id: \.id) { w in
-                    Text("Heti ablak: \(recurrenceLabel(w.band)) — ebben a sávban a zárlat magától él.")
+            ForEach(windows, id: \.id) { w in
+                HStack {
+                    Text("Heti ablak: \(recurrenceLabel(w.band))")
                         .font(.footnote).foregroundStyle(.secondary)
+                    Spacer()
+                    Button("Levétel…") { removeLockdownWindow(w) }
+                        .buttonStyle(.borderless).font(.footnote)
                 }
-                Text("Az ablakokat a gépen lehet felvenni és levenni; a levétel próbatétel, és csak az ablakon kívül.")
-                    .font(.footnote).foregroundStyle(.secondary)
+            }
+            Text(windows.isEmpty
+                 ? "Heti ablak: egy sáv (például hétköznap 9-től 17-ig), amiben a zárlat magától él — minden héten, a gépen is. Felvenni egy koppintás; levenni próbatétel, és csak az ablakon kívül."
+                 : "Ezekben a sávokban a zárlat magától él. Levenni próbatétel, és csak az ablakon kívül — bent zárlat van.")
+                .font(.footnote).foregroundStyle(.secondary)
+            if windows.count < LockdownLogic.maxLockdownWindows {
+                Button("Heti ablak felvétele") { lockdownWindowSheet = true }
+                    .buttonStyle(.bordered)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// Egy ablak levétele: a bíró próbatételt indít (ablakon kívül), vagy
+    /// megmondja, miért nem — bent zárlat van.
+    private func removeLockdownWindow(_ w: LockdownLogic.LockdownWindow) {
+        let rest = (store.state.lockdownWindows ?? []).filter { $0.id != w.id }
+        do {
+            let r = try Referee.setLockdownWindows(rest, now: nowMs())
+            if !r.applied { openSessionId = r.session?.id }
+        } catch let e as Referee.RefereeError {
+            flowError = e.message
+        } catch {
+            flowError = "\(error)"
+        }
     }
 
     private var protectionSection: some View {
@@ -713,6 +748,67 @@ struct ContentView: View {
 /// Külön nézet, mert a beírt szöveg SAJÁT állapot: ha a szülőben élne, minden
 /// karakter újrarajzolná az egész főképernyőt, és a lap `item:` bindingje
 /// közben újra is építené a lapot.
+/// Heti zárlat-ablak felvétele — a menetrend előre gyártott sávjaiból, mint a
+/// menetrend-szerkesztő. A már meglévő sávok nem választhatók újra. A teljes
+/// listát a bíró kapja: a felvétel szigorítás, azonnal megy.
+private struct LockdownWindowSheet: View {
+    let current: [LockdownLogic.LockdownWindow]
+    let onResult: (Result) -> Void
+
+    enum Result { case applied, challenge(String), error(String) }
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var selected = Set<String>()
+
+    private static let presets: [(label: String, key: String, band: ScheduleLogic.Band)] = [
+        ("Munkaidő (H–P 9–17)", "workHours", .init(days: [1, 2, 3, 4, 5], startMin: 9 * 60, endMin: 17 * 60)),
+        ("Esti lekapcsolás (22–06)", "evening", .init(days: [0, 1, 2, 3, 4, 5, 6], startMin: 22 * 60, endMin: 6 * 60)),
+        ("Hétvége (Szo–V egész nap)", "weekend", .init(days: [0, 6], startMin: 0, endMin: 1440)),
+    ]
+
+    private var have: Set<String> { Set(current.map { LockdownLogic.windowKey($0.band) }) }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    Text("Az ablakban a zárlat magától él, az ablak végéig — a gépen is. Felvenni ingyen van; levenni próbatétel, és csak az ablakon kívül. Az egész hét nem zárható le: legalább egy szabad óra marad.")
+                        .font(.footnote).foregroundStyle(.secondary)
+                }
+                Section("Sávok") {
+                    ForEach(Self.presets, id: \.key) { p in
+                        let already = have.contains(LockdownLogic.windowKey(p.band))
+                        Toggle(already ? "\(p.label) — már felvéve" : p.label, isOn: Binding(
+                            get: { already || selected.contains(p.key) },
+                            set: { on in if on { selected.insert(p.key) } else { selected.remove(p.key) } }
+                        )).disabled(already)
+                    }
+                }
+            }
+            .navigationTitle("Heti ablak felvétele")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Mégse") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) { Button("Felvétel") { apply() } }
+            }
+        }
+    }
+
+    private func apply() {
+        let added = Self.presets.filter { selected.contains($0.key) }.map {
+            LockdownLogic.LockdownWindow(id: "", days: $0.band.days, startMin: $0.band.startMin, endMin: $0.band.endMin)
+        }
+        if added.isEmpty { onResult(.error("Válassz legalább egy sávot.")); return }
+        do {
+            let r = try Referee.setLockdownWindows(current + added, now: nowMs())
+            onResult(r.applied ? .applied : .challenge(r.session?.id ?? ""))
+        } catch let e as Referee.RefereeError {
+            onResult(.error(e.message))
+        } catch {
+            onResult(.error("\(error)"))
+        }
+    }
+}
+
 /// Zárlat indítása vagy hosszabbítása.
 ///
 /// A KIÍRANDÓ SZÓ nem biztonsági elem — aki idáig eljutott, az kiírja —, hanem

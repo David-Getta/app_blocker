@@ -82,6 +82,11 @@ data class SessionRec(
      * készülékhez, ezért a teljesítés ezt az ágat az oldal-keresés ELŐTT nézi.
      */
     val pendingFocusEnd: Long? = null,
+    /**
+     * Ha van, a teljesítés a zárlat-ablakok listáját cseréli erre (lazítás:
+     * levétel vagy szűkítés). Nem oldalhoz tartozik, hanem az egész készülékhez.
+     */
+    val pendingLockdownWindows: List<LockdownLogic.LockdownWindow>? = null,
 )
 
 /**
@@ -586,6 +591,10 @@ object BreakerStore {
                 // közönséges feloldássá változtatná: a próbatétel végén a bíró
                 // nem tudná, mit kért a felhasználó.
                 put("pendingFocusEnd", ses.pendingFocusEnd ?: JSONObject.NULL)
+                // Ugyanezért: a folyamatban lévő ablak-levétel újraindítás
+                // után is az maradjon, ami volt.
+                put("pendingLockdownWindows", ses.pendingLockdownWindows?.let { SyncClient.windowsToJson(it) }
+                    ?: JSONObject.NULL)
             }
         } ?: JSONObject.NULL)
     }
@@ -710,6 +719,8 @@ object BreakerStore {
                     },
                     pendingFocusEnd = if (ses.isNull("pendingFocusEnd")) null
                         else ses.getLong("pendingFocusEnd"),
+                    pendingLockdownWindows = if (ses.isNull("pendingLockdownWindows")) null
+                        else SyncClient.windowsFromJson(ses.optJSONArray("pendingLockdownWindows")),
                 )
             }
         }.getOrNull()?.takeIf { it.steps.isNotEmpty() && it.stepIndex in it.steps.indices }

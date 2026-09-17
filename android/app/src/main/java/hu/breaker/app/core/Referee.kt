@@ -206,6 +206,18 @@ object Referee {
                 abandons = state.abandons.filter { it.siteId != s.siteId },
             )
         }
+        // A ZÁRLAT-ABLAKOK sem oldalhoz tartoznak. Idáig csak próbatétellel
+        // lehet eljutni — a levétel vagy a szűkítés ára ez a menet volt. A futó
+        // zárlathoz nem nyúl: a zárlat sosem rövidül; de ide csak ablakon
+        // kívülről lehet eljutni, mert bent a kapu nem enged próbatételt.
+        if (s.pendingLockdownWindows != null) {
+            return state.copy(
+                lockdownWindows = s.pendingLockdownWindows,
+                unlockLog = state.unlockLog.filter { it > now - 30 * 24 * 3600_000L } + now,
+                session = null,
+                abandons = state.abandons.filter { it.siteId != s.siteId },
+            )
+        }
         val sites = state.sites.map { site ->
             if (site.id != s.siteId) site
             else if (s.pendingSchedule != null) site.copy(schedule = s.pendingSchedule) // gated loosening
@@ -261,6 +273,65 @@ object Referee {
                 pendingSchedule = next,
             )
             result = ScheduleChangeResult(applied = false, session = session)
+            state.copy(session = session, lastCombo = plan.comboKey)
+        }
+        return result!!
+    }
+
+    data class WindowsChangeResult(val applied: Boolean, val session: SessionRec?)
+
+    /**
+     * A zárlat-ablakok beállítása: a TELJES lista jön, és a tárolt lista ezt
+     * követi. Felvenni és bővíteni ingyen; levenni vagy szűkíteni próbatétel —
+     * és csak ablakon kívül, mert bent a kapu zárlatot lát. Az egész hét nem
+     * zárható le. Az azonosító nélküli ablak új: itt kap azonosítót. A
+     * desktop `setLockdownWindows` tükre.
+     */
+    fun setLockdownWindows(windows: List<LockdownLogic.LockdownWindow>, now: Long): WindowsChangeResult {
+        var result: WindowsChangeResult? = null
+        BreakerStore.mutate { state ->
+            val items = windows.map { if (it.id.isEmpty()) it.copy(id = BreakerStore.newId("lw")) else it }
+            if (items.any { LockdownLogic.cleanWindow(it) == null }) {
+                throw RefereeException(
+                    "Érvénytelen ablak: legalább egy nap kell, és egy kezdés meg egy vég.", "BAD_WINDOW",
+                )
+            }
+            if (items.size > LockdownLogic.MAX_LOCKDOWN_WINDOWS) {
+                throw RefereeException(
+                    "Legfeljebb ${LockdownLogic.MAX_LOCKDOWN_WINDOWS} ablak fér el.", "TOO_MANY_WINDOWS",
+                )
+            }
+            val next = LockdownLogic.cleanWindows(items)
+            if (!LockdownLogic.weekHasFreeTime(next.map { it.band }, now)) {
+                throw RefereeException(
+                    "Az egész hét nem zárható le: legalább egy szabad óra kell a héten az ablakok " +
+                        "mellett — különben az ablakot sosem lehetne levenni.",
+                    "NO_FREE_TIME",
+                )
+            }
+            val current = state.lockdownWindows
+            if (LockdownLogic.sameWindows(current.map { it.band }, next.map { it.band })) {
+                result = WindowsChangeResult(applied = true, session = null)
+                return@mutate state
+            }
+            if (!LockdownLogic.isWindowsLoosening(current.map { it.band }, next.map { it.band }, now)) {
+                // A meglévő ablak azonosítója marad; a sorrend az új listáé.
+                val kept = next.map { n ->
+                    current.firstOrNull { LockdownLogic.windowKey(it.band) == LockdownLogic.windowKey(n.band) } ?: n
+                }
+                result = WindowsChangeResult(applied = true, session = null)
+                return@mutate state.copy(lockdownWindows = kept)
+            }
+            if (state.session != null) {
+                throw RefereeException("Előbb fejezd be a folyamatban lévő kísérletet.", "BUSY")
+            }
+            val plan = planLoosening(state, Kind.PAUSE, null, now)
+            val session = SessionRec(
+                id = BreakerStore.newId("ses"), kind = Kind.PAUSE, siteId = "lockdown:windows", minutes = null,
+                steps = armCurrent(plan.steps, 0, now), stepIndex = 0, createdAt = now,
+                pendingLockdownWindows = next,
+            )
+            result = WindowsChangeResult(applied = false, session = session)
             state.copy(session = session, lastCombo = plan.comboKey)
         }
         return result!!

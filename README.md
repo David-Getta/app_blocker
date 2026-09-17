@@ -163,8 +163,8 @@ ingyen van, rövidíteni vagy visszavonni sehogy.
   zárható le: legalább egy szabad óra marad, különben az ablak csapda lenne.
   Az ablak zárlatát az alvás nem tolja el (az ablak vége az ablak vége), a
   fiókon át a többi eszközre is átér, és a levétel a jelével jön — egy másik
-  eszköz csomag-szerkesztése nem támasztja fel. A telefonok hordozzák és
-  érvényesítik; felvenni és levenni a gépen lehet. Lásd
+  eszköz csomag-szerkesztése nem támasztja fel. A telefonon is felvehető
+  (előre gyártott sávokból) és levehető (próbatétel). Lásd
   `docs/feature-lockdown-windows.md`.
 - **Munkamenetek: „most csak ez mehet”** (gép, Android, iPhone). A blokklista arról szól,
   mi NE menjen; a munkamenet fordítva: csinálsz egy csomagot (pl.

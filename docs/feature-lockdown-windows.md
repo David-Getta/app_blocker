@@ -65,8 +65,11 @@ napok, kezdés, vég — csak nem egy csomag indul tőle, hanem a zárlat.
   irány; és egy még soha fel nem töltött, jeltelen lista egy másik eszköz
   jeles levételével szemben elveszik (ingyen visszavehető).
 - A telefonok az ablakot **hordozzák, fésülik és érvényesítik** (a körük
-  zárlatot ír belőle), de nem szerkesztik — ugyanúgy, mint a csomag heti
-  ablakát. Felvenni és levenni a gépen lehet.
+  zárlatot ír belőle), és szerkesztik is: a bíró ugyanaz a
+  `setLockdownWindows` (Kotlin, Swift), ugyanazzal a kapuval, ugyanazzal a
+  próbatétellel a levételre. A felület ott egyszerűbb: felvenni a menetrend
+  előre gyártott sávjaiból lehet (munkaidő, esti lekapcsolás, hétvége), nem
+  percre pontosan — a szabad sáv a gépen áll.
 
 ## Hol van a felületen
 
@@ -80,5 +83,8 @@ vég — ugyanaz a szerkesztő, mint a csomag ablakánál. A sáv az ablak zárl
 tudja meg, miért van minden zárva. A tiltó lap és a gyorsbillentyűs réteg
 ugyanazt a zárlatot mutatja, mint a kézinél.
 
-**Telefonon:** a zárlat kártyája felsorolja az ablakokat („a gépen
-állítható”), és a sáv ugyanúgy mondja a zárlatot, mint a kézinél.
+**Telefonon:** a zárlat kártyája felsorolja az ablakokat, mindegyiknél
+*Levétel…* (próbatétel — a szokásos próbatétel-lap, „Zárlat-ablak levétele”
+fejléccel; bent el sem indul), és a *Heti ablak felvétele* gomb a menetrend
+előre gyártott sávjait kínálja. A sáv ugyanúgy mondja a zárlatot, mint a
+kézinél.

@@ -178,6 +178,17 @@ enum Referee {
             state.abandons = (state.abandons ?? []).filter { $0.siteId != s.siteId }
             return
         }
+        // A ZÁRLAT-ABLAKOK sem oldalhoz tartoznak. Idáig csak próbatétellel
+        // lehet eljutni — a levétel vagy a szűkítés ára ez a menet volt. A futó
+        // zárlathoz nem nyúl: a zárlat sosem rövidül; de ide csak ablakon
+        // kívülről lehet eljutni, mert bent a kapu nem enged próbatételt.
+        if let windows = s.pendingLockdownWindows {
+            state.lockdownWindows = windows.isEmpty ? nil : windows
+            state.unlockLog = state.unlockLog.filter { $0 > now - 30 * 24 * 3_600_000 } + [now]
+            state.session = nil
+            state.abandons = (state.abandons ?? []).filter { $0.siteId != s.siteId }
+            return
+        }
         state.sites = state.sites.map { site in
             guard site.id == s.siteId else { return site }
             var copy = site
@@ -194,6 +205,68 @@ enum Referee {
     }
 
     struct ScheduleChangeResult { let applied: Bool; let session: SessionRec? }
+
+    struct WindowsChangeResult { let applied: Bool; let session: SessionRec? }
+
+    /// A zárlat-ablakok beállítása: a TELJES lista jön, és a tárolt lista ezt
+    /// követi. Felvenni és bővíteni ingyen; levenni vagy szűkíteni próbatétel —
+    /// és csak ablakon kívül, mert bent a kapu zárlatot lát. Az egész hét nem
+    /// zárható le. Az azonosító nélküli ablak új: itt kap azonosítót. A
+    /// desktop `setLockdownWindows` tükre.
+    @discardableResult
+    static func setLockdownWindows(_ windows: [LockdownLogic.LockdownWindow], now: Double) throws -> WindowsChangeResult {
+        var result: WindowsChangeResult?
+        var thrown: RefereeError?
+        BreakerStore.shared.mutate { state in
+            let items = windows.map { w in
+                w.id.isEmpty
+                    ? LockdownLogic.LockdownWindow(id: BreakerStore.shared.newId("lw"), days: w.days,
+                                                   startMin: w.startMin, endMin: w.endMin)
+                    : w
+            }
+            if items.contains(where: { LockdownLogic.cleanWindow($0) == nil }) {
+                thrown = RefereeError(message: "Érvénytelen ablak: legalább egy nap kell, és egy kezdés meg egy vég.",
+                                      code: "BAD_WINDOW"); return
+            }
+            if items.count > LockdownLogic.maxLockdownWindows {
+                thrown = RefereeError(message: "Legfeljebb \(LockdownLogic.maxLockdownWindows) ablak fér el.",
+                                      code: "TOO_MANY_WINDOWS"); return
+            }
+            let next = LockdownLogic.cleanWindows(items)
+            if !LockdownLogic.weekHasFreeTime(next.map { $0.band }, now) {
+                thrown = RefereeError(
+                    message: "Az egész hét nem zárható le: legalább egy szabad óra kell a héten az ablakok "
+                        + "mellett — különben az ablakot sosem lehetne levenni.",
+                    code: "NO_FREE_TIME"); return
+            }
+            let current = state.lockdownWindows ?? []
+            if LockdownLogic.sameWindows(current.map { $0.band }, next.map { $0.band }) {
+                result = WindowsChangeResult(applied: true, session: nil); return
+            }
+            if !LockdownLogic.isWindowsLoosening(current.map { $0.band }, next.map { $0.band }, now) {
+                // A meglévő ablak azonosítója marad; a sorrend az új listáé.
+                let kept = next.map { n in
+                    current.first { LockdownLogic.windowKey($0.band) == LockdownLogic.windowKey(n.band) } ?? n
+                }
+                state.lockdownWindows = kept
+                result = WindowsChangeResult(applied: true, session: nil); return
+            }
+            if state.session != nil {
+                thrown = RefereeError(message: "Előbb fejezd be a folyamatban lévő kísérletet.", code: "BUSY"); return
+            }
+            guard let plan = planLoosening(state, .pause, nil, now, &thrown) else { return }
+            var steps = plan.steps
+            armCurrent(&steps, 0, now)
+            let session = SessionRec(id: BreakerStore.shared.newId("ses"), kind: .pause, siteId: "lockdown:windows",
+                                     minutes: nil, steps: steps, stepIndex: 0, createdAt: now,
+                                     pendingSchedule: nil, pendingFocusEnd: nil, pendingLockdownWindows: next)
+            state.session = session
+            state.lastCombo = plan.comboKey
+            result = WindowsChangeResult(applied: false, session: session)
+        }
+        if let e = thrown { throw e }
+        return result!
+    }
 
     /// Change a site's weekly schedule. Tightening applies immediately; loosening
     /// requires the same challenges as a pause (mirrors desktop startScheduleChange).
