@@ -44,44 +44,36 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **Zárlat-ablak: heti sáv, amiben a zárlat magától él.** A zárlat
-          egyszeri döntés; aki a munkanapjait akarja védeni, annak minden
-          reggel újra el kellene indítania — és pont reggel a legkönnyebb
-          nem. Az ablak (például hétköznap 9-től 17-ig) ezt leveszi róla: a
-          kör az ablak végéig szóló zárlatot ír, pontosan azt, amit kézzel is
-          lehet — ugyanaz a kapu, ugyanaz a sáv, ugyanaz a tiltó lap, a
-          telefonon is. Felvenni ingyen; levenni vagy szűkíteni próbatétel,
-          és csak az ablakon kívül, mert bent zárlat van. Az egész hét nem
-          zárható le: legalább egy szabad óra marad, különben az ablak csapda
-          lenne. Az ablak zárlatát az alvás nem tolja el (az ablak vége az
-          ablak vége), a fiókon át a többi eszközre is átér, és a levétel a
-          saját jelével jön — egy másik eszköz csomag-szerkesztése nem
-          támasztja fel. A telefonok mutatják és érvényesítik; felvenni és
-          levenni a gépen lehet: a Zárlat kártyán, a „Heti ablak felvétele”
-          gombbal.
+          **A zárlat-ablak a telefonon is felvehető és levehető.** Ugyanaz a
+          bíró, ugyanaz a szabály: felvenni ingyen (a menetrend előre gyártott
+          sávjaiból — munkaidő, esti lekapcsolás, hétvége), levenni próbatétel,
+          és csak az ablakon kívül, mert bent zárlat van. A próbatétel-lap
+          fejléce mostantól azt mondja, mi a tét: „Zárlat-ablak levétele”,
+          „Munkamenet leállítása”, „Menetrend lazítása” — és nem az, hogy
+          „feloldás 0 percre”.
 
-          **Androidon a zárlat is felmegy.** A „van-e mit feltölteni” kulcsból
-          lemaradt maga a zárlat, tehát egy csak a telefonon indított zárlat
-          nem ért át a többi eszközre. Javítva.
+          **A gépen a meglévő ablak módosítható** (bővíteni ingyen, szűkíteni
+          próbatétel), és amikor az ablak beér, a gép értesítést ad — aki nem
+          maga indította, tudja meg, miért van minden zárva.
 
-          ### Ami a v0.4.33-ban jött
+          ### Ami a v0.4.34-ben jött
 
-          **A böngésző is tud a zárlatról.** A bővítmény tiltó lapja zárlat
-          alatt a zárlatról beszél, a hátralévő idővel, nem a feloldás
-          útjáról; a felugró lap és a gyorsbillentyűs réteg is kimondja.
+          **Zárlat-ablak: heti sáv, amiben a zárlat magától él.** A kör az
+          ablak végéig szóló zárlatot ír, pontosan azt, amit kézzel is lehet —
+          ugyanaz a kapu, ugyanaz a sáv, ugyanaz a tiltó lap, a telefonon is.
+          Felvenni ingyen; levenni vagy szűkíteni próbatétel, és csak az
+          ablakon kívül. Az egész hét nem zárható le. Az ablak zárlatát az
+          alvás nem tolja el, a fiókon át a többi eszközre is átér, és a
+          levétel a saját jelével jön — egy másik eszköz csomag-szerkesztése
+          nem támasztja fel.
 
-          **A szinkron megnyugszik a lejárt zárlat után** — a lejárt zárlat
-          a határon nem számít, a kör nem ír fölöslegesen.
+          **Androidon a zárlat is felmegy** — a „van-e mit feltölteni”
+          kulcsból lemaradt maga a zárlat. Javítva.
 
-          **A kiadás feltöltése újrapróbál** a GitHub 500-as hibáira.
+          #### Ami a v0.4.33-ban jött
 
-          #### Ami a v0.4.32-ben jött
-
-          **Zárlat: amikor a lazítás nem drága, hanem nincs.** Egy általad
-          megadott ideig (1 órától 7 napig) az app EL SEM INDÍT próbatételt
-          lazításra. Hosszabbítani ingyen; rövidíteni vagy visszavonni
-          sehogy. A többi eszközre is átér, az óra átállítása sem rövidíti
-          meg. Őszintén: ez nem gépzár — az impulzus ellen véd.
+          **A böngésző is tud a zárlatról**, a szinkron megnyugszik a lejárt
+          zárlat után, és a kiadás feltöltése újrapróbál.
 
           NOTES
           fi
