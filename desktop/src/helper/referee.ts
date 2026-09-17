@@ -13,7 +13,9 @@ import { PAUSE_CHOICES_MIN } from '../shared/protocol';
 import { isLoosening, normalizeSchedule, ALWAYS, type Band, type Schedule } from '../shared/schedule';
 import { isBurstLoosening, normalizeBurst } from '../shared/burst';
 import {
-  formatLockdownRemaining, isLocked, lockdownRemainingMs, startLockdown, type Lockdown,
+  formatLockdownRemaining, isLocked, isWindowLockdown, isWindowsLoosening, liveLockdown,
+  normalizeWindow, normalizeWindows, sameWindows, startLockdown, weekHasFreeTime, windowKey,
+  windowLockdown, MAX_LOCKDOWN_WINDOWS, type Lockdown, type LockdownWindow,
 } from '../shared/lockdown';
 import { isLimitLoosening, normalizeLimit } from '../shared/limits';
 import { dayKey } from '../shared/usage';
@@ -52,6 +54,8 @@ function sessionInfo(s: SessionRec, now: number): SessionInfo {
     // A felület ebből tudja, hogy a `focus:` azonosító mögött nem a menet
     // leállítása, hanem a heti ablak lazítása áll — más a fejléc.
     ...(s.pendingRecurrence !== undefined ? { recurrence: true } : {}),
+    // …és hogy a `lockdown:windows` mögött a zárlat-ablakok lazítása áll.
+    ...(s.pendingLockdownWindows !== undefined ? { windows: true } : {}),
   };
 }
 
@@ -77,14 +81,26 @@ export function effectiveTier(state: HelperState, kind: 'pause' | 'delete', now:
 }
 
 /**
+ * A MOST érvényes zárlat: a futó, vagy amit egy élő ablak épp megkövetel —
+ * akkor is, ha a kör még nem írta be. A kapu és a status is ezt nézi, nem a
+ * nyers mezőt: az ablak kezdése és az első kör közti másodpercek nem
+ * lehetnek rés, és a felület sem mondhatja nyitva, ami az ablak szerint zárva.
+ */
+export function currentLockdown(state: HelperState, now: number): Lockdown | null {
+  return windowLockdown(state.lockdown, state.lockdownWindows ?? [], now)
+    ?? liveLockdown(state.lockdown, now) ?? null;
+}
+
+/**
  * A ZÁRLAT ŐRE. Amíg zárlat van, a lazítás nem drágább — nincs.
  *
  * Nem hibaüzenet-ízesítés: ez a különbség a nehéz és a lehetetlen között. A
  * próbatétel drágít, tehát utat is kínál; a zárlat alatt nincs mit teljesíteni.
  */
 function assertUnlocked(state: HelperState, now: number): void {
-  if (!isLocked(state.lockdown, now)) return;
-  const left = formatLockdownRemaining(lockdownRemainingMs(state.lockdown, now));
+  const lock = currentLockdown(state, now);
+  if (!lock) return;
+  const left = formatLockdownRemaining(lock.until - now);
   throw new RefereeError(
     `Zárlat van érvényben, ${left} van hátra. Amíg tart, semmilyen lazítás nem indítható — próbatétellel sem.`,
     'LOCKDOWN',
@@ -224,6 +240,18 @@ function finishSession(state: HelperState, now: number): void {
       state.focusRun = null;
     }
     applyRecurrence(state, s.pendingRecurrence.packId, s.pendingRecurrence.band);
+    state.unlockLog = [...state.unlockLog.filter((t) => t > now - 30 * 24 * 3600_000), now];
+    state.session = null;
+    state.abandons = (state.abandons ?? []).filter((a) => a.siteId !== s.siteId);
+    return;
+  }
+  // A ZÁRLAT-ABLAKOK sem oldalhoz tartoznak, hanem az egész géphez. A cserét
+  // itt hajtjuk végre, mert idáig csak próbatétellel lehet eljutni — a
+  // lazítás (levétel, szűkítés) ára ez a menet volt. A futó zárlathoz nem
+  // nyúl: a zárlat sosem rövidül, az ablakból született sem — de ide csak
+  // ablakon kívülről lehet eljutni, mert bent a kapu nem enged próbatételt.
+  if (s.pendingLockdownWindows !== undefined) {
+    applyWindows(state, s.pendingLockdownWindows);
     state.unlockLog = [...state.unlockLog.filter((t) => t > now - 30 * 24 * 3600_000), now];
     state.session = null;
     state.abandons = (state.abandons ?? []).filter((a) => a.siteId !== s.siteId);
@@ -705,7 +733,13 @@ function absorbClockJump(state: HelperState, now: number): void {
   // munkával. Ugyanaz a mondat, mint a munkamenetnél: amennyi hátra volt,
   // annyi van hátra. Az alvó gép is így viselkedik, és ez nem mellékhatás: egy
   // lecsukott laptop előtt nem telik a zárlat, mert nem is kísért.
-  if (state.lockdown) {
+  //
+  // Az ABLAK-ZÁRLAT kivétel, ugyanazzal az indokkal, mint az ablak-menet:
+  // annak a vége az ablak vége. A „hétköznap 9–17” zárlat ötkor ér véget
+  // akkor is, ha a laptop közben aludt — az ablak az ígéret, nem a hossz. Ha
+  // eltolnánk, a gép és a telefon két különböző zárlatot látna ugyanarról a
+  // napról, és a laptop alvása hosszabbítaná a hétköznapot.
+  if (state.lockdown && !isWindowLockdown(state.lockdown, state.lockdownWindows ?? [])) {
     state.lockdown = {
       startedAt: state.lockdown.startedAt + shift,
       until: state.lockdown.until + shift,
@@ -742,6 +776,16 @@ function absorbClockJump(state: HelperState, now: number): void {
 export function tick(state: HelperState, now: number): boolean {
   absorbClockJump(state, now);
   let dirty = false;
+  // AZ ABLAK ZÁRLATOT ÍR. Ha él egy zárlat-ablak, és a futó zárlat vége az
+  // ablak végénél korábbi (vagy nincs zárlat), az ablak végéig szóló zárlat
+  // kerül az állapotba — pontosan az, amit kézzel is lehet indítani. Innentől
+  // minden ugyanaz: a lenti takarítás, a kapu, a sáv, a szinkron, a tiltó
+  // lap. Az ablak nem új érvényesítés, hanem egy időzítő a meglévő elé.
+  const fromWindow = windowLockdown(state.lockdown, state.lockdownWindows ?? [], now);
+  if (fromWindow) {
+    state.lockdown = fromWindow;
+    dirty = true;
+  }
   const s = state.session;
   if (s && isLocked(state.lockdown, now)) {
     // A zárlat MÁSIK eszközről is megérkezhet, a kör közepén. A futó kísérlet
@@ -1008,6 +1052,65 @@ export function setFocusRecurrence(
     id: newId('ses'), kind: 'pause', siteId: `focus:${packId}`,
     steps: plan.steps, stepIndex: 0, createdAt: now,
     pendingRecurrence: { packId, band: next },
+  };
+  state.lastCombo = plan.comboKey;
+  armCurrent(state.session, now);
+  return { applied: false, session: sessionInfo(state.session, now) };
+}
+
+/** A zárlat-ablakok listájának cseréje a tárolt állapoton (üresen nincs mező). */
+function applyWindows(state: HelperState, windows: LockdownWindow[]): void {
+  if (windows.length === 0) delete state.lockdownWindows;
+  else state.lockdownWindows = windows;
+}
+
+/**
+ * A zárlat-ablakok beállítása: a TELJES lista jön, és a tárolt lista ezt
+ * követi. Felvenni és bővíteni ingyen (szigorítás: több idő, amikor nincs
+ * alku); levenni vagy szűkíteni próbatétel — különben az ablak egy
+ * kikapcsolóval érne fel. A lazítás kérdését a mag dönti el
+ * (`isWindowsLoosening`), ugyanazzal a percenkénti mintavétellel, mint a
+ * csomag ablakánál.
+ *
+ * Két dolgot a mag mond ki, nem a felület: az egész hét nem zárható le
+ * (különben az ablakot sosem lehetne levenni), és ablakon belül a levétel
+ * el sem indul — a kapu (`planLoosening`) ott zárlatot lát.
+ */
+export function setLockdownWindows(
+  state: HelperState, input: unknown, now: number,
+): SetRuleResult {
+  const items: unknown[] = Array.isArray(input) ? input : [];
+  if (items.some((w) => !normalizeWindow(w))) {
+    throw new RefereeError(
+      'Érvénytelen ablak: legalább egy nap kell, és egy kezdés meg egy vég.', 'BAD_WINDOW',
+    );
+  }
+  if (items.length > MAX_LOCKDOWN_WINDOWS) {
+    throw new RefereeError(`Legfeljebb ${MAX_LOCKDOWN_WINDOWS} ablak fér el.`, 'TOO_MANY_WINDOWS');
+  }
+  const next = normalizeWindows(items);
+  if (!weekHasFreeTime(next, now)) {
+    throw new RefereeError(
+      'Az egész hét nem zárható le: legalább egy szabad óra kell a héten az ablakok mellett — '
+      + 'különben az ablakot sosem lehetne levenni.', 'NO_FREE_TIME',
+    );
+  }
+  const current = state.lockdownWindows ?? [];
+  if (sameWindows(current, next)) return { applied: true, session: null };
+  if (!isWindowsLoosening(current, next, now)) {
+    // A meglévő ablak azonosítója marad: a felvétel nem kereszteli át. Ahol
+    // az új lista tartalma egyezik egy meglévővel, a meglévő marad; a sorrend
+    // az új listáé — az a felületé.
+    applyWindows(state, next.map((n) => current.find((c) => windowKey(c) === windowKey(n)) ?? n));
+    return { applied: true, session: null };
+  }
+  if (state.session) throw new RefereeError('Előbb fejezd be a folyamatban lévő kísérletet.', 'BUSY');
+
+  const plan = planLoosening(state, 'pause', null, now);
+  state.session = {
+    id: newId('ses'), kind: 'pause', siteId: 'lockdown:windows',
+    steps: plan.steps, stepIndex: 0, createdAt: now,
+    pendingLockdownWindows: next,
   };
   state.lastCombo = plan.comboKey;
   armCurrent(state.session, now);

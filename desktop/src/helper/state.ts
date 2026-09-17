@@ -105,6 +105,11 @@ export interface SessionRec {
    * vagy levétel — az a null). Nem oldalhoz tartozik, hanem egy csomaghoz.
    */
   pendingRecurrence?: { packId: string; band: import('../shared/schedule').Band | null };
+  /**
+   * Ha van, a teljesítés a zárlat-ablakok listáját cseréli erre (lazítás:
+   * levétel vagy szűkítés). Nem oldalhoz tartozik, hanem az egész géphez.
+   */
+  pendingLockdownWindows?: import('../shared/lockdown').LockdownWindow[];
 }
 
 /**
@@ -141,6 +146,19 @@ export interface HelperState {
    * zárlat. Lásd shared/lockdown.ts.
    */
   lockdown?: import('../shared/lockdown').Lockdown;
+  /**
+   * Zárlat-ablakok: heti sávok, amikben a zárlat MAGÁTÓL él — a kör az
+   * ablak végéig szóló zárlatot ír a `lockdown` mezőbe. Felvenni ingyen,
+   * levenni próbatétel. A munkamenet blobján szinkronizál, a jelével
+   * együtt. Hiányzik = nincs ablak. Lásd shared/lockdown.ts.
+   */
+  lockdownWindows?: import('../shared/lockdown').LockdownWindow[];
+  /**
+   * Az ablak-lista JELE: a munkamenet-blob `rev`-je, amelyik a listát
+   * utoljára változtatta. A fésülésben a nagyobb jel nyer (lásd
+   * `mergeWindows`); a lenyomat-léptetés írja (revisions.ts).
+   */
+  lockdownWindowsRev?: number;
   dohApplied: boolean;
   /** active-time tracking history (stays on this machine) */
   usage: UsageState;
@@ -233,6 +251,11 @@ export interface HelperState {
   focusRevPacks?: Record<string, string>;
   /** a lenyomat, amiből kiderül, hogy változott-e (lásd revisions.ts) */
   focusRevFp?: string;
+  /**
+   * A zárlat-ablakok tartalmi kulcsa az utolsó léptetéskor — ebből derül
+   * ki, hogy a lista változott-e, tehát kell-e új jel (revisions.ts).
+   */
+  focusRevWindows?: string;
   /**
    * A csatorna-szűrők szinkron-számlálója — a munkamenet mintájára.
    *

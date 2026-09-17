@@ -787,6 +787,44 @@ const WIRES = [
     needle: 'liveLockdown(s.lockdown, Date.now())',
     lost: 'a híd nem adná ki a zárlat végét, a bővítmény semmit nem tudna róla',
   },
+  // A ZÁRLAT-ABLAK. Az ablak nem új érvényesítés, hanem egy időzítő a
+  // meglévő elé: a kör az ablak végéig szóló zárlatot ír, és a kapu az ablakot
+  // a kör ELŐTT is látja. Ha bármelyik kimaradna, semmi nem hasalna el — csak
+  // a „hétköznap 9-től 17-ig” ablak nem zárna semmit, vagy egy jól időzített
+  // feloldás átcsúszna az ablak kezdése és az első kör között.
+  {
+    file: 'desktop/src/helper/referee.ts',
+    needle: 'windowLockdown(state.lockdown, state.lockdownWindows ?? [], now)',
+    lost: 'a gépen a zárlat-ablak nem írna zárlatot, és a kapu sem látná',
+  },
+  // Az ablak zárlatát az óra-ugrás elnyelése nem tolja el: az ablak vége az
+  // ablak vége. Enélkül a laptop alvása hosszabbítaná a hétköznapot, és a gép
+  // meg a telefon két különböző zárlatot látna ugyanarról a napról.
+  {
+    file: 'desktop/src/helper/referee.ts',
+    needle: 'isWindowLockdown(state.lockdown, state.lockdownWindows ?? [])',
+    lost: 'a gépen az alvás eltolná az ablak zárlatának végét',
+  },
+  // Az ablakok a szinkronon a JELÜKKEL járnak: a levétel próbatétellel jár,
+  // ami lépteti a jelet — enélkül a másik eszköz csomag-szerkesztése (ami a
+  // blob rev-jét lépteti) feltámasztaná a levett ablakot, vagy elvinné a
+  // frissen felvettet.
+  {
+    file: 'desktop/src/helper/sync-client.ts',
+    needle: 'state.lockdownWindows = merged.lockdownWindows',
+    lost: 'a másik eszközön felvett zárlat-ablak sosem érne ide',
+  },
+  {
+    file: 'desktop/src/shared/sync/focus-merge.ts',
+    needle: 'windowsMerged(local, incoming)',
+    lost: 'az ablakok a fésülésben elvesznének, vagy az újabb blob döntene a jel helyett',
+  },
+  {
+    file: 'desktop/src/helper/revisions.ts',
+    needle: 'markWindows(state);',
+    lost: 'az ablak-lista sosem kapna jelet, és a levétel nem érne át',
+  },
+
   // A HOSTS FÁJL ŐREI. A szinkronon jött hosztnevek a root-tulajdonú hosts
   // fájlba mennek; egy soremeléses „név” tetszőleges sort írna bele — bármely
   // oldal átirányítását. Két háló: a forrásnál (a szinkron beolvasója) és a

@@ -19,7 +19,8 @@ import { HELPER_VERSION } from '../shared/protocol.js';
 import { normalizeRule, ruleLabel } from '../shared/urlrules.js';
 import { MAX_BURST_MINUTES, MAX_COOLDOWN_MINUTES, normalizeBurst } from '../shared/burst.js';
 import {
-  formatLockdownRemaining, isLocked, LOCKDOWN_CHOICES_MIN,
+  formatLockdownRemaining, isLocked, isWindowLockdown, LOCKDOWN_CHOICES_MIN, MAX_LOCKDOWN_WINDOWS,
+  type LockdownWindow,
 } from '../shared/lockdown.js';
 import { stepBurstNotices, type BurstNotice, type BurstWatch } from '../shared/burst-notify.js';
 import { daysSinceUnlock, digestDue, digestText } from '../shared/digest.js';
@@ -1039,9 +1040,15 @@ function recurrenceLabel(b: Band): string {
  * szűkítése vagy levétele viszont próbatétel — ha egy úton mennének, a Mentés
  * lenne a kikapcsoló. A segéd a mentésnél a tárolt ablakot meg is tartja.
  */
-function recurrenceEditor(pack: FocusPack, overlay: HTMLElement): HTMLElement {
-  const wrap = h('div', 'recurrence-editor');
-  const current = pack.recurrence;
+/**
+ * Egy heti sáv mezői — napok és két időpont —, a csomag ablakához és a
+ * zárlat-ablakhoz UGYANAZ. A `read()` a kitöltött sávot adja, vagy null-t, ha
+ * nincs nap vagy időpont: a hívó mondja meg, mit ír ki ilyenkor.
+ */
+function bandFields(current: Band | undefined, defaults: { startMin: number; endMin: number }): {
+  box: HTMLElement; read: () => Band | null;
+} {
+  const box = h('div', 'recurrence-editor');
   const selected = new Set<Weekday>(current?.days ?? [1, 2, 3, 4, 5]);
   const chips = h('div', 'chips');
   const paint = (): void => {
@@ -1062,19 +1069,38 @@ function recurrenceEditor(pack: FocusPack, overlay: HTMLElement): HTMLElement {
     chips.appendChild(c);
   }
   paint();
-  wrap.appendChild(chips);
+  box.appendChild(chips);
 
   const times = h('div', 'row-gap recurrence-times');
   const start = h('input', 'alias-input time-field') as HTMLInputElement;
   start.type = 'time';
-  start.value = minutesLabel(current?.startMin ?? 9 * 60);
+  start.value = minutesLabel(current?.startMin ?? defaults.startMin);
   start.setAttribute('aria-label', 'kezdés');
   const end = h('input', 'alias-input time-field') as HTMLInputElement;
   end.type = 'time';
-  end.value = minutesLabel(current?.endMin ?? 12 * 60);
+  end.value = minutesLabel(current?.endMin ?? defaults.endMin);
   end.setAttribute('aria-label', 'vég');
   times.append(start, h('span', undefined, '–'), end);
-  wrap.appendChild(times);
+  box.appendChild(times);
+
+  const parse = (v: string): number | null => {
+    const m = /^(\d{1,2}):(\d{2})$/.exec(v);
+    return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+  };
+  const read = (): Band | null => {
+    const s = parse(start.value);
+    const e = parse(end.value);
+    if (s === null || e === null || selected.size === 0) return null;
+    // A „00:00” végként az éjfél: a sáv 1440-nel írja le, nem nullával.
+    return { days: [...selected].sort((a, b) => a - b), startMin: s, endMin: e === 0 ? 1440 : e };
+  };
+  return { box, read };
+}
+
+function recurrenceEditor(pack: FocusPack, overlay: HTMLElement): HTMLElement {
+  const current = pack.recurrence;
+  const fields = bandFields(current, { startMin: 9 * 60, endMin: 12 * 60 });
+  const wrap = fields.box;
   wrap.appendChild(h('p', 'hint',
     (current ? `Most: ${recurrenceLabel(current)}. ` : '')
     + 'Az ablakban a menet magától indul, és a végéig tart — a gépen és a telefonon is. '
@@ -1086,10 +1112,6 @@ function recurrenceEditor(pack: FocusPack, overlay: HTMLElement): HTMLElement {
   const note = h('p', 'error hidden');
   wrap.appendChild(note);
 
-  const parse = (v: string): number | null => {
-    const m = /^(\d{1,2}):(\d{2})$/.exec(v);
-    return m ? Number(m[1]) * 60 + Number(m[2]) : null;
-  };
   const apply = async (band: Band | null): Promise<void> => {
     try {
       const r = await call<SetRuleResult & { status: StatusData }>('focus_recurrence', {
@@ -1106,15 +1128,13 @@ function recurrenceEditor(pack: FocusPack, overlay: HTMLElement): HTMLElement {
   const actions = h('div', 'row-gap');
   const save = h('button', 'btn btn-small', current ? 'Ablak módosítása' : 'Ablak beállítása');
   save.addEventListener('click', () => {
-    const s = parse(start.value);
-    const e = parse(end.value);
-    if (s === null || e === null || selected.size === 0) {
+    const band = fields.read();
+    if (!band) {
       note.textContent = 'Válassz legalább egy napot, és adj meg kezdést és véget.';
       note.classList.remove('hidden');
       return;
     }
-    // A „00:00” végként az éjfél: a sáv 1440-nel írja le, nem nullával.
-    void apply({ days: [...selected].sort((a, b) => a - b), startMin: s, endMin: e === 0 ? 1440 : e });
+    void apply(band);
   });
   actions.appendChild(save);
   if (current) {
@@ -1740,9 +1760,14 @@ function renderLockdown(st: StatusData): void {
   const live = isLocked(st.lockdown, now);
   const banner = $('lockdownBanner');
   banner.classList.toggle('hidden', !live);
+  const windows = st.lockdownWindows ?? [];
   if (live) {
+    // Az ablak zárlata ugyanaz a zárlat — de a sáv mondja ki, hogy az ablak
+    // tartja: aki reggel a gép elé ül, tudja meg, miért van minden zárva.
+    const byWindow = isWindowLockdown(st.lockdown!, windows);
     $('lockdownBannerText').textContent =
-      `Zárlat: ${formatLockdownRemaining(st.lockdown!.until - now)} van hátra. `
+      `${byWindow ? 'Zárlat a heti ablak szerint' : 'Zárlat'}: `
+      + `${formatLockdownRemaining(st.lockdown!.until - now)} van hátra. `
       + 'Amíg tart, semmilyen feloldás, keret-emelés vagy szabály-levétel nem indítható — '
       + 'próbatétellel sem. Szigorítani viszont bármikor lehet.';
   }
@@ -1757,6 +1782,85 @@ function renderLockdown(st: StatusData): void {
       + 'Blokkolni, szigorítani, menetet indítani közben is lehet. Nincs visszaút: '
       + 'ha elindítod, ki kell várni. Ez nem gépzár — rendszergazdaként a '
       + 'háttérszolgáltatás leállítható, és ezt nem is titkoljuk; az impulzus ellen véd.';
+  renderLockdownWindows(windows);
+}
+
+/** A heti ablakok listája a zárlat kártyáján — soronként egy ablak és a levétele. */
+function renderLockdownWindows(windows: LockdownWindow[]): void {
+  const box = $('lockdownWindows');
+  box.textContent = '';
+  $<HTMLButtonElement>('lockdownWindowBtn').disabled = windows.length >= MAX_LOCKDOWN_WINDOWS;
+  if (windows.length === 0) {
+    box.appendChild(h('p', 'hint', 'Heti ablak: egy sáv (például hétköznap 9-től 17-ig), amiben a '
+      + 'zárlat magától él — minden héten, a telefonon is. Felvenni egy kattintás; levenni próbatétel, '
+      + 'és csak az ablakon kívül.'));
+    return;
+  }
+  for (const w of windows) {
+    const row = h('div', 'lockdown-window');
+    const left = h('div');
+    left.appendChild(h('div', 'focus-name', recurrenceLabel(w)));
+    left.appendChild(h('div', 'focus-sub', 'ebben a sávban a zárlat magától él'));
+    row.appendChild(left);
+    const drop = h('button', 'btn btn-small btn-ghost', 'Levétel…');
+    drop.title = 'A levétel próbatétel — és csak az ablakon kívül indítható, mert bent zárlat van.';
+    drop.addEventListener('click', () => void applyLockdownWindows(windows.filter((x) => x.id !== w.id)));
+    row.appendChild(drop);
+    box.appendChild(row);
+  }
+}
+
+/** A teljes ablak-lista beküldése — a segéd dönti el, ingyenes-e vagy próbatétel. */
+async function applyLockdownWindows(windows: LockdownWindow[]): Promise<boolean> {
+  const err = $('lockdownWindowsError');
+  err.classList.add('hidden');
+  try {
+    const r = await call<SetRuleResult & { status: StatusData }>('lockdown_windows', { windows });
+    status = r.status;
+    render();
+    return true;
+  } catch (e) {
+    err.textContent = (e as Error).message;
+    err.classList.remove('hidden');
+    return false;
+  }
+}
+
+/** Új heti ablak: napok, kezdés, vég — ugyanaz a szerkesztő, mint a csomag ablakánál. */
+function openLockdownWindowDialog(st: StatusData): void {
+  const overlay = h('div', 'overlay');
+  const modal = h('div', 'modal modal-small');
+  modal.appendChild(h('h3', undefined, 'Heti ablak felvétele'));
+  modal.appendChild(h('p', 'hint',
+    'Az ablakban a zárlat magától él, az ablak végéig — a gépen és a telefonon is. Felvenni '
+    + 'ingyen van; levenni vagy szűkíteni próbatétel, és csak az ablakon kívül: bent zárlat van. '
+    + 'Az egész hét nem zárható le — legalább egy szabad óra marad a héten.'));
+  const fields = bandFields(undefined, { startMin: 9 * 60, endMin: 17 * 60 });
+  modal.appendChild(fields.box);
+  const err = h('p', 'error hidden');
+  const go = h('button', 'btn btn-primary', 'Ablak felvétele');
+  go.addEventListener('click', async () => {
+    const band = fields.read();
+    if (!band) {
+      err.textContent = 'Válassz legalább egy napot, és adj meg kezdést és véget.';
+      err.classList.remove('hidden');
+      return;
+    }
+    // Az azonosítót a segéd adja; a meglévők a sajátjukkal mennek vissza.
+    const ok = await applyLockdownWindows([...(st.lockdownWindows ?? []), { id: '', ...band }]);
+    if (ok) overlay.remove();
+    else {
+      err.textContent = $('lockdownWindowsError').textContent ?? '';
+      err.classList.remove('hidden');
+    }
+  });
+  const cancel = h('button', 'btn btn-ghost', 'Mégse');
+  cancel.addEventListener('click', () => overlay.remove());
+  const actions = h('div', 'modal-actions');
+  actions.append(cancel, go);
+  modal.append(err, actions);
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
 }
 
 /** A zárlat párbeszéde: hossz, figyelmeztetés, és a szó kiírása. */
@@ -1831,6 +1935,7 @@ function openLockdownDialog(st: StatusData): void {
 
 function setupLockdownCard(): void {
   $('lockdownBtn').addEventListener('click', () => openLockdownDialog(status!));
+  $('lockdownWindowBtn').addEventListener('click', () => openLockdownWindowDialog(status!));
 }
 
 function setupChannelCard(): void {
@@ -2863,7 +2968,14 @@ function renderSession(session: SessionInfo | null): void {
   const focusPack = session.siteId.startsWith('focus:')
     ? (status?.focusPacks ?? []).find((p) => `focus:${p.id}` === session.siteId)
     : undefined;
-  if (session.siteId.startsWith('focus:') && session.recurrence) {
+  if (session.siteId === 'lockdown:windows') {
+    // A zárlat-ablak lazítása (levétel, szűkítés): semmi nem fut, az ablak áll.
+    $('sessionTitle').textContent = 'Zárlat-ablak levétele';
+    $('sessionSubtitle').textContent =
+      'Az ablak addig MARAD, amíg a próbák meg nincsenek — a levétel a teljesítéskor lép '
+      + 'életbe. Ha közben beér az ablak, a zárlat ezt a kísérletet is elviszi: a levételt az '
+      + 'ablakon kívül kell elkezdeni és befejezni.';
+  } else if (session.siteId.startsWith('focus:') && session.recurrence) {
     // A heti ablak lazítása (levétel, szűkítés): semmi nem fut, az ablak áll.
     $('sessionTitle').textContent = `Heti ablak lazítása: ${focusPack?.name ?? ''}`;
     $('sessionSubtitle').textContent =

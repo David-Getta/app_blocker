@@ -183,9 +183,19 @@
     <section id="lockdownCard" class="card hidden">
       <div class="list-head">
         <h2>Zárlat</h2>
-        <button id="lockdownBtn" class="btn btn-small">Zárlat indítása</button>
+        <div class="row-gap">
+          <button id="lockdownWindowBtn" class="btn btn-small btn-ghost">Heti ablak felvétele</button>
+          <button id="lockdownBtn" class="btn btn-small">Zárlat indítása</button>
+        </div>
       </div>
       <p class="hint" id="lockdownHint"></p>
+      <!--
+        A HETI ABLAKOK. Az ablakban a zárlat magától él: felvenni ingyen,
+        levenni próbatétel — és csak az ablakon kívül, mert bent zárlat van.
+        A lista itt áll, a zárlat alatt, mert ugyanaz a zárlat.
+      -->
+      <div id="lockdownWindows" class="lockdown-windows"></div>
+      <p id="lockdownWindowsError" class="error hidden"></p>
     </section>
 
     <!--

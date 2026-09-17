@@ -639,6 +639,43 @@ test('a zárlat átér a másik eszközre, és lejárta után a kör megnyugszik
   assert.equal((a.lockdown?.until ?? 0) > 72_000, false, 'a lejárt zárlat nem éledt fel');
 });
 
+test('a zárlat-ablak átér a másik eszközre, és a levétel a jelével jön vissza', async () => {
+  // Az ablak beállítás, de a levétele próbatétel — ezért nem az újabb blob
+  // dönt róla, hanem a lista JELE: a levétel lépteti, a másik eszköz csomag-
+  // szerkesztése nem. Itt a teljes út: felvétel a gépen, átvétel a telefonon,
+  // levétel a telefonon, átvétel a gépen — és közben egy csendes kör.
+  const a = device([site()]);
+  await signIn(a, url, ACCOUNT, PW2, 'Munkagép');
+  await syncNow(a, 80_000);
+  a.lockdownWindows = [{ id: 'lw_a', days: [1, 2, 3, 4, 5], startMin: 540, endMin: 1020 }];
+  await syncNow(a, 80_100);
+  assert.equal(a.lockdownWindowsRev, a.focusRev, 'a felvétel jelet kapott');
+
+  const b = device();
+  await signIn(b, url, ACCOUNT, PW2, 'Telefon');
+  await syncNow(b, 81_000);
+  assert.deepEqual(b.lockdownWindows, a.lockdownWindows, 'az ablak átért');
+  assert.equal(b.lockdownWindowsRev, a.lockdownWindowsRev, 'a jelével együtt');
+  const quiet = await syncNow(b, 81_050);
+  assert.equal(quiet.changed, false, 'a következő kör csendes');
+
+  // A telefonon egy csomag-szerkesztés (a blob rev-je lép, a jel nem)…
+  b.focusPacks = [{ id: 'pb', name: 'Írás', allowSites: [], allowApps: [], defaultMinutes: 25 }];
+  await syncNow(b, 82_000);
+  await syncNow(a, 82_500);
+  assert.deepEqual(a.lockdownWindows?.map((w) => w.id), ['lw_a'], 'a csomag-szerkesztés nem vitte el az ablakot');
+
+  // …majd a levétel (a próbatétel a bíró dolga; itt az eredménye): a jel lép.
+  delete b.lockdownWindows;
+  await syncNow(b, 83_000);
+  assert.equal(b.lockdownWindowsRev, b.focusRev, 'a levétel jele a friss rev');
+  await syncNow(a, 84_000);
+  assert.equal(a.lockdownWindows, undefined, 'a levétel átért a gépre');
+  assert.equal(a.lockdownWindowsRev, b.lockdownWindowsRev);
+  const still = await syncNow(a, 84_100);
+  assert.equal(still.changed, false, 'és a kör megnyugodott');
+});
+
 test('a szinkronon jött hosztnév ugyanazon a szűrőn megy át, mint a helyben felvett', () => {
   // A NYELŐ a root-tulajdonú hosts fájl. Egy soremeléses „név” egy
   // `0.0.0.0 név` sorból két sort csinálna — a másodikat az írja, aki a

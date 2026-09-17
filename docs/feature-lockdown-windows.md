@@ -30,26 +30,52 @@ napok, kezdés, vég — csak nem egy csomag indul tőle, hanem a zárlat.
 
 ## Hogyan működik belül
 
-- `lockdownWindows: Band[]` az állapoton (segéd, Android, iPhone), legfeljebb
-  hét ablak. A `Band` ugyanaz, mint a menetrendnél és a csomag ablakánál:
-  napok, `startMin`, `endMin` (éjfélen átnyúlhat).
+- `lockdownWindows: LockdownWindow[]` az állapoton (segéd, Android, iPhone),
+  legfeljebb hét ablak. A mezők a `Band`-éi — napok, `startMin`, `endMin`
+  (éjfélen átnyúlhat) — és egy `id`, ami a felületé: a tartalom dönt
+  mindenhol (`windowKey`), az azonosító nem.
 - A karbantartó kör (`tick`) minden platformon megnézi, él-e ablak
-  (`dueLockdownWindow`), és ha a futó zárlat vége az ablak vége előtt van,
-  **meghosszabbítja az ablak végéig** — a `startLockdown` úton, tehát a
-  kézi zárlat minden tulajdonságával.
-- **Óra-ugrás:** az ablakból született zárlat vége az ablak vége, nem
-  tolódik az alvással — ugyanaz a kivétel, mint az ablak-menetnél
-  (`isWindowLockdown`). A kézi zárlat továbbra is tolódik.
-- **Szinkron:** az ablakok a munkamenet blobján utaznak, a csomagok mellett.
-  Fésülés: **nagyobb `rev` nyer; azonos `rev`-nél a bővebb lista** (a két
-  lista uniója). A levétel próbatétellel jár, ami lépteti a `rev`-et, tehát a
-  levétel átmegy; egy elmaradt eszköz régi listája nem támaszthatja fel.
-  Őszinte határ: ha két eszköz EGY körben egyszerre vesz fel és le egy-egy
-  ablakot azonos `rev`-vel, a bővebb lista marad — a szigorúbb irány.
+  (`windowLockdown`), és ha a futó zárlat vége az ablak vége előtt van (vagy
+  nincs zárlat), **az ablak végéig szóló zárlatot ír** a `lockdown` mezőbe —
+  a kezdés az ablak kezdése (így két eszköz ugyanazt a zárlatot állítja elő),
+  futó zárlatnál a futóé marad. A kapu (`assertUnlocked` / `requireUnlocked`)
+  ugyanezt nézi a kör ELŐTT is: az ablak kezdése és az első kör közti
+  másodpercek nem rés.
+- **Óra-ugrás:** az ablak zárlatának vége az ablak vége, nem tolódik az
+  alvással — ugyanaz a kivétel, mint az ablak-menetnél. Az „ablaké”-t a VÉG
+  dönti el (`isWindowLockdown`: a vég pontosan egy ablak-előfordulás vége),
+  nem a kezdés: egy ablak előtt indított kézi zárlatot az ablak csak kitol, és
+  két egymásba érő ablakból a második az elsőét — mindkettő az ablak ígérete.
+  A kézi zárlat továbbra is tolódik. Ami kézi zárlat véletlenül épp egy ablak
+  végén ér véget, az is az ablak szabálya alá esik; ablak nélkül is pont eddig
+  tartana, tehát ez nem nyit semmit.
+- **A beérő ablak a folyamatban lévő kísérletet is elviszi** — a levételét
+  is. Bent nincs próbatétel; a levételt az ablakon kívül kell elkezdeni ÉS
+  befejezni. Ez a szigorúbb irány, és a felület kimondja.
+- **Szinkron:** az ablakok a munkamenet blobján utaznak (`lockdownWindows`),
+  a **jelükkel** (`lockdownWindowsRev`: a blob `rev`-je, amelyik a listát
+  utoljára változtatta — a lenyomat-léptetés írja). Fésülés: **nagyobb jel
+  nyer; azonos jelnél a bővebb lista** (a kettő uniója tartalom szerint). A
+  levétel próbatétellel jár, ami lépteti a blobot ÉS a jelet, tehát a levétel
+  átmegy; a másik eszköz csomag-szerkesztése vagy menet-indítása (ami a blob
+  `rev`-jét lépteti, a jelet nem) sem viszi el a listát, sem nem támasztja fel
+  a levettet. A jel nélküli blob (régi kliens) jele nulla: az ilyen sosem
+  törölhet listát. Őszinte határ: ha két eszköz EGY körben egyszerre vesz fel
+  és le egy-egy ablakot azonos jellel, a bővebb lista marad — a szigorúbb
+  irány; és egy még soha fel nem töltött, jeltelen lista egy másik eszköz
+  jeles levételével szemben elveszik (ingyen visszavehető).
+- A telefonok az ablakot **hordozzák, fésülik és érvényesítik** (a körük
+  zárlatot ír belőle), de nem szerkesztik — ugyanúgy, mint a csomag heti
+  ablakát. Felvenni és levenni a gépen lehet.
 
 ## Hol van a felületen
 
-A zárlat kártyáján, a gomb alatt: az ablakok listája, mindegyiknél a napok
-és a sáv, és egy *Levétel…* gomb (próbatétel). Új ablak: napok, kezdés, vég
-— ugyanaz a szerkesztő, mint a csomag ablakánál. A sáv és a tiltó lap
-ugyanazt a zárlatot mutatja, mint a kézinél: „Zárlat: még N óra”.
+**Gépen:** a zárlat kártyáján, a gomb alatt: az ablakok listája, mindegyiknél
+a napok és a sáv, és egy *Levétel…* gomb (próbatétel; bent el sem indul, a
+kártya kimondja, miért). Új ablak a *Heti ablak felvétele* gombbal: napok,
+kezdés, vég — ugyanaz a szerkesztő, mint a csomag ablakánál. A sáv az ablak
+zárlatát „Zárlat a heti ablak szerint”-ként mondja; a tiltó lap és a
+gyorsbillentyűs réteg ugyanazt a zárlatot mutatja, mint a kézinél.
+
+**Telefonon:** a zárlat kártyája felsorolja az ablakokat („a gépen
+állítható”), és a sáv ugyanúgy mondja a zárlatot, mint a kézinél.

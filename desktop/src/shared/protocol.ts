@@ -40,6 +40,11 @@ export interface SessionInfo {
   current: StepDisplay;
   /** a `focus:` azonosító mögött a csomag heti ablakának lazítása áll, nem a menet leállítása */
   recurrence?: boolean;
+  /**
+   * A felület ebből tudja, hogy a `lockdown:windows` azonosító mögött a
+   * zárlat-ablakok lazítása (levétel, szűkítés) áll — más a fejléc.
+   */
+  windows?: boolean;
 }
 
 export interface SiteInfo {
@@ -178,6 +183,11 @@ export interface StatusData {
    * NEM azt mondják, hogy drága — azt mondják, hogy most nincs ilyen út.
    */
   lockdown?: import('./lockdown').Lockdown | null;
+  /**
+   * A zárlat-ablakok: heti sávok, amikben a zárlat magától él. Üres vagy
+   * hiányzó = nincs. A felület listázza, és a levételt próbatétellel kéri.
+   */
+  lockdownWindows?: import('./lockdown').LockdownWindow[];
   /** a szinkron állapota, ha van fiók */
   sync?: SyncStatus;
   /** munkamenet-csomagok: „most csak EZ mehet” (lásd shared/focus.ts) */
@@ -238,6 +248,10 @@ export type HelperRequest =
   // vagy kivételt kérni nem lehet — se itt, se próbatétellel. Ez a protokoll
   // egyetlen olyan művelete, aminek szándékosan nincs ellentéte.
   | { id: number; op: 'lockdown_start'; minutes: number }
+  // A zárlat-ablakok TELJES listája. Felvenni és bővíteni ingyen; levenni
+  // vagy szűkíteni próbatétel — és csak ablakon kívül, mert bent zárlat van.
+  // Az azonosító nélküli ablak újnak számít, a segéd ad neki azonosítót.
+  | { id: number; op: 'lockdown_windows'; windows: import('./lockdown').LockdownWindow[] }
   | { id: number; op: 'set_rule'; siteId: string; input: string; remove: boolean }
   // Csatorna-szűrő: mentés (új vagy csere) és törlés. A lazítás — kikapcsolás,
   // új engedélyezett csatorna bekapcsolt szűrőn, törlés bekapcsolt állapotban —

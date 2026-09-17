@@ -490,6 +490,29 @@ test('focus_recurrence: az ablak felvétele átmegy a segéden, az érvénytelen
   assert.match(bad.error ?? '', /legalább egy nap/);
 });
 
+test('lockdown_windows: a felvétel átmegy a segéden azonosítóval, az érvénytelen nem', async () => {
+  // Egy ablak, ami MOST biztosan nem él: a két órával ezelőtti óra a mai
+  // napon — a következő előfordulása egy hét múlva. Ha élne, zárlatot írna,
+  // és a fájl többi tesztje zárlat alá kerülne.
+  const d = new Date(Date.now() - 2 * 3600_000);
+  const band = { days: [d.getDay()], startMin: d.getHours() * 60, endMin: d.getHours() * 60 + 60 };
+  const ok = await call('lockdown_windows', { windows: [band] });
+  assert.equal(ok.ok, true, ok.error);
+  const data = ok.data as {
+    applied: boolean; status: { lockdownWindows: { id: string; days: number[]; startMin: number; endMin: number }[] };
+  };
+  assert.equal(data.applied, true, 'a felvétel szigorítás: azonnal');
+  assert.equal(data.status.lockdownWindows.length, 1);
+  assert.match(data.status.lockdownWindows[0].id, /^lw_/, 'az azonosítót a segéd adja');
+  assert.deepEqual({ ...data.status.lockdownWindows[0], id: undefined }, { ...band, id: undefined });
+  const bad = await call('lockdown_windows', { windows: [{ ...band, days: [] }] });
+  assert.equal(bad.ok, false);
+  assert.match(bad.error ?? '', /legalább egy nap/);
+  // A levétel próbatétel — a többi teszt ne örökölje, ezért a fájl végén nem
+  // marad ablak: itt, a segéd mögött vesszük le.
+  delete state.lockdownWindows;
+});
+
 test('usage_clear nem tölti újra a napi keretet — a mai nap marad', async () => {
   // EZ VOLT A KISKAPU: a keret a mai mért időből fogy, a törlés gombja
   // viszont a mai vödröt is elvitte. Vagyis a keret nullázása ingyen ment,

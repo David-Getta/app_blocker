@@ -30,7 +30,10 @@ import {
   MAX_ALLOW_ENTRIES, MAX_FOCUS_LOG, normalizePack,
   type FocusLogEntry, type FocusPack, type FocusRun,
 } from '../focus.js';
-import { liveLockdown, mergeLockdown, parseLockdown, type Lockdown } from '../lockdown.js';
+import {
+  liveLockdown, mergeLockdown, mergeWindows, normalizeWindows, parseLockdown, windowKey,
+  type Lockdown, type LockdownWindow,
+} from '../lockdown.js';
 
 /** Legfeljebb ennyi csomag utazhat — a felületen sem fér ki több. */
 export const MAX_PACKS = 30;
@@ -79,6 +82,18 @@ export interface SyncFocus {
    * régebbi rekord felülírja — visszafelé úgysem tud lépni.
    */
   lockdown?: Lockdown;
+  /**
+   * A ZÁRLAT-ABLAKOK: heti sávok, amikben a zárlat magától él. Beállítás,
+   * mint a csomagok — de a levétele próbatétel, tehát a fésülése nem az
+   * újabb blobé, hanem a JELÉ (lásd `mergeWindows`). Üresen nincs mező.
+   */
+  lockdownWindows?: LockdownWindow[];
+  /**
+   * Az ablak-lista jele: a blob `rev`-je, amelyik a listát utoljára
+   * változtatta. Nagyobb jel nyer, azonos jelnél a bővebb lista. A jel
+   * nélküli blob (régi kliens) jele nulla — az ilyen sosem törölhet listát.
+   */
+  lockdownWindowsRev?: number;
   rev: number;
   updatedAt: number;
   updatedBy: string;
@@ -189,6 +204,11 @@ export function normalizeSyncFocus(raw: unknown, fallbackDevice: string, now?: n
     // A zárlat kívülről jött adat, mint minden más: ami nem értelmes, az nincs
     // — és `now` mellett a lejárt sem.
     ...(lockdownIn(o.lockdown, now) ? { lockdown: lockdownIn(o.lockdown, now)! } : {}),
+    // Az ablakok is kívülről jött adat: csak az érvényes, egyszer, a plafonig.
+    // A jel pozitív egész, legfeljebb a blob `rev`-je — mint a csomag-jelek.
+    ...(windowsIn(o.lockdownWindows).length > 0
+      ? { lockdownWindows: windowsIn(o.lockdownWindows) } : {}),
+    ...(markIn(o.lockdownWindowsRev, rev) ? { lockdownWindowsRev: markIn(o.lockdownWindowsRev, rev) } : {}),
     rev,
     updatedAt: numberOr(o.updatedAt, 0),
     updatedBy: typeof o.updatedBy === 'string' && o.updatedBy ? o.updatedBy : fallbackDevice,
@@ -340,6 +360,11 @@ export function mergeFocus(local: SyncFocus, incoming: SyncFocus): SyncFocus {
     // azzal, hogy a régi állapotát tolja fel.
     ...(mergeLockdown(local.lockdown, incoming.lockdown)
       ? { lockdown: mergeLockdown(local.lockdown, incoming.lockdown)! } : {}),
+    // A JEL DÖNT, nem az újabb blob: a levétel próbatétellel jár, ami
+    // lépteti a jelet, tehát a levétel átmegy — de a másik eszköz csomag-
+    // szerkesztése (ami a blob `rev`-jét lépteti, a jelet nem) nem viszi el
+    // a listát. Azonos jelnél a bővebb: a szigorúbb irány.
+    ...windowsMerged(local, incoming),
     rev: Math.max(local.rev, incoming.rev),
     // Az idő a GYŐZTESÉ, nem a nagyobb: így az eredmény kulcsa (rev, idő,
     // eszköz) pontosan az újabb blobé, és három eszköz bármilyen sorrendben
@@ -585,7 +610,37 @@ function stable(f: SyncFocus): unknown {
     // kiszolgálóra, mert a kör azt látná, hogy nincs mit feltölteni — és a
     // többi eszközön nem történne semmi.
     lockdown: f.lockdown ? [f.lockdown.startedAt, f.lockdown.until] : null,
+    // AZ ABLAKOK IS, a jelükkel: enélkül egy itt felvett ablak sosem érne
+    // fel a kiszolgálóra. Tartalom szerint, rendezve — az azonosító és a
+    // sorrend nem jelentés.
+    lockdownWindows: (f.lockdownWindows ?? []).map(windowKey).sort(),
+    lockdownWindowsRev: f.lockdownWindowsRev ?? 0,
     rev: f.rev,
+  };
+}
+
+/** A beolvasott ablak-lista: csak az érvényes, egyszer, a plafonig. */
+function windowsIn(raw: unknown): LockdownWindow[] {
+  return normalizeWindows(raw);
+}
+
+/** A beolvasott jel: pozitív egész, legfeljebb a blob `rev`-je — vagy semmi. */
+function markIn(raw: unknown, maxRev: number): number | undefined {
+  if (typeof raw !== 'number' || !Number.isInteger(raw) || raw <= 0 || raw > maxRev) return undefined;
+  return raw;
+}
+
+/** Az ablakok és a jelük fésülve — üresen egyik mező sincs. */
+function windowsMerged(
+  local: SyncFocus, incoming: SyncFocus,
+): { lockdownWindows?: LockdownWindow[]; lockdownWindowsRev?: number } {
+  const ml = local.lockdownWindowsRev ?? 0;
+  const mi = incoming.lockdownWindowsRev ?? 0;
+  const windows = mergeWindows(ml, local.lockdownWindows ?? [], mi, incoming.lockdownWindows ?? []);
+  const mark = Math.max(ml, mi);
+  return {
+    ...(windows.length > 0 ? { lockdownWindows: windows } : {}),
+    ...(mark > 0 ? { lockdownWindowsRev: mark } : {}),
   };
 }
 

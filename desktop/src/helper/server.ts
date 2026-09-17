@@ -12,7 +12,7 @@ import { normalizeAlias } from '../shared/alias';
 import { normalizeRule } from '../shared/urlrules';
 import { focusDaySeries, isRunning, normalizePack, spentWindows, summarizeFocus } from '../shared/focus';
 import { noteBurstUsage, normalizeBurst, type BurstRule } from '../shared/burst';
-import { isLocked, LOCKDOWN_CHOICES_MIN } from '../shared/lockdown';
+import { LOCKDOWN_CHOICES_MIN } from '../shared/lockdown';
 import {
   blockReasonNow, isLimitExhausted, normalizeLimit, sharedTodaySeconds, usedTodayEverywhere,
 } from '../shared/limits';
@@ -132,7 +132,9 @@ export function statusOf(
     hideSiteList: state.hideSiteList === true,
     // Csak a TÉNYLEG futó zárlat megy ki: a lejártat a tick takarítaná, de a
     // felület nem várhat rá — egy másodpercig sem mondhatja zárva, ami nyitva.
-    lockdown: isLocked(state.lockdown, now) ? state.lockdown ?? null : null,
+    // …és az ablak szerinti is az: ha él egy ablak, a kör előtt is zárva van.
+    lockdown: referee.currentLockdown(state, now),
+    lockdownWindows: state.lockdownWindows ?? [],
     sync: state.sync && {
       // Csak amit a felületnek látnia kell. A kulcsok nem kerülnek ki innen.
       serverUrl: state.sync.serverUrl,
@@ -290,6 +292,21 @@ async function handle(req: HelperRequest, deps: ServerDeps): Promise<unknown> {
       // indítása után a feloldott oldal a következő körig nyitva maradna.
       deps.commit();
       return statusOf(state, deps.dohApplied(), deps.selfTest());
+    }
+
+    case 'lockdown_windows': {
+      // Az azonosítót a SEGÉD adja, ha még nincs: a felület ne találhasson ki
+      // olyat, ami egy meglévő ablakot ír felül. A meglévő ablak a saját
+      // azonosítójával jön vissza, tehát a levétel és a felvétel is a teljes
+      // listával megy — a bíró dönti el, melyik ingyenes és melyik nem.
+      const items = Array.isArray(req.windows) ? req.windows : [];
+      const windows = items.map((w) => (w && typeof w === 'object'
+        ? { ...(w as object), id: typeof (w as { id?: unknown }).id === 'string'
+          && (w as { id: string }).id ? (w as { id: string }).id : newId('lw') }
+        : w));
+      const r = referee.setLockdownWindows(state, windows, now);
+      deps.commit();
+      return { ...r, status: statusOf(state, deps.dohApplied(), deps.selfTest()) };
     }
 
     case 'set_rule': {

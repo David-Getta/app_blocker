@@ -121,6 +121,9 @@ function lockedState(): { state: HelperState; siteId: string; packId: string } {
   state.channelFilters = [{
     id: newId('chf'), host: 'youtube.com', allow: ['@valaki'], enabled: true,
   }];
+  // Egy zárlat-ablak, ami a teszt idején NEM él (szombat hajnal): a levétele
+  // lazítás, tehát a kézi zárlat kapuján kell elhasalnia, nem az ablakén.
+  state.lockdownWindows = [{ id: 'lw_test', days: [6], startMin: 60, endMin: 120 }];
   return { state, siteId, packId };
 }
 
@@ -152,6 +155,8 @@ function looseningEntries(state: HelperState, siteId: string, packId: string, no
     ['changeFocus', 'munkamenet leállítása', () => referee.changeFocus(state, null, now)],
     ['setFocusRecurrence', 'heti ablak levétele',
       () => referee.setFocusRecurrence(state, state.focusPacks![1].id, null, now)],
+    ['setLockdownWindows', 'zárlat-ablak levétele',
+      () => referee.setLockdownWindows(state, [], now)],
   ] as const;
 }
 

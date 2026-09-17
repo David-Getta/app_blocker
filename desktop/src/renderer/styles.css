@@ -1205,3 +1205,12 @@ body[data-motion="on"][data-bg="nyugalom"] .bg-blob-1 { animation: drift-1 52s e
 .time-field { width: 10.5em; flex: 0 0 auto; }
 .recurrence-editor .chips { margin-top: 0; }
 .recurrence-times { align-items: center; }
+
+/* Zárlat-ablakok: egy sor egy ablak — a napok és a sáv, mellette a levétel. */
+.lockdown-windows { margin-top: var(--s2); }
+.lockdown-window {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s3);
+  padding: var(--s2) 0; border-top: 1px solid var(--border);
+}
+.lockdown-window:first-child { border-top: 0; }
+.lockdown-window .focus-name { margin: 0; }

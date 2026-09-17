@@ -16,6 +16,7 @@
 
 import * as crypto from 'crypto';
 import type { HelperState, SiteRec } from './state';
+import { windowKey } from '../shared/lockdown';
 import type { FocusPack } from '../shared/focus';
 import { capHostnameMarks } from '../shared/sync/merge';
 import { capPackMarks } from '../shared/sync/focus-merge';
@@ -151,7 +152,17 @@ function focusFingerprint(state: HelperState): string {
   const run = state.focusRun
     ? [state.focusRun.packId, state.focusRun.endsAt - state.focusRun.startedAt]
     : null;
-  return FOCUS_FP_V2 + digest([packsPart(state), run]);
+  // A ZÁRLAT-ABLAKOK IS: a lista cseréje döntés, tehát léptet — enélkül egy
+  // felvett ablak sosem kapna jelet, és a levétel sem érne át. CSAK HA VAN:
+  // az ablak nélküli állapot lenyomata ugyanaz marad, mint a frissítés előtt,
+  // különben minden eszköz egyszer fölöslegesen léptetne.
+  const windows = windowsKey(state);
+  return FOCUS_FP_V2 + digest([packsPart(state), run, ...(windows ? [windows] : [])]);
+}
+
+/** Az ablak-lista tartalmi kulcsa — üres listára üres szöveg. */
+function windowsKey(state: HelperState): string {
+  return (state.lockdownWindows ?? []).map(windowKey).sort().join('|');
 }
 
 /** @returns változott-e a munkamenet ezen a gépen az előző kör óta */
@@ -209,11 +220,29 @@ export function bumpFocusRevision(
   state.focusUpdatedBy = deviceId;
   state.focusRevFp = fp;
   markPacks(state);
+  markWindows(state);
   return true;
 }
 
 function isEmptyFocus(state: HelperState): boolean {
-  return (state.focusPacks ?? []).length === 0 && !state.focusRun;
+  return (state.focusPacks ?? []).length === 0 && !state.focusRun
+    && (state.lockdownWindows ?? []).length === 0;
+}
+
+/**
+ * Az ablak-lista jele: ha a lista az előző léptetés óta változott, a jele
+ * ez a blob-rev. A szinkron ebből tudja, kié az újabb szó (`mergeWindows`).
+ * Az ELSŐ jel is jel — a csomagokkal ellentétben itt nincs olyan szabály,
+ * hogy „a régi klienst követjük”, amire vissza lehetne esni: egy jeltelen
+ * lista bárkinek a jeles üres listájával szemben elveszne, pedig épp most
+ * vették fel.
+ */
+function markWindows(state: HelperState): void {
+  const cur = windowsKey(state);
+  const prev = state.focusRevWindows ?? '';
+  state.focusRevWindows = cur;
+  if (prev === cur || state.focusRev === undefined) return;
+  state.lockdownWindowsRev = state.focusRev;
 }
 
 /** Egy csomag lenyomata a jelekhez: ami a beállítása, sorrend nélkül. */
@@ -263,6 +292,7 @@ function markPacks(state: HelperState): void {
 export function adoptFocusRevision(state: HelperState): void {
   state.focusRevFp = focusFingerprint(state);
   state.focusRevPacks = packFingerprints(state);
+  state.focusRevWindows = windowsKey(state);
 }
 
 /**

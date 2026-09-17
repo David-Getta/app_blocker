@@ -170,6 +170,14 @@ telefonon az app letörölhető. A zárlat az appon BELÜL zár le mindent, teh�
 impulzus ellen véd — és pontosan ennyit mond a felület is.
 Részletek: [`feature-lockdown.md`](feature-lockdown.md).
 
+A **zárlat-ablak** ugyanerre a rétegre épül, nem mellé: egy heti sáv, amiben a
+kör az ablak végéig szóló zárlatot ír a mezőbe — ugyanaz a kapu, ugyanaz a
+fésülés. Az ablak zárlatának vége az ablak vége (az alvás nem tolja el, mint
+az ablak-menetnél), a lista pedig a szinkronon a saját jelével jár, hogy a
+próbatétellel kifizetett levétel átmenjen, egy csomag-szerkesztés viszont ne
+támassza fel. Részletek:
+[`feature-lockdown-windows.md`](feature-lockdown-windows.md).
+
 ### A privilegizált helper IPC-je
 
 A helper root/SYSTEM jogú, ezért a vele kommunikáló helyi socketet szűkítjük:

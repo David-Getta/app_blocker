@@ -113,6 +113,15 @@ tud lépni. Egy hálózat nélkül maradt eszköz így nem old fel semmit azzal,
 a régi állapotát tolja fel; a másik eszközön indított zárlat pedig percek
 múlva itt is él, és a kör azonnal visszazárja a feloldott oldalakat.
 
+## Heti ablak
+
+A zárlat egyszeri döntés; aki a munkanapjait akarja védeni, annak minden
+reggel újra el kellene indítania. Erre való a **zárlat-ablak**: egy heti sáv
+(például hétköznap 9-től 17-ig), amiben a zárlat magától él — a kör az ablak
+végéig szóló zárlatot ír, pontosan azt, amit kézzel is lehet. Felvenni ingyen,
+levenni próbatétel, és csak az ablakon kívül. Részletek:
+[`feature-lockdown-windows.md`](feature-lockdown-windows.md).
+
 ## Őszinte korlátok
 
 - **Nem gépzár.** Rendszergazdaként a háttérszolgáltatás leállítható, a

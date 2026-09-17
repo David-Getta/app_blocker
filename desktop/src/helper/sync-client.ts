@@ -555,6 +555,16 @@ async function syncFocusRound(
       // A MÁSIK ESZKÖZÖN INDÍTOTT ZÁRLAT itt lép életbe. A fésülés magasvízjel,
       // tehát ez sosem rövidít: a helyinél csak későbbi vég jöhet vissza.
       state.lockdown = merged.lockdown;
+      // AZ ABLAKOK IS: a fésülés a jelük szerint döntött (a levétel csak
+      // nagyobb jellel jön át), és a kör a következő fordulóban már ezek
+      // szerint ír zárlatot. Üresen nincs mező — mint mindenhol.
+      if (merged.lockdownWindows && merged.lockdownWindows.length > 0) {
+        state.lockdownWindows = merged.lockdownWindows;
+      } else {
+        delete state.lockdownWindows;
+      }
+      if (merged.lockdownWindowsRev) state.lockdownWindowsRev = merged.lockdownWindowsRev;
+      else delete state.lockdownWindowsRev;
       state.focusRev = merged.rev;
       state.focusUpdatedAt = merged.updatedAt;
       state.focusUpdatedBy = merged.updatedBy;
@@ -713,6 +723,9 @@ function localFocus(state: HelperState, deviceId: string, now: number): SyncFocu
     // oldalon is csak az élő számít (`decodeFocus`), különben a kettő minden
     // körben különbözne.
     ...(liveLockdown(state.lockdown, now) ? { lockdown: liveLockdown(state.lockdown, now)! } : {}),
+    // Az ablakok a jelükkel — a fésülés ebből tudja, kié az újabb szó.
+    ...((state.lockdownWindows ?? []).length > 0 ? { lockdownWindows: state.lockdownWindows! } : {}),
+    ...(state.lockdownWindowsRev ? { lockdownWindowsRev: state.lockdownWindowsRev } : {}),
     rev: state.focusRev ?? 0,
     updatedAt: state.focusUpdatedAt ?? 0,
     updatedBy: state.focusUpdatedBy ?? deviceId,

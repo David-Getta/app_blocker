@@ -153,6 +153,19 @@ ingyen van, rövidíteni vagy visszavonni sehogy.
   letörölhető; az impulzus ellen véd, nem a megfontolt kerülőút ellen.
   [`docs/feature-lockdown.md`](docs/feature-lockdown.md).
 
+- **Zárlat-ablak: heti sáv, amiben a zárlat magától él** (mindhárom
+  platform). Aki a munkanapjait akarja védeni, annak a zárlatot minden reggel
+  újra el kellene indítania — és pont reggel a legkönnyebb nem elindítani. Az
+  ablak (például hétköznap 9-től 17-ig) ezt leveszi róla: a kör az ablak
+  végéig szóló zárlatot ír, pontosan azt, amit kézzel is lehet — ugyanaz a
+  kapu, ugyanaz a sáv, ugyanaz a tiltó lap. Felvenni ingyen, **levenni
+  próbatétel, és csak az ablakon kívül** — bent zárlat van. Az egész hét nem
+  zárható le: legalább egy szabad óra marad, különben az ablak csapda lenne.
+  Az ablak zárlatát az alvás nem tolja el (az ablak vége az ablak vége), a
+  fiókon át a többi eszközre is átér, és a levétel a jelével jön — egy másik
+  eszköz csomag-szerkesztése nem támasztja fel. A telefonok hordozzák és
+  érvényesítik; felvenni és levenni a gépen lehet. Lásd
+  `docs/feature-lockdown-windows.md`.
 - **Munkamenetek: „most csak ez mehet”** (gép, Android, iPhone). A blokklista arról szól,
   mi NE menjen; a munkamenet fordítva: csinálsz egy csomagot (pl.
   „Nyelvtanulás”), felsorolod, mi mehet alatta, és megadod, meddig tartson.
