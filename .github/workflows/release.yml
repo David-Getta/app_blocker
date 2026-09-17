@@ -44,50 +44,50 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
+          **Zárlat: amikor a lazítás nem drága, hanem nincs.** Eddig minden
+          lazításnak volt ára — próbatétel —, de ára volt, tehát útja is: aki
+          hajnali kettőkor elhatározza, hogy átrágja magát rajta, az átrágja.
+          A zárlat lezárja. Egy általad megadott ideig (1 órától 7 napig) az
+          app EL SEM INDÍT próbatételt lazításra: nincs feloldás, nincs
+          keret-emelés, nincs adag-lazítás, nincs szabály-levétel, nincs
+          menet-leállítás — nincs mit teljesíteni. Blokkolni, szigorítani,
+          menetet indítani közben is lehet, és a zárlat hosszabbítása is
+          ingyen van; rövidíteni vagy visszavonni sehogy. Az indítás
+          visszaveszi azt is, ami félig kint volt: a futó próbatétel elszáll,
+          a feloldott oldalak visszazárnak, a folyamatban lévő törlések
+          visszavonódnak. A zárlat a fiókon át a többi eszközre is átér (a
+          későbbi vég nyer, tehát a szinkron sosem tudja visszavonni), és az
+          óra átállítása sem rövidíti meg. Mindhárom platformon: a gépen az
+          oldalak nézetében a **Zárlat** kártya, a telefonokon a statisztika
+          után. Indításhoz ki kell írni a ZÁRLAT szót — nem biztonsági elem,
+          hanem a félrekattintás ellen. Őszintén: ez nem gépzár —
+          rendszergazdaként a háttérszolgáltatás leállítható, a telefonon az
+          app letörölhető; az impulzus ellen véd, nem a megfontolt kerülőút
+          ellen.
+
+          **Adag-szabály mellett a mérés nem kapcsolható ki.** Az adag
+          számlálója a mért időből gyűlik: kikapcsolt mérés mellett sosem
+          telt volna be. A kikapcsolás eddig pont az az egy kattintás volt,
+          ami próbatétel nélkül hatástalanítja az egészet — a napi keretnél
+          ez már zárva volt, az adagnál nem. Most mindkettőnél zárva van, a
+          gépen és Androidon is.
+
+          ### Ami a v0.4.31-ben jött
+
           **Adag-szabály: öt perc használat, öt perc szünet — két koppintás.**
           Az oldal sorában az **Adag** gomb rejti, két sorral: ennyi használat
-          után… ennyi szünet. Az öt perces szünet eddig hiányzott a kínált értékek
-          közül (tíz perccel kezdődött), a telefonon pedig saját értéket sem
-          lehetett beírni — vagyis ugyanaz a szabály a gépen és a telefonon
-          két különböző dolgot engedett. Mostantól az öt perc gombbal is ott
-          van, és az androidos párbeszédbe is lehet saját percet írni (egy
-          perctől egy napig). Ha a mért aktív használat eléri az adagot, az
-          oldal DNS-szinten zár — minden böngészőben és appban —, majd a
-          szünet végén magától kinyílik. Ha egy szünetnyi ideig nem
-          használtad, a számláló tiszta lappal indul.
+          után… ennyi szünet. Az öt perces szünet eddig hiányzott a kínált
+          értékek közül, a telefonon pedig saját értéket sem lehetett beírni.
+          Mostantól az öt perc gombbal is ott van, és az androidos
+          párbeszédbe is lehet saját percet írni (egy perctől egy napig).
 
-          ### Ami a v0.4.30-ban jött
+          #### Ami a v0.4.30-ban jött
 
-          **A feloldás sokkal nehezebb lett.** Eddig két feladat volt egy
-          próbatétel-sorozatban, és várakozás is csak magas fokon vagy
-          törlésnél. Mostantól legalább HÁROM feladat jár (gyakori feloldónál
-          négy, öt, hat), és a végén MINDIG kötelező várakozás — a szünet a
-          legolcsóbb út, de az sem ingyen. A feladatok maguk is nagyobbak: az
-          átgépelés 300 karakterről 900-ra nőtt (a legnehezebb fokon 2400), a
-          fejszámolás-lánc 3 műveletről 8-ra (20), a memóriakód 8 karakterről
-          12-re (20), miközben kevesebb ideig látszik és tovább kell várni
-          utána. A kötelező várakozás szünetnél 30–45 perc, a legnehezebb
-          fokon 2,5–4 óra; törlésnél 45–70 perc, illetve 4–6 óra.
-
-          **Nem mondjuk meg, hány feladat van hátra.** Eddig ott állt, hogy
-          „2/4. próba” — vagyis hogy mindjárt kész. Pont ez a lendület viszi
-          át az embert a feloldáson, és pont ezt vettük el. Mostantól annyit
-          ír ki az app, hogy „Legalább 3 feladat van még hátra”, a vége felé
-          pedig annyit, hogy „Van még hátra feladat”. Egyik sem hazudik, de
-          egyik sem árulja el, hol a vég. A fejszámolás-lánc hossza sem
-          látszik, és az indító párbeszéd előre kimondja: nem mondjuk meg,
-          hány lépés lesz.
-
-          #### Ami a v0.4.29-ben jött
-
-          **Az óra átállítása az app kilövése után sem rövidít — telefonokon
-          sem.** A várakozási próba és a törlés 24 órás türelme eltelt időt
-          mér, nem dátumot: ehhez a karbantartó körnek tudnia kell, mikor
-          futott utoljára. Ez a szám a telefonokon a memóriában élt, tehát az
-          appot a rendszerbeállításokból kilőve, majd az órát előreállítva a
-          védelem elfelejtette magát: a várakozás azonnal letelt, a törlés
-          esedékessé vált. Ingyen, próbatétel nélkül. Mostantól a szám a
-          telefonon is megmarad — a gépen mindig is így volt.
+          **A feloldás sokkal nehezebb lett.** Legalább HÁROM feladat jár
+          (gyakori feloldónál négy, öt, hat), és a végén MINDIG kötelező
+          várakozás; a feladatok maguk is többszörösükre nőttek. **Nem
+          mondjuk meg, hány feladat van hátra:** a majdnem-kész érzés az, ami
+          átlendít a feloldáson, és pont azt vettük el.
 
           NOTES
           fi
