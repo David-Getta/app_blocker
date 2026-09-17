@@ -130,8 +130,16 @@ object SyncRevisions {
         // elnyelés viszont nem döntés, csak helyi újraértelmezés; a HOSSZ
         // pedig egy egyenletes eltolástól nem változik.
         val run = state.focusRun?.let { "${it.packId};${it.endsAt - it.startedAt}" } ?: "-"
-        return FOCUS_FP_V2 + digest("${packsPart(state)}//$run")
+        // A ZÁRLAT-ABLAKOK IS: a lista cseréje döntés, tehát léptet. CSAK HA
+        // VAN: az ablak nélküli állapot lenyomata ugyanaz marad, mint a
+        // frissítés előtt — különben minden telefon egyszer fölöslegesen léptetne.
+        val windows = windowsKey(state)
+        return FOCUS_FP_V2 + digest("${packsPart(state)}//$run" + (if (windows.isEmpty()) "" else "//$windows"))
     }
+
+    /** Az ablak-lista tartalmi kulcsa — üres listára üres szöveg. */
+    fun windowsKey(state: AppState): String =
+        state.lockdownWindows.map { LockdownLogic.windowKey(it.band) }.sorted().joinToString("|")
 
     /**
      * A munkamenet számlálójának léptetése.
@@ -146,7 +154,9 @@ object SyncRevisions {
     fun bumpFocus(state: AppState, deviceId: String, now: Long): AppState {
         val fp = focusFingerprint(state)
         if (state.focusRevFp == fp) return state
-        if (state.focusRevFp == null && state.focusPacks.isEmpty() && state.focusRun == null) {
+        if (state.focusRevFp == null && state.focusPacks.isEmpty() && state.focusRun == null &&
+            state.lockdownWindows.isEmpty()
+        ) {
             return state.copy(focusRevFp = fp)
         }
         // FORMÁTUMVÁLTÁS. A mentésben még a régi alakú lenyomat van; ettől
@@ -159,16 +169,26 @@ object SyncRevisions {
         if (old != null && !old.startsWith(FOCUS_FP_V2) && old == focusFingerprintV1(state)) {
             return state.copy(focusRevFp = fp)
         }
+        val newRev = state.focusRev + 1
+        // Az ablak-lista JELE: ha a lista az előző léptetés óta változott, a
+        // jele ez a blob-rev. A telefon nem szerkeszt ablakot, de a jel
+        // könyvelése ugyanaz, mint a gépen — ha egyszer szerkesztene, jó legyen.
+        val windows = windowsKey(state)
+        val mark = if (windows != (state.focusRevWindows ?: "")) newRev.coerceIn(0, Int.MAX_VALUE.toLong()).toInt()
+            else state.lockdownWindowsRev
         return state.copy(
-            focusRev = state.focusRev + 1,
+            focusRev = newRev,
             focusUpdatedAt = now,
             focusUpdatedBy = deviceId,
             focusRevFp = fp,
+            focusRevWindows = windows,
+            lockdownWindowsRev = mark,
         )
     }
 
     /** Egy távolról átvett munkamenet lenyomatának újraszámolása. */
-    fun adoptFocus(state: AppState): AppState = state.copy(focusRevFp = focusFingerprint(state))
+    fun adoptFocus(state: AppState): AppState =
+        state.copy(focusRevFp = focusFingerprint(state), focusRevWindows = windowsKey(state))
 
     /**
      * Egy távolról érkezett rekord átvétele.

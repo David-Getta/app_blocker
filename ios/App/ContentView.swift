@@ -311,8 +311,13 @@ struct ContentView: View {
         Group {
             if LockdownLogic.isLocked(store.state.lockdown, now) {
                 let left = LockdownLogic.formatRemaining(store.state.lockdown!.until - now)
+                // Az ablak zárlata ugyanaz a zárlat — de a sáv mondja ki, hogy az
+                // ablak tartja: aki reggel a telefonhoz nyúl, tudja meg, miért.
+                let byWindow = LockdownLogic.isWindowLockdown(
+                    store.state.lockdown!, (store.state.lockdownWindows ?? []).map { $0.band })
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Zárlat: \(left) van hátra").font(.headline)
+                    Text((byWindow ? "Zárlat a heti ablak szerint: " : "Zárlat: ") + "\(left) van hátra")
+                        .font(.headline)
                     Text("Amíg tart, semmilyen feloldás, keret-emelés vagy szabály-levétel nem indítható — próbatétellel sem. Szigorítani viszont bármikor lehet.")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
@@ -335,6 +340,17 @@ struct ContentView: View {
                 .font(.footnote).foregroundStyle(.secondary)
             Button(live ? "Zárlat hosszabbítása" : "Zárlat indítása") { lockdownSheet = true }
                 .buttonStyle(.bordered)
+            // A HETI ABLAKOK: az iPhone hordozza és érvényesíti őket, de nem
+            // szerkeszti — mint a csomag heti ablakát. Kimondjuk, hol állítható.
+            let windows = store.state.lockdownWindows ?? []
+            if !windows.isEmpty {
+                ForEach(windows, id: \.id) { w in
+                    Text("Heti ablak: \(recurrenceLabel(w.band)) — ebben a sávban a zárlat magától él.")
+                        .font(.footnote).foregroundStyle(.secondary)
+                }
+                Text("Az ablakokat a gépen lehet felvenni és levenni; a levétel próbatétel, és csak az ablakon kívül.")
+                    .font(.footnote).foregroundStyle(.secondary)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }

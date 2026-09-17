@@ -13,14 +13,23 @@ enum Referee {
         return kind == .delete ? min(3, base + 1) : base
     }
 
+    /// A MOST érvényes zárlat: a futó, vagy amit egy élő ablak épp megkövetel —
+    /// akkor is, ha a kör még nem írta be. Az ablak kezdése és az első kör
+    /// közti másodpercek nem lehetnek rés. A desktop `currentLockdown` tükre.
+    static func currentLockdown(_ state: AppState, _ now: Double) -> LockdownLogic.Lockdown? {
+        let bands = (state.lockdownWindows ?? []).map { $0.band }
+        return LockdownLogic.windowLockdown(state.lockdown, bands, now)
+            ?? LockdownLogic.live(state.lockdown, now)
+    }
+
     /// A ZÁRLAT ŐRE. Amíg zárlat van, a lazítás nem drágább — nincs.
     ///
     /// Nem hibaüzenet-ízesítés: ez a különbség a nehéz és a lehetetlen között.
     /// A próbatétel drágít, tehát utat is kínál; a zárlat alatt nincs mit
     /// teljesíteni. A desktop `assertUnlocked` tükre.
     private static func requireUnlocked(_ state: AppState, _ now: Double) -> RefereeError? {
-        guard LockdownLogic.isLocked(state.lockdown, now) else { return nil }
-        let left = LockdownLogic.formatRemaining(LockdownLogic.remainingMs(state.lockdown, now))
+        guard let lock = currentLockdown(state, now) else { return nil }
+        let left = LockdownLogic.formatRemaining(lock.until - now)
         let text = "Zárlat van érvényben, " + left + " van hátra. Amíg tart, semmilyen lazítás "
             + "nem indítható — próbatétellel sem."
         return RefereeError(message: text, code: "LOCKDOWN")
@@ -402,7 +411,12 @@ enum Referee {
             // A ZÁRLAT VÉGE IS TOLÓDIK. Enélkül az óra előreállítása ingyen
             // befejezné — pont azt az egyetlen dolgot, aminek szándékosan nincs
             // visszaútja. Amennyi hátra volt, annyi van hátra.
-            if let lock = state.lockdown {
+            //
+            // Az ABLAK-ZÁRLAT kivétel, ugyanazzal az indokkal, mint az
+            // ablak-menet: annak a vége az ablak vége. A telefon alvása nem
+            // hosszabbítja a hétköznapot (LockdownLogic.isWindowLockdown).
+            if let lock = state.lockdown,
+               !LockdownLogic.isWindowLockdown(lock, (state.lockdownWindows ?? []).map { $0.band }) {
                 state.lockdown = LockdownLogic.Lockdown(
                     startedAt: lock.startedAt + shift, until: lock.until + shift
                 )
@@ -456,11 +470,22 @@ enum Referee {
                now > claimableAt + Double(window) { sessionDead = true }
             if now - s.createdAt > Double(ChallengeEngine.sessionMaxAgeMs) { sessionDead = true }
         }
+        // AZ ABLAK ZÁRLATOT ÍR. Ha él egy zárlat-ablak, és a futó zárlat vége az
+        // ablak végénél korábbi (vagy nincs zárlat), az ablak végéig szóló
+        // zárlat kerül az állapotba — pontosan az, amit kézzel is lehet.
+        // Tizenöt másodpercenként nézzük (mint az ablak-menetet); a kapu az
+        // ablakot a kör előtt is látja (currentLockdown).
+        let slot = Int(now / 15_000)
+        let slotDue = slot != lastDueSlot
+        if slotDue { lastDueSlot = slot }
+        let windowLock: LockdownLogic.Lockdown? = slotDue
+            ? LockdownLogic.windowLockdown(st.lockdown, (st.lockdownWindows ?? []).map { $0.band }, now)
+            : nil
         // A ZÁRLAT MÁSIK ESZKÖZRŐL is megérkezhet, a kör közepén: a szinkron
         // lehozza, és onnantól itt sem maradhat feloldott oldal, kifizetett
         // törlés vagy futó kísérlet. Enélkül a gépen indított zárlat az
         // iPhone-on nem jelentene semmit — és pont az lenne a kibúvó.
-        let locked = LockdownLogic.isLocked(st.lockdown, now)
+        let locked = LockdownLogic.isLocked(windowLock ?? st.lockdown, now)
         let lockedSession = locked && st.session != nil
         let pauseEnded = st.sites.contains { site in
             guard let p = site.pauseUntil else { return false }
@@ -482,18 +507,24 @@ enum Referee {
         // szerint ebben az ablakban még nem indult, a csomag menete magától
         // indul. Tizenöt másodpercenként nézzük, nem minden körben — az ablak
         // percekben él, nem másodpercekben.
-        let slot = Int(now / 15_000)
         var focusDue = false
-        if slot != lastDueSlot {
-            lastDueSlot = slot
+        if slotDue {
             focusDue = Focus.dueRecurrence(
                 st.focusPacks ?? [], run: st.focusRun, log: st.focusLog ?? [], now: now
             ) != nil
         }
         guard sessionDead || lockedSession || pauseEnded || deleteDue || focusEnded || focusDue
+            || windowLock != nil
         else { return }
 
         BreakerStore.shared.mutate { state in
+            // Az ablak zárlata a FRISS állapotból, a takarítás előtt — a többi
+            // lépés ugyanazt a mezőt nézi, mint kézi zárlatnál.
+            if let lock = LockdownLogic.windowLockdown(
+                state.lockdown, (state.lockdownWindows ?? []).map { $0.band }, now
+            ) {
+                state.lockdown = lock
+            }
             // Sitting out the claim window ends an attempt too: same bookkeeping,
             // so it is not an escape hatch from a pair one dislikes.
             if sessionDead || lockedSession { dropSession(&state, now) }

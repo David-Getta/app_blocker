@@ -243,7 +243,10 @@ enum SyncClient {
                 packMarks: current.focusPackMarks,
                 // Csak az ÉLŐ zárlat megy fel; a lejártat nincs értelme vinni — és
                 // a lejövő oldalon is csak az élő számít (normalize + now).
-                lockdown: LockdownLogic.live(current.lockdown, now)
+                lockdown: LockdownLogic.live(current.lockdown, now),
+                // Az ablakok a jelükkel — a fésülés ebből tudja, kié az újabb szó.
+                lockdownWindows: (current.lockdownWindows ?? []).isEmpty ? nil : current.lockdownWindows,
+                lockdownWindowsRev: current.lockdownWindowsRev
             )
             let merged = FocusSync.merge(mine, remote)
 
@@ -262,6 +265,10 @@ enum SyncClient {
                 // A MÁSIK ESZKÖZÖN INDÍTOTT ZÁRLAT itt lép életbe. A fésülés
                 // magasvízjel, tehát ez sosem rövidít.
                 current.lockdown = merged.lockdown
+                // AZ ABLAKOK IS: a fésülés a jelük szerint döntött, és a kör a
+                // következő fordulóban már ezek szerint ír zárlatot.
+                current.lockdownWindows = merged.lockdownWindows
+                current.lockdownWindowsRev = merged.lockdownWindowsRev
                 // A lenyomatot ÚJRASZÁMOLJUK, nem a másik eszközét vesszük át:
                 // enélkül a következő mentés fölöslegesen léptetné a számlálót,
                 // és a két eszköz örökké írogatná egymást.

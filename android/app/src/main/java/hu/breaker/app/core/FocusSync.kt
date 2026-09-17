@@ -59,6 +59,14 @@ object FocusSync {
          * visszafelé úgysem tud lépni. Lásd core/Lockdown.kt.
          */
         val lockdown: LockdownLogic.Lockdown? = null,
+        /**
+         * A ZÁRLAT-ABLAKOK: beállítás, mint a csomagok — de a levétele
+         * próbatétel, tehát nem az újabb blob dönt róla, hanem a JELE.
+         * Üresen nincs mező a dróton. Lásd `LockdownLogic.mergeWindows`.
+         */
+        val lockdownWindows: List<LockdownLogic.LockdownWindow> = emptyList(),
+        /** Az ablak-lista jele: a blob rev-je, amelyik utoljára változtatta. Null = régi kliens. */
+        val lockdownWindowsRev: Int? = null,
     )
 
     /**
@@ -88,6 +96,14 @@ object FocusSync {
             // tekintet nélkül. Egy hálózat nélkül maradt eszköz így nem tud
             // feloldani semmit azzal, hogy a régi állapotát tolja fel.
             lockdown = LockdownLogic.merge(local.lockdown, incoming.lockdown),
+            // A JEL DÖNT, nem az újabb blob: a levétel próbatétellel jár, ami
+            // lépteti a jelet; egy csomag-szerkesztés a másik eszközön nem.
+            lockdownWindows = LockdownLogic.mergeWindows(
+                local.lockdownWindowsRev ?: 0, local.lockdownWindows,
+                incoming.lockdownWindowsRev ?: 0, incoming.lockdownWindows,
+            ),
+            lockdownWindowsRev = maxOf(local.lockdownWindowsRev ?: 0, incoming.lockdownWindowsRev ?: 0)
+                .takeIf { it > 0 },
         )
     }
 
@@ -368,7 +384,15 @@ object FocusSync {
         }
         // A jelek is: ha csak ők különböznek, akkor is fel kell menniük.
         val marks = (f.packMarks ?: emptyMap()).toSortedMap().entries.joinToString(",") { "${it.key}=${it.value}" }
-        return "$packs//$run//$log//$marks//${f.rev}"
+        // A ZÁRLAT IS: enélkül egy itt indított zárlat sosem érne fel a
+        // kiszolgálóra — a kör azt látná, hogy nincs mit feltölteni. (A gép és
+        // az iPhone kulcsában mindig benne volt; itt lemaradt, és egy csak a
+        // telefonon indított zárlat tényleg nem ment fel.)
+        val lock = f.lockdown?.let { "${it.startedAt};${it.until}" } ?: "-"
+        // Az ablakok a jelükkel, tartalom szerint rendezve: az azonosító és a
+        // sorrend nem jelentés.
+        val windows = f.lockdownWindows.map { LockdownLogic.windowKey(it.band) }.sorted().joinToString("|")
+        return "$packs//$run//$log//$marks//$lock//$windows//${f.lockdownWindowsRev ?: 0}//${f.rev}"
     }
 
     /**
@@ -381,5 +405,5 @@ object FocusSync {
      * mint a gépé — így az „utolsó író nyer” szabály szerint az ÜRES listája
      * nyerne, és csendben letörölné a gépen felvett összes csomagot.
      */
-    fun isEmpty(f: SyncFocus): Boolean = f.packs.isEmpty() && f.run == null
+    fun isEmpty(f: SyncFocus): Boolean = f.packs.isEmpty() && f.run == null && f.lockdownWindows.isEmpty()
 }

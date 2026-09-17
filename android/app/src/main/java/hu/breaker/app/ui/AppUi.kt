@@ -449,8 +449,15 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                     containerColor = MaterialTheme.colorScheme.errorContainer,
                 )) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        // Az ablak zárlata ugyanaz a zárlat — de a sáv mondja ki,
+                        // hogy az ablak tartja: aki reggel a telefonhoz nyúl, tudja
+                        // meg, miért van minden zárva.
+                        val byWindow = LockdownLogic.isWindowLockdown(
+                            lockdown!!, state.lockdownWindows.map { it.band },
+                        )
                         Text(
-                            "Zárlat: ${LockdownLogic.formatRemaining(lockdown!!.until - now)} van hátra",
+                            (if (byWindow) "Zárlat a heti ablak szerint: " else "Zárlat: ") +
+                                "${LockdownLogic.formatRemaining(lockdown.until - now)} van hátra",
                             style = MaterialTheme.typography.titleSmall,
                         )
                         Text(
@@ -697,6 +704,22 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                         Text(
                             if (LockdownLogic.isLocked(state.lockdown, now)) "Zárlat hosszabbítása"
                             else "Zárlat indítása"
+                        )
+                    }
+                    // A HETI ABLAKOK: a telefon hordozza és érvényesíti őket, de nem
+                    // szerkeszti — mint a csomag heti ablakát. A lista itt áll, a
+                    // zárlat alatt, mert ugyanaz a zárlat; és kimondjuk, hol állítható.
+                    if (state.lockdownWindows.isNotEmpty()) {
+                        for (w in state.lockdownWindows) {
+                            Text(
+                                "Heti ablak: ${recurrenceLabel(w.band)} — ebben a sávban a zárlat magától él.",
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
+                        Text(
+                            "Az ablakokat a gépen lehet felvenni és levenni; a levétel próbatétel, " +
+                                "és csak az ablakon kívül.",
+                            style = MaterialTheme.typography.bodySmall,
                         )
                     }
                 }

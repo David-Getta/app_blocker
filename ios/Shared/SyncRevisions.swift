@@ -131,7 +131,16 @@ enum SyncRevisions {
         // elnyelés viszont nem döntés, csak helyi újraértelmezés; a HOSSZ
         // pedig egy egyenletes eltolástól nem változik.
         let run = state.focusRun.map { "\($0.packId);\($0.endsAt - $0.startedAt)" } ?? "-"
-        return focusFpV2 + digestHex("\(packsPart(state))//\(run)")
+        // A ZÁRLAT-ABLAKOK IS: a lista cseréje döntés, tehát léptet. CSAK HA
+        // VAN: az ablak nélküli állapot lenyomata ugyanaz marad, mint a
+        // frissítés előtt — különben minden iPhone egyszer fölöslegesen léptetne.
+        let windows = windowsKey(state)
+        return focusFpV2 + digestHex("\(packsPart(state))//\(run)" + (windows.isEmpty ? "" : "//\(windows)"))
+    }
+
+    /// Az ablak-lista tartalmi kulcsa — üres listára üres szöveg.
+    static func windowsKey(_ state: AppState) -> String {
+        (state.lockdownWindows ?? []).map { LockdownLogic.windowKey($0.band) }.sorted().joined(separator: "|")
     }
 
     /// A munkamenet számlálójának léptetése.
@@ -146,7 +155,8 @@ enum SyncRevisions {
         let fp = focusFingerprint(state)
         if state.focusRevFp == fp { return state }
         var next = state
-        if state.focusRevFp == nil && (state.focusPacks ?? []).isEmpty && state.focusRun == nil {
+        if state.focusRevFp == nil && (state.focusPacks ?? []).isEmpty && state.focusRun == nil
+            && (state.lockdownWindows ?? []).isEmpty {
             next.focusRevFp = fp
             return next
         }
@@ -162,10 +172,17 @@ enum SyncRevisions {
             next.focusRevFp = fp
             return next
         }
-        next.focusRev = (state.focusRev ?? 0) + 1
+        let newRev = (state.focusRev ?? 0) + 1
+        next.focusRev = newRev
         next.focusUpdatedAt = now
         next.focusUpdatedBy = deviceId
         next.focusRevFp = fp
+        // Az ablak-lista JELE: ha a lista az előző léptetés óta változott, a
+        // jele ez a blob-rev. Az iPhone nem szerkeszt ablakot, de a jel
+        // könyvelése ugyanaz, mint a gépen.
+        let windows = windowsKey(state)
+        if windows != (state.focusRevWindows ?? "") { next.lockdownWindowsRev = Int(newRev) }
+        next.focusRevWindows = windows
         return next
     }
 
@@ -173,6 +190,7 @@ enum SyncRevisions {
     static func adoptFocus(_ state: AppState) -> AppState {
         var next = state
         next.focusRevFp = focusFingerprint(state)
+        next.focusRevWindows = windowsKey(state)
         return next
     }
 

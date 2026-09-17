@@ -200,6 +200,17 @@ data class AppState(
      * gépen indított zárlat ide is megérkezik. Lásd core/Lockdown.kt.
      */
     val lockdown: LockdownLogic.Lockdown? = null,
+    /**
+     * ZÁRLAT-ABLAKOK: heti sávok, amikben a zárlat MAGÁTÓL él — a kör az ablak
+     * végéig szóló zárlatot ír a [lockdown] mezőbe. A telefon hordozza, fésüli
+     * és érvényesíti; szerkeszteni a gépen lehet. A munkamenet blobján
+     * szinkronizál, a jelével együtt. Lásd core/Lockdown.kt.
+     */
+    val lockdownWindows: List<LockdownLogic.LockdownWindow> = emptyList(),
+    /** Az ablak-lista JELE: a blob rev-je, amelyik utoljára változtatta (SyncRevisions). */
+    val lockdownWindowsRev: Int? = null,
+    /** Az ablak-lista kulcsa az utolsó léptetéskor — ebből derül ki, kell-e új jel. */
+    val focusRevWindows: String? = null,
 )
 
 /**
@@ -443,6 +454,11 @@ object BreakerStore {
         put("lockdown", s.lockdown?.let { l ->
             JSONObject().apply { put("startedAt", l.startedAt); put("until", l.until) }
         } ?: JSONObject.NULL)
+        // Az ablakok is a lemezre mennek — blokkolási döntés függ tőlük: az app
+        // kilövése nem vehet le egy ablakot, ami próbatételbe került volna.
+        put("lockdownWindows", SyncClient.windowsToJson(s.lockdownWindows))
+        put("lockdownWindowsRev", s.lockdownWindowsRev ?: JSONObject.NULL)
+        put("focusRevWindows", s.focusRevWindows ?: JSONObject.NULL)
         put("sync", s.sync?.let { a ->
             JSONObject().apply {
                 put("serverUrl", a.serverUrl); put("accountId", a.accountId)
@@ -729,6 +745,10 @@ object BreakerStore {
                     if (l.isNull("startedAt")) null else l.optDouble("startedAt", 0.0),
                 )
             }.getOrNull(),
+            lockdownWindows = SyncClient.windowsFromJson(o.optJSONArray("lockdownWindows")),
+            lockdownWindowsRev = if (o.isNull("lockdownWindowsRev")) null
+                else o.optInt("lockdownWindowsRev", 0).takeIf { it > 0 },
+            focusRevWindows = if (o.isNull("focusRevWindows")) null else o.optString("focusRevWindows"),
             // Egy sérült fiókbejegyzés a szinkront viszi el, a blokklistát nem:
             // a kettő közül a lista a fontos.
             sync = if (o.isNull("sync")) null else runCatching {

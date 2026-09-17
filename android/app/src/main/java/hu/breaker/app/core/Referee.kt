@@ -23,6 +23,15 @@ object Referee {
     }
 
     /**
+     * A MOST érvényes zárlat: a futó, vagy amit egy élő ablak épp megkövetel —
+     * akkor is, ha a kör még nem írta be. Az ablak kezdése és az első kör
+     * közti másodpercek nem lehetnek rés. A desktop `currentLockdown` tükre.
+     */
+    fun currentLockdown(state: AppState, now: Long): LockdownLogic.Lockdown? =
+        LockdownLogic.windowLockdown(state.lockdown, state.lockdownWindows.map { it.band }, now)
+            ?: LockdownLogic.live(state.lockdown, now)
+
+    /**
      * A ZÁRLAT ŐRE. Amíg zárlat van, a lazítás nem drágább — nincs.
      *
      * Nem hibaüzenet-ízesítés: ez a különbség a nehéz és a lehetetlen között.
@@ -30,8 +39,8 @@ object Referee {
      * teljesíteni. A desktop `assertUnlocked` tükre.
      */
     private fun requireUnlocked(state: AppState, now: Long) {
-        if (!LockdownLogic.isLocked(state.lockdown, now)) return
-        val left = LockdownLogic.formatRemaining(LockdownLogic.remainingMs(state.lockdown, now))
+        val lock = currentLockdown(state, now) ?: return
+        val left = LockdownLogic.formatRemaining(lock.until - now)
         throw RefereeException(
             "Zárlat van érvényben, $left van hátra. Amíg tart, semmilyen lazítás nem " +
                 "indítható — próbatétellel sem.",
@@ -611,8 +620,13 @@ object Referee {
             // befejezné — pont azt az egyetlen dolgot, aminek szándékosan
             // nincs visszaútja. Ugyanaz a mondat: amennyi hátra volt, annyi
             // van hátra.
+            //
+            // Az ABLAK-ZÁRLAT kivétel, ugyanazzal az indokkal, mint az
+            // ablak-menet: annak a vége az ablak vége. A telefon alvása nem
+            // hosszabbítja a hétköznapot (LockdownLogic.isWindowLockdown).
             val lock = state.lockdown?.let {
-                LockdownLogic.Lockdown(it.startedAt + shift, it.until + shift)
+                if (LockdownLogic.isWindowLockdown(it, state.lockdownWindows.map { w -> w.band })) it
+                else LockdownLogic.Lockdown(it.startedAt + shift, it.until + shift)
             }
             state.copy(session = session, sites = sites, focusRun = run, lockdown = lock)
         }
@@ -630,11 +644,24 @@ object Referee {
             (step is Step.Delay && step.claimableAt != null && now > step.claimableAt + step.claimWindowMs) ||
                 now - s.createdAt > ChallengeEngine.SESSION_MAX_AGE_MS
         } ?: false
+        // AZ ABLAK ZÁRLATOT ÍR. Ha él egy zárlat-ablak, és a futó zárlat vége az
+        // ablak végénél korábbi (vagy nincs zárlat), az ablak végéig szóló
+        // zárlat kerül az állapotba — pontosan az, amit kézzel is lehet. A DNS-
+        // útvonalon fut, ezért tizenöt másodpercenként nézzük (mint az ablak-
+        // menetet); a kapu az ablakot a kör előtt is látja (currentLockdown).
+        val slot = now / 15_000
+        val slotDue = slot != lastDueSlot
+        if (slotDue) lastDueSlot = slot
+        val windowLock = if (slotDue) {
+            LockdownLogic.windowLockdown(st.lockdown, st.lockdownWindows.map { it.band }, now)
+        } else {
+            null
+        }
         // A ZÁRLAT MÁSIK ESZKÖZRŐL is megérkezhet, a kör közepén: a szinkron
         // lehozza, és onnantól itt sem maradhat feloldott oldal, kifizetett
         // törlés vagy futó kísérlet. Enélkül a gépen indított zárlat a
         // telefonon nem jelentene semmit — és pont az lenne a kibúvó.
-        val locked = LockdownLogic.isLocked(st.lockdown, now)
+        val locked = LockdownLogic.isLocked(windowLock ?: st.lockdown, now)
         val pauseEnded = st.sites.any { it.pauseUntil != null && (locked || it.pauseUntil <= now) }
         val deleteDue = st.sites.any {
             it.pendingDeleteAt != null && (locked || it.pendingDeleteAt <= now)
@@ -649,19 +676,21 @@ object Referee {
         // szerint ebben az ablakban még nem indult, a csomag menete magától
         // indul. Ez a DNS-útvonalon fut, ezért tizenöt másodpercenként nézzük,
         // nem minden kérdésnél — az ablak percekben él, nem másodpercekben.
-        val slot = now / 15_000
-        val focusDue = if (slot != lastDueSlot) {
-            lastDueSlot = slot
-            Focus.dueRecurrence(st.focusPacks, st.focusRun, st.focusLog, now) != null
-        } else {
-            false
-        }
-        if (!sessionDead && !lockedSession && !pauseEnded && !deleteDue && !focusEnded && !focusDue) {
+        val focusDue = slotDue && Focus.dueRecurrence(st.focusPacks, st.focusRun, st.focusLog, now) != null
+        if (!sessionDead && !lockedSession && !pauseEnded && !deleteDue && !focusEnded && !focusDue &&
+            windowLock == null
+        ) {
             return
         }
 
         BreakerStore.mutate { state ->
             var next = state
+            // Az ablak zárlata a FRISS állapotból, a takarítás előtt — a
+            // többi lépés (a kísérlet elszáll, a feloldás visszazár) ugyanazt a
+            // mezőt nézi, mint kézi zárlatnál.
+            LockdownLogic.windowLockdown(next.lockdown, next.lockdownWindows.map { it.band }, now)?.let {
+                next = next.copy(lockdown = it)
+            }
             // A várakozási ablak kihagyása is befejezés — ugyanaz a könyvelés,
             // hogy ne lehessen vele nemszeretem párból kimenekülni.
             if (sessionDead || lockedSession) next = dropSession(next, now)

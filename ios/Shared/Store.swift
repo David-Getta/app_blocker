@@ -162,6 +162,15 @@ struct AppState: Codable, Equatable {
     /// ide is megérkezik. Optional, hogy egy korábbi verzió mentése is
     /// dekódolható maradjon. Lásd Shared/Lockdown.swift.
     var lockdown: LockdownLogic.Lockdown? = nil
+    /// ZÁRLAT-ABLAKOK: heti sávok, amikben a zárlat MAGÁTÓL él — a kör az ablak
+    /// végéig szóló zárlatot ír a `lockdown` mezőbe. Az iPhone hordozza,
+    /// fésüli és érvényesíti; szerkeszteni a gépen lehet. Optional, hogy egy
+    /// korábbi verzió mentése is dekódolható maradjon. Lásd Shared/Lockdown.swift.
+    var lockdownWindows: [LockdownLogic.LockdownWindow]? = nil
+    /// Az ablak-lista JELE: a blob rev-je, amelyik utoljára változtatta (SyncRevisions).
+    var lockdownWindowsRev: Int? = nil
+    /// Az ablak-lista kulcsa az utolsó léptetéskor — ebből derül ki, kell-e új jel.
+    var focusRevWindows: String? = nil
 }
 
 /// Fiók a szinkronhoz.

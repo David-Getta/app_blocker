@@ -49,11 +49,18 @@ public enum FocusSync {
         /// tehát nem kell megvédeni attól, hogy régebbi rekord írja felül.
         /// Lásd Shared/Lockdown.swift.
         public var lockdown: LockdownLogic.Lockdown?
+        /// A ZÁRLAT-ABLAKOK: beállítás, mint a csomagok — de a levétele
+        /// próbatétel, tehát nem az újabb blob dönt róla, hanem a JELE.
+        /// Üresen nincs mező a dróton. Lásd `LockdownLogic.mergeWindows`.
+        public var lockdownWindows: [LockdownLogic.LockdownWindow]?
+        /// Az ablak-lista jele: a blob rev-je, amelyik utoljára változtatta. Nil = régi kliens.
+        public var lockdownWindowsRev: Int?
 
         public init(
             packs: [Focus.Pack] = [], run: Focus.Run? = nil, log: [Focus.LogEntry] = [],
             rev: Double = 0, updatedAt: Double = 0, updatedBy: String = "",
-            packMarks: [String: Int]? = nil, lockdown: LockdownLogic.Lockdown? = nil
+            packMarks: [String: Int]? = nil, lockdown: LockdownLogic.Lockdown? = nil,
+            lockdownWindows: [LockdownLogic.LockdownWindow]? = nil, lockdownWindowsRev: Int? = nil
         ) {
             self.packs = packs
             self.run = run
@@ -63,6 +70,8 @@ public enum FocusSync {
             self.updatedBy = updatedBy
             self.packMarks = packMarks
             self.lockdown = lockdown
+            self.lockdownWindows = lockdownWindows
+            self.lockdownWindowsRev = lockdownWindowsRev
         }
 
         /// SAJÁT dekódolás, mert a `log` mező RÉGEBBI blobokból hiányzik.
@@ -85,6 +94,10 @@ public enum FocusSync {
             // Tűrően, mint a jelek: egy sérült zárlat-mező ne vigye el a blobot.
             lockdown = (try? c.decodeIfPresent(
                 LockdownLogic.Lockdown.self, forKey: .lockdown)) ?? nil
+            // Az ablakok és a jelük is tűrően: egy sérült mező ne vigye el a blobot.
+            lockdownWindows = (try? c.decodeIfPresent(
+                [LockdownLogic.LockdownWindow].self, forKey: .lockdownWindows)) ?? nil
+            lockdownWindowsRev = (try? c.decodeIfPresent(Int.self, forKey: .lockdownWindowsRev)) ?? nil
         }
     }
 
@@ -113,8 +126,25 @@ public enum FocusSync {
             // MAGASVÍZJEL, nem döntés: a későbbi vég nyer, rev-re való tekintet
             // nélkül. Egy hálózat nélkül maradt eszköz így nem tud feloldani
             // semmit azzal, hogy a régi állapotát tolja fel.
-            lockdown: LockdownLogic.merge(local.lockdown, incoming.lockdown)
+            lockdown: LockdownLogic.merge(local.lockdown, incoming.lockdown),
+            // A JEL DÖNT, nem az újabb blob: a levétel próbatétellel jár, ami
+            // lépteti a jelet; egy csomag-szerkesztés a másik eszközön nem.
+            lockdownWindows: mergedWindows(local, incoming),
+            lockdownWindowsRev: mergedWindowsMark(local, incoming)
         )
+    }
+
+    private static func mergedWindows(_ local: SyncFocus, _ incoming: SyncFocus) -> [LockdownLogic.LockdownWindow]? {
+        let out = LockdownLogic.mergeWindows(
+            local.lockdownWindowsRev ?? 0, local.lockdownWindows ?? [],
+            incoming.lockdownWindowsRev ?? 0, incoming.lockdownWindows ?? []
+        )
+        return out.isEmpty ? nil : out
+    }
+
+    private static func mergedWindowsMark(_ local: SyncFocus, _ incoming: SyncFocus) -> Int? {
+        let mark = max(local.lockdownWindowsRev ?? 0, incoming.lockdownWindowsRev ?? 0)
+        return mark > 0 ? mark : nil
     }
 
     /// Egyenlő jelű két változat közül melyik: az ablakos, aztán a szűkebb
@@ -413,7 +443,11 @@ public enum FocusSync {
         // A ZÁRLAT IS: enélkül egy itt indított zárlat sosem érne fel a
         // kiszolgálóra, mert a kör azt látná, hogy nincs mit feltölteni.
         let lock = f.lockdown.map { "\($0.startedAt);\($0.until)" } ?? "-"
-        return "\(packs)//\(run)//\(log)//\(marks)//\(lock)//\(f.rev)"
+        // Az ablakok a jelükkel, tartalom szerint rendezve: az azonosító és a
+        // sorrend nem jelentés.
+        let windows = (f.lockdownWindows ?? []).map { LockdownLogic.windowKey($0.band) }.sorted()
+            .joined(separator: "|")
+        return "\(packs)//\(run)//\(log)//\(marks)//\(lock)//\(windows)//\(f.lockdownWindowsRev ?? 0)//\(f.rev)"
     }
 
     /// A csomag-jelek kiegyenesítése: csak azonosító → pozitív egész, legfeljebb
@@ -476,8 +510,17 @@ public enum FocusSync {
             // mellett a lejárt sem.
             lockdown: raw.lockdown
                 .flatMap { LockdownLogic.parse(["until": $0.until, "startedAt": $0.startedAt]) }
-                .flatMap { now == nil ? $0 : LockdownLogic.live($0, now!) }
+                .flatMap { now == nil ? $0 : LockdownLogic.live($0, now!) },
+            // Az ablakok kívülről jött adat, mint minden más; a jel pozitív
+            // egész, legfeljebb a blob rev-je — mint a csomag-jelek.
+            lockdownWindows: cleanedWindows(raw.lockdownWindows),
+            lockdownWindowsRev: raw.lockdownWindowsRev.flatMap { $0 > 0 && $0 <= revInt(raw.rev) ? $0 : nil }
         )
+    }
+
+    private static func cleanedWindows(_ raw: [LockdownLogic.LockdownWindow]?) -> [LockdownLogic.LockdownWindow]? {
+        let out = LockdownLogic.cleanWindows(raw ?? [])
+        return out.isEmpty ? nil : out
     }
 
     private static func normalized(_ items: [String], _ f: (String) -> String?) -> [String] {

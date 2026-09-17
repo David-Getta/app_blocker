@@ -824,6 +824,28 @@ const WIRES = [
     needle: 'markWindows(state);',
     lost: 'az ablak-lista sosem kapna jelet, és a levétel nem érne át',
   },
+  // A telefonok ugyanezt: a kör zárlatot ír az ablakból, a kapu az ablakot
+  // a kör előtt is látja, és a szinkron az ablakot a jelével viszi.
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/Referee.kt',
+    needle: 'LockdownLogic.windowLockdown(',
+    lost: 'a telefonon a zárlat-ablak nem írna zárlatot',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/SyncClient.kt',
+    needle: 'lockdownWindows = merged.lockdownWindows',
+    lost: 'a telefonra sosem érne át a gépen felvett zárlat-ablak',
+  },
+  {
+    file: 'ios/Shared/Referee.swift',
+    needle: 'LockdownLogic.windowLockdown(',
+    lost: 'az iPhone-on a zárlat-ablak nem írna zárlatot',
+  },
+  {
+    file: 'ios/Shared/SyncClient.swift',
+    needle: 'current.lockdownWindows = merged.lockdownWindows',
+    lost: 'az iPhone-ra sosem érne át a gépen felvett zárlat-ablak',
+  },
 
   // A HOSTS FÁJL ŐREI. A szinkronon jött hosztnevek a root-tulajdonú hosts
   // fájlba mennek; egy soremeléses „név” tetszőleges sort írna bele — bármely

@@ -120,4 +120,157 @@ public enum LockdownLogic {
         }
         return "\(max(1, mins)) perc"
     }
+
+    // MARK: - zárlat-ablak
+    //
+    // Heti ablak, amiben a zárlat MAGÁTÓL él: például hétköznap 9-től 17-ig.
+    // Nem új érvényesítés, hanem egy időzítő a meglévő elé: a kör az ablak
+    // végéig szóló zárlatot ír, és onnantól minden ugyanaz. Az iPhone az
+    // ablakot hordozza, fésüli és érvényesíti; szerkeszteni a gépen lehet.
+    // A lockdown.ts ablak-részének tükre; lásd docs/feature-lockdown-windows.md.
+
+    /// Ennél több ablak nem fér ki — és nem is kell: hét nap van.
+    static let maxLockdownWindows = 7
+    /// Legalább ennyi szabad perc kell a héten az ablakok mellett. Enélkül az
+    /// ablakot sosem lehetne levenni — az nem döntés lenne, hanem csapda.
+    static let minFreeMinutesPerWeek = 60
+    /// Az ablak azonosítója legfeljebb ennyi karakter — kívülről jött szöveg.
+    private static let maxWindowId = 40
+
+    /// Egy zárlat-ablak: a sáv mezői (napok, kezdés, vég) és az azonosító, ami a
+    /// felületé. `public`, mert a `FocusSync.SyncFocus` hordozza.
+    public struct LockdownWindow: Codable, Equatable {
+        public let id: String
+        public let days: [Int]
+        public let startMin: Int
+        public let endMin: Int
+
+        public init(id: String, days: [Int], startMin: Int, endMin: Int) {
+            self.id = id
+            self.days = days
+            self.startMin = startMin
+            self.endMin = endMin
+        }
+
+        var band: ScheduleLogic.Band { ScheduleLogic.Band(days: days, startMin: startMin, endMin: endMin) }
+
+        enum CodingKeys: String, CodingKey {
+            case id
+            case days
+            case startMin
+            case endMin
+        }
+    }
+
+    /// Az ablak tartalmi kulcsa: napok (rendezve), kezdés, vég.
+    static func windowKey(_ b: ScheduleLogic.Band) -> String {
+        let days: [String] = b.days.sorted().map { String($0) }
+        return "\(days.joined(separator: ","))/\(b.startMin)/\(b.endMin)"
+    }
+
+    /// Egy kívülről jött ablak használható alakja, vagy nil.
+    static func cleanWindow(_ w: LockdownWindow?) -> LockdownWindow? {
+        guard let w, !w.id.isEmpty, w.id.count <= maxWindowId else { return nil }
+        let days = Array(Set(w.days.filter { (0...6).contains($0) })).sorted()
+        let band = ScheduleLogic.Band(days: days, startMin: w.startMin, endMin: w.endMin)
+        guard ScheduleLogic.isValidBand(band) else { return nil }
+        return LockdownWindow(id: w.id, days: days, startMin: w.startMin, endMin: w.endMin)
+    }
+
+    /// Egy lista használható alakja: csak érvényes ablakok, azonosító és
+    /// tartalom szerint is egyszer, legfeljebb a plafonig. A duplát az első nyeri.
+    static func cleanWindows(_ raw: [LockdownWindow]) -> [LockdownWindow] {
+        var out: [LockdownWindow] = []
+        var ids = Set<String>()
+        var keys = Set<String>()
+        for item in raw {
+            guard let w = cleanWindow(item) else { continue }
+            let key = windowKey(w.band)
+            if ids.contains(w.id) || keys.contains(key) { continue }
+            if out.count >= maxLockdownWindows { break }
+            ids.insert(w.id)
+            keys.insert(key)
+            out.append(w)
+        }
+        return out
+    }
+
+    /// Ugyanaz-e a két lista tartalmilag (az azonosító nem számít).
+    static func sameWindows(_ a: [ScheduleLogic.Band], _ b: [ScheduleLogic.Band]) -> Bool {
+        a.map(windowKey).sorted() == b.map(windowKey).sorted()
+    }
+
+    /// Marad-e szabad idő a héten az ablakok mellett — percenkénti mintavétellel.
+    static func weekHasFreeTime(_ windows: [ScheduleLogic.Band], _ now: Double) -> Bool {
+        if windows.isEmpty { return true }
+        var free = 0
+        for i in 0..<(7 * 24 * 60) {
+            if !ScheduleLogic.inAnyBand(windows, now + Double(i) * 60_000) {
+                free += 1
+                if free >= minFreeMinutesPerWeek { return true }
+            }
+        }
+        return false
+    }
+
+    /// LAZÍTÁS-e a lista cseréje: van-e perc a következő héten, amikor a régi
+    /// lista zárlatot tartana, az új nem. Az üres lista külön eset: a menetrend
+    /// normalizálója az üres sávlistát „mindig tiltva”-ként érti.
+    static func isWindowsLoosening(_ current: [ScheduleLogic.Band], _ next: [ScheduleLogic.Band], _ now: Double) -> Bool {
+        if current.isEmpty { return false }
+        if next.isEmpty { return true }
+        return ScheduleLogic.isLoosening(
+            ScheduleLogic.Schedule(mode: .block, bands: current),
+            ScheduleLogic.Schedule(mode: .block, bands: next),
+            now
+        )
+    }
+
+    /// Az ÉLŐ ablak MOSTANI előfordulása — több közül a legkésőbb végződő.
+    static func dueWindow(_ windows: [ScheduleLogic.Band], _ now: Double) -> Focus.Occurrence? {
+        var best: Focus.Occurrence?
+        for w in windows {
+            guard ScheduleLogic.isValidBand(w), let occ = Focus.occurrenceAt(w, now: now) else { continue }
+            if let b = best, !(occ.endsAt > b.endsAt || (occ.endsAt == b.endsAt && occ.startsAt < b.startsAt)) {
+                continue
+            }
+            best = occ
+        }
+        return best
+    }
+
+    /// A zárlat, amit az ablakok MOST megkövetelnek — vagy nil, ha a meglévő
+    /// elég. A kezdés az ablak kezdése, ha nem futott zárlat (így két eszköz
+    /// ugyanazt állítja elő); futó zárlat mellett a futóé marad, az ablak csak
+    /// a végét tolja ki. A lockdown.ts `windowLockdown` tükre.
+    static func windowLockdown(_ cur: Lockdown?, _ windows: [ScheduleLogic.Band], _ now: Double) -> Lockdown? {
+        guard let occ = dueWindow(windows, now) else { return nil }
+        if isLocked(cur, now) && cur!.until >= occ.endsAt { return nil }
+        return Lockdown(startedAt: isLocked(cur, now) ? cur!.startedAt : occ.startsAt, until: occ.endsAt)
+    }
+
+    /// Ablak-zárlat-e ez: a vége pontosan egy ablak-előfordulás vége. Az ilyet
+    /// az óra-ugrás elnyelése nem tolja el — az ablak vége az ablak vége. A
+    /// VÉG dönt, nem a kezdés: az ablak előtt indított kézi zárlatot az ablak
+    /// csak kitolja. A lockdown.ts `isWindowLockdown` tükre.
+    static func isWindowLockdown(_ l: Lockdown, _ windows: [ScheduleLogic.Band]) -> Bool {
+        for w in windows {
+            guard ScheduleLogic.isValidBand(w) else { continue }
+            // Egy ezredmásodperccel a vég előtt még az ablakban vagyunk.
+            if let occ = Focus.occurrenceAt(w, now: l.until - 1), occ.endsAt == l.until { return true }
+        }
+        return false
+    }
+
+    /// Két eszköz ablak-listája EGGYÉ fésülve, a JELÜK szerint: nagyobb jel
+    /// nyer (a levétel próbatétellel jár, ami lépteti), azonos jelnél a bővebb
+    /// lista — a kettő uniója tartalom szerint. A jeltelen blob (régi kliens)
+    /// jele nulla: az ilyen sosem törölhet listát. A `mergeWindows` tükre.
+    static func mergeWindows(
+        _ localMark: Int, _ local: [LockdownWindow], _ incomingMark: Int, _ incoming: [LockdownWindow]
+    ) -> [LockdownWindow] {
+        if localMark > incomingMark { return cleanWindows(local) }
+        if incomingMark > localMark { return cleanWindows(incoming) }
+        return cleanWindows(local + incoming)
+    }
 }

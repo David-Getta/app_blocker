@@ -132,6 +132,17 @@ const CHECKS = [
     list(ts.lockdown, /LOCKDOWN_CHOICES_MIN\s*=\s*\[([^\]]+)\]/, 'ts'),
     list(kt.lockdown, /LOCKDOWN_CHOICES_MIN\s*=\s*listOf\(([^)]+)\)/, 'kt'),
     list(sw.lockdown, /lockdownChoicesMin\s*=\s*\[([^\]]+)\]/, 'swift')],
+  // A ZÁRLAT-ABLAK SZÁMAI. A plafon és a heti szabad óra: ha szétcsúsznának,
+  // a telefon egy hetedik ablakot vagy egy egész hetet elfogadna, amit a gép
+  // nem — és a fésülés a bővebbet tartja meg.
+  ['MAX_LOCKDOWN_WINDOWS',
+    scalar(ts.lockdown, /MAX_LOCKDOWN_WINDOWS\s*=\s*([^;]+);/, 'ts'),
+    scalar(kt.lockdown, /MAX_LOCKDOWN_WINDOWS\s*=\s*(.+)/, 'kt'),
+    scalar(sw.lockdown, /maxLockdownWindows\s*=\s*(.+)/, 'swift')],
+  ['MIN_FREE_MINUTES_PER_WEEK',
+    scalar(ts.lockdown, /MIN_FREE_MINUTES_PER_WEEK\s*=\s*([^;]+);/, 'ts'),
+    scalar(kt.lockdown, /MIN_FREE_MINUTES_PER_WEEK\s*=\s*(.+)/, 'kt'),
+    scalar(sw.lockdown, /minFreeMinutesPerWeek\s*=\s*(.+)/, 'swift')],
   ['MAX_ALLOW_ENTRIES',
     scalar(ts.focus, /MAX_ALLOW_ENTRIES\s*=\s*([^;]+);/, 'ts'),
     scalar(kt.focus, /MAX_ALLOW_ENTRIES\s*=\s*(.+)/, 'kt'),

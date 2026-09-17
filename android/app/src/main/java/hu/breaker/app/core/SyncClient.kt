@@ -335,7 +335,39 @@ object SyncClient {
             put("startedAt", f.lockdown.startedAt)
             put("until", f.lockdown.until)
         })
+        // AZ ABLAKOK IS, a jelükkel — enélkül a telefon feltöltése LETÖRÖLNÉ a
+        // gépen felvett ablakot a többi eszközről. Üresen nincs mező.
+        if (f.lockdownWindows.isNotEmpty()) put("lockdownWindows", windowsToJson(f.lockdownWindows))
+        if (f.lockdownWindowsRev != null) put("lockdownWindowsRev", f.lockdownWindowsRev)
     }.toString()
+
+    /** Az ablak-lista drót-alakja: azonosító, napok (rendezve), kezdés, vég. */
+    internal fun windowsToJson(windows: List<LockdownLogic.LockdownWindow>): JSONArray =
+        JSONArray(windows.map { w ->
+            JSONObject().apply {
+                put("id", w.id)
+                put("days", JSONArray(w.days.sorted()))
+                put("startMin", w.startMin)
+                put("endMin", w.endMin)
+            }
+        })
+
+    /** Kívülről jött ablak-lista: ablakonként tűrünk, a szemét kiesik, a lista tiszta. */
+    internal fun windowsFromJson(arr: JSONArray?): List<LockdownLogic.LockdownWindow> {
+        if (arr == null) return emptyList()
+        val raw = (0 until arr.length()).mapNotNull { i ->
+            runCatching {
+                val w = arr.getJSONObject(i)
+                val days = w.getJSONArray("days")
+                LockdownLogic.LockdownWindow(
+                    id = w.getString("id"),
+                    days = (0 until days.length()).map { days.getInt(it) }.toSet(),
+                    startMin = w.getInt("startMin"), endMin = w.getInt("endMin"),
+                )
+            }.getOrNull()
+        }
+        return LockdownLogic.cleanWindows(raw)
+    }
 
     /**
      * Kívülről jött blob -> használható állapot.
@@ -414,6 +446,11 @@ object SyncClient {
                     if (l.isNull("startedAt")) null else l.optDouble("startedAt", 0.0),
                 )
             }?.let { if (now == null) it else LockdownLogic.live(it, now) },
+            // Az ablakok kívülről jött adat, mint minden más; a jel pozitív
+            // egész, legfeljebb a blob rev-je — mint a csomag-jelek.
+            lockdownWindows = windowsFromJson(o.optJSONArray("lockdownWindows")),
+            lockdownWindowsRev = o.optInt("lockdownWindowsRev", 0)
+                .takeIf { it > 0 && it <= rev.coerceIn(0, Int.MAX_VALUE.toLong()) },
         )
     }
 
@@ -544,6 +581,9 @@ object SyncClient {
                 // Csak az ÉLŐ zárlat megy fel; a lejártat nincs értelme vinni — és
                 // a lejövő oldalon is csak az élő számít (focusFromJson + now).
                 lockdown = LockdownLogic.live(current.lockdown, now),
+                // Az ablakok a jelükkel — a fésülés ebből tudja, kié az újabb szó.
+                lockdownWindows = current.lockdownWindows,
+                lockdownWindowsRev = current.lockdownWindowsRev,
             )
             val merged = FocusSync.merge(mine, remote)
 
@@ -563,6 +603,10 @@ object SyncClient {
                     // A MÁSIK ESZKÖZÖN INDÍTOTT ZÁRLAT itt lép életbe. A
                     // fésülés magasvízjel, tehát ez sosem rövidít.
                     lockdown = merged.lockdown,
+                    // AZ ABLAKOK IS: a fésülés a jelük szerint döntött, és a kör
+                    // a következő fordulóban már ezek szerint ír zárlatot.
+                    lockdownWindows = merged.lockdownWindows,
+                    lockdownWindowsRev = merged.lockdownWindowsRev,
                 )
                 // A lenyomatot ÚJRASZÁMOLJUK, nem a másik eszközét vesszük át:
                 // enélkül a következő mentés fölöslegesen léptetné a számlálót,
