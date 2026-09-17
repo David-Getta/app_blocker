@@ -311,3 +311,41 @@ test('a napló EGYETLEN sorrendre jut akkor is, ha a sorok döntetlenek', () => 
   assert.equal(sameFocus(mergeFocus(ab, b), ab), true);
   assert.equal(sameFocus(mergeFocus(ba, a), ba), true);
 });
+
+// ------------------------------------------------------------------ zárlat
+
+test('a zárlat magasvízjel: a kisebb rev is hozhat hosszabb zárlatot', () => {
+  const T0 = 1_736_160_000_000;
+  const HOUR = 3600_000;
+  const mine = focus({
+    rev: 9, updatedAt: T0, updatedBy: 'gep',
+    lockdown: { startedAt: T0, until: T0 + HOUR },
+  });
+  const stale = focus({
+    rev: 1, updatedAt: T0 - HOUR, updatedBy: 'telefon',
+    lockdown: { startedAt: T0 - HOUR, until: T0 + 5 * HOUR },
+  });
+  assert.equal(mergeFocus(mine, stale).lockdown?.until, T0 + 5 * HOUR);
+  assert.equal(mergeFocus(stale, mine).lockdown?.until, T0 + 5 * HOUR, 'sorrendtől függetlenül');
+});
+
+test('a zárlatot nem ismerő (régi vagy másik) blob nem viheti el', () => {
+  const T0 = 1_736_160_000_000;
+  const HOUR = 3600_000;
+  const mine = focus({ rev: 9, updatedAt: T0, lockdown: { startedAt: T0, until: T0 + HOUR } });
+  const none = focus({ rev: 12, updatedAt: T0 + HOUR, updatedBy: 'telefon' });
+  assert.equal(mergeFocus(mine, none).lockdown?.until, T0 + HOUR);
+  assert.equal(mergeFocus(none, mine).lockdown?.until, T0 + HOUR);
+  // …és a blob KÜLÖNBÖZŐNEK látszik, ha csak a zárlat változott — enélkül
+  // sosem menne fel a kiszolgálóra.
+  assert.equal(sameFocus(mine, { ...mine, lockdown: undefined }), false);
+});
+
+test('a dróton érkezett zárlat-szemét nem indít zárlatot', () => {
+  const raw = { packs: [], run: null, log: [], rev: 3, updatedAt: 1, updatedBy: 'x',
+    lockdown: { until: 'holnap', startedAt: 5 } };
+  assert.equal(normalizeSyncFocus(raw, 'y').lockdown, undefined);
+  const ok = normalizeSyncFocus({ ...raw, lockdown: { until: 10, startedAt: 20 } }, 'y');
+  // A végénél KÉSŐBBI kezdés hazugság; a vég vágja vissza.
+  assert.deepEqual(ok.lockdown, { startedAt: 10, until: 10 });
+});

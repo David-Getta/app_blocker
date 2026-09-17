@@ -35,6 +35,7 @@ struct ContentView: View {
     @State private var listOpenThisSession = false
     @State private var successMsg: String?
     @State private var now = nowMs()
+    @State private var lockdownSheet = false
 
     private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
     private let presets = ["youtube.com", "facebook.com", "instagram.com", "tiktok.com", "x.com", "reddit.com"]
@@ -44,6 +45,7 @@ struct ContentView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     if store.fileUnreadable { unreadableBanner }
+                    lockdownBanner
                     protectionSection
                     focusSyncErrorBanner
                     focusRunningSection
@@ -52,6 +54,7 @@ struct ContentView: View {
                     if let ses = store.state.session { resumeBanner(ses) }
                     listSection
                     StatsView(now: now)
+                    lockdownSection
                     SyncCard(siteLabel: siteLabel)
                     tierLine
                 }
@@ -59,6 +62,18 @@ struct ContentView: View {
             }
             .navigationTitle("Breaker")
             .sheet(item: $pauseSite) { site in pauseSheet(site) }
+            .sheet(isPresented: $lockdownSheet) {
+                LockdownSheet(current: store.state.lockdown, now: now) { minutes in
+                    lockdownSheet = false
+                    do {
+                        try Referee.startLockdown(ms: Double(minutes) * 60_000, now: nowMs())
+                    } catch let e as Referee.RefereeError {
+                        flowError = e.message
+                    } catch {
+                        flowError = "\(error)"
+                    }
+                }
+            }
             .sheet(item: $aliasSite) { site in aliasSheet(site) }
             .sheet(item: $scheduleSite) { site in
                 ScheduleEditor(site: site) { result in
@@ -287,6 +302,41 @@ struct ContentView: View {
         let f = DateFormatter()
         f.dateFormat = "HH:mm"
         return f.string(from: Date(timeIntervalSince1970: ms / 1000))
+    }
+
+    /// A ZÁRLAT SÁVJA. Legfelül, mert amíg tart, minden lazító gomb elhasal, és
+    /// annak az OKÁT kell először látni. Gomb nincs rajta: visszaútja nincs,
+    /// tehát nincs mit kattintani.
+    private var lockdownBanner: some View {
+        Group {
+            if LockdownLogic.isLocked(store.state.lockdown, now) {
+                let left = LockdownLogic.formatRemaining(store.state.lockdown!.until - now)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Zárlat: \(left) van hátra").font(.headline)
+                    Text("Amíg tart, semmilyen feloldás, keret-emelés vagy szabály-levétel nem indítható — próbatétellel sem. Szigorítani viszont bármikor lehet.")
+                        .font(.footnote).foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding()
+                .background(Color.red.opacity(0.11), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            }
+        }
+    }
+
+    /// A zárlat kártyája. A többitől az különbözteti meg, hogy ennek nincs
+    /// ellentéte: nincs feloldó gomb, és nem is lesz — pont attól ér valamit.
+    private var lockdownSection: some View {
+        let live = LockdownLogic.isLocked(store.state.lockdown, now)
+        return VStack(alignment: .leading, spacing: 8) {
+            SectionLabel("Zárlat")
+            Text(live
+                 ? "A futó zárlat nem rövidíthető és nem vonható vissza. Hosszabbítani viszont bármikor lehet — a szigorítás mindig ingyen van."
+                 : "Egy időszak, ami alatt a lazítás nem drágább, hanem NEM LÉTEZIK: sem feloldás, sem keret-emelés, sem szabály-levétel nem indítható, próbatétellel sem. Blokkolni és szigorítani közben is lehet. Nincs visszaút: ha elindítod, ki kell várni. Ez nem készülékzár — az app letörölhető, és ezt nem is titkoljuk; az impulzus ellen véd.")
+                .font(.footnote).foregroundStyle(.secondary)
+            Button(live ? "Zárlat hosszabbítása" : "Zárlat indítása") { lockdownSheet = true }
+                .buttonStyle(.bordered)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var protectionSection: some View {
@@ -647,6 +697,74 @@ struct ContentView: View {
 /// Külön nézet, mert a beírt szöveg SAJÁT állapot: ha a szülőben élne, minden
 /// karakter újrarajzolná az egész főképernyőt, és a lap `item:` bindingje
 /// közben újra is építené a lapot.
+/// Zárlat indítása vagy hosszabbítása.
+///
+/// A KIÍRANDÓ SZÓ nem biztonsági elem — aki idáig eljutott, az kiírja —, hanem
+/// a félrekattintás ellen: ennek a gombnak nincs visszavonása.
+private struct LockdownSheet: View {
+    let current: LockdownLogic.Lockdown?
+    let now: Double
+    let onStart: (Int) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var picked = LockdownLogic.lockdownChoicesMin[0]
+    @State private var typed = ""
+
+    private var live: Bool { LockdownLogic.isLocked(current, now) }
+    /// Ékezet nélkül és kisbetűvel is jó: a szándékot kérdezzük, nem a
+    /// billentyűzetkiosztást.
+    private var confirmed: Bool {
+        typed.trimmingCharacters(in: .whitespaces).lowercased()
+            .replacingOccurrences(of: "á", with: "a") == "zarlat"
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    Text(live ? extendText : startText)
+                        .font(.footnote).foregroundStyle(.secondary)
+                }
+                Section("Meddig") {
+                    Picker("Hossz", selection: $picked) {
+                        ForEach(LockdownLogic.lockdownChoicesMin, id: \.self) { min in
+                            Text(LockdownLogic.formatRemaining(Double(min) * 60_000)).tag(min)
+                        }
+                    }
+                    .pickerStyle(.inline)
+                    .labelsHidden()
+                }
+                Section("A megerősítéshez írd be: ZÁRLAT") {
+                    TextField("ZÁRLAT", text: $typed)
+                        .disableAutocorrection(true)
+                        #if os(iOS)
+                        .textInputAutocapitalization(.characters)
+                        #endif
+                }
+            }
+            .navigationTitle(live ? "Zárlat hosszabbítása" : "Zárlat indítása")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Mégse") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(live ? "Hosszabbítás" : "Indítás") { onStart(picked) }
+                        .disabled(!confirmed)
+                }
+            }
+        }
+    }
+
+    private var extendText: String {
+        let left = LockdownLogic.formatRemaining((current?.until ?? now) - now)
+        return "Most \(left) van hátra. A megadott idő MOSTTÓL számít; ha rövidebb a hátralévőnél, nem történik semmi — rövidíteni nem lehet."
+    }
+
+    private var startText: String {
+        "Amíg tart, egyetlen oldal sem oldható fel, a napi keret nem emelhető, az adag-szabály és a menetrend nem lazítható, és a futó munkamenet nem állítható le. Próbatétel sincs: nincs mit teljesíteni. A folyamatban lévő feloldások és törlések visszavonódnak."
+    }
+}
+
 private struct AliasSheet: View {
     let site: Site
     let onSave: (String) -> Void

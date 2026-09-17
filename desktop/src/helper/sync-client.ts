@@ -509,6 +509,9 @@ async function syncFocusRound(
       // A jelek az összefésülés eredményéből: a helyi, régebbi jel nem
       // maradhat meg egy már eldőlt csomag mellett.
       state.focusPackMarks = merged.packMarks;
+      // A MÁSIK ESZKÖZÖN INDÍTOTT ZÁRLAT itt lép életbe. A fésülés magasvízjel,
+      // tehát ez sosem rövidít: a helyinél csak későbbi vég jöhet vissza.
+      state.lockdown = merged.lockdown;
       state.focusRev = merged.rev;
       state.focusUpdatedAt = merged.updatedAt;
       state.focusUpdatedBy = merged.updatedBy;
@@ -661,6 +664,10 @@ function localFocus(state: HelperState, deviceId: string): SyncFocus {
     run: run && packs.some((p) => p.id === run.packId) ? run : null,
     log: state.focusLog ?? [],
     ...(state.focusPackMarks ? { packMarks: state.focusPackMarks } : {}),
+    // A ZÁRLAT a munkamenet blobján utazik: nem oldalhoz tartozik, hanem az
+    // egész eszközhöz — ugyanaz a szint, mint a futó menet. Csak az ÉLŐ megy
+    // fel; a lejártat nincs értelme a többi eszközre vinni.
+    ...(state.lockdown && state.lockdown.until > Date.now() ? { lockdown: state.lockdown } : {}),
     rev: state.focusRev ?? 0,
     updatedAt: state.focusUpdatedAt ?? 0,
     updatedBy: state.focusUpdatedBy ?? deviceId,

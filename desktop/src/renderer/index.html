@@ -120,6 +120,15 @@
       <button id="helperStaleBtn" class="btn btn-small">Háttérszolgáltatás frissítése</button>
     </div>
 
+    <!--
+      ZÁRLAT. Minden nézetben ott van, nem csak az oldalak fülön: amíg tart,
+      minden lazító gomb elhasal, és annak az OKÁT kell látni, bárhol áll az
+      ember. Gomb nincs rajta — visszaútja nincs, tehát nincs mit kattintani.
+    -->
+    <div id="lockdownBanner" class="banner banner-warn hidden">
+      <span id="lockdownBannerText">Zárlat van érvényben.</span>
+    </div>
+
     <!-- Ongoing session resume banner -->
     <div id="resumeBanner" class="banner hidden">
       <span id="resumeText">Folyamatban lévő feloldási kísérlet.</span>
@@ -163,6 +172,20 @@
         <div id="siteList" class="site-list"></div>
         <p id="emptyList" class="hint hidden">Még nincs blokkolt oldal. Add meg fent az elsőt.</p>
       </div>
+    </section>
+
+    <!--
+      ZÁRLAT. A többi kártyától az különbözteti meg, hogy ennek nincs
+      ellentéte: nincs „Zárlat feloldása” gomb, és nem is lesz — pont attól ér
+      valamit. Ezért áll a lista ALATT, saját kártyán, és a gomb nyit egy
+      párbeszédet, ahol ki kell írni a szót.
+    -->
+    <section id="lockdownCard" class="card hidden">
+      <div class="list-head">
+        <h2>Zárlat</h2>
+        <button id="lockdownBtn" class="btn btn-small">Zárlat indítása</button>
+      </div>
+      <p class="hint" id="lockdownHint"></p>
     </section>
 
     <!--

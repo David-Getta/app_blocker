@@ -52,6 +52,13 @@ object FocusSync {
          * jel nélkül az újabb blob. A telefon jelet nem ír. Lásd `mergePacks`.
          */
         val packMarks: Map<String, Int>? = null,
+        /**
+         * A ZÁRLAT, ha van. A `rev`-hez SEMMI köze: a fésülése tiszta
+         * magasvízjel, a későbbi vég nyer. A zárlat csak szigorítani tud,
+         * tehát nem kell megvédeni attól, hogy régebbi rekord írja felül —
+         * visszafelé úgysem tud lépni. Lásd core/Lockdown.kt.
+         */
+        val lockdown: LockdownLogic.Lockdown? = null,
     )
 
     /**
@@ -77,6 +84,10 @@ object FocusSync {
             updatedAt = newer.updatedAt,
             updatedBy = newer.updatedBy,
             packMarks = packMarks,
+            // MAGASVÍZJEL, nem döntés: a későbbi vég nyer, rev-re való
+            // tekintet nélkül. Egy hálózat nélkül maradt eszköz így nem tud
+            // feloldani semmit azzal, hogy a régi állapotát tolja fel.
+            lockdown = LockdownLogic.merge(local.lockdown, incoming.lockdown),
         )
     }
 

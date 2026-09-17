@@ -13,6 +13,10 @@ kötelező várakozás**, és minél gyakrabban oldasz fel, annál hosszabb. Azt
 **hány lépés van hátra, az app nem mondja meg** — a majdnem-kész érzés az, ami
 átlendít a feloldáson, és pont azt vesszük el.
 
+Ha ez sem elég, ott a **zárlat**: egy általad megadott ideig az app el sem
+indít próbatételt lazításra. Nem drágább — **nincs**. Indítani és hosszabbítani
+ingyen van, rövidíteni vagy visszavonni sehogy.
+
 > Ez egy első, működő alap. A tulajdonságok később bővíthetők — a mag úgy készült,
 > hogy erre nyitott legyen.
 
@@ -132,6 +136,22 @@ kötelező várakozás**, és minél gyakrabban oldasz fel, annál hosszabb. Azt
   bővítmény tiltó lapja megmondja az okot és visszaszámol (a szünet
   leteltekor visszautat ad), a telefonon a tartós értesítés beszél.
   Részletek: `docs/feature-burst-limit.md`.
+
+- **Zárlat: amikor a lazítás nem drága, hanem nincs** (mindhárom platform).
+  Minden más súrlódás DRÁGÍT — a próbatétel ára idő és munka —, de ára van,
+  tehát útja is. A zárlat lezárja: egy általad megadott ideig (1 órától 7
+  napig) az app **el sem indít** próbatételt lazításra. Nincs feloldás, nincs
+  keret-emelés, nincs szabály-levétel, nincs menet-leállítás — nincs mit
+  teljesíteni. Blokkolni, szigorítani, menetet indítani közben is lehet, és a
+  **zárlat hosszabbítása is ingyen van**; rövidíteni vagy visszavonni sehogy.
+  Az indítás visszaveszi azt is, ami félig kint volt: a futó próbatétel
+  elszáll, a feloldott oldalak visszazárnak, a folyamatban lévő törlések
+  visszavonódnak. A zárlat a fiókon át a **többi eszközödre is átér** (a
+  későbbi vég nyer, tehát a szinkron sosem tudja visszavonni), és az óra
+  átállítása sem rövidíti meg. Őszinte korlát: ez **nem gépzár** —
+  rendszergazdaként a háttérszolgáltatás leállítható, a telefonon az app
+  letörölhető; az impulzus ellen véd, nem a megfontolt kerülőút ellen.
+  [`docs/feature-lockdown.md`](docs/feature-lockdown.md).
 
 - **Munkamenetek: „most csak ez mehet”** (gép, Android, iPhone). A blokklista arról szól,
   mi NE menjen; a munkamenet fordítva: csinálsz egy csomagot (pl.

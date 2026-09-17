@@ -22,6 +22,63 @@ object Referee {
         return if (kind == Kind.DELETE) minOf(3, base + 1) else base
     }
 
+    /**
+     * A ZÁRLAT ŐRE. Amíg zárlat van, a lazítás nem drágább — nincs.
+     *
+     * Nem hibaüzenet-ízesítés: ez a különbség a nehéz és a lehetetlen között.
+     * A próbatétel drágít, tehát utat is kínál; a zárlat alatt nincs mit
+     * teljesíteni. A desktop `assertUnlocked` tükre.
+     */
+    private fun requireUnlocked(state: AppState, now: Long) {
+        if (!LockdownLogic.isLocked(state.lockdown, now)) return
+        val left = LockdownLogic.formatRemaining(LockdownLogic.remainingMs(state.lockdown, now))
+        throw RefereeException(
+            "Zárlat van érvényben, $left van hátra. Amíg tart, semmilyen lazítás nem " +
+                "indítható — próbatétellel sem.",
+            "LOCKDOWN",
+        )
+    }
+
+    /**
+     * MINDEN lazító próbatétel terve ezen az egy kapun megy ki.
+     *
+     * Azért egyetlen helyen, mert a visszatérő hibánk nem a rossz logika,
+     * hanem a KIHAGYOTT hívás: hat belépési pontra hat külön ellenőrzésből egy
+     * előbb-utóbb lemaradna, és a hiányt semmi nem mutatná meg — egy nem hívott
+     * ellenőrzés érvényes kód.
+     */
+    private fun planLoosening(
+        state: AppState, kind: Kind, comboSiteId: String?, now: Long,
+    ): ChallengeEngine.Plan {
+        requireUnlocked(state, now)
+        val tier = effectiveTier(state, kind, now)
+        val forced = if (comboSiteId == null) null else forcedCombo(state, comboSiteId, now)
+        return ChallengeEngine.generatePlan(kind, tier, state.lastCombo, forced)
+    }
+
+    /**
+     * Zárlat indítása vagy hosszabbítása. Ez a MÁSIK irány: ingyen van.
+     *
+     * A zárlat a folyamatban lévő lazításokat is visszaveszi, különben az
+     * indítás pillanata maga lenne a kibúvó: a futó próbatétel elszáll, a
+     * feloldott oldalak visszazárnak, a folyamatban lévő törlések
+     * visszavonódnak. A futó munkamenethez nem nyúl: az fehérlista, vagyis
+     * maga is szigorítás.
+     */
+    fun startLockdown(ms: Long, now: Long): LockdownLogic.Lockdown? {
+        var out: LockdownLogic.Lockdown? = null
+        BreakerStore.mutate { state ->
+            val next = LockdownLogic.start(state.lockdown, ms, now)
+                ?: throw RefereeException("Érvénytelen zárlat-hossz.", "BAD_LOCKDOWN")
+            out = next
+            dropSession(state, now).copy(
+                sites = state.sites.map { it.copy(pauseUntil = null, pendingDeleteAt = null) },
+                lockdown = next,
+            )
+        }
+        return out
+    }
+
     fun startSession(kind: Kind, siteId: String, minutes: Int?, now: Long): SessionRec {
         var created: SessionRec? = null
         BreakerStore.mutate { state ->
@@ -42,10 +99,7 @@ object Referee {
             // feladott kísérlet próbatípusait megjegyezzük, hogy ez ne legyen
             // könnyebb pár utáni vadászat.
             val dropped = dropSession(state, now)
-            val tier = effectiveTier(dropped, kind, now)
-            val plan = ChallengeEngine.generatePlan(
-                kind, tier, dropped.lastCombo, forcedCombo(dropped, siteId, now),
-            )
+            val plan = planLoosening(dropped, kind, siteId, now)
             val session = SessionRec(
                 id = BreakerStore.newId("ses"), kind = kind, siteId = siteId, minutes = minutes,
                 steps = armCurrent(plan.steps, 0, now), stepIndex = 0, createdAt = now,
@@ -191,10 +245,7 @@ object Referee {
                     if (it.id == siteId) it.copy(schedule = next) else it
                 })
             }
-            val tier = effectiveTier(state, Kind.PAUSE, now)
-            val plan = ChallengeEngine.generatePlan(
-                Kind.PAUSE, tier, state.lastCombo, forcedCombo(state, siteId, now),
-            )
+            val plan = planLoosening(state, Kind.PAUSE, siteId, now)
             val session = SessionRec(
                 id = BreakerStore.newId("ses"), kind = Kind.PAUSE, siteId = siteId, minutes = null,
                 steps = armCurrent(plan.steps, 0, now), stepIndex = 0, createdAt = now,
@@ -230,10 +281,7 @@ object Referee {
                     if (it.id == siteId) it.copy(dailyLimitSeconds = next) else it
                 })
             }
-            val tier = effectiveTier(state, Kind.PAUSE, now)
-            val plan = ChallengeEngine.generatePlan(
-                Kind.PAUSE, tier, state.lastCombo, forcedCombo(state, siteId, now),
-            )
+            val plan = planLoosening(state, Kind.PAUSE, siteId, now)
             val session = SessionRec(
                 id = BreakerStore.newId("ses"), kind = Kind.PAUSE, siteId = siteId, minutes = null,
                 steps = armCurrent(plan.steps, 0, now), stepIndex = 0, createdAt = now,
@@ -274,10 +322,7 @@ object Referee {
                     ) else it
                 })
             }
-            val tier = effectiveTier(state, Kind.PAUSE, now)
-            val plan = ChallengeEngine.generatePlan(
-                Kind.PAUSE, tier, state.lastCombo, forcedCombo(state, siteId, now),
-            )
+            val plan = planLoosening(state, Kind.PAUSE, siteId, now)
             val session = SessionRec(
                 id = BreakerStore.newId("ses"), kind = Kind.PAUSE, siteId = siteId, minutes = null,
                 steps = armCurrent(plan.steps, 0, now), stepIndex = 0, createdAt = now,
@@ -337,10 +382,7 @@ object Referee {
             if (state.session != null) {
                 throw RefereeException("Előbb fejezd be a folyamatban lévő kísérletet.", "BUSY")
             }
-            val tier = effectiveTier(state, Kind.PAUSE, now)
-            val plan = ChallengeEngine.generatePlan(
-                Kind.PAUSE, tier, state.lastCombo, forcedCombo(state, siteId, now),
-            )
+            val plan = planLoosening(state, Kind.PAUSE, siteId, now)
             val session = SessionRec(
                 id = BreakerStore.newId("ses"), kind = Kind.PAUSE, siteId = siteId, minutes = null,
                 steps = armCurrent(plan.steps, 0, now), stepIndex = 0, createdAt = now,
@@ -360,9 +402,17 @@ object Referee {
      */
     fun setUsageEnabled(enabled: Boolean) {
         BreakerStore.mutate { state ->
-            if (!enabled && state.sites.any { LimitLogic.normalizeLimit(it.dailyLimitSeconds) != null }) {
+            // Az ADAG-SZABÁLY ugyanígy: a számlálója a mért időből gyűlik,
+            // kikapcsolt mérés mellett sosem telne be — a kikapcsolás lett volna
+            // az az egy koppintás, ami próbatétel nélkül hatástalanítja.
+            val needsUsage = state.sites.any {
+                LimitLogic.normalizeLimit(it.dailyLimitSeconds) != null ||
+                    BurstLogic.normalize(it.burstSeconds, it.cooldownSeconds) != null
+            }
+            if (!enabled && needsUsage) {
                 throw RefereeException(
-                    "Amíg van napi időkeret beállítva, a mérés nem kapcsolható ki — abból fogy a keret.",
+                    "Amíg van napi időkeret vagy adag-szabály beállítva, a mérés nem kapcsolható ki — " +
+                        "abból fogy a keret és az adag.",
                     "LIMIT_NEEDS_USAGE",
                 )
             }
@@ -557,7 +607,14 @@ object Referee {
                 if (Focus.isWindowRun(it, state.focusPacks)) it
                 else it.copy(startedAt = it.startedAt + shift, endsAt = it.endsAt + shift)
             }
-            state.copy(session = session, sites = sites, focusRun = run)
+            // A ZÁRLAT VÉGE IS TOLÓDIK. Enélkül az óra előreállítása ingyen
+            // befejezné — pont azt az egyetlen dolgot, aminek szándékosan
+            // nincs visszaútja. Ugyanaz a mondat: amennyi hátra volt, annyi
+            // van hátra.
+            val lock = state.lockdown?.let {
+                LockdownLogic.Lockdown(it.startedAt + shift, it.until + shift)
+            }
+            state.copy(session = session, sites = sites, focusRun = run, lockdown = lock)
         }
     }
 
@@ -573,8 +630,16 @@ object Referee {
             (step is Step.Delay && step.claimableAt != null && now > step.claimableAt + step.claimWindowMs) ||
                 now - s.createdAt > ChallengeEngine.SESSION_MAX_AGE_MS
         } ?: false
-        val pauseEnded = st.sites.any { it.pauseUntil != null && it.pauseUntil <= now }
-        val deleteDue = st.sites.any { it.pendingDeleteAt != null && it.pendingDeleteAt <= now }
+        // A ZÁRLAT MÁSIK ESZKÖZRŐL is megérkezhet, a kör közepén: a szinkron
+        // lehozza, és onnantól itt sem maradhat feloldott oldal, kifizetett
+        // törlés vagy futó kísérlet. Enélkül a gépen indított zárlat a
+        // telefonon nem jelentene semmit — és pont az lenne a kibúvó.
+        val locked = LockdownLogic.isLocked(st.lockdown, now)
+        val pauseEnded = st.sites.any { it.pauseUntil != null && (locked || it.pauseUntil <= now) }
+        val deleteDue = st.sites.any {
+            it.pendingDeleteAt != null && (locked || it.pendingDeleteAt <= now)
+        }
+        val lockedSession = locked && st.session != null
         // A MAGÁTÓL lejárt menet is lezárul — enélkül csak a próbatétellel
         // leállított menetek kerülnének a statisztikába, vagyis pont azok
         // hiányoznának, amiket a felhasználó VÉGIGVITT. Az a statisztika
@@ -591,15 +656,26 @@ object Referee {
         } else {
             false
         }
-        if (!sessionDead && !pauseEnded && !deleteDue && !focusEnded && !focusDue) return
+        if (!sessionDead && !lockedSession && !pauseEnded && !deleteDue && !focusEnded && !focusDue) {
+            return
+        }
 
         BreakerStore.mutate { state ->
             var next = state
             // A várakozási ablak kihagyása is befejezés — ugyanaz a könyvelés,
             // hogy ne lehessen vele nemszeretem párból kimenekülni.
-            if (sessionDead) next = dropSession(next, now)
+            if (sessionDead || lockedSession) next = dropSession(next, now)
             val sites = next.sites
-                .map { if (it.pauseUntil != null && it.pauseUntil <= now) it.copy(pauseUntil = null) else it }
+                .map {
+                    if (it.pauseUntil != null && (locked || it.pauseUntil <= now)) {
+                        it.copy(pauseUntil = null)
+                    } else {
+                        it
+                    }
+                }
+                // Zárlat alatt a kifizetett törlés is visszavonódik: az oldal
+                // marad, a kivárt idő elvész. A szigorúbb irány, és a zárlat ára.
+                .map { if (locked && it.pendingDeleteAt != null) it.copy(pendingDeleteAt = null) else it }
                 .filter { it.pendingDeleteAt == null || it.pendingDeleteAt > now }
             val closed = Focus.closeIfEnded(next.focusRun, next.focusPacks, next.focusLog, now)
             next = next.copy(sites = sites)
@@ -679,8 +755,7 @@ object Referee {
                 throw RefereeException("Előbb fejezd be a folyamatban lévő kísérletet.", "BUSY")
             }
             val dropped = dropSession(state, now)
-            val tier = effectiveTier(dropped, Kind.PAUSE, now)
-            val plan = ChallengeEngine.generatePlan(Kind.PAUSE, tier, dropped.lastCombo, null)
+            val plan = planLoosening(dropped, Kind.PAUSE, null, now)
             val session = SessionRec(
                 id = BreakerStore.newId("ses"), kind = Kind.PAUSE,
                 // A munkamenet nem oldalhoz tartozik; a jelölés mégis kell, mert

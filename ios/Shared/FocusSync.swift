@@ -44,11 +44,16 @@ public enum FocusSync {
         /// marad, a csomag nincs a listán). Csomagonként a nagyobb jel dönt;
         /// jel nélkül az újabb blob. Az iPhone jelet nem ír. Lásd `mergePacks`.
         public var packMarks: [String: Int]?
+        /// A ZÁRLAT, ha van. A `rev`-hez SEMMI köze: a fésülése tiszta
+        /// magasvízjel, a későbbi vég nyer. A zárlat csak szigorítani tud,
+        /// tehát nem kell megvédeni attól, hogy régebbi rekord írja felül.
+        /// Lásd Shared/Lockdown.swift.
+        public var lockdown: LockdownLogic.Lockdown?
 
         public init(
             packs: [Focus.Pack] = [], run: Focus.Run? = nil, log: [Focus.LogEntry] = [],
             rev: Double = 0, updatedAt: Double = 0, updatedBy: String = "",
-            packMarks: [String: Int]? = nil
+            packMarks: [String: Int]? = nil, lockdown: LockdownLogic.Lockdown? = nil
         ) {
             self.packs = packs
             self.run = run
@@ -57,6 +62,7 @@ public enum FocusSync {
             self.updatedAt = updatedAt
             self.updatedBy = updatedBy
             self.packMarks = packMarks
+            self.lockdown = lockdown
         }
 
         /// SAJÁT dekódolás, mert a `log` mező RÉGEBBI blobokból hiányzik.
@@ -76,6 +82,9 @@ public enum FocusSync {
             updatedBy = try c.decodeIfPresent(String.self, forKey: .updatedBy) ?? ""
             // A jelek TŰRŐEN: egy nem-egész érték ne vigye el az egész blobot.
             packMarks = (try? c.decodeIfPresent([String: Int].self, forKey: .packMarks)) ?? nil
+            // Tűrően, mint a jelek: egy sérült zárlat-mező ne vigye el a blobot.
+            lockdown = (try? c.decodeIfPresent(
+                LockdownLogic.Lockdown.self, forKey: .lockdown)) ?? nil
         }
     }
 
@@ -100,7 +109,11 @@ public enum FocusSync {
             // blobé, és három eszköz bármilyen sorrendben ugyanoda jut.
             updatedAt: newer.updatedAt,
             updatedBy: newer.updatedBy,
-            packMarks: packMarks
+            packMarks: packMarks,
+            // MAGASVÍZJEL, nem döntés: a későbbi vég nyer, rev-re való tekintet
+            // nélkül. Egy hálózat nélkül maradt eszköz így nem tud feloldani
+            // semmit azzal, hogy a régi állapotát tolja fel.
+            lockdown: LockdownLogic.merge(local.lockdown, incoming.lockdown)
         )
     }
 
@@ -397,7 +410,10 @@ public enum FocusSync {
         // A jelek is: ha csak ők különböznek, akkor is fel kell menniük.
         let marks = (f.packMarks ?? [:]).sorted { $0.key < $1.key }
             .map { "\($0.key)=\($0.value)" }.joined(separator: ",")
-        return "\(packs)//\(run)//\(log)//\(marks)//\(f.rev)"
+        // A ZÁRLAT IS: enélkül egy itt indított zárlat sosem érne fel a
+        // kiszolgálóra, mert a kör azt látná, hogy nincs mit feltölteni.
+        let lock = f.lockdown.map { "\($0.startedAt);\($0.until)" } ?? "-"
+        return "\(packs)//\(run)//\(log)//\(marks)//\(lock)//\(f.rev)"
     }
 
     /// A csomag-jelek kiegyenesítése: csak azonosító → pozitív egész, legfeljebb
@@ -451,7 +467,11 @@ public enum FocusSync {
             rev: Double(revInt(raw.rev)),
             updatedAt: raw.updatedAt,
             updatedBy: raw.updatedBy.isEmpty ? fallbackDevice : raw.updatedBy,
-            packMarks: (kept?.isEmpty ?? true) ? nil : kept
+            packMarks: (kept?.isEmpty ?? true) ? nil : kept,
+            // Kívülről jött adat: az értelmetlen vég nem zárlat.
+            lockdown: raw.lockdown.flatMap {
+                LockdownLogic.parse(["until": $0.until, "startedAt": $0.startedAt])
+            }
         )
     }
 

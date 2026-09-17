@@ -133,6 +133,14 @@ export interface HelperState {
   abandons?: AbandonRec[];
   /** wall clock at the previous housekeeping tick, to notice clock jumps */
   lastTickAt?: number;
+  /**
+   * Zárlat: eddig az időpontig SEMMILYEN lazítás nem indítható.
+   *
+   * Nem oldalanként, hanem az egész gépre — a zárlat nem egy oldal ügye,
+   * hanem egy döntés arról, hogy most nem tárgyalunk. Hiányzik = nincs
+   * zárlat. Lásd shared/lockdown.ts.
+   */
+  lockdown?: import('../shared/lockdown').Lockdown;
   dohApplied: boolean;
   /** active-time tracking history (stays on this machine) */
   usage: UsageState;

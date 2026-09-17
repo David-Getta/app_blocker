@@ -721,7 +721,7 @@ const WIRES = [
   // lesz könnyebb attól, hogy sokszor csinálod — csendben megszűnne.
   {
     file: 'desktop/src/helper/referee.ts',
-    needle: 'forcedCombo(state, siteId, now)',
+    needle: 'forcedCombo(state, comboSiteId, now)',
     lost: 'a gépen a feladás ingyenes újrasorsolássá válna',
   },
   {
@@ -733,6 +733,41 @@ const WIRES = [
     file: 'ios/Shared/Referee.swift',
     needle: 'forcedCombo(',
     lost: 'az iPhone-on a feladás ingyenes újrasorsolássá válna',
+  },
+
+  // A ZÁRLAT. Ez a legkönnyebben elveszíthető tiltás az egész appban, mert a
+  // hiánya SEMMIT nem tör el: a próbatétel elindul, a felhasználó megcsinálja,
+  // az oldal kinyílik — pontosan úgy, ahogy zárlat nélkül. Csak épp az az
+  // egyetlen dolog szűnt meg csendben, aminek szándékosan nincs visszaútja.
+  //
+  // A kapu mindhárom magban EGY függvény, és mindhárom magban a TERV KÉSZÍTÉSE
+  // megy rajta át — nem tíz külön ellenőrzés, amiből egy lemaradhat.
+  {
+    file: 'desktop/src/helper/referee.ts',
+    needle: 'assertUnlocked(state, now)',
+    lost: 'a gépen a zárlat alatt is el lehetne indítani egy feloldást',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/Referee.kt',
+    needle: 'requireUnlocked(',
+    lost: 'a telefonon a zárlat alatt is el lehetne indítani egy feloldást',
+  },
+  {
+    file: 'ios/Shared/Referee.swift',
+    needle: 'requireUnlocked(',
+    lost: 'az iPhone-on a zárlat alatt is el lehetne indítani egy feloldást',
+  },
+  // A zárlat a SZINKRONON is átjön: enélkül csak azon az eszközön élne, ahol
+  // elindították — a másik telefon meg nyitva maradna, és pont az a kibúvó.
+  {
+    file: 'desktop/src/helper/sync-client.ts',
+    needle: 'state.lockdown = merged.lockdown',
+    lost: 'a másik eszközön indított zárlat sosem érne ide',
+  },
+  {
+    file: 'desktop/src/shared/sync/focus-merge.ts',
+    needle: 'mergeLockdown(local.lockdown, incoming.lockdown)',
+    lost: 'a zárlat a fésülésben elveszne, és a régebbi állapot feloldana',
   },
 ];
 

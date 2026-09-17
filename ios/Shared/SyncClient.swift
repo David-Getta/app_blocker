@@ -215,7 +215,7 @@ enum SyncClient {
     /// A különbség az összefésülés szabályában van (`FocusSync`): ott a
     /// szigorúbb nyer, és lazítani csak nagyobb `rev` tud.
     private static func syncFocusRound(
-        _ state: AppState, _ acc: SyncAccount, _ key: [UInt8]
+        _ state: AppState, _ acc: SyncAccount, _ key: [UInt8], _ now: Double
     ) async throws -> AppState {
         var current = state
         for attempt in 0...maxConflictRetries {
@@ -240,7 +240,9 @@ enum SyncClient {
                 rev: current.focusRev ?? 0,
                 updatedAt: current.focusUpdatedAt ?? 0,
                 updatedBy: current.focusUpdatedBy ?? acc.deviceId,
-                packMarks: current.focusPackMarks
+                packMarks: current.focusPackMarks,
+                // Csak az ÉLŐ zárlat megy fel; a lejártat nincs értelme vinni.
+                lockdown: (current.lockdown?.until ?? 0) > now ? current.lockdown : nil
             )
             let merged = FocusSync.merge(mine, remote)
 
@@ -256,6 +258,9 @@ enum SyncClient {
                 current.focusRev = merged.rev
                 current.focusUpdatedAt = merged.updatedAt
                 current.focusUpdatedBy = merged.updatedBy
+                // A MÁSIK ESZKÖZÖN INDÍTOTT ZÁRLAT itt lép életbe. A fésülés
+                // magasvízjel, tehát ez sosem rövidít.
+                current.lockdown = merged.lockdown
                 // A lenyomatot ÚJRASZÁMOLJUK, nem a másik eszközét vesszük át:
                 // enélkül a következő mentés fölöslegesen léptetné a számlálót,
                 // és a két eszköz örökké írogatná egymást.
@@ -335,7 +340,7 @@ enum SyncClient {
         // A kört ettől még nem állítjuk meg: a blokklista fontosabb, és az már
         // szinkronban van. Csak megjegyezzük, hogy a felület kiírhassa.
         do {
-            var after = try await syncFocusRound(current, acc, key)
+            var after = try await syncFocusRound(current, acc, key, now)
             if after != current { changed = true }
             if after.focusSyncError != nil {
                 after.focusSyncError = nil

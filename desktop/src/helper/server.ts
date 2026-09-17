@@ -12,6 +12,7 @@ import { normalizeAlias } from '../shared/alias';
 import { normalizeRule } from '../shared/urlrules';
 import { focusDaySeries, isRunning, normalizePack, spentWindows, summarizeFocus } from '../shared/focus';
 import { noteBurstUsage, normalizeBurst, type BurstRule } from '../shared/burst';
+import { isLocked, LOCKDOWN_CHOICES_MIN } from '../shared/lockdown';
 import {
   blockReasonNow, isLimitExhausted, normalizeLimit, sharedTodaySeconds, usedTodayEverywhere,
 } from '../shared/limits';
@@ -129,6 +130,9 @@ export function statusOf(
     dohPolicyApplied: dohApplied,
     usageEnabled: state.usage.enabled,
     hideSiteList: state.hideSiteList === true,
+    // Csak a TÉNYLEG futó zárlat megy ki: a lejártat a tick takarítaná, de a
+    // felület nem várhat rá — egy másodpercig sem mondhatja zárva, ami nyitva.
+    lockdown: isLocked(state.lockdown, now) ? state.lockdown ?? null : null,
     sync: state.sync && {
       // Csak amit a felületnek látnia kell. A kulcsok nem kerülnek ki innen.
       serverUrl: state.sync.serverUrl,
@@ -271,6 +275,21 @@ async function handle(req: HelperRequest, deps: ServerDeps): Promise<unknown> {
       const r = referee.startChannelFilterDelete(state, req.filterId, now);
       deps.commit();
       return { ...r, status: statusOf(state, deps.dohApplied(), deps.selfTest()) };
+    }
+
+    case 'lockdown_start': {
+      // A HOSSZ a gyorsgombok közül való. Nem szőrszálhasogatás: egy szabadon
+      // megadható perc-érték mellett a felület egyetlen elgépelése harminc
+      // napot zárna, és annak itt nincs visszaútja.
+      const minutes = Number(req.minutes);
+      if (!LOCKDOWN_CHOICES_MIN.includes(minutes)) {
+        throw new RefereeError('Érvénytelen zárlat-hossz.', 'BAD_LOCKDOWN');
+      }
+      referee.startLockdownNow(state, minutes * 60_000, now);
+      // A visszazárt oldalak MOST kerülnek a hosts fájlba: enélkül a zárlat
+      // indítása után a feloldott oldal a következő körig nyitva maradna.
+      deps.commit();
+      return statusOf(state, deps.dohApplied(), deps.selfTest());
     }
 
     case 'set_rule': {
@@ -548,9 +567,17 @@ async function handle(req: HelperRequest, deps: ServerDeps): Promise<unknown> {
       // budget is spent from measured time, so switching measurement off would
       // stop the budget from ever running out. That would be a silent bypass,
       // so it is refused while a budget exists.
-      if (!req.enabled && state.sites.some((s) => normalizeLimit(s.dailyLimitSeconds) !== null)) {
+      //
+      // Az ADAG-SZABÁLY ugyanígy: a számlálója a mért időből gyűlik, kikapcsolt
+      // mérés mellett sosem telne be. Egy öt perces adag mellett a mérés
+      // kikapcsolása pont az az egy kattintás lett volna, ami az egészet
+      // hatástalanítja — próbatétel nélkül.
+      const needsUsage = state.sites.some((s) => normalizeLimit(s.dailyLimitSeconds) !== null
+        || normalizeBurst(s.burstSeconds, s.cooldownSeconds) !== null);
+      if (!req.enabled && needsUsage) {
         throw new RefereeError(
-          'Amíg van napi időkeret beállítva, a mérés nem kapcsolható ki — abból fogy a keret.',
+          'Amíg van napi időkeret vagy adag-szabály beállítva, a mérés nem kapcsolható ki — '
+          + 'abból fogy a keret és az adag.',
           'LIMIT_NEEDS_USAGE',
         );
       }

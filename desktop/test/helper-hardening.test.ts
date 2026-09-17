@@ -527,3 +527,29 @@ function dayKeyOf(ms: number): string {
   const d = new Date(ms);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
+
+test('usage_enable: adag-szabály mellett a mérés nem kapcsolható ki', async () => {
+  // EZ IS KISKAPU VOLT: az adag számlálója a mért időből gyűlik, kikapcsolt
+  // mérés mellett sosem telik be. Egy öt perces adag mellett a mérés
+  // kikapcsolása pont az az egy kattintás lett volna, ami próbatétel nélkül
+  // hatástalanítja az egészet — a keretnél ez már zárva volt, az adagnál nem.
+  const now = Date.now();
+  state.sites.push({
+    id: 'adags1', domain: 'adag.example', hostnames: ['adag.example'],
+    addedAt: now, pauseUntil: null, pendingDeleteAt: null,
+    burstSeconds: 300, cooldownSeconds: 300,
+  });
+  state.usage.enabled = true;
+  const res = await call('usage_enable', { enabled: false });
+  assert.equal(res.ok, false, 'a kikapcsolás nem mehetett át');
+  assert.match(res.error ?? '', /adag/, 'a hibaüzenet az adagot mondja');
+  assert.equal(state.usage.enabled, true, 'a mérés bekapcsolva maradt');
+
+  // Bekapcsolni bármikor lehet — az a szigorúbb irány.
+  assert.equal((await call('usage_enable', { enabled: true })).ok, true);
+
+  // Szabály nélkül viszont a saját adatáról a felhasználó dönt.
+  state.sites = state.sites.filter((s) => s.id !== 'adags1');
+  assert.equal((await call('usage_enable', { enabled: false })).ok, true);
+  assert.equal(state.usage.enabled, false);
+});

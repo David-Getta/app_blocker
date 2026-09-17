@@ -27,6 +27,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
@@ -77,6 +78,7 @@ import hu.breaker.app.core.ChallengeEngine
 import hu.breaker.app.core.ChallengeEngine.Kind
 import hu.breaker.app.core.ChallengeEngine.Step
 import hu.breaker.app.core.LimitLogic
+import hu.breaker.app.core.LockdownLogic
 import hu.breaker.app.core.Referee
 import hu.breaker.app.core.ScheduleLogic
 import hu.breaker.app.core.SessionRec
@@ -213,6 +215,7 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
     var rulesSite by remember { mutableStateOf<Site?>(null) }
     var flowError by remember { mutableStateOf<String?>(null) }
     var confirmUsageClear by remember { mutableStateOf(false) }
+    var lockdownDialog by remember { mutableStateOf(false) }
 
     // Ideiglenes felfedés oldalanként: meddig látszik a valódi cím. Szándékosan
     // nem mentjük — az app újranyitása után megint a fedőnév áll ott.
@@ -437,6 +440,28 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                 )
             }
 
+            // ZÁRLAT-SÁV. Legfelül, mert amíg tart, minden lazító gomb elhasal,
+            // és annak az OKÁT kell először látni. Gomb nincs rajta: visszaútja
+            // nincs, tehát nincs mit kattintani.
+            val lockdown = state.lockdown
+            if (LockdownLogic.isLocked(lockdown, now)) {
+                Card(colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                )) {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(
+                            "Zárlat: ${LockdownLogic.formatRemaining(lockdown!!.until - now)} van hátra",
+                            style = MaterialTheme.typography.titleSmall,
+                        )
+                        Text(
+                            "Amíg tart, semmilyen feloldás, keret-emelés vagy szabály-levétel nem " +
+                                "indítható — próbatétellel sem. Szigorítani viszont bármikor lehet.",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                }
+            }
+
             // Add site
             Card {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -637,7 +662,7 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                 lastSampleAt = state.usageLastSampleAt,
                 onGrantAccess = { context.startActivity(UsageTracker.usageAccessIntent()) },
                 onToggleEnabled = {
-                    // Napi keret mellett a mérés nem kapcsolható ki: abból fogy
+                    // Napi keret vagy adag-szabály mellett a mérés nem kapcsolható ki: abból fogy
                     // a keret, kikapcsolva sosem fogyna el. A referee mondja ki.
                     try {
                         Referee.setUsageEnabled(!state.usage.enabled)
@@ -648,6 +673,34 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                 // A törlés visszavonhatatlan: kérdezünk előtte, ahogy a gépen is.
                 onClear = { confirmUsageClear = true },
             )
+
+            // ZÁRLAT-KÁRTYA. A többitől az különbözteti meg, hogy ennek nincs
+            // ellentéte: nincs feloldó gomb, és nem is lesz — pont attól ér
+            // valamit.
+            Card {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SectionLabel("Zárlat")
+                    Text(
+                        if (LockdownLogic.isLocked(state.lockdown, now)) {
+                            "A futó zárlat nem rövidíthető és nem vonható vissza. Hosszabbítani " +
+                                "viszont bármikor lehet — a szigorítás mindig ingyen van."
+                        } else {
+                            "Egy időszak, ami alatt a lazítás nem drágább, hanem NEM LÉTEZIK: sem " +
+                                "feloldás, sem keret-emelés, sem szabály-levétel nem indítható, " +
+                                "próbatétellel sem. Blokkolni és szigorítani közben is lehet. " +
+                                "Nincs visszaút: ha elindítod, ki kell várni. Ez nem készülékzár — " +
+                                "az app letörölhető, és ezt nem is titkoljuk; az impulzus ellen véd."
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    Button(onClick = { lockdownDialog = true }) {
+                        Text(
+                            if (LockdownLogic.isLocked(state.lockdown, now)) "Zárlat hosszabbítása"
+                            else "Zárlat indítása"
+                        )
+                    }
+                }
+            }
 
             SyncCard(state, scope, siteLabel)
 
@@ -690,6 +743,22 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                 }) { Text("Törlés") }
             },
             dismissButton = { TextButton(onClick = { confirmUsageClear = false }) { Text("Mégse") } },
+        )
+    }
+
+    if (lockdownDialog) {
+        LockdownDialog(
+            current = state.lockdown,
+            now = now,
+            onDismiss = { lockdownDialog = false },
+            onStart = { minutes ->
+                lockdownDialog = false
+                try {
+                    Referee.startLockdown(minutes * 60_000L, System.currentTimeMillis())
+                } catch (e: Referee.RefereeException) {
+                    flowError = e.message
+                }
+            },
         )
     }
 
@@ -1375,6 +1444,72 @@ private fun BurstLine(site: Site, burst: BurstLogic.State?, now: Long, trip: Bur
         style = MaterialTheme.typography.bodySmall,
         color = if (cooling) MaterialTheme.colorScheme.secondary
             else MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
+
+/**
+ * Zárlat indítása vagy hosszabbítása.
+ *
+ * A KIÍRANDÓ SZÓ nem biztonsági elem — aki idáig eljutott, az kiírja —, hanem a
+ * félrekattintás ellen: ennek a gombnak nincs visszavonása.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun LockdownDialog(
+    current: LockdownLogic.Lockdown?,
+    now: Long,
+    onDismiss: () -> Unit,
+    onStart: (Int) -> Unit,
+) {
+    val live = LockdownLogic.isLocked(current, now)
+    var picked by remember { mutableStateOf(LockdownLogic.LOCKDOWN_CHOICES_MIN.first()) }
+    var typed by remember { mutableStateOf("") }
+    // Ékezet nélkül és kisbetűvel is jó: a szándékot kérdezzük, nem a
+    // billentyűzetkiosztást.
+    val confirmed = typed.trim().lowercase().replace("á", "a") == "zarlat"
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(if (live) "Zárlat hosszabbítása" else "Zárlat indítása") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    if (live) {
+                        "Most ${LockdownLogic.formatRemaining(current!!.until - now)} van hátra. " +
+                            "A megadott idő MOSTTÓL számít; ha rövidebb a hátralévőnél, nem " +
+                            "történik semmi — rövidíteni nem lehet."
+                    } else {
+                        "Amíg tart, egyetlen oldal sem oldható fel, a napi keret nem emelhető, " +
+                            "az adag-szabály és a menetrend nem lazítható, és a futó munkamenet " +
+                            "nem állítható le. Próbatétel sincs: nincs mit teljesíteni. A " +
+                            "folyamatban lévő feloldások és törlések visszavonódnak."
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    for (min in LockdownLogic.LOCKDOWN_CHOICES_MIN) {
+                        val label = LockdownLogic.formatRemaining(min * 60_000L)
+                        if (picked == min) {
+                            Button(onClick = { picked = min }) { Text(label) }
+                        } else {
+                            OutlinedButton(onClick = { picked = min }) { Text(label) }
+                        }
+                    }
+                }
+                OutlinedTextField(
+                    value = typed,
+                    onValueChange = { typed = it },
+                    label = { Text("A megerősítéshez írd be: ZÁRLAT") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(enabled = confirmed, onClick = { onStart(picked) }) {
+                Text(if (live) "Hosszabbítás" else "Zárlat indítása")
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Mégse") } },
     )
 }
 

@@ -321,6 +321,12 @@ object SyncClient {
         put("updatedBy", f.updatedBy)
         // A csomag-jelek csak akkor, ha vannak: a hiányzó és az üres ugyanaz.
         if (f.packMarks != null) put("packMarks", JSONObject(f.packMarks))
+        // A ZÁRLAT IS FELMEGY. Enélkül a telefon feltöltése LETÖRÖLNÉ a gépen
+        // indított zárlatot a többi eszközről — és pont az lenne a kibúvó.
+        if (f.lockdown != null) put("lockdown", JSONObject().apply {
+            put("startedAt", f.lockdown.startedAt)
+            put("until", f.lockdown.until)
+        })
     }.toString()
 
     /**
@@ -386,6 +392,13 @@ object SyncClient {
             updatedAt = o.optLong("updatedAt", 0),
             updatedBy = o.optString("updatedBy").ifEmpty { fallbackDevice },
             packMarks = marks,
+            // Kívülről jött adat: ami nem értelmes, az nincs.
+            lockdown = o.optJSONObject("lockdown")?.let { l ->
+                LockdownLogic.parse(
+                    l.optDouble("until", 0.0),
+                    if (l.isNull("startedAt")) null else l.optDouble("startedAt", 0.0),
+                )
+            },
         )
     }
 
@@ -489,7 +502,9 @@ object SyncClient {
      * A különbség az összefésülés szabályában van (`FocusSync`): ott a
      * szigorúbb nyer, és lazítani csak nagyobb `rev` tud.
      */
-    private fun syncFocusRound(state: AppState, acc: SyncAccount, key: ByteArray): AppState {
+    private fun syncFocusRound(
+        state: AppState, acc: SyncAccount, key: ByteArray, now: Long,
+    ): AppState {
         var current = state
         for (attempt in 0..MAX_CONFLICT_RETRIES) {
             val pulled = call(acc.serverUrl, "/v1/pull", JSONObject().apply {
@@ -511,6 +526,8 @@ object SyncClient {
                 updatedAt = current.focusUpdatedAt,
                 updatedBy = current.focusUpdatedBy ?: acc.deviceId,
                 packMarks = current.focusPackMarks,
+                // Csak az ÉLŐ zárlat megy fel; a lejártat nincs értelme vinni.
+                lockdown = current.lockdown?.takeIf { it.until > now },
             )
             val merged = FocusSync.merge(mine, remote)
 
@@ -527,6 +544,9 @@ object SyncClient {
                     focusRev = merged.rev,
                     focusUpdatedAt = merged.updatedAt,
                     focusUpdatedBy = merged.updatedBy,
+                    // A MÁSIK ESZKÖZÖN INDÍTOTT ZÁRLAT itt lép életbe. A
+                    // fésülés magasvízjel, tehát ez sosem rövidít.
+                    lockdown = merged.lockdown,
                 )
                 // A lenyomatot ÚJRASZÁMOLJUK, nem a másik eszközét vesszük át:
                 // enélkül a következő mentés fölöslegesen léptetné a számlálót,
@@ -607,7 +627,7 @@ object SyncClient {
         // ugyanúgy, ahogy a gépen.
         runCatching {
             val before = current
-            current = syncFocusRound(current, acc, key)
+            current = syncFocusRound(current, acc, key, now)
             if (current !== before) changed = true
             if (current.focusSyncError != null) {
                 current = current.copy(focusSyncError = null)

@@ -191,6 +191,15 @@ data class AppState(
      * nem megy — lásd az ottani megjegyzést.)
      */
     val focusSyncError: String? = null,
+    /**
+     * ZÁRLAT: eddig az időpontig SEMMILYEN lazítás nem indítható.
+     *
+     * Nem oldalanként, hanem az egész készülékre — a zárlat nem egy oldal
+     * ügye, hanem egy döntés arról, hogy most nem tárgyalunk. Null = nincs
+     * zárlat. A munkamenet blobján szinkronizál (későbbi vég nyer), tehát a
+     * gépen indított zárlat ide is megérkezik. Lásd core/Lockdown.kt.
+     */
+    val lockdown: LockdownLogic.Lockdown? = null,
 )
 
 /**
@@ -429,6 +438,11 @@ object BreakerStore {
     private fun toJson(s: AppState): JSONObject = JSONObject().apply {
         put("protectionOn", s.protectionOn)
         put("hideSiteList", s.hideSiteList)
+        // A zárlat a lemezre is megy: egy újraindítás nem oldhatja fel azt,
+        // aminek szándékosan nincs visszaútja.
+        put("lockdown", s.lockdown?.let { l ->
+            JSONObject().apply { put("startedAt", l.startedAt); put("until", l.until) }
+        } ?: JSONObject.NULL)
         put("sync", s.sync?.let { a ->
             JSONObject().apply {
                 put("serverUrl", a.serverUrl); put("accountId", a.accountId)
@@ -708,6 +722,13 @@ object BreakerStore {
             session = session,
             abandons = abandons,
             hideSiteList = o.optBoolean("hideSiteList", false),
+            lockdown = if (o.isNull("lockdown")) null else runCatching {
+                val l = o.getJSONObject("lockdown")
+                LockdownLogic.parse(
+                    l.optDouble("until", 0.0),
+                    if (l.isNull("startedAt")) null else l.optDouble("startedAt", 0.0),
+                )
+            }.getOrNull(),
             // Egy sérült fiókbejegyzés a szinkront viszi el, a blokklistát nem:
             // a kettő közül a lista a fontos.
             sync = if (o.isNull("sync")) null else runCatching {

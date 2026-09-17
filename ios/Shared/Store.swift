@@ -154,6 +154,14 @@ struct AppState: Codable, Equatable {
     /// hiányzó kulcsra opcionálisnál `nil`-t ad, nem-opcionálisnál viszont
     /// HIBÁT DOB — egy korábbi verzió mentése akkor olvashatatlan lenne.
     var focusSyncError: String? = nil
+    /// ZÁRLAT: eddig az időpontig SEMMILYEN lazítás nem indítható.
+    ///
+    /// Nem oldalanként, hanem az egész készülékre — a zárlat nem egy oldal
+    /// ügye, hanem egy döntés arról, hogy most nem tárgyalunk. A munkamenet
+    /// blobján szinkronizál (későbbi vég nyer), tehát a gépen indított zárlat
+    /// ide is megérkezik. Optional, hogy egy korábbi verzió mentése is
+    /// dekódolható maradjon. Lásd Shared/Lockdown.swift.
+    var lockdown: LockdownLogic.Lockdown? = nil
 }
 
 /// Fiók a szinkronhoz.

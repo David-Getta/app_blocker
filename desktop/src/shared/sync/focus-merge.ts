@@ -30,6 +30,7 @@ import {
   MAX_ALLOW_ENTRIES, MAX_FOCUS_LOG, normalizePack,
   type FocusLogEntry, type FocusPack, type FocusRun,
 } from '../focus.js';
+import { mergeLockdown, parseLockdown, type Lockdown } from '../lockdown.js';
 
 /** Legfeljebb ennyi csomag utazhat — a felületen sem fér ki több. */
 export const MAX_PACKS = 30;
@@ -69,6 +70,15 @@ export interface SyncFocus {
    * nélkül az újabb blob — ahogy eddig. Lásd `mergePacks`.
    */
   packMarks?: Record<string, number>;
+  /**
+   * A ZÁRLAT, ha van. Miért ITT utazik, és nem a blokklistával: a zárlat nem
+   * egy oldal ügye, hanem az egész eszközé — ugyanaz a szint, mint a futó
+   * menet. A `rev`-hez viszont SEMMI köze: a fésülése tiszta magasvízjel, a
+   * későbbi vég nyer (lásd `mergeLockdown`). Ez nem lazaság, hanem a szabály:
+   * a zárlat csak szigorítani tud, tehát nem kell megvédeni attól, hogy egy
+   * régebbi rekord felülírja — visszafelé úgysem tud lépni.
+   */
+  lockdown?: Lockdown;
   rev: number;
   updatedAt: number;
   updatedBy: string;
@@ -171,6 +181,8 @@ export function normalizeSyncFocus(raw: unknown, fallbackDevice: string): SyncFo
     // csak az azonosító.
     log: normalizeLog(o.log),
     ...(packMarks ? { packMarks } : {}),
+    // A zárlat kívülről jött adat, mint minden más: ami nem értelmes, az nincs.
+    ...(parseLockdown(o.lockdown) ? { lockdown: parseLockdown(o.lockdown)! } : {}),
     rev,
     updatedAt: numberOr(o.updatedAt, 0),
     updatedBy: typeof o.updatedBy === 'string' && o.updatedBy ? o.updatedBy : fallbackDevice,
@@ -317,6 +329,11 @@ export function mergeFocus(local: SyncFocus, incoming: SyncFocus): SyncFocus {
     // EGYESÍTÉS, nem választás: lásd a `SyncFocus.log` magyarázatát.
     log: mergeLog(local.log, incoming.log),
     ...(packMarks ? { packMarks } : {}),
+    // MAGASVÍZJEL, nem döntés: a későbbi vég nyer, `rev`-re való tekintet
+    // nélkül. Egy hálózat nélkül maradt eszköz így nem tud feloldani semmit
+    // azzal, hogy a régi állapotát tolja fel.
+    ...(mergeLockdown(local.lockdown, incoming.lockdown)
+      ? { lockdown: mergeLockdown(local.lockdown, incoming.lockdown)! } : {}),
     rev: Math.max(local.rev, incoming.rev),
     // Az idő a GYŐZTESÉ, nem a nagyobb: így az eredmény kulcsa (rev, idő,
     // eszköz) pontosan az újabb blobé, és három eszköz bármilyen sorrendben
@@ -558,6 +575,10 @@ function stable(f: SyncFocus): unknown {
     // A jelek is: ha csak ők különböznek (egy régi kliens blobja jel nélkül),
     // akkor is fel kell menniük.
     packMarks: f.packMarks ? Object.entries(f.packMarks).sort() : null,
+    // A ZÁRLAT IS: enélkül egy itt indított zárlat sosem érne fel a
+    // kiszolgálóra, mert a kör azt látná, hogy nincs mit feltölteni — és a
+    // többi eszközön nem történne semmi.
+    lockdown: f.lockdown ? [f.lockdown.startedAt, f.lockdown.until] : null,
     rev: f.rev,
   };
 }

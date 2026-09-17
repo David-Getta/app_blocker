@@ -218,6 +218,18 @@ class LimitsTest {
         assertEquals("BUSY", e.code)
     }
 
+    @Test fun `measurement cannot be switched off while a burst rule exists`() {
+        // Az adag számlálója a mért időből gyűlik: kikapcsolt mérés mellett
+        // sosem telne be — a kikapcsolás lett volna az az egy koppintás, ami
+        // próbatétel nélkül hatástalanítja. A keretnél ez már zárva volt.
+        val id = addSite("gemini.google.com")
+        assertTrue(Referee.startBurstChange(id, 300, 300, now).applied, "az adag felvétele ingyen")
+        val e = assertFailsWith<Referee.RefereeException> { Referee.setUsageEnabled(false) }
+        assertEquals("LIMIT_NEEDS_USAGE", e.code)
+        assertTrue(e.message!!.contains("adag"), "a hibaüzenet az adagot mondja")
+        assertTrue(BreakerStore.state.value.usage.enabled, "a mérés bekapcsolva maradt")
+    }
+
     @Test fun `measurement cannot be switched off while a budget exists`() {
         val id = addSite("youtube.com", limit = 600)
         val e = assertFailsWith<Referee.RefereeException> { Referee.setUsageEnabled(false) }

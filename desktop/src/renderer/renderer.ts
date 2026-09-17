@@ -18,6 +18,9 @@ import { HELPER_VERSION } from '../shared/protocol.js';
 // A .js itt sem elhagyható: a böngésző natív ESM-betöltője oldja fel futásidőben.
 import { normalizeRule, ruleLabel } from '../shared/urlrules.js';
 import { MAX_BURST_MINUTES, MAX_COOLDOWN_MINUTES, normalizeBurst } from '../shared/burst.js';
+import {
+  formatLockdownRemaining, isLocked, LOCKDOWN_CHOICES_MIN,
+} from '../shared/lockdown.js';
 import { stepBurstNotices, type BurstNotice, type BurstWatch } from '../shared/burst-notify.js';
 import { daysSinceUnlock, digestDue, digestText } from '../shared/digest.js';
 import {
@@ -350,6 +353,7 @@ function render(): void {
 
   renderAddCard(status!);
   renderChannelCard(status!);
+  renderLockdown(status!);
   renderFocusPill(status!);
   renderFocusCard(status!);
   renderSyncCard(status!);
@@ -1721,6 +1725,112 @@ function renderChannelProbe(): void {
     return;
   }
   out.textContent = `Nem csatorna-alakú cím (kezdőlap, keresés, lista) — szabad.${offNote}`;
+}
+
+/**
+ * A zárlat két felülete: a MINDIG LÁTHATÓ sáv és a kártya.
+ *
+ * A sávon szándékosan nincs gomb. Minden más sávunk cselekvésre hív
+ * (frissítsd a segédet, folytasd a kísérletet); ennek nincs mit felkínálnia,
+ * és egy szürke, letiltott gomb csak azt sugallná, hogy van út — csak most
+ * épp nem. Nincs út.
+ */
+function renderLockdown(st: StatusData): void {
+  const now = Date.now();
+  const live = isLocked(st.lockdown, now);
+  const banner = $('lockdownBanner');
+  banner.classList.toggle('hidden', !live);
+  if (live) {
+    $('lockdownBannerText').textContent =
+      `Zárlat: ${formatLockdownRemaining(st.lockdown!.until - now)} van hátra. `
+      + 'Amíg tart, semmilyen feloldás, keret-emelés vagy szabály-levétel nem indítható — '
+      + 'próbatétellel sem. Szigorítani viszont bármikor lehet.';
+  }
+  $('lockdownCard').classList.toggle('hidden', !helperUp);
+  const btn = $<HTMLButtonElement>('lockdownBtn');
+  btn.textContent = live ? 'Zárlat hosszabbítása' : 'Zárlat indítása';
+  $('lockdownHint').textContent = live
+    ? 'A futó zárlat nem rövidíthető és nem vonható vissza. Hosszabbítani viszont '
+      + 'bármikor lehet — a szigorítás mindig ingyen van.'
+    : 'Egy időszak, ami alatt a lazítás nem drágább, hanem NEM LÉTEZIK: sem feloldás, '
+      + 'sem keret-emelés, sem szabály-levétel nem indítható, próbatétellel sem. '
+      + 'Blokkolni, szigorítani, menetet indítani közben is lehet. Nincs visszaút: '
+      + 'ha elindítod, ki kell várni. Ez nem gépzár — rendszergazdaként a '
+      + 'háttérszolgáltatás leállítható, és ezt nem is titkoljuk; az impulzus ellen véd.';
+}
+
+/** A zárlat párbeszéde: hossz, figyelmeztetés, és a szó kiírása. */
+function openLockdownDialog(st: StatusData): void {
+  const now = Date.now();
+  const live = isLocked(st.lockdown, now);
+  const overlay = h('div', 'overlay');
+  const modal = h('div', 'modal modal-small');
+  modal.appendChild(h('h3', undefined, live ? 'Zárlat hosszabbítása' : 'Zárlat indítása'));
+  modal.appendChild(h('p', 'hint', live
+    ? `Most ${formatLockdownRemaining(st.lockdown!.until - now)} van hátra. A megadott idő `
+      + 'MOSTTÓL számít; ha rövidebb a hátralévőnél, nem történik semmi — rövidíteni nem lehet.'
+    : 'Amíg tart, egyetlen oldal sem oldható fel, a napi keret nem emelhető, az adag-szabály '
+      + 'és a menetrend nem lazítható, és a futó munkamenet nem állítható le. Próbatétel '
+      + 'sincs: nincs mit teljesíteni. A folyamatban lévő feloldások és törlések visszavonódnak.'));
+
+  let picked = LOCKDOWN_CHOICES_MIN[0];
+  const chips = h('div', 'chips');
+  const buttons: HTMLButtonElement[] = [];
+  function paint(): void {
+    for (const b of buttons) b.classList.toggle('chip-on', Number(b.dataset.min) === picked);
+  }
+  for (const min of LOCKDOWN_CHOICES_MIN) {
+    const b = h('button', 'chip', formatLockdownRemaining(min * 60_000)) as HTMLButtonElement;
+    b.dataset.min = String(min);
+    b.addEventListener('click', () => { picked = min; paint(); });
+    buttons.push(b);
+    chips.appendChild(b);
+  }
+  paint();
+  modal.appendChild(chips);
+
+  // A KIÍRANDÓ SZÓ. Nem biztonsági elem — aki idáig eljutott, az kiírja —,
+  // hanem a félrekattintás ellen: ennek a gombnak nincs visszavonása.
+  modal.appendChild(h('p', 'hint', 'A megerősítéshez írd be: ZÁRLAT'));
+  const input = h('input') as HTMLInputElement;
+  input.type = 'text';
+  input.autocomplete = 'off';
+  input.spellcheck = false;
+  modal.appendChild(input);
+
+  const err = h('p', 'error');
+  err.classList.add('hidden');
+  const go = h('button', 'btn btn-primary', live ? 'Hosszabbítás' : 'Zárlat indítása');
+  go.addEventListener('click', async () => {
+    // Ékezet nélkül és kisbetűvel is elfogadjuk: a szándékot kérdezzük, nem
+    // a billentyűzetkiosztást.
+    const typed = input.value.trim().toLowerCase().replace(/á/g, 'a');
+    if (typed !== 'zarlat') {
+      err.textContent = 'Írd be a ZÁRLAT szót a megerősítéshez.';
+      err.classList.remove('hidden');
+      return;
+    }
+    try {
+      status = await call<StatusData>('lockdown_start', { minutes: picked });
+      overlay.remove();
+      render();
+    } catch (e) {
+      err.textContent = (e as Error).message;
+      err.classList.remove('hidden');
+    }
+  });
+  const cancel = h('button', 'btn btn-ghost', 'Mégse');
+  cancel.addEventListener('click', () => overlay.remove());
+  const actions = h('div', 'modal-actions');
+  actions.append(cancel, go);
+  modal.append(err, actions);
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+  input.focus();
+}
+
+function setupLockdownCard(): void {
+  $('lockdownBtn').addEventListener('click', () => openLockdownDialog(status!));
 }
 
 function setupChannelCard(): void {
@@ -3720,6 +3830,7 @@ setupInstall();
 setupUpdater();
 setupStats();
 setupChannelCard();
+setupLockdownCard();
 setupShortcutControls();
 void refreshOverlayShortcut();
 setupSelfTest();

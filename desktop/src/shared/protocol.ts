@@ -171,6 +171,13 @@ export interface StatusData {
   usageEnabled: boolean;
   /** rejtve induljon-e a blokkolt oldalak listája (felületi beállítás) */
   hideSiteList?: boolean;
+  /**
+   * A futó zárlat, ha van. Hiányzik vagy null = nincs.
+   *
+   * A felületnek nem csak a tiltáshoz kell: amíg zárlat van, a lazító gombok
+   * NEM azt mondják, hogy drága — azt mondják, hogy most nincs ilyen út.
+   */
+  lockdown?: import('./lockdown').Lockdown | null;
   /** a szinkron állapota, ha van fiók */
   sync?: SyncStatus;
   /** munkamenet-csomagok: „most csak EZ mehet” (lásd shared/focus.ts) */
@@ -227,6 +234,10 @@ export type HelperRequest =
   | { id: number; op: 'set_hostname'; siteId: string; hostname: string; remove?: boolean }
   // A lista elrejtése szintén tisztán felületi: a blokkolás nem változik tőle.
   | { id: number; op: 'set_hide_list'; hidden: boolean }
+  // Zárlat indítása vagy hosszabbítása. Nincs párja: rövidíteni, visszavonni
+  // vagy kivételt kérni nem lehet — se itt, se próbatétellel. Ez a protokoll
+  // egyetlen olyan művelete, aminek szándékosan nincs ellentéte.
+  | { id: number; op: 'lockdown_start'; minutes: number }
   | { id: number; op: 'set_rule'; siteId: string; input: string; remove: boolean }
   // Csatorna-szűrő: mentés (új vagy csere) és törlés. A lazítás — kikapcsolás,
   // új engedélyezett csatorna bekapcsolt szűrőn, törlés bekapcsolt állapotban —

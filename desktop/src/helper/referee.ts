@@ -12,6 +12,9 @@ import type {
 import { PAUSE_CHOICES_MIN } from '../shared/protocol';
 import { isLoosening, normalizeSchedule, ALWAYS, type Band, type Schedule } from '../shared/schedule';
 import { isBurstLoosening, normalizeBurst } from '../shared/burst';
+import {
+  formatLockdownRemaining, isLocked, lockdownRemainingMs, startLockdown, type Lockdown,
+} from '../shared/lockdown';
 import { isLimitLoosening, normalizeLimit } from '../shared/limits';
 import { dayKey } from '../shared/usage';
 import {
@@ -73,6 +76,69 @@ export function effectiveTier(state: HelperState, kind: 'pause' | 'delete', now:
   return kind === 'delete' ? Math.min(3, base + 1) : base;
 }
 
+/**
+ * A ZÁRLAT ŐRE. Amíg zárlat van, a lazítás nem drágább — nincs.
+ *
+ * Nem hibaüzenet-ízesítés: ez a különbség a nehéz és a lehetetlen között. A
+ * próbatétel drágít, tehát utat is kínál; a zárlat alatt nincs mit teljesíteni.
+ */
+function assertUnlocked(state: HelperState, now: number): void {
+  if (!isLocked(state.lockdown, now)) return;
+  const left = formatLockdownRemaining(lockdownRemainingMs(state.lockdown, now));
+  throw new RefereeError(
+    `Zárlat van érvényben, ${left} van hátra. Amíg tart, semmilyen lazítás nem indítható — próbatétellel sem.`,
+    'LOCKDOWN',
+  );
+}
+
+/**
+ * MINDEN lazító próbatétel terve ezen az egy kapun megy ki.
+ *
+ * Azért egyetlen helyen, mert a projekt visszatérő hibája nem a rossz logika,
+ * hanem a KIHAGYOTT hívás: tíz belépési pontra tíz külön zárlat-ellenőrzésből
+ * egy előbb-utóbb lemaradna, és a hiányt semmi nem mutatná meg — egy nem
+ * hívott ellenőrzés érvényes kód. Így viszont aki próbatételt akar indítani,
+ * az kénytelen itt átjönni.
+ *
+ * A `comboSiteId` a feladott kísérletek visszaosztásához kell (nincs
+ * könnyebb párra vadászás); a munkameneteknél nincs ilyen oldal, ott null.
+ */
+function planLoosening(
+  state: HelperState, kind: 'pause' | 'delete', comboSiteId: string | null, now: number,
+) {
+  assertUnlocked(state, now);
+  const tier = effectiveTier(state, kind, now);
+  const forced = comboSiteId === null ? null : forcedCombo(state, comboSiteId, now);
+  return generatePlan(kind, tier, state.lastCombo, rng, forced);
+}
+
+/**
+ * Zárlat indítása vagy hosszabbítása. Ez a MÁSIK irány: ingyen van.
+ *
+ * A zárlat nem csak a jövőt zárja le, hanem a folyamatban lévő lazításokat is
+ * visszaveszi, mert különben az indítás pillanata maga lenne a kibúvó:
+ *
+ *   - a futó próbatétel elszáll (a feladott kísérletként számít, ahogy minden
+ *     félbehagyott kísérlet — a zárlat nem ad kedvezményt sem);
+ *   - a feloldott oldalak azonnal visszazárnak;
+ *   - a folyamatban lévő végleges törlések visszavonódnak, tehát a kivárt idő
+ *     elvész — ez a szigorúbb irány, és a zárlat ára.
+ *
+ * A futó munkamenetekhez (fókusz-csomag) nem nyúl: az fehérlista, vagyis maga
+ * is szigorítás.
+ */
+export function startLockdownNow(state: HelperState, ms: number, now: number): Lockdown | null {
+  const next = startLockdown(state.lockdown, ms, now);
+  if (next === null) throw new RefereeError('Érvénytelen zárlat-hossz.', 'BAD_LOCKDOWN');
+  if (state.session) dropSession(state, now);
+  for (const site of state.sites) {
+    site.pauseUntil = null;
+    site.pendingDeleteAt = null;
+  }
+  state.lockdown = next;
+  return next;
+}
+
 export function startSession(
   state: HelperState, kind: 'pause' | 'delete', siteId: string,
   minutes: number | undefined, now: number,
@@ -94,8 +160,7 @@ export function startSession(
   // banked, and the abandoned attempt's challenge types are remembered so this
   // is not a way to shop for an easier pair.
   dropSession(state, now);
-  const tier = effectiveTier(state, kind, now);
-  const plan = generatePlan(kind, tier, state.lastCombo, rng, forcedCombo(state, siteId, now));
+  const plan = planLoosening(state, kind, siteId, now);
   state.session = {
     id: newId('ses'),
     kind, siteId, minutes,
@@ -220,8 +285,7 @@ export function startScheduleChange(
     return { applied: true, session: null };
   }
   // loosening -> gate behind challenges (pause-tier), applied on completion
-  const tier = effectiveTier(state, 'pause', now);
-  const plan = generatePlan('pause', tier, state.lastCombo, rng, forcedCombo(state, siteId, now));
+  const plan = planLoosening(state, 'pause', siteId, now);
   state.session = {
     id: newId('ses'), kind: 'pause', siteId,
     steps: plan.steps, stepIndex: 0, createdAt: now,
@@ -250,8 +314,7 @@ export function startLimitChange(
     site.dailyLimitSeconds = next ?? undefined;
     return { applied: true, session: null };
   }
-  const tier = effectiveTier(state, 'pause', now);
-  const plan = generatePlan('pause', tier, state.lastCombo, rng, forcedCombo(state, siteId, now));
+  const plan = planLoosening(state, 'pause', siteId, now);
   state.session = {
     id: newId('ses'), kind: 'pause', siteId,
     steps: plan.steps, stepIndex: 0, createdAt: now,
@@ -292,8 +355,7 @@ export function startBurstChange(
     site.cooldownSeconds = next?.cooldownSeconds ?? undefined;
     return { applied: true, session: null };
   }
-  const tier = effectiveTier(state, 'pause', now);
-  const plan = generatePlan('pause', tier, state.lastCombo, rng, forcedCombo(state, siteId, now));
+  const plan = planLoosening(state, 'pause', siteId, now);
   state.session = {
     id: newId('ses'), kind: 'pause', siteId,
     steps: plan.steps, stepIndex: 0, createdAt: now,
@@ -342,8 +404,7 @@ export function startChannelFilterSave(
       : [...list, next];
     return { applied: true, session: null };
   }
-  const tier = effectiveTier(state, 'pause', now);
-  const plan = generatePlan('pause', tier, state.lastCombo, rng, forcedCombo(state, next.id, now));
+  const plan = planLoosening(state, 'pause', next.id, now);
   state.session = {
     id: newId('ses'), kind: 'pause', siteId: next.id,
     steps: plan.steps, stepIndex: 0, createdAt: now,
@@ -369,8 +430,7 @@ export function startChannelFilterDelete(
     state.channelFilters = list.filter((f) => f.id !== id);
     return { applied: true, session: null };
   }
-  const tier = effectiveTier(state, 'pause', now);
-  const plan = generatePlan('pause', tier, state.lastCombo, rng, forcedCombo(state, id, now));
+  const plan = planLoosening(state, 'pause', id, now);
   state.session = {
     id: newId('ses'), kind: 'pause', siteId: id,
     steps: plan.steps, stepIndex: 0, createdAt: now,
@@ -417,8 +477,7 @@ export function startRuleChange(
   }
   if (state.session) throw new RefereeError('Előbb fejezd be a folyamatban lévő kísérletet.', 'BUSY');
 
-  const tier = effectiveTier(state, 'pause', now);
-  const plan = generatePlan('pause', tier, state.lastCombo, rng, forcedCombo(state, siteId, now));
+  const plan = planLoosening(state, 'pause', siteId, now);
   state.session = {
     id: newId('ses'), kind: 'pause', siteId,
     steps: plan.steps, stepIndex: 0, createdAt: now,
@@ -474,8 +533,7 @@ export function startHostnameChange(
   if (!site.hostnames.includes(host)) throw new RefereeError('Nincs ilyen hosztnév ezen az oldalon.', 'NO_HOSTNAME');
   if (state.session) throw new RefereeError('Előbb fejezd be a folyamatban lévő kísérletet.', 'BUSY');
 
-  const tier = effectiveTier(state, 'pause', now);
-  const plan = generatePlan('pause', tier, state.lastCombo, rng, forcedCombo(state, siteId, now));
+  const plan = planLoosening(state, 'pause', siteId, now);
   state.session = {
     id: newId('ses'), kind: 'pause', siteId,
     steps: plan.steps, stepIndex: 0, createdAt: now,
@@ -642,6 +700,17 @@ function absorbClockJump(state: HelperState, now: number): void {
   for (const site of state.sites) {
     if (site.pendingDeleteAt !== null) site.pendingDeleteAt += shift;
   }
+  // A ZÁRLAT VÉGE IS TOLÓDIK. Enélkül az óra előreállítása ingyen befejezné —
+  // pont azt az egyetlen dolgot, aminek szándékosan nincs visszaútja, két perc
+  // munkával. Ugyanaz a mondat, mint a munkamenetnél: amennyi hátra volt,
+  // annyi van hátra. Az alvó gép is így viselkedik, és ez nem mellékhatás: egy
+  // lecsukott laptop előtt nem telik a zárlat, mert nem is kísért.
+  if (state.lockdown) {
+    state.lockdown = {
+      startedAt: state.lockdown.startedAt + shift,
+      until: state.lockdown.until + shift,
+    };
+  }
   // A FUTÓ MUNKAMENET IS ELTOLÓDIK — enélkül az óra előreállítása ingyen
   // leállítaná. Nyolc órát előreugorva a menet „lejárna”, a számláló léptetne,
   // és a szinkron ezt szét is vinné a többi eszközre: két perc munkával
@@ -674,7 +743,14 @@ export function tick(state: HelperState, now: number): boolean {
   absorbClockJump(state, now);
   let dirty = false;
   const s = state.session;
-  if (s) {
+  if (s && isLocked(state.lockdown, now)) {
+    // A zárlat MÁSIK eszközről is megérkezhet, a kör közepén. A futó kísérlet
+    // ilyenkor nem maradhat életben: különben a szinkron előtt elindított
+    // próbatétel pont a zárlat alatt fizetne ki egy lazítást.
+    dropSession(state, now);
+    dirty = true;
+  }
+  if (s && state.session) {
     const step = s.steps[s.stepIndex];
     const missedClaim = step?.type === 'DELAY' && step.claimableAt !== null
       && now > step.claimableAt + step.claimWindowMs;
@@ -682,9 +758,18 @@ export function tick(state: HelperState, now: number): boolean {
     // through the same bookkeeping: no reroll out of a pair you dislike.
     if (missedClaim || now - s.createdAt > SESSION_MAX_AGE_MS) dropSession(state, now);
   }
+  // A zárlat MINDEN eszközön érvényesül, akkor is, ha máshol indították: a
+  // szinkron lehozza, és onnantól itt sem maradhat feloldott oldal.
+  const locked = isLocked(state.lockdown, now);
   for (const site of state.sites) {
-    if (site.pauseUntil !== null && site.pauseUntil <= now) {
+    if (site.pauseUntil !== null && (locked || site.pauseUntil <= now)) {
       site.pauseUntil = null;
+      dirty = true;
+    }
+    // A kifizetett, de még ki nem futott törlést is visszaveszi — ugyanaz a
+    // döntés, mint az indításkor, csak ez a szinkronon érkezett zárlatra is áll.
+    if (locked && site.pendingDeleteAt !== null) {
+      site.pendingDeleteAt = null;
       dirty = true;
     }
   }
@@ -799,8 +884,7 @@ export function changeFocus(
   }
   if (state.session) throw new RefereeError('Előbb fejezd be a folyamatban lévő kísérletet.', 'BUSY');
 
-  const tier = effectiveTier(state, 'pause', now);
-  const plan = generatePlan('pause', tier, state.lastCombo, rng, null);
+  const plan = planLoosening(state, 'pause', null, now);
   state.session = {
     id: newId('ses'), kind: 'pause', siteId: `focus:${(run as FocusRun).packId}`,
     steps: plan.steps, stepIndex: 0, createdAt: now,
@@ -919,8 +1003,7 @@ export function setFocusRecurrence(
   }
   if (state.session) throw new RefereeError('Előbb fejezd be a folyamatban lévő kísérletet.', 'BUSY');
 
-  const tier = effectiveTier(state, 'pause', now);
-  const plan = generatePlan('pause', tier, state.lastCombo, rng, null);
+  const plan = planLoosening(state, 'pause', null, now);
   state.session = {
     id: newId('ses'), kind: 'pause', siteId: `focus:${packId}`,
     steps: plan.steps, stepIndex: 0, createdAt: now,

@@ -13,6 +13,38 @@ enum Referee {
         return kind == .delete ? min(3, base + 1) : base
     }
 
+    /// A ZÁRLAT ŐRE. Amíg zárlat van, a lazítás nem drágább — nincs.
+    ///
+    /// Nem hibaüzenet-ízesítés: ez a különbség a nehéz és a lehetetlen között.
+    /// A próbatétel drágít, tehát utat is kínál; a zárlat alatt nincs mit
+    /// teljesíteni. A desktop `assertUnlocked` tükre.
+    private static func requireUnlocked(_ state: AppState, _ now: Double) -> RefereeError? {
+        guard LockdownLogic.isLocked(state.lockdown, now) else { return nil }
+        let left = LockdownLogic.formatRemaining(LockdownLogic.remainingMs(state.lockdown, now))
+        let text = "Zárlat van érvényben, " + left + " van hátra. Amíg tart, semmilyen lazítás "
+            + "nem indítható — próbatétellel sem."
+        return RefereeError(message: text, code: "LOCKDOWN")
+    }
+
+    /// MINDEN lazító próbatétel terve ezen az egy kapun megy ki.
+    ///
+    /// Azért egyetlen helyen, mert a visszatérő hibánk nem a rossz logika,
+    /// hanem a KIHAGYOTT hívás: több belépési pontra több külön ellenőrzésből
+    /// egy előbb-utóbb lemaradna, és a hiányt semmi nem mutatná meg — egy nem
+    /// hívott ellenőrzés érvényes kód.
+    /// A hibát KIÍRJA, nem dobja: a `BreakerStore.mutate` zárványa nem dobhat,
+    /// ezért az egész bíró ezt az alakot használja — a hívó a kör végén dobja.
+    private static func planLoosening(
+        _ state: AppState, _ kind: ChallengeEngine.Kind, _ comboSiteId: String?, _ now: Double,
+        _ thrown: inout RefereeError?
+    ) -> ChallengeEngine.Plan? {
+        if let e = requireUnlocked(state, now) { thrown = e; return nil }
+        let tier = effectiveTier(state, kind: kind, now: now)
+        let forced = comboSiteId == nil ? nil : forcedCombo(state, comboSiteId!, now)
+        return ChallengeEngine.generatePlan(kind: kind, tier: tier,
+                                            lastCombo: state.lastCombo, forceCombo: forced)
+    }
+
     /// Drops the running attempt and remembers WHAT it was, so restarting
     /// within the cooldown gets the same challenge types back. Cancelling is
     /// always allowed — it just must not be a cheaper route than finishing.
@@ -87,9 +119,7 @@ enum Referee {
             // and its challenge types are remembered so this is not a way to
             // shop for an easier pair.
             dropSession(&state, now)
-            let tier = effectiveTier(state, kind: kind, now: now)
-            let plan = ChallengeEngine.generatePlan(kind: kind, tier: tier, lastCombo: state.lastCombo,
-                                                    forceCombo: forcedCombo(state, siteId, now))
+            guard let plan = planLoosening(state, kind, siteId, now, &thrown) else { return }
             var steps = plan.steps
             armCurrent(&steps, 0, now)
             let session = SessionRec(id: BreakerStore.shared.newId("ses"), kind: kind, siteId: siteId,
@@ -182,9 +212,7 @@ enum Referee {
                 result = ScheduleChangeResult(applied: true, session: nil)
                 return
             }
-            let tier = effectiveTier(state, kind: .pause, now: now)
-            let plan = ChallengeEngine.generatePlan(kind: .pause, tier: tier, lastCombo: state.lastCombo,
-                                                    forceCombo: forcedCombo(state, siteId, now))
+            guard let plan = planLoosening(state, .pause, siteId, now, &thrown) else { return }
             var steps = plan.steps
             armCurrent(&steps, 0, now)
             let session = SessionRec(id: BreakerStore.shared.newId("ses"), kind: .pause, siteId: siteId,
@@ -371,7 +399,45 @@ enum Referee {
                     endsAt: run.endsAt + shift
                 )
             }
+            // A ZÁRLAT VÉGE IS TOLÓDIK. Enélkül az óra előreállítása ingyen
+            // befejezné — pont azt az egyetlen dolgot, aminek szándékosan nincs
+            // visszaútja. Amennyi hátra volt, annyi van hátra.
+            if let lock = state.lockdown {
+                state.lockdown = LockdownLogic.Lockdown(
+                    startedAt: lock.startedAt + shift, until: lock.until + shift
+                )
+            }
         }
+    }
+
+    /// Zárlat indítása vagy hosszabbítása. Ez a MÁSIK irány: ingyen van.
+    ///
+    /// A zárlat a folyamatban lévő lazításokat is visszaveszi, különben az
+    /// indítás pillanata maga lenne a kibúvó: a futó próbatétel elszáll, a
+    /// feloldott oldalak visszazárnak, a folyamatban lévő törlések
+    /// visszavonódnak. A futó munkamenethez nem nyúl: az fehérlista, vagyis
+    /// maga is szigorítás.
+    @discardableResult
+    static func startLockdown(ms: Double, now: Double) throws -> LockdownLogic.Lockdown {
+        var out: LockdownLogic.Lockdown?
+        var thrown: RefereeError?
+        BreakerStore.shared.mutate { state in
+            guard let next = LockdownLogic.start(state.lockdown, ms, now) else {
+                thrown = RefereeError(message: "Érvénytelen zárlat-hossz.", code: "BAD_LOCKDOWN")
+                return
+            }
+            dropSession(&state, now)
+            state.sites = state.sites.map { site in
+                var copy = site
+                copy.pauseUntil = nil
+                copy.pendingDeleteAt = nil
+                return copy
+            }
+            state.lockdown = next
+            out = next
+        }
+        if let e = thrown { throw e }
+        return out!
     }
 
     /// Az ismétlődés-vizsgálat utolsó tizenöt másodperces szelete (lásd a tick-et).
@@ -390,13 +456,19 @@ enum Referee {
                now > claimableAt + Double(window) { sessionDead = true }
             if now - s.createdAt > Double(ChallengeEngine.sessionMaxAgeMs) { sessionDead = true }
         }
+        // A ZÁRLAT MÁSIK ESZKÖZRŐL is megérkezhet, a kör közepén: a szinkron
+        // lehozza, és onnantól itt sem maradhat feloldott oldal, kifizetett
+        // törlés vagy futó kísérlet. Enélkül a gépen indított zárlat az
+        // iPhone-on nem jelentene semmit — és pont az lenne a kibúvó.
+        let locked = LockdownLogic.isLocked(st.lockdown, now)
+        let lockedSession = locked && st.session != nil
         let pauseEnded = st.sites.contains { site in
             guard let p = site.pauseUntil else { return false }
-            return p <= now
+            return locked || p <= now
         }
         let deleteDue = st.sites.contains { site in
             guard let d = site.pendingDeleteAt else { return false }
-            return d <= now
+            return locked || d <= now
         }
         // A MAGÁTÓL lejárt menet is lezárul — enélkül csak a próbatétellel
         // leállított menetek kerülnének a statisztikába, vagyis pont azok
@@ -418,15 +490,19 @@ enum Referee {
                 st.focusPacks ?? [], run: st.focusRun, log: st.focusLog ?? [], now: now
             ) != nil
         }
-        guard sessionDead || pauseEnded || deleteDue || focusEnded || focusDue else { return }
+        guard sessionDead || lockedSession || pauseEnded || deleteDue || focusEnded || focusDue
+        else { return }
 
         BreakerStore.shared.mutate { state in
             // Sitting out the claim window ends an attempt too: same bookkeeping,
             // so it is not an escape hatch from a pair one dislikes.
-            if sessionDead { dropSession(&state, now) }
+            if sessionDead || lockedSession { dropSession(&state, now) }
             state.sites = state.sites.compactMap { site in
                 var copy = site
-                if let p = copy.pauseUntil, p <= now { copy.pauseUntil = nil }
+                if let p = copy.pauseUntil, locked || p <= now { copy.pauseUntil = nil }
+                // Zárlat alatt a kifizetett törlés is visszavonódik: az oldal
+                // marad, a kivárt idő elvész. A szigorúbb irány, és a zárlat ára.
+                if locked { copy.pendingDeleteAt = nil }
                 if let d = copy.pendingDeleteAt, d <= now { return nil }
                 return copy
             }
@@ -512,9 +588,7 @@ enum Referee {
                 return
             }
             dropSession(&state, now)
-            let tier = effectiveTier(state, kind: .pause, now: now)
-            let plan = ChallengeEngine.generatePlan(kind: .pause, tier: tier,
-                                                    lastCombo: state.lastCombo, forceCombo: nil)
+            guard let plan = planLoosening(state, .pause, nil, now, &thrown) else { return }
             var steps = plan.steps
             armCurrent(&steps, 0, now)
             let session = SessionRec(

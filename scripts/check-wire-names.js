@@ -74,10 +74,23 @@ function stripComments(text) {
 const GROUPS = [
   {
     what: 'a munkamenet blobja',
-    names: ['packs', 'run', 'log', 'packMarks', 'rev', 'updatedAt', 'updatedBy'],
+    // A `lockdown` a ZÁRLAT: nem oldalhoz tartozik, hanem az egész eszközhöz,
+    // ezért utazik itt. Ha a neve elcsúszna, a másik eszköz némán eldobná, a
+    // következő feltöltése pedig kiejtené a blobból — vagyis a zárlat csak
+    // azon az eszközön élne, ahol indították. Pont az a kibúvó.
+    names: ['packs', 'run', 'log', 'packMarks', 'lockdown', 'rev', 'updatedAt', 'updatedBy'],
     ts: 'desktop/src/shared/sync/focus-merge.ts',
     kt: 'android/app/src/main/java/hu/breaker/app/core/SyncClient.kt',
     swift: 'ios/Shared/FocusSync.swift',
+  },
+  {
+    what: 'a zárlat',
+    // A `until` a vég, a `startedAt` a kezdés. A vég a döntő: ha az elcsúszna,
+    // a fogadó oldal zárlat nélkül maradna — a szigorítás veszne el némán.
+    names: ['startedAt', 'until'],
+    ts: 'desktop/src/shared/lockdown.ts',
+    kt: 'android/app/src/main/java/hu/breaker/app/core/SyncClient.kt',
+    swift: 'ios/Shared/Lockdown.swift',
   },
   {
     what: 'egy csomag',

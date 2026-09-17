@@ -75,6 +75,10 @@ ts.focus = read('desktop/src/shared/focus.ts');
 kt.focus = read('android/app/src/main/java/hu/breaker/app/core/Focus.kt');
 sw.focus = read('ios/Shared/Focus.swift');
 
+ts.lockdown = read('desktop/src/shared/lockdown.ts');
+kt.lockdown = read('android/app/src/main/java/hu/breaker/app/core/Lockdown.kt');
+sw.lockdown = read('ios/Shared/Lockdown.swift');
+
 function scalar(text, re, label) {
   const m = text.match(re);
   if (!m) return { missing: label };
@@ -118,6 +122,16 @@ const CHECKS = [
     list(ts.protocol, /PAUSE_CHOICES_MIN\s*=\s*\[([^\]]+)\]/, 'ts'),
     list(kt.engine, /PAUSE_CHOICES_MIN\s*=\s*listOf\(([^)]+)\)/, 'kt'),
     list(sw.engine, /pauseChoicesMin\s*=\s*\[([^\]]+)\]/, 'swift')],
+  // A ZÁRLAT SZÁMAI. Ha a plafon vagy a gyorsgombok szétcsúsznának, ugyanaz a
+  // gomb két eszközön két különböző hosszt zárna — és annak nincs visszaútja.
+  ['MAX_LOCKDOWN_DAYS',
+    scalar(ts.lockdown, /MAX_LOCKDOWN_DAYS\s*=\s*([^;]+);/, 'ts'),
+    scalar(kt.lockdown, /MAX_LOCKDOWN_DAYS\s*=\s*(.+)/, 'kt'),
+    scalar(sw.lockdown, /maxLockdownDays\s*=\s*(.+)/, 'swift')],
+  ['LOCKDOWN_CHOICES_MIN',
+    list(ts.lockdown, /LOCKDOWN_CHOICES_MIN\s*=\s*\[([^\]]+)\]/, 'ts'),
+    list(kt.lockdown, /LOCKDOWN_CHOICES_MIN\s*=\s*listOf\(([^)]+)\)/, 'kt'),
+    list(sw.lockdown, /lockdownChoicesMin\s*=\s*\[([^\]]+)\]/, 'swift')],
   ['MAX_ALLOW_ENTRIES',
     scalar(ts.focus, /MAX_ALLOW_ENTRIES\s*=\s*([^;]+);/, 'ts'),
     scalar(kt.focus, /MAX_ALLOW_ENTRIES\s*=\s*(.+)/, 'kt'),

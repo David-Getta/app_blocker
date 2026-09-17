@@ -146,6 +146,30 @@ nem szülői felügyeleti vagy kártevő-elleni megoldás. Aki technikailag hozz
 és eltökélt, meg tudja kerülni. A cél a **súrlódás** növelése annyira, hogy a
 pillanatnyi impulzus ne legyen elég a feloldáshoz.
 
+### A zárlat: a súrlódás felső határa
+
+A súrlódás DRÁGÍT, de ára van, tehát útja is: aki elszánja magát, átrágja magát
+a próbatételen. A zárlat az a réteg, ami ezt lezárja — amíg tart, a bíró el sem
+indít lazító próbatételt. Nem nehezebb: NINCS.
+
+Három tulajdonsága teszi azzá, ami:
+
+1. **Egyetlen kapu.** Mindhárom magban minden próbatétel-terv ugyanazon a
+   függvényen megy ki (`planLoosening`), és a zárlat őre ott áll. Nem tíz külön
+   ellenőrzés, amiből egy lemaradhat — a `check-enforcement.js` és a
+   `desktop/test/lockdown.test.ts` a forrásból ellenőrzi, hogy így maradjon.
+2. **Rövidíteni nem lehet.** A mezőhöz egyetlen út vezet, és annak az eredménye
+   sosem rövidebb a mostaninál. A rövidítés nem tiltott, hanem
+   megfogalmazhatatlan.
+3. **Sem az óra, sem a szinkron nem viszi el.** Az óra-ugrás eltolja a végét
+   (amennyi hátra volt, annyi van hátra), a fésülése pedig magasvízjel: a
+   későbbi vég nyer, `rev`-re való tekintet nélkül.
+
+Amit NEM állítunk: hogy gépzár. Rendszergazdaként a segéd leállítható, a
+telefonon az app letörölhető. A zárlat az appon BELÜL zár le mindent, tehát az
+impulzus ellen véd — és pontosan ennyit mond a felület is.
+Részletek: [`feature-lockdown.md`](feature-lockdown.md).
+
 ### A privilegizált helper IPC-je
 
 A helper root/SYSTEM jogú, ezért a vele kommunikáló helyi socketet szűkítjük:
