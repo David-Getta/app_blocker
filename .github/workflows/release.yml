@@ -44,50 +44,45 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **Zárlat: amikor a lazítás nem drága, hanem nincs.** Eddig minden
-          lazításnak volt ára — próbatétel —, de ára volt, tehát útja is: aki
-          hajnali kettőkor elhatározza, hogy átrágja magát rajta, az átrágja.
-          A zárlat lezárja. Egy általad megadott ideig (1 órától 7 napig) az
-          app EL SEM INDÍT próbatételt lazításra: nincs feloldás, nincs
-          keret-emelés, nincs adag-lazítás, nincs szabály-levétel, nincs
-          menet-leállítás — nincs mit teljesíteni. Blokkolni, szigorítani,
-          menetet indítani közben is lehet, és a zárlat hosszabbítása is
-          ingyen van; rövidíteni vagy visszavonni sehogy. Az indítás
-          visszaveszi azt is, ami félig kint volt: a futó próbatétel elszáll,
-          a feloldott oldalak visszazárnak, a folyamatban lévő törlések
-          visszavonódnak. A zárlat a fiókon át a többi eszközre is átér (a
-          későbbi vég nyer, tehát a szinkron sosem tudja visszavonni), és az
-          óra átállítása sem rövidíti meg. Mindhárom platformon: a gépen az
-          oldalak nézetében a **Zárlat** kártya, a telefonokon a statisztika
-          után. Indításhoz ki kell írni a ZÁRLAT szót — nem biztonsági elem,
-          hanem a félrekattintás ellen. Őszintén: ez nem gépzár —
-          rendszergazdaként a háttérszolgáltatás leállítható, a telefonon az
-          app letörölhető; az impulzus ellen véd, nem a megfontolt kerülőút
-          ellen.
+          **A böngésző is tud a zárlatról.** A bővítmény tiltó lapja eddig
+          minden esetben azt írta a lábába, merre van a lazítás útja az
+          appban — feloldás, a menet leállítása, új csatorna —, és hogy
+          próbatételbe kerül. Zárlat alatt pont ez az út nincs. Mostantól a
+          láb ilyenkor a zárlatról beszél, a hátralévő idővel, és a zárlat
+          lejártakor visszaáll a rendes szövegre; a felugró lap is kimondja.
+          A gyorsbillentyűs rétegben futó menet alatt zárlatkor nincs
+          leállító gomb — egy szürke, letiltott gomb azt sugallná, hogy van
+          út, csak most nem. Nincs út; a láb kimondja.
 
-          **Adag-szabály mellett a mérés nem kapcsolható ki.** Az adag
-          számlálója a mért időből gyűlik: kikapcsolt mérés mellett sosem
-          telt volna be. A kikapcsolás eddig pont az az egy kattintás volt,
-          ami próbatétel nélkül hatástalanítja az egészet — a napi keretnél
-          ez már zárva volt, az adagnál nem. Most mindkettőnél zárva van, a
-          gépen és Androidon is.
+          **A szinkron megnyugszik a lejárt zárlat után.** Az első változat a
+          lejárt zárlatot nem vitte fel, de a kiszolgálóról jövőt hűen
+          átvette — a kettő minden körben különbözött, és a segéd tíz
+          percenként „változást” látott, mentett, újraírta a hosts fájlt.
+          Nem kibúvó, csak fölösleges munka — mindhárom platformon javítva.
 
-          ### Ami a v0.4.31-ben jött
+          **A kiadás feltöltése újrapróbál.** A GitHub feltöltő végpontja
+          néha 500-at ad; a v0.4.32 ezért először APK nélkül ment ki. Most
+          három kísérlet van, növekvő várakozással.
 
-          **Adag-szabály: öt perc használat, öt perc szünet — két koppintás.**
-          Az oldal sorában az **Adag** gomb rejti, két sorral: ennyi használat
-          után… ennyi szünet. Az öt perces szünet eddig hiányzott a kínált
-          értékek közül, a telefonon pedig saját értéket sem lehetett beírni.
-          Mostantól az öt perc gombbal is ott van, és az androidos
-          párbeszédbe is lehet saját percet írni (egy perctől egy napig).
+          ### Ami a v0.4.32-ben jött
 
-          #### Ami a v0.4.30-ban jött
+          **Zárlat: amikor a lazítás nem drága, hanem nincs.** Egy általad
+          megadott ideig (1 órától 7 napig) az app EL SEM INDÍT próbatételt
+          lazításra: nincs feloldás, keret-emelés, adag-lazítás,
+          szabály-levétel, menet-leállítás. Blokkolni, szigorítani, menetet
+          indítani közben is lehet, hosszabbítani ingyen; rövidíteni vagy
+          visszavonni sehogy. A többi eszközre is átér, az óra átállítása sem
+          rövidíti meg. Indításhoz ki kell írni a ZÁRLAT szót. Őszintén: ez
+          nem gépzár — rendszergazdaként a háttérszolgáltatás leállítható;
+          az impulzus ellen véd.
 
-          **A feloldás sokkal nehezebb lett.** Legalább HÁROM feladat jár
-          (gyakori feloldónál négy, öt, hat), és a végén MINDIG kötelező
-          várakozás; a feladatok maguk is többszörösükre nőttek. **Nem
-          mondjuk meg, hány feladat van hátra:** a majdnem-kész érzés az, ami
-          átlendít a feloldáson, és pont azt vettük el.
+          **Adag-szabály mellett a mérés nem kapcsolható ki** — a kikapcsolás
+          eddig próbatétel nélkül hatástalanította az adagot.
+
+          #### Ami a v0.4.31-ben jött
+
+          **Adag-szabály: öt perc használat, öt perc szünet — két koppintás,**
+          és az androidos párbeszédbe is lehet saját percet írni.
 
           NOTES
           fi
