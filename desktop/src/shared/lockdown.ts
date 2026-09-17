@@ -313,6 +313,22 @@ export function isWindowLockdown(l: Lockdown, windows: Band[]): boolean {
 }
 
 /**
+ * Most tűnt-e fel egy ABLAK szerinti zárlat — a felület ebből értesít. Akkor
+ * is, ha az app később nyílt meg, mint ahogy az ablak beért: aki nem maga
+ * indította, tudja meg, miért van minden zárva. Ugyanaz a zárlat kétszer nem
+ * szól; a kézzel indított nem szól, azt a felhasználó indította. A kézi
+ * zárlat, amit az ablak kitolt, szól: onnantól az ablak tartja.
+ */
+export function windowLockdownStarted(
+  prev: Lockdown | null | undefined, next: Lockdown | null | undefined,
+  windows: Band[], now: number,
+): Lockdown | null {
+  if (!next || !isLocked(next, now)) return null;
+  if (prev && prev.startedAt === next.startedAt && prev.until === next.until) return null;
+  return isWindowLockdown(next, windows) ? next : null;
+}
+
+/**
  * Két eszköz ablak-listája EGGYÉ fésülve, a JELÜK szerint.
  *
  * A jel a blob `rev`-je, amelyik a listát utoljára változtatta (lásd

@@ -19,8 +19,8 @@ import { HELPER_VERSION } from '../shared/protocol.js';
 import { normalizeRule, ruleLabel } from '../shared/urlrules.js';
 import { MAX_BURST_MINUTES, MAX_COOLDOWN_MINUTES, normalizeBurst } from '../shared/burst.js';
 import {
-  formatLockdownRemaining, isLocked, isWindowLockdown, LOCKDOWN_CHOICES_MIN, MAX_LOCKDOWN_WINDOWS,
-  type LockdownWindow,
+  formatLockdownRemaining, isLocked, isWindowLockdown, windowLockdownStarted, LOCKDOWN_CHOICES_MIN,
+  MAX_LOCKDOWN_WINDOWS, type Lockdown, type LockdownWindow,
 } from '../shared/lockdown.js';
 import { stepBurstNotices, type BurstNotice, type BurstWatch } from '../shared/burst-notify.js';
 import { daysSinceUnlock, digestDue, digestText } from '../shared/digest.js';
@@ -256,6 +256,22 @@ function showWindowRunNotice(run: FocusRun): void {
   });
 }
 
+/** Az utoljára látott zárlat — ebből derül ki, hogy MOST tűnt-e fel egy ablaké. */
+let seenLockdown: Lockdown | null = null;
+
+/**
+ * Az ablak szerinti zárlat értesítése: aki nem maga indította, tudja meg,
+ * miért van minden zárva — és meddig. Engedély híján csendben marad; a sáv
+ * enélkül is mondja.
+ */
+function showWindowLockdownNotice(lock: Lockdown, now: number): void {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  new Notification('Breaker — zárlat a heti ablak szerint', {
+    body: `${formatLockdownRemaining(lock.until - now)} van hátra (eddig: ${fmtClock(lock.until)}). `
+      + 'Amíg tart, semmilyen lazítás nem indítható — próbatétellel sem.',
+  });
+}
+
 function showBurstNotice(n: BurstNotice, now: number): void {
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
   const body = n.kind === 'tripped'
@@ -344,6 +360,11 @@ function render(): void {
   const windowRun = windowRunStarted(seenFocusRun, status!.focusRun, status!.focusPacks ?? [], nowForBurst);
   seenFocusRun = status!.focusRun ?? null;
   if (windowRun) showWindowRunNotice(windowRun);
+  // Ugyanez a zárlat-ablakra: az ablak beért, és onnantól minden zárva van.
+  const windowLock = windowLockdownStarted(
+    seenLockdown, status!.lockdown ?? null, status!.lockdownWindows ?? [], nowForBurst);
+  seenLockdown = status!.lockdown ?? null;
+  if (windowLock) showWindowLockdownNotice(windowLock, nowForBurst);
   renderSelfTestLine();
 
   const sig = sitesFingerprint(status!);
@@ -1802,10 +1823,16 @@ function renderLockdownWindows(windows: LockdownWindow[]): void {
     left.appendChild(h('div', 'focus-name', recurrenceLabel(w)));
     left.appendChild(h('div', 'focus-sub', 'ebben a sávban a zárlat magától él'));
     row.appendChild(left);
+    const actions = h('div', 'row-gap');
+    const edit = h('button', 'btn btn-small', 'Módosítás…');
+    edit.title = 'Bővíteni ingyen; szűkíteni próbatétel, és csak az ablakon kívül.';
+    edit.addEventListener('click', () => openLockdownWindowDialog(status!, w));
+    actions.appendChild(edit);
     const drop = h('button', 'btn btn-small btn-ghost', 'Levétel…');
     drop.title = 'A levétel próbatétel — és csak az ablakon kívül indítható, mert bent zárlat van.';
     drop.addEventListener('click', () => void applyLockdownWindows(windows.filter((x) => x.id !== w.id)));
-    row.appendChild(drop);
+    actions.appendChild(drop);
+    row.appendChild(actions);
     box.appendChild(row);
   }
 }
@@ -1826,19 +1853,25 @@ async function applyLockdownWindows(windows: LockdownWindow[]): Promise<boolean>
   }
 }
 
-/** Új heti ablak: napok, kezdés, vég — ugyanaz a szerkesztő, mint a csomag ablakánál. */
-function openLockdownWindowDialog(st: StatusData): void {
+/**
+ * Új heti ablak, vagy egy meglévő módosítása: napok, kezdés, vég — ugyanaz a
+ * szerkesztő, mint a csomag ablakánál. A módosítás a listában a helyére
+ * kerül, a saját azonosítójával: a segéd dönti el, hogy bővítés (ingyen)
+ * vagy szűkítés (próbatétel).
+ */
+function openLockdownWindowDialog(st: StatusData, existing?: LockdownWindow): void {
   const overlay = h('div', 'overlay');
   const modal = h('div', 'modal modal-small');
-  modal.appendChild(h('h3', undefined, 'Heti ablak felvétele'));
+  modal.appendChild(h('h3', undefined, existing ? 'Heti ablak módosítása' : 'Heti ablak felvétele'));
   modal.appendChild(h('p', 'hint',
-    'Az ablakban a zárlat magától él, az ablak végéig — a gépen és a telefonon is. Felvenni '
-    + 'ingyen van; levenni vagy szűkíteni próbatétel, és csak az ablakon kívül: bent zárlat van. '
-    + 'Az egész hét nem zárható le — legalább egy szabad óra marad a héten.'));
-  const fields = bandFields(undefined, { startMin: 9 * 60, endMin: 17 * 60 });
+    (existing ? `Most: ${recurrenceLabel(existing)}. ` : '')
+    + 'Az ablakban a zárlat magától él, az ablak végéig — a gépen és a telefonon is. Felvenni '
+    + 'és bővíteni ingyen van; levenni vagy szűkíteni próbatétel, és csak az ablakon kívül: bent '
+    + 'zárlat van. Az egész hét nem zárható le — legalább egy szabad óra marad a héten.'));
+  const fields = bandFields(existing, { startMin: 9 * 60, endMin: 17 * 60 });
   modal.appendChild(fields.box);
   const err = h('p', 'error hidden');
-  const go = h('button', 'btn btn-primary', 'Ablak felvétele');
+  const go = h('button', 'btn btn-primary', existing ? 'Ablak módosítása' : 'Ablak felvétele');
   go.addEventListener('click', async () => {
     const band = fields.read();
     if (!band) {
@@ -1846,8 +1879,13 @@ function openLockdownWindowDialog(st: StatusData): void {
       err.classList.remove('hidden');
       return;
     }
-    // Az azonosítót a segéd adja; a meglévők a sajátjukkal mennek vissza.
-    const ok = await applyLockdownWindows([...(st.lockdownWindows ?? []), { id: '', ...band }]);
+    // Az azonosítót a segéd adja; a meglévők a sajátjukkal mennek vissza — a
+    // módosított is, a helyén.
+    const current = st.lockdownWindows ?? [];
+    const next = existing
+      ? current.map((w) => (w.id === existing.id ? { id: existing.id, ...band } : w))
+      : [...current, { id: '', ...band }];
+    const ok = await applyLockdownWindows(next);
     if (ok) overlay.remove();
     else {
       err.textContent = $('lockdownWindowsError').textContent ?? '';

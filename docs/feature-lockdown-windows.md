@@ -71,11 +71,14 @@ napok, kezdés, vég — csak nem egy csomag indul tőle, hanem a zárlat.
 ## Hol van a felületen
 
 **Gépen:** a zárlat kártyáján, a gomb alatt: az ablakok listája, mindegyiknél
-a napok és a sáv, és egy *Levétel…* gomb (próbatétel; bent el sem indul, a
-kártya kimondja, miért). Új ablak a *Heti ablak felvétele* gombbal: napok,
-kezdés, vég — ugyanaz a szerkesztő, mint a csomag ablakánál. A sáv az ablak
-zárlatát „Zárlat a heti ablak szerint”-ként mondja; a tiltó lap és a
-gyorsbillentyűs réteg ugyanazt a zárlatot mutatja, mint a kézinél.
+a napok és a sáv, egy *Módosítás…* gomb (bővíteni ingyen, szűkíteni
+próbatétel) és egy *Levétel…* gomb (próbatétel; bent el sem indul, a kártya
+kimondja, miért). Új ablak a *Heti ablak felvétele* gombbal: napok, kezdés,
+vég — ugyanaz a szerkesztő, mint a csomag ablakánál. A sáv az ablak zárlatát
+„Zárlat a heti ablak szerint”-ként mondja, és amikor az ablak beér, a gép
+értesítést is ad (ha az app engedélyt kapott rá) — aki nem maga indította,
+tudja meg, miért van minden zárva. A tiltó lap és a gyorsbillentyűs réteg
+ugyanazt a zárlatot mutatja, mint a kézinél.
 
 **Telefonon:** a zárlat kártyája felsorolja az ablakokat („a gépen
 állítható”), és a sáv ugyanúgy mondja a zárlatot, mint a kézinél.

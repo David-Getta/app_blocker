@@ -11,7 +11,7 @@ import * as assert from 'node:assert/strict';
 import {
   dueLockdownWindow, isLocked, isWindowLockdown, isWindowsLoosening, mergeWindows,
   normalizeWindow, normalizeWindows, sameWindows, weekHasFreeTime, windowLockdown,
-  MAX_LOCKDOWN_WINDOWS, MIN_FREE_MINUTES_PER_WEEK, type LockdownWindow,
+  windowLockdownStarted, MAX_LOCKDOWN_WINDOWS, MIN_FREE_MINUTES_PER_WEEK, type LockdownWindow,
 } from '../src/shared/lockdown';
 import { defaultState, newId, type HelperState } from '../src/helper/state';
 import * as referee from '../src/helper/referee';
@@ -123,6 +123,21 @@ test('isWindowLockdown: a vég dönt — az ablak vége az ablak vége, a kézi 
   assert.equal(isWindowLockdown({ startedAt: MON(22), until: TUE(6) }, [NIGHT]), true, 'éjfélen át');
   assert.equal(isWindowLockdown({ startedAt: MON(0), until: TUE(0) }, [allDay('a', [1])]), true, 'egész napos, 24:00-ig');
   assert.equal(isWindowLockdown({ startedAt: MON(9), until: MON(17) }, [{ ...WORK, days: [] }]), false, 'az érvénytelen ablak nem');
+});
+
+test('windowLockdownStarted: az ablak zárlata egyszer szól, a kézi és a lejárt nem', () => {
+  const win = { startedAt: MON(9), until: MON(17) };
+  assert.deepEqual(windowLockdownStarted(null, win, [WORK], MON(9, 30)), win,
+    'először feltűnik — akkor is, ha az app később nyílt');
+  assert.equal(windowLockdownStarted(win, win, [WORK], MON(10)), null, 'ugyanaz kétszer nem');
+  assert.equal(windowLockdownStarted(null, { startedAt: MON(9), until: MON(11) }, [WORK], MON(10)), null,
+    'a kézi nem — azt a felhasználó indította');
+  assert.equal(windowLockdownStarted(null, win, [WORK], MON(18)), null, 'a lejárt nem');
+  assert.equal(windowLockdownStarted(null, null, [WORK], MON(10)), null);
+  // A kézi zárlat, amit az ablak kitolt: onnantól az ablak tartja — szól.
+  const manual = { startedAt: MON(8), until: MON(10, 30) };
+  assert.deepEqual(windowLockdownStarted(manual, { startedAt: MON(8), until: MON(17) }, [WORK], MON(9, 30)),
+    { startedAt: MON(8), until: MON(17) });
 });
 
 test('mergeWindows: a nagyobb jel nyer, azonos jelnél a bővebb lista; a jeltelen nem töröl', () => {
