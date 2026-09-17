@@ -246,7 +246,14 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
+      # A `packages: ''` NEM díszítés: az action alapból a rég megszűnt `tools`
+      # SDK-csomagot telepítené, és a sdkmanager ezen elhasal
+      # („Failed to find package 'tools'”) — a build el sem indul. A futó képe
+      # amúgy is hozza a platform-toolsot és a platformokat, a többit a Gradle
+      # tölti le magának.
       - uses: android-actions/setup-android@v3
+        with:
+          packages: ''
       - name: Aláíró kulcs visszaállítása (ha van secret)
         id: keystore
         env:
