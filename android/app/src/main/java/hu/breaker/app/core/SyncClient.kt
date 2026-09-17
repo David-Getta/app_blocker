@@ -259,10 +259,18 @@ object SyncClient {
             runCatching {
                 val o = arr.getJSONObject(i)
                 val hosts = o.getJSONArray("hostnames")
+                // A DOMAIN és a HOSZTNEVEK ugyanazon a szűrőn, mint a helyben
+                // felvett oldal. A blob titkosított, de a jelszó a saját lista
+                // lazítására jogosít, nem szemét bejuttatására — a gépen ezek a
+                // nevek a root-tulajdonú hosts fájlba mennek. Ami nem
+                // hosztnév-alakú, az nem oldal: a rekord kimarad.
+                val domain = o.getString("domain")
+                require(Blocklist.isCanonicalHostname(domain)) { "nem hosztnév: $domain" }
                 out.add(SyncMerge.SyncSite(
                     id = o.getString("id"),
-                    domain = o.getString("domain"),
-                    hostnames = (0 until hosts.length()).map { hosts.getString(it) },
+                    domain = domain,
+                    hostnames = (0 until hosts.length()).map { hosts.getString(it) }
+                        .filter { Blocklist.isCanonicalHostname(it) }.distinct(),
                     addedAt = o.getLong("addedAt"),
                     pendingDeleteAt = if (o.isNull("pendingDeleteAt")) null else o.getLong("pendingDeleteAt"),
                     schedule = if (o.isNull("schedule")) null else scheduleFromJson(o.getJSONObject("schedule")),

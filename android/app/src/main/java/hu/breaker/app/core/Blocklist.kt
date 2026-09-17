@@ -39,6 +39,13 @@ object Blocklist {
         return if (DOMAIN_RE.matches(s)) s else null
     }
 
+    /**
+     * Kanonikus hosztnév-e (kisbetűs, séma és út nélkül, csak név). A
+     * szinkronon jött neveket ezen a szűrőn engedjük át: ami nem ilyen, az
+     * nem a másik mag írása, hanem szemét — és a gépen a hosts fájlba menne.
+     */
+    fun isCanonicalHostname(s: String): Boolean = DOMAIN_RE.matches(s)
+
     fun expandHostnames(domain: String, usePreset: Boolean): List<String> {
         val set = sortedSetOf(domain, "www.$domain", "m.$domain")
         if (usePreset) PRESETS[domain]?.let { set.addAll(it) }

@@ -139,6 +139,12 @@ export function buildManagedBlock(hostnames: string[], _platform: string): strin
   if (hostnames.length === 0) return '';
   const lines: string[] = [MARKER_BEGIN];
   for (const h of hostnames) {
+    // A NYELŐ ŐRE. Ide csak hosztnév-alakú név kerülhet: egy szóközt vagy
+    // soremelést tartalmazó „név” egy `0.0.0.0 név` sorból két sort — vagy egy
+    // idegen `IP név` sort — csinálna a root-tulajdonú fájlban. A forrásokat
+    // (felvétel, szinkron) külön is szűrjük; ez az utolsó háló, ami akkor is
+    // tart, ha egy jövőbeli forrás elfelejtené.
+    if (normalizeHostname(h) !== h) continue;
     lines.push(`0.0.0.0 ${h}`);
     // Az IPv6-sor MINDEN rendszeren kell. A hosts-fájl bejegyzése
     // címcsaládonként érvényes: ha egy névhez csak IPv4-sor van, az AAAA-kérdés

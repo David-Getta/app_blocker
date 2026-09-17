@@ -115,3 +115,15 @@ test('cleaning up the old name is idempotent', () => {
   const twice = replaceManagedBlock(stripLegacyBlocks(once), buildManagedBlock(['a.com'], 'darwin'));
   assert.equal(twice, once);
 });
+
+test('a hosts-blokk csak hosztnév-alakú nevet ír ki — ez az utolsó háló', () => {
+  // A forrásokat külön is szűrjük; ez akkor is tart, ha egy jövőbeli forrás
+  // elfelejtené. Egy soremeléses név egy idegen `IP név` sort csempészne be.
+  const block = buildManagedBlock(['youtube.com', 'a\n1.2.3.4 login.mybank.com', 'Bad.Example', 'x y'], 'linux');
+  assert.equal(block.includes('login.mybank.com'), false);
+  assert.equal(block.includes('Bad.Example'), false);
+  assert.equal(block.includes('x y'), false);
+  assert.ok(block.includes('0.0.0.0 youtube.com') && block.includes(':: youtube.com'));
+  const lines = block.split('\n');
+  for (const l of lines) assert.match(l, /^(0\.0\.0\.0 |:: |#)/, `idegen sor a blokkban: ${l}`);
+});

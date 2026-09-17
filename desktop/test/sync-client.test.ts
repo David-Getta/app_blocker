@@ -638,3 +638,47 @@ test('a zárlat átér a másik eszközre, és lejárta után a kör megnyugszik
   assert.equal(a2.changed, false, 'és a következő körben sem — a kör megnyugodott');
   assert.equal((a.lockdown?.until ?? 0) > 72_000, false, 'a lejárt zárlat nem éledt fel');
 });
+
+test('a szinkronon jött hosztnév ugyanazon a szűrőn megy át, mint a helyben felvett', () => {
+  // A NYELŐ a root-tulajdonú hosts fájl. Egy soremeléses „név” egy
+  // `0.0.0.0 név` sorból két sort csinálna — a másodikat az írja, aki a
+  // blobot: bármely oldal átirányítása, a gép minden böngészőjében. A jelszó
+  // a saját lista lazítására jogosít, erre nem.
+  const [s] = normalizeIncomingSites([{
+    id: 'a', domain: 'youtube.com', addedAt: 1,
+    hostnames: ['youtube.com', 'a\n1.2.3.4 login.mybank.com', 'YouTube.com', 'http://x.com/p', 42, 'youtu.be'],
+  }]);
+  assert.deepEqual(s.hostnames, ['youtube.com', 'youtu.be'], 'csak a kanonikus nevek maradnak');
+
+  // A domain is hosztnév-alakú kell legyen — különben a rekord egészében kimarad.
+  const out = normalizeIncomingSites([
+    { id: 'b', domain: 'nem jó\nsor', addedAt: 1, hostnames: ['x.com'] },
+    { id: 'c', domain: 'Reddit.com', addedAt: 1, hostnames: ['reddit.com'] },
+    { id: 'd', domain: 'reddit.com', addedAt: 1, hostnames: ['reddit.com'],
+      rules: [{ host: 'reddit.com', path: '/r/x' }, { host: 'reddit.com', path: 'nincs-per' }, 'szemét', null] },
+  ]);
+  assert.deepEqual(out.map((x) => x.id), ['d']);
+  assert.deepEqual(out[0].rules, [{ host: 'reddit.com', path: '/r/x' }], 'a szabályokból is csak a jó alak');
+});
+
+test('a crafted blob a másik gép hosts fájljába sem jut el', async () => {
+  // Végig a valódi úton: a „támadó” eszköz a saját állapotából tolja fel a
+  // szemetet (a helyi lista feltöltése nem szűr — a saját gépén az ő baja), a
+  // másik gép lehúzza, fésüli — és a neve nem kerülhet a blokklistájába.
+  const evil = device([site({
+    id: 'site_evil', domain: 'evil.example',
+    hostnames: ['evil.example', 'evil.example\n1.2.3.4 login.mybank.com'],
+  })]);
+  await signIn(evil, url, ACCOUNT, PW2, 'Rossz gép');
+  await syncNow(evil, 80_000);
+
+  const victim = device();
+  await signIn(victim, url, ACCOUNT, PW2, 'Munkagép');
+  await syncNow(victim, 81_000);
+  const got = victim.sites.find((s) => s.id === 'site_evil');
+  assert.ok(got, 'a rekord maga átjön — az oldal érvényes');
+  assert.deepEqual(got!.hostnames, ['evil.example'], 'a soremeléses név nem');
+  for (const s of victim.sites) {
+    for (const h of s.hostnames) assert.doesNotMatch(h, /\s/, `szóköz vagy soremelés a listában: ${JSON.stringify(h)}`);
+  }
+});

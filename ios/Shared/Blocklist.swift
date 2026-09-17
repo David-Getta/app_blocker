@@ -39,6 +39,14 @@ enum Blocklist {
         return domainRegex.firstMatch(in: s, range: range) != nil ? s : nil
     }
 
+    /// Kanonikus hosztnév-e (kisbetűs, séma és út nélkül, csak név). A
+    /// szinkronon jött neveket ezen a szűrőn engedjük át: ami nem ilyen, az
+    /// nem a másik mag írása, hanem szemét — és a gépen a hosts fájlba menne.
+    static func isCanonicalHostname(_ s: String) -> Bool {
+        let range = NSRange(s.startIndex..<s.endIndex, in: s)
+        return domainRegex.firstMatch(in: s, range: range) != nil
+    }
+
     static func expandHostnames(_ domain: String, usePreset: Bool) -> [String] {
         var set: Set<String> = [domain, "www.\(domain)", "m.\(domain)"]
         if usePreset, let extra = presets[domain] { set.formUnion(extra) }

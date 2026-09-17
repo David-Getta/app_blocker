@@ -15,6 +15,8 @@
 // akkor újra az 2. lépéstől. Így két eszköz párhuzamos írása sosem tünteti el a
 // másikét.
 
+import type { UrlRule } from '../shared/urlrules';
+import { normalizeHostname } from '../shared/blocklist';
 import * as crypto from 'crypto';
 import {
   decrypt, encrypt, enroll, recoveryAuthKey, rewrapForNewPassword, subKey, rootKey,
@@ -321,7 +323,10 @@ export function normalizeIncomingSites(parsed: unknown): SyncSite[] {
   // szerkezetileg azonos lista különbözőnek látszana pusztán a kulcsok
   // sorrendje miatt, és a szinkron minden körben fölöslegesen feltöltene.
   return parsed
-    .filter((s) => s && typeof s.id === 'string' && typeof s.domain === 'string')
+    .filter((s) => s && typeof s.id === 'string' && s.id
+      // A DOMAIN is hosztnév-alakú kell legyen — ugyanaz a szűrő, mint a
+      // helyben felvett oldalé. Ami nem az, az nem oldal: a rekord kimarad.
+      && typeof s.domain === 'string' && normalizeHostname(s.domain) === s.domain)
     .map((s) => cleanSite(s));
 }
 
@@ -343,8 +348,45 @@ function cleanMarks(raw: unknown, hostnames: string[], rev: number): Record<stri
 }
 
 /** Egy szinkron-rekord kanonikus alakja: fix mezők, fix sorrend. */
+/**
+ * A szinkronon jött hosztnevek — UGYANAZON a szűrőn, mint a helyben felvettek.
+ *
+ * Ez nem kozmetika, hanem a root-tulajdonú hosts fájl őre. Ezek a nevek
+ * változatlanul kerülnek a `0.0.0.0 név` sorokba; egy soremelést tartalmazó
+ * „név” tetszőleges további sort írna a fájlba — bármely oldal átirányítását,
+ * a gép minden böngészőjében. A blob titkosított, tehát ehhez a fiók jelszava
+ * kell; de a jelszó a SAJÁT blokklista lazítására jogosít (ez kimondott
+ * korlát), nem arra, hogy a gép névfeloldását átírja. Minden más út
+ * (add_site, set_hostname) ugyanezen a szűrőn megy át — a szinkron eddig nem.
+ */
+function cleanHostnames(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  const out: string[] = [];
+  for (const h of raw) {
+    if (typeof h !== 'string') continue;
+    const clean = normalizeHostname(h);
+    // Csak a már kanonikus alak megy át: amit a szűrő ÁTÍRNA (nagybetű,
+    // séma, út), az nem a másik mag írása, hanem szemét — a magok kanonikus
+    // alakban írnak.
+    if (clean === null || clean !== h || out.includes(clean)) continue;
+    out.push(clean);
+  }
+  return out;
+}
+
+/** Egy részleges szabály a dróton: hoszt és `/`-rel kezdődő út, mindkettő szöveg. */
+function cleanRules(raw: unknown): SyncSite['rules'] {
+  if (!Array.isArray(raw)) return undefined;
+  return raw
+    .filter((r): r is UrlRule => !!r && typeof r === 'object'
+      && typeof (r as UrlRule).host === 'string' && normalizeHostname((r as UrlRule).host) === (r as UrlRule).host
+      && typeof (r as UrlRule).path === 'string' && (r as UrlRule).path.startsWith('/')
+      && (r as UrlRule).path.length <= 512 && !/[\s]/.test((r as UrlRule).path))
+    .map((r) => ({ host: r.host, path: r.path }));
+}
+
 function cleanSite(s: Record<string, unknown>): SyncSite {
-  const hostnames = Array.isArray(s.hostnames) ? (s.hostnames as string[]) : [];
+  const hostnames = cleanHostnames(s.hostnames);
   const rev = Number.isFinite(s.rev) ? (s.rev as number) : 1;
   const marks = cleanMarks(s.hostnameMarks, hostnames, rev);
   return {
@@ -364,7 +406,7 @@ function cleanSite(s: Record<string, unknown>): SyncSite {
     // Ezért NEM alakítjuk üres tömbbé — az azt jelentené, hogy minden szabály
     // törölve, és egy frissítetlen telefon a fiókban csendben letörölné a gépen
     // felvetteket (lásd merge.ts `mergeRules`).
-    rules: Array.isArray(s.rules) ? (s.rules as SyncSite['rules']) : undefined,
+    rules: cleanRules(s.rules),
     rev: Number.isInteger(s.rev) ? (s.rev as number) : 1,
     updatedAt: Number.isFinite(s.updatedAt) ? (s.updatedAt as number) : 0,
     updatedBy: typeof s.updatedBy === 'string' ? s.updatedBy : '',

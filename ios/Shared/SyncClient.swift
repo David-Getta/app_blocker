@@ -305,7 +305,8 @@ enum SyncClient {
             var remote: [SyncMerge.SyncSite] = []
             if let blob = pulled["payload"] as? String {
                 let text = try SyncCrypto.decrypt(key, blob)
-                remote = (try? JSONDecoder().decode([SyncMerge.SyncSite].self, from: Data(text.utf8))) ?? []
+                remote = SyncMerge.cleanIncoming(
+                    (try? JSONDecoder().decode([SyncMerge.SyncSite].self, from: Data(text.utf8))) ?? [])
             }
             let mine = toSyncSites(current.sites)
             let merged = SyncMerge.mergeLists(mine, remote)

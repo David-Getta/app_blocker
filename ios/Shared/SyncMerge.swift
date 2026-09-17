@@ -404,4 +404,23 @@ enum SyncMerge {
         if a.addedAt != b.addedAt { return a.addedAt < b.addedAt }
         return a.id < b.id
     }
+
+    /// A kívülről jött rekordok szűrése: a domain és a hosztnevek ugyanazon a
+    /// szűrőn, mint a helyben felvett oldal. Ami nem hosztnév-alakú, az nem a
+    /// másik mag írása, hanem szemét — a gépen ezek a nevek a root-tulajdonú
+    /// hosts fájlba mennek. A rossz domainű rekord egészében kimarad.
+    static func cleanIncoming(_ sites: [SyncSite]) -> [SyncSite] {
+        sites.compactMap { s in
+            guard !s.id.isEmpty, Blocklist.isCanonicalHostname(s.domain) else { return nil }
+            var copy = s
+            var seen = Set<String>()
+            copy.hostnames = s.hostnames.filter { h in
+                guard Blocklist.isCanonicalHostname(h), !seen.contains(h) else { return false }
+                seen.insert(h)
+                return true
+            }
+            return copy
+        }
+    }
+
 }

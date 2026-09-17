@@ -57,6 +57,19 @@ class SyncWireFormatTest {
     )
 
     @Test
+    fun `a szinkronon jott hosztnev csak kanonikus alakban megy at`() {
+        // A gépen ezek a nevek a root-tulajdonú hosts fájlba mennek: egy
+        // soremeléses „név” idegen sort írna bele. A telefon nem ír hosts
+        // fájlt, de tovább hordozná a szemetet — itt is szűrünk.
+        val json = """[{"id":"a","domain":"youtube.com","hostnames":["youtube.com","a\n1.2.3.4 login.mybank.com","YouTube.com","youtu.be"],""" +
+            """"addedAt":1,"pendingDeleteAt":null,"rev":1,"updatedAt":0,"updatedBy":"x"},""" +
+            """{"id":"b","domain":"nem jo\nsor","hostnames":["x.com"],"addedAt":1,"pendingDeleteAt":null,"rev":1,"updatedAt":0,"updatedBy":"x"}]"""
+        val sites = SyncClient.sitesFromJson(json)
+        assertEquals(listOf("a"), sites.map { it.id }, "a rossz domainű rekord egészében kimarad")
+        assertEquals(listOf("youtube.com", "youtu.be"), sites[0].hostnames)
+    }
+
+    @Test
     fun `the uploaded shape matches what the other cores expect`() {
         val json = SyncClient.sitesToJson(listOf(SyncMerge.SyncSite(
             id = "s1", domain = "youtube.com", hostnames = listOf("youtube.com", "youtu.be"),

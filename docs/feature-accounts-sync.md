@@ -56,6 +56,15 @@ többi eszköz átveszi. Ez a nem megbízható kiszolgáló ára; a részletek �
 hogy mit változtat (a lécet root helyett a jelszó ismeretére viszi), a
 `docs/architecture.md` megkerülési listájában.
 
+Amire a jelszó viszont NEM jogosít, és ezt a kód tartja, nem a doksi: a
+szinkronon jött hosztnév nem kerülhet változatlanul a gép root-tulajdonú
+hosts fájljába. Minden beérkező név ugyanazon a szűrőn megy át, mint a
+helyben felvett (kanonikus hosztnév-alak, se szóköz, se soremelés), és a
+blokk kiírása maga is elutasítja a rossz alakot — egy soremeléses „név”
+különben tetszőleges `IP név` sort írhatott volna a fájlba, vagyis bármely
+oldal átirányítását. A jelszó a SAJÁT lista lazítására jogosít; a gép
+névfeloldásának átírására nem.
+
 ## Az összefésülés szabálya
 
 Minden oldal-rekord hordoz egy `rev` számlálót (minden módosításnál nő) és egy

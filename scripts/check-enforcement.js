@@ -787,6 +787,30 @@ const WIRES = [
     needle: 'liveLockdown(s.lockdown, Date.now())',
     lost: 'a híd nem adná ki a zárlat végét, a bővítmény semmit nem tudna róla',
   },
+  // A HOSTS FÁJL ŐREI. A szinkronon jött hosztnevek a root-tulajdonú hosts
+  // fájlba mennek; egy soremeléses „név” tetszőleges sort írna bele — bármely
+  // oldal átirányítását. Két háló: a forrásnál (a szinkron beolvasója) és a
+  // nyelőnél (a blokk kiírása). Egyik kiesése sem hasal el sehol.
+  {
+    file: 'desktop/src/helper/sync-client.ts',
+    needle: 'cleanHostnames(s.hostnames)',
+    lost: 'a szinkronon jött hosztnév szűrés nélkül menne a hosts fájlba',
+  },
+  {
+    file: 'desktop/src/shared/blocklist.ts',
+    needle: 'if (normalizeHostname(h) !== h) continue;',
+    lost: 'a hosts-blokk kiírása bármilyen szöveget sorként írna a fájlba',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/SyncClient.kt',
+    needle: '.filter { Blocklist.isCanonicalHostname(it) }',
+    lost: 'a telefon a szinkronon jött szemét-hosztnevet tovább hordozná a gép felé',
+  },
+  {
+    file: 'ios/Shared/SyncClient.swift',
+    needle: 'SyncMerge.cleanIncoming(',
+    lost: 'az iPhone a szinkronon jött szemét-hosztnevet tovább hordozná a gép felé',
+  },
 ];
 
 /**
