@@ -267,21 +267,39 @@ async function main() {
     // Az engedélyezett feltöltő lapján mérünk: a lap előtérben van, a
     // csatorna azonosított — a másodperceknek gyűlniük kell. A kiírást a lap
     // elrejtése váltja ki (láthatóság-váltás), mert a valóságban is az.
+    //
+    // KÖRÖKBEN, nem egy rögzített várakozással: a mérő csak akkor számol, ha
+    // a lap látszik ÉS fókuszban van, a kiírás pedig egy üzenet a háttérnek,
+    // ami egy terhelt futtatón később ér oda. Egy rögzített 3,5 + 0,5
+    // másodperc a CI-n időnként üres tárat talált, pedig a mérő jó — a lap
+    // csak még nem kapott fókuszt, vagy az írás még úton volt. Minden kör
+    // legalább egy másodpercet gyűjt, aztán elrejti a lapot és megvárja az
+    // írást; ami az első körben nem jött össze, a másodikban igen.
     await page.goto(`${base}/watch?v=goodvid1234`);
-    await page.bringToFront();
-    await page.waitForTimeout(3500);
-    await seeder.bringToFront();
-    await page.waitForTimeout(500);
-    const timeState = await seeder.evaluate(async () => {
+    const readTime = () => seeder.evaluate(async () => {
       const got = await chrome.storage.local.get('breaker.chantime');
       return JSON.stringify(got['breaker.chantime'] ?? {});
     });
+    let timeState = '{}';
+    for (let round = 0; round < 5 && !timeState.includes('@jo'); round++) {
+      await page.bringToFront();
+      await page.evaluate(() => window.focus());
+      await page.waitForTimeout(1800);
+      await seeder.bringToFront(); // a lap elrejtése váltja ki a kiírást
+      for (let i = 0; i < 10 && !timeState.includes('@jo'); i++) {
+        await seeder.waitForTimeout(300);
+        timeState = await readTime();
+      }
+    }
     const measured = timeState.includes('@jo');
     check(measured, 'a csatorna-idő gyűlik az engedélyezett csatorna lapján');
     if (!measured) console.log(`   (a mért állapot: ${timeState})`);
-    await seeder.reload();
-    await seeder.waitForTimeout(400);
-    const optText = await seeder.evaluate(() => document.body.innerText);
+    let optText = '';
+    for (let i = 0; i < 8 && !optText.includes('@jo'); i++) {
+      await seeder.reload();
+      await seeder.waitForTimeout(400);
+      optText = await seeder.evaluate(() => document.body.innerText);
+    }
     check(optText.includes('Melyik csatorna vitte az időt?') && optText.includes('@jo'),
       'a beállítás-lap mutatja a csatorna-időt');
     await page.bringToFront();
