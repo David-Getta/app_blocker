@@ -44,45 +44,44 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A böngésző is tud a zárlatról.** A bővítmény tiltó lapja eddig
-          minden esetben azt írta a lábába, merre van a lazítás útja az
-          appban — feloldás, a menet leállítása, új csatorna —, és hogy
-          próbatételbe kerül. Zárlat alatt pont ez az út nincs. Mostantól a
-          láb ilyenkor a zárlatról beszél, a hátralévő idővel, és a zárlat
-          lejártakor visszaáll a rendes szövegre; a felugró lap is kimondja.
-          A gyorsbillentyűs rétegben futó menet alatt zárlatkor nincs
-          leállító gomb — egy szürke, letiltott gomb azt sugallná, hogy van
-          út, csak most nem. Nincs út; a láb kimondja.
+          **Zárlat-ablak: heti sáv, amiben a zárlat magától él.** A zárlat
+          egyszeri döntés; aki a munkanapjait akarja védeni, annak minden
+          reggel újra el kellene indítania — és pont reggel a legkönnyebb
+          nem. Az ablak (például hétköznap 9-től 17-ig) ezt leveszi róla: a
+          kör az ablak végéig szóló zárlatot ír, pontosan azt, amit kézzel is
+          lehet — ugyanaz a kapu, ugyanaz a sáv, ugyanaz a tiltó lap, a
+          telefonon is. Felvenni ingyen; levenni vagy szűkíteni próbatétel,
+          és csak az ablakon kívül, mert bent zárlat van. Az egész hét nem
+          zárható le: legalább egy szabad óra marad, különben az ablak csapda
+          lenne. Az ablak zárlatát az alvás nem tolja el (az ablak vége az
+          ablak vége), a fiókon át a többi eszközre is átér, és a levétel a
+          saját jelével jön — egy másik eszköz csomag-szerkesztése nem
+          támasztja fel. A telefonok mutatják és érvényesítik; felvenni és
+          levenni a gépen lehet: a Zárlat kártyán, a „Heti ablak felvétele”
+          gombbal.
 
-          **A szinkron megnyugszik a lejárt zárlat után.** Az első változat a
-          lejárt zárlatot nem vitte fel, de a kiszolgálóról jövőt hűen
-          átvette — a kettő minden körben különbözött, és a segéd tíz
-          percenként „változást” látott, mentett, újraírta a hosts fájlt.
-          Nem kibúvó, csak fölösleges munka — mindhárom platformon javítva.
+          **Androidon a zárlat is felmegy.** A „van-e mit feltölteni” kulcsból
+          lemaradt maga a zárlat, tehát egy csak a telefonon indított zárlat
+          nem ért át a többi eszközre. Javítva.
 
-          **A kiadás feltöltése újrapróbál.** A GitHub feltöltő végpontja
-          néha 500-at ad; a v0.4.32 ezért először APK nélkül ment ki. Most
-          három kísérlet van, növekvő várakozással.
+          ### Ami a v0.4.33-ban jött
 
-          ### Ami a v0.4.32-ben jött
+          **A böngésző is tud a zárlatról.** A bővítmény tiltó lapja zárlat
+          alatt a zárlatról beszél, a hátralévő idővel, nem a feloldás
+          útjáról; a felugró lap és a gyorsbillentyűs réteg is kimondja.
+
+          **A szinkron megnyugszik a lejárt zárlat után** — a lejárt zárlat
+          a határon nem számít, a kör nem ír fölöslegesen.
+
+          **A kiadás feltöltése újrapróbál** a GitHub 500-as hibáira.
+
+          #### Ami a v0.4.32-ben jött
 
           **Zárlat: amikor a lazítás nem drága, hanem nincs.** Egy általad
           megadott ideig (1 órától 7 napig) az app EL SEM INDÍT próbatételt
-          lazításra: nincs feloldás, keret-emelés, adag-lazítás,
-          szabály-levétel, menet-leállítás. Blokkolni, szigorítani, menetet
-          indítani közben is lehet, hosszabbítani ingyen; rövidíteni vagy
-          visszavonni sehogy. A többi eszközre is átér, az óra átállítása sem
-          rövidíti meg. Indításhoz ki kell írni a ZÁRLAT szót. Őszintén: ez
-          nem gépzár — rendszergazdaként a háttérszolgáltatás leállítható;
-          az impulzus ellen véd.
-
-          **Adag-szabály mellett a mérés nem kapcsolható ki** — a kikapcsolás
-          eddig próbatétel nélkül hatástalanította az adagot.
-
-          #### Ami a v0.4.31-ben jött
-
-          **Adag-szabály: öt perc használat, öt perc szünet — két koppintás,**
-          és az androidos párbeszédbe is lehet saját percet írni.
+          lazításra. Hosszabbítani ingyen; rövidíteni vagy visszavonni
+          sehogy. A többi eszközre is átér, az óra átállítása sem rövidíti
+          meg. Őszintén: ez nem gépzár — az impulzus ellen véd.
 
           NOTES
           fi
