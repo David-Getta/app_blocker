@@ -1,4 +1,5 @@
 import hu.breaker.app.core.FocusSync
+import hu.breaker.app.core.LockdownLogic
 import hu.breaker.app.core.SyncClient
 import hu.breaker.app.core.SyncMerge
 import org.json.JSONArray
@@ -49,7 +50,11 @@ class MergeFixtureTest {
         }
         val marks = (f.packMarks ?: emptyMap()).toSortedMap().entries.joinToString(",") { "${it.key}=${it.value}" }
         val run = f.run?.let { "${it.packId}/${it.startedAt}/${it.endsAt}" } ?: "-"
-        return "packs=[$packs] run=$run marks=[$marks] rev=${f.rev} at=${f.updatedAt} by=${f.updatedBy}"
+        val lock = f.lockdown?.let { "${it.startedAt}/${it.until}" } ?: "-"
+        // Az ablakok TARTALOM szerint, rendezve: az azonosító és a sorrend nem jelentés.
+        val windows = f.lockdownWindows.map { LockdownLogic.windowKey(it.band) }.sorted().joinToString(";")
+        return "packs=[$packs] run=$run marks=[$marks] rev=${f.rev} at=${f.updatedAt} by=${f.updatedBy}" +
+            " lock=$lock windows=[$windows] wmark=${f.lockdownWindowsRev ?: 0}"
     }
 
     private fun site(o: JSONObject): SyncMerge.SyncSite =

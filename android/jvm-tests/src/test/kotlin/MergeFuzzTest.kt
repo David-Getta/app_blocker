@@ -1,5 +1,6 @@
 import hu.breaker.app.core.Focus
 import hu.breaker.app.core.FocusSync
+import hu.breaker.app.core.LockdownLogic
 import hu.breaker.app.core.ScheduleLogic
 import hu.breaker.app.core.SyncMerge
 import kotlin.test.Test
@@ -63,6 +64,13 @@ class MergeFuzzTest {
     private val packIds = listOf("p1", "p2", "p3", "p4")
     private val win = ScheduleLogic.Band(setOf(1, 2, 3, 4, 5), 540, 720)
 
+    /** Az ablakok készlete — a gép merge-random.ts WINDOWS párja. */
+    private val WINDOWS = listOf(
+        ScheduleLogic.Band(setOf(1, 2, 3, 4, 5), 540, 1020),
+        ScheduleLogic.Band(setOf(1), 1320, 360),
+        ScheduleLogic.Band(setOf(0, 6), 0, 1440),
+    )
+
     private fun randomFocus(r: Lcg, device: String): FocusSync.SyncFocus {
         val kept = packIds.filter { r.next() < 0.6 }
         val packs = kept.map { id ->
@@ -88,9 +96,26 @@ class MergeFuzzTest {
             Focus.FocusRun(packId, startedAt, endsAt)
         } else null
         val updatedAt = 100L + (r.next() * 5).toInt()
+        // A ZÁRLAT ÉS AZ ABLAKOK A JELÜKKEL — kilenc húzás, mind feltétel
+        // nélkül, ugyanebben a sorrendben, mint a gép merge-random.ts-e.
+        val lockDraw = r.next()
+        val lockStart = 100L + (r.next() * 3).toInt()
+        val lockEnd = 1_000L + 500L * (r.next() * 3).toInt()
+        val lockdown = if (lockDraw < 0.3) LockdownLogic.Lockdown(lockStart, lockEnd) else null
+        val hasWindows = r.next() < 0.5
+        val drawn = WINDOWS.filter { r.next() < 0.5 }
+        val windows = if (hasWindows) {
+            drawn.mapIndexed { i, w -> LockdownLogic.LockdownWindow("w${i + 1}@$device", w.days, w.startMin, w.endMin) }
+        } else {
+            emptyList()
+        }
+        val markDraw = r.next()
+        val markValue = minOf(1 + (r.next() * 5).toInt(), rev)
+        val windowsRev = if (windows.isNotEmpty() || markDraw < 0.3) markValue else null
         return FocusSync.SyncFocus(
             packs = packs, run = run, rev = rev.toLong(), updatedAt = updatedAt, updatedBy = device,
             packMarks = marks.ifEmpty { null },
+            lockdown = lockdown, lockdownWindows = windows, lockdownWindowsRev = windowsRev,
         )
     }
 
@@ -112,7 +137,9 @@ class MergeFuzzTest {
         }
         val marks = (f.packMarks ?: emptyMap()).toSortedMap().entries.joinToString(",") { "${it.key}=${it.value}" }
         val run = f.run?.let { "${it.packId}/${it.startedAt}/${it.endsAt}" } ?: "-"
-        return "$packs|$marks|$run|${f.rev}"
+        val lock = f.lockdown?.let { "${it.startedAt}/${it.until}" } ?: "-"
+        val windows = f.lockdownWindows.map { LockdownLogic.windowKey(it.band) }.sorted().joinToString(";")
+        return "$packs|$marks|$run|${f.rev}|$lock|$windows|${f.lockdownWindowsRev ?: 0}"
     }
 
     @Test

@@ -13,6 +13,7 @@ import * as assert from 'node:assert/strict';
 import { mergeSite, type SyncSite } from '../src/shared/sync/merge';
 import { mergeFocus, type SyncFocus } from '../src/shared/sync/focus-merge';
 import { DEVICES, randomFocus, randomSite, rng } from './merge-random';
+import { windowKey } from '../src/shared/lockdown';
 
 /**
  * A NEVEK és a JELEIK — ezek fésülődnek nevenként. A rekord többi mezője
@@ -64,6 +65,10 @@ function focusKey(f: SyncFocus, runIds: Set<string>): string {
       : [p.id, p.name, [...p.allowSites].sort(), [...p.allowApps].sort(), p.defaultMinutes, p.recurrence ?? null])),
     f.packMarks ? Object.entries(f.packMarks).sort() : null,
     f.run, f.rev,
+    // A zárlat és az ablakok a jelükkel — tartalom szerint, rendezve.
+    f.lockdown ?? null,
+    (f.lockdownWindows ?? []).map(windowKey).sort(),
+    f.lockdownWindowsRev ?? null,
   ]);
 }
 

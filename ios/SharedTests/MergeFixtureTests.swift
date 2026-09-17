@@ -74,7 +74,11 @@ final class MergeFixtureTests: XCTestCase {
         let marks = (f.packMarks ?? [:]).sorted { $0.key < $1.key }
             .map { "\($0.key)=\($0.value)" }.joined(separator: ",")
         let run = f.run.map { "\($0.packId)/\(int($0.startedAt))/\(int($0.endsAt))" } ?? "-"
+        let lock = f.lockdown.map { "\(int($0.startedAt))/\(int($0.until))" } ?? "-"
+        // Az ablakok TARTALOM szerint, rendezve: az azonosító és a sorrend nem jelentés.
+        let windows = (f.lockdownWindows ?? []).map { LockdownLogic.windowKey($0.band) }.sorted().joined(separator: ";")
         return "packs=[\(packs)] run=\(run) marks=[\(marks)] rev=\(int(f.rev)) at=\(int(f.updatedAt)) by=\(f.updatedBy)"
+            + " lock=\(lock) windows=[\(windows)] wmark=\(f.lockdownWindowsRev ?? 0)"
     }
 
     func testSitesMergeTheSameAsTheDesktop() throws {

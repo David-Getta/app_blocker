@@ -10,6 +10,7 @@ import type { SyncSite } from '../src/shared/sync/merge';
 import { emptyFocus, type SyncFocus } from '../src/shared/sync/focus-merge';
 import type { FocusPack } from '../src/shared/focus';
 import type { Band } from '../src/shared/schedule';
+import { windowKey, type LockdownWindow } from '../src/shared/lockdown';
 
 /** Determinisztikus véletlen (LCG): a mag a hibaüzenetben áll, a bukás megismételhető. */
 export function rng(seed: number): () => number {
@@ -44,6 +45,16 @@ export function randomSite(r: () => number, device: string): SyncSite {
 
 export const PACK_IDS = ['p1', 'p2', 'p3', 'p4'];
 export const WIN: Band = { days: [1, 2, 3, 4, 5], startMin: 540, endMin: 720 };
+/**
+ * A zárlat-ablakok készlete. Az azonosító eszközönként más (`w1@gep-a`): a
+ * tartalom szerinti unió így az azonosító-ütközés helyett a KULCS szerinti
+ * összevonást járja be — a megfelelőségi kulcs a tartalmat nézi.
+ */
+export const WINDOWS: Omit<LockdownWindow, 'id'>[] = [
+  { days: [1, 2, 3, 4, 5], startMin: 540, endMin: 1020 },
+  { days: [1], startMin: 1320, endMin: 360 },
+  { days: [0, 6], startMin: 0, endMin: 1440 },
+];
 
 export function randomFocus(r: () => number, device: string): SyncFocus {
   const packs: FocusPack[] = PACK_IDS.filter(() => r() < 0.6).map((id) => ({
@@ -65,9 +76,28 @@ export function randomFocus(r: () => number, device: string): SyncFocus {
         endsAt: 610_000 + 60_000 * Math.floor(r() * 2),
       }
     : null;
+  const updatedAt = 100 + Math.floor(r() * 5);
+  // A ZÁRLAT (magasvízjel) ÉS AZ ABLAKOK A JELÜKKEL — kilenc húzás, mind
+  // feltétel nélkül, ugyanebben a sorrendben a három nyelvben: a
+  // magasvízjel vége csak pár értéket vesz fel (döntetlen), az ablakok egy
+  // háromelemű készletből jönnek, a jel legfeljebb a blob rev-je.
+  const lockDraw = r();
+  const lockStart = 100 + Math.floor(r() * 3);
+  const lockEnd = 1_000 + 500 * Math.floor(r() * 3);
+  const lockdown = lockDraw < 0.3 ? { startedAt: lockStart, until: lockEnd } : undefined;
+  const hasWindows = r() < 0.5;
+  const drawn = WINDOWS.filter(() => r() < 0.5);
+  const windows: LockdownWindow[] = hasWindows
+    ? drawn.map((w, i) => ({ id: `w${i + 1}@${device}`, ...w })) : [];
+  const markDraw = r();
+  const markValue = Math.min(1 + Math.floor(r() * 5), rev);
+  const windowsRev = windows.length > 0 || markDraw < 0.3 ? markValue : undefined;
   return {
     ...emptyFocus(device), packs, ...(Object.keys(marks).length ? { packMarks: marks } : {}),
-    run, rev, updatedAt: 100 + Math.floor(r() * 5), updatedBy: device,
+    run, rev, updatedAt, updatedBy: device,
+    ...(lockdown ? { lockdown } : {}),
+    ...(windows.length > 0 ? { lockdownWindows: windows } : {}),
+    ...(windowsRev !== undefined ? { lockdownWindowsRev: windowsRev } : {}),
   };
 }
 
@@ -95,5 +125,9 @@ export function focusConformanceKey(f: SyncFocus): string {
   const marks = Object.entries(f.packMarks ?? {}).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
     .map(([k, v]) => `${k}=${v}`).join(',');
   const run = f.run ? `${f.run.packId}/${f.run.startedAt}/${f.run.endsAt}` : '-';
-  return `packs=[${packs}] run=${run} marks=[${marks}] rev=${f.rev} at=${f.updatedAt} by=${f.updatedBy}`;
+  const lock = f.lockdown ? `${f.lockdown.startedAt}/${f.lockdown.until}` : '-';
+  // Az ablakok TARTALOM szerint, rendezve: az azonosító és a sorrend nem jelentés.
+  const windows = (f.lockdownWindows ?? []).map(windowKey).sort().join(';');
+  return `packs=[${packs}] run=${run} marks=[${marks}] rev=${f.rev} at=${f.updatedAt} by=${f.updatedBy}`
+    + ` lock=${lock} windows=[${windows}] wmark=${f.lockdownWindowsRev ?? 0}`;
 }

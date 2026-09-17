@@ -58,6 +58,12 @@ private func siteKey(_ s: SyncMerge.SyncSite) -> String {
 
 private let packIds = ["p1", "p2", "p3", "p4"]
 private let win = ScheduleLogic.Band(days: [1, 2, 3, 4, 5], startMin: 540, endMin: 720)
+/// Az ablakok készlete — a gép merge-random.ts WINDOWS párja.
+private let windowPool: [ScheduleLogic.Band] = [
+    ScheduleLogic.Band(days: [1, 2, 3, 4, 5], startMin: 540, endMin: 1020),
+    ScheduleLogic.Band(days: [1], startMin: 1320, endMin: 360),
+    ScheduleLogic.Band(days: [0, 6], startMin: 0, endMin: 1440),
+]
 
 private func randomFocus(_ r: inout Lcg, _ device: String) -> FocusSync.SyncFocus {
     var kept: [String] = []
@@ -92,9 +98,32 @@ private func randomFocus(_ r: inout Lcg, _ device: String) -> FocusSync.SyncFocu
     }
     let rev = Double(revInt)
     let updatedAt = Double(100 + Int(r.next() * 5))
+    // A ZÁRLAT ÉS AZ ABLAKOK A JELÜKKEL — kilenc húzás, mind feltétel nélkül,
+    // ugyanebben a sorrendben, mint a gép merge-random.ts-e.
+    let lockDraw = r.next()
+    let lockStart = Double(100 + Int(r.next() * 3))
+    let lockEnd = Double(1_000 + 500 * Int(r.next() * 3))
+    let lockdown: LockdownLogic.Lockdown? = lockDraw < 0.3
+        ? LockdownLogic.Lockdown(startedAt: lockStart, until: lockEnd) : nil
+    let hasWindows = r.next() < 0.5
+    var drawn: [ScheduleLogic.Band] = []
+    for w in windowPool {
+        if r.next() < 0.5 { drawn.append(w) }
+    }
+    var windows: [LockdownLogic.LockdownWindow] = []
+    if hasWindows {
+        for (i, w) in drawn.enumerated() {
+            windows.append(LockdownLogic.LockdownWindow(id: "w\(i + 1)@\(device)", days: w.days,
+                                                        startMin: w.startMin, endMin: w.endMin))
+        }
+    }
+    let markDraw = r.next()
+    let markValue = min(1 + Int(r.next() * 5), revInt)
+    let windowsRev: Int? = (!windows.isEmpty || markDraw < 0.3) ? markValue : nil
     return FocusSync.SyncFocus(
         packs: packs, run: run, log: [], rev: rev, updatedAt: updatedAt, updatedBy: device,
-        packMarks: marks.isEmpty ? nil : marks
+        packMarks: marks.isEmpty ? nil : marks, lockdown: lockdown,
+        lockdownWindows: windows.isEmpty ? nil : windows, lockdownWindowsRev: windowsRev
     )
 }
 
@@ -112,7 +141,9 @@ private func focusKey(_ f: FocusSync.SyncFocus, runIds: Set<String>) -> String {
     let marks = (f.packMarks ?? [:]).sorted { $0.key < $1.key }
         .map { "\($0.key)=\($0.value)" }.joined(separator: ",")
     let run = f.run.map { "\($0.packId)/\($0.startedAt)/\($0.endsAt)" } ?? "-"
-    return "\(packs)|\(marks)|\(run)|\(f.rev)"
+    let lock = f.lockdown.map { "\($0.startedAt)/\($0.until)" } ?? "-"
+    let windows = (f.lockdownWindows ?? []).map { LockdownLogic.windowKey($0.band) }.sorted().joined(separator: ";")
+    return "\(packs)|\(marks)|\(run)|\(f.rev)|\(lock)|\(windows)|\(f.lockdownWindowsRev ?? 0)"
 }
 
 final class MergeFuzzTests: XCTestCase {
