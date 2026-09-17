@@ -23,6 +23,20 @@ odapillantás belefér, a belefeledkezés nem.
   másodpercek különben újraindítanák a hűtést), és egy elkésett, régi minta
   nem gyárthat hamis pihenőt (a `lastAt` nem lép hátra).
 
+## Felület
+
+- Az oldal sorában egy **Adag** gomb nyitja a párbeszédet. Két sor: *ennyi
+  használat után…* és *…ennyi szünet*.
+- Kínált értékek: adagnak 2 / 5 / 10 / 15 / 30 perc, szünetnek 5 / 10 / 15 /
+  30 / 60 / 120 perc — és **mindkettőhöz saját érték is beírható** (1 perctől
+  egy napig), a gépen és a telefonon egyaránt. Az öt perces szünet azért van a
+  gombok között, mert a rövid ütem a leggyakoribb kérés (öt perc használat,
+  utána öt perc szünet); a telefonon korábban gomb sem volt rá, és saját
+  mező sem — vagyis ugyanaz a szabály két eszközön két különböző dolgot
+  engedett.
+- A sorban futó mérce mutatja, mennyi van még az adagból, hűtés alatt pedig
+  azt, mikor nyílik ki magától.
+
 ## Súrlódás — ugyanaz az irány, mint mindenhol
 
 | Művelet | Ára |

@@ -87,6 +87,36 @@ test('az adag betelik, indul a hűtés, a számláló nulláról jön vissza', (
   assert.equal(isCoolingDown(st, T0 + 60_000 + 600_000), false, 'a hűtés magától lejár');
 });
 
+test('öt perc használat, öt perc szünet — a kért ütem végig, percről percre', () => {
+  // A felhasználó szava szerint: a Geminit csak öt percig lehessen használni,
+  // utána öt percig tiltsa le. Ez a teszt pont ezt az ütemet járja végig, hogy
+  // a gombokon kínált érték tényleg azt csinálja, amit ígér.
+  const rule = normalizeBurst(5 * 60, 5 * 60)!;
+  assert.deepEqual(rule, { burstSeconds: 300, cooldownSeconds: 300 });
+
+  let st: BurstState | undefined;
+  // Négy perc használat: még nyitva.
+  for (let i = 0; i < 4; i++) st = noteBurstUsage(rule, st, 60, T0 + i * 60_000);
+  assert.equal(st!.cooldownUntil, 0, 'négy perc még belefér');
+
+  // Az ötödik perc betelíti az adagot: indul az öt perc szünet.
+  st = noteBurstUsage(rule, st, 60, T0 + 4 * 60_000);
+  assert.equal(st!.cooldownUntil, T0 + 4 * 60_000 + 5 * 60_000);
+  assert.equal(st!.usedSeconds, 0, 'a számláló nulláról jön vissza');
+
+  // A szünet alatt zárva, a végén magától kinyílik — nem kell hozzá semmit tenni.
+  assert.equal(isCoolingDown(st, T0 + 6 * 60_000), true);
+  assert.equal(isCoolingDown(st, st!.cooldownUntil - 1), true);
+  assert.equal(isCoolingDown(st, st!.cooldownUntil), false, 'a szünet végén magától nyit');
+
+  // A szünet után megint öt perc jár — az ütem ismétlődik, nem szigorodik.
+  const after = st!.cooldownUntil;
+  for (let i = 0; i < 4; i++) st = noteBurstUsage(rule, st, 60, after + i * 60_000);
+  assert.equal(st!.cooldownUntil, after, 'négy perc után még nincs új szünet');
+  st = noteBurstUsage(rule, st, 60, after + 4 * 60_000);
+  assert.equal(st!.cooldownUntil, after + 4 * 60_000 + 5 * 60_000);
+});
+
 test('hűtés alatt a minta nem számít — a hibalapon ülve mért idő nem hosszabbít', () => {
   let st = noteBurstUsage(RULE, undefined, 120, T0); // azonnal betelik
   const until = st.cooldownUntil;

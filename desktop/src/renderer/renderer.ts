@@ -2007,7 +2007,10 @@ function limitMeter(site: SiteInfo, duringPause: boolean): HTMLElement {
 const LIMIT_CHOICES_MIN = [10, 20, 30, 45, 60, 90, 120];
 /** Az adag jellemzően rövid (percek), a szünet hosszabb — a gyors gombok ezt tükrözik. */
 const BURST_CHOICES_MIN = [2, 5, 10, 15, 30];
-const COOLDOWN_CHOICES_MIN = [10, 15, 30, 60, 120];
+// Az ÖT PERC azért van benne, mert a rövid ütem a leggyakoribb kérés: öt perc
+// használat, aztán öt perc szünet. Az egyéni mező eddig is elvitte, de amit
+// gombbal nem lehet beállítani, azt a felhasználó nem találja meg.
+const COOLDOWN_CHOICES_MIN = [5, 10, 15, 30, 60, 120];
 
 /**
  * Az adag-szabály sora: mennyi fér még a mostani adagba, vagy meddig hűt.

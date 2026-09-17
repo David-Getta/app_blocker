@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -56,6 +57,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -1140,8 +1142,40 @@ private fun LimitMeter(
 
 private val LIMIT_CHOICES_MIN = listOf(10, 20, 30, 45, 60, 90, 120)
 /** Az adag jellemzően rövid, a szünet hosszabb — a gyors gombok ezt tükrözik. */
+/**
+ * Perc-mező a gombsorok mellé: ami nincs a gombokon, azt is be lehessen írni.
+ *
+ * A gépen ez mindig ott volt, a telefonon nem — vagyis ugyanaz a szabály két
+ * eszközön két különböző dolgot engedett. Egy önuralom-appban ez a rosszabbik
+ * fajta eltérés: a felhasználó a gyengébb eszközhöz igazítja a szabályt.
+ *
+ * Üres mező = nincs érték (a „nincs adag-szabály” állapot), a felső korlát a
+ * magé. A nullát és a szemetet nem vesszük fel: abból fél-kitöltött szabály
+ * lenne, és olyan nincs.
+ */
+@Composable
+private fun MinuteField(value: Int?, max: Int, label: String, onValue: (Int?) -> Unit) {
+    var text by remember(value) { mutableStateOf(value?.toString() ?: "") }
+    OutlinedTextField(
+        value = text,
+        onValueChange = { raw ->
+            val digits = raw.filter { it.isDigit() }.take(4)
+            text = digits
+            val n = digits.toIntOrNull()
+            onValue(if (n == null || n <= 0) null else minOf(n, max))
+        },
+        label = { Text(label) },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        modifier = Modifier.fillMaxWidth(),
+    )
+}
+
 private val BURST_CHOICES_MIN = listOf(2, 5, 10, 15, 30)
-private val COOLDOWN_CHOICES_MIN = listOf(10, 15, 30, 60, 120)
+// Az ÖT PERC azért van benne, mert a rövid ütem a leggyakoribb kérés: öt perc
+// használat, aztán öt perc szünet. A gépen az egyéni mező eddig is elvitte, a
+// telefonon viszont GOMB SEM volt rá — vagyis a telefon gyengébb volt.
+private val COOLDOWN_CHOICES_MIN = listOf(5, 10, 15, 30, 60, 120)
 
 /**
  * Részleges szabályok: nem az egész oldal, csak egy darabja.
@@ -1381,6 +1415,12 @@ private fun BurstDialog(
                         }
                     }
                 }
+                MinuteField(
+                    value = burstMin,
+                    max = BurstLogic.MAX_BURST_MINUTES,
+                    label = "vagy saját érték (perc)",
+                    onValue = { burstMin = it },
+                )
                 Text("…ennyi szünet:", style = MaterialTheme.typography.labelMedium)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     for (min in COOLDOWN_CHOICES_MIN) {
@@ -1391,6 +1431,12 @@ private fun BurstDialog(
                         }
                     }
                 }
+                MinuteField(
+                    value = coolMin,
+                    max = BurstLogic.MAX_COOLDOWN_MINUTES,
+                    label = "vagy saját érték (perc)",
+                    onValue = { coolMin = it },
+                )
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     if (burstMin == null && coolMin == null) {
                         Button(onClick = { burstMin = null; coolMin = null }) { Text("Nincs adag-szabály") }
