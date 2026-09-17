@@ -178,7 +178,9 @@ jobs:
             esac
             case "$f" in *.dmg|*.exe) installers=$((installers + 1)) ;; esac
             echo "feltöltés: $f"
-            gh release upload "$VERSION" "$f" --repo "$GITHUB_REPOSITORY" --clobber
+            # Újrapróbálással: a feltöltő végpont időnként 500-at ad, és a
+            # második kísérlet átmegy (lásd scripts/release-upload.sh).
+            bash ../../scripts/release-upload.sh "$VERSION" "$f"
           done
           [ "$installers" -gt 0 ] || { echo "nem épült telepítő" >&2; exit 1; }
           # A frissítés ezen a manifesten áll vagy bukik; ha nincs, ne adjunk ki
@@ -201,9 +203,7 @@ jobs:
       - name: Feltöltés
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release upload "$VERSION" "Breaker-bovitmeny-${VERSION}.zip" \
-            --repo "$GITHUB_REPOSITORY" --clobber
+        run: bash scripts/release-upload.sh "$VERSION" "Breaker-bovitmeny-${VERSION}.zip"
 
   android:
     name: Android APK + AAB
@@ -257,10 +257,12 @@ jobs:
           APK=$(find app/build/outputs/apk/release -name "*.apk" | head -n1)
           AAB=$(find app/build/outputs/bundle/release -name "*.aab" | head -n1)
           cp "$APK" "Breaker-${VERSION}.apk"
-          gh release upload "$VERSION" "Breaker-${VERSION}.apk" --repo "$GITHUB_REPOSITORY" --clobber
+          # Újrapróbálással — a v0.4.32 pont itt bukott egy GitHub-oldali 500-on,
+          # és a kiadás APK nélkül ment ki (lásd scripts/release-upload.sh).
+          bash ../scripts/release-upload.sh "$VERSION" "Breaker-${VERSION}.apk"
           if [ -n "$AAB" ]; then
             cp "$AAB" "Breaker-${VERSION}.aab"
-            gh release upload "$VERSION" "Breaker-${VERSION}.aab" --repo "$GITHUB_REPOSITORY" --clobber
+            bash ../scripts/release-upload.sh "$VERSION" "Breaker-${VERSION}.aab"
           fi
       # Opcionális: automatikus Play Store feltöltés az internal track-re. Csak
       # akkor fut, ha be van állítva a PLAY_SERVICE_ACCOUNT_JSON secret.
