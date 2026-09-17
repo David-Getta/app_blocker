@@ -13,6 +13,7 @@ import {
   formatRemaining, MAX_SESSION_MINUTES, SESSION_CHOICES_MIN,
   type FocusPack, type FocusRun,
 } from '../shared/focus.js';
+import { formatLockdownRemaining, isLocked, type Lockdown } from '../shared/lockdown.js';
 
 /**
  * Amit a rétegnek a hídból ismernie kell.
@@ -35,7 +36,16 @@ const bridge = (window as unknown as { breaker: OverlayBridge }).breaker;
 interface Status {
   focusPacks: FocusPack[];
   focusRun: FocusRun | null;
+  /** a futó zárlat, ha van — alatta a leállítás útja sincs */
+  lockdown?: Lockdown | null;
   now: number;
+}
+
+/** A zárlat sora a rétegben, vagy null, ha nincs zárlat. */
+function lockdownLine(st: Status): string | null {
+  if (!isLocked(st.lockdown, Date.now())) return null;
+  return `Zárlat: még ${formatLockdownRemaining(st.lockdown!.until - Date.now())} — `
+    + 'leállítani, feloldani, lazítani most nem lehet. Indítani és hosszabbítani igen.';
 }
 
 const $ = (id: string): HTMLElement => document.getElementById(id) as HTMLElement;
@@ -123,7 +133,7 @@ function render(): void {
   }
 
   if (run && run.endsAt > Date.now()) {
-    $('kicker').textContent = 'Fut';
+    $('kicker').textContent = lockdownLine(status) === null ? 'Fut' : 'Fut · zárlat';
     const pack = status.focusPacks.find((p) => p.id === run.packId);
     $('title').textContent = pack?.name ?? 'Munkamenet';
 
@@ -144,22 +154,29 @@ function render(): void {
       b.addEventListener('click', () => void extend(min));
       row.appendChild(b);
     }
-    const stop = h('button', 'ghost', 'Leállítás…');
-    stop.addEventListener('click', () => {
-      // Az appban van a próbatétel. Innen nem lehet leállítani, mert akkor a
-      // munkamenet egy billentyűkombináció lenne — a gomb tehát ELŐHOZZA az
-      // appot, nem csak bezárja a réteget.
-      void bridge.showMain();
-    });
-    row.appendChild(stop);
+    const locked = lockdownLine(status);
+    if (locked === null) {
+      const stop = h('button', 'ghost', 'Leállítás…');
+      stop.addEventListener('click', () => {
+        // Az appban van a próbatétel. Innen nem lehet leállítani, mert akkor a
+        // munkamenet egy billentyűkombináció lenne — a gomb tehát ELŐHOZZA az
+        // appot, nem csak bezárja a réteget.
+        void bridge.showMain();
+      });
+      row.appendChild(stop);
+    }
     body.appendChild(row);
 
-    foot.textContent = extWarning()
-      ?? 'Hosszabbítani ingyen van. Leállítani az appban lehet, próbatétellel.';
+    // Zárlat alatt nincs leállító gomb — egy szürke, letiltott gomb azt
+    // sugallná, hogy van út, csak most épp nem. Nincs út; a láb kimondja —
+    // a bővítmény-figyelmeztetés MELLETT, nem helyette: az egyik sem
+    // hallgattathatja el a másikat.
+    foot.textContent = [extWarning(), locked].filter((t) => t !== null).join(' ')
+      || 'Hosszabbítani ingyen van. Leállítani az appban lehet, próbatétellel.';
     return;
   }
 
-  $('kicker').textContent = 'Munkamenet';
+  $('kicker').textContent = lockdownLine(status) === null ? 'Munkamenet' : 'Munkamenet · zárlat';
   if (choosing) {
     $('title').textContent = choosing.name;
     const box = h('div', 'running');

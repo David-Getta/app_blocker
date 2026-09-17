@@ -369,6 +369,35 @@ async function main() {
         'a tiltó lap adag-nyelven magyaráz és visszaszámol');
     }
 
+    // ZÁRLAT ALATT a lap NEM ígér feloldást: a láb a zárlatról beszél, nem az
+    // appbeli próbatételről — az az út most nincs. A vég a linkkel együtt
+    // utazik a tárban; a lap a címparaméterből kapja.
+    await seeder.evaluate(
+      (arg) => chrome.storage.local.set({
+        'breaker.applink': {
+          ...arg.link, closed: arg.closed, lockdown: arg.lockdown, fetchedAt: arg.fetchedAt,
+        },
+      }),
+      {
+        link: LINK,
+        closed: [{ host: '127.0.0.1', reason: 'cooldown', until: Date.now() + 600_000 }],
+        lockdown: { until: Date.now() + 3 * 24 * 3600_000 },
+        fetchedAt: Date.now(),
+      },
+    );
+    await page.goto(`${base}/?zarlat`).catch(() => { /* a navigációt elkapja a tiltás */ });
+    const lockBlocked = await waitForBrowserUrl(
+      page, context, /blocked\.html\?.*lockdownUntil=\d+/, WAIT_MS,
+    );
+    check(!!lockBlocked, 'zárlat alatt a tiltó lap címe hordozza a zárlat végét');
+    if (lockBlocked && /blocked\.html/.test(page.url())) {
+      const text = await bodyText(page);
+      check(text.includes('Zárlat van érvényben') && !text.includes('próbatételbe kerül'),
+        'a tiltó lap zárlat alatt a zárlatról beszél, nem ígér próbatételt');
+    }
+    // Vissza a zárlat nélküli állapotra, hogy a következő eset tiszta lappal induljon.
+    await seedClosed([], Date.now());
+
     // A szünet LETELTEKOR a lap utat ad vissza: a visszaszámláló helyén link
     // az eredeti címre. A lap magától nem navigál — a linken át a döntés
     // úgyis újra lefut, tehát egy közben újraindult hűtés vissza is fogná.

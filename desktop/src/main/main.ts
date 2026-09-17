@@ -7,6 +7,7 @@
 import { app, BrowserWindow, ipcMain, Menu } from 'electron';
 import { registerSyncServerIpc } from './sync-server';
 import { extensionSeenRecently, registerRulesBridge, stopRulesBridge } from './rules-bridge-ipc';
+import { liveLockdown } from '../shared/lockdown';
 import {
   hideOverlay, takeWarning, toggleOverlay, unregisterOverlayShortcut, warnAboutApp,
 } from './overlay';
@@ -289,6 +290,14 @@ if (HELPER_MODE) {
             }
           }
           return out;
+        },
+        async () => {
+          // A ZÁRLAT vége, ha fut. A tiltó lap enélkül azt írná, hogy az
+          // appban feloldható, próbatétellel — zárlat alatt pont ez az út
+          // nincs, és a lap ne ígérjen olyat, ami nem létezik.
+          const s = await sharedStatus();
+          const l = liveLockdown(s.lockdown, Date.now());
+          return l ? { until: l.until } : null;
         },
       );
       // Keep the tracker's view of the switch fresh without extra IPC chatter.

@@ -17,6 +17,13 @@ async function render() {
   state.textContent = d.state.text;
   state.className = `row ${d.state.kind === 'fresh' ? 'ok' : d.state.kind === 'unlinked' ? 'muted' : 'warn'}`;
 
+  const lock = $('lockdown');
+  lock.hidden = d.lockdown === null;
+  if (d.lockdown) {
+    lock.textContent = `Zárlat: még ${d.lockdown.left}. Amíg tart, feloldás, keret-emelés és `
+      + 'szabály-levétel sehol nem indítható — próbatétellel sem.';
+  }
+
   const focus = $('focus');
   focus.hidden = d.focus === null;
   if (d.focus) {

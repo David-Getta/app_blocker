@@ -24,6 +24,7 @@ interface Popup {
   describePopup: (link: unknown, now: number, freshMs: number) => {
     state: { kind: string; text: string };
     fresh: boolean;
+    lockdown: { left: string } | null;
     focus: { name: string; left: string; allowed: number; window: boolean } | null;
     closed: { host: string; reason: string; left: string | null }[];
     closedMore: number;
@@ -146,4 +147,29 @@ test('idő-szövegek: perc alatt „az imént”, óra fölött kerekítve', () 
   assert.equal(p.spanText(1), '1 p');
   assert.equal(p.spanText(89 * 60_000), '89 p');
   assert.equal(p.spanText(150 * 60_000), 'kb. 3 ó');
+});
+
+test('zárlat: összekötve és tart — a sor beszél; lejárt vagy összekötetlen — hallgat', () => {
+  const { describePopup } = load();
+  const live = describePopup(link({ lockdown: { until: NOW + 3 * 3600_000 } }), NOW, FRESH);
+  assert.deepEqual(live.lockdown, { left: 'kb. 3 ó' });
+
+  // Frissesség NÉLKÜL is: a zárlat csak hosszabbodhat, egy régi lehúzás vége
+  // is igaz alsó becslés. (A zárva-lista ebben más — az elavul.)
+  const stale = describePopup(
+    link({ lockdown: { until: NOW + 3 * 3600_000 }, fetchedAt: NOW - 10 * 60_000 }), NOW, FRESH,
+  );
+  assert.deepEqual(stale.lockdown, { left: 'kb. 3 ó' }, 'elavult listánál is szól');
+
+  const over = describePopup(link({ lockdown: { until: NOW - 1 } }), NOW, FRESH);
+  assert.equal(over.lockdown, null, 'a lejárt zárlat nem zárlat');
+
+  const unlinked = describePopup(link({ token: '', lockdown: { until: NOW + 3600_000 } }), NOW, FRESH);
+  assert.equal(unlinked.lockdown, null, 'összekötetlenül nem beszélünk az app állapotáról');
+});
+
+test('idő-szöveg napokban: a hetes zárlat nem „kb. 168 ó”', () => {
+  const { spanText } = load();
+  assert.equal(spanText(7 * 24 * 3600_000), 'kb. 7 nap');
+  assert.equal(spanText(47 * 3600_000), 'kb. 47 ó', 'két nap alatt marad az óra');
 });

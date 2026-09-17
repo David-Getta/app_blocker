@@ -180,3 +180,15 @@ test('a zárva lévő oldalak okostul lemennek a hídon — üresen is mező mar
   const none = await answer(deps(), 'GET', '/rules', { [TOKEN_HEADER]: 'ABCD-EFGH' });
   assert.deepEqual((none.body as { closed: unknown }).closed, []);
 });
+
+test('a zárlat vége is átmegy a hídon — nélküle null, hogy a lap ne ígérjen feloldást', async () => {
+  // A tiltó lap lába alapból azt mondja, hogy az appban feloldható, próbatétellel.
+  // Zárlat alatt pont ez az út nincs — a lapnak tudnia kell róla.
+  const withLock = { ...deps(), getLockdown: async () => ({ until: 1_800_000_000_000 }) };
+  const r = await answer(withLock, 'GET', '/rules', { [TOKEN_HEADER]: 'ABCD-EFGH' });
+  assert.equal(r.status, 200);
+  assert.deepEqual((r.body as { lockdown: unknown }).lockdown, { until: 1_800_000_000_000 });
+
+  const r2 = await answer(deps(), 'GET', '/rules', { [TOKEN_HEADER]: 'ABCD-EFGH' });
+  assert.equal((r2.body as { lockdown: unknown }).lockdown, null, 'zárlat nélkül null, nem hiányzó mező');
+});

@@ -769,6 +769,24 @@ const WIRES = [
     needle: 'mergeLockdown(local.lockdown, incoming.lockdown)',
     lost: 'a zárlat a fésülésben elveszne, és a régebbi állapot feloldana',
   },
+  // A tiltó lap zárlat alatt NEM ígérhet feloldást. Ha a vég nem jutna el a
+  // lapra, a láb azt írná, hogy az appban próbatétellel feloldható — pedig
+  // zárlat alatt pont az az út nincs. Nem hibás tiltás, hanem hazug lap.
+  {
+    file: 'extension/background.js',
+    needle: 'const lockUntil = lockdownUntil(link, now);',
+    lost: 'a tiltó lap zárlat alatt is próbatételt ígérne',
+  },
+  {
+    file: 'extension/blocked.js',
+    needle: "paintFoot(document.getElementById('closedFoot'), t.foot)",
+    lost: 'a tiltó lap lába zárlat alatt is a feloldás útját mondaná',
+  },
+  {
+    file: 'desktop/src/main/main.ts',
+    needle: 'liveLockdown(s.lockdown, Date.now())',
+    lost: 'a híd nem adná ki a zárlat végét, a bővítmény semmit nem tudna róla',
+  },
 ];
 
 /**

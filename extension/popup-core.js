@@ -13,6 +13,8 @@ export const CLOSED_SHOWN = 8;
 
 export function spanText(ms) {
   const min = Math.ceil(ms / 60000);
+  // A zárlat napokban is mérhet; „kb. 168 ó” senkinek nem mond semmit.
+  if (min >= 2 * 1440) return `kb. ${Math.round(min / 1440)} nap`;
   if (min >= 90) return `kb. ${Math.round(min / 60)} ó`;
   return `${Math.max(min, 1)} p`;
 }
@@ -60,6 +62,11 @@ export function describePopup(link, now, freshMs) {
     }
     : null;
 
+  // A ZÁRLAT: összekötve, és még tart. Frissesség nélkül — a zárlat csak
+  // hosszabbodhat, egy régebbi vég is igaz alsó becslés (lásd app-link.js).
+  const lu = Number(link?.lockdown?.until);
+  const lockdown = linked && Number.isFinite(lu) && lu > now ? { left: spanText(lu - now) } : null;
+
   let state;
   if (!linked) {
     state = { kind: 'unlinked', text: 'Nincs összekötve az appal — a Beállításokban add meg a kódot.' };
@@ -81,6 +88,7 @@ export function describePopup(link, now, freshMs) {
   return {
     state,
     fresh,
+    lockdown,
     focus,
     closed: closed.slice(0, CLOSED_SHOWN),
     closedMore: Math.max(0, closed.length - CLOSED_SHOWN),

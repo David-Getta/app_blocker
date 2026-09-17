@@ -48,6 +48,14 @@ szigorítás.
   a felső sávban minden nézetben ott az ok és a hátralévő idő.
 - **Androidon és iPhone-on:** ugyanaz — sáv legfelül, kártya a statisztika
   után.
+- **A böngésző-bővítményben:** a tiltó lap lába zárlat alatt nem azt írja, hogy
+  „az appban feloldható, próbatétellel” — mert az az út most nincs —, hanem a
+  zárlatot és a hátralévő időt. A felugró lap is kimondja. A zárlat vége a hídon
+  megy le; a frissesség-szabály itt más, mint a zárva-listánál: a zárlat csak
+  hosszabbodhat, tehát egy régebbi lehúzás vége is igaz alsó becslés.
+- **A gyorsbillentyűs rétegben:** futó menet alatt nincs leállító gomb — egy
+  szürke, letiltott gomb azt sugallná, hogy van út, csak most nem —, a láb a
+  zárlatról beszél.
 
 A párbeszédben hossz választható (1 óra, 3 óra, 8 óra, 1 nap, 3 nap, 7 nap),
 és **ki kell írni a ZÁRLAT szót**. Ez nem biztonsági elem — aki idáig eljutott,

@@ -91,7 +91,10 @@ tudná, miért fut); mi van
 szabály és csatorna-szűrő él. Ugyanabból a tárolt állapotból beszél, amiből a
 tiltó lap, és ugyanazokkal a szabályokkal: a zárva-lista csak három
 lehúzásnyi ideig számít frissnek, a lejárt bejegyzés nem zárás, a munkamenet
-lejáratát helyben nézi. Összekötetlenül az app állapotáról nem beszél. A
+lejáratát helyben nézi. Összekötetlenül az app állapotáról nem beszél. Ha az
+appban **zárlat** van, azt is kimondja a hátralévő idővel — és itt a
+frissesség-szabály más: a zárlat csak hosszabbodhat, tehát egy régebbi
+lehúzás vége is igaz alsó becslés. A
 Beállítások gomb a beállítási lapra visz — minden, ami módosítás, ott van.
 
 ## Mit csinál pontosan
@@ -134,6 +137,13 @@ valamit, amit a felhasználó nem tiltott le.
    És csak friss adatból beszél: ha az app nem elérhető, vagy a bejegyzés
    ideje lejárt, a lap inkább hallgat, mint hogy zárva-t mondjon egy már
    kinyílt oldalra.
+
+6. **Zárlat alatt nem ígér feloldást.** Minden tiltó lap lába alapból azt
+   mondja, merre van a lazítás útja az appban (feloldás, a menet leállítása,
+   új csatorna) — és hogy próbatételbe kerül. Zárlat alatt pont ez az út
+   nincs, ezért a láb a zárlatról beszél, a hátralévő idővel; a zárlat
+   lejártakor visszaáll a rendes szövegre. A vég a hídon jön le az apptól,
+   minden lehúzással.
 
 ## Fájlok
 

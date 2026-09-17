@@ -6,6 +6,41 @@
 const params = new URLSearchParams(location.search);
 const focus = params.get('focus');
 
+// A hosszú várakozás emberi léptékben: perc, óra, nap — mindig „kb.”, mert a
+// percre kerekítésnél pontosabbat úgysem ígérhetünk. Itt fent, mert a zárlat
+// és a zárva-lap is ezt használja.
+const roughly = (min) => {
+  if (min >= 2 * 1440) return `kb. ${Math.round(min / 1440)} nap`;
+  if (min >= 90) return `kb. ${Math.round(min / 60)} óra`;
+  return `kb. ${Math.max(min, 1)} perc`;
+};
+
+// A ZÁRLAT vége, ha az app zárlatban van. Amíg tart, a lap nem ígérhet
+// feloldást: a szokásos „az appban, próbatétellel” láb hazugság lenne, mert
+// zárlat alatt pont az az út nincs. Nem drágább — nincs.
+const lockdownUntil = Number(params.get('lockdownUntil'));
+const lockdownText = () => {
+  const ms = lockdownUntil - Date.now();
+  if (!Number.isFinite(lockdownUntil) || ms <= 0) return null;
+  return `Zárlat van érvényben: még ${roughly(Math.ceil(ms / 60000))}. Amíg tart, ezt semmilyen `
+    + 'próbatétellel nem lehet feloldani — az appban sem. Szigorítani lehet, lazítani nem.';
+};
+/**
+ * A láb szövege: zárlat alatt a zárlaté, különben a `fallback`. Félpercenként
+ * újranéz — és a zárlat LEJÁRTAKOR visszaáll a rendes lábra, különben a lap az
+ * ellenkező irányba hazudna: egy már nem létező zárlatot mondana.
+ */
+const paintFoot = (el, fallback) => {
+  let timer = null;
+  const paint = () => {
+    const t = lockdownText();
+    el.textContent = t ?? fallback;
+    if (t === null && timer !== null) clearInterval(timer);
+  };
+  paint();
+  if (lockdownText() !== null) timer = setInterval(paint, 30_000);
+};
+
 if (focus) {
   document.getElementById('focusCard').hidden = false;
   document.getElementById('focusName').textContent = focus;
@@ -27,6 +62,10 @@ if (focus) {
   el.textContent = left();
   // Percenként frissül: egy beragadt szám azt sugallná, hogy nem telik az idő.
   setInterval(() => { el.textContent = left(); }, 30_000);
+  // Zárlat alatt a menet leállítása sem indítható — a láb ezt mondja, nem a
+  // próbatétel útját.
+  const focusFoot = document.getElementById('focusFoot');
+  paintFoot(focusFoot, focusFoot.textContent);
 } else if (params.get('closedReason')) {
   // Az EGÉSZ oldal zárva (a tiltást a DNS tartja; ez a lap csak megmondja,
   // miért). Az ok négyféle, és a lap mind a négyről a maga nyelvén beszél —
@@ -35,13 +74,6 @@ if (focus) {
   document.getElementById('closedCard').hidden = false;
   document.getElementById('closedHost').textContent = params.get('closedHost') || 'ez az oldal';
   const until = Number(params.get('until'));
-  // A hosszú várakozás emberi léptékben: perc, óra, nap — mindig „kb.”, mert
-  // a percre kerekítésnél pontosabbat úgysem ígérhetünk.
-  const roughly = (min) => {
-    if (min >= 2 * 1440) return `kb. ${Math.round(min / 1440)} nap`;
-    if (min >= 90) return `kb. ${Math.round(min / 60)} óra`;
-    return `kb. ${Math.max(min, 1)} perc`;
-  };
   const texts = {
     cooldown: {
       title: 'Adag betelt — most szünet van.',
@@ -86,7 +118,9 @@ if (focus) {
   const t = texts[params.get('closedReason')] ?? texts.always;
   document.getElementById('closedTitle').textContent = t.title;
   document.getElementById('closedBody').textContent = t.body;
-  document.getElementById('closedFoot').textContent = t.foot;
+  // A láb alapból a feloldás útját mondja; zárlat alatt a zárlatot — az út
+  // most nincs, és ezt a lapnak ki kell mondania, nem elhallgatnia.
+  paintFoot(document.getElementById('closedFoot'), t.foot);
   if (t.left && Number.isFinite(until) && until > 0) {
     const el = document.getElementById('closedLeft');
     el.hidden = false;
@@ -121,6 +155,9 @@ if (focus) {
   document.getElementById('channelKey').textContent = params.get('channel');
   document.getElementById('channelHost').textContent =
     params.get('channelHost') || 'ez az oldal';
+  // Zárlat alatt új csatornát sem lehet engedélyezni — a láb ezt mondja.
+  const channelFoot = document.getElementById('channelFoot');
+  paintFoot(channelFoot, channelFoot.textContent);
   if (params.get('by') === 'video') {
     // A kulcs nem a címből jött, hanem a lap saját adatából: a videó
     // feltöltőjéből. Ezt ki kell mondani, különben az ember a címben keresné

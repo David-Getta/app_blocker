@@ -33,6 +33,8 @@ function loadClosed(): {
   cleanClosed: (list: unknown) => { host: string; reason: string; until: number }[];
   closedFor: (link: unknown, host: unknown, now?: number) =>
     { host: string; reason: string; until: number } | null;
+  cleanLockdown: (raw: unknown) => { until: number } | null;
+  lockdownUntil: (link: unknown, now?: number) => number;
 } {
   const src = fs.readFileSync(path.join(extensionDir(), 'app-link.js'), 'utf8');
   const pick = (re: RegExp, what: string): string => {
@@ -43,13 +45,17 @@ function loadClosed(): {
   const constSrc = pick(/export const CLOSED_FRESH_MS = [^;]+;/, 'CLOSED_FRESH_MS');
   const cleanSrc = pick(/function cleanClosed\(list\) \{[\s\S]*?\n\}/, 'cleanClosed');
   const forSrc = pick(/export function closedFor\(link, host[\s\S]*?\n\}/, 'closedFor');
+  // A zárlat két függvénye ugyanebből a modulból, ugyanígy kivágva.
+  const lockCleanSrc = pick(/function cleanLockdown\(raw\) \{[\s\S]*?\n\}/, 'cleanLockdown');
+  const lockUntilSrc = pick(/export function lockdownUntil\(link[\s\S]*?\n\}/, 'lockdownUntil');
   // eslint-disable-next-line no-new-func
   return new Function(
-    `${constSrc}\n${cleanSrc}\n${forSrc}\nreturn { CLOSED_FRESH_MS, cleanClosed, closedFor };`,
+    `${constSrc}\n${cleanSrc}\n${forSrc}\n${lockCleanSrc}\n${lockUntilSrc}\n`
+    + 'return { CLOSED_FRESH_MS, cleanClosed, closedFor, cleanLockdown, lockdownUntil };',
   )() as ReturnType<typeof loadClosed>;
 }
 
-const { CLOSED_FRESH_MS, cleanClosed, closedFor } = loadClosed();
+const { CLOSED_FRESH_MS, cleanClosed, closedFor, cleanLockdown, lockdownUntil } = loadClosed();
 const NOW = 1_800_000_000_000;
 
 const link = (over: Record<string, unknown> = {}) => ({
@@ -124,4 +130,28 @@ test('a tárból jövő lista szűrve van: csak az ismert alak megy át', () => 
     { host: 'x.com', reason: 'always', until: 0 },
   ]);
   assert.deepEqual(cleanClosed(undefined), [], 'régi app válasza: nincs mező');
+});
+
+// ------------------------------------------------------------------ zárlat
+//
+// A zárlatnál a frissesség-szabály SZÁNDÉKOSAN más, mint a zárva-listánál: a
+// zárlat csak hosszabbodhat, rövidülni nem, tehát egy régebbi lehúzás vége is
+// igaz alsó becslés. A zárva-lista elavul; a zárlat vége nem.
+
+test('zárlat a tárban: csak a vég, és csak ha szám', () => {
+  assert.deepEqual(cleanLockdown({ until: NOW + 5 }), { until: NOW + 5 });
+  assert.deepEqual(cleanLockdown({ until: '1800000000005', startedAt: 1 }), { until: 1_800_000_000_005 });
+  for (const junk of [null, undefined, 42, 'x', {}, { until: 0 }, { until: -1 }, { until: 'holnap' }]) {
+    assert.equal(cleanLockdown(junk), null, `${JSON.stringify(junk)} nem zárlat`);
+  }
+});
+
+test('zárlatot csak a még tartó vég mond — frissességtől függetlenül', () => {
+  assert.equal(lockdownUntil({ lockdown: { until: NOW + 60_000 } }, NOW), NOW + 60_000);
+  assert.equal(lockdownUntil({ lockdown: { until: NOW - 1 } }, NOW), 0, 'a lejárt nem zárlat');
+  assert.equal(lockdownUntil({}, NOW), 0);
+  assert.equal(lockdownUntil(null, NOW), 0);
+  // Egy órája nem értük el az appot: a zárlat vége attól még igaz alsó becslés.
+  assert.equal(lockdownUntil({ lockdown: { until: NOW + 60_000 }, fetchedAt: NOW - 3600_000 }, NOW),
+    NOW + 60_000, 'elavult kapcsolatnál is szól');
 });

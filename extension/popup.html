@@ -29,6 +29,8 @@
   <h1>Breaker</h1>
   <!-- Összekötve-e az app, és mennyire friss, amit tudunk. -->
   <div id="state" class="row"></div>
+  <!-- A zárlat: amíg tart, feloldás sehol nem indítható. -->
+  <div id="lockdown" class="row warn" hidden></div>
   <!-- A futó munkamenet: név, hátralévő idő, hány cím engedett. -->
   <div id="focus" class="row" hidden></div>
   <!-- Mi van MOST zárva az app szerint — csak friss listából. -->

@@ -15,7 +15,8 @@ import { addSeconds, dayKey, sweepDays } from './chantime.js';
 import { firstMatch, ruleLabel } from './rules-core.js';
 import { activeRules, load, sweep } from './storage.js';
 import {
-  closedFor, dueForRefresh, focusActive, focusAllows, loadLink, pullFromApp, withAppRules,
+  closedFor, dueForRefresh, focusActive, focusAllows, loadLink, lockdownUntil, pullFromApp,
+  withAppRules,
 } from './app-link.js';
 
 /** Csak a főkeret számít: egy beágyazott hirdetés nem „az oldal megnyitása”. */
@@ -38,13 +39,17 @@ async function decide(url) {
   const now = Date.now();
   const state = await load();
   const link = await loadLink();
+  // A ZÁRLAT vége MINDEN találatra rámegy: zárlat alatt egyik lap sem
+  // ígérhet appbeli próbatételt — se a menet leállítását, se új csatornát, se
+  // feloldást. Egyszer számoljuk, itt; a lap címe viszi tovább.
+  const lockUntil = lockdownUntil(link, now);
 
   if (focusActive(link, now)) {
     const host = hostOf(url);
     // A bővítmény SAJÁT lapjai (a tiltó lap, a beállítások) sosem esnek bele:
     // különben a munkamenet alatt nem lehetne megnézni, mi fut és meddig.
     if (host && !focusAllows(link, host)) {
-      return { reason: 'focus', focus: link.focus };
+      return { reason: 'focus', focus: link.focus, lockUntil };
     }
   }
 
@@ -54,18 +59,18 @@ async function decide(url) {
   // és a részleges szabály ELŐTT jön: azok az oldal darabjairól beszélnek, ez
   // meg arról, hogy most az egész zárva — az a tágabb, tehát az az igazabb ok.
   const closed = closedFor(link, hostOf(url), now);
-  if (closed) return { reason: 'closed', closed };
+  if (closed) return { reason: 'closed', closed, lockUntil };
 
   // A CSATORNA-SZŰRŐ: az oldalon csak a felsorolt csatornák nyílnak meg. A
   // sorrend szándékos — a munkamenet erősebb (mindenre szól), a szűrő a
   // részleges szabályok ELŐTT jön, mert konkrétabb okot tud mondani.
   const chan = channelVerdict(url, link.channels);
-  if (chan) return { reason: 'channel', channel: chan };
+  if (chan) return { reason: 'channel', channel: chan, lockUntil };
 
   // Az app szabályai HOZZÁADÓDNAK a sajátokhoz. Ha az app épp nem érhető el, az
   // utoljára letöltött lista marad érvényben — vagyis tovább tilt, nem enged át.
   const rule = firstMatch(withAppRules(activeRules(state, now), link.rules), url);
-  return rule ? { reason: 'rule', rule } : null;
+  return rule ? { reason: 'rule', rule, lockUntil } : null;
 }
 
 /** A cím hosztja, `URL` nélkül — ugyanúgy, ahogy a szabály-mag csinálja. */
@@ -101,6 +106,15 @@ function refreshInBackground() {
 
 /** A tiltó lap címe, a MEGFOGÓ okkal együtt: a lap megnevezi, mi állította meg. */
 function blockedUrl(hit, fromUrl) {
+  const q = blockedParams(hit, fromUrl);
+  // A ZÁRLAT vége minden lapra rámegy, egy helyen: zárlat alatt a lap lába a
+  // zárlatról beszél, nem a próbatétel útjáról — az az út most nincs.
+  if (hit.lockUntil > 0) q.set('lockdownUntil', String(hit.lockUntil));
+  return chrome.runtime.getURL(`blocked.html?${q.toString()}`);
+}
+
+/** A lap paraméterei a találat fajtája szerint. */
+function blockedParams(hit, fromUrl) {
   if (hit.reason === 'focus') {
     const q = new URLSearchParams({
       focus: hit.focus.name || 'Munkamenet',
@@ -108,7 +122,7 @@ function blockedUrl(hit, fromUrl) {
     });
     // A heti ablak menete: a lap mondja ki, hogy nem gombnyomásra indult.
     if (hit.focus.window === true) q.set('window', '1');
-    return chrome.runtime.getURL(`blocked.html?${q.toString()}`);
+    return q;
   }
   if (hit.reason === 'closed') {
     const q = new URLSearchParams({
@@ -122,7 +136,7 @@ function blockedUrl(hit, fromUrl) {
     // majd ellenőrzi újra, mielőtt linket csinál belőle.
     const from = String(fromUrl ?? '');
     if (/^https?:\/\//i.test(from) && from.length <= 2000) q.set('from', from);
-    return chrome.runtime.getURL(`blocked.html?${q.toString()}`);
+    return q;
   }
   if (hit.reason === 'channel') {
     // A lap kiírja, MILYEN kulcsot látott: az engedélyezéshez így nem kell
@@ -132,9 +146,9 @@ function blockedUrl(hit, fromUrl) {
     // feltöltője), a tiltó lap másképp fogalmaz — különben az ember a
     // címben keresné a csatornát, és nem találná.
     if (hit.source === 'video') q.set('by', 'video');
-    return chrome.runtime.getURL(`blocked.html?${q.toString()}`);
+    return q;
   }
-  return chrome.runtime.getURL(`blocked.html?rule=${encodeURIComponent(ruleLabel(hit.rule))}`);
+  return new URLSearchParams({ rule: ruleLabel(hit.rule) });
 }
 
 // Kis, MEMÓRIABELI nyomkövető gyűrű: mit látott a navigáció-figyelő, és mit

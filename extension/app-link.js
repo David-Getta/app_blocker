@@ -77,6 +77,20 @@ function cleanClosed(list) {
     }));
 }
 
+/**
+ * A tárból vagy a hídról jött zárlat használható alakja: `{ until }` vagy null.
+ *
+ * Csak a vég kell. A frissességet SZÁNDÉKOSAN nem nézzük (a zárva-listánál
+ * igen): a zárlat csak hosszabbodni tud, rövidülni nem — egy régebbi lehúzás
+ * vége tehát alsó becslés, és az is igaz marad. Amit nem tudunk, az az, hogy
+ * azóta nem lett-e hosszabb; azt a következő lehúzás hozza.
+ */
+function cleanLockdown(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const until = Number(raw.until);
+  return Number.isFinite(until) && until > 0 ? { until } : null;
+}
+
 /** @returns {Promise<{token: string|null, port: number|null, rules: {host:string,path:string}[], fetchedAt: number, error: string|null}>} */
 export async function loadLink() {
   const got = await chrome.storage.local.get(KEY);
@@ -112,6 +126,7 @@ export async function loadLink() {
     // A MOST zárva lévő hosztnevek, okkal — a tiltó lap ebből magyaráz. A
     // frissessége számít, ezért a döntés nem innen, hanem a `closedFor`-ból jön.
     closed: cleanClosed(raw.closed),
+    lockdown: cleanLockdown(raw.lockdown),
     // Rekordonként tűrünk: egy sérült bejegyzés ne vigye el a többit.
     rules: rules.filter((r) => r && typeof r.host === 'string' && typeof r.path === 'string')
       .map((r) => ({ host: r.host, path: r.path })),
@@ -225,11 +240,13 @@ export async function pullFromApp(now = Date.now(), fetchImpl = fetch, timeoutMs
     // Egy régi app válaszában `closed` sincs — az sem hiba: a tiltó lap ilyenkor
     // egyszerűen nem magyaráz, a DNS pedig ugyanúgy tilt, ahogy eddig.
     const closed = cleanClosed(body?.closed);
+    // A zárlat vége, ha az app tud ilyet — régi app válaszában nincs, az sem hiba.
+    const lockdown = cleanLockdown(body?.lockdown);
     // Az ÜRES lista is válasz: azt jelenti, hogy az appban levették az összeset.
     // Csak akkor fogadjuk el, ha a kérés tényleg sikerült — ha nem érjük el az
     // appot, a régi lista marad érvényben.
-    await saveLink({ ...link, port, rules, focus, channels, closed, fetchedAt: now, error: null });
-    return { ok: true, rules, focus, channels, closed };
+    await saveLink({ ...link, port, rules, focus, channels, closed, lockdown, fetchedAt: now, error: null });
+    return { ok: true, rules, focus, channels, closed, lockdown };
   }
 
   // A PRÓBA idejét megjegyezzük, a szabálylistát viszont nem bántjuk: az app
@@ -313,6 +330,17 @@ export function closedFor(link, host, now = Date.now()) {
     return c;
   }
   return null;
+}
+
+/**
+ * Meddig tart a zárlat (epoch ms), vagy 0, ha nincs vagy lejárt.
+ *
+ * Frissesség nélkül, szándékosan — lásd `cleanLockdown`: a zárlat csak
+ * hosszabbodhat, egy régebbi vég is igaz alsó becslés.
+ */
+export function lockdownUntil(link, now = Date.now()) {
+  const until = Number(link?.lockdown?.until);
+  return Number.isFinite(until) && until > now ? until : 0;
 }
 
 export function withAppRules(localActive, appRules) {
