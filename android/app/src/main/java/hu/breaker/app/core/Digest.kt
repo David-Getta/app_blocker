@@ -66,6 +66,12 @@ object DigestLogic {
         val last7Seconds: Double,
         /** a hét legtöbb idejét vivő oldalak, a legnagyobb elöl */
         val topWeekSites: List<Top>,
+        /**
+         * A hét legtöbb idejét vivő appok, a legnagyobb elöl. A mért idő az
+         * appokat is tartalmazza — ha a legnagyobb egy app, a mondat enélkül
+         * hazudna: „7 óra; a legtöbb: youtube.com 40 perc”.
+         */
+        val topWeekApps: List<Top> = emptyList(),
         /** ez a hét az előzőhöz képest, célonként */
         val weekOverWeek: List<Delta>,
         /** a munkamenetek összegzése az elmúlt 7 napra */
@@ -101,14 +107,22 @@ object DigestLogic {
         val measured = input.daysTracked > 0 && input.last7Seconds > 0
         if (measured) {
             var line = "${hm(input.last7Seconds)} mért idő"
-            val top = input.topWeekSites.firstOrNull()
-            if (top != null && top.seconds > 0) {
-                val trend = input.weekOverWeek.firstOrNull { it.label == top.label }
-                val pct = trend?.deltaPct
-                val delta = if (pct != null && Math.abs(pct) > 5) {
+            // A trend csak öt százalék fölött mondat: alatta zaj, nem irány.
+            fun trendOf(label: String): String {
+                val pct = input.weekOverWeek.firstOrNull { it.label == label }?.deltaPct
+                return if (pct != null && Math.abs(pct) > 5) {
                     " (${if (pct > 0) "▲ +" else "▼ "}${Math.round(pct)}% az előző héthez képest)"
                 } else ""
-                line += "; a legtöbb: ${labelOf(top.label)} ${hm(top.seconds)}$delta"
+            }
+            val top = input.topWeekSites.firstOrNull()
+            if (top != null && top.seconds > 0) {
+                line += "; a legtöbb: ${labelOf(top.label)} ${hm(top.seconds)}${trendOf(top.label)}"
+            }
+            // Az app külön: a telefonon a legtöbb idő appban megy el, nem
+            // oldalon — a mért időben benne van.
+            val app = input.topWeekApps.firstOrNull()
+            if (app != null && app.seconds > 0) {
+                line += "; appban a legtöbb: ${labelOf(app.label)} ${hm(app.seconds)}${trendOf(app.label)}"
             }
             parts.add("$line.")
         }

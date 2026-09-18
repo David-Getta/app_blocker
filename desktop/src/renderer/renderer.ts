@@ -3624,6 +3624,7 @@ function maybeDigest(): void {
   const text = digestText({
     last7Seconds: s.last7Seconds,
     topWeekSites: s.topWeekSites,
+    topWeekApps: s.topWeekApps,
     weekOverWeek: s.weekOverWeek,
     focusWeek: statsData.focusWeek,
     unlocks7d: status.unlocks7d,

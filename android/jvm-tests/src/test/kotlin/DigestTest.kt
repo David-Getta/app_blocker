@@ -96,6 +96,23 @@ class DigestTest {
         assertNull(DigestLogic.text(nothing) { it }, "egy üres értesítés zaj lenne")
     }
 
+    @Test fun `az app is bekerul - a mert idoben benne van, a mondat enelkul hazudna`() {
+        val withApp = full.copy(
+            topWeekApps = listOf(Top("Slack", 3.0 * 3600 + 10 * 60), Top("Terminal", 3600.0)),
+            weekOverWeek = full.weekOverWeek + Delta("Slack", 41.6),
+        )
+        assertEquals(
+            "Elmúlt 7 nap: 7 ó 20 p mért idő; a legtöbb: youtube.com 2 ó 40 p (▼ -33% az előző héthez képest); " +
+                "appban a legtöbb: Slack 3 ó 10 p (▲ +42% az előző héthez képest). " +
+                "9 menet (7 ó 0 p, 2 korán leállítva). 3 feloldás.",
+            DigestLogic.text(withApp) { it },
+        )
+        // Oldal nélkül is: a telefonon lehet, hogy csak app van.
+        val onlyApp = withApp.copy(topWeekSites = emptyList())
+        assertTrue(DigestLogic.text(onlyApp) { it }!!.startsWith("Elmúlt 7 nap: 7 ó 20 p mért idő; appban a legtöbb: Slack 3 ó 10 p"))
+        assertEquals(DigestLogic.text(full) { it }, DigestLogic.text(full.copy(topWeekApps = emptyList())) { it }, "üres lista: mint eddig")
+    }
+
     @Test fun `a nem tiltott, sokat vitt oldal is bekerul - a legnagyobb, a felulet cimkejevel`() {
         val withOpen = full.copy(unblockedTop = listOf(Top("news.ycombinator.com", 2.0 * 3600 + 120), Top("github.com", 1800.0)))
         val text = DigestLogic.text(withOpen) { it }!!

@@ -349,6 +349,7 @@ class BreakerVpnService : VpnService() {
             DigestLogic.Input(
                 last7Seconds = summary.last7Seconds,
                 topWeekSites = summary.topWeekSites.map { DigestLogic.Top(it.label, it.seconds) },
+                topWeekApps = summary.topWeekApps.map { DigestLogic.Top(it.label, it.seconds) },
                 weekOverWeek = summary.weekOverWeek.map { DigestLogic.Delta(it.label, it.deltaPct) },
                 // A napló ablaka a gépével közös: a mai nap kezdete mínusz hat nap.
                 focusWeek = Focus.summarizeFocus(st.focusLog, UsageLogic.startOfDay(now) - 6 * 86_400_000L, now),

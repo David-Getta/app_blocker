@@ -69,6 +69,12 @@ export interface DigestInput {
   last7Seconds: number;
   /** a hét legtöbb idejét vivő oldalak, a legnagyobb elöl */
   topWeekSites: { label: string; seconds: number; blocked?: boolean }[];
+  /**
+   * A hét legtöbb idejét vivő appok, a legnagyobb elöl. Nem kötelező (régi
+   * hívó). A mért idő az appokat is tartalmazza — ha a legnagyobb egy app,
+   * a mondat enélkül hazudna: „7 óra; a legtöbb: youtube.com 40 perc”.
+   */
+  topWeekApps?: { label: string; seconds: number }[];
   /** ez a hét az előzőhöz képest, célonként */
   weekOverWeek: { label: string; thisWeek: number; deltaPct: number | null }[];
   /** a munkamenetek összegzése az elmúlt 7 napra */
@@ -104,13 +110,22 @@ export function digestText(input: DigestInput, labelOf: (label: string) => strin
   const measured = input.daysTracked > 0 && input.last7Seconds > 0;
   if (measured) {
     let line = `${hm(input.last7Seconds)} mért idő`;
-    const top = input.topWeekSites[0];
-    if (top && top.seconds > 0) {
-      const trend = input.weekOverWeek.find((w) => w.label === top.label);
-      const delta = trend && trend.deltaPct !== null && Math.abs(trend.deltaPct) > 5
+    // A trend csak öt százalék fölött mondat: alatta zaj, nem irány.
+    const trendOf = (label: string): string => {
+      const trend = input.weekOverWeek.find((w) => w.label === label);
+      return trend && trend.deltaPct !== null && Math.abs(trend.deltaPct) > 5
         ? ` (${trend.deltaPct > 0 ? '▲ +' : '▼ '}${Math.round(trend.deltaPct)}% az előző héthez képest)`
         : '';
-      line += `; a legtöbb: ${labelOf(top.label)} ${hm(top.seconds)}${delta}`;
+    };
+    const top = input.topWeekSites[0];
+    if (top && top.seconds > 0) {
+      line += `; a legtöbb: ${labelOf(top.label)} ${hm(top.seconds)}${trendOf(top.label)}`;
+    }
+    // Az app külön: a telefonon a legtöbb idő appban megy el, nem oldalon, és
+    // a gépen is lehet, hogy a Slack vitte — a mért időben benne van.
+    const app = input.topWeekApps?.[0];
+    if (app && app.seconds > 0) {
+      line += `; appban a legtöbb: ${labelOf(app.label)} ${hm(app.seconds)}${trendOf(app.label)}`;
     }
     parts.push(`${line}.`);
   }

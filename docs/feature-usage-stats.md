@@ -387,6 +387,12 @@ Az utolsó mondat a tükör másik fele — a felvevő kártya javaslatának a
 legnagyobbja (l. fentebb): ami sokat vitt, és nincs a listán. Csak mért hét
 után, és csak egy név; a többi a kártyán vár, egy kattintásra.
 
+Ha app vitte a legtöbbet — a gépen mondjuk a Slack, a telefonon az Instagram
+appja —, az is ott áll a mért idő után, a saját trendjével: „appban a legtöbb:
+Slack 3 ó 10 p (▲ +42% az előző héthez képest)”. A mért időben az appok is
+benne vannak; enélkül a mondat hazudna („7 óra; a legtöbb: youtube.com 40
+perc” — és a többi hova lett?).
+
 Ugyanaz a hang, mint a statisztikáé: a „korán leállítva” nem szégyenpad, a
 „Feloldás nélkül.” viszont igenis kimondható — ez a mondat vége, ha egy sem
 volt. Ha nincs miről beszélni (se mérés, se menet, se feloldás), nincs

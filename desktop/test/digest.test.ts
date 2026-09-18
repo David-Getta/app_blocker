@@ -78,6 +78,22 @@ test('mérés nélkül a menetek és a feloldások még mondat; semmi nélkül n
   assert.equal(digestText(nothing, (l) => l), null, 'egy üres értesítés zaj lenne');
 });
 
+test('az app is bekerül: a mért időben benne van, a mondat enélkül hazudna', () => {
+  const withApp = {
+    ...full,
+    topWeekApps: [{ label: 'Slack', seconds: 3 * 3600 + 10 * 60 }, { label: 'Terminal', seconds: 3600 }],
+    weekOverWeek: [...full.weekOverWeek, { label: 'Slack', thisWeek: 11400, deltaPct: 41.6 }],
+  };
+  assert.equal(digestText(withApp, (l) => l),
+    'Elmúlt 7 nap: 7 ó 20 p mért idő; a legtöbb: youtube.com 2 ó 40 p (▼ -33% az előző héthez képest); '
+    + 'appban a legtöbb: Slack 3 ó 10 p (▲ +42% az előző héthez képest). '
+    + '9 menet (7 ó 0 p, 2 korán leállítva). 3 feloldás.');
+  // Oldal nélkül is: a telefonon lehet, hogy csak app van.
+  const onlyApp = { ...withApp, topWeekSites: [] };
+  assert.ok(digestText(onlyApp, (l) => l)!.startsWith('Elmúlt 7 nap: 7 ó 20 p mért idő; appban a legtöbb: Slack 3 ó 10 p'));
+  assert.equal(digestText({ ...full, topWeekApps: [] }, (l) => l), digestText(full, (l) => l), 'üres lista: mint eddig');
+});
+
 test('a nem tiltott, sokat vitt oldal is bekerül — a legnagyobb, a felület címkéjével', () => {
   const withOpen = { ...full, unblockedTop: [{ label: 'news.ycombinator.com', seconds: 2 * 3600 + 120 }, { label: 'github.com', seconds: 1800 }] };
   const text = digestText(withOpen, (l) => l)!;

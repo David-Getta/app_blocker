@@ -48,8 +48,9 @@ ingyen van, rövidíteni vagy visszavonni sehogy.
   kikapcsolható és törölhető — egyetlen kivétellel: amíg van beállított napi
   keret, a mérés nem kapcsolható ki, és a törlés a MAI napot meghagyja, mert
   abból fogy a keret. Hétfő reggel az app egy **heti visszatekintést**
-  is küld értesítésben — az elmúlt 7 nap: mért idő, a legtöbb (és a trend),
-  menetek, feloldások, vagy hogy egy sem volt. Egy hétről egyszer; a gépen
+  is küld értesítésben — az elmúlt 7 nap: mért idő, a legtöbb oldal és app
+  (és a trendjük), menetek, feloldások, vagy hogy egy sem volt. Egy hétről
+  egyszer; a gépen
   csak amíg az app fut, Androidon a szűrő szolgáltatása mondja, az app nélkül
   is (iPhone-on nincs); a rejtett vagy fedőnevű címet az értesítés sem mondja
   ki.
