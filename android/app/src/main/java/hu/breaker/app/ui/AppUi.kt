@@ -787,6 +787,8 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                             ?.let { site.domain to it.count }
                     }.sortedByDescending { it.second }
                 },
+                // A keret betelt napjai — ezen a készüléken mérve: dolgozik-e a keret.
+                limitFullDays = LimitLogic.limitFullDays(state.usage, state.sites.map { it.domain to it.dailyLimitSeconds }, now),
                 hasUsageAccess = UsageTracker.hasUsageAccess(context),
                 lastSampleAt = state.usageLastSampleAt,
                 // A heti napló és az élő mondat — ugyanaz a mag, mint a hétfő

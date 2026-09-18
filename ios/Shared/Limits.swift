@@ -37,6 +37,46 @@ enum LimitLogic {
     static let maxDigestTargets = 200
 
     /// Használható keret, vagy nil („nincs keret”). Az értelmetlen érték nincs keret.
+    /// A keret betelt napjai oldalanként: (domain, napok).
+    struct SiteDays: Equatable {
+        let domain: String
+        let days: Int
+    }
+
+    /// A keret betelt napjai: hány napon, és oldalanként — a legtöbb elöl, holtversenyben ábécé.
+    struct FullDays: Equatable {
+        let days: Int
+        let bySite: [SiteDays]
+    }
+
+    /// A KERET BETELT NAPJAI az elmúlt 7 napon — ezen a készüléken mérve: hány
+    /// napon érte el a mért idő valamelyik oldal napi keretét, és melyik oldalé
+    /// hányszor. Tükör, nem ítélet: azt mutatja, dolgozik-e a keret. A `limits`:
+    /// (domain, napi keret másodpercben). iPhone-on nincs mérés: ott csupa nulla.
+    static func limitFullDays(_ usage: UsageStats.State, limits: [(domain: String, limit: Double?)], now: Double) -> FullDays {
+        let keys = UsageStats.dayKeysBack(Date(timeIntervalSince1970: now / 1000), 7)
+        var full = Set<String>()
+        var bySite: [SiteDays] = []
+        for (domain, raw) in limits {
+            guard let limit = normalizeLimit(raw) else { continue }
+            var n = 0
+            for day in keys {
+                let seconds = usage.days.first { $0.day == day }?.seconds[UsageStats.siteKey(domain)] ?? 0
+                if seconds.isFinite && seconds >= limit { n += 1; full.insert(day) }
+            }
+            if n > 0 { bySite.append(SiteDays(domain: domain, days: n)) }
+        }
+        bySite.sort { $0.days != $1.days ? $0.days > $1.days : $0.domain < $1.domain }
+        return FullDays(days: full.count, bySite: bySite)
+    }
+
+    /// A sor: „A napi keret a héten 2 napon betelt: reddit.com 1× · youtube.com 1×.” — vagy üres, ha egyszer sem.
+    static func limitFullLine(_ r: FullDays, labelOf: (String) -> String) -> String {
+        if r.days <= 0 { return "" }
+        let per = r.bySite.map { "\(labelOf($0.domain)) \($0.days)×" }.joined(separator: " · ")
+        return "A napi keret a héten \(r.days) napon betelt" + (per.isEmpty ? "" : ": \(per)") + "."
+    }
+
     static func normalizeLimit(_ value: Double?) -> Double? {
         guard let v = value, v.isFinite, v > 0 else { return nil }
         // Egy napnál nagyobb „keret” ugyanaz, mintha nem lenne.

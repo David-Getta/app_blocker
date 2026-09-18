@@ -13,6 +13,38 @@ package hu.breaker.app.core
  */
 object LimitLogic {
 
+    /** A keret betelt napjai: hány napon, és oldalanként (domain, napok) — a legtöbb elöl, holtversenyben ábécé. */
+    data class FullDays(val days: Int, val bySite: List<Pair<String, Int>>)
+
+    /**
+     * A KERET BETELT NAPJAI az elmúlt 7 napon — ezen a készüléken mérve: hány
+     * napon érte el a mért idő valamelyik oldal napi keretét, és melyik oldalé
+     * hányszor. A múlt napokra csak a helyi mérés van. Tükör, nem ítélet: azt
+     * mutatja, dolgozik-e a keret. A `limits`: (domain, napi keret másodpercben).
+     */
+    fun limitFullDays(usage: UsageLogic.UsageState, limits: List<Pair<String, Long?>>, now: Long): FullDays {
+        val keys = UsageLogic.dayKeysBack(now, 7)
+        val full = mutableSetOf<String>()
+        val bySite = mutableListOf<Pair<String, Int>>()
+        for ((domain, raw) in limits) {
+            val limit = normalizeLimit(raw) ?: continue
+            var n = 0
+            for (day in keys) {
+                val seconds = usage.days.firstOrNull { it.day == day }?.seconds?.get(UsageLogic.siteKey(domain)) ?: 0.0
+                if (seconds.isFinite() && seconds >= limit.toDouble()) { n += 1; full.add(day) }
+            }
+            if (n > 0) bySite.add(domain to n)
+        }
+        return FullDays(full.size, bySite.sortedWith(compareByDescending<Pair<String, Int>> { it.second }.thenBy { it.first }))
+    }
+
+    /** A sor: „A napi keret a héten 2 napon betelt: reddit.com 1× · youtube.com 1×.” — vagy üres, ha egyszer sem. */
+    fun limitFullLine(r: FullDays, labelOf: (String) -> String): String {
+        if (r.days <= 0) return ""
+        val per = r.bySite.joinToString(" · ") { (d, n) -> "${labelOf(d)} ${n}×" }
+        return "A napi keret a héten ${r.days} napon betelt" + (if (per.isNotEmpty()) ": $per" else "") + "."
+    }
+
     /** Ma ennyi aktív másodperc ment erre az oldalra (0, ha semmi). */
     fun usedTodaySeconds(usage: UsageLogic.UsageState, domain: String, now: Long): Double {
         val today = UsageLogic.dayKey(now)

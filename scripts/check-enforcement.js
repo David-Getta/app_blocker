@@ -522,6 +522,38 @@ const WIRES = [
     needle: 'FilterHitLogic.nudgeText(step)',
     lost: 'az iPhone kezdőlapja nem javasolna lépést a sokadik megakadásnál',
   },
+  // A KERET BETELT NAPJAI: a mag számol, a statisztika és a heti mondat mondja
+  // — ha a bekötés kiesne, a keret csendben dolgozna, és senki nem tudná, hányszor.
+  {
+    file: 'desktop/src/helper/server.ts',
+    needle: 'limitFullDays: limitFullDays(state.usage, state.sites, now),',
+    lost: 'a segéd nem adná a statisztikába a keret betelt napjait',
+  },
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: "const fullLine = limitFullLine(statsData.limitFullDays ?? { days: 0, bySite: [] }, statLabel);",
+    lost: 'a gépi statisztika nem mondaná a keret betelt napjait',
+  },
+  {
+    file: 'desktop/src/helper/digest-journal.ts',
+    needle: 'limitFullDays: limitFullDays(state.usage, state.sites, now).days,',
+    lost: 'a gépi heti mondat nem mondaná a keret betelt napjait',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/AppUi.kt',
+    needle: 'limitFullDays = LimitLogic.limitFullDays(state.usage, state.sites.map { it.domain to it.dailyLimitSeconds }, now),',
+    lost: 'az Android statisztika nem kapná meg a keret betelt napjait',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/StatsScreen.kt',
+    needle: 'LimitLogic.limitFullLine(it, labelOf)',
+    lost: 'az Android statisztika nem mondaná a keret betelt napjait',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/Digest.kt',
+    needle: 'limitFullDays = LimitLogic.limitFullDays(st.usage, st.sites.map { it.domain to it.dailyLimitSeconds }, now).days,',
+    lost: 'az Android heti mondat nem mondaná a keret betelt napjait',
+  },
   // A HETI MONDAT a lefedett csúcs-óráról: a három építő adja a csomag nevét;
   // ha kiesne, a mondat a csúcsot mondaná, az ablakot nem — csendben.
   {

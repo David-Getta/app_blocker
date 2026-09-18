@@ -82,6 +82,8 @@ public enum DigestLogic {
         /// lecsúszva, elszállva, újraindítva: hányszor indult el a lazítás, és
         /// nem vitte végig. A tükör másik fele a feloldások mellett.
         public var dropped7d: Int
+        /// A keret betelt napjai az elmúlt 7 napon (ezen a készüléken mérve) — dolgozik-e a keret. iPhone-on nincs mérés: nulla.
+        public var limitFullDays: Int
         /// A szűrő megakadásai az elmúlt 7 napban — hányszor állította meg a
         /// tunnel a telefont. A tükör harmadik fele: a tiltás akkor dolgozik,
         /// amikor nem figyelsz — ez mondja, mennyit.
@@ -101,7 +103,8 @@ public enum DigestLogic {
             daysTracked: Int = 0, unblockedTop: [Top] = [], dropped7d: Int = 0, filterHits7d: Int = 0,
             filterHitsPeak: (hour: Int, count: Int)? = nil, filterHitsPeakPack: String? = nil,
             filterHitsTop: (label: String, count: Int)? = nil,
-            filterHitsPrev7d: Int = 0, focusPrevWeek: Focus.Summary? = nil, unlocksPrev7d: Int = 0
+            filterHitsPrev7d: Int = 0, focusPrevWeek: Focus.Summary? = nil, unlocksPrev7d: Int = 0,
+            limitFullDays: Int = 0
         ) {
             self.last7Seconds = last7Seconds
             self.topWeekSites = topWeekSites
@@ -119,6 +122,7 @@ public enum DigestLogic {
             self.filterHitsPrev7d = filterHitsPrev7d
             self.focusPrevWeek = focusPrevWeek
             self.unlocksPrev7d = unlocksPrev7d
+            self.limitFullDays = limitFullDays
         }
     }
 
@@ -181,6 +185,8 @@ public enum DigestLogic {
         if input.unlocks7d > 0 { parts.append("\(input.unlocks7d) feloldás\(prevUnlPart)\(droppedPart).") }
         else if input.dropped7d > 0 { parts.append("Feloldás nélkül\(prevUnlPart)\(droppedPart).") }
         else if measured || f.sessions > 0 || input.unlocksPrev7d > 0 { parts.append("Feloldás nélkül\(prevUnlPart).") }
+        // A keret betelt napjai: dolgozik-e a keret — tény, nem ítélet. Nulla nem mondat.
+        if input.limitFullDays > 0 { parts.append("A napi keret \(input.limitFullDays) napon betelt.") }
         // A megakadás: hányszor állította meg a szűrő — tény, nem ítélet.
         // Az előző hét a szám mellett, zárójelben — irány, nem ítélet. Nulla előző
         // hét nem összehasonlítás; a nulla hét viszont mondat, ha volt mihez mérni.

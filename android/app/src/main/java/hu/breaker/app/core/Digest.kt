@@ -90,6 +90,8 @@ object DigestLogic {
          * és nem vitte végig. A tükör másik fele a feloldások mellett.
          */
         val dropped7d: Int = 0,
+        /** a keret betelt napjai az elmúlt 7 napon (ezen a készüléken mérve) — dolgozik-e a keret */
+        val limitFullDays: Int = 0,
         /**
          * A szűrő megakadásai az elmúlt 7 napban — hányszor állította meg a
          * DNS-szűrő a telefont (a gépen a böngésző könyve ugyanez). A tükör
@@ -171,6 +173,8 @@ object DigestLogic {
         if (input.unlocks7d > 0) parts.add("${input.unlocks7d} feloldás$prevUnlPart$droppedPart.")
         else if (input.dropped7d > 0) parts.add("Feloldás nélkül$prevUnlPart$droppedPart.")
         else if (measured || f.sessions > 0 || input.unlocksPrev7d > 0) parts.add("Feloldás nélkül$prevUnlPart.")
+        // A keret betelt napjai: dolgozik-e a keret — tény, nem ítélet. Nulla nem mondat.
+        if (input.limitFullDays > 0) parts.add("A napi keret ${input.limitFullDays} napon betelt.")
         // A megakadás: hányszor állította meg a szűrő — tény, nem ítélet.
         // Az előző hét a szám mellett, zárójelben — irány, nem ítélet. Nulla előző
         // hét nem összehasonlítás; a nulla hét viszont mondat, ha volt mihez mérni.
@@ -280,6 +284,7 @@ object DigestLogic {
             unlocks7d = st.unlockLog.count { it >= weekAgo },
             unlocksPrev7d = st.unlockLog.count { it >= weekAgo - 7 * 24 * 3600_000L && it < weekAgo },
             dropped7d = st.droppedAttempts.count { it >= weekAgo },
+            limitFullDays = LimitLogic.limitFullDays(st.usage, st.sites.map { it.domain to it.dailyLimitSeconds }, now).days,
             filterHits7d = FilterHitLogic.hits7d(st.filterHits, now),
             filterHitsPrev7d = FilterHitLogic.hitsPrev7d(st.filterHits, now),
             filterHitsPeak = FilterHitLogic.peakHour(st.filterHitHours, now),

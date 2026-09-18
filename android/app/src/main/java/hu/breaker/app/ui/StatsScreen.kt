@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import hu.breaker.app.core.DigestLogic
 import hu.breaker.app.core.FilterHitLogic
+import hu.breaker.app.core.LimitLogic
 import hu.breaker.app.core.Focus
 import hu.breaker.app.core.UsageLogic
 
@@ -99,6 +100,8 @@ fun StatsSection(
      * `labelOf`-on át megy, mint minden más.
      */
     burstTripsToday: List<Pair<String, Int>> = emptyList(),
+    /** a keret betelt napjai a héten (napok, oldalanként) — ezen a készüléken mérve; null, ha nincs keret */
+    limitFullDays: LimitLogic.FullDays? = null,
     hasUsageAccess: Boolean,
     /**
      * Mikor rögzítettünk utoljára mért időt, vagy `null`, ha még soha.
@@ -291,6 +294,12 @@ fun StatsSection(
                     burstTripsToday.joinToString(", ") { (label, n) -> "${labelOf(label)} ${n}×" },
                 style = MaterialTheme.typography.bodySmall,
             )
+        }
+        // A KERET BETELT NAPJAI: hány napon érte el a mért idő a napi keretet a
+        // héten, és melyik oldalé hányszor — ezen a készüléken mérve. Tükör:
+        // azt mutatja, dolgozik-e a keret. Üresen nincs sor.
+        limitFullDays?.let { LimitLogic.limitFullLine(it, labelOf) }?.takeIf { it.isNotEmpty() }?.let {
+            Text(it, style = MaterialTheme.typography.bodySmall)
         }
 
         if (summary.topWeekSites.isNotEmpty()) {

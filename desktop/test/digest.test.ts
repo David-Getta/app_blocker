@@ -54,6 +54,13 @@ test('a teljes mondat: idő, a legtöbb (trenddel), menetek, feloldások', () =>
     + '9 menet (7 ó 0 p, 2 korán leállítva). 3 feloldás.');
 });
 
+test('a keret betelt napjai a mondatban — nulla nem mondat', () => {
+  assert.equal(digestText({ ...full, limitFullDays: 3 }, (l) => l),
+    'Elmúlt 7 nap: 7 ó 20 p mért idő; a legtöbb: youtube.com 2 ó 40 p (▼ -33% az előző héthez képest). '
+    + '9 menet (7 ó 0 p, 2 korán leállítva). 3 feloldás. A napi keret 3 napon betelt.');
+  assert.equal(digestText({ ...full, limitFullDays: 0 }, (l) => l), digestText(full, (l) => l));
+});
+
 test('a címkézés a felületé: a rejtett vagy fedőnevű cím nem szivárog ki', () => {
   const text = digestText(full, (l) => (l === 'youtube.com' ? 'A videós' : l));
   assert.ok(text!.includes('a legtöbb: A videós'), text!);

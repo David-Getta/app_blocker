@@ -15,6 +15,7 @@ import { displayName, isAliased } from '../shared/alias';
 import { packCoveringHour, summarizeFocus, summarizeFocusPrevWeek } from '../shared/focus';
 import { suggestBlocks, summarize } from '../shared/usage';
 import { browserHits7d, browserHitsPeakHour, browserHitsPrev7d, browserHitsTopSite } from '../shared/browser-hits';
+import { limitFullDays } from '../shared/limits';
 import type { HelperState } from './state';
 
 /** A mai nap kezdete helyi idő szerint — ugyanaz, mint a statisztikáé. */
@@ -54,6 +55,8 @@ export function digestTextNow(state: HelperState, now: number): string | null {
     unlocks7d: state.unlockLog.filter((t) => t >= now - 7 * 24 * 3600_000).length,
     unlocksPrev7d: state.unlockLog.filter((t) => t >= now - 14 * 24 * 3600_000 && t < now - 7 * 24 * 3600_000).length,
     dropped7d: (state.droppedAttempts ?? []).filter((t) => t >= now - 7 * 24 * 3600_000).length,
+    // A keret betelt napjai — ezen a gépen mérve: dolgozik-e a keret.
+    limitFullDays: limitFullDays(state.usage, state.sites, now).days,
     browserHits7d: browserHits7d(state.browserHits, now),
     browserHitsPrev7d: browserHitsPrev7d(state.browserHits, now),
     browserHitsPeak: peak,

@@ -92,6 +92,8 @@ export interface DigestInput {
    * feloldások mellett: hányszor indult el a lazítás, és nem vitte végig.
    */
   dropped7d?: number;
+  /** a keret betelt napjai az elmúlt 7 napon (ezen a gépen mérve) — dolgozik-e a keret; nem kötelező */
+  limitFullDays?: number;
   /**
    * A böngésző megakadásai az elmúlt 7 napban — hányszor vitt a tiltó lapra
    * a bővítmény. Nem kötelező (régi hívó, telefon). A tükör harmadik fele:
@@ -176,6 +178,9 @@ export function digestText(input: DigestInput, labelOf: (label: string) => strin
   if (input.unlocks7d > 0) parts.push(`${input.unlocks7d} feloldás${prevUnlPart}${droppedPart}.`);
   else if (dropped > 0) parts.push(`Feloldás nélkül${prevUnlPart}${droppedPart}.`);
   else if (measured || f.sessions > 0 || prevUnl > 0) parts.push(`Feloldás nélkül${prevUnlPart}.`);
+  // A keret betelt napjai: dolgozik-e a keret — tény, nem ítélet. Nulla nem mondat.
+  const fullDays = input.limitFullDays ?? 0;
+  if (fullDays > 0) parts.push(`A napi keret ${fullDays} napon betelt.`);
   // A megakadás: hányszor állította meg a böngésző — tény, nem ítélet.
   const hits = input.browserHits7d ?? 0;
   const prev = input.browserHitsPrev7d ?? 0;

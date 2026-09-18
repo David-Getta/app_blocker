@@ -13,7 +13,7 @@
 // natív ESM-betöltője kiterjesztés nélkül nem oldja fel a hivatkozást.
 import { isCoolingDown, type BurstState } from './burst.js';
 import { isBlockedNow, nextOpenAt, type Blockable, type Schedule } from './schedule.js';
-import { dayKey, siteKey, type UsageState } from './usage.js';
+import { dayKey, dayKeysBack, siteKey, type UsageState } from './usage.js';
 
 export interface Limitable extends Blockable {
   /** the registrable domain, i.e. how the tracker keys this site */
@@ -255,4 +255,42 @@ export function usedTodayEverywhere(
   usage: UsageState, shared: SharedToday | null | undefined, domain: string, now: number,
 ): number {
   return usedTodaySeconds(usage, domain, now) + sharedTodaySeconds(shared, domain, now);
+}
+
+/** A keret betelt napjai: hány napon, és oldalanként hányszor — a legtöbb elöl, holtversenyben ábécé. */
+export interface LimitFullDays {
+  days: number;
+  bySite: { domain: string; days: number }[];
+}
+
+/**
+ * A KERET BETELT NAPJAI az elmúlt 7 napon — ezen a gépen mérve: hány napon
+ * érte el a mért idő valamelyik oldal napi keretét, és melyik oldalé hányszor.
+ * A múlt napokra csak a helyi mérés van: a többi eszköz mai összegzése nem
+ * marad meg napokra. Tükör, nem ítélet: azt mutatja, dolgozik-e a keret.
+ */
+export function limitFullDays(usage: UsageState, sites: Limitable[], now: number): LimitFullDays {
+  const keys = dayKeysBack(now, 7);
+  const full = new Set<string>();
+  const bySite: { domain: string; days: number }[] = [];
+  for (const site of sites) {
+    const limit = normalizeLimit(site.dailyLimitSeconds);
+    if (limit === null) continue;
+    let n = 0;
+    for (const day of keys) {
+      const bucket = usage.days.find((d) => d.day === day);
+      const seconds = bucket?.seconds[siteKey(site.domain)] ?? 0;
+      if (Number.isFinite(seconds) && seconds >= limit) { n += 1; full.add(day); }
+    }
+    if (n > 0) bySite.push({ domain: site.domain, days: n });
+  }
+  bySite.sort((a, b) => b.days - a.days || a.domain.localeCompare(b.domain));
+  return { days: full.size, bySite };
+}
+
+/** A sor: „A napi keret a héten 2 napon betelt: reddit.com 1× · youtube.com 1×.” — vagy üres, ha egyszer sem. */
+export function limitFullLine(r: LimitFullDays, labelOf: (domain: string) => string): string {
+  if (r.days <= 0) return '';
+  const per = r.bySite.map((x) => `${labelOf(x.domain)} ${x.days}×`).join(' · ');
+  return `A napi keret a héten ${r.days} napon betelt${per ? `: ${per}` : ''}.`;
 }

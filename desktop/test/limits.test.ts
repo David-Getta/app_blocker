@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import * as assert from 'node:assert/strict';
 import {
-  blockReasonNow, isBlockedNowWithLimit, isLimitExhausted, isLimitLoosening, nextDayStartMs,
+  blockReasonNow, isBlockedNowWithLimit, isLimitExhausted, isLimitLoosening, limitFullDays, limitFullLine, nextDayStartMs,
   normalizeLimit, usedTodaySeconds,
 } from '../src/shared/limits';
 import { dayKey, emptyUsage, siteKey, type UsageState } from '../src/shared/usage';
@@ -146,4 +146,17 @@ test('minden zárásnak neve van, és a sorrend a döntés sorrendje', () => {
     site({ schedule: OPEN_SCHEDULE, dailyLimitSeconds: 600 }),
     usageWith('youtube.com', 600), NOW, null, burst);
   assert.equal(both?.reason, 'cooldown');
+});
+
+test('a keret betelt napjai: hány napon és melyik oldalé hányszor — ezen a gépen mérve; a sor', () => {
+  const u = usageWith('youtube.com', 700);
+  u.days.push({ day: dayKey(NOW - 86_400_000), seconds: { [siteKey('youtube.com')]: 500, [siteKey('reddit.com')]: 400 } });
+  u.days.push({ day: dayKey(NOW - 8 * 86_400_000), seconds: { [siteKey('youtube.com')]: 900 } }); // nyolc napja: nem a hété
+  const sites = [site({ dailyLimitSeconds: 600 }), site({ domain: 'reddit.com', dailyLimitSeconds: 300 }), site({ domain: 'x.com' })];
+  const r = limitFullDays(u, sites, NOW);
+  assert.equal(r.days, 2, 'ma a youtube, tegnap a reddit — két nap');
+  assert.deepEqual(r.bySite, [{ domain: 'reddit.com', days: 1 }, { domain: 'youtube.com', days: 1 }]);
+  assert.equal(limitFullLine(r, (d) => d), 'A napi keret a héten 2 napon betelt: reddit.com 1× · youtube.com 1×.');
+  assert.equal(limitFullLine(limitFullDays(u, [site({ domain: 'x.com' })], NOW), (d) => d), '', 'keret nélkül nincs sor');
+  assert.equal(limitFullDays(u, [], NOW).days, 0);
 });

@@ -248,3 +248,15 @@ Két apróság, ami a tervben még nem volt kimondva, de a megvalósításnál k
   (Androidon `pendingLimit = -1`), mert a „nincs keret” és a „0 másodperces
   keret” két különböző dolog, és a tárolt `null` nem tudná megkülönböztetni
   őket a „nem változik” esettől.
+
+## A keret betelt napjai (tükör)
+
+A statisztika és a heti mondat kimondja, hány napon érte el a mért idő a napi
+keretet az elmúlt héten, és melyik oldalé hányszor: „A napi keret a héten 3
+napon betelt: youtube.com 2× · reddit.com 1×.” — a gépen és Androidon, ezen a
+készüléken mérve (a múlt napokra csak a helyi mérés van; a többi eszköz mai
+összegzése nem marad meg napokra). iPhone-on nincs mérés, ezért ott nincs sor
+— a mag ott is ugyanazt számolja (`LimitLogic.limitFullDays`), csupa nullát.
+Tükör, nem ítélet: azt mutatja, dolgozik-e a keret — vagy túl bő, és sosem
+telik be. A heti mondat rövidebben: „A napi keret 3 napon betelt.” Nulla nap
+nem mondat.

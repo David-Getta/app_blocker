@@ -361,6 +361,8 @@ export interface UsageStatsData {
   focusWeek: import('./focus').FocusSummary;
   /** az előző hét menetei — a hét az előző héthez képest; régi segéd nem adja */
   focusPrevWeek?: import('./focus').FocusSummary;
+  /** a keret betelt napjai az elmúlt 7 napon, ezen a gépen mérve — hány napon, és melyik oldalé hányszor; régi segéd nem adja */
+  limitFullDays?: import('./limits').LimitFullDays;
   /**
    * Mikor rögzített a segéd UTOLJÁRA mért időt — vagy `null`, ha még soha.
    *

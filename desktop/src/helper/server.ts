@@ -29,6 +29,7 @@ import {
   MAX_KEY_LENGTH, MAX_LABEL_LENGTH, MAX_BATCH_SAMPLES,
 } from '../shared/usage';
 import type { UsageSummary } from '../shared/usage';
+import { limitFullDays } from '../shared/limits';
 import type { UsageStatsData } from '../shared/protocol';
 import type { HelperState, SiteRec } from './state';
 import { newId } from './state';
@@ -627,6 +628,8 @@ async function handle(req: HelperRequest, deps: ServerDeps): Promise<unknown> {
         focusWeek: summarizeFocus(state.focusLog, startOfDay(now) - 6 * 86_400_000, now),
         // Az előző hét — a hét az előző héthez képest, irány, nem ítélet.
         focusPrevWeek: summarizeFocusPrevWeek(state.focusLog, now),
+        // A keret betelt napjai — ezen a gépen mérve: dolgozik-e a keret.
+        limitFullDays: limitFullDays(state.usage, state.sites, now),
         lastSampleAt: state.usageLastSampleAt ?? null,
         digestLog: cleanDigestLog(state.digestLog),
       };

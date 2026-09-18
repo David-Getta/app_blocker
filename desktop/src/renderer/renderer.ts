@@ -32,7 +32,7 @@ import {
 import {
   acceleratorFromKeyEvent, DEFAULT_OVERLAY_SHORTCUT, rejectText, shortcutLabel,
 } from '../shared/shortcut.js';
-import { MAX_LIMIT_MINUTES } from '../shared/limits.js';
+import { limitFullLine, MAX_LIMIT_MINUTES } from '../shared/limits.js';
 import {
   formatRemaining, isRunning as focusIsRunning, isWindowRun, MAX_ALLOW_ENTRIES, MAX_PACK_NAME,
   MAX_SESSION_MINUTES, nextOccurrence, SESSION_CHOICES_MIN, windowRunStarted, type FocusPack, type FocusRun, peakWindowBand,
@@ -4494,6 +4494,11 @@ function renderStats(): void {
   $('tripsToday').classList.toggle('hidden', trips.length === 0);
   $('tripsToday').textContent = trips.length > 0
     ? `Adag-betelések ma: ${trips.join(' · ')}` : '';
+  // A KERET BETELT NAPJAI: hány napon érte el a mért idő a napi keretet a héten,
+  // és melyik oldalé hányszor — ezen a gépen mérve. Dolgozik-e a keret: tükör.
+  const fullLine = limitFullLine(statsData.limitFullDays ?? { days: 0, bySite: [] }, statLabel);
+  $('limitDaysNote').classList.toggle('hidden', fullLine === '');
+  $('limitDaysNote').textContent = fullLine;
   renderBarList($('topSites'), s.topWeekSites, $('topSitesEmpty'), true);
   renderBarList($('topApps'), s.topWeekApps, $('topAppsEmpty'), false);
   $('usageLegend').classList.toggle('hidden', s.topWeekSites.length === 0);

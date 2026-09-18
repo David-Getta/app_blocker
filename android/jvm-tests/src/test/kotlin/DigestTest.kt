@@ -227,6 +227,17 @@ class DigestTest {
         assertEquals(text, DigestLogic.relabel(text, sites) { it }, "címke nélkül a sor változatlan")
     }
 
+    @Test fun `a keret betelt napjai a mondatban - nulla nem mondat`() {
+        val base = DigestLogic.Input(
+            last7Seconds = 0.0, topWeekSites = emptyList(), weekOverWeek = emptyList(),
+            focusWeek = Focus.FocusSummary(sessions = 9, totalMs = 7 * 3600_000L, stoppedEarly = 2, topPack = "Nyelvtanulás"),
+            unlocks7d = 3, daysTracked = 0,
+        )
+        assertEquals("Elmúlt 7 nap: 9 menet (7 ó 0 p, 2 korán leállítva). 3 feloldás. A napi keret 3 napon betelt.",
+            DigestLogic.text(base.copy(limitFullDays = 3)) { it })
+        assertEquals(DigestLogic.text(base) { it }, DigestLogic.text(base.copy(limitFullDays = 0)) { it }, "nulla nap nem mondat")
+    }
+
     @Test fun `az elozo het a menetek mellett - irany, nem itelet, ures elozo het nem sor, a menet nelkuli het mondat`() {
         val base = DigestLogic.Input(
             last7Seconds = 0.0, topWeekSites = emptyList(), weekOverWeek = emptyList(),

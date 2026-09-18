@@ -284,4 +284,18 @@ class LimitsTest {
         assertTrue(blocked.containsAll(siteById(id).hostnames),
             "a keret elfogyott, tehát a DNS-szűrőnek is tiltania kell")
     }
+
+    @Test fun `a keret betelt napjai - hany napon es melyik oldale hanyszor, ezen a keszuleken merve, a sor`() {
+        val u = usageWith("youtube.com", 700.0)
+        u.days.add(UsageLogic.UsageDay(UsageLogic.dayKey(now - 86_400_000L),
+            mutableMapOf(UsageLogic.siteKey("youtube.com") to 500.0, UsageLogic.siteKey("reddit.com") to 400.0)))
+        u.days.add(UsageLogic.UsageDay(UsageLogic.dayKey(now - 8 * 86_400_000L), mutableMapOf(UsageLogic.siteKey("youtube.com") to 900.0))) // nyolc napja: nem a hété
+        val limits = listOf<Pair<String, Long?>>("youtube.com" to 600L, "reddit.com" to 300L, "x.com" to null)
+        val r = LimitLogic.limitFullDays(u, limits, now)
+        assertEquals(2, r.days, "ma a youtube, tegnap a reddit — két nap")
+        assertEquals(listOf("reddit.com" to 1, "youtube.com" to 1), r.bySite)
+        assertEquals("A napi keret a héten 2 napon betelt: reddit.com 1× · youtube.com 1×.", LimitLogic.limitFullLine(r) { it })
+        assertEquals("", LimitLogic.limitFullLine(LimitLogic.limitFullDays(u, listOf("x.com" to null), now)) { it }, "keret nélkül nincs sor")
+        assertEquals(0, LimitLogic.limitFullDays(u, emptyList(), now).days)
+    }
 }
