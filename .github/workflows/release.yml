@@ -44,21 +44,22 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **Az órák sávja.** A csúcs egy szám, a sáv az alakja: a gépi
-          statisztika és a telefonok a csúcs-óra mondata alatt a nap
-          huszonnégy rekeszét rajzolják a hét megakadásaival, a csúcs
-          kiemelve — mint a bővítmény beállítás-lapján.
+          **A csúcs-óra ott is, ahol a kísértés van.** A tiltó lap a
+          csúcs-órában kimondja, hogy most van („Most a hét csúcs-órája van — ilyenkor jár a kéz magától.”),
+          a felugró lap a hét csúcsát mondja, a gyorsbillentyűs réteg lába és
+          a telefon kezdőlapjának kártyája ugyanezt a csúcs-órában. Tükör a
+          pillanatban, nem ítélet. Bővítmény 0.4.19.
 
-          ### Ami a v0.4.88-ban jött
+          ### Ami a v0.4.89-ben jött
+
+          **Az órák sávja** — a gépi statisztika és a telefonok a csúcs-óra
+          mondata alatt a nap huszonnégy rekeszét rajzolják a hét
+          megakadásaival, a csúcs kiemelve.
+
+          #### Ami a v0.4.88-ban jött
 
           **A könyv törölhető** — a bővítmény beállítás-lapján egy kérdés
-          után, a telefon statisztikáján két koppintással; az app is
-          elfelejti. Bővítmény 0.4.18.
-
-          #### Ami a v0.4.87-ben jött
-
-          **Futó menet mellett nincs javaslat** — a sokadik megakadás és az
-          előjelzés értesítése hallgat, amíg egy menet tart.
+          után, a telefon statisztikáján két koppintással.
 
           NOTES
           fi
