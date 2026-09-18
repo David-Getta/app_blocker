@@ -55,7 +55,11 @@ jobs:
 
           **A gépen a meglévő ablak módosítható** (bővíteni ingyen, szűkíteni
           próbatétel), és amikor az ablak beér, a gép értesítést ad — aki nem
-          maga indította, tudja meg, miért van minden zárva.
+          maga indította, tudja meg, miért van minden zárva. A sáv, a
+          gyorsbillentyűs réteg, a böngésző tiltó lapja és a felugró lap is
+          kimondja, ha a heti ablak tartja a zárlatot. A három nyelv közös
+          fésülés-próbája (fixture) mostantól a zárlatot és az ablakokat is
+          összeveti.
 
           ### Ami a v0.4.34-ben jött
 

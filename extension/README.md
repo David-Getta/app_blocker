@@ -143,7 +143,9 @@ valamit, amit a felhasználó nem tiltott le.
    új csatorna) — és hogy próbatételbe kerül. Zárlat alatt pont ez az út
    nincs, ezért a láb a zárlatról beszél, a hátralévő idővel; a zárlat
    lejártakor visszaáll a rendes szövegre. A vég a hídon jön le az apptól,
-   minden lehúzással.
+   minden lehúzással — és vele az is, ha a heti zárlat-ablak tartja: a láb
+   és a felugró lap ilyenkor „a heti ablak szerint”-et mond, hogy tudd, nem
+   kézzel indított döntés volt, hanem a hétköznap.
 
 ## Fájlok
 
