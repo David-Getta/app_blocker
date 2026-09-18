@@ -44,20 +44,20 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **Futó menet mellett nincs javaslat.** A sokadik megakadás és a
-          csúcs-óra előjelzésének értesítése hallgat, amíg egy menet tart —
-          a lépés, amit ajánlana, már megvan. Mindhárom platformon; a kártya
-          a lapon ettől még mondja a számot.
+          **A könyv törölhető.** A megakadások könyve a tiéd: a bővítmény
+          beállítás-lapján egy kérdés után, a telefon statisztikáján két
+          koppintással — az app is elfelejti. A menetek naplója és a heti
+          napló marad. Bővítmény 0.4.18.
 
-          ### Ami a v0.4.86-ban jött
+          ### Ami a v0.4.87-ben jött
+
+          **Futó menet mellett nincs javaslat** — a sokadik megakadás és az
+          előjelzés értesítése hallgat, amíg egy menet tart.
+
+          #### Ami a v0.4.86-ban jött
 
           **A heti mondat megosztható** — a gépen a vágólapra, a
           telefonokon a rendszer megosztójával.
-
-          #### Ami a v0.4.85-ben jött
-
-          **A próbamező a telefon ítéletét is mondja**, és ami a héten nem
-          fogott, a telefonokon is (v0.4.84).
 
           NOTES
           fi
