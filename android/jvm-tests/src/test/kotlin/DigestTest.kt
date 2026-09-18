@@ -236,6 +236,8 @@ class DigestTest {
         assertEquals("Elmúlt 7 nap: 9 menet (7 ó 0 p, 2 korán leállítva). 3 feloldás. A napi keret 3 napon betelt.",
             DigestLogic.text(base.copy(limitFullDays = 3)) { it })
         assertEquals(DigestLogic.text(base) { it }, DigestLogic.text(base.copy(limitFullDays = 0)) { it }, "nulla nap nem mondat")
+        assertEquals("Elmúlt 7 nap: 9 menet (7 ó 0 p, 2 korán leállítva). 3 feloldás. Az adag a héten 7× telt be.",
+            DigestLogic.text(base.copy(burstTripsWeek = 7)) { it })
     }
 
     @Test fun `az elozo het a menetek mellett - irany, nem itelet, ures elozo het nem sor, a menet nelkuli het mondat`() {

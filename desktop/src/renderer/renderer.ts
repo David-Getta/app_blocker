@@ -2652,6 +2652,9 @@ function burstMeter(site: SiteInfo, now: number): HTMLElement | null {
   // és mennyit fog. Nem szégyenpad: aki sokszor betelik, annak az adag rövid.
   const trips = site.burstTripsToday ?? 0;
   if (trips > 0) label += ` · ma ${trips}× betelt`;
+  // …és a hét: a könyvből. Csak ha több a mainál — különben a mai szám elég.
+  const weekTrips = site.burstTripsWeek ?? 0;
+  if (weekTrips > trips) label += ` · a héten ${weekTrips}×`;
   wrap.appendChild(h('div', 'limit-label', label));
   const bar = h('div', 'limit-bar');
   const fill = h('div', cooling ? 'limit-fill limit-fill-full' : 'limit-fill');

@@ -713,6 +713,7 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                                 usage = state.usage, shared = state.sharedToday,
                                 burst = state.bursts[site.id],
                                 trip = state.burstTrips[site.id],
+                                weekTrips = BurstLogic.tripsInDays(state.burstTripLog, site.id, UsageLogic.dayKeysBack(now, 7)),
                                 revealedUntil = revealedUntil[site.id],
                                 onReveal = {
                                     revealedUntil[site.id] =
@@ -1871,7 +1872,7 @@ private fun LimitDialog(
  * nem büntetés.
  */
 @Composable
-private fun BurstLine(site: Site, burst: BurstLogic.State?, now: Long, trip: BurstTrip? = null) {
+private fun BurstLine(site: Site, burst: BurstLogic.State?, now: Long, trip: BurstTrip? = null, weekTrips: Int = 0) {
     val rule = BurstLogic.normalize(site.burstSeconds, site.cooldownSeconds) ?: return
     val cooling = burst != null && burst.cooldownUntil > now
     var text = if (cooling) {
@@ -1886,6 +1887,9 @@ private fun BurstLine(site: Site, burst: BurstLogic.State?, now: Long, trip: Bur
     if (trip != null && trip.day == UsageLogic.dayKey(now) && trip.count > 0) {
         text += " · ma ${trip.count}× betelt"
     }
+    // …és a hét: a könyvből. Csak ha több a mainál — különben a mai szám elég.
+    val todayTrips = if (trip != null && trip.day == UsageLogic.dayKey(now)) trip.count else 0
+    if (weekTrips > todayTrips) text += " · a héten ${weekTrips}×"
     Text(
         text,
         style = MaterialTheme.typography.bodySmall,

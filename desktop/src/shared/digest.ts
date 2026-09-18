@@ -94,6 +94,8 @@ export interface DigestInput {
   dropped7d?: number;
   /** a keret betelt napjai az elmúlt 7 napon (ezen a gépen mérve) — dolgozik-e a keret; nem kötelező */
   limitFullDays?: number;
+  /** adag-betelések az elmúlt 7 napon, minden oldalon összesen (a könyvből) — a szabály dolgozik-e; nem kötelező */
+  burstTripsWeek?: number;
   /**
    * A böngésző megakadásai az elmúlt 7 napban — hányszor vitt a tiltó lapra
    * a bővítmény. Nem kötelező (régi hívó, telefon). A tükör harmadik fele:
@@ -181,6 +183,9 @@ export function digestText(input: DigestInput, labelOf: (label: string) => strin
   // A keret betelt napjai: dolgozik-e a keret — tény, nem ítélet. Nulla nem mondat.
   const fullDays = input.limitFullDays ?? 0;
   if (fullDays > 0) parts.push(`A napi keret ${fullDays} napon betelt.`);
+  // Az adag a héten: hányszor telt be — a szabály dolgozik-e. Nulla nem mondat.
+  const burstWeek = input.burstTripsWeek ?? 0;
+  if (burstWeek > 0) parts.push(`Az adag a héten ${burstWeek}× telt be.`);
   // A megakadás: hányszor állította meg a böngésző — tény, nem ítélet.
   const hits = input.browserHits7d ?? 0;
   const prev = input.browserHitsPrev7d ?? 0;

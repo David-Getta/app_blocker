@@ -994,6 +994,11 @@ async function main() {
     () => Array.from(document.querySelectorAll('.limit-label')).some((el) => /a héten 2 napon betelt/.test(el.textContent || '')),
     undefined, { timeout: 15_000 },
   ).catch(() => failures.push('a keret sora nem mondja a héten betelt napokat'));
+  // AZ ADAG SORA a héttel: a mai szám mellett a hét is, mert több.
+  await page.waitForFunction(
+    () => Array.from(document.querySelectorAll('.limit-label')).some((el) => /ma 2× betelt · a héten 7×/.test(el.textContent || '')),
+    undefined, { timeout: 15_000 },
+  ).catch(() => failures.push('az adag sora nem mondja a hét beteléseit'));
   await page.waitForFunction(
     () => !document.getElementById('suggestCard')?.classList.contains('hidden')
       && /Ma már \d+ megakadás/.test(document.getElementById('suggestText')?.textContent || '')

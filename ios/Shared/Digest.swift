@@ -84,6 +84,8 @@ public enum DigestLogic {
         public var dropped7d: Int
         /// A keret betelt napjai az elmúlt 7 napon (ezen a készüléken mérve) — dolgozik-e a keret. iPhone-on nincs mérés: nulla.
         public var limitFullDays: Int
+        /// Adag-betelések az elmúlt 7 napon, minden oldalon összesen — a szabály dolgozik-e. iPhone-on nincs adag-szabály: nulla.
+        public var burstTripsWeek: Int
         /// A szűrő megakadásai az elmúlt 7 napban — hányszor állította meg a
         /// tunnel a telefont. A tükör harmadik fele: a tiltás akkor dolgozik,
         /// amikor nem figyelsz — ez mondja, mennyit.
@@ -104,7 +106,7 @@ public enum DigestLogic {
             filterHitsPeak: (hour: Int, count: Int)? = nil, filterHitsPeakPack: String? = nil,
             filterHitsTop: (label: String, count: Int)? = nil,
             filterHitsPrev7d: Int = 0, focusPrevWeek: Focus.Summary? = nil, unlocksPrev7d: Int = 0,
-            limitFullDays: Int = 0
+            limitFullDays: Int = 0, burstTripsWeek: Int = 0
         ) {
             self.last7Seconds = last7Seconds
             self.topWeekSites = topWeekSites
@@ -123,6 +125,7 @@ public enum DigestLogic {
             self.focusPrevWeek = focusPrevWeek
             self.unlocksPrev7d = unlocksPrev7d
             self.limitFullDays = limitFullDays
+            self.burstTripsWeek = burstTripsWeek
         }
     }
 
@@ -187,6 +190,8 @@ public enum DigestLogic {
         else if measured || f.sessions > 0 || input.unlocksPrev7d > 0 { parts.append("Feloldás nélkül\(prevUnlPart).") }
         // A keret betelt napjai: dolgozik-e a keret — tény, nem ítélet. Nulla nem mondat.
         if input.limitFullDays > 0 { parts.append("A napi keret \(input.limitFullDays) napon betelt.") }
+        // Az adag a héten: hányszor telt be — a szabály dolgozik-e. Nulla nem mondat.
+        if input.burstTripsWeek > 0 { parts.append("Az adag a héten \(input.burstTripsWeek)× telt be.") }
         // A megakadás: hányszor állította meg a szűrő — tény, nem ítélet.
         // Az előző hét a szám mellett, zárójelben — irány, nem ítélet. Nulla előző
         // hét nem összehasonlítás; a nulla hét viszont mondat, ha volt mihez mérni.

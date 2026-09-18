@@ -522,6 +522,27 @@ const WIRES = [
     needle: 'FilterHitLogic.nudgeText(step)',
     lost: 'az iPhone kezdőlapja nem javasolna lépést a sokadik megakadásnál',
   },
+  // AZ ADAG A HÉTEN a heti mondatban és az oldal sorában: a két építő és a két sor.
+  {
+    file: 'desktop/src/helper/digest-journal.ts',
+    needle: 'burstTripsWeek: state.sites.reduce((a, s) => a + burstTripsInDays(state.burstTripLog, s.id, dayKeysBack(now, 7)), 0),',
+    lost: 'a gépi heti mondat nem mondaná az adag heti beteléseit',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/Digest.kt',
+    needle: 'burstTripsWeek = st.sites.sumOf { BurstLogic.tripsInDays(st.burstTripLog, it.id, UsageLogic.dayKeysBack(now, 7)) },',
+    lost: 'az Android heti mondat nem mondaná az adag heti beteléseit',
+  },
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: "if (weekTrips > trips) label += ` · a héten ${weekTrips}×`;",
+    lost: 'a gépi adag-sor nem mondaná a hét beteléseit',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/AppUi.kt',
+    needle: 'weekTrips = BurstLogic.tripsInDays(state.burstTripLog, site.id, UsageLogic.dayKeysBack(now, 7)),',
+    lost: 'az Android adag-sor nem kapná meg a hét beteléseit',
+  },
   // A BETELÉSEK KÖNYVE: a betelés a könyvbe is megy, a takarítás hét napot tart,
   // a státusz a hét összegét adja — ha bármelyik kiesne, a hét sora üres vagy hazug.
   {

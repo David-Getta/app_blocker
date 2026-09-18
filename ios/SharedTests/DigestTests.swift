@@ -83,6 +83,13 @@ final class DigestTests: XCTestCase {
         var zero = full
         zero.limitFullDays = 0
         XCTAssertEqual(DigestLogic.text(zero) { $0 }, DigestLogic.text(full) { $0 }, "nulla nap nem mondat")
+        var withBurst = full
+        withBurst.burstTripsWeek = 7
+        XCTAssertEqual(
+            DigestLogic.text(withBurst) { $0 },
+            "Elmúlt 7 nap: 7 ó 20 p mért idő; a legtöbb: youtube.com 2 ó 40 p (▼ -33% az előző héthez képest). "
+                + "9 menet (7 ó 0 p, 2 korán leállítva). 3 feloldás. Az adag a héten 7× telt be."
+        )
     }
 
     func testTheFullSentence() {

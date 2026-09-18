@@ -122,7 +122,9 @@ a lényegen (2 perc után zár, 10 perc múlva nyit) nem változtat.
    `burstTripLog`, Androidon az állapotban) a statisztikán a hét összegét
    mondja — „Adag-betelések a héten: youtube.com 5× · reddit.com 2×” —, de
    csak akkor, ha a hét több a mainál; különben a mai sor elég. Eszköz-helyi,
-   mint a mai szám; a fiókba nem megy.
+   mint a mai szám; a fiókba nem megy. Az oldal sora is mondja („· ma 2×
+   betelt · a héten 7×”), és a heti mondat: „Az adag a héten 7× telt be.” —
+   nulla nem mondat. iPhone-on nincs adag-szabály, ott ez nem áll.
 
 A magot mindkét oldalon teszt fedi (`desktop/test/burst.test.ts`,
 `android/jvm-tests/.../BurstTest.kt`) — ugyanazokkal a számokkal, hogy a két
