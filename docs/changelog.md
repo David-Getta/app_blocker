@@ -8,7 +8,7 @@ kettővel korábbiban.
 
 | Verzió | Nap | Mi újság |
 |---|---|---|
-| v0.4.145 (még nincs kiadva) | 2026-09-18 | a README és a weboldal a menet-sorozatról |
+| v0.4.145 | 2026-09-18 | a README és a weboldal a menet-sorozatról |
 | v0.4.144 | 2026-09-18 | a menet-sorozat ott is, ahol a döntés van |
 | v0.4.143 | 2026-09-18 | a menet-sorozat a böngészőben |
 | v0.4.142 | 2026-09-18 | a leghosszabb sorozat |
