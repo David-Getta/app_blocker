@@ -225,7 +225,7 @@ class BreakerVpnService : VpnService() {
         val hitsPart = (if (hitsToday > 0) " · Ma $hitsToday megakadás" else "") + (if (peakNow) " · most a csúcs-óra" else "") +
             (if (peakDay) " · ma a csúcs-nap" else "") + (if (focusDay) " · ma a menet-nap" else "") +
             (if (focusHourNow) " · most a menet-óra" else "") + (if (usageDay) " · ma a legnagyobb nap" else "") +
-            (if (streak >= 2) " · $streak napja minden nap" else "")
+            (if (streak >= Focus.STREAK_MIN_DAYS) " · $streak napja minden nap" else "")
         val textWithHits = if (hitsPart.isNotEmpty() && strictDns == null) text + hitsPart else text
         return Notification.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_lock_lock)

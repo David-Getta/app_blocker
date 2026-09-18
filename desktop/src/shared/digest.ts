@@ -19,7 +19,7 @@
 // Pure: a felület adja az időt, a tárolt kulcsot és a címkézést (rejtett lista,
 // fedőnév) — az értesítés sem szivárogtathat ki olyan címet, amit a lista elrejt.
 
-import { focusHourText, focusStreakText, focusWeekdayText, sameDayText, sameHourText, type FocusSummary } from './focus.js';
+import { FOCUS_STREAK_MIN_DAYS, focusHourText, focusStreakText, focusWeekdayText, sameDayText, sameHourText, type FocusSummary } from './focus.js';
 import { usageWeekdayText } from './usage.js';
 import { hourLabel, peakWeekdayText } from './browser-hits.js';
 
@@ -198,7 +198,7 @@ export function digestText(input: DigestInput, labelOf: (label: string) => strin
   // LEGHOSSZABB SOROZAT csak a mostani mellett, zárójelben: a heti mondat a hétről
   // beszél, a puszta rekord a statisztikáé.
   const streakNow = input.focusStreak ?? 0;
-  const streakLine = focusStreakText(streakNow, streakNow >= 2 ? input.focusLongestStreak ?? 0 : 0);
+  const streakLine = focusStreakText(streakNow, streakNow >= FOCUS_STREAK_MIN_DAYS ? input.focusLongestStreak ?? 0 : 0);
   if (streakLine) parts.push(streakLine);
   // A MENET-NAP: melyik napon ülsz le a legtöbbször — négy hétből, a statisztika
   // mondata szó szerint; a csúcs-nap tükre. Nincs nap, nincs mondat.

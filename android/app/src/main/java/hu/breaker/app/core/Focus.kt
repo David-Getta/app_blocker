@@ -32,6 +32,8 @@ object Focus {
 
     /** Egy munkamenet leghosszabb hossza. Ennél tovább nem tervez az ember. */
     const val MAX_SESSION_MINUTES = 8 * 60
+    /** A SOROZAT KÜSZÖBE: egy nap nem sorozat — kettőtől mondat. A három magban azonos (core-sync). */
+    const val STREAK_MIN_DAYS = 2
 
     /** A felületen felkínált hosszak. */
     val SESSION_CHOICES_MIN = listOf(15, 25, 50, 90, 120)
@@ -701,9 +703,9 @@ object Focus {
      * nagyobb a mostaninál): „(a leghosszabb sorozatod: 12 nap)”; mostani nélkül csak a rekord.
      */
     fun streakText(n: Int, longest: Int = 0): String = when {
-        n >= 2 && longest > n -> "$n napja minden nap leültél (a leghosszabb sorozatod: $longest nap)."
-        n >= 2 -> "$n napja minden nap leültél."
-        longest >= 2 -> "A leghosszabb sorozatod: $longest nap."
+        n >= STREAK_MIN_DAYS && longest > n -> "$n napja minden nap leültél (a leghosszabb sorozatod: $longest nap)."
+        n >= STREAK_MIN_DAYS -> "$n napja minden nap leültél."
+        longest >= STREAK_MIN_DAYS -> "A leghosszabb sorozatod: $longest nap."
         else -> ""
     }
 

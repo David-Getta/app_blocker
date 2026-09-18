@@ -488,6 +488,9 @@ export function focusDayStreak(log: FocusLogEntry[] | undefined, now: number): n
   return n;
 }
 
+/** A SOROZAT KÜSZÖBE: egy nap nem sorozat — kettőtől mondat. A három magban azonos (core-sync). */
+export const FOCUS_STREAK_MIN_DAYS = 2;
+
 /**
  * A LEGHOSSZABB SOROZAT: a napló leghosszabb, megszakítás nélküli napsora
  * menettel — a mostani sorozat mércéje, tény, nem ítélet. A napok a végük
@@ -516,8 +519,8 @@ export function focusLongestStreak(log: FocusLogEntry[] | undefined, now: number
  * mostani sorozat nélkül csak a rekord: „A leghosszabb sorozatod: 12 nap.”
  */
 export function focusStreakText(n: number, longest = 0): string {
-  if (n >= 2) return longest > n ? `${n} napja minden nap leültél (a leghosszabb sorozatod: ${longest} nap).` : `${n} napja minden nap leültél.`;
-  return longest >= 2 ? `A leghosszabb sorozatod: ${longest} nap.` : '';
+  if (n >= FOCUS_STREAK_MIN_DAYS) return longest > n ? `${n} napja minden nap leültél (a leghosszabb sorozatod: ${longest} nap).` : `${n} napja minden nap leültél.`;
+  return longest >= FOCUS_STREAK_MIN_DAYS ? `A leghosszabb sorozatod: ${longest} nap.` : '';
 }
 
 /**

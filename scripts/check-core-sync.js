@@ -371,6 +371,12 @@ const CHECKS = [
     scalar(ts.browserHits, /PEAK_DAY_MIN_COUNT\s*=\s*([^;]+);/, 'ts'),
     scalar(kt.filterHits, /PEAK_DAY_MIN_COUNT[^=]*=\s*(.+)/, 'kt'),
     scalar(sw.filterHits, /peakDayMinCount[^=]*=\s*(.+)/, 'swift')],
+  // A SOROZAT KÜSZÖBE: egy nap nem sorozat — ha a gép kettőnél, a telefon
+  // háromnál szólna, ugyanaz az ember két számot tudna meg ugyanarról.
+  ['FOCUS_STREAK_MIN_DAYS',
+    scalar(ts.focus, /FOCUS_STREAK_MIN_DAYS\s*=\s*([^;]+);/, 'ts'),
+    scalar(kt.focus, /STREAK_MIN_DAYS[^=]*=\s*(.+)/, 'kt'),
+    scalar(sw.focus, /streakMinDays[^=]*=\s*(.+)/, 'swift')],
 ];
 
 // KÉT NYELV KÖZÖTT. Amit csak a gép és az Android tud (iPhone-on a bővítmény

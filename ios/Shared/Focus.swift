@@ -25,6 +25,8 @@ public enum Focus {
 
     /// Egy csomagban ennyi engedélyezett tétel lehet.
     public static let maxAllowEntries = 40
+    /// A SOROZAT KÜSZÖBE: egy nap nem sorozat — kettőtől mondat. A három magban azonos (core-sync).
+    public static let streakMinDays = 2
 
     /// A csomag nevének felső hossza — a felületen is ki kell férnie.
     public static let maxPackName = 40
@@ -564,8 +566,8 @@ public enum Focus {
     /// „5 napja minden nap leültél.” — kettőtől; alatta nil. A leghosszabb sorozattal (ha nagyobb a
     /// mostaninál): „(a leghosszabb sorozatod: 12 nap)”; mostani nélkül csak a rekord.
     public static func streakText(_ n: Int, longest: Int = 0) -> String? {
-        if n >= 2 { return longest > n ? "\(n) napja minden nap leültél (a leghosszabb sorozatod: \(longest) nap)." : "\(n) napja minden nap leültél." }
-        return longest >= 2 ? "A leghosszabb sorozatod: \(longest) nap." : nil
+        if n >= streakMinDays { return longest > n ? "\(n) napja minden nap leültél (a leghosszabb sorozatod: \(longest) nap)." : "\(n) napja minden nap leültél." }
+        return longest >= streakMinDays ? "A leghosszabb sorozatod: \(longest) nap." : nil
     }
 
     /// AMIKOR A CSÚCS-ÓRA A MENET-ÓRA: a kéz ugyanabban az órában jár magától, amelyikben le szoktál ülni

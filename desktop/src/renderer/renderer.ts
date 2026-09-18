@@ -38,7 +38,7 @@ import { limitFullLine, MAX_LIMIT_MINUTES } from '../shared/limits.js';
 import {
   formatRemaining, isRunning as focusIsRunning, isWindowRun, MAX_ALLOW_ENTRIES, MAX_PACK_NAME,
   MAX_SESSION_MINUTES, nextOccurrence, SESSION_CHOICES_MIN, windowRunStarted, type FocusPack, type FocusRun, peakWindowBand,
-  packCoveringHour, focusWeekdayText, focusDayNowText, focusHourText, focusHourNowText, focusHourWarnText, focusStreakText, sameDayText, sameHourText, peakFocusHour,
+  packCoveringHour, focusWeekdayText, focusDayNowText, focusHourText, focusHourNowText, focusHourWarnText, focusStreakText, FOCUS_STREAK_MIN_DAYS, sameDayText, sameHourText, peakFocusHour,
 } from '../shared/focus.js';
 import { CATEGORY_PACKS, type CategoryPack } from '../shared/blocklist.js';
 import { windowKey, windowStartingSoon, type LockdownWindow as LockdownWindowRow } from '../shared/lockdown.js';
@@ -457,7 +457,7 @@ function renderSuggestCard(now: number): void {
   // A MENET-SOROZAT is: hány napja ülsz le minden nap — a gomb mellett; tény, nem felszólítás.
   // A rekord csak a mostani sorozat mellett, zárójelben: a puszta rekord a statisztikáé.
   const streakNow = status?.focusStreak ?? 0;
-  const streakLine = focusStreakText(streakNow, streakNow >= 2 ? status?.focusLongestStreak ?? 0 : 0);
+  const streakLine = focusStreakText(streakNow, streakNow >= FOCUS_STREAK_MIN_DAYS ? status?.focusLongestStreak ?? 0 : 0);
   if (streakLine) lines.push(streakLine);
   $('suggestCard').classList.toggle('hidden', lines.length === 0);
   $('suggestText').textContent = lines.join(' ');

@@ -14,7 +14,7 @@ import {
   type FocusPack, type FocusRun,
 } from '../shared/focus.js';
 import { hitNudgeStep, peakDayNowText, peakNowText } from '../shared/browser-hits.js';
-import { focusDayNowText, focusHourNowText, focusStreakText } from '../shared/focus.js';
+import { FOCUS_STREAK_MIN_DAYS, focusDayNowText, focusHourNowText, focusStreakText } from '../shared/focus.js';
 import { usageDayNowText } from '../shared/usage.js';
 import {
   formatLockdownRemaining, isLocked, isWindowLockdown, type Lockdown, type LockdownWindow,
@@ -84,7 +84,7 @@ function hitsLine(st: Status): string {
 /** A MENET-SOROZAT a lábban: „5 napja minden nap leültél.” — kettőtől, a mag szövegével; tény, nem felszólítás. */
 function streakPart(st: Status): string {
   const n = st.focusStreak ?? 0;
-  const t = focusStreakText(n, n >= 2 ? st.focusLongestStreak ?? 0 : 0);
+  const t = focusStreakText(n, n >= FOCUS_STREAK_MIN_DAYS ? st.focusLongestStreak ?? 0 : 0);
   return t ? ` ${t}` : '';
 }
 

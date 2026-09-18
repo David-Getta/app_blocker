@@ -209,7 +209,7 @@ public enum DigestLogic {
         }
         // A MENET-SOROZAT: hány napja ülsz le minden nap — kettőtől; tény, nem ítélet.
         // A LEGHOSSZABB SOROZAT csak a mostani mellett, zárójelben: a heti mondat a hétről beszél.
-        if let streak = Focus.streakText(input.focusStreak, longest: input.focusStreak >= 2 ? input.focusLongestStreak : 0) { parts.append(streak) }
+        if let streak = Focus.streakText(input.focusStreak, longest: input.focusStreak >= Focus.streakMinDays ? input.focusLongestStreak : 0) { parts.append(streak) }
         // A MENET-NAP: melyik napon ülsz le a legtöbbször — négy hétből, a statisztika
         // mondata szó szerint; a csúcs-nap tükre. Nincs nap, nincs mondat.
         if let focusDay = input.focusWeekday { parts.append(Focus.weekdayText(focusDay)) }

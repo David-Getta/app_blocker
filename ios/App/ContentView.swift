@@ -461,7 +461,7 @@ struct ContentView: View {
     private var focusStreakLine: String? {
         // A rekord csak a mostani sorozat mellett, zárójelben: a puszta rekord a statisztikáé.
         let n = Focus.dayStreak(store.state.focusLog ?? [], now: now)
-        return Focus.streakText(n, longest: n >= 2 ? Focus.longestStreak(store.state.focusLog ?? [], now: now) : 0)
+        return Focus.streakText(n, longest: n >= Focus.streakMinDays ? Focus.longestStreak(store.state.focusLog ?? [], now: now) : 0)
     }
 
     /// A CSÚCS-NAPON: a négy hét csúcs-napja — különben nil. Csak elég mintából; a kártya mondja, hogy ma van.

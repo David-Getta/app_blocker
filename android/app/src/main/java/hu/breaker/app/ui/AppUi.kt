@@ -404,7 +404,7 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
             // A MENET-SOROZAT is: hány napja ülsz le minden nap — a gomb mellett; tény, nem felszólítás.
             // A rekord csak a mostani sorozat mellett, zárójelben: a puszta rekord a statisztikáé.
             val streakNow = Focus.dayStreak(state.focusLog, now)
-            val streakLine = Focus.streakText(streakNow, if (streakNow >= 2) Focus.longestStreak(state.focusLog, now) else 0).takeIf { it.isNotEmpty() }
+            val streakLine = Focus.streakText(streakNow, if (streakNow >= Focus.STREAK_MIN_DAYS) Focus.longestStreak(state.focusLog, now) else 0).takeIf { it.isNotEmpty() }
             if (nudge > 0 || peakSoon != null || peakNow != null || peakDay != null || focusDay != null || focusHourNow != null || usageDay != null || streakLine != null) {
                 Card {
                     Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {

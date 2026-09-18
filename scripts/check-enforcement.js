@@ -1590,7 +1590,7 @@ const WIRES = [
   },
   {
     file: 'android/app/src/main/java/hu/breaker/app/vpn/BreakerVpnService.kt',
-    needle: '(if (streak >= 2) " · $streak napja minden nap" else "")',
+    needle: '(if (streak >= Focus.STREAK_MIN_DAYS) " · $streak napja minden nap" else "")',
     lost: 'az Android szűrő-értesítés sora nem mondaná a menet-sorozatot',
   },
   {

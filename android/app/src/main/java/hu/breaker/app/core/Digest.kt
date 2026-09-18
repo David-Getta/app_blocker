@@ -191,7 +191,7 @@ object DigestLogic {
         }
         // A MENET-SOROZAT: hány napja ülsz le minden nap — kettőtől; tény, nem ítélet.
         // A LEGHOSSZABB SOROZAT csak a mostani mellett, zárójelben: a heti mondat a hétről beszél.
-        Focus.streakText(input.focusStreak, if (input.focusStreak >= 2) input.focusLongestStreak else 0).takeIf { it.isNotEmpty() }?.let { parts.add(it) }
+        Focus.streakText(input.focusStreak, if (input.focusStreak >= Focus.STREAK_MIN_DAYS) input.focusLongestStreak else 0).takeIf { it.isNotEmpty() }?.let { parts.add(it) }
         // A MENET-NAP: melyik napon ülsz le a legtöbbször — négy hétből, a statisztika
         // mondata szó szerint; a csúcs-nap tükre. Nincs nap, nincs mondat.
         input.focusWeekday?.let { parts.add(Focus.weekdayText(it)) }
