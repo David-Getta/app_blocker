@@ -44,23 +44,23 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A hét napjainak sávja.** A csúcs-nap mondata alatt hét rekesz
-          hétfőtől vasárnapig a négy hét megakadásaival, a csúcs-nap kiemelve,
-          a napok tengelyével — a gépen, a bővítmény beállítás-lapján,
-          Androidon és iPhone-on. A csúcs a mondat, a sáv az alakja. Bővítmény
-          0.4.28.
+          **A menet-nap.** Melyik napon ülsz le a legtöbbször — négy hétből,
+          a csúcs-nap tükre: „A négy hét menet-napja: kedd (6 menet).” Alatta
+          a hét napjainak sávja, a menet-nap kiemelve. A gépen, Androidon és
+          iPhone-on. Tény, nem ítélet.
 
-          ### Ami a v0.4.114-ben jött
+          ### Ami a v0.4.115-ben jött
+
+          **A hét napjainak sávja.** A csúcs-nap mondata alatt hét rekesz
+          hétfőtől vasárnapig a négy hét megakadásaival, a csúcs-nap
+          kiemelve — a gépen, a bővítmény beállítás-lapján, Androidon és
+          iPhone-on. Bővítmény 0.4.28.
+
+          #### Ami a v0.4.114-ben jött
 
           **A csúcs-nap ott is, ahol a kísértés van.** A csúcs-napon a tiltó
           lap, a felugró lap, a gépi kártya és a réteg lába, a telefonok
-          kezdőlapja és az Android értesítése kimondja, hogy ma van — csak
-          elég mintából. Bővítmény 0.4.27.
-
-          #### Ami a v0.4.113-ban jött
-
-          **A heti mondat a csúcs-napot is mondja.** A megakadások mondata
-          után, szó szerint a statisztika sora — mindhárom platformon.
+          kezdőlapja és az Android értesítése kimondja, hogy ma van.
 
           NOTES
           fi
