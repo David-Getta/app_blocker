@@ -96,6 +96,8 @@ public enum DigestLogic {
         public var filterHitsPeakPack: String?
         /// A csúcs-órára LEHETNE ablakot tenni: van csomag ablak nélkül, és a csúcs-órát semmi nem fedi — a mondat kimondja.
         public var peakWindowOffer: Bool = false
+        /// A négy hét csúcs-napja a szűrő megakadásaira (0 = vasárnap) — a statisztika sora a mondatban; nil, ha nem volt.
+        public var filterHitsWeekday: (day: Int, count: Int)? = nil
         /// A hét csúcs-oldala (nyers név, a címkézés a mondaté; szám) — melyik oldal akaszt meg a legtöbbször.
         public var filterHitsTop: (label: String, count: Int)?
         /// Az azt megelőző 7 nap — a hét az előző héthez képest; nulla, ha nem volt (vagy a könyv akkor kezdődött).
@@ -211,6 +213,9 @@ public enum DigestLogic {
         } else if input.filterHitsPrev7d > 0 {
             parts.append("Megakadás nélkül a szűrőben\(prev).")
         }
+        // A csúcs-nap: melyik napon akad meg a kéz a legtöbbször — négy hétből, a
+        // statisztika mondata szó szerint. Nincs nap, nincs mondat.
+        if let weekday = input.filterHitsWeekday { parts.append(FilterHitLogic.peakWeekdayText(weekday)) }
         if measured, let open = input.unblockedTop.first, open.seconds > 0 {
             parts.append("Nincs tiltva, de sokat vitt: \(labelOf(open.label)) \(hm(open.seconds)).")
         }
@@ -288,6 +293,8 @@ public enum DigestLogic {
             st.focusPacks ?? [], log: st.focusLog ?? [], run: nil,
             peakHour: FilterHitLogic.peakHour(st.filterHitHours ?? [:], now: now)?.hour, now: now
         ) != nil
+        // A csúcs-nap — négy hétből, a statisztika sora: a mondat is mondja.
+        input.filterHitsWeekday = FilterHitLogic.peakWeekday(FilterHitLogic.byWeekday(st.filterHits ?? [:], now: now))
         return input
     }
 

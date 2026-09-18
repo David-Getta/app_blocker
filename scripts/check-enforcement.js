@@ -1099,6 +1099,22 @@ const WIRES = [
     needle: 'input.peakWindowOffer = Focus.peakWindowPick(',
     lost: 'az iPhone heti mondat nem mondaná, hogy a csúcs-órára lehetne ablakot tenni',
   },
+  // A HETI MONDAT a csúcs-napot is mondja — a statisztika sora, mindhárom platformon.
+  {
+    file: 'desktop/src/helper/digest-journal.ts',
+    needle: 'browserHitsWeekday: peakWeekday(browserHitsByWeekday(state.browserHits, now)),',
+    lost: 'a gépi heti mondat nem mondaná a csúcs-napot',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/Digest.kt',
+    needle: 'filterHitsWeekday = FilterHitLogic.peakWeekday(FilterHitLogic.byWeekday(st.filterHits, now)),',
+    lost: 'az Android heti mondat nem mondaná a csúcs-napot',
+  },
+  {
+    file: 'ios/Shared/Digest.swift',
+    needle: 'input.filterHitsWeekday = FilterHitLogic.peakWeekday(FilterHitLogic.byWeekday(st.filterHits ?? [:], now: now))',
+    lost: 'az iPhone heti mondat nem mondaná a csúcs-napot',
+  },
   // AZ ABLAK SZERINT INDULT menet a rétegben és az Android értesítésén is kimondva.
   {
     file: 'desktop/src/renderer/overlay.ts',

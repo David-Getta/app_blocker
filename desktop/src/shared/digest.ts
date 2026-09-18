@@ -20,7 +20,7 @@
 // fedőnév) — az értesítés sem szivárogtathat ki olyan címet, amit a lista elrejt.
 
 import type { FocusSummary } from './focus.js';
-import { hourLabel } from './browser-hits.js';
+import { hourLabel, peakWeekdayText } from './browser-hits.js';
 
 /** Hétfőn ettől az órától esedékes (helyi idő). */
 export const DIGEST_HOUR = 7;
@@ -110,6 +110,8 @@ export interface DigestInput {
   browserHitsPeakPack?: string | null;
   /** a csúcs-órára LEHETNE ablakot tenni: van csomag ablak nélkül, és a csúcs-órát semmi nem fedi — a mondat kimondja */
   peakWindowOffer?: boolean;
+  /** a négy hét csúcs-napja a böngésző megakadásaira (0 = vasárnap) — a statisztika sora a mondatban; null, ha nem volt */
+  browserHitsWeekday?: { day: number; count: number } | null;
   /** a hét csúcs-oldala (nyers név, a címkézés a mondaté) — melyik oldal akaszt meg a legtöbbször */
   browserHitsTop?: { label: string; count: number } | null;
   /** van-e egyáltalán mért nap */
@@ -208,6 +210,10 @@ export function digestText(input: DigestInput, labelOf: (label: string) => strin
   } else if (prev > 0) {
     parts.push(`Megakadás nélkül a böngészőben${prevPart}.`);
   }
+  // A csúcs-nap: melyik napon akad meg a kéz a legtöbbször — négy hétből, a
+  // statisztika mondata szó szerint. Nincs nap, nincs mondat.
+  const weekday = input.browserHitsWeekday ?? null;
+  if (weekday) parts.push(peakWeekdayText(weekday));
   // A tükör másik fele: ami sokat vitt, és nincs a listán. Egy név, a
   // legnagyobb — a többi a felvevő kártyán vár, egy kattintásra.
   const open = input.unblockedTop?.[0];

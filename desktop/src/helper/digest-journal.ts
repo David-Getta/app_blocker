@@ -14,7 +14,7 @@ import { cleanDigestLog, digestDue, digestText, recordDigest } from '../shared/d
 import { displayName, isAliased } from '../shared/alias';
 import { packCoveringHour, peakWindowPick, summarizeFocus, summarizeFocusPrevWeek } from '../shared/focus';
 import { dayKeysBack, suggestBlocks, summarize } from '../shared/usage';
-import { browserHits7d, browserHitsPeakHour, browserHitsPrev7d, browserHitsTopSite } from '../shared/browser-hits';
+import { browserHits7d, browserHitsByWeekday, browserHitsPeakHour, browserHitsPrev7d, browserHitsTopSite, peakWeekday } from '../shared/browser-hits';
 import { limitFullDays } from '../shared/limits';
 import { burstTripsInDays } from '../shared/burst';
 import type { HelperState } from './state';
@@ -68,6 +68,8 @@ export function digestTextNow(state: HelperState, now: number): string | null {
     // Lehetne-e ablakot tenni a csúcs-órára (a menet állapota itt nem számít): a mondat kimondja.
     peakWindowOffer: peak ? peakWindowPick(state.focusPacks ?? [], state.focusLog, null, peak.hour, now) !== null : false,
     browserHitsTop: browserHitsTopSite(state.browserHits, now, state.sites),
+    // A csúcs-nap — négy hétből, a statisztika sora: a mondat is mondja.
+    browserHitsWeekday: peakWeekday(browserHitsByWeekday(state.browserHits, now)),
     daysTracked: s.daysTracked,
     unblockedTop: suggestBlocks(s.topWeekSites, state.sites).map((t) => ({ label: t.label, seconds: t.seconds })),
   }, helperLabel(state));

@@ -289,4 +289,13 @@ class DigestTest {
             "mérés és menet nélkül is mondat, ha az előző héten volt feloldás")
         assertEquals(null, DigestLogic.text(bare) { it })
     }
+
+    @Test fun `a csucs-nap a mondatban - a statisztika sora szo szerint, nap nelkul nem mondat`() {
+        val head = "Elmúlt 7 nap: 7 ó 20 p mért idő; a legtöbb: youtube.com 2 ó 40 p (▼ -33% az előző héthez képest). " +
+            "9 menet (7 ó 0 p, 2 korán leállítva). 3 feloldás."
+        assertEquals("$head A négy hét csúcs-napja: vasárnap (14 megakadás).", DigestLogic.text(full.copy(filterHitsWeekday = 0 to 14)) { it })
+        assertEquals("$head 12 megakadás a szűrőben. A négy hét csúcs-napja: szerda (9 megakadás).",
+            DigestLogic.text(full.copy(filterHits7d = 12, filterHitsWeekday = 3 to 9)) { it }, "a megakadások mondata után")
+        assertEquals(DigestLogic.text(full) { it }, DigestLogic.text(full.copy(filterHitsWeekday = null)) { it }, "nap nélkül a régi mondat")
+    }
 }

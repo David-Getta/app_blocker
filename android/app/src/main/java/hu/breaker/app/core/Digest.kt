@@ -109,6 +109,8 @@ object DigestLogic {
         val filterHitsPeakPack: String? = null,
         /** a csúcs-órára LEHETNE ablakot tenni: van csomag ablak nélkül, és a csúcs-órát semmi nem fedi — a mondat kimondja */
         val peakWindowOffer: Boolean = false,
+        /** a négy hét csúcs-napja a szűrő megakadásaira (nap 0 = vasárnap, szám) — a statisztika sora a mondatban; null, ha nem volt */
+        val filterHitsWeekday: Pair<Int, Int>? = null,
         /** a hét csúcs-oldala (nyers név, a címkézés a mondaté; szám) — melyik oldal akaszt meg a legtöbbször */
         val filterHitsTop: Pair<String, Int>? = null,
         /**
@@ -198,6 +200,9 @@ object DigestLogic {
         } else if (input.filterHitsPrev7d > 0) {
             parts.add("Megakadás nélkül a szűrőben$prev.")
         }
+        // A csúcs-nap: melyik napon akad meg a kéz a legtöbbször — négy hétből, a
+        // statisztika mondata szó szerint. Nincs nap, nincs mondat.
+        input.filterHitsWeekday?.let { parts.add(FilterHitLogic.peakWeekdayText(it)) }
         // A tükör másik fele: ami sokat vitt, és nincs a listán. Egy név, a
         // legnagyobb — a többi a felvevő kártyán vár, egy kattintásra.
         val open = input.unblockedTop.firstOrNull()
@@ -303,6 +308,8 @@ object DigestLogic {
             // Lehetne-e ablakot tenni a csúcs-órára (a menet állapota itt nem számít): a mondat kimondja.
             peakWindowOffer = Focus.peakWindowPick(st.focusPacks, st.focusLog, null, FilterHitLogic.peakHour(st.filterHitHours, now)?.first, now) != null,
             filterHitsTop = FilterHitLogic.topSite(st.filterHitHosts, now),
+            // A csúcs-nap — négy hétből, a statisztika sora: a mondat is mondja.
+            filterHitsWeekday = FilterHitLogic.peakWeekday(FilterHitLogic.byWeekday(st.filterHits, now)),
             daysTracked = summary.daysTracked,
             unblockedTop = UsageLogic.suggestBlocks(summary.topWeekSites, st.sites)
                 .map { Top(it.label, it.seconds) },

@@ -82,7 +82,7 @@ test('a segéd mondata a könyvből: a forrásokat összeadja, az ablak a mai na
   state.unlockLog = [NOW - 86_400_000];
   state.browserHits = putBrowserHits(undefined, 'a', [{ day: '2026-09-18', total: 2 }, { day: '2026-09-11', total: 9 }]);
   state.browserHits = putBrowserHits(state.browserHits, 'b', [{ day: '2026-09-12', total: 1 }]);
-  assert.equal(digestTextNow(state, NOW), 'Elmúlt 7 nap: 1 feloldás. 3 megakadás a böngészőben (az előző héten 9).',
+  assert.equal(digestTextNow(state, NOW), 'Elmúlt 7 nap: 1 feloldás. 3 megakadás a böngészőben (az előző héten 9). A négy hét csúcs-napja: péntek (11 megakadás).',
     'a 11. az előző hété — a mondat a szám mellett mondja');
 });
 

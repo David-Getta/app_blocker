@@ -507,7 +507,9 @@ minta): „A négy hét csúcs-napja: vasárnap (14 megakadás).” A gépi stat
 telefonokon (`FilterHitLogic.byWeekday`/`peakWeekday`) és a bővítmény
 beállítás-lapján a saját könyvből (`hitsByWeekday`). Holtversenynél a hét
 elejéhez közelebbi nap (hétfőtől); a minta hossza a három magban azonos
-(core-sync). Tény, nem ítélet.
+(core-sync). Tény, nem ítélet. A heti mondat is mondja, a megakadások mondata
+után, szó szerint (`browserHitsWeekday`/`filterHitsWeekday` a mondat bemenetén
+— a segéd, az Android és az iOS építi); nap nélkül nincs mondat.
 
 **Ablak a csúcs-órára:** a statisztika a csúcs-óra mondata alatt — a gépen
 és a telefonokon is — egy gombot mutat — „Heti ablak a csúcs-órára: Nyelvtanulás, minden nap 21:00–22:00” —,
