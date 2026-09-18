@@ -499,7 +499,10 @@ a Swift-tükör minden pusholásnál fordul, és a mag tesztjei is lefutnak), é
 a sokadiknál egy lépést javasol, tíz perccel a csúcs-óra előtt előre szól, és
 ha nem kéred, csendben marad; a hét az előző héthez mérve, kulcsszavanként is;
 az órák sávja, és a csúcs-óra ott is, ahol a kísértés van — a tiltó lap, a
-felugró lap, a réteg, a telefon kártyája; az értesítésről, a felugró lapról és
+felugró lap, a réteg, a telefon kártyája; a csúcs-nap és a menet-nap (melyik
+napon csúszik a kéz, és melyiken ülsz le — négy hétből, a hét napjainak
+sávjával, a heti mondatban is; a csúcs-napon a tiltó lap, a felugró lap, a
+réteg és a telefon kártyája kimondja, hogy ma van); az értesítésről, a felugró lapról és
 a tiltó lapról egy kattintás a menetig, a csúcs-órára egy kattintás a heti
 ablakig — a telefonon és a böngésző lapjairól is —, és ha egy csomag ablaka
 már fedi, a statisztika kimondja —

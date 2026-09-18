@@ -130,6 +130,15 @@ utazik (`window` a naplósoron, a drót-nevek őrével). A csomag sora is mondja
 (`windowRunsByPack` a három magban; a gépen a segéd adja le a státuszban,
 `windowRuns7d`).
 
+**A menet-nap:** melyik napon ülsz le a legtöbbször — négy hétből, a hét
+napjaira osztva, a menet a végének napjára számít: „A négy hét menet-napja:
+kedd (6 menet).” A megakadások csúcs-napjának tükre (a minta hossza és a
+holtverseny szabálya közös). A statisztika munkamenet-blokkja mondja, alatta
+a hét napjainak sávja a menet-nappal kiemelve, és a heti mondat is, a menetek
+mondata után — mindhárom platformon (`focusByWeekday`, `Focus.byWeekday`;
+a gépen a segéd adja le a statisztika-válaszban, `focusWeekdays`). Lásd
+`docs/feature-usage-stats.md`.
+
 **Az aldomain átmegy**: a `google.com` engedése a `translate.google.com`-ot is
 engedi. Enélkül minden oldalnál külön ki kellene találni, melyik aldomain kell,
 és a felhasználó azt látná, hogy a beállítása nem működik. A `notgoogle.com`
