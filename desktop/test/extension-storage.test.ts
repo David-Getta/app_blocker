@@ -581,8 +581,9 @@ test('a megakadások átmennek az appnak — egyszer, amíg nem változnak; port
 test('a menet indítása a hídon: a kóddal, a megjegyzett portra; a bíró nemje a válaszból; port nélkül nem', async () => {
   type Init = { method?: string; headers: Record<string, string>; body?: string };
   type Start = (packId: string, minutes: number, fetchImpl: unknown) => Promise<{ ok: boolean; error?: string }>;
-  type Clean = (raw: unknown) => { packId: string; name: string; minutes: number } | null;
-  const ext = freshLink() as LinkApi & { startFocusInApp: Start; cleanSuggest: Clean };
+  type Clean = (raw: unknown) => { packId: string; name: string; minutes: number; peakHour: number | null } | null;
+  type AddWin = (packId: string, hour: number, fetchImpl: unknown) => Promise<{ ok: boolean; error?: string }>;
+  const ext = freshLink() as LinkApi & { startFocusInApp: Start; cleanSuggest: Clean; addFocusWindowInApp: AddWin };
   const posts: { url: string; init: Init }[] = [];
   let refuse: string | null = null;
   const app = async (url: string, init: Init) => {
@@ -603,7 +604,17 @@ test('a menet indítása a hídon: a kóddal, a megjegyzett portra; a bíró nem
   assert.deepEqual(JSON.parse(posts[0].init.body ?? '{}'), { packId: 'pack_1', minutes: 25 });
   refuse = 'Már fut egy menet.';
   assert.deepEqual(await ext.startFocusInApp('pack_1', 25, app), { ok: false, error: 'Már fut egy menet.' }, 'a bíró nemje szöveggel');
-  assert.deepEqual(ext.cleanSuggest({ packId: 'p', name: 'N', minutes: 25 }), { packId: 'p', name: 'N', minutes: 25 });
+  // A HETI ABLAK ugyanazon az úton: a kóddal, a csomaggal és az órával — a nem szöveggel.
+  refuse = null;
+  assert.deepEqual(await ext.addFocusWindowInApp('pack_1', 21, app), { ok: true });
+  assert.equal(posts[posts.length - 1].url, 'http://127.0.0.1:8788/focus_window');
+  assert.equal(posts[posts.length - 1].init.headers['x-breaker-token'], 'ABCD-EFGH');
+  assert.deepEqual(JSON.parse(posts[posts.length - 1].init.body ?? '{}'), { packId: 'pack_1', hour: 21 });
+  refuse = 'Ennek a csomagnak már van heti ablaka — az appban szerkeszthető.';
+  assert.deepEqual(await ext.addFocusWindowInApp('pack_1', 21, app), { ok: false, error: refuse }, 'a híd nemje szöveggel');
+  assert.deepEqual(ext.cleanSuggest({ packId: 'p', name: 'N', minutes: 25 }), { packId: 'p', name: 'N', minutes: 25, peakHour: null });
+  assert.deepEqual(ext.cleanSuggest({ packId: 'p', name: 'N', minutes: 25, peakHour: 21 }), { packId: 'p', name: 'N', minutes: 25, peakHour: 21 });
+  assert.equal(ext.cleanSuggest({ packId: 'p', name: 'N', minutes: 25, peakHour: 24 })?.peakHour, null, 'rossz óra: nincs csúcs, a javaslat marad');
   assert.equal(ext.cleanSuggest({ packId: 'p', name: 'N', minutes: 0 }), null);
   assert.equal(ext.cleanSuggest({ packId: '', name: 'N', minutes: 25 }), null);
   assert.equal(ext.cleanSuggest(undefined), null, 'régi app válasza: nincs javaslat');
@@ -614,7 +625,7 @@ test('a menet indítása a hídon: a kóddal, a megjegyzett portra; a bíró nem
   };
   assert.equal((await ext.pullFromApp(2000, withSuggest)).ok, true);
   assert.deepEqual(((await ext.loadLink()) as unknown as { suggest: unknown }).suggest,
-    { packId: 'p2', name: 'Mély munka', minutes: 90 });
+    { packId: 'p2', name: 'Mély munka', minutes: 90, peakHour: null });
 });
 
 test('egy RÉGI app válasza (channels mező nélkül) üres listát ad, nem hibát', async () => {

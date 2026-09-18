@@ -1044,6 +1044,34 @@ const WIRES = [
     needle: 'for (id, f) in packFps where prevFps[id] != f { marks[id] = Int(newRev) }',
     lost: 'az iPhone csomag-szerkesztése jel nélkül menne — a gép ugyanabban a körben tett szerkesztése csendben letörölné',
   },
+  // A BÖNGÉSZŐBŐL IS: a tiltó lap és a felugró lap gombja a hídon teszi fel az
+  // ablakot; a híd a bírón át, és csak ablak nélküli csomagra — a csere
+  // lazíthat, arról a bíró próbatételt kezdene, amit a híd nem indíthat el.
+  {
+    file: 'desktop/src/main/rules-bridge.ts',
+    needle: 'await deps.addFocusWindow(b.packId, b.hour as number);',
+    lost: 'a híd ablak-végpontja nem hívná a felvevőt — a lap gombja üres ígéret',
+  },
+  {
+    file: 'desktop/src/main/main.ts',
+    needle: "await client.call('focus_recurrence', { packId, band: peakWindowBand(hour) }) as { applied?: boolean };",
+    lost: 'a híd ablak-felvevője nem a bírón menne át — az ablak nem kerülne fel',
+  },
+  {
+    file: 'desktop/src/main/main.ts',
+    needle: "if (pack.recurrence) throw new Error('Ennek a csomagnak már van heti ablaka — az appban szerkeszthető.');",
+    lost: 'a híd ablakos csomagra is menne — a csere lazíthat, és a bíró próbatételt kezdene a hídról',
+  },
+  {
+    file: 'extension/popup.js',
+    needle: 'const r = await addFocusWindowInApp(packId, hour);',
+    lost: 'a felugró lap ablak-gombja nem a hídon tenne ablakot — az ígéret üres',
+  },
+  {
+    file: 'extension/blocked.js',
+    needle: 'const r = await addFocusWindowInApp(packId, hour);',
+    lost: 'a tiltó lap ablak-gombja nem a hídon tenne ablakot — az ígéret üres',
+  },
   {
     file: 'desktop/src/renderer/renderer.ts',
     needle: 'n.onclick = () => void startSuggestedSession(true);',

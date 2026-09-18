@@ -499,8 +499,8 @@ ha nem kéred, csendben marad; a hét az előző héthez mérve, kulcsszavankén
 az órák sávja, és a csúcs-óra ott is, ahol a kísértés van — a tiltó lap, a
 felugró lap, a réteg, a telefon kártyája; az értesítésről, a felugró lapról és
 a tiltó lapról egy kattintás a menetig, a csúcs-órára egy kattintás a heti
-ablakig — a telefonon is —, és ha egy csomag ablaka már fedi, a statisztika
-kimondja —
+ablakig — a telefonon és a böngésző lapjairól is —, és ha egy csomag ablaka
+már fedi, a statisztika kimondja —
 [`docs/feature-usage-stats.md`](docs/feature-usage-stats.md)).
 
 Ami még hátravan:

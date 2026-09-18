@@ -74,9 +74,39 @@ test('a menet indítása a hídról: a kóddal, csomaggal és perccel — a bír
   assert.equal((await answer(deps(), 'GET', '/rules', { [TOKEN_HEADER]: 'ABCD-EFGH' })).body && true, true);
 });
 
+test('ablak a csúcs-órára a hídról: a kóddal, csomaggal és órával — csak felvétel, a bíró nemje válasz', async () => {
+  const added: { packId: string; hour: number }[] = [];
+  let refuse: string | null = null;
+  const d = {
+    ...deps(),
+    getSuggest: async () => ({ packId: 'pack_1', name: 'Nyelvtanulás', minutes: 25, peakHour: 21 }),
+    addFocusWindow: async (packId: string, hour: number) => {
+      if (refuse) throw new Error(refuse);
+      added.push({ packId, hour });
+    },
+  };
+  const rules = await answer(d, 'GET', '/rules', { [TOKEN_HEADER]: 'ABCD-EFGH' });
+  assert.equal((rules.body as { suggest: { peakHour: number } }).suggest.peakHour, 21, 'a csúcs-óra a javaslattal megy le');
+  const ok = await answer(d, 'POST', '/focus_window', { [TOKEN_HEADER]: 'ABCD-EFGH' }, { packId: 'pack_1', hour: 21 });
+  assert.equal(ok.status, 200);
+  assert.deepEqual(added, [{ packId: 'pack_1', hour: 21 }]);
+  assert.equal((await answer(d, 'POST', '/focus_window', { [TOKEN_HEADER]: 'ROSSZ' }, { packId: 'pack_1', hour: 21 })).status, 401,
+    'kód nélkül nem megy');
+  for (const bad of [{}, { packId: '', hour: 21 }, { packId: 'pack_1', hour: 24 }, { packId: 'pack_1', hour: -1 }, { packId: 'pack_1', hour: 2.5 }, { packId: 'pack_1' }]) {
+    assert.equal((await answer(d, 'POST', '/focus_window', { [TOKEN_HEADER]: 'ABCD-EFGH' }, bad)).status, 400, JSON.stringify(bad));
+  }
+  refuse = 'Ennek a csomagnak már van heti ablaka — az appban szerkeszthető.';
+  const no = await answer(d, 'POST', '/focus_window', { [TOKEN_HEADER]: 'ABCD-EFGH' }, { packId: 'pack_1', hour: 21 });
+  assert.equal(no.status, 409);
+  assert.equal((no.body as { error: string }).error, refuse);
+  assert.equal(added.length, 1, 'a nem után nem került fel');
+  const old = await answer(deps(), 'POST', '/focus_window', { [TOKEN_HEADER]: 'ABCD-EFGH' }, { packId: 'pack_1', hour: 21 });
+  assert.equal(old.status, 404, 'felvevő nélkül a végpont nincs');
+});
+
 test('nothing can be changed through this bridge', async () => {
-  // Csak GET a szabályokra, és befelé csak két út: a megakadás-könyv és a menet
-  // INDÍTÁSA — mindkettő a lazítás irányában zárt. Egy feloldó végpont itt azt
+  // Csak GET a szabályokra, és befelé csak három út: a megakadás-könyv, a menet
+  // INDÍTÁSA és a heti ablak FELVÉTELE — mind a lazítás irányában zárt. Egy feloldó végpont itt azt
   // jelentené, hogy a bővítményből — vagy bármi másból, ami a kódot ismeri —
   // fel lehetne oldani.
   const d = deps();

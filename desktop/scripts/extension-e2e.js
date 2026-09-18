@@ -481,6 +481,8 @@ async function main() {
       // Összekötetlen appnál nincs menet-gomb: a lap ne ígérjen olyat, ami nem indul.
       const startHidden = await page.evaluate(() => document.getElementById('startFocus')?.hidden ?? null).catch(() => null);
       check(startHidden === true, 'összekötetlen appnál a tiltó lapon nincs menet-gomb');
+      const winHidden = await page.evaluate(() => document.getElementById('peakWindow')?.hidden ?? null).catch(() => null);
+      check(winHidden === true, 'összekötetlen appnál a tiltó lapon nincs ablak-gomb');
     }
     // Ugyanaz a hoszt, a szó nélkül: átmegy — a kulcsszó nem az oldalt tiltja.
     await page.goto(`${base}/?x=szabad`).catch(() => {});

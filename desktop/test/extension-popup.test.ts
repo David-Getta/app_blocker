@@ -37,11 +37,13 @@ interface Popup {
   agoText: (ms: number) => string;
   CLOSED_SHOWN: number;
   suggestButton: (link: unknown, now: number, freshMs: number) => { packId: string; minutes: number; text: string } | null;
+  windowButton: (link: unknown, now: number, freshMs: number) => { packId: string; hour: number; text: string } | null;
+  hourSpan: (h: number) => string;
 }
 
 function load(): Popup {
   const src = fs.readFileSync(path.join(extensionDir(), 'popup-core.js'), 'utf8').replace(/^export /gm, '');
-  return new Function(`${src}\nreturn { describePopup, spanText, agoText, CLOSED_SHOWN, suggestButton };`)() as Popup;
+  return new Function(`${src}\nreturn { describePopup, spanText, agoText, CLOSED_SHOWN, suggestButton, windowButton, hourSpan };`)() as Popup;
 }
 
 const NOW = 1_800_000_000_000;
@@ -199,6 +201,21 @@ test('a menet gombja: friss válasz, javaslat és futó menet nélkül — a sz�
     null, 'futó menet mellett nincs: egyszerre egy menet fut');
   assert.equal(suggestButton(link({ suggest: { packId: 'p', name: 'N', minutes: 0 } }), NOW, FRESH), null, 'nulla perc nem menet');
   assert.equal(suggestButton(link({ suggest: s, token: null }), NOW, FRESH), null, 'összekötetlenül nincs gomb');
+});
+
+test('a csúcs-óra ablakának gombja: a menet kapui, és az app csúcs-órája', () => {
+  const { windowButton, hourSpan } = load();
+  const s = { packId: 'pack_1', name: 'Nyelvtanulás', minutes: 25, peakHour: 21 };
+  assert.deepEqual(windowButton(link({ suggest: s }), NOW, FRESH),
+    { packId: 'pack_1', hour: 21, text: 'Heti ablak a csúcs-órára: Nyelvtanulás, minden nap 21:00–22:00' });
+  assert.equal(windowButton(link({ suggest: { ...s, peakHour: null } }), NOW, FRESH), null, 'csúcs-óra nélkül nincs gomb');
+  assert.equal(windowButton(link({ suggest: { ...s, peakHour: 24 } }), NOW, FRESH), null, 'rossz óra: nincs gomb');
+  assert.equal(windowButton(link({ suggest: s, fetchedAt: NOW - 10 * 60_000 }), NOW, FRESH), null, 'elavult válasz mellett nincs');
+  assert.equal(windowButton(link({ suggest: s, focus: { running: true, name: 'X', endsAt: NOW + 60_000, allowSites: [] } }), NOW, FRESH),
+    null, 'futó menet mellett nincs');
+  assert.equal(windowButton(link({ suggest: s, token: null }), NOW, FRESH), null, 'összekötetlenül nincs gomb');
+  assert.equal(hourSpan(23), '23:00–24:00', 'a nap vége, nem nulla');
+  assert.equal(hourSpan(0), '00:00–01:00');
 });
 
 test('idő-szöveg napokban: a hetes zárlat nem „kb. 168 ó”', () => {

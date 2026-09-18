@@ -255,10 +255,13 @@ A gép és a böngésző-bővítmény között egy helyi HTTP-híd él (`127.0.0
 nélkül — egy weboldal nem éri el, a bővítmény a `host_permissions` jogán igen.
 Kifelé (`GET /rules`) a szabályok, a futó menet, a csatorna-szűrők, a zárva-lista,
 a zárlat, az indokok, a megbízott, a kulcsszavak és a javasolt csomag mennek.
-Befelé két út van, és mindkettő a lazítás irányában zárt: a megakadás-könyv
-(`POST /hits` — könyvelés, bíró nélkül) és a menet indítása a felugró lapról
+Befelé három út van, és mind a lazítás irányában zárt: a megakadás-könyv
+(`POST /hits` — könyvelés, bíró nélkül), a menet indítása a felugró lapról
 (`POST /focus_start` — szigorítás; a segéd bírója dönt, ugyanúgy, mint az app
-gombjánál: futó menet mellett nem indul, ismeretlen csomag nem indul).
+gombjánál: futó menet mellett nem indul, ismeretlen csomag nem indul), és a
+heti ablak a csúcs-órára (`POST /focus_window` — csak FELVÉTEL, ablak nélküli
+csomagra; ablakos csomagra a híd nemet mond, mert a csere lazíthat, és arról
+a bíró próbatételt kezdene — azt a híd nem indíthatja el).
 Feloldó végpont nincs, és nem is lesz: aki a kódot ismeri, legfeljebb
 szigoríthat.
 

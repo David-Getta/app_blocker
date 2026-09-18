@@ -4,8 +4,8 @@
 // tárolt kapcsolat-állapotot töltjük be és kirakjuk. A Beállítások gomb a
 // beállítási lapra visz — minden, ami módosítás, ott van, itt semmi.
 
-import { CLOSED_FRESH_MS, loadLink, pullFromApp, startFocusInApp } from './app-link.js';
-import { describePopup, suggestButton } from './popup-core.js';
+import { CLOSED_FRESH_MS, addFocusWindowInApp, loadLink, pullFromApp, startFocusInApp } from './app-link.js';
+import { describePopup, hourSpan, suggestButton, windowButton } from './popup-core.js';
 import { dayKey, hitsSummary, hitsText, peakNow, peakText, topHost } from './hits.js';
 
 const $ = (id) => document.getElementById(id);
@@ -50,6 +50,13 @@ async function render() {
   startBtn.textContent = sb ? sb.text : '';
   startBtn.dataset.packId = sb ? sb.packId : '';
   startBtn.dataset.minutes = sb ? String(sb.minutes) : '';
+  // ABLAK A CSÚCS-ÓRÁRA: ugyanazok a kapuk, és az app mondja, van-e mire.
+  const wb = windowButton(link, Date.now(), CLOSED_FRESH_MS);
+  const winBtn = $('peakWindow');
+  winBtn.hidden = wb === null;
+  winBtn.textContent = wb ? wb.text : '';
+  winBtn.dataset.packId = wb ? wb.packId : '';
+  winBtn.dataset.hour = wb ? String(wb.hour) : '';
 
   const box = $('closedBox');
   const list = $('closedList');
@@ -107,6 +114,27 @@ $('startFocus').addEventListener('click', async () => {
   btn.disabled = false;
   note.hidden = r.ok;
   note.textContent = r.ok ? '' : `Nem indult el: ${r.error}`;
+  if (r.ok) {
+    try { await pullFromApp(); } catch { /* a következő kör úgyis lehúzza */ }
+    await render();
+  }
+});
+
+// A HETI ABLAK felvétele a hídon, aztán friss lehúzás: az app javaslata már
+// ablakos csomagot mond, a gomb eltűnik, a sor kimondja, hogy megvan.
+$('peakWindow').addEventListener('click', async () => {
+  const btn = $('peakWindow');
+  const note = $('peakWindowNote');
+  const packId = btn.dataset.packId || '';
+  const hour = Number(btn.dataset.hour || '-1');
+  if (!packId || !Number.isInteger(hour) || hour < 0 || hour > 23) return;
+  btn.disabled = true;
+  const r = await addFocusWindowInApp(packId, hour);
+  btn.disabled = false;
+  note.hidden = false;
+  note.textContent = r.ok
+    ? `Megvan: minden nap ${hourSpan(hour)} magától indul — levenni az appban, próbatétellel.`
+    : `Nem került fel: ${r.error}`;
   if (r.ok) {
     try { await pullFromApp(); } catch { /* a következő kör úgyis lehúzza */ }
     await render();

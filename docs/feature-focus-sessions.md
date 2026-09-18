@@ -389,7 +389,10 @@ azt a felhasználó indította. Engedély híján a kártya és a felső sori je
 mondja ugyanezt. A felugró lapon és a tiltó lapon egy gomb is: „Munkamenet:
 Nyelvtanulás, 25 perc” a hídon indítja az app javasolt csomagját
 (`POST /focus_start`, a kóddal — a bíró dönt; futó menet és összekötés nélkül
-nincs gomb; a tiltó lap kimondja, hogy elindult). A böngészőben is ott van: a bővítmény felugró lapja és a
+nincs gomb; a tiltó lap kimondja, hogy elindult). Mellette a másik gomb —
+„Heti ablak a csúcs-órára: Nyelvtanulás, minden nap 21:00–22:00” — a hídon
+felteszi az ablakot (`POST /focus_window`), ha az app csúcs-óráját semmi nem
+fedi és a csomagnak nincs még; csak felvétel, a csere az appé. A böngészőben is ott van: a bővítmény felugró lapja és a
 tiltó lapja kimondja, ha a menet az ablak szerint indult — a híd viszi át a
 jelet a többi adattal együtt, és egy régebbi app, ami nem küld ilyet, nem
 ablak, hanem sima menet.

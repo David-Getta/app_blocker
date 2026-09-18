@@ -64,6 +64,14 @@ const FAKE_CHROME = `
       window.__started = JSON.parse(init.body || '{}');
       return { ok: true, status: 200, json: async () => ({ ok: true }) };
     }
+    // A HETI ABLAK a hídon: a hamis app feljegyzi, mit kért a lap.
+    if (String(url) === 'http://127.0.0.1:8788/focus_window' && init?.method === 'POST') {
+      if (init?.headers?.['x-breaker-token'] !== 'JOKOD') {
+        return { ok: false, status: 401, json: async () => ({ error: 'rossz kód' }) };
+      }
+      window.__windowed = JSON.parse(init.body || '{}');
+      return { ok: true, status: 200, json: async () => ({ ok: true }) };
+    }
     if (String(url) !== 'http://127.0.0.1:8788/rules') throw new Error('ECONNREFUSED');
     if (init?.headers?.['x-breaker-token'] !== 'JOKOD') {
       return { ok: false, status: 401, json: async () => ({ error: 'rossz kód' }) };
@@ -274,6 +282,46 @@ async function main() {
       && document.getElementById('startFocus')?.hidden === true,
     undefined, { timeout: 10_000 },
   ).catch(() => failures.push('a tiltó lap menet-gombja nem a hídon indított, vagy nem mondta ki, hogy elindult'));
+
+  // ABLAK A CSÚCS-ÓRÁRA a felugró lapról: az app csúcs-órájával a gomb a
+  // sávot mondja, a kattintás a hídon teszi fel — a kóddal —, és a sor kimondja.
+  await page.addInitScript(`
+    window.__disk['breaker.applink'] = {
+      token: 'JOKOD', port: 8788, rules: [], channels: [], closed: [],
+      focus: { running: false },
+      suggest: { packId: 'pack_2', name: 'Mély munka', minutes: 90, peakHour: 21 },
+      fetchedAt: Date.now(), attemptedAt: Date.now(), error: null,
+    };
+  `);
+  await page.goto(`http://127.0.0.1:${port}/popup.html`);
+  await page.waitForFunction(
+    () => document.getElementById('peakWindow')?.textContent === 'Heti ablak a csúcs-órára: Mély munka, minden nap 21:00–22:00'
+      && !document.getElementById('peakWindow')?.hidden,
+    undefined, { timeout: 10_000 },
+  ).catch(() => failures.push('a felugró lap ablak-gombja nem az app csúcs-óráját mondja'));
+  await page.locator('#peakWindow').click().catch(() => failures.push('az ablak gombja nem kattintható'));
+  await page.waitForFunction(
+    () => window.__windowed && window.__windowed.packId === 'pack_2' && window.__windowed.hour === 21
+      && /Megvan: minden nap 21:00–22:00/.test(document.getElementById('peakWindowNote')?.textContent || ''),
+    undefined, { timeout: 10_000 },
+  ).catch(() => failures.push('az ablak gombja nem a hídon tett ablakot, vagy nem mondta ki, hogy megvan'));
+
+  // A TILTÓ LAPON is: ugyanaz a gomb a kísértés pillanatában — a kattintás a
+  // hídon teszi fel, a lap kimondja, és a gomb eltűnik.
+  await page.goto(`http://127.0.0.1:${port}/blocked.html?rule=youtube.com/@valaki&from=https://youtube.com/@valaki`);
+  await page.waitForFunction(
+    () => document.getElementById('peakWindow')?.textContent === 'Heti ablak a csúcs-órára: Mély munka, minden nap 21:00–22:00'
+      && !document.getElementById('peakWindow')?.hidden,
+    undefined, { timeout: 10_000 },
+  ).catch(() => failures.push('a tiltó lap ablak-gombja nem az app csúcs-óráját mondja'));
+  await page.evaluate(() => { window.__windowed = null; });
+  await page.locator('#peakWindow').click().catch(() => failures.push('a tiltó lap ablak-gombja nem kattintható'));
+  await page.waitForFunction(
+    () => window.__windowed && window.__windowed.packId === 'pack_2' && window.__windowed.hour === 21
+      && /Megvan: minden nap 21:00–22:00/.test(document.getElementById('peakWindowNote')?.textContent || '')
+      && document.getElementById('peakWindow')?.hidden === true,
+    undefined, { timeout: 10_000 },
+  ).catch(() => failures.push('a tiltó lap ablak-gombja nem a hídon tett ablakot, vagy nem mondta ki, hogy megvan'));
 
   await browser.close();
   server.close();

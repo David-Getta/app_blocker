@@ -205,13 +205,18 @@ async function saveLink(link) {
   await chrome.storage.local.set({ [KEY]: link });
 }
 
-/** A javasolt csomag tisztán: { packId, name, minutes } — vagy null. Régi app válaszában nincs, az sem hiba. */
+/**
+ * A javasolt csomag tisztán: { packId, name, minutes, peakHour } — vagy null.
+ * Régi app válaszában nincs, az sem hiba. A csúcs-óra (amire a lap heti
+ * ablakot tehet) csak 0–23 egészként számít; különben null — a javaslat marad.
+ */
 export function cleanSuggest(raw) {
   if (!raw || typeof raw !== 'object') return null;
   const minutes = Number(raw.minutes);
   if (typeof raw.packId !== 'string' || !raw.packId || typeof raw.name !== 'string' || !raw.name) return null;
   if (!Number.isInteger(minutes) || minutes <= 0) return null;
-  return { packId: raw.packId, name: raw.name, minutes };
+  const peakHour = Number.isInteger(raw.peakHour) && raw.peakHour >= 0 && raw.peakHour <= 23 ? raw.peakHour : null;
+  return { packId: raw.packId, name: raw.name, minutes, peakHour };
 }
 
 /**
@@ -378,14 +383,28 @@ export async function pushHits(report, now = Date.now(), fetchImpl = fetch, time
  * válaszban jön vissza, nem hálózati hibaként.
  */
 export async function startFocusInApp(packId, minutes, fetchImpl = fetch, timeoutMs = PORT_TIMEOUT_MS) {
+  return postToApp('/focus_start', { packId, minutes }, fetchImpl, timeoutMs);
+}
+
+/**
+ * ABLAK A CSÚCS-ÓRÁRA a tiltó lapról és a felugró lapról: heti ablak a
+ * javasolt csomagra a csúcs egy órájában, minden napra — az appban, a hídon,
+ * a kóddal. Csak felvétel: ablakos csomagra az app nemet mond, a csere az övé.
+ */
+export async function addFocusWindowInApp(packId, hour, fetchImpl = fetch, timeoutMs = PORT_TIMEOUT_MS) {
+  return postToApp('/focus_window', { packId, hour }, fetchImpl, timeoutMs);
+}
+
+/** Egy befelé menő kérés a hídon: { ok } vagy { ok: false, error } — a bíró nemje szöveggel, nem hálózati hibaként. */
+async function postToApp(path, payload, fetchImpl, timeoutMs) {
   const link = await loadLink();
   if (!link.token || !link.port) return { ok: false, error: 'Nincs összekötve.' };
   const ctrl = typeof AbortController === 'function' ? new AbortController() : null;
   try {
-    const res = await withTimeout(fetchImpl(`http://127.0.0.1:${link.port}/focus_start`, {
+    const res = await withTimeout(fetchImpl(`http://127.0.0.1:${link.port}${path}`, {
       method: 'POST',
       headers: { [TOKEN_HEADER]: link.token, 'content-type': 'application/json' },
-      body: JSON.stringify({ packId, minutes }),
+      body: JSON.stringify(payload),
       cache: 'no-store',
       ...(ctrl ? { signal: ctrl.signal } : {}),
     }), timeoutMs);

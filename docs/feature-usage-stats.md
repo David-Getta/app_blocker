@@ -514,7 +514,11 @@ cserélni és levenni a gépen lehet, próbatétellel. Ez az első
 csomag-szerkesztés a telefonon, ezért a telefon a csomag JELÉT is írja a
 léptetésben (`SyncRevisions.bumpFocus`, a gépi `markPacks` tükre; az első
 léptetés jel nélkül megy) — különben a gép egy ugyanabban a körben tett
-szerkesztése a fésülésben csendben letörölné az ablakot. Ha egy csomag
+szerkesztése a fésülésben csendben letörölné az ablakot. A bővítmény felugró
+lapján és tiltó lapján is ott a gomb: a híd a javaslattal leadja a csúcs-órát
+(`suggest.peakHour`, csak ha ablak tehető rá), és a `POST /focus_window`
+felteszi — csak felvétel, ablakos csomagra a híd nemet mond, mert a csere
+lazíthat, és arról a bíró próbatételt kezdene, amit a híd nem indíthat el. Ha egy csomag
 heti ablaka már fedi a csúcs-órát (legalább egy napon az óra egy részét is
 átfogja, `packCoveringHour`), a gomb helyett a sor mondja — mindhárom
 platformon: „A csúcs-órában magától indul: Nyelvtanulás (minden nap

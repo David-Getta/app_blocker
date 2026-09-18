@@ -109,6 +109,12 @@ export interface BridgeSuggest {
   packId: string;
   name: string;
   minutes: number;
+  /**
+   * A CSÚCS-ÓRA, amire a lap heti ablakot tehet a javasolt csomagra — vagy
+   * null: nincs csúcs, a csomagnak már van ablaka (a csere lazíthat, az az
+   * appé), vagy egy ablak már fedi a csúcs-órát. Régi app nem küldi.
+   */
+  peakHour?: number | null;
 }
 
 /**
@@ -172,6 +178,11 @@ export interface BridgeDeps {
    * SZIGORÍTÁS jöhet be — a bíró dönt, a bővítmény nem vehet le semmit.
    */
   startFocus?: (packId: string, minutes: number) => Promise<void>;
+  /**
+   * A HARMADIK befelé menő út: heti ablak a csúcs-órára a javasolt csomagon.
+   * Csak felvétel — ablak nélküli csomagra —, az szigorítás; a csere az appé.
+   */
+  addFocusWindow?: (packId: string, hour: number) => Promise<void>;
   token: string;
   /** csak teszthez: melyik portról induljon */
   startPort?: number;
@@ -205,10 +216,11 @@ export async function answer(
   headers: Record<string, unknown>, body?: unknown,
 ): Promise<{ status: number; body: unknown }> {
   const path = (url ?? '').split('?')[0];
-  // BEFELÉ két út van, és mindkettő a lazítás irányában zárt. A megakadás-könyv:
-  // csak könyvelés jön rajta, szabály soha. És a menet indítása: szigorítás
-  // — a bíró dönt róla, ugyanúgy, mint az app gombjánál; a bővítmény nem vehet
-  // le és nem tehet fel semmit az appban, csak ELINDÍTHAT egy menetet.
+  // BEFELÉ három út van, és mind a lazítás irányában zárt. A megakadás-könyv:
+  // csak könyvelés jön rajta, szabály soha. A menet indítása: szigorítás — a
+  // bíró dönt róla, ugyanúgy, mint az app gombjánál. És a heti ablak a
+  // csúcs-órára: csak FELVÉTEL, ablak nélküli csomagra — a csere lazíthat, az
+  // az appé. A bővítmény nem vehet le semmit az appban.
   if (method === 'POST' && path === '/focus_start') {
     if (!tokenMatches(deps.token, headers[TOKEN_HEADER])) {
       return { status: 401, body: { error: 'Hiányzó vagy rossz kód.' } };
@@ -223,6 +235,23 @@ export async function answer(
     } catch (e) {
       // A bíró nemje (futó menet, ismeretlen csomag) nem hiba, hanem válasz.
       return { status: 409, body: { error: (e as Error).message || 'Nem indult el.' } };
+    }
+    return { status: 200, body: { ok: true } };
+  }
+  if (method === 'POST' && path === '/focus_window') {
+    if (!tokenMatches(deps.token, headers[TOKEN_HEADER])) {
+      return { status: 401, body: { error: 'Hiányzó vagy rossz kód.' } };
+    }
+    const b = body && typeof body === 'object' ? body as { packId?: unknown; hour?: unknown } : {};
+    if (typeof b.packId !== 'string' || !b.packId || !Number.isInteger(b.hour) || (b.hour as number) < 0 || (b.hour as number) > 23) {
+      return { status: 400, body: { error: 'Csomag és óra kell.' } };
+    }
+    if (!deps.addFocusWindow) return { status: 404, body: { error: 'Ez az app nem tesz ablakot a hídról.' } };
+    try {
+      await deps.addFocusWindow(b.packId, b.hour as number);
+    } catch (e) {
+      // A bíró és a híd nemje (ablakos csomag, ismeretlen csomag) válasz, nem hiba.
+      return { status: 409, body: { error: (e as Error).message || 'Nem került fel.' } };
     }
     return { status: 200, body: { ok: true } };
   }

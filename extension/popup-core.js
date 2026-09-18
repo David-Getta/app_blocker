@@ -46,6 +46,24 @@ export function suggestButton(link, now, freshMs) {
   return { packId: s.packId, minutes: s.minutes, text: `Munkamenet: ${s.name}, ${s.minutes} perc` };
 }
 
+/** Óra-sáv szövege: „21:00–22:00”; a 23 vége 24:00 (a nap vége, nem nulla). */
+export function hourSpan(h) {
+  const p = (n) => String(n).padStart(2, '0');
+  return `${p(h)}:00–${p(h + 1)}:00`;
+}
+
+/**
+ * A CSÚCS-ÓRA ABLAKÁNAK gombja: { packId, hour, text } — vagy null. Ugyanazok
+ * a kapuk, mint a menet gombjánál (összekötve, friss válasz, futó menet
+ * nélkül), és az app mondja meg, van-e csúcs-óra, amire ablak tehető.
+ */
+export function windowButton(link, now, freshMs) {
+  const sb = suggestButton(link, now, freshMs);
+  const h = link?.suggest?.peakHour;
+  if (!sb || !Number.isInteger(h) || h < 0 || h > 23) return null;
+  return { packId: sb.packId, hour: h, text: `Heti ablak a csúcs-órára: ${link.suggest.name}, minden nap ${hourSpan(h)}` };
+}
+
 export function describePopup(link, now, freshMs) {
   const fetchedAt = link?.fetchedAt ?? 0;
   const linked = !!link?.token;

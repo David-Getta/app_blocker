@@ -13,7 +13,7 @@ import {
 } from './overlay';
 import { setupOverlayShortcut } from './overlay-shortcut';
 import { setupExtensionFolder } from './extension-folder';
-import { isWindowRun, shouldWarnAboutApp, warnDue } from '../shared/focus';
+import { isWindowRun, packCoveringHour, peakWindowBand, shouldWarnAboutApp, warnDue } from '../shared/focus';
 import * as path from 'path';
 import { HelperClient } from './helper-client';
 import { installHelper } from './install';
@@ -342,13 +342,31 @@ if (HELPER_MODE) {
           if (run && run.endsAt > Date.now()) return null;
           const packs = s.focusPacks ?? [];
           const pick = packs.find((p) => p.id === s.lastUsedPackId) ?? packs[0] ?? null;
-          return pick ? { packId: pick.id, name: pick.name, minutes: pick.defaultMinutes } : null;
+          if (!pick) return null;
+          // A CSÚCS-ÓRA, amire a lap ablakot tehet: ugyanazok a kapuk, mint az
+          // app gombjánál — van csúcs, a csomagnak nincs ablaka, és semmi nem
+          // fedi. Különben null: a lap ne ígérjen olyat, amit a híd nem tesz meg.
+          const peak = s.browserHitsPeak ?? null;
+          const peakHour = peak && !pick.recurrence && !packCoveringHour(packs, peak.hour) ? peak.hour : null;
+          return { packId: pick.id, name: pick.name, minutes: pick.defaultMinutes, peakHour };
         },
         async (packId, minutes) => {
           // EGY KATTINTÁS a felugró lapról a menetig: ugyanaz a bírói út, mint
           // az app gombjáé — szigorítás, ingyen. A bíró nemje hibaként jön
           // vissza, a híd válasznak adja tovább.
           await client.call('focus_start', { packId, minutes });
+        },
+        async (packId, hour) => {
+          // ABLAK A CSÚCS-ÓRÁRA a tiltó lapról és a felugró lapról: ugyanaz a
+          // bírói út, mint az app gombjáé. A híd befelé csak szigorít: ablakos
+          // csomagra nem megy — a csere lazíthat, arról a bíró próbatételt
+          // kezdene, és azt a híd nem indíthatja el. Ezért előbb megnézzük.
+          const s = await sharedStatus();
+          const pack = (s.focusPacks ?? []).find((p) => p.id === packId);
+          if (!pack) throw new Error('Ismeretlen csomag.');
+          if (pack.recurrence) throw new Error('Ennek a csomagnak már van heti ablaka — az appban szerkeszthető.');
+          const r = await client.call('focus_recurrence', { packId, band: peakWindowBand(hour) }) as { applied?: boolean };
+          if (r.applied === false) throw new Error('Ez próbatételbe kerülne — az appból megy.');
         },
       );
       // Keep the tracker's view of the switch fresh without extra IPC chatter.
