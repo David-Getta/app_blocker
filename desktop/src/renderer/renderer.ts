@@ -38,7 +38,7 @@ import { limitFullLine, MAX_LIMIT_MINUTES } from '../shared/limits.js';
 import {
   formatRemaining, isRunning as focusIsRunning, isWindowRun, MAX_ALLOW_ENTRIES, MAX_PACK_NAME,
   MAX_SESSION_MINUTES, nextOccurrence, SESSION_CHOICES_MIN, windowRunStarted, type FocusPack, type FocusRun, peakWindowBand,
-  packCoveringHour, focusWeekdayText, focusDayNowText, focusHourText, peakFocusHour,
+  packCoveringHour, focusWeekdayText, focusDayNowText, focusHourText, focusHourNowText, peakFocusHour,
 } from '../shared/focus.js';
 import { CATEGORY_PACKS, type CategoryPack } from '../shared/blocklist.js';
 import { windowKey, windowStartingSoon, type LockdownWindow as LockdownWindowRow } from '../shared/lockdown.js';
@@ -442,6 +442,9 @@ function renderSuggestCard(now: number): void {
   // A MENET-NAPON is: ma szoktál leülni — a tükör másik fele, a gombbal.
   const focusDayLine = focusDayNowText(status?.focusWeekday ?? null, now).trim();
   if (focusDayLine) lines.push(focusDayLine);
+  // A MENET-ÓRÁBAN is: most szoktál elkezdeni — a csúcs-óra mondatának tükre, a gombbal.
+  const focusHourLine = focusHourNowText(status?.focusHour ?? null, now).trim();
+  if (focusHourLine) lines.push(focusHourLine);
   $('suggestCard').classList.toggle('hidden', lines.length === 0);
   $('suggestText').textContent = lines.join(' ');
   const pick = suggestedPack();

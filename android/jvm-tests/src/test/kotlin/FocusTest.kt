@@ -432,4 +432,15 @@ class FocusTest {
         assertEquals("A négy hét menet-órája: 9–10 óra (6 menet).", Focus.hourText(9 to 6))
         assertEquals(List(24) { 0 }, Focus.byHour(emptyList(), now))
     }
+
+    @Test
+    fun `a menet-ora a dontes orajaban - most van-e, es csak eleg mintabol`() {
+        val at9 = localTime(9, 30)
+        val at10 = localTime(10, 0)
+        assertEquals(true, Focus.isHourNow(9 to 6, at9))
+        assertEquals(false, Focus.isHourNow(9 to 6, at10), "más órában nem")
+        assertEquals(false, Focus.isHourNow(9 to 2, at9), "kevés minta: nem mondat")
+        assertEquals(false, Focus.isHourNow(null, at9))
+        assertEquals("Most a menet-órád van (9–10 óra, 6 menet) — ilyenkor szoktál elkezdeni.", Focus.hourNowText(9 to 6))
+    }
 }

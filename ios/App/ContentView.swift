@@ -424,6 +424,13 @@ struct ContentView: View {
         FilterHitLogic.peakHour(store.state.filterHitHours ?? [:], now: now)?.hour
     }
 
+    /// A MENET-ÓRÁBAN: a négy hét menet-órája — különben nil. A kártya mondja, hogy most szoktál elkezdeni.
+    private var focusHourNow: (hour: Int, count: Int)? {
+        guard let peak = Focus.peakHour(Focus.byHour(store.state.focusLog ?? [], now: now)),
+              Focus.isHourNow(peak, now: now) else { return nil }
+        return peak
+    }
+
     /// A MENET-NAPON: a négy hét menet-napja — különben nil. A „ma van” szabálya a csúcs-napé; a kártya mondja, hogy ma szoktál leülni.
     private var focusDayNow: (day: Int, count: Int)? {
         guard let peak = FilterHitLogic.peakWeekday(Focus.byWeekday(store.state.focusLog ?? [], now: now)),
@@ -455,7 +462,8 @@ struct ContentView: View {
             let inPeak = peakNow
             let onPeakDay = peakDayNow
             let onFocusDay = focusDayNow
-            if step > 0 || soon != nil || inPeak != nil || onPeakDay != nil || onFocusDay != nil {
+            let inFocusHour = focusHourNow
+            if step > 0 || soon != nil || inPeak != nil || onPeakDay != nil || onFocusDay != nil || inFocusHour != nil {
                 VStack(alignment: .leading, spacing: 8) {
                     if step > 0 { Text(FilterHitLogic.nudgeText(step)).font(.footnote) }
                     if let soon { Text(FilterHitLogic.peakWarnText(soon)).font(.footnote) }
@@ -465,6 +473,8 @@ struct ContentView: View {
                     if let onPeakDay { Text(FilterHitLogic.peakDayNowText(onPeakDay)).font(.footnote) }
                     // A MENET-NAPON is: ma szoktál leülni — a tükör másik fele, a gombbal.
                     if let onFocusDay { Text(Focus.dayNowText(onFocusDay)).font(.footnote) }
+                    // A MENET-ÓRÁBAN is: most szoktál elkezdeni — a csúcs-óra mondatának tükre, a gombbal.
+                    if let inFocusHour { Text(Focus.hourNowText(inFocusHour)).font(.footnote) }
                     // EGY KOPPINTÁS a mondattól a menetig: a legutóbb használt csomag
                     // a szokásos hosszával — szigorítás, ingyen. Futó menet mellett
                     // nincs gomb (egyszerre egy menet fut).

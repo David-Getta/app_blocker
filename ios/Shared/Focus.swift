@@ -527,6 +527,17 @@ public enum Focus {
         "A négy hét menet-órája: \(FilterHitLogic.hourLabel(peak.hour)) (\(peak.count) menet)."
     }
 
+    /// MOST a menet-óra van-e: a négy hét menet-órája és a helyi óra egybeesik — és a minta elég (a csúcs-nap küszöbe).
+    public static func isHourNow(_ peak: (hour: Int, count: Int)?, now: Double) -> Bool {
+        guard let peak, peak.count >= FilterHitLogic.peakDayMinCount else { return false }
+        return FilterHitLogic.hourOf(now) == peak.hour
+    }
+
+    /// A tükör a döntés órájában: a kezdőlap kártyája a menet-órában.
+    public static func hourNowText(_ peak: (hour: Int, count: Int)) -> String {
+        "Most a menet-órád van (\(FilterHitLogic.hourLabel(peak.hour)), \(peak.count) menet) — ilyenkor szoktál elkezdeni."
+    }
+
     /// A tükör a döntés napján: a kezdőlap kártyája a menet-napon (a „ma van” szabálya a csúcs-napé: FilterHitLogic.isPeakDayNow).
     public static func dayNowText(_ peak: (day: Int, count: Int)) -> String {
         let name = peak.day >= 0 && peak.day < FilterHitLogic.weekdayNames.count ? FilterHitLogic.weekdayNames[peak.day] : "?"

@@ -24,7 +24,7 @@
 import { normalizeDomain } from './blocklist.js';
 import { isLoosening, isValidBand, type Band, type Weekday } from './schedule.js';
 import { dayKey, dayKeysBack } from './usage.js';
-import { hourLabel, isPeakDayNow, PEAK_WEEKDAY_DAYS, WEEKDAY_NAMES } from './browser-hits.js';
+import { hourLabel, isPeakDayNow, PEAK_DAY_MIN_COUNT, PEAK_WEEKDAY_DAYS, WEEKDAY_NAMES } from './browser-hits.js';
 
 /** Egy csomagban ennyi engedélyezett tétel lehet. */
 export const MAX_ALLOW_ENTRIES = 40;
@@ -472,6 +472,17 @@ export function focusHourText(peak: { hour: number; count: number }): string {
 export function focusDayNowText(peak: { day: number; count: number } | null | undefined, now: number): string {
   return peak && isPeakDayNow(peak, now)
     ? ` Ma a négy hét menet-napja van (${WEEKDAY_NAMES[peak.day] ?? '?'}, ${peak.count} menet) — ilyenkor szoktál leülni.` : '';
+}
+
+/** MOST a menet-óra van-e: a négy hét menet-órája és a helyi óra egybeesik — és a minta elég (a csúcs-nap küszöbe). */
+export function isFocusHourNow(peak: { hour: number; count: number } | null | undefined, now: number): boolean {
+  return !!peak && peak.count >= PEAK_DAY_MIN_COUNT && new Date(now).getHours() === peak.hour;
+}
+
+/** A tükör a döntés órájában: a kártya és a réteg lába a menet-órában — különben üres. */
+export function focusHourNowText(peak: { hour: number; count: number } | null | undefined, now: number): string {
+  return peak && isFocusHourNow(peak, now)
+    ? ` Most a menet-órád van (${hourLabel(peak.hour)}, ${peak.count} menet) — ilyenkor szoktál elkezdeni.` : '';
 }
 
 /** Esedékes-e a figyelmeztetés (az előző óta eltelt-e a türelmi idő). */

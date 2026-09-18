@@ -77,6 +77,14 @@ export function focusDayText(link, now, freshMs) {
   return ' Ma a menet-napod van — ilyenkor szoktál leülni.';
 }
 
+/** A MENET-ÓRA: ha az app azt mondja, most szoktál elkezdeni, a lap a gomb mellett kimondja — összekötve, frissen. */
+export function focusHourNowText(link, now, freshMs) {
+  if (!link || typeof link.token !== 'string' || !link.token) return '';
+  const fresh = Number.isFinite(link?.fetchedAt) && link.fetchedAt > 0 && now - link.fetchedAt <= freshMs;
+  if (!fresh || link?.suggest?.focusHourNow !== true) return '';
+  return ' Most a menet-órád van.';
+}
+
 /**
  * A CSÚCS-ÓRA ABLAKÁNAK gombja: { packId, hour, text } — vagy null. Ugyanazok
  * a kapuk, mint a menet gombjánál (összekötve, friss válasz, futó menet

@@ -6,7 +6,10 @@
 
 import { test } from 'node:test';
 import * as assert from 'node:assert/strict';
-import { focusByHour, focusByWeekday, focusDayNowText, focusDaySeries, focusHourText, focusWeekdayText, peakFocusHour, type FocusLogEntry } from '../src/shared/focus';
+import {
+  focusByHour, focusByWeekday, focusDayNowText, focusDaySeries, focusHourNowText, focusHourText, focusWeekdayText, isFocusHourNow, peakFocusHour,
+  type FocusLogEntry,
+} from '../src/shared/focus';
 import { peakWeekday } from '../src/shared/browser-hits';
 import { dayKey } from '../src/shared/usage';
 
@@ -100,4 +103,17 @@ test('a menet-óra: négy hétből, az indulás órája szerint — a huszonnyol
   assert.equal(peakFocusHour(new Array<number>(24).fill(0)), null);
   assert.equal(focusHourText({ hour: 9, count: 6 }), 'A négy hét menet-órája: 9–10 óra (6 menet).');
   assert.deepEqual(focusByHour(undefined, now), new Array<number>(24).fill(0));
+});
+
+test('a menet-óra a döntés órájában: most van-e, és csak elég mintából — a kártya és a láb mondata', () => {
+  const at9 = new Date(2026, 8, 22, 9, 30).getTime();
+  const at10 = new Date(2026, 8, 22, 10, 0).getTime();
+  assert.equal(isFocusHourNow({ hour: 9, count: 6 }, at9), true);
+  assert.equal(isFocusHourNow({ hour: 9, count: 6 }, at10), false, 'más órában nem');
+  assert.equal(isFocusHourNow({ hour: 9, count: 2 }, at9), false, 'kevés minta: nem mondat');
+  assert.equal(isFocusHourNow(null, at9), false);
+  assert.equal(focusHourNowText({ hour: 9, count: 6 }, at9),
+    ' Most a menet-órád van (9–10 óra, 6 menet) — ilyenkor szoktál elkezdeni.');
+  assert.equal(focusHourNowText({ hour: 9, count: 6 }, at10), '', 'a menet-órán kívül a láb nem mondja');
+  assert.equal(focusHourNowText(null, at9), '');
 });

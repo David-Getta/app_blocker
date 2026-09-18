@@ -1075,7 +1075,7 @@ const WIRES = [
   // LE VAN-E FEDVE a felugró lapon: a híd leadja a fedő csomagot, a lap kimondja.
   {
     file: 'desktop/src/main/main.ts',
-    needle: "peakPack: covering?.name ?? null, focusDay };",
+    needle: "peakPack: covering?.name ?? null, focusDay, focusHourNow };",
     lost: 'a híd nem adná le a csúcs-órát fedő csomagot — a felugró lap nem mondaná',
   },
   {
@@ -1249,12 +1249,12 @@ const WIRES = [
   },
   {
     file: 'extension/popup.js',
-    needle: 'const fd = focusDayText(link, Date.now(), CLOSED_FRESH_MS);',
+    needle: 'const fd = focusDayText(link, Date.now(), CLOSED_FRESH_MS) + focusHourNowText(link, Date.now(), CLOSED_FRESH_MS);',
     lost: 'a felugró lap a menet-napon nem mondaná, hogy ma szoktál leülni',
   },
   {
     file: 'extension/blocked.js',
-    needle: 'const fd = focusDayText(link, Date.now(), CLOSED_FRESH_MS);',
+    needle: 'const fd = focusDayText(link, Date.now(), CLOSED_FRESH_MS) + focusHourNowText(link, Date.now(), CLOSED_FRESH_MS);',
     lost: 'a tiltó lap a menet-napon nem mondaná, hogy ma szoktál leülni',
   },
   // A MÉRT IDŐ NAPJA: melyik napon megy el a legtöbb idő — a gépi és az Android statisztikán.
@@ -1336,6 +1336,37 @@ const WIRES = [
     file: 'ios/App/StatsView.swift',
     needle: 'Button("Heti ablak a menet-órára: \\(pick.pack.name), \\(recurrenceLabel(pick.band))") {',
     lost: 'az iPhone statisztika nem kínálna ablakot a menet-órára',
+  },
+  // A MENET-ÓRA ott is, ahol a döntés van: a gépi kártya és a réteg lába, a telefonok kezdőlapja, a híd és a böngésző lapjai.
+  {
+    file: 'desktop/src/helper/server.ts',
+    needle: 'focusHour: peakFocusHour(focusByHour(state.focusLog, now)),',
+    lost: 'a segéd nem adná le a menet-órát a státuszban, a kártya, a réteg és a híd hallgatna',
+  },
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: 'const focusHourLine = focusHourNowText(status?.focusHour ?? null, now).trim();',
+    lost: 'a gépi javaslat-kártya a menet-órában nem mondaná, hogy most szoktál elkezdeni',
+  },
+  {
+    file: 'desktop/src/renderer/overlay.ts',
+    needle: 'focusHourNowText(st.focusHour ?? null, st.now)',
+    lost: 'a réteg lába a menet-órában nem mondaná, hogy most szoktál elkezdeni',
+  },
+  {
+    file: 'desktop/src/main/main.ts',
+    needle: 'const focusHourNow = isFocusHourNow(s.focusHour ?? null, Date.now());',
+    lost: 'az app nem adná le a hídon, hogy most a menet-óra van — a böngésző lapjai hallgatnának',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/AppUi.kt',
+    needle: 'focusHourNow?.let { Text(Focus.hourNowText(it), style = MaterialTheme.typography.bodySmall) }',
+    lost: 'az Android kezdőlap kártyája a menet-órában nem mondaná, hogy most szoktál elkezdeni',
+  },
+  {
+    file: 'ios/App/ContentView.swift',
+    needle: 'if let inFocusHour { Text(Focus.hourNowText(inFocusHour)).font(.footnote) }',
+    lost: 'az iPhone kezdőlap kártyája a menet-órában nem mondaná, hogy most szoktál elkezdeni',
   },
   // AZ ABLAK SZERINT INDULT menet a rétegben és az Android értesítésén is kimondva.
   {

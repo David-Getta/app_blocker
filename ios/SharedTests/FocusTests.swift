@@ -197,4 +197,14 @@ final class FocusTests: XCTestCase {
         XCTAssertEqual(Focus.hourText((hour: 9, count: 6)), "A négy hét menet-órája: 9–10 óra (6 menet).")
         XCTAssertEqual(Focus.byHour([], now: now), [Int](repeating: 0, count: 24))
     }
+
+    func testTheSessionHourNowIsItNowAndOnlyFromEnoughSample() {
+        let at9 = localTime(9, 30)
+        let at10 = localTime(10, 0)
+        XCTAssertTrue(Focus.isHourNow((hour: 9, count: 6), now: at9))
+        XCTAssertFalse(Focus.isHourNow((hour: 9, count: 6), now: at10), "más órában nem")
+        XCTAssertFalse(Focus.isHourNow((hour: 9, count: 2), now: at9), "kevés minta: nem mondat")
+        XCTAssertFalse(Focus.isHourNow(nil, now: at9))
+        XCTAssertEqual(Focus.hourNowText((hour: 9, count: 6)), "Most a menet-órád van (9–10 óra, 6 menet) — ilyenkor szoktál elkezdeni.")
+    }
 }

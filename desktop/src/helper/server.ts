@@ -18,7 +18,7 @@ import {
 } from '../shared/browser-hits';
 import { normalizeRule } from '../shared/urlrules';
 import {
-  lastUsedPack, focusDaySeries, focusByWeekday, focusByHour, isRunning, normalizePack, spentWindows, summarizeFocus, summarizeFocusPrevWeek,
+  lastUsedPack, focusDaySeries, focusByWeekday, focusByHour, peakFocusHour, isRunning, normalizePack, spentWindows, summarizeFocus, summarizeFocusPrevWeek,
   windowRunsByPack,
 } from '../shared/focus';
 import { burstTripsInDays, noteBurstTrip, noteBurstUsage, normalizeBurst, type BurstRule } from '../shared/burst';
@@ -157,6 +157,8 @@ export function statusOf(
     browserHitsWeekdays: browserHitsByWeekday(state.browserHits, now),
     // A menet-nap — a kártya és a réteg a menet-napon mondja, hogy ma van.
     focusWeekday: peakWeekday(focusByWeekday(state.focusLog, now)),
+    // A menet-óra — a kártya és a réteg a menet-órában mondja, hogy most szoktál elkezdeni.
+    focusHour: peakFocusHour(focusByHour(state.focusLog, now)),
     browserHitsReasons: browserHitsByReason(state.browserHits, now),
     browserHitsTop: browserHitsTopSite(state.browserHits, now, state.sites),
     browserHitsKeywords: browserHitsByKeyword(state.browserHits, now),

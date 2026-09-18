@@ -662,6 +662,14 @@ object Focus {
     fun dayNowText(peak: Pair<Int, Int>): String =
         "Ma a négy hét menet-napja van (${FilterHitLogic.WEEKDAY_NAMES.getOrElse(peak.first) { "?" }}, ${peak.second} menet) — ilyenkor szoktál leülni."
 
+    /** MOST a menet-óra van-e: a négy hét menet-órája és a helyi óra egybeesik — és a minta elég (a csúcs-nap küszöbe). */
+    fun isHourNow(peak: Pair<Int, Int>?, now: Long): Boolean =
+        peak != null && peak.second >= FilterHitLogic.PEAK_DAY_MIN_COUNT && FilterHitLogic.hourOf(now) == peak.first
+
+    /** A tükör a döntés órájában: a kezdőlap kártyája a menet-órában. */
+    fun hourNowText(peak: Pair<Int, Int>): String =
+        "Most a menet-órád van (${FilterHitLogic.hourLabel(peak.first)}, ${peak.second} menet) — ilyenkor szoktál elkezdeni."
+
     fun recurrenceKey(b: ScheduleLogic.Band?): String =
         b?.let { "${it.days.sorted().joinToString(",")}/${it.startMin}-${it.endMin}" } ?: "-"
 

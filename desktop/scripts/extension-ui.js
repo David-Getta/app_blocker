@@ -251,14 +251,14 @@ async function main() {
     window.__disk['breaker.applink'] = {
       token: 'JOKOD', port: 8788, rules: [], channels: [], closed: [],
       focus: { running: false },
-      suggest: { packId: 'pack_2', name: 'Mély munka', minutes: 90, focusDay: true },
+      suggest: { packId: 'pack_2', name: 'Mély munka', minutes: 90, focusDay: true, focusHourNow: true },
       fetchedAt: Date.now(), attemptedAt: Date.now(), error: null,
     };
   `);
   await page.goto(`http://127.0.0.1:${port}/popup.html`);
-  // A MENET-NAP a gomb mellett: az app mondja, a lap kimondja.
+  // A MENET-NAP és a MENET-ÓRA a gomb mellett: az app mondja, a lap kimondja.
   await page.waitForFunction(
-    () => document.getElementById('focusDayNote')?.textContent === 'Ma a menet-napod van — ilyenkor szoktál leülni.'
+    () => document.getElementById('focusDayNote')?.textContent === 'Ma a menet-napod van — ilyenkor szoktál leülni. Most a menet-órád van.'
       && !document.getElementById('focusDayNote')?.hidden,
     undefined, { timeout: 10_000 },
   ).catch(() => failures.push('a felugró lap nem mondja a menet-napot az app szava szerint'));

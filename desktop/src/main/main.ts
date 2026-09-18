@@ -13,7 +13,7 @@ import {
 } from './overlay';
 import { setupOverlayShortcut } from './overlay-shortcut';
 import { setupExtensionFolder } from './extension-folder';
-import { isWindowRun, packCoveringHour, peakWindowBand, shouldWarnAboutApp, warnDue } from '../shared/focus';
+import { isFocusHourNow, isWindowRun, packCoveringHour, peakWindowBand, shouldWarnAboutApp, warnDue } from '../shared/focus';
 import { isPeakDayNow } from '../shared/browser-hits';
 import * as path from 'path';
 import { HelperClient } from './helper-client';
@@ -352,8 +352,10 @@ if (HELPER_MODE) {
           const peakHour = peak && !pick.recurrence && !covering ? peak.hour : null;
           // A MENET-NAP: ma szoktál-e leülni — a lap a gomb mellett kimondja. A „ma van” szabálya a csúcs-napé.
           const focusDay = isPeakDayNow(s.focusWeekday ?? null, Date.now());
+          // A MENET-ÓRA: most szoktál-e elkezdeni — a lap a gomb mellett kimondja.
+          const focusHourNow = isFocusHourNow(s.focusHour ?? null, Date.now());
           // LE VAN-E FEDVE: a csomag, amelynek ablaka a csúcs-órát fedi — a felugró lap kimondja.
-          return { packId: pick.id, name: pick.name, minutes: pick.defaultMinutes, peakHour, peakPack: covering?.name ?? null, focusDay };
+          return { packId: pick.id, name: pick.name, minutes: pick.defaultMinutes, peakHour, peakPack: covering?.name ?? null, focusDay, focusHourNow };
         },
         async (packId, minutes) => {
           // EGY KATTINTÁS a felugró lapról a menetig: ugyanaz a bírói út, mint

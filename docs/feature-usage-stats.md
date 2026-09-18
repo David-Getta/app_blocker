@@ -564,6 +564,13 @@ Alatta a csúcs-óra gombjának párja: „Heti ablak a menet-órára: Nyelvtanu
 indul, amikor le szoktál ülni. Felvenni ingyen; ugyanazok a kapuk, mint a
 csúcs-óra gombjánál (`peakWindowPick` a menet-órával), és ha a menet-óra a
 csúcs-óra, ott a másik gomb — kétszer ugyanazt nem. Mindhárom platformon.
+A menet-órában a döntés helye is mondja — a gépi kezdőlap javaslat-kártyája
+és a réteg lába (`focusHourNowText` a státusz menet-órájából, `focusHour`),
+a két telefon kezdőlapja (`Focus.hourNowText`):
+„Most a menet-órád van (9–10 óra, 6 menet) — ilyenkor szoktál elkezdeni.”
+— a menet gombjával, a csúcs-nap küszöbével (legalább három menet); és a
+böngésző lapjai a gomb mellett (a híd `suggest.focusHourNow` mezője, az app
+szabálya szerint): „Most a menet-órád van.”
 
 **A mért idő napja:** a tükör harmadik fele — nem az, mikor csúszik a kéz,
 és nem az, mikor ülsz le, hanem az, melyik napon megy el a legtöbb idő: négy

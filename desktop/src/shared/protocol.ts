@@ -203,6 +203,8 @@ export interface StatusData {
   browserHitsWeekdays?: number[];
   /** a négy hét menet-napja (0 = vasárnap; szám) — melyik napon ülsz le a legtöbbször; a kártya és a réteg a menet-napon mondja; null, ha nem volt */
   focusWeekday?: { day: number; count: number } | null;
+  /** a négy hét menet-órája (óra; szám) — mikor ülsz le a legtöbbször; a kártya és a réteg a menet-órában mondja; null, ha nem volt */
+  focusHour?: { hour: number; count: number } | null;
   /** a hét megakadásai okonként, a legnagyobb elöl — melyik szabály dolgozik */
   browserHitsReasons?: { reason: string; count: number }[];
   /** a hét csúcs-oldala (a lista tételének neve vagy a hoszt, szám) — melyik oldal akaszt meg a legtöbbször */

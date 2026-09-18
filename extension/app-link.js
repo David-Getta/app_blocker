@@ -220,7 +220,9 @@ export function cleanSuggest(raw) {
   const peakPack = typeof raw.peakPack === 'string' && raw.peakPack ? raw.peakPack.slice(0, 40) : null;
   // A MENET-NAP: az app mondja, ma szoktál-e leülni — csak a szó szerinti igaz számít.
   const focusDay = raw.focusDay === true;
-  return { packId: raw.packId, name: raw.name, minutes, peakHour, peakPack, focusDay };
+  // A MENET-ÓRA: az app mondja, most szoktál-e elkezdeni — csak a szó szerinti igaz számít.
+  const focusHourNow = raw.focusHourNow === true;
+  return { packId: raw.packId, name: raw.name, minutes, peakHour, peakPack, focusDay, focusHourNow };
 }
 
 /**
