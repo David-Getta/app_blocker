@@ -31,7 +31,7 @@ final class FocusTests: XCTestCase {
         let kw = ["tiktok", "live"]
         XCTAssertEqual(Focus.verdict("www.TikTok.com.", run: nil, pack: nil, now: 0, blocked: [], syncHost: nil, keywords: kw), .blockedByKeyword)
         XCTAssertEqual(Focus.verdict("example.com", run: nil, pack: nil, now: 0, blocked: [], syncHost: nil, keywords: kw), .allow)
-        XCTAssertEqual(Focus.verdict("mtalk.google.com", run: nil, pack: nil, now: 0, blocked: [], syncHost: nil, keywords: ["google"]), .allow, "infrastruktúra: sosem")
+        XCTAssertEqual(Focus.verdict("captive.apple.com", run: nil, pack: nil, now: 0, blocked: [], syncHost: nil, keywords: ["apple"]), .allow, "infrastruktúra: sosem — az iPhone listája az Apple-hosztok")
         XCTAssertEqual(Focus.verdict("live.example.org", run: nil, pack: nil, now: 0, blocked: [], syncHost: "live.example.org", keywords: kw), .allow, "a fiókkiszolgáló: sosem")
         XCTAssertEqual(Focus.verdict("tiktok.com", run: nil, pack: nil, now: 0, blocked: ["tiktok.com"], syncHost: nil, keywords: kw), .blockedByList, "a lista elsőbb")
         XCTAssertEqual(Focus.verdict("tiktok.com", run: nil, pack: nil, now: 0, blocked: [], syncHost: nil, keywords: []), .allow, "kulcsszó nélkül nincs")
