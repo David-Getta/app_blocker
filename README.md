@@ -254,7 +254,11 @@ ingyen van, rövidíteni vagy visszavonni sehogy.
   A menet-nap és a menet-óra is: melyik napon és melyik órában ülsz le a
   legtöbbször (négy hétből, a hét napjainak és az órák sávjával, a heti
   mondatban is) — és a menet-óra alatt a csúcs-óra gombjának párja: heti ablak
-  a menet-órára, hogy a menet magától induljon, amikor úgyis leülnél.
+  a menet-órára, hogy a menet magától induljon, amikor úgyis leülnél. A
+  menet-sorozat is: hány napja ülsz le minden nap — a statisztikán a napló
+  rekordjával, a heti mondatban, a böngésző lapjain és a döntés helyein (a
+  kártya, a réteg, az Android sáv), a menet gombja mellett, nem helyette.
+  Kettőtől; egy nap nem sorozat, a megszakadt sorozat nem bűn, csak nulla.
 
   **Heti ablak: a menet magától indul** (gép + telefon). A csomag kaphat egy
   ablakot („hétköznap 9:00–12:00”): abban a menet magától indul, és az ablak
@@ -513,7 +517,9 @@ perccel előtte előre szólva, a fedése kimondva, és egy kattintás a heti
 ablakig a statisztikáról, a kártyáról és a böngésző lapjairól); a mért idő
 napja a döntés helyén is (a gépi kártya és a réteg, az Android kártya
 kimondja, ha ma van); és ha a csúcs-óra a menet-óra, a statisztika és a
-heti mondat kimondja; az értesítésről, a felugró lapról és
+heti mondat kimondja; a menet-sorozat (hány napja ülsz le minden nap — a
+statisztikán a napló rekordjával, a heti mondatban, a böngésző lapjain és a
+döntés helyein, a menet gombja mellett); az értesítésről, a felugró lapról és
 a tiltó lapról egy kattintás a menetig, a csúcs-órára egy kattintás a heti
 ablakig — a telefonon és a böngésző lapjairól is —, és ha egy csomag ablaka
 már fedi, a statisztika kimondja —
