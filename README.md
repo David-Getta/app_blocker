@@ -153,6 +153,11 @@ ingyen van, rövidíteni vagy visszavonni sehogy.
   letörölhető; az impulzus ellen véd, nem a megfontolt kerülőút ellen.
   [`docs/feature-lockdown.md`](docs/feature-lockdown.md).
 
+- **Indok: miért tiltottad — egy mondat a kísértés pillanatára** (mindhárom
+  platform). Az oldalhoz írt saját mondat ott áll, ahol a döntés születik: a
+  soron, a feloldás és a próbatétel lapján, és a böngésző tiltó lapján. Nem
+  tiltás és nem feloldás: próbatétel nélkül írható és vehető le; a szinkronon
+  az oldallal utazik. Lásd `docs/feature-reason.md`.
 - **Kategória-csomagok: egy kattintással több oldal** (mindhárom platform).
   *Közösségi*, *Videó és stream*, *Hírek*, *Vásárlás* — egy-egy gomb a felvevő
   kártyán, ami a csomag minden oldalát felveszi. Felvenni ingyen (szigorítás),

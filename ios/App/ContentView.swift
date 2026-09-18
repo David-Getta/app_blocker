@@ -19,6 +19,7 @@ struct ContentView: View {
     @State private var deleteSite: Site?
     @State private var scheduleSite: Site?
     @State private var aliasSite: Site?
+    @State private var reasonSite: Site?
     @State private var flowError: String?
     /// A munkamenet-indítás hossza percben; üresen a csomag szokásos hossza.
     @State private var focusMinutes = ""
@@ -90,6 +91,7 @@ struct ContentView: View {
                 }
             }
             .sheet(item: $aliasSite) { site in aliasSheet(site) }
+            .sheet(item: $reasonSite) { site in reasonSheet(site) }
             .sheet(item: $scheduleSite) { site in
                 ScheduleEditor(site: site) { result in
                     scheduleSite = nil
@@ -603,6 +605,11 @@ struct ContentView: View {
         return VStack(alignment: .leading, spacing: 6) {
             Text(AliasLogic.displayNameNow(site, now: now, revealedUntil: revealedUntil[site.id]))
                 .font(.headline)
+            // Az indok: amiért te magad tiltottad le — a név alatt, hogy a
+            // feloldás gombja mellett a szándék is ott legyen.
+            if let reason = site.reason {
+                Text("„\(reason)”").font(.footnote).italic().foregroundStyle(.secondary)
+            }
             HStack(spacing: 8) {
                 Text(aliased && !revealing ? "fedőnév alatt" : "\(site.hostnames.count) hosztnév")
                     .font(.caption).foregroundStyle(.secondary)
@@ -637,6 +644,7 @@ struct ContentView: View {
                         Button("Feloldás időre…") { pauseSite = site }.buttonStyle(.bordered)
                         Button("Menetrend…") { scheduleSite = site }.buttonStyle(.bordered)
                         Button("Fedőnév…") { aliasSite = site }.buttonStyle(.bordered)
+                        Button("Indok…") { reasonSite = site }.buttonStyle(.bordered)
                         Button("Törlés…") { deleteSite = site }.buttonStyle(.bordered)
                     }
                 }
@@ -695,6 +703,21 @@ struct ContentView: View {
             aliasSite = nil
         } onCancel: {
             aliasSite = nil
+        }
+    }
+
+    private func reasonSheet(_ site: Site) -> some View {
+        ReasonSheet(site: site) { text in
+            // Se nem lazítás, se nem szigorítás: az oldal ugyanúgy blokkolva
+            // marad, ezért nincs próbatétel, és levenni is egy koppintás.
+            store.mutate { s in
+                if let i = s.sites.firstIndex(where: { $0.id == site.id }) {
+                    s.sites[i].reason = AliasLogic.normalizeReason(text)
+                }
+            }
+            reasonSite = nil
+        } onCancel: {
+            reasonSite = nil
         }
     }
 
@@ -1086,4 +1109,44 @@ private func windowNextLabel(_ b: ScheduleLogic.Band, now: Double) -> String {
     let names = ["vasárnap", "hétfő", "kedd", "szerda", "csütörtök", "péntek", "szombat"]
     let day = dayDiff == 0 ? "ma" : dayDiff == 1 ? "holnap" : names[cal.component(.weekday, from: start) - 1]
     return " · legközelebb \(day) \(clock.string(from: start))"
+}
+
+/// Az indok lapja: miért tiltottad. A soron, a próbatétel-lapon és a gépen a
+/// böngésző tiltó lapján ez a mondat emlékeztet a kísértés pillanatában. Nem
+/// tiltás és nem feloldás: bármikor átírható vagy levehető, próbatétel nélkül.
+private struct ReasonSheet: View {
+    let site: Site
+    let onSave: (String) -> Void
+    let onCancel: () -> Void
+
+    @State private var text: String
+
+    init(site: Site, onSave: @escaping (String) -> Void, onCancel: @escaping () -> Void) {
+        self.site = site
+        self.onSave = onSave
+        self.onCancel = onCancel
+        _text = State(initialValue: site.reason ?? "")
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Indok").font(.headline)
+            Text("Egy mondat arról, miért tiltottad le. A soron és a feloldás lapján ez áll majd — a gépen a böngésző tiltó lapján is —, pont akkor, amikor a legjobban kellene. Nem tiltás és nem feloldás: bármikor átírható vagy levehető.")
+                .font(.footnote).foregroundStyle(.secondary)
+            TextField("pl. Mert este nem alszom tőle", text: Binding(
+                get: { text },
+                set: { text = String($0.prefix(AliasLogic.maxReasonLength)) }
+            ))
+                .textFieldStyle(.roundedBorder)
+            HStack {
+                if site.reason != nil {
+                    Button("Indok levétele") { onSave("") }.buttonStyle(.bordered)
+                }
+                Spacer()
+                Button("Mégse") { onCancel() }
+                Button("Mentés") { onSave(text) }.buttonStyle(.borderedProminent)
+            }
+        }
+        .padding()
+    }
 }

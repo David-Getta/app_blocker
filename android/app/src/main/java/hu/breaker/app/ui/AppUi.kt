@@ -61,6 +61,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
@@ -213,6 +214,7 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
     var limitSite by remember { mutableStateOf<Site?>(null) }
     var burstSite by remember { mutableStateOf<Site?>(null) }
     var aliasSite by remember { mutableStateOf<Site?>(null) }
+    var reasonSite by remember { mutableStateOf<Site?>(null) }
     var rulesSite by remember { mutableStateOf<Site?>(null) }
     var flowError by remember { mutableStateOf<String?>(null) }
     var confirmUsageClear by remember { mutableStateOf(false) }
@@ -661,6 +663,7 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                                 onLimit = { limitSite = site },
                                 onBurst = { burstSite = site },
                                 onAlias = { aliasSite = site },
+                                onReason = { reasonSite = site },
                                 onRules = { rulesSite = site },
                             )
                         }
@@ -977,6 +980,23 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
         )
     }
 
+    reasonSite?.let { site ->
+        ReasonDialog(
+            site = site,
+            onDismiss = { reasonSite = null },
+            onSave = { text ->
+                // Se nem lazítás, se nem szigorítás: az oldal ugyanúgy blokkolva
+                // marad, ezért nincs próbatétel, és levenni is egy koppintás.
+                BreakerStore.mutate { st ->
+                    st.copy(sites = st.sites.map {
+                        if (it.id == site.id) it.copy(reason = AliasLogic.normalizeReason(text)) else it
+                    })
+                }
+                reasonSite = null
+            },
+        )
+    }
+
     flowError?.let {
         AlertDialog(
             onDismissRequest = { flowError = null },
@@ -1028,6 +1048,45 @@ private fun AliasDialog(site: Site, onDismiss: () -> Unit, onSave: (String) -> U
             Row {
                 if (site.alias != null) {
                     TextButton(onClick = { onSave("") }) { Text("Fedőnév levétele") }
+                }
+                TextButton(onClick = onDismiss) { Text("Mégse") }
+            }
+        },
+    )
+}
+
+/**
+ * Az indok párbeszéde: miért tiltottad. A soron, a próbatétel-lapon és a gépen
+ * a böngésző tiltó lapján ez a mondat emlékeztet a kísértés pillanatában.
+ * Nem tiltás és nem feloldás: bármikor átírható vagy levehető, próbatétel nélkül.
+ */
+@Composable
+private fun ReasonDialog(site: Site, onDismiss: () -> Unit, onSave: (String) -> Unit) {
+    var text by remember(site.id) { mutableStateOf(site.reason ?: "") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Indok") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    "Egy mondat arról, miért tiltottad le. A soron és a feloldás lapján ez áll " +
+                        "majd — a gépen a böngésző tiltó lapján is —, pont akkor, amikor a legjobban " +
+                        "kellene. Nem tiltás és nem feloldás: bármikor átírható vagy levehető.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = it.take(AliasLogic.MAX_REASON_LENGTH) },
+                    placeholder = { Text("pl. Mert este nem alszom tőle") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = { TextButton(onClick = { onSave(text) }) { Text("Mentés") } },
+        dismissButton = {
+            Row {
+                if (site.reason != null) {
+                    TextButton(onClick = { onSave("") }) { Text("Indok levétele") }
                 }
                 TextButton(onClick = onDismiss) { Text("Mégse") }
             }
@@ -1118,7 +1177,7 @@ private fun SiteCard(
     now: Long, hasSession: Boolean,
     revealedUntil: Long?, onReveal: () -> Unit,
     onPause: () -> Unit, onDelete: () -> Unit, onSchedule: () -> Unit, onLimit: () -> Unit,
-    onBurst: () -> Unit, onAlias: () -> Unit, onRules: () -> Unit,
+    onBurst: () -> Unit, onAlias: () -> Unit, onReason: () -> Unit, onRules: () -> Unit,
     burst: BurstLogic.State? = null,
     trip: BurstTrip? = null,
 ) {
@@ -1146,6 +1205,16 @@ private fun SiteCard(
                         AliasLogic.displayNameNow(site, now, revealedUntil),
                         style = MaterialTheme.typography.titleMedium,
                     )
+                    // Az indok: amiért te magad tiltottad le — a név alatt, hogy a
+                    // feloldás gombja mellett a szándék is ott legyen.
+                    site.reason?.let {
+                        Text(
+                            "„$it”",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontStyle = FontStyle.Italic,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -1224,6 +1293,7 @@ private fun SiteCard(
                             TextButton(onClick = onLimit) { Text("Napi keret…") }
                             TextButton(onClick = onBurst) { Text("Adag…") }
                             TextButton(onClick = onAlias) { Text("Fedőnév…") }
+                            TextButton(onClick = onReason) { Text("Indok…") }
                             TextButton(onClick = onRules) {
                                 val n = site.rules?.size ?: 0
                                 Text(if (n > 0) "Részek · $n" else "Részek…")
@@ -1895,6 +1965,10 @@ private fun ChallengeScreen(
                 else "Feloldás ${session.minutes} percre: ${site?.let { AliasLogic.displayName(it) } ?: ""}",
                 fontSize = 18.sp, fontWeight = FontWeight.Bold,
             )
+            // Az indok — pont most kell elolvasni, mielőtt a próbákba belefog az ember.
+            site?.reason?.let {
+                Text("Ezért tiltottad le: „$it”", style = MaterialTheme.typography.bodyMedium, fontStyle = FontStyle.Italic)
+            }
             // A PONTOS SZÁM NEM MEGY KI. A „2/4. próba” azt üzente: mindjárt
             // kész — és pont ez a lendület viszi át az embert a feloldáson. Ami
             // marad, az mindig igaz, de nem árulja el, hol a vége.

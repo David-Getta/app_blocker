@@ -38,6 +38,11 @@ struct ChallengeView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
+                    // Az indok — pont most kell elolvasni, mielőtt a próbákba belefog az ember.
+                    if session.pendingLockdownWindows == nil, session.pendingFocusEnd == nil,
+                       let reason = store.state.sites.first(where: { $0.id == session.siteId })?.reason {
+                        Text("Ezért tiltottad le: „\(reason)”").font(.subheadline).italic()
+                    }
                     if let ses = live, ses.stepIndex < ses.steps.count {
                         // A PONTOS SZÁM NEM MEGY KI: a „2/4. próba” azt üzente,
                         // hogy mindjárt kész — és pont ez a lendület visz át a
