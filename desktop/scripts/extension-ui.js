@@ -258,6 +258,23 @@ async function main() {
     undefined, { timeout: 10_000 },
   ).catch(() => failures.push('a menet gombja nem a hídon indított, a javasolt csomaggal és perccel'));
 
+  // A TILTÓ LAPON is: ugyanaz a gomb a kísértés pillanatában — a kattintás a
+  // hídon indít, a lap kimondja, hogy elindult, és a gomb eltűnik.
+  await page.goto(`http://127.0.0.1:${port}/blocked.html?rule=youtube.com/@valaki&from=https://youtube.com/@valaki`);
+  await page.waitForFunction(
+    () => document.getElementById('startFocus')?.textContent === 'Munkamenet: Mély munka, 90 perc'
+      && !document.getElementById('startFocus')?.hidden,
+    undefined, { timeout: 10_000 },
+  ).catch(() => failures.push('a tiltó lap menet-gombja nem az app javaslatát mondja'));
+  await page.evaluate(() => { window.__started = null; });
+  await page.locator('#startFocus').click().catch(() => failures.push('a tiltó lap menet-gombja nem kattintható'));
+  await page.waitForFunction(
+    () => window.__started && window.__started.packId === 'pack_2'
+      && /Elindult: Mély munka, 90 perc/.test(document.getElementById('startFocusNote')?.textContent || '')
+      && document.getElementById('startFocus')?.hidden === true,
+    undefined, { timeout: 10_000 },
+  ).catch(() => failures.push('a tiltó lap menet-gombja nem a hídon indított, vagy nem mondta ki, hogy elindult'));
+
   await browser.close();
   server.close();
 

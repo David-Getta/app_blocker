@@ -478,6 +478,9 @@ async function main() {
       // kimondja, hogy most van. (A nyolc napos, órák nélküli nap nem számít.)
       check(/Most a hét csúcs-órája van \(\d+–\d+ óra, \d+ megakadás a héten\)/.test(later),
         'a tiltó lap a csúcs-órában kimondja, hogy most van');
+      // Összekötetlen appnál nincs menet-gomb: a lap ne ígérjen olyat, ami nem indul.
+      const startHidden = await page.evaluate(() => document.getElementById('startFocus')?.hidden ?? null).catch(() => null);
+      check(startHidden === true, 'összekötetlen appnál a tiltó lapon nincs menet-gomb');
     }
     // Ugyanaz a hoszt, a szó nélkül: átmegy — a kulcsszó nem az oldalt tiltja.
     await page.goto(`${base}/?x=szabad`).catch(() => {});

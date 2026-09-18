@@ -535,6 +535,11 @@ const WIRES = [
     lost: 'a híd nem indítaná a menetet',
   },
   {
+    file: 'extension/blocked.js',
+    needle: 'const r = await startFocusInApp(packId, minutes);',
+    lost: 'a tiltó lap gombja nem indítana menetet',
+  },
+  {
     file: 'desktop/src/main/main.ts',
     needle: "await client.call('focus_start', { packId, minutes });",
     lost: 'a híd menet-indítása nem érne el a bíróig',

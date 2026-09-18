@@ -6,6 +6,8 @@
 // Modulként fut, hogy a megakadás-könyv magját (hits.js) ugyanabból a fájlból
 // olvassa, amiből a háttér ír — két számolás két számot adna.
 import { dayKey, hitsNudge, hitsOn, hitsOnHost, peakNow, peakNowText } from './hits.js';
+import { CLOSED_FRESH_MS, loadLink, pullFromApp, startFocusInApp } from './app-link.js';
+import { suggestButton } from './popup-core.js';
 
 const params = new URLSearchParams(location.search);
 const focus = params.get('focus');
@@ -259,3 +261,46 @@ try {
     if (area === 'local' && changes['breaker.hits']) paintHits(changes['breaker.hits'].newValue ?? { days: {} });
   });
 } catch { /* nem bővítmény-környezet (pl. kézzel megnyitott fájl) */ }
+
+// ---------------------------------------------------------------------------
+// EGY KATTINTÁS a menetig — a kísértés pillanatában. Az app javasolt csomagja
+// (a legutóbb használt, a szokásos hosszával) a hídon indul, a kóddal; a bíró
+// dönt. Csak friss válasz mellett, futó menet nélkül, összekötve — különben
+// nincs gomb: a lap ne ígérjen olyat, ami nem indul. Szigorítás, ingyen.
+// ---------------------------------------------------------------------------
+const startBtn = document.getElementById('startFocus');
+const startNote = document.getElementById('startFocusNote');
+
+async function paintStart() {
+  try {
+    const link = await loadLink();
+    const sb = suggestButton(link, Date.now(), CLOSED_FRESH_MS);
+    startBtn.hidden = sb === null;
+    startBtn.textContent = sb ? sb.text : '';
+    startBtn.dataset.packId = sb ? sb.packId : '';
+    startBtn.dataset.minutes = sb ? String(sb.minutes) : '';
+  } catch { /* tár nélkül nincs gomb — a lap többi része attól még áll */ }
+}
+
+startBtn.addEventListener('click', async () => {
+  const packId = startBtn.dataset.packId || '';
+  const minutes = Number(startBtn.dataset.minutes || '0');
+  if (!packId || !Number.isInteger(minutes) || minutes <= 0) return;
+  const what = startBtn.textContent.replace(/^Munkamenet: /, '');
+  startBtn.disabled = true;
+  const r = await startFocusInApp(packId, minutes);
+  startBtn.disabled = false;
+  startNote.hidden = false;
+  startNote.textContent = r.ok ? `Elindult: ${what}. Csak a csomag oldalai mennek.` : `Nem indult el: ${r.error}`;
+  if (r.ok) {
+    startBtn.hidden = true;
+    try { await pullFromApp(); } catch { /* a következő kör úgyis lehúzza */ }
+  }
+});
+
+try {
+  void paintStart();
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && changes['breaker.applink']) void paintStart();
+  });
+} catch { /* nem bővítmény-környezet */ }

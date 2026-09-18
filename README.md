@@ -493,9 +493,12 @@ a Swift-tükör minden pusholásnál fordul, és a mag tesztjei is lefutnak), é
 [`docs/feature-keywords.md`](docs/feature-keywords.md)), és a **megakadások**
 (hányszor állított meg a tiltás — ma, a héten, okonként, óránként, oldalanként;
 a sokadiknál egy lépést javasol, tíz perccel a csúcs-óra előtt előre szól, és
-ha nem kéred, csendben marad; a hét az előző héthez mérve, kulcsszavanként is,
-és az értesítésről egy kattintás a menetig, a csúcs-órára egy kattintás a
-heti ablakig — [`docs/feature-usage-stats.md`](docs/feature-usage-stats.md)).
+ha nem kéred, csendben marad; a hét az előző héthez mérve, kulcsszavanként is;
+az órák sávja, és a csúcs-óra ott is, ahol a kísértés van — a tiltó lap, a
+felugró lap, a réteg, a telefon kártyája; az értesítésről, a felugró lapról és
+a tiltó lapról egy kattintás a menetig, a csúcs-órára egy kattintás a heti
+ablakig, és ha egy csomag ablaka már fedi, a statisztika kimondja —
+[`docs/feature-usage-stats.md`](docs/feature-usage-stats.md)).
 
 Ami még hátravan:
 

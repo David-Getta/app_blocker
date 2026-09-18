@@ -192,7 +192,9 @@ valamit, amit a felhasználó nem tiltott le.
     állandó forrás-azonosítóval), ahol a heti mondat és a statisztika sora
     mondja; a fiókba nem megy. A tiltó lap is mondja, a kísértés
     pillanatában: „Ma ez a 7. megakadás — ebből a 3. ezen az oldalon.”, a
-    csúcs-órában azt is, hogy most van; a felugró lap a hét csúcsát (a
+    csúcs-órában azt is, hogy most van — és egy gombot is ad: „Munkamenet:
+    Nyelvtanulás, 25 perc”, az app javasolt csomagja a hídon indul (futó menet
+    és összekötés nélkül nincs gomb); a felugró lap a hét csúcsát (a
     hosztonkénti könyv csak itt marad; a hídra a nap öt leggyakoribb hosztja
     megy, a gépen belül — melyik oldal akaszt meg a legtöbbször). Óránként is: a
     beállítás-lap a hét csúcs-óráját mondja („A hét csúcsa: 21–22 óra”) és

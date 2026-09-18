@@ -34,6 +34,14 @@
   a { color: var(--accent); }
   .foot { margin: 18px 0 0; font-size: 0.85rem; }
   .note { margin: 18px 0 0; font-style: italic; opacity: 0.9; }
+  /* Egy kattintás a menetig: a gomb a kártyák alatt, az app szövegével. */
+  .start {
+    margin: 14px 0 0; padding: 9px 16px; border-radius: 10px;
+    border: 1px solid var(--line); background: var(--card); color: var(--accent);
+    font: inherit; font-weight: 600; cursor: pointer;
+  }
+  .start:hover { border-color: var(--accent); }
+  .start:disabled { opacity: 0.6; cursor: default; }
 </style>
 </head>
 <body>
@@ -110,6 +118,9 @@
   <p class="note" id="note" hidden></p>
   <!-- Hányadszor ma: a bővítmény könyve, a kísértés pillanatában. -->
   <p class="note" id="hitsNote" hidden></p>
+  <!-- EGY KATTINTÁS a menetig: az app javasolt csomagja, a hídon indítva. Futó menet és összekötés nélkül nincs. -->
+  <button id="startFocus" class="start" type="button" hidden></button>
+  <p class="note" id="startFocusNote" hidden></p>
 <script type="module" src="blocked.js"></script>
 </body>
 </html>

@@ -385,9 +385,10 @@ A gépen az app **értesítést dob**, amikor az ablak menete feltűnik — akko
 ha az app később nyílt meg, mint ahogy a menet indult. Aki nem maga indította,
 tudja meg, miért van minden zárva, és meddig. A kézzel indított menet nem szól:
 azt a felhasználó indította. Engedély híján a kártya és a felső sori jelzés
-mondja ugyanezt. A felugró lapon egy gomb is: „Munkamenet: Nyelvtanulás, 25
-perc” a hídon indítja az app javasolt csomagját (`POST /focus_start`, a
-kóddal — a bíró dönt; futó menet mellett nincs gomb). A böngészőben is ott van: a bővítmény felugró lapja és a
+mondja ugyanezt. A felugró lapon és a tiltó lapon egy gomb is: „Munkamenet:
+Nyelvtanulás, 25 perc” a hídon indítja az app javasolt csomagját
+(`POST /focus_start`, a kóddal — a bíró dönt; futó menet és összekötés nélkül
+nincs gomb; a tiltó lap kimondja, hogy elindult). A böngészőben is ott van: a bővítmény felugró lapja és a
 tiltó lapja kimondja, ha a menet az ablak szerint indult — a híd viszi át a
 jelet a többi adattal együtt, és egy régebbi app, ami nem küld ilyet, nem
 ablak, hanem sima menet.
