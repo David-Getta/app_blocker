@@ -798,6 +798,21 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                                 .onFailure { flowError = it.message ?: "Nem sikerült felvenni az ablakot." }
                         }
                 },
+                // ABLAK A MENET-ÓRÁRA: a csúcs-óra gombjának párja — ugyanazok a kapuk;
+                // ha a menet-óra a csúcs-óra, ott a másik gomb, kétszer ugyanazt nem.
+                focusHourWindowLabel = Focus.peakHour(Focus.byHour(state.focusLog, now))?.first
+                    ?.takeIf { it != FilterHitLogic.peakHour(state.filterHitHours, now)?.first }
+                    ?.let { Focus.peakWindowPick(state.focusPacks, state.focusLog, state.focusRun, it, now) }
+                    ?.let { (p, band) -> "Heti ablak a menet-órára: ${p.name}, ${recurrenceLabel(band)}" },
+                onFocusHourWindow = {
+                    val nowMs = System.currentTimeMillis()
+                    Focus.peakHour(Focus.byHour(state.focusLog, nowMs))?.first
+                        ?.let { Focus.peakWindowPick(state.focusPacks, state.focusLog, state.focusRun, it, nowMs) }
+                        ?.let { (p, band) ->
+                            runCatching { Referee.addFocusWindow(p.id, band, nowMs) }
+                                .onFailure { flowError = it.message ?: "Nem sikerült felvenni az ablakot." }
+                        }
+                },
                 filterHitsTop = FilterHitLogic.topSite(state.filterHitHosts, now),
                 filterHitsReasons = FilterHitLogic.byReason(state.filterHitReasons, now),
                 filterHitsKeywords = FilterHitLogic.keywordsWeek(state.filterHitKeywords, now),

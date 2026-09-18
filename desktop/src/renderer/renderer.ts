@@ -357,6 +357,44 @@ async function addPeakWindow(noteEl: HTMLElement): Promise<void> {
 }
 
 /**
+ * A MENET-ÓRA ABLAKÁNAK jelöltje: a legutóbbi csomag és a menet-óra — ugyanazok
+ * a kapuk, mint a csúcs-óránál (nincs csomag vagy menet-óra, ablakos csomag,
+ * fedő ablak, futó menet → nincs gomb), és ha a menet-óra a csúcs-óra, a
+ * csúcs-óra gombja már kínálja — kétszer ugyanazt nem.
+ */
+function focusHourWindowPick(now: number): { pick: FocusPack; hour: number } | null {
+  const pick = suggestedPack();
+  const fh = peakFocusHour(statsData?.focusHours ?? []);
+  if (!pick || !fh || pick.recurrence) return null;
+  if (status?.browserHitsPeak && status.browserHitsPeak.hour === fh.hour) return null;
+  if (packCoveringHour(status?.focusPacks ?? [], fh.hour)) return null;
+  if (focusIsRunning(status?.focusRun ?? null, now)) return null;
+  return { pick, hour: fh.hour };
+}
+
+/** A gomb szövege: a csúcs-óra gombjának párja. */
+function focusHourWindowLabel(pick: FocusPack, hour: number): string {
+  return `Heti ablak a menet-órára: ${pick.name}, ${recurrenceLabel(peakWindowBand(hour))}`;
+}
+
+/**
+ * ABLAK A MENET-ÓRÁRA: ugyanaz a bírói út, mint a csúcs-óra ablakáé — a menet
+ * magától indul, amikor le szoktál ülni. Felvenni ingyen; a nemet a sor mondja.
+ */
+async function addFocusHourWindow(noteEl: HTMLElement): Promise<void> {
+  const w = focusHourWindowPick(Date.now());
+  if (!w) return;
+  try {
+    const r = await call<SetRuleResult & { status: StatusData }>('focus_recurrence', { packId: w.pick.id, band: peakWindowBand(w.hour) });
+    status = r.status;
+    render();
+    renderStats();
+  } catch (e) {
+    noteEl.textContent = (e as Error).message;
+  }
+}
+
+/**
  * EGY KATTINTÁS a mondattól a menetig — a statisztika gombjáról és az
  * értesítésről is: a legutóbb használt csomag a szokásos hosszával. Futó
  * menet mellett nem indít (egyszerre egy menet fut). Az értesítésről
@@ -3930,6 +3968,7 @@ function setupModal(): void {
   $('hitsWindowBtn').addEventListener('click', () => void addPeakWindow($('hitsPeakNote')));
   // A JAVASLAT kártyájáról is: ugyanaz az út, a nem a kártya sorába kerül.
   $('suggestWindowBtn').addEventListener('click', () => void addPeakWindow($('suggestText')));
+  $('focusHourWindowBtn').addEventListener('click', () => void addFocusHourWindow($('focusHourNote')));
   // Az Esc a legfelső réteget zárja. Egy panel, ami csak egérrel csukható be,
   // billentyűzettel csapdába ejt.
   document.addEventListener('keydown', (e) => {
@@ -4484,6 +4523,14 @@ function renderFocusStats(): void {
   $('focusHourNote').textContent = fh ? focusHourText(fh) : '';
   renderHourStrip($('focusHourStrip'), statsData?.focusHours ?? [], fh, (n) => `${n} menet`);
   $('focusHourAxis').classList.toggle('hidden', $('focusHourStrip').classList.contains('hidden'));
+  // ABLAK A MENET-ÓRÁRA: a csúcs-óra gombjának párja — heti ablak a legutóbbi
+  // csomagra a menet-órában, minden nap: a menet magától indul, amikor le
+  // szoktál ülni. Felvenni ingyen; nincs gomb ablakos csomagon, fedett órán,
+  // futó menet mellett — és ha a menet-óra a csúcs-óra, ott a másik gomb.
+  const fw = focusHourWindowPick(Date.now());
+  $('focusHourWindowBtn').classList.toggle('hidden', fw === null);
+  $('focusHourWindowBtn').textContent = fw ? focusHourWindowLabel(fw.pick, fw.hour) : '';
+  $('focusHourWindowBtn').title = 'Felvenni ingyen; levenni vagy szűkíteni próbatétel — mint minden ablakot.';
 
   const parts: string[] = [];
   if (week.topPack) parts.push(`A hét leggyakoribb csomagja: ${week.topPack}.`);

@@ -141,6 +141,24 @@ struct StatsView: View {
                 if let fh = Focus.peakHour(focusByHour) {
                     Text(Focus.hourText(fh)).font(.footnote).foregroundStyle(.secondary)
                     HourStrip(hours: focusByHour, peakHour: fh.hour, peakCount: fh.count)
+                    // ABLAK A MENET-ÓRÁRA: a csúcs-óra gombjának párja — ugyanazok a kapuk;
+                    // ha a menet-óra a csúcs-óra, ott a másik gomb, kétszer ugyanazt nem.
+                    if FilterHitLogic.peakHour(store.state.filterHitHours ?? [:], now: now)?.hour != fh.hour,
+                       let pick = Focus.peakWindowPick(store.state.focusPacks ?? [], log: store.state.focusLog ?? [],
+                                                       run: store.state.focusRun, peakHour: fh.hour, now: now) {
+                        Button("Heti ablak a menet-órára: \(pick.pack.name), \(recurrenceLabel(pick.band))") {
+                            do {
+                                try Referee.addFocusWindow(packId: pick.pack.id, band: pick.band, now: Date().timeIntervalSince1970 * 1000)
+                                windowError = nil
+                            } catch {
+                                windowError = (error as? Referee.RefereeError)?.message ?? "Nem sikerült felvenni az ablakot."
+                            }
+                        }
+                        .buttonStyle(.bordered)
+                        if let windowError {
+                            Text(windowError).font(.footnote).foregroundStyle(.red)
+                        }
+                    }
                 }
                 // A MEGAKADÁSOK napról napra — a tunnel könyve: ugyanaz a rajz,
                 // darabban. Üresen nincs.

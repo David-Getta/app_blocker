@@ -1022,6 +1022,12 @@ async function main() {
   if (fhStrip.hidden || fhStrip.n !== 24 || fhStrip.peak !== 9) {
     failures.push(`a menet-óra sávja nem áll a mondat alatt (${JSON.stringify(fhStrip)})`);
   }
+  // ABLAK A MENET-ÓRÁRA: a csúcs-óra gombjának párja — a legutóbbi csomagra, a menet-órában (9–10), minden nap.
+  await page.waitForFunction(
+    () => /Heti ablak a menet-órára: Mély munka, minden nap 0?9:00–10:00/.test(document.getElementById('focusHourWindowBtn')?.textContent || '')
+      && !document.getElementById('focusHourWindowBtn')?.classList.contains('hidden'),
+    undefined, { timeout: 15_000 },
+  ).catch(() => failures.push('a menet-óra gombja nem a legutóbbi csomagot és a menet-órát ígéri'));
   // A MÉRT IDŐ NAPJA a hét rajza alatt: négy hétből a szombat (átlag 50 p), alatta a sáv, a szombat (a hatodik rekesz) kiemelve.
   await page.waitForFunction(
     () => /A négy hét legnagyobb napja: szombat \(átlag 50 p\)\./.test(document.getElementById('usageWeekdayNote')?.textContent || '')
@@ -1056,6 +1062,11 @@ async function main() {
       && window.__fakePacks[1].recurrence.endMin === 22 * 60 && window.__fakePacks[1].recurrence.days.length === 7,
     undefined, { timeout: 15_000 },
   ).catch(() => failures.push('a csúcs-óra gombja nem tett heti ablakot a csomagra, vagy utána is ott maradt'));
+  // Az ablakos csomagra a menet-óra gombja sem kínál másikat: az is eltűnik.
+  await page.waitForFunction(
+    () => document.getElementById('focusHourWindowBtn')?.classList.contains('hidden'),
+    undefined, { timeout: 15_000 },
+  ).catch(() => failures.push('a menet-óra gombja az ablak után is ott maradt'));
   // LE VAN FEDVE: az ablak után a sor mondja, hogy a csúcs-órában magától indul.
   await page.waitForFunction(
     () => !document.getElementById('hitsWindowNote')?.classList.contains('hidden')

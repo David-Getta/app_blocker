@@ -1321,6 +1321,22 @@ const WIRES = [
     needle: 'input.focusHour = Focus.peakHour(Focus.byHour(st.focusLog ?? [], now: now))',
     lost: 'az iPhone heti mondat nem mondaná a menet-órát',
   },
+  // ABLAK A MENET-ÓRÁRA: a csúcs-óra gombjának párja — a három statisztikán, a bíró útján.
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: "$('focusHourWindowBtn').addEventListener('click', () => void addFocusHourWindow($('focusHourNote')));",
+    lost: 'a gépi statisztika menet-óra gombja nem tenne ablakot — a gomb ott lenne, a kattintás semmi',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/AppUi.kt',
+    needle: 'focusHourWindowLabel = Focus.peakHour(Focus.byHour(state.focusLog, now))?.first',
+    lost: 'az Android statisztika nem kínálna ablakot a menet-órára',
+  },
+  {
+    file: 'ios/App/StatsView.swift',
+    needle: 'Button("Heti ablak a menet-órára: \\(pick.pack.name), \\(recurrenceLabel(pick.band))") {',
+    lost: 'az iPhone statisztika nem kínálna ablakot a menet-órára',
+  },
   // AZ ABLAK SZERINT INDULT menet a rétegben és az Android értesítésén is kimondva.
   {
     file: 'desktop/src/renderer/overlay.ts',

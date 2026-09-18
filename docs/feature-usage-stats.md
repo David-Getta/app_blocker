@@ -559,6 +559,11 @@ munkamenet-blokkjában (`focusByHour`/`peakFocusHour` a segédnél, `focusHours`
 a statisztika-válaszban), Androidon és iPhone-on (`Focus.byHour`). Menet
 nélkül nincs. A heti mondat is mondja, a menet-nap mondata után, szó szerint
 (`focusHour` a mondat bemenetén — a segéd, az Android és az iOS építi).
+Alatta a csúcs-óra gombjának párja: „Heti ablak a menet-órára: Nyelvtanulás, minden nap 9:00–10:00”
+— heti ablak a legutóbbi csomagra a menet-órában, minden nap: a menet magától
+indul, amikor le szoktál ülni. Felvenni ingyen; ugyanazok a kapuk, mint a
+csúcs-óra gombjánál (`peakWindowPick` a menet-órával), és ha a menet-óra a
+csúcs-óra, ott a másik gomb — kétszer ugyanazt nem. Mindhárom platformon.
 
 **A mért idő napja:** a tükör harmadik fele — nem az, mikor csúszik a kéz,
 és nem az, mikor ülsz le, hanem az, melyik napon megy el a legtöbb idő: négy
