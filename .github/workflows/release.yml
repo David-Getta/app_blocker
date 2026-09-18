@@ -44,39 +44,27 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A telefonon is módosítható a zárlat-ablak** — bővíteni (több nap,
-          hosszabb sáv) ingyen, azonnal él; szűkíteni próbatétel, és csak az
-          ablakon kívül. Eddig levenni és újra felvenni kellett, és a levétel
-          próbatételbe került akkor is, ha az ember csak bővíteni akart. A
-          próbatétel fejléce mindenhol „Zárlat-ablak lazítása”: a szűkítés is
-          ide fut.
+          **Tíz perccel a heti ablak beérése előtt szól mindhárom platform**
+          — mennyi idő múlva, és meddig tart majd; ami nyitva van, mentsd el.
+          A gép és az Android a saját köréből mondja, és csak akkor, ha nem
+          ér túl az ablakon egy futó zárlat; iPhone-on előre ütemezett
+          emlékeztető, ha belefér a rendszer keretébe. Androidon a zárlat
+          értesítései a saját, látható csatornájukon jönnek, nem a szűrő
+          halk, állandó csatornáján.
 
-          **Androidon a szűrő értesítése a zárlatot is mondja** (kézit és
-          ablakét, és hogy meddig), és amikor a heti ablak beér, egy külön,
-          lehúzható értesítés is jön — mint a gépen. **iPhone-on az app heti
-          emlékeztetőt ütemez** minden ablak kezdésére: a rendszer adja, akkor
-          is, ha az app nincs nyitva (az első ablaknál engedélyt kér). A
-          telefonon az ablak sora azt is mondja, mikor jön legközelebb.
+          ### Ami a v0.4.36-ban jött
 
-          **Véletlen-teszt a zárlat-ablak magjára, mindhárom nyelven:** a
-          zárlat az ablaktól sosem rövidül, a kör egyszer ír, két eszköz
-          ugyanazt a zárlatot állítja elő; a fésülés és a lazítás szabálya is.
-          A telefon tárolója igazoltan túléli a mentést az ablakokkal és a
-          folyamatban lévő levétellel együtt.
+          **A telefonon is módosítható a zárlat-ablak** (bővíteni ingyen,
+          szűkíteni próbatétel), a sor mondja, mikor jön legközelebb, az
+          Android szűrője a zárlatot is kimondja és szól, amikor az ablak
+          beér, iPhone-on az app heti emlékeztetőt ütemez rá. Véletlen-teszt
+          a zárlat-ablak magjára mindhárom nyelven.
 
-          ### Ami a v0.4.35-ben jött
+          #### Ami a v0.4.35-ben jött
 
-          **A zárlat-ablak a telefonon is felvehető és levehető** (előre
-          gyártott sávok vagy saját sáv), a gépen módosítható, és amikor az
-          ablak beér, a gép értesítést ad. A sáv, a réteg, a böngésző tiltó
-          lapja és a felugró lap is kimondja, ha a heti ablak tartja a
-          zárlatot. A próbatétel-lap fejléce a tétet mondja.
-
-          #### Ami a v0.4.34-ben jött
-
-          **Zárlat-ablak: heti sáv, amiben a zárlat magától él** — ugyanaz a
-          kapu, ugyanaz a sáv, a telefonon is; az alvás nem tolja el, a fiókon
-          át a többi eszközre is átér. Androidon a zárlat is felmegy.
+          **A zárlat-ablak a telefonon is felvehető és levehető**, a gépen
+          módosítható; a sáv, a réteg, a böngésző tiltó lapja és a felugró
+          lap is kimondja, ha a heti ablak tartja a zárlatot.
 
           NOTES
           fi
