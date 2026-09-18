@@ -1139,6 +1139,16 @@ async function main() {
       && !document.getElementById('suggestWindowBtn')?.classList.contains('hidden'),
     undefined, { timeout: 15_000 },
   ).catch(() => failures.push('a javaslat-kártya nem kínálja a csúcs-óra ablakát'));
+  // ABLAK A MENET-ÓRÁRA a kártyáról is: a menet-óra a mostani óra (a
+  // státusz-folt), a gomb a legutóbbi csomagot kínálja rá — kivéve, ha a
+  // menet-óra a csúcs-óra (21): akkor a csúcs-óra gombja már kínálja.
+  if (new Date().getHours() !== 21) {
+    await page.waitForFunction(
+      () => /Heti ablak a menet-órára: Mély munka, minden nap \d{2}:00–\d{2}:00/.test(document.getElementById('suggestFocusHourBtn')?.textContent || '')
+        && !document.getElementById('suggestFocusHourBtn')?.classList.contains('hidden'),
+      undefined, { timeout: 15_000 },
+    ).catch(() => failures.push('a javaslat-kártya nem kínálja a menet-óra ablakát'));
+  }
   await page.locator('#suggestWindowBtn').click().catch(() => failures.push('a javaslat-kártya ablak-gombja nem kattintható'));
   await page.waitForFunction(
     () => document.getElementById('suggestWindowBtn')?.classList.contains('hidden')

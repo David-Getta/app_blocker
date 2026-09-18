@@ -427,6 +427,18 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                                     .onFailure { flowError = it.message ?: "Nem sikerült felvenni az ablakot." }
                             }) { Text("Heti ablak a csúcs-órára: ${p.name}, ${recurrenceLabel(band)}") }
                         }
+                        // ABLAK A MENET-ÓRÁRA innen is: a statisztika menet-óra gombjának
+                        // tükre — ugyanazok a kapuk; ha a menet-óra a csúcs-óra, a
+                        // csúcs-óra gombja már kínálja, kétszer ugyanazt nem.
+                        Focus.peakHour(Focus.byHour(state.focusLog, now))?.first
+                            ?.takeIf { it != peak?.first }
+                            ?.let { Focus.peakWindowPick(state.focusPacks, state.focusLog, state.focusRun, it, now) }
+                            ?.let { (p, band) ->
+                                Button(onClick = {
+                                    runCatching { Referee.addFocusWindow(p.id, band, System.currentTimeMillis()) }
+                                        .onFailure { flowError = it.message ?: "Nem sikerült felvenni az ablakot." }
+                                }) { Text("Heti ablak a menet-órára: ${p.name}, ${recurrenceLabel(band)}") }
+                            }
                     }
                 }
             }

@@ -364,7 +364,9 @@ async function addPeakWindow(noteEl: HTMLElement): Promise<void> {
  */
 function focusHourWindowPick(now: number): { pick: FocusPack; hour: number } | null {
   const pick = suggestedPack();
-  const fh = peakFocusHour(statsData?.focusHours ?? []);
+  // A menet-óra a státuszból (a kezdőlap kártyája is ezt kérdezi, a statisztika
+  // nélkül is); a statisztika sávja a tartalék — a segéd ugyanabból számolja.
+  const fh = status?.focusHour ?? peakFocusHour(statsData?.focusHours ?? []);
   if (!pick || !fh || pick.recurrence) return null;
   if (status?.browserHitsPeak && status.browserHitsPeak.hour === fh.hour) return null;
   if (packCoveringHour(status?.focusPacks ?? [], fh.hour)) return null;
@@ -461,6 +463,12 @@ function renderSuggestCard(now: number): void {
   const win = lines.length > 0 ? peakWindowPick(now) : null;
   $('suggestWindowBtn').classList.toggle('hidden', win === null);
   $('suggestWindowBtn').textContent = win ? peakWindowLabel(win.pick, win.peak.hour) : '';
+  // ABLAK A MENET-ÓRÁRA innen is: a statisztika menet-óra gombjának tükre —
+  // ugyanazok a kapuk; ha a menet-óra a csúcs-óra, a csúcs-óra gombja már
+  // kínálja, kétszer ugyanazt nem.
+  const fwin = lines.length > 0 ? focusHourWindowPick(now) : null;
+  $('suggestFocusHourBtn').classList.toggle('hidden', fwin === null);
+  $('suggestFocusHourBtn').textContent = fwin ? focusHourWindowLabel(fwin.pick, fwin.hour) : '';
 }
 
 function showHitNudge(today: number, now: number): void {
@@ -4000,6 +4008,7 @@ function setupModal(): void {
   $('hitsWindowBtn').addEventListener('click', () => void addPeakWindow($('hitsPeakNote')));
   // A JAVASLAT kártyájáról is: ugyanaz az út, a nem a kártya sorába kerül.
   $('suggestWindowBtn').addEventListener('click', () => void addPeakWindow($('suggestText')));
+  $('suggestFocusHourBtn').addEventListener('click', () => void addFocusHourWindow($('suggestText')));
   $('focusHourWindowBtn').addEventListener('click', () => void addFocusHourWindow($('focusHourNote')));
   // Az Esc a legfelső réteget zárja. Egy panel, ami csak egérrel csukható be,
   // billentyűzettel csapdába ejt.

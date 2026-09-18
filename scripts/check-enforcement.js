@@ -1384,6 +1384,22 @@ const WIRES = [
     needle: 'FocusHourReminder.reschedule(peak: focusHourKey.isEmpty ? nil : focusHour, canStart:',
     lost: 'az iPhone nem ütemezné a menet-óra előjelzését',
   },
+  // ABLAK A MENET-ÓRÁRA a javaslat kártyájáról is — a három kezdőlapon.
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: "$('suggestFocusHourBtn').textContent = fwin ? focusHourWindowLabel(fwin.pick, fwin.hour) : '';",
+    lost: 'a gépi javaslat-kártya nem kínálná a menet-óra ablakát',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/AppUi.kt',
+    needle: '}) { Text("Heti ablak a menet-órára: ${p.name}, ${recurrenceLabel(band)}") }',
+    lost: 'az Android kezdőlap kártyája nem kínálná a menet-óra ablakát',
+  },
+  {
+    file: 'ios/App/ContentView.swift',
+    needle: 'let fwin = Focus.peakWindowPick(store.state.focusPacks ?? [], log: store.state.focusLog ?? [],',
+    lost: 'az iPhone kezdőlapjának kártyája nem kínálná a menet-óra ablakát',
+  },
   // A MENET-ÓRA FEDÉSE: ha egy csomag ablaka fedi a menet-órát, a statisztika és a heti mondat kimondja.
   {
     file: 'desktop/src/renderer/renderer.ts',

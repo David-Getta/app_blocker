@@ -564,6 +564,10 @@ Alatta a csúcs-óra gombjának párja: „Heti ablak a menet-órára: Nyelvtanu
 indul, amikor le szoktál ülni. Felvenni ingyen; ugyanazok a kapuk, mint a
 csúcs-óra gombjánál (`peakWindowPick` a menet-órával), és ha a menet-óra a
 csúcs-óra, ott a másik gomb — kétszer ugyanazt nem. Mindhárom platformon.
+A javaslat kártyájáról is (gép, Android, iPhone): ha a kártya szól — a
+menet-órában, az előjelzésnél vagy a sokadik megakadásnál —, a menet-óra
+ablakának gombja is ott van a csúcs-óráé mellett, ugyanazokkal a kapukkal
+(a gépen a státusz menet-órájából, `focusHour`; a telefonon a magból).
 A menet-órában a döntés helye is mondja — a gépi kezdőlap javaslat-kártyája
 és a réteg lába (`focusHourNowText` a státusz menet-órájából, `focusHour`),
 a két telefon kezdőlapja (`Focus.hourNowText`):

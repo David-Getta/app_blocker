@@ -511,6 +511,20 @@ struct ContentView: View {
                         }
                         .buttonStyle(.bordered)
                     }
+                    // ABLAK A MENET-ÓRÁRA innen is: a statisztika menet-óra gombjának tükre —
+                    // ugyanazok a kapuk; ha a menet-óra a csúcs-óra, a csúcs-óra gombja már kínálja.
+                    if let fh = Focus.peakHour(Focus.byHour(store.state.focusLog ?? [], now: now))?.hour, fh != peakHourOfWeek,
+                       let fwin = Focus.peakWindowPick(store.state.focusPacks ?? [], log: store.state.focusLog ?? [],
+                                                       run: store.state.focusRun, peakHour: fh, now: now) {
+                        Button("Heti ablak a menet-órára: \(fwin.pack.name), \(recurrenceLabel(fwin.band))") {
+                            do {
+                                try Referee.addFocusWindow(packId: fwin.pack.id, band: fwin.band, now: nowMs())
+                            } catch {
+                                flowError = (error as? Referee.RefereeError)?.message ?? "Nem sikerült felvenni az ablakot."
+                            }
+                        }
+                        .buttonStyle(.bordered)
+                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding()
