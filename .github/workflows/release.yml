@@ -44,21 +44,21 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A README és a weboldal a délután tükör-újdonságairól.** A
-          menet-nap és a menet-óra, a menet-óra ablakának gombja, a menet-nap
-          a böngésző lapjain, a mért idő napja — egy helyen, ahol az ember
-          először találkozik az appal. Kód nem változott.
+          **A menet-óra ott is, ahol a döntés van.** A menet-órában a gépi
+          kezdőlap kártyája és a réteg lába, a két telefon kezdőlapja
+          kimondja: „Most a menet-órád van (9–10 óra, 6 menet) — ilyenkor szoktál elkezdeni.”
+          — a menet gombjával; a felugró lap és a tiltó lap a gomb mellett:
+          „Most a menet-órád van.” Bővítmény 0.4.30.
 
-          ### Ami a v0.4.125-ben jött
+          ### Ami a v0.4.126-ban jött
+
+          **A README és a weboldal a délután tükör-újdonságairól.** Kód nem
+          változott.
+
+          #### Ami a v0.4.125-ben jött
 
           **Ablak a menet-órára.** A csúcs-óra gombjának párja a menet-óra
-          alatt — a menet magától indul, amikor le szoktál ülni. Felvenni
-          ingyen; a gépen, Androidon és iPhone-on.
-
-          #### Ami a v0.4.124-ben jött
-
-          **A heti mondat a menet-órát is mondja.** A menet-nap mondata után,
-          szó szerint a statisztika sora — mindhárom platformon.
+          alatt — a menet magától indul, amikor le szoktál ülni.
 
           NOTES
           fi
