@@ -5,6 +5,11 @@ struct BreakerApp: App {
     @StateObject private var store = BreakerStore.shared
     @StateObject private var tunnel = TunnelController()
 
+    init() {
+        // EGY KOPPINTÁS az értesítésről a menetig: a gomb kezelője az indulástól él.
+        NoticeActions.shared.register()
+    }
+
     var body: some Scene {
         WindowGroup {
             ContentView()

@@ -511,7 +511,12 @@ elsőt): egy kattintás a mondattól a menetig, mint a telefonon. Futó menet
 mellett nincs gomb. A gépi értesítés is kattintható: a sokadik megakadásé és
 az előjelzésé a mondat végén megmondja, mi indul („Kattints, és indul: Nyelvtanulás, 25 perc.”),
 a kattintás indítja, és egy második értesítés visszaszól, hogy elindult; futó
-menet mellett nincs ígéret és nincs indítás. A gyorsbillentyűs rétegben ugyanez: a legutóbb használt
+menet mellett nincs ígéret és nincs indítás. Androidon ugyanez gombbal: a
+sokadik megakadás és az előjelzés értesítésén „Munkamenet: Nyelvtanulás, 25 perc”
+(`FocusStartReceiver`, a bíró indítja, egy rövid üzenet mondja, hogy
+elindult; futó menet vagy csomag nélkül nincs gomb). iPhone-on az előjelzés
+értesítésén „Munkamenet indítása” (`NoticeActions`, a kategória csak akkor
+kerül rá, ha van csomag; a gomb az appot is előhozza). A gyorsbillentyűs rétegben ugyanez: a legutóbb használt
 csomag sorában egy gomb a szokásos hosszal (a választó nélkül), és a láb a
 sokadik megakadásnál a mondatot is mondja — a réteg a kísértés pillanatáé.
 

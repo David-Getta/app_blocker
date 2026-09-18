@@ -55,7 +55,8 @@ cd android
   sora a mait („· Ma 3 megakadás”); az ötödik, tizedik és huszadik mainál a
   szolgáltatás egyszer egy lépést javasol (saját csatornán), a kezdőlap egy
   kártyán, amelynek gombja a legutóbb használt csomagot indítja; tíz perccel a hét csúcs-órája előtt a szolgáltatás egyszer előre
-  szól — mindkettő kikapcsolható a statisztika kapcsolójával. Tükör, nem
+  szól — mindkettő kikapcsolható a statisztika kapcsolójával, és mindkét
+  értesítésen gomb indítja a legutóbbi csomagot (`vpn/FocusStartReceiver.kt`). Tükör, nem
   ítélet; a fiókba nem megy. A hét csúcs-oldalát is mondja (a lista tételével
   könyvelve), és okonként bontja (lista, kulcsszó — melyik szabály dolgozik).
   Lásd `docs/feature-usage-stats.md`.

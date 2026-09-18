@@ -53,7 +53,9 @@ az állapotban, harminc nap), a statisztika nehézség-sora és a heti mondat
 mondja („12 megakadás a szűrőben”); az ötödik, tizedik és huszadik mainál a
 kezdőlap egy lépést javasol (a kártya gombja a legutóbb használt csomagot
 indítja) — a tunnel nem értesít, a lap mondja, amíg nyitva van; tíz perccel a hét csúcs-órája előtt a rendszer szól (az app ütemezi,
-`App/PeakReminder.swift`; a statisztika kapcsolójával kikapcsolható). Tükör,
+`App/PeakReminder.swift`; a statisztika kapcsolójával kikapcsolható; az
+értesítés „Munkamenet indítása” gombja a legutóbbi csomagot indítja,
+`App/NoticeActions.swift`). Tükör,
 nem ítélet; a fiókba nem megy. A hét csúcs-oldalát is mondja (a lista tételével
 könyvelve), és okonként bontja (lista, kulcsszó — melyik szabály dolgozik).
 Lásd `docs/feature-usage-stats.md`.

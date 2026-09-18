@@ -161,7 +161,7 @@ struct ContentView: View {
             let peakKey = peak.map { "\($0.hour):\($0.count)" } ?? ""
             if peakKey != peakScheduled {
                 peakScheduled = peakKey
-                PeakReminder.reschedule(peak: peak)
+                PeakReminder.reschedule(peak: peak, canStart: Focus.lastUsedPack(store.state.focusPacks ?? [], log: store.state.focusLog ?? []) != nil)
             }
             // A heti napló sora. Értesítés itt nincs (a bővítmény nem adhat, az
             // app nem fut a háttérben); a sor akkor íródik, amikor az app azon

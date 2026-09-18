@@ -536,7 +536,7 @@ const WIRES = [
   },
   {
     file: 'ios/App/ContentView.swift',
-    needle: 'PeakReminder.reschedule(peak: peak)',
+    needle: 'PeakReminder.reschedule(peak: peak, canStart:',
     lost: 'iPhone-on az app nem ütemezné az előjelzést a csúcs-óra előtt',
   },
   // EGY KOPPINTÁS a mondattól a menetig: ha a gomb kiesne, a javaslat csak
@@ -719,6 +719,36 @@ const WIRES = [
   // előjelzés értesítése indít. Ha a kattintás-kezelő esne ki, az értesítés
   // ígérne („Kattints, és indul”), és nem történne semmi.
   {
+    file: 'android/app/src/main/java/hu/breaker/app/vpn/BreakerVpnService.kt',
+    needle: 'startAction(cur, now, NOTIF_NUDGE_ID)',
+    lost: 'az Android sokadik-megakadás értesítésén nincs gomb a menetig',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/vpn/BreakerVpnService.kt',
+    needle: 'startAction(st, now, NOTIF_PEAK_ID)',
+    lost: 'az Android előjelzésén nincs gomb a menetig',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/vpn/FocusStartReceiver.kt',
+    needle: 'Referee.startFocus(packId, minutes, now)',
+    lost: 'az Android értesítés gombja nem indítana menetet — az ígéret üres',
+  },
+  {
+    file: 'ios/App/PeakReminder.swift',
+    needle: 'if canStart { content.categoryIdentifier = NoticeActions.category }',
+    lost: 'az iPhone előjelzésén nincs gomb a menetig',
+  },
+  {
+    file: 'ios/App/NoticeActions.swift',
+    needle: 'try? Referee.startFocus(packId: pick.id, minutes: pick.defaultMinutes, now: now)',
+    lost: 'az iPhone értesítés gombja nem indítana menetet — az ígéret üres',
+  },
+  {
+    file: 'ios/App/BreakerApp.swift',
+    needle: 'NoticeActions.shared.register()',
+    lost: 'az iPhone értesítés gombjának nincs kezelője — a koppintás elveszne',
+  },
+  {
     file: 'desktop/src/renderer/renderer.ts',
     needle: 'n.onclick = () => void startSuggestedSession(true);',
     lost: 'a gépi értesítés kattintása nem indítana menetet — az ígéret üres',
@@ -745,7 +775,7 @@ const WIRES = [
   },
   {
     file: 'android/app/src/main/java/hu/breaker/app/ui/StatsScreen.kt',
-    needle: 'if (week.sessions == 0 && (prevWeek?.sessions ?? 0) == 0) return',
+    needle: 'if (week.sessions == 0 && (prevWeek?.sessions ?: 0) == 0) return',
     lost: 'az Android munkamenet-blokkja üres héten eltűnne, az előző hét mellett is',
   },
   {

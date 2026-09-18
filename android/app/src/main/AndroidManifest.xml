@@ -54,6 +54,12 @@
             </intent-filter>
         </receiver>
 
+        <!-- EGY KOPPINTÁS az értesítésről a menetig: a javaslat gombja ide jön,
+             és a bíró indítja a csomagot. Nem old fel semmit, csak indít. -->
+        <receiver
+            android:name=".vpn.FocusStartReceiver"
+            android:exported="false" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.updates"

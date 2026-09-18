@@ -7,6 +7,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
+import android.graphics.drawable.Icon
 import android.net.VpnService
 import android.os.Build
 import android.os.ParcelFileDescriptor
@@ -301,6 +302,8 @@ class BreakerVpnService : VpnService() {
     private fun notifyOnce(
         id: Int, title: String, text: String,
         channel: String = LOCKDOWN_CHANNEL_ID, channelName: String = "Zárlat-ablak",
+        // EGY KOPPINTÁS az értesítésről a menetig: a javaslat gombja, ha van.
+        action: Notification.Action? = null,
     ) {
         val nm = getSystemService(NotificationManager::class.java)
         nm.createNotificationChannel(
@@ -309,17 +312,39 @@ class BreakerVpnService : VpnService() {
         val pi = PendingIntent.getActivity(
             this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE,
         )
-        nm.notify(
-            id,
-            Notification.Builder(this, channel)
-                .setSmallIcon(android.R.drawable.ic_lock_lock)
-                .setContentTitle(title)
-                .setContentText(text)
-                .setStyle(Notification.BigTextStyle().bigText(text))
-                .setContentIntent(pi)
-                .setAutoCancel(true)
-                .build(),
+        val builder = Notification.Builder(this, channel)
+            .setSmallIcon(android.R.drawable.ic_lock_lock)
+            .setContentTitle(title)
+            .setContentText(text)
+            .setStyle(Notification.BigTextStyle().bigText(text))
+            .setContentIntent(pi)
+            .setAutoCancel(true)
+        if (action != null) builder.setActions(action)
+        nm.notify(id, builder.build())
+    }
+
+    /**
+     * EGY KOPPINTÁS az értesítésről a menetig: a gomb a legutóbb használt
+     * csomagot indítja a szokásos hosszával (`FocusStartReceiver`) — ugyanaz
+     * az út, mint a kezdőlap kártyájáé. Futó menet mellett nincs gomb: egyszerre
+     * egy menet fut. Csomag nélkül sincs — üres ígéret helyett semmi.
+     */
+    private fun startAction(st: AppState, now: Long, notifId: Int): Notification.Action? {
+        if (BreakerStore.runningFocus(now) != null) return null
+        val pick = Focus.lastUsedPack(st.focusPacks, st.focusLog) ?: return null
+        val intent = Intent(this, FocusStartReceiver::class.java)
+            .setAction(FocusStartReceiver.ACTION_START)
+            .putExtra(FocusStartReceiver.EXTRA_PACK_ID, pick.id)
+            .putExtra(FocusStartReceiver.EXTRA_MINUTES, pick.defaultMinutes)
+            .putExtra(FocusStartReceiver.EXTRA_NOTIF_ID, notifId)
+        val pi = PendingIntent.getBroadcast(
+            this, notifId, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
+        return Notification.Action.Builder(
+            Icon.createWithResource(this, android.R.drawable.ic_media_play),
+            "Munkamenet: ${pick.name}, ${pick.defaultMinutes} perc",
+            pi,
+        ).build()
     }
 
     /**
@@ -334,7 +359,7 @@ class BreakerVpnService : VpnService() {
         if (key == warnedPeakKey) return
         warnedPeakKey = key
         runCatching {
-            notifyOnce(NOTIF_PEAK_ID, "Mindjárt a csúcs-óra", FilterHitLogic.peakWarnText(peak), NUDGE_CHANNEL_ID, "Megakadások")
+            notifyOnce(NOTIF_PEAK_ID, "Mindjárt a csúcs-óra", FilterHitLogic.peakWarnText(peak), NUDGE_CHANNEL_ID, "Megakadások", startAction(st, now, NOTIF_PEAK_ID))
         }
             .onFailure { Log.w(TAG, "az előjelzés nem szólt: $it") }
     }
@@ -530,7 +555,7 @@ class BreakerVpnService : VpnService() {
                 if (step > 0 && nudgeKey != nudgedKey && !cur.quietSuggestions) {
                     nudgedKey = nudgeKey
                     runCatching {
-                        notifyOnce(NOTIF_NUDGE_ID, "A sokadik megakadás", FilterHitLogic.nudgeText(step), NUDGE_CHANNEL_ID, "Megakadások")
+                        notifyOnce(NOTIF_NUDGE_ID, "A sokadik megakadás", FilterHitLogic.nudgeText(step), NUDGE_CHANNEL_ID, "Megakadások", startAction(cur, now, NOTIF_NUDGE_ID))
                     }
                         .onFailure { Log.w(TAG, "a sokadik megakadás nem szólt: $it") }
                 }
