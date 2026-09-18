@@ -174,6 +174,19 @@ class StoreParseTest {
         assertNull(parse("{\"sites\":[]}").digestWeekKey, "régi állapot: még sosem szólt")
     }
 
+    @Test fun `a heti naplo tuleli a mentest, a serult sor nem viszi el a tobbit`() {
+        val raw = """{"sites":[],"digestLog":[
+            {"week":"2026-08-31","text":"Elmúlt 7 nap: 5 ó 0 p mért idő."},
+            {"week":"2026-09-07","text":"Elmúlt 7 nap: 7 ó 20 p mért idő."},
+            {"week":"rossz","text":"x"}, {"text":"nincs hét"}, 42
+        ]}"""
+        val state = parse(raw)
+        assertEquals(listOf("2026-09-07", "2026-08-31"), state.digestLog.map { it.week }, "a legfrissebb elöl, a szemét nélkül")
+        val back = parse(toJson.invoke(BreakerStore, state).toString())
+        assertEquals(state.digestLog, back.digestLog, "a napló változatlanul jön vissza")
+        assertTrue(parse("{\"sites\":[]}").digestLog.isEmpty(), "régi állapot: üres napló")
+    }
+
     @Test fun `state written before the hidden list still loads with it off`() {
         val state = parse("{\"sites\":[" + site("youtube") + "]}")
         assertFalse(state.hideSiteList)

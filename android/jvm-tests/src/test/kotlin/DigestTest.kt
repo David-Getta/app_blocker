@@ -1,8 +1,12 @@
+import hu.breaker.app.core.AppState
 import hu.breaker.app.core.DigestLogic
 import hu.breaker.app.core.DigestLogic.Delta
+import hu.breaker.app.core.DigestLogic.Entry
 import hu.breaker.app.core.DigestLogic.Input
 import hu.breaker.app.core.DigestLogic.Top
 import hu.breaker.app.core.Focus
+import hu.breaker.app.core.Site
+import hu.breaker.app.core.UsageLogic
 import java.util.Calendar
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -131,5 +135,75 @@ class DigestTest {
         assertFalse(DigestLogic.text(flat) { it }!!.contains("héthez"), "öt százalék még nem trend")
         val first = full.copy(weekOverWeek = listOf(Delta("youtube.com", null)))
         assertFalse(DigestLogic.text(first) { it }!!.contains("héthez"), "előző hét nélkül nincs trend")
+    }
+
+    @Test fun `naplo - hetenkent egy sor, a legfrissebb elol, fel ev a plafon`() {
+        var log = emptyList<Entry>()
+        log = DigestLogic.record(log, "2026-08-31", "Elmúlt 7 nap: 5 ó 0 p mért idő.")
+        log = DigestLogic.record(log, "2026-09-07", "Elmúlt 7 nap: 7 ó 20 p mért idő.")
+        assertEquals(listOf("2026-09-07", "2026-08-31"), log.map { it.week }, "a legfrissebb elöl")
+        // Ugyanaz a hét újra: felülír, nem duplikál.
+        log = DigestLogic.record(log, "2026-09-07", "Elmúlt 7 nap: 8 ó 0 p mért idő.")
+        assertEquals(2, log.size)
+        assertEquals("Elmúlt 7 nap: 8 ó 0 p mért idő.", log[0].text)
+        // Üres hét: nem sor — és a hét régi sorát is elviszi.
+        log = DigestLogic.record(log, "2026-09-07", null)
+        assertEquals(listOf("2026-08-31"), log.map { it.week })
+        // A plafon: a legrégebbi esik.
+        for (i in 0 until DigestLogic.MAX_DIGEST_LOG + 5) {
+            log = DigestLogic.record(log, DigestLogic.weekKey(at(2027, 1, 4 + 7 * i, 12)), "hét $i")
+        }
+        assertEquals(DigestLogic.MAX_DIGEST_LOG, log.size)
+        assertEquals("hét ${DigestLogic.MAX_DIGEST_LOG + 4}", log[0].text, "a legfrissebb maradt")
+        assertFalse(log.any { it.week == "2026-08-31" }, "a legrégebbi esett ki")
+    }
+
+    @Test fun `naplo a tarbol - ami nem sor, az nem sor, a mondat csonkul, a het egy`() {
+        val junk = listOf(
+            Entry("2026-9-7", "rossz kulcs"), Entry("2026-09-07", "   "),
+            Entry("2026-09-07", "első"), Entry("2026-09-07", "utolsó"),
+            Entry("2026-08-31", "x".repeat(900)),
+        )
+        val log = DigestLogic.clean(junk)
+        assertEquals(listOf("2026-09-07", "2026-08-31"), log.map { it.week })
+        assertEquals("utolsó", log[0].text, "ugyanarra a hétre az utolsó marad")
+        assertEquals(500, log[1].text.length)
+        assertEquals("2026. 09. 07.", DigestLogic.weekLabel("2026-09-07"))
+    }
+
+    @Test fun `a bemenet az allapotbol - a menetek es a feloldasok a gordulo hetbol`() {
+        val now = at(2026, 9, 7, 8)
+        val day = 86_400_000L
+        val st = AppState(
+            unlockLog = listOf(now - 2 * day, now - 20 * day),
+            focusLog = listOf(
+                Focus.FocusLogEntry("p", "Nyelvtanulás", now - 3 * day, now - 3 * day + 3600_000L, now - 3 * day + 3600_000L, false),
+                Focus.FocusLogEntry("p", "Nyelvtanulás", now - 30 * day, now - 30 * day + 3600_000L, now - 30 * day + 3600_000L, false),
+            ),
+        )
+        val input = DigestLogic.inputFor(st, UsageLogic.summarize(st.usage, now), now)
+        assertEquals(1, input.unlocks7d, "a húsz napos feloldás nem az elmúlt hété")
+        assertEquals(1, input.focusWeek.sessions, "a harminc napos menet nem az elmúlt hété")
+        assertEquals(0, input.daysTracked)
+        assertEquals("Elmúlt 7 nap: 1 menet (1 ó 0 p, mind végigvive). 1 feloldás.", DigestLogic.text(input) { it })
+    }
+
+    @Test fun `a naplo sora a mostani cimkezessel - a fedonev es a rejtes visszamenoleg is fed`() {
+        val text = "Elmúlt 7 nap: 7 ó mért idő; a legtöbb: youtube.com 2 ó 40 p. Nincs tiltva, de sokat vitt: m.youtube.com 1 ó; youtu.be 5 p; notyoutube.com 3 p; github.com 2 p."
+        val sites = listOf(
+            Site("y", "youtube.com", listOf("youtube.com", "m.youtube.com", "youtu.be"), 1L, null, null),
+            Site("g", "github.com", listOf("github.com"), 1L, null, null),
+        )
+        assertEquals(
+            "Elmúlt 7 nap: 7 ó mért idő; a legtöbb: A videós 2 ó 40 p. Nincs tiltva, de sokat vitt: A videós 1 ó; A videós 5 p; notyoutube.com 3 p; github.com 2 p.",
+            DigestLogic.relabel(text, sites) { if (it == "youtube.com") "A videós" else it },
+        )
+        // A „notyoutube.com” nem a youtube.com aloldala — az marad; a listázottak sorszámot kapnak.
+        val hidden = DigestLogic.relabel(text, sites) { d -> "${sites.indexOfFirst { it.domain == d } + 1}. rejtett oldal" }
+        assertEquals(
+            "Elmúlt 7 nap: 7 ó mért idő; a legtöbb: 1. rejtett oldal 2 ó 40 p. Nincs tiltva, de sokat vitt: 1. rejtett oldal 1 ó; 1. rejtett oldal 5 p; notyoutube.com 3 p; 2. rejtett oldal 2 p.",
+            hidden,
+        )
+        assertEquals(text, DigestLogic.relabel(text, sites) { it }, "címke nélkül a sor változatlan")
     }
 }

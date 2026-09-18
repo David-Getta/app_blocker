@@ -69,6 +69,20 @@ function fakeBridgeSource() {
       const m = String(d.getMonth()+1).padStart(2,'0');
       return d.getFullYear() + '-' + m + '-' + String(d.getDate()).padStart(2,'0');
     };
+    // A heti napló a böngésző tárában: két korábbi hétfő mondata. A hétfő
+    // dátuma ugyanúgy számolva, mint a magban (a hét kulcsa).
+    const monday = (back) => {
+      const d = new Date(now); d.setHours(12,0,0,0);
+      d.setDate(d.getDate() - ((d.getDay() + 6) % 7) - 7 * back);
+      const m = String(d.getMonth()+1).padStart(2,'0');
+      return d.getFullYear() + '-' + m + '-' + String(d.getDate()).padStart(2,'0');
+    };
+    try {
+      localStorage.setItem('breaker.digestLog', JSON.stringify([
+        { week: monday(1), text: 'Elmúlt 7 nap: 7 ó 20 p mért idő; a legtöbb: youtube.com 2 ó 40 p (▼ -33% az előző héthez képest); appban a legtöbb: Slack 2 ó 0 p. 9 menet (7 ó 0 p, 2 korán leállítva). 3 feloldás. Nincs tiltva, de sokat vitt: news.ycombinator.com 2 ó 2 p.' },
+        { week: monday(2), text: 'Elmúlt 7 nap: 9 ó 5 p mért idő; a legtöbb: youtube.com 4 ó 0 p; appban a legtöbb: Slack 2 ó 30 p. 6 menet (4 ó 30 p, 1 korán leállítva). 5 feloldás.' },
+      ]));
+    } catch {}
     window.__fakeSites = [
       { id: 'site_1', domain: 'youtube.com', hostnames: ['youtube.com','www.youtube.com','m.youtube.com','youtu.be'], reason: 'Mert este nem alszom tőle',
         addedAt: now - 86400000*9, pauseUntil: null, pendingDeleteAt: null,
@@ -841,6 +855,18 @@ async function main() {
   // elhasal — egy félbevágott hibalista kevesebbet mond egy teljesnél.
   await page.waitForSelector('#todayBlock:not(.hidden)', { timeout: 10_000 })
     .catch(() => failures.push('a mai blokk nem tér vissza, miután megint van adat'));
+
+  // A HETI NAPLÓ: az élő mondat a mostani adatokból, és a tárból jött sorok.
+  // Ha a blokk csendben hiányozna, a hétfői mondatnak nem lenne otthona.
+  if (await page.locator('#journalBlock.hidden').count()) {
+    failures.push('a heti napló blokkja nem jelenik meg');
+  }
+  const journalNow = (await page.locator('#journalNow').innerText().catch(() => '')) || '';
+  if (!journalNow.includes('Így szólna a visszatekintés most: Elmúlt 7 nap:')) {
+    failures.push(`a napló élő mondata hiányzik: „${journalNow}”`);
+  }
+  const journalRows = await page.locator('#journalList .journal-row').count();
+  if (journalRows !== 2) failures.push(`a naplóban ${journalRows} sor van, kettőnek kellene`);
 
   // A MUNKAMENET-STATISZTIKA. Eddig semmi nem nézte meg: a `summarizeFocus`
   // számait fedték tesztek, de azt nem, hogy a felület ki is írja őket. Egy

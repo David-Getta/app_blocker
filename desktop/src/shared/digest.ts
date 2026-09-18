@@ -145,3 +145,83 @@ export function digestText(input: DigestInput, labelOf: (label: string) => strin
   if (parts.length === 0) return null;
   return `Elmúlt 7 nap: ${parts.join(' ')}`;
 }
+
+// ------------------------------------------------------------------ NAPLÓ
+//
+// A hétfői mondat elszáll az értesítéssel; a napló megtartja. Fél év hetei
+// egy-egy sorban: a pálya látszik, nem csak a pillanat — tükör, nem ítélet.
+// Eszközönként, mint a hét kulcsa: a gép a saját hetét mondja, a telefon a
+// magáét.
+
+/** Egy hét a naplóban: a hét kulcsa (a hétfő dátuma) és a mondat. */
+export interface DigestEntry { week: string; text: string }
+
+/** Ennyi hetet őrzünk — fél év. Több már nem tükör, hanem archívum. */
+export const MAX_DIGEST_LOG = 26;
+
+const WEEK_KEY = /^\d{4}-\d{2}-\d{2}$/;
+/** A napló sora mondat, nem esszé; a mag mondata ennél jóval rövidebb. */
+const MAX_DIGEST_TEXT = 500;
+
+/**
+ * Egy hét mondata a naplóba: a hétnek egy sora van (az újabb felülír), a
+ * lista a legfrissebbel kezdődik, a plafonnál a legrégebbi esik. Üres mondat
+ * (null) nem sor: egy hét, amiről nem volt mit mondani, a naplóban sem mond
+ * semmit — de a hét régi sorát sem hagyja ott.
+ */
+export function recordDigest(log: DigestEntry[], week: string, text: string | null): DigestEntry[] {
+  const kept = log.filter((e) => e.week !== week);
+  if (text) kept.push({ week, text });
+  return cleanDigestLog(kept);
+}
+
+/**
+ * A tárból jött napló megtisztítva: csak a jó alakú sorok, hetenként egy (az
+ * utolsó marad), a legfrissebb elöl, a plafonig. A tár bármit adhat — régi
+ * verzió, kézi szerkesztés —, és ami nem sor, az nem sor.
+ */
+export function cleanDigestLog(value: unknown): DigestEntry[] {
+  if (!Array.isArray(value)) return [];
+  const byWeek = new Map<string, string>();
+  for (const raw of value) {
+    if (!raw || typeof raw !== 'object') continue;
+    const { week, text } = raw as { week?: unknown; text?: unknown };
+    if (typeof week !== 'string' || !WEEK_KEY.test(week)) continue;
+    if (typeof text !== 'string' || text.trim() === '') continue;
+    byWeek.set(week, text.trim().slice(0, MAX_DIGEST_TEXT));
+  }
+  return [...byWeek.entries()]
+    .map(([week, text]) => ({ week, text }))
+    .sort((a, b) => (a.week < b.week ? 1 : a.week > b.week ? -1 : 0))
+    .slice(0, MAX_DIGEST_LOG);
+}
+
+/** A napló sorának feje: a hét kulcsa olvashatóan — „2026. 09. 07.” */
+export function weekLabel(week: string): string {
+  return `${week.replace(/-/g, '. ')}.`;
+}
+
+const escapeRe = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/**
+ * A napló sora a MOSTANI címkézéssel. Ami akkor a valódi címmel szólt, az a
+ * fedőnév felvétele vagy a lista elrejtése után is a lista címkéjével jelenik
+ * meg — a napló sem szivárogtathat ki olyan címet, amit a lista elrejt. A cím
+ * társneveit (m., youtu.be) és az aloldalait is a listázott oldal címkéje
+ * fedi; ami nincs a listán, az marad, ahogy volt.
+ */
+export function relabelDigest(
+  text: string, sites: { domain: string; hostnames?: string[] }[], labelOf: (domain: string) => string,
+): string {
+  let out = text;
+  for (const site of sites) {
+    const label = labelOf(site.domain);
+    if (label === site.domain) continue;
+    for (const name of [site.domain, ...(site.hostnames ?? [])]) {
+      if (!name) continue;
+      const re = new RegExp(`(?<![A-Za-z0-9-])(?:[A-Za-z0-9-]+\\.)*${escapeRe(name)}(?![A-Za-z0-9-])`, 'g');
+      out = out.replace(re, () => label);
+    }
+  }
+  return out;
+}

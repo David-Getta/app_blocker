@@ -323,8 +323,13 @@ class BreakerVpnService : VpnService() {
         if (!nm.areNotificationsEnabled() || blocked) return
         // A memóriában is: ha a tár nem ír, ne szóljon minden körben újra.
         digestDoneKey = key
-        BreakerStore.mutate { it.copy(digestWeekKey = key) }
-        val text = digestText(st, now) ?: return
+        val text = digestText(st, now)
+        // A hét el van könyvelve, a mondat a naplóba kerül — az üres hét (null)
+        // nem sor, de a hét régi sorát sem hagyja ott.
+        BreakerStore.mutate {
+            it.copy(digestWeekKey = key, digestLog = DigestLogic.record(it.digestLog, key, text))
+        }
+        if (text == null) return
         notifyOnce(NOTIF_DIGEST_ID, getString(R.string.digest_title), text, DIGEST_CHANNEL_ID, "Heti visszatekintés")
     }
 
@@ -335,7 +340,6 @@ class BreakerVpnService : VpnService() {
      * zárolt képernyőn is ott van.
      */
     private fun digestText(st: AppState, now: Long): String? {
-        val summary = UsageLogic.summarize(st.usage, now)
         val labelOf: (String) -> String = { raw ->
             val idx = st.sites.indexOfFirst { it.domain == raw }
             when {
@@ -344,22 +348,8 @@ class BreakerVpnService : VpnService() {
                 else -> AliasLogic.displayName(st.sites[idx])
             }
         }
-        val weekAgo = now - 7 * 24 * 3600_000L
-        return DigestLogic.text(
-            DigestLogic.Input(
-                last7Seconds = summary.last7Seconds,
-                topWeekSites = summary.topWeekSites.map { DigestLogic.Top(it.label, it.seconds) },
-                topWeekApps = summary.topWeekApps.map { DigestLogic.Top(it.label, it.seconds) },
-                weekOverWeek = summary.weekOverWeek.map { DigestLogic.Delta(it.label, it.deltaPct) },
-                // A napló ablaka a gépével közös: a mai nap kezdete mínusz hat nap.
-                focusWeek = Focus.summarizeFocus(st.focusLog, UsageLogic.startOfDay(now) - 6 * 86_400_000L, now),
-                unlocks7d = st.unlockLog.count { it >= weekAgo },
-                daysTracked = summary.daysTracked,
-                unblockedTop = UsageLogic.suggestBlocks(summary.topWeekSites, st.sites)
-                    .map { DigestLogic.Top(it.label, it.seconds) },
-            ),
-            labelOf,
-        )
+        // A bemenetet a mag rakja össze — a felület élő mondata ugyanezt kéri.
+        return DigestLogic.text(DigestLogic.inputFor(st, UsageLogic.summarize(st.usage, now), now), labelOf)
     }
 
     private fun establishAndRun() {

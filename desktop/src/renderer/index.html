@@ -404,6 +404,17 @@
           <h3 class="chart-title">Ez a hét az előzőhöz képest</h3>
           <div class="wow-list" id="wowList"></div>
         </div>
+
+        <!--
+          A HETI NAPLÓ. A hétfői mondat elszáll az értesítéssel; itt megmarad —
+          fél év hetei egy-egy sorban, és fölötte az, ami most szólna. Üresen
+          (se sor, se mondat) a blokk nincs.
+        -->
+        <div class="chart-block hidden" id="journalBlock">
+          <h3 class="chart-title">Heti napló</h3>
+          <p class="hint" id="journalNow"></p>
+          <div class="journal-list" id="journalList"></div>
+        </div>
       </div>
       <div id="chartTip" class="chart-tip hidden"></div>
     </section>

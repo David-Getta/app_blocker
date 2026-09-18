@@ -3,7 +3,11 @@
 
 import { test } from 'node:test';
 import * as assert from 'node:assert/strict';
-import { DIGEST_HOUR, digestDue, digestText, hm, weekKey, type DigestInput } from '../src/shared/digest';
+import {
+  DIGEST_HOUR, MAX_DIGEST_LOG, cleanDigestLog, digestDue, digestText, hm, recordDigest, relabelDigest, weekKey,
+  weekLabel,
+  type DigestEntry, type DigestInput,
+} from '../src/shared/digest';
 
 const at = (y: number, m: number, d: number, hh: number, mm = 0): number =>
   new Date(y, m - 1, d, hh, mm).getTime();
@@ -103,4 +107,56 @@ test('a nem tiltott, sokat vitt oldal is bekerül — a legnagyobb, a felület c
   // Mérés nélkül nincs miről beszélni — az üres hétre a javaslat sem ül rá.
   const nothing = { ...full, last7Seconds: 0, daysTracked: 0, unblockedTop: [{ label: 'x.com', seconds: 9000 }] };
   assert.ok(!(digestText(nothing, (l) => l) ?? '').includes('x.com'));
+});
+
+test('napló: hetenként egy sor, a legfrissebb elöl, fél év a plafon', () => {
+  let log: DigestEntry[] = [];
+  log = recordDigest(log, '2026-08-31', 'Elmúlt 7 nap: 5 ó 0 p mért idő.');
+  log = recordDigest(log, '2026-09-07', 'Elmúlt 7 nap: 7 ó 20 p mért idő.');
+  assert.deepEqual(log.map((e) => e.week), ['2026-09-07', '2026-08-31'], 'a legfrissebb elöl');
+  // Ugyanaz a hét újra: felülír, nem duplikál.
+  log = recordDigest(log, '2026-09-07', 'Elmúlt 7 nap: 8 ó 0 p mért idő.');
+  assert.equal(log.length, 2);
+  assert.equal(log[0].text, 'Elmúlt 7 nap: 8 ó 0 p mért idő.');
+  // Üres hét: nem sor — és a hét régi sorát is elviszi.
+  log = recordDigest(log, '2026-09-07', null);
+  assert.deepEqual(log.map((e) => e.week), ['2026-08-31']);
+  // A plafon: a legrégebbi esik.
+  for (let i = 0; i < MAX_DIGEST_LOG + 5; i++) {
+    const d = new Date(2027, 0, 4 + 7 * i);
+    log = recordDigest(log, weekKey(d.getTime()), `hét ${i}`);
+  }
+  assert.equal(log.length, MAX_DIGEST_LOG);
+  assert.equal(log[0].text, `hét ${MAX_DIGEST_LOG + 4}`, 'a legfrissebb maradt');
+  assert.ok(!log.some((e) => e.week === '2026-08-31'), 'a legrégebbi esett ki');
+});
+
+test('napló a tárból: ami nem sor, az nem sor; a mondat csonkul, a hét egy', () => {
+  const junk = [
+    null, 42, 'szöveg', {}, { week: '2026-9-7', text: 'rossz kulcs' }, { week: '2026-09-07', text: '   ' },
+    { week: '2026-09-07', text: 'első' }, { week: '2026-09-07', text: 'utolsó' },
+    { week: '2026-08-31', text: 'x'.repeat(900) },
+  ];
+  const log = cleanDigestLog(junk);
+  assert.deepEqual(log.map((e) => e.week), ['2026-09-07', '2026-08-31']);
+  assert.equal(log[0].text, 'utolsó', 'ugyanarra a hétre az utolsó marad');
+  assert.equal(log[1].text.length, 500);
+  assert.deepEqual(cleanDigestLog('nem tömb'), []);
+  assert.deepEqual(cleanDigestLog(undefined), []);
+  assert.equal(weekLabel('2026-09-07'), '2026. 09. 07.');
+});
+
+test('a napló sora a mostani címkézéssel: a fedőnév és a rejtés visszamenőleg is fed', () => {
+  const text = 'Elmúlt 7 nap: 7 ó mért idő; a legtöbb: youtube.com 2 ó 40 p. Nincs tiltva, de sokat vitt: m.youtube.com 1 ó; youtu.be 5 p; notyoutube.com 3 p; github.com 2 p.';
+  const sites = [{ domain: 'youtube.com', hostnames: ['youtube.com', 'm.youtube.com', 'youtu.be'] }, { domain: 'github.com', hostnames: ['github.com'] }];
+  const masked = relabelDigest(text, sites, (d) => (d === 'youtube.com' ? 'A videós' : d));
+  assert.equal(masked,
+    'Elmúlt 7 nap: 7 ó mért idő; a legtöbb: A videós 2 ó 40 p. Nincs tiltva, de sokat vitt: A videós 1 ó; A videós 5 p; notyoutube.com 3 p; github.com 2 p.');
+  // Rejtett lista: minden listázott cím a sorszámos álnevét kapja; a nem listázott marad.
+  // A „notyoutube.com” nem a youtube.com aloldala — az marad; a listázottak sorszámot kapnak.
+  const hidden = relabelDigest(text, sites, (d) => `${sites.findIndex((s) => s.domain === d) + 1}. rejtett oldal`);
+  assert.equal(hidden,
+    'Elmúlt 7 nap: 7 ó mért idő; a legtöbb: 1. rejtett oldal 2 ó 40 p. Nincs tiltva, de sokat vitt: 1. rejtett oldal 1 ó; 1. rejtett oldal 5 p; notyoutube.com 3 p; 2. rejtett oldal 2 p.');
+  // Címke nélkül (nincs fedőnév, nincs rejtés) a sor változatlan.
+  assert.equal(relabelDigest(text, sites, (d) => d), text);
 });

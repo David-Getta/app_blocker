@@ -79,6 +79,7 @@ import hu.breaker.app.core.BreakerStore
 import hu.breaker.app.core.ChallengeEngine
 import hu.breaker.app.core.ChallengeEngine.Kind
 import hu.breaker.app.core.ChallengeEngine.Step
+import hu.breaker.app.core.DigestLogic
 import hu.breaker.app.core.LimitLogic
 import hu.breaker.app.core.LockdownLogic
 import hu.breaker.app.core.Referee
@@ -730,6 +731,12 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                 },
                 hasUsageAccess = UsageTracker.hasUsageAccess(context),
                 lastSampleAt = state.usageLastSampleAt,
+                // A heti napló és az élő mondat — ugyanaz a mag, mint a hétfő
+                // reggeli értesítésé, a felület címkézésével.
+                // A régi sorok is a MOSTANI címkézéssel: a fedőnév és a rejtés
+                // visszamenőleg is fed.
+                digestLog = state.digestLog.map { it.copy(text = DigestLogic.relabel(it.text, state.sites, siteLabel)) },
+                digestNow = DigestLogic.text(DigestLogic.inputFor(state, usageSummary, now), siteLabel),
                 onGrantAccess = { context.startActivity(UsageTracker.usageAccessIntent()) },
                 onToggleEnabled = {
                     // Napi keret vagy adag-szabály mellett a mérés nem kapcsolható ki: abból fogy

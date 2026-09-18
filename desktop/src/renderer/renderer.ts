@@ -23,7 +23,9 @@ import {
   MAX_LOCKDOWN_WINDOWS, type Lockdown, type LockdownWindow,
 } from '../shared/lockdown.js';
 import { stepBurstNotices, type BurstNotice, type BurstWatch } from '../shared/burst-notify.js';
-import { daysSinceUnlock, digestDue, digestText } from '../shared/digest.js';
+import {
+  cleanDigestLog, daysSinceUnlock, digestDue, digestText, recordDigest, relabelDigest, weekLabel, type DigestEntry,
+} from '../shared/digest.js';
 import {
   acceleratorFromKeyEvent, DEFAULT_OVERLAY_SHORTCUT, rejectText, shortcutLabel,
 } from '../shared/shortcut.js';
@@ -3620,8 +3622,23 @@ function maybeDigest(): void {
   if (!key || key === digestDoneKey) return;
   // A memóriában is: ha a tár nem ír, ne szóljon minden körben újra.
   digestDoneKey = key;
+  const text = currentDigestText();
+  try { localStorage.setItem('breaker.digestWeek', key); } catch { /* nincs tár: legközelebb újra */ }
+  // A mondat a naplóba is kerül — az üres hét (null) nem sor.
+  saveDigestLog(recordDigest(loadDigestLog(), key, text));
+  renderJournal();
+  if (text) new Notification('Breaker — heti visszatekintés', { body: text });
+}
+
+/**
+ * A visszatekintés mondata a MOSTANI adatokból — hétfőn ez megy az
+ * értesítésbe, a többi napon a statisztika mutatja, mi szólna. A címkék a
+ * statisztikáéi (rejtett lista, fedőnév).
+ */
+function currentDigestText(): string | null {
+  if (!statsData || !status) return null;
   const s = statsData.summary;
-  const text = digestText({
+  return digestText({
     last7Seconds: s.last7Seconds,
     topWeekSites: s.topWeekSites,
     topWeekApps: s.topWeekApps,
@@ -3631,8 +3648,37 @@ function maybeDigest(): void {
     daysTracked: s.daysTracked,
     unblockedTop: suggestBlocks(s.topWeekSites, status.sites).map((t) => ({ label: t.label, seconds: t.seconds })),
   }, statLabel);
-  try { localStorage.setItem('breaker.digestWeek', key); } catch { /* nincs tár: legközelebb újra */ }
-  if (text) new Notification('Breaker — heti visszatekintés', { body: text });
+}
+
+/** A heti napló a böngésző tárából — a mag tisztítja, ami nem sor, az nem sor. */
+function loadDigestLog(): DigestEntry[] {
+  try { return cleanDigestLog(JSON.parse(localStorage.getItem('breaker.digestLog') ?? '[]')); } catch { return []; }
+}
+
+function saveDigestLog(log: DigestEntry[]): void {
+  try { localStorage.setItem('breaker.digestLog', JSON.stringify(log)); } catch { /* nincs tár: a napló csak a memóriáé */ }
+}
+
+/**
+ * A heti napló a statisztikán: a hétfői mondat elszáll az értesítéssel, itt
+ * megmarad — fél év hetei egy-egy sorban, és fölötte az, ami most szólna.
+ * Üresen (se sor, se mondat) a blokk nincs — mint a többi.
+ */
+function renderJournal(): void {
+  const now = currentDigestText();
+  const log = loadDigestLog();
+  $('journalBlock').classList.toggle('hidden', now === null && log.length === 0);
+  $('journalNow').classList.toggle('hidden', now === null);
+  $('journalNow').textContent = now ? `Így szólna a visszatekintés most: ${now}` : '';
+  const list = $('journalList');
+  list.textContent = '';
+  for (const e of log) {
+    const row = h('div', 'journal-row');
+    row.appendChild(h('span', 'journal-week', weekLabel(e.week)));
+    // A régi sor is a MOSTANI címkézéssel: a fedőnév és a rejtés visszamenőleg is fed.
+    row.appendChild(h('span', 'journal-text', relabelDigest(e.text, status?.sites ?? [], statLabel)));
+    list.appendChild(row);
+  }
 }
 
 function tile(value: string, label: string): HTMLElement {
@@ -3980,6 +4026,7 @@ function renderStats(): void {
     line.appendChild(h('span', cls, text));
     wow.appendChild(line);
   }
+  renderJournal();
 }
 
 /**

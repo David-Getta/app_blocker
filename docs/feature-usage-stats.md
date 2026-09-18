@@ -426,3 +426,27 @@ Szabályok, kimondva:
 A mag tiszta (`desktop/src/shared/digest.ts` és a tükre, `core/Digest.kt`: a
 hét kulcsa, az esedékesség, a szöveg); a gépen a felület a statisztika minden
 frissítése után kérdezi meg, a telefonon a szűrő köre percenként.
+
+### Heti napló: a mondat megmarad
+
+A hétfői mondat elszáll az értesítéssel; a napló megtartja. A statisztika
+alján (gépen) vagy a menet-blokk alatt (Androidon) egy **Heti napló** blokk:
+fölül az, ami *most* szólna — „Így szólna a visszatekintés most: …”, ugyanaz a
+mag, ugyanazokból az adatokból, bármelyik napon —, alatta a korábbi hétfők
+egy-egy sorban, a legfrissebb elöl, fél évig (`MAX_DIGEST_LOG`). A pálya
+látszik, nem csak a pillanat — tükör, nem ítélet.
+
+- **Eszközönként**, mint a hét kulcsa: a gép a saját hetét mondja (a böngésző
+  tárában, `breaker.digestLog`), a telefon a magáét (az állapotban,
+  `digestLog`). Szándékosan nem szinkronizál.
+- **Hetenként egy sor**, az újabb felülír; az üres hét (amiről nem volt mit
+  mondani) nem sor, és a hét régi sorát is elviszi. A tárból jött naplót a
+  mag tisztítja (`cleanDigestLog` / `DigestLogic.clean`): ami nem sor, az
+  nem sor.
+- **A címkék** itt is a statisztika szabályát követik — és visszamenőleg is:
+  a régi sor a MOSTANI címkézéssel jelenik meg (`relabelDigest` /
+  `DigestLogic.relabel`): ami akkor a valódi címmel szólt, az a fedőnév
+  felvétele vagy a lista elrejtése után is a lista címkéjével áll ott, a
+  társneveivel és az aloldalaival együtt. A napló sem szivárogtathat ki olyan
+  címet, amit a lista elrejt.
+- Üresen (se sor, se mondat) a blokk nincs — mint a többi.

@@ -137,6 +137,11 @@ data class AppState(
      */
     val digestWeekKey: String? = null,
     /**
+     * A heti napló: a visszatekintés mondatai hetenként, a legfrissebb elöl,
+     * fél évig. Helyi, mint a hét kulcsa. Lásd core/Digest.kt.
+     */
+    val digestLog: List<DigestLogic.Entry> = emptyList(),
+    /**
      * Rejtve induljon-e a blokkolt oldalak listája.
      *
      * Beállítás, nem pillanatnyi állapot: a felület minden indításkor rejtve
@@ -515,6 +520,9 @@ object BreakerStore {
         put("usage", usageToJson(s.usage))
         put("usageLastSampleAt", s.usageLastSampleAt ?: JSONObject.NULL)
         put("digestWeekKey", s.digestWeekKey ?: JSONObject.NULL)
+        put("digestLog", JSONArray(s.digestLog.map { e ->
+            JSONObject().apply { put("week", e.week); put("text", e.text) }
+        }))
         // A közös napi keret adatai. Kis blob, de blokkolási döntés függ tőle,
         // ezért újraindulás után is meg kell maradnia.
         put("sharedToday", s.sharedToday?.let { sh ->
@@ -757,6 +765,17 @@ object BreakerStore {
             usageLastSampleAt =
                 if (o.isNull("usageLastSampleAt")) null else o.optLong("usageLastSampleAt"),
             digestWeekKey = if (o.isNull("digestWeekKey")) null else o.optString("digestWeekKey"),
+            // Soronként tűrünk, és a mag tisztít: egy sérült sor ne vigye el a naplót.
+            digestLog = DigestLogic.clean(
+                o.optJSONArray("digestLog")?.let { arr ->
+                    (0 until arr.length()).mapNotNull { i ->
+                        runCatching {
+                            val e = arr.getJSONObject(i)
+                            DigestLogic.Entry(e.getString("week"), e.getString("text"))
+                        }.getOrNull()
+                    }
+                } ?: emptyList(),
+            ),
             sites = sites,
             unlockLog = unlockLog,
             lastCombo = if (o.isNull("lastCombo")) null else o.optString("lastCombo"),

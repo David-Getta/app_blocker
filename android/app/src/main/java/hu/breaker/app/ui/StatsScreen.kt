@@ -24,6 +24,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import hu.breaker.app.core.DigestLogic
 import hu.breaker.app.core.Focus
 import hu.breaker.app.core.UsageLogic
 
@@ -74,6 +75,14 @@ fun StatsSection(
      * kettőt megkülönböztethetővé, anélkül hogy naplót kellene nézni hozzá.
      */
     lastSampleAt: Long?,
+    /**
+     * A heti napló: a visszatekintés mondatai hetenként (a legfrissebb elöl),
+     * és az élő mondat — ami MOST szólna. A hívó adja, a felület címkézésével;
+     * a hozzáférés-kapu FÖLÖTT áll, mert a menetek és a feloldások mérés
+     * nélkül is mondat.
+     */
+    digestLog: List<DigestLogic.Entry> = emptyList(),
+    digestNow: String? = null,
     onGrantAccess: () -> Unit,
     onToggleEnabled: () -> Unit,
     onClear: () -> Unit,
@@ -100,6 +109,26 @@ fun StatsSection(
         // telefonon az app azt mondaná, hogy nincs mit mutatni — pedig pontosan
         // tudja, hányszor ültél le dolgozni.
         FocusStatsBlock(focusToday, focusWeek, focusDays)
+
+        // A HETI NAPLÓ. A hétfői mondat elszáll az értesítéssel; itt megmarad —
+        // fél év hetei egy-egy sorban, és fölötte az, ami most szólna. Üresen
+        // (se sor, se mondat) a blokk nincs — mint a többi.
+        if (digestNow != null || digestLog.isNotEmpty()) {
+            StatsSectionLabel("Heti napló")
+            if (digestNow != null) {
+                Text("Így szólna a visszatekintés most: $digestNow", style = MaterialTheme.typography.bodySmall)
+            }
+            for (e in digestLog) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        DigestLogic.weekLabel(e.week),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.outline,
+                    )
+                    Text(e.text, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+                }
+            }
+        }
 
         Text(
             "Csak az az idő számít, amikor tényleg ott vagy: az app előtérben van, " +

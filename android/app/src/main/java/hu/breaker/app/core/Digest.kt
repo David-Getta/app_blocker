@@ -142,4 +142,93 @@ object DigestLogic {
         if (parts.isEmpty()) return null
         return "Elmúlt 7 nap: ${parts.joinToString(" ")}"
     }
+
+    // ------------------------------------------------------------- NAPLÓ
+    //
+    // A hétfői mondat elszáll az értesítéssel; a napló megtartja. Fél év hetei
+    // egy-egy sorban: a pálya látszik, nem csak a pillanat — tükör, nem
+    // ítélet. Eszközönként, mint a hét kulcsa.
+
+    /** Egy hét a naplóban: a hét kulcsa (a hétfő dátuma) és a mondat. */
+    data class Entry(val week: String, val text: String)
+
+    /** Ennyi hetet őrzünk — fél év. Több már nem tükör, hanem archívum. */
+    const val MAX_DIGEST_LOG = 26
+
+    /** A napló sora mondat, nem esszé; a mag mondata ennél jóval rövidebb. */
+    private const val MAX_DIGEST_TEXT = 500
+    private val WEEK_KEY = Regex("^\\d{4}-\\d{2}-\\d{2}$")
+
+    /**
+     * Egy hét mondata a naplóba: a hétnek egy sora van (az újabb felülír), a
+     * lista a legfrissebbel kezdődik, a plafonnál a legrégebbi esik. Üres
+     * mondat (null) nem sor — de a hét régi sorát sem hagyja ott.
+     */
+    fun record(log: List<Entry>, week: String, text: String?): List<Entry> {
+        val kept = log.filter { it.week != week }.toMutableList()
+        if (!text.isNullOrEmpty()) kept.add(Entry(week, text))
+        return clean(kept)
+    }
+
+    /**
+     * A tárból jött napló megtisztítva: csak a jó alakú sorok, hetenként egy
+     * (az utolsó marad), a legfrissebb elöl, a plafonig.
+     */
+    fun clean(entries: List<Entry>): List<Entry> {
+        val byWeek = LinkedHashMap<String, String>()
+        for (e in entries) {
+            if (!WEEK_KEY.matches(e.week)) continue
+            val t = e.text.trim()
+            if (t.isEmpty()) continue
+            byWeek[e.week] = t.take(MAX_DIGEST_TEXT)
+        }
+        return byWeek.entries.map { Entry(it.key, it.value) }
+            .sortedByDescending { it.week }
+            .take(MAX_DIGEST_LOG)
+    }
+
+    /** A napló sorának feje: a hét kulcsa olvashatóan — „2026. 09. 07.” */
+    fun weekLabel(week: String): String = week.replace("-", ". ") + "."
+
+    /**
+     * A napló sora a MOSTANI címkézéssel. Ami akkor a valódi címmel szólt, az
+     * a fedőnév felvétele vagy a lista elrejtése után is a lista címkéjével
+     * jelenik meg — a napló sem szivárogtathat ki olyan címet, amit a lista
+     * elrejt. A cím társneveit és az aloldalait is a listázott oldal címkéje
+     * fedi; ami nincs a listán, az marad, ahogy volt.
+     */
+    fun relabel(text: String, sites: List<Site>, labelOf: (String) -> String): String {
+        var out = text
+        for (site in sites) {
+            val label = labelOf(site.domain)
+            if (label == site.domain) continue
+            for (name in listOf(site.domain) + site.hostnames) {
+                if (name.isEmpty()) continue
+                val re = Regex("(?<![A-Za-z0-9-])(?:[A-Za-z0-9-]+\\.)*" + Regex.escape(name) + "(?![A-Za-z0-9-])")
+                out = re.replace(out) { label }
+            }
+        }
+        return out
+    }
+
+    /**
+     * A visszatekintés bemenete a mostani állapotból — a szolgáltatás (hétfő
+     * reggel) és a felület (az élő mondat a statisztikán) ugyanezt kérdezi,
+     * hogy a kettő ne csúszhasson szét.
+     */
+    fun inputFor(st: AppState, summary: UsageLogic.Summary, now: Long): Input {
+        val weekAgo = now - 7 * 24 * 3600_000L
+        return Input(
+            last7Seconds = summary.last7Seconds,
+            topWeekSites = summary.topWeekSites.map { Top(it.label, it.seconds) },
+            topWeekApps = summary.topWeekApps.map { Top(it.label, it.seconds) },
+            weekOverWeek = summary.weekOverWeek.map { Delta(it.label, it.deltaPct) },
+            // A napló ablaka a gépével közös: a mai nap kezdete mínusz hat nap.
+            focusWeek = Focus.summarizeFocus(st.focusLog, UsageLogic.startOfDay(now) - 6 * 86_400_000L, now),
+            unlocks7d = st.unlockLog.count { it >= weekAgo },
+            daysTracked = summary.daysTracked,
+            unblockedTop = UsageLogic.suggestBlocks(summary.topWeekSites, st.sites)
+                .map { Top(it.label, it.seconds) },
+        )
+    }
 }
