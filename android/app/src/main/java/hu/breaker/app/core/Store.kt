@@ -89,6 +89,10 @@ data class SessionRec(
      * levétel vagy szűkítés). Nem oldalhoz tartozik, hanem az egész készülékhez.
      */
     val pendingLockdownWindows: List<LockdownLogic.LockdownWindow>? = null,
+    /** ha igaz, a teljesítés a MEGBÍZOTTAT veszi le — a terv végén az ő jelmondatával */
+    val pendingPartnerRemoval: Boolean = false,
+    /** hányszor volt rossz a jelmondat ebben a kísérletben — a plafonnál a kísérlet elszáll */
+    val partnerTries: Int = 0,
 )
 
 /**
@@ -231,6 +235,16 @@ data class AppState(
     val lockdownWindowsRev: Int? = null,
     /** Az ablak-lista kulcsa az utolsó léptetéskor — ebből derül ki, kell-e új jel. */
     val focusRevWindows: String? = null,
+    /**
+     * PÁRBAN ZÁROLÁS: a megbízott lenyomata, ha van. Amíg van, minden lazító
+     * próbatétel utolsó lépése az ő jelmondata. A munkamenet blobján utazik, a
+     * jelével. Lásd core/Partner.kt.
+     */
+    val partner: PartnerLogic.PartnerLock? = null,
+    /** a jele: a blob rev-je, amelyik utoljára állította vagy vette le */
+    val partnerRev: Int? = null,
+    /** a megbízott kulcsa az utolsó léptetéskor — ebből derül ki, kell-e új jel */
+    val focusRevPartner: String? = null,
 )
 
 /**
@@ -479,6 +493,10 @@ object BreakerStore {
         put("lockdownWindows", SyncClient.windowsToJson(s.lockdownWindows))
         put("lockdownWindowsRev", s.lockdownWindowsRev ?: JSONObject.NULL)
         put("focusRevWindows", s.focusRevWindows ?: JSONObject.NULL)
+        // A megbízott is a lemezre megy: a lazítás kapuja függ tőle.
+        put("partner", s.partner?.let { SyncClient.partnerToJson(it) } ?: JSONObject.NULL)
+        put("partnerRev", s.partnerRev ?: JSONObject.NULL)
+        put("focusRevPartner", s.focusRevPartner ?: JSONObject.NULL)
         put("sync", s.sync?.let { a ->
             JSONObject().apply {
                 put("serverUrl", a.serverUrl); put("accountId", a.accountId)
@@ -615,6 +633,8 @@ object BreakerStore {
                 // után is az maradjon, ami volt.
                 put("pendingLockdownWindows", ses.pendingLockdownWindows?.let { SyncClient.windowsToJson(it) }
                     ?: JSONObject.NULL)
+                put("pendingPartnerRemoval", ses.pendingPartnerRemoval)
+                put("partnerTries", ses.partnerTries)
             }
         } ?: JSONObject.NULL)
     }
@@ -635,6 +655,7 @@ object BreakerStore {
                 put("armedAt", step.armedAt ?: JSONObject.NULL)
             }
             is Step.Reverse -> { put("type", "REVERSE"); put("text", step.text) }
+            is Step.Partner -> { put("type", "PARTNER"); put("name", step.name) }
             is Step.Delay -> {
                 put("type", "DELAY"); put("minutes", step.minutes)
                 put("claimableAt", step.claimableAt ?: JSONObject.NULL)
@@ -662,6 +683,7 @@ object BreakerStore {
                 if (o.isNull("armedAt")) null else o.getLong("armedAt"),
             )
             "REVERSE" -> Step.Reverse(id, o.getString("text"))
+            "PARTNER" -> Step.Partner(id, o.getString("name"))
             "DELAY" -> Step.Delay(
                 id, o.getInt("minutes"),
                 if (o.isNull("claimableAt")) null else o.getLong("claimableAt"),
@@ -742,6 +764,8 @@ object BreakerStore {
                         else ses.getLong("pendingFocusEnd"),
                     pendingLockdownWindows = if (ses.isNull("pendingLockdownWindows")) null
                         else SyncClient.windowsFromJson(ses.optJSONArray("pendingLockdownWindows")),
+                    pendingPartnerRemoval = ses.optBoolean("pendingPartnerRemoval", false),
+                    partnerTries = ses.optInt("partnerTries", 0),
                 )
             }
         }.getOrNull()?.takeIf { it.steps.isNotEmpty() && it.stepIndex in it.steps.indices }
@@ -793,6 +817,10 @@ object BreakerStore {
             lockdownWindowsRev = if (o.isNull("lockdownWindowsRev")) null
                 else o.optInt("lockdownWindowsRev", 0).takeIf { it > 0 },
             focusRevWindows = if (o.isNull("focusRevWindows")) null else o.optString("focusRevWindows"),
+            // Csak a jó alakú marad: egy sérült lenyomat csapda lenne, nem döntés.
+            partner = SyncClient.partnerFromJson(o.optJSONObject("partner")),
+            partnerRev = if (o.isNull("partnerRev")) null else o.optInt("partnerRev", 0).takeIf { it > 0 },
+            focusRevPartner = if (o.isNull("focusRevPartner")) null else o.optString("focusRevPartner"),
             // Egy sérült fiókbejegyzés a szinkront viszi el, a blokklistát nem:
             // a kettő közül a lista a fontos.
             sync = if (o.isNull("sync")) null else runCatching {

@@ -187,6 +187,20 @@ class StoreParseTest {
         assertTrue(parse("{\"sites\":[]}").digestLog.isEmpty(), "régi állapot: üres napló")
     }
 
+    @Test fun `a megbizott tuleli a mentest, a serult lenyomat leesik`() {
+        val raw = """{"sites":[],"partner":{"name":"Anna","salt":"AAAAAAAAAAAAAAAAAAAAAA==",
+            "hash":"s+1/ipK2eme02yLsnfZBLnk+BusxpOitGSQ2asZ0vR4=","setAt":5},"partnerRev":3}"""
+        val state = parse(raw)
+        assertEquals("Anna", state.partner?.name)
+        assertEquals(3, state.partnerRev)
+        val back = parse(toJson.invoke(BreakerStore, state).toString())
+        assertEquals(state.partner, back.partner, "a lenyomat változatlanul jön vissza")
+        assertEquals(3, back.partnerRev)
+        // Egy sérült lenyomat nem „nincs megbízott”, hanem csapda lenne — ezért leesik.
+        assertNull(parse("""{"sites":[],"partner":{"name":"Anna","salt":"rövid","hash":"x"}}""").partner)
+        assertNull(parse("{\"sites\":[]}").partner, "régi állapot: nincs megbízott")
+    }
+
     @Test fun `state written before the hidden list still loads with it off`() {
         val state = parse("{\"sites\":[" + site("youtube") + "]}")
         assertFalse(state.hideSiteList)

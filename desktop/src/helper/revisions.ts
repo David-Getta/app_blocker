@@ -314,6 +314,10 @@ export function adoptFocusRevision(state: HelperState): void {
   state.focusRevFp = focusFingerprint(state);
   state.focusRevPacks = packFingerprints(state);
   state.focusRevWindows = windowsKey(state);
+  // A megbízott kulcsa is: az átvett megbízott nem a miénk — a következő saját
+  // szerkesztés ne bélyegezze át a jelét, mert azzal egy másik eszköz
+  // levételét lehetne felülírni (azonos jelnél a beállított nyer).
+  state.focusRevPartner = partnerKey(state.partner);
 }
 
 /**

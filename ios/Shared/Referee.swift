@@ -50,8 +50,70 @@ enum Referee {
         if let e = requireUnlocked(state, now) { thrown = e; return nil }
         let tier = effectiveTier(state, kind: kind, now: now)
         let forced = comboSiteId == nil ? nil : forcedCombo(state, comboSiteId!, now)
-        return ChallengeEngine.generatePlan(kind: kind, tier: tier,
-                                            lastCombo: state.lastCombo, forceCombo: forced)
+        let plan = ChallengeEngine.generatePlan(kind: kind, tier: tier,
+                                                lastCombo: state.lastCombo, forceCombo: forced)
+        // PÁRBAN ZÁROLÁS: ha van megbízott, az utolsó szó az övé — MINDEN
+        // lazításnál, mert mind ezen az egy kapun jön ki. A várakozás UTÁN áll.
+        guard let partner = state.partner else { return plan }
+        return ChallengeEngine.Plan(
+            steps: plan.steps + [.partner(id: BreakerStore.shared.newId("st"), name: partner.name)],
+            comboKey: plan.comboKey
+        )
+    }
+
+    struct PartnerSetup { let name: String; let phrase: String }
+    struct PartnerChangeResult { let applied: Bool; let session: SessionRec? }
+
+    /// Megbízott felvétele — INGYEN, mert szigorítás. A jelmondatot itt
+    /// sorsoljuk, és EGYSZER adjuk vissza: a felület megmutatja, a felhasználó
+    /// átadja; a tár csak a lenyomatot tartja meg. A desktop `setPartner` tükre.
+    @discardableResult
+    static func setPartner(name rawName: String, now: Double) throws -> PartnerSetup {
+        var out: PartnerSetup?
+        var thrown: RefereeError?
+        BreakerStore.shared.mutate { state in
+            if state.partner != nil {
+                thrown = RefereeError(
+                    message: "Már van megbízott. Előbb vedd le — az próbatétel, az ő jelmondatával.",
+                    code: "PARTNER_SET"); return
+            }
+            guard let name = PartnerLogic.normalizePartnerName(rawName) else {
+                thrown = RefereeError(message: "Adj a megbízottnak egy nevet.", code: "BAD_NAME"); return
+            }
+            let phrase = ChallengeEngine.makePartnerPhrase()
+            state.partner = PartnerLogic.makeLock(name: name, phrase: phrase, now: now)
+            out = PartnerSetup(name: name, phrase: phrase)
+        }
+        if let e = thrown { throw e }
+        return out!
+    }
+
+    /// A megbízott levétele — próbatétel, a terv végén az ő jelmondatával: a
+    /// levételhez is ő kell. A desktop `startPartnerRemoval` tükre.
+    @discardableResult
+    static func startPartnerRemoval(now: Double) throws -> PartnerChangeResult {
+        var result: PartnerChangeResult?
+        var thrown: RefereeError?
+        BreakerStore.shared.mutate { state in
+            if state.partner == nil {
+                result = PartnerChangeResult(applied: true, session: nil); return
+            }
+            if state.session != nil {
+                thrown = RefereeError(message: "Előbb fejezd be a folyamatban lévő kísérletet.", code: "BUSY"); return
+            }
+            guard let plan = planLoosening(state, .pause, nil, now, &thrown) else { return }
+            var steps = plan.steps
+            armCurrent(&steps, 0, now)
+            let session = SessionRec(id: BreakerStore.shared.newId("ses"), kind: .pause, siteId: "partner",
+                                     minutes: nil, steps: steps, stepIndex: 0, createdAt: now,
+                                     pendingSchedule: nil, pendingFocusEnd: nil,
+                                     pendingLockdownWindows: nil, pendingPartnerRemoval: true)
+            state.session = session
+            state.lastCombo = plan.comboKey
+            result = PartnerChangeResult(applied: false, session: session)
+        }
+        if let e = thrown { throw e }
+        return result!
     }
 
     /// Drops the running attempt and remembers WHAT it was, so restarting
@@ -59,8 +121,9 @@ enum Referee {
     /// always allowed — it just must not be a cheaper route than finishing.
     private static func dropSession(_ state: inout AppState, _ now: Double) {
         guard let s = state.session else { return }
+        // A megbízott lépése nem sorsolt próba: a kombináció-kulcsba nem számít.
         let combo = ChallengeEngine.comboKeyOf(
-            s.steps.filter { $0.typeName != "DELAY" }.map { $0.typeName })
+            s.steps.filter { $0.typeName != "DELAY" && $0.typeName != "PARTNER" }.map { $0.typeName })
         // The cooldown runs from the FIRST time this pair was given up on, not
         // from the latest restart — otherwise every restart would push the
         // deadline out and the pair would stick to the site for ever.
@@ -159,6 +222,15 @@ enum Referee {
     }
 
     private static func finish(_ state: inout AppState, _ s: SessionRec, _ now: Double) {
+        // A MEGBÍZOTT LEVÉTELE: nem oldalhoz tartozik. Idáig csak próbatétellel
+        // lehet eljutni — a végén az ő jelmondatával, tehát ő is bólintott.
+        if s.pendingPartnerRemoval == true {
+            state.partner = nil
+            state.unlockLog = state.unlockLog.filter { $0 > now - 30 * 24 * 3_600_000 } + [now]
+            state.session = nil
+            state.abandons = (state.abandons ?? []).filter { $0.siteId != s.siteId }
+            return
+        }
         // A MUNKAMENET nem egy oldalhoz tartozik, hanem az egész készülékhez:
         // ezért áll itt, az oldal-keresés ELŐTT. A -1 azt jelenti: állítsd le
         // most.
@@ -322,6 +394,39 @@ enum Referee {
             let step = s.steps[s.stepIndex]
             if case .delay = step {
                 thrown = RefereeError(message: "Ez a lépés várakozás — a Feloldás átvétele gombbal zárható.", code: "DELAY_STEP"); return
+            }
+            if case .partner = step {
+                // A jelmondat a lenyomattal összevetve. Rossz jelmondat nem
+                // sorsol újat, csak számol; a plafonnál a kísérlet elszáll —
+                // elölről, minden lépéssel. Ha a megbízott közben (a
+                // szinkronból) lekerült, a lépés tárgytalan: átmegy.
+                if let lock = state.partner, !PartnerLogic.verify(lock, answer) {
+                    let tries = (s.partnerTries ?? 0) + 1
+                    if tries >= PartnerLogic.maxPartnerTries {
+                        dropSession(&state, now)
+                        thrown = RefereeError(
+                            message: "\(PartnerLogic.maxPartnerTries)-ször nem ez volt a jelmondat — "
+                                + "a kísérlet érvénytelen, elölről kell kezdeni.",
+                            code: "PARTNER_TRIES")
+                        return
+                    }
+                    s.partnerTries = tries
+                    state.session = s
+                    result = SubmitResult(accepted: false, sessionDone: false,
+                                          message: "Nem ez a jelmondat. Kérd meg a megbízottadat, hogy ő írja be.")
+                    return
+                }
+                s.stepIndex += 1
+                if s.stepIndex >= s.steps.count {
+                    state.session = s
+                    finish(&state, s, now)
+                    result = SubmitResult(accepted: true, sessionDone: true, message: nil)
+                    return
+                }
+                armCurrent(&s.steps, s.stepIndex, now)
+                state.session = s
+                result = SubmitResult(accepted: true, sessionDone: false, message: nil)
+                return
             }
             let tier = effectiveTier(state, kind: s.kind, now: s.createdAt)
             let outcome = ChallengeEngine.applyAnswer(step, answer: answer, tier: tier, kind: s.kind, now: now)

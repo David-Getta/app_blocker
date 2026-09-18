@@ -221,6 +221,9 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
     var confirmUsageClear by remember { mutableStateOf(false) }
     var lockdownDialog by remember { mutableStateOf(false) }
     var lockdownWindowDialog by remember { mutableStateOf(false) }
+    // Párban zárolás: a megbízott neve a felvételhez, és a jelmondat egyszeri lapja.
+    var partnerName by rememberSaveable { mutableStateOf("") }
+    var partnerPhrase by remember { mutableStateOf<Referee.PartnerSetup?>(null) }
     var lockdownWindowEdit by remember { mutableStateOf<LockdownLogic.LockdownWindow?>(null) }
 
     // Ideiglenes felfedés oldalanként: meddig látszik a valódi cím. Szándékosan
@@ -819,6 +822,55 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                     if (state.lockdownWindows.size < LockdownLogic.MAX_LOCKDOWN_WINDOWS) {
                         OutlinedButton(onClick = { lockdownWindowDialog = true }) { Text("Heti ablak felvétele") }
                     }
+                    // PÁRBAN ZÁROLÁS: a lazítás végén a megbízott jelmondata is kell —
+                    // nem drágább, hanem más ember döntése is. Felvenni ingyen;
+                    // levenni próbatétel, a végén az ő jelmondatával.
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    Text("Párban zárolás", fontWeight = FontWeight.Bold)
+                    val partner = state.partner
+                    if (partner == null) {
+                        Text(
+                            "Egy megbízott — társ, barát, szülő —, aki egy jelmondatot kap: minden lazítás " +
+                                "végén ő írja be. Nem helyetted csinálja végig, csak az utolsó szót ő mondja ki. " +
+                                "Felvenni ingyen; levenni próbatétel, a végén az ő jelmondatával. Nem gépzár: az " +
+                                "impulzus ellen véd, nem a szándék ellen.",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            OutlinedTextField(
+                                value = partnerName,
+                                onValueChange = { partnerName = it },
+                                placeholder = { Text("a megbízott neve, pl. Anna") },
+                                modifier = Modifier.weight(1f),
+                                singleLine = true,
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Button(onClick = {
+                                try {
+                                    val r = Referee.setPartner(partnerName, System.currentTimeMillis())
+                                    partnerName = ""
+                                    partnerPhrase = r
+                                } catch (e: Referee.RefereeException) {
+                                    flowError = e.message
+                                }
+                            }) { Text("Felvétel") }
+                        }
+                    } else {
+                        Text(
+                            "Megbízott: ${partner.name}. Minden lazító próbatétel utolsó lépése az ő " +
+                                "jelmondata — a levételé is. A jelmondat nincs meg a telefonon, csak a " +
+                                "lenyomata; a többi eszközödre is átér.",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                        TextButton(onClick = {
+                            try {
+                                val r = Referee.startPartnerRemoval(System.currentTimeMillis())
+                                if (!r.applied) onOpenChallenge()
+                            } catch (e: Referee.RefereeException) {
+                                flowError = e.message
+                            }
+                        }) { Text("Levétel…") }
+                    }
                 }
             }
 
@@ -878,6 +930,26 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
         )
     }
 
+    // A jelmondat EGYSZER látszik: itt. Át kell adni — a felhasználónál ne maradjon.
+    partnerPhrase?.let { p ->
+        AlertDialog(
+            onDismissRequest = { partnerPhrase = null },
+            confirmButton = { TextButton(onClick = { partnerPhrase = null }) { Text("Átadtam, bezárás") } },
+            title = { Text("${p.name} jelmondata") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        "Ez a jelmondat CSAK MOST látszik: a telefon a lenyomatát tartja meg, a szöveget " +
+                            "nem. Add át a megbízottadnak, és ne tartsd meg magadnak — pont az a lényeg, hogy " +
+                            "nálad ne legyen. Minden lazító próbatétel végén ezt kéri majd az app; ötször rossz " +
+                            "jelmondat után a kísérlet elölről kezdődik.",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    Text(p.phrase, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                }
+            },
+        )
+    }
     if (lockdownDialog) {
         LockdownDialog(
             current = state.lockdown,
@@ -1952,6 +2024,8 @@ private fun ChallengeScreen(
 
     val doneText = if (session.kind == Kind.DELETE) {
         "Kész. A törlés 24 óra múlva válik véglegessé — addig visszavonhatod."
+    } else if (session.pendingPartnerRemoval) {
+        "Kész. A megbízott lekerült."
     } else if (session.pendingLockdownWindows != null) {
         "Kész. A zárlat-ablak lazítása életbe lépett."
     } else if (session.pendingFocusEnd != null) {
@@ -1989,7 +2063,8 @@ private fun ChallengeScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(
-                if (session.kind == Kind.DELETE)
+                if (session.pendingPartnerRemoval) "A megbízott levétele"
+                else if (session.kind == Kind.DELETE)
                     "Végleges törlés: ${site?.let { AliasLogic.displayName(it) } ?: ""}"
                 else "Feloldás ${session.minutes} percre: ${site?.let { AliasLogic.displayName(it) } ?: ""}",
                 fontSize = 18.sp, fontWeight = FontWeight.Bold,
@@ -2016,6 +2091,7 @@ private fun ChallengeScreen(
                 is Step.Memory -> MemoryStepUi(step, now, ::submit)
                 is Step.Reverse -> ReverseStepUi(step, ::submit)
                 is Step.Delay -> DelayStepUi(step, now, onClaim = ::claim)
+                is Step.Partner -> PartnerStepUi(step, ::submit)
                 null -> onClose()
             }
 
@@ -2175,6 +2251,33 @@ private fun ReverseStepUi(step: Step.Reverse, onSubmit: (String) -> Unit) {
             value = input,
             onValueChange = { input = guarded(input, it) { } },
             modifier = Modifier.fillMaxWidth(),
+        )
+        Button(onClick = { onSubmit(input) }) { Text("Ellenőrzés") }
+    }
+}
+
+/**
+ * A megbízott lépése: a jelmondatot Ő írja be. Nincs beillesztés-őr, mint a
+ * gépelős próbáknál — a jelmondat nem gyakorlat, hanem másvalaki döntése.
+ */
+@Composable
+private fun PartnerStepUi(step: Step.Partner, onSubmit: (String) -> Unit) {
+    var input by rememberSaveable(step.id) { mutableStateOf("") }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("Utolsó lépés: ${step.name} jelmondata", fontWeight = FontWeight.Bold)
+        Text(
+            "Kérd meg a megbízottadat (${step.name}), hogy ő írja be a jelmondatát — ez az ő döntése is. " +
+                "Ha a jelmondat nálad van, a párban zárolás csak egy jelszó. Ötször rossz jelmondat után a " +
+                "kísérlet elölről kezdődik, minden lépéssel.",
+            style = MaterialTheme.typography.bodySmall,
+        )
+        OutlinedTextField(
+            value = input,
+            onValueChange = { input = it },
+            placeholder = { Text("a jelmondat (négy szó)") },
+            visualTransformation = PasswordVisualTransformation(),
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
         )
         Button(onClick = { onSubmit(input) }) { Text("Ellenőrzés") }
     }

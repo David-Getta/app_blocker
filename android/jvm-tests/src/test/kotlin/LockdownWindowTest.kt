@@ -317,6 +317,7 @@ class LockdownWindowTest {
         }
         is Step.Reverse -> step.text.reversed()
         is Step.Delay -> error("a várakozást átvenni kell")
+        is Step.Partner -> error("a megbízott lépése a jelmondat — ezek a tesztek megbízott nélkül futnak")
     }
 
     // ---------------------------------------------------------------- szinkron

@@ -12,11 +12,16 @@ enum ChallengeEngine {
         case memory(id: String, code: String, showMs: Int, waitMs: Int, armedAt: Double?)
         case reverse(id: String, text: String)
         case delay(id: String, minutes: Int, claimableAt: Double?, claimWindowMs: Int)
+        /// A MEGBÍZOTT lépése: a jelmondatot ő írja be. Nem sorsolt próba — a
+        /// terv végére a bíró teszi, ha van megbízott; a válaszát is a bíró
+        /// ellenőrzi (a lenyomattal), nem ez a motor. Lásd Shared/Partner.swift.
+        case partner(id: String, name: String)
 
         var id: String {
             switch self {
             case .transcribe(let id, _), .memory(let id, _, _, _, _),
-                 .reverse(let id, _), .mathChain(let id, _, _), .delay(let id, _, _, _):
+                 .reverse(let id, _), .mathChain(let id, _, _), .delay(let id, _, _, _),
+                 .partner(let id, _):
                 return id
             }
         }
@@ -29,6 +34,7 @@ enum ChallengeEngine {
             case .memory: return "MEMORY"
             case .reverse: return "REVERSE"
             case .delay: return "DELAY"
+            case .partner: return "PARTNER"
             }
         }
     }
@@ -265,6 +271,12 @@ enum ChallengeEngine {
 
     static func reverse(_ s: String) -> String { String(s.reversed()) }
 
+    /// A megbízott jelmondata: négy szó a próbatételek szólistájából,
+    /// kisbetűvel, szóközzel. Csak a felvételkor születik; a lenyomata marad.
+    static func makePartnerPhrase(_ count: Int = PartnerLogic.partnerPhraseWords) -> String {
+        (0..<count).map { _ in words.randomElement()!.lowercased() }.joined(separator: " ")
+    }
+
     static func applyAnswer(_ step: Step, answer: String, tier: Int, kind: Kind, now: Double) -> Outcome {
         switch step {
         case .transcribe(_, let text):
@@ -304,6 +316,10 @@ enum ChallengeEngine {
         case .delay:
             return Outcome(ok: false, done: false, step: step,
                 message: "Ez egy várakozási lépés — itt nincs beírható válasz.")
+
+        case .partner:
+            return Outcome(ok: false, done: false, step: step,
+                message: "A jelmondatot a megbízott lépése ellenőrzi.")
         }
     }
 }

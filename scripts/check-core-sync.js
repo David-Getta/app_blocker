@@ -81,6 +81,10 @@ sw.digest = read('ios/Shared/Digest.swift');
 ts.usage = read('desktop/src/shared/usage.ts');
 kt.usage = read('android/app/src/main/java/hu/breaker/app/core/Usage.kt');
 
+ts.partner = read('desktop/src/shared/partner.ts');
+kt.partner = read('android/app/src/main/java/hu/breaker/app/core/Partner.kt');
+sw.partner = read('ios/Shared/Partner.swift');
+
 ts.lockdown = read('desktop/src/shared/lockdown.ts');
 kt.lockdown = read('android/app/src/main/java/hu/breaker/app/core/Lockdown.kt');
 sw.lockdown = read('ios/Shared/Lockdown.swift');
@@ -164,6 +168,22 @@ const CHECKS = [
     scalar(ts.digest, /MAX_DIGEST_LOG\s*=\s*([^;]+);/, 'ts'),
     scalar(kt.digest, /MAX_DIGEST_LOG\s*=\s*(.+)/, 'kt'),
     scalar(sw.digest, /maxDigestLog\s*=\s*(.+)/, 'swift')],
+  // A PÁRBAN ZÁROLÁS SZÁMAI: a jelmondat szavai, a név hossza, a rossz
+  // próbák plafonja. Ha a plafon szétcsúszna, ugyanarra a megbízottra a
+  // telefonon több (vagy kevesebb) rossz jelmondat férne bele, mint a gépen —
+  // és a felület mindenhol „ötször”-t mondana.
+  ['PARTNER_PHRASE_WORDS',
+    scalar(ts.partner, /PARTNER_PHRASE_WORDS\s*=\s*([^;]+);/, 'ts'),
+    scalar(kt.partner, /PARTNER_PHRASE_WORDS\s*=\s*(.+)/, 'kt'),
+    scalar(sw.partner, /partnerPhraseWords\s*=\s*(.+)/, 'swift')],
+  ['MAX_PARTNER_NAME',
+    scalar(ts.partner, /MAX_PARTNER_NAME\s*=\s*([^;]+);/, 'ts'),
+    scalar(kt.partner, /MAX_PARTNER_NAME\s*=\s*(.+)/, 'kt'),
+    scalar(sw.partner, /maxPartnerName\s*=\s*(.+)/, 'swift')],
+  ['MAX_PARTNER_TRIES',
+    scalar(ts.partner, /MAX_PARTNER_TRIES\s*=\s*([^;]+);/, 'ts'),
+    scalar(kt.partner, /MAX_PARTNER_TRIES\s*=\s*(.+)/, 'kt'),
+    scalar(sw.partner, /maxPartnerTries\s*=\s*(.+)/, 'swift')],
   ['MAX_ALLOW_ENTRIES',
     scalar(ts.focus, /MAX_ALLOW_ENTRIES\s*=\s*([^;]+);/, 'ts'),
     scalar(kt.focus, /MAX_ALLOW_ENTRIES\s*=\s*(.+)/, 'kt'),

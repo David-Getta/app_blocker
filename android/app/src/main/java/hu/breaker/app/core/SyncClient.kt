@@ -341,7 +341,26 @@ object SyncClient {
         // gépen felvett ablakot a többi eszközről. Üresen nincs mező.
         if (f.lockdownWindows.isNotEmpty()) put("lockdownWindows", windowsToJson(f.lockdownWindows))
         if (f.lockdownWindowsRev != null) put("lockdownWindowsRev", f.lockdownWindowsRev)
+        // A MEGBÍZOTT IS, a jelével: a lenyomat utazik, a jelmondat sehol nincs.
+        if (f.partner != null) put("partner", partnerToJson(f.partner))
+        if (f.partnerRev != null) put("partnerRev", f.partnerRev)
     }.toString()
+
+    /** A megbízott drót-alakja: név, só, lenyomat, dátum — a jelmondat nincs benne. */
+    internal fun partnerToJson(p: PartnerLogic.PartnerLock): JSONObject = JSONObject().apply {
+        put("name", p.name); put("salt", p.salt); put("hash", p.hash); put("setAt", p.setAt)
+    }
+
+    /** Kívülről jött adat: csak a jó alakú marad. */
+    internal fun partnerFromJson(o: JSONObject?): PartnerLogic.PartnerLock? {
+        if (o == null) return null
+        return PartnerLogic.normalizeLock(
+            if (o.isNull("name")) null else o.optString("name"),
+            if (o.isNull("salt")) null else o.optString("salt"),
+            if (o.isNull("hash")) null else o.optString("hash"),
+            if (o.isNull("setAt")) null else o.optLong("setAt", 0),
+        )
+    }
 
     /** Az ablak-lista drót-alakja: azonosító, napok (rendezve), kezdés, vég. */
     internal fun windowsToJson(windows: List<LockdownLogic.LockdownWindow>): JSONArray =
@@ -452,6 +471,10 @@ object SyncClient {
             // egész, legfeljebb a blob rev-je — mint a csomag-jelek.
             lockdownWindows = windowsFromJson(o.optJSONArray("lockdownWindows")),
             lockdownWindowsRev = o.optInt("lockdownWindowsRev", 0)
+                .takeIf { it > 0 && it <= rev.coerceIn(0, Int.MAX_VALUE.toLong()) },
+            // A megbízott is kívülről jött adat: csak a jó alakú, a jele mint a többié.
+            partner = partnerFromJson(o.optJSONObject("partner")),
+            partnerRev = o.optInt("partnerRev", 0)
                 .takeIf { it > 0 && it <= rev.coerceIn(0, Int.MAX_VALUE.toLong()) },
         )
     }
@@ -586,6 +609,9 @@ object SyncClient {
                 // Az ablakok a jelükkel — a fésülés ebből tudja, kié az újabb szó.
                 lockdownWindows = current.lockdownWindows,
                 lockdownWindowsRev = current.lockdownWindowsRev,
+                // A megbízott a jelével — a fésülés ebből tudja, kié az újabb szó.
+                partner = current.partner,
+                partnerRev = current.partnerRev,
             )
             val merged = FocusSync.merge(mine, remote)
 
@@ -609,6 +635,10 @@ object SyncClient {
                     // a következő fordulóban már ezek szerint ír zárlatot.
                     lockdownWindows = merged.lockdownWindows,
                     lockdownWindowsRev = merged.lockdownWindowsRev,
+                    // A MEGBÍZOTT IS a jele szerint: a másik eszközön felvett
+                    // innentől itt is az utolsó szó; a levétel csak nagyobb jellel.
+                    partner = merged.partner,
+                    partnerRev = merged.partnerRev,
                 )
                 // A lenyomatot ÚJRASZÁMOLJUK, nem a másik eszközét vesszük át:
                 // enélkül a következő mentés fölöslegesen léptetné a számlálót,

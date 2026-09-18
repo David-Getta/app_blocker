@@ -5,6 +5,9 @@ import SwiftUI
 struct ChallengeView: View {
     let session: SessionRec
     let onSuccess: (String) -> Void
+    /// A kísérlet ELSZÁLLT (lecsúszott átvétel, ötödik rossz jelmondat): a lap
+    /// bezárul, és az ok a hívóé — különben a bezárt lappal a mondat is elveszne.
+    var onDropped: ((String) -> Void)? = nil
 
     @EnvironmentObject var store: BreakerStore
     @Environment(\.dismiss) private var dismiss
@@ -18,6 +21,7 @@ struct ChallengeView: View {
         if session.kind == .delete {
             return "Kész. A törlés 24 óra múlva válik véglegessé — addig visszavonhatod."
         }
+        if session.pendingPartnerRemoval == true { return "Kész. A megbízott lekerült." }
         if session.pendingLockdownWindows != nil { return "Kész. A zárlat-ablak lazítása életbe lépett." }
         if session.pendingFocusEnd != nil { return "Kész. A munkamenet a kért módon zárult." }
         if session.pendingSchedule != nil { return "Kész. A menetrend a kért módon változott." }
@@ -28,6 +32,7 @@ struct ChallengeView: View {
     /// levétele nem „feloldás 0 percre”.
     private var titleText: String {
         if session.kind == .delete { return "Végleges törlés" }
+        if session.pendingPartnerRemoval == true { return "A megbízott levétele" }
         if session.pendingLockdownWindows != nil { return "Zárlat-ablak lazítása" }
         if session.pendingFocusEnd != nil { return "Munkamenet leállítása" }
         if session.pendingSchedule != nil { return "Menetrend lazítása" }
@@ -40,6 +45,7 @@ struct ChallengeView: View {
                 VStack(alignment: .leading, spacing: 14) {
                     // Az indok — pont most kell elolvasni, mielőtt a próbákba belefog az ember.
                     if session.pendingLockdownWindows == nil, session.pendingFocusEnd == nil,
+                       session.pendingPartnerRemoval != true,
                        let reason = store.state.sites.first(where: { $0.id == session.siteId })?.reason {
                         Text("Ezért tiltottad le: „\(reason)”").font(.subheadline).italic()
                     }
@@ -90,6 +96,8 @@ struct ChallengeView: View {
             ReverseView(text: text) { submit($0) }.id(id)
         case .delay(_, let minutes, let claimableAt, let window):
             DelayView(minutes: minutes, claimableAt: claimableAt, windowMs: window, now: now) { claim() }
+        case .partner(let id, let name):
+            PartnerView(name: name) { submit($0) }.id(id)
         }
     }
 
@@ -98,7 +106,11 @@ struct ChallengeView: View {
             let r = try Referee.submitAnswer(sessionId: session.id, answer: answer, now: nowMs())
             message = r.message
             if r.sessionDone { dismiss(); onSuccess(doneText) }
-        } catch let e as Referee.RefereeError { message = e.message } catch { message = "\(error)" }
+        } catch let e as Referee.RefereeError {
+            // Az ötödik rossz jelmondat a kísérletet viszi el: a lap bezárul, az
+            // ok a hívóé — a bezárt lapon senki nem olvasná el.
+            if e.code == "PARTNER_TRIES" { dismiss(); onDropped?(e.message) } else { message = e.message }
+        } catch { message = "\(error)" }
     }
 
     private func claim() {
@@ -106,7 +118,9 @@ struct ChallengeView: View {
             let r = try Referee.claimDelay(sessionId: session.id, now: nowMs())
             message = r.message
             if r.sessionDone { dismiss(); onSuccess(doneText) }
-        } catch let e as Referee.RefereeError { message = e.message; dismiss() } catch { message = "\(error)" }
+        } catch let e as Referee.RefereeError {
+            message = e.message; dismiss(); onDropped?(e.message)
+        } catch { message = "\(error)" }
     }
 }
 
@@ -213,6 +227,26 @@ private struct ReverseView: View {
             TextField("Visszafelé", text: $input).textFieldStyle(.roundedBorder)
                 .disableAutocorrection(true)
             Button("Ellenőrzés") { onSubmit(input) }.buttonStyle(.borderedProminent)
+        }
+    }
+}
+
+/// A megbízott lépése: a jelmondatot Ő írja be. Nincs beillesztés-őr, mint a
+/// gépelős próbáknál — a jelmondat nem gyakorlat, hanem másvalaki döntése.
+private struct PartnerView: View {
+    let name: String
+    let onSubmit: (String) -> Void
+    @State private var input = ""
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Utolsó lépés: \(name) jelmondata").font(.headline)
+            Text("Kérd meg a megbízottadat (\(name)), hogy ő írja be a jelmondatát — ez az ő döntése is. Ha a jelmondat nálad van, a párban zárolás csak egy jelszó. Ötször rossz jelmondat után a kísérlet elölről kezdődik, minden lépéssel.")
+                .font(.footnote).foregroundStyle(.secondary)
+            SecureField("a jelmondat (négy szó)", text: $input)
+                .textFieldStyle(.roundedBorder)
+                .disableAutocorrection(true)
+            Button("Ellenőrzés") { onSubmit(input); input = "" }.buttonStyle(.borderedProminent)
         }
     }
 }

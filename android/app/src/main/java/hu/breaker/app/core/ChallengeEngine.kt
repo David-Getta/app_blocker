@@ -35,6 +35,12 @@ object ChallengeEngine {
         ) : Step()
 
         data class Reverse(override val id: String, val text: String) : Step()
+        /**
+         * PÁRBAN ZÁROLÁS: a terv UTOLSÓ lépése, ha van megbízott — a
+         * jelmondatát ő írja be. Nem sorsolt próba (a kombináció-kulcsba sem
+         * számít), és nem itt ellenőrizzük: a lenyomat a bírónál van.
+         */
+        data class Partner(override val id: String, val name: String) : Step()
         data class Delay(
             override val id: String,
             val minutes: Int,
@@ -230,7 +236,15 @@ object ChallengeEngine {
         is Step.Memory -> "MEMORY"
         is Step.Reverse -> "REVERSE"
         is Step.Delay -> "DELAY"
+        is Step.Partner -> "PARTNER"
     }
+
+    /**
+     * A megbízott jelmondata: négy szó a próbatételek szólistájából,
+     * kisbetűvel, szóközzel. Csak a felvételkor születik; a lenyomata marad.
+     */
+    fun makePartnerPhrase(words: Int = PartnerLogic.PARTNER_PHRASE_WORDS): String =
+        (1..words).joinToString(" ") { WORDS[rnd.nextInt(WORDS.size)].lowercase() }
 
     /**
      * A combo key back into its two challenge types, or null if this build
@@ -333,5 +347,7 @@ object ChallengeEngine {
                 "Nem pontos a visszafelé gépelés. Új mondatot kapsz.")
 
         is Step.Delay -> Outcome(false, false, step, "Ez egy várakozási lépés — itt nincs beírható válasz.")
+        // A jelmondatot a BÍRÓ veti össze a lenyomattal; ide nem juthat el.
+        is Step.Partner -> Outcome(false, false, step, "A jelmondatot a megbízott lépése ellenőrzi.")
     }
 }

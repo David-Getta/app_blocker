@@ -83,6 +83,13 @@ struct SessionRec: Codable, Equatable, Identifiable {
     /// levétel vagy szűkítés). Nem oldalhoz tartozik, hanem az egész
     /// készülékhez. Optional, hogy egy korábbi verzió mentése is dekódolható.
     var pendingLockdownWindows: [LockdownLogic.LockdownWindow]? = nil
+    /// Ha igaz, a teljesítés a MEGBÍZOTTAT veszi le — a terv végén az ő
+    /// jelmondatával, tehát a levételhez is ő kell. Optional, hogy egy korábbi
+    /// verzió mentése is dekódolható maradjon.
+    var pendingPartnerRemoval: Bool? = nil
+    /// Hány rossz jelmondat volt eddig a megbízott lépésén — a plafonnál
+    /// (`PartnerLogic.maxPartnerTries`) a kísérlet elszáll.
+    var partnerTries: Int? = nil
 }
 
 /// What an abandoned attempt leaves behind, so restarting cannot re-roll it.
@@ -183,6 +190,15 @@ struct AppState: Codable, Equatable {
     var lockdownWindowsRev: Int? = nil
     /// Az ablak-lista kulcsa az utolsó léptetéskor — ebből derül ki, kell-e új jel.
     var focusRevWindows: String? = nil
+    /// PÁRBAN ZÁROLÁS: a megbízott neve és a jelmondatának lenyomata — a
+    /// jelmondat maga sehol nincs. A munkamenet blobján szinkronizál, a
+    /// jelével. Optional, hogy egy korábbi verzió mentése is dekódolható
+    /// maradjon. Lásd Shared/Partner.swift.
+    var partner: PartnerLogic.PartnerLock? = nil
+    /// A megbízott JELE: a blob rev-je, amelyik utoljára felvette vagy levette (SyncRevisions).
+    var partnerRev: Int? = nil
+    /// A megbízott kulcsa az utolsó léptetéskor — ebből derül ki, kell-e új jel.
+    var focusRevPartner: String? = nil
 }
 
 /// Fiók a szinkronhoz.

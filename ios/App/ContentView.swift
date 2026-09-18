@@ -42,6 +42,9 @@ struct ContentView: View {
     @State private var lockdownWindowEdit: LockdownLogic.LockdownWindow? = nil
     /// Amelyik listához a heti emlékeztetők utoljára igazodtak; nil = még sosem.
     @State private var remindedWindows: [LockdownLogic.LockdownWindow]? = nil
+    /// Párban zárolás: a megbízott neve a felvételhez, és a jelmondat egyszeri lapja.
+    @State private var partnerName = ""
+    @State private var partnerPhrase: Referee.PartnerSetup? = nil
 
     private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
     private let presets = ["youtube.com", "facebook.com", "instagram.com", "tiktok.com", "x.com", "reddit.com"]
@@ -102,9 +105,17 @@ struct ContentView: View {
                     }
                 }
             }
-            .sheet(item: sessionBinding) { ses in ChallengeView(session: ses) { msg in
-                successMsg = msg
-            } }
+            .sheet(item: sessionBinding) { ses in
+                ChallengeView(session: ses, onSuccess: { successMsg = $0 }, onDropped: { flowError = $0 })
+            }
+            // A jelmondat EGYSZER látszik: itt. Át kell adni — a felhasználónál
+            // ne maradjon. Lehúzni nem lehet, csak kimondva bezárni.
+            .sheet(isPresented: partnerPhraseBinding) {
+                if let p = partnerPhrase {
+                    PartnerPhraseSheet(setup: p) { partnerPhrase = nil }
+                        .interactiveDismissDisabled()
+                }
+            }
             .alert("Végleges törlés?", isPresented: deleteAlertBinding, presenting: deleteSite) { site in
                 Button("Indítom a próbákat", role: .destructive) { startDelete(site) }
                 Button("Mégse", role: .cancel) { deleteSite = nil }
@@ -399,8 +410,49 @@ struct ContentView: View {
                 Button("Heti ablak felvétele") { lockdownWindowSheet = true }
                     .buttonStyle(.bordered)
             }
+            partnerBlock
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// PÁRBAN ZÁROLÁS: a lazítás végén a megbízott jelmondata is kell — nem
+    /// drágább, hanem más ember döntése is. Felvenni ingyen; levenni
+    /// próbatétel, a végén az ő jelmondatával. A zárlat kártyáján áll, mert
+    /// ugyanarról szól: a lazítás útjáról.
+    private var partnerBlock: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Divider()
+            Text("Párban zárolás").font(.headline)
+            if let partner = store.state.partner {
+                Text("Megbízott: \(partner.name). Minden lazító próbatétel utolsó lépése az ő jelmondata — a levételé is. A jelmondat nincs meg a telefonon, csak a lenyomata; a többi eszközödre is átér.")
+                    .font(.footnote).foregroundStyle(.secondary)
+                Button("Levétel…") { removePartner() }.buttonStyle(.bordered)
+            } else {
+                Text("Egy megbízott — társ, barát, szülő —, aki egy jelmondatot kap: minden lazítás végén ő írja be. Nem helyetted csinálja végig, csak az utolsó szót ő mondja ki. Felvenni ingyen; levenni próbatétel, a végén az ő jelmondatával. Nem gépzár: az impulzus ellen véd, nem a szándék ellen.")
+                    .font(.footnote).foregroundStyle(.secondary)
+                HStack(spacing: 8) {
+                    TextField("a megbízott neve, pl. Anna", text: $partnerName)
+                        .textFieldStyle(.roundedBorder)
+                    Button("Felvétel") { setPartner() }.buttonStyle(.bordered)
+                }
+            }
+        }
+    }
+
+    private func setPartner() {
+        do {
+            let r = try Referee.setPartner(name: partnerName, now: nowMs())
+            partnerName = ""
+            partnerPhrase = r
+        } catch let e as Referee.RefereeError { flowError = e.message } catch { flowError = "\(error)" }
+    }
+
+    /// A megbízott levétele: a bíró próbatételt indít — a végén az ő jelmondatával.
+    private func removePartner() {
+        do {
+            let r = try Referee.startPartnerRemoval(now: nowMs())
+            if !r.applied { openSessionId = r.session?.id }
+        } catch let e as Referee.RefereeError { flowError = e.message } catch { flowError = "\(error)" }
     }
 
     /// Egy ablak levétele: a bíró próbatételt indít (ablakon kívül), vagy
@@ -750,6 +802,9 @@ struct ContentView: View {
     }
     private var successAlertBinding: Binding<Bool> {
         Binding(get: { successMsg != nil }, set: { if !$0 { successMsg = nil } })
+    }
+    private var partnerPhraseBinding: Binding<Bool> {
+        Binding(get: { partnerPhrase != nil }, set: { if !$0 { partnerPhrase = nil } })
     }
 
     private func startProtection() {
@@ -1159,5 +1214,38 @@ private struct ReasonSheet: View {
             }
         }
         .padding()
+    }
+}
+
+/// A megbízott jelmondata — EGYSZER, itt. A telefon a lenyomatát tartja meg, a
+/// szöveget nem: aki bezárja, az átadta. Kijelölhető, hogy át lehessen küldeni.
+private struct PartnerPhraseSheet: View {
+    let setup: Referee.PartnerSetup
+    let onClose: () -> Void
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    Text("Ez a jelmondat CSAK MOST látszik: a telefon a lenyomatát tartja meg, a szöveget nem. Add át a megbízottadnak, és ne tartsd meg magadnak — pont az a lényeg, hogy nálad ne legyen. Minden lazító próbatétel végén ezt kéri majd az app; ötször rossz jelmondat után a kísérlet elölről kezdődik.")
+                        .font(.footnote).foregroundStyle(.secondary)
+                    Text(setup.phrase)
+                        .font(.title2.weight(.semibold))
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(BreakerStyle.surfaceNested, in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+                    Text("Ha a jelmondat elvész, a megbízottat nem lehet levenni — se próbatétellel. Ez szándékos, különben a jelmondat nem érne semmit; de ki kell mondani: a jelmondatot a megbízott őrizze.")
+                        .font(.footnote).foregroundStyle(.secondary)
+                }
+                .padding()
+            }
+            .navigationTitle("\(setup.name) jelmondata")
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Átadtam, bezárás") { onClose() }
+                }
+            }
+        }
     }
 }

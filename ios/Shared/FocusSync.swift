@@ -55,12 +55,19 @@ public enum FocusSync {
         public var lockdownWindows: [LockdownLogic.LockdownWindow]?
         /// Az ablak-lista jele: a blob rev-je, amelyik utoljára változtatta. Nil = régi kliens.
         public var lockdownWindowsRev: Int?
+        /// A MEGBÍZOTT (párban zárolás): a neve és a jelmondat lenyomata — a
+        /// jelmondat nincs a dróton. A levétele próbatétel, tehát a JELE dönt,
+        /// nem az újabb blob; lásd `PartnerLogic.merge`. Nil = nincs.
+        public var partner: PartnerLogic.PartnerLock?
+        /// A megbízott jele: a blob rev-je, amelyik utoljára felvette vagy levette.
+        public var partnerRev: Int?
 
         public init(
             packs: [Focus.Pack] = [], run: Focus.Run? = nil, log: [Focus.LogEntry] = [],
             rev: Double = 0, updatedAt: Double = 0, updatedBy: String = "",
             packMarks: [String: Int]? = nil, lockdown: LockdownLogic.Lockdown? = nil,
-            lockdownWindows: [LockdownLogic.LockdownWindow]? = nil, lockdownWindowsRev: Int? = nil
+            lockdownWindows: [LockdownLogic.LockdownWindow]? = nil, lockdownWindowsRev: Int? = nil,
+            partner: PartnerLogic.PartnerLock? = nil, partnerRev: Int? = nil
         ) {
             self.packs = packs
             self.run = run
@@ -72,6 +79,8 @@ public enum FocusSync {
             self.lockdown = lockdown
             self.lockdownWindows = lockdownWindows
             self.lockdownWindowsRev = lockdownWindowsRev
+            self.partner = partner
+            self.partnerRev = partnerRev
         }
 
         /// SAJÁT dekódolás, mert a `log` mező RÉGEBBI blobokból hiányzik.
@@ -98,6 +107,9 @@ public enum FocusSync {
             lockdownWindows = (try? c.decodeIfPresent(
                 [LockdownLogic.LockdownWindow].self, forKey: .lockdownWindows)) ?? nil
             lockdownWindowsRev = (try? c.decodeIfPresent(Int.self, forKey: .lockdownWindowsRev)) ?? nil
+            // A megbízott és a jele is tűrően: egy sérült mező ne vigye el a blobot.
+            partner = (try? c.decodeIfPresent(PartnerLogic.PartnerLock.self, forKey: .partner)) ?? nil
+            partnerRev = (try? c.decodeIfPresent(Int.self, forKey: .partnerRev)) ?? nil
         }
     }
 
@@ -130,8 +142,20 @@ public enum FocusSync {
             // A JEL DÖNT, nem az újabb blob: a levétel próbatétellel jár, ami
             // lépteti a jelet; egy csomag-szerkesztés a másik eszközön nem.
             lockdownWindows: mergedWindows(local, incoming),
-            lockdownWindowsRev: mergedWindowsMark(local, incoming)
+            lockdownWindowsRev: mergedWindowsMark(local, incoming),
+            // A MEGBÍZOTT is a jele szerint: a levétel próbatétel, ami lépteti;
+            // azonos jelnél a beállított — egy csomag-szerkesztés a másik
+            // eszközön nem viszi el a megbízottat, és fel sem támasztja.
+            partner: PartnerLogic.merge(
+                local.partnerRev ?? 0, local.partner, incoming.partnerRev ?? 0, incoming.partner
+            ),
+            partnerRev: mergedPartnerMark(local, incoming)
         )
+    }
+
+    private static func mergedPartnerMark(_ local: SyncFocus, _ incoming: SyncFocus) -> Int? {
+        let mark = max(local.partnerRev ?? 0, incoming.partnerRev ?? 0)
+        return mark > 0 ? mark : nil
     }
 
     private static func mergedWindows(_ local: SyncFocus, _ incoming: SyncFocus) -> [LockdownLogic.LockdownWindow]? {
@@ -447,7 +471,10 @@ public enum FocusSync {
         // sorrend nem jelentés.
         let windows = (f.lockdownWindows ?? []).map { LockdownLogic.windowKey($0.band) }.sorted()
             .joined(separator: "|")
-        return "\(packs)//\(run)//\(log)//\(marks)//\(lock)//\(windows)//\(f.lockdownWindowsRev ?? 0)//\(f.rev)"
+        // A megbízott a jelével: a cseréje is különbség, fel kell mennie.
+        let partner = PartnerLogic.partnerKey(f.partner)
+        return "\(packs)//\(run)//\(log)//\(marks)//\(lock)//\(windows)//\(f.lockdownWindowsRev ?? 0)"
+            + "//\(partner)//\(f.partnerRev ?? 0)//\(f.rev)"
     }
 
     /// A csomag-jelek kiegyenesítése: csak azonosító → pozitív egész, legfeljebb
@@ -514,7 +541,13 @@ public enum FocusSync {
             // Az ablakok kívülről jött adat, mint minden más; a jel pozitív
             // egész, legfeljebb a blob rev-je — mint a csomag-jelek.
             lockdownWindows: cleanedWindows(raw.lockdownWindows),
-            lockdownWindowsRev: raw.lockdownWindowsRev.flatMap { $0 > 0 && $0 <= revInt(raw.rev) ? $0 : nil }
+            lockdownWindowsRev: raw.lockdownWindowsRev.flatMap { $0 > 0 && $0 <= revInt(raw.rev) ? $0 : nil },
+            // A megbízott kívülről jött adat: csak a jó alakú rekord marad, a
+            // jele pozitív egész, legfeljebb a blob rev-je — mint az ablakoké.
+            partner: raw.partner.flatMap {
+                PartnerLogic.normalizeLock(name: $0.name, salt: $0.salt, hash: $0.hash, setAt: $0.setAt)
+            },
+            partnerRev: raw.partnerRev.flatMap { $0 > 0 && $0 <= revInt(raw.rev) ? $0 : nil }
         )
     }
 

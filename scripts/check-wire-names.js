@@ -81,11 +81,27 @@ const GROUPS = [
     // A `lockdownWindows` és a jele ugyanígy: egy elcsúszott név mellett a
     // telefon üres listát látna, a saját feltöltése pedig… nem törölne (a
     // jeltelen nem töröl), de a hétköznapi ablak a telefonon nem zárna semmit.
+    // A `partner` és a jele: a MEGBÍZOTT (párban zárolás). Egy elcsúszott név
+    // mellett a telefon nem tudna a megbízottról — és ott a lazítás ingyen
+    // menne, pont az, amiért a felhasználó felvette.
     names: ['packs', 'run', 'log', 'packMarks', 'lockdown', 'lockdownWindows', 'lockdownWindowsRev',
-      'rev', 'updatedAt', 'updatedBy'],
+      'partner', 'partnerRev', 'rev', 'updatedAt', 'updatedBy'],
     ts: 'desktop/src/shared/sync/focus-merge.ts',
     kt: 'android/app/src/main/java/hu/breaker/app/core/SyncClient.kt',
     swift: 'ios/Shared/FocusSync.swift',
+  },
+  // A MEGBÍZOTT rekordja: a név, a só, a lenyomat, a dátum. Ha a `hash` vagy a
+  // `salt` neve elcsúszna, a másik eszköz a rekordot rossz alakúnak látná és
+  // eldobná — a megbízott csak azon az eszközön élne, ahol felvették, a többin
+  // a lazítás az ő jelmondata nélkül menne. A `name` a csomagnál is kulcs (a
+  // fejléc takarás-figyelmeztetése áll rá); a TS- és Swift-deklarációját ez a
+  // csoport fájlra pontosan nézi.
+  {
+    what: 'a megbízott',
+    names: ['name', 'salt', 'hash', 'setAt'],
+    ts: 'desktop/src/shared/partner.ts',
+    kt: 'android/app/src/main/java/hu/breaker/app/core/SyncClient.kt',
+    swift: 'ios/Shared/Partner.swift',
   },
   {
     what: 'a zárlat',

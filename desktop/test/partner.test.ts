@@ -17,7 +17,7 @@ import {
 import { hashPhrase, makePartnerLock, verifyPhrase } from '../src/helper/partner-crypto';
 import { defaultState, newId, type HelperState } from '../src/helper/state';
 import * as referee from '../src/helper/referee';
-import { bumpFocusRevision } from '../src/helper/revisions';
+import { adoptFocusRevision, bumpFocusRevision } from '../src/helper/revisions';
 import { emptyFocus, mergeFocus, normalizeSyncFocus, sameFocus } from '../src/shared/sync/focus-merge';
 import { parseCombo, reverseString, type Step } from '../src/shared/challenges';
 
@@ -196,6 +196,16 @@ test('a felvétel és a levétel lépteti a blobot, és a megbízott jele a blob
   delete state.partner;
   assert.equal(bumpFocusRevision(state, 'dev', now + 2), true, 'a levétel is döntés');
   assert.equal(state.partnerRev, rev + 1);
+  // Egy másik eszközről átvett megbízott: a lenyomat és a kulcs újraszámolva —
+  // nincs léptetés, és egy későbbi saját szerkesztés sem bélyegzi át a jelét
+  // (azzal a másik eszköz levételét írná felül: azonos jelnél a beállított nyer).
+  state.partner = makePartnerLock('Béla', 'alma bogrács cinege este', now);
+  state.partnerRev = 7;
+  adoptFocusRevision(state);
+  assert.equal(bumpFocusRevision(state, 'dev', now + 3), false, 'az átvétel nem szerkesztés');
+  state.focusPacks = [{ id: 'p1', name: 'Írás', allowSites: [], allowApps: [], defaultMinutes: 25 }];
+  assert.equal(bumpFocusRevision(state, 'dev', now + 4), true);
+  assert.equal(state.partnerRev, 7, 'az átvett megbízott jele marad');
 });
 
 test('fésülés: a jel dönt, azonos jelnél a beállított — és a korábban felvett', () => {

@@ -161,6 +161,7 @@ class LimitsTest {
                     step.code
                 }
                 is Step.Reverse -> step.text.reversed()
+                is Step.Partner -> error("a megbízott lépése a jelmondat — ezek a tesztek megbízott nélkül futnak")
                 is Step.Delay -> {
                     // A várakozást a bíró időzíti; a teszt a nyitott ablakban vesz át.
                     Referee.claimDelay(ses.id, step.claimableAt!! + 1000)

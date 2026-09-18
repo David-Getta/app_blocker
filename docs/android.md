@@ -41,6 +41,12 @@ cd android
 - A felvevő kártya **javaslata** (a hét legnagyobb, nem tiltott idővivői, egy
   koppintással tiltva) itt is megvan — `UsageLogic.suggestBlocks`, a gépi
   tükre; rejtett listánál a sor elmarad.
+- **Párban zárolás** a zárlat kártyáján: a megbízott neve, a sorsolt
+  jelmondat egyszeri lapja, és a *Levétel…* (próbatétel). A lépés a
+  próbatétel-képernyő végén jelszómezőként jön (`PartnerStepUi`); a mag a
+  `core/Partner.kt` (a gépi tükre, a `fixtures/partner-hash.json` ellen
+  tesztelve), a megbízott a munkamenet blobján szinkronizál. Lásd
+  `docs/feature-partner-lock.md`.
 
 ## Korlátok
 - Ha a felhasználó a rendszerbeállításokban leállítja a VPN-t, az app feltűnő

@@ -149,5 +149,6 @@ class RuleChangeTest {
         }
         is Step.Reverse -> step.text.reversed()
         is Step.Delay -> error("a várakozást nem válasszal kell teljesíteni")
+        is Step.Partner -> error("a megbízott lépése a jelmondat — ezek a tesztek megbízott nélkül futnak")
     }
 }

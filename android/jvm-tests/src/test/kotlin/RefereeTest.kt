@@ -67,6 +67,7 @@ class RefereeTest {
         }
         is Step.Reverse -> step.text.reversed()
         is Step.Delay -> error("delay steps are claimed, not answered")
+        is Step.Partner -> error("a megbízott lépése a jelmondat — ezek a tesztek megbízott nélkül futnak")
     }
 
     private fun solveUntil(stop: (Step) -> Boolean) {

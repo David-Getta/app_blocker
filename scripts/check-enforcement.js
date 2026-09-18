@@ -288,6 +288,45 @@ const WIRES = [
     lost: 'a telefon felvevő kártyáján nem lenne javaslat — a mérés tudná, a '
       + 'felület nem mondaná',
   },
+  // PÁRBAN ZÁROLÁS: a megbízott lépése a bíró EGY kapuján kerül a terv végére.
+  // A mag (partner.ts, Partner.kt, Partner.swift) teszttel megvan — ha a kapu
+  // nem tenné rá, a megbízott a tárban ülne, és a lazítás nélküle menne. A
+  // felületen pedig a lépést ki kell tudni rajzolni, különben a kísérlet
+  // egy üres lapon állna meg — se hiba, se továbblépés.
+  {
+    file: 'desktop/src/helper/referee.ts',
+    needle: 'if (state.partner) plan.steps.push(',
+    lost: 'a gépen a megbízott a tárban ülne, és minden lazítás az ő jelmondata '
+      + 'nélkül menne — a mag megvan, a bíró nem kérné',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/Referee.kt',
+    needle: 'val partner = state.partner ?: return plan',
+    lost: 'a telefonon a gépen felvett megbízott nem jelentene semmit — a '
+      + 'szinkron lehozná, a bíró nem kérné a jelmondatát',
+  },
+  {
+    file: 'ios/Shared/Referee.swift',
+    needle: 'guard let partner = state.partner else { return plan }',
+    lost: 'iPhone-on a gépen felvett megbízott nem jelentene semmit — a '
+      + 'szinkron lehozná, a bíró nem kérné a jelmondatát',
+  },
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: "case 'PARTNER': buildPartner(box, session, step)",
+    lost: 'a gépen a megbízott lépése üres lapon állna meg — se mező, se hiba, '
+      + 'se továbblépés',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/AppUi.kt',
+    needle: 'is Step.Partner -> PartnerStepUi(step, ::submit)',
+    lost: 'a telefonon a megbízott lépése üres lapon állna meg',
+  },
+  {
+    file: 'ios/App/ChallengeView.swift',
+    needle: 'case .partner(let id, let name):',
+    lost: 'iPhone-on a megbízott lépése üres lapon állna meg',
+  },
   // A GÉPEN a heti napló sorát a segéd időzítője írja, az app nélkül is. Ha a
   // hívás kiesne, a mag és a tesztje megmaradna — csak a sor nem íródna soha.
   {

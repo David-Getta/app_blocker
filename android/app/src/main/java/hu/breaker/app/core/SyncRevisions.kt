@@ -135,7 +135,13 @@ object SyncRevisions {
         // VAN: az ablak nélküli állapot lenyomata ugyanaz marad, mint a
         // frissítés előtt — különben minden telefon egyszer fölöslegesen léptetne.
         val windows = windowsKey(state)
-        return FOCUS_FP_V2 + digest("${packsPart(state)}//$run" + (if (windows.isEmpty()) "" else "//$windows"))
+        // A MEGBÍZOTT IS: a felvétele és a levétele döntés, tehát léptet. Csak
+        // ha van, címkével — a nélküle lévő állapot lenyomata változatlan.
+        val partner = PartnerLogic.partnerKey(state.partner)
+        return FOCUS_FP_V2 + digest(
+            "${packsPart(state)}//$run" + (if (windows.isEmpty()) "" else "//$windows") +
+                (if (partner.isEmpty()) "" else "//partner//$partner"),
+        )
     }
 
     /** Az ablak-lista tartalmi kulcsa — üres listára üres szöveg. */
@@ -156,7 +162,7 @@ object SyncRevisions {
         val fp = focusFingerprint(state)
         if (state.focusRevFp == fp) return state
         if (state.focusRevFp == null && state.focusPacks.isEmpty() && state.focusRun == null &&
-            state.lockdownWindows.isEmpty()
+            state.lockdownWindows.isEmpty() && state.partner == null
         ) {
             return state.copy(focusRevFp = fp)
         }
@@ -177,6 +183,11 @@ object SyncRevisions {
         val windows = windowsKey(state)
         val mark = if (windows != (state.focusRevWindows ?: "")) newRev.coerceIn(0, Int.MAX_VALUE.toLong()).toInt()
             else state.lockdownWindowsRev
+        // A megbízott jele ugyanígy: ha az előző léptetés óta változott, a
+        // jele ez a blob-rev — a fésülés ebből tudja, kié az újabb szó.
+        val partnerKey = PartnerLogic.partnerKey(state.partner)
+        val partnerMark = if (partnerKey != (state.focusRevPartner ?: "")) newRev.coerceIn(0, Int.MAX_VALUE.toLong()).toInt()
+            else state.partnerRev
         return state.copy(
             focusRev = newRev,
             focusUpdatedAt = now,
@@ -184,12 +195,21 @@ object SyncRevisions {
             focusRevFp = fp,
             focusRevWindows = windows,
             lockdownWindowsRev = mark,
+            focusRevPartner = partnerKey,
+            partnerRev = partnerMark,
         )
     }
 
     /** Egy távolról átvett munkamenet lenyomatának újraszámolása. */
     fun adoptFocus(state: AppState): AppState =
-        state.copy(focusRevFp = focusFingerprint(state), focusRevWindows = windowsKey(state))
+        state.copy(
+            focusRevFp = focusFingerprint(state),
+            focusRevWindows = windowsKey(state),
+            // A megbízott kulcsa is: az átvett megbízott nem a miénk — a
+            // következő saját szerkesztés ne bélyegezze át a jelét, mert azzal
+            // egy másik eszköz levételét lehetne felülírni.
+            focusRevPartner = PartnerLogic.partnerKey(state.partner),
+        )
 
     /**
      * Egy távolról érkezett rekord átvétele.

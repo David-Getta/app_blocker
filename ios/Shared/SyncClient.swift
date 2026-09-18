@@ -247,7 +247,10 @@ enum SyncClient {
                 lockdown: LockdownLogic.live(current.lockdown, now),
                 // Az ablakok a jelükkel — a fésülés ebből tudja, kié az újabb szó.
                 lockdownWindows: (current.lockdownWindows ?? []).isEmpty ? nil : current.lockdownWindows,
-                lockdownWindowsRev: current.lockdownWindowsRev
+                lockdownWindowsRev: current.lockdownWindowsRev,
+                // A megbízott a jelével — a lenyomat utazik, a jelmondat sehol nincs.
+                partner: current.partner,
+                partnerRev: current.partnerRev
             )
             let merged = FocusSync.merge(mine, remote)
 
@@ -270,6 +273,10 @@ enum SyncClient {
                 // következő fordulóban már ezek szerint ír zárlatot.
                 current.lockdownWindows = merged.lockdownWindows
                 current.lockdownWindowsRev = merged.lockdownWindowsRev
+                // A MEGBÍZOTT IS: a gépen felvett megbízott innentől itt is az
+                // utolsó szó; a levétele (a jelével) ugyanígy ér ide.
+                current.partner = merged.partner
+                current.partnerRev = merged.partnerRev
                 // A lenyomatot ÚJRASZÁMOLJUK, nem a másik eszközét vesszük át:
                 // enélkül a következő mentés fölöslegesen léptetné a számlálót,
                 // és a két eszköz örökké írogatná egymást.

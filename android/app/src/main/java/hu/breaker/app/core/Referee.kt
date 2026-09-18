@@ -62,7 +62,57 @@ object Referee {
         requireUnlocked(state, now)
         val tier = effectiveTier(state, kind, now)
         val forced = if (comboSiteId == null) null else forcedCombo(state, comboSiteId, now)
-        return ChallengeEngine.generatePlan(kind, tier, state.lastCombo, forced)
+        val plan = ChallengeEngine.generatePlan(kind, tier, state.lastCombo, forced)
+        // PÁRBAN ZÁROLÁS: ha van megbízott, az utolsó szó az övé — MINDEN
+        // lazításnál, mert mind ezen az egy kapun jön ki. A várakozás UTÁN áll.
+        val partner = state.partner ?: return plan
+        return plan.copy(steps = plan.steps + Step.Partner(BreakerStore.newId("st"), partner.name))
+    }
+
+    data class PartnerSetup(val name: String, val phrase: String)
+    data class PartnerChangeResult(val applied: Boolean, val session: SessionRec?)
+
+    /**
+     * Megbízott felvétele — INGYEN, mert szigorítás. A jelmondatot itt
+     * sorsoljuk, és EGYSZER adjuk vissza: a felület megmutatja, a felhasználó
+     * átadja; a tár csak a lenyomatot tartja meg.
+     */
+    fun setPartner(rawName: String, now: Long): PartnerSetup {
+        var out: PartnerSetup? = null
+        BreakerStore.mutate { state ->
+            if (state.partner != null) {
+                throw RefereeException("Már van megbízott. Előbb vedd le — az próbatétel, az ő jelmondatával.", "PARTNER_SET")
+            }
+            val name = PartnerLogic.normalizePartnerName(rawName)
+                ?: throw RefereeException("Adj a megbízottnak egy nevet.", "BAD_NAME")
+            val phrase = ChallengeEngine.makePartnerPhrase()
+            out = PartnerSetup(name, phrase)
+            state.copy(partner = PartnerLogic.makeLock(name, phrase, now))
+        }
+        return out!!
+    }
+
+    /** A megbízott levétele — próbatétel, a terv végén az ő jelmondatával: a levételhez is ő kell. */
+    fun startPartnerRemoval(now: Long): PartnerChangeResult {
+        var result: PartnerChangeResult? = null
+        BreakerStore.mutate { state ->
+            if (state.partner == null) {
+                result = PartnerChangeResult(applied = true, session = null)
+                return@mutate state
+            }
+            if (state.session != null) {
+                throw RefereeException("Előbb fejezd be a folyamatban lévő kísérletet.", "BUSY")
+            }
+            val plan = planLoosening(state, Kind.PAUSE, null, now)
+            val session = SessionRec(
+                id = BreakerStore.newId("ses"), kind = Kind.PAUSE, siteId = "partner", minutes = null,
+                steps = armCurrent(plan.steps, 0, now), stepIndex = 0, createdAt = now,
+                pendingPartnerRemoval = true,
+            )
+            result = PartnerChangeResult(applied = false, session = session)
+            state.copy(session = session, lastCombo = plan.comboKey)
+        }
+        return result!!
     }
 
     /**
@@ -126,8 +176,9 @@ object Referee {
      */
     private fun dropSession(state: AppState, now: Long): AppState {
         val s = state.session ?: return state
+        // A megbízott lépése nem sorsolt próba: a kombináció-kulcsba nem számít.
         val combo = ChallengeEngine.comboKeyOf(
-            s.steps.filter { it !is Step.Delay }.map { ChallengeEngine.typeNameOf(it) },
+            s.steps.filter { it !is Step.Delay && it !is Step.Partner }.map { ChallengeEngine.typeNameOf(it) },
         )
         // A hűtés az ELSŐ feladástól számít, nem a legutóbbi újraindítástól,
         // különben minden újraindítás kitolná a határidőt, és a pár örökre
@@ -188,6 +239,16 @@ object Referee {
     }
 
     private fun finish(state: AppState, s: SessionRec, now: Long): AppState {
+        // A MEGBÍZOTT LEVÉTELE: nem oldalhoz tartozik. Idáig csak próbatétellel
+        // lehet eljutni — a végén az ő jelmondatával, tehát ő is bólintott.
+        if (s.pendingPartnerRemoval) {
+            return state.copy(
+                partner = null,
+                unlockLog = state.unlockLog.filter { it > now - 30 * 24 * 3600_000L } + now,
+                session = null,
+                abandons = state.abandons.filter { it.siteId != s.siteId },
+            )
+        }
         // A MUNKAMENET nem egy oldalhoz tartozik, hanem az egész készülékhez:
         // ezért áll itt, az oldal-keresés ELŐTT. A -1 azt jelenti: állítsd le
         // most.
@@ -534,6 +595,33 @@ object Referee {
             val step = s.steps[s.stepIndex]
             if (step is Step.Delay) {
                 throw RefereeException("Ez a lépés várakozás — a Feloldás átvétele gombbal zárható.", "DELAY_STEP")
+            }
+            if (step is Step.Partner) {
+                // A jelmondat a lenyomattal összevetve. Rossz jelmondat nem
+                // sorsol újat, csak számol; a plafonnál a kísérlet elszáll —
+                // elölről, minden lépéssel. Ha a megbízott közben (a
+                // szinkronból) lekerült, a lépés tárgytalan: átmegy.
+                val lock = state.partner
+                if (lock != null && !PartnerLogic.verify(lock, answer)) {
+                    val tries = s.partnerTries + 1
+                    if (tries >= PartnerLogic.MAX_PARTNER_TRIES) {
+                        result = SubmitResult(
+                            false, false,
+                            "${PartnerLogic.MAX_PARTNER_TRIES}-ször nem ez volt a jelmondat — a kísérlet érvénytelen, elölről kell kezdeni.",
+                        )
+                        return@mutate dropSession(state, now)
+                    }
+                    result = SubmitResult(false, false, "Nem ez a jelmondat. Kérd meg a megbízottadat, hogy ő írja be.")
+                    return@mutate state.copy(session = s.copy(partnerTries = tries))
+                }
+                val nextIndex = s.stepIndex + 1
+                if (nextIndex >= s.steps.size) {
+                    result = SubmitResult(accepted = true, sessionDone = true)
+                    return@mutate finish(state, s, now)
+                }
+                val steps = armCurrent(s.steps, nextIndex, now)
+                result = SubmitResult(accepted = true, sessionDone = false)
+                return@mutate state.copy(session = s.copy(steps = steps, stepIndex = nextIndex))
             }
             val tier = effectiveTier(state, s.kind, s.createdAt)
             val outcome = ChallengeEngine.applyAnswer(step, answer, tier, s.kind, now)

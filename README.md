@@ -189,6 +189,19 @@ ingyen van, rövidíteni vagy visszavonni sehogy.
   szűkíteni próbatétel) és levehető (próbatétel); Androidon a szűrő értesítése
   szól, amikor az ablak beér, iPhone-on az app heti emlékeztetőt ütemez rá.
   Lásd `docs/feature-lockdown-windows.md`.
+- **Párban zárolás: a lazítás végén a megbízott jelmondata** (mindhárom
+  platform). A próbatétel a saját impulzusod ellen véd — van, akinek az kell,
+  hogy a lazítás **más ember döntése is** legyen. Kiválasztasz egy megbízottat
+  (társ, barát, szülő), az app sorsol neki egy négyszavas jelmondatot, ami
+  egyszer látszik — átadod, és az app csak a lenyomatát tartja meg. Innentől
+  **minden lazító próbatétel utolsó lépése** az, hogy ő beírja: a munka a tiéd,
+  az utolsó szó az övé. Felvenni ingyen; **levenni próbatétel, a végén az ő
+  jelmondatával**. Ötször rossz jelmondat után a kísérlet elölről kezdődik. A
+  megbízott a fiókon át a többi eszközre is átér (a jelével: a levétel átmegy,
+  egy másik eszköz csomag-szerkesztése nem viszi el), és a lenyomat
+  nyelvfüggetlen — a gépen felvett megbízott a telefonon is stimmel. Őszinte
+  határ: nem gépzár, és ha a jelmondat elvész, a megbízottat nem lehet levenni.
+  Lásd `docs/feature-partner-lock.md`.
 - **Munkamenetek: „most csak ez mehet”** (gép, Android, iPhone). A blokklista arról szól,
   mi NE menjen; a munkamenet fordítva: csinálsz egy csomagot (pl.
   „Nyelvtanulás”), felsorolod, mi mehet alatta, és megadod, meddig tartson.
@@ -446,14 +459,15 @@ Amit a lista korábban tartalmazott és azóta elkészült: **időzített szabá
 oldalanként és appokként), a **napi időkeret** (a mérés és a blokkolás
 összekötve, [`docs/feature-daily-limit.md`](docs/feature-daily-limit.md)) és az
 **iOS-mag fordítása és tesztjei a CI-ban** (macOS runneren, aláírás nélkül —
-a Swift-tükör minden pusholásnál fordul, és a mag tesztjei is lefutnak).
+a Swift-tükör minden pusholásnál fordul, és a mag tesztjei is lefutnak), és a
+**párban zárolás** (a lazítás végén a megbízott jelmondata,
+[`docs/feature-partner-lock.md`](docs/feature-partner-lock.md)).
 
 Ami még hátravan:
 
 - **Kulcsszó-/kategória-alapú blokkolás** (a mostani DNS-szint egész
   domaineket lát, nem tartalmat).
 - **IP-szintű szabályok** az egyedi DNS/DoH-proxy megkerülés ellen.
-- **„Párban zárolás”**: a feloldáshoz egy megbízott jóváhagyása is kell.
 - **Windows named pipe szűkítése** egyedi DACL-lel (ma helyi, de nem
   felhasználóhoz kötött — lásd `docs/architecture.md`).
 - **iOS app-cél tesztjei**: a Swift-mag tesztjei futnak a CI-ban (`swift

@@ -136,7 +136,13 @@ enum SyncRevisions {
         // VAN: az ablak nélküli állapot lenyomata ugyanaz marad, mint a
         // frissítés előtt — különben minden iPhone egyszer fölöslegesen léptetne.
         let windows = windowsKey(state)
-        return focusFpV2 + digestHex("\(packsPart(state))//\(run)" + (windows.isEmpty ? "" : "//\(windows)"))
+        // A MEGBÍZOTT IS: a felvétele és a levétele döntés, tehát léptet. Csak
+        // ha van, címkével — a nélküle lévő állapot lenyomata változatlan.
+        let partner = PartnerLogic.partnerKey(state.partner)
+        return focusFpV2 + digestHex(
+            "\(packsPart(state))//\(run)" + (windows.isEmpty ? "" : "//\(windows)")
+                + (partner.isEmpty ? "" : "//partner//\(partner)")
+        )
     }
 
     /// Az ablak-lista tartalmi kulcsa — üres listára üres szöveg.
@@ -157,7 +163,7 @@ enum SyncRevisions {
         if state.focusRevFp == fp { return state }
         var next = state
         if state.focusRevFp == nil && (state.focusPacks ?? []).isEmpty && state.focusRun == nil
-            && (state.lockdownWindows ?? []).isEmpty {
+            && (state.lockdownWindows ?? []).isEmpty && state.partner == nil {
             next.focusRevFp = fp
             return next
         }
@@ -184,6 +190,11 @@ enum SyncRevisions {
         let windows = windowsKey(state)
         if windows != (state.focusRevWindows ?? "") { next.lockdownWindowsRev = Int(newRev) }
         next.focusRevWindows = windows
+        // A megbízott jele ugyanígy: ha az előző léptetés óta változott, a
+        // jele ez a blob-rev — a fésülés ebből tudja, kié az újabb szó.
+        let partner = PartnerLogic.partnerKey(state.partner)
+        if partner != (state.focusRevPartner ?? "") { next.partnerRev = Int(newRev) }
+        next.focusRevPartner = partner
         return next
     }
 
@@ -192,6 +203,10 @@ enum SyncRevisions {
         var next = state
         next.focusRevFp = focusFingerprint(state)
         next.focusRevWindows = windowsKey(state)
+        // A megbízott kulcsa is: az átvett megbízott nem a miénk — a következő
+        // saját szerkesztés ne bélyegezze át a jelét, mert azzal egy másik
+        // eszköz levételét lehetne felülírni.
+        next.focusRevPartner = PartnerLogic.partnerKey(state.partner)
         return next
     }
 

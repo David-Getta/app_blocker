@@ -39,6 +39,13 @@ hatvannégyes keretébe). A tervet — mikor, mit mondjon — a mag adja
 (`LockdownLogic.reminderPlan`), teszttel; az app csak rendszer-kérést gyárt
 belőle. Az első ablaknál az app értesítési engedélyt kér.
 
+A **párban zárolás** itt is a zárlat kártyáján van: a megbízott neve, a sorsolt
+jelmondat egyszeri lapja (kijelölhető, hogy át lehessen küldeni; lehúzni nem
+lehet, csak kimondva bezárni), és a *Levétel…* (próbatétel). A lépés a
+próbatétel-lap végén jelszómezőként jön; a mag a `Shared/Partner.swift` (a gépi
+tükre, a `fixtures/partner-hash.json` ellen tesztelve), a megbízott a
+munkamenet blobján szinkronizál. Lásd `docs/feature-partner-lock.md`.
+
 ## Korlátok
 - MDM/„supervised” mód nélkül a felhasználó a Beállításokban ki tudja kapcsolni a
   VPN-t. Az on-demand szabály ezt kényelmetlenné teszi, de nem lehetetlenné —

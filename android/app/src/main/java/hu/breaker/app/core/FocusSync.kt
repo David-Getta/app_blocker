@@ -67,6 +67,13 @@ object FocusSync {
         val lockdownWindows: List<LockdownLogic.LockdownWindow> = emptyList(),
         /** Az ablak-lista jele: a blob rev-je, amelyik utoljára változtatta. Null = régi kliens. */
         val lockdownWindowsRev: Int? = null,
+        /**
+         * PÁRBAN ZÁROLÁS: a megbízott lenyomata és a jele. A fésülése az
+         * ablakoké: nagyobb jel nyer, azonos jelnél a beállított. Lásd
+         * `PartnerLogic.merge`. Null = nincs.
+         */
+        val partner: PartnerLogic.PartnerLock? = null,
+        val partnerRev: Int? = null,
     )
 
     /**
@@ -104,6 +111,11 @@ object FocusSync {
             ),
             lockdownWindowsRev = maxOf(local.lockdownWindowsRev ?: 0, incoming.lockdownWindowsRev ?: 0)
                 .takeIf { it > 0 },
+            // A megbízott ugyanígy: a jel dönt, azonos jelnél a beállított.
+            partner = PartnerLogic.merge(
+                local.partnerRev ?: 0, local.partner, incoming.partnerRev ?: 0, incoming.partner,
+            ),
+            partnerRev = maxOf(local.partnerRev ?: 0, incoming.partnerRev ?: 0).takeIf { it > 0 },
         )
     }
 
@@ -392,7 +404,9 @@ object FocusSync {
         // Az ablakok a jelükkel, tartalom szerint rendezve: az azonosító és a
         // sorrend nem jelentés.
         val windows = f.lockdownWindows.map { LockdownLogic.windowKey(it.band) }.sorted().joinToString("|")
-        return "$packs//$run//$log//$marks//$lock//$windows//${f.lockdownWindowsRev ?: 0}//${f.rev}"
+        // A MEGBÍZOTT IS, a jelével: enélkül a felvétele sosem érne fel.
+        val partner = PartnerLogic.partnerKey(f.partner)
+        return "$packs//$run//$log//$marks//$lock//$windows//${f.lockdownWindowsRev ?: 0}//$partner//${f.partnerRev ?: 0}//${f.rev}"
     }
 
     /**

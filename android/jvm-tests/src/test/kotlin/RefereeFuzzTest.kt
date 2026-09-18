@@ -49,6 +49,7 @@ class RefereeFuzzTest {
         }
         is Step.Reverse -> ChallengeEngine.reverse(step.text)
         is Step.Delay -> ""
+        is Step.Partner -> ""
     }
 
     private fun pausedIds(now: Long) = BreakerStore.state.value.sites

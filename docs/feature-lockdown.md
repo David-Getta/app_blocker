@@ -22,7 +22,8 @@ Zárlat alatt NEM indítható:
 - részleges szabály levétele,
 - csatorna-szűrő kikapcsolása vagy törlése,
 - a futó munkamenet leállítása vagy rövidítése,
-- a heti ablak szűkítése vagy levétele.
+- a heti ablak szűkítése vagy levétele,
+- a megbízott levétele (párban zárolás, `docs/feature-partner-lock.md`).
 
 Zárlat alatt VÁLTOZATLANUL megy, ingyen:
 
