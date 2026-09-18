@@ -8,11 +8,12 @@ kettővel korábbiban.
 
 | Verzió | Nap | Mi újság |
 |---|---|---|
+| v0.4.130 (még nincs kiadva) | 2026-09-18 | ablak a menet-órára a javaslat kártyájáról is |
 | v0.4.129 (még nincs kiadva) | 2026-09-18 | a menet-óra fedése |
 | v0.4.128 (még nincs kiadva) | 2026-09-18 | előjelzés a menet-óra előtt |
 | v0.4.127 (még nincs kiadva) | 2026-09-18 | a menet-óra ott is, ahol a döntés van |
 | v0.4.126 (még nincs kiadva) | 2026-09-18 | a README és a weboldal a délután tükör-újdonságairól |
-| v0.4.125 (még nincs kiadva) | 2026-09-18 | ablak a menet-órára |
+| v0.4.125 | 2026-09-18 | ablak a menet-órára |
 | v0.4.124 | 2026-09-18 | a heti mondat a menet-órát is mondja |
 | v0.4.123 | 2026-09-18 | a menet-óra |
 | v0.4.122 | 2026-09-18 | a heti mondat a mért idő napját is mondja |
