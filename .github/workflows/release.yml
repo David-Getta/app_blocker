@@ -44,28 +44,27 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
+          **Kulcsszó-szabályok: bármely oldalon, ha a cím tartalmazza.** A
+          blokklista egész oldalakat lát, a részleges szabály egy oldal egy
+          útvonalát — ez a harmadik: egy szó (shorts, reels, egy játék neve),
+          és a böngésző minden címet a tiltó lapra visz, amiben szerepel, a
+          hosztnévben is. Felvenni ingyen, levenni próbatétel; a szó addig
+          marad, amíg a próbák meg nincsenek, és újat felvenni közben is
+          ingyen lehet. A tiltó lap kimondja, melyik szó fogott. A lista a
+          fiókon át a többi eszközre is átér (a jelével; azonos jelnél a
+          bővebb nyer). Őszinte határ: csak a böngészőben tilt, ahova a
+          bővítmény telepítve van; a telefonon a lista csak látszik, mert a
+          DNS-szűrő a címet nem látja.
+
+          ### Ami a v0.4.46-ban jött
+
           **A félbemaradt kísérletek is a visszatekintésben.** A hétfői
-          mondat eddig a feloldásokat mondta; most azt is, hányszor indult el
-          a lazítás, és nem ért végig — feladva, lejárva, lecsúszva az
-          átvételről, elszállva, vagy egy új kísérlettel újraindítva:
-          „3 feloldás, 2 félbemaradt kísérlet.” — vagy
-          „Feloldás nélkül, 2 félbemaradt kísérlet.” A bíró egy helyen
-          könyveli, harminc napig, mindhárom platformon; a gépen a
-          próbatétel-nehézség sora is mondja. Tükör, nem ítélet.
+          mondat azt is mondja, hányszor indult el a lazítás, és nem ért
+          végig — mindhárom platformon; a gépen a próbatétel-nehézség sora is.
 
-          ### Ami a v0.4.45-ben jött
+          #### Ami a v0.4.45-ben jött
 
-          **Párban zárolás: a lazítás végén a megbízott jelmondata.** Egy
-          megbízott — társ, barát, szülő — négyszavas jelmondatot kap, és
-          minden lazító próbatétel utolsó lépése az, hogy ő beírja. Felvenni
-          ingyen; levenni próbatétel, a végén az ő jelmondatával. Mindhárom
-          platformon, a fiókon át; a böngésző tiltó lapja és a réteg is
-          kimondja. Nem gépzár, és ha a jelmondat elvész, a megbízottat nem
-          lehet levenni.
-
-          #### Ami a v0.4.44-ben jött
-
-          **A gépen a heti napló sorát a segéd írja — az app nélkül is.**
+          **Párban zárolás: a lazítás végén a megbízott jelmondata.**
 
           NOTES
           fi
