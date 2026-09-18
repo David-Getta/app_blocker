@@ -44,33 +44,23 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **Egy kattintás a rétegből is.** A gyorsbillentyűs réteg listájában
-          a legutóbb használt csomag sorában egy gomb a szokásos hosszal — a
-          választó nélkül. A láb a sokadik mai megakadásnál a mondatot is
-          mondja: a réteg a kísértés pillanatáé.
+          **Melyik szabály dolgozik — a telefonon is.** A szűrő okonként is
+          könyvel (lista vagy kulcsszó — a munkamenet fehérlistáján kívül
+          rekedt forgalom nem megakadás), és a statisztika a hét sorát
+          mondja: „Ebből: 30 lista · 12 kulcsszó.” Helyi könyv, a fiókba nem
+          megy.
 
-          A v0.4.68, v0.4.69 és v0.4.70 nem kapott saját kiadást — ami ott
-          jött, ebben van:
+          ### Ami a v0.4.71-ben jött
 
-          **A kulcsszó a telefonon is tilt — a hosztnévben.** A rendszer
-          infrastruktúrája és a saját fiókkiszolgáló sosem, a lista ítélete
-          elsőbb; a megakadás-számláló ezt is számolja.
+          **Egy kattintás a rétegből is** — a legutóbb használt csomag
+          sorában egy gomb a szokásos hosszal. És a v0.4.68–v0.4.70
+          tartalma: a kulcsszó a telefonon is tilt, próbamező a telefonon
+          és a gépen.
 
-          **Mi lenne ezzel?** Próbamező a telefon kulcsszó-kártyáján: egy
-          hosztnév, és a szűrő ítélete szóban.
-
-          **Mi lenne ezzel a címmel?** Próbamező a gépi Kulcsszavak kártyán —
-          ugyanaz az ítélet, mint a bővítményé.
-
-          ### Ami a v0.4.67-ben jött
+          #### Ami a v0.4.67-ben jött
 
           **A csúcs-oldal a bővítményben is** — a felugró lap a mai, a
-          beállítás-lap a heti csúcs-oldalt mondja, app nélkül is.
-
-          #### Ami a v0.4.66-ban jött
-
-          **Melyik oldal akaszt meg a legtöbbször** — a hét csúcs-oldala
-          mindhárom platformon.
+          beállítás-lap a heti csúcs-oldalt mondja.
 
           NOTES
           fi
