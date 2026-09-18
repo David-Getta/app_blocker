@@ -382,7 +382,9 @@ nincs; az éjfélen átnyúló ritka, és a lezárás napja az, amire az ember
 emlékszik — egy 23:30-tól 0:30-ig tartó menet a második napon áll egy órával,
 nem két fél órával. A nap fogalma a mérésével közös: helyi naptár, délben
 lépve, hogy az óraátállítás ne ejtsen ki és ne duplázzon napot. Üresen (nulla
-menet a héten) a blokk nincs — mint a többi.
+menet a héten, és az előző héten sem) a blokk nincs — mint a többi. Ha az
+előző héten volt menet, a blokk marad, és kimondja: „A héten nem volt menet.”
+— a nulla hét is mondat, ha volt mihez mérni.
 
 ## Heti visszatekintés: hétfő reggel egy mondat
 
@@ -543,7 +545,9 @@ nem szól utánad.
 A **hét alakja a megakadásokra** is megvan mindhárom statisztikán — ugyanaz
 a rajz, mint a mért időé és a meneteké, csak darabban: a gépen a böngésző
 könyve (`browserHitsDays` az állapotban, a források összeadva), a telefonon
-a szűrőé (`FilterHitLogic.daySeries`). Üresen nincs.
+a szűrőé (`FilterHitLogic.daySeries`). Üresen nincs — kivéve, ha az előző
+héten volt megakadás: akkor a blokk marad, üres oszlopokkal, és a sor mondja a
+két számot. A nulla hét is mondat, ha volt mihez mérni.
 
 A gyorsbillentyűs réteg lába is mondja a mait (a futó menet alatt: „Ma 3
 megakadás a böngészőben.”), és Androidon a szűrő értesítésének sora („· Ma 3

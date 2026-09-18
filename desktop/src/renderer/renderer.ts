@@ -4072,13 +4072,17 @@ function renderWeek(
   blockId = 'weekBlock', chartId = 'weekChart',
   // Az érték felirata: idő (a mérés, a menetek) vagy darab (a megakadások).
   fmt: (value: number) => string = formatDuration,
+  // Üres héten is maradjon a blokk: a nulla hét is mondat, ha volt mihez
+  // mérni — a hívó tudja, volt-e (az előző hét).
+  keep = false,
 ): void {
   const host = $(chartId);
   host.textContent = '';
   const rows = series ?? [];
   const max = Math.max(0, ...rows.map((d) => d.seconds));
-  $(blockId).classList.toggle('hidden', rows.length === 0 || max === 0);
-  if (rows.length === 0 || max === 0) return;
+  const show = rows.length > 0 && (max > 0 || keep);
+  $(blockId).classList.toggle('hidden', !show);
+  if (!show) return;
   const today = dayKey(Date.now());
   const peak = rows.findIndex((d) => d.seconds === max);
   rows.forEach((d, i) => {
@@ -4217,9 +4221,11 @@ function renderLastSample(measurementOn: boolean): void {
 function renderFocusStats(): void {
   const week = statsData?.focusWeek;
   const today = statsData?.focusToday;
+  const prev = statsData?.focusPrevWeek;
   // Nulla menetnél nem mutatunk üres blokkot: egy minden nap ott álló
-  // nullás doboz nem információ, csak zaj.
-  const show = !!week && week.sessions > 0;
+  // nullás doboz nem információ, csak zaj — kivéve, ha az előző héten volt
+  // menet: a nulla hét is mondat, ha volt mihez mérni.
+  const show = !!week && (week.sessions > 0 || (prev?.sessions ?? 0) > 0);
   $('focusStats').classList.toggle('hidden', !show);
   if (!show || !week || !today) return;
 
@@ -4237,18 +4243,19 @@ function renderFocusStats(): void {
 
   const parts: string[] = [];
   if (week.topPack) parts.push(`A hét leggyakoribb csomagja: ${week.topPack}.`);
+  // A NULLA HÉT kimondva — a blokk csak azért áll, mert az előző héten volt menet.
+  if (week.sessions === 0) parts.push('A héten nem volt menet.');
   // AZ ELŐZŐ HÉT a menetek mellett — irány, nem ítélet. Üres előző hét nem
   // összehasonlítás: akkor nincs mondat.
-  const prev = statsData?.focusPrevWeek;
   if (prev && prev.sessions > 0) {
     parts.push(`Az előző héten ${prev.sessions} menet (${formatDuration(Math.round(prev.totalMs / 1000))}).`);
   }
-  if (week.stoppedEarly > 0) {
+  if (week.sessions > 0 && week.stoppedEarly > 0) {
     parts.push(
       `${week.stoppedEarly} menet ért véget a tervezettnél korábban. `
       + 'Ha ez sokszor fordul elő, nem a csomaggal van baj: rövidebb menetet érdemes indítani.',
     );
-  } else {
+  } else if (week.sessions > 0) {
     parts.push('A héten minden menetet végigvittél.');
   }
   // MINDEN ESZKÖZ menete beleszámít, és ezt ki kell mondani. A mérés (mire megy
@@ -4285,8 +4292,10 @@ function renderStats(): void {
   renderFocusStats();
   // A MEGAKADÁSOK napról napra — a bővítmény könyve, ahogy a segéd tartja:
   // ugyanaz a rajz, mint a mért időé, csak darabban. Üresen nincs.
+  // A NULLA HÉT is mondat, ha volt mihez mérni: az előző hét mellett a blokk
+  // üres héten is marad, és a sor kimondja a két számot.
   renderWeek((status?.browserHitsDays ?? []).map((d) => ({ day: d.day, seconds: d.total })),
-    'hitsWeekBlock', 'hitsWeekChart', (n) => `${n} megakadás`);
+    'hitsWeekBlock', 'hitsWeekChart', (n) => `${n} megakadás`, (status?.browserHitsPrev7d ?? 0) > 0);
   // MIKOR jár a kéz magától: a hét csúcs-órája — tény, nem ítélet.
   const peak = status?.browserHitsPeak ?? null;
   $('hitsPeakNote').classList.toggle('hidden', peak === null);

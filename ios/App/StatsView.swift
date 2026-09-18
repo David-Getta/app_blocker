@@ -55,6 +55,8 @@ struct StatsView: View {
     private var focusNote: String {
         var parts: [String] = []
         if let top = focusWeek.topPack { parts.append("A hét leggyakoribb csomagja: \(top).") }
+        // A NULLA HÉT kimondva — a blokk csak azért áll, mert az előző héten volt menet.
+        if focusWeek.sessions == 0 { parts.append("A héten nem volt menet.") }
         // AZ ELŐZŐ HÉT a menetek mellett — irány, nem ítélet. Üres előző hét nem
         // összehasonlítás: akkor nincs mondat.
         if focusPrevWeek.sessions > 0 {
@@ -62,13 +64,13 @@ struct StatsView: View {
         }
         // A korai vég szándékosan NEM szégyenpad: ha sokszor fordul elő, nem a
         // csomaggal van baj, hanem a hosszal.
-        parts.append(
+        if focusWeek.sessions > 0 { parts.append(
             focusWeek.stoppedEarly > 0
                 ? "\(focusWeek.stoppedEarly) menet ért véget a tervezettnél korábban. "
                     + "Ha ez sokszor fordul elő, nem a csomaggal van baj: rövidebb menetet "
                     + "érdemes indítani."
                 : "A héten minden menetet végigvittél."
-        )
+        ) }
         // MINDEN ESZKÖZ menete beleszámít, és ezt ki kell mondani: a mérés
         // eszközönként külön áll, a munkamenet viszont a fiók egészére szól.
         parts.append("Minden eszközöd menete beleszámít.")
@@ -96,7 +98,8 @@ struct StatsView: View {
             //
             // Nulla menetnél nem áll itt üres doboz: egy minden nap ott lévő
             // nullás sor nem információ, csak zaj.
-            if focusWeek.sessions > 0 {
+            // Nulla menetnél nincs üres blokk — kivéve, ha az előző héten volt menet.
+            if focusWeek.sessions > 0 || focusPrevWeek.sessions > 0 {
                 Divider()
                 SectionLabel("Munkamenetek")
                 HStack(spacing: 10) {
@@ -122,7 +125,8 @@ struct StatsView: View {
                 // A MEGAKADÁSOK napról napra — a tunnel könyve: ugyanaz a rajz,
                 // darabban. Üresen nincs.
                 let hitDays = FilterHitLogic.daySeries(store.state.filterHits ?? [:], now: now, count: 7)
-                if hitDays.contains(where: { $0.seconds > 0 }) {
+                // A NULLA HÉT is mondat, ha volt mihez mérni: az előző hét mellett a blokk marad.
+                if hitDays.contains(where: { $0.seconds > 0 }) || FilterHitLogic.hitsPrev7d(store.state.filterHits ?? [:], now: now) > 0 {
                     Text("Megakadások a szűrőben, naponta")
                         .font(.caption).fontWeight(.semibold).foregroundStyle(.secondary)
                         .padding(.top, 4)

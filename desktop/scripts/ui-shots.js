@@ -212,6 +212,12 @@ function fakeBridgeSource() {
           // állítjuk, nem csak a kirajzolást.
           if (window.__fakeNoFocusStats) {
             const zero = { sessions: 0, totalMs: 0, stoppedEarly: 0, topPack: null };
+            return { ok: true, data: { ...stats, focusToday: zero, focusWeek: zero, focusPrevWeek: zero } };
+          }
+          // A NULLA HÉT is mondat, ha volt mihez mérni: üres hét, de az előző
+          // héten volt menet — a blokk marad, és kimondja.
+          if (window.__fakeNoFocusWeek) {
+            const zero = { sessions: 0, totalMs: 0, stoppedEarly: 0, topPack: null };
             return { ok: true, data: { ...stats, focusToday: zero, focusWeek: zero } };
           }
           // A folt a füstteszté: egyetlen mezőt cserél a hamis adaton, hogy
@@ -910,7 +916,19 @@ async function main() {
     undefined, { timeout: 15_000 },
   ).catch(() => failures.push('nulla menetnél is ott áll a munkamenet-statisztika'));
 
-  await page.addInitScript(() => { window.__fakeNoFocusStats = false; });
+  // …de ha az ELŐZŐ héten volt menet, a nulla hét is mondat: a blokk marad,
+  // és kimondja, hogy a héten nem volt menet — a két szám egymás mellett.
+  await page.addInitScript(() => { window.__fakeNoFocusStats = false; window.__fakeNoFocusWeek = true; });
+  await page.reload();
+  await goTo(page, 'stats');
+  await page.waitForFunction(
+    () => !document.getElementById('focusStats')?.classList.contains('hidden')
+      && /A héten nem volt menet\./.test(document.getElementById('focusStatsNote')?.textContent || '')
+      && /Az előző héten 5 menet/.test(document.getElementById('focusStatsNote')?.textContent || ''),
+    undefined, { timeout: 15_000 },
+  ).catch(() => failures.push('üres héten az előző hét mellett eltűnt a munkamenet-statisztika, vagy nem mondja ki a nulla hetet'));
+
+  await page.addInitScript(() => { window.__fakeNoFocusStats = false; window.__fakeNoFocusWeek = false; });
   await page.reload();
   await goTo(page, 'stats');
   await page.waitForSelector('#focusTiles .tile', { timeout: 15_000 })

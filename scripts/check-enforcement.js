@@ -712,6 +712,39 @@ const WIRES = [
   // AZ ELŐZŐ HÉT MENETEI a mostani mellett: a segéd és a telefonok összegzik, a
   // statisztika és a heti mondat mondja. Ha a hívó nem adná, a mező null, és a
   // sor csendben elmaradna — a mag tudná, a felület nem.
+  // A NULLA HÉT IS MONDAT, ha volt mihez mérni: a statisztika blokkja üres héten
+  // is marad, ha az előző héten volt megakadás vagy menet — különben a két
+  // szám csak a heti mondatban élne, a lapon csendben eltűnne.
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: "(n) => `${n} megakadás`, (status?.browserHitsPrev7d ?? 0) > 0);",
+    lost: 'a gépi megakadás-blokk üres héten eltűnne, az előző hét mellett is',
+  },
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: 'const show = !!week && (week.sessions > 0 || (prev?.sessions ?? 0) > 0);',
+    lost: 'a gépi munkamenet-blokk üres héten eltűnne, az előző hét mellett is',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/StatsScreen.kt',
+    needle: 'if (filterHitDays.any { it.second > 0.0 } || filterHitsPrev7d > 0) {',
+    lost: 'az Android megakadás-blokkja üres héten eltűnne, az előző hét mellett is',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/StatsScreen.kt',
+    needle: 'if (week.sessions == 0 && (prevWeek?.sessions ?? 0) == 0) return',
+    lost: 'az Android munkamenet-blokkja üres héten eltűnne, az előző hét mellett is',
+  },
+  {
+    file: 'ios/App/StatsView.swift',
+    needle: '|| FilterHitLogic.hitsPrev7d(store.state.filterHits ?? [:], now: now) > 0 {',
+    lost: 'az iPhone megakadás-blokkja üres héten eltűnne, az előző hét mellett is',
+  },
+  {
+    file: 'ios/App/StatsView.swift',
+    needle: 'if focusWeek.sessions > 0 || focusPrevWeek.sessions > 0 {',
+    lost: 'az iPhone munkamenet-blokkja üres héten eltűnne, az előző hét mellett is',
+  },
   {
     file: 'desktop/src/helper/server.ts',
     needle: 'focusPrevWeek: summarizeFocusPrevWeek(state.focusLog, now),',

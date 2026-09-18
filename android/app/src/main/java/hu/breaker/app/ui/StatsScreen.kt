@@ -130,7 +130,8 @@ fun StatsSection(
         FocusStatsBlock(focusToday, focusWeek, focusDays, focusPrevWeek)
         // A MEGAKADÁSOK napról napra — a szűrő könyve: ugyanaz a rajz, mint a
         // mért időé, csak darabban. Üresen nincs.
-        if (filterHitDays.any { it.second > 0.0 }) {
+        // A NULLA HÉT is mondat, ha volt mihez mérni: az előző hét mellett a blokk marad.
+        if (filterHitDays.any { it.second > 0.0 } || filterHitsPrev7d > 0) {
             StatsSectionLabel("Megakadások a szűrőben, naponta")
             WeekChart(filterHitDays, format = { "${it.toInt()} megakadás" })
             // MIKOR jár a kéz magától: a hét csúcs-órája — tény, nem ítélet.
@@ -306,7 +307,9 @@ private fun FocusStatsBlock(
     focusDays: List<Pair<String, Double>> = emptyList(),
     prevWeek: Focus.FocusSummary? = null,
 ) {
-    if (week.sessions == 0) return
+    // Nulla menetnél nincs üres blokk — kivéve, ha az előző héten volt menet:
+    // a nulla hét is mondat, ha volt mihez mérni.
+    if (week.sessions == 0 && (prevWeek?.sessions ?? 0) == 0) return
     StatsSectionLabel("Munkamenetek")
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
         CountTile(today.sessions.toString(), "menet ma", Modifier.weight(1f))
@@ -318,6 +321,8 @@ private fun FocusStatsBlock(
     }
     val parts = mutableListOf<String>()
     week.topPack?.let { parts.add("A hét leggyakoribb csomagja: $it.") }
+    // A NULLA HÉT kimondva — a blokk csak azért áll, mert az előző héten volt menet.
+    if (week.sessions == 0) parts.add("A héten nem volt menet.")
     // AZ ELŐZŐ HÉT a menetek mellett — irány, nem ítélet. Üres előző hét nem
     // összehasonlítás: akkor nincs mondat.
     prevWeek?.takeIf { it.sessions > 0 }?.let {
@@ -325,14 +330,16 @@ private fun FocusStatsBlock(
     }
     // A „korán leállítva” szándékosan NEM szégyenpad. Ha sokszor fordul elő,
     // nem a csomaggal van baj, hanem a hosszal.
-    parts.add(
-        if (week.stoppedEarly > 0) {
-            "${week.stoppedEarly} menet ért véget a tervezettnél korábban. Ha ez sokszor " +
-                "fordul elő, nem a csomaggal van baj: rövidebb menetet érdemes indítani."
-        } else {
-            "A héten minden menetet végigvittél."
-        },
-    )
+    if (week.sessions > 0) {
+        parts.add(
+            if (week.stoppedEarly > 0) {
+                "${week.stoppedEarly} menet ért véget a tervezettnél korábban. Ha ez sokszor " +
+                    "fordul elő, nem a csomaggal van baj: rövidebb menetet érdemes indítani."
+            } else {
+                "A héten minden menetet végigvittél."
+            },
+        )
+    }
     // MINDEN ESZKÖZ menete beleszámít, és ezt ki kell mondani: a mérés
     // eszközönként külön áll, a munkamenet viszont a fiók egészére szól.
     parts.add("Minden eszközöd menete beleszámít.")
