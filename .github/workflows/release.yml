@@ -44,27 +44,27 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
+          **Ablak a csúcs-órára a javaslat kártyájáról is.** A gépen és a
+          telefonokon a sokadik megakadás, az előjelzés vagy a csúcs-óra
+          mondata alatt a menet gombja mellett ott az ablaké is: heti ablak
+          a legutóbbi csomagra, a csúcs egy órájában, minden napra — ugyanaz
+          az út, mint a statisztika gombjáé. A gépi gomb szövege ugyanaz,
+          mint a telefonon és a bővítményben.
+
+          ### Ami a v0.4.104-ben jött
+
           **Ablak a csúcs-órára a böngészőből is.** A bővítmény tiltó lapján
           és felugró lapján a menet gombja mellett a másik: heti ablak a
-          javasolt csomagra a csúcs egy órájában, minden napra — a hídon, az
-          app bírója teszi fel. Csak felvétel: ablakos csomagra a híd nemet
-          mond, a csere az appé. A híd befelé továbbra is csak szigorít.
+          javasolt csomagra a csúcs egy órájában — a hídon, az app bírója
+          teszi fel. Csak felvétel: ablakos csomagra a híd nemet mond.
           Bővítmény 0.4.24.
 
-          ### Ami a v0.4.103-ban jött
+          #### Ami a v0.4.103-ban jött
 
           **Ablak a csúcs-órára a telefonon is.** A statisztika csúcs-óra
-          mondata alatt Androidon és iPhone-on is ott a gomb: heti ablak a
-          legutóbbi csomagra, a csúcs egy órájában, minden napra — felvenni
-          ingyen. A telefon csak felvesz; a csomag jelét is írja a
+          mondata alatt Androidon és iPhone-on is ott a gomb — felvenni
+          ingyen; a telefon csak felvesz, és a csomag jelét is írja a
           szinkronban.
-
-          #### Ami a v0.4.102-ben jött
-
-          **A bővítmény is rajzolja a harminc napot.** A beállítás-lap a
-          hét sávja alá a hónapét is odateszi, ha a hét előtti napokon is
-          volt megakadás — és a mondat a 30 nap számát is mondja, ha az
-          több, mint a heti.
 
           NOTES
           fi
