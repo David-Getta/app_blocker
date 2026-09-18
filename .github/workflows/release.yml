@@ -44,18 +44,33 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **Mi lenne ezzel a címmel?** A gépi Kulcsszavak kártya alján egy
-          próbamező: beírsz egy címet, és a lap mondja, fogná-e egy kulcsszó
-          — ugyanaz az ítélet, mint a bővítményé. A kártya mondata a telefon
-          új igazságát mondja: ott a hosztnévben tilt.
+          **Egy kattintás a rétegből is.** A gyorsbillentyűs réteg listájában
+          a legutóbb használt csomag sorában egy gomb a szokásos hosszal — a
+          választó nélkül. A láb a sokadik mai megakadásnál a mondatot is
+          mondja: a réteg a kísértés pillanatáé.
 
-          ### Ami a v0.4.69-ben jött
+          A v0.4.68, v0.4.69 és v0.4.70 nem kapott saját kiadást — ami ott
+          jött, ebben van:
 
-          **Mi lenne ezzel?** — próbamező a telefon kulcsszó-kártyáján.
+          **A kulcsszó a telefonon is tilt — a hosztnévben.** A rendszer
+          infrastruktúrája és a saját fiókkiszolgáló sosem, a lista ítélete
+          elsőbb; a megakadás-számláló ezt is számolja.
 
-          #### Ami a v0.4.68-ban jött
+          **Mi lenne ezzel?** Próbamező a telefon kulcsszó-kártyáján: egy
+          hosztnév, és a szűrő ítélete szóban.
 
-          **A kulcsszó a telefonon is tilt — a hosztnévben.**
+          **Mi lenne ezzel a címmel?** Próbamező a gépi Kulcsszavak kártyán —
+          ugyanaz az ítélet, mint a bővítményé.
+
+          ### Ami a v0.4.67-ben jött
+
+          **A csúcs-oldal a bővítményben is** — a felugró lap a mai, a
+          beállítás-lap a heti csúcs-oldalt mondja, app nélkül is.
+
+          #### Ami a v0.4.66-ban jött
+
+          **Melyik oldal akaszt meg a legtöbbször** — a hét csúcs-oldala
+          mindhárom platformon.
 
           NOTES
           fi
