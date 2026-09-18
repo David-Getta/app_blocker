@@ -14,9 +14,9 @@ import { CLOSED_FRESH_MS, loadLink, pullFromApp, pushHits, setToken, withAppRule
 import { dayKey, formatSeconds, lastDays, topChannels } from './chantime.js';
 // A `lastDays` a csatorna-időé (ugyanaz a naptár) — a könyv is azzal él.
 import {
-  hitsByHour, hitsMonth, hitsReasonText, hitsRows, hitsSummary, hitsText, hitsTrendText, hitsWeekByReason, hourLabel, idleKeywords,
+  hitsByHour, hitsByWeekday, hitsMonth, hitsReasonText, hitsRows, hitsSummary, hitsText, hitsTrendText, hitsWeekByReason, hourLabel, idleKeywords,
   monthHasOlderHits,
-  idleKeywordsText, keywordsText, keywordsWeek, peakHour, topHost,
+  idleKeywordsText, keywordsText, keywordsWeek, peakHour, peakWeekday, peakWeekdayText, topHost,
 } from './hits.js';
 
 const TIME_KEY = 'breaker.chantime';
@@ -103,6 +103,10 @@ async function renderHits() {
   strip.textContent = '';
   strip.hidden = peak === null;
   $('hitsHoursAxis').hidden = peak === null;
+  // A CSÚCS-NAP: melyik napon akad meg a kéz a legtöbbször — négy hétből, a saját könyvből.
+  const weekday = peakWeekday(hitsByWeekday(state, today));
+  $('hitsWeekday').hidden = weekday === null;
+  $('hitsWeekday').textContent = weekday ? peakWeekdayText(weekday) : '';
   if (peak) {
     const by = hitsByHour(state, week);
     by.forEach((n, hour) => {

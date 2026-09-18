@@ -358,6 +358,12 @@ const CHECKS = [
     scalar(ts.browserHits, /PEAK_WARN_MIN_COUNT\s*=\s*([^;]+);/, 'ts'),
     scalar(kt.filterHits, /PEAK_WARN_MIN_COUNT[^=]*=\s*(.+)/, 'kt'),
     scalar(sw.filterHits, /peakWarnMinCount[^=]*=\s*(.+)/, 'swift')],
+  // A CSÚCS-NAP mintája: négy-négy nap a hét minden napjára — ha a gép négy
+  // hétből, a telefon egyből nézné, ugyanaz az ember két napot tudna meg.
+  ['PEAK_WEEKDAY_DAYS',
+    scalar(ts.browserHits, /PEAK_WEEKDAY_DAYS\s*=\s*([^;]+);/, 'ts'),
+    scalar(kt.filterHits, /PEAK_WEEKDAY_DAYS[^=]*=\s*(.+)/, 'kt'),
+    scalar(sw.filterHits, /peakWeekdayDays[^=]*=\s*(.+)/, 'swift')],
 ];
 
 // KÉT NYELV KÖZÖTT. Amit csak a gép és az Android tud (iPhone-on a bővítmény

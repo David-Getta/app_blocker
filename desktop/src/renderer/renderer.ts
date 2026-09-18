@@ -25,6 +25,7 @@ import {
 import {
   hitNudgeStep, hitNudgeText, hitsKeywordLine, hitsReasonLine, hitsTrendText, hourLabel, monthHasOlderHits, peakNowText,
   peakWarnKey, peakWarnText,
+  peakWeekdayText,
 } from '../shared/browser-hits.js';
 import { stepBurstNotices, type BurstNotice, type BurstWatch } from '../shared/burst-notify.js';
 import {
@@ -4516,6 +4517,10 @@ function renderStats(): void {
   $('hitsWindowBtn').classList.toggle('hidden', win === null);
   $('hitsWindowBtn').textContent = win ? peakWindowLabel(win.pick, win.peak.hour) : '';
   $('hitsWindowBtn').title = 'Felvenni ingyen; levenni vagy szűkíteni próbatétel — mint minden ablakot.';
+  // A CSÚCS-NAP: melyik napon akad meg a kéz a legtöbbször — négy hétből; tény, nem ítélet.
+  const wd = status?.browserHitsWeekday ?? null;
+  $('hitsWeekdayNote').classList.toggle('hidden', wd === null);
+  $('hitsWeekdayNote').textContent = wd ? peakWeekdayText(wd) : '';
   // MELYIK szabály dolgozik: az okok a héten, a legnagyobb elöl. Üresen nincs.
   const reasons = hitsReasonLine(status?.browserHitsReasons ?? []);
   $('hitsReasonNote').classList.toggle('hidden', reasons === '');

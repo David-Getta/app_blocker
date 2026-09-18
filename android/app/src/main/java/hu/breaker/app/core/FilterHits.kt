@@ -164,6 +164,46 @@ object FilterHitLogic {
     /** „21–22 óra” — a csúcs-óra felirata. */
     fun hourLabel(hour: Int): String = "$hour–${(hour + 1) % 24} óra"
 
+    // ------------------------------------------------------------ a hét napjai
+
+    /** Ennyi napból áll a csúcs-nap mintája: négy-négy nap a hét minden napjára — a hét egy napja egyszer nem minta. */
+    const val PEAK_WEEKDAY_DAYS = 28
+
+    /** Egy „ÉÉÉÉ-HH-NN” napkulcs hétköznapja (0 = vasárnap, mint a gépen a Date.getDay). */
+    fun weekdayOf(day: String): Int {
+        val cal = java.util.Calendar.getInstance()
+        cal.clear()
+        cal.set(day.substring(0, 4).toInt(), day.substring(5, 7).toInt() - 1, day.substring(8, 10).toInt())
+        return cal.get(java.util.Calendar.DAY_OF_WEEK) - 1
+    }
+
+    /**
+     * A HÉT NAPJAI szerint: az utolsó 28 nap megakadásai a hét hét napjára osztva
+     * (0 = vasárnap). A gépi `browserHitsByWeekday` tükre.
+     */
+    fun byWeekday(days: Map<String, Int>, now: Long, count: Int = PEAK_WEEKDAY_DAYS): List<Int> {
+        val by = IntArray(7)
+        for (key in UsageLogic.dayKeysBack(now, count)) by[weekdayOf(key)] += maxOf(0, hitsBetween(days, key, key))
+        return by.toList()
+    }
+
+    /** A csúcs-nap: (nap, szám) — vagy null. Holtversenynél a hét elejéhez közelebbi (hétfőtől). */
+    fun peakWeekday(byDay: List<Int>): Pair<Int, Int>? {
+        var best: Pair<Int, Int>? = null
+        for (d in listOf(1, 2, 3, 4, 5, 6, 0)) {
+            val c = byDay.getOrElse(d) { 0 }
+            val b = best
+            if (c > 0 && (b == null || c > b.second)) best = d to c
+        }
+        return best
+    }
+
+    val WEEKDAY_NAMES = listOf("vasárnap", "hétfő", "kedd", "szerda", "csütörtök", "péntek", "szombat")
+
+    /** „A négy hét csúcs-napja: vasárnap (14 megakadás).” — melyik napon akad meg a kéz a legtöbbször. */
+    fun peakWeekdayText(peak: Pair<Int, Int>): String =
+        "A négy hét csúcs-napja: ${WEEKDAY_NAMES.getOrElse(peak.first) { "?" }} (${peak.second} megakadás)."
+
     // ------------------------------------------------------------ oldalanként
 
     /** Naponta legfeljebb ennyi oldal a könyvben — a lista úgysem hosszabb. */

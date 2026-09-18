@@ -1110,6 +1110,32 @@ const WIRES = [
     needle: 'if (Focus.isWindowRun(run, st.focusPacks)) R.string.vpn_focus_window_text else R.string.vpn_focus_text,',
     lost: 'az Android értesítés nem mondaná, hogy a menet az ablak szerint indult',
   },
+  // A CSÚCS-NAP: a négy hét csúcs-napja a statisztikán — a gépen, a telefonokon és a bővítmény lapján.
+  {
+    file: 'desktop/src/helper/server.ts',
+    needle: 'browserHitsWeekday: peakWeekday(browserHitsByWeekday(state.browserHits, now)),',
+    lost: 'a segéd nem adná le a csúcs-napot — a statisztika hallgatna',
+  },
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: "$('hitsWeekdayNote').textContent = wd ? peakWeekdayText(wd) : '';",
+    lost: 'a gépi statisztika nem mondaná a négy hét csúcs-napját',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/AppUi.kt',
+    needle: 'filterHitsWeekday = FilterHitLogic.peakWeekday(FilterHitLogic.byWeekday(state.filterHits, now)),',
+    lost: 'az Android statisztika nem mondaná a négy hét csúcs-napját',
+  },
+  {
+    file: 'ios/App/StatsView.swift',
+    needle: 'if let wd = FilterHitLogic.peakWeekday(FilterHitLogic.byWeekday(store.state.filterHits ?? [:], now: now)) {',
+    lost: 'az iPhone statisztika nem mondaná a négy hét csúcs-napját',
+  },
+  {
+    file: 'extension/options.js',
+    needle: 'const weekday = peakWeekday(hitsByWeekday(state, today));',
+    lost: 'a bővítmény beállítás-lapja nem mondaná a négy hét csúcs-napját',
+  },
   // A JAVASLAT KÁRTYÁJÁRÓL IS — gépen és telefonon: a mondat alatt a gomb ugyanoda fut.
   {
     file: 'desktop/src/renderer/renderer.ts',

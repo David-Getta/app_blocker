@@ -176,6 +176,10 @@ struct StatsView: View {
                             }
                         }
                     }
+                    // A CSÚCS-NAP: melyik napon akad meg a kéz a legtöbbször — négy hétből; tény, nem ítélet.
+                    if let wd = FilterHitLogic.peakWeekday(FilterHitLogic.byWeekday(store.state.filterHits ?? [:], now: now)) {
+                        Text(FilterHitLogic.peakWeekdayText(wd)).font(.footnote).foregroundStyle(.secondary)
+                    }
                     // MELYIK oldal akaszt meg a legtöbbször: a hét csúcs-oldala — a lista címkézésével.
                     if let top = FilterHitLogic.topSite(store.state.filterHitHosts ?? [:], now: now) {
                         Text("A legtöbbször: \(siteLabel(top.site)) (\(top.count)×).")

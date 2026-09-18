@@ -150,6 +150,42 @@ public enum FilterHitLogic {
     /// „21–22 óra” — a csúcs-óra felirata.
     public static func hourLabel(_ hour: Int) -> String { "\(hour)–\((hour + 1) % 24) óra" }
 
+    // MARK: - a hét napjai
+
+    /// Ennyi napból áll a csúcs-nap mintája: négy-négy nap a hét minden napjára — a hét egy napja egyszer nem minta.
+    public static let peakWeekdayDays = 28
+
+    /// A HÉT NAPJAI szerint: az utolsó 28 nap megakadásai a hét hét napjára osztva
+    /// (0 = vasárnap). A gépi `browserHitsByWeekday` tükre.
+    public static func byWeekday(_ days: [String: Int], now: Double, count: Int = peakWeekdayDays) -> [Int] {
+        var by = [Int](repeating: 0, count: 7)
+        let base = Date(timeIntervalSince1970: now / 1000)
+        for back in 0..<count {
+            let d = Calendar.current.date(byAdding: .day, value: -back, to: base) ?? base
+            let key = dayKey(d.timeIntervalSince1970 * 1000)
+            by[Calendar.current.component(.weekday, from: d) - 1] += max(0, hitsBetween(days, key, key))
+        }
+        return by
+    }
+
+    /// A csúcs-nap: (nap, szám) — vagy nil. Holtversenynél a hét elejéhez közelebbi (hétfőtől).
+    public static func peakWeekday(_ byDay: [Int]) -> (day: Int, count: Int)? {
+        var best: (day: Int, count: Int)?
+        for d in [1, 2, 3, 4, 5, 6, 0] {
+            let c = d < byDay.count ? byDay[d] : 0
+            if c > 0, best == nil || c > best!.count { best = (day: d, count: c) }
+        }
+        return best
+    }
+
+    public static let weekdayNames = ["vasárnap", "hétfő", "kedd", "szerda", "csütörtök", "péntek", "szombat"]
+
+    /// „A négy hét csúcs-napja: vasárnap (14 megakadás).” — melyik napon akad meg a kéz a legtöbbször.
+    public static func peakWeekdayText(_ peak: (day: Int, count: Int)) -> String {
+        let name = peak.day >= 0 && peak.day < weekdayNames.count ? weekdayNames[peak.day] : "?"
+        return "A négy hét csúcs-napja: \(name) (\(peak.count) megakadás)."
+    }
+
     // MARK: - oldalanként
 
     /// Naponta legfeljebb ennyi oldal a könyvben — a lista úgysem hosszabb.

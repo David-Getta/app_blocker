@@ -74,6 +74,8 @@ fun StatsSection(
     /** a csúcs-óra ablakának gombja („Heti ablak a csúcs-órára: Nyelvtanulás, minden nap 21:00–22:00”) — null, ha nincs gomb */
     peakWindowLabel: String? = null,
     onPeakWindow: () -> Unit = {},
+    /** a négy hét csúcs-napja (0 = vasárnap; szám) — melyik napon akad meg a kéz a legtöbbször; null, ha nem volt */
+    filterHitsWeekday: Pair<Int, Int>? = null,
     /** a hét csúcs-oldala (nyers név, szám) — melyik oldal akaszt meg a legtöbbször; null, ha nem volt */
     filterHitsTop: Pair<String, Int>? = null,
     filterHitsReasons: List<Pair<String, Int>> = emptyList(),
@@ -187,6 +189,8 @@ fun StatsSection(
                     Button(onClick = onPeakWindow) { Text(peakWindowLabel) }
                 }
             }
+            // A CSÚCS-NAP: melyik napon akad meg a kéz a legtöbbször — négy hétből; tény, nem ítélet.
+            filterHitsWeekday?.let { Text(FilterHitLogic.peakWeekdayText(it), style = MaterialTheme.typography.bodySmall) }
             // MELYIK oldal akaszt meg a legtöbbször: a hét csúcs-oldala — a lista címkézésével.
             filterHitsTop?.let { (site, count) ->
                 Text("A legtöbbször: ${labelOf(site)} ($count×).", style = MaterialTheme.typography.bodySmall)

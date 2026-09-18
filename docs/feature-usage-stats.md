@@ -500,6 +500,15 @@ legtöbbször: youtube.com (7×).”) és a heti mondat is: „12 megakadás a
 böngészőben, a csúcs 21–22 óra, a legtöbbször: youtube.com (7×).” A rejtett
 lista és a fedőnév itt is fed. Ami nincs a listán, a nevén marad.
 
+**A csúcs-nap:** melyik napon akad meg a kéz a legtöbbször — négy hétből, a
+hét napjaira osztva (négy-négy nap mindegyikre; a hét egy napja egyszer nem
+minta): „A négy hét csúcs-napja: vasárnap (14 megakadás).” A gépi statisztikán
+(`browserHitsByWeekday`/`peakWeekday`, a segéd adja le a státuszban), a
+telefonokon (`FilterHitLogic.byWeekday`/`peakWeekday`) és a bővítmény
+beállítás-lapján a saját könyvből (`hitsByWeekday`). Holtversenynél a hét
+elejéhez közelebbi nap (hétfőtől); a minta hossza a három magban azonos
+(core-sync). Tény, nem ítélet.
+
 **Ablak a csúcs-órára:** a statisztika a csúcs-óra mondata alatt — a gépen
 és a telefonokon is — egy gombot mutat — „Heti ablak a csúcs-órára: Nyelvtanulás, minden nap 21:00–22:00” —,
 ami a legutóbb használt csomagra heti ablakot tesz a csúcs egy órájában,

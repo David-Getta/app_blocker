@@ -14,6 +14,7 @@ import {
   browserHits7d, browserHitsByHour, browserHitsByKeyword, browserHitsByReason, browserHitsPeakHour, browserHitsPrev7d, browserHitsSeries,
   browserHitsToday, browserHitsTopSite,
   putBrowserHits,
+  browserHitsByWeekday, peakWeekday,
 } from '../shared/browser-hits';
 import { normalizeRule } from '../shared/urlrules';
 import {
@@ -150,6 +151,8 @@ export function statusOf(
     browserHitsMonth: browserHitsSeries(state.browserHits, now, 30),
     browserHitsPeak: browserHitsPeakHour(state.browserHits, now),
     browserHitsHours: browserHitsByHour(state.browserHits, now),
+    // A CSÚCS-NAP: négy hétből, a hét napjaira osztva — melyik napon akad meg a kéz a legtöbbször.
+    browserHitsWeekday: peakWeekday(browserHitsByWeekday(state.browserHits, now)),
     browserHitsReasons: browserHitsByReason(state.browserHits, now),
     browserHitsTop: browserHitsTopSite(state.browserHits, now, state.sites),
     browserHitsKeywords: browserHitsByKeyword(state.browserHits, now),

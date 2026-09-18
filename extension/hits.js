@@ -364,3 +364,35 @@ export function hitsReasonText(rows) {
   if (!rows.length) return null;
   return 'A héten: ' + rows.map((r) => `${r.count} ${REASON_NAMES[r.reason] ?? r.reason}`).join(' · ');
 }
+
+// ---------------------------------------------------------------- a hét napjai
+
+/** Ennyi napból áll a csúcs-nap mintája: négy-négy nap a hét minden napjára — a hét egy napja egyszer nem minta. A gépi mag tükre. */
+export const PEAK_WEEKDAY_DAYS = 28;
+
+/** A HÉT NAPJAI szerint: az utolsó 28 nap megakadásai a hét hét napjára osztva (0 = vasárnap). */
+export function hitsByWeekday(state, today, count = PEAK_WEEKDAY_DAYS) {
+  const by = [0, 0, 0, 0, 0, 0, 0];
+  for (const d of lastDays(today, count)) {
+    const [y, m, dd] = d.split('-').map(Number);
+    by[new Date(y, m - 1, dd).getDay()] += hitsOn(state, d);
+  }
+  return by;
+}
+
+/** A csúcs-nap: { day, count } — vagy null. Holtversenynél a hét elejéhez közelebbi (hétfőtől). */
+export function peakWeekday(byDay) {
+  let best = null;
+  for (const day of [1, 2, 3, 4, 5, 6, 0]) {
+    const count = byDay[day] ?? 0;
+    if (count > 0 && (best === null || count > best.count)) best = { day, count };
+  }
+  return best;
+}
+
+export const WEEKDAY_NAMES = ['vasárnap', 'hétfő', 'kedd', 'szerda', 'csütörtök', 'péntek', 'szombat'];
+
+/** „A négy hét csúcs-napja: vasárnap (14 megakadás).” — melyik napon akad meg a kéz a legtöbbször. */
+export function peakWeekdayText(peak) {
+  return `A négy hét csúcs-napja: ${WEEKDAY_NAMES[peak.day] ?? '?'} (${peak.count} megakadás).`;
+}

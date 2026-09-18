@@ -154,6 +154,8 @@ function fakeBridgeSource() {
       browserHitsPeak: { hour: 21, count: 6 },
       // Az órák sávja: egy este alakja, a csúcs 21-kor — a napok összegével egyező.
       browserHitsHours: [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 2, 6, 1, 0],
+      // A csúcs-nap négy hétből: vasárnap.
+      browserHitsWeekday: { day: 0, count: 14 },
       browserHitsReasons: [{ reason: 'closed', count: 7 }, { reason: 'keyword', count: 3 }, { reason: 'focus', count: 2 }],
       browserHitsTop: { label: 'youtube.com', count: 7 },
       browserHitsKeywords: [{ keyword: 'shorts', count: 7 }, { keyword: 'reels', count: 3 }],
@@ -965,6 +967,12 @@ async function main() {
       && !document.getElementById('hitsWindowBtn')?.classList.contains('hidden'),
     undefined, { timeout: 15_000 },
   ).catch(() => failures.push('a csúcs-óra gombja nem a legutóbbi csomagot és a csúcs-órát ígéri'));
+  // A CSÚCS-NAP a sor alatt: négy hétből, a hét napjaira osztva.
+  await page.waitForFunction(
+    () => /A négy hét csúcs-napja: vasárnap \(14 megakadás\)\./.test(document.getElementById('hitsWeekdayNote')?.textContent || '')
+      && !document.getElementById('hitsWeekdayNote')?.classList.contains('hidden'),
+    undefined, { timeout: 15_000 },
+  ).catch(() => failures.push('a statisztika nem mondja a négy hét csúcs-napját'));
   // AZ ÓRÁK SÁVJA a mondat alatt: huszonnégy rekesz, a csúcs (21) kiemelve.
   const strip = await page.evaluate(() => {
     const el = document.getElementById('hitsHourStrip');

@@ -246,4 +246,27 @@ final class FilterHitsTests: XCTestCase {
         XCTAssertEqual(try JSONDecoder().decode(AppState.self, from: try JSONEncoder().encode(quiet)).quietSuggestions, true, "a mentés hordozza a csendet")
         XCTAssertNil(older.quietSuggestions, "régi mentés: szól")
     }
+
+    func testThePeakWeekdayFromFourWeeksTiesGoToTheEarlierDay() {
+        // 2026-09-18 péntek. Három péntek a négy hétben, a 28 nappal ezelőtti már nincs benne.
+        var comps = DateComponents()
+        comps.year = 2026; comps.month = 9; comps.day = 18; comps.hour = 12
+        let now = Calendar.current.date(from: comps)!.timeIntervalSince1970 * 1000
+        let day: Double = 86_400_000
+        func k(_ back: Int) -> String { FilterHitLogic.dayKey(now - Double(back) * day) }
+        let days = [k(0): 2, k(7): 3, k(14): 1, k(1): 5, k(28): 100]
+        let by = FilterHitLogic.byWeekday(days, now: now)
+        XCTAssertEqual(by.count, 7)
+        XCTAssertEqual(by[5], 6, "péntek: három péntek összege, a huszonnyolc napos nélkül")
+        XCTAssertEqual(by[4], 5, "csütörtök")
+        let peak = FilterHitLogic.peakWeekday(by)
+        XCTAssertEqual(peak?.day, 5)
+        XCTAssertEqual(peak?.count, 6)
+        let tie = FilterHitLogic.peakWeekday([0, 0, 0, 0, 6, 6, 0])
+        XCTAssertEqual(tie?.day, 4, "holtverseny: a hét elejéhez közelebbi")
+        XCTAssertEqual(FilterHitLogic.peakWeekday([3, 0, 0, 0, 0, 0, 3])?.day, 6, "a vasárnap a hét vége: a szombat előbb jön")
+        XCTAssertNil(FilterHitLogic.peakWeekday([0, 0, 0, 0, 0, 0, 0]))
+        XCTAssertEqual(FilterHitLogic.byWeekday([:], now: now), [0, 0, 0, 0, 0, 0, 0])
+        XCTAssertEqual(FilterHitLogic.peakWeekdayText((day: 0, count: 14)), "A négy hét csúcs-napja: vasárnap (14 megakadás).")
+    }
 }

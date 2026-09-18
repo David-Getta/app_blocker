@@ -39,6 +39,9 @@ interface Hits {
   hitsOnHost: (state: unknown, day: string, host: string) => number;
   MAX_HOSTS_PER_DAY: number;
   hitsByHour: (state: unknown, days: string[]) => number[];
+  hitsByWeekday: (state: unknown, today: string, count?: number) => number[];
+  peakWeekday: (by: number[]) => { day: number; count: number } | null;
+  peakWeekdayText: (p: { day: number; count: number }) => string;
   peakHour: (state: unknown, days: string[]) => { hour: number; count: number } | null;
   hourLabel: (hour: number) => string;
   peakNow: (state: unknown, today: string, hour: number) => { hour: number; count: number; now: boolean } | null;
@@ -56,7 +59,7 @@ interface Hits {
 function load(): Hits {
   const src = fs.readFileSync(path.join(extensionDir(), 'hits.js'), 'utf8').replace(/^export /gm, '');
   // eslint-disable-next-line no-new-func
-  return new Function(`${src}\nreturn { RETENTION_DAYS, REPORT_DAYS, MAX_HOSTS_PER_DAY, MAX_KEYWORDS_PER_DAY, keywordsWeek, keywordsText, idleKeywords, idleKeywordsText, dayKey, lastDays, recordHit, sweepHits, hitsOn, hitsOnHost, hitsSummary, hitsMonth, monthHasOlderHits, hitsReport, hitsText, hitsTrendText, hitsRows, hitsByHour, peakHour, hourLabel, peakNow, peakText, peakNowText, hitsNudge, NUDGE_AT, hitsWeekByReason, hitsReasonText, REASON_NAMES, TOP_HOSTS_PER_DAY, topHost };`)() as Hits;
+  return new Function(`${src}\nreturn { RETENTION_DAYS, REPORT_DAYS, MAX_HOSTS_PER_DAY, MAX_KEYWORDS_PER_DAY, keywordsWeek, keywordsText, idleKeywords, idleKeywordsText, dayKey, lastDays, recordHit, sweepHits, hitsOn, hitsOnHost, hitsSummary, hitsMonth, monthHasOlderHits, hitsReport, hitsText, hitsTrendText, hitsRows, hitsByHour, hitsByWeekday, peakWeekday, peakWeekdayText, WEEKDAY_NAMES, PEAK_WEEKDAY_DAYS, peakHour, hourLabel, peakNow, peakText, peakNowText, hitsNudge, NUDGE_AT, hitsWeekByReason, hitsReasonText, REASON_NAMES, TOP_HOSTS_PER_DAY, topHost };`)() as Hits;
 }
 
 const TODAY = '2026-09-18';
@@ -270,4 +273,23 @@ test('ami a héten nem fogott: a lista szavai a hét sorai nélkül — csak ha 
   assert.deepEqual(h.idleKeywords('nem lista', rows), []);
   assert.equal(h.idleKeywordsText(['live', 'stream']), 'A héten nem fogott: live, stream');
   assert.equal(h.idleKeywordsText([]), null);
+});
+
+test('a csúcs-nap a saját könyvből: négy hét, a hét napjaira osztva; holtversenynél a hét elejéhez közelebbi', () => {
+  const h = load();
+  const key = (back: number): string => {
+    const d = new Date(2026, 8, 18 - back);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+  let s = h.recordHit({}, key(0), 'rule');
+  for (const [back, n] of [[0, 1], [7, 3], [14, 1], [1, 5], [28, 100]] as [number, number][]) {
+    for (let i = 0; i < n; i++) s = h.recordHit(s, key(back), 'rule');
+  }
+  const by = h.hitsByWeekday(s, TODAY);
+  assert.equal(by[5], 6, 'péntek: három péntek, a huszonnyolc napos nélkül');
+  assert.equal(by[4], 5, 'csütörtök');
+  assert.deepEqual(h.peakWeekday(by), { day: 5, count: 6 });
+  assert.deepEqual(h.peakWeekday([0, 0, 0, 0, 6, 6, 0]), { day: 4, count: 6 }, 'holtverseny: a hét elejéhez közelebbi');
+  assert.equal(h.peakWeekday([0, 0, 0, 0, 0, 0, 0]), null);
+  assert.equal(h.peakWeekdayText({ day: 0, count: 14 }), 'A négy hét csúcs-napja: vasárnap (14 megakadás).');
 });

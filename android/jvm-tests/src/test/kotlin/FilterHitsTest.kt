@@ -280,4 +280,26 @@ class FilterHitsTest {
         assertTrue(quiet.quietSuggestions, "a mentés hordozza a csendet")
         assertFalse(old.quietSuggestions, "régi mentés: szól")
     }
+
+    @Test
+    fun `a csucs-nap - negy hetbol, a het napjaira osztva, holtversenynel a het elejehez kozelebbi`() {
+        // 2026-09-18 péntek. Három péntek a négy hétben, a 28 nappal ezelőtti már nincs benne.
+        val cal = java.util.Calendar.getInstance().apply {
+            set(2026, java.util.Calendar.SEPTEMBER, 18, 12, 0, 0); set(java.util.Calendar.MILLISECOND, 0)
+        }
+        val now = cal.timeInMillis
+        val day = 86_400_000L
+        fun k(back: Int) = hu.breaker.app.core.UsageLogic.dayKey(now - back * day)
+        val days = mapOf(k(0) to 2, k(7) to 3, k(14) to 1, k(1) to 5, k(28) to 100)
+        val by = FilterHitLogic.byWeekday(days, now)
+        assertEquals(7, by.size)
+        assertEquals(6, by[5], "péntek: három péntek összege, a huszonnyolc napos nélkül")
+        assertEquals(5, by[4], "csütörtök")
+        assertEquals(5 to 6, FilterHitLogic.peakWeekday(by))
+        assertEquals(4 to 6, FilterHitLogic.peakWeekday(listOf(0, 0, 0, 0, 6, 6, 0)), "holtverseny: a hét elejéhez közelebbi")
+        assertEquals(6 to 3, FilterHitLogic.peakWeekday(listOf(3, 0, 0, 0, 0, 0, 3)), "a vasárnap a hét vége: a szombat előbb jön")
+        assertEquals(null, FilterHitLogic.peakWeekday(listOf(0, 0, 0, 0, 0, 0, 0)))
+        assertEquals(listOf(0, 0, 0, 0, 0, 0, 0), FilterHitLogic.byWeekday(emptyMap(), now))
+        assertEquals("A négy hét csúcs-napja: vasárnap (14 megakadás).", FilterHitLogic.peakWeekdayText(0 to 14))
+    }
 }

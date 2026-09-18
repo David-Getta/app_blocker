@@ -12,6 +12,7 @@ import {
   hitNudgeStep, hitNudgeText, hitsKeywordLine, hitsReasonLine, hitsTrendText, hostSite, hourLabel, isPeakNow, peakNowText,
   peakWarnKey, peakWarnText,
   putBrowserHits,
+  browserHitsByWeekday, peakWeekday, peakWeekdayText,
 } from '../src/shared/browser-hits';
 import { digestText } from '../src/shared/digest';
 import { summarizeFocus } from '../src/shared/focus';
@@ -269,4 +270,23 @@ test('a heti mondat mondja, ha a csúcs-órát nem fedi ablak — csak ha lehetn
     'Elmúlt 7 nap: 12 megakadás a böngészőben, a csúcs 21–22 óra.');
   assert.equal(digestText({ ...peak, peakWindowOffer: true, browserHitsPeakPack: 'Nyelvtanulás' }, (l) => l),
     'Elmúlt 7 nap: 12 megakadás a böngészőben, a csúcs 21–22 óra (magától indul: Nyelvtanulás).', 'a fedés erősebb');
+});
+
+test('a csúcs-nap: négy hétből, a hét napjaira osztva; holtversenynél a hét elejéhez közelebbi', () => {
+  // 2026-09-18 péntek. Három péntek a négy hétben, a 28 nappal ezelőtti már nincs benne.
+  const key = (back: number): string => hitDayKey(new Date(2026, 8, 18 - back).getTime());
+  const book = putBrowserHits(undefined, 'a', [
+    { day: key(0), total: 2 }, { day: key(7), total: 3 }, { day: key(14), total: 1 },
+    { day: key(1), total: 5 }, { day: key(28), total: 100 },
+  ]);
+  const by = browserHitsByWeekday(book, NOW);
+  assert.equal(by.length, 7);
+  assert.equal(by[5], 6, 'péntek: három péntek összege, a huszonnyolc napos nélkül');
+  assert.equal(by[4], 5, 'csütörtök');
+  assert.deepEqual(peakWeekday(by), { day: 5, count: 6 });
+  assert.deepEqual(peakWeekday([0, 0, 0, 0, 6, 6, 0]), { day: 4, count: 6 }, 'holtverseny: a hét elejéhez közelebbi (csütörtök a péntek előtt)');
+  assert.deepEqual(peakWeekday([3, 0, 0, 0, 0, 0, 3]), { day: 6, count: 3 }, 'a vasárnap a hét vége: a szombat előbb jön');
+  assert.equal(peakWeekday([0, 0, 0, 0, 0, 0, 0]), null);
+  assert.deepEqual(browserHitsByWeekday(undefined, NOW), [0, 0, 0, 0, 0, 0, 0]);
+  assert.equal(peakWeekdayText({ day: 0, count: 14 }), 'A négy hét csúcs-napja: vasárnap (14 megakadás).');
 });

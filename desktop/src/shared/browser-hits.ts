@@ -215,6 +215,44 @@ export function hourLabel(hour: number): string {
  * egyszer szól a gép — naponta egyszer, és csak ha a csúcs legalább ennyi.
  * Tükör időzítéssel: „ilyenkor jár a kéz magától” — nem tilt, nem ítél.
  */
+// ---------------------------------------------------------------- a hét napjai
+
+/** Ennyi napból áll a csúcs-nap mintája: négy-négy nap a hét minden napjára — a hét egy napja egyszer nem minta. */
+export const PEAK_WEEKDAY_DAYS = 28;
+
+/**
+ * A HÉT NAPJAI szerint: az utolsó 28 nap megakadásai a hét hét napjára osztva
+ * (0 = vasárnap, mint a Date.getDay). Naptári napokban lépünk vissza. A
+ * Kotlin/Swift `byWeekday` tükre.
+ */
+export function browserHitsByWeekday(book: BrowserHits | undefined, now: number, count = PEAK_WEEKDAY_DAYS): number[] {
+  const by = [0, 0, 0, 0, 0, 0, 0];
+  const base = new Date(now);
+  for (let i = count - 1; i >= 0; i--) {
+    const d = new Date(base.getFullYear(), base.getMonth(), base.getDate() - i);
+    const key = hitDayKey(d.getTime());
+    by[d.getDay()] += browserHitsBetween(book, key, key);
+  }
+  return by;
+}
+
+/** A csúcs-nap: (nap, szám) — vagy null. Holtversenynél a hét elejéhez közelebbi (hétfőtől). */
+export function peakWeekday(byDay: number[]): { day: number; count: number } | null {
+  let best: { day: number; count: number } | null = null;
+  for (const day of [1, 2, 3, 4, 5, 6, 0]) {
+    const count = byDay[day] ?? 0;
+    if (count > 0 && (best === null || count > best.count)) best = { day, count };
+  }
+  return best;
+}
+
+export const WEEKDAY_NAMES = ['vasárnap', 'hétfő', 'kedd', 'szerda', 'csütörtök', 'péntek', 'szombat'];
+
+/** „A négy hét csúcs-napja: vasárnap (14 megakadás).” — melyik napon akad meg a kéz a legtöbbször. */
+export function peakWeekdayText(peak: { day: number; count: number }): string {
+  return `A négy hét csúcs-napja: ${WEEKDAY_NAMES[peak.day] ?? '?'} (${peak.count} megakadás).`;
+}
+
 export const PEAK_WARN_LEAD_MS = 10 * 60_000;
 export const PEAK_WARN_MIN_COUNT = 3;
 
