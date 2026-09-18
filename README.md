@@ -164,8 +164,10 @@ ingyen van, rövidíteni vagy visszavonni sehogy.
   Az ablak zárlatát az alvás nem tolja el (az ablak vége az ablak vége), a
   fiókon át a többi eszközre is átér, és a levétel a jelével jön — egy másik
   eszköz csomag-szerkesztése nem támasztja fel. A telefonon is felvehető
-  (előre gyártott sávokból) és levehető (próbatétel). Lásd
-  `docs/feature-lockdown-windows.md`.
+  (előre gyártott sávokból vagy saját sávból), módosítható (bővíteni ingyen,
+  szűkíteni próbatétel) és levehető (próbatétel); Androidon a szűrő értesítése
+  szól, amikor az ablak beér, iPhone-on az app heti emlékeztetőt ütemez rá.
+  Lásd `docs/feature-lockdown-windows.md`.
 - **Munkamenetek: „most csak ez mehet”** (gép, Android, iPhone). A blokklista arról szól,
   mi NE menjen; a munkamenet fordítva: csinálsz egy csomagot (pl.
   „Nyelvtanulás”), felsorolod, mi mehet alatta, és megadod, meddig tartson.

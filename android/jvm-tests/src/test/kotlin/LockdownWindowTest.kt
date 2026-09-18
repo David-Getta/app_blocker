@@ -215,6 +215,24 @@ class LockdownWindowTest {
         assertNull(BreakerStore.state.value.session, "egyik sem indított próbatételt")
     }
 
+    @Test fun modifyingKeepsTheIdWideningIsFreeNarrowingIsAChallenge() {
+        // A telefon módosító lapja az ablakot a HELYÉRE írja, ugyanazzal az
+        // azonosítóval — a bíró a tartalmat hasonlítja: a bővítés azonnal él,
+        // a szűkítés próbatétel, és addig a régi ablak marad. Vasárnap: egyik
+        // ablak sem él, tehát a szűkítés el is indulhat.
+        val sun = at(2027, 3, 7, 14)
+        assertTrue(Referee.setLockdownWindows(listOf(work), sun).applied)
+        val wider = LockdownWindow(work.id, work.days + 6, work.startMin, 18 * 60)
+        assertTrue(Referee.setLockdownWindows(listOf(wider), sun).applied, "bővítés ingyen")
+        assertEquals(listOf(wider), BreakerStore.state.value.lockdownWindows, "az azonosító maradt")
+
+        val narrower = LockdownWindow(work.id, setOf(1, 2, 3), 10 * 60, 16 * 60)
+        val r = Referee.setLockdownWindows(listOf(narrower), sun)
+        assertFalse(r.applied, "szűkítés: próbatétel")
+        assertEquals(listOf(wider), BreakerStore.state.value.lockdownWindows, "addig a bővebb ablak áll")
+        assertEquals(listOf(narrower), BreakerStore.state.value.session?.pendingLockdownWindows)
+    }
+
     @Test fun invalidAndWholeWeekAreRejected() {
         val sun = at(2027, 3, 7, 12)
         assertFailsWith<Referee.RefereeException> { Referee.setLockdownWindows(listOf(work.copy(days = emptySet())), sun) }

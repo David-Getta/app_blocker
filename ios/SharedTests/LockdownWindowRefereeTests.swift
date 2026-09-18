@@ -61,6 +61,25 @@ final class LockdownWindowRefereeTests: XCTestCase {
         XCTAssertNil(BreakerStore.shared.state.session)
     }
 
+    func testModifyingKeepsTheIdWideningIsFreeNarrowingIsAChallenge() throws {
+        // A módosító lap az ablakot a HELYÉRE írja, ugyanazzal az azonosítóval —
+        // a bíró a tartalmat hasonlítja: a bővítés azonnal él, a szűkítés
+        // próbatétel, és addig a régi ablak marad.
+        XCTAssertTrue(try Referee.setLockdownWindows([work], now: sun).applied)
+        pumpMainQueue()
+        let wider = LockdownLogic.LockdownWindow(id: work.id, days: [1, 2, 3, 4, 5, 6], startMin: work.startMin, endMin: 18 * 60)
+        XCTAssertTrue(try Referee.setLockdownWindows([wider], now: sun).applied, "bővítés ingyen")
+        pumpMainQueue()
+        XCTAssertEqual(BreakerStore.shared.state.lockdownWindows ?? [], [wider], "az azonosító maradt")
+
+        let narrower = LockdownLogic.LockdownWindow(id: work.id, days: [1, 2, 3], startMin: 10 * 60, endMin: 16 * 60)
+        let r = try Referee.setLockdownWindows([narrower], now: sun)
+        XCTAssertFalse(r.applied, "szűkítés: próbatétel")
+        pumpMainQueue()
+        XCTAssertEqual(BreakerStore.shared.state.lockdownWindows ?? [], [wider], "addig a bővebb ablak áll")
+        XCTAssertEqual(BreakerStore.shared.state.session?.pendingLockdownWindows ?? nil, [narrower])
+    }
+
     func testRemovalInsideTheWindowDoesNotEvenStart() throws {
         try Referee.setLockdownWindows([work], now: sun)
         pumpMainQueue()
