@@ -44,23 +44,24 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **Melyik szabály dolgozik — a telefonon is.** A szűrő okonként is
-          könyvel (lista vagy kulcsszó — a munkamenet fehérlistáján kívül
-          rekedt forgalom nem megakadás), és a statisztika a hét sorát
-          mondja: „Ebből: 30 lista · 12 kulcsszó.” Helyi könyv, a fiókba nem
-          megy.
+          **A hét az előző héthez képest.** A statisztika és a heti mondat a
+          két számot egymás mellé teszi, mindhárom platformon:
+          „A héten 12 megakadás, az előző héten 18.”
+          Irány, nem ítélet. Előző hét nélkül nincs mondat; a nulla hét
+          mondat, ha volt mihez mérni. A bővítmény ehhez két hetet küld a
+          hídra (bővítmény 0.4.14).
 
-          ### Ami a v0.4.71-ben jött
+          ### Ami a v0.4.72-ben jött
+
+          **Melyik szabály dolgozik — a telefonon is.** A szűrő okonként is
+          könyvel (lista vagy kulcsszó), a statisztika a hét sorát mondja.
+
+          #### Ami a v0.4.71-ben jött
 
           **Egy kattintás a rétegből is** — a legutóbb használt csomag
-          sorában egy gomb a szokásos hosszal. És a v0.4.68–v0.4.70
+          sorában egy gomb a szokásos hosszal; és a v0.4.68–v0.4.70
           tartalma: a kulcsszó a telefonon is tilt, próbamező a telefonon
           és a gépen.
-
-          #### Ami a v0.4.67-ben jött
-
-          **A csúcs-oldal a bővítményben is** — a felugró lap a mai, a
-          beállítás-lap a heti csúcs-oldalt mondja.
 
           NOTES
           fi
