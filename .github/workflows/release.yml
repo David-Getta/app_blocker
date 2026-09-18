@@ -44,29 +44,27 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **Kategória-csomagok: egy kattintással több oldal.** *Közösségi*,
-          *Videó és stream*, *Hírek*, *Vásárlás* — egy-egy gomb a felvevő
-          kártyán, mindhárom platformon, ami a csomag minden oldalát
-          felveszi. Felvenni ingyen (szigorítás), levenni oldalanként, a
-          szokásos próbatétellel; ami már fent van, nem számít bele. A lista
-          a három magban ugyanaz, és a tesztek tartják egyben.
+          **Indok: miért tiltottad — egy mondat a kísértés pillanatára.**
+          Minden oldalhoz írhatsz egy saját mondatot („Mert este nem alszom
+          tőle”), és az ott áll, ahol a döntés születik: a soron, a feloldás
+          és a próbatétel lapján, a böngésző tiltó lapján — mindhárom
+          platformon, a szinkronon az oldallal utazik. Nem tiltás és nem
+          feloldás: próbatétel nélkül írható át és vehető le.
 
-          **iPhone-on az emlékeztetők terve a közös magban van**, teszttel:
-          mikor, melyik napon, mit mondjon, és mikor marad el az előjelzés a
-          rendszer kerete miatt — az app már csak rendszer-kérést gyárt belőle.
+          **Bővítmény 0.4.4:** a tiltó lap bármelyik kártyája alatt idézi az
+          indokot, ha az app adott ilyet.
 
-          ### Ami a v0.4.37-ben jött
+          ### Ami a v0.4.38-ban jött
 
-          **Tíz perccel a heti ablak beérése előtt szól mindhárom platform**
-          — mennyi idő múlva, és meddig tart majd. Androidon a zárlat
-          értesítései a saját, látható csatornájukon; a gépen a heti ablak
-          felvételénél is ott a három előre gyártott sáv.
+          **Kategória-csomagok: egy kattintással több oldal** — Közösségi,
+          Videó és stream, Hírek, Vásárlás, mindhárom platformon. iPhone-on az
+          emlékeztetők terve a közös magban, teszttel.
 
-          #### Ami a v0.4.36-ban jött
+          #### Ami a v0.4.37-ben jött
 
-          **A telefonon is módosítható a zárlat-ablak**, a sor mondja, mikor
-          jön legközelebb, az Android szűrője a zárlatot is kimondja, iPhone-on
-          az app heti emlékeztetőt ütemez rá.
+          **Tíz perccel a heti ablak beérése előtt szól mindhárom platform**;
+          Androidon a zárlat értesítései a saját csatornájukon; a gépen a heti
+          ablak felvételénél is ott a három előre gyártott sáv.
 
           NOTES
           fi
