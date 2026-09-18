@@ -53,8 +53,10 @@ jobs:
 
           **Androidon a szűrő értesítése a zárlatot is mondja** (kézit és
           ablakét, és hogy meddig), és amikor a heti ablak beér, egy külön,
-          lehúzható értesítés is jön — mint a gépen. iPhone-on nincs ilyen: a
-          szűrő bővítménye nem adhat értesítést; ott az app kártyája mondja.
+          lehúzható értesítés is jön — mint a gépen. **iPhone-on az app heti
+          emlékeztetőt ütemez** minden ablak kezdésére: a rendszer adja, akkor
+          is, ha az app nincs nyitva (az első ablaknál engedélyt kér). A
+          telefonon az ablak sora azt is mondja, mikor jön legközelebb.
 
           **Véletlen-teszt a zárlat-ablak magjára, mindhárom nyelven:** a
           zárlat az ablaktól sosem rövidül, a kör egyszer ír, két eszköz

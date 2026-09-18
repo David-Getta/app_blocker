@@ -94,5 +94,10 @@ gyártott sávjait kínálja, meg egy saját sávot (napok, kezdés, vég). A s�
 ugyanúgy mondja a zárlatot, mint a kézinél. Androidon a szűrő állandó
 értesítése is a zárlatot mondja (kézit és ablakét, és hogy meddig), és amikor
 az ablak beér, egy külön, lehúzható értesítés is jön — mint a gépen. iPhone-on
-nincs ilyen értesítés: a szűrő bővítménye nem adhat, az app pedig csak nyitva
-számol; ott a kártya mondja.
+a szűrő bővítménye nem adhat értesítést, ezért az app **heti emlékeztetőt
+ütemez** minden ablak minden napjára a kezdés percére (`WindowReminders`): a
+rendszer adja, akkor is, ha az app nincs nyitva. A listát az app minden
+nyitásakor és a lista minden változásakor újraírja — a szinkronból jött
+változásnál is, amíg nyitva van; ami zárt app mellett, a szűrő szinkronjával
+jön, az a következő megnyitáskor kerül be. Az első ablaknál a rendszer
+értesítési engedélyt kér.

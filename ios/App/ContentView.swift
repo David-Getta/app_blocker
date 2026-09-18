@@ -39,6 +39,8 @@ struct ContentView: View {
     @State private var lockdownWindowSheet = false
     /// A módosításra megnyitott ablak — a lap ugyanaz, kitöltve; nil = felvétel.
     @State private var lockdownWindowEdit: LockdownLogic.LockdownWindow? = nil
+    /// Amelyik listához a heti emlékeztetők utoljára igazodtak; nil = még sosem.
+    @State private var remindedWindows: [LockdownLogic.LockdownWindow]? = nil
 
     private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
     private let presets = ["youtube.com", "facebook.com", "instagram.com", "tiktok.com", "x.com", "reddit.com"]
@@ -118,6 +120,13 @@ struct ContentView: View {
             now = nowMs()
             Referee.tick(now: now)
             if !store.state.sites.isEmpty { tunnel.ensureRunning() }
+            // A heti emlékeztetők az ablakok listáját követik — a szinkronból
+            // jött változást is, amíg az app nyitva van.
+            let windows = store.state.lockdownWindows ?? []
+            if remindedWindows != windows {
+                remindedWindows = windows
+                WindowReminders.reschedule(windows)
+            }
         }
     }
 
