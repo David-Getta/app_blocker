@@ -8,7 +8,7 @@ kettővel korábbiban.
 
 | Verzió | Nap | Mi újság |
 |---|---|---|
-| v0.4.147 (még nincs kiadva) | 2026-09-18 | amikor a csúcs-nap a menet-nap |
+| v0.4.147 | 2026-09-18 | amikor a csúcs-nap a menet-nap |
 | v0.4.146 | 2026-09-18 | a heti mondat a leghosszabb sorozatot is mondja |
 | v0.4.145 | 2026-09-18 | a README és a weboldal a menet-sorozatról |
 | v0.4.144 | 2026-09-18 | a menet-sorozat ott is, ahol a döntés van |
