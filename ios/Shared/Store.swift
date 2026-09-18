@@ -123,6 +123,10 @@ struct AppState: Codable, Equatable {
     /// mondja, hányszor indult el a lazítás, és maradt félbe; a feloldások
     /// párja (`unlockLog`). Optional, hogy egy korábbi mentés is dekódolható.
     var droppedAttempts: [Double]? = nil
+    /// A szűrő megakadásai naponként (ÉÉÉÉ-HH-NN → szám): hányszor állította
+    /// meg a tunnel az iPhone-t. A tunnel könyveli, a statisztika és a heti
+    /// mondat mondja; a fiókba nem megy. Lásd Shared/FilterHits.swift.
+    var filterHits: [String: Int]? = nil
     /// Rejtve induljon-e a blokkolt oldalak listája.
     ///
     /// Beállítás, nem pillanatnyi állapot: a felület minden indításkor rejtve

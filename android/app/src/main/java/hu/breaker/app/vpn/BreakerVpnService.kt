@@ -14,6 +14,8 @@ import android.util.Log
 import hu.breaker.app.MainActivity
 import hu.breaker.app.R
 import hu.breaker.app.core.AliasLogic
+import hu.breaker.app.core.FilterHitLogic
+import hu.breaker.app.core.UsageLogic
 import hu.breaker.app.core.AppState
 import hu.breaker.app.core.BreakerStore
 import hu.breaker.app.core.DigestLogic
@@ -89,6 +91,8 @@ class BreakerVpnService : VpnService() {
     private var digestDoneKey: String? = null
     private var digestCheckedAt: Long = 0L
     private var usageTimer: java.util.Timer? = null
+    /** hoszt → az utoljára számolt megakadás ideje; csak a szűrő szálán, nem tárolódik */
+    private val hitSeen = HashMap<String, Long>()
     @Volatile private var stopping = false
     private var readerThread: Thread? = null
     private val resolverPool = Executors.newFixedThreadPool(8) as ThreadPoolExecutor
@@ -453,6 +457,18 @@ class BreakerVpnService : VpnService() {
             // Feed the active-time tracker: a resolved (non-blocked) name is our
             // only signal for which page a foreground browser is showing.
             if (!blocked && name != null) UsageTracker.noteDomain(name, now)
+            // MEGAKADÁS: a tiltott név egy megakadás — hosztonként két percen
+            // belül egyszer, mert egy oldalbetöltés tucatnyi lekérdezés. A
+            // könyv a statisztikáé és a heti mondaté; a döntést nem lassítja.
+            if (blocked && name != null && FilterHitLogic.shouldCount(hitSeen, name, now)) {
+                val day = UsageLogic.dayKey(now)
+                runCatching {
+                    BreakerStore.mutate {
+                        it.copy(filterHits = FilterHitLogic.sweep(FilterHitLogic.record(it.filterHits, day), day))
+                    }
+                }
+                    .onFailure { Log.w(TAG, "megakadás nem könyvelve: $it") }
+            }
 
             val answer: ByteArray? = if (blocked) {
                 DnsEngine.buildNxdomain(payload)

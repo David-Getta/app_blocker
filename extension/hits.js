@@ -18,6 +18,8 @@
 export const RETENTION_DAYS = 30;
 /** Az okok, amikkel könyvelünk; ami nem ez, az „other”. */
 export const HIT_REASONS = ['closed', 'focus', 'channel', 'rule', 'keyword'];
+/** Naponta legfeljebb ennyi hosztnévre tartunk külön számot — a tárat védi. */
+export const MAX_HOSTS_PER_DAY = 200;
 
 /** A nap kulcsa HELYI idő szerint: a „ma” az, amit az ember annak él meg. */
 export function dayKey(now = new Date()) {
@@ -46,7 +48,7 @@ function reasonOf(reason) {
  * { days: { nap: { total: n, byReason: { ok: n } } } }. Vissza ugyanaz az
  * objektum — a hívó dönti el, mikor menti.
  */
-export function recordHit(state, day, reason) {
+export function recordHit(state, day, reason, host) {
   const s = state && typeof state === 'object' ? state : {};
   if (!s.days || typeof s.days !== 'object') s.days = {};
   if (typeof day !== 'string' || !DAY_KEY.test(day)) return s;
@@ -57,6 +59,15 @@ export function recordHit(state, day, reason) {
   const r = reasonOf(reason);
   bucket.total += 1;
   bucket.byReason[r] = (Number.isFinite(bucket.byReason[r]) ? bucket.byReason[r] : 0) + 1;
+  // Hosztonként is: a tiltó lap ebből mondja, hányadszor ma EZEN az oldalon.
+  // Csak a gépen marad — a hídra a napi összeg megy, a hoszt nem.
+  const h = typeof host === 'string' ? host.trim().toLowerCase() : '';
+  if (h) {
+    if (!bucket.byHost || typeof bucket.byHost !== 'object') bucket.byHost = {};
+    if (bucket.byHost[h] !== undefined || Object.keys(bucket.byHost).length < MAX_HOSTS_PER_DAY) {
+      bucket.byHost[h] = (Number.isFinite(bucket.byHost[h]) ? bucket.byHost[h] : 0) + 1;
+    }
+  }
   return s;
 }
 
@@ -76,6 +87,13 @@ export function sweepHits(state, today) {
 /** Egy nap száma — hiányzó vagy rossz napnál nulla. */
 export function hitsOn(state, day) {
   const n = state?.days?.[day]?.total;
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
+}
+
+/** Egy nap egy hosztjának száma — hiányzónál nulla. */
+export function hitsOnHost(state, day, host) {
+  const h = typeof host === 'string' ? host.trim().toLowerCase() : '';
+  const n = h ? state?.days?.[day]?.byHost?.[h] : 0;
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
 }
 

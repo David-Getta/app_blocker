@@ -781,7 +781,10 @@ struct ContentView: View {
         case 1?: streak = "utolsó feloldás: tegnap"
         case let d?: streak = "utolsó feloldás: \(d) napja"
         }
-        return Text("Próbatétel-nehézség: \(names[tier]) (\(tier + 1)/4) · \(streak) — minél többször oldasz fel, annál nehezebb.")
+        // …és a szűrő megakadásai: hányszor állította meg a telefont a héten.
+        let hits = FilterHitLogic.hits7d(store.state.filterHits ?? [:], now: now)
+        let hitsPart = hits > 0 ? " · \(hits) megakadás a szűrőben" : ""
+        return Text("Próbatétel-nehézség: \(names[tier]) (\(tier + 1)/4) · \(streak)\(hitsPart) — minél többször oldasz fel, annál nehezebb.")
             .font(.caption).foregroundStyle(.secondary)
             .frame(maxWidth: .infinity, alignment: .center)
     }

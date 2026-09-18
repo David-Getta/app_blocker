@@ -462,6 +462,10 @@ async function main() {
       const text = await bodyText(page);
       check(text.includes('Ezt a kulcsszót te tiltottad le') && text.includes('tiltott'),
         'a tiltó lap kimondja, hogy kulcsszó volt, és melyik');
+      // A könyv az átirányítás UTÁN íródik; a lap a tár változását figyeli.
+      await page.waitForTimeout(500);
+      const later = await bodyText(page);
+      check(/Ma ez a \d+\. megakadás/.test(later), 'a tiltó lap kimondja, hányadszor ma');
     }
     // Ugyanaz a hoszt, a szó nélkül: átmegy — a kulcsszó nem az oldalt tiltja.
     await page.goto(`${base}/?x=szabad`).catch(() => {});

@@ -8,6 +8,8 @@ import Foundation
 class PacketTunnelProvider: NEPacketTunnelProvider {
 
     private let upstreams = ["1.1.1.1", "8.8.8.8"]
+    /// hoszt → az utoljára számolt megakadás ideje; csak a csomag-szálon, nem tárolódik
+    private var hitSeen: [String: Double] = [:]
     private let resolveQueue = DispatchQueue(label: "hu.breaker.resolve", attributes: .concurrent)
 
     override func startTunnel(options: [String: NSObject]?,
@@ -80,6 +82,13 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         }
 
         if isBlocked {
+            // MEGAKADÁS: a tiltott név egy megakadás — hosztonként két percen
+            // belül egyszer, mert egy oldalbetöltés tucatnyi lekérdezés. A
+            // könyv a statisztikáé és a heti mondaté; a választ nem lassítja.
+            if let name, FilterHitLogic.shouldCount(&hitSeen, name, now: now) {
+                let day = FilterHitLogic.dayKey(now)
+                store.mutate { $0.filterHits = FilterHitLogic.sweep(FilterHitLogic.record($0.filterHits ?? [:], day: day), today: day) }
+            }
             guard let nx = DnsEngine.buildNxdomain(q.dnsPayload) else { return }
             let resp = DnsEngine.wrapResponse(q, nx)
             writeBack(resp, family: family)

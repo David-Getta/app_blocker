@@ -78,11 +78,15 @@ public enum DigestLogic {
         /// lecsúszva, elszállva, újraindítva: hányszor indult el a lazítás, és
         /// nem vitte végig. A tükör másik fele a feloldások mellett.
         public var dropped7d: Int
+        /// A szűrő megakadásai az elmúlt 7 napban — hányszor állította meg a
+        /// tunnel a telefont. A tükör harmadik fele: a tiltás akkor dolgozik,
+        /// amikor nem figyelsz — ez mondja, mennyit.
+        public var filterHits7d: Int
 
         public init(
             last7Seconds: Double = 0, topWeekSites: [Top] = [], topWeekApps: [Top] = [],
             weekOverWeek: [Delta] = [], focusWeek: Focus.Summary, unlocks7d: Int,
-            daysTracked: Int = 0, unblockedTop: [Top] = [], dropped7d: Int = 0
+            daysTracked: Int = 0, unblockedTop: [Top] = [], dropped7d: Int = 0, filterHits7d: Int = 0
         ) {
             self.last7Seconds = last7Seconds
             self.topWeekSites = topWeekSites
@@ -93,6 +97,7 @@ public enum DigestLogic {
             self.daysTracked = daysTracked
             self.unblockedTop = unblockedTop
             self.dropped7d = dropped7d
+            self.filterHits7d = filterHits7d
         }
     }
 
@@ -142,6 +147,8 @@ public enum DigestLogic {
         if input.unlocks7d > 0 { parts.append("\(input.unlocks7d) feloldás\(droppedPart).") }
         else if input.dropped7d > 0 { parts.append("Feloldás nélkül\(droppedPart).") }
         else if measured || f.sessions > 0 { parts.append("Feloldás nélkül.") }
+        // A megakadás: hányszor állította meg a szűrő — tény, nem ítélet.
+        if input.filterHits7d > 0 { parts.append("\(input.filterHits7d) megakadás a szűrőben.") }
         if measured, let open = input.unblockedTop.first, open.seconds > 0 {
             parts.append("Nincs tiltva, de sokat vitt: \(labelOf(open.label)) \(hm(open.seconds)).")
         }
@@ -204,7 +211,8 @@ public enum DigestLogic {
         return Input(
             focusWeek: Focus.summarizeFocus(st.focusLog ?? [], since: dayStart - 6 * 24 * 3_600_000, now: now),
             unlocks7d: st.unlockLog.filter { $0 >= weekAgo }.count,
-            dropped7d: (st.droppedAttempts ?? []).filter { $0 >= weekAgo }.count
+            dropped7d: (st.droppedAttempts ?? []).filter { $0 >= weekAgo }.count,
+            filterHits7d: FilterHitLogic.hits7d(st.filterHits ?? [:], now: now)
         )
     }
 

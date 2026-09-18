@@ -153,7 +153,7 @@ async function recordHitNow(tabId, url, reason, now = Date.now()) {
   lastCounted = { tabId, url, at: now };
   try {
     const today = dayKey(new Date(now));
-    const state = sweepHits(recordHit(await loadHits(), today, reason), today);
+    const state = sweepHits(recordHit(await loadHits(), today, reason, hostOf(url) ?? ''), today);
     await chrome.storage.local.set({ [HITS_KEY]: state });
   } catch (err) {
     note(`megakadás nem könyvelve: ${err}`);
@@ -173,6 +173,9 @@ async function pushHitsNow() {
 /** A tiltó lap címe, a MEGFOGÓ okkal együtt: a lap megnevezi, mi állította meg. */
 function blockedUrl(hit, fromUrl) {
   const q = blockedParams(hit, fromUrl);
+  // Az eredeti cím minden fajtánál megy: a lap ebből mondja, hányadszor ma
+  // ezen az oldalon — a „zárva” fajta a visszautat is ebből adja.
+  if (!q.has('from') && fromUrl) q.set('from', fromUrl);
   // A ZÁRLAT vége minden lapra rámegy, egy helyen: zárlat alatt a lap lába a
   // zárlatról beszél, nem a próbatétel útjáról — az az út most nincs.
   if (hit.lockUntil > 0) q.set('lockdownUntil', String(hit.lockUntil));

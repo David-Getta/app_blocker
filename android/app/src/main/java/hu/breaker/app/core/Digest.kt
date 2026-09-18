@@ -87,6 +87,13 @@ object DigestLogic {
          */
         val dropped7d: Int = 0,
         /**
+         * A szűrő megakadásai az elmúlt 7 napban — hányszor állította meg a
+         * DNS-szűrő a telefont (a gépen a böngésző könyve ugyanez). A tükör
+         * harmadik fele: a tiltás akkor dolgozik, amikor nem figyelsz — ez
+         * mondja, mennyit.
+         */
+        val filterHits7d: Int = 0,
+        /**
          * A hét legnagyobb, NEM tiltott idővivői (a felvevő javaslata), a
          * legnagyobb elöl. Mérés nélkül üres.
          */
@@ -143,6 +150,8 @@ object DigestLogic {
         if (input.unlocks7d > 0) parts.add("${input.unlocks7d} feloldás$droppedPart.")
         else if (input.dropped7d > 0) parts.add("Feloldás nélkül$droppedPart.")
         else if (measured || f.sessions > 0) parts.add("Feloldás nélkül.")
+        // A megakadás: hányszor állította meg a szűrő — tény, nem ítélet.
+        if (input.filterHits7d > 0) parts.add("${input.filterHits7d} megakadás a szűrőben.")
         // A tükör másik fele: ami sokat vitt, és nincs a listán. Egy név, a
         // legnagyobb — a többi a felvevő kártyán vár, egy kattintásra.
         val open = input.unblockedTop.firstOrNull()
@@ -237,6 +246,7 @@ object DigestLogic {
             focusWeek = Focus.summarizeFocus(st.focusLog, UsageLogic.startOfDay(now) - 6 * 86_400_000L, now),
             unlocks7d = st.unlockLog.count { it >= weekAgo },
             dropped7d = st.droppedAttempts.count { it >= weekAgo },
+            filterHits7d = FilterHitLogic.hits7d(st.filterHits, now),
             daysTracked = summary.daysTracked,
             unblockedTop = UsageLogic.suggestBlocks(summary.topWeekSites, st.sites)
                 .map { Top(it.label, it.seconds) },

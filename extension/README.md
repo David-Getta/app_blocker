@@ -182,8 +182,10 @@ valamit, amit a felhasználó nem tiltott le.
     kétszer). A felugró lap és a beállítás-lap mondja: „Ma 3 megakadás; az
     elmúlt 7 napban 12.” Az appnak is átmegy (`POST /hits`, a kóddal, egy
     állandó forrás-azonosítóval), ahol a heti mondat és a statisztika sora
-    mondja; a fiókba nem megy. A mag a `hits.js`, a kiszállított bájtokon
-    tesztelve.
+    mondja; a fiókba nem megy. A tiltó lap is mondja, a kísértés
+    pillanatában: „Ma ez a 7. megakadás — ebből a 3. ezen az oldalon.” (a
+    hosztonkénti szám csak itt marad, a hídra nem megy). A mag a `hits.js`,
+    a kiszállított bájtokon tesztelve.
 
 ## Fájlok
 

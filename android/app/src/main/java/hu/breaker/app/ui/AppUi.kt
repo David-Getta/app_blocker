@@ -82,6 +82,7 @@ import hu.breaker.app.core.ChallengeEngine.Kind
 import hu.breaker.app.core.ChallengeEngine.Step
 import hu.breaker.app.core.DigestLogic
 import hu.breaker.app.core.LimitLogic
+import hu.breaker.app.core.FilterHitLogic
 import hu.breaker.app.core.KeywordLogic
 import hu.breaker.app.core.LockdownLogic
 import hu.breaker.app.core.Referee
@@ -948,8 +949,11 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                 1 -> "utolsó feloldás: tegnap"
                 else -> "utolsó feloldás: $d napja"
             }
+            // …és a szűrő megakadásai: hányszor állította meg a telefont a héten.
+            val filterHits = FilterHitLogic.hits7d(state.filterHits, now)
+            val hitsPart = if (filterHits > 0) " · $filterHits megakadás a szűrőben" else ""
             Text(
-                "Próbatétel-nehézség: ${names[tier]} (${tier + 1}/4) · $streak — minél többször oldasz fel, annál nehezebb.",
+                "Próbatétel-nehézség: ${names[tier]} (${tier + 1}/4) · $streak$hitsPart — minél többször oldasz fel, annál nehezebb.",
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.fillMaxWidth(),
                 textAlign = TextAlign.Center,

@@ -401,6 +401,34 @@ const WIRES = [
     needle: 'Referee.setKeywords(',
     lost: 'iPhone-on a kulcsszó nem a bírón át menne — a levétel egy koppintás lenne',
   },
+  // A SZŰRŐ MEGAKADÁSAI a telefonon: a szolgáltatás/tunnel könyvel a tiltott
+  // lekérdezésnél, a heti mondat mondja. Ha a bekötés kiesne, a mag és a
+  // teszt megvolna — a szám mindig nulla lenne, és semmi nem jelezné.
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/vpn/BreakerVpnService.kt',
+    needle: 'FilterHitLogic.shouldCount(hitSeen, name, now)',
+    lost: 'Androidon a szűrő nem könyvelné a megakadásokat — a szám mindig nulla',
+  },
+  {
+    file: 'ios/PacketTunnel/PacketTunnelProvider.swift',
+    needle: 'FilterHitLogic.shouldCount(&hitSeen, name, now: now)',
+    lost: 'iPhone-on a tunnel nem könyvelné a megakadásokat — a szám mindig nulla',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/Digest.kt',
+    needle: 'filterHits7d = FilterHitLogic.hits7d(st.filterHits, now),',
+    lost: 'Androidon a heti mondat nem mondaná a megakadásokat',
+  },
+  {
+    file: 'ios/Shared/Digest.swift',
+    needle: 'filterHits7d: FilterHitLogic.hits7d(st.filterHits ?? [:], now: now)',
+    lost: 'iPhone-on a heti mondat nem mondaná a megakadásokat',
+  },
+  {
+    file: 'extension/blocked.js',
+    needle: "changes['breaker.hits']",
+    lost: 'a tiltó lap nem mondaná, hányadszor ma — a könyv csak a felugró lapon látszana',
+  },
   // A MEGAKADÁS-SZÁMLÁLÓ lánca: a háttér könyvel, a link átadja, a híd
   // fogadja, a segéd tartja, a mondat és a statisztika mondja. Ha bármelyik
   // láncszem kiesne, a bővítmény lapja továbbra is számolna — az app viszont

@@ -47,6 +47,11 @@ cd android
   `core/Partner.kt` (a gépi tükre, a `fixtures/partner-hash.json` ellen
   tesztelve), a megbízott a munkamenet blobján szinkronizál. Lásd
   `docs/feature-partner-lock.md`.
+- A **szűrő megakadásai**: a szolgáltatás minden tiltott lekérdezésnél
+  könyvel (hosztonként két percen belül egyszer; `core/FilterHits.kt`,
+  `filterHits` az állapotban, harminc nap), a statisztika nehézség-sora és a
+  heti mondat mondja („12 megakadás a szűrőben”). Tükör, nem ítélet; a
+  fiókba nem megy. Lásd `docs/feature-usage-stats.md`.
 - A **kulcsszavak** (bármely oldalon, ha a cím tartalmazza) a zárlat
   kártyája alján **szerkeszthetők**: felvenni ingyen, levenni próbatétel
   (`Referee.setKeywords`, a függő lista a teljesítéskor ül be). A DNS-szűrő

@@ -417,8 +417,18 @@ böngésző két könyv, a segéd összeadja), a segéd tartja
 (`shared/browser-hits.ts`, `browserHits` az állapotban, forrásonként). A
 statisztika nehézség-sora is mondja („· 12 megakadás a böngészőben”), a
 bővítmény felugró lapja és beállítás-lapja pedig a mait és a hetet, naponként.
-A híd befelé CSAK ezt fogadja — könyvelést, szabályt soha. A telefonon nincs
-(ott nincs bővítmény), és nem szinkronizál: a gép saját tükre.
+A híd befelé CSAK ezt fogadja — könyvelést, szabályt soha. Nem szinkronizál:
+a gép saját tükre. A tiltó lap is mondja, a kísértés pillanatában: „Ma ez a
+7. megakadás — ebből a 3. ezen az oldalon.” (a hosztonkénti szám csak a gépen
+marad, a hídra a napi összeg megy).
+
+A telefonon **a szűrő számol**: „12 megakadás a szűrőben.” — a tiltott
+DNS-lekérdezés ugyanaz a pillanat, a kéz odanyúlt, a szűrő megállította. Egy
+hosztnevet két percen belül egyszer (egy oldalbetöltés tucatnyi lekérdezés,
+és a böngésző újra is próbálja), naponként egy szám, harminc napig
+(`core/FilterHits.kt` és `Shared/FilterHits.swift`, `filterHits` az
+állapotban; Androidon a szűrő szolgáltatása, iPhone-on a tunnel könyvel). A
+statisztika nehézség-sora és a heti mondat mondja; a fiókba nem megy.
 
 Szabályok, kimondva:
 

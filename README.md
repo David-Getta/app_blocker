@@ -51,9 +51,10 @@ ingyen van, rövidíteni vagy visszavonni sehogy.
   is küld értesítésben — az elmúlt 7 nap: mért idő, a legtöbb oldal és app
   (és a trendjük), menetek, feloldások, vagy hogy egy sem volt — és a
   félbemaradt kísérletek: hányszor indult el a lazítás, és nem ért végig — és a
-  gépen a **megakadások**: hányszor vitt a tiltó lapra a böngésző-bővítmény
-  (a bővítmény számolja, a hídon adja át; a felugró lapján és a beállítás-lapján
-  is látszik). Egy hétről
+  **megakadások**: a gépen hányszor vitt a tiltó lapra a böngésző-bővítmény
+  (a bővítmény számolja, a hídon adja át; a felugró lapján, a beállítás-lapján
+  és magán a tiltó lapon is látszik — „Ma ez a 7. megakadás”), a telefonon
+  hányszor állította meg a szűrő (hosztonként két percen belül egyszer). Egy hétről
   egyszer; a gépen
   csak amíg az app fut, Androidon a szűrő szolgáltatása mondja, az app nélkül
   is (iPhone-on értesítés nincs); a rejtett vagy fedőnevű címet az értesítés

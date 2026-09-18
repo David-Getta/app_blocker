@@ -20,19 +20,21 @@ interface Hits {
   RETENTION_DAYS: number;
   dayKey: (d?: Date) => string;
   lastDays: (today: string, n: number) => string[];
-  recordHit: (state: unknown, day: string, reason: string) => { days: Record<string, { total: number; byReason: Record<string, number> }> };
+  recordHit: (state: unknown, day: string, reason: string, host?: string) => { days: Record<string, { total: number; byReason: Record<string, number> }> };
   sweepHits: (state: unknown, today: string) => { days: Record<string, unknown> };
   hitsOn: (state: unknown, day: string) => number;
   hitsSummary: (state: unknown, today: string) => { today: number; week: number };
   hitsReport: (state: unknown, today: string) => { day: string; total: number; byReason: Record<string, number> }[];
   hitsText: (s: { today: number; week: number }) => string | null;
   hitsRows: (state: unknown, today: string) => { day: string; total: number; detail: string }[];
+  hitsOnHost: (state: unknown, day: string, host: string) => number;
+  MAX_HOSTS_PER_DAY: number;
 }
 
 function load(): Hits {
   const src = fs.readFileSync(path.join(extensionDir(), 'hits.js'), 'utf8').replace(/^export /gm, '');
   // eslint-disable-next-line no-new-func
-  return new Function(`${src}\nreturn { RETENTION_DAYS, dayKey, lastDays, recordHit, sweepHits, hitsOn, hitsSummary, hitsReport, hitsText, hitsRows };`)() as Hits;
+  return new Function(`${src}\nreturn { RETENTION_DAYS, MAX_HOSTS_PER_DAY, dayKey, lastDays, recordHit, sweepHits, hitsOn, hitsOnHost, hitsSummary, hitsReport, hitsText, hitsRows };`)() as Hits;
 }
 
 const TODAY = '2026-09-18';
@@ -94,4 +96,23 @@ test('a nap kulcsa helyi idő szerint, és az utolsó napok a mai nappal zárnak
   assert.equal(h.dayKey(new Date(2026, 8, 18, 0, 30)), TODAY);
   assert.deepEqual(h.lastDays(TODAY, 3), ['2026-09-16', '2026-09-17', TODAY]);
   assert.deepEqual(h.lastDays('2026-03-01', 2), ['2026-02-28', '2026-03-01'], 'hónapforduló');
+});
+
+test('hosztonként is: hányadszor ma ezen az oldalon — plafonnal, és a hídra nem megy', () => {
+  const h = load();
+  let s = h.recordHit({}, TODAY, 'keyword', 'YouTube.com');
+  s = h.recordHit(s, TODAY, 'closed', 'youtube.com');
+  s = h.recordHit(s, TODAY, 'rule', 'reddit.com');
+  s = h.recordHit(s, TODAY, 'rule'); // hoszt nélkül: csak az összegbe
+  assert.equal(h.hitsOnHost(s, TODAY, 'youtube.com'), 2, 'a kis-nagybetű nem számít');
+  assert.equal(h.hitsOnHost(s, TODAY, 'reddit.com'), 1);
+  assert.equal(h.hitsOnHost(s, TODAY, 'x.example'), 0);
+  assert.equal(h.hitsOn(s, TODAY), 4);
+  assert.deepEqual(h.hitsReport(s, TODAY), [{ day: TODAY, total: 4, byReason: { keyword: 1, closed: 1, rule: 2 } }],
+    'a hídra a hoszt nem megy');
+  let many = {};
+  for (let i = 0; i < h.MAX_HOSTS_PER_DAY + 5; i++) many = h.recordHit(many, TODAY, 'closed', `h${i}.example`);
+  assert.equal(h.hitsOnHost(many, TODAY, 'h0.example'), 1);
+  assert.equal(h.hitsOnHost(many, TODAY, `h${h.MAX_HOSTS_PER_DAY + 2}.example`), 0, 'a plafon fölött nincs külön szám');
+  assert.equal(h.hitsOn(many, TODAY), h.MAX_HOSTS_PER_DAY + 5, '…de az összegben benne van');
 });

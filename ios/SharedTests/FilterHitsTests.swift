@@ -1,0 +1,69 @@
+import Foundation
+import XCTest
+@testable import BreakerShared
+
+// A szűrő megakadásai a Swift-tükrön — az androidos FilterHitsTest esetei:
+// hosztonként két percen belül egyszer; a könyv naponként, harminc napig; az
+// elmúlt hét; a mondat; a mentés.
+final class FilterHitsTests: XCTestCase {
+
+    private var now: Double {
+        let d = Calendar.current.date(from: DateComponents(year: 2026, month: 9, day: 18, hour: 12))!
+        return d.timeIntervalSince1970 * 1000
+    }
+    private var today: String { FilterHitLogic.dayKey(now) }
+
+    func testOnePerHostWithinTwoMinutes() {
+        var seen: [String: Double] = [:]
+        XCTAssertTrue(FilterHitLogic.shouldCount(&seen, "youtube.com", now: now))
+        XCTAssertFalse(FilterHitLogic.shouldCount(&seen, "YouTube.com.", now: now + 1000), "ugyanaz a hoszt, egy percen belül")
+        XCTAssertTrue(FilterHitLogic.shouldCount(&seen, "reddit.com", now: now + 1000), "másik hoszt: másik megakadás")
+        XCTAssertFalse(FilterHitLogic.shouldCount(&seen, "youtube.com", now: now + FilterHitLogic.dedupeMs - 1))
+        XCTAssertTrue(FilterHitLogic.shouldCount(&seen, "youtube.com", now: now + FilterHitLogic.dedupeMs), "két perc után újra")
+        XCTAssertFalse(FilterHitLogic.shouldCount(&seen, "  ", now: now), "üres név nem hoszt")
+        for i in 0..<600 { _ = FilterHitLogic.shouldCount(&seen, "h\(i).example", now: now + 2 * FilterHitLogic.dedupeMs) }
+        XCTAssertLessThanOrEqual(seen.count, 600)
+    }
+
+    func testTheBookIsPerDaySweptCappedAndTheFutureIsNotADay() {
+        var days = FilterHitLogic.record([:], day: today)
+        days = FilterHitLogic.record(days, day: today)
+        days = FilterHitLogic.record(days, day: "nem nap")
+        XCTAssertEqual(days, [today: 2])
+        for i in 1...40 { days = FilterHitLogic.record(days, day: FilterHitLogic.dayKey(now - Double(i) * 86_400_000)) }
+        XCTAssertEqual(FilterHitLogic.sweep(days, today: today).count, FilterHitLogic.retentionDays)
+        let future = FilterHitLogic.record(days, day: "2099-01-01")
+        XCTAssertNil(FilterHitLogic.sweep(future, today: today)["2099-01-01"], "a jövő elállított óra")
+        let full = [today: FilterHitLogic.maxPerDay]
+        XCTAssertEqual(FilterHitLogic.record(full, day: today), full, "a napi plafon fölött nem nő")
+        XCTAssertEqual(FilterHitLogic.clean([today: 3, "x": 5, "2026-09-17": 0, "2026-09-16": -1]), [today: 3])
+    }
+
+    func testTheLastSevenDaysAndToday() {
+        let days = [
+            today: 2,
+            FilterHitLogic.dayKey(now - 6 * 86_400_000): 3,
+            FilterHitLogic.dayKey(now - 7 * 86_400_000): 9,
+        ]
+        XCTAssertEqual(FilterHitLogic.hits7d(days, now: now), 5, "a hetedik nap benne, a nyolcadik nem")
+        XCTAssertEqual(FilterHitLogic.hitsToday(days, now: now), 2)
+        XCTAssertEqual(FilterHitLogic.hits7d([:], now: now), 0)
+    }
+
+    func testTheSentenceAndTheSave() throws {
+        let summary = Focus.Summary(sessions: 0, totalMs: 0, stoppedEarly: 0, topPack: nil)
+        XCTAssertEqual(DigestLogic.text(DigestLogic.Input(focusWeek: summary, unlocks7d: 1, filterHits7d: 12), labelOf: { $0 }),
+                       "Elmúlt 7 nap: 1 feloldás. 12 megakadás a szűrőben.")
+        XCTAssertEqual(DigestLogic.text(DigestLogic.Input(focusWeek: summary, unlocks7d: 0, filterHits7d: 3), labelOf: { $0 }),
+                       "Elmúlt 7 nap: 3 megakadás a szűrőben.", "megakadás feloldás nélkül is mondat")
+        XCTAssertEqual(DigestLogic.text(DigestLogic.Input(focusWeek: summary, unlocks7d: 1), labelOf: { $0 }),
+                       "Elmúlt 7 nap: 1 feloldás.")
+
+        var st = AppState()
+        st.filterHits = [today: 3]
+        let data = try JSONEncoder().encode(st)
+        XCTAssertEqual(try JSONDecoder().decode(AppState.self, from: data).filterHits, [today: 3], "a mentés hordozza")
+        let old = try JSONDecoder().decode(AppState.self, from: Data("{\"sites\":[],\"unlockLog\":[]}".utf8))
+        XCTAssertNil(old.filterHits, "régi mentés: könyv nélkül")
+    }
+}

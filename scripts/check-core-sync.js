@@ -61,6 +61,9 @@ const sw = {
 };
 
 ts.pairing = read('desktop/src/shared/sync/pairing.ts');
+// A szűrő megakadásai csak a két telefonon élnek (a gépen a böngésző könyve más).
+kt.filterHits = read('android/app/src/main/java/hu/breaker/app/core/FilterHits.kt');
+sw.filterHits = read('ios/Shared/FilterHits.swift');
 kt.pairing = read('android/app/src/main/java/hu/breaker/app/core/Pairing.kt');
 
 ts.limits = read('desktop/src/shared/limits.ts');
@@ -349,6 +352,28 @@ const PAIRS = [
     scalar(kt.usage, /SUGGEST_MIN_SECONDS\s*=\s*(.+)/, 'kt')],
 ];
 
+/** Egy szám a két telefon-tükörből — aláhúzás és Kotlin-utótag nélkül. */
+function phoneScalar(text, re, label) {
+  const m = text.match(re);
+  if (!m) return { missing: label };
+  const v = Number(m[1].replace(/_/g, '').replace(/L$/, ''));
+  return Number.isFinite(v) ? v : { missing: `${label} (nem szám: ${m[1]})` };
+}
+
+// A két telefon között: a szűrő megakadásainak szabályai. Ha a két készülék
+// más ablakkal számolna, ugyanaz a hét két számot adna.
+const PHONE_PAIRS = [
+  ['FILTER_HIT_RETENTION_DAYS',
+    phoneScalar(kt.filterHits, /RETENTION_DAYS\s*=\s*([\d_]+)/, 'kt'),
+    phoneScalar(sw.filterHits, /retentionDays\s*=\s*([\d_]+)/, 'sw')],
+  ['FILTER_HIT_DEDUPE_MS',
+    phoneScalar(kt.filterHits, /DEDUPE_MS\s*=\s*([\d_]+L?)/, 'kt'),
+    phoneScalar(sw.filterHits, /dedupeMs:\s*Double\s*=\s*([\d_]+)/, 'sw')],
+  ['FILTER_HIT_MAX_PER_DAY',
+    phoneScalar(kt.filterHits, /MAX_PER_DAY\s*=\s*([\d_]+)/, 'kt'),
+    phoneScalar(sw.filterHits, /maxPerDay\s*=\s*([\d_]+)/, 'sw')],
+];
+
 // A kódábécé nem szám, de ha eltér, a memória-próba más jeleket adna.
 const ALPHABETS = [
   ['PAIRING_ALPHABET',
@@ -417,4 +442,21 @@ if (problems.length) {
   process.exit(1);
 }
 
-console.log(`mag-szinkron OK (${CHECKS.length + ALPHABETS.length} érték egyezik mindhárom nyelven, ${PAIRS.length} a gép és az Android között)`);
+const PHONE_LANGS = ['Kotlin', 'Swift'];
+for (const [name, ...values] of PHONE_PAIRS) {
+  const missing = values
+    .map((v, i) => (v && v.missing ? PHONE_LANGS[i] : null))
+    .filter(Boolean);
+  if (missing.length) {
+    problems.push(`${name}: nem található itt: ${missing.join(', ')} — a minta elavult vagy a konstans eltűnt`);
+    continue;
+  }
+  const asText = values.map((v) => JSON.stringify(v));
+  if (new Set(asText).size !== 1) {
+    problems.push(
+      `${name} eltér:\n` + values.map((v, i) => `    ${PHONE_LANGS[i].padEnd(11)} ${asText[i]}`).join('\n'),
+    );
+  }
+}
+
+console.log(`mag-szinkron OK (${CHECKS.length + ALPHABETS.length} érték egyezik mindhárom nyelven, ${PAIRS.length} a gép és az Android között, ${PHONE_PAIRS.length} a két telefon között)`);

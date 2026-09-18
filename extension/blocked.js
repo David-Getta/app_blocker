@@ -3,6 +3,10 @@
 // Külön fájl, nem inline szkript: a bővítmények alap tartalombiztonsági
 // házirendje az inline szkriptet nem engedi futni — csendben, hibaüzenet
 // nélkül. A lap ilyenkor betöltődne, csak épp nem mondaná meg, mi tiltotta le.
+// Modulként fut, hogy a megakadás-könyv magját (hits.js) ugyanabból a fájlból
+// olvassa, amiből a háttér ír — két számolás két számot adna.
+import { dayKey, hitsOn, hitsOnHost } from './hits.js';
+
 const params = new URLSearchParams(location.search);
 const focus = params.get('focus');
 
@@ -210,3 +214,42 @@ if (focus) {
     noteEl.hidden = false;
   }
 }
+
+// ---------------------------------------------------------------------------
+// HÁNYADSZOR MA. A bővítmény könyve, a kísértés pillanatában:
+// „Ma ez a 7. megakadás — ebből a 3. ezen az oldalon.” Tükör, nem ítélet.
+// A háttér az átirányítás UTÁN könyvel, ezért a tár változását is figyeljük:
+// a szám magától jó lesz, mire az ember odanéz.
+// ---------------------------------------------------------------------------
+function hostOfUrl(url) {
+  const s = String(url || '').trim();
+  if (!/^https?:\/\//i.test(s)) return null;
+  const rest = s.replace(/^https?:\/\//i, '').replace(/^[^/@]*@/, '');
+  const cut = rest.search(/[/?#]/);
+  let host = cut < 0 ? rest : rest.slice(0, cut);
+  const colon = host.indexOf(':');
+  if (colon >= 0) host = host.slice(0, colon);
+  return host.toLowerCase().replace(/\.+$/, '') || null;
+}
+
+const hitsNote = document.getElementById('hitsNote');
+const fromHost = hostOfUrl(params.get('from') || '');
+
+function paintHits(state) {
+  const today = dayKey();
+  const n = hitsOn(state, today);
+  if (n <= 0) { hitsNote.hidden = true; return; }
+  const onHost = fromHost ? hitsOnHost(state, today, fromHost) : 0;
+  hitsNote.textContent = `Ma ez a ${n}. megakadás`
+    + (onHost > 1 ? ` — ebből a ${onHost}. ezen az oldalon` : '') + '.';
+  hitsNote.hidden = false;
+}
+
+try {
+  chrome.storage.local.get('breaker.hits')
+    .then((got) => paintHits(got?.['breaker.hits'] ?? { days: {} }))
+    .catch(() => { /* tár nélkül nincs szám — a lap többi része attól még áll */ });
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && changes['breaker.hits']) paintHits(changes['breaker.hits'].newValue ?? { days: {} });
+  });
+} catch { /* nem bővítmény-környezet (pl. kézzel megnyitott fájl) */ }
