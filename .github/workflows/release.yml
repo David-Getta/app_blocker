@@ -44,21 +44,20 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **Mikor jár a kéz magától.** A böngésző-bővítmény óránként is
-          könyveli a megakadásokat; a beállítás-lapja a hét csúcs-óráját
-          mondja és egy óra-sávot rajzol, a gépi statisztika pedig a
-          megakadások hete alatt:
-          „A hét csúcsa: 21–22 óra (7 megakadás) — akkor jár a kéz magától.”
-          Tény, nem ítélet.
+          **A sokadik megakadásnál egy lépést javasol.** Az ötödik, tizedik
+          és huszadik mai megakadásnál a gép egyszer szól, és a tiltó lap
+          az ötödiktől hozzáteszi a sorához: egy munkamenet vagy egy rövid
+          zárlat most segítene — te döntesz. Nem tilt, nem ítél. A heti
+          mondat a csúcs-órát is mondja.
 
-          ### Ami a v0.4.55-ben jött
+          ### Ami a v0.4.56-ban jött
 
-          **A hét alakja a megakadásokra** mindhárom statisztikán — ugyanaz
-          a rajz, mint a mért időé és a meneteké.
+          **Mikor jár a kéz magától.** A megakadások óránként is; a
+          beállítás-lap és a gépi statisztika a hét csúcs-óráját mondja.
 
-          #### Ami a v0.4.54-ben jött
+          #### Ami a v0.4.55-ben jött
 
-          **Hétfő reggeli emlékeztető iPhone-on.**
+          **A hét alakja a megakadásokra** mindhárom statisztikán.
 
           NOTES
           fi
