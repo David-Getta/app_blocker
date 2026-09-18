@@ -24,6 +24,13 @@ export const MAX_KEYWORDS = 40;
 export const MAX_KEYWORD_LENGTH = 40;
 /** …és alulról: egy-két betű mindenre illeszkedne, az nem szabály, hanem baleset. */
 export const MIN_KEYWORD_LENGTH = 3;
+/**
+ * JAVASLATOK egy kattintásra: a leggyakoribb figyelem-csapdák, amik a
+ * webcímben és a címsorban is ott vannak. Nem tiltanak maguktól — a
+ * felhasználó veszi fel őket, ingyen; ami már fent van, azt a felület nem
+ * kínálja újra. Ugyanez a lista a három magban.
+ */
+export const KEYWORD_SUGGESTIONS = ['shorts', 'reels', 'live', 'stream'];
 
 /**
  * Egy kulcsszó KANONIKUS alakja — vagy null, ha nem az. Kisbetű, NFKC, a

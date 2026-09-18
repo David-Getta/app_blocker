@@ -214,7 +214,8 @@ ingyen van, rövidíteni vagy visszavonni sehogy.
   részleges szabály egy oldal egy útvonalát — ez a harmadik: egy szó
   (`shorts`, `reels`, egy játék neve), és a böngésző minden címet a tiltó
   lapra visz, amiben szerepel, a hosztnévben is — és a lap **címsorában** is
-  (egy videó címe a webcímben nincs benne, a címsorban igen). Felvenni ingyen, **levenni
+  (egy videó címe a webcímben nincs benne, a címsorban igen). Felvenni ingyen
+  (a leggyakoribb csapdák egy koppintással: shorts, reels, live, stream), **levenni
   próbatétel**; a szó addig marad, amíg a próbák meg nincsenek, és újat
   felvenni közben is ingyen lehet. A tiltó lap kimondja, melyik szó fogott. A
   lista a fiókon át a többi eszközre is átér (a jelével; azonos jelnél a

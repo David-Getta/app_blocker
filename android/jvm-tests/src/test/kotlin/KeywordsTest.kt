@@ -122,6 +122,12 @@ class KeywordsTest {
         assertNull(old.keywordsRev)
     }
 
+    @Test fun `a javaslatok maguk is ervenyes kulcsszavak`() {
+        for (sug in KeywordLogic.SUGGESTIONS) assertEquals(sug, KeywordLogic.normalizeKeyword(sug), sug)
+        assertEquals(KeywordLogic.SUGGESTIONS.size, KeywordLogic.SUGGESTIONS.toSet().size)
+        assertEquals(KeywordLogic.SUGGESTIONS, KeywordLogic.cleanKeywords(KeywordLogic.SUGGESTIONS))
+    }
+
     // ---------------------------------------------------------------- a bíró
 
     @Test fun `a biro - felvenni es boviteni ingyen, levenni probatetel - a levetel a teljesiteskor lep eletbe`() {

@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -32,6 +33,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -883,6 +885,29 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                                     }
                                 }
                             }) { Text("Felvétel") }
+                        }
+                        // JAVASLATOK egy koppintásra — csak ami még nincs fent; ingyen.
+                        val open = KeywordLogic.SUGGESTIONS.filter { it !in state.keywords }
+                        if (open.isNotEmpty()) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text("Javaslat:", style = MaterialTheme.typography.bodySmall)
+                                open.forEach { sug ->
+                                    SuggestionChip(
+                                        onClick = {
+                                            try {
+                                                Referee.setKeywords(state.keywords + sug, System.currentTimeMillis())
+                                            } catch (e: Referee.RefereeException) {
+                                                flowError = e.message
+                                            }
+                                        },
+                                        label = { Text("+ $sug") },
+                                    )
+                                }
+                            }
                         }
                     }
                     // PÁRBAN ZÁROLÁS: a lazítás végén a megbízott jelmondata is kell —

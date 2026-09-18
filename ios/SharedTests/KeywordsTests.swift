@@ -117,6 +117,12 @@ final class KeywordsTests: XCTestCase {
         XCTAssertFalse(FocusSync.same(mine, swapped), "a lista cseréje különbség")
     }
 
+    func testTheSuggestionsAreValidKeywordsThemselves() {
+        for sug in KeywordLogic.suggestions { XCTAssertEqual(KeywordLogic.normalizeKeyword(sug), sug, sug) }
+        XCTAssertEqual(Set(KeywordLogic.suggestions).count, KeywordLogic.suggestions.count)
+        XCTAssertEqual(KeywordLogic.cleanKeywords(KeywordLogic.suggestions), KeywordLogic.suggestions)
+    }
+
     // ---------------------------------------------------------------- a bíró
 
     func testTheRefereeAddsForFreeAndRemovesWithAChallenge() throws {

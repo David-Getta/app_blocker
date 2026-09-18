@@ -4,8 +4,8 @@
 import { test } from 'node:test';
 import * as assert from 'node:assert/strict';
 import {
-  MAX_KEYWORDS, MAX_KEYWORD_LENGTH, MIN_KEYWORD_LENGTH, cleanKeywords, isKeywordsLoosening, keywordHit,
-  keywordsKey, mergeKeywords, normalizeKeyword, sameKeywords,
+  KEYWORD_SUGGESTIONS, MAX_KEYWORDS, MAX_KEYWORD_LENGTH, MIN_KEYWORD_LENGTH, cleanKeywords, isKeywordsLoosening,
+  keywordHit, keywordsKey, mergeKeywords, normalizeKeyword, sameKeywords,
 } from '../src/shared/keywords';
 import { defaultState, newId, type HelperState } from '../src/helper/state';
 import * as referee from '../src/helper/referee';
@@ -206,4 +206,11 @@ test('a blob fésülése: a jel dönt, azonos jelnél az unió; a régi kliens n
   const old = focus({ rev: 9, updatedAt: 999, updatedBy: 'old' });
   assert.deepEqual(mergeFocus(local, old).keywords, ['shorts'], 'a jeltelen blob nem viszi el');
   assert.ok(!sameFocus(local, focus({ ...local, keywords: ['shorts', 'reels'] })), 'a lista cseréje különbség: fel kell tölteni');
+});
+
+test('a javaslatok maguk is érvényes kulcsszavak — kanonikus alakban, egyszer, a plafon alatt', () => {
+  for (const s of KEYWORD_SUGGESTIONS) assert.equal(normalizeKeyword(s), s, s);
+  assert.equal(new Set(KEYWORD_SUGGESTIONS).size, KEYWORD_SUGGESTIONS.length);
+  assert.ok(KEYWORD_SUGGESTIONS.length <= MAX_KEYWORDS);
+  assert.deepEqual(cleanKeywords(KEYWORD_SUGGESTIONS), KEYWORD_SUGGESTIONS);
 });

@@ -440,8 +440,29 @@ struct ContentView: View {
                         .textFieldStyle(.roundedBorder)
                     Button("Felvétel") { addKeyword() }.buttonStyle(.bordered)
                 }
+                // JAVASLATOK egy koppintásra — csak ami még nincs fent; ingyen.
+                let open = KeywordLogic.suggestions.filter { !words.contains($0) }
+                if !open.isEmpty {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            Text("Javaslat:").font(.footnote).foregroundStyle(.secondary)
+                            ForEach(open, id: \.self) { sug in
+                                Button("+ \(sug)") { addSuggested(sug) }.buttonStyle(.bordered).font(.footnote)
+                            }
+                        }
+                    }
+                }
             }
         }
+    }
+
+    /// Egy javasolt szó felvétele: ingyen, mint bármelyik felvétel.
+    private func addSuggested(_ word: String) {
+        let current = store.state.keywords ?? []
+        if current.contains(word) { return }
+        do {
+            try Referee.setKeywords(current + [word], now: nowMs())
+        } catch let e as Referee.RefereeError { flowError = e.message } catch { flowError = "\(error)" }
     }
 
     /// Egy kulcsszó levétele: a bíró próbatételt indít — a szó addig marad.

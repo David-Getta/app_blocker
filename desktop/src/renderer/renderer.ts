@@ -37,7 +37,7 @@ import {
 import { CATEGORY_PACKS, type CategoryPack } from '../shared/blocklist.js';
 import { windowKey, windowStartingSoon, type LockdownWindow as LockdownWindowRow } from '../shared/lockdown.js';
 import {
-  MAX_KEYWORDS, MAX_KEYWORD_LENGTH, MIN_KEYWORD_LENGTH, normalizeKeyword,
+  KEYWORD_SUGGESTIONS, MAX_KEYWORDS, MAX_KEYWORD_LENGTH, MIN_KEYWORD_LENGTH, normalizeKeyword,
 } from '../shared/keywords.js';
 import {
   encodePairingCode, formatPairingCode, resolveServerInput,
@@ -2122,6 +2122,19 @@ function renderKeywords(st: StatusData): void {
   input.disabled = full;
   input.placeholder = full ? `Betelt: legfeljebb ${MAX_KEYWORDS} kulcsszó fér el.` : 'új kulcsszó, pl. shorts';
   $<HTMLButtonElement>('keywordAddBtn').disabled = full;
+  // JAVASLATOK egy kattintásra — csak ami még nincs fent, és csak amíg fér.
+  const sugBox = $('keywordSuggest');
+  sugBox.textContent = '';
+  const open = full ? [] : KEYWORD_SUGGESTIONS.filter((s) => !words.includes(s));
+  sugBox.classList.toggle('hidden', open.length === 0);
+  if (open.length > 0) sugBox.appendChild(h('span', 'hint', 'Javaslat:'));
+  for (const s of open) {
+    const chip = h('button', 'chip chip-suggest', `+ ${s}`);
+    chip.type = 'button';
+    chip.title = 'Felvétel — ingyen: a szigorítás mindig az.';
+    chip.addEventListener('click', () => void submitKeywords([...words, s]));
+    sugBox.appendChild(chip);
+  }
 }
 
 /** A teljes kulcsszó-lista beküldése — a segéd dönti el, ingyenes-e vagy próbatétel. */

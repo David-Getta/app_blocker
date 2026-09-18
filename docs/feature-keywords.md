@@ -14,7 +14,10 @@ fel.
 ## Hogyan működik
 
 1. A gépen a *Kulcsszavak* kártyán (a telefonon a *Zárlat* kártya alján)
-   beírod a szót, és *Felvétel*. A szó
+   beírod a szót, és *Felvétel* — vagy egy koppintással felveszed a
+   **javaslatok** egyikét (`shorts`, `reels`, `live`, `stream`: a leggyakoribb
+   figyelem-csapdák, ugyanaz a lista a három magban; ami fent van, nem
+   ajánlja újra). A szó
    **kanonikus alakban** kerül fel: kisbetű, NFKC, a szélek levágva; szóköz
    nem lehet benne (egy cím sem tartalmaz szóközt), és 3–40 karakter (egy-két
    betű mindenre illene — az nem szabály, hanem baleset). Legfeljebb 40 szó.

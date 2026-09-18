@@ -374,8 +374,21 @@ const PHONE_PAIRS = [
     phoneScalar(sw.filterHits, /maxPerDay\s*=\s*([\d_]+)/, 'sw')],
 ];
 
+/** Idézett szavak egy listából — a három nyelv más zárójelet ír, a szavak ugyanazok. */
+function quotedWords(text, re) {
+  const m = text.match(re);
+  if (!m) return undefined;
+  return (m[1].match(/["']([^"']+)["']/g) || []).map((q) => q.slice(1, -1)).join(',');
+}
+
 // A kódábécé nem szám, de ha eltér, a memória-próba más jeleket adna.
 const ALPHABETS = [
+  // A kulcsszó-javaslatok is: ha a gép mást kínálna, mint a telefon, a
+  // „javaslat” szó két listát jelentene.
+  ['KEYWORD_SUGGESTIONS',
+    quotedWords(ts.keywords, /KEYWORD_SUGGESTIONS\s*=\s*\[([^\]]+)\]/),
+    quotedWords(kt.keywords, /SUGGESTIONS\s*=\s*listOf\(([^)]+)\)/),
+    quotedWords(sw.keywords, /suggestions\s*=\s*\[([^\]]+)\]/)],
   ['PAIRING_ALPHABET',
     (ts.pairing.match(/ALPHABET\s*=\s*'([^']+)'/) || [])[1],
     (kt.pairing.match(/ALPHABET\s*=\s*"([^"]+)"/) || [])[1],

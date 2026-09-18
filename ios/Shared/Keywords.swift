@@ -16,6 +16,8 @@ public enum KeywordLogic {
     public static let maxKeywordLength = 40
     /// …és alulról: egy-két betű mindenre illeszkedne.
     public static let minKeywordLength = 3
+    /// Javaslatok egy koppintásra — a gépi lista tükre; ami fent van, nem kínáljuk újra.
+    public static let suggestions = ["shorts", "reels", "live", "stream"]
 
     /// C0, DEL és C1 — ugyanaz a tartomány, mint a fedőnévnél.
     private static func isControl(_ ch: Character) -> Bool {

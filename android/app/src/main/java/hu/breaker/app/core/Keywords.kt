@@ -20,6 +20,8 @@ object KeywordLogic {
     const val MAX_KEYWORD_LENGTH = 40
     /** …és alulról: egy-két betű mindenre illeszkedne. */
     const val MIN_KEYWORD_LENGTH = 3
+    /** Javaslatok egy koppintásra — a gépi lista tükre; ami fent van, nem kínáljuk újra. */
+    val SUGGESTIONS = listOf("shorts", "reels", "live", "stream")
 
     /** C0, DEL és C1 — ugyanaz a tartomány, mint a fedőnévnél. */
     private fun isControl(ch: Char): Boolean = ch.code < 0x20 || (ch.code in 0x7f..0x9f)
