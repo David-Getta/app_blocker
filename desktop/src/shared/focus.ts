@@ -433,6 +433,16 @@ export function bandMinutes(b: Band): number {
  * huszonnégy órás „ablak” nem munkamenet lenne, hanem egy kikapcsolhatatlan
  * fehérlista.
  */
+/**
+ * ABLAK A CSÚCS-ÓRÁRA: heti ablak minden napra a csúcs-óra egy órájában — a
+ * menet magától indul, amikor a kéz magától indulna. A rajz órája (0–23) a
+ * kezdet; a 23 óra vége a nap vége (1440). Felvenni ingyen: szigorítás.
+ */
+export function peakWindowBand(hour: number): Band {
+  const h = Math.min(23, Math.max(0, Math.floor(hour)));
+  return { days: [0, 1, 2, 3, 4, 5, 6] as Weekday[], startMin: h * 60, endMin: (h + 1) * 60 };
+}
+
 export function normalizeRecurrence(raw: unknown): Band | undefined {
   if (!raw || typeof raw !== 'object') return undefined;
   const b = raw as Partial<Band>;

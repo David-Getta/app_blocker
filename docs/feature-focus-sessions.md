@@ -303,6 +303,10 @@ kombinációt elvenni nem tudunk, csak elkerülni — ezért van az átállítá
 
 ## Heti ablak: a menet magától indul
 
+> A statisztika a csúcs-órából egy kattintással ajánl ablakot: „Heti ablak a
+> csúcs-órára” — a legutóbbi csomagra, minden napra, a csúcs egy órájában.
+> Lásd `docs/feature-usage-stats.md`.
+
 A munkamenet egy mozdulattal indul — de a mozdulatot az embernek kell
 megtennie, és pont a nehéz reggeleken nem teszi meg. A csomag ezért kaphat
 egy **heti ablakot** („hétköznap 9:00–12:00”): az ablakban a menet magától

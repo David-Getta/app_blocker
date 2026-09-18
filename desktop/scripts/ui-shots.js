@@ -930,6 +930,26 @@ async function main() {
 
   await page.addInitScript(() => { window.__fakeNoFocusStats = false; window.__fakeNoFocusWeek = false; });
   await page.reload();
+
+  // ABLAK A CSÚCS-ÓRÁRA: a megakadás-blokk gombja heti ablakot tesz a legutóbbi
+  // csomagra a csúcs-órában, minden nap — a hamis híd is a bírót játssza
+  // (felvenni ingyen), a gomb utána eltűnik, mert a csomagon már ablak van.
+  await goTo(page, 'stats');
+  await page.waitForFunction(
+    () => /Heti ablak a csúcs-órára: Mély munka, minden nap 21:00–22:00/.test(document.getElementById('hitsWindowBtn')?.textContent || '')
+      && !document.getElementById('hitsWindowBtn')?.classList.contains('hidden'),
+    undefined, { timeout: 15_000 },
+  ).catch(() => failures.push('a csúcs-óra gombja nem a legutóbbi csomagot és a csúcs-órát ígéri'));
+  await page.locator('#hitsWindowBtn').click().catch(() => failures.push('a csúcs-óra gombja nem kattintható'));
+  await page.waitForFunction(
+    () => document.getElementById('hitsWindowBtn')?.classList.contains('hidden')
+      && window.__fakePacks[1].recurrence && window.__fakePacks[1].recurrence.startMin === 21 * 60
+      && window.__fakePacks[1].recurrence.endMin === 22 * 60 && window.__fakePacks[1].recurrence.days.length === 7,
+    undefined, { timeout: 15_000 },
+  ).catch(() => failures.push('a csúcs-óra gombja nem tett heti ablakot a csomagra, vagy utána is ott maradt'));
+  // Vissza: a többi lépés ablak nélküli csomagokkal számol.
+  await page.evaluate(() => { delete window.__fakePacks[1].recurrence; });
+  await page.reload();
   await goTo(page, 'stats');
   await page.waitForSelector('#focusTiles .tile', { timeout: 15_000 })
     .catch(() => failures.push('a munkamenet-statisztika nem jött vissza'));

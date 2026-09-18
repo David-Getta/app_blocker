@@ -12,7 +12,7 @@ import * as assert from 'node:assert/strict';
 import {
   closeRun, formatRemaining, isAppAllowed, isRunning, isSessionLoosening, isSiteAllowed,
   lastUsedPack, MAX_ALLOW_ENTRIES, MAX_SESSION_MINUTES, normalizeMinutes, normalizePack, remainingMs,
-  summarizeFocus, summarizeFocusPrevWeek, type FocusLogEntry, type FocusPack,
+  normalizeRecurrence, peakWindowBand, summarizeFocus, summarizeFocusPrevWeek, type FocusLogEntry, type FocusPack,
 } from '../src/shared/focus';
 
 const NOW = 1_800_000_000_000;
@@ -234,4 +234,12 @@ test('az előző hét: a mai nap kezdete előtti 13. naptól a 6. nap kezdetéig
   assert.equal(summarizeFocusPrevWeek(log, now).sessions, 2, 'a 13. nap kezdete és a 6. nap kezdete előtti pillanat benne');
   assert.equal(summarizeFocus(log, start - 6 * day, now).sessions, 1, 'a mostani hét a maradék');
   assert.equal(summarizeFocusPrevWeek([], now).sessions, 0);
+});
+
+test('ablak a csúcs-órára: minden nap, a csúcs egy órája — a 23 óra vége a nap vége; érvényes ablak', () => {
+  assert.deepEqual(peakWindowBand(21), { days: [0, 1, 2, 3, 4, 5, 6], startMin: 21 * 60, endMin: 22 * 60 });
+  assert.equal(peakWindowBand(23).endMin, 1440, 'a nap vége, nem nulla — különben átfordulna');
+  assert.equal(peakWindowBand(0).startMin, 0);
+  assert.equal(peakWindowBand(99).startMin, 23 * 60, 'rossz óra: a nap utolsó órája');
+  for (const h of [0, 7, 23]) assert.ok(normalizeRecurrence(peakWindowBand(h)), `a ${h} óra ablaka érvényes`);
 });

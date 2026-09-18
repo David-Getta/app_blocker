@@ -748,6 +748,13 @@ const WIRES = [
     needle: 'NoticeActions.shared.register()',
     lost: 'az iPhone értesítés gombjának nincs kezelője — a koppintás elveszne',
   },
+  // ABLAK A CSÚCS-ÓRÁRA: a mondattól a heti ablakig egy kattintás — a bíró
+  // dönt (felvenni ingyen). Ha a gomb nem hívná, a mondat ígérne, és nem történne semmi.
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: "('focus_recurrence', { packId: pick.id, band: peakWindowBand(peak.hour) })",
+    lost: 'a csúcs-óra gombja nem tenne heti ablakot — az ígéret üres',
+  },
   {
     file: 'desktop/src/renderer/renderer.ts',
     needle: 'n.onclick = () => void startSuggestedSession(true);',

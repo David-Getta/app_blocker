@@ -489,6 +489,15 @@ legtöbbször: youtube.com (7×).”) és a heti mondat is: „12 megakadás a
 böngészőben, a csúcs 21–22 óra, a legtöbbször: youtube.com (7×).” A rejtett
 lista és a fedőnév itt is fed. Ami nincs a listán, a nevén marad.
 
+**Ablak a csúcs-órára:** a gépi statisztika a csúcs-óra mondata alatt egy
+gombot mutat — „Heti ablak a csúcs-órára: Nyelvtanulás, minden nap 21:00–22:00” —,
+ami a legutóbb használt csomagra heti ablakot tesz a csúcs egy órájában,
+minden napra (`peakWindowBand`, a csomag ablak-szerkesztőjének útján, a bíró
+dönt): a menet magától indul, amikor a kéz magától indulna — a telefonokon is,
+mert az ablak a fiókkal utazik. Felvenni ingyen (szigorítás); levenni vagy
+szűkíteni próbatétel, mint minden ablakot — a gomb ezt nem rejti. Nincs gomb
+ablakos csomagon, futó menet mellett, csomag vagy csúcs nélkül.
+
 **Mikor jár a kéz magától:** a bővítmény óránként is könyvel (a nap
 huszonnégy rekesze), a beállítás-lapja a hét csúcs-óráját mondja és egy
 óra-sávot rajzol; a hídon a rekeszek is átmennek, és a gépi statisztika a

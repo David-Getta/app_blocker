@@ -35,7 +35,7 @@ import {
 import { MAX_LIMIT_MINUTES } from '../shared/limits.js';
 import {
   formatRemaining, isRunning as focusIsRunning, isWindowRun, MAX_ALLOW_ENTRIES, MAX_PACK_NAME,
-  MAX_SESSION_MINUTES, nextOccurrence, SESSION_CHOICES_MIN, windowRunStarted, type FocusPack, type FocusRun,
+  MAX_SESSION_MINUTES, nextOccurrence, SESSION_CHOICES_MIN, windowRunStarted, type FocusPack, type FocusRun, peakWindowBand,
 } from '../shared/focus.js';
 import { CATEGORY_PACKS, type CategoryPack } from '../shared/blocklist.js';
 import { windowKey, windowStartingSoon, type LockdownWindow as LockdownWindowRow } from '../shared/lockdown.js';
@@ -3809,6 +3809,23 @@ function setupModal(): void {
     if (!hitsStartPick) return;
     void startSuggestedSession(false, (msg) => { $('hitsNudgeText').textContent = msg; });
   });
+  // ABLAK A CSÚCS-ÓRÁRA: ugyanaz az út, mint a csomag ablak-szerkesztőjéé — a
+  // bíró dönt, felvenni ingyen van.
+  $('hitsWindowBtn').addEventListener('click', () => void (async () => {
+    const pick = suggestedPack();
+    const peak = status?.browserHitsPeak ?? null;
+    if (!pick || !peak) return;
+    try {
+      const r = await call<SetRuleResult & { status: StatusData }>('focus_recurrence', { packId: pick.id, band: peakWindowBand(peak.hour) });
+      status = r.status;
+      render();
+      // A statisztika nem a fő nézet része: a gombnak azonnal el kell tűnnie,
+      // nem a következő félperces frissítésnél.
+      renderStats();
+    } catch (e) {
+      $('hitsPeakNote').textContent = (e as Error).message;
+    }
+  })());
   // Az Esc a legfelső réteget zárja. Egy panel, ami csak egérrel csukható be,
   // billentyűzettel csapdába ejt.
   document.addEventListener('keydown', (e) => {
@@ -4332,6 +4349,18 @@ function renderStats(): void {
   $('hitsPeakNote').classList.toggle('hidden', peak === null);
   $('hitsPeakNote').textContent = peak
     ? `A hét csúcsa: ${hourLabel(peak.hour)} (${peak.count} megakadás) — akkor jár a kéz magától.` : '';
+  // ABLAK A CSÚCS-ÓRÁRA: a tükör mondja, mikor jár a kéz magától — a gomb heti
+  // ablakot tesz a legutóbbi csomagra abban az órában, minden nap: a menet
+  // magától indul, amikor a kéz indulna. Felvenni ingyen (szigorítás); a
+  // levétel próbatétel, ezt a gomb címe nem rejti. Nincs gomb ablakos csomagon,
+  // futó menet mellett, csomag vagy csúcs nélkül.
+  const winPick = suggestedPack();
+  const canWindow = peak !== null && winPick !== null && !winPick.recurrence
+    && !focusIsRunning(status?.focusRun ?? null, Date.now());
+  $('hitsWindowBtn').classList.toggle('hidden', !canWindow);
+  $('hitsWindowBtn').textContent = canWindow && winPick && peak
+    ? `Heti ablak a csúcs-órára: ${winPick.name}, minden nap ${peak.hour}:00–${(peak.hour + 1) % 24}:00` : '';
+  $('hitsWindowBtn').title = 'Felvenni ingyen; levenni vagy szűkíteni próbatétel — mint minden ablakot.';
   // MELYIK szabály dolgozik: az okok a héten, a legnagyobb elöl. Üresen nincs.
   const reasons = hitsReasonLine(status?.browserHitsReasons ?? []);
   $('hitsReasonNote').classList.toggle('hidden', reasons === '');
