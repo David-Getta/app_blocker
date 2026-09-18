@@ -158,6 +158,9 @@ ingyen van, rövidíteni vagy visszavonni sehogy.
   soron, a feloldás és a próbatétel lapján, és a böngésző tiltó lapján. Nem
   tiltás és nem feloldás: próbatétel nélkül írható és vehető le; a szinkronon
   az oldallal utazik. Lásd `docs/feature-reason.md`.
+- **Javaslat a mérésből** (gépen). A felvevő kártya egy sorban mutatja a hét
+  legnagyobb, nem tiltott idővivőit (legalább fél óra, legfeljebb három), egy
+  kattintással tiltva — tükör, nem ítélet; rejtett listánál a sor is elmarad.
 - **Kategória-csomagok: egy kattintással több oldal** (mindhárom platform).
   *Közösségi*, *Videó és stream*, *Hírek*, *Vásárlás* — egy-egy gomb a felvevő
   kártyán, ami a csomag minden oldalát felveszi. Felvenni ingyen (szigorítás),
