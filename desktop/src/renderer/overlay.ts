@@ -13,7 +13,9 @@ import {
   formatRemaining, MAX_SESSION_MINUTES, SESSION_CHOICES_MIN,
   type FocusPack, type FocusRun,
 } from '../shared/focus.js';
-import { formatLockdownRemaining, isLocked, type Lockdown } from '../shared/lockdown.js';
+import {
+  formatLockdownRemaining, isLocked, isWindowLockdown, type Lockdown, type LockdownWindow,
+} from '../shared/lockdown.js';
 
 /**
  * Amit a rétegnek a hídból ismernie kell.
@@ -38,13 +40,19 @@ interface Status {
   focusRun: FocusRun | null;
   /** a futó zárlat, ha van — alatta a leállítás útja sincs */
   lockdown?: Lockdown | null;
+  /** a heti zárlat-ablakok — ebből tudja a réteg, hogy az ablak tartja-e a zárlatot */
+  lockdownWindows?: LockdownWindow[];
   now: number;
 }
 
 /** A zárlat sora a rétegben, vagy null, ha nincs zárlat. */
 function lockdownLine(st: Status): string | null {
   if (!isLocked(st.lockdown, Date.now())) return null;
-  return `Zárlat: még ${formatLockdownRemaining(st.lockdown!.until - Date.now())} — `
+  // Az ablak zárlata ugyanaz a zárlat — de a sor mondja ki, hogy az ablak
+  // tartja: aki a réteget nyitja, tudja meg, miért nincs leállító gomb.
+  const byWindow = isWindowLockdown(st.lockdown!, st.lockdownWindows ?? []);
+  return `${byWindow ? 'Zárlat a heti ablak szerint' : 'Zárlat'}: még `
+    + `${formatLockdownRemaining(st.lockdown!.until - Date.now())} — `
     + 'leállítani, feloldani, lazítani most nem lehet. Indítani és hosszabbítani igen.';
 }
 
