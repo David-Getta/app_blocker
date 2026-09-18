@@ -47,6 +47,8 @@ function serve() {
 /** Egy valósághű kiadás, a v0.3.5 tényleges fájlnevei alapján. */
 const FAKE_RELEASE = {
   tag_name: 'v0.3.5',
+  // A jegyzet első szakasza a lapra kerül — a képen is látszódjon.
+  body: '## Mi újság ebben a verzióban\n\n**Ablak a csúcs-órára.** A statisztika\negy gombbal heti ablakot tesz a csúcs-órára.\n\n### Ami korábban jött\n\nEz már nem.\n',
   assets: [
     { name: 'Breaker-0.3.5-arm64.dmg', browser_download_url: 'https://example.test/arm64.dmg' },
     { name: 'Breaker-0.3.5.dmg', browser_download_url: 'https://example.test/intel.dmg' },

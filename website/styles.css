@@ -234,3 +234,8 @@ footer a:hover { color: var(--text); }
   .card { grid-template-columns: 1fr; }
   .files { justify-content: flex-start; }
 }
+
+/* Mi újság: a kiadás jegyzete — bekezdések, a vastag a jegyzeté. */
+.whatsnew p { margin: 0 0 var(--s3); line-height: 1.55; }
+.whatsnew p.muted { opacity: 0.75; font-size: 0.95em; }
+.whatsnew.hidden { display: none; }

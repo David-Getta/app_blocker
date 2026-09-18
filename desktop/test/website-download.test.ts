@@ -160,3 +160,15 @@ test('a hibaüzenet mindig odavisz a kiadásokhoz', () => {
     assert.match(html, /https:\/\/example\.invalid\/releases/, `„${kind}”: nincs kiút`);
   }
 });
+
+// MI ÚJSÁG: a jegyzet első szakasza bekezdésenként, a következő címsorig — a
+// korábbi verziók visszatekintése nem tartozik ide. Jegyzet nélkül üres.
+test('mi újság: az első szakasz bekezdései, a címsorig; jegyzet nélkül üres', () => {
+  const whatsNew = extract<(b: unknown) => string[]>('whatsNew');
+  const body = '## Mi újság ebben a verzióban\n\n**Ablak a csúcs-órára.** A statisztika\negy gombbal ablakot tesz.\n\nMásodik bekezdés.\n\n### Ami a v0.4.80-ban jött\n\nEz már nem.\n';
+  assert.deepEqual(whatsNew(body), ['**Ablak a csúcs-órára.** A statisztika egy gombbal ablakot tesz.', 'Második bekezdés.']);
+  assert.deepEqual(whatsNew(''), []);
+  assert.deepEqual(whatsNew(undefined), []);
+  assert.deepEqual(whatsNew('# Csak cím\n\nszöveg'), [], 'a „Mi újság” szakasz nélkül nincs mit mondani');
+  assert.deepEqual(whatsNew('## Mi újság ebben a verzióban\r\n\r\nEgy sor.\r\n'), ['Egy sor.'], 'a Windows-sorvég nem zavar');
+});

@@ -193,6 +193,49 @@ function renderError(kind) {
 }
 
 /** Ismeretlen ok: az óvatos mondat, ami egyik esetben sem hazudik. */
+/**
+ * MI ÚJSÁG a legutóbbi kiadásban: a kiadási jegyzet első szakasza
+ * („Mi újság ebben a verzióban”), bekezdésenként — a következő címsorig, ami már a
+ * korábbi verziók visszatekintése. A jegyzet a kiadás oldaláról jön, nem
+ * kézzel másolva: amit a kiadás mond, azt mondja a letöltőoldal is.
+ * Jegyzet nélkül üres lista — akkor a blokk nincs.
+ */
+function whatsNew(body) {
+  const lines = String(body || "").replace(/\r/g, "").split("\n");
+  const start = lines.findIndex((l) => /^##\s+Mi újság/.test(l.trim()));
+  if (start < 0) return [];
+  const out = [];
+  let para = [];
+  const flush = () => { if (para.length) { out.push(para.join(" ").trim()); para = []; } };
+  for (const raw of lines.slice(start + 1)) {
+    const line = raw.trim();
+    if (/^#/.test(line)) break;
+    if (!line) { flush(); continue; }
+    para.push(line);
+  }
+  flush();
+  return out.filter((p) => p);
+}
+
+/** Szöveg HTML-be — a jegyzet a kiadásé, de a lap a miénk: semmi nem fut le belőle. */
+function escapeHtml(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+/** A jegyzet blokkja: a cím a verzióval, bekezdésenként; a **vastag** marad vastag. */
+function renderWhatsNew(version, body) {
+  const box = document.getElementById("whatsnew");
+  if (!box) return;
+  const paras = whatsNew(body);
+  if (!paras.length) { box.classList.add("hidden"); return; }
+  const html = paras
+    .map((p) => `<p>${escapeHtml(p).replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")}</p>`)
+    .join("");
+  box.innerHTML = `<h2>Mi újság${version ? ` (${escapeHtml(version)})` : ""}</h2>${html}`
+    + `<p class="muted"><a href="${RELEASES}" target="_blank" rel="noopener">A korábbi kiadások jegyzetei</a></p>`;
+  box.classList.remove("hidden");
+}
+
 function text_fallback() {
   return [
     "Nem sikerült lekérdezni a verziót",
@@ -228,6 +271,8 @@ fetch(API, { headers: { Accept: "application/vnd.github+json" } })
       byPlat[c.plat].push({ url: asset.browser_download_url, label: c.label });
     }
     render(byPlat, rel.tag_name || "");
+    // MI ÚJSÁG: a kiadás jegyzetének első szakasza — a letöltés mellett.
+    renderWhatsNew(rel.tag_name || "", rel.body || "");
   })
   // A `fetch` MAGA is elhasalhat (nincs hálózat, közbeszóló tűzfal): olyankor
   // nincs státuszkód, és a hibaüzenet üres. Az az „off” eset.
