@@ -218,6 +218,7 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
     var confirmUsageClear by remember { mutableStateOf(false) }
     var lockdownDialog by remember { mutableStateOf(false) }
     var lockdownWindowDialog by remember { mutableStateOf(false) }
+    var lockdownWindowEdit by remember { mutableStateOf<LockdownLogic.LockdownWindow?>(null) }
 
     // Ideiglenes felfedés oldalanként: meddig látszik a valódi cím. Szándékosan
     // nem mentjük — az app újranyitása után megint a fedőnév áll ott.
@@ -538,7 +539,7 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                         }
                         Text(
                             if (ses.pendingLockdownWindows != null) {
-                                "Folyamatban: zárlat-ablak levétele"
+                                "Folyamatban: zárlat-ablak lazítása"
                             } else if (ses.pendingFocusEnd != null) {
                                 "Folyamatban: munkamenet leállítása — " +
                                     (focusPack?.name ?: "munkamenet")
@@ -724,6 +725,9 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                                 style = MaterialTheme.typography.bodySmall,
                                 modifier = Modifier.weight(1f),
                             )
+                            // Bővíteni ingyen, szűkíteni próbatétel — a bíró dönti el,
+                            // melyik; a felület csak a teljes listát adja át.
+                            TextButton(onClick = { lockdownWindowEdit = w }) { Text("Módosítás…") }
                             TextButton(onClick = {
                                 try {
                                     val r = Referee.setLockdownWindows(
@@ -797,12 +801,14 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
         )
     }
 
-    if (lockdownWindowDialog) {
+    if (lockdownWindowDialog || lockdownWindowEdit != null) {
+        val closeWindowDialog = { lockdownWindowDialog = false; lockdownWindowEdit = null }
         LockdownWindowDialog(
             current = state.lockdownWindows,
-            onDismiss = { lockdownWindowDialog = false },
-            onApplied = { lockdownWindowDialog = false },
-            onChallenge = { lockdownWindowDialog = false; onOpenChallenge() },
+            existing = lockdownWindowEdit,
+            onDismiss = closeWindowDialog,
+            onApplied = closeWindowDialog,
+            onChallenge = { closeWindowDialog(); onOpenChallenge() },
             onError = { flowError = it },
         )
     }
@@ -1513,6 +1519,11 @@ private fun BurstLine(site: Site, burst: BurstLogic.State?, now: Long, trip: Bur
  * telefonos menetrend-szerkesztő. A már meglévő sávok nem választhatók újra.
  * A teljes listát a bíró kapja: a felvétel szigorítás, azonnal megy; ha egy
  * kijelölés mégis lazítana (nem lehet), a bíró mondja meg.
+ *
+ * Meglévő ablakkal (`existing`) ugyanez a lap MÓDOSÍT: csak a saját sáv
+ * látszik, az ablak mezőivel kitöltve, és a mentés az ablak helyére írja az
+ * újat — ugyanazzal az azonosítóval. Bővíteni ingyen van, szűkíteni
+ * próbatétel; ezt is a bíró dönti el, a lap csak a listát adja át.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -1522,27 +1533,34 @@ private fun LockdownWindowDialog(
     onApplied: () -> Unit,
     onChallenge: () -> Unit,
     onError: (String) -> Unit,
+    existing: LockdownLogic.LockdownWindow? = null,
 ) {
     val have = current.map { LockdownLogic.windowKey(it.band) }.toSet()
     val selected = remember { mutableStateListOf<String>() }
     // SAJÁT SÁV: napok és két időpont — mint a gépen. Az előre gyártott sávok
     // a gyakori esetek; aki 8:30-tól 16-ig akar, itt írja be.
-    val customDays = remember { mutableStateListOf<Int>() }
-    var customStart by remember { mutableStateOf("09:00") }
-    var customEnd by remember { mutableStateOf("17:00") }
+    val customDays = remember { mutableStateListOf<Int>().apply { existing?.let { addAll(it.days) } } }
+    var customStart by remember { mutableStateOf(existing?.let { clockLabel(it.startMin) } ?: "09:00") }
+    var customEnd by remember { mutableStateOf(existing?.let { clockLabel(it.endMin) } ?: "17:00") }
     val dayNames = listOf("V", "H", "K", "Sze", "Cs", "P", "Szo")
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Heti ablak felvétele") },
+        title = { Text(if (existing == null) "Heti ablak felvétele" else "Heti ablak módosítása") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(
-                    "Az ablakban a zárlat magától él, az ablak végéig — a gépen is. Felvenni " +
-                        "ingyen van; levenni próbatétel, és csak az ablakon kívül. Az egész hét nem " +
-                        "zárható le: legalább egy szabad óra marad.",
+                    if (existing == null) {
+                        "Az ablakban a zárlat magától él, az ablak végéig — a gépen is. Felvenni " +
+                            "ingyen van; levenni próbatétel, és csak az ablakon kívül. Az egész hét nem " +
+                            "zárható le: legalább egy szabad óra marad."
+                    } else {
+                        "Bővíteni (több nap, hosszabb sáv) ingyen van, azonnal él. Szűkíteni " +
+                            "próbatétel, és csak az ablakon kívül — bent zárlat van."
+                    },
                     style = MaterialTheme.typography.bodySmall,
                 )
                 for ((label, key, band) in SCHEDULE_PRESETS) {
+                    if (existing != null) break
                     val already = LockdownLogic.windowKey(band) in have
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Checkbox(
@@ -1556,7 +1574,10 @@ private fun LockdownWindowDialog(
                         )
                     }
                 }
-                Text("Vagy saját sáv — napok, kezdés, vég:", style = MaterialTheme.typography.bodySmall)
+                Text(
+                    if (existing == null) "Vagy saját sáv — napok, kezdés, vég:" else "Napok, kezdés, vég:",
+                    style = MaterialTheme.typography.bodySmall,
+                )
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     for (d in listOf(1, 2, 3, 4, 5, 6, 0)) {
                         FilterChip(
@@ -1580,9 +1601,9 @@ private fun LockdownWindowDialog(
         },
         confirmButton = {
             TextButton(onClick = {
-                val added = SCHEDULE_PRESETS.filter { selected.contains(it.second) }.map { (_, _, band) ->
-                    LockdownLogic.LockdownWindow("", band.days, band.startMin, band.endMin)
-                }.toMutableList()
+                val added = SCHEDULE_PRESETS.filter { existing == null && selected.contains(it.second) }
+                    .map { (_, _, band) -> LockdownLogic.LockdownWindow("", band.days, band.startMin, band.endMin) }
+                    .toMutableList()
                 if (customDays.isNotEmpty()) {
                     val s = parseClock(customStart)
                     val e = parseClock(customEnd)
@@ -1590,16 +1611,26 @@ private fun LockdownWindowDialog(
                         onError("A saját sáv kezdése és vége ÓÓ:PP alakú legyen, például 08:30."); return@TextButton
                     }
                     // A „00:00” végként az éjfél: a sáv 1440-nel írja le, nem nullával.
-                    added.add(LockdownLogic.LockdownWindow("", customDays.toSet(), s, if (e == 0) 1440 else e))
+                    added.add(LockdownLogic.LockdownWindow(existing?.id ?: "", customDays.toSet(), s, if (e == 0) 1440 else e))
                 }
-                if (added.isEmpty()) { onError("Válassz legalább egy sávot, vagy adj meg sajátot."); return@TextButton }
+                if (added.isEmpty()) {
+                    onError(
+                        if (existing == null) "Válassz legalább egy sávot, vagy adj meg sajátot."
+                        else "Jelölj ki legalább egy napot — levenni a Levétel… gombbal lehet.",
+                    )
+                    return@TextButton
+                }
+                // Módosításnál az ablak a HELYÉRE kerül, ugyanazzal az azonosítóval:
+                // a bíró a tartalmat hasonlítja, és ő mondja meg, lazítás-e.
+                val next = if (existing == null) current + added
+                    else current.map { if (it.id == existing.id) added[0] else it }
                 try {
-                    val r = Referee.setLockdownWindows(current + added, System.currentTimeMillis())
+                    val r = Referee.setLockdownWindows(next, System.currentTimeMillis())
                     if (r.applied) onApplied() else onChallenge()
                 } catch (e: Referee.RefereeException) {
                     onError(e.message ?: "Ismeretlen hiba")
                 }
-            }) { Text("Felvétel") }
+            }) { Text(if (existing == null) "Felvétel" else "Mentés") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Mégse") } },
     )
@@ -1614,6 +1645,9 @@ private fun parseClock(v: String): Int? {
     if (h > 24 || min > 59 || (h == 24 && min > 0)) return null
     return h * 60 + min
 }
+
+/** 540 → „09:00”; az 1440 (éjfél mint vég) „00:00” — a szerkesztő ezt vissza is olvassa 1440-nek. */
+private fun clockLabel(min: Int): String = "%02d:%02d".format((min % 1440) / 60, min % 60)
 
 
 /**
@@ -1787,7 +1821,7 @@ private fun ChallengeScreen(
     val doneText = if (session.kind == Kind.DELETE) {
         "Kész. A törlés 24 óra múlva válik véglegessé — addig visszavonhatod."
     } else if (session.pendingLockdownWindows != null) {
-        "Kész. A zárlat-ablak levétele életbe lépett."
+        "Kész. A zárlat-ablak lazítása életbe lépett."
     } else if (session.pendingFocusEnd != null) {
         "Kész. A munkamenet a kért módon zárult."
     } else {

@@ -3010,11 +3010,11 @@ function renderSession(session: SessionInfo | null): void {
     : undefined;
   if (session.siteId === 'lockdown:windows') {
     // A zárlat-ablak lazítása (levétel, szűkítés): semmi nem fut, az ablak áll.
-    $('sessionTitle').textContent = 'Zárlat-ablak levétele';
+    $('sessionTitle').textContent = 'Zárlat-ablak lazítása';
     $('sessionSubtitle').textContent =
-      'Az ablak addig MARAD, amíg a próbák meg nincsenek — a levétel a teljesítéskor lép '
-      + 'életbe. Ha közben beér az ablak, a zárlat ezt a kísérletet is elviszi: a levételt az '
-      + 'ablakon kívül kell elkezdeni és befejezni.';
+      'Az ablak addig MARAD, amíg a próbák meg nincsenek — a levétel vagy a szűkítés a '
+      + 'teljesítéskor lép életbe. Ha közben beér az ablak, a zárlat ezt a kísérletet is '
+      + 'elviszi: a lazítást az ablakon kívül kell elkezdeni és befejezni.';
   } else if (session.siteId.startsWith('focus:') && session.recurrence) {
     // A heti ablak lazítása (levétel, szűkítés): semmi nem fut, az ablak áll.
     $('sessionTitle').textContent = `Heti ablak lazítása: ${focusPack?.name ?? ''}`;

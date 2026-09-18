@@ -37,6 +37,8 @@ struct ContentView: View {
     @State private var now = nowMs()
     @State private var lockdownSheet = false
     @State private var lockdownWindowSheet = false
+    /// A módosításra megnyitott ablak — a lap ugyanaz, kitöltve; nil = felvétel.
+    @State private var lockdownWindowEdit: LockdownLogic.LockdownWindow? = nil
 
     private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
     private let presets = ["youtube.com", "facebook.com", "instagram.com", "tiktok.com", "x.com", "reddit.com"]
@@ -75,8 +77,8 @@ struct ContentView: View {
                     }
                 }
             }
-            .sheet(isPresented: $lockdownWindowSheet) {
-                LockdownWindowSheet(current: store.state.lockdownWindows ?? []) { result in
+            .sheet(isPresented: $lockdownWindowSheet, onDismiss: { lockdownWindowEdit = nil }) {
+                LockdownWindowSheet(current: store.state.lockdownWindows ?? [], editing: lockdownWindowEdit) { result in
                     lockdownWindowSheet = false
                     switch result {
                     case .applied: break
@@ -360,6 +362,9 @@ struct ContentView: View {
                     Text("Heti ablak: \(recurrenceLabel(w.band))")
                         .font(.footnote).foregroundStyle(.secondary)
                     Spacer()
+                    // Bővíteni ingyen, szűkíteni próbatétel — a bíró dönti el, melyik.
+                    Button("Módosítás…") { lockdownWindowEdit = w; lockdownWindowSheet = true }
+                        .buttonStyle(.borderless).font(.footnote)
                     Button("Levétel…") { removeLockdownWindow(w) }
                         .buttonStyle(.borderless).font(.footnote)
                 }
@@ -751,8 +756,14 @@ struct ContentView: View {
 /// Heti zárlat-ablak felvétele — a menetrend előre gyártott sávjaiból, mint a
 /// menetrend-szerkesztő. A már meglévő sávok nem választhatók újra. A teljes
 /// listát a bíró kapja: a felvétel szigorítás, azonnal megy.
+///
+/// Meglévő ablakkal (`editing`) ugyanez a lap MÓDOSÍT: csak a saját sáv
+/// látszik, az ablak mezőivel kitöltve, és a mentés az ablak helyére írja az
+/// újat — ugyanazzal az azonosítóval. Bővíteni ingyen van, szűkíteni
+/// próbatétel; ezt is a bíró dönti el, a lap csak a listát adja át.
 private struct LockdownWindowSheet: View {
     let current: [LockdownLogic.LockdownWindow]
+    let editing: LockdownLogic.LockdownWindow?
     let onResult: (Result) -> Void
 
     enum Result { case applied, challenge(String), error(String) }
@@ -761,10 +772,25 @@ private struct LockdownWindowSheet: View {
     @State private var selected = Set<String>()
     // SAJÁT SÁV: napok és két időpont — mint a gépen. Az előre gyártott sávok
     // a gyakori esetek; aki 8:30-tól 16-ig akar, itt állítja be.
-    @State private var customDays = Set<Int>()
-    @State private var customStart = Calendar.current.date(from: DateComponents(hour: 9, minute: 0)) ?? Date()
-    @State private var customEnd = Calendar.current.date(from: DateComponents(hour: 17, minute: 0)) ?? Date()
+    @State private var customDays: Set<Int>
+    @State private var customStart: Date
+    @State private var customEnd: Date
     private let dayNames = ["V", "H", "K", "Sze", "Cs", "P", "Szo"]
+
+    init(current: [LockdownLogic.LockdownWindow], editing: LockdownLogic.LockdownWindow? = nil,
+         onResult: @escaping (Result) -> Void) {
+        self.current = current
+        self.editing = editing
+        self.onResult = onResult
+        _customDays = State(initialValue: Set(editing?.days ?? []))
+        _customStart = State(initialValue: Self.clock(editing?.startMin ?? 9 * 60))
+        _customEnd = State(initialValue: Self.clock(editing?.endMin ?? 17 * 60))
+    }
+
+    /// Perc-a-napban → a választó dátuma; az 1440 (éjfél mint vég) 00:00.
+    private static func clock(_ min: Int) -> Date {
+        Calendar.current.date(from: DateComponents(hour: (min % 1440) / 60, minute: min % 60)) ?? Date()
+    }
 
     private static let presets: [(label: String, key: String, band: ScheduleLogic.Band)] = [
         ("Munkaidő (H–P 9–17)", "workHours", .init(days: [1, 2, 3, 4, 5], startMin: 9 * 60, endMin: 17 * 60)),
@@ -778,10 +804,12 @@ private struct LockdownWindowSheet: View {
         NavigationStack {
             Form {
                 Section {
-                    Text("Az ablakban a zárlat magától él, az ablak végéig — a gépen is. Felvenni ingyen van; levenni próbatétel, és csak az ablakon kívül. Az egész hét nem zárható le: legalább egy szabad óra marad.")
+                    Text(editing == nil
+                         ? "Az ablakban a zárlat magától él, az ablak végéig — a gépen is. Felvenni ingyen van; levenni próbatétel, és csak az ablakon kívül. Az egész hét nem zárható le: legalább egy szabad óra marad."
+                         : "Bővíteni (több nap, hosszabb sáv) ingyen van, azonnal él. Szűkíteni próbatétel, és csak az ablakon kívül — bent zárlat van.")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
-                Section("Sávok") {
+                if editing == nil { Section("Sávok") {
                     ForEach(Self.presets, id: \.key) { p in
                         let already = have.contains(LockdownLogic.windowKey(p.band))
                         Toggle(already ? "\(p.label) — már felvéve" : p.label, isOn: Binding(
@@ -789,8 +817,8 @@ private struct LockdownWindowSheet: View {
                             set: { on in if on { selected.insert(p.key) } else { selected.remove(p.key) } }
                         )).disabled(already)
                     }
-                }
-                Section("Vagy saját sáv") {
+                } }
+                Section(editing == nil ? "Vagy saját sáv" : "Napok, kezdés, vég") {
                     HStack(spacing: 6) {
                         ForEach([1, 2, 3, 4, 5, 6, 0], id: \.self) { d in
                             Button(dayNames[d]) {
@@ -802,14 +830,16 @@ private struct LockdownWindowSheet: View {
                     }
                     DatePicker("Kezdés", selection: $customStart, displayedComponents: .hourAndMinute)
                     DatePicker("Vég", selection: $customEnd, displayedComponents: .hourAndMinute)
-                    Text("A nap kijelölése nélkül a saját sáv nem számít.")
+                    Text(editing == nil
+                         ? "A nap kijelölése nélkül a saját sáv nem számít."
+                         : "Levenni az ablakot a Levétel… gombbal lehet, nem a napok kiürítésével.")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
             }
-            .navigationTitle("Heti ablak felvétele")
+            .navigationTitle(editing == nil ? "Heti ablak felvétele" : "Heti ablak módosítása")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Mégse") { dismiss() } }
-                ToolbarItem(placement: .confirmationAction) { Button("Felvétel") { apply() } }
+                ToolbarItem(placement: .confirmationAction) { Button(editing == nil ? "Felvétel" : "Mentés") { apply() } }
             }
         }
     }
@@ -819,19 +849,35 @@ private struct LockdownWindowSheet: View {
         return (c.hour ?? 0) * 60 + (c.minute ?? 0)
     }
 
+    /// A saját sáv ablakként — a „00:00” végként az éjfél: a sáv 1440-nel írja le, nem nullával.
+    private func customWindow(id: String) -> LockdownLogic.LockdownWindow {
+        let end = minutes(customEnd)
+        return LockdownLogic.LockdownWindow(
+            id: id, days: customDays.sorted(), startMin: minutes(customStart), endMin: end == 0 ? 1440 : end)
+    }
+
     private func apply() {
+        if let editing {
+            // Módosításnál az ablak a HELYÉRE kerül, ugyanazzal az azonosítóval:
+            // a bíró a tartalmat hasonlítja, és ő mondja meg, lazítás-e.
+            if customDays.isEmpty {
+                onResult(.error("Jelölj ki legalább egy napot — levenni a Levétel… gombbal lehet.")); return
+            }
+            let replaced = customWindow(id: editing.id)
+            submit(current.map { $0.id == editing.id ? replaced : $0 })
+            return
+        }
         var added = Self.presets.filter { selected.contains($0.key) }.map {
             LockdownLogic.LockdownWindow(id: "", days: $0.band.days, startMin: $0.band.startMin, endMin: $0.band.endMin)
         }
-        if !customDays.isEmpty {
-            let end = minutes(customEnd)
-            // A „00:00” végként az éjfél: a sáv 1440-nel írja le, nem nullával.
-            added.append(LockdownLogic.LockdownWindow(
-                id: "", days: customDays.sorted(), startMin: minutes(customStart), endMin: end == 0 ? 1440 : end))
-        }
+        if !customDays.isEmpty { added.append(customWindow(id: "")) }
         if added.isEmpty { onResult(.error("Válassz legalább egy sávot, vagy adj meg sajátot.")); return }
+        submit(current + added)
+    }
+
+    private func submit(_ next: [LockdownLogic.LockdownWindow]) {
         do {
-            let r = try Referee.setLockdownWindows(current + added, now: nowMs())
+            let r = try Referee.setLockdownWindows(next, now: nowMs())
             onResult(r.applied ? .applied : .challenge(r.session?.id ?? ""))
         } catch let e as Referee.RefereeError {
             onResult(.error(e.message))

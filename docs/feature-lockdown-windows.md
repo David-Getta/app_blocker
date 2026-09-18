@@ -67,10 +67,12 @@ napok, kezdés, vég — csak nem egy csomag indul tőle, hanem a zárlat.
 - A telefonok az ablakot **hordozzák, fésülik és érvényesítik** (a körük
   zárlatot ír belőle), és szerkesztik is: a bíró ugyanaz a
   `setLockdownWindows` (Kotlin, Swift), ugyanazzal a kapuval, ugyanazzal a
-  próbatétellel a levételre. A felület a menetrend előre gyártott sávjait
-  kínálja (munkaidő, esti lekapcsolás, hétvége), és mellette egy saját sávot
-  is: napok, kezdés, vég — mint a gépen. Módosítani (szűkíteni, bővíteni)
-  csak a gépen lehet; a telefonon a levétel és az új felvétel a két lépés.
+  próbatétellel a levételre és a szűkítésre. A felület a menetrend előre
+  gyártott sávjait kínálja (munkaidő, esti lekapcsolás, hétvége), és mellette
+  egy saját sávot is: napok, kezdés, vég — mint a gépen. Módosítani is lehet:
+  ugyanaz a lap nyílik meg az ablak mezőivel kitöltve, és a mentés az ablak
+  helyére írja az újat, ugyanazzal az azonosítóval — a bíró a tartalmat
+  hasonlítja, és ő mondja meg, lazítás-e.
 
 ## Hol van a felületen
 
@@ -85,7 +87,8 @@ tudja meg, miért van minden zárva. A tiltó lap és a gyorsbillentyűs réteg
 ugyanazt a zárlatot mutatja, mint a kézinél.
 
 **Telefonon:** a zárlat kártyája felsorolja az ablakokat, mindegyiknél
-*Levétel…* (próbatétel — a szokásos próbatétel-lap, „Zárlat-ablak levétele”
-fejléccel; bent el sem indul), és a *Heti ablak felvétele* gomb a menetrend
-előre gyártott sávjait kínálja, meg egy saját sávot (napok, kezdés, vég). A
-sáv ugyanúgy mondja a zárlatot, mint a kézinél.
+*Módosítás…* (bővíteni ingyen, szűkíteni próbatétel) és *Levétel…*
+(próbatétel — a szokásos próbatétel-lap, „Zárlat-ablak lazítása” fejléccel;
+bent el sem indul), és a *Heti ablak felvétele* gomb a menetrend előre
+gyártott sávjait kínálja, meg egy saját sávot (napok, kezdés, vég). A sáv
+ugyanúgy mondja a zárlatot, mint a kézinél.
