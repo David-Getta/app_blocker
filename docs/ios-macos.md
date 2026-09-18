@@ -32,6 +32,13 @@ az app futása nélkül is, újabb engedélykérés nélkül.
 DNS-címek irányulnak. A blokkolt nevekre NXDOMAIN, a többire upstream továbbítás.
 A tiltás minden appban és böngészőben él, **privát módban is**.
 
+A tunnel-bővítmény nem adhat értesítést, ezért a zárlat-ablak emlékeztetőit az
+app **előre ütemezi** (`UNUserNotificationCenter`, heti ismétlődő kérés minden
+ablak-napra a kezdésre és tíz perccel előbbre, ha belefér a rendszer
+hatvannégyes keretébe). A tervet — mikor, mit mondjon — a mag adja
+(`LockdownLogic.reminderPlan`), teszttel; az app csak rendszer-kérést gyárt
+belőle. Az első ablaknál az app értesítési engedélyt kér.
+
 ## Korlátok
 - MDM/„supervised” mód nélkül a felhasználó a Beállításokban ki tudja kapcsolni a
   VPN-t. Az on-demand szabály ezt kényelmetlenné teszi, de nem lehetetlenné —

@@ -23,6 +23,11 @@ cd android
   8.8.8.8 upstreamhez továbbítja.
 - A tiltás minden böngészőben és appban él, **inkognitóban és vendég módban is**,
   mert a DNS-feloldás mindegyik alatt közös.
+- A szűrő **tartós értesítése** az állapotot mondja — futó menet, zárlat (kézi
+  vagy a heti ablaké, és hogy meddig), adag-szünet, különben az alapállapot —,
+  mert a telefonon nincs tiltó lap: ez az egyetlen hely, ahol látszik, mi
+  történik. A zárlat-ablak eseményei (beérés, és tíz perccel előtte) külön,
+  látható csatornán jönnek, lehúzható értesítésként.
 
 ## Korlátok
 - Ha a felhasználó a rendszerbeállításokban leállítja a VPN-t, az app feltűnő
