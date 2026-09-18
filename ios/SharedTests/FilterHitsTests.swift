@@ -63,7 +63,8 @@ final class FilterHitsTests: XCTestCase {
         st.filterHits = [today: 3]
         let data = try JSONEncoder().encode(st)
         XCTAssertEqual(try JSONDecoder().decode(AppState.self, from: data).filterHits, [today: 3], "a mentés hordozza")
-        let old = try JSONDecoder().decode(AppState.self, from: Data("{\"sites\":[],\"unlockLog\":[]}".utf8))
-        XCTAssertNil(old.filterHits, "régi mentés: könyv nélkül")
+        // Egy korábbi verzió mentése: a mező nincs benne — a dekódolás nem dob, a könyv üres.
+        let older = try JSONDecoder().decode(AppState.self, from: try JSONEncoder().encode(AppState()))
+        XCTAssertNil(older.filterHits, "régi mentés: könyv nélkül")
     }
 }

@@ -22,7 +22,6 @@ import hu.breaker.app.core.DigestLogic
 import hu.breaker.app.core.Focus
 import hu.breaker.app.core.LockdownLogic
 import hu.breaker.app.core.Referee
-import hu.breaker.app.core.UsageLogic
 import hu.breaker.app.usage.UsageTracker
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

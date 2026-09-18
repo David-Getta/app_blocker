@@ -164,6 +164,10 @@ async function main() {
    * terve, nem a hibája, tehát a teszt dolga túlélni: pár próbálkozás.
    */
   async function bodyText(page) {
+    // A tiltó lap szkriptje modul: a betöltés végén fut, nem a lap
+    // közepén — a szöveget csak a betöltés után szabad olvasni, különben a
+    // helyőrzőket kapnánk. Gyorsabb gépen ez sosem látszott, a CI-ban igen.
+    try { await page.waitForLoadState('load', { timeout: 3000 }); } catch { /* a lap közben elnavigált */ }
     for (let t = 0; t < 4; t++) {
       try {
         return await page.evaluate(() => document.body.innerText);
