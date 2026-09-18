@@ -44,20 +44,20 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A menet-óra.** Mikor ülsz le a legtöbbször — a négy hét menetei
-          az indulás órája szerint: „A négy hét menet-órája: 9–10 óra (6 menet).”
-          Alatta az órák sávja. A csúcs-óra tükre — a gépen, Androidon és
-          iPhone-on. Tény, nem ítélet.
+          **A heti mondat a menet-órát is mondja.** A menet-nap mondata után,
+          szó szerint a statisztika sora: „A négy hét menet-órája: 9–10 óra (6 menet).”
+          Mindhárom platformon; menet nélkül nincs mondat.
 
-          ### Ami a v0.4.122-ben jött
+          ### Ami a v0.4.123-ban jött
+
+          **A menet-óra.** Mikor ülsz le a legtöbbször — a négy hét menetei
+          az indulás órája szerint, alatta az órák sávja. A csúcs-óra tükre,
+          mindhárom platformon.
+
+          #### Ami a v0.4.122-ben jött
 
           **A heti mondat a mért idő napját is mondja.** A mért idő mondata
           után, szó szerint a statisztika sora — a gépen és Androidon.
-
-          #### Ami a v0.4.121-ben jött
-
-          **A mért idő napja.** Melyik napon megy el a legtöbb idő — négy
-          hétből, négy-négy nap átlagával, alatta a hét napjainak sávja.
 
           NOTES
           fi
