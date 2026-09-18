@@ -143,4 +143,28 @@ final class FocusTests: XCTestCase {
         XCTAssertNil(Focus.packCoveringHour([a, b], hour: 9))
         XCTAssertNil(Focus.packCoveringHour([], hour: 21))
     }
+
+    func testTheSessionWeekdayFromFourWeeksCountsOnTheEndDay() {
+        let day = 86_400_000.0
+        let hour = 3_600_000.0
+        let now = localTime(20, 0)
+        let log = [
+            entry(now - 3 * hour, now - 2 * hour),            // ma
+            entry(now - 5 * hour, now - 4 * hour),            // ma
+            entry(now - 7 * day - hour, now - 7 * day),       // egy hete, ugyanaz a nap
+            entry(now - day - hour, now - day),               // tegnap
+            entry(now - 28 * day - hour, now - 28 * day),     // huszonnyolc napja: kiesik
+            entry(now + hour, now + 2 * hour),                // a jövő: kiesik
+        ]
+        let by = Focus.byWeekday(log, now: now)
+        let today = Calendar.current.component(.weekday, from: Date(timeIntervalSince1970: now / 1000)) - 1
+        XCTAssertEqual(by.count, 7)
+        XCTAssertEqual(by[today], 3, "ma kettő és egy hete egy: három")
+        XCTAssertEqual(by[(today + 6) % 7], 1, "tegnap egy")
+        XCTAssertEqual(by.reduce(0, +), 4, "a huszonnyolc napos és a jövő nem számít")
+        XCTAssertEqual(FilterHitLogic.peakWeekday(by)?.day, today, "a csúcs szabálya a csúcs-napéval közös")
+        XCTAssertEqual(FilterHitLogic.peakWeekday(by)?.count, 3)
+        XCTAssertEqual(Focus.weekdayText((day: 2, count: 6)), "A négy hét menet-napja: kedd (6 menet).")
+        XCTAssertEqual(Focus.byWeekday([], now: now), [0, 0, 0, 0, 0, 0, 0])
+    }
 }

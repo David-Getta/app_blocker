@@ -6,7 +6,8 @@
 
 import { test } from 'node:test';
 import * as assert from 'node:assert/strict';
-import { focusDaySeries, type FocusLogEntry } from '../src/shared/focus';
+import { focusByWeekday, focusDaySeries, focusWeekdayText, type FocusLogEntry } from '../src/shared/focus';
+import { peakWeekday } from '../src/shared/browser-hits';
 import { dayKey } from '../src/shared/usage';
 
 const DAY = 86_400_000;
@@ -45,4 +46,24 @@ test('üres vagy hiányzó napló: hét nulla, a napok akkor is megvannak', () =
   const now = new Date(2026, 8, 5, 20, 0).getTime();
   assert.deepEqual(focusDaySeries(undefined, now, 7).map((d) => d.seconds), [0, 0, 0, 0, 0, 0, 0]);
   assert.equal(focusDaySeries([], now, 3).length, 3);
+});
+
+test('a menet-nap: négy hétből, a hét napjaira osztva — a menet a végének napjára számít, a huszonnyolc napos és a jövő nem', () => {
+  const now = new Date(2026, 8, 18, 20, 0).getTime(); // péntek, este nyolc
+  const log = [
+    entry(now - 3 * HOUR, now - 2 * HOUR),          // ma
+    entry(now - 5 * HOUR, now - 4 * HOUR),          // ma
+    entry(now - 7 * DAY - HOUR, now - 7 * DAY),     // egy hete: péntek
+    entry(now - DAY - HOUR, now - DAY),             // tegnap: csütörtök
+    entry(now - 28 * DAY - HOUR, now - 28 * DAY),   // huszonnyolc napja: kiesik
+    entry(now + HOUR, now + 2 * HOUR),              // a jövő: kiesik
+  ];
+  const by = focusByWeekday(log, now);
+  assert.equal(by.length, 7);
+  assert.equal(by[5], 3, 'péntek: ma kettő és egy hete egy');
+  assert.equal(by[4], 1, 'csütörtök: tegnap');
+  assert.equal(by.reduce((a, b) => a + b, 0), 4, 'a huszonnyolc napos és a jövő nem számít');
+  assert.deepEqual(peakWeekday(by), { day: 5, count: 3 }, 'a holtverseny és a csúcs szabálya a csúcs-napéval közös');
+  assert.equal(focusWeekdayText({ day: 2, count: 6 }), 'A négy hét menet-napja: kedd (6 menet).');
+  assert.deepEqual(focusByWeekday(undefined, now), [0, 0, 0, 0, 0, 0, 0]);
 });

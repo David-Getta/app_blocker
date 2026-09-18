@@ -24,6 +24,7 @@
 import { normalizeDomain } from './blocklist.js';
 import { isLoosening, isValidBand, type Band, type Weekday } from './schedule.js';
 import { dayKey, dayKeysBack } from './usage.js';
+import { PEAK_WEEKDAY_DAYS, WEEKDAY_NAMES } from './browser-hits.js';
 
 /** Egy csomagban ennyi engedélyezett tétel lehet. */
 export const MAX_ALLOW_ENTRIES = 40;
@@ -405,6 +406,29 @@ export function focusDaySeries(
     totals.set(key, (totals.get(key) ?? 0) + Math.max(0, e.endedAt - e.startedAt) / 1000);
   }
   return days.map((day) => ({ day, seconds: Math.round(totals.get(day) ?? 0) }));
+}
+
+/**
+ * A HÉT NAPJAI szerint: az utolsó 28 nap menetei a hét hét napjára osztva
+ * (0 = vasárnap) — a menet a végének napjára számít, mint a napi rajzon. A
+ * megakadások csúcs-napjának tükre: nem az, mikor csúszik a kéz, hanem az,
+ * mikor ülsz le. A minta hossza és a holtverseny szabálya a csúcs-napéval
+ * közös. A Kotlin- és Swift-tükör ugyanezt (`Focus.byWeekday`).
+ */
+export function focusByWeekday(log: FocusLogEntry[] | undefined, now: number, count = PEAK_WEEKDAY_DAYS): number[] {
+  const by = [0, 0, 0, 0, 0, 0, 0];
+  const days = new Set(dayKeysBack(now, count));
+  for (const e of log ?? []) {
+    if (e.endedAt > now) continue;
+    if (!days.has(dayKey(e.endedAt))) continue;
+    by[new Date(e.endedAt).getDay()] += 1;
+  }
+  return by;
+}
+
+/** „A négy hét menet-napja: kedd (6 menet).” — melyik napon ülsz le a legtöbbször. */
+export function focusWeekdayText(peak: { day: number; count: number }): string {
+  return `A négy hét menet-napja: ${WEEKDAY_NAMES[peak.day] ?? '?'} (${peak.count} menet).`;
 }
 
 /** Esedékes-e a figyelmeztetés (az előző óta eltelt-e a türelmi idő). */

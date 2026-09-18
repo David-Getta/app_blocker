@@ -25,7 +25,7 @@ import {
 import {
   hitNudgeStep, hitNudgeText, hitsKeywordLine, hitsReasonLine, hitsTrendText, hourLabel, monthHasOlderHits, peakDayNowText, peakNowText,
   peakWarnKey, peakWarnText,
-  peakWeekdayText, WEEKDAY_NAMES,
+  peakWeekday, peakWeekdayText, WEEKDAY_NAMES,
 } from '../shared/browser-hits.js';
 import { stepBurstNotices, type BurstNotice, type BurstWatch } from '../shared/burst-notify.js';
 import {
@@ -38,7 +38,7 @@ import { limitFullLine, MAX_LIMIT_MINUTES } from '../shared/limits.js';
 import {
   formatRemaining, isRunning as focusIsRunning, isWindowRun, MAX_ALLOW_ENTRIES, MAX_PACK_NAME,
   MAX_SESSION_MINUTES, nextOccurrence, SESSION_CHOICES_MIN, windowRunStarted, type FocusPack, type FocusRun, peakWindowBand,
-  packCoveringHour,
+  packCoveringHour, focusWeekdayText,
 } from '../shared/focus.js';
 import { CATEGORY_PACKS, type CategoryPack } from '../shared/blocklist.js';
 import { windowKey, windowStartingSoon, type LockdownWindow as LockdownWindowRow } from '../shared/lockdown.js';
@@ -4271,7 +4271,7 @@ const WEEKDAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
  * hétfőtől — a csúcs-nap a mondat, a sáv az alakja (melyik napon jár a kéz
  * magától, és melyiken nem). Csúcs nélkül nincs sáv.
  */
-function renderWeekdayStrip(strip: HTMLElement, days: number[], peak: { day: number; count: number } | null): void {
+function renderWeekdayStrip(strip: HTMLElement, days: number[], peak: { day: number; count: number } | null, unit = 'megakadás'): void {
   strip.textContent = '';
   const show = peak !== null && peak.count > 0 && days.length === 7;
   strip.classList.toggle('hidden', !show);
@@ -4281,7 +4281,7 @@ function renderWeekdayStrip(strip: HTMLElement, days: number[], peak: { day: num
     const bar = document.createElement('span');
     bar.className = day === peak.day ? 'hour-bar peak' : 'hour-bar';
     bar.style.height = `${Math.min(28, Math.max(2, Math.round((n / peak.count) * 28)))}px`;
-    bar.title = `${WEEKDAY_NAMES[day]}: ${n} megakadás`;
+    bar.title = `${WEEKDAY_NAMES[day]}: ${n} ${unit}`;
     strip.appendChild(bar);
   }
 }
@@ -4459,6 +4459,13 @@ function renderFocusStats(): void {
   // A hét alakja a menetekre — ugyanaz a rajz, mint a mért időé. Régi segéd
   // (nincs focusDays) mellett a blokk egyszerűen nem jelenik meg.
   renderWeek(statsData?.focusDays, 'focusWeekBlock', 'focusWeekChart');
+  // A MENET-NAP: melyik napon ülsz le a legtöbbször — négy hétből, a csúcs-nap
+  // tükre; a sáv az alakja, hétfőtől. Menet nélkül nincs.
+  const fwd = peakWeekday(statsData?.focusWeekdays ?? []);
+  $('focusWeekdayNote').classList.toggle('hidden', fwd === null);
+  $('focusWeekdayNote').textContent = fwd ? focusWeekdayText(fwd) : '';
+  renderWeekdayStrip($('focusWeekdayStrip'), statsData?.focusWeekdays ?? [], fwd, 'menet');
+  $('focusWeekdayAxis').classList.toggle('hidden', $('focusWeekdayStrip').classList.contains('hidden'));
 
   const parts: string[] = [];
   if (week.topPack) parts.push(`A hét leggyakoribb csomagja: ${week.topPack}.`);

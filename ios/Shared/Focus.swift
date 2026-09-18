@@ -477,6 +477,28 @@ public enum Focus {
         return days.map { (day: $0, seconds: (totals[$0] ?? 0).rounded()) }
     }
 
+    /// A HÉT NAPJAI szerint: az utolsó 28 nap menetei a hét hét napjára osztva
+    /// (0 = vasárnap) — a menet a végének napjára számít, mint a napi rajzon. A
+    /// megakadások csúcs-napjának tükre: nem az, mikor csúszik a kéz, hanem az,
+    /// mikor ülsz le. A minta hossza és a holtverseny szabálya a csúcs-napéval
+    /// közös. A gépi `focusByWeekday` tükre.
+    public static func byWeekday(_ log: [LogEntry], now: Double, count: Int = FilterHitLogic.peakWeekdayDays) -> [Int] {
+        var by = [Int](repeating: 0, count: 7)
+        let days = Set(UsageStats.dayKeysBack(Date(timeIntervalSince1970: now / 1000), count))
+        for e in log where e.endedAt <= now {
+            let d = Date(timeIntervalSince1970: e.endedAt / 1000)
+            guard days.contains(UsageStats.dayKey(d)) else { continue }
+            by[Calendar.current.component(.weekday, from: d) - 1] += 1
+        }
+        return by
+    }
+
+    /// „A négy hét menet-napja: kedd (6 menet).” — melyik napon ülsz le a legtöbbször.
+    public static func weekdayText(_ peak: (day: Int, count: Int)) -> String {
+        let name = peak.day >= 0 && peak.day < FilterHitLogic.weekdayNames.count ? FilterHitLogic.weekdayNames[peak.day] : "?"
+        return "A négy hét menet-napja: \(name) (\(peak.count) menet)."
+    }
+
     /// Ahogy a felületen áll: „Nyelvtanulás — 42 perc van hátra”.
     public static func formatRemaining(_ ms: Double) -> String {
         let total = max(0, Int((ms / 60_000).rounded(.up)))

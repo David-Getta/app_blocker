@@ -208,6 +208,8 @@ function fakeBridgeSource() {
       focusDays: [6, 5, 4, 3, 2, 1, 0].map((back, i) => ({
         day: day(back), seconds: [3600, 4500, 0, 5400, 2700, 3300, 5700][i],
       })),
+      // A menet-nap négy hétből: kedd (6 menet) a csúcs.
+      focusWeekdays: [1, 2, 6, 1, 3, 2, 0],
       // Öt perce — de nem tegnap: éjfél után öt percig az „öt perce” még az
       // előző napra esne, és a füstteszt a „ma” szót várja. A mai éjfél az alsó
       // határ; a füstteszt nem az órát teszteli, hanem a sor alakját.
@@ -987,6 +989,20 @@ async function main() {
   });
   if (wdStrip.hidden || wdStrip.n !== 7 || wdStrip.peak !== 6 || !wdStrip.axis) {
     failures.push(`a hét napjainak sávja nem áll a csúcs-nap mondata alatt (${JSON.stringify(wdStrip)})`);
+  }
+  // A MENET-NAP a munkamenet-blokkban: négy hétből a kedd (6 menet), alatta a sáv, a kedd (a második rekesz) kiemelve.
+  await page.waitForFunction(
+    () => /A négy hét menet-napja: kedd \(6 menet\)\./.test(document.getElementById('focusWeekdayNote')?.textContent || '')
+      && !document.getElementById('focusWeekdayNote')?.classList.contains('hidden'),
+    undefined, { timeout: 15_000 },
+  ).catch(() => failures.push('a munkamenet-blokk nem mondja a négy hét menet-napját'));
+  const fwdStrip = await page.evaluate(() => {
+    const el = document.getElementById('focusWeekdayStrip');
+    const bars = el ? Array.from(el.children) : [];
+    return { hidden: !el || el.classList.contains('hidden'), n: bars.length, peak: bars.findIndex((b) => b.classList.contains('peak')) };
+  });
+  if (fwdStrip.hidden || fwdStrip.n !== 7 || fwdStrip.peak !== 1) {
+    failures.push(`a menet-nap sávja nem áll a mondat alatt (${JSON.stringify(fwdStrip)})`);
   }
   // AZ ÓRÁK SÁVJA a mondat alatt: huszonnégy rekesz, a csúcs (21) kiemelve.
   const strip = await page.evaluate(() => {

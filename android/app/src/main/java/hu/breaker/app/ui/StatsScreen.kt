@@ -62,6 +62,8 @@ fun StatsSection(
     weekSeries: List<Pair<String, Double>> = emptyList(),
     /** fókuszban töltött idő naponta az elmúlt 7 napra (a menet a végének napjára számít) */
     focusDays: List<Pair<String, Double>> = emptyList(),
+    /** a menet-nap sávja: a négy hét menetei a hét hét napjára osztva (0 = vasárnap) — melyik napon ülsz le a legtöbbször */
+    focusWeekdays: List<Int> = emptyList(),
     /** az elmúlt 7 nap megakadásai naponként (a szűrő könyve), a legrégebbitől */
     filterHitDays: List<Pair<String, Double>> = emptyList(),
     /** az elmúlt 30 nap megakadásai naponként — a hónap alakja; csak ha a hét előtt is volt */
@@ -156,7 +158,7 @@ fun StatsSection(
         // írjuk, engedély nélkül is. Ha a kapu alatt lenne, egy mérés nélküli
         // telefonon az app azt mondaná, hogy nincs mit mutatni — pedig pontosan
         // tudja, hányszor ültél le dolgozni.
-        FocusStatsBlock(focusToday, focusWeek, focusDays, focusPrevWeek)
+        FocusStatsBlock(focusToday, focusWeek, focusDays, focusPrevWeek, focusWeekdays)
         // A MEGAKADÁSOK napról napra — a szűrő könyve: ugyanaz a rajz, mint a
         // mért időé, csak darabban. Üresen nincs.
         // A NULLA HÉT is mondat, ha volt mihez mérni: az előző hét mellett a blokk marad.
@@ -395,6 +397,7 @@ private fun FocusStatsBlock(
     today: Focus.FocusSummary, week: Focus.FocusSummary,
     focusDays: List<Pair<String, Double>> = emptyList(),
     prevWeek: Focus.FocusSummary? = null,
+    focusWeekdays: List<Int> = emptyList(),
 ) {
     // Nulla menetnél nincs üres blokk — kivéve, ha az előző héten volt menet:
     // a nulla hét is mondat, ha volt mihez mérni.
@@ -440,6 +443,12 @@ private fun FocusStatsBlock(
     if (focusDays.any { it.second > 0.0 }) {
         StatsSectionLabel("Fókuszban, naponta")
         WeekChart(focusDays)
+    }
+    // A MENET-NAP: melyik napon ülsz le a legtöbbször — négy hétből, a csúcs-nap
+    // tükre; a sáv az alakja, hétfőtől. Menet nélkül nincs.
+    FilterHitLogic.peakWeekday(focusWeekdays)?.let { (day, count) ->
+        Text(Focus.weekdayText(day to count), style = MaterialTheme.typography.bodySmall)
+        WeekdayStrip(focusWeekdays, peakDay = day, peakCount = count)
     }
 }
 

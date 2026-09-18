@@ -128,6 +128,13 @@ struct StatsView: View {
                         .padding(.top, 4)
                     FocusWeekBars(series: days)
                 }
+                // A MENET-NAP: melyik napon ülsz le a legtöbbször — négy hétből, a csúcs-nap
+                // tükre; a sáv az alakja, hétfőtől. Menet nélkül nincs.
+                let focusByDay = Focus.byWeekday(store.state.focusLog ?? [], now: now)
+                if let fwd = FilterHitLogic.peakWeekday(focusByDay) {
+                    Text(Focus.weekdayText(fwd)).font(.footnote).foregroundStyle(.secondary)
+                    WeekdayStrip(days: focusByDay, peakDay: fwd.day, peakCount: fwd.count)
+                }
                 // A MEGAKADÁSOK napról napra — a tunnel könyve: ugyanaz a rajz,
                 // darabban. Üresen nincs.
                 let hitDays = FilterHitLogic.daySeries(store.state.filterHits ?? [:], now: now, count: 7)

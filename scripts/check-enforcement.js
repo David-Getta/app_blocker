@@ -1178,6 +1178,27 @@ const WIRES = [
     needle: 'WeekdayStrip(days: byDay, peakDay: wd.day, peakCount: wd.count)',
     lost: 'az iPhone statisztika nem rajzolná a hét napjainak sávját',
   },
+  // A MENET-NAP: melyik napon ülsz le a legtöbbször — a csúcs-nap tükre, mindhárom statisztikán.
+  {
+    file: 'desktop/src/helper/server.ts',
+    needle: 'focusWeekdays: focusByWeekday(state.focusLog, now),',
+    lost: 'a segéd nem adná le a menet-napot, a gépi statisztika nem mondaná',
+  },
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: "renderWeekdayStrip($('focusWeekdayStrip'), statsData?.focusWeekdays ?? [], fwd, 'menet');",
+    lost: 'a gépi statisztika nem mondaná és nem rajzolná a menet-napot',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/StatsScreen.kt',
+    needle: 'WeekdayStrip(focusWeekdays, peakDay = day, peakCount = count)',
+    lost: 'az Android statisztika nem mondaná és nem rajzolná a menet-napot',
+  },
+  {
+    file: 'ios/App/StatsView.swift',
+    needle: 'WeekdayStrip(days: focusByDay, peakDay: fwd.day, peakCount: fwd.count)',
+    lost: 'az iPhone statisztika nem mondaná és nem rajzolná a menet-napot',
+  },
   // AZ ABLAK SZERINT INDULT menet a rétegben és az Android értesítésén is kimondva.
   {
     file: 'desktop/src/renderer/overlay.ts',

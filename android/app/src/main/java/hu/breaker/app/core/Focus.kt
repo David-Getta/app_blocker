@@ -604,6 +604,29 @@ object Focus {
         return days.map { it to Math.round(totals.getValue(it)).toDouble() }
     }
 
+    /**
+     * A HÉT NAPJAI szerint: az utolsó 28 nap menetei a hét hét napjára osztva
+     * (0 = vasárnap) — a menet a végének napjára számít, mint a napi rajzon. A
+     * megakadások csúcs-napjának tükre: nem az, mikor csúszik a kéz, hanem az,
+     * mikor ülsz le. A minta hossza és a holtverseny szabálya a csúcs-napéval
+     * közös. A gépi `focusByWeekday` tükre.
+     */
+    fun byWeekday(log: List<FocusLogEntry>, now: Long, count: Int = FilterHitLogic.PEAK_WEEKDAY_DAYS): List<Int> {
+        val by = IntArray(7)
+        val days = UsageLogic.dayKeysBack(now, count).toSet()
+        for (e in log) {
+            if (e.endedAt > now) continue
+            val key = UsageLogic.dayKey(e.endedAt)
+            if (key !in days) continue
+            by[FilterHitLogic.weekdayOf(key)] += 1
+        }
+        return by.toList()
+    }
+
+    /** „A négy hét menet-napja: kedd (6 menet).” — melyik napon ülsz le a legtöbbször. */
+    fun weekdayText(peak: Pair<Int, Int>): String =
+        "A négy hét menet-napja: ${FilterHitLogic.WEEKDAY_NAMES.getOrElse(peak.first) { "?" }} (${peak.second} menet)."
+
     fun recurrenceKey(b: ScheduleLogic.Band?): String =
         b?.let { "${it.days.sorted().joinToString(",")}/${it.startMin}-${it.endMin}" } ?: "-"
 

@@ -377,4 +377,28 @@ class FocusTest {
         assertEquals(0.0, s[5].second, "tegnap semmi")
         assertEquals(listOf(0.0, 0.0, 0.0), Focus.daySeries(emptyList(), now, 3).map { it.second })
     }
+
+    @Test
+    fun `a menet-nap - negy hetbol, a het napjaira osztva, a menet a vegenek napjara szamit`() {
+        val day = 86_400_000L
+        val hour = 3_600_000L
+        val now = localTime(20, 0)
+        val log = listOf(
+            entry(now - 3 * hour, now - 2 * hour),            // ma
+            entry(now - 5 * hour, now - 4 * hour),            // ma
+            entry(now - 7 * day - hour, now - 7 * day),       // egy hete, ugyanaz a nap
+            entry(now - day - hour, now - day),               // tegnap
+            entry(now - 28 * day - hour, now - 28 * day),     // huszonnyolc napja: kiesik
+            entry(now + hour, now + 2 * hour),                // a jövő: kiesik
+        )
+        val by = Focus.byWeekday(log, now)
+        val today = hu.breaker.app.core.FilterHitLogic.weekdayOf(hu.breaker.app.core.UsageLogic.dayKey(now))
+        assertEquals(7, by.size)
+        assertEquals(3, by[today], "ma kettő és egy hete egy: három")
+        assertEquals(1, by[(today + 6) % 7], "tegnap egy")
+        assertEquals(4, by.sum(), "a huszonnyolc napos és a jövő nem számít")
+        assertEquals(today to 3, hu.breaker.app.core.FilterHitLogic.peakWeekday(by), "a csúcs szabálya a csúcs-napéval közös")
+        assertEquals("A négy hét menet-napja: kedd (6 menet).", Focus.weekdayText(2 to 6))
+        assertEquals(listOf(0, 0, 0, 0, 0, 0, 0), Focus.byWeekday(emptyList(), now))
+    }
 }
