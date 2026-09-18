@@ -44,13 +44,21 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
+          **A böngésző lapjai mondják, ha a menet-órát ablak fedi.** A híd a
+          javaslattal a fedő csomag nevét is leadja; a felugró lap és a
+          tiltó lap a gomb mellett kimondja: „A menet-órában magától indul: Nyelvtanulás.”
+          — az app szava, frissen. Ha a menet-óra a csúcs-óra, a csúcs-óra
+          fedése mondja. Bővítmény 0.4.32.
+
+          ### Ami a v0.4.132-ben jött
+
           **Az Android szűrő-értesítés sora a menet-napon és a menet-órában is
           mond egy szót:** „· ma a menet-nap”, „· most a menet-óra” — a
           csúcs-nap és a csúcs-óra szava mellett, ugyanazzal a küszöbbel; ha a
           menet-óra a csúcs-óra, csak a csúcs-óráé áll ott. A weboldal a híd
           menet-óra ablakát is említi.
 
-          ### Ami a v0.4.131-ben jött
+          #### Ami a v0.4.131-ben jött
 
           **Ablak a menet-órára a böngésző lapjairól is.** A híd a
           javaslattal a menet-órát is leadja, ha ablak tehető rá (és nem a
@@ -58,15 +66,6 @@ jobs:
           — „Heti ablak a menet-órára: Nyelvtanulás, minden nap 09:00–10:00” —
           ugyanazon a befelé menő végponton teszi fel, mint a csúcs-óráét:
           csak felvétel, a bíró dönt. Bővítmény 0.4.31.
-
-          #### Ami a v0.4.130-ban jött
-
-          **Ablak a menet-órára a javaslat kártyájáról is.** A gépi, az
-          Android és az iPhone kezdőlap kártyáján a csúcs-óra gombja mellett
-          a menet-óráé: „Heti ablak a menet-órára: Nyelvtanulás, minden nap 9:00–10:00”
-          — a mondattól az ablakig egy kattintás, ugyanazokkal a kapukkal,
-          mint a statisztikán; ha a menet-óra a csúcs-óra, a csúcs-óra gombja
-          már kínálja. Felvenni ingyen.
 
           NOTES
           fi
