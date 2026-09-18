@@ -297,7 +297,9 @@ A telepítés egy kattintás, és az appok **maguktól frissülnek**:
 
 Új verzió kiadása a fejlesztőnek **egyetlen parancs** (`git tag v0.2.0 && git
 push origin v0.2.0`) — a GitHub Actions megépíti mindhárom platformra és közzé
-teszi. Részletek: [`docs/releasing.md`](docs/releasing.md).
+teszi. Részletek: [`docs/releasing.md`](docs/releasing.md). A verziók listája
+egy helyen, a jegyzetek címével: [`docs/changelog.md`](docs/changelog.md)
+(a git-történetből írja a `scripts/changelog.js`).
 
 ### Jó, ha tudod — telepítés után
 

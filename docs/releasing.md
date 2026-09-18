@@ -62,6 +62,12 @@ proxy, szűkített token): a mai gyakorlatban a kiadások többsége így megy k
 A helyi tagot utána érdemes felhúzni:
 `git fetch origin tag v0.4.12`.
 
+Kiadás után a változásnapló is frissül: `node scripts/changelog.js` a
+„Kiadási jegyzet” commitokból és a helyi címkékből írja a
+[`docs/changelog.md`](changelog.md)-t (verziónként a jegyzet címe; ami nem
+kapott saját kiadást, jelölve; ami a legfrissebb címkénél újabb, „még nincs
+kiadva”). A generált fájl a következő jegyzet-commitban mehet.
+
 > A már telepített asztali és Android (közvetlen) appok a következő indításkor
 > **maguktól felfrissülnek** erre a kiadásra.
 
