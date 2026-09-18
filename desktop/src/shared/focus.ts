@@ -488,9 +488,36 @@ export function focusDayStreak(log: FocusLogEntry[] | undefined, now: number): n
   return n;
 }
 
-/** „5 napja minden nap leültél.” — kettőtől; alatta üres. */
-export function focusStreakText(n: number): string {
-  return n >= 2 ? `${n} napja minden nap leültél.` : '';
+/**
+ * A LEGHOSSZABB SOROZAT: a napló leghosszabb, megszakítás nélküli napsora
+ * menettel — a mostani sorozat mércéje, tény, nem ítélet. A napok a végük
+ * helyi napja szerint; a jövő nem számít.
+ */
+export function focusLongestStreak(log: FocusLogEntry[] | undefined, now: number): number {
+  const keys = new Set<string>();
+  for (const e of log ?? []) if (e.endedAt <= now) keys.add(dayKey(e.endedAt));
+  const days = Array.from(keys).sort();
+  let best = 0;
+  let run = 0;
+  let prev: string | null = null;
+  for (const k of days) {
+    const [y, m, d] = k.split('-').map(Number);
+    const yesterday = dayKey(new Date(y, m - 1, d - 1, 12).getTime());
+    run = prev === yesterday ? run + 1 : 1;
+    if (run > best) best = run;
+    prev = k;
+  }
+  return best;
+}
+
+/**
+ * „5 napja minden nap leültél.” — kettőtől; alatta üres. A leghosszabb
+ * sorozattal (ha nagyobb a mostaninál): „(a leghosszabb sorozatod: 12 nap)”;
+ * mostani sorozat nélkül csak a rekord: „A leghosszabb sorozatod: 12 nap.”
+ */
+export function focusStreakText(n: number, longest = 0): string {
+  if (n >= 2) return longest > n ? `${n} napja minden nap leültél (a leghosszabb sorozatod: ${longest} nap).` : `${n} napja minden nap leültél.`;
+  return longest >= 2 ? `A leghosszabb sorozatod: ${longest} nap.` : '';
 }
 
 /**

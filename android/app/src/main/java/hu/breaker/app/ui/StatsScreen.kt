@@ -70,6 +70,8 @@ fun StatsSection(
     focusHours: List<Int> = emptyList(),
     /** menet-sorozat: hány napja ülsz le minden nap — a sor kettőtől; 0, ha nincs */
     focusStreak: Int = 0,
+    /** a leghosszabb menet-sorozat a naplóban — a mostani mércéje; 0, ha nincs */
+    focusLongestStreak: Int = 0,
     /** az elmúlt 7 nap megakadásai naponként (a szűrő könyve), a legrégebbitől */
     filterHitDays: List<Pair<String, Double>> = emptyList(),
     /** az elmúlt 30 nap megakadásai naponként — a hónap alakja; csak ha a hét előtt is volt */
@@ -169,7 +171,7 @@ fun StatsSection(
         // írjuk, engedély nélkül is. Ha a kapu alatt lenne, egy mérés nélküli
         // telefonon az app azt mondaná, hogy nincs mit mutatni — pedig pontosan
         // tudja, hányszor ültél le dolgozni.
-        FocusStatsBlock(focusToday, focusWeek, focusDays, focusPrevWeek, focusWeekdays, focusHours, focusHourWindowLabel, onFocusHourWindow, focusHourPack, filterHitsPeak, focusStreak)
+        FocusStatsBlock(focusToday, focusWeek, focusDays, focusPrevWeek, focusWeekdays, focusHours, focusHourWindowLabel, onFocusHourWindow, focusHourPack, filterHitsPeak, focusStreak, focusLongestStreak)
         // A MEGAKADÁSOK napról napra — a szűrő könyve: ugyanaz a rajz, mint a
         // mért időé, csak darabban. Üresen nincs.
         // A NULLA HÉT is mondat, ha volt mihez mérni: az előző hét mellett a blokk marad.
@@ -423,6 +425,8 @@ private fun FocusStatsBlock(
     filterHitsPeak: Pair<Int, Int>? = null,
     /** menet-sorozat: hány napja ülsz le minden nap — a sor kettőtől */
     focusStreak: Int = 0,
+    /** a leghosszabb menet-sorozat — a mostani mércéje */
+    focusLongestStreak: Int = 0,
 ) {
     // Nulla menetnél nincs üres blokk — kivéve, ha az előző héten volt menet:
     // a nulla hét is mondat, ha volt mihez mérni.
@@ -472,7 +476,7 @@ private fun FocusStatsBlock(
     // A MENET-NAP: melyik napon ülsz le a legtöbbször — négy hétből, a csúcs-nap
     // tükre; a sáv az alakja, hétfőtől. Menet nélkül nincs.
     // A MENET-SOROZAT: hány napja ülsz le minden nap — kettőtől; tény, nem ítélet.
-    Focus.streakText(focusStreak).takeIf { it.isNotEmpty() }?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+    Focus.streakText(focusStreak, focusLongestStreak).takeIf { it.isNotEmpty() }?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
     FilterHitLogic.peakWeekday(focusWeekdays)?.let { (day, count) ->
         Text(Focus.weekdayText(day to count), style = MaterialTheme.typography.bodySmall)
         WeekdayStrip(focusWeekdays, peakDay = day, peakCount = count)

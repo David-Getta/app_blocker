@@ -469,6 +469,15 @@ class FocusTest {
         assertEquals(0, Focus.dayStreak(emptyList(), now))
         assertEquals("5 napja minden nap leültél.", Focus.streakText(5))
         assertEquals("", Focus.streakText(1), "egy nap nem sorozat")
+        // A LEGHOSSZABB SOROZAT: a napló rekordja — a mostani mércéje; a mondat csak akkor mondja, ha több.
+        assertEquals(3, Focus.longestStreak(listOf(run(now - 3600_000L), run(now - day), run(now - 8 * day), run(now - 9 * day), run(now - 10 * day)), now),
+            "a régi hármas hosszabb a mostani kettesnél")
+        assertEquals(1, Focus.longestStreak(listOf(run(now - 3600_000L), run(now - 3600_000L - 60_000L)), now), "egy napon két menet egy nap")
+        assertEquals(0, Focus.longestStreak(emptyList(), now))
+        assertEquals("2 napja minden nap leültél (a leghosszabb sorozatod: 3 nap).", Focus.streakText(2, 3))
+        assertEquals("3 napja minden nap leültél.", Focus.streakText(3, 3), "ha a mostani a rekord, nincs zárójel")
+        assertEquals("A leghosszabb sorozatod: 4 nap.", Focus.streakText(0, 4), "mostani nélkül csak a rekord")
+        assertEquals("", Focus.streakText(0, 1), "egy nap rekordnak sem sorozat")
     }
 
 }

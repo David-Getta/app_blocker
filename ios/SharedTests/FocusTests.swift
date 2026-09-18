@@ -235,5 +235,14 @@ final class FocusTests: XCTestCase {
         XCTAssertEqual(Focus.dayStreak([], now: now), 0)
         XCTAssertEqual(Focus.streakText(5), "5 napja minden nap leültél.")
         XCTAssertNil(Focus.streakText(1), "egy nap nem sorozat")
+        // A LEGHOSSZABB SOROZAT: a napló rekordja — a mostani mércéje; a mondat csak akkor mondja, ha több.
+        XCTAssertEqual(Focus.longestStreak([run(now - 3_600_000), run(now - day), run(now - 8 * day), run(now - 9 * day), run(now - 10 * day)], now: now), 3,
+                       "a régi hármas hosszabb a mostani kettesnél")
+        XCTAssertEqual(Focus.longestStreak([run(now - 3_600_000), run(now - 3_600_000 - 60_000)], now: now), 1, "egy napon két menet egy nap")
+        XCTAssertEqual(Focus.longestStreak([], now: now), 0)
+        XCTAssertEqual(Focus.streakText(2, longest: 3), "2 napja minden nap leültél (a leghosszabb sorozatod: 3 nap).")
+        XCTAssertEqual(Focus.streakText(3, longest: 3), "3 napja minden nap leültél.", "ha a mostani a rekord, nincs zárójel")
+        XCTAssertEqual(Focus.streakText(0, longest: 4), "A leghosszabb sorozatod: 4 nap.", "mostani nélkül csak a rekord")
+        XCTAssertNil(Focus.streakText(0, longest: 1), "egy nap rekordnak sem sorozat")
     }
 }

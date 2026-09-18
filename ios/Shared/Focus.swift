@@ -542,8 +542,31 @@ public enum Focus {
         return n
     }
 
-    /// „5 napja minden nap leültél.” — kettőtől; alatta nil.
-    public static func streakText(_ n: Int) -> String? { n >= 2 ? "\(n) napja minden nap leültél." : nil }
+    /// A LEGHOSSZABB SOROZAT: a napló leghosszabb, megszakítás nélküli napsora menettel — a mostani mércéje.
+    public static func longestStreak(_ log: [LogEntry], now: Double) -> Int {
+        let days = Set(log.filter { $0.endedAt <= now }.map { FilterHitLogic.dayKey($0.endedAt) }).sorted()
+        var best = 0
+        var run = 0
+        var prev: String? = nil
+        let cal = Calendar.current
+        for k in days {
+            let p = k.split(separator: "-").compactMap { Int($0) }
+            guard p.count == 3, let noon = cal.date(from: DateComponents(year: p[0], month: p[1], day: p[2], hour: 12)),
+                  let before = cal.date(byAdding: .day, value: -1, to: noon) else { continue }
+            let yesterday = UsageStats.dayKey(before)
+            run = prev == yesterday ? run + 1 : 1
+            if run > best { best = run }
+            prev = k
+        }
+        return best
+    }
+
+    /// „5 napja minden nap leültél.” — kettőtől; alatta nil. A leghosszabb sorozattal (ha nagyobb a
+    /// mostaninál): „(a leghosszabb sorozatod: 12 nap)”; mostani nélkül csak a rekord.
+    public static func streakText(_ n: Int, longest: Int = 0) -> String? {
+        if n >= 2 { return longest > n ? "\(n) napja minden nap leültél (a leghosszabb sorozatod: \(longest) nap)." : "\(n) napja minden nap leültél." }
+        return longest >= 2 ? "A leghosszabb sorozatod: \(longest) nap." : nil
+    }
 
     /// AMIKOR A CSÚCS-ÓRA A MENET-ÓRA: a kéz ugyanabban az órában jár magától, amelyikben le szoktál ülni
     /// — a tükör két fele egy pontra mutat. Nil, ha nem esik egybe. Tény, nem ítélet.

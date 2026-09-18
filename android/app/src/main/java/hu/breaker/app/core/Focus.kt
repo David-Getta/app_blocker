@@ -679,8 +679,33 @@ object Focus {
         return n
     }
 
-    /** „5 napja minden nap leültél.” — kettőtől; alatta üres. */
-    fun streakText(n: Int): String = if (n >= 2) "$n napja minden nap leültél." else ""
+    /** A LEGHOSSZABB SOROZAT: a napló leghosszabb, megszakítás nélküli napsora menettel — a mostani mércéje. */
+    fun longestStreak(log: List<FocusLogEntry>, now: Long): Int {
+        val days = log.filter { it.endedAt <= now }.map { UsageLogic.dayKey(it.endedAt) }.toSortedSet()
+        var best = 0
+        var run = 0
+        var prev: String? = null
+        for (k in days) {
+            val (y, m, d) = k.split("-").map { it.toInt() }
+            val cal = java.util.Calendar.getInstance().apply { clear(); set(y, m - 1, d, 12, 0, 0); add(java.util.Calendar.DAY_OF_MONTH, -1) }
+            val yesterday = UsageLogic.dayKey(cal.timeInMillis)
+            run = if (prev == yesterday) run + 1 else 1
+            if (run > best) best = run
+            prev = k
+        }
+        return best
+    }
+
+    /**
+     * „5 napja minden nap leültél.” — kettőtől; alatta üres. A leghosszabb sorozattal (ha
+     * nagyobb a mostaninál): „(a leghosszabb sorozatod: 12 nap)”; mostani nélkül csak a rekord.
+     */
+    fun streakText(n: Int, longest: Int = 0): String = when {
+        n >= 2 && longest > n -> "$n napja minden nap leültél (a leghosszabb sorozatod: $longest nap)."
+        n >= 2 -> "$n napja minden nap leültél."
+        longest >= 2 -> "A leghosszabb sorozatod: $longest nap."
+        else -> ""
+    }
 
     /**
      * AMIKOR A CSÚCS-ÓRA A MENET-ÓRA: a kéz ugyanabban az órában jár magától,

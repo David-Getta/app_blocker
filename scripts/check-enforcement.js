@@ -1391,8 +1391,13 @@ const WIRES = [
     lost: 'a gépi statisztika nem kapná meg a menet-sorozatot',
   },
   {
+    file: 'desktop/src/helper/server.ts',
+    needle: 'focusLongestStreak: focusLongestStreak(state.focusLog, now),',
+    lost: 'a gépi statisztika nem kapná meg a leghosszabb sorozatot',
+  },
+  {
     file: 'desktop/src/renderer/renderer.ts',
-    needle: "$('focusStreakNote').textContent = streak >= 2 ? focusStreakText(streak) : '';",
+    needle: "$('focusStreakNote').textContent = streakText;",
     lost: 'a gépi statisztika nem mondaná a menet-sorozatot',
   },
   {
@@ -1407,7 +1412,7 @@ const WIRES = [
   },
   {
     file: 'android/app/src/main/java/hu/breaker/app/ui/StatsScreen.kt',
-    needle: 'Focus.streakText(focusStreak).takeIf { it.isNotEmpty() }?.let { Text(it, style = MaterialTheme.typography.bodySmall) }',
+    needle: 'Focus.streakText(focusStreak, focusLongestStreak).takeIf { it.isNotEmpty() }?.let { Text(it, style = MaterialTheme.typography.bodySmall) }',
     lost: 'az Android statisztika nem mondaná a menet-sorozatot',
   },
   {
@@ -1417,7 +1422,7 @@ const WIRES = [
   },
   {
     file: 'ios/App/StatsView.swift',
-    needle: 'if let streak = Focus.streakText(Focus.dayStreak(store.state.focusLog ?? [], now: now)) {',
+    needle: 'longest: Focus.longestStreak(store.state.focusLog ?? [], now: now)) {',
     lost: 'az iPhone statisztikája nem mondaná a menet-sorozatot',
   },
   {

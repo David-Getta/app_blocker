@@ -4558,8 +4558,9 @@ function renderFocusStats(): void {
   const fwd = peakWeekday(statsData?.focusWeekdays ?? []);
   // A MENET-SOROZAT: hány napja ülsz le minden nap — kettőtől; tény, nem ítélet.
   const streak = statsData?.focusStreak ?? 0;
-  $('focusStreakNote').classList.toggle('hidden', streak < 2);
-  $('focusStreakNote').textContent = streak >= 2 ? focusStreakText(streak) : '';
+  const streakText = focusStreakText(streak, statsData?.focusLongestStreak ?? 0);
+  $('focusStreakNote').classList.toggle('hidden', streakText === '');
+  $('focusStreakNote').textContent = streakText;
   $('focusWeekdayNote').classList.toggle('hidden', fwd === null);
   $('focusWeekdayNote').textContent = fwd ? focusWeekdayText(fwd) : '';
   renderWeekdayStrip($('focusWeekdayStrip'), statsData?.focusWeekdays ?? [], fwd, (n) => `${n} menet`);

@@ -7,7 +7,7 @@
 import { test } from 'node:test';
 import * as assert from 'node:assert/strict';
 import {
-  focusByHour, focusByWeekday, focusDayNowText, focusDaySeries, focusDayStreak, focusHourNowText, focusHourText, focusHourWarnText, focusStreakText, focusWeekdayText, isFocusHourNow, peakFocusHour, sameHourText,
+  focusByHour, focusByWeekday, focusDayNowText, focusDaySeries, focusDayStreak, focusLongestStreak, focusHourNowText, focusHourText, focusHourWarnText, focusStreakText, focusWeekdayText, isFocusHourNow, peakFocusHour, sameHourText,
   type FocusLogEntry,
 } from '../src/shared/focus';
 import { peakWeekday } from '../src/shared/browser-hits';
@@ -148,4 +148,13 @@ test('a menet-sorozat: hány napja ülsz le minden nap — ma vagy tegnap végz�
   assert.equal(focusStreakText(5), '5 napja minden nap leültél.');
   assert.equal(focusStreakText(1), '', 'egy nap nem sorozat');
   assert.equal(focusStreakText(0), '');
+  // A LEGHOSSZABB SOROZAT: a napló rekordja — a mostani mércéje; a mondat csak akkor mondja, ha több.
+  assert.equal(focusLongestStreak([run(now - 3600_000), run(now - DAY), run(now - 8 * DAY), run(now - 9 * DAY), run(now - 10 * DAY)], now), 3,
+    'a régi hármas hosszabb a mostani kettesnél');
+  assert.equal(focusLongestStreak([run(now - 3600_000), run(now - 3600_000 - 60_000)], now), 1, 'egy napon két menet egy nap');
+  assert.equal(focusLongestStreak([], now), 0);
+  assert.equal(focusStreakText(2, 3), '2 napja minden nap leültél (a leghosszabb sorozatod: 3 nap).');
+  assert.equal(focusStreakText(3, 3), '3 napja minden nap leültél.', 'ha a mostani a rekord, nincs zárójel');
+  assert.equal(focusStreakText(0, 4), 'A leghosszabb sorozatod: 4 nap.', 'mostani nélkül csak a rekord');
+  assert.equal(focusStreakText(0, 1), '', 'egy nap rekordnak sem sorozat');
 });
