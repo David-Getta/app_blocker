@@ -46,9 +46,9 @@ jobs:
 
           **Heti napló iPhone-on is.** Értesítés ott továbbra sincs (a
           bővítmény nem adhat, az app nem fut a háttérben — és ezt
-          kimondjuk), de a statisztika heti naplója és az élő mondat („így
-          szólna a visszatekintés most”) igen: a hét sora akkor íródik,
-          amikor az app azon a héten először nyitva van hétfő reggel után;
+          kimondjuk), de a statisztika heti naplója és az élő mondat
+          („így szólna a visszatekintés most”) igen: a hét sora akkor
+          íródik, amikor az app azon a héten először nyitva van hétfő reggel után;
           mérés híján a menetekről és a feloldásokról szól. Ugyanaz a mag,
           Swift-tükörben, ugyanazokkal a tesztekkel — mindhárom platformon.
 
