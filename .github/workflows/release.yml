@@ -54,14 +54,16 @@ jobs:
 
           **A leghosszabb sorozat:** a statisztika menet-sorozat sora a
           mostani mellett a napló rekordját is mondja mindhárom platformon,
-          ha az több a mostaninál — „3 napja minden nap leültél (a
-          leghosszabb sorozatod: 7 nap).”; sorozat nélkül csak a rekordot.
+          ha az több a mostaninál:
+          „3 napja minden nap leültél (a leghosszabb sorozatod: 7 nap).”
+          Sorozat nélkül csak a rekordot mondja.
 
           #### Ami a v0.4.141-ben jött
 
           **Menet-sorozat:** hány napja ülsz le minden nap — a statisztika
-          és a heti mondat mondja mindhárom platformon: „5 napja minden nap
-          leültél.” Egy nap nem sorozat, a megszakadt sorozat csak nulla.
+          és a heti mondat mondja mindhárom platformon:
+          „5 napja minden nap leültél.” Egy nap nem sorozat, a megszakadt
+          sorozat csak nulla.
 
           NOTES
           fi
