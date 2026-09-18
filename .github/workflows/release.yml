@@ -44,20 +44,21 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A keret betelt napjai.** A statisztika kimondja, hány napon telt
-          be a napi keret a héten, és melyik oldalé hányszor — ezen a
-          készüléken mérve; a heti mondat rövidebben: „A napi keret 3 napon betelt.”
-          Tükör: azt mutatja, dolgozik-e a keret.
+          **Óra-tengely az órák sávja alatt** (0 · 6 · 12 · 18 · 24) a gépen,
+          a bővítmény beállítás-lapján és a telefonokon — a rekeszek órára
+          olvashatók. **A keret sora a héten betelt napokkal** — az oldal
+          mellett is: „a héten 2 napon betelt”. Bővítmény 0.4.22.
 
-          ### Ami a v0.4.95-ben jött
+          ### Ami a v0.4.96-ban jött
 
-          **A heti mondat a lefedett csúcs-órát is mondja** — ha egy csomag
-          heti ablaka fedi a csúcs-órát, a csúcs mellett: „magától indul: Nyelvtanulás”.
+          **A keret betelt napjai** — a statisztika kimondja, hány napon
+          telt be a napi keret a héten, és melyik oldalé hányszor; a heti
+          mondat rövidebben. Tükör: dolgozik-e a keret.
 
-          #### Ami a v0.4.94-ben jött
+          #### Ami a v0.4.95-ben jött
 
-          **Egy kattintás a tiltó lapról a menetig** — a tiltó lapon is ott a
-          gomb az app javasolt csomagjára. Bővítmény 0.4.21.
+          **A heti mondat a lefedett csúcs-órát is mondja** — a csúcs
+          mellett: „magától indul: Nyelvtanulás”.
 
           NOTES
           fi
