@@ -1430,6 +1430,22 @@ const WIRES = [
     needle: 'input.focusStreak = Focus.dayStreak(st.focusLog ?? [], now: now)',
     lost: 'az iPhone heti mondata nem számolná a menet-sorozatot',
   },
+  // A LEGHOSSZABB SOROZAT a heti mondatban: a mostani mellett, zárójelben — a három építő adja.
+  {
+    file: 'desktop/src/helper/digest-journal.ts',
+    needle: 'focusLongestStreak: focusLongestStreak(state.focusLog, now),',
+    lost: 'a gépi heti mondat nem kapná meg a leghosszabb sorozatot',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/Digest.kt',
+    needle: 'focusLongestStreak = Focus.longestStreak(st.focusLog, now),',
+    lost: 'az Android heti mondat nem kapná meg a leghosszabb sorozatot',
+  },
+  {
+    file: 'ios/Shared/Digest.swift',
+    needle: 'input.focusLongestStreak = Focus.longestStreak(st.focusLog ?? [], now: now)',
+    lost: 'az iPhone heti mondata nem kapná meg a leghosszabb sorozatot',
+  },
   // A MÉRT IDŐ NAPJA az Android szűrő-értesítésének sorában is.
   {
     file: 'android/app/src/main/java/hu/breaker/app/vpn/BreakerVpnService.kt',

@@ -330,6 +330,23 @@ final class DigestTests: XCTestCase {
         XCTAssertEqual(DigestLogic.text(withDay) { $0 },
                        "\(head) 5 napja minden nap leültél. A négy hét menet-napja: kedd (6 menet). 3 feloldás.", "a menet-nap előtt")
     }
+    func testTheLongestStreakInTheSentenceOnlyBesideTheCurrentOne() {
+        let head = "Elmúlt 7 nap: 7 ó 20 p mért idő; a legtöbb: youtube.com 2 ó 40 p (▼ -33% az előző héthez képest). "
+            + "9 menet (7 ó 0 p, 2 korán leállítva)."
+        var five = full
+        five.focusStreak = 5
+        five.focusLongestStreak = 12
+        XCTAssertEqual(DigestLogic.text(five) { $0 }, "\(head) 5 napja minden nap leültél (a leghosszabb sorozatod: 12 nap). 3 feloldás.")
+        var record = five
+        record.focusLongestStreak = 5
+        XCTAssertEqual(DigestLogic.text(record) { $0 }, "\(head) 5 napja minden nap leültél. 3 feloldás.", "ha a mostani a rekord, nem ismétli")
+        var none = full
+        none.focusLongestStreak = 12
+        XCTAssertEqual(DigestLogic.text(none) { $0 }, DigestLogic.text(full) { $0 }, "sorozat nélkül a rekord nem mondat a hétről")
+        var one = none
+        one.focusStreak = 1
+        XCTAssertEqual(DigestLogic.text(one) { $0 }, DigestLogic.text(full) { $0 }, "egy nap mellett sem")
+    }
 
     func testTheSessionHourInTheSentenceIsTheStatsLineAndNoHourIsNoSentence() {
         let head = "Elmúlt 7 nap: 7 ó 20 p mért idő; a legtöbb: youtube.com 2 ó 40 p (▼ -33% az előző héthez képest). "

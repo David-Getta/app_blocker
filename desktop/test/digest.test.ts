@@ -257,6 +257,19 @@ test('a menet-sorozat a mondatban: a menetek mondata után, kettőtől — egy n
     `${head} 5 napja minden nap leültél. A négy hét menet-napja: kedd (6 menet). 3 feloldás.`, 'a menet-nap előtt');
 });
 
+test('a leghosszabb sorozat a mondatban: csak a mostani sorozat mellett, zárójelben — sorozat nélkül a rekord nem a hété', () => {
+  const head = 'Elmúlt 7 nap: 7 ó 20 p mért idő; a legtöbb: youtube.com 2 ó 40 p (▼ -33% az előző héthez képest). '
+    + '9 menet (7 ó 0 p, 2 korán leállítva).';
+  assert.equal(digestText({ ...full, focusStreak: 5, focusLongestStreak: 12 }, (l) => l),
+    `${head} 5 napja minden nap leültél (a leghosszabb sorozatod: 12 nap). 3 feloldás.`);
+  assert.equal(digestText({ ...full, focusStreak: 5, focusLongestStreak: 5 }, (l) => l),
+    `${head} 5 napja minden nap leültél. 3 feloldás.`, 'ha a mostani a rekord, nem ismétli');
+  assert.equal(digestText({ ...full, focusStreak: 0, focusLongestStreak: 12 }, (l) => l), digestText(full, (l) => l),
+    'sorozat nélkül a rekord nem mondat a hétről');
+  assert.equal(digestText({ ...full, focusStreak: 1, focusLongestStreak: 12 }, (l) => l), digestText(full, (l) => l),
+    'egy nap mellett sem');
+});
+
 test('a menet-óra a mondatban: a statisztika sora szó szerint, a menet-nap után — óra nélkül nem mondat', () => {
   const head = 'Elmúlt 7 nap: 7 ó 20 p mért idő; a legtöbb: youtube.com 2 ó 40 p (▼ -33% az előző héthez képest). '
     + '9 menet (7 ó 0 p, 2 korán leállítva).';

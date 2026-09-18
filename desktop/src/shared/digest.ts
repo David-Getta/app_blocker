@@ -121,6 +121,8 @@ export interface DigestInput {
   focusHour?: { hour: number; count: number } | null;
   /** menet-sorozat: hány napja ülsz le minden nap (ma vagy tegnap végződő sorozat) — kettőtől mondat; 0, ha nincs */
   focusStreak?: number;
+  /** a napló leghosszabb sorozata — a mondat a mostani sorozat mellett, zárójelben mondja, ha több; 0, ha nincs */
+  focusLongestStreak?: number;
   /** a csomag neve, amelynek heti ablaka fedi a menet-órát — a menet magától indul, amikor le szoktál ülni; null, ha egyik sem (vagy a menet-óra a csúcs-óra) */
   focusHourPack?: string | null;
   /** a menet-órára LEHETNE ablakot tenni: van csomag ablak nélkül, és a menet-órát semmi nem fedi — a mondat kimondja */
@@ -192,8 +194,11 @@ export function digestText(input: DigestInput, labelOf: (label: string) => strin
   } else if (prevFocus) {
     parts.push(`Menet nélkül${prevFocus}.`);
   }
-  // A MENET-SOROZAT: hány napja ülsz le minden nap — kettőtől; tény, nem ítélet.
-  const streakLine = focusStreakText(input.focusStreak ?? 0);
+  // A MENET-SOROZAT: hány napja ülsz le minden nap — kettőtől; tény, nem ítélet. A
+  // LEGHOSSZABB SOROZAT csak a mostani mellett, zárójelben: a heti mondat a hétről
+  // beszél, a puszta rekord a statisztikáé.
+  const streakNow = input.focusStreak ?? 0;
+  const streakLine = focusStreakText(streakNow, streakNow >= 2 ? input.focusLongestStreak ?? 0 : 0);
   if (streakLine) parts.push(streakLine);
   // A MENET-NAP: melyik napon ülsz le a legtöbbször — négy hétből, a statisztika
   // mondata szó szerint; a csúcs-nap tükre. Nincs nap, nincs mondat.

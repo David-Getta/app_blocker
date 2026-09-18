@@ -363,6 +363,19 @@ class DigestTest {
             DigestLogic.text(full.copy(focusStreak = 5, focusWeekday = 2 to 6)) { it }, "a menet-nap előtt")
     }
 
+    @Test fun `a leghosszabb sorozat a mondatban - csak a mostani sorozat mellett, zarojelben`() {
+        val head = "Elmúlt 7 nap: 7 ó 20 p mért idő; a legtöbb: youtube.com 2 ó 40 p (▼ -33% az előző héthez képest). " +
+            "9 menet (7 ó 0 p, 2 korán leállítva)."
+        assertEquals("$head 5 napja minden nap leültél (a leghosszabb sorozatod: 12 nap). 3 feloldás.",
+            DigestLogic.text(full.copy(focusStreak = 5, focusLongestStreak = 12)) { it })
+        assertEquals("$head 5 napja minden nap leültél. 3 feloldás.",
+            DigestLogic.text(full.copy(focusStreak = 5, focusLongestStreak = 5)) { it }, "ha a mostani a rekord, nem ismétli")
+        assertEquals(DigestLogic.text(full) { it }, DigestLogic.text(full.copy(focusStreak = 0, focusLongestStreak = 12)) { it },
+            "sorozat nélkül a rekord nem mondat a hétről")
+        assertEquals(DigestLogic.text(full) { it }, DigestLogic.text(full.copy(focusStreak = 1, focusLongestStreak = 12)) { it },
+            "egy nap mellett sem")
+    }
+
     @Test fun `a menet-ora a mondatban - a statisztika sora szo szerint, ora nelkul nem mondat`() {
         val head = "Elmúlt 7 nap: 7 ó 20 p mért idő; a legtöbb: youtube.com 2 ó 40 p (▼ -33% az előző héthez képest). " +
             "9 menet (7 ó 0 p, 2 korán leállítva)."

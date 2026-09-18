@@ -119,6 +119,8 @@ object DigestLogic {
         val focusHour: Pair<Int, Int>? = null,
         /** menet-sorozat: hány napja ülsz le minden nap (ma vagy tegnap végződő sorozat) — kettőtől mondat; 0, ha nincs */
         val focusStreak: Int = 0,
+        /** a napló leghosszabb sorozata — a mondat a mostani mellett, zárójelben mondja, ha több; 0, ha nincs */
+        val focusLongestStreak: Int = 0,
         /** a csomag neve, amelynek heti ablaka fedi a menet-órát — a menet magától indul, amikor le szoktál ülni; null, ha egyik sem (vagy a menet-óra a csúcs-óra) */
         val focusHourPack: String? = null,
         /** a menet-órára LEHETNE ablakot tenni: van csomag ablak nélkül, és a menet-órát semmi nem fedi — a mondat kimondja */
@@ -188,7 +190,8 @@ object DigestLogic {
             parts.add("Menet nélkül$prevFocus.")
         }
         // A MENET-SOROZAT: hány napja ülsz le minden nap — kettőtől; tény, nem ítélet.
-        Focus.streakText(input.focusStreak).takeIf { it.isNotEmpty() }?.let { parts.add(it) }
+        // A LEGHOSSZABB SOROZAT csak a mostani mellett, zárójelben: a heti mondat a hétről beszél.
+        Focus.streakText(input.focusStreak, if (input.focusStreak >= 2) input.focusLongestStreak else 0).takeIf { it.isNotEmpty() }?.let { parts.add(it) }
         // A MENET-NAP: melyik napon ülsz le a legtöbbször — négy hétből, a statisztika
         // mondata szó szerint; a csúcs-nap tükre. Nincs nap, nincs mondat.
         input.focusWeekday?.let { parts.add(Focus.weekdayText(it)) }
@@ -334,6 +337,7 @@ object DigestLogic {
             focusHour = Focus.peakHour(Focus.byHour(st.focusLog, now)),
             // A menet-sorozat: hány napja ülsz le minden nap — a mondat kettőtől mondja.
             focusStreak = Focus.dayStreak(st.focusLog, now),
+            focusLongestStreak = Focus.longestStreak(st.focusLog, now),
             // A menet-óra fedése: a csomag, amelynek heti ablaka fedi — a mondat mondja; ha nem fedi semmi,
             // de lehetne: „nincs rá ablak”. Ha a menet-óra a csúcs-óra, a csúcs mondata mondja — kétszer ugyanazt nem.
             focusHourPack = ownFocusHour(st, now)?.let { Focus.packCoveringHour(st.focusPacks, it)?.name },

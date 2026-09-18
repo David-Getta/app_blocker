@@ -174,8 +174,9 @@ kezdőlapjának kártyája, és az Android szűrő-értesítés sora („· 5 na
 a naplóban valaha volt leghosszabb sorozatot is mondja, ha az több a
 mostaninál: „5 napja minden nap leültél (a leghosszabb sorozatod: 12 nap).”
 — mostani sorozat nélkül csak a rekordot: „A leghosszabb sorozatod: 12 nap.”
-(`focusLongestStreak`, `Focus.longestStreak`; a heti mondat csak a mostanit
-mondja).
+(`focusLongestStreak`, `Focus.longestStreak`). A heti mondat a rekordot csak a
+mostani sorozat mellett, zárójelben mondja — a hétről beszél; a puszta rekord
+a statisztikáé.
 
 **Az aldomain átmegy**: a `google.com` engedése a `translate.google.com`-ot is
 engedi. Enélkül minden oldalnál külön ki kellene találni, melyik aldomain kell,

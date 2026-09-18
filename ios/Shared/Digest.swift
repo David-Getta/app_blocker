@@ -106,6 +106,8 @@ public enum DigestLogic {
         public var focusHour: (hour: Int, count: Int)? = nil
         /// Menet-sorozat: hány napja ülsz le minden nap (ma vagy tegnap végződő sorozat) — kettőtől mondat; 0, ha nincs.
         public var focusStreak: Int = 0
+        /// A napló leghosszabb sorozata — a mondat a mostani mellett, zárójelben mondja, ha több; 0, ha nincs.
+        public var focusLongestStreak: Int = 0
         /// A csomag neve, amelynek heti ablaka fedi a menet-órát — a menet magától indul, amikor le szoktál ülni; nil, ha egyik sem (vagy a menet-óra a csúcs-óra).
         public var focusHourPack: String? = nil
         /// A menet-órára LEHETNE ablakot tenni: van csomag ablak nélkül, és a menet-órát semmi nem fedi — a mondat kimondja.
@@ -206,7 +208,8 @@ public enum DigestLogic {
             parts.append("Menet nélkül\(prevFocus).")
         }
         // A MENET-SOROZAT: hány napja ülsz le minden nap — kettőtől; tény, nem ítélet.
-        if let streak = Focus.streakText(input.focusStreak) { parts.append(streak) }
+        // A LEGHOSSZABB SOROZAT csak a mostani mellett, zárójelben: a heti mondat a hétről beszél.
+        if let streak = Focus.streakText(input.focusStreak, longest: input.focusStreak >= 2 ? input.focusLongestStreak : 0) { parts.append(streak) }
         // A MENET-NAP: melyik napon ülsz le a legtöbbször — négy hétből, a statisztika
         // mondata szó szerint; a csúcs-nap tükre. Nincs nap, nincs mondat.
         if let focusDay = input.focusWeekday { parts.append(Focus.weekdayText(focusDay)) }
@@ -330,6 +333,7 @@ public enum DigestLogic {
         input.focusHour = Focus.peakHour(Focus.byHour(st.focusLog ?? [], now: now))
         // A menet-sorozat: hány napja ülsz le minden nap — a mondat kettőtől mondja.
         input.focusStreak = Focus.dayStreak(st.focusLog ?? [], now: now)
+        input.focusLongestStreak = Focus.longestStreak(st.focusLog ?? [], now: now)
         // A menet-óra fedése: a csomag, amelynek heti ablaka fedi — a mondat mondja; ha nem fedi semmi, de lehetne:
         // „nincs rá ablak”. Ha a menet-óra a csúcs-óra, a csúcs mondata mondja — kétszer ugyanazt nem.
         if let fh = input.focusHour?.hour, fh != FilterHitLogic.peakHour(st.filterHitHours ?? [:], now: now)?.hour {
