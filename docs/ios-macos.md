@@ -45,11 +45,14 @@ belőle. Az első ablaknál az app értesítési engedélyt kér.
   ez önkontroll-eszköz, nem felügyeleti szoftver.
 - A Network Extension éles teszteléséhez valós eszköz és a megfelelő
   provisioning profil kell.
-- **Heti visszatekintés nincs** (a hétfő reggeli mondat, ami a gépen és
-  Androidon jön): a bővítmény nem adhat értesítést, az app nem fut a
+- **Heti visszatekintés értesítésben nincs** (a hétfő reggeli mondat, ami a
+  gépen és Androidon jön): a bővítmény nem adhat értesítést, az app nem fut a
   háttérben, előre ütemezni pedig csak olyan mondatot lehetne, ami a hét
-  végére elavul — inkább nincs, mint hogy hamis legyen. A statisztika lapja
-  ugyanazt mutatja, csak be kell menni érte.
+  végére elavul — inkább nincs, mint hogy hamis legyen. Ami van: a statisztika
+  **heti naplója** és az élő mondat („így szólna most”) — a hét sora akkor
+  íródik, amikor az app azon a héten először nyitva van hétfő reggel hét után
+  (`Shared/Digest.swift`, a gépi mag tükre, teszttel); mérés híján a
+  menetekről és a feloldásokról szól.
 
 ## A Swift mag
 A `Shared/` mappa (`Blocklist.swift`, `ChallengeEngine.swift`, `Referee.swift`,

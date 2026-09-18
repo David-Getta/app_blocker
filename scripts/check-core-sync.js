@@ -77,6 +77,7 @@ sw.focus = read('ios/Shared/Focus.swift');
 
 ts.digest = read('desktop/src/shared/digest.ts');
 kt.digest = read('android/app/src/main/java/hu/breaker/app/core/Digest.kt');
+sw.digest = read('ios/Shared/Digest.swift');
 ts.usage = read('desktop/src/shared/usage.ts');
 kt.usage = read('android/app/src/main/java/hu/breaker/app/core/Usage.kt');
 
@@ -152,6 +153,17 @@ const CHECKS = [
     scalar(ts.lockdown, /WINDOW_PRE_WARN_MS\s*=\s*([^;]+);/, 'ts'),
     scalar(kt.lockdown, /WINDOW_PRE_WARN_MS\s*=\s*(.+)/, 'kt'),
     scalar(sw.lockdown, /windowPreWarnMs: Double\s*=\s*(.+)/, 'swift')],
+  // A HETI VISSZATEKINTÉS: az óra és a napló plafonja. Ha elcsúsznának, a
+  // három eszköz más hétfőn szólna ugyanarról a hétről, vagy más hosszú
+  // naplót tartana — csendben.
+  ['DIGEST_HOUR',
+    scalar(ts.digest, /DIGEST_HOUR\s*=\s*([^;]+);/, 'ts'),
+    scalar(kt.digest, /DIGEST_HOUR\s*=\s*(.+)/, 'kt'),
+    scalar(sw.digest, /digestHour\s*=\s*(.+)/, 'swift')],
+  ['MAX_DIGEST_LOG',
+    scalar(ts.digest, /MAX_DIGEST_LOG\s*=\s*([^;]+);/, 'ts'),
+    scalar(kt.digest, /MAX_DIGEST_LOG\s*=\s*(.+)/, 'kt'),
+    scalar(sw.digest, /maxDigestLog\s*=\s*(.+)/, 'swift')],
   ['MAX_ALLOW_ENTRIES',
     scalar(ts.focus, /MAX_ALLOW_ENTRIES\s*=\s*([^;]+);/, 'ts'),
     scalar(kt.focus, /MAX_ALLOW_ENTRIES\s*=\s*(.+)/, 'kt'),
@@ -294,9 +306,6 @@ const CHECKS = [
 // visszatekintés órája és a javaslat küszöbe. Ha elcsúsznának, a két eszköz
 // más hétfőn — vagy más oldalról — szólna ugyanarról a hétről.
 const PAIRS = [
-  ['DIGEST_HOUR',
-    scalar(ts.digest, /DIGEST_HOUR\s*=\s*([^;]+);/, 'ts'),
-    scalar(kt.digest, /DIGEST_HOUR\s*=\s*(.+)/, 'kt')],
   ['SUGGEST_MIN_SECONDS',
     scalar(ts.usage, /SUGGEST_MIN_SECONDS\s*=\s*([^;]+);/, 'ts'),
     scalar(kt.usage, /SUGGEST_MIN_SECONDS\s*=\s*(.+)/, 'kt')],

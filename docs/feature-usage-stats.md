@@ -414,9 +414,13 @@ Szabályok, kimondva:
   visszatekintés”). A mag ugyanaz (`core/Digest.kt`, a gépi tükre, ugyanazokkal
   a tesztekkel), a mondat is. A rejtést itt a beállítás dönti, nem a felület
   pillanatnyi felfedése: az értesítés a zárolt képernyőn is ott van.
-- **iPhone-on nincs.** A tunnel-bővítmény nem adhat értesítést, az app nem fut
-  a háttérben, előre ütemezni pedig csak olyan mondatot lehetne, ami a hét
-  végére elavul — inkább nincs, mint hogy hamis legyen.
+- **iPhone-on értesítés nincs.** A tunnel-bővítmény nem adhat értesítést, az
+  app nem fut a háttérben, előre ütemezni pedig csak olyan mondatot lehetne,
+  ami a hét végére elavul — inkább nincs, mint hogy hamis legyen. Ami van: az
+  élő mondat a statisztikán és a heti napló (l. lent) — a hét sora akkor
+  íródik, amikor az app azon a héten először nyitva van hétfő reggel hét után;
+  mérés híján a menetekről és a feloldásokról szól, ami a telefonon igazi. A
+  mag a Swift-tükör (`Shared/Digest.swift`), ugyanazokkal a tesztekkel.
 - **Gördülő hét nap**, nem naptári hét — pontosan az, amit a statisztika
   csempéi is mutatnak. A felirat „elmúlt 7 nap”-ot mond, nem „múlt hét”-et.
 - **A címkék a statisztika szabályát követik**: rejtett listánál sorszám,
@@ -430,15 +434,16 @@ frissítése után kérdezi meg, a telefonon a szűrő köre percenként.
 ### Heti napló: a mondat megmarad
 
 A hétfői mondat elszáll az értesítéssel; a napló megtartja. A statisztika
-alján (gépen) vagy a menet-blokk alatt (Androidon) egy **Heti napló** blokk:
+alján (gépen) vagy a menet-blokk alatt (a telefonokon) egy **Heti napló** blokk:
 fölül az, ami *most* szólna — „Így szólna a visszatekintés most: …”, ugyanaz a
 mag, ugyanazokból az adatokból, bármelyik napon —, alatta a korábbi hétfők
 egy-egy sorban, a legfrissebb elöl, fél évig (`MAX_DIGEST_LOG`). A pálya
 látszik, nem csak a pillanat — tükör, nem ítélet.
 
 - **Eszközönként**, mint a hét kulcsa: a gép a saját hetét mondja (a böngésző
-  tárában, `breaker.digestLog`), a telefon a magáét (az állapotban,
-  `digestLog`). Szándékosan nem szinkronizál.
+  tárában, `breaker.digestLog`), a telefonok a magukét (az állapotban,
+  `digestLog`). Szándékosan nem szinkronizál. iPhone-on a sor az app körében
+  íródik (értesítés nélkül), Androidon a szűrő szolgáltatásában.
 - **Hetenként egy sor**, az újabb felülír; az üres hét (amiről nem volt mit
   mondani) nem sor, és a hét régi sorát is elviszi. A tárból jött naplót a
   mag tisztítja (`cleanDigestLog` / `DigestLogic.clean`): ami nem sor, az

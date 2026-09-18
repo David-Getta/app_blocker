@@ -1,0 +1,175 @@
+import Foundation
+import XCTest
+@testable import BreakerShared
+
+// A heti visszatekintés magja a Swift tükrön — a desktop/test/digest.test.ts
+// és az androidos DigestTest esetei: a három mag ugyanazt a mondatot adja.
+final class DigestTests: XCTestCase {
+
+    private func at(_ y: Int, _ mo: Int, _ d: Int, _ h: Int, _ mi: Int = 0) -> Double {
+        let date = Calendar.current.date(from: DateComponents(year: y, month: mo, day: d, hour: h, minute: mi))!
+        return date.timeIntervalSince1970 * 1000
+    }
+
+    /// 2026. szeptember 7. hétfő.
+    private let monday = "2026-09-07"
+
+    func testWeekKeyIsTheMondayAndSundayStillBelongsToThePreviousWeek() {
+        XCTAssertEqual(DigestLogic.weekKey(at(2026, 9, 7, 0)), monday, "hétfő hajnal")
+        XCTAssertEqual(DigestLogic.weekKey(at(2026, 9, 10, 15)), monday, "csütörtök")
+        XCTAssertEqual(DigestLogic.weekKey(at(2026, 9, 13, 23, 59)), monday, "vasárnap este")
+        XCTAssertEqual(DigestLogic.weekKey(at(2026, 9, 6, 12)), "2026-08-31", "vasárnap: az előző hét")
+        XCTAssertEqual(DigestLogic.weekKey(at(2026, 9, 14, 0)), "2026-09-14", "a következő hétfő")
+    }
+
+    func testDueFromMondayMorningOncePerWeek() {
+        let h = DigestLogic.digestHour
+        XCTAssertNil(DigestLogic.due(nil, now: at(2026, 9, 7, h - 1, 59)), "hétfő 6:59: még nem")
+        XCTAssertEqual(DigestLogic.due(nil, now: at(2026, 9, 7, h)), monday, "hétfő 7:00: igen")
+        XCTAssertEqual(DigestLogic.due("2026-08-31", now: at(2026, 9, 9, 10)), monday, "szerdán is, ha hétfőn nem volt nyitva")
+        XCTAssertNil(DigestLogic.due(monday, now: at(2026, 9, 9, 10)), "ezen a héten már volt")
+        XCTAssertEqual(DigestLogic.due(monday, now: at(2026, 9, 14, 8)), "2026-09-14", "a következő hétfőn újra")
+        XCTAssertNil(DigestLogic.due(monday, now: at(2026, 9, 14, 3)), "de csak reggel héttől")
+    }
+
+    func testHmLikeTheTiles() {
+        XCTAssertEqual(DigestLogic.hm(58 * 60), "58 p")
+        XCTAssertEqual(DigestLogic.hm(3600 + 28 * 60), "1 ó 28 p")
+        XCTAssertEqual(DigestLogic.hm(7 * 3600 + 20 * 60), "7 ó 20 p")
+        XCTAssertEqual(DigestLogic.hm(0), "0 p")
+    }
+
+    private var full: DigestLogic.Input {
+        DigestLogic.Input(
+            last7Seconds: 7 * 3600 + 20 * 60,
+            topWeekSites: [.init(label: "youtube.com", seconds: 2 * 3600 + 40 * 60)],
+            weekOverWeek: [.init(label: "youtube.com", deltaPct: -33)],
+            focusWeek: Focus.Summary(sessions: 9, totalMs: 7 * 3_600_000, stoppedEarly: 2, topPack: "Nyelvtanulás"),
+            unlocks7d: 3,
+            daysTracked: 12
+        )
+    }
+
+    func testTheFullSentence() {
+        XCTAssertEqual(
+            DigestLogic.text(full) { $0 },
+            "Elmúlt 7 nap: 7 ó 20 p mért idő; a legtöbb: youtube.com 2 ó 40 p (▼ -33% az előző héthez képest). "
+                + "9 menet (7 ó 0 p, 2 korán leállítva). 3 feloldás."
+        )
+    }
+
+    func testTheAppIsNamedTooBecauseItIsInTheMeasuredTime() {
+        var withApp = full
+        withApp.topWeekApps = [.init(label: "Slack", seconds: 3 * 3600 + 10 * 60), .init(label: "Terminal", seconds: 3600)]
+        withApp.weekOverWeek.append(.init(label: "Slack", deltaPct: 41.6))
+        XCTAssertEqual(
+            DigestLogic.text(withApp) { $0 },
+            "Elmúlt 7 nap: 7 ó 20 p mért idő; a legtöbb: youtube.com 2 ó 40 p (▼ -33% az előző héthez képest); "
+                + "appban a legtöbb: Slack 3 ó 10 p (▲ +42% az előző héthez képest). "
+                + "9 menet (7 ó 0 p, 2 korán leállítva). 3 feloldás."
+        )
+    }
+
+    func testTheLabelBelongsToTheUI() {
+        let text = DigestLogic.text(full) { $0 == "youtube.com" ? "A videós" : $0 }!
+        XCTAssertTrue(text.contains("a legtöbb: A videós"), text)
+        XCTAssertFalse(text.contains("youtube.com"), "a valódi cím sehol")
+    }
+
+    func testWithoutUnlocksAndWithoutMeasurement() {
+        var noUnlock = full
+        noUnlock.unlocks7d = 0
+        noUnlock.focusWeek = Focus.Summary(sessions: 4, totalMs: 3_600_000, stoppedEarly: 0, topPack: nil)
+        noUnlock.weekOverWeek = [.init(label: "youtube.com", deltaPct: 3)]
+        XCTAssertEqual(
+            DigestLogic.text(noUnlock) { $0 },
+            "Elmúlt 7 nap: 7 ó 20 p mért idő; a legtöbb: youtube.com 2 ó 40 p. 4 menet (1 ó 0 p, mind végigvive). Feloldás nélkül."
+        )
+        // Mérés nélkül — ez az iPhone esete — a menetek és a feloldások még mondat.
+        var noUsage = full
+        noUsage.last7Seconds = 0; noUsage.topWeekSites = []; noUsage.weekOverWeek = []; noUsage.daysTracked = 0
+        XCTAssertEqual(DigestLogic.text(noUsage) { $0 }, "Elmúlt 7 nap: 9 menet (7 ó 0 p, 2 korán leállítva). 3 feloldás.")
+        var nothing = noUsage
+        nothing.unlocks7d = 0
+        nothing.focusWeek = Focus.Summary(sessions: 0, totalMs: 0, stoppedEarly: 0, topPack: nil)
+        XCTAssertNil(DigestLogic.text(nothing) { $0 }, "egy üres sor zaj lenne")
+        // Mérés nélkül a javaslat sem ül rá az üres hétre.
+        nothing.unblockedTop = [.init(label: "x.com", seconds: 9000)]
+        XCTAssertNil(DigestLogic.text(nothing) { $0 })
+    }
+
+    func testTheUnblockedTopIsNamedOnlyTheBiggest() {
+        var withOpen = full
+        withOpen.unblockedTop = [.init(label: "news.ycombinator.com", seconds: 2 * 3600 + 120), .init(label: "github.com", seconds: 1800)]
+        let text = DigestLogic.text(withOpen) { $0 }!
+        XCTAssertTrue(text.hasSuffix("Nincs tiltva, de sokat vitt: news.ycombinator.com 2 ó 2 p."), text)
+        XCTAssertFalse(text.contains("github.com"))
+    }
+
+    func testInputFromStateUsesTheRollingWeek() {
+        let now = at(2026, 9, 7, 8)
+        let day = 86_400_000.0
+        var st = AppState()
+        st.unlockLog = [now - 2 * day, now - 20 * day]
+        st.focusLog = [
+            Focus.LogEntry(packId: "p", packName: "Nyelvtanulás", startedAt: now - 3 * day, endedAt: now - 3 * day + 3_600_000, plannedEndsAt: now - 3 * day + 3_600_000, stopped: false),
+            Focus.LogEntry(packId: "p", packName: "Nyelvtanulás", startedAt: now - 30 * day, endedAt: now - 30 * day + 3_600_000, plannedEndsAt: now - 30 * day + 3_600_000, stopped: false),
+        ]
+        let input = DigestLogic.inputFor(st, now: now)
+        XCTAssertEqual(input.unlocks7d, 1, "a húsz napos feloldás nem az elmúlt hété")
+        XCTAssertEqual(input.focusWeek.sessions, 1, "a harminc napos menet nem az elmúlt hété")
+        XCTAssertEqual(DigestLogic.text(input) { $0 }, "Elmúlt 7 nap: 1 menet (1 ó 0 p, mind végigvive). 1 feloldás.")
+    }
+
+    func testJournalOneRowPerWeekNewestFirstHalfAYearCap() {
+        var log: [DigestLogic.Entry] = []
+        log = DigestLogic.record(log, week: "2026-08-31", text: "Elmúlt 7 nap: 5 ó 0 p mért idő.")
+        log = DigestLogic.record(log, week: "2026-09-07", text: "Elmúlt 7 nap: 7 ó 20 p mért idő.")
+        XCTAssertEqual(log.map(\.week), ["2026-09-07", "2026-08-31"], "a legfrissebb elöl")
+        log = DigestLogic.record(log, week: "2026-09-07", text: "Elmúlt 7 nap: 8 ó 0 p mért idő.")
+        XCTAssertEqual(log.count, 2)
+        XCTAssertEqual(log[0].text, "Elmúlt 7 nap: 8 ó 0 p mért idő.")
+        log = DigestLogic.record(log, week: "2026-09-07", text: nil)
+        XCTAssertEqual(log.map(\.week), ["2026-08-31"], "az üres hét a régi sort is elviszi")
+        for i in 0..<(DigestLogic.maxDigestLog + 5) {
+            log = DigestLogic.record(log, week: DigestLogic.weekKey(at(2027, 1, 4 + 7 * i, 12)), text: "hét \(i)")
+        }
+        XCTAssertEqual(log.count, DigestLogic.maxDigestLog)
+        XCTAssertEqual(log[0].text, "hét \(DigestLogic.maxDigestLog + 4)")
+        XCTAssertFalse(log.contains { $0.week == "2026-08-31" })
+    }
+
+    func testJournalFromStorageIsCleaned() {
+        let junk = [
+            DigestLogic.Entry(week: "2026-9-7", text: "rossz kulcs"), .init(week: "2026-09-07", text: "   "),
+            .init(week: "2026-09-07", text: "első"), .init(week: "2026-09-07", text: "utolsó"),
+            .init(week: "2026-08-31", text: String(repeating: "x", count: 900)),
+        ]
+        let log = DigestLogic.clean(junk)
+        XCTAssertEqual(log.map(\.week), ["2026-09-07", "2026-08-31"])
+        XCTAssertEqual(log[0].text, "utolsó")
+        XCTAssertEqual(log[1].text.count, 500)
+        XCTAssertEqual(DigestLogic.weekLabel("2026-09-07"), "2026. 09. 07.")
+    }
+
+    func testRelabelAppliesTodaysLabelsToOldRows() {
+        let text = "Elmúlt 7 nap: 7 ó mért idő; a legtöbb: youtube.com 2 ó 40 p. Nincs tiltva, de sokat vitt: m.youtube.com 1 ó; youtu.be 5 p; notyoutube.com 3 p; github.com 2 p."
+        let sites: [(domain: String, hostnames: [String])] = [
+            (domain: "youtube.com", hostnames: ["youtube.com", "m.youtube.com", "youtu.be"]),
+            (domain: "github.com", hostnames: ["github.com"]),
+        ]
+        XCTAssertEqual(
+            DigestLogic.relabel(text, sites: sites) { $0 == "youtube.com" ? "A videós" : $0 },
+            "Elmúlt 7 nap: 7 ó mért idő; a legtöbb: A videós 2 ó 40 p. Nincs tiltva, de sokat vitt: A videós 1 ó; A videós 5 p; notyoutube.com 3 p; github.com 2 p."
+        )
+        // A „notyoutube.com” nem a youtube.com aloldala — az marad; a listázottak sorszámot kapnak.
+        let hidden = DigestLogic.relabel(text, sites: sites) { d in
+            "\(sites.firstIndex(where: { $0.domain == d })! + 1). rejtett oldal"
+        }
+        XCTAssertEqual(
+            hidden,
+            "Elmúlt 7 nap: 7 ó mért idő; a legtöbb: 1. rejtett oldal 2 ó 40 p. Nincs tiltva, de sokat vitt: 1. rejtett oldal 1 ó; 1. rejtett oldal 5 p; notyoutube.com 3 p; 2. rejtett oldal 2 p."
+        )
+        XCTAssertEqual(DigestLogic.relabel(text, sites: sites) { $0 }, text, "címke nélkül a sor változatlan")
+    }
+}

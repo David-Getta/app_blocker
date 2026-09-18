@@ -52,9 +52,11 @@ ingyen van, rövidíteni vagy visszavonni sehogy.
   (és a trendjük), menetek, feloldások, vagy hogy egy sem volt. Egy hétről
   egyszer; a gépen
   csak amíg az app fut, Androidon a szűrő szolgáltatása mondja, az app nélkül
-  is (iPhone-on nincs); a rejtett vagy fedőnevű címet az értesítés sem mondja
-  ki. A mondatok **heti naplóban** megmaradnak a statisztikán (fél év, a
-  legfrissebb elöl), és fölöttük az áll, ami most szólna — bármelyik napon.
+  is (iPhone-on értesítés nincs); a rejtett vagy fedőnevű címet az értesítés
+  sem mondja ki. A mondatok **heti naplóban** megmaradnak a statisztikán,
+  mindhárom platformon (fél év, a legfrissebb elöl), és fölöttük az áll, ami
+  most szólna — bármelyik napon; iPhone-on a hét sora az app megnyitásakor
+  íródik.
 
   A **mai napnak külön blokkja van** („Mire ment ma az idő”): oldal és app
   együtt, idő szerint — a heti listákban a hét eleje elnyomná a mát.

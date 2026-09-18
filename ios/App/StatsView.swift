@@ -10,6 +10,9 @@ import SwiftUI
 struct StatsView: View {
     @EnvironmentObject var store: BreakerStore
     let now: Double
+    /// A címke-tölcsér a főnézetből: rejtett listánál sorszám, fedőnévnél a
+    /// fedőnév — a napló sem szivárogtathat ki olyan címet, amit a lista elrejt.
+    let siteLabel: (String) -> String
 
     private func unlocks(inLastDays days: Int) -> Int {
         let from = now - Double(days) * 24 * 3_600_000
@@ -105,6 +108,30 @@ struct StatsView: View {
                         .font(.caption).fontWeight(.semibold).foregroundStyle(.secondary)
                         .padding(.top, 4)
                     FocusWeekBars(series: days)
+                }
+            }
+
+            // A HETI NAPLÓ. iPhone-on értesítés nincs; a hét sora akkor íródik,
+            // amikor az app azon a héten először nyitva van hétfő reggel után.
+            // Fölötte az, ami most szólna — mérés híján a menetekről és a
+            // feloldásokról. Üresen (se sor, se mondat) a blokk nincs.
+            let digestNow = DigestLogic.text(DigestLogic.inputFor(store.state, now: now), labelOf: siteLabel)
+            let journal = store.state.digestLog ?? []
+            if digestNow != nil || !journal.isEmpty {
+                Divider()
+                SectionLabel("Heti napló")
+                if let digestNow {
+                    Text("Így szólna a visszatekintés most: \(digestNow)")
+                        .font(.footnote).foregroundStyle(.secondary)
+                }
+                // A régi sor is a MOSTANI címkézéssel: a fedőnév és a rejtés
+                // visszamenőleg is fed.
+                let sites = store.state.sites.map { (domain: $0.domain, hostnames: $0.hostnames) }
+                ForEach(journal, id: \.week) { e in
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text(DigestLogic.weekLabel(e.week)).font(.footnote).foregroundStyle(.secondary)
+                        Text(DigestLogic.relabel(e.text, sites: sites, labelOf: siteLabel)).font(.footnote)
+                    }
                 }
             }
 

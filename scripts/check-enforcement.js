@@ -288,6 +288,20 @@ const WIRES = [
     lost: 'a telefon felvevő kártyáján nem lenne javaslat — a mérés tudná, a '
       + 'felület nem mondaná',
   },
+  // iPhone-on a HETI NAPLÓ sora az app körében íródik, és a statisztika az
+  // élő mondatot mutatja — ha bármelyik kiesne, a mag ott lenne, a napló nem.
+  {
+    file: 'ios/App/ContentView.swift',
+    needle: 'DigestLogic.due(store.state.digestWeekKey, now: now)',
+    lost: 'iPhone-on a heti napló sora sosem íródna — a mag megvan, az app '
+      + 'köre nem kérdezné',
+  },
+  {
+    file: 'ios/App/StatsView.swift',
+    needle: 'DigestLogic.inputFor(store.state, now: now)',
+    lost: 'iPhone-on a statisztika nem mutatná, mi szólna most — a napló '
+      + 'sorai címke nélkül, magyarázat nélkül állnának',
+  },
   // A HÉTFŐ REGGELI VISSZATEKINTÉS a telefonon a szolgáltatás köréből szól. A
   // mag (Digest.kt) teszttel együtt megvan — ha a kör nem kérdezné meg, a
   // telefon sosem szólna, és semmi nem hasalna el tőle.

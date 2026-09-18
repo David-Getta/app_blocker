@@ -59,7 +59,7 @@ struct ContentView: View {
                     addSection
                     if let ses = store.state.session { resumeBanner(ses) }
                     listSection
-                    StatsView(now: now)
+                    StatsView(now: now, siteLabel: siteLabel)
                     lockdownSection
                     SyncCard(siteLabel: siteLabel)
                     tierLine
@@ -128,6 +128,17 @@ struct ContentView: View {
             if remindedWindows != windows {
                 remindedWindows = windows
                 WindowReminders.reschedule(windows)
+            }
+            // A heti napló sora. Értesítés itt nincs (a bővítmény nem adhat, az
+            // app nem fut a háttérben); a sor akkor íródik, amikor az app azon
+            // a héten először nyitva van hétfő reggel hét után — a felület
+            // címkézésével, mint a statisztika. Az üres hét nem sor.
+            if let key = DigestLogic.due(store.state.digestWeekKey, now: now) {
+                let text = DigestLogic.text(DigestLogic.inputFor(store.state, now: now), labelOf: siteLabel)
+                _ = store.mutate {
+                    $0.digestWeekKey = key
+                    $0.digestLog = DigestLogic.record($0.digestLog ?? [], week: key, text: text)
+                }
             }
         }
     }

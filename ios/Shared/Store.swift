@@ -113,6 +113,12 @@ struct AppState: Codable, Equatable {
     /// önmagában nem szembesít azzal, mi van blokkolva. Optional, hogy egy
     /// korábbi verzió által írt állapot is dekódolható maradjon.
     var hideSiteList: Bool? = nil
+    /// Melyik hétről íródott már a heti napló sora (a hétfő dátuma). Helyi,
+    /// mint a gépen és Androidon — a szinkronra szándékosan nem megy.
+    var digestWeekKey: String? = nil
+    /// A heti napló: a visszatekintés mondatai hetenként, a legfrissebb elöl,
+    /// fél évig. Lásd Shared/Digest.swift.
+    var digestLog: [DigestLogic.Entry]? = nil
     /// fiók a szinkronhoz; nil = nincs bejelentkezve
     var sync: SyncAccount? = nil
     /// A többi eszköz mai összegzése — ebből lesz a KÖZÖS napi keret.
