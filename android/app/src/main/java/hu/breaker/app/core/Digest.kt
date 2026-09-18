@@ -107,6 +107,8 @@ object DigestLogic {
         val filterHitsPeak: Pair<Int, Int>? = null,
         /** a csomag neve, amelynek heti ablaka fedi a csúcs-órát — a menet magától indul, amikor a kéz indulna; null, ha egyik sem */
         val filterHitsPeakPack: String? = null,
+        /** a csúcs-órára LEHETNE ablakot tenni: van csomag ablak nélkül, és a csúcs-órát semmi nem fedi — a mondat kimondja */
+        val peakWindowOffer: Boolean = false,
         /** a hét csúcs-oldala (nyers név, a címkézés a mondaté; szám) — melyik oldal akaszt meg a legtöbbször */
         val filterHitsTop: Pair<String, Int>? = null,
         /**
@@ -187,7 +189,9 @@ object DigestLogic {
         val prev = if (input.filterHitsPrev7d > 0) " (az előző héten ${input.filterHitsPrev7d})" else ""
         if (input.filterHits7d > 0) {
             // A lefedett csúcs-óra a csúcs mellett, zárójelben: a menet magától indul, amikor a kéz indulna.
-            val covered = input.filterHitsPeakPack?.let { " (magától indul: $it)" } ?: ""
+            // Ha nem fedi semmi, de lehetne: „nincs rá ablak” — tükör, nem ítélet; a gomb a statisztikán vár.
+            val covered = input.filterHitsPeakPack?.let { " (magától indul: $it)" }
+                ?: (if (input.peakWindowOffer) " (nincs rá ablak)" else "")
             val peak = input.filterHitsPeak?.let { ", a csúcs ${FilterHitLogic.hourLabel(it.first)}$covered" } ?: ""
             val top = input.filterHitsTop?.let { ", a legtöbbször: ${labelOf(it.first)} (${it.second}×)" } ?: ""
             parts.add("${input.filterHits7d} megakadás a szűrőben$prev$peak$top.")
@@ -296,6 +300,8 @@ object DigestLogic {
             filterHitsPrev7d = FilterHitLogic.hitsPrev7d(st.filterHits, now),
             filterHitsPeak = FilterHitLogic.peakHour(st.filterHitHours, now),
             filterHitsPeakPack = FilterHitLogic.peakHour(st.filterHitHours, now)?.let { Focus.packCoveringHour(st.focusPacks, it.first)?.name },
+            // Lehetne-e ablakot tenni a csúcs-órára (a menet állapota itt nem számít): a mondat kimondja.
+            peakWindowOffer = Focus.peakWindowPick(st.focusPacks, st.focusLog, null, FilterHitLogic.peakHour(st.filterHitHours, now)?.first, now) != null,
             filterHitsTop = FilterHitLogic.topSite(st.filterHitHosts, now),
             daysTracked = summary.daysTracked,
             unblockedTop = UsageLogic.suggestBlocks(summary.topWeekSites, st.sites)

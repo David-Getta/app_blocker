@@ -65,6 +65,15 @@ class DigestTest {
         daysTracked = 12,
     )
 
+    @Test fun `a csucs-orat nem fedi ablak - csak ha lehetne ra tenni, a fedes erosebb`() {
+        val head = "Elmúlt 7 nap: 7 ó 20 p mért idő; a legtöbb: youtube.com 2 ó 40 p (▼ -33% az előző héthez képest). " +
+            "9 menet (7 ó 0 p, 2 korán leállítva). 3 feloldás. 12 megakadás a szűrőben, a csúcs 21–22 óra"
+        val peak = full.copy(filterHits7d = 12, filterHitsPeak = 21 to 6)
+        assertEquals("$head (nincs rá ablak).", DigestLogic.text(peak.copy(peakWindowOffer = true)) { it })
+        assertEquals("$head.", DigestLogic.text(peak) { it })
+        assertEquals("$head (magától indul: Nyelvtanulás).", DigestLogic.text(peak.copy(peakWindowOffer = true, filterHitsPeakPack = "Nyelvtanulás")) { it }, "a fedés erősebb")
+    }
+
     @Test fun `az ablakbol indult menetek a mondatban - nulla nem mondat`() {
         assertEquals(
             "Elmúlt 7 nap: 7 ó 20 p mért idő; a legtöbb: youtube.com 2 ó 40 p (▼ -33% az előző héthez képest). " +

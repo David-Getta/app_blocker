@@ -486,6 +486,25 @@ export function packCoveringHour(packs: FocusPack[], hour: number): FocusPack | 
   return packs.find((p) => p.recurrence !== undefined && bandCoversHour(p.recurrence, hour)) ?? null;
 }
 
+/**
+ * A csúcs-óra ablakának jelöltje: (csomag, sáv) — vagy null, ha nincs mit
+ * felvenni: nincs csúcs vagy csomag, a legutóbbi csomagnak már van ablaka, egy
+ * ablak fedi a csúcs-órát, vagy menet fut (ha a hívó adja). A telefonok
+ * `peakWindowPick`-jének tükre; a heti mondat ebből tudja, hogy a csúcs-órára
+ * lehetne ablakot tenni.
+ */
+export function peakWindowPick(
+  packs: FocusPack[], log: FocusLogEntry[] | undefined, run: FocusRun | null | undefined,
+  peakHour: number | null | undefined, now: number,
+): { pack: FocusPack; band: Band } | null {
+  if (peakHour === null || peakHour === undefined) return null;
+  if (packCoveringHour(packs, peakHour)) return null;
+  if (isRunning(run, now)) return null;
+  const pick = lastUsedPack(packs, log ?? []);
+  if (!pick || pick.recurrence) return null;
+  return { pack: pick, band: peakWindowBand(peakHour) };
+}
+
 export function normalizeRecurrence(raw: unknown): Band | undefined {
   if (!raw || typeof raw !== 'object') return undefined;
   const b = raw as Partial<Band>;

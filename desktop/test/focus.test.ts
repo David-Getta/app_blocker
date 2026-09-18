@@ -13,7 +13,7 @@ import {
   closeRun, formatRemaining, isAppAllowed, isRunning, isSessionLoosening, isSiteAllowed,
   lastUsedPack, MAX_ALLOW_ENTRIES, MAX_SESSION_MINUTES, normalizeMinutes, normalizePack, remainingMs,
   normalizeRecurrence, peakWindowBand, summarizeFocus, summarizeFocusPrevWeek, type FocusLogEntry, type FocusPack,
-  bandCoversHour, packCoveringHour, closeIfEnded, type FocusRun, windowRunsByPack,
+  bandCoversHour, packCoveringHour, closeIfEnded, type FocusRun, windowRunsByPack, peakWindowPick,
 } from '../src/shared/focus';
 
 const NOW = 1_800_000_000_000;
@@ -277,4 +277,18 @@ test('ablak a csúcs-órára: minden nap, a csúcs egy órája — a 23 óra vé
   assert.equal(peakWindowBand(0).startMin, 0);
   assert.equal(peakWindowBand(99).startMin, 23 * 60, 'rossz óra: a nap utolsó órája');
   for (const h of [0, 7, 23]) assert.ok(normalizeRecurrence(peakWindowBand(h)), `a ${h} óra ablaka érvényes`);
+});
+
+test('a csúcs-óra ablakának jelöltje: van csúcs, nincs fedés, nem fut menet, és a csomagnak nincs még ablaka — a telefonok tükre', () => {
+  const p = pack({ id: 'p1', name: 'Nyelvtanulás' });
+  assert.deepEqual(peakWindowPick([p], [], null, 21, NOW), { pack: p, band: peakWindowBand(21) });
+  assert.equal(peakWindowPick([p], [], null, null, NOW), null, 'csúcs nélkül nincs');
+  assert.equal(peakWindowPick([], [], null, 21, NOW), null, 'csomag nélkül nincs');
+  const covered = pack({ id: 'p1', recurrence: { days: [1], startMin: 21 * 60 + 30, endMin: 23 * 60 } });
+  assert.equal(peakWindowPick([covered], [], null, 21, NOW), null, 'fedett csúcs-órára nincs');
+  const windowed = pack({ id: 'p1', recurrence: { days: [1, 2], startMin: 9 * 60, endMin: 10 * 60 } });
+  assert.equal(peakWindowPick([windowed], [], null, 21, NOW), null, 'ablakos csomagot nem cserél');
+  const run: FocusRun = { packId: 'p1', startedAt: NOW - 60_000, endsAt: NOW + 60_000 };
+  assert.equal(peakWindowPick([p], [], run, 21, NOW), null, 'futó menet mellett nincs');
+  assert.deepEqual(peakWindowPick([p], [], run, 21, NOW + 120_000)?.pack.id, 'p1', 'lejárt menet után van');
 });

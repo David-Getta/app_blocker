@@ -256,3 +256,17 @@ test('kulcsszavanként a hídról: az élboly tisztán, a hét összege, a sor',
   assert.equal(hitsKeywordLine([]), '');
   assert.deepEqual(browserHitsByKeyword(undefined, NOW), []);
 });
+
+test('a heti mondat mondja, ha a csúcs-órát nem fedi ablak — csak ha lehetne rá tenni; a fedés erősebb', () => {
+  const peak = {
+    last7Seconds: 0, topWeekSites: [], weekOverWeek: [], daysTracked: 0,
+    focusWeek: summarizeFocus([], 0, NOW), unlocks7d: 0,
+    browserHits7d: 12, browserHitsPeak: { hour: 21, count: 6 },
+  };
+  assert.equal(digestText({ ...peak, peakWindowOffer: true }, (l) => l),
+    'Elmúlt 7 nap: 12 megakadás a böngészőben, a csúcs 21–22 óra (nincs rá ablak).');
+  assert.equal(digestText({ ...peak, peakWindowOffer: false }, (l) => l),
+    'Elmúlt 7 nap: 12 megakadás a böngészőben, a csúcs 21–22 óra.');
+  assert.equal(digestText({ ...peak, peakWindowOffer: true, browserHitsPeakPack: 'Nyelvtanulás' }, (l) => l),
+    'Elmúlt 7 nap: 12 megakadás a böngészőben, a csúcs 21–22 óra (magától indul: Nyelvtanulás).', 'a fedés erősebb');
+});

@@ -50,6 +50,21 @@ final class DigestTests: XCTestCase {
         )
     }
 
+    func testThePeakHourWithoutAWindowOnlyWhenOneCouldBeAddedAndCoverWins() {
+        let head = "Elmúlt 7 nap: 7 ó 20 p mért idő; a legtöbb: youtube.com 2 ó 40 p (▼ -33% az előző héthez képest). "
+            + "9 menet (7 ó 0 p, 2 korán leállítva). 3 feloldás. 12 megakadás a szűrőben, a csúcs 21–22 óra"
+        var peak = full
+        peak.filterHits7d = 12
+        peak.filterHitsPeak = (hour: 21, count: 6)
+        var offer = peak
+        offer.peakWindowOffer = true
+        XCTAssertEqual(DigestLogic.text(offer) { $0 }, "\(head) (nincs rá ablak).")
+        XCTAssertEqual(DigestLogic.text(peak) { $0 }, "\(head).")
+        var covered = offer
+        covered.filterHitsPeakPack = "Nyelvtanulás"
+        XCTAssertEqual(DigestLogic.text(covered) { $0 }, "\(head) (magától indul: Nyelvtanulás).", "a fedés erősebb")
+    }
+
     func testWindowRunsAreInTheSentenceZeroIsNotASentence() {
         var w = full
         w.focusWeek = Focus.Summary(sessions: 9, totalMs: 7 * 3_600_000, stoppedEarly: 2, topPack: "Nyelvtanulás", windowRuns: 3)

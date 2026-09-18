@@ -1083,6 +1083,22 @@ const WIRES = [
     needle: 'peakCoverText(link, Date.now(), CLOSED_FRESH_MS)',
     lost: 'a felugró lap nem mondaná, hogy a csúcs-órában magától indul a menet',
   },
+  // A HETI MONDAT mondja, ha a csúcs-órát nem fedi ablak — csak ha lehetne rá tenni.
+  {
+    file: 'desktop/src/helper/digest-journal.ts',
+    needle: 'peakWindowOffer: peak ? peakWindowPick(state.focusPacks ?? [], state.focusLog, null, peak.hour, now) !== null : false,',
+    lost: 'a gépi heti mondat nem mondaná, hogy a csúcs-órára lehetne ablakot tenni',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/Digest.kt',
+    needle: 'peakWindowOffer = Focus.peakWindowPick(st.focusPacks, st.focusLog, null, FilterHitLogic.peakHour(st.filterHitHours, now)?.first, now) != null,',
+    lost: 'az Android heti mondat nem mondaná, hogy a csúcs-órára lehetne ablakot tenni',
+  },
+  {
+    file: 'ios/Shared/Digest.swift',
+    needle: 'input.peakWindowOffer = Focus.peakWindowPick(',
+    lost: 'az iPhone heti mondat nem mondaná, hogy a csúcs-órára lehetne ablakot tenni',
+  },
   // A JAVASLAT KÁRTYÁJÁRÓL IS — gépen és telefonon: a mondat alatt a gomb ugyanoda fut.
   {
     file: 'desktop/src/renderer/renderer.ts',

@@ -94,6 +94,8 @@ public enum DigestLogic {
         public var filterHitsPeak: (hour: Int, count: Int)?
         /// A csomag neve, amelynek heti ablaka fedi a csúcs-órát — a menet magától indul, amikor a kéz indulna; nil, ha egyik sem.
         public var filterHitsPeakPack: String?
+        /// A csúcs-órára LEHETNE ablakot tenni: van csomag ablak nélkül, és a csúcs-órát semmi nem fedi — a mondat kimondja.
+        public var peakWindowOffer: Bool = false
         /// A hét csúcs-oldala (nyers név, a címkézés a mondaté; szám) — melyik oldal akaszt meg a legtöbbször.
         public var filterHitsTop: (label: String, count: Int)?
         /// Az azt megelőző 7 nap — a hét az előző héthez képest; nulla, ha nem volt (vagy a könyv akkor kezdődött).
@@ -200,7 +202,9 @@ public enum DigestLogic {
         let prev = input.filterHitsPrev7d > 0 ? " (az előző héten \(input.filterHitsPrev7d))" : ""
         if input.filterHits7d > 0 {
             // A lefedett csúcs-óra a csúcs mellett, zárójelben: a menet magától indul, amikor a kéz indulna.
-            let covered = input.filterHitsPeakPack.map { " (magától indul: \($0))" } ?? ""
+            // Ha nem fedi semmi, de lehetne: „nincs rá ablak” — tükör, nem ítélet; a gomb a statisztikán vár.
+            let covered = input.filterHitsPeakPack.map { " (magától indul: \($0))" }
+                ?? (input.peakWindowOffer ? " (nincs rá ablak)" : "")
             let peak = input.filterHitsPeak.map { ", a csúcs \(FilterHitLogic.hourLabel($0.hour))\(covered)" } ?? ""
             let top = input.filterHitsTop.map { ", a legtöbbször: \(labelOf($0.label)) (\($0.count)×)" } ?? ""
             parts.append("\(input.filterHits7d) megakadás a szűrőben\(prev)\(peak)\(top).")
@@ -266,7 +270,7 @@ public enum DigestLogic {
         // A napló ablaka a gépével közös: a mai nap kezdete mínusz hat nap.
         let dayStart = Calendar.current.startOfDay(for: Date(timeIntervalSince1970: now / 1000))
             .timeIntervalSince1970 * 1000
-        return Input(
+        var input = Input(
             focusWeek: Focus.summarizeFocus(st.focusLog ?? [], since: dayStart - 6 * 24 * 3_600_000, now: now),
             unlocks7d: st.unlockLog.filter { $0 >= weekAgo }.count,
             dropped7d: (st.droppedAttempts ?? []).filter { $0 >= weekAgo }.count,
@@ -279,6 +283,12 @@ public enum DigestLogic {
             focusPrevWeek: Focus.summarizeFocusPrevWeek(st.focusLog ?? [], now: now),
             unlocksPrev7d: st.unlockLog.filter { $0 >= weekAgo - 7 * 24 * 3_600_000 && $0 < weekAgo }.count
         )
+        // Lehetne-e ablakot tenni a csúcs-órára (a menet állapota itt nem számít): a mondat kimondja.
+        input.peakWindowOffer = Focus.peakWindowPick(
+            st.focusPacks ?? [], log: st.focusLog ?? [], run: nil,
+            peakHour: FilterHitLogic.peakHour(st.filterHitHours ?? [:], now: now)?.hour, now: now
+        ) != nil
+        return input
     }
 
     /// A napló sorának feje: a hét kulcsa olvashatóan — „2026. 09. 07.”
