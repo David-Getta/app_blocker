@@ -11,6 +11,8 @@ struct StatsView: View {
     @EnvironmentObject var store: BreakerStore
     /// A könyv törlésének első koppintása: a második töröl.
     @State private var clearArmed = false
+    /// A csúcs-óra gombjának hibája — a bíró szava, ha nem vette fel.
+    @State private var windowError: String?
     let now: Double
     /// A címke-tölcsér a főnézetből: rejtett listánál sorszám, fedőnévnél a
     /// fedőnév — a napló sem szivárogtathat ki olyan címet, amit a lista elrejt.
@@ -153,6 +155,23 @@ struct StatsView: View {
                         if let pack = Focus.packCoveringHour(store.state.focusPacks ?? [], hour: peak.hour), let band = pack.recurrence {
                             Text("A csúcs-órában magától indul: \(pack.name) (\(recurrenceLabel(band))).")
                                 .font(.footnote).foregroundStyle(.secondary)
+                        } else if let pick = Focus.peakWindowPick(store.state.focusPacks ?? [], log: store.state.focusLog ?? [],
+                                                                  run: store.state.focusRun, peakHour: peak.hour, now: now) {
+                            // ABLAK A CSÚCS-ÓRÁRA: a gépi gomb tükre — a legutóbbi csomagra, a
+                            // csúcs egy órájában, minden napra. Felvenni ingyen; levenni a gépen,
+                            // próbatétellel — a gomb ezt nem rejti.
+                            Button("Heti ablak a csúcs-órára: \(pick.pack.name), \(recurrenceLabel(pick.band))") {
+                                do {
+                                    try Referee.addFocusWindow(packId: pick.pack.id, band: pick.band, now: Date().timeIntervalSince1970 * 1000)
+                                    windowError = nil
+                                } catch {
+                                    windowError = (error as? Referee.RefereeError)?.message ?? "Nem sikerült felvenni az ablakot."
+                                }
+                            }
+                            .buttonStyle(.bordered)
+                            if let windowError {
+                                Text(windowError).font(.footnote).foregroundStyle(.red)
+                            }
                         }
                     }
                     // MELYIK oldal akaszt meg a legtöbbször: a hét csúcs-oldala — a lista címkézésével.

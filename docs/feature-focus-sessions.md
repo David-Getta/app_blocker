@@ -305,7 +305,8 @@ kombinációt elvenni nem tudunk, csak elkerülni — ezért van az átállítá
 
 > A statisztika a csúcs-órából egy kattintással ajánl ablakot: „Heti ablak a
 > csúcs-órára” — a legutóbbi csomagra, minden napra, a csúcs egy órájában.
-> Lásd `docs/feature-usage-stats.md`.
+> A telefonokon is: ott a gomb csak felvesz (ablakos csomagon nincs), cserélni
+> és levenni a gépen lehet. Lásd `docs/feature-usage-stats.md`.
 
 A munkamenet egy mozdulattal indul — de a mozdulatot az embernek kell
 megtennie, és pont a nehéz reggeleken nem teszi meg. A csomag ezért kaphat

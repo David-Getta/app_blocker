@@ -410,6 +410,26 @@ public enum Focus {
         packs.first { p in p.recurrence.map { bandCoversHour($0, hour: hour) } ?? false }
     }
 
+    /// ABLAK A CSÚCS-ÓRÁRA: a csúcs egy órája, minden napra — a gépi
+    /// `peakWindowBand` tükre. A 23 óra vége a nap vége (1440), nem nulla:
+    /// különben a sáv éjfélen átfordulna. (Nem nyilvános: a sáv típusa belső.)
+    static func peakWindowBand(_ hour: Int) -> ScheduleLogic.Band {
+        let h = min(23, max(0, hour))
+        return ScheduleLogic.Band(days: [0, 1, 2, 3, 4, 5, 6], startMin: h * 60, endMin: (h + 1) * 60)
+    }
+
+    /// A csúcs-óra ablakának jelöltje az iPhone gombjához: (csomag, sáv) — vagy
+    /// nil, ha nincs gomb. Ugyanazok a feltételek, mint a gépi gombé: van csúcs,
+    /// semelyik csomag ablaka nem fedi, nem fut menet, és a legutóbb használt
+    /// csomagnak nincs még ablaka (a telefon csak FELVESZ, nem cserél).
+    static func peakWindowPick(
+        _ packs: [Pack], log: [LogEntry], run: Run?, peakHour: Int?, now: Double
+    ) -> (pack: Pack, band: ScheduleLogic.Band)? {
+        guard let peakHour, packCoveringHour(packs, hour: peakHour) == nil, !isRunning(run, now: now),
+              let pick = lastUsedPack(packs, log: log), pick.recurrence == nil else { return nil }
+        return (pick, peakWindowBand(peakHour))
+    }
+
     public static func lastUsedPack(_ packs: [Pack], log: [LogEntry]) -> Pack? {
         let byId = Dictionary(packs.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
         for e in log.sorted(by: { $0.startedAt > $1.startedAt }) {

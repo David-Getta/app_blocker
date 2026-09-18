@@ -526,6 +526,33 @@ object Focus {
     fun packCoveringHour(packs: List<FocusPack>, hour: Int): FocusPack? =
         packs.firstOrNull { p -> p.recurrence?.let { bandCoversHour(it, hour) } == true }
 
+    /**
+     * ABLAK A CSÚCS-ÓRÁRA: a csúcs egy órája, minden napra — a gépi
+     * `peakWindowBand` tükre. A 23 óra vége a nap vége (1440), nem nulla:
+     * különben a sáv éjfélen átfordulna.
+     */
+    fun peakWindowBand(hour: Int): ScheduleLogic.Band {
+        val h = hour.coerceIn(0, 23)
+        return ScheduleLogic.Band(setOf(0, 1, 2, 3, 4, 5, 6), h * 60, (h + 1) * 60)
+    }
+
+    /**
+     * A csúcs-óra ablakának jelöltje a telefon gombjához: (csomag, sáv) — vagy
+     * null, ha nincs gomb. Ugyanazok a feltételek, mint a gépi gombé: van csúcs,
+     * semelyik csomag ablaka nem fedi, nem fut menet, és a legutóbb használt
+     * csomagnak nincs még ablaka (a telefon csak FELVESZ, nem cserél).
+     */
+    fun peakWindowPick(
+        packs: List<FocusPack>, log: List<FocusLogEntry>, run: FocusRun?, peakHour: Int?, now: Long,
+    ): Pair<FocusPack, ScheduleLogic.Band>? {
+        if (peakHour == null) return null
+        if (packCoveringHour(packs, peakHour) != null) return null
+        if (isRunning(run, now)) return null
+        val pick = lastUsedPack(packs, log) ?: return null
+        if (pick.recurrence != null) return null
+        return pick to peakWindowBand(peakHour)
+    }
+
     fun lastUsedPack(packs: List<FocusPack>, log: List<FocusLogEntry>): FocusPack? {
         val byId = packs.associateBy { it.id }
         return log.sortedByDescending { it.startedAt }.firstNotNullOfOrNull { byId[it.packId] } ?: packs.firstOrNull()

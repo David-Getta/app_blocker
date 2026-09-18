@@ -183,9 +183,14 @@ struct AppState: Codable, Equatable {
     /// a lenyomat, amiből kiderül, hogy változott-e
     var focusRevFp: String? = nil
     /// A csomagok jelei (azonosító → az a blob-rev, amelyik felvette,
-    /// szerkesztette vagy törölte) — az iPhone nem ír ilyet, de HORDOZZA, hogy
-    /// a gépen felvett ablak ne tűnjön el egy versenyben. Lásd FocusSync.
+    /// szerkesztette vagy törölte) — a gép írja, az iPhone HORDOZZA, hogy a
+    /// gépen felvett ablak ne tűnjön el egy versenyben; és a saját
+    /// csomag-szerkesztésénél (ablak a csúcs-órára) az iPhone is írja, a
+    /// léptetésben. Lásd FocusSync és SyncRevisions.
     var focusPackMarks: [String: Int]? = nil
+    /// A csomagok lenyomata az utolsó léptetéskor (azonosító → kivonat) — ebből
+    /// derül ki csomagonként, kell-e új jel. Helyi, nem utazik. Lásd SyncRevisions.
+    var focusRevPacks: [String: String]? = nil
     /// Miért nem sikerült a munkamenet szinkronja — vagy nil, ha sikerült.
     ///
     /// Ez a mező a mentésbe is BELEKERÜL, mert az `AppState` `Codable`-ja minden

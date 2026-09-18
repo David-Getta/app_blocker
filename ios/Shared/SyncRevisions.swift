@@ -83,21 +83,33 @@ enum SyncRevisions {
     /// jelentené, hogy az üres lista legyőzi a gépen felvett csomagokat.
     static let focusFpV2 = "2|"
 
+    /// Egy csomag kulcsa a lenyomathoz: ami a beállítása.
+    private static func packKey(_ p: Focus.Pack) -> String {
+        var fields: [String] = [
+            p.id, p.name,
+            p.allowSites.sorted().joined(separator: ","),
+            p.allowApps.sorted().joined(separator: ","),
+            String(p.defaultMinutes),
+        ]
+        // Az ismétlődés is a csomag beállítása: a cseréje döntés, tehát
+        // léptet. CSAK HA VAN: egy ablak nélküli csomag lenyomata ugyanaz
+        // marad, mint a frissítés előtt — különben minden csomag egyszer
+        // fölöslegesen léptetne.
+        if let rec = p.recurrence { fields.append(Focus.recurrenceKey(rec)) }
+        return fields.joined(separator: ";")
+    }
+
     private static func packsPart(_ state: AppState) -> String {
-        (state.focusPacks ?? []).sorted { $0.id < $1.id }.map { p -> String in
-            var fields: [String] = [
-                p.id, p.name,
-                p.allowSites.sorted().joined(separator: ","),
-                p.allowApps.sorted().joined(separator: ","),
-                String(p.defaultMinutes),
-            ]
-            // Az ismétlődés is a csomag beállítása: a cseréje döntés, tehát
-            // léptet. CSAK HA VAN: egy ablak nélküli csomag lenyomata ugyanaz
-            // marad, mint a frissítés előtt — különben minden csomag egyszer
-            // fölöslegesen léptetne.
-            if let rec = p.recurrence { fields.append(Focus.recurrenceKey(rec)) }
-            return fields.joined(separator: ";")
-        }.joined(separator: "|")
+        (state.focusPacks ?? []).sorted { $0.id < $1.id }.map { packKey($0) }.joined(separator: "|")
+    }
+
+    /// A csomagok lenyomata a JELEKHEZ: azonosító → a beállítás kivonata. Helyi,
+    /// nem drót: csak a saját előző léptetéssel vetjük össze. A gépi
+    /// `packFingerprints` tükre (helper/revisions.ts).
+    static func packFingerprints(_ state: AppState) -> [String: String] {
+        var out: [String: String] = [:]
+        for p in state.focusPacks ?? [] { out[p.id] = digestHex(packKey(p)) }
+        return out
     }
 
     private static func digestHex(_ text: String) -> String {
@@ -208,6 +220,21 @@ enum SyncRevisions {
         let keywords = keywordsKey(state)
         if keywords != (state.focusRevKeywords ?? "") { next.keywordsRev = Int(newRev) }
         next.focusRevKeywords = keywords
+        // A CSOMAGOK JELEI: ami az előző léptetés óta bekerült, változott vagy
+        // kikerült, az ezt a blob-revet kapja — csomagonként, mint a gépen
+        // (helper/revisions.ts `markPacks`). Az első léptetés (nincs még eltett
+        // lenyomat) jel nélkül megy — a régi kliens szabálya áll rá. Amíg az
+        // iPhone nem szerkeszt csomagot, egy jel sem változik; az ablak a
+        // csúcs-órára az első ilyen szerkesztés — jel nélkül a gép egy ugyanabban
+        // a körben tett szerkesztése a fésülésben csendben letörölné.
+        let packFps = packFingerprints(state)
+        if let prevFps = state.focusRevPacks {
+            var marks = state.focusPackMarks ?? [:]
+            for (id, f) in packFps where prevFps[id] != f { marks[id] = Int(newRev) }
+            for id in prevFps.keys where packFps[id] == nil { marks[id] = Int(newRev) }
+            next.focusPackMarks = FocusSync.capPackMarks(marks, Array(packFps.keys))
+        }
+        next.focusRevPacks = packFps
         return next
     }
 
@@ -221,6 +248,9 @@ enum SyncRevisions {
         // eszköz levételét lehetne felülírni.
         next.focusRevPartner = PartnerLogic.partnerKey(state.partner)
         next.focusRevKeywords = keywordsKey(state)
+        // A csomagok lenyomata is: az átvett lista nem a miénk — a következő
+        // saját léptetés ne bélyegezze át a jelét.
+        next.focusRevPacks = packFingerprints(state)
         return next
     }
 

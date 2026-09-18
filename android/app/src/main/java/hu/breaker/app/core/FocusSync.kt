@@ -49,7 +49,8 @@ object FocusSync {
          * A csomagok JELEI: azonosító → a blob rev-je, amelyik a csomagot
          * utoljára felvette, szerkesztette vagy törölte (a törölt csomag jele
          * marad, a csomag nincs a listán). Csomagonként a nagyobb jel dönt;
-         * jel nélkül az újabb blob. A telefon jelet nem ír. Lásd `mergePacks`.
+         * jel nélkül az újabb blob. A telefon jelet csak a saját csomag-
+         * szerkesztésénél ír (SyncRevisions.bumpFocus). Lásd `mergePacks`.
          */
         val packMarks: Map<String, Int>? = null,
         /**

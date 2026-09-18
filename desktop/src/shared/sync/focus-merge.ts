@@ -418,8 +418,9 @@ export function mergeFocus(local: SyncFocus, incoming: SyncFocus): SyncFocus {
  * ablakot, és a telefon ugyanabban a körben — a régi listával — elindított
  * egy menetet, azonos rev és frissebb idő mellett a telefon listája nyert,
  * és az ablak csendben eltűnt. A jel a CSOMAGHOZ tartozik, nem a blobhoz.
- * A telefonok jelet nem írnak, csak hordozzák és fésülik. A Kotlin- és
- * Swift-tükör ugyanezt teszi.
+ * A telefonok jelet csak a saját csomag-szerkesztésüknél írnak (ablak a
+ * csúcs-órára), egyébként hordozzák és fésülik. A Kotlin- és Swift-tükör
+ * ugyanezt teszi.
  */
 function mergePacks(
   newer: SyncFocus, older: SyncFocus, runPackId?: string,

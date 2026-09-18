@@ -835,6 +835,40 @@ enum Referee {
         if let e = thrown { throw e }
     }
 
+    /// ABLAK A CSÚCS-ÓRÁRA az iPhone-ról: heti ablak egy ablak NÉLKÜLI csomagra.
+    ///
+    /// Felvenni ingyen (szigorítás: több idő, amikor a fehérlista él). A telefon
+    /// CSAK felvesz: cserélni, szűkíteni, levenni a gépen lehet, próbatétellel —
+    /// a lazítás kérdése ott dől el. A futó csomag itt is befagy, mint a gépen.
+    /// A csomag jelét a következő léptetés írja (SyncRevisions.bumpFocus), hogy
+    /// a fésülésben ez a változat nyerjen. Az androidos `addFocusWindow` tükre.
+    static func addFocusWindow(packId: String, band: ScheduleLogic.Band, now: Double) throws {
+        var thrown: RefereeError?
+        BreakerStore.shared.mutate { state in
+            var packs = state.focusPacks ?? []
+            guard let i = packs.firstIndex(where: { $0.id == packId }) else {
+                thrown = RefereeError(message: "Ismeretlen csomag.", code: "NO_PACK"); return
+            }
+            if Focus.isRunning(state.focusRun, now: now), state.focusRun?.packId == packId {
+                thrown = RefereeError(message: "Ez a csomag épp fut — amíg tart, az ablaka sem szerkeszthető.",
+                                      code: "FOCUS_RUNNING"); return
+            }
+            if packs[i].recurrence != nil {
+                thrown = RefereeError(message: "Ennek a csomagnak már van heti ablaka — a gépen szerkeszthető.",
+                                      code: "HAS_WINDOW"); return
+            }
+            guard let next = Focus.cleanRecurrence(band) else {
+                thrown = RefereeError(message: "Érvénytelen ablak: legalább egy nap kell, és legfeljebb nyolc óra.",
+                                      code: "BAD_RECURRENCE"); return
+            }
+            let p = packs[i]
+            packs[i] = Focus.Pack(id: p.id, name: p.name, allowSites: p.allowSites, allowApps: p.allowApps,
+                                  defaultMinutes: p.defaultMinutes, recurrence: next)
+            state.focusPacks = packs
+        }
+        if let e = thrown { throw e }
+    }
+
     /// A futó menet vége odébb tolva — vagy a leállítása.
     ///
     /// HOSSZABBÍTANI ingyen van, RÖVIDÍTENI és LEÁLLÍTANI próbatételbe kerül.

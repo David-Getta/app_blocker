@@ -1021,6 +1021,29 @@ const WIRES = [
     needle: "('focus_recurrence', { packId: pick.id, band: peakWindowBand(peak.hour) })",
     lost: 'a csúcs-óra gombja nem tenne heti ablakot — az ígéret üres',
   },
+  // A TELEFONOKON IS: a gomb a bírót hívja (csak felvesz), és a telefon a csomag
+  // jelét is írja a léptetésben — különben a gép egy ugyanabban a körben tett
+  // szerkesztése a fésülésben csendben letörölné az ablakot.
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/AppUi.kt',
+    needle: 'runCatching { Referee.addFocusWindow(p.id, band, nowMs) }',
+    lost: 'az Android csúcs-óra gombja nem tenne heti ablakot — az ígéret üres',
+  },
+  {
+    file: 'ios/App/StatsView.swift',
+    needle: 'try Referee.addFocusWindow(packId: pick.pack.id, band: pick.band, now: Date().timeIntervalSince1970 * 1000)',
+    lost: 'az iPhone csúcs-óra gombja nem tenne heti ablakot — az ígéret üres',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/SyncRevisions.kt',
+    needle: 'for ((id, f) in packFps) if (prevFps[id] != f) marks[id] = rev',
+    lost: 'a telefon csomag-szerkesztése jel nélkül menne — a gép ugyanabban a körben tett szerkesztése csendben letörölné',
+  },
+  {
+    file: 'ios/Shared/SyncRevisions.swift',
+    needle: 'for (id, f) in packFps where prevFps[id] != f { marks[id] = Int(newRev) }',
+    lost: 'az iPhone csomag-szerkesztése jel nélkül menne — a gép ugyanabban a körben tett szerkesztése csendben letörölné',
+  },
   {
     file: 'desktop/src/renderer/renderer.ts',
     needle: 'n.onclick = () => void startSuggestedSession(true);',

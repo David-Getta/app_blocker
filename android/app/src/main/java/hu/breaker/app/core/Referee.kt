@@ -984,6 +984,32 @@ object Referee {
     }
 
     /**
+     * ABLAK A CSÚCS-ÓRÁRA a telefonról: heti ablak egy ablak NÉLKÜLI csomagra.
+     *
+     * Felvenni ingyen (szigorítás: több idő, amikor a fehérlista él). A telefon
+     * CSAK felvesz: cserélni, szűkíteni, levenni a gépen lehet, próbatétellel —
+     * a lazítás kérdése ott dől el (`isRecurrenceLoosening`). A futó csomag itt
+     * is befagy, mint a gépen. A csomag jelét a következő léptetés írja
+     * (SyncRevisions.bumpFocus), hogy a fésülésben ez a változat nyerjen. A
+     * gépi `setFocusRecurrence` felvevő ága; a Swift `addFocusWindow` tükre.
+     */
+    fun addFocusWindow(packId: String, band: ScheduleLogic.Band, now: Long) {
+        BreakerStore.mutate { state ->
+            val pack = state.focusPacks.find { it.id == packId }
+                ?: throw RefereeException("Ismeretlen csomag.", "NO_PACK")
+            if (Focus.isRunning(state.focusRun, now) && state.focusRun?.packId == packId) {
+                throw RefereeException("Ez a csomag épp fut — amíg tart, az ablaka sem szerkeszthető.", "FOCUS_RUNNING")
+            }
+            if (pack.recurrence != null) {
+                throw RefereeException("Ennek a csomagnak már van heti ablaka — a gépen szerkeszthető.", "HAS_WINDOW")
+            }
+            val next = Focus.cleanRecurrence(band)
+                ?: throw RefereeException("Érvénytelen ablak: legalább egy nap kell, és legfeljebb nyolc óra.", "BAD_RECURRENCE")
+            state.copy(focusPacks = state.focusPacks.map { if (it.id == packId) it.copy(recurrence = next) else it })
+        }
+    }
+
+    /**
      * A futó menet vége odébb tolva — vagy a leállítása.
      *
      * HOSSZABBÍTANI ingyen van, RÖVIDÍTENI és LEÁLLÍTANI próbatételbe kerül.

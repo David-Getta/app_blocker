@@ -123,7 +123,10 @@ Ezért:
   azonosító → blob-rev), csomagonként a nagyobb jel dönt, jel nélkül az
   újabb blob — ahogy eddig. A gép segédje írja a `commit()` eleji
   léptetésben, a csomagok lenyomatából; egy menet indítása léptet, de
-  csomagot nem jelöl.
+  csomagot nem jelöl. A telefon a saját csomag-szerkesztésénél (az ablak a
+  csúcs-órára — az egyetlen, amit telefonról lehet) ugyanígy írja a jelet a
+  léptetésében (`SyncRevisions.bumpFocus`), egyébként csak hordozza és
+  fésüli; az első léptetés ott is jel nélkül megy.
 - **A menet és a csomagja együtt jár.** A csomagok és a menet külön
   dőlnek el, és a kettő össze tud akadni: az egyik eszköz törölte a
   csomagot (jellel), a másik ugyanabban a körben menetet indított rá. A

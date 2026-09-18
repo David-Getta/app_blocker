@@ -42,7 +42,8 @@ public enum FocusSync {
         /// A csomagok JELEI: azonosító → a blob rev-je, amelyik a csomagot
         /// utoljára felvette, szerkesztette vagy törölte (a törölt csomag jele
         /// marad, a csomag nincs a listán). Csomagonként a nagyobb jel dönt;
-        /// jel nélkül az újabb blob. Az iPhone jelet nem ír. Lásd `mergePacks`.
+        /// jel nélkül az újabb blob. Az iPhone jelet csak a saját csomag-
+        /// szerkesztésénél ír (SyncRevisions.bumpFocus). Lásd `mergePacks`.
         public var packMarks: [String: Int]?
         /// A ZÁRLAT, ha van. A `rev`-hez SEMMI köze: a fésülése tiszta
         /// magasvízjel, a későbbi vég nyer. A zárlat csak szigorítani tud,
@@ -273,8 +274,9 @@ public enum FocusSync {
     /// A csomagok CSOMAGONKÉNT fésülődnek, a jelük szerint: a nagyobb jelnél
     /// álló állapot (ez a változat, vagy nincs) marad; egyenlő jelnél (a jel
     /// nélküli csomag is ilyen) az újabb blob állapota, ahogy eddig. A sorrend
-    /// az újabb blobé, a csak a régebbin élő csomagok a végére. Az iPhone
-    /// jelet nem ír, csak hordozza és fésüli. A merge.ts `mergePacks` tükre.
+    /// az újabb blobé, a csak a régebbin élő csomagok a végére. Az iPhone jelet
+    /// csak a saját csomag-szerkesztésénél ír (SyncRevisions.bumpFocus),
+    /// egyébként hordozza és fésüli. A merge.ts `mergePacks` tükre.
     private static func mergePacks(
         _ newer: SyncFocus, _ older: SyncFocus, runPackId: String?
     ) -> ([Focus.Pack], [String: Int]?) {

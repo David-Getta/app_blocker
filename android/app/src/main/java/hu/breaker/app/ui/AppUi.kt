@@ -764,6 +764,18 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                 filterHitsPeakPack = FilterHitLogic.peakHour(state.filterHitHours, now)
                     ?.let { Focus.packCoveringHour(state.focusPacks, it.first) }
                     ?.let { p -> p.recurrence?.let { b -> "${p.name} (${recurrenceLabel(b)})" } },
+                // ABLAK A CSÚCS-ÓRÁRA: a jelöltet a mag dönti el (peakWindowPick) — a
+                // gomb csak mond és hív; a bíró felveszi (ingyen).
+                peakWindowLabel = Focus.peakWindowPick(state.focusPacks, state.focusLog, state.focusRun, FilterHitLogic.peakHour(state.filterHitHours, now)?.first, now)
+                    ?.let { (p, band) -> "Heti ablak a csúcs-órára: ${p.name}, ${recurrenceLabel(band)}" },
+                onPeakWindow = {
+                    val nowMs = System.currentTimeMillis()
+                    Focus.peakWindowPick(state.focusPacks, state.focusLog, state.focusRun, FilterHitLogic.peakHour(state.filterHitHours, nowMs)?.first, nowMs)
+                        ?.let { (p, band) ->
+                            runCatching { Referee.addFocusWindow(p.id, band, nowMs) }
+                                .onFailure { flowError = it.message ?: "Nem sikerült felvenni az ablakot." }
+                        }
+                },
                 filterHitsTop = FilterHitLogic.topSite(state.filterHitHosts, now),
                 filterHitsReasons = FilterHitLogic.byReason(state.filterHitReasons, now),
                 filterHitsKeywords = FilterHitLogic.keywordsWeek(state.filterHitKeywords, now),

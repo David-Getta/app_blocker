@@ -232,10 +232,17 @@ data class AppState(
     val focusRevFp: String? = null,
     /**
      * A csomagok jelei (azonosító → az a blob-rev, amelyik felvette,
-     * szerkesztette vagy törölte) — a telefon nem ír ilyet, de HORDOZZA, hogy
-     * a gépen felvett ablak ne tűnjön el egy versenyben. Lásd FocusSync.
+     * szerkesztette vagy törölte) — a gép írja, a telefon HORDOZZA, hogy a
+     * gépen felvett ablak ne tűnjön el egy versenyben; és a saját
+     * csomag-szerkesztésénél (ablak a csúcs-órára) a telefon is írja, a
+     * léptetésben. Lásd FocusSync és SyncRevisions.
      */
     val focusPackMarks: Map<String, Int>? = null,
+    /**
+     * A csomagok lenyomata az utolsó léptetéskor (azonosító → kivonat) — ebből
+     * derül ki csomagonként, kell-e új jel. Helyi, nem utazik. Lásd SyncRevisions.
+     */
+    val focusRevPacks: Map<String, String>? = null,
     /**
      * Miért nem sikerült a munkamenet szinkronja — vagy null, ha sikerült.
      *
@@ -660,6 +667,7 @@ object BreakerStore {
         put("focusUpdatedBy", s.focusUpdatedBy ?: JSONObject.NULL)
         put("focusRevFp", s.focusRevFp ?: JSONObject.NULL)
         put("focusPackMarks", s.focusPackMarks?.let { JSONObject(it) } ?: JSONObject.NULL)
+        put("focusRevPacks", s.focusRevPacks?.let { JSONObject(it) } ?: JSONObject.NULL)
         put("lastCombo", s.lastCombo ?: JSONObject.NULL)
         put("abandons", JSONArray(s.abandons.map { a ->
             JSONObject().apply {
@@ -1007,6 +1015,7 @@ object BreakerStore {
             focusUpdatedBy = if (o.isNull("focusUpdatedBy")) null else o.optString("focusUpdatedBy"),
             focusRevFp = if (o.isNull("focusRevFp")) null else o.optString("focusRevFp"),
             focusPackMarks = SyncClient.marksFromJson(o, "focusPackMarks"),
+            focusRevPacks = stringMapFromJson(o, "focusRevPacks"),
         )
     }
 
@@ -1092,4 +1101,18 @@ object BreakerStore {
         }
         return out
     }
+}
+
+/** Szöveg → szöveg térkép a mentésből (a csomagok lenyomata); null, ha nincs vagy üres. */
+private fun stringMapFromJson(o: JSONObject, key: String): Map<String, String>? {
+    val m = o.optJSONObject(key) ?: return null
+    val out = LinkedHashMap<String, String>()
+    val keys = m.keys()
+    while (keys.hasNext()) {
+        val k = keys.next()
+        if (k.isEmpty()) continue
+        out[k] = m.optString(k)
+        if (out.size >= 1024) break
+    }
+    return if (out.isEmpty()) null else out
 }

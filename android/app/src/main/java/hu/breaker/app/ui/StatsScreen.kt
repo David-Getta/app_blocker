@@ -71,6 +71,9 @@ fun StatsSection(
     filterHitHours: List<Int> = emptyList(),
     /** a csomag, amelynek heti ablaka fedi a csúcs-órát („Nyelvtanulás (minden nap 21:00–22:00)”) — null, ha egyik sem */
     filterHitsPeakPack: String? = null,
+    /** a csúcs-óra ablakának gombja („Heti ablak a csúcs-órára: Nyelvtanulás, minden nap 21:00–22:00”) — null, ha nincs gomb */
+    peakWindowLabel: String? = null,
+    onPeakWindow: () -> Unit = {},
     /** a hét csúcs-oldala (nyers név, szám) — melyik oldal akaszt meg a legtöbbször; null, ha nem volt */
     filterHitsTop: Pair<String, Int>? = null,
     filterHitsReasons: List<Pair<String, Int>> = emptyList(),
@@ -176,6 +179,13 @@ fun StatsSection(
                 // LE VAN-E FEDVE: ha egy csomag heti ablaka a csúcs-órát fedi, a menet
                 // magától indul, amikor a kéz indulna — a statisztika kimondja.
                 filterHitsPeakPack?.let { Text("A csúcs-órában magától indul: $it.", style = MaterialTheme.typography.bodySmall) }
+                // ABLAK A CSÚCS-ÓRÁRA: a gépi gomb tükre — a legutóbbi csomagra, a
+                // csúcs egy órájában, minden napra. Felvenni ingyen; levenni a gépen,
+                // próbatétellel — a gomb ezt nem rejti. Ha a csúcs-órát fedi valami,
+                // a sor mondja, gomb nincs.
+                if (filterHitsPeakPack == null && peakWindowLabel != null) {
+                    Button(onClick = onPeakWindow) { Text(peakWindowLabel) }
+                }
             }
             // MELYIK oldal akaszt meg a legtöbbször: a hét csúcs-oldala — a lista címkézésével.
             filterHitsTop?.let { (site, count) ->

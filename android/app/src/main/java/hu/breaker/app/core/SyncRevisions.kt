@@ -88,19 +88,29 @@ object SyncRevisions {
      */
     const val FOCUS_FP_V2 = "2|"
 
+    /** Egy csomag kulcsa a lenyomathoz: ami a beállítása. */
+    private fun packKey(p: Focus.FocusPack): String =
+        (listOf(
+            p.id, p.name,
+            p.allowSites.sorted().joinToString(","),
+            p.allowApps.sorted().joinToString(","),
+            p.defaultMinutes.toString(),
+            // Az ismétlődés is a csomag beállítása: a cseréje döntés, tehát
+            // léptet. CSAK HA VAN: egy ablak nélküli csomag lenyomata ugyanaz
+            // marad, mint a frissítés előtt — különben minden csomag egyszer
+            // fölöslegesen léptetne.
+        ) + listOfNotNull(p.recurrence?.let { Focus.recurrenceKey(it) })).joinToString(";")
+
     private fun packsPart(state: AppState): String =
-        state.focusPacks.sortedBy { it.id }.joinToString("|") { p ->
-            (listOf(
-                p.id, p.name,
-                p.allowSites.sorted().joinToString(","),
-                p.allowApps.sorted().joinToString(","),
-                p.defaultMinutes.toString(),
-                // Az ismétlődés is a csomag beállítása: a cseréje döntés, tehát
-                // léptet. CSAK HA VAN: egy ablak nélküli csomag lenyomata ugyanaz
-                // marad, mint a frissítés előtt — különben minden csomag egyszer
-                // fölöslegesen léptetne.
-            ) + listOfNotNull(p.recurrence?.let { Focus.recurrenceKey(it) })).joinToString(";")
-        }
+        state.focusPacks.sortedBy { it.id }.joinToString("|") { packKey(it) }
+
+    /**
+     * A csomagok lenyomata a JELEKHEZ: azonosító → a beállítás kivonata. Helyi,
+     * nem drót: csak a saját előző léptetéssel vetjük össze. A gépi
+     * `packFingerprints` tükre (helper/revisions.ts).
+     */
+    fun packFingerprints(state: AppState): Map<String, String> =
+        state.focusPacks.associate { it.id to digest(packKey(it)) }
 
     private fun digest(text: String): String {
         val md = MessageDigest.getInstance("SHA-256")
@@ -198,6 +208,22 @@ object SyncRevisions {
         val keywordsKey = keywordsKey(state)
         val keywordsMark = if (keywordsKey != (state.focusRevKeywords ?: "")) newRev.coerceIn(0, Int.MAX_VALUE.toLong()).toInt()
             else state.keywordsRev
+        // A CSOMAGOK JELEI: ami az előző léptetés óta bekerült, változott vagy
+        // kikerült, az ezt a blob-revet kapja — csomagonként, mint a gépen
+        // (helper/revisions.ts `markPacks`). Az első léptetés (nincs még eltett
+        // lenyomat) jel nélkül megy — a régi kliens szabálya áll rá. Amíg a
+        // telefon nem szerkeszt csomagot, egy jel sem változik; az ablak a
+        // csúcs-órára az első ilyen szerkesztés — jel nélkül a gép egy ugyanabban
+        // a körben tett szerkesztése a fésülésben csendben letörölné.
+        val packFps = packFingerprints(state)
+        val prevFps = state.focusRevPacks
+        val packMarks = if (prevFps == null) state.focusPackMarks else {
+            val rev = newRev.coerceIn(0, Int.MAX_VALUE.toLong()).toInt()
+            val marks = LinkedHashMap(state.focusPackMarks ?: emptyMap())
+            for ((id, f) in packFps) if (prevFps[id] != f) marks[id] = rev
+            for (id in prevFps.keys) if (id !in packFps) marks[id] = rev
+            FocusSync.capPackMarks(marks, packFps.keys)
+        }
         return state.copy(
             focusRev = newRev,
             focusUpdatedAt = now,
@@ -209,6 +235,8 @@ object SyncRevisions {
             partnerRev = partnerMark,
             focusRevKeywords = keywordsKey,
             keywordsRev = keywordsMark,
+            focusRevPacks = packFps,
+            focusPackMarks = packMarks,
         )
     }
 
@@ -222,6 +250,9 @@ object SyncRevisions {
             // egy másik eszköz levételét lehetne felülírni.
             focusRevPartner = PartnerLogic.partnerKey(state.partner),
             focusRevKeywords = keywordsKey(state),
+            // A csomagok lenyomata is: az átvett lista nem a miénk — a következő
+            // saját léptetés ne bélyegezze át a jelét.
+            focusRevPacks = packFingerprints(state),
         )
 
     /**
