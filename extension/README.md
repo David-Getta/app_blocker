@@ -184,18 +184,21 @@ visszaszámlálás alatt még tilt. Enélkül egy elgépelt azonosító vagy egy
 töltődő modul ugyanolyan csendes hiba lenne: a lap megjelenik, a gomb ott van,
 és nem történik semmi.
 
-## Amit a tesztek NEM fednek
+## Amit a tesztek fednek — és amit nem
 
-Őszintén: a bővítmény **valódi böngészőbe telepítve** még nem futott. A
-fejlesztői környezet fej nélküli Chromiumja a `--load-extension`-t nem
-támogatja — a szolgáltatás-worker el sem indul —, tehát a manifest, a
-jogosultságok és a `webNavigation`-horgok együttes működése az első valódi
-telepítéskor derül ki.
+A bővítmény **valódi Chromiumban, valódi bővítményként betöltve** is fut a
+CI-ban (`desktop/scripts/extension-e2e.js`): a manifest, a jogosultságok, a
+`webNavigation`-horgok, a tartalom-szkript és a háttér együtt — egy helyi
+kamu videó-oldalon végigmegy a rétegeken (hírfolyam-tisztítás, lejátszó-oldali
+feltöltő-tiltás, elavulás-őr, csatorna-lap), a tiltó lapon a keret, a hűtés
+és a zárlat szövegén, és a csatorna-időn is. Emellett a CI nézi a
+szabály-magok egyezését, a súrlódást a ténylegesen kiszállított
+`storage.js`-en, és a beállítási lapot valódi böngészőben.
 
-Amit viszont igenis fed a CI: a szabály-magok egyezése, a súrlódás a
-ténylegesen kiszállított `storage.js`-en, és a beállítási lap valódi
-böngészőben. A fennmaradó kockázat tehát a bővítmény-keretrendszer felőli
-huzalozás, nem a logika.
+Őszintén, ami NEM fedett: a valódi YouTube felülete (a teszt kamu oldalon
+fut, a valódi DOM változásait csak a kézi próba mutatja meg), a Chromiumon
+kívüli böngészők (Firefox, Safari), és a bolt-csomagolás. A fennmaradó
+kockázat tehát a célhely felőli változás, nem a bővítmény huzalozása.
 
 ## Ami még hátra van
 
