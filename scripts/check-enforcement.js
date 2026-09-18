@@ -916,6 +916,23 @@ const WIRES = [
     needle: 'Focus.explain(probeInput,',
     lost: 'az iPhone próbamezője nem a tunnel ítéletét mondaná',
   },
+  // A HETI MONDAT MEGOSZTHATÓ: a gépen a vágólapra, a telefonokon a rendszer
+  // megosztójával. Ha a gomb nem tenné, a mondat csak nézhető maradna.
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: 'await navigator.clipboard.writeText(text);',
+    lost: 'a gépi heti mondat nem másolható',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/StatsScreen.kt',
+    needle: 'Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, digestNow)',
+    lost: 'az Android heti mondata nem osztható meg',
+  },
+  {
+    file: 'ios/App/StatsView.swift',
+    needle: 'ShareLink(item: digestNow)',
+    lost: 'az iPhone heti mondata nem osztható meg',
+  },
   {
     file: 'desktop/src/renderer/renderer.ts',
     needle: "const phone = host ? keywordInHost(status?.keywords ?? [], host) : null;",

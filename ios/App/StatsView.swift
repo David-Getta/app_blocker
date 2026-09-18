@@ -190,6 +190,11 @@ struct StatsView: View {
                 if let digestNow {
                     Text("Így szólna a visszatekintés most: \(digestNow)")
                         .font(.footnote).foregroundStyle(.secondary)
+                    // A MONDAT MEGOSZTHATÓ, ahogy van — egy megbízottnak, egy naplóba.
+                    ShareLink(item: digestNow) {
+                        Label("A mondat megosztása", systemImage: "square.and.arrow.up")
+                    }
+                    .font(.footnote)
                 }
                 // A régi sor is a MOSTANI címkézéssel: a fedőnév és a rejtés
                 // visszamenőleg is fed.

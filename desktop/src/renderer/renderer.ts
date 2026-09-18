@@ -3816,6 +3816,19 @@ function setupModal(): void {
     if (!hitsStartPick) return;
     void startSuggestedSession(false, (msg) => { $('hitsNudgeText').textContent = msg; });
   });
+  // A HETI MONDAT a vágólapra: a gomb két másodpercig mondja, hogy megvan.
+  $('journalCopyBtn').addEventListener('click', () => void (async () => {
+    const text = journalNowText;
+    if (!text) return;
+    const btn = $('journalCopyBtn');
+    try {
+      await navigator.clipboard.writeText(text);
+      btn.textContent = 'Kimásolva';
+    } catch {
+      btn.textContent = 'Nem sikerült másolni';
+    }
+    setTimeout(() => { btn.textContent = 'A mondat másolása'; }, 2000);
+  })());
   // ABLAK A CSÚCS-ÓRÁRA: ugyanaz az út, mint a csomag ablak-szerkesztőjéé — a
   // bíró dönt, felvenni ingyen van.
   $('hitsWindowBtn').addEventListener('click', () => void (async () => {
@@ -3907,6 +3920,8 @@ function setupInstall(): void {
 let statsData: UsageStatsData | null = null;
 /** A javaslat gombjának csomagja a statisztikán — a segéd választja, a gomb ezt indítja. */
 let hitsStartPick: FocusPack | null = null;
+/** A heti mondat, ami most szólna — a másolás gombjáé. */
+let journalNowText: string | null = null;
 let statsBusy = false;
 
 /** Domains currently on the block list — used to mark them in the charts. */
@@ -4020,6 +4035,10 @@ function renderJournal(): void {
   $('journalBlock').classList.toggle('hidden', now === null && log.length === 0);
   $('journalNow').classList.toggle('hidden', now === null);
   $('journalNow').textContent = now ? `Így szólna a visszatekintés most: ${now}` : '';
+  // A MONDAT MEGOSZTHATÓ: a vágólapra, ahogy van — egy megbízottnak, egy
+  // naplóba. A tükör a tiéd; hogy kinek mutatod, te döntöd el.
+  journalNowText = now;
+  $('journalCopyBtn').classList.toggle('hidden', now === null);
   const list = $('journalList');
   list.textContent = '';
   for (const e of log) {

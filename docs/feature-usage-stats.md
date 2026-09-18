@@ -396,6 +396,12 @@ elmondja az elmúlt hét napot:
 > az előző héthez képest). 9 menet (7 ó 0 p, 2 korán leállítva). 3 feloldás.
 > Nincs tiltva, de sokat vitt: news.ycombinator.com 2 ó 2 p.
 
+A mondat megosztható, ahogy van: a gépen a statisztika naplójában „A mondat
+másolása” a vágólapra teszi, Androidon „A mondat megosztása” a rendszer
+megosztóját nyitja, iPhone-on ugyanez a megosztás-gomb (`ShareLink`). Egy
+megbízottnak, egy naplóba — a tükör a tiéd; hogy kinek mutatod, te döntöd el.
+A napló régi sorai maradnak csak nézhetők.
+
 Az utolsó mondat a tükör másik fele — a felvevő kártya javaslatának a
 legnagyobbja (l. fentebb): ami sokat vitt, és nincs a listán. Csak mért hét
 után, és csak egy név; a többi a kártyán vár, egy kattintásra.

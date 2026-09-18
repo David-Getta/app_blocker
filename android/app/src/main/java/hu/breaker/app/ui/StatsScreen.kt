@@ -1,5 +1,7 @@
 package hu.breaker.app.ui
 
+import androidx.compose.ui.platform.LocalContext
+import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -179,6 +181,13 @@ fun StatsSection(
             StatsSectionLabel("Heti napló")
             if (digestNow != null) {
                 Text("Így szólna a visszatekintés most: $digestNow", style = MaterialTheme.typography.bodySmall)
+                // A MONDAT MEGOSZTHATÓ, ahogy van — egy megbízottnak, egy naplóba. A
+                // tükör a tiéd; hogy kinek mutatod, te döntöd el.
+                val context = LocalContext.current
+                OutlinedButton(onClick = {
+                    val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, digestNow)
+                    runCatching { context.startActivity(Intent.createChooser(send, "A heti mondat megosztása")) }
+                }) { Text("A mondat megosztása") }
             }
             for (e in digestLog) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
