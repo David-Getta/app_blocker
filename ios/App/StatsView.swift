@@ -133,6 +133,13 @@ struct StatsView: View {
                         .font(.caption).fontWeight(.semibold).foregroundStyle(.secondary)
                         .padding(.top, 4)
                     FocusWeekBars(series: hitDays, format: { "\(Int($0)) megakadás" })
+                    // A HÓNAP alakja is — csak ha a hét előtt is volt mit rajzolni.
+                    let hitMonth = FilterHitLogic.daySeries(store.state.filterHits ?? [:], now: now, count: 30)
+                    if FilterHitLogic.monthHasOlderHits(hitMonth) {
+                        Text("Megakadások a szűrőben, 30 nap")
+                            .font(.caption).fontWeight(.semibold).foregroundStyle(.secondary)
+                        MonthBars(series: hitMonth)
+                    }
                     // MIKOR jár a kéz magától: a hét csúcs-órája — tény, nem ítélet.
                     if let peak = FilterHitLogic.peakHour(store.state.filterHitHours ?? [:], now: now) {
                         Text("A hét csúcsa: \(FilterHitLogic.hourLabel(peak.hour)) (\(peak.count) megakadás) — akkor jár a kéz magától.")
@@ -274,6 +281,32 @@ struct StatsView: View {
         .padding(12)
         .background(BreakerStyle.surfaceNested)
         .cornerRadius(8)
+    }
+}
+
+/// A HARMINC NAP oszlopai: egy szín, a legnagyobb a teljes magasságon, a két
+/// szélső nap felirata alul — a gépi napi rajz tükre, darabban.
+private struct MonthBars: View {
+    let series: [(day: String, seconds: Double)]
+
+    var body: some View {
+        let top = series.map { $0.seconds }.max() ?? 0
+        VStack(spacing: 4) {
+            HStack(alignment: .bottom, spacing: 2) {
+                ForEach(Array(series.enumerated()), id: \.offset) { _, item in
+                    RoundedRectangle(cornerRadius: 2, style: .continuous)
+                        .fill(item.seconds > 0 ? Color.accentColor : Color.secondary.opacity(0.25))
+                        .frame(height: top > 0 ? Swift.max(2, 60 * item.seconds / top) : 2)
+                        .frame(maxWidth: .infinity)
+                }
+            }
+            .frame(height: 60, alignment: .bottom)
+            HStack {
+                Text(series.first?.day ?? "").font(.caption2).foregroundStyle(.secondary)
+                Spacer()
+                Text(series.last?.day ?? "").font(.caption2).foregroundStyle(.secondary)
+            }
+        }
     }
 }
 

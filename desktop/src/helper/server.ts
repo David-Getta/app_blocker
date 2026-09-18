@@ -145,6 +145,8 @@ export function statusOf(
     browserHitsToday: browserHitsToday(state.browserHits, now),
     browserHitsPrev7d: browserHitsPrev7d(state.browserHits, now),
     browserHitsDays: browserHitsSeries(state.browserHits, now, 7),
+    // A hónap alakja — a könyv harminc napot tart, a rajz ennyit mutat.
+    browserHitsMonth: browserHitsSeries(state.browserHits, now, 30),
     browserHitsPeak: browserHitsPeakHour(state.browserHits, now),
     browserHitsHours: browserHitsByHour(state.browserHits, now),
     browserHitsReasons: browserHitsByReason(state.browserHits, now),

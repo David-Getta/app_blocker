@@ -23,7 +23,8 @@ import {
   MAX_LOCKDOWN_WINDOWS, type Lockdown, type LockdownWindow,
 } from '../shared/lockdown.js';
 import {
-  hitNudgeStep, hitNudgeText, hitsKeywordLine, hitsReasonLine, hitsTrendText, hourLabel, peakNowText, peakWarnKey, peakWarnText,
+  hitNudgeStep, hitNudgeText, hitsKeywordLine, hitsReasonLine, hitsTrendText, hourLabel, monthHasOlderHits, peakNowText,
+  peakWarnKey, peakWarnText,
 } from '../shared/browser-hits.js';
 import { stepBurstNotices, type BurstNotice, type BurstWatch } from '../shared/burst-notify.js';
 import {
@@ -4156,20 +4157,40 @@ function renderBarList(host: HTMLElement, rows: { key: string; label: string; se
 }
 
 function renderDaily(series: { day: string; seconds: number }[], title: string): void {
-  const host = $('dailyChart');
-  host.textContent = '';
   $('seriesTitle').textContent = title
     ? `Napi bontás — ${title} (30 nap)`
     : 'Napi bontás (30 nap)';
+  renderDailyBars($('dailyChart'), $('axisStart'), $('axisEnd'), series, (v) => formatDuration(v));
+}
+
+/** A harminc napos oszlopsor egy dobozba — a mért idő és a megakadások ugyanazzal a rajzzal, más felirattal. */
+function renderDailyBars(
+  host: HTMLElement, axisStart: HTMLElement, axisEnd: HTMLElement,
+  series: { day: string; seconds: number }[], format: (v: number) => string,
+): void {
+  host.textContent = '';
   const max = Math.max(...series.map((d) => d.seconds), 1);
   for (const d of series) {
     const bar = h('div', `day-bar${d.seconds === 0 ? ' empty' : ''}`);
     bar.style.height = d.seconds === 0 ? '2px' : `${Math.max(3, (d.seconds / max) * 100)}%`;
-    attachTip(bar, () => `${d.day} — ${formatDuration(d.seconds)}`);
+    attachTip(bar, () => `${d.day} — ${format(d.seconds)}`);
     host.appendChild(bar);
   }
-  $('axisStart').textContent = series[0]?.day ?? '';
-  $('axisEnd').textContent = series[series.length - 1]?.day ?? '';
+  axisStart.textContent = series[0]?.day ?? '';
+  axisEnd.textContent = series[series.length - 1]?.day ?? '';
+}
+
+/**
+ * A MEGAKADÁSOK HARMINC NAPJA: a könyv ennyit tart; a hét alakja mellett a
+ * hónapé. Csak akkor áll, ha a hét előtti napokon is volt — különben ugyanazt
+ * mutatná, mint a hét, szélesebben.
+ */
+function renderHitsMonth(series: { day: string; total: number }[]): void {
+  const show = monthHasOlderHits(series);
+  $('hitsMonthBlock').classList.toggle('hidden', !show);
+  if (!show) return;
+  renderDailyBars($('hitsMonthChart'), $('hitsMonthStart'), $('hitsMonthEnd'),
+    series.map((d) => ({ day: d.day, seconds: d.total })), (v) => `${v} megakadás`);
 }
 
 /**
@@ -4430,6 +4451,8 @@ function renderStats(): void {
   // üres héten is marad, és a sor kimondja a két számot.
   renderWeek((status?.browserHitsDays ?? []).map((d) => ({ day: d.day, seconds: d.total })),
     'hitsWeekBlock', 'hitsWeekChart', (n) => `${n} megakadás`, (status?.browserHitsPrev7d ?? 0) > 0);
+  // A HÓNAP alakja is — csak ha a hét előtt is volt mit rajzolni.
+  renderHitsMonth(status?.browserHitsMonth ?? []);
   // MIKOR jár a kéz magától: a hét csúcs-órája — tény, nem ítélet.
   const peak = status?.browserHitsPeak ?? null;
   $('hitsPeakNote').classList.toggle('hidden', peak === null);

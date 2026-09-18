@@ -84,6 +84,12 @@ class FilterHitsTest {
         assertEquals(UsageLogic.dayKey(now - 6 * 86_400_000L), series.first().first)
         assertEquals(today, series.last().first)
         assertEquals(listOf(3.0, 0.0, 0.0, 0.0, 0.0, 0.0, 2.0), series.map { it.second }, "a nyolcadik nap már nem a hété")
+        // A HÓNAP rajza csak akkor mond többet a hétnél, ha a hét előtt is volt.
+        val month = FilterHitLogic.daySeries(days, now, 30)
+        assertEquals(30, month.size)
+        assertEquals(true, FilterHitLogic.monthHasOlderHits(month), "a nyolc napos a hónapé: áll")
+        assertEquals(false, FilterHitLogic.monthHasOlderHits(month.takeLast(7)), "csak a hét: nem áll")
+        assertEquals(false, FilterHitLogic.monthHasOlderHits(emptyList()))
     }
 
     @Test fun `orankent - a csucs-ora a heten, holtversenynel a korabbi, a mentes hordozza`() {

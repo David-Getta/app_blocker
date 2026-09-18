@@ -108,6 +108,14 @@ object FilterHitLogic {
     fun daySeries(days: Map<String, Int>, now: Long, count: Int): List<Pair<String, Double>> =
         UsageLogic.dayKeysBack(now, count).map { it to hitsBetween(days, it, it).toDouble() }
 
+    /**
+     * A HARMINC NAP rajza csak akkor mond többet a hétnél, ha a hét ELŐTTI napokon
+     * is volt megakadás — különben ugyanazt a hét oszlopot mutatná, szélesebben.
+     * A sor a legrégebbitől jön; az utolsó hét nap a hété.
+     */
+    fun monthHasOlderHits(series: List<Pair<String, Double>>, weekDays: Int = 7): Boolean =
+        series.dropLast(weekDays).any { it.second > 0.0 }
+
     // ------------------------------------------------------------ óránként
 
     /** A nap órája helyi idő szerint, 0–23. */

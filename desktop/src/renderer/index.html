@@ -452,6 +452,15 @@
               <button class="btn btn-small btn-primary hidden" id="hitsStartBtn" type="button"></button>
             </div>
           </div>
+          <!--
+            A MEGAKADÁSOK HARMINC NAPJA: a könyv ennyit tart. Csak akkor áll,
+            ha a hét előtti napokon is volt — különben a hét rajza elég.
+          -->
+          <div class="chart-block hidden" id="hitsMonthBlock">
+            <h3 class="chart-title">Megakadások a böngészőben, 30 nap</h3>
+            <div class="daily-chart" id="hitsMonthChart"></div>
+            <div class="axis-row"><span id="hitsMonthStart"></span><span id="hitsMonthEnd"></span></div>
+          </div>
         </div>
 
         <!--

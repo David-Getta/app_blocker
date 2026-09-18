@@ -525,6 +525,13 @@ akkor jár a kéz magától.” Tény, nem ítélet. A telefonon ugyanígy: a sz
 megakadások hete alatt mondja a csúcs-órát, és a heti mondat is: „12
 megakadás a szűrőben, a csúcs 21–22 óra.”
 
+**A megakadások harminc napja:** a könyv harminc napot tart, a statisztika a
+hét alakja mellett a hónapét is rajzolja (`browserHitsMonth` a státuszban;
+a telefonon a szűrő könyvéből, `daySeries(…, 30)`) — de csak akkor, ha a hét
+előtti napokon is volt megakadás (`monthHasOlderHits`): különben ugyanazt a
+hét oszlopot mutatná, szélesebben. Egy szín, a két szélső nap felirata alul,
+mint a mért idő napi rajzánál.
+
 **Az órák sávja:** a csúcs egy szám, a sáv az alakja. A gépi statisztika a
 csúcs-óra mondata alatt a nap huszonnégy rekeszét rajzolja a hét
 megakadásaival (`browserHitsHours` a státuszban, minden forrásból összeadva),

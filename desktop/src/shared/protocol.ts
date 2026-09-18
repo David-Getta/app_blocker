@@ -191,6 +191,8 @@ export interface StatusData {
   browserHitsPrev7d?: number;
   /** az elmúlt 7 nap megakadásai naponként, a legrégebbi elöl — a hét alakja */
   browserHitsDays?: { day: string; total: number }[];
+  /** az elmúlt 30 nap megakadásai naponként, a legrégebbi elöl — a hónap alakja; régi segéd nem adja */
+  browserHitsMonth?: { day: string; total: number }[];
   /** a hét csúcs-órája: mikor jár a kéz magától — null, ha még nem volt megakadás */
   browserHitsPeak?: { hour: number; count: number } | null;
   /** az órák sávja: a hét megakadásai a nap huszonnégy rekeszében (0–23), minden forrásból — a csúcs-óra ebből áll */

@@ -265,6 +265,15 @@ export function browserHitsSeries(
   return out;
 }
 
+/**
+ * A HARMINC NAP rajza csak akkor mond többet a hétnél, ha a hét ELŐTTI napokon
+ * is volt megakadás — különben ugyanazt a hét oszlopot mutatná, szélesebben.
+ * A sor a legrégebbitől jön; az utolsó hét nap a hété.
+ */
+export function monthHasOlderHits(series: { day: string; total: number }[], weekDays = 7): boolean {
+  return series.slice(0, Math.max(0, series.length - weekDays)).some((d) => d.total > 0);
+}
+
 /** Az okok nevei — a bővítmény beállítás-lapjának neveivel azonos. */
 export const HIT_REASON_LABELS: Record<string, string> = {
   closed: 'zárva oldal', focus: 'munkamenet', channel: 'csatorna', rule: 'részleges szabály', keyword: 'kulcsszó', other: 'egyéb',

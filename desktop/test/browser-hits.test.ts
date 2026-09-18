@@ -8,6 +8,7 @@ import {
   PEAK_WARN_LEAD_MS, PEAK_WARN_MIN_COUNT, browserHits7d, browserHitsBetween, browserHitsByHour, browserHitsByKeyword, browserHitsByReason,
   browserHitsPeakHour,
   browserHitsPrev7d, browserHitsSeries, browserHitsToday, browserHitsTopSite, cleanBrowserHitDays, cleanBrowserHits, hitDayKey,
+  monthHasOlderHits,
   hitNudgeStep, hitNudgeText, hitsKeywordLine, hitsReasonLine, hitsTrendText, hostSite, hourLabel, isPeakNow, peakNowText,
   peakWarnKey, peakWarnText,
   putBrowserHits,
@@ -93,6 +94,13 @@ test('a hét alakja: hét nap, a legrégebbi elöl, a források összeadva, az �
   assert.equal(series[6].day, '2026-09-18');
   assert.deepEqual(series.map((d) => d.total), [1, 0, 0, 0, 0, 0, 5], 'a 11. már nem a hété; a 18. két forrás összege');
   assert.deepEqual(browserHitsSeries(undefined, NOW, 2).map((d) => d.total), [0, 0]);
+  // A HÓNAP rajza csak akkor mond többet a hétnél, ha a hét előtt is volt.
+  const month = browserHitsSeries(book, NOW, 30);
+  assert.equal(month.length, 30);
+  assert.equal(monthHasOlderHits(month), true, 'a 11. a hét előtt van, a hónapé: a rajz áll');
+  const weekOnly = putBrowserHits(undefined, 'a', [{ day: '2026-09-18', total: 2 }, { day: '2026-09-12', total: 1 }]);
+  assert.equal(monthHasOlderHits(browserHitsSeries(weekOnly, NOW, 30)), false, 'csak a hét napjain volt: a hónap rajza nem áll');
+  assert.equal(monthHasOlderHits([]), false);
 });
 
 test('az órák a hídról: huszonnégy rekesz, a napi összegnél nem több; a csúcs-óra a források összegéből', () => {

@@ -145,6 +145,12 @@ function fakeBridgeSource() {
       browserHitsToday: 3,
       browserHitsPrev7d: 18,
       browserHitsDays: [6, 5, 4, 3, 2, 1, 0].map((back, i) => ({ day: day(back), total: [2, 0, 5, 1, 3, 0, 3][i] })),
+      // A hónap alakja: a hét előtt is volt — a harminc napos rajz áll.
+      browserHitsMonth: Array.from({ length: 30 }, (_, i) => {
+        const back = 29 - i;
+        const week = [2, 0, 5, 1, 3, 0, 3];
+        return { day: day(back), total: back < 7 ? week[6 - back] : [0, 1, 0, 4, 2, 0, 0, 3, 1, 0, 0, 2, 5, 0, 1, 0, 0, 3, 0, 2, 1, 0, 0][back - 7] ?? 0 };
+      }),
       browserHitsPeak: { hour: 21, count: 6 },
       // Az órák sávja: egy este alakja, a csúcs 21-kor — a napok összegével egyező.
       browserHitsHours: [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 2, 6, 1, 0],
@@ -940,6 +946,12 @@ async function main() {
   // csomagra a csúcs-órában, minden nap — a hamis híd is a bírót játssza
   // (felvenni ingyen), a gomb utána eltűnik, mert a csomagon már ablak van.
   await goTo(page, 'stats');
+  // A MEGAKADÁSOK HARMINC NAPJA: a hét előtt is volt, tehát a rajz áll — harminc oszloppal.
+  await page.waitForFunction(
+    () => !document.getElementById('hitsMonthBlock')?.classList.contains('hidden')
+      && document.querySelectorAll('#hitsMonthChart .day-bar').length === 30,
+    undefined, { timeout: 15_000 },
+  ).catch(() => failures.push('a megakadások harminc napos rajza nem áll harminc oszloppal'));
   // AZ ADAG A HÉTEN: a betelések könyvéből a hét sora — a mai mellett, mert több.
   await page.waitForFunction(
     () => /Adag-betelések a héten: .*7×/.test(document.getElementById('tripsWeek')?.textContent || '')

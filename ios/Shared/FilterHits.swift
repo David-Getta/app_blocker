@@ -342,6 +342,13 @@ public enum FilterHitLogic {
 
     /// Az utolsó `count` nap sora, a legrégebbi elöl — a hét alakja a
     /// megakadásokra; a `seconds` mező itt darab, a rajz kedvéért ugyanaz az alak.
+    /// A HARMINC NAP rajza csak akkor mond többet a hétnél, ha a hét ELŐTTI napokon
+    /// is volt megakadás — különben ugyanazt a hét oszlopot mutatná, szélesebben.
+    /// A sor a legrégebbitől jön; az utolsó hét nap a hété.
+    public static func monthHasOlderHits(_ series: [(day: String, seconds: Double)], weekDays: Int = 7) -> Bool {
+        series.dropLast(weekDays).contains { $0.seconds > 0 }
+    }
+
     public static func daySeries(_ days: [String: Int], now: Double, count: Int) -> [(day: String, seconds: Double)] {
         let base = Date(timeIntervalSince1970: now / 1000)
         return (0..<count).reversed().map { back in

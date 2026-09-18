@@ -66,6 +66,12 @@ final class FilterHitsTests: XCTestCase {
         XCTAssertEqual(series.first?.day, FilterHitLogic.dayKey(now - 6 * 86_400_000))
         XCTAssertEqual(series.last?.day, today)
         XCTAssertEqual(series.map { $0.seconds }, [3, 0, 0, 0, 0, 0, 2], "a nyolcadik nap már nem a hété")
+        // A HÓNAP rajza csak akkor mond többet a hétnél, ha a hét előtt is volt.
+        let month = FilterHitLogic.daySeries(days, now: now, count: 30)
+        XCTAssertEqual(month.count, 30)
+        XCTAssertTrue(FilterHitLogic.monthHasOlderHits(month), "a nyolc napos a hónapé: áll")
+        XCTAssertFalse(FilterHitLogic.monthHasOlderHits(Array(month.suffix(7))), "csak a hét: nem áll")
+        XCTAssertFalse(FilterHitLogic.monthHasOlderHits([]))
     }
 
     func testHourlyThePeakOfTheWeekAndTheSave() throws {

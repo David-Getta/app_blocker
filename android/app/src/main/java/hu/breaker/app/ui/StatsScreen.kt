@@ -63,6 +63,8 @@ fun StatsSection(
     focusDays: List<Pair<String, Double>> = emptyList(),
     /** az elmúlt 7 nap megakadásai naponként (a szűrő könyve), a legrégebbitől */
     filterHitDays: List<Pair<String, Double>> = emptyList(),
+    /** az elmúlt 30 nap megakadásai naponként — a hónap alakja; csak ha a hét előtt is volt */
+    filterHitMonth: List<Pair<String, Double>> = emptyList(),
     /** a hét csúcs-órája (óra, szám) — mikor jár a kéz magától; null, ha nem volt */
     filterHitsPeak: Pair<Int, Int>? = null,
     /** az órák sávja: a hét megakadásai a nap 24 rekeszében — a csúcs-óra ebből áll; üres, ha nem volt */
@@ -153,6 +155,15 @@ fun StatsSection(
         if (filterHitDays.any { it.second > 0.0 } || filterHitsPrev7d > 0) {
             StatsSectionLabel("Megakadások a szűrőben, naponta")
             WeekChart(filterHitDays, format = { "${it.toInt()} megakadás" })
+            // A HÓNAP alakja is — csak ha a hét előtt is volt mit rajzolni.
+            if (FilterHitLogic.monthHasOlderHits(filterHitMonth)) {
+                Text("Megakadások a szűrőben, 30 nap", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+                DailyChart(filterHitMonth)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text(filterHitMonth.first().first, style = MaterialTheme.typography.bodySmall)
+                    Text(filterHitMonth.last().first, style = MaterialTheme.typography.bodySmall)
+                }
+            }
             // MIKOR jár a kéz magától: a hét csúcs-órája — tény, nem ítélet.
             filterHitsPeak?.let { (hour, count) ->
                 Text(

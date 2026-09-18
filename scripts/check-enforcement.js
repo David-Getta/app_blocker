@@ -522,6 +522,32 @@ const WIRES = [
     needle: 'FilterHitLogic.nudgeText(step)',
     lost: 'az iPhone kezdőlapja nem javasolna lépést a sokadik megakadásnál',
   },
+  // A MEGAKADÁSOK HARMINC NAPJA: a segéd a hónapot adja, a három statisztika rajzolja.
+  {
+    file: 'desktop/src/helper/server.ts',
+    needle: 'browserHitsMonth: browserHitsSeries(state.browserHits, now, 30),',
+    lost: 'a segéd nem adná a státuszba a hónap megakadásait',
+  },
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: 'renderHitsMonth(status?.browserHitsMonth ?? []);',
+    lost: 'a gépi statisztika nem rajzolná a megakadások harminc napját',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/AppUi.kt',
+    needle: 'filterHitMonth = FilterHitLogic.daySeries(state.filterHits, now, 30),',
+    lost: 'az Android statisztika nem kapná meg a hónap megakadásait',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/StatsScreen.kt',
+    needle: 'DailyChart(filterHitMonth)',
+    lost: 'az Android statisztika nem rajzolná a megakadások harminc napját',
+  },
+  {
+    file: 'ios/App/StatsView.swift',
+    needle: 'MonthBars(series: hitMonth)',
+    lost: 'az iPhone statisztikája nem rajzolná a megakadások harminc napját',
+  },
   // AZ ADAG A HÉTEN a heti mondatban és az oldal sorában: a két építő és a két sor.
   {
     file: 'desktop/src/helper/digest-journal.ts',
