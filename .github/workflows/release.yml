@@ -44,22 +44,20 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A sorozat küszöbe egy helyen.** A „kettőtől” szabály (egy nap
-          nem sorozat) a három mag egy-egy állandója lett, a mag-összhang
-          őre a három értéket egymáshoz méri; a kártya, a réteg, a heti
-          mondat és a telefonok a magét használják. Viselkedés nem
-          változott.
+          **A bővítmény is a sorozat-küszöb őrében.** A felugró lap
+          sorozat-küszöbe a bővítmény állandója lett, és a mag-összhang
+          őre a gép értékéhez méri — ha elcsúszna, a CI szól előbb, mint a
+          felhasználó. Viselkedés nem változott. Bővítmény 0.4.36.
 
-          ### Ami a v0.4.152-ben jött
+          ### Ami a v0.4.153-ban jött
+
+          **A sorozat küszöbe egy helyen** — a három mag egy-egy állandója,
+          a mag-összhang őrében; a hívók a magét használják.
+
+          #### Ami a v0.4.152-ben jött
 
           **A sorozat a hónap- és évfordulón** — a tesztek mindhárom
-          nyelvben a hónap és az év végét is fogják. Kód nem változott.
-
-          #### Ami a v0.4.151-ben jött
-
-          **A leghosszabb sorozat a böngésző lapjain is** — a felugró lap
-          és a tiltó lap a mostani sorozat mellett a rekordot is mondja.
-          Bővítmény 0.4.35.
+          nyelvben a hónap és az év végét is fogják.
 
           NOTES
           fi
