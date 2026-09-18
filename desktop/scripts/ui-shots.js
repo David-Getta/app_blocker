@@ -1079,6 +1079,22 @@ async function main() {
   await goTo(page, 'stats');
   await page.waitForSelector('#focusTiles .tile', { timeout: 15_000 })
     .catch(() => failures.push('a munkamenet-statisztika nem jött vissza'));
+  // A MENET-ÓRA FEDÉSE: a menet-óra gombja ablakot tesz a legutóbbi csomagra
+  // (9–10, minden nap) — utána a munkamenet-blokk sora kimondja, hogy a
+  // menet-órában magától indul, és a gomb nincs: a csúcs-óra sorának tükre.
+  await page.locator('#focusHourWindowBtn').click().catch(() => failures.push('a menet-óra gombja nem kattintható'));
+  await page.waitForFunction(
+    () => !document.getElementById('focusHourCoverNote')?.classList.contains('hidden')
+      && /A menet-órában magától indul: Mély munka \(minden nap 0?9:00–10:00\)\./.test(document.getElementById('focusHourCoverNote')?.textContent || '')
+      && document.getElementById('focusHourWindowBtn')?.classList.contains('hidden'),
+    undefined, { timeout: 15_000 },
+  ).catch(() => failures.push('a lefedett menet-óra sora nem jelent meg az ablak után, vagy a gomb ott maradt'));
+  // Vissza, ablak nélkül: a többi lépés így számol.
+  await page.evaluate(() => { delete window.__fakePacks[1].recurrence; });
+  await page.reload();
+  await goTo(page, 'stats');
+  await page.waitForSelector('#focusTiles .tile', { timeout: 15_000 })
+    .catch(() => failures.push('a munkamenet-statisztika nem jött vissza a menet-óra ablaka után'));
 
   // A JAVASLAT kártyája a kezdőlapon: a sokadik megakadásnál (12: a tizes
   // lépcső) a mondat és a gomb a legutóbbi csomaggal — futó menet nélkül.

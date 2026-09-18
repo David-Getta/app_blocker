@@ -1308,7 +1308,7 @@ const WIRES = [
   // A HETI MONDAT a menet-órát is mondja — a statisztika sora, mindhárom platformon.
   {
     file: 'desktop/src/helper/digest-journal.ts',
-    needle: 'focusHour: peakFocusHour(focusByHour(state.focusLog, now)),',
+    needle: 'const fh = peakFocusHour(focusByHour(state.focusLog, now));',
     lost: 'a gépi heti mondat nem mondaná a menet-órát',
   },
   {
@@ -1383,6 +1383,27 @@ const WIRES = [
     file: 'ios/App/ContentView.swift',
     needle: 'FocusHourReminder.reschedule(peak: focusHourKey.isEmpty ? nil : focusHour, canStart:',
     lost: 'az iPhone nem ütemezné a menet-óra előjelzését',
+  },
+  // A MENET-ÓRA FEDÉSE: ha egy csomag ablaka fedi a menet-órát, a statisztika és a heti mondat kimondja.
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: "? `A menet-órában magától indul: ${fhCover.name} (${recurrenceLabel(fhCover.recurrence)}).` : '';",
+    lost: 'a gépi statisztika nem mondaná, hogy a menet-órát ablak fedi',
+  },
+  {
+    file: 'desktop/src/helper/digest-journal.ts',
+    needle: 'focusHourPack: fh && fhOwn ? packCoveringHour(state.focusPacks ?? [], fh.hour)?.name ?? null : null,',
+    lost: 'a gépi heti mondat nem mondaná a menet-óra fedését',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/StatsScreen.kt',
+    needle: 'focusHourPack?.let { Text("A menet-órában magától indul: $it.", style = MaterialTheme.typography.bodySmall) }',
+    lost: 'az Android statisztika nem mondaná, hogy a menet-órát ablak fedi',
+  },
+  {
+    file: 'ios/App/StatsView.swift',
+    needle: 'let pack = Focus.packCoveringHour(store.state.focusPacks ?? [], hour: fh.hour), let band = pack.recurrence {',
+    lost: 'az iPhone statisztikája nem mondaná, hogy a menet-órát ablak fedi',
   },
   // AZ ABLAK SZERINT INDULT menet a rétegben és az Android értesítésén is kimondva.
   {

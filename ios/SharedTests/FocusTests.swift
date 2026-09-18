@@ -195,6 +195,9 @@ final class FocusTests: XCTestCase {
         XCTAssertEqual(Focus.peakHour([0, 2, 0, 2])?.hour, 1, "holtverseny: a korábbi óra")
         XCTAssertNil(Focus.peakHour([Int](repeating: 0, count: 24)))
         XCTAssertEqual(Focus.hourText((hour: 9, count: 6)), "A négy hét menet-órája: 9–10 óra (6 menet).")
+        XCTAssertEqual(Focus.hourText((hour: 9, count: 6), pack: "Nyelvtanulás", offer: true),
+                       "A négy hét menet-órája: 9–10 óra (6 menet, magától indul: Nyelvtanulás).", "a fedés erősebb")
+        XCTAssertEqual(Focus.hourText((hour: 9, count: 6), offer: true), "A négy hét menet-órája: 9–10 óra (6 menet, nincs rá ablak).")
         XCTAssertEqual(Focus.byHour([], now: now), [Int](repeating: 0, count: 24))
     }
 

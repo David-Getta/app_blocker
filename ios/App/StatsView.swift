@@ -141,6 +141,13 @@ struct StatsView: View {
                 if let fh = Focus.peakHour(focusByHour) {
                     Text(Focus.hourText(fh)).font(.footnote).foregroundStyle(.secondary)
                     HourStrip(hours: focusByHour, peakHour: fh.hour, peakCount: fh.count)
+                    // LE VAN-E FEDVE: ha egy csomag heti ablaka a menet-órát fedi, a menet magától
+                    // indul, amikor le szoktál ülni — a sor kimondja. A csúcs-órán a csúcs sora mondja.
+                    if FilterHitLogic.peakHour(store.state.filterHitHours ?? [:], now: now)?.hour != fh.hour,
+                       let pack = Focus.packCoveringHour(store.state.focusPacks ?? [], hour: fh.hour), let band = pack.recurrence {
+                        Text("A menet-órában magától indul: \(pack.name) (\(recurrenceLabel(band))).")
+                            .font(.footnote).foregroundStyle(.secondary)
+                    }
                     // ABLAK A MENET-ÓRÁRA: a csúcs-óra gombjának párja — ugyanazok a kapuk;
                     // ha a menet-óra a csúcs-óra, ott a másik gomb, kétszer ugyanazt nem.
                     if FilterHitLogic.peakHour(store.state.filterHitHours ?? [:], now: now)?.hour != fh.hour,

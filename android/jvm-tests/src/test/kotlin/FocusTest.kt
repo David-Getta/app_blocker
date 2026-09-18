@@ -430,6 +430,8 @@ class FocusTest {
         assertEquals(1 to 2, Focus.peakHour(listOf(0, 2, 0, 2)), "holtverseny: a korábbi óra")
         assertEquals(null, Focus.peakHour(List(24) { 0 }))
         assertEquals("A négy hét menet-órája: 9–10 óra (6 menet).", Focus.hourText(9 to 6))
+        assertEquals("A négy hét menet-órája: 9–10 óra (6 menet, magától indul: Nyelvtanulás).", Focus.hourText(9 to 6, "Nyelvtanulás", true), "a fedés erősebb")
+        assertEquals("A négy hét menet-órája: 9–10 óra (6 menet, nincs rá ablak).", Focus.hourText(9 to 6, null, true))
         assertEquals(List(24) { 0 }, Focus.byHour(emptyList(), now))
     }
 

@@ -102,6 +102,9 @@ test('a menet-óra: négy hétből, az indulás órája szerint — a huszonnyol
   assert.deepEqual(peakFocusHour([0, 2, 0, 2]), { hour: 1, count: 2 }, 'holtverseny: a korábbi óra');
   assert.equal(peakFocusHour(new Array<number>(24).fill(0)), null);
   assert.equal(focusHourText({ hour: 9, count: 6 }), 'A négy hét menet-órája: 9–10 óra (6 menet).');
+  assert.equal(focusHourText({ hour: 9, count: 6 }, { pack: 'Nyelvtanulás', offer: true }),
+    'A négy hét menet-órája: 9–10 óra (6 menet, magától indul: Nyelvtanulás).', 'a fedés erősebb');
+  assert.equal(focusHourText({ hour: 9, count: 6 }, { offer: true }), 'A négy hét menet-órája: 9–10 óra (6 menet, nincs rá ablak).');
   assert.deepEqual(focusByHour(undefined, now), new Array<number>(24).fill(0));
 });
 

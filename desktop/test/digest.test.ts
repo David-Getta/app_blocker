@@ -254,4 +254,9 @@ test('a menet-óra a mondatban: a statisztika sora szó szerint, a menet-nap ut�
   assert.equal(digestText({ ...full, focusWeekday: { day: 2, count: 6 }, focusHour: { hour: 9, count: 6 } }, (l) => l),
     `${head} A négy hét menet-napja: kedd (6 menet). A négy hét menet-órája: 9–10 óra (6 menet). 3 feloldás.`);
   assert.equal(digestText({ ...full, focusHour: null }, (l) => l), digestText(full, (l) => l), 'óra nélkül a régi mondat');
+  // A FEDÉS a szám mellett: a csomag, amelynek ablaka fedi — vagy „nincs rá ablak”, ha lehetne. A fedés erősebb.
+  assert.equal(digestText({ ...full, focusHour: { hour: 9, count: 6 }, focusHourPack: 'Nyelvtanulás', focusHourWindowOffer: true }, (l) => l),
+    `${head} A négy hét menet-órája: 9–10 óra (6 menet, magától indul: Nyelvtanulás). 3 feloldás.`);
+  assert.equal(digestText({ ...full, focusHour: { hour: 9, count: 6 }, focusHourWindowOffer: true }, (l) => l),
+    `${head} A négy hét menet-órája: 9–10 óra (6 menet, nincs rá ablak). 3 feloldás.`);
 });

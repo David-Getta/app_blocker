@@ -118,7 +118,8 @@ lista tételével oldalanként és okonként (lista vagy kulcsszó); a nyers
 hosztot nem tárolja.
 
 **Ki mondja.** A statisztika (a hét alakja, a csúcs-óra, az okok, a
-csúcs-oldal); a heti mondat: „12 megakadás a böngészőben, a csúcs 21–22 óra, a legtöbbször: youtube.com (7×).”;
+csúcs-oldal; négy hétből a csúcs-nap, és a tükör másik feléről a menet-nap,
+a menet-óra és a mért idő napja — a hét napjainak és az órák sávjával); a heti mondat: „12 megakadás a böngészőben, a csúcs 21–22 óra, a legtöbbször: youtube.com (7×).”;
 a bővítmény felugró és beállítás-lapja; a tiltó lap a kísértés pillanatában:
 „Ma ez a 7. megakadás — ebből a 3. ezen az oldalon.”; a hét az előző héthez képest
 („A héten 12 megakadás, az előző héten 18.” — a híd ehhez két hetet visz);
@@ -131,8 +132,9 @@ munkamenet vagy egy rövid zárlat — a gépen és Androidon értesítésben, a
 telefon kezdőlapján és a gépi statisztikán egy kártyán, amelynek gombja a
 legutóbb használt csomagot indítja a szokásos hosszával (szigorítás, ingyen).
 Tíz perccel a hét csúcs-órája előtt előre szól — a gépen a felület, Androidon
-a szolgáltatás, iPhone-on a rendszernél ütemezett kérés. A lépcsők, a tíz
-perc és a küszöb a három magban azonos (`check-core-sync`). Nem tilt, nem
+a szolgáltatás, iPhone-on a rendszernél ütemezett kérés; és ugyanígy a négy
+hét menet-órája előtt (ha a kettő ugyanaz az óra, csak a csúcs-óráé szól). A
+lépcsők, a tíz perc és a küszöb a három magban azonos (`check-core-sync`). Nem tilt, nem
 ítél; a döntés az emberé — és ha nem kéred, csendben marad (a gépen a
 háttér-panel, a telefonon a statisztika kapcsolója), a kártya és a
 statisztika sora akkor is mondja.

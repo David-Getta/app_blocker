@@ -45,6 +45,9 @@ export function helperLabel(state: HelperState): (label: string) => string {
 export function digestTextNow(state: HelperState, now: number): string | null {
   const s = summarize(state.usage, now);
   const peak = browserHitsPeakHour(state.browserHits, now);
+  // A menet-óra és a fedése: ha a menet-óra a csúcs-óra, a csúcs mondata mondja — kétszer ugyanazt nem.
+  const fh = peakFocusHour(focusByHour(state.focusLog, now));
+  const fhOwn = fh !== null && (peak === null || peak.hour !== fh.hour);
   return digestText({
     last7Seconds: s.last7Seconds,
     topWeekSites: s.topWeekSites,
@@ -73,7 +76,10 @@ export function digestTextNow(state: HelperState, now: number): string | null {
     // A menet-nap — négy hétből, a statisztika sora: a mondat is mondja.
     focusWeekday: peakWeekday(focusByWeekday(state.focusLog, now)),
     // A menet-óra — négy hétből, az indulás órája szerint: a mondat is mondja.
-    focusHour: peakFocusHour(focusByHour(state.focusLog, now)),
+    focusHour: fh,
+    // A menet-óra fedése: a csomag, amelynek heti ablaka fedi — a mondat mondja; ha nem fedi semmi, de lehetne: „nincs rá ablak”.
+    focusHourPack: fh && fhOwn ? packCoveringHour(state.focusPacks ?? [], fh.hour)?.name ?? null : null,
+    focusHourWindowOffer: fh !== null && fhOwn && peakWindowPick(state.focusPacks ?? [], state.focusLog, null, fh.hour, now) !== null,
     // A mért idő napja — négy hétből, a statisztika sora: a mondat is mondja.
     usageWeekday: peakWeekday(usageByWeekday(state.usage, now)),
     daysTracked: s.daysTracked,

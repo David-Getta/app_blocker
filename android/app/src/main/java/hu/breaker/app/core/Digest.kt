@@ -117,6 +117,10 @@ object DigestLogic {
         val usageWeekday: Pair<Int, Int>? = null,
         /** a négy hét menet-órája (óra, szám) — mikor ülsz le a legtöbbször, az indulás órája szerint; null, ha nem volt */
         val focusHour: Pair<Int, Int>? = null,
+        /** a csomag neve, amelynek heti ablaka fedi a menet-órát — a menet magától indul, amikor le szoktál ülni; null, ha egyik sem (vagy a menet-óra a csúcs-óra) */
+        val focusHourPack: String? = null,
+        /** a menet-órára LEHETNE ablakot tenni: van csomag ablak nélkül, és a menet-órát semmi nem fedi — a mondat kimondja */
+        val focusHourWindowOffer: Boolean = false,
         /** a hét csúcs-oldala (nyers név, a címkézés a mondaté; szám) — melyik oldal akaszt meg a legtöbbször */
         val filterHitsTop: Pair<String, Int>? = null,
         /**
@@ -186,7 +190,7 @@ object DigestLogic {
         input.focusWeekday?.let { parts.add(Focus.weekdayText(it)) }
         // A MENET-ÓRA: mikor ülsz le a legtöbbször — négy hétből, az indulás órája
         // szerint, a statisztika mondata szó szerint. Nincs menet, nincs mondat.
-        input.focusHour?.let { parts.add(Focus.hourText(it)) }
+        input.focusHour?.let { parts.add(Focus.hourText(it, input.focusHourPack, input.focusHourWindowOffer)) }
         // A félbemaradt kísérlet a feloldások mellé kerül — vagy helyettük: egy
         // elindított és félbehagyott lazítás is történés, ha feloldás nem is lett.
         val droppedPart = if (input.dropped7d > 0) ", ${input.dropped7d} félbemaradt kísérlet" else ""
@@ -296,6 +300,11 @@ object DigestLogic {
         return out
     }
 
+    /** A menet-óra, ha nem a csúcs-óra — a fedését csak akkor mondja a saját mondata; null, ha nincs, vagy a csúcs-óráé. */
+    private fun ownFocusHour(st: AppState, now: Long): Int? =
+        Focus.peakHour(Focus.byHour(st.focusLog, now))?.first
+            ?.takeIf { it != FilterHitLogic.peakHour(st.filterHitHours, now)?.first }
+
     /**
      * A visszatekintés bemenete a mostani állapotból — a szolgáltatás (hétfő
      * reggel) és a felület (az élő mondat a statisztikán) ugyanezt kérdezi,
@@ -317,6 +326,10 @@ object DigestLogic {
             focusWeekday = FilterHitLogic.peakWeekday(Focus.byWeekday(st.focusLog, now)),
             // A menet-óra — négy hétből, az indulás órája szerint: a mondat is mondja.
             focusHour = Focus.peakHour(Focus.byHour(st.focusLog, now)),
+            // A menet-óra fedése: a csomag, amelynek heti ablaka fedi — a mondat mondja; ha nem fedi semmi,
+            // de lehetne: „nincs rá ablak”. Ha a menet-óra a csúcs-óra, a csúcs mondata mondja — kétszer ugyanazt nem.
+            focusHourPack = ownFocusHour(st, now)?.let { Focus.packCoveringHour(st.focusPacks, it)?.name },
+            focusHourWindowOffer = ownFocusHour(st, now)?.let { Focus.peakWindowPick(st.focusPacks, st.focusLog, null, it, now) } != null,
             unlocks7d = st.unlockLog.count { it >= weekAgo },
             unlocksPrev7d = st.unlockLog.count { it >= weekAgo - 7 * 24 * 3600_000L && it < weekAgo },
             dropped7d = st.droppedAttempts.count { it >= weekAgo },

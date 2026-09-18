@@ -577,7 +577,14 @@ Android-szolgáltatás (`maybeFocusHourWarning`) és az iPhone rendszere
 (`FocusHourReminder`, az app ütemezi): „Mindjárt 9 óra — ilyenkor szoktál elkezdeni (6 menet négy hét alatt). Egy munkamenet most segítene — te döntesz.”
 — a menet gombjával; a kulcs és a küszöb a csúcs-óráé (`peakWarnKey`), és ha
 a menet-óra a csúcs-óra, a csúcs-óra előjelzése szól — kétszer ugyanazt nem.
-Ha nem kéred, csendben marad; futó menet mellett nincs.
+Ha nem kéred, csendben marad; futó menet mellett nincs. Le van-e fedve: ha egy
+csomag heti ablaka már fedi a menet-órát, a statisztika munkamenet-blokkja
+kimondja mindhárom platformon („A menet-órában magától indul: Nyelvtanulás (minden nap 9:00–10:00).”),
+és gomb nincs; a heti mondat a szám mellett mondja: „(6 menet, magától indul: Nyelvtanulás)”,
+és ha nem fedi semmi, de lehetne rá ablakot tenni: „(6 menet, nincs rá ablak)”
+(`focusHourPack`, `focusHourWindowOffer` a mondat bemenetén — a segéd, az
+Android és az iOS építi; a fedés erősebb). Ha a menet-óra a csúcs-óra, a
+csúcs-óra sora és mondata mondja — kétszer ugyanazt nem.
 
 **A mért idő napja:** a tükör harmadik fele — nem az, mikor csúszik a kéz,
 és nem az, mikor ülsz le, hanem az, melyik napon megy el a legtöbb idő: négy

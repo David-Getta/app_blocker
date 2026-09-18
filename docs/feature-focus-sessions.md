@@ -139,6 +139,21 @@ mondata után — mindhárom platformon (`focusByWeekday`, `Focus.byWeekday`;
 a gépen a segéd adja le a statisztika-válaszban, `focusWeekdays`). Lásd
 `docs/feature-usage-stats.md`.
 
+**A menet-óra:** mikor ülsz le a legtöbbször — a négy hét menetei az indulás
+órája szerint: „A négy hét menet-órája: 9–10 óra (6 menet).” A csúcs-óra tükre,
+alatta az órák sávja, a heti mondatban is (`focusByHour`, `Focus.byHour`;
+a gépen `focusHours` a statisztika-válaszban). A menet-óra alatt a csúcs-óra
+gombjának párja: heti ablak a legutóbbi csomagra a menet-óra egy órájában,
+minden napra — felvenni ingyen. A menet-órában a döntés helye kimondja, hogy
+most szoktál elkezdeni (a gépi kártya és a réteg, a telefonok kezdőlapja, a
+böngésző lapjai), tíz perccel előtte pedig — naponta egyszer, a csúcs-óra
+előjelzésének tükreként — a gép, az Android-szolgáltatás és az iPhone
+emlékeztetője előre szól; ha a menet-óra a csúcs-óra, csak a csúcs-óráé szól.
+Legalább három menet kell hozzá; futó menet alatt semmi sem szól. Ha egy
+csomag ablaka már fedi a menet-órát, a statisztika és a heti mondat kimondja
+(„magától indul: …”); ha nem fedi semmi, de lehetne rá ablakot tenni, a heti
+mondat mondja: „nincs rá ablak” — a csúcs-óra fedésének tükre.
+
 **Az aldomain átmegy**: a `google.com` engedése a `translate.google.com`-ot is
 engedi. Enélkül minden oldalnál külön ki kellene találni, melyik aldomain kell,
 és a felhasználó azt látná, hogy a beállítása nem működik. A `notgoogle.com`

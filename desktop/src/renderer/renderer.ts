@@ -4555,6 +4555,14 @@ function renderFocusStats(): void {
   $('focusHourNote').textContent = fh ? focusHourText(fh) : '';
   renderHourStrip($('focusHourStrip'), statsData?.focusHours ?? [], fh, (n) => `${n} menet`);
   $('focusHourAxis').classList.toggle('hidden', $('focusHourStrip').classList.contains('hidden'));
+  // LE VAN-E FEDVE: ha egy csomag heti ablaka már fedi a menet-órát, a menet
+  // magától indul, amikor le szoktál ülni — a sor kimondja, és nincs gomb. Ha a
+  // menet-óra a csúcs-óra, a csúcs-óra sora mondja — kétszer ugyanazt nem.
+  const fhCover = fh && (!status?.browserHitsPeak || status.browserHitsPeak.hour !== fh.hour)
+    ? packCoveringHour(status?.focusPacks ?? [], fh.hour) : null;
+  $('focusHourCoverNote').classList.toggle('hidden', !fhCover?.recurrence);
+  $('focusHourCoverNote').textContent = fhCover?.recurrence
+    ? `A menet-órában magától indul: ${fhCover.name} (${recurrenceLabel(fhCover.recurrence)}).` : '';
   // ABLAK A MENET-ÓRÁRA: a csúcs-óra gombjának párja — heti ablak a legutóbbi
   // csomagra a menet-órában, minden nap: a menet magától indul, amikor le
   // szoktál ülni. Felvenni ingyen; nincs gomb ablakos csomagon, fedett órán,

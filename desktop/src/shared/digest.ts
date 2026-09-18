@@ -119,6 +119,10 @@ export interface DigestInput {
   usageWeekday?: { day: number; count: number } | null;
   /** a négy hét menet-órája (óra; szám) — mikor ülsz le a legtöbbször, az indulás órája szerint; null, ha nem volt */
   focusHour?: { hour: number; count: number } | null;
+  /** a csomag neve, amelynek heti ablaka fedi a menet-órát — a menet magától indul, amikor le szoktál ülni; null, ha egyik sem (vagy a menet-óra a csúcs-óra) */
+  focusHourPack?: string | null;
+  /** a menet-órára LEHETNE ablakot tenni: van csomag ablak nélkül, és a menet-órát semmi nem fedi — a mondat kimondja */
+  focusHourWindowOffer?: boolean;
   /** a hét csúcs-oldala (nyers név, a címkézés a mondaté) — melyik oldal akaszt meg a legtöbbször */
   browserHitsTop?: { label: string; count: number } | null;
   /** van-e egyáltalán mért nap */
@@ -193,7 +197,7 @@ export function digestText(input: DigestInput, labelOf: (label: string) => strin
   // A MENET-ÓRA: mikor ülsz le a legtöbbször — négy hétből, az indulás órája
   // szerint, a statisztika mondata szó szerint. Nincs menet, nincs mondat.
   const focusHour = input.focusHour ?? null;
-  if (focusHour) parts.push(focusHourText(focusHour));
+  if (focusHour) parts.push(focusHourText(focusHour, { pack: input.focusHourPack ?? null, offer: input.focusHourWindowOffer ?? false }));
   // A félbemaradt kísérlet a feloldások mellé kerül — vagy helyettük: egy
   // elindított és félbehagyott lazítás is történés, ha feloldás nem is lett.
   const dropped = input.dropped7d ?? 0;

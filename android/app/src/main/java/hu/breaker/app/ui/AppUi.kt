@@ -807,6 +807,12 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                     ?.takeIf { it != FilterHitLogic.peakHour(state.filterHitHours, now)?.first }
                     ?.let { Focus.peakWindowPick(state.focusPacks, state.focusLog, state.focusRun, it, now) }
                     ?.let { (p, band) -> "Heti ablak a menet-órára: ${p.name}, ${recurrenceLabel(band)}" },
+                // LE VAN-E FEDVE a menet-óra: a csomag, amelynek ablaka fedi — a sor mondja;
+                // ha a menet-óra a csúcs-óra, a csúcs sora mondja, kétszer ugyanazt nem.
+                focusHourPack = Focus.peakHour(Focus.byHour(state.focusLog, now))?.first
+                    ?.takeIf { it != FilterHitLogic.peakHour(state.filterHitHours, now)?.first }
+                    ?.let { Focus.packCoveringHour(state.focusPacks, it) }
+                    ?.let { p -> p.recurrence?.let { b -> "${p.name} (${recurrenceLabel(b)})" } },
                 onFocusHourWindow = {
                     val nowMs = System.currentTimeMillis()
                     Focus.peakHour(Focus.byHour(state.focusLog, nowMs))?.first

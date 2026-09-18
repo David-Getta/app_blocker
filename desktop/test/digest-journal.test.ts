@@ -7,6 +7,9 @@ import * as assert from 'node:assert/strict';
 import { defaultState, newId, type HelperState } from '../src/helper/state';
 import { digestTextNow, helperLabel, journalTick } from '../src/helper/digest-journal';
 import * as referee from '../src/helper/referee';
+import { hitDayKey, putBrowserHits } from '../src/shared/browser-hits';
+import type { FocusPack } from '../src/shared/focus';
+import type { Band } from '../src/shared/schedule';
 
 const at = (y: number, m: number, d: number, hh: number, mm = 0): number =>
   new Date(y, m - 1, d, hh, mm).getTime();
@@ -47,6 +50,24 @@ test('a segéd köre hétfő reggel beírja a hét sorát — egyszer, és az ap
   state.unlockLog.push(next - DAY);
   assert.equal(journalTick(state, next), true);
   assert.deepEqual((state.digestLog ?? []).map((e) => e.week), ['2026-09-14', '2026-09-07']);
+});
+
+test('a menet-óra fedése a segéd mondatában: a fedő csomag neve, vagy „nincs rá ablak”, ha lehetne — a csúcs-órán a csúcs mondata mondja', () => {
+  const state = weekState(MONDAY_8);
+  const bare: FocusPack = { id: 'p', name: 'Nyelvtanulás', allowSites: [], allowApps: [], defaultMinutes: 60 };
+  // Csomag ablak nélkül, a menet-órát (8) semmi nem fedi: lehetne rá ablakot tenni.
+  state.focusPacks = [bare];
+  assert.match(digestTextNow(state, MONDAY_8) ?? '', /A négy hét menet-órája: 8–9 óra \(1 menet, nincs rá ablak\)\./);
+  // A csomag ablaka fedi a menet-órát: a neve a mondatban, ajánlat nincs.
+  const band: Band = { days: [0, 1, 2, 3, 4, 5, 6], startMin: 8 * 60, endMin: 9 * 60 };
+  state.focusPacks = [{ ...bare, recurrence: band }];
+  assert.match(digestTextNow(state, MONDAY_8) ?? '', /A négy hét menet-órája: 8–9 óra \(1 menet, magától indul: Nyelvtanulás\)\./);
+  // Ha a menet-óra a csúcs-óra, a csúcs mondata mondja a fedést — a menet-óra mondata a régi, kétszer ugyanazt nem.
+  const hours = (h: number, n: number): number[] => { const a = new Array<number>(24).fill(0); a[h] = n; return a; };
+  state.browserHits = putBrowserHits(undefined, 'a', [{ day: hitDayKey(MONDAY_8 - DAY), total: 3, byReason: {}, byHour: hours(8, 3) }]);
+  const text = digestTextNow(state, MONDAY_8) ?? '';
+  assert.match(text, /A négy hét menet-órája: 8–9 óra \(1 menet\)\./);
+  assert.match(text, /a csúcs 8–9 óra \(magától indul: Nyelvtanulás\)/);
 });
 
 test('a bíró köre NEM ír naplót: a könyvelés a segéd időzítőjéé, a bíróé az érvényesítés', () => {

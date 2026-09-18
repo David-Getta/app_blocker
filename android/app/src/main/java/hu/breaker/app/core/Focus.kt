@@ -654,9 +654,16 @@ object Focus {
         return best
     }
 
-    /** „A négy hét menet-órája: 9–10 óra (6 menet).” — mikor ülsz le a legtöbbször. */
-    fun hourText(peak: Pair<Int, Int>): String =
-        "A négy hét menet-órája: ${FilterHitLogic.hourLabel(peak.first)} (${peak.second} menet)."
+    /**
+     * „A négy hét menet-órája: 9–10 óra (6 menet).” — mikor ülsz le a legtöbbször.
+     * A fedés a szám mellett: „magától indul: …”, ha egy csomag heti ablaka fedi
+     * a menet-órát; „nincs rá ablak”, ha lehetne rá tenni. A fedés erősebb. Ha a
+     * menet-óra a csúcs-óra, a csúcs mondata mondja — a hívó nem ad fedést.
+     */
+    fun hourText(peak: Pair<Int, Int>, pack: String? = null, offer: Boolean = false): String {
+        val tail = pack?.let { ", magától indul: $it" } ?: (if (offer) ", nincs rá ablak" else "")
+        return "A négy hét menet-órája: ${FilterHitLogic.hourLabel(peak.first)} (${peak.second} menet$tail)."
+    }
 
     /** A tükör a döntés napján: a kezdőlap kártyája a menet-napon (a „ma van” szabálya a csúcs-napé: FilterHitLogic.isPeakDayNow). */
     fun dayNowText(peak: Pair<Int, Int>): String =

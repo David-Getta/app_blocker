@@ -4,7 +4,9 @@ import hu.breaker.app.core.DigestLogic.Delta
 import hu.breaker.app.core.DigestLogic.Entry
 import hu.breaker.app.core.DigestLogic.Input
 import hu.breaker.app.core.DigestLogic.Top
+import hu.breaker.app.core.FilterHitLogic
 import hu.breaker.app.core.Focus
+import hu.breaker.app.core.ScheduleLogic
 import hu.breaker.app.core.Site
 import hu.breaker.app.core.UsageLogic
 import java.util.Calendar
@@ -225,6 +227,38 @@ class DigestTest {
         assertEquals("Elmúlt 7 nap: 1 menet (1 ó 0 p, mind végigvive). A négy hét menet-napja: péntek (1 menet). A négy hét menet-órája: 8–9 óra (1 menet). 1 feloldás, 1 félbemaradt kísérlet.", DigestLogic.text(input) { it })
     }
 
+    @Test fun `a menet-ora fedese a bemenetben - a fedo csomag neve, vagy ablak-ajanlat, a csucs-oran egyik sem`() {
+        val now = at(2026, 9, 7, 8)
+        val day = 86_400_000L
+        // Egy menet, három napja nyolckor: a négy hét menet-órája 8–9.
+        val log = listOf(Focus.FocusLogEntry("p", "Nyelvtanulás", now - 3 * day, now - 3 * day + 3600_000L, now - 3 * day + 3600_000L, false))
+        val bare = Focus.FocusPack("p", "Nyelvtanulás", emptyList(), emptyList(), 60)
+        // Csomag ablak nélkül, a menet-órát semmi nem fedi: lehetne rá ablakot tenni.
+        val offer = AppState(focusLog = log, focusPacks = listOf(bare))
+        val offerIn = DigestLogic.inputFor(offer, UsageLogic.summarize(offer.usage, now), now)
+        assertEquals(null, offerIn.focusHourPack)
+        assertEquals(true, offerIn.focusHourWindowOffer, "csomag ablak nélkül: lehetne rá ablakot tenni")
+        assertEquals(true, DigestLogic.text(offerIn) { it }?.contains("A négy hét menet-órája: 8–9 óra (1 menet, nincs rá ablak)."))
+        // A csomag ablaka fedi a menet-órát: a neve a mondatban, ajánlat nincs.
+        val band = ScheduleLogic.Band(setOf(0, 1, 2, 3, 4, 5, 6), 8 * 60, 9 * 60)
+        val covered = offer.copy(focusPacks = listOf(bare.copy(recurrence = band)))
+        val coveredIn = DigestLogic.inputFor(covered, UsageLogic.summarize(covered.usage, now), now)
+        assertEquals("Nyelvtanulás", coveredIn.focusHourPack)
+        assertEquals(false, coveredIn.focusHourWindowOffer)
+        assertEquals(true, DigestLogic.text(coveredIn) { it }?.contains("A négy hét menet-órája: 8–9 óra (1 menet, magától indul: Nyelvtanulás)."))
+        // Ha a menet-óra a csúcs-óra, a csúcs mondata mondja a fedést — a menet-óra mondata a régi, kétszer ugyanazt nem.
+        var hours = emptyMap<String, List<Int>>()
+        repeat(3) { hours = FilterHitLogic.recordHour(hours, UsageLogic.dayKey(now - day), 8) }
+        val same = covered.copy(filterHits = mapOf(UsageLogic.dayKey(now - day) to 3), filterHitHours = hours)
+        val sameIn = DigestLogic.inputFor(same, UsageLogic.summarize(same.usage, now), now)
+        assertEquals(8 to 3, sameIn.filterHitsPeak, "a csúcs-óra is a nyolc")
+        assertEquals(null, sameIn.focusHourPack)
+        assertEquals(false, sameIn.focusHourWindowOffer)
+        val text = DigestLogic.text(sameIn) { it } ?: ""
+        assertEquals(true, text.contains("A négy hét menet-órája: 8–9 óra (1 menet)."), text)
+        assertEquals(true, text.contains("a csúcs 8–9 óra (magától indul: Nyelvtanulás)"), text)
+    }
+
     @Test fun `a naplo sora a mostani cimkezessel - a fedonev es a rejtes visszamenoleg is fed`() {
         val text = "Elmúlt 7 nap: 7 ó mért idő; a legtöbb: youtube.com 2 ó 40 p. Nincs tiltva, de sokat vitt: m.youtube.com 1 ó; youtu.be 5 p; notyoutube.com 3 p; github.com 2 p."
         val sites = listOf(
@@ -326,5 +360,10 @@ class DigestTest {
         assertEquals("$head A négy hét menet-napja: kedd (6 menet). A négy hét menet-órája: 9–10 óra (6 menet). 3 feloldás.",
             DigestLogic.text(full.copy(focusWeekday = 2 to 6, focusHour = 9 to 6)) { it })
         assertEquals(DigestLogic.text(full) { it }, DigestLogic.text(full.copy(focusHour = null)) { it }, "óra nélkül a régi mondat")
+        // A FEDÉS a szám mellett: a csomag, amelynek ablaka fedi — vagy „nincs rá ablak”, ha lehetne. A fedés erősebb.
+        assertEquals("$head A négy hét menet-órája: 9–10 óra (6 menet, magától indul: Nyelvtanulás). 3 feloldás.",
+            DigestLogic.text(full.copy(focusHour = 9 to 6, focusHourPack = "Nyelvtanulás", focusHourWindowOffer = true)) { it })
+        assertEquals("$head A négy hét menet-órája: 9–10 óra (6 menet, nincs rá ablak). 3 feloldás.",
+            DigestLogic.text(full.copy(focusHour = 9 to 6, focusHourWindowOffer = true)) { it })
     }
 }

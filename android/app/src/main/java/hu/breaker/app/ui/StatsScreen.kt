@@ -84,6 +84,8 @@ fun StatsSection(
     /** a menet-óra ablakának gombja („Heti ablak a menet-órára: Nyelvtanulás, minden nap 9:00–10:00”) — null, ha nincs gomb */
     focusHourWindowLabel: String? = null,
     onFocusHourWindow: () -> Unit = {},
+    /** a csomag, amelynek heti ablaka fedi a menet-órát („Nyelvtanulás (minden nap 9:00–10:00)”) — null, ha egyik sem, vagy a menet-óra a csúcs-óra */
+    focusHourPack: String? = null,
     /** a négy hét csúcs-napja (0 = vasárnap; szám) — melyik napon akad meg a kéz a legtöbbször; null, ha nem volt */
     filterHitsWeekday: Pair<Int, Int>? = null,
     /** a hét napjainak sávja: a négy hét megakadásai a hét hét napjára osztva (0 = vasárnap) — a csúcs-nap ebből áll; üres, ha nem volt */
@@ -165,7 +167,7 @@ fun StatsSection(
         // írjuk, engedély nélkül is. Ha a kapu alatt lenne, egy mérés nélküli
         // telefonon az app azt mondaná, hogy nincs mit mutatni — pedig pontosan
         // tudja, hányszor ültél le dolgozni.
-        FocusStatsBlock(focusToday, focusWeek, focusDays, focusPrevWeek, focusWeekdays, focusHours, focusHourWindowLabel, onFocusHourWindow)
+        FocusStatsBlock(focusToday, focusWeek, focusDays, focusPrevWeek, focusWeekdays, focusHours, focusHourWindowLabel, onFocusHourWindow, focusHourPack)
         // A MEGAKADÁSOK napról napra — a szűrő könyve: ugyanaz a rajz, mint a
         // mért időé, csak darabban. Üresen nincs.
         // A NULLA HÉT is mondat, ha volt mihez mérni: az előző hét mellett a blokk marad.
@@ -414,6 +416,7 @@ private fun FocusStatsBlock(
     focusHours: List<Int> = emptyList(),
     focusHourWindowLabel: String? = null,
     onFocusHourWindow: () -> Unit = {},
+    focusHourPack: String? = null,
 ) {
     // Nulla menetnél nincs üres blokk — kivéve, ha az előző héten volt menet:
     // a nulla hét is mondat, ha volt mihez mérni.
@@ -471,9 +474,13 @@ private fun FocusStatsBlock(
     Focus.peakHour(focusHours)?.let { (hour, count) ->
         Text(Focus.hourText(hour to count), style = MaterialTheme.typography.bodySmall)
         HourStrip(focusHours, peakHour = hour, peakCount = count)
+        // LE VAN-E FEDVE: ha egy csomag heti ablaka a menet-órát fedi, a menet
+        // magától indul, amikor le szoktál ülni — a statisztika kimondja.
+        focusHourPack?.let { Text("A menet-órában magától indul: $it.", style = MaterialTheme.typography.bodySmall) }
         // ABLAK A MENET-ÓRÁRA: a csúcs-óra gombjának párja — a menet magától
         // indul, amikor le szoktál ülni. Felvenni ingyen; a jelöltet a mag dönti.
-        if (focusHourWindowLabel != null) Button(onClick = onFocusHourWindow) { Text(focusHourWindowLabel) }
+        // Ha a menet-órát fedi valami, a sor mondja, gomb nincs.
+        if (focusHourPack == null && focusHourWindowLabel != null) Button(onClick = onFocusHourWindow) { Text(focusHourWindowLabel) }
     }
 }
 

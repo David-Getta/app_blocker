@@ -104,6 +104,10 @@ public enum DigestLogic {
         public var usageWeekday: (day: Int, count: Int)? = nil
         /// A négy hét menet-órája (óra; szám) — mikor ülsz le a legtöbbször, az indulás órája szerint; nil, ha nem volt.
         public var focusHour: (hour: Int, count: Int)? = nil
+        /// A csomag neve, amelynek heti ablaka fedi a menet-órát — a menet magától indul, amikor le szoktál ülni; nil, ha egyik sem (vagy a menet-óra a csúcs-óra).
+        public var focusHourPack: String? = nil
+        /// A menet-órára LEHETNE ablakot tenni: van csomag ablak nélkül, és a menet-órát semmi nem fedi — a mondat kimondja.
+        public var focusHourWindowOffer: Bool = false
         /// A hét csúcs-oldala (nyers név, a címkézés a mondaté; szám) — melyik oldal akaszt meg a legtöbbször.
         public var filterHitsTop: (label: String, count: Int)?
         /// Az azt megelőző 7 nap — a hét az előző héthez képest; nulla, ha nem volt (vagy a könyv akkor kezdődött).
@@ -203,7 +207,7 @@ public enum DigestLogic {
         // mondata szó szerint; a csúcs-nap tükre. Nincs nap, nincs mondat.
         if let focusDay = input.focusWeekday { parts.append(Focus.weekdayText(focusDay)) }
         // A MENET-ÓRA: mikor ülsz le a legtöbbször — négy hétből, az indulás órája szerint, a statisztika mondata szó szerint.
-        if let focusHour = input.focusHour { parts.append(Focus.hourText(focusHour)) }
+        if let focusHour = input.focusHour { parts.append(Focus.hourText(focusHour, pack: input.focusHourPack, offer: input.focusHourWindowOffer)) }
         // A félbemaradt kísérlet a feloldások mellé kerül — vagy helyettük: egy
         // elindított és félbehagyott lazítás is történés, ha feloldás nem is lett.
         let droppedPart = input.dropped7d > 0 ? ", \(input.dropped7d) félbemaradt kísérlet" : ""
@@ -318,6 +322,12 @@ public enum DigestLogic {
         input.focusWeekday = FilterHitLogic.peakWeekday(Focus.byWeekday(st.focusLog ?? [], now: now))
         // A menet-óra — négy hétből, az indulás órája szerint: a mondat is mondja.
         input.focusHour = Focus.peakHour(Focus.byHour(st.focusLog ?? [], now: now))
+        // A menet-óra fedése: a csomag, amelynek heti ablaka fedi — a mondat mondja; ha nem fedi semmi, de lehetne:
+        // „nincs rá ablak”. Ha a menet-óra a csúcs-óra, a csúcs mondata mondja — kétszer ugyanazt nem.
+        if let fh = input.focusHour?.hour, fh != FilterHitLogic.peakHour(st.filterHitHours ?? [:], now: now)?.hour {
+            input.focusHourPack = Focus.packCoveringHour(st.focusPacks ?? [], hour: fh)?.name
+            input.focusHourWindowOffer = Focus.peakWindowPick(st.focusPacks ?? [], log: st.focusLog ?? [], run: nil, peakHour: fh, now: now) != nil
+        }
         return input
     }
 

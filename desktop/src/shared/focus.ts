@@ -460,8 +460,14 @@ export function peakFocusHour(byHour: number[]): { hour: number; count: number }
 }
 
 /** „A négy hét menet-órája: 9–10 óra (6 menet).” — mikor ülsz le a legtöbbször. */
-export function focusHourText(peak: { hour: number; count: number }): string {
-  return `A négy hét menet-órája: ${hourLabel(peak.hour)} (${peak.count} menet).`;
+export function focusHourText(
+  peak: { hour: number; count: number }, cover: { pack?: string | null; offer?: boolean } = {},
+): string {
+  // A FEDÉS a szám mellett: „magától indul: …”, ha egy csomag heti ablaka fedi
+  // a menet-órát; „nincs rá ablak”, ha lehetne rá tenni. A fedés erősebb. Ha a
+  // menet-óra a csúcs-óra, a csúcs mondata mondja — a hívó nem ad fedést.
+  const tail = cover.pack ? `, magától indul: ${cover.pack}` : (cover.offer ? ', nincs rá ablak' : '');
+  return `A négy hét menet-órája: ${hourLabel(peak.hour)} (${peak.count} menet${tail}).`;
 }
 
 /**

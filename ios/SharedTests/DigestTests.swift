@@ -192,6 +192,40 @@ final class DigestTests: XCTestCase {
                        "Elmúlt 7 nap: 1 menet (1 ó 0 p, mind végigvive). A négy hét menet-napja: péntek (1 menet). A négy hét menet-órája: 8–9 óra (1 menet). 1 feloldás, 1 félbemaradt kísérlet.")
     }
 
+    func testTheSessionHourCoverInTheInputIsThePackOrTheOfferAndNoneOnThePeakHour() {
+        let now = at(2026, 9, 7, 8)
+        let day = 86_400_000.0
+        var st = AppState()
+        // Egy menet, három napja nyolckor: a négy hét menet-órája 8–9.
+        st.focusLog = [Focus.LogEntry(packId: "p", packName: "Nyelvtanulás", startedAt: now - 3 * day, endedAt: now - 3 * day + 3_600_000, plannedEndsAt: now - 3 * day + 3_600_000, stopped: false)]
+        // Csomag ablak nélkül, a menet-órát semmi nem fedi: lehetne rá ablakot tenni.
+        st.focusPacks = [Focus.Pack(id: "p", name: "Nyelvtanulás", allowSites: [], allowApps: [], defaultMinutes: 60)]
+        let offer = DigestLogic.inputFor(st, now: now)
+        XCTAssertNil(offer.focusHourPack)
+        XCTAssertTrue(offer.focusHourWindowOffer, "csomag ablak nélkül: lehetne rá ablakot tenni")
+        XCTAssertTrue((DigestLogic.text(offer) { $0 } ?? "").contains("A négy hét menet-órája: 8–9 óra (1 menet, nincs rá ablak)."))
+        // A csomag ablaka fedi a menet-órát: a neve a mondatban, ajánlat nincs.
+        let band = ScheduleLogic.Band(days: [0, 1, 2, 3, 4, 5, 6], startMin: 8 * 60, endMin: 9 * 60)
+        st.focusPacks = [Focus.Pack(id: "p", name: "Nyelvtanulás", allowSites: [], allowApps: [], defaultMinutes: 60, recurrence: band)]
+        let covered = DigestLogic.inputFor(st, now: now)
+        XCTAssertEqual(covered.focusHourPack, "Nyelvtanulás")
+        XCTAssertFalse(covered.focusHourWindowOffer)
+        XCTAssertTrue((DigestLogic.text(covered) { $0 } ?? "").contains("A négy hét menet-órája: 8–9 óra (1 menet, magától indul: Nyelvtanulás)."))
+        // Ha a menet-óra a csúcs-óra, a csúcs mondata mondja a fedést — a menet-óra mondata a régi, kétszer ugyanazt nem.
+        let yesterday = FilterHitLogic.dayKey(now - day)
+        var hours: [String: [Int]] = [:]
+        for _ in 0..<3 { hours = FilterHitLogic.recordHour(hours, day: yesterday, hour: 8) }
+        st.filterHits = [yesterday: 3]
+        st.filterHitHours = hours
+        let same = DigestLogic.inputFor(st, now: now)
+        XCTAssertEqual(same.filterHitsPeak?.hour, 8, "a csúcs-óra is a nyolc")
+        XCTAssertNil(same.focusHourPack)
+        XCTAssertFalse(same.focusHourWindowOffer)
+        let text = DigestLogic.text(same) { $0 } ?? ""
+        XCTAssertTrue(text.contains("A négy hét menet-órája: 8–9 óra (1 menet)."), text)
+        XCTAssertTrue(text.contains("a csúcs 8–9 óra (magától indul: Nyelvtanulás)"), text)
+    }
+
     func testJournalOneRowPerWeekNewestFirstHalfAYearCap() {
         var log: [DigestLogic.Entry] = []
         log = DigestLogic.record(log, week: "2026-08-31", text: "Elmúlt 7 nap: 5 ó 0 p mért idő.")
@@ -293,6 +327,18 @@ final class DigestTests: XCTestCase {
         var none = full
         none.focusHour = nil
         XCTAssertEqual(DigestLogic.text(none) { $0 }, DigestLogic.text(full) { $0 }, "óra nélkül a régi mondat")
+        // A FEDÉS a szám mellett: a csomag, amelynek ablaka fedi — vagy „nincs rá ablak”, ha lehetne. A fedés erősebb.
+        var covered = full
+        covered.focusHour = (hour: 9, count: 6)
+        covered.focusHourPack = "Nyelvtanulás"
+        covered.focusHourWindowOffer = true
+        XCTAssertEqual(DigestLogic.text(covered) { $0 },
+                       "\(head) A négy hét menet-órája: 9–10 óra (6 menet, magától indul: Nyelvtanulás). 3 feloldás.")
+        var offer = full
+        offer.focusHour = (hour: 9, count: 6)
+        offer.focusHourWindowOffer = true
+        XCTAssertEqual(DigestLogic.text(offer) { $0 },
+                       "\(head) A négy hét menet-órája: 9–10 óra (6 menet, nincs rá ablak). 3 feloldás.")
     }
 }
 

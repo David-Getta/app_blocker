@@ -523,8 +523,11 @@ public enum Focus {
     }
 
     /// „A négy hét menet-órája: 9–10 óra (6 menet).” — mikor ülsz le a legtöbbször.
-    public static func hourText(_ peak: (hour: Int, count: Int)) -> String {
-        "A négy hét menet-órája: \(FilterHitLogic.hourLabel(peak.hour)) (\(peak.count) menet)."
+    /// A fedés a szám mellett: „magától indul: …”, ha egy csomag heti ablaka fedi a menet-órát;
+    /// „nincs rá ablak”, ha lehetne rá tenni. A fedés erősebb. Ha a menet-óra a csúcs-óra, a csúcs mondata mondja.
+    public static func hourText(_ peak: (hour: Int, count: Int), pack: String? = nil, offer: Bool = false) -> String {
+        let tail = pack.map { ", magától indul: \($0)" } ?? (offer ? ", nincs rá ablak" : "")
+        return "A négy hét menet-órája: \(FilterHitLogic.hourLabel(peak.hour)) (\(peak.count) menet\(tail))."
     }
 
     /// MOST a menet-óra van-e: a négy hét menet-órája és a helyi óra egybeesik — és a minta elég (a csúcs-nap küszöbe).
