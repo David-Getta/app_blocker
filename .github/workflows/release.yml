@@ -44,20 +44,19 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **Egy koppintás a mondattól a menetig.** A telefon javaslat-
-          kártyáján („Ma már 5 megakadás a szűrőben…”) egy gomb a
-          legutóbb használt csomagot indítja a szokásos hosszával:
-          „Munkamenet: Nyelvtanulás, 25 perc”. Szigorítás, ingyen — a
-          bíró ugyanazt futtatja, mint a csomagkártya gombja.
+          **Melyik szabály dolgozik.** A gépi statisztika a hét megakadásai
+          alatt okonként is mondja — „Ebből: 7 zárva oldal · 3 kulcsszó…” —,
+          ami sokat állít meg, az dolgozik; ami sosem, azt érdemes megnézni.
+          A weboldal a kulcsszó-szabályokat és a megakadásokat is bemutatja.
 
-          ### Ami a v0.4.60-ban jött
+          ### Ami a v0.4.61-ben jött
 
-          **Előjelzés a csúcs-óra előtt** — tíz perccel a hét csúcs-órája
-          előtt egyszer szól a gép, az Android-szolgáltatás és az iPhone.
+          **Egy koppintás a mondattól a menetig** — a telefon javaslat-
+          kártyáján gomb indítja a legutóbb használt csomagot.
 
-          #### Ami a v0.4.59-ben jött
+          #### Ami a v0.4.60-ban jött
 
-          **A sokadik megakadásnál a telefon is javasol egy lépést.**
+          **Előjelzés a csúcs-óra előtt** mindhárom platformon.
 
           NOTES
           fi
