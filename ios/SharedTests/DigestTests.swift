@@ -50,6 +50,16 @@ final class DigestTests: XCTestCase {
         )
     }
 
+    func testWindowRunsAreInTheSentenceZeroIsNotASentence() {
+        var w = full
+        w.focusWeek = Focus.Summary(sessions: 9, totalMs: 7 * 3_600_000, stoppedEarly: 2, topPack: "Nyelvtanulás", windowRuns: 3)
+        XCTAssertEqual(
+            DigestLogic.text(w) { $0 },
+            "Elmúlt 7 nap: 7 ó 20 p mért idő; a legtöbb: youtube.com 2 ó 40 p (▼ -33% az előző héthez képest). "
+                + "9 menet (7 ó 0 p, 2 korán leállítva, 3 ablakból). 3 feloldás."
+        )
+    }
+
     func testDroppedAttemptsAreInTheSentenceBesideOrInsteadOfUnlocks() {
         var withDropped = full
         withDropped.dropped7d = 2

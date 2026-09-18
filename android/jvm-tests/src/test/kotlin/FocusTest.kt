@@ -342,6 +342,29 @@ class FocusTest {
     }
 
     @Test
+    fun `a naplosor tudja, hogy az ablakbol indult - a lezaras irja, az osszegzes szamolja`() {
+        val p = pack("w.com").copy(id = "w", name = "Ablakos", recurrence = Focus.peakWindowBand(21))
+        val cal = java.util.Calendar.getInstance().apply {
+            set(2026, java.util.Calendar.SEPTEMBER, 18, 21, 0, 0); set(java.util.Calendar.MILLISECOND, 0)
+        }
+        val start = cal.timeInMillis
+        val run = Focus.FocusRun("w", start, start + 3_600_000L)
+        val closed = Focus.closeIfEnded(run, listOf(p), emptyList(), start + 3_600_001L)
+        assertEquals(true, closed?.log?.single()?.window, "az ablak előfordulása: ablakból indult")
+        val manual = Focus.FocusRun("w", start + 300_000L, start + 3_600_000L)
+        assertEquals(false, Focus.closeIfEnded(manual, listOf(p), emptyList(), start + 3_600_001L)?.log?.single()?.window, "a kézi menet nem ablak")
+        assertEquals(true, Focus.closeRun(run, "Ablakos", start + 3_600_000L, false, true).window)
+        assertEquals(false, Focus.closeRun(run, "Ablakos", start + 3_600_000L, false).window)
+        val log = listOf(
+            Focus.FocusLogEntry("a", "A", 1_000L, 2_000L, 2_000L, false, window = true),
+            Focus.FocusLogEntry("b", "B", 2_000L, 3_000L, 3_000L, false),
+            Focus.FocusLogEntry("c", "C", 3_000L, 4_000L, 4_000L, false, window = true),
+        )
+        assertEquals(2, Focus.summarizeFocus(log, 0, 10_000L).windowRuns)
+        assertEquals(0, Focus.summarizeFocus(emptyList(), 0, 1L).windowRuns)
+    }
+
+    @Test
     fun `az ejfelen atnyulo menet a vegenek napjara szamit egeszben`() {
         val now = localTime(20, 0)
         val midnight = localTime(0, 0)

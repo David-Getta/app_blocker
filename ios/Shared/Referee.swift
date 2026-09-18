@@ -220,7 +220,9 @@ enum Referee {
         guard let run = state.focusRun else { return }
         let name = (state.focusPacks ?? []).first { $0.id == run.packId }?.name
             ?? "Ismeretlen csomag"
-        let entry = Focus.closeRun(run, packName: name, endedAt: endedAt, stopped: stopped)
+        // Az ablakból indult-e: a naplósor viszi, a statisztika és a heti mondat mondja.
+        let entry = Focus.closeRun(run, packName: name, endedAt: endedAt, stopped: stopped,
+                                   window: Focus.isWindowRun(run, packs: state.focusPacks ?? []))
         let rows: [Focus.LogEntry] = (state.focusLog ?? []) + [entry]
         state.focusLog = Array(rows.suffix(Focus.maxFocusLog))
     }
@@ -799,7 +801,8 @@ enum Referee {
                 // ablak az ígéret. A naplóba a saját idejével, nem leállítottként.
                 if let running = state.focusRun, Focus.isRunning(running, now: now) {
                     let name = (state.focusPacks ?? []).first { $0.id == running.packId }?.name ?? "Ismeretlen csomag"
-                    let entry = Focus.closeRun(running, packName: name, endedAt: now, stopped: false)
+                    let entry = Focus.closeRun(running, packName: name, endedAt: now, stopped: false,
+                                               window: Focus.isWindowRun(running, packs: state.focusPacks ?? []))
                     let rows: [Focus.LogEntry] = (state.focusLog ?? []) + [entry]
                     state.focusLog = Array(rows.suffix(Focus.maxFocusLog))
                 }

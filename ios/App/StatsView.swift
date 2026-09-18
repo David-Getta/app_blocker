@@ -75,6 +75,8 @@ struct StatsView: View {
                     + "érdemes indítani."
                 : "A héten minden menetet végigvittél."
         ) }
+        // A HETI ABLAKBÓL indult menetek: dolgozik-e az ablak — tény, nem ítélet.
+        if focusWeek.windowRuns > 0 { parts.append("\(focusWeek.windowRuns) menet a heti ablakból indult, magától.") }
         // MINDEN ESZKÖZ menete beleszámít, és ezt ki kell mondani: a mérés
         // eszközönként külön áll, a munkamenet viszont a fiók egészére szól.
         parts.append("Minden eszközöd menete beleszámít.")

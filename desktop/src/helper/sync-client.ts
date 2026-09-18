@@ -35,7 +35,7 @@ import { liveLockdown } from '../shared/lockdown';
 import {
   emptyChannels, mergeChannels, normalizeSyncChannels, sameChannels, type SyncChannels,
 } from '../shared/sync/channels-merge.js';
-import { closeRun, MAX_FOCUS_LOG, type FocusRun } from '../shared/focus.js';
+import { closeRun, isWindowRun, MAX_FOCUS_LOG, type FocusRun } from '../shared/focus.js';
 import { makeTodayDigest, normalizeTodayDigest, type TodayDigest } from '../shared/limits.js';
 
 /** Ennél tovább egy szinkron-kör nem tarthat; a segéd nem állhat meg miatta. */
@@ -629,7 +629,7 @@ function logRunEndedElsewhere(
   const endedAt = merged ? merged.endsAt : now;
   state.focusLog = [
     ...(state.focusLog ?? []),
-    closeRun(mine, pack?.name ?? 'Ismeretlen csomag', endedAt, true),
+    closeRun(mine, pack?.name ?? 'Ismeretlen csomag', endedAt, true, isWindowRun(mine, state.focusPacks ?? [])),
   ].slice(-MAX_FOCUS_LOG);
 }
 

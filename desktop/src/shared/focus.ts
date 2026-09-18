@@ -243,6 +243,12 @@ export interface FocusLogEntry {
   plannedEndsAt: number;
   /** próbatétellel leállítva (igaz), vagy magától lejárt (hamis) */
   stopped: boolean;
+  /**
+   * A HETI ABLAKBÓL indult, magától (a csomag ablakának egy előfordulása) —
+   * csak ha igaz; a régi sorban nincs, és az nem ablak. A statisztika és a
+   * heti mondat ebből mondja, dolgozik-e az ablak.
+   */
+  window?: boolean;
 }
 
 /**
@@ -265,7 +271,7 @@ export const MAX_FOCUS_LOG = 200;
 
 /** Egy naplósor a futó menetből. */
 export function closeRun(
-  run: FocusRun, packName: string, endedAt: number, stopped: boolean,
+  run: FocusRun, packName: string, endedAt: number, stopped: boolean, window = false,
 ): FocusLogEntry {
   return {
     packId: run.packId,
@@ -274,6 +280,7 @@ export function closeRun(
     endedAt,
     plannedEndsAt: run.endsAt,
     stopped,
+    ...(window ? { window: true } : {}),
   };
 }
 
@@ -297,7 +304,7 @@ export function closeIfEnded(
   // A csomag NEVÉT is elmentjük, nem csak az azonosítóját: a csomag azóta
   // átnevezhető vagy törölhető, és egy statisztika, ami „ismeretlen csomag”-ot
   // ír ki a múlt hétre, semmit nem ér.
-  const entry = closeRun(run, pack?.name ?? 'Ismeretlen csomag', run.endsAt, false);
+  const entry = closeRun(run, pack?.name ?? 'Ismeretlen csomag', run.endsAt, false, isWindowRun(run, packs));
   return { run: null, log: [...(log ?? []), entry].slice(-MAX_FOCUS_LOG) };
 }
 
@@ -308,6 +315,8 @@ export interface FocusSummary {
   totalMs: number;
   /** ennyit állítottál le a tervezettnél korábban */
   stoppedEarly: number;
+  /** ennyi indult a heti ablakból, magától — dolgozik-e az ablak */
+  windowRuns: number;
   /** a leggyakoribb csomag neve, ha van */
   topPack: string | null;
 }
@@ -324,12 +333,14 @@ export function summarizeFocus(
   const rows = (log ?? []).filter((e) => e.endedAt >= since && e.endedAt <= now);
   let totalMs = 0;
   let stoppedEarly = 0;
+  let windowRuns = 0;
   const byPack = new Map<string, number>();
   for (const e of rows) {
     totalMs += Math.max(0, e.endedAt - e.startedAt);
     // Nem a `stopped` jelző dönt, hanem a TÉNY: a próbatétel utáni rövidítés is
     // korai vég, akkor is, ha utána még futott egy darabig.
     if (e.endedAt < e.plannedEndsAt) stoppedEarly++;
+    if (e.window === true) windowRuns++;
     byPack.set(e.packName, (byPack.get(e.packName) ?? 0) + 1);
   }
   let topPack: string | null = null;
@@ -337,7 +348,7 @@ export function summarizeFocus(
   for (const [name, count] of byPack) {
     if (count > best) { best = count; topPack = name; }
   }
-  return { sessions: rows.length, totalMs, stoppedEarly, topPack };
+  return { sessions: rows.length, totalMs, stoppedEarly, windowRuns, topPack };
 }
 
 /**

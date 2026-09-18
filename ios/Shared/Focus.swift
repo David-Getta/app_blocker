@@ -292,10 +292,14 @@ public enum Focus {
         public let plannedEndsAt: Double
         /// próbatétellel leállítva (igaz), vagy magától lejárt (hamis)
         public let stopped: Bool
+        /// A HETI ABLAKBÓL indult, magától (a csomag ablakának egy előfordulása)
+        /// — csak ha igaz; a régi sorban nincs (nil), és az nem ablak. A
+        /// statisztika és a heti mondat ebből mondja, dolgozik-e az ablak.
+        public let window: Bool?
 
         public init(
             packId: String, packName: String, startedAt: Double,
-            endedAt: Double, plannedEndsAt: Double, stopped: Bool
+            endedAt: Double, plannedEndsAt: Double, stopped: Bool, window: Bool? = nil
         ) {
             self.packId = packId
             self.packName = packName
@@ -303,16 +307,18 @@ public enum Focus {
             self.endedAt = endedAt
             self.plannedEndsAt = plannedEndsAt
             self.stopped = stopped
+            self.window = window
         }
     }
 
     /// Egy naplósor a futó menetből.
     public static func closeRun(
-        _ run: Run, packName: String, endedAt: Double, stopped: Bool
+        _ run: Run, packName: String, endedAt: Double, stopped: Bool, window: Bool = false
     ) -> LogEntry {
         LogEntry(
             packId: run.packId, packName: packName, startedAt: run.startedAt,
-            endedAt: endedAt, plannedEndsAt: run.endsAt, stopped: stopped
+            endedAt: endedAt, plannedEndsAt: run.endsAt, stopped: stopped,
+            window: window ? true : nil
         )
     }
 
@@ -335,7 +341,8 @@ public enum Focus {
         // átnevezhető vagy törölhető: egy statisztika, ami a múlt hétre csak
         // ismeretlen csomagot ír ki, semmit nem ér.
         let name = packs.first { $0.id == run.packId }?.name ?? "Ismeretlen csomag"
-        let entry = closeRun(run, packName: name, endedAt: run.endsAt, stopped: false)
+        let entry = closeRun(run, packName: name, endedAt: run.endsAt, stopped: false,
+                             window: isWindowRun(run, packs: packs))
         let rows: [LogEntry] = log + [entry]
         return Close(run: nil, log: Array(rows.suffix(maxFocusLog)))
     }
@@ -349,6 +356,8 @@ public enum Focus {
         public let stoppedEarly: Int
         /// a leggyakoribb csomag neve, ha van
         public let topPack: String?
+        /// ennyi indult a heti ablakból, magától — dolgozik-e az ablak
+        public var windowRuns: Int = 0
     }
 
     /// Összegzés egy időablakra.
@@ -362,6 +371,7 @@ public enum Focus {
         let rows = log.filter { $0.endedAt >= since && $0.endedAt <= now }
         var totalMs: Double = 0
         var stoppedEarly = 0
+        var windowRuns = 0
         var byPack: [String: Int] = [:]
         var order: [String] = []
         for e in rows {
@@ -369,6 +379,7 @@ public enum Focus {
             // Nem a `stopped` jelző dönt, hanem a TÉNY: a próbatétel utáni
             // rövidítés is korai vég, akkor is, ha utána még futott egy darabig.
             if e.endedAt < e.plannedEndsAt { stoppedEarly += 1 }
+            if e.window == true { windowRuns += 1 }
             if byPack[e.packName] == nil { order.append(e.packName) }
             byPack[e.packName, default: 0] += 1
         }
@@ -380,7 +391,7 @@ public enum Focus {
         }
         return Summary(
             sessions: rows.count, totalMs: totalMs,
-            stoppedEarly: stoppedEarly, topPack: topPack
+            stoppedEarly: stoppedEarly, topPack: topPack, windowRuns: windowRuns
         )
     }
 

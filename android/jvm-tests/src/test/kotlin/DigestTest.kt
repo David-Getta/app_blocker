@@ -65,6 +65,14 @@ class DigestTest {
         daysTracked = 12,
     )
 
+    @Test fun `az ablakbol indult menetek a mondatban - nulla nem mondat`() {
+        assertEquals(
+            "Elmúlt 7 nap: 7 ó 20 p mért idő; a legtöbb: youtube.com 2 ó 40 p (▼ -33% az előző héthez képest). " +
+                "9 menet (7 ó 0 p, 2 korán leállítva, 3 ablakból). 3 feloldás.",
+            DigestLogic.text(full.copy(focusWeek = full.focusWeek.copy(windowRuns = 3))) { it },
+        )
+    }
+
     @Test fun `a felbemaradt kiserletek is a mondatban - a feloldasok mellett, vagy helyettuk`() {
         assertEquals(
             "Elmúlt 7 nap: 7 ó 20 p mért idő; a legtöbb: youtube.com 2 ó 40 p (▼ -33% az előző héthez képest). " +

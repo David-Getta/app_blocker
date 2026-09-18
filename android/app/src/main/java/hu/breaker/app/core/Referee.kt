@@ -238,7 +238,8 @@ object Referee {
     private fun logFocusEnd(state: AppState, endedAt: Long, stopped: Boolean): List<Focus.FocusLogEntry> {
         val run = state.focusRun ?: return state.focusLog
         val pack = state.focusPacks.firstOrNull { it.id == run.packId }
-        val entry = Focus.closeRun(run, pack?.name ?: "Ismeretlen csomag", endedAt, stopped)
+        // Az ablakból indult-e: a naplósor viszi, a statisztika és a heti mondat mondja.
+        val entry = Focus.closeRun(run, pack?.name ?: "Ismeretlen csomag", endedAt, stopped, Focus.isWindowRun(run, state.focusPacks))
         return (state.focusLog + entry).takeLast(Focus.MAX_FOCUS_LOG)
     }
 
@@ -947,7 +948,7 @@ object Referee {
                 var log = next.focusLog
                 if (running != null && Focus.isRunning(running, now)) {
                     val name = next.focusPacks.firstOrNull { it.id == running.packId }?.name ?: "Ismeretlen csomag"
-                    log = (log + Focus.closeRun(running, name, now, false)).takeLast(Focus.MAX_FOCUS_LOG)
+                    log = (log + Focus.closeRun(running, name, now, false, Focus.isWindowRun(running, next.focusPacks))).takeLast(Focus.MAX_FOCUS_LOG)
                 }
                 next = next.copy(
                     focusRun = Focus.FocusRun(due.pack.id, due.startsAt, due.endsAt),

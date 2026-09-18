@@ -284,6 +284,8 @@ export function normalizeLogEntry(raw: unknown): FocusLogEntry | null {
     endedAt,
     plannedEndsAt: numberOr(e.plannedEndsAt, endedAt),
     stopped: e.stopped === true,
+    // Az ablak jele csak ha igaz — a régi sor mezője nincs, és az nem ablak.
+    ...(e.window === true ? { window: true } : {}),
   };
 }
 

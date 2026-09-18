@@ -162,7 +162,9 @@ object DigestLogic {
         val prevFocus = if (p != null && p.sessions > 0) ", az előző héten ${p.sessions} (${hm(p.totalMs / 1000.0)})" else ""
         if (f.sessions > 0) {
             val early = if (f.stoppedEarly > 0) ", ${f.stoppedEarly} korán leállítva" else ", mind végigvive"
-            parts.add("${f.sessions} menet (${hm(f.totalMs / 1000.0)}$early)$prevFocus.")
+            // A HETI ABLAKBÓL indult menetek: dolgozik-e az ablak — csak ha volt ilyen.
+            val win = if (f.windowRuns > 0) ", ${f.windowRuns} ablakból" else ""
+            parts.add("${f.sessions} menet (${hm(f.totalMs / 1000.0)}$early$win)$prevFocus.")
         } else if (prevFocus.isNotEmpty()) {
             parts.add("Menet nélkül$prevFocus.")
         }

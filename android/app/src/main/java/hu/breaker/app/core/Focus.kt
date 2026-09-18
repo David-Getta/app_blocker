@@ -284,10 +284,16 @@ object Focus {
         val plannedEndsAt: Long,
         /** próbatétellel leállítva (igaz), vagy magától lejárt (hamis) */
         val stopped: Boolean,
+        /**
+         * A HETI ABLAKBÓL indult, magától (a csomag ablakának egy előfordulása)
+         * — a régi sorban nincs, és az nem ablak. A statisztika és a heti
+         * mondat ebből mondja, dolgozik-e az ablak.
+         */
+        val window: Boolean = false,
     )
 
     /** Egy naplósor a futó menetből. */
-    fun closeRun(run: FocusRun, packName: String, endedAt: Long, stopped: Boolean) =
+    fun closeRun(run: FocusRun, packName: String, endedAt: Long, stopped: Boolean, window: Boolean = false) =
         FocusLogEntry(
             packId = run.packId,
             packName = packName,
@@ -295,6 +301,7 @@ object Focus {
             endedAt = endedAt,
             plannedEndsAt = run.endsAt,
             stopped = stopped,
+            window = window,
         )
 
     /** Amit a lezárás ad vissza: az új napló, és a futás (mindig null). */
@@ -320,7 +327,7 @@ object Focus {
         // A csomag NEVÉT is elmentjük, nem csak az azonosítóját: a csomag azóta
         // átnevezhető vagy törölhető: egy statisztika, ami a múlt hétre csak
         // ismeretlen csomagot ír ki, semmit nem ér.
-        val entry = closeRun(run, pack?.name ?: "Ismeretlen csomag", run.endsAt, false)
+        val entry = closeRun(run, pack?.name ?: "Ismeretlen csomag", run.endsAt, false, isWindowRun(run, packs))
         return FocusClose(null, (log + entry).takeLast(MAX_FOCUS_LOG))
     }
 
@@ -333,6 +340,8 @@ object Focus {
         val stoppedEarly: Int = 0,
         /** a leggyakoribb csomag neve, ha van */
         val topPack: String? = null,
+        /** ennyi indult a heti ablakból, magától — dolgozik-e az ablak */
+        val windowRuns: Int = 0,
     )
 
     /**
@@ -346,18 +355,20 @@ object Focus {
         val rows = (log ?: emptyList()).filter { it.endedAt in since..now }
         var totalMs = 0L
         var stoppedEarly = 0
+        var windowRuns = 0
         val byPack = LinkedHashMap<String, Int>()
         for (e in rows) {
             totalMs += maxOf(0L, e.endedAt - e.startedAt)
             // Nem a `stopped` jelző dönt, hanem a TÉNY: a próbatétel utáni
             // rövidítés is korai vég, akkor is, ha utána még futott egy darabig.
             if (e.endedAt < e.plannedEndsAt) stoppedEarly++
+            if (e.window) windowRuns++
             byPack[e.packName] = (byPack[e.packName] ?: 0) + 1
         }
         var topPack: String? = null
         var best = 0
         for ((name, count) in byPack) if (count > best) { best = count; topPack = name }
-        return FocusSummary(rows.size, totalMs, stoppedEarly, topPack)
+        return FocusSummary(rows.size, totalMs, stoppedEarly, topPack, windowRuns)
     }
 
     /**

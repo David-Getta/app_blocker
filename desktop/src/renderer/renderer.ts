@@ -4447,6 +4447,8 @@ function renderFocusStats(): void {
   } else if (week.sessions > 0) {
     parts.push('A héten minden menetet végigvittél.');
   }
+  // A HETI ABLAKBÓL indult menetek: dolgozik-e az ablak — tény, nem ítélet.
+  if (week.windowRuns > 0) parts.push(`${week.windowRuns} menet a heti ablakból indult, magától.`);
   // MINDEN ESZKÖZ menete beleszámít, és ezt ki kell mondani. A mérés (mire megy
   // el az idő) eszközönként külön áll, a munkamenet viszont a fiók egészére
   // szól: a telefonon indított menet ugyanúgy menet. Ha a szám erről hallgatna,

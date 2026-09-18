@@ -660,6 +660,7 @@ object BreakerStore {
                 put("packId", e.packId); put("packName", e.packName)
                 put("startedAt", e.startedAt); put("endedAt", e.endedAt)
                 put("plannedEndsAt", e.plannedEndsAt); put("stopped", e.stopped)
+                if (e.window) put("window", true)
             }
         }))
         put("focusRev", s.focusRev)
@@ -1073,6 +1074,7 @@ object BreakerStore {
                     endedAt = endedAt,
                     plannedEndsAt = e.optLong("plannedEndsAt", endedAt),
                     stopped = e.optBoolean("stopped", false),
+                    window = e.optBoolean("window", false),
                 ))
             }
         }

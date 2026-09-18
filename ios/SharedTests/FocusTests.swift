@@ -95,6 +95,36 @@ final class FocusTests: XCTestCase {
         XCTAssertEqual(Focus.daySeries([], now: now, count: 3).map { $0.seconds }, [0, 0, 0])
     }
 
+    func testTheLogRowKnowsItStartedFromTheWindowAndTheSummaryCountsIt() throws {
+        let band = Focus.peakWindowBand(21)
+        let p = Focus.Pack(id: "w", name: "Ablakos", allowSites: ["w.com"], allowApps: [], defaultMinutes: 60, recurrence: band)
+        var comps = DateComponents()
+        comps.year = 2026; comps.month = 9; comps.day = 18; comps.hour = 21; comps.minute = 0
+        let start = Calendar.current.date(from: comps)!.timeIntervalSince1970 * 1000
+        let run = Focus.Run(packId: "w", startedAt: start, endsAt: start + 3_600_000)
+        let closed = Focus.closeIfEnded(run, packs: [p], log: [], now: start + 3_600_001)
+        XCTAssertEqual(closed?.log.first?.window, true, "az ablak előfordulása: ablakból indult")
+        let manual = Focus.Run(packId: "w", startedAt: start + 300_000, endsAt: start + 3_600_000)
+        XCTAssertNil(Focus.closeIfEnded(manual, packs: [p], log: [], now: start + 3_600_001)?.log.first?.window, "a kézi menet nem ablak")
+        XCTAssertEqual(Focus.closeRun(run, packName: "Ablakos", endedAt: start + 3_600_000, stopped: false, window: true).window, true)
+        XCTAssertNil(Focus.closeRun(run, packName: "Ablakos", endedAt: start + 3_600_000, stopped: false).window, "jel nélkül nincs mező")
+        let log = [
+            Focus.LogEntry(packId: "a", packName: "A", startedAt: 1_000, endedAt: 2_000, plannedEndsAt: 2_000, stopped: false, window: true),
+            Focus.LogEntry(packId: "b", packName: "B", startedAt: 2_000, endedAt: 3_000, plannedEndsAt: 3_000, stopped: false),
+            Focus.LogEntry(packId: "c", packName: "C", startedAt: 3_000, endedAt: 4_000, plannedEndsAt: 4_000, stopped: false, window: true),
+        ]
+        XCTAssertEqual(Focus.summarizeFocus(log, since: 0, now: 10_000).windowRuns, 2)
+        XCTAssertEqual(Focus.summarizeFocus([], since: 0, now: 1).windowRuns, 0)
+        // A drót: csak ha igaz — a régi sor mezője nincs, és az nem ablak.
+        let data = try JSONEncoder().encode(log)
+        let text = String(decoding: data, as: UTF8.self)
+        XCTAssertEqual(text.components(separatedBy: "\"window\":true").count - 1, 2, "csak az igaz sorok viszik a mezőt")
+        let back = try JSONDecoder().decode([Focus.LogEntry].self, from: data)
+        XCTAssertEqual(back.map { $0.window }, [true, nil, true])
+        let oldRow = Data("{\"packId\":\"p\",\"packName\":\"P\",\"startedAt\":1,\"endedAt\":2,\"plannedEndsAt\":2,\"stopped\":false}".utf8)
+        XCTAssertNil(try JSONDecoder().decode(Focus.LogEntry.self, from: oldRow).window)
+    }
+
     func testWhetherTheHourIsCoveredAndTheCoveringPackIsTheFirst() throws {
         let band = ScheduleLogic.Band(days: [1, 2, 3, 4, 5], startMin: 21 * 60, endMin: 22 * 60)
         XCTAssertTrue(Focus.bandCoversHour(band, hour: 21))

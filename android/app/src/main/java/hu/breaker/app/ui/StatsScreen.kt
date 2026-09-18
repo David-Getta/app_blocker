@@ -418,6 +418,8 @@ private fun FocusStatsBlock(
             },
         )
     }
+    // A HETI ABLAKBÓL indult menetek: dolgozik-e az ablak — tény, nem ítélet.
+    if (week.windowRuns > 0) parts.add("${week.windowRuns} menet a heti ablakból indult, magától.")
     // MINDEN ESZKÖZ menete beleszámít, és ezt ki kell mondani: a mérés
     // eszközönként külön áll, a munkamenet viszont a fiók egészére szól.
     parts.add("Minden eszközöd menete beleszámít.")

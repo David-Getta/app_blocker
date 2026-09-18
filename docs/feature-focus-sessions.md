@@ -110,8 +110,17 @@ interface FocusLogEntry {
   endedAt: number;           // mikor ért véget TÉNYLEGESEN
   plannedEndsAt: number;     // ebből látszik, hogy korábban ért-e véget
   stopped: boolean;          // próbatétellel, vagy magától járt le
+  window?: boolean;          // a heti ablakból indult, magától — csak ha igaz
 }
 ```
+
+**Menetek ablakból:** a lezárás a naplósorra írja, ha a menet a csomag heti
+ablakának egy előfordulásaként indult (`isWindowRun` a három magban; csak ha
+igaz — a régi sor mezőtlen, és az nem ablak). A statisztika munkamenet-blokkja
+kimondja („2 menet a heti ablakból indult, magától.”), a heti mondat is („9
+menet (7 ó 0 p, 2 korán leállítva, 3 ablakból)”) — mindhárom platformon: ebből
+látszik, dolgozik-e az ablak, amit a csúcs-órára tettél. A mező a fiókkal
+utazik (`window` a naplósoron, a drót-nevek őrével).
 
 **Az aldomain átmegy**: a `google.com` engedése a `translate.google.com`-ot is
 engedi. Enélkül minden oldalnál külön ki kellene találni, melyik aldomain kell,

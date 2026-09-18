@@ -165,7 +165,9 @@ export function digestText(input: DigestInput, labelOf: (label: string) => strin
   const prevFocus = p && p.sessions > 0 ? `, az előző héten ${p.sessions} (${hm(p.totalMs / 1000)})` : '';
   if (f.sessions > 0) {
     const early = f.stoppedEarly > 0 ? `, ${f.stoppedEarly} korán leállítva` : ', mind végigvive';
-    parts.push(`${f.sessions} menet (${hm(f.totalMs / 1000)}${early})${prevFocus}.`);
+    // A HETI ABLAKBÓL indult menetek: dolgozik-e az ablak — csak ha volt ilyen.
+    const win = f.windowRuns > 0 ? `, ${f.windowRuns} ablakból` : '';
+    parts.push(`${f.sessions} menet (${hm(f.totalMs / 1000)}${early}${win})${prevFocus}.`);
   } else if (prevFocus) {
     parts.push(`Menet nélkül${prevFocus}.`);
   }

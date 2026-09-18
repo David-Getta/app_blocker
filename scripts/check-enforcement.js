@@ -1088,6 +1088,38 @@ const WIRES = [
     needle: 'try Referee.addFocusWindow(packId: win.pack.id, band: win.band, now: nowMs())',
     lost: 'az iPhone javaslat-kártya ablak-gombja nem tenne ablakot — az ígéret üres',
   },
+  // MENETEK ABLAKBÓL: a lezárás írja a naplósorra, hogy az ablakból indult — ha
+  // nem írná, a statisztika és a heti mondat sosem mondaná, dolgozik-e az ablak.
+  {
+    file: 'desktop/src/helper/referee.ts',
+    needle: "closeRun(run, pack?.name ?? 'Ismeretlen csomag', endedAt, stopped, isWindowRun(run, state.focusPacks ?? []))",
+    lost: 'a gépi lezárás nem írná a naplósorra, hogy ablakból indult — a mondat sosem mondaná',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/Referee.kt',
+    needle: 'Focus.closeRun(run, pack?.name ?: "Ismeretlen csomag", endedAt, stopped, Focus.isWindowRun(run, state.focusPacks))',
+    lost: 'az Android lezárás nem írná a naplósorra, hogy ablakból indult — a mondat sosem mondaná',
+  },
+  {
+    file: 'ios/Shared/Referee.swift',
+    needle: 'window: Focus.isWindowRun(run, packs: state.focusPacks ?? []))',
+    lost: 'az iPhone lezárás nem írná a naplósorra, hogy ablakból indult — a mondat sosem mondaná',
+  },
+  {
+    file: 'desktop/src/shared/digest.ts',
+    needle: "const win = f.windowRuns > 0 ? `, ${f.windowRuns} ablakból` : '';",
+    lost: 'a heti mondat nem mondaná az ablakból indult meneteket',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/Digest.kt',
+    needle: 'val win = if (f.windowRuns > 0) ", ${f.windowRuns} ablakból" else ""',
+    lost: 'az Android heti mondat nem mondaná az ablakból indult meneteket',
+  },
+  {
+    file: 'ios/Shared/Digest.swift',
+    needle: 'let win = f.windowRuns > 0 ? ", \\(f.windowRuns) ablakból" : ""',
+    lost: 'az iPhone heti mondat nem mondaná az ablakból indult meneteket',
+  },
   {
     file: 'desktop/src/renderer/renderer.ts',
     needle: 'n.onclick = () => void startSuggestedSession(true);',

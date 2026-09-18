@@ -189,7 +189,7 @@ const GROUPS = [
   },
   {
     what: 'egy naplósor',
-    names: ['packName', 'endedAt', 'plannedEndsAt', 'stopped'],
+    names: ['packName', 'endedAt', 'plannedEndsAt', 'stopped', 'window'],
     ts: 'desktop/src/shared/focus.ts',
     kt: 'android/app/src/main/java/hu/breaker/app/core/SyncClient.kt',
     swift: 'ios/Shared/Focus.swift',

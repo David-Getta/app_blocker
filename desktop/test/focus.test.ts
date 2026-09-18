@@ -13,7 +13,7 @@ import {
   closeRun, formatRemaining, isAppAllowed, isRunning, isSessionLoosening, isSiteAllowed,
   lastUsedPack, MAX_ALLOW_ENTRIES, MAX_SESSION_MINUTES, normalizeMinutes, normalizePack, remainingMs,
   normalizeRecurrence, peakWindowBand, summarizeFocus, summarizeFocusPrevWeek, type FocusLogEntry, type FocusPack,
-  bandCoversHour, packCoveringHour,
+  bandCoversHour, packCoveringHour, closeIfEnded, type FocusRun,
 } from '../src/shared/focus';
 
 const NOW = 1_800_000_000_000;
@@ -186,7 +186,7 @@ test('a leggyakoribb csomag neve jön vissza', () => {
 test('üres napló üres összegzés, nem kivétel', () => {
   for (const empty of [undefined, []]) {
     const sum = summarizeFocus(empty, 0, 1_000);
-    assert.deepEqual(sum, { sessions: 0, totalMs: 0, stoppedEarly: 0, topPack: null });
+    assert.deepEqual(sum, { sessions: 0, totalMs: 0, stoppedEarly: 0, windowRuns: 0, topPack: null });
   }
 });
 
@@ -209,6 +209,21 @@ function entry(over: Partial<FocusLogEntry> = {}): FocusLogEntry {
     ...over,
   };
 }
+
+test('a naplósor tudja, hogy az ablakból indult — a lezárás írja, az összegzés számolja', () => {
+  const p = pack({ id: 'w', name: 'Ablakos', recurrence: peakWindowBand(21) });
+  const start = new Date(2026, 8, 18, 21, 0).getTime();
+  const run: FocusRun = { packId: 'w', startedAt: start, endsAt: start + 3_600_000 };
+  const closed = closeIfEnded(run, [p], [], start + 3_600_001);
+  assert.equal(closed?.log[0].window, true, 'az ablak előfordulása: ablakból indult');
+  const manual: FocusRun = { packId: 'w', startedAt: start + 5 * 60_000, endsAt: start + 3_600_000 };
+  assert.equal(closeIfEnded(manual, [p], [], start + 3_600_001)?.log[0].window, undefined, 'a kézi menet nem ablak');
+  assert.equal(closeRun(run, 'Ablakos', start + 3_600_000, false).window, undefined, 'jel nélkül nincs mező');
+  assert.equal(closeRun(run, 'Ablakos', start + 3_600_000, false, true).window, true);
+  const log = [entry({ window: true }), entry({ startedAt: 2_000, endedAt: 3_000 }), entry({ startedAt: 3_000, endedAt: 4_000, window: true })];
+  assert.equal(summarizeFocus(log, 0, 5_000).windowRuns, 2);
+  assert.equal(summarizeFocus([], 0, 5_000).windowRuns, 0);
+});
 
 test('a legutóbb használt csomag: a napló szerint, törölt csomag nélkül, különben az első', () => {
   const a = pack({ id: 'pack_a', name: 'A' });

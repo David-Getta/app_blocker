@@ -175,7 +175,9 @@ public enum DigestLogic {
         }
         if f.sessions > 0 {
             let early = f.stoppedEarly > 0 ? ", \(f.stoppedEarly) korán leállítva" : ", mind végigvive"
-            parts.append("\(f.sessions) menet (\(hm(f.totalMs / 1000))\(early))\(prevFocus).")
+            // A HETI ABLAKBÓL indult menetek: dolgozik-e az ablak — csak ha volt ilyen.
+            let win = f.windowRuns > 0 ? ", \(f.windowRuns) ablakból" : ""
+            parts.append("\(f.sessions) menet (\(hm(f.totalMs / 1000))\(early)\(win))\(prevFocus).")
         } else if !prevFocus.isEmpty {
             parts.append("Menet nélkül\(prevFocus).")
         }

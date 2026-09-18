@@ -8,8 +8,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  emptyFocus, mergeFocus, normalizeSyncFocus, sameFocus, type SyncFocus,
+  emptyFocus, mergeFocus, normalizeLogEntry, normalizeSyncFocus, sameFocus, type SyncFocus,
 } from '../src/shared/sync/focus-merge';
+
+test('az ablak jele a dróton: csak ha igaz — a régi sor mezője nincs, és az nem ablak', () => {
+  assert.equal(normalizeLogEntry({ packId: 'p', endedAt: 5, window: true })?.window, true);
+  assert.equal(normalizeLogEntry({ packId: 'p', endedAt: 5 })?.window, undefined);
+  assert.equal(normalizeLogEntry({ packId: 'p', endedAt: 5, window: 'igen' })?.window, undefined, 'csak a valódi igaz');
+});
 import { MAX_FOCUS_LOG, type FocusLogEntry, type FocusPack } from '../src/shared/focus';
 
 const pack = (id: string, sites: string[] = ['quizlet.com']): FocusPack => ({

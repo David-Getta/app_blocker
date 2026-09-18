@@ -324,6 +324,8 @@ object SyncClient {
                 put("endedAt", e.endedAt)
                 put("plannedEndsAt", e.plannedEndsAt)
                 put("stopped", e.stopped)
+                // Az ablak jele csak ha igaz — a régi kliens sora mezőtlen, és az nem ablak.
+                if (e.window) put("window", true)
             }
         }))
         put("rev", f.rev)
@@ -515,6 +517,7 @@ object SyncClient {
                     endedAt = endedAt,
                     plannedEndsAt = e.optLong("plannedEndsAt", endedAt),
                     stopped = e.optBoolean("stopped", false),
+                    window = e.optBoolean("window", false),
                 ))
             }
         }

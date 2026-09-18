@@ -211,7 +211,8 @@ function logFocusEnd(state: HelperState, endedAt: number, stopped: boolean): voi
   const run = state.focusRun;
   if (!run) return;
   const pack = (state.focusPacks ?? []).find((p) => p.id === run.packId);
-  const entry = closeRun(run, pack?.name ?? 'Ismeretlen csomag', endedAt, stopped);
+  // Az ablakból indult-e: a naplósor viszi, a statisztika és a heti mondat mondja.
+  const entry = closeRun(run, pack?.name ?? 'Ismeretlen csomag', endedAt, stopped, isWindowRun(run, state.focusPacks ?? []));
   state.focusLog = [...(state.focusLog ?? []), entry].slice(-MAX_FOCUS_LOG);
 }
 
