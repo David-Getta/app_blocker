@@ -44,20 +44,21 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **Ablak a menet-órára.** A csúcs-óra gombjának párja a menet-óra
-          alatt: „Heti ablak a menet-órára: Nyelvtanulás, minden nap 9:00–10:00”
-          — a menet magától indul, amikor le szoktál ülni. Felvenni ingyen;
-          ugyanazok a kapuk. A gépen, Androidon és iPhone-on.
+          **A README és a weboldal a délután tükör-újdonságairól.** A
+          menet-nap és a menet-óra, a menet-óra ablakának gombja, a menet-nap
+          a böngésző lapjain, a mért idő napja — egy helyen, ahol az ember
+          először találkozik az appal. Kód nem változott.
 
-          ### Ami a v0.4.124-ben jött
+          ### Ami a v0.4.125-ben jött
+
+          **Ablak a menet-órára.** A csúcs-óra gombjának párja a menet-óra
+          alatt — a menet magától indul, amikor le szoktál ülni. Felvenni
+          ingyen; a gépen, Androidon és iPhone-on.
+
+          #### Ami a v0.4.124-ben jött
 
           **A heti mondat a menet-órát is mondja.** A menet-nap mondata után,
           szó szerint a statisztika sora — mindhárom platformon.
-
-          #### Ami a v0.4.123-ban jött
-
-          **A menet-óra.** Mikor ülsz le a legtöbbször — a négy hét menetei
-          az indulás órája szerint, alatta az órák sávja.
 
           NOTES
           fi
