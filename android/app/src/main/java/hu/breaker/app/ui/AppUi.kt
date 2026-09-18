@@ -271,6 +271,26 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
         if (!vpnRunning) startProtection()
     }
 
+    /** Egy egész csomag: a még nem listázott oldalak egyszerre; a védelem egyszer indul. */
+    fun addPack(pack: Blocklist.CategoryPack) {
+        addError = null
+        val have = BreakerStore.state.value.sites.map { it.domain }.toSet()
+        val now = System.currentTimeMillis()
+        val fresh = pack.domains.filter { it !in have }.map { domain ->
+            Site(
+                id = BreakerStore.newId("site"),
+                domain = domain,
+                hostnames = Blocklist.expandHostnames(domain, usePreset),
+                addedAt = now,
+                pauseUntil = null,
+                pendingDeleteAt = null,
+            )
+        }
+        if (fresh.isEmpty()) return
+        BreakerStore.mutate { s -> s.copy(sites = s.sites + fresh) }
+        if (!vpnRunning) startProtection()
+    }
+
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(
             modifier = Modifier
@@ -508,6 +528,19 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             for (preset in listOf("youtube.com", "facebook.com", "instagram.com", "tiktok.com", "x.com", "reddit.com")) {
                                 OutlinedButton(onClick = { addSite(preset) }) { Text(preset) }
+                            }
+                        }
+                    }
+                    // Kategória-csomagok: egy kattintással több oldal. Ami már fent
+                    // van, nem számít bele; a teljes csomag gombja nem aktív.
+                    if (!listHidden) {
+                        val have = state.sites.map { it.domain }.toSet()
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            for (pack in Blocklist.CATEGORY_PACKS) {
+                                val missing = pack.domains.count { it !in have }
+                                OutlinedButton(onClick = { addPack(pack) }, enabled = missing > 0) {
+                                    Text(if (missing > 0) "${pack.label} ($missing oldal)" else "${pack.label} — mind fent")
+                                }
                             }
                         }
                     }

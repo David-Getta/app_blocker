@@ -32,6 +32,7 @@ import {
   formatRemaining, isWindowRun, MAX_ALLOW_ENTRIES, MAX_PACK_NAME, MAX_SESSION_MINUTES,
   nextOccurrence, SESSION_CHOICES_MIN, windowRunStarted, type FocusPack, type FocusRun,
 } from '../shared/focus.js';
+import { CATEGORY_PACKS, type CategoryPack } from '../shared/blocklist.js';
 import { windowKey, windowStartingSoon, type LockdownWindow as LockdownWindowRow } from '../shared/lockdown.js';
 import {
   encodePairingCode, formatPairingCode, resolveServerInput,
@@ -2793,6 +2794,24 @@ function renderAddCard(st: StatusData): void {
       chips.appendChild(chip);
     }
   }
+  // Kategória-csomagok: egy kattintással több oldal. Ami már fent van, nem
+  // számít bele; a teljes csomag egy szürke gomb — nincs mit felvenni.
+  const packs = $('packChips');
+  packs.textContent = '';
+  packs.classList.toggle('hidden', hidden);
+  if (!hidden) {
+    const have = new Set(st.sites.map((s) => s.domain));
+    for (const pack of CATEGORY_PACKS) {
+      const missing = pack.domains.filter((d) => !have.has(d));
+      const chip = h('button', 'chip',
+        missing.length ? `${pack.label} (${missing.length} oldal)` : `${pack.label} — mind fent`) as HTMLButtonElement;
+      chip.type = 'button';
+      chip.title = pack.domains.join(', ');
+      chip.disabled = missing.length === 0;
+      chip.addEventListener('click', () => void addPack(pack));
+      packs.appendChild(chip);
+    }
+  }
   $<HTMLInputElement>('addInput').placeholder = hidden ? 'a cím, amit blokkolni akarsz' : 'pl. www.youtube.com';
   $('presetToggleText').textContent = hidden
     ? 'Ismert szolgáltatásnál a társoldalak blokkolása is (a mobilos és a rövidített címek)'
@@ -2829,6 +2848,14 @@ function pathWarning(value: string): string | null {
 
 /** A legutóbb figyelmeztetett érték — a második megnyomás már felveszi. */
 let warnedFor: string | null = null;
+
+/** Egy egész csomag: a még nem listázott oldalak egymás után, a szokásos úton. */
+async function addPack(pack: CategoryPack): Promise<void> {
+  const have = new Set((status?.sites ?? []).map((s) => s.domain));
+  for (const d of pack.domains) {
+    if (!have.has(d)) await addSite(d);
+  }
+}
 
 async function addSite(value: string): Promise<void> {
   const errEl = $('addError');

@@ -153,6 +153,11 @@ ingyen van, rövidíteni vagy visszavonni sehogy.
   letörölhető; az impulzus ellen véd, nem a megfontolt kerülőút ellen.
   [`docs/feature-lockdown.md`](docs/feature-lockdown.md).
 
+- **Kategória-csomagok: egy kattintással több oldal** (mindhárom platform).
+  *Közösségi*, *Videó és stream*, *Hírek*, *Vásárlás* — egy-egy gomb a felvevő
+  kártyán, ami a csomag minden oldalát felveszi. Felvenni ingyen (szigorítás),
+  levenni oldalanként, a szokásos próbatétellel; ami már fent van, nem számít
+  bele. Lásd `docs/feature-category-packs.md`.
 - **Zárlat-ablak: heti sáv, amiben a zárlat magától él** (mindhárom
   platform). Aki a munkanapjait akarja védeni, annak a zárlatot minden reggel
   újra el kellene indítania — és pont reggel a legkönnyebb nem elindítani. Az

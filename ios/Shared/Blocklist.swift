@@ -22,6 +22,24 @@ enum Blocklist {
         "9gag.com": ["m.9gag.com"],
     ]
 
+    /// Egy kategória-csomag: kulcs, felirat, domainek — a blocklist.ts tükre.
+    struct CategoryPack: Equatable {
+        let key: String
+        let label: String
+        let domains: [String]
+    }
+
+    /// Kategória-csomagok: egy kattintással több oldal. A felvétel szigorítás,
+    /// tehát ingyen; levenni oldalanként, a szokásos próbatétellel. Ugyanaz a
+    /// lista, mint a gépen — a `fixtures/category-packs.json` és a
+    /// CategoryPacksTests tartja egyben.
+    static let categoryPacks: [CategoryPack] = [
+        CategoryPack(key: "social", label: "Közösségi", domains: ["facebook.com", "instagram.com", "tiktok.com", "x.com", "threads.net", "snapchat.com", "reddit.com", "pinterest.com"]),
+        CategoryPack(key: "video", label: "Videó és stream", domains: ["youtube.com", "twitch.tv", "netflix.com", "kick.com", "dailymotion.com"]),
+        CategoryPack(key: "news", label: "Hírek", domains: ["index.hu", "telex.hu", "444.hu", "origo.hu", "hvg.hu", "24.hu", "portfolio.hu", "blikk.hu"]),
+        CategoryPack(key: "shopping", label: "Vásárlás", domains: ["aliexpress.com", "temu.com", "amazon.com", "ebay.com", "vinted.hu", "emag.hu"]),
+    ]
+
     static func normalizeDomain(_ input: String) -> String? {
         var s = input.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         if s.isEmpty { return nil }

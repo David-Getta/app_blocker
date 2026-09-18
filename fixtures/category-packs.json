@@ -1,0 +1,53 @@
+[
+  {
+    "key": "social",
+    "label": "Közösségi",
+    "domains": [
+      "facebook.com",
+      "instagram.com",
+      "tiktok.com",
+      "x.com",
+      "threads.net",
+      "snapchat.com",
+      "reddit.com",
+      "pinterest.com"
+    ]
+  },
+  {
+    "key": "video",
+    "label": "Videó és stream",
+    "domains": [
+      "youtube.com",
+      "twitch.tv",
+      "netflix.com",
+      "kick.com",
+      "dailymotion.com"
+    ]
+  },
+  {
+    "key": "news",
+    "label": "Hírek",
+    "domains": [
+      "index.hu",
+      "telex.hu",
+      "444.hu",
+      "origo.hu",
+      "hvg.hu",
+      "24.hu",
+      "portfolio.hu",
+      "blikk.hu"
+    ]
+  },
+  {
+    "key": "shopping",
+    "label": "Vásárlás",
+    "domains": [
+      "aliexpress.com",
+      "temu.com",
+      "amazon.com",
+      "ebay.com",
+      "vinted.hu",
+      "emag.hu"
+    ]
+  }
+]

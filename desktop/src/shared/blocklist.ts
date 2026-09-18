@@ -190,3 +190,21 @@ export function extractManagedBlock(hostsContent: string): string {
   if (begin < 0 || end < 0 || end < begin) return '';
   return normalized.slice(begin, end + MARKER_END.length);
 }
+
+// ------------------------------------------------------- KATEGÓRIA-CSOMAGOK
+//
+// Egy kattintással több oldal: a felvétel szigorítás, tehát ingyen — levenni
+// oldalanként, a szokásos próbatétellel. A domainek a `normalizeDomain`
+// alakjában állnak, a társoldalakat a felvétel a szokásos módon bővíti. A
+// három nyelv ugyanezt a listát hordozza: a `fixtures/category-packs.json`
+// (ezt a gép tesztje írja) és a telefonok tesztjei tartják egyben.
+
+/** Egy kategória-csomag: kulcs, felirat, domainek. */
+export interface CategoryPack { key: string; label: string; domains: string[] }
+
+export const CATEGORY_PACKS: CategoryPack[] = [
+  { key: 'social', label: 'Közösségi', domains: ['facebook.com', 'instagram.com', 'tiktok.com', 'x.com', 'threads.net', 'snapchat.com', 'reddit.com', 'pinterest.com'] },
+  { key: 'video', label: 'Videó és stream', domains: ['youtube.com', 'twitch.tv', 'netflix.com', 'kick.com', 'dailymotion.com'] },
+  { key: 'news', label: 'Hírek', domains: ['index.hu', 'telex.hu', '444.hu', 'origo.hu', 'hvg.hu', '24.hu', 'portfolio.hu', 'blikk.hu'] },
+  { key: 'shopping', label: 'Vásárlás', domains: ['aliexpress.com', 'temu.com', 'amazon.com', 'ebay.com', 'vinted.hu', 'emag.hu'] },
+];

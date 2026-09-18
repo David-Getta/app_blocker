@@ -480,6 +480,20 @@ struct ContentView: View {
                     }
                 }
             }
+            // Kategória-csomagok: egy kattintással több oldal. Ami már fent van,
+            // nem számít bele; a teljes csomag gombja nem aktív.
+            if !listHidden {
+                let have = Set(store.state.sites.map { $0.domain })
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack {
+                        ForEach(Blocklist.categoryPacks, id: \.key) { p in
+                            let missing = p.domains.filter { !have.contains($0) }.count
+                            Button(missing > 0 ? "\(p.label) (\(missing) oldal)" : "\(p.label) — mind fent") { addPack(p) }
+                                .buttonStyle(.bordered).font(.caption).disabled(missing == 0)
+                        }
+                    }
+                }
+            }
             if let e = addError { Text(e).foregroundStyle(.red).font(.footnote) }
             Text("Oldalt felvenni mindig egy kattintás. Levenni — az szándékosan nem az.")
                 .font(.caption).foregroundStyle(.secondary)
@@ -726,6 +740,23 @@ struct ContentView: View {
                                 schedule: nil))
         }
         addInput = ""
+        if tunnel.status != .connected { startProtection() }
+    }
+
+    /// Egy egész csomag: a még nem listázott oldalak egyszerre; a védelem egyszer indul.
+    private func addPack(_ pack: Blocklist.CategoryPack) {
+        addError = nil
+        let have = Set(store.state.sites.map { $0.domain })
+        let fresh = pack.domains.filter { !have.contains($0) }
+        if fresh.isEmpty { return }
+        store.mutate { s in
+            for domain in fresh {
+                s.sites.append(Site(id: store.newId("site"), domain: domain,
+                                    hostnames: Blocklist.expandHostnames(domain, usePreset: usePreset),
+                                    addedAt: nowMs(), pauseUntil: nil, pendingDeleteAt: nil,
+                                    schedule: nil))
+            }
+        }
         if tunnel.status != .connected { startProtection() }
     }
 

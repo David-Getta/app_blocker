@@ -25,6 +25,22 @@ object Blocklist {
         "9gag.com" to listOf("m.9gag.com"),
     )
 
+    /** Egy kategória-csomag: kulcs, felirat, domainek — a blocklist.ts tükre. */
+    data class CategoryPack(val key: String, val label: String, val domains: List<String>)
+
+    /**
+     * Kategória-csomagok: egy kattintással több oldal. A felvétel szigorítás,
+     * tehát ingyen; levenni oldalanként, a szokásos próbatétellel. Ugyanaz a
+     * lista, mint a gépen — a `fixtures/category-packs.json` és a
+     * CategoryPacksTest tartja egyben.
+     */
+    val CATEGORY_PACKS: List<CategoryPack> = listOf(
+        CategoryPack("social", "Közösségi", listOf("facebook.com", "instagram.com", "tiktok.com", "x.com", "threads.net", "snapchat.com", "reddit.com", "pinterest.com")),
+        CategoryPack("video", "Videó és stream", listOf("youtube.com", "twitch.tv", "netflix.com", "kick.com", "dailymotion.com")),
+        CategoryPack("news", "Hírek", listOf("index.hu", "telex.hu", "444.hu", "origo.hu", "hvg.hu", "24.hu", "portfolio.hu", "blikk.hu")),
+        CategoryPack("shopping", "Vásárlás", listOf("aliexpress.com", "temu.com", "amazon.com", "ebay.com", "vinted.hu", "emag.hu")),
+    )
+
     fun normalizeDomain(input: String): String? {
         var s = input.trim().lowercase()
         if (s.isEmpty()) return null
