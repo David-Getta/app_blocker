@@ -4266,6 +4266,11 @@ function renderStats(): void {
   const reasons = hitsReasonLine(status?.browserHitsReasons ?? []);
   $('hitsReasonNote').classList.toggle('hidden', reasons === '');
   $('hitsReasonNote').textContent = reasons ? `Ebből: ${reasons}.` : '';
+  // MELYIK oldal akaszt meg a legtöbbször: a hét csúcs-oldala — a lista
+  // címkézésével (fedőnév, rejtett lista). Üresen nincs.
+  const top = status?.browserHitsTop ?? null;
+  $('hitsTopNote').classList.toggle('hidden', top === null);
+  $('hitsTopNote').textContent = top ? `A legtöbbször: ${statLabel(top.label)} (${top.count}×).` : '';
   // A SOKADIK megakadás a statisztikán is: a mondat, és egy kattintás a
   // menetig — a legutóbb használt csomag a szokásos hosszával (a segéd
   // választja). Futó menet mellett nincs gomb: egyszerre egy menet fut.

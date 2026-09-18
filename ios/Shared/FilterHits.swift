@@ -130,6 +130,62 @@ public enum FilterHitLogic {
     /// „21–22 óra” — a csúcs-óra felirata.
     public static func hourLabel(_ hour: Int) -> String { "\(hour)–\((hour + 1) % 24) óra" }
 
+    // MARK: - oldalanként
+
+    /// Naponta legfeljebb ennyi oldal a könyvben — a lista úgysem hosszabb.
+    public static let maxSitesPerDay = 50
+
+    /// Melyik LISTÁS oldalhoz tartozik a tiltott név: a lista tétele (tartomány,
+    /// hosztnevek), amelynek a neve a név vagy annak szülője — különben a név
+    /// maga. A `m.youtube.com` és a `www.youtube.com` egy oldal.
+    public static func siteOf(_ name: String, sites: [(domain: String, hostnames: [String])]) -> String {
+        var h = name.trimmingCharacters(in: .whitespaces).lowercased()
+        while h.hasSuffix(".") { h.removeLast() }
+        for s in sites {
+            for n in [s.domain] + s.hostnames where h == n || h.hasSuffix("." + n) { return s.domain }
+        }
+        return h
+    }
+
+    /// Az oldalak könyve egy megakadással több: nap → (oldal → szám). Rossz nap, üres oldal vagy a plafon: változatlan.
+    public static func recordSite(_ hosts: [String: [String: Int]], day: String, site: String) -> [String: [String: Int]] {
+        guard isDayKey(day), !site.isEmpty else { return hosts }
+        var row = hosts[day] ?? [:]
+        let n = row[site] ?? 0
+        if n >= maxPerDay { return hosts }
+        if row[site] == nil && row.count >= maxSitesPerDay { return hosts }
+        row[site] = n + 1
+        var next = hosts
+        next[day] = row
+        return next
+    }
+
+    /// Az oldalak könyve tisztán: jó nap, nem üres oldal, pozitív szám a plafonig, a legfrissebb harminc nap.
+    public static func cleanSites(_ raw: [String: [String: Int]]?) -> [String: [String: Int]] {
+        var good: [String: [String: Int]] = [:]
+        for (day, row) in raw ?? [:] where isDayKey(day) {
+            var r: [String: Int] = [:]
+            for (s, n) in row.sorted(by: { $0.key < $1.key }) where !s.isEmpty && n > 0 && r.count < maxSitesPerDay {
+                r[s] = min(n, maxPerDay)
+            }
+            if !r.isEmpty { good[day] = r }
+        }
+        let keep = Set(good.keys.sorted().suffix(retentionDays))
+        return good.filter { keep.contains($0.key) }
+    }
+
+    /// A hét csúcs-oldala: (oldal, szám) — vagy nil. Holtversenynél az ábécé szerint korábbi.
+    public static func topSite(_ hosts: [String: [String: Int]], now: Double) -> (site: String, count: Int)? {
+        let days = Set(daySeries([:], now: now, count: 7).map { $0.day })
+        var sum: [String: Int] = [:]
+        for (day, row) in hosts where days.contains(day) {
+            for (s, n) in row { sum[s, default: 0] += max(0, n) }
+        }
+        return sum.filter { $0.value > 0 }
+            .sorted { $0.value != $1.value ? $0.value > $1.value : $0.key < $1.key }
+            .first.map { (site: $0.key, count: $0.value) }
+    }
+
     // MARK: - a sokadik
 
     /// A SOKADIK megakadás lépcsői: ezeknél a mai számoknál a lap egy lépést

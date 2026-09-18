@@ -187,6 +187,8 @@ export interface StatusData {
   browserHitsPeak?: { hour: number; count: number } | null;
   /** a hét megakadásai okonként, a legnagyobb elöl — melyik szabály dolgozik */
   browserHitsReasons?: { reason: string; count: number }[];
+  /** a hét csúcs-oldala (a lista tételének neve vagy a hoszt, szám) — melyik oldal akaszt meg a legtöbbször */
+  browserHitsTop?: { label: string; count: number } | null;
   /** az utolsó feloldás ideje (epoch ms), vagy null, ha még egy sem volt */
   lastUnlockAt?: number | null;
   session: SessionInfo | null;

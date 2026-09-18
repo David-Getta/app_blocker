@@ -186,7 +186,8 @@ valamit, amit a felhasználó nem tiltott le.
     állandó forrás-azonosítóval), ahol a heti mondat és a statisztika sora
     mondja; a fiókba nem megy. A tiltó lap is mondja, a kísértés
     pillanatában: „Ma ez a 7. megakadás — ebből a 3. ezen az oldalon.” (a
-    hosztonkénti szám csak itt marad, a hídra nem megy). Óránként is: a
+    hosztonkénti könyv csak itt marad; a hídra a nap öt leggyakoribb hosztja
+    megy, a gépen belül — melyik oldal akaszt meg a legtöbbször). Óránként is: a
     beállítás-lap a hét csúcs-óráját mondja („A hét csúcsa: 21–22 óra”) és
     egy óra-sávot rajzol — mikor jár a kéz magától; és a hetet okonként is
     („A héten: 4 zárva oldal · 3 kulcsszó”) — melyik szabály dolgozik. A mag

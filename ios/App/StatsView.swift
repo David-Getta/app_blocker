@@ -122,6 +122,11 @@ struct StatsView: View {
                         Text("A hét csúcsa: \(FilterHitLogic.hourLabel(peak.hour)) (\(peak.count) megakadás) — akkor jár a kéz magától.")
                             .font(.footnote).foregroundStyle(.secondary)
                     }
+                    // MELYIK oldal akaszt meg a legtöbbször: a hét csúcs-oldala — a lista címkézésével.
+                    if let top = FilterHitLogic.topSite(store.state.filterHitHosts ?? [:], now: now) {
+                        Text("A legtöbbször: \(siteLabel(top.site)) (\(top.count)×).")
+                            .font(.footnote).foregroundStyle(.secondary)
+                    }
                     // HA NEM KÉRED, csendben marad: az előjelzés a csúcs-óra előtt
                     // kikapcsolható — a lap kártyája akkor is mondja.
                     Toggle("Szóljon a csúcs-óra előtt", isOn: Binding(

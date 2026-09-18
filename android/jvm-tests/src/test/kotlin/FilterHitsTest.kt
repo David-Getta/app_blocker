@@ -136,6 +136,40 @@ class FilterHitsTest {
         )
     }
 
+    @Test fun `oldalankent - a nev az oldalhoz, a konyv es a csucs-oldal, a mentes es a mondat`() {
+        val sites = listOf("youtube.com" to listOf("youtube.com", "www.youtube.com"))
+        assertEquals("youtube.com", FilterHitLogic.siteOf("M.YouTube.com.", sites), "aldomain és nagybetű: az oldal")
+        assertEquals("notyoutube.com", FilterHitLogic.siteOf("notyoutube.com", sites), "a hasonló név nem az oldal")
+        var hosts = FilterHitLogic.recordSite(emptyMap(), today, "youtube.com")
+        hosts = FilterHitLogic.recordSite(hosts, today, "youtube.com")
+        hosts = FilterHitLogic.recordSite(hosts, today, "reddit.com")
+        hosts = FilterHitLogic.recordSite(hosts, UsageLogic.dayKey(now - 8 * 86_400_000L), "old.com") // nem a hété
+        hosts = FilterHitLogic.recordSite(hosts, "szemét", "youtube.com")
+        hosts = FilterHitLogic.recordSite(hosts, today, " ")
+        assertEquals(mapOf("youtube.com" to 2, "reddit.com" to 1), hosts[today])
+        assertEquals("youtube.com" to 2, FilterHitLogic.topSite(hosts, now))
+        assertEquals(null, FilterHitLogic.topSite(emptyMap(), now))
+        assertEquals("a.com" to 1, FilterHitLogic.topSite(mapOf(today to mapOf("b.com" to 1, "a.com" to 1)), now), "holtverseny: az ábécé")
+        assertEquals(
+            mapOf(today to mapOf("youtube.com" to 2)),
+            FilterHitLogic.cleanSites(mapOf(today to mapOf("youtube.com" to 2, "" to 3, "z.com" to 0), "x" to mapOf("a" to 1))),
+        )
+        val toJson = BreakerStore::class.java.getDeclaredMethod("toJson", AppState::class.java).apply { isAccessible = true }
+        val fromJson = BreakerStore::class.java.getDeclaredMethod("fromJson", JSONObject::class.java).apply { isAccessible = true }
+        val back = fromJson.invoke(BreakerStore, JSONObject(toJson.invoke(BreakerStore, AppState(filterHitHosts = hosts)).toString())) as AppState
+        assertEquals(FilterHitLogic.cleanSites(hosts), back.filterHitHosts, "a mentés hordozza az oldalakat")
+        val base = DigestLogic.Input(
+            last7Seconds = 0.0, topWeekSites = emptyList(), weekOverWeek = emptyList(),
+            focusWeek = Focus.summarizeFocus(emptyList(), 0L, now), unlocks7d = 0, daysTracked = 0,
+        )
+        assertEquals(
+            "Elmúlt 7 nap: 12 megakadás a szűrőben, a csúcs 21–22 óra, a legtöbbször: A videós (5×).",
+            DigestLogic.text(base.copy(filterHits7d = 12, filterHitsPeak = 21 to 7, filterHitsTop = "youtube.com" to 5)) {
+                if (it == "youtube.com") "A videós" else it
+            },
+        )
+    }
+
     @Test fun `a mondat es a mentes`() {
         val base = DigestLogic.Input(
             last7Seconds = 0.0, topWeekSites = emptyList(), weekOverWeek = emptyList(),

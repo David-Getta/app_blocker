@@ -20,6 +20,8 @@ export const RETENTION_DAYS = 30;
 export const HIT_REASONS = ['closed', 'focus', 'channel', 'rule', 'keyword'];
 /** Naponta legfeljebb ennyi hosztnévre tartunk külön számot — a tárat védi. */
 export const MAX_HOSTS_PER_DAY = 200;
+/** A nap élbolya, ami a hídra megy: ennyi hoszt — MELYIK oldal akaszt meg a legtöbbször. */
+export const TOP_HOSTS_PER_DAY = 5;
 
 /** A nap kulcsa HELYI idő szerint: a „ma” az, amit az ember annak él meg. */
 export function dayKey(now = new Date()) {
@@ -161,7 +163,21 @@ export function hitsReport(state, today) {
     const hours = state?.days?.[day]?.byHour;
     const byHour = Array.isArray(hours) && hours.length === 24
       ? hours.map((n) => (Number.isFinite(n) && n > 0 ? Math.floor(n) : 0)) : undefined;
-    out.push(byHour && byHour.some((n) => n > 0) ? { day, total, byReason, byHour } : { day, total, byReason });
+    // A nap élbolya hosztonként — az öt leggyakoribb megy a hídra (a gépen
+    // belül, a fiókba nem): MELYIK oldal akaszt meg a legtöbbször. A többi
+    // hoszt csak itt marad.
+    const hosts = state?.days?.[day]?.byHost;
+    const topHosts = hosts && typeof hosts === 'object'
+      ? Object.entries(hosts)
+        .filter(([h, n]) => typeof h === 'string' && h && Number.isFinite(n) && n > 0)
+        .map(([h, n]) => [h, Math.floor(n)])
+        .sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
+        .slice(0, TOP_HOSTS_PER_DAY)
+      : [];
+    const row = { day, total, byReason };
+    if (byHour && byHour.some((n) => n > 0)) row.byHour = byHour;
+    if (topHosts.length) row.topHosts = topHosts;
+    out.push(row);
   }
   return out;
 }

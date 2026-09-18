@@ -24,7 +24,7 @@ interface Hits {
   sweepHits: (state: unknown, today: string) => { days: Record<string, unknown> };
   hitsOn: (state: unknown, day: string) => number;
   hitsSummary: (state: unknown, today: string) => { today: number; week: number };
-  hitsReport: (state: unknown, today: string) => { day: string; total: number; byReason: Record<string, number> }[];
+  hitsReport: (state: unknown, today: string) => { day: string; total: number; byReason: Record<string, number>; topHosts?: [string, number][] }[];
   hitsText: (s: { today: number; week: number }) => string | null;
   hitsRows: (state: unknown, today: string) => { day: string; total: number; detail: string }[];
   hitsOnHost: (state: unknown, day: string, host: string) => number;
@@ -37,12 +37,13 @@ interface Hits {
   hitsWeekByReason: (state: unknown, today: string) => { reason: string; count: number }[];
   hitsReasonText: (rows: { reason: string; count: number }[]) => string | null;
   REASON_NAMES: Record<string, string>;
+  TOP_HOSTS_PER_DAY: number;
 }
 
 function load(): Hits {
   const src = fs.readFileSync(path.join(extensionDir(), 'hits.js'), 'utf8').replace(/^export /gm, '');
   // eslint-disable-next-line no-new-func
-  return new Function(`${src}\nreturn { RETENTION_DAYS, MAX_HOSTS_PER_DAY, dayKey, lastDays, recordHit, sweepHits, hitsOn, hitsOnHost, hitsSummary, hitsReport, hitsText, hitsRows, hitsByHour, peakHour, hourLabel, hitsNudge, NUDGE_AT, hitsWeekByReason, hitsReasonText, REASON_NAMES };`)() as Hits;
+  return new Function(`${src}\nreturn { RETENTION_DAYS, MAX_HOSTS_PER_DAY, dayKey, lastDays, recordHit, sweepHits, hitsOn, hitsOnHost, hitsSummary, hitsReport, hitsText, hitsRows, hitsByHour, peakHour, hourLabel, hitsNudge, NUDGE_AT, hitsWeekByReason, hitsReasonText, REASON_NAMES, TOP_HOSTS_PER_DAY };`)() as Hits;
 }
 
 const TODAY = '2026-09-18';
@@ -106,7 +107,7 @@ test('a nap kulcsa helyi idő szerint, és az utolsó napok a mai nappal zárnak
   assert.deepEqual(h.lastDays('2026-03-01', 2), ['2026-02-28', '2026-03-01'], 'hónapforduló');
 });
 
-test('hosztonként is: hányadszor ma ezen az oldalon — plafonnal, és a hídra nem megy', () => {
+test('hosztonként is: hányadszor ma ezen az oldalon — plafonnal; a hídra csak a nap élbolya megy', () => {
   const h = load();
   let s = h.recordHit({}, TODAY, 'keyword', 'YouTube.com');
   s = h.recordHit(s, TODAY, 'closed', 'youtube.com');
@@ -116,8 +117,9 @@ test('hosztonként is: hányadszor ma ezen az oldalon — plafonnal, és a hídr
   assert.equal(h.hitsOnHost(s, TODAY, 'reddit.com'), 1);
   assert.equal(h.hitsOnHost(s, TODAY, 'x.example'), 0);
   assert.equal(h.hitsOn(s, TODAY), 4);
-  assert.deepEqual(h.hitsReport(s, TODAY), [{ day: TODAY, total: 4, byReason: { keyword: 1, closed: 1, rule: 2 } }],
-    'a hídra a hoszt nem megy');
+  assert.deepEqual(h.hitsReport(s, TODAY),
+    [{ day: TODAY, total: 4, byReason: { keyword: 1, closed: 1, rule: 2 }, topHosts: [['youtube.com', 2], ['reddit.com', 1]] }],
+    'a hídra a nap élbolya megy, a teljes hoszt-könyv nem');
   let many = {};
   for (let i = 0; i < h.MAX_HOSTS_PER_DAY + 5; i++) many = h.recordHit(many, TODAY, 'closed', `h${i}.example`);
   assert.equal(h.hitsOnHost(many, TODAY, 'h0.example'), 1);
@@ -169,4 +171,16 @@ test('a hét okonként: a legnagyobb elöl, holtversenynél az okok sorrendje; a
   const tie = h.recordHit(h.recordHit({}, TODAY, 'keyword'), TODAY, 'closed');
   assert.deepEqual(h.hitsWeekByReason(tie, TODAY).map((r) => r.reason), ['closed', 'keyword'], 'holtverseny: az okok rögzített sorrendje');
   assert.equal(h.REASON_NAMES.rule, 'részleges szabály');
+});
+
+test('a nap élbolya a hídra: az öt leggyakoribb hoszt, a legnagyobb elöl; hoszt nélkül nincs', () => {
+  const h = load();
+  let s = {};
+  for (let i = 0; i < 3; i++) s = h.recordHit(s, TODAY, 'closed', 'www.youtube.com');
+  s = h.recordHit(s, TODAY, 'closed', 'reddit.com');
+  for (const x of ['a.com', 'b.com', 'c.com', 'd.com', 'e.com']) s = h.recordHit(s, TODAY, 'closed', x);
+  const row = h.hitsReport(s, TODAY)[0];
+  assert.equal(h.TOP_HOSTS_PER_DAY, 5);
+  assert.deepEqual(row.topHosts, [['www.youtube.com', 3], ['a.com', 1], ['b.com', 1], ['c.com', 1], ['d.com', 1]], 'holtversenyben az ábécé; öt fér');
+  assert.equal(h.hitsReport(h.recordHit({}, TODAY, 'closed'), TODAY)[0].topHosts, undefined, 'hoszt nélkül nincs élboly');
 });

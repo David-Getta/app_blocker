@@ -8,7 +8,13 @@
 // Pure: a segéd és a felület is betölti.
 
 /** Egy nap egy forrásból: nap (ÉÉÉÉ-HH-NN, helyi), összeg, okonként. */
-export interface BrowserHitDay { day: string; total: number; byReason: Record<string, number>; byHour?: number[] }
+export interface BrowserHitDay {
+  day: string; total: number; byReason: Record<string, number>; byHour?: number[];
+  /** a nap élbolya hosztonként (hoszt, szám), a legnagyobb elöl — melyik oldal akaszt meg a legtöbbször */
+  topHosts?: [string, number][];
+}
+/** A nap élbolya: ennyi hosztot fogadunk el naponta a hídról — a bővítmény ennyit küld. */
+export const MAX_TOP_HOSTS = 5;
 /** Forrásonként (böngésző-profilonként) egy lista. */
 export type BrowserHits = Record<string, BrowserHitDay[]>;
 
@@ -28,7 +34,9 @@ export function cleanBrowserHitDays(raw: unknown): BrowserHitDay[] {
   const byDay = new Map<string, BrowserHitDay>();
   for (const item of Array.isArray(raw) ? raw : []) {
     if (!item || typeof item !== 'object') continue;
-    const { day, total, byReason, byHour } = item as { day?: unknown; total?: unknown; byReason?: unknown; byHour?: unknown };
+    const { day, total, byReason, byHour, topHosts } = item as {
+      day?: unknown; total?: unknown; byReason?: unknown; byHour?: unknown; topHosts?: unknown;
+    };
     if (typeof day !== 'string' || !DAY_KEY.test(day)) continue;
     if (typeof total !== 'number' || !Number.isFinite(total) || total <= 0) continue;
     const t = Math.min(MAX_HITS_PER_DAY, Math.floor(total));
@@ -43,7 +51,23 @@ export function cleanBrowserHitDays(raw: unknown): BrowserHitDay[] {
     const hours = Array.isArray(byHour) && byHour.length === 24
       ? byHour.map((n) => (typeof n === 'number' && Number.isFinite(n) && n > 0 ? Math.min(t, Math.floor(n)) : 0))
       : undefined;
-    byDay.set(day, hours && hours.some((n) => n > 0) ? { day, total: t, byReason: reasons, byHour: hours } : { day, total: t, byReason: reasons });
+    // Az élboly: (hoszt, szám) párok, hosztonként egyszer, legfeljebb a napi összeg, a plafonig.
+    const seen = new Set<string>();
+    const tops: [string, number][] = [];
+    for (const pair of Array.isArray(topHosts) ? topHosts : []) {
+      if (!Array.isArray(pair) || pair.length !== 2) continue;
+      const [h, n] = pair as [unknown, unknown];
+      if (typeof h !== 'string' || typeof n !== 'number' || !Number.isFinite(n) || n <= 0) continue;
+      let host = h.trim().toLowerCase();
+      while (host.endsWith('.')) host = host.slice(0, -1);
+      if (!host || host.length > 253 || seen.has(host) || tops.length >= MAX_TOP_HOSTS) continue;
+      seen.add(host);
+      tops.push([host, Math.min(t, Math.floor(n))]);
+    }
+    const row: BrowserHitDay = { day, total: t, byReason: reasons };
+    if (hours && hours.some((n) => n > 0)) row.byHour = hours;
+    if (tops.length) row.topHosts = tops;
+    byDay.set(day, row);
   }
   return [...byDay.values()].sort((a, b) => (a.day < b.day ? -1 : a.day > b.day ? 1 : 0)).slice(-MAX_HIT_DAYS);
 }
@@ -217,4 +241,44 @@ export function browserHitsByReason(book: BrowserHits | undefined, now: number):
 /** „7 zárva oldal · 3 kulcsszó · 2 munkamenet” — üresen üres. */
 export function hitsReasonLine(rows: { reason: string; count: number }[]): string {
   return rows.map((r) => `${r.count} ${HIT_REASON_LABELS[r.reason] ?? r.reason}`).join(' · ');
+}
+
+/**
+ * Melyik LISTÁS oldalhoz tartozik a hoszt: a lista tétele, amelynek a
+ * tartománya vagy valamelyik hosztneve a hoszt vagy annak szülője — különben a
+ * hoszt maga. A `m.youtube.com` és a `www.youtube.com` egy oldal.
+ */
+export function hostSite(host: string, sites: { domain: string; hostnames: string[] }[]): string {
+  let h = host.trim().toLowerCase();
+  while (h.endsWith('.')) h = h.slice(0, -1);
+  for (const s of sites) {
+    for (const n of [s.domain, ...s.hostnames]) if (h === n || h.endsWith('.' + n)) return s.domain;
+  }
+  return h;
+}
+
+/**
+ * A hét csúcs-oldala: az élbolyok összeadva minden forrásból, oldalanként (a
+ * hosztot a lista tételéhez rendelve) — (oldal, szám), vagy null. Holtversenynél
+ * az ábécé szerint korábbi. A napi öt hoszt összege alsó becslés, nem a teljes
+ * könyv — a csúcs viszont épp az, ami minden nap az élbolyban van.
+ */
+export function browserHitsTopSite(
+  book: BrowserHits | undefined, now: number, sites: { domain: string; hostnames: string[] }[],
+): { label: string; count: number } | null {
+  const from = hitDayKey(now - 6 * 86_400_000);
+  const to = hitDayKey(now);
+  const sum = new Map<string, number>();
+  for (const days of Object.values(book ?? {})) {
+    for (const d of days) {
+      if (d.day < from || d.day > to) continue;
+      for (const [h, n] of d.topHosts ?? []) {
+        const site = hostSite(h, sites);
+        sum.set(site, (sum.get(site) ?? 0) + n);
+      }
+    }
+  }
+  const best = [...sum.entries()].filter(([, n]) => n > 0)
+    .sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))[0];
+  return best ? { label: best[0], count: best[1] } : null;
 }

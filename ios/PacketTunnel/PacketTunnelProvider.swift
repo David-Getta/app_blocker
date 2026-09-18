@@ -92,9 +92,12 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
             if verdict == .blockedByList, let name, FilterHitLogic.shouldCount(&hitSeen, name, now: now) {
                 let day = FilterHitLogic.dayKey(now)
                 let hour = FilterHitLogic.hourOf(now)
+                // Oldalanként is: a lista tételével, nem a nyers hoszttal.
+                let site = FilterHitLogic.siteOf(name, sites: store.state.sites.map { (domain: $0.domain, hostnames: $0.hostnames) })
                 store.mutate {
                     $0.filterHits = FilterHitLogic.sweep(FilterHitLogic.record($0.filterHits ?? [:], day: day), today: day)
                     $0.filterHitHours = FilterHitLogic.cleanHours(FilterHitLogic.recordHour($0.filterHitHours ?? [:], day: day, hour: hour))
+                    $0.filterHitHosts = FilterHitLogic.cleanSites(FilterHitLogic.recordSite($0.filterHitHosts ?? [:], day: day, site: site))
                 }
             }
             guard let nx = DnsEngine.buildNxdomain(q.dnsPayload) else { return }

@@ -134,6 +134,58 @@ object FilterHitLogic {
     /** „21–22 óra” — a csúcs-óra felirata. */
     fun hourLabel(hour: Int): String = "$hour–${(hour + 1) % 24} óra"
 
+    // ------------------------------------------------------------ oldalanként
+
+    /** Naponta legfeljebb ennyi oldal a könyvben — a lista úgysem hosszabb. */
+    const val MAX_SITES_PER_DAY = 50
+
+    /**
+     * Melyik LISTÁS oldalhoz tartozik a tiltott név: a lista tétele (tartomány,
+     * hosztnevek), amelynek a neve a név vagy annak szülője — különben a név
+     * maga. A könyv az oldal nevével megy, nem a nyers hoszttal: a
+     * `m.youtube.com` és a `www.youtube.com` egy oldal.
+     */
+    fun siteOf(name: String, sites: List<Pair<String, List<String>>>): String {
+        val h = name.trim().lowercase().trimEnd('.')
+        for ((domain, hostnames) in sites) {
+            if ((listOf(domain) + hostnames).any { n -> h == n || h.endsWith(".$n") }) return domain
+        }
+        return h
+    }
+
+    /** Az oldalak könyve egy megakadással több: nap → (oldal → szám). Rossz nap, üres oldal vagy a plafon: változatlan. */
+    fun recordSite(hosts: Map<String, Map<String, Int>>, day: String, site: String): Map<String, Map<String, Int>> {
+        if (!DAY_KEY.matches(day) || site.isBlank()) return hosts
+        val row = hosts[day] ?: emptyMap()
+        val n = row[site] ?: 0
+        if (n >= MAX_PER_DAY) return hosts
+        if (site !in row && row.size >= MAX_SITES_PER_DAY) return hosts
+        return hosts + (day to row + (site to n + 1))
+    }
+
+    /** Az oldalak könyve tisztán: jó nap, nem üres oldal, pozitív szám a plafonig, a legfrissebb harminc nap. */
+    fun cleanSites(raw: Map<String, Map<String, Int>>?): Map<String, Map<String, Int>> {
+        val good = (raw ?: emptyMap())
+            .filter { (k, _) -> DAY_KEY.matches(k) }
+            .mapValues { (_, row) ->
+                row.filter { (s, n) -> s.isNotBlank() && n > 0 }.mapValues { minOf(it.value, MAX_PER_DAY) }
+                    .toList().sortedBy { it.first }.take(MAX_SITES_PER_DAY).toMap()
+            }
+            .filter { it.value.isNotEmpty() }
+        val keep = good.keys.sorted().takeLast(RETENTION_DAYS).toSet()
+        return good.filterKeys { it in keep }
+    }
+
+    /** A hét csúcs-oldala: (oldal, szám) — vagy null. Holtversenynél az ábécé szerint korábbi. */
+    fun topSite(hosts: Map<String, Map<String, Int>>, now: Long): Pair<String, Int>? {
+        val days = UsageLogic.dayKeysBack(now, 7).toSet()
+        val sum = HashMap<String, Int>()
+        for ((day, row) in hosts) if (day in days) for ((s, n) in row) sum[s] = (sum[s] ?: 0) + maxOf(0, n)
+        return sum.entries.filter { it.value > 0 }
+            .sortedWith(compareByDescending<Map.Entry<String, Int>> { it.value }.thenBy { it.key })
+            .firstOrNull()?.let { it.key to it.value }
+    }
+
     // ------------------------------------------------------------ a sokadik
 
     /**

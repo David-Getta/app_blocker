@@ -54,8 +54,8 @@ mondja („12 megakadás a szűrőben”); az ötödik, tizedik és huszadik mai
 kezdőlap egy lépést javasol (a kártya gombja a legutóbb használt csomagot
 indítja) — a tunnel nem értesít, a lap mondja, amíg nyitva van; tíz perccel a hét csúcs-órája előtt a rendszer szól (az app ütemezi,
 `App/PeakReminder.swift`; a statisztika kapcsolójával kikapcsolható). Tükör,
-nem ítélet; a fiókba nem megy.
-Lásd `docs/feature-usage-stats.md`.
+nem ítélet; a fiókba nem megy. A hét csúcs-oldalát is mondja (a lista tételével
+könyvelve). Lásd `docs/feature-usage-stats.md`.
 
 A **heti visszatekintés** hétfő reggel: a mondat akkor születik, amikor az app
 hétfő reggel hét után először nyitva van (a felület címkézésével, a

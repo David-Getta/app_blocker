@@ -116,6 +116,32 @@ final class FilterHitsTests: XCTestCase {
                        "Mindjárt 21 óra — a héten ilyenkor akadt meg a kéz a legtöbbször (7×). Egy munkamenet most segítene — te döntesz.")
     }
 
+    func testPerSiteTheNameToTheSiteTheBookThePeakSiteTheSaveAndTheSentence() throws {
+        let sites = [(domain: "youtube.com", hostnames: ["youtube.com", "www.youtube.com"])]
+        XCTAssertEqual(FilterHitLogic.siteOf("M.YouTube.com.", sites: sites), "youtube.com", "aldomain és nagybetű: az oldal")
+        XCTAssertEqual(FilterHitLogic.siteOf("notyoutube.com", sites: sites), "notyoutube.com", "a hasonló név nem az oldal")
+        var hosts = FilterHitLogic.recordSite([:], day: today, site: "youtube.com")
+        hosts = FilterHitLogic.recordSite(hosts, day: today, site: "youtube.com")
+        hosts = FilterHitLogic.recordSite(hosts, day: today, site: "reddit.com")
+        hosts = FilterHitLogic.recordSite(hosts, day: FilterHitLogic.dayKey(now - 8 * 86_400_000), site: "old.com") // nem a hété
+        hosts = FilterHitLogic.recordSite(hosts, day: "szemét", site: "youtube.com")
+        hosts = FilterHitLogic.recordSite(hosts, day: today, site: "")
+        XCTAssertEqual(hosts[today], ["youtube.com": 2, "reddit.com": 1])
+        XCTAssertEqual(FilterHitLogic.topSite(hosts, now: now)?.site, "youtube.com")
+        XCTAssertEqual(FilterHitLogic.topSite(hosts, now: now)?.count, 2)
+        XCTAssertNil(FilterHitLogic.topSite([:], now: now))
+        XCTAssertEqual(FilterHitLogic.topSite([today: ["b.com": 1, "a.com": 1]], now: now)?.site, "a.com", "holtverseny: az ábécé")
+        XCTAssertEqual(FilterHitLogic.cleanSites([today: ["youtube.com": 2, "": 3, "z.com": 0], "x": ["a": 1]]), [today: ["youtube.com": 2]])
+        var st = AppState()
+        st.filterHitHosts = hosts
+        XCTAssertEqual(try JSONDecoder().decode(AppState.self, from: try JSONEncoder().encode(st)).filterHitHosts, hosts, "a mentés hordozza az oldalakat")
+        let summary = Focus.Summary(sessions: 0, totalMs: 0, stoppedEarly: 0, topPack: nil)
+        XCTAssertEqual(DigestLogic.text(DigestLogic.Input(focusWeek: summary, unlocks7d: 0, filterHits7d: 12,
+                                                          filterHitsPeak: (hour: 21, count: 7), filterHitsTop: (label: "youtube.com", count: 5)),
+                                        labelOf: { $0 == "youtube.com" ? "A videós" : $0 }),
+                       "Elmúlt 7 nap: 12 megakadás a szűrőben, a csúcs 21–22 óra, a legtöbbször: A videós (5×).")
+    }
+
     func testTheSentenceAndTheSave() throws {
         let summary = Focus.Summary(sessions: 0, totalMs: 0, stoppedEarly: 0, topPack: nil)
         XCTAssertEqual(DigestLogic.text(DigestLogic.Input(focusWeek: summary, unlocks7d: 1, filterHits7d: 12), labelOf: { $0 }),

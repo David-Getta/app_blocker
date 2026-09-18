@@ -499,11 +499,14 @@ class BreakerVpnService : VpnService() {
             if (verdict == Focus.Verdict.BLOCKED_BY_LIST && name != null && FilterHitLogic.shouldCount(hitSeen, name, now)) {
                 val day = UsageLogic.dayKey(now)
                 val hour = FilterHitLogic.hourOf(now)
+                // Oldalanként is: a lista tételével, nem a nyers hoszttal.
+                val site = FilterHitLogic.siteOf(name, BreakerStore.state.value.sites.map { s -> s.domain to s.hostnames })
                 runCatching {
                     BreakerStore.mutate {
                         it.copy(
                             filterHits = FilterHitLogic.sweep(FilterHitLogic.record(it.filterHits, day), day),
                             filterHitHours = FilterHitLogic.cleanHours(FilterHitLogic.recordHour(it.filterHitHours, day, hour)),
+                            filterHitHosts = FilterHitLogic.cleanSites(FilterHitLogic.recordSite(it.filterHitHosts, day, site)),
                         )
                     }
                 }

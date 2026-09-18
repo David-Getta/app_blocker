@@ -753,6 +753,7 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                 focusDays = Focus.daySeries(state.focusLog, now, 7),
                 filterHitDays = FilterHitLogic.daySeries(state.filterHits, now, 7),
                 filterHitsPeak = FilterHitLogic.peakHour(state.filterHitHours, now),
+                filterHitsTop = FilterHitLogic.topSite(state.filterHitHosts, now),
                 quietSuggestions = state.quietSuggestions,
                 onToggleQuiet = { BreakerStore.mutate { it.copy(quietSuggestions = !it.quietSuggestions) } },
                 blockedDomains = state.sites.map { it.domain }.toSet(),

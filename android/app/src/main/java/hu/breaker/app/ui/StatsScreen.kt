@@ -56,6 +56,8 @@ fun StatsSection(
     filterHitDays: List<Pair<String, Double>> = emptyList(),
     /** a hét csúcs-órája (óra, szám) — mikor jár a kéz magától; null, ha nem volt */
     filterHitsPeak: Pair<Int, Int>? = null,
+    /** a hét csúcs-oldala (nyers név, szám) — melyik oldal akaszt meg a legtöbbször; null, ha nem volt */
+    filterHitsTop: Pair<String, Int>? = null,
     /** ha nem kéred, csendben marad: az értesítés a sokadik megakadásnál és a csúcs-óra előtt kikapcsolva */
     quietSuggestions: Boolean = false,
     onToggleQuiet: () -> Unit = {},
@@ -129,6 +131,10 @@ fun StatsSection(
                     "A hét csúcsa: ${FilterHitLogic.hourLabel(hour)} ($count megakadás) — akkor jár a kéz magától.",
                     style = MaterialTheme.typography.bodySmall,
                 )
+            }
+            // MELYIK oldal akaszt meg a legtöbbször: a hét csúcs-oldala — a lista címkézésével.
+            filterHitsTop?.let { (site, count) ->
+                Text("A legtöbbször: ${labelOf(site)} ($count×).", style = MaterialTheme.typography.bodySmall)
             }
             // HA NEM KÉRED, csendben marad: az értesítés a sokadik megakadásnál és a
             // csúcs-óra előtt kikapcsolható — a kártya a lapon akkor is mondja.

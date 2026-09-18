@@ -4,10 +4,10 @@
 import { test } from 'node:test';
 import * as assert from 'node:assert/strict';
 import {
-  HIT_NUDGE_STEPS, HIT_REASON_LABELS, MAX_HITS_PER_DAY, MAX_HIT_DAYS, MAX_HIT_SOURCES, PEAK_WARN_LEAD_MS,
-  PEAK_WARN_MIN_COUNT, browserHits7d, browserHitsBetween, browserHitsByReason, browserHitsPeakHour, browserHitsSeries,
-  browserHitsToday, cleanBrowserHitDays, cleanBrowserHits, hitDayKey, hitNudgeStep, hitNudgeText, hitsReasonLine,
-  hourLabel, peakWarnKey, peakWarnText, putBrowserHits,
+  HIT_NUDGE_STEPS, HIT_REASON_LABELS, MAX_HITS_PER_DAY, MAX_HIT_DAYS, MAX_HIT_SOURCES, MAX_TOP_HOSTS,
+  PEAK_WARN_LEAD_MS, PEAK_WARN_MIN_COUNT, browserHits7d, browserHitsBetween, browserHitsByReason, browserHitsPeakHour,
+  browserHitsSeries, browserHitsToday, browserHitsTopSite, cleanBrowserHitDays, cleanBrowserHits, hitDayKey, hitNudgeStep,
+  hitNudgeText, hitsReasonLine, hostSite, hourLabel, peakWarnKey, peakWarnText, putBrowserHits,
 } from '../src/shared/browser-hits';
 import { digestText } from '../src/shared/digest';
 import { summarizeFocus } from '../src/shared/focus';
@@ -156,4 +156,32 @@ test('okonként a héten: minden forrásból, a legnagyobb elöl, a sor a bőví
   // Holtversenyben az okok rögzített sorrendje: a sor nem ugrál két frissítés között.
   const tie = putBrowserHits(undefined, 'a', [{ day: '2026-09-18', total: 4, byReason: { keyword: 2, closed: 2 } }]);
   assert.deepEqual(browserHitsByReason(tie, NOW).map((r) => r.reason), ['closed', 'keyword']);
+});
+
+test('a hét csúcs-oldala: az élboly a hídról tisztán, a hoszt a lista tételéhez rendelve, holtversenynél az ábécé', () => {
+  const days = cleanBrowserHitDays([{
+    day: '2026-09-18', total: 5, byReason: {},
+    topHosts: [['www.YouTube.com.', 3], ['reddit.com', 9], ['', 2], ['x.com', 0], ['dup.com', 1], ['dup.com', 1], ['a.com', 1], ['b.com', 1], ['c.com', 1]],
+  }]);
+  assert.deepEqual(days[0].topHosts, [['www.youtube.com', 3], ['reddit.com', 5], ['dup.com', 1], ['a.com', 1], ['b.com', 1]],
+    'kisbetű, záró pont nélkül, a plafon a napi összeg, hosztonként egyszer, legfeljebb öt');
+  assert.equal(cleanBrowserHitDays([{ day: '2026-09-18', total: 1, byReason: {} }])[0].topHosts, undefined);
+  assert.equal(MAX_TOP_HOSTS, 5);
+  const sites = [{ domain: 'youtube.com', hostnames: ['youtube.com', 'www.youtube.com'] }];
+  assert.equal(hostSite('M.YouTube.com.', sites), 'youtube.com');
+  assert.equal(hostSite('notyoutube.com', sites), 'notyoutube.com', 'a hasonló név nem az oldal');
+  let book = putBrowserHits(undefined, 'a', [{ day: '2026-09-18', total: 4, byReason: {}, topHosts: [['www.youtube.com', 2], ['reddit.com', 2]] }]);
+  book = putBrowserHits(book, 'b', [{ day: '2026-09-17', total: 1, byReason: {}, topHosts: [['m.youtube.com', 1]] },
+    { day: '2026-09-11', total: 9, byReason: {}, topHosts: [['old.com', 9]] }]);
+  assert.deepEqual(browserHitsTopSite(book, NOW, sites), { label: 'youtube.com', count: 3 }, 'két hoszt egy oldal; a nyolc napos nem számít');
+  const tie = putBrowserHits(undefined, 'a', [{ day: '2026-09-18', total: 2, byReason: {}, topHosts: [['b.com', 1], ['a.com', 1]] }]);
+  assert.deepEqual(browserHitsTopSite(tie, NOW, []), { label: 'a.com', count: 1 }, 'holtverseny: az ábécé');
+  assert.equal(browserHitsTopSite(undefined, NOW, sites), null);
+  const base = {
+    last7Seconds: 0, topWeekSites: [], weekOverWeek: [], daysTracked: 0,
+    focusWeek: summarizeFocus([], 0, NOW), unlocks7d: 0,
+  };
+  assert.equal(digestText({ ...base, browserHits7d: 12, browserHitsPeak: { hour: 21, count: 7 }, browserHitsTop: { label: 'youtube.com', count: 5 } },
+    (l) => (l === 'youtube.com' ? 'A videós' : l)),
+  'Elmúlt 7 nap: 12 megakadás a böngészőben, a csúcs 21–22 óra, a legtöbbször: A videós (5×).');
 });

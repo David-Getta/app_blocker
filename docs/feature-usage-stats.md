@@ -419,13 +419,24 @@ statisztika nehézség-sora is mondja („· 12 megakadás a böngészőben”),
 bővítmény felugró lapja és beállítás-lapja pedig a mait és a hetet, naponként.
 A híd befelé CSAK ezt fogadja — könyvelést, szabályt soha. Nem szinkronizál:
 a gép saját tükre. A tiltó lap is mondja, a kísértés pillanatában: „Ma ez a
-7. megakadás — ebből a 3. ezen az oldalon.” (a hosztonkénti szám csak a gépen
-marad, a hídra a napi összeg megy). A gépi statisztika a hét alatt az okokat is
+7. megakadás — ebből a 3. ezen az oldalon.” (a hosztonkénti könyv csak a gépen
+marad; a hídra a napi összeg és a nap öt leggyakoribb hosztja megy — a gépen
+belül, a fiókba nem). A gépi statisztika a hét alatt az okokat is
 mondja — MELYIK szabály dolgozik: „Ebből: 7 zárva oldal · 3 kulcsszó · 2
 munkamenet.” (`browserHitsReasons` a státuszban, a hídon átjött okonkénti
 számokból; holtversenynél az okok rögzített sorrendje, hogy a sor ne ugráljon).
 A bővítmény beállítás-lapja ugyanezt mondja a saját könyvéből: „A héten: 4
 zárva oldal · 3 munkamenet” — app nélkül is.
+
+**Melyik oldal akaszt meg a legtöbbször:** a hét csúcs-oldala mindhárom
+platformon. A gépen a bővítmény napi élbolyából (a segéd a lista tételéhez
+rendeli: a `m.youtube.com` és a `www.youtube.com` egy oldal; a napi öt hoszt
+összege alsó becslés, a csúcs viszont épp az, ami minden nap az élbolyban
+van), a telefonon a szűrő a lista tételével könyvel (`filterHitHosts`, nap →
+oldal → szám, ötven oldal naponta, harminc napig). A statisztika mondja („A
+legtöbbször: youtube.com (7×).”) és a heti mondat is: „12 megakadás a
+böngészőben, a csúcs 21–22 óra, a legtöbbször: youtube.com (7×).” A rejtett
+lista és a fedőnév itt is fed. Ami nincs a listán, a nevén marad.
 
 **Mikor jár a kéz magától:** a bővítmény óránként is könyvel (a nap
 huszonnégy rekesze), a beállítás-lapja a hét csúcs-óráját mondja és egy

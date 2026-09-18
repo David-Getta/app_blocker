@@ -96,6 +96,8 @@ export interface DigestInput {
   browserHits7d?: number;
   /** a hét csúcs-órája a böngésző megakadásaira — mikor jár a kéz magától; null, ha nem volt */
   browserHitsPeak?: { hour: number; count: number } | null;
+  /** a hét csúcs-oldala (nyers név, a címkézés a mondaté) — melyik oldal akaszt meg a legtöbbször */
+  browserHitsTop?: { label: string; count: number } | null;
   /** van-e egyáltalán mért nap */
   daysTracked: number;
   /**
@@ -159,7 +161,11 @@ export function digestText(input: DigestInput, labelOf: (label: string) => strin
   // A megakadás: hányszor állította meg a böngésző — tény, nem ítélet.
   const hits = input.browserHits7d ?? 0;
   const peak = input.browserHitsPeak ?? null;
-  if (hits > 0) parts.push(`${hits} megakadás a böngészőben${peak ? `, a csúcs ${hourLabel(peak.hour)}` : ''}.`);
+  const top = input.browserHitsTop ?? null;
+  if (hits > 0) {
+    parts.push(`${hits} megakadás a böngészőben${peak ? `, a csúcs ${hourLabel(peak.hour)}` : ''}`
+      + `${top ? `, a legtöbbször: ${labelOf(top.label)} (${top.count}×)` : ''}.`);
+  }
   // A tükör másik fele: ami sokat vitt, és nincs a listán. Egy név, a
   // legnagyobb — a többi a felvevő kártyán vár, egy kattintásra.
   const open = input.unblockedTop?.[0];

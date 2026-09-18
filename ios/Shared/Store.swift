@@ -129,6 +129,8 @@ struct AppState: Codable, Equatable {
     var filterHits: [String: Int]? = nil
     /// A szűrő megakadásai óránként: nap → 24 rekesz — mikor jár a kéz magától.
     var filterHitHours: [String: [Int]]? = nil
+    /// A szűrő megakadásai oldalanként: nap → (a lista tétele → szám) — melyik oldal akaszt meg a legtöbbször.
+    var filterHitHosts: [String: [String: Int]]? = nil
     /// Rejtve induljon-e a blokkolt oldalak listája.
     ///
     /// Beállítás, nem pillanatnyi állapot: a felület minden indításkor rejtve
