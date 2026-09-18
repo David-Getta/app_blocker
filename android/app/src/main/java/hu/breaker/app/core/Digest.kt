@@ -113,6 +113,8 @@ object DigestLogic {
         val filterHitsWeekday: Pair<Int, Int>? = null,
         /** a négy hét menet-napja (nap 0 = vasárnap, szám) — melyik napon ülsz le a legtöbbször; null, ha nem volt */
         val focusWeekday: Pair<Int, Int>? = null,
+        /** a mért idő napja (nap 0 = vasárnap, másodperc négy hét alatt) — melyik napon megy el a legtöbb idő; null, ha nem volt mérés */
+        val usageWeekday: Pair<Int, Int>? = null,
         /** a hét csúcs-oldala (nyers név, a címkézés a mondaté; szám) — melyik oldal akaszt meg a legtöbbször */
         val filterHitsTop: Pair<String, Int>? = null,
         /**
@@ -160,6 +162,9 @@ object DigestLogic {
                 line += "; appban a legtöbb: ${labelOf(app.label)} ${hm(app.seconds)}${trendOf(app.label)}"
             }
             parts.add("$line.")
+            // A MÉRT IDŐ NAPJA: melyik napon megy el a legtöbb idő — négy hétből, a
+            // statisztika mondata szó szerint. Csak mérés mellett; nap nélkül nincs.
+            input.usageWeekday?.let { parts.add(UsageLogic.weekdayText(it)) }
         }
         val f = input.focusWeek
         val p = input.focusPrevWeek
@@ -298,6 +303,8 @@ object DigestLogic {
             topWeekSites = summary.topWeekSites.map { Top(it.label, it.seconds) },
             topWeekApps = summary.topWeekApps.map { Top(it.label, it.seconds) },
             weekOverWeek = summary.weekOverWeek.map { Delta(it.label, it.deltaPct) },
+            // A mért idő napja — négy hétből, a statisztika sora: a mondat is mondja.
+            usageWeekday = FilterHitLogic.peakWeekday(UsageLogic.byWeekday(st.usage, now)),
             // A napló ablaka a gépével közös: a mai nap kezdete mínusz hat nap.
             focusWeek = Focus.summarizeFocus(st.focusLog, UsageLogic.startOfDay(now) - 6 * 86_400_000L, now),
             focusPrevWeek = Focus.summarizeFocusPrevWeek(st.focusLog, now),

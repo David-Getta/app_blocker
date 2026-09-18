@@ -238,3 +238,12 @@ test('a menet-nap a mondatban: a statisztika sora szó szerint, a menetek után 
     `${head} A négy hét menet-napja: kedd (6 menet). 3 feloldás.`);
   assert.equal(digestText({ ...full, focusWeekday: null }, (l) => l), digestText(full, (l) => l), 'nap nélkül a régi mondat');
 });
+
+test('a mért idő napja a mondatban: a statisztika sora szó szerint, a mért idő után — mérés és nap nélkül nem mondat', () => {
+  assert.equal(digestText({ ...full, usageWeekday: { day: 6, count: 12000 } }, (l) => l),
+    'Elmúlt 7 nap: 7 ó 20 p mért idő; a legtöbb: youtube.com 2 ó 40 p (▼ -33% az előző héthez képest). '
+    + 'A négy hét legnagyobb napja: szombat (átlag 50 p). 9 menet (7 ó 0 p, 2 korán leállítva). 3 feloldás.');
+  assert.equal(digestText({ ...full, usageWeekday: null }, (l) => l), digestText(full, (l) => l), 'nap nélkül a régi mondat');
+  assert.equal(digestText({ ...full, last7Seconds: 0, usageWeekday: { day: 6, count: 12000 } }, (l) => l),
+    digestText({ ...full, last7Seconds: 0 }, (l) => l), 'mérés nélkül a nap sem mondat');
+});

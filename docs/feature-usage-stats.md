@@ -557,7 +557,9 @@ napja: szombat (átlag 3 ó 20 p).”), alatta a hét napjainak sávja, a nap
 kiemelve. A gépi statisztikán a hét rajza alatt (`usageByWeekday` a segédnél,
 `usageWeekdays` a statisztika-válaszban) és Androidon (`UsageLogic.byWeekday`);
 iPhone-on nincs mérés, ott nincs. A minta hossza és a holtverseny szabálya a
-csúcs-napéval közös. Mérés nélkül nincs.
+csúcs-napéval közös. Mérés nélkül nincs. A heti mondat is mondja, a mért idő
+mondata után, szó szerint (`usageWeekday` a mondat bemenetén — a segéd és az
+Android építi; a Swift bemenet tükör, üresen); mérés vagy nap nélkül nincs.
 
 **Ablak a csúcs-órára:** a statisztika a csúcs-óra mondata alatt — a gépen
 és a telefonokon is — egy gombot mutat — „Heti ablak a csúcs-órára: Nyelvtanulás, minden nap 21:00–22:00” —,

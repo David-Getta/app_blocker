@@ -100,6 +100,8 @@ public enum DigestLogic {
         public var filterHitsWeekday: (day: Int, count: Int)? = nil
         /// A négy hét menet-napja (0 = vasárnap) — melyik napon ülsz le a legtöbbször; nil, ha nem volt.
         public var focusWeekday: (day: Int, count: Int)? = nil
+        /// A mért idő napja (0 = vasárnap; másodperc négy hét alatt) — a gépi és az Android mag tükre; iPhone-on nincs mérés, az építő nem tölti.
+        public var usageWeekday: (day: Int, count: Int)? = nil
         /// A hét csúcs-oldala (nyers név, a címkézés a mondaté; szám) — melyik oldal akaszt meg a legtöbbször.
         public var filterHitsTop: (label: String, count: Int)?
         /// Az azt megelőző 7 nap — a hét az előző héthez képest; nulla, ha nem volt (vagy a könyv akkor kezdődött).
@@ -145,6 +147,12 @@ public enum DigestLogic {
         return h > 0 ? "\(h) ó \(m) p" : "\(m) p"
     }
 
+    /// „A négy hét legnagyobb napja: szombat (átlag 3 ó 20 p).” — a gépi `usageWeekdayText` tükre; négy-négy nap átlaga.
+    public static func usageWeekdayText(_ peak: (day: Int, count: Int)) -> String {
+        let name = peak.day >= 0 && peak.day < FilterHitLogic.weekdayNames.count ? FilterHitLogic.weekdayNames[peak.day] : "?"
+        return "A négy hét legnagyobb napja: \(name) (átlag \(UsageStats.formatDuration((Double(peak.count) / 4).rounded()))."
+    }
+
     /// A visszatekintés szövege — vagy nil, ha nincs miről beszélni (se mérés,
     /// se menet, se feloldás): egy üres sor zaj lenne, nem tükör.
     ///
@@ -169,6 +177,8 @@ public enum DigestLogic {
                 line += "; appban a legtöbb: \(labelOf(app.label)) \(hm(app.seconds))\(trendOf(app.label))"
             }
             parts.append("\(line).")
+            // A MÉRT IDŐ NAPJA: melyik napon megy el a legtöbb idő — a statisztika mondata szó szerint. Csak mérés mellett.
+            if let usageDay = input.usageWeekday { parts.append(usageWeekdayText(usageDay)) }
         }
         let f = input.focusWeek
         // Az előző hét a menetek mellett — irány, nem ítélet. Üres előző hét nem

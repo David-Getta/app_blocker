@@ -20,6 +20,7 @@
 // fedőnév) — az értesítés sem szivárogtathat ki olyan címet, amit a lista elrejt.
 
 import { focusWeekdayText, type FocusSummary } from './focus.js';
+import { usageWeekdayText } from './usage.js';
 import { hourLabel, peakWeekdayText } from './browser-hits.js';
 
 /** Hétfőn ettől az órától esedékes (helyi idő). */
@@ -114,6 +115,8 @@ export interface DigestInput {
   browserHitsWeekday?: { day: number; count: number } | null;
   /** a négy hét menet-napja (0 = vasárnap; szám) — melyik napon ülsz le a legtöbbször; null, ha nem volt */
   focusWeekday?: { day: number; count: number } | null;
+  /** a mért idő napja (0 = vasárnap; másodperc négy hét alatt) — melyik napon megy el a legtöbb idő; null, ha nem volt mérés */
+  usageWeekday?: { day: number; count: number } | null;
   /** a hét csúcs-oldala (nyers név, a címkézés a mondaté) — melyik oldal akaszt meg a legtöbbször */
   browserHitsTop?: { label: string; count: number } | null;
   /** van-e egyáltalán mért nap */
@@ -163,6 +166,10 @@ export function digestText(input: DigestInput, labelOf: (label: string) => strin
       line += `; appban a legtöbb: ${labelOf(app.label)} ${hm(app.seconds)}${trendOf(app.label)}`;
     }
     parts.push(`${line}.`);
+    // A MÉRT IDŐ NAPJA: melyik napon megy el a legtöbb idő — négy hétből, a
+    // statisztika mondata szó szerint. Csak mérés mellett; nap nélkül nincs.
+    const usageDay = input.usageWeekday ?? null;
+    if (usageDay) parts.push(usageWeekdayText(usageDay));
   }
   const f = input.focusWeek;
   const p = input.focusPrevWeek ?? null;

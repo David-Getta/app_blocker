@@ -1273,6 +1273,17 @@ const WIRES = [
     needle: 'WeekdayStrip(usageWeekdays, peakDay = day, peakCount = count)',
     lost: 'az Android statisztika nem mondaná és nem rajzolná a mért idő napját',
   },
+  // A HETI MONDAT a mért idő napját is mondja — a gépen és Androidon (iPhone-on nincs mérés).
+  {
+    file: 'desktop/src/helper/digest-journal.ts',
+    needle: 'usageWeekday: peakWeekday(usageByWeekday(state.usage, now)),',
+    lost: 'a gépi heti mondat nem mondaná a mért idő napját',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/Digest.kt',
+    needle: 'usageWeekday = FilterHitLogic.peakWeekday(UsageLogic.byWeekday(st.usage, now)),',
+    lost: 'az Android heti mondat nem mondaná a mért idő napját',
+  },
   // AZ ABLAK SZERINT INDULT menet a rétegben és az Android értesítésén is kimondva.
   {
     file: 'desktop/src/renderer/overlay.ts',

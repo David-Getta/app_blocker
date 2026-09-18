@@ -305,4 +305,18 @@ class DigestTest {
         assertEquals("$head A négy hét menet-napja: kedd (6 menet). 3 feloldás.", DigestLogic.text(full.copy(focusWeekday = 2 to 6)) { it })
         assertEquals(DigestLogic.text(full) { it }, DigestLogic.text(full.copy(focusWeekday = null)) { it }, "nap nélkül a régi mondat")
     }
+
+    @Test fun `a mert ido napja a mondatban - a statisztika sora szo szerint, meres es nap nelkul nem mondat`() {
+        assertEquals(
+            "Elmúlt 7 nap: 7 ó 20 p mért idő; a legtöbb: youtube.com 2 ó 40 p (▼ -33% az előző héthez képest). " +
+                "A négy hét legnagyobb napja: szombat (átlag 50 p). 9 menet (7 ó 0 p, 2 korán leállítva). 3 feloldás.",
+            DigestLogic.text(full.copy(usageWeekday = 6 to 12000)) { it },
+        )
+        assertEquals(DigestLogic.text(full) { it }, DigestLogic.text(full.copy(usageWeekday = null)) { it }, "nap nélkül a régi mondat")
+        assertEquals(
+            DigestLogic.text(full.copy(last7Seconds = 0.0)) { it },
+            DigestLogic.text(full.copy(last7Seconds = 0.0, usageWeekday = 6 to 12000)) { it },
+            "mérés nélkül a nap sem mondat",
+        )
+    }
 }
