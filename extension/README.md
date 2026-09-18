@@ -96,7 +96,8 @@ hídon felteszi az ablakot, ha az app csúcs-óráját semmi nem fedi és a
 csomagnak nincs még; csak felvétel, a csere az appé. Mindkettő ott van a
 tiltó lapon is. Ha egy csomag ablaka már fedi a csúcs-órát, a lap a csúcs
 mondata után kimondja: „A csúcs-órában magától indul: Nyelvtanulás.” — az
-app szava, frissen. Minden más csak
+app szava, frissen. A csúcs-napon (négy hétből, legalább három megakadásból)
+a felugró lap és a tiltó lap azt is mondja, hogy ma van. Minden más csak
 olvas: összekötve van-e az app és mennyire friss,
 amit tud; fut-e munkamenet (név, hátralévő idő, hány cím engedett — és ha a
 heti ablak szerint indult, azt is kimondja, mert aki nem maga indította, nem

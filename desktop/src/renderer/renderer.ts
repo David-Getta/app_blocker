@@ -23,7 +23,7 @@ import {
   MAX_LOCKDOWN_WINDOWS, type Lockdown, type LockdownWindow,
 } from '../shared/lockdown.js';
 import {
-  hitNudgeStep, hitNudgeText, hitsKeywordLine, hitsReasonLine, hitsTrendText, hourLabel, monthHasOlderHits, peakNowText,
+  hitNudgeStep, hitNudgeText, hitsKeywordLine, hitsReasonLine, hitsTrendText, hourLabel, monthHasOlderHits, peakDayNowText, peakNowText,
   peakWarnKey, peakWarnText,
   peakWeekdayText,
 } from '../shared/browser-hits.js';
@@ -398,6 +398,9 @@ function renderSuggestCard(now: number): void {
   if (peak && peakWarnKey(peak, now) !== null) lines.push(peakWarnText(peak));
   const nowLine = peakNowText(peak, now).trim();
   if (nowLine) lines.push(nowLine);
+  // A CSÚCS-NAPON a kártya azt is mondja: ma van — négy hétből, csak elég mintából.
+  const dayLine = peakDayNowText(status?.browserHitsWeekday ?? null, now).trim();
+  if (dayLine) lines.push(dayLine);
   $('suggestCard').classList.toggle('hidden', lines.length === 0);
   $('suggestText').textContent = lines.join(' ');
   const pick = suggestedPack();

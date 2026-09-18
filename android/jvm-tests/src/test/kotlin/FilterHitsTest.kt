@@ -302,4 +302,18 @@ class FilterHitsTest {
         assertEquals(listOf(0, 0, 0, 0, 0, 0, 0), FilterHitLogic.byWeekday(emptyMap(), now))
         assertEquals("A négy hét csúcs-napja: vasárnap (14 megakadás).", FilterHitLogic.peakWeekdayText(0 to 14))
     }
+
+    @Test fun `a csucs-nap a kisertes napjan - ma van-e, es csak eleg mintabol`() {
+        // 2026-09-20 vasárnap, 2026-09-21 hétfő.
+        fun at(day: Int) = java.util.Calendar.getInstance().apply {
+            set(2026, java.util.Calendar.SEPTEMBER, day, 15, 0, 0); set(java.util.Calendar.MILLISECOND, 0)
+        }.timeInMillis
+        val peak = 0 to 14
+        assertEquals(true, FilterHitLogic.isPeakDayNow(peak, at(20)))
+        assertEquals(false, FilterHitLogic.isPeakDayNow(peak, at(21)), "más napon nem")
+        assertEquals(false, FilterHitLogic.isPeakDayNow(0 to FilterHitLogic.PEAK_DAY_MIN_COUNT - 1, at(20)), "kevés minta: nem mondat")
+        assertEquals(true, FilterHitLogic.isPeakDayNow(0 to FilterHitLogic.PEAK_DAY_MIN_COUNT, at(20)))
+        assertEquals(false, FilterHitLogic.isPeakDayNow(null, at(20)))
+        assertEquals("Ma a négy hét csúcs-napja van (vasárnap, 14 megakadás) — ezen a napon akad meg a kéz a legtöbbször.", FilterHitLogic.peakDayNowText(peak))
+    }
 }

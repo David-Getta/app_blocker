@@ -204,6 +204,17 @@ object FilterHitLogic {
     fun peakWeekdayText(peak: Pair<Int, Int>): String =
         "A négy hét csúcs-napja: ${WEEKDAY_NAMES.getOrElse(peak.first) { "?" }} (${peak.second} megakadás)."
 
+    /** Ennyi megakadás alatt a csúcs-nap „most” mondata nem szól: egy-két megakadás négy hétből nem minta, csak zaj. A gépi mag tükre. */
+    const val PEAK_DAY_MIN_COUNT = 3
+
+    /** MA a csúcs-nap van-e: a négy hét csúcs-napja és a helyi nap egybeesik — és a minta elég. */
+    fun isPeakDayNow(peak: Pair<Int, Int>?, now: Long): Boolean =
+        peak != null && peak.second >= PEAK_DAY_MIN_COUNT && weekdayOf(UsageLogic.dayKey(now)) == peak.first
+
+    /** A tükör a kísértés napján: a kezdőlap kártyája a csúcs-napon. */
+    fun peakDayNowText(peak: Pair<Int, Int>): String =
+        "Ma a négy hét csúcs-napja van (${WEEKDAY_NAMES.getOrElse(peak.first) { "?" }}, ${peak.second} megakadás) — ezen a napon akad meg a kéz a legtöbbször."
+
     // ------------------------------------------------------------ oldalanként
 
     /** Naponta legfeljebb ennyi oldal a könyvben — a lista úgysem hosszabb. */

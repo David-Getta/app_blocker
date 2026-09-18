@@ -13,6 +13,7 @@ import {
   peakWarnKey, peakWarnText,
   putBrowserHits,
   browserHitsByWeekday, peakWeekday, peakWeekdayText,
+  PEAK_DAY_MIN_COUNT, isPeakDayNow, peakDayNowText,
 } from '../src/shared/browser-hits';
 import { digestText } from '../src/shared/digest';
 import { summarizeFocus } from '../src/shared/focus';
@@ -289,4 +290,20 @@ test('a csúcs-nap: négy hétből, a hét napjaira osztva; holtversenynél a h�
   assert.equal(peakWeekday([0, 0, 0, 0, 0, 0, 0]), null);
   assert.deepEqual(browserHitsByWeekday(undefined, NOW), [0, 0, 0, 0, 0, 0, 0]);
   assert.equal(peakWeekdayText({ day: 0, count: 14 }), 'A négy hét csúcs-napja: vasárnap (14 megakadás).');
+});
+
+test('a csúcs-nap a kísértés napján: ma van-e, és csak elég mintából — a láb és a kártya mondata', () => {
+  // 2026-09-20 vasárnap, 2026-09-21 hétfő (helyi idő).
+  const sunday = new Date(2026, 8, 20, 15, 0).getTime();
+  const monday = new Date(2026, 8, 21, 15, 0).getTime();
+  const peak = { day: 0, count: 14 };
+  assert.equal(isPeakDayNow(peak, sunday), true);
+  assert.equal(isPeakDayNow(peak, monday), false, 'más napon nem');
+  assert.equal(isPeakDayNow({ day: 0, count: PEAK_DAY_MIN_COUNT - 1 }, sunday), false, 'kevés minta: nem mondat');
+  assert.equal(isPeakDayNow({ day: 0, count: PEAK_DAY_MIN_COUNT }, sunday), true);
+  assert.equal(isPeakDayNow(null, sunday), false);
+  assert.equal(peakDayNowText(peak, sunday),
+    ' Ma a négy hét csúcs-napja van (vasárnap, 14 megakadás) — ezen a napon akad meg a kéz a legtöbbször.');
+  assert.equal(peakDayNowText(peak, monday), '', 'a csúcs-napon kívül a láb nem mondja');
+  assert.equal(peakDayNowText(null, sunday), '');
 });

@@ -186,6 +186,21 @@ public enum FilterHitLogic {
         return "A négy hét csúcs-napja: \(name) (\(peak.count) megakadás)."
     }
 
+    /// Ennyi megakadás alatt a csúcs-nap „most” mondata nem szól: egy-két megakadás négy hétből nem minta, csak zaj. A gépi mag tükre.
+    public static let peakDayMinCount = 3
+
+    /// MA a csúcs-nap van-e: a négy hét csúcs-napja és a helyi nap egybeesik — és a minta elég.
+    public static func isPeakDayNow(_ peak: (day: Int, count: Int)?, now: Double) -> Bool {
+        guard let peak, peak.count >= peakDayMinCount else { return false }
+        return Calendar.current.component(.weekday, from: Date(timeIntervalSince1970: now / 1000)) - 1 == peak.day
+    }
+
+    /// A tükör a kísértés napján: a kezdőlap kártyája a csúcs-napon.
+    public static func peakDayNowText(_ peak: (day: Int, count: Int)) -> String {
+        let name = peak.day >= 0 && peak.day < weekdayNames.count ? weekdayNames[peak.day] : "?"
+        return "Ma a négy hét csúcs-napja van (\(name), \(peak.count) megakadás) — ezen a napon akad meg a kéz a legtöbbször."
+    }
+
     // MARK: - oldalanként
 
     /// Naponta legfeljebb ennyi oldal a könyvben — a lista úgysem hosszabb.

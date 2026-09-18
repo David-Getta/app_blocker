@@ -424,6 +424,13 @@ struct ContentView: View {
         FilterHitLogic.peakHour(store.state.filterHitHours ?? [:], now: now)?.hour
     }
 
+    /// A CSÚCS-NAPON: a négy hét csúcs-napja — különben nil. Csak elég mintából; a kártya mondja, hogy ma van.
+    private var peakDayNow: (day: Int, count: Int)? {
+        guard let peak = FilterHitLogic.peakWeekday(FilterHitLogic.byWeekday(store.state.filterHits ?? [:], now: now)),
+              FilterHitLogic.isPeakDayNow(peak, now: now) else { return nil }
+        return peak
+    }
+
     /// A CSÚCS-ÓRÁBAN: a csúcs — különben nil. A kártya a tükröt mondja: most jár a kéz magától.
     private var peakNow: (hour: Int, count: Int)? {
         guard let peak = FilterHitLogic.peakHour(store.state.filterHitHours ?? [:], now: now),
@@ -439,12 +446,15 @@ struct ContentView: View {
             let step = FilterHitLogic.nudgeStep(FilterHitLogic.hitsToday(store.state.filterHits ?? [:], now: now))
             let soon = peakSoon
             let inPeak = peakNow
-            if step > 0 || soon != nil || inPeak != nil {
+            let onPeakDay = peakDayNow
+            if step > 0 || soon != nil || inPeak != nil || onPeakDay != nil {
                 VStack(alignment: .leading, spacing: 8) {
                     if step > 0 { Text(FilterHitLogic.nudgeText(step)).font(.footnote) }
                     if let soon { Text(FilterHitLogic.peakWarnText(soon)).font(.footnote) }
                     // A CSÚCS-ÓRÁBAN a kártya a tükröt mondja — a gombbal, mint az előjelzésnél.
                     if let inPeak { Text(FilterHitLogic.peakNowText(inPeak)).font(.footnote) }
+                    // A CSÚCS-NAPON: ma van — négy hétből, csak elég mintából.
+                    if let onPeakDay { Text(FilterHitLogic.peakDayNowText(onPeakDay)).font(.footnote) }
                     // EGY KOPPINTÁS a mondattól a menetig: a legutóbb használt csomag
                     // a szokásos hosszával — szigorítás, ingyen. Futó menet mellett
                     // nincs gomb (egyszerre egy menet fut).

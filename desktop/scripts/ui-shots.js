@@ -1009,7 +1009,8 @@ async function main() {
   // A JAVASLAT kártyája a kezdőlapon: a sokadik megakadásnál (12: a tizes
   // lépcső) a mondat és a gomb a legutóbbi csomaggal — futó menet nélkül.
   // A szám nélkül a kártya eltűnik: üresen nincs.
-  await page.evaluate(() => { window.__fakeStatusPatch = { browserHitsToday: 12 }; });
+  // A CSÚCS-NAP is ma: a kártya azt is mondja, hogy ma van (négy hétből, elég mintából).
+  await page.evaluate(() => { window.__fakeStatusPatch = { browserHitsToday: 12, browserHitsWeekday: { day: new Date().getDay(), count: 14 } }; });
   await goTo(page, 'sites');
   // A KERET SORA a héten betelt napokkal: a keretes oldal sora mondja.
   await page.waitForFunction(
@@ -1024,6 +1025,7 @@ async function main() {
   await page.waitForFunction(
     () => !document.getElementById('suggestCard')?.classList.contains('hidden')
       && /Ma már \d+ megakadás/.test(document.getElementById('suggestText')?.textContent || '')
+      && /Ma a négy hét csúcs-napja van \([a-záéíóöőúüű]+, 14 megakadás\)/.test(document.getElementById('suggestText')?.textContent || '')
       && /Munkamenet: Mély munka, 90 perc/.test(document.getElementById('suggestStartBtn')?.textContent || '')
       && !document.getElementById('suggestStartBtn')?.classList.contains('hidden'),
     undefined, { timeout: 15_000 },

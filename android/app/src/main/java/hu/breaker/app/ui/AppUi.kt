@@ -393,12 +393,15 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
             // A CSÚCS-ÓRÁBAN a kártya a tükröt mondja: most jár a kéz magától — a
             // gombbal, mint az előjelzésnél. A csúcs-órán kívül nem szól róla.
             val peakNow = peak?.takeIf { FilterHitLogic.isPeakNow(it, now) }
-            if (nudge > 0 || peakSoon != null || peakNow != null) {
+            // A CSÚCS-NAPON a kártya azt is mondja: ma van — négy hétből, csak elég mintából.
+            val peakDay = FilterHitLogic.peakWeekday(FilterHitLogic.byWeekday(state.filterHits, now))?.takeIf { FilterHitLogic.isPeakDayNow(it, now) }
+            if (nudge > 0 || peakSoon != null || peakNow != null || peakDay != null) {
                 Card {
                     Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         if (nudge > 0) Text(FilterHitLogic.nudgeText(nudge), style = MaterialTheme.typography.bodySmall)
                         peakSoon?.let { Text(FilterHitLogic.peakWarnText(it), style = MaterialTheme.typography.bodySmall) }
                         peakNow?.let { Text(FilterHitLogic.peakNowText(it), style = MaterialTheme.typography.bodySmall) }
+                        peakDay?.let { Text(FilterHitLogic.peakDayNowText(it), style = MaterialTheme.typography.bodySmall) }
                         // EGY KOPPINTÁS a mondattól a menetig: a legutóbb használt
                         // csomag a szokásos hosszával — szigorítás, ingyen. Futó menet
                         // mellett nincs gomb (egyszerre egy menet fut).

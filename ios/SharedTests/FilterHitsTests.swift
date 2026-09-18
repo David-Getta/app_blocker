@@ -269,4 +269,19 @@ final class FilterHitsTests: XCTestCase {
         XCTAssertEqual(FilterHitLogic.byWeekday([:], now: now), [0, 0, 0, 0, 0, 0, 0])
         XCTAssertEqual(FilterHitLogic.peakWeekdayText((day: 0, count: 14)), "A négy hét csúcs-napja: vasárnap (14 megakadás).")
     }
+
+    func testThePeakDayOnTheDayOfTemptationIsItTodayAndOnlyFromEnoughSample() {
+        // 2026-09-20 vasárnap, 2026-09-21 hétfő.
+        func at(_ day: Int) -> Double {
+            var c = DateComponents(); c.year = 2026; c.month = 9; c.day = day; c.hour = 15
+            return Calendar.current.date(from: c)!.timeIntervalSince1970 * 1000
+        }
+        let peak = (day: 0, count: 14)
+        XCTAssertTrue(FilterHitLogic.isPeakDayNow(peak, now: at(20)))
+        XCTAssertFalse(FilterHitLogic.isPeakDayNow(peak, now: at(21)), "más napon nem")
+        XCTAssertFalse(FilterHitLogic.isPeakDayNow((day: 0, count: FilterHitLogic.peakDayMinCount - 1), now: at(20)), "kevés minta: nem mondat")
+        XCTAssertTrue(FilterHitLogic.isPeakDayNow((day: 0, count: FilterHitLogic.peakDayMinCount), now: at(20)))
+        XCTAssertFalse(FilterHitLogic.isPeakDayNow(nil, now: at(20)))
+        XCTAssertEqual(FilterHitLogic.peakDayNowText(peak), "Ma a négy hét csúcs-napja van (vasárnap, 14 megakadás) — ezen a napon akad meg a kéz a legtöbbször.")
+    }
 }

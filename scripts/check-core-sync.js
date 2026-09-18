@@ -364,6 +364,13 @@ const CHECKS = [
     scalar(ts.browserHits, /PEAK_WEEKDAY_DAYS\s*=\s*([^;]+);/, 'ts'),
     scalar(kt.filterHits, /PEAK_WEEKDAY_DAYS[^=]*=\s*(.+)/, 'kt'),
     scalar(sw.filterHits, /peakWeekdayDays[^=]*=\s*(.+)/, 'swift')],
+  // A CSÚCS-NAP „ma van” mondatának küszöbe: egy-két megakadás négy hétből
+  // nem minta — ha a gép háromnál, a telefon egynél szólna, ugyanaz az ember
+  // két napot tudna meg.
+  ['PEAK_DAY_MIN_COUNT',
+    scalar(ts.browserHits, /PEAK_DAY_MIN_COUNT\s*=\s*([^;]+);/, 'ts'),
+    scalar(kt.filterHits, /PEAK_DAY_MIN_COUNT[^=]*=\s*(.+)/, 'kt'),
+    scalar(sw.filterHits, /peakDayMinCount[^=]*=\s*(.+)/, 'swift')],
 ];
 
 // KÉT NYELV KÖZÖTT. Amit csak a gép és az Android tud (iPhone-on a bővítmény

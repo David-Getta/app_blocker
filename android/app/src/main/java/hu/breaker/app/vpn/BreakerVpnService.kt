@@ -207,7 +207,10 @@ class BreakerVpnService : VpnService() {
         val hitsToday = FilterHitLogic.hitsToday(st.filterHits, now)
         // A CSÚCS-ÓRÁBAN a sor azt is mondja, hogy most van — a tükör a pillanaté.
         val peakNow = FilterHitLogic.isPeakNow(FilterHitLogic.peakHour(st.filterHitHours, now), now)
-        val hitsPart = (if (hitsToday > 0) " · Ma $hitsToday megakadás" else "") + (if (peakNow) " · most a csúcs-óra" else "")
+        // A CSÚCS-NAPON azt is, hogy ma van — négy hétből, csak elég mintából.
+        val peakDay = FilterHitLogic.isPeakDayNow(FilterHitLogic.peakWeekday(FilterHitLogic.byWeekday(st.filterHits, now)), now)
+        val hitsPart = (if (hitsToday > 0) " · Ma $hitsToday megakadás" else "") + (if (peakNow) " · most a csúcs-óra" else "") +
+            (if (peakDay) " · ma a csúcs-nap" else "")
         val textWithHits = if (hitsPart.isNotEmpty() && strictDns == null) text + hitsPart else text
         return Notification.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_lock_lock)
@@ -255,7 +258,8 @@ class BreakerVpnService : VpnService() {
         // A mai megakadások is a kulcs része: a sáv sora a következő körben
         // mondja az új számot — nem csak akkor, ha valami más is változik.
         val hitsKey = "hits:${FilterHitLogic.hitsToday(st.filterHits, now)}:" +
-            "${FilterHitLogic.isPeakNow(FilterHitLogic.peakHour(st.filterHitHours, now), now)}:"
+            "${FilterHitLogic.isPeakNow(FilterHitLogic.peakHour(st.filterHitHours, now), now)}:" +
+            "${FilterHitLogic.isPeakDayNow(FilterHitLogic.peakWeekday(FilterHitLogic.byWeekday(st.filterHits, now)), now)}:"
         val key = strictKey + lockKey + hitsKey + if (run != null) {
             "${run.packId}:${Focus.formatRemaining(run.endsAt - now)}"
         } else {

@@ -253,6 +253,20 @@ export function peakWeekdayText(peak: { day: number; count: number }): string {
   return `A négy hét csúcs-napja: ${WEEKDAY_NAMES[peak.day] ?? '?'} (${peak.count} megakadás).`;
 }
 
+/** Ennyi megakadás alatt a csúcs-nap „most” mondata nem szól: egy-két megakadás négy hétből nem minta, csak zaj. A négy mag tükre. */
+export const PEAK_DAY_MIN_COUNT = 3;
+
+/** MA a csúcs-nap van-e: a négy hét csúcs-napja és a helyi nap egybeesik — és a minta elég. */
+export function isPeakDayNow(peak: { day: number; count: number } | null | undefined, now: number): boolean {
+  return !!peak && peak.count >= PEAK_DAY_MIN_COUNT && new Date(now).getDay() === peak.day;
+}
+
+/** A tükör a kísértés napján: a réteg lába és a kártya a csúcs-napon — különben üres. */
+export function peakDayNowText(peak: { day: number; count: number } | null | undefined, now: number): string {
+  return peak && isPeakDayNow(peak, now)
+    ? ` Ma a négy hét csúcs-napja van (${WEEKDAY_NAMES[peak.day] ?? '?'}, ${peak.count} megakadás) — ezen a napon akad meg a kéz a legtöbbször.` : '';
+}
+
 export const PEAK_WARN_LEAD_MS = 10 * 60_000;
 export const PEAK_WARN_MIN_COUNT = 3;
 

@@ -478,6 +478,11 @@ async function main() {
       // kimondja, hogy most van. (A nyolc napos, órák nélküli nap nem számít.)
       check(/Most a hét csúcs-órája van \(\d+–\d+ óra, \d+ megakadás a héten\)/.test(later),
         'a tiltó lap a csúcs-órában kimondja, hogy most van');
+      // A CSÚCS-NAP a kísértés napján: a négy hét minden megakadása ma esett —
+      // tehát ma a csúcs-nap, és a lap kimondja, ha a minta elég (három).
+      const nth = Number((/Ma ez a (\d+)\. megakadás/.exec(later) || [])[1] || 0);
+      check(/Ma a négy hét csúcs-napja van \([a-záéíóöőúüű]+, \d+ megakadás\)/.test(later) === (nth >= 3),
+        'a tiltó lap a csúcs-napon kimondja, hogy ma van — csak elég mintából');
       // Összekötetlen appnál nincs menet-gomb: a lap ne ígérjen olyat, ami nem indul.
       const startHidden = await page.evaluate(() => document.getElementById('startFocus')?.hidden ?? null).catch(() => null);
       check(startHidden === true, 'összekötetlen appnál a tiltó lapon nincs menet-gomb');

@@ -6,7 +6,7 @@
 
 import { CLOSED_FRESH_MS, addFocusWindowInApp, loadLink, pullFromApp, startFocusInApp } from './app-link.js';
 import { describePopup, hourSpan, peakCoverText, suggestButton, windowButton } from './popup-core.js';
-import { dayKey, hitsSummary, hitsText, peakNow, peakText, topHost } from './hits.js';
+import { dayKey, hitsSummary, hitsText, peakDayNow, peakDayNowText, peakNow, peakText, topHost } from './hits.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -92,6 +92,8 @@ async function render() {
     // MIKOR jár a kéz magától: a hét csúcsa — és ha most van, a lap jelöli.
     // LE VAN-E FEDVE: ha egy csomag ablaka fedi a csúcs-órát, a lap kimondja — az app szava.
     if (text !== null) text += peakText(peakNow(book, dayKey(), new Date().getHours())) + peakCoverText(link, Date.now(), CLOSED_FRESH_MS);
+    // A CSÚCS-NAPON a lap azt is mondja, hogy ma van — a saját könyvből, csak elég mintából.
+    if (text !== null) text += peakDayNowText(peakDayNow(book, dayKey(), new Date().getDay()));
   } catch { /* tár nélkül nincs szám — a lap többi része attól még áll */ }
   hits.hidden = text === null;
   hits.textContent = text ?? '';

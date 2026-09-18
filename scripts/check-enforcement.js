@@ -1115,6 +1115,43 @@ const WIRES = [
     needle: 'input.filterHitsWeekday = FilterHitLogic.peakWeekday(FilterHitLogic.byWeekday(st.filterHits ?? [:], now: now))',
     lost: 'az iPhone heti mondat nem mondaná a csúcs-napot',
   },
+  // A CSÚCS-NAP ott is, ahol a kísértés van: a tiltó lap, a felugró lap, a gépi
+  // kártya és a réteg lába, a két telefon kezdőlapja a csúcs-napon kimondja.
+  {
+    file: 'extension/blocked.js',
+    needle: 'peakDayNowText(peakDayNow(state, today, new Date().getDay()))',
+    lost: 'a tiltó lap a csúcs-napon nem mondaná, hogy ma van',
+  },
+  {
+    file: 'extension/popup.js',
+    needle: 'peakDayNowText(peakDayNow(book, dayKey(), new Date().getDay()))',
+    lost: 'a felugró lap a csúcs-napon nem mondaná, hogy ma van',
+  },
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: 'const dayLine = peakDayNowText(status?.browserHitsWeekday ?? null, now).trim();',
+    lost: 'a gépi javaslat-kártya a csúcs-napon nem mondaná, hogy ma van',
+  },
+  {
+    file: 'desktop/src/renderer/overlay.ts',
+    needle: 'peakDayNowText(st.browserHitsWeekday ?? null, st.now)',
+    lost: 'a réteg lába a csúcs-napon nem mondaná, hogy ma van',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/AppUi.kt',
+    needle: 'peakDay?.let { Text(FilterHitLogic.peakDayNowText(it), style = MaterialTheme.typography.bodySmall) }',
+    lost: 'az Android kezdőlap kártyája a csúcs-napon nem mondaná, hogy ma van',
+  },
+  {
+    file: 'ios/App/ContentView.swift',
+    needle: 'if let onPeakDay { Text(FilterHitLogic.peakDayNowText(onPeakDay)).font(.footnote) }',
+    lost: 'az iPhone kezdőlap kártyája a csúcs-napon nem mondaná, hogy ma van',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/vpn/BreakerVpnService.kt',
+    needle: '(if (peakDay) " · ma a csúcs-nap" else "")',
+    lost: 'az Android szűrő-értesítés sora a csúcs-napon nem mondaná, hogy ma van',
+  },
   // AZ ABLAK SZERINT INDULT menet a rétegben és az Android értesítésén is kimondva.
   {
     file: 'desktop/src/renderer/overlay.ts',

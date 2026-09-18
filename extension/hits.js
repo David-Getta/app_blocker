@@ -396,3 +396,22 @@ export const WEEKDAY_NAMES = ['vasárnap', 'hétfő', 'kedd', 'szerda', 'csütö
 export function peakWeekdayText(peak) {
   return `A négy hét csúcs-napja: ${WEEKDAY_NAMES[peak.day] ?? '?'} (${peak.count} megakadás).`;
 }
+
+/** Ennyi megakadás alatt a csúcs-nap „most” mondata nem szól: egy-két megakadás négy hétből nem minta, csak zaj. A gépi mag tükre. */
+export const PEAK_DAY_MIN_COUNT = 3;
+
+/**
+ * A CSÚCS-NAP a kísértés napján: a négy hét csúcs-napja, és hogy MA ez a nap-e
+ * ({ day, count, now }) — vagy null, ha még nem volt. A tiltó lap és a felugró
+ * lap csak a csúcs-napon mondja, és csak elég mintából.
+ */
+export function peakDayNow(state, today, weekday) {
+  const peak = peakWeekday(hitsByWeekday(state, today));
+  return peak ? { day: peak.day, count: peak.count, now: peak.day === weekday && peak.count >= PEAK_DAY_MIN_COUNT } : null;
+}
+
+/** A tiltó lap és a felugró lap mondata: csak a csúcs-napon — különben üres. */
+export function peakDayNowText(peak) {
+  if (!peak || !peak.now) return '';
+  return ` Ma a négy hét csúcs-napja van (${WEEKDAY_NAMES[peak.day] ?? '?'}, ${peak.count} megakadás) — ezen a napon akad meg a kéz a legtöbbször.`;
+}

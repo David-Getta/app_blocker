@@ -511,6 +511,18 @@ elejéhez közelebbi nap (hétfőtől); a minta hossza a három magban azonos
 után, szó szerint (`browserHitsWeekday`/`filterHitsWeekday` a mondat bemenetén
 — a segéd, az Android és az iOS építi); nap nélkül nincs mondat.
 
+**A csúcs-nap ott is, ahol a kísértés van:** a csúcs-napon a tiltó lap és a
+felugró lap a saját könyvből (`peakDayNow`/`peakDayNowText`), a gépi kezdőlap
+javaslat-kártyája és a gyorsbillentyűs réteg lába a státusz csúcs-napjából
+(`isPeakDayNow`/`peakDayNowText`), a két telefon kezdőlapjának javaslat-kártyája
+(`FilterHitLogic.isPeakDayNow`) kimondja, hogy ma van:
+„Ma a négy hét csúcs-napja van (vasárnap, 14 megakadás) — ezen a napon akad meg a kéz a legtöbbször.”
+Csak elég mintából: a csúcs-nap alatt legalább három megakadás
+(`PEAK_DAY_MIN_COUNT`, a három magban azonos — core-sync); egy-két megakadás
+négy hétből nem minta, csak zaj. A csúcs-óra mondata mellett, nem helyette;
+a kártyán a menet gombja ugyanúgy ott van; az Android szűrő-értesítésének
+sora is mondja („· ma a csúcs-nap”). Tény, nem ítélet.
+
 **Ablak a csúcs-órára:** a statisztika a csúcs-óra mondata alatt — a gépen
 és a telefonokon is — egy gombot mutat — „Heti ablak a csúcs-órára: Nyelvtanulás, minden nap 21:00–22:00” —,
 ami a legutóbb használt csomagra heti ablakot tesz a csúcs egy órájában,

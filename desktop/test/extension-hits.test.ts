@@ -42,6 +42,9 @@ interface Hits {
   hitsByWeekday: (state: unknown, today: string, count?: number) => number[];
   peakWeekday: (by: number[]) => { day: number; count: number } | null;
   peakWeekdayText: (p: { day: number; count: number }) => string;
+  PEAK_DAY_MIN_COUNT: number;
+  peakDayNow: (s: unknown, today: string, weekday: number) => { day: number; count: number; now: boolean } | null;
+  peakDayNowText: (peak: unknown) => string;
   peakHour: (state: unknown, days: string[]) => { hour: number; count: number } | null;
   hourLabel: (hour: number) => string;
   peakNow: (state: unknown, today: string, hour: number) => { hour: number; count: number; now: boolean } | null;
@@ -59,7 +62,7 @@ interface Hits {
 function load(): Hits {
   const src = fs.readFileSync(path.join(extensionDir(), 'hits.js'), 'utf8').replace(/^export /gm, '');
   // eslint-disable-next-line no-new-func
-  return new Function(`${src}\nreturn { RETENTION_DAYS, REPORT_DAYS, MAX_HOSTS_PER_DAY, MAX_KEYWORDS_PER_DAY, keywordsWeek, keywordsText, idleKeywords, idleKeywordsText, dayKey, lastDays, recordHit, sweepHits, hitsOn, hitsOnHost, hitsSummary, hitsMonth, monthHasOlderHits, hitsReport, hitsText, hitsTrendText, hitsRows, hitsByHour, hitsByWeekday, peakWeekday, peakWeekdayText, WEEKDAY_NAMES, PEAK_WEEKDAY_DAYS, peakHour, hourLabel, peakNow, peakText, peakNowText, hitsNudge, NUDGE_AT, hitsWeekByReason, hitsReasonText, REASON_NAMES, TOP_HOSTS_PER_DAY, topHost };`)() as Hits;
+  return new Function(`${src}\nreturn { RETENTION_DAYS, REPORT_DAYS, MAX_HOSTS_PER_DAY, MAX_KEYWORDS_PER_DAY, keywordsWeek, keywordsText, idleKeywords, idleKeywordsText, dayKey, lastDays, recordHit, sweepHits, hitsOn, hitsOnHost, hitsSummary, hitsMonth, monthHasOlderHits, hitsReport, hitsText, hitsTrendText, hitsRows, hitsByHour, hitsByWeekday, peakWeekday, peakWeekdayText, WEEKDAY_NAMES, PEAK_WEEKDAY_DAYS, PEAK_DAY_MIN_COUNT, peakDayNow, peakDayNowText, peakHour, hourLabel, peakNow, peakText, peakNowText, hitsNudge, NUDGE_AT, hitsWeekByReason, hitsReasonText, REASON_NAMES, TOP_HOSTS_PER_DAY, topHost };`)() as Hits;
 }
 
 const TODAY = '2026-09-18';
@@ -292,4 +295,17 @@ test('a csúcs-nap a saját könyvből: négy hét, a hét napjaira osztva; holt
   assert.deepEqual(h.peakWeekday([0, 0, 0, 0, 6, 6, 0]), { day: 4, count: 6 }, 'holtverseny: a hét elejéhez közelebbi');
   assert.equal(h.peakWeekday([0, 0, 0, 0, 0, 0, 0]), null);
   assert.equal(h.peakWeekdayText({ day: 0, count: 14 }), 'A négy hét csúcs-napja: vasárnap (14 megakadás).');
+  // A CSÚCS-NAP a kísértés napján: a tiltó lap és a felugró lap csak a
+  // csúcs-napon mondja (a péntek az ötös), és csak elég mintából.
+  assert.deepEqual(h.peakDayNow(s, TODAY, 5), { day: 5, count: 6, now: true }, 'a csúcs-napon: ma');
+  assert.equal(h.peakDayNow(s, TODAY, 4)?.now, false, 'más napon nem');
+  assert.equal(h.peakDayNow({}, TODAY, 5), null);
+  assert.equal(h.peakDayNowText(h.peakDayNow(s, TODAY, 5)),
+    ' Ma a négy hét csúcs-napja van (péntek, 6 megakadás) — ezen a napon akad meg a kéz a legtöbbször.');
+  assert.equal(h.peakDayNowText(h.peakDayNow(s, TODAY, 4)), '', 'a csúcs-napon kívül a lap nem mondja');
+  assert.equal(h.peakDayNowText(null), '');
+  let few = h.recordHit({}, key(0), 'rule');
+  few = h.recordHit(few, key(0), 'rule');
+  assert.equal(h.peakDayNow(few, TODAY, 5)?.now, false, 'kettő négy hétből nem minta: nem mondat');
+  assert.equal(h.peakDayNow(h.recordHit(few, key(0), 'rule'), TODAY, 5)?.now, true, `${h.PEAK_DAY_MIN_COUNT}: már igen`);
 });
