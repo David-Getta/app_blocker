@@ -4,9 +4,9 @@
 import { test } from 'node:test';
 import * as assert from 'node:assert/strict';
 import {
-  HIT_NUDGE_STEPS, MAX_HITS_PER_DAY, MAX_HIT_DAYS, MAX_HIT_SOURCES, browserHits7d, browserHitsBetween,
-  browserHitsPeakHour, browserHitsSeries, browserHitsToday, cleanBrowserHitDays, cleanBrowserHits, hitDayKey,
-  hitNudgeStep, hitNudgeText, hourLabel, putBrowserHits,
+  HIT_NUDGE_STEPS, MAX_HITS_PER_DAY, MAX_HIT_DAYS, MAX_HIT_SOURCES, PEAK_WARN_LEAD_MS, PEAK_WARN_MIN_COUNT,
+  browserHits7d, browserHitsBetween, browserHitsPeakHour, browserHitsSeries, browserHitsToday, cleanBrowserHitDays,
+  cleanBrowserHits, hitDayKey, hitNudgeStep, hitNudgeText, hourLabel, peakWarnKey, peakWarnText, putBrowserHits,
 } from '../src/shared/browser-hits';
 import { digestText } from '../src/shared/digest';
 import { summarizeFocus } from '../src/shared/focus';
@@ -122,4 +122,21 @@ test('a mondat a csúcs-órával; a sokadik megakadás lépcsői', () => {
   assert.equal(hitNudgeStep(12), 10);
   assert.equal(hitNudgeStep(40), 20);
   assert.match(hitNudgeText(5), /^Ma már 5 megakadás/);
+});
+
+test('előjelzés a csúcs-óra előtt: tíz perces ablak, naponta egy kulcs, a nulla óra az előző estén', () => {
+  const peak = { hour: 21, count: 7 };
+  const at2 = (hh: number, mm: number, d = 18): number => new Date(2026, 8, d, hh, mm).getTime();
+  assert.equal(PEAK_WARN_LEAD_MS, 10 * 60_000);
+  assert.equal(PEAK_WARN_MIN_COUNT, 3);
+  assert.equal(peakWarnKey(peak, at2(20, 49)), null, 'tizenegy perccel előtte még nem');
+  assert.equal(peakWarnKey(peak, at2(20, 50)), '2026-09-18:21');
+  assert.equal(peakWarnKey(peak, at2(20, 59)), '2026-09-18:21');
+  assert.equal(peakWarnKey(peak, at2(21, 0)), null, 'az órában már nem előjelzés');
+  assert.equal(peakWarnKey({ hour: 21, count: 2 }, at2(20, 55)), null, 'kettő nem csúcs');
+  assert.equal(peakWarnKey(null, at2(20, 55)), null);
+  assert.equal(peakWarnKey({ hour: 0, count: 3 }, at2(23, 55)), '2026-09-19:0', 'a nulla óra ablaka az előző este');
+  assert.equal(peakWarnKey({ hour: 0, count: 3 }, at2(0, 5, 19)), null);
+  assert.equal(peakWarnText(peak),
+    'Mindjárt 21 óra — a héten ilyenkor akadt meg a kéz a legtöbbször (7×). Egy munkamenet most segítene — te döntesz.');
 });

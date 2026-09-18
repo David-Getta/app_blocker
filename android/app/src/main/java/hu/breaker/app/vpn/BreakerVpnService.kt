@@ -63,6 +63,8 @@ class BreakerVpnService : VpnService() {
         /** A sokadik megakadás értesítése — lehúzható, saját csatornán, hogy külön lehessen elnémítani. */
         private const val NOTIF_NUDGE_ID = 6
         private const val NUDGE_CHANNEL_ID = "breaker_hits"
+        /** Az előjelzés a csúcs-óra előtt — ugyanazon a csatornán, külön azonosítóval. */
+        private const val NOTIF_PEAK_ID = 7
 
         private val _running = MutableStateFlow(false)
         val running: StateFlow<Boolean> get() = _running
@@ -97,6 +99,8 @@ class BreakerVpnService : VpnService() {
     private val hitSeen = HashMap<String, Long>()
     /** A már kimondott lépcső („nap:lépcső”): naponta lépcsőnként egyszer; egy újraindítás legfeljebb egy duplát enged. */
     @Volatile private var nudgedKey = ""
+    /** A már kimondott csúcs-óra előjelzés kulcsa („nap:óra”) — naponta egyszer. */
+    private var warnedPeakKey: String? = null
     @Volatile private var stopping = false
     private var readerThread: Thread? = null
     private val resolverPool = Executors.newFixedThreadPool(8) as ThreadPoolExecutor
@@ -237,6 +241,7 @@ class BreakerVpnService : VpnService() {
             warnedWindowStart = soon.startsAt
             runCatching { notifyWindowSoon(soon, now) }
         }
+        maybePeakWarning(st, now)
         // A mai megakadások is a kulcs része: a sáv sora a következő körben
         // mondja az új számot — nem csak akkor, ha valami más is változik.
         val hitsKey = "hits:${FilterHitLogic.hitsToday(st.filterHits, now)}:"
@@ -314,6 +319,22 @@ class BreakerVpnService : VpnService() {
                 .setAutoCancel(true)
                 .build(),
         )
+    }
+
+    /**
+     * ELŐJELZÉS a csúcs-óra előtt: tíz perccel a hét csúcs-órája előtt egyszer
+     * szólunk — a megakadások csatornáján, naponta egyszer. Tükör időzítéssel:
+     * ilyenkor jár a kéz magától. Nem tilt, nem ítél; a mag mondja, mikor.
+     */
+    private fun maybePeakWarning(st: AppState, now: Long) {
+        val peak = FilterHitLogic.peakHour(st.filterHitHours, now) ?: return
+        val key = FilterHitLogic.peakWarnKey(peak, now) ?: return
+        if (key == warnedPeakKey) return
+        warnedPeakKey = key
+        runCatching {
+            notifyOnce(NOTIF_PEAK_ID, "Mindjárt a csúcs-óra", FilterHitLogic.peakWarnText(peak), NUDGE_CHANNEL_ID, "Megakadások")
+        }
+            .onFailure { Log.w(TAG, "az előjelzés nem szólt: $it") }
     }
 
     /**

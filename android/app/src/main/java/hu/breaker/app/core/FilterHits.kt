@@ -150,4 +150,39 @@ object FilterHitLogic {
     /** A javaslat mondata egy lépcsőnél. */
     fun nudgeText(step: Int): String =
         "Ma már $step megakadás a szűrőben. Egy munkamenet vagy egy rövid zárlat most segítene — te döntesz."
+
+    // ------------------------------------------------------------ előjelzés
+
+    /**
+     * ELŐJELZÉS a csúcs-óra előtt: ennyivel a hét csúcs-órájának kezdete előtt
+     * egyszer szól a telefon — naponta egyszer, és csak ha a csúcs legalább
+     * ennyi. Tükör időzítéssel: ilyenkor jár a kéz magától. Nem tilt, nem ítél.
+     */
+    const val PEAK_WARN_LEAD_MS = 10 * 60_000L
+    const val PEAK_WARN_MIN_COUNT = 3
+
+    /**
+     * A mai előjelzés kulcsa („nap:óra”), ha most esedékes — különben null. A
+     * nulla órás csúcs ablaka az előző estén van: a kulcs a csúcs napjáé.
+     */
+    fun peakWarnKey(peak: Pair<Int, Int>?, now: Long): String? {
+        if (peak == null || peak.second < PEAK_WARN_MIN_COUNT) return null
+        for (offset in 0..1) {
+            val c = java.util.Calendar.getInstance().apply {
+                timeInMillis = now
+                add(java.util.Calendar.DAY_OF_MONTH, offset)
+                set(java.util.Calendar.HOUR_OF_DAY, peak.first)
+                set(java.util.Calendar.MINUTE, 0)
+                set(java.util.Calendar.SECOND, 0)
+                set(java.util.Calendar.MILLISECOND, 0)
+            }
+            val start = c.timeInMillis
+            if (now >= start - PEAK_WARN_LEAD_MS && now < start) return "${UsageLogic.dayKey(start)}:${peak.first}"
+        }
+        return null
+    }
+
+    /** Az előjelzés mondata. */
+    fun peakWarnText(peak: Pair<Int, Int>): String =
+        "Mindjárt ${peak.first} óra — a héten ilyenkor akadt meg a kéz a legtöbbször (${peak.second}×). Egy munkamenet most segítene — te döntesz."
 }

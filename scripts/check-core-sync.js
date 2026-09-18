@@ -348,6 +348,16 @@ const CHECKS = [
     list(ts.browserHits, /HIT_NUDGE_STEPS\s*=\s*\[([^\]]+)\]/, 'ts'),
     list(kt.filterHits, /NUDGE_STEPS\s*=\s*listOf\(([^)]+)\)/, 'kt'),
     list(sw.filterHits, /nudgeSteps:\s*\[Int\]\s*=\s*\[([^\]]+)\]/, 'swift')],
+  // AZ ELŐJELZÉS a csúcs-óra előtt: ha a gép tíz perccel, a telefon öttel
+  // szólna, ugyanaz az ember két órát tanulna meg.
+  ['PEAK_WARN_LEAD_MS',
+    scalar(ts.browserHits, /PEAK_WARN_LEAD_MS\s*=\s*([^;]+);/, 'ts'),
+    scalar(kt.filterHits, /PEAK_WARN_LEAD_MS[^=]*=\s*(.+)/, 'kt'),
+    scalar(sw.filterHits, /peakWarnLeadMs[^=]*=\s*(.+)/, 'swift')],
+  ['PEAK_WARN_MIN_COUNT',
+    scalar(ts.browserHits, /PEAK_WARN_MIN_COUNT\s*=\s*([^;]+);/, 'ts'),
+    scalar(kt.filterHits, /PEAK_WARN_MIN_COUNT[^=]*=\s*(.+)/, 'kt'),
+    scalar(sw.filterHits, /peakWarnMinCount[^=]*=\s*(.+)/, 'swift')],
 ];
 
 // KÉT NYELV KÖZÖTT. Amit csak a gép és az Android tud (iPhone-on a bővítmény

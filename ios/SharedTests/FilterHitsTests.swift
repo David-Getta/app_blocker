@@ -97,6 +97,25 @@ final class FilterHitsTests: XCTestCase {
                        "Ma már 5 megakadás a szűrőben. Egy munkamenet vagy egy rövid zárlat most segítene — te döntesz.")
     }
 
+    func testTheWarningBeforeThePeakHour() {
+        let peak = (hour: 21, count: 7)
+        func at2(_ hh: Int, _ mm: Int, _ d: Int = 18) -> Double {
+            Calendar.current.date(from: DateComponents(year: 2026, month: 9, day: d, hour: hh, minute: mm))!.timeIntervalSince1970 * 1000
+        }
+        XCTAssertEqual(FilterHitLogic.peakWarnLeadMs, 10 * 60_000)
+        XCTAssertEqual(FilterHitLogic.peakWarnMinCount, 3)
+        XCTAssertNil(FilterHitLogic.peakWarnKey(peak, now: at2(20, 49)), "tizenegy perccel előtte még nem")
+        XCTAssertEqual(FilterHitLogic.peakWarnKey(peak, now: at2(20, 50)), "2026-09-18:21")
+        XCTAssertEqual(FilterHitLogic.peakWarnKey(peak, now: at2(20, 59)), "2026-09-18:21")
+        XCTAssertNil(FilterHitLogic.peakWarnKey(peak, now: at2(21, 0)), "az órában már nem előjelzés")
+        XCTAssertNil(FilterHitLogic.peakWarnKey((hour: 21, count: 2), now: at2(20, 55)), "kettő nem csúcs")
+        XCTAssertNil(FilterHitLogic.peakWarnKey(nil, now: at2(20, 55)))
+        XCTAssertEqual(FilterHitLogic.peakWarnKey((hour: 0, count: 3), now: at2(23, 55)), "2026-09-19:0", "a nulla óra ablaka az előző este")
+        XCTAssertNil(FilterHitLogic.peakWarnKey((hour: 0, count: 3), now: at2(0, 5, 19)))
+        XCTAssertEqual(FilterHitLogic.peakWarnText(peak),
+                       "Mindjárt 21 óra — a héten ilyenkor akadt meg a kéz a legtöbbször (7×). Egy munkamenet most segítene — te döntesz.")
+    }
+
     func testTheSentenceAndTheSave() throws {
         let summary = Focus.Summary(sessions: 0, totalMs: 0, stoppedEarly: 0, topPack: nil)
         XCTAssertEqual(DigestLogic.text(DigestLogic.Input(focusWeek: summary, unlocks7d: 1, filterHits7d: 12), labelOf: { $0 }),

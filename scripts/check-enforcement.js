@@ -522,6 +522,23 @@ const WIRES = [
     needle: 'FilterHitLogic.nudgeText(step)',
     lost: 'az iPhone kezdőlapja nem javasolna lépést a sokadik megakadásnál',
   },
+  // AZ ELŐJELZÉS a csúcs-óra előtt: a mag tudja, mikor; ha a három bekötés
+  // kiesne, a csúcs-óra csak a statisztikán állna, és senki nem szólna előre.
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: 'showPeakWarning(status!.browserHitsPeak ?? null, nowForBurst);',
+    lost: 'a gép nem szólna a csúcs-óra előtt',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/vpn/BreakerVpnService.kt',
+    needle: 'maybePeakWarning(st, now)',
+    lost: 'Androidon a szolgáltatás nem szólna a csúcs-óra előtt',
+  },
+  {
+    file: 'ios/App/ContentView.swift',
+    needle: 'PeakReminder.reschedule(peak: peak)',
+    lost: 'iPhone-on az app nem ütemezné az előjelzést a csúcs-óra előtt',
+  },
   // A MEGAKADÁS-SZÁMLÁLÓ lánca: a háttér könyvel, a link átadja, a híd
   // fogadja, a segéd tartja, a mondat és a statisztika mondja. Ha bármelyik
   // láncszem kiesne, a bővítmény lapja továbbra is számolna — az app viszont

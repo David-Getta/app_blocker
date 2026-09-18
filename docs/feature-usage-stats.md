@@ -444,6 +444,15 @@ saját csatornán, hogy külön lehessen elnémítani), és a kezdőlap egy kár
 mondja a mondatot; iPhone-on a tunnel nem értesít — a kezdőlap mondja, amíg
 nyitva van. A lépcsők (5, 10, 20) a három magban azonosak (`check-core-sync`).
 
+**Előjelzés a csúcs-óra előtt:** tíz perccel a hét csúcs-órája előtt egyszer
+szól a gép (amíg fut), Androidon a szolgáltatás (a megakadások csatornáján),
+iPhone-on a rendszer (az app ütemezi, amikor nyitva van; a csúcs változásakor
+átütemezi, csúcs nélkül visszavonja — `App/PeakReminder.swift`): „Mindjárt 21
+óra…” — a héten ilyenkor akadt meg a kéz a legtöbbször, egy munkamenet most
+segítene, te döntesz. Csak ha a csúcs legalább három; naponta egyszer (a
+nulla órás csúcs ablaka az előző estén van). Tükör időzítéssel — nem tilt,
+nem ítél. A tíz perc és a három a három magban azonos (`check-core-sync`).
+
 A **hét alakja a megakadásokra** is megvan mindhárom statisztikán — ugyanaz
 a rajz, mint a mért időé és a meneteké, csak darabban: a gépen a böngésző
 könyve (`browserHitsDays` az állapotban, a források összeadva), a telefonon

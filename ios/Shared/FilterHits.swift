@@ -147,6 +147,36 @@ public enum FilterHitLogic {
         "Ma már \(step) megakadás a szűrőben. Egy munkamenet vagy egy rövid zárlat most segítene — te döntesz."
     }
 
+    // MARK: - előjelzés
+
+    /// ELŐJELZÉS a csúcs-óra előtt: ennyivel a hét csúcs-órájának kezdete előtt
+    /// szól a rendszer — naponta egyszer, és csak ha a csúcs legalább ennyi.
+    /// Tükör időzítéssel: ilyenkor jár a kéz magától. Nem tilt, nem ítél.
+    public static let peakWarnLeadMs: Double = 10 * 60_000
+    public static let peakWarnMinCount = 3
+
+    /// A mai előjelzés kulcsa („nap:óra”), ha most esedékes — különben nil. A
+    /// nulla órás csúcs ablaka az előző estén van: a kulcs a csúcs napjáé.
+    public static func peakWarnKey(_ peak: (hour: Int, count: Int)?, now: Double) -> String? {
+        guard let peak, peak.count >= peakWarnMinCount else { return nil }
+        let cal = Calendar.current
+        let base = Date(timeIntervalSince1970: now / 1000)
+        for offset in 0...1 {
+            guard let day = cal.date(byAdding: .day, value: offset, to: base) else { continue }
+            var c = cal.dateComponents([.year, .month, .day], from: day)
+            c.hour = peak.hour
+            guard let startDate = cal.date(from: c) else { continue }
+            let start = startDate.timeIntervalSince1970 * 1000
+            if now >= start - peakWarnLeadMs && now < start { return "\(dayKey(start)):\(peak.hour)" }
+        }
+        return nil
+    }
+
+    /// Az előjelzés mondata.
+    public static func peakWarnText(_ peak: (hour: Int, count: Int)) -> String {
+        "Mindjárt \(peak.hour) óra — a héten ilyenkor akadt meg a kéz a legtöbbször (\(peak.count)×). Egy munkamenet most segítene — te döntesz."
+    }
+
     /// Az utolsó `count` nap sora, a legrégebbi elöl — a hét alakja a
     /// megakadásokra; a `seconds` mező itt darab, a rajz kedvéért ugyanaz az alak.
     public static func daySeries(_ days: [String: Int], now: Double, count: Int) -> [(day: String, seconds: Double)] {

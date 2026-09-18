@@ -52,7 +52,8 @@ nem megakadás; `Shared/FilterHits.swift`, `filterHits`
 az állapotban, harminc nap), a statisztika nehézség-sora és a heti mondat
 mondja („12 megakadás a szűrőben”); az ötödik, tizedik és huszadik mainál a
 kezdőlap egy lépést javasol — a tunnel nem értesít, a lap mondja, amíg nyitva
-van. Tükör, nem ítélet; a fiókba nem megy.
+van; tíz perccel a hét csúcs-órája előtt a rendszer szól (az app ütemezi,
+`App/PeakReminder.swift`). Tükör, nem ítélet; a fiókba nem megy.
 Lásd `docs/feature-usage-stats.md`.
 
 A **heti visszatekintés** hétfő reggel: a mondat akkor születik, amikor az app

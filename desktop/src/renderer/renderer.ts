@@ -22,7 +22,7 @@ import {
   formatLockdownRemaining, isLocked, isWindowLockdown, windowLockdownStarted, LOCKDOWN_CHOICES_MIN,
   MAX_LOCKDOWN_WINDOWS, type Lockdown, type LockdownWindow,
 } from '../shared/lockdown.js';
-import { hitNudgeStep, hitNudgeText, hourLabel } from '../shared/browser-hits.js';
+import { hitNudgeStep, hitNudgeText, hourLabel, peakWarnKey, peakWarnText } from '../shared/browser-hits.js';
 import { stepBurstNotices, type BurstNotice, type BurstWatch } from '../shared/burst-notify.js';
 import {
   cleanDigestLog, daysSinceUnlock, digestDue, digestText, recordDigest, relabelDigest, weekLabel, type DigestEntry,
@@ -311,6 +311,22 @@ function showHitNudge(today: number, now: number): void {
   new Notification('Breaker — sokadik megakadás', { body: hitNudgeText(step) });
 }
 
+/**
+ * ELŐJELZÉS a csúcs-óra előtt: tíz perccel a hét csúcs-órája előtt egyszer
+ * szól a gép — naponta egyszer (a tár őrzi a napot). Tükör időzítéssel:
+ * ilyenkor jár a kéz magától. Nem tilt, nem ítél — és csak amíg az app fut.
+ */
+function showPeakWarning(peak: { hour: number; count: number } | null, now: number): void {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  const key = peakWarnKey(peak, now);
+  if (key === null || peak === null) return;
+  let last: string | null = null;
+  try { last = localStorage.getItem('breaker.peakWarn'); } catch { /* nincs tár: szólunk */ }
+  if (last === key) return;
+  try { localStorage.setItem('breaker.peakWarn', key); } catch { /* nincs tár: legközelebb újra */ }
+  new Notification('Breaker — mindjárt a csúcs-óra', { body: peakWarnText(peak) });
+}
+
 function showBurstNotice(n: BurstNotice, now: number): void {
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
   const body = n.kind === 'tripped'
@@ -406,6 +422,7 @@ function render(): void {
   if (windowLock) showWindowLockdownNotice(windowLock, nowForBurst);
   showWindowSoonNotice(status!.lockdown ?? null, status!.lockdownWindows ?? [], nowForBurst);
   showHitNudge(status!.browserHitsToday ?? 0, nowForBurst);
+  showPeakWarning(status!.browserHitsPeak ?? null, nowForBurst);
   renderSelfTestLine();
 
   const sig = sitesFingerprint(status!);

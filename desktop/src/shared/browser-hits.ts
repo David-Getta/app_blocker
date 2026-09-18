@@ -144,6 +144,33 @@ export function hourLabel(hour: number): string {
 }
 
 /**
+ * ELŐJELZÉS a csúcs-óra előtt: ennyivel a hét csúcs-órájának kezdete előtt
+ * egyszer szól a gép — naponta egyszer, és csak ha a csúcs legalább ennyi.
+ * Tükör időzítéssel: „ilyenkor jár a kéz magától” — nem tilt, nem ítél.
+ */
+export const PEAK_WARN_LEAD_MS = 10 * 60_000;
+export const PEAK_WARN_MIN_COUNT = 3;
+
+/**
+ * A mai előjelzés kulcsa („nap:óra”), ha most esedékes — különben null. A
+ * nulla órás csúcs ablaka az előző estén van: a kulcs a csúcs napjáé.
+ */
+export function peakWarnKey(peak: { hour: number; count: number } | null, now: number): string | null {
+  if (!peak || peak.count < PEAK_WARN_MIN_COUNT) return null;
+  const d = new Date(now);
+  for (const offset of [0, 1]) {
+    const start = new Date(d.getFullYear(), d.getMonth(), d.getDate() + offset, peak.hour).getTime();
+    if (now >= start - PEAK_WARN_LEAD_MS && now < start) return `${hitDayKey(start)}:${peak.hour}`;
+  }
+  return null;
+}
+
+/** Az előjelzés mondata. */
+export function peakWarnText(peak: { hour: number; count: number }): string {
+  return `Mindjárt ${peak.hour} óra — a héten ilyenkor akadt meg a kéz a legtöbbször (${peak.count}×). Egy munkamenet most segítene — te döntesz.`;
+}
+
+/**
  * Az utolsó `count` nap sora, a legrégebbi elöl, minden forrásból összeadva
  * — a hét alakja a megakadásokra, ahogy a mért időé és a meneteké. Naptári
  * napokban lépünk vissza, nem huszonnégy órában: az óraátállítás napja is nap.

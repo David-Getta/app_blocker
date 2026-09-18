@@ -116,6 +116,26 @@ class FilterHitsTest {
         )
     }
 
+    @Test fun `elojelzes a csucs-ora elott - tiz perces ablak, naponta egy kulcs, a nulla ora az elozo esten`() {
+        val peak = 21 to 7
+        fun at2(hh: Int, mm: Int, d: Int = 18): Long =
+            Calendar.getInstance().apply { set(2026, Calendar.SEPTEMBER, d, hh, mm, 0); set(Calendar.MILLISECOND, 0) }.timeInMillis
+        assertEquals(10 * 60_000L, FilterHitLogic.PEAK_WARN_LEAD_MS)
+        assertEquals(3, FilterHitLogic.PEAK_WARN_MIN_COUNT)
+        assertEquals(null, FilterHitLogic.peakWarnKey(peak, at2(20, 49)), "tizenegy perccel előtte még nem")
+        assertEquals("2026-09-18:21", FilterHitLogic.peakWarnKey(peak, at2(20, 50)))
+        assertEquals("2026-09-18:21", FilterHitLogic.peakWarnKey(peak, at2(20, 59)))
+        assertEquals(null, FilterHitLogic.peakWarnKey(peak, at2(21, 0)), "az órában már nem előjelzés")
+        assertEquals(null, FilterHitLogic.peakWarnKey(21 to 2, at2(20, 55)), "kettő nem csúcs")
+        assertEquals(null, FilterHitLogic.peakWarnKey(null, at2(20, 55)))
+        assertEquals("2026-09-19:0", FilterHitLogic.peakWarnKey(0 to 3, at2(23, 55)), "a nulla óra ablaka az előző este")
+        assertEquals(null, FilterHitLogic.peakWarnKey(0 to 3, at2(0, 5, 19)))
+        assertEquals(
+            "Mindjárt 21 óra — a héten ilyenkor akadt meg a kéz a legtöbbször (7×). Egy munkamenet most segítene — te döntesz.",
+            FilterHitLogic.peakWarnText(peak),
+        )
+    }
+
     @Test fun `a mondat es a mentes`() {
         val base = DigestLogic.Input(
             last7Seconds = 0.0, topWeekSites = emptyList(), weekOverWeek = emptyList(),
