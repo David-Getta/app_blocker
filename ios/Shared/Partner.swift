@@ -28,6 +28,15 @@ public enum PartnerLogic {
     private static let hashLen = 32
     private static let saltLen = 16
 
+    /// Az scrypt költsége — a fiók kulcsáé (SyncCrypto), ez a valódi.
+    static let fullCost = (n: SyncCrypto.scryptN, r: SyncCrypto.scryptR, p: SyncCrypto.scryptP)
+    /// Amivel a lenyomat MOST számol. Nem dísz, és nem beállítás: a tesztek
+    /// állítják át. A debug-fordítású scrypt a teljes költséggel hashenként
+    /// fél percig is eltart, a bíró tesztjei pedig tucatnyit számolnak — a
+    /// lenyomat egyezését a géppel EGY teljes költségű számolás őrzi (a
+    /// fixture), a többi teszt a szabályt nézi, nem a költséget.
+    static var scryptCost = fullCost
+
     public struct PartnerLock: Codable, Equatable {
         /// a megbízott neve, ahogy a felület mondja
         public let name: String
@@ -141,7 +150,7 @@ public enum PartnerLogic {
         guard let salt = Data(base64Encoded: saltB64) else { return nil }
         let out = Scrypt.scrypt(
             password: Array(normalizePhrase(phrase).utf8), salt: [UInt8](salt),
-            n: SyncCrypto.scryptN, r: SyncCrypto.scryptR, p: SyncCrypto.scryptP, dkLen: hashLen
+            n: scryptCost.n, r: scryptCost.r, p: scryptCost.p, dkLen: hashLen
         )
         return Data(out).base64EncodedString()
     }

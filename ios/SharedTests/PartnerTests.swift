@@ -25,11 +25,22 @@ final class PartnerTests: XCTestCase {
         RunLoop.main.run(until: Date().addingTimeInterval(0.05))
     }
 
+    /// Olcsó scrypt a szabály-tesztekhez: a debug-fordítású scrypt a teljes
+    /// költséggel hashenként fél percig is eltart. A géppel való egyezést
+    /// egyetlen teljes költségű számolás őrzi (lásd a fixture-tesztet).
+    private static let cheapCost = (n: 16, r: 1, p: 1)
+
     override func setUp() {
         super.setUp()
+        PartnerLogic.scryptCost = Self.cheapCost
         BreakerStore.shared.mutate { state in state = AppState() }
         pumpMainQueue()
         BreakerStore.shared.saveLastTick(0)
+    }
+
+    override func tearDown() {
+        PartnerLogic.scryptCost = PartnerLogic.fullCost
+        super.tearDown()
     }
 
     // ------------------------------------------------------------------ a mag
@@ -49,19 +60,25 @@ final class PartnerTests: XCTestCase {
 
     func testTheHashMatchesTheDesktopFixture() throws {
         let fx = try loadFixture()
-        XCTAssertEqual(PartnerLogic.hashPhrase(fx.phrase, salt: fx.salt), fx.hash,
-                       "ugyanaz a jelmondat, ugyanaz a lenyomat — mint a gépen")
-        XCTAssertEqual(PartnerLogic.hashPhrase(" Alma bogrács CINEGE délután", salt: fx.salt), fx.hash,
-                       "a kanonikus alak számít")
-        XCTAssertNotEqual(PartnerLogic.hashPhrase(fx.wrong, salt: fx.salt), fx.hash)
+        // Az EGYETLEN teljes költségű számolás: a gépen felvett megbízottnak
+        // az iPhone-on is stimmelnie kell — ez a bájtra egyezés.
+        PartnerLogic.scryptCost = PartnerLogic.fullCost
+        let full = PartnerLogic.hashPhrase(fx.phrase, salt: fx.salt)
+        PartnerLogic.scryptCost = Self.cheapCost
+        XCTAssertEqual(full, fx.hash, "ugyanaz a jelmondat, ugyanaz a lenyomat — mint a gépen")
         XCTAssertNil(PartnerLogic.hashPhrase(fx.phrase, salt: "nem base64!"), "rossz só: nincs lenyomat")
-        let lock = PartnerLogic.PartnerLock(name: "Anna", salt: fx.salt, hash: fx.hash, setAt: 1)
+        // A szabály (kanonikus alak, rossz jelmondat, üres) olcsó költséggel —
+        // a lenyomat itt nem a fixture-é, nem is kell annak lennie.
+        let lock = PartnerLogic.makeLock(name: "Anna", phrase: fx.phrase, now: now)
+        XCTAssertEqual(PartnerLogic.hashPhrase(" Alma bogrács CINEGE délután", salt: lock.salt), lock.hash,
+                       "a kanonikus alak számít")
+        XCTAssertNotEqual(PartnerLogic.hashPhrase(fx.wrong, salt: lock.salt), lock.hash)
         XCTAssertTrue(PartnerLogic.verify(lock, "ALMA  bogrács cinege délután "))
         XCTAssertFalse(PartnerLogic.verify(lock, fx.wrong))
         XCTAssertFalse(PartnerLogic.verify(lock, ""))
         let made = PartnerLogic.makeLock(name: "Anna", phrase: phrase, now: now)
         XCTAssertTrue(PartnerLogic.verify(made, phrase))
-        XCTAssertNotEqual(made.salt, fx.salt, "friss só minden felvételnél")
+        XCTAssertNotEqual(made.salt, lock.salt, "friss só minden felvételnél")
         XCTAssertNil(PartnerLogic.normalizeLock(name: "Anna", salt: "rövid", hash: fx.hash, setAt: 1))
         XCTAssertNil(PartnerLogic.normalizeLock(name: "", salt: fx.salt, hash: fx.hash, setAt: 1))
         XCTAssertEqual(PartnerLogic.normalizeLock(name: "Anna", salt: fx.salt, hash: fx.hash, setAt: 1), lock)
