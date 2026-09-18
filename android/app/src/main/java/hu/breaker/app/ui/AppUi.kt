@@ -1453,6 +1453,8 @@ private fun SiteCard(
     onBurst: () -> Unit, onAlias: () -> Unit, onReason: () -> Unit, onRules: () -> Unit,
     burst: BurstLogic.State? = null,
     trip: BurstTrip? = null,
+    /** adag-betelések az elmúlt 7 napon (a könyvből) — a sor a mai mellett a hetet is mondja, ha több */
+    weekTrips: Int = 0,
 ) {
     val paused = site.pauseUntil != null && site.pauseUntil > now
     val deleting = site.pendingDeleteAt != null
@@ -1548,7 +1550,7 @@ private fun SiteCard(
                 }
                 else -> {
                     LimitMeter(site, usage, shared, now, duringPause = false)
-                    BurstLine(site, burst, now, trip)
+                    BurstLine(site, burst, now, trip, weekTrips)
                     if (!hasSession) {
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                         // A műveletek nem főszereplők: keret nélküli szöveggombok,
