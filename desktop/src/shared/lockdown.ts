@@ -20,7 +20,7 @@
 // Swift tükrözi. Lásd docs/feature-lockdown.md.
 
 import { inAnyBand, isLoosening, isValidBand, type Band, type Weekday } from './schedule.js';
-import { occurrenceAt, type Occurrence } from './focus.js';
+import { nextOccurrence, occurrenceAt, type Occurrence } from './focus.js';
 
 /** Egy zárlat legfeljebb ennyi lehet. Ami ennél hosszabb, az már nem döntés. */
 export const MAX_LOCKDOWN_DAYS = 30;
@@ -155,6 +155,8 @@ export const MAX_LOCKDOWN_WINDOWS = 7;
  * próbatétel) — az nem döntés lenne, hanem csapda.
  */
 export const MIN_FREE_MINUTES_PER_WEEK = 60;
+/** Ennyivel a heti ablak beérése előtt szólunk egyszer — ami nyitva van, mentsd el. */
+export const WINDOW_PRE_WARN_MS = 10 * 60_000;
 /** Az ablak azonosítója legfeljebb ennyi karakter — kívülről jött szöveg. */
 const MAX_WINDOW_ID = 40;
 
@@ -350,4 +352,25 @@ export function mergeWindows(
   if (incomingMark > localMark) return normalizeWindows(incoming);
   // Unió TARTALOM szerint: a helyi azonosítója marad, ahol a tartalom azonos.
   return normalizeWindows([...local, ...incoming]);
+}
+
+/**
+ * A legközelebb beérő ablak-előfordulás, ha `withinMs`-en belül kezdődik —
+ * a jelzéshez. Nem közelgő, ami már él (arról a zárlat beszél), és nincs
+ * miről szólni, ha egy futó zárlat úgyis túlér rajta: az érkezése semmin nem
+ * változtat. Két eszköz ugyanazt találja: ugyanaz a lista, ugyanaz az óra.
+ */
+export function windowStartingSoon(
+  cur: Lockdown | null | undefined, windows: Band[], now: number, withinMs = WINDOW_PRE_WARN_MS,
+): Occurrence | null {
+  let soonest: Occurrence | null = null;
+  for (const w of windows) {
+    if (!isValidBand(w)) continue;
+    const occ = nextOccurrence(w, now);
+    if (!occ || occ.startsAt <= now) continue;
+    if (!soonest || occ.startsAt < soonest.startsAt) soonest = occ;
+  }
+  if (!soonest || soonest.startsAt - now > withinMs) return null;
+  if (isLocked(cur, now) && cur!.until >= soonest.endsAt) return null;
+  return soonest;
 }

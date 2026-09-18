@@ -45,6 +45,13 @@ class BreakerVpnService : VpnService() {
         private const val NOTIF_ID = 1
         /** A heti ablak beérésének egyszeri értesítése — a 2-es a visszavonásé. */
         private const val NOTIF_WINDOW_ID = 3
+        /** A közelgő heti ablak egyszeri értesítése. */
+        private const val NOTIF_WINDOW_SOON_ID = 4
+        /**
+         * A zárlat-ablak értesítéseinek saját csatornája: egyszeri és látható —
+         * nem a sáv halk, állandó csatornája, amit a rendszer joggal tesz hátra.
+         */
+        private const val LOCKDOWN_CHANNEL_ID = "breaker_lockdown"
 
         private val _running = MutableStateFlow(false)
         val running: StateFlow<Boolean> get() = _running
@@ -69,6 +76,8 @@ class BreakerVpnService : VpnService() {
      * úgyis mondja —, csak azt, ami a szolgáltatás élete alatt ér be.
      */
     private var noticedWindowUntil: Long = -1L
+    /** A már bejelentett közelgő ablak-kezdés; egy kezdésről egyszer szólunk. */
+    private var warnedWindowStart: Long = 0L
     private var usageTimer: java.util.Timer? = null
     @Volatile private var stopping = false
     private var readerThread: Thread? = null
@@ -199,6 +208,13 @@ class BreakerVpnService : VpnService() {
             noticedWindowUntil = lock.until
             runCatching { notifyWindowLockdown(lock, now) }
         }
+        // Tíz perccel a heti ablak beérése előtt egyszer szólunk — ami nyitva van,
+        // mentsd el. Ha egy futó zárlat úgyis túlér rajta, nincs miről.
+        val soon = LockdownLogic.windowStartingSoon(lock, st.lockdownWindows.map { it.band }, now)
+        if (soon != null && soon.startsAt != warnedWindowStart) {
+            warnedWindowStart = soon.startsAt
+            runCatching { notifyWindowSoon(soon, now) }
+        }
         val key = strictKey + lockKey + if (run != null) {
             "${run.packId}:${Focus.formatRemaining(run.endsAt - now)}"
         } else {
@@ -230,16 +246,37 @@ class BreakerVpnService : VpnService() {
      * azonosítón, hogy ne a sáv állandó értesítését írja felül; lehúzható.
      */
     private fun notifyWindowLockdown(lock: LockdownLogic.Lockdown, now: Long) {
+        notifyOnce(
+            NOTIF_WINDOW_ID, getString(R.string.vpn_lockdown_window_title),
+            getString(R.string.vpn_lockdown_window_notice_text,
+                LockdownLogic.formatRemaining(lock.until - now), clockLabel(lock.until, now)),
+        )
+    }
+
+    /** Tíz perccel a heti ablak beérése előtt — egyszer, lehúzható. */
+    private fun notifyWindowSoon(occ: Focus.Occurrence, now: Long) {
+        notifyOnce(
+            NOTIF_WINDOW_SOON_ID, getString(R.string.vpn_window_soon_title),
+            getString(R.string.vpn_window_soon_text,
+                LockdownLogic.formatRemaining(occ.startsAt - now), clockLabel(occ.endsAt, now)),
+        )
+    }
+
+    /** Egyszeri, lehúzható értesítés a zárlat-ablak csatornáján; az appot nyitja. */
+    private fun notifyOnce(id: Int, title: String, text: String) {
+        val nm = getSystemService(NotificationManager::class.java)
+        nm.createNotificationChannel(
+            NotificationChannel(LOCKDOWN_CHANNEL_ID, "Zárlat-ablak", NotificationManager.IMPORTANCE_DEFAULT),
+        )
         val pi = PendingIntent.getActivity(
             this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE,
         )
-        getSystemService(NotificationManager::class.java).notify(
-            NOTIF_WINDOW_ID,
-            Notification.Builder(this, CHANNEL_ID)
+        nm.notify(
+            id,
+            Notification.Builder(this, LOCKDOWN_CHANNEL_ID)
                 .setSmallIcon(android.R.drawable.ic_lock_lock)
-                .setContentTitle(getString(R.string.vpn_lockdown_window_title))
-                .setContentText(getString(R.string.vpn_lockdown_window_notice_text,
-                    LockdownLogic.formatRemaining(lock.until - now), clockLabel(lock.until, now)))
+                .setContentTitle(title)
+                .setContentText(text)
                 .setContentIntent(pi)
                 .setAutoCancel(true)
                 .build(),

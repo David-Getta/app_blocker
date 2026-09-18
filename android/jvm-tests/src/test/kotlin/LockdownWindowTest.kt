@@ -201,6 +201,23 @@ class LockdownWindowTest {
 
     // ------------------------------------------------------- a bíró: szerkesztés
 
+    @Test fun aWindowStartingSoonIsAnnouncedUnlessALockdownAlreadyCoversIt() {
+        val b = bands(work)
+        val occ = LockdownLogic.windowStartingSoon(null, b, mon(8, 55))
+        assertEquals(Focus.Occurrence(mon(9), mon(17)), occ, "tíz percen belül: jelez")
+        assertNull(LockdownLogic.windowStartingSoon(null, b, mon(8, 45)), "negyed óra még sok")
+        assertNull(LockdownLogic.windowStartingSoon(null, b, mon(9, 5)), "bent már nem közelgő")
+        assertNull(
+            LockdownLogic.windowStartingSoon(LockdownLogic.Lockdown(mon(8), mon(18)), b, mon(8, 55)),
+            "a futó zárlat túlér rajta: nincs miről szólni",
+        )
+        assertEquals(
+            occ, LockdownLogic.windowStartingSoon(LockdownLogic.Lockdown(mon(8), mon(12)), b, mon(8, 55)),
+            "a rövidebb zárlatot kitolja: jelez",
+        )
+        assertNull(LockdownLogic.windowStartingSoon(null, emptyList(), mon(8, 55)))
+    }
+
     @Test fun addingIsFreeAndKeepsIds() {
         val sun = at(2027, 3, 7, 12)
         assertTrue(Referee.setLockdownWindows(listOf(work.copy(id = "")), sun).applied, "felvétel")

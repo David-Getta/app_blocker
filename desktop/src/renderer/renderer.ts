@@ -32,6 +32,7 @@ import {
   formatRemaining, isWindowRun, MAX_ALLOW_ENTRIES, MAX_PACK_NAME, MAX_SESSION_MINUTES,
   nextOccurrence, SESSION_CHOICES_MIN, windowRunStarted, type FocusPack, type FocusRun,
 } from '../shared/focus.js';
+import { windowStartingSoon, type LockdownWindow as LockdownWindowRow } from '../shared/lockdown.js';
 import {
   encodePairingCode, formatPairingCode, resolveServerInput,
 } from '../shared/sync/pairing.js';
@@ -272,6 +273,21 @@ function showWindowLockdownNotice(lock: Lockdown, now: number): void {
   });
 }
 
+/** A már bejelentett közelgő ablak-kezdés; egy kezdésről egyszer szólunk. */
+let warnedWindowStart = 0;
+
+/** Tíz perccel a heti ablak beérése előtt egyszer szólunk — ami nyitva van, mentsd el. */
+function showWindowSoonNotice(lock: Lockdown | null, windows: LockdownWindowRow[], now: number): void {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  const occ = windowStartingSoon(lock, windows, now);
+  if (!occ || occ.startsAt === warnedWindowStart) return;
+  warnedWindowStart = occ.startsAt;
+  new Notification('Breaker — mindjárt beér a heti ablak', {
+    body: `${fmtRemain(occ.startsAt - now)} múlva zárlat, ${fmtClock(occ.endsAt)}-ig. `
+      + 'Amíg tart, semmilyen lazítás nem indítható — próbatétellel sem.',
+  });
+}
+
 function showBurstNotice(n: BurstNotice, now: number): void {
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
   const body = n.kind === 'tripped'
@@ -365,6 +381,7 @@ function render(): void {
     seenLockdown, status!.lockdown ?? null, status!.lockdownWindows ?? [], nowForBurst);
   seenLockdown = status!.lockdown ?? null;
   if (windowLock) showWindowLockdownNotice(windowLock, nowForBurst);
+  showWindowSoonNotice(status!.lockdown ?? null, status!.lockdownWindows ?? [], nowForBurst);
   renderSelfTestLine();
 
   const sig = sitesFingerprint(status!);

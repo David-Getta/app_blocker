@@ -28,7 +28,16 @@ enum WindowReminders {
                 center.requestAuthorization(options: [.alert, .sound]) { granted, _ in
                     DispatchQueue.main.async {
                         guard granted, mine == generation else { return }
-                        for w in windows { for day in w.days { center.add(request(w, day)) } }
+                        // Tíz perccel előre is szólunk, ha belefér: a rendszer 64 függő
+                        // kérést enged, és a beérés kérése az elsőbb.
+                        let slots = windows.reduce(0) { $0 + $1.days.count }
+                        let warn = slots * 2 <= 60
+                        for w in windows {
+                            for day in w.days {
+                                center.add(request(w, day))
+                                if warn { center.add(soonRequest(w, day)) }
+                            }
+                        }
                     }
                 }
             }
@@ -48,6 +57,24 @@ enum WindowReminders {
         content.sound = .default
         let trigger = UNCalendarNotificationTrigger(dateMatching: when, repeats: true)
         return UNNotificationRequest(identifier: "\(prefix)\(w.id):\(day)", content: content, trigger: trigger)
+    }
+
+    /// A beérés előtt tíz perccel — éjfél előttről az előző napra esik.
+    private static func soonRequest(_ w: LockdownLogic.LockdownWindow, _ day: Int) -> UNNotificationRequest {
+        var minute = w.startMin - Int(LockdownLogic.windowPreWarnMs / 60_000)
+        var weekday = day + 1
+        if minute < 0 { minute += 1440; weekday = weekday == 1 ? 7 : weekday - 1 }
+        var when = DateComponents()
+        when.weekday = weekday
+        when.hour = minute / 60
+        when.minute = minute % 60
+        let content = UNMutableNotificationContent()
+        content.title = "Mindjárt beér a heti ablak"
+        content.body = "\(Int(LockdownLogic.windowPreWarnMs / 60_000)) perc múlva zárlat, \(clock(w.endMin))-ig. "
+            + "Amíg tart, semmilyen lazítás nem indítható — próbatétellel sem. Ami nyitva van, mentsd el."
+        content.sound = .default
+        let trigger = UNCalendarNotificationTrigger(dateMatching: when, repeats: true)
+        return UNNotificationRequest(identifier: "\(prefix)\(w.id):\(day):soon", content: content, trigger: trigger)
     }
 
     private static func clock(_ min: Int) -> String {

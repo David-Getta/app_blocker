@@ -101,3 +101,11 @@ nyitásakor és a lista minden változásakor újraírja — a szinkronból jöt
 változásnál is, amíg nyitva van; ami zárt app mellett, a szűrő szinkronjával
 jön, az a következő megnyitáskor kerül be. Az első ablaknál a rendszer
 értesítési engedélyt kér.
+
+**Tíz perccel a beérés előtt** mindhárom platform egyszer szól: „Mindjárt
+beér a heti ablak” — mennyi idő múlva, és meddig tart majd; ami nyitva van,
+mentsd el. A gép és az Android a saját köréből mondja (`windowStartingSoon`),
+és csak akkor, ha nem ér túl az ablakon egy futó zárlat — annak az érkezése
+semmin nem változtatna. iPhone-on ez is előre ütemezett, ezért futó zárlat
+alatt is szól, és csak akkor fér bele, ha az ablak-napok száma legfeljebb
+harminc (a rendszer hatvannégy függő kérést enged; a beérés kérése az elsőbb).

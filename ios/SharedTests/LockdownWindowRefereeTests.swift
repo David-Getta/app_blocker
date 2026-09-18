@@ -80,6 +80,20 @@ final class LockdownWindowRefereeTests: XCTestCase {
         XCTAssertEqual(BreakerStore.shared.state.session?.pendingLockdownWindows ?? nil, [narrower])
     }
 
+    func testAWindowStartingSoonIsAnnouncedUnlessALockdownAlreadyCoversIt() {
+        let b = [work.band]
+        let occ = LockdownLogic.windowStartingSoon(nil, b, at(2027, 3, 8, 8, 55))
+        XCTAssertEqual(occ?.startsAt, at(2027, 3, 8, 9), "tíz percen belül: jelez")
+        XCTAssertEqual(occ?.endsAt, at(2027, 3, 8, 17))
+        XCTAssertNil(LockdownLogic.windowStartingSoon(nil, b, at(2027, 3, 8, 8, 45)), "negyed óra még sok")
+        XCTAssertNil(LockdownLogic.windowStartingSoon(nil, b, at(2027, 3, 8, 9, 5)), "bent már nem közelgő")
+        let long = LockdownLogic.Lockdown(startedAt: at(2027, 3, 8, 8), until: at(2027, 3, 8, 18))
+        XCTAssertNil(LockdownLogic.windowStartingSoon(long, b, at(2027, 3, 8, 8, 55)), "a futó zárlat túlér rajta")
+        let short = LockdownLogic.Lockdown(startedAt: at(2027, 3, 8, 8), until: at(2027, 3, 8, 12))
+        XCTAssertEqual(LockdownLogic.windowStartingSoon(short, b, at(2027, 3, 8, 8, 55))?.startsAt, occ?.startsAt, "a rövidebb zárlatot kitolja: jelez")
+        XCTAssertNil(LockdownLogic.windowStartingSoon(nil, [], at(2027, 3, 8, 8, 55)))
+    }
+
     func testRemovalInsideTheWindowDoesNotEvenStart() throws {
         try Referee.setLockdownWindows([work], now: sun)
         pumpMainQueue()

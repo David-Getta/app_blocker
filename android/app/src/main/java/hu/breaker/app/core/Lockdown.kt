@@ -119,6 +119,8 @@ object LockdownLogic {
      * ablakot sosem lehetne levenni — az nem döntés lenne, hanem csapda.
      */
     const val MIN_FREE_MINUTES_PER_WEEK = 60
+    /** Ennyivel a heti ablak beérése előtt szólunk egyszer — ami nyitva van, mentsd el. */
+    const val WINDOW_PRE_WARN_MS = 10 * 60_000L
     /** Az ablak azonosítója legfeljebb ennyi karakter — kívülről jött szöveg. */
     private const val MAX_WINDOW_ID = 40
 
@@ -243,5 +245,28 @@ object LockdownLogic {
         if (localMark > incomingMark) return cleanWindows(local)
         if (incomingMark > localMark) return cleanWindows(incoming)
         return cleanWindows(local + incoming)
+    }
+
+    /**
+     * A legközelebb beérő ablak-előfordulás, ha `withinMs`-en belül kezdődik —
+     * a jelzéshez. Nem közelgő, ami már él (arról a zárlat beszél), és nincs
+     * miről szólni, ha egy futó zárlat úgyis túlér rajta: az érkezése semmin
+     * nem változtat. Két eszköz ugyanazt találja: ugyanaz a lista, ugyanaz az óra.
+     */
+    fun windowStartingSoon(
+        cur: Lockdown?, windows: List<ScheduleLogic.Band>, now: Long, withinMs: Long = WINDOW_PRE_WARN_MS,
+    ): Focus.Occurrence? {
+        var soonest: Focus.Occurrence? = null
+        for (w in windows) {
+            if (!ScheduleLogic.isValidBand(w)) continue
+            val occ = Focus.nextOccurrence(w, now) ?: continue
+            if (occ.startsAt <= now) continue
+            val best = soonest
+            if (best == null || occ.startsAt < best.startsAt) soonest = occ
+        }
+        val s = soonest ?: return null
+        if (s.startsAt - now > withinMs) return null
+        if (isLocked(cur, now) && cur!!.until >= s.endsAt) return null
+        return s
     }
 }

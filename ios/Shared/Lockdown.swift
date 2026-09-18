@@ -134,6 +134,8 @@ public enum LockdownLogic {
     /// Legalább ennyi szabad perc kell a héten az ablakok mellett. Enélkül az
     /// ablakot sosem lehetne levenni — az nem döntés lenne, hanem csapda.
     static let minFreeMinutesPerWeek = 60
+    /// Ennyivel a heti ablak beérése előtt szólunk egyszer — ami nyitva van, mentsd el.
+    static let windowPreWarnMs: Double = 10 * 60_000
     /// Az ablak azonosítója legfeljebb ennyi karakter — kívülről jött szöveg.
     private static let maxWindowId = 40
 
@@ -272,5 +274,23 @@ public enum LockdownLogic {
         if localMark > incomingMark { return cleanWindows(local) }
         if incomingMark > localMark { return cleanWindows(incoming) }
         return cleanWindows(local + incoming)
+    }
+
+    /// A legközelebb beérő ablak-előfordulás, ha `within`-en belül kezdődik —
+    /// a jelzéshez. Nem közelgő, ami már él (arról a zárlat beszél), és nincs
+    /// miről szólni, ha egy futó zárlat úgyis túlér rajta: az érkezése semmin
+    /// nem változtat. Két eszköz ugyanazt találja: ugyanaz a lista, ugyanaz az óra.
+    static func windowStartingSoon(
+        _ cur: Lockdown?, _ windows: [ScheduleLogic.Band], _ now: Double, within: Double = windowPreWarnMs
+    ) -> Focus.Occurrence? {
+        var soonest: Focus.Occurrence? = nil
+        for w in windows {
+            guard ScheduleLogic.isValidBand(w), let occ = Focus.nextOccurrence(w, now: now), occ.startsAt > now else { continue }
+            if let best = soonest, best.startsAt <= occ.startsAt { continue }
+            soonest = occ
+        }
+        guard let s = soonest, s.startsAt - now <= within else { return nil }
+        if let cur, isLocked(cur, now), cur.until >= s.endsAt { return nil }
+        return s
     }
 }
