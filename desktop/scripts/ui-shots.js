@@ -132,6 +132,8 @@ function fakeBridgeSource() {
       session, dohPolicyApplied: true, usageEnabled: true, now: Date.now(),
       focusPacks: window.__fakePacks, focusRun: window.__fakeRun,
       channelFilters: window.__fakeChannelFilters,
+      // Egy heti zárlat-ablak, hogy a képernyőkép mutassa a kártya listáját.
+      lockdownWindows: [{ id: 'lw_demo', days: [1, 2, 3, 4, 5], startMin: 9 * 60, endMin: 17 * 60 }],
     });
     // 30 days, because that is what the helper actually sends (and what the
     // chart title claims) — a shorter demo series would make the screenshot lie.
@@ -171,7 +173,11 @@ function fakeBridgeSource() {
       focusDays: [6, 5, 4, 3, 2, 1, 0].map((back, i) => ({
         day: day(back), seconds: [3600, 4500, 0, 5400, 2700, 3300, 5700][i],
       })),
-      lastSampleAt: Date.now() - 5 * 60_000,
+      // Öt perce — de nem tegnap: éjfél után öt percig az „öt perce” még az
+      // előző napra esne, és a füstteszt a „ma” szót várja. A mai éjfél az alsó
+      // határ; a füstteszt nem az órát teszteli, hanem a sor alakját.
+      lastSampleAt: Math.max(Date.now() - 5 * 60_000,
+        new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()).getTime()),
     };
     window.breaker = {
       platform: 'darwin',

@@ -1821,7 +1821,9 @@ function renderLockdownWindows(windows: LockdownWindow[]): void {
     const row = h('div', 'lockdown-window');
     const left = h('div');
     left.appendChild(h('div', 'focus-name', recurrenceLabel(w)));
-    left.appendChild(h('div', 'focus-sub', 'ebben a sávban a zárlat magától él'));
+    // Mikor jön: egy ablak, amiről nem tudni, mikor ér be, nem megnyugtató,
+    // hanem meglepetés — ugyanaz a sor, mint a csomag ablakánál.
+    left.appendChild(h('div', 'focus-sub', 'ebben a sávban a zárlat magától él' + nextStartLabel(w, false)));
     row.appendChild(left);
     const actions = h('div', 'row-gap');
     const edit = h('button', 'btn btn-small', 'Módosítás…');
