@@ -44,20 +44,19 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **Adag-betelések a héten.** A betelések könyve hét napot tart, és a
-          statisztika a hét összegét is mondja oldalanként — „Adag-betelések a héten: youtube.com 5× · reddit.com 2×” —,
-          ha a hét több a mainál. A weboldal kimondja: a híd befelé csak
-          szigorít.
+          **Az adag a héten** a heti mondatban is („Az adag a héten 7× telt be.”)
+          és az oldal sorában is („· a héten 7×”) — a gépen és Androidon.
 
-          ### Ami a v0.4.97-ben jött
+          ### Ami a v0.4.98-ban jött
+
+          **Adag-betelések a héten** — a betelések könyve hét napot tart, a
+          statisztika a hét összegét mondja oldalanként. A weboldal kimondja:
+          a híd befelé csak szigorít.
+
+          #### Ami a v0.4.97-ben jött
 
           **Óra-tengely az órák sávja alatt** minden felületen, és **a keret
-          sora a héten betelt napokkal** az oldal mellett. Bővítmény 0.4.22.
-
-          #### Ami a v0.4.96-ban jött
-
-          **A keret betelt napjai** — hány napon telt be a napi keret a
-          héten, és melyik oldalé hányszor; a heti mondat rövidebben.
+          sora a héten betelt napokkal**. Bővítmény 0.4.22.
 
           NOTES
           fi
