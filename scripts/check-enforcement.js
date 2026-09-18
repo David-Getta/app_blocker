@@ -480,6 +480,18 @@ const WIRES = [
     needle: 'FilterHitLogic.daySeries(store.state.filterHits ?? [:], now: now, count: 7)',
     lost: 'az iPhone statisztika nem rajzolná a megakadások hetét',
   },
+  // A SOKADIK MEGAKADÁS javaslata: ha a bekötés kiesne, a lépcsők megvolnának
+  // a magban — csak senki nem szólna.
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: 'showHitNudge(status!.browserHitsToday ?? 0, nowForBurst);',
+    lost: 'a gép nem javasolna lépést a sokadik megakadásnál',
+  },
+  {
+    file: 'extension/blocked.js',
+    needle: '+ hitsNudge(n);',
+    lost: 'a tiltó lap nem javasolna lépést a sokadik megakadásnál',
+  },
   // A MEGAKADÁS-SZÁMLÁLÓ lánca: a háttér könyvel, a link átadja, a híd
   // fogadja, a segéd tartja, a mondat és a statisztika mondja. Ha bármelyik
   // láncszem kiesne, a bővítmény lapja továbbra is számolna — az app viszont

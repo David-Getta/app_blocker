@@ -428,6 +428,13 @@ huszonnégy rekesze), a beállítás-lapja a hét csúcs-óráját mondja és eg
 megakadások hete alatt mondja: „A hét csúcsa: 21–22 óra (7 megakadás) —
 akkor jár a kéz magától.” Tény, nem ítélet.
 
+A **sokadik megakadásnál** a gép egy lépést javasol: az ötödik, tizedik és
+huszadik mai megakadásnál egyszer szól („Ma már 5 megakadás a böngészőben.
+Egy munkamenet vagy egy rövid zárlat most segítene — te döntesz.”), és a
+tiltó lap az ötödiktől ugyanezt teszi hozzá a sorához. Nem tilt, nem ítél —
+a döntés az emberé. A heti mondat a csúcs-órát is mondja: „12 megakadás a
+böngészőben, a csúcs 21–22 óra.”
+
 A **hét alakja a megakadásokra** is megvan mindhárom statisztikán — ugyanaz
 a rajz, mint a mért időé és a meneteké, csak darabban: a gépen a böngésző
 könyve (`browserHitsDays` az állapotban, a források összeadva), a telefonon

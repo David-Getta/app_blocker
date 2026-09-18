@@ -4,8 +4,9 @@
 import { test } from 'node:test';
 import * as assert from 'node:assert/strict';
 import {
-  MAX_HITS_PER_DAY, MAX_HIT_DAYS, MAX_HIT_SOURCES, browserHits7d, browserHitsBetween, browserHitsPeakHour,
-  browserHitsSeries, browserHitsToday, cleanBrowserHitDays, cleanBrowserHits, hitDayKey, hourLabel, putBrowserHits,
+  HIT_NUDGE_STEPS, MAX_HITS_PER_DAY, MAX_HIT_DAYS, MAX_HIT_SOURCES, browserHits7d, browserHitsBetween,
+  browserHitsPeakHour, browserHitsSeries, browserHitsToday, cleanBrowserHitDays, cleanBrowserHits, hitDayKey,
+  hitNudgeStep, hitNudgeText, hourLabel, putBrowserHits,
 } from '../src/shared/browser-hits';
 import { digestText } from '../src/shared/digest';
 import { summarizeFocus } from '../src/shared/focus';
@@ -103,4 +104,22 @@ test('az órák a hídról: huszonnégy rekesz, a napi összegnél nem több; a 
   assert.deepEqual(browserHitsPeakHour(book, NOW), { hour: 9, count: 5 }, 'a nyolc napos nem számít');
   assert.equal(browserHitsPeakHour(undefined, NOW), null);
   assert.equal(hourLabel(21), '21–22 óra');
+});
+
+test('a mondat a csúcs-órával; a sokadik megakadás lépcsői', () => {
+  const base = {
+    last7Seconds: 0, topWeekSites: [], weekOverWeek: [], daysTracked: 0,
+    focusWeek: summarizeFocus([], 0, NOW), unlocks7d: 0,
+  };
+  assert.equal(digestText({ ...base, browserHits7d: 12, browserHitsPeak: { hour: 21, count: 7 } }, (l) => l),
+    'Elmúlt 7 nap: 12 megakadás a böngészőben, a csúcs 21–22 óra.');
+  assert.equal(digestText({ ...base, browserHits7d: 12, browserHitsPeak: null }, (l) => l),
+    'Elmúlt 7 nap: 12 megakadás a böngészőben.');
+  assert.deepEqual(HIT_NUDGE_STEPS, [5, 10, 20]);
+  assert.equal(hitNudgeStep(0), 0);
+  assert.equal(hitNudgeStep(4), 0);
+  assert.equal(hitNudgeStep(5), 5);
+  assert.equal(hitNudgeStep(12), 10);
+  assert.equal(hitNudgeStep(40), 20);
+  assert.match(hitNudgeText(5), /^Ma már 5 megakadás/);
 });

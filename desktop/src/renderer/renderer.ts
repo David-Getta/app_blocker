@@ -22,7 +22,7 @@ import {
   formatLockdownRemaining, isLocked, isWindowLockdown, windowLockdownStarted, LOCKDOWN_CHOICES_MIN,
   MAX_LOCKDOWN_WINDOWS, type Lockdown, type LockdownWindow,
 } from '../shared/lockdown.js';
-import { hourLabel } from '../shared/browser-hits.js';
+import { hitNudgeStep, hitNudgeText, hourLabel } from '../shared/browser-hits.js';
 import { stepBurstNotices, type BurstNotice, type BurstWatch } from '../shared/burst-notify.js';
 import {
   cleanDigestLog, daysSinceUnlock, digestDue, digestText, recordDigest, relabelDigest, weekLabel, type DigestEntry,
@@ -295,6 +295,22 @@ function showWindowSoonNotice(lock: Lockdown | null, windows: LockdownWindowRow[
   });
 }
 
+/**
+ * A SOKADIK megakadásnál egy lépést javasol — lépcsőnként egyszer, naponta
+ * (a tár őrzi, melyik lépcsőnél szólt már ma). Nem tilt, nem ítél.
+ */
+function showHitNudge(today: number, now: number): void {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  const step = hitNudgeStep(today);
+  if (step === 0) return;
+  const key = `${dayKey(now)}:${step}`;
+  let last: string | null = null;
+  try { last = localStorage.getItem('breaker.hitNudge'); } catch { /* nincs tár: szólunk */ }
+  if (last === key) return;
+  try { localStorage.setItem('breaker.hitNudge', key); } catch { /* nincs tár: legközelebb újra */ }
+  new Notification('Breaker — sokadik megakadás', { body: hitNudgeText(step) });
+}
+
 function showBurstNotice(n: BurstNotice, now: number): void {
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
   const body = n.kind === 'tripped'
@@ -389,6 +405,7 @@ function render(): void {
   seenLockdown = status!.lockdown ?? null;
   if (windowLock) showWindowLockdownNotice(windowLock, nowForBurst);
   showWindowSoonNotice(status!.lockdown ?? null, status!.lockdownWindows ?? [], nowForBurst);
+  showHitNudge(status!.browserHitsToday ?? 0, nowForBurst);
   renderSelfTestLine();
 
   const sig = sitesFingerprint(status!);
@@ -3853,6 +3870,7 @@ function currentDigestText(): string | null {
     unlocks7d: status.unlocks7d,
     dropped7d: status.dropped7d ?? 0,
     browserHits7d: status.browserHits7d ?? 0,
+    browserHitsPeak: status.browserHitsPeak ?? null,
     daysTracked: s.daysTracked,
     unblockedTop: suggestBlocks(s.topWeekSites, status.sites).map((t) => ({ label: t.label, seconds: t.seconds })),
   }, statLabel);

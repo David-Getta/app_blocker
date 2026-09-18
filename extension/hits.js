@@ -98,6 +98,14 @@ export function peakHour(state, days) {
   return best < 0 ? null : { hour: best, count: by[best] };
 }
 
+/** Ennyi mai megakadástól a tiltó lap egy lépést is javasol. */
+export const NUDGE_AT = 5;
+
+/** A tiltó lap javaslata a sokadik megakadásnál — vagy üres. Nem tilt, nem ítél. */
+export function hitsNudge(today) {
+  return today >= NUDGE_AT ? ' Egy munkamenet vagy egy rövid zárlat most segítene — te döntesz.' : '';
+}
+
 /** „21–22 óra” — a csúcs-óra felirata. */
 export function hourLabel(hour) {
   return `${hour}–${(hour + 1) % 24} óra`;

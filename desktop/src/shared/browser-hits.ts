@@ -119,6 +119,25 @@ export function browserHitsPeakHour(book: BrowserHits | undefined, now: number):
   return best < 0 ? null : { hour: best, count: by[best] };
 }
 
+/**
+ * A SOKADIK megakadás lépcsői: ezeknél a mai számoknál egyszer szól a gép
+ * (értesítés), hogy egy munkamenet vagy egy rövid zárlat most segítene.
+ * Nem ítélet, és nem tilt semmit — egy lépést javasol, a döntés az emberé.
+ */
+export const HIT_NUDGE_STEPS = [5, 10, 20];
+
+/** A legmagasabb lépcső, amit a mai szám elért — 0, ha egyet sem. */
+export function hitNudgeStep(today: number, steps: number[] = HIT_NUDGE_STEPS): number {
+  let best = 0;
+  for (const s of steps) if (today >= s && s > best) best = s;
+  return best;
+}
+
+/** A javaslat mondata egy lépcsőnél. */
+export function hitNudgeText(step: number): string {
+  return `Ma már ${step} megakadás a böngészőben. Egy munkamenet vagy egy rövid zárlat most segítene — te döntesz.`;
+}
+
 /** „21–22 óra” — a csúcs-óra felirata. */
 export function hourLabel(hour: number): string {
   return `${hour}–${(hour + 1) % 24} óra`;

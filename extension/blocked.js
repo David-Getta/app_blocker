@@ -5,7 +5,7 @@
 // nélkül. A lap ilyenkor betöltődne, csak épp nem mondaná meg, mi tiltotta le.
 // Modulként fut, hogy a megakadás-könyv magját (hits.js) ugyanabból a fájlból
 // olvassa, amiből a háttér ír — két számolás két számot adna.
-import { dayKey, hitsOn, hitsOnHost } from './hits.js';
+import { dayKey, hitsNudge, hitsOn, hitsOnHost } from './hits.js';
 
 const params = new URLSearchParams(location.search);
 const focus = params.get('focus');
@@ -245,7 +245,7 @@ function paintHits(state) {
   if (n <= 0) { hitsNote.hidden = true; return; }
   const onHost = fromHost ? hitsOnHost(state, today, fromHost) : 0;
   hitsNote.textContent = `Ma ez a ${n}. megakadás`
-    + (onHost > 1 ? ` — ebből a ${onHost}. ezen az oldalon` : '') + '.';
+    + (onHost > 1 ? ` — ebből a ${onHost}. ezen az oldalon` : '') + '.' + hitsNudge(n);
   hitsNote.hidden = false;
 }
 

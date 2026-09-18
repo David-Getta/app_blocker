@@ -32,12 +32,14 @@ interface Hits {
   hitsByHour: (state: unknown, days: string[]) => number[];
   peakHour: (state: unknown, days: string[]) => { hour: number; count: number } | null;
   hourLabel: (hour: number) => string;
+  hitsNudge: (today: number) => string;
+  NUDGE_AT: number;
 }
 
 function load(): Hits {
   const src = fs.readFileSync(path.join(extensionDir(), 'hits.js'), 'utf8').replace(/^export /gm, '');
   // eslint-disable-next-line no-new-func
-  return new Function(`${src}\nreturn { RETENTION_DAYS, MAX_HOSTS_PER_DAY, dayKey, lastDays, recordHit, sweepHits, hitsOn, hitsOnHost, hitsSummary, hitsReport, hitsText, hitsRows, hitsByHour, peakHour, hourLabel };`)() as Hits;
+  return new Function(`${src}\nreturn { RETENTION_DAYS, MAX_HOSTS_PER_DAY, dayKey, lastDays, recordHit, sweepHits, hitsOn, hitsOnHost, hitsSummary, hitsReport, hitsText, hitsRows, hitsByHour, peakHour, hourLabel, hitsNudge, NUDGE_AT };`)() as Hits;
 }
 
 const TODAY = '2026-09-18';
@@ -138,4 +140,11 @@ test('óránként is: a hét csúcs-órája, holtversenynél a korábbi; a hídr
   const todayRow = report.find((r) => r.day === TODAY) as { byHour?: number[] };
   assert.equal(todayRow.byHour?.[21], 2, 'a rekeszek a hídra mennek');
   assert.equal(todayRow.byHour?.length, 24);
+});
+
+test('a sokadik megakadásnál a lap egy lépést javasol — alatta hallgat', () => {
+  const h = load();
+  assert.equal(h.NUDGE_AT, 5);
+  assert.equal(h.hitsNudge(4), '');
+  assert.match(h.hitsNudge(5), /munkamenet vagy egy rövid zárlat/);
 });

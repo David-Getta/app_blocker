@@ -20,6 +20,7 @@
 // fedőnév) — az értesítés sem szivárogtathat ki olyan címet, amit a lista elrejt.
 
 import type { FocusSummary } from './focus.js';
+import { hourLabel } from './browser-hits.js';
 
 /** Hétfőn ettől az órától esedékes (helyi idő). */
 export const DIGEST_HOUR = 7;
@@ -93,6 +94,8 @@ export interface DigestInput {
    * a tiltás akkor dolgozik, amikor az ember nem figyel — ez mondja, mennyit.
    */
   browserHits7d?: number;
+  /** a hét csúcs-órája a böngésző megakadásaira — mikor jár a kéz magától; null, ha nem volt */
+  browserHitsPeak?: { hour: number; count: number } | null;
   /** van-e egyáltalán mért nap */
   daysTracked: number;
   /**
@@ -155,7 +158,8 @@ export function digestText(input: DigestInput, labelOf: (label: string) => strin
   else if (measured || f.sessions > 0) parts.push('Feloldás nélkül.');
   // A megakadás: hányszor állította meg a böngésző — tény, nem ítélet.
   const hits = input.browserHits7d ?? 0;
-  if (hits > 0) parts.push(`${hits} megakadás a böngészőben.`);
+  const peak = input.browserHitsPeak ?? null;
+  if (hits > 0) parts.push(`${hits} megakadás a böngészőben${peak ? `, a csúcs ${hourLabel(peak.hour)}` : ''}.`);
   // A tükör másik fele: ami sokat vitt, és nincs a listán. Egy név, a
   // legnagyobb — a többi a felvevő kártyán vár, egy kattintásra.
   const open = input.unblockedTop?.[0];
