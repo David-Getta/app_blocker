@@ -44,22 +44,20 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **Amikor a csúcs-nap a menet-nap.** Ha a négy hét csúcs-napja
-          (amelyiken a kéz a legtöbbször megakad) ugyanaz, mint a menet-nap
-          (amelyiken a legtöbbször leülsz), a statisztika és a heti mondat
-          kimondja mindhárom platformon:
-          „A csúcs-nap és a menet-nap ugyanaz: kedd — a kéz azon a napon csúszik, amelyiken le szoktál ülni.”
-          A csúcs-óra és a menet-óra egybeesésének párja. Tény, nem ítélet.
+          **A README, a weboldal és az architektúra a csúcs-nap és a
+          menet-nap egybeeséséről.** Kód nem változott.
 
-          ### Ami a v0.4.146-ban jött
+          ### Ami a v0.4.147-ben jött
+
+          **Amikor a csúcs-nap a menet-nap:** ha a négy hét csúcs-napja
+          ugyanaz, mint a menet-nap, a statisztika és a heti mondat
+          kimondja mindhárom platformon — a csúcs-óra és a menet-óra
+          egybeesésének párja. Tény, nem ítélet.
+
+          #### Ami a v0.4.146-ban jött
 
           **A heti mondat a leghosszabb sorozatot is mondja** — a mostani
-          sorozat mellett, zárójelben; sorozat nélkül a puszta rekord itt
-          nem hangzik el, az a statisztikáé.
-
-          #### Ami a v0.4.145-ben jött
-
-          **A README és a weboldal a menet-sorozatról.** Kód nem változott.
+          sorozat mellett, zárójelben.
 
           NOTES
           fi
