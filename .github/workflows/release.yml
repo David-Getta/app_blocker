@@ -44,21 +44,20 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **Óra-tengely az órák sávja alatt** (0 · 6 · 12 · 18 · 24) a gépen,
-          a bővítmény beállítás-lapján és a telefonokon — a rekeszek órára
-          olvashatók. **A keret sora a héten betelt napokkal** — az oldal
-          mellett is: „a héten 2 napon betelt”. Bővítmény 0.4.22.
+          **Adag-betelések a héten.** A betelések könyve hét napot tart, és a
+          statisztika a hét összegét is mondja oldalanként — „Adag-betelések a héten: youtube.com 5× · reddit.com 2×” —,
+          ha a hét több a mainál. A weboldal kimondja: a híd befelé csak
+          szigorít.
 
-          ### Ami a v0.4.96-ban jött
+          ### Ami a v0.4.97-ben jött
 
-          **A keret betelt napjai** — a statisztika kimondja, hány napon
-          telt be a napi keret a héten, és melyik oldalé hányszor; a heti
-          mondat rövidebben. Tükör: dolgozik-e a keret.
+          **Óra-tengely az órák sávja alatt** minden felületen, és **a keret
+          sora a héten betelt napokkal** az oldal mellett. Bővítmény 0.4.22.
 
-          #### Ami a v0.4.95-ben jött
+          #### Ami a v0.4.96-ban jött
 
-          **A heti mondat a lefedett csúcs-órát is mondja** — a csúcs
-          mellett: „magától indul: Nyelvtanulás”.
+          **A keret betelt napjai** — hány napon telt be a napi keret a
+          héten, és melyik oldalé hányszor; a heti mondat rövidebben.
 
           NOTES
           fi
