@@ -8,8 +8,9 @@ kettővel korábbiban.
 
 | Verzió | Nap | Mi újság |
 |---|---|---|
+| v0.4.117 (még nincs kiadva) | 2026-09-18 | a heti mondat a menet-napot is mondja |
 | v0.4.116 (még nincs kiadva) | 2026-09-18 | a menet-nap |
-| v0.4.115 (még nincs kiadva) | 2026-09-18 | a hét napjainak sávja |
+| v0.4.115 | 2026-09-18 | a hét napjainak sávja |
 | v0.4.114 | 2026-09-18 | a csúcs-nap ott is, ahol a kísértés van |
 | v0.4.113 | 2026-09-18 | a heti mondat a csúcs-napot is mondja |
 | v0.4.112 | 2026-09-18 | csomag felvétele a telefonon |
