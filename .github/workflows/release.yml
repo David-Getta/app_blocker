@@ -44,20 +44,21 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A hét alakja a megakadásokra.** A statisztika mindhárom
-          platformon napról napra rajzolja, hányszor állított meg a
-          böngésző (a gépen) vagy a szűrő (a telefonon) — ugyanazzal a
-          rajzzal, mint a mért időé és a meneteké. Egyenletesen jön-e össze
-          a hét, vagy egy napból: tükör, nem ítélet.
+          **Mikor jár a kéz magától.** A böngésző-bővítmény óránként is
+          könyveli a megakadásokat; a beállítás-lapja a hét csúcs-óráját
+          mondja és egy óra-sávot rajzol, a gépi statisztika pedig a
+          megakadások hete alatt:
+          „A hét csúcsa: 21–22 óra (7 megakadás) — akkor jár a kéz magától.”
+          Tény, nem ítélet.
 
-          ### Ami a v0.4.54-ben jött
+          ### Ami a v0.4.55-ben jött
 
-          **Hétfő reggeli emlékeztető iPhone-on** a heti visszatekintésre —
-          a rendszer ütemezi, a mondat az appban születik.
+          **A hét alakja a megakadásokra** mindhárom statisztikán — ugyanaz
+          a rajz, mint a mért időé és a meneteké.
 
-          #### Ami a v0.4.53-ban jött
+          #### Ami a v0.4.54-ben jött
 
-          **A megakadás ott is látszik, ahol a kísértés van.**
+          **Hétfő reggeli emlékeztető iPhone-on.**
 
           NOTES
           fi
