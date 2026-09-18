@@ -508,7 +508,10 @@ sokadik megakadásnál a mondatot és egy gombot is mutat — „Munkamenet:
 Nyelvtanulás, 25 perc” —, a legutóbb használt csomagot a szokásos hosszával
 (a segéd választja, `lastUsedPackId` a statisztika-válaszban; napló nélkül az
 elsőt): egy kattintás a mondattól a menetig, mint a telefonon. Futó menet
-mellett nincs gomb. A gyorsbillentyűs rétegben ugyanez: a legutóbb használt
+mellett nincs gomb. A gépi értesítés is kattintható: a sokadik megakadásé és
+az előjelzésé a mondat végén megmondja, mi indul („Kattints, és indul: Nyelvtanulás, 25 perc.”),
+a kattintás indítja, és egy második értesítés visszaszól, hogy elindult; futó
+menet mellett nincs ígéret és nincs indítás. A gyorsbillentyűs rétegben ugyanez: a legutóbb használt
 csomag sorában egy gomb a szokásos hosszal (a választó nélkül), és a láb a
 sokadik megakadásnál a mondatot is mondja — a réteg a kísértés pillanatáé.
 

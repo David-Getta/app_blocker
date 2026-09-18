@@ -307,6 +307,39 @@ function quietSuggestions(): boolean {
  * A SOKADIK megakadásnál egy lépést javasol — lépcsőnként egyszer, naponta
  * (a tár őrzi, melyik lépcsőnél szólt már ma). Nem tilt, nem ítél.
  */
+/** A javaslat csomagja a státuszból: a legutóbb használt (napló nélkül az első) — a segéd választja. */
+function suggestedPack(): FocusPack | null {
+  const id = status?.lastUsedPackId ?? null;
+  return (status?.focusPacks ?? []).find((p) => p.id === id) ?? status?.focusPacks?.[0] ?? null;
+}
+
+/**
+ * EGY KATTINTÁS a mondattól a menetig — a statisztika gombjáról és az
+ * értesítésről is: a legutóbb használt csomag a szokásos hosszával. Futó
+ * menet mellett nem indít (egyszerre egy menet fut). Az értesítésről
+ * indítva vissza is szól, hogy elindult — a kattintásnak látszania kell.
+ */
+async function startSuggestedSession(fromNotice = false, onError?: (msg: string) => void): Promise<void> {
+  const pick = suggestedPack();
+  if (!pick || focusIsRunning(status?.focusRun ?? null, Date.now())) return;
+  try {
+    status = await call<StatusData>('focus_start', { packId: pick.id, minutes: pick.defaultMinutes });
+    render();
+    if (fromNotice && 'Notification' in window && Notification.permission === 'granted') {
+      new Notification('Breaker — a menet elindult', { body: `${pick.name}, ${pick.defaultMinutes} perc. Csak a csomag oldalai mennek.` });
+    }
+  } catch (e) {
+    onError?.((e as Error).message);
+  }
+}
+
+/** Az értesítés kattintható részének mondata: mi indul, ha kattintasz — csak ha van mit. */
+function clickToStartText(): string {
+  const pick = suggestedPack();
+  if (!pick || focusIsRunning(status?.focusRun ?? null, Date.now())) return '';
+  return ` Kattints, és indul: ${pick.name}, ${pick.defaultMinutes} perc.`;
+}
+
 function showHitNudge(today: number, now: number): void {
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
   if (quietSuggestions()) return;
@@ -317,7 +350,9 @@ function showHitNudge(today: number, now: number): void {
   try { last = localStorage.getItem('breaker.hitNudge'); } catch { /* nincs tár: szólunk */ }
   if (last === key) return;
   try { localStorage.setItem('breaker.hitNudge', key); } catch { /* nincs tár: legközelebb újra */ }
-  new Notification('Breaker — sokadik megakadás', { body: hitNudgeText(step) });
+  const n = new Notification('Breaker — sokadik megakadás', { body: hitNudgeText(step) + clickToStartText() });
+  // EGY KATTINTÁS az értesítésről a menetig: a javaslat nem csak mondat.
+  n.onclick = () => void startSuggestedSession(true);
 }
 
 /**
@@ -334,7 +369,9 @@ function showPeakWarning(peak: { hour: number; count: number } | null, now: numb
   try { last = localStorage.getItem('breaker.peakWarn'); } catch { /* nincs tár: szólunk */ }
   if (last === key) return;
   try { localStorage.setItem('breaker.peakWarn', key); } catch { /* nincs tár: legközelebb újra */ }
-  new Notification('Breaker — mindjárt a csúcs-óra', { body: peakWarnText(peak) });
+  const n = new Notification('Breaker — mindjárt a csúcs-óra', { body: peakWarnText(peak) + clickToStartText() });
+  // EGY KATTINTÁS az értesítésről a menetig: az előjelzés nem csak mondat.
+  n.onclick = () => void startSuggestedSession(true);
 }
 
 function showBurstNotice(n: BurstNotice, now: number): void {
@@ -3768,16 +3805,10 @@ function setupModal(): void {
   });
   // Egy kattintás a mondattól a menetig — szigorítás, ingyen; a bíró ugyanazt
   // futtatja, mint a csomagkártya gombja. A hiba a mondat helyére kerül.
-  $('hitsStartBtn').addEventListener('click', () => void (async () => {
-    const pick = hitsStartPick;
-    if (!pick) return;
-    try {
-      status = await call<StatusData>('focus_start', { packId: pick.id, minutes: pick.defaultMinutes });
-      render();
-    } catch (e) {
-      $('hitsNudgeText').textContent = (e as Error).message;
-    }
-  })());
+  $('hitsStartBtn').addEventListener('click', () => {
+    if (!hitsStartPick) return;
+    void startSuggestedSession(false, (msg) => { $('hitsNudgeText').textContent = msg; });
+  });
   // Az Esc a legfelső réteget zárja. Egy panel, ami csak egérrel csukható be,
   // billentyűzettel csapdába ejt.
   document.addEventListener('keydown', (e) => {

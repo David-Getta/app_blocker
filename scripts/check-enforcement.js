@@ -715,6 +715,19 @@ const WIRES = [
   // A NULLA HÉT IS MONDAT, ha volt mihez mérni: a statisztika blokkja üres héten
   // is marad, ha az előző héten volt megakadás vagy menet — különben a két
   // szám csak a heti mondatban élne, a lapon csendben eltűnne.
+  // EGY KATTINTÁS AZ ÉRTESÍTÉSRŐL a menetig: a sokadik megakadás és az
+  // előjelzés értesítése indít. Ha a kattintás-kezelő esne ki, az értesítés
+  // ígérne („Kattints, és indul”), és nem történne semmi.
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: 'n.onclick = () => void startSuggestedSession(true);',
+    lost: 'a gépi értesítés kattintása nem indítana menetet — az ígéret üres',
+  },
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: "status = await call<StatusData>('focus_start', { packId: pick.id, minutes: pick.defaultMinutes });",
+    lost: 'a javaslat gombja és értesítése nem indítana menetet',
+  },
   {
     file: 'desktop/src/renderer/renderer.ts',
     needle: "(n) => `${n} megakadás`, (status?.browserHitsPrev7d ?? 0) > 0);",
