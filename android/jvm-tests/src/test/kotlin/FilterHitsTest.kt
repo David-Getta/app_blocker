@@ -154,5 +154,9 @@ class FilterHitsTest {
         assertEquals(mapOf(today to 3), back.filterHits, "a mentés hordozza, a szemét kiesik")
         val old = fromJson.invoke(BreakerStore, JSONObject("{\"sites\":[]}")) as AppState
         assertEquals(emptyMap(), old.filterHits, "régi mentés: üres könyv")
+        // Ha nem kéred, csendben marad — a beállítás a mentésben; a régi mentésben nincs: szól.
+        val quiet = fromJson.invoke(BreakerStore, JSONObject(toJson.invoke(BreakerStore, AppState(quietSuggestions = true)).toString())) as AppState
+        assertTrue(quiet.quietSuggestions, "a mentés hordozza a csendet")
+        assertFalse(old.quietSuggestions, "régi mentés: szól")
     }
 }

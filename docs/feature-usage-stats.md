@@ -466,6 +466,13 @@ nem ítél. A tíz perc és a három a három magban azonos (`check-core-sync`).
 A telefon kezdőlapján a javaslat kártyája ugyanebben a tíz percben az
 előjelzés mondatát is mondja — a munkamenet gombjával együtt.
 
+**Ha nem kéred, csendben marad.** Az értesítés a sokadik megakadásnál és a
+csúcs-óra előtt kikapcsolható: a gépen a háttér-panel kapcsolójával (a tárban
+marad), Androidon és iPhone-on a statisztika megakadás-blokkjának
+kapcsolójával (`quietSuggestions` az állapotban, helyi — nem szinkronizál).
+A kártya a lapon és a statisztika sora akkor is mondja: a tükör marad, csak
+nem szól utánad.
+
 A **hét alakja a megakadásokra** is megvan mindhárom statisztikán — ugyanaz
 a rajz, mint a mért időé és a meneteké, csak darabban: a gépen a böngésző
 könyve (`browserHitsDays` az állapotban, a források összeadva), a telefonon

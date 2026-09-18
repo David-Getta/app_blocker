@@ -174,6 +174,8 @@ data class AppState(
      * önmagában nem szembesít azzal, mi van blokkolva.
      */
     val hideSiteList: Boolean = false,
+    /** Ha nem kéred, csendben marad: az értesítés a sokadik megakadásnál és a csúcs-óra előtt kikapcsolva. Helyi. */
+    val quietSuggestions: Boolean = false,
     /** fiók a szinkronhoz; null = nincs bejelentkezve */
     val sync: SyncAccount? = null,
     /**
@@ -515,6 +517,7 @@ object BreakerStore {
     private fun toJson(s: AppState): JSONObject = JSONObject().apply {
         put("protectionOn", s.protectionOn)
         put("hideSiteList", s.hideSiteList)
+        put("quietSuggestions", s.quietSuggestions)
         // A zárlat a lemezre is megy: egy újraindítás nem oldhatja fel azt,
         // aminek szándékosan nincs visszaútja.
         put("lockdown", s.lockdown?.let { l ->
@@ -868,6 +871,7 @@ object BreakerStore {
             session = session,
             abandons = abandons,
             hideSiteList = o.optBoolean("hideSiteList", false),
+            quietSuggestions = o.optBoolean("quietSuggestions", false),
             lockdown = if (o.isNull("lockdown")) null else runCatching {
                 val l = o.getJSONObject("lockdown")
                 LockdownLogic.parse(

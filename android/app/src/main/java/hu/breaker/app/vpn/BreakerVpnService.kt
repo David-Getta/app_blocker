@@ -327,6 +327,7 @@ class BreakerVpnService : VpnService() {
      * ilyenkor jár a kéz magától. Nem tilt, nem ítél; a mag mondja, mikor.
      */
     private fun maybePeakWarning(st: AppState, now: Long) {
+        if (st.quietSuggestions) return // ha nem kéred, csendben marad
         val peak = FilterHitLogic.peakHour(st.filterHitHours, now) ?: return
         val key = FilterHitLogic.peakWarnKey(peak, now) ?: return
         if (key == warnedPeakKey) return
@@ -510,9 +511,11 @@ class BreakerVpnService : VpnService() {
                 // A SOKADIK megakadás: az ötödik, tizedik, huszadik mainál egyszer
                 // szólunk — egy munkamenet vagy egy rövid zárlat most segítene. Nem
                 // tilt, nem ítél; a sáv sora a számot mondja, ez a lépést.
-                val step = FilterHitLogic.nudgeStep(FilterHitLogic.hitsToday(BreakerStore.state.value.filterHits, now))
+                val cur = BreakerStore.state.value
+                val step = FilterHitLogic.nudgeStep(FilterHitLogic.hitsToday(cur.filterHits, now))
                 val nudgeKey = "$day:$step"
-                if (step > 0 && nudgeKey != nudgedKey) {
+                // Ha nem kéred, csendben marad — a kártya a lapon akkor is mondja.
+                if (step > 0 && nudgeKey != nudgedKey && !cur.quietSuggestions) {
                     nudgedKey = nudgeKey
                     runCatching {
                         notifyOnce(NOTIF_NUDGE_ID, "A sokadik megakadás", FilterHitLogic.nudgeText(step), NUDGE_CHANNEL_ID, "Megakadások")

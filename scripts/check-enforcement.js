@@ -581,6 +581,29 @@ const WIRES = [
     needle: 'FilterHitLogic.peakWarnText(soon)',
     lost: 'az iPhone kezdőlapja nem mondaná az előjelzést a csúcs-óra előtt',
   },
+  // HA NEM KÉRED, csendben marad: a kapcsoló a bekötéseket tartja csendben. Ha
+  // egy kiesne, a kapcsoló egy semmit nem csináló kapcsoló lenne — és a
+  // felhasználó azt hinné, hogy az app nem tartja be, amit ígért.
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: 'if (quietSuggestions()) return;',
+    lost: 'a gép a kapcsoló ellenére is szólna',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/vpn/BreakerVpnService.kt',
+    needle: 'if (st.quietSuggestions) return',
+    lost: 'Androidon a szolgáltatás a kapcsoló ellenére is szólna a csúcs-óra előtt',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/vpn/BreakerVpnService.kt',
+    needle: '&& !cur.quietSuggestions',
+    lost: 'Androidon a szolgáltatás a kapcsoló ellenére is szólna a sokadik megakadásnál',
+  },
+  {
+    file: 'ios/App/ContentView.swift',
+    needle: 'let peak = quiet ? nil : FilterHitLogic.peakHour(',
+    lost: 'iPhone-on az előjelzés a kapcsoló ellenére is ütemezve maradna',
+  },
   // A MEGAKADÁS-SZÁMLÁLÓ lánca: a háttér könyvel, a link átadja, a híd
   // fogadja, a segéd tartja, a mondat és a statisztika mondja. Ha bármelyik
   // láncszem kiesne, a bővítmény lapja továbbra is számolna — az app viszont

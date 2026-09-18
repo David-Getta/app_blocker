@@ -13,6 +13,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -55,6 +56,9 @@ fun StatsSection(
     filterHitDays: List<Pair<String, Double>> = emptyList(),
     /** a hét csúcs-órája (óra, szám) — mikor jár a kéz magától; null, ha nem volt */
     filterHitsPeak: Pair<Int, Int>? = null,
+    /** ha nem kéred, csendben marad: az értesítés a sokadik megakadásnál és a csúcs-óra előtt kikapcsolva */
+    quietSuggestions: Boolean = false,
+    onToggleQuiet: () -> Unit = {},
     blockedDomains: Set<String>,
     /**
      * Amit egy célpontról ki szabad írni.
@@ -125,6 +129,12 @@ fun StatsSection(
                     "A hét csúcsa: ${FilterHitLogic.hourLabel(hour)} ($count megakadás) — akkor jár a kéz magától.",
                     style = MaterialTheme.typography.bodySmall,
                 )
+            }
+            // HA NEM KÉRED, csendben marad: az értesítés a sokadik megakadásnál és a
+            // csúcs-óra előtt kikapcsolható — a kártya a lapon akkor is mondja.
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Switch(checked = !quietSuggestions, onCheckedChange = { onToggleQuiet() })
+                Text("Szóljon a sokadik megakadásnál és a csúcs-óra előtt", style = MaterialTheme.typography.bodySmall)
             }
         }
 

@@ -122,6 +122,13 @@ struct StatsView: View {
                         Text("A hét csúcsa: \(FilterHitLogic.hourLabel(peak.hour)) (\(peak.count) megakadás) — akkor jár a kéz magától.")
                             .font(.footnote).foregroundStyle(.secondary)
                     }
+                    // HA NEM KÉRED, csendben marad: az előjelzés a csúcs-óra előtt
+                    // kikapcsolható — a lap kártyája akkor is mondja.
+                    Toggle("Szóljon a csúcs-óra előtt", isOn: Binding(
+                        get: { store.state.quietSuggestions != true },
+                        set: { on in store.mutate { $0.quietSuggestions = !on } }
+                    ))
+                    .font(.footnote)
                 }
             }
 

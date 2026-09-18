@@ -295,12 +295,19 @@ function showWindowSoonNotice(lock: Lockdown | null, windows: LockdownWindowRow[
   });
 }
 
+/** HA NEM KÉRED, csendben marad: a javaslatok értesítése kikapcsolható — a beállítás a tárban. */
+const QUIET_KEY = 'breaker.quietSuggestions';
+function quietSuggestions(): boolean {
+  try { return localStorage.getItem(QUIET_KEY) === '1'; } catch { return false; }
+}
+
 /**
  * A SOKADIK megakadásnál egy lépést javasol — lépcsőnként egyszer, naponta
  * (a tár őrzi, melyik lépcsőnél szólt már ma). Nem tilt, nem ítél.
  */
 function showHitNudge(today: number, now: number): void {
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  if (quietSuggestions()) return;
   const step = hitNudgeStep(today);
   if (step === 0) return;
   const key = `${dayKey(now)}:${step}`;
@@ -318,6 +325,7 @@ function showHitNudge(today: number, now: number): void {
  */
 function showPeakWarning(peak: { hour: number; count: number } | null, now: number): void {
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  if (quietSuggestions()) return;
   const key = peakWarnKey(peak, now);
   if (key === null || peak === null) return;
   let last: string | null = null;
@@ -3728,6 +3736,11 @@ function setupModal(): void {
   $('bgMotion').addEventListener('change', (e) => {
     writePref(MOTION_KEY, (e.target as HTMLInputElement).checked ? 'on' : 'off');
     applyBackground();
+  });
+  // Ha nem kéred, csendben marad: a kapcsoló a tárba ír, a két értesítés onnan kérdez.
+  ($('suggestNotify') as HTMLInputElement).checked = !quietSuggestions();
+  $('suggestNotify').addEventListener('change', (e) => {
+    try { localStorage.setItem(QUIET_KEY, (e.target as HTMLInputElement).checked ? '0' : '1'); } catch { /* nincs tár: marad */ }
   });
   // Az Esc a legfelső réteget zárja. Egy panel, ami csak egérrel csukható be,
   // billentyűzettel csapdába ejt.

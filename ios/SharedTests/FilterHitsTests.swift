@@ -132,5 +132,10 @@ final class FilterHitsTests: XCTestCase {
         // Egy korábbi verzió mentése: a mező nincs benne — a dekódolás nem dob, a könyv üres.
         let older = try JSONDecoder().decode(AppState.self, from: try JSONEncoder().encode(AppState()))
         XCTAssertNil(older.filterHits, "régi mentés: könyv nélkül")
+        // Ha nem kéred, csendben marad — a beállítás a mentésben; a régi mentésben nincs: szól.
+        var quiet = AppState()
+        quiet.quietSuggestions = true
+        XCTAssertEqual(try JSONDecoder().decode(AppState.self, from: try JSONEncoder().encode(quiet)).quietSuggestions, true, "a mentés hordozza a csendet")
+        XCTAssertNil(older.quietSuggestions, "régi mentés: szól")
     }
 }

@@ -136,6 +136,9 @@ struct AppState: Codable, Equatable {
     /// önmagában nem szembesít azzal, mi van blokkolva. Optional, hogy egy
     /// korábbi verzió által írt állapot is dekódolható maradjon.
     var hideSiteList: Bool? = nil
+    /// Ha nem kéred, csendben marad: az előjelzés a csúcs-óra előtt kikapcsolva
+    /// — a lap kártyája akkor is mondja. Helyi; a hiányzó kulcs nil (szól).
+    var quietSuggestions: Bool? = nil
     /// Melyik hétről íródott már a heti napló sora (a hétfő dátuma). Helyi,
     /// mint a gépen és Androidon — a szinkronra szándékosan nem megy.
     var digestWeekKey: String? = nil
