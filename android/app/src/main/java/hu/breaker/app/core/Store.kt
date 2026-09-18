@@ -143,6 +143,8 @@ data class AppState(
     val filterHitHours: Map<String, List<Int>> = emptyMap(),
     /** a szűrő megakadásai oldalanként: nap → (a lista tétele → szám) — melyik oldal akaszt meg a legtöbbször */
     val filterHitHosts: Map<String, Map<String, Int>> = emptyMap(),
+    /** a szűrő megakadásai okonként: nap → (lista | kulcsszó → szám) — melyik szabály dolgozik */
+    val filterHitReasons: Map<String, Map<String, Int>> = emptyMap(),
     /** active-time tracking history (never leaves the device) */
     val usage: UsageLogic.UsageState = UsageLogic.UsageState(),
     /**
@@ -580,6 +582,7 @@ object BreakerStore {
         put("filterHits", JSONObject(s.filterHits))
         put("filterHitHours", JSONObject(s.filterHitHours.mapValues { JSONArray(it.value) }))
         put("filterHitHosts", JSONObject(s.filterHitHosts.mapValues { JSONObject(it.value) }))
+        put("filterHitReasons", JSONObject(s.filterHitReasons.mapValues { JSONObject(it.value) }))
         put("usage", usageToJson(s.usage))
         put("usageLastSampleAt", s.usageLastSampleAt ?: JSONObject.NULL)
         put("digestWeekKey", s.digestWeekKey ?: JSONObject.NULL)
@@ -801,6 +804,16 @@ object BreakerStore {
             }
             FilterHitLogic.cleanSites(m)
         } ?: emptyMap()
+        val filterHitReasons = o.optJSONObject("filterHitReasons")?.let { obj ->
+            val m = HashMap<String, Map<String, Int>>()
+            for (k in obj.keys()) {
+                val row = obj.optJSONObject(k) ?: continue
+                val r = HashMap<String, Int>()
+                for (reason in row.keys()) r[reason] = row.optInt(reason, 0)
+                m[k] = r
+            }
+            FilterHitLogic.cleanSites(m)
+        } ?: emptyMap()
         val filterHitHours = o.optJSONObject("filterHitHours")?.let { obj ->
             val m = HashMap<String, List<Int>>()
             for (k in obj.keys()) {
@@ -881,6 +894,7 @@ object BreakerStore {
             filterHits = filterHits,
             filterHitHours = filterHitHours,
             filterHitHosts = filterHitHosts,
+            filterHitReasons = filterHitReasons,
             lastCombo = if (o.isNull("lastCombo")) null else o.optString("lastCombo"),
             session = session,
             abandons = abandons,

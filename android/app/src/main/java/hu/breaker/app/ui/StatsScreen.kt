@@ -58,6 +58,7 @@ fun StatsSection(
     filterHitsPeak: Pair<Int, Int>? = null,
     /** a hét csúcs-oldala (nyers név, szám) — melyik oldal akaszt meg a legtöbbször; null, ha nem volt */
     filterHitsTop: Pair<String, Int>? = null,
+    filterHitsReasons: List<Pair<String, Int>> = emptyList(),
     /** ha nem kéred, csendben marad: az értesítés a sokadik megakadásnál és a csúcs-óra előtt kikapcsolva */
     quietSuggestions: Boolean = false,
     onToggleQuiet: () -> Unit = {},
@@ -135,6 +136,10 @@ fun StatsSection(
             // MELYIK oldal akaszt meg a legtöbbször: a hét csúcs-oldala — a lista címkézésével.
             filterHitsTop?.let { (site, count) ->
                 Text("A legtöbbször: ${labelOf(site)} ($count×).", style = MaterialTheme.typography.bodySmall)
+            }
+            // MELYIK szabály dolgozik: a hét okonként (lista, kulcsszó) — a gépi sor tükre.
+            if (filterHitsReasons.isNotEmpty()) {
+                Text("Ebből: ${FilterHitLogic.reasonLine(filterHitsReasons)}.", style = MaterialTheme.typography.bodySmall)
             }
             // HA NEM KÉRED, csendben marad: az értesítés a sokadik megakadásnál és a
             // csúcs-óra előtt kikapcsolható — a kártya a lapon akkor is mondja.

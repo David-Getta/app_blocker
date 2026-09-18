@@ -498,7 +498,8 @@ class BreakerVpnService : VpnService() {
             // CSAK A LISTA és a KULCSSZÓ tiltása: a munkamenet fehérlistáján kívül a háttér-
             // forgalom is elakad (követők, CDN-ek, más appok), és az nem a kéz
             // mozdulata — így számolva a sáv százat mondana egy csendes órára.
-            if ((verdict == Focus.Verdict.BLOCKED_BY_LIST || verdict == Focus.Verdict.BLOCKED_BY_KEYWORD) && name != null && FilterHitLogic.shouldCount(hitSeen, name, now)) {
+            val reason = FilterHitLogic.reasonOf(verdict)
+            if (reason != null && name != null && FilterHitLogic.shouldCount(hitSeen, name, now)) {
                 val day = UsageLogic.dayKey(now)
                 val hour = FilterHitLogic.hourOf(now)
                 // Oldalanként is: a lista tételével, nem a nyers hoszttal.
@@ -509,6 +510,8 @@ class BreakerVpnService : VpnService() {
                             filterHits = FilterHitLogic.sweep(FilterHitLogic.record(it.filterHits, day), day),
                             filterHitHours = FilterHitLogic.cleanHours(FilterHitLogic.recordHour(it.filterHitHours, day, hour)),
                             filterHitHosts = FilterHitLogic.cleanSites(FilterHitLogic.recordSite(it.filterHitHosts, day, site)),
+                            // Okonként is: melyik szabály dolgozik — a lista vagy a kulcsszó.
+                            filterHitReasons = FilterHitLogic.cleanSites(FilterHitLogic.recordSite(it.filterHitReasons, day, reason)),
                         )
                     }
                 }

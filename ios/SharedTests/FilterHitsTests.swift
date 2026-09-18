@@ -116,6 +116,27 @@ final class FilterHitsTests: XCTestCase {
                        "Mindjárt 21 óra — a héten ilyenkor akadt meg a kéz a legtöbbször (7×). Egy munkamenet most segítene — te döntesz.")
     }
 
+    func testPerReasonTheReasonFromTheVerdictTheWeekByReasonTheLineAndTheSave() throws {
+        XCTAssertEqual(FilterHitLogic.reasonOf(.blockedByList), "list")
+        XCTAssertEqual(FilterHitLogic.reasonOf(.blockedByKeyword), "keyword")
+        XCTAssertNil(FilterHitLogic.reasonOf(.blockedByFocus), "a munkamenet fehérlistáján kívül nem megakadás")
+        XCTAssertNil(FilterHitLogic.reasonOf(.allow))
+        var reasons = FilterHitLogic.recordSite([:], day: today, site: "list")
+        reasons = FilterHitLogic.recordSite(reasons, day: today, site: "keyword")
+        reasons = FilterHitLogic.recordSite(reasons, day: today, site: "keyword")
+        reasons = FilterHitLogic.recordSite(reasons, day: FilterHitLogic.dayKey(now - 8 * 86_400_000), site: "list") // nem a hété
+        let rows = FilterHitLogic.byReason(reasons, now: now)
+        XCTAssertEqual(rows.map { $0.reason }, ["keyword", "list"], "a legnagyobb elöl")
+        XCTAssertEqual(rows.map { $0.count }, [2, 1])
+        XCTAssertEqual(FilterHitLogic.byReason([today: ["keyword": 1, "list": 1]], now: now).map { $0.reason }, ["list", "keyword"], "holtverseny: a rögzített sorrend")
+        XCTAssertTrue(FilterHitLogic.byReason([:], now: now).isEmpty)
+        XCTAssertEqual(FilterHitLogic.reasonLine(rows), "2 kulcsszó · 1 lista")
+        XCTAssertEqual(FilterHitLogic.reasonLine([]), "")
+        var st = AppState()
+        st.filterHitReasons = reasons
+        XCTAssertEqual(try JSONDecoder().decode(AppState.self, from: try JSONEncoder().encode(st)).filterHitReasons, reasons, "a mentés hordozza az okokat")
+    }
+
     func testPerSiteTheNameToTheSiteTheBookThePeakSiteTheSaveAndTheSentence() throws {
         let sites = [(domain: "youtube.com", hostnames: ["youtube.com", "www.youtube.com"])]
         XCTAssertEqual(FilterHitLogic.siteOf("M.YouTube.com.", sites: sites), "youtube.com", "aldomain és nagybetű: az oldal")

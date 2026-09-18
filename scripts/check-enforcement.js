@@ -407,12 +407,12 @@ const WIRES = [
   // a munkamenet tiltását is számolná, a háttér-forgalom százat mondana.
   {
     file: 'android/app/src/main/java/hu/breaker/app/vpn/BreakerVpnService.kt',
-    needle: '(verdict == Focus.Verdict.BLOCKED_BY_LIST || verdict == Focus.Verdict.BLOCKED_BY_KEYWORD) && name != null && FilterHitLogic.shouldCount(hitSeen, name, now)',
+    needle: 'if (reason != null && name != null && FilterHitLogic.shouldCount(hitSeen, name, now))',
     lost: 'Androidon a szűrő nem (csak a lista és a kulcsszó tiltásánál) könyvelné a megakadásokat',
   },
   {
     file: 'ios/PacketTunnel/PacketTunnelProvider.swift',
-    needle: 'verdict == .blockedByList || verdict == .blockedByKeyword, let name, FilterHitLogic.shouldCount(&hitSeen, name, now: now)',
+    needle: 'if let reason = FilterHitLogic.reasonOf(verdict), let name, FilterHitLogic.shouldCount(&hitSeen, name, now: now)',
     lost: 'iPhone-on a tunnel nem (csak a lista és a kulcsszó tiltásánál) könyvelné a megakadásokat',
   },
   {
@@ -594,6 +594,29 @@ const WIRES = [
     file: 'ios/PacketTunnel/PacketTunnelProvider.swift',
     needle: 'FilterHitLogic.recordSite($0.filterHitHosts ?? [:], day: day, site: site)',
     lost: 'iPhone-on a tunnel nem könyvelné oldalanként — a csúcs-oldal mindig üres',
+  },
+  // MELYIK szabály dolgozik a telefonon: az ok az ítéletből (lista, kulcsszó),
+  // a könyv okonként, a statisztika sora. Ha a horog nem könyvelné, a sor
+  // mindig üres lenne — és a fehérlista-blokk oknak számítva a sor hazudna.
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/vpn/BreakerVpnService.kt',
+    needle: 'FilterHitLogic.recordSite(it.filterHitReasons, day, reason)',
+    lost: 'Androidon a szűrő nem könyvelné okonként — a sor mindig üres',
+  },
+  {
+    file: 'ios/PacketTunnel/PacketTunnelProvider.swift',
+    needle: 'FilterHitLogic.recordSite($0.filterHitReasons ?? [:], day: day, site: reason)',
+    lost: 'iPhone-on a tunnel nem könyvelné okonként — a sor mindig üres',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/StatsScreen.kt',
+    needle: 'FilterHitLogic.reasonLine(filterHitsReasons)',
+    lost: 'az Android statisztikája nem mondaná az okokat',
+  },
+  {
+    file: 'ios/App/StatsView.swift',
+    needle: 'FilterHitLogic.reasonLine(reasons)',
+    lost: 'az iPhone statisztikája nem mondaná az okokat',
   },
   {
     file: 'android/app/src/main/java/hu/breaker/app/core/Digest.kt',

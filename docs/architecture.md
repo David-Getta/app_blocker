@@ -113,8 +113,9 @@ a segéd összeadja), a hosztot a lista tételéhez rendeli (a `m.youtube.com` �
 (`core/FilterHits.kt`, `Shared/FilterHits.swift`): egy tiltott lekérdezés egy
 megakadás — hosztonként két percen belül egyszer, mert egy oldalbetöltés
 tucatnyi lekérdezés —, és csak a lista és a kulcsszó tiltása: a munkamenet fehérlistáján
-kívül rekedt háttér-forgalom nem a kéz mozdulata. Naponként, óránként és a
-lista tételével oldalanként; a nyers hosztot nem tárolja.
+kívül rekedt háttér-forgalom nem a kéz mozdulata. Naponként, óránként, a
+lista tételével oldalanként és okonként (lista vagy kulcsszó); a nyers
+hosztot nem tárolja.
 
 **Ki mondja.** A statisztika (a hét alakja, a csúcs-óra, az okok, a
 csúcs-oldal); a heti mondat: „12 megakadás a böngészőben, a csúcs 21–22 óra, a legtöbbször: youtube.com (7×).”;

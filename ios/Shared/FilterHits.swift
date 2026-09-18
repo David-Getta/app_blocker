@@ -186,6 +186,51 @@ public enum FilterHitLogic {
             .first.map { (site: $0.key, count: $0.value) }
     }
 
+    // MARK: - okonként
+
+    /// MELYIK szabály dolgozik: a megakadás oka a szűrő ítélete — a lista vagy
+    /// a kulcsszó. A munkamenet fehérlistáján kívül rekedt forgalom nem
+    /// megakadás, ezért oknak sem számít: nil. A könyv alakja az oldalakéval
+    /// azonos (nap → ok → szám), ugyanaz a felvétel és takarítás — a gépi
+    /// okonkénti sor tükre.
+    public static let reasonList = "list"
+    public static let reasonKeyword = "keyword"
+    /// Az okok rögzített sorrendje és felirata — a sor holtversenynél sem ugrál.
+    public static let reasonOrder = [reasonList, reasonKeyword]
+    public static let reasonLabels = [reasonList: "lista", reasonKeyword: "kulcsszó"]
+
+    /// A megakadás oka a szűrő ítéletéből — vagy nil, ha ez nem megakadás.
+    public static func reasonOf(_ verdict: Focus.Verdict) -> String? {
+        switch verdict {
+        case .blockedByList: return reasonList
+        case .blockedByKeyword: return reasonKeyword
+        default: return nil
+        }
+    }
+
+    /// Az elmúlt 7 nap megakadásai okonként: (ok, szám), a legnagyobb elöl;
+    /// holtversenynél a rögzített sorrend. Csak a nem nulla.
+    public static func byReason(_ reasons: [String: [String: Int]], now: Double) -> [(reason: String, count: Int)] {
+        let days = Set(daySeries([:], now: now, count: 7).map { $0.day })
+        var sum: [String: Int] = [:]
+        for (day, row) in reasons where days.contains(day) {
+            for (r, n) in row { sum[r, default: 0] += max(0, n) }
+        }
+        func rank(_ r: String) -> Int { reasonOrder.firstIndex(of: r) ?? reasonOrder.count }
+        return sum.filter { $0.value > 0 }
+            .sorted {
+                if $0.value != $1.value { return $0.value > $1.value }
+                if rank($0.key) != rank($1.key) { return rank($0.key) < rank($1.key) }
+                return $0.key < $1.key
+            }
+            .map { (reason: $0.key, count: $0.value) }
+    }
+
+    /// „30 lista · 12 kulcsszó” — üresen üres. A gépi sor tükre.
+    public static func reasonLine(_ rows: [(reason: String, count: Int)]) -> String {
+        rows.map { "\($0.count) \(reasonLabels[$0.reason] ?? $0.reason)" }.joined(separator: " · ")
+    }
+
     // MARK: - a sokadik
 
     /// A SOKADIK megakadás lépcsői: ezeknél a mai számoknál a lap egy lépést

@@ -57,7 +57,8 @@ cd android
   kártyán, amelynek gombja a legutóbb használt csomagot indítja; tíz perccel a hét csúcs-órája előtt a szolgáltatás egyszer előre
   szól — mindkettő kikapcsolható a statisztika kapcsolójával. Tükör, nem
   ítélet; a fiókba nem megy. A hét csúcs-oldalát is mondja (a lista tételével
-  könyvelve). Lásd `docs/feature-usage-stats.md`.
+  könyvelve), és okonként bontja (lista, kulcsszó — melyik szabály dolgozik).
+  Lásd `docs/feature-usage-stats.md`.
 - A **kulcsszavak** (bármely oldalon, ha a cím tartalmazza) a zárlat
   kártyája alján **szerkeszthetők**: felvenni ingyen, levenni próbatétel
   (`Referee.setKeywords`, a függő lista a teljesítéskor ül be). A DNS-szűrő

@@ -91,7 +91,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
             // CSAK A LISTA és a KULCSSZÓ tiltása: a munkamenet fehérlistáján kívül a háttér-
             // forgalom is elakad (követők, CDN-ek, más appok), és az nem a kéz
             // mozdulata — így számolva a szám százat mondana egy csendes órára.
-            if verdict == .blockedByList || verdict == .blockedByKeyword, let name, FilterHitLogic.shouldCount(&hitSeen, name, now: now) {
+            if let reason = FilterHitLogic.reasonOf(verdict), let name, FilterHitLogic.shouldCount(&hitSeen, name, now: now) {
                 let day = FilterHitLogic.dayKey(now)
                 let hour = FilterHitLogic.hourOf(now)
                 // Oldalanként is: a lista tételével, nem a nyers hoszttal.
@@ -100,6 +100,8 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
                     $0.filterHits = FilterHitLogic.sweep(FilterHitLogic.record($0.filterHits ?? [:], day: day), today: day)
                     $0.filterHitHours = FilterHitLogic.cleanHours(FilterHitLogic.recordHour($0.filterHitHours ?? [:], day: day, hour: hour))
                     $0.filterHitHosts = FilterHitLogic.cleanSites(FilterHitLogic.recordSite($0.filterHitHosts ?? [:], day: day, site: site))
+                    // Okonként is: melyik szabály dolgozik — a lista vagy a kulcsszó.
+                    $0.filterHitReasons = FilterHitLogic.cleanSites(FilterHitLogic.recordSite($0.filterHitReasons ?? [:], day: day, site: reason))
                 }
             }
             guard let nx = DnsEngine.buildNxdomain(q.dnsPayload) else { return }

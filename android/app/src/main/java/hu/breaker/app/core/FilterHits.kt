@@ -186,6 +186,43 @@ object FilterHitLogic {
             .firstOrNull()?.let { it.key to it.value }
     }
 
+    // ------------------------------------------------------------ okonként
+
+    /**
+     * MELYIK szabály dolgozik: a megakadás oka a szűrő ítélete — a lista vagy a
+     * kulcsszó. A munkamenet fehérlistáján kívül rekedt forgalom nem megakadás
+     * (lásd fent), ezért oknak sem számít: null. A könyv alakja az oldalakéval
+     * azonos (nap → ok → szám), ugyanaz a felvétel és takarítás — a gépi
+     * okonkénti sor tükre.
+     */
+    const val REASON_LIST = "list"
+    const val REASON_KEYWORD = "keyword"
+    /** Az okok rögzített sorrendje és felirata — a sor holtversenynél sem ugrál. */
+    val REASON_ORDER = listOf(REASON_LIST, REASON_KEYWORD)
+    val REASON_LABELS = mapOf(REASON_LIST to "lista", REASON_KEYWORD to "kulcsszó")
+
+    /** A megakadás oka a szűrő ítéletéből — vagy null, ha ez nem megakadás. */
+    fun reasonOf(verdict: Focus.Verdict): String? = when (verdict) {
+        Focus.Verdict.BLOCKED_BY_LIST -> REASON_LIST
+        Focus.Verdict.BLOCKED_BY_KEYWORD -> REASON_KEYWORD
+        else -> null
+    }
+
+    /** Az elmúlt 7 nap megakadásai okonként: (ok, szám), a legnagyobb elöl; holtversenynél a rögzített sorrend. Csak a nem nulla. */
+    fun byReason(reasons: Map<String, Map<String, Int>>, now: Long): List<Pair<String, Int>> {
+        val days = UsageLogic.dayKeysBack(now, 7).toSet()
+        val sum = HashMap<String, Int>()
+        for ((day, row) in reasons) if (day in days) for ((r, n) in row) sum[r] = (sum[r] ?: 0) + maxOf(0, n)
+        fun rank(r: String): Int = REASON_ORDER.indexOf(r).let { if (it < 0) REASON_ORDER.size else it }
+        return sum.entries.filter { it.value > 0 }
+            .sortedWith(compareByDescending<Map.Entry<String, Int>> { it.value }.thenBy { rank(it.key) }.thenBy { it.key })
+            .map { it.key to it.value }
+    }
+
+    /** „30 lista · 12 kulcsszó” — üresen üres. A gépi sor tükre. */
+    fun reasonLine(rows: List<Pair<String, Int>>): String =
+        rows.joinToString(" · ") { (r, n) -> "$n ${REASON_LABELS[r] ?: r}" }
+
     // ------------------------------------------------------------ a sokadik
 
     /**

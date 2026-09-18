@@ -136,6 +136,30 @@ class FilterHitsTest {
         )
     }
 
+    @Test fun `okonkent - az ok az iteletbol, a het okonkent, a sor es a mentes`() {
+        assertEquals("list", FilterHitLogic.reasonOf(Focus.Verdict.BLOCKED_BY_LIST))
+        assertEquals("keyword", FilterHitLogic.reasonOf(Focus.Verdict.BLOCKED_BY_KEYWORD))
+        assertEquals(null, FilterHitLogic.reasonOf(Focus.Verdict.BLOCKED_BY_FOCUS), "a munkamenet fehérlistáján kívül nem megakadás")
+        assertEquals(null, FilterHitLogic.reasonOf(Focus.Verdict.ALLOW))
+        var reasons = FilterHitLogic.recordSite(emptyMap(), today, "list")
+        reasons = FilterHitLogic.recordSite(reasons, today, "keyword")
+        reasons = FilterHitLogic.recordSite(reasons, today, "keyword")
+        reasons = FilterHitLogic.recordSite(reasons, UsageLogic.dayKey(now - 8 * 86_400_000L), "list") // nem a hété
+        assertEquals(listOf("keyword" to 2, "list" to 1), FilterHitLogic.byReason(reasons, now), "a legnagyobb elöl")
+        assertEquals(
+            listOf("list" to 1, "keyword" to 1),
+            FilterHitLogic.byReason(mapOf(today to mapOf("keyword" to 1, "list" to 1)), now),
+            "holtverseny: a rögzített sorrend",
+        )
+        assertEquals(emptyList<Pair<String, Int>>(), FilterHitLogic.byReason(emptyMap(), now))
+        assertEquals("2 kulcsszó · 1 lista", FilterHitLogic.reasonLine(FilterHitLogic.byReason(reasons, now)))
+        assertEquals("", FilterHitLogic.reasonLine(emptyList()))
+        val toJson = BreakerStore::class.java.getDeclaredMethod("toJson", AppState::class.java).apply { isAccessible = true }
+        val fromJson = BreakerStore::class.java.getDeclaredMethod("fromJson", JSONObject::class.java).apply { isAccessible = true }
+        val back = fromJson.invoke(BreakerStore, JSONObject(toJson.invoke(BreakerStore, AppState(filterHitReasons = reasons)).toString())) as AppState
+        assertEquals(FilterHitLogic.cleanSites(reasons), back.filterHitReasons, "a mentés hordozza az okokat")
+    }
+
     @Test fun `oldalankent - a nev az oldalhoz, a konyv es a csucs-oldal, a mentes es a mondat`() {
         val sites = listOf("youtube.com" to listOf("youtube.com", "www.youtube.com"))
         assertEquals("youtube.com", FilterHitLogic.siteOf("M.YouTube.com.", sites), "aldomain és nagybetű: az oldal")

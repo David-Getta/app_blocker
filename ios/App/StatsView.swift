@@ -127,6 +127,12 @@ struct StatsView: View {
                         Text("A legtöbbször: \(siteLabel(top.site)) (\(top.count)×).")
                             .font(.footnote).foregroundStyle(.secondary)
                     }
+                    // MELYIK szabály dolgozik: a hét okonként (lista, kulcsszó) — a gépi sor tükre.
+                    let reasons = FilterHitLogic.byReason(store.state.filterHitReasons ?? [:], now: now)
+                    if !reasons.isEmpty {
+                        Text("Ebből: \(FilterHitLogic.reasonLine(reasons)).")
+                            .font(.footnote).foregroundStyle(.secondary)
+                    }
                     // HA NEM KÉRED, csendben marad: az előjelzés a csúcs-óra előtt
                     // kikapcsolható — a lap kártyája akkor is mondja.
                     Toggle("Szóljon a csúcs-óra előtt", isOn: Binding(

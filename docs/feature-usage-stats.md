@@ -426,7 +426,12 @@ mondja — MELYIK szabály dolgozik: „Ebből: 7 zárva oldal · 3 kulcsszó ·
 munkamenet.” (`browserHitsReasons` a státuszban, a hídon átjött okonkénti
 számokból; holtversenynél az okok rögzített sorrendje, hogy a sor ne ugráljon).
 A bővítmény beállítás-lapja ugyanezt mondja a saját könyvéből: „A héten: 4
-zárva oldal · 3 munkamenet” — app nélkül is.
+zárva oldal · 3 munkamenet” — app nélkül is. A telefonon ugyanígy: a szűrő
+okonként is könyvel (`filterHitReasons`, nap → ok → szám; az ok a szűrő
+ítélete: lista vagy kulcsszó — a munkamenet fehérlistáján kívül rekedt
+forgalom nem megakadás, ezért oknak sem számít), és a statisztika a hét
+sorát mondja: „Ebből: 30 lista · 12 kulcsszó.” Holtversenynél itt is a
+rögzített sorrend.
 
 **Melyik oldal akaszt meg a legtöbbször:** a hét csúcs-oldala mindhárom
 platformon. A gépen a bővítmény napi élbolyából (a segéd a lista tételéhez
