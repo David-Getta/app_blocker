@@ -13,6 +13,7 @@ import {
   closeRun, formatRemaining, isAppAllowed, isRunning, isSessionLoosening, isSiteAllowed,
   lastUsedPack, MAX_ALLOW_ENTRIES, MAX_SESSION_MINUTES, normalizeMinutes, normalizePack, remainingMs,
   normalizeRecurrence, peakWindowBand, summarizeFocus, summarizeFocusPrevWeek, type FocusLogEntry, type FocusPack,
+  bandCoversHour, packCoveringHour,
 } from '../src/shared/focus';
 
 const NOW = 1_800_000_000_000;
@@ -234,6 +235,20 @@ test('az előző hét: a mai nap kezdete előtti 13. naptól a 6. nap kezdetéig
   assert.equal(summarizeFocusPrevWeek(log, now).sessions, 2, 'a 13. nap kezdete és a 6. nap kezdete előtti pillanat benne');
   assert.equal(summarizeFocus(log, start - 6 * day, now).sessions, 1, 'a mostani hét a maradék');
   assert.equal(summarizeFocusPrevWeek([], now).sessions, 0);
+});
+
+test('le van-e fedve az óra: a sáv egy napon az óra egy részét is átfogja; a fedő csomag az első', () => {
+  const band = { days: [1, 2, 3, 4, 5] as const, startMin: 21 * 60, endMin: 22 * 60 };
+  assert.equal(bandCoversHour({ ...band, days: [...band.days] }, 21), true);
+  assert.equal(bandCoversHour({ ...band, days: [...band.days] }, 22), false, 'az ablak vége nem fedi a következő órát');
+  assert.equal(bandCoversHour({ ...band, days: [...band.days] }, 20), false);
+  assert.equal(bandCoversHour({ days: [0], startMin: 21 * 60 + 30, endMin: 23 * 60 }, 21), true, 'a fél óra is fedés');
+  assert.equal(bandCoversHour({ days: [], startMin: 0, endMin: 1440 }, 5), false, 'nap nélkül nem ablak');
+  const a = pack({ id: 'a', name: 'A' });
+  const b = pack({ id: 'b', name: 'B', recurrence: peakWindowBand(21) });
+  assert.equal(packCoveringHour([a, b], 21)?.id, 'b');
+  assert.equal(packCoveringHour([a, b], 9), null);
+  assert.equal(packCoveringHour([], 21), null);
 });
 
 test('ablak a csúcs-órára: minden nap, a csúcs egy órája — a 23 óra vége a nap vége; érvényes ablak', () => {

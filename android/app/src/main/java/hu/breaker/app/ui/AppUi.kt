@@ -759,6 +759,9 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                 filterHitDays = FilterHitLogic.daySeries(state.filterHits, now, 7),
                 filterHitsPeak = FilterHitLogic.peakHour(state.filterHitHours, now),
                 filterHitHours = FilterHitLogic.byHour(state.filterHitHours, now),
+                filterHitsPeakPack = FilterHitLogic.peakHour(state.filterHitHours, now)
+                    ?.let { Focus.packCoveringHour(state.focusPacks, it.first) }
+                    ?.let { p -> p.recurrence?.let { b -> "${p.name} (${recurrenceLabel(b)})" } },
                 filterHitsTop = FilterHitLogic.topSite(state.filterHitHosts, now),
                 filterHitsReasons = FilterHitLogic.byReason(state.filterHitReasons, now),
                 filterHitsKeywords = FilterHitLogic.keywordsWeek(state.filterHitKeywords, now),

@@ -327,6 +327,21 @@ class FocusTest {
     }
 
     @Test
+    fun `le van-e fedve az ora - a sav egy napon az ora egy reszet is atfogja, a fedo csomag az elso`() {
+        val band = ScheduleLogic.Band(setOf(1, 2, 3, 4, 5), 21 * 60, 22 * 60)
+        assertEquals(true, Focus.bandCoversHour(band, 21))
+        assertEquals(false, Focus.bandCoversHour(band, 22), "az ablak vége nem fedi a következő órát")
+        assertEquals(false, Focus.bandCoversHour(band, 20))
+        assertEquals(true, Focus.bandCoversHour(ScheduleLogic.Band(setOf(0), 21 * 60 + 30, 23 * 60), 21), "a fél óra is fedés")
+        assertEquals(false, Focus.bandCoversHour(ScheduleLogic.Band(emptySet(), 0, 1440), 5), "nap nélkül nem ablak")
+        val a = pack("a.com")
+        val b = pack("b.com").copy(id = "pack_b", recurrence = ScheduleLogic.Band(setOf(0, 1, 2, 3, 4, 5, 6), 21 * 60, 22 * 60))
+        assertEquals("pack_b", Focus.packCoveringHour(listOf(a, b), 21)?.id)
+        assertEquals(null, Focus.packCoveringHour(listOf(a, b), 9))
+        assertEquals(null, Focus.packCoveringHour(emptyList(), 21))
+    }
+
+    @Test
     fun `az ejfelen atnyulo menet a vegenek napjara szamit egeszben`() {
         val now = localTime(20, 0)
         val midnight = localTime(0, 0)

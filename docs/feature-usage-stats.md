@@ -507,7 +507,12 @@ minden napra (`peakWindowBand`, a csomag ablak-szerkesztőjének útján, a bír
 dönt): a menet magától indul, amikor a kéz magától indulna — a telefonokon is,
 mert az ablak a fiókkal utazik. Felvenni ingyen (szigorítás); levenni vagy
 szűkíteni próbatétel, mint minden ablakot — a gomb ezt nem rejti. Nincs gomb
-ablakos csomagon, futó menet mellett, csomag vagy csúcs nélkül.
+ablakos csomagon, futó menet mellett, csomag vagy csúcs nélkül. Ha egy csomag
+heti ablaka már fedi a csúcs-órát (legalább egy napon az óra egy részét is
+átfogja, `packCoveringHour`), a gomb helyett a sor mondja — mindhárom
+platformon: „A csúcs-órában magától indul: Nyelvtanulás (minden nap
+21:00–22:00).” A menet ilyenkor magától indul, amikor a kéz indulna; nincs
+mit felvenni.
 
 **Mikor jár a kéz magától:** a bővítmény óránként is könyvel (a nap
 huszonnégy rekesze), a beállítás-lapja a hét csúcs-óráját mondja és egy

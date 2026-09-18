@@ -66,6 +66,8 @@ fun StatsSection(
     filterHitsPeak: Pair<Int, Int>? = null,
     /** az órák sávja: a hét megakadásai a nap 24 rekeszében — a csúcs-óra ebből áll; üres, ha nem volt */
     filterHitHours: List<Int> = emptyList(),
+    /** a csomag, amelynek heti ablaka fedi a csúcs-órát („Nyelvtanulás (minden nap 21:00–22:00)”) — null, ha egyik sem */
+    filterHitsPeakPack: String? = null,
     /** a hét csúcs-oldala (nyers név, szám) — melyik oldal akaszt meg a legtöbbször; null, ha nem volt */
     filterHitsTop: Pair<String, Int>? = null,
     filterHitsReasons: List<Pair<String, Int>> = emptyList(),
@@ -155,6 +157,9 @@ fun StatsSection(
                 // AZ ÓRÁK SÁVJA: a nap 24 rekesze a hét megakadásaival — a csúcs a
                 // mondat, a sáv az alakja (mikor jár a kéz magától, és mikor nem).
                 HourStrip(filterHitHours, peakHour = hour, peakCount = count)
+                // LE VAN-E FEDVE: ha egy csomag heti ablaka a csúcs-órát fedi, a menet
+                // magától indul, amikor a kéz indulna — a statisztika kimondja.
+                filterHitsPeakPack?.let { Text("A csúcs-órában magától indul: $it.", style = MaterialTheme.typography.bodySmall) }
             }
             // MELYIK oldal akaszt meg a legtöbbször: a hét csúcs-oldala — a lista címkézésével.
             filterHitsTop?.let { (site, count) ->

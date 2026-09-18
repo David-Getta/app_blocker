@@ -94,4 +94,19 @@ final class FocusTests: XCTestCase {
         XCTAssertEqual(s[5].seconds, 0, "tegnap semmi")
         XCTAssertEqual(Focus.daySeries([], now: now, count: 3).map { $0.seconds }, [0, 0, 0])
     }
+
+    func testWhetherTheHourIsCoveredAndTheCoveringPackIsTheFirst() throws {
+        let band = ScheduleLogic.Band(days: [1, 2, 3, 4, 5], startMin: 21 * 60, endMin: 22 * 60)
+        XCTAssertTrue(Focus.bandCoversHour(band, hour: 21))
+        XCTAssertFalse(Focus.bandCoversHour(band, hour: 22), "az ablak vége nem fedi a következő órát")
+        XCTAssertFalse(Focus.bandCoversHour(band, hour: 20))
+        XCTAssertTrue(Focus.bandCoversHour(ScheduleLogic.Band(days: [0], startMin: 21 * 60 + 30, endMin: 23 * 60), hour: 21), "a fél óra is fedés")
+        XCTAssertFalse(Focus.bandCoversHour(ScheduleLogic.Band(days: [], startMin: 0, endMin: 1440), hour: 5), "nap nélkül nem ablak")
+        let a = Focus.Pack(id: "pack_a", name: "A", allowSites: ["a.com"], allowApps: [], defaultMinutes: 25)
+        let b = Focus.Pack(id: "pack_b", name: "B", allowSites: ["b.com"], allowApps: [], defaultMinutes: 50,
+                           recurrence: ScheduleLogic.Band(days: [0, 1, 2, 3, 4, 5, 6], startMin: 21 * 60, endMin: 22 * 60))
+        XCTAssertEqual(Focus.packCoveringHour([a, b], hour: 21)?.id, "pack_b")
+        XCTAssertNil(Focus.packCoveringHour([a, b], hour: 9))
+        XCTAssertNil(Focus.packCoveringHour([], hour: 21))
+    }
 }

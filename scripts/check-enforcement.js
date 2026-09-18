@@ -522,6 +522,23 @@ const WIRES = [
     needle: 'FilterHitLogic.nudgeText(step)',
     lost: 'az iPhone kezdőlapja nem javasolna lépést a sokadik megakadásnál',
   },
+  // LE VAN-E FEDVE a csúcs-óra: a mag tudja, melyik csomag ablaka fedi; ha a
+  // három statisztika bekötése kiesne, a gomb ablakot kínálna arra, ami már van.
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: "const covering = peak ? packCoveringHour(status?.focusPacks ?? [], peak.hour) : null;",
+    lost: 'a gépi statisztika nem mondaná, hogy a csúcs-óra le van fedve',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/AppUi.kt',
+    needle: '?.let { Focus.packCoveringHour(state.focusPacks, it.first) }',
+    lost: 'az Android statisztika nem mondaná, hogy a csúcs-óra le van fedve',
+  },
+  {
+    file: 'ios/App/StatsView.swift',
+    needle: 'Focus.packCoveringHour(store.state.focusPacks ?? [], hour: peak.hour)',
+    lost: 'az iPhone statisztikája nem mondaná, hogy a csúcs-óra le van fedve',
+  },
   // A JAVASLAT kártyája a gépi kezdőlapon és az Android sáv sora a csúcs-órában:
   // amit az értesítés mond, a lap is mondja — ha a bekötés kiesne, csak az
   // (kikapcsolható) értesítés maradna.

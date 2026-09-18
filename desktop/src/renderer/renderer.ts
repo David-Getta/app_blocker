@@ -36,6 +36,7 @@ import { MAX_LIMIT_MINUTES } from '../shared/limits.js';
 import {
   formatRemaining, isRunning as focusIsRunning, isWindowRun, MAX_ALLOW_ENTRIES, MAX_PACK_NAME,
   MAX_SESSION_MINUTES, nextOccurrence, SESSION_CHOICES_MIN, windowRunStarted, type FocusPack, type FocusRun, peakWindowBand,
+  packCoveringHour,
 } from '../shared/focus.js';
 import { CATEGORY_PACKS, type CategoryPack } from '../shared/blocklist.js';
 import { windowKey, windowStartingSoon, type LockdownWindow as LockdownWindowRow } from '../shared/lockdown.js';
@@ -4437,7 +4438,13 @@ function renderStats(): void {
   // levétel próbatétel, ezt a gomb címe nem rejti. Nincs gomb ablakos csomagon,
   // futó menet mellett, csomag vagy csúcs nélkül.
   const winPick = suggestedPack();
-  const canWindow = peak !== null && winPick !== null && !winPick.recurrence
+  // LE VAN-E FEDVE: ha egy csomag heti ablaka már fedi a csúcs-órát, a menet
+  // magától indul, amikor a kéz indulna — a sor kimondja, és nincs gomb.
+  const covering = peak ? packCoveringHour(status?.focusPacks ?? [], peak.hour) : null;
+  $('hitsWindowNote').classList.toggle('hidden', covering === null);
+  $('hitsWindowNote').textContent = covering && covering.recurrence
+    ? `A csúcs-órában magától indul: ${covering.name} (${recurrenceLabel(covering.recurrence)}).` : '';
+  const canWindow = peak !== null && winPick !== null && !winPick.recurrence && covering === null
     && !focusIsRunning(status?.focusRun ?? null, Date.now());
   $('hitsWindowBtn').classList.toggle('hidden', !canWindow);
   $('hitsWindowBtn').textContent = canWindow && winPick && peak

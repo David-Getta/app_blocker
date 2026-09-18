@@ -512,6 +512,20 @@ object Focus {
      * hosszával: egy koppintás a mondattól a menetig. A Swift `lastUsedPack`
      * tükre.
      */
+    /**
+     * LE VAN-E FEDVE az óra: a sáv legalább egy napon az óra egy részét is átfogja.
+     * A csúcs-óra a hét órája, napra nem bontva — ezért elég, ha valamelyik napon
+     * fedi. Nap nélkül nem ablak.
+     */
+    fun bandCoversHour(band: ScheduleLogic.Band, hour: Int): Boolean {
+        val h = hour.coerceIn(0, 23)
+        return band.days.isNotEmpty() && band.startMin < (h + 1) * 60 && band.endMin > h * 60
+    }
+
+    /** A csomag, amelynek heti ablaka fedi az órát (a csúcs-órát) — az első a listában; null, ha egyik sem. */
+    fun packCoveringHour(packs: List<FocusPack>, hour: Int): FocusPack? =
+        packs.firstOrNull { p -> p.recurrence?.let { bandCoversHour(it, hour) } == true }
+
     fun lastUsedPack(packs: List<FocusPack>, log: List<FocusLogEntry>): FocusPack? {
         val byId = packs.associateBy { it.id }
         return log.sortedByDescending { it.startedAt }.firstNotNullOfOrNull { byId[it.packId] } ?: packs.firstOrNull()

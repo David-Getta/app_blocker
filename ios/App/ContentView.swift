@@ -1307,7 +1307,8 @@ private func nextWindowCut(_ packs: [Focus.Pack]) -> (name: String, clock: Strin
 }
 
 /// „H–P 09:00–12:00”, „minden nap 22:00–06:00”, „H, Sze, P 18:00–20:00” — mint a gépen.
-private func recurrenceLabel(_ b: ScheduleLogic.Band) -> String {
+/// A statisztika is használja (a lefedett csúcs-óra sora), ezért nem fájl-privát.
+func recurrenceLabel(_ b: ScheduleLogic.Band) -> String {
     let names = ["V", "H", "K", "Sze", "Cs", "P", "Szo"]
     let set = Set(b.days)
     let days: String

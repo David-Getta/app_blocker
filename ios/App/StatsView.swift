@@ -141,6 +141,12 @@ struct StatsView: View {
                         // mondat, a sáv az alakja (mikor jár a kéz magától, és mikor nem).
                         HourStrip(hours: FilterHitLogic.byHour(store.state.filterHitHours ?? [:], now: now),
                                   peakHour: peak.hour, peakCount: peak.count)
+                        // LE VAN-E FEDVE: ha egy csomag heti ablaka a csúcs-órát fedi, a menet
+                        // magától indul, amikor a kéz indulna — a statisztika kimondja.
+                        if let pack = Focus.packCoveringHour(store.state.focusPacks ?? [], hour: peak.hour), let band = pack.recurrence {
+                            Text("A csúcs-órában magától indul: \(pack.name) (\(recurrenceLabel(band))).")
+                                .font(.footnote).foregroundStyle(.secondary)
+                        }
                     }
                     // MELYIK oldal akaszt meg a legtöbbször: a hét csúcs-oldala — a lista címkézésével.
                     if let top = FilterHitLogic.topSite(store.state.filterHitHosts ?? [:], now: now) {

@@ -443,6 +443,21 @@ export function peakWindowBand(hour: number): Band {
   return { days: [0, 1, 2, 3, 4, 5, 6] as Weekday[], startMin: h * 60, endMin: (h + 1) * 60 };
 }
 
+/**
+ * LE VAN-E FEDVE az óra: a sáv legalább egy napon az óra egy részét is átfogja.
+ * A csúcs-óra a hét órája, napra nem bontva — ezért elég, ha valamelyik napon
+ * fedi. Nap nélkül nem ablak.
+ */
+export function bandCoversHour(band: Band, hour: number): boolean {
+  const h = Math.min(23, Math.max(0, Math.floor(hour)));
+  return band.days.length > 0 && band.startMin < (h + 1) * 60 && band.endMin > h * 60;
+}
+
+/** A csomag, amelynek heti ablaka fedi az órát (a csúcs-órát) — az első a listában; null, ha egyik sem. */
+export function packCoveringHour(packs: FocusPack[], hour: number): FocusPack | null {
+  return packs.find((p) => p.recurrence !== undefined && bandCoversHour(p.recurrence, hour)) ?? null;
+}
+
 export function normalizeRecurrence(raw: unknown): Band | undefined {
   if (!raw || typeof raw !== 'object') return undefined;
   const b = raw as Partial<Band>;

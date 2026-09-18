@@ -965,6 +965,12 @@ async function main() {
       && window.__fakePacks[1].recurrence.endMin === 22 * 60 && window.__fakePacks[1].recurrence.days.length === 7,
     undefined, { timeout: 15_000 },
   ).catch(() => failures.push('a csúcs-óra gombja nem tett heti ablakot a csomagra, vagy utána is ott maradt'));
+  // LE VAN FEDVE: az ablak után a sor mondja, hogy a csúcs-órában magától indul.
+  await page.waitForFunction(
+    () => !document.getElementById('hitsWindowNote')?.classList.contains('hidden')
+      && /A csúcs-órában magától indul: Mély munka \(minden nap 21:00–22:00\)\./.test(document.getElementById('hitsWindowNote')?.textContent || ''),
+    undefined, { timeout: 15_000 },
+  ).catch(() => failures.push('a lefedett csúcs-óra sora nem jelent meg az ablak után'));
   // Vissza: a többi lépés ablak nélküli csomagokkal számol.
   await page.evaluate(() => { delete window.__fakePacks[1].recurrence; });
   await page.reload();
