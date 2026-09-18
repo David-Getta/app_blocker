@@ -38,7 +38,7 @@ import { limitFullLine, MAX_LIMIT_MINUTES } from '../shared/limits.js';
 import {
   formatRemaining, isRunning as focusIsRunning, isWindowRun, MAX_ALLOW_ENTRIES, MAX_PACK_NAME,
   MAX_SESSION_MINUTES, nextOccurrence, SESSION_CHOICES_MIN, windowRunStarted, type FocusPack, type FocusRun, peakWindowBand,
-  packCoveringHour, focusWeekdayText,
+  packCoveringHour, focusWeekdayText, focusDayNowText,
 } from '../shared/focus.js';
 import { CATEGORY_PACKS, type CategoryPack } from '../shared/blocklist.js';
 import { windowKey, windowStartingSoon, type LockdownWindow as LockdownWindowRow } from '../shared/lockdown.js';
@@ -401,6 +401,9 @@ function renderSuggestCard(now: number): void {
   // A CSÚCS-NAPON a kártya azt is mondja: ma van — négy hétből, csak elég mintából.
   const dayLine = peakDayNowText(status?.browserHitsWeekday ?? null, now).trim();
   if (dayLine) lines.push(dayLine);
+  // A MENET-NAPON is: ma szoktál leülni — a tükör másik fele, a gombbal.
+  const focusDayLine = focusDayNowText(status?.focusWeekday ?? null, now).trim();
+  if (focusDayLine) lines.push(focusDayLine);
   $('suggestCard').classList.toggle('hidden', lines.length === 0);
   $('suggestText').textContent = lines.join(' ');
   const pick = suggestedPack();

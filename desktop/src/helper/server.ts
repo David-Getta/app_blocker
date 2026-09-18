@@ -155,6 +155,8 @@ export function statusOf(
     browserHitsWeekday: peakWeekday(browserHitsByWeekday(state.browserHits, now)),
     // A hét napjainak sávja — a csúcs-nap a mondat, a sáv az alakja.
     browserHitsWeekdays: browserHitsByWeekday(state.browserHits, now),
+    // A menet-nap — a kártya és a réteg a menet-napon mondja, hogy ma van.
+    focusWeekday: peakWeekday(focusByWeekday(state.focusLog, now)),
     browserHitsReasons: browserHitsByReason(state.browserHits, now),
     browserHitsTop: browserHitsTopSite(state.browserHits, now, state.sites),
     browserHitsKeywords: browserHitsByKeyword(state.browserHits, now),

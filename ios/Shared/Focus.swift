@@ -499,6 +499,12 @@ public enum Focus {
         return "A négy hét menet-napja: \(name) (\(peak.count) menet)."
     }
 
+    /// A tükör a döntés napján: a kezdőlap kártyája a menet-napon (a „ma van” szabálya a csúcs-napé: FilterHitLogic.isPeakDayNow).
+    public static func dayNowText(_ peak: (day: Int, count: Int)) -> String {
+        let name = peak.day >= 0 && peak.day < FilterHitLogic.weekdayNames.count ? FilterHitLogic.weekdayNames[peak.day] : "?"
+        return "Ma a négy hét menet-napja van (\(name), \(peak.count) menet) — ilyenkor szoktál leülni."
+    }
+
     /// Ahogy a felületen áll: „Nyelvtanulás — 42 perc van hátra”.
     public static func formatRemaining(_ ms: Double) -> String {
         let total = max(0, Int((ms / 60_000).rounded(.up)))

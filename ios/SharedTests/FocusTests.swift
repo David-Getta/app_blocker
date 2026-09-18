@@ -167,4 +167,8 @@ final class FocusTests: XCTestCase {
         XCTAssertEqual(Focus.weekdayText((day: 2, count: 6)), "A négy hét menet-napja: kedd (6 menet).")
         XCTAssertEqual(Focus.byWeekday([], now: now), [0, 0, 0, 0, 0, 0, 0])
     }
+
+    func testTheSessionDayOnTheDayOfDecisionIsTheCardSentence() {
+        XCTAssertEqual(Focus.dayNowText((day: 2, count: 6)), "Ma a négy hét menet-napja van (kedd, 6 menet) — ilyenkor szoktál leülni.")
+    }
 }

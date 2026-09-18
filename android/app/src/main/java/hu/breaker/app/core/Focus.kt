@@ -627,6 +627,10 @@ object Focus {
     fun weekdayText(peak: Pair<Int, Int>): String =
         "A négy hét menet-napja: ${FilterHitLogic.WEEKDAY_NAMES.getOrElse(peak.first) { "?" }} (${peak.second} menet)."
 
+    /** A tükör a döntés napján: a kezdőlap kártyája a menet-napon (a „ma van” szabálya a csúcs-napé: FilterHitLogic.isPeakDayNow). */
+    fun dayNowText(peak: Pair<Int, Int>): String =
+        "Ma a négy hét menet-napja van (${FilterHitLogic.WEEKDAY_NAMES.getOrElse(peak.first) { "?" }}, ${peak.second} menet) — ilyenkor szoktál leülni."
+
     fun recurrenceKey(b: ScheduleLogic.Band?): String =
         b?.let { "${it.days.sorted().joinToString(",")}/${it.startMin}-${it.endMin}" } ?: "-"
 

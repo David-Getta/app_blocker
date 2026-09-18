@@ -1215,6 +1215,32 @@ const WIRES = [
     needle: 'input.focusWeekday = FilterHitLogic.peakWeekday(Focus.byWeekday(st.focusLog ?? [], now: now))',
     lost: 'az iPhone heti mondat nem mondaná a menet-napot',
   },
+  // A MENET-NAP ott is, ahol a döntés van: a gépi kártya és a réteg lába, a két telefon kezdőlapja a menet-napon kimondja.
+  {
+    file: 'desktop/src/helper/server.ts',
+    needle: 'focusWeekday: peakWeekday(focusByWeekday(state.focusLog, now)),',
+    lost: 'a segéd nem adná le a menet-napot a státuszban, a kártya és a réteg hallgatna',
+  },
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: 'const focusDayLine = focusDayNowText(status?.focusWeekday ?? null, now).trim();',
+    lost: 'a gépi javaslat-kártya a menet-napon nem mondaná, hogy ma szoktál leülni',
+  },
+  {
+    file: 'desktop/src/renderer/overlay.ts',
+    needle: 'focusDayNowText(st.focusWeekday ?? null, st.now)',
+    lost: 'a réteg lába a menet-napon nem mondaná, hogy ma szoktál leülni',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/AppUi.kt',
+    needle: 'focusDay?.let { Text(Focus.dayNowText(it), style = MaterialTheme.typography.bodySmall) }',
+    lost: 'az Android kezdőlap kártyája a menet-napon nem mondaná, hogy ma szoktál leülni',
+  },
+  {
+    file: 'ios/App/ContentView.swift',
+    needle: 'if let onFocusDay { Text(Focus.dayNowText(onFocusDay)).font(.footnote) }',
+    lost: 'az iPhone kezdőlap kártyája a menet-napon nem mondaná, hogy ma szoktál leülni',
+  },
   // AZ ABLAK SZERINT INDULT menet a rétegben és az Android értesítésén is kimondva.
   {
     file: 'desktop/src/renderer/overlay.ts',

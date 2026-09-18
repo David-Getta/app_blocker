@@ -1041,7 +1041,14 @@ async function main() {
   // lépcső) a mondat és a gomb a legutóbbi csomaggal — futó menet nélkül.
   // A szám nélkül a kártya eltűnik: üresen nincs.
   // A CSÚCS-NAP is ma: a kártya azt is mondja, hogy ma van (négy hétből, elég mintából).
-  await page.evaluate(() => { window.__fakeStatusPatch = { browserHitsToday: 12, browserHitsWeekday: { day: new Date().getDay(), count: 14 } }; });
+  await page.evaluate(() => {
+    window.__fakeStatusPatch = {
+      browserHitsToday: 12,
+      browserHitsWeekday: { day: new Date().getDay(), count: 14 },
+      // A MENET-NAP is ma: a kártya azt is mondja, hogy ma szoktál leülni.
+      focusWeekday: { day: new Date().getDay(), count: 6 },
+    };
+  });
   await goTo(page, 'sites');
   // A KERET SORA a héten betelt napokkal: a keretes oldal sora mondja.
   await page.waitForFunction(
@@ -1057,6 +1064,7 @@ async function main() {
     () => !document.getElementById('suggestCard')?.classList.contains('hidden')
       && /Ma már \d+ megakadás/.test(document.getElementById('suggestText')?.textContent || '')
       && /Ma a négy hét csúcs-napja van \([a-záéíóöőúüű]+, 14 megakadás\)/.test(document.getElementById('suggestText')?.textContent || '')
+      && /Ma a négy hét menet-napja van \([a-záéíóöőúüű]+, 6 menet\)/.test(document.getElementById('suggestText')?.textContent || '')
       && /Munkamenet: Mély munka, 90 perc/.test(document.getElementById('suggestStartBtn')?.textContent || '')
       && !document.getElementById('suggestStartBtn')?.classList.contains('hidden'),
     undefined, { timeout: 15_000 },

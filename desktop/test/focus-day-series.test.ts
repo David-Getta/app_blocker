@@ -6,7 +6,7 @@
 
 import { test } from 'node:test';
 import * as assert from 'node:assert/strict';
-import { focusByWeekday, focusDaySeries, focusWeekdayText, type FocusLogEntry } from '../src/shared/focus';
+import { focusByWeekday, focusDayNowText, focusDaySeries, focusWeekdayText, type FocusLogEntry } from '../src/shared/focus';
 import { peakWeekday } from '../src/shared/browser-hits';
 import { dayKey } from '../src/shared/usage';
 
@@ -66,4 +66,15 @@ test('a menet-nap: négy hétből, a hét napjaira osztva — a menet a végéne
   assert.deepEqual(peakWeekday(by), { day: 5, count: 3 }, 'a holtverseny és a csúcs szabálya a csúcs-napéval közös');
   assert.equal(focusWeekdayText({ day: 2, count: 6 }), 'A négy hét menet-napja: kedd (6 menet).');
   assert.deepEqual(focusByWeekday(undefined, now), [0, 0, 0, 0, 0, 0, 0]);
+});
+
+test('a menet-nap a döntés napján: ma van-e, és csak elég mintából — a kártya és a láb mondata', () => {
+  // 2026-09-22 kedd, 2026-09-23 szerda (helyi idő).
+  const tuesday = new Date(2026, 8, 22, 15, 0).getTime();
+  const wednesday = new Date(2026, 8, 23, 15, 0).getTime();
+  assert.equal(focusDayNowText({ day: 2, count: 6 }, tuesday),
+    ' Ma a négy hét menet-napja van (kedd, 6 menet) — ilyenkor szoktál leülni.');
+  assert.equal(focusDayNowText({ day: 2, count: 6 }, wednesday), '', 'más napon nem');
+  assert.equal(focusDayNowText({ day: 2, count: 2 }, tuesday), '', 'kevés minta: nem mondat');
+  assert.equal(focusDayNowText(null, tuesday), '');
 });

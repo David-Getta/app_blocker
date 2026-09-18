@@ -24,7 +24,7 @@
 import { normalizeDomain } from './blocklist.js';
 import { isLoosening, isValidBand, type Band, type Weekday } from './schedule.js';
 import { dayKey, dayKeysBack } from './usage.js';
-import { PEAK_WEEKDAY_DAYS, WEEKDAY_NAMES } from './browser-hits.js';
+import { isPeakDayNow, PEAK_WEEKDAY_DAYS, WEEKDAY_NAMES } from './browser-hits.js';
 
 /** Egy csomagban ennyi engedélyezett tétel lehet. */
 export const MAX_ALLOW_ENTRIES = 40;
@@ -429,6 +429,16 @@ export function focusByWeekday(log: FocusLogEntry[] | undefined, now: number, co
 /** „A négy hét menet-napja: kedd (6 menet).” — melyik napon ülsz le a legtöbbször. */
 export function focusWeekdayText(peak: { day: number; count: number }): string {
   return `A négy hét menet-napja: ${WEEKDAY_NAMES[peak.day] ?? '?'} (${peak.count} menet).`;
+}
+
+/**
+ * A tükör a döntés napján: a kártya és a réteg lába a menet-napon — különben
+ * üres. Ugyanaz a küszöb, mint a csúcs-napnál (egy-két menet négy hétből nem
+ * minta): a csúcs-nap „ma van” szabálya dönt (isPeakDayNow).
+ */
+export function focusDayNowText(peak: { day: number; count: number } | null | undefined, now: number): string {
+  return peak && isPeakDayNow(peak, now)
+    ? ` Ma a négy hét menet-napja van (${WEEKDAY_NAMES[peak.day] ?? '?'}, ${peak.count} menet) — ilyenkor szoktál leülni.` : '';
 }
 
 /** Esedékes-e a figyelmeztetés (az előző óta eltelt-e a türelmi idő). */

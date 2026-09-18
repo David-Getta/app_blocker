@@ -401,4 +401,9 @@ class FocusTest {
         assertEquals("A négy hét menet-napja: kedd (6 menet).", Focus.weekdayText(2 to 6))
         assertEquals(listOf(0, 0, 0, 0, 0, 0, 0), Focus.byWeekday(emptyList(), now))
     }
+
+    @Test
+    fun `a menet-nap a dontes napjan - a kartya mondata`() {
+        assertEquals("Ma a négy hét menet-napja van (kedd, 6 menet) — ilyenkor szoktál leülni.", Focus.dayNowText(2 to 6))
+    }
 }

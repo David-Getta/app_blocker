@@ -424,6 +424,13 @@ struct ContentView: View {
         FilterHitLogic.peakHour(store.state.filterHitHours ?? [:], now: now)?.hour
     }
 
+    /// A MENET-NAPON: a négy hét menet-napja — különben nil. A „ma van” szabálya a csúcs-napé; a kártya mondja, hogy ma szoktál leülni.
+    private var focusDayNow: (day: Int, count: Int)? {
+        guard let peak = FilterHitLogic.peakWeekday(Focus.byWeekday(store.state.focusLog ?? [], now: now)),
+              FilterHitLogic.isPeakDayNow(peak, now: now) else { return nil }
+        return peak
+    }
+
     /// A CSÚCS-NAPON: a négy hét csúcs-napja — különben nil. Csak elég mintából; a kártya mondja, hogy ma van.
     private var peakDayNow: (day: Int, count: Int)? {
         guard let peak = FilterHitLogic.peakWeekday(FilterHitLogic.byWeekday(store.state.filterHits ?? [:], now: now)),
@@ -447,7 +454,8 @@ struct ContentView: View {
             let soon = peakSoon
             let inPeak = peakNow
             let onPeakDay = peakDayNow
-            if step > 0 || soon != nil || inPeak != nil || onPeakDay != nil {
+            let onFocusDay = focusDayNow
+            if step > 0 || soon != nil || inPeak != nil || onPeakDay != nil || onFocusDay != nil {
                 VStack(alignment: .leading, spacing: 8) {
                     if step > 0 { Text(FilterHitLogic.nudgeText(step)).font(.footnote) }
                     if let soon { Text(FilterHitLogic.peakWarnText(soon)).font(.footnote) }
@@ -455,6 +463,8 @@ struct ContentView: View {
                     if let inPeak { Text(FilterHitLogic.peakNowText(inPeak)).font(.footnote) }
                     // A CSÚCS-NAPON: ma van — négy hétből, csak elég mintából.
                     if let onPeakDay { Text(FilterHitLogic.peakDayNowText(onPeakDay)).font(.footnote) }
+                    // A MENET-NAPON is: ma szoktál leülni — a tükör másik fele, a gombbal.
+                    if let onFocusDay { Text(Focus.dayNowText(onFocusDay)).font(.footnote) }
                     // EGY KOPPINTÁS a mondattól a menetig: a legutóbb használt csomag
                     // a szokásos hosszával — szigorítás, ingyen. Futó menet mellett
                     // nincs gomb (egyszerre egy menet fut).
