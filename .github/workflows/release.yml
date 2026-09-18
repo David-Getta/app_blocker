@@ -44,21 +44,20 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **Előjelzés a csúcs-óra előtt.** Tíz perccel a hét csúcs-órája
-          előtt egyszer szól a gép, az Android-szolgáltatás és az iPhone
-          rendszere: „Mindjárt 21 óra…” — a héten ilyenkor akadt meg a
-          kéz a legtöbbször; egy munkamenet most segítene, te döntesz.
-          Naponta egyszer, és csak ha a csúcs legalább három. Tükör
-          időzítéssel; nem tilt, nem ítél.
+          **Egy koppintás a mondattól a menetig.** A telefon javaslat-
+          kártyáján („Ma már 5 megakadás a szűrőben…”) egy gomb a
+          legutóbb használt csomagot indítja a szokásos hosszával:
+          „Munkamenet: Nyelvtanulás, 25 perc”. Szigorítás, ingyen — a
+          bíró ugyanazt futtatja, mint a csomagkártya gombja.
 
-          ### Ami a v0.4.59-ben jött
+          ### Ami a v0.4.60-ban jött
 
-          **A sokadik megakadásnál a telefon is javasol egy lépést** —
-          és javítás: a telefonon csak a lista tiltása megakadás.
+          **Előjelzés a csúcs-óra előtt** — tíz perccel a hét csúcs-órája
+          előtt egyszer szól a gép, az Android-szolgáltatás és az iPhone.
 
-          #### Ami a v0.4.58-ban jött
+          #### Ami a v0.4.59-ben jött
 
-          **Mikor jár a kéz magától — a telefonon is.**
+          **A sokadik megakadásnál a telefon is javasol egy lépést.**
 
           NOTES
           fi
