@@ -44,26 +44,24 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **Megakadás-számláló: hányszor állított meg a böngésző.** A tiltás
-          akkor dolgozik, amikor nem figyelsz oda — ezért nem látszik,
-          mennyit. A bővítmény mostantól minden tiltó lapra vitt navigációt
-          könyvel (naponként, okonként, harminc napig), és a felugró lapja
-          meg a beállítás-lapja mondja:
-          „Ma 3 megakadás; az elmúlt 7 napban 12.” Az appnak is átmegy — a
-          heti mondat és a statisztika sora is mondja
-          („12 megakadás a böngészőben”). Tükör, nem ítélet; a fiókba nem
-          megy, a telefonon nincs, mert ott nincs bővítmény.
+          **A kulcsszavak a telefonon is szerkeszthetők.** Eddig a lista a
+          telefonon csak látszott; mostantól Androidon és iPhone-on is
+          felvehető és levehető a zárlat kártyája alján — ugyanazzal a
+          szabállyal: felvenni ingyen, levenni próbatétel. A lista a fiókon
+          át a gépekre átér, és a gépi böngésző tilt vele; a telefonon nem
+          tilt (a szűrő a címet nem látja), ezt a felület kimondja. A
+          próbatétel lapja Androidon is megnevezi, mi a tét.
 
-          ### Ami a v0.4.47-ben jött
+          ### Ami a v0.4.48-ban jött
 
-          **Kulcsszó-szabályok: bármely oldalon, ha a cím tartalmazza.** Egy
-          szó (shorts, reels, egy játék neve), és a böngésző minden címet a
-          tiltó lapra visz, amiben szerepel. Felvenni ingyen, levenni
-          próbatétel; a lista a fiókon át a többi eszközre is átér.
+          **Megakadás-számláló: hányszor állított meg a böngésző.** A
+          bővítmény minden tiltó lapra vitt navigációt könyvel, a felugró
+          lapja és a beállítás-lapja mondja, és az app heti mondata meg a
+          statisztika sora is.
 
-          #### Ami a v0.4.46-ban jött
+          #### Ami a v0.4.47-ben jött
 
-          **A félbemaradt kísérletek is a visszatekintésben.**
+          **Kulcsszó-szabályok: bármely oldalon, ha a cím tartalmazza.**
 
           NOTES
           fi
