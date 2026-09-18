@@ -44,24 +44,21 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A sokadik megakadásnál a telefon is javasol egy lépést.** Az
-          ötödik, tizedik és huszadik mai megakadásnál Androidon a
-          szolgáltatás egyszer értesít (saját csatornán), és mindkét
-          telefon kezdőlapja mondja: egy munkamenet vagy egy rövid zárlat
-          most segítene — te döntesz. Nem tilt, nem ítél.
+          **Előjelzés a csúcs-óra előtt.** Tíz perccel a hét csúcs-órája
+          előtt egyszer szól a gép, az Android-szolgáltatás és az iPhone
+          rendszere: „Mindjárt 21 óra…” — a héten ilyenkor akadt meg a
+          kéz a legtöbbször; egy munkamenet most segítene, te döntesz.
+          Naponta egyszer, és csak ha a csúcs legalább három. Tükör
+          időzítéssel; nem tilt, nem ítél.
 
-          **Javítás:** a telefonon csak a lista tiltása megakadás — a
-          munkamenet fehérlistáján kívül rekedt háttér-forgalom eddig
-          beleszámolt, és egy csendes estére százat mondhatott.
+          ### Ami a v0.4.59-ben jött
 
-          ### Ami a v0.4.58-ban jött
+          **A sokadik megakadásnál a telefon is javasol egy lépést** —
+          és javítás: a telefonon csak a lista tiltása megakadás.
 
-          **Mikor jár a kéz magától — a telefonon is.** Óránkénti könyv,
-          a hét csúcs-órája a statisztikán és a hétfői mondatban.
+          #### Ami a v0.4.58-ban jött
 
-          #### Ami a v0.4.57-ben jött
-
-          **A sokadik megakadásnál egy lépést javasol** a gép és a tiltó lap.
+          **Mikor jár a kéz magától — a telefonon is.**
 
           NOTES
           fi
