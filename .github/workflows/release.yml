@@ -44,20 +44,19 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **Ha nem kéred, csendben marad.** Az értesítés a sokadik
-          megakadásnál és a csúcs-óra előtt kikapcsolható — a gépen a
-          háttér-panel kapcsolójával, a telefonon a statisztikán. A kártya
-          és a statisztika sora akkor is mondja: a tükör marad, csak nem
-          szól utánad.
+          **Egy kattintás a mondattól a menetig — a gépen is.** A statisztika
+          megakadás-blokkja a sokadik megakadásnál a mondatot és egy gombot
+          mutat: a legutóbb használt csomag a szokásos hosszával, egy
+          kattintásra. Szigorítás, ingyen; futó menet mellett nincs gomb.
 
-          ### Ami a v0.4.63-ban jött
+          ### Ami a v0.4.64-ben jött
 
-          **Az előjelzés a telefon kezdőlapján is**, a munkamenet gombjával;
-          a bővítmény beállítás-lapja a hetet okonként mondja.
+          **Ha nem kéred, csendben marad** — a javaslatok értesítése
+          kikapcsolható a gépen és a két telefonon.
 
-          #### Ami a v0.4.62-ben jött
+          #### Ami a v0.4.63-ban jött
 
-          **Melyik szabály dolgozik** — a gépi statisztika okonként.
+          **Az előjelzés a telefon kezdőlapján is**, a gombbal.
 
           NOTES
           fi
