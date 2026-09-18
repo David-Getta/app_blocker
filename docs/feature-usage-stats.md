@@ -461,7 +461,10 @@ megakadás a böngészőben (az előző héten 18), a csúcs 21–22 óra.” Ir
 összehasonlítás; a nulla hét viszont mondat, ha volt mihez mérni:
 „Megakadás nélkül a böngészőben (az előző héten 18).” Ehhez a bővítmény a
 hídra két hetet küld (`REPORT_DAYS`), a segéd cseréli; a telefon könyve
-harminc napos, ott eleve megvan.
+harminc napos, ott eleve megvan. A bővítmény beállítás-lapja ugyanezt a
+sort a saját könyvéből mondja (`hitsTrendText`), app nélkül is; a végponti
+teszt őrzi, hogy előző hét nélkül a sor nincs, egy régebbi nappal viszont
+megjelenik.
 
 **Melyik oldal akaszt meg a legtöbbször:** a hét csúcs-oldala mindhárom
 platformon. A gépen a bővítmény napi élbolyából (a segéd a lista tételéhez

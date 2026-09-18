@@ -510,6 +510,26 @@ async function main() {
     check(!!optLines && !optLines.hiddenReasons && /kulcsszó/.test(optLines.reasons),
       'a beállítás-lap a hetet okonként mondja (kulcsszó)');
     check(!!optLines && /A héten a legtöbbször: /.test(optLines.top), 'a beállítás-lap a hét csúcs-oldalát mondja');
+    // A HÉT AZ ELŐZŐ HÉTHEZ KÉPEST a beállítás-lapon, a saját könyvből: előző
+    // hét nélkül a sor nincs (egy nulla nem összehasonlítás); egy nyolc napja
+    // könyvelt megakadással megjelenik, a két számmal.
+    const hiddenPrev = await seeder.evaluate(() => document.querySelector('#hitsPrev')?.hidden ?? null).catch(() => null);
+    check(hiddenPrev === true, 'előző hét nélkül a beállítás-lap nem hasonlít');
+    await seeder.evaluate(async () => {
+      const got = await chrome.storage.local.get('breaker.hits');
+      const book = got?.['breaker.hits'] ?? { days: {} };
+      const d = new Date();
+      d.setDate(d.getDate() - 8);
+      const p = (n) => String(n).padStart(2, '0');
+      book.days[`${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`] = { total: 4, byReason: { closed: 4 } };
+      await chrome.storage.local.set({ 'breaker.hits': book });
+    }).catch(() => null);
+    await seeder.reload();
+    await seeder.waitForFunction(
+      () => (document.querySelector('#hitsPrev')?.textContent ?? '') !== '', null, { timeout: 10000 },
+    ).catch(() => null);
+    const prevLine = await seeder.evaluate(() => document.querySelector('#hitsPrev')?.textContent ?? '').catch(() => '');
+    check(/^A héten \d+ megakadás, az előző héten 4\.$/.test(prevLine), `a beállítás-lap a hetet az előző héthez méri (${prevLine})`);
     await seedClosed([], Date.now());
 
     // A szünet LETELTEKOR a lap utat ad vissza: a visszaszámláló helyén link

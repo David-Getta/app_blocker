@@ -13,7 +13,9 @@ import {
 import { CLOSED_FRESH_MS, loadLink, pullFromApp, setToken, withAppRules } from './app-link.js';
 import { dayKey, formatSeconds, lastDays, topChannels } from './chantime.js';
 // A `lastDays` a csatorna-időé (ugyanaz a naptár) — a könyv is azzal él.
-import { hitsByHour, hitsReasonText, hitsRows, hitsSummary, hitsText, hitsWeekByReason, hourLabel, peakHour, topHost } from './hits.js';
+import {
+  hitsByHour, hitsReasonText, hitsRows, hitsSummary, hitsText, hitsTrendText, hitsWeekByReason, hourLabel, peakHour, topHost,
+} from './hits.js';
 
 const TIME_KEY = 'breaker.chantime';
 
@@ -61,9 +63,15 @@ async function renderHits() {
   const got = await chrome.storage.local.get('breaker.hits');
   const state = got?.['breaker.hits'] ?? { days: {} };
   const today = dayKey();
-  const text = hitsText(hitsSummary(state, today));
+  const summary = hitsSummary(state, today);
+  const text = hitsText(summary);
   $('hitsLine').hidden = text === null;
   $('hitsLine').textContent = text ?? '';
+  // A HÉT AZ ELŐZŐ HÉTHEZ KÉPEST: a két szám egymás mellett — irány, nem
+  // ítélet; a saját könyvből, pontosan. Előző hét nélkül a sor nincs.
+  const trend = hitsTrendText(summary);
+  $('hitsPrev').hidden = trend === null;
+  $('hitsPrev').textContent = trend ?? '';
   // MIKOR jár a kéz magától: a hét csúcs-órája, és a nap huszonnégy rekesze.
   const week = lastDays(today, 7);
   const peak = peakHour(state, week);

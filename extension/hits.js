@@ -142,7 +142,20 @@ export function hitsOnHost(state, day, host) {
 /** Ma és az elmúlt 7 nap (a mai nappal) összege. */
 export function hitsSummary(state, today) {
   const week = lastDays(today, 7).reduce((sum, d) => sum + hitsOn(state, d), 0);
-  return { today: hitsOn(state, today), week };
+  // Az előző hét: a tizennégy napból az első hét — a hét az előző héthez képest.
+  const prevWeek = lastDays(today, 14).slice(0, 7).reduce((sum, d) => sum + hitsOn(state, d), 0);
+  return { today: hitsOn(state, today), week, prevWeek };
+}
+
+/**
+ * „A héten 12 megakadás, az előző héten 18.” — a két szám egymás mellett,
+ * ítélet nélkül; a gépi sor tükre. Előző hét nélkül nincs (null): egy nulla
+ * nem összehasonlítás. A nulla hét viszont mondat, ha volt mihez mérni.
+ */
+export function hitsTrendText(summary) {
+  const prev = summary?.prevWeek ?? 0;
+  if (prev <= 0) return null;
+  return `A héten ${summary.week} megakadás, az előző héten ${prev}.`;
 }
 
 /**

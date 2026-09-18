@@ -627,6 +627,11 @@ const WIRES = [
     lost: 'a híd csak egy hetet vinne — az előző hét a gépen mindig nulla',
   },
   {
+    file: 'extension/options.js',
+    needle: "$('hitsPrev').textContent = trend ?? '';",
+    lost: 'a bővítmény beállítás-lapja nem mérné a hetet az előző héthez',
+  },
+  {
     file: 'desktop/src/helper/server.ts',
     needle: 'browserHitsPrev7d: browserHitsPrev7d(state.browserHits, now),',
     lost: 'a segéd státusza nem mondaná az előző hetet',

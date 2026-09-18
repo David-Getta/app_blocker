@@ -23,7 +23,8 @@ interface Hits {
   recordHit: (state: unknown, day: string, reason: string, host?: string, hour?: number) => { days: Record<string, { total: number; byReason: Record<string, number> }> };
   sweepHits: (state: unknown, today: string) => { days: Record<string, unknown> };
   hitsOn: (state: unknown, day: string) => number;
-  hitsSummary: (state: unknown, today: string) => { today: number; week: number };
+  hitsSummary: (state: unknown, today: string) => { today: number; week: number; prevWeek: number };
+  hitsTrendText: (s: { week: number; prevWeek: number }) => string | null;
   hitsReport: (state: unknown, today: string) => { day: string; total: number; byReason: Record<string, number>; topHosts?: [string, number][] }[];
   REPORT_DAYS: number;
   hitsText: (s: { today: number; week: number }) => string | null;
@@ -45,7 +46,7 @@ interface Hits {
 function load(): Hits {
   const src = fs.readFileSync(path.join(extensionDir(), 'hits.js'), 'utf8').replace(/^export /gm, '');
   // eslint-disable-next-line no-new-func
-  return new Function(`${src}\nreturn { RETENTION_DAYS, REPORT_DAYS, MAX_HOSTS_PER_DAY, dayKey, lastDays, recordHit, sweepHits, hitsOn, hitsOnHost, hitsSummary, hitsReport, hitsText, hitsRows, hitsByHour, peakHour, hourLabel, hitsNudge, NUDGE_AT, hitsWeekByReason, hitsReasonText, REASON_NAMES, TOP_HOSTS_PER_DAY, topHost };`)() as Hits;
+  return new Function(`${src}\nreturn { RETENTION_DAYS, REPORT_DAYS, MAX_HOSTS_PER_DAY, dayKey, lastDays, recordHit, sweepHits, hitsOn, hitsOnHost, hitsSummary, hitsReport, hitsText, hitsTrendText, hitsRows, hitsByHour, peakHour, hourLabel, hitsNudge, NUDGE_AT, hitsWeekByReason, hitsReasonText, REASON_NAMES, TOP_HOSTS_PER_DAY, topHost };`)() as Hits;
 }
 
 const TODAY = '2026-09-18';
@@ -85,14 +86,17 @@ test('összegzés és a hídra menő sorok: ma és az elmúlt 7 nap; a hídra k�
   s = h.recordHit(s, '2026-09-12', 'closed'); // a hét legrégebbi napja: benne
   s = h.recordHit(s, '2026-09-11', 'closed'); // nyolc napja: nincs a hétben — de a hídra megy (az előző hét)
   s = h.recordHit(s, '2026-09-04', 'closed'); // tizennégy napja: a két hétben sincs benne
-  assert.deepEqual(h.hitsSummary(s, TODAY), { today: 1, week: 2 });
+  assert.deepEqual(h.hitsSummary(s, TODAY), { today: 1, week: 2, prevWeek: 1 }, 'a nyolc napja az előző hété, a tizennégy napja egyiké sem');
   assert.equal(h.REPORT_DAYS, 14, 'a híd két hetet visz: a gép a hetet az előző héthez méri');
   assert.deepEqual(h.hitsReport(s, TODAY), [
     { day: '2026-09-11', total: 1, byReason: { closed: 1 } },
     { day: '2026-09-12', total: 1, byReason: { closed: 1 } },
     { day: TODAY, total: 1, byReason: { keyword: 1 } },
   ]);
-  assert.deepEqual(h.hitsSummary({}, TODAY), { today: 0, week: 0 });
+  assert.deepEqual(h.hitsSummary({}, TODAY), { today: 0, week: 0, prevWeek: 0 });
+  assert.equal(h.hitsTrendText({ week: 2, prevWeek: 1 }), 'A héten 2 megakadás, az előző héten 1.');
+  assert.equal(h.hitsTrendText({ week: 0, prevWeek: 1 }), 'A héten 0 megakadás, az előző héten 1.', 'a nulla hét is mondat, ha volt mihez mérni');
+  assert.equal(h.hitsTrendText({ week: 2, prevWeek: 0 }), null, 'előző hét nélkül nincs összehasonlítás');
   assert.equal(h.hitsOn({ days: { [TODAY]: { total: -3 } } }, TODAY), 0, 'a negatív nem szám');
   assert.equal(h.hitsRows(s, TODAY)[0].day, TODAY, 'a legfrissebb elöl');
   assert.equal(h.hitsRows(s, TODAY)[0].detail, 'kulcsszó 1');
