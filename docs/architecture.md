@@ -119,7 +119,10 @@ hosztot nem tárolja.
 
 **Ki mondja.** A statisztika (a hét alakja, a csúcs-óra, az okok, a
 csúcs-oldal; négy hétből a csúcs-nap, és a tükör másik feléről a menet-nap,
-a menet-óra és a mért idő napja — a hét napjainak és az órák sávjával); a heti mondat: „12 megakadás a böngészőben, a csúcs 21–22 óra, a legtöbbször: youtube.com (7×).”;
+a menet-óra és a mért idő napja — a hét napjainak és az órák sávjával; és ha
+a csúcs-óra a menet-óra, a sor kimondja); a döntés helyén — a gépi kártya, a
+réteg lába, a telefon kezdőlapja, a böngésző lapjai — a csúcs-nap, a
+menet-nap, a menet-óra és a mért idő napja, ha ma van; a heti mondat: „12 megakadás a böngészőben, a csúcs 21–22 óra, a legtöbbször: youtube.com (7×).”;
 a bővítmény felugró és beállítás-lapja; a tiltó lap a kísértés pillanatában:
 „Ma ez a 7. megakadás — ebből a 3. ezen az oldalon.”; a hét az előző héthez képest
 („A héten 12 megakadás, az előző héten 18.” — a híd ehhez két hetet visz);

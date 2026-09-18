@@ -510,8 +510,10 @@ sávjával, a heti mondatban is; a csúcs-napon a tiltó lap, a felugró lap, a
 réteg és a telefon kártyája kimondja, hogy ma van); a menet-óra (mikor ülsz
 le a legtöbbször — a heti mondatban is, a döntés helyein kimondva, tíz
 perccel előtte előre szólva, a fedése kimondva, és egy kattintás a heti
-ablakig a statisztikáról, a kártyáról és a böngésző lapjairól); az
-értesítésről, a felugró lapról és
+ablakig a statisztikáról, a kártyáról és a böngésző lapjairól); a mért idő
+napja a döntés helyén is (a gépi kártya és a réteg, az Android kártya
+kimondja, ha ma van); és ha a csúcs-óra a menet-óra, a statisztika és a
+heti mondat kimondja; az értesítésről, a felugró lapról és
 a tiltó lapról egy kattintás a menetig, a csúcs-órára egy kattintás a heti
 ablakig — a telefonon és a böngésző lapjairól is —, és ha egy csomag ablaka
 már fedi, a statisztika kimondja —
