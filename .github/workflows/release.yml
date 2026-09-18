@@ -44,26 +44,24 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A menet-sorozat a böngészőben.** A felugró lap és a tiltó lap a
-          menet gombja mellett azt is mondja, hány napja ülsz le minden nap
-          — „5 napja minden nap leültél.” Az app száma a hídon, kettőtől,
-          csak összekötve és friss válasz mellett; futó menet alatt a lap a
-          menetről beszél. Tény, nem felszólítás. Bővítmény 0.4.34.
+          **A menet-sorozat ott is, ahol a döntés van.** A gépi kezdőlap
+          javaslat-kártyája és a gyorsbillentyűs réteg lába, a telefonok
+          kezdőlapjának kártyája és az Android szűrő-értesítés sora is
+          mondja, hány napja ülsz le minden nap — a menet gombja mellett,
+          nem helyette. Kettőtől; tény, nem felszólítás.
 
-          ### Ami a v0.4.142-ben jött
+          ### Ami a v0.4.143-ban jött
+
+          **A menet-sorozat a böngészőben:** a felugró lap és a tiltó lap
+          a menet gombja mellett mondja, hány napja ülsz le minden nap
+          — az app száma a hídon, csak összekötve és frissen. Bővítmény
+          0.4.34.
+
+          #### Ami a v0.4.142-ben jött
 
           **A leghosszabb sorozat:** a statisztika menet-sorozat sora a
-          mostani mellett a napló rekordját is mondja mindhárom platformon,
-          ha az több a mostaninál:
-          „3 napja minden nap leültél (a leghosszabb sorozatod: 7 nap).”
-          Sorozat nélkül csak a rekordot mondja.
-
-          #### Ami a v0.4.141-ben jött
-
-          **Menet-sorozat:** hány napja ülsz le minden nap — a statisztika
-          és a heti mondat mondja mindhárom platformon:
-          „5 napja minden nap leültél.” Egy nap nem sorozat, a megszakadt
-          sorozat csak nulla.
+          napló rekordját is mondja mindhárom platformon, ha az több a
+          mostaninál; sorozat nélkül csak a rekordot.
 
           NOTES
           fi
