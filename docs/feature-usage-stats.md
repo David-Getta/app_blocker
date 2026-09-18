@@ -550,6 +550,15 @@ legalább három menet). A böngésző lapjai is: a híd a javaslattal leadja
 menet gombja mellett mondja („Ma a menet-napod van — ilyenkor szoktál leülni.”),
 frissen, összekötve.
 
+**A mért idő napja:** a tükör harmadik fele — nem az, mikor csúszik a kéz,
+és nem az, mikor ülsz le, hanem az, melyik napon megy el a legtöbb idő: négy
+hétből, a hét napjaira osztva, négy-négy nap átlagával („A négy hét legnagyobb
+napja: szombat (átlag 3 ó 20 p).”), alatta a hét napjainak sávja, a nap
+kiemelve. A gépi statisztikán a hét rajza alatt (`usageByWeekday` a segédnél,
+`usageWeekdays` a statisztika-válaszban) és Androidon (`UsageLogic.byWeekday`);
+iPhone-on nincs mérés, ott nincs. A minta hossza és a holtverseny szabálya a
+csúcs-napéval közös. Mérés nélkül nincs.
+
 **Ablak a csúcs-órára:** a statisztika a csúcs-óra mondata alatt — a gépen
 és a telefonokon is — egy gombot mutat — „Heti ablak a csúcs-órára: Nyelvtanulás, minden nap 21:00–22:00” —,
 ami a legutóbb használt csomagra heti ablakot tesz a csúcs egy órájában,

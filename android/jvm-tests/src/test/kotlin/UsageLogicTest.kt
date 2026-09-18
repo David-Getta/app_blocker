@@ -302,4 +302,21 @@ class UsageLogicTest {
         )
         assertTrue(UsageLogic.suggestBlocks(emptyList(), sites).isEmpty())
     }
+
+    @Test fun `a mert ido napja - negy hetbol, a het napjaira osztva, a huszonnyolc napos nem szamit`() {
+        val st = UsageLogic.UsageState()
+        UsageLogic.recordSample(st, "site:a.com", 30.0, now)
+        UsageLogic.recordSample(st, "site:a.com", 45.0, daysAgo(now, 7))
+        UsageLogic.recordSample(st, "site:b.com", 10.0, daysAgo(now, 1))
+        UsageLogic.recordSample(st, "site:a.com", 99.0, daysAgo(now, 28))
+        val by = UsageLogic.byWeekday(st, now)
+        val today = hu.breaker.app.core.FilterHitLogic.weekdayOf(UsageLogic.dayKey(now))
+        assertEquals(7, by.size)
+        assertEquals(75, by[today], "ma és egy hete: ugyanaz a nap")
+        assertEquals(10, by[(today + 6) % 7], "tegnap")
+        assertEquals(85, by.sum(), "a huszonnyolc napos nem számít")
+        assertEquals(today to 75, hu.breaker.app.core.FilterHitLogic.peakWeekday(by), "a csúcs szabálya a csúcs-napéval közös")
+        assertEquals("A négy hét legnagyobb napja: szombat (átlag 50 p).", UsageLogic.weekdayText(6 to 12000))
+        assertEquals(listOf(0, 0, 0, 0, 0, 0, 0), UsageLogic.byWeekday(UsageLogic.UsageState(), now))
+    }
 }

@@ -359,6 +359,8 @@ export interface UsageStatsData {
   focusSeries: { day: string; seconds: number }[];
   /** az elmúlt 7 nap napi ÖSSZESENJE (minden célpont), a legrégebbitől */
   weekSeries?: { day: string; seconds: number }[];
+  /** a mért idő napja: a négy hét mért ideje a hét hét napjára osztva (0 = vasárnap), másodpercben — melyik napon megy el a legtöbb; régi segéd nem adja */
+  usageWeekdays?: number[];
   /** fókuszban töltött idő naponta az elmúlt 7 napra (a menet a végének napjára számít) */
   focusDays?: { day: string; seconds: number }[];
   /** a menet-nap sávja: a négy hét menetei a hét hét napjára osztva (0 = vasárnap) — melyik napon ülsz le a legtöbbször; régi segéd nem adja */

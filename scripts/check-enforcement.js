@@ -1186,7 +1186,7 @@ const WIRES = [
   },
   {
     file: 'desktop/src/renderer/renderer.ts',
-    needle: "renderWeekdayStrip($('focusWeekdayStrip'), statsData?.focusWeekdays ?? [], fwd, 'menet');",
+    needle: "renderWeekdayStrip($('focusWeekdayStrip'), statsData?.focusWeekdays ?? [], fwd, (n) => `${n} menet`);",
     lost: 'a gépi statisztika nem mondaná és nem rajzolná a menet-napot',
   },
   {
@@ -1256,6 +1256,22 @@ const WIRES = [
     file: 'extension/blocked.js',
     needle: 'const fd = focusDayText(link, Date.now(), CLOSED_FRESH_MS);',
     lost: 'a tiltó lap a menet-napon nem mondaná, hogy ma szoktál leülni',
+  },
+  // A MÉRT IDŐ NAPJA: melyik napon megy el a legtöbb idő — a gépi és az Android statisztikán.
+  {
+    file: 'desktop/src/helper/server.ts',
+    needle: 'usageWeekdays: usageByWeekday(state.usage, now),',
+    lost: 'a segéd nem adná le a mért idő napját, a gépi statisztika nem mondaná',
+  },
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: "renderWeekdayStrip($('usageWeekdayStrip'), statsData.usageWeekdays ?? [], uwd, (n) => `átlag ${formatDuration(Math.round(n / 4))}`);",
+    lost: 'a gépi statisztika nem mondaná és nem rajzolná a mért idő napját',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/StatsScreen.kt',
+    needle: 'WeekdayStrip(usageWeekdays, peakDay = day, peakCount = count)',
+    lost: 'az Android statisztika nem mondaná és nem rajzolná a mért idő napját',
   },
   // AZ ABLAK SZERINT INDULT menet a rétegben és az Android értesítésén is kimondva.
   {

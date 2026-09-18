@@ -10,6 +10,7 @@
 
 // Explicit .js: the renderer runs this through the browser's native ESM
 // loader, which does not add extensions (TypeScript leaves the specifier as-is).
+import { PEAK_WEEKDAY_DAYS, WEEKDAY_NAMES } from './browser-hits.js';
 import { normalizeDomain } from './blocklist.js';
 
 export type TargetKind = 'app' | 'site';
@@ -274,6 +275,27 @@ export function totalSeries(
   const days = dayKeysBack(now, count);
   const byDay = new Map(state.days.map((d) => [d.day, d.seconds]));
   return days.map((day) => ({ day, seconds: sumOf(byDay.get(day) ?? {}) }));
+}
+
+/**
+ * A HÉT NAPJAI szerint: az utolsó 28 nap mért ideje a hét hét napjára osztva
+ * (0 = vasárnap), másodpercben — a csúcs-nap és a menet-nap harmadik fele:
+ * melyik napon megy el a legtöbb idő. A minta hossza a csúcs-napéval közös
+ * (négy-négy nap a hét minden napjára). A Kotlin-tükör ugyanezt
+ * (`UsageLogic.byWeekday`); iPhone-on nincs mérés.
+ */
+export function usageByWeekday(state: UsageState, now: number, count = PEAK_WEEKDAY_DAYS): number[] {
+  const by = [0, 0, 0, 0, 0, 0, 0];
+  for (const { day, seconds } of totalSeries(state, now, count)) {
+    const [y, m, d] = day.split('-').map(Number);
+    by[new Date(y, m - 1, d).getDay()] += Math.round(seconds);
+  }
+  return by;
+}
+
+/** „A négy hét legnagyobb napja: szombat (átlag 3 ó 20 p).” — melyik napon megy el a legtöbb idő; négy-négy nap átlaga. */
+export function usageWeekdayText(peak: { day: number; count: number }): string {
+  return `A négy hét legnagyobb napja: ${WEEKDAY_NAMES[peak.day] ?? '?'} (átlag ${formatDuration(Math.round(peak.count / 4))}).`;
 }
 
 export interface WeekDelta {

@@ -60,6 +60,8 @@ fun StatsSection(
     focusLabel: String,
     /** az elmúlt 7 nap napi összesenje (minden célpont), a legrégebbitől — a hét alakja */
     weekSeries: List<Pair<String, Double>> = emptyList(),
+    /** a mért idő napja: a négy hét mért ideje a hét hét napjára osztva (0 = vasárnap), másodpercben — melyik napon megy el a legtöbb */
+    usageWeekdays: List<Int> = emptyList(),
     /** fókuszban töltött idő naponta az elmúlt 7 napra (a menet a végének napjára számít) */
     focusDays: List<Pair<String, Double>> = emptyList(),
     /** a menet-nap sávja: a négy hét menetei a hét hét napjára osztva (0 = vasárnap) — melyik napon ülsz le a legtöbbször */
@@ -309,6 +311,12 @@ fun StatsSection(
         if (weekSeries.any { it.second > 0.0 }) {
             StatsSectionLabel("Az elmúlt 7 nap, naponta")
             WeekChart(weekSeries)
+        }
+        // A MÉRT IDŐ NAPJA: melyik napon megy el a legtöbb idő — négy hétből, a
+        // csúcs-nap és a menet-nap harmadik fele; a sáv az alakja, hétfőtől.
+        FilterHitLogic.peakWeekday(usageWeekdays)?.let { (day, count) ->
+            Text(UsageLogic.weekdayText(day to count), style = MaterialTheme.typography.bodySmall)
+            WeekdayStrip(usageWeekdays, peakDay = day, peakCount = count)
         }
 
         // A MAI NAP KÜLÖN. A csempesorban eddig is volt egy mai szám, de hogy

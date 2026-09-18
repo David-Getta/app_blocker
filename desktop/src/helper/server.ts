@@ -27,7 +27,7 @@ import {
   blockReasonNow, isLimitExhausted, normalizeLimit, sharedTodaySeconds, usedTodayEverywhere,
 } from '../shared/limits';
 import {
-  recordSample, summarize, series, totalSeries, labelOf, emptyUsage, clearUsage, combineUsage, siteKey, dayKey, dayKeysBack,
+  recordSample, summarize, series, totalSeries, usageByWeekday, labelOf, emptyUsage, clearUsage, combineUsage, siteKey, dayKey, dayKeysBack,
   MAX_KEY_LENGTH, MAX_LABEL_LENGTH, MAX_BATCH_SAMPLES,
 } from '../shared/usage';
 import type { UsageSummary } from '../shared/usage';
@@ -637,6 +637,8 @@ async function handle(req: HelperRequest, deps: ServerDeps): Promise<unknown> {
         focusLabel: focusKey ? labelOf(state.usage, focusKey) : '',
         focusSeries: focusKey ? series(state.usage, focusKey, now, 30) : [],
         weekSeries: totalSeries(state.usage, now, 7),
+        // A mért idő napja: négy hétből, a hét napjaira osztva — melyik napon megy el a legtöbb idő.
+        usageWeekdays: usageByWeekday(state.usage, now),
         focusDays: focusDaySeries(state.focusLog, now, 7),
         // A menet-nap: négy hétből, a hét napjaira osztva — melyik napon ülsz le a legtöbbször.
         focusWeekdays: focusByWeekday(state.focusLog, now),

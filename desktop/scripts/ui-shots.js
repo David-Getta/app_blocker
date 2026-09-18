@@ -199,6 +199,8 @@ function fakeBridgeSource() {
       weekSeries: [6, 5, 4, 3, 2, 1, 0].map((back, i) => ({
         day: day(back), seconds: [2700, 4500, 1800, 5400, 3240, 5280, 3480][i],
       })),
+      // A mért idő napja négy hétből: szombat (12000 mp, átlag 50 p) a csúcs.
+      usageWeekdays: [3600, 7200, 5400, 3600, 9000, 8100, 12000],
       // A MUNKAMENET-STATISZTIKA. Külön a méréstől, mert más a forrása: nem
       // abból jön, mire megy el az idő, hanem a menetek naplójából.
       focusToday: { sessions: 2, totalMs: 95 * 60_000, stoppedEarly: 0, topPack: 'Nyelvtanulás' },
@@ -1003,6 +1005,20 @@ async function main() {
   });
   if (fwdStrip.hidden || fwdStrip.n !== 7 || fwdStrip.peak !== 1) {
     failures.push(`a menet-nap sávja nem áll a mondat alatt (${JSON.stringify(fwdStrip)})`);
+  }
+  // A MÉRT IDŐ NAPJA a hét rajza alatt: négy hétből a szombat (átlag 50 p), alatta a sáv, a szombat (a hatodik rekesz) kiemelve.
+  await page.waitForFunction(
+    () => /A négy hét legnagyobb napja: szombat \(átlag 50 p\)\./.test(document.getElementById('usageWeekdayNote')?.textContent || '')
+      && !document.getElementById('usageWeekdayNote')?.classList.contains('hidden'),
+    undefined, { timeout: 15_000 },
+  ).catch(() => failures.push('a statisztika nem mondja a mért idő napját'));
+  const uwdStrip = await page.evaluate(() => {
+    const el = document.getElementById('usageWeekdayStrip');
+    const bars = el ? Array.from(el.children) : [];
+    return { hidden: !el || el.classList.contains('hidden'), n: bars.length, peak: bars.findIndex((b) => b.classList.contains('peak')) };
+  });
+  if (uwdStrip.hidden || uwdStrip.n !== 7 || uwdStrip.peak !== 5) {
+    failures.push(`a mért idő napjának sávja nem áll a mondat alatt (${JSON.stringify(uwdStrip)})`);
   }
   // AZ ÓRÁK SÁVJA a mondat alatt: huszonnégy rekesz, a csúcs (21) kiemelve.
   const strip = await page.evaluate(() => {

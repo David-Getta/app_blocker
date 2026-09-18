@@ -10,7 +10,7 @@ import type {
 import {
   PRESET_BANDS, type Band, type Schedule, type ScheduleMode, type Weekday,
 } from '../shared/schedule.js';
-import { dayKey, formatDuration, idOf, suggestBlocks } from '../shared/usage.js';
+import { dayKey, formatDuration, idOf, suggestBlocks, usageWeekdayText } from '../shared/usage.js';
 import {
   displayName, displayNameNow, isAliased, MAX_ALIAS_LENGTH, REVEAL_MS, MAX_REASON_LENGTH,
 } from '../shared/alias.js';
@@ -4274,7 +4274,11 @@ const WEEKDAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
  * hétfőtől — a csúcs-nap a mondat, a sáv az alakja (melyik napon jár a kéz
  * magától, és melyiken nem). Csúcs nélkül nincs sáv.
  */
-function renderWeekdayStrip(strip: HTMLElement, days: number[], peak: { day: number; count: number } | null, unit = 'megakadás'): void {
+function renderWeekdayStrip(
+  strip: HTMLElement, days: number[], peak: { day: number; count: number } | null,
+  // A rekesz felirata: darab (megakadás, menet) vagy idő (a mért idő átlaga).
+  label: (n: number) => string = (n) => `${n} megakadás`,
+): void {
   strip.textContent = '';
   const show = peak !== null && peak.count > 0 && days.length === 7;
   strip.classList.toggle('hidden', !show);
@@ -4284,7 +4288,7 @@ function renderWeekdayStrip(strip: HTMLElement, days: number[], peak: { day: num
     const bar = document.createElement('span');
     bar.className = day === peak.day ? 'hour-bar peak' : 'hour-bar';
     bar.style.height = `${Math.min(28, Math.max(2, Math.round((n / peak.count) * 28)))}px`;
-    bar.title = `${WEEKDAY_NAMES[day]}: ${n} ${unit}`;
+    bar.title = `${WEEKDAY_NAMES[day]}: ${label(n)}`;
     strip.appendChild(bar);
   }
 }
@@ -4467,7 +4471,7 @@ function renderFocusStats(): void {
   const fwd = peakWeekday(statsData?.focusWeekdays ?? []);
   $('focusWeekdayNote').classList.toggle('hidden', fwd === null);
   $('focusWeekdayNote').textContent = fwd ? focusWeekdayText(fwd) : '';
-  renderWeekdayStrip($('focusWeekdayStrip'), statsData?.focusWeekdays ?? [], fwd, 'menet');
+  renderWeekdayStrip($('focusWeekdayStrip'), statsData?.focusWeekdays ?? [], fwd, (n) => `${n} menet`);
   $('focusWeekdayAxis').classList.toggle('hidden', $('focusWeekdayStrip').classList.contains('hidden'));
 
   const parts: string[] = [];
@@ -4520,6 +4524,13 @@ function renderStats(): void {
 
   renderLastSample(enabled);
   renderWeek(statsData.weekSeries);
+  // A MÉRT IDŐ NAPJA: melyik napon megy el a legtöbb idő — négy hétből, a
+  // csúcs-nap és a menet-nap harmadik fele; a sáv az alakja, hétfőtől.
+  const uwd = peakWeekday(statsData.usageWeekdays ?? []);
+  $('usageWeekdayNote').classList.toggle('hidden', uwd === null);
+  $('usageWeekdayNote').textContent = uwd ? usageWeekdayText(uwd) : '';
+  renderWeekdayStrip($('usageWeekdayStrip'), statsData.usageWeekdays ?? [], uwd, (n) => `átlag ${formatDuration(Math.round(n / 4))}`);
+  $('usageWeekdayAxis').classList.toggle('hidden', $('usageWeekdayStrip').classList.contains('hidden'));
   renderFocusStats();
   // A MEGAKADÁSOK napról napra — a bővítmény könyve, ahogy a segéd tartja:
   // ugyanaz a rajz, mint a mért időé, csak darabban. Üresen nincs.

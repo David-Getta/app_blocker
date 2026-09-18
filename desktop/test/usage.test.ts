@@ -3,10 +3,12 @@ import * as assert from 'node:assert/strict';
 import {
   emptyUsage, clearUsage, recordSample, pruneOld, dayKey, dayKeysBack, totalsForDays,
   rank, sumOf, series, totalSeries, weekOverWeek, summarize, formatDuration,
+  usageByWeekday, usageWeekdayText,
   siteKey, appKey, kindOf, idOf, labelOf,
   RETENTION_DAYS, MAX_RECORD_SECONDS, MAX_TARGETS_PER_DAY, MAX_LABEL_LENGTH,
   OTHER_SITE_KEY, decideSample, domainFromBrowserUrl, type UsageState,
 } from '../src/shared/usage';
+import { peakWeekday } from '../src/shared/browser-hits';
 
 /** An instant N local days before `now` (stepped at noon, DST-safe). */
 function daysAgo(now: number, n: number): number {
@@ -372,4 +374,21 @@ test('a javaslat a nem tiltott, sokat vitt oldalakat mondja — a listázottakat
   assert.deepEqual(suggestBlocks(top, sites, 30 * 60, 10).map((t) => t.key),
     ['site:news.ycombinator.com', 'site:reddit.com', 'site:twitch.tv', 'site:netflix.com']);
   assert.deepEqual(suggestBlocks([], sites), []);
+});
+
+test('a mért idő napja: négy hétből, a hét napjaira osztva — a huszonnyolc napos nem számít; a mondat négy-négy nap átlaga', () => {
+  const st = emptyUsage();
+  recordSample(st, siteKey('a.com'), 30, NOW);
+  recordSample(st, siteKey('a.com'), 45, daysAgo(NOW, 7));
+  recordSample(st, siteKey('b.com'), 10, daysAgo(NOW, 1));
+  recordSample(st, siteKey('a.com'), 99, daysAgo(NOW, 28));
+  const by = usageByWeekday(st, NOW);
+  const today = new Date(NOW).getDay();
+  assert.equal(by.length, 7);
+  assert.equal(by[today], 75, 'ma és egy hete: ugyanaz a nap');
+  assert.equal(by[(today + 6) % 7], 10, 'tegnap');
+  assert.equal(by.reduce((a, b) => a + b, 0), 85, 'a huszonnyolc napos nem számít');
+  assert.deepEqual(peakWeekday(by), { day: today, count: 75 }, 'a csúcs szabálya a csúcs-napéval közös');
+  assert.equal(usageWeekdayText({ day: 6, count: 12000 }), 'A négy hét legnagyobb napja: szombat (átlag 50 p).');
+  assert.deepEqual(usageByWeekday(emptyUsage(), NOW), [0, 0, 0, 0, 0, 0, 0]);
 });

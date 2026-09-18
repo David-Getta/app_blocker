@@ -223,6 +223,22 @@ object UsageLogic {
         return dayKeysBack(now, count).map { day -> day to sumOf(byDay[day] ?: emptyMap()) }
     }
 
+    /**
+     * A HÉT NAPJAI szerint: az utolsó 28 nap mért ideje a hét hét napjára osztva
+     * (0 = vasárnap), egész másodpercben — a csúcs-nap és a menet-nap harmadik
+     * fele: melyik napon megy el a legtöbb idő. A minta hossza a csúcs-napéval
+     * közös. A `usage.ts` `usageByWeekday` tükre.
+     */
+    fun byWeekday(state: UsageState, now: Long, count: Int = FilterHitLogic.PEAK_WEEKDAY_DAYS): List<Int> {
+        val by = LongArray(7)
+        for ((day, seconds) in totalSeries(state, now, count)) by[FilterHitLogic.weekdayOf(day)] += Math.round(seconds)
+        return by.map { it.toInt() }
+    }
+
+    /** „A négy hét legnagyobb napja: szombat (átlag 3 ó 20 p).” — melyik napon megy el a legtöbb idő; négy-négy nap átlaga. */
+    fun weekdayText(peak: Pair<Int, Int>): String =
+        "A négy hét legnagyobb napja: ${FilterHitLogic.WEEKDAY_NAMES.getOrElse(peak.first) { "?" }} (átlag ${formatDuration(peak.second / 4.0)})."
+
     data class WeekDelta(
         val key: String, val label: String, val kind: TargetKind,
         val thisWeek: Double, val lastWeek: Double, val deltaPct: Double?,

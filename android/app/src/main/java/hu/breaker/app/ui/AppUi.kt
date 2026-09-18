@@ -773,6 +773,7 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                 focusLabel = focusTarget?.label ?: "",
                 // A hét napjai — a csempével azonos összeg, napokra bontva.
                 weekSeries = UsageLogic.totalSeries(state.usage, now, 7),
+                usageWeekdays = UsageLogic.byWeekday(state.usage, now),
                 focusDays = Focus.daySeries(state.focusLog, now, 7),
                 focusWeekdays = Focus.byWeekday(state.focusLog, now),
                 filterHitDays = FilterHitLogic.daySeries(state.filterHits, now, 7),
