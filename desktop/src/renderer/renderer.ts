@@ -32,7 +32,7 @@ import {
   formatRemaining, isWindowRun, MAX_ALLOW_ENTRIES, MAX_PACK_NAME, MAX_SESSION_MINUTES,
   nextOccurrence, SESSION_CHOICES_MIN, windowRunStarted, type FocusPack, type FocusRun,
 } from '../shared/focus.js';
-import { windowStartingSoon, type LockdownWindow as LockdownWindowRow } from '../shared/lockdown.js';
+import { windowKey, windowStartingSoon, type LockdownWindow as LockdownWindowRow } from '../shared/lockdown.js';
 import {
   encodePairingCode, formatPairingCode, resolveServerInput,
 } from '../shared/sync/pairing.js';
@@ -1084,7 +1084,7 @@ function recurrenceLabel(b: Band): string {
  * nincs nap vagy időpont: a hívó mondja meg, mit ír ki ilyenkor.
  */
 function bandFields(current: Band | undefined, defaults: { startMin: number; endMin: number }): {
-  box: HTMLElement; read: () => Band | null;
+  box: HTMLElement; read: () => Band | null; set: (band: Band) => void;
 } {
   const box = h('div', 'recurrence-editor');
   const selected = new Set<Weekday>(current?.days ?? [1, 2, 3, 4, 5]);
@@ -1132,7 +1132,15 @@ function bandFields(current: Band | undefined, defaults: { startMin: number; end
     // A „00:00” végként az éjfél: a sáv 1440-nel írja le, nem nullával.
     return { days: [...selected].sort((a, b) => a - b), startMin: s, endMin: e === 0 ? 1440 : e };
   };
-  return { box, read };
+  /** Egy előre gyártott sáv a mezőkbe — a napok és a két időpont; onnan szerkeszthető. */
+  const set = (band: Band): void => {
+    selected.clear();
+    for (const d of band.days) selected.add(d);
+    start.value = minutesLabel(band.startMin);
+    end.value = minutesLabel(band.endMin);
+    paint();
+  };
+  return { box, read, set };
 }
 
 function recurrenceEditor(pack: FocusPack, overlay: HTMLElement): HTMLElement {
@@ -1888,6 +1896,22 @@ function openLockdownWindowDialog(st: StatusData, existing?: LockdownWindow): vo
     + 'és bővíteni ingyen van; levenni vagy szűkíteni próbatétel, és csak az ablakon kívül: bent '
     + 'zárlat van. Az egész hét nem zárható le — legalább egy szabad óra marad a héten.'));
   const fields = bandFields(existing, { startMin: 9 * 60, endMin: 17 * 60 });
+  if (!existing) {
+    // Az előre gyártott sávok — mint a telefonon: egy kattintás kitölti a
+    // mezőket, onnan szerkeszthető. A már felvett sáv nem kínálkozik újra.
+    const have = new Set((st.lockdownWindows ?? []).map(windowKey));
+    const presets = h('div', 'chips');
+    for (const { key, label } of PRESET_LABELS) {
+      const band = PRESET_BANDS[key];
+      const b = h('button', 'chip', have.has(windowKey(band)) ? `${label} — már felvéve` : label) as HTMLButtonElement;
+      b.type = 'button';
+      b.disabled = have.has(windowKey(band));
+      b.addEventListener('click', () => fields.set(band));
+      presets.appendChild(b);
+    }
+    modal.appendChild(h('p', 'hint', 'Előre gyártott sávok:'));
+    modal.appendChild(presets);
+  }
   modal.appendChild(fields.box);
   const err = h('p', 'error hidden');
   const go = h('button', 'btn btn-primary', existing ? 'Ablak módosítása' : 'Ablak felvétele');
