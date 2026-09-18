@@ -187,7 +187,7 @@ public enum DigestLogic {
     /// A visszatekintés bemenete a mostani állapotból — iPhone-on mérés nincs,
     /// a menetek és a feloldások vannak; a statisztika élő mondata és a hét
     /// sora ugyanezt kéri, hogy a kettő ne csúszhasson szét.
-    public static func inputFor(_ st: AppState, now: Double) -> Input {
+    static func inputFor(_ st: AppState, now: Double) -> Input {
         let weekAgo = now - 7 * 24 * 3_600_000
         // A napló ablaka a gépével közös: a mai nap kezdete mínusz hat nap.
         let dayStart = Calendar.current.startOfDay(for: Date(timeIntervalSince1970: now / 1000))
