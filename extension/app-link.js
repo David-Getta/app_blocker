@@ -88,7 +88,10 @@ function cleanClosed(list) {
 function cleanLockdown(raw) {
   if (!raw || typeof raw !== 'object') return null;
   const until = Number(raw.until);
-  return Number.isFinite(until) && until > 0 ? { until } : null;
+  if (!Number.isFinite(until) || until <= 0) return null;
+  // A heti ablak tartja-e: csak a szó szerinti igaz számít — a lap ebből
+  // mondja, hogy nem kézzel indított döntés, hanem a hétköznap.
+  return raw.byWindow === true ? { until, byWindow: true } : { until };
 }
 
 /** @returns {Promise<{token: string|null, port: number|null, rules: {host:string,path:string}[], fetchedAt: number, error: string|null}>} */

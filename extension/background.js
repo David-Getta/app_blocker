@@ -43,13 +43,14 @@ async function decide(url) {
   // ígérhet appbeli próbatételt — se a menet leállítását, se új csatornát, se
   // feloldást. Egyszer számoljuk, itt; a lap címe viszi tovább.
   const lockUntil = lockdownUntil(link, now);
+  const lockWindow = lockUntil > 0 && link?.lockdown?.byWindow === true;
 
   if (focusActive(link, now)) {
     const host = hostOf(url);
     // A bővítmény SAJÁT lapjai (a tiltó lap, a beállítások) sosem esnek bele:
     // különben a munkamenet alatt nem lehetne megnézni, mi fut és meddig.
     if (host && !focusAllows(link, host)) {
-      return { reason: 'focus', focus: link.focus, lockUntil };
+      return { reason: 'focus', focus: link.focus, lockUntil, lockWindow };
     }
   }
 
@@ -59,18 +60,18 @@ async function decide(url) {
   // és a részleges szabály ELŐTT jön: azok az oldal darabjairól beszélnek, ez
   // meg arról, hogy most az egész zárva — az a tágabb, tehát az az igazabb ok.
   const closed = closedFor(link, hostOf(url), now);
-  if (closed) return { reason: 'closed', closed, lockUntil };
+  if (closed) return { reason: 'closed', closed, lockUntil, lockWindow };
 
   // A CSATORNA-SZŰRŐ: az oldalon csak a felsorolt csatornák nyílnak meg. A
   // sorrend szándékos — a munkamenet erősebb (mindenre szól), a szűrő a
   // részleges szabályok ELŐTT jön, mert konkrétabb okot tud mondani.
   const chan = channelVerdict(url, link.channels);
-  if (chan) return { reason: 'channel', channel: chan, lockUntil };
+  if (chan) return { reason: 'channel', channel: chan, lockUntil, lockWindow };
 
   // Az app szabályai HOZZÁADÓDNAK a sajátokhoz. Ha az app épp nem érhető el, az
   // utoljára letöltött lista marad érvényben — vagyis tovább tilt, nem enged át.
   const rule = firstMatch(withAppRules(activeRules(state, now), link.rules), url);
-  return rule ? { reason: 'rule', rule, lockUntil } : null;
+  return rule ? { reason: 'rule', rule, lockUntil, lockWindow } : null;
 }
 
 /** A cím hosztja, `URL` nélkül — ugyanúgy, ahogy a szabály-mag csinálja. */
@@ -110,6 +111,7 @@ function blockedUrl(hit, fromUrl) {
   // A ZÁRLAT vége minden lapra rámegy, egy helyen: zárlat alatt a lap lába a
   // zárlatról beszél, nem a próbatétel útjáról — az az út most nincs.
   if (hit.lockUntil > 0) q.set('lockdownUntil', String(hit.lockUntil));
+  if (hit.lockUntil > 0 && hit.lockWindow) q.set('lockdownWindow', '1');
   return chrome.runtime.getURL(`blocked.html?${q.toString()}`);
 }
 

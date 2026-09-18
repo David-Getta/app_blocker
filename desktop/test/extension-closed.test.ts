@@ -141,6 +141,9 @@ test('a tárból jövő lista szűrve van: csak az ismert alak megy át', () => 
 test('zárlat a tárban: csak a vég, és csak ha szám', () => {
   assert.deepEqual(cleanLockdown({ until: NOW + 5 }), { until: NOW + 5 });
   assert.deepEqual(cleanLockdown({ until: '1800000000005', startedAt: 1 }), { until: 1_800_000_000_005 });
+  // A heti ablak jele csak a szó szerinti igaz — a szemét nem jel.
+  assert.deepEqual(cleanLockdown({ until: NOW + 5, byWindow: true }), { until: NOW + 5, byWindow: true });
+  assert.deepEqual(cleanLockdown({ until: NOW + 5, byWindow: 'igen' }), { until: NOW + 5 });
   for (const junk of [null, undefined, 42, 'x', {}, { until: 0 }, { until: -1 }, { until: 'holnap' }]) {
     assert.equal(cleanLockdown(junk), null, `${JSON.stringify(junk)} nem zárlat`);
   }

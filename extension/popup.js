@@ -20,7 +20,8 @@ async function render() {
   const lock = $('lockdown');
   lock.hidden = d.lockdown === null;
   if (d.lockdown) {
-    lock.textContent = `Zárlat: még ${d.lockdown.left}. Amíg tart, feloldás, keret-emelés és `
+    lock.textContent = `${d.lockdown.byWindow ? 'Zárlat a heti ablak szerint' : 'Zárlat'}: még `
+      + `${d.lockdown.left}. Amíg tart, feloldás, keret-emelés és `
       + 'szabály-levétel sehol nem indítható — próbatétellel sem.';
   }
 

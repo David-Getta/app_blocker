@@ -63,6 +63,8 @@ export interface BridgeClosed {
  */
 export interface BridgeLockdown {
   until: number;
+  /** a heti ablak tartja-e — a lap ezt is kimondja: nem kézzel indított döntés, hanem a hétköznap */
+  byWindow?: boolean;
 }
 
 /**

@@ -19,10 +19,14 @@ const roughly = (min) => {
 // feloldást: a szokásos „az appban, próbatétellel” láb hazugság lenne, mert
 // zárlat alatt pont az az út nincs. Nem drágább — nincs.
 const lockdownUntil = Number(params.get('lockdownUntil'));
+// A heti ablak tartja-e: a lap kimondja, hogy nem kézzel indított döntés
+// volt, hanem a hétköznap — és hogy az ablak végéig tart.
+const lockdownByWindow = params.get('lockdownWindow') === '1';
 const lockdownText = () => {
   const ms = lockdownUntil - Date.now();
   if (!Number.isFinite(lockdownUntil) || ms <= 0) return null;
-  return `Zárlat van érvényben: még ${roughly(Math.ceil(ms / 60000))}. Amíg tart, ezt semmilyen `
+  const head = lockdownByWindow ? 'Zárlat van érvényben a heti ablak szerint' : 'Zárlat van érvényben';
+  return `${head}: még ${roughly(Math.ceil(ms / 60000))}. Amíg tart, ezt semmilyen `
     + 'próbatétellel nem lehet feloldani — az appban sem. Szigorítani lehet, lazítani nem.';
 };
 /**

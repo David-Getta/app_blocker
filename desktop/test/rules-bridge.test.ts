@@ -191,4 +191,9 @@ test('a zárlat vége is átmegy a hídon — nélküle null, hogy a lap ne íg�
 
   const r2 = await answer(deps(), 'GET', '/rules', { [TOKEN_HEADER]: 'ABCD-EFGH' });
   assert.equal((r2.body as { lockdown: unknown }).lockdown, null, 'zárlat nélkül null, nem hiányzó mező');
+
+  // A heti ablak jele is átmegy: a lap ebből mondja, hogy az ablak tartja.
+  const byWindow = { ...deps(), getLockdown: async () => ({ until: 1_800_000_000_000, byWindow: true }) };
+  const r3 = await answer(byWindow, 'GET', '/rules', { [TOKEN_HEADER]: 'ABCD-EFGH' });
+  assert.deepEqual((r3.body as { lockdown: unknown }).lockdown, { until: 1_800_000_000_000, byWindow: true });
 });

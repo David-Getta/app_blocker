@@ -65,7 +65,8 @@ export function describePopup(link, now, freshMs) {
   // A ZÁRLAT: összekötve, és még tart. Frissesség nélkül — a zárlat csak
   // hosszabbodhat, egy régebbi vég is igaz alsó becslés (lásd app-link.js).
   const lu = Number(link?.lockdown?.until);
-  const lockdown = linked && Number.isFinite(lu) && lu > now ? { left: spanText(lu - now) } : null;
+  const lockdown = linked && Number.isFinite(lu) && lu > now
+    ? { left: spanText(lu - now), byWindow: link?.lockdown?.byWindow === true } : null;
 
   let state;
   if (!linked) {

@@ -399,7 +399,8 @@ async function main() {
       {
         link: LINK,
         closed: [{ host: '127.0.0.1', reason: 'cooldown', until: Date.now() + 600_000 }],
-        lockdown: { until: Date.now() + 3 * 24 * 3600_000 },
+        // A heti ablak tartja: a lap ezt is kimondja.
+        lockdown: { until: Date.now() + 3 * 24 * 3600_000, byWindow: true },
         fetchedAt: Date.now(),
       },
     );
@@ -412,6 +413,7 @@ async function main() {
       const text = await bodyText(page);
       check(text.includes('Zárlat van érvényben') && !text.includes('próbatételbe kerül'),
         'a tiltó lap zárlat alatt a zárlatról beszél, nem ígér próbatételt');
+      check(text.includes('a heti ablak szerint'), 'a tiltó lap kimondja, hogy a heti ablak tartja a zárlatot');
     }
     // Vissza a zárlat nélküli állapotra, hogy a következő eset tiszta lappal induljon.
     await seedClosed([], Date.now());

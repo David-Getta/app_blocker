@@ -24,7 +24,7 @@ interface Popup {
   describePopup: (link: unknown, now: number, freshMs: number) => {
     state: { kind: string; text: string };
     fresh: boolean;
-    lockdown: { left: string } | null;
+    lockdown: { left: string; byWindow: boolean } | null;
     focus: { name: string; left: string; allowed: number; window: boolean } | null;
     closed: { host: string; reason: string; left: string | null }[];
     closedMore: number;
@@ -152,14 +152,17 @@ test('idő-szövegek: perc alatt „az imént”, óra fölött kerekítve', () 
 test('zárlat: összekötve és tart — a sor beszél; lejárt vagy összekötetlen — hallgat', () => {
   const { describePopup } = load();
   const live = describePopup(link({ lockdown: { until: NOW + 3 * 3600_000 } }), NOW, FRESH);
-  assert.deepEqual(live.lockdown, { left: 'kb. 3 ó' });
+  assert.deepEqual(live.lockdown, { left: 'kb. 3 ó', byWindow: false });
+  // A heti ablak jele is átmegy a sorba: a lap kimondja, hogy az ablak tartja.
+  const win = describePopup(link({ lockdown: { until: NOW + 3 * 3600_000, byWindow: true } }), NOW, FRESH);
+  assert.deepEqual(win.lockdown, { left: 'kb. 3 ó', byWindow: true });
 
   // Frissesség NÉLKÜL is: a zárlat csak hosszabbodhat, egy régi lehúzás vége
   // is igaz alsó becslés. (A zárva-lista ebben más — az elavul.)
   const stale = describePopup(
     link({ lockdown: { until: NOW + 3 * 3600_000 }, fetchedAt: NOW - 10 * 60_000 }), NOW, FRESH,
   );
-  assert.deepEqual(stale.lockdown, { left: 'kb. 3 ó' }, 'elavult listánál is szól');
+  assert.deepEqual(stale.lockdown, { left: 'kb. 3 ó', byWindow: false }, 'elavult listánál is szól');
 
   const over = describePopup(link({ lockdown: { until: NOW - 1 } }), NOW, FRESH);
   assert.equal(over.lockdown, null, 'a lejárt zárlat nem zárlat');
