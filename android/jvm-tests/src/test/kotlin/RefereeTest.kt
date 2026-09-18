@@ -35,6 +35,24 @@ class RefereeTest {
         BreakerStore.saveLastTick(0)
     }
 
+    @Test fun `a felbemaradt kiserlet konyveles - az ujrainditas es a feladas is, harminc nap a plafon`() {
+        val siteId = addSite("youtube.com")
+        Referee.startSession(Kind.PAUSE, siteId, 15, now)
+        assertEquals(emptyList(), BreakerStore.state.value.droppedAttempts, "az első kísérlet még nem maradt félbe")
+        // Az újraindítás a régit viszi el — az is félbemaradt.
+        Referee.startSession(Kind.PAUSE, siteId, 15, now + 1000)
+        assertEquals(listOf(now + 1000), BreakerStore.state.value.droppedAttempts)
+        Referee.abandon(BreakerStore.state.value.session!!.id)
+        assertEquals(2, BreakerStore.state.value.droppedAttempts.size, "a feladás is")
+        // A negyven napos kiesik, az új bekerül.
+        BreakerStore.mutate { it.copy(droppedAttempts = listOf(now - 40L * 86_400_000L) + it.droppedAttempts) }
+        Referee.startSession(Kind.PAUSE, siteId, 15, now + 2000)
+        Referee.abandon(BreakerStore.state.value.session!!.id)
+        val dropped = BreakerStore.state.value.droppedAttempts
+        assertEquals(3, dropped.size)
+        assertTrue(dropped.all { it > now - 30L * 86_400_000L }, "harminc napnál régebbi nincs")
+    }
+
     private fun addSite(domain: String): String {
         val id = BreakerStore.newId("site")
         BreakerStore.mutate { s ->

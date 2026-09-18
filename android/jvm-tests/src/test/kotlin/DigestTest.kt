@@ -65,6 +65,23 @@ class DigestTest {
         daysTracked = 12,
     )
 
+    @Test fun `a felbemaradt kiserletek is a mondatban - a feloldasok mellett, vagy helyettuk`() {
+        assertEquals(
+            "Elmúlt 7 nap: 7 ó 20 p mért idő; a legtöbb: youtube.com 2 ó 40 p (▼ -33% az előző héthez képest). " +
+                "9 menet (7 ó 0 p, 2 korán leállítva). 3 feloldás, 2 félbemaradt kísérlet.",
+            DigestLogic.text(full.copy(dropped7d = 2)) { it },
+        )
+        val none = DigestLogic.text(full.copy(unlocks7d = 0, dropped7d = 1, weekOverWeek = emptyList())) { it }!!
+        assertTrue(none.endsWith("Feloldás nélkül, 1 félbemaradt kísérlet."), none)
+        // Csak félbemaradt kísérlet: az is történés — mondat, még mérés és menet nélkül is.
+        val only = full.copy(
+            last7Seconds = 0.0, topWeekSites = emptyList(), weekOverWeek = emptyList(), daysTracked = 0,
+            unlocks7d = 0, dropped7d = 3, focusWeek = Focus.FocusSummary(),
+        )
+        assertEquals("Elmúlt 7 nap: Feloldás nélkül, 3 félbemaradt kísérlet.", DigestLogic.text(only) { it })
+        assertEquals(DigestLogic.text(full) { it }, DigestLogic.text(full.copy(dropped7d = 0)) { it }, "nulla: mint eddig")
+    }
+
     @Test fun `a teljes mondat - ido, a legtobb trenddel, menetek, feloldasok`() {
         assertEquals(
             "Elmúlt 7 nap: 7 ó 20 p mért idő; a legtöbb: youtube.com 2 ó 40 p (▼ -33% az előző héthez képest). " +
@@ -176,6 +193,8 @@ class DigestTest {
         val day = 86_400_000L
         val st = AppState(
             unlockLog = listOf(now - 2 * day, now - 20 * day),
+            // A félbemaradt kísérletek ugyanezzel az ablakkal: a húsz napos nem az elmúlt hété.
+            droppedAttempts = listOf(now - 3 * day, now - 20 * day),
             focusLog = listOf(
                 Focus.FocusLogEntry("p", "Nyelvtanulás", now - 3 * day, now - 3 * day + 3600_000L, now - 3 * day + 3600_000L, false),
                 Focus.FocusLogEntry("p", "Nyelvtanulás", now - 30 * day, now - 30 * day + 3600_000L, now - 30 * day + 3600_000L, false),
@@ -185,7 +204,8 @@ class DigestTest {
         assertEquals(1, input.unlocks7d, "a húsz napos feloldás nem az elmúlt hété")
         assertEquals(1, input.focusWeek.sessions, "a harminc napos menet nem az elmúlt hété")
         assertEquals(0, input.daysTracked)
-        assertEquals("Elmúlt 7 nap: 1 menet (1 ó 0 p, mind végigvive). 1 feloldás.", DigestLogic.text(input) { it })
+        assertEquals(1, input.dropped7d, "a húsz napos félbemaradt kísérlet sem az elmúlt hété")
+        assertEquals("Elmúlt 7 nap: 1 menet (1 ó 0 p, mind végigvive). 1 feloldás, 1 félbemaradt kísérlet.", DigestLogic.text(input) { it })
     }
 
     @Test fun `a naplo sora a mostani cimkezessel - a fedonev es a rejtes visszamenoleg is fed`() {

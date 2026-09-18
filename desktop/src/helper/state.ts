@@ -148,6 +148,13 @@ export interface HelperState {
   session: SessionRec | null;
   /** attempts given up on, per site; see REROLL_COOLDOWN_MS */
   abandons?: AbandonRec[];
+  /**
+   * A FÉLBEMARADT kísérletek ideje (epoch ms), harminc napig — feladva,
+   * lejárva, lecsúszva, elszállva, újraindítva. A visszatekintés ebből mondja,
+   * hányszor indult el a lazítás, és maradt félbe; a feloldások párja
+   * (`unlockLog`). Nem kötelező: régi állapotfájlban nincs.
+   */
+  droppedAttempts?: number[];
   /** wall clock at the previous housekeeping tick, to notice clock jumps */
   lastTickAt?: number;
   /**
@@ -379,6 +386,11 @@ export function loadState(): HelperState {
       // Forward migration: state files written before usage tracking existed.
       if (!parsed.usage || !Array.isArray(parsed.usage.days)) parsed.usage = emptyUsage();
       if (!Array.isArray(parsed.unlockLog)) parsed.unlockLog = [];
+      if (parsed.droppedAttempts !== undefined) {
+        parsed.droppedAttempts = Array.isArray(parsed.droppedAttempts)
+          ? parsed.droppedAttempts.filter((t) => typeof t === 'number' && Number.isFinite(t))
+          : [];
+      }
       // A napló sorai a mag szűrőjén át: ami nem sor, az nem sor.
       if (parsed.digestLog !== undefined) parsed.digestLog = cleanDigestLog(parsed.digestLog);
       // A session whose stepIndex does not address a real step can only wedge

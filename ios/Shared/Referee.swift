@@ -132,6 +132,10 @@ enum Referee {
         let at = (prev != nil && prev!.comboKey == combo) ? prev!.at : now
         state.abandons = live.filter { $0.siteId != s.siteId }
             + [AbandonRec(siteId: s.siteId, kind: s.kind, comboKey: combo, at: at)]
+        // A FÉLBEMARADT kísérlet is könyvelés: a visszatekintés ebből mondja,
+        // hányszor indult el a lazítás, és maradt félbe. Harminc napig, mint
+        // a feloldások.
+        state.droppedAttempts = (state.droppedAttempts ?? []).filter { $0 > now - 30 * 24 * 3_600_000 } + [now]
         state.session = nil
     }
 

@@ -395,8 +395,18 @@ perc” — és a többi hova lett?).
 
 Ugyanaz a hang, mint a statisztikáé: a „korán leállítva” nem szégyenpad, a
 „Feloldás nélkül.” viszont igenis kimondható — ez a mondat vége, ha egy sem
-volt. Ha nincs miről beszélni (se mérés, se menet, se feloldás), nincs
-értesítés: egy üres mondat zaj lenne, nem tükör.
+volt. Ha nincs miről beszélni (se mérés, se menet, se feloldás, se félbemaradt
+kísérlet), nincs értesítés: egy üres mondat zaj lenne, nem tükör.
+
+A **félbemaradt kísérletek** is a mondatban vannak, a feloldások mellett —
+vagy helyettük: „3 feloldás, 2 félbemaradt kísérlet.” / „Feloldás nélkül, 2
+félbemaradt kísérlet.” Félbemaradt az, ami elindult és nem ért végig:
+feladva, lejárva (tizennégy óra), lecsúszva az átvételről, elszállva (ötödik
+rossz jelmondat), vagy egy új kísérlettel újraindítva. A bíró az egyetlen
+helyen könyveli, ahol minden ilyen átmegy (`dropSession`), harminc napig,
+mint a feloldásokat (`droppedAttempts` az állapotban, mindhárom magban); a
+gépen a próbatétel-nehézség sora is mondja. Nem ítélet: hányszor indult el a
+lazítás — és hányszor nem vitte végig az ember. A tükör fele lenne nélküle.
 
 Szabályok, kimondva:
 

@@ -189,6 +189,10 @@ object Referee {
         return state.copy(
             session = null,
             abandons = live.filter { it.siteId != s.siteId } + AbandonRec(s.siteId, s.kind, combo, at),
+            // A FÉLBEMARADT kísérlet is könyvelés: a visszatekintés ebből mondja,
+            // hányszor indult el a lazítás, és maradt félbe. Harminc napig,
+            // mint a feloldások.
+            droppedAttempts = state.droppedAttempts.filter { it > now - 30 * 24 * 3600_000L } + now,
         )
     }
 

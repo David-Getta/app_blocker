@@ -120,6 +120,13 @@ data class AppState(
     val session: SessionRec? = null,
     /** attempts given up on, per site; see ChallengeEngine.REROLL_COOLDOWN_MS */
     val abandons: List<AbandonRec> = emptyList(),
+    /**
+     * A FÉLBEMARADT kísérletek ideje (epoch ms), harminc napig — feladva,
+     * lejárva, lecsúszva, elszállva, újraindítva. A visszatekintés ebből
+     * mondja, hányszor indult el a lazítás, és maradt félbe; a feloldások
+     * párja (`unlockLog`).
+     */
+    val droppedAttempts: List<Long> = emptyList(),
     /** active-time tracking history (never leaves the device) */
     val usage: UsageLogic.UsageState = UsageLogic.UsageState(),
     /**
@@ -535,6 +542,7 @@ object BreakerStore {
             }
         }))
         put("unlockLog", JSONArray(s.unlockLog))
+        put("droppedAttempts", JSONArray(s.droppedAttempts))
         put("usage", usageToJson(s.usage))
         put("usageLastSampleAt", s.usageLastSampleAt ?: JSONObject.NULL)
         put("digestWeekKey", s.digestWeekKey ?: JSONObject.NULL)
@@ -736,6 +744,9 @@ object BreakerStore {
         val unlockLog = o.optJSONArray("unlockLog")?.let { arr ->
             (0 until arr.length()).mapNotNull { i -> runCatching { arr.getLong(i) }.getOrNull() }
         } ?: emptyList()
+        val droppedAttempts = o.optJSONArray("droppedAttempts")?.let { arr ->
+            (0 until arr.length()).mapNotNull { i -> runCatching { arr.getLong(i) }.getOrNull() }
+        } ?: emptyList()
         // Egyszer olvassuk ki: a futás érvényessége a csomagoktól függ, és két
         // külön elemzés két külön listát adna, ha a blob közben nem is változik.
         val focusPacks = focusPacksFromJson(o)
@@ -802,6 +813,7 @@ object BreakerStore {
             ),
             sites = sites,
             unlockLog = unlockLog,
+            droppedAttempts = droppedAttempts,
             lastCombo = if (o.isNull("lastCombo")) null else o.optString("lastCombo"),
             session = session,
             abandons = abandons,

@@ -170,6 +170,8 @@ export interface StatusData {
   /** difficulty tier 0..3 derived from recent unlocks */
   tier: number;
   unlocks7d: number;
+  /** félbemaradt kísérletek az elmúlt 7 napban (feladva, lejárva, elszállva, újraindítva) — régi segédnél nincs */
+  dropped7d?: number;
   /** az utolsó feloldás ideje (epoch ms), vagy null, ha még egy sem volt */
   lastUnlockAt?: number | null;
   session: SessionInfo | null;

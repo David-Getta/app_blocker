@@ -50,6 +50,28 @@ final class DigestTests: XCTestCase {
         )
     }
 
+    func testDroppedAttemptsAreInTheSentenceBesideOrInsteadOfUnlocks() {
+        var withDropped = full
+        withDropped.dropped7d = 2
+        XCTAssertEqual(
+            DigestLogic.text(withDropped) { $0 },
+            "Elmúlt 7 nap: 7 ó 20 p mért idő; a legtöbb: youtube.com 2 ó 40 p (▼ -33% az előző héthez képest). "
+                + "9 menet (7 ó 0 p, 2 korán leállítva). 3 feloldás, 2 félbemaradt kísérlet."
+        )
+        var none = full
+        none.unlocks7d = 0
+        none.dropped7d = 1
+        none.weekOverWeek = []
+        let noneText = DigestLogic.text(none) { $0 } ?? ""
+        XCTAssertTrue(noneText.hasSuffix("Feloldás nélkül, 1 félbemaradt kísérlet."), noneText)
+        // Csak félbemaradt kísérlet: az is történés — mondat, még mérés és menet nélkül is.
+        let only = DigestLogic.Input(
+            focusWeek: Focus.Summary(sessions: 0, totalMs: 0, stoppedEarly: 0, topPack: nil), unlocks7d: 0, dropped7d: 3
+        )
+        XCTAssertEqual(DigestLogic.text(only) { $0 }, "Elmúlt 7 nap: Feloldás nélkül, 3 félbemaradt kísérlet.")
+        XCTAssertEqual(DigestLogic.text(full) { $0 }, DigestLogic.text(withDropped.withDropped(0)) { $0 }, "nulla: mint eddig")
+    }
+
     func testTheFullSentence() {
         XCTAssertEqual(
             DigestLogic.text(full) { $0 },
@@ -111,6 +133,8 @@ final class DigestTests: XCTestCase {
         let day = 86_400_000.0
         var st = AppState()
         st.unlockLog = [now - 2 * day, now - 20 * day]
+        // A félbemaradt kísérletek ugyanezzel az ablakkal: a húsz napos nem az elmúlt hété.
+        st.droppedAttempts = [now - 3 * day, now - 20 * day]
         st.focusLog = [
             Focus.LogEntry(packId: "p", packName: "Nyelvtanulás", startedAt: now - 3 * day, endedAt: now - 3 * day + 3_600_000, plannedEndsAt: now - 3 * day + 3_600_000, stopped: false),
             Focus.LogEntry(packId: "p", packName: "Nyelvtanulás", startedAt: now - 30 * day, endedAt: now - 30 * day + 3_600_000, plannedEndsAt: now - 30 * day + 3_600_000, stopped: false),
@@ -118,7 +142,9 @@ final class DigestTests: XCTestCase {
         let input = DigestLogic.inputFor(st, now: now)
         XCTAssertEqual(input.unlocks7d, 1, "a húsz napos feloldás nem az elmúlt hété")
         XCTAssertEqual(input.focusWeek.sessions, 1, "a harminc napos menet nem az elmúlt hété")
-        XCTAssertEqual(DigestLogic.text(input) { $0 }, "Elmúlt 7 nap: 1 menet (1 ó 0 p, mind végigvive). 1 feloldás.")
+        XCTAssertEqual(input.dropped7d, 1, "a húsz napos félbemaradt kísérlet sem az elmúlt hété")
+        XCTAssertEqual(DigestLogic.text(input) { $0 },
+                       "Elmúlt 7 nap: 1 menet (1 ó 0 p, mind végigvive). 1 feloldás, 1 félbemaradt kísérlet.")
     }
 
     func testJournalOneRowPerWeekNewestFirstHalfAYearCap() {
@@ -171,5 +197,13 @@ final class DigestTests: XCTestCase {
             "Elmúlt 7 nap: 7 ó mért idő; a legtöbb: 1. rejtett oldal 2 ó 40 p. Nincs tiltva, de sokat vitt: 1. rejtett oldal 1 ó; 1. rejtett oldal 5 p; notyoutube.com 3 p; 2. rejtett oldal 2 p."
         )
         XCTAssertEqual(DigestLogic.relabel(text, sites: sites) { $0 }, text, "címke nélkül a sor változatlan")
+    }
+}
+
+private extension DigestLogic.Input {
+    func withDropped(_ n: Int) -> DigestLogic.Input {
+        var copy = self
+        copy.dropped7d = n
+        return copy
     }
 }

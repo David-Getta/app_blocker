@@ -17,6 +17,8 @@ const MONDAY_8 = at(2026, 9, 7, 8);
 function weekState(now: number): HelperState {
   const state = defaultState();
   state.unlockLog = [now - 2 * DAY, now - 20 * DAY];
+  // A félbemaradt kísérletek ugyanezzel az ablakkal: a húsz napos nem az elmúlt hété.
+  state.droppedAttempts = [now - 3 * DAY, now - 20 * DAY];
   state.focusLog = [{
     packId: 'p', packName: 'Nyelvtanulás',
     startedAt: now - 3 * DAY, endedAt: now - 3 * DAY + 3600_000, plannedEndsAt: now - 3 * DAY + 3600_000, stopped: false,
@@ -35,7 +37,9 @@ test('a segéd köre hétfő reggel beírja a hét sorát — egyszer, és az ap
   assert.equal((state.digestLog ?? []).length, 0, 'még nincs napló');
   assert.equal(journalTick(state, MONDAY_8), true);
   assert.equal(state.digestWeekKey, '2026-09-07');
-  assert.deepEqual(state.digestLog ?? [], [{ week: '2026-09-07', text: 'Elmúlt 7 nap: 1 menet (1 ó 0 p, mind végigvive). 1 feloldás.' }]);
+  assert.deepEqual(state.digestLog ?? [], [{
+    week: '2026-09-07', text: 'Elmúlt 7 nap: 1 menet (1 ó 0 p, mind végigvive). 1 feloldás, 1 félbemaradt kísérlet.',
+  }]);
   assert.equal(journalTick(state, MONDAY_8 + 3600_000), false, 'ezen a héten már volt');
   assert.equal((state.digestLog ?? []).length, 1);
   // A következő hétfőn újra — és a legfrissebb elöl.
@@ -66,5 +70,6 @@ test('a segéd címkézése a beállításé: rejtett listánál sorszám, fedő
   assert.equal(helperLabel(state)('youtube.com'), '1. rejtett oldal');
   state.sites[0].alias = 'A videós';
   assert.equal(helperLabel(state)('youtube.com'), 'A videós', 'a fedőnév erősebb a rejtésnél');
-  assert.equal(digestTextNow(state, MONDAY_8), 'Elmúlt 7 nap: 1 menet (1 ó 0 p, mind végigvive). 1 feloldás.');
+  assert.equal(digestTextNow(state, MONDAY_8),
+    'Elmúlt 7 nap: 1 menet (1 ó 0 p, mind végigvive). 1 feloldás, 1 félbemaradt kísérlet.');
 });

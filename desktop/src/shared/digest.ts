@@ -81,6 +81,12 @@ export interface DigestInput {
   focusWeek: FocusSummary;
   /** feloldások az elmúlt 7 napban */
   unlocks7d: number;
+  /**
+   * Félbemaradt kísérletek az elmúlt 7 napban — feladva, lejárva, lecsúszva,
+   * elszállva, újraindítva. Nem kötelező (régi hívó). A tükör másik fele a
+   * feloldások mellett: hányszor indult el a lazítás, és nem vitte végig.
+   */
+  dropped7d?: number;
   /** van-e egyáltalán mért nap */
   daysTracked: number;
   /**
@@ -134,7 +140,12 @@ export function digestText(input: DigestInput, labelOf: (label: string) => strin
     const early = f.stoppedEarly > 0 ? `, ${f.stoppedEarly} korán leállítva` : ', mind végigvive';
     parts.push(`${f.sessions} menet (${hm(f.totalMs / 1000)}${early}).`);
   }
-  if (input.unlocks7d > 0) parts.push(`${input.unlocks7d} feloldás.`);
+  // A félbemaradt kísérlet a feloldások mellé kerül — vagy helyettük: egy
+  // elindított és félbehagyott lazítás is történés, ha feloldás nem is lett.
+  const dropped = input.dropped7d ?? 0;
+  const droppedPart = dropped > 0 ? `, ${dropped} félbemaradt kísérlet` : '';
+  if (input.unlocks7d > 0) parts.push(`${input.unlocks7d} feloldás${droppedPart}.`);
+  else if (dropped > 0) parts.push(`Feloldás nélkül${droppedPart}.`);
   else if (measured || f.sessions > 0) parts.push('Feloldás nélkül.');
   // A tükör másik fele: ami sokat vitt, és nincs a listán. Egy név, a
   // legnagyobb — a többi a felvevő kártyán vár, egy kattintásra.

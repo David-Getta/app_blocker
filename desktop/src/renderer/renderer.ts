@@ -2136,8 +2136,11 @@ function setupChannelCard(): void {
 
 function renderTier(st: StatusData): void {
   const names = ['alap', 'emelt', 'magas', 'maximális'];
+  // A félbemaradt kísérlet is a sorban, ha volt: a nehézséget nem emeli, de
+  // a tükörhöz hozzátartozik — hányszor indult el a lazítás, és nem vitte végig.
+  const dropped = st.dropped7d ? ` · ${st.dropped7d} félbemaradt kísérlet` : '';
   $('tierLine').textContent =
-    `Próbatétel-nehézség: ${names[st.tier]} (${st.tier + 1}/4) · ${st.unlocks7d} feloldás az elmúlt 7 napban${unlockStreakLabel(st.lastUnlockAt)} — minél többször oldasz fel, annál nehezebb.`;
+    `Próbatétel-nehézség: ${names[st.tier]} (${st.tier + 1}/4) · ${st.unlocks7d} feloldás az elmúlt 7 napban${unlockStreakLabel(st.lastUnlockAt)}${dropped} — minél többször oldasz fel, annál nehezebb.`;
 }
 
 /**
@@ -3755,6 +3758,7 @@ function currentDigestText(): string | null {
     weekOverWeek: s.weekOverWeek,
     focusWeek: statsData.focusWeek,
     unlocks7d: status.unlocks7d,
+    dropped7d: status.dropped7d ?? 0,
     daysTracked: s.daysTracked,
     unblockedTop: suggestBlocks(s.topWeekSites, status.sites).map((t) => ({ label: t.label, seconds: t.seconds })),
   }, statLabel);

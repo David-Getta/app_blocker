@@ -81,6 +81,12 @@ object DigestLogic {
         /** van-e egyáltalán mért nap */
         val daysTracked: Int,
         /**
+         * Félbemaradt kísérletek az elmúlt 7 napban — feladva, lejárva,
+         * lecsúszva, elszállva, újraindítva: hányszor indult el a lazítás,
+         * és nem vitte végig. A tükör másik fele a feloldások mellett.
+         */
+        val dropped7d: Int = 0,
+        /**
          * A hét legnagyobb, NEM tiltott idővivői (a felvevő javaslata), a
          * legnagyobb elöl. Mérés nélkül üres.
          */
@@ -131,7 +137,11 @@ object DigestLogic {
             val early = if (f.stoppedEarly > 0) ", ${f.stoppedEarly} korán leállítva" else ", mind végigvive"
             parts.add("${f.sessions} menet (${hm(f.totalMs / 1000.0)}$early).")
         }
-        if (input.unlocks7d > 0) parts.add("${input.unlocks7d} feloldás.")
+        // A félbemaradt kísérlet a feloldások mellé kerül — vagy helyettük: egy
+        // elindított és félbehagyott lazítás is történés, ha feloldás nem is lett.
+        val droppedPart = if (input.dropped7d > 0) ", ${input.dropped7d} félbemaradt kísérlet" else ""
+        if (input.unlocks7d > 0) parts.add("${input.unlocks7d} feloldás$droppedPart.")
+        else if (input.dropped7d > 0) parts.add("Feloldás nélkül$droppedPart.")
         else if (measured || f.sessions > 0) parts.add("Feloldás nélkül.")
         // A tükör másik fele: ami sokat vitt, és nincs a listán. Egy név, a
         // legnagyobb — a többi a felvevő kártyán vár, egy kattintásra.
@@ -226,6 +236,7 @@ object DigestLogic {
             // A napló ablaka a gépével közös: a mai nap kezdete mínusz hat nap.
             focusWeek = Focus.summarizeFocus(st.focusLog, UsageLogic.startOfDay(now) - 6 * 86_400_000L, now),
             unlocks7d = st.unlockLog.count { it >= weekAgo },
+            dropped7d = st.droppedAttempts.count { it >= weekAgo },
             daysTracked = summary.daysTracked,
             unblockedTop = UsageLogic.suggestBlocks(summary.topWeekSites, st.sites)
                 .map { Top(it.label, it.seconds) },

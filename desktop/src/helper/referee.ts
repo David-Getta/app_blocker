@@ -700,6 +700,10 @@ function dropSession(state: HelperState, now: number): void {
     ...live.filter((a) => a.siteId !== s.siteId),
     { siteId: s.siteId, kind: s.kind, comboKey: combo, at },
   ];
+  // A FÉLBEMARADT kísérlet is könyvelés: a visszatekintés ebből mondja,
+  // hányszor indult el a lazítás, és maradt félbe — feladva, lejárva,
+  // lecsúszva, elszállva, újraindítva. Harminc napig, mint a feloldások.
+  state.droppedAttempts = [...(state.droppedAttempts ?? []).filter((t) => t > now - 30 * 24 * 3600_000), now];
   state.session = null;
 }
 

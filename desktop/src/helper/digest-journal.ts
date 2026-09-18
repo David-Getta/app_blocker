@@ -49,6 +49,7 @@ export function digestTextNow(state: HelperState, now: number): string | null {
     // A napló ablaka a statisztikáé: a mai nap kezdete mínusz hat nap.
     focusWeek: summarizeFocus(state.focusLog, startOfDay(now) - 6 * 86_400_000, now),
     unlocks7d: state.unlockLog.filter((t) => t >= now - 7 * 24 * 3600_000).length,
+    dropped7d: (state.droppedAttempts ?? []).filter((t) => t >= now - 7 * 24 * 3600_000).length,
     daysTracked: s.daysTracked,
     unblockedTop: suggestBlocks(s.topWeekSites, state.sites).map((t) => ({ label: t.label, seconds: t.seconds })),
   }, helperLabel(state));

@@ -297,6 +297,24 @@ test('cancelling an attempt is not a way to re-roll an easier one', () => {
   assert.equal(state.session!.stepIndex, 0, 'progress is not carried over');
 });
 
+test('a félbemaradt kísérlet könyvelés: az újraindítás és a feladás is; harminc nap a plafon', () => {
+  const { state, siteId } = stateWithSite();
+  const now = Date.now();
+  referee.startSession(state, 'pause', siteId, 15, now);
+  assert.deepEqual(state.droppedAttempts ?? [], [], 'az első kísérlet még nem maradt félbe');
+  // Az újraindítás a régit viszi el — az is félbemaradt.
+  referee.startSession(state, 'pause', siteId, 15, now + 1000);
+  assert.deepEqual(state.droppedAttempts, [now + 1000]);
+  referee.abandonSession(state, state.session!.id);
+  assert.equal(state.droppedAttempts!.length, 2, 'a feladás is');
+  // A negyven napos kiesik, az új bekerül.
+  state.droppedAttempts = [now - 40 * 86_400_000, ...state.droppedAttempts!];
+  referee.startSession(state, 'pause', siteId, 15, now + 2000);
+  referee.abandonSession(state, state.session!.id);
+  assert.equal(state.droppedAttempts!.length, 3);
+  assert.ok(state.droppedAttempts!.every((t) => t > now - 30 * 86_400_000), 'harminc napnál régebbi nincs');
+});
+
 test('a solved attempt earns a freshly drawn one next time', () => {
   const { state, siteId } = stateWithSite();
   const now = Date.now();

@@ -113,6 +113,11 @@ struct AppState: Codable, Equatable {
     /// attempts given up on, per site; see ChallengeEngine.rerollCooldownMs.
     /// Optional so a state file written before this existed still decodes.
     var abandons: [AbandonRec]? = nil
+    /// A FÉLBEMARADT kísérletek ideje (epoch ms), harminc napig — feladva,
+    /// lejárva, lecsúszva, elszállva, újraindítva. A visszatekintés ebből
+    /// mondja, hányszor indult el a lazítás, és maradt félbe; a feloldások
+    /// párja (`unlockLog`). Optional, hogy egy korábbi mentés is dekódolható.
+    var droppedAttempts: [Double]? = nil
     /// Rejtve induljon-e a blokkolt oldalak listája.
     ///
     /// Beállítás, nem pillanatnyi állapot: a felület minden indításkor rejtve

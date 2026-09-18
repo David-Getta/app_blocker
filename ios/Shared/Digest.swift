@@ -74,11 +74,15 @@ public enum DigestLogic {
         public var daysTracked: Int
         /// a hét legnagyobb, NEM tiltott idővivői, a legnagyobb elöl
         public var unblockedTop: [Top]
+        /// Félbemaradt kísérletek az elmúlt 7 napban — feladva, lejárva,
+        /// lecsúszva, elszállva, újraindítva: hányszor indult el a lazítás, és
+        /// nem vitte végig. A tükör másik fele a feloldások mellett.
+        public var dropped7d: Int
 
         public init(
             last7Seconds: Double = 0, topWeekSites: [Top] = [], topWeekApps: [Top] = [],
             weekOverWeek: [Delta] = [], focusWeek: Focus.Summary, unlocks7d: Int,
-            daysTracked: Int = 0, unblockedTop: [Top] = []
+            daysTracked: Int = 0, unblockedTop: [Top] = [], dropped7d: Int = 0
         ) {
             self.last7Seconds = last7Seconds
             self.topWeekSites = topWeekSites
@@ -88,6 +92,7 @@ public enum DigestLogic {
             self.unlocks7d = unlocks7d
             self.daysTracked = daysTracked
             self.unblockedTop = unblockedTop
+            self.dropped7d = dropped7d
         }
     }
 
@@ -131,7 +136,11 @@ public enum DigestLogic {
             let early = f.stoppedEarly > 0 ? ", \(f.stoppedEarly) korán leállítva" : ", mind végigvive"
             parts.append("\(f.sessions) menet (\(hm(f.totalMs / 1000))\(early)).")
         }
-        if input.unlocks7d > 0 { parts.append("\(input.unlocks7d) feloldás.") }
+        // A félbemaradt kísérlet a feloldások mellé kerül — vagy helyettük: egy
+        // elindított és félbehagyott lazítás is történés, ha feloldás nem is lett.
+        let droppedPart = input.dropped7d > 0 ? ", \(input.dropped7d) félbemaradt kísérlet" : ""
+        if input.unlocks7d > 0 { parts.append("\(input.unlocks7d) feloldás\(droppedPart).") }
+        else if input.dropped7d > 0 { parts.append("Feloldás nélkül\(droppedPart).") }
         else if measured || f.sessions > 0 { parts.append("Feloldás nélkül.") }
         if measured, let open = input.unblockedTop.first, open.seconds > 0 {
             parts.append("Nincs tiltva, de sokat vitt: \(labelOf(open.label)) \(hm(open.seconds)).")
@@ -194,7 +203,8 @@ public enum DigestLogic {
             .timeIntervalSince1970 * 1000
         return Input(
             focusWeek: Focus.summarizeFocus(st.focusLog ?? [], since: dayStart - 6 * 24 * 3_600_000, now: now),
-            unlocks7d: st.unlockLog.filter { $0 >= weekAgo }.count
+            unlocks7d: st.unlockLog.filter { $0 >= weekAgo }.count,
+            dropped7d: (st.droppedAttempts ?? []).filter { $0 >= weekAgo }.count
         )
     }
 

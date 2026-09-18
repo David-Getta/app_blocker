@@ -327,6 +327,25 @@ const WIRES = [
     needle: 'case .partner(let id, let name):',
     lost: 'iPhone-on a megbízott lépése üres lapon állna meg',
   },
+  // A FÉLBEMARADT KÍSÉRLET könyvelése az EGY helyen, ahol minden nem
+  // végigvitt kísérlet átmegy (dropSession). Ha kiesne, a visszatekintés
+  // csak a feloldásokat mondaná — a tükör fele hiányozna, csendben.
+  {
+    file: 'desktop/src/helper/referee.ts',
+    needle: 'state.droppedAttempts = [...(state.droppedAttempts ?? []).filter(',
+    lost: 'a gépen a félbemaradt kísérlet nem lenne könyvelve — a visszatekintés '
+      + 'csak a feloldásokat mondaná',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/Referee.kt',
+    needle: 'droppedAttempts = state.droppedAttempts.filter {',
+    lost: 'a telefonon a félbemaradt kísérlet nem lenne könyvelve',
+  },
+  {
+    file: 'ios/Shared/Referee.swift',
+    needle: 'state.droppedAttempts = (state.droppedAttempts ?? []).filter {',
+    lost: 'iPhone-on a félbemaradt kísérlet nem lenne könyvelve',
+  },
   // A MEGBÍZOTT a böngészőben: a híd leadja a nevét, a háttér a lap címére
   // teszi, a lap lába kimondja. Bármelyik kiesne, a tiltó lap a próbatétel
   // útját mondaná — a megbízott nélkül, pont a kísértés pillanatában.

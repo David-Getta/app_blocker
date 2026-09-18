@@ -82,6 +82,21 @@ test('mérés nélkül a menetek és a feloldások még mondat; semmi nélkül n
   assert.equal(digestText(nothing, (l) => l), null, 'egy üres értesítés zaj lenne');
 });
 
+test('a félbemaradt kísérletek is a mondatban: a feloldások mellett, vagy helyettük', () => {
+  assert.equal(digestText({ ...full, dropped7d: 2 }, (l) => l),
+    'Elmúlt 7 nap: 7 ó 20 p mért idő; a legtöbb: youtube.com 2 ó 40 p (▼ -33% az előző héthez képest). '
+    + '9 menet (7 ó 0 p, 2 korán leállítva). 3 feloldás, 2 félbemaradt kísérlet.');
+  const none = digestText({ ...full, unlocks7d: 0, dropped7d: 1, weekOverWeek: [] }, (l) => l)!;
+  assert.ok(none.endsWith('Feloldás nélkül, 1 félbemaradt kísérlet.'), none);
+  // Csak félbemaradt kísérlet: az is történés — mondat, még mérés és menet nélkül is.
+  const only: DigestInput = {
+    ...full, last7Seconds: 0, topWeekSites: [], weekOverWeek: [], daysTracked: 0, unlocks7d: 0, dropped7d: 3,
+    focusWeek: { sessions: 0, totalMs: 0, stoppedEarly: 0, topPack: null },
+  };
+  assert.equal(digestText(only, (l) => l), 'Elmúlt 7 nap: Feloldás nélkül, 3 félbemaradt kísérlet.');
+  assert.equal(digestText({ ...full, dropped7d: 0 }, (l) => l), digestText(full, (l) => l), 'nulla: mint eddig');
+});
+
 test('az app is bekerül: a mért időben benne van, a mondat enélkül hazudna', () => {
   const withApp = {
     ...full,
