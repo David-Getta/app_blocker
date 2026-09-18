@@ -150,7 +150,7 @@ public enum DigestLogic {
     /// „A négy hét legnagyobb napja: szombat (átlag 3 ó 20 p).” — a gépi `usageWeekdayText` tükre; négy-négy nap átlaga.
     public static func usageWeekdayText(_ peak: (day: Int, count: Int)) -> String {
         let name = peak.day >= 0 && peak.day < FilterHitLogic.weekdayNames.count ? FilterHitLogic.weekdayNames[peak.day] : "?"
-        return "A négy hét legnagyobb napja: \(name) (átlag \(UsageStats.formatDuration((Double(peak.count) / 4).rounded()))."
+        return "A négy hét legnagyobb napja: \(name) (átlag \(UsageStats.formatDuration((Double(peak.count) / 4).rounded())))."
     }
 
     /// A visszatekintés szövege — vagy nil, ha nincs miről beszélni (se mérés,
