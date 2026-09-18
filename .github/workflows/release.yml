@@ -44,6 +44,15 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
+          **Ablak a menet-órára a böngésző lapjairól is.** A híd a
+          javaslattal a menet-órát is leadja, ha ablak tehető rá (és nem a
+          csúcs-óra); a felugró lap és a tiltó lap gombja
+          — „Heti ablak a menet-órára: Nyelvtanulás, minden nap 09:00–10:00” —
+          ugyanazon a befelé menő végponton teszi fel, mint a csúcs-óráét:
+          csak felvétel, a bíró dönt. Bővítmény 0.4.31.
+
+          ### Ami a v0.4.130-ban jött
+
           **Ablak a menet-órára a javaslat kártyájáról is.** A gépi, az
           Android és az iPhone kezdőlap kártyáján a csúcs-óra gombja mellett
           a menet-óráé: „Heti ablak a menet-órára: Nyelvtanulás, minden nap 9:00–10:00”
@@ -51,7 +60,7 @@ jobs:
           mint a statisztikán; ha a menet-óra a csúcs-óra, a csúcs-óra gombja
           már kínálja. Felvenni ingyen.
 
-          ### Ami a v0.4.129-ben jött
+          #### Ami a v0.4.129-ben jött
 
           **A menet-óra fedése.** Ha egy csomag heti ablaka már fedi a
           menet-órát, a statisztika munkamenet-blokkja kimondja a gépen,
@@ -60,16 +69,6 @@ jobs:
           „(6 menet, magától indul: Nyelvtanulás)”, és ha nem fedi semmi, de
           lehetne rá ablakot tenni: „(6 menet, nincs rá ablak)”. Ha a
           menet-óra a csúcs-óra, a csúcs sora mondja — kétszer ugyanazt nem.
-          A README, a weboldal és a doksik a menet-óra előjelzését is mondják.
-
-          #### Ami a v0.4.128-ban jött
-
-          **Előjelzés a menet-óra előtt.** Tíz perccel a négy hét menet-órája
-          előtt a gép, az Android és az iPhone naponta egyszer kimondja:
-          „Mindjárt 9 óra — ilyenkor szoktál elkezdeni (6 menet négy hét alatt). Egy munkamenet most segítene — te döntesz.”
-          A javaslat-kártya ugyanezt mutatja, amíg az ablak tart. Ahol a
-          csúcs-óra és a menet-óra ugyanaz, csak a csúcs-óra szól; futó menet
-          alatt semmi; három menet alatt nincs előjelzés.
 
           NOTES
           fi
