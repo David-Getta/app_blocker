@@ -230,7 +230,9 @@ export function cleanSuggest(raw) {
   const sameHour = raw.sameHour === true;
   // A MENET-SOROZAT: hány napja ülsz le minden nap — az app száma; csak nemnegatív egész, különben nulla.
   const focusStreak = Number.isInteger(raw.focusStreak) && raw.focusStreak >= 0 ? raw.focusStreak : 0;
-  return { packId: raw.packId, name: raw.name, minutes, peakHour, peakPack, focusDay, focusHourNow, focusHour, focusHourPack, sameHour, focusStreak };
+  // A LEGHOSSZABB SOROZAT: az app száma; csak nemnegatív egész, különben nulla — a lap a mostani mellett mondja.
+  const focusLongestStreak = Number.isInteger(raw.focusLongestStreak) && raw.focusLongestStreak >= 0 ? raw.focusLongestStreak : 0;
+  return { packId: raw.packId, name: raw.name, minutes, peakHour, peakPack, focusDay, focusHourNow, focusHour, focusHourPack, sameHour, focusStreak, focusLongestStreak };
 }
 
 /**

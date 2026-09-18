@@ -366,8 +366,10 @@ if (HELPER_MODE) {
           const sameHour = !!(fh && peak && fh.hour === peak.hour);
           // A MENET-SOROZAT: hány napja ülsz le minden nap — a segéd számolja, a lap a gomb mellett mondja (kettőtől).
           const focusStreak = s.focusStreak ?? 0;
+          // A LEGHOSSZABB SOROZAT: a lap a mostani mellett, zárójelben mondja — a szám az appé, a küszöb a lapé.
+          const focusLongestStreak = s.focusLongestStreak ?? 0;
           // LE VAN-E FEDVE: a csomag, amelynek ablaka a csúcs-órát fedi — a felugró lap kimondja.
-          return { packId: pick.id, name: pick.name, minutes: pick.defaultMinutes, peakHour, peakPack: covering?.name ?? null, focusDay, focusHourNow, focusHour, focusHourPack, sameHour, focusStreak };
+          return { packId: pick.id, name: pick.name, minutes: pick.defaultMinutes, peakHour, peakPack: covering?.name ?? null, focusDay, focusHourNow, focusHour, focusHourPack, sameHour, focusStreak, focusLongestStreak };
         },
         async (packId, minutes) => {
           // EGY KATTINTÁS a felugró lapról a menetig: ugyanaz a bírói út, mint

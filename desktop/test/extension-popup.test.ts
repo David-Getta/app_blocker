@@ -295,6 +295,9 @@ test('a menet-sorozat a gomb mellett: az app száma, kettőtől, frissen, össze
   const s = { packId: 'pack_1', name: 'Nyelvtanulás', minutes: 25, peakHour: null, peakPack: null, focusStreak: 5 };
   assert.equal(focusStreakText(link({ suggest: s }), NOW, FRESH), ' 5 napja minden nap leültél.');
   assert.equal(focusStreakText(link({ suggest: { ...s, focusStreak: 2 } }), NOW, FRESH), ' 2 napja minden nap leültél.', 'kettőtől szól');
+  assert.equal(focusStreakText(link({ suggest: { ...s, focusLongestStreak: 12 } }), NOW, FRESH), ' 5 napja minden nap leültél (a leghosszabb sorozatod: 12 nap).', 'a rekord a mostani mellett');
+  assert.equal(focusStreakText(link({ suggest: { ...s, focusLongestStreak: 5 } }), NOW, FRESH), ' 5 napja minden nap leültél.', 'ha a mostani a rekord, nem ismétli');
+  assert.equal(focusStreakText(link({ suggest: { ...s, focusStreak: 1, focusLongestStreak: 12 } }), NOW, FRESH), '', 'sorozat nélkül a rekord sem mondat');
   assert.equal(focusStreakText(link({ suggest: { ...s, focusStreak: 1 } }), NOW, FRESH), '', 'egy nap nem sorozat');
   assert.equal(focusStreakText(link({ suggest: { ...s, focusStreak: 0 } }), NOW, FRESH), '', 'sorozat nélkül nincs mondat');
   assert.equal(focusStreakText(link({ suggest: { ...s, focusStreak: '5' } }), NOW, FRESH), '', 'csak egész szám');

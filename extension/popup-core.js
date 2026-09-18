@@ -120,7 +120,11 @@ export function focusStreakText(link, now, freshMs) {
   const fresh = Number.isFinite(link?.fetchedAt) && link.fetchedAt > 0 && now - link.fetchedAt <= freshMs;
   const n = link?.suggest?.focusStreak;
   if (!fresh || !Number.isInteger(n) || n < 2) return '';
-  return ` ${n} napja minden nap leültél.`;
+  // A REKORD csak a mostani sorozat mellett, zárójelben, ha több — a statisztika szövege szó szerint.
+  const longest = link?.suggest?.focusLongestStreak;
+  return Number.isInteger(longest) && longest > n
+    ? ` ${n} napja minden nap leültél (a leghosszabb sorozatod: ${longest} nap).`
+    : ` ${n} napja minden nap leültél.`;
 }
 
 /**

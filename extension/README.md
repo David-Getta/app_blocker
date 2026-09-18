@@ -104,6 +104,7 @@ menet-órád is, a csúcs mondata után kimondja: „Ez a menet-órád is: a ké
 a felugró lap és a tiltó lap azt is mondja, hogy ma van; a menet-napon (az
 app mondja, `suggest.focusDay`) a gomb mellett: „Ma a menet-napod van — ilyenkor szoktál leülni.”
 A menet-sorozatot is, a gomb mellett (az app száma, `suggest.focusStreak`, kettőtől): „5 napja minden nap leültél.”
+— a rekorddal, ha több (`suggest.focusLongestStreak`): „5 napja minden nap leültél (a leghosszabb sorozatod: 12 nap).”
 Minden más csak
 olvas: összekötve van-e az app és mennyire friss,
 amit tud; fut-e munkamenet (név, hátralévő idő, hány cím engedett — és ha a

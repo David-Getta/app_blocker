@@ -149,6 +149,8 @@ export interface BridgeSuggest {
    * mellett mondja, kettőtől (egy nap nem sorozat). Régi app nem küldi.
    */
   focusStreak?: number;
+  /** A LEGHOSSZABB SOROZAT a naplóban — a lap a mostani sorozat mellett, zárójelben mondja, ha több. Régi app nem küldi. */
+  focusLongestStreak?: number;
 }
 
 /**

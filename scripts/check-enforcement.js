@@ -1075,7 +1075,7 @@ const WIRES = [
   // LE VAN-E FEDVE a felugró lapon: a híd leadja a fedő csomagot, a lap kimondja.
   {
     file: 'desktop/src/main/main.ts',
-    needle: "peakPack: covering?.name ?? null, focusDay, focusHourNow, focusHour, focusHourPack, sameHour, focusStreak };",
+    needle: "peakPack: covering?.name ?? null, focusDay, focusHourNow, focusHour, focusHourPack, sameHour, focusStreak, focusLongestStreak };",
     lost: 'a híd nem adná le a csúcs-órát fedő csomagot — a felugró lap nem mondaná',
   },
   {
@@ -1624,6 +1624,11 @@ const WIRES = [
     file: 'extension/app-link.js',
     needle: 'const focusStreak = Number.isInteger(raw.focusStreak) && raw.focusStreak >= 0 ? raw.focusStreak : 0;',
     lost: 'a bővítmény eldobná a menet-sorozatot a híd válaszából',
+  },
+  {
+    file: 'extension/app-link.js',
+    needle: 'const focusLongestStreak = Number.isInteger(raw.focusLongestStreak) && raw.focusLongestStreak >= 0 ? raw.focusLongestStreak : 0;',
+    lost: 'a bővítmény eldobná a leghosszabb sorozatot a híd válaszából',
   },
   {
     file: 'extension/popup.js',
