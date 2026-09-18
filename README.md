@@ -251,6 +251,10 @@ ingyen van, rövidíteni vagy visszavonni sehogy.
   naplóját, és a napló utazik a fiókon — ha ugyanazt a menetet két eszköz is
   lezárja, az EGY menet marad. A „korán leállítva” sor szándékosan nem
   szégyenpad: ha sokszor fordul elő, nem a csomaggal van baj, hanem a hosszal.
+  A menet-nap és a menet-óra is: melyik napon és melyik órában ülsz le a
+  legtöbbször (négy hétből, a hét napjainak és az órák sávjával, a heti
+  mondatban is) — és a menet-óra alatt a csúcs-óra gombjának párja: heti ablak
+  a menet-órára, hogy a menet magától induljon, amikor úgyis leülnél.
 
   **Heti ablak: a menet magától indul** (gép + telefon). A csomag kaphat egy
   ablakot („hétköznap 9:00–12:00”): abban a menet magától indul, és az ablak
