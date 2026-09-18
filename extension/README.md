@@ -94,7 +94,8 @@ lehúzásnyi ideig számít frissnek, a lejárt bejegyzés nem zárás, a munkam
 lejáratát helyben nézi. Összekötetlenül az app állapotáról nem beszél. Ha az
 appban **zárlat** van, azt is kimondja a hátralévő idővel — és itt a
 frissesség-szabály más: a zárlat csak hosszabbodhat, tehát egy régebbi
-lehúzás vége is igaz alsó becslés. A
+lehúzás vége is igaz alsó becslés. Ha az appban **megbízott** van (párban
+zárolás), azt is mondja: minden lazítás utolsó lépése az ő jelmondata. A
 Beállítások gomb a beállítási lapra visz — minden, ami módosítás, ott van.
 
 ## Mit csinál pontosan
@@ -154,6 +155,15 @@ valamit, amit a felhasználó nem tiltott le.
    címén utazik, és a lap újra megtisztítja, mert erre a lapra kézzel írt
    címmel is el lehet jutni. Régi app válaszában nincs lista — a lap akkor
    nem idéz.
+
+8. **Megbízottal a feloldás útja az ő jelmondatával ér véget.** Ha az appban
+   párban zárolás van (egy megbízott jelmondata minden lazítás utolsó
+   lépése), a híd a nevét is leadja (`partner`), és a tiltó lap lába a
+   próbatétel mellé kimondja: „A feloldáshoz a megbízottad (Anna) jelmondata
+   is kell — az utolsó szó az övé.” A felugró lap is mondja. Zárlat alatt
+   nem: ott út sincs. Csak a név megy — a jelmondat lenyomata az appé, a
+   bővítménynek semmi dolga vele; a frissesség itt sem számít, a megbízott a
+   lenyomattal él, nem a lehúzással.
 
 ## Fájlok
 

@@ -25,6 +25,7 @@ interface Popup {
     state: { kind: string; text: string };
     fresh: boolean;
     lockdown: { left: string; byWindow: boolean } | null;
+    partner: string | null;
     focus: { name: string; left: string; allowed: number; window: boolean } | null;
     closed: { host: string; reason: string; left: string | null }[];
     closedMore: number;
@@ -147,6 +148,17 @@ test('idő-szövegek: perc alatt „az imént”, óra fölött kerekítve', () 
   assert.equal(p.spanText(1), '1 p');
   assert.equal(p.spanText(89 * 60_000), '89 p');
   assert.equal(p.spanText(150 * 60_000), 'kb. 3 ó');
+});
+
+test('a megbízott: összekötve a sor beszél; összekötetlenül hallgat; frissesség nélkül is', () => {
+  const { describePopup } = load();
+  assert.equal(describePopup(link({ partner: { name: 'Anna' } }), NOW, FRESH).partner, 'Anna');
+  assert.equal(describePopup(link({}), NOW, FRESH).partner, null, 'megbízott nélkül nincs sor');
+  assert.equal(describePopup(link({ partner: { name: '' } }), NOW, FRESH).partner, null);
+  assert.equal(describePopup(link({ token: '', partner: { name: 'Anna' } }), NOW, FRESH).partner, null,
+    'összekötetlenül nem beszélünk az app állapotáról');
+  assert.equal(describePopup(link({ partner: { name: 'Anna' }, fetchedAt: NOW - 3600_000 }), NOW, FRESH).partner,
+    'Anna', 'a megbízott a lenyomattal él, nem a lehúzással');
 });
 
 test('zárlat: összekötve és tart — a sor beszél; lejárt vagy összekötetlen — hallgat', () => {

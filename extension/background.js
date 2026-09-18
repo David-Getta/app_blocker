@@ -18,6 +18,7 @@ import {
   closedFor, dueForRefresh, focusActive, focusAllows, loadLink, lockdownUntil, pullFromApp,
   withAppRules,
   noteFor,
+  partnerNameOf,
 } from './app-link.js';
 
 /** Csak a főkeret számít: egy beágyazott hirdetés nem „az oldal megnyitása”. */
@@ -48,13 +49,16 @@ async function decide(url) {
   // Az INDOK: amiért a felhasználó maga tiltotta le ezt a címet. Minden
   // találatra rámegy, ha van — a lap a kísértés pillanatában ezt idézi.
   const note = noteFor(link, hostOf(url));
+  // A MEGBÍZOTT neve is minden találatra rámegy, ha van: a lap kimondja, hogy
+  // a feloldás útja az ő jelmondatával ér véget — a próbatétel mellé.
+  const partner = partnerNameOf(link);
 
   if (focusActive(link, now)) {
     const host = hostOf(url);
     // A bővítmény SAJÁT lapjai (a tiltó lap, a beállítások) sosem esnek bele:
     // különben a munkamenet alatt nem lehetne megnézni, mi fut és meddig.
     if (host && !focusAllows(link, host)) {
-      return { reason: 'focus', focus: link.focus, lockUntil, lockWindow, note };
+      return { reason: 'focus', focus: link.focus, lockUntil, lockWindow, note, partner };
     }
   }
 
@@ -64,18 +68,18 @@ async function decide(url) {
   // és a részleges szabály ELŐTT jön: azok az oldal darabjairól beszélnek, ez
   // meg arról, hogy most az egész zárva — az a tágabb, tehát az az igazabb ok.
   const closed = closedFor(link, hostOf(url), now);
-  if (closed) return { reason: 'closed', closed, lockUntil, lockWindow, note };
+  if (closed) return { reason: 'closed', closed, lockUntil, lockWindow, note, partner };
 
   // A CSATORNA-SZŰRŐ: az oldalon csak a felsorolt csatornák nyílnak meg. A
   // sorrend szándékos — a munkamenet erősebb (mindenre szól), a szűrő a
   // részleges szabályok ELŐTT jön, mert konkrétabb okot tud mondani.
   const chan = channelVerdict(url, link.channels);
-  if (chan) return { reason: 'channel', channel: chan, lockUntil, lockWindow, note };
+  if (chan) return { reason: 'channel', channel: chan, lockUntil, lockWindow, note, partner };
 
   // Az app szabályai HOZZÁADÓDNAK a sajátokhoz. Ha az app épp nem érhető el, az
   // utoljára letöltött lista marad érvényben — vagyis tovább tilt, nem enged át.
   const rule = firstMatch(withAppRules(activeRules(state, now), link.rules), url);
-  return rule ? { reason: 'rule', rule, lockUntil, lockWindow, note } : null;
+  return rule ? { reason: 'rule', rule, lockUntil, lockWindow, note, partner } : null;
 }
 
 /** A cím hosztja, `URL` nélkül — ugyanúgy, ahogy a szabály-mag csinálja. */
@@ -118,6 +122,8 @@ function blockedUrl(hit, fromUrl) {
   if (hit.lockUntil > 0 && hit.lockWindow) q.set('lockdownWindow', '1');
   // Az indok is a címben utazik: a lap idézi, bármelyik kártya is látszik.
   if (typeof hit.note === 'string' && hit.note) q.set('note', hit.note);
+  // A megbízott neve is: a láb a próbatétel mellé kimondja, hogy az utolsó szó az övé.
+  if (typeof hit.partner === 'string' && hit.partner) q.set('partner', hit.partner);
   return chrome.runtime.getURL(`blocked.html?${q.toString()}`);
 }
 

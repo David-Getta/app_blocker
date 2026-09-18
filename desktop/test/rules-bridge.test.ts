@@ -199,6 +199,19 @@ test('a zárlat vége is átmegy a hídon — nélküle null, hogy a lap ne íg�
   assert.deepEqual((r3.body as { lockdown: unknown }).lockdown, { until: 1_800_000_000_000, byWindow: true });
 });
 
+test('a megbízott neve is átmegy a hídon — nélküle null, hogy a lap ne mondjon olyat, ami nincs', async () => {
+  // A tiltó lap lába a feloldás útját mondja; megbízottal az az út az ő
+  // jelmondatával ér véget — a lapnak tudnia kell róla. Csak a név megy: a
+  // lenyomat a segédé, a bővítménynek semmi dolga vele.
+  const withPartner = { ...deps(), getPartner: async () => ({ name: 'Anna' }) };
+  const r = await answer(withPartner, 'GET', '/rules', { [TOKEN_HEADER]: 'ABCD-EFGH' });
+  assert.equal(r.status, 200);
+  assert.deepEqual((r.body as { partner: unknown }).partner, { name: 'Anna' });
+
+  const r2 = await answer(deps(), 'GET', '/rules', { [TOKEN_HEADER]: 'ABCD-EFGH' });
+  assert.equal((r2.body as { partner: unknown }).partner, null, 'megbízott nélkül null, nem hiányzó mező');
+});
+
 test('az indokok is a válaszban vannak, hosztnevenként — a régi hídon üres lista', async () => {
   const notes = [{ host: 'youtube.com', text: 'Mert este nem alszom tőle' }];
   const r = await answer(

@@ -314,6 +314,13 @@ if (HELPER_MODE) {
           }
           return out;
         },
+        async () => {
+          // A MEGBÍZOTT neve, ha van: a tiltó lap ebből mondja ki, hogy a
+          // feloldás útja az ő jelmondatával ér véget. Csak a név megy — a
+          // lenyomat a segédé, a bővítménynek semmi dolga vele.
+          const s = await sharedStatus();
+          return s.partner ? { name: s.partner.name } : null;
+        },
       );
       // Keep the tracker's view of the switch fresh without extra IPC chatter.
       const refreshFocus = (): void => {

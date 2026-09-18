@@ -29,16 +29,26 @@ const lockdownText = () => {
   return `${head}: még ${roughly(Math.ceil(ms / 60000))}. Amíg tart, ezt semmilyen `
     + 'próbatétellel nem lehet feloldani — az appban sem. Szigorítani lehet, lazítani nem.';
 };
+// A MEGBÍZOTT (párban zárolás): ha van, a feloldás útja az ő jelmondatával ér
+// véget — a láb ezt mondja a próbatétel mellé, mert a kísértés pillanatában
+// ez a különbség: nem elég egyedül átrágni magad rajta. A nevet a lap újra
+// tisztítja, mert erre a lapra kézzel írt címmel is el lehet jutni.
+const partnerName = (params.get('partner') || '')
+  .replace(/[\x00-\x1f\x7f-\x9f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 40);
+const withPartner = (text) => (partnerName
+  ? `${text} A feloldáshoz a megbízottad (${partnerName}) jelmondata is kell — az utolsó szó az övé.`
+  : text);
 /**
- * A láb szövege: zárlat alatt a zárlaté, különben a `fallback`. Félpercenként
- * újranéz — és a zárlat LEJÁRTAKOR visszaáll a rendes lábra, különben a lap az
- * ellenkező irányba hazudna: egy már nem létező zárlatot mondana.
+ * A láb szövege: zárlat alatt a zárlaté, különben a `fallback` — megbízottal
+ * az ő mondatával. Félpercenként újranéz — és a zárlat LEJÁRTAKOR visszaáll a
+ * rendes lábra, különben a lap az ellenkező irányba hazudna: egy már nem
+ * létező zárlatot mondana. Zárlat alatt a megbízott sem szerepel: ott út sincs.
  */
 const paintFoot = (el, fallback) => {
   let timer = null;
   const paint = () => {
     const t = lockdownText();
-    el.textContent = t ?? fallback;
+    el.textContent = t ?? withPartner(fallback);
     if (t === null && timer !== null) clearInterval(timer);
   };
   paint();

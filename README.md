@@ -199,7 +199,9 @@ ingyen van, rövidíteni vagy visszavonni sehogy.
   jelmondatával**. Ötször rossz jelmondat után a kísérlet elölről kezdődik. A
   megbízott a fiókon át a többi eszközre is átér (a jelével: a levétel átmegy,
   egy másik eszköz csomag-szerkesztése nem viszi el), és a lenyomat
-  nyelvfüggetlen — a gépen felvett megbízott a telefonon is stimmel. Őszinte
+  nyelvfüggetlen — a gépen felvett megbízott a telefonon is stimmel. A
+  böngésző tiltó lapja és a gyorsbillentyűs réteg a kísértés pillanatában
+  kimondja, hogy a feloldás útja az ő jelmondatával ér véget. Őszinte
   határ: nem gépzár, és ha a jelmondat elvész, a megbízottat nem lehet levenni.
   Lásd `docs/feature-partner-lock.md`.
 - **Munkamenetek: „most csak ez mehet”** (gép, Android, iPhone). A blokklista arról szól,

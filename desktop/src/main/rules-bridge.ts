@@ -80,6 +80,15 @@ export interface BridgeNote {
   text: string;
 }
 
+/**
+ * A MEGBÍZOTT (párban zárolás), ha van: csak a neve. A tiltó lap ebből mondja
+ * ki, hogy a feloldás útja az ő jelmondatával ér véget — a lenyomat nem megy
+ * le, a bővítménynek semmi dolga vele.
+ */
+export interface BridgePartner {
+  name: string;
+}
+
 export interface BridgeFocus {
   running: boolean;
   /** a csomag neve, hogy a tiltó lap megnevezze, MI fut */
@@ -135,6 +144,8 @@ export interface BridgeDeps {
   /** a futó zárlat, ha van — a tiltó lap ebből tudja, hogy most nincs feloldás */
   getLockdown?: () => Promise<BridgeLockdown | null>;
   getNotes?: () => Promise<BridgeNote[]>;
+  /** a megbízott neve, ha van — a tiltó lap ebből tudja, hogy a feloldás az ő jelmondatával ér véget */
+  getPartner?: () => Promise<BridgePartner | null>;
   token: string;
   /** csak teszthez: melyik portról induljon */
   startPort?: number;
@@ -178,20 +189,24 @@ export async function answer(
   // kozmetika: a bővítmény három másodperc után továbblép, a sorosan kétszer
   // lekérdezett állapot pedig ennek a duplájába is telhet, és akkor a
   // szabályok CSENDBEN nem frissülnének.
-  const [rules, focus, channels, closed, lockdown, notes] = await Promise.all([
+  const [rules, focus, channels, closed, lockdown, notes, partner] = await Promise.all([
     deps.getRules(),
     deps.getFocus ? deps.getFocus() : Promise.resolve({ running: false }),
     deps.getChannels ? deps.getChannels() : Promise.resolve([]),
     deps.getClosed ? deps.getClosed() : Promise.resolve([]),
     deps.getLockdown ? deps.getLockdown() : Promise.resolve(null),
     deps.getNotes ? deps.getNotes() : Promise.resolve([]),
+    deps.getPartner ? deps.getPartner() : Promise.resolve(null),
   ]);
   // Feljegyezzük, hogy VOLT lehúzás. Enélkül az app csak azt tudja, hogy a híd
   // FUT — azt nem, hogy beszél-e vele bárki. A kettő között pedig ott a
   // legcsendesebb hiba: a felhasználó elindít egy munkamenetet, a fehérlistát
   // viszont senki nem érvényesíti, és minden nyitva marad.
   deps.notePull?.();
-  return { status: 200, body: { protocol: BRIDGE_PROTOCOL, rules, focus, channels, closed, lockdown, notes } };
+  return {
+    status: 200,
+    body: { protocol: BRIDGE_PROTOCOL, rules, focus, channels, closed, lockdown, notes, partner },
+  };
 }
 
 /** A híd elindítása. A hívó felelőssége, hogy a kódot megmutassa a felületen. */

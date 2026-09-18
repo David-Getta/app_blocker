@@ -35,6 +35,8 @@ function loadClosed(): {
     { host: string; reason: string; until: number } | null;
   cleanLockdown: (raw: unknown) => { until: number } | null;
   lockdownUntil: (link: unknown, now?: number) => number;
+  cleanPartner: (raw: unknown) => { name: string } | null;
+  partnerNameOf: (link: unknown) => string | null;
 } {
   const src = fs.readFileSync(path.join(extensionDir(), 'app-link.js'), 'utf8');
   const pick = (re: RegExp, what: string): string => {
@@ -48,14 +50,19 @@ function loadClosed(): {
   // A zárlat két függvénye ugyanebből a modulból, ugyanígy kivágva.
   const lockCleanSrc = pick(/function cleanLockdown\(raw\) \{[\s\S]*?\n\}/, 'cleanLockdown');
   const lockUntilSrc = pick(/export function lockdownUntil\(link[\s\S]*?\n\}/, 'lockdownUntil');
+  // A megbízott két függvénye ugyanígy: a tisztítás és a név.
+  const partnerCleanSrc = pick(/function cleanPartner\(raw\) \{[\s\S]*?\n\}/, 'cleanPartner');
+  const partnerNameSrc = pick(/export function partnerNameOf\(link\) \{[\s\S]*?\n\}/, 'partnerNameOf');
   // eslint-disable-next-line no-new-func
   return new Function(
-    `${constSrc}\n${cleanSrc}\n${forSrc}\n${lockCleanSrc}\n${lockUntilSrc}\n`
-    + 'return { CLOSED_FRESH_MS, cleanClosed, closedFor, cleanLockdown, lockdownUntil };',
+    `${constSrc}\n${cleanSrc}\n${forSrc}\n${lockCleanSrc}\n${lockUntilSrc}\n${partnerCleanSrc}\n${partnerNameSrc}\n`
+    + 'return { CLOSED_FRESH_MS, cleanClosed, closedFor, cleanLockdown, lockdownUntil, cleanPartner, partnerNameOf };',
   )() as ReturnType<typeof loadClosed>;
 }
 
-const { CLOSED_FRESH_MS, cleanClosed, closedFor, cleanLockdown, lockdownUntil } = loadClosed();
+const {
+  CLOSED_FRESH_MS, cleanClosed, closedFor, cleanLockdown, lockdownUntil, cleanPartner, partnerNameOf,
+} = loadClosed();
 const NOW = 1_800_000_000_000;
 
 const link = (over: Record<string, unknown> = {}) => ({
@@ -147,6 +154,22 @@ test('zárlat a tárban: csak a vég, és csak ha szám', () => {
   for (const junk of [null, undefined, 42, 'x', {}, { until: 0 }, { until: -1 }, { until: 'holnap' }]) {
     assert.equal(cleanLockdown(junk), null, `${JSON.stringify(junk)} nem zárlat`);
   }
+});
+
+test('a megbízott a tárban: csak a név, tisztítva — a rossz alakú nem megbízott', () => {
+  assert.deepEqual(cleanPartner({ name: 'Anna' }), { name: 'Anna' });
+  assert.deepEqual(cleanPartner({ name: '  Anna \t Kovács ', salt: 'x', hash: 'y' }), { name: 'Anna Kovács' },
+    'csak a név marad — a lenyomat nem a bővítményé');
+  assert.equal(cleanPartner({ name: 'x'.repeat(60) })?.name.length, 40);
+  for (const junk of [null, undefined, 42, 'Anna', {}, { name: '' }, { name: '   ' }, { name: 7 }]) {
+    assert.equal(cleanPartner(junk), null, `${JSON.stringify(junk)} nem megbízott`);
+  }
+  assert.equal(partnerNameOf({ partner: { name: 'Anna' } }), 'Anna');
+  assert.equal(partnerNameOf({ partner: null }), null);
+  assert.equal(partnerNameOf({}), null);
+  assert.equal(partnerNameOf(null), null);
+  // Frissesség nélkül: a megbízott a lenyomattal él, nem a lehúzással.
+  assert.equal(partnerNameOf({ partner: { name: 'Anna' }, fetchedAt: NOW - 3600_000 }), 'Anna');
 });
 
 test('zárlatot csak a még tartó vég mond — frissességtől függetlenül', () => {

@@ -327,6 +327,31 @@ const WIRES = [
     needle: 'case .partner(let id, let name):',
     lost: 'iPhone-on a megbízott lépése üres lapon állna meg',
   },
+  // A MEGBÍZOTT a böngészőben: a híd leadja a nevét, a háttér a lap címére
+  // teszi, a lap lába kimondja. Bármelyik kiesne, a tiltó lap a próbatétel
+  // útját mondaná — a megbízott nélkül, pont a kísértés pillanatában.
+  {
+    file: 'desktop/src/main/main.ts',
+    needle: 'return s.partner ? { name: s.partner.name } : null;',
+    lost: 'a híd nem adná le a megbízottat — a tiltó lap a feloldás útját az ő '
+      + 'jelmondata nélkül mondaná',
+  },
+  {
+    file: 'extension/background.js',
+    needle: "q.set('partner', hit.partner)",
+    lost: 'a bővítmény tudna a megbízottról, de a tiltó lap címére nem tenné — '
+      + 'a láb hallgatna róla',
+  },
+  {
+    file: 'extension/blocked.js',
+    needle: 'el.textContent = t ?? withPartner(fallback);',
+    lost: 'a tiltó lap lába a megbízott nélkül mondaná a feloldás útját',
+  },
+  {
+    file: 'desktop/src/renderer/overlay.ts',
+    needle: '|| stopWayLine(status);',
+    lost: 'a réteg lába a leállítás útját a megbízott nélkül mondaná',
+  },
   // A GÉPEN a heti napló sorát a segéd időzítője írja, az app nélkül is. Ha a
   // hívás kiesne, a mag és a tesztje megmaradna — csak a sor nem íródna soha.
   {

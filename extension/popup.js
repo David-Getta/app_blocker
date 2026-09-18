@@ -25,6 +25,14 @@ async function render() {
       + 'szabály-levétel sehol nem indítható — próbatétellel sem.';
   }
 
+  // A megbízott: a lazítás útja az ő jelmondatával ér véget — a felugró lap
+  // ugyanazt tudja, amit a tiltó lap.
+  const partner = $('partner');
+  partner.hidden = d.partner === null;
+  if (d.partner) {
+    partner.textContent = `Megbízott: ${d.partner} — minden lazító próbatétel utolsó lépése az ő jelmondata.`;
+  }
+
   const focus = $('focus');
   focus.hidden = d.focus === null;
   if (d.focus) {

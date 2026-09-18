@@ -120,6 +120,26 @@ function cleanLockdown(raw) {
   return raw.byWindow === true ? { until, byWindow: true } : { until };
 }
 
+/**
+ * A megbízott (párban zárolás) a tárból vagy a hídról: `{ name }` vagy null.
+ * Csak a név jön — a jelmondat lenyomata az appé. A nevet a lap kiírja,
+ * ezért itt is tisztítjuk, mint az indokot.
+ */
+function cleanPartner(raw) {
+  if (!raw || typeof raw !== 'object' || typeof raw.name !== 'string') return null;
+  const name = raw.name.replace(/[\x00-\x1f\x7f-\x9f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 40);
+  return name ? { name } : null;
+}
+
+/**
+ * A megbízott neve, ha az app adott — frissesség nélkül, szándékosan: a
+ * megbízott a lenyomattal él, nem a lehúzással; a levétele próbatétel, és az
+ * app a következő lehúzáskor leveszi innen is.
+ */
+export function partnerNameOf(link) {
+  return link?.partner?.name ? String(link.partner.name) : null;
+}
+
 /** @returns {Promise<{token: string|null, port: number|null, rules: {host:string,path:string}[], fetchedAt: number, error: string|null}>} */
 export async function loadLink() {
   const got = await chrome.storage.local.get(KEY);
@@ -157,6 +177,7 @@ export async function loadLink() {
     closed: cleanClosed(raw.closed),
     lockdown: cleanLockdown(raw.lockdown),
     notes: cleanNotes(raw.notes),
+    partner: cleanPartner(raw.partner),
     // Rekordonként tűrünk: egy sérült bejegyzés ne vigye el a többit.
     rules: rules.filter((r) => r && typeof r.host === 'string' && typeof r.path === 'string')
       .map((r) => ({ host: r.host, path: r.path })),
@@ -274,11 +295,15 @@ export async function pullFromApp(now = Date.now(), fetchImpl = fetch, timeoutMs
     const lockdown = cleanLockdown(body?.lockdown);
     // Az indokok — régi app válaszában nincs, az sem hiba: a lap akkor nem idéz.
     const notes = cleanNotes(body?.notes);
+    // A megbízott neve — régi app válaszában nincs, az sem hiba: a lap akkor nem mondja.
+    const partner = cleanPartner(body?.partner);
     // Az ÜRES lista is válasz: azt jelenti, hogy az appban levették az összeset.
     // Csak akkor fogadjuk el, ha a kérés tényleg sikerült — ha nem érjük el az
     // appot, a régi lista marad érvényben.
-    await saveLink({ ...link, port, rules, focus, channels, closed, lockdown, notes, fetchedAt: now, error: null });
-    return { ok: true, rules, focus, channels, closed, lockdown, notes };
+    await saveLink({
+      ...link, port, rules, focus, channels, closed, lockdown, notes, partner, fetchedAt: now, error: null,
+    });
+    return { ok: true, rules, focus, channels, closed, lockdown, notes, partner };
   }
 
   // A PRÓBA idejét megjegyezzük, a szabálylistát viszont nem bántjuk: az app

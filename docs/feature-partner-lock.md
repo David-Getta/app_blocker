@@ -35,6 +35,20 @@ próbatétel** — a megbízott jelmondatával a végén, tehát a levételhez i
 
 Zárlat alatt a levétel sem indítható — ugyanaz a kapu (`docs/feature-lockdown.md`).
 
+## Hol van a felületen
+
+- **Gépen, Androidon, iPhone-on:** a *Zárlat* kártyán — a megbízott neve, a
+  jelmondat egyszeri lapja, a *Levétel…*. A próbatétel lapján a lépés
+  jelszómezőként jön, a legvégén, a várakozás után.
+- **A böngésző-bővítményben:** a tiltó lap lába a próbatétel mellé kimondja,
+  hogy a feloldás útja a megbízott jelmondatával ér véget („A feloldáshoz a
+  megbízottad (Anna) jelmondata is kell — az utolsó szó az övé.”); a felugró
+  lap is mondja. Zárlat alatt nem — ott út sincs. A híd csak a nevet adja le
+  (`partner`), a lenyomat az appé; a frissesség nem számít, a megbízott a
+  lenyomattal él, nem a lehúzással.
+- **A gyorsbillentyűs rétegben:** a futó menet lába ugyanezt mondja a
+  leállítás útjáról.
+
 ## Szinkron
 
 A megbízott a **munkamenet blobján** utazik (`partner`: név, só, lenyomat,

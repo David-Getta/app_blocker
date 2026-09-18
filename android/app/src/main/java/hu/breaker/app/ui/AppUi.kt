@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -945,7 +946,9 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                             "jelmondat után a kísérlet elölről kezdődik.",
                         style = MaterialTheme.typography.bodySmall,
                     )
-                    Text(p.phrase, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                    // Kijelölhető, hogy át lehessen küldeni a megbízottnak — a lapon
+                    // kívül sehol nincs meg, tehát innen kell elvinni.
+                    SelectionContainer { Text(p.phrase, fontWeight = FontWeight.Bold, fontSize = 20.sp) }
                 }
             },
         )

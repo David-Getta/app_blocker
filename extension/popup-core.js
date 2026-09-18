@@ -86,10 +86,16 @@ export function describePopup(link, now, freshMs) {
     };
   }
 
+  // A MEGBÍZOTT (párban zárolás): összekötve, ha az app adott — frissesség
+  // nélkül, mint a zárlat: a megbízott a lenyomattal él, nem a lehúzással.
+  const partner = linked && typeof link?.partner?.name === 'string' && link.partner.name
+    ? link.partner.name : null;
+
   return {
     state,
     fresh,
     lockdown,
+    partner,
     focus,
     closed: closed.slice(0, CLOSED_SHOWN),
     closedMore: Math.max(0, closed.length - CLOSED_SHOWN),

@@ -422,6 +422,30 @@ async function main() {
     // Vissza a zárlat nélküli állapotra, hogy a következő eset tiszta lappal induljon.
     await seedClosed([], Date.now());
 
+    // A MEGBÍZOTT: a láb a próbatétel mellé kimondja, hogy a feloldás útja az
+    // ő jelmondatával ér véget. A név a linkkel utazik a tárban; a lap a
+    // címparaméterből kapja — zárlat nélkül, mert zárlat alatt út sincs.
+    await seeder.evaluate(
+      (arg) => chrome.storage.local.set({
+        'breaker.applink': { ...arg.link, closed: arg.closed, partner: arg.partner, fetchedAt: arg.fetchedAt },
+      }),
+      {
+        link: LINK,
+        closed: [{ host: '127.0.0.1', reason: 'cooldown', until: Date.now() + 600_000 }],
+        partner: { name: 'Anna' },
+        fetchedAt: Date.now(),
+      },
+    );
+    await page.goto(`${base}/?megbizott`).catch(() => { /* a navigációt elkapja a tiltás */ });
+    const partnerBlocked = await waitForBrowserUrl(page, context, /blocked\.html\?.*partner=Anna/, WAIT_MS);
+    check(!!partnerBlocked, 'megbízottal a tiltó lap címe hordozza a nevét');
+    if (partnerBlocked && /blocked\.html/.test(page.url())) {
+      const text = await bodyText(page);
+      check(text.includes('a megbízottad (Anna) jelmondata is kell'),
+        'a tiltó lap lába kimondja, hogy a feloldás a megbízott jelmondatával ér véget');
+    }
+    await seedClosed([], Date.now());
+
     // A szünet LETELTEKOR a lap utat ad vissza: a visszaszámláló helyén link
     // az eredeti címre. A lap magától nem navigál — a linken át a döntés
     // úgyis újra lefut, tehát egy közben újraindult hűtés vissza is fogná.

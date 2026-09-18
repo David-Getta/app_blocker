@@ -42,7 +42,15 @@ interface Status {
   lockdown?: Lockdown | null;
   /** a heti zárlat-ablakok — ebből tudja a réteg, hogy az ablak tartja-e a zárlatot */
   lockdownWindows?: LockdownWindow[];
+  /** a megbízott (párban zárolás), ha van — a leállítás útja az ő jelmondatával ér véget */
+  partner?: { name: string; setAt: number } | null;
   now: number;
+}
+
+/** A leállítás útja a lábban: az appban, próbatétellel — megbízottal az ő jelmondatával a végén. */
+function stopWayLine(st: Status): string {
+  return 'Hosszabbítani ingyen van. Leállítani az appban lehet, próbatétellel'
+    + (st.partner ? ` — és a megbízottad (${st.partner.name}) jelmondatával a végén.` : '.');
 }
 
 /** A zárlat sora a rétegben, vagy null, ha nincs zárlat. */
@@ -180,7 +188,7 @@ function render(): void {
     // a bővítmény-figyelmeztetés MELLETT, nem helyette: az egyik sem
     // hallgattathatja el a másikat.
     foot.textContent = [extWarning(), locked].filter((t) => t !== null).join(' ')
-      || 'Hosszabbítani ingyen van. Leállítani az appban lehet, próbatétellel.';
+      || stopWayLine(status);
     return;
   }
 
