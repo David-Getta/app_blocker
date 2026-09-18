@@ -1075,7 +1075,7 @@ const WIRES = [
   // LE VAN-E FEDVE a felugró lapon: a híd leadja a fedő csomagot, a lap kimondja.
   {
     file: 'desktop/src/main/main.ts',
-    needle: "peakPack: covering?.name ?? null };",
+    needle: "peakPack: covering?.name ?? null, focusDay };",
     lost: 'a híd nem adná le a csúcs-órát fedő csomagot — a felugró lap nem mondaná',
   },
   {
@@ -1240,6 +1240,22 @@ const WIRES = [
     file: 'ios/App/ContentView.swift',
     needle: 'if let onFocusDay { Text(Focus.dayNowText(onFocusDay)).font(.footnote) }',
     lost: 'az iPhone kezdőlap kártyája a menet-napon nem mondaná, hogy ma szoktál leülni',
+  },
+  // A MENET-NAP a böngészőben: az app a hídon leadja, a felugró lap és a tiltó lap a gomb mellett mondja.
+  {
+    file: 'desktop/src/main/main.ts',
+    needle: 'const focusDay = isPeakDayNow(s.focusWeekday ?? null, Date.now());',
+    lost: 'az app nem adná le a hídon, hogy ma a menet-nap van — a böngésző lapjai hallgatnának',
+  },
+  {
+    file: 'extension/popup.js',
+    needle: 'const fd = focusDayText(link, Date.now(), CLOSED_FRESH_MS);',
+    lost: 'a felugró lap a menet-napon nem mondaná, hogy ma szoktál leülni',
+  },
+  {
+    file: 'extension/blocked.js',
+    needle: 'const fd = focusDayText(link, Date.now(), CLOSED_FRESH_MS);',
+    lost: 'a tiltó lap a menet-napon nem mondaná, hogy ma szoktál leülni',
   },
   // AZ ABLAK SZERINT INDULT menet a rétegben és az Android értesítésén is kimondva.
   {

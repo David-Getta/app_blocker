@@ -66,6 +66,18 @@ export function peakCoverText(link, now, freshMs) {
 }
 
 /**
+ * A MENET-NAP: ha az app azt mondja, ma szoktál leülni (a négy hét menet-napja,
+ * elég mintából — az app szabálya), a lap a gomb mellett kimondja. Csak
+ * összekötve és friss válasz mellett; különben üres. Tény, nem felszólítás.
+ */
+export function focusDayText(link, now, freshMs) {
+  if (!link || typeof link.token !== 'string' || !link.token) return '';
+  const fresh = Number.isFinite(link?.fetchedAt) && link.fetchedAt > 0 && now - link.fetchedAt <= freshMs;
+  if (!fresh || link?.suggest?.focusDay !== true) return '';
+  return ' Ma a menet-napod van — ilyenkor szoktál leülni.';
+}
+
+/**
  * A CSÚCS-ÓRA ABLAKÁNAK gombja: { packId, hour, text } — vagy null. Ugyanazok
  * a kapuk, mint a menet gombjánál (összekötve, friss válasz, futó menet
  * nélkül), és az app mondja meg, van-e csúcs-óra, amire ablak tehető.

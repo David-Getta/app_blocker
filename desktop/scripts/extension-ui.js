@@ -251,11 +251,17 @@ async function main() {
     window.__disk['breaker.applink'] = {
       token: 'JOKOD', port: 8788, rules: [], channels: [], closed: [],
       focus: { running: false },
-      suggest: { packId: 'pack_2', name: 'Mély munka', minutes: 90 },
+      suggest: { packId: 'pack_2', name: 'Mély munka', minutes: 90, focusDay: true },
       fetchedAt: Date.now(), attemptedAt: Date.now(), error: null,
     };
   `);
   await page.goto(`http://127.0.0.1:${port}/popup.html`);
+  // A MENET-NAP a gomb mellett: az app mondja, a lap kimondja.
+  await page.waitForFunction(
+    () => document.getElementById('focusDayNote')?.textContent === 'Ma a menet-napod van — ilyenkor szoktál leülni.'
+      && !document.getElementById('focusDayNote')?.hidden,
+    undefined, { timeout: 10_000 },
+  ).catch(() => failures.push('a felugró lap nem mondja a menet-napot az app szava szerint'));
   await page.waitForFunction(
     () => document.getElementById('startFocus')?.textContent === 'Munkamenet: Mély munka, 90 perc'
       && !document.getElementById('startFocus')?.hidden,
@@ -289,7 +295,7 @@ async function main() {
     window.__disk['breaker.applink'] = {
       token: 'JOKOD', port: 8788, rules: [], channels: [], closed: [],
       focus: { running: false },
-      suggest: { packId: 'pack_2', name: 'Mély munka', minutes: 90, peakHour: 21 },
+      suggest: { packId: 'pack_2', name: 'Mély munka', minutes: 90, peakHour: 21, focusDay: true },
       fetchedAt: Date.now(), attemptedAt: Date.now(), error: null,
     };
   `);
@@ -314,6 +320,12 @@ async function main() {
       && !document.getElementById('peakWindow')?.hidden,
     undefined, { timeout: 10_000 },
   ).catch(() => failures.push('a tiltó lap ablak-gombja nem az app csúcs-óráját mondja'));
+  // A MENET-NAP a tiltó lapon is, a gomb mellett.
+  await page.waitForFunction(
+    () => document.getElementById('focusDayNote')?.textContent === 'Ma a menet-napod van — ilyenkor szoktál leülni.'
+      && !document.getElementById('focusDayNote')?.hidden,
+    undefined, { timeout: 10_000 },
+  ).catch(() => failures.push('a tiltó lap nem mondja a menet-napot az app szava szerint'));
   await page.evaluate(() => { window.__windowed = null; });
   await page.locator('#peakWindow').click().catch(() => failures.push('a tiltó lap ablak-gombja nem kattintható'));
   await page.waitForFunction(

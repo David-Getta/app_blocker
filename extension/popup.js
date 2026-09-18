@@ -5,7 +5,7 @@
 // beállítási lapra visz — minden, ami módosítás, ott van, itt semmi.
 
 import { CLOSED_FRESH_MS, addFocusWindowInApp, loadLink, pullFromApp, startFocusInApp } from './app-link.js';
-import { describePopup, hourSpan, peakCoverText, suggestButton, windowButton } from './popup-core.js';
+import { describePopup, focusDayText, hourSpan, peakCoverText, suggestButton, windowButton } from './popup-core.js';
 import { dayKey, hitsSummary, hitsText, peakDayNow, peakDayNowText, peakNow, peakText, topHost } from './hits.js';
 
 const $ = (id) => document.getElementById(id);
@@ -50,6 +50,10 @@ async function render() {
   startBtn.textContent = sb ? sb.text : '';
   startBtn.dataset.packId = sb ? sb.packId : '';
   startBtn.dataset.minutes = sb ? String(sb.minutes) : '';
+  // A MENET-NAP: ma szoktál leülni — az app szava, frissen; a gomb mellett.
+  const fd = focusDayText(link, Date.now(), CLOSED_FRESH_MS);
+  $('focusDayNote').hidden = fd === '';
+  $('focusDayNote').textContent = fd.trim();
   // ABLAK A CSÚCS-ÓRÁRA: ugyanazok a kapuk, és az app mondja, van-e mire.
   const wb = windowButton(link, Date.now(), CLOSED_FRESH_MS);
   const winBtn = $('peakWindow');

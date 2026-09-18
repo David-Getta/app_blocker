@@ -545,7 +545,10 @@ javaslat-kártyája és a gyorsbillentyűs réteg lába (`focusDayNowText` a st�
 menet-napjából, `focusWeekday`), a két telefon kezdőlapjának javaslat-kártyája
 (`Focus.dayNowText`): „Ma a négy hét menet-napja van (kedd, 6 menet) — ilyenkor szoktál leülni.”
 — a menet gombjával; a „ma van” küszöbe a csúcs-napé (`isPeakDayNow`,
-legalább három menet).
+legalább három menet). A böngésző lapjai is: a híd a javaslattal leadja
+(`suggest.focusDay`, az app szabálya szerint), a felugró lap és a tiltó lap a
+menet gombja mellett mondja („Ma a menet-napod van — ilyenkor szoktál leülni.”),
+frissen, összekötve.
 
 **Ablak a csúcs-órára:** a statisztika a csúcs-óra mondata alatt — a gépen
 és a telefonokon is — egy gombot mutat — „Heti ablak a csúcs-órára: Nyelvtanulás, minden nap 21:00–22:00” —,

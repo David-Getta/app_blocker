@@ -40,11 +40,12 @@ interface Popup {
   windowButton: (link: unknown, now: number, freshMs: number) => { packId: string; hour: number; text: string } | null;
   hourSpan: (h: number) => string;
   peakCoverText: (link: unknown, now: number, freshMs: number) => string;
+  focusDayText: (link: unknown, now: number, freshMs: number) => string;
 }
 
 function load(): Popup {
   const src = fs.readFileSync(path.join(extensionDir(), 'popup-core.js'), 'utf8').replace(/^export /gm, '');
-  return new Function(`${src}\nreturn { describePopup, spanText, agoText, CLOSED_SHOWN, suggestButton, windowButton, hourSpan, peakCoverText };`)() as Popup;
+  return new Function(`${src}\nreturn { describePopup, spanText, agoText, CLOSED_SHOWN, suggestButton, windowButton, hourSpan, peakCoverText, focusDayText };`)() as Popup;
 }
 
 const NOW = 1_800_000_000_000;
@@ -227,6 +228,17 @@ test('a felugró lap kimondja, ha a csúcs-órát ablak fedi — az app szava, f
   assert.equal(peakCoverText(link({}), NOW, FRESH), '', 'javaslat nélkül nincs');
   assert.equal(peakCoverText(link({ suggest: s, fetchedAt: NOW - 10 * 60_000 }), NOW, FRESH), '', 'elavult válasz mellett nincs');
   assert.equal(peakCoverText(link({ suggest: s, token: null }), NOW, FRESH), '', 'összekötetlenül nincs');
+});
+
+test('a menet-nap a gomb mellett: az app szava, frissen, összekötve — csak a szó szerinti igaz', () => {
+  const { focusDayText } = load();
+  const s = { packId: 'pack_1', name: 'Nyelvtanulás', minutes: 25, peakHour: null, peakPack: null, focusDay: true };
+  assert.equal(focusDayText(link({ suggest: s }), NOW, FRESH), ' Ma a menet-napod van — ilyenkor szoktál leülni.');
+  assert.equal(focusDayText(link({ suggest: { ...s, focusDay: false } }), NOW, FRESH), '', 'más napon nincs mondat');
+  assert.equal(focusDayText(link({ suggest: { ...s, focusDay: 'igen' } }), NOW, FRESH), '', 'csak a szó szerinti igaz');
+  assert.equal(focusDayText(link({}), NOW, FRESH), '', 'javaslat nélkül nincs');
+  assert.equal(focusDayText(link({ suggest: s, fetchedAt: NOW - 10 * 60_000 }), NOW, FRESH), '', 'elavult válasz mellett nincs');
+  assert.equal(focusDayText(link({ suggest: s, token: null }), NOW, FRESH), '', 'összekötetlenül nincs');
 });
 
 test('idő-szöveg napokban: a hetes zárlat nem „kb. 168 ó”', () => {

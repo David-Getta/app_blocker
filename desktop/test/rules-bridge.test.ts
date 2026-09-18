@@ -47,15 +47,15 @@ test('a menet indítása a hídról: a kóddal, csomaggal és perccel — a bír
   let refuse: string | null = null;
   const d = {
     ...deps(),
-    getSuggest: async () => ({ packId: 'pack_1', name: 'Nyelvtanulás', minutes: 25 }),
+    getSuggest: async () => ({ packId: 'pack_1', name: 'Nyelvtanulás', minutes: 25, focusDay: true }),
     startFocus: async (packId: string, minutes: number) => {
       if (refuse) throw new Error(refuse);
       started.push({ packId, minutes });
     },
   };
   const rules = await answer(d, 'GET', '/rules', { [TOKEN_HEADER]: 'ABCD-EFGH' });
-  assert.deepEqual((rules.body as { suggest: unknown }).suggest, { packId: 'pack_1', name: 'Nyelvtanulás', minutes: 25 },
-    'a javasolt csomag a szabályokkal együtt megy le');
+  assert.deepEqual((rules.body as { suggest: unknown }).suggest, { packId: 'pack_1', name: 'Nyelvtanulás', minutes: 25, focusDay: true },
+    'a javasolt csomag a szabályokkal együtt megy le — a menet-nappal');
   const ok = await answer(d, 'POST', '/focus_start', { [TOKEN_HEADER]: 'ABCD-EFGH' }, { packId: 'pack_1', minutes: 25 });
   assert.equal(ok.status, 200);
   assert.deepEqual(started, [{ packId: 'pack_1', minutes: 25 }]);

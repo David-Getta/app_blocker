@@ -120,6 +120,11 @@ export interface BridgeSuggest {
    * a felugró lap kimondja, hogy a menet magától indul. Null, ha egyik sem.
    */
   peakPack?: string | null;
+  /**
+   * A MENET-NAP: ma szoktál-e leülni — a négy hét menet-napja, elég mintából,
+   * az app szabálya szerint. A lap a gomb mellett kimondja. Régi app nem küldi.
+   */
+  focusDay?: boolean;
 }
 
 /**

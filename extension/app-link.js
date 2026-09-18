@@ -218,7 +218,9 @@ export function cleanSuggest(raw) {
   const peakHour = Number.isInteger(raw.peakHour) && raw.peakHour >= 0 && raw.peakHour <= 23 ? raw.peakHour : null;
   // LE VAN-E FEDVE: a csomag neve, amelynek ablaka a csúcs-órát fedi — kívülről jött szöveg, rövidre vágva.
   const peakPack = typeof raw.peakPack === 'string' && raw.peakPack ? raw.peakPack.slice(0, 40) : null;
-  return { packId: raw.packId, name: raw.name, minutes, peakHour, peakPack };
+  // A MENET-NAP: az app mondja, ma szoktál-e leülni — csak a szó szerinti igaz számít.
+  const focusDay = raw.focusDay === true;
+  return { packId: raw.packId, name: raw.name, minutes, peakHour, peakPack, focusDay };
 }
 
 /**
