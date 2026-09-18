@@ -44,28 +44,26 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
+          **Heti napló: a hétfői mondat megmarad.** A visszatekintés eddig
+          elszállt az értesítéssel; mostantól a statisztikán egy heti napló
+          őrzi — fél év hétfői egy-egy sorban, a legfrissebb elöl —, és
+          fölötte az áll, ami *most* szólna, bármelyik napon. A gépen és
+          Androidon; eszközönként, mint maga a visszatekintés. A mondat az
+          appok legnagyobbját is megnevezi („appban a legtöbb: …”), mert a
+          mért időben az is benne van.
+
+          ### Ami a v0.4.41-ben jött
+
           **A hétfő reggeli visszatekintés a telefonon is szól — az app
           nélkül is.** Androidon a szűrő szolgáltatása mondja el hétfő reggel
-          az elmúlt hét napot: mért idő, a legtöbb oldal és app (és a
-          trendjük), menetek, feloldások, és a legnagyobb nem tiltott idővivő
-          — ugyanaz a mondat, mint a gépen, ugyanazzal a maggal. Egy hétről egyszer, saját
-          csatornán, amit külön ki lehet kapcsolni; a rejtett vagy fedőnevű
-          címet az értesítés sem mondja ki. iPhone-on nincs, és a doksi
-          kimondja, miért. A felvevő kártya javaslata (a hét legnagyobb, nem
-          tiltott idővivői, egy koppintással tiltva) mostantól Androidon is.
+          az elmúlt hét napot, ugyanazzal a maggal, mint a gépen; saját
+          csatornán. A felvevő kártya javaslata (a hét legnagyobb, nem
+          tiltott idővivői) Androidon is.
 
-          ### Ami a v0.4.40-ben jött
+          #### Ami a v0.4.40-ben jött
 
-          **Javaslat a felvevő kártyán (gépen).** A felvevő kártya egy sorban
-          mutatja a hét legnagyobb, nem tiltott idővivőit (legalább fél óra,
-          legfeljebb három), egy kattintással tiltva. A hétfő reggeli
-          visszatekintés is megnevezi a legnagyobbat.
-
-          #### Ami a v0.4.39-ben jött
-
-          **Indok: miért tiltottad** — egy saját mondat minden oldalhoz, ott,
-          ahol a döntés születik: a soron, a feloldás és a próbatétel lapján, a
-          böngésző tiltó lapján, mindhárom platformon.
+          **Javaslat a felvevő kártyán (gépen)** — a hét legnagyobb, nem
+          tiltott idővivői, egy kattintással tiltva.
 
           NOTES
           fi
