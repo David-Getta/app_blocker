@@ -455,6 +455,14 @@ const WIRES = [
     needle: 'FilterHitLogic.hitsToday(st.filterHits, now)',
     lost: 'az Android értesítése nem mondaná a mai megakadásokat',
   },
+  // A HÉTFŐ REGGELI EMLÉKEZTETŐ iPhone-on: a mondat az appban születik, az
+  // értesítés odahív. Ha a bekötés kiesne, a napló sora megvolna — csak
+  // senki nem tudna róla.
+  {
+    file: 'ios/App/ContentView.swift',
+    needle: 'DigestReminder.reschedule()',
+    lost: 'iPhone-on senki nem tudna a heti visszatekintésről — az értesítés nem szólna',
+  },
   // A MEGAKADÁS-SZÁMLÁLÓ lánca: a háttér könyvel, a link átadja, a híd
   // fogadja, a segéd tartja, a mondat és a statisztika mondja. Ha bármelyik
   // láncszem kiesne, a bővítmény lapja továbbra is számolna — az app viszont

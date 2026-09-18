@@ -175,6 +175,18 @@ final class KeywordsTests: XCTestCase {
         XCTAssertNil(BreakerStore.shared.state.session)
     }
 
+    func testUnderLockdownRemovalDoesNotStartButAdditionIsFree() throws {
+        // A zárlat kapuja a kulcsszóra is: levenni el sem indul, felvenni ingyen.
+        resetStore()
+        _ = try settled { try Referee.startLockdown(ms: 24 * 3_600_000, now: now) }
+        XCTAssertTrue(try settled { try Referee.setKeywords(["shorts"], now: now + 1000) }.applied, "felvétel zárlat alatt is ingyen")
+        XCTAssertThrowsError(try settled { try Referee.setKeywords([], now: now + 2000) }) { e in
+            XCTAssertEqual((e as? Referee.RefereeError)?.code, "LOCKDOWN")
+        }
+        XCTAssertNil(BreakerStore.shared.state.session, "zárlat alatt próbatétel keletkezett")
+        XCTAssertEqual(BreakerStore.shared.state.keywords, ["shorts"])
+    }
+
     private func currentStep() -> ChallengeEngine.Step? {
         pumpMainQueue()
         guard let s = BreakerStore.shared.state.session else { return nil }

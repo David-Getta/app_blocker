@@ -42,6 +42,7 @@ struct ContentView: View {
     @State private var lockdownWindowEdit: LockdownLogic.LockdownWindow? = nil
     /// Amelyik listához a heti emlékeztetők utoljára igazodtak; nil = még sosem.
     @State private var remindedWindows: [LockdownLogic.LockdownWindow]? = nil
+    @State private var digestReminderArmed = false
     /// Párban zárolás: a megbízott neve a felvételhez, és a jelmondat egyszeri lapja.
     @State private var partnerName = ""
     @State private var keywordInput = ""
@@ -140,6 +141,12 @@ struct ContentView: View {
             if remindedWindows != windows {
                 remindedWindows = windows
                 WindowReminders.reschedule(windows)
+            }
+            // A hétfő reggeli emlékeztető a visszatekintésre — egyszer, az
+            // első körben; ismétlődő kérés, a rendszer tartja.
+            if !digestReminderArmed {
+                digestReminderArmed = true
+                DigestReminder.reschedule()
             }
             // A heti napló sora. Értesítés itt nincs (a bővítmény nem adhat, az
             // app nem fut a háttérben); a sor akkor íródik, amikor az app azon

@@ -127,6 +127,9 @@ class LockdownTest {
         assertFailsWith<Referee.RefereeException> {
             Referee.startBurstChange(siteId, 3600L, 60L, now)
         }
+        // kulcsszó levétele — a gépi böngésző addig tilt vele
+        BreakerStore.mutate { it.copy(keywords = listOf("shorts")) }
+        assertEquals("LOCKDOWN", assertFailsWith<Referee.RefereeException> { Referee.setKeywords(emptyList(), now) }.code)
         assertNull(BreakerStore.state.value.session, "zárlat alatt próbatétel keletkezett")
     }
 
@@ -146,6 +149,7 @@ class LockdownTest {
         val now = t0 + 1000
         assertTrue(Referee.startLimitChange(siteId, 60L, now).applied, "keret csökkentése")
         assertTrue(Referee.startBurstChange(siteId, 60L, 1800L, now).applied, "adag szigorítása")
+        assertTrue(Referee.setKeywords(listOf("shorts"), now).applied, "kulcsszó felvétele")
         assertNull(BreakerStore.state.value.session, "szigorítás indított próbatételt")
     }
 

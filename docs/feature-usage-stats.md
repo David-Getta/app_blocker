@@ -480,8 +480,9 @@ látszik, nem csak a pillanat — tükör, nem ítélet.
   telefonok a magukét (`digestLog` az állapotban). Szándékosan nem
   szinkronizál. **A sort az írja, ami mindig fut:** a gépen a segéd a körében
   (`helper/digest-journal.ts` — az app nélkül is, a beállítás címkézésével),
-  Androidon a szűrő szolgáltatása, iPhone-on az app köre (értesítés nélkül,
-  a megnyitáskor). A gépen a hétfői értesítés továbbra is a futó appé; a napló
+  Androidon a szűrő szolgáltatása, iPhone-on az app köre (a megnyitáskor —
+  és hétfő reggel egy rendszer-ütemezett emlékeztető hív oda, a mondat
+  nélkül: az app a háttérben nem fut). A gépen a hétfői értesítés továbbra is a futó appé; a napló
   nem értesítés, hanem könyvelés.
 - **Hetenként egy sor**, az újabb felülír; az üres hét (amiről nem volt mit
   mondani) nem sor, és a hét régi sorát is elviszi. A tárból jött naplót a

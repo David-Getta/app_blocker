@@ -52,6 +52,13 @@ az állapotban, harminc nap), a statisztika nehézség-sora és a heti mondat
 mondja („12 megakadás a szűrőben”). Tükör, nem ítélet; a fiókba nem megy.
 Lásd `docs/feature-usage-stats.md`.
 
+A **heti visszatekintés** hétfő reggel: a mondat akkor születik, amikor az app
+hétfő reggel hét után először nyitva van (a felület címkézésével, a
+statisztikán és a naplóban), és egy heti **emlékeztető** hívja oda az embert
+(`App/DigestReminder.swift`, hétfő 7:05, a rendszer ütemezi, egy kérés a
+64-es keretből) — a mondat maga nincs az értesítésben, mert az app a
+háttérben nem fut.
+
 A **kulcsszavak** (bármely oldalon, ha a cím tartalmazza) a zárlat kártyája
 alján **szerkeszthetők**: felvenni ingyen, levenni próbatétel
 (`Referee.setKeywords`, a függő lista a teljesítéskor ül be). A tunnel a címet

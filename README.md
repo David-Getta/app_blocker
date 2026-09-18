@@ -57,7 +57,8 @@ ingyen van, rövidíteni vagy visszavonni sehogy.
   hányszor állította meg a szűrő (hosztonként két percen belül egyszer). Egy hétről
   egyszer; a gépen
   csak amíg az app fut, Androidon a szűrő szolgáltatása mondja, az app nélkül
-  is (iPhone-on értesítés nincs); a rejtett vagy fedőnevű címet az értesítés
+  is (iPhone-on hétfő reggel egy emlékeztető hív oda, a mondat az appban
+  születik); a rejtett vagy fedőnevű címet az értesítés
   sem mondja ki. A mondatok **heti naplóban** megmaradnak a statisztikán,
   mindhárom platformon (fél év, a legfrissebb elöl), és fölöttük az áll, ami
   most szólna — bármelyik napon. A sort az írja, ami mindig fut: a gépen a
