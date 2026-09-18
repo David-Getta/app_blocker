@@ -44,24 +44,22 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A heti mondat a leghosszabb sorozatot is mondja.** A mostani
-          sorozat mellett, zárójelben, mindhárom platformon:
-          „5 napja minden nap leültél (a leghosszabb sorozatod: 12 nap).”
-          Sorozat nélkül a puszta rekord itt nem hangzik el — a heti mondat
-          a hétről beszél, a rekord a statisztikáé. Ha a mostani a rekord,
-          nem ismétli.
+          **Amikor a csúcs-nap a menet-nap.** Ha a négy hét csúcs-napja
+          (amelyiken a kéz a legtöbbször megakad) ugyanaz, mint a menet-nap
+          (amelyiken a legtöbbször leülsz), a statisztika és a heti mondat
+          kimondja mindhárom platformon:
+          „A csúcs-nap és a menet-nap ugyanaz: kedd — a kéz azon a napon csúszik, amelyiken le szoktál ülni.”
+          A csúcs-óra és a menet-óra egybeesésének párja. Tény, nem ítélet.
 
-          ### Ami a v0.4.145-ben jött
+          ### Ami a v0.4.146-ban jött
 
-          **A README és a weboldal a menet-sorozatról** — hány napja ülsz
-          le minden nap, a napló rekordjával, a heti mondatban, a böngésző
-          lapjain és a döntés helyein. Kód nem változott.
+          **A heti mondat a leghosszabb sorozatot is mondja** — a mostani
+          sorozat mellett, zárójelben; sorozat nélkül a puszta rekord itt
+          nem hangzik el, az a statisztikáé.
 
-          #### Ami a v0.4.144-ben jött
+          #### Ami a v0.4.145-ben jött
 
-          **A menet-sorozat ott is, ahol a döntés van:** a gépi kártya és a
-          réteg lába, a telefonok kezdőlapjának kártyája és az Android
-          szűrő-értesítés sora is mondja — a menet gombja mellett.
+          **A README és a weboldal a menet-sorozatról.** Kód nem változott.
 
           NOTES
           fi
