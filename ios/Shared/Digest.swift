@@ -86,12 +86,15 @@ public enum DigestLogic {
         public var filterHitsPeak: (hour: Int, count: Int)?
         /// A hét csúcs-oldala (nyers név, a címkézés a mondaté; szám) — melyik oldal akaszt meg a legtöbbször.
         public var filterHitsTop: (label: String, count: Int)?
+        /// Az azt megelőző 7 nap — a hét az előző héthez képest; nulla, ha nem volt (vagy a könyv akkor kezdődött).
+        public var filterHitsPrev7d: Int
 
         public init(
             last7Seconds: Double = 0, topWeekSites: [Top] = [], topWeekApps: [Top] = [],
             weekOverWeek: [Delta] = [], focusWeek: Focus.Summary, unlocks7d: Int,
             daysTracked: Int = 0, unblockedTop: [Top] = [], dropped7d: Int = 0, filterHits7d: Int = 0,
-            filterHitsPeak: (hour: Int, count: Int)? = nil, filterHitsTop: (label: String, count: Int)? = nil
+            filterHitsPeak: (hour: Int, count: Int)? = nil, filterHitsTop: (label: String, count: Int)? = nil,
+            filterHitsPrev7d: Int = 0
         ) {
             self.last7Seconds = last7Seconds
             self.topWeekSites = topWeekSites
@@ -105,6 +108,7 @@ public enum DigestLogic {
             self.filterHits7d = filterHits7d
             self.filterHitsPeak = filterHitsPeak
             self.filterHitsTop = filterHitsTop
+            self.filterHitsPrev7d = filterHitsPrev7d
         }
     }
 
@@ -155,10 +159,15 @@ public enum DigestLogic {
         else if input.dropped7d > 0 { parts.append("Feloldás nélkül\(droppedPart).") }
         else if measured || f.sessions > 0 { parts.append("Feloldás nélkül.") }
         // A megakadás: hányszor állította meg a szűrő — tény, nem ítélet.
+        // Az előző hét a szám mellett, zárójelben — irány, nem ítélet. Nulla előző
+        // hét nem összehasonlítás; a nulla hét viszont mondat, ha volt mihez mérni.
+        let prev = input.filterHitsPrev7d > 0 ? " (az előző héten \(input.filterHitsPrev7d))" : ""
         if input.filterHits7d > 0 {
             let peak = input.filterHitsPeak.map { ", a csúcs \(FilterHitLogic.hourLabel($0.hour))" } ?? ""
             let top = input.filterHitsTop.map { ", a legtöbbször: \(labelOf($0.label)) (\($0.count)×)" } ?? ""
-            parts.append("\(input.filterHits7d) megakadás a szűrőben\(peak)\(top).")
+            parts.append("\(input.filterHits7d) megakadás a szűrőben\(prev)\(peak)\(top).")
+        } else if input.filterHitsPrev7d > 0 {
+            parts.append("Megakadás nélkül a szűrőben\(prev).")
         }
         if measured, let open = input.unblockedTop.first, open.seconds > 0 {
             parts.append("Nincs tiltva, de sokat vitt: \(labelOf(open.label)) \(hm(open.seconds)).")
@@ -225,7 +234,8 @@ public enum DigestLogic {
             dropped7d: (st.droppedAttempts ?? []).filter { $0 >= weekAgo }.count,
             filterHits7d: FilterHitLogic.hits7d(st.filterHits ?? [:], now: now),
             filterHitsPeak: FilterHitLogic.peakHour(st.filterHitHours ?? [:], now: now),
-            filterHitsTop: FilterHitLogic.topSite(st.filterHitHosts ?? [:], now: now).map { (label: $0.site, count: $0.count) }
+            filterHitsTop: FilterHitLogic.topSite(st.filterHitHosts ?? [:], now: now).map { (label: $0.site, count: $0.count) },
+            filterHitsPrev7d: FilterHitLogic.hitsPrev7d(st.filterHits ?? [:], now: now)
         )
     }
 

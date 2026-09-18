@@ -618,6 +618,49 @@ const WIRES = [
     needle: 'FilterHitLogic.reasonLine(reasons)',
     lost: 'az iPhone statisztikája nem mondaná az okokat',
   },
+  // A HÉT AZ ELŐZŐ HÉTHEZ KÉPEST: a bővítmény két hetet küld, a segéd és a
+  // telefonok az előző hetet is összegzik, a statisztika és a heti mondat mondja.
+  // Ha a híd egy hetet vinne, az előző hét mindig nulla lenne — és a sor csendben eltűnne.
+  {
+    file: 'extension/hits.js',
+    needle: 'export function hitsReport(state, today, count = REPORT_DAYS)',
+    lost: 'a híd csak egy hetet vinne — az előző hét a gépen mindig nulla',
+  },
+  {
+    file: 'desktop/src/helper/server.ts',
+    needle: 'browserHitsPrev7d: browserHitsPrev7d(state.browserHits, now),',
+    lost: 'a segéd státusza nem mondaná az előző hetet',
+  },
+  {
+    file: 'desktop/src/helper/digest-journal.ts',
+    needle: 'browserHitsPrev7d: browserHitsPrev7d(state.browserHits, now),',
+    lost: 'a gépi heti mondat nem mondaná az előző hetet',
+  },
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: 'hitsTrendText(status?.browserHits7d ?? 0, status?.browserHitsPrev7d ?? 0)',
+    lost: 'a gépi statisztika nem mondaná a hetet az előző héthez képest',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/Digest.kt',
+    needle: 'filterHitsPrev7d = FilterHitLogic.hitsPrev7d(st.filterHits, now),',
+    lost: 'Androidon a heti mondat nem mondaná az előző hetet',
+  },
+  {
+    file: 'ios/Shared/Digest.swift',
+    needle: 'filterHitsPrev7d: FilterHitLogic.hitsPrev7d(st.filterHits ?? [:], now: now)',
+    lost: 'iPhone-on a heti mondat nem mondaná az előző hetet',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/StatsScreen.kt',
+    needle: 'FilterHitLogic.trendText(filterHits7d, filterHitsPrev7d)',
+    lost: 'az Android statisztikája nem mondaná a hetet az előző héthez képest',
+  },
+  {
+    file: 'ios/App/StatsView.swift',
+    needle: 'FilterHitLogic.trendText(',
+    lost: 'az iPhone statisztikája nem mondaná a hetet az előző héthez képest',
+  },
   {
     file: 'android/app/src/main/java/hu/breaker/app/core/Digest.kt',
     needle: 'filterHitsTop = FilterHitLogic.topSite(st.filterHitHosts, now),',

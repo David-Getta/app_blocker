@@ -6,8 +6,8 @@ import * as assert from 'node:assert/strict';
 import {
   HIT_NUDGE_STEPS, HIT_REASON_LABELS, MAX_HITS_PER_DAY, MAX_HIT_DAYS, MAX_HIT_SOURCES, MAX_TOP_HOSTS,
   PEAK_WARN_LEAD_MS, PEAK_WARN_MIN_COUNT, browserHits7d, browserHitsBetween, browserHitsByReason, browserHitsPeakHour,
-  browserHitsSeries, browserHitsToday, browserHitsTopSite, cleanBrowserHitDays, cleanBrowserHits, hitDayKey, hitNudgeStep,
-  hitNudgeText, hitsReasonLine, hostSite, hourLabel, peakWarnKey, peakWarnText, putBrowserHits,
+  browserHitsPrev7d, browserHitsSeries, browserHitsToday, browserHitsTopSite, cleanBrowserHitDays, cleanBrowserHits, hitDayKey,
+  hitNudgeStep, hitNudgeText, hitsReasonLine, hitsTrendText, hostSite, hourLabel, peakWarnKey, peakWarnText, putBrowserHits,
 } from '../src/shared/browser-hits';
 import { digestText } from '../src/shared/digest';
 import { summarizeFocus } from '../src/shared/focus';
@@ -45,7 +45,7 @@ test('a könyv forrásonként: csere, törlés üres jelentéssel, rossz azonos�
   assert.equal(browserHitsToday(book, NOW), 3, 'a két böngésző összeadódik');
   assert.equal(browserHits7d(book, NOW), 6, 'a hét legrégebbi napja (12.) benne');
   assert.equal(browserHitsBetween(book, '2026-09-13', '2026-09-18'), 3);
-  // Csere: a forrás mindig a teljes hetét küldi, a régi sorai mennek.
+  // Csere: a forrás mindig a teljes két hetét küldi, a régi sorai mennek.
   book = putBrowserHits(book, 'chrome1', [{ day: '2026-09-18', total: 5 }]);
   assert.equal(browserHitsToday(book, NOW), 6);
   book = putBrowserHits(book, 'chrome1', []);
@@ -77,7 +77,8 @@ test('a segéd mondata a könyvből: a forrásokat összeadja, az ablak a mai na
   state.unlockLog = [NOW - 86_400_000];
   state.browserHits = putBrowserHits(undefined, 'a', [{ day: '2026-09-18', total: 2 }, { day: '2026-09-11', total: 9 }]);
   state.browserHits = putBrowserHits(state.browserHits, 'b', [{ day: '2026-09-12', total: 1 }]);
-  assert.equal(digestTextNow(state, NOW), 'Elmúlt 7 nap: 1 feloldás. 3 megakadás a böngészőben.');
+  assert.equal(digestTextNow(state, NOW), 'Elmúlt 7 nap: 1 feloldás. 3 megakadás a böngészőben (az előző héten 9).',
+    'a 11. az előző hété — a mondat a szám mellett mondja');
 });
 
 test('a hét alakja: hét nap, a legrégebbi elöl, a források összeadva, az üres nap nulla', () => {
@@ -184,4 +185,31 @@ test('a hét csúcs-oldala: az élboly a hídról tisztán, a hoszt a lista tét
   assert.equal(digestText({ ...base, browserHits7d: 12, browserHitsPeak: { hour: 21, count: 7 }, browserHitsTop: { label: 'youtube.com', count: 5 } },
     (l) => (l === 'youtube.com' ? 'A videós' : l)),
   'Elmúlt 7 nap: 12 megakadás a böngészőben, a csúcs 21–22 óra, a legtöbbször: A videós (5×).');
+});
+
+test('a hét az előző héthez képest: a 13.–7. nap, a mondat a két számmal — előző hét nélkül nincs', () => {
+  const d = (back: number): string => hitDayKey(NOW - back * 86_400_000);
+  const book = putBrowserHits(undefined, 'chrome1', [
+    { day: d(0), total: 2 }, { day: d(6), total: 3 },
+    { day: d(7), total: 9 }, { day: d(13), total: 4 },
+    { day: d(14), total: 100 }, // tizennégy napja: egyik hété sem
+  ]);
+  assert.equal(browserHits7d(book, NOW), 5);
+  assert.equal(browserHitsPrev7d(book, NOW), 13, 'a hetedik és a tizenharmadik nap benne, a tizennegyedik nem');
+  assert.equal(browserHitsPrev7d(undefined, NOW), 0);
+  assert.equal(hitsTrendText(12, 18), 'A héten 12 megakadás, az előző héten 18.');
+  assert.equal(hitsTrendText(0, 18), 'A héten 0 megakadás, az előző héten 18.', 'a nulla hét is mondat, ha volt mihez mérni');
+  assert.equal(hitsTrendText(12, 0), '', 'előző hét nélkül nincs összehasonlítás');
+  const base = {
+    last7Seconds: 0, topWeekSites: [], weekOverWeek: [], daysTracked: 0,
+    focusWeek: summarizeFocus([], 0, NOW), unlocks7d: 0,
+  };
+  assert.equal(digestText({ ...base, browserHits7d: 12, browserHitsPrev7d: 18 }, (l) => l),
+    'Elmúlt 7 nap: 12 megakadás a böngészőben (az előző héten 18).');
+  assert.equal(digestText({ ...base, browserHits7d: 0, browserHitsPrev7d: 18 }, (l) => l),
+    'Elmúlt 7 nap: Megakadás nélkül a böngészőben (az előző héten 18).', 'a nulla hét is mondat, ha volt mihez mérni');
+  assert.equal(digestText({ ...base, browserHits7d: 12, browserHitsPrev7d: 18, browserHitsPeak: { hour: 21, count: 7 } }, (l) => l),
+    'Elmúlt 7 nap: 12 megakadás a böngészőben (az előző héten 18), a csúcs 21–22 óra.', 'az előző hét a szám mellett, a csúcs utána');
+  assert.equal(digestText({ ...base, browserHits7d: 12, browserHitsPrev7d: 0 }, (l) => l),
+    'Elmúlt 7 nap: 12 megakadás a böngészőben.', 'előző hét nélkül a régi mondat');
 });

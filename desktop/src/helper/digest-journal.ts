@@ -14,7 +14,7 @@ import { cleanDigestLog, digestDue, digestText, recordDigest } from '../shared/d
 import { displayName, isAliased } from '../shared/alias';
 import { summarizeFocus } from '../shared/focus';
 import { suggestBlocks, summarize } from '../shared/usage';
-import { browserHits7d, browserHitsPeakHour, browserHitsTopSite } from '../shared/browser-hits';
+import { browserHits7d, browserHitsPeakHour, browserHitsPrev7d, browserHitsTopSite } from '../shared/browser-hits';
 import type { HelperState } from './state';
 
 /** A mai nap kezdete helyi idő szerint — ugyanaz, mint a statisztikáé. */
@@ -52,6 +52,7 @@ export function digestTextNow(state: HelperState, now: number): string | null {
     unlocks7d: state.unlockLog.filter((t) => t >= now - 7 * 24 * 3600_000).length,
     dropped7d: (state.droppedAttempts ?? []).filter((t) => t >= now - 7 * 24 * 3600_000).length,
     browserHits7d: browserHits7d(state.browserHits, now),
+    browserHitsPrev7d: browserHitsPrev7d(state.browserHits, now),
     browserHitsPeak: browserHitsPeakHour(state.browserHits, now),
     browserHitsTop: browserHitsTopSite(state.browserHits, now, state.sites),
     daysTracked: s.daysTracked,

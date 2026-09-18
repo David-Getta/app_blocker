@@ -149,9 +149,15 @@ export function hitsSummary(state, today) {
  * Az elmúlt 7 nap sorai a hídra: nap, összeg, okonként. Csak azok a napok,
  * amikor volt megakadás — az üres nap nem sor.
  */
-export function hitsReport(state, today) {
+/**
+ * Ennyi napot küld a híd az appnak: két hetet, hogy a gép a hetet az előző
+ * héthez mérhesse. A forrás mindig a teljes két hetét küldi, a segéd cseréli.
+ */
+export const REPORT_DAYS = 14;
+
+export function hitsReport(state, today, count = REPORT_DAYS) {
   const out = [];
-  for (const day of lastDays(today, 7)) {
+  for (const day of lastDays(today, count)) {
     const total = hitsOn(state, day);
     if (total === 0) continue;
     const raw = state?.days?.[day]?.byReason;
@@ -193,7 +199,7 @@ export function hitsText(summary) {
 
 /** Egy nap sora a beállítási lapon: „szept. 18. — 3 (kulcsszó 2, zárva 1)”. */
 export function hitsRows(state, today) {
-  return hitsReport(state, today).reverse().map((r) => ({
+  return hitsReport(state, today, 7).reverse().map((r) => ({
     day: r.day,
     total: r.total,
     detail: Object.entries(r.byReason).map(([k, n]) => `${REASON_NAMES[k] ?? k} ${n}`).join(', '),
@@ -209,7 +215,7 @@ export const REASON_NAMES = { closed: 'zárva oldal', focus: 'munkamenet', chann
  */
 export function hitsWeekByReason(state, today) {
   const sum = {};
-  for (const r of hitsReport(state, today)) for (const [k, n] of Object.entries(r.byReason)) sum[k] = (sum[k] ?? 0) + n;
+  for (const r of hitsReport(state, today, 7)) for (const [k, n] of Object.entries(r.byReason)) sum[k] = (sum[k] ?? 0) + n;
   const order = [...HIT_REASONS, 'other'];
   return Object.entries(sum).filter(([, n]) => n > 0)
     .sort((a, b) => b[1] - a[1] || order.indexOf(a[0]) - order.indexOf(b[0]))

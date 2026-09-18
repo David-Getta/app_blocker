@@ -25,6 +25,7 @@ interface Hits {
   hitsOn: (state: unknown, day: string) => number;
   hitsSummary: (state: unknown, today: string) => { today: number; week: number };
   hitsReport: (state: unknown, today: string) => { day: string; total: number; byReason: Record<string, number>; topHosts?: [string, number][] }[];
+  REPORT_DAYS: number;
   hitsText: (s: { today: number; week: number }) => string | null;
   hitsRows: (state: unknown, today: string) => { day: string; total: number; detail: string }[];
   hitsOnHost: (state: unknown, day: string, host: string) => number;
@@ -44,7 +45,7 @@ interface Hits {
 function load(): Hits {
   const src = fs.readFileSync(path.join(extensionDir(), 'hits.js'), 'utf8').replace(/^export /gm, '');
   // eslint-disable-next-line no-new-func
-  return new Function(`${src}\nreturn { RETENTION_DAYS, MAX_HOSTS_PER_DAY, dayKey, lastDays, recordHit, sweepHits, hitsOn, hitsOnHost, hitsSummary, hitsReport, hitsText, hitsRows, hitsByHour, peakHour, hourLabel, hitsNudge, NUDGE_AT, hitsWeekByReason, hitsReasonText, REASON_NAMES, TOP_HOSTS_PER_DAY, topHost };`)() as Hits;
+  return new Function(`${src}\nreturn { RETENTION_DAYS, REPORT_DAYS, MAX_HOSTS_PER_DAY, dayKey, lastDays, recordHit, sweepHits, hitsOn, hitsOnHost, hitsSummary, hitsReport, hitsText, hitsRows, hitsByHour, peakHour, hourLabel, hitsNudge, NUDGE_AT, hitsWeekByReason, hitsReasonText, REASON_NAMES, TOP_HOSTS_PER_DAY, topHost };`)() as Hits;
 }
 
 const TODAY = '2026-09-18';
@@ -77,14 +78,17 @@ test('takarítás: harminc napnál régebbi és jövőbeli nap kiesik', () => {
   assert.equal(h.sweepHits(undefined, TODAY).days !== undefined, true);
 });
 
-test('összegzés és a hídra menő sorok: ma és az elmúlt 7 nap, üres nap nem sor', () => {
+test('összegzés és a hídra menő sorok: ma és az elmúlt 7 nap; a hídra két hét megy, üres nap nem sor', () => {
   const h = load();
   let s = {};
   s = h.recordHit(s, TODAY, 'keyword');
   s = h.recordHit(s, '2026-09-12', 'closed'); // a hét legrégebbi napja: benne
-  s = h.recordHit(s, '2026-09-11', 'closed'); // nyolc napja: nincs benne
+  s = h.recordHit(s, '2026-09-11', 'closed'); // nyolc napja: nincs a hétben — de a hídra megy (az előző hét)
+  s = h.recordHit(s, '2026-09-04', 'closed'); // tizennégy napja: a két hétben sincs benne
   assert.deepEqual(h.hitsSummary(s, TODAY), { today: 1, week: 2 });
+  assert.equal(h.REPORT_DAYS, 14, 'a híd két hetet visz: a gép a hetet az előző héthez méri');
   assert.deepEqual(h.hitsReport(s, TODAY), [
+    { day: '2026-09-11', total: 1, byReason: { closed: 1 } },
     { day: '2026-09-12', total: 1, byReason: { closed: 1 } },
     { day: TODAY, total: 1, byReason: { keyword: 1 } },
   ]);

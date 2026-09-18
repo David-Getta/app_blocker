@@ -22,7 +22,7 @@ import {
   formatLockdownRemaining, isLocked, isWindowLockdown, windowLockdownStarted, LOCKDOWN_CHOICES_MIN,
   MAX_LOCKDOWN_WINDOWS, type Lockdown, type LockdownWindow,
 } from '../shared/lockdown.js';
-import { hitNudgeStep, hitNudgeText, hitsReasonLine, hourLabel, peakWarnKey, peakWarnText } from '../shared/browser-hits.js';
+import { hitNudgeStep, hitNudgeText, hitsReasonLine, hitsTrendText, hourLabel, peakWarnKey, peakWarnText } from '../shared/browser-hits.js';
 import { stepBurstNotices, type BurstNotice, type BurstWatch } from '../shared/burst-notify.js';
 import {
   cleanDigestLog, daysSinceUnlock, digestDue, digestText, recordDigest, relabelDigest, weekLabel, type DigestEntry,
@@ -4285,6 +4285,11 @@ function renderStats(): void {
   const top = status?.browserHitsTop ?? null;
   $('hitsTopNote').classList.toggle('hidden', top === null);
   $('hitsTopNote').textContent = top ? `A legtöbbször: ${statLabel(top.label)} (${top.count}×).` : '';
+  // A HÉT AZ ELŐZŐ HÉTHEZ KÉPEST: a két szám egymás mellett — irány, nem
+  // ítélet. Előző hét nélkül nincs: egy nulla nem összehasonlítás.
+  const trend = hitsTrendText(status?.browserHits7d ?? 0, status?.browserHitsPrev7d ?? 0);
+  $('hitsTrendNote').classList.toggle('hidden', trend === '');
+  $('hitsTrendNote').textContent = trend;
   // A SOKADIK megakadás a statisztikán is: a mondat, és egy kattintás a
   // menetig — a legutóbb használt csomag a szokásos hosszával (a segéd
   // választja). Futó menet mellett nincs gomb: egyszerre egy menet fut.

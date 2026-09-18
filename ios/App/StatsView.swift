@@ -133,6 +133,15 @@ struct StatsView: View {
                         Text("Ebből: \(FilterHitLogic.reasonLine(reasons)).")
                             .font(.footnote).foregroundStyle(.secondary)
                     }
+                    // A HÉT AZ ELŐZŐ HÉTHEZ KÉPEST: a két szám egymás mellett — irány,
+                    // nem ítélet. Előző hét nélkül nincs: egy nulla nem összehasonlítás.
+                    let trend = FilterHitLogic.trendText(
+                        FilterHitLogic.hits7d(store.state.filterHits ?? [:], now: now),
+                        prev: FilterHitLogic.hitsPrev7d(store.state.filterHits ?? [:], now: now)
+                    )
+                    if !trend.isEmpty {
+                        Text(trend).font(.footnote).foregroundStyle(.secondary)
+                    }
                     // HA NEM KÉRED, csendben marad: az előjelzés a csúcs-óra előtt
                     // kikapcsolható — a lap kártyája akkor is mondja.
                     Toggle("Szóljon a csúcs-óra előtt", isOn: Binding(

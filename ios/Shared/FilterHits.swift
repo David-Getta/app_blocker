@@ -87,6 +87,19 @@ public enum FilterHitLogic {
         return hitsBetween(days, d, d)
     }
 
+    /// Az azt megelőző 7 nap (a mai naptól visszafelé a 13.–7. nap) — a hét az előző héthez képest.
+    public static func hitsPrev7d(_ days: [String: Int], now: Double) -> Int {
+        hitsBetween(days, dayKey(now - 13 * 86_400_000), dayKey(now - 7 * 86_400_000))
+    }
+
+    /// „A héten 12 megakadás, az előző héten 18.” — a két szám egymás mellett,
+    /// ítélet nélkül: a tükör mutatja az irányt, nem minősíti. Előző hét nélkül
+    /// (nulla: a könyv talán akkor kezdődött) nincs mondat — egy nulla nem
+    /// összehasonlítás. A nulla hét viszont mondat, ha volt mihez mérni.
+    public static func trendText(_ week: Int, prev: Int) -> String {
+        prev <= 0 ? "" : "A héten \(week) megakadás, az előző héten \(prev)."
+    }
+
     // MARK: - óránként
 
     /// A nap órája helyi idő szerint, 0–23.

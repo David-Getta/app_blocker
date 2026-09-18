@@ -93,6 +93,8 @@ object DigestLogic {
          * mondja, mennyit.
          */
         val filterHits7d: Int = 0,
+        /** az azt megelőző 7 nap — a hét az előző héthez képest; nulla, ha nem volt (vagy a könyv akkor kezdődött) */
+        val filterHitsPrev7d: Int = 0,
         /** a hét csúcs-órája a szűrő megakadásaira (óra, szám) — mikor jár a kéz magától; null, ha nem volt */
         val filterHitsPeak: Pair<Int, Int>? = null,
         /** a hét csúcs-oldala (nyers név, a címkézés a mondaté; szám) — melyik oldal akaszt meg a legtöbbször */
@@ -155,10 +157,15 @@ object DigestLogic {
         else if (input.dropped7d > 0) parts.add("Feloldás nélkül$droppedPart.")
         else if (measured || f.sessions > 0) parts.add("Feloldás nélkül.")
         // A megakadás: hányszor állította meg a szűrő — tény, nem ítélet.
+        // Az előző hét a szám mellett, zárójelben — irány, nem ítélet. Nulla előző
+        // hét nem összehasonlítás; a nulla hét viszont mondat, ha volt mihez mérni.
+        val prev = if (input.filterHitsPrev7d > 0) " (az előző héten ${input.filterHitsPrev7d})" else ""
         if (input.filterHits7d > 0) {
             val peak = input.filterHitsPeak?.let { ", a csúcs ${FilterHitLogic.hourLabel(it.first)}" } ?: ""
             val top = input.filterHitsTop?.let { ", a legtöbbször: ${labelOf(it.first)} (${it.second}×)" } ?: ""
-            parts.add("${input.filterHits7d} megakadás a szűrőben$peak$top.")
+            parts.add("${input.filterHits7d} megakadás a szűrőben$prev$peak$top.")
+        } else if (input.filterHitsPrev7d > 0) {
+            parts.add("Megakadás nélkül a szűrőben$prev.")
         }
         // A tükör másik fele: ami sokat vitt, és nincs a listán. Egy név, a
         // legnagyobb — a többi a felvevő kártyán vár, egy kattintásra.
@@ -255,6 +262,7 @@ object DigestLogic {
             unlocks7d = st.unlockLog.count { it >= weekAgo },
             dropped7d = st.droppedAttempts.count { it >= weekAgo },
             filterHits7d = FilterHitLogic.hits7d(st.filterHits, now),
+            filterHitsPrev7d = FilterHitLogic.hitsPrev7d(st.filterHits, now),
             filterHitsPeak = FilterHitLogic.peakHour(st.filterHitHours, now),
             filterHitsTop = FilterHitLogic.topSite(st.filterHitHosts, now),
             daysTracked = summary.daysTracked,

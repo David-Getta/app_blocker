@@ -54,8 +54,9 @@ ingyen van, rövidíteni vagy visszavonni sehogy.
   **megakadások**: a gépen hányszor vitt a tiltó lapra a böngésző-bővítmény
   (a bővítmény számolja, a hídon adja át; a felugró lapján, a beállítás-lapján
   és magán a tiltó lapon is látszik — „Ma ez a 7. megakadás”), a telefonon
-  hányszor állította meg a szűrő (hosztonként két percen belül egyszer; a gépi
-  statisztika okonként is bontja: melyik szabály dolgozik). Egy hétről
+  hányszor állította meg a szűrő (hosztonként két percen belül egyszer; a
+  statisztika okonként is bontja: melyik szabály dolgozik — és a hetet az
+  előző héthez méri, ítélet nélkül). Egy hétről
   egyszer; a gépen
   csak amíg az app fut, Androidon a szűrő szolgáltatása mondja, az app nélkül
   is (iPhone-on hétfő reggel egy emlékeztető hív oda, a mondat az appban

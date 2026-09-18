@@ -91,6 +91,19 @@ object FilterHitLogic {
         return hitsBetween(days, d, d)
     }
 
+    /** Az azt megelőző 7 nap (a mai naptól visszafelé a 13.–7. nap) — a hét az előző héthez képest. */
+    fun hitsPrev7d(days: Map<String, Int>, now: Long): Int =
+        hitsBetween(days, UsageLogic.dayKey(now - 13 * 86_400_000L), UsageLogic.dayKey(now - 7 * 86_400_000L))
+
+    /**
+     * „A héten 12 megakadás, az előző héten 18.” — a két szám egymás mellett,
+     * ítélet nélkül: a tükör mutatja az irányt, nem minősíti. Előző hét nélkül
+     * (nulla: a könyv talán akkor kezdődött) nincs mondat — egy nulla nem
+     * összehasonlítás. A nulla hét viszont mondat, ha volt mihez mérni.
+     */
+    fun trendText(week: Int, prev: Int): String =
+        if (prev <= 0) "" else "A héten $week megakadás, az előző héten $prev."
+
     /** Az utolsó `count` nap sora, a legrégebbi elöl — a hét alakja a megakadásokra (darab, Double-ben a rajz kedvéért). */
     fun daySeries(days: Map<String, Int>, now: Long, count: Int): List<Pair<String, Double>> =
         UsageLogic.dayKeysBack(now, count).map { it to hitsBetween(days, it, it).toDouble() }

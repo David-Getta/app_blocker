@@ -433,6 +433,17 @@ forgalom nem megakadás, ezért oknak sem számít), és a statisztika a hét
 sorát mondja: „Ebből: 30 lista · 12 kulcsszó.” Holtversenynél itt is a
 rögzített sorrend.
 
+**A hét az előző héthez képest:** a két szám egymás mellett — „A héten 12
+megakadás, az előző héten 18.” — a statisztika megakadás-blokkjában
+mindhárom platformon, és a heti mondatban a szám mellett, zárójelben: „12
+megakadás a böngészőben (az előző héten 18), a csúcs 21–22 óra.” Irány, nem
+ítélet: a tükör mutatja, merre megy, és nem minősíti. Előző hét nélkül
+(nulla — a könyv talán akkor kezdődött) nincs mondat, mert egy nulla nem
+összehasonlítás; a nulla hét viszont mondat, ha volt mihez mérni:
+„Megakadás nélkül a böngészőben (az előző héten 18).” Ehhez a bővítmény a
+hídra két hetet küld (`REPORT_DAYS`), a segéd cseréli; a telefon könyve
+harminc napos, ott eleve megvan.
+
 **Melyik oldal akaszt meg a legtöbbször:** a hét csúcs-oldala mindhárom
 platformon. A gépen a bővítmény napi élbolyából (a segéd a lista tételéhez
 rendeli: a `m.youtube.com` és a `www.youtube.com` egy oldal; a napi öt hoszt

@@ -65,6 +65,16 @@ class FilterHitsTest {
         assertEquals(5, FilterHitLogic.hits7d(days, now))
         assertEquals(2, FilterHitLogic.hitsToday(days, now))
         assertEquals(0, FilterHitLogic.hits7d(emptyMap(), now))
+        // Az előző hét: a 13.–7. nap — a hetedik és a tizenharmadik benne, a tizennegyedik nem.
+        val two = days + mapOf(
+            UsageLogic.dayKey(now - 13 * 86_400_000L) to 4,
+            UsageLogic.dayKey(now - 14 * 86_400_000L) to 100,
+        )
+        assertEquals(13, FilterHitLogic.hitsPrev7d(two, now))
+        assertEquals(0, FilterHitLogic.hitsPrev7d(emptyMap(), now))
+        assertEquals("A héten 12 megakadás, az előző héten 18.", FilterHitLogic.trendText(12, 18))
+        assertEquals("A héten 0 megakadás, az előző héten 18.", FilterHitLogic.trendText(0, 18), "a nulla hét is mondat, ha volt mihez mérni")
+        assertEquals("", FilterHitLogic.trendText(12, 0), "előző hét nélkül nincs összehasonlítás")
     }
 
     @Test fun `a het alakja - het nap, a legregebbi elol, az ures nap nulla`() {
@@ -204,6 +214,12 @@ class FilterHitsTest {
         assertEquals("Elmúlt 7 nap: 3 megakadás a szűrőben.",
             DigestLogic.text(base.copy(unlocks7d = 0, filterHits7d = 3)) { it }, "megakadás feloldás nélkül is mondat")
         assertEquals("Elmúlt 7 nap: 1 feloldás.", DigestLogic.text(base) { it })
+        assertEquals("Elmúlt 7 nap: 12 megakadás a szűrőben (az előző héten 18), a csúcs 21–22 óra.",
+            DigestLogic.text(base.copy(unlocks7d = 0, filterHits7d = 12, filterHitsPrev7d = 18, filterHitsPeak = 21 to 7)) { it },
+            "az előző hét a szám mellett, a csúcs utána")
+        assertEquals("Elmúlt 7 nap: Megakadás nélkül a szűrőben (az előző héten 18).",
+            DigestLogic.text(base.copy(unlocks7d = 0, filterHits7d = 0, filterHitsPrev7d = 18)) { it },
+            "a nulla hét is mondat, ha volt mihez mérni")
 
         val toJson = BreakerStore::class.java.getDeclaredMethod("toJson", AppState::class.java).apply { isAccessible = true }
         val fromJson = BreakerStore::class.java.getDeclaredMethod("fromJson", JSONObject::class.java).apply { isAccessible = true }

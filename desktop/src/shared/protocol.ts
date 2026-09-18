@@ -181,6 +181,8 @@ export interface StatusData {
    */
   browserHits7d?: number;
   browserHitsToday?: number;
+  /** az azt megelőző 7 nap — a hét az előző héthez képest (a bővítmény két hetet küld) */
+  browserHitsPrev7d?: number;
   /** az elmúlt 7 nap megakadásai naponként, a legrégebbi elöl — a hét alakja */
   browserHitsDays?: { day: string; total: number }[];
   /** a hét csúcs-órája: mikor jár a kéz magától — null, ha még nem volt megakadás */

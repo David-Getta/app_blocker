@@ -11,7 +11,8 @@ import { computeTier } from '../shared/challenges';
 import { normalizeAlias, normalizeReason } from '../shared/alias';
 import { cleanDigestLog } from '../shared/digest';
 import {
-  browserHits7d, browserHitsByReason, browserHitsPeakHour, browserHitsSeries, browserHitsToday, browserHitsTopSite,
+  browserHits7d, browserHitsByReason, browserHitsPeakHour, browserHitsPrev7d, browserHitsSeries, browserHitsToday,
+  browserHitsTopSite,
   putBrowserHits,
 } from '../shared/browser-hits';
 import { normalizeRule } from '../shared/urlrules';
@@ -134,6 +135,7 @@ export function statusOf(
     dropped7d: (state.droppedAttempts ?? []).filter((t) => t >= now - 7 * 24 * 3600_000).length,
     browserHits7d: browserHits7d(state.browserHits, now),
     browserHitsToday: browserHitsToday(state.browserHits, now),
+    browserHitsPrev7d: browserHitsPrev7d(state.browserHits, now),
     browserHitsDays: browserHitsSeries(state.browserHits, now, 7),
     browserHitsPeak: browserHitsPeakHour(state.browserHits, now),
     browserHitsReasons: browserHitsByReason(state.browserHits, now),

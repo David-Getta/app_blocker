@@ -87,7 +87,7 @@ export function cleanBrowserHits(raw: unknown): BrowserHits {
 
 /**
  * Egy forrás jelentése a könyvbe — a forrás sorai cserélődnek (a bővítmény
- * mindig a teljes hetét küldi), a többi forrásé marad. Rossz azonosító vagy
+ * mindig a teljes két hetét küldi), a többi forrásé marad. Rossz azonosító vagy
  * betelt könyv (új forrásnak): nincs változás. Új könyvet ad vissza.
  */
 export function putBrowserHits(book: BrowserHits | undefined, source: string, days: unknown): BrowserHits {
@@ -125,6 +125,22 @@ export function browserHits7d(book: BrowserHits | undefined, now: number): numbe
 export function browserHitsToday(book: BrowserHits | undefined, now: number): number {
   const today = hitDayKey(now);
   return browserHitsBetween(book, today, today);
+}
+
+/** Az azt megelőző 7 nap (a mai naptól visszafelé a 13.–7. nap) — a hét az előző héthez képest. */
+export function browserHitsPrev7d(book: BrowserHits | undefined, now: number): number {
+  return browserHitsBetween(book, hitDayKey(now - 13 * 86_400_000), hitDayKey(now - 7 * 86_400_000));
+}
+
+/**
+ * „A héten 12 megakadás, az előző héten 18.” — a két szám egymás mellett,
+ * ítélet nélkül: a tükör mutatja az irányt, nem minősíti. Előző hét nélkül
+ * (nulla: a könyv talán akkor kezdődött) nincs mondat — egy nulla nem
+ * összehasonlítás. A nulla hét viszont mondat, ha volt mihez mérni.
+ */
+export function hitsTrendText(week: number, prev: number): string {
+  if (prev <= 0) return '';
+  return `A héten ${week} megakadás, az előző héten ${prev}.`;
 }
 
 /** A csúcs-óra az elmúlt 7 napon, minden forrásból: { hour, count } — vagy null. Holtversenynél a korábbi óra. */

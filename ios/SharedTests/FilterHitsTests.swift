@@ -48,6 +48,15 @@ final class FilterHitsTests: XCTestCase {
         XCTAssertEqual(FilterHitLogic.hits7d(days, now: now), 5, "a hetedik nap benne, a nyolcadik nem")
         XCTAssertEqual(FilterHitLogic.hitsToday(days, now: now), 2)
         XCTAssertEqual(FilterHitLogic.hits7d([:], now: now), 0)
+        // Az előző hét: a 13.–7. nap — a hetedik és a tizenharmadik benne, a tizennegyedik nem.
+        var two = days
+        two[FilterHitLogic.dayKey(now - 13 * 86_400_000)] = 4
+        two[FilterHitLogic.dayKey(now - 14 * 86_400_000)] = 100
+        XCTAssertEqual(FilterHitLogic.hitsPrev7d(two, now: now), 13)
+        XCTAssertEqual(FilterHitLogic.hitsPrev7d([:], now: now), 0)
+        XCTAssertEqual(FilterHitLogic.trendText(12, prev: 18), "A héten 12 megakadás, az előző héten 18.")
+        XCTAssertEqual(FilterHitLogic.trendText(0, prev: 18), "A héten 0 megakadás, az előző héten 18.", "a nulla hét is mondat, ha volt mihez mérni")
+        XCTAssertEqual(FilterHitLogic.trendText(12, prev: 0), "", "előző hét nélkül nincs összehasonlítás")
     }
 
     func testTheShapeOfTheWeek() {
@@ -171,6 +180,12 @@ final class FilterHitsTests: XCTestCase {
                        "Elmúlt 7 nap: 3 megakadás a szűrőben.", "megakadás feloldás nélkül is mondat")
         XCTAssertEqual(DigestLogic.text(DigestLogic.Input(focusWeek: summary, unlocks7d: 1), labelOf: { $0 }),
                        "Elmúlt 7 nap: 1 feloldás.")
+        XCTAssertEqual(DigestLogic.text(DigestLogic.Input(focusWeek: summary, unlocks7d: 0, filterHits7d: 12,
+                                                          filterHitsPeak: (hour: 21, count: 7), filterHitsPrev7d: 18), labelOf: { $0 }),
+                       "Elmúlt 7 nap: 12 megakadás a szűrőben (az előző héten 18), a csúcs 21–22 óra.",
+                       "az előző hét a szám mellett, a csúcs utána")
+        XCTAssertEqual(DigestLogic.text(DigestLogic.Input(focusWeek: summary, unlocks7d: 0, filterHits7d: 0, filterHitsPrev7d: 18), labelOf: { $0 }),
+                       "Elmúlt 7 nap: Megakadás nélkül a szűrőben (az előző héten 18).", "a nulla hét is mondat, ha volt mihez mérni")
 
         var st = AppState()
         st.filterHits = [today: 3]

@@ -120,7 +120,9 @@ hosztot nem tárolja.
 **Ki mondja.** A statisztika (a hét alakja, a csúcs-óra, az okok, a
 csúcs-oldal); a heti mondat: „12 megakadás a böngészőben, a csúcs 21–22 óra, a legtöbbször: youtube.com (7×).”;
 a bővítmény felugró és beállítás-lapja; a tiltó lap a kísértés pillanatában:
-„Ma ez a 7. megakadás — ebből a 3. ezen az oldalon.”; a gyorsbillentyűs réteg
+„Ma ez a 7. megakadás — ebből a 3. ezen az oldalon.”; a hét az előző héthez képest
+(„A héten 12 megakadás, az előző héten 18.” — a híd ehhez két hetet visz);
+a gyorsbillentyűs réteg
 lába és az Android szűrő-értesítésének sora. A rejtett lista és a fedőnév
 mindenhol fed.
 

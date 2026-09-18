@@ -94,6 +94,8 @@ export interface DigestInput {
    * a tiltás akkor dolgozik, amikor az ember nem figyel — ez mondja, mennyit.
    */
   browserHits7d?: number;
+  /** az azt megelőző 7 nap — a hét az előző héthez képest; nulla, ha nem volt (vagy a könyv akkor kezdődött) */
+  browserHitsPrev7d?: number;
   /** a hét csúcs-órája a böngésző megakadásaira — mikor jár a kéz magától; null, ha nem volt */
   browserHitsPeak?: { hour: number; count: number } | null;
   /** a hét csúcs-oldala (nyers név, a címkézés a mondaté) — melyik oldal akaszt meg a legtöbbször */
@@ -160,11 +162,17 @@ export function digestText(input: DigestInput, labelOf: (label: string) => strin
   else if (measured || f.sessions > 0) parts.push('Feloldás nélkül.');
   // A megakadás: hányszor állította meg a böngésző — tény, nem ítélet.
   const hits = input.browserHits7d ?? 0;
+  const prev = input.browserHitsPrev7d ?? 0;
   const peak = input.browserHitsPeak ?? null;
   const top = input.browserHitsTop ?? null;
+  // Az előző hét a szám mellett, zárójelben — irány, nem ítélet. Nulla előző
+  // hét nem összehasonlítás; a nulla hét viszont mondat, ha volt mihez mérni.
+  const prevPart = prev > 0 ? ` (az előző héten ${prev})` : '';
   if (hits > 0) {
-    parts.push(`${hits} megakadás a böngészőben${peak ? `, a csúcs ${hourLabel(peak.hour)}` : ''}`
+    parts.push(`${hits} megakadás a böngészőben${prevPart}${peak ? `, a csúcs ${hourLabel(peak.hour)}` : ''}`
       + `${top ? `, a legtöbbször: ${labelOf(top.label)} (${top.count}×)` : ''}.`);
+  } else if (prev > 0) {
+    parts.push(`Megakadás nélkül a böngészőben${prevPart}.`);
   }
   // A tükör másik fele: ami sokat vitt, és nincs a listán. Egy név, a
   // legnagyobb — a többi a felvevő kártyán vár, egy kattintásra.

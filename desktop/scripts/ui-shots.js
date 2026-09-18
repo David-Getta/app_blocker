@@ -143,6 +143,7 @@ function fakeBridgeSource() {
       keywords: ['shorts', 'reels'],
       browserHits7d: 12,
       browserHitsToday: 3,
+      browserHitsPrev7d: 18,
       browserHitsDays: [6, 5, 4, 3, 2, 1, 0].map((back, i) => ({ day: day(back), total: [2, 0, 5, 1, 3, 0, 3][i] })),
       browserHitsPeak: { hour: 21, count: 6 },
       browserHitsReasons: [{ reason: 'closed', count: 7 }, { reason: 'keyword', count: 3 }, { reason: 'focus', count: 2 }],

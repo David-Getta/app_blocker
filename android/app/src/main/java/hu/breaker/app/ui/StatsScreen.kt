@@ -59,6 +59,9 @@ fun StatsSection(
     /** a hét csúcs-oldala (nyers név, szám) — melyik oldal akaszt meg a legtöbbször; null, ha nem volt */
     filterHitsTop: Pair<String, Int>? = null,
     filterHitsReasons: List<Pair<String, Int>> = emptyList(),
+    /** a hét és az előző hét megakadásai — a két szám egymás mellett, irány, nem ítélet */
+    filterHits7d: Int = 0,
+    filterHitsPrev7d: Int = 0,
     /** ha nem kéred, csendben marad: az értesítés a sokadik megakadásnál és a csúcs-óra előtt kikapcsolva */
     quietSuggestions: Boolean = false,
     onToggleQuiet: () -> Unit = {},
@@ -140,6 +143,11 @@ fun StatsSection(
             // MELYIK szabály dolgozik: a hét okonként (lista, kulcsszó) — a gépi sor tükre.
             if (filterHitsReasons.isNotEmpty()) {
                 Text("Ebből: ${FilterHitLogic.reasonLine(filterHitsReasons)}.", style = MaterialTheme.typography.bodySmall)
+            }
+            // A HÉT AZ ELŐZŐ HÉTHEZ KÉPEST: a két szám egymás mellett — irány, nem
+            // ítélet. Előző hét nélkül nincs: egy nulla nem összehasonlítás.
+            FilterHitLogic.trendText(filterHits7d, filterHitsPrev7d).takeIf { it.isNotEmpty() }?.let {
+                Text(it, style = MaterialTheme.typography.bodySmall)
             }
             // HA NEM KÉRED, csendben marad: az értesítés a sokadik megakadásnál és a
             // csúcs-óra előtt kikapcsolható — a kártya a lapon akkor is mondja.
