@@ -10,6 +10,8 @@
 
 /** Ennyi zárva-sort mutatunk; a többi egy összegző sorba megy. */
 export const CLOSED_SHOWN = 8;
+/** A SOROZAT KÜSZÖBE: egy nap nem sorozat — kettőtől mondat. Az app szabályának másolata (FOCUS_STREAK_MIN_DAYS); a mag-összhang őre méri. */
+export const STREAK_MIN_DAYS = 2;
 
 export function spanText(ms) {
   const min = Math.ceil(ms / 60000);
@@ -119,7 +121,7 @@ export function focusStreakText(link, now, freshMs) {
   if (!link || typeof link.token !== 'string' || !link.token) return '';
   const fresh = Number.isFinite(link?.fetchedAt) && link.fetchedAt > 0 && now - link.fetchedAt <= freshMs;
   const n = link?.suggest?.focusStreak;
-  if (!fresh || !Number.isInteger(n) || n < 2) return '';
+  if (!fresh || !Number.isInteger(n) || n < STREAK_MIN_DAYS) return '';
   // A REKORD csak a mostani sorozat mellett, zárójelben, ha több — a statisztika szövege szó szerint.
   const longest = link?.suggest?.focusLongestStreak;
   return Number.isInteger(longest) && longest > n

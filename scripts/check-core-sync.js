@@ -79,6 +79,8 @@ sw.rules = read('ios/Shared/UrlRules.swift');
 ts.focus = read('desktop/src/shared/focus.ts');
 kt.focus = read('android/app/src/main/java/hu/breaker/app/core/Focus.kt');
 sw.focus = read('ios/Shared/Focus.swift');
+// A böngésző-bővítmény a maga másolatával dolgozik: a felugró lap sorozat-küszöbe.
+const ext = { popupCore: read('extension/popup-core.js') };
 
 ts.digest = read('desktop/src/shared/digest.ts');
 kt.digest = read('android/app/src/main/java/hu/breaker/app/core/Digest.kt');
@@ -394,6 +396,14 @@ const PAIRS = [
     scalar(kt.usage, /USAGE_DAY_MIN_SECONDS\s*=\s*(.+)/, 'kt')],
 ];
 
+// A gép és a böngésző-bővítmény között: a felugró lap a sorozatot a maga
+// másolatával mondja kettőtől. Ha elcsúszna, a lap más napon szólna, mint az app.
+const EXT_PAIRS = [
+  ['FOCUS_STREAK_MIN_DAYS',
+    scalar(ts.focus, /FOCUS_STREAK_MIN_DAYS\s*=\s*([^;]+);/, 'ts'),
+    scalar(ext.popupCore, /STREAK_MIN_DAYS\s*=\s*([^;]+);/, 'ext')],
+];
+
 /** Egy szám a két telefon-tükörből — aláhúzás és Kotlin-utótag nélkül. */
 function phoneScalar(text, re, label) {
   const m = text.match(re);
@@ -499,6 +509,23 @@ for (const [name, ...values] of ALPHABETS) {
   }
 }
 
+const EXT_LANGS = ['TypeScript', 'Bővítmény'];
+for (const [name, ...values] of EXT_PAIRS) {
+  const missing = values
+    .map((v, i) => (v && v.missing ? EXT_LANGS[i] : null))
+    .filter(Boolean);
+  if (missing.length) {
+    problems.push(`${name}: nem található itt: ${missing.join(', ')} — a minta elavult vagy a konstans eltűnt`);
+    continue;
+  }
+  const asText = values.map((v) => JSON.stringify(v));
+  if (new Set(asText).size !== 1) {
+    problems.push(
+      `${name} eltér:\n` + values.map((v, i) => `    ${EXT_LANGS[i].padEnd(11)} ${asText[i]}`).join('\n'),
+    );
+  }
+}
+
 if (problems.length) {
   console.error('A három mag szétcsúszott:\n');
   for (const p of problems) console.error('  ' + p + '\n');
@@ -532,4 +559,4 @@ for (const [name, ...values] of PHONE_PAIRS) {
   }
 }
 
-console.log(`mag-szinkron OK (${CHECKS.length + ALPHABETS.length} érték egyezik mindhárom nyelven, ${PAIRS.length} a gép és az Android között, ${PHONE_PAIRS.length} a két telefon között)`);
+console.log(`mag-szinkron OK (${CHECKS.length + ALPHABETS.length} érték egyezik mindhárom nyelven, ${PAIRS.length} a gép és az Android között, ${PHONE_PAIRS.length} a két telefon között, ${EXT_PAIRS.length} a gép és a bővítmény között)`);
