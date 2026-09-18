@@ -189,7 +189,7 @@ final class DigestTests: XCTestCase {
         XCTAssertEqual(input.focusWeek.sessions, 1, "a harminc napos menet nem az elmúlt hété")
         XCTAssertEqual(input.dropped7d, 1, "a húsz napos félbemaradt kísérlet sem az elmúlt hété")
         XCTAssertEqual(DigestLogic.text(input) { $0 },
-                       "Elmúlt 7 nap: 1 menet (1 ó 0 p, mind végigvive). 1 feloldás, 1 félbemaradt kísérlet.")
+                       "Elmúlt 7 nap: 1 menet (1 ó 0 p, mind végigvive). A négy hét menet-napja: péntek (1 menet). 1 feloldás, 1 félbemaradt kísérlet.")
     }
 
     func testJournalOneRowPerWeekNewestFirstHalfAYearCap() {
