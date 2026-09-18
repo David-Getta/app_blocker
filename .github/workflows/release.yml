@@ -44,19 +44,20 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A csúcs-oldal a bővítményben is.** A felugró lap a mai, a
-          beállítás-lap a heti csúcs-oldalt mondja — a saját könyvéből,
-          pontosan, app nélkül is. A végponti teszt a beállítás-lap sorait
-          is őrzi.
+          **A kulcsszó a telefonon is tilt — a hosztnévben.** Egy `tiktok`
+          kulcsszó mostantól Androidon és iPhone-on is megállítja a
+          `www.tiktok.com`-ot, munkamenet alatt is; a rendszer-infrastruktúra
+          és a saját fiókkiszolgáló sosem esik kulcsszó alá. Az útvonalat és
+          a címsort a telefon nem látja — ez ki van mondva.
 
-          ### Ami a v0.4.66-ban jött
+          ### Ami a v0.4.67-ben jött
 
-          **Melyik oldal akaszt meg a legtöbbször** — a hét csúcs-oldala
-          mindhárom platformon, a statisztikán és a hétfői mondatban.
+          **A csúcs-oldal a bővítményben is** — a felugró és a beállítás-lap
+          a saját könyvéből mondja.
 
-          #### Ami a v0.4.65-ben jött
+          #### Ami a v0.4.66-ban jött
 
-          **Egy kattintás a mondattól a menetig — a gépen is.**
+          **Melyik oldal akaszt meg a legtöbbször** — mindhárom platformon.
 
           NOTES
           fi
