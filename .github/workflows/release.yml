@@ -44,22 +44,20 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A heti mondat a menet-napot is mondja.** A menetek mondata után,
-          szó szerint a statisztika sora: „A négy hét menet-napja: kedd (6 menet).”
-          A csúcs-nap mondatának tükre — a gépen, Androidon és iPhone-on;
-          nap nélkül nincs mondat.
+          **A README és a weboldal a mai tükör-újdonságokról.** A csúcs-nap
+          és a menet-nap — melyik napon csúszik a kéz, és melyiken ülsz le —
+          egy helyre gyűjtve, ahol az ember először találkozik az appal. Kód
+          nem változott; a kiadás a doksi kedvéért van.
 
-          ### Ami a v0.4.116-ban jött
+          ### Ami a v0.4.117-ben jött
+
+          **A heti mondat a menet-napot is mondja.** A menetek mondata után,
+          szó szerint a statisztika sora — a gépen, Androidon és iPhone-on.
+
+          #### Ami a v0.4.116-ban jött
 
           **A menet-nap.** Melyik napon ülsz le a legtöbbször — négy hétből,
-          a csúcs-nap tükre, alatta a hét napjainak sávja. A gépen, Androidon
-          és iPhone-on.
-
-          #### Ami a v0.4.115-ben jött
-
-          **A hét napjainak sávja.** A csúcs-nap mondata alatt hét rekesz
-          hétfőtől vasárnapig a négy hét megakadásaival — a gépen, a
-          bővítmény beállítás-lapján, Androidon és iPhone-on. Bővítmény 0.4.28.
+          a csúcs-nap tükre, alatta a hét napjainak sávja.
 
           NOTES
           fi
