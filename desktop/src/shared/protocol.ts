@@ -181,6 +181,8 @@ export interface StatusData {
    */
   browserHits7d?: number;
   browserHitsToday?: number;
+  /** az elmúlt 7 nap megakadásai naponként, a legrégebbi elöl — a hét alakja */
+  browserHitsDays?: { day: string; total: number }[];
   /** az utolsó feloldás ideje (epoch ms), vagy null, ha még egy sem volt */
   lastUnlockAt?: number | null;
   session: SessionInfo | null;

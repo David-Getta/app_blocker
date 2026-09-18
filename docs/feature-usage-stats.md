@@ -422,6 +422,11 @@ a gép saját tükre. A tiltó lap is mondja, a kísértés pillanatában: „Ma
 7. megakadás — ebből a 3. ezen az oldalon.” (a hosztonkénti szám csak a gépen
 marad, a hídra a napi összeg megy).
 
+A **hét alakja a megakadásokra** is megvan mindhárom statisztikán — ugyanaz
+a rajz, mint a mért időé és a meneteké, csak darabban: a gépen a böngésző
+könyve (`browserHitsDays` az állapotban, a források összeadva), a telefonon
+a szűrőé (`FilterHitLogic.daySeries`). Üresen nincs.
+
 A gyorsbillentyűs réteg lába is mondja a mait (a futó menet alatt: „Ma 3
 megakadás a böngészőben.”), és Androidon a szűrő értesítésének sora („· Ma 3
 megakadás”) — ott, ahol a kísértés van, ítélet nélkül.

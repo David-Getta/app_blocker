@@ -50,6 +50,15 @@ final class FilterHitsTests: XCTestCase {
         XCTAssertEqual(FilterHitLogic.hits7d([:], now: now), 0)
     }
 
+    func testTheShapeOfTheWeek() {
+        let days = [today: 2, FilterHitLogic.dayKey(now - 6 * 86_400_000): 3, FilterHitLogic.dayKey(now - 7 * 86_400_000): 9]
+        let series = FilterHitLogic.daySeries(days, now: now, count: 7)
+        XCTAssertEqual(series.count, 7)
+        XCTAssertEqual(series.first?.day, FilterHitLogic.dayKey(now - 6 * 86_400_000))
+        XCTAssertEqual(series.last?.day, today)
+        XCTAssertEqual(series.map { $0.seconds }, [3, 0, 0, 0, 0, 0, 2], "a nyolcadik nap már nem a hété")
+    }
+
     func testTheSentenceAndTheSave() throws {
         let summary = Focus.Summary(sessions: 0, totalMs: 0, stoppedEarly: 0, topPack: nil)
         XCTAssertEqual(DigestLogic.text(DigestLogic.Input(focusWeek: summary, unlocks7d: 1, filterHits7d: 12), labelOf: { $0 }),

@@ -84,4 +84,15 @@ public enum FilterHitLogic {
         let d = dayKey(now)
         return hitsBetween(days, d, d)
     }
+
+    /// Az utolsó `count` nap sora, a legrégebbi elöl — a hét alakja a
+    /// megakadásokra; a `seconds` mező itt darab, a rajz kedvéért ugyanaz az alak.
+    public static func daySeries(_ days: [String: Int], now: Double, count: Int) -> [(day: String, seconds: Double)] {
+        let base = Date(timeIntervalSince1970: now / 1000)
+        return (0..<count).reversed().map { back in
+            let d = Calendar.current.date(byAdding: .day, value: -back, to: base) ?? base
+            let key = dayKey(d.timeIntervalSince1970 * 1000)
+            return (day: key, seconds: Double(hitsBetween(days, key, key)))
+        }
+    }
 }

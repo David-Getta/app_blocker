@@ -4,8 +4,8 @@
 import { test } from 'node:test';
 import * as assert from 'node:assert/strict';
 import {
-  MAX_HITS_PER_DAY, MAX_HIT_DAYS, MAX_HIT_SOURCES, browserHits7d, browserHitsBetween, browserHitsToday,
-  cleanBrowserHitDays, cleanBrowserHits, hitDayKey, putBrowserHits,
+  MAX_HITS_PER_DAY, MAX_HIT_DAYS, MAX_HIT_SOURCES, browserHits7d, browserHitsBetween, browserHitsSeries,
+  browserHitsToday, cleanBrowserHitDays, cleanBrowserHits, hitDayKey, putBrowserHits,
 } from '../src/shared/browser-hits';
 import { digestText } from '../src/shared/digest';
 import { summarizeFocus } from '../src/shared/focus';
@@ -76,4 +76,15 @@ test('a segéd mondata a könyvből: a forrásokat összeadja, az ablak a mai na
   state.browserHits = putBrowserHits(undefined, 'a', [{ day: '2026-09-18', total: 2 }, { day: '2026-09-11', total: 9 }]);
   state.browserHits = putBrowserHits(state.browserHits, 'b', [{ day: '2026-09-12', total: 1 }]);
   assert.equal(digestTextNow(state, NOW), 'Elmúlt 7 nap: 1 feloldás. 3 megakadás a böngészőben.');
+});
+
+test('a hét alakja: hét nap, a legrégebbi elöl, a források összeadva, az üres nap nulla', () => {
+  let book = putBrowserHits(undefined, 'a', [{ day: '2026-09-18', total: 2 }, { day: '2026-09-12', total: 1 }]);
+  book = putBrowserHits(book, 'b', [{ day: '2026-09-18', total: 3 }, { day: '2026-09-11', total: 9 }]);
+  const series = browserHitsSeries(book, NOW, 7);
+  assert.equal(series.length, 7);
+  assert.equal(series[0].day, '2026-09-12');
+  assert.equal(series[6].day, '2026-09-18');
+  assert.deepEqual(series.map((d) => d.total), [1, 0, 0, 0, 0, 0, 5], 'a 11. már nem a hété; a 18. két forrás összege');
+  assert.deepEqual(browserHitsSeries(undefined, NOW, 2).map((d) => d.total), [0, 0]);
 });

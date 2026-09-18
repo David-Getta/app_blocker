@@ -3983,6 +3983,8 @@ function renderDaily(series: { day: string; seconds: number }[], title: string):
 function renderWeek(
   series: { day: string; seconds: number }[] | undefined,
   blockId = 'weekBlock', chartId = 'weekChart',
+  // Az érték felirata: idő (a mérés, a menetek) vagy darab (a megakadások).
+  fmt: (value: number) => string = formatDuration,
 ): void {
   const host = $(chartId);
   host.textContent = '';
@@ -3996,13 +3998,13 @@ function renderWeek(
     const col = h('div', 'week-col');
     const isToday = d.day === today;
     const labelled = isToday || i === peak;
-    col.appendChild(h('div', 'week-val', labelled && d.seconds > 0 ? formatDuration(d.seconds) : ''));
+    col.appendChild(h('div', 'week-val', labelled && d.seconds > 0 ? fmt(d.seconds) : ''));
     const plot = h('div', 'week-plot');
     const bar = h('div', `week-bar${d.seconds === 0 ? ' empty' : ''}`);
     bar.style.height = d.seconds === 0 ? '2px' : `${Math.max(3, (d.seconds / max) * 100)}%`;
     const date = new Date(Number(d.day.slice(0, 4)), Number(d.day.slice(5, 7)) - 1, Number(d.day.slice(8, 10)));
     const dayName = DAY_NAMES[date.getDay() as Weekday];
-    attachTip(bar, () => `${dayName}, ${d.day} — ${formatDuration(d.seconds)}`);
+    attachTip(bar, () => `${dayName}, ${d.day} — ${fmt(d.seconds)}`);
     plot.appendChild(bar);
     col.appendChild(plot);
     col.appendChild(h('div', `week-day${isToday ? ' today' : ''}`, isToday ? 'ma' : DAY_SHORT[date.getDay() as Weekday]));
@@ -4188,6 +4190,10 @@ function renderStats(): void {
   renderLastSample(enabled);
   renderWeek(statsData.weekSeries);
   renderFocusStats();
+  // A MEGAKADÁSOK napról napra — a bővítmény könyve, ahogy a segéd tartja:
+  // ugyanaz a rajz, mint a mért időé, csak darabban. Üresen nincs.
+  renderWeek((status?.browserHitsDays ?? []).map((d) => ({ day: d.day, seconds: d.total })),
+    'hitsWeekBlock', 'hitsWeekChart', (n) => `${n} megakadás`);
 
   // A MAI lista vegyes: oldalak és appok együtt, idő szerint. A kérdés itt az,
   // hogy MA mire ment el — a fajta másodlagos. A hétnapos listák maradnak

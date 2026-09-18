@@ -88,4 +88,8 @@ object FilterHitLogic {
         val d = UsageLogic.dayKey(now)
         return hitsBetween(days, d, d)
     }
+
+    /** Az utolsó `count` nap sora, a legrégebbi elöl — a hét alakja a megakadásokra (darab, Double-ben a rajz kedvéért). */
+    fun daySeries(days: Map<String, Int>, now: Long, count: Int): List<Pair<String, Double>> =
+        UsageLogic.dayKeysBack(now, count).map { it to hitsBetween(days, it, it).toDouble() }
 }

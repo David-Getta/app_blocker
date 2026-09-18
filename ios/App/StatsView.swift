@@ -109,6 +109,15 @@ struct StatsView: View {
                         .padding(.top, 4)
                     FocusWeekBars(series: days)
                 }
+                // A MEGAKADÁSOK napról napra — a tunnel könyve: ugyanaz a rajz,
+                // darabban. Üresen nincs.
+                let hitDays = FilterHitLogic.daySeries(store.state.filterHits ?? [:], now: now, count: 7)
+                if hitDays.contains(where: { $0.seconds > 0 }) {
+                    Text("Megakadások a szűrőben, naponta")
+                        .font(.caption).fontWeight(.semibold).foregroundStyle(.secondary)
+                        .padding(.top, 4)
+                    FocusWeekBars(series: hitDays, format: { "\(Int($0)) megakadás" })
+                }
             }
 
             // A HETI NAPLÓ. iPhone-on értesítés nincs; a hét sora akkor íródik,
@@ -182,6 +191,8 @@ struct StatsView: View {
 /// a mai és a legnagyobb oszlopon, a többi mutatásra mondja.
 private struct FocusWeekBars: View {
     let series: [(day: String, seconds: Double)]
+    /// Az érték felirata: idő (a menetek) vagy darab (a megakadások).
+    var format: (Double) -> String = { UsageStats.formatDuration($0) }
     private static let dayShort = ["V", "H", "K", "Sze", "Cs", "P", "Szo"]
 
     var body: some View {
@@ -194,7 +205,7 @@ private struct FocusWeekBars: View {
                 let labelled = (isToday || i == peak) && item.seconds > 0
                 VStack(spacing: 4) {
                     // A szám sora akkor is foglal, ha üres: az oszlopok alja egy vonalban marad.
-                    Text(labelled ? UsageStats.formatDuration(item.seconds) : " ")
+                    Text(labelled ? format(item.seconds) : " ")
                         .font(.caption2).lineLimit(1).minimumScaleFactor(0.7)
                     ZStack(alignment: .bottom) {
                         Color.clear.frame(height: 96)

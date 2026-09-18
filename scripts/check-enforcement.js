@@ -463,6 +463,23 @@ const WIRES = [
     needle: 'DigestReminder.reschedule()',
     lost: 'iPhone-on senki nem tudna a heti visszatekintésről — az értesítés nem szólna',
   },
+  // A MEGAKADÁSOK NAPRÓL NAPRA a három statisztikán: ha a rajz bekötése
+  // kiesne, a sor megvolna, a hét alakja nem — és senki nem hiányolná.
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: "'hitsWeekBlock', 'hitsWeekChart'",
+    lost: 'a gépi statisztika nem rajzolná a megakadások hetét',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/AppUi.kt',
+    needle: 'filterHitDays = FilterHitLogic.daySeries(state.filterHits, now, 7),',
+    lost: 'az Android statisztika nem rajzolná a megakadások hetét',
+  },
+  {
+    file: 'ios/App/StatsView.swift',
+    needle: 'FilterHitLogic.daySeries(store.state.filterHits ?? [:], now: now, count: 7)',
+    lost: 'az iPhone statisztika nem rajzolná a megakadások hetét',
+  },
   // A MEGAKADÁS-SZÁMLÁLÓ lánca: a háttér könyvel, a link átadja, a híd
   // fogadja, a segéd tartja, a mondat és a statisztika mondja. Ha bármelyik
   // láncszem kiesne, a bővítmény lapja továbbra is számolna — az app viszont

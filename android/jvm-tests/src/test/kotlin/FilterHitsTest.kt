@@ -67,6 +67,15 @@ class FilterHitsTest {
         assertEquals(0, FilterHitLogic.hits7d(emptyMap(), now))
     }
 
+    @Test fun `a het alakja - het nap, a legregebbi elol, az ures nap nulla`() {
+        val days = mapOf(today to 2, UsageLogic.dayKey(now - 6 * 86_400_000L) to 3, UsageLogic.dayKey(now - 7 * 86_400_000L) to 9)
+        val series = FilterHitLogic.daySeries(days, now, 7)
+        assertEquals(7, series.size)
+        assertEquals(UsageLogic.dayKey(now - 6 * 86_400_000L), series.first().first)
+        assertEquals(today, series.last().first)
+        assertEquals(listOf(3.0, 0.0, 0.0, 0.0, 0.0, 0.0, 2.0), series.map { it.second }, "a nyolcadik nap már nem a hété")
+    }
+
     @Test fun `a mondat es a mentes`() {
         val base = DigestLogic.Input(
             last7Seconds = 0.0, topWeekSites = emptyList(), weekOverWeek = emptyList(),

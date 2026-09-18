@@ -98,3 +98,20 @@ export function browserHitsToday(book: BrowserHits | undefined, now: number): nu
   const today = hitDayKey(now);
   return browserHitsBetween(book, today, today);
 }
+
+/**
+ * Az utolsó `count` nap sora, a legrégebbi elöl, minden forrásból összeadva
+ * — a hét alakja a megakadásokra, ahogy a mért időé és a meneteké. Naptári
+ * napokban lépünk vissza, nem huszonnégy órában: az óraátállítás napja is nap.
+ */
+export function browserHitsSeries(
+  book: BrowserHits | undefined, now: number, count: number,
+): { day: string; total: number }[] {
+  const base = new Date(now);
+  const out: { day: string; total: number }[] = [];
+  for (let i = count - 1; i >= 0; i--) {
+    const day = hitDayKey(new Date(base.getFullYear(), base.getMonth(), base.getDate() - i).getTime());
+    out.push({ day, total: browserHitsBetween(book, day, day) });
+  }
+  return out;
+}

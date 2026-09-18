@@ -50,6 +50,8 @@ fun StatsSection(
     weekSeries: List<Pair<String, Double>> = emptyList(),
     /** fókuszban töltött idő naponta az elmúlt 7 napra (a menet a végének napjára számít) */
     focusDays: List<Pair<String, Double>> = emptyList(),
+    /** az elmúlt 7 nap megakadásai naponként (a szűrő könyve), a legrégebbitől */
+    filterHitDays: List<Pair<String, Double>> = emptyList(),
     blockedDomains: Set<String>,
     /**
      * Amit egy célpontról ki szabad írni.
@@ -109,6 +111,12 @@ fun StatsSection(
         // telefonon az app azt mondaná, hogy nincs mit mutatni — pedig pontosan
         // tudja, hányszor ültél le dolgozni.
         FocusStatsBlock(focusToday, focusWeek, focusDays)
+        // A MEGAKADÁSOK napról napra — a szűrő könyve: ugyanaz a rajz, mint a
+        // mért időé, csak darabban. Üresen nincs.
+        if (filterHitDays.any { it.second > 0.0 }) {
+            StatsSectionLabel("Megakadások a szűrőben, naponta")
+            WeekChart(filterHitDays, format = { "${it.toInt()} megakadás" })
+        }
 
         // A HETI NAPLÓ. A hétfői mondat elszáll az értesítéssel; itt megmarad —
         // fél év hetei egy-egy sorban, és fölötte az, ami most szólna. Üresen
@@ -395,7 +403,11 @@ private fun weekdayOf(day: String): Int {
 }
 
 @Composable
-private fun WeekChart(series: List<Pair<String, Double>>) {
+private fun WeekChart(
+    series: List<Pair<String, Double>>,
+    // Az érték felirata: idő (a mérés, a menetek) vagy darab (a megakadások).
+    format: (Double) -> String = UsageLogic::formatDuration,
+) {
     val max = series.maxOfOrNull { it.second }?.coerceAtLeast(1.0) ?: 1.0
     val today = UsageLogic.dayKey(System.currentTimeMillis())
     val peak = series.indexOfFirst { it.second >= max }
@@ -406,7 +418,7 @@ private fun WeekChart(series: List<Pair<String, Double>>) {
             Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
                 // A szám sora akkor is foglal, ha üres: az oszlopok alja egy vonalban marad.
                 Text(
-                    if (labelled) UsageLogic.formatDuration(seconds) else " ",
+                    if (labelled) format(seconds) else " ",
                     style = MaterialTheme.typography.labelSmall, maxLines = 1,
                 )
                 Box(Modifier.fillMaxWidth().height(96.dp), contentAlignment = Alignment.BottomCenter) {
