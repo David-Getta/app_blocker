@@ -256,6 +256,19 @@ object FilterHitLogic {
     /** „shorts 7 · reels 3” — üresen üres. A gépi sor tükre. */
     fun keywordLine(rows: List<Pair<String, Int>>): String = rows.joinToString(" · ") { (k, n) -> "$k $n" }
 
+    /**
+     * A lista szavai, amelyek a héten NEM fogtak — a tükör másik fele: ami
+     * sosem fog, azt lehet, hogy fölösleges tartani (a levétel próbatétel, de
+     * hogy fölösleges-e, itt derül ki). Csak akkor mond bármit, ha a héten
+     * volt kulcsszó-megakadás: friss könyv mellett minden szó „nem fogott”
+     * lenne, és az nem tény, hanem hiány. A bővítmény lapjának tükre.
+     */
+    fun idleKeywords(keywords: List<String>, rows: List<Pair<String, Int>>): List<String> {
+        if (rows.isEmpty()) return emptyList()
+        val hit = rows.map { it.first.lowercase() }.toSet()
+        return keywords.map { it.trim().lowercase() }.filter { it.isNotEmpty() && it !in hit }
+    }
+
     // ------------------------------------------------------------ a sokadik
 
     /**

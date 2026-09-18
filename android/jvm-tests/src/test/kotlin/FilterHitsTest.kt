@@ -180,6 +180,10 @@ class FilterHitsTest {
         assertEquals(emptyList<Pair<String, Int>>(), FilterHitLogic.keywordsWeek(emptyMap(), now))
         assertEquals("shorts 2 · reels 1", FilterHitLogic.keywordLine(FilterHitLogic.keywordsWeek(book, now)))
         assertEquals("", FilterHitLogic.keywordLine(emptyList()))
+        // Ami nem fogott: a lista szavai a hét sorai nélkül — csak ha volt kulcsszó-megakadás.
+        val rows = FilterHitLogic.keywordsWeek(book, now)
+        assertEquals(listOf("live", "stream"), FilterHitLogic.idleKeywords(listOf("Shorts", "live", " stream ", ""), rows), "kisbetűsen, üres nélkül")
+        assertEquals(emptyList<String>(), FilterHitLogic.idleKeywords(listOf("live"), emptyList()), "kulcsszó-megakadás nélkül a hiány nem tény")
         val toJson = BreakerStore::class.java.getDeclaredMethod("toJson", AppState::class.java).apply { isAccessible = true }
         val fromJson = BreakerStore::class.java.getDeclaredMethod("fromJson", JSONObject::class.java).apply { isAccessible = true }
         val back = fromJson.invoke(BreakerStore, JSONObject(toJson.invoke(BreakerStore, AppState(filterHitKeywords = book)).toString())) as AppState

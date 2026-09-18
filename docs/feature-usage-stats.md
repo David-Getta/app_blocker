@@ -466,7 +466,9 @@ Ami sosem fog, az nem szerepel — tükör a listára: a felesleges szó levéte
 próbatétel, de hogy felesleges-e, itt derül ki. A bővítmény beállítás-lapja
 ezt ki is mondja („A héten nem fogott: live, stream” — `idleKeywords`), de
 csak akkor, ha a héten volt kulcsszó-megakadás: friss könyv mellett minden szó
-„nem fogott” lenne, és az nem tény, hanem hiány.
+„nem fogott” lenne, és az nem tény, hanem hiány. A telefon statisztikája
+ugyanezt mondja a saját könyvéből (`FilterHitLogic.idleKeywords`, Kotlin és
+Swift).
 
 **A hét az előző héthez képest:** a két szám egymás mellett — „A héten 12
 megakadás, az előző héten 18.” — a statisztika megakadás-blokkjában

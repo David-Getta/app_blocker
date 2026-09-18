@@ -158,6 +158,9 @@ final class FilterHitsTests: XCTestCase {
         XCTAssertTrue(FilterHitLogic.keywordsWeek([:], now: now).isEmpty)
         XCTAssertEqual(FilterHitLogic.keywordLine(rows), "shorts 2 · reels 1")
         XCTAssertEqual(FilterHitLogic.keywordLine([]), "")
+        // Ami nem fogott: a lista szavai a hét sorai nélkül — csak ha volt kulcsszó-megakadás.
+        XCTAssertEqual(FilterHitLogic.idleKeywords(["Shorts", "live", " stream ", ""], rows: rows), ["live", "stream"], "kisbetűsen, üres nélkül")
+        XCTAssertEqual(FilterHitLogic.idleKeywords(["live"], rows: []), [], "kulcsszó-megakadás nélkül a hiány nem tény")
         var st = AppState()
         st.filterHitKeywords = book
         XCTAssertEqual(try JSONDecoder().decode(AppState.self, from: try JSONEncoder().encode(st)).filterHitKeywords, book, "a mentés hordozza a szavakat")

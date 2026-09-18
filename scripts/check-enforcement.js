@@ -645,6 +645,16 @@ const WIRES = [
     lost: 'iPhone-on a tunnel nem könyvelné a fogó kulcsszót — a sor mindig üres',
   },
   {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/AppUi.kt',
+    needle: 'filterHitsIdleKeywords = FilterHitLogic.idleKeywords(state.keywords, FilterHitLogic.keywordsWeek(state.filterHitKeywords, now)),',
+    lost: 'az Android statisztikája nem mondaná, melyik szó nem fogott',
+  },
+  {
+    file: 'ios/App/StatsView.swift',
+    needle: 'FilterHitLogic.idleKeywords(store.state.keywords ?? [], rows: kws)',
+    lost: 'az iPhone statisztikája nem mondaná, melyik szó nem fogott',
+  },
+  {
     file: 'android/app/src/main/java/hu/breaker/app/ui/StatsScreen.kt',
     needle: 'FilterHitLogic.keywordLine(filterHitsKeywords)',
     lost: 'az Android statisztikája nem mondaná, melyik kulcsszó dolgozik',

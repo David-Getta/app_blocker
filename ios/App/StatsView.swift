@@ -153,6 +153,12 @@ struct StatsView: View {
                         Text("Kulcsszavanként: \(FilterHitLogic.keywordLine(kws)).")
                             .font(.footnote).foregroundStyle(.secondary)
                     }
+                    // A LISTA SZAVAI, amelyek a héten nem fogtak — a tükör másik fele.
+                    let idle = FilterHitLogic.idleKeywords(store.state.keywords ?? [], rows: kws)
+                    if !idle.isEmpty {
+                        Text("A héten nem fogott: \(idle.joined(separator: ", ")).")
+                            .font(.footnote).foregroundStyle(.secondary)
+                    }
                     // A HÉT AZ ELŐZŐ HÉTHEZ KÉPEST: a két szám egymás mellett — irány,
                     // nem ítélet. Előző hét nélkül nincs: egy nulla nem összehasonlítás.
                     let trend = FilterHitLogic.trendText(

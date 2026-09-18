@@ -265,6 +265,16 @@ public enum FilterHitLogic {
         rows.map { "\($0.keyword) \($0.count)" }.joined(separator: " · ")
     }
 
+    /// A lista szavai, amelyek a héten NEM fogtak — a tükör másik fele. Csak
+    /// akkor mond bármit, ha a héten volt kulcsszó-megakadás: friss könyv
+    /// mellett minden szó „nem fogott” lenne, és az nem tény, hanem hiány.
+    public static func idleKeywords(_ keywords: [String], rows: [(keyword: String, count: Int)]) -> [String] {
+        if rows.isEmpty { return [] }
+        let hit = Set(rows.map { $0.keyword.lowercased() })
+        return keywords.map { $0.trimmingCharacters(in: .whitespaces).lowercased() }
+            .filter { !$0.isEmpty && !hit.contains($0) }
+    }
+
     // MARK: - a sokadik
 
     /// A SOKADIK megakadás lépcsői: ezeknél a mai számoknál a lap egy lépést
