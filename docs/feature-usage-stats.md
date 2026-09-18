@@ -422,6 +422,12 @@ a gép saját tükre. A tiltó lap is mondja, a kísértés pillanatában: „Ma
 7. megakadás — ebből a 3. ezen az oldalon.” (a hosztonkénti szám csak a gépen
 marad, a hídra a napi összeg megy).
 
+**Mikor jár a kéz magától:** a bővítmény óránként is könyvel (a nap
+huszonnégy rekesze), a beállítás-lapja a hét csúcs-óráját mondja és egy
+óra-sávot rajzol; a hídon a rekeszek is átmennek, és a gépi statisztika a
+megakadások hete alatt mondja: „A hét csúcsa: 21–22 óra (7 megakadás) —
+akkor jár a kéz magától.” Tény, nem ítélet.
+
 A **hét alakja a megakadásokra** is megvan mindhárom statisztikán — ugyanaz
 a rajz, mint a mért időé és a meneteké, csak darabban: a gépen a böngésző
 könyve (`browserHitsDays` az állapotban, a források összeadva), a telefonon

@@ -22,6 +22,7 @@ import {
   formatLockdownRemaining, isLocked, isWindowLockdown, windowLockdownStarted, LOCKDOWN_CHOICES_MIN,
   MAX_LOCKDOWN_WINDOWS, type Lockdown, type LockdownWindow,
 } from '../shared/lockdown.js';
+import { hourLabel } from '../shared/browser-hits.js';
 import { stepBurstNotices, type BurstNotice, type BurstWatch } from '../shared/burst-notify.js';
 import {
   cleanDigestLog, daysSinceUnlock, digestDue, digestText, recordDigest, relabelDigest, weekLabel, type DigestEntry,
@@ -4194,6 +4195,11 @@ function renderStats(): void {
   // ugyanaz a rajz, mint a mért időé, csak darabban. Üresen nincs.
   renderWeek((status?.browserHitsDays ?? []).map((d) => ({ day: d.day, seconds: d.total })),
     'hitsWeekBlock', 'hitsWeekChart', (n) => `${n} megakadás`);
+  // MIKOR jár a kéz magától: a hét csúcs-órája — tény, nem ítélet.
+  const peak = status?.browserHitsPeak ?? null;
+  $('hitsPeakNote').classList.toggle('hidden', peak === null);
+  $('hitsPeakNote').textContent = peak
+    ? `A hét csúcsa: ${hourLabel(peak.hour)} (${peak.count} megakadás) — akkor jár a kéz magától.` : '';
 
   // A MAI lista vegyes: oldalak és appok együtt, idő szerint. A kérdés itt az,
   // hogy MA mire ment el — a fajta másodlagos. A hétnapos listák maradnak

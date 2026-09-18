@@ -12,7 +12,8 @@ import {
 } from './storage.js';
 import { CLOSED_FRESH_MS, loadLink, pullFromApp, setToken, withAppRules } from './app-link.js';
 import { dayKey, formatSeconds, lastDays, topChannels } from './chantime.js';
-import { hitsRows, hitsSummary, hitsText } from './hits.js';
+// A `lastDays` a csatorna-időé (ugyanaz a naptár) — a könyv is azzal él.
+import { hitsByHour, hitsRows, hitsSummary, hitsText, hourLabel, peakHour } from './hits.js';
 
 const TIME_KEY = 'breaker.chantime';
 
@@ -63,6 +64,25 @@ async function renderHits() {
   const text = hitsText(hitsSummary(state, today));
   $('hitsLine').hidden = text === null;
   $('hitsLine').textContent = text ?? '';
+  // MIKOR jár a kéz magától: a hét csúcs-órája, és a nap huszonnégy rekesze.
+  const week = lastDays(today, 7);
+  const peak = peakHour(state, week);
+  $('hitsPeak').hidden = peak === null;
+  $('hitsPeak').textContent = peak
+    ? `A hét csúcsa: ${hourLabel(peak.hour)} (${peak.count} megakadás) — akkor jár a kéz magától.` : '';
+  const strip = $('hitsHours');
+  strip.textContent = '';
+  strip.hidden = peak === null;
+  if (peak) {
+    const by = hitsByHour(state, week);
+    by.forEach((n, hour) => {
+      const bar = el('span', 'hour-bar');
+      bar.style.height = `${Math.max(2, Math.round((n / peak.count) * 28))}px`;
+      bar.title = `${hourLabel(hour)}: ${n}`;
+      if (hour === peak.hour) bar.classList.add('peak');
+      strip.appendChild(bar);
+    });
+  }
   const rows = hitsRows(state, today);
   const list = $('hitsList');
   list.textContent = '';

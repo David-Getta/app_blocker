@@ -144,6 +144,7 @@ function fakeBridgeSource() {
       browserHits7d: 12,
       browserHitsToday: 3,
       browserHitsDays: [6, 5, 4, 3, 2, 1, 0].map((back, i) => ({ day: day(back), total: [2, 0, 5, 1, 3, 0, 3][i] })),
+      browserHitsPeak: { hour: 21, count: 6 },
     });
     // 30 days, because that is what the helper actually sends (and what the
     // chart title claims) — a shorter demo series would make the screenshot lie.

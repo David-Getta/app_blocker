@@ -50,6 +50,9 @@
   .muted { color: var(--ink-2); font-size: 0.86rem; }
   .error { color: #c0392b; margin: 8px 0 0; }
   .empty { color: var(--ink-2); }
+  .hour-strip { display: flex; align-items: flex-end; gap: 2px; height: 30px; margin: 6px 0 4px; }
+  .hour-bar { flex: 1; background: var(--ink-2); opacity: 0.45; border-radius: 2px 2px 0 0; }
+  .hour-bar.peak { opacity: 1; }
   .time-h { font-size: 0.86rem; margin: 12px 0 6px; color: var(--ink-2); font-weight: 600; }
 </style>
 </head>
@@ -128,6 +131,8 @@
       fiókba nem.
     </p>
     <p class="muted" id="hitsLine"></p>
+    <p class="muted" id="hitsPeak" hidden></p>
+    <div id="hitsHours" class="hour-strip" hidden></div>
     <ul id="hitsList" class="time-list"></ul>
     <p class="empty" id="hitsEmpty">Az elmúlt 7 napban még nem állított meg.</p>
   </section>

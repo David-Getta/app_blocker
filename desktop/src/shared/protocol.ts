@@ -183,6 +183,8 @@ export interface StatusData {
   browserHitsToday?: number;
   /** az elmúlt 7 nap megakadásai naponként, a legrégebbi elöl — a hét alakja */
   browserHitsDays?: { day: string; total: number }[];
+  /** a hét csúcs-órája: mikor jár a kéz magától — null, ha még nem volt megakadás */
+  browserHitsPeak?: { hour: number; count: number } | null;
   /** az utolsó feloldás ideje (epoch ms), vagy null, ha még egy sem volt */
   lastUnlockAt?: number | null;
   session: SessionInfo | null;

@@ -8,7 +8,7 @@
 // Pure: a segéd és a felület is betölti.
 
 /** Egy nap egy forrásból: nap (ÉÉÉÉ-HH-NN, helyi), összeg, okonként. */
-export interface BrowserHitDay { day: string; total: number; byReason: Record<string, number> }
+export interface BrowserHitDay { day: string; total: number; byReason: Record<string, number>; byHour?: number[] }
 /** Forrásonként (böngésző-profilonként) egy lista. */
 export type BrowserHits = Record<string, BrowserHitDay[]>;
 
@@ -28,7 +28,7 @@ export function cleanBrowserHitDays(raw: unknown): BrowserHitDay[] {
   const byDay = new Map<string, BrowserHitDay>();
   for (const item of Array.isArray(raw) ? raw : []) {
     if (!item || typeof item !== 'object') continue;
-    const { day, total, byReason } = item as { day?: unknown; total?: unknown; byReason?: unknown };
+    const { day, total, byReason, byHour } = item as { day?: unknown; total?: unknown; byReason?: unknown; byHour?: unknown };
     if (typeof day !== 'string' || !DAY_KEY.test(day)) continue;
     if (typeof total !== 'number' || !Number.isFinite(total) || total <= 0) continue;
     const t = Math.min(MAX_HITS_PER_DAY, Math.floor(total));
@@ -39,7 +39,11 @@ export function cleanBrowserHitDays(raw: unknown): BrowserHitDay[] {
         if (typeof n === 'number' && Number.isFinite(n) && n > 0) reasons[r] = Math.min(t, Math.floor(n));
       }
     }
-    byDay.set(day, { day, total: t, byReason: reasons });
+    // Az órák: huszonnégy szám, mindegyik legfeljebb a napi összeg — a rekesz nem hazudhat többet a napnál.
+    const hours = Array.isArray(byHour) && byHour.length === 24
+      ? byHour.map((n) => (typeof n === 'number' && Number.isFinite(n) && n > 0 ? Math.min(t, Math.floor(n)) : 0))
+      : undefined;
+    byDay.set(day, hours && hours.some((n) => n > 0) ? { day, total: t, byReason: reasons, byHour: hours } : { day, total: t, byReason: reasons });
   }
   return [...byDay.values()].sort((a, b) => (a.day < b.day ? -1 : a.day > b.day ? 1 : 0)).slice(-MAX_HIT_DAYS);
 }
@@ -97,6 +101,27 @@ export function browserHits7d(book: BrowserHits | undefined, now: number): numbe
 export function browserHitsToday(book: BrowserHits | undefined, now: number): number {
   const today = hitDayKey(now);
   return browserHitsBetween(book, today, today);
+}
+
+/** A csúcs-óra az elmúlt 7 napon, minden forrásból: { hour, count } — vagy null. Holtversenynél a korábbi óra. */
+export function browserHitsPeakHour(book: BrowserHits | undefined, now: number): { hour: number; count: number } | null {
+  const from = hitDayKey(now - 6 * 86_400_000);
+  const to = hitDayKey(now);
+  const by = new Array<number>(24).fill(0);
+  for (const days of Object.values(book ?? {})) {
+    for (const d of days) {
+      if (d.day < from || d.day > to || !d.byHour) continue;
+      for (let i = 0; i < 24; i++) by[i] += d.byHour[i] ?? 0;
+    }
+  }
+  let best = -1;
+  for (let i = 0; i < 24; i++) if (by[i] > 0 && (best < 0 || by[i] > by[best])) best = i;
+  return best < 0 ? null : { hour: best, count: by[best] };
+}
+
+/** „21–22 óra” — a csúcs-óra felirata. */
+export function hourLabel(hour: number): string {
+  return `${hour}–${(hour + 1) % 24} óra`;
 }
 
 /**

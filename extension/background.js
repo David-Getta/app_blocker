@@ -153,7 +153,7 @@ async function recordHitNow(tabId, url, reason, now = Date.now()) {
   lastCounted = { tabId, url, at: now };
   try {
     const today = dayKey(new Date(now));
-    const state = sweepHits(recordHit(await loadHits(), today, reason, hostOf(url) ?? ''), today);
+    const state = sweepHits(recordHit(await loadHits(), today, reason, hostOf(url) ?? '', new Date(now).getHours()), today);
     await chrome.storage.local.set({ [HITS_KEY]: state });
   } catch (err) {
     note(`megakadás nem könyvelve: ${err}`);

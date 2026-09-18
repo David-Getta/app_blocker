@@ -4,8 +4,8 @@
 import { test } from 'node:test';
 import * as assert from 'node:assert/strict';
 import {
-  MAX_HITS_PER_DAY, MAX_HIT_DAYS, MAX_HIT_SOURCES, browserHits7d, browserHitsBetween, browserHitsSeries,
-  browserHitsToday, cleanBrowserHitDays, cleanBrowserHits, hitDayKey, putBrowserHits,
+  MAX_HITS_PER_DAY, MAX_HIT_DAYS, MAX_HIT_SOURCES, browserHits7d, browserHitsBetween, browserHitsPeakHour,
+  browserHitsSeries, browserHitsToday, cleanBrowserHitDays, cleanBrowserHits, hitDayKey, hourLabel, putBrowserHits,
 } from '../src/shared/browser-hits';
 import { digestText } from '../src/shared/digest';
 import { summarizeFocus } from '../src/shared/focus';
@@ -87,4 +87,20 @@ test('a hét alakja: hét nap, a legrégebbi elöl, a források összeadva, az �
   assert.equal(series[6].day, '2026-09-18');
   assert.deepEqual(series.map((d) => d.total), [1, 0, 0, 0, 0, 0, 5], 'a 11. már nem a hété; a 18. két forrás összege');
   assert.deepEqual(browserHitsSeries(undefined, NOW, 2).map((d) => d.total), [0, 0]);
+});
+
+test('az órák a hídról: huszonnégy rekesz, a napi összegnél nem több; a csúcs-óra a források összegéből', () => {
+  const hours = (h: number, n: number): number[] => { const a = new Array<number>(24).fill(0); a[h] = n; return a; };
+  const clean = cleanBrowserHitDays([
+    { day: '2026-09-18', total: 2, byReason: {}, byHour: hours(21, 9) },
+    { day: '2026-09-17', total: 1, byReason: {}, byHour: [1, 2] },
+  ]);
+  assert.deepEqual(clean[1].byHour?.[21], 2, 'a rekesz nem mondhat többet a napnál');
+  assert.equal(clean[0].byHour, undefined, 'a rossz hosszú lista nem rekesz');
+  let book = putBrowserHits(undefined, 'a', [{ day: '2026-09-18', total: 3, byReason: {}, byHour: hours(21, 3) }]);
+  book = putBrowserHits(book, 'b', [{ day: '2026-09-17', total: 5, byReason: {}, byHour: hours(9, 5) },
+    { day: '2026-09-11', total: 9, byReason: {}, byHour: hours(9, 9) }]);
+  assert.deepEqual(browserHitsPeakHour(book, NOW), { hour: 9, count: 5 }, 'a nyolc napos nem számít');
+  assert.equal(browserHitsPeakHour(undefined, NOW), null);
+  assert.equal(hourLabel(21), '21–22 óra');
 });

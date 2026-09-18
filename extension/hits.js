@@ -48,7 +48,7 @@ function reasonOf(reason) {
  * { days: { nap: { total: n, byReason: { ok: n } } } }. Vissza ugyanaz az
  * objektum — a hívó dönti el, mikor menti.
  */
-export function recordHit(state, day, reason, host) {
+export function recordHit(state, day, reason, host, hour) {
   const s = state && typeof state === 'object' ? state : {};
   if (!s.days || typeof s.days !== 'object') s.days = {};
   if (typeof day !== 'string' || !DAY_KEY.test(day)) return s;
@@ -68,7 +68,39 @@ export function recordHit(state, day, reason, host) {
       bucket.byHost[h] = (Number.isFinite(bucket.byHost[h]) ? bucket.byHost[h] : 0) + 1;
     }
   }
+  // Óránként is: MIKOR jár a kéz magától — a nap huszonnégy rekesze.
+  if (Number.isInteger(hour) && hour >= 0 && hour < 24) {
+    if (!Array.isArray(bucket.byHour) || bucket.byHour.length !== 24) bucket.byHour = new Array(24).fill(0);
+    bucket.byHour[hour] = (Number.isFinite(bucket.byHour[hour]) ? bucket.byHour[hour] : 0) + 1;
+  }
   return s;
+}
+
+/** A napok órái összeadva: huszonnégy szám, 0 órától 23-ig. */
+export function hitsByHour(state, days) {
+  const out = new Array(24).fill(0);
+  for (const day of Array.isArray(days) ? days : []) {
+    const arr = state?.days?.[day]?.byHour;
+    if (!Array.isArray(arr)) continue;
+    for (let i = 0; i < 24; i++) {
+      const n = arr[i];
+      if (Number.isFinite(n) && n > 0) out[i] += Math.floor(n);
+    }
+  }
+  return out;
+}
+
+/** A csúcs-óra a napokon: { hour, count } — vagy null, ha egy sem volt. Holtversenynél a korábbi óra. */
+export function peakHour(state, days) {
+  const by = hitsByHour(state, days);
+  let best = -1;
+  for (let i = 0; i < 24; i++) if (by[i] > 0 && (best < 0 || by[i] > by[best])) best = i;
+  return best < 0 ? null : { hour: best, count: by[best] };
+}
+
+/** „21–22 óra” — a csúcs-óra felirata. */
+export function hourLabel(hour) {
+  return `${hour}–${(hour + 1) % 24} óra`;
 }
 
 /**
@@ -118,7 +150,10 @@ export function hitsReport(state, today) {
       const n = raw && Number.isFinite(raw[r]) && raw[r] > 0 ? Math.floor(raw[r]) : 0;
       if (n > 0) byReason[r] = n;
     }
-    out.push({ day, total, byReason });
+    const hours = state?.days?.[day]?.byHour;
+    const byHour = Array.isArray(hours) && hours.length === 24
+      ? hours.map((n) => (Number.isFinite(n) && n > 0 ? Math.floor(n) : 0)) : undefined;
+    out.push(byHour && byHour.some((n) => n > 0) ? { day, total, byReason, byHour } : { day, total, byReason });
   }
   return out;
 }
