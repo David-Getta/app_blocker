@@ -170,6 +170,22 @@ class FilterHitsTest {
         assertEquals(FilterHitLogic.cleanSites(reasons), back.filterHitReasons, "a mentés hordozza az okokat")
     }
 
+    @Test fun `kulcsszavankent - a het sora a legnagyobb elol, a sor es a mentes`() {
+        var book = FilterHitLogic.recordSite(emptyMap(), today, "shorts")
+        book = FilterHitLogic.recordSite(book, today, "shorts")
+        book = FilterHitLogic.recordSite(book, today, "reels")
+        book = FilterHitLogic.recordSite(book, UsageLogic.dayKey(now - 8 * 86_400_000L), "live") // nem a hété
+        assertEquals(listOf("shorts" to 2, "reels" to 1), FilterHitLogic.keywordsWeek(book, now), "a legnagyobb elöl")
+        assertEquals(listOf("a" to 1, "b" to 1), FilterHitLogic.keywordsWeek(mapOf(today to mapOf("b" to 1, "a" to 1)), now), "holtverseny: az ábécé")
+        assertEquals(emptyList<Pair<String, Int>>(), FilterHitLogic.keywordsWeek(emptyMap(), now))
+        assertEquals("shorts 2 · reels 1", FilterHitLogic.keywordLine(FilterHitLogic.keywordsWeek(book, now)))
+        assertEquals("", FilterHitLogic.keywordLine(emptyList()))
+        val toJson = BreakerStore::class.java.getDeclaredMethod("toJson", AppState::class.java).apply { isAccessible = true }
+        val fromJson = BreakerStore::class.java.getDeclaredMethod("fromJson", JSONObject::class.java).apply { isAccessible = true }
+        val back = fromJson.invoke(BreakerStore, JSONObject(toJson.invoke(BreakerStore, AppState(filterHitKeywords = book)).toString())) as AppState
+        assertEquals(FilterHitLogic.cleanSites(book), back.filterHitKeywords, "a mentés hordozza a szavakat")
+    }
+
     @Test fun `oldalankent - a nev az oldalhoz, a konyv es a csucs-oldal, a mentes es a mondat`() {
         val sites = listOf("youtube.com" to listOf("youtube.com", "www.youtube.com"))
         assertEquals("youtube.com", FilterHitLogic.siteOf("M.YouTube.com.", sites), "aldomain és nagybetű: az oldal")

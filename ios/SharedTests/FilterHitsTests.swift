@@ -146,6 +146,23 @@ final class FilterHitsTests: XCTestCase {
         XCTAssertEqual(try JSONDecoder().decode(AppState.self, from: try JSONEncoder().encode(st)).filterHitReasons, reasons, "a mentés hordozza az okokat")
     }
 
+    func testPerKeywordTheWeekRowLargestFirstTheLineAndTheSave() throws {
+        var book = FilterHitLogic.recordSite([:], day: today, site: "shorts")
+        book = FilterHitLogic.recordSite(book, day: today, site: "shorts")
+        book = FilterHitLogic.recordSite(book, day: today, site: "reels")
+        book = FilterHitLogic.recordSite(book, day: FilterHitLogic.dayKey(now - 8 * 86_400_000), site: "live") // nem a hété
+        let rows = FilterHitLogic.keywordsWeek(book, now: now)
+        XCTAssertEqual(rows.map { $0.keyword }, ["shorts", "reels"], "a legnagyobb elöl")
+        XCTAssertEqual(rows.map { $0.count }, [2, 1])
+        XCTAssertEqual(FilterHitLogic.keywordsWeek([today: ["b": 1, "a": 1]], now: now).map { $0.keyword }, ["a", "b"], "holtverseny: az ábécé")
+        XCTAssertTrue(FilterHitLogic.keywordsWeek([:], now: now).isEmpty)
+        XCTAssertEqual(FilterHitLogic.keywordLine(rows), "shorts 2 · reels 1")
+        XCTAssertEqual(FilterHitLogic.keywordLine([]), "")
+        var st = AppState()
+        st.filterHitKeywords = book
+        XCTAssertEqual(try JSONDecoder().decode(AppState.self, from: try JSONEncoder().encode(st)).filterHitKeywords, book, "a mentés hordozza a szavakat")
+    }
+
     func testPerSiteTheNameToTheSiteTheBookThePeakSiteTheSaveAndTheSentence() throws {
         let sites = [(domain: "youtube.com", hostnames: ["youtube.com", "www.youtube.com"])]
         XCTAssertEqual(FilterHitLogic.siteOf("M.YouTube.com.", sites: sites), "youtube.com", "aldomain és nagybetű: az oldal")

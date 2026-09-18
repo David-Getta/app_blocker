@@ -756,6 +756,7 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                 filterHitsPeak = FilterHitLogic.peakHour(state.filterHitHours, now),
                 filterHitsTop = FilterHitLogic.topSite(state.filterHitHosts, now),
                 filterHitsReasons = FilterHitLogic.byReason(state.filterHitReasons, now),
+                filterHitsKeywords = FilterHitLogic.keywordsWeek(state.filterHitKeywords, now),
                 filterHits7d = FilterHitLogic.hits7d(state.filterHits, now),
                 filterHitsPrev7d = FilterHitLogic.hitsPrev7d(state.filterHits, now),
                 quietSuggestions = state.quietSuggestions,

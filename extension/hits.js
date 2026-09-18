@@ -22,6 +22,10 @@ export const HIT_REASONS = ['closed', 'focus', 'channel', 'rule', 'keyword'];
 export const MAX_HOSTS_PER_DAY = 200;
 /** A nap élbolya, ami a hídra megy: ennyi hoszt — MELYIK oldal akaszt meg a legtöbbször. */
 export const TOP_HOSTS_PER_DAY = 5;
+/** Naponta legfeljebb ennyi kulcsszó a könyvben — a lista úgysem hosszabb. */
+export const MAX_KEYWORDS_PER_DAY = 50;
+/** A nap élbolya kulcsszavanként — ennyi megy a hídra. */
+export const TOP_KEYWORDS_PER_DAY = 5;
 
 /** A nap kulcsa HELYI idő szerint: a „ma” az, amit az ember annak él meg. */
 export function dayKey(now = new Date()) {
@@ -50,7 +54,7 @@ function reasonOf(reason) {
  * { days: { nap: { total: n, byReason: { ok: n } } } }. Vissza ugyanaz az
  * objektum — a hívó dönti el, mikor menti.
  */
-export function recordHit(state, day, reason, host, hour) {
+export function recordHit(state, day, reason, host, hour, keyword) {
   const s = state && typeof state === 'object' ? state : {};
   if (!s.days || typeof s.days !== 'object') s.days = {};
   if (typeof day !== 'string' || !DAY_KEY.test(day)) return s;
@@ -74,6 +78,15 @@ export function recordHit(state, day, reason, host, hour) {
   if (Number.isInteger(hour) && hour >= 0 && hour < 24) {
     if (!Array.isArray(bucket.byHour) || bucket.byHour.length !== 24) bucket.byHour = new Array(24).fill(0);
     bucket.byHour[hour] = (Number.isFinite(bucket.byHour[hour]) ? bucket.byHour[hour] : 0) + 1;
+  }
+  // Kulcsszavanként is: MELYIK kulcsszó dolgozik — csak a kulcsszó okánál, a
+  // fogó szóval. A gépen marad; a hídra a nap élbolya megy.
+  const k = r === 'keyword' && typeof keyword === 'string' ? keyword.trim().toLowerCase() : '';
+  if (k) {
+    if (!bucket.byKeyword || typeof bucket.byKeyword !== 'object') bucket.byKeyword = {};
+    if (bucket.byKeyword[k] !== undefined || Object.keys(bucket.byKeyword).length < MAX_KEYWORDS_PER_DAY) {
+      bucket.byKeyword[k] = (Number.isFinite(bucket.byKeyword[k]) ? bucket.byKeyword[k] : 0) + 1;
+    }
   }
   return s;
 }
@@ -193,9 +206,20 @@ export function hitsReport(state, today, count = REPORT_DAYS) {
         .sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
         .slice(0, TOP_HOSTS_PER_DAY)
       : [];
+    // Kulcsszavanként is az élboly: MELYIK kulcsszó dolgozik — a gépi kártya
+    // ebből mondja; a teljes szó-könyv itt marad.
+    const kws = state?.days?.[day]?.byKeyword;
+    const topKeywords = kws && typeof kws === 'object'
+      ? Object.entries(kws)
+        .filter(([k, n]) => typeof k === 'string' && k && Number.isFinite(n) && n > 0)
+        .map(([k, n]) => [k, Math.floor(n)])
+        .sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
+        .slice(0, TOP_KEYWORDS_PER_DAY)
+      : [];
     const row = { day, total, byReason };
     if (byHour && byHour.some((n) => n > 0)) row.byHour = byHour;
     if (topHosts.length) row.topHosts = topHosts;
+    if (topKeywords.length) row.topKeywords = topKeywords;
     out.push(row);
   }
   return out;
@@ -249,6 +273,28 @@ export function topHost(state, days) {
   }
   const best = Object.entries(sum).sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))[0];
   return best ? { host: best[0], count: best[1] } : null;
+}
+
+/**
+ * A kulcsszavak könyve a napokra összeadva: (kulcsszó, szám) sorok, a
+ * legnagyobb elöl, holtversenynél az ábécé — MELYIK kulcsszó dolgozik. A
+ * teljes könyvből, pontosan; a hídra a napi élboly megy.
+ */
+export function keywordsWeek(state, days) {
+  const sum = {};
+  for (const day of Array.isArray(days) ? days : []) {
+    const kws = state?.days?.[day]?.byKeyword;
+    if (!kws || typeof kws !== 'object') continue;
+    for (const [k, n] of Object.entries(kws)) if (Number.isFinite(n) && n > 0) sum[k] = (sum[k] ?? 0) + Math.floor(n);
+  }
+  return Object.entries(sum).sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
+    .map(([keyword, count]) => ({ keyword, count }));
+}
+
+/** „Kulcsszavanként a héten: shorts 7 · reels 3” — vagy null, ha nincs miről. */
+export function keywordsText(rows) {
+  if (!Array.isArray(rows) || rows.length === 0) return null;
+  return `Kulcsszavanként a héten: ${rows.map((r) => `${r.keyword} ${r.count}`).join(' · ')}`;
 }
 
 /** „A héten: 4 zárva oldal · 3 munkamenet” — vagy null, ha nincs miről. */

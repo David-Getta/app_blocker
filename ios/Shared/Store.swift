@@ -133,6 +133,8 @@ struct AppState: Codable, Equatable {
     var filterHitHosts: [String: [String: Int]]? = nil
     /// A szűrő megakadásai okonként: nap → (lista | kulcsszó → szám) — melyik szabály dolgozik.
     var filterHitReasons: [String: [String: Int]]? = nil
+    /// A szűrő megakadásai kulcsszavanként: nap → (a fogó szó → szám) — melyik kulcsszó dolgozik.
+    var filterHitKeywords: [String: [String: Int]]? = nil
     /// Rejtve induljon-e a blokkolt oldalak listája.
     ///
     /// Beállítás, nem pillanatnyi állapot: a felület minden indításkor rejtve

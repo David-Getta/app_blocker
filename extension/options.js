@@ -14,7 +14,8 @@ import { CLOSED_FRESH_MS, loadLink, pullFromApp, setToken, withAppRules } from '
 import { dayKey, formatSeconds, lastDays, topChannels } from './chantime.js';
 // A `lastDays` a csatorna-időé (ugyanaz a naptár) — a könyv is azzal él.
 import {
-  hitsByHour, hitsReasonText, hitsRows, hitsSummary, hitsText, hitsTrendText, hitsWeekByReason, hourLabel, peakHour, topHost,
+  hitsByHour, hitsReasonText, hitsRows, hitsSummary, hitsText, hitsTrendText, hitsWeekByReason, hourLabel, keywordsText,
+  keywordsWeek, peakHour, topHost,
 } from './hits.js';
 
 const TIME_KEY = 'breaker.chantime';
@@ -86,6 +87,10 @@ async function renderHits() {
   const top = topHost(state, week);
   $('hitsTop').hidden = top === null;
   $('hitsTop').textContent = top ? `A héten a legtöbbször: ${top.host} (${top.count}×).` : '';
+  // MELYIK kulcsszó dolgozik: a hét kulcsszavanként, a saját könyvből.
+  const kw = keywordsText(keywordsWeek(state, week));
+  $('hitsKeywords').hidden = kw === null;
+  $('hitsKeywords').textContent = kw ?? '';
   const strip = $('hitsHours');
   strip.textContent = '';
   strip.hidden = peak === null;

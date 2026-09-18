@@ -148,6 +148,7 @@ function fakeBridgeSource() {
       browserHitsPeak: { hour: 21, count: 6 },
       browserHitsReasons: [{ reason: 'closed', count: 7 }, { reason: 'keyword', count: 3 }, { reason: 'focus', count: 2 }],
       browserHitsTop: { label: 'youtube.com', count: 7 },
+      browserHitsKeywords: [{ keyword: 'shorts', count: 7 }, { keyword: 'reels', count: 3 }],
       // A réteg gyorsindítója a segéd választását követi — szándékosan nem az első.
       lastUsedPackId: 'pack_2',
     });

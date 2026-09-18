@@ -452,6 +452,17 @@ forgalom nem megakadás, ezért oknak sem számít), és a statisztika a hét
 sorát mondja: „Ebből: 30 lista · 12 kulcsszó.” Holtversenynél itt is a
 rögzített sorrend.
 
+**Melyik kulcsszó dolgozik:** a kulcsszó okánál a fogó szó is a könyvbe
+megy — a bővítményben (`byKeyword`, naponta ötven szó; a hídra a nap öt
+leggyakoribb szava megy, `topKeywords`) és a telefonon (`filterHitKeywords`,
+nap → szó → szám, a lista tételeinek könyvével azonos alak). A gépi
+Kulcsszavak kártya a hídról mondja („A héten a legtöbbször fogott: shorts 7 · reels 3.”
+— a napi élbolyok összege, alsó becslés, a sorrend igaz), a bővítmény
+beállítás-lapja a saját könyvéből, pontosan („Kulcsszavanként a héten: shorts 7 · reels 3”),
+a telefon statisztikája a megakadás-blokkban („Kulcsszavanként: tiktok 5.”).
+Ami sosem fog, az nem szerepel — tükör a listára: a felesleges szó levétele
+próbatétel, de hogy felesleges-e, itt derül ki.
+
 **A hét az előző héthez képest:** a két szám egymás mellett — „A héten 12
 megakadás, az előző héten 18.” — a statisztika megakadás-blokkjában
 mindhárom platformon, és a heti mondatban a szám mellett, zárójelben: „12

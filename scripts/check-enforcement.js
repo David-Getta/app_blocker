@@ -626,6 +626,49 @@ const WIRES = [
     needle: 'export function hitsReport(state, today, count = REPORT_DAYS)',
     lost: 'a híd csak egy hetet vinne — az előző hét a gépen mindig nulla',
   },
+  // MELYIK KULCSSZÓ DOLGOZIK: a bővítmény a fogó szóval könyvel, a hídra a nap
+  // élbolya megy, a gépi kártya és a beállítás-lap mondja. Ha a háttér nem adná
+  // át a szót, a könyv üres maradna — és a sor csendben elmaradna.
+  {
+    file: 'extension/background.js',
+    needle: "recordHit(await loadHits(), today, reason, hostOf(url) ?? '', new Date(now).getHours(), keyword)",
+    lost: 'a bővítmény nem könyvelné a fogó kulcsszót — a kulcsszavankénti sor mindig üres',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/vpn/BreakerVpnService.kt',
+    needle: 'FilterHitLogic.recordSite(it.filterHitKeywords, day, keyword)',
+    lost: 'Androidon a szűrő nem könyvelné a fogó kulcsszót — a sor mindig üres',
+  },
+  {
+    file: 'ios/PacketTunnel/PacketTunnelProvider.swift',
+    needle: 'FilterHitLogic.recordSite($0.filterHitKeywords ?? [:], day: day, site: keyword)',
+    lost: 'iPhone-on a tunnel nem könyvelné a fogó kulcsszót — a sor mindig üres',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/StatsScreen.kt',
+    needle: 'FilterHitLogic.keywordLine(filterHitsKeywords)',
+    lost: 'az Android statisztikája nem mondaná, melyik kulcsszó dolgozik',
+  },
+  {
+    file: 'ios/App/StatsView.swift',
+    needle: 'FilterHitLogic.keywordLine(kws)',
+    lost: 'az iPhone statisztikája nem mondaná, melyik kulcsszó dolgozik',
+  },
+  {
+    file: 'extension/options.js',
+    needle: 'keywordsText(keywordsWeek(state, week))',
+    lost: 'a bővítmény beállítás-lapja nem mondaná kulcsszavanként a hetet',
+  },
+  {
+    file: 'desktop/src/helper/server.ts',
+    needle: 'browserHitsKeywords: browserHitsByKeyword(state.browserHits, now),',
+    lost: 'a segéd státusza nem mondaná kulcsszavanként a hetet',
+  },
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: 'hitsKeywordLine(st.browserHitsKeywords ?? [])',
+    lost: 'a gépi kulcsszó-kártya nem mondaná, melyik szó dolgozik',
+  },
   {
     file: 'extension/options.js',
     needle: "$('hitsPrev').textContent = trend ?? '';",
@@ -785,7 +828,7 @@ const WIRES = [
   // hiba, de nem is az, amit ígérünk.
   {
     file: 'desktop/src/helper/server.ts',
-    needle: "browserHitsTop: browserHitsTopSite(state.browserHits, now, state.sites),\n    lastUsedPackId: lastUsedPack(",
+    needle: "browserHitsKeywords: browserHitsByKeyword(state.browserHits, now),\n    lastUsedPackId: lastUsedPack(",
     lost: 'a segéd státusza nem választana csomagot a réteg gombjának',
   },
   {
@@ -851,7 +894,7 @@ const WIRES = [
   // nullát mondana, és semmi nem jelezné.
   {
     file: 'extension/background.js',
-    needle: 'await recordHitNow(details.tabId, details.url, hit.reason);',
+    needle: "await recordHitNow(details.tabId, details.url, hit.reason, Date.now(), hit.keyword ?? '');",
     lost: 'a bővítmény nem könyvelné a megakadásokat — a számláló mindig nulla lenne',
   },
   {

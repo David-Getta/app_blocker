@@ -148,12 +148,12 @@ let lastCounted = { tabId: -1, url: '', at: 0 };
 const COUNT_ONCE_MS = 3000;
 
 /** Egy megakadás könyvelése a mai napra — sosem dobhat a hívóra. */
-async function recordHitNow(tabId, url, reason, now = Date.now()) {
+async function recordHitNow(tabId, url, reason, now = Date.now(), keyword = '') {
   if (lastCounted.tabId === tabId && lastCounted.url === url && now - lastCounted.at < COUNT_ONCE_MS) return;
   lastCounted = { tabId, url, at: now };
   try {
     const today = dayKey(new Date(now));
-    const state = sweepHits(recordHit(await loadHits(), today, reason, hostOf(url) ?? '', new Date(now).getHours()), today);
+    const state = sweepHits(recordHit(await loadHits(), today, reason, hostOf(url) ?? '', new Date(now).getHours(), keyword), today);
     await chrome.storage.local.set({ [HITS_KEY]: state });
   } catch (err) {
     note(`megakadás nem könyvelve: ${err}`);
@@ -268,7 +268,8 @@ async function enforce(kind, details) {
     return;
   }
   // Megállítottunk: a könyvelés az átirányítás UTÁN, hogy sose késleltesse.
-  await recordHitNow(details.tabId, details.url, hit.reason);
+  // A fogó kulcsszó is a könyvbe megy: MELYIK kulcsszó dolgozik.
+  await recordHitNow(details.tabId, details.url, hit.reason, Date.now(), hit.keyword ?? '');
 }
 
 chrome.webNavigation.onBeforeNavigate.addListener((details) => {
@@ -373,7 +374,7 @@ chrome.runtime.onMessage.addListener((msg, sender, respond) => {
     try {
       await chrome.tabs.update(tabId, { url: blockedUrl(hit, url) });
     } catch { respond({}); return; /* a lap közben eltűnt */ }
-    await recordHitNow(tabId, url, 'keyword', now);
+    await recordHitNow(tabId, url, 'keyword', now, keyword);
     respond({ blocked: true });
   })();
   return true; // aszinkron válasz

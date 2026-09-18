@@ -530,6 +530,10 @@ async function main() {
     ).catch(() => null);
     const prevLine = await seeder.evaluate(() => document.querySelector('#hitsPrev')?.textContent ?? '').catch(() => '');
     check(/^A héten \d+ megakadás, az előző héten 4\.$/.test(prevLine), `a beállítás-lap a hetet az előző héthez méri (${prevLine})`);
+    // MELYIK kulcsszó dolgozik: a beállítás-lap a hét kulcsszavait mondja a
+    // saját könyvéből — a fenti tiltás a „tiltott” szóval ment.
+    const kwLine = await seeder.evaluate(() => document.querySelector('#hitsKeywords')?.textContent ?? '').catch(() => '');
+    check(/^Kulcsszavanként a héten: .*tiltott \d+/.test(kwLine), `a beállítás-lap kulcsszavanként mondja a hetet (${kwLine})`);
     await seedClosed([], Date.now());
 
     // A szünet LETELTEKOR a lap utat ad vissza: a visszaszámláló helyén link

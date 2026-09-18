@@ -244,6 +244,27 @@ public enum FilterHitLogic {
         rows.map { "\($0.count) \(reasonLabels[$0.reason] ?? $0.reason)" }.joined(separator: " · ")
     }
 
+    // MARK: - kulcsszavanként
+
+    /// MELYIK kulcsszó dolgozik: a kulcsszó okánál a fogó szó is a könyvbe megy
+    /// (nap → szó → szám, az oldalakéval azonos alak). A hét sora a legnagyobb
+    /// elöl, holtversenynél az ábécé — ami sosem fog, az itt nem szerepel.
+    public static func keywordsWeek(_ book: [String: [String: Int]], now: Double) -> [(keyword: String, count: Int)] {
+        let days = Set(daySeries([:], now: now, count: 7).map { $0.day })
+        var sum: [String: Int] = [:]
+        for (day, row) in book where days.contains(day) {
+            for (k, n) in row { sum[k, default: 0] += max(0, n) }
+        }
+        return sum.filter { $0.value > 0 }
+            .sorted { $0.value != $1.value ? $0.value > $1.value : $0.key < $1.key }
+            .map { (keyword: $0.key, count: $0.value) }
+    }
+
+    /// „shorts 7 · reels 3” — üresen üres. A gépi sor tükre.
+    public static func keywordLine(_ rows: [(keyword: String, count: Int)]) -> String {
+        rows.map { "\($0.keyword) \($0.count)" }.joined(separator: " · ")
+    }
+
     // MARK: - a sokadik
 
     /// A SOKADIK megakadás lépcsői: ezeknél a mai számoknál a lap egy lépést

@@ -61,6 +61,8 @@ fun StatsSection(
     /** a hét csúcs-oldala (nyers név, szám) — melyik oldal akaszt meg a legtöbbször; null, ha nem volt */
     filterHitsTop: Pair<String, Int>? = null,
     filterHitsReasons: List<Pair<String, Int>> = emptyList(),
+    /** a hét megakadásai kulcsszavanként (szó, szám) — melyik kulcsszó dolgozik */
+    filterHitsKeywords: List<Pair<String, Int>> = emptyList(),
     /** a hét és az előző hét megakadásai — a két szám egymás mellett, irány, nem ítélet */
     filterHits7d: Int = 0,
     filterHitsPrev7d: Int = 0,
@@ -145,6 +147,10 @@ fun StatsSection(
             // MELYIK szabály dolgozik: a hét okonként (lista, kulcsszó) — a gépi sor tükre.
             if (filterHitsReasons.isNotEmpty()) {
                 Text("Ebből: ${FilterHitLogic.reasonLine(filterHitsReasons)}.", style = MaterialTheme.typography.bodySmall)
+            }
+            // MELYIK kulcsszó dolgozik: a hét kulcsszavanként — a gépi kártya tükre.
+            if (filterHitsKeywords.isNotEmpty()) {
+                Text("Kulcsszavanként: ${FilterHitLogic.keywordLine(filterHitsKeywords)}.", style = MaterialTheme.typography.bodySmall)
             }
             // A HÉT AZ ELŐZŐ HÉTHEZ KÉPEST: a két szám egymás mellett — irány, nem
             // ítélet. Előző hét nélkül nincs: egy nulla nem összehasonlítás.

@@ -22,7 +22,9 @@ import {
   formatLockdownRemaining, isLocked, isWindowLockdown, windowLockdownStarted, LOCKDOWN_CHOICES_MIN,
   MAX_LOCKDOWN_WINDOWS, type Lockdown, type LockdownWindow,
 } from '../shared/lockdown.js';
-import { hitNudgeStep, hitNudgeText, hitsReasonLine, hitsTrendText, hourLabel, peakWarnKey, peakWarnText } from '../shared/browser-hits.js';
+import {
+  hitNudgeStep, hitNudgeText, hitsKeywordLine, hitsReasonLine, hitsTrendText, hourLabel, peakWarnKey, peakWarnText,
+} from '../shared/browser-hits.js';
 import { stepBurstNotices, type BurstNotice, type BurstWatch } from '../shared/burst-notify.js';
 import {
   cleanDigestLog, daysSinceUnlock, digestDue, digestText, recordDigest, relabelDigest, weekLabel, type DigestEntry,
@@ -2160,6 +2162,12 @@ function renderKeywords(st: StatusData): void {
     chip.addEventListener('click', () => void submitKeywords(words.filter((x) => x !== w)));
     box.appendChild(chip);
   }
+  // MELYIK kulcsszó dolgozik: a hét a hídról, kulcsszavanként — a napi
+  // élbolyok összege (alsó becslés, a sorrend igaz). Tükör a listára: ami
+  // sosem fog, az itt nem szerepel. Üresen nincs.
+  const kwLine = hitsKeywordLine(st.browserHitsKeywords ?? []);
+  $('keywordHitsNote').classList.toggle('hidden', kwLine === '');
+  $('keywordHitsNote').textContent = kwLine ? `A héten a legtöbbször fogott: ${kwLine}.` : '';
   const full = words.length >= MAX_KEYWORDS;
   const input = $<HTMLInputElement>('keywordInput');
   input.disabled = full;

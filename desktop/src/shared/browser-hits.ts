@@ -12,9 +12,13 @@ export interface BrowserHitDay {
   day: string; total: number; byReason: Record<string, number>; byHour?: number[];
   /** a nap élbolya hosztonként (hoszt, szám), a legnagyobb elöl — melyik oldal akaszt meg a legtöbbször */
   topHosts?: [string, number][];
+  /** a nap élbolya kulcsszavanként (szó, szám) — melyik kulcsszó dolgozik */
+  topKeywords?: [string, number][];
 }
 /** A nap élbolya: ennyi hosztot fogadunk el naponta a hídról — a bővítmény ennyit küld. */
 export const MAX_TOP_HOSTS = 5;
+/** Naponta legfeljebb ennyi kulcsszó az élbolyban — a bővítmény ennyit küld. */
+export const MAX_TOP_KEYWORDS = 5;
 /** Forrásonként (böngésző-profilonként) egy lista. */
 export type BrowserHits = Record<string, BrowserHitDay[]>;
 
@@ -34,8 +38,8 @@ export function cleanBrowserHitDays(raw: unknown): BrowserHitDay[] {
   const byDay = new Map<string, BrowserHitDay>();
   for (const item of Array.isArray(raw) ? raw : []) {
     if (!item || typeof item !== 'object') continue;
-    const { day, total, byReason, byHour, topHosts } = item as {
-      day?: unknown; total?: unknown; byReason?: unknown; byHour?: unknown; topHosts?: unknown;
+    const { day, total, byReason, byHour, topHosts, topKeywords } = item as {
+      day?: unknown; total?: unknown; byReason?: unknown; byHour?: unknown; topHosts?: unknown; topKeywords?: unknown;
     };
     if (typeof day !== 'string' || !DAY_KEY.test(day)) continue;
     if (typeof total !== 'number' || !Number.isFinite(total) || total <= 0) continue;
@@ -64,9 +68,22 @@ export function cleanBrowserHitDays(raw: unknown): BrowserHitDay[] {
       seen.add(host);
       tops.push([host, Math.min(t, Math.floor(n))]);
     }
+    // A kulcsszavak élbolya: (szó, szám) párok, szavanként egyszer, legfeljebb a napi összeg, a plafonig.
+    const seenKw = new Set<string>();
+    const kws: [string, number][] = [];
+    for (const pair of Array.isArray(topKeywords) ? topKeywords : []) {
+      if (!Array.isArray(pair) || pair.length !== 2) continue;
+      const [k, n] = pair as [unknown, unknown];
+      if (typeof k !== 'string' || typeof n !== 'number' || !Number.isFinite(n) || n <= 0) continue;
+      const word = k.trim().toLowerCase();
+      if (!word || word.length > 64 || seenKw.has(word) || kws.length >= MAX_TOP_KEYWORDS) continue;
+      seenKw.add(word);
+      kws.push([word, Math.min(t, Math.floor(n))]);
+    }
     const row: BrowserHitDay = { day, total: t, byReason: reasons };
     if (hours && hours.some((n) => n > 0)) row.byHour = hours;
     if (tops.length) row.topHosts = tops;
+    if (kws.length) row.topKeywords = kws;
     byDay.set(day, row);
   }
   return [...byDay.values()].sort((a, b) => (a.day < b.day ? -1 : a.day > b.day ? 1 : 0)).slice(-MAX_HIT_DAYS);
@@ -297,4 +314,31 @@ export function browserHitsTopSite(
   const best = [...sum.entries()].filter(([, n]) => n > 0)
     .sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))[0];
   return best ? { label: best[0], count: best[1] } : null;
+}
+
+/**
+ * Az elmúlt 7 nap megakadásai KULCSSZAVANKÉNT, minden forrásból, a napi
+ * élbolyok összegéből — MELYIK kulcsszó dolgozik. Alsó becslés (a nap öt
+ * leggyakoribb szava megy a hídra), a sorrend igaz. A legnagyobb elöl,
+ * holtversenynél az ábécé.
+ */
+export function browserHitsByKeyword(book: BrowserHits | undefined, now: number): { keyword: string; count: number }[] {
+  const from = hitDayKey(now - 6 * 86_400_000);
+  const to = hitDayKey(now);
+  const sum = new Map<string, number>();
+  for (const days of Object.values(book ?? {})) {
+    for (const d of days) {
+      if (d.day < from || d.day > to) continue;
+      for (const [k, n] of d.topKeywords ?? []) sum.set(k, (sum.get(k) ?? 0) + n);
+    }
+  }
+  return [...sum.entries()]
+    .filter(([, n]) => n > 0)
+    .sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
+    .map(([keyword, count]) => ({ keyword, count }));
+}
+
+/** „shorts 7 · reels 3” — üresen üres. */
+export function hitsKeywordLine(rows: { keyword: string; count: number }[]): string {
+  return rows.map((r) => `${r.keyword} ${r.count}`).join(' · ');
 }

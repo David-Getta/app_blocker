@@ -110,3 +110,12 @@ szabad).
 - **Nem gépzár.** A segéd állapotfájljába rendszergazdaként bele lehet nyúlni,
   a bővítmény kikapcsolható — ahogy minden más szabálynál; az impulzus ellen
   véd, nem a szándék ellen.
+
+## Melyik kulcsszó dolgozik
+
+A megakadás-könyv a kulcsszó okánál a fogó szót is eltárolja — a
+bővítményben és a telefonon is —, és a statisztika kulcsszavanként mondja a
+hetet: a gépi kártya a hídról („A héten a legtöbbször fogott: shorts 7 · reels 3.”),
+a bővítmény beállítás-lapja a saját könyvéből, a telefon a megakadás-blokkban.
+Ami sosem fog, az nem szerepel: a felesleges szó levétele próbatétel, de hogy
+felesleges-e, itt derül ki. Részletek: `docs/feature-usage-stats.md`.

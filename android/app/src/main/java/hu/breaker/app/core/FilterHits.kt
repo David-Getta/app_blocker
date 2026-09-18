@@ -236,6 +236,26 @@ object FilterHitLogic {
     fun reasonLine(rows: List<Pair<String, Int>>): String =
         rows.joinToString(" · ") { (r, n) -> "$n ${REASON_LABELS[r] ?: r}" }
 
+    // ------------------------------------------------------------ kulcsszavanként
+
+    /**
+     * MELYIK kulcsszó dolgozik: a kulcsszó okánál a fogó szó is a könyvbe megy
+     * (nap → szó → szám, az oldalakéval azonos alak, ugyanaz a felvétel és
+     * takarítás). A hét sora a legnagyobb elöl, holtversenynél az ábécé — ami
+     * sosem fog, az itt nem szerepel. Tükör a listára.
+     */
+    fun keywordsWeek(book: Map<String, Map<String, Int>>, now: Long): List<Pair<String, Int>> {
+        val days = UsageLogic.dayKeysBack(now, 7).toSet()
+        val sum = HashMap<String, Int>()
+        for ((day, row) in book) if (day in days) for ((k, n) in row) sum[k] = (sum[k] ?: 0) + maxOf(0, n)
+        return sum.entries.filter { it.value > 0 }
+            .sortedWith(compareByDescending<Map.Entry<String, Int>> { it.value }.thenBy { it.key })
+            .map { it.key to it.value }
+    }
+
+    /** „shorts 7 · reels 3” — üresen üres. A gépi sor tükre. */
+    fun keywordLine(rows: List<Pair<String, Int>>): String = rows.joinToString(" · ") { (k, n) -> "$k $n" }
+
     // ------------------------------------------------------------ a sokadik
 
     /**

@@ -5,9 +5,11 @@ import { test } from 'node:test';
 import * as assert from 'node:assert/strict';
 import {
   HIT_NUDGE_STEPS, HIT_REASON_LABELS, MAX_HITS_PER_DAY, MAX_HIT_DAYS, MAX_HIT_SOURCES, MAX_TOP_HOSTS,
-  PEAK_WARN_LEAD_MS, PEAK_WARN_MIN_COUNT, browserHits7d, browserHitsBetween, browserHitsByReason, browserHitsPeakHour,
+  PEAK_WARN_LEAD_MS, PEAK_WARN_MIN_COUNT, browserHits7d, browserHitsBetween, browserHitsByKeyword, browserHitsByReason,
+  browserHitsPeakHour,
   browserHitsPrev7d, browserHitsSeries, browserHitsToday, browserHitsTopSite, cleanBrowserHitDays, cleanBrowserHits, hitDayKey,
-  hitNudgeStep, hitNudgeText, hitsReasonLine, hitsTrendText, hostSite, hourLabel, peakWarnKey, peakWarnText, putBrowserHits,
+  hitNudgeStep, hitNudgeText, hitsKeywordLine, hitsReasonLine, hitsTrendText, hostSite, hourLabel, peakWarnKey, peakWarnText,
+  putBrowserHits,
 } from '../src/shared/browser-hits';
 import { digestText } from '../src/shared/digest';
 import { summarizeFocus } from '../src/shared/focus';
@@ -212,4 +214,17 @@ test('a hét az előző héthez képest: a 13.–7. nap, a mondat a két számma
     'Elmúlt 7 nap: 12 megakadás a böngészőben (az előző héten 18), a csúcs 21–22 óra.', 'az előző hét a szám mellett, a csúcs utána');
   assert.equal(digestText({ ...base, browserHits7d: 12, browserHitsPrev7d: 0 }, (l) => l),
     'Elmúlt 7 nap: 12 megakadás a böngészőben.', 'előző hét nélkül a régi mondat');
+});
+
+test('kulcsszavanként a hídról: az élboly tisztán, a hét összege, a sor', () => {
+  const days = cleanBrowserHitDays([
+    { day: '2026-09-18', total: 5, byReason: { keyword: 5 }, topKeywords: [['Shorts', 3], ['reels', 9], ['', 1], ['shorts', 1], 'nem'] },
+    { day: '2026-09-11', total: 2, byReason: { keyword: 2 }, topKeywords: [['live', 2]] },
+  ]);
+  assert.deepEqual(days[1].topKeywords, [['shorts', 3], ['reels', 5]], 'kisbetűs, egyszer, a napi összegig');
+  const book = putBrowserHits(undefined, 'chrome1', days);
+  assert.deepEqual(browserHitsByKeyword(book, NOW), [{ keyword: 'reels', count: 5 }, { keyword: 'shorts', count: 3 }], 'a nyolc napja nem a hété');
+  assert.equal(hitsKeywordLine(browserHitsByKeyword(book, NOW)), 'reels 5 · shorts 3');
+  assert.equal(hitsKeywordLine([]), '');
+  assert.deepEqual(browserHitsByKeyword(undefined, NOW), []);
 });

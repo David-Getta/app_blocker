@@ -96,12 +96,17 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
                 let hour = FilterHitLogic.hourOf(now)
                 // Oldalanként is: a lista tételével, nem a nyers hoszttal.
                 let site = FilterHitLogic.siteOf(name, sites: store.state.sites.map { (domain: $0.domain, hostnames: $0.hostnames) })
+                // Kulcsszavanként is: a kulcsszó okánál a fogó szó — melyik kulcsszó dolgozik.
+                let keyword = reason == FilterHitLogic.reasonKeyword ? KeywordLogic.keywordInHost(store.state.keywords ?? [], name) : nil
                 store.mutate {
                     $0.filterHits = FilterHitLogic.sweep(FilterHitLogic.record($0.filterHits ?? [:], day: day), today: day)
                     $0.filterHitHours = FilterHitLogic.cleanHours(FilterHitLogic.recordHour($0.filterHitHours ?? [:], day: day, hour: hour))
                     $0.filterHitHosts = FilterHitLogic.cleanSites(FilterHitLogic.recordSite($0.filterHitHosts ?? [:], day: day, site: site))
                     // Okonként is: melyik szabály dolgozik — a lista vagy a kulcsszó.
                     $0.filterHitReasons = FilterHitLogic.cleanSites(FilterHitLogic.recordSite($0.filterHitReasons ?? [:], day: day, site: reason))
+                    if let keyword {
+                        $0.filterHitKeywords = FilterHitLogic.cleanSites(FilterHitLogic.recordSite($0.filterHitKeywords ?? [:], day: day, site: keyword))
+                    }
                 }
             }
             guard let nx = DnsEngine.buildNxdomain(q.dnsPayload) else { return }

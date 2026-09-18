@@ -11,8 +11,8 @@ import { computeTier } from '../shared/challenges';
 import { normalizeAlias, normalizeReason } from '../shared/alias';
 import { cleanDigestLog } from '../shared/digest';
 import {
-  browserHits7d, browserHitsByReason, browserHitsPeakHour, browserHitsPrev7d, browserHitsSeries, browserHitsToday,
-  browserHitsTopSite,
+  browserHits7d, browserHitsByKeyword, browserHitsByReason, browserHitsPeakHour, browserHitsPrev7d, browserHitsSeries,
+  browserHitsToday, browserHitsTopSite,
   putBrowserHits,
 } from '../shared/browser-hits';
 import { normalizeRule } from '../shared/urlrules';
@@ -143,6 +143,7 @@ export function statusOf(
     browserHitsPeak: browserHitsPeakHour(state.browserHits, now),
     browserHitsReasons: browserHitsByReason(state.browserHits, now),
     browserHitsTop: browserHitsTopSite(state.browserHits, now, state.sites),
+    browserHitsKeywords: browserHitsByKeyword(state.browserHits, now),
     lastUsedPackId: lastUsedPack(state.focusPacks ?? [], state.focusLog ?? [])?.id ?? null,
     lastUnlockAt: state.unlockLog.length > 0 ? Math.max(...state.unlockLog) : null,
     session: referee.currentSession(state),

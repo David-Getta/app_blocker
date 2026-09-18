@@ -15,6 +15,7 @@ import hu.breaker.app.MainActivity
 import hu.breaker.app.R
 import hu.breaker.app.core.AliasLogic
 import hu.breaker.app.core.FilterHitLogic
+import hu.breaker.app.core.KeywordLogic
 import hu.breaker.app.core.UsageLogic
 import hu.breaker.app.core.AppState
 import hu.breaker.app.core.BreakerStore
@@ -504,6 +505,8 @@ class BreakerVpnService : VpnService() {
                 val hour = FilterHitLogic.hourOf(now)
                 // Oldalanként is: a lista tételével, nem a nyers hoszttal.
                 val site = FilterHitLogic.siteOf(name, BreakerStore.state.value.sites.map { s -> s.domain to s.hostnames })
+                // Kulcsszavanként is: a kulcsszó okánál a fogó szó — melyik kulcsszó dolgozik.
+                val keyword = if (reason == FilterHitLogic.REASON_KEYWORD) KeywordLogic.keywordInHost(BreakerStore.state.value.keywords, name) else null
                 runCatching {
                     BreakerStore.mutate {
                         it.copy(
@@ -512,6 +515,7 @@ class BreakerVpnService : VpnService() {
                             filterHitHosts = FilterHitLogic.cleanSites(FilterHitLogic.recordSite(it.filterHitHosts, day, site)),
                             // Okonként is: melyik szabály dolgozik — a lista vagy a kulcsszó.
                             filterHitReasons = FilterHitLogic.cleanSites(FilterHitLogic.recordSite(it.filterHitReasons, day, reason)),
+                            filterHitKeywords = if (keyword != null) FilterHitLogic.cleanSites(FilterHitLogic.recordSite(it.filterHitKeywords, day, keyword)) else it.filterHitKeywords,
                         )
                     }
                 }

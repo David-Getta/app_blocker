@@ -191,7 +191,9 @@ valamit, amit a felhasználó nem tiltott le.
     beállítás-lap a hét csúcs-óráját mondja („A hét csúcsa: 21–22 óra”) és
     egy óra-sávot rajzol — mikor jár a kéz magától; a hetet az előző héthez
     méri („A héten 12 megakadás, az előző héten 18.” — a hídra két hét megy,
-    hogy az app is tudja); és a hetet okonként is
+    hogy az app is tudja); kulcsszavanként is, a fogó szóval
+    („Kulcsszavanként a héten: shorts 7 · reels 3” — melyik kulcsszó dolgozik;
+    a hídra a nap öt leggyakoribb szava megy); és a hetet okonként is
     („A héten: 4 zárva oldal · 3 kulcsszó”) — melyik szabály dolgozik. A mag
     a `hits.js`, a kiszállított bájtokon tesztelve.
 

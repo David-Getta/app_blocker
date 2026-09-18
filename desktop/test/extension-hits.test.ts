@@ -20,13 +20,16 @@ interface Hits {
   RETENTION_DAYS: number;
   dayKey: (d?: Date) => string;
   lastDays: (today: string, n: number) => string[];
-  recordHit: (state: unknown, day: string, reason: string, host?: string, hour?: number) => { days: Record<string, { total: number; byReason: Record<string, number> }> };
+  recordHit: (state: unknown, day: string, reason: string, host?: string, hour?: number, keyword?: string) => { days: Record<string, { total: number; byReason: Record<string, number> }> };
   sweepHits: (state: unknown, today: string) => { days: Record<string, unknown> };
   hitsOn: (state: unknown, day: string) => number;
   hitsSummary: (state: unknown, today: string) => { today: number; week: number; prevWeek: number };
   hitsTrendText: (s: { week: number; prevWeek: number }) => string | null;
   hitsReport: (state: unknown, today: string) => { day: string; total: number; byReason: Record<string, number>; topHosts?: [string, number][] }[];
   REPORT_DAYS: number;
+  MAX_KEYWORDS_PER_DAY: number;
+  keywordsWeek: (state: unknown, days: string[]) => { keyword: string; count: number }[];
+  keywordsText: (rows: { keyword: string; count: number }[]) => string | null;
   hitsText: (s: { today: number; week: number }) => string | null;
   hitsRows: (state: unknown, today: string) => { day: string; total: number; detail: string }[];
   hitsOnHost: (state: unknown, day: string, host: string) => number;
@@ -46,7 +49,7 @@ interface Hits {
 function load(): Hits {
   const src = fs.readFileSync(path.join(extensionDir(), 'hits.js'), 'utf8').replace(/^export /gm, '');
   // eslint-disable-next-line no-new-func
-  return new Function(`${src}\nreturn { RETENTION_DAYS, REPORT_DAYS, MAX_HOSTS_PER_DAY, dayKey, lastDays, recordHit, sweepHits, hitsOn, hitsOnHost, hitsSummary, hitsReport, hitsText, hitsTrendText, hitsRows, hitsByHour, peakHour, hourLabel, hitsNudge, NUDGE_AT, hitsWeekByReason, hitsReasonText, REASON_NAMES, TOP_HOSTS_PER_DAY, topHost };`)() as Hits;
+  return new Function(`${src}\nreturn { RETENTION_DAYS, REPORT_DAYS, MAX_HOSTS_PER_DAY, MAX_KEYWORDS_PER_DAY, keywordsWeek, keywordsText, dayKey, lastDays, recordHit, sweepHits, hitsOn, hitsOnHost, hitsSummary, hitsReport, hitsText, hitsTrendText, hitsRows, hitsByHour, peakHour, hourLabel, hitsNudge, NUDGE_AT, hitsWeekByReason, hitsReasonText, REASON_NAMES, TOP_HOSTS_PER_DAY, topHost };`)() as Hits;
 }
 
 const TODAY = '2026-09-18';
@@ -206,4 +209,23 @@ test('a csúcs-oldal a saját könyvből: a napokra összeadva, pontosan; holtve
   assert.deepEqual(h.topHost(s, h.lastDays(TODAY, 7)), { host: 'reddit.com', count: 3 }, 'a hét összeadva');
   assert.equal(h.topHost(s, ['2026-09-10']), null, 'üres nap: nincs');
   assert.equal(h.topHost({}, [TODAY]), null);
+});
+
+test('kulcsszavanként is: csak a kulcsszó okánál, a fogó szóval; a hét sora, a hídra a nap élbolya', () => {
+  const h = load();
+  let s = h.recordHit({}, TODAY, 'keyword', 'youtube.com', 21, 'Shorts');
+  s = h.recordHit(s, TODAY, 'keyword', 'youtube.com', 21, 'shorts');
+  s = h.recordHit(s, TODAY, 'keyword', 'instagram.com', 22, 'reels');
+  s = h.recordHit(s, TODAY, 'closed', 'reddit.com', 22, 'reels'); // nem kulcsszó ok: a szó nem számít
+  s = h.recordHit(s, '2026-09-11', 'keyword', 'x.com', 9, 'live'); // nyolc napja: nem a hété
+  const week = h.lastDays(TODAY, 7);
+  assert.deepEqual(h.keywordsWeek(s, week), [{ keyword: 'shorts', count: 2 }, { keyword: 'reels', count: 1 }], 'kisbetűs, a legnagyobb elöl');
+  assert.equal(h.keywordsText(h.keywordsWeek(s, week)), 'Kulcsszavanként a héten: shorts 2 · reels 1');
+  assert.equal(h.keywordsText([]), null);
+  const row = h.hitsReport(s, TODAY).find((r) => r.day === TODAY) as { topKeywords?: [string, number][] };
+  assert.deepEqual(row.topKeywords, [['shorts', 2], ['reels', 1]], 'a hídra a nap élbolya megy');
+  let many = {};
+  for (let i = 0; i < h.MAX_KEYWORDS_PER_DAY + 3; i++) many = h.recordHit(many, TODAY, 'keyword', 'a.example', 1, `k${i}`);
+  assert.equal(h.keywordsWeek(many, [TODAY]).length, h.MAX_KEYWORDS_PER_DAY, 'a plafon fölött nincs új szó');
+  assert.equal(h.hitsOn(many, TODAY), h.MAX_KEYWORDS_PER_DAY + 3, '…de az összegben benne van');
 });

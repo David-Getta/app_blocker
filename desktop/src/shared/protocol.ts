@@ -193,6 +193,8 @@ export interface StatusData {
   browserHitsReasons?: { reason: string; count: number }[];
   /** a hét csúcs-oldala (a lista tételének neve vagy a hoszt, szám) — melyik oldal akaszt meg a legtöbbször */
   browserHitsTop?: { label: string; count: number } | null;
+  /** a hét megakadásai kulcsszavanként (szó, szám), a legnagyobb elöl — melyik kulcsszó dolgozik */
+  browserHitsKeywords?: { keyword: string; count: number }[];
   /** a legutóbb használt csomag (napló nélkül az első) — a réteg egy kattintásos gombja ezt indítja */
   lastUsedPackId?: string | null;
   /** az utolsó feloldás ideje (epoch ms), vagy null, ha még egy sem volt */

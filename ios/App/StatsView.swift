@@ -143,6 +143,12 @@ struct StatsView: View {
                         Text("Ebből: \(FilterHitLogic.reasonLine(reasons)).")
                             .font(.footnote).foregroundStyle(.secondary)
                     }
+                    // MELYIK kulcsszó dolgozik: a hét kulcsszavanként — a gépi kártya tükre.
+                    let kws = FilterHitLogic.keywordsWeek(store.state.filterHitKeywords ?? [:], now: now)
+                    if !kws.isEmpty {
+                        Text("Kulcsszavanként: \(FilterHitLogic.keywordLine(kws)).")
+                            .font(.footnote).foregroundStyle(.secondary)
+                    }
                     // A HÉT AZ ELŐZŐ HÉTHEZ KÉPEST: a két szám egymás mellett — irány,
                     // nem ítélet. Előző hét nélkül nincs: egy nulla nem összehasonlítás.
                     let trend = FilterHitLogic.trendText(
