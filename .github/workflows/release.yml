@@ -44,21 +44,22 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A sorozat a hónap- és évfordulón.** A menet-sorozat és a
-          leghosszabb sorozat tesztjei mindhárom nyelvben a hónap és az év
-          végét is fogják (aug. 30–szept. 1, dec. 30–jan. 1). Kód nem
-          változott: a három mag már jól számolt, a tesztek ezt rögzítik.
+          **A sorozat küszöbe egy helyen.** A „kettőtől” szabály (egy nap
+          nem sorozat) a három mag egy-egy állandója lett, a mag-összhang
+          őre a három értéket egymáshoz méri; a kártya, a réteg, a heti
+          mondat és a telefonok a magét használják. Viselkedés nem
+          változott.
 
-          ### Ami a v0.4.151-ben jött
+          ### Ami a v0.4.152-ben jött
+
+          **A sorozat a hónap- és évfordulón** — a tesztek mindhárom
+          nyelvben a hónap és az év végét is fogják. Kód nem változott.
+
+          #### Ami a v0.4.151-ben jött
 
           **A leghosszabb sorozat a böngésző lapjain is** — a felugró lap
-          és a tiltó lap a mostani sorozat mellett a rekordot is mondja,
-          zárójelben. Bővítmény 0.4.35.
-
-          #### Ami a v0.4.150-ben jött
-
-          **A leghosszabb sorozat ott is, ahol a döntés van:** a gépi
-          kártya és a réteg lába, a telefonok kezdőlapjának kártyája.
+          és a tiltó lap a mostani sorozat mellett a rekordot is mondja.
+          Bővítmény 0.4.35.
 
           NOTES
           fi
