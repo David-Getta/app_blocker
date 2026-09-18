@@ -9,6 +9,7 @@ import { HELPER_VERSION } from '../shared/protocol';
 import { normalizeDomain, expandHostnames } from '../shared/blocklist';
 import { computeTier } from '../shared/challenges';
 import { normalizeAlias, normalizeReason } from '../shared/alias';
+import { cleanDigestLog } from '../shared/digest';
 import { normalizeRule } from '../shared/urlrules';
 import { focusDaySeries, isRunning, normalizePack, spentWindows, summarizeFocus } from '../shared/focus';
 import { noteBurstUsage, normalizeBurst, type BurstRule } from '../shared/burst';
@@ -571,6 +572,7 @@ async function handle(req: HelperRequest, deps: ServerDeps): Promise<unknown> {
         focusToday: summarizeFocus(state.focusLog, startOfDay(now), now),
         focusWeek: summarizeFocus(state.focusLog, startOfDay(now) - 6 * 86_400_000, now),
         lastSampleAt: state.usageLastSampleAt ?? null,
+        digestLog: cleanDigestLog(state.digestLog),
       };
       return data;
     }

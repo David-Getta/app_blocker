@@ -69,20 +69,12 @@ function fakeBridgeSource() {
       const m = String(d.getMonth()+1).padStart(2,'0');
       return d.getFullYear() + '-' + m + '-' + String(d.getDate()).padStart(2,'0');
     };
-    // A heti napló a böngésző tárában: két korábbi hétfő mondata. A hétfő
-    // dátuma ugyanúgy számolva, mint a magban (a hét kulcsa).
     const monday = (back) => {
       const d = new Date(now); d.setHours(12,0,0,0);
       d.setDate(d.getDate() - ((d.getDay() + 6) % 7) - 7 * back);
       const m = String(d.getMonth()+1).padStart(2,'0');
       return d.getFullYear() + '-' + m + '-' + String(d.getDate()).padStart(2,'0');
     };
-    try {
-      localStorage.setItem('breaker.digestLog', JSON.stringify([
-        { week: monday(1), text: 'Elmúlt 7 nap: 7 ó 20 p mért idő; a legtöbb: youtube.com 2 ó 40 p (▼ -33% az előző héthez képest); appban a legtöbb: Slack 2 ó 0 p. 9 menet (7 ó 0 p, 2 korán leállítva). 3 feloldás. Nincs tiltva, de sokat vitt: news.ycombinator.com 2 ó 2 p.' },
-        { week: monday(2), text: 'Elmúlt 7 nap: 9 ó 5 p mért idő; a legtöbb: youtube.com 4 ó 0 p; appban a legtöbb: Slack 2 ó 30 p. 6 menet (4 ó 30 p, 1 korán leállítva). 5 feloldás.' },
-      ]));
-    } catch {}
     window.__fakeSites = [
       { id: 'site_1', domain: 'youtube.com', hostnames: ['youtube.com','www.youtube.com','m.youtube.com','youtu.be'], reason: 'Mert este nem alszom tőle',
         addedAt: now - 86400000*9, pauseUntil: null, pendingDeleteAt: null,
@@ -192,6 +184,12 @@ function fakeBridgeSource() {
       // határ; a füstteszt nem az órát teszteli, hanem a sor alakját.
       lastSampleAt: Math.max(Date.now() - 5 * 60_000,
         new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()).getTime()),
+      // A heti napló a segéd állapotából: két korábbi hétfő mondata. A hétfő
+      // dátuma ugyanúgy számolva, mint a magban (a hét kulcsa).
+      digestLog: [
+        { week: monday(1), text: 'Elmúlt 7 nap: 7 ó 20 p mért idő; a legtöbb: youtube.com 2 ó 40 p (▼ -33% az előző héthez képest); appban a legtöbb: Slack 2 ó 0 p. 9 menet (7 ó 0 p, 2 korán leállítva). 3 feloldás. Nincs tiltva, de sokat vitt: news.ycombinator.com 2 ó 2 p.' },
+        { week: monday(2), text: 'Elmúlt 7 nap: 9 ó 5 p mért idő; a legtöbb: youtube.com 4 ó 0 p; appban a legtöbb: Slack 2 ó 30 p. 6 menet (4 ó 30 p, 1 korán leállítva). 5 feloldás.' },
+      ],
     };
     window.breaker = {
       platform: 'darwin',

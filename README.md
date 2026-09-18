@@ -55,8 +55,9 @@ ingyen van, rövidíteni vagy visszavonni sehogy.
   is (iPhone-on értesítés nincs); a rejtett vagy fedőnevű címet az értesítés
   sem mondja ki. A mondatok **heti naplóban** megmaradnak a statisztikán,
   mindhárom platformon (fél év, a legfrissebb elöl), és fölöttük az áll, ami
-  most szólna — bármelyik napon; iPhone-on a hét sora az app megnyitásakor
-  íródik.
+  most szólna — bármelyik napon. A sort az írja, ami mindig fut: a gépen a
+  segéd (az app nélkül is), Androidon a szűrő; iPhone-on az app, a
+  megnyitásakor.
 
   A **mai napnak külön blokkja van** („Mire ment ma az idő”): oldal és app
   együtt, idő szerint — a heti listákban a hét eleje elnyomná a mát.

@@ -3624,9 +3624,12 @@ function maybeDigest(): void {
   digestDoneKey = key;
   const text = currentDigestText();
   try { localStorage.setItem('breaker.digestWeek', key); } catch { /* nincs tár: legközelebb újra */ }
-  // A mondat a naplóba is kerül — az üres hét (null) nem sor.
-  saveDigestLog(recordDigest(loadDigestLog(), key, text));
-  renderJournal();
+  // A naplót a segéd írja (az app nélkül is); a böngésző tára csak egy régi
+  // segéd mellett kell, ami még nem hozza.
+  if (statsData.digestLog === undefined) {
+    saveDigestLog(recordDigest(loadDigestLog(), key, text));
+    renderJournal();
+  }
   if (text) new Notification('Breaker — heti visszatekintés', { body: text });
 }
 
@@ -3666,7 +3669,8 @@ function saveDigestLog(log: DigestEntry[]): void {
  */
 function renderJournal(): void {
   const now = currentDigestText();
-  const log = loadDigestLog();
+  // A segéd naplója; régi segéd mellett a böngésző táráé.
+  const log = statsData?.digestLog ?? loadDigestLog();
   $('journalBlock').classList.toggle('hidden', now === null && log.length === 0);
   $('journalNow').classList.toggle('hidden', now === null);
   $('journalNow').textContent = now ? `Így szólna a visszatekintés most: ${now}` : '';

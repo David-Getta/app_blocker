@@ -14,6 +14,7 @@ import { startServer } from './server';
 import { runSelfTest } from './selftest';
 import type { SelfTestReport } from '../shared/selftest';
 import { tick } from './referee';
+import { journalTick } from './digest-journal';
 import { bumpRevisions } from './revisions';
 import { syncNow, syncToday } from './sync-client';
 import { createSyncSchedule } from './sync-schedule';
@@ -111,8 +112,12 @@ export function runHelper(): void {
   setInterval(() => {
     try {
       const dirty = tick(state, Date.now());
-      if (dirty) {
-        log('tick: pauses expired / deletions executed');
+      // A HETI NAPLÓ sora: hétfő reggel héttől, egy hétről egyszer — a segéd
+      // írja, az app nélkül is. Könyvelés, nem érvényesítés, ezért nem a bíró
+      // körében van, csak mellette, ugyanabban az ütemben.
+      const journaled = journalTick(state, Date.now());
+      if (dirty || journaled) {
+        log(dirty ? 'tick: pauses expired / deletions executed' : 'tick: a heti napló sora beírva');
         commit();
       } else {
         // periodic belt-and-braces re-check even if fs.watch missed something

@@ -288,6 +288,14 @@ const WIRES = [
     lost: 'a telefon felvevő kártyáján nem lenne javaslat — a mérés tudná, a '
       + 'felület nem mondaná',
   },
+  // A GÉPEN a heti napló sorát a segéd időzítője írja, az app nélkül is. Ha a
+  // hívás kiesne, a mag és a tesztje megmaradna — csak a sor nem íródna soha.
+  {
+    file: 'desktop/src/helper/index.ts',
+    needle: 'journalTick(state, Date.now())',
+    lost: 'a gépen a heti napló sora sosem íródna az app nélkül — a mag megvan, '
+      + 'a segéd köre nem hívná',
+  },
   // iPhone-on a HETI NAPLÓ sora az app körében íródik, és a statisztika az
   // élő mondatot mutatja — ha bármelyik kiesne, a mag ott lenne, a napló nem.
   {

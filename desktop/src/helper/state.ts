@@ -1,6 +1,7 @@
 // Persistent helper state. Lives in a root/SYSTEM protected directory so the
 // GUI (and the user) cannot simply edit the blocklist file to skip challenges.
 
+import { cleanDigestLog } from '../shared/digest';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
@@ -205,6 +206,19 @@ export interface HelperState {
    * szembesít azzal, mi van blokkolva.
    */
   hideSiteList?: boolean;
+  /**
+   * Melyik hétről íródott már a heti napló sora (a hétfő dátuma). A segéd
+   * könyvelése — a felület értesítése külön, a saját tárában könyvel: az a
+   * futó app dolga, ez a mindig futó segédé. Szinkronra nem megy.
+   */
+  digestWeekKey?: string | null;
+  /**
+   * A heti napló: a visszatekintés mondatai hetenként, a legfrissebb elöl,
+   * fél évig. A segéd írja a körében, hétfő reggel — az app nélkül is —, a
+   * saját címkézésével (a rejtés beállítása, a fedőnév); a felület a
+   * kirakáskor a mostani címkéjét teszi rá. Lásd shared/digest.ts.
+   */
+  digestLog?: import('../shared/digest').DigestEntry[];
 
   /**
    * Fiók a szinkronhoz. Hiányzik = nincs bejelentkezve.
@@ -347,6 +361,8 @@ export function loadState(): HelperState {
       // Forward migration: state files written before usage tracking existed.
       if (!parsed.usage || !Array.isArray(parsed.usage.days)) parsed.usage = emptyUsage();
       if (!Array.isArray(parsed.unlockLog)) parsed.unlockLog = [];
+      // A napló sorai a mag szűrőjén át: ami nem sor, az nem sor.
+      if (parsed.digestLog !== undefined) parsed.digestLog = cleanDigestLog(parsed.digestLog);
       // A session whose stepIndex does not address a real step can only wedge
       // the referee — every operation on it reads steps[stepIndex]. Dropping it
       // means the unlock attempt starts over, which is friction in the safe

@@ -440,10 +440,13 @@ mag, ugyanazokból az adatokból, bármelyik napon —, alatta a korábbi hétf�
 egy-egy sorban, a legfrissebb elöl, fél évig (`MAX_DIGEST_LOG`). A pálya
 látszik, nem csak a pillanat — tükör, nem ítélet.
 
-- **Eszközönként**, mint a hét kulcsa: a gép a saját hetét mondja (a böngésző
-  tárában, `breaker.digestLog`), a telefonok a magukét (az állapotban,
-  `digestLog`). Szándékosan nem szinkronizál. iPhone-on a sor az app körében
-  íródik (értesítés nélkül), Androidon a szűrő szolgáltatásában.
+- **Eszközönként**, mint a hét kulcsa: a gép a saját hetét mondja, a
+  telefonok a magukét (`digestLog` az állapotban). Szándékosan nem
+  szinkronizál. **A sort az írja, ami mindig fut:** a gépen a segéd a körében
+  (`helper/digest-journal.ts` — az app nélkül is, a beállítás címkézésével),
+  Androidon a szűrő szolgáltatása, iPhone-on az app köre (értesítés nélkül,
+  a megnyitáskor). A gépen a hétfői értesítés továbbra is a futó appé; a napló
+  nem értesítés, hanem könyvelés.
 - **Hetenként egy sor**, az újabb felülír; az üres hét (amiről nem volt mit
   mondani) nem sor, és a hét régi sorát is elviszi. A tárból jött naplót a
   mag tisztítja (`cleanDigestLog` / `DigestLogic.clean`): ami nem sor, az

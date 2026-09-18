@@ -321,6 +321,12 @@ export interface UsageStatsData {
    * kettőt, anélkül hogy naplót kellene olvasni hozzá.
    */
   lastSampleAt: number | null;
+  /**
+   * A heti napló a segéd állapotából: a hétfői mondatok, a legfrissebb elöl.
+   * A segéd írja, az app nélkül is (a köre hétfő reggel héttől esedékesnek
+   * látja a hetet); a felület csak mutatja — a mostani címkézéssel.
+   */
+  digestLog?: import('./digest').DigestEntry[];
 }
 
 /** Result of a set_schedule request. */
