@@ -354,8 +354,13 @@ if (HELPER_MODE) {
           const focusDay = isPeakDayNow(s.focusWeekday ?? null, Date.now());
           // A MENET-ÓRA: most szoktál-e elkezdeni — a lap a gomb mellett kimondja.
           const focusHourNow = isFocusHourNow(s.focusHour ?? null, Date.now());
+          // A MENET-ÓRA, amire a lap ablakot tehet: a csúcs-óra gombjának tükre,
+          // ugyanazokkal a kapukkal — és ha a menet-óra a csúcs-óra, a csúcs-óra
+          // gombja már kínálja (null): kétszer ugyanazt nem.
+          const fh = s.focusHour ?? null;
+          const focusHour = fh && (!peak || peak.hour !== fh.hour) && !pick.recurrence && !packCoveringHour(packs, fh.hour) ? fh.hour : null;
           // LE VAN-E FEDVE: a csomag, amelynek ablaka a csúcs-órát fedi — a felugró lap kimondja.
-          return { packId: pick.id, name: pick.name, minutes: pick.defaultMinutes, peakHour, peakPack: covering?.name ?? null, focusDay, focusHourNow };
+          return { packId: pick.id, name: pick.name, minutes: pick.defaultMinutes, peakHour, peakPack: covering?.name ?? null, focusDay, focusHourNow, focusHour };
         },
         async (packId, minutes) => {
           // EGY KATTINTÁS a felugró lapról a menetig: ugyanaz a bírói út, mint

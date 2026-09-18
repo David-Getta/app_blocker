@@ -488,6 +488,8 @@ async function main() {
       check(startHidden === true, 'összekötetlen appnál a tiltó lapon nincs menet-gomb');
       const winHidden = await page.evaluate(() => document.getElementById('peakWindow')?.hidden ?? null).catch(() => null);
       check(winHidden === true, 'összekötetlen appnál a tiltó lapon nincs ablak-gomb');
+      const fwHidden = await page.evaluate(() => document.getElementById('focusHourWindow')?.hidden ?? null).catch(() => null);
+      check(fwHidden === true, 'összekötetlen appnál a tiltó lapon nincs menet-óra ablak-gomb sem');
     }
     // Ugyanaz a hoszt, a szó nélkül: átmegy — a kulcsszó nem az oldalt tiltja.
     await page.goto(`${base}/?x=szabad`).catch(() => {});

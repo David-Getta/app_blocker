@@ -93,8 +93,10 @@ app javasolt csomagját (a legutóbb használtat a szokásos hosszával) a hído
 futó menet mellett nincs gomb, elavult válasz mellett sem. Mellette a másik
 gomb — „Heti ablak a csúcs-órára: Nyelvtanulás, minden nap 21:00–22:00” — a
 hídon felteszi az ablakot, ha az app csúcs-óráját semmi nem fedi és a
-csomagnak nincs még; csak felvétel, a csere az appé. Mindkettő ott van a
-tiltó lapon is. Ha egy csomag ablaka már fedi a csúcs-órát, a lap a csúcs
+csomagnak nincs még; csak felvétel, a csere az appé. A párja a menet-órára
+— „Heti ablak a menet-órára: Nyelvtanulás, minden nap 09:00–10:00” —, ha
+az app menet-órája nem a csúcs-óra (azt a másik gomb kínálja). Mind ott
+van a tiltó lapon is. Ha egy csomag ablaka már fedi a csúcs-órát, a lap a csúcs
 mondata után kimondja: „A csúcs-órában magától indul: Nyelvtanulás.” — az
 app szava, frissen. A csúcs-napon (négy hétből, legalább három megakadásból)
 a felugró lap és a tiltó lap azt is mondja, hogy ma van; a menet-napon (az

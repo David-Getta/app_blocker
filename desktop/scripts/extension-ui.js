@@ -295,7 +295,7 @@ async function main() {
     window.__disk['breaker.applink'] = {
       token: 'JOKOD', port: 8788, rules: [], channels: [], closed: [],
       focus: { running: false },
-      suggest: { packId: 'pack_2', name: 'Mély munka', minutes: 90, peakHour: 21, focusDay: true },
+      suggest: { packId: 'pack_2', name: 'Mély munka', minutes: 90, peakHour: 21, focusDay: true, focusHour: 9 },
       fetchedAt: Date.now(), attemptedAt: Date.now(), error: null,
     };
   `);
@@ -305,6 +305,12 @@ async function main() {
       && !document.getElementById('peakWindow')?.hidden,
     undefined, { timeout: 10_000 },
   ).catch(() => failures.push('a felugró lap ablak-gombja nem az app csúcs-óráját mondja'));
+  // A MENET-ÓRA ablakának gombja is: a csúcs-óra gombjának tükre, az app menet-órájával.
+  await page.waitForFunction(
+    () => document.getElementById('focusHourWindow')?.textContent === 'Heti ablak a menet-órára: Mély munka, minden nap 09:00–10:00'
+      && !document.getElementById('focusHourWindow')?.hidden,
+    undefined, { timeout: 10_000 },
+  ).catch(() => failures.push('a felugró lap menet-óra gombja nem az app menet-óráját mondja'));
   await page.locator('#peakWindow').click().catch(() => failures.push('az ablak gombja nem kattintható'));
   await page.waitForFunction(
     () => window.__windowed && window.__windowed.packId === 'pack_2' && window.__windowed.hour === 21
@@ -334,6 +340,21 @@ async function main() {
       && document.getElementById('peakWindow')?.hidden === true,
     undefined, { timeout: 10_000 },
   ).catch(() => failures.push('a tiltó lap ablak-gombja nem a hídon tett ablakot, vagy nem mondta ki, hogy megvan'));
+  // A MENET-ÓRA ablaka a tiltó lapról: ugyanaz az út, az app menet-órájával (9),
+  // a kattintás után a gomb eltűnik, a sor kimondja.
+  await page.evaluate(() => { window.__windowed = null; });
+  await page.waitForFunction(
+    () => document.getElementById('focusHourWindow')?.textContent === 'Heti ablak a menet-órára: Mély munka, minden nap 09:00–10:00'
+      && !document.getElementById('focusHourWindow')?.hidden,
+    undefined, { timeout: 10_000 },
+  ).catch(() => failures.push('a tiltó lap menet-óra gombja nem az app menet-óráját mondja'));
+  await page.locator('#focusHourWindow').click().catch(() => failures.push('a tiltó lap menet-óra gombja nem kattintható'));
+  await page.waitForFunction(
+    () => window.__windowed && window.__windowed.packId === 'pack_2' && window.__windowed.hour === 9
+      && /Megvan: minden nap 09:00–10:00/.test(document.getElementById('peakWindowNote')?.textContent || '')
+      && document.getElementById('focusHourWindow')?.hidden === true,
+    undefined, { timeout: 10_000 },
+  ).catch(() => failures.push('a tiltó lap menet-óra gombja nem a hídon tett ablakot, vagy nem mondta ki, hogy megvan'));
 
   await browser.close();
   server.close();

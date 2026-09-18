@@ -5,7 +5,7 @@
 // beállítási lapra visz — minden, ami módosítás, ott van, itt semmi.
 
 import { CLOSED_FRESH_MS, addFocusWindowInApp, loadLink, pullFromApp, startFocusInApp } from './app-link.js';
-import { describePopup, focusDayText, focusHourNowText, hourSpan, peakCoverText, suggestButton, windowButton } from './popup-core.js';
+import { describePopup, focusDayText, focusHourNowText, focusHourWindowButton, hourSpan, peakCoverText, suggestButton, windowButton } from './popup-core.js';
 import { dayKey, hitsSummary, hitsText, peakDayNow, peakDayNowText, peakNow, peakText, topHost } from './hits.js';
 
 const $ = (id) => document.getElementById(id);
@@ -61,6 +61,13 @@ async function render() {
   winBtn.textContent = wb ? wb.text : '';
   winBtn.dataset.packId = wb ? wb.packId : '';
   winBtn.dataset.hour = wb ? String(wb.hour) : '';
+  // ABLAK A MENET-ÓRÁRA: a csúcs-óra gombjának tükre — az app mondja, van-e mire.
+  const fwb = focusHourWindowButton(link, Date.now(), CLOSED_FRESH_MS);
+  const fwBtn = $('focusHourWindow');
+  fwBtn.hidden = fwb === null;
+  fwBtn.textContent = fwb ? fwb.text : '';
+  fwBtn.dataset.packId = fwb ? fwb.packId : '';
+  fwBtn.dataset.hour = fwb ? String(fwb.hour) : '';
 
   const box = $('closedBox');
   const list = $('closedList');
@@ -128,9 +135,9 @@ $('startFocus').addEventListener('click', async () => {
 });
 
 // A HETI ABLAK felvétele a hídon, aztán friss lehúzás: az app javaslata már
-// ablakos csomagot mond, a gomb eltűnik, a sor kimondja, hogy megvan.
-$('peakWindow').addEventListener('click', async () => {
-  const btn = $('peakWindow');
+// ablakos csomagot mond, a gomb eltűnik, a sor kimondja, hogy megvan. A
+// csúcs-óra és a menet-óra gombja ugyanezen az úton megy — az óra a gombé.
+async function addWindowFrom(btn) {
   const note = $('peakWindowNote');
   const packId = btn.dataset.packId || '';
   const hour = Number(btn.dataset.hour || '-1');
@@ -146,6 +153,8 @@ $('peakWindow').addEventListener('click', async () => {
     try { await pullFromApp(); } catch { /* a következő kör úgyis lehúzza */ }
     await render();
   }
-});
+}
+$('peakWindow').addEventListener('click', () => addWindowFrom($('peakWindow')));
+$('focusHourWindow').addEventListener('click', () => addWindowFrom($('focusHourWindow')));
 
 void render();

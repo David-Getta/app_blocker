@@ -38,6 +38,7 @@ interface Popup {
   CLOSED_SHOWN: number;
   suggestButton: (link: unknown, now: number, freshMs: number) => { packId: string; minutes: number; text: string } | null;
   windowButton: (link: unknown, now: number, freshMs: number) => { packId: string; hour: number; text: string } | null;
+  focusHourWindowButton: (link: unknown, now: number, freshMs: number) => { packId: string; hour: number; text: string } | null;
   hourSpan: (h: number) => string;
   peakCoverText: (link: unknown, now: number, freshMs: number) => string;
   focusDayText: (link: unknown, now: number, freshMs: number) => string;
@@ -46,7 +47,7 @@ interface Popup {
 
 function load(): Popup {
   const src = fs.readFileSync(path.join(extensionDir(), 'popup-core.js'), 'utf8').replace(/^export /gm, '');
-  return new Function(`${src}\nreturn { describePopup, spanText, agoText, CLOSED_SHOWN, suggestButton, windowButton, hourSpan, peakCoverText, focusDayText, focusHourNowText };`)() as Popup;
+  return new Function(`${src}\nreturn { describePopup, spanText, agoText, CLOSED_SHOWN, suggestButton, windowButton, focusHourWindowButton, hourSpan, peakCoverText, focusDayText, focusHourNowText };`)() as Popup;
 }
 
 const NOW = 1_800_000_000_000;
@@ -219,6 +220,19 @@ test('a csúcs-óra ablakának gombja: a menet kapui, és az app csúcs-órája'
   assert.equal(windowButton(link({ suggest: s, token: null }), NOW, FRESH), null, 'összekötetlenül nincs gomb');
   assert.equal(hourSpan(23), '23:00–00:00', 'a nap vége — mint az app ablak-címkéjén');
   assert.equal(hourSpan(0), '00:00–01:00');
+});
+
+test('a menet-óra ablakának gombja: a csúcs-óra gombjának tükre — a menet kapui, és az app menet-órája', () => {
+  const { focusHourWindowButton } = load();
+  const s = { packId: 'pack_1', name: 'Nyelvtanulás', minutes: 25, peakHour: 21, focusHour: 9 };
+  assert.deepEqual(focusHourWindowButton(link({ suggest: s }), NOW, FRESH),
+    { packId: 'pack_1', hour: 9, text: 'Heti ablak a menet-órára: Nyelvtanulás, minden nap 09:00–10:00' });
+  assert.equal(focusHourWindowButton(link({ suggest: { ...s, focusHour: null } }), NOW, FRESH), null, 'menet-óra nélkül (vagy a csúcs-órán) nincs gomb');
+  assert.equal(focusHourWindowButton(link({ suggest: { ...s, focusHour: 24 } }), NOW, FRESH), null, 'rossz óra: nincs gomb');
+  assert.equal(focusHourWindowButton(link({ suggest: s, fetchedAt: NOW - 10 * 60_000 }), NOW, FRESH), null, 'elavult válasz mellett nincs');
+  assert.equal(focusHourWindowButton(link({ suggest: s, focus: { running: true, name: 'X', endsAt: NOW + 60_000, allowSites: [] } }), NOW, FRESH),
+    null, 'futó menet mellett nincs');
+  assert.equal(focusHourWindowButton(link({ suggest: s, token: null }), NOW, FRESH), null, 'összekötetlenül nincs gomb');
 });
 
 test('a felugró lap kimondja, ha a csúcs-órát ablak fedi — az app szava, frissen, összekötve', () => {

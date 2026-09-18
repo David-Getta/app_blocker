@@ -7,7 +7,7 @@
 // olvassa, amiből a háttér ír — két számolás két számot adna.
 import { dayKey, hitsNudge, hitsOn, hitsOnHost, peakDayNow, peakDayNowText, peakNow, peakNowText } from './hits.js';
 import { CLOSED_FRESH_MS, addFocusWindowInApp, loadLink, pullFromApp, startFocusInApp } from './app-link.js';
-import { focusDayText, focusHourNowText, hourSpan, suggestButton, windowButton } from './popup-core.js';
+import { focusDayText, focusHourNowText, focusHourWindowButton, hourSpan, suggestButton, windowButton } from './popup-core.js';
 
 const params = new URLSearchParams(location.search);
 const focus = params.get('focus');
@@ -274,6 +274,7 @@ const startBtn = document.getElementById('startFocus');
 const startNote = document.getElementById('startFocusNote');
 const winBtn = document.getElementById('peakWindow');
 const winNote = document.getElementById('peakWindowNote');
+const fwBtn = document.getElementById('focusHourWindow');
 const focusDayNote = document.getElementById('focusDayNote');
 
 async function paintStart() {
@@ -294,6 +295,12 @@ async function paintStart() {
     winBtn.textContent = wb ? wb.text : '';
     winBtn.dataset.packId = wb ? wb.packId : '';
     winBtn.dataset.hour = wb ? String(wb.hour) : '';
+    // ABLAK A MENET-ÓRÁRA: a csúcs-óra gombjának tükre — az app mondja, van-e mire.
+    const fwb = focusHourWindowButton(link, Date.now(), CLOSED_FRESH_MS);
+    fwBtn.hidden = fwb === null;
+    fwBtn.textContent = fwb ? fwb.text : '';
+    fwBtn.dataset.packId = fwb ? fwb.packId : '';
+    fwBtn.dataset.hour = fwb ? String(fwb.hour) : '';
   } catch { /* tár nélkül nincs gomb — a lap többi része attól még áll */ }
 }
 
@@ -314,23 +321,26 @@ startBtn.addEventListener('click', async () => {
 });
 
 // A HETI ABLAK a kísértés pillanatában: minden nap ebben az órában magától
-// indul a menet — felvenni ingyen; levenni az appban, próbatétellel.
-winBtn.addEventListener('click', async () => {
-  const packId = winBtn.dataset.packId || '';
-  const hour = Number(winBtn.dataset.hour || '-1');
+// indul a menet — felvenni ingyen; levenni az appban, próbatétellel. A
+// csúcs-óra és a menet-óra gombja ugyanezen az úton megy — az óra a gombé.
+async function addWindowFrom(btn) {
+  const packId = btn.dataset.packId || '';
+  const hour = Number(btn.dataset.hour || '-1');
   if (!packId || !Number.isInteger(hour) || hour < 0 || hour > 23) return;
-  winBtn.disabled = true;
+  btn.disabled = true;
   const r = await addFocusWindowInApp(packId, hour);
-  winBtn.disabled = false;
+  btn.disabled = false;
   winNote.hidden = false;
   winNote.textContent = r.ok
     ? `Megvan: minden nap ${hourSpan(hour)} magától indul — levenni az appban, próbatétellel.`
     : `Nem került fel: ${r.error}`;
   if (r.ok) {
-    winBtn.hidden = true;
+    btn.hidden = true;
     try { await pullFromApp(); } catch { /* a következő kör úgyis lehúzza */ }
   }
-});
+}
+winBtn.addEventListener('click', () => addWindowFrom(winBtn));
+fwBtn.addEventListener('click', () => addWindowFrom(fwBtn));
 
 try {
   void paintStart();

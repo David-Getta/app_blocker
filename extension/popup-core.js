@@ -97,6 +97,18 @@ export function windowButton(link, now, freshMs) {
   return { packId: sb.packId, hour: h, text: `Heti ablak a csúcs-órára: ${link.suggest.name}, minden nap ${hourSpan(h)}` };
 }
 
+/**
+ * A MENET-ÓRA ABLAKÁNAK gombja: a csúcs-óra gombjának tükre — ugyanazok a
+ * kapuk, és az app mondja meg, van-e menet-óra, amire ablak tehető (ha a
+ * menet-óra a csúcs-óra, az app nem küldi: azt a másik gomb kínálja).
+ */
+export function focusHourWindowButton(link, now, freshMs) {
+  const sb = suggestButton(link, now, freshMs);
+  const h = link?.suggest?.focusHour;
+  if (!sb || !Number.isInteger(h) || h < 0 || h > 23) return null;
+  return { packId: sb.packId, hour: h, text: `Heti ablak a menet-órára: ${link.suggest.name}, minden nap ${hourSpan(h)}` };
+}
+
 export function describePopup(link, now, freshMs) {
   const fetchedAt = link?.fetchedAt ?? 0;
   const linked = !!link?.token;

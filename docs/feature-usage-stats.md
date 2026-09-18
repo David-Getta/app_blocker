@@ -568,6 +568,11 @@ A javaslat kártyájáról is (gép, Android, iPhone): ha a kártya szól — a
 menet-órában, az előjelzésnél vagy a sokadik megakadásnál —, a menet-óra
 ablakának gombja is ott van a csúcs-óráé mellett, ugyanazokkal a kapukkal
 (a gépen a státusz menet-órájából, `focusHour`; a telefonon a magból).
+És a böngésző lapjairól is: a híd a javaslattal leadja a menet-órát
+(`suggest.focusHour` — csak ha ablak tehető rá, és nem a csúcs-óra), a
+felugró lap és a tiltó lap gombja („Heti ablak a menet-órára: Nyelvtanulás, minden nap 09:00–10:00”)
+ugyanazon a befelé menő végponton veszi fel (`POST /focus_window`) — csak
+felvétel, a bíró dönt. Bővítmény 0.4.31.
 A menet-órában a döntés helye is mondja — a gépi kezdőlap javaslat-kártyája
 és a réteg lába (`focusHourNowText` a státusz menet-órájából, `focusHour`),
 a két telefon kezdőlapja (`Focus.hourNowText`):

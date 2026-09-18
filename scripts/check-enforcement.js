@@ -1075,7 +1075,7 @@ const WIRES = [
   // LE VAN-E FEDVE a felugró lapon: a híd leadja a fedő csomagot, a lap kimondja.
   {
     file: 'desktop/src/main/main.ts',
-    needle: "peakPack: covering?.name ?? null, focusDay, focusHourNow };",
+    needle: "peakPack: covering?.name ?? null, focusDay, focusHourNow, focusHour };",
     lost: 'a híd nem adná le a csúcs-órát fedő csomagot — a felugró lap nem mondaná',
   },
   {
@@ -1383,6 +1383,22 @@ const WIRES = [
     file: 'ios/App/ContentView.swift',
     needle: 'FocusHourReminder.reschedule(peak: focusHourKey.isEmpty ? nil : focusHour, canStart:',
     lost: 'az iPhone nem ütemezné a menet-óra előjelzését',
+  },
+  // ABLAK A MENET-ÓRÁRA a böngésző lapjairól is: a híd leadja, a lapok gombja a hídon teszi.
+  {
+    file: 'desktop/src/main/main.ts',
+    needle: 'const focusHour = fh && (!peak || peak.hour !== fh.hour) && !pick.recurrence && !packCoveringHour(packs, fh.hour) ? fh.hour : null;',
+    lost: 'a híd nem adná le a menet-órát, amire a lap ablakot tehet',
+  },
+  {
+    file: 'extension/popup.js',
+    needle: "const fwb = focusHourWindowButton(link, Date.now(), CLOSED_FRESH_MS);",
+    lost: 'a felugró lap nem kínálná a menet-óra ablakát',
+  },
+  {
+    file: 'extension/blocked.js',
+    needle: "const fwb = focusHourWindowButton(link, Date.now(), CLOSED_FRESH_MS);",
+    lost: 'a tiltó lap nem kínálná a menet-óra ablakát',
   },
   // ABLAK A MENET-ÓRÁRA a javaslat kártyájáról is — a három kezdőlapon.
   {

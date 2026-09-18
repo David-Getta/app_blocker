@@ -261,8 +261,8 @@ Befelé három út van, és mind a lazítás irányában zárt: a megakadás-kö
 (`POST /hits` — könyvelés, bíró nélkül), a menet indítása a felugró lapról
 (`POST /focus_start` — szigorítás; a segéd bírója dönt, ugyanúgy, mint az app
 gombjánál: futó menet mellett nem indul, ismeretlen csomag nem indul), és a
-heti ablak a csúcs-órára (`POST /focus_window` — csak FELVÉTEL, ablak nélküli
-csomagra; ablakos csomagra a híd nemet mond, mert a csere lazíthat, és arról
+heti ablak a csúcs-órára vagy a menet-órára (`POST /focus_window` — csak
+FELVÉTEL, ablak nélküli csomagra; az órát a lap mondja, az app szava szerint; ablakos csomagra a híd nemet mond, mert a csere lazíthat, és arról
 a bíró próbatételt kezdene — azt a híd nem indíthatja el).
 Feloldó végpont nincs, és nem is lesz: aki a kódot ismeri, legfeljebb
 szigoríthat.

@@ -222,7 +222,9 @@ export function cleanSuggest(raw) {
   const focusDay = raw.focusDay === true;
   // A MENET-ÓRA: az app mondja, most szoktál-e elkezdeni — csak a szó szerinti igaz számít.
   const focusHourNow = raw.focusHourNow === true;
-  return { packId: raw.packId, name: raw.name, minutes, peakHour, peakPack, focusDay, focusHourNow };
+  // A MENET-ÓRA, amire ablak tehető: az app mondja (a csúcs-óra tükre) — csak egész óra, 0–23.
+  const focusHour = Number.isInteger(raw.focusHour) && raw.focusHour >= 0 && raw.focusHour <= 23 ? raw.focusHour : null;
+  return { packId: raw.packId, name: raw.name, minutes, peakHour, peakPack, focusDay, focusHourNow, focusHour };
 }
 
 /**

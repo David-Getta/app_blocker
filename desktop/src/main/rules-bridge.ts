@@ -127,6 +127,12 @@ export interface BridgeSuggest {
   focusDay?: boolean;
   /** A MENET-ÓRA: most szoktál-e elkezdeni — a négy hét menet-órája, elég mintából. A lap a gomb mellett kimondja. */
   focusHourNow?: boolean;
+  /**
+   * A MENET-ÓRA, amire a lap heti ablakot tehet a javasolt csomagra — a
+   * csúcs-óra gombjának tükre, ugyanazokkal a kapukkal; null, ha a menet-óra
+   * a csúcs-óra (azt a másik gomb kínálja), vagy nem tehető rá ablak. Régi app nem küldi.
+   */
+  focusHour?: number | null;
 }
 
 /**
