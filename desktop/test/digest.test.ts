@@ -259,4 +259,10 @@ test('a menet-óra a mondatban: a statisztika sora szó szerint, a menet-nap ut�
     `${head} A négy hét menet-órája: 9–10 óra (6 menet, magától indul: Nyelvtanulás). 3 feloldás.`);
   assert.equal(digestText({ ...full, focusHour: { hour: 9, count: 6 }, focusHourWindowOffer: true }, (l) => l),
     `${head} A négy hét menet-órája: 9–10 óra (6 menet, nincs rá ablak). 3 feloldás.`);
+  // AMIKOR A CSÚCS-ÓRA A MENET-ÓRA: a mondat kimondja, a menet-óra után; más órán nem.
+  assert.equal(digestText({ ...full, focusHour: { hour: 21, count: 6 }, browserHits7d: 12, browserHitsPeak: { hour: 21, count: 6 } }, (l) => l),
+    `${head} A négy hét menet-órája: 21–22 óra (6 menet). A csúcs-óra és a menet-óra ugyanaz: 21–22 óra — a kéz akkor jár, amikor le szoktál ülni. `
+    + '3 feloldás. 12 megakadás a böngészőben, a csúcs 21–22 óra.');
+  assert.equal(digestText({ ...full, focusHour: { hour: 9, count: 6 }, browserHits7d: 12, browserHitsPeak: { hour: 21, count: 6 } }, (l) => l),
+    `${head} A négy hét menet-órája: 9–10 óra (6 menet). 3 feloldás. 12 megakadás a böngészőben, a csúcs 21–22 óra.`);
 });

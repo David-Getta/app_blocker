@@ -38,7 +38,7 @@ import { limitFullLine, MAX_LIMIT_MINUTES } from '../shared/limits.js';
 import {
   formatRemaining, isRunning as focusIsRunning, isWindowRun, MAX_ALLOW_ENTRIES, MAX_PACK_NAME,
   MAX_SESSION_MINUTES, nextOccurrence, SESSION_CHOICES_MIN, windowRunStarted, type FocusPack, type FocusRun, peakWindowBand,
-  packCoveringHour, focusWeekdayText, focusDayNowText, focusHourText, focusHourNowText, focusHourWarnText, peakFocusHour,
+  packCoveringHour, focusWeekdayText, focusDayNowText, focusHourText, focusHourNowText, focusHourWarnText, sameHourText, peakFocusHour,
 } from '../shared/focus.js';
 import { CATEGORY_PACKS, type CategoryPack } from '../shared/blocklist.js';
 import { windowKey, windowStartingSoon, type LockdownWindow as LockdownWindowRow } from '../shared/lockdown.js';
@@ -4575,6 +4575,10 @@ function renderFocusStats(): void {
   $('focusHourCoverNote').classList.toggle('hidden', !fhCover?.recurrence);
   $('focusHourCoverNote').textContent = fhCover?.recurrence
     ? `A menet-órában magától indul: ${fhCover.name} (${recurrenceLabel(fhCover.recurrence)}).` : '';
+  // AMIKOR A CSÚCS-ÓRA A MENET-ÓRA: a tükör két fele egy pontra mutat — a sor kimondja.
+  const sameHour = sameHourText(status?.browserHitsPeak ?? null, fh);
+  $('sameHourNote').classList.toggle('hidden', sameHour === '');
+  $('sameHourNote').textContent = sameHour;
   // ABLAK A MENET-ÓRÁRA: a csúcs-óra gombjának párja — heti ablak a legutóbbi
   // csomagra a menet-órában, minden nap: a menet magától indul, amikor le
   // szoktál ülni. Felvenni ingyen; nincs gomb ablakos csomagon, fedett órán,

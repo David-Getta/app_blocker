@@ -1384,6 +1384,37 @@ const WIRES = [
     needle: 'FocusHourReminder.reschedule(peak: focusHourKey.isEmpty ? nil : focusHour, canStart:',
     lost: 'az iPhone nem ütemezné a menet-óra előjelzését',
   },
+  // AMIKOR A CSÚCS-ÓRA A MENET-ÓRA: a statisztika és a heti mondat kimondja mindhárom platformon.
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: "$('sameHourNote').textContent = sameHour;",
+    lost: 'a gépi statisztika nem mondaná ki, hogy a csúcs-óra a menet-óra',
+  },
+  {
+    file: 'desktop/src/shared/digest.ts',
+    needle: 'if (sameHour) parts.push(sameHour);',
+    lost: 'a gépi heti mondat nem mondaná ki, hogy a csúcs-óra a menet-óra',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/StatsScreen.kt',
+    needle: 'Focus.sameHourText(filterHitsPeak, hour to count)?.let { Text(it, style = MaterialTheme.typography.bodySmall) }',
+    lost: 'az Android statisztika nem mondaná ki, hogy a csúcs-óra a menet-óra',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/Digest.kt',
+    needle: 'Focus.sameHourText(input.filterHitsPeak, input.focusHour)?.let { parts.add(it) }',
+    lost: 'az Android heti mondat nem mondaná ki, hogy a csúcs-óra a menet-óra',
+  },
+  {
+    file: 'ios/App/StatsView.swift',
+    needle: 'if let same = Focus.sameHourText(FilterHitLogic.peakHour(store.state.filterHitHours ?? [:], now: now), fh) {',
+    lost: 'az iPhone statisztikája nem mondaná ki, hogy a csúcs-óra a menet-óra',
+  },
+  {
+    file: 'ios/Shared/Digest.swift',
+    needle: 'if let same = Focus.sameHourText(input.filterHitsPeak, input.focusHour) { parts.append(same) }',
+    lost: 'az iPhone heti mondata nem mondaná ki, hogy a csúcs-óra a menet-óra',
+  },
   // A MÉRT IDŐ NAPJA ott is, ahol a döntés van: a gépi kártya és a réteg lába, az Android kártya.
   {
     file: 'desktop/src/helper/server.ts',

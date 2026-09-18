@@ -600,6 +600,13 @@ is mondják: a híd a javaslattal leadja a fedő csomag nevét
 (`suggest.focusHourPack`), a felugró lap és a tiltó lap a gomb mellett:
 „A menet-órában magától indul: Nyelvtanulás.” Bővítmény 0.4.32.
 
+**Amikor a csúcs-óra a menet-óra:** ha a hét csúcs-órája és a négy hét
+menet-órája ugyanaz az óra, a tükör két fele egy pontra mutat — a kéz
+ugyanabban az órában jár magától, amelyikben le szoktál ülni. A statisztika
+munkamenet-blokkja és a heti mondat kimondja mindhárom platformon
+(`sameHourText`, `Focus.sameHourText`): „A csúcs-óra és a menet-óra ugyanaz: 21–22 óra — a kéz akkor jár, amikor le szoktál ülni.”
+Tény, nem ítélet; más órán nincs sor.
+
 **A mért idő napja:** a tükör harmadik fele — nem az, mikor csúszik a kéz,
 és nem az, mikor ülsz le, hanem az, melyik napon megy el a legtöbb idő: négy
 hétből, a hét napjaira osztva, négy-négy nap átlagával („A négy hét legnagyobb

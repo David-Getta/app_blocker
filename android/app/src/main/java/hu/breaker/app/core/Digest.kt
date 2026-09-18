@@ -191,6 +191,8 @@ object DigestLogic {
         // A MENET-ÓRA: mikor ülsz le a legtöbbször — négy hétből, az indulás órája
         // szerint, a statisztika mondata szó szerint. Nincs menet, nincs mondat.
         input.focusHour?.let { parts.add(Focus.hourText(it, input.focusHourPack, input.focusHourWindowOffer)) }
+        // AMIKOR A CSÚCS-ÓRA A MENET-ÓRA: a tükör két fele egy pontra mutat — a mondat kimondja.
+        Focus.sameHourText(input.filterHitsPeak, input.focusHour)?.let { parts.add(it) }
         // A félbemaradt kísérlet a feloldások mellé kerül — vagy helyettük: egy
         // elindított és félbehagyott lazítás is történés, ha feloldás nem is lett.
         val droppedPart = if (input.dropped7d > 0) ", ${input.dropped7d} félbemaradt kísérlet" else ""

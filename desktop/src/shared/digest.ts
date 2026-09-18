@@ -19,7 +19,7 @@
 // Pure: a felület adja az időt, a tárolt kulcsot és a címkézést (rejtett lista,
 // fedőnév) — az értesítés sem szivárogtathat ki olyan címet, amit a lista elrejt.
 
-import { focusHourText, focusWeekdayText, type FocusSummary } from './focus.js';
+import { focusHourText, focusWeekdayText, sameHourText, type FocusSummary } from './focus.js';
 import { usageWeekdayText } from './usage.js';
 import { hourLabel, peakWeekdayText } from './browser-hits.js';
 
@@ -198,6 +198,9 @@ export function digestText(input: DigestInput, labelOf: (label: string) => strin
   // szerint, a statisztika mondata szó szerint. Nincs menet, nincs mondat.
   const focusHour = input.focusHour ?? null;
   if (focusHour) parts.push(focusHourText(focusHour, { pack: input.focusHourPack ?? null, offer: input.focusHourWindowOffer ?? false }));
+  // AMIKOR A CSÚCS-ÓRA A MENET-ÓRA: a tükör két fele egy pontra mutat — a mondat kimondja.
+  const sameHour = sameHourText(input.browserHitsPeak ?? null, focusHour);
+  if (sameHour) parts.push(sameHour);
   // A félbemaradt kísérlet a feloldások mellé kerül — vagy helyettük: egy
   // elindított és félbehagyott lazítás is történés, ha feloldás nem is lett.
   const dropped = input.dropped7d ?? 0;

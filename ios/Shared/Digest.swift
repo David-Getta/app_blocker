@@ -208,6 +208,8 @@ public enum DigestLogic {
         if let focusDay = input.focusWeekday { parts.append(Focus.weekdayText(focusDay)) }
         // A MENET-ÓRA: mikor ülsz le a legtöbbször — négy hétből, az indulás órája szerint, a statisztika mondata szó szerint.
         if let focusHour = input.focusHour { parts.append(Focus.hourText(focusHour, pack: input.focusHourPack, offer: input.focusHourWindowOffer)) }
+        // AMIKOR A CSÚCS-ÓRA A MENET-ÓRA: a tükör két fele egy pontra mutat — a mondat kimondja.
+        if let same = Focus.sameHourText(input.filterHitsPeak, input.focusHour) { parts.append(same) }
         // A félbemaradt kísérlet a feloldások mellé kerül — vagy helyettük: egy
         // elindított és félbehagyott lazítás is történés, ha feloldás nem is lett.
         let droppedPart = input.dropped7d > 0 ? ", \(input.dropped7d) félbemaradt kísérlet" : ""

@@ -167,7 +167,7 @@ fun StatsSection(
         // írjuk, engedély nélkül is. Ha a kapu alatt lenne, egy mérés nélküli
         // telefonon az app azt mondaná, hogy nincs mit mutatni — pedig pontosan
         // tudja, hányszor ültél le dolgozni.
-        FocusStatsBlock(focusToday, focusWeek, focusDays, focusPrevWeek, focusWeekdays, focusHours, focusHourWindowLabel, onFocusHourWindow, focusHourPack)
+        FocusStatsBlock(focusToday, focusWeek, focusDays, focusPrevWeek, focusWeekdays, focusHours, focusHourWindowLabel, onFocusHourWindow, focusHourPack, filterHitsPeak)
         // A MEGAKADÁSOK napról napra — a szűrő könyve: ugyanaz a rajz, mint a
         // mért időé, csak darabban. Üresen nincs.
         // A NULLA HÉT is mondat, ha volt mihez mérni: az előző hét mellett a blokk marad.
@@ -417,6 +417,8 @@ private fun FocusStatsBlock(
     focusHourWindowLabel: String? = null,
     onFocusHourWindow: () -> Unit = {},
     focusHourPack: String? = null,
+    /** a hét csúcs-órája — ha a menet-óra ugyanaz, a sor kimondja */
+    filterHitsPeak: Pair<Int, Int>? = null,
 ) {
     // Nulla menetnél nincs üres blokk — kivéve, ha az előző héten volt menet:
     // a nulla hét is mondat, ha volt mihez mérni.
@@ -477,6 +479,8 @@ private fun FocusStatsBlock(
         // LE VAN-E FEDVE: ha egy csomag heti ablaka a menet-órát fedi, a menet
         // magától indul, amikor le szoktál ülni — a statisztika kimondja.
         focusHourPack?.let { Text("A menet-órában magától indul: $it.", style = MaterialTheme.typography.bodySmall) }
+        // AMIKOR A CSÚCS-ÓRA A MENET-ÓRA: a tükör két fele egy pontra mutat — a sor kimondja.
+        Focus.sameHourText(filterHitsPeak, hour to count)?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
         // ABLAK A MENET-ÓRÁRA: a csúcs-óra gombjának párja — a menet magától
         // indul, amikor le szoktál ülni. Felvenni ingyen; a jelöltet a mag dönti.
         // Ha a menet-órát fedi valami, a sor mondja, gomb nincs.

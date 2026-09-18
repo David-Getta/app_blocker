@@ -471,6 +471,18 @@ export function focusHourText(
 }
 
 /**
+ * AMIKOR A CSÚCS-ÓRA A MENET-ÓRA: a kéz ugyanabban az órában jár magától,
+ * amelyikben le szoktál ülni — a tükör két fele egy pontra mutat. A
+ * statisztika és a heti mondat mondja; különben üres. Tény, nem ítélet.
+ */
+export function sameHourText(
+  peak: { hour: number; count: number } | null | undefined, focusHour: { hour: number; count: number } | null | undefined,
+): string {
+  if (!peak || !focusHour || peak.hour !== focusHour.hour) return '';
+  return `A csúcs-óra és a menet-óra ugyanaz: ${hourLabel(peak.hour)} — a kéz akkor jár, amikor le szoktál ülni.`;
+}
+
+/**
  * A tükör a döntés napján: a kártya és a réteg lába a menet-napon — különben
  * üres. Ugyanaz a küszöb, mint a csúcs-napnál (egy-két menet négy hétből nem
  * minta): a csúcs-nap „ma van” szabálya dönt (isPeakDayNow).

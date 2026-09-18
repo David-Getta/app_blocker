@@ -1095,6 +1095,28 @@ async function main() {
   await goTo(page, 'stats');
   await page.waitForSelector('#focusTiles .tile', { timeout: 15_000 })
     .catch(() => failures.push('a munkamenet-statisztika nem jött vissza a menet-óra ablaka után'));
+  // AMIKOR A CSÚCS-ÓRA A MENET-ÓRA: a státusz-folt a csúcs-órát a menet-órára (9)
+  // teszi — a munkamenet-blokk sora kimondja; a folt nélkül (21) a sor nincs.
+  await page.waitForFunction(
+    () => document.getElementById('sameHourNote')?.classList.contains('hidden'),
+    undefined, { timeout: 15_000 },
+  ).catch(() => failures.push('a csúcs-óra és a menet-óra sora ott van, pedig más az óra'));
+  await page.evaluate(() => { window.__fakeStatusPatch = { browserHitsPeak: { hour: 9, count: 6 } }; });
+  // A státusz kétmásodpercenként frissül, a statisztika viszont csak fülváltásra
+  // rajzol újra: egy kör várakozás, aztán el és vissza a fülre.
+  await page.waitForTimeout(3000);
+  await goTo(page, 'sites');
+  await goTo(page, 'stats');
+  await page.waitForFunction(
+    () => !document.getElementById('sameHourNote')?.classList.contains('hidden')
+      && /A csúcs-óra és a menet-óra ugyanaz: 9–10 óra — a kéz akkor jár, amikor le szoktál ülni\./.test(document.getElementById('sameHourNote')?.textContent || ''),
+    undefined, { timeout: 15_000 },
+  ).catch(() => failures.push('a csúcs-óra és a menet-óra egybeesését a statisztika nem mondja ki'));
+  await page.evaluate(() => { window.__fakeStatusPatch = undefined; });
+  await page.reload();
+  await goTo(page, 'stats');
+  await page.waitForSelector('#focusTiles .tile', { timeout: 15_000 })
+    .catch(() => failures.push('a munkamenet-statisztika nem jött vissza az egybeesés után'));
 
   // A JAVASLAT kártyája a kezdőlapon: a sokadik megakadásnál (12: a tizes
   // lépcső) a mondat és a gomb a legutóbbi csomaggal — futó menet nélkül.

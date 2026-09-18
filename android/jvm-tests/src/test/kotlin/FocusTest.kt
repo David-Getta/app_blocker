@@ -432,6 +432,10 @@ class FocusTest {
         assertEquals("A négy hét menet-órája: 9–10 óra (6 menet).", Focus.hourText(9 to 6))
         assertEquals("A négy hét menet-órája: 9–10 óra (6 menet, magától indul: Nyelvtanulás).", Focus.hourText(9 to 6, "Nyelvtanulás", true), "a fedés erősebb")
         assertEquals("A négy hét menet-órája: 9–10 óra (6 menet, nincs rá ablak).", Focus.hourText(9 to 6, null, true))
+        // AMIKOR A CSÚCS-ÓRA A MENET-ÓRA: a két fél egy pontra mutat — különben null.
+        assertEquals("A csúcs-óra és a menet-óra ugyanaz: 21–22 óra — a kéz akkor jár, amikor le szoktál ülni.", Focus.sameHourText(21 to 6, 21 to 3))
+        assertEquals(null, Focus.sameHourText(21 to 6, 9 to 3), "más óra: nincs")
+        assertEquals(null, Focus.sameHourText(null, 9 to 3))
         assertEquals(List(24) { 0 }, Focus.byHour(emptyList(), now))
     }
 

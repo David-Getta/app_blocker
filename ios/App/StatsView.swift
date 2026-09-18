@@ -141,6 +141,10 @@ struct StatsView: View {
                 if let fh = Focus.peakHour(focusByHour) {
                     Text(Focus.hourText(fh)).font(.footnote).foregroundStyle(.secondary)
                     HourStrip(hours: focusByHour, peakHour: fh.hour, peakCount: fh.count)
+                    // AMIKOR A CSÚCS-ÓRA A MENET-ÓRA: a tükör két fele egy pontra mutat — a sor kimondja.
+                    if let same = Focus.sameHourText(FilterHitLogic.peakHour(store.state.filterHitHours ?? [:], now: now), fh) {
+                        Text(same).font(.footnote).foregroundStyle(.secondary)
+                    }
                     // LE VAN-E FEDVE: ha egy csomag heti ablaka a menet-órát fedi, a menet magától
                     // indul, amikor le szoktál ülni — a sor kimondja. A csúcs-órán a csúcs sora mondja.
                     if FilterHitLogic.peakHour(store.state.filterHitHours ?? [:], now: now)?.hour != fh.hour,

@@ -530,6 +530,13 @@ public enum Focus {
         return "A négy hét menet-órája: \(FilterHitLogic.hourLabel(peak.hour)) (\(peak.count) menet\(tail))."
     }
 
+    /// AMIKOR A CSÚCS-ÓRA A MENET-ÓRA: a kéz ugyanabban az órában jár magától, amelyikben le szoktál ülni
+    /// — a tükör két fele egy pontra mutat. Nil, ha nem esik egybe. Tény, nem ítélet.
+    public static func sameHourText(_ peak: (hour: Int, count: Int)?, _ focusHour: (hour: Int, count: Int)?) -> String? {
+        guard let peak, let focusHour, peak.hour == focusHour.hour else { return nil }
+        return "A csúcs-óra és a menet-óra ugyanaz: \(FilterHitLogic.hourLabel(peak.hour)) — a kéz akkor jár, amikor le szoktál ülni."
+    }
+
     /// MOST a menet-óra van-e: a négy hét menet-órája és a helyi óra egybeesik — és a minta elég (a csúcs-nap küszöbe).
     public static func isHourNow(_ peak: (hour: Int, count: Int)?, now: Double) -> Bool {
         guard let peak, peak.count >= FilterHitLogic.peakDayMinCount else { return false }

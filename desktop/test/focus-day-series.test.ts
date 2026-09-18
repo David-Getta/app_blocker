@@ -7,7 +7,7 @@
 import { test } from 'node:test';
 import * as assert from 'node:assert/strict';
 import {
-  focusByHour, focusByWeekday, focusDayNowText, focusDaySeries, focusHourNowText, focusHourText, focusHourWarnText, focusWeekdayText, isFocusHourNow, peakFocusHour,
+  focusByHour, focusByWeekday, focusDayNowText, focusDaySeries, focusHourNowText, focusHourText, focusHourWarnText, focusWeekdayText, isFocusHourNow, peakFocusHour, sameHourText,
   type FocusLogEntry,
 } from '../src/shared/focus';
 import { peakWeekday } from '../src/shared/browser-hits';
@@ -105,6 +105,12 @@ test('a menet-óra: négy hétből, az indulás órája szerint — a huszonnyol
   assert.equal(focusHourText({ hour: 9, count: 6 }, { pack: 'Nyelvtanulás', offer: true }),
     'A négy hét menet-órája: 9–10 óra (6 menet, magától indul: Nyelvtanulás).', 'a fedés erősebb');
   assert.equal(focusHourText({ hour: 9, count: 6 }, { offer: true }), 'A négy hét menet-órája: 9–10 óra (6 menet, nincs rá ablak).');
+  // AMIKOR A CSÚCS-ÓRA A MENET-ÓRA: a két fél egy pontra mutat — különben üres.
+  assert.equal(sameHourText({ hour: 21, count: 6 }, { hour: 21, count: 3 }),
+    'A csúcs-óra és a menet-óra ugyanaz: 21–22 óra — a kéz akkor jár, amikor le szoktál ülni.');
+  assert.equal(sameHourText({ hour: 21, count: 6 }, { hour: 9, count: 3 }), '', 'más óra: üres');
+  assert.equal(sameHourText(null, { hour: 9, count: 3 }), '');
+  assert.equal(sameHourText({ hour: 9, count: 6 }, null), '');
   assert.deepEqual(focusByHour(undefined, now), new Array<number>(24).fill(0));
 });
 

@@ -339,6 +339,18 @@ final class DigestTests: XCTestCase {
         offer.focusHourWindowOffer = true
         XCTAssertEqual(DigestLogic.text(offer) { $0 },
                        "\(head) A négy hét menet-órája: 9–10 óra (6 menet, nincs rá ablak). 3 feloldás.")
+        // AMIKOR A CSÚCS-ÓRA A MENET-ÓRA: a mondat kimondja, a menet-óra után; más órán nem.
+        var same = full
+        same.focusHour = (hour: 21, count: 6)
+        same.filterHits7d = 12
+        same.filterHitsPeak = (hour: 21, count: 6)
+        XCTAssertEqual(DigestLogic.text(same) { $0 },
+                       "\(head) A négy hét menet-órája: 21–22 óra (6 menet). A csúcs-óra és a menet-óra ugyanaz: 21–22 óra — a kéz akkor jár, amikor le szoktál ülni. "
+                       + "3 feloldás. 12 megakadás a szűrőben, a csúcs 21–22 óra.")
+        var other = same
+        other.focusHour = (hour: 9, count: 6)
+        XCTAssertEqual(DigestLogic.text(other) { $0 },
+                       "\(head) A négy hét menet-órája: 9–10 óra (6 menet). 3 feloldás. 12 megakadás a szűrőben, a csúcs 21–22 óra.")
     }
 }
 

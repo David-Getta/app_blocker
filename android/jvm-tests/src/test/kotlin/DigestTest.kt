@@ -365,5 +365,11 @@ class DigestTest {
             DigestLogic.text(full.copy(focusHour = 9 to 6, focusHourPack = "Nyelvtanulás", focusHourWindowOffer = true)) { it })
         assertEquals("$head A négy hét menet-órája: 9–10 óra (6 menet, nincs rá ablak). 3 feloldás.",
             DigestLogic.text(full.copy(focusHour = 9 to 6, focusHourWindowOffer = true)) { it })
+        // AMIKOR A CSÚCS-ÓRA A MENET-ÓRA: a mondat kimondja, a menet-óra után; más órán nem.
+        assertEquals("$head A négy hét menet-órája: 21–22 óra (6 menet). A csúcs-óra és a menet-óra ugyanaz: 21–22 óra — a kéz akkor jár, amikor le szoktál ülni. " +
+            "3 feloldás. 12 megakadás a szűrőben, a csúcs 21–22 óra.",
+            DigestLogic.text(full.copy(focusHour = 21 to 6, filterHits7d = 12, filterHitsPeak = 21 to 6)) { it })
+        assertEquals("$head A négy hét menet-órája: 9–10 óra (6 menet). 3 feloldás. 12 megakadás a szűrőben, a csúcs 21–22 óra.",
+            DigestLogic.text(full.copy(focusHour = 9 to 6, filterHits7d = 12, filterHitsPeak = 21 to 6)) { it })
     }
 }
