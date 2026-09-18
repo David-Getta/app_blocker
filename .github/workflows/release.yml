@@ -44,19 +44,21 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A megakadás ott is látszik, ahol a kísértés van.** A
-          gyorsbillentyűs réteg lába a futó menet alatt hozzáteszi:
-          „Ma 3 megakadás a böngészőben.” — és Androidon a szűrő
-          értesítésének sora: „· Ma 3 megakadás”. Tükör, nem ítélet.
+          **Hétfő reggeli emlékeztető iPhone-on.** A heti visszatekintés
+          mondata az appban születik, amikor hétfő reggel először nyitva
+          van; mostantól egy emlékeztető hív oda 7:05-kor — a rendszer
+          ütemezi, tehát akkor is szól, ha az app nincs nyitva. A zárlat
+          kapuja a kulcsszó levételére is áll, most már mindkét telefonon
+          tesztelve.
 
-          ### Ami a v0.4.52-ben jött
+          ### Ami a v0.4.53-ban jött
 
-          **Kulcsszó-javaslatok egy koppintással** — shorts, reels, live,
-          stream — a gépen és a telefonokon; ami fent van, nem kínálja újra.
+          **A megakadás ott is látszik, ahol a kísértés van.** A réteg lába
+          és az Android-értesítés sora a mai számot mondja.
 
-          #### Ami a v0.4.51-ben jött
+          #### Ami a v0.4.52-ben jött
 
-          **Kulcsszó a lap címsorában is.**
+          **Kulcsszó-javaslatok egy koppintással.**
 
           NOTES
           fi
