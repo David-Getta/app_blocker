@@ -63,6 +63,8 @@ interface Status {
   usageWeekday?: { day: number; count: number } | null;
   /** a menet-sorozat: hány napja ülsz le minden nap — a láb mondja, kettőtől */
   focusStreak?: number;
+  /** a leghosszabb sorozat — a láb a mostani mellett, zárójelben mondja */
+  focusLongestStreak?: number;
   now: number;
 }
 
@@ -81,7 +83,8 @@ function hitsLine(st: Status): string {
 
 /** A MENET-SOROZAT a lábban: „5 napja minden nap leültél.” — kettőtől, a mag szövegével; tény, nem felszólítás. */
 function streakPart(st: Status): string {
-  const t = focusStreakText(st.focusStreak ?? 0);
+  const n = st.focusStreak ?? 0;
+  const t = focusStreakText(n, n >= 2 ? st.focusLongestStreak ?? 0 : 0);
   return t ? ` ${t}` : '';
 }
 

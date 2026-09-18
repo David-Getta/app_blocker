@@ -455,7 +455,9 @@ function renderSuggestCard(now: number): void {
   const usageDayLine = usageDayNowText(status?.usageWeekday ?? null, now).trim();
   if (usageDayLine) lines.push(usageDayLine);
   // A MENET-SOROZAT is: hány napja ülsz le minden nap — a gomb mellett; tény, nem felszólítás.
-  const streakLine = focusStreakText(status?.focusStreak ?? 0);
+  // A rekord csak a mostani sorozat mellett, zárójelben: a puszta rekord a statisztikáé.
+  const streakNow = status?.focusStreak ?? 0;
+  const streakLine = focusStreakText(streakNow, streakNow >= 2 ? status?.focusLongestStreak ?? 0 : 0);
   if (streakLine) lines.push(streakLine);
   $('suggestCard').classList.toggle('hidden', lines.length === 0);
   $('suggestText').textContent = lines.join(' ');

@@ -459,7 +459,9 @@ struct ContentView: View {
 
     /// A MENET-SOROZAT: hány napja ülsz le minden nap — a kártya a gomb mellett mondja, kettőtől; tény, nem felszólítás.
     private var focusStreakLine: String? {
-        Focus.streakText(Focus.dayStreak(store.state.focusLog ?? [], now: now))
+        // A rekord csak a mostani sorozat mellett, zárójelben: a puszta rekord a statisztikáé.
+        let n = Focus.dayStreak(store.state.focusLog ?? [], now: now)
+        return Focus.streakText(n, longest: n >= 2 ? Focus.longestStreak(store.state.focusLog ?? [], now: now) : 0)
     }
 
     /// A CSÚCS-NAPON: a négy hét csúcs-napja — különben nil. Csak elég mintából; a kártya mondja, hogy ma van.

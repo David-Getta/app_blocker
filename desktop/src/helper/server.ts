@@ -163,6 +163,8 @@ export function statusOf(
     focusHour: peakFocusHour(focusByHour(state.focusLog, now)),
     // A MENET-SOROZAT — a híd a böngésző lapjainak adja: a menet gombja mellett mondják.
     focusStreak: focusDayStreak(state.focusLog, now),
+    // A LEGHOSSZABB SOROZAT — a kártya és a réteg a mostani mellett, zárójelben mondja.
+    focusLongestStreak: focusLongestStreak(state.focusLog, now),
     browserHitsReasons: browserHitsByReason(state.browserHits, now),
     browserHitsTop: browserHitsTopSite(state.browserHits, now, state.sites),
     browserHitsKeywords: browserHitsByKeyword(state.browserHits, now),
