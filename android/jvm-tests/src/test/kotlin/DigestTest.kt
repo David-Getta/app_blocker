@@ -226,4 +226,18 @@ class DigestTest {
         )
         assertEquals(text, DigestLogic.relabel(text, sites) { it }, "címke nélkül a sor változatlan")
     }
+
+    @Test fun `az elozo het a menetek mellett - irany, nem itelet, ures elozo het nem sor, a menet nelkuli het mondat`() {
+        val base = DigestLogic.Input(
+            last7Seconds = 0.0, topWeekSites = emptyList(), weekOverWeek = emptyList(),
+            focusWeek = Focus.FocusSummary(sessions = 9, totalMs = 7 * 3600_000L, stoppedEarly = 2, topPack = "Nyelvtanulás"),
+            unlocks7d = 3, daysTracked = 0,
+        )
+        val prev = Focus.FocusSummary(sessions = 5, totalMs = 3 * 3600_000L + 10 * 60_000L, stoppedEarly = 1, topPack = null)
+        assertEquals("Elmúlt 7 nap: 9 menet (7 ó 0 p, 2 korán leállítva), az előző héten 5 (3 ó 10 p). 3 feloldás.",
+            DigestLogic.text(base.copy(focusPrevWeek = prev)) { it })
+        assertEquals("Elmúlt 7 nap: Menet nélkül, az előző héten 5 (3 ó 10 p). 3 feloldás.",
+            DigestLogic.text(base.copy(focusWeek = Focus.FocusSummary(), focusPrevWeek = prev)) { it })
+        assertEquals(DigestLogic.text(base) { it }, DigestLogic.text(base.copy(focusPrevWeek = Focus.FocusSummary())) { it }, "üres előző hét: a régi mondat")
+    }
 }

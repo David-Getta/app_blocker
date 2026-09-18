@@ -12,7 +12,7 @@ import * as assert from 'node:assert/strict';
 import {
   closeRun, formatRemaining, isAppAllowed, isRunning, isSessionLoosening, isSiteAllowed,
   lastUsedPack, MAX_ALLOW_ENTRIES, MAX_SESSION_MINUTES, normalizeMinutes, normalizePack, remainingMs,
-  summarizeFocus, type FocusLogEntry, type FocusPack,
+  summarizeFocus, summarizeFocusPrevWeek, type FocusLogEntry, type FocusPack,
 } from '../src/shared/focus';
 
 const NOW = 1_800_000_000_000;
@@ -219,4 +219,19 @@ test('a legutóbb használt csomag: a napló szerint, törölt csomag nélkül, 
   assert.equal(lastUsedPack([a, b], [])?.id, 'pack_a', 'napló nélkül az első');
   assert.equal(lastUsedPack([a, b], [entry('pack_a', 1000), entry('pack_b', 2000)])?.id, 'pack_b', 'a legfrissebb sor');
   assert.equal(lastUsedPack([a, b], [entry('pack_a', 1000), entry('pack_x', 2000)])?.id, 'pack_a', 'a törölt csomag sora nem számít');
+});
+
+test('az előző hét: a mai nap kezdete előtti 13. naptól a 6. nap kezdetéig — a határ a mostani hété', () => {
+  const now = new Date(2026, 8, 18, 12).getTime();
+  const start = new Date(2026, 8, 18).getTime();
+  const day = 86_400_000;
+  const log = [
+    entry({ startedAt: start - 6 * day, endedAt: start - 6 * day + 1 }),   // a mostani hét első pillanata
+    entry({ startedAt: start - 7 * day, endedAt: start - 6 * day - 1 }),   // az előző hét utolsó pillanata
+    entry({ startedAt: start - 13 * day, endedAt: start - 13 * day }),     // az előző hét első pillanata
+    entry({ startedAt: start - 14 * day, endedAt: start - 13 * day - 1 }), // már nem
+  ];
+  assert.equal(summarizeFocusPrevWeek(log, now).sessions, 2, 'a 13. nap kezdete és a 6. nap kezdete előtti pillanat benne');
+  assert.equal(summarizeFocus(log, start - 6 * day, now).sessions, 1, 'a mostani hét a maradék');
+  assert.equal(summarizeFocusPrevWeek([], now).sessions, 0);
 });

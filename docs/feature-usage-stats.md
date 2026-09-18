@@ -357,6 +357,17 @@ Korai végnek számít a próbatétel utáni **rövidítés** is, nem csak a le�
 a menet nem addig tartott, ameddig terveztük. Ha csak a „leállítva” jelzőt
 néznénk, a rövidítés láthatatlan maradna — pedig pont ugyanaz a döntés.
 
+### Az előző héthez képest
+
+A blokk mondata az előző hetet is mondja („Az előző héten 5 menet (3 ó 10 p).”),
+és a heti mondat a menetek mellett, vesszővel:
+„9 menet (7 ó 0 p, 2 korán leállítva), az előző héten 5 (3 ó 10 p).”
+Irány, nem ítélet — mint a megakadásoknál. Az előző hét ablaka a mai nap
+kezdete előtti tizenharmadik naptól a hatodik nap kezdetéig tart
+(`summarizeFocusPrevWeek`, mindhárom magban ugyanaz a határ); üres előző hét
+nem összehasonlítás, akkor nincs mondat; a menet nélküli hét viszont mondat,
+ha volt mihez mérni: „Menet nélkül, az előző héten 5 (3 ó 10 p).”
+
 ### Fókuszban, naponta
 
 A csempe egy számban mondja a hetet („7 ó fókuszban a héten”); a sávok azt,

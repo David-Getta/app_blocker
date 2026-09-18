@@ -206,4 +206,16 @@ private extension DigestLogic.Input {
         copy.dropped7d = n
         return copy
     }
+
+    func testThePreviousWeekBesideTheSessionsDirectionNotJudgementAnEmptyPreviousWeekIsNoLine() {
+        let week = Focus.Summary(sessions: 9, totalMs: 7 * 3_600_000, stoppedEarly: 2, topPack: "Nyelvtanulás")
+        let none = Focus.Summary(sessions: 0, totalMs: 0, stoppedEarly: 0, topPack: nil)
+        let prev = Focus.Summary(sessions: 5, totalMs: 3 * 3_600_000 + 10 * 60_000, stoppedEarly: 1, topPack: nil)
+        XCTAssertEqual(DigestLogic.text(DigestLogic.Input(focusWeek: week, unlocks7d: 3, focusPrevWeek: prev), labelOf: { $0 }),
+                       "Elmúlt 7 nap: 9 menet (7 ó 0 p, 2 korán leállítva), az előző héten 5 (3 ó 10 p). 3 feloldás.")
+        XCTAssertEqual(DigestLogic.text(DigestLogic.Input(focusWeek: none, unlocks7d: 3, focusPrevWeek: prev), labelOf: { $0 }),
+                       "Elmúlt 7 nap: Menet nélkül, az előző héten 5 (3 ó 10 p). 3 feloldás.")
+        XCTAssertEqual(DigestLogic.text(DigestLogic.Input(focusWeek: week, unlocks7d: 3, focusPrevWeek: none), labelOf: { $0 }),
+                       DigestLogic.text(DigestLogic.Input(focusWeek: week, unlocks7d: 3), labelOf: { $0 }), "üres előző hét: a régi mondat")
+    }
 }

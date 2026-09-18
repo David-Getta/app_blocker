@@ -288,6 +288,25 @@ class FocusTest {
     }.timeInMillis
 
     @Test
+    fun `az elozo het - a 13 nap kezdetetol a 6 nap kezdeteig, a hatar a mostani hete`() {
+        val now = localTime(12, 0)
+        val start = Calendar.getInstance().apply {
+            timeInMillis = now
+            set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+        }.timeInMillis
+        val day = 86_400_000L
+        val log = listOf(
+            entry(start - 6 * day, start - 6 * day + 1),   // a mostani hét első pillanata
+            entry(start - 7 * day, start - 6 * day - 1),   // az előző hét utolsó pillanata
+            entry(start - 13 * day, start - 13 * day),     // az előző hét első pillanata
+            entry(start - 14 * day, start - 13 * day - 1), // már nem
+        )
+        assertEquals(2, Focus.summarizeFocusPrevWeek(log, now).sessions, "a 13. nap kezdete és a 6. nap kezdete előtti pillanat benne")
+        assertEquals(1, Focus.summarizeFocus(log, start - 6 * day, now).sessions, "a mostani hét a maradék")
+        assertEquals(0, Focus.summarizeFocusPrevWeek(emptyList(), now).sessions)
+    }
+
+    @Test
     fun `naponta - a menet a vegenek napjara szamit, a het a legregebbitol a maiig`() {
         val day = 86_400_000L
         val hour = 3_600_000L

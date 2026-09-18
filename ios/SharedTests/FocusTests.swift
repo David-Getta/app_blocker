@@ -52,6 +52,21 @@ final class FocusTests: XCTestCase {
         XCTAssertEqual(Focus.explain("  ", run: nil, pack: nil, now: 0, blocked: [], syncHost: nil, keywords: kw), "", "üres név: nincs mondat")
     }
 
+    func testThePreviousWeekFromTheStartOfTheThirteenthDayToTheStartOfTheSixthTheBoundaryIsThisWeeks() {
+        let now = localTime(12, 0)
+        let start = Calendar.current.startOfDay(for: Date(timeIntervalSince1970: now / 1000)).timeIntervalSince1970 * 1000
+        let day = 86_400_000.0
+        let log = [
+            entry(start - 6 * day, start - 6 * day + 1),   // a mostani hét első pillanata
+            entry(start - 7 * day, start - 6 * day - 1),   // az előző hét utolsó pillanata
+            entry(start - 13 * day, start - 13 * day),     // az előző hét első pillanata
+            entry(start - 14 * day, start - 13 * day - 1), // már nem
+        ]
+        XCTAssertEqual(Focus.summarizeFocusPrevWeek(log, now: now).sessions, 2, "a 13. nap kezdete és a 6. nap kezdete előtti pillanat benne")
+        XCTAssertEqual(Focus.summarizeFocus(log, since: start - 6 * day, now: now).sessions, 1, "a mostani hét a maradék")
+        XCTAssertEqual(Focus.summarizeFocusPrevWeek([], now: now).sessions, 0)
+    }
+
     func testDaySeriesCountsASessionOnTheDayItEnded() {
         let day = 86_400_000.0
         let hour = 3_600_000.0

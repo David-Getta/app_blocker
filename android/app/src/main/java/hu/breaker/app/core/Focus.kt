@@ -360,6 +360,16 @@ object Focus {
         return FocusSummary(rows.size, totalMs, stoppedEarly, topPack)
     }
 
+    /**
+     * Az ELŐZŐ hét menetei: a mai nap kezdete előtti tizenhárom naptól a hat
+     * nappal ezelőtti nap kezdetéig — azt már nem, az a mostani hét ablaka. A
+     * statisztika és a heti mondat a két hetet egymás mellé teszi: irány, nem ítélet.
+     */
+    fun summarizeFocusPrevWeek(log: List<FocusLogEntry>?, now: Long): FocusSummary {
+        val start = UsageLogic.startOfDay(now)
+        return summarizeFocus(log, start - 13 * 86_400_000L, start - 6 * 86_400_000L - 1)
+    }
+
     /** Ahogy a felületen áll: „Nyelvtanulás — 42 perc van hátra”. */
     fun formatRemaining(ms: Long): String {
         val total = maxOf(0L, (ms + 59_999L) / 60_000L).toInt()

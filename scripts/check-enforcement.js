@@ -661,6 +661,44 @@ const WIRES = [
     needle: 'FilterHitLogic.trendText(',
     lost: 'az iPhone statisztikája nem mondaná a hetet az előző héthez képest',
   },
+  // AZ ELŐZŐ HÉT MENETEI a mostani mellett: a segéd és a telefonok összegzik, a
+  // statisztika és a heti mondat mondja. Ha a hívó nem adná, a mező null, és a
+  // sor csendben elmaradna — a mag tudná, a felület nem.
+  {
+    file: 'desktop/src/helper/server.ts',
+    needle: 'focusPrevWeek: summarizeFocusPrevWeek(state.focusLog, now),',
+    lost: 'a segéd statisztikája nem adná az előző hét meneteit',
+  },
+  {
+    file: 'desktop/src/helper/digest-journal.ts',
+    needle: 'focusPrevWeek: summarizeFocusPrevWeek(state.focusLog, now),',
+    lost: 'a gépi heti mondat nem mondaná az előző hét meneteit',
+  },
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: 'Az előző héten ${prev.sessions} menet',
+    lost: 'a gépi statisztika nem mondaná az előző hét meneteit',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/Digest.kt',
+    needle: 'focusPrevWeek = Focus.summarizeFocusPrevWeek(st.focusLog, now),',
+    lost: 'Androidon a heti mondat nem mondaná az előző hét meneteit',
+  },
+  {
+    file: 'ios/Shared/Digest.swift',
+    needle: 'focusPrevWeek: Focus.summarizeFocusPrevWeek(st.focusLog ?? [], now: now)',
+    lost: 'iPhone-on a heti mondat nem mondaná az előző hét meneteit',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/StatsScreen.kt',
+    needle: 'Az előző héten ${it.sessions} menet',
+    lost: 'az Android statisztikája nem mondaná az előző hét meneteit',
+  },
+  {
+    file: 'ios/App/StatsView.swift',
+    needle: 'Az előző héten \\(focusPrevWeek.sessions) menet',
+    lost: 'az iPhone statisztikája nem mondaná az előző hét meneteit',
+  },
   {
     file: 'android/app/src/main/java/hu/breaker/app/core/Digest.kt',
     needle: 'filterHitsTop = FilterHitLogic.topSite(st.filterHitHosts, now),',

@@ -384,6 +384,14 @@ public enum Focus {
         )
     }
 
+    /// Az ELŐZŐ hét menetei: a mai nap kezdete előtti tizenhárom naptól a hat
+    /// nappal ezelőtti nap kezdetéig — azt már nem, az a mostani hét ablaka. A
+    /// statisztika és a heti mondat a két hetet egymás mellé teszi: irány, nem ítélet.
+    public static func summarizeFocusPrevWeek(_ log: [LogEntry], now: Double) -> Summary {
+        let start = Calendar.current.startOfDay(for: Date(timeIntervalSince1970: now / 1000)).timeIntervalSince1970 * 1000
+        return summarizeFocus(log, since: start - 13 * 86_400_000, now: start - 6 * 86_400_000 - 1)
+    }
+
     /// A legutóbb használt csomag — a napló legfrissebb olyan sora szerint,
     /// amelynek a csomagja még megvan —, vagy az első, ha még nem volt menet;
     /// nil, ha nincs csomag. A javaslat gombja ezt indítja a szokásos hosszával:

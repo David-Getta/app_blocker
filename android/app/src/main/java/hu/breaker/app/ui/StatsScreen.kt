@@ -46,6 +46,8 @@ fun StatsSection(
      */
     focusToday: Focus.FocusSummary,
     focusWeek: Focus.FocusSummary,
+    /** az előző hét menetei — a hét az előző héthez képest; null, ha a hívó nem adja */
+    focusPrevWeek: Focus.FocusSummary? = null,
     focusSeries: List<Pair<String, Double>>,
     focusLabel: String,
     /** az elmúlt 7 nap napi összesenje (minden célpont), a legrégebbitől — a hét alakja */
@@ -123,7 +125,7 @@ fun StatsSection(
         // írjuk, engedély nélkül is. Ha a kapu alatt lenne, egy mérés nélküli
         // telefonon az app azt mondaná, hogy nincs mit mutatni — pedig pontosan
         // tudja, hányszor ültél le dolgozni.
-        FocusStatsBlock(focusToday, focusWeek, focusDays)
+        FocusStatsBlock(focusToday, focusWeek, focusDays, focusPrevWeek)
         // A MEGAKADÁSOK napról napra — a szűrő könyve: ugyanaz a rajz, mint a
         // mért időé, csak darabban. Üresen nincs.
         if (filterHitDays.any { it.second > 0.0 }) {
@@ -296,6 +298,7 @@ fun StatsSection(
 private fun FocusStatsBlock(
     today: Focus.FocusSummary, week: Focus.FocusSummary,
     focusDays: List<Pair<String, Double>> = emptyList(),
+    prevWeek: Focus.FocusSummary? = null,
 ) {
     if (week.sessions == 0) return
     StatsSectionLabel("Munkamenetek")
@@ -309,6 +312,11 @@ private fun FocusStatsBlock(
     }
     val parts = mutableListOf<String>()
     week.topPack?.let { parts.add("A hét leggyakoribb csomagja: $it.") }
+    // AZ ELŐZŐ HÉT a menetek mellett — irány, nem ítélet. Üres előző hét nem
+    // összehasonlítás: akkor nincs mondat.
+    prevWeek?.takeIf { it.sessions > 0 }?.let {
+        parts.add("Az előző héten ${it.sessions} menet (${UsageLogic.formatDuration(it.totalMs / 1000.0)}).")
+    }
     // A „korán leállítva” szándékosan NEM szégyenpad. Ha sokszor fordul elő,
     // nem a csomaggal van baj, hanem a hosszal.
     parts.add(

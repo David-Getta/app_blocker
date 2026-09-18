@@ -341,6 +341,19 @@ export function summarizeFocus(
 }
 
 /**
+ * Az ELŐZŐ hét menetei: a mai nap kezdete előtti tizenhárom naptól a hat
+ * nappal ezelőtti nap kezdetéig — azt már nem, az a mostani hét ablaka. A
+ * statisztika és a heti mondat a két hetet egymás mellé teszi: irány, nem
+ * ítélet. A nap kezdete helyi idő szerint, mint a segédé.
+ */
+export function summarizeFocusPrevWeek(log: FocusLogEntry[] | undefined, now: number): FocusSummary {
+  const d = new Date(now);
+  d.setHours(0, 0, 0, 0);
+  const start = d.getTime();
+  return summarizeFocus(log, start - 13 * 86_400_000, start - 6 * 86_400_000 - 1);
+}
+
+/**
  * Fókuszban töltött idő NAPONTA az utolsó `count` napra, a legrégebbitől —
  * a hét alakja a menetekre: mikor ültél le, és mikor nem. A csempe egy
  * számban mondja a hetet; ez azt, hogy egyenletesen jött-e össze, vagy egy

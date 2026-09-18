@@ -16,7 +16,9 @@ import {
   putBrowserHits,
 } from '../shared/browser-hits';
 import { normalizeRule } from '../shared/urlrules';
-import { lastUsedPack, focusDaySeries, isRunning, normalizePack, spentWindows, summarizeFocus } from '../shared/focus';
+import {
+  lastUsedPack, focusDaySeries, isRunning, normalizePack, spentWindows, summarizeFocus, summarizeFocusPrevWeek,
+} from '../shared/focus';
 import { noteBurstUsage, normalizeBurst, type BurstRule } from '../shared/burst';
 import { LOCKDOWN_CHOICES_MIN } from '../shared/lockdown';
 import {
@@ -620,6 +622,8 @@ async function handle(req: HelperRequest, deps: ServerDeps): Promise<unknown> {
         // órával ezelőtt. Egy „ma” felirat alatt tegnap esti menetek állnának.
         focusToday: summarizeFocus(state.focusLog, startOfDay(now), now),
         focusWeek: summarizeFocus(state.focusLog, startOfDay(now) - 6 * 86_400_000, now),
+        // Az előző hét — a hét az előző héthez képest, irány, nem ítélet.
+        focusPrevWeek: summarizeFocusPrevWeek(state.focusLog, now),
         lastSampleAt: state.usageLastSampleAt ?? null,
         digestLog: cleanDigestLog(state.digestLog),
       };

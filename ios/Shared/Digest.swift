@@ -68,6 +68,8 @@ public enum DigestLogic {
         public var weekOverWeek: [Delta]
         /// a munkamenetek összegzése az elmúlt 7 napra
         public var focusWeek: Focus.Summary
+        /// Az előző hét menetei — a hét az előző héthez képest; nil, ha a hívó nem adja.
+        public var focusPrevWeek: Focus.Summary?
         /// feloldások az elmúlt 7 napban
         public var unlocks7d: Int
         /// van-e egyáltalán mért nap
@@ -94,7 +96,7 @@ public enum DigestLogic {
             weekOverWeek: [Delta] = [], focusWeek: Focus.Summary, unlocks7d: Int,
             daysTracked: Int = 0, unblockedTop: [Top] = [], dropped7d: Int = 0, filterHits7d: Int = 0,
             filterHitsPeak: (hour: Int, count: Int)? = nil, filterHitsTop: (label: String, count: Int)? = nil,
-            filterHitsPrev7d: Int = 0
+            filterHitsPrev7d: Int = 0, focusPrevWeek: Focus.Summary? = nil
         ) {
             self.last7Seconds = last7Seconds
             self.topWeekSites = topWeekSites
@@ -109,6 +111,7 @@ public enum DigestLogic {
             self.filterHitsPeak = filterHitsPeak
             self.filterHitsTop = filterHitsTop
             self.filterHitsPrev7d = filterHitsPrev7d
+            self.focusPrevWeek = focusPrevWeek
         }
     }
 
@@ -148,9 +151,19 @@ public enum DigestLogic {
             parts.append("\(line).")
         }
         let f = input.focusWeek
+        // Az előző hét a menetek mellett — irány, nem ítélet. Üres előző hét nem
+        // összehasonlítás; a menet nélküli hét viszont mondat, ha volt mihez mérni.
+        let prevFocus: String
+        if let p = input.focusPrevWeek, p.sessions > 0 {
+            prevFocus = ", az előző héten \(p.sessions) (\(hm(p.totalMs / 1000)))"
+        } else {
+            prevFocus = ""
+        }
         if f.sessions > 0 {
             let early = f.stoppedEarly > 0 ? ", \(f.stoppedEarly) korán leállítva" : ", mind végigvive"
-            parts.append("\(f.sessions) menet (\(hm(f.totalMs / 1000))\(early)).")
+            parts.append("\(f.sessions) menet (\(hm(f.totalMs / 1000))\(early))\(prevFocus).")
+        } else if !prevFocus.isEmpty {
+            parts.append("Menet nélkül\(prevFocus).")
         }
         // A félbemaradt kísérlet a feloldások mellé kerül — vagy helyettük: egy
         // elindított és félbehagyott lazítás is történés, ha feloldás nem is lett.
@@ -235,7 +248,8 @@ public enum DigestLogic {
             filterHits7d: FilterHitLogic.hits7d(st.filterHits ?? [:], now: now),
             filterHitsPeak: FilterHitLogic.peakHour(st.filterHitHours ?? [:], now: now),
             filterHitsTop: FilterHitLogic.topSite(st.filterHitHosts ?? [:], now: now).map { (label: $0.site, count: $0.count) },
-            filterHitsPrev7d: FilterHitLogic.hitsPrev7d(st.filterHits ?? [:], now: now)
+            filterHitsPrev7d: FilterHitLogic.hitsPrev7d(st.filterHits ?? [:], now: now),
+            focusPrevWeek: Focus.summarizeFocusPrevWeek(st.focusLog ?? [], now: now)
         )
     }
 

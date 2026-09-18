@@ -80,6 +80,8 @@ export interface DigestInput {
   weekOverWeek: { label: string; thisWeek: number; deltaPct: number | null }[];
   /** a munkamenetek összegzése az elmúlt 7 napra */
   focusWeek: FocusSummary;
+  /** az előző hét menetei — a hét az előző héthez képest; nem kötelező (régi hívó) */
+  focusPrevWeek?: FocusSummary;
   /** feloldások az elmúlt 7 napban */
   unlocks7d: number;
   /**
@@ -149,9 +151,15 @@ export function digestText(input: DigestInput, labelOf: (label: string) => strin
     parts.push(`${line}.`);
   }
   const f = input.focusWeek;
+  const p = input.focusPrevWeek ?? null;
+  // Az előző hét a menetek mellett — irány, nem ítélet. Üres előző hét nem
+  // összehasonlítás; a menet nélküli hét viszont mondat, ha volt mihez mérni.
+  const prevFocus = p && p.sessions > 0 ? `, az előző héten ${p.sessions} (${hm(p.totalMs / 1000)})` : '';
   if (f.sessions > 0) {
     const early = f.stoppedEarly > 0 ? `, ${f.stoppedEarly} korán leállítva` : ', mind végigvive';
-    parts.push(`${f.sessions} menet (${hm(f.totalMs / 1000)}${early}).`);
+    parts.push(`${f.sessions} menet (${hm(f.totalMs / 1000)}${early})${prevFocus}.`);
+  } else if (prevFocus) {
+    parts.push(`Menet nélkül${prevFocus}.`);
   }
   // A félbemaradt kísérlet a feloldások mellé kerül — vagy helyettük: egy
   // elindított és félbehagyott lazítás is történés, ha feloldás nem is lett.

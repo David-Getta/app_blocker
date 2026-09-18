@@ -175,3 +175,14 @@ test('a napló sora a mostani címkézéssel: a fedőnév és a rejtés visszame
   // Címke nélkül (nincs fedőnév, nincs rejtés) a sor változatlan.
   assert.equal(relabelDigest(text, sites, (d) => d), text);
 });
+
+test('az előző hét a menetek mellett: irány, nem ítélet — üres előző hét nem sor, a menet nélküli hét mondat', () => {
+  const prev = { sessions: 5, totalMs: 3 * 3600_000 + 10 * 60_000, stoppedEarly: 1, topPack: null };
+  const head = 'Elmúlt 7 nap: 7 ó 20 p mért idő; a legtöbb: youtube.com 2 ó 40 p (▼ -33% az előző héthez képest). ';
+  assert.equal(digestText({ ...full, focusPrevWeek: prev }, (l) => l),
+    `${head}9 menet (7 ó 0 p, 2 korán leállítva), az előző héten 5 (3 ó 10 p). 3 feloldás.`);
+  assert.equal(digestText({ ...full, focusWeek: { sessions: 0, totalMs: 0, stoppedEarly: 0, topPack: null }, focusPrevWeek: prev }, (l) => l),
+    `${head}Menet nélkül, az előző héten 5 (3 ó 10 p). 3 feloldás.`);
+  assert.equal(digestText({ ...full, focusPrevWeek: { sessions: 0, totalMs: 0, stoppedEarly: 0, topPack: null } }, (l) => l),
+    digestText(full, (l) => l), 'üres előző hét: a régi mondat');
+});

@@ -12,7 +12,7 @@
 
 import { cleanDigestLog, digestDue, digestText, recordDigest } from '../shared/digest';
 import { displayName, isAliased } from '../shared/alias';
-import { summarizeFocus } from '../shared/focus';
+import { summarizeFocus, summarizeFocusPrevWeek } from '../shared/focus';
 import { suggestBlocks, summarize } from '../shared/usage';
 import { browserHits7d, browserHitsPeakHour, browserHitsPrev7d, browserHitsTopSite } from '../shared/browser-hits';
 import type { HelperState } from './state';
@@ -49,6 +49,7 @@ export function digestTextNow(state: HelperState, now: number): string | null {
     weekOverWeek: s.weekOverWeek,
     // A napló ablaka a statisztikáé: a mai nap kezdete mínusz hat nap.
     focusWeek: summarizeFocus(state.focusLog, startOfDay(now) - 6 * 86_400_000, now),
+    focusPrevWeek: summarizeFocusPrevWeek(state.focusLog, now),
     unlocks7d: state.unlockLog.filter((t) => t >= now - 7 * 24 * 3600_000).length,
     dropped7d: (state.droppedAttempts ?? []).filter((t) => t >= now - 7 * 24 * 3600_000).length,
     browserHits7d: browserHits7d(state.browserHits, now),

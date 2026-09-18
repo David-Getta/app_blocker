@@ -76,6 +76,8 @@ object DigestLogic {
         val weekOverWeek: List<Delta>,
         /** a munkamenetek összegzése az elmúlt 7 napra */
         val focusWeek: Focus.FocusSummary,
+        /** az előző hét menetei — a hét az előző héthez képest; null, ha a hívó nem adja */
+        val focusPrevWeek: Focus.FocusSummary? = null,
         /** feloldások az elmúlt 7 napban */
         val unlocks7d: Int,
         /** van-e egyáltalán mért nap */
@@ -146,9 +148,15 @@ object DigestLogic {
             parts.add("$line.")
         }
         val f = input.focusWeek
+        val p = input.focusPrevWeek
+        // Az előző hét a menetek mellett — irány, nem ítélet. Üres előző hét nem
+        // összehasonlítás; a menet nélküli hét viszont mondat, ha volt mihez mérni.
+        val prevFocus = if (p != null && p.sessions > 0) ", az előző héten ${p.sessions} (${hm(p.totalMs / 1000.0)})" else ""
         if (f.sessions > 0) {
             val early = if (f.stoppedEarly > 0) ", ${f.stoppedEarly} korán leállítva" else ", mind végigvive"
-            parts.add("${f.sessions} menet (${hm(f.totalMs / 1000.0)}$early).")
+            parts.add("${f.sessions} menet (${hm(f.totalMs / 1000.0)}$early)$prevFocus.")
+        } else if (prevFocus.isNotEmpty()) {
+            parts.add("Menet nélkül$prevFocus.")
         }
         // A félbemaradt kísérlet a feloldások mellé kerül — vagy helyettük: egy
         // elindított és félbehagyott lazítás is történés, ha feloldás nem is lett.
@@ -259,6 +267,7 @@ object DigestLogic {
             weekOverWeek = summary.weekOverWeek.map { Delta(it.label, it.deltaPct) },
             // A napló ablaka a gépével közös: a mai nap kezdete mínusz hat nap.
             focusWeek = Focus.summarizeFocus(st.focusLog, UsageLogic.startOfDay(now) - 6 * 86_400_000L, now),
+            focusPrevWeek = Focus.summarizeFocusPrevWeek(st.focusLog, now),
             unlocks7d = st.unlockLog.count { it >= weekAgo },
             dropped7d = st.droppedAttempts.count { it >= weekAgo },
             filterHits7d = FilterHitLogic.hits7d(st.filterHits, now),

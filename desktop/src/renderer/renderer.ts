@@ -4227,6 +4227,12 @@ function renderFocusStats(): void {
 
   const parts: string[] = [];
   if (week.topPack) parts.push(`A hét leggyakoribb csomagja: ${week.topPack}.`);
+  // AZ ELŐZŐ HÉT a menetek mellett — irány, nem ítélet. Üres előző hét nem
+  // összehasonlítás: akkor nincs mondat.
+  const prev = statsData?.focusPrevWeek;
+  if (prev && prev.sessions > 0) {
+    parts.push(`Az előző héten ${prev.sessions} menet (${formatDuration(Math.round(prev.totalMs / 1000))}).`);
+  }
   if (week.stoppedEarly > 0) {
     parts.push(
       `${week.stoppedEarly} menet ért véget a tervezettnél korábban. `

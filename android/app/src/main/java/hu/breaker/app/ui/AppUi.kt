@@ -745,6 +745,7 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                 focusWeek = Focus.summarizeFocus(
                     state.focusLog, UsageLogic.startOfDay(now) - 6 * 86_400_000L, now,
                 ),
+                focusPrevWeek = Focus.summarizeFocusPrevWeek(state.focusLog, now),
                 focusSeries = focusTarget?.let { UsageLogic.series(state.usage, it.key, now, 30) }
                     ?: emptyList(),
                 focusLabel = focusTarget?.label ?: "",

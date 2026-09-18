@@ -47,9 +47,19 @@ struct StatsView: View {
         )
     }
 
+    /// Az előző hét — a hét az előző héthez képest, irány, nem ítélet.
+    private var focusPrevWeek: Focus.Summary {
+        Focus.summarizeFocusPrevWeek(store.state.focusLog ?? [], now: now)
+    }
+
     private var focusNote: String {
         var parts: [String] = []
         if let top = focusWeek.topPack { parts.append("A hét leggyakoribb csomagja: \(top).") }
+        // AZ ELŐZŐ HÉT a menetek mellett — irány, nem ítélet. Üres előző hét nem
+        // összehasonlítás: akkor nincs mondat.
+        if focusPrevWeek.sessions > 0 {
+            parts.append("Az előző héten \(focusPrevWeek.sessions) menet (\(UsageStats.formatDuration(focusPrevWeek.totalMs / 1000))).")
+        }
         // A korai vég szándékosan NEM szégyenpad: ha sokszor fordul elő, nem a
         // csomaggal van baj, hanem a hosszal.
         parts.append(
