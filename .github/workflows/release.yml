@@ -44,21 +44,25 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
+          **Előjelzés a menet-óra előtt.** Tíz perccel a négy hét menet-órája
+          előtt a gép, az Android és az iPhone naponta egyszer kimondja:
+          „Mindjárt 9 óra — ilyenkor szoktál elkezdeni (6 menet négy hét alatt). Egy munkamenet most segítene — te döntesz.”
+          A javaslat-kártya ugyanezt mutatja, amíg az ablak tart. Ahol a
+          csúcs-óra és a menet-óra ugyanaz, csak a csúcs-óra szól; futó menet
+          alatt semmi; három menet alatt nincs előjelzés.
+
+          ### Ami a v0.4.127-ben jött
+
           **A menet-óra ott is, ahol a döntés van.** A menet-órában a gépi
           kezdőlap kártyája és a réteg lába, a két telefon kezdőlapja
           kimondja: „Most a menet-órád van (9–10 óra, 6 menet) — ilyenkor szoktál elkezdeni.”
           — a menet gombjával; a felugró lap és a tiltó lap a gomb mellett:
           „Most a menet-órád van.” Bővítmény 0.4.30.
 
-          ### Ami a v0.4.126-ban jött
+          #### Ami a v0.4.126-ban jött
 
           **A README és a weboldal a délután tükör-újdonságairól.** Kód nem
           változott.
-
-          #### Ami a v0.4.125-ben jött
-
-          **Ablak a menet-órára.** A csúcs-óra gombjának párja a menet-óra
-          alatt — a menet magától indul, amikor le szoktál ülni.
 
           NOTES
           fi
