@@ -222,7 +222,7 @@ class DigestTest {
         assertEquals(1, input.focusWeek.sessions, "a harminc napos menet nem az elmúlt hété")
         assertEquals(0, input.daysTracked)
         assertEquals(1, input.dropped7d, "a húsz napos félbemaradt kísérlet sem az elmúlt hété")
-        assertEquals("Elmúlt 7 nap: 1 menet (1 ó 0 p, mind végigvive). 1 feloldás, 1 félbemaradt kísérlet.", DigestLogic.text(input) { it })
+        assertEquals("Elmúlt 7 nap: 1 menet (1 ó 0 p, mind végigvive). A négy hét menet-napja: péntek (1 menet). 1 feloldás, 1 félbemaradt kísérlet.", DigestLogic.text(input) { it })
     }
 
     @Test fun `a naplo sora a mostani cimkezessel - a fedonev es a rejtes visszamenoleg is fed`() {
@@ -297,5 +297,12 @@ class DigestTest {
         assertEquals("$head 12 megakadás a szűrőben. A négy hét csúcs-napja: szerda (9 megakadás).",
             DigestLogic.text(full.copy(filterHits7d = 12, filterHitsWeekday = 3 to 9)) { it }, "a megakadások mondata után")
         assertEquals(DigestLogic.text(full) { it }, DigestLogic.text(full.copy(filterHitsWeekday = null)) { it }, "nap nélkül a régi mondat")
+    }
+
+    @Test fun `a menet-nap a mondatban - a statisztika sora szo szerint, nap nelkul nem mondat`() {
+        val head = "Elmúlt 7 nap: 7 ó 20 p mért idő; a legtöbb: youtube.com 2 ó 40 p (▼ -33% az előző héthez képest). " +
+            "9 menet (7 ó 0 p, 2 korán leállítva)."
+        assertEquals("$head A négy hét menet-napja: kedd (6 menet). 3 feloldás.", DigestLogic.text(full.copy(focusWeekday = 2 to 6)) { it })
+        assertEquals(DigestLogic.text(full) { it }, DigestLogic.text(full.copy(focusWeekday = null)) { it }, "nap nélkül a régi mondat")
     }
 }

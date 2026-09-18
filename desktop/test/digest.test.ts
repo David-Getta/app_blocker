@@ -230,3 +230,11 @@ test('a csúcs-nap a mondatban: a statisztika sora szó szerint, a megakadások 
     `${head} 12 megakadás a böngészőben. A négy hét csúcs-napja: szerda (9 megakadás).`, 'a megakadások mondata után');
   assert.equal(digestText({ ...full, browserHitsWeekday: null }, (l) => l), digestText(full, (l) => l), 'nap nélkül a régi mondat');
 });
+
+test('a menet-nap a mondatban: a statisztika sora szó szerint, a menetek után — nap nélkül nem mondat', () => {
+  const head = 'Elmúlt 7 nap: 7 ó 20 p mért idő; a legtöbb: youtube.com 2 ó 40 p (▼ -33% az előző héthez képest). '
+    + '9 menet (7 ó 0 p, 2 korán leállítva).';
+  assert.equal(digestText({ ...full, focusWeekday: { day: 2, count: 6 } }, (l) => l),
+    `${head} A négy hét menet-napja: kedd (6 menet). 3 feloldás.`);
+  assert.equal(digestText({ ...full, focusWeekday: null }, (l) => l), digestText(full, (l) => l), 'nap nélkül a régi mondat');
+});

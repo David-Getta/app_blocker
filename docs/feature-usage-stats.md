@@ -538,6 +538,9 @@ sávja, a menet-nap kiemelve. A gépi statisztika munkamenet-blokkjában
 (`focusByWeekday` a segédnél, `focusWeekdays` a statisztika-válaszban),
 Androidon és iPhone-on (`Focus.byWeekday`); a holtverseny és a minta hossza a
 csúcs-napéval közös (`peakWeekday`, `PEAK_WEEKDAY_DAYS`). Menet nélkül nincs.
+A heti mondat is mondja, a menetek mondata után, szó szerint (`focusWeekday` a
+mondat bemenetén — a segéd, az Android és az iOS építi); nap nélkül nincs
+mondat.
 
 **Ablak a csúcs-órára:** a statisztika a csúcs-óra mondata alatt — a gépen
 és a telefonokon is — egy gombot mutat — „Heti ablak a csúcs-órára: Nyelvtanulás, minden nap 21:00–22:00” —,

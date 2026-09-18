@@ -19,7 +19,7 @@
 // Pure: a felület adja az időt, a tárolt kulcsot és a címkézést (rejtett lista,
 // fedőnév) — az értesítés sem szivárogtathat ki olyan címet, amit a lista elrejt.
 
-import type { FocusSummary } from './focus.js';
+import { focusWeekdayText, type FocusSummary } from './focus.js';
 import { hourLabel, peakWeekdayText } from './browser-hits.js';
 
 /** Hétfőn ettől az órától esedékes (helyi idő). */
@@ -112,6 +112,8 @@ export interface DigestInput {
   peakWindowOffer?: boolean;
   /** a négy hét csúcs-napja a böngésző megakadásaira (0 = vasárnap) — a statisztika sora a mondatban; null, ha nem volt */
   browserHitsWeekday?: { day: number; count: number } | null;
+  /** a négy hét menet-napja (0 = vasárnap; szám) — melyik napon ülsz le a legtöbbször; null, ha nem volt */
+  focusWeekday?: { day: number; count: number } | null;
   /** a hét csúcs-oldala (nyers név, a címkézés a mondaté) — melyik oldal akaszt meg a legtöbbször */
   browserHitsTop?: { label: string; count: number } | null;
   /** van-e egyáltalán mért nap */
@@ -175,6 +177,10 @@ export function digestText(input: DigestInput, labelOf: (label: string) => strin
   } else if (prevFocus) {
     parts.push(`Menet nélkül${prevFocus}.`);
   }
+  // A MENET-NAP: melyik napon ülsz le a legtöbbször — négy hétből, a statisztika
+  // mondata szó szerint; a csúcs-nap tükre. Nincs nap, nincs mondat.
+  const focusDay = input.focusWeekday ?? null;
+  if (focusDay) parts.push(focusWeekdayText(focusDay));
   // A félbemaradt kísérlet a feloldások mellé kerül — vagy helyettük: egy
   // elindított és félbehagyott lazítás is történés, ha feloldás nem is lett.
   const dropped = input.dropped7d ?? 0;

@@ -257,6 +257,16 @@ final class DigestTests: XCTestCase {
         none.filterHitsWeekday = nil
         XCTAssertEqual(DigestLogic.text(none) { $0 }, DigestLogic.text(full) { $0 }, "nap nélkül a régi mondat")
     }
+    func testTheSessionWeekdayInTheSentenceIsTheStatsLineAndNoDayIsNoSentence() {
+        let head = "Elmúlt 7 nap: 7 ó 20 p mért idő; a legtöbb: youtube.com 2 ó 40 p (▼ -33% az előző héthez képest). "
+            + "9 menet (7 ó 0 p, 2 korán leállítva)."
+        var day = full
+        day.focusWeekday = (day: 2, count: 6)
+        XCTAssertEqual(DigestLogic.text(day) { $0 }, "\(head) A négy hét menet-napja: kedd (6 menet). 3 feloldás.")
+        var none = full
+        none.focusWeekday = nil
+        XCTAssertEqual(DigestLogic.text(none) { $0 }, DigestLogic.text(full) { $0 }, "nap nélkül a régi mondat")
+    }
 }
 
 private extension DigestLogic.Input {

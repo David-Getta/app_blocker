@@ -111,6 +111,8 @@ object DigestLogic {
         val peakWindowOffer: Boolean = false,
         /** a négy hét csúcs-napja a szűrő megakadásaira (nap 0 = vasárnap, szám) — a statisztika sora a mondatban; null, ha nem volt */
         val filterHitsWeekday: Pair<Int, Int>? = null,
+        /** a négy hét menet-napja (nap 0 = vasárnap, szám) — melyik napon ülsz le a legtöbbször; null, ha nem volt */
+        val focusWeekday: Pair<Int, Int>? = null,
         /** a hét csúcs-oldala (nyers név, a címkézés a mondaté; szám) — melyik oldal akaszt meg a legtöbbször */
         val filterHitsTop: Pair<String, Int>? = null,
         /**
@@ -172,6 +174,9 @@ object DigestLogic {
         } else if (prevFocus.isNotEmpty()) {
             parts.add("Menet nélkül$prevFocus.")
         }
+        // A MENET-NAP: melyik napon ülsz le a legtöbbször — négy hétből, a statisztika
+        // mondata szó szerint; a csúcs-nap tükre. Nincs nap, nincs mondat.
+        input.focusWeekday?.let { parts.add(Focus.weekdayText(it)) }
         // A félbemaradt kísérlet a feloldások mellé kerül — vagy helyettük: egy
         // elindított és félbehagyott lazítás is történés, ha feloldás nem is lett.
         val droppedPart = if (input.dropped7d > 0) ", ${input.dropped7d} félbemaradt kísérlet" else ""
@@ -296,6 +301,8 @@ object DigestLogic {
             // A napló ablaka a gépével közös: a mai nap kezdete mínusz hat nap.
             focusWeek = Focus.summarizeFocus(st.focusLog, UsageLogic.startOfDay(now) - 6 * 86_400_000L, now),
             focusPrevWeek = Focus.summarizeFocusPrevWeek(st.focusLog, now),
+            // A menet-nap — négy hétből, a statisztika sora: a mondat is mondja.
+            focusWeekday = FilterHitLogic.peakWeekday(Focus.byWeekday(st.focusLog, now)),
             unlocks7d = st.unlockLog.count { it >= weekAgo },
             unlocksPrev7d = st.unlockLog.count { it >= weekAgo - 7 * 24 * 3600_000L && it < weekAgo },
             dropped7d = st.droppedAttempts.count { it >= weekAgo },

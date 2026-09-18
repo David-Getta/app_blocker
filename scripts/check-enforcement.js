@@ -1199,6 +1199,22 @@ const WIRES = [
     needle: 'WeekdayStrip(days: focusByDay, peakDay: fwd.day, peakCount: fwd.count)',
     lost: 'az iPhone statisztika nem mondaná és nem rajzolná a menet-napot',
   },
+  // A HETI MONDAT a menet-napot is mondja — a statisztika sora, mindhárom platformon.
+  {
+    file: 'desktop/src/helper/digest-journal.ts',
+    needle: 'focusWeekday: peakWeekday(focusByWeekday(state.focusLog, now)),',
+    lost: 'a gépi heti mondat nem mondaná a menet-napot',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/Digest.kt',
+    needle: 'focusWeekday = FilterHitLogic.peakWeekday(Focus.byWeekday(st.focusLog, now)),',
+    lost: 'az Android heti mondat nem mondaná a menet-napot',
+  },
+  {
+    file: 'ios/Shared/Digest.swift',
+    needle: 'input.focusWeekday = FilterHitLogic.peakWeekday(Focus.byWeekday(st.focusLog ?? [], now: now))',
+    lost: 'az iPhone heti mondat nem mondaná a menet-napot',
+  },
   // AZ ABLAK SZERINT INDULT menet a rétegben és az Android értesítésén is kimondva.
   {
     file: 'desktop/src/renderer/overlay.ts',
