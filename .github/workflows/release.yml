@@ -44,20 +44,20 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A heti mondat a menet-órát is mondja.** A menet-nap mondata után,
-          szó szerint a statisztika sora: „A négy hét menet-órája: 9–10 óra (6 menet).”
-          Mindhárom platformon; menet nélkül nincs mondat.
+          **Ablak a menet-órára.** A csúcs-óra gombjának párja a menet-óra
+          alatt: „Heti ablak a menet-órára: Nyelvtanulás, minden nap 9:00–10:00”
+          — a menet magától indul, amikor le szoktál ülni. Felvenni ingyen;
+          ugyanazok a kapuk. A gépen, Androidon és iPhone-on.
 
-          ### Ami a v0.4.123-ban jött
+          ### Ami a v0.4.124-ben jött
+
+          **A heti mondat a menet-órát is mondja.** A menet-nap mondata után,
+          szó szerint a statisztika sora — mindhárom platformon.
+
+          #### Ami a v0.4.123-ban jött
 
           **A menet-óra.** Mikor ülsz le a legtöbbször — a négy hét menetei
-          az indulás órája szerint, alatta az órák sávja. A csúcs-óra tükre,
-          mindhárom platformon.
-
-          #### Ami a v0.4.122-ben jött
-
-          **A heti mondat a mért idő napját is mondja.** A mért idő mondata
-          után, szó szerint a statisztika sora — a gépen és Androidon.
+          az indulás órája szerint, alatta az órák sávja.
 
           NOTES
           fi

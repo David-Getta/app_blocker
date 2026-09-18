@@ -8,6 +8,7 @@ kettővel korábbiban.
 
 | Verzió | Nap | Mi újság |
 |---|---|---|
+| v0.4.125 (még nincs kiadva) | 2026-09-18 | ablak a menet-órára |
 | v0.4.124 (még nincs kiadva) | 2026-09-18 | a heti mondat a menet-órát is mondja |
 | v0.4.123 (még nincs kiadva) | 2026-09-18 | a menet-óra |
 | v0.4.122 (még nincs kiadva) | 2026-09-18 | a heti mondat a mért idő napját is mondja |
