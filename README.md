@@ -486,7 +486,10 @@ a Swift-tükör minden pusholásnál fordul, és a mag tesztjei is lefutnak), é
 **párban zárolás** (a lazítás végén a megbízott jelmondata,
 [`docs/feature-partner-lock.md`](docs/feature-partner-lock.md)), és a
 **kulcsszó-szabályok** (bármely oldalon, ha a cím tartalmazza — a böngészőben,
-[`docs/feature-keywords.md`](docs/feature-keywords.md)).
+[`docs/feature-keywords.md`](docs/feature-keywords.md)), és a **megakadások**
+(hányszor állított meg a tiltás — ma, a héten, okonként, óránként, oldalanként;
+a sokadiknál egy lépést javasol, tíz perccel a csúcs-óra előtt előre szól, és
+ha nem kéred, csendben marad — [`docs/feature-usage-stats.md`](docs/feature-usage-stats.md)).
 
 Ami még hátravan:
 

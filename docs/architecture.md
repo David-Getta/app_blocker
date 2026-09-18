@@ -93,6 +93,52 @@ Két tervezési döntés, ami az adatok helyességét adja:
    többet. A megőrzés darabszám-alapú, így elállított rendszeróra sem tud
    valós előzményt törölni.
 
+## Megakadások: a tükör harmadik fele
+
+A mérés azt mondja, mire ment el az idő; a menetek azt, hányszor ültél le
+dolgozni. A harmadik fele az, amit a tiltás csinál, amikor nem figyelsz:
+hányszor állított meg. Ez a **megakadás** — a kéz odanyúlt, a tiltás
+megállította. Tükör, nem ítélet: számol, nem minősít.
+
+**Ki könyvel.** A gépen a böngésző-bővítmény (`extension/hits.js`): egy tiltó
+lapra vitt navigáció egy megakadás — naponként, okonként (zárva oldal,
+munkamenet, csatorna, részleges szabály, kulcsszó), óránként (a nap
+huszonnégy rekesze) és hosztonként; harminc napig. A hídon (`POST /hits`, a
+kóddal, egy állandó forrás-azonosítóval) a napi összeg, az okok, az órák és a
+nap öt leggyakoribb hosztja megy a segédnek — a gépen belül; a teljes
+hoszt-könyv a bővítményé marad. A segéd forrásonként tartja
+(`shared/browser-hits.ts`, `browserHits` az állapotban; két böngésző két könyv,
+a segéd összeadja), a hosztot a lista tételéhez rendeli (a `m.youtube.com` és a
+`www.youtube.com` egy oldal). A telefonon a szűrő könyvel
+(`core/FilterHits.kt`, `Shared/FilterHits.swift`): egy tiltott lekérdezés egy
+megakadás — hosztonként két percen belül egyszer, mert egy oldalbetöltés
+tucatnyi lekérdezés —, és CSAK a lista tiltása: a munkamenet fehérlistáján
+kívül rekedt háttér-forgalom nem a kéz mozdulata. Naponként, óránként és a
+lista tételével oldalanként; a nyers hosztot nem tárolja.
+
+**Ki mondja.** A statisztika (a hét alakja, a csúcs-óra, az okok, a
+csúcs-oldal); a heti mondat: „12 megakadás a böngészőben, a csúcs 21–22 óra, a legtöbbször: youtube.com (7×).”;
+a bővítmény felugró és beállítás-lapja; a tiltó lap a kísértés pillanatában:
+„Ma ez a 7. megakadás — ebből a 3. ezen az oldalon.”; a gyorsbillentyűs réteg
+lába és az Android szűrő-értesítésének sora. A rejtett lista és a fedőnév
+mindenhol fed.
+
+**Mit javasol.** A sokadik megakadásnál (5, 10, 20) egyszer egy lépést: egy
+munkamenet vagy egy rövid zárlat — a gépen és Androidon értesítésben, a
+telefon kezdőlapján és a gépi statisztikán egy kártyán, amelynek gombja a
+legutóbb használt csomagot indítja a szokásos hosszával (szigorítás, ingyen).
+Tíz perccel a hét csúcs-órája előtt előre szól — a gépen a felület, Androidon
+a szolgáltatás, iPhone-on a rendszernél ütemezett kérés. A lépcsők, a tíz
+perc és a küszöb a három magban azonos (`check-core-sync`). Nem tilt, nem
+ítél; a döntés az emberé — és ha nem kéred, csendben marad (a gépen a
+háttér-panel, a telefonon a statisztika kapcsolója), a kártya és a
+statisztika sora akkor is mondja.
+
+**Ami nem megy sehova.** A könyv a készüléken marad, a fiókba nem megy — a
+megakadás a gép saját tükre, mint a heti napló. A bekötést ellenőrző-tűk
+őrzik (`scripts/check-enforcement.js`): a mag megvolna teszt nélkül is, a
+huzalozatlan mag viszont csendben nullát mondana.
+
 ## Közös mag
 
 A `domain-normalizálás`, `preset-bővítés`, a teljes `próbatétel-motor`, a `bíró`
