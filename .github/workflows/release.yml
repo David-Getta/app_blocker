@@ -44,21 +44,20 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A heti mondat a lefedett csúcs-órát is mondja.** Ha egy csomag
-          heti ablaka fedi a csúcs-órát, a heti mondat a csúcs mellett mondja: „a csúcs 21–22 óra (magától indul: Nyelvtanulás)”
-          — a gépen és a telefonokon is.
+          **A keret betelt napjai.** A statisztika kimondja, hány napon telt
+          be a napi keret a héten, és melyik oldalé hányszor — ezen a
+          készüléken mérve; a heti mondat rövidebben: „A napi keret 3 napon betelt.”
+          Tükör: azt mutatja, dolgozik-e a keret.
 
-          ### Ami a v0.4.94-ben jött
+          ### Ami a v0.4.95-ben jött
+
+          **A heti mondat a lefedett csúcs-órát is mondja** — ha egy csomag
+          heti ablaka fedi a csúcs-órát, a csúcs mellett: „magától indul: Nyelvtanulás”.
+
+          #### Ami a v0.4.94-ben jött
 
           **Egy kattintás a tiltó lapról a menetig** — a tiltó lapon is ott a
-          gomb az app javasolt csomagjára; a bíró dönt, futó menet és
-          összekötés nélkül nincs gomb. Bővítmény 0.4.21.
-
-          #### Ami a v0.4.93-ban jött
-
-          **Egy kattintás a felugró lapról a menetig** — a híd a javasolt
-          csomagot is leadja, és befelé egy csak szigorító végpontot nyit. És
-          a v0.4.92 tartalma: a csúcs-óra le van-e fedve.
+          gomb az app javasolt csomagjára. Bővítmény 0.4.21.
 
           NOTES
           fi
