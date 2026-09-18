@@ -44,20 +44,20 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **Ami a héten nem fogott.** A bővítmény beállítás-lapja kimondja a
-          lista szavait, amelyek a héten egyszer sem fogtak — ha a héten
-          volt kulcsszó-megakadás. Tükör a listára a másik oldalról.
+          **Ami a héten nem fogott — a telefonokon is.** A telefon
+          statisztikája kimondja a lista szavait, amelyek a héten egyszer
+          sem fogtak, ha volt kulcsszó-megakadás. A weboldal „Jó, ha tudod”
+          listája a telefonos kulcsszóról és a gépi értesítésekről is szól.
+
+          ### Ami a v0.4.83-ban jött
+
+          **Ami a héten nem fogott** — a bővítmény beállítás-lapján.
           Bővítmény 0.4.17.
 
-          ### Ami a v0.4.82-ben jött
+          #### Ami a v0.4.82-ben jött
 
           **Mi újság a letöltőoldalon** — a legutóbbi kiadás jegyzetének
           első szakasza a kiadás oldaláról.
-
-          #### Ami a v0.4.81-ben jött
-
-          **Ablak a csúcs-órára** — a gépi statisztika egy gombbal heti
-          ablakot tesz a legutóbbi csomagra a csúcs egy órájában.
 
           NOTES
           fi
