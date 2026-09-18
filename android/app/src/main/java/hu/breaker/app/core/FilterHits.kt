@@ -134,11 +134,20 @@ object FilterHitLogic {
         return good.filterKeys { it in keep }
     }
 
-    /** A csúcs-óra az elmúlt 7 napon: (óra, szám) — vagy null. Holtversenynél a korábbi óra. */
-    fun peakHour(hours: Map<String, List<Int>>, now: Long): Pair<Int, Int>? {
+    /**
+     * AZ ÓRÁK SÁVJA: a nap huszonnégy rekesze az elmúlt 7 napon összeadva — a
+     * statisztika ebből rajzolja a sávot, a csúcs-óra ebből áll. Csupa nulla, ha nem volt.
+     */
+    fun byHour(hours: Map<String, List<Int>>, now: Long): List<Int> {
         val days = UsageLogic.dayKeysBack(now, 7).toSet()
         val by = IntArray(24)
         for ((day, row) in hours) if (day in days && row.size == 24) for (i in 0 until 24) by[i] += maxOf(0, row[i])
+        return by.toList()
+    }
+
+    /** A csúcs-óra az elmúlt 7 napon: (óra, szám) — vagy null. Holtversenynél a korábbi óra. */
+    fun peakHour(hours: Map<String, List<Int>>, now: Long): Pair<Int, Int>? {
+        val by = byHour(hours, now)
         var best = -1
         for (i in 0 until 24) if (by[i] > 0 && (best < 0 || by[i] > by[best])) best = i
         return if (best < 0) null else best to by[best]

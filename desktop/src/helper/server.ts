@@ -11,7 +11,7 @@ import { computeTier } from '../shared/challenges';
 import { normalizeAlias, normalizeReason } from '../shared/alias';
 import { cleanDigestLog } from '../shared/digest';
 import {
-  browserHits7d, browserHitsByKeyword, browserHitsByReason, browserHitsPeakHour, browserHitsPrev7d, browserHitsSeries,
+  browserHits7d, browserHitsByHour, browserHitsByKeyword, browserHitsByReason, browserHitsPeakHour, browserHitsPrev7d, browserHitsSeries,
   browserHitsToday, browserHitsTopSite,
   putBrowserHits,
 } from '../shared/browser-hits';
@@ -141,6 +141,7 @@ export function statusOf(
     browserHitsPrev7d: browserHitsPrev7d(state.browserHits, now),
     browserHitsDays: browserHitsSeries(state.browserHits, now, 7),
     browserHitsPeak: browserHitsPeakHour(state.browserHits, now),
+    browserHitsHours: browserHitsByHour(state.browserHits, now),
     browserHitsReasons: browserHitsByReason(state.browserHits, now),
     browserHitsTop: browserHitsTopSite(state.browserHits, now, state.sites),
     browserHitsKeywords: browserHitsByKeyword(state.browserHits, now),

@@ -522,6 +522,33 @@ const WIRES = [
     needle: 'FilterHitLogic.nudgeText(step)',
     lost: 'az iPhone kezdőlapja nem javasolna lépést a sokadik megakadásnál',
   },
+  // AZ ÓRÁK SÁVJA: a rekeszek összeadva megvannak a magban; ha a státusz nem
+  // vinné, vagy a statisztika nem rajzolná, a csúcs egy szám maradna alak nélkül.
+  {
+    file: 'desktop/src/helper/server.ts',
+    needle: 'browserHitsHours: browserHitsByHour(state.browserHits, now),',
+    lost: 'a segéd nem adná a státuszba az órák sávját',
+  },
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: "renderHourStrip($('hitsHourStrip'), status?.browserHitsHours ?? [], peak);",
+    lost: 'a gépi statisztika nem rajzolná az órák sávját',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/AppUi.kt',
+    needle: 'filterHitHours = FilterHitLogic.byHour(state.filterHitHours, now),',
+    lost: 'Androidon a statisztika nem kapná meg az órák sávját',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/StatsScreen.kt',
+    needle: 'HourStrip(filterHitHours, peakHour = hour, peakCount = count)',
+    lost: 'az Android statisztika nem rajzolná az órák sávját',
+  },
+  {
+    file: 'ios/App/StatsView.swift',
+    needle: 'HourStrip(hours: FilterHitLogic.byHour(store.state.filterHitHours ?? [:], now: now),',
+    lost: 'az iPhone statisztikája nem rajzolná az órák sávját',
+  },
   // AZ ELŐJELZÉS a csúcs-óra előtt: a mag tudja, mikor; ha a három bekötés
   // kiesne, a csúcs-óra csak a statisztikán állna, és senki nem szólna előre.
   {

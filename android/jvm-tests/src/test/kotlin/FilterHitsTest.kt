@@ -95,6 +95,12 @@ class FilterHitsTest {
         hours = FilterHitLogic.recordHour(hours, today, 99) // rossz óra: változatlan
         assertEquals(2, hours.getValue(today)[21])
         assertEquals(9 to 2, FilterHitLogic.peakHour(hours, now), "holtverseny: a korábbi óra")
+        val by = FilterHitLogic.byHour(hours, now)
+        assertEquals(24, by.size, "az órák sávja huszonnégy rekesz")
+        assertEquals(2, by[9], "a rekesz a hét összege — a nyolcadik nap nélkül")
+        assertEquals(2, by[21])
+        assertEquals(4, by.sum())
+        assertEquals(List(24) { 0 }, FilterHitLogic.byHour(emptyMap(), now), "üresen csupa nulla")
         assertEquals(null, FilterHitLogic.peakHour(emptyMap(), now))
         assertEquals("23–0 óra", FilterHitLogic.hourLabel(23))
         assertEquals(mapOf(today to hours.getValue(today)),

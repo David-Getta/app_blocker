@@ -754,6 +754,7 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                 focusDays = Focus.daySeries(state.focusLog, now, 7),
                 filterHitDays = FilterHitLogic.daySeries(state.filterHits, now, 7),
                 filterHitsPeak = FilterHitLogic.peakHour(state.filterHitHours, now),
+                filterHitHours = FilterHitLogic.byHour(state.filterHitHours, now),
                 filterHitsTop = FilterHitLogic.topSite(state.filterHitHosts, now),
                 filterHitsReasons = FilterHitLogic.byReason(state.filterHitReasons, now),
                 filterHitsKeywords = FilterHitLogic.keywordsWeek(state.filterHitKeywords, now),

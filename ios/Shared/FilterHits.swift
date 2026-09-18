@@ -128,13 +128,20 @@ public enum FilterHitLogic {
         return good.filter { keep.contains($0.key) }
     }
 
-    /// A csúcs-óra az elmúlt 7 napon: (óra, szám) — vagy nil. Holtversenynél a korábbi óra.
-    public static func peakHour(_ hours: [String: [Int]], now: Double) -> (hour: Int, count: Int)? {
+    /// AZ ÓRÁK SÁVJA: a nap huszonnégy rekesze az elmúlt 7 napon összeadva — a
+    /// statisztika ebből rajzolja a sávot, a csúcs-óra ebből áll. Csupa nulla, ha nem volt.
+    public static func byHour(_ hours: [String: [Int]], now: Double) -> [Int] {
         let days = Set(daySeries([:], now: now, count: 7).map { $0.day })
         var by = Array(repeating: 0, count: 24)
         for (day, row) in hours where days.contains(day) && row.count == 24 {
             for i in 0..<24 { by[i] += max(0, row[i]) }
         }
+        return by
+    }
+
+    /// A csúcs-óra az elmúlt 7 napon: (óra, szám) — vagy nil. Holtversenynél a korábbi óra.
+    public static func peakHour(_ hours: [String: [Int]], now: Double) -> (hour: Int, count: Int)? {
+        let by = byHour(hours, now: now)
         var best = -1
         for i in 0..<24 where by[i] > 0 && (best < 0 || by[i] > by[best]) { best = i }
         return best < 0 ? nil : (hour: best, count: by[best])

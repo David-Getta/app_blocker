@@ -18,6 +18,9 @@ jobs:
         with:
           node-version: "20"
       - run: node scripts/check-text.js
+      # A bővítmény JS-e sehol nem fordul: egy kétszer deklarált `const` a
+      # beállítás-lapon csak a böngészőben derülne ki — itt másodpercek alatt.
+      - run: for f in extension/*.js; do node --input-type=module --check < "$f" || exit 1; done
       # A Compose-fájlokat (hu.breaker.app.ui) csak a teljes Android build
       # fordítja, ami percekbe telik — egy hiányzó import a saját mag-
       # típusainkra itt másodpercek alatt kiderül.

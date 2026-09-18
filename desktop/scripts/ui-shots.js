@@ -146,6 +146,8 @@ function fakeBridgeSource() {
       browserHitsPrev7d: 18,
       browserHitsDays: [6, 5, 4, 3, 2, 1, 0].map((back, i) => ({ day: day(back), total: [2, 0, 5, 1, 3, 0, 3][i] })),
       browserHitsPeak: { hour: 21, count: 6 },
+      // Az órák sávja: egy este alakja, a csúcs 21-kor — a napok összegével egyező.
+      browserHitsHours: [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 2, 6, 1, 0],
       browserHitsReasons: [{ reason: 'closed', count: 7 }, { reason: 'keyword', count: 3 }, { reason: 'focus', count: 2 }],
       browserHitsTop: { label: 'youtube.com', count: 7 },
       browserHitsKeywords: [{ keyword: 'shorts', count: 7 }, { keyword: 'reels', count: 3 }],
@@ -940,6 +942,19 @@ async function main() {
       && !document.getElementById('hitsWindowBtn')?.classList.contains('hidden'),
     undefined, { timeout: 15_000 },
   ).catch(() => failures.push('a csúcs-óra gombja nem a legutóbbi csomagot és a csúcs-órát ígéri'));
+  // AZ ÓRÁK SÁVJA a mondat alatt: huszonnégy rekesz, a csúcs (21) kiemelve.
+  const strip = await page.evaluate(() => {
+    const el = document.getElementById('hitsHourStrip');
+    const bars = el ? Array.from(el.children) : [];
+    return {
+      hidden: !el || el.classList.contains('hidden'), n: bars.length,
+      peak: bars.findIndex((b) => b.classList.contains('peak')),
+      tallest: bars.reduce((best, b, i) => (parseInt(b.style.height, 10) > parseInt(bars[best]?.style.height || '0', 10) ? i : best), 0),
+    };
+  });
+  if (strip.hidden || strip.n !== 24 || strip.peak !== 21 || strip.tallest !== 21) {
+    failures.push(`az órák sávja nem 24 rekesz a csúccsal 21-nél: ${JSON.stringify(strip)}`);
+  }
   await page.locator('#hitsWindowBtn').click().catch(() => failures.push('a csúcs-óra gombja nem kattintható'));
   await page.waitForFunction(
     () => document.getElementById('hitsWindowBtn')?.classList.contains('hidden')

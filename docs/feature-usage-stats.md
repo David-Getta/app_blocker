@@ -518,6 +518,16 @@ akkor jár a kéz magától.” Tény, nem ítélet. A telefonon ugyanígy: a sz
 megakadások hete alatt mondja a csúcs-órát, és a heti mondat is: „12
 megakadás a szűrőben, a csúcs 21–22 óra.”
 
+**Az órák sávja:** a csúcs egy szám, a sáv az alakja. A gépi statisztika a
+csúcs-óra mondata alatt a nap huszonnégy rekeszét rajzolja a hét
+megakadásaival (`browserHitsHours` a státuszban, minden forrásból összeadva),
+a csúcs kiemelve, a többi halványan — ugyanaz a sáv, mint a bővítmény
+beállítás-lapján, ugyanabban a mértékben (a csúcs a teljes magasság). A
+telefonon ugyanígy, a szűrő könyvéből (`FilterHitLogic.byHour`, Kotlin és
+Swift). Csúcs nélkül nincs sáv: az üres rajz nem mond semmit. Egy szín — a
+rekesz nem kategória —, és nincs rajta szám: a csúcs mondata mondja a
+számot, a sáv azt mutatja, mikor nem jár a kéz.
+
 A **sokadik megakadásnál** a gép egy lépést javasol: az ötödik, tizedik és
 huszadik mai megakadásnál egyszer szól („Ma már 5 megakadás a böngészőben.
 Egy munkamenet vagy egy rövid zárlat most segítene — te döntesz.”), és a

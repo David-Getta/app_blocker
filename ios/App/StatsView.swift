@@ -137,6 +137,10 @@ struct StatsView: View {
                     if let peak = FilterHitLogic.peakHour(store.state.filterHitHours ?? [:], now: now) {
                         Text("A hét csúcsa: \(FilterHitLogic.hourLabel(peak.hour)) (\(peak.count) megakadás) — akkor jár a kéz magától.")
                             .font(.footnote).foregroundStyle(.secondary)
+                        // AZ ÓRÁK SÁVJA: a nap 24 rekesze a hét megakadásaival — a csúcs a
+                        // mondat, a sáv az alakja (mikor jár a kéz magától, és mikor nem).
+                        HourStrip(hours: FilterHitLogic.byHour(store.state.filterHitHours ?? [:], now: now),
+                                  peakHour: peak.hour, peakCount: peak.count)
                     }
                     // MELYIK oldal akaszt meg a legtöbbször: a hét csúcs-oldala — a lista címkézésével.
                     if let top = FilterHitLogic.topSite(store.state.filterHitHosts ?? [:], now: now) {
@@ -264,6 +268,29 @@ struct StatsView: View {
         .padding(12)
         .background(BreakerStyle.surfaceNested)
         .cornerRadius(8)
+    }
+}
+
+/// AZ ÓRÁK SÁVJA: huszonnégy rekesz egy színnel (a rekesz nem kategória), a
+/// csúcs teljes erővel, a többi halványan — a gépi statisztika és a bővítmény
+/// sávjának tükre, ugyanabban a mértékben (a csúcs a teljes magasság).
+private struct HourStrip: View {
+    let hours: [Int]
+    let peakHour: Int
+    let peakCount: Int
+
+    var body: some View {
+        if hours.count == 24 && peakCount > 0 {
+            HStack(alignment: .bottom, spacing: 2) {
+                ForEach(0..<24, id: \.self) { hour in
+                    RoundedRectangle(cornerRadius: 2, style: .continuous)
+                        .fill(Color.accentColor.opacity(hour == peakHour ? 1 : 0.45))
+                        .frame(height: Swift.max(2, 28 * Double(hours[hour]) / Double(peakCount)))
+                        .frame(maxWidth: .infinity)
+                }
+            }
+            .frame(height: 30, alignment: .bottom)
+        }
     }
 }
 

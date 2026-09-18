@@ -160,8 +160,12 @@ export function hitsTrendText(week: number, prev: number): string {
   return `A héten ${week} megakadás, az előző héten ${prev}.`;
 }
 
-/** A csúcs-óra az elmúlt 7 napon, minden forrásból: { hour, count } — vagy null. Holtversenynél a korábbi óra. */
-export function browserHitsPeakHour(book: BrowserHits | undefined, now: number): { hour: number; count: number } | null {
+/**
+ * AZ ÓRÁK SÁVJA: a nap huszonnégy rekesze az elmúlt 7 napon, minden forrásból
+ * összeadva — a statisztika ebből rajzolja a sávot, a csúcs-óra ebből áll.
+ * Csupa nulla, ha nem volt (a rajz üresen nincs).
+ */
+export function browserHitsByHour(book: BrowserHits | undefined, now: number): number[] {
   const from = hitDayKey(now - 6 * 86_400_000);
   const to = hitDayKey(now);
   const by = new Array<number>(24).fill(0);
@@ -171,6 +175,12 @@ export function browserHitsPeakHour(book: BrowserHits | undefined, now: number):
       for (let i = 0; i < 24; i++) by[i] += d.byHour[i] ?? 0;
     }
   }
+  return by;
+}
+
+/** A csúcs-óra az elmúlt 7 napon, minden forrásból: { hour, count } — vagy null. Holtversenynél a korábbi óra. */
+export function browserHitsPeakHour(book: BrowserHits | undefined, now: number): { hour: number; count: number } | null {
+  const by = browserHitsByHour(book, now);
   let best = -1;
   for (let i = 0; i < 24; i++) if (by[i] > 0 && (best < 0 || by[i] > by[best])) best = i;
   return best < 0 ? null : { hour: best, count: by[best] };

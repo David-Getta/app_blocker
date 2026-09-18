@@ -189,6 +189,8 @@ export interface StatusData {
   browserHitsDays?: { day: string; total: number }[];
   /** a hét csúcs-órája: mikor jár a kéz magától — null, ha még nem volt megakadás */
   browserHitsPeak?: { hour: number; count: number } | null;
+  /** az órák sávja: a hét megakadásai a nap huszonnégy rekeszében (0–23), minden forrásból — a csúcs-óra ebből áll */
+  browserHitsHours?: number[];
   /** a hét megakadásai okonként, a legnagyobb elöl — melyik szabály dolgozik */
   browserHitsReasons?: { reason: string; count: number }[];
   /** a hét csúcs-oldala (a lista tételének neve vagy a hoszt, szám) — melyik oldal akaszt meg a legtöbbször */

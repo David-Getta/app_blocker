@@ -4145,6 +4145,27 @@ function renderDaily(series: { day: string; seconds: number }[], title: string):
  * Üresen (nincs mért perc a héten, vagy régi segéd, ami nem küld sort) a
  * blokk eltűnik.
  */
+/**
+ * AZ ÓRÁK SÁVJA: huszonnégy rekesz, a legmagasabb a csúcs magasságán — a
+ * bővítmény beállítás-lapjának sávja, ugyanabban a mértékben. Egy szín (a
+ * rekesz nem kategória), a csúcs teljes erővel, a többi halványan; a rekesz
+ * címe a szám. Csúcs nélkül (csupa nulla) a sáv elrejtve: üres rajz nem mond
+ * semmit.
+ */
+function renderHourStrip(strip: HTMLElement, hours: number[], peak: { hour: number; count: number } | null): void {
+  strip.textContent = '';
+  const show = peak !== null && peak.count > 0 && hours.length === 24;
+  strip.classList.toggle('hidden', !show);
+  if (!show || !peak) return;
+  hours.forEach((n, hour) => {
+    const bar = document.createElement('span');
+    bar.className = hour === peak.hour ? 'hour-bar peak' : 'hour-bar';
+    bar.style.height = `${Math.min(28, Math.max(2, Math.round((n / peak.count) * 28)))}px`;
+    bar.title = `${hourLabel(hour)}: ${n} megakadás`;
+    strip.appendChild(bar);
+  });
+}
+
 function renderWeek(
   series: { day: string; seconds: number }[] | undefined,
   blockId = 'weekBlock', chartId = 'weekChart',
@@ -4379,6 +4400,9 @@ function renderStats(): void {
   $('hitsPeakNote').classList.toggle('hidden', peak === null);
   $('hitsPeakNote').textContent = peak
     ? `A hét csúcsa: ${hourLabel(peak.hour)} (${peak.count} megakadás) — akkor jár a kéz magától.` : '';
+  // AZ ÓRÁK SÁVJA: a nap huszonnégy rekesze a hét megakadásaival — a csúcs a
+  // mondat, a sáv az alakja (mikor jár a kéz magától, és mikor nem).
+  renderHourStrip($('hitsHourStrip'), status?.browserHitsHours ?? [], peak);
   // ABLAK A CSÚCS-ÓRÁRA: a tükör mondja, mikor jár a kéz magától — a gomb heti
   // ablakot tesz a legutóbbi csomagra abban az órában, minden nap: a menet
   // magától indul, amikor a kéz indulna. Felvenni ingyen (szigorítás); a

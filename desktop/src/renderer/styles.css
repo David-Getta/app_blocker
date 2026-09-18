@@ -772,6 +772,18 @@ body {
 .week-day { font-size: 0.73rem; color: var(--text-3); }
 .week-day.today { color: var(--text-1); font-weight: 600; }
 
+/* Az órák sávja: huszonnégy rekesz egy színnel (a rekesz nem kategória), a
+   csúcs teljes erővel, a többi halványan — a bővítmény sávjának tükre. */
+.hour-strip {
+  display: flex; align-items: flex-end; gap: 2px; height: 30px;
+  margin: var(--s2) 0 0; border-bottom: 1px solid var(--grid);
+}
+.hour-bar {
+  flex: 1; min-width: 0; background: var(--series-1); opacity: .45;
+  border-radius: 2px 2px 0 0;
+}
+.hour-bar.peak { opacity: 1; }
+
 .wow-list { display: flex; flex-direction: column; gap: var(--s3); }
 .wow-row {
   display: flex; align-items: center; justify-content: space-between;

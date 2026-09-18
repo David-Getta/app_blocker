@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import * as assert from 'node:assert/strict';
 import {
   HIT_NUDGE_STEPS, HIT_REASON_LABELS, MAX_HITS_PER_DAY, MAX_HIT_DAYS, MAX_HIT_SOURCES, MAX_TOP_HOSTS,
-  PEAK_WARN_LEAD_MS, PEAK_WARN_MIN_COUNT, browserHits7d, browserHitsBetween, browserHitsByKeyword, browserHitsByReason,
+  PEAK_WARN_LEAD_MS, PEAK_WARN_MIN_COUNT, browserHits7d, browserHitsBetween, browserHitsByHour, browserHitsByKeyword, browserHitsByReason,
   browserHitsPeakHour,
   browserHitsPrev7d, browserHitsSeries, browserHitsToday, browserHitsTopSite, cleanBrowserHitDays, cleanBrowserHits, hitDayKey,
   hitNudgeStep, hitNudgeText, hitsKeywordLine, hitsReasonLine, hitsTrendText, hostSite, hourLabel, peakWarnKey, peakWarnText,
@@ -105,6 +105,12 @@ test('az órák a hídról: huszonnégy rekesz, a napi összegnél nem több; a 
   let book = putBrowserHits(undefined, 'a', [{ day: '2026-09-18', total: 3, byReason: {}, byHour: hours(21, 3) }]);
   book = putBrowserHits(book, 'b', [{ day: '2026-09-17', total: 5, byReason: {}, byHour: hours(9, 5) },
     { day: '2026-09-11', total: 9, byReason: {}, byHour: hours(9, 9) }]);
+  const by = browserHitsByHour(book, NOW);
+  assert.equal(by.length, 24, 'az órák sávja huszonnégy rekesz');
+  assert.equal(by[9], 5, 'a rekesz a források összege a héten — a nyolc napos nélkül');
+  assert.equal(by[21], 3);
+  assert.equal(by.reduce((a, b) => a + b, 0), 8);
+  assert.deepEqual(browserHitsByHour(undefined, NOW), new Array(24).fill(0), 'könyv nélkül csupa nulla');
   assert.deepEqual(browserHitsPeakHour(book, NOW), { hour: 9, count: 5 }, 'a nyolc napos nem számít');
   assert.equal(browserHitsPeakHour(undefined, NOW), null);
   assert.equal(hourLabel(21), '21–22 óra');

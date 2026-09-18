@@ -80,6 +80,12 @@ final class FilterHitsTests: XCTestCase {
         let peak = FilterHitLogic.peakHour(hours, now: now)
         XCTAssertEqual(peak?.hour, 9, "holtverseny: a korábbi óra")
         XCTAssertEqual(peak?.count, 2)
+        let by = FilterHitLogic.byHour(hours, now: now)
+        XCTAssertEqual(by.count, 24, "az órák sávja huszonnégy rekesz")
+        XCTAssertEqual(by[9], 2, "a rekesz a hét összege — a nyolcadik nap nélkül")
+        XCTAssertEqual(by[21], 2)
+        XCTAssertEqual(by.reduce(0, +), 4)
+        XCTAssertEqual(FilterHitLogic.byHour([:], now: now), Array(repeating: 0, count: 24), "üresen csupa nulla")
         XCTAssertNil(FilterHitLogic.peakHour([:], now: now))
         XCTAssertEqual(FilterHitLogic.hourLabel(23), "23–0 óra")
         XCTAssertEqual(FilterHitLogic.cleanHours([today: hours[today]!, "x": Array(repeating: 1, count: 24), "2026-09-17": [1, 2]]),

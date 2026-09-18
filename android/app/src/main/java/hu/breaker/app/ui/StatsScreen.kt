@@ -64,6 +64,8 @@ fun StatsSection(
     filterHitDays: List<Pair<String, Double>> = emptyList(),
     /** a hét csúcs-órája (óra, szám) — mikor jár a kéz magától; null, ha nem volt */
     filterHitsPeak: Pair<Int, Int>? = null,
+    /** az órák sávja: a hét megakadásai a nap 24 rekeszében — a csúcs-óra ebből áll; üres, ha nem volt */
+    filterHitHours: List<Int> = emptyList(),
     /** a hét csúcs-oldala (nyers név, szám) — melyik oldal akaszt meg a legtöbbször; null, ha nem volt */
     filterHitsTop: Pair<String, Int>? = null,
     filterHitsReasons: List<Pair<String, Int>> = emptyList(),
@@ -150,6 +152,9 @@ fun StatsSection(
                     "A hét csúcsa: ${FilterHitLogic.hourLabel(hour)} ($count megakadás) — akkor jár a kéz magától.",
                     style = MaterialTheme.typography.bodySmall,
                 )
+                // AZ ÓRÁK SÁVJA: a nap 24 rekesze a hét megakadásaival — a csúcs a
+                // mondat, a sáv az alakja (mikor jár a kéz magától, és mikor nem).
+                HourStrip(filterHitHours, peakHour = hour, peakCount = count)
             }
             // MELYIK oldal akaszt meg a legtöbbször: a hét csúcs-oldala — a lista címkézésével.
             filterHitsTop?.let { (site, count) ->
@@ -487,6 +492,32 @@ private fun weekdayOf(day: String): Int {
     cal.clear()
     cal.set(day.substring(0, 4).toInt(), day.substring(5, 7).toInt() - 1, day.substring(8, 10).toInt())
     return cal.get(java.util.Calendar.DAY_OF_WEEK) - 1
+}
+
+/**
+ * AZ ÓRÁK SÁVJA: huszonnégy rekesz egy színnel (a rekesz nem kategória), a
+ * csúcs teljes erővel, a többi halványan — a gépi statisztika és a bővítmény
+ * sávjának tükre, ugyanabban a mértékben (a csúcs a teljes magasság).
+ */
+@Composable
+private fun HourStrip(hours: List<Int>, peakHour: Int, peakCount: Int) {
+    if (hours.size != 24 || peakCount <= 0) return
+    Row(
+        Modifier.fillMaxWidth().height(30.dp),
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+        verticalAlignment = Alignment.Bottom,
+    ) {
+        hours.forEachIndexed { hour, n ->
+            val frac = (n.toFloat() / peakCount).coerceIn(0f, 1f)
+            Box(
+                Modifier
+                    .weight(1f)
+                    .height((28 * frac).dp.coerceAtLeast(2.dp))
+                    .clip(RoundedCornerShape(topStart = 2.dp, topEnd = 2.dp))
+                    .background(SERIES_1.copy(alpha = if (hour == peakHour) 1f else 0.45f)),
+            )
+        }
+    }
 }
 
 @Composable
