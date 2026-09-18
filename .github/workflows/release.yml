@@ -44,23 +44,24 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
+          **A heti mondat a csúcs-napot is mondja.** A megakadások mondata
+          után, szó szerint a statisztika sora: „A négy hét csúcs-napja: vasárnap (14 megakadás).”
+          A gépen, Androidon és iPhone-on; nap nélkül nincs mondat. Tény, nem
+          ítélet.
+
+          ### Ami a v0.4.112-ben jött
+
           **Csomag felvétele a telefonon.** Androidon és iPhone-on is fel lehet
           venni új munkamenet-csomagot — név, engedett oldalak, alap-hossz —,
-          és a következő körben a gépre is megérkezik, jellel: a gép egyidejű
-          szerkesztése nem nyeli el. Szerkeszteni, törölni és heti ablakot adni
-          továbbra is a gép dolga; a telefon csak hozzáad. Az irány a régi:
-          szigorítani ingyen, lazítani munkába kerül.
+          és a következő körben a gépre is megérkezik, jellel. Szerkeszteni,
+          törölni és heti ablakot adni továbbra is a gép dolga; a telefon csak
+          hozzáad.
 
-          ### Ami a v0.4.111-ben jött
+          #### Ami a v0.4.111-ben jött
 
           **A csúcs-nap.** Melyik napon akad meg a kéz a legtöbbször — négy
           hétből: „A négy hét csúcs-napja: vasárnap (14 megakadás).” Mindhárom
           platformon és a bővítményben. Bővítmény 0.4.26.
-
-          #### Ami a v0.4.110-ben jött
-
-          **Az ablak szerint indult menet mindenhol kimondva.** A
-          gyorsbillentyűs réteg és az Android szűrő-értesítése is mondja.
 
           NOTES
           fi
