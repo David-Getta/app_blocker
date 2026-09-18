@@ -44,24 +44,24 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A kulcsszavak a telefonon is szerkeszthetők.** Eddig a lista a
-          telefonon csak látszott; mostantól Androidon és iPhone-on is
-          felvehető és levehető a zárlat kártyája alján — ugyanazzal a
-          szabállyal: felvenni ingyen, levenni próbatétel. A lista a fiókon
-          át a gépekre átér, és a gépi böngésző tilt vele; a telefonon nem
-          tilt (a szűrő a címet nem látja), ezt a felület kimondja. A
-          próbatétel lapja Androidon is megnevezi, mi a tét.
+          **Megakadások a telefonon is — és a tiltó lap kimondja, hányadszor
+          ma.** Androidon a szűrő szolgáltatása, iPhone-on a tunnel mostantól
+          számolja, hányszor állította meg a telefont (hosztonként két
+          percen belül egyszer, naponként, harminc napig); a statisztika
+          sora és a heti mondat mondja: „12 megakadás a szűrőben.” A gépen a
+          böngésző tiltó lapja a kísértés pillanatában mondja a mai számot:
+          „Ma ez a 7. megakadás — ebből a 3. ezen az oldalon.” Tükör, nem
+          ítélet; a fiókba nem megy.
 
-          ### Ami a v0.4.48-ban jött
+          ### Ami a v0.4.49-ben jött
 
-          **Megakadás-számláló: hányszor állított meg a böngésző.** A
-          bővítmény minden tiltó lapra vitt navigációt könyvel, a felugró
-          lapja és a beállítás-lapja mondja, és az app heti mondata meg a
-          statisztika sora is.
+          **A kulcsszavak a telefonon is szerkeszthetők** — felvenni ingyen,
+          levenni próbatétel; a lista a fiókon át a gépekre átér, és a gépi
+          böngésző tilt vele.
 
-          #### Ami a v0.4.47-ben jött
+          #### Ami a v0.4.48-ban jött
 
-          **Kulcsszó-szabályok: bármely oldalon, ha a cím tartalmazza.**
+          **Megakadás-számláló: hányszor állított meg a böngésző.**
 
           NOTES
           fi
