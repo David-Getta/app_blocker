@@ -44,22 +44,23 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A mért idő napja.** Melyik napon megy el a legtöbb idő — négy
-          hétből, négy-négy nap átlagával: „A négy hét legnagyobb napja: szombat (átlag 3 ó 20 p).”
-          Alatta a hét napjainak sávja. A csúcs-nap és a menet-nap harmadik
-          fele — a gépen és Androidon (iPhone-on nincs mérés).
+          **A heti mondat a mért idő napját is mondja.** A mért idő mondata
+          után, szó szerint a statisztika sora: „A négy hét legnagyobb napja: szombat (átlag 50 p).”
+          A gépen és Androidon; mérés vagy nap nélkül nincs. A hétfői mondat
+          így a hét mindhárom napját mondja: mikor csúszik a kéz, mikor ülsz
+          le, mikor megy el a legtöbb idő.
 
-          ### Ami a v0.4.120-ban jött
+          ### Ami a v0.4.121-ben jött
+
+          **A mért idő napja.** Melyik napon megy el a legtöbb idő — négy
+          hétből, négy-négy nap átlagával, alatta a hét napjainak sávja. A
+          gépen és Androidon.
+
+          #### Ami a v0.4.120-ban jött
 
           **A menet-nap a böngészőben.** Az app a hídon leadja, ma a
           menet-nap-e; a felugró lap és a tiltó lap a menet gombja mellett
           kimondja. Bővítmény 0.4.29.
-
-          #### Ami a v0.4.119-ben jött
-
-          **A menet-nap ott is, ahol a döntés van.** A gépi kezdőlap kártyája
-          és a réteg lába, a két telefon kezdőlapja a menet-napon kimondja,
-          hogy ma szoktál leülni.
 
           NOTES
           fi
