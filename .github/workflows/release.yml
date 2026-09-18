@@ -44,24 +44,21 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **Menetek ablakból.** A naplósor tudja, ha a menet a heti ablakból
-          indult magától; a statisztika kimondja („2 menet a heti ablakból indult, magától.”),
-          a heti mondat is („…, 3 ablakból”) — mindhárom platformon. Ebből
-          látszik, dolgozik-e az ablak, amit a csúcs-órára tettél. A jel a
-          fiókkal utazik; a régi sor nem ablak.
+          **Az ablak nyoma a csomag során.** A csomag sora — a gépen, Androidon
+          és iPhone-on — a heti ablak mellett azt is mondja, hányszor indult
+          magától a héten: „magától indul: minden nap 21:00–22:00 · a héten 3× indult magától”.
+          Ebből látszik csomagonként, dolgozik-e az ablak.
 
-          ### Ami a v0.4.105-ben jött
+          ### Ami a v0.4.106-ban jött
+
+          **Menetek ablakból.** A naplósor tudja, ha a menet a heti ablakból
+          indult magától; a statisztika és a heti mondat mondja („…, 3 ablakból”)
+          — mindhárom platformon. A jel a fiókkal utazik.
+
+          #### Ami a v0.4.105-ben jött
 
           **Ablak a csúcs-órára a javaslat kártyájáról is.** A gépen és a
-          telefonokon a sokadik megakadás, az előjelzés vagy a csúcs-óra
-          mondata alatt a menet gombja mellett ott az ablaké is.
-
-          #### Ami a v0.4.104-ben jött
-
-          **Ablak a csúcs-órára a böngészőből is.** A bővítmény tiltó lapján
-          és felugró lapján a menet gombja mellett a másik: heti ablak a
-          javasolt csomagra — a hídon, az app bírója teszi fel. Csak felvétel.
-          Bővítmény 0.4.24.
+          telefonokon a menet gombja mellett ott az ablaké is.
 
           NOTES
           fi

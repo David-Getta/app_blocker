@@ -8,8 +8,9 @@ kettővel korábbiban.
 
 | Verzió | Nap | Mi újság |
 |---|---|---|
+| v0.4.107 (még nincs kiadva) | 2026-09-18 | az ablak nyoma a csomag során |
 | v0.4.106 (még nincs kiadva) | 2026-09-18 | menetek ablakból |
-| v0.4.105 (még nincs kiadva) | 2026-09-18 | ablak a csúcs-órára a javaslat kártyájáról is |
+| v0.4.105 | 2026-09-18 | ablak a csúcs-órára a javaslat kártyájáról is |
 | v0.4.104 | 2026-09-18 | ablak a csúcs-órára a böngészőből is |
 | v0.4.103 | 2026-09-18 | ablak a csúcs-órára a telefonon is |
 | v0.4.102 | 2026-09-18 | a bővítmény is rajzolja a harminc napot |
