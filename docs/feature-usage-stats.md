@@ -456,7 +456,10 @@ megakadás”) — ott, ahol a kísértés van, ítélet nélkül.
 A telefonon **a szűrő számol**: „12 megakadás a szűrőben.” — a tiltott
 DNS-lekérdezés ugyanaz a pillanat, a kéz odanyúlt, a szűrő megállította. Egy
 hosztnevet két percen belül egyszer (egy oldalbetöltés tucatnyi lekérdezés,
-és a böngésző újra is próbálja), naponként egy szám, harminc napig
+és a böngésző újra is próbálja), és CSAK a lista tiltását: a munkamenet
+fehérlistáján kívül rekedt háttér-forgalom (követők, CDN-ek, más appok) nem a
+kéz mozdulata — így számolva egy csendes óra százat mondana. Naponként egy
+szám, harminc napig
 (`core/FilterHits.kt` és `Shared/FilterHits.swift`, `filterHits` az
 állapotban; Androidon a szűrő szolgáltatása, iPhone-on a tunnel könyvel). A
 statisztika nehézség-sora és a heti mondat mondja; a fiókba nem megy.

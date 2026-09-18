@@ -46,8 +46,9 @@ próbatétel-lap végén jelszómezőként jön; a mag a `Shared/Partner.swift` 
 tükre, a `fixtures/partner-hash.json` ellen tesztelve), a megbízott a
 munkamenet blobján szinkronizál. Lásd `docs/feature-partner-lock.md`.
 
-A **szűrő megakadásai**: a tunnel minden tiltott lekérdezésnél könyvel
-(hosztonként két percen belül egyszer; `Shared/FilterHits.swift`, `filterHits`
+A **szűrő megakadásai**: a tunnel a lista tiltásánál könyvel (hosztonként két
+percen belül egyszer — a munkamenet fehérlistáján kívül rekedt háttér-forgalom
+nem megakadás; `Shared/FilterHits.swift`, `filterHits`
 az állapotban, harminc nap), a statisztika nehézség-sora és a heti mondat
 mondja („12 megakadás a szűrőben”); az ötödik, tizedik és huszadik mainál a
 kezdőlap egy lépést javasol — a tunnel nem értesít, a lap mondja, amíg nyitva

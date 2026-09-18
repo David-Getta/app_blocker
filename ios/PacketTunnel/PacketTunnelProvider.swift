@@ -67,25 +67,29 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         // `youtube.com` próbatétel nélkül feloldaná a tiltott YouTube-ot.
         let now = nowMs()
         let store = BreakerStore.shared
-        let isBlocked: Bool
+        let verdict: Focus.Verdict
         if let name {
-            isBlocked = Focus.verdict(
+            verdict = Focus.verdict(
                 name,
                 run: store.runningFocus(now),
                 pack: store.runningFocusPack(now),
                 now: now,
                 blocked: blocked,
                 syncHost: store.syncHost()
-            ) != .allow
+            )
         } else {
-            isBlocked = false
+            verdict = .allow
         }
+        let isBlocked = verdict != .allow
 
         if isBlocked {
             // MEGAKADÁS: a tiltott név egy megakadás — hosztonként két percen
             // belül egyszer, mert egy oldalbetöltés tucatnyi lekérdezés. A
             // könyv a statisztikáé és a heti mondaté; a választ nem lassítja.
-            if let name, FilterHitLogic.shouldCount(&hitSeen, name, now: now) {
+            // CSAK A LISTA tiltása: a munkamenet fehérlistáján kívül a háttér-
+            // forgalom is elakad (követők, CDN-ek, más appok), és az nem a kéz
+            // mozdulata — így számolva a szám százat mondana egy csendes órára.
+            if verdict == .blockedByList, let name, FilterHitLogic.shouldCount(&hitSeen, name, now: now) {
                 let day = FilterHitLogic.dayKey(now)
                 let hour = FilterHitLogic.hourOf(now)
                 store.mutate {

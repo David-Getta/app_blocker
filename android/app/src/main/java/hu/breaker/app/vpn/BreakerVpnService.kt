@@ -471,7 +471,10 @@ class BreakerVpnService : VpnService() {
             // MEGAKADÁS: a tiltott név egy megakadás — hosztonként két percen
             // belül egyszer, mert egy oldalbetöltés tucatnyi lekérdezés. A
             // könyv a statisztikáé és a heti mondaté; a döntést nem lassítja.
-            if (blocked && name != null && FilterHitLogic.shouldCount(hitSeen, name, now)) {
+            // CSAK A LISTA tiltása: a munkamenet fehérlistáján kívül a háttér-
+            // forgalom is elakad (követők, CDN-ek, más appok), és az nem a kéz
+            // mozdulata — így számolva a sáv százat mondana egy csendes órára.
+            if (verdict == Focus.Verdict.BLOCKED_BY_LIST && name != null && FilterHitLogic.shouldCount(hitSeen, name, now)) {
                 val day = UsageLogic.dayKey(now)
                 val hour = FilterHitLogic.hourOf(now)
                 runCatching {

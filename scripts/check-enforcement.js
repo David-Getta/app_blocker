@@ -401,18 +401,19 @@ const WIRES = [
     needle: 'Referee.setKeywords(',
     lost: 'iPhone-on a kulcsszó nem a bírón át menne — a levétel egy koppintás lenne',
   },
-  // A SZŰRŐ MEGAKADÁSAI a telefonon: a szolgáltatás/tunnel könyvel a tiltott
-  // lekérdezésnél, a heti mondat mondja. Ha a bekötés kiesne, a mag és a
-  // teszt megvolna — a szám mindig nulla lenne, és semmi nem jelezné.
+  // A SZŰRŐ MEGAKADÁSAI a telefonon: a szolgáltatás/tunnel könyvel a LISTA
+  // tiltásánál, a heti mondat mondja. Ha a bekötés kiesne, a mag és a teszt
+  // megvolna — a szám mindig nulla lenne, és semmi nem jelezné. Ha a feltétel
+  // a munkamenet tiltását is számolná, a háttér-forgalom százat mondana.
   {
     file: 'android/app/src/main/java/hu/breaker/app/vpn/BreakerVpnService.kt',
-    needle: 'FilterHitLogic.shouldCount(hitSeen, name, now)',
-    lost: 'Androidon a szűrő nem könyvelné a megakadásokat — a szám mindig nulla',
+    needle: 'verdict == Focus.Verdict.BLOCKED_BY_LIST && name != null && FilterHitLogic.shouldCount(hitSeen, name, now)',
+    lost: 'Androidon a szűrő nem (csak a lista tiltásánál) könyvelné a megakadásokat',
   },
   {
     file: 'ios/PacketTunnel/PacketTunnelProvider.swift',
-    needle: 'FilterHitLogic.shouldCount(&hitSeen, name, now: now)',
-    lost: 'iPhone-on a tunnel nem könyvelné a megakadásokat — a szám mindig nulla',
+    needle: 'verdict == .blockedByList, let name, FilterHitLogic.shouldCount(&hitSeen, name, now: now)',
+    lost: 'iPhone-on a tunnel nem (csak a lista tiltásánál) könyvelné a megakadásokat',
   },
   {
     file: 'android/app/src/main/java/hu/breaker/app/core/Digest.kt',

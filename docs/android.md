@@ -47,8 +47,9 @@ cd android
   `core/Partner.kt` (a gépi tükre, a `fixtures/partner-hash.json` ellen
   tesztelve), a megbízott a munkamenet blobján szinkronizál. Lásd
   `docs/feature-partner-lock.md`.
-- A **szűrő megakadásai**: a szolgáltatás minden tiltott lekérdezésnél
-  könyvel (hosztonként két percen belül egyszer; `core/FilterHits.kt`,
+- A **szűrő megakadásai**: a szolgáltatás a lista tiltásánál könyvel
+  (hosztonként két percen belül egyszer — a munkamenet fehérlistáján kívül
+  rekedt háttér-forgalom nem megakadás; `core/FilterHits.kt`,
   `filterHits` az állapotban, harminc nap), a statisztika nehézség-sora és a
   heti mondat mondja („12 megakadás a szűrőben”), és a szűrő értesítésének
   sora a mait („· Ma 3 megakadás”); az ötödik, tizedik és huszadik mainál a

@@ -7,8 +7,10 @@ import Foundation
 /// lapra vitt navigációkat; a telefonon tiltó lap nincs, de a tiltott
 /// lekérdezés ugyanaz a pillanat: a kéz odanyúlt, a szűrő megállította.
 /// Tükör, nem ítélet. Egy hosztnevet két percen belül EGYSZER számol (egy
-/// oldalbetöltés tucatnyi lekérdezés); a könyv naponként egy szám, harminc
-/// napig; a készüléken marad. Az androidos `FilterHitLogic` tükre.
+/// oldalbetöltés tucatnyi lekérdezés), és csak a LISTA tiltását: a munkamenet
+/// fehérlistáján kívül rekedt háttér-forgalom nem a kéz mozdulata. A könyv
+/// naponként egy szám, harminc napig; a készüléken marad. Az androidos
+/// `FilterHitLogic` tükre.
 public enum FilterHitLogic {
     /// Ennyi napot tartunk meg — mint a mérés és a böngésző könyve.
     public static let retentionDays = 30
