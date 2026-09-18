@@ -147,6 +147,14 @@ valamit, amit a felhasználó nem tiltott le.
    és a felugró lap ilyenkor „a heti ablak szerint”-et mond, hogy tudd, nem
    kézzel indított döntés volt, hanem a hétköznap.
 
+7. **Idézi az indokot.** Ha az appban egy mondatot írtál az oldalhoz — miért
+   tiltottad —, a tiltó lap bármelyik kártyája alatt idézi: „Ezért tiltottad
+   le: …”. A híd hosztnevenként adja le (`notes`), mint a zárva-listát, a
+   bővítmény tisztítva tárolja és pontos hosztnévre keresi; a szöveg a lap
+   címén utazik, és a lap újra megtisztítja, mert erre a lapra kézzel írt
+   címmel is el lehet jutni. Régi app válaszában nincs lista — a lap akkor
+   nem idéz.
+
 ## Fájlok
 
 | Fájl | Mi ez |
