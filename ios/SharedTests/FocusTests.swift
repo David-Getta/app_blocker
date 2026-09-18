@@ -222,7 +222,7 @@ final class FocusTests: XCTestCase {
     }
 
     func testTheSessionStreakCountsConsecutiveDaysEndingTodayOrYesterday() {
-        let now = at(2026, 9, 22, 15)
+        let now = Calendar.current.date(from: DateComponents(year: 2026, month: 9, day: 22, hour: 15))!.timeIntervalSince1970 * 1000
         let day = 86_400_000.0
         func run(_ endedAt: Double) -> Focus.LogEntry {
             Focus.LogEntry(packId: "p", packName: "Nyelvtanulás", startedAt: endedAt - 3_600_000, endedAt: endedAt, plannedEndsAt: endedAt, stopped: false)
