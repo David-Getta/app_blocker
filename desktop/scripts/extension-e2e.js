@@ -495,6 +495,21 @@ async function main() {
     }).catch(() => null);
     check(!!hits && hits.total >= 1 && (hits.byReason?.keyword ?? 0) >= 1,
       'a megakadás a mai napra könyvelve, kulcsszó okkal');
+    // A BEÁLLÍTÁS-LAP a saját könyvéből mondja: a hét okonként és a csúcs-oldal
+    // — friss betöltés után, mert a lap a megnyitáskor olvas. Ha a sor üres
+    // maradna, a bekötés esett ki, nem a könyv.
+    await seeder.reload();
+    await seeder.waitForFunction(
+      () => (document.querySelector('#hitsTop')?.textContent ?? '') !== '', null, { timeout: 10000 },
+    ).catch(() => null);
+    const optLines = await seeder.evaluate(() => ({
+      reasons: document.querySelector('#hitsReasons')?.textContent ?? '',
+      top: document.querySelector('#hitsTop')?.textContent ?? '',
+      hiddenReasons: document.querySelector('#hitsReasons')?.hidden ?? true,
+    })).catch(() => null);
+    check(!!optLines && !optLines.hiddenReasons && /kulcsszó/.test(optLines.reasons),
+      'a beállítás-lap a hetet okonként mondja (kulcsszó)');
+    check(!!optLines && /A héten a legtöbbször: /.test(optLines.top), 'a beállítás-lap a hét csúcs-oldalát mondja');
     await seedClosed([], Date.now());
 
     // A szünet LETELTEKOR a lap utat ad vissza: a visszaszámláló helyén link

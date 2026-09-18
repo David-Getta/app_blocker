@@ -6,7 +6,7 @@
 
 import { CLOSED_FRESH_MS, loadLink } from './app-link.js';
 import { describePopup } from './popup-core.js';
-import { dayKey, hitsSummary, hitsText } from './hits.js';
+import { dayKey, hitsSummary, hitsText, topHost } from './hits.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -68,7 +68,11 @@ async function render() {
   let text = null;
   try {
     const got = await chrome.storage.local.get('breaker.hits');
-    text = hitsText(hitsSummary(got?.['breaker.hits'] ?? { days: {} }, dayKey()));
+    const book = got?.['breaker.hits'] ?? { days: {} };
+    text = hitsText(hitsSummary(book, dayKey()));
+    // MELYIK oldal ma: a nap csúcs-oldala a saját könyvből — pontosan.
+    const top = text === null ? null : topHost(book, [dayKey()]);
+    if (top) text += ` Ma a legtöbbször: ${top.host} (${top.count}×).`;
   } catch { /* tár nélkül nincs szám — a lap többi része attól még áll */ }
   hits.hidden = text === null;
   hits.textContent = text ?? '';

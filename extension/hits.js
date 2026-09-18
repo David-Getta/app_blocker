@@ -216,6 +216,22 @@ export function hitsWeekByReason(state, today) {
     .map(([reason, count]) => ({ reason, count }));
 }
 
+/**
+ * A hosztok könyve a napokra összeadva: a legnagyobb (hoszt, szám) — vagy
+ * null. Holtversenynél az ábécé. Csak itt, a teljes könyvből, pontosan — a
+ * hídra a napi élboly megy, ez a lap a sajátjából mondja.
+ */
+export function topHost(state, days) {
+  const sum = {};
+  for (const day of days) {
+    const hosts = state?.days?.[day]?.byHost;
+    if (!hosts || typeof hosts !== 'object') continue;
+    for (const [h, n] of Object.entries(hosts)) if (Number.isFinite(n) && n > 0) sum[h] = (sum[h] ?? 0) + Math.floor(n);
+  }
+  const best = Object.entries(sum).sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))[0];
+  return best ? { host: best[0], count: best[1] } : null;
+}
+
 /** „A héten: 4 zárva oldal · 3 munkamenet” — vagy null, ha nincs miről. */
 export function hitsReasonText(rows) {
   if (!rows.length) return null;

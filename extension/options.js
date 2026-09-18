@@ -13,7 +13,7 @@ import {
 import { CLOSED_FRESH_MS, loadLink, pullFromApp, setToken, withAppRules } from './app-link.js';
 import { dayKey, formatSeconds, lastDays, topChannels } from './chantime.js';
 // A `lastDays` a csatorna-időé (ugyanaz a naptár) — a könyv is azzal él.
-import { hitsByHour, hitsReasonText, hitsRows, hitsSummary, hitsText, hitsWeekByReason, hourLabel, peakHour } from './hits.js';
+import { hitsByHour, hitsReasonText, hitsRows, hitsSummary, hitsText, hitsWeekByReason, hourLabel, peakHour, topHost } from './hits.js';
 
 const TIME_KEY = 'breaker.chantime';
 
@@ -74,6 +74,10 @@ async function renderHits() {
   const reasons = hitsReasonText(hitsWeekByReason(state, today));
   $('hitsReasons').hidden = reasons === null;
   $('hitsReasons').textContent = reasons ?? '';
+  // MELYIK oldal akaszt meg a legtöbbször: a hét csúcs-oldala a saját könyvből — pontosan.
+  const top = topHost(state, week);
+  $('hitsTop').hidden = top === null;
+  $('hitsTop').textContent = top ? `A héten a legtöbbször: ${top.host} (${top.count}×).` : '';
   const strip = $('hitsHours');
   strip.textContent = '';
   strip.hidden = peak === null;

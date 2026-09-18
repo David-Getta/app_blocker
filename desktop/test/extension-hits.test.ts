@@ -38,12 +38,13 @@ interface Hits {
   hitsReasonText: (rows: { reason: string; count: number }[]) => string | null;
   REASON_NAMES: Record<string, string>;
   TOP_HOSTS_PER_DAY: number;
+  topHost: (state: unknown, days: string[]) => { host: string; count: number } | null;
 }
 
 function load(): Hits {
   const src = fs.readFileSync(path.join(extensionDir(), 'hits.js'), 'utf8').replace(/^export /gm, '');
   // eslint-disable-next-line no-new-func
-  return new Function(`${src}\nreturn { RETENTION_DAYS, MAX_HOSTS_PER_DAY, dayKey, lastDays, recordHit, sweepHits, hitsOn, hitsOnHost, hitsSummary, hitsReport, hitsText, hitsRows, hitsByHour, peakHour, hourLabel, hitsNudge, NUDGE_AT, hitsWeekByReason, hitsReasonText, REASON_NAMES, TOP_HOSTS_PER_DAY };`)() as Hits;
+  return new Function(`${src}\nreturn { RETENTION_DAYS, MAX_HOSTS_PER_DAY, dayKey, lastDays, recordHit, sweepHits, hitsOn, hitsOnHost, hitsSummary, hitsReport, hitsText, hitsRows, hitsByHour, peakHour, hourLabel, hitsNudge, NUDGE_AT, hitsWeekByReason, hitsReasonText, REASON_NAMES, TOP_HOSTS_PER_DAY, topHost };`)() as Hits;
 }
 
 const TODAY = '2026-09-18';
@@ -183,4 +184,18 @@ test('a nap élbolya a hídra: az öt leggyakoribb hoszt, a legnagyobb elöl; ho
   assert.equal(h.TOP_HOSTS_PER_DAY, 5);
   assert.deepEqual(row.topHosts, [['www.youtube.com', 3], ['a.com', 1], ['b.com', 1], ['c.com', 1], ['d.com', 1]], 'holtversenyben az ábécé; öt fér');
   assert.equal(h.hitsReport(h.recordHit({}, TODAY, 'closed'), TODAY)[0].topHosts, undefined, 'hoszt nélkül nincs élboly');
+});
+
+test('a csúcs-oldal a saját könyvből: a napokra összeadva, pontosan; holtversenynél az ábécé; üresen nincs', () => {
+  const h = load();
+  let s = {};
+  s = h.recordHit(s, TODAY, 'closed', 'reddit.com');
+  s = h.recordHit(s, TODAY, 'closed', 'youtube.com');
+  s = h.recordHit(s, '2026-09-17', 'closed', 'youtube.com');
+  s = h.recordHit(s, '2026-09-17', 'closed', 'reddit.com');
+  s = h.recordHit(s, '2026-09-17', 'closed', 'reddit.com');
+  assert.deepEqual(h.topHost(s, [TODAY]), { host: 'reddit.com', count: 1 }, 'ma holtverseny: az ábécé');
+  assert.deepEqual(h.topHost(s, h.lastDays(TODAY, 7)), { host: 'reddit.com', count: 3 }, 'a hét összeadva');
+  assert.equal(h.topHost(s, ['2026-09-10']), null, 'üres nap: nincs');
+  assert.equal(h.topHost({}, [TODAY]), null);
 });
