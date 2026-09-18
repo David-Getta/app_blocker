@@ -373,6 +373,51 @@ test('a state file whose session points past its steps is not loaded', () => {
   }
 });
 
+test('a rossz alakú zárlat-ablak nem viszi el a segédet betöltéskor', () => {
+  // Az ablakok listáján a lenyomat és a kör a NAPOK tömbjén jár. Ha egy
+  // rossz alakú ablak bekerülne, minden mentés kivételt dobna — a segéd
+  // megállna, a felület azt látná, hogy semmi nem menthető. Ami nem
+  // értelmezhető, az kiesik; a jó ablak marad.
+  const file = process.env.BREAKER_STATE!;
+  const backup = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : null;
+  try {
+    fs.writeFileSync(file, JSON.stringify({
+      version: 1, sites: [], unlockLog: [], lastCombo: null, dohApplied: false,
+      usage: { days: [], labels: {}, enabled: true },
+      session: {
+        id: 'ses_1', kind: 'pause', siteId: 'lockdown:windows', stepIndex: 0, createdAt: Date.now(),
+        steps: [{ id: 'st_1', type: 'TRANSCRIBE', text: 'alma' }],
+        pendingLockdownWindows: [null, { id: 'x', days: [1], startMin: 60, endMin: 120 }, 'szemét'],
+      },
+      lockdown: { until: 'holnap' },
+      lockdownWindows: [
+        { id: 'jo', days: [1, 2, 3, 4, 5], startMin: 540, endMin: 1020 },
+        { id: 'napok-nelkul', startMin: 540, endMin: 1020 },
+        { id: 'rossz-nap', days: ['hétfő'], startMin: 540, endMin: 1020 },
+        42,
+      ],
+      lockdownWindowsRev: 1.5,
+    }));
+    const loaded = loadState();
+    assert.deepEqual(loaded.lockdownWindows, [{ id: 'jo', days: [1, 2, 3, 4, 5], startMin: 540, endMin: 1020 }]);
+    assert.equal(loaded.lockdownWindowsRev, undefined, 'a tört jel nem jel');
+    assert.equal(loaded.lockdown, undefined, 'a rossz alakú zárlat nincs');
+    assert.deepEqual(loaded.session?.pendingLockdownWindows, [{ id: 'x', days: [1], startMin: 60, endMin: 120 }],
+      'a folyamatban lévő levétel listája is tisztul');
+    // …és a betöltött állapoton a kör meg a lenyomat nem dob.
+    referee.tick(loaded, Date.now());
+
+    fs.writeFileSync(file, JSON.stringify({
+      version: 1, sites: [], unlockLog: [], lastCombo: null, dohApplied: false,
+      usage: { days: [], labels: {}, enabled: true }, session: null,
+      lockdownWindows: 'nem lista',
+    }));
+    assert.equal(loadState().lockdownWindows, undefined, 'üresen nincs mező');
+  } finally {
+    if (backup !== null) fs.writeFileSync(file, backup);
+  }
+});
+
 test('a corrupted focus log does not take the statistics down with it', () => {
   // A napló kívülről jön (állapotfájl). Ha nem tömb, a statisztika `filter`-e
   // KIVÉTELT dobna — és a felhasználó egy üres statisztika-képernyőt látna,

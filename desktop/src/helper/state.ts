@@ -13,6 +13,7 @@ import {
   MAX_FOCUS_LOG, normalizePack, type FocusLogEntry, type FocusPack, type FocusRun,
 } from '../shared/focus';
 import type { UrlRule } from '../shared/urlrules';
+import { normalizeWindows, parseLockdown } from '../shared/lockdown';
 import { stateFilePath } from './paths';
 
 export interface SiteRec {
@@ -386,6 +387,26 @@ export function loadState(): HelperState {
       const shared = parsed.sharedToday;
       if (shared && !(typeof shared.selfDeviceId === 'string' && Array.isArray(shared.devices))) {
         delete parsed.sharedToday;
+      }
+      // A ZÁRLAT ÉS AZ ABLAKOK is kívülről jönnek (állapotfájl, szinkron). Egy
+      // rossz alakú ablak nem csak „nem érvényes”: a lenyomat és a kör a napok
+      // listáján járna, és minden mentés kivételt dobna — a segéd megállna,
+      // és a felület azt látná, hogy semmi nem menthető. Ami nem értelmezhető,
+      // az kiesik; a folyamatban lévő levétel listája is ugyanígy tisztul.
+      if (parsed.lockdown !== undefined) {
+        const l = parseLockdown(parsed.lockdown);
+        if (l) parsed.lockdown = l; else delete parsed.lockdown;
+      }
+      if (parsed.lockdownWindows !== undefined) {
+        const w = normalizeWindows(parsed.lockdownWindows);
+        if (w.length > 0) parsed.lockdownWindows = w; else delete parsed.lockdownWindows;
+      }
+      if (parsed.lockdownWindowsRev !== undefined
+        && !(Number.isInteger(parsed.lockdownWindowsRev) && parsed.lockdownWindowsRev > 0)) {
+        delete parsed.lockdownWindowsRev;
+      }
+      if (parsed.session?.pendingLockdownWindows !== undefined) {
+        parsed.session.pendingLockdownWindows = normalizeWindows(parsed.session.pendingLockdownWindows);
       }
       return parsed;
     }
