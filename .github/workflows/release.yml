@@ -44,14 +44,16 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **Változásnapló a dokumentációban.** A repóban egy helyen, verziónként
-          a jegyzet címével: `docs/changelog.md` — a git-történetből írja a
-          `scripts/changelog.js`; ami nem kapott saját kiadást, jelölve.
+          **Megakadások harminc napja.** A statisztika a hét alakja mellett
+          a hónapét is rajzolja — a gépen és a telefonokon —, ha a hét
+          előtti napokon is volt megakadás.
 
-          ### Ami a v0.4.99-ben jött
+          ### Ami a v0.4.100-ban jött
 
-          **Az adag a héten** a heti mondatban is („Az adag a héten 7× telt be.”)
-          és az oldal sorában is („· a héten 7×”) — a gépen és Androidon.
+          **Változásnapló a dokumentációban** (`docs/changelog.md`, a
+          git-történetből). És a v0.4.99 tartalma: **az adag a héten** a
+          heti mondatban és az oldal sorában — az Android-fordítás hibája
+          javítva.
 
           #### Ami a v0.4.98-ban jött
 
