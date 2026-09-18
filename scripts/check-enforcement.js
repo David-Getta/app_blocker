@@ -916,6 +916,33 @@ const WIRES = [
     needle: 'Focus.explain(probeInput,',
     lost: 'az iPhone próbamezője nem a tunnel ítéletét mondaná',
   },
+  // FUTÓ MENET MELLETT NINCS JAVASLAT: a sokadik megakadás és az előjelzés
+  // értesítése hallgat, amíg a menet tart — a lépés, amit ajánlanánk, már megvan.
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: 'if (focusIsRunning(status?.focusRun ?? null, now)) return;\n  const step = hitNudgeStep(today);',
+    lost: 'a gép futó menet alatt is javasolna menetet',
+  },
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: 'if (focusIsRunning(status?.focusRun ?? null, now)) return;\n  const key = peakWarnKey(peak, now);',
+    lost: 'a gép futó menet alatt is előjelezne',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/vpn/BreakerVpnService.kt',
+    needle: '!cur.quietSuggestions && BreakerStore.runningFocus(now) == null',
+    lost: 'az Android futó menet alatt is javasolna menetet',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/vpn/BreakerVpnService.kt',
+    needle: '        if (BreakerStore.runningFocus(now) != null) return\n        val peak = FilterHitLogic.peakHour(st.filterHitHours, now) ?: return',
+    lost: 'az Android futó menet alatt is előjelezne',
+  },
+  {
+    file: 'ios/App/ContentView.swift',
+    needle: 'let quiet = store.state.quietSuggestions == true || store.runningFocus(now) != nil',
+    lost: 'az iPhone futó menet alatt is előjelezne',
+  },
   // A HETI MONDAT MEGOSZTHATÓ: a gépen a vágólapra, a telefonokon a rendszer
   // megosztójával. Ha a gomb nem tenné, a mondat csak nézhető maradna.
   {

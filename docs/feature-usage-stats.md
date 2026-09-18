@@ -563,6 +563,12 @@ nem ítél. A tíz perc és a három a három magban azonos (`check-core-sync`).
 A telefon kezdőlapján a javaslat kártyája ugyanebben a tíz percben az
 előjelzés mondatát is mondja — a munkamenet gombjával együtt.
 
+**Futó menet mellett nincs javaslat.** A sokadik megakadás és az előjelzés
+értesítése hallgat, amíg egy menet tart — a lépés, amit ajánlanánk, már
+megvan, a figyelmeztetés zaj lenne. A gépen és Androidon a küldés előtt
+nézi; iPhone-on az ütemezett kérést a menet indulásakor visszavonja, a végén
+újra ütemezi. A kártya a lapon ettől még mondja a számot.
+
 **Ha nem kéred, csendben marad.** Az értesítés a sokadik megakadásnál és a
 csúcs-óra előtt kikapcsolható: a gépen a háttér-panel kapcsolójával (a tárban
 marad), Androidon és iPhone-on a statisztika megakadás-blokkjának

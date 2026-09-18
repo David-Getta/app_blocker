@@ -156,7 +156,8 @@ struct ContentView: View {
             // Az előjelzés a csúcs-óra előtt: a rendszer ütemezi, az app tartja
             // frissen — a csúcs változásakor átütemezi, csúcs nélkül visszavonja.
             // Ha nem kéred, csendben marad: a kérést visszavonja, a kártya a lapon megmarad.
-            let quiet = store.state.quietSuggestions == true
+            // Futó menet mellett sincs: a kérést visszavonja, a menet végén újra ütemezi.
+            let quiet = store.state.quietSuggestions == true || store.runningFocus(now) != nil
             let peak = quiet ? nil : FilterHitLogic.peakHour(store.state.filterHitHours ?? [:], now: now)
             let peakKey = peak.map { "\($0.hour):\($0.count)" } ?? ""
             if peakKey != peakScheduled {

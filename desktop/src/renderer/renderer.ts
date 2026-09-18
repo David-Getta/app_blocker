@@ -343,6 +343,8 @@ function clickToStartText(): string {
 function showHitNudge(today: number, now: number): void {
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
   if (quietSuggestions()) return;
+  // Futó menet mellett nincs javaslat: a lépés, amit ajánlanánk, már megvan.
+  if (focusIsRunning(status?.focusRun ?? null, now)) return;
   const step = hitNudgeStep(today);
   if (step === 0) return;
   const key = `${dayKey(now)}:${step}`;
@@ -363,6 +365,8 @@ function showHitNudge(today: number, now: number): void {
 function showPeakWarning(peak: { hour: number; count: number } | null, now: number): void {
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
   if (quietSuggestions()) return;
+  // Futó menet mellett nincs előjelzés: a menet már megy, a figyelmeztetés zaj lenne.
+  if (focusIsRunning(status?.focusRun ?? null, now)) return;
   const key = peakWarnKey(peak, now);
   if (key === null || peak === null) return;
   let last: string | null = null;
