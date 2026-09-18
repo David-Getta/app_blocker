@@ -33,13 +33,28 @@ const CONTROL_CHARS = /[\u0000-\u001f\u007f-\u009f]/g;
  * hosszkorlátba beleszámítanának, és a mentett állapotban is ott ülnének.
  */
 export function normalizeAlias(value: string | undefined | null): string | undefined {
+  return normalizeTo(value, MAX_ALIAS_LENGTH);
+}
+
+/**
+ * Az INDOK hossza — miért tiltottad. Egy mondat, ami a kísértés pillanatában
+ * elfér a tiltó lapon és a soron; nem esszé.
+ */
+export const MAX_REASON_LENGTH = 140;
+
+/** Az indok tiszta alakja — ugyanaz a tisztítás, mint a fedőnévé, hosszabb plafonnal. */
+export function normalizeReason(value: string | undefined | null): string | undefined {
+  return normalizeTo(value, MAX_REASON_LENGTH);
+}
+
+function normalizeTo(value: string | undefined | null, max: number): string | undefined {
   if (typeof value !== 'string') return undefined;
   const cleaned = value
     .replace(CONTROL_CHARS, ' ')
     .replace(/\s+/g, ' ')
     .trim();
   if (cleaned === '') return undefined;
-  return cleaned.slice(0, MAX_ALIAS_LENGTH).trim();
+  return cleaned.slice(0, max).trim();
 }
 
 /** Van-e elrejtve a valódi cím? */

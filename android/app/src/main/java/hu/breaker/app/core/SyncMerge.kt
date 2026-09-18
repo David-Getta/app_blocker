@@ -39,6 +39,8 @@ object SyncMerge {
         val burstSeconds: Long? = null,
         val cooldownSeconds: Long? = null,
         val alias: String? = null,
+        /** indok: miért tiltottad — a nyertes rekorddal jön, mint a fedőnév */
+        val reason: String? = null,
         /**
          * Részleges szabályok (`youtube.com/@valaki`).
          *

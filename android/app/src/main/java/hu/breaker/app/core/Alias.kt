@@ -19,6 +19,8 @@ object AliasLogic {
 
     /** Ennél hosszabb fedőnevet nem tárolunk (a soron sem férne el). */
     const val MAX_ALIAS_LENGTH = 40
+    /** Az indok (miért tiltottad) hossza — egy mondat, ami a soron és a tiltó lapon elfér. */
+    const val MAX_REASON_LENGTH = 140
 
     /** Ennyi ideig látszik a valódi cím, ha a felhasználó előhívja. */
     const val REVEAL_MS = 6_000L
@@ -29,13 +31,18 @@ object AliasLogic {
      * A vezérlőkaraktereket kiszedjük: azok a soron láthatatlanok maradnának, de
      * a hosszkorlátba beleszámítanának, és a mentett állapotban is ott ülnének.
      */
-    fun normalize(value: String?): String? {
+    fun normalize(value: String?): String? = normalizeTo(value, MAX_ALIAS_LENGTH)
+
+    /** Az indok tiszta alakja — ugyanaz a tisztítás, mint a fedőnévé, hosszabb plafonnal. */
+    fun normalizeReason(value: String?): String? = normalizeTo(value, MAX_REASON_LENGTH)
+
+    private fun normalizeTo(value: String?, max: Int): String? {
         if (value == null) return null
         val sb = StringBuilder(value.length)
         for (ch in value) sb.append(if (isControl(ch)) ' ' else ch)
         val collapsed = sb.toString().replace(WHITESPACE, " ").trim()
         if (collapsed.isEmpty()) return null
-        return collapsed.take(MAX_ALIAS_LENGTH).trim()
+        return collapsed.take(max).trim()
     }
 
     /** Van-e elrejtve a valódi cím? */

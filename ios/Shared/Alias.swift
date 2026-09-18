@@ -17,6 +17,8 @@ enum AliasLogic {
 
     /// Ennél hosszabb fedőnevet nem tárolunk (a soron sem férne el).
     static let maxAliasLength = 40
+    /// Az indok (miért tiltottad) hossza — egy mondat, ami a soron és a tiltó lapon elfér.
+    static let maxReasonLength = 140
 
     /// Ennyi ideig látszik a valódi cím, ha a felhasználó előhívja (ms).
     static let revealMs: Double = 6_000
@@ -26,14 +28,19 @@ enum AliasLogic {
     /// A vezérlőkaraktereket kiszedjük: azok a soron láthatatlanok maradnának,
     /// de a hosszkorlátba beleszámítanának, és a mentett állapotban is ott
     /// ülnének.
-    static func normalize(_ value: String?) -> String? {
+    static func normalize(_ value: String?) -> String? { normalizeTo(value, maxAliasLength) }
+
+    /// Az indok tiszta alakja — ugyanaz a tisztítás, mint a fedőnévé, hosszabb plafonnal.
+    static func normalizeReason(_ value: String?) -> String? { normalizeTo(value, maxReasonLength) }
+
+    private static func normalizeTo(_ value: String?, _ max: Int) -> String? {
         guard let value else { return nil }
         let withoutControls = String(value.map { isControl($0) ? " " : $0 })
         let collapsed = withoutControls
             .split(whereSeparator: { $0.isWhitespace })
             .joined(separator: " ")
         if collapsed.isEmpty { return nil }
-        let cut = String(collapsed.prefix(maxAliasLength))
+        let cut = String(collapsed.prefix(max))
         let trimmed = cut.trimmingCharacters(in: .whitespaces)
         return trimmed.isEmpty ? nil : trimmed
     }

@@ -45,6 +45,8 @@ export interface SiteRec {
   cooldownSeconds?: number;
   /** fedőnév: ha van, a felület EZT mutatja a cím helyett (lásd shared/alias.ts) */
   alias?: string;
+  /** indok: miért tiltottad — a soron és a tiltó lapon emlékeztet (lásd shared/alias.ts) */
+  reason?: string;
   /**
    * Részleges szabályok: az oldal egy-egy darabja (pl. `/@valaki`).
    *

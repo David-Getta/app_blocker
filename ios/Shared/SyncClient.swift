@@ -168,6 +168,7 @@ enum SyncClient {
                 // letörölné a gépeken beállított szabályt.
                 burstSeconds: s.burstSeconds, cooldownSeconds: s.cooldownSeconds,
                 alias: s.alias,
+                reason: s.reason,
                 // Ugyanez a hordozás a részleges szabályokra: itt sem
                 // érvényesülnek, de a telefon nem törölheti le őket a gépről.
                 rules: s.rules,
@@ -188,7 +189,7 @@ enum SyncClient {
                 // A szünet a HELYI marad: se fel nem megy, se felül nem íródik.
                 pauseUntil: byId[m.id]?.pauseUntil,
                 pendingDeleteAt: m.pendingDeleteAt,
-                schedule: m.schedule, alias: m.alias,
+                schedule: m.schedule, alias: m.alias, reason: m.reason,
                 dailyLimitSeconds: m.dailyLimitSeconds,
                 burstSeconds: m.burstSeconds, cooldownSeconds: m.cooldownSeconds,
                 rules: m.rules

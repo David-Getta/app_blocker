@@ -29,6 +29,8 @@ enum SyncMerge {
         var burstSeconds: Double?
         var cooldownSeconds: Double?
         var alias: String?
+        /// indok: miért tiltottad — a nyertes rekorddal jön, mint a fedőnév
+        var reason: String?
         /// Részleges szabályok (`youtube.com/@valaki`).
         ///
         /// A `nil` és az ÜRES TÖMB két különböző dolog, és ezen múlik, hogy egy
@@ -54,7 +56,7 @@ enum SyncMerge {
         /// fordult. Új mező → új kulcs IDE IS, különben nem utazik.
         enum CodingKeys: String, CodingKey {
             case id, domain, hostnames, addedAt, pendingDeleteAt, schedule
-            case dailyLimitSeconds, burstSeconds, cooldownSeconds, alias, rules
+            case dailyLimitSeconds, burstSeconds, cooldownSeconds, alias, reason, rules
             case rev, updatedAt, updatedBy, hostnameMarks
         }
 
@@ -62,7 +64,7 @@ enum SyncMerge {
             id: String, domain: String, hostnames: [String], addedAt: Double,
             pendingDeleteAt: Double? = nil, schedule: ScheduleLogic.Schedule? = nil,
             dailyLimitSeconds: Double? = nil, burstSeconds: Double? = nil,
-            cooldownSeconds: Double? = nil, alias: String? = nil,
+            cooldownSeconds: Double? = nil, alias: String? = nil, reason: String? = nil,
             rules: [UrlRules.UrlRule]? = nil, rev: Int, updatedAt: Double, updatedBy: String,
             hostnameMarks: [String: Int]? = nil
         ) {
@@ -76,6 +78,7 @@ enum SyncMerge {
             self.burstSeconds = burstSeconds
             self.cooldownSeconds = cooldownSeconds
             self.alias = alias
+            self.reason = reason
             self.rules = rules
             self.rev = rev
             self.updatedAt = updatedAt
@@ -100,6 +103,7 @@ enum SyncMerge {
             burstSeconds = try c.decodeIfPresent(Double.self, forKey: .burstSeconds)
             cooldownSeconds = try c.decodeIfPresent(Double.self, forKey: .cooldownSeconds)
             alias = try c.decodeIfPresent(String.self, forKey: .alias)
+            reason = try c.decodeIfPresent(String.self, forKey: .reason)
             rules = try c.decodeIfPresent([UrlRules.UrlRule].self, forKey: .rules)
             let revValue = try c.decodeIfPresent(Int.self, forKey: .rev) ?? 1
             rev = revValue
@@ -136,6 +140,7 @@ enum SyncMerge {
             try c.encodeIfPresent(burstSeconds, forKey: .burstSeconds)
             try c.encodeIfPresent(cooldownSeconds, forKey: .cooldownSeconds)
             try c.encodeIfPresent(alias, forKey: .alias)
+            try c.encodeIfPresent(reason, forKey: .reason)
             try c.encodeIfPresent(rules, forKey: .rules)
             try c.encode(rev, forKey: .rev)
             try c.encode(updatedAt, forKey: .updatedAt)

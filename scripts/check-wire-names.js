@@ -129,7 +129,7 @@ const GROUPS = [
   {
     what: 'egy blokkolt oldal',
     names: ['id', 'domain', 'hostnames', 'hostnameMarks', 'addedAt', 'pendingDeleteAt', 'schedule',
-      'dailyLimitSeconds', 'burstSeconds', 'cooldownSeconds', 'alias', 'rules'],
+      'dailyLimitSeconds', 'burstSeconds', 'cooldownSeconds', 'alias', 'reason', 'rules'],
     ts: 'desktop/src/shared/sync/merge.ts',
     kt: 'android/app/src/main/java/hu/breaker/app/core/SyncClient.kt',
     swift: 'ios/Shared/SyncMerge.swift',
@@ -260,7 +260,7 @@ for (const group of GROUPS) {
 const CARRY = {
   what: 'egy blokkolt oldal HELYI hordozása',
   names: ['id', 'domain', 'hostnames', 'hostnameMarks', 'addedAt', 'pendingDeleteAt', 'schedule',
-    'dailyLimitSeconds', 'burstSeconds', 'cooldownSeconds', 'alias', 'rules'],
+    'dailyLimitSeconds', 'burstSeconds', 'cooldownSeconds', 'alias', 'reason', 'rules'],
   files: [
     {
       name: 'TypeScript (helper SiteRec)',

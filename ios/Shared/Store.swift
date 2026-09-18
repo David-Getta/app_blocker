@@ -12,6 +12,8 @@ struct Site: Codable, Identifiable, Equatable {
     var schedule: ScheduleLogic.Schedule?
     /// fedőnév: ha van, a felület ezt írja ki a cím helyett (AliasLogic)
     var alias: String?
+    /// indok: miért tiltottad — a soron és a próbatétel-lapon emlékeztet
+    var reason: String?
     /// Napi keret másodpercben.
     ///
     /// Mérni iPhone-on nem tudunk (nincs ilyen API a `DeviceActivity`

@@ -27,6 +27,8 @@ data class Site(
     val cooldownSeconds: Long? = null,
     /** fedőnév: ha van, a felület ezt írja ki a cím helyett (AliasLogic) */
     val alias: String? = null,
+    /** indok: miért tiltottad — a soron és a próbatétel-lapon emlékeztet */
+    val reason: String? = null,
     /**
      * Részleges szabályok: az oldal egy-egy darabja (pl. `/@valaki`).
      *
@@ -485,6 +487,7 @@ object BreakerStore {
                 put("burstSeconds", site.burstSeconds ?: JSONObject.NULL)
                 put("cooldownSeconds", site.cooldownSeconds ?: JSONObject.NULL)
                 put("alias", site.alias ?: JSONObject.NULL)
+                put("reason", site.reason ?: JSONObject.NULL)
                 // A hiányzó kulcs és az üres tömb KÉT KÜLÖNBÖZŐ dolog: az első
                 // azt jelenti, hogy nincs tudomásunk szabályokról, a második
                 // azt, hogy voltak és levették. Lásd SyncMerge.mergeRules.
@@ -680,6 +683,7 @@ object BreakerStore {
                         // Betöltéskor is normalizálunk: egy régebbi (vagy kézzel
                         // szerkesztett) állapotból is csak tiszta név jöhet be.
                         alias = AliasLogic.normalize(if (s.isNull("alias")) null else s.optString("alias")),
+                        reason = AliasLogic.normalizeReason(if (s.isNull("reason")) null else s.optString("reason")),
                         rules = rulesFromJson(s),
                         rev = s.optInt("rev", 0),
                         updatedAt = s.optLong("updatedAt", 0),

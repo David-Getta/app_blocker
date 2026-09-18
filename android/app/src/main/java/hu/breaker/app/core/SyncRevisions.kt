@@ -37,6 +37,7 @@ object SyncRevisions {
             s.burstSeconds?.toString() ?: "-",
             s.cooldownSeconds?.toString() ?: "-",
             s.alias ?: "-",
+            s.reason ?: "-",
             // RENDEZVE: a sorrend nem jelent semmit, viszont ha beleszámítana,
             // egy átrendeződés fölöslegesen léptetné a számlálót, és minden
             // körben feltöltést indítana.

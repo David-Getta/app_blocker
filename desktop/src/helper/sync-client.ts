@@ -274,7 +274,7 @@ function toSyncSites(sites: SiteRec[], deviceId: string): SyncSite[] {
     id: s.id, domain: s.domain, hostnames: s.hostnames, addedAt: s.addedAt,
     ...(s.hostnameMarks ? { hostnameMarks: s.hostnameMarks } : {}),
     pauseUntil: null, pendingDeleteAt: s.pendingDeleteAt,
-    schedule: s.schedule, dailyLimitSeconds: s.dailyLimitSeconds, alias: s.alias,
+    schedule: s.schedule, dailyLimitSeconds: s.dailyLimitSeconds, alias: s.alias, reason: s.reason,
     rules: s.rules,
     rev: s.rev ?? 1, updatedAt: s.updatedAt ?? s.addedAt, updatedBy: s.updatedBy ?? deviceId,
   })).map((s) => cleanSite(s as unknown as Record<string, unknown>));
@@ -297,7 +297,7 @@ function fromSyncSites(merged: SyncSite[], local: SiteRec[]): SiteRec[] {
     hostnameMarks: m.hostnameMarks,
     pauseUntil: byId.get(m.id)?.pauseUntil ?? null,
     pendingDeleteAt: m.pendingDeleteAt,
-    schedule: m.schedule, dailyLimitSeconds: m.dailyLimitSeconds, alias: m.alias,
+    schedule: m.schedule, dailyLimitSeconds: m.dailyLimitSeconds, alias: m.alias, reason: m.reason,
     rules: m.rules,
     rev: m.rev, updatedAt: m.updatedAt, updatedBy: m.updatedBy,
   } as SiteRec));
@@ -402,6 +402,7 @@ function cleanSite(s: Record<string, unknown>): SyncSite {
     burstSeconds: typeof s.burstSeconds === 'number' ? s.burstSeconds : undefined,
     cooldownSeconds: typeof s.cooldownSeconds === 'number' ? s.cooldownSeconds : undefined,
     alias: typeof s.alias === 'string' ? s.alias : undefined,
+    reason: typeof s.reason === 'string' ? s.reason : undefined,
     // Az `undefined` itt JELENTÉS, nem hiány: „ez a kliens nem tud a mezőről”.
     // Ezért NEM alakítjuk üres tömbbé — az azt jelentené, hogy minden szabály
     // törölve, és egy frissítetlen telefon a fiókban csendben letörölné a gépen
@@ -441,6 +442,7 @@ function canonical(s: SyncSite): unknown[] {
     s.schedule ? [s.schedule.mode, s.schedule.bands] : null,
     s.dailyLimitSeconds ?? null,
     s.alias ?? null,
+    s.reason ?? null,
     // Rendezve: a sorrend nem jelent semmit, viszont ha számítana, minden kör
     // „változást” látna, és fölöslegesen feltöltene.
     s.rules ? s.rules.map((r) => `${r.host}${r.path}`).sort() : null,

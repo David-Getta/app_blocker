@@ -58,3 +58,16 @@ test('a reveal shows the real domain, but only while it lasts', () => {
 test('a reveal on a site with no alias changes nothing', () => {
   assert.equal(displayNameNow({ domain: 'reddit.com' }, 0, 9_999_999), 'reddit.com');
 });
+
+// ---- indok: ugyanaz a tisztítás, hosszabb plafon ------------------------------
+
+test('az indok tiszta alakja: vezérlőkarakter nélkül, egy szóközzel, 140-re vágva', async () => {
+  const { normalizeReason, MAX_REASON_LENGTH } = await import('../src/shared/alias');
+  assert.equal(MAX_REASON_LENGTH, 140);
+  assert.equal(normalizeReason('  Mert  este\u0000  nem\n alszom  '), 'Mert este nem alszom');
+  assert.equal(normalizeReason(''), undefined);
+  assert.equal(normalizeReason('   '), undefined);
+  assert.equal(normalizeReason(undefined), undefined);
+  assert.equal(normalizeReason('x'.repeat(300))!.length, 140);
+  assert.equal(normalizeReason('a'.repeat(139) + '  b'), 'a'.repeat(139), 'a vágás után nem marad szóköz a végén');
+});

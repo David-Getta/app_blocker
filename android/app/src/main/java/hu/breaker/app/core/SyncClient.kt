@@ -153,7 +153,7 @@ object SyncClient {
             pendingDeleteAt = s.pendingDeleteAt, schedule = s.schedule,
             dailyLimitSeconds = s.dailyLimitSeconds,
             burstSeconds = s.burstSeconds, cooldownSeconds = s.cooldownSeconds,
-            alias = s.alias, rules = s.rules,
+            alias = s.alias, reason = s.reason, rules = s.rules,
             rev = maxOf(s.rev, 1), updatedAt = s.updatedAt, updatedBy = s.updatedBy,
             hostnameMarks = s.hostnameMarks,
         )
@@ -171,7 +171,7 @@ object SyncClient {
                     pendingDeleteAt = m.pendingDeleteAt,
                     schedule = m.schedule, dailyLimitSeconds = m.dailyLimitSeconds,
                     burstSeconds = m.burstSeconds, cooldownSeconds = m.cooldownSeconds,
-                    alias = m.alias, rules = m.rules,
+                    alias = m.alias, reason = m.reason, rules = m.rules,
                     rev = m.rev, updatedAt = m.updatedAt, updatedBy = m.updatedBy,
                     hostnameMarks = m.hostnameMarks,
                 )
@@ -212,6 +212,7 @@ object SyncClient {
                 if (s.burstSeconds != null) put("burstSeconds", s.burstSeconds)
                 if (s.cooldownSeconds != null) put("cooldownSeconds", s.cooldownSeconds)
                 if (s.alias != null) put("alias", s.alias)
+                if (s.reason != null) put("reason", s.reason)
                 // A kulcs csak akkor kerül bele, ha VAN mit mondani: a hiányzó
                 // kulcs azt jelenti, hogy nincs tudomásunk szabályokról, az
                 // üres tömb azt, hogy voltak és levették. A kettő nem cserélhető
@@ -278,6 +279,7 @@ object SyncClient {
                     burstSeconds = if (o.isNull("burstSeconds")) null else o.getLong("burstSeconds"),
                     cooldownSeconds = if (o.isNull("cooldownSeconds")) null else o.getLong("cooldownSeconds"),
                     alias = AliasLogic.normalize(if (o.isNull("alias")) null else o.optString("alias")),
+                    reason = AliasLogic.normalizeReason(if (o.isNull("reason")) null else o.optString("reason")),
                     rules = rulesFromJson(o),
                     rev = o.optInt("rev", 1),
                     updatedAt = o.optLong("updatedAt", 0),

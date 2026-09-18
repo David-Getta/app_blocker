@@ -56,6 +56,8 @@ export interface SyncSite {
   /** …ennyi szünet. A SZÁMLÁLÓ nem utazik — az eszköz-helyi (shared/burst.ts). */
   cooldownSeconds?: number;
   alias?: string;
+  /** indok: miért tiltottad — a nyertes rekorddal jön, mint a fedőnév */
+  reason?: string;
   /**
    * Részleges szabályok (`youtube.com/@valaki`).
    *

@@ -142,6 +142,17 @@ class StoreParseTest {
         assertEquals("A videós", back.sites[0].alias)
     }
 
+    @Test fun `az indok tuleli a mentest, es a szemet betolteskor tisztul`() {
+        val saved = toJson.invoke(BreakerStore, parse("{\"sites\":[" + site("youtube", ",\"reason\":\"Mert este nem alszom\"") + "]}")).toString()
+        assertEquals("Mert este nem alszom", parse(saved).sites[0].reason)
+        val junk = "Mert\\u0000 este" + "x".repeat(300)
+        val state = parse("{\"sites\":[" + site("youtube", ",\"reason\":\"" + junk + "\"") + "]}")
+        val reason = state.sites[0].reason!!
+        assertTrue(reason.length <= 140, "a hosszkorlát a betöltésre is áll")
+        assertTrue(reason.none { ch -> ch.code < 0x20 || ch.code in 0x7f..0x9f }, "vezérlőkarakter maradt")
+        assertNull(parse("{\"sites\":[" + site("youtube") + "]}").sites[0].reason, "indok nélkül nincs indok")
+    }
+
     @Test fun `a hostile alias in the state file is cleaned on load`() {
         // A mentett állapotot egy korábbi verzió vagy egy kézi szerkesztés is
         // írhatta. Vezérlőkarakter a soron láthatatlan maradna, a hosszkorlátba

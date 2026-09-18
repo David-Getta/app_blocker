@@ -325,6 +325,26 @@ test('an alias is normalised by the helper, not trusted from the caller', async 
     .find((s) => s.id === site.id)!.alias, undefined);
 });
 
+test('az indokot is a segéd tisztítja, és üresen leveszi', async () => {
+  const added = await call('add_site', { input: 'pelda-indok.example' });
+  assert.equal(added.ok, true, JSON.stringify(added));
+  const site = (added.data as { sites: { id: string; domain: string }[] }).sites
+    .find((s) => s.domain === 'pelda-indok.example')!;
+  const hostile = `  Mert\u0000 este\u001f  nem alszom\u007f${'x'.repeat(300)}`;
+  const r = await call('set_reason', { siteId: site.id, reason: hostile });
+  assert.equal(r.ok, true, JSON.stringify(r));
+  const stored = (r.data as { sites: { id: string; reason?: string }[] }).sites
+    .find((s) => s.id === site.id)!.reason!;
+  assert.ok(!/[\u0000-\u001f\u007f-\u009f]/.test(stored), `vezérlőkarakter maradt: ${JSON.stringify(stored)}`);
+  assert.ok(stored.startsWith('Mert este nem alszom'), stored);
+  assert.ok(stored.length <= 140, `túl hosszú maradt: ${stored.length}`);
+  const cleared = await call('set_reason', { siteId: site.id, reason: '   ' });
+  assert.equal((cleared.data as { sites: { id: string; reason?: string }[] }).sites
+    .find((s) => s.id === site.id)!.reason, undefined);
+  const unknown = await call('set_reason', { siteId: 'site_nincs_ilyen', reason: 'akármi' });
+  assert.equal(unknown.ok, false);
+});
+
 test('an alias on an unknown site is refused, not silently ignored', async () => {
   const r = await call('set_alias', { siteId: 'site_nincs_ilyen', alias: 'akármi' });
   assert.equal(r.ok, false);

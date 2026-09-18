@@ -8,7 +8,7 @@ import type { HelperRequest, HelperResponse, StatusData } from '../shared/protoc
 import { HELPER_VERSION } from '../shared/protocol';
 import { normalizeDomain, expandHostnames } from '../shared/blocklist';
 import { computeTier } from '../shared/challenges';
-import { normalizeAlias } from '../shared/alias';
+import { normalizeAlias, normalizeReason } from '../shared/alias';
 import { normalizeRule } from '../shared/urlrules';
 import { focusDaySeries, isRunning, normalizePack, spentWindows, summarizeFocus } from '../shared/focus';
 import { noteBurstUsage, normalizeBurst, type BurstRule } from '../shared/burst';
@@ -92,6 +92,7 @@ export function statusOf(
         pauseUntil: s.pauseUntil, pendingDeleteAt: s.pendingDeleteAt,
         schedule: s.schedule,
         alias: s.alias,
+        reason: s.reason,
         rules: s.rules,
         dailyLimitSeconds: s.dailyLimitSeconds,
         burstSeconds: s.burstSeconds,
@@ -260,6 +261,19 @@ async function handle(req: HelperRequest, deps: ServerDeps): Promise<unknown> {
       const alias = normalizeAlias(req.alias);
       if (alias === undefined) delete site.alias;
       else site.alias = alias;
+      deps.commit();
+      return statusOf(state, deps.dohApplied(), deps.selfTest());
+    }
+    case 'set_reason': {
+      // Indok: miért tiltottad — a soron és a tiltó lapon ez emlékeztet a
+      // kísértés pillanatában. Se nem lazítás, se nem szigorítás: az oldal
+      // ugyanúgy blokkolva marad, ezért nem jár érte próbatétel, és levenni
+      // is egy kattintás. A szemetet itt tisztítjuk, nem a felületen.
+      const site = state.sites.find((s) => s.id === req.siteId);
+      if (!site) throw new RefereeError('Ismeretlen oldal.', 'NO_SITE');
+      const reason = normalizeReason(req.reason);
+      if (reason === undefined) delete site.reason;
+      else site.reason = reason;
       deps.commit();
       return statusOf(state, deps.dohApplied(), deps.selfTest());
     }

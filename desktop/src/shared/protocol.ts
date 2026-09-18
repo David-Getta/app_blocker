@@ -72,6 +72,8 @@ export interface SiteInfo {
   burstTripsToday: number;
   /** fedőnév: ha van, a felület ezt mutatja a cím helyett */
   alias?: string;
+  /** indok: miért tiltottad (lásd shared/alias.ts) */
+  reason?: string;
   /**
    * Részleges szabályok (pl. `/@valaki`).
    *
@@ -240,6 +242,7 @@ export type HelperRequest =
   // A fedőnév NEM lazítás: az oldal ettől ugyanúgy blokkolva marad, csak nem a
   // címe áll a listán. Ezért próbatétel nélkül állítható, mindkét irányba.
   | { id: number; op: 'set_alias'; siteId: string; alias: string | null }
+  | { id: number; op: 'set_reason'; siteId: string; reason: string | null }
   // Hosztnév felvétele ingyen (csak az oldalé lehet), levétele próbatétel.
   | { id: number; op: 'set_hostname'; siteId: string; hostname: string; remove?: boolean }
   // A lista elrejtése szintén tisztán felületi: a blokkolás nem változik tőle.
@@ -359,6 +362,7 @@ export type HelperResponse =
  * 0.4.0 — fiók és eszközök közti szinkron: sync_* parancsok, a status
  *         kiegészülve a sync mezővel
  * 0.6.5 — set_hostname (hosztnév felvétele ingyen, levétele próbatétellel)
+ * 0.6.7 — set_reason (indok: miért tiltottad), a status oldalanként a reason mezővel
  * 0.6.6 — focus_recurrence (a csomag heti ablaka: felvétel ingyen, szűkítés/levétel próbatétel);
  *         a segéd az ablakban magától indítja a menetet
  * 0.6.4 — self_test (a tiltás tényleg érvényesül-e a rendszer feloldójánál),

@@ -87,3 +87,15 @@ class AliasTest {
         assertEquals("A videós", AliasLogic.maskedLabel(site("youtube.com", "A videós"), 0))
     }
 }
+
+class ReasonTest {
+    @Test fun `az indok tiszta alakja - vezerlokarakter nelkul, egy szokozzel, 140-re vagva`() {
+        assertEquals(140, AliasLogic.MAX_REASON_LENGTH)
+        assertEquals("Mert este nem alszom", AliasLogic.normalizeReason("  Mert  este\u0000  nem\n alszom  "))
+        assertNull(AliasLogic.normalizeReason(""))
+        assertNull(AliasLogic.normalizeReason("   "))
+        assertNull(AliasLogic.normalizeReason(null))
+        assertEquals(140, AliasLogic.normalizeReason("x".repeat(300))!!.length)
+        assertEquals("a".repeat(139), AliasLogic.normalizeReason("a".repeat(139) + "  b"), "a vágás után nem marad szóköz a végén")
+    }
+}

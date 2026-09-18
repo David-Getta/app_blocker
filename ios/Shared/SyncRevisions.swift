@@ -47,6 +47,7 @@ enum SyncRevisions {
             burst,
             cooldown,
             s.alias ?? "-",
+            s.reason ?? "-",
             rules,
         ]
         return parts.joined(separator: " ")

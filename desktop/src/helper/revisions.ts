@@ -42,6 +42,7 @@ function syncFields(s: SiteRec): string {
     s.burstSeconds ?? null,
     s.cooldownSeconds ?? null,
     s.alias ?? null,
+    s.reason ?? null,
     // A részleges szabályok RENDEZVE: a sorrend nem jelent semmit, viszont ha
     // beleszámítana, egy átrendeződés (például egy felvétel-törlés páros)
     // fölöslegesen léptetné a számlálót, és minden körben feltöltést indítana.

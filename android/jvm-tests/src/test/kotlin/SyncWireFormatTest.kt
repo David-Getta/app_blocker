@@ -74,10 +74,11 @@ class SyncWireFormatTest {
         val json = SyncClient.sitesToJson(listOf(SyncMerge.SyncSite(
             id = "s1", domain = "youtube.com", hostnames = listOf("youtube.com", "youtu.be"),
             addedAt = 1_000, pendingDeleteAt = 2_000, schedule = work,
-            dailyLimitSeconds = 600, alias = "A videós",
+            dailyLimitSeconds = 600, alias = "A videós", reason = "Mert este nem alszom",
             rev = 3, updatedAt = 4_000, updatedBy = "telefon",
         )))
         val o = JSONArray(json).getJSONObject(0)
+        assertEquals("Mert este nem alszom", o.getString("reason"))
 
         assertEquals("youtube.com", o.getString("domain"))
         assertEquals(2, o.getJSONArray("hostnames").length())
