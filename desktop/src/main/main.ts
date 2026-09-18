@@ -347,8 +347,10 @@ if (HELPER_MODE) {
           // app gombjánál — van csúcs, a csomagnak nincs ablaka, és semmi nem
           // fedi. Különben null: a lap ne ígérjen olyat, amit a híd nem tesz meg.
           const peak = s.browserHitsPeak ?? null;
-          const peakHour = peak && !pick.recurrence && !packCoveringHour(packs, peak.hour) ? peak.hour : null;
-          return { packId: pick.id, name: pick.name, minutes: pick.defaultMinutes, peakHour };
+          const covering = peak ? packCoveringHour(packs, peak.hour) : null;
+          const peakHour = peak && !pick.recurrence && !covering ? peak.hour : null;
+          // LE VAN-E FEDVE: a csomag, amelynek ablaka a csúcs-órát fedi — a felugró lap kimondja.
+          return { packId: pick.id, name: pick.name, minutes: pick.defaultMinutes, peakHour, peakPack: covering?.name ?? null };
         },
         async (packId, minutes) => {
           // EGY KATTINTÁS a felugró lapról a menetig: ugyanaz a bírói út, mint

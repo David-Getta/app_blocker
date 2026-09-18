@@ -115,6 +115,11 @@ export interface BridgeSuggest {
    * appé), vagy egy ablak már fedi a csúcs-órát. Régi app nem küldi.
    */
   peakHour?: number | null;
+  /**
+   * LE VAN-E FEDVE: a csomag neve, amelynek heti ablaka a csúcs-órát fedi —
+   * a felugró lap kimondja, hogy a menet magától indul. Null, ha egyik sem.
+   */
+  peakPack?: string | null;
 }
 
 /**

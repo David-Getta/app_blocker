@@ -39,11 +39,12 @@ interface Popup {
   suggestButton: (link: unknown, now: number, freshMs: number) => { packId: string; minutes: number; text: string } | null;
   windowButton: (link: unknown, now: number, freshMs: number) => { packId: string; hour: number; text: string } | null;
   hourSpan: (h: number) => string;
+  peakCoverText: (link: unknown, now: number, freshMs: number) => string;
 }
 
 function load(): Popup {
   const src = fs.readFileSync(path.join(extensionDir(), 'popup-core.js'), 'utf8').replace(/^export /gm, '');
-  return new Function(`${src}\nreturn { describePopup, spanText, agoText, CLOSED_SHOWN, suggestButton, windowButton, hourSpan };`)() as Popup;
+  return new Function(`${src}\nreturn { describePopup, spanText, agoText, CLOSED_SHOWN, suggestButton, windowButton, hourSpan, peakCoverText };`)() as Popup;
 }
 
 const NOW = 1_800_000_000_000;
@@ -214,8 +215,18 @@ test('a csúcs-óra ablakának gombja: a menet kapui, és az app csúcs-órája'
   assert.equal(windowButton(link({ suggest: s, focus: { running: true, name: 'X', endsAt: NOW + 60_000, allowSites: [] } }), NOW, FRESH),
     null, 'futó menet mellett nincs');
   assert.equal(windowButton(link({ suggest: s, token: null }), NOW, FRESH), null, 'összekötetlenül nincs gomb');
-  assert.equal(hourSpan(23), '23:00–24:00', 'a nap vége, nem nulla');
+  assert.equal(hourSpan(23), '23:00–00:00', 'a nap vége — mint az app ablak-címkéjén');
   assert.equal(hourSpan(0), '00:00–01:00');
+});
+
+test('a felugró lap kimondja, ha a csúcs-órát ablak fedi — az app szava, frissen, összekötve', () => {
+  const { peakCoverText } = load();
+  const s = { packId: 'pack_1', name: 'Nyelvtanulás', minutes: 25, peakHour: null, peakPack: 'Nyelvtanulás' };
+  assert.equal(peakCoverText(link({ suggest: s }), NOW, FRESH), ' A csúcs-órában magától indul: Nyelvtanulás.');
+  assert.equal(peakCoverText(link({ suggest: { ...s, peakPack: null } }), NOW, FRESH), '', 'fedés nélkül nincs mondat');
+  assert.equal(peakCoverText(link({}), NOW, FRESH), '', 'javaslat nélkül nincs');
+  assert.equal(peakCoverText(link({ suggest: s, fetchedAt: NOW - 10 * 60_000 }), NOW, FRESH), '', 'elavult válasz mellett nincs');
+  assert.equal(peakCoverText(link({ suggest: s, token: null }), NOW, FRESH), '', 'összekötetlenül nincs');
 });
 
 test('idő-szöveg napokban: a hetes zárlat nem „kb. 168 ó”', () => {

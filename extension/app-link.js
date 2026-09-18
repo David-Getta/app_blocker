@@ -216,7 +216,9 @@ export function cleanSuggest(raw) {
   if (typeof raw.packId !== 'string' || !raw.packId || typeof raw.name !== 'string' || !raw.name) return null;
   if (!Number.isInteger(minutes) || minutes <= 0) return null;
   const peakHour = Number.isInteger(raw.peakHour) && raw.peakHour >= 0 && raw.peakHour <= 23 ? raw.peakHour : null;
-  return { packId: raw.packId, name: raw.name, minutes, peakHour };
+  // LE VAN-E FEDVE: a csomag neve, amelynek ablaka a csúcs-órát fedi — kívülről jött szöveg, rövidre vágva.
+  const peakPack = typeof raw.peakPack === 'string' && raw.peakPack ? raw.peakPack.slice(0, 40) : null;
+  return { packId: raw.packId, name: raw.name, minutes, peakHour, peakPack };
 }
 
 /**

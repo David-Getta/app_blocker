@@ -94,7 +94,9 @@ futó menet mellett nincs gomb, elavult válasz mellett sem. Mellette a másik
 gomb — „Heti ablak a csúcs-órára: Nyelvtanulás, minden nap 21:00–22:00” — a
 hídon felteszi az ablakot, ha az app csúcs-óráját semmi nem fedi és a
 csomagnak nincs még; csak felvétel, a csere az appé. Mindkettő ott van a
-tiltó lapon is. Minden más csak
+tiltó lapon is. Ha egy csomag ablaka már fedi a csúcs-órát, a lap a csúcs
+mondata után kimondja: „A csúcs-órában magától indul: Nyelvtanulás.” — az
+app szava, frissen. Minden más csak
 olvas: összekötve van-e az app és mennyire friss,
 amit tud; fut-e munkamenet (név, hátralévő idő, hány cím engedett — és ha a
 heti ablak szerint indult, azt is kimondja, mert aki nem maga indította, nem

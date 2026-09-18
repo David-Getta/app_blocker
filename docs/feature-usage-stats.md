@@ -519,6 +519,9 @@ lapján és tiltó lapján is ott a gomb: a híd a javaslattal leadja a csúcs-�
 (`suggest.peakHour`, csak ha ablak tehető rá), és a `POST /focus_window`
 felteszi — csak felvétel, ablakos csomagra a híd nemet mond, mert a csere
 lazíthat, és arról a bíró próbatételt kezdene, amit a híd nem indíthat el.
+Ha a csúcs-órát már fedi egy ablak, a híd a fedő csomag nevét adja le
+(`suggest.peakPack`), és a felugró lap a csúcs mondata után kimondja:
+„A csúcs-órában magától indul: Nyelvtanulás.”
 És a javaslat kártyájáról is — a gépen és a telefonokon —: a sokadik
 megakadás, az előjelzés vagy a csúcs-óra mondata alatt a menet gombja mellett
 ott az ablaké, ugyanazokkal a kapukkal (a gépen `peakWindowPick`, a

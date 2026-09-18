@@ -1072,6 +1072,17 @@ const WIRES = [
     needle: 'const r = await addFocusWindowInApp(packId, hour);',
     lost: 'a tiltó lap ablak-gombja nem a hídon tenne ablakot — az ígéret üres',
   },
+  // LE VAN-E FEDVE a felugró lapon: a híd leadja a fedő csomagot, a lap kimondja.
+  {
+    file: 'desktop/src/main/main.ts',
+    needle: "peakPack: covering?.name ?? null };",
+    lost: 'a híd nem adná le a csúcs-órát fedő csomagot — a felugró lap nem mondaná',
+  },
+  {
+    file: 'extension/popup.js',
+    needle: 'peakCoverText(link, Date.now(), CLOSED_FRESH_MS)',
+    lost: 'a felugró lap nem mondaná, hogy a csúcs-órában magától indul a menet',
+  },
   // A JAVASLAT KÁRTYÁJÁRÓL IS — gépen és telefonon: a mondat alatt a gomb ugyanoda fut.
   {
     file: 'desktop/src/renderer/renderer.ts',

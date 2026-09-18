@@ -46,10 +46,23 @@ export function suggestButton(link, now, freshMs) {
   return { packId: s.packId, minutes: s.minutes, text: `Munkamenet: ${s.name}, ${s.minutes} perc` };
 }
 
-/** Óra-sáv szövege: „21:00–22:00”; a 23 vége 24:00 (a nap vége, nem nulla). */
+/** Óra-sáv szövege: „21:00–22:00”; a 23 vége 00:00 — mint az app ablak-címkéjén. */
 export function hourSpan(h) {
   const p = (n) => String(n).padStart(2, '0');
-  return `${p(h)}:00–${p(h + 1)}:00`;
+  return `${p(h)}:00–${p((h + 1) % 24)}:00`;
+}
+
+/**
+ * LE VAN-E FEDVE a csúcs-óra: ha egy csomag heti ablaka fedi, a felugró lap
+ * kimondja, hogy a menet magától indul — ugyanaz, mint a statisztika sora.
+ * Csak összekötve és friss válasz mellett; különben üres.
+ */
+export function peakCoverText(link, now, freshMs) {
+  if (!link || typeof link.token !== 'string' || !link.token) return '';
+  const fresh = Number.isFinite(link?.fetchedAt) && link.fetchedAt > 0 && now - link.fetchedAt <= freshMs;
+  const name = link?.suggest?.peakPack;
+  if (!fresh || typeof name !== 'string' || !name) return '';
+  return ` A csúcs-órában magától indul: ${name}.`;
 }
 
 /**

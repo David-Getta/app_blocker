@@ -5,7 +5,7 @@
 // beállítási lapra visz — minden, ami módosítás, ott van, itt semmi.
 
 import { CLOSED_FRESH_MS, addFocusWindowInApp, loadLink, pullFromApp, startFocusInApp } from './app-link.js';
-import { describePopup, hourSpan, suggestButton, windowButton } from './popup-core.js';
+import { describePopup, hourSpan, peakCoverText, suggestButton, windowButton } from './popup-core.js';
 import { dayKey, hitsSummary, hitsText, peakNow, peakText, topHost } from './hits.js';
 
 const $ = (id) => document.getElementById(id);
@@ -90,7 +90,8 @@ async function render() {
     const top = text === null ? null : topHost(book, [dayKey()]);
     if (top) text += ` Ma a legtöbbször: ${top.host} (${top.count}×).`;
     // MIKOR jár a kéz magától: a hét csúcsa — és ha most van, a lap jelöli.
-    if (text !== null) text += peakText(peakNow(book, dayKey(), new Date().getHours()));
+    // LE VAN-E FEDVE: ha egy csomag ablaka fedi a csúcs-órát, a lap kimondja — az app szava.
+    if (text !== null) text += peakText(peakNow(book, dayKey(), new Date().getHours())) + peakCoverText(link, Date.now(), CLOSED_FRESH_MS);
   } catch { /* tár nélkül nincs szám — a lap többi része attól még áll */ }
   hits.hidden = text === null;
   hits.textContent = text ?? '';
