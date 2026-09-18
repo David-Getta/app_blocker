@@ -153,6 +153,13 @@ test('a menet-sorozat: hány napja ülsz le minden nap — ma vagy tegnap végz�
     'a régi hármas hosszabb a mostani kettesnél');
   assert.equal(focusLongestStreak([run(now - 3600_000), run(now - 3600_000 - 60_000)], now), 1, 'egy napon két menet egy nap');
   assert.equal(focusLongestStreak([], now), 0);
+  // A FORDULÓ: a hónap és az év vége sem szakítja meg — a tegnap a naptáré, nem a számé.
+  const sept1 = new Date(2026, 8, 1, 20, 0).getTime();
+  assert.equal(focusLongestStreak([run(sept1), run(sept1 - DAY), run(sept1 - 2 * DAY)], sept1), 3, 'aug. 30–szept. 1: hónapforduló');
+  assert.equal(focusDayStreak([run(sept1), run(sept1 - DAY), run(sept1 - 2 * DAY)], sept1), 3, 'a mostani sorozat is átlép a hónapfordulón');
+  const jan1 = new Date(2027, 0, 1, 20, 0).getTime();
+  assert.equal(focusLongestStreak([run(jan1), run(jan1 - DAY), run(jan1 - 2 * DAY)], jan1), 3, 'dec. 30–jan. 1: évforduló');
+  assert.equal(focusDayStreak([run(jan1 - DAY), run(jan1 - 2 * DAY)], jan1), 2, 'a tegnap végződő sorozat az évfordulón is');
   assert.equal(focusStreakText(2, 3), '2 napja minden nap leültél (a leghosszabb sorozatod: 3 nap).');
   assert.equal(focusStreakText(3, 3), '3 napja minden nap leültél.', 'ha a mostani a rekord, nincs zárójel');
   assert.equal(focusStreakText(0, 4), 'A leghosszabb sorozatod: 4 nap.', 'mostani nélkül csak a rekord');

@@ -474,6 +474,13 @@ class FocusTest {
             "a régi hármas hosszabb a mostani kettesnél")
         assertEquals(1, Focus.longestStreak(listOf(run(now - 3600_000L), run(now - 3600_000L - 60_000L)), now), "egy napon két menet egy nap")
         assertEquals(0, Focus.longestStreak(emptyList(), now))
+        // A FORDULÓ: a hónap és az év vége sem szakítja meg — a tegnap a naptáré, nem a számé.
+        val sept1 = localMs(2026, 9, 1, 20, 0)
+        assertEquals(3, Focus.longestStreak(listOf(run(sept1), run(sept1 - day), run(sept1 - 2 * day)), sept1), "aug. 30–szept. 1: hónapforduló")
+        assertEquals(3, Focus.dayStreak(listOf(run(sept1), run(sept1 - day), run(sept1 - 2 * day)), sept1), "a mostani sorozat is átlép a hónapfordulón")
+        val jan1 = localMs(2027, 1, 1, 20, 0)
+        assertEquals(3, Focus.longestStreak(listOf(run(jan1), run(jan1 - day), run(jan1 - 2 * day)), jan1), "dec. 30–jan. 1: évforduló")
+        assertEquals(2, Focus.dayStreak(listOf(run(jan1 - day), run(jan1 - 2 * day)), jan1), "a tegnap végződő sorozat az évfordulón is")
         assertEquals("2 napja minden nap leültél (a leghosszabb sorozatod: 3 nap).", Focus.streakText(2, 3))
         assertEquals("3 napja minden nap leültél.", Focus.streakText(3, 3), "ha a mostani a rekord, nincs zárójel")
         assertEquals("A leghosszabb sorozatod: 4 nap.", Focus.streakText(0, 4), "mostani nélkül csak a rekord")

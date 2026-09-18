@@ -240,6 +240,13 @@ final class FocusTests: XCTestCase {
                        "a régi hármas hosszabb a mostani kettesnél")
         XCTAssertEqual(Focus.longestStreak([run(now - 3_600_000), run(now - 3_600_000 - 60_000)], now: now), 1, "egy napon két menet egy nap")
         XCTAssertEqual(Focus.longestStreak([], now: now), 0)
+        // A FORDULÓ: a hónap és az év vége sem szakítja meg — a tegnap a naptáré, nem a számé.
+        let sept1 = Calendar.current.date(from: DateComponents(year: 2026, month: 9, day: 1, hour: 20))!.timeIntervalSince1970 * 1000
+        XCTAssertEqual(Focus.longestStreak([run(sept1), run(sept1 - day), run(sept1 - 2 * day)], now: sept1), 3, "aug. 30–szept. 1: hónapforduló")
+        XCTAssertEqual(Focus.dayStreak([run(sept1), run(sept1 - day), run(sept1 - 2 * day)], now: sept1), 3, "a mostani sorozat is átlép a hónapfordulón")
+        let jan1 = Calendar.current.date(from: DateComponents(year: 2027, month: 1, day: 1, hour: 20))!.timeIntervalSince1970 * 1000
+        XCTAssertEqual(Focus.longestStreak([run(jan1), run(jan1 - day), run(jan1 - 2 * day)], now: jan1), 3, "dec. 30–jan. 1: évforduló")
+        XCTAssertEqual(Focus.dayStreak([run(jan1 - day), run(jan1 - 2 * day)], now: jan1), 2, "a tegnap végződő sorozat az évfordulón is")
         XCTAssertEqual(Focus.streakText(2, longest: 3), "2 napja minden nap leültél (a leghosszabb sorozatod: 3 nap).")
         XCTAssertEqual(Focus.streakText(3, longest: 3), "3 napja minden nap leültél.", "ha a mostani a rekord, nincs zárójel")
         XCTAssertEqual(Focus.streakText(0, longest: 4), "A leghosszabb sorozatod: 4 nap.", "mostani nélkül csak a rekord")
