@@ -31,6 +31,8 @@ export function randomSite(r: () => number, device: string): SyncSite {
   const pendingDeleteAt = r() < 0.15 ? 5_000 + Math.floor(r() * 3) : null;
   const dailyLimitSeconds = r() < 0.4 ? 600 * (1 + Math.floor(r() * 3)) : undefined;
   const alias = r() < 0.3 ? `n${Math.floor(r() * 3)}` : undefined;
+  // Az indok a fedőnévvel azonos módon utazik — a fésülés ugyanúgy a nyertesét viszi.
+  const reason = r() < 0.2 ? `r${Math.floor(r() * 2)}` : undefined;
   const rev = 1 + Math.floor(r() * 5);
   const updatedAt = 100 + Math.floor(r() * 5);
   // A jel sosem nagyobb a rekord rev-jénél — a bemenet mindhárom nyelvben
@@ -39,7 +41,7 @@ export function randomSite(r: () => number, device: string): SyncSite {
   return {
     id: 'site_1', domain: 'youtube.com', hostnames, addedAt: 1_000,
     ...(Object.keys(marks).length ? { hostnameMarks: marks } : {}),
-    pauseUntil: null, pendingDeleteAt, dailyLimitSeconds, alias, rev, updatedAt, updatedBy: device,
+    pauseUntil: null, pendingDeleteAt, dailyLimitSeconds, alias, reason, rev, updatedAt, updatedBy: device,
   };
 }
 
@@ -112,6 +114,7 @@ export function siteConformanceKey(s: SyncSite): string {
   const opt = (v: number | string | null | undefined) => (v === null || v === undefined ? '-' : String(v));
   return `hosts=[${[...s.hostnames].sort().join(',')}] marks=[${marks}] rev=${s.rev}`
     + ` pending=${opt(s.pendingDeleteAt)} limit=${opt(s.dailyLimitSeconds)} alias=${opt(s.alias)}`
+    + ` reason=${opt(s.reason)}`
     + ` at=${s.updatedAt} by=${s.updatedBy}`;
 }
 

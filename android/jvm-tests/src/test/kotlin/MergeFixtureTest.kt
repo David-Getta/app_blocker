@@ -37,6 +37,7 @@ class MergeFixtureTest {
         val marks = (s.hostnameMarks ?: emptyMap()).toSortedMap().entries.joinToString(",") { "${it.key}=${it.value}" }
         return "hosts=[${s.hostnames.sorted().joinToString(",")}] marks=[$marks] rev=${s.rev}" +
             " pending=${opt(s.pendingDeleteAt)} limit=${opt(s.dailyLimitSeconds)} alias=${opt(s.alias)}" +
+            " reason=${opt(s.reason)}" +
             " at=${s.updatedAt} by=${s.updatedBy}"
     }
 

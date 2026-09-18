@@ -54,6 +54,7 @@ final class MergeFixtureTests: XCTestCase {
             .map { "\($0.key)=\($0.value)" }.joined(separator: ",")
         return "hosts=[\(s.hostnames.sorted().joined(separator: ","))] marks=[\(marks)] rev=\(s.rev)"
             + " pending=\(opt(s.pendingDeleteAt)) limit=\(opt(s.dailyLimitSeconds)) alias=\(s.alias ?? "-")"
+            + " reason=\(s.reason ?? "-")"
             + " at=\(int(s.updatedAt)) by=\(s.updatedBy)"
     }
 
