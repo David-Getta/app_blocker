@@ -8,8 +8,11 @@ kettővel korábbiban.
 
 | Verzió | Nap | Mi újság |
 |---|---|---|
-| v0.4.99 (még nincs kiadva) | 2026-09-18 | az adag a héten a heti mondatban és az oldal sorában |
-| v0.4.98 (még nincs kiadva) | 2026-09-18 | adag-betelések a héten |
+| v0.4.102 (még nincs kiadva) | 2026-09-18 | a bővítmény is rajzolja a harminc napot |
+| v0.4.101 (még nincs kiadva) | 2026-09-18 | megakadások harminc napja |
+| v0.4.100 | 2026-09-18 | változásnapló a dokumentációban |
+| v0.4.99 (nem kapott saját kiadást) | 2026-09-18 | az adag a héten a heti mondatban és az oldal sorában |
+| v0.4.98 | 2026-09-18 | adag-betelések a héten |
 | v0.4.97 | 2026-09-18 | óra-tengely és a keret sora a héten betelt napokkal |
 | v0.4.96 | 2026-09-18 | a keret betelt napjai |
 | v0.4.95 | 2026-09-18 | a heti mondat a lefedett csúcs-órát is mondja |

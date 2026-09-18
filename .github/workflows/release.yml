@@ -44,21 +44,22 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
+          **A bővítmény is rajzolja a harminc napot.** A beállítás-lap a
+          hét sávja alá a hónapét is odateszi, ha a hét előtti napokon is
+          volt megakadás — és a mondat a 30 nap számát is mondja, ha az
+          több, mint a heti.
+
+          ### Ami a v0.4.101-ben jött
+
           **Megakadások harminc napja.** A statisztika a hét alakja mellett
           a hónapét is rajzolja — a gépen és a telefonokon —, ha a hét
           előtti napokon is volt megakadás.
 
-          ### Ami a v0.4.100-ban jött
+          #### Ami a v0.4.100-ban jött
 
           **Változásnapló a dokumentációban** (`docs/changelog.md`, a
           git-történetből). És a v0.4.99 tartalma: **az adag a héten** a
-          heti mondatban és az oldal sorában — az Android-fordítás hibája
-          javítva.
-
-          #### Ami a v0.4.98-ban jött
-
-          **Adag-betelések a héten** — a betelések könyve hét napot tart, a
-          statisztika a hét összegét mondja oldalanként.
+          heti mondatban és az oldal sorában.
 
           NOTES
           fi
