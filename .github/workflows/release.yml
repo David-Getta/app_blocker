@@ -44,23 +44,23 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A felugró lap mondja, ha a csúcs-órát ablak fedi.** A bővítmény
-          felugró lapja a hét csúcsa után kimondja: „A csúcs-órában magától indul: Nyelvtanulás.”
-          — az app szava, frissen, összekötve. És az ablak gombjának
-          óra-sávja a 23-nál is azt mondja, amit az app címkéje.
-          Bővítmény 0.4.25.
+          **A heti mondat mondja, ha a csúcs-órát nem fedi ablak.** „12 megakadás a böngészőben, a csúcs 21–22 óra (nincs rá ablak)”
+          — csak ha lehetne rá tenni: van csomag ablak nélkül, és a
+          csúcs-órát semmi nem fedi. Tükör, nem ítélet — a gomb a
+          statisztikán vár. Ha fedi, a mondat továbbra is azt mondja, hogy
+          magától indul. Mindhárom platformon.
 
-          ### Ami a v0.4.107-ben jött
+          ### Ami a v0.4.108-ban jött
+
+          **A felugró lap mondja, ha a csúcs-órát ablak fedi.** A bővítmény
+          felugró lapja a hét csúcsa után kimondja, hogy a menet magától
+          indul — az app szava. Bővítmény 0.4.25.
+
+          #### Ami a v0.4.107-ben jött
 
           **Az ablak nyoma a csomag során.** A csomag sora — a gépen,
           Androidon és iPhone-on — azt is mondja, hányszor indult magától a
-          héten. Ebből látszik csomagonként, dolgozik-e az ablak.
-
-          #### Ami a v0.4.106-ban jött
-
-          **Menetek ablakból.** A naplósor tudja, ha a menet a heti ablakból
-          indult magától; a statisztika és a heti mondat mondja — mindhárom
-          platformon.
+          héten.
 
           NOTES
           fi
