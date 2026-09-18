@@ -80,6 +80,8 @@ object DigestLogic {
         val focusPrevWeek: Focus.FocusSummary? = null,
         /** feloldások az elmúlt 7 napban */
         val unlocks7d: Int,
+        /** az előző hét feloldásai — a hét az előző héthez képest; nulla, ha a hívó nem adja */
+        val unlocksPrev7d: Int = 0,
         /** van-e egyáltalán mért nap */
         val daysTracked: Int,
         /**
@@ -161,9 +163,12 @@ object DigestLogic {
         // A félbemaradt kísérlet a feloldások mellé kerül — vagy helyettük: egy
         // elindított és félbehagyott lazítás is történés, ha feloldás nem is lett.
         val droppedPart = if (input.dropped7d > 0) ", ${input.dropped7d} félbemaradt kísérlet" else ""
-        if (input.unlocks7d > 0) parts.add("${input.unlocks7d} feloldás$droppedPart.")
-        else if (input.dropped7d > 0) parts.add("Feloldás nélkül$droppedPart.")
-        else if (measured || f.sessions > 0) parts.add("Feloldás nélkül.")
+        // Az előző hét feloldásai a szám mellett, zárójelben — irány, nem ítélet;
+        // üres előző hét nem összehasonlítás. A tükör harmadik mércéje is két hetet mond.
+        val prevUnlPart = if (input.unlocksPrev7d > 0) " (az előző héten ${input.unlocksPrev7d})" else ""
+        if (input.unlocks7d > 0) parts.add("${input.unlocks7d} feloldás$prevUnlPart$droppedPart.")
+        else if (input.dropped7d > 0) parts.add("Feloldás nélkül$prevUnlPart$droppedPart.")
+        else if (measured || f.sessions > 0 || input.unlocksPrev7d > 0) parts.add("Feloldás nélkül$prevUnlPart.")
         // A megakadás: hányszor állította meg a szűrő — tény, nem ítélet.
         // Az előző hét a szám mellett, zárójelben — irány, nem ítélet. Nulla előző
         // hét nem összehasonlítás; a nulla hét viszont mondat, ha volt mihez mérni.
@@ -269,6 +274,7 @@ object DigestLogic {
             focusWeek = Focus.summarizeFocus(st.focusLog, UsageLogic.startOfDay(now) - 6 * 86_400_000L, now),
             focusPrevWeek = Focus.summarizeFocusPrevWeek(st.focusLog, now),
             unlocks7d = st.unlockLog.count { it >= weekAgo },
+            unlocksPrev7d = st.unlockLog.count { it >= weekAgo - 7 * 24 * 3600_000L && it < weekAgo },
             dropped7d = st.droppedAttempts.count { it >= weekAgo },
             filterHits7d = FilterHitLogic.hits7d(st.filterHits, now),
             filterHitsPrev7d = FilterHitLogic.hitsPrev7d(st.filterHits, now),

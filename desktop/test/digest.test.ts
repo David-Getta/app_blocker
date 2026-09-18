@@ -186,3 +186,21 @@ test('az előző hét a menetek mellett: irány, nem ítélet — üres előző 
   assert.equal(digestText({ ...full, focusPrevWeek: { sessions: 0, totalMs: 0, stoppedEarly: 0, topPack: null } }, (l) => l),
     digestText(full, (l) => l), 'üres előző hét: a régi mondat');
 });
+
+test('az előző hét feloldásai a szám mellett: irány, nem ítélet — üres előző hét nem sor; feloldás nélkül is mondat, ha volt mihez mérni', () => {
+  const head = 'Elmúlt 7 nap: 7 ó 20 p mért idő; a legtöbb: youtube.com 2 ó 40 p (▼ -33% az előző héthez képest). '
+    + '9 menet (7 ó 0 p, 2 korán leállítva). ';
+  assert.equal(digestText({ ...full, unlocksPrev7d: 5 }, (l) => l), `${head}3 feloldás (az előző héten 5).`);
+  assert.equal(digestText({ ...full, unlocksPrev7d: 5, dropped7d: 2 }, (l) => l), `${head}3 feloldás (az előző héten 5), 2 félbemaradt kísérlet.`);
+  assert.equal(digestText({ ...full, unlocks7d: 0, unlocksPrev7d: 5 }, (l) => l), `${head}Feloldás nélkül (az előző héten 5).`);
+  assert.equal(digestText({ ...full, unlocks7d: 0, unlocksPrev7d: 5, dropped7d: 1 }, (l) => l),
+    `${head}Feloldás nélkül (az előző héten 5), 1 félbemaradt kísérlet.`);
+  assert.equal(digestText({ ...full, unlocksPrev7d: 0 }, (l) => l), digestText(full, (l) => l), 'üres előző hét: a régi mondat');
+  const bare = {
+    last7Seconds: 0, topWeekSites: [], weekOverWeek: [], daysTracked: 0,
+    focusWeek: { sessions: 0, totalMs: 0, stoppedEarly: 0, topPack: null }, unlocks7d: 0,
+  };
+  assert.equal(digestText({ ...bare, unlocksPrev7d: 2 }, (l) => l), 'Elmúlt 7 nap: Feloldás nélkül (az előző héten 2).',
+    'mérés és menet nélkül is mondat, ha az előző héten volt feloldás');
+  assert.equal(digestText(bare, (l) => l), null);
+});

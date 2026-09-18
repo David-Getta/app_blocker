@@ -218,4 +218,23 @@ private extension DigestLogic.Input {
         XCTAssertEqual(DigestLogic.text(DigestLogic.Input(focusWeek: week, unlocks7d: 3, focusPrevWeek: none), labelOf: { $0 }),
                        DigestLogic.text(DigestLogic.Input(focusWeek: week, unlocks7d: 3), labelOf: { $0 }), "üres előző hét: a régi mondat")
     }
+
+    func testThePreviousWeeksUnlocksBesideTheNumberDirectionNotJudgementAndNoUnlockIsStillALineIfThereWasSomethingToMeasureAgainst() {
+        let week = Focus.Summary(sessions: 9, totalMs: 7 * 3_600_000, stoppedEarly: 2, topPack: "Nyelvtanulás")
+        let none = Focus.Summary(sessions: 0, totalMs: 0, stoppedEarly: 0, topPack: nil)
+        let head = "Elmúlt 7 nap: 9 menet (7 ó 0 p, 2 korán leállítva). "
+        XCTAssertEqual(DigestLogic.text(DigestLogic.Input(focusWeek: week, unlocks7d: 3, unlocksPrev7d: 5), labelOf: { $0 }),
+                       "\(head)3 feloldás (az előző héten 5).")
+        XCTAssertEqual(DigestLogic.text(DigestLogic.Input(focusWeek: week, unlocks7d: 3, dropped7d: 2, unlocksPrev7d: 5), labelOf: { $0 }),
+                       "\(head)3 feloldás (az előző héten 5), 2 félbemaradt kísérlet.")
+        XCTAssertEqual(DigestLogic.text(DigestLogic.Input(focusWeek: week, unlocks7d: 0, unlocksPrev7d: 5), labelOf: { $0 }),
+                       "\(head)Feloldás nélkül (az előző héten 5).")
+        XCTAssertEqual(DigestLogic.text(DigestLogic.Input(focusWeek: week, unlocks7d: 0, dropped7d: 1, unlocksPrev7d: 5), labelOf: { $0 }),
+                       "\(head)Feloldás nélkül (az előző héten 5), 1 félbemaradt kísérlet.")
+        XCTAssertEqual(DigestLogic.text(DigestLogic.Input(focusWeek: week, unlocks7d: 3, unlocksPrev7d: 0), labelOf: { $0 }),
+                       DigestLogic.text(DigestLogic.Input(focusWeek: week, unlocks7d: 3), labelOf: { $0 }), "üres előző hét: a régi mondat")
+        XCTAssertEqual(DigestLogic.text(DigestLogic.Input(focusWeek: none, unlocks7d: 0, unlocksPrev7d: 2), labelOf: { $0 }),
+                       "Elmúlt 7 nap: Feloldás nélkül (az előző héten 2).", "mérés és menet nélkül is mondat, ha az előző héten volt feloldás")
+        XCTAssertNil(DigestLogic.text(DigestLogic.Input(focusWeek: none, unlocks7d: 0), labelOf: { $0 }))
+    }
 }

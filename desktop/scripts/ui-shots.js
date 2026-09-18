@@ -130,7 +130,7 @@ function fakeBridgeSource() {
     window.__fakeSync = undefined;
     const status = () => ({
       helperVersion: window.__fakeHelperVersion, platform: 'darwin',
-      sites: window.__fakeSites, tier: 1, unlocks7d: 2,
+      sites: window.__fakeSites, tier: 1, unlocks7d: 2, unlocksPrev7d: 4,
       hideSiteList: window.__fakeHideList,
       sync: window.__fakeSync,
       selfTest: window.__fakeSelfTest || undefined,

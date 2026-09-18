@@ -240,4 +240,23 @@ class DigestTest {
             DigestLogic.text(base.copy(focusWeek = Focus.FocusSummary(), focusPrevWeek = prev)) { it })
         assertEquals(DigestLogic.text(base) { it }, DigestLogic.text(base.copy(focusPrevWeek = Focus.FocusSummary())) { it }, "üres előző hét: a régi mondat")
     }
+
+    @Test fun `az elozo het feloldasai a szam mellett - irany, nem itelet, ures elozo het nem sor, feloldas nelkul is mondat`() {
+        val base = DigestLogic.Input(
+            last7Seconds = 0.0, topWeekSites = emptyList(), weekOverWeek = emptyList(),
+            focusWeek = Focus.FocusSummary(sessions = 9, totalMs = 7 * 3600_000L, stoppedEarly = 2, topPack = "Nyelvtanulás"),
+            unlocks7d = 3, daysTracked = 0,
+        )
+        val head = "Elmúlt 7 nap: 9 menet (7 ó 0 p, 2 korán leállítva). "
+        assertEquals("${head}3 feloldás (az előző héten 5).", DigestLogic.text(base.copy(unlocksPrev7d = 5)) { it })
+        assertEquals("${head}3 feloldás (az előző héten 5), 2 félbemaradt kísérlet.", DigestLogic.text(base.copy(unlocksPrev7d = 5, dropped7d = 2)) { it })
+        assertEquals("${head}Feloldás nélkül (az előző héten 5).", DigestLogic.text(base.copy(unlocks7d = 0, unlocksPrev7d = 5)) { it })
+        assertEquals("${head}Feloldás nélkül (az előző héten 5), 1 félbemaradt kísérlet.",
+            DigestLogic.text(base.copy(unlocks7d = 0, unlocksPrev7d = 5, dropped7d = 1)) { it })
+        assertEquals(DigestLogic.text(base) { it }, DigestLogic.text(base.copy(unlocksPrev7d = 0)) { it }, "üres előző hét: a régi mondat")
+        val bare = base.copy(focusWeek = Focus.FocusSummary(), unlocks7d = 0)
+        assertEquals("Elmúlt 7 nap: Feloldás nélkül (az előző héten 2).", DigestLogic.text(bare.copy(unlocksPrev7d = 2)) { it },
+            "mérés és menet nélkül is mondat, ha az előző héten volt feloldás")
+        assertEquals(null, DigestLogic.text(bare) { it })
+    }
 }

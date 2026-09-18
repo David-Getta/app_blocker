@@ -419,6 +419,14 @@ mint a feloldásokat (`droppedAttempts` az állapotban, mindhárom magban); a
 gépen a próbatétel-nehézség sora is mondja. Nem ítélet: hányszor indult el a
 lazítás — és hányszor nem vitte végig az ember. A tükör fele lenne nélküle.
 
+A feloldások mellett az előző hét is ott van, zárójelben — a tükör harmadik
+mércéje is két hetet mond: „3 feloldás (az előző héten 5), 2 félbemaradt kísérlet.”
+vagy „Feloldás nélkül (az előző héten 5).” Ugyanaz a szabály, mint a
+megakadásoknál és a meneteknél: üres előző hét nem összehasonlítás, akkor a
+mondat a régi; feloldás nélküli hét viszont mondat, ha az előző héten volt
+mihez mérni. A gépi nehézség-sor is mondja („3 feloldás az elmúlt 7 napban
+(az előző héten 5)”); a segéd `unlocksPrev7d` mezője a státuszban.
+
 A gépen a **megakadások** is: „12 megakadás a böngészőben.” — hányszor vitt a
 tiltó lapra a böngésző-bővítmény az elmúlt 7 napban. A bővítmény könyveli
 (`extension/hits.js`: naponként, okonként — zárva oldal, munkamenet, csatorna,

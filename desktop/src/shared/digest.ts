@@ -84,6 +84,8 @@ export interface DigestInput {
   focusPrevWeek?: FocusSummary;
   /** feloldások az elmúlt 7 napban */
   unlocks7d: number;
+  /** az előző hét feloldásai — a hét az előző héthez képest; nem kötelező (régi hívó) */
+  unlocksPrev7d?: number;
   /**
    * Félbemaradt kísérletek az elmúlt 7 napban — feladva, lejárva, lecsúszva,
    * elszállva, újraindítva. Nem kötelező (régi hívó). A tükör másik fele a
@@ -165,9 +167,13 @@ export function digestText(input: DigestInput, labelOf: (label: string) => strin
   // elindított és félbehagyott lazítás is történés, ha feloldás nem is lett.
   const dropped = input.dropped7d ?? 0;
   const droppedPart = dropped > 0 ? `, ${dropped} félbemaradt kísérlet` : '';
-  if (input.unlocks7d > 0) parts.push(`${input.unlocks7d} feloldás${droppedPart}.`);
-  else if (dropped > 0) parts.push(`Feloldás nélkül${droppedPart}.`);
-  else if (measured || f.sessions > 0) parts.push('Feloldás nélkül.');
+  // Az előző hét feloldásai a szám mellett, zárójelben — irány, nem ítélet;
+  // üres előző hét nem összehasonlítás. A tükör harmadik mércéje is két hetet mond.
+  const prevUnl = input.unlocksPrev7d ?? 0;
+  const prevUnlPart = prevUnl > 0 ? ` (az előző héten ${prevUnl})` : '';
+  if (input.unlocks7d > 0) parts.push(`${input.unlocks7d} feloldás${prevUnlPart}${droppedPart}.`);
+  else if (dropped > 0) parts.push(`Feloldás nélkül${prevUnlPart}${droppedPart}.`);
+  else if (measured || f.sessions > 0 || prevUnl > 0) parts.push(`Feloldás nélkül${prevUnlPart}.`);
   // A megakadás: hányszor állította meg a böngésző — tény, nem ítélet.
   const hits = input.browserHits7d ?? 0;
   const prev = input.browserHitsPrev7d ?? 0;

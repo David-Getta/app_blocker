@@ -72,6 +72,8 @@ public enum DigestLogic {
         public var focusPrevWeek: Focus.Summary?
         /// feloldások az elmúlt 7 napban
         public var unlocks7d: Int
+        /// Az előző hét feloldásai — a hét az előző héthez képest; nulla, ha a hívó nem adja.
+        public var unlocksPrev7d: Int
         /// van-e egyáltalán mért nap
         public var daysTracked: Int
         /// a hét legnagyobb, NEM tiltott idővivői, a legnagyobb elöl
@@ -96,7 +98,7 @@ public enum DigestLogic {
             weekOverWeek: [Delta] = [], focusWeek: Focus.Summary, unlocks7d: Int,
             daysTracked: Int = 0, unblockedTop: [Top] = [], dropped7d: Int = 0, filterHits7d: Int = 0,
             filterHitsPeak: (hour: Int, count: Int)? = nil, filterHitsTop: (label: String, count: Int)? = nil,
-            filterHitsPrev7d: Int = 0, focusPrevWeek: Focus.Summary? = nil
+            filterHitsPrev7d: Int = 0, focusPrevWeek: Focus.Summary? = nil, unlocksPrev7d: Int = 0
         ) {
             self.last7Seconds = last7Seconds
             self.topWeekSites = topWeekSites
@@ -112,6 +114,7 @@ public enum DigestLogic {
             self.filterHitsTop = filterHitsTop
             self.filterHitsPrev7d = filterHitsPrev7d
             self.focusPrevWeek = focusPrevWeek
+            self.unlocksPrev7d = unlocksPrev7d
         }
     }
 
@@ -168,9 +171,12 @@ public enum DigestLogic {
         // A félbemaradt kísérlet a feloldások mellé kerül — vagy helyettük: egy
         // elindított és félbehagyott lazítás is történés, ha feloldás nem is lett.
         let droppedPart = input.dropped7d > 0 ? ", \(input.dropped7d) félbemaradt kísérlet" : ""
-        if input.unlocks7d > 0 { parts.append("\(input.unlocks7d) feloldás\(droppedPart).") }
-        else if input.dropped7d > 0 { parts.append("Feloldás nélkül\(droppedPart).") }
-        else if measured || f.sessions > 0 { parts.append("Feloldás nélkül.") }
+        // Az előző hét feloldásai a szám mellett, zárójelben — irány, nem ítélet;
+        // üres előző hét nem összehasonlítás. A tükör harmadik mércéje is két hetet mond.
+        let prevUnlPart = input.unlocksPrev7d > 0 ? " (az előző héten \(input.unlocksPrev7d))" : ""
+        if input.unlocks7d > 0 { parts.append("\(input.unlocks7d) feloldás\(prevUnlPart)\(droppedPart).") }
+        else if input.dropped7d > 0 { parts.append("Feloldás nélkül\(prevUnlPart)\(droppedPart).") }
+        else if measured || f.sessions > 0 || input.unlocksPrev7d > 0 { parts.append("Feloldás nélkül\(prevUnlPart).") }
         // A megakadás: hányszor állította meg a szűrő — tény, nem ítélet.
         // Az előző hét a szám mellett, zárójelben — irány, nem ítélet. Nulla előző
         // hét nem összehasonlítás; a nulla hét viszont mondat, ha volt mihez mérni.
@@ -249,7 +255,8 @@ public enum DigestLogic {
             filterHitsPeak: FilterHitLogic.peakHour(st.filterHitHours ?? [:], now: now),
             filterHitsTop: FilterHitLogic.topSite(st.filterHitHosts ?? [:], now: now).map { (label: $0.site, count: $0.count) },
             filterHitsPrev7d: FilterHitLogic.hitsPrev7d(st.filterHits ?? [:], now: now),
-            focusPrevWeek: Focus.summarizeFocusPrevWeek(st.focusLog ?? [], now: now)
+            focusPrevWeek: Focus.summarizeFocusPrevWeek(st.focusLog ?? [], now: now),
+            unlocksPrev7d: st.unlockLog.filter { $0 >= weekAgo - 7 * 24 * 3_600_000 && $0 < weekAgo }.count
         )
     }
 

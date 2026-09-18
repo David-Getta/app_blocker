@@ -699,6 +699,33 @@ const WIRES = [
     needle: 'Az előző héten \\(focusPrevWeek.sessions) menet',
     lost: 'az iPhone statisztikája nem mondaná az előző hét meneteit',
   },
+  // AZ ELŐZŐ HÉT FELOLDÁSAI a mostani mellett: a tükör harmadik mércéje is két
+  // hetet mond — a segéd a státuszban és a heti mondatban, a telefonok a heti mondatban.
+  {
+    file: 'desktop/src/helper/server.ts',
+    needle: 'unlocksPrev7d: state.unlockLog.filter((t) => t >= now - 14 * 24 * 3600_000 && t < now - 7 * 24 * 3600_000).length,',
+    lost: 'a segéd státusza nem mondaná az előző hét feloldásait',
+  },
+  {
+    file: 'desktop/src/helper/digest-journal.ts',
+    needle: 'unlocksPrev7d: state.unlockLog.filter((t) => t >= now - 14 * 24 * 3600_000 && t < now - 7 * 24 * 3600_000).length,',
+    lost: 'a gépi heti mondat nem mondaná az előző hét feloldásait',
+  },
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: '(az előző héten ${st.unlocksPrev7d})',
+    lost: 'a gépi nehézség-sor nem mondaná az előző hét feloldásait',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/Digest.kt',
+    needle: 'unlocksPrev7d = st.unlockLog.count { it >= weekAgo - 7 * 24 * 3600_000L && it < weekAgo },',
+    lost: 'Androidon a heti mondat nem mondaná az előző hét feloldásait',
+  },
+  {
+    file: 'ios/Shared/Digest.swift',
+    needle: 'unlocksPrev7d: st.unlockLog.filter { $0 >= weekAgo - 7 * 24 * 3_600_000 && $0 < weekAgo }.count',
+    lost: 'iPhone-on a heti mondat nem mondaná az előző hét feloldásait',
+  },
   {
     file: 'android/app/src/main/java/hu/breaker/app/core/Digest.kt',
     needle: 'filterHitsTop = FilterHitLogic.topSite(st.filterHitHosts, now),',

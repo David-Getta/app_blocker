@@ -134,6 +134,7 @@ export function statusOf(
     focusSpent: spentWindows(state.focusPacks ?? [], state.focusLog, now),
     tier: computeTier(state.unlockLog, now),
     unlocks7d: state.unlockLog.filter((t) => t >= now - 7 * 24 * 3600_000).length,
+    unlocksPrev7d: state.unlockLog.filter((t) => t >= now - 14 * 24 * 3600_000 && t < now - 7 * 24 * 3600_000).length,
     dropped7d: (state.droppedAttempts ?? []).filter((t) => t >= now - 7 * 24 * 3600_000).length,
     browserHits7d: browserHits7d(state.browserHits, now),
     browserHitsToday: browserHitsToday(state.browserHits, now),

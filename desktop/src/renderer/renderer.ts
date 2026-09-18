@@ -2282,8 +2282,10 @@ function renderTier(st: StatusData): void {
   const dropped = st.dropped7d ? ` · ${st.dropped7d} félbemaradt kísérlet` : '';
   // …és a böngésző megakadásai: hányszor vitt a tiltó lapra a bővítmény.
   const hits = st.browserHits7d ? ` · ${st.browserHits7d} megakadás a böngészőben` : '';
+  // Az előző hét a szám mellett — irány, nem ítélet; üres előző hét nem összehasonlítás.
+  const prevUnl = st.unlocksPrev7d ? ` (az előző héten ${st.unlocksPrev7d})` : '';
   $('tierLine').textContent =
-    `Próbatétel-nehézség: ${names[st.tier]} (${st.tier + 1}/4) · ${st.unlocks7d} feloldás az elmúlt 7 napban${unlockStreakLabel(st.lastUnlockAt)}${dropped}${hits} — minél többször oldasz fel, annál nehezebb.`;
+    `Próbatétel-nehézség: ${names[st.tier]} (${st.tier + 1}/4) · ${st.unlocks7d} feloldás az elmúlt 7 napban${prevUnl}${unlockStreakLabel(st.lastUnlockAt)}${dropped}${hits} — minél többször oldasz fel, annál nehezebb.`;
 }
 
 /**

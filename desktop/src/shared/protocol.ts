@@ -172,6 +172,8 @@ export interface StatusData {
   /** difficulty tier 0..3 derived from recent unlocks */
   tier: number;
   unlocks7d: number;
+  /** az előző hét feloldásai — a hét az előző héthez képest; régi segéd nem adja */
+  unlocksPrev7d?: number;
   /** félbemaradt kísérletek az elmúlt 7 napban (feladva, lejárva, elszállva, újraindítva) — régi segédnél nincs */
   dropped7d?: number;
   /**
