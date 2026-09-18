@@ -233,9 +233,9 @@
       <p class="hint">
         Bármely oldal, aminek a webcímében ez a szó szerepel — shorts, reels,
         live, egy játék neve —, a böngészőben tiltva. Felvenni egy kattintás,
-        <strong>levenni próbatétel</strong>. A böngésző-bővítmény érvényesíti,
-        a rendszer-szintű szűrő nem: az a hosztnévnél tovább nem lát, ezért a
-        telefonon a lista szerkeszthető és átér, de ott nem tilt.
+        <strong>levenni próbatétel</strong>. A böngésző-bővítmény érvényesíti
+        a teljes címben; a telefon szűrője a hosztnévben — az útvonalat és a
+        címsort ott nem látja senki, ez ki van mondva.
       </p>
       <div id="keywordList" class="keyword-list"></div>
       <div id="keywordSuggest" class="keyword-suggest hidden"></div>
@@ -245,6 +245,15 @@
         <button id="keywordAddBtn" class="btn btn-small" type="submit">Felvétel</button>
       </form>
       <p id="keywordError" class="error hidden"></p>
+      <!-- MI LENNE EZZEL? Egy cím, és a kulcsszó ítélete szóban — ugyanaz a
+           döntés, mint a bővítményé (a hosztnév, az útvonal, a lekérdezés). A
+           címsort itt nem látjuk, azt a lap adja. Tükör a szabályra: a „live”
+           a live.com-ot is fogja — jobb, ha itt derül ki, nem a tiltó lapon. -->
+      <div class="keyword-form">
+        <input id="keywordProbe" type="text" spellcheck="false" autocomplete="off"
+          placeholder="Mi lenne ezzel a címmel? pl. https://www.youtube.com/shorts/abc">
+      </div>
+      <p id="keywordProbeNote" class="hint hidden"></p>
     </section>
 
     <!--

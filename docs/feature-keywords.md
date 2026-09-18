@@ -69,7 +69,11 @@ a megbízott lépése a végén itt is áll (`docs/feature-partner-lock.md`).
   a szűrő ítélete szóban („Tiltva: kulcsszó a hosztnévben („tiktok”).”,
   „Tiltva, amíg a munkamenet tart: nincs a csomagon.”, „Átmegy.”); ugyanaz a
   döntés, mint a szűrőé (`Focus.explain`), mert a kulcsszó a hosztnévben
-  meglephet, és jobb, ha előre derül ki, nem a hálózati hibánál.
+  meglephet, és jobb, ha előre derül ki, nem a hálózati hibánál. A gépen a
+  *Kulcsszavak* kártya alján ugyanez a címre — „Mi lenne ezzel a címmel?” —:
+  a kulcsszó ítélete (`keywordHit`, a hosztnév, az útvonal, a lekérdezés; a
+  címsort a lap adja), a lista, a részleges szabály és a csatorna-szűrő külön
+  dönt.
 
 ## Szinkron
 

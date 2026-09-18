@@ -639,6 +639,11 @@ const WIRES = [
     needle: 'Focus.explain(probeInput,',
     lost: 'az iPhone próbamezője nem a tunnel ítéletét mondaná',
   },
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: "const hit = keywordHit(status?.keywords ?? [], url);",
+    lost: 'a gépi próbamező nem a bővítmény kulcsszó-ítéletét mondaná',
+  },
   // MELYIK szabály dolgozik: az okok a hídon átjönnek, a segéd tartja — ha a
   // státusz vagy a lap nem mondaná, a bontás csak a bővítmény lapján maradna.
   {
