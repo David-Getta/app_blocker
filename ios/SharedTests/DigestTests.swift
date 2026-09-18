@@ -243,6 +243,20 @@ final class DigestTests: XCTestCase {
         )
         XCTAssertEqual(DigestLogic.relabel(text, sites: sites) { $0 }, text, "címke nélkül a sor változatlan")
     }
+    func testThePeakWeekdayInTheSentenceIsTheStatsLineAndNoDayIsNoSentence() {
+        let head = "Elmúlt 7 nap: 7 ó 20 p mért idő; a legtöbb: youtube.com 2 ó 40 p (▼ -33% az előző héthez képest). "
+            + "9 menet (7 ó 0 p, 2 korán leállítva). 3 feloldás."
+        var day = full
+        day.filterHitsWeekday = (day: 0, count: 14)
+        XCTAssertEqual(DigestLogic.text(day) { $0 }, "\(head) A négy hét csúcs-napja: vasárnap (14 megakadás).")
+        var hits = day
+        hits.filterHits7d = 12
+        hits.filterHitsWeekday = (day: 3, count: 9)
+        XCTAssertEqual(DigestLogic.text(hits) { $0 }, "\(head) 12 megakadás a szűrőben. A négy hét csúcs-napja: szerda (9 megakadás).", "a megakadások mondata után")
+        var none = full
+        none.filterHitsWeekday = nil
+        XCTAssertEqual(DigestLogic.text(none) { $0 }, DigestLogic.text(full) { $0 }, "nap nélkül a régi mondat")
+    }
 }
 
 private extension DigestLogic.Input {
@@ -281,20 +295,5 @@ private extension DigestLogic.Input {
         XCTAssertEqual(DigestLogic.text(DigestLogic.Input(focusWeek: none, unlocks7d: 0, unlocksPrev7d: 2), labelOf: { $0 }),
                        "Elmúlt 7 nap: Feloldás nélkül (az előző héten 2).", "mérés és menet nélkül is mondat, ha az előző héten volt feloldás")
         XCTAssertNil(DigestLogic.text(DigestLogic.Input(focusWeek: none, unlocks7d: 0), labelOf: { $0 }))
-    }
-
-    func testThePeakWeekdayInTheSentenceIsTheStatsLineAndNoDayIsNoSentence() {
-        let head = "Elmúlt 7 nap: 7 ó 20 p mért idő; a legtöbb: youtube.com 2 ó 40 p (▼ -33% az előző héthez képest). "
-            + "9 menet (7 ó 0 p, 2 korán leállítva). 3 feloldás."
-        var day = full
-        day.filterHitsWeekday = (day: 0, count: 14)
-        XCTAssertEqual(DigestLogic.text(day) { $0 }, "\(head) A négy hét csúcs-napja: vasárnap (14 megakadás).")
-        var hits = day
-        hits.filterHits7d = 12
-        hits.filterHitsWeekday = (day: 3, count: 9)
-        XCTAssertEqual(DigestLogic.text(hits) { $0 }, "\(head) 12 megakadás a szűrőben. A négy hét csúcs-napja: szerda (9 megakadás).", "a megakadások mondata után")
-        var none = full
-        none.filterHitsWeekday = nil
-        XCTAssertEqual(DigestLogic.text(none) { $0 }, DigestLogic.text(full) { $0 }, "nap nélkül a régi mondat")
     }
 }
