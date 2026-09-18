@@ -50,7 +50,9 @@ jobs:
           ér túl az ablakon egy futó zárlat; iPhone-on előre ütemezett
           emlékeztető, ha belefér a rendszer keretébe. Androidon a zárlat
           értesítései a saját, látható csatornájukon jönnek, nem a szűrő
-          halk, állandó csatornáján.
+          halk, állandó csatornáján. A gépen a heti ablak felvételénél is ott
+          a három előre gyártott sáv (munkaidő, esti lekapcsolás, hétvége):
+          egy kattintás kitölti a mezőket.
 
           ### Ami a v0.4.36-ban jött
 
