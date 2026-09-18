@@ -44,21 +44,21 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A menetek az előző héthez képest.** A statisztika
-          munkamenet-blokkja az előző hetet is mondja, a heti mondat a
-          menetek mellett: „9 menet (7 ó 0 p, 2 korán leállítva), az előző héten 5 (3 ó 10 p).”
-          Irány, nem ítélet — mint a megakadásoknál. Mindhárom platformon.
+          **A feloldások az előző héthez képest.** A heti mondat és a gépi
+          nehézség-sor a két számot egymás mellé teszi:
+          „3 feloldás (az előző héten 5), 2 félbemaradt kísérlet.”
+          A tükör mindhárom mércéje — megakadás, menet, feloldás — két
+          hetet mond. Irány, nem ítélet.
 
-          ### Ami a v0.4.73-ban jött
+          ### Ami a v0.4.74-ben jött
+
+          **A menetek az előző héthez képest** — a statisztika
+          munkamenet-blokkja és a heti mondat az előző hetet is mondja.
+
+          #### Ami a v0.4.73-ban jött
 
           **A hét az előző héthez képest** — a megakadások két száma egymás
-          mellett a statisztikán és a heti mondatban; a bővítmény két hetet
-          küld a hídra (bővítmény 0.4.14).
-
-          #### Ami a v0.4.72-ben jött
-
-          **Melyik szabály dolgozik — a telefonon is.** A szűrő okonként is
-          könyvel (lista vagy kulcsszó), a statisztika a hét sorát mondja.
+          mellett; a bővítmény két hetet küld a hídra (bővítmény 0.4.14).
 
           NOTES
           fi
