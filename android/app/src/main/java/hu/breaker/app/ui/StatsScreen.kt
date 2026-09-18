@@ -309,7 +309,7 @@ private fun FocusStatsBlock(
 ) {
     // Nulla menetnél nincs üres blokk — kivéve, ha az előző héten volt menet:
     // a nulla hét is mondat, ha volt mihez mérni.
-    if (week.sessions == 0 && (prevWeek?.sessions ?? 0) == 0) return
+    if (week.sessions == 0 && (prevWeek?.sessions ?: 0) == 0) return
     StatsSectionLabel("Munkamenetek")
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
         CountTile(today.sessions.toString(), "menet ma", Modifier.weight(1f))
