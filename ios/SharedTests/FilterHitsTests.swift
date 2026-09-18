@@ -86,6 +86,17 @@ final class FilterHitsTests: XCTestCase {
                        "Elmúlt 7 nap: 12 megakadás a szűrőben, a csúcs 21–22 óra.")
     }
 
+    func testTheNthHitTheStepAndTheSentence() {
+        XCTAssertEqual(FilterHitLogic.nudgeStep(4), 0, "négynél még nem szól")
+        XCTAssertEqual(FilterHitLogic.nudgeStep(5), 5)
+        XCTAssertEqual(FilterHitLogic.nudgeStep(9), 5, "a következő lépcsőig ugyanaz")
+        XCTAssertEqual(FilterHitLogic.nudgeStep(12), 10)
+        XCTAssertEqual(FilterHitLogic.nudgeStep(250), 20, "a legfelső lépcső fölött is a legfelső")
+        XCTAssertEqual(FilterHitLogic.nudgeSteps, [5, 10, 20])
+        XCTAssertEqual(FilterHitLogic.nudgeText(5),
+                       "Ma már 5 megakadás a szűrőben. Egy munkamenet vagy egy rövid zárlat most segítene — te döntesz.")
+    }
+
     func testTheSentenceAndTheSave() throws {
         let summary = Focus.Summary(sessions: 0, totalMs: 0, stoppedEarly: 0, topPack: nil)
         XCTAssertEqual(DigestLogic.text(DigestLogic.Input(focusWeek: summary, unlocks7d: 1, filterHits7d: 12), labelOf: { $0 }),

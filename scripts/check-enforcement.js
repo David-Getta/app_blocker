@@ -504,6 +504,23 @@ const WIRES = [
     needle: 'FilterHitLogic.recordHour($0.filterHitHours ?? [:], day: day, hour: hour)',
     lost: 'iPhone-on a tunnel nem könyvelné az órákat — a csúcs-óra mindig üres',
   },
+  // A SOKADIK megakadás a telefonon: a mag tudja a lépcsőt, de ha a szolgáltatás
+  // nem szólna és a lap nem mondaná, a javaslat sosem érne el senkihez.
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/vpn/BreakerVpnService.kt',
+    needle: 'FilterHitLogic.nudgeText(step), NUDGE_CHANNEL_ID',
+    lost: 'Androidon a szolgáltatás nem szólna a sokadik megakadásnál',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/AppUi.kt',
+    needle: 'FilterHitLogic.nudgeText(nudge)',
+    lost: 'az Android kezdőlapja nem javasolna lépést a sokadik megakadásnál',
+  },
+  {
+    file: 'ios/App/ContentView.swift',
+    needle: 'FilterHitLogic.nudgeText(step)',
+    lost: 'az iPhone kezdőlapja nem javasolna lépést a sokadik megakadásnál',
+  },
   // A MEGAKADÁS-SZÁMLÁLÓ lánca: a háttér könyvel, a link átadja, a híd
   // fogadja, a segéd tartja, a mondat és a statisztika mondja. Ha bármelyik
   // láncszem kiesne, a bővítmény lapja továbbra is számolna — az app viszont

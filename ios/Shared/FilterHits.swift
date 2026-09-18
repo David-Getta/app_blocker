@@ -128,6 +128,23 @@ public enum FilterHitLogic {
     /// „21–22 óra” — a csúcs-óra felirata.
     public static func hourLabel(_ hour: Int) -> String { "\(hour)–\((hour + 1) % 24) óra" }
 
+    // MARK: - a sokadik
+
+    /// A SOKADIK megakadás lépcsői: ezeknél a mai számoknál a lap egy lépést
+    /// javasol — egy munkamenet vagy egy rövid zárlat most segítene. Nem ítélet,
+    /// nem tilt semmit; a döntés az emberé. A gépével azonos lista.
+    public static let nudgeSteps: [Int] = [5, 10, 20]
+
+    /// A legmagasabb lépcső, amit a mai szám elért — 0, ha egyet sem.
+    public static func nudgeStep(_ today: Int, steps: [Int] = nudgeSteps) -> Int {
+        steps.filter { today >= $0 }.max() ?? 0
+    }
+
+    /// A javaslat mondata egy lépcsőnél.
+    public static func nudgeText(_ step: Int) -> String {
+        "Ma már \(step) megakadás a szűrőben. Egy munkamenet vagy egy rövid zárlat most segítene — te döntesz."
+    }
+
     /// Az utolsó `count` nap sora, a legrégebbi elöl — a hét alakja a
     /// megakadásokra; a `seconds` mező itt darab, a rajz kedvéért ugyanaz az alak.
     public static func daySeries(_ days: [String: Int], now: Double, count: Int) -> [(day: String, seconds: Double)] {

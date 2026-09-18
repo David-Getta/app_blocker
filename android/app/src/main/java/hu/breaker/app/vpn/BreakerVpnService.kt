@@ -60,6 +60,9 @@ class BreakerVpnService : VpnService() {
         private const val DIGEST_CHANNEL_ID = "breaker_digest"
         /** Percenként elég kérdezni, esedékes-e: a válasz egy hétig ugyanaz. */
         private const val DIGEST_CHECK_MS = 60_000L
+        /** A sokadik megakadás értesítése — lehúzható, saját csatornán, hogy külön lehessen elnémítani. */
+        private const val NOTIF_NUDGE_ID = 6
+        private const val NUDGE_CHANNEL_ID = "breaker_hits"
 
         private val _running = MutableStateFlow(false)
         val running: StateFlow<Boolean> get() = _running
@@ -92,6 +95,8 @@ class BreakerVpnService : VpnService() {
     private var usageTimer: java.util.Timer? = null
     /** hoszt → az utoljára számolt megakadás ideje; csak a szűrő szálán, nem tárolódik */
     private val hitSeen = HashMap<String, Long>()
+    /** A már kimondott lépcső („nap:lépcső”): naponta lépcsőnként egyszer; egy újraindítás legfeljebb egy duplát enged. */
+    @Volatile private var nudgedKey = ""
     @Volatile private var stopping = false
     private var readerThread: Thread? = null
     private val resolverPool = Executors.newFixedThreadPool(8) as ThreadPoolExecutor
@@ -232,7 +237,10 @@ class BreakerVpnService : VpnService() {
             warnedWindowStart = soon.startsAt
             runCatching { notifyWindowSoon(soon, now) }
         }
-        val key = strictKey + lockKey + if (run != null) {
+        // A mai megakadások is a kulcs része: a sáv sora a következő körben
+        // mondja az új számot — nem csak akkor, ha valami más is változik.
+        val hitsKey = "hits:${FilterHitLogic.hitsToday(st.filterHits, now)}:"
+        val key = strictKey + lockKey + hitsKey + if (run != null) {
             "${run.packId}:${Focus.formatRemaining(run.endsAt - now)}"
         } else {
             // A hűtés is a kulcs része: induláskor, percváltásnál és lejáratkor
@@ -475,6 +483,18 @@ class BreakerVpnService : VpnService() {
                     }
                 }
                     .onFailure { Log.w(TAG, "megakadás nem könyvelve: $it") }
+                // A SOKADIK megakadás: az ötödik, tizedik, huszadik mainál egyszer
+                // szólunk — egy munkamenet vagy egy rövid zárlat most segítene. Nem
+                // tilt, nem ítél; a sáv sora a számot mondja, ez a lépést.
+                val step = FilterHitLogic.nudgeStep(FilterHitLogic.hitsToday(BreakerStore.state.value.filterHits, now))
+                val nudgeKey = "$day:$step"
+                if (step > 0 && nudgeKey != nudgedKey) {
+                    nudgedKey = nudgeKey
+                    runCatching {
+                        notifyOnce(NOTIF_NUDGE_ID, "A sokadik megakadás", FilterHitLogic.nudgeText(step), NUDGE_CHANNEL_ID, "Megakadások")
+                    }
+                        .onFailure { Log.w(TAG, "a sokadik megakadás nem szólt: $it") }
+                }
             }
 
             val answer: ByteArray? = if (blocked) {

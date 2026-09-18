@@ -384,6 +384,19 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                 }
             }
             FocusRunningCard(state, now, onError = { flowError = it })
+            // A SOKADIK megakadás: az ötödik, tizedik, huszadik mai megakadásnál a
+            // lap egy lépést javasol — a szolgáltatás egyszer értesít is. Nem tilt,
+            // nem ítél; a döntés az emberé, a munkamenet gombjai egy kártyával lejjebb.
+            val nudge = FilterHitLogic.nudgeStep(FilterHitLogic.hitsToday(state.filterHits, now))
+            if (nudge > 0) {
+                Card {
+                    Text(
+                        FilterHitLogic.nudgeText(nudge),
+                        Modifier.padding(14.dp),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+            }
             FocusPacksCard(state, vpnRunning, onError = { flowError = it })
 
             // Update banner (direct-download track)

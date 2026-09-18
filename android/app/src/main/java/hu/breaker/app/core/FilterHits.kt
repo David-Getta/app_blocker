@@ -131,4 +131,21 @@ object FilterHitLogic {
 
     /** „21–22 óra” — a csúcs-óra felirata. */
     fun hourLabel(hour: Int): String = "$hour–${(hour + 1) % 24} óra"
+
+    // ------------------------------------------------------------ a sokadik
+
+    /**
+     * A SOKADIK megakadás lépcsői: ezeknél a mai számoknál egyszer szól a
+     * telefon, hogy egy munkamenet vagy egy rövid zárlat most segítene. Nem
+     * ítélet, és nem tilt semmit — egy lépést javasol, a döntés az emberé. A
+     * gépével azonos lista (a core-sync ellenőrző tartja együtt).
+     */
+    val NUDGE_STEPS = listOf(5, 10, 20)
+
+    /** A legmagasabb lépcső, amit a mai szám elért — 0, ha egyet sem. */
+    fun nudgeStep(today: Int, steps: List<Int> = NUDGE_STEPS): Int = steps.filter { today >= it }.maxOrNull() ?: 0
+
+    /** A javaslat mondata egy lépcsőnél. */
+    fun nudgeText(step: Int): String =
+        "Ma már $step megakadás a szűrőben. Egy munkamenet vagy egy rövid zárlat most segítene — te döntesz."
 }

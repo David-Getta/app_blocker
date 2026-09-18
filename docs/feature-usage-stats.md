@@ -438,6 +438,12 @@ tiltó lap az ötödiktől ugyanezt teszi hozzá a sorához. Nem tilt, nem íté
 a döntés az emberé. A heti mondat a csúcs-órát is mondja: „12 megakadás a
 böngészőben, a csúcs 21–22 óra.”
 
+A telefon ugyanígy javasol: Androidon a szolgáltatás az ötödik, tizedik és
+huszadik mai megakadásnál egyszer értesít („Ma már 5 megakadás a szűrőben…”,
+saját csatornán, hogy külön lehessen elnémítani), és a kezdőlap egy kártyán
+mondja a mondatot; iPhone-on a tunnel nem értesít — a kezdőlap mondja, amíg
+nyitva van. A lépcsők (5, 10, 20) a három magban azonosak (`check-core-sync`).
+
 A **hét alakja a megakadásokra** is megvan mindhárom statisztikán — ugyanaz
 a rajz, mint a mért időé és a meneteké, csak darabban: a gépen a böngésző
 könyve (`browserHitsDays` az állapotban, a források összeadva), a telefonon

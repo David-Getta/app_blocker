@@ -64,6 +64,8 @@ ts.pairing = read('desktop/src/shared/sync/pairing.ts');
 // A szűrő megakadásai csak a két telefonon élnek (a gépen a böngésző könyve más).
 kt.filterHits = read('android/app/src/main/java/hu/breaker/app/core/FilterHits.kt');
 sw.filterHits = read('ios/Shared/FilterHits.swift');
+// A sokadik megakadás lépcsői viszont közösek: a gépen a böngésző könyve adja.
+ts.browserHits = read('desktop/src/shared/browser-hits.ts');
 kt.pairing = read('android/app/src/main/java/hu/breaker/app/core/Pairing.kt');
 
 ts.limits = read('desktop/src/shared/limits.ts');
@@ -340,6 +342,12 @@ const CHECKS = [
     scalar(ts.pairing, /MAX_CODE_CHARS\s*=\s*([^;]+);/, 'ts'),
     scalar(kt.pairing, /MAX_CODE_CHARS[^=]*=\s*(.+)/, 'kt'),
     scalar(sw.pairing, /maxCodeChars[^=]*=\s*(.+)/, 'swift')],
+  // A SOKADIK megakadás lépcsői: ha a telefon máshol szólna, mint a gép, ugyanaz
+  // az ember két különböző „sokat” hallana.
+  ['HIT_NUDGE_STEPS',
+    list(ts.browserHits, /HIT_NUDGE_STEPS\s*=\s*\[([^\]]+)\]/, 'ts'),
+    list(kt.filterHits, /NUDGE_STEPS\s*=\s*listOf\(([^)]+)\)/, 'kt'),
+    list(sw.filterHits, /nudgeSteps:\s*\[Int\]\s*=\s*\[([^\]]+)\]/, 'swift')],
 ];
 
 // KÉT NYELV KÖZÖTT. Amit csak a gép és az Android tud (iPhone-on a bővítmény

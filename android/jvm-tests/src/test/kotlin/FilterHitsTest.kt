@@ -103,6 +103,19 @@ class FilterHitsTest {
             DigestLogic.text(base.copy(filterHits7d = 12, filterHitsPeak = 21 to 7)) { it })
     }
 
+    @Test fun `a sokadik megakadas - a lepcso es a mondat`() {
+        assertEquals(0, FilterHitLogic.nudgeStep(4), "négynél még nem szól")
+        assertEquals(5, FilterHitLogic.nudgeStep(5))
+        assertEquals(5, FilterHitLogic.nudgeStep(9), "a következő lépcsőig ugyanaz")
+        assertEquals(10, FilterHitLogic.nudgeStep(12))
+        assertEquals(20, FilterHitLogic.nudgeStep(250), "a legfelső lépcső fölött is a legfelső")
+        assertEquals(listOf(5, 10, 20), FilterHitLogic.NUDGE_STEPS)
+        assertEquals(
+            "Ma már 5 megakadás a szűrőben. Egy munkamenet vagy egy rövid zárlat most segítene — te döntesz.",
+            FilterHitLogic.nudgeText(5),
+        )
+    }
+
     @Test fun `a mondat es a mentes`() {
         val base = DigestLogic.Input(
             last7Seconds = 0.0, topWeekSites = emptyList(), weekOverWeek = emptyList(),

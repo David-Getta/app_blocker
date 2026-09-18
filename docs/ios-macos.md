@@ -49,7 +49,9 @@ munkamenet blobján szinkronizál. Lásd `docs/feature-partner-lock.md`.
 A **szűrő megakadásai**: a tunnel minden tiltott lekérdezésnél könyvel
 (hosztonként két percen belül egyszer; `Shared/FilterHits.swift`, `filterHits`
 az állapotban, harminc nap), a statisztika nehézség-sora és a heti mondat
-mondja („12 megakadás a szűrőben”). Tükör, nem ítélet; a fiókba nem megy.
+mondja („12 megakadás a szűrőben”); az ötödik, tizedik és huszadik mainál a
+kezdőlap egy lépést javasol — a tunnel nem értesít, a lap mondja, amíg nyitva
+van. Tükör, nem ítélet; a fiókba nem megy.
 Lásd `docs/feature-usage-stats.md`.
 
 A **heti visszatekintés** hétfő reggel: a mondat akkor születik, amikor az app

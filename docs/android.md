@@ -51,7 +51,9 @@ cd android
   könyvel (hosztonként két percen belül egyszer; `core/FilterHits.kt`,
   `filterHits` az állapotban, harminc nap), a statisztika nehézség-sora és a
   heti mondat mondja („12 megakadás a szűrőben”), és a szűrő értesítésének
-  sora a mait („· Ma 3 megakadás”). Tükör, nem ítélet; a fiókba nem megy.
+  sora a mait („· Ma 3 megakadás”); az ötödik, tizedik és huszadik mainál a
+  szolgáltatás egyszer egy lépést javasol (saját csatornán), a kezdőlap egy
+  kártyán. Tükör, nem ítélet; a fiókba nem megy.
   Lásd `docs/feature-usage-stats.md`.
 - A **kulcsszavak** (bármely oldalon, ha a cím tartalmazza) a zárlat
   kártyája alján **szerkeszthetők**: felvenni ingyen, levenni próbatétel

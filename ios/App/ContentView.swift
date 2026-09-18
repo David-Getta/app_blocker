@@ -60,6 +60,7 @@ struct ContentView: View {
                     protectionSection
                     focusSyncErrorBanner
                     focusRunningSection
+                    hitNudgeBanner
                     focusPacksSection
                     addSection
                     if let ses = store.state.session { resumeBanner(ses) }
@@ -378,6 +379,22 @@ struct ContentView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding()
                 .background(Color.red.opacity(0.11), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            }
+        }
+    }
+
+    /// A SOKADIK megakadás: az ötödik, tizedik, huszadik mai megakadásnál a lap
+    /// egy lépést javasol — nem tilt, nem ítél. iPhone-on a tunnel nem értesít;
+    /// a lap mondja, amíg nyitva van. A munkamenet gombjai egy kártyával lejjebb.
+    private var hitNudgeBanner: some View {
+        Group {
+            let step = FilterHitLogic.nudgeStep(FilterHitLogic.hitsToday(store.state.filterHits ?? [:], now: now))
+            if step > 0 {
+                Text(FilterHitLogic.nudgeText(step))
+                    .font(.footnote)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding()
+                    .background(Color.orange.opacity(0.11), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
             }
         }
     }
