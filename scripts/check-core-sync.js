@@ -81,6 +81,8 @@ kt.focus = read('android/app/src/main/java/hu/breaker/app/core/Focus.kt');
 sw.focus = read('ios/Shared/Focus.swift');
 // A böngésző-bővítmény a maga másolatával dolgozik: a felugró lap sorozat-küszöbe.
 const ext = { popupCore: read('extension/popup-core.js') };
+// A megakadások könyve is: a csúcs-nap ablaka és küszöbe, a javaslat első lépcsője.
+ext.hits = read('extension/hits.js');
 
 ts.digest = read('desktop/src/shared/digest.ts');
 kt.digest = read('android/app/src/main/java/hu/breaker/app/core/Digest.kt');
@@ -402,6 +404,18 @@ const EXT_PAIRS = [
   ['FOCUS_STREAK_MIN_DAYS',
     scalar(ts.focus, /FOCUS_STREAK_MIN_DAYS\s*=\s*([^;]+);/, 'ts'),
     scalar(ext.popupCore, /STREAK_MIN_DAYS\s*=\s*([^;]+);/, 'ext')],
+  // A csúcs-nap négy hete és a „ma van” küszöbe: a beállítás-lap és a tiltó lap a
+  // maga könyvéből számol — ha más ablakkal, mint az app, a két lap mást mondana.
+  ['PEAK_WEEKDAY_DAYS',
+    scalar(ts.browserHits, /PEAK_WEEKDAY_DAYS\s*=\s*([^;]+);/, 'ts'),
+    scalar(ext.hits, /PEAK_WEEKDAY_DAYS\s*=\s*([^;]+);/, 'ext')],
+  ['PEAK_DAY_MIN_COUNT',
+    scalar(ts.browserHits, /PEAK_DAY_MIN_COUNT\s*=\s*([^;]+);/, 'ts'),
+    scalar(ext.hits, /PEAK_DAY_MIN_COUNT\s*=\s*([^;]+);/, 'ext')],
+  // A sokadik megakadás első lépcsője: a tiltó lap a saját számlálójából javasol.
+  ['HIT_NUDGE_FIRST_STEP',
+    scalar(ts.browserHits, /HIT_NUDGE_STEPS\s*=\s*\[\s*(\d+)/, 'ts'),
+    scalar(ext.hits, /NUDGE_AT\s*=\s*([^;]+);/, 'ext')],
 ];
 
 /** Egy szám a két telefon-tükörből — aláhúzás és Kotlin-utótag nélkül. */
