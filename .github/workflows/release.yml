@@ -44,6 +44,17 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
+          **A menet-óra fedése.** Ha egy csomag heti ablaka már fedi a
+          menet-órát, a statisztika munkamenet-blokkja kimondja a gépen,
+          Androidon és iPhone-on: „A menet-órában magától indul: Nyelvtanulás (minden nap 9:00–10:00).”
+          — és gomb nincs. A heti mondat a szám mellett mondja:
+          „(6 menet, magától indul: Nyelvtanulás)”, és ha nem fedi semmi, de
+          lehetne rá ablakot tenni: „(6 menet, nincs rá ablak)”. Ha a
+          menet-óra a csúcs-óra, a csúcs sora mondja — kétszer ugyanazt nem.
+          A README, a weboldal és a doksik a menet-óra előjelzését is mondják.
+
+          ### Ami a v0.4.128-ban jött
+
           **Előjelzés a menet-óra előtt.** Tíz perccel a négy hét menet-órája
           előtt a gép, az Android és az iPhone naponta egyszer kimondja:
           „Mindjárt 9 óra — ilyenkor szoktál elkezdeni (6 menet négy hét alatt). Egy munkamenet most segítene — te döntesz.”
@@ -51,18 +62,13 @@ jobs:
           csúcs-óra és a menet-óra ugyanaz, csak a csúcs-óra szól; futó menet
           alatt semmi; három menet alatt nincs előjelzés.
 
-          ### Ami a v0.4.127-ben jött
+          #### Ami a v0.4.127-ben jött
 
           **A menet-óra ott is, ahol a döntés van.** A menet-órában a gépi
           kezdőlap kártyája és a réteg lába, a két telefon kezdőlapja
           kimondja: „Most a menet-órád van (9–10 óra, 6 menet) — ilyenkor szoktál elkezdeni.”
           — a menet gombjával; a felugró lap és a tiltó lap a gomb mellett:
           „Most a menet-órád van.” Bővítmény 0.4.30.
-
-          #### Ami a v0.4.126-ban jött
-
-          **A README és a weboldal a délután tükör-újdonságairól.** Kód nem
-          változott.
 
           NOTES
           fi
