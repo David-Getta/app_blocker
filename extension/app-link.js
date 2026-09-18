@@ -226,7 +226,9 @@ export function cleanSuggest(raw) {
   const focusHour = Number.isInteger(raw.focusHour) && raw.focusHour >= 0 && raw.focusHour <= 23 ? raw.focusHour : null;
   // LE VAN-E FEDVE a menet-óra: a csomag neve, amelynek ablaka fedi — kívülről jött szöveg, rövidre vágva.
   const focusHourPack = typeof raw.focusHourPack === 'string' && raw.focusHourPack ? raw.focusHourPack.slice(0, 40) : null;
-  return { packId: raw.packId, name: raw.name, minutes, peakHour, peakPack, focusDay, focusHourNow, focusHour, focusHourPack };
+  // AMIKOR A CSÚCS-ÓRA A MENET-ÓRA: az app mondja — csak a szó szerinti igaz számít.
+  const sameHour = raw.sameHour === true;
+  return { packId: raw.packId, name: raw.name, minutes, peakHour, peakPack, focusDay, focusHourNow, focusHour, focusHourPack, sameHour };
 }
 
 /**

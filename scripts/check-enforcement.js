@@ -1075,7 +1075,7 @@ const WIRES = [
   // LE VAN-E FEDVE a felugró lapon: a híd leadja a fedő csomagot, a lap kimondja.
   {
     file: 'desktop/src/main/main.ts',
-    needle: "peakPack: covering?.name ?? null, focusDay, focusHourNow, focusHour, focusHourPack };",
+    needle: "peakPack: covering?.name ?? null, focusDay, focusHourNow, focusHour, focusHourPack, sameHour };",
     lost: 'a híd nem adná le a csúcs-órát fedő csomagot — a felugró lap nem mondaná',
   },
   {
@@ -1383,6 +1383,17 @@ const WIRES = [
     file: 'ios/App/ContentView.swift',
     needle: 'FocusHourReminder.reschedule(peak: focusHourKey.isEmpty ? nil : focusHour, canStart:',
     lost: 'az iPhone nem ütemezné a menet-óra előjelzését',
+  },
+  // AMIKOR A CSÚCS-ÓRA A MENET-ÓRA a felugró lapon: a híd leadja, a lap kimondja.
+  {
+    file: 'desktop/src/main/main.ts',
+    needle: 'const sameHour = !!(fh && peak && fh.hour === peak.hour);',
+    lost: 'a híd nem adná le, hogy a csúcs-óra a menet-óra',
+  },
+  {
+    file: 'extension/popup.js',
+    needle: '+ sameHourText(link, Date.now(), CLOSED_FRESH_MS);',
+    lost: 'a felugró lap nem mondaná, hogy a csúcs-óra a menet-óra',
   },
   // EGY KOPPINTÁS az értesítésről az ablakig: az előjelzés második gombja a telefonokon.
   {

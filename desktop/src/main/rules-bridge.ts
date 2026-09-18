@@ -139,6 +139,11 @@ export interface BridgeSuggest {
    * a menet-óra a csúcs-óra (azt a csúcs-óra fedése mondja). Régi app nem küldi.
    */
   focusHourPack?: string | null;
+  /**
+   * AMIKOR A CSÚCS-ÓRA A MENET-ÓRA: a hét csúcs-órája és a négy hét
+   * menet-órája ugyanaz — a felugró lap a csúcs mondata után kimondja. Régi app nem küldi.
+   */
+  sameHour?: boolean;
 }
 
 /**

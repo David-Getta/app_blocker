@@ -66,6 +66,18 @@ export function peakCoverText(link, now, freshMs) {
 }
 
 /**
+ * AMIKOR A CSÚCS-ÓRA A MENET-ÓRA: az app mondja, hogy a hét csúcs-órája és a
+ * négy hét menet-órája ugyanaz — a lap a csúcs mondata után kimondja: a kéz
+ * akkor jár, amikor le szoktál ülni. Csak összekötve és friss válasz mellett.
+ */
+export function sameHourText(link, now, freshMs) {
+  if (!link || typeof link.token !== 'string' || !link.token) return '';
+  const fresh = Number.isFinite(link?.fetchedAt) && link.fetchedAt > 0 && now - link.fetchedAt <= freshMs;
+  if (!fresh || link?.suggest?.sameHour !== true) return '';
+  return ' Ez a menet-órád is: a kéz akkor jár, amikor le szoktál ülni.';
+}
+
+/**
  * LE VAN-E FEDVE a menet-óra: ha egy csomag heti ablaka fedi, a lap kimondja,
  * hogy a menet magától indul — a csúcs-óra fedésének tükre, az app szava.
  * Csak összekötve és friss válasz mellett; különben üres.
