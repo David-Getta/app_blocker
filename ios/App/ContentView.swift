@@ -359,7 +359,7 @@ struct ContentView: View {
             let windows = store.state.lockdownWindows ?? []
             ForEach(windows, id: \.id) { w in
                 HStack {
-                    Text("Heti ablak: \(recurrenceLabel(w.band))")
+                    Text("Heti ablak: \(recurrenceLabel(w.band))\(windowNextLabel(w.band, now: nowMs()))")
                         .font(.footnote).foregroundStyle(.secondary)
                     Spacer()
                     // Bővíteni ingyen, szűkíteni próbatétel — a bíró dönti el, melyik.
@@ -1028,4 +1028,22 @@ private func recurrenceLabel(_ b: ScheduleLogic.Band) -> String {
     else { days = [1, 2, 3, 4, 5, 6, 0].filter { set.contains($0) }.map { names[$0] }.joined(separator: ", ") }
     func hm(_ min: Int) -> String { String(format: "%02d:%02d", (min % 1440) / 60, min % 60) }
     return "\(days) \(hm(b.startMin))–\(hm(b.endMin))"
+}
+
+/// „ · az ablak most él (17:00-ig)” vagy „ · legközelebb holnap 09:00” — mint a
+/// gépen. Egy ablak, amiről nem tudni, mikor jön, nem megnyugtató, hanem meglepetés.
+private func windowNextLabel(_ b: ScheduleLogic.Band, now: Double) -> String {
+    guard let occ = Focus.nextOccurrence(b, now: now) else { return "" }
+    let clock = DateFormatter()
+    clock.dateFormat = "HH:mm"
+    if occ.startsAt <= now {
+        return " · az ablak most él (\(clock.string(from: Date(timeIntervalSince1970: occ.endsAt / 1000)))-ig)"
+    }
+    let cal = Calendar.current
+    let start = Date(timeIntervalSince1970: occ.startsAt / 1000)
+    let today = cal.startOfDay(for: Date(timeIntervalSince1970: now / 1000))
+    let dayDiff = cal.dateComponents([.day], from: today, to: cal.startOfDay(for: start)).day ?? 0
+    let names = ["vasárnap", "hétfő", "kedd", "szerda", "csütörtök", "péntek", "szombat"]
+    let day = dayDiff == 0 ? "ma" : dayDiff == 1 ? "holnap" : names[cal.component(.weekday, from: start) - 1]
+    return " · legközelebb \(day) \(clock.string(from: start))"
 }

@@ -721,7 +721,7 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(
-                                "Heti ablak: ${recurrenceLabel(w.band)}",
+                                "Heti ablak: ${recurrenceLabel(w.band)}${windowNextLabel(w.band, now)}",
                                 style = MaterialTheme.typography.bodySmall,
                                 modifier = Modifier.weight(1f),
                             )
@@ -2609,6 +2609,26 @@ private fun deviceName(): String {
 
 private fun fmtClock(ms: Long): String =
     java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date(ms))
+
+/**
+ * „ · az ablak most él (17:00-ig)” vagy „ · legközelebb holnap 09:00” — mint a
+ * gépen. Egy ablak, amiről nem tudni, mikor jön, nem megnyugtató, hanem meglepetés.
+ */
+private fun windowNextLabel(b: ScheduleLogic.Band, now: Long): String {
+    val occ = Focus.nextOccurrence(b, now) ?: return ""
+    if (occ.startsAt <= now) return " · az ablak most él (${fmtClock(occ.endsAt)}-ig)"
+    fun midnight(t: Long): Long = java.util.Calendar.getInstance().apply {
+        timeInMillis = t
+        set(java.util.Calendar.HOUR_OF_DAY, 0); set(java.util.Calendar.MINUTE, 0)
+        set(java.util.Calendar.SECOND, 0); set(java.util.Calendar.MILLISECOND, 0)
+    }.timeInMillis
+    val dayDiff = Math.round((midnight(occ.startsAt) - midnight(now)) / 86_400_000.0).toInt()
+    val names = listOf("vasárnap", "hétfő", "kedd", "szerda", "csütörtök", "péntek", "szombat")
+    val dow = java.util.Calendar.getInstance().apply { timeInMillis = occ.startsAt }
+        .get(java.util.Calendar.DAY_OF_WEEK) - 1
+    val day = when (dayDiff) { 0 -> "ma"; 1 -> "holnap"; else -> names[dow] }
+    return " · legközelebb $day ${fmtClock(occ.startsAt)}"
+}
 
 /** „H–P 09:00–12:00”, „minden nap 22:00–06:00”, „H, Sze, P 18:00–20:00” — mint a gépen. */
 private fun recurrenceLabel(b: ScheduleLogic.Band): String {
