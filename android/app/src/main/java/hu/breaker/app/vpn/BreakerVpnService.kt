@@ -328,6 +328,8 @@ class BreakerVpnService : VpnService() {
         channel: String = LOCKDOWN_CHANNEL_ID, channelName: String = "Zárlat-ablak",
         // EGY KOPPINTÁS az értesítésről a menetig: a javaslat gombja, ha van.
         action: Notification.Action? = null,
+        // EGY KOPPINTÁS az ablakig: a második gomb, ha az órára ablak tehető.
+        second: Notification.Action? = null,
     ) {
         val nm = getSystemService(NotificationManager::class.java)
         nm.createNotificationChannel(
@@ -343,7 +345,8 @@ class BreakerVpnService : VpnService() {
             .setStyle(Notification.BigTextStyle().bigText(text))
             .setContentIntent(pi)
             .setAutoCancel(true)
-        if (action != null) builder.setActions(action)
+        val actions = listOfNotNull(action, second)
+        if (actions.isNotEmpty()) builder.setActions(*actions.toTypedArray())
         nm.notify(id, builder.build())
     }
 
@@ -372,6 +375,29 @@ class BreakerVpnService : VpnService() {
     }
 
     /**
+     * EGY KOPPINTÁS az értesítésről az ablakig: az előjelzés második gombja
+     * heti ablakot tesz a legutóbbi csomagra az óra egy órájában, minden napra
+     * (`FocusWindowReceiver`) — ugyanazok a kapuk, mint a statisztika gombjánál,
+     * a jelöltet a mag dönti (`peakWindowPick`); ha nem tehető rá ablak, nincs gomb.
+     */
+    private fun windowAction(st: AppState, now: Long, hour: Int, notifId: Int, what: String): Notification.Action? {
+        val (pick, _) = Focus.peakWindowPick(st.focusPacks, st.focusLog, BreakerStore.runningFocus(now), hour, now) ?: return null
+        val intent = Intent(this, FocusWindowReceiver::class.java)
+            .setAction(FocusWindowReceiver.ACTION_WINDOW)
+            .putExtra(FocusWindowReceiver.EXTRA_PACK_ID, pick.id)
+            .putExtra(FocusWindowReceiver.EXTRA_HOUR, hour)
+            .putExtra(FocusWindowReceiver.EXTRA_NOTIF_ID, notifId)
+        val pi = PendingIntent.getBroadcast(
+            this, notifId + 100, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+        return Notification.Action.Builder(
+            Icon.createWithResource(this, android.R.drawable.ic_menu_my_calendar),
+            "Heti ablak a $what: ${pick.name}",
+            pi,
+        ).build()
+    }
+
+    /**
      * ELŐJELZÉS a csúcs-óra előtt: tíz perccel a hét csúcs-órája előtt egyszer
      * szólunk — a megakadások csatornáján, naponta egyszer. Tükör időzítéssel:
      * ilyenkor jár a kéz magától. Nem tilt, nem ítél; a mag mondja, mikor.
@@ -385,7 +411,10 @@ class BreakerVpnService : VpnService() {
         if (key == warnedPeakKey) return
         warnedPeakKey = key
         runCatching {
-            notifyOnce(NOTIF_PEAK_ID, "Mindjárt a csúcs-óra", FilterHitLogic.peakWarnText(peak), NUDGE_CHANNEL_ID, "Megakadások", startAction(st, now, NOTIF_PEAK_ID))
+            notifyOnce(
+                NOTIF_PEAK_ID, "Mindjárt a csúcs-óra", FilterHitLogic.peakWarnText(peak), NUDGE_CHANNEL_ID, "Megakadások",
+                startAction(st, now, NOTIF_PEAK_ID), windowAction(st, now, peak.first, NOTIF_PEAK_ID, "csúcs-órára"),
+            )
         }
             .onFailure { Log.w(TAG, "az előjelzés nem szólt: $it") }
     }
@@ -405,7 +434,10 @@ class BreakerVpnService : VpnService() {
         if (key == warnedFocusHourKey) return
         warnedFocusHourKey = key
         runCatching {
-            notifyOnce(NOTIF_FOCUS_HOUR_ID, "Mindjárt a menet-óra", Focus.hourWarnText(peak), NUDGE_CHANNEL_ID, "Megakadások", startAction(st, now, NOTIF_FOCUS_HOUR_ID))
+            notifyOnce(
+                NOTIF_FOCUS_HOUR_ID, "Mindjárt a menet-óra", Focus.hourWarnText(peak), NUDGE_CHANNEL_ID, "Megakadások",
+                startAction(st, now, NOTIF_FOCUS_HOUR_ID), windowAction(st, now, peak.first, NOTIF_FOCUS_HOUR_ID, "menet-órára"),
+            )
         }
             .onFailure { Log.w(TAG, "a menet-óra előjelzése nem szólt: $it") }
     }

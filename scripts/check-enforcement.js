@@ -1384,6 +1384,32 @@ const WIRES = [
     needle: 'FocusHourReminder.reschedule(peak: focusHourKey.isEmpty ? nil : focusHour, canStart:',
     lost: 'az iPhone nem ütemezné a menet-óra előjelzését',
   },
+  // EGY KOPPINTÁS az értesítésről az ablakig: az előjelzés második gombja a telefonokon.
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/vpn/BreakerVpnService.kt',
+    needle: 'windowAction(st, now, peak.first, NOTIF_PEAK_ID, "csúcs-órára")',
+    lost: 'az Android csúcs-óra előjelzésén nem lenne ablak-gomb',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/vpn/BreakerVpnService.kt',
+    needle: 'windowAction(st, now, peak.first, NOTIF_FOCUS_HOUR_ID, "menet-órára")',
+    lost: 'az Android menet-óra előjelzésén nem lenne ablak-gomb',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/vpn/FocusWindowReceiver.kt',
+    needle: 'Referee.addFocusWindow(packId, Focus.peakWindowBand(hour), now)',
+    lost: 'az Android ablak-gomb nem venné fel az ablakot',
+  },
+  {
+    file: 'ios/App/NoticeActions.swift',
+    needle: 'if response.actionIdentifier == Self.windowAction { Self.addWindow(userInfo: response.notification.request.content.userInfo) }',
+    lost: 'az iPhone ablak-gombja nem venné fel az ablakot',
+  },
+  {
+    file: 'ios/App/ContentView.swift',
+    needle: 'PeakReminder.reschedule(peak: peak, canStart: Focus.lastUsedPack(store.state.focusPacks ?? [], log: store.state.focusLog ?? []) != nil, window: peakWin)',
+    lost: 'az iPhone csúcs-óra előjelzése nem kapná meg az ablak jelöltjét',
+  },
   // AMIKOR A CSÚCS-ÓRA A MENET-ÓRA: a statisztika és a heti mondat kimondja mindhárom platformon.
   {
     file: 'desktop/src/renderer/renderer.ts',

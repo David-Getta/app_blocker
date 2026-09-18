@@ -725,7 +725,14 @@ sokadik megakadás és az előjelzés értesítésén „Munkamenet: Nyelvtanul�
 (`FocusStartReceiver`, a bíró indítja, egy rövid üzenet mondja, hogy
 elindult; futó menet vagy csomag nélkül nincs gomb). iPhone-on az előjelzés
 értesítésén „Munkamenet indítása” (`NoticeActions`, a kategória csak akkor
-kerül rá, ha van csomag; a gomb az appot is előhozza). A gyorsbillentyűs rétegben ugyanez: a legutóbb használt
+kerül rá, ha van csomag; a gomb az appot is előhozza). Az előjelzés
+értesítésén a második gomb az ablaké — egy koppintás az értesítésről az
+ablakig: Androidon „Heti ablak a csúcs-órára: Nyelvtanulás” (és a
+menet-óráé ugyanígy; `FocusWindowReceiver`, a bíró teszi fel, csak
+felvétel, a nem is látszik), iPhone-on „Heti ablak erre az órára” (a
+`NoticeActions` ablak-kategóriája; a csomag és az óra a kérésé, a sáv a
+magé) — csak ha az órára ablak tehető: a jelöltet a mag dönti
+(`peakWindowPick`), ugyanazokkal a kapukkal, mint a statisztika gombjánál. A gyorsbillentyűs rétegben ugyanez: a legutóbb használt
 csomag sorában egy gomb a szokásos hosszal (a választó nélkül), és a láb a
 sokadik megakadásnál a mondatot is mondja — a réteg a kísértés pillanatáé.
 

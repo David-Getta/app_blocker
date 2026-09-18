@@ -60,6 +60,12 @@
             android:name=".vpn.FocusStartReceiver"
             android:exported="false" />
 
+        <!-- EGY KOPPINTÁS az értesítésről az ablakig: az előjelzés második gombja
+             ide jön, és a bíró heti ablakot tesz a csomagra. Csak felvétel. -->
+        <receiver
+            android:name=".vpn.FocusWindowReceiver"
+            android:exported="false" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.updates"

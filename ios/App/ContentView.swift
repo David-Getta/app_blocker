@@ -166,18 +166,28 @@ struct ContentView: View {
             // Futó menet mellett sincs: a kérést visszavonja, a menet végén újra ütemezi.
             let quiet = store.state.quietSuggestions == true || store.runningFocus(now) != nil
             let peak = quiet ? nil : FilterHitLogic.peakHour(store.state.filterHitHours ?? [:], now: now)
-            let peakKey = peak.map { "\($0.hour):\($0.count)" } ?? ""
+            // EGY KOPPINTÁS az értesítésről az ablakig: a jelölt a magé (ugyanazok a kapuk,
+            // mint a statisztika gombjánál) — a kulcs része, hogy az ablak felvétele átütemezzen.
+            let peakWin: (packId: String, hour: Int)? = peak.flatMap { p in
+                Focus.peakWindowPick(store.state.focusPacks ?? [], log: store.state.focusLog ?? [], run: nil, peakHour: p.hour, now: now)
+                    .map { (packId: $0.pack.id, hour: p.hour) }
+            }
+            let peakKey = peak.map { "\($0.hour):\($0.count):\(peakWin?.packId ?? "-")" } ?? ""
             if peakKey != peakScheduled {
                 peakScheduled = peakKey
-                PeakReminder.reschedule(peak: peak, canStart: Focus.lastUsedPack(store.state.focusPacks ?? [], log: store.state.focusLog ?? []) != nil)
+                PeakReminder.reschedule(peak: peak, canStart: Focus.lastUsedPack(store.state.focusPacks ?? [], log: store.state.focusLog ?? []) != nil, window: peakWin)
             }
             // Az előjelzés a menet-óra előtt: a csúcs-óra előjelzésének tükre — ha a
             // menet-óra nem a csúcs-óra (kétszer ugyanazt nem); csendben és futó menet mellett nincs.
             let focusHour = quiet ? nil : Focus.peakHour(Focus.byHour(store.state.focusLog ?? [], now: now))
-            let focusHourKey = focusHour.map { $0.hour == peak?.hour ? "" : "\($0.hour):\($0.count)" } ?? ""
+            let focusWin: (packId: String, hour: Int)? = focusHour.flatMap { f in
+                Focus.peakWindowPick(store.state.focusPacks ?? [], log: store.state.focusLog ?? [], run: nil, peakHour: f.hour, now: now)
+                    .map { (packId: $0.pack.id, hour: f.hour) }
+            }
+            let focusHourKey = focusHour.map { $0.hour == peak?.hour ? "" : "\($0.hour):\($0.count):\(focusWin?.packId ?? "-")" } ?? ""
             if focusHourKey != focusHourScheduled {
                 focusHourScheduled = focusHourKey
-                FocusHourReminder.reschedule(peak: focusHourKey.isEmpty ? nil : focusHour, canStart: Focus.lastUsedPack(store.state.focusPacks ?? [], log: store.state.focusLog ?? []) != nil)
+                FocusHourReminder.reschedule(peak: focusHourKey.isEmpty ? nil : focusHour, canStart: Focus.lastUsedPack(store.state.focusPacks ?? [], log: store.state.focusLog ?? []) != nil, window: focusWin)
             }
             // A heti napló sora. Értesítés itt nincs (a bővítmény nem adhat, az
             // app nem fut a háttérben); a sor akkor íródik, amikor az app azon

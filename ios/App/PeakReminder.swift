@@ -12,7 +12,7 @@ enum PeakReminder {
     static let id = "hits:peak"
 
     /// A `canStart` a gomb: van-e csomag, amit a koppintás indíthat — üres ígéret helyett nincs gomb.
-    static func reschedule(peak: (hour: Int, count: Int)?, canStart: Bool = false) {
+    static func reschedule(peak: (hour: Int, count: Int)?, canStart: Bool = false, window: (packId: String, hour: Int)? = nil) {
         let center = UNUserNotificationCenter.current()
         guard let peak, peak.count >= FilterHitLogic.peakWarnMinCount else {
             center.removePendingNotificationRequests(withIdentifiers: [id])
@@ -30,6 +30,11 @@ enum PeakReminder {
             content.sound = .default
             // EGY KOPPINTÁS az értesítésről a menetig: a gomb a legutóbbi csomagot indítja.
             if canStart { content.categoryIdentifier = NoticeActions.category }
+            // EGY KOPPINTÁS az ablakig: ha az órára ablak tehető, a második gomb is ott van — a csomag és az óra a kérésé.
+            if let window {
+                content.categoryIdentifier = NoticeActions.categoryWithWindow
+                content.userInfo = [NoticeActions.packIdKey: window.packId, NoticeActions.hourKey: window.hour]
+            }
             let trigger = UNCalendarNotificationTrigger(dateMatching: when, repeats: true)
             center.add(UNNotificationRequest(identifier: id, content: content, trigger: trigger))
         }
