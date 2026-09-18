@@ -44,29 +44,28 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **Párban zárolás: a lazítás végén a megbízott jelmondata.**
-          Kiválasztasz egy megbízottat — társ, barát, szülő —, az app sorsol
-          neki egy négyszavas jelmondatot (egyszer látszik, csak a lenyomata
-          marad), és innentől minden lazító próbatétel utolsó lépése az, hogy
-          ő beírja: a munka a tiéd, az utolsó szó az övé. Felvenni ingyen;
-          levenni próbatétel, a végén az ő jelmondatával; ötször rossz
-          jelmondat után a kísérlet elölről kezdődik. Mindhárom platformon, a
-          fiókon át a többi eszközre is átér; a böngésző tiltó lapja, a
-          felugró lap és a gyorsbillentyűs réteg a kísértés pillanatában
-          kimondja, hogy a feloldás útja az ő jelmondatával ér véget.
-          Őszintén: nem gépzár, és ha a jelmondat elvész, a megbízottat nem
+          **A félbemaradt kísérletek is a visszatekintésben.** A hétfői
+          mondat eddig a feloldásokat mondta; most azt is, hányszor indult el
+          a lazítás, és nem ért végig — feladva, lejárva, lecsúszva az
+          átvételről, elszállva, vagy egy új kísérlettel újraindítva:
+          „3 feloldás, 2 félbemaradt kísérlet.” — vagy
+          „Feloldás nélkül, 2 félbemaradt kísérlet.” A bíró egy helyen
+          könyveli, harminc napig, mindhárom platformon; a gépen a
+          próbatétel-nehézség sora is mondja. Tükör, nem ítélet.
+
+          ### Ami a v0.4.45-ben jött
+
+          **Párban zárolás: a lazítás végén a megbízott jelmondata.** Egy
+          megbízott — társ, barát, szülő — négyszavas jelmondatot kap, és
+          minden lazító próbatétel utolsó lépése az, hogy ő beírja. Felvenni
+          ingyen; levenni próbatétel, a végén az ő jelmondatával. Mindhárom
+          platformon, a fiókon át; a böngésző tiltó lapja és a réteg is
+          kimondja. Nem gépzár, és ha a jelmondat elvész, a megbízottat nem
           lehet levenni.
 
-          ### Ami a v0.4.44-ben jött
+          #### Ami a v0.4.44-ben jött
 
-          **A gépen a heti napló sorát a segéd írja — az app nélkül is.** A
-          hétfői értesítés a futó appé, a napló könyvelés: a mindig futó segéd
-          írja hétfő reggel héttől.
-
-          #### Ami a v0.4.43-ban jött
-
-          **Heti napló iPhone-on is** — értesítés nélkül, kimondva: az élő
-          mondat és a hét sora az app megnyitásakor, a Swift-tükörrel.
+          **A gépen a heti napló sorát a segéd írja — az app nélkül is.**
 
           NOTES
           fi
