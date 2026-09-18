@@ -79,11 +79,17 @@ lehetne, a bővítmény lenne a legolcsóbb kiskapu az egész appban.
 
 Amíg az app nincs nyitva, a legutóbb letöltött lista marad érvényben — vagyis
 **tovább tilt**, nem enged át. A híd csak a saját gépen belül él (`127.0.0.1`),
-kóddal védett, és **csak olvas**: ezen az úton semmit nem lehet feloldani.
+kóddal védett, és a lazítás irányában **zárt**: ezen az úton semmit nem lehet
+feloldani. Befelé két út van, mindkettő szigorítás: a megakadás-könyv
+(`POST /hits`) és a menet indítása a felugró lapról (`POST /focus_start` — a
+bíró dönt róla, mint az app gombjánál).
 
 ### A felugró lap (az ikonra kattintva)
 
-Egy pillantás, módosítás nélkül: összekötve van-e az app és mennyire friss,
+Egy pillantás — és egy gomb: „Munkamenet: Nyelvtanulás, 25 perc” indítja az
+app javasolt csomagját (a legutóbb használtat a szokásos hosszával) a hídon;
+futó menet mellett nincs gomb, elavult válasz mellett sem. Minden más csak
+olvas: összekötve van-e az app és mennyire friss,
 amit tud; fut-e munkamenet (név, hátralévő idő, hány cím engedett — és ha a
 heti ablak szerint indult, azt is kimondja, mert aki nem maga indította, nem
 tudná, miért fut); mi van

@@ -4,8 +4,8 @@
 // tárolt kapcsolat-állapotot töltjük be és kirakjuk. A Beállítások gomb a
 // beállítási lapra visz — minden, ami módosítás, ott van, itt semmi.
 
-import { CLOSED_FRESH_MS, loadLink } from './app-link.js';
-import { describePopup } from './popup-core.js';
+import { CLOSED_FRESH_MS, loadLink, pullFromApp, startFocusInApp } from './app-link.js';
+import { describePopup, suggestButton } from './popup-core.js';
 import { dayKey, hitsSummary, hitsText, peakNow, peakText, topHost } from './hits.js';
 
 const $ = (id) => document.getElementById(id);
@@ -41,6 +41,15 @@ async function render() {
       + `${d.focus.allowed} cím engedve, minden más tiltva.`
       + (d.focus.window ? ' A heti ablak szerint indult; a vége az ablak vége.' : '');
   }
+
+  // EGY KATTINTÁS a menetig: a javasolt csomag az appból — a gomb csak friss
+  // válasz mellett és futó menet nélkül. Szigorítás, ingyen; a bíró dönt.
+  const sb = suggestButton(link, Date.now(), CLOSED_FRESH_MS);
+  const startBtn = $('startFocus');
+  startBtn.hidden = sb === null;
+  startBtn.textContent = sb ? sb.text : '';
+  startBtn.dataset.packId = sb ? sb.packId : '';
+  startBtn.dataset.minutes = sb ? String(sb.minutes) : '';
 
   const box = $('closedBox');
   const list = $('closedList');
@@ -83,6 +92,25 @@ async function render() {
 $('openOptions').addEventListener('click', () => {
   chrome.runtime.openOptionsPage?.();
   window.close();
+});
+
+// A MENET indítása a hídon, aztán friss lehúzás: a lap a futó menetet mutatja,
+// nem egy gombot, ami már nem igaz. A bíró nemje a gomb alatt olvasható.
+$('startFocus').addEventListener('click', async () => {
+  const btn = $('startFocus');
+  const note = $('startFocusNote');
+  const packId = btn.dataset.packId || '';
+  const minutes = Number(btn.dataset.minutes || '0');
+  if (!packId || !Number.isInteger(minutes) || minutes <= 0) return;
+  btn.disabled = true;
+  const r = await startFocusInApp(packId, minutes);
+  btn.disabled = false;
+  note.hidden = r.ok;
+  note.textContent = r.ok ? '' : `Nem indult el: ${r.error}`;
+  if (r.ok) {
+    try { await pullFromApp(); } catch { /* a következő kör úgyis lehúzza */ }
+    await render();
+  }
 });
 
 void render();

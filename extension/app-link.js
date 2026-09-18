@@ -182,6 +182,8 @@ export async function loadLink() {
     partner: cleanPartner(raw.partner),
     // A kulcsszavak — a mag szűrőjén át, mint minden más.
     keywords: cleanKeywords(raw.keywords),
+    // A JAVASOLT csomag: amit a felugró lap egy kattintással indíthat.
+    suggest: cleanSuggest(raw.suggest),
     // Rekordonként tűrünk: egy sérült bejegyzés ne vigye el a többit.
     rules: rules.filter((r) => r && typeof r.host === 'string' && typeof r.path === 'string')
       .map((r) => ({ host: r.host, path: r.path })),
@@ -201,6 +203,15 @@ export async function loadLink() {
 
 async function saveLink(link) {
   await chrome.storage.local.set({ [KEY]: link });
+}
+
+/** A javasolt csomag tisztán: { packId, name, minutes } — vagy null. Régi app válaszában nincs, az sem hiba. */
+export function cleanSuggest(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const minutes = Number(raw.minutes);
+  if (typeof raw.packId !== 'string' || !raw.packId || typeof raw.name !== 'string' || !raw.name) return null;
+  if (!Number.isInteger(minutes) || minutes <= 0) return null;
+  return { packId: raw.packId, name: raw.name, minutes };
 }
 
 /**
@@ -303,13 +314,15 @@ export async function pullFromApp(now = Date.now(), fetchImpl = fetch, timeoutMs
     const partner = cleanPartner(body?.partner);
     // A kulcsszavak — régi app válaszában nincs, az sem hiba: üres lista.
     const keywords = cleanKeywords(body?.keywords);
+    // A javasolt csomag — régi app válaszában nincs, az sem hiba: nincs gomb.
+    const suggest = cleanSuggest(body?.suggest);
     // Az ÜRES lista is válasz: azt jelenti, hogy az appban levették az összeset.
     // Csak akkor fogadjuk el, ha a kérés tényleg sikerült — ha nem érjük el az
     // appot, a régi lista marad érvényben.
     await saveLink({
-      ...link, port, rules, focus, channels, closed, lockdown, notes, partner, keywords, fetchedAt: now, error: null,
+      ...link, port, rules, focus, channels, closed, lockdown, notes, partner, keywords, suggest, fetchedAt: now, error: null,
     });
-    return { ok: true, rules, focus, channels, closed, lockdown, notes, partner, keywords };
+    return { ok: true, rules, focus, channels, closed, lockdown, notes, partner, keywords, suggest };
   }
 
   // A PRÓBA idejét megjegyezzük, a szabálylistát viszont nem bántjuk: az app
@@ -355,6 +368,36 @@ export async function pushHits(report, now = Date.now(), fetchImpl = fetch, time
     return { ok: false, error: String(err?.message ?? err) };
   }
   await chrome.storage.local.set({ [HITS_SENT_KEY]: { source, key, at: now } });
+  return { ok: true };
+}
+
+/**
+ * EGY KATTINTÁS a felugró lapról a menetig: a javasolt csomag indítása az
+ * appban, a hídon, a kóddal — szigorítás, ingyen. Ugyanarra a portra, ahol az
+ * app utoljára válaszolt. A bíró nemje (futó menet, ismeretlen csomag) a
+ * válaszban jön vissza, nem hálózati hibaként.
+ */
+export async function startFocusInApp(packId, minutes, fetchImpl = fetch, timeoutMs = PORT_TIMEOUT_MS) {
+  const link = await loadLink();
+  if (!link.token || !link.port) return { ok: false, error: 'Nincs összekötve.' };
+  const ctrl = typeof AbortController === 'function' ? new AbortController() : null;
+  try {
+    const res = await withTimeout(fetchImpl(`http://127.0.0.1:${link.port}/focus_start`, {
+      method: 'POST',
+      headers: { [TOKEN_HEADER]: link.token, 'content-type': 'application/json' },
+      body: JSON.stringify({ packId, minutes }),
+      cache: 'no-store',
+      ...(ctrl ? { signal: ctrl.signal } : {}),
+    }), timeoutMs);
+    if (!res.ok) {
+      let msg = `Az app hibát adott (${res.status}).`;
+      try { const b = await withTimeout(res.json(), timeoutMs); if (typeof b?.error === 'string' && b.error) msg = b.error; } catch { /* a státusz marad */ }
+      return { ok: false, error: msg };
+    }
+  } catch (err) {
+    if (ctrl) ctrl.abort();
+    return { ok: false, error: String(err?.message ?? err) };
+  }
   return { ok: true };
 }
 

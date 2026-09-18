@@ -56,6 +56,14 @@ const FAKE_CHROME = `
   window.fetch = async (url, init) => {
     // Sima összehasonlítás, nem reguláris kifejezés: ez a szöveg egy
     // sablonliterálban utazik, és ott a fordított perjelek elvesznének.
+    // A MENET indítása a hídon: a hamis app feljegyzi, mit kért a lap.
+    if (String(url) === 'http://127.0.0.1:8788/focus_start' && init?.method === 'POST') {
+      if (init?.headers?.['x-breaker-token'] !== 'JOKOD') {
+        return { ok: false, status: 401, json: async () => ({ error: 'rossz kód' }) };
+      }
+      window.__started = JSON.parse(init.body || '{}');
+      return { ok: true, status: 200, json: async () => ({ ok: true }) };
+    }
     if (String(url) !== 'http://127.0.0.1:8788/rules') throw new Error('ECONNREFUSED');
     if (init?.headers?.['x-breaker-token'] !== 'JOKOD') {
       return { ok: false, status: 401, json: async () => ({ error: 'rossz kód' }) };
@@ -226,6 +234,29 @@ async function main() {
   const opened = await page.evaluate(() => [window.__optionsOpened, window.__closed === true]);
   if (opened[0] !== 1) failures.push('a Beállítások gomb nem nyitja a beállításokat');
   if (!opened[1]) failures.push('a Beállítások gomb után a felugró lap nyitva maradt');
+  // Futó menet mellett nincs menet-gomb: egyszerre egy menet fut.
+  if (!(await page.locator('#startFocus').isHidden())) failures.push('futó menet mellett is ott a menet gombja a felugró lapon');
+
+  // EGY KATTINTÁS a felugró lapról a menetig: menet nélkül, az app javaslatával
+  // a gomb az app szövegével áll, és a kattintás a hídon indít — a kóddal.
+  await page.addInitScript(`
+    window.__disk['breaker.applink'] = {
+      token: 'JOKOD', port: 8788, rules: [], channels: [], closed: [],
+      focus: { running: false },
+      suggest: { packId: 'pack_2', name: 'Mély munka', minutes: 90 },
+      fetchedAt: Date.now(), attemptedAt: Date.now(), error: null,
+    };
+  `);
+  await page.goto(`http://127.0.0.1:${port}/popup.html`);
+  await page.waitForFunction(
+    () => document.getElementById('startFocus')?.textContent === 'Munkamenet: Mély munka, 90 perc'
+      && !document.getElementById('startFocus')?.hidden,
+    undefined, { timeout: 10_000 },
+  ).catch(() => failures.push('a felugró lap menet-gombja nem az app javaslatát mondja'));
+  await page.locator('#startFocus').click().catch(() => failures.push('a menet gombja nem kattintható'));
+  await page.waitForFunction(() => window.__started && window.__started.packId === 'pack_2' && window.__started.minutes === 90,
+    undefined, { timeout: 10_000 },
+  ).catch(() => failures.push('a menet gombja nem a hídon indított, a javasolt csomaggal és perccel'));
 
   await browser.close();
   server.close();

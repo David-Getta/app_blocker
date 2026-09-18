@@ -42,9 +42,43 @@ test('the code survives being copied by hand', async () => {
   assert.equal(tokenMatches('ABCD-EFGH', 'ABCD-EFGX'), false);
 });
 
+test('a menet indítása a hídról: a kóddal, csomaggal és perccel — a bíró nemje válasz, nem hiba', async () => {
+  const started: { packId: string; minutes: number }[] = [];
+  let refuse: string | null = null;
+  const d = {
+    ...deps(),
+    getSuggest: async () => ({ packId: 'pack_1', name: 'Nyelvtanulás', minutes: 25 }),
+    startFocus: async (packId: string, minutes: number) => {
+      if (refuse) throw new Error(refuse);
+      started.push({ packId, minutes });
+    },
+  };
+  const rules = await answer(d, 'GET', '/rules', { [TOKEN_HEADER]: 'ABCD-EFGH' });
+  assert.deepEqual((rules.body as { suggest: unknown }).suggest, { packId: 'pack_1', name: 'Nyelvtanulás', minutes: 25 },
+    'a javasolt csomag a szabályokkal együtt megy le');
+  const ok = await answer(d, 'POST', '/focus_start', { [TOKEN_HEADER]: 'ABCD-EFGH' }, { packId: 'pack_1', minutes: 25 });
+  assert.equal(ok.status, 200);
+  assert.deepEqual(started, [{ packId: 'pack_1', minutes: 25 }]);
+  assert.equal((await answer(d, 'POST', '/focus_start', { [TOKEN_HEADER]: 'ROSSZ' }, { packId: 'pack_1', minutes: 25 })).status, 401,
+    'kód nélkül nem indul');
+  for (const bad of [{}, { packId: '', minutes: 25 }, { packId: 'pack_1', minutes: 0 }, { packId: 'pack_1', minutes: 2.5 }, { packId: 'pack_1' }]) {
+    assert.equal((await answer(d, 'POST', '/focus_start', { [TOKEN_HEADER]: 'ABCD-EFGH' }, bad)).status, 400, JSON.stringify(bad));
+  }
+  refuse = 'Már fut egy menet.';
+  const no = await answer(d, 'POST', '/focus_start', { [TOKEN_HEADER]: 'ABCD-EFGH' }, { packId: 'pack_1', minutes: 25 });
+  assert.equal(no.status, 409);
+  assert.equal((no.body as { error: string }).error, 'Már fut egy menet.');
+  assert.equal(started.length, 1, 'a nem után nem indult új');
+  const old = await answer(deps(), 'POST', '/focus_start', { [TOKEN_HEADER]: 'ABCD-EFGH' }, { packId: 'pack_1', minutes: 25 });
+  assert.equal(old.status, 404, 'indító nélkül a végpont nincs');
+  assert.equal((await answer(deps(), 'GET', '/rules', { [TOKEN_HEADER]: 'ABCD-EFGH' })).body && true, true);
+});
+
 test('nothing can be changed through this bridge', async () => {
-  // Csak GET, és csak egy útvonal. Egy írható végpont itt azt jelentené, hogy a
-  // bővítményből — vagy bármi másból, ami a kódot ismeri — fel lehetne oldani.
+  // Csak GET a szabályokra, és befelé csak két út: a megakadás-könyv és a menet
+  // INDÍTÁSA — mindkettő a lazítás irányában zárt. Egy feloldó végpont itt azt
+  // jelentené, hogy a bővítményből — vagy bármi másból, ami a kódot ismeri —
+  // fel lehetne oldani.
   const d = deps();
   for (const method of ['POST', 'PUT', 'DELETE', 'PATCH']) {
     const r = await answer(d, method, '/rules', { [TOKEN_HEADER]: 'ABCD-EFGH' });

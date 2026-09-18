@@ -578,6 +578,45 @@ test('a megakadások átmennek az appnak — egyszer, amíg nem változnak; port
   assert.equal(again.source, body.source, 'a forrás azonosítója állandó');
 });
 
+test('a menet indítása a hídon: a kóddal, a megjegyzett portra; a bíró nemje a válaszból; port nélkül nem', async () => {
+  type Init = { method?: string; headers: Record<string, string>; body?: string };
+  type Start = (packId: string, minutes: number, fetchImpl: unknown) => Promise<{ ok: boolean; error?: string }>;
+  type Clean = (raw: unknown) => { packId: string; name: string; minutes: number } | null;
+  const ext = freshLink() as LinkApi & { startFocusInApp: Start; cleanSuggest: Clean };
+  const posts: { url: string; init: Init }[] = [];
+  let refuse: string | null = null;
+  const app = async (url: string, init: Init) => {
+    if (init.method === 'POST') {
+      posts.push({ url, init });
+      return refuse
+        ? { ok: false, status: 409, json: async () => ({ error: refuse }) }
+        : { ok: true, status: 200, json: async () => ({ ok: true }) };
+    }
+    return fakeApp(8788, 'ABCD-EFGH', [])(url, init);
+  };
+  await ext.setToken('ABCD-EFGH');
+  assert.equal((await ext.startFocusInApp('pack_1', 25, app)).ok, false, 'port nélkül (még nem volt lehúzás) nem megy');
+  assert.equal((await ext.pullFromApp(1000, app)).ok, true);
+  assert.deepEqual(await ext.startFocusInApp('pack_1', 25, app), { ok: true });
+  assert.equal(posts[0].url, 'http://127.0.0.1:8788/focus_start');
+  assert.equal(posts[0].init.headers['x-breaker-token'], 'ABCD-EFGH');
+  assert.deepEqual(JSON.parse(posts[0].init.body ?? '{}'), { packId: 'pack_1', minutes: 25 });
+  refuse = 'Már fut egy menet.';
+  assert.deepEqual(await ext.startFocusInApp('pack_1', 25, app), { ok: false, error: 'Már fut egy menet.' }, 'a bíró nemje szöveggel');
+  assert.deepEqual(ext.cleanSuggest({ packId: 'p', name: 'N', minutes: 25 }), { packId: 'p', name: 'N', minutes: 25 });
+  assert.equal(ext.cleanSuggest({ packId: 'p', name: 'N', minutes: 0 }), null);
+  assert.equal(ext.cleanSuggest({ packId: '', name: 'N', minutes: 25 }), null);
+  assert.equal(ext.cleanSuggest(undefined), null, 'régi app válasza: nincs javaslat');
+  // A javaslat a lehúzással jön és a linkben marad.
+  const withSuggest = async (url: string, init: Init) => {
+    const r = await fakeApp(8788, 'ABCD-EFGH', [])(url, init);
+    return { ...r, json: async () => ({ ...(await r.json()), suggest: { packId: 'p2', name: 'Mély munka', minutes: 90 } }) };
+  };
+  assert.equal((await ext.pullFromApp(2000, withSuggest)).ok, true);
+  assert.deepEqual(((await ext.loadLink()) as unknown as { suggest: unknown }).suggest,
+    { packId: 'p2', name: 'Mély munka', minutes: 90 });
+});
+
 test('egy RÉGI app válasza (channels mező nélkül) üres listát ad, nem hibát', async () => {
   const ext = freshLink();
   await ext.setToken('ABCD-EFGH');

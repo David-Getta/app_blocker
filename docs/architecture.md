@@ -248,6 +248,20 @@ A helper root/SYSTEM jogú, ezért a vele kommunikáló helyi socketet szűkítj
 - **Windows:** named pipe, ami eleve helyi; egyedi DACL beállítása natív kód
   nélkül nem megoldható, ezért ez ismert korlát (a jövőben szűkíthető).
 
+### A böngésző-híd: kifelé olvas, befelé csak szigorít
+
+A gép és a böngésző-bővítmény között egy helyi HTTP-híd él (`127.0.0.1`,
+`desktop/src/main/rules-bridge.ts`), kóddal védve (`x-breaker-token`), CORS
+nélkül — egy weboldal nem éri el, a bővítmény a `host_permissions` jogán igen.
+Kifelé (`GET /rules`) a szabályok, a futó menet, a csatorna-szűrők, a zárva-lista,
+a zárlat, az indokok, a megbízott, a kulcsszavak és a javasolt csomag mennek.
+Befelé két út van, és mindkettő a lazítás irányában zárt: a megakadás-könyv
+(`POST /hits` — könyvelés, bíró nélkül) és a menet indítása a felugró lapról
+(`POST /focus_start` — szigorítás; a segéd bírója dönt, ugyanúgy, mint az app
+gombjánál: futó menet mellett nem indul, ismeretlen csomag nem indul).
+Feloldó végpont nincs, és nem is lesz: aki a kódot ismeri, legfeljebb
+szigoríthat.
+
 ### Önteszt: a tiltás tényleg érvényesül-e
 
 A „Védelem aktív” sokáig csak azt jelentette, hogy a segéd fut és beírta a

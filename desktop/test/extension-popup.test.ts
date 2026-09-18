@@ -36,11 +36,12 @@ interface Popup {
   spanText: (ms: number) => string;
   agoText: (ms: number) => string;
   CLOSED_SHOWN: number;
+  suggestButton: (link: unknown, now: number, freshMs: number) => { packId: string; minutes: number; text: string } | null;
 }
 
 function load(): Popup {
   const src = fs.readFileSync(path.join(extensionDir(), 'popup-core.js'), 'utf8').replace(/^export /gm, '');
-  return new Function(`${src}\nreturn { describePopup, spanText, agoText, CLOSED_SHOWN };`)() as Popup;
+  return new Function(`${src}\nreturn { describePopup, spanText, agoText, CLOSED_SHOWN, suggestButton };`)() as Popup;
 }
 
 const NOW = 1_800_000_000_000;
@@ -185,6 +186,19 @@ test('zárlat: összekötve és tart — a sor beszél; lejárt vagy összeköte
 
   const unlinked = describePopup(link({ token: '', lockdown: { until: NOW + 3600_000 } }), NOW, FRESH);
   assert.equal(unlinked.lockdown, null, 'összekötetlenül nem beszélünk az app állapotáról');
+});
+
+test('a menet gombja: friss válasz, javaslat és futó menet nélkül — a szöveg az appé', () => {
+  const { suggestButton } = load();
+  const s = { packId: 'pack_1', name: 'Nyelvtanulás', minutes: 25 };
+  assert.deepEqual(suggestButton(link({ suggest: s }), NOW, FRESH),
+    { packId: 'pack_1', minutes: 25, text: 'Munkamenet: Nyelvtanulás, 25 perc' });
+  assert.equal(suggestButton(link({}), NOW, FRESH), null, 'javaslat nélkül nincs gomb');
+  assert.equal(suggestButton(link({ suggest: s, fetchedAt: NOW - 10 * 60_000 }), NOW, FRESH), null, 'elavult válasz mellett nincs');
+  assert.equal(suggestButton(link({ suggest: s, focus: { running: true, name: 'X', endsAt: NOW + 60_000, allowSites: [] } }), NOW, FRESH),
+    null, 'futó menet mellett nincs: egyszerre egy menet fut');
+  assert.equal(suggestButton(link({ suggest: { packId: 'p', name: 'N', minutes: 0 } }), NOW, FRESH), null, 'nulla perc nem menet');
+  assert.equal(suggestButton(link({ suggest: s, token: null }), NOW, FRESH), null, 'összekötetlenül nincs gomb');
 });
 
 test('idő-szöveg napokban: a hetes zárlat nem „kb. 168 ó”', () => {

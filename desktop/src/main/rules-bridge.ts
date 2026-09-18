@@ -101,6 +101,17 @@ export interface BridgeFocus {
 }
 
 /**
+ * A JAVASOLT csomag: amit a felugró lap egy kattintással indíthat — a
+ * legutóbb használt (napló nélkül az első) a szokásos hosszával, ahogy a
+ * segéd választja. Null, ha nincs csomag, vagy menet fut (egyszerre egy).
+ */
+export interface BridgeSuggest {
+  packId: string;
+  name: string;
+  minutes: number;
+}
+
+/**
  * Crockford base32 kód, négyes csoportokban.
  *
  * Ugyanaz az ábécé, mint a párosító kódnál: nincs benne I, L, O és U, mert
@@ -154,6 +165,13 @@ export interface BridgeDeps {
    * heti mondat és a statisztika sora mondja.
    */
   putHits?: (source: string, days: unknown[]) => Promise<void>;
+  /** a javasolt csomag a felugró lapnak — null, ha nincs mit indítani */
+  getSuggest?: () => Promise<BridgeSuggest | null>;
+  /**
+   * A MÁSODIK befelé menő út: a menet indítása a felugró lapról. Csak
+   * SZIGORÍTÁS jöhet be — a bíró dönt, a bővítmény nem vehet le semmit.
+   */
+  startFocus?: (packId: string, minutes: number) => Promise<void>;
   token: string;
   /** csak teszthez: melyik portról induljon */
   startPort?: number;
@@ -187,9 +205,27 @@ export async function answer(
   headers: Record<string, unknown>, body?: unknown,
 ): Promise<{ status: number; body: unknown }> {
   const path = (url ?? '').split('?')[0];
-  // Az EGYETLEN befelé menő út: a megakadás-könyv. Ugyanaz a kód nyitja, mint
-  // a szabályokat — és csak könyvelés jön rajta, szabály soha: a bővítmény
-  // nem vehet le és nem tehet fel semmit az appban.
+  // BEFELÉ két út van, és mindkettő a lazítás irányában zárt. A megakadás-könyv:
+  // csak könyvelés jön rajta, szabály soha. És a menet indítása: szigorítás
+  // — a bíró dönt róla, ugyanúgy, mint az app gombjánál; a bővítmény nem vehet
+  // le és nem tehet fel semmit az appban, csak ELINDÍTHAT egy menetet.
+  if (method === 'POST' && path === '/focus_start') {
+    if (!tokenMatches(deps.token, headers[TOKEN_HEADER])) {
+      return { status: 401, body: { error: 'Hiányzó vagy rossz kód.' } };
+    }
+    const b = body && typeof body === 'object' ? body as { packId?: unknown; minutes?: unknown } : {};
+    if (typeof b.packId !== 'string' || !b.packId || !Number.isInteger(b.minutes) || (b.minutes as number) <= 0) {
+      return { status: 400, body: { error: 'Csomag és perc kell.' } };
+    }
+    if (!deps.startFocus) return { status: 404, body: { error: 'Ez az app nem indít menetet a hídról.' } };
+    try {
+      await deps.startFocus(b.packId, b.minutes as number);
+    } catch (e) {
+      // A bíró nemje (futó menet, ismeretlen csomag) nem hiba, hanem válasz.
+      return { status: 409, body: { error: (e as Error).message || 'Nem indult el.' } };
+    }
+    return { status: 200, body: { ok: true } };
+  }
   if (method === 'POST' && path === '/hits') {
     if (!tokenMatches(deps.token, headers[TOKEN_HEADER])) {
       return { status: 401, body: { error: 'Hiányzó vagy rossz kód.' } };
@@ -214,7 +250,7 @@ export async function answer(
   // kozmetika: a bővítmény három másodperc után továbblép, a sorosan kétszer
   // lekérdezett állapot pedig ennek a duplájába is telhet, és akkor a
   // szabályok CSENDBEN nem frissülnének.
-  const [rules, focus, channels, closed, lockdown, notes, partner, keywords] = await Promise.all([
+  const [rules, focus, channels, closed, lockdown, notes, partner, keywords, suggest] = await Promise.all([
     deps.getRules(),
     deps.getFocus ? deps.getFocus() : Promise.resolve({ running: false }),
     deps.getChannels ? deps.getChannels() : Promise.resolve([]),
@@ -223,6 +259,7 @@ export async function answer(
     deps.getNotes ? deps.getNotes() : Promise.resolve([]),
     deps.getPartner ? deps.getPartner() : Promise.resolve(null),
     deps.getKeywords ? deps.getKeywords() : Promise.resolve([]),
+    deps.getSuggest ? deps.getSuggest() : Promise.resolve(null),
   ]);
   // Feljegyezzük, hogy VOLT lehúzás. Enélkül az app csak azt tudja, hogy a híd
   // FUT — azt nem, hogy beszél-e vele bárki. A kettő között pedig ott a
@@ -231,7 +268,7 @@ export async function answer(
   deps.notePull?.();
   return {
     status: 200,
-    body: { protocol: BRIDGE_PROTOCOL, rules, focus, channels, closed, lockdown, notes, partner, keywords },
+    body: { protocol: BRIDGE_PROTOCOL, rules, focus, channels, closed, lockdown, notes, partner, keywords, suggest },
   };
 }
 

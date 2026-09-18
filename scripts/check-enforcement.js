@@ -522,6 +522,23 @@ const WIRES = [
     needle: 'FilterHitLogic.nudgeText(step)',
     lost: 'az iPhone kezdőlapja nem javasolna lépést a sokadik megakadásnál',
   },
+  // EGY KATTINTÁS a felugró lapról a menetig: a híd végpontja, az app bírói
+  // útja és a gomb — ha bármelyik bekötés kiesne, a gomb ott lenne, a menet nem.
+  {
+    file: 'extension/popup.js',
+    needle: 'const r = await startFocusInApp(packId, minutes);',
+    lost: 'a felugró lap gombja nem indítana menetet',
+  },
+  {
+    file: 'desktop/src/main/rules-bridge.ts',
+    needle: 'await deps.startFocus(b.packId, b.minutes as number);',
+    lost: 'a híd nem indítaná a menetet',
+  },
+  {
+    file: 'desktop/src/main/main.ts',
+    needle: "await client.call('focus_start', { packId, minutes });",
+    lost: 'a híd menet-indítása nem érne el a bíróig',
+  },
   // LE VAN-E FEDVE a csúcs-óra: a mag tudja, melyik csomag ablaka fedi; ha a
   // három statisztika bekötése kiesne, a gomb ablakot kínálna arra, ami már van.
   {

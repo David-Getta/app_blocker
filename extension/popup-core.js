@@ -29,6 +29,23 @@ export function agoText(ms) {
  * @param now most (epoch ms)
  * @param freshMs meddig friss a zárva-lista a legutóbbi sikeres lehúzás után
  */
+/**
+ * A MENET GOMBJA a felugró lapon: a javasolt csomag, ha az app friss választ
+ * adott, van mit indítani, és nem fut menet (egyszerre egy). A gomb szövege
+ * ugyanaz, mint az appban: „Munkamenet: Nyelvtanulás, 25 perc”.
+ */
+export function suggestButton(link, now, freshMs) {
+  // Összekötetlenül nincs gomb: az app javaslata az appé, kód nélkül nem beszélünk róla.
+  if (!link || typeof link.token !== 'string' || !link.token) return null;
+  const s = link.suggest;
+  if (!s || typeof s.packId !== 'string' || !s.packId || typeof s.name !== 'string' || !Number.isInteger(s.minutes) || s.minutes <= 0) return null;
+  const fresh = Number.isFinite(link?.fetchedAt) && link.fetchedAt > 0 && now - link.fetchedAt <= freshMs;
+  if (!fresh) return null;
+  const f = link?.focus;
+  if (f && f.running === true && f.endsAt > now) return null;
+  return { packId: s.packId, minutes: s.minutes, text: `Munkamenet: ${s.name}, ${s.minutes} perc` };
+}
+
 export function describePopup(link, now, freshMs) {
   const fetchedAt = link?.fetchedAt ?? 0;
   const linked = !!link?.token;

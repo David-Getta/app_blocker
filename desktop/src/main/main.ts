@@ -333,6 +333,23 @@ if (HELPER_MODE) {
           // állított meg a böngésző. Könyvelés, nem szabály: bíró nélkül.
           await client.call('browser_hits', { source, days });
         },
+        async () => {
+          // A JAVASOLT csomag a felugró lapnak: a legutóbb használt (napló
+          // nélkül az első) a szokásos hosszával — a segéd választása. Futó
+          // menet mellett nincs: egyszerre egy menet fut.
+          const s = await sharedStatus();
+          const run = s.focusRun;
+          if (run && run.endsAt > Date.now()) return null;
+          const packs = s.focusPacks ?? [];
+          const pick = packs.find((p) => p.id === s.lastUsedPackId) ?? packs[0] ?? null;
+          return pick ? { packId: pick.id, name: pick.name, minutes: pick.defaultMinutes } : null;
+        },
+        async (packId, minutes) => {
+          // EGY KATTINTÁS a felugró lapról a menetig: ugyanaz a bírói út, mint
+          // az app gombjáé — szigorítás, ingyen. A bíró nemje hibaként jön
+          // vissza, a híd válasznak adja tovább.
+          await client.call('focus_start', { packId, minutes });
+        },
       );
       // Keep the tracker's view of the switch fresh without extra IPC chatter.
       const refreshFocus = (): void => {
