@@ -985,6 +985,38 @@ object Referee {
     }
 
     /**
+     * CSOMAG FELVÉTELE a telefonon: név, engedett oldalak, szokásos hossz.
+     *
+     * Csak felvétel — az nem lazít semmit: a csomag addig nem tesz semmit,
+     * amíg menetet nem indítasz vele, az pedig szigorítás. Szerkeszteni,
+     * törölni, az ablakot cserélni a gépen lehet (a lazítás kérdései ott
+     * dőlnek el). A csomag jelét a következő léptetés írja (SyncRevisions),
+     * hogy a fésülésben ez a változat nyerjen. A Swift `addFocusPack` tükre.
+     */
+    fun addFocusPack(name: String, allowSites: List<String>, defaultMinutes: Int): Focus.FocusPack {
+        val cleanName = name.trim().split(' ', '\t', '\n').filter { it.isNotEmpty() }.joinToString(" ").take(Focus.MAX_PACK_NAME)
+        if (cleanName.isEmpty()) throw RefereeException("Adj nevet a csomagnak.", "BAD_NAME")
+        val sites = LinkedHashSet<String>()
+        for (s in allowSites) {
+            val n = Focus.normalizeAllowSite(s) ?: continue
+            if (sites.size < Focus.MAX_ALLOW_ENTRIES) sites.add(n)
+        }
+        val mins = Focus.normalizeMinutes(defaultMinutes.toDouble())
+            ?: throw RefereeException("Érvénytelen hossz.", "BAD_MINUTES")
+        val pack = Focus.FocusPack(
+            id = "pack_" + java.util.UUID.randomUUID().toString().replace("-", "").take(12),
+            name = cleanName, allowSites = sites.toList(), allowApps = emptyList(), defaultMinutes = mins,
+        )
+        BreakerStore.mutate { state ->
+            if (state.focusPacks.size >= FocusSync.MAX_PACKS) {
+                throw RefereeException("Legfeljebb ${FocusSync.MAX_PACKS} csomag fér el.", "TOO_MANY_PACKS")
+            }
+            state.copy(focusPacks = state.focusPacks + pack)
+        }
+        return pack
+    }
+
+    /**
      * ABLAK A CSÚCS-ÓRÁRA a telefonról: heti ablak egy ablak NÉLKÜLI csomagra.
      *
      * Felvenni ingyen (szigorítás: több idő, amikor a fehérlista él). A telefon

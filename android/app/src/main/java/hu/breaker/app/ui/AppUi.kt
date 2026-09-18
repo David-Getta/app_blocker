@@ -422,6 +422,8 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                 }
             }
             FocusPacksCard(state, vpnRunning, onError = { flowError = it })
+            // CSOMAG FELVÉTELE a telefonon is: csak felvétel — a szerkesztés a gépé.
+            NewFocusPackCard(state, onError = { flowError = it })
 
             // Update banner (direct-download track)
             update?.let { upd ->
@@ -3093,4 +3095,47 @@ private fun recurrenceLabel(b: ScheduleLogic.Band): String {
     }
     fun hm(min: Int) = "%02d:%02d".format((min % 1440) / 60, min % 60)
     return "$days ${hm(b.startMin)}–${hm(b.endMin)}"
+}
+
+/**
+ * CSOMAG FELVÉTELE a telefonon: név, engedett oldalak, szokásos hossz — csak
+ * felvétel, az nem lazít semmit. Szerkeszteni, törölni, az ablakát cserélni a
+ * gépen lehet. Futó menet alatt nincs: a lista akkor befagy. Egy telefon, ahol
+ * eddig nem volt csomag, itt kapja az elsőt — csomag nélkül nincs menet.
+ */
+@Composable
+private fun NewFocusPackCard(state: AppState, onError: (String) -> Unit) {
+    if (Focus.isRunning(state.focusRun, System.currentTimeMillis())) return
+    var name by remember { mutableStateOf("") }
+    var sites by remember { mutableStateOf("") }
+    var minutes by remember { mutableStateOf("") }
+    Card {
+        Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            SectionLabel(if (state.focusPacks.isEmpty()) "Első csomag" else "Új csomag")
+            Text(
+                "Egy csomag megmondja, mi mehet a menet alatt — minden más tiltva. Felvenni itt is lehet; " +
+                    "szerkeszteni, törölni és az ablakát cserélni a gépen.",
+                style = MaterialTheme.typography.bodySmall,
+            )
+            OutlinedTextField(
+                value = name, onValueChange = { name = it }, label = { Text("Név (pl. Nyelvtanulás)") },
+                singleLine = true, modifier = Modifier.fillMaxWidth(),
+            )
+            OutlinedTextField(
+                value = sites, onValueChange = { sites = it },
+                label = { Text("Engedett oldalak, vesszővel (üresen minden tiltva)") },
+                modifier = Modifier.fillMaxWidth(),
+            )
+            OutlinedTextField(
+                value = minutes, onValueChange = { minutes = it.filter { c -> c.isDigit() } },
+                label = { Text("Szokásos hossz percben (üresen 25)") },
+                singleLine = true, modifier = Modifier.fillMaxWidth(),
+            )
+            Button(onClick = {
+                runCatching { Referee.addFocusPack(name, sites.split(',', ' ', '\n'), minutes.toIntOrNull() ?: 25) }
+                    .onSuccess { name = ""; sites = ""; minutes = "" }
+                    .onFailure { onError(it.message ?: "Nem sikerült felvenni a csomagot.") }
+            }) { Text("Csomag felvétele") }
+        }
+    }
 }

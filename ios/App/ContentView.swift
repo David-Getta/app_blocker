@@ -25,6 +25,10 @@ struct ContentView: View {
     @State private var focusMinutes = ""
     /// Hosszabbítás percben, futó menet alatt.
     @State private var focusExtra = ""
+    /// Csomag felvétele a telefonon: a három mező.
+    @State private var newPackName = ""
+    @State private var newPackSites = ""
+    @State private var newPackMinutes = ""
 
     /// Ideiglenes felfedés oldalanként: meddig látszik a valódi cím.
     /// Szándékosan nem mentjük — az app újranyitása után megint a fedőnév áll ott.
@@ -66,6 +70,8 @@ struct ContentView: View {
                     focusRunningSection
                     hitNudgeBanner
                     focusPacksSection
+                    // CSOMAG FELVÉTELE a telefonon is: csak felvétel — a szerkesztés a gépé.
+                    newFocusPackSection
                     addSection
                     if let ses = store.state.session { resumeBanner(ses) }
                     listSection
@@ -300,7 +306,8 @@ struct ContentView: View {
         }
     }
 
-    /// A csomagokat a GÉPEN állítod össze — ott látszik a teljes lista, és ott
+    /// A csomagokat a GÉPEN szerkeszted — ott látszik a teljes lista, és ott
+    /// kényelmes gépelni; felvenni a lenti kártyán itt is lehet. Ez a szakasz
     /// kényelmes gépelni. A telefon indítja és betartatja őket.
     @ViewBuilder
     private var focusPacksSection: some View {
@@ -470,6 +477,44 @@ struct ContentView: View {
                 .padding()
                 .background(Color.orange.opacity(0.11), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
             }
+        }
+    }
+
+    /// CSOMAG FELVÉTELE az iPhone-on: név, engedett oldalak, szokásos hossz —
+    /// csak felvétel, az nem lazít semmit. Szerkeszteni, törölni, az ablakát
+    /// cserélni a gépen lehet. Futó menet alatt nincs: a lista akkor befagy.
+    /// Egy telefon, ahol eddig nem volt csomag, itt kapja az elsőt.
+    @ViewBuilder
+    private var newFocusPackSection: some View {
+        if !Focus.isRunning(store.state.focusRun, now: now) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text((store.state.focusPacks ?? []).isEmpty ? "Első csomag" : "Új csomag")
+                    .font(.caption).foregroundStyle(.secondary)
+                Text("Egy csomag megmondja, mi mehet a menet alatt — minden más tiltva. Felvenni itt is lehet; szerkeszteni, törölni és az ablakát cserélni a gépen.")
+                    .font(.footnote).foregroundStyle(.secondary)
+                TextField("Név (pl. Nyelvtanulás)", text: $newPackName)
+                    .textFieldStyle(.roundedBorder)
+                TextField("Engedett oldalak, vesszővel (üresen minden tiltva)", text: $newPackSites)
+                    .textFieldStyle(.roundedBorder)
+                TextField("Szokásos hossz percben (üresen 25)", text: $newPackMinutes)
+                    .keyboardType(.numberPad)
+                    .textFieldStyle(.roundedBorder)
+                Button("Csomag felvétele") {
+                    do {
+                        try Referee.addFocusPack(
+                            name: newPackName,
+                            allowSites: newPackSites.split(whereSeparator: { $0 == "," || $0.isWhitespace }).map(String.init),
+                            defaultMinutes: Int(newPackMinutes) ?? 25
+                        )
+                        newPackName = ""; newPackSites = ""; newPackMinutes = ""
+                    } catch {
+                        flowError = (error as? Referee.RefereeError)?.message ?? "Nem sikerült felvenni a csomagot."
+                    }
+                }
+                .buttonStyle(.bordered)
+            }
+            .padding()
+            .background(Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         }
     }
 

@@ -1136,6 +1136,17 @@ const WIRES = [
     needle: 'const weekday = peakWeekday(hitsByWeekday(state, today));',
     lost: 'a bővítmény beállítás-lapja nem mondaná a négy hét csúcs-napját',
   },
+  // CSOMAG FELVÉTELE a telefonon: a kártya gombja a bírót hívja — csak felvétel.
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/AppUi.kt',
+    needle: 'runCatching { Referee.addFocusPack(name, sites.split(',
+    lost: 'az Android csomag-felvevő gombja nem hívná a bírót — a telefonon nem lenne csomag',
+  },
+  {
+    file: 'ios/App/ContentView.swift',
+    needle: 'try Referee.addFocusPack(',
+    lost: 'az iPhone csomag-felvevő gombja nem hívná a bírót — a telefonon nem lenne csomag',
+  },
   // A JAVASLAT KÁRTYÁJÁRÓL IS — gépen és telefonon: a mondat alatt a gomb ugyanoda fut.
   {
     file: 'desktop/src/renderer/renderer.ts',

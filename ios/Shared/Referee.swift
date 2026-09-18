@@ -838,6 +838,39 @@ enum Referee {
         if let e = thrown { throw e }
     }
 
+    /// CSOMAG FELVÉTELE az iPhone-on: név, engedett oldalak, szokásos hossz.
+    /// Csak felvétel — az nem lazít semmit: a csomag addig nem tesz semmit,
+    /// amíg menetet nem indítasz vele. Szerkeszteni, törölni, az ablakot
+    /// cserélni a gépen lehet. A csomag jelét a következő léptetés írja. Az
+    /// androidos `addFocusPack` tükre.
+    @discardableResult
+    static func addFocusPack(name: String, allowSites: [String], defaultMinutes: Int) throws -> Focus.Pack {
+        let words = name.split(whereSeparator: { $0.isWhitespace }).map(String.init)
+        let cleanName = String(words.joined(separator: " ").prefix(Focus.maxPackName))
+        if cleanName.isEmpty { throw RefereeError(message: "Adj nevet a csomagnak.", code: "BAD_NAME") }
+        var sites: [String] = []
+        for s in allowSites {
+            guard let n = Focus.normalizeAllowSite(s), !sites.contains(n), sites.count < Focus.maxAllowEntries else { continue }
+            sites.append(n)
+        }
+        guard let mins = Focus.normalizeMinutes(Double(defaultMinutes)) else {
+            throw RefereeError(message: "Érvénytelen hossz.", code: "BAD_MINUTES")
+        }
+        let pack = Focus.Pack(
+            id: "pack_" + String(UUID().uuidString.replacingOccurrences(of: "-", with: "").prefix(12)).lowercased(),
+            name: cleanName, allowSites: sites, allowApps: [], defaultMinutes: mins
+        )
+        var thrown: RefereeError?
+        BreakerStore.shared.mutate { state in
+            if (state.focusPacks ?? []).count >= FocusSync.maxPacks {
+                thrown = RefereeError(message: "Legfeljebb \(FocusSync.maxPacks) csomag fér el.", code: "TOO_MANY_PACKS"); return
+            }
+            state.focusPacks = (state.focusPacks ?? []) + [pack]
+        }
+        if let e = thrown { throw e }
+        return pack
+    }
+
     /// ABLAK A CSÚCS-ÓRÁRA az iPhone-ról: heti ablak egy ablak NÉLKÜLI csomagra.
     ///
     /// Felvenni ingyen (szigorítás: több idő, amikor a fehérlista él). A telefon

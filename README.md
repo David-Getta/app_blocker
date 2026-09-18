@@ -242,7 +242,9 @@ ingyen van, rövidíteni vagy visszavonni sehogy.
   kivétellel (értesítés, kapcsolat-ellenőrzés, óra, a saját fiókkiszolgálód),
   mert egy telefon, aminek minden névfeloldása elhasal, nem korlátozott, hanem
   használhatatlan. Indítani és leállítani mindkét telefonon lehet — a
-  leállítás ott is próbatétel.
+  leállítás ott is próbatétel. Új csomagot felvenni is lehet a telefonon
+  (név, engedett oldalak, hossz); szerkeszteni, törölni és heti ablakot adni
+  a gép dolga — a telefon csak hozzáad.
 
   **Statisztika a menetekről, minden eszközről:** hányszor ültél le dolgozni és
   hányat vittél végig, mai és heti bontásban. Minden eszköz vezeti a saját

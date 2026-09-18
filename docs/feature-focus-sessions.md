@@ -439,8 +439,11 @@ ablak, hanem sima menet.
   naplósor lehet belőle. Napközbeni ablaknál nincs ilyen.
 - A telefonon az ablakot a DNS-útvonal köre nézi, tizenöt másodpercenként; az
   indítás legfeljebb ennyit késhet. A gépen a segéd köre pár másodperc.
-- A telefon a csomagot indítja és betartatja; az ablakot a gépen állítod be,
-  ahol a csomag szerkesztője is van.
+- A telefon a csomagot indítja és betartatja, és fel is tud venni újat (név,
+  engedett oldalak, alap-hossz) — az új csomag a következő körben a gépre is
+  megérkezik, jellel, tehát a gép egyidejű szerkesztése nem nyeli el. A
+  szerkesztés, a törlés és a heti ablak beállítása a gép dolga, ahol a csomag
+  szerkesztője is van; a telefon csak hozzáad, mint az ablaknál.
 - A gépen a segéd az ablak menetét akkor is elindítja, ha az app nem fut — de
   a böngésző-bővítmény az apptól kérdezi a fehérlistát, tehát a böngészőben
   csak futó app mellett érvényesül. A telefon szűrője ettől független.
