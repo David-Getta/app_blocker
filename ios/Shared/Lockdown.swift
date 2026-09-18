@@ -290,6 +290,59 @@ public enum LockdownLogic {
         return (weekday, minute / 60, minute % 60)
     }
 
+    /// Egy előre ütemezett emlékeztető helye a héten és a szövege — az iPhone
+    /// app ebből gyárt rendszer-kérést. Itt van, nem az appban, hogy a tervet a
+    /// tesztek is lássák: az app-célt a CI nem futtatja.
+    public struct Reminder: Equatable {
+        public let id: String
+        public let weekday: Int
+        public let hour: Int
+        public let minute: Int
+        public let title: String
+        public let body: String
+    }
+
+    /// A rendszer ennyi függő kérést enged egy appnak; efölött az újak elvesznek.
+    static let maxPendingReminders = 64
+    /// Az emlékeztetők azonosítójának eleje — ezzel szedi le az app a régieket.
+    static let reminderIdPrefix = "lockdown-window:"
+
+    /// Az ablakok emlékeztető-terve: minden ablak minden napjára egy a kezdésre,
+    /// és — ha belefér a rendszer keretébe — egy tíz perccel előbbre is. A beérés
+    /// kérése az elsőbb: ha a kettő együtt nem fér be, az előjelzés marad el.
+    static func reminderPlan(_ windows: [LockdownWindow]) -> [Reminder] {
+        let slots = windows.reduce(0) { $0 + $1.days.count }
+        let warn = slots * 2 <= maxPendingReminders - 4
+        let lead = Int(windowPreWarnMs / 60_000)
+        var out: [Reminder] = []
+        for w in windows {
+            let minutes = (w.endMin - w.startMin + 1440) % 1440
+            let length = formatRemaining(Double(minutes == 0 ? 1440 : minutes) * 60_000)
+            for day in w.days {
+                let s = reminderSlot(day: day, startMin: w.startMin, lead: 0)
+                out.append(Reminder(
+                    id: "\(reminderIdPrefix)\(w.id):\(day)", weekday: s.weekday, hour: s.hour, minute: s.minute,
+                    title: "Zárlat a heti ablak szerint",
+                    body: "Beért a heti ablak: még \(length) (eddig: \(clockLabel(w.endMin))). "
+                        + "Amíg tart, semmilyen lazítás nem indítható — próbatétellel sem."))
+                if warn {
+                    let p = reminderSlot(day: day, startMin: w.startMin, lead: lead)
+                    out.append(Reminder(
+                        id: "\(reminderIdPrefix)\(w.id):\(day):soon", weekday: p.weekday, hour: p.hour, minute: p.minute,
+                        title: "Mindjárt beér a heti ablak",
+                        body: "\(lead) perc múlva zárlat, \(clockLabel(w.endMin))-ig. Amíg tart, semmilyen lazítás "
+                            + "nem indítható — próbatétellel sem. Ami nyitva van, mentsd el."))
+                }
+            }
+        }
+        return out
+    }
+
+    /// Perc-a-napban → „09:05”; az 1440 (éjfél mint vég) „00:00”.
+    static func clockLabel(_ min: Int) -> String {
+        String(format: "%02d:%02d", (min % 1440) / 60, min % 60)
+    }
+
     /// A legközelebb beérő ablak-előfordulás, ha `within`-en belül kezdődik —
     /// a jelzéshez. Nem közelgő, ami már él (arról a zárlat beszél), és nincs
     /// miről szólni, ha egy futó zárlat úgyis túlér rajta: az érkezése semmin

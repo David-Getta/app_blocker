@@ -98,8 +98,9 @@ mint a kézinél. Androidon a szűrő állandó
 értesítése is a zárlatot mondja (kézit és ablakét, és hogy meddig), és amikor
 az ablak beér, egy külön, lehúzható értesítés is jön — mint a gépen. iPhone-on
 a szűrő bővítménye nem adhat értesítést, ezért az app **heti emlékeztetőt
-ütemez** minden ablak minden napjára a kezdés percére (`WindowReminders`): a
-rendszer adja, akkor is, ha az app nincs nyitva. A listát az app minden
+ütemez** minden ablak minden napjára a kezdés percére (`WindowReminders`; a
+tervet — mikor, mit mondjon — a mag adja, `reminderPlan`, teszttel, mert az
+app-célt a CI nem futtatja): a rendszer adja, akkor is, ha az app nincs nyitva. A listát az app minden
 nyitásakor és a lista minden változásakor újraírja — a szinkronból jött
 változásnál is, amíg nyitva van; ami zárt app mellett, a szűrő szinkronjával
 jön, az a következő megnyitáskor kerül be. Az első ablaknál a rendszer
