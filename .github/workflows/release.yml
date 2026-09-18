@@ -44,19 +44,24 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **Mikor jár a kéz magától — a telefonon is.** A szűrő Androidon
-          és iPhone-on óránként is könyveli a megakadásokat; a statisztika
-          a heti rajz alatt kimondja a hét csúcs-óráját („21–22 óra”), és a
-          hétfői mondat is hordozza. Tükör, nem ítélet.
+          **A sokadik megakadásnál a telefon is javasol egy lépést.** Az
+          ötödik, tizedik és huszadik mai megakadásnál Androidon a
+          szolgáltatás egyszer értesít (saját csatornán), és mindkét
+          telefon kezdőlapja mondja: egy munkamenet vagy egy rövid zárlat
+          most segítene — te döntesz. Nem tilt, nem ítél.
 
-          ### Ami a v0.4.57-ben jött
+          **Javítás:** a telefonon csak a lista tiltása megakadás — a
+          munkamenet fehérlistáján kívül rekedt háttér-forgalom eddig
+          beleszámolt, és egy csendes estére százat mondhatott.
 
-          **A sokadik megakadásnál egy lépést javasol** a gép és a tiltó
-          lap — az ötödik, tizedik és huszadik mai megakadásnál, egyszer.
+          ### Ami a v0.4.58-ban jött
 
-          #### Ami a v0.4.56-ban jött
+          **Mikor jár a kéz magától — a telefonon is.** Óránkénti könyv,
+          a hét csúcs-órája a statisztikán és a hétfői mondatban.
 
-          **Mikor jár a kéz magától** a gépen: a hét csúcs-órája.
+          #### Ami a v0.4.57-ben jött
+
+          **A sokadik megakadásnál egy lépést javasol** a gép és a tiltó lap.
 
           NOTES
           fi
