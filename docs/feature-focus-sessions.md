@@ -152,7 +152,12 @@ emlékeztetője előre szól; ha a menet-óra a csúcs-óra, csak a csúcs-órá
 Legalább három menet kell hozzá; futó menet alatt semmi sem szól. Ha egy
 csomag ablaka már fedi a menet-órát, a statisztika és a heti mondat kimondja
 („magától indul: …”); ha nem fedi semmi, de lehetne rá ablakot tenni, a heti
-mondat mondja: „nincs rá ablak” — a csúcs-óra fedésének tükre.
+mondat mondja: „nincs rá ablak” — a csúcs-óra fedésének tükre. Az előjelzés
+értesítésén a telefonon a második gomb heti ablakot tesz a menet-órára
+(Androidon `FocusWindowReceiver`, iPhone-on a `NoticeActions` ablak-gombja —
+csak felvétel, a bíró dönt). És ha a menet-óra a csúcs-óra, a statisztika és
+a heti mondat kimondja (`sameHourText`, `Focus.sameHourText`): a kéz akkor
+jár, amikor le szoktál ülni.
 
 **Az aldomain átmegy**: a `google.com` engedése a `translate.google.com`-ot is
 engedi. Enélkül minden oldalnál külön ki kellene találni, melyik aldomain kell,
