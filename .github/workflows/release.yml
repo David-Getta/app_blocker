@@ -44,10 +44,14 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **Ami a héten nem fogott — a telefonokon is.** A telefon
-          statisztikája kimondja a lista szavait, amelyek a héten egyszer
-          sem fogtak, ha volt kulcsszó-megakadás. A weboldal „Jó, ha tudod”
-          listája a telefonos kulcsszóról és a gépi értesítésekről is szól.
+          **A próbamező a telefon ítéletét is mondja.** A gépi Kulcsszavak
+          kártya próbamezője a bővítmény ítélete mellett kiírja, a telefon
+          fogná-e ugyanazt a címet — ott a szűrő csak a hosztnevet látja.
+
+          A v0.4.84 nem kapott saját kiadást — ami ott jött, ebben van:
+          **ami a héten nem fogott, a telefonokon is**, és a weboldal
+          „Jó, ha tudod” listája a telefonos kulcsszóról és a gépi
+          értesítésekről.
 
           ### Ami a v0.4.83-ban jött
 
