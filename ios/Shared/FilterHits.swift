@@ -7,7 +7,7 @@ import Foundation
 /// lapra vitt navigációkat; a telefonon tiltó lap nincs, de a tiltott
 /// lekérdezés ugyanaz a pillanat: a kéz odanyúlt, a szűrő megállította.
 /// Tükör, nem ítélet. Egy hosztnevet két percen belül EGYSZER számol (egy
-/// oldalbetöltés tucatnyi lekérdezés), és csak a LISTA tiltását: a munkamenet
+/// oldalbetöltés tucatnyi lekérdezés), és csak a LISTA és a KULCSSZÓ tiltását: a munkamenet
 /// fehérlistáján kívül rekedt háttér-forgalom nem a kéz mozdulata. A könyv
 /// naponként egy szám, harminc napig; a készüléken marad. Az androidos
 /// `FilterHitLogic` tükre.

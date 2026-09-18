@@ -112,7 +112,7 @@ a segéd összeadja), a hosztot a lista tételéhez rendeli (a `m.youtube.com` �
 `www.youtube.com` egy oldal). A telefonon a szűrő könyvel
 (`core/FilterHits.kt`, `Shared/FilterHits.swift`): egy tiltott lekérdezés egy
 megakadás — hosztonként két percen belül egyszer, mert egy oldalbetöltés
-tucatnyi lekérdezés —, és CSAK a lista tiltása: a munkamenet fehérlistáján
+tucatnyi lekérdezés —, és csak a lista és a kulcsszó tiltása: a munkamenet fehérlistáján
 kívül rekedt háttér-forgalom nem a kéz mozdulata. Naponként, óránként és a
 lista tételével oldalanként; a nyers hosztot nem tárolja.
 

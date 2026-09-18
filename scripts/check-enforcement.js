@@ -408,12 +408,12 @@ const WIRES = [
   {
     file: 'android/app/src/main/java/hu/breaker/app/vpn/BreakerVpnService.kt',
     needle: '(verdict == Focus.Verdict.BLOCKED_BY_LIST || verdict == Focus.Verdict.BLOCKED_BY_KEYWORD) && name != null && FilterHitLogic.shouldCount(hitSeen, name, now)',
-    lost: 'Androidon a szűrő nem (csak a lista tiltásánál) könyvelné a megakadásokat',
+    lost: 'Androidon a szűrő nem (csak a lista és a kulcsszó tiltásánál) könyvelné a megakadásokat',
   },
   {
     file: 'ios/PacketTunnel/PacketTunnelProvider.swift',
     needle: 'verdict == .blockedByList || verdict == .blockedByKeyword, let name, FilterHitLogic.shouldCount(&hitSeen, name, now: now)',
-    lost: 'iPhone-on a tunnel nem (csak a lista tiltásánál) könyvelné a megakadásokat',
+    lost: 'iPhone-on a tunnel nem (csak a lista és a kulcsszó tiltásánál) könyvelné a megakadásokat',
   },
   {
     file: 'android/app/src/main/java/hu/breaker/app/core/Digest.kt',

@@ -11,7 +11,7 @@ package hu.breaker.app.core
  *
  * MIT SZÁMOL. Egy hosztnevet két percen belül EGYSZER: egy oldalbetöltés
  * tucatnyi lekérdezést küld, és a böngésző újra is próbálja — az egy
- * megakadás, nem tíz. És csak a LISTA tiltását: a munkamenet fehérlistáján
+ * megakadás, nem tíz. És csak a LISTA és a KULCSSZÓ tiltását: a munkamenet fehérlistáján
  * kívül rekedt háttér-forgalom (követők, CDN-ek, más appok) nem a kéz
  * mozdulata. A könyv naponként egy szám, harminc napig; a gépen marad, a
  * fiókba nem megy — mint a heti napló.

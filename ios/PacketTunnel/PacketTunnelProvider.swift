@@ -88,7 +88,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
             // MEGAKADÁS: a tiltott név egy megakadás — hosztonként két percen
             // belül egyszer, mert egy oldalbetöltés tucatnyi lekérdezés. A
             // könyv a statisztikáé és a heti mondaté; a választ nem lassítja.
-            // CSAK A LISTA tiltása: a munkamenet fehérlistáján kívül a háttér-
+            // CSAK A LISTA és a KULCSSZÓ tiltása: a munkamenet fehérlistáján kívül a háttér-
             // forgalom is elakad (követők, CDN-ek, más appok), és az nem a kéz
             // mozdulata — így számolva a szám százat mondana egy csendes órára.
             if verdict == .blockedByList || verdict == .blockedByKeyword, let name, FilterHitLogic.shouldCount(&hitSeen, name, now: now) {

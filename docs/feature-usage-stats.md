@@ -501,7 +501,7 @@ megakadás”) — ott, ahol a kísértés van, ítélet nélkül.
 A telefonon **a szűrő számol**: „12 megakadás a szűrőben.” — a tiltott
 DNS-lekérdezés ugyanaz a pillanat, a kéz odanyúlt, a szűrő megállította. Egy
 hosztnevet két percen belül egyszer (egy oldalbetöltés tucatnyi lekérdezés,
-és a böngésző újra is próbálja), és CSAK a lista tiltását: a munkamenet
+és a böngésző újra is próbálja), és csak a lista és a kulcsszó tiltását: a munkamenet
 fehérlistáján kívül rekedt háttér-forgalom (követők, CDN-ek, más appok) nem a
 kéz mozdulata — így számolva egy csendes óra százat mondana. Naponként egy
 szám, harminc napig
