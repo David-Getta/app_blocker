@@ -44,6 +44,13 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
+          **A felugró lap kimondja, ha a csúcs-óra a menet-órád is.** A híd a
+          javaslattal az egybeesést is leadja, és a lap a csúcs mondata után
+          mondja: „Ez a menet-órád is: a kéz akkor jár, amikor le szoktál ülni.”
+          — az app szava, frissen. Bővítmény 0.4.33.
+
+          ### Ami a v0.4.137-ben jött
+
           **Egy koppintás az értesítésről az ablakig.** Androidon és
           iPhone-on a csúcs-óra és a menet-óra előjelzésének második gombja
           heti ablakot tesz a legutóbbi csomagra abban az órában, minden
@@ -51,20 +58,12 @@ jobs:
           iPhone-on „Heti ablak erre az órára”. Csak felvétel, a bíró dönt;
           a gomb csak akkor van ott, ha az órára ablak tehető.
 
-          ### Ami a v0.4.136-ban jött
+          #### Ami a v0.4.136-ban jött
 
           **A README, a weboldal és az architektúra az este tükör-újdonságairól.**
           Kód nem változott: a leírások mondják el a menet-óra fedését és
           ablakát a kártyáról meg a böngészőből, a mért idő napját a döntés
           helyén, és hogy a statisztika kimondja, ha a csúcs-óra a menet-óra.
-
-          #### Ami a v0.4.135-ben jött
-
-          **Amikor a csúcs-óra a menet-óra.** Ha a hét csúcs-órája és a négy
-          hét menet-órája ugyanaz az óra, a statisztika és a heti mondat
-          kimondja a gépen, Androidon és iPhone-on:
-          „A csúcs-óra és a menet-óra ugyanaz: 21–22 óra — a kéz akkor jár, amikor le szoktál ülni.”
-          Más órán nincs sor. Tény, nem ítélet.
 
           NOTES
           fi
