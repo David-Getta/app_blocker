@@ -88,6 +88,8 @@ public enum DigestLogic {
         public var filterHits7d: Int
         /// A hét csúcs-órája a szűrő megakadásaira — mikor jár a kéz magától; nil, ha nem volt.
         public var filterHitsPeak: (hour: Int, count: Int)?
+        /// A csomag neve, amelynek heti ablaka fedi a csúcs-órát — a menet magától indul, amikor a kéz indulna; nil, ha egyik sem.
+        public var filterHitsPeakPack: String?
         /// A hét csúcs-oldala (nyers név, a címkézés a mondaté; szám) — melyik oldal akaszt meg a legtöbbször.
         public var filterHitsTop: (label: String, count: Int)?
         /// Az azt megelőző 7 nap — a hét az előző héthez képest; nulla, ha nem volt (vagy a könyv akkor kezdődött).
@@ -97,7 +99,8 @@ public enum DigestLogic {
             last7Seconds: Double = 0, topWeekSites: [Top] = [], topWeekApps: [Top] = [],
             weekOverWeek: [Delta] = [], focusWeek: Focus.Summary, unlocks7d: Int,
             daysTracked: Int = 0, unblockedTop: [Top] = [], dropped7d: Int = 0, filterHits7d: Int = 0,
-            filterHitsPeak: (hour: Int, count: Int)? = nil, filterHitsTop: (label: String, count: Int)? = nil,
+            filterHitsPeak: (hour: Int, count: Int)? = nil, filterHitsPeakPack: String? = nil,
+            filterHitsTop: (label: String, count: Int)? = nil,
             filterHitsPrev7d: Int = 0, focusPrevWeek: Focus.Summary? = nil, unlocksPrev7d: Int = 0
         ) {
             self.last7Seconds = last7Seconds
@@ -111,6 +114,7 @@ public enum DigestLogic {
             self.dropped7d = dropped7d
             self.filterHits7d = filterHits7d
             self.filterHitsPeak = filterHitsPeak
+            self.filterHitsPeakPack = filterHitsPeakPack
             self.filterHitsTop = filterHitsTop
             self.filterHitsPrev7d = filterHitsPrev7d
             self.focusPrevWeek = focusPrevWeek
@@ -182,7 +186,9 @@ public enum DigestLogic {
         // hét nem összehasonlítás; a nulla hét viszont mondat, ha volt mihez mérni.
         let prev = input.filterHitsPrev7d > 0 ? " (az előző héten \(input.filterHitsPrev7d))" : ""
         if input.filterHits7d > 0 {
-            let peak = input.filterHitsPeak.map { ", a csúcs \(FilterHitLogic.hourLabel($0.hour))" } ?? ""
+            // A lefedett csúcs-óra a csúcs mellett, zárójelben: a menet magától indul, amikor a kéz indulna.
+            let covered = input.filterHitsPeakPack.map { " (magától indul: \($0))" } ?? ""
+            let peak = input.filterHitsPeak.map { ", a csúcs \(FilterHitLogic.hourLabel($0.hour))\(covered)" } ?? ""
             let top = input.filterHitsTop.map { ", a legtöbbször: \(labelOf($0.label)) (\($0.count)×)" } ?? ""
             parts.append("\(input.filterHits7d) megakadás a szűrőben\(prev)\(peak)\(top).")
         } else if input.filterHitsPrev7d > 0 {
@@ -253,6 +259,8 @@ public enum DigestLogic {
             dropped7d: (st.droppedAttempts ?? []).filter { $0 >= weekAgo }.count,
             filterHits7d: FilterHitLogic.hits7d(st.filterHits ?? [:], now: now),
             filterHitsPeak: FilterHitLogic.peakHour(st.filterHitHours ?? [:], now: now),
+            filterHitsPeakPack: FilterHitLogic.peakHour(st.filterHitHours ?? [:], now: now)
+                .flatMap { Focus.packCoveringHour(st.focusPacks ?? [], hour: $0.hour)?.name },
             filterHitsTop: FilterHitLogic.topSite(st.filterHitHosts ?? [:], now: now).map { (label: $0.site, count: $0.count) },
             filterHitsPrev7d: FilterHitLogic.hitsPrev7d(st.filterHits ?? [:], now: now),
             focusPrevWeek: Focus.summarizeFocusPrevWeek(st.focusLog ?? [], now: now),

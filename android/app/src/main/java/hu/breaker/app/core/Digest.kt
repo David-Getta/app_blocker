@@ -101,6 +101,8 @@ object DigestLogic {
         val filterHitsPrev7d: Int = 0,
         /** a hét csúcs-órája a szűrő megakadásaira (óra, szám) — mikor jár a kéz magától; null, ha nem volt */
         val filterHitsPeak: Pair<Int, Int>? = null,
+        /** a csomag neve, amelynek heti ablaka fedi a csúcs-órát — a menet magától indul, amikor a kéz indulna; null, ha egyik sem */
+        val filterHitsPeakPack: String? = null,
         /** a hét csúcs-oldala (nyers név, a címkézés a mondaté; szám) — melyik oldal akaszt meg a legtöbbször */
         val filterHitsTop: Pair<String, Int>? = null,
         /**
@@ -174,7 +176,9 @@ object DigestLogic {
         // hét nem összehasonlítás; a nulla hét viszont mondat, ha volt mihez mérni.
         val prev = if (input.filterHitsPrev7d > 0) " (az előző héten ${input.filterHitsPrev7d})" else ""
         if (input.filterHits7d > 0) {
-            val peak = input.filterHitsPeak?.let { ", a csúcs ${FilterHitLogic.hourLabel(it.first)}" } ?: ""
+            // A lefedett csúcs-óra a csúcs mellett, zárójelben: a menet magától indul, amikor a kéz indulna.
+            val covered = input.filterHitsPeakPack?.let { " (magától indul: $it)" } ?: ""
+            val peak = input.filterHitsPeak?.let { ", a csúcs ${FilterHitLogic.hourLabel(it.first)}$covered" } ?: ""
             val top = input.filterHitsTop?.let { ", a legtöbbször: ${labelOf(it.first)} (${it.second}×)" } ?: ""
             parts.add("${input.filterHits7d} megakadás a szűrőben$prev$peak$top.")
         } else if (input.filterHitsPrev7d > 0) {
@@ -279,6 +283,7 @@ object DigestLogic {
             filterHits7d = FilterHitLogic.hits7d(st.filterHits, now),
             filterHitsPrev7d = FilterHitLogic.hitsPrev7d(st.filterHits, now),
             filterHitsPeak = FilterHitLogic.peakHour(st.filterHitHours, now),
+            filterHitsPeakPack = FilterHitLogic.peakHour(st.filterHitHours, now)?.let { Focus.packCoveringHour(st.focusPacks, it.first)?.name },
             filterHitsTop = FilterHitLogic.topSite(st.filterHitHosts, now),
             daysTracked = summary.daysTracked,
             unblockedTop = UsageLogic.suggestBlocks(summary.topWeekSites, st.sites)

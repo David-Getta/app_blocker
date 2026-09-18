@@ -99,6 +99,13 @@ final class FilterHitsTests: XCTestCase {
         XCTAssertEqual(DigestLogic.text(DigestLogic.Input(focusWeek: summary, unlocks7d: 0, filterHits7d: 12,
                                                           filterHitsPeak: (hour: 21, count: 7)), labelOf: { $0 }),
                        "Elmúlt 7 nap: 12 megakadás a szűrőben, a csúcs 21–22 óra.")
+        XCTAssertEqual(DigestLogic.text(DigestLogic.Input(focusWeek: summary, unlocks7d: 0, filterHits7d: 12,
+                                                          filterHitsPeak: (hour: 21, count: 7), filterHitsPeakPack: "Nyelvtanulás"), labelOf: { $0 }),
+                       "Elmúlt 7 nap: 12 megakadás a szűrőben, a csúcs 21–22 óra (magától indul: Nyelvtanulás).",
+                       "a lefedett csúcs-óra a csúcs mellett")
+        XCTAssertEqual(DigestLogic.text(DigestLogic.Input(focusWeek: summary, unlocks7d: 0, filterHits7d: 12,
+                                                          filterHitsPeak: nil, filterHitsPeakPack: "Nyelvtanulás"), labelOf: { $0 }),
+                       "Elmúlt 7 nap: 12 megakadás a szűrőben.", "csúcs nélkül a csomag sem szerepel")
     }
 
     func testTheNthHitTheStepAndTheSentence() {

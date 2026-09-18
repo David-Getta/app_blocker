@@ -124,6 +124,10 @@ test('a mondat a csúcs-órával; a sokadik megakadás lépcsői', () => {
   };
   assert.equal(digestText({ ...base, browserHits7d: 12, browserHitsPeak: { hour: 21, count: 7 } }, (l) => l),
     'Elmúlt 7 nap: 12 megakadás a böngészőben, a csúcs 21–22 óra.');
+  assert.equal(digestText({ ...base, browserHits7d: 12, browserHitsPeak: { hour: 21, count: 7 }, browserHitsPeakPack: 'Nyelvtanulás' }, (l) => l),
+    'Elmúlt 7 nap: 12 megakadás a böngészőben, a csúcs 21–22 óra (magától indul: Nyelvtanulás).', 'a lefedett csúcs-óra a csúcs mellett');
+  assert.equal(digestText({ ...base, browserHits7d: 12, browserHitsPeak: null, browserHitsPeakPack: 'Nyelvtanulás' }, (l) => l),
+    'Elmúlt 7 nap: 12 megakadás a böngészőben.', 'csúcs nélkül a csomag sem szerepel');
   assert.equal(digestText({ ...base, browserHits7d: 12, browserHitsPeak: null }, (l) => l),
     'Elmúlt 7 nap: 12 megakadás a böngészőben.');
   assert.deepEqual(HIT_NUDGE_STEPS, [5, 10, 20]);

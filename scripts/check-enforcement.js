@@ -522,6 +522,23 @@ const WIRES = [
     needle: 'FilterHitLogic.nudgeText(step)',
     lost: 'az iPhone kezdőlapja nem javasolna lépést a sokadik megakadásnál',
   },
+  // A HETI MONDAT a lefedett csúcs-óráról: a három építő adja a csomag nevét;
+  // ha kiesne, a mondat a csúcsot mondaná, az ablakot nem — csendben.
+  {
+    file: 'desktop/src/helper/digest-journal.ts',
+    needle: 'browserHitsPeakPack: peak ? packCoveringHour(state.focusPacks ?? [], peak.hour)?.name ?? null : null,',
+    lost: 'a gépi heti mondat nem mondaná a lefedett csúcs-órát',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/Digest.kt',
+    needle: 'filterHitsPeakPack = FilterHitLogic.peakHour(st.filterHitHours, now)?.let { Focus.packCoveringHour(st.focusPacks, it.first)?.name },',
+    lost: 'az Android heti mondat nem mondaná a lefedett csúcs-órát',
+  },
+  {
+    file: 'ios/Shared/Digest.swift',
+    needle: '.flatMap { Focus.packCoveringHour(st.focusPacks ?? [], hour: $0.hour)?.name },',
+    lost: 'az iPhone heti mondata nem mondaná a lefedett csúcs-órát',
+  },
   // EGY KATTINTÁS a felugró lapról a menetig: a híd végpontja, az app bírói
   // útja és a gomb — ha bármelyik bekötés kiesne, a gomb ott lenne, a menet nem.
   {

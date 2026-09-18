@@ -12,7 +12,7 @@
 
 import { cleanDigestLog, digestDue, digestText, recordDigest } from '../shared/digest';
 import { displayName, isAliased } from '../shared/alias';
-import { summarizeFocus, summarizeFocusPrevWeek } from '../shared/focus';
+import { packCoveringHour, summarizeFocus, summarizeFocusPrevWeek } from '../shared/focus';
 import { suggestBlocks, summarize } from '../shared/usage';
 import { browserHits7d, browserHitsPeakHour, browserHitsPrev7d, browserHitsTopSite } from '../shared/browser-hits';
 import type { HelperState } from './state';
@@ -42,6 +42,7 @@ export function helperLabel(state: HelperState): (label: string) => string {
 /** A visszatekintés mondata a segéd mostani állapotából — vagy null, ha nincs miről. */
 export function digestTextNow(state: HelperState, now: number): string | null {
   const s = summarize(state.usage, now);
+  const peak = browserHitsPeakHour(state.browserHits, now);
   return digestText({
     last7Seconds: s.last7Seconds,
     topWeekSites: s.topWeekSites,
@@ -55,7 +56,9 @@ export function digestTextNow(state: HelperState, now: number): string | null {
     dropped7d: (state.droppedAttempts ?? []).filter((t) => t >= now - 7 * 24 * 3600_000).length,
     browserHits7d: browserHits7d(state.browserHits, now),
     browserHitsPrev7d: browserHitsPrev7d(state.browserHits, now),
-    browserHitsPeak: browserHitsPeakHour(state.browserHits, now),
+    browserHitsPeak: peak,
+    // A lefedett csúcs-óra: a csomag, amelynek heti ablaka fedi — a mondat mondja.
+    browserHitsPeakPack: peak ? packCoveringHour(state.focusPacks ?? [], peak.hour)?.name ?? null : null,
     browserHitsTop: browserHitsTopSite(state.browserHits, now, state.sites),
     daysTracked: s.daysTracked,
     unblockedTop: suggestBlocks(s.topWeekSites, state.sites).map((t) => ({ label: t.label, seconds: t.seconds })),

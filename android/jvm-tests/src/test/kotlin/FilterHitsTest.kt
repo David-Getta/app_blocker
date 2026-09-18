@@ -117,6 +117,12 @@ class FilterHitsTest {
         )
         assertEquals("Elmúlt 7 nap: 12 megakadás a szűrőben, a csúcs 21–22 óra.",
             DigestLogic.text(base.copy(filterHits7d = 12, filterHitsPeak = 21 to 7)) { it })
+        assertEquals("Elmúlt 7 nap: 12 megakadás a szűrőben, a csúcs 21–22 óra (magától indul: Nyelvtanulás).",
+            DigestLogic.text(base.copy(filterHits7d = 12, filterHitsPeak = 21 to 7, filterHitsPeakPack = "Nyelvtanulás")) { it },
+            "a lefedett csúcs-óra a csúcs mellett")
+        assertEquals("Elmúlt 7 nap: 12 megakadás a szűrőben.",
+            DigestLogic.text(base.copy(filterHits7d = 12, filterHitsPeak = null, filterHitsPeakPack = "Nyelvtanulás")) { it },
+            "csúcs nélkül a csomag sem szerepel")
     }
 
     @Test fun `a sokadik megakadas - a lepcso es a mondat`() {

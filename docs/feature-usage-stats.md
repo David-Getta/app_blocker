@@ -512,7 +512,9 @@ heti ablaka már fedi a csúcs-órát (legalább egy napon az óra egy részét 
 átfogja, `packCoveringHour`), a gomb helyett a sor mondja — mindhárom
 platformon: „A csúcs-órában magától indul: Nyelvtanulás (minden nap
 21:00–22:00).” A menet ilyenkor magától indul, amikor a kéz indulna; nincs
-mit felvenni.
+mit felvenni. A heti mondat is mondja, a csúcs mellett: „12 megakadás a
+böngészőben, a csúcs 21–22 óra (magától indul: Nyelvtanulás).” — a
+telefonokon ugyanígy.
 
 **Mikor jár a kéz magától:** a bővítmény óránként is könyvel (a nap
 huszonnégy rekesze), a beállítás-lapja a hét csúcs-óráját mondja és egy
