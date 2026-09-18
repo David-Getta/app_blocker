@@ -148,6 +148,12 @@ export interface BridgeDeps {
   getPartner?: () => Promise<BridgePartner | null>;
   /** a kulcsszó-szabályok: bármely oldalon, ha a cím tartalmazza — csak a böngésző tudja érvényesíteni */
   getKeywords?: () => Promise<string[]>;
+  /**
+   * A bővítmény MEGAKADÁS-KÖNYVE visszafelé: hányszor vitt a tiltó lapra, az
+   * elmúlt hét nap, forrásonként (böngésző-profilonként). A segéd tartja; a
+   * heti mondat és a statisztika sora mondja.
+   */
+  putHits?: (source: string, days: unknown[]) => Promise<void>;
   token: string;
   /** csak teszthez: melyik portról induljon */
   startPort?: number;
@@ -160,6 +166,9 @@ export interface BridgeDeps {
    */
   notePull?: () => void;
 }
+
+/** A befelé menő törzs plafonja: egy hét megakadás-sora, bőven. */
+export const MAX_BODY_BYTES = 64 * 1024;
 
 export interface BridgeHandle {
   port: number;
@@ -175,10 +184,24 @@ export interface BridgeHandle {
  */
 export async function answer(
   deps: BridgeDeps, method: string | undefined, url: string | undefined,
-  headers: Record<string, unknown>,
+  headers: Record<string, unknown>, body?: unknown,
 ): Promise<{ status: number; body: unknown }> {
-  if (method !== 'GET') return { status: 405, body: { error: 'Csak GET.' } };
   const path = (url ?? '').split('?')[0];
+  // Az EGYETLEN befelé menő út: a megakadás-könyv. Ugyanaz a kód nyitja, mint
+  // a szabályokat — és csak könyvelés jön rajta, szabály soha: a bővítmény
+  // nem vehet le és nem tehet fel semmit az appban.
+  if (method === 'POST' && path === '/hits') {
+    if (!tokenMatches(deps.token, headers[TOKEN_HEADER])) {
+      return { status: 401, body: { error: 'Hiányzó vagy rossz kód.' } };
+    }
+    const b = body && typeof body === 'object' ? body as { source?: unknown; days?: unknown } : {};
+    if (typeof b.source !== 'string' || !Array.isArray(b.days)) {
+      return { status: 400, body: { error: 'Forrás és napok kellenek.' } };
+    }
+    if (deps.putHits) await deps.putHits(b.source, b.days);
+    return { status: 200, body: { ok: true } };
+  }
+  if (method !== 'GET') return { status: 405, body: { error: 'Csak GET.' } };
   if (path !== '/rules') return { status: 404, body: { error: 'Nincs ilyen végpont.' } };
   if (!tokenMatches(deps.token, headers[TOKEN_HEADER])) {
     // Ugyanaz a válasz hiányzó és rossz kódra: a különbség csak abban segítene,
@@ -215,22 +238,48 @@ export async function answer(
 /** A híd elindítása. A hívó felelőssége, hogy a kódot megmutassa a felületen. */
 export function startRulesBridge(deps: BridgeDeps): Promise<BridgeHandle> {
   const server = http.createServer((req, res) => {
-    void answer(deps, req.method, req.url, req.headers as Record<string, unknown>)
-      .then(({ status, body }) => {
-        const text = JSON.stringify(body);
-        res.writeHead(status, {
-          'content-type': 'application/json; charset=utf-8',
-          'content-length': Buffer.byteLength(text),
-          // A tartalom pillanatnyi állapot; egy gyorsítótárazott válasz régi
-          // szabályokat tartana életben.
-          'cache-control': 'no-store',
-        });
-        res.end(text);
-      })
-      .catch(() => {
-        res.writeHead(500, { 'content-type': 'application/json' });
-        res.end('{"error":"Belső hiba."}');
+    const send = ({ status, body }: { status: number; body: unknown }): void => {
+      const text = JSON.stringify(body);
+      res.writeHead(status, {
+        'content-type': 'application/json; charset=utf-8',
+        'content-length': Buffer.byteLength(text),
+        // A tartalom pillanatnyi állapot; egy gyorsítótárazott válasz régi
+        // szabályokat tartana életben.
+        'cache-control': 'no-store',
       });
+      res.end(text);
+    };
+    const finish = (parsed?: unknown): void => {
+      void answer(deps, req.method, req.url, req.headers as Record<string, unknown>, parsed)
+        .then(send)
+        .catch(() => {
+          res.writeHead(500, { 'content-type': 'application/json' });
+          res.end('{"error":"Belső hiba."}');
+        });
+    };
+    if (req.method !== 'POST') { finish(); return; }
+    // A törzs KORLÁTTAL: a könyv egy hét sora, nem egy fájl. Ami nagyobb,
+    // az nem a bővítmény.
+    const chunks: Buffer[] = [];
+    let size = 0;
+    let over = false;
+    req.on('data', (c: Buffer) => {
+      size += c.length;
+      if (size > MAX_BODY_BYTES) { over = true; req.destroy(); return; }
+      chunks.push(c);
+    });
+    req.on('error', () => { /* a megszakított kérésnek nincs válasza */ });
+    req.on('end', () => {
+      if (over) { send({ status: 413, body: { error: 'Túl nagy.' } }); return; }
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
+      } catch {
+        send({ status: 400, body: { error: 'Rossz JSON.' } });
+        return;
+      }
+      finish(parsed);
+    });
   });
 
   return new Promise((resolve, reject) => {

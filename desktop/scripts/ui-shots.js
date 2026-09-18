@@ -141,6 +141,8 @@ function fakeBridgeSource() {
       // Egy heti zárlat-ablak, hogy a képernyőkép mutassa a kártya listáját.
       lockdownWindows: [{ id: 'lw_demo', days: [1, 2, 3, 4, 5], startMin: 9 * 60, endMin: 17 * 60 }],
       keywords: ['shorts', 'reels'],
+      browserHits7d: 12,
+      browserHitsToday: 3,
     });
     // 30 days, because that is what the helper actually sends (and what the
     // chart title claims) — a shorter demo series would make the screenshot lie.

@@ -17,6 +17,7 @@ import {
 import type { UrlRule } from '../shared/urlrules';
 import { normalizeWindows, parseLockdown } from '../shared/lockdown';
 import { cleanKeywords } from '../shared/keywords';
+import { cleanBrowserHits } from '../shared/browser-hits';
 import { stateFilePath } from './paths';
 
 export interface SiteRec {
@@ -158,6 +159,12 @@ export interface HelperState {
    * (`unlockLog`). Nem kötelező: régi állapotfájlban nincs.
    */
   droppedAttempts?: number[];
+  /**
+   * A böngésző megakadásai forrásonként (böngésző-profilonként): a bővítmény
+   * könyve, a hídon át. A heti mondat és a statisztika sora mondja. Nem
+   * kötelező: régi állapotfájlban nincs. Lásd shared/browser-hits.ts.
+   */
+  browserHits?: import('../shared/browser-hits').BrowserHits;
   /** wall clock at the previous housekeeping tick, to notice clock jumps */
   lastTickAt?: number;
   /**
@@ -407,6 +414,8 @@ export function loadState(): HelperState {
       }
       // A napló sorai a mag szűrőjén át: ami nem sor, az nem sor.
       if (parsed.digestLog !== undefined) parsed.digestLog = cleanDigestLog(parsed.digestLog);
+      // A böngésző könyve is: ami nem nap, az nem nap.
+      if (parsed.browserHits !== undefined) parsed.browserHits = cleanBrowserHits(parsed.browserHits);
       // A session whose stepIndex does not address a real step can only wedge
       // the referee — every operation on it reads steps[stepIndex]. Dropping it
       // means the unlock attempt starts over, which is friction in the safe

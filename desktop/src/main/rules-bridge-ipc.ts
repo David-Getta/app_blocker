@@ -85,6 +85,7 @@ export function registerRulesBridge(
   getNotes?: () => Promise<BridgeNote[]>,
   getPartner?: () => Promise<BridgePartner | null>,
   getKeywords?: () => Promise<string[]>,
+  putHits?: (source: string, days: unknown[]) => Promise<void>,
 ): void {
   ipcMain.handle('breaker:bridge-info', () => ({ ...bridgeInfo(), lastPullAt }));
   if (handle) return;
@@ -99,6 +100,7 @@ export function registerRulesBridge(
     getNotes,
     getPartner,
     getKeywords,
+    putHits,
     // A LEHÚZÁS ténye. Ebből tudja meg a felület, hogy a bővítmény tényleg ott
     // van — nem csak a kiszolgáló fut.
     notePull: () => { lastPullAt = Date.now(); },

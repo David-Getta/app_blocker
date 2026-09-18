@@ -87,6 +87,12 @@ export interface DigestInput {
    * feloldások mellett: hányszor indult el a lazítás, és nem vitte végig.
    */
   dropped7d?: number;
+  /**
+   * A böngésző megakadásai az elmúlt 7 napban — hányszor vitt a tiltó lapra
+   * a bővítmény. Nem kötelező (régi hívó, telefon). A tükör harmadik fele:
+   * a tiltás akkor dolgozik, amikor az ember nem figyel — ez mondja, mennyit.
+   */
+  browserHits7d?: number;
   /** van-e egyáltalán mért nap */
   daysTracked: number;
   /**
@@ -147,6 +153,9 @@ export function digestText(input: DigestInput, labelOf: (label: string) => strin
   if (input.unlocks7d > 0) parts.push(`${input.unlocks7d} feloldás${droppedPart}.`);
   else if (dropped > 0) parts.push(`Feloldás nélkül${droppedPart}.`);
   else if (measured || f.sessions > 0) parts.push('Feloldás nélkül.');
+  // A megakadás: hányszor állította meg a böngésző — tény, nem ítélet.
+  const hits = input.browserHits7d ?? 0;
+  if (hits > 0) parts.push(`${hits} megakadás a böngészőben.`);
   // A tükör másik fele: ami sokat vitt, és nincs a listán. Egy név, a
   // legnagyobb — a többi a felvevő kártyán vár, egy kattintásra.
   const open = input.unblockedTop?.[0];

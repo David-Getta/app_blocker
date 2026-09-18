@@ -175,6 +175,16 @@ valamit, amit a felhasználó nem tiltott le.
    próbatételbe kerül. A mag a `keywords.js` — a `desktop/src/shared/keywords.ts`
    párja, cím-lista párokon összevetve.
 
+10. **Számolja, hányszor állított meg.** Minden tiltó lapra vitt navigáció egy
+    megakadás — naponként, okonként (zárva oldal, munkamenet, csatorna,
+    részleges szabály, kulcsszó), harminc napig, egy navigációt egyszer (a két
+    háló ugyanarra a címre kétszer is átirányíthat; a könyv nem számolja
+    kétszer). A felugró lap és a beállítás-lap mondja: „Ma 3 megakadás; az
+    elmúlt 7 napban 12.” Az appnak is átmegy (`POST /hits`, a kóddal, egy
+    állandó forrás-azonosítóval), ahol a heti mondat és a statisztika sora
+    mondja; a fiókba nem megy. A mag a `hits.js`, a kiszállított bájtokon
+    tesztelve.
+
 ## Fájlok
 
 | Fájl | Mi ez |
@@ -185,6 +195,7 @@ valamit, amit a felhasználó nem tiltott le.
 | `channels.js` | a csatorna-szűrő magja — a `desktop/src/shared/channels.ts` párja |
 | `chantime.js` | a csatorna-idő magja (mérés-tárolás, listák) — csak itt él |
 | `keywords.js` | a kulcsszó-szabályok magja (alak, lista, illesztés) — a `desktop/src/shared/keywords.ts` párja |
+| `hits.js` | a megakadás-számláló magja (naponként, okonként; a mondat; a hídra menő sorok) — csak itt él |
 | `background.js` | a navigáció megállítása (`webNavigation`) és a feltöltő-döntés |
 | `content.js` | a találatok elrejtése + a lejátszó-oldal feltöltőjének kiolvasása |
 | `options.html/js` | a szabályok kezelése |

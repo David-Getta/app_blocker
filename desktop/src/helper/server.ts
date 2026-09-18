@@ -10,6 +10,7 @@ import { normalizeDomain, expandHostnames } from '../shared/blocklist';
 import { computeTier } from '../shared/challenges';
 import { normalizeAlias, normalizeReason } from '../shared/alias';
 import { cleanDigestLog } from '../shared/digest';
+import { browserHits7d, browserHitsToday, putBrowserHits } from '../shared/browser-hits';
 import { normalizeRule } from '../shared/urlrules';
 import { focusDaySeries, isRunning, normalizePack, spentWindows, summarizeFocus } from '../shared/focus';
 import { noteBurstUsage, normalizeBurst, type BurstRule } from '../shared/burst';
@@ -128,6 +129,8 @@ export function statusOf(
     tier: computeTier(state.unlockLog, now),
     unlocks7d: state.unlockLog.filter((t) => t >= now - 7 * 24 * 3600_000).length,
     dropped7d: (state.droppedAttempts ?? []).filter((t) => t >= now - 7 * 24 * 3600_000).length,
+    browserHits7d: browserHits7d(state.browserHits, now),
+    browserHitsToday: browserHitsToday(state.browserHits, now),
     lastUnlockAt: state.unlockLog.length > 0 ? Math.max(...state.unlockLog) : null,
     session: referee.currentSession(state),
     dohPolicyApplied: dohApplied,
@@ -334,6 +337,15 @@ async function handle(req: HelperRequest, deps: ServerDeps): Promise<unknown> {
       const r = referee.setKeywords(state, Array.isArray(req.words) ? req.words : [], now);
       deps.commit();
       return { ...r, status: statusOf(state, deps.dohApplied(), deps.selfTest()) };
+    }
+
+    case 'browser_hits': {
+      // A BÖNGÉSZŐ KÖNYVE a segédnél: a bővítmény könyveli, a hídon adja, a
+      // heti mondat és a statisztika innen mondja. Nem szabály és nem
+      // lazítás — bíró nélkül, de tisztítva: ami nem nap, az nem nap.
+      state.browserHits = putBrowserHits(state.browserHits, String(req.source ?? ''), req.days);
+      deps.commit();
+      return { status: statusOf(state, deps.dohApplied(), deps.selfTest()) };
     }
 
     case 'partner_set': {

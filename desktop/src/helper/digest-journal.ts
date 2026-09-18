@@ -14,6 +14,7 @@ import { cleanDigestLog, digestDue, digestText, recordDigest } from '../shared/d
 import { displayName, isAliased } from '../shared/alias';
 import { summarizeFocus } from '../shared/focus';
 import { suggestBlocks, summarize } from '../shared/usage';
+import { browserHits7d } from '../shared/browser-hits';
 import type { HelperState } from './state';
 
 /** A mai nap kezdete helyi idő szerint — ugyanaz, mint a statisztikáé. */
@@ -50,6 +51,7 @@ export function digestTextNow(state: HelperState, now: number): string | null {
     focusWeek: summarizeFocus(state.focusLog, startOfDay(now) - 6 * 86_400_000, now),
     unlocks7d: state.unlockLog.filter((t) => t >= now - 7 * 24 * 3600_000).length,
     dropped7d: (state.droppedAttempts ?? []).filter((t) => t >= now - 7 * 24 * 3600_000).length,
+    browserHits7d: browserHits7d(state.browserHits, now),
     daysTracked: s.daysTracked,
     unblockedTop: suggestBlocks(s.topWeekSites, state.sites).map((t) => ({ label: t.label, seconds: t.seconds })),
   }, helperLabel(state));

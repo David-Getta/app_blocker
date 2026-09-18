@@ -2210,8 +2210,10 @@ function renderTier(st: StatusData): void {
   // A félbemaradt kísérlet is a sorban, ha volt: a nehézséget nem emeli, de
   // a tükörhöz hozzátartozik — hányszor indult el a lazítás, és nem vitte végig.
   const dropped = st.dropped7d ? ` · ${st.dropped7d} félbemaradt kísérlet` : '';
+  // …és a böngésző megakadásai: hányszor vitt a tiltó lapra a bővítmény.
+  const hits = st.browserHits7d ? ` · ${st.browserHits7d} megakadás a böngészőben` : '';
   $('tierLine').textContent =
-    `Próbatétel-nehézség: ${names[st.tier]} (${st.tier + 1}/4) · ${st.unlocks7d} feloldás az elmúlt 7 napban${unlockStreakLabel(st.lastUnlockAt)}${dropped} — minél többször oldasz fel, annál nehezebb.`;
+    `Próbatétel-nehézség: ${names[st.tier]} (${st.tier + 1}/4) · ${st.unlocks7d} feloldás az elmúlt 7 napban${unlockStreakLabel(st.lastUnlockAt)}${dropped}${hits} — minél többször oldasz fel, annál nehezebb.`;
 }
 
 /**
@@ -3836,6 +3838,7 @@ function currentDigestText(): string | null {
     focusWeek: statsData.focusWeek,
     unlocks7d: status.unlocks7d,
     dropped7d: status.dropped7d ?? 0,
+    browserHits7d: status.browserHits7d ?? 0,
     daysTracked: s.daysTracked,
     unblockedTop: suggestBlocks(s.topWeekSites, status.sites).map((t) => ({ label: t.label, seconds: t.seconds })),
   }, statLabel);

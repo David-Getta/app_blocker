@@ -174,6 +174,13 @@ export interface StatusData {
   unlocks7d: number;
   /** félbemaradt kísérletek az elmúlt 7 napban (feladva, lejárva, elszállva, újraindítva) — régi segédnél nincs */
   dropped7d?: number;
+  /**
+   * A böngésző megakadásai — hányszor vitt a tiltó lapra a bővítmény — az
+   * elmúlt 7 napban és ma. Nem kötelező (régi segéd). A bővítmény könyve, a
+   * hídon át; a gép saját tükre, nem szinkronizál.
+   */
+  browserHits7d?: number;
+  browserHitsToday?: number;
   /** az utolsó feloldás ideje (epoch ms), vagy null, ha még egy sem volt */
   lastUnlockAt?: number | null;
   session: SessionInfo | null;
@@ -268,6 +275,7 @@ export type HelperRequest =
   // Az azonosító nélküli ablak újnak számít, a segéd ad neki azonosítót.
   | { id: number; op: 'lockdown_windows'; windows: import('./lockdown').LockdownWindow[] }
   | { id: number; op: 'set_keywords'; words: string[] }
+  | { id: number; op: 'browser_hits'; source: string; days: unknown[] }
   // Párban zárolás. Felvenni ingyen: a segéd sorsolja a jelmondatot, EGYSZER
   // adja vissza, és csak a lenyomatát tartja meg. Levenni próbatétel — a
   // végén a megbízott jelmondatával, tehát a levételhez is ő kell.

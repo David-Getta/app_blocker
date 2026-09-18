@@ -224,6 +224,48 @@ test('a kulcsszavak is átmennek a hídon — nélkülük üres lista, nem hián
   assert.deepEqual((r2.body as { keywords: unknown }).keywords, []);
 });
 
+test('a megakadás-könyv az EGYETLEN befelé út: kóddal, alakkal — és szabályt nem ír', async () => {
+  // A bővítmény könyvelése jön rajta (hányszor vitt a tiltó lapra), semmi
+  // más: a híd továbbra sem tud szabályt felvenni vagy levenni. Kód nélkül
+  // 401, rossz alakkal 400, GET-tel 404 — és a régi híd (putHits nélkül)
+  // csendben nyugtáz, hogy a bővítmény ne hibázzon rajta.
+  const got: { source: string; days: unknown[] }[] = [];
+  const d = { ...deps(), putHits: async (source: string, days: unknown[]) => { got.push({ source, days }); } };
+  const days = [{ day: '2026-09-18', total: 2, byReason: { keyword: 2 } }];
+  const ok = await answer(d, 'POST', '/hits', { [TOKEN_HEADER]: 'ABCD-EFGH' }, { source: 'chrome1', days });
+  assert.equal(ok.status, 200);
+  assert.deepEqual(got, [{ source: 'chrome1', days }]);
+  const noToken = await answer(d, 'POST', '/hits', {}, { source: 'chrome1', days });
+  assert.equal(noToken.status, 401);
+  const badShape = await answer(d, 'POST', '/hits', { [TOKEN_HEADER]: 'ABCD-EFGH' }, { days: 'nem' });
+  assert.equal(badShape.status, 400);
+  assert.equal((await answer(d, 'GET', '/hits', { [TOKEN_HEADER]: 'ABCD-EFGH' })).status, 404);
+  assert.equal((await answer(d, 'POST', '/rules', { [TOKEN_HEADER]: 'ABCD-EFGH' }, {})).status, 405, 'a szabályokra nincs befelé út');
+  assert.equal(got.length, 1, 'a rossz kérések nem könyveltek');
+  const old = await answer(deps(), 'POST', '/hits', { [TOKEN_HEADER]: 'ABCD-EFGH' }, { source: 'chrome1', days });
+  assert.equal(old.status, 200, 'putHits nélkül is nyugta: a bővítmény ne hibázzon');
+});
+
+test('a valódi hídon a törzs beolvasva jön — a rossz JSON 400, a túl nagy 413', async () => {
+  const got: unknown[] = [];
+  const h = await startRulesBridge({ ...deps(), startPort: 18820, putHits: async (source, days) => { got.push({ source, days }); } });
+  try {
+    const url = `http://127.0.0.1:${h.port}/hits`;
+    const headers = { [TOKEN_HEADER]: 'ABCD-EFGH', 'content-type': 'application/json' };
+    const r = await fetch(url, { method: 'POST', headers, body: JSON.stringify({ source: 'edge1', days: [{ day: '2026-09-18', total: 1 }] }) });
+    assert.equal(r.status, 200);
+    assert.deepEqual(got, [{ source: 'edge1', days: [{ day: '2026-09-18', total: 1 }] }]);
+    const bad = await fetch(url, { method: 'POST', headers, body: '{nem json' });
+    assert.equal(bad.status, 400);
+    const big = await fetch(url, { method: 'POST', headers, body: JSON.stringify({ source: 'x', days: [], pad: 'a'.repeat(70 * 1024) }) })
+      .then((res) => res.status, () => 413); // a megszakított kérésre a kliens hibát is dobhat
+    assert.equal(big, 413);
+    assert.equal(got.length, 1);
+  } finally {
+    h.close();
+  }
+});
+
 test('az indokok is a válaszban vannak, hosztnevenként — a régi hídon üres lista', async () => {
   const notes = [{ host: 'youtube.com', text: 'Mert este nem alszom tőle' }];
   const r = await answer(

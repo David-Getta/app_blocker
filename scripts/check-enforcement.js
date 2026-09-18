@@ -377,6 +377,45 @@ const WIRES = [
     needle: "'set_keywords'",
     lost: 'a kulcsszavak kártyája nem érné el a segédet — a gomb nem csinálna semmit',
   },
+  // A MEGAKADÁS-SZÁMLÁLÓ lánca: a háttér könyvel, a link átadja, a híd
+  // fogadja, a segéd tartja, a mondat és a statisztika mondja. Ha bármelyik
+  // láncszem kiesne, a bővítmény lapja továbbra is számolna — az app viszont
+  // nullát mondana, és semmi nem jelezné.
+  {
+    file: 'extension/background.js',
+    needle: 'await recordHitNow(details.tabId, details.url, hit.reason);',
+    lost: 'a bővítmény nem könyvelné a megakadásokat — a számláló mindig nulla lenne',
+  },
+  {
+    file: 'extension/background.js',
+    needle: 'if (r?.ok) await pushHitsNow();',
+    lost: 'a könyv nem menne át az appba — a heti mondat és a statisztika nem tudna róla',
+  },
+  {
+    file: 'desktop/src/main/rules-bridge.ts',
+    needle: "if (method === 'POST' && path === '/hits') {",
+    lost: 'a híd nem fogadná a könyvet — a bővítmény hibát kapna rá',
+  },
+  {
+    file: 'desktop/src/main/main.ts',
+    needle: "await client.call('browser_hits', { source, days });",
+    lost: 'a híd fogadná a könyvet, de a segédig nem érne el',
+  },
+  {
+    file: 'desktop/src/helper/server.ts',
+    needle: "case 'browser_hits': {",
+    lost: 'a segéd nem tartaná a könyvet — a statisztika és a mondat nulla',
+  },
+  {
+    file: 'desktop/src/helper/digest-journal.ts',
+    needle: 'browserHits7d: browserHits7d(state.browserHits, now),',
+    lost: 'a heti mondat nem mondaná a megakadásokat',
+  },
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: 'megakadás a böngészőben',
+    lost: 'a statisztika sora nem mondaná a megakadásokat',
+  },
   // A MEGBÍZOTT a böngészőben: a híd leadja a nevét, a háttér a lap címére
   // teszi, a lap lába kimondja. Bármelyik kiesne, a tiltó lap a próbatétel
   // útját mondaná — a megbízott nélkül, pont a kísértés pillanatában.

@@ -408,6 +408,18 @@ mint a feloldásokat (`droppedAttempts` az állapotban, mindhárom magban); a
 gépen a próbatétel-nehézség sora is mondja. Nem ítélet: hányszor indult el a
 lazítás — és hányszor nem vitte végig az ember. A tükör fele lenne nélküle.
 
+A gépen a **megakadások** is: „12 megakadás a böngészőben.” — hányszor vitt a
+tiltó lapra a böngésző-bővítmény az elmúlt 7 napban. A bővítmény könyveli
+(`extension/hits.js`: naponként, okonként — zárva oldal, munkamenet, csatorna,
+részleges szabály, kulcsszó —, harminc napig, egy navigációt egyszer), a
+hídon adja át (`POST /hits`, a kóddal, egy állandó forrás-azonosítóval: két
+böngésző két könyv, a segéd összeadja), a segéd tartja
+(`shared/browser-hits.ts`, `browserHits` az állapotban, forrásonként). A
+statisztika nehézség-sora is mondja („· 12 megakadás a böngészőben”), a
+bővítmény felugró lapja és beállítás-lapja pedig a mait és a hetet, naponként.
+A híd befelé CSAK ezt fogadja — könyvelést, szabályt soha. A telefonon nincs
+(ott nincs bővítmény), és nem szinkronizál: a gép saját tükre.
+
 Szabályok, kimondva:
 
 - **Egy hétről egyszer, eszközönként.** A hét kulcsa (a hétfő dátuma) a

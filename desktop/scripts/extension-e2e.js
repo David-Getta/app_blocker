@@ -467,6 +467,15 @@ async function main() {
     await page.goto(`${base}/?x=szabad`).catch(() => {});
     await page.waitForTimeout(500);
     check(!/blocked\.html/.test(page.url()), 'a szó nélküli cím ugyanazon a hoszton szabad');
+    // A MEGAKADÁS könyvelve: a tiltó lapra vitt navigáció a mai napra, okkal.
+    const hits = await seeder.evaluate(async () => {
+      const got = await chrome.storage.local.get('breaker.hits');
+      const days = got?.['breaker.hits']?.days ?? {};
+      const today = Object.keys(days).sort().pop();
+      return today ? { day: today, ...days[today] } : null;
+    }).catch(() => null);
+    check(!!hits && hits.total >= 1 && (hits.byReason?.keyword ?? 0) >= 1,
+      'a megakadás a mai napra könyvelve, kulcsszó okkal');
     await seedClosed([], Date.now());
 
     // A szünet LETELTEKOR a lap utat ad vissza: a visszaszámláló helyén link

@@ -322,6 +322,49 @@ function range(from, count) {
   return Array.from({ length: count }, (_, i) => from + i);
 }
 
+const HITS_SENT_KEY = 'breaker.hitsSent';
+
+/**
+ * A MEGAKADÁSOK vissza az appba: az elmúlt hét nap sorai (hits.js
+ * `hitsReport`) a hídra, a kóddal, egy állandó forrás-azonosítóval — két
+ * böngésző két könyv, a segéd összeadja őket. Ugyanarra a portra, ahol az app
+ * utoljára válaszolt; ha ott nincs, nem keresgélünk: a következő lehúzás
+ * úgyis megtalálja. Ugyanaz a jelentés nem megy kétszer — a tár őrzi, mi ment
+ * át utoljára; az app hibája nem jegyzi meg, a következő körben újra megy.
+ */
+export async function pushHits(report, now = Date.now(), fetchImpl = fetch, timeoutMs = PORT_TIMEOUT_MS) {
+  const link = await loadLink();
+  if (!link.token || !link.port) return { ok: false, error: 'Nincs összekötve.' };
+  const days = Array.isArray(report) ? report : [];
+  const sent = (await chrome.storage.local.get(HITS_SENT_KEY))?.[HITS_SENT_KEY];
+  const source = typeof sent?.source === 'string' && sent.source ? sent.source : newSourceId();
+  const key = JSON.stringify(days);
+  if (sent?.key === key) return { ok: true, skipped: true };
+  const ctrl = typeof AbortController === 'function' ? new AbortController() : null;
+  try {
+    const res = await withTimeout(fetchImpl(`http://127.0.0.1:${link.port}/hits`, {
+      method: 'POST',
+      headers: { [TOKEN_HEADER]: link.token, 'content-type': 'application/json' },
+      body: JSON.stringify({ source, days }),
+      cache: 'no-store',
+      ...(ctrl ? { signal: ctrl.signal } : {}),
+    }), timeoutMs);
+    if (!res.ok) return { ok: false, error: `Az app hibát adott (${res.status}).` };
+  } catch (err) {
+    if (ctrl) ctrl.abort();
+    return { ok: false, error: String(err?.message ?? err) };
+  }
+  await chrome.storage.local.set({ [HITS_SENT_KEY]: { source, key, at: now } });
+  return { ok: true };
+}
+
+/** A könyv forrás-azonosítója: véletlen, egyszer, ezé a böngésző-profilé. */
+function newSourceId() {
+  const c = globalThis.crypto;
+  if (c && typeof c.randomUUID === 'function') return c.randomUUID().replace(/-/g, '');
+  return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 12)}`;
+}
+
 /**
  * Kell-e most kérdezni.
  *

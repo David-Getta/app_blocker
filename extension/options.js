@@ -12,6 +12,7 @@ import {
 } from './storage.js';
 import { CLOSED_FRESH_MS, loadLink, pullFromApp, setToken, withAppRules } from './app-link.js';
 import { dayKey, formatSeconds, lastDays, topChannels } from './chantime.js';
+import { hitsRows, hitsSummary, hitsText } from './hits.js';
 
 const TIME_KEY = 'breaker.chantime';
 
@@ -54,6 +55,29 @@ async function renderChannelTime() {
   renderTimeList('timeWeek', 'timeWeekEmpty', topChannels(state, lastDays(today, 7)));
 }
 
+/** A megakadások: a mondat, és naponként egy sor az elmúlt hétről. */
+async function renderHits() {
+  const got = await chrome.storage.local.get('breaker.hits');
+  const state = got?.['breaker.hits'] ?? { days: {} };
+  const today = dayKey();
+  const text = hitsText(hitsSummary(state, today));
+  $('hitsLine').hidden = text === null;
+  $('hitsLine').textContent = text ?? '';
+  const rows = hitsRows(state, today);
+  const list = $('hitsList');
+  list.textContent = '';
+  $('hitsEmpty').hidden = rows.length > 0;
+  for (const r of rows) {
+    const li = el('li');
+    const left = el('div');
+    left.appendChild(el('div', 'name', r.day.replace(/-/g, '. ') + '.'));
+    left.appendChild(el('div', 'muted', r.detail));
+    li.appendChild(left);
+    li.appendChild(el('span', 'muted', String(r.total)));
+    list.appendChild(li);
+  }
+}
+
 async function render() {
   await sweep();
   const state = await load();
@@ -62,6 +86,7 @@ async function render() {
   renderLink(link);
   renderClosedNow(link, now);
   void renderChannelTime();
+  void renderHits();
   const list = $('list');
   list.textContent = '';
   // Az appból jött szabályok ugyanabban a listában állnak: a felhasználót nem

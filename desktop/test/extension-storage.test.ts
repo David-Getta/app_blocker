@@ -542,6 +542,42 @@ test('a kulcsszavak megérkeznek tisztán, és az app bezárása után is élnek
   assert.deepEqual((await ext2.loadLink()).keywords, []);
 });
 
+test('a megakadások átmennek az appnak — egyszer, amíg nem változnak; port nélkül nem; a hiba nem jegyzi meg', async () => {
+  type Init = { method?: string; headers: Record<string, string>; body?: string };
+  type Push = (report: unknown, now: number, fetchImpl: unknown) => Promise<{ ok: boolean; skipped?: boolean; error?: string }>;
+  const ext = freshLink() as LinkApi & { pushHits: Push };
+  const posts: { url: string; init: Init }[] = [];
+  let postStatus = 200;
+  const app = async (url: string, init: Init) => {
+    if (init.method === 'POST') {
+      posts.push({ url, init });
+      return { ok: postStatus === 200, status: postStatus, json: async () => ({}) };
+    }
+    return fakeApp(8788, 'ABCD-EFGH', [])(url, init);
+  };
+  await ext.setToken('ABCD-EFGH');
+  const report = [{ day: '2026-09-18', total: 2, byReason: { keyword: 2 } }];
+  assert.equal((await ext.pushHits(report, 1000, app)).ok, false, 'port nélkül (még nem volt lehúzás) nem megy');
+  assert.equal((await ext.pullFromApp(1000, app)).ok, true);
+  assert.equal((await ext.pushHits(report, 2000, app)).ok, true);
+  assert.equal(posts.length, 1);
+  assert.equal(posts[0].url, 'http://127.0.0.1:8788/hits');
+  assert.equal(posts[0].init.headers['x-breaker-token'], 'ABCD-EFGH');
+  const body = JSON.parse(posts[0].init.body ?? '{}') as { source: string; days: unknown };
+  assert.deepEqual(body.days, report);
+  assert.match(body.source, /^[A-Za-z0-9]{8,}$/, 'a forrás azonosítója: ezé a böngésző-profilé');
+  assert.deepEqual(await ext.pushHits(report, 3000, app), { ok: true, skipped: true }, 'ugyanaz a jelentés nem megy kétszer');
+  assert.equal(posts.length, 1);
+  postStatus = 500;
+  const more = [...report, { day: '2026-09-17', total: 1, byReason: { closed: 1 } }];
+  assert.equal((await ext.pushHits(more, 4000, app)).ok, false, 'az app hibája hiba');
+  postStatus = 200;
+  assert.equal((await ext.pushHits(more, 5000, app)).ok, true, '…és a következő körben újra megy');
+  assert.equal(posts.length, 3);
+  const again = JSON.parse(posts[2].init.body ?? '{}') as { source: string };
+  assert.equal(again.source, body.source, 'a forrás azonosítója állandó');
+});
+
 test('egy RÉGI app válasza (channels mező nélkül) üres listát ad, nem hibát', async () => {
   const ext = freshLink();
   await ext.setToken('ABCD-EFGH');

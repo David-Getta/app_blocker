@@ -14,12 +14,14 @@ import { authorVerdict, channelVerdict, MAX_CHANNEL_KEY_LENGTH } from './channel
 import { addSeconds, dayKey, sweepDays } from './chantime.js';
 import { firstMatch, ruleLabel } from './rules-core.js';
 import { keywordHit } from './keywords.js';
+// A napkulcs a csatorna-időé (ugyanaz a helyi nap) — a könyv is azzal él.
+import { hitsReport, recordHit, sweepHits } from './hits.js';
 import { activeRules, load, sweep } from './storage.js';
 import {
   closedFor, dueForRefresh, focusActive, focusAllows, loadLink, lockdownUntil, pullFromApp,
   withAppRules,
   noteFor,
-  partnerNameOf,
+  partnerNameOf, pushHits,
 } from './app-link.js';
 
 /** Csak a főkeret számít: egy beágyazott hirdetés nem „az oldal megnyitása”. */
@@ -117,8 +119,55 @@ function refreshInBackground() {
   void (async () => {
     const link = await loadLink();
     if (!dueForRefresh(link, Date.now())) return;
-    await pullFromApp();
+    const r = await pullFromApp();
+    // A megakadások VISSZA az appba, a sikeres lehúzás után: az app mondja a
+    // heti mondatban és a statisztikán. Ha nem megy, nem baj — a szám itt
+    // marad, és a következő körben újra próbáljuk.
+    if (r?.ok) await pushHitsNow();
   })();
+}
+
+const HITS_KEY = 'breaker.hits';
+
+/** A tárolt megakadás-könyv — hiányzó vagy sérült tárnál üres. */
+async function loadHits() {
+  try {
+    const got = await chrome.storage.local.get(HITS_KEY);
+    const s = got?.[HITS_KEY];
+    return s && typeof s === 'object' ? s : { days: {} };
+  } catch {
+    return { days: {} };
+  }
+}
+
+// Egy navigáció EGYSZER számít. A két háló (előtte, megtörtént) és a lapon
+// belüli váltás ugyanarra a címre többször is átirányíthat — az a tiltásnak
+// jó (nem tud elveszni), a számlálónak nem. Memóriában, a worker életére:
+// egy elejtett ébredés legfeljebb egy duplát enged át, az nem hazugság.
+let lastCounted = { tabId: -1, url: '', at: 0 };
+const COUNT_ONCE_MS = 3000;
+
+/** Egy megakadás könyvelése a mai napra — sosem dobhat a hívóra. */
+async function recordHitNow(tabId, url, reason, now = Date.now()) {
+  if (lastCounted.tabId === tabId && lastCounted.url === url && now - lastCounted.at < COUNT_ONCE_MS) return;
+  lastCounted = { tabId, url, at: now };
+  try {
+    const today = dayKey(new Date(now));
+    const state = sweepHits(recordHit(await loadHits(), today, reason), today);
+    await chrome.storage.local.set({ [HITS_KEY]: state });
+  } catch (err) {
+    note(`megakadás nem könyvelve: ${err}`);
+  }
+}
+
+/** Az elmúlt hét nap megakadásai az appnak — a híd fogadja, a segéd tartja. */
+async function pushHitsNow() {
+  try {
+    const state = await loadHits();
+    await pushHits(hitsReport(state, dayKey()));
+  } catch (err) {
+    note(`megakadások nem mentek át: ${err}`);
+  }
 }
 
 /** A tiltó lap címe, a MEGFOGÓ okkal együtt: a lap megnevezi, mi állította meg. */
@@ -210,7 +259,10 @@ async function enforce(kind, details) {
   } catch (err) {
     // A lap közben eltűnhetett. Ez nem hiba, csak elkéstünk vele.
     note(`átirányítás nem ment: ${err}`);
+    return;
   }
+  // Megállítottunk: a könyvelés az átirányítás UTÁN, hogy sose késleltesse.
+  await recordHitNow(details.tabId, details.url, hit.reason);
 }
 
 chrome.webNavigation.onBeforeNavigate.addListener((details) => {

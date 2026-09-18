@@ -6,6 +6,7 @@
 
 import { CLOSED_FRESH_MS, loadLink } from './app-link.js';
 import { describePopup } from './popup-core.js';
+import { dayKey, hitsSummary, hitsText } from './hits.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -61,6 +62,16 @@ async function render() {
 
   $('counts').textContent = `Részleges szabályok: ${d.rules} · Csatorna-szűrők: ${d.channels}`
     + (d.keywords > 0 ? ` · Kulcsszavak: ${d.keywords}` : '');
+
+  // A megakadások: tükör, nem ítélet — a bővítmény saját könyve, nem az appé.
+  const hits = $('hits');
+  let text = null;
+  try {
+    const got = await chrome.storage.local.get('breaker.hits');
+    text = hitsText(hitsSummary(got?.['breaker.hits'] ?? { days: {} }, dayKey()));
+  } catch { /* tár nélkül nincs szám — a lap többi része attól még áll */ }
+  hits.hidden = text === null;
+  hits.textContent = text ?? '';
 }
 
 $('openOptions').addEventListener('click', () => {

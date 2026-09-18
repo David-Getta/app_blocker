@@ -327,6 +327,12 @@ if (HELPER_MODE) {
           const s = await sharedStatus();
           return s.keywords ?? [];
         },
+        async (source, days) => {
+          // A MEGAKADÁS-KÖNYV visszafelé: a bővítmény számolja, a segéd tartja
+          // — a heti mondat és a statisztika sora innen mondja, hányszor
+          // állított meg a böngésző. Könyvelés, nem szabály: bíró nélkül.
+          await client.call('browser_hits', { source, days });
+        },
       );
       // Keep the tracker's view of the switch fresh without extra IPC chatter.
       const refreshFocus = (): void => {
