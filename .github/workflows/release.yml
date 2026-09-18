@@ -188,6 +188,11 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
+          # A Gradle-tár gyorsítótárazva. A Maven Central a napi sokadik teljes
+          # letöltésnél 429-cel (Too Many Requests) küldte el a futót — a CI és
+          # a kiadás ezen bukott, nem a kódon. A tárból a legtöbb csomag nem is
+          # kérdez a hálózattól.
+          cache: gradle
       # A `packages: ''` NEM díszítés: az action alapból a rég megszűnt `tools`
       # SDK-csomagot telepítené, és a sdkmanager ezen elhasal
       # („Failed to find package 'tools'”) — a build el sem indul. A futó képe
