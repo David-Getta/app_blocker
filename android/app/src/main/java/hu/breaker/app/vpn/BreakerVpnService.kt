@@ -16,6 +16,7 @@ import hu.breaker.app.R
 import hu.breaker.app.core.AliasLogic
 import hu.breaker.app.core.BreakerStore
 import hu.breaker.app.core.Focus
+import hu.breaker.app.core.LockdownLogic
 import hu.breaker.app.core.Referee
 import hu.breaker.app.core.UsageLogic
 import hu.breaker.app.usage.UsageTracker
@@ -42,6 +43,8 @@ class BreakerVpnService : VpnService() {
         private const val TAG = "BreakerVpn"
         private const val CHANNEL_ID = "breaker_vpn"
         private const val NOTIF_ID = 1
+        /** A heti ablak beérésének egyszeri értesítése — a 2-es a visszavonásé. */
+        private const val NOTIF_WINDOW_ID = 3
 
         private val _running = MutableStateFlow(false)
         val running: StateFlow<Boolean> get() = _running
@@ -60,6 +63,12 @@ class BreakerVpnService : VpnService() {
     private var tun: ParcelFileDescriptor? = null
     /** Az utolsó kiírt értesítés-szöveg kulcsa — csak változásnál rajzolunk újra. */
     private var lastNotifKey: String? = null
+    /**
+     * A már bejelentett ablak-zárlat vége. -1, amíg az első kör nem futott: a
+     * szolgáltatás indulásakor talált zárlatot nem jelentjük be újra — a sáv
+     * úgyis mondja —, csak azt, ami a szolgáltatás élete alatt ér be.
+     */
+    private var noticedWindowUntil: Long = -1L
     private var usageTimer: java.util.Timer? = null
     @Volatile private var stopping = false
     private var readerThread: Thread? = null
@@ -114,8 +123,10 @@ class BreakerVpnService : VpnService() {
             PendingIntent.FLAG_IMMUTABLE,
         )
         val now = System.currentTimeMillis()
+        val st = BreakerStore.state.value
         val run = BreakerStore.runningFocus(now)
         val pack = BreakerStore.runningFocusPack(now)
+        val lock = LockdownLogic.live(st.lockdown, now)
         // A hűtés a munkamenet UTÁN jön: a menet mindenre szól, az adag egy
         // oldalra — a szélesebb állapot a fontosabb mondanivaló.
         val cooling = if (run == null) BreakerStore.coolingSites(now) else emptyList()
@@ -130,6 +141,13 @@ class BreakerVpnService : VpnService() {
         } else if (run != null) {
             title = getString(R.string.vpn_focus_title, pack?.name ?: "Munkamenet")
             text = getString(R.string.vpn_focus_text, Focus.formatRemaining(run.endsAt - now))
+        } else if (lock != null) {
+            // A zárlat alatt a sáv mondja meg, miért nincs lazítás — és meddig. Az
+            // ablak zárlatát ablakénak mondja: aki nem maga indította, tudja meg,
+            // mi tartja. A menet elé nem kerül: az mondja meg, mi jön be egyáltalán.
+            val byWindow = LockdownLogic.isWindowLockdown(lock, st.lockdownWindows.map { it.band })
+            title = getString(if (byWindow) R.string.vpn_lockdown_window_title else R.string.vpn_lockdown_title)
+            text = getString(R.string.vpn_lockdown_text, LockdownLogic.formatRemaining(lock.until - now), clockLabel(lock.until, now))
         } else if (cooling.isNotEmpty()) {
             // A telefonon a betelt adagnak nincs tiltó lapja — a böngésző csak
             // hálózati hibát mutat. Ez az értesítés mondja meg, mi történt, és
@@ -167,7 +185,21 @@ class BreakerVpnService : VpnService() {
         // A Privát DNS állapota is a kulcs része: átállításkor azonnal
         // átrajzolunk, közben nem.
         val strictKey = if (PrivateDns.strictHostname(this) != null) "strict:" else ""
-        val key = strictKey + if (run != null) {
+        // A zárlat is a kulcs része: kezdéskor, percváltásnál és lejáratkor
+        // átrajzolunk — közben nem.
+        val st = BreakerStore.state.value
+        val lock = LockdownLogic.live(st.lockdown, now)
+        val lockKey = if (lock == null) "" else "lock:${lock.until}:${LockdownLogic.formatRemaining(lock.until - now)}:"
+        // Amikor a heti ablak beér, egyszer külön is szólunk: a sáv állandó, ez a
+        // pillanaté — aki nem maga indította, tudja meg, miért zárt be minden.
+        val byWindow = lock != null && LockdownLogic.isWindowLockdown(lock, st.lockdownWindows.map { it.band })
+        if (noticedWindowUntil == -1L) {
+            noticedWindowUntil = lock?.until ?: 0L
+        } else if (lock != null && byWindow && lock.until != noticedWindowUntil) {
+            noticedWindowUntil = lock.until
+            runCatching { notifyWindowLockdown(lock, now) }
+        }
+        val key = strictKey + lockKey + if (run != null) {
             "${run.packId}:${Focus.formatRemaining(run.endsAt - now)}"
         } else {
             // A hűtés is a kulcs része: induláskor, percváltásnál és lejáratkor
@@ -181,6 +213,37 @@ class BreakerVpnService : VpnService() {
         if (key == lastNotifKey) return
         lastNotifKey = key
         getSystemService(NotificationManager::class.java).notify(NOTIF_ID, buildNotification())
+    }
+
+    /** A zárlat vége olvashatóan: ma csak az óra, máskor a nap is. */
+    private fun clockLabel(at: Long, now: Long): String {
+        val a = java.util.Calendar.getInstance().apply { timeInMillis = at }
+        val n = java.util.Calendar.getInstance().apply { timeInMillis = now }
+        val sameDay = a.get(java.util.Calendar.YEAR) == n.get(java.util.Calendar.YEAR) &&
+            a.get(java.util.Calendar.DAY_OF_YEAR) == n.get(java.util.Calendar.DAY_OF_YEAR)
+        return if (sameDay) java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date(at))
+        else java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.SHORT, java.text.DateFormat.SHORT).format(java.util.Date(at))
+    }
+
+    /**
+     * Egyszeri értesítés, amikor a heti ablak beér — a gép is ezt teszi. Külön
+     * azonosítón, hogy ne a sáv állandó értesítését írja felül; lehúzható.
+     */
+    private fun notifyWindowLockdown(lock: LockdownLogic.Lockdown, now: Long) {
+        val pi = PendingIntent.getActivity(
+            this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE,
+        )
+        getSystemService(NotificationManager::class.java).notify(
+            NOTIF_WINDOW_ID,
+            Notification.Builder(this, CHANNEL_ID)
+                .setSmallIcon(android.R.drawable.ic_lock_lock)
+                .setContentTitle(getString(R.string.vpn_lockdown_window_title))
+                .setContentText(getString(R.string.vpn_lockdown_window_notice_text,
+                    LockdownLogic.formatRemaining(lock.until - now), clockLabel(lock.until, now)))
+                .setContentIntent(pi)
+                .setAutoCancel(true)
+                .build(),
+        )
     }
 
     private fun establishAndRun() {

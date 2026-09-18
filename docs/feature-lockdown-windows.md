@@ -91,4 +91,8 @@ ugyanazt a zárlatot mutatja, mint a kézinél.
 (próbatétel — a szokásos próbatétel-lap, „Zárlat-ablak lazítása” fejléccel;
 bent el sem indul), és a *Heti ablak felvétele* gomb a menetrend előre
 gyártott sávjait kínálja, meg egy saját sávot (napok, kezdés, vég). A sáv
-ugyanúgy mondja a zárlatot, mint a kézinél.
+ugyanúgy mondja a zárlatot, mint a kézinél. Androidon a szűrő állandó
+értesítése is a zárlatot mondja (kézit és ablakét, és hogy meddig), és amikor
+az ablak beér, egy külön, lehúzható értesítés is jön — mint a gépen. iPhone-on
+nincs ilyen értesítés: a szűrő bővítménye nem adhat, az app pedig csak nyitva
+számol; ott a kártya mondja.

@@ -108,7 +108,8 @@ object LockdownLogic {
     // Heti ablak, amiben a zárlat MAGÁTÓL él: például hétköznap 9-től 17-ig.
     // Nem új érvényesítés, hanem egy időzítő a meglévő elé: a kör az ablak
     // végéig szóló zárlatot ír, és onnantól minden ugyanaz. A telefon az
-    // ablakot hordozza, fésüli és érvényesíti; szerkeszteni a gépen lehet.
+    // ablakot hordozza, fésüli, érvényesíti és szerkeszti is — ugyanazzal a
+    // bíróval, mint a gép.
     // A lockdown.ts ablak-részének tükre; lásd docs/feature-lockdown-windows.md.
 
     /** Ennél több ablak nem fér ki — és nem is kell: hét nap van. */
