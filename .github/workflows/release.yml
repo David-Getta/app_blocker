@@ -44,24 +44,23 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A menet-sorozat ott is, ahol a döntés van.** A gépi kezdőlap
-          javaslat-kártyája és a gyorsbillentyűs réteg lába, a telefonok
-          kezdőlapjának kártyája és az Android szűrő-értesítés sora is
-          mondja, hány napja ülsz le minden nap — a menet gombja mellett,
-          nem helyette. Kettőtől; tény, nem felszólítás.
+          **A README és a weboldal a menet-sorozatról.** A négy esti kiadás
+          tükör-újdonsága — hány napja ülsz le minden nap, a napló
+          rekordjával, a heti mondatban, a böngésző lapjain és a döntés
+          helyein — a README-ben és a letöltőoldalon is. Kód nem változott.
 
-          ### Ami a v0.4.143-ban jött
+          ### Ami a v0.4.144-ben jött
+
+          **A menet-sorozat ott is, ahol a döntés van:** a gépi kártya és a
+          réteg lába, a telefonok kezdőlapjának kártyája és az Android
+          szűrő-értesítés sora is mondja, hány napja ülsz le minden nap —
+          a menet gombja mellett, nem helyette.
+
+          #### Ami a v0.4.143-ban jött
 
           **A menet-sorozat a böngészőben:** a felugró lap és a tiltó lap
-          a menet gombja mellett mondja, hány napja ülsz le minden nap
-          — az app száma a hídon, csak összekötve és frissen. Bővítmény
-          0.4.34.
-
-          #### Ami a v0.4.142-ben jött
-
-          **A leghosszabb sorozat:** a statisztika menet-sorozat sora a
-          napló rekordját is mondja mindhárom platformon, ha az több a
-          mostaninál; sorozat nélkül csak a rekordot.
+          a menet gombja mellett mondja — az app száma a hídon, csak
+          összekötve és frissen. Bővítmény 0.4.34.
 
           NOTES
           fi
