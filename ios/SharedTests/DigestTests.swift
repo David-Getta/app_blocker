@@ -347,6 +347,16 @@ final class DigestTests: XCTestCase {
         one.focusStreak = 1
         XCTAssertEqual(DigestLogic.text(one) { $0 }, DigestLogic.text(full) { $0 }, "egy nap mellett sem")
     }
+    func testWhenThePeakDayIsTheFocusDayTheSentenceSaysSoAfterTheFocusDay() {
+        var same = full
+        same.focusWeekday = (day: 2, count: 6)
+        same.filterHitsWeekday = (day: 2, count: 14)
+        let text = DigestLogic.text(same) { $0 } ?? ""
+        XCTAssertTrue(text.contains("A négy hét menet-napja: kedd (6 menet). A csúcs-nap és a menet-nap ugyanaz: kedd — a kéz azon a napon csúszik, amelyiken le szoktál ülni. 3 feloldás."), text)
+        var other = same
+        other.filterHitsWeekday = (day: 0, count: 14)
+        XCTAssertFalse((DigestLogic.text(other) { $0 } ?? "").contains("ugyanaz"), "más napon nincs mondat")
+    }
 
     func testTheSessionHourInTheSentenceIsTheStatsLineAndNoHourIsNoSentence() {
         let head = "Elmúlt 7 nap: 7 ó 20 p mért idő; a legtöbb: youtube.com 2 ó 40 p (▼ -33% az előző héthez képest). "

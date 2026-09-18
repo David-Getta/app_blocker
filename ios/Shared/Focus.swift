@@ -575,6 +575,14 @@ public enum Focus {
         return "A csúcs-óra és a menet-óra ugyanaz: \(FilterHitLogic.hourLabel(peak.hour)) — a kéz akkor jár, amikor le szoktál ülni."
     }
 
+    /// AMIKOR A CSÚCS-NAP A MENET-NAP: a kéz azon a napon csúszik a legtöbbször, amelyiken le szoktál ülni
+    /// — a tükör két fele egy napra mutat. Nil, ha nem esik egybe. Tény, nem ítélet.
+    public static func sameDayText(_ peak: (day: Int, count: Int)?, _ focusDay: (day: Int, count: Int)?) -> String? {
+        guard let peak, let focusDay, peak.day == focusDay.day else { return nil }
+        let name = peak.day >= 0 && peak.day < FilterHitLogic.weekdayNames.count ? FilterHitLogic.weekdayNames[peak.day] : "?"
+        return "A csúcs-nap és a menet-nap ugyanaz: \(name) — a kéz azon a napon csúszik, amelyiken le szoktál ülni."
+    }
+
     /// MOST a menet-óra van-e: a négy hét menet-órája és a helyi óra egybeesik — és a minta elég (a csúcs-nap küszöbe).
     public static func isHourNow(_ peak: (hour: Int, count: Int)?, now: Double) -> Bool {
         guard let peak, peak.count >= FilterHitLogic.peakDayMinCount else { return false }

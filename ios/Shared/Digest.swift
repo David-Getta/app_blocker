@@ -213,6 +213,8 @@ public enum DigestLogic {
         // A MENET-NAP: melyik napon ülsz le a legtöbbször — négy hétből, a statisztika
         // mondata szó szerint; a csúcs-nap tükre. Nincs nap, nincs mondat.
         if let focusDay = input.focusWeekday { parts.append(Focus.weekdayText(focusDay)) }
+        // AMIKOR A CSÚCS-NAP A MENET-NAP: a tükör két fele egy napra mutat — a mondat kimondja.
+        if let same = Focus.sameDayText(input.filterHitsWeekday, input.focusWeekday) { parts.append(same) }
         // A MENET-ÓRA: mikor ülsz le a legtöbbször — négy hétből, az indulás órája szerint, a statisztika mondata szó szerint.
         if let focusHour = input.focusHour { parts.append(Focus.hourText(focusHour, pack: input.focusHourPack, offer: input.focusHourWindowOffer)) }
         // AMIKOR A CSÚCS-ÓRA A MENET-ÓRA: a tükör két fele egy pontra mutat — a mondat kimondja.

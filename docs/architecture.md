@@ -153,7 +153,7 @@ következik belőle, oda egy gomb.
 |---|---|---|---|
 | csúcs-óra | a hét megakadásai óránként | statisztika (órák sávja), heti mondat, a csúcs-órában a kártya, a réteg, a böngésző lapjai, az Android sáv | előjelzés tíz perccel előtte; heti ablak egy kattintással (statisztika, kártya, böngésző, értesítés); a fedést kimondja |
 | csúcs-nap | négy hét megakadásai a hét napjaira | statisztika (napok sávja), heti mondat, a csúcs-napon a kártya, a réteg, a böngésző lapjai, az Android sáv | — (tény) |
-| menet-nap | négy hét menetei a vég napjára | statisztika, heti mondat, a menet-napon a kártya, a réteg, a böngésző lapjai, az Android sáv | — (tény) |
+| menet-nap | négy hét menetei a vég napjára | statisztika, heti mondat, a menet-napon a kártya, a réteg, a böngésző lapjai, az Android sáv | — (tény); ha a csúcs-nap, a sor és a heti mondat kimondja |
 | menet-óra | négy hét menetei az indulás órájára | statisztika (órák sávja), heti mondat, a menet-órában a kártya, a réteg, a böngésző lapjai, az Android sáv | előjelzés tíz perccel előtte; heti ablak egy kattintással (statisztika, kártya, böngésző, értesítés); a fedést kimondja; ha a csúcs-óra, a sor és a felugró lap kimondja |
 | mért idő napja | négy hét mért ideje a hét napjaira (gép, Android) | statisztika (napok sávja), heti mondat, a napján a kártya, a réteg, az Android sáv | — (tény) |
 | menet-sorozat | a napló napjai visszafelé a mától (vagy a tegnaptól) | statisztika (a rekorddal), heti mondat, a kártya, a réteg, a böngésző lapjai, az Android sáv | — (tény) |

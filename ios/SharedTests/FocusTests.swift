@@ -245,4 +245,11 @@ final class FocusTests: XCTestCase {
         XCTAssertEqual(Focus.streakText(0, longest: 4), "A leghosszabb sorozatod: 4 nap.", "mostani nélkül csak a rekord")
         XCTAssertNil(Focus.streakText(0, longest: 1), "egy nap rekordnak sem sorozat")
     }
+
+    func testSameDayTextWhenThePeakDayIsTheFocusDay() {
+        XCTAssertEqual(Focus.sameDayText((day: 2, count: 14), (day: 2, count: 6)),
+                       "A csúcs-nap és a menet-nap ugyanaz: kedd — a kéz azon a napon csúszik, amelyiken le szoktál ülni.")
+        XCTAssertNil(Focus.sameDayText((day: 0, count: 14), (day: 2, count: 6)), "más nap: nincs")
+        XCTAssertNil(Focus.sameDayText(nil, (day: 2, count: 6)))
+    }
 }

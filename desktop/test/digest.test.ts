@@ -270,6 +270,13 @@ test('a leghosszabb sorozat a mondatban: csak a mostani sorozat mellett, zárój
     'egy nap mellett sem');
 });
 
+test('amikor a csúcs-nap a menet-nap: a menet-nap mondata után kimondja — más napon nem', () => {
+  const same = digestText({ ...full, focusWeekday: { day: 2, count: 6 }, browserHitsWeekday: { day: 2, count: 14 } }, (l) => l) ?? '';
+  assert.ok(same.includes('A négy hét menet-napja: kedd (6 menet). A csúcs-nap és a menet-nap ugyanaz: kedd — a kéz azon a napon csúszik, amelyiken le szoktál ülni. 3 feloldás.'), same);
+  const other = digestText({ ...full, focusWeekday: { day: 2, count: 6 }, browserHitsWeekday: { day: 0, count: 14 } }, (l) => l) ?? '';
+  assert.ok(!other.includes('ugyanaz'), 'más napon nincs mondat');
+});
+
 test('a menet-óra a mondatban: a statisztika sora szó szerint, a menet-nap után — óra nélkül nem mondat', () => {
   const head = 'Elmúlt 7 nap: 7 ó 20 p mért idő; a legtöbb: youtube.com 2 ó 40 p (▼ -33% az előző héthez képest). '
     + '9 menet (7 ó 0 p, 2 korán leállítva).';

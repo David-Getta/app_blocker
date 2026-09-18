@@ -716,6 +716,14 @@ object Focus {
         if (peak == null || focusHour == null || peak.first != focusHour.first) null
         else "A csúcs-óra és a menet-óra ugyanaz: ${FilterHitLogic.hourLabel(peak.first)} — a kéz akkor jár, amikor le szoktál ülni."
 
+    /**
+     * AMIKOR A CSÚCS-NAP A MENET-NAP: a kéz azon a napon csúszik a legtöbbször, amelyiken le szoktál
+     * ülni — a tükör két fele egy napra mutat. Null, ha nem esik egybe. Tény, nem ítélet.
+     */
+    fun sameDayText(peak: Pair<Int, Int>?, focusDay: Pair<Int, Int>?): String? =
+        if (peak == null || focusDay == null || peak.first != focusDay.first) null
+        else "A csúcs-nap és a menet-nap ugyanaz: ${FilterHitLogic.WEEKDAY_NAMES.getOrElse(peak.first) { "?" }} — a kéz azon a napon csúszik, amelyiken le szoktál ülni."
+
     /** A tükör a döntés napján: a kezdőlap kártyája a menet-napon (a „ma van” szabálya a csúcs-napé: FilterHitLogic.isPeakDayNow). */
     fun dayNowText(peak: Pair<Int, Int>): String =
         "Ma a négy hét menet-napja van (${FilterHitLogic.WEEKDAY_NAMES.getOrElse(peak.first) { "?" }}, ${peak.second} menet) — ilyenkor szoktál leülni."

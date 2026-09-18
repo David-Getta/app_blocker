@@ -480,4 +480,9 @@ class FocusTest {
         assertEquals("", Focus.streakText(0, 1), "egy nap rekordnak sem sorozat")
     }
 
+    @Test fun `amikor a csucs-nap a menet-nap - a mondat, mas napon nincs`() {
+        assertEquals("A csúcs-nap és a menet-nap ugyanaz: kedd — a kéz azon a napon csúszik, amelyiken le szoktál ülni.", Focus.sameDayText(2 to 14, 2 to 6))
+        assertEquals(null, Focus.sameDayText(0 to 14, 2 to 6), "más nap: nincs")
+        assertEquals(null, Focus.sameDayText(null, 2 to 6))
+    }
 }

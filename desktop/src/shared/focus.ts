@@ -533,6 +533,18 @@ export function sameHourText(
 }
 
 /**
+ * AMIKOR A CSÚCS-NAP A MENET-NAP: a kéz azon a napon csúszik a legtöbbször,
+ * amelyiken le szoktál ülni — a tükör két fele egy napra mutat. A statisztika
+ * és a heti mondat mondja; különben üres. Tény, nem ítélet.
+ */
+export function sameDayText(
+  peak: { day: number; count: number } | null | undefined, focusDay: { day: number; count: number } | null | undefined,
+): string {
+  if (!peak || !focusDay || peak.day !== focusDay.day) return '';
+  return `A csúcs-nap és a menet-nap ugyanaz: ${WEEKDAY_NAMES[peak.day] ?? '?'} — a kéz azon a napon csúszik, amelyiken le szoktál ülni.`;
+}
+
+/**
  * A tükör a döntés napján: a kártya és a réteg lába a menet-napon — különben
  * üres. Ugyanaz a küszöb, mint a csúcs-napnál (egy-két menet négy hétből nem
  * minta): a csúcs-nap „ma van” szabálya dönt (isPeakDayNow).

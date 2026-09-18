@@ -7,7 +7,7 @@
 import { test } from 'node:test';
 import * as assert from 'node:assert/strict';
 import {
-  focusByHour, focusByWeekday, focusDayNowText, focusDaySeries, focusDayStreak, focusLongestStreak, focusHourNowText, focusHourText, focusHourWarnText, focusStreakText, focusWeekdayText, isFocusHourNow, peakFocusHour, sameHourText,
+  focusByHour, focusByWeekday, focusDayNowText, focusDaySeries, focusDayStreak, focusLongestStreak, focusHourNowText, focusHourText, focusHourWarnText, focusStreakText, focusWeekdayText, isFocusHourNow, peakFocusHour, sameDayText, sameHourText,
   type FocusLogEntry,
 } from '../src/shared/focus';
 import { peakWeekday } from '../src/shared/browser-hits';
@@ -157,4 +157,11 @@ test('a menet-sorozat: hány napja ülsz le minden nap — ma vagy tegnap végz�
   assert.equal(focusStreakText(3, 3), '3 napja minden nap leültél.', 'ha a mostani a rekord, nincs zárójel');
   assert.equal(focusStreakText(0, 4), 'A leghosszabb sorozatod: 4 nap.', 'mostani nélkül csak a rekord');
   assert.equal(focusStreakText(0, 1), '', 'egy nap rekordnak sem sorozat');
+});
+
+test('amikor a csúcs-nap a menet-nap: a két nap egy pontra mutat — a mondat; más napon üres', () => {
+  assert.equal(sameDayText({ day: 2, count: 14 }, { day: 2, count: 6 }), 'A csúcs-nap és a menet-nap ugyanaz: kedd — a kéz azon a napon csúszik, amelyiken le szoktál ülni.');
+  assert.equal(sameDayText({ day: 0, count: 14 }, { day: 2, count: 6 }), '', 'más nap: üres');
+  assert.equal(sameDayText(null, { day: 2, count: 6 }), '');
+  assert.equal(sameDayText({ day: 2, count: 14 }, null), '');
 });

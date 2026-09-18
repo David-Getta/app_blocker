@@ -38,7 +38,7 @@ import { limitFullLine, MAX_LIMIT_MINUTES } from '../shared/limits.js';
 import {
   formatRemaining, isRunning as focusIsRunning, isWindowRun, MAX_ALLOW_ENTRIES, MAX_PACK_NAME,
   MAX_SESSION_MINUTES, nextOccurrence, SESSION_CHOICES_MIN, windowRunStarted, type FocusPack, type FocusRun, peakWindowBand,
-  packCoveringHour, focusWeekdayText, focusDayNowText, focusHourText, focusHourNowText, focusHourWarnText, focusStreakText, sameHourText, peakFocusHour,
+  packCoveringHour, focusWeekdayText, focusDayNowText, focusHourText, focusHourNowText, focusHourWarnText, focusStreakText, sameDayText, sameHourText, peakFocusHour,
 } from '../shared/focus.js';
 import { CATEGORY_PACKS, type CategoryPack } from '../shared/blocklist.js';
 import { windowKey, windowStartingSoon, type LockdownWindow as LockdownWindowRow } from '../shared/lockdown.js';
@@ -4568,6 +4568,10 @@ function renderFocusStats(): void {
   $('focusWeekdayNote').textContent = fwd ? focusWeekdayText(fwd) : '';
   renderWeekdayStrip($('focusWeekdayStrip'), statsData?.focusWeekdays ?? [], fwd, (n) => `${n} menet`);
   $('focusWeekdayAxis').classList.toggle('hidden', $('focusWeekdayStrip').classList.contains('hidden'));
+  // AMIKOR A CSÚCS-NAP A MENET-NAP: a tükör két fele egy napra mutat — a sor kimondja.
+  const sameDay = sameDayText(status?.browserHitsWeekday ?? null, fwd);
+  $('sameDayNote').classList.toggle('hidden', sameDay === '');
+  $('sameDayNote').textContent = sameDay;
   // A MENET-ÓRA: mikor ülsz le a legtöbbször — négy hétből, az indulás órája
   // szerint; a csúcs-óra tükre, az órák sávjával. Menet nélkül nincs.
   const fh = peakFocusHour(statsData?.focusHours ?? []);

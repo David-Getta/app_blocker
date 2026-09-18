@@ -195,6 +195,8 @@ object DigestLogic {
         // A MENET-NAP: melyik napon ülsz le a legtöbbször — négy hétből, a statisztika
         // mondata szó szerint; a csúcs-nap tükre. Nincs nap, nincs mondat.
         input.focusWeekday?.let { parts.add(Focus.weekdayText(it)) }
+        // AMIKOR A CSÚCS-NAP A MENET-NAP: a tükör két fele egy napra mutat — a mondat kimondja.
+        Focus.sameDayText(input.filterHitsWeekday, input.focusWeekday)?.let { parts.add(it) }
         // A MENET-ÓRA: mikor ülsz le a legtöbbször — négy hétből, az indulás órája
         // szerint, a statisztika mondata szó szerint. Nincs menet, nincs mondat.
         input.focusHour?.let { parts.add(Focus.hourText(it, input.focusHourPack, input.focusHourWindowOffer)) }

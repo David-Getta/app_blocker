@@ -139,6 +139,10 @@ struct StatsView: View {
                 if let fwd = FilterHitLogic.peakWeekday(focusByDay) {
                     Text(Focus.weekdayText(fwd)).font(.footnote).foregroundStyle(.secondary)
                     WeekdayStrip(days: focusByDay, peakDay: fwd.day, peakCount: fwd.count)
+                    // AMIKOR A CSÚCS-NAP A MENET-NAP: a tükör két fele egy napra mutat — a sor kimondja.
+                    if let same = Focus.sameDayText(FilterHitLogic.peakWeekday(FilterHitLogic.byWeekday(store.state.filterHits ?? [:], now: now)), fwd) {
+                        Text(same).font(.footnote).foregroundStyle(.secondary)
+                    }
                 }
                 // A MENET-ÓRA: mikor ülsz le a legtöbbször — négy hétből, az indulás órája
                 // szerint; a csúcs-óra tükre, az órák sávjával. Menet nélkül nincs.

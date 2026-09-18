@@ -171,7 +171,7 @@ fun StatsSection(
         // írjuk, engedély nélkül is. Ha a kapu alatt lenne, egy mérés nélküli
         // telefonon az app azt mondaná, hogy nincs mit mutatni — pedig pontosan
         // tudja, hányszor ültél le dolgozni.
-        FocusStatsBlock(focusToday, focusWeek, focusDays, focusPrevWeek, focusWeekdays, focusHours, focusHourWindowLabel, onFocusHourWindow, focusHourPack, filterHitsPeak, focusStreak, focusLongestStreak)
+        FocusStatsBlock(focusToday, focusWeek, focusDays, focusPrevWeek, focusWeekdays, focusHours, focusHourWindowLabel, onFocusHourWindow, focusHourPack, filterHitsPeak, focusStreak, focusLongestStreak, filterHitsWeekday)
         // A MEGAKADÁSOK napról napra — a szűrő könyve: ugyanaz a rajz, mint a
         // mért időé, csak darabban. Üresen nincs.
         // A NULLA HÉT is mondat, ha volt mihez mérni: az előző hét mellett a blokk marad.
@@ -427,6 +427,8 @@ private fun FocusStatsBlock(
     focusStreak: Int = 0,
     /** a leghosszabb menet-sorozat — a mostani mércéje */
     focusLongestStreak: Int = 0,
+    /** a négy hét csúcs-napja — ha a menet-nap ugyanaz, a sor kimondja */
+    filterHitsWeekday: Pair<Int, Int>? = null,
 ) {
     // Nulla menetnél nincs üres blokk — kivéve, ha az előző héten volt menet:
     // a nulla hét is mondat, ha volt mihez mérni.
@@ -480,6 +482,8 @@ private fun FocusStatsBlock(
     FilterHitLogic.peakWeekday(focusWeekdays)?.let { (day, count) ->
         Text(Focus.weekdayText(day to count), style = MaterialTheme.typography.bodySmall)
         WeekdayStrip(focusWeekdays, peakDay = day, peakCount = count)
+        // AMIKOR A CSÚCS-NAP A MENET-NAP: a tükör két fele egy napra mutat — a sor kimondja.
+        Focus.sameDayText(filterHitsWeekday, day to count)?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
     }
     // A MENET-ÓRA: mikor ülsz le a legtöbbször — négy hétből, az indulás órája
     // szerint; a csúcs-óra tükre, az órák sávjával. Menet nélkül nincs.

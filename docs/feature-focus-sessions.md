@@ -139,6 +139,12 @@ mondata után — mindhárom platformon (`focusByWeekday`, `Focus.byWeekday`;
 a gépen a segéd adja le a statisztika-válaszban, `focusWeekdays`). Lásd
 `docs/feature-usage-stats.md`.
 
+**Amikor a csúcs-nap a menet-nap:** ha a négy hét csúcs-napja (amelyiken a kéz
+a legtöbbször megakad) és a menet-napja ugyanaz, a statisztika menet-nap sora és
+a heti mondat kimondja: „A csúcs-nap és a menet-nap ugyanaz: kedd — a kéz azon a napon csúszik, amelyiken le szoktál ülni.”
+(`sameDayText`, `Focus.sameDayText`). Tény, nem ítélet — a csúcs-óra és a
+menet-óra egybeesésének párja.
+
 **A menet-óra:** mikor ülsz le a legtöbbször — a négy hét menetei az indulás
 órája szerint: „A négy hét menet-órája: 9–10 óra (6 menet).” A csúcs-óra tükre,
 alatta az órák sávja, a heti mondatban is (`focusByHour`, `Focus.byHour`;

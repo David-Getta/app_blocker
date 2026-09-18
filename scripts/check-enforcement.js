@@ -1520,6 +1520,37 @@ const WIRES = [
     needle: 'if let same = Focus.sameHourText(input.filterHitsPeak, input.focusHour) { parts.append(same) }',
     lost: 'az iPhone heti mondata nem mondaná ki, hogy a csúcs-óra a menet-óra',
   },
+  // AMIKOR A CSÚCS-NAP A MENET-NAP: a statisztika és a heti mondat kimondja — mindhárom platformon.
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: "$('sameDayNote').textContent = sameDay;",
+    lost: 'a gépi statisztika nem mondaná ki, ha a csúcs-nap a menet-nap',
+  },
+  {
+    file: 'desktop/src/shared/digest.ts',
+    needle: 'if (sameDay) parts.push(sameDay);',
+    lost: 'a heti mondat nem mondaná ki, ha a csúcs-nap a menet-nap',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/StatsScreen.kt',
+    needle: 'Focus.sameDayText(filterHitsWeekday, day to count)?.let { Text(it, style = MaterialTheme.typography.bodySmall) }',
+    lost: 'az Android statisztika nem mondaná ki, ha a csúcs-nap a menet-nap',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/Digest.kt',
+    needle: 'Focus.sameDayText(input.filterHitsWeekday, input.focusWeekday)?.let { parts.add(it) }',
+    lost: 'az Android heti mondat nem mondaná ki, ha a csúcs-nap a menet-nap',
+  },
+  {
+    file: 'ios/App/StatsView.swift',
+    needle: 'if let same = Focus.sameDayText(FilterHitLogic.peakWeekday(FilterHitLogic.byWeekday(store.state.filterHits ?? [:], now: now)), fwd) {',
+    lost: 'az iPhone statisztikája nem mondaná ki, ha a csúcs-nap a menet-nap',
+  },
+  {
+    file: 'ios/Shared/Digest.swift',
+    needle: 'if let same = Focus.sameDayText(input.filterHitsWeekday, input.focusWeekday) { parts.append(same) }',
+    lost: 'az iPhone heti mondata nem mondaná ki, ha a csúcs-nap a menet-nap',
+  },
   // A MÉRT IDŐ NAPJA ott is, ahol a döntés van: a gépi kártya és a réteg lába, az Android kártya.
   {
     file: 'desktop/src/helper/server.ts',

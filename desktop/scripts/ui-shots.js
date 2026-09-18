@@ -1110,7 +1110,12 @@ async function main() {
     () => document.getElementById('sameHourNote')?.classList.contains('hidden'),
     undefined, { timeout: 15_000 },
   ).catch(() => failures.push('a csúcs-óra és a menet-óra sora ott van, pedig más az óra'));
-  await page.evaluate(() => { window.__fakeStatusPatch = { browserHitsPeak: { hour: 9, count: 6 } }; });
+  // AMIKOR A CSÚCS-NAP A MENET-NAP: ugyanígy — a folt a csúcs-napot a menet-napra (kedd) teszi.
+  await page.waitForFunction(
+    () => document.getElementById('sameDayNote')?.classList.contains('hidden'),
+    undefined, { timeout: 15_000 },
+  ).catch(() => failures.push('a csúcs-nap és a menet-nap sora ott van, pedig más a nap'));
+  await page.evaluate(() => { window.__fakeStatusPatch = { browserHitsPeak: { hour: 9, count: 6 }, browserHitsWeekday: { day: 2, count: 14 } }; });
   // A státusz kétmásodpercenként frissül, a statisztika viszont csak fülváltásra
   // rajzol újra: egy kör várakozás, aztán el és vissza a fülre.
   await page.waitForTimeout(3000);
@@ -1121,6 +1126,11 @@ async function main() {
       && /A csúcs-óra és a menet-óra ugyanaz: 9–10 óra — a kéz akkor jár, amikor le szoktál ülni\./.test(document.getElementById('sameHourNote')?.textContent || ''),
     undefined, { timeout: 15_000 },
   ).catch(() => failures.push('a csúcs-óra és a menet-óra egybeesését a statisztika nem mondja ki'));
+  await page.waitForFunction(
+    () => !document.getElementById('sameDayNote')?.classList.contains('hidden')
+      && /A csúcs-nap és a menet-nap ugyanaz: kedd — a kéz azon a napon csúszik, amelyiken le szoktál ülni\./.test(document.getElementById('sameDayNote')?.textContent || ''),
+    undefined, { timeout: 15_000 },
+  ).catch(() => failures.push('a csúcs-nap és a menet-nap egybeesését a statisztika nem mondja ki'));
   await page.evaluate(() => { window.__fakeStatusPatch = undefined; });
   await page.reload();
   await goTo(page, 'stats');

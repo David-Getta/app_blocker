@@ -19,7 +19,7 @@
 // Pure: a felület adja az időt, a tárolt kulcsot és a címkézést (rejtett lista,
 // fedőnév) — az értesítés sem szivárogtathat ki olyan címet, amit a lista elrejt.
 
-import { focusHourText, focusStreakText, focusWeekdayText, sameHourText, type FocusSummary } from './focus.js';
+import { focusHourText, focusStreakText, focusWeekdayText, sameDayText, sameHourText, type FocusSummary } from './focus.js';
 import { usageWeekdayText } from './usage.js';
 import { hourLabel, peakWeekdayText } from './browser-hits.js';
 
@@ -204,6 +204,9 @@ export function digestText(input: DigestInput, labelOf: (label: string) => strin
   // mondata szó szerint; a csúcs-nap tükre. Nincs nap, nincs mondat.
   const focusDay = input.focusWeekday ?? null;
   if (focusDay) parts.push(focusWeekdayText(focusDay));
+  // AMIKOR A CSÚCS-NAP A MENET-NAP: a tükör két fele egy napra mutat — a mondat kimondja.
+  const sameDay = sameDayText(input.browserHitsWeekday ?? null, focusDay);
+  if (sameDay) parts.push(sameDay);
   // A MENET-ÓRA: mikor ülsz le a legtöbbször — négy hétből, az indulás órája
   // szerint, a statisztika mondata szó szerint. Nincs menet, nincs mondat.
   const focusHour = input.focusHour ?? null;

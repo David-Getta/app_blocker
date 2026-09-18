@@ -376,6 +376,13 @@ class DigestTest {
             "egy nap mellett sem")
     }
 
+    @Test fun `amikor a csucs-nap a menet-nap - a menet-nap mondata utan kimondja, mas napon nem`() {
+        val same = DigestLogic.text(full.copy(focusWeekday = 2 to 6, filterHitsWeekday = 2 to 14)) { it } ?: ""
+        assertTrue(same.contains("A négy hét menet-napja: kedd (6 menet). A csúcs-nap és a menet-nap ugyanaz: kedd — a kéz azon a napon csúszik, amelyiken le szoktál ülni. 3 feloldás."), same)
+        val other = DigestLogic.text(full.copy(focusWeekday = 2 to 6, filterHitsWeekday = 0 to 14)) { it } ?: ""
+        assertFalse(other.contains("ugyanaz"), "más napon nincs mondat")
+    }
+
     @Test fun `a menet-ora a mondatban - a statisztika sora szo szerint, ora nelkul nem mondat`() {
         val head = "Elmúlt 7 nap: 7 ó 20 p mért idő; a legtöbb: youtube.com 2 ó 40 p (▼ -33% az előző héthez képest). " +
             "9 menet (7 ó 0 p, 2 korán leállítva)."
