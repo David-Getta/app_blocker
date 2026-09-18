@@ -44,22 +44,23 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A csúcs-óra ott is, ahol a kísértés van.** A tiltó lap a
-          csúcs-órában kimondja, hogy most van („Most a hét csúcs-órája van — ilyenkor jár a kéz magától.”),
-          a felugró lap a hét csúcsát mondja, a gyorsbillentyűs réteg lába és
-          a telefon kezdőlapjának kártyája ugyanezt a csúcs-órában. Tükör a
-          pillanatban, nem ítélet. Bővítmény 0.4.19.
+          **A javaslat kártyája a gépi kezdőlapon is.** Amit az értesítés
+          mond — a sokadik megakadás, az előjelzés a csúcs-óra előtt, a
+          csúcs-órában a tükör —, a kezdőlap is mondja, egy gombbal a
+          legutóbbi csomagra. Az értesítés kikapcsolható, a kártya nem szól,
+          csak ott van. Az Android szűrő-értesítés sora a csúcs-órában azt is
+          mondja, hogy most van.
 
-          ### Ami a v0.4.89-ben jött
+          ### Ami a v0.4.90-ben jött
 
-          **Az órák sávja** — a gépi statisztika és a telefonok a csúcs-óra
-          mondata alatt a nap huszonnégy rekeszét rajzolják a hét
-          megakadásaival, a csúcs kiemelve.
+          **A csúcs-óra ott is, ahol a kísértés van** — a tiltó lap a
+          csúcs-órában kimondja, hogy most van, a felugró lap a hét csúcsát,
+          a réteg lába és a telefon kártyája ugyanezt. Bővítmény 0.4.19.
 
-          #### Ami a v0.4.88-ban jött
+          #### Ami a v0.4.89-ben jött
 
-          **A könyv törölhető** — a bővítmény beállítás-lapján egy kérdés
-          után, a telefon statisztikáján két koppintással.
+          **Az órák sávja** — a statisztikák a csúcs-óra mondata alatt a nap
+          huszonnégy rekeszét rajzolják, a csúcs kiemelve.
 
           NOTES
           fi
