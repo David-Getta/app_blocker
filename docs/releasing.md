@@ -31,6 +31,23 @@ Ez elindítja a `Release` workflow-t (`.github/workflows/release.yml`), ami:
 A verziószám a **git tagből** jön (a `v` előtag nélkül), így az appok verziója és
 a Release címe mindig egyezik.
 
+### A kiadási jegyzet
+
+A jegyzet a workflow-ban él (`.github/workflows/release.yml`, a `NOTES`
+blokk): a „Mi újság ebben a verzióban” szakasz a mostani verzióé, alatta a
+két előző verzió egy-egy mondata („Ami a v0.4.xx-ban jött”). Minden kiadás
+előtt egy külön commit forgatja („Kiadási jegyzet: vX.Y.Z — …”): a mostani
+szakasz lecsúszik az elsőbe, az első a másodikba, a második kiesik. A
+letöltőoldal az első szakaszt mutatja — a kiadás oldaláról, nem másolva.
+
+Ha egy verzió nem kapott saját kiadást (piros CI, vagy több verzió került
+egy kiadásba), a következő jegyzet első szakasza kimondja, és felsorolja:
+„A v0.4.78 és a v0.4.79 nem kapott saját kiadást — ami ott jött, ebben van.”
+A magyar idézőjel-pár a jegyzetben is egy sorban áll — a szöveg-ellenőrző a
+workflow-t is nézi. A kiadás mindig zöld CI-ről indul; a `workflow_dispatch`
+az ág aktuális csúcsát rögzíti, tehát a következő verzió commitjai csak az
+indítás után mehetnek fel.
+
 ### Ugyanez terminál nélkül (vagy ha a tag-push nem megy át)
 
 A workflow kézzel is indítható, és pontosan ugyanazt csinálja — a tagot ilyenkor
