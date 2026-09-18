@@ -1368,6 +1368,22 @@ const WIRES = [
     needle: 'if let inFocusHour { Text(Focus.hourNowText(inFocusHour)).font(.footnote) }',
     lost: 'az iPhone kezdőlap kártyája a menet-órában nem mondaná, hogy most szoktál elkezdeni',
   },
+  // ELŐJELZÉS a menet-óra előtt — a csúcs-óra előjelzésének tükre, a három platformon.
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: 'showFocusHourWarning(status!.focusHour ?? null, status!.browserHitsPeak ?? null, nowForBurst);',
+    lost: 'a gép nem szólna a menet-óra előtt — az előjelzés megvan, csak senki nem hívja',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/vpn/BreakerVpnService.kt',
+    needle: 'maybeFocusHourWarning(st, now)',
+    lost: 'az Android-szolgáltatás nem szólna a menet-óra előtt',
+  },
+  {
+    file: 'ios/App/ContentView.swift',
+    needle: 'FocusHourReminder.reschedule(peak: focusHourKey.isEmpty ? nil : focusHour, canStart:',
+    lost: 'az iPhone nem ütemezné a menet-óra előjelzését',
+  },
   // AZ ABLAK SZERINT INDULT menet a rétegben és az Android értesítésén is kimondva.
   {
     file: 'desktop/src/renderer/overlay.ts',

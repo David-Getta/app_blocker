@@ -67,6 +67,8 @@ class BreakerVpnService : VpnService() {
         private const val NUDGE_CHANNEL_ID = "breaker_hits"
         /** Az előjelzés a csúcs-óra előtt — ugyanazon a csatornán, külön azonosítóval. */
         private const val NOTIF_PEAK_ID = 7
+        /** Az előjelzés a menet-óra előtt — ugyanazon a csatornán, külön azonosítóval. */
+        private const val NOTIF_FOCUS_HOUR_ID = 8
 
         private val _running = MutableStateFlow(false)
         val running: StateFlow<Boolean> get() = _running
@@ -103,6 +105,8 @@ class BreakerVpnService : VpnService() {
     @Volatile private var nudgedKey = ""
     /** A már kimondott csúcs-óra előjelzés kulcsa („nap:óra”) — naponta egyszer. */
     private var warnedPeakKey: String? = null
+    /** A már kimondott menet-óra előjelzés kulcsa („nap:óra”) — naponta egyszer. */
+    private var warnedFocusHourKey: String? = null
     @Volatile private var stopping = false
     private var readerThread: Thread? = null
     private val resolverPool = Executors.newFixedThreadPool(8) as ThreadPoolExecutor
@@ -255,6 +259,7 @@ class BreakerVpnService : VpnService() {
             runCatching { notifyWindowSoon(soon, now) }
         }
         maybePeakWarning(st, now)
+        maybeFocusHourWarning(st, now)
         // A mai megakadások is a kulcs része: a sáv sora a következő körben
         // mondja az új számot — nem csak akkor, ha valami más is változik.
         val hitsKey = "hits:${FilterHitLogic.hitsToday(st.filterHits, now)}:" +
@@ -377,6 +382,26 @@ class BreakerVpnService : VpnService() {
             notifyOnce(NOTIF_PEAK_ID, "Mindjárt a csúcs-óra", FilterHitLogic.peakWarnText(peak), NUDGE_CHANNEL_ID, "Megakadások", startAction(st, now, NOTIF_PEAK_ID))
         }
             .onFailure { Log.w(TAG, "az előjelzés nem szólt: $it") }
+    }
+
+    /**
+     * ELŐJELZÉS a menet-óra előtt: tíz perccel a négy hét menet-órája előtt
+     * egyszer szólunk — a csúcs-óra előjelzésének tükre, ugyanazzal a kulccsal
+     * és küszöbbel. Ha a menet-óra a csúcs-óra, a csúcs-óra előjelzése szól,
+     * kétszer ugyanazt nem. Nem tilt, nem ítél; a mag mondja, mikor.
+     */
+    private fun maybeFocusHourWarning(st: AppState, now: Long) {
+        if (st.quietSuggestions) return // ha nem kéred, csendben marad
+        if (BreakerStore.runningFocus(now) != null) return
+        val peak = Focus.peakHour(Focus.byHour(st.focusLog, now)) ?: return
+        if (FilterHitLogic.peakHour(st.filterHitHours, now)?.first == peak.first) return
+        val key = FilterHitLogic.peakWarnKey(peak, now) ?: return
+        if (key == warnedFocusHourKey) return
+        warnedFocusHourKey = key
+        runCatching {
+            notifyOnce(NOTIF_FOCUS_HOUR_ID, "Mindjárt a menet-óra", Focus.hourWarnText(peak), NUDGE_CHANNEL_ID, "Megakadások", startAction(st, now, NOTIF_FOCUS_HOUR_ID))
+        }
+            .onFailure { Log.w(TAG, "a menet-óra előjelzése nem szólt: $it") }
     }
 
     /**

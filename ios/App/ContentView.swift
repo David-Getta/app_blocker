@@ -49,6 +49,7 @@ struct ContentView: View {
     @State private var digestReminderArmed = false
     /// Melyik csúcsra van ütemezve az előjelzés („óra:szám”) — csak változásra kérünk újra.
     @State private var peakScheduled = ""
+    @State private var focusHourScheduled = ""
     /// Párban zárolás: a megbízott neve a felvételhez, és a jelmondat egyszeri lapja.
     @State private var partnerName = ""
     @State private var keywordInput = ""
@@ -169,6 +170,14 @@ struct ContentView: View {
             if peakKey != peakScheduled {
                 peakScheduled = peakKey
                 PeakReminder.reschedule(peak: peak, canStart: Focus.lastUsedPack(store.state.focusPacks ?? [], log: store.state.focusLog ?? []) != nil)
+            }
+            // Az előjelzés a menet-óra előtt: a csúcs-óra előjelzésének tükre — ha a
+            // menet-óra nem a csúcs-óra (kétszer ugyanazt nem); csendben és futó menet mellett nincs.
+            let focusHour = quiet ? nil : Focus.peakHour(Focus.byHour(store.state.focusLog ?? [], now: now))
+            let focusHourKey = focusHour.map { $0.hour == peak?.hour ? "" : "\($0.hour):\($0.count)" } ?? ""
+            if focusHourKey != focusHourScheduled {
+                focusHourScheduled = focusHourKey
+                FocusHourReminder.reschedule(peak: focusHourKey.isEmpty ? nil : focusHour, canStart: Focus.lastUsedPack(store.state.focusPacks ?? [], log: store.state.focusLog ?? []) != nil)
             }
             // A heti napló sora. Értesítés itt nincs (a bővítmény nem adhat, az
             // app nem fut a háttérben); a sor akkor íródik, amikor az app azon

@@ -485,6 +485,15 @@ export function focusHourNowText(peak: { hour: number; count: number } | null | 
     ? ` Most a menet-órád van (${hourLabel(peak.hour)}, ${peak.count} menet) — ilyenkor szoktál elkezdeni.` : '';
 }
 
+/**
+ * Az előjelzés mondata a menet-óra előtt — a csúcs-óra előjelzésének tükre.
+ * A kulcs (tíz perccel előtte, naponta egyszer) és a küszöb a csúcs-óráé
+ * (`peakWarnKey`): ugyanaz a menet-órára.
+ */
+export function focusHourWarnText(peak: { hour: number; count: number }): string {
+  return `Mindjárt ${peak.hour} óra — ilyenkor szoktál elkezdeni (${peak.count} menet négy hét alatt). Egy munkamenet most segítene — te döntesz.`;
+}
+
 /** Esedékes-e a figyelmeztetés (az előző óta eltelt-e a türelmi idő). */
 export function warnDue(lastWarnAt: number | null, now: number): boolean {
   if (lastWarnAt === null) return true;

@@ -538,6 +538,11 @@ public enum Focus {
         "Most a menet-órád van (\(FilterHitLogic.hourLabel(peak.hour)), \(peak.count) menet) — ilyenkor szoktál elkezdeni."
     }
 
+    /// Az előjelzés mondata a menet-óra előtt — a csúcs-óra előjelzésének tükre; a kulcs és a küszöb a csúcs-óráé (FilterHitLogic.peakWarnKey).
+    public static func hourWarnText(_ peak: (hour: Int, count: Int)) -> String {
+        "Mindjárt \(peak.hour) óra — ilyenkor szoktál elkezdeni (\(peak.count) menet négy hét alatt). Egy munkamenet most segítene — te döntesz."
+    }
+
     /// A tükör a döntés napján: a kezdőlap kártyája a menet-napon (a „ma van” szabálya a csúcs-napé: FilterHitLogic.isPeakDayNow).
     public static func dayNowText(_ peak: (day: Int, count: Int)) -> String {
         let name = peak.day >= 0 && peak.day < FilterHitLogic.weekdayNames.count ? FilterHitLogic.weekdayNames[peak.day] : "?"

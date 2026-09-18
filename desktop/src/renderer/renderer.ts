@@ -38,7 +38,7 @@ import { limitFullLine, MAX_LIMIT_MINUTES } from '../shared/limits.js';
 import {
   formatRemaining, isRunning as focusIsRunning, isWindowRun, MAX_ALLOW_ENTRIES, MAX_PACK_NAME,
   MAX_SESSION_MINUTES, nextOccurrence, SESSION_CHOICES_MIN, windowRunStarted, type FocusPack, type FocusRun, peakWindowBand,
-  packCoveringHour, focusWeekdayText, focusDayNowText, focusHourText, focusHourNowText, peakFocusHour,
+  packCoveringHour, focusWeekdayText, focusDayNowText, focusHourText, focusHourNowText, focusHourWarnText, peakFocusHour,
 } from '../shared/focus.js';
 import { CATEGORY_PACKS, type CategoryPack } from '../shared/blocklist.js';
 import { windowKey, windowStartingSoon, type LockdownWindow as LockdownWindowRow } from '../shared/lockdown.js';
@@ -434,6 +434,10 @@ function renderSuggestCard(now: number): void {
   const step = hitNudgeStep(status?.browserHitsToday ?? 0);
   if (step > 0) lines.push(hitNudgeText(step));
   if (peak && peakWarnKey(peak, now) !== null) lines.push(peakWarnText(peak));
+  // ELŐJELZÉS a menet-óra előtt: a csúcs-óra előjelzésének tükre — ha a
+  // menet-óra nem a csúcs-óra (kétszer ugyanazt nem).
+  const fhPeak = status?.focusHour ?? null;
+  if (fhPeak && (!peak || peak.hour !== fhPeak.hour) && peakWarnKey(fhPeak, now) !== null) lines.push(focusHourWarnText(fhPeak));
   const nowLine = peakNowText(peak, now).trim();
   if (nowLine) lines.push(nowLine);
   // A CSÚCS-NAPON a kártya azt is mondja: ma van — négy hétből, csak elég mintából.
@@ -493,6 +497,30 @@ function showPeakWarning(peak: { hour: number; count: number } | null, now: numb
   if (last === key) return;
   try { localStorage.setItem('breaker.peakWarn', key); } catch { /* nincs tár: legközelebb újra */ }
   const n = new Notification('Breaker — mindjárt a csúcs-óra', { body: peakWarnText(peak) + clickToStartText() });
+  // EGY KATTINTÁS az értesítésről a menetig: az előjelzés nem csak mondat.
+  n.onclick = () => void startSuggestedSession(true);
+}
+
+/**
+ * ELŐJELZÉS a menet-óra előtt: tíz perccel a négy hét menet-órája előtt
+ * egyszer szól a gép — a csúcs-óra előjelzésének tükre, ugyanazzal a kulccsal
+ * és küszöbbel. Ha a menet-óra a csúcs-óra, a csúcs-óra előjelzése szól —
+ * kétszer ugyanazt nem. Nem tilt, nem ítél; csak amíg az app fut.
+ */
+function showFocusHourWarning(
+  peak: { hour: number; count: number } | null, hitsPeak: { hour: number; count: number } | null, now: number,
+): void {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  if (quietSuggestions()) return;
+  if (focusIsRunning(status?.focusRun ?? null, now)) return;
+  if (peak === null || (hitsPeak !== null && hitsPeak.hour === peak.hour)) return;
+  const key = peakWarnKey(peak, now);
+  if (key === null) return;
+  let last: string | null = null;
+  try { last = localStorage.getItem('breaker.focusHourWarn'); } catch { /* nincs tár: szólunk */ }
+  if (last === key) return;
+  try { localStorage.setItem('breaker.focusHourWarn', key); } catch { /* nincs tár: legközelebb újra */ }
+  const n = new Notification('Breaker — mindjárt a menet-óra', { body: focusHourWarnText(peak) + clickToStartText() });
   // EGY KATTINTÁS az értesítésről a menetig: az előjelzés nem csak mondat.
   n.onclick = () => void startSuggestedSession(true);
 }
@@ -593,6 +621,7 @@ function render(): void {
   showWindowSoonNotice(status!.lockdown ?? null, status!.lockdownWindows ?? [], nowForBurst);
   showHitNudge(status!.browserHitsToday ?? 0, nowForBurst);
   showPeakWarning(status!.browserHitsPeak ?? null, nowForBurst);
+  showFocusHourWarning(status!.focusHour ?? null, status!.browserHitsPeak ?? null, nowForBurst);
   renderSuggestCard(nowForBurst);
   renderSelfTestLine();
 

@@ -670,6 +670,10 @@ object Focus {
     fun hourNowText(peak: Pair<Int, Int>): String =
         "Most a menet-órád van (${FilterHitLogic.hourLabel(peak.first)}, ${peak.second} menet) — ilyenkor szoktál elkezdeni."
 
+    /** Az előjelzés mondata a menet-óra előtt — a csúcs-óra előjelzésének tükre; a kulcs és a küszöb a csúcs-óráé (FilterHitLogic.peakWarnKey). */
+    fun hourWarnText(peak: Pair<Int, Int>): String =
+        "Mindjárt ${peak.first} óra — ilyenkor szoktál elkezdeni (${peak.second} menet négy hét alatt). Egy munkamenet most segítene — te döntesz."
+
     fun recurrenceKey(b: ScheduleLogic.Band?): String =
         b?.let { "${it.days.sorted().joinToString(",")}/${it.startMin}-${it.endMin}" } ?: "-"
 

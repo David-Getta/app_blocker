@@ -207,4 +207,9 @@ final class FocusTests: XCTestCase {
         XCTAssertFalse(Focus.isHourNow(nil, now: at9))
         XCTAssertEqual(Focus.hourNowText((hour: 9, count: 6)), "Most a menet-órád van (9–10 óra, 6 menet) — ilyenkor szoktál elkezdeni.")
     }
+
+    func testTheWarningSentenceBeforeTheSessionHour() {
+        XCTAssertEqual(Focus.hourWarnText((hour: 9, count: 6)),
+                       "Mindjárt 9 óra — ilyenkor szoktál elkezdeni (6 menet négy hét alatt). Egy munkamenet most segítene — te döntesz.")
+    }
 }

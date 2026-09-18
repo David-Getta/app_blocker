@@ -443,4 +443,12 @@ class FocusTest {
         assertEquals(false, Focus.isHourNow(null, at9))
         assertEquals("Most a menet-órád van (9–10 óra, 6 menet) — ilyenkor szoktál elkezdeni.", Focus.hourNowText(9 to 6))
     }
+
+    @Test
+    fun `az elojelzes mondata a menet-ora elott`() {
+        assertEquals(
+            "Mindjárt 9 óra — ilyenkor szoktál elkezdeni (6 menet négy hét alatt). Egy munkamenet most segítene — te döntesz.",
+            Focus.hourWarnText(9 to 6),
+        )
+    }
 }

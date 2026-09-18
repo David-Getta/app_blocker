@@ -7,7 +7,7 @@
 import { test } from 'node:test';
 import * as assert from 'node:assert/strict';
 import {
-  focusByHour, focusByWeekday, focusDayNowText, focusDaySeries, focusHourNowText, focusHourText, focusWeekdayText, isFocusHourNow, peakFocusHour,
+  focusByHour, focusByWeekday, focusDayNowText, focusDaySeries, focusHourNowText, focusHourText, focusHourWarnText, focusWeekdayText, isFocusHourNow, peakFocusHour,
   type FocusLogEntry,
 } from '../src/shared/focus';
 import { peakWeekday } from '../src/shared/browser-hits';
@@ -116,4 +116,9 @@ test('a menet-óra a döntés órájában: most van-e, és csak elég mintából
     ' Most a menet-órád van (9–10 óra, 6 menet) — ilyenkor szoktál elkezdeni.');
   assert.equal(focusHourNowText({ hour: 9, count: 6 }, at10), '', 'a menet-órán kívül a láb nem mondja');
   assert.equal(focusHourNowText(null, at9), '');
+});
+
+test('az előjelzés mondata a menet-óra előtt — a csúcs-óra előjelzésének tükre', () => {
+  assert.equal(focusHourWarnText({ hour: 9, count: 6 }),
+    'Mindjárt 9 óra — ilyenkor szoktál elkezdeni (6 menet négy hét alatt). Egy munkamenet most segítene — te döntesz.');
 });

@@ -570,7 +570,14 @@ a két telefon kezdőlapja (`Focus.hourNowText`):
 „Most a menet-órád van (9–10 óra, 6 menet) — ilyenkor szoktál elkezdeni.”
 — a menet gombjával, a csúcs-nap küszöbével (legalább három menet); és a
 böngésző lapjai a gomb mellett (a híd `suggest.focusHourNow` mezője, az app
-szabálya szerint): „Most a menet-órád van.”
+szabálya szerint): „Most a menet-órád van.” És előjelzés a menet-óra előtt,
+a csúcs-óra előjelzésének tükre: tíz perccel a négy hét menet-órája előtt
+egyszer szól a gép (`showFocusHourWarning`, csak futó app mellett), az
+Android-szolgáltatás (`maybeFocusHourWarning`) és az iPhone rendszere
+(`FocusHourReminder`, az app ütemezi): „Mindjárt 9 óra — ilyenkor szoktál elkezdeni (6 menet négy hét alatt). Egy munkamenet most segítene — te döntesz.”
+— a menet gombjával; a kulcs és a küszöb a csúcs-óráé (`peakWarnKey`), és ha
+a menet-óra a csúcs-óra, a csúcs-óra előjelzése szól — kétszer ugyanazt nem.
+Ha nem kéred, csendben marad; futó menet mellett nincs.
 
 **A mért idő napja:** a tükör harmadik fele — nem az, mikor csúszik a kéz,
 és nem az, mikor ülsz le, hanem az, melyik napon megy el a legtöbb idő: négy
