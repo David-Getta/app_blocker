@@ -144,6 +144,11 @@ export interface BridgeSuggest {
    * menet-órája ugyanaz — a felugró lap a csúcs mondata után kimondja. Régi app nem küldi.
    */
   sameHour?: boolean;
+  /**
+   * A MENET-SOROZAT: hány napja ülsz le minden nap — a lap a menet gombja
+   * mellett mondja, kettőtől (egy nap nem sorozat). Régi app nem küldi.
+   */
+  focusStreak?: number;
 }
 
 /**

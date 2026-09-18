@@ -251,14 +251,14 @@ async function main() {
     window.__disk['breaker.applink'] = {
       token: 'JOKOD', port: 8788, rules: [], channels: [], closed: [],
       focus: { running: false },
-      suggest: { packId: 'pack_2', name: 'Mély munka', minutes: 90, focusDay: true, focusHourNow: true, focusHourPack: 'Nyelvtanulás' },
+      suggest: { packId: 'pack_2', name: 'Mély munka', minutes: 90, focusDay: true, focusHourNow: true, focusHourPack: 'Nyelvtanulás', focusStreak: 5 },
       fetchedAt: Date.now(), attemptedAt: Date.now(), error: null,
     };
   `);
   await page.goto(`http://127.0.0.1:${port}/popup.html`);
-  // A MENET-NAP és a MENET-ÓRA a gomb mellett: az app mondja, a lap kimondja.
+  // A MENET-NAP, a MENET-ÓRA és a MENET-SOROZAT a gomb mellett: az app mondja, a lap kimondja.
   await page.waitForFunction(
-    () => document.getElementById('focusDayNote')?.textContent === 'Ma a menet-napod van — ilyenkor szoktál leülni. Most a menet-órád van. A menet-órában magától indul: Nyelvtanulás.'
+    () => document.getElementById('focusDayNote')?.textContent === 'Ma a menet-napod van — ilyenkor szoktál leülni. Most a menet-órád van. A menet-órában magától indul: Nyelvtanulás. 5 napja minden nap leültél.'
       && !document.getElementById('focusDayNote')?.hidden,
     undefined, { timeout: 10_000 },
   ).catch(() => failures.push('a felugró lap nem mondja a menet-napot az app szava szerint'));
@@ -295,7 +295,7 @@ async function main() {
     window.__disk['breaker.applink'] = {
       token: 'JOKOD', port: 8788, rules: [], channels: [], closed: [],
       focus: { running: false },
-      suggest: { packId: 'pack_2', name: 'Mély munka', minutes: 90, peakHour: 21, focusDay: true, focusHour: 9 },
+      suggest: { packId: 'pack_2', name: 'Mély munka', minutes: 90, peakHour: 21, focusDay: true, focusHour: 9, focusStreak: 1 },
       fetchedAt: Date.now(), attemptedAt: Date.now(), error: null,
     };
   `);
@@ -326,7 +326,7 @@ async function main() {
       && !document.getElementById('peakWindow')?.hidden,
     undefined, { timeout: 10_000 },
   ).catch(() => failures.push('a tiltó lap ablak-gombja nem az app csúcs-óráját mondja'));
-  // A MENET-NAP a tiltó lapon is, a gomb mellett.
+  // A MENET-NAP a tiltó lapon is, a gomb mellett — az egy napos sorozat nem sorozat, arról nincs mondat.
   await page.waitForFunction(
     () => document.getElementById('focusDayNote')?.textContent === 'Ma a menet-napod van — ilyenkor szoktál leülni.'
       && !document.getElementById('focusDayNote')?.hidden,

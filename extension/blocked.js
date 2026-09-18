@@ -7,7 +7,7 @@
 // olvassa, amiből a háttér ír — két számolás két számot adna.
 import { dayKey, hitsNudge, hitsOn, hitsOnHost, peakDayNow, peakDayNowText, peakNow, peakNowText } from './hits.js';
 import { CLOSED_FRESH_MS, addFocusWindowInApp, loadLink, pullFromApp, startFocusInApp } from './app-link.js';
-import { focusDayText, focusHourCoverText, focusHourNowText, focusHourWindowButton, hourSpan, suggestButton, windowButton } from './popup-core.js';
+import { focusDayText, focusHourCoverText, focusHourNowText, focusHourWindowButton, focusStreakText, hourSpan, suggestButton, windowButton } from './popup-core.js';
 
 const params = new URLSearchParams(location.search);
 const focus = params.get('focus');
@@ -287,7 +287,8 @@ async function paintStart() {
     startBtn.dataset.minutes = sb ? String(sb.minutes) : '';
     // A MENET-NAP: ma szoktál leülni — az app szava, frissen; a gomb mellett.
     const fd = focusDayText(link, Date.now(), CLOSED_FRESH_MS) + focusHourNowText(link, Date.now(), CLOSED_FRESH_MS)
-    + focusHourCoverText(link, Date.now(), CLOSED_FRESH_MS);
+    + focusHourCoverText(link, Date.now(), CLOSED_FRESH_MS)
+    + focusStreakText(link, Date.now(), CLOSED_FRESH_MS);
     focusDayNote.hidden = fd === '';
     focusDayNote.textContent = fd.trim();
     // ABLAK A CSÚCS-ÓRÁRA: ugyanazok a kapuk, és az app mondja, van-e mire.

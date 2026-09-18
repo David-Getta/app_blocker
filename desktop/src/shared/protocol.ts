@@ -205,6 +205,8 @@ export interface StatusData {
   focusWeekday?: { day: number; count: number } | null;
   /** a négy hét menet-órája (óra; szám) — mikor ülsz le a legtöbbször; a kártya és a réteg a menet-órában mondja; null, ha nem volt */
   focusHour?: { hour: number; count: number } | null;
+  /** A MENET-SOROZAT: hány napja ülsz le minden nap — a híd a böngésző lapjainak adja tovább. */
+  focusStreak?: number;
   /** a mért idő napja (0 = vasárnap; másodperc négy hét alatt) — a kártya és a réteg lába a „ma van” mondatához; null, ha nem volt mérés */
   usageWeekday?: { day: number; count: number } | null;
   /** a hét megakadásai okonként, a legnagyobb elöl — melyik szabály dolgozik */

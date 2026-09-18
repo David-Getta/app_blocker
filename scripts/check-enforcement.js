@@ -1075,7 +1075,7 @@ const WIRES = [
   // LE VAN-E FEDVE a felugró lapon: a híd leadja a fedő csomagot, a lap kimondja.
   {
     file: 'desktop/src/main/main.ts',
-    needle: "peakPack: covering?.name ?? null, focusDay, focusHourNow, focusHour, focusHourPack, sameHour };",
+    needle: "peakPack: covering?.name ?? null, focusDay, focusHourNow, focusHour, focusHourPack, sameHour, focusStreak };",
     lost: 'a híd nem adná le a csúcs-órát fedő csomagot — a felugró lap nem mondaná',
   },
   {
@@ -1533,13 +1533,34 @@ const WIRES = [
   },
   {
     file: 'extension/popup.js',
-    needle: '+ focusHourCoverText(link, Date.now(), CLOSED_FRESH_MS);',
+    needle: '+ focusHourCoverText(link, Date.now(), CLOSED_FRESH_MS)',
     lost: 'a felugró lap nem mondaná, hogy a menet-órát ablak fedi',
   },
   {
     file: 'extension/blocked.js',
-    needle: '+ focusHourCoverText(link, Date.now(), CLOSED_FRESH_MS);',
+    needle: '+ focusHourCoverText(link, Date.now(), CLOSED_FRESH_MS)',
     lost: 'a tiltó lap nem mondaná, hogy a menet-órát ablak fedi',
+  },
+  // A MENET-SOROZAT a böngészőben: a segéd a státuszban adja, a híd leadja, a lapok a gomb mellett mondják.
+  {
+    file: 'desktop/src/main/main.ts',
+    needle: 'const focusStreak = s.focusStreak ?? 0;',
+    lost: 'a híd nem adná le a menet-sorozatot — a böngésző lapjai hallgatnának',
+  },
+  {
+    file: 'extension/app-link.js',
+    needle: 'const focusStreak = Number.isInteger(raw.focusStreak) && raw.focusStreak >= 0 ? raw.focusStreak : 0;',
+    lost: 'a bővítmény eldobná a menet-sorozatot a híd válaszából',
+  },
+  {
+    file: 'extension/popup.js',
+    needle: '+ focusStreakText(link, Date.now(), CLOSED_FRESH_MS);',
+    lost: 'a felugró lap nem mondaná a menet-sorozatot',
+  },
+  {
+    file: 'extension/blocked.js',
+    needle: '+ focusStreakText(link, Date.now(), CLOSED_FRESH_MS);',
+    lost: 'a tiltó lap nem mondaná a menet-sorozatot',
   },
   // A MENET-NAP és a MENET-ÓRA az Android szűrő-értesítésének sorában is.
   {

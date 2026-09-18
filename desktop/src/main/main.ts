@@ -364,8 +364,10 @@ if (HELPER_MODE) {
           const focusHourPack = fh && (!peak || peak.hour !== fh.hour) ? packCoveringHour(packs, fh.hour)?.name ?? null : null;
           // AMIKOR A CSÚCS-ÓRA A MENET-ÓRA: a tükör két fele egy pontra mutat — a felugró lap kimondja.
           const sameHour = !!(fh && peak && fh.hour === peak.hour);
+          // A MENET-SOROZAT: hány napja ülsz le minden nap — a segéd számolja, a lap a gomb mellett mondja (kettőtől).
+          const focusStreak = s.focusStreak ?? 0;
           // LE VAN-E FEDVE: a csomag, amelynek ablaka a csúcs-órát fedi — a felugró lap kimondja.
-          return { packId: pick.id, name: pick.name, minutes: pick.defaultMinutes, peakHour, peakPack: covering?.name ?? null, focusDay, focusHourNow, focusHour, focusHourPack, sameHour };
+          return { packId: pick.id, name: pick.name, minutes: pick.defaultMinutes, peakHour, peakPack: covering?.name ?? null, focusDay, focusHourNow, focusHour, focusHourPack, sameHour, focusStreak };
         },
         async (packId, minutes) => {
           // EGY KATTINTÁS a felugró lapról a menetig: ugyanaz a bírói út, mint

@@ -45,11 +45,12 @@ interface Popup {
   peakCoverText: (link: unknown, now: number, freshMs: number) => string;
   focusDayText: (link: unknown, now: number, freshMs: number) => string;
   focusHourNowText: (link: unknown, now: number, freshMs: number) => string;
+  focusStreakText: (link: unknown, now: number, freshMs: number) => string;
 }
 
 function load(): Popup {
   const src = fs.readFileSync(path.join(extensionDir(), 'popup-core.js'), 'utf8').replace(/^export /gm, '');
-  return new Function(`${src}\nreturn { describePopup, spanText, agoText, CLOSED_SHOWN, suggestButton, windowButton, focusHourWindowButton, hourSpan, peakCoverText, sameHourText, focusHourCoverText, focusDayText, focusHourNowText };`)() as Popup;
+  return new Function(`${src}\nreturn { describePopup, spanText, agoText, CLOSED_SHOWN, suggestButton, windowButton, focusHourWindowButton, hourSpan, peakCoverText, sameHourText, focusHourCoverText, focusDayText, focusHourNowText, focusStreakText };`)() as Popup;
 }
 
 const NOW = 1_800_000_000_000;
@@ -287,6 +288,19 @@ test('a menet-óra a gomb mellett: az app szava, frissen, összekötve — csak 
   assert.equal(focusHourNowText(link({ suggest: { ...s, focusHourNow: 1 } }), NOW, FRESH), '', 'csak a szó szerinti igaz');
   assert.equal(focusHourNowText(link({ suggest: s, fetchedAt: NOW - 10 * 60_000 }), NOW, FRESH), '', 'elavult válasz mellett nincs');
   assert.equal(focusHourNowText(link({ suggest: s, token: null }), NOW, FRESH), '', 'összekötetlenül nincs');
+});
+
+test('a menet-sorozat a gomb mellett: az app száma, kettőtől, frissen, összekötve', () => {
+  const { focusStreakText } = load();
+  const s = { packId: 'pack_1', name: 'Nyelvtanulás', minutes: 25, peakHour: null, peakPack: null, focusStreak: 5 };
+  assert.equal(focusStreakText(link({ suggest: s }), NOW, FRESH), ' 5 napja minden nap leültél.');
+  assert.equal(focusStreakText(link({ suggest: { ...s, focusStreak: 2 } }), NOW, FRESH), ' 2 napja minden nap leültél.', 'kettőtől szól');
+  assert.equal(focusStreakText(link({ suggest: { ...s, focusStreak: 1 } }), NOW, FRESH), '', 'egy nap nem sorozat');
+  assert.equal(focusStreakText(link({ suggest: { ...s, focusStreak: 0 } }), NOW, FRESH), '', 'sorozat nélkül nincs mondat');
+  assert.equal(focusStreakText(link({ suggest: { ...s, focusStreak: '5' } }), NOW, FRESH), '', 'csak egész szám');
+  assert.equal(focusStreakText(link({}), NOW, FRESH), '', 'javaslat nélkül nincs');
+  assert.equal(focusStreakText(link({ suggest: s, fetchedAt: NOW - 10 * 60_000 }), NOW, FRESH), '', 'elavult válasz mellett nincs');
+  assert.equal(focusStreakText(link({ suggest: s, token: null }), NOW, FRESH), '', 'összekötetlenül nincs');
 });
 
 test('idő-szöveg napokban: a hetes zárlat nem „kb. 168 ó”', () => {

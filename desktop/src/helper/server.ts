@@ -161,6 +161,8 @@ export function statusOf(
     usageWeekday: peakWeekday(usageByWeekday(state.usage, now)),
     // A menet-óra — a kártya és a réteg a menet-órában mondja, hogy most szoktál elkezdeni.
     focusHour: peakFocusHour(focusByHour(state.focusLog, now)),
+    // A MENET-SOROZAT — a híd a böngésző lapjainak adja: a menet gombja mellett mondják.
+    focusStreak: focusDayStreak(state.focusLog, now),
     browserHitsReasons: browserHitsByReason(state.browserHits, now),
     browserHitsTop: browserHitsTopSite(state.browserHits, now, state.sites),
     browserHitsKeywords: browserHitsByKeyword(state.browserHits, now),

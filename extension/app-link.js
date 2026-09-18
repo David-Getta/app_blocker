@@ -228,7 +228,9 @@ export function cleanSuggest(raw) {
   const focusHourPack = typeof raw.focusHourPack === 'string' && raw.focusHourPack ? raw.focusHourPack.slice(0, 40) : null;
   // AMIKOR A CSÚCS-ÓRA A MENET-ÓRA: az app mondja — csak a szó szerinti igaz számít.
   const sameHour = raw.sameHour === true;
-  return { packId: raw.packId, name: raw.name, minutes, peakHour, peakPack, focusDay, focusHourNow, focusHour, focusHourPack, sameHour };
+  // A MENET-SOROZAT: hány napja ülsz le minden nap — az app száma; csak nemnegatív egész, különben nulla.
+  const focusStreak = Number.isInteger(raw.focusStreak) && raw.focusStreak >= 0 ? raw.focusStreak : 0;
+  return { packId: raw.packId, name: raw.name, minutes, peakHour, peakPack, focusDay, focusHourNow, focusHour, focusHourPack, sameHour, focusStreak };
 }
 
 /**

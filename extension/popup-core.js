@@ -111,6 +111,19 @@ export function focusHourNowText(link, now, freshMs) {
 }
 
 /**
+ * A MENET-SOROZAT: hány napja ülsz le minden nap — az app száma, a lap a gomb
+ * mellett mondja, kettőtől (egy nap nem sorozat — az app szabálya). Csak
+ * összekötve és friss válasz mellett; különben üres. Tény, nem felszólítás.
+ */
+export function focusStreakText(link, now, freshMs) {
+  if (!link || typeof link.token !== 'string' || !link.token) return '';
+  const fresh = Number.isFinite(link?.fetchedAt) && link.fetchedAt > 0 && now - link.fetchedAt <= freshMs;
+  const n = link?.suggest?.focusStreak;
+  if (!fresh || !Number.isInteger(n) || n < 2) return '';
+  return ` ${n} napja minden nap leültél.`;
+}
+
+/**
  * A CSÚCS-ÓRA ABLAKÁNAK gombja: { packId, hour, text } — vagy null. Ugyanazok
  * a kapuk, mint a menet gombjánál (összekötve, friss válasz, futó menet
  * nélkül), és az app mondja meg, van-e csúcs-óra, amire ablak tehető.
