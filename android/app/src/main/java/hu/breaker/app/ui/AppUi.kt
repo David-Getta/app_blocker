@@ -762,6 +762,11 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                 filterHitsPrev7d = FilterHitLogic.hitsPrev7d(state.filterHits, now),
                 quietSuggestions = state.quietSuggestions,
                 onToggleQuiet = { BreakerStore.mutate { it.copy(quietSuggestions = !it.quietSuggestions) } },
+                onClearHits = {
+                    BreakerStore.mutate {
+                        it.copy(filterHits = emptyMap(), filterHitHours = emptyMap(), filterHitHosts = emptyMap(), filterHitReasons = emptyMap(), filterHitKeywords = emptyMap())
+                    }
+                },
                 blockedDomains = state.sites.map { it.domain }.toSet(),
                 labelOf = siteLabel,
                 // A mai betelések oldalanként — a tegnapi bejegyzés nem számít,

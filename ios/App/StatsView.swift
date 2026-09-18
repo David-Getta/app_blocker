@@ -9,6 +9,8 @@ import SwiftUI
 /// the data Breaker genuinely owns: the user's own blocking history.
 struct StatsView: View {
     @EnvironmentObject var store: BreakerStore
+    /// A könyv törlésének első koppintása: a második töröl.
+    @State private var clearArmed = false
     let now: Double
     /// A címke-tölcsér a főnézetből: rejtett listánál sorszám, fedőnévnél a
     /// fedőnév — a napló sem szivárogtathat ki olyan címet, amit a lista elrejt.
@@ -174,6 +176,22 @@ struct StatsView: View {
                         get: { store.state.quietSuggestions != true },
                         set: { on in store.mutate { $0.quietSuggestions = !on } }
                     ))
+                    .font(.footnote)
+                    // A KÖNYV TÖRLÉSE: a megakadások könyve a tiéd — törölhető. Két koppintás.
+                    Button(clearArmed ? "Biztos? Törlés" : "A könyv törlése") {
+                        if clearArmed {
+                            store.mutate {
+                                $0.filterHits = nil
+                                $0.filterHitHours = nil
+                                $0.filterHitHosts = nil
+                                $0.filterHitReasons = nil
+                                $0.filterHitKeywords = nil
+                            }
+                            clearArmed = false
+                        } else {
+                            clearArmed = true
+                        }
+                    }
                     .font(.footnote)
                 }
             }

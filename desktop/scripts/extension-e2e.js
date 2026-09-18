@@ -538,6 +538,18 @@ async function main() {
     // …és azt is, melyik szó nem fogott: a lista második szava a héten egyszer sem.
     const idleLine = await seeder.evaluate(() => document.querySelector('#hitsIdleKeywords')?.textContent ?? '').catch(() => '');
     check(idleLine === 'A héten nem fogott: sosem', `a beállítás-lap kimondja, melyik szó nem fogott (${idleLine})`);
+    // A KÖNYV TÖRLÉSE: a beállítás-lap gombja kiüríti a könyvet (a kérdésre igen).
+    await seeder.evaluate(() => { window.confirm = () => true; }).catch(() => null);
+    await seeder.locator('#hitsClearBtn').click().catch(() => null);
+    let cleared = false;
+    for (let i = 0; i < 20 && !cleared; i++) {
+      await seeder.waitForTimeout(250);
+      cleared = await seeder.evaluate(async () => {
+        const got = await chrome.storage.local.get('breaker.hits');
+        return Object.keys(got?.['breaker.hits']?.days ?? {}).length === 0;
+      }).catch(() => false);
+    }
+    check(cleared, 'a könyv törlése kiüríti a bővítmény könyvét');
     await seedClosed([], Date.now());
 
     // A szünet LETELTEKOR a lap utat ad vissza: a visszaszámláló helyén link

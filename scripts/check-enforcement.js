@@ -916,6 +916,23 @@ const WIRES = [
     needle: 'Focus.explain(probeInput,',
     lost: 'az iPhone próbamezője nem a tunnel ítéletét mondaná',
   },
+  // A KÖNYV TÖRLÉSE: a megakadások könyve a tiéd — a bővítményben az app is
+  // felejt (üres jelentés), a telefonon minden könyv megy.
+  {
+    file: 'extension/options.js',
+    needle: "try { await pushHits([]); } catch {",
+    lost: 'a bővítmény könyvének törlése után az app nem felejtene',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/AppUi.kt',
+    needle: 'it.copy(filterHits = emptyMap(), filterHitHours = emptyMap(), filterHitHosts = emptyMap(), filterHitReasons = emptyMap(), filterHitKeywords = emptyMap())',
+    lost: 'az Android könyv-törlése nem törölne minden könyvet',
+  },
+  {
+    file: 'ios/App/StatsView.swift',
+    needle: '$0.filterHitKeywords = nil',
+    lost: 'az iPhone könyv-törlése nem törölne minden könyvet',
+  },
   // FUTÓ MENET MELLETT NINCS JAVASLAT: a sokadik megakadás és az előjelzés
   // értesítése hallgat, amíg a menet tart — a lépés, amit ajánlanánk, már megvan.
   {

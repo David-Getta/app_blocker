@@ -19,6 +19,10 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -73,6 +77,8 @@ fun StatsSection(
     /** ha nem kéred, csendben marad: az értesítés a sokadik megakadásnál és a csúcs-óra előtt kikapcsolva */
     quietSuggestions: Boolean = false,
     onToggleQuiet: () -> Unit = {},
+    /** a megakadások könyvének törlése — a tiéd, törölhető */
+    onClearHits: () -> Unit = {},
     blockedDomains: Set<String>,
     /**
      * Amit egy célpontról ki szabad írni.
@@ -171,6 +177,12 @@ fun StatsSection(
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Switch(checked = !quietSuggestions, onCheckedChange = { onToggleQuiet() })
                 Text("Szóljon a sokadik megakadásnál és a csúcs-óra előtt", style = MaterialTheme.typography.bodySmall)
+            }
+            // A KÖNYV TÖRLÉSE: a megakadások könyve a tiéd — törölhető. Két
+            // koppintás: az első kérdez, a második töröl.
+            var clearArmed by remember { mutableStateOf(false) }
+            OutlinedButton(onClick = { if (clearArmed) { onClearHits(); clearArmed = false } else clearArmed = true }) {
+                Text(if (clearArmed) "Biztos? Törlés" else "A könyv törlése")
             }
         }
 

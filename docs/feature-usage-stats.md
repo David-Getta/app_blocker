@@ -563,6 +563,15 @@ nem ítél. A tíz perc és a három a három magban azonos (`check-core-sync`).
 A telefon kezdőlapján a javaslat kártyája ugyanebben a tíz percben az
 előjelzés mondatát is mondja — a munkamenet gombjával együtt.
 
+**A könyv törölhető.** A megakadások könyve a tiéd: a bővítmény
+beállítás-lapján „A könyv törlése” (egy kérdés után) a számokat, az órákat,
+az oldalakat és a kulcsszavakat is elengedi, és egy üres jelentést küld az
+appnak — a híd leveszi a forrást, az app is felejt; app nélkül a gép marad,
+ahogy volt, a következő jelentés rendezi. A telefon statisztikáján ugyanez
+két koppintás („A könyv törlése”, majd „Biztos? Törlés”), és minden könyv
+megy: napok, órák, oldalak, okok, kulcsszavak. A menetek naplója és a heti
+napló marad — az más könyv.
+
 **Futó menet mellett nincs javaslat.** A sokadik megakadás és az előjelzés
 értesítése hallgat, amíg egy menet tart — a lépés, amit ajánlanánk, már
 megvan, a figyelmeztetés zaj lenne. A gépen és Androidon a küldés előtt

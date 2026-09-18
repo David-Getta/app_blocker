@@ -10,7 +10,7 @@ import { ruleLabel } from './rules-core.js';
 import {
   addRule, cancelRemoval, load, REMOVE_DELAY_MS, startRemoval, sweep,
 } from './storage.js';
-import { CLOSED_FRESH_MS, loadLink, pullFromApp, setToken, withAppRules } from './app-link.js';
+import { CLOSED_FRESH_MS, loadLink, pullFromApp, pushHits, setToken, withAppRules } from './app-link.js';
 import { dayKey, formatSeconds, lastDays, topChannels } from './chantime.js';
 // A `lastDays` a csatorna-időé (ugyanaz a naptár) — a könyv is azzal él.
 import {
@@ -270,3 +270,14 @@ $('input').addEventListener('keydown', (e) => {
 // amíg valaki rá nem frissít — és a felhasználó azt hinné, beragadt.
 setInterval(() => { void render(); }, 30_000);
 void render();
+
+// A KÖNYV TÖRLÉSE: a megakadások könyve a tiéd — törölhető. Az app az üres
+// jelentéssel felejt: a híd a forrást is leveszi. App nélkül a gép marad,
+// ahogy volt — a következő jelentés rendezi.
+$('hitsClearBtn').addEventListener('click', async () => {
+  const ok = window.confirm('Törlöd a megakadások könyvét? A számok, az órák, az oldalak és a kulcsszavak is mennek — az app is elfelejti.');
+  if (!ok) return;
+  await chrome.storage.local.set({ 'breaker.hits': { days: {} } });
+  try { await pushHits([]); } catch { /* app nélkül: a következő jelentés rendezi */ }
+  await renderHits();
+});
