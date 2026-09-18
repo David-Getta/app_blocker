@@ -8,6 +8,7 @@ kettővel korábbiban.
 
 | Verzió | Nap | Mi újság |
 |---|---|---|
+| v0.4.132 (még nincs kiadva) | 2026-09-18 | az Android szűrő-értesítés sora a menet-napon és a menet-órában is |
 | v0.4.131 (még nincs kiadva) | 2026-09-18 | ablak a menet-órára a böngésző lapjairól is |
 | v0.4.130 (még nincs kiadva) | 2026-09-18 | ablak a menet-órára a javaslat kártyájáról is |
 | v0.4.129 (még nincs kiadva) | 2026-09-18 | a menet-óra fedése |
