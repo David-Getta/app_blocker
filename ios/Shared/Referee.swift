@@ -254,6 +254,15 @@ enum Referee {
             state.abandons = (state.abandons ?? []).filter { $0.siteId != s.siteId }
             return
         }
+        // A KULCSSZAVAK sem oldalhoz tartoznak: a listát itt cseréljük, mert
+        // idáig csak próbatétellel lehet eljutni — a levétel ára ez a menet volt.
+        if let words = s.pendingKeywords {
+            state.keywords = words.isEmpty ? nil : words
+            state.unlockLog = state.unlockLog.filter { $0 > now - 30 * 24 * 3_600_000 } + [now]
+            state.session = nil
+            state.abandons = (state.abandons ?? []).filter { $0.siteId != s.siteId }
+            return
+        }
         // A ZÁRLAT-ABLAKOK sem oldalhoz tartoznak. Idáig csak próbatétellel
         // lehet eljutni — a levétel vagy a szűkítés ára ez a menet volt. A futó
         // zárlathoz nem nyúl: a zárlat sosem rövidül; de ide csak ablakon
@@ -283,6 +292,61 @@ enum Referee {
     struct ScheduleChangeResult { let applied: Bool; let session: SessionRec? }
 
     struct WindowsChangeResult { let applied: Bool; let session: SessionRec? }
+
+    struct KeywordsChangeResult { let applied: Bool; let session: SessionRec? }
+
+    /// A kulcsszavak beállítása: a TELJES lista jön, és a tárolt lista ezt
+    /// követi. Felvenni ingyen (szigorítás: több cím zárva); levenni
+    /// próbatétel — különben a kulcsszó egy kikapcsolóval érne fel. Az iPhone
+    /// nem érvényesít (a szűrő a címet nem látja), de szerkeszt és hordoz: a
+    /// fiókon át a gépi böngésző tilt vele. A desktop `setKeywords` tükre.
+    @discardableResult
+    static func setKeywords(_ input: [String], now: Double) throws -> KeywordsChangeResult {
+        var result: KeywordsChangeResult?
+        var thrown: RefereeError?
+        BreakerStore.shared.mutate { state in
+            if input.count > KeywordLogic.maxKeywords {
+                thrown = RefereeError(message: "Legfeljebb \(KeywordLogic.maxKeywords) kulcsszó fér el.",
+                                      code: "TOO_MANY_KEYWORDS"); return
+            }
+            let next = KeywordLogic.cleanKeywords(input)
+            if next.count != input.count {
+                thrown = RefereeError(
+                    message: "Érvénytelen kulcsszó: \(KeywordLogic.minKeywordLength)–\(KeywordLogic.maxKeywordLength) "
+                        + "karakter, szóköz nélkül — és minden szó csak egyszer.",
+                    code: "BAD_KEYWORD"); return
+            }
+            let current = state.keywords ?? []
+            if KeywordLogic.sameKeywords(current, next) {
+                result = KeywordsChangeResult(applied: true, session: nil); return
+            }
+            if !KeywordLogic.isKeywordsLoosening(current, next) {
+                // Futó levétel közben a felvétel is ingyen — és a levétel VÉGÉN
+                // sem veszhet el: a függő lista is megkapja, ami közben jött.
+                state.keywords = next
+                if var s = state.session, let pending = s.pendingKeywords {
+                    s.pendingKeywords = KeywordLogic.cleanKeywords(pending + next.filter { !current.contains($0) })
+                    state.session = s
+                }
+                result = KeywordsChangeResult(applied: true, session: nil); return
+            }
+            if state.session != nil {
+                thrown = RefereeError(message: "Előbb fejezd be a folyamatban lévő kísérletet.", code: "BUSY"); return
+            }
+            guard let plan = planLoosening(state, .pause, nil, now, &thrown) else { return }
+            var steps = plan.steps
+            armCurrent(&steps, 0, now)
+            var session = SessionRec(id: BreakerStore.shared.newId("ses"), kind: .pause, siteId: "keywords",
+                                     minutes: nil, steps: steps, stepIndex: 0, createdAt: now,
+                                     pendingSchedule: nil, pendingFocusEnd: nil, pendingLockdownWindows: nil)
+            session.pendingKeywords = next
+            state.session = session
+            state.lastCombo = plan.comboKey
+            result = KeywordsChangeResult(applied: false, session: session)
+        }
+        if let e = thrown { throw e }
+        return result!
+    }
 
     /// A zárlat-ablakok beállítása: a TELJES lista jön, és a tárolt lista ezt
     /// követi. Felvenni és bővíteni ingyen; levenni vagy szűkíteni próbatétel —

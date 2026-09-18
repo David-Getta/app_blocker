@@ -209,16 +209,17 @@ ingyen van, rövidíteni vagy visszavonni sehogy.
   határ: nem gépzár, és ha a jelmondat elvész, a megbízottat nem lehet levenni.
   Lásd `docs/feature-partner-lock.md`.
 - **Kulcsszó-szabályok: bármely oldalon, ha a cím tartalmazza** (gép +
-  böngésző; a telefonok hordozzák). A blokklista egész oldalakat lát, a
+  böngésző; a telefonon is szerkeszthető, de ott nem tilt). A blokklista egész oldalakat lát, a
   részleges szabály egy oldal egy útvonalát — ez a harmadik: egy szó
   (`shorts`, `reels`, egy játék neve), és a böngésző minden címet a tiltó
   lapra visz, amiben szerepel, a hosztnévben is. Felvenni ingyen, **levenni
   próbatétel**; a szó addig marad, amíg a próbák meg nincsenek, és újat
   felvenni közben is ingyen lehet. A tiltó lap kimondja, melyik szó fogott. A
   lista a fiókon át a többi eszközre is átér (a jelével; azonos jelnél a
-  bővebb nyer). Őszinte határ: csak a böngészőben tilt, ahova a bővítmény
-  telepítve van; a telefonon a lista csak látszik, mert a DNS-szűrő a címet
-  nem látja. Lásd `docs/feature-keywords.md`.
+  bővebb nyer), és a telefonon is szerkeszthető — ugyanazzal a szabállyal.
+  Őszinte határ: csak a böngészőben tilt, ahova a bővítmény telepítve van; a
+  telefonon a lista átér és szerkeszthető, de ott nem tilt, mert a DNS-szűrő
+  a címet nem látja. Lásd `docs/feature-keywords.md`.
 - **Munkamenetek: „most csak ez mehet”** (gép, Android, iPhone). A blokklista arról szól,
   mi NE menjen; a munkamenet fordítva: csinálsz egy csomagot (pl.
   „Nyelvtanulás”), felsorolod, mi mehet alatta, és megadod, meddig tartson.

@@ -44,6 +44,7 @@ struct ContentView: View {
     @State private var remindedWindows: [LockdownLogic.LockdownWindow]? = nil
     /// Párban zárolás: a megbízott neve a felvételhez, és a jelmondat egyszeri lapja.
     @State private var partnerName = ""
+    @State private var keywordInput = ""
     @State private var partnerPhrase: Referee.PartnerSetup? = nil
 
     private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
@@ -410,15 +411,60 @@ struct ContentView: View {
                 Button("Heti ablak felvétele") { lockdownWindowSheet = true }
                     .buttonStyle(.bordered)
             }
-            // KULCSSZÓ-SZABÁLYOK: a gépi böngésző érvényesíti; az iPhone
-            // hordozza, és kimondja, hogy itt nem érvényesül.
-            if let words = store.state.keywords, !words.isEmpty {
-                Text("Kulcsszavak a böngészőben: \(words.joined(separator: ", ")) — bármely oldalon, ha a cím tartalmazza. A gépi böngésző-bővítmény érvényesíti; az iPhone hordozza. Szerkeszteni a gépen lehet.")
-                    .font(.footnote).foregroundStyle(.secondary)
-            }
+            keywordsBlock
             partnerBlock
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// KULCSSZÓ-SZABÁLYOK: a gépi böngésző érvényesíti; az iPhone szerkeszti
+    /// és hordozza — felvenni ingyen, levenni próbatétel —, és kimondja, hogy
+    /// itt nem érvényesül.
+    private var keywordsBlock: some View {
+        let words = store.state.keywords ?? []
+        return VStack(alignment: .leading, spacing: 8) {
+            Divider()
+            Text("Kulcsszavak a böngészőben").font(.headline)
+            Text("Bármely oldal, aminek a webcímében ez a szó szerepel — shorts, reels, egy játék neve —, a gépi böngészőben tiltva. Itt szerkeszthető, és a fiókon át a gépekre átér; az iPhone-on nem tilt: a szűrő a címet nem látja. Felvenni ingyen, levenni próbatétel.")
+                .font(.footnote).foregroundStyle(.secondary)
+            ForEach(words, id: \.self) { w in
+                HStack {
+                    Text(w).font(.subheadline)
+                    Spacer()
+                    Button("Levétel…") { removeKeyword(w) }.buttonStyle(.borderless).font(.footnote)
+                }
+            }
+            if words.count < KeywordLogic.maxKeywords {
+                HStack {
+                    TextField("új kulcsszó, pl. shorts", text: $keywordInput)
+                        .textFieldStyle(.roundedBorder)
+                    Button("Felvétel") { addKeyword() }.buttonStyle(.bordered)
+                }
+            }
+        }
+    }
+
+    /// Egy kulcsszó levétele: a bíró próbatételt indít — a szó addig marad.
+    private func removeKeyword(_ w: String) {
+        let rest = (store.state.keywords ?? []).filter { $0 != w }
+        do {
+            let r = try Referee.setKeywords(rest, now: nowMs())
+            if !r.applied { openSessionId = r.session?.id }
+        } catch let e as Referee.RefereeError { flowError = e.message } catch { flowError = "\(error)" }
+    }
+
+    /// Új kulcsszó: ingyen — a mag szabálya már a beküldés előtt, a bíró ugyanezt mondaná.
+    private func addKeyword() {
+        let current = store.state.keywords ?? []
+        guard let word = KeywordLogic.normalizeKeyword(keywordInput) else {
+            flowError = "A kulcsszó \(KeywordLogic.minKeywordLength)–\(KeywordLogic.maxKeywordLength) karakter, szóköz nélkül."
+            return
+        }
+        if current.contains(word) { flowError = "A „\(word)” már fent van."; return }
+        do {
+            try Referee.setKeywords(current + [word], now: nowMs())
+            keywordInput = ""
+        } catch let e as Referee.RefereeError { flowError = e.message } catch { flowError = "\(error)" }
     }
 
     /// PÁRBAN ZÁROLÁS: a lazítás végén a megbízott jelmondata is kell — nem

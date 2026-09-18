@@ -13,7 +13,8 @@ fel.
 
 ## Hogyan működik
 
-1. A gépen a *Kulcsszavak* kártyán beírod a szót, és *Felvétel*. A szó
+1. A gépen a *Kulcsszavak* kártyán (a telefonon a *Zárlat* kártya alján)
+   beírod a szót, és *Felvétel*. A szó
    **kanonikus alakban** kerül fel: kisbetű, NFKC, a szélek levágva; szóköz
    nem lehet benne (egy cím sem tartalmaz szóközt), és 3–40 karakter (egy-két
    betű mindenre illene — az nem szabály, hanem baleset). Legfeljebb 40 szó.
@@ -44,11 +45,13 @@ a megbízott lépése a végén itt is áll (`docs/feature-partner-lock.md`).
 - **A böngésző-bővítményben:** a tiltó lap külön kártyája a szóval; a felugró
   lap számként („N kulcsszó”). A beállítás-lapon nem szerkeszthető — levenni
   az appban kell, ahol próbatételbe kerül.
-- **Androidon és iPhone-on:** a lista **csak látszik** (a *Zárlat* kártya
-  alján: „Kulcsszavak a böngészőben: …”). A rendszer-szintű DNS-szűrő a címet
-  nem látja, ott a kulcsszó nem tilt — ezt nem titkoljuk, a felület kimondja.
-  A telefonok a listát **hordozzák és fésülik**, hogy minden gépeden ugyanaz
-  legyen.
+- **Androidon és iPhone-on:** a *Zárlat* kártya alján, *Kulcsszavak a
+  böngészőben* — ugyanaz a felület, ugyanaz a szabály: felvenni ingyen,
+  levenni próbatétel (a telefon bírója: `Referee.setKeywords`, a függő lista a
+  teljesítéskor ül be; a közben felvett szó itt sem vész el). A lista a fiókon
+  át a gépekre átér, és a gépi böngésző tilt vele. A rendszer-szintű
+  DNS-szűrő a címet nem látja, **a telefonon a kulcsszó nem tilt** — ezt nem
+  titkoljuk, a felület kimondja.
 
 ## Szinkron
 
@@ -72,8 +75,8 @@ szabad).
 ## Őszinte határok
 
 - **Csak a böngészőben tilt**, és csak ott, ahova a bővítmény telepítve van.
-  Inkognitóban alapból nem fut; vendég módban bővítmény nincs. A telefonon a
-  lista dísz — kimondva.
+  Inkognitóban alapból nem fut; vendég módban bővítmény nincs. A telefonon
+  a lista szerkeszthető és átér, de ott nem tilt — kimondva.
 - **Nem tartalom-szűrő.** A cím szövegét nézi, nem az oldalét: egy videó a
   címében nem hordozza, miről szól. Amit a cím nem mond ki, azt a kulcsszó
   nem látja.

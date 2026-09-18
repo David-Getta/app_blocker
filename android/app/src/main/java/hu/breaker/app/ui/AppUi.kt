@@ -82,6 +82,7 @@ import hu.breaker.app.core.ChallengeEngine.Kind
 import hu.breaker.app.core.ChallengeEngine.Step
 import hu.breaker.app.core.DigestLogic
 import hu.breaker.app.core.LimitLogic
+import hu.breaker.app.core.KeywordLogic
 import hu.breaker.app.core.LockdownLogic
 import hu.breaker.app.core.Referee
 import hu.breaker.app.core.ScheduleLogic
@@ -600,7 +601,9 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                             state.focusPacks.find { p -> "focus:" + p.id == ses.siteId }
                         }
                         Text(
-                            if (ses.pendingLockdownWindows != null) {
+                            if (ses.pendingKeywords != null) {
+                                "Folyamatban: kulcsszó levétele"
+                            } else if (ses.pendingLockdownWindows != null) {
                                 "Folyamatban: zárlat-ablak lazítása"
                             } else if (ses.pendingFocusEnd != null) {
                                 "Folyamatban: munkamenet leállítása — " +
@@ -824,14 +827,62 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                         OutlinedButton(onClick = { lockdownWindowDialog = true }) { Text("Heti ablak felvétele") }
                     }
                     // KULCSSZÓ-SZABÁLYOK: a gépi böngésző érvényesíti; a telefon
-                    // hordozza, és kimondja, hogy itt nem érvényesül.
-                    if (state.keywords.isNotEmpty()) {
-                        Text(
-                            "Kulcsszavak a böngészőben: ${state.keywords.joinToString(", ")} — bármely oldalon, " +
-                                "ha a cím tartalmazza. A gépi böngésző-bővítmény érvényesíti; a telefon hordozza. " +
-                                "Szerkeszteni a gépen lehet.",
-                            style = MaterialTheme.typography.bodySmall,
-                        )
+                    // szerkeszti és hordozza — felvenni ingyen, levenni próbatétel —,
+                    // és kimondja, hogy itt nem érvényesül.
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    Text("Kulcsszavak a böngészőben", fontWeight = FontWeight.Bold)
+                    Text(
+                        "Bármely oldal, aminek a webcímében ez a szó szerepel — shorts, reels, egy játék " +
+                            "neve —, a gépi böngészőben tiltva. Itt szerkeszthető, és a fiókon át a gépekre " +
+                            "átér; a telefonon nem tilt: a DNS-szűrő a címet nem látja. Felvenni ingyen, " +
+                            "levenni próbatétel.",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    state.keywords.forEach { w ->
+                        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Text(w, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                            TextButton(onClick = {
+                                try {
+                                    val r = Referee.setKeywords(state.keywords.filter { it != w }, System.currentTimeMillis())
+                                    if (!r.applied) onOpenChallenge()
+                                } catch (e: Referee.RefereeException) {
+                                    flowError = e.message
+                                }
+                            }) { Text("Levétel…") }
+                        }
+                    }
+                    if (state.keywords.size < KeywordLogic.MAX_KEYWORDS) {
+                        var keywordInput by rememberSaveable { mutableStateOf("") }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            OutlinedTextField(
+                                value = keywordInput,
+                                onValueChange = { keywordInput = it },
+                                label = { Text("új kulcsszó, pl. shorts") },
+                                singleLine = true,
+                                modifier = Modifier.weight(1f),
+                            )
+                            OutlinedButton(onClick = {
+                                // A mag szabálya már a beküldés előtt — a bíró ugyanezt mondaná.
+                                val word = KeywordLogic.normalizeKeyword(keywordInput)
+                                if (word == null) {
+                                    flowError = "A kulcsszó ${KeywordLogic.MIN_KEYWORD_LENGTH}–" +
+                                        "${KeywordLogic.MAX_KEYWORD_LENGTH} karakter, szóköz nélkül."
+                                } else if (word in state.keywords) {
+                                    flowError = "A „$word” már fent van."
+                                } else {
+                                    try {
+                                        Referee.setKeywords(state.keywords + word, System.currentTimeMillis())
+                                        keywordInput = ""
+                                    } catch (e: Referee.RefereeException) {
+                                        flowError = e.message
+                                    }
+                                }
+                            }) { Text("Felvétel") }
+                        }
                     }
                     // PÁRBAN ZÁROLÁS: a lazítás végén a megbízott jelmondata is kell —
                     // nem drágább, hanem más ember döntése is. Felvenni ingyen;
@@ -2039,6 +2090,8 @@ private fun ChallengeScreen(
         "Kész. A törlés 24 óra múlva válik véglegessé — addig visszavonhatod."
     } else if (session.pendingPartnerRemoval) {
         "Kész. A megbízott lekerült."
+    } else if (session.pendingKeywords != null) {
+        "Kész. A kulcsszó lekerült — a gépi böngésző már nem tilt vele."
     } else if (session.pendingLockdownWindows != null) {
         "Kész. A zárlat-ablak lazítása életbe lépett."
     } else if (session.pendingFocusEnd != null) {
@@ -2077,6 +2130,9 @@ private fun ChallengeScreen(
         ) {
             Text(
                 if (session.pendingPartnerRemoval) "A megbízott levétele"
+                else if (session.pendingKeywords != null) "Kulcsszó levétele"
+                else if (session.pendingLockdownWindows != null) "Zárlat-ablak lazítása"
+                else if (session.pendingFocusEnd != null) "Munkamenet leállítása"
                 else if (session.kind == Kind.DELETE)
                     "Végleges törlés: ${site?.let { AliasLogic.displayName(it) } ?: ""}"
                 else "Feloldás ${session.minutes} percre: ${site?.let { AliasLogic.displayName(it) } ?: ""}",

@@ -89,6 +89,12 @@ data class SessionRec(
      * levétel vagy szűkítés). Nem oldalhoz tartozik, hanem az egész készülékhez.
      */
     val pendingLockdownWindows: List<LockdownLogic.LockdownWindow>? = null,
+    /**
+     * Ha van, a teljesítés a kulcsszó-listát cseréli erre (lazítás: levétel).
+     * Nem oldalhoz tartozik, hanem a fiók minden gépéhez — a gépi böngésző
+     * tilt vele; a közben felvett szó ide is bekerül (a felvétel ingyen).
+     */
+    val pendingKeywords: List<String>? = null,
     /** ha igaz, a teljesítés a MEGBÍZOTTAT veszi le — a terv végén az ő jelmondatával */
     val pendingPartnerRemoval: Boolean = false,
     /** hányszor volt rossz a jelmondat ebben a kísérletben — a plafonnál a kísérlet elszáll */
@@ -656,6 +662,7 @@ object BreakerStore {
                 // után is az maradjon, ami volt.
                 put("pendingLockdownWindows", ses.pendingLockdownWindows?.let { SyncClient.windowsToJson(it) }
                     ?: JSONObject.NULL)
+                put("pendingKeywords", ses.pendingKeywords?.let { JSONArray(it) } ?: JSONObject.NULL)
                 put("pendingPartnerRemoval", ses.pendingPartnerRemoval)
                 put("partnerTries", ses.partnerTries)
             }
@@ -790,6 +797,8 @@ object BreakerStore {
                         else ses.getLong("pendingFocusEnd"),
                     pendingLockdownWindows = if (ses.isNull("pendingLockdownWindows")) null
                         else SyncClient.windowsFromJson(ses.optJSONArray("pendingLockdownWindows")),
+                    pendingKeywords = if (ses.isNull("pendingKeywords")) null
+                        else SyncClient.stringsFromJson(ses.optJSONArray("pendingKeywords")),
                     pendingPartnerRemoval = ses.optBoolean("pendingPartnerRemoval", false),
                     partnerTries = ses.optInt("partnerTries", 0),
                 )

@@ -377,6 +377,30 @@ const WIRES = [
     needle: "'set_keywords'",
     lost: 'a kulcsszavak kártyája nem érné el a segédet — a gomb nem csinálna semmit',
   },
+  // A KULCSSZAVAK A TELEFONON: a bíró a levételt próbatételhez köti, a
+  // teljesítés a függő listát ülteti be, a felület a bírót hívja. Ha a
+  // teljesítés ága kiesne, a kifizetett levétel némán elveszne; ha a felület
+  // a tárba írna a bíró helyett, a levétel egy koppintás lenne.
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/Referee.kt',
+    needle: 'if (s.pendingKeywords != null) {',
+    lost: 'Androidon a kifizetett kulcsszó-levétel némán elveszne',
+  },
+  {
+    file: 'ios/Shared/Referee.swift',
+    needle: 'if let words = s.pendingKeywords {',
+    lost: 'iPhone-on a kifizetett kulcsszó-levétel némán elveszne',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/AppUi.kt',
+    needle: 'Referee.setKeywords(',
+    lost: 'Androidon a kulcsszó nem a bírón át menne — a levétel egy koppintás lenne',
+  },
+  {
+    file: 'ios/App/ContentView.swift',
+    needle: 'Referee.setKeywords(',
+    lost: 'iPhone-on a kulcsszó nem a bírón át menne — a levétel egy koppintás lenne',
+  },
   // A MEGAKADÁS-SZÁMLÁLÓ lánca: a háttér könyvel, a link átadja, a híd
   // fogadja, a segéd tartja, a mondat és a statisztika mondja. Ha bármelyik
   // láncszem kiesne, a bővítmény lapja továbbra is számolna — az app viszont

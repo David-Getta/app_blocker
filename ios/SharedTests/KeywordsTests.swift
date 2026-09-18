@@ -4,10 +4,29 @@ import XCTest
 
 // Kulcsszó-szabályok a Swift-tükrön — a desktop/test/keywords.test.ts és az
 // androidos KeywordsTest esetei: a mag (alak, lista, fésülés, illesztés), a
-// jel és a drót. Az iPhone nem érvényesít és nem szerkeszt — hordoz és fésül.
+// jel és a drót — és a bíró: az iPhone nem érvényesít (a szűrő a címet nem
+// látja), de szerkeszt és hordoz: felvenni ingyen, levenni próbatétel.
 final class KeywordsTests: XCTestCase {
 
     private let now: Double = 1_700_000_000_000
+
+    /// A mentés azonnal megy, a közzétett `state` a fő sorra van dobva.
+    private func pumpMainQueue() {
+        RunLoop.main.run(until: Date().addingTimeInterval(0.05))
+    }
+
+    /// Minden mutáció után forgatni kell — dobásnál is (`defer`).
+    @discardableResult
+    private func settled<T>(_ f: () throws -> T) rethrows -> T {
+        defer { pumpMainQueue() }
+        return try f()
+    }
+
+    private func resetStore() {
+        BreakerStore.shared.mutate { state in state = AppState() }
+        pumpMainQueue()
+        BreakerStore.shared.saveLastTick(0)
+    }
 
     func testTheKeywordHasACanonicalForm() {
         XCTAssertEqual(KeywordLogic.normalizeKeyword("  Shorts "), "shorts")
@@ -96,5 +115,99 @@ final class KeywordsTests: XCTestCase {
         var swapped = mine
         swapped.keywords = ["shorts", "reels"]
         XCTAssertFalse(FocusSync.same(mine, swapped), "a lista cseréje különbség")
+    }
+
+    // ---------------------------------------------------------------- a bíró
+
+    func testTheRefereeAddsForFreeAndRemovesWithAChallenge() throws {
+        resetStore()
+        XCTAssertTrue(try settled { try Referee.setKeywords(["Shorts"], now: now) }.applied, "felvétel ingyen")
+        XCTAssertEqual(BreakerStore.shared.state.keywords, ["shorts"])
+        XCTAssertTrue(try settled { try Referee.setKeywords(["shorts", "reels"], now: now) }.applied, "bővítés ingyen")
+        XCTAssertTrue(try settled { try Referee.setKeywords(["reels", "shorts"], now: now) }.applied,
+                      "ugyanaz más sorrendben: nincs mit tenni")
+        XCTAssertNil(BreakerStore.shared.state.session, "egyik sem indított próbatételt")
+
+        let r = try settled { try Referee.setKeywords(["shorts"], now: now) }
+        XCTAssertFalse(r.applied, "levétel: próbatétel")
+        XCTAssertEqual(r.session?.siteId, "keywords")
+        XCTAssertEqual(r.session?.pendingKeywords, ["shorts"])
+        XCTAssertEqual(BreakerStore.shared.state.keywords, ["shorts", "reels"], "amíg a próbatétel tart, a lista marad")
+        XCTAssertThrowsError(try settled { try Referee.setKeywords([], now: now) }) { e in
+            XCTAssertEqual((e as? Referee.RefereeError)?.code, "BUSY")
+        }
+        // Futó levétel közben a felvétel ingyen — és a függő lista is tud róla,
+        // különben a teljesítéskor a régi lista ülne vissza, és a live eltűnne.
+        XCTAssertTrue(try settled { try Referee.setKeywords(["shorts", "reels", "live"], now: now) }.applied,
+                      "közben a live ingyen")
+        XCTAssertEqual(BreakerStore.shared.state.session?.pendingKeywords, ["shorts", "live"])
+        try solveWholeSession(r.session!.id)
+        XCTAssertNil(BreakerStore.shared.state.session, "a kísérlet végigment")
+        XCTAssertEqual(BreakerStore.shared.state.keywords, ["shorts", "live"], "a reels lement, a live megmaradt")
+        XCTAssertEqual(BreakerStore.shared.state.unlockLog.count, 1, "a lazítás a naplóban")
+        // A mentés a függő listát is hordozza: egy újraindítás nem tenné feloldássá.
+        let again = try settled { try Referee.setKeywords(["live"], now: now + 1000) }
+        XCTAssertFalse(again.applied)
+        let data = try JSONEncoder().encode(BreakerStore.shared.state)
+        XCTAssertEqual(try JSONDecoder().decode(AppState.self, from: data).session?.pendingKeywords, ["live"])
+        Referee.abandon(sessionId: again.session!.id)
+        pumpMainQueue()
+    }
+
+    func testTheRefereeRejectsBadAndTooManyKeywords() throws {
+        resetStore()
+        for bad in [["ab"], ["két szó"], ["shorts", "SHORTS"]] {
+            XCTAssertThrowsError(try settled { try Referee.setKeywords(bad, now: now) }, "\(bad)") { e in
+                XCTAssertEqual((e as? Referee.RefereeError)?.code, "BAD_KEYWORD")
+            }
+        }
+        let many = (0..<(KeywordLogic.maxKeywords + 1)).map { "szo\(String(format: "%03d", $0))" }
+        XCTAssertThrowsError(try settled { try Referee.setKeywords(many, now: now) }) { e in
+            XCTAssertEqual((e as? Referee.RefereeError)?.code, "TOO_MANY_KEYWORDS")
+        }
+        XCTAssertNil(BreakerStore.shared.state.keywords, "hibánál semmi nem változik")
+        XCTAssertNil(BreakerStore.shared.state.session)
+    }
+
+    private func currentStep() -> ChallengeEngine.Step? {
+        pumpMainQueue()
+        guard let s = BreakerStore.shared.state.session else { return nil }
+        return s.steps[s.stepIndex]
+    }
+
+    private func solve(_ step: ChallengeEngine.Step) -> String {
+        switch step {
+        case .transcribe(_, let text): return text
+        case .mathChain(_, let problems, let pos): return String(problems[pos].a)
+        case .memory(let id, let code, let showMs, let waitMs, _):
+            // A memorizálás és a várakozás „leteltnek” állítva — a tesztben
+            // nem az idő a kérdés, hanem a lépések sora.
+            settled {
+                BreakerStore.shared.mutate { state in
+                    guard var ses = state.session else { return }
+                    ses.steps[ses.stepIndex] = .memory(id: id, code: code, showMs: showMs, waitMs: waitMs,
+                                                       armedAt: now - Double(showMs + waitMs) - 1000)
+                    state.session = ses
+                }
+            }
+            return code
+        case .reverse(_, let text): return ChallengeEngine.reverse(text)
+        case .delay: XCTFail("a várakozást átvenni kell"); return ""
+        case .partner: XCTFail("a megbízott lépése a jelmondat — ezek a tesztek megbízott nélkül futnak"); return ""
+        }
+    }
+
+    /// Végigviszi a futó kísérletet — a várakozó lépést a célpontja után veszi át.
+    private func solveWholeSession(_ id: String) throws {
+        var guardCount = 0
+        while let step = currentStep(), guardCount < 40 {
+            guardCount += 1
+            switch step {
+            case .delay(_, _, let claimableAt, _):
+                try settled { try Referee.claimDelay(sessionId: id, now: (claimableAt ?? now) + 1) }
+            default:
+                try settled { try Referee.submitAnswer(sessionId: id, answer: solve(step), now: now) }
+            }
+        }
     }
 }

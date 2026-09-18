@@ -1,6 +1,8 @@
 import android.content.Context
 import hu.breaker.app.core.AppState
 import hu.breaker.app.core.BreakerStore
+import hu.breaker.app.core.ChallengeEngine.Step
+import hu.breaker.app.core.Referee
 import hu.breaker.app.core.Focus
 import hu.breaker.app.core.FocusSync
 import hu.breaker.app.core.KeywordLogic
@@ -11,15 +13,16 @@ import org.json.JSONObject
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
  * Kulcsszó-szabályok a Kotlin tükrön — a desktop/test/keywords.test.ts esetei:
- * a mag (alak, lista, fésülés, illesztés), a jel, a drót és a mentés. A
- * telefon nem érvényesít és nem szerkeszt — hordoz és fésül; ezért itt a bíró
- * nem szerepel.
+ * a mag (alak, lista, fésülés, illesztés), a jel, a drót és a mentés — és a
+ * bíró: a telefon nem érvényesít (a DNS a címet nem látja), de szerkeszt és
+ * hordoz: felvenni ingyen, levenni próbatétel.
  */
 class KeywordsTest {
 
@@ -117,5 +120,77 @@ class KeywordsTest {
         val old = fromJson.invoke(BreakerStore, JSONObject("{\"sites\":[]}")) as AppState
         assertEquals(emptyList(), old.keywords)
         assertNull(old.keywordsRev)
+    }
+
+    // ---------------------------------------------------------------- a bíró
+
+    @Test fun `a biro - felvenni es boviteni ingyen, levenni probatetel - a levetel a teljesiteskor lep eletbe`() {
+        assertTrue(Referee.setKeywords(listOf("Shorts"), now).applied, "felvétel ingyen")
+        assertEquals(listOf("shorts"), BreakerStore.state.value.keywords)
+        assertTrue(Referee.setKeywords(listOf("shorts", "reels"), now).applied, "bővítés ingyen")
+        assertTrue(Referee.setKeywords(listOf("reels", "shorts"), now).applied, "ugyanaz más sorrendben: nincs mit tenni")
+        assertNull(BreakerStore.state.value.session, "egyik sem indított próbatételt")
+
+        val r = Referee.setKeywords(listOf("shorts"), now)
+        assertFalse(r.applied, "levétel: próbatétel")
+        assertEquals("keywords", r.session?.siteId)
+        assertEquals(listOf("shorts"), r.session?.pendingKeywords)
+        assertEquals(listOf("shorts", "reels"), BreakerStore.state.value.keywords, "amíg a próbatétel tart, a lista marad")
+        assertEquals("BUSY", assertFailsWith<Referee.RefereeException> { Referee.setKeywords(emptyList(), now) }.code)
+        // Futó levétel közben a felvétel ingyen — és a függő lista is tud róla,
+        // különben a teljesítéskor a régi lista ülne vissza, és a live eltűnne.
+        assertTrue(Referee.setKeywords(listOf("shorts", "reels", "live"), now).applied, "közben a live ingyen")
+        assertEquals(listOf("shorts", "live"), BreakerStore.state.value.session?.pendingKeywords)
+        solveWholeSession(now)
+        assertNull(BreakerStore.state.value.session, "a kísérlet végigment")
+        assertEquals(listOf("shorts", "live"), BreakerStore.state.value.keywords, "a reels lement, a live megmaradt")
+        assertEquals(1, BreakerStore.state.value.unlockLog.size, "a lazítás a naplóban")
+        // A mentés a függő listát is hordozza: egy újraindítás nem tenné feloldássá.
+        val again = Referee.setKeywords(listOf("live"), now + 1000)
+        assertFalse(again.applied)
+        val toJson = BreakerStore::class.java.getDeclaredMethod("toJson", AppState::class.java).apply { isAccessible = true }
+        val fromJson = BreakerStore::class.java.getDeclaredMethod("fromJson", JSONObject::class.java).apply { isAccessible = true }
+        val back = fromJson.invoke(BreakerStore, JSONObject(toJson.invoke(BreakerStore, BreakerStore.state.value).toString())) as AppState
+        assertEquals(listOf("live"), back.session?.pendingKeywords)
+    }
+
+    @Test fun `a biro - rossz kulcsszo es tul sok kulcsszo hiba, nem csendes csonkolas`() {
+        for (bad in listOf(listOf("ab"), listOf("két szó"), listOf("shorts", "SHORTS"))) {
+            assertEquals("BAD_KEYWORD", assertFailsWith<Referee.RefereeException> { Referee.setKeywords(bad, now) }.code, "$bad")
+        }
+        val many = (0 until KeywordLogic.MAX_KEYWORDS + 1).map { "szo" + it.toString().padStart(3, '0') }
+        assertEquals("TOO_MANY_KEYWORDS", assertFailsWith<Referee.RefereeException> { Referee.setKeywords(many, now) }.code)
+        assertTrue(BreakerStore.state.value.keywords.isEmpty(), "hibánál semmi nem változik")
+        assertNull(BreakerStore.state.value.session)
+    }
+
+    /** Végigviszi a futó kísérletet — a várakozó lépést a célpontja után veszi át. */
+    private fun solveWholeSession(now: Long) {
+        var guard = 0
+        while (BreakerStore.state.value.session != null && guard++ < 200) {
+            val s = BreakerStore.state.value.session!!
+            when (val step = s.steps[s.stepIndex]) {
+                is Step.Delay -> Referee.claimDelay(s.id, (step.claimableAt ?: 0) + 1)
+                else -> Referee.submitAnswer(s.id, solveStep(step, now), now)
+            }
+        }
+    }
+
+    /** A helyes válasz; a MEMORY lépést visszadátumozzuk a várakozása mögé. */
+    private fun solveStep(step: Step, now: Long): String = when (step) {
+        is Step.Transcribe -> step.text
+        is Step.MathChain -> step.problems[step.pos].a.toString()
+        is Step.Memory -> {
+            BreakerStore.mutate { st ->
+                val ses = st.session!!
+                val steps = ses.steps.toMutableList()
+                steps[ses.stepIndex] = step.copy(armedAt = now - step.showMs - step.waitMs - 1000)
+                st.copy(session = ses.copy(steps = steps))
+            }
+            step.code
+        }
+        is Step.Reverse -> step.text.reversed()
+        is Step.Delay -> error("a várakozást átvenni kell")
+        is Step.Partner -> error("a megbízott lépése a jelmondat — ezek a tesztek megbízott nélkül futnak")
     }
 }

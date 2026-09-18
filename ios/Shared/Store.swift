@@ -90,6 +90,11 @@ struct SessionRec: Codable, Equatable, Identifiable {
     /// Hány rossz jelmondat volt eddig a megbízott lépésén — a plafonnál
     /// (`PartnerLogic.maxPartnerTries`) a kísérlet elszáll.
     var partnerTries: Int? = nil
+    /// Ha van, a teljesítés a kulcsszó-listát cseréli erre (lazítás: levétel).
+    /// Nem oldalhoz tartozik, hanem a fiók minden gépéhez — a gépi böngésző
+    /// tilt vele; a közben felvett szó ide is bekerül. Optional, hogy egy
+    /// korábbi verzió mentése is dekódolható maradjon.
+    var pendingKeywords: [String]? = nil
 }
 
 /// What an abandoned attempt leaves behind, so restarting cannot re-roll it.

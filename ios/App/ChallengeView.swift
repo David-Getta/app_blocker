@@ -22,6 +22,7 @@ struct ChallengeView: View {
             return "Kész. A törlés 24 óra múlva válik véglegessé — addig visszavonhatod."
         }
         if session.pendingPartnerRemoval == true { return "Kész. A megbízott lekerült." }
+        if session.pendingKeywords != nil { return "Kész. A kulcsszó lekerült — a gépi böngésző már nem tilt vele." }
         if session.pendingLockdownWindows != nil { return "Kész. A zárlat-ablak lazítása életbe lépett." }
         if session.pendingFocusEnd != nil { return "Kész. A munkamenet a kért módon zárult." }
         if session.pendingSchedule != nil { return "Kész. A menetrend a kért módon változott." }
@@ -33,6 +34,7 @@ struct ChallengeView: View {
     private var titleText: String {
         if session.kind == .delete { return "Végleges törlés" }
         if session.pendingPartnerRemoval == true { return "A megbízott levétele" }
+        if session.pendingKeywords != nil { return "Kulcsszó levétele" }
         if session.pendingLockdownWindows != nil { return "Zárlat-ablak lazítása" }
         if session.pendingFocusEnd != nil { return "Munkamenet leállítása" }
         if session.pendingSchedule != nil { return "Menetrend lazítása" }

@@ -271,6 +271,16 @@ object Referee {
                 abandons = state.abandons.filter { it.siteId != s.siteId },
             )
         }
+        // A KULCSSZAVAK sem oldalhoz tartoznak: a listát itt cseréljük, mert
+        // idáig csak próbatétellel lehet eljutni — a levétel ára ez a menet volt.
+        if (s.pendingKeywords != null) {
+            return state.copy(
+                keywords = s.pendingKeywords,
+                unlockLog = state.unlockLog.filter { it > now - 30 * 24 * 3600_000L } + now,
+                session = null,
+                abandons = state.abandons.filter { it.siteId != s.siteId },
+            )
+        }
         // A ZÁRLAT-ABLAKOK sem oldalhoz tartoznak. Idáig csak próbatétellel
         // lehet eljutni — a levétel vagy a szűkítés ára ez a menet volt. A futó
         // zárlathoz nem nyúl: a zárlat sosem rövidül; de ide csak ablakon
@@ -397,6 +407,60 @@ object Referee {
                 pendingLockdownWindows = next,
             )
             result = WindowsChangeResult(applied = false, session = session)
+            state.copy(session = session, lastCombo = plan.comboKey)
+        }
+        return result!!
+    }
+
+    data class KeywordsChangeResult(val applied: Boolean, val session: SessionRec?)
+
+    /**
+     * A kulcsszavak beállítása: a TELJES lista jön, és a tárolt lista ezt
+     * követi. Felvenni ingyen (szigorítás: több cím zárva); levenni
+     * próbatétel — különben a kulcsszó egy kikapcsolóval érne fel. A telefon
+     * nem érvényesít (a DNS a címet nem látja), de szerkeszt és hordoz: a
+     * fiókon át a gépi böngésző tilt vele. A desktop `setKeywords` tükre.
+     */
+    fun setKeywords(input: List<String>, now: Long): KeywordsChangeResult {
+        var result: KeywordsChangeResult? = null
+        BreakerStore.mutate { state ->
+            if (input.size > KeywordLogic.MAX_KEYWORDS) {
+                throw RefereeException("Legfeljebb ${KeywordLogic.MAX_KEYWORDS} kulcsszó fér el.", "TOO_MANY_KEYWORDS")
+            }
+            val next = KeywordLogic.cleanKeywords(input)
+            if (next.size != input.size) {
+                throw RefereeException(
+                    "Érvénytelen kulcsszó: ${KeywordLogic.MIN_KEYWORD_LENGTH}–${KeywordLogic.MAX_KEYWORD_LENGTH} " +
+                        "karakter, szóköz nélkül — és minden szó csak egyszer.",
+                    "BAD_KEYWORD",
+                )
+            }
+            val current = state.keywords
+            if (KeywordLogic.sameKeywords(current, next)) {
+                result = KeywordsChangeResult(applied = true, session = null)
+                return@mutate state
+            }
+            if (!KeywordLogic.isKeywordsLoosening(current, next)) {
+                // Futó levétel közben a felvétel is ingyen — és a levétel VÉGÉN
+                // sem veszhet el: a függő lista is megkapja, ami közben jött.
+                val session = state.session?.let { s ->
+                    val pending = s.pendingKeywords
+                    if (pending == null) s
+                    else s.copy(pendingKeywords = KeywordLogic.cleanKeywords(pending + next.filter { it !in current }))
+                }
+                result = KeywordsChangeResult(applied = true, session = null)
+                return@mutate state.copy(keywords = next, session = session)
+            }
+            if (state.session != null) {
+                throw RefereeException("Előbb fejezd be a folyamatban lévő kísérletet.", "BUSY")
+            }
+            val plan = planLoosening(state, Kind.PAUSE, null, now)
+            val session = SessionRec(
+                id = BreakerStore.newId("ses"), kind = Kind.PAUSE, siteId = "keywords", minutes = null,
+                steps = armCurrent(plan.steps, 0, now), stepIndex = 0, createdAt = now,
+                pendingKeywords = next,
+            )
+            result = KeywordsChangeResult(applied = false, session = session)
             state.copy(session = session, lastCombo = plan.comboKey)
         }
         return result!!
