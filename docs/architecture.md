@@ -115,13 +115,15 @@ A számok mellett a **dróton menő MEZŐNEVEK** is őrizve vannak
 (`scripts/check-wire-names.js`): a szinkron JSON-t cserél, és egy átnevezés az
 egyik nyelvben nem fordítási hiba a másikban — ott hiányzó mező lesz belőle,
 amire a feldolgozó alapértéket tesz. Négy blob, benne nyolc alak és
-harminchét mező: a blokklista a menetrendjével és a részleges szabályaival, a
-munkamenet a csomagjaival és a naplójával, a mai mérés összegzése.
+ma hetven körüli mező: a blokklista a menetrendjével és a részleges
+szabályaival, a munkamenet a csomagjaival, a naplójával, a zárlattal és a
+zárlat-ablakokkal, a mai mérés összegzése. A pontos számot a szkript írja ki.
 
 Ez főleg az iPhone miatt kell. A TypeScriptet a fordító védi (a mezőnevek ott
-típusok), a Kotlint drót-teszt fedi — Swiftben viszont nincs teszt, és a
-`Codable` a TULAJDONSÁGNEVEKBŐL képzi a kulcsokat, tehát egy átnevezés némán
-megváltoztatja a drót-alakot.
+típusok), a Kotlint drót-teszt fedi — Swiftben viszont a `Codable` a
+TULAJDONSÁGNEVEKBŐL képzi a kulcsokat, tehát egy átnevezés némán megváltoztatja
+a drót-alakot, és ezt a három nyelv közös fésülés-próbája (`fixtures/`) csak a
+benne szereplő mezőkön kapja el.
 
 Az őr mindkét irányba kérdez. Az egyik irány: megvan-e minden várt név mind a
 három nyelven. Ez önmagában átengedte a fél-átnevezést — ha egy kulcs két
@@ -137,7 +139,8 @@ csúszhat a drótra észrevétlenül.
 számok és a stimmelő mezőnevek sem érnek semmit, ha a döntést nem kérdezi meg
 senki. Ez a projekt visszatérő hibafajtája: a mag megvan, teszt is van rá, csak
 épp nincs meghívva — és egy nem hívott függvény tökéletesen érvényes kód.
-Harminchét pont, a hosts fájlba írástól a próbatételek sorsolásáig.
+Ma száztíz fölötti pont, a hosts fájlba írástól a próbatételek sorsolásáig és
+a zárlat-ablak köréig; a pontos számot a szkript írja ki.
 
 ## Biztonsági modell és őszinte korlátok
 
