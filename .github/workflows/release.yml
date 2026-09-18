@@ -44,21 +44,20 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A feloldások az előző héthez képest.** A heti mondat és a gépi
-          nehézség-sor a két számot egymás mellé teszi:
-          „3 feloldás (az előző héten 5), 2 félbemaradt kísérlet.”
-          A tükör mindhárom mércéje — megakadás, menet, feloldás — két
-          hetet mond. Irány, nem ítélet.
+          **Az előző hét a bővítmény lapján is.** A beállítás-lap a saját
+          könyvéből mondja, app nélkül is: „A héten 12 megakadás, az előző héten 18.”
+          Előző hét nélkül a sor nincs. Bővítmény 0.4.15. A weboldal a
+          három két-hetes mércét mondja: megakadás, menet, feloldás.
 
-          ### Ami a v0.4.74-ben jött
+          ### Ami a v0.4.75-ben jött
+
+          **A feloldások az előző héthez képest** — a heti mondat és a gépi
+          nehézség-sor a két számot egymás mellé teszi.
+
+          #### Ami a v0.4.74-ben jött
 
           **A menetek az előző héthez képest** — a statisztika
           munkamenet-blokkja és a heti mondat az előző hetet is mondja.
-
-          #### Ami a v0.4.73-ban jött
-
-          **A hét az előző héthez képest** — a megakadások két száma egymás
-          mellett; a bővítmény két hetet küld a hídra (bővítmény 0.4.14).
 
           NOTES
           fi
