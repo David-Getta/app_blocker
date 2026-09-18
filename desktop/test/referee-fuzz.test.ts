@@ -47,6 +47,7 @@ function correctAnswer(step: Step, now: number): string {
     }
     case 'REVERSE': return reverseString((step as ReverseStep).text);
     case 'DELAY': return '';
+    case 'PARTNER': return '';
   }
 }
 

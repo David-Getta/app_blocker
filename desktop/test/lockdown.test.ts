@@ -157,6 +157,12 @@ function looseningEntries(state: HelperState, siteId: string, packId: string, no
       () => referee.setFocusRecurrence(state, state.focusPacks![1].id, null, now)],
     ['setLockdownWindows', 'zárlat-ablak levétele',
       () => referee.setLockdownWindows(state, [], now)],
+    // A megbízott levétele is lazítás — a kapu ugyanaz. A rekord itt csak
+    // alak: a zárlat előbb állítja meg, mint hogy a jelmondat szóba jönne.
+    ['startPartnerRemoval', 'megbízott levétele', () => {
+      state.partner = { name: 'Anna', salt: 'A'.repeat(24), hash: 'B'.repeat(44), setAt: 1 };
+      return referee.startPartnerRemoval(state, now);
+    }],
   ] as const;
 }
 

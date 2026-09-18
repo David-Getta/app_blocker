@@ -1832,6 +1832,81 @@ function renderLockdown(st: StatusData): void {
       + 'ha elindítod, ki kell várni. Ez nem gépzár — rendszergazdaként a '
       + 'háttérszolgáltatás leállítható, és ezt nem is titkoljuk; az impulzus ellen véd.';
   renderLockdownWindows(windows);
+  renderPartner(st);
+}
+
+/**
+ * PÁRBAN ZÁROLÁS a zárlat kártyáján: a megbízott, ha van — a neve és a dátum
+ * —, és a levétele (próbatétel, a végén az ő jelmondatával); ha nincs, a
+ * felvétele (ingyen: a jelmondatot a segéd sorsolja, és egyszer mutatja meg).
+ */
+function renderPartner(st: StatusData): void {
+  const p = st.partner ?? null;
+  $('partnerName').classList.toggle('hidden', !!p);
+  $('partnerSetBtn').classList.toggle('hidden', !!p);
+  $('partnerRemoveBtn').classList.toggle('hidden', !p);
+  $('partnerHint').textContent = p
+    ? `Megbízott: ${p.name} (${new Date(p.setAt).toLocaleDateString('hu-HU')} óta). Minden lazító `
+      + 'próbatétel utolsó lépése az ő jelmondata — a levételé is. A jelmondat nincs meg a gépen, '
+      + 'csak a lenyomata; a többi eszközödre is átér.'
+    : 'Egy megbízott — társ, barát, szülő —, aki egy jelmondatot kap: minden lazítás végén ő írja be. '
+      + 'Nem helyetted csinálja végig, csak az utolsó szót ő mondja ki. Felvenni ingyen; levenni '
+      + 'próbatétel, a végén az ő jelmondatával. Nem gépzár: a segéd állapotát rendszergazdaként át '
+      + 'lehet írni, és ezt nem titkoljuk — az impulzus ellen véd, nem a szándék ellen.';
+}
+
+async function setPartner(): Promise<void> {
+  const err = $('partnerError');
+  err.classList.add('hidden');
+  const name = $<HTMLInputElement>('partnerName').value;
+  try {
+    const r = await call<{ name: string; phrase: string; status: StatusData }>('partner_set', { name });
+    status = r.status;
+    $<HTMLInputElement>('partnerName').value = '';
+    render();
+    openPartnerPhraseDialog(r.name, r.phrase);
+  } catch (e) {
+    err.textContent = (e as Error).message;
+    err.classList.remove('hidden');
+  }
+}
+
+async function removePartner(): Promise<void> {
+  const err = $('partnerError');
+  err.classList.add('hidden');
+  try {
+    const r = await call<SetRuleResult & { status: StatusData }>('partner_remove');
+    status = r.status;
+    render();
+  } catch (e) {
+    err.textContent = (e as Error).message;
+    err.classList.remove('hidden');
+  }
+}
+
+/** A jelmondat EGYSZER látszik: itt. Másolható, aztán át kell adni — nálad ne maradjon. */
+function openPartnerPhraseDialog(name: string, phrase: string): void {
+  const overlay = h('div', 'overlay');
+  const modal = h('div', 'modal modal-small');
+  modal.appendChild(h('h3', undefined, `${name} jelmondata`));
+  modal.appendChild(h('p', 'hint',
+    'Ez a jelmondat CSAK MOST látszik: a gép a lenyomatát tartja meg, a szöveget nem. Add át a '
+    + 'megbízottadnak, és ne tartsd meg magadnak — pont az a lényeg, hogy nálad ne legyen. Minden '
+    + 'lazító próbatétel végén ezt kéri majd az app; ötször rossz jelmondat után a kísérlet elölről kezdődik.'));
+  modal.appendChild(h('div', 'challenge-text partner-phrase', phrase));
+  const actions = h('div', 'modal-actions');
+  const copy = h('button', 'btn btn-small btn-ghost', 'Másolás');
+  copy.addEventListener('click', () => {
+    void navigator.clipboard.writeText(phrase).then(() => { copy.textContent = 'Kimásolva'; });
+  });
+  const done = h('button', 'btn btn-small btn-primary', 'Átadtam, bezárás');
+  done.addEventListener('click', () => overlay.remove());
+  const right = h('div', 'row-gap');
+  right.append(copy, done);
+  actions.append(h('div', 'row-gap'), right);
+  modal.appendChild(actions);
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
 }
 
 /** A heti ablakok listája a zárlat kártyáján — soronként egy ablak és a levétele. */
@@ -2020,6 +2095,9 @@ function openLockdownDialog(st: StatusData): void {
 function setupLockdownCard(): void {
   $('lockdownBtn').addEventListener('click', () => openLockdownDialog(status!));
   $('lockdownWindowBtn').addEventListener('click', () => openLockdownWindowDialog(status!));
+  $('partnerSetBtn').addEventListener('click', () => void setPartner());
+  $('partnerRemoveBtn').addEventListener('click', () => void removePartner());
+  $('partnerName').addEventListener('keydown', (e) => { if (e.key === 'Enter') void setPartner(); });
 }
 
 function setupChannelCard(): void {
@@ -3162,7 +3240,13 @@ function renderSession(session: SessionInfo | null): void {
   const focusPack = session.siteId.startsWith('focus:')
     ? (status?.focusPacks ?? []).find((p) => `focus:${p.id}` === session.siteId)
     : undefined;
-  if (session.siteId === 'lockdown:windows') {
+  if (session.siteId === 'partner') {
+    // A megbízott levétele: a terv végén az ő jelmondata — ő is bólint.
+    $('sessionTitle').textContent = 'A megbízott levétele';
+    $('sessionSubtitle').textContent =
+      'A megbízott addig MARAD, amíg a próbák meg nincsenek — és az utolsó lépés az ő '
+      + 'jelmondata, tehát a levételhez ő is kell.';
+  } else if (session.siteId === 'lockdown:windows') {
     // A zárlat-ablak lazítása (levétel, szűkítés): semmi nem fut, az ablak áll.
     $('sessionTitle').textContent = 'Zárlat-ablak lazítása';
     $('sessionSubtitle').textContent =
@@ -3243,6 +3327,7 @@ function buildStep(session: SessionInfo): void {
     case 'MEMORY': buildMemory(box, session, step); break;
     case 'REVERSE': buildReverse(box, session, step); break;
     case 'DELAY': buildDelay(box, session, step); break;
+    case 'PARTNER': buildPartner(box, session, step); break;
   }
   area.appendChild(box);
 }
@@ -3379,6 +3464,28 @@ function buildReverse(box: HTMLElement, session: SessionInfo, step: StepDisplay)
   input.autocomplete = 'off';
   input.spellcheck = false;
   guardInput(input);
+  const submit = () => void submitAnswer(session, input.value);
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); });
+  box.append(input, submitButton('Ellenőrzés', submit));
+}
+
+/**
+ * A megbízott lépése: a jelmondatot Ő írja be. Nincs beillesztés-tiltás, mint
+ * a gépelős próbáknál — a jelmondat nem gyakorlat, hanem másvalaki döntése,
+ * és onnan jöhet, ahol ő tartja.
+ */
+function buildPartner(box: HTMLElement, session: SessionInfo, step: StepDisplay): void {
+  const name = step.text ?? 'a megbízott';
+  box.appendChild(h('div', 'step-title', `Utolsó lépés: ${name} jelmondata`));
+  box.appendChild(h('div', 'hint',
+    `Kérd meg a megbízottadat (${name}), hogy ő írja be a jelmondatát — ez az ő döntése is. `
+    + 'Ha a jelmondat nálad van, a párban zárolás csak egy jelszó. Ötször rossz jelmondat után a '
+    + 'kísérlet elölről kezdődik, minden lépéssel.'));
+  const input = h('input', 'challenge-input') as HTMLInputElement;
+  input.type = 'password';
+  input.autocomplete = 'off';
+  input.spellcheck = false;
+  input.placeholder = 'a jelmondat (négy szó)';
   const submit = () => void submitAnswer(session, input.value);
   input.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); });
   box.append(input, submitButton('Ellenőrzés', submit));

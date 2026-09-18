@@ -137,6 +137,8 @@ export function statusOf(
     // …és az ablak szerinti is az: ha él egy ablak, a kör előtt is zárva van.
     lockdown: referee.currentLockdown(state, now),
     lockdownWindows: state.lockdownWindows ?? [],
+    // Csak a neve és a dátum: a lenyomat a segédé, a jelmondat sehol nincs.
+    partner: state.partner ? { name: state.partner.name, setAt: state.partner.setAt } : null,
     sync: state.sync && {
       // Csak amit a felületnek látnia kell. A kulcsok nem kerülnek ki innen.
       serverUrl: state.sync.serverUrl,
@@ -320,6 +322,19 @@ async function handle(req: HelperRequest, deps: ServerDeps): Promise<unknown> {
           && (w as { id: string }).id ? (w as { id: string }).id : newId('lw') }
         : w));
       const r = referee.setLockdownWindows(state, windows, now);
+      deps.commit();
+      return { ...r, status: statusOf(state, deps.dohApplied(), deps.selfTest()) };
+    }
+
+    case 'partner_set': {
+      // A jelmondat EGYSZER megy ki, itt: a segéd csak a lenyomatot tartja meg.
+      const r = referee.setPartner(state, String(req.name ?? ''), now);
+      deps.commit();
+      return { ...r, status: statusOf(state, deps.dohApplied(), deps.selfTest()) };
+    }
+
+    case 'partner_remove': {
+      const r = referee.startPartnerRemoval(state, now);
       deps.commit();
       return { ...r, status: statusOf(state, deps.dohApplied(), deps.selfTest()) };
     }

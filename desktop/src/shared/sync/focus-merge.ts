@@ -34,6 +34,7 @@ import {
   liveLockdown, mergeLockdown, mergeWindows, normalizeWindows, parseLockdown, windowKey,
   type Lockdown, type LockdownWindow,
 } from '../lockdown.js';
+import { mergePartner, normalizePartnerLock, partnerKey, type PartnerLock } from '../partner.js';
 
 /** Legfeljebb ennyi csomag utazhat — a felületen sem fér ki több. */
 export const MAX_PACKS = 30;
@@ -94,6 +95,13 @@ export interface SyncFocus {
    * nélküli blob (régi kliens) jele nulla — az ilyen sosem törölhet listát.
    */
   lockdownWindowsRev?: number;
+  /**
+   * PÁRBAN ZÁROLÁS: a megbízott lenyomata és a jele (a blob `rev`-je, amelyik
+   * utoljára állította vagy vette le). A fésülése az ablakoké: nagyobb jel
+   * nyer, azonos jelnél a beállított — lásd `mergePartner`. Hiányzik = nincs.
+   */
+  partner?: PartnerLock;
+  partnerRev?: number;
   rev: number;
   updatedAt: number;
   updatedBy: string;
@@ -209,6 +217,9 @@ export function normalizeSyncFocus(raw: unknown, fallbackDevice: string, now?: n
     ...(windowsIn(o.lockdownWindows).length > 0
       ? { lockdownWindows: windowsIn(o.lockdownWindows) } : {}),
     ...(markIn(o.lockdownWindowsRev, rev) ? { lockdownWindowsRev: markIn(o.lockdownWindowsRev, rev) } : {}),
+    // A megbízott is kívülről jött adat: csak a jó alakú, a jele mint a többié.
+    ...(normalizePartnerLock(o.partner) ? { partner: normalizePartnerLock(o.partner)! } : {}),
+    ...(markIn(o.partnerRev, rev) ? { partnerRev: markIn(o.partnerRev, rev) } : {}),
     rev,
     updatedAt: numberOr(o.updatedAt, 0),
     updatedBy: typeof o.updatedBy === 'string' && o.updatedBy ? o.updatedBy : fallbackDevice,
@@ -365,6 +376,8 @@ export function mergeFocus(local: SyncFocus, incoming: SyncFocus): SyncFocus {
     // szerkesztése (ami a blob `rev`-jét lépteti, a jelet nem) nem viszi el
     // a listát. Azonos jelnél a bővebb: a szigorúbb irány.
     ...windowsMerged(local, incoming),
+    // A megbízott ugyanígy: a jel dönt, azonos jelnél a beállított.
+    ...partnerMerged(local, incoming),
     rev: Math.max(local.rev, incoming.rev),
     // Az idő a GYŐZTESÉ, nem a nagyobb: így az eredmény kulcsa (rev, idő,
     // eszköz) pontosan az újabb blobé, és három eszköz bármilyen sorrendben
@@ -615,6 +628,9 @@ function stable(f: SyncFocus): unknown {
     // sorrend nem jelentés.
     lockdownWindows: (f.lockdownWindows ?? []).map(windowKey).sort(),
     lockdownWindowsRev: f.lockdownWindowsRev ?? 0,
+    // A MEGBÍZOTT IS, a jelével: enélkül a felvétele sosem érne fel.
+    partner: f.partner ? partnerKey(f.partner) : null,
+    partnerRev: f.partnerRev ?? 0,
     rev: f.rev,
   };
 }
@@ -641,6 +657,20 @@ function windowsMerged(
   return {
     ...(windows.length > 0 ? { lockdownWindows: windows } : {}),
     ...(mark > 0 ? { lockdownWindowsRev: mark } : {}),
+  };
+}
+
+/** A megbízott és a jele fésülve — üresen egyik mező sincs. */
+function partnerMerged(
+  local: SyncFocus, incoming: SyncFocus,
+): { partner?: PartnerLock; partnerRev?: number } {
+  const ml = local.partnerRev ?? 0;
+  const mi = incoming.partnerRev ?? 0;
+  const partner = mergePartner(ml, local.partner, mi, incoming.partner);
+  const mark = Math.max(ml, mi);
+  return {
+    ...(partner ? { partner } : {}),
+    ...(mark > 0 ? { partnerRev: mark } : {}),
   };
 }
 

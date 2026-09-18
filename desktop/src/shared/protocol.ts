@@ -1,13 +1,13 @@
 // Wire protocol between the GUI app and the privileged helper.
 // Newline-delimited JSON over a unix domain socket (macOS) / named pipe (Windows).
 
-export type ChallengeType = 'TRANSCRIBE' | 'MATH_CHAIN' | 'MEMORY' | 'REVERSE' | 'DELAY';
+export type ChallengeType = 'TRANSCRIBE' | 'MATH_CHAIN' | 'MEMORY' | 'REVERSE' | 'DELAY' | 'PARTNER';
 
 /** What the UI is allowed to see about the current step. Never contains expected answers. */
 export interface StepDisplay {
   id: string;
   type: ChallengeType;
-  /** TRANSCRIBE / REVERSE: the text to work from. */
+  /** TRANSCRIBE / REVERSE: the text to work from. PARTNER: a megbízott neve. */
   text?: string;
   /** MATH_CHAIN: current problem and position. */
   /** a lánc HOSSZA szándékosan hiányzik — lásd `SessionInfo.remaining` */
@@ -190,6 +190,12 @@ export interface StatusData {
    * hiányzó = nincs. A felület listázza, és a levételt próbatétellel kéri.
    */
   lockdownWindows?: import('./lockdown').LockdownWindow[];
+  /**
+   * PÁRBAN ZÁROLÁS: a megbízott, ha van — csak a neve és a dátum; a
+   * lenyomat a segédé. Hiányzik vagy null = nincs. Amíg van, minden lazító
+   * próbatétel utolsó lépése az ő jelmondata.
+   */
+  partner?: { name: string; setAt: number } | null;
   /** a szinkron állapota, ha van fiók */
   sync?: SyncStatus;
   /** munkamenet-csomagok: „most csak EZ mehet” (lásd shared/focus.ts) */
@@ -255,6 +261,11 @@ export type HelperRequest =
   // vagy szűkíteni próbatétel — és csak ablakon kívül, mert bent zárlat van.
   // Az azonosító nélküli ablak újnak számít, a segéd ad neki azonosítót.
   | { id: number; op: 'lockdown_windows'; windows: import('./lockdown').LockdownWindow[] }
+  // Párban zárolás. Felvenni ingyen: a segéd sorsolja a jelmondatot, EGYSZER
+  // adja vissza, és csak a lenyomatát tartja meg. Levenni próbatétel — a
+  // végén a megbízott jelmondatával, tehát a levételhez is ő kell.
+  | { id: number; op: 'partner_set'; name: string }
+  | { id: number; op: 'partner_remove' }
   | { id: number; op: 'set_rule'; siteId: string; input: string; remove: boolean }
   // Csatorna-szűrő: mentés (új vagy csere) és törlés. A lazítás — kikapcsolás,
   // új engedélyezett csatorna bekapcsolt szűrőn, törlés bekapcsolt állapotban —

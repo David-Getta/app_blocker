@@ -47,7 +47,14 @@ export interface DelayStep {
   claimableAt: number | null;
   claimWindowMs: number;
 }
-export type Step = TranscribeStep | MathChainStep | MemoryStep | ReverseStep | DelayStep;
+/**
+ * PÁRBAN ZÁROLÁS: a terv UTOLSÓ lépése, ha van megbízott — a jelmondatát ő
+ * írja be. Nem a sorsolt aktív próbák közül való (a kombináció-kulcsba sem
+ * számít), és nem itt ellenőrizzük: a lenyomat a bírónál van, a szabály a
+ * `partner.ts`-ben. A `name` a felületnek kell: „Kérd meg Annát”.
+ */
+export interface PartnerStep { id: string; type: 'PARTNER'; name: string }
+export type Step = TranscribeStep | MathChainStep | MemoryStep | ReverseStep | DelayStep | PartnerStep;
 
 // ------------------------------------------------------------------- tiers
 
@@ -153,6 +160,14 @@ export function makeTranscription(rng: RNG, targetChars: number): string {
   return out;
 }
 
+/**
+ * A megbízott jelmondata: négy szó a próbatételek szólistájából, kisbetűvel,
+ * szóközzel. Csak a felvételkor születik, egyszer látszik; a lenyomata marad.
+ */
+export function makePartnerPhrase(rng: RNG, words = 4): string {
+  return Array.from({ length: words }, () => rng.pick(WORDS).toLowerCase()).join(' ');
+}
+
 export function makeCode(rng: RNG, len: number): string {
   let s = '';
   for (let i = 0; i < len; i++) s += CODE_ALPHABET[rng.int(0, CODE_ALPHABET.length - 1)];
@@ -207,6 +222,9 @@ export function makeStep(type: ChallengeType, tier: number, kind: 'pause' | 'del
       const [lo, hi] = (kind === 'delete' ? TIER_PARAMS.deleteDelayMin : TIER_PARAMS.pauseDelayMin)[t];
       return { id: stepId(), type, minutes: rng.int(lo, hi), claimableAt: null, claimWindowMs: CLAIM_WINDOW_MS };
     }
+    case 'PARTNER':
+      // Nem sorsolt próba: a bíró teszi a terv végére, ha van megbízott.
+      throw new Error('A megbízott lépését nem a sorsolás adja.');
   }
 }
 
@@ -359,6 +377,10 @@ export function applyAnswer(
     }
     case 'DELAY':
       return { ok: false, done: false, step, message: 'Ez egy várakozási lépés — itt nincs beírható válasz.' };
+    case 'PARTNER':
+      // A jelmondatot a BÍRÓ veti össze a lenyomattal (a segéd `crypto`-jával);
+      // ide nem juthat el — ha mégis, az nem elfogadás.
+      return { ok: false, done: false, step, message: 'A jelmondatot a megbízott lépése ellenőrzi.' };
   }
 }
 
@@ -394,5 +416,8 @@ export function toDisplay(step: Step, now: number): StepDisplay {
         id: step.id, type: step.type,
         delay: { minutes: step.minutes, claimableAt: step.claimableAt, claimWindowMs: step.claimWindowMs },
       };
+    case 'PARTNER':
+      // A név megy ki, semmi más: a lenyomat a segédé.
+      return { id: step.id, type: step.type, text: step.name };
   }
 }

@@ -779,6 +779,11 @@ body {
 .wow-down { color: var(--ok); }
 .wow-flat { color: var(--text-3); }
 
+.partner-box { margin-top: var(--s5); }
+.partner-box .chart-title { margin: 0; }
+.partner-name { width: 200px; margin-top: 0; padding: 8px 12px; }
+.partner-phrase { font-size: 1.25rem; text-align: center; user-select: all; }
+
 .journal-list { display: flex; flex-direction: column; gap: var(--s3); }
 .journal-row { display: flex; gap: var(--s3); align-items: baseline; font-size: 0.87rem; }
 .journal-week { flex: 0 0 auto; color: var(--text-3); font-variant-numeric: tabular-nums; }

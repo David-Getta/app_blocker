@@ -55,6 +55,7 @@ function solveStep(step: Step, now: number): string {
     }
     case 'REVERSE': return reverseString((step as ReverseStep).text);
     case 'DELAY': throw new Error('delay steps are claimed, not answered');
+    case 'PARTNER': throw new Error('a megbízott lépése a jelmondat — ezek a tesztek megbízott nélkül futnak');
   }
 }
 

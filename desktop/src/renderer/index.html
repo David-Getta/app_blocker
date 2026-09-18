@@ -198,6 +198,25 @@
       -->
       <div id="lockdownWindows" class="lockdown-windows"></div>
       <p id="lockdownWindowsError" class="error hidden"></p>
+      <!--
+        PÁRBAN ZÁROLÁS. A lazítás végén egy megbízott jelmondata is kell: nem
+        drágább, hanem MÁS EMBER döntése is. Felvenni ingyen, levenni
+        próbatétel — a végén az ő jelmondatával. A zárlat kártyáján áll, mert
+        ugyanaz a kérdés: mikor nem egyedül döntesz.
+      -->
+      <div id="partnerBox" class="partner-box">
+        <div class="list-head">
+          <h3 class="chart-title">Párban zárolás</h3>
+          <div class="row-gap">
+            <input id="partnerName" class="alias-input partner-name" type="text" maxlength="40"
+              placeholder="a megbízott neve, pl. Anna" spellcheck="false">
+            <button id="partnerSetBtn" class="btn btn-small">Megbízott felvétele</button>
+            <button id="partnerRemoveBtn" class="btn btn-small btn-ghost hidden">Levétel…</button>
+          </div>
+        </div>
+        <p class="hint" id="partnerHint"></p>
+        <p id="partnerError" class="error hidden"></p>
+      </div>
     </section>
 
     <!--

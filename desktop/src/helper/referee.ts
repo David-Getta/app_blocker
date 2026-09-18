@@ -3,9 +3,11 @@
 // forwards answers, so there is no "just flip the flag" shortcut in the UI.
 
 import {
-  applyAnswer, computeTier, comboKeyOf, cryptoRng, generatePlan, remainingHint, toDisplay,
+  applyAnswer, computeTier, comboKeyOf, cryptoRng, generatePlan, makePartnerPhrase, remainingHint, toDisplay,
   CLAIM_WINDOW_MS, DELETE_PENDING_MS, SESSION_MAX_AGE_MS, REROLL_COOLDOWN_MS,
 } from '../shared/challenges';
+import { MAX_PARTNER_TRIES, normalizePartnerName } from '../shared/partner';
+import { makePartnerLock, verifyPhrase } from './partner-crypto';
 import type {
   SessionInfo, SubmitResult, SetScheduleResult, SetLimitResult, SetRuleResult,
 } from '../shared/protocol';
@@ -125,7 +127,12 @@ function planLoosening(
   assertUnlocked(state, now);
   const tier = effectiveTier(state, kind, now);
   const forced = comboSiteId === null ? null : forcedCombo(state, comboSiteId, now);
-  return generatePlan(kind, tier, state.lastCombo, rng, forced);
+  const plan = generatePlan(kind, tier, state.lastCombo, rng, forced);
+  // PÁRBAN ZÁROLÁS: ha van megbízott, az utolsó szó az övé — MINDEN lazításnál,
+  // mert mind ezen az egy kapun jön ki. A várakozás UTÁN áll: ne kelljen
+  // hívni, amíg a munka nincs meg.
+  if (state.partner) plan.steps.push({ id: newId('st'), type: 'PARTNER', name: state.partner.name });
+  return plan;
 }
 
 /**
@@ -206,6 +213,15 @@ function logFocusEnd(state: HelperState, endedAt: number, stopped: boolean): voi
 
 function finishSession(state: HelperState, now: number): void {
   const s = state.session!;
+  // A MEGBÍZOTT LEVÉTELE: nem oldalhoz tartozik. Idáig csak próbatétellel
+  // lehet eljutni — a végén az ő jelmondatával, tehát ő is bólintott.
+  if (s.pendingPartnerRemoval) {
+    delete state.partner;
+    state.unlockLog = [...state.unlockLog.filter((t) => t > now - 30 * 24 * 3600_000), now];
+    state.session = null;
+    state.abandons = (state.abandons ?? []).filter((a) => a.siteId !== s.siteId);
+    return;
+  }
   // A munkamenet nem egy OLDALHOZ tartozik, hanem az egész géphez: ezért itt
   // áll, a site-keresés előtt. A -1 azt jelenti: állítsd le most.
   if (s.pendingFocusEnd !== undefined) {
@@ -578,6 +594,7 @@ export function submitAnswer(state: HelperState, sessionId: string, answer: stri
   if (step.type === 'DELAY') {
     throw new RefereeError('Ez a lépés várakozás — a „Feloldás átvétele” gombbal zárható.', 'DELAY_STEP');
   }
+  if (step.type === 'PARTNER') return submitPartner(state, s, answer, now);
   const tier = effectiveTier(state, s.kind, s.createdAt);
   const outcome = applyAnswer(step, answer, tier, s.kind, rng, now);
   s.steps[s.stepIndex] = outcome.step;
@@ -596,6 +613,38 @@ export function submitAnswer(state: HelperState, sessionId: string, answer: stri
   // the challenge becomes unsolvable.
   armCurrent(s, now);
   return { accepted: outcome.ok, sessionDone: false, message: outcome.message, session: sessionInfo(s, now) };
+}
+
+/**
+ * A megbízott lépése: a jelmondat a lenyomattal összevetve. Rossz jelmondat
+ * nem sorsol újat (nincs mit), de számol: a plafonnál a kísérlet érvénytelen,
+ * elölről — a jelmondat nem találgatós játék. Ha a megbízott közben (a
+ * szinkronból) lekerült, a lépés tárgytalan: átmegy.
+ */
+function submitPartner(state: HelperState, s: SessionRec, answer: string, now: number): SubmitResult {
+  const lock = state.partner;
+  if (lock && !verifyPhrase(lock, answer)) {
+    s.partnerTries = (s.partnerTries ?? 0) + 1;
+    if (s.partnerTries >= MAX_PARTNER_TRIES) {
+      dropSession(state, now);
+      throw new RefereeError(
+        `${MAX_PARTNER_TRIES}-ször nem ez volt a jelmondat — a kísérlet érvénytelen, elölről kell kezdeni.`,
+        'PARTNER_TRIES',
+      );
+    }
+    return {
+      accepted: false, sessionDone: false,
+      message: 'Nem ez a jelmondat. Kérd meg a megbízottadat, hogy ő írja be.',
+      session: sessionInfo(s, now),
+    };
+  }
+  s.stepIndex += 1;
+  if (s.stepIndex >= s.steps.length) {
+    finishSession(state, now);
+    return { accepted: true, sessionDone: true, session: null };
+  }
+  armCurrent(s, now);
+  return { accepted: true, sessionDone: false, session: sessionInfo(s, now) };
 }
 
 export function claimDelay(state: HelperState, sessionId: string, now: number): SubmitResult {
@@ -639,7 +688,8 @@ export function abandonSession(state: HelperState, sessionId: string): void {
 function dropSession(state: HelperState, now: number): void {
   const s = state.session;
   if (!s) return;
-  const combo = comboKeyOf(s.steps.filter((st) => st.type !== 'DELAY').map((st) => st.type));
+  // A megbízott lépése nem sorsolt próba: a kombináció-kulcsba nem számít.
+  const combo = comboKeyOf(s.steps.filter((st) => st.type !== 'DELAY' && st.type !== 'PARTNER').map((st) => st.type));
   const live = liveAbandons(state, now);
   // The cooldown runs from the FIRST time this pair was given up on, not from
   // the latest restart. Otherwise every restart would push the deadline out and
@@ -1111,6 +1161,47 @@ export function setLockdownWindows(
     id: newId('ses'), kind: 'pause', siteId: 'lockdown:windows',
     steps: plan.steps, stepIndex: 0, createdAt: now,
     pendingLockdownWindows: next,
+  };
+  state.lastCombo = plan.comboKey;
+  armCurrent(state.session, now);
+  return { applied: false, session: sessionInfo(state.session, now) };
+}
+
+// ------------------------------------------------------------ párban zárolás
+
+/**
+ * Megbízott felvétele — INGYEN, mert szigorítás: innentől minden lazítás végén
+ * az ő jelmondata kell. A jelmondatot a segéd sorsolja, és EGYSZER adja
+ * vissza: a felület megmutatja, a felhasználó átadja; a segéd csak a
+ * lenyomatot tartja meg. Ha már van megbízott, előbb le kell venni — az
+ * próbatétel, az ő jelmondatával.
+ */
+export function setPartner(
+  state: HelperState, rawName: string, now: number,
+): { name: string; phrase: string } {
+  if (state.partner) {
+    throw new RefereeError('Már van megbízott. Előbb vedd le — az próbatétel, az ő jelmondatával.', 'PARTNER_SET');
+  }
+  const name = normalizePartnerName(rawName);
+  if (!name) throw new RefereeError('Adj a megbízottnak egy nevet.', 'BAD_NAME');
+  const phrase = makePartnerPhrase(rng);
+  state.partner = makePartnerLock(name, phrase, now);
+  return { name, phrase };
+}
+
+/**
+ * A megbízott levétele — próbatétel, és a terv végén az ő jelmondata: a
+ * levételhez is ő kell. Ugyanaz a kapu, mint minden lazításnál (zárlat alatt
+ * el sem indul).
+ */
+export function startPartnerRemoval(state: HelperState, now: number): SetRuleResult {
+  if (!state.partner) return { applied: true, session: null };
+  if (state.session) throw new RefereeError('Előbb fejezd be a folyamatban lévő kísérletet.', 'BUSY');
+  const plan = planLoosening(state, 'pause', null, now);
+  state.session = {
+    id: newId('ses'), kind: 'pause', siteId: 'partner',
+    steps: plan.steps, stepIndex: 0, createdAt: now,
+    pendingPartnerRemoval: true,
   };
   state.lastCombo = plan.comboKey;
   armCurrent(state.session, now);

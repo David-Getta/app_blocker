@@ -2,6 +2,7 @@
 // GUI (and the user) cannot simply edit the blocklist file to skip challenges.
 
 import { cleanDigestLog } from '../shared/digest';
+import { normalizePartnerLock } from '../shared/partner';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
@@ -114,6 +115,13 @@ export interface SessionRec {
    * levétel vagy szűkítés). Nem oldalhoz tartozik, hanem az egész géphez.
    */
   pendingLockdownWindows?: import('../shared/lockdown').LockdownWindow[];
+  /**
+   * Ha van, a teljesítés a MEGBÍZOTTAT veszi le (lazítás) — a terv végén az ő
+   * jelmondatával, tehát a levételhez is ő kell.
+   */
+  pendingPartnerRemoval?: true;
+  /** hányszor volt rossz a jelmondat ebben a kísérletben — a plafonnál a kísérlet elszáll */
+  partnerTries?: number;
 }
 
 /**
@@ -163,6 +171,14 @@ export interface HelperState {
    * `mergeWindows`); a lenyomat-léptetés írja (revisions.ts).
    */
   lockdownWindowsRev?: number;
+  /**
+   * PÁRBAN ZÁROLÁS: a megbízott lenyomata, ha van. Amíg van, minden lazító
+   * próbatétel utolsó lépése az ő jelmondata; felvenni ingyen, levenni
+   * próbatétel. A munkamenet blobján utazik, a jelével. Lásd shared/partner.ts.
+   */
+  partner?: import('../shared/partner').PartnerLock;
+  /** a jele: a blob `rev`-je, amelyik utoljára állította vagy vette le — a fésülés ebből dönt */
+  partnerRev?: number;
   dohApplied: boolean;
   /** active-time tracking history (stays on this machine) */
   usage: UsageState;
@@ -273,6 +289,8 @@ export interface HelperState {
    * ki, hogy a lista változott-e, tehát kell-e új jel (revisions.ts).
    */
   focusRevWindows?: string;
+  /** a megbízott kulcsa az előző léptetéskor — ebből látszik, változott-e (a jeléhez) */
+  focusRevPartner?: string;
   /**
    * A csatorna-szűrők szinkron-számlálója — a munkamenet mintájára.
    *
@@ -422,6 +440,17 @@ export function loadState(): HelperState {
       if (parsed.lockdownWindowsRev !== undefined
         && !(Number.isInteger(parsed.lockdownWindowsRev) && parsed.lockdownWindowsRev > 0)) {
         delete parsed.lockdownWindowsRev;
+      }
+      // A PÁRBAN ZÁROLÁS rekordja: csak a jó alakú marad. Egy sérült lenyomat
+      // nem „nincs megbízott”, hanem egy megbízott, akinek a jelmondata sosem
+      // stimmelne — csapda, nem döntés; ezért inkább leesik, kimondva.
+      if (parsed.partner !== undefined) {
+        const p = normalizePartnerLock(parsed.partner);
+        if (p) parsed.partner = p; else delete parsed.partner;
+      }
+      if (parsed.partnerRev !== undefined
+        && !(Number.isInteger(parsed.partnerRev) && parsed.partnerRev > 0)) {
+        delete parsed.partnerRev;
       }
       if (parsed.session?.pendingLockdownWindows !== undefined) {
         parsed.session.pendingLockdownWindows = normalizeWindows(parsed.session.pendingLockdownWindows);

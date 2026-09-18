@@ -24,7 +24,7 @@ export interface Aliasable {
 }
 
 /** Vezérlőkarakterek: C0, DEL és C1. Ezeket szóközre cseréljük. */
-const CONTROL_CHARS = /[\u0000-\u001f\u007f-\u009f]/g;
+export const CONTROL_CHARS = /[\u0000-\u001f\u007f-\u009f]/g;
 
 /**
  * Használható fedőnév, vagy undefined („nincs fedőnév”).

@@ -15,6 +15,7 @@
 // újraindítás nem hajtja fel a számlálót a semmiért.
 
 import * as crypto from 'crypto';
+import { partnerKey } from '../shared/partner';
 import type { HelperState, SiteRec } from './state';
 import { windowKey } from '../shared/lockdown';
 import type { FocusPack } from '../shared/focus';
@@ -158,7 +159,13 @@ function focusFingerprint(state: HelperState): string {
   // az ablak nélküli állapot lenyomata ugyanaz marad, mint a frissítés előtt,
   // különben minden eszköz egyszer fölöslegesen léptetne.
   const windows = windowsKey(state);
-  return FOCUS_FP_V2 + digest([packsPart(state), run, ...(windows ? [windows] : [])]);
+  // A MEGBÍZOTT IS: a felvétele és a levétele döntés, tehát léptet — enélkül
+  // a lenyomat nem érne át. Csak ha van, címkével: a nélküle lévő állapot
+  // lenyomata változatlan marad.
+  const partner = partnerKey(state.partner);
+  return FOCUS_FP_V2 + digest([
+    packsPart(state), run, ...(windows ? [windows] : []), ...(partner ? ['partner', partner] : []),
+  ]);
 }
 
 /** Az ablak-lista tartalmi kulcsa — üres listára üres szöveg. */
@@ -222,12 +229,25 @@ export function bumpFocusRevision(
   state.focusRevFp = fp;
   markPacks(state);
   markWindows(state);
+  markPartner(state);
   return true;
 }
 
 function isEmptyFocus(state: HelperState): boolean {
   return (state.focusPacks ?? []).length === 0 && !state.focusRun
-    && (state.lockdownWindows ?? []).length === 0;
+    && (state.lockdownWindows ?? []).length === 0 && !state.partner;
+}
+
+/**
+ * A megbízott jele — ugyanaz a szabály, mint az ablak-listáé: ha az előző
+ * léptetés óta változott (felvétel, levétel, csere), a jele ez a blob-rev.
+ */
+function markPartner(state: HelperState): void {
+  const cur = partnerKey(state.partner);
+  const prev = state.focusRevPartner ?? '';
+  state.focusRevPartner = cur;
+  if (prev === cur || state.focusRev === undefined) return;
+  state.partnerRev = state.focusRev;
 }
 
 /**
