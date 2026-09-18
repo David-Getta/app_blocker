@@ -44,21 +44,21 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A nulla hét is mondat a statisztikán.** Ha az előző héten volt
-          mihez mérni, a megakadás- és a munkamenet-blokk üres héten is
-          marad, és kimondja: „A héten nem volt menet.” — az előző hét
-          sora mellett. Mindhárom platformon.
+          **Egy kattintás az értesítésről a menetig.** A gépen a sokadik
+          megakadás és a csúcs-óra előtti előjelzés értesítése megmondja,
+          mi indul, és a kattintás indítja a legutóbbi csomagot a szokásos
+          hosszával — egy második értesítés visszaszól, hogy elindult.
+          Futó menet mellett nincs ígéret.
 
-          ### Ami a v0.4.77-ben jött
+          ### Ami a v0.4.78-ban jött
 
-          **Melyik kulcsszó dolgozik** — a megakadás-könyv a fogó szót is
-          elteszi, a statisztika kulcsszavanként mondja a hetet (gép,
-          bővítmény, telefon). Bővítmény 0.4.16.
+          **A nulla hét is mondat a statisztikán** — az előző hét mellett a
+          megakadás- és a munkamenet-blokk üres héten is marad, és kimondja.
 
-          #### Ami a v0.4.76-ban jött
+          #### Ami a v0.4.77-ben jött
 
-          **Az előző hét a bővítmény lapján is** — a beállítás-lap a saját
-          könyvéből mondja, app nélkül is.
+          **Melyik kulcsszó dolgozik** — a statisztika kulcsszavanként
+          mondja a hetet (gép, bővítmény, telefon). Bővítmény 0.4.16.
 
           NOTES
           fi
