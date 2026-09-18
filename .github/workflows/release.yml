@@ -44,19 +44,19 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
+          **Változásnapló a dokumentációban.** A repóban egy helyen, verziónként
+          a jegyzet címével: `docs/changelog.md` — a git-történetből írja a
+          `scripts/changelog.js`; ami nem kapott saját kiadást, jelölve.
+
+          ### Ami a v0.4.99-ben jött
+
           **Az adag a héten** a heti mondatban is („Az adag a héten 7× telt be.”)
           és az oldal sorában is („· a héten 7×”) — a gépen és Androidon.
 
-          ### Ami a v0.4.98-ban jött
+          #### Ami a v0.4.98-ban jött
 
           **Adag-betelések a héten** — a betelések könyve hét napot tart, a
-          statisztika a hét összegét mondja oldalanként. A weboldal kimondja:
-          a híd befelé csak szigorít.
-
-          #### Ami a v0.4.97-ben jött
-
-          **Óra-tengely az órák sávja alatt** minden felületen, és **a keret
-          sora a héten betelt napokkal**. Bővítmény 0.4.22.
+          statisztika a hét összegét mondja oldalanként.
 
           NOTES
           fi
