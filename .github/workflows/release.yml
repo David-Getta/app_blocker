@@ -44,21 +44,20 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **Hétfő reggeli emlékeztető iPhone-on.** A heti visszatekintés
-          mondata az appban születik, amikor hétfő reggel először nyitva
-          van; mostantól egy emlékeztető hív oda 7:05-kor — a rendszer
-          ütemezi, tehát akkor is szól, ha az app nincs nyitva. A zárlat
-          kapuja a kulcsszó levételére is áll, most már mindkét telefonon
-          tesztelve.
+          **A hét alakja a megakadásokra.** A statisztika mindhárom
+          platformon napról napra rajzolja, hányszor állított meg a
+          böngésző (a gépen) vagy a szűrő (a telefonon) — ugyanazzal a
+          rajzzal, mint a mért időé és a meneteké. Egyenletesen jön-e össze
+          a hét, vagy egy napból: tükör, nem ítélet.
 
-          ### Ami a v0.4.53-ban jött
+          ### Ami a v0.4.54-ben jött
 
-          **A megakadás ott is látszik, ahol a kísértés van.** A réteg lába
-          és az Android-értesítés sora a mai számot mondja.
+          **Hétfő reggeli emlékeztető iPhone-on** a heti visszatekintésre —
+          a rendszer ütemezi, a mondat az appban születik.
 
-          #### Ami a v0.4.52-ben jött
+          #### Ami a v0.4.53-ban jött
 
-          **Kulcsszó-javaslatok egy koppintással.**
+          **A megakadás ott is látszik, ahol a kísértés van.**
 
           NOTES
           fi
