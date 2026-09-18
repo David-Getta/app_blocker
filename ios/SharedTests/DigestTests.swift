@@ -189,7 +189,7 @@ final class DigestTests: XCTestCase {
         XCTAssertEqual(input.focusWeek.sessions, 1, "a harminc napos menet nem az elmúlt hété")
         XCTAssertEqual(input.dropped7d, 1, "a húsz napos félbemaradt kísérlet sem az elmúlt hété")
         XCTAssertEqual(DigestLogic.text(input) { $0 },
-                       "Elmúlt 7 nap: 1 menet (1 ó 0 p, mind végigvive). A négy hét menet-napja: péntek (1 menet). 1 feloldás, 1 félbemaradt kísérlet.")
+                       "Elmúlt 7 nap: 1 menet (1 ó 0 p, mind végigvive). A négy hét menet-napja: péntek (1 menet). A négy hét menet-órája: 8–9 óra (1 menet). 1 feloldás, 1 félbemaradt kísérlet.")
     }
 
     func testJournalOneRowPerWeekNewestFirstHalfAYearCap() {
@@ -281,6 +281,18 @@ final class DigestTests: XCTestCase {
         var plain = full
         plain.last7Seconds = 0
         XCTAssertEqual(DigestLogic.text(unmeasured) { $0 }, DigestLogic.text(plain) { $0 }, "mérés nélkül a nap sem mondat")
+    }
+    func testTheSessionHourInTheSentenceIsTheStatsLineAndNoHourIsNoSentence() {
+        let head = "Elmúlt 7 nap: 7 ó 20 p mért idő; a legtöbb: youtube.com 2 ó 40 p (▼ -33% az előző héthez képest). "
+            + "9 menet (7 ó 0 p, 2 korán leállítva)."
+        var both = full
+        both.focusWeekday = (day: 2, count: 6)
+        both.focusHour = (hour: 9, count: 6)
+        XCTAssertEqual(DigestLogic.text(both) { $0 },
+                       "\(head) A négy hét menet-napja: kedd (6 menet). A négy hét menet-órája: 9–10 óra (6 menet). 3 feloldás.")
+        var none = full
+        none.focusHour = nil
+        XCTAssertEqual(DigestLogic.text(none) { $0 }, DigestLogic.text(full) { $0 }, "óra nélkül a régi mondat")
     }
 }
 

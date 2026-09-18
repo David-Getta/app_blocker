@@ -247,3 +247,11 @@ test('a mért idő napja a mondatban: a statisztika sora szó szerint, a mért i
   assert.equal(digestText({ ...full, last7Seconds: 0, usageWeekday: { day: 6, count: 12000 } }, (l) => l),
     digestText({ ...full, last7Seconds: 0 }, (l) => l), 'mérés nélkül a nap sem mondat');
 });
+
+test('a menet-óra a mondatban: a statisztika sora szó szerint, a menet-nap után — óra nélkül nem mondat', () => {
+  const head = 'Elmúlt 7 nap: 7 ó 20 p mért idő; a legtöbb: youtube.com 2 ó 40 p (▼ -33% az előző héthez képest). '
+    + '9 menet (7 ó 0 p, 2 korán leállítva).';
+  assert.equal(digestText({ ...full, focusWeekday: { day: 2, count: 6 }, focusHour: { hour: 9, count: 6 } }, (l) => l),
+    `${head} A négy hét menet-napja: kedd (6 menet). A négy hét menet-órája: 9–10 óra (6 menet). 3 feloldás.`);
+  assert.equal(digestText({ ...full, focusHour: null }, (l) => l), digestText(full, (l) => l), 'óra nélkül a régi mondat');
+});

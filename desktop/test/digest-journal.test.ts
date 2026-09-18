@@ -38,7 +38,7 @@ test('a segéd köre hétfő reggel beírja a hét sorát — egyszer, és az ap
   assert.equal(journalTick(state, MONDAY_8), true);
   assert.equal(state.digestWeekKey, '2026-09-07');
   assert.deepEqual(state.digestLog ?? [], [{
-    week: '2026-09-07', text: 'Elmúlt 7 nap: 1 menet (1 ó 0 p, mind végigvive). A négy hét menet-napja: péntek (1 menet). 1 feloldás, 1 félbemaradt kísérlet.',
+    week: '2026-09-07', text: 'Elmúlt 7 nap: 1 menet (1 ó 0 p, mind végigvive). A négy hét menet-napja: péntek (1 menet). A négy hét menet-órája: 8–9 óra (1 menet). 1 feloldás, 1 félbemaradt kísérlet.',
   }]);
   assert.equal(journalTick(state, MONDAY_8 + 3600_000), false, 'ezen a héten már volt');
   assert.equal((state.digestLog ?? []).length, 1);
@@ -71,5 +71,5 @@ test('a segéd címkézése a beállításé: rejtett listánál sorszám, fedő
   state.sites[0].alias = 'A videós';
   assert.equal(helperLabel(state)('youtube.com'), 'A videós', 'a fedőnév erősebb a rejtésnél');
   assert.equal(digestTextNow(state, MONDAY_8),
-    'Elmúlt 7 nap: 1 menet (1 ó 0 p, mind végigvive). A négy hét menet-napja: péntek (1 menet). 1 feloldás, 1 félbemaradt kísérlet.');
+    'Elmúlt 7 nap: 1 menet (1 ó 0 p, mind végigvive). A négy hét menet-napja: péntek (1 menet). A négy hét menet-órája: 8–9 óra (1 menet). 1 feloldás, 1 félbemaradt kísérlet.');
 });

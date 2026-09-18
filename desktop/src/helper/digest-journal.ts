@@ -12,7 +12,7 @@
 
 import { cleanDigestLog, digestDue, digestText, recordDigest } from '../shared/digest';
 import { displayName, isAliased } from '../shared/alias';
-import { focusByWeekday, packCoveringHour, peakWindowPick, summarizeFocus, summarizeFocusPrevWeek } from '../shared/focus';
+import { focusByHour, focusByWeekday, packCoveringHour, peakFocusHour, peakWindowPick, summarizeFocus, summarizeFocusPrevWeek } from '../shared/focus';
 import { dayKeysBack, suggestBlocks, summarize, usageByWeekday } from '../shared/usage';
 import { browserHits7d, browserHitsByWeekday, browserHitsPeakHour, browserHitsPrev7d, browserHitsTopSite, peakWeekday } from '../shared/browser-hits';
 import { limitFullDays } from '../shared/limits';
@@ -72,6 +72,8 @@ export function digestTextNow(state: HelperState, now: number): string | null {
     browserHitsWeekday: peakWeekday(browserHitsByWeekday(state.browserHits, now)),
     // A menet-nap — négy hétből, a statisztika sora: a mondat is mondja.
     focusWeekday: peakWeekday(focusByWeekday(state.focusLog, now)),
+    // A menet-óra — négy hétből, az indulás órája szerint: a mondat is mondja.
+    focusHour: peakFocusHour(focusByHour(state.focusLog, now)),
     // A mért idő napja — négy hétből, a statisztika sora: a mondat is mondja.
     usageWeekday: peakWeekday(usageByWeekday(state.usage, now)),
     daysTracked: s.daysTracked,

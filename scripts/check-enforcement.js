@@ -1305,6 +1305,22 @@ const WIRES = [
     needle: 'HourStrip(hours: focusByHour, peakHour: fh.hour, peakCount: fh.count)',
     lost: 'az iPhone statisztika nem mondaná és nem rajzolná a menet-órát',
   },
+  // A HETI MONDAT a menet-órát is mondja — a statisztika sora, mindhárom platformon.
+  {
+    file: 'desktop/src/helper/digest-journal.ts',
+    needle: 'focusHour: peakFocusHour(focusByHour(state.focusLog, now)),',
+    lost: 'a gépi heti mondat nem mondaná a menet-órát',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/Digest.kt',
+    needle: 'focusHour = Focus.peakHour(Focus.byHour(st.focusLog, now)),',
+    lost: 'az Android heti mondat nem mondaná a menet-órát',
+  },
+  {
+    file: 'ios/Shared/Digest.swift',
+    needle: 'input.focusHour = Focus.peakHour(Focus.byHour(st.focusLog ?? [], now: now))',
+    lost: 'az iPhone heti mondat nem mondaná a menet-órát',
+  },
   // AZ ABLAK SZERINT INDULT menet a rétegben és az Android értesítésén is kimondva.
   {
     file: 'desktop/src/renderer/overlay.ts',

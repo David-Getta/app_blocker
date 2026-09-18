@@ -102,6 +102,8 @@ public enum DigestLogic {
         public var focusWeekday: (day: Int, count: Int)? = nil
         /// A mért idő napja (0 = vasárnap; másodperc négy hét alatt) — a gépi és az Android mag tükre; iPhone-on nincs mérés, az építő nem tölti.
         public var usageWeekday: (day: Int, count: Int)? = nil
+        /// A négy hét menet-órája (óra; szám) — mikor ülsz le a legtöbbször, az indulás órája szerint; nil, ha nem volt.
+        public var focusHour: (hour: Int, count: Int)? = nil
         /// A hét csúcs-oldala (nyers név, a címkézés a mondaté; szám) — melyik oldal akaszt meg a legtöbbször.
         public var filterHitsTop: (label: String, count: Int)?
         /// Az azt megelőző 7 nap — a hét az előző héthez képest; nulla, ha nem volt (vagy a könyv akkor kezdődött).
@@ -200,6 +202,8 @@ public enum DigestLogic {
         // A MENET-NAP: melyik napon ülsz le a legtöbbször — négy hétből, a statisztika
         // mondata szó szerint; a csúcs-nap tükre. Nincs nap, nincs mondat.
         if let focusDay = input.focusWeekday { parts.append(Focus.weekdayText(focusDay)) }
+        // A MENET-ÓRA: mikor ülsz le a legtöbbször — négy hétből, az indulás órája szerint, a statisztika mondata szó szerint.
+        if let focusHour = input.focusHour { parts.append(Focus.hourText(focusHour)) }
         // A félbemaradt kísérlet a feloldások mellé kerül — vagy helyettük: egy
         // elindított és félbehagyott lazítás is történés, ha feloldás nem is lett.
         let droppedPart = input.dropped7d > 0 ? ", \(input.dropped7d) félbemaradt kísérlet" : ""
@@ -312,6 +316,8 @@ public enum DigestLogic {
         input.filterHitsWeekday = FilterHitLogic.peakWeekday(FilterHitLogic.byWeekday(st.filterHits ?? [:], now: now))
         // A menet-nap — négy hétből, a statisztika sora: a mondat is mondja.
         input.focusWeekday = FilterHitLogic.peakWeekday(Focus.byWeekday(st.focusLog ?? [], now: now))
+        // A menet-óra — négy hétből, az indulás órája szerint: a mondat is mondja.
+        input.focusHour = Focus.peakHour(Focus.byHour(st.focusLog ?? [], now: now))
         return input
     }
 

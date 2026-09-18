@@ -557,7 +557,8 @@ megakadások csúcs-órájának tükre (négy hétből, mert egy hét kilenc men
 kevés az órához; holtversenynél a korábbi óra). A gépi statisztika
 munkamenet-blokkjában (`focusByHour`/`peakFocusHour` a segédnél, `focusHours`
 a statisztika-válaszban), Androidon és iPhone-on (`Focus.byHour`). Menet
-nélkül nincs.
+nélkül nincs. A heti mondat is mondja, a menet-nap mondata után, szó szerint
+(`focusHour` a mondat bemenetén — a segéd, az Android és az iOS építi).
 
 **A mért idő napja:** a tükör harmadik fele — nem az, mikor csúszik a kéz,
 és nem az, mikor ülsz le, hanem az, melyik napon megy el a legtöbb idő: négy

@@ -115,6 +115,8 @@ object DigestLogic {
         val focusWeekday: Pair<Int, Int>? = null,
         /** a mért idő napja (nap 0 = vasárnap, másodperc négy hét alatt) — melyik napon megy el a legtöbb idő; null, ha nem volt mérés */
         val usageWeekday: Pair<Int, Int>? = null,
+        /** a négy hét menet-órája (óra, szám) — mikor ülsz le a legtöbbször, az indulás órája szerint; null, ha nem volt */
+        val focusHour: Pair<Int, Int>? = null,
         /** a hét csúcs-oldala (nyers név, a címkézés a mondaté; szám) — melyik oldal akaszt meg a legtöbbször */
         val filterHitsTop: Pair<String, Int>? = null,
         /**
@@ -182,6 +184,9 @@ object DigestLogic {
         // A MENET-NAP: melyik napon ülsz le a legtöbbször — négy hétből, a statisztika
         // mondata szó szerint; a csúcs-nap tükre. Nincs nap, nincs mondat.
         input.focusWeekday?.let { parts.add(Focus.weekdayText(it)) }
+        // A MENET-ÓRA: mikor ülsz le a legtöbbször — négy hétből, az indulás órája
+        // szerint, a statisztika mondata szó szerint. Nincs menet, nincs mondat.
+        input.focusHour?.let { parts.add(Focus.hourText(it)) }
         // A félbemaradt kísérlet a feloldások mellé kerül — vagy helyettük: egy
         // elindított és félbehagyott lazítás is történés, ha feloldás nem is lett.
         val droppedPart = if (input.dropped7d > 0) ", ${input.dropped7d} félbemaradt kísérlet" else ""
@@ -310,6 +315,8 @@ object DigestLogic {
             focusPrevWeek = Focus.summarizeFocusPrevWeek(st.focusLog, now),
             // A menet-nap — négy hétből, a statisztika sora: a mondat is mondja.
             focusWeekday = FilterHitLogic.peakWeekday(Focus.byWeekday(st.focusLog, now)),
+            // A menet-óra — négy hétből, az indulás órája szerint: a mondat is mondja.
+            focusHour = Focus.peakHour(Focus.byHour(st.focusLog, now)),
             unlocks7d = st.unlockLog.count { it >= weekAgo },
             unlocksPrev7d = st.unlockLog.count { it >= weekAgo - 7 * 24 * 3600_000L && it < weekAgo },
             dropped7d = st.droppedAttempts.count { it >= weekAgo },
