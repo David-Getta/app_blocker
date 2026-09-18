@@ -87,7 +87,11 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
             // könyv a statisztikáé és a heti mondaté; a választ nem lassítja.
             if let name, FilterHitLogic.shouldCount(&hitSeen, name, now: now) {
                 let day = FilterHitLogic.dayKey(now)
-                store.mutate { $0.filterHits = FilterHitLogic.sweep(FilterHitLogic.record($0.filterHits ?? [:], day: day), today: day) }
+                let hour = FilterHitLogic.hourOf(now)
+                store.mutate {
+                    $0.filterHits = FilterHitLogic.sweep(FilterHitLogic.record($0.filterHits ?? [:], day: day), today: day)
+                    $0.filterHitHours = FilterHitLogic.cleanHours(FilterHitLogic.recordHour($0.filterHitHours ?? [:], day: day, hour: hour))
+                }
             }
             guard let nx = DnsEngine.buildNxdomain(q.dnsPayload) else { return }
             let resp = DnsEngine.wrapResponse(q, nx)

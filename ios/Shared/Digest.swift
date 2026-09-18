@@ -82,11 +82,14 @@ public enum DigestLogic {
         /// tunnel a telefont. A tükör harmadik fele: a tiltás akkor dolgozik,
         /// amikor nem figyelsz — ez mondja, mennyit.
         public var filterHits7d: Int
+        /// A hét csúcs-órája a szűrő megakadásaira — mikor jár a kéz magától; nil, ha nem volt.
+        public var filterHitsPeak: (hour: Int, count: Int)?
 
         public init(
             last7Seconds: Double = 0, topWeekSites: [Top] = [], topWeekApps: [Top] = [],
             weekOverWeek: [Delta] = [], focusWeek: Focus.Summary, unlocks7d: Int,
-            daysTracked: Int = 0, unblockedTop: [Top] = [], dropped7d: Int = 0, filterHits7d: Int = 0
+            daysTracked: Int = 0, unblockedTop: [Top] = [], dropped7d: Int = 0, filterHits7d: Int = 0,
+            filterHitsPeak: (hour: Int, count: Int)? = nil
         ) {
             self.last7Seconds = last7Seconds
             self.topWeekSites = topWeekSites
@@ -98,6 +101,7 @@ public enum DigestLogic {
             self.unblockedTop = unblockedTop
             self.dropped7d = dropped7d
             self.filterHits7d = filterHits7d
+            self.filterHitsPeak = filterHitsPeak
         }
     }
 
@@ -148,7 +152,10 @@ public enum DigestLogic {
         else if input.dropped7d > 0 { parts.append("Feloldás nélkül\(droppedPart).") }
         else if measured || f.sessions > 0 { parts.append("Feloldás nélkül.") }
         // A megakadás: hányszor állította meg a szűrő — tény, nem ítélet.
-        if input.filterHits7d > 0 { parts.append("\(input.filterHits7d) megakadás a szűrőben.") }
+        if input.filterHits7d > 0 {
+            let peak = input.filterHitsPeak.map { ", a csúcs \(FilterHitLogic.hourLabel($0.hour))" } ?? ""
+            parts.append("\(input.filterHits7d) megakadás a szűrőben\(peak).")
+        }
         if measured, let open = input.unblockedTop.first, open.seconds > 0 {
             parts.append("Nincs tiltva, de sokat vitt: \(labelOf(open.label)) \(hm(open.seconds)).")
         }
@@ -212,7 +219,8 @@ public enum DigestLogic {
             focusWeek: Focus.summarizeFocus(st.focusLog ?? [], since: dayStart - 6 * 24 * 3_600_000, now: now),
             unlocks7d: st.unlockLog.filter { $0 >= weekAgo }.count,
             dropped7d: (st.droppedAttempts ?? []).filter { $0 >= weekAgo }.count,
-            filterHits7d: FilterHitLogic.hits7d(st.filterHits ?? [:], now: now)
+            filterHits7d: FilterHitLogic.hits7d(st.filterHits ?? [:], now: now),
+            filterHitsPeak: FilterHitLogic.peakHour(st.filterHitHours ?? [:], now: now)
         )
     }
 

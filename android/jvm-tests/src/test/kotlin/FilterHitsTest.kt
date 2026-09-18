@@ -76,6 +76,33 @@ class FilterHitsTest {
         assertEquals(listOf(3.0, 0.0, 0.0, 0.0, 0.0, 0.0, 2.0), series.map { it.second }, "a nyolcadik nap már nem a hété")
     }
 
+    @Test fun `orankent - a csucs-ora a heten, holtversenynel a korabbi, a mentes hordozza`() {
+        var hours = FilterHitLogic.recordHour(emptyMap(), today, 21)
+        hours = FilterHitLogic.recordHour(hours, today, 21)
+        hours = FilterHitLogic.recordHour(hours, UsageLogic.dayKey(now - 86_400_000L), 9)
+        hours = FilterHitLogic.recordHour(hours, UsageLogic.dayKey(now - 86_400_000L), 9)
+        hours = FilterHitLogic.recordHour(hours, UsageLogic.dayKey(now - 8 * 86_400_000L), 9) // nem a hété
+        hours = FilterHitLogic.recordHour(hours, today, 99) // rossz óra: változatlan
+        assertEquals(2, hours.getValue(today)[21])
+        assertEquals(9 to 2, FilterHitLogic.peakHour(hours, now), "holtverseny: a korábbi óra")
+        assertEquals(null, FilterHitLogic.peakHour(emptyMap(), now))
+        assertEquals("23–0 óra", FilterHitLogic.hourLabel(23))
+        assertEquals(mapOf(today to hours.getValue(today)),
+            FilterHitLogic.cleanHours(mapOf(today to hours.getValue(today), "x" to List(24) { 1 }, "2026-09-17" to listOf(1, 2))))
+        val toJson = BreakerStore::class.java.getDeclaredMethod("toJson", AppState::class.java).apply { isAccessible = true }
+        val fromJson = BreakerStore::class.java.getDeclaredMethod("fromJson", JSONObject::class.java).apply { isAccessible = true }
+        val st = AppState(filterHitHours = mapOf(today to hours.getValue(today)))
+        val back = fromJson.invoke(BreakerStore, JSONObject(toJson.invoke(BreakerStore, st).toString())) as AppState
+        assertEquals(st.filterHitHours, back.filterHitHours, "a mentés hordozza az órákat")
+        assertEquals(12, FilterHitLogic.hourOf(now))
+        val base = DigestLogic.Input(
+            last7Seconds = 0.0, topWeekSites = emptyList(), weekOverWeek = emptyList(),
+            focusWeek = Focus.summarizeFocus(emptyList(), 0L, now), unlocks7d = 0, daysTracked = 0,
+        )
+        assertEquals("Elmúlt 7 nap: 12 megakadás a szűrőben, a csúcs 21–22 óra.",
+            DigestLogic.text(base.copy(filterHits7d = 12, filterHitsPeak = 21 to 7)) { it })
+    }
+
     @Test fun `a mondat es a mentes`() {
         val base = DigestLogic.Input(
             last7Seconds = 0.0, topWeekSites = emptyList(), weekOverWeek = emptyList(),

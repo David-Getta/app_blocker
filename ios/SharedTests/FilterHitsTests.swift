@@ -59,6 +59,33 @@ final class FilterHitsTests: XCTestCase {
         XCTAssertEqual(series.map { $0.seconds }, [3, 0, 0, 0, 0, 0, 2], "a nyolcadik nap már nem a hété")
     }
 
+    func testHourlyThePeakOfTheWeekAndTheSave() throws {
+        var hours = FilterHitLogic.recordHour([:], day: today, hour: 21)
+        hours = FilterHitLogic.recordHour(hours, day: today, hour: 21)
+        let yesterday = FilterHitLogic.dayKey(now - 86_400_000)
+        hours = FilterHitLogic.recordHour(hours, day: yesterday, hour: 9)
+        hours = FilterHitLogic.recordHour(hours, day: yesterday, hour: 9)
+        hours = FilterHitLogic.recordHour(hours, day: FilterHitLogic.dayKey(now - 8 * 86_400_000), hour: 9) // nem a hété
+        hours = FilterHitLogic.recordHour(hours, day: today, hour: 99) // rossz óra: változatlan
+        XCTAssertEqual(hours[today]?[21], 2)
+        let peak = FilterHitLogic.peakHour(hours, now: now)
+        XCTAssertEqual(peak?.hour, 9, "holtverseny: a korábbi óra")
+        XCTAssertEqual(peak?.count, 2)
+        XCTAssertNil(FilterHitLogic.peakHour([:], now: now))
+        XCTAssertEqual(FilterHitLogic.hourLabel(23), "23–0 óra")
+        XCTAssertEqual(FilterHitLogic.cleanHours([today: hours[today]!, "x": Array(repeating: 1, count: 24), "2026-09-17": [1, 2]]),
+                       [today: hours[today]!])
+        XCTAssertEqual(FilterHitLogic.hourOf(now), 12)
+        var st = AppState()
+        st.filterHitHours = [today: hours[today]!]
+        let data = try JSONEncoder().encode(st)
+        XCTAssertEqual(try JSONDecoder().decode(AppState.self, from: data).filterHitHours, [today: hours[today]!], "a mentés hordozza az órákat")
+        let summary = Focus.Summary(sessions: 0, totalMs: 0, stoppedEarly: 0, topPack: nil)
+        XCTAssertEqual(DigestLogic.text(DigestLogic.Input(focusWeek: summary, unlocks7d: 0, filterHits7d: 12,
+                                                          filterHitsPeak: (hour: 21, count: 7)), labelOf: { $0 }),
+                       "Elmúlt 7 nap: 12 megakadás a szűrőben, a csúcs 21–22 óra.")
+    }
+
     func testTheSentenceAndTheSave() throws {
         let summary = Focus.Summary(sessions: 0, totalMs: 0, stoppedEarly: 0, topPack: nil)
         XCTAssertEqual(DigestLogic.text(DigestLogic.Input(focusWeek: summary, unlocks7d: 1, filterHits7d: 12), labelOf: { $0 }),

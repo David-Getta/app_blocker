@@ -127,6 +127,8 @@ struct AppState: Codable, Equatable {
     /// meg a tunnel az iPhone-t. A tunnel könyveli, a statisztika és a heti
     /// mondat mondja; a fiókba nem megy. Lásd Shared/FilterHits.swift.
     var filterHits: [String: Int]? = nil
+    /// A szűrő megakadásai óránként: nap → 24 rekesz — mikor jár a kéz magától.
+    var filterHitHours: [String: [Int]]? = nil
     /// Rejtve induljon-e a blokkolt oldalak listája.
     ///
     /// Beállítás, nem pillanatnyi állapot: a felület minden indításkor rejtve

@@ -728,6 +728,7 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                 weekSeries = UsageLogic.totalSeries(state.usage, now, 7),
                 focusDays = Focus.daySeries(state.focusLog, now, 7),
                 filterHitDays = FilterHitLogic.daySeries(state.filterHits, now, 7),
+                filterHitsPeak = FilterHitLogic.peakHour(state.filterHitHours, now),
                 blockedDomains = state.sites.map { it.domain }.toSet(),
                 labelOf = siteLabel,
                 // A mai betelések oldalanként — a tegnapi bejegyzés nem számít,

@@ -492,6 +492,18 @@ const WIRES = [
     needle: '+ hitsNudge(n);',
     lost: 'a tiltó lap nem javasolna lépést a sokadik megakadásnál',
   },
+  // AZ ÓRÁK a telefonon: ha a szolgáltatás/tunnel nem könyvelné, a csúcs-óra
+  // mindig üres lenne, és senki nem hiányolná.
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/vpn/BreakerVpnService.kt',
+    needle: 'FilterHitLogic.recordHour(it.filterHitHours, day, hour)',
+    lost: 'Androidon a szűrő nem könyvelné az órákat — a csúcs-óra mindig üres',
+  },
+  {
+    file: 'ios/PacketTunnel/PacketTunnelProvider.swift',
+    needle: 'FilterHitLogic.recordHour($0.filterHitHours ?? [:], day: day, hour: hour)',
+    lost: 'iPhone-on a tunnel nem könyvelné az órákat — a csúcs-óra mindig üres',
+  },
   // A MEGAKADÁS-SZÁMLÁLÓ lánca: a háttér könyvel, a link átadja, a híd
   // fogadja, a segéd tartja, a mondat és a statisztika mondja. Ha bármelyik
   // láncszem kiesne, a bővítmény lapja továbbra is számolna — az app viszont

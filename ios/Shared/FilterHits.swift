@@ -85,6 +85,49 @@ public enum FilterHitLogic {
         return hitsBetween(days, d, d)
     }
 
+    // MARK: - óránként
+
+    /// A nap órája helyi idő szerint, 0–23.
+    public static func hourOf(_ now: Double) -> Int {
+        Calendar.current.component(.hour, from: Date(timeIntervalSince1970: now / 1000))
+    }
+
+    /// Az órák könyve egy megakadással több: nap → 24 rekesz. MIKOR jár a kéz
+    /// magától — a napi könyv mellett, ugyanazzal a takarítással. Rossz óra: változatlan.
+    public static func recordHour(_ hours: [String: [Int]], day: String, hour: Int) -> [String: [Int]] {
+        guard isDayKey(day), (0..<24).contains(hour) else { return hours }
+        var row = hours[day].flatMap { $0.count == 24 ? $0 : nil } ?? Array(repeating: 0, count: 24)
+        if row[hour] >= maxPerDay { return hours }
+        row[hour] += 1
+        var next = hours
+        next[day] = row
+        return next
+    }
+
+    /// Az órák könyve tisztán: jó nap, 24 rekesz, nem negatív, a plafonig, a legfrissebb harminc nap.
+    public static func cleanHours(_ raw: [String: [Int]]?) -> [String: [Int]] {
+        let good = (raw ?? [:])
+            .filter { isDayKey($0.key) && $0.value.count == 24 && $0.value.contains { $0 > 0 } }
+            .mapValues { $0.map { min(max($0, 0), maxPerDay) } }
+        let keep = Set(good.keys.sorted().suffix(retentionDays))
+        return good.filter { keep.contains($0.key) }
+    }
+
+    /// A csúcs-óra az elmúlt 7 napon: (óra, szám) — vagy nil. Holtversenynél a korábbi óra.
+    public static func peakHour(_ hours: [String: [Int]], now: Double) -> (hour: Int, count: Int)? {
+        let days = Set(daySeries([:], now: now, count: 7).map { $0.day })
+        var by = Array(repeating: 0, count: 24)
+        for (day, row) in hours where days.contains(day) && row.count == 24 {
+            for i in 0..<24 { by[i] += max(0, row[i]) }
+        }
+        var best = -1
+        for i in 0..<24 where by[i] > 0 && (best < 0 || by[i] > by[best]) { best = i }
+        return best < 0 ? nil : (hour: best, count: by[best])
+    }
+
+    /// „21–22 óra” — a csúcs-óra felirata.
+    public static func hourLabel(_ hour: Int) -> String { "\(hour)–\((hour + 1) % 24) óra" }
+
     /// Az utolsó `count` nap sora, a legrégebbi elöl — a hét alakja a
     /// megakadásokra; a `seconds` mező itt darab, a rajz kedvéért ugyanaz az alak.
     public static func daySeries(_ days: [String: Int], now: Double, count: Int) -> [(day: String, seconds: Double)] {

@@ -465,9 +465,13 @@ class BreakerVpnService : VpnService() {
             // könyv a statisztikáé és a heti mondaté; a döntést nem lassítja.
             if (blocked && name != null && FilterHitLogic.shouldCount(hitSeen, name, now)) {
                 val day = UsageLogic.dayKey(now)
+                val hour = FilterHitLogic.hourOf(now)
                 runCatching {
                     BreakerStore.mutate {
-                        it.copy(filterHits = FilterHitLogic.sweep(FilterHitLogic.record(it.filterHits, day), day))
+                        it.copy(
+                            filterHits = FilterHitLogic.sweep(FilterHitLogic.record(it.filterHits, day), day),
+                            filterHitHours = FilterHitLogic.cleanHours(FilterHitLogic.recordHour(it.filterHitHours, day, hour)),
+                        )
                     }
                 }
                     .onFailure { Log.w(TAG, "megakadás nem könyvelve: $it") }

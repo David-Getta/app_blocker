@@ -426,7 +426,10 @@ marad, a hídra a napi összeg megy).
 huszonnégy rekesze), a beállítás-lapja a hét csúcs-óráját mondja és egy
 óra-sávot rajzol; a hídon a rekeszek is átmennek, és a gépi statisztika a
 megakadások hete alatt mondja: „A hét csúcsa: 21–22 óra (7 megakadás) —
-akkor jár a kéz magától.” Tény, nem ítélet.
+akkor jár a kéz magától.” Tény, nem ítélet. A telefonon ugyanígy: a szűrő
+óránként is könyvel (`filterHitHours`, nap → 24 rekesz), a statisztika a
+megakadások hete alatt mondja a csúcs-órát, és a heti mondat is: „12
+megakadás a szűrőben, a csúcs 21–22 óra.”
 
 A **sokadik megakadásnál** a gép egy lépést javasol: az ötödik, tizedik és
 huszadik mai megakadásnál egyszer szól („Ma már 5 megakadás a böngészőben.

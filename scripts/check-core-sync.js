@@ -373,6 +373,12 @@ const PHONE_PAIRS = [
     phoneScalar(kt.filterHits, /MAX_PER_DAY\s*=\s*([\d_]+)/, 'kt'),
     phoneScalar(sw.filterHits, /maxPerDay\s*=\s*([\d_]+)/, 'sw')],
 ];
+// A csúcs-óra felirata is: ha a két telefon mást írna, a heti mondat kétféle lenne.
+const PHONE_LABELS = [
+  ['FILTER_HIT_HOUR_LABEL',
+    (kt.filterHits.match(/fun hourLabel\(hour: Int\): String = "([^"]+)"/) || [])[1],
+    (sw.filterHits.match(/func hourLabel\(_ hour: Int\) -> String \{ "([^"]+)" \}/) || [])[1]],
+];
 
 /** Idézett szavak egy listából — a három nyelv más zárójelet ír, a szavak ugyanazok. */
 function quotedWords(text, re) {
@@ -456,6 +462,15 @@ if (problems.length) {
 }
 
 const PHONE_LANGS = ['Kotlin', 'Swift'];
+for (const [name, kotlinLabel, swiftLabel] of PHONE_LABELS) {
+  // A két nyelv a behelyettesítést másképp írja ($hour / \(hour)); a váz ugyanaz kell legyen.
+  const norm = (t) => (t || '').replace(/\$\{[^}]+\}|\$[a-z]+|\\\([^)]*\)/g, '#');
+  if (!kotlinLabel || !swiftLabel) {
+    problems.push(`${name}: nem található — a minta elavult vagy a felirat eltűnt`);
+  } else if (norm(kotlinLabel) !== norm(swiftLabel)) {
+    problems.push(`${name} eltér:\n    Kotlin      ${kotlinLabel}\n    Swift       ${swiftLabel}`);
+  }
+}
 for (const [name, ...values] of PHONE_PAIRS) {
   const missing = values
     .map((v, i) => (v && v.missing ? PHONE_LANGS[i] : null))

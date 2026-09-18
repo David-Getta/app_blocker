@@ -139,6 +139,8 @@ data class AppState(
      * heti mondat mondja; a fiókba nem megy. Lásd core/FilterHits.kt.
      */
     val filterHits: Map<String, Int> = emptyMap(),
+    /** a szűrő megakadásai óránként: nap → 24 rekesz — mikor jár a kéz magától; lásd core/FilterHits.kt */
+    val filterHitHours: Map<String, List<Int>> = emptyMap(),
     /** active-time tracking history (never leaves the device) */
     val usage: UsageLogic.UsageState = UsageLogic.UsageState(),
     /**
@@ -571,6 +573,7 @@ object BreakerStore {
         put("unlockLog", JSONArray(s.unlockLog))
         put("droppedAttempts", JSONArray(s.droppedAttempts))
         put("filterHits", JSONObject(s.filterHits))
+        put("filterHitHours", JSONObject(s.filterHitHours.mapValues { JSONArray(it.value) }))
         put("usage", usageToJson(s.usage))
         put("usageLastSampleAt", s.usageLastSampleAt ?: JSONObject.NULL)
         put("digestWeekKey", s.digestWeekKey ?: JSONObject.NULL)
@@ -782,6 +785,14 @@ object BreakerStore {
             for (k in obj.keys()) m[k] = obj.optInt(k, 0)
             FilterHitLogic.clean(m)
         } ?: emptyMap()
+        val filterHitHours = o.optJSONObject("filterHitHours")?.let { obj ->
+            val m = HashMap<String, List<Int>>()
+            for (k in obj.keys()) {
+                val arr = obj.optJSONArray(k) ?: continue
+                m[k] = (0 until arr.length()).map { i -> arr.optInt(i, 0) }
+            }
+            FilterHitLogic.cleanHours(m)
+        } ?: emptyMap()
         // Egyszer olvassuk ki: a futás érvényessége a csomagoktól függ, és két
         // külön elemzés két külön listát adna, ha a blob közben nem is változik.
         val focusPacks = focusPacksFromJson(o)
@@ -852,6 +863,7 @@ object BreakerStore {
             unlockLog = unlockLog,
             droppedAttempts = droppedAttempts,
             filterHits = filterHits,
+            filterHitHours = filterHitHours,
             lastCombo = if (o.isNull("lastCombo")) null else o.optString("lastCombo"),
             session = session,
             abandons = abandons,

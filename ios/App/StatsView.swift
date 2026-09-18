@@ -117,6 +117,11 @@ struct StatsView: View {
                         .font(.caption).fontWeight(.semibold).foregroundStyle(.secondary)
                         .padding(.top, 4)
                     FocusWeekBars(series: hitDays, format: { "\(Int($0)) megakadás" })
+                    // MIKOR jár a kéz magától: a hét csúcs-órája — tény, nem ítélet.
+                    if let peak = FilterHitLogic.peakHour(store.state.filterHitHours ?? [:], now: now) {
+                        Text("A hét csúcsa: \(FilterHitLogic.hourLabel(peak.hour)) (\(peak.count) megakadás) — akkor jár a kéz magától.")
+                            .font(.footnote).foregroundStyle(.secondary)
+                    }
                 }
             }
 

@@ -25,6 +25,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import hu.breaker.app.core.DigestLogic
+import hu.breaker.app.core.FilterHitLogic
 import hu.breaker.app.core.Focus
 import hu.breaker.app.core.UsageLogic
 
@@ -52,6 +53,8 @@ fun StatsSection(
     focusDays: List<Pair<String, Double>> = emptyList(),
     /** az elmúlt 7 nap megakadásai naponként (a szűrő könyve), a legrégebbitől */
     filterHitDays: List<Pair<String, Double>> = emptyList(),
+    /** a hét csúcs-órája (óra, szám) — mikor jár a kéz magától; null, ha nem volt */
+    filterHitsPeak: Pair<Int, Int>? = null,
     blockedDomains: Set<String>,
     /**
      * Amit egy célpontról ki szabad írni.
@@ -116,6 +119,13 @@ fun StatsSection(
         if (filterHitDays.any { it.second > 0.0 }) {
             StatsSectionLabel("Megakadások a szűrőben, naponta")
             WeekChart(filterHitDays, format = { "${it.toInt()} megakadás" })
+            // MIKOR jár a kéz magától: a hét csúcs-órája — tény, nem ítélet.
+            filterHitsPeak?.let { (hour, count) ->
+                Text(
+                    "A hét csúcsa: ${FilterHitLogic.hourLabel(hour)} ($count megakadás) — akkor jár a kéz magától.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
         }
 
         // A HETI NAPLÓ. A hétfői mondat elszáll az értesítéssel; itt megmarad —

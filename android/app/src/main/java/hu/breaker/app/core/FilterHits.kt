@@ -92,4 +92,43 @@ object FilterHitLogic {
     /** Az utolsó `count` nap sora, a legrégebbi elöl — a hét alakja a megakadásokra (darab, Double-ben a rajz kedvéért). */
     fun daySeries(days: Map<String, Int>, now: Long, count: Int): List<Pair<String, Double>> =
         UsageLogic.dayKeysBack(now, count).map { it to hitsBetween(days, it, it).toDouble() }
+
+    // ------------------------------------------------------------ óránként
+
+    /** A nap órája helyi idő szerint, 0–23. */
+    fun hourOf(now: Long): Int = java.util.Calendar.getInstance().apply { timeInMillis = now }.get(java.util.Calendar.HOUR_OF_DAY)
+
+    /**
+     * Az órák könyve egy megakadással több: { nap → 24 rekesz }. MIKOR jár a kéz
+     * magától — a napi könyv mellett, ugyanazzal a takarítással. Rossz óra: változatlan.
+     */
+    fun recordHour(hours: Map<String, List<Int>>, day: String, hour: Int): Map<String, List<Int>> {
+        if (!DAY_KEY.matches(day) || hour !in 0..23) return hours
+        val row = (hours[day]?.takeIf { it.size == 24 } ?: List(24) { 0 }).toMutableList()
+        if (row[hour] >= MAX_PER_DAY) return hours
+        row[hour] = row[hour] + 1
+        return hours + (day to row.toList())
+    }
+
+    /** Az órák könyve tisztán: jó nap, 24 rekesz, nem negatív, a plafonig, a legfrissebb harminc nap. */
+    fun cleanHours(raw: Map<String, List<Int>>?): Map<String, List<Int>> {
+        val good = (raw ?: emptyMap())
+            .filter { (k, v) -> DAY_KEY.matches(k) && v.size == 24 && v.any { it > 0 } }
+            .mapValues { (_, v) -> v.map { it.coerceIn(0, MAX_PER_DAY) } }
+        val keep = good.keys.sorted().takeLast(RETENTION_DAYS).toSet()
+        return good.filterKeys { it in keep }
+    }
+
+    /** A csúcs-óra az elmúlt 7 napon: (óra, szám) — vagy null. Holtversenynél a korábbi óra. */
+    fun peakHour(hours: Map<String, List<Int>>, now: Long): Pair<Int, Int>? {
+        val days = UsageLogic.dayKeysBack(now, 7).toSet()
+        val by = IntArray(24)
+        for ((day, row) in hours) if (day in days && row.size == 24) for (i in 0 until 24) by[i] += maxOf(0, row[i])
+        var best = -1
+        for (i in 0 until 24) if (by[i] > 0 && (best < 0 || by[i] > by[best])) best = i
+        return if (best < 0) null else best to by[best]
+    }
+
+    /** „21–22 óra” — a csúcs-óra felirata. */
+    fun hourLabel(hour: Int): String = "$hour–${(hour + 1) % 24} óra"
 }

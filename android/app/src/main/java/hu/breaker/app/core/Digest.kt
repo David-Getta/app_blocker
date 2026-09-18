@@ -93,6 +93,8 @@ object DigestLogic {
          * mondja, mennyit.
          */
         val filterHits7d: Int = 0,
+        /** a hét csúcs-órája a szűrő megakadásaira (óra, szám) — mikor jár a kéz magától; null, ha nem volt */
+        val filterHitsPeak: Pair<Int, Int>? = null,
         /**
          * A hét legnagyobb, NEM tiltott idővivői (a felvevő javaslata), a
          * legnagyobb elöl. Mérés nélkül üres.
@@ -151,7 +153,10 @@ object DigestLogic {
         else if (input.dropped7d > 0) parts.add("Feloldás nélkül$droppedPart.")
         else if (measured || f.sessions > 0) parts.add("Feloldás nélkül.")
         // A megakadás: hányszor állította meg a szűrő — tény, nem ítélet.
-        if (input.filterHits7d > 0) parts.add("${input.filterHits7d} megakadás a szűrőben.")
+        if (input.filterHits7d > 0) {
+            val peak = input.filterHitsPeak?.let { ", a csúcs ${FilterHitLogic.hourLabel(it.first)}" } ?: ""
+            parts.add("${input.filterHits7d} megakadás a szűrőben$peak.")
+        }
         // A tükör másik fele: ami sokat vitt, és nincs a listán. Egy név, a
         // legnagyobb — a többi a felvevő kártyán vár, egy kattintásra.
         val open = input.unblockedTop.firstOrNull()
@@ -247,6 +252,7 @@ object DigestLogic {
             unlocks7d = st.unlockLog.count { it >= weekAgo },
             dropped7d = st.droppedAttempts.count { it >= weekAgo },
             filterHits7d = FilterHitLogic.hits7d(st.filterHits, now),
+            filterHitsPeak = FilterHitLogic.peakHour(st.filterHitHours, now),
             daysTracked = summary.daysTracked,
             unblockedTop = UsageLogic.suggestBlocks(summary.topWeekSites, st.sites)
                 .map { Top(it.label, it.seconds) },
