@@ -44,26 +44,27 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **Heti napló: a hétfői mondat megmarad.** A visszatekintés eddig
-          elszállt az értesítéssel; mostantól a statisztikán egy heti napló
-          őrzi — fél év hétfői egy-egy sorban, a legfrissebb elöl —, és
-          fölötte az áll, ami *most* szólna, bármelyik napon. A gépen és
-          Androidon; eszközönként, mint maga a visszatekintés. A mondat az
-          appok legnagyobbját is megnevezi („appban a legtöbb: …”), mert a
-          mért időben az is benne van.
+          **Heti napló iPhone-on is.** Értesítés ott továbbra sincs (a
+          bővítmény nem adhat, az app nem fut a háttérben — és ezt
+          kimondjuk), de a statisztika heti naplója és az élő mondat („így
+          szólna a visszatekintés most”) igen: a hét sora akkor íródik,
+          amikor az app azon a héten először nyitva van hétfő reggel után;
+          mérés híján a menetekről és a feloldásokról szól. Ugyanaz a mag,
+          Swift-tükörben, ugyanazokkal a tesztekkel — mindhárom platformon.
 
-          ### Ami a v0.4.41-ben jött
+          ### Ami a v0.4.42-ben jött
+
+          **Heti napló: a hétfői mondat megmarad.** A statisztikán egy heti
+          napló őrzi a korábbi hétfők mondatát — fél év, a legfrissebb elöl —,
+          és fölötte az áll, ami *most* szólna, bármelyik napon. A régi sor
+          is a mostani címkézéssel jelenik meg: a fedőnév és a rejtés
+          visszamenőleg is fed. A mondat az appok legnagyobbját is megnevezi.
+
+          #### Ami a v0.4.41-ben jött
 
           **A hétfő reggeli visszatekintés a telefonon is szól — az app
-          nélkül is.** Androidon a szűrő szolgáltatása mondja el hétfő reggel
-          az elmúlt hét napot, ugyanazzal a maggal, mint a gépen; saját
-          csatornán. A felvevő kártya javaslata (a hét legnagyobb, nem
-          tiltott idővivői) Androidon is.
-
-          #### Ami a v0.4.40-ben jött
-
-          **Javaslat a felvevő kártyán (gépen)** — a hét legnagyobb, nem
-          tiltott idővivői, egy kattintással tiltva.
+          nélkül is** (Android, a szűrő szolgáltatásából, saját csatornán), és
+          a felvevő kártya javaslata Androidon is.
 
           NOTES
           fi
