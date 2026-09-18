@@ -80,7 +80,9 @@ napok, kezdés, vég — csak nem egy csomag indul tőle, hanem a zárlat.
 a napok és a sáv, egy *Módosítás…* gomb (bővíteni ingyen, szűkíteni
 próbatétel) és egy *Levétel…* gomb (próbatétel; bent el sem indul, a kártya
 kimondja, miért). Új ablak a *Heti ablak felvétele* gombbal: napok, kezdés,
-vég — ugyanaz a szerkesztő, mint a csomag ablakánál. A sáv az ablak zárlatát
+vég — ugyanaz a szerkesztő, mint a csomag ablakánál —, és a három előre
+gyártott sáv (munkaidő, esti lekapcsolás, hétvége) egy-egy gombbal kitölti a
+mezőket. Minden sor mondja, mikor jön az ablak legközelebb. A sáv az ablak zárlatát
 „Zárlat a heti ablak szerint”-ként mondja, és amikor az ablak beér, a gép
 értesítést is ad (ha az app engedélyt kapott rá) — aki nem maga indította,
 tudja meg, miért van minden zárva. A tiltó lap és a gyorsbillentyűs réteg
@@ -90,8 +92,9 @@ ugyanazt a zárlatot mutatja, mint a kézinél.
 *Módosítás…* (bővíteni ingyen, szűkíteni próbatétel) és *Levétel…*
 (próbatétel — a szokásos próbatétel-lap, „Zárlat-ablak lazítása” fejléccel;
 bent el sem indul), és a *Heti ablak felvétele* gomb a menetrend előre
-gyártott sávjait kínálja, meg egy saját sávot (napok, kezdés, vég). A sáv
-ugyanúgy mondja a zárlatot, mint a kézinél. Androidon a szűrő állandó
+gyártott sávjait kínálja, meg egy saját sávot (napok, kezdés, vég). Minden
+sor mondja, mikor jön az ablak legközelebb. A sáv ugyanúgy mondja a zárlatot,
+mint a kézinél. Androidon a szűrő állandó
 értesítése is a zárlatot mondja (kézit és ablakét, és hogy meddig), és amikor
 az ablak beér, egy külön, lehúzható értesítés is jön — mint a gépen. iPhone-on
 a szűrő bővítménye nem adhat értesítést, ezért az app **heti emlékeztetőt
