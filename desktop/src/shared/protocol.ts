@@ -369,6 +369,8 @@ export interface UsageStatsData {
   focusDays?: { day: string; seconds: number }[];
   /** a menet-nap sávja: a négy hét menetei a hét hét napjára osztva (0 = vasárnap) — melyik napon ülsz le a legtöbbször; régi segéd nem adja */
   focusWeekdays?: number[];
+  /** menet-sorozat: hány napja ülsz le minden nap (ma vagy tegnap végződő sorozat; 0, ha nincs) — a statisztika sora kettőtől */
+  focusStreak?: number;
   /** a menet-óra sávja: a négy hét menetei a nap huszonnégy órájára osztva, az indulás órája szerint — mikor ülsz le a legtöbbször; régi segéd nem adja */
   focusHours?: number[];
   /** a javaslat gombjának csomagja: a legutóbb használt, napló nélkül az első; null, ha nincs */

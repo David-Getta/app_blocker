@@ -1384,6 +1384,47 @@ const WIRES = [
     needle: 'FocusHourReminder.reschedule(peak: focusHourKey.isEmpty ? nil : focusHour, canStart:',
     lost: 'az iPhone nem ütemezné a menet-óra előjelzését',
   },
+  // A MENET-SOROZAT: a statisztika sora és a heti mondat mindhárom platformon.
+  {
+    file: 'desktop/src/helper/server.ts',
+    needle: 'focusStreak: focusDayStreak(state.focusLog, now),',
+    lost: 'a gépi statisztika nem kapná meg a menet-sorozatot',
+  },
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: "$('focusStreakNote').textContent = streak >= 2 ? focusStreakText(streak) : '';",
+    lost: 'a gépi statisztika nem mondaná a menet-sorozatot',
+  },
+  {
+    file: 'desktop/src/shared/digest.ts',
+    needle: 'if (streakLine) parts.push(streakLine);',
+    lost: 'a gépi heti mondat nem mondaná a menet-sorozatot',
+  },
+  {
+    file: 'desktop/src/helper/digest-journal.ts',
+    needle: 'focusStreak: focusDayStreak(state.focusLog, now),',
+    lost: 'a segéd naplója nem számolná a menet-sorozatot',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/StatsScreen.kt',
+    needle: 'Focus.streakText(focusStreak).takeIf { it.isNotEmpty() }?.let { Text(it, style = MaterialTheme.typography.bodySmall) }',
+    lost: 'az Android statisztika nem mondaná a menet-sorozatot',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/Digest.kt',
+    needle: 'focusStreak = Focus.dayStreak(st.focusLog, now),',
+    lost: 'az Android heti mondat nem számolná a menet-sorozatot',
+  },
+  {
+    file: 'ios/App/StatsView.swift',
+    needle: 'if let streak = Focus.streakText(Focus.dayStreak(store.state.focusLog ?? [], now: now)) {',
+    lost: 'az iPhone statisztikája nem mondaná a menet-sorozatot',
+  },
+  {
+    file: 'ios/Shared/Digest.swift',
+    needle: 'input.focusStreak = Focus.dayStreak(st.focusLog ?? [], now: now)',
+    lost: 'az iPhone heti mondata nem számolná a menet-sorozatot',
+  },
   // A MÉRT IDŐ NAPJA az Android szűrő-értesítésének sorában is.
   {
     file: 'android/app/src/main/java/hu/breaker/app/vpn/BreakerVpnService.kt',

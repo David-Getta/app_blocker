@@ -471,6 +471,29 @@ export function focusHourText(
 }
 
 /**
+ * MENET-SOROZAT: hány napja ülsz le minden nap — a ma (vagy ha ma még nem,
+ * a tegnap) végződő, megszakítás nélküli napok száma, amelyeken volt menet
+ * (a menet a végének napjára számít, mint a menet-napnál). Egy nap nem
+ * sorozat: a mondat kettőtől szól. Tény, nem ítélet — a megszakadt sorozat
+ * nem bűn, csak nulla. A napok kulcsa a mérésé (délben lépve, nyári
+ * időszámításra biztonságosan).
+ */
+export function focusDayStreak(log: FocusLogEntry[] | undefined, now: number): number {
+  const days = new Set<string>();
+  for (const e of log ?? []) if (e.endedAt <= now) days.add(dayKey(e.endedAt));
+  const back = dayKeysBack(now, 400).slice().sort().reverse();
+  let i = back.length > 0 && days.has(back[0]) ? 0 : 1;
+  let n = 0;
+  for (; i < back.length && days.has(back[i]); i += 1) n += 1;
+  return n;
+}
+
+/** „5 napja minden nap leültél.” — kettőtől; alatta üres. */
+export function focusStreakText(n: number): string {
+  return n >= 2 ? `${n} napja minden nap leültél.` : '';
+}
+
+/**
  * AMIKOR A CSÚCS-ÓRA A MENET-ÓRA: a kéz ugyanabban az órában jár magától,
  * amelyikben le szoktál ülni — a tükör két fele egy pontra mutat. A
  * statisztika és a heti mondat mondja; különben üres. Tény, nem ítélet.

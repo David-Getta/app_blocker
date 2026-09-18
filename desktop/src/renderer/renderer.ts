@@ -38,7 +38,7 @@ import { limitFullLine, MAX_LIMIT_MINUTES } from '../shared/limits.js';
 import {
   formatRemaining, isRunning as focusIsRunning, isWindowRun, MAX_ALLOW_ENTRIES, MAX_PACK_NAME,
   MAX_SESSION_MINUTES, nextOccurrence, SESSION_CHOICES_MIN, windowRunStarted, type FocusPack, type FocusRun, peakWindowBand,
-  packCoveringHour, focusWeekdayText, focusDayNowText, focusHourText, focusHourNowText, focusHourWarnText, sameHourText, peakFocusHour,
+  packCoveringHour, focusWeekdayText, focusDayNowText, focusHourText, focusHourNowText, focusHourWarnText, focusStreakText, sameHourText, peakFocusHour,
 } from '../shared/focus.js';
 import { CATEGORY_PACKS, type CategoryPack } from '../shared/blocklist.js';
 import { windowKey, windowStartingSoon, type LockdownWindow as LockdownWindowRow } from '../shared/lockdown.js';
@@ -4556,6 +4556,10 @@ function renderFocusStats(): void {
   // A MENET-NAP: melyik napon ülsz le a legtöbbször — négy hétből, a csúcs-nap
   // tükre; a sáv az alakja, hétfőtől. Menet nélkül nincs.
   const fwd = peakWeekday(statsData?.focusWeekdays ?? []);
+  // A MENET-SOROZAT: hány napja ülsz le minden nap — kettőtől; tény, nem ítélet.
+  const streak = statsData?.focusStreak ?? 0;
+  $('focusStreakNote').classList.toggle('hidden', streak < 2);
+  $('focusStreakNote').textContent = streak >= 2 ? focusStreakText(streak) : '';
   $('focusWeekdayNote').classList.toggle('hidden', fwd === null);
   $('focusWeekdayNote').textContent = fwd ? focusWeekdayText(fwd) : '';
   renderWeekdayStrip($('focusWeekdayStrip'), statsData?.focusWeekdays ?? [], fwd, (n) => `${n} menet`);

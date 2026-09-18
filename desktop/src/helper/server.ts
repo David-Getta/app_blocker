@@ -18,7 +18,7 @@ import {
 } from '../shared/browser-hits';
 import { normalizeRule } from '../shared/urlrules';
 import {
-  lastUsedPack, focusDaySeries, focusByWeekday, focusByHour, peakFocusHour, isRunning, normalizePack, spentWindows, summarizeFocus, summarizeFocusPrevWeek,
+  lastUsedPack, focusDaySeries, focusDayStreak, focusByWeekday, focusByHour, peakFocusHour, isRunning, normalizePack, spentWindows, summarizeFocus, summarizeFocusPrevWeek,
   windowRunsByPack,
 } from '../shared/focus';
 import { burstTripsInDays, noteBurstTrip, noteBurstUsage, normalizeBurst, type BurstRule } from '../shared/burst';
@@ -646,6 +646,8 @@ async function handle(req: HelperRequest, deps: ServerDeps): Promise<unknown> {
         focusDays: focusDaySeries(state.focusLog, now, 7),
         // A menet-nap: négy hétből, a hét napjaira osztva — melyik napon ülsz le a legtöbbször.
         focusWeekdays: focusByWeekday(state.focusLog, now),
+        // A menet-sorozat: hány napja ülsz le minden nap — a statisztika sora.
+        focusStreak: focusDayStreak(state.focusLog, now),
         // A menet-óra: négy hétből, az indulás órája szerint — mikor ülsz le a legtöbbször.
         focusHours: focusByHour(state.focusLog, now),
         // A javaslat gombjának csomagja: a legutóbb használt, napló nélkül az első.

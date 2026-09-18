@@ -316,6 +316,21 @@ final class DigestTests: XCTestCase {
         plain.last7Seconds = 0
         XCTAssertEqual(DigestLogic.text(unmeasured) { $0 }, DigestLogic.text(plain) { $0 }, "mérés nélkül a nap sem mondat")
     }
+    func testTheSessionStreakInTheSentenceComesAfterTheSessionsAndNeedsTwoDays() {
+        let head = "Elmúlt 7 nap: 7 ó 20 p mért idő; a legtöbb: youtube.com 2 ó 40 p (▼ -33% az előző héthez képest). "
+            + "9 menet (7 ó 0 p, 2 korán leállítva)."
+        var five = full
+        five.focusStreak = 5
+        XCTAssertEqual(DigestLogic.text(five) { $0 }, "\(head) 5 napja minden nap leültél. 3 feloldás.")
+        var one = full
+        one.focusStreak = 1
+        XCTAssertEqual(DigestLogic.text(one) { $0 }, DigestLogic.text(full) { $0 }, "egy nap nem sorozat")
+        var withDay = five
+        withDay.focusWeekday = (day: 2, count: 6)
+        XCTAssertEqual(DigestLogic.text(withDay) { $0 },
+                       "\(head) 5 napja minden nap leültél. A négy hét menet-napja: kedd (6 menet). 3 feloldás.", "a menet-nap előtt")
+    }
+
     func testTheSessionHourInTheSentenceIsTheStatsLineAndNoHourIsNoSentence() {
         let head = "Elmúlt 7 nap: 7 ó 20 p mért idő; a legtöbb: youtube.com 2 ó 40 p (▼ -33% az előző héthez képest). "
             + "9 menet (7 ó 0 p, 2 korán leállítva)."

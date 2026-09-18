@@ -220,4 +220,20 @@ final class FocusTests: XCTestCase {
         XCTAssertEqual(Focus.hourWarnText((hour: 9, count: 6)),
                        "Mindjárt 9 óra — ilyenkor szoktál elkezdeni (6 menet négy hét alatt). Egy munkamenet most segítene — te döntesz.")
     }
+
+    func testTheSessionStreakCountsConsecutiveDaysEndingTodayOrYesterday() {
+        let now = at(2026, 9, 22, 15)
+        let day = 86_400_000.0
+        func run(_ endedAt: Double) -> Focus.LogEntry {
+            Focus.LogEntry(packId: "p", packName: "Nyelvtanulás", startedAt: endedAt - 3_600_000, endedAt: endedAt, plannedEndsAt: endedAt, stopped: false)
+        }
+        XCTAssertEqual(Focus.dayStreak([run(now - 3_600_000), run(now - day), run(now - 2 * day)], now: now), 3, "ma, tegnap, tegnapelőtt")
+        XCTAssertEqual(Focus.dayStreak([run(now - day), run(now - 2 * day)], now: now), 2, "ma még nem: a tegnap végződő sorozat")
+        XCTAssertEqual(Focus.dayStreak([run(now - 3_600_000), run(now - 2 * day)], now: now), 1, "a lyuk megszakítja")
+        XCTAssertEqual(Focus.dayStreak([run(now - 2 * day)], now: now), 0, "se ma, se tegnap: nulla")
+        XCTAssertEqual(Focus.dayStreak([run(now + 3_600_000)], now: now), 0, "a jövő nem számít")
+        XCTAssertEqual(Focus.dayStreak([], now: now), 0)
+        XCTAssertEqual(Focus.streakText(5), "5 napja minden nap leültél.")
+        XCTAssertNil(Focus.streakText(1), "egy nap nem sorozat")
+    }
 }

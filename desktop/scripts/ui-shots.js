@@ -212,6 +212,8 @@ function fakeBridgeSource() {
       })),
       // A menet-nap négy hétből: kedd (6 menet) a csúcs.
       focusWeekdays: [1, 2, 6, 1, 3, 2, 0],
+      // A MENET-SOROZAT: három napja minden nap — a munkamenet-blokk sora.
+      focusStreak: 3,
       // A menet-óra négy hétből: 9–10 óra (6 menet) a csúcs.
       focusHours: [0, 0, 0, 0, 0, 0, 0, 1, 2, 6, 3, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0],
       // Öt perce — de nem tegnap: éjfél után öt percig az „öt perce” még az
@@ -1028,6 +1030,12 @@ async function main() {
       && !document.getElementById('focusHourWindowBtn')?.classList.contains('hidden'),
     undefined, { timeout: 15_000 },
   ).catch(() => failures.push('a menet-óra gombja nem a legutóbbi csomagot és a menet-órát ígéri'));
+  // A MENET-SOROZAT sora: három napja minden nap leültél — kettőtől; a fixture hármat mond.
+  await page.waitForFunction(
+    () => document.getElementById('focusStreakNote')?.textContent === '3 napja minden nap leültél.'
+      && !document.getElementById('focusStreakNote')?.classList.contains('hidden'),
+    undefined, { timeout: 15_000 },
+  ).catch(() => failures.push('a statisztika nem mondja a menet-sorozatot'));
   // A MÉRT IDŐ NAPJA a hét rajza alatt: négy hétből a szombat (átlag 50 p), alatta a sáv, a szombat (a hatodik rekesz) kiemelve.
   await page.waitForFunction(
     () => /A négy hét legnagyobb napja: szombat \(átlag 50 p\)\./.test(document.getElementById('usageWeekdayNote')?.textContent || '')

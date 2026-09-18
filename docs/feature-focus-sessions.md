@@ -159,6 +159,15 @@ csak felvétel, a bíró dönt). És ha a menet-óra a csúcs-óra, a statisztik
 a heti mondat kimondja (`sameHourText`, `Focus.sameHourText`): a kéz akkor
 jár, amikor le szoktál ülni.
 
+**A menet-sorozat:** hány napja ülsz le minden nap — a ma (vagy ha ma még
+nem, a tegnap) végződő, megszakítás nélküli napok száma, amelyeken volt
+menet (a menet a végének napjára számít, mint a menet-napnál). A
+statisztika munkamenet-blokkja és a heti mondat mondja, a menetek mondata
+után, mindhárom platformon: „5 napja minden nap leültél.” Egy nap nem
+sorozat (kettőtől szól), a megszakadt sorozat nem bűn, csak nulla — tény,
+nem ítélet (`focusDayStreak`/`focusStreakText`, `Focus.dayStreak`; a gépen
+a segéd adja le a statisztika-válaszban, `focusStreak`).
+
 **Az aldomain átmegy**: a `google.com` engedése a `translate.google.com`-ot is
 engedi. Enélkül minden oldalnál külön ki kellene találni, melyik aldomain kell,
 és a felhasználó azt látná, hogy a beállítása nem működik. A `notgoogle.com`

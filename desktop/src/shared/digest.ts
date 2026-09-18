@@ -19,7 +19,7 @@
 // Pure: a felület adja az időt, a tárolt kulcsot és a címkézést (rejtett lista,
 // fedőnév) — az értesítés sem szivárogtathat ki olyan címet, amit a lista elrejt.
 
-import { focusHourText, focusWeekdayText, sameHourText, type FocusSummary } from './focus.js';
+import { focusHourText, focusStreakText, focusWeekdayText, sameHourText, type FocusSummary } from './focus.js';
 import { usageWeekdayText } from './usage.js';
 import { hourLabel, peakWeekdayText } from './browser-hits.js';
 
@@ -119,6 +119,8 @@ export interface DigestInput {
   usageWeekday?: { day: number; count: number } | null;
   /** a négy hét menet-órája (óra; szám) — mikor ülsz le a legtöbbször, az indulás órája szerint; null, ha nem volt */
   focusHour?: { hour: number; count: number } | null;
+  /** menet-sorozat: hány napja ülsz le minden nap (ma vagy tegnap végződő sorozat) — kettőtől mondat; 0, ha nincs */
+  focusStreak?: number;
   /** a csomag neve, amelynek heti ablaka fedi a menet-órát — a menet magától indul, amikor le szoktál ülni; null, ha egyik sem (vagy a menet-óra a csúcs-óra) */
   focusHourPack?: string | null;
   /** a menet-órára LEHETNE ablakot tenni: van csomag ablak nélkül, és a menet-órát semmi nem fedi — a mondat kimondja */
@@ -190,6 +192,9 @@ export function digestText(input: DigestInput, labelOf: (label: string) => strin
   } else if (prevFocus) {
     parts.push(`Menet nélkül${prevFocus}.`);
   }
+  // A MENET-SOROZAT: hány napja ülsz le minden nap — kettőtől; tény, nem ítélet.
+  const streakLine = focusStreakText(input.focusStreak ?? 0);
+  if (streakLine) parts.push(streakLine);
   // A MENET-NAP: melyik napon ülsz le a legtöbbször — négy hétből, a statisztika
   // mondata szó szerint; a csúcs-nap tükre. Nincs nap, nincs mondat.
   const focusDay = input.focusWeekday ?? null;

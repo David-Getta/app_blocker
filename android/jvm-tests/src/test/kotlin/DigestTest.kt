@@ -354,6 +354,15 @@ class DigestTest {
         )
     }
 
+    @Test fun `a menet-sorozat a mondatban - a menetek mondata utan, kettotol, egy nap nem mondat`() {
+        val head = "Elmúlt 7 nap: 7 ó 20 p mért idő; a legtöbb: youtube.com 2 ó 40 p (▼ -33% az előző héthez képest). " +
+            "9 menet (7 ó 0 p, 2 korán leállítva)."
+        assertEquals("$head 5 napja minden nap leültél. 3 feloldás.", DigestLogic.text(full.copy(focusStreak = 5)) { it })
+        assertEquals(DigestLogic.text(full) { it }, DigestLogic.text(full.copy(focusStreak = 1)) { it }, "egy nap nem sorozat")
+        assertEquals("$head 5 napja minden nap leültél. A négy hét menet-napja: kedd (6 menet). 3 feloldás.",
+            DigestLogic.text(full.copy(focusStreak = 5, focusWeekday = 2 to 6)) { it }, "a menet-nap előtt")
+    }
+
     @Test fun `a menet-ora a mondatban - a statisztika sora szo szerint, ora nelkul nem mondat`() {
         val head = "Elmúlt 7 nap: 7 ó 20 p mért idő; a legtöbb: youtube.com 2 ó 40 p (▼ -33% az előző héthez képest). " +
             "9 menet (7 ó 0 p, 2 korán leállítva)."

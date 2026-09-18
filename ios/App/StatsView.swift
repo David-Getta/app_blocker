@@ -130,6 +130,10 @@ struct StatsView: View {
                 }
                 // A MENET-NAP: melyik napon ülsz le a legtöbbször — négy hétből, a csúcs-nap
                 // tükre; a sáv az alakja, hétfőtől. Menet nélkül nincs.
+                // A MENET-SOROZAT: hány napja ülsz le minden nap — kettőtől; tény, nem ítélet.
+                if let streak = Focus.streakText(Focus.dayStreak(store.state.focusLog ?? [], now: now)) {
+                    Text(streak).font(.footnote).foregroundStyle(.secondary)
+                }
                 let focusByDay = Focus.byWeekday(store.state.focusLog ?? [], now: now)
                 if let fwd = FilterHitLogic.peakWeekday(focusByDay) {
                     Text(Focus.weekdayText(fwd)).font(.footnote).foregroundStyle(.secondary)

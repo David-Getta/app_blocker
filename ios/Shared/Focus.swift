@@ -530,6 +530,21 @@ public enum Focus {
         return "A négy hét menet-órája: \(FilterHitLogic.hourLabel(peak.hour)) (\(peak.count) menet\(tail))."
     }
 
+    /// MENET-SOROZAT: hány napja ülsz le minden nap — a ma (vagy ha ma még nem, a tegnap) végződő,
+    /// megszakítás nélküli napok száma menettel (a menet a végének napjára számít). Egy nap nem sorozat.
+    /// Tény, nem ítélet. A gépi tükör; a napok kulcsa a mérésé (délben lépve).
+    public static func dayStreak(_ log: [LogEntry], now: Double) -> Int {
+        let days = Set(log.filter { $0.endedAt <= now }.map { FilterHitLogic.dayKey($0.endedAt) })
+        let back = UsageStats.dayKeysBack(Date(timeIntervalSince1970: now / 1000), 400).sorted(by: >)
+        var i = (back.first.map { days.contains($0) } ?? false) ? 0 : 1
+        var n = 0
+        while i < back.count, days.contains(back[i]) { n += 1; i += 1 }
+        return n
+    }
+
+    /// „5 napja minden nap leültél.” — kettőtől; alatta nil.
+    public static func streakText(_ n: Int) -> String? { n >= 2 ? "\(n) napja minden nap leültél." : nil }
+
     /// AMIKOR A CSÚCS-ÓRA A MENET-ÓRA: a kéz ugyanabban az órában jár magától, amelyikben le szoktál ülni
     /// — a tükör két fele egy pontra mutat. Nil, ha nem esik egybe. Tény, nem ítélet.
     public static func sameHourText(_ peak: (hour: Int, count: Int)?, _ focusHour: (hour: Int, count: Int)?) -> String? {

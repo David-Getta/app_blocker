@@ -12,7 +12,7 @@
 
 import { cleanDigestLog, digestDue, digestText, recordDigest } from '../shared/digest';
 import { displayName, isAliased } from '../shared/alias';
-import { focusByHour, focusByWeekday, packCoveringHour, peakFocusHour, peakWindowPick, summarizeFocus, summarizeFocusPrevWeek } from '../shared/focus';
+import { focusByHour, focusByWeekday, focusDayStreak, packCoveringHour, peakFocusHour, peakWindowPick, summarizeFocus, summarizeFocusPrevWeek } from '../shared/focus';
 import { dayKeysBack, suggestBlocks, summarize, usageByWeekday } from '../shared/usage';
 import { browserHits7d, browserHitsByWeekday, browserHitsPeakHour, browserHitsPrev7d, browserHitsTopSite, peakWeekday } from '../shared/browser-hits';
 import { limitFullDays } from '../shared/limits';
@@ -77,6 +77,8 @@ export function digestTextNow(state: HelperState, now: number): string | null {
     focusWeekday: peakWeekday(focusByWeekday(state.focusLog, now)),
     // A menet-óra — négy hétből, az indulás órája szerint: a mondat is mondja.
     focusHour: fh,
+    // A menet-sorozat: hány napja ülsz le minden nap — a mondat kettőtől mondja.
+    focusStreak: focusDayStreak(state.focusLog, now),
     // A menet-óra fedése: a csomag, amelynek heti ablaka fedi — a mondat mondja; ha nem fedi semmi, de lehetne: „nincs rá ablak”.
     focusHourPack: fh && fhOwn ? packCoveringHour(state.focusPacks ?? [], fh.hour)?.name ?? null : null,
     focusHourWindowOffer: fh !== null && fhOwn && peakWindowPick(state.focusPacks ?? [], state.focusLog, null, fh.hour, now) !== null,

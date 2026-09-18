@@ -666,6 +666,23 @@ object Focus {
     }
 
     /**
+     * MENET-SOROZAT: hány napja ülsz le minden nap — a ma (vagy ha ma még nem, a
+     * tegnap) végződő, megszakítás nélküli napok száma menettel (a menet a végének
+     * napjára számít). Egy nap nem sorozat. Tény, nem ítélet. A gépi tükör.
+     */
+    fun dayStreak(log: List<FocusLogEntry>, now: Long): Int {
+        val days = log.filter { it.endedAt <= now }.map { UsageLogic.dayKey(it.endedAt) }.toSet()
+        val back = UsageLogic.dayKeysBack(now, 400).sortedDescending()
+        var i = if (back.isNotEmpty() && back[0] in days) 0 else 1
+        var n = 0
+        while (i < back.size && back[i] in days) { n += 1; i += 1 }
+        return n
+    }
+
+    /** „5 napja minden nap leültél.” — kettőtől; alatta üres. */
+    fun streakText(n: Int): String = if (n >= 2) "$n napja minden nap leültél." else ""
+
+    /**
      * AMIKOR A CSÚCS-ÓRA A MENET-ÓRA: a kéz ugyanabban az órában jár magától,
      * amelyikben le szoktál ülni — a tükör két fele egy pontra mutat. Null, ha
      * nem esik egybe. Tény, nem ítélet.

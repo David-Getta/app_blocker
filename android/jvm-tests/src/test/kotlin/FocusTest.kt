@@ -457,4 +457,18 @@ class FocusTest {
             Focus.hourWarnText(9 to 6),
         )
     }
+    @Test fun `a menet-sorozat - hany napja ulsz le minden nap, ma vagy tegnap vegzodo, egy nap nem sorozat`() {
+        val now = localMs(2026, 9, 22, 15, 0)
+        val day = 86_400_000L
+        fun run(endedAt: Long) = Focus.FocusLogEntry("p", "Nyelvtanulás", endedAt - 3600_000L, endedAt, endedAt, false)
+        assertEquals(3, Focus.dayStreak(listOf(run(now - 3600_000L), run(now - day), run(now - 2 * day)), now), "ma, tegnap, tegnapelőtt")
+        assertEquals(2, Focus.dayStreak(listOf(run(now - day), run(now - 2 * day)), now), "ma még nem: a tegnap végződő sorozat")
+        assertEquals(1, Focus.dayStreak(listOf(run(now - 3600_000L), run(now - 2 * day)), now), "a lyuk megszakítja")
+        assertEquals(0, Focus.dayStreak(listOf(run(now - 2 * day)), now), "se ma, se tegnap: nulla")
+        assertEquals(0, Focus.dayStreak(listOf(run(now + 3600_000L)), now), "a jövő nem számít")
+        assertEquals(0, Focus.dayStreak(emptyList(), now))
+        assertEquals("5 napja minden nap leültél.", Focus.streakText(5))
+        assertEquals("", Focus.streakText(1), "egy nap nem sorozat")
+    }
+
 }

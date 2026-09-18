@@ -7,7 +7,7 @@
 import { test } from 'node:test';
 import * as assert from 'node:assert/strict';
 import {
-  focusByHour, focusByWeekday, focusDayNowText, focusDaySeries, focusHourNowText, focusHourText, focusHourWarnText, focusWeekdayText, isFocusHourNow, peakFocusHour, sameHourText,
+  focusByHour, focusByWeekday, focusDayNowText, focusDaySeries, focusDayStreak, focusHourNowText, focusHourText, focusHourWarnText, focusStreakText, focusWeekdayText, isFocusHourNow, peakFocusHour, sameHourText,
   type FocusLogEntry,
 } from '../src/shared/focus';
 import { peakWeekday } from '../src/shared/browser-hits';
@@ -130,4 +130,22 @@ test('a menet-óra a döntés órájában: most van-e, és csak elég mintából
 test('az előjelzés mondata a menet-óra előtt — a csúcs-óra előjelzésének tükre', () => {
   assert.equal(focusHourWarnText({ hour: 9, count: 6 }),
     'Mindjárt 9 óra — ilyenkor szoktál elkezdeni (6 menet négy hét alatt). Egy munkamenet most segítene — te döntesz.');
+});
+
+test('a menet-sorozat: hány napja ülsz le minden nap — ma vagy tegnap végződő, megszakítás nélküli napok; egy nap nem sorozat', () => {
+  const now = new Date(2026, 8, 22, 15, 0).getTime();
+  const DAY = 86_400_000;
+  const run = (endedAt: number) => ({
+    packId: 'p', packName: 'Nyelvtanulás', startedAt: endedAt - 3600_000, endedAt, plannedEndsAt: endedAt, stopped: false,
+  });
+  assert.equal(focusDayStreak([run(now - 3600_000), run(now - DAY), run(now - 2 * DAY)], now), 3, 'ma, tegnap, tegnapelőtt');
+  assert.equal(focusDayStreak([run(now - DAY), run(now - 2 * DAY)], now), 2, 'ma még nem: a tegnap végződő sorozat');
+  assert.equal(focusDayStreak([run(now - 3600_000), run(now - 2 * DAY)], now), 1, 'a lyuk megszakítja');
+  assert.equal(focusDayStreak([run(now - 2 * DAY)], now), 0, 'se ma, se tegnap: nulla');
+  assert.equal(focusDayStreak([run(now + 3600_000)], now), 0, 'a jövő nem számít');
+  assert.equal(focusDayStreak([], now), 0);
+  assert.equal(focusDayStreak(undefined, now), 0);
+  assert.equal(focusStreakText(5), '5 napja minden nap leültél.');
+  assert.equal(focusStreakText(1), '', 'egy nap nem sorozat');
+  assert.equal(focusStreakText(0), '');
 });
