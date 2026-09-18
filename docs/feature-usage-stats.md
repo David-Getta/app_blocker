@@ -521,7 +521,9 @@ Csak elég mintából: a csúcs-nap alatt legalább három megakadás
 (`PEAK_DAY_MIN_COUNT`, a három magban azonos — core-sync); egy-két megakadás
 négy hétből nem minta, csak zaj. A csúcs-óra mondata mellett, nem helyette;
 a kártyán a menet gombja ugyanúgy ott van; az Android szűrő-értesítésének
-sora is mondja („· ma a csúcs-nap”). Tény, nem ítélet.
+sora is mondja („· ma a csúcs-nap”) — és a tükör másik felét is: a
+menet-napon „· ma a menet-nap”, a menet-órában „· most a menet-óra” (ha a
+menet-óra a csúcs-óra, csak a csúcs-óra szava áll ott). Tény, nem ítélet.
 
 **A hét napjainak sávja:** a csúcs-nap mondata alatt hét rekesz hétfőtől
 vasárnapig a négy hét megakadásaival, a csúcs-nap kiemelve, a napok

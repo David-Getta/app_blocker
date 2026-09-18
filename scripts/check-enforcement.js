@@ -1384,6 +1384,17 @@ const WIRES = [
     needle: 'FocusHourReminder.reschedule(peak: focusHourKey.isEmpty ? nil : focusHour, canStart:',
     lost: 'az iPhone nem ütemezné a menet-óra előjelzését',
   },
+  // A MENET-NAP és a MENET-ÓRA az Android szűrő-értesítésének sorában is.
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/vpn/BreakerVpnService.kt',
+    needle: '(if (focusDay) " · ma a menet-nap" else "")',
+    lost: 'az Android szűrő-értesítés sora nem mondaná a menet-napot',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/vpn/BreakerVpnService.kt',
+    needle: '(if (focusHourNow) " · most a menet-óra" else "")',
+    lost: 'az Android szűrő-értesítés sora nem mondaná a menet-órát',
+  },
   // ABLAK A MENET-ÓRÁRA a böngésző lapjairól is: a híd leadja, a lapok gombja a hídon teszi.
   {
     file: 'desktop/src/main/main.ts',

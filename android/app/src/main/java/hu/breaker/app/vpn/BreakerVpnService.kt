@@ -213,8 +213,14 @@ class BreakerVpnService : VpnService() {
         val peakNow = FilterHitLogic.isPeakNow(FilterHitLogic.peakHour(st.filterHitHours, now), now)
         // A CSÚCS-NAPON azt is, hogy ma van — négy hétből, csak elég mintából.
         val peakDay = FilterHitLogic.isPeakDayNow(FilterHitLogic.peakWeekday(FilterHitLogic.byWeekday(st.filterHits, now)), now)
+        // A MENET-NAPON és a MENET-ÓRÁBAN a tükör másik fele: ma szoktál leülni,
+        // most szoktál elkezdeni — ugyanaz a küszöb, mint a csúcs-napé. Ha a
+        // menet-óra a csúcs-óra, csak a csúcs-óra szava áll ott: kétszer ugyanazt nem.
+        val focusDay = FilterHitLogic.isPeakDayNow(FilterHitLogic.peakWeekday(Focus.byWeekday(st.focusLog, now)), now)
+        val focusHourNow = !peakNow && Focus.isHourNow(Focus.peakHour(Focus.byHour(st.focusLog, now)), now)
         val hitsPart = (if (hitsToday > 0) " · Ma $hitsToday megakadás" else "") + (if (peakNow) " · most a csúcs-óra" else "") +
-            (if (peakDay) " · ma a csúcs-nap" else "")
+            (if (peakDay) " · ma a csúcs-nap" else "") + (if (focusDay) " · ma a menet-nap" else "") +
+            (if (focusHourNow) " · most a menet-óra" else "")
         val textWithHits = if (hitsPart.isNotEmpty() && strictDns == null) text + hitsPart else text
         return Notification.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_lock_lock)
