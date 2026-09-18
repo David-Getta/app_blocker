@@ -36,6 +36,9 @@ cd android
   az állapotban), saját csatornán, amit külön ki lehet kapcsolni. Engedély
   híján csendben marad, és a hetet sem könyveli el. A rejtett listát a
   beállítás szerint fedi, mert az értesítés a zárolt képernyőn is ott van.
+- A felvevő kártya **javaslata** (a hét legnagyobb, nem tiltott idővivői, egy
+  koppintással tiltva) itt is megvan — `UsageLogic.suggestBlocks`, a gépi
+  tükre; rejtett listánál a sor elmarad.
 
 ## Korlátok
 - Ha a felhasználó a rendszerbeállításokban leállítja a VPN-t, az app feltűnő

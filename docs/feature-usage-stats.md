@@ -60,11 +60,13 @@ korlátozott.
 - **Hét-a-héthez** összevetés: nőtt vagy csökkent az adott célpont ideje.
 - **Blokkolt oldalak**: mennyi időt töltöttünk rajtuk a feloldott (szünet)
   időszakokban — ez mutatja, mennyit „nyertünk vissza” a blokkolással.
-- **Javaslat** (gépen): a felvevő kártya egy sorban megmutatja a hét
-  legnagyobb, NEM tiltott idővivőit (legalább fél óra a héten, legfeljebb
+- **Javaslat** (gépen és Androidon): a felvevő kártya egy sorban megmutatja a
+  hét legnagyobb, NEM tiltott idővivőit (legalább fél óra a héten, legfeljebb
   három), egy kattintással tiltva. Tükör, nem ítélet: ami már a listán van, az
   aloldalával együtt kiesik, az „egyéb” gyűjtő is; rejtett listánál ez a sor is
   elmarad. Csak ott van, ahol mérünk, és csak ha a statisztika már megérkezett.
+  A döntés egy tiszta függvény (`suggestBlocks`, a Kotlin-tükrével és a
+  tesztjével együtt); iPhone-on nincs, mert ott nincs oldalankénti mérés.
 
 ## Platformonkénti megvalósítás és őszinte korlátok
 

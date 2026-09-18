@@ -160,9 +160,10 @@ ingyen van, rövidíteni vagy visszavonni sehogy.
   soron, a feloldás és a próbatétel lapján, és a böngésző tiltó lapján. Nem
   tiltás és nem feloldás: próbatétel nélkül írható és vehető le; a szinkronon
   az oldallal utazik. Lásd `docs/feature-reason.md`.
-- **Javaslat a mérésből** (gépen). A felvevő kártya egy sorban mutatja a hét
-  legnagyobb, nem tiltott idővivőit (legalább fél óra, legfeljebb három), egy
-  kattintással tiltva — tükör, nem ítélet; rejtett listánál a sor is elmarad.
+- **Javaslat a mérésből** (gépen és Androidon). A felvevő kártya egy sorban
+  mutatja a hét legnagyobb, nem tiltott idővivőit (legalább fél óra, legfeljebb
+  három), egy kattintással tiltva — tükör, nem ítélet; rejtett listánál a sor
+  is elmarad. iPhone-on nincs, mert ott nincs oldalankénti mérés.
 - **Kategória-csomagok: egy kattintással több oldal** (mindhárom platform).
   *Közösségi*, *Videó és stream*, *Hírek*, *Vásárlás* — egy-egy gomb a felvevő
   kártyán, ami a csomag minden oldalát felveszi. Felvenni ingyen (szigorítás),
@@ -439,8 +440,8 @@ Amit a lista korábban tartalmazott és azóta elkészült: **időzített szabá
 (heti menetrend, a lazítás próbatételhez kötve), a **statisztikák** (aktív idő
 oldalanként és appokként), a **napi időkeret** (a mérés és a blokkolás
 összekötve, [`docs/feature-daily-limit.md`](docs/feature-daily-limit.md)) és az
-**iOS-mag fordítási ellenőrzése a CI-ban** (macOS runneren, aláírás nélkül —
-a Swift-tükör minden pusholásnál fordul).
+**iOS-mag fordítása és tesztjei a CI-ban** (macOS runneren, aláírás nélkül —
+a Swift-tükör minden pusholásnál fordul, és a mag tesztjei is lefutnak).
 
 Ami még hátravan:
 
@@ -450,5 +451,6 @@ Ami még hátravan:
 - **„Párban zárolás”**: a feloldáshoz egy megbízott jóváhagyása is kell.
 - **Windows named pipe szűkítése** egyedi DACL-lel (ma helyi, de nem
   felhasználóhoz kötött — lásd `docs/architecture.md`).
-- **iOS-mag tesztjei**: a Swift-tükör fordul a CI-ban, de futó teszt nincs
-  hozzá — a viselkedést a TS/Kotlin tesztek és a kézi egyeztetés fedi.
+- **iOS app-cél tesztjei**: a Swift-mag tesztjei futnak a CI-ban (`swift
+  test`), az app-cél (a SwiftUI-képernyők, a tunnel) viszont csak fordul — a
+  képernyők viselkedését kézi egyeztetés fedi.

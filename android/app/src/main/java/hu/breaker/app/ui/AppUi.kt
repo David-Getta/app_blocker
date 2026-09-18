@@ -546,6 +546,28 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                             }
                         }
                     }
+                    // JAVASLAT: a hét legnagyobb, nem tiltott idővivői — tükör,
+                    // nem ítélet. A mérésből jön, tehát csak ott, ahol mérünk;
+                    // rejtett listánál ez a sor is elmarad, mint a gépen.
+                    if (!listHidden) {
+                        val picks = remember(state.usage, state.sites, now / 60_000) {
+                            UsageLogic.suggestBlocks(UsageLogic.summarize(state.usage, now).topWeekSites, state.sites)
+                        }
+                        if (picks.isNotEmpty()) {
+                            Text(
+                                "A héten sok időd ment el ide, és nincs tiltva:",
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                for (t in picks) {
+                                    val domain = UsageLogic.idOf(t.key)
+                                    OutlinedButton(onClick = { addSite(domain) }) {
+                                        Text("$domain · ${UsageLogic.formatDuration(t.seconds)}")
+                                    }
+                                }
+                            }
+                        }
+                    }
                     addError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                     Text(
                         "Oldalt felvenni mindig egy kattintás. Levenni — az szándékosan nem az.",

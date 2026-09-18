@@ -280,6 +280,14 @@ const WIRES = [
     lost: 'a bővítmény nem kérdezné meg, zárva-e az oldal — a hűtött oldalra '
       + 'megint a nyers DNS-hibalap jönne',
   },
+  // A JAVASLAT a telefon felvevő kártyáján: a mérés tudja, mire ment el a hét,
+  // a mag kiválogatja — ha a felület nem kérdezné, a sor csendben hiányozna.
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/AppUi.kt',
+    needle: 'UsageLogic.suggestBlocks(',
+    lost: 'a telefon felvevő kártyáján nem lenne javaslat — a mérés tudná, a '
+      + 'felület nem mondaná',
+  },
   // A HÉTFŐ REGGELI VISSZATEKINTÉS a telefonon a szolgáltatás köréből szól. A
   // mag (Digest.kt) teszttel együtt megvan — ha a kör nem kérdezné meg, a
   // telefon sosem szólna, és semmi nem hasalna el tőle.
