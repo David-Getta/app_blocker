@@ -1221,6 +1221,11 @@ body[data-motion="on"][data-bg="nyugalom"] .bg-blob-1 { animation: drift-1 52s e
 
 /* Zárlat-ablakok: egy sor egy ablak — a napok és a sáv, mellette a levétel. */
 .lockdown-windows { margin-top: var(--s2); }
+/* A kulcsszavak címkéi és a felvevő sor: a címke maga a levétel gombja. */
+.keyword-list { display: flex; flex-wrap: wrap; gap: 7px; margin-top: var(--s2); }
+.keyword-form { display: flex; gap: var(--s2); align-items: center; margin-top: var(--s3); }
+.keyword-form input { flex: 1; min-width: 0; }
+.keyword-list .chip-empty { margin: 0; }
 .lockdown-window {
   display: flex; align-items: center; justify-content: space-between; gap: var(--s3);
   padding: var(--s2) 0; border-top: 1px solid var(--border);

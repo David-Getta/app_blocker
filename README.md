@@ -205,6 +205,17 @@ ingyen van, rövidíteni vagy visszavonni sehogy.
   kimondja, hogy a feloldás útja az ő jelmondatával ér véget. Őszinte
   határ: nem gépzár, és ha a jelmondat elvész, a megbízottat nem lehet levenni.
   Lásd `docs/feature-partner-lock.md`.
+- **Kulcsszó-szabályok: bármely oldalon, ha a cím tartalmazza** (gép +
+  böngésző; a telefonok hordozzák). A blokklista egész oldalakat lát, a
+  részleges szabály egy oldal egy útvonalát — ez a harmadik: egy szó
+  (`shorts`, `reels`, egy játék neve), és a böngésző minden címet a tiltó
+  lapra visz, amiben szerepel, a hosztnévben is. Felvenni ingyen, **levenni
+  próbatétel**; a szó addig marad, amíg a próbák meg nincsenek, és újat
+  felvenni közben is ingyen lehet. A tiltó lap kimondja, melyik szó fogott. A
+  lista a fiókon át a többi eszközre is átér (a jelével; azonos jelnél a
+  bővebb nyer). Őszinte határ: csak a böngészőben tilt, ahova a bővítmény
+  telepítve van; a telefonon a lista csak látszik, mert a DNS-szűrő a címet
+  nem látja. Lásd `docs/feature-keywords.md`.
 - **Munkamenetek: „most csak ez mehet”** (gép, Android, iPhone). A blokklista arról szól,
   mi NE menjen; a munkamenet fordítva: csinálsz egy csomagot (pl.
   „Nyelvtanulás”), felsorolod, mi mehet alatta, és megadod, meddig tartson.
@@ -464,12 +475,14 @@ oldalanként és appokként), a **napi időkeret** (a mérés és a blokkolás
 **iOS-mag fordítása és tesztjei a CI-ban** (macOS runneren, aláírás nélkül —
 a Swift-tükör minden pusholásnál fordul, és a mag tesztjei is lefutnak), és a
 **párban zárolás** (a lazítás végén a megbízott jelmondata,
-[`docs/feature-partner-lock.md`](docs/feature-partner-lock.md)).
+[`docs/feature-partner-lock.md`](docs/feature-partner-lock.md)), és a
+**kulcsszó-szabályok** (bármely oldalon, ha a cím tartalmazza — a böngészőben,
+[`docs/feature-keywords.md`](docs/feature-keywords.md)).
 
 Ami még hátravan:
 
-- **Kulcsszó-/kategória-alapú blokkolás** (a mostani DNS-szint egész
-  domaineket lát, nem tartalmat).
+- **Tartalom-alapú blokkolás** (a kulcsszó a címet nézi, nem az oldal
+  szövegét; a DNS-szint egész domaineket lát).
 - **IP-szintű szabályok** az egyedi DNS/DoH-proxy megkerülés ellen.
 - **Windows named pipe szűkítése** egyedi DACL-lel (ma helyi, de nem
   felhasználóhoz kötött — lásd `docs/architecture.md`).

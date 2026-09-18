@@ -567,6 +567,12 @@ async function syncFocusRound(
       }
       if (merged.lockdownWindowsRev) state.lockdownWindowsRev = merged.lockdownWindowsRev;
       else delete state.lockdownWindowsRev;
+      // A KULCSSZAVAK IS a jelük szerint — a bővítmény a következő lehúzáskor
+      // már ezt a listát kapja.
+      if (merged.keywords && merged.keywords.length > 0) state.keywords = merged.keywords;
+      else delete state.keywords;
+      if (merged.keywordsRev) state.keywordsRev = merged.keywordsRev;
+      else delete state.keywordsRev;
       // A MEGBÍZOTT IS a jele szerint: a másik eszközön felvett innentől itt
       // is az utolsó szó; a levétel csak nagyobb jellel jön át.
       if (merged.partner) state.partner = merged.partner;
@@ -737,6 +743,9 @@ function localFocus(state: HelperState, deviceId: string, now: number): SyncFocu
     // A megbízott a jelével — a lenyomat utazik, a jelmondat sehol nincs.
     ...(state.partner ? { partner: state.partner } : {}),
     ...(state.partnerRev ? { partnerRev: state.partnerRev } : {}),
+    // A kulcsszavak a jelükkel — mint az ablakok.
+    ...((state.keywords ?? []).length > 0 ? { keywords: state.keywords! } : {}),
+    ...(state.keywordsRev ? { keywordsRev: state.keywordsRev } : {}),
     rev: state.focusRev ?? 0,
     updatedAt: state.focusUpdatedAt ?? 0,
     updatedBy: state.focusUpdatedBy ?? deviceId,

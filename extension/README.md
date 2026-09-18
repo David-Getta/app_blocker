@@ -165,6 +165,16 @@ valamit, amit a felhasználó nem tiltott le.
    bővítménynek semmi dolga vele; a frissesség itt sem számít, a megbízott a
    lenyomattal él, nem a lehúzással.
 
+9. **Kulcsszavak: bármely oldalon, ha a cím tartalmazza.** Az appban felvett
+   szavak (`shorts`, `reels`, egy játék neve) a hídon jönnek (`keywords`), és a
+   háttér minden navigációnál a cím szövegén keresi őket — séma nélkül, a
+   százalék-kódolás feloldva, kisbetűvel, a hosztnévben is. Találatnál a tiltó
+   lap külön kártyája kimondja, melyik szó fogott. A döntés az egész oldal
+   zárása után, a csatorna és a részleges szabály előtt megy, mert tágabb,
+   mint azok. Itt nem szerkeszthető: levenni az appban kell, ahol
+   próbatételbe kerül. A mag a `keywords.js` — a `desktop/src/shared/keywords.ts`
+   párja, cím-lista párokon összevetve.
+
 ## Fájlok
 
 | Fájl | Mi ez |
@@ -174,6 +184,7 @@ valamit, amit a felhasználó nem tiltott le.
 | `app-link.js` | a kapcsolat az appal: kód, lekérés, gyorsítótár |
 | `channels.js` | a csatorna-szűrő magja — a `desktop/src/shared/channels.ts` párja |
 | `chantime.js` | a csatorna-idő magja (mérés-tárolás, listák) — csak itt él |
+| `keywords.js` | a kulcsszó-szabályok magja (alak, lista, illesztés) — a `desktop/src/shared/keywords.ts` párja |
 | `background.js` | a navigáció megállítása (`webNavigation`) és a feltöltő-döntés |
 | `content.js` | a találatok elrejtése + a lejátszó-oldal feltöltőjének kiolvasása |
 | `options.html/js` | a szabályok kezelése |

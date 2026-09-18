@@ -85,6 +85,10 @@ ts.partner = read('desktop/src/shared/partner.ts');
 kt.partner = read('android/app/src/main/java/hu/breaker/app/core/Partner.kt');
 sw.partner = read('ios/Shared/Partner.swift');
 
+ts.keywords = read('desktop/src/shared/keywords.ts');
+kt.keywords = read('android/app/src/main/java/hu/breaker/app/core/Keywords.kt');
+sw.keywords = read('ios/Shared/Keywords.swift');
+
 ts.lockdown = read('desktop/src/shared/lockdown.ts');
 kt.lockdown = read('android/app/src/main/java/hu/breaker/app/core/Lockdown.kt');
 sw.lockdown = read('ios/Shared/Lockdown.swift');
@@ -184,6 +188,20 @@ const CHECKS = [
     scalar(ts.partner, /MAX_PARTNER_TRIES\s*=\s*([^;]+);/, 'ts'),
     scalar(kt.partner, /MAX_PARTNER_TRIES\s*=\s*(.+)/, 'kt'),
     scalar(sw.partner, /maxPartnerTries\s*=\s*(.+)/, 'swift')],
+  // A KULCSSZÓ-SZABÁLYOK SZÁMAI: a plafon és a hossz-sáv. Ha szétcsúsznának, a
+  // telefon fésülése elejtene egy szót, amit a gép felvett — csendben.
+  ['MAX_KEYWORDS',
+    scalar(ts.keywords, /MAX_KEYWORDS\s*=\s*([^;]+);/, 'ts'),
+    scalar(kt.keywords, /MAX_KEYWORDS\s*=\s*(.+)/, 'kt'),
+    scalar(sw.keywords, /maxKeywords\s*=\s*(.+)/, 'swift')],
+  ['MAX_KEYWORD_LENGTH',
+    scalar(ts.keywords, /MAX_KEYWORD_LENGTH\s*=\s*([^;]+);/, 'ts'),
+    scalar(kt.keywords, /MAX_KEYWORD_LENGTH\s*=\s*(.+)/, 'kt'),
+    scalar(sw.keywords, /maxKeywordLength\s*=\s*(.+)/, 'swift')],
+  ['MIN_KEYWORD_LENGTH',
+    scalar(ts.keywords, /MIN_KEYWORD_LENGTH\s*=\s*([^;]+);/, 'ts'),
+    scalar(kt.keywords, /MIN_KEYWORD_LENGTH\s*=\s*(.+)/, 'kt'),
+    scalar(sw.keywords, /minKeywordLength\s*=\s*(.+)/, 'swift')],
   ['MAX_ALLOW_ENTRIES',
     scalar(ts.focus, /MAX_ALLOW_ENTRIES\s*=\s*([^;]+);/, 'ts'),
     scalar(kt.focus, /MAX_ALLOW_ENTRIES\s*=\s*(.+)/, 'kt'),

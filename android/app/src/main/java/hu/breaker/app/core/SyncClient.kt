@@ -344,7 +344,16 @@ object SyncClient {
         // A MEGBÍZOTT IS, a jelével: a lenyomat utazik, a jelmondat sehol nincs.
         if (f.partner != null) put("partner", partnerToJson(f.partner))
         if (f.partnerRev != null) put("partnerRev", f.partnerRev)
+        // A KULCSSZAVAK IS, a jelükkel — üresen nincs mező.
+        if (f.keywords.isNotEmpty()) put("keywords", JSONArray(f.keywords))
+        if (f.keywordsRev != null) put("keywordsRev", f.keywordsRev)
     }.toString()
+
+    /** Egy JSON-tömb szövegei — ami nem szöveg, az kimarad. */
+    internal fun stringsFromJson(arr: JSONArray?): List<String> {
+        if (arr == null) return emptyList()
+        return (0 until arr.length()).mapNotNull { i -> if (arr.isNull(i)) null else arr.optString(i) }
+    }
 
     /** A megbízott drót-alakja: név, só, lenyomat, dátum — a jelmondat nincs benne. */
     internal fun partnerToJson(p: PartnerLogic.PartnerLock): JSONObject = JSONObject().apply {
@@ -475,6 +484,10 @@ object SyncClient {
             // A megbízott is kívülről jött adat: csak a jó alakú, a jele mint a többié.
             partner = partnerFromJson(o.optJSONObject("partner")),
             partnerRev = o.optInt("partnerRev", 0)
+                .takeIf { it > 0 && it <= rev.coerceIn(0, Int.MAX_VALUE.toLong()) },
+            // A kulcsszavak is kívülről jött adat: csak az érvényes, egyszer, a plafonig.
+            keywords = KeywordLogic.cleanKeywords(stringsFromJson(o.optJSONArray("keywords"))),
+            keywordsRev = o.optInt("keywordsRev", 0)
                 .takeIf { it > 0 && it <= rev.coerceIn(0, Int.MAX_VALUE.toLong()) },
         )
     }
@@ -612,6 +625,9 @@ object SyncClient {
                 // A megbízott a jelével — a fésülés ebből tudja, kié az újabb szó.
                 partner = current.partner,
                 partnerRev = current.partnerRev,
+                // A kulcsszavak a jelükkel — mint az ablakok.
+                keywords = current.keywords,
+                keywordsRev = current.keywordsRev,
             )
             val merged = FocusSync.merge(mine, remote)
 
@@ -639,6 +655,10 @@ object SyncClient {
                     // innentől itt is az utolsó szó; a levétel csak nagyobb jellel.
                     partner = merged.partner,
                     partnerRev = merged.partnerRev,
+                    // A KULCSSZAVAK IS a jelük szerint — a gép bővítménye a
+                    // következő lehúzáskor már ezt a listát kapja.
+                    keywords = merged.keywords,
+                    keywordsRev = merged.keywordsRev,
                 )
                 // A lenyomatot ÚJRASZÁMOLJUK, nem a másik eszközét vesszük át:
                 // enélkül a következő mentés fölöslegesen léptetné a számlálót,

@@ -446,6 +446,29 @@ async function main() {
     }
     await seedClosed([], Date.now());
 
+    // A KULCSSZÓ: bármely oldalon, ha a cím tartalmazza. A hoszt nincs
+    // tiltva, nincs zárva — a cím egyetlen szava viszi a tiltó lapra, és a
+    // lap kimondja, melyik szó volt az.
+    await seeder.evaluate(
+      (arg) => chrome.storage.local.set({
+        'breaker.applink': { ...arg.link, closed: [], keywords: arg.keywords, fetchedAt: arg.fetchedAt },
+      }),
+      { link: LINK, keywords: ['tiltott'], fetchedAt: Date.now() },
+    );
+    await page.goto(`${base}/?x=tiltottdolog`).catch(() => { /* elkapja a tiltás */ });
+    const keywordBlocked = await waitForBrowserUrl(page, context, /blocked\.html\?.*keyword=tiltott/, WAIT_MS);
+    check(!!keywordBlocked, 'a kulcsszó a tiltó lapra visz, és a cím hordozza a szót');
+    if (keywordBlocked && /blocked\.html/.test(page.url())) {
+      const text = await bodyText(page);
+      check(text.includes('Ezt a kulcsszót te tiltottad le') && text.includes('tiltott'),
+        'a tiltó lap kimondja, hogy kulcsszó volt, és melyik');
+    }
+    // Ugyanaz a hoszt, a szó nélkül: átmegy — a kulcsszó nem az oldalt tiltja.
+    await page.goto(`${base}/?x=szabad`).catch(() => {});
+    await page.waitForTimeout(500);
+    check(!/blocked\.html/.test(page.url()), 'a szó nélküli cím ugyanazon a hoszton szabad');
+    await seedClosed([], Date.now());
+
     // A szünet LETELTEKOR a lap utat ad vissza: a visszaszámláló helyén link
     // az eredeti címre. A lap magától nem navigál — a linken át a döntés
     // úgyis újra lefut, tehát egy közben újraindult hűtés vissza is fogná.

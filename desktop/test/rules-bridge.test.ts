@@ -212,6 +212,18 @@ test('a megbízott neve is átmegy a hídon — nélküle null, hogy a lap ne mo
   assert.equal((r2.body as { partner: unknown }).partner, null, 'megbízott nélkül null, nem hiányzó mező');
 });
 
+test('a kulcsszavak is átmennek a hídon — nélkülük üres lista, nem hiányzó mező', async () => {
+  // A kulcsszót CSAK a böngésző tudja érvényesíteni: ha a híd nem adná le,
+  // a lista az appban csak dísz lenne. Üresen is mező, hogy a régi és az új
+  // válasz ugyanolyan alakú legyen.
+  const withWords = { ...deps(), getKeywords: async () => ['shorts', 'reels'] };
+  const r = await answer(withWords, 'GET', '/rules', { [TOKEN_HEADER]: 'ABCD-EFGH' });
+  assert.equal(r.status, 200);
+  assert.deepEqual((r.body as { keywords: unknown }).keywords, ['shorts', 'reels']);
+  const r2 = await answer(deps(), 'GET', '/rules', { [TOKEN_HEADER]: 'ABCD-EFGH' });
+  assert.deepEqual((r2.body as { keywords: unknown }).keywords, []);
+});
+
 test('az indokok is a válaszban vannak, hosztnevenként — a régi hídon üres lista', async () => {
   const notes = [{ host: 'youtube.com', text: 'Mert este nem alszom tőle' }];
   const r = await answer(

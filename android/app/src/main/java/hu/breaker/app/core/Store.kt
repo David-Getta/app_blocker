@@ -243,6 +243,17 @@ data class AppState(
     /** Az ablak-lista kulcsa az utolsó léptetéskor — ebből derül ki, kell-e új jel. */
     val focusRevWindows: String? = null,
     /**
+     * KULCSSZÓ-SZABÁLYOK: bármely oldalon, ha a cím tartalmazza. A gépi
+     * böngésző-bővítmény érvényesíti; a telefon hordozza és fésüli, hogy a
+     * lista minden gépen ugyanaz legyen. A munkamenet blobján utazik, a
+     * jelével. Lásd core/Keywords.kt.
+     */
+    val keywords: List<String> = emptyList(),
+    /** A kulcsszó-lista JELE: a blob rev-je, amelyik utoljára változtatta (SyncRevisions). */
+    val keywordsRev: Int? = null,
+    /** A kulcsszó-lista kulcsa az utolsó léptetéskor — ebből derül ki, kell-e új jel. */
+    val focusRevKeywords: String? = null,
+    /**
      * PÁRBAN ZÁROLÁS: a megbízott lenyomata, ha van. Amíg van, minden lazító
      * próbatétel utolsó lépése az ő jelmondata. A munkamenet blobján utazik, a
      * jelével. Lásd core/Partner.kt.
@@ -500,6 +511,10 @@ object BreakerStore {
         put("lockdownWindows", SyncClient.windowsToJson(s.lockdownWindows))
         put("lockdownWindowsRev", s.lockdownWindowsRev ?: JSONObject.NULL)
         put("focusRevWindows", s.focusRevWindows ?: JSONObject.NULL)
+        // A kulcsszavak is a lemezre mennek: a szinkron jele függ tőlük.
+        put("keywords", JSONArray(s.keywords))
+        put("keywordsRev", s.keywordsRev ?: JSONObject.NULL)
+        put("focusRevKeywords", s.focusRevKeywords ?: JSONObject.NULL)
         // A megbízott is a lemezre megy: a lazítás kapuja függ tőle.
         put("partner", s.partner?.let { SyncClient.partnerToJson(it) } ?: JSONObject.NULL)
         put("partnerRev", s.partnerRev ?: JSONObject.NULL)
@@ -829,6 +844,10 @@ object BreakerStore {
             lockdownWindowsRev = if (o.isNull("lockdownWindowsRev")) null
                 else o.optInt("lockdownWindowsRev", 0).takeIf { it > 0 },
             focusRevWindows = if (o.isNull("focusRevWindows")) null else o.optString("focusRevWindows"),
+            // A kulcsszavak a mag szűrőjén át: ami nem kulcsszó, az nem az.
+            keywords = KeywordLogic.cleanKeywords(SyncClient.stringsFromJson(o.optJSONArray("keywords"))),
+            keywordsRev = if (o.isNull("keywordsRev")) null else o.optInt("keywordsRev", 0).takeIf { it > 0 },
+            focusRevKeywords = if (o.isNull("focusRevKeywords")) null else o.optString("focusRevKeywords"),
             // Csak a jó alakú marad: egy sérült lenyomat csapda lenne, nem döntés.
             partner = SyncClient.partnerFromJson(o.optJSONObject("partner")),
             partnerRev = if (o.isNull("partnerRev")) null else o.optInt("partnerRev", 0).takeIf { it > 0 },

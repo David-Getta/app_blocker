@@ -101,5 +101,6 @@ export function describePopup(link, now, freshMs) {
     closedMore: Math.max(0, closed.length - CLOSED_SHOWN),
     rules: (link?.rules ?? []).length,
     channels: (link?.channels ?? []).length,
+    keywords: (link?.keywords ?? []).length,
   };
 }

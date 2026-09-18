@@ -31,6 +31,7 @@ interface Popup {
     closedMore: number;
     rules: number;
     channels: number;
+    keywords: number;
   };
   spanText: (ms: number) => string;
   agoText: (ms: number) => string;
@@ -132,13 +133,16 @@ test('sok zárva név: plafon és összegző szám', () => {
   assert.equal(d.closedMore, 4);
 });
 
-test('számok: szabályok és csatorna-szűrők', () => {
+test('számok: szabályok, csatorna-szűrők és kulcsszavak', () => {
   const d = load().describePopup(link({
     rules: [{ host: 'a', path: '/x' }, { host: 'b', path: '/y' }],
     channels: [{ host: 'youtube.com', allow: ['@x'] }],
+    keywords: ['shorts', 'reels', 'live'],
   }), NOW, FRESH);
   assert.equal(d.rules, 2);
   assert.equal(d.channels, 1);
+  assert.equal(d.keywords, 3);
+  assert.equal(load().describePopup(link({}), NOW, FRESH).keywords, 0, 'régi tár: kulcsszó nélkül nulla');
 });
 
 test('idő-szövegek: perc alatt „az imént”, óra fölött kerekítve', () => {

@@ -204,6 +204,15 @@ struct AppState: Codable, Equatable {
     var partnerRev: Int? = nil
     /// A megbízott kulcsa az utolsó léptetéskor — ebből derül ki, kell-e új jel.
     var focusRevPartner: String? = nil
+    /// KULCSSZÓ-SZABÁLYOK: bármely oldalon, ha a cím tartalmazza. A gépi
+    /// böngésző-bővítmény érvényesíti; az iPhone hordozza és fésüli. A
+    /// munkamenet blobján utazik, a jelével. Optional, hogy egy korábbi
+    /// mentés is dekódolható maradjon. Lásd Shared/Keywords.swift.
+    var keywords: [String]? = nil
+    /// A kulcsszó-lista JELE: a blob rev-je, amelyik utoljára változtatta (SyncRevisions).
+    var keywordsRev: Int? = nil
+    /// A kulcsszó-lista kulcsa az utolsó léptetéskor — ebből derül ki, kell-e új jel.
+    var focusRevKeywords: String? = nil
 }
 
 /// Fiók a szinkronhoz.

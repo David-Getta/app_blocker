@@ -13,6 +13,7 @@
 import { authorVerdict, channelVerdict, MAX_CHANNEL_KEY_LENGTH } from './channels.js';
 import { addSeconds, dayKey, sweepDays } from './chantime.js';
 import { firstMatch, ruleLabel } from './rules-core.js';
+import { keywordHit } from './keywords.js';
 import { activeRules, load, sweep } from './storage.js';
 import {
   closedFor, dueForRefresh, focusActive, focusAllows, loadLink, lockdownUntil, pullFromApp,
@@ -69,6 +70,13 @@ async function decide(url) {
   // meg arról, hogy most az egész zárva — az a tágabb, tehát az az igazabb ok.
   const closed = closedFor(link, hostOf(url), now);
   if (closed) return { reason: 'closed', closed, lockUntil, lockWindow, note, partner };
+
+  // A KULCSSZÓ: bármely oldalon, ha a cím tartalmazza. Az egész oldal zárása
+  // UTÁN (az a tágabb ok), a csatorna és a részleges szabály ELŐTT (ez tágabb
+  // azoknál: nem egy oldal darabja, hanem bármelyik oldal). Csak valódi
+  // weboldalon — a bővítmény saját lapjai és a böngésző belső címei nem.
+  const keyword = hostOf(url) ? keywordHit(link.keywords ?? [], url) : null;
+  if (keyword) return { reason: 'keyword', keyword, lockUntil, lockWindow, note, partner };
 
   // A CSATORNA-SZŰRŐ: az oldalon csak a felsorolt csatornák nyílnak meg. A
   // sorrend szándékos — a munkamenet erősebb (mindenre szól), a szűrő a
@@ -161,6 +169,10 @@ function blockedParams(hit, fromUrl) {
     // címben keresné a csatornát, és nem találná.
     if (hit.source === 'video') q.set('by', 'video');
     return q;
+  }
+  if (hit.reason === 'keyword') {
+    // A lap kiírja, MELYIK szó fogta meg: az appban azt kell megkeresni.
+    return new URLSearchParams({ keyword: hit.keyword });
   }
   return new URLSearchParams({ rule: ruleLabel(hit.rule) });
 }

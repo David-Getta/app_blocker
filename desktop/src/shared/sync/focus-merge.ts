@@ -35,6 +35,7 @@ import {
   type Lockdown, type LockdownWindow,
 } from '../lockdown.js';
 import { mergePartner, normalizePartnerLock, partnerKey, type PartnerLock } from '../partner.js';
+import { cleanKeywords, keywordsKey, mergeKeywords } from '../keywords.js';
 
 /** Legfeljebb ennyi csomag utazhat — a felületen sem fér ki több. */
 export const MAX_PACKS = 30;
@@ -102,6 +103,12 @@ export interface SyncFocus {
    */
   partner?: PartnerLock;
   partnerRev?: number;
+  /**
+   * KULCSSZÓ-SZABÁLYOK: a lista és a jele — a fésülése az ablakoké: a jel
+   * dönt, azonos jelnél a bővebb lista. Üresen nincs mező. Lásd `mergeKeywords`.
+   */
+  keywords?: string[];
+  keywordsRev?: number;
   rev: number;
   updatedAt: number;
   updatedBy: string;
@@ -220,6 +227,9 @@ export function normalizeSyncFocus(raw: unknown, fallbackDevice: string, now?: n
     // A megbízott is kívülről jött adat: csak a jó alakú, a jele mint a többié.
     ...(normalizePartnerLock(o.partner) ? { partner: normalizePartnerLock(o.partner)! } : {}),
     ...(markIn(o.partnerRev, rev) ? { partnerRev: markIn(o.partnerRev, rev) } : {}),
+    // A kulcsszavak is kívülről jött adat: csak az érvényes, egyszer, a plafonig.
+    ...(cleanKeywords(o.keywords).length > 0 ? { keywords: cleanKeywords(o.keywords) } : {}),
+    ...(markIn(o.keywordsRev, rev) ? { keywordsRev: markIn(o.keywordsRev, rev) } : {}),
     rev,
     updatedAt: numberOr(o.updatedAt, 0),
     updatedBy: typeof o.updatedBy === 'string' && o.updatedBy ? o.updatedBy : fallbackDevice,
@@ -378,6 +388,8 @@ export function mergeFocus(local: SyncFocus, incoming: SyncFocus): SyncFocus {
     ...windowsMerged(local, incoming),
     // A megbízott ugyanígy: a jel dönt, azonos jelnél a beállított.
     ...partnerMerged(local, incoming),
+    // A kulcsszavak ugyanígy: a jel dönt, azonos jelnél a bővebb lista.
+    ...keywordsMerged(local, incoming),
     rev: Math.max(local.rev, incoming.rev),
     // Az idő a GYŐZTESÉ, nem a nagyobb: így az eredmény kulcsa (rev, idő,
     // eszköz) pontosan az újabb blobé, és három eszköz bármilyen sorrendben
@@ -631,6 +643,9 @@ function stable(f: SyncFocus): unknown {
     // A MEGBÍZOTT IS, a jelével: enélkül a felvétele sosem érne fel.
     partner: f.partner ? partnerKey(f.partner) : null,
     partnerRev: f.partnerRev ?? 0,
+    // A KULCSSZAVAK IS, a jelükkel — tartalom szerint, rendezve.
+    keywords: keywordsKey(f.keywords ?? []),
+    keywordsRev: f.keywordsRev ?? 0,
     rev: f.rev,
   };
 }
@@ -644,6 +659,20 @@ function windowsIn(raw: unknown): LockdownWindow[] {
 function markIn(raw: unknown, maxRev: number): number | undefined {
   if (typeof raw !== 'number' || !Number.isInteger(raw) || raw <= 0 || raw > maxRev) return undefined;
   return raw;
+}
+
+/** A kulcsszavak és a jelük fésülve — üresen egyik mező sincs. */
+function keywordsMerged(
+  local: SyncFocus, incoming: SyncFocus,
+): { keywords?: string[]; keywordsRev?: number } {
+  const ml = local.keywordsRev ?? 0;
+  const mi = incoming.keywordsRev ?? 0;
+  const keywords = mergeKeywords(ml, local.keywords ?? [], mi, incoming.keywords ?? []);
+  const mark = Math.max(ml, mi);
+  return {
+    ...(keywords.length > 0 ? { keywords } : {}),
+    ...(mark > 0 ? { keywordsRev: mark } : {}),
+  };
 }
 
 /** Az ablakok és a jelük fésülve — üresen egyik mező sincs. */

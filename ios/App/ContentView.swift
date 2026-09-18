@@ -410,6 +410,12 @@ struct ContentView: View {
                 Button("Heti ablak felvétele") { lockdownWindowSheet = true }
                     .buttonStyle(.bordered)
             }
+            // KULCSSZÓ-SZABÁLYOK: a gépi böngésző érvényesíti; az iPhone
+            // hordozza, és kimondja, hogy itt nem érvényesül.
+            if let words = store.state.keywords, !words.isEmpty {
+                Text("Kulcsszavak a böngészőben: \(words.joined(separator: ", ")) — bármely oldalon, ha a cím tartalmazza. A gépi böngésző-bővítmény érvényesíti; az iPhone hordozza. Szerkeszteni a gépen lehet.")
+                    .font(.footnote).foregroundStyle(.secondary)
+            }
             partnerBlock
         }
         .frame(maxWidth: .infinity, alignment: .leading)

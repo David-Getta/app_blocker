@@ -84,8 +84,11 @@ const GROUPS = [
     // A `partner` és a jele: a MEGBÍZOTT (párban zárolás). Egy elcsúszott név
     // mellett a telefon nem tudna a megbízottról — és ott a lazítás ingyen
     // menne, pont az, amiért a felhasználó felvette.
+    // A `keywords` és a jele: a KULCSSZÓ-SZABÁLYOK. Egy elcsúszott név mellett
+    // a másik gép bővítménye nem kapná meg a listát — és a telefon feltöltése
+    // jel nélkül… nem törölne (a jeltelen nem töröl), de a lista sem érne át.
     names: ['packs', 'run', 'log', 'packMarks', 'lockdown', 'lockdownWindows', 'lockdownWindowsRev',
-      'partner', 'partnerRev', 'rev', 'updatedAt', 'updatedBy'],
+      'partner', 'partnerRev', 'keywords', 'keywordsRev', 'rev', 'updatedAt', 'updatedBy'],
     ts: 'desktop/src/shared/sync/focus-merge.ts',
     kt: 'android/app/src/main/java/hu/breaker/app/core/SyncClient.kt',
     swift: 'ios/Shared/FocusSync.swift',

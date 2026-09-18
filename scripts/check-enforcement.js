@@ -346,6 +346,37 @@ const WIRES = [
     needle: 'state.droppedAttempts = (state.droppedAttempts ?? []).filter {',
     lost: 'iPhone-on a félbemaradt kísérlet nem lenne könyvelve',
   },
+  // A KULCSSZÓ-SZABÁLYOK: a híd leadja a listát, a háttér illeszt, a lap
+  // kimondja; a segéd a levételt próbatételhez köti. Ha bármelyik kiesne, a
+  // lista a tárban ülne, és a cím nyitva maradna — semmi nem hasalna el.
+  {
+    file: 'desktop/src/main/main.ts',
+    needle: 'return s.keywords ?? [];',
+    lost: 'a híd nem adná le a kulcsszavakat — a bővítmény nem tudna róluk',
+  },
+  {
+    file: 'extension/background.js',
+    needle: 'keywordHit(link.keywords ?? [], url)',
+    lost: 'a bővítmény tárolná a kulcsszavakat, de nem illesztené a címre — a '
+      + 'tiltás elmaradna',
+  },
+  {
+    file: 'extension/blocked.js',
+    needle: "params.get('keyword')",
+    lost: 'a kulcsszó-tiltás a részleges szabály lapján állna meg — a lap nem '
+      + 'mondaná, melyik szó fogta meg',
+  },
+  {
+    file: 'desktop/src/helper/referee.ts',
+    needle: 'if (s.pendingKeywords !== undefined) {',
+    lost: 'a kulcsszó levételének próbatétele végigmenne, de a lista maradna — '
+      + 'vagy a bíró oldal-feloldást adna helyette',
+  },
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: "'set_keywords'",
+    lost: 'a kulcsszavak kártyája nem érné el a segédet — a gomb nem csinálna semmit',
+  },
   // A MEGBÍZOTT a böngészőben: a híd leadja a nevét, a háttér a lap címére
   // teszi, a lap lába kimondja. Bármelyik kiesne, a tiltó lap a próbatétel
   // útját mondaná — a megbízott nélkül, pont a kísértés pillanatában.

@@ -37,6 +37,9 @@ import {
 import { CATEGORY_PACKS, type CategoryPack } from '../shared/blocklist.js';
 import { windowKey, windowStartingSoon, type LockdownWindow as LockdownWindowRow } from '../shared/lockdown.js';
 import {
+  MAX_KEYWORDS, MAX_KEYWORD_LENGTH, MIN_KEYWORD_LENGTH, normalizeKeyword,
+} from '../shared/keywords.js';
+import {
   encodePairingCode, formatPairingCode, resolveServerInput,
 } from '../shared/sync/pairing.js';
 import {
@@ -396,6 +399,7 @@ function render(): void {
   renderAddCard(status!);
   renderChannelCard(status!);
   renderLockdown(status!);
+  renderKeywords(status!);
   renderFocusPill(status!);
   renderFocusCard(status!);
   renderSyncCard(status!);
@@ -2092,6 +2096,73 @@ function openLockdownDialog(st: StatusData): void {
   input.focus();
 }
 
+/**
+ * KULCSSZAVAK kártyája: a lista címkékként — mindegyik egy kattintással
+ * levehető, az próbatétel —, és egy mező az újnak, az ingyen. Mindig a TELJES
+ * lista megy a segédnek; ő dönti el, melyik irány melyik.
+ */
+function renderKeywords(st: StatusData): void {
+  $('keywordCard').classList.toggle('hidden', !helperUp);
+  const words = st.keywords ?? [];
+  const box = $('keywordList');
+  box.textContent = '';
+  if (words.length === 0) {
+    box.appendChild(h('p', 'hint chip-empty', 'Még nincs kulcsszó. Ami ide kerül, azt a böngésző '
+      + 'minden oldalon tiltja, ahol a webcímben szerepel — a listát a telefonok is látják.'));
+  }
+  for (const w of words) {
+    const chip = h('button', 'chip', `${w} ×`);
+    chip.type = 'button';
+    chip.title = 'Levétel — próbatétel: a szó addig marad, amíg a próbák meg nincsenek.';
+    chip.addEventListener('click', () => void submitKeywords(words.filter((x) => x !== w)));
+    box.appendChild(chip);
+  }
+  const full = words.length >= MAX_KEYWORDS;
+  const input = $<HTMLInputElement>('keywordInput');
+  input.disabled = full;
+  input.placeholder = full ? `Betelt: legfeljebb ${MAX_KEYWORDS} kulcsszó fér el.` : 'új kulcsszó, pl. shorts';
+  $<HTMLButtonElement>('keywordAddBtn').disabled = full;
+}
+
+/** A teljes kulcsszó-lista beküldése — a segéd dönti el, ingyenes-e vagy próbatétel. */
+async function submitKeywords(words: string[]): Promise<boolean> {
+  const err = $('keywordError');
+  err.classList.add('hidden');
+  try {
+    const r = await call<SetRuleResult & { status: StatusData }>('set_keywords', { words });
+    status = r.status;
+    render();
+    return true;
+  } catch (e) {
+    err.textContent = (e as Error).message;
+    err.classList.remove('hidden');
+    return false;
+  }
+}
+
+function setupKeywordCard(): void {
+  $('keywordForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const input = $<HTMLInputElement>('keywordInput');
+    const err = $('keywordError');
+    const word = normalizeKeyword(input.value);
+    const current = status?.keywords ?? [];
+    // A mag szabálya már a beküldés előtt: a segéd ugyanezt mondaná, csak egy
+    // kör után — és a „már fent van” nem hiba, csak tény.
+    if (word === null) {
+      err.textContent = `A kulcsszó ${MIN_KEYWORD_LENGTH}–${MAX_KEYWORD_LENGTH} karakter, szóköz nélkül.`;
+      err.classList.remove('hidden');
+      return;
+    }
+    if (current.includes(word)) {
+      err.textContent = `A „${word}” már fent van.`;
+      err.classList.remove('hidden');
+      return;
+    }
+    void submitKeywords([...current, word]).then((ok) => { if (ok) input.value = ''; });
+  });
+}
+
 function setupLockdownCard(): void {
   $('lockdownBtn').addEventListener('click', () => openLockdownDialog(status!));
   $('lockdownWindowBtn').addEventListener('click', () => openLockdownWindowDialog(status!));
@@ -3249,6 +3320,12 @@ function renderSession(session: SessionInfo | null): void {
     $('sessionSubtitle').textContent =
       'A megbízott addig MARAD, amíg a próbák meg nincsenek — és az utolsó lépés az ő '
       + 'jelmondata, tehát a levételhez ő is kell.';
+  } else if (session.siteId === 'keywords') {
+    // Kulcsszó levétele: a lista addig marad, a bővítmény addig tilt.
+    $('sessionTitle').textContent = 'Kulcsszó levétele';
+    $('sessionSubtitle').textContent =
+      'A kulcsszó addig MARAD, amíg a próbák meg nincsenek — a bővítmény addig tilt vele. '
+      + 'Újat felvenni közben is ingyen lehet.';
   } else if (session.siteId === 'lockdown:windows') {
     // A zárlat-ablak lazítása (levétel, szűkítés): semmi nem fut, az ablak áll.
     $('sessionTitle').textContent = 'Zárlat-ablak lazítása';
@@ -4304,6 +4381,7 @@ setupUpdater();
 setupStats();
 setupChannelCard();
 setupLockdownCard();
+setupKeywordCard();
 setupShortcutControls();
 void refreshOverlayShortcut();
 setupSelfTest();

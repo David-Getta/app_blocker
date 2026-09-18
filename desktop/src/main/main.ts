@@ -321,6 +321,12 @@ if (HELPER_MODE) {
           const s = await sharedStatus();
           return s.partner ? { name: s.partner.name } : null;
         },
+        async () => {
+          // A KULCSSZAVAK: bármely oldalon, ha a cím tartalmazza — ezt csak a
+          // böngésző tudja érvényesíteni, ezért megy le a hídon.
+          const s = await sharedStatus();
+          return s.keywords ?? [];
+        },
       );
       // Keep the tracker's view of the switch fresh without extra IPC chatter.
       const refreshFocus = (): void => {

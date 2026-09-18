@@ -157,6 +157,11 @@ function looseningEntries(state: HelperState, siteId: string, packId: string, no
       () => referee.setFocusRecurrence(state, state.focusPacks![1].id, null, now)],
     ['setLockdownWindows', 'zárlat-ablak levétele',
       () => referee.setLockdownWindows(state, [], now)],
+    // A kulcsszó levétele is lazítás: a bővítmény addig tilt vele.
+    ['setKeywords', 'kulcsszó levétele', () => {
+      state.keywords = ['shorts'];
+      return referee.setKeywords(state, [], now);
+    }],
     // A megbízott levétele is lazítás — a kapu ugyanaz. A rekord itt csak
     // alak: a zárlat előbb állítja meg, mint hogy a jelmondat szóba jönne.
     ['startPartnerRemoval', 'megbízott levétele', () => {

@@ -61,13 +61,18 @@ public enum FocusSync {
         public var partner: PartnerLogic.PartnerLock?
         /// A megbízott jele: a blob rev-je, amelyik utoljára felvette vagy levette.
         public var partnerRev: Int?
+        /// KULCSSZÓ-SZABÁLYOK: a lista és a jele — a fésülése az ablakoké: a
+        /// jel dönt, azonos jelnél a bővebb lista. Üresen nincs mező a dróton.
+        public var keywords: [String]?
+        public var keywordsRev: Int?
 
         public init(
             packs: [Focus.Pack] = [], run: Focus.Run? = nil, log: [Focus.LogEntry] = [],
             rev: Double = 0, updatedAt: Double = 0, updatedBy: String = "",
             packMarks: [String: Int]? = nil, lockdown: LockdownLogic.Lockdown? = nil,
             lockdownWindows: [LockdownLogic.LockdownWindow]? = nil, lockdownWindowsRev: Int? = nil,
-            partner: PartnerLogic.PartnerLock? = nil, partnerRev: Int? = nil
+            partner: PartnerLogic.PartnerLock? = nil, partnerRev: Int? = nil,
+            keywords: [String]? = nil, keywordsRev: Int? = nil
         ) {
             self.packs = packs
             self.run = run
@@ -81,6 +86,8 @@ public enum FocusSync {
             self.lockdownWindowsRev = lockdownWindowsRev
             self.partner = partner
             self.partnerRev = partnerRev
+            self.keywords = keywords
+            self.keywordsRev = keywordsRev
         }
 
         /// SAJÁT dekódolás, mert a `log` mező RÉGEBBI blobokból hiányzik.
@@ -110,6 +117,9 @@ public enum FocusSync {
             // A megbízott és a jele is tűrően: egy sérült mező ne vigye el a blobot.
             partner = (try? c.decodeIfPresent(PartnerLogic.PartnerLock.self, forKey: .partner)) ?? nil
             partnerRev = (try? c.decodeIfPresent(Int.self, forKey: .partnerRev)) ?? nil
+            // A kulcsszavak és a jelük is tűrően.
+            keywords = (try? c.decodeIfPresent([String].self, forKey: .keywords)) ?? nil
+            keywordsRev = (try? c.decodeIfPresent(Int.self, forKey: .keywordsRev)) ?? nil
         }
     }
 
@@ -149,8 +159,23 @@ public enum FocusSync {
             partner: PartnerLogic.merge(
                 local.partnerRev ?? 0, local.partner, incoming.partnerRev ?? 0, incoming.partner
             ),
-            partnerRev: mergedPartnerMark(local, incoming)
+            partnerRev: mergedPartnerMark(local, incoming),
+            // A kulcsszavak ugyanígy: a jel dönt, azonos jelnél a bővebb lista.
+            keywords: mergedKeywords(local, incoming),
+            keywordsRev: mergedKeywordsMark(local, incoming)
         )
+    }
+
+    private static func mergedKeywords(_ local: SyncFocus, _ incoming: SyncFocus) -> [String]? {
+        let out = KeywordLogic.mergeKeywords(
+            local.keywordsRev ?? 0, local.keywords ?? [], incoming.keywordsRev ?? 0, incoming.keywords ?? []
+        )
+        return out.isEmpty ? nil : out
+    }
+
+    private static func mergedKeywordsMark(_ local: SyncFocus, _ incoming: SyncFocus) -> Int? {
+        let mark = max(local.keywordsRev ?? 0, incoming.keywordsRev ?? 0)
+        return mark > 0 ? mark : nil
     }
 
     private static func mergedPartnerMark(_ local: SyncFocus, _ incoming: SyncFocus) -> Int? {
@@ -473,8 +498,10 @@ public enum FocusSync {
             .joined(separator: "|")
         // A megbízott a jelével: a cseréje is különbség, fel kell mennie.
         let partner = PartnerLogic.partnerKey(f.partner)
+        // A kulcsszavak a jelükkel — tartalom szerint, rendezve.
+        let keywords = KeywordLogic.keywordsKey(f.keywords ?? [])
         return "\(packs)//\(run)//\(log)//\(marks)//\(lock)//\(windows)//\(f.lockdownWindowsRev ?? 0)"
-            + "//\(partner)//\(f.partnerRev ?? 0)//\(f.rev)"
+            + "//\(partner)//\(f.partnerRev ?? 0)//\(keywords)//\(f.keywordsRev ?? 0)//\(f.rev)"
     }
 
     /// A csomag-jelek kiegyenesítése: csak azonosító → pozitív egész, legfeljebb
@@ -547,8 +574,16 @@ public enum FocusSync {
             partner: raw.partner.flatMap {
                 PartnerLogic.normalizeLock(name: $0.name, salt: $0.salt, hash: $0.hash, setAt: $0.setAt)
             },
-            partnerRev: raw.partnerRev.flatMap { $0 > 0 && $0 <= revInt(raw.rev) ? $0 : nil }
+            partnerRev: raw.partnerRev.flatMap { $0 > 0 && $0 <= revInt(raw.rev) ? $0 : nil },
+            // A kulcsszavak is kívülről jött adat: csak az érvényes, egyszer, a plafonig.
+            keywords: cleanedKeywords(raw.keywords),
+            keywordsRev: raw.keywordsRev.flatMap { $0 > 0 && $0 <= revInt(raw.rev) ? $0 : nil }
         )
+    }
+
+    private static func cleanedKeywords(_ raw: [String]?) -> [String]? {
+        let out = KeywordLogic.cleanKeywords(raw ?? [])
+        return out.isEmpty ? nil : out
     }
 
     private static func cleanedWindows(_ raw: [LockdownLogic.LockdownWindow]?) -> [LockdownLogic.LockdownWindow]? {

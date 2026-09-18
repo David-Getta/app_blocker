@@ -220,6 +220,33 @@
     </section>
 
     <!--
+      KULCSSZAVAK: bármely oldalon, ha a CÍM tartalmazza. A blokklista egész
+      oldalakat lát, a részleges szabály egy oldal egy útvonalát — ez a
+      harmadik: „bárhol, ahol a címben ez a szó szerepel”. Csak a böngésző-
+      bővítmény tudja érvényesíteni, mert csak ő látja a teljes címet; a
+      telefonok a listát hordozzák. Felvenni ingyen, levenni próbatétel.
+    -->
+    <section id="keywordCard" class="card hidden">
+      <div class="list-head">
+        <h2>Kulcsszavak</h2>
+      </div>
+      <p class="hint">
+        Bármely oldal, aminek a webcímében ez a szó szerepel — shorts, reels,
+        live, egy játék neve —, a böngészőben tiltva. Felvenni egy kattintás,
+        <strong>levenni próbatétel</strong>. A böngésző-bővítmény érvényesíti,
+        a rendszer-szintű szűrő nem: az a hosztnévnél tovább nem lát, ezért a
+        telefonon a lista csak látszik, ott nem tilt.
+      </p>
+      <div id="keywordList" class="keyword-list"></div>
+      <form id="keywordForm" class="keyword-form">
+        <input id="keywordInput" type="text" maxlength="40"
+          placeholder="új kulcsszó, pl. shorts" spellcheck="false" autocomplete="off">
+        <button id="keywordAddBtn" class="btn btn-small" type="submit">Felvétel</button>
+      </form>
+      <p id="keywordError" class="error hidden"></p>
+    </section>
+
+    <!--
       Csatorna-szűrő: MEGFORDÍTOTT részleges tiltás. Nem az oldalt tiltja,
       hanem az oldalon belül csak a felsorolt csatornákat engedi — kapcsolható,
       mint a munkamenet. A tiltást a böngésző-bővítmény végzi: a DNS a

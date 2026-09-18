@@ -138,6 +138,7 @@ export function statusOf(
     // …és az ablak szerinti is az: ha él egy ablak, a kör előtt is zárva van.
     lockdown: referee.currentLockdown(state, now),
     lockdownWindows: state.lockdownWindows ?? [],
+    keywords: state.keywords ?? [],
     // Csak a neve és a dátum: a lenyomat a segédé, a jelmondat sehol nincs.
     partner: state.partner ? { name: state.partner.name, setAt: state.partner.setAt } : null,
     sync: state.sync && {
@@ -323,6 +324,14 @@ async function handle(req: HelperRequest, deps: ServerDeps): Promise<unknown> {
           && (w as { id: string }).id ? (w as { id: string }).id : newId('lw') }
         : w));
       const r = referee.setLockdownWindows(state, windows, now);
+      deps.commit();
+      return { ...r, status: statusOf(state, deps.dohApplied(), deps.selfTest()) };
+    }
+
+    case 'set_keywords': {
+      // A TELJES lista jön; a bíró dönti el, melyik csere ingyenes (felvétel)
+      // és melyik próbatétel (levétel). Az érvényesítés a bővítményé.
+      const r = referee.setKeywords(state, Array.isArray(req.words) ? req.words : [], now);
       deps.commit();
       return { ...r, status: statusOf(state, deps.dohApplied(), deps.selfTest()) };
     }

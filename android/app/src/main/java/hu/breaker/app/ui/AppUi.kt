@@ -823,6 +823,16 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                     if (state.lockdownWindows.size < LockdownLogic.MAX_LOCKDOWN_WINDOWS) {
                         OutlinedButton(onClick = { lockdownWindowDialog = true }) { Text("Heti ablak felvétele") }
                     }
+                    // KULCSSZÓ-SZABÁLYOK: a gépi böngésző érvényesíti; a telefon
+                    // hordozza, és kimondja, hogy itt nem érvényesül.
+                    if (state.keywords.isNotEmpty()) {
+                        Text(
+                            "Kulcsszavak a böngészőben: ${state.keywords.joinToString(", ")} — bármely oldalon, " +
+                                "ha a cím tartalmazza. A gépi böngésző-bővítmény érvényesíti; a telefon hordozza. " +
+                                "Szerkeszteni a gépen lehet.",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
                     // PÁRBAN ZÁROLÁS: a lazítás végén a megbízott jelmondata is kell —
                     // nem drágább, hanem más ember döntése is. Felvenni ingyen;
                     // levenni próbatétel, a végén az ő jelmondatával.

@@ -16,6 +16,7 @@ import {
 } from '../shared/focus';
 import type { UrlRule } from '../shared/urlrules';
 import { normalizeWindows, parseLockdown } from '../shared/lockdown';
+import { cleanKeywords } from '../shared/keywords';
 import { stateFilePath } from './paths';
 
 export interface SiteRec {
@@ -115,6 +116,8 @@ export interface SessionRec {
    * levétel vagy szűkítés). Nem oldalhoz tartozik, hanem az egész géphez.
    */
   pendingLockdownWindows?: import('../shared/lockdown').LockdownWindow[];
+  /** ha van, a teljesítés a kulcsszó-listát cseréli erre (lazítás: levétel) */
+  pendingKeywords?: string[];
   /**
    * Ha van, a teljesítés a MEGBÍZOTTAT veszi le (lazítás) — a terv végén az ő
    * jelmondatával, tehát a levételhez is ő kell.
@@ -178,6 +181,15 @@ export interface HelperState {
    * `mergeWindows`); a lenyomat-léptetés írja (revisions.ts).
    */
   lockdownWindowsRev?: number;
+  /**
+   * KULCSSZÓ-SZABÁLYOK: bármely oldalon, ha a cím tartalmazza. A böngésző-
+   * bővítmény érvényesíti (csak ő látja a teljes címet); felvenni ingyen,
+   * levenni próbatétel. A munkamenet blobján szinkronizál, a jelével.
+   * Hiányzik = nincs kulcsszó. Lásd shared/keywords.ts.
+   */
+  keywords?: string[];
+  /** A kulcsszó-lista JELE: a blob `rev`-je, amelyik utoljára változtatta (revisions.ts). */
+  keywordsRev?: number;
   /**
    * PÁRBAN ZÁROLÁS: a megbízott lenyomata, ha van. Amíg van, minden lazító
    * próbatétel utolsó lépése az ő jelmondata; felvenni ingyen, levenni
@@ -298,6 +310,8 @@ export interface HelperState {
   focusRevWindows?: string;
   /** a megbízott kulcsa az előző léptetéskor — ebből látszik, változott-e (a jeléhez) */
   focusRevPartner?: string;
+  /** a kulcsszó-lista kulcsa az előző léptetéskor — ebből látszik, változott-e (a jeléhez) */
+  focusRevKeywords?: string;
   /**
    * A csatorna-szűrők szinkron-számlálója — a munkamenet mintájára.
    *
@@ -452,6 +466,15 @@ export function loadState(): HelperState {
       if (parsed.lockdownWindowsRev !== undefined
         && !(Number.isInteger(parsed.lockdownWindowsRev) && parsed.lockdownWindowsRev > 0)) {
         delete parsed.lockdownWindowsRev;
+      }
+      // A kulcsszavak a mag szűrőjén át: ami nem kulcsszó, az nem az; üresen nincs mező.
+      if (parsed.keywords !== undefined) {
+        const k = cleanKeywords(parsed.keywords);
+        if (k.length > 0) parsed.keywords = k; else delete parsed.keywords;
+      }
+      if (parsed.keywordsRev !== undefined
+        && !(Number.isInteger(parsed.keywordsRev) && parsed.keywordsRev > 0)) {
+        delete parsed.keywordsRev;
       }
       // A PÁRBAN ZÁROLÁS rekordja: csak a jó alakú marad. Egy sérült lenyomat
       // nem „nincs megbízott”, hanem egy megbízott, akinek a jelmondata sosem

@@ -59,7 +59,8 @@ async function render() {
     more.textContent = d.closedMore > 0 ? `…és még ${d.closedMore} név.` : '';
   }
 
-  $('counts').textContent = `Részleges szabályok: ${d.rules} · Csatorna-szűrők: ${d.channels}`;
+  $('counts').textContent = `Részleges szabályok: ${d.rules} · Csatorna-szűrők: ${d.channels}`
+    + (d.keywords > 0 ? ` · Kulcsszavak: ${d.keywords}` : '');
 }
 
 $('openOptions').addEventListener('click', () => {

@@ -250,7 +250,10 @@ enum SyncClient {
                 lockdownWindowsRev: current.lockdownWindowsRev,
                 // A megbízott a jelével — a lenyomat utazik, a jelmondat sehol nincs.
                 partner: current.partner,
-                partnerRev: current.partnerRev
+                partnerRev: current.partnerRev,
+                // A kulcsszavak a jelükkel — mint az ablakok.
+                keywords: (current.keywords ?? []).isEmpty ? nil : current.keywords,
+                keywordsRev: current.keywordsRev
             )
             let merged = FocusSync.merge(mine, remote)
 
@@ -277,6 +280,10 @@ enum SyncClient {
                 // utolsó szó; a levétele (a jelével) ugyanígy ér ide.
                 current.partner = merged.partner
                 current.partnerRev = merged.partnerRev
+                // A KULCSSZAVAK IS a jelük szerint — a gép bővítménye a
+                // következő lehúzáskor már ezt a listát kapja.
+                current.keywords = merged.keywords
+                current.keywordsRev = merged.keywordsRev
                 // A lenyomatot ÚJRASZÁMOLJUK, nem a másik eszközét vesszük át:
                 // enélkül a következő mentés fölöslegesen léptetné a számlálót,
                 // és a két eszköz örökké írogatná egymást.

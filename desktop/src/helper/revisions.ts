@@ -16,6 +16,7 @@
 
 import * as crypto from 'crypto';
 import { partnerKey } from '../shared/partner';
+import { keywordsKey } from '../shared/keywords';
 import type { HelperState, SiteRec } from './state';
 import { windowKey } from '../shared/lockdown';
 import type { FocusPack } from '../shared/focus';
@@ -163,9 +164,18 @@ function focusFingerprint(state: HelperState): string {
   // a lenyomat nem érne át. Csak ha van, címkével: a nélküle lévő állapot
   // lenyomata változatlan marad.
   const partner = partnerKey(state.partner);
+  // A KULCSSZAVAK IS: a lista cseréje döntés, tehát léptet — csak ha van,
+  // címkével, mint a megbízott.
+  const keywords = keywordsKeyOf(state);
   return FOCUS_FP_V2 + digest([
     packsPart(state), run, ...(windows ? [windows] : []), ...(partner ? ['partner', partner] : []),
+    ...(keywords ? ['keywords', keywords] : []),
   ]);
+}
+
+/** A kulcsszó-lista tartalmi kulcsa — üres listára üres szöveg. */
+function keywordsKeyOf(state: HelperState): string {
+  return keywordsKey(state.keywords ?? []);
 }
 
 /** Az ablak-lista tartalmi kulcsa — üres listára üres szöveg. */
@@ -230,12 +240,14 @@ export function bumpFocusRevision(
   markPacks(state);
   markWindows(state);
   markPartner(state);
+  markKeywords(state);
   return true;
 }
 
 function isEmptyFocus(state: HelperState): boolean {
   return (state.focusPacks ?? []).length === 0 && !state.focusRun
-    && (state.lockdownWindows ?? []).length === 0 && !state.partner;
+    && (state.lockdownWindows ?? []).length === 0 && !state.partner
+    && (state.keywords ?? []).length === 0;
 }
 
 /**
@@ -248,6 +260,15 @@ function markPartner(state: HelperState): void {
   state.focusRevPartner = cur;
   if (prev === cur || state.focusRev === undefined) return;
   state.partnerRev = state.focusRev;
+}
+
+/** A kulcsszó-lista jele — ugyanaz a szabály, mint az ablak-listáé. */
+function markKeywords(state: HelperState): void {
+  const cur = keywordsKeyOf(state);
+  const prev = state.focusRevKeywords ?? '';
+  state.focusRevKeywords = cur;
+  if (prev === cur || state.focusRev === undefined) return;
+  state.keywordsRev = state.focusRev;
 }
 
 /**
@@ -318,6 +339,7 @@ export function adoptFocusRevision(state: HelperState): void {
   // szerkesztés ne bélyegezze át a jelét, mert azzal egy másik eszköz
   // levételét lehetne felülírni (azonos jelnél a beállított nyer).
   state.focusRevPartner = partnerKey(state.partner);
+  state.focusRevKeywords = keywordsKeyOf(state);
 }
 
 /**

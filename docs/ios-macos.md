@@ -46,6 +46,12 @@ próbatétel-lap végén jelszómezőként jön; a mag a `Shared/Partner.swift` 
 tükre, a `fixtures/partner-hash.json` ellen tesztelve), a megbízott a
 munkamenet blobján szinkronizál. Lásd `docs/feature-partner-lock.md`.
 
+A **kulcsszavak** (bármely oldalon, ha a cím tartalmazza) itt **csak
+látszanak**, a zárlat kártyája alján: a tunnel a címet nem látja, ott a
+kulcsszó nem tilt — a sor kimondja. Az app a listát hordozza és fésüli
+(`Shared/Keywords.swift`, a gépi tükre; a blobon `keywords` + `keywordsRev`),
+hogy a gépeken ugyanaz legyen. Lásd `docs/feature-keywords.md`.
+
 ## Korlátok
 - MDM/„supervised” mód nélkül a felhasználó a Beállításokban ki tudja kapcsolni a
   VPN-t. Az on-demand szabály ezt kényelmetlenné teszi, de nem lehetetlenné —

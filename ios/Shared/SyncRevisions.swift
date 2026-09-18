@@ -139,10 +139,18 @@ enum SyncRevisions {
         // A MEGBÍZOTT IS: a felvétele és a levétele döntés, tehát léptet. Csak
         // ha van, címkével — a nélküle lévő állapot lenyomata változatlan.
         let partner = PartnerLogic.partnerKey(state.partner)
+        // A KULCSSZAVAK IS: a lista cseréje döntés, tehát léptet — csak ha van, címkével.
+        let keywords = keywordsKey(state)
         return focusFpV2 + digestHex(
             "\(packsPart(state))//\(run)" + (windows.isEmpty ? "" : "//\(windows)")
                 + (partner.isEmpty ? "" : "//partner//\(partner)")
+                + (keywords.isEmpty ? "" : "//keywords//\(keywords)")
         )
+    }
+
+    /// A kulcsszó-lista tartalmi kulcsa — üres listára üres szöveg.
+    static func keywordsKey(_ state: AppState) -> String {
+        KeywordLogic.keywordsKey(state.keywords ?? [])
     }
 
     /// Az ablak-lista tartalmi kulcsa — üres listára üres szöveg.
@@ -163,7 +171,8 @@ enum SyncRevisions {
         if state.focusRevFp == fp { return state }
         var next = state
         if state.focusRevFp == nil && (state.focusPacks ?? []).isEmpty && state.focusRun == nil
-            && (state.lockdownWindows ?? []).isEmpty && state.partner == nil {
+            && (state.lockdownWindows ?? []).isEmpty && state.partner == nil
+            && (state.keywords ?? []).isEmpty {
             next.focusRevFp = fp
             return next
         }
@@ -195,6 +204,10 @@ enum SyncRevisions {
         let partner = PartnerLogic.partnerKey(state.partner)
         if partner != (state.focusRevPartner ?? "") { next.partnerRev = Int(newRev) }
         next.focusRevPartner = partner
+        // A kulcsszavak jele ugyanígy.
+        let keywords = keywordsKey(state)
+        if keywords != (state.focusRevKeywords ?? "") { next.keywordsRev = Int(newRev) }
+        next.focusRevKeywords = keywords
         return next
     }
 
@@ -207,6 +220,7 @@ enum SyncRevisions {
         // saját szerkesztés ne bélyegezze át a jelét, mert azzal egy másik
         // eszköz levételét lehetne felülírni.
         next.focusRevPartner = PartnerLogic.partnerKey(state.partner)
+        next.focusRevKeywords = keywordsKey(state)
         return next
     }
 

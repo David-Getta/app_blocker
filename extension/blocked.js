@@ -181,6 +181,15 @@ if (focus) {
     document.getElementById('channelSeen').textContent =
       'A cím ezt nem árulja el, de a lap igen — a videót ez a csatorna töltötte fel:';
   }
+} else if (params.get('keyword')) {
+  // A KULCSSZÓ fogta meg: bármely oldalon, ha a cím tartalmazza. A lap kiírja,
+  // MELYIK szó — az appban azt kell megkeresni, ha levennéd. Újra tisztítva,
+  // mert erre a lapra kézzel írt címmel is el lehet jutni.
+  document.getElementById('keywordCard').hidden = false;
+  document.getElementById('keyword').textContent = (params.get('keyword') || '')
+    .replace(/[\x00-\x1f\x7f-\x9f]/g, ' ').trim().slice(0, 40) || 'ismeretlen kulcsszó';
+  const keywordFoot = document.getElementById('keywordFoot');
+  paintFoot(keywordFoot, keywordFoot.textContent);
 } else {
   document.getElementById('ruleCard').hidden = false;
   const rule = params.get('rule');

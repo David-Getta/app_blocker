@@ -13,6 +13,8 @@
 // HA AZ APP NINCS NYITVA, az utoljára letöltött listát használjuk. Vagyis
 // TOVÁBB TILT, nem enged át: a hiba a szigorúbb oldalra dől.
 
+import { cleanKeywords } from './keywords.js';
+
 const KEY = 'breaker.applink';
 
 /** Az app ezen a porton kezdi; ha foglalt volt, a következőn (lásd main/rules-bridge.ts). */
@@ -178,6 +180,8 @@ export async function loadLink() {
     lockdown: cleanLockdown(raw.lockdown),
     notes: cleanNotes(raw.notes),
     partner: cleanPartner(raw.partner),
+    // A kulcsszavak — a mag szűrőjén át, mint minden más.
+    keywords: cleanKeywords(raw.keywords),
     // Rekordonként tűrünk: egy sérült bejegyzés ne vigye el a többit.
     rules: rules.filter((r) => r && typeof r.host === 'string' && typeof r.path === 'string')
       .map((r) => ({ host: r.host, path: r.path })),
@@ -297,13 +301,15 @@ export async function pullFromApp(now = Date.now(), fetchImpl = fetch, timeoutMs
     const notes = cleanNotes(body?.notes);
     // A megbízott neve — régi app válaszában nincs, az sem hiba: a lap akkor nem mondja.
     const partner = cleanPartner(body?.partner);
+    // A kulcsszavak — régi app válaszában nincs, az sem hiba: üres lista.
+    const keywords = cleanKeywords(body?.keywords);
     // Az ÜRES lista is válasz: azt jelenti, hogy az appban levették az összeset.
     // Csak akkor fogadjuk el, ha a kérés tényleg sikerült — ha nem érjük el az
     // appot, a régi lista marad érvényben.
     await saveLink({
-      ...link, port, rules, focus, channels, closed, lockdown, notes, partner, fetchedAt: now, error: null,
+      ...link, port, rules, focus, channels, closed, lockdown, notes, partner, keywords, fetchedAt: now, error: null,
     });
-    return { ok: true, rules, focus, channels, closed, lockdown, notes, partner };
+    return { ok: true, rules, focus, channels, closed, lockdown, notes, partner, keywords };
   }
 
   // A PRÓBA idejét megjegyezzük, a szabálylistát viszont nem bántjuk: az app

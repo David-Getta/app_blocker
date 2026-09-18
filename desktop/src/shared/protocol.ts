@@ -45,6 +45,8 @@ export interface SessionInfo {
    * zárlat-ablakok lazítása (levétel, szűkítés) áll — más a fejléc.
    */
   windows?: boolean;
+  /** a kulcsszó-lista cseréje (levétel) — a fejléc ebből tudja, mi a tét */
+  keywords?: boolean;
 }
 
 export interface SiteInfo {
@@ -192,6 +194,8 @@ export interface StatusData {
    * hiányzó = nincs. A felület listázza, és a levételt próbatétellel kéri.
    */
   lockdownWindows?: import('./lockdown').LockdownWindow[];
+  /** kulcsszó-szabályok: bármely oldalon, ha a cím tartalmazza — a böngésző-bővítmény érvényesíti */
+  keywords?: string[];
   /**
    * PÁRBAN ZÁROLÁS: a megbízott, ha van — csak a neve és a dátum; a
    * lenyomat a segédé. Hiányzik vagy null = nincs. Amíg van, minden lazító
@@ -263,6 +267,7 @@ export type HelperRequest =
   // vagy szűkíteni próbatétel — és csak ablakon kívül, mert bent zárlat van.
   // Az azonosító nélküli ablak újnak számít, a segéd ad neki azonosítót.
   | { id: number; op: 'lockdown_windows'; windows: import('./lockdown').LockdownWindow[] }
+  | { id: number; op: 'set_keywords'; words: string[] }
   // Párban zárolás. Felvenni ingyen: a segéd sorsolja a jelmondatot, EGYSZER
   // adja vissza, és csak a lenyomatát tartja meg. Levenni próbatétel — a
   // végén a megbízott jelmondatával, tehát a levételhez is ő kell.

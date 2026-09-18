@@ -140,6 +140,7 @@ function fakeBridgeSource() {
       channelFilters: window.__fakeChannelFilters,
       // Egy heti zárlat-ablak, hogy a képernyőkép mutassa a kártya listáját.
       lockdownWindows: [{ id: 'lw_demo', days: [1, 2, 3, 4, 5], startMin: 9 * 60, endMin: 17 * 60 }],
+      keywords: ['shorts', 'reels'],
     });
     // 30 days, because that is what the helper actually sends (and what the
     // chart title claims) — a shorter demo series would make the screenshot lie.

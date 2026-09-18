@@ -74,6 +74,13 @@ object FocusSync {
          */
         val partner: PartnerLogic.PartnerLock? = null,
         val partnerRev: Int? = null,
+        /**
+         * KULCSSZÓ-SZABÁLYOK: a lista és a jele — a fésülése az ablakoké: a
+         * jel dönt, azonos jelnél a bővebb lista. Üresen nincs mező a dróton.
+         * Lásd `KeywordLogic.mergeKeywords`.
+         */
+        val keywords: List<String> = emptyList(),
+        val keywordsRev: Int? = null,
     )
 
     /**
@@ -116,6 +123,11 @@ object FocusSync {
                 local.partnerRev ?: 0, local.partner, incoming.partnerRev ?: 0, incoming.partner,
             ),
             partnerRev = maxOf(local.partnerRev ?: 0, incoming.partnerRev ?: 0).takeIf { it > 0 },
+            // A kulcsszavak ugyanígy: a jel dönt, azonos jelnél a bővebb lista.
+            keywords = KeywordLogic.mergeKeywords(
+                local.keywordsRev ?: 0, local.keywords, incoming.keywordsRev ?: 0, incoming.keywords,
+            ),
+            keywordsRev = maxOf(local.keywordsRev ?: 0, incoming.keywordsRev ?: 0).takeIf { it > 0 },
         )
     }
 
@@ -406,7 +418,10 @@ object FocusSync {
         val windows = f.lockdownWindows.map { LockdownLogic.windowKey(it.band) }.sorted().joinToString("|")
         // A MEGBÍZOTT IS, a jelével: enélkül a felvétele sosem érne fel.
         val partner = PartnerLogic.partnerKey(f.partner)
-        return "$packs//$run//$log//$marks//$lock//$windows//${f.lockdownWindowsRev ?: 0}//$partner//${f.partnerRev ?: 0}//${f.rev}"
+        // A kulcsszavak a jelükkel — tartalom szerint, rendezve.
+        val keywords = KeywordLogic.keywordsKey(f.keywords)
+        return "$packs//$run//$log//$marks//$lock//$windows//${f.lockdownWindowsRev ?: 0}//$partner//${f.partnerRev ?: 0}" +
+            "//$keywords//${f.keywordsRev ?: 0}//${f.rev}"
     }
 
     /**

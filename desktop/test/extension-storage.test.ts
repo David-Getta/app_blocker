@@ -190,6 +190,7 @@ interface LinkApi {
     rules: { host: string; path: string }[];
     channels: { host: string; allow: string[] }[];
     focus: { running: boolean; name: string; endsAt: number; allowSites: string[]; window: boolean };
+    keywords: string[];
     fetchedAt: number; error: string | null }>;
   setToken: (t: string) => Promise<string | null>;
   forgetToken: () => Promise<void>;
@@ -213,7 +214,10 @@ function freshLink(): LinkApi {
       },
     },
   };
-  const src = fs.readFileSync(path.join(extensionDir(), 'app-link.js'), 'utf8');
+  // Az app-link a kulcsszó-tisztítást a `keywords.js`-ből veszi: ugyanazokat
+  // a kiszállított bájtokat töltjük elé, amiket a böngésző is.
+  const src = fs.readFileSync(path.join(extensionDir(), 'keywords.js'), 'utf8')
+    + '\n' + fs.readFileSync(path.join(extensionDir(), 'app-link.js'), 'utf8');
   const names: string[] = [];
   const body = src
     .replace(/^import[^;]+;\s*$/gm, '')
@@ -515,6 +519,27 @@ test('a csatorna-szűrők megérkeznek és a gyorsítótár is őrzi őket', asy
   await ext.pullFromApp(2000, senki, 30);
   assert.deepEqual((await ext.loadLink()).channels,
     [{ host: 'youtube.com', allow: ['@jo', '@masik'] }]);
+});
+
+test('a kulcsszavak megérkeznek tisztán, és az app bezárása után is élnek', async () => {
+  // A hídról a lista jön; a szemét (rövid, szóközös, nem szöveg, duplum)
+  // már itt kiesik, hogy a háttér döntése ne a nyers válaszon fusson.
+  const ext = freshLink();
+  await ext.setToken('ABCD-EFGH');
+  const app = fakeAppWithChannels(8788, 'ABCD-EFGH', {
+    keywords: ['Shorts', 'reels', 'ab', 'két szó', 42, 'shorts', null],
+  });
+  const r = await ext.pullFromApp(1000, app);
+  assert.equal(r.ok, true);
+  assert.deepEqual((await ext.loadLink()).keywords, ['shorts', 'reels']);
+  // Az app bezárása nem feloldás: a lista marad.
+  await ext.pullFromApp(2000, () => Promise.reject(new Error('nincs ott')), 30);
+  assert.deepEqual((await ext.loadLink()).keywords, ['shorts', 'reels']);
+  // A régi app válasza (keywords mező nélkül) üres lista, nem hiba.
+  const ext2 = freshLink();
+  await ext2.setToken('ABCD-EFGH');
+  assert.equal((await ext2.pullFromApp(1000, fakeAppWithChannels(8788, 'ABCD-EFGH', {}))).ok, true);
+  assert.deepEqual((await ext2.loadLink()).keywords, []);
 });
 
 test('egy RÉGI app válasza (channels mező nélkül) üres listát ad, nem hibát', async () => {

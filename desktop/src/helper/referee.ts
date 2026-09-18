@@ -19,6 +19,9 @@ import {
   normalizeWindow, normalizeWindows, sameWindows, startLockdown, weekHasFreeTime, windowKey,
   windowLockdown, MAX_LOCKDOWN_WINDOWS, type Lockdown, type LockdownWindow,
 } from '../shared/lockdown';
+import {
+  MAX_KEYWORDS, MAX_KEYWORD_LENGTH, MIN_KEYWORD_LENGTH, cleanKeywords, isKeywordsLoosening, sameKeywords,
+} from '../shared/keywords';
 import { isLimitLoosening, normalizeLimit } from '../shared/limits';
 import { dayKey } from '../shared/usage';
 import {
@@ -58,6 +61,7 @@ function sessionInfo(s: SessionRec, now: number): SessionInfo {
     ...(s.pendingRecurrence !== undefined ? { recurrence: true } : {}),
     // …és hogy a `lockdown:windows` mögött a zárlat-ablakok lazítása áll.
     ...(s.pendingLockdownWindows !== undefined ? { windows: true } : {}),
+    ...(s.pendingKeywords !== undefined ? { keywords: true } : {}),
   };
 }
 
@@ -268,6 +272,15 @@ function finishSession(state: HelperState, now: number): void {
   // ablakon kívülről lehet eljutni, mert bent a kapu nem enged próbatételt.
   if (s.pendingLockdownWindows !== undefined) {
     applyWindows(state, s.pendingLockdownWindows);
+    state.unlockLog = [...state.unlockLog.filter((t) => t > now - 30 * 24 * 3600_000), now];
+    state.session = null;
+    state.abandons = (state.abandons ?? []).filter((a) => a.siteId !== s.siteId);
+    return;
+  }
+  // A KULCSSZAVAK sem oldalhoz tartoznak: a listát itt cseréljük, mert idáig
+  // csak próbatétellel lehet eljutni — a levétel ára ez a menet volt.
+  if (s.pendingKeywords !== undefined) {
+    applyKeywords(state, s.pendingKeywords);
     state.unlockLog = [...state.unlockLog.filter((t) => t > now - 30 * 24 * 3600_000), now];
     state.session = null;
     state.abandons = (state.abandons ?? []).filter((a) => a.siteId !== s.siteId);
@@ -1165,6 +1178,58 @@ export function setLockdownWindows(
     id: newId('ses'), kind: 'pause', siteId: 'lockdown:windows',
     steps: plan.steps, stepIndex: 0, createdAt: now,
     pendingLockdownWindows: next,
+  };
+  state.lastCombo = plan.comboKey;
+  armCurrent(state.session, now);
+  return { applied: false, session: sessionInfo(state.session, now) };
+}
+
+/** A kulcsszó-lista cseréje a tárolt állapoton (üresen nincs mező). */
+function applyKeywords(state: HelperState, keywords: string[]): void {
+  if (keywords.length === 0) delete state.keywords;
+  else state.keywords = keywords;
+}
+
+/**
+ * A kulcsszó-szabályok beállítása: a TELJES lista jön, és a tárolt lista ezt
+ * követi. Felvenni ingyen (szigorítás: több cím zárva); levenni próbatétel —
+ * különben a kulcsszó egy kikapcsolóval érne fel. A lazítás kérdését a mag
+ * dönti el (`isKeywordsLoosening`): ami a mostaniból hiányzik az újból, az
+ * levétel. Az érvényesítés a böngésző-bővítményé; a segéd a listát tartja,
+ * és a hídon leadja.
+ */
+export function setKeywords(state: HelperState, input: unknown, now: number): SetRuleResult {
+  const items: unknown[] = Array.isArray(input) ? input : [];
+  if (items.length > MAX_KEYWORDS) {
+    throw new RefereeError(`Legfeljebb ${MAX_KEYWORDS} kulcsszó fér el.`, 'TOO_MANY_KEYWORDS');
+  }
+  const next = cleanKeywords(items);
+  if (next.length !== items.length) {
+    throw new RefereeError(
+      `Érvénytelen kulcsszó: ${MIN_KEYWORD_LENGTH}–${MAX_KEYWORD_LENGTH} karakter, szóköz nélkül — `
+      + 'és minden szó csak egyszer.', 'BAD_KEYWORD',
+    );
+  }
+  const current = state.keywords ?? [];
+  if (sameKeywords(current, next)) return { applied: true, session: null };
+  if (!isKeywordsLoosening(current, next)) {
+    applyKeywords(state, next);
+    // Futó levétel közben a felvétel is ingyen — és a levétel VÉGÉN sem
+    // veszhet el: a függő lista is megkapja, ami közben jött. Különben a
+    // teljesítéskor a régi lista ülne vissza, és a szigorítás némán eltűnne.
+    const s = state.session;
+    if (s?.pendingKeywords !== undefined) {
+      s.pendingKeywords = cleanKeywords([...s.pendingKeywords, ...next.filter((w) => !current.includes(w))]);
+    }
+    return { applied: true, session: null };
+  }
+  if (state.session) throw new RefereeError('Előbb fejezd be a folyamatban lévő kísérletet.', 'BUSY');
+
+  const plan = planLoosening(state, 'pause', null, now);
+  state.session = {
+    id: newId('ses'), kind: 'pause', siteId: 'keywords',
+    steps: plan.steps, stepIndex: 0, createdAt: now,
+    pendingKeywords: next,
   };
   state.lastCombo = plan.comboKey;
   armCurrent(state.session, now);
