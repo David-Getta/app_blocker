@@ -77,6 +77,11 @@ export interface DigestInput {
   unlocks7d: number;
   /** van-e egyáltalán mért nap */
   daysTracked: number;
+  /**
+   * A hét legnagyobb, NEM tiltott idővivői (a felvevő kártya javaslata), a
+   * legnagyobb elöl. Nem kötelező: régi hívó vagy mérés nélkül üres.
+   */
+  unblockedTop?: { label: string; seconds: number }[];
 }
 
 /** „2 ó 40 p” / „58 p” — mint a statisztika csempéin. */
@@ -116,6 +121,12 @@ export function digestText(input: DigestInput, labelOf: (label: string) => strin
   }
   if (input.unlocks7d > 0) parts.push(`${input.unlocks7d} feloldás.`);
   else if (measured || f.sessions > 0) parts.push('Feloldás nélkül.');
+  // A tükör másik fele: ami sokat vitt, és nincs a listán. Egy név, a
+  // legnagyobb — a többi a felvevő kártyán vár, egy kattintásra.
+  const open = input.unblockedTop?.[0];
+  if (measured && open && open.seconds > 0) {
+    parts.push(`Nincs tiltva, de sokat vitt: ${labelOf(open.label)} ${hm(open.seconds)}.`);
+  }
   if (parts.length === 0) return null;
   return `Elmúlt 7 nap: ${parts.join(' ')}`;
 }

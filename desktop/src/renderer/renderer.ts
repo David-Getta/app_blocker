@@ -3628,6 +3628,7 @@ function maybeDigest(): void {
     focusWeek: statsData.focusWeek,
     unlocks7d: status.unlocks7d,
     daysTracked: s.daysTracked,
+    unblockedTop: suggestBlocks(s.topWeekSites, status.sites).map((t) => ({ label: t.label, seconds: t.seconds })),
   }, statLabel);
   try { localStorage.setItem('breaker.digestWeek', key); } catch { /* nincs tár: legközelebb újra */ }
   if (text) new Notification('Breaker — heti visszatekintés', { body: text });

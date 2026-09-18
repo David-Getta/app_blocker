@@ -49,7 +49,8 @@ jobs:
           a felvevő kártya egy sorban mutatja a hét legnagyobb, nem tiltott
           idővivőit (legalább fél óra, legfeljebb három), egy kattintással
           tiltva. Tükör, nem ítélet: ami már a listán van, kiesik; rejtett
-          listánál a sor is elmarad.
+          listánál a sor is elmarad. A hétfő reggeli visszatekintés is
+          megnevezi a legnagyobbat: „Nincs tiltva, de sokat vitt: …”.
 
           ### Ami a v0.4.39-ben jött
 

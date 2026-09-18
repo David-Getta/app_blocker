@@ -77,3 +77,14 @@ test('mérés nélkül a menetek és a feloldások még mondat; semmi nélkül n
   };
   assert.equal(digestText(nothing, (l) => l), null, 'egy üres értesítés zaj lenne');
 });
+
+test('a nem tiltott, sokat vitt oldal is bekerül — a legnagyobb, a felület címkéjével', () => {
+  const withOpen = { ...full, unblockedTop: [{ label: 'news.ycombinator.com', seconds: 2 * 3600 + 120 }, { label: 'github.com', seconds: 1800 }] };
+  const text = digestText(withOpen, (l) => l)!;
+  assert.ok(text.endsWith('Nincs tiltva, de sokat vitt: news.ycombinator.com 2 ó 2 p.'), text);
+  assert.ok(!text.includes('github.com'), 'csak a legnagyobb — a többi a kártyán vár');
+  assert.equal(digestText({ ...full, unblockedTop: [] }, (l) => l), digestText(full, (l) => l), 'üres lista: mint eddig');
+  // Mérés nélkül nincs miről beszélni — az üres hétre a javaslat sem ül rá.
+  const nothing = { ...full, last7Seconds: 0, daysTracked: 0, unblockedTop: [{ label: 'x.com', seconds: 9000 }] };
+  assert.ok(!(digestText(nothing, (l) => l) ?? '').includes('x.com'));
+});
