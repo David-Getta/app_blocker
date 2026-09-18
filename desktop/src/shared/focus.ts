@@ -352,6 +352,23 @@ export function summarizeFocus(
 }
 
 /**
+ * A HETI ABLAKBÓL indult menetek csomagonként az ablakban (azonosító → darab):
+ * a csomag sora ebből mondja, hányszor indult magától a héten — dolgozik-e az
+ * ablak. Csak az ablakos sorok; a régi sor nem ablak. A Kotlin/Swift tükre
+ * ugyanez.
+ */
+export function windowRunsByPack(
+  log: FocusLogEntry[] | undefined, since: number, now: number,
+): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const e of log ?? []) {
+    if (e.window !== true || e.endedAt < since || e.endedAt > now) continue;
+    out[e.packId] = (out[e.packId] ?? 0) + 1;
+  }
+  return out;
+}
+
+/**
  * Az ELŐZŐ hét menetei: a mai nap kezdete előtti tizenhárom naptól a hat
  * nappal ezelőtti nap kezdetéig — azt már nem, az a mostani hét ablaka. A
  * statisztika és a heti mondat a két hetet egymás mellé teszi: irány, nem

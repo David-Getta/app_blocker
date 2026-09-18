@@ -858,12 +858,15 @@ function renderFocusCard(st: StatusData): void {
     // Az ablak a soron is látszik: egy csomag, ami reggel magától indul, ne
     // legyen meglepetés — a felület mondja ki, mikor.
     if (pack.recurrence) {
+      // AZ ABLAK NYOMA: a héten ennyiszer indult magától — dolgozik-e az ablak.
+      const winRuns = status?.windowRuns7d?.[pack.id] ?? 0;
       left.appendChild(h('div', 'focus-sub',
         `magától indul: ${recurrenceLabel(pack.recurrence)}`
         // Amíg a csomag menete fut (kézzel, a leállított ablak után), nem
         // mondjuk mellé, hogy „már véget ért” — a fut-címke elég.
         + nextStartLabel(pack.recurrence, (status?.focusSpent ?? []).includes(pack.id)
-          && status?.focusRun?.packId !== pack.id)));
+          && status?.focusRun?.packId !== pack.id)
+        + (winRuns > 0 ? ` · a héten ${winRuns}× indult magától` : '')));
     }
     row.appendChild(left);
 

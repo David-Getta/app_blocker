@@ -13,7 +13,7 @@ import {
   closeRun, formatRemaining, isAppAllowed, isRunning, isSessionLoosening, isSiteAllowed,
   lastUsedPack, MAX_ALLOW_ENTRIES, MAX_SESSION_MINUTES, normalizeMinutes, normalizePack, remainingMs,
   normalizeRecurrence, peakWindowBand, summarizeFocus, summarizeFocusPrevWeek, type FocusLogEntry, type FocusPack,
-  bandCoversHour, packCoveringHour, closeIfEnded, type FocusRun,
+  bandCoversHour, packCoveringHour, closeIfEnded, type FocusRun, windowRunsByPack,
 } from '../src/shared/focus';
 
 const NOW = 1_800_000_000_000;
@@ -223,6 +223,11 @@ test('a naplósor tudja, hogy az ablakból indult — a lezárás írja, az öss
   const log = [entry({ window: true }), entry({ startedAt: 2_000, endedAt: 3_000 }), entry({ startedAt: 3_000, endedAt: 4_000, window: true })];
   assert.equal(summarizeFocus(log, 0, 5_000).windowRuns, 2);
   assert.equal(summarizeFocus([], 0, 5_000).windowRuns, 0);
+  // Csomagonként: a csomag sora ebből mondja, hányszor indult magától a héten.
+  const perPack = [entry({ packId: 'a', window: true }), entry({ packId: 'b', startedAt: 2_000, endedAt: 3_000 }),
+    entry({ packId: 'a', startedAt: 3_000, endedAt: 4_000, window: true }), entry({ packId: 'c', startedAt: 8_000, endedAt: 9_000, window: true })];
+  assert.deepEqual(windowRunsByPack(perPack, 0, 5_000), { a: 2 }, 'csak az ablakos sorok, csak az ablakban');
+  assert.deepEqual(windowRunsByPack(undefined, 0, 5_000), {});
 });
 
 test('a legutóbb használt csomag: a napló szerint, törölt csomag nélkül, különben az első', () => {

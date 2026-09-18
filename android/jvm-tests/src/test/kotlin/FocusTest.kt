@@ -362,6 +362,10 @@ class FocusTest {
         )
         assertEquals(2, Focus.summarizeFocus(log, 0, 10_000L).windowRuns)
         assertEquals(0, Focus.summarizeFocus(emptyList(), 0, 1L).windowRuns)
+        // Csomagonként: a csomag sora ebből mondja, hányszor indult magától a héten.
+        val perPack = log + Focus.FocusLogEntry("a", "A", 8_000L, 9_000L, 9_000L, false, window = true)
+        assertEquals(mapOf("a" to 1, "c" to 1), Focus.windowRunsByPack(perPack, 0, 5_000L), "csak az ablakos sorok, csak az ablakban")
+        assertEquals(emptyMap(), Focus.windowRunsByPack(null, 0, 5_000L))
     }
 
     @Test

@@ -120,7 +120,10 @@ igaz — a régi sor mezőtlen, és az nem ablak). A statisztika munkamenet-blok
 kimondja („2 menet a heti ablakból indult, magától.”), a heti mondat is („9
 menet (7 ó 0 p, 2 korán leállítva, 3 ablakból)”) — mindhárom platformon: ebből
 látszik, dolgozik-e az ablak, amit a csúcs-órára tettél. A mező a fiókkal
-utazik (`window` a naplósoron, a drót-nevek őrével).
+utazik (`window` a naplósoron, a drót-nevek őrével). A csomag sora is mondja
+— a gépen, Androidon és iPhone-on —: „magától indul: minden nap 21:00–22:00 · a héten 3× indult magától”
+(`windowRunsByPack` a három magban; a gépen a segéd adja le a státuszban,
+`windowRuns7d`).
 
 **Az aldomain átmegy**: a `google.com` engedése a `translate.google.com`-ot is
 engedi. Enélkül minden oldalnál külön ki kellene találni, melyik aldomain kell,

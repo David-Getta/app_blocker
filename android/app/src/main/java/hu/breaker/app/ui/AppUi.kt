@@ -3029,8 +3029,11 @@ private fun FocusPacksCard(state: AppState, vpnRunning: Boolean, onError: (Strin
                         // A heti ablak a telefonon is látszik: egy csomag, ami
                         // reggel magától indul, ne legyen meglepetés.
                         pack.recurrence?.let { band ->
+                            // AZ ABLAK NYOMA: a héten ennyiszer indult magától — dolgozik-e az ablak.
+                            val nowMs = System.currentTimeMillis()
+                            val winRuns = Focus.windowRunsByPack(state.focusLog, UsageLogic.startOfDay(nowMs) - 6 * 86_400_000L, nowMs)[pack.id] ?: 0
                             Text(
-                                "magától indul: ${recurrenceLabel(band)}",
+                                "magától indul: ${recurrenceLabel(band)}" + (if (winRuns > 0) " · a héten ${winRuns}× indult magától" else ""),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )

@@ -18,6 +18,7 @@ import {
 import { normalizeRule } from '../shared/urlrules';
 import {
   lastUsedPack, focusDaySeries, isRunning, normalizePack, spentWindows, summarizeFocus, summarizeFocusPrevWeek,
+  windowRunsByPack,
 } from '../shared/focus';
 import { burstTripsInDays, noteBurstTrip, noteBurstUsage, normalizeBurst, type BurstRule } from '../shared/burst';
 import { LOCKDOWN_CHOICES_MIN } from '../shared/lockdown';
@@ -153,6 +154,8 @@ export function statusOf(
     browserHitsTop: browserHitsTopSite(state.browserHits, now, state.sites),
     browserHitsKeywords: browserHitsByKeyword(state.browserHits, now),
     lastUsedPackId: lastUsedPack(state.focusPacks ?? [], state.focusLog ?? [])?.id ?? null,
+    // AZ ABLAK NYOMA csomagonként: a héten hányszor indult magától — a csomag sora mondja.
+    windowRuns7d: windowRunsByPack(state.focusLog, startOfDay(now) - 6 * 86_400_000, now),
     lastUnlockAt: state.unlockLog.length > 0 ? Math.max(...state.unlockLog) : null,
     session: referee.currentSession(state),
     dohPolicyApplied: dohApplied,

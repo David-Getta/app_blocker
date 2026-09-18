@@ -338,7 +338,9 @@ struct ContentView: View {
                             // A heti ablak a telefonon is látszik: egy csomag, ami
                             // reggel magától indul, ne legyen meglepetés.
                             if let band = pack.recurrence {
-                                Text("magától indul: \(recurrenceLabel(band))")
+                                // AZ ABLAK NYOMA: a héten ennyiszer indult magától — dolgozik-e az ablak.
+                                let winRuns = Focus.windowRunsByPack(store.state.focusLog ?? [], since: weekStart, now: now)[pack.id] ?? 0
+                                Text("magától indul: \(recurrenceLabel(band))" + (winRuns > 0 ? " · a héten \(winRuns)× indult magától" : ""))
                                     .font(.caption).foregroundStyle(.secondary)
                             }
                         }
@@ -403,6 +405,11 @@ struct ContentView: View {
         guard let peak = FilterHitLogic.peakHour(store.state.filterHitHours ?? [:], now: now),
               FilterHitLogic.peakWarnKey(peak, now: now) != nil else { return nil }
         return peak
+    }
+
+    /// A hét kezdete: a mai nap kezdete (helyi naptár) mínusz hat nap — a csomag sorának ablak-nyomához.
+    private var weekStart: Double {
+        Calendar.current.startOfDay(for: Date(timeIntervalSince1970: now / 1000)).timeIntervalSince1970 * 1000 - 6 * 86_400_000
     }
 
     /// A hét csúcs-órája (az óra) — a kártya ablak-gombjához; nil, ha nem volt megakadás.

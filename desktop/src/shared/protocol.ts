@@ -205,6 +205,8 @@ export interface StatusData {
   browserHitsKeywords?: { keyword: string; count: number }[];
   /** a legutóbb használt csomag (napló nélkül az első) — a réteg egy kattintásos gombja ezt indítja */
   lastUsedPackId?: string | null;
+  /** a heti ablakból indult menetek csomagonként a héten (azonosító → darab) — a csomag sora mondja */
+  windowRuns7d?: Record<string, number>;
   /** az utolsó feloldás ideje (epoch ms), vagy null, ha még egy sem volt */
   lastUnlockAt?: number | null;
   session: SessionInfo | null;

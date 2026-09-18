@@ -1120,6 +1120,27 @@ const WIRES = [
     needle: 'let win = f.windowRuns > 0 ? ", \\(f.windowRuns) ablakból" : ""',
     lost: 'az iPhone heti mondat nem mondaná az ablakból indult meneteket',
   },
+  // AZ ABLAK NYOMA a csomag során: a héten hányszor indult magától — a három sor.
+  {
+    file: 'desktop/src/helper/server.ts',
+    needle: 'windowRuns7d: windowRunsByPack(state.focusLog, startOfDay(now) - 6 * 86_400_000, now),',
+    lost: 'a segéd nem adná le csomagonként az ablak-meneteket — a csomag sora hallgatna',
+  },
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: 'const winRuns = status?.windowRuns7d?.[pack.id] ?? 0;',
+    lost: 'a gépi csomag sora nem mondaná, hányszor indult magától a héten',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/AppUi.kt',
+    needle: 'val winRuns = Focus.windowRunsByPack(state.focusLog, UsageLogic.startOfDay(nowMs) - 6 * 86_400_000L, nowMs)[pack.id] ?: 0',
+    lost: 'az Android csomag sora nem mondaná, hányszor indult magától a héten',
+  },
+  {
+    file: 'ios/App/ContentView.swift',
+    needle: 'let winRuns = Focus.windowRunsByPack(store.state.focusLog ?? [], since: weekStart, now: now)[pack.id] ?? 0',
+    lost: 'az iPhone csomag sora nem mondaná, hányszor indult magától a héten',
+  },
   {
     file: 'desktop/src/renderer/renderer.ts',
     needle: 'n.onclick = () => void startSuggestedSession(true);',

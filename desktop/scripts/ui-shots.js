@@ -159,6 +159,8 @@ function fakeBridgeSource() {
       browserHitsKeywords: [{ keyword: 'shorts', count: 7 }, { keyword: 'reels', count: 3 }],
       // A réteg gyorsindítója a segéd választását követi — szándékosan nem az első.
       lastUsedPackId: 'pack_2',
+      // Az ablak nyoma a csomag során: a hét ablak-menetei csomagonként.
+      windowRuns7d: { pack_2: 3 },
       // A folt a füstteszté: a státusz egy-egy mezőjét cseréli, hogy egy
       // állapotot (pl. a sokadik megakadást) meg lehessen nézni.
       ...(window.__fakeStatusPatch || {}),
@@ -1032,6 +1034,11 @@ async function main() {
       && window.__fakePacks[1].recurrence && window.__fakePacks[1].recurrence.startMin === 21 * 60,
     undefined, { timeout: 15_000 },
   ).catch(() => failures.push('a javaslat-kártya ablak-gombja nem tett heti ablakot, vagy utána is ott maradt'));
+  // AZ ABLAK NYOMA a csomag során: az ablak után a sor mondja, hányszor indult magától a héten.
+  await page.waitForFunction(
+    () => Array.from(document.querySelectorAll('.focus-sub')).some((el) => /magától indul: minden nap 21:00–22:00.*a héten 3× indult magától/.test(el.textContent || '')),
+    undefined, { timeout: 15_000 },
+  ).catch(() => failures.push('a csomag sora nem mondja, hányszor indult magától a héten'));
   await page.evaluate(() => { delete window.__fakePacks[1].recurrence; });
   await page.evaluate(() => { window.__fakeStatusPatch = undefined; });
   await page.waitForFunction(

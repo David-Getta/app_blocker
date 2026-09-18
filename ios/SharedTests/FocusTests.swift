@@ -115,6 +115,10 @@ final class FocusTests: XCTestCase {
         ]
         XCTAssertEqual(Focus.summarizeFocus(log, since: 0, now: 10_000).windowRuns, 2)
         XCTAssertEqual(Focus.summarizeFocus([], since: 0, now: 1).windowRuns, 0)
+        // Csomagonként: a csomag sora ebből mondja, hányszor indult magától a héten.
+        let perPack = log + [Focus.LogEntry(packId: "a", packName: "A", startedAt: 8_000, endedAt: 9_000, plannedEndsAt: 9_000, stopped: false, window: true)]
+        XCTAssertEqual(Focus.windowRunsByPack(perPack, since: 0, now: 5_000), ["a": 1, "c": 1], "csak az ablakos sorok, csak az ablakban")
+        XCTAssertEqual(Focus.windowRunsByPack([], since: 0, now: 5_000), [:])
         // A drót: csak ha igaz — a régi sor mezője nincs, és az nem ablak.
         let data = try JSONEncoder().encode(log)
         let text = String(decoding: data, as: UTF8.self)
