@@ -182,7 +182,10 @@ mostaninál: „5 napja minden nap leültél (a leghosszabb sorozatod: 12 nap).�
 — mostani sorozat nélkül csak a rekordot: „A leghosszabb sorozatod: 12 nap.”
 (`focusLongestStreak`, `Focus.longestStreak`). A heti mondat a rekordot csak a
 mostani sorozat mellett, zárójelben mondja — a hétről beszél; a puszta rekord
-a statisztikáé.
+a statisztikáé. Őszinte korlát: a sorozat a naplóból számol — fiók nélkül
+minden eszköz a sajátjából, fiókkal a közösből (a telefonon leült nap a gépen
+is számít, ha a napló odaért); a menet a végének helyi napjára számít, a futó
+menet csak a végén.
 
 **Az aldomain átmegy**: a `google.com` engedése a `translate.google.com`-ot is
 engedi. Enélkül minden oldalnál külön ki kellene találni, melyik aldomain kell,

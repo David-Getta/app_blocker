@@ -484,6 +484,10 @@ Néhány konkrét dolog, amit érdemes előre tudni:
 - **A gépen az önteszt tényt mond, nem garanciát:** ötpercenként a rendszer
   feloldóját kérdezi a tiltott nevekről, és szól, ha nem a tiltó címre
   oldódnak — a böngésző saját DoH-ját viszont nem látja.
+- **A menet-sorozat a naplóból számol:** fiók nélkül minden eszköz a
+  sajátjából, fiókkal a közösből — a telefonon leült nap a gépen is számít,
+  ha a napló odaért. A menet a végének helyi napjára számít, a futó menet
+  csak a végén; a nap a helyi óra szerint fordul.
 - **A gépi értesítések csak amíg az app fut** (adag-betelés, a heti ablak
   menetének indulása, a hétfői visszatekintés, a sokadik megakadás, a
   csúcs-óra és a menet-óra előjelzése): a háttérben ülő védelem magától nem
