@@ -621,7 +621,8 @@ van: a gépi kezdőlap javaslat-kártyája és a réteg lába (`usageDayNowText`
 a státusz `usageWeekday` mezőjéből), az Android kezdőlapjának kártyája
 (`UsageLogic.dayNowText`): „Ma a négy hét legnagyobb napja van (szombat, átlag 50 p) — ezen a napon megy el a legtöbb idő.”
 — csak elég mintából (napi negyedóra átlag, `USAGE_DAY_MIN_SECONDS`, a két
-magban azonos, `check-core-sync`). Tény, nem ítélet. A heti mondat is mondja, a mért idő
+magban azonos, `check-core-sync`); az Android szűrő-értesítésének sora is
+(„· ma a legnagyobb nap”). Tény, nem ítélet. A heti mondat is mondja, a mért idő
 mondata után, szó szerint (`usageWeekday` a mondat bemenetén — a segéd és az
 Android építi; a Swift bemenet tükör, üresen); mérés vagy nap nélkül nincs.
 

@@ -142,6 +142,25 @@ lépcsők, a tíz perc és a küszöb a három magban azonos (`check-core-sync`)
 háttér-panel, a telefonon a statisztika kapcsolója), a kártya és a
 statisztika sora akkor is mondja.
 
+**A tükör darabjai egy táblában.** Öt tükör, két fél: a kísértésé (mikor és
+melyik napon jár a kéz magától) és a döntésé (mikor és melyik napon ülsz le,
+melyik napon megy el a legtöbb idő). Mind ugyanabból a mintából és
+ugyanazokkal a küszöbökkel dolgozik (`check-core-sync`), és mind ugyanoda ér:
+a statisztika sorába, a heti mondatba, a döntés helyére — és ahol lépés
+következik belőle, oda egy gomb.
+
+| Tükör | Miből | Hol mondja | Lépés |
+|---|---|---|---|
+| csúcs-óra | a hét megakadásai óránként | statisztika (órák sávja), heti mondat, a csúcs-órában a kártya, a réteg, a böngésző lapjai, az Android sáv | előjelzés tíz perccel előtte; heti ablak egy kattintással (statisztika, kártya, böngésző, értesítés); a fedést kimondja |
+| csúcs-nap | négy hét megakadásai a hét napjaira | statisztika (napok sávja), heti mondat, a csúcs-napon a kártya, a réteg, a böngésző lapjai, az Android sáv | — (tény) |
+| menet-nap | négy hét menetei a vég napjára | statisztika, heti mondat, a menet-napon a kártya, a réteg, a böngésző lapjai, az Android sáv | — (tény) |
+| menet-óra | négy hét menetei az indulás órájára | statisztika (órák sávja), heti mondat, a menet-órában a kártya, a réteg, a böngésző lapjai, az Android sáv | előjelzés tíz perccel előtte; heti ablak egy kattintással (statisztika, kártya, böngésző, értesítés); a fedést kimondja; ha a csúcs-óra, a sor és a felugró lap kimondja |
+| mért idő napja | négy hét mért ideje a hét napjaira (gép, Android) | statisztika (napok sávja), heti mondat, a napján a kártya, a réteg, az Android sáv | — (tény) |
+
+A szabály mindenütt ugyanaz: kétszer ugyanazt nem (ha a menet-óra a csúcs-óra,
+a csúcs-óra gombja és előjelzése szól), elég minta nélkül nincs mondat, futó
+menet mellett nincs javaslat, és ha nem kéred, az értesítés csendben marad.
+
 **Ami nem megy sehova.** A könyv a készüléken marad, a fiókba nem megy — a
 megakadás a gép saját tükre, mint a heti napló. A bekötést ellenőrző-tűk
 őrzik (`scripts/check-enforcement.js`): a mag megvolna teszt nélkül is, a
