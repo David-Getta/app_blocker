@@ -44,23 +44,22 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A menet-sorozat őszinte korlátja.** A README, a weboldal és a
-          munkamenet-doksi mondja, miből számol a sorozat: fiók nélkül
-          minden eszköz a saját naplójából, fiókkal a közösből — a
-          telefonon leült nap a gépen is számít, ha a napló odaért; a
-          menet a végének helyi napjára számít, a futó menet csak a végén.
-          Kód nem változott.
+          **A leghosszabb sorozat ott is, ahol a döntés van.** A gépi
+          kezdőlap javaslat-kártyája és a gyorsbillentyűs réteg lába, meg a
+          telefonok kezdőlapjának kártyája a mostani sorozat mellett a
+          napló rekordját is mondja, zárójelben — csak a mostani mellett;
+          a puszta rekord a statisztikáé. Ha a mostani a rekord, nem
+          ismétli.
 
-          ### Ami a v0.4.148-ban jött
+          ### Ami a v0.4.149-ben jött
+
+          **A menet-sorozat őszinte korlátja** a README-ben, a weboldalon és
+          a munkamenet-doksiban: miből számol a sorozat. Kód nem változott.
+
+          #### Ami a v0.4.148-ban jött
 
           **A README, a weboldal és az architektúra a csúcs-nap és a
           menet-nap egybeeséséről.** Kód nem változott.
-
-          #### Ami a v0.4.147-ben jött
-
-          **Amikor a csúcs-nap a menet-nap:** ha a négy hét csúcs-napja
-          ugyanaz, mint a menet-nap, a statisztika és a heti mondat
-          kimondja mindhárom platformon. Tény, nem ítélet.
 
           NOTES
           fi
