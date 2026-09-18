@@ -44,20 +44,21 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A bővítmény is a sorozat-küszöb őrében.** A felugró lap
-          sorozat-küszöbe a bővítmény állandója lett, és a mag-összhang
-          őre a gép értékéhez méri — ha elcsúszna, a CI szól előbb, mint a
-          felhasználó. Viselkedés nem változott. Bővítmény 0.4.36.
+          **A bővítmény tükör-állandói mind az őrben.** A csúcs-nap négy
+          hete és küszöbe, a sokadik megakadás első lépcsője — a bővítmény
+          másolatait a mag-összhang őre a gép értékéhez méri, a sorozat
+          küszöbe mellé. Kód nem változott.
 
-          ### Ami a v0.4.153-ban jött
+          ### Ami a v0.4.154-ben jött
+
+          **A bővítmény is a sorozat-küszöb őrében** — a felugró lap
+          küszöbe a bővítmény állandója, a gép értékéhez mérve. Bővítmény
+          0.4.36.
+
+          #### Ami a v0.4.153-ban jött
 
           **A sorozat küszöbe egy helyen** — a három mag egy-egy állandója,
-          a mag-összhang őrében; a hívók a magét használják.
-
-          #### Ami a v0.4.152-ben jött
-
-          **A sorozat a hónap- és évfordulón** — a tesztek mindhárom
-          nyelvben a hónap és az év végét is fogják.
+          a mag-összhang őrében.
 
           NOTES
           fi
