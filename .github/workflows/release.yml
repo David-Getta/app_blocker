@@ -44,23 +44,20 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A heti mondat mondja, ha a csúcs-órát nem fedi ablak.** „12 megakadás a böngészőben, a csúcs 21–22 óra (nincs rá ablak)”
-          — csak ha lehetne rá tenni: van csomag ablak nélkül, és a
-          csúcs-órát semmi nem fedi. Tükör, nem ítélet — a gomb a
-          statisztikán vár. Ha fedi, a mondat továbbra is azt mondja, hogy
-          magától indul. Mindhárom platformon.
+          **Az ablak szerint indult menet mindenhol kimondva.** A gyorsbillentyűs
+          réteg és az Android szűrő-értesítése is mondja, ha a menet a heti
+          ablak szerint indult — aki nem maga indította, tudja meg, miért fut,
+          és hogy a vége az ablak vége. Eddig a kártyák és a bővítmény mondták.
 
-          ### Ami a v0.4.108-ban jött
+          ### Ami a v0.4.109-ben jött
 
-          **A felugró lap mondja, ha a csúcs-órát ablak fedi.** A bővítmény
-          felugró lapja a hét csúcsa után kimondja, hogy a menet magától
-          indul — az app szava. Bővítmény 0.4.25.
+          **A heti mondat mondja, ha a csúcs-órát nem fedi ablak.** Csak ha
+          lehetne rá tenni; a fedés erősebb. Mindhárom platformon.
 
-          #### Ami a v0.4.107-ben jött
+          #### Ami a v0.4.108-ban jött
 
-          **Az ablak nyoma a csomag során.** A csomag sora — a gépen,
-          Androidon és iPhone-on — azt is mondja, hányszor indult magától a
-          héten.
+          **A felugró lap mondja, ha a csúcs-órát ablak fedi.** Az app szava a
+          hídon. Bővítmény 0.4.25.
 
           NOTES
           fi
