@@ -44,6 +44,14 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
+          **Amikor a csúcs-óra a menet-óra.** Ha a hét csúcs-órája és a négy
+          hét menet-órája ugyanaz az óra, a statisztika és a heti mondat
+          kimondja a gépen, Androidon és iPhone-on:
+          „A csúcs-óra és a menet-óra ugyanaz: 21–22 óra — a kéz akkor jár, amikor le szoktál ülni.”
+          Más órán nincs sor. Tény, nem ítélet.
+
+          ### Ami a v0.4.134-ben jött
+
           **A mért idő napja ott is, ahol a döntés van.** A gépi kezdőlap
           kártyája és a réteg lába, az Android kezdőlapjának kártyája
           kimondja, ha ma van a négy hét legnagyobb napja:
@@ -51,21 +59,13 @@ jobs:
           Csak elég mintából (napi negyedóra átlag), a két magban azonos
           küszöbbel. Tény, nem ítélet.
 
-          ### Ami a v0.4.133-ban jött
+          #### Ami a v0.4.133-ban jött
 
           **A böngésző lapjai mondják, ha a menet-órát ablak fedi.** A híd a
           javaslattal a fedő csomag nevét is leadja; a felugró lap és a
           tiltó lap a gomb mellett kimondja: „A menet-órában magától indul: Nyelvtanulás.”
           — az app szava, frissen. Ha a menet-óra a csúcs-óra, a csúcs-óra
           fedése mondja. Bővítmény 0.4.32.
-
-          #### Ami a v0.4.132-ben jött
-
-          **Az Android szűrő-értesítés sora a menet-napon és a menet-órában is
-          mond egy szót:** „· ma a menet-nap”, „· most a menet-óra” — a
-          csúcs-nap és a csúcs-óra szava mellett, ugyanazzal a küszöbbel; ha a
-          menet-óra a csúcs-óra, csak a csúcs-óráé áll ott. A weboldal a híd
-          menet-óra ablakát is említi.
 
           NOTES
           fi

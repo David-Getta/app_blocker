@@ -8,13 +8,14 @@ kettővel korábbiban.
 
 | Verzió | Nap | Mi újság |
 |---|---|---|
+| v0.4.135 (még nincs kiadva) | 2026-09-18 | amikor a csúcs-óra a menet-óra |
 | v0.4.134 (még nincs kiadva) | 2026-09-18 | a mért idő napja ott is, ahol a döntés van |
 | v0.4.133 (még nincs kiadva) | 2026-09-18 | a böngésző lapjai mondják, ha a menet-órát ablak fedi |
 | v0.4.132 (még nincs kiadva) | 2026-09-18 | az Android szűrő-értesítés sora a menet-napon és a menet-órában is |
 | v0.4.131 (még nincs kiadva) | 2026-09-18 | ablak a menet-órára a böngésző lapjairól is |
 | v0.4.130 (még nincs kiadva) | 2026-09-18 | ablak a menet-órára a javaslat kártyájáról is |
-| v0.4.129 (még nincs kiadva) | 2026-09-18 | a menet-óra fedése |
-| v0.4.128 (még nincs kiadva) | 2026-09-18 | előjelzés a menet-óra előtt |
+| v0.4.129 | 2026-09-18 | a menet-óra fedése |
+| v0.4.128 | 2026-09-18 | előjelzés a menet-óra előtt |
 | v0.4.127 | 2026-09-18 | a menet-óra ott is, ahol a döntés van |
 | v0.4.126 | 2026-09-18 | a README és a weboldal a délután tükör-újdonságairól |
 | v0.4.125 | 2026-09-18 | ablak a menet-órára |
