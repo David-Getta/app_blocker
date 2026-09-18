@@ -379,6 +379,11 @@ elmondja az elmúlt hét napot:
 
 > Elmúlt 7 nap: 7 ó 20 p mért idő; a legtöbb: youtube.com 2 ó 40 p (▼ -33%
 > az előző héthez képest). 9 menet (7 ó 0 p, 2 korán leállítva). 3 feloldás.
+> Nincs tiltva, de sokat vitt: news.ycombinator.com 2 ó 2 p.
+
+Az utolsó mondat a tükör másik fele — a felvevő kártya javaslatának a
+legnagyobbja (l. fentebb): ami sokat vitt, és nincs a listán. Csak mért hét
+után, és csak egy név; a többi a kártyán vár, egy kattintásra.
 
 Ugyanaz a hang, mint a statisztikáé: a „korán leállítva” nem szégyenpad, a
 „Feloldás nélkül.” viszont igenis kimondható — ez a mondat vége, ha egy sem
