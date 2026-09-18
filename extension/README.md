@@ -188,8 +188,9 @@ valamit, amit a felhasználó nem tiltott le.
     pillanatában: „Ma ez a 7. megakadás — ebből a 3. ezen az oldalon.” (a
     hosztonkénti szám csak itt marad, a hídra nem megy). Óránként is: a
     beállítás-lap a hét csúcs-óráját mondja („A hét csúcsa: 21–22 óra”) és
-    egy óra-sávot rajzol — mikor jár a kéz magától. A mag a `hits.js`, a
-    kiszállított bájtokon tesztelve.
+    egy óra-sávot rajzol — mikor jár a kéz magától; és a hetet okonként is
+    („A héten: 4 zárva oldal · 3 kulcsszó”) — melyik szabály dolgozik. A mag
+    a `hits.js`, a kiszállított bájtokon tesztelve.
 
 ## Fájlok
 

@@ -13,7 +13,7 @@ import {
 import { CLOSED_FRESH_MS, loadLink, pullFromApp, setToken, withAppRules } from './app-link.js';
 import { dayKey, formatSeconds, lastDays, topChannels } from './chantime.js';
 // A `lastDays` a csatorna-időé (ugyanaz a naptár) — a könyv is azzal él.
-import { hitsByHour, hitsRows, hitsSummary, hitsText, hourLabel, peakHour } from './hits.js';
+import { hitsByHour, hitsReasonText, hitsRows, hitsSummary, hitsText, hitsWeekByReason, hourLabel, peakHour } from './hits.js';
 
 const TIME_KEY = 'breaker.chantime';
 
@@ -70,6 +70,10 @@ async function renderHits() {
   $('hitsPeak').hidden = peak === null;
   $('hitsPeak').textContent = peak
     ? `A hét csúcsa: ${hourLabel(peak.hour)} (${peak.count} megakadás) — akkor jár a kéz magától.` : '';
+  // MELYIK szabály dolgozik: a hét okonként, a legnagyobb elöl.
+  const reasons = hitsReasonText(hitsWeekByReason(state, today));
+  $('hitsReasons').hidden = reasons === null;
+  $('hitsReasons').textContent = reasons ?? '';
   const strip = $('hitsHours');
   strip.textContent = '';
   strip.hidden = peak === null;

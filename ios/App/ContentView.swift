@@ -393,15 +393,24 @@ struct ContentView: View {
         }
     }
 
-    /// A SOKADIK megakadás: az ötödik, tizedik, huszadik mai megakadásnál a lap
-    /// egy lépést javasol — nem tilt, nem ítél. iPhone-on a tunnel nem értesít;
-    /// a lap mondja, amíg nyitva van. A munkamenet gombjai egy kártyával lejjebb.
+    /// Tíz perccel a csúcs-óra előtt: a csúcs — különben nil.
+    private var peakSoon: (hour: Int, count: Int)? {
+        guard let peak = FilterHitLogic.peakHour(store.state.filterHitHours ?? [:], now: now),
+              FilterHitLogic.peakWarnKey(peak, now: now) != nil else { return nil }
+        return peak
+    }
+
+    /// A JAVASLAT kártyája: a sokadik megakadás mondata és/vagy az előjelzés tíz
+    /// perccel a csúcs-óra előtt — amit az értesítés mond, a lap is mondja. Nem
+    /// tilt, nem ítél. iPhone-on a tunnel nem értesít; a lap mondja, amíg nyitva van.
     private var hitNudgeBanner: some View {
         Group {
             let step = FilterHitLogic.nudgeStep(FilterHitLogic.hitsToday(store.state.filterHits ?? [:], now: now))
-            if step > 0 {
+            let soon = peakSoon
+            if step > 0 || soon != nil {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(FilterHitLogic.nudgeText(step)).font(.footnote)
+                    if step > 0 { Text(FilterHitLogic.nudgeText(step)).font(.footnote) }
+                    if let soon { Text(FilterHitLogic.peakWarnText(soon)).font(.footnote) }
                     // EGY KOPPINTÁS a mondattól a menetig: a legutóbb használt csomag
                     // a szokásos hosszával — szigorítás, ingyen. Futó menet mellett
                     // nincs gomb (egyszerre egy menet fut).

@@ -424,6 +424,8 @@ marad, a hídra a napi összeg megy). A gépi statisztika a hét alatt az okokat
 mondja — MELYIK szabály dolgozik: „Ebből: 7 zárva oldal · 3 kulcsszó · 2
 munkamenet.” (`browserHitsReasons` a státuszban, a hídon átjött okonkénti
 számokból; holtversenynél az okok rögzített sorrendje, hogy a sor ne ugráljon).
+A bővítmény beállítás-lapja ugyanezt mondja a saját könyvéből: „A héten: 4
+zárva oldal · 3 munkamenet” — app nélkül is.
 
 **Mikor jár a kéz magától:** a bővítmény óránként is könyvel (a nap
 huszonnégy rekesze), a beállítás-lapja a hét csúcs-óráját mondja és egy
@@ -461,6 +463,8 @@ iPhone-on a rendszer (az app ütemezi, amikor nyitva van; a csúcs változásako
 segítene, te döntesz. Csak ha a csúcs legalább három; naponta egyszer (a
 nulla órás csúcs ablaka az előző estén van). Tükör időzítéssel — nem tilt,
 nem ítél. A tíz perc és a három a három magban azonos (`check-core-sync`).
+A telefon kezdőlapján a javaslat kártyája ugyanebben a tíz percben az
+előjelzés mondatát is mondja — a munkamenet gombjával együtt.
 
 A **hét alakja a megakadásokra** is megvan mindhárom statisztikán — ugyanaz
 a rajz, mint a mért időé és a meneteké, csak darabban: a gépen a böngésző

@@ -177,10 +177,31 @@ export function hitsText(summary) {
 
 /** Egy nap sora a beállítási lapon: „szept. 18. — 3 (kulcsszó 2, zárva 1)”. */
 export function hitsRows(state, today) {
-  const names = { closed: 'zárva oldal', focus: 'munkamenet', channel: 'csatorna', rule: 'részleges szabály', keyword: 'kulcsszó', other: 'egyéb' };
   return hitsReport(state, today).reverse().map((r) => ({
     day: r.day,
     total: r.total,
-    detail: Object.entries(r.byReason).map(([k, n]) => `${names[k] ?? k} ${n}`).join(', '),
+    detail: Object.entries(r.byReason).map(([k, n]) => `${REASON_NAMES[k] ?? k} ${n}`).join(', '),
   }));
+}
+
+/** Az okok nevei — a gépi statisztika ugyanezeket mondja. */
+export const REASON_NAMES = { closed: 'zárva oldal', focus: 'munkamenet', channel: 'csatorna', rule: 'részleges szabály', keyword: 'kulcsszó', other: 'egyéb' };
+
+/**
+ * A hét okonként, a legnagyobb elöl — MELYIK szabály dolgozik. Holtversenynél
+ * az okok rögzített sorrendje, hogy a sor ne ugráljon két frissítés között.
+ */
+export function hitsWeekByReason(state, today) {
+  const sum = {};
+  for (const r of hitsReport(state, today)) for (const [k, n] of Object.entries(r.byReason)) sum[k] = (sum[k] ?? 0) + n;
+  const order = [...HIT_REASONS, 'other'];
+  return Object.entries(sum).filter(([, n]) => n > 0)
+    .sort((a, b) => b[1] - a[1] || order.indexOf(a[0]) - order.indexOf(b[0]))
+    .map(([reason, count]) => ({ reason, count }));
+}
+
+/** „A héten: 4 zárva oldal · 3 munkamenet” — vagy null, ha nincs miről. */
+export function hitsReasonText(rows) {
+  if (!rows.length) return null;
+  return 'A héten: ' + rows.map((r) => `${r.count} ${REASON_NAMES[r.reason] ?? r.reason}`).join(' · ');
 }

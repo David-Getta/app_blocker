@@ -564,6 +564,23 @@ const WIRES = [
     needle: "hitsReasonLine(status?.browserHitsReasons ?? [])",
     lost: 'a gépi statisztika nem mondaná, melyik szabály dolgozik',
   },
+  {
+    file: 'extension/options.js',
+    needle: 'hitsReasonText(hitsWeekByReason(state, today))',
+    lost: 'a bővítmény beállítás-lapja nem mondaná, melyik szabály dolgozik',
+  },
+  // AZ ELŐJELZÉS a lapon is: amit az értesítés mond, a kezdőlap kártyája is —
+  // a gombbal együtt. Ha kiesne, a csúcs-óra előtt csak a sáv szólna.
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/AppUi.kt',
+    needle: 'FilterHitLogic.peakWarnText(it)',
+    lost: 'az Android kezdőlapja nem mondaná az előjelzést a csúcs-óra előtt',
+  },
+  {
+    file: 'ios/App/ContentView.swift',
+    needle: 'FilterHitLogic.peakWarnText(soon)',
+    lost: 'az iPhone kezdőlapja nem mondaná az előjelzést a csúcs-óra előtt',
+  },
   // A MEGAKADÁS-SZÁMLÁLÓ lánca: a háttér könyvel, a link átadja, a híd
   // fogadja, a segéd tartja, a mondat és a statisztika mondja. Ha bármelyik
   // láncszem kiesne, a bővítmény lapja továbbra is számolna — az app viszont

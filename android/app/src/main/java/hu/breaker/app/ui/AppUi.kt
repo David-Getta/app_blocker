@@ -384,14 +384,17 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                 }
             }
             FocusRunningCard(state, now, onError = { flowError = it })
-            // A SOKADIK megakadás: az ötödik, tizedik, huszadik mai megakadásnál a
-            // lap egy lépést javasol — a szolgáltatás egyszer értesít is. Nem tilt,
-            // nem ítél; a döntés az emberé, a munkamenet gombjai egy kártyával lejjebb.
+            // A JAVASLAT kártyája: a sokadik megakadás mondata és/vagy az előjelzés
+            // tíz perccel a csúcs-óra előtt — amit az értesítés mond, a lap is
+            // mondja. Nem tilt, nem ítél; a döntés az emberé.
             val nudge = FilterHitLogic.nudgeStep(FilterHitLogic.hitsToday(state.filterHits, now))
-            if (nudge > 0) {
+            val peakSoon = FilterHitLogic.peakHour(state.filterHitHours, now)
+                ?.takeIf { FilterHitLogic.peakWarnKey(it, now) != null }
+            if (nudge > 0 || peakSoon != null) {
                 Card {
                     Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(FilterHitLogic.nudgeText(nudge), style = MaterialTheme.typography.bodySmall)
+                        if (nudge > 0) Text(FilterHitLogic.nudgeText(nudge), style = MaterialTheme.typography.bodySmall)
+                        peakSoon?.let { Text(FilterHitLogic.peakWarnText(it), style = MaterialTheme.typography.bodySmall) }
                         // EGY KOPPINTÁS a mondattól a menetig: a legutóbb használt
                         // csomag a szokásos hosszával — szigorítás, ingyen. Futó menet
                         // mellett nincs gomb (egyszerre egy menet fut).

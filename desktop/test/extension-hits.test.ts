@@ -34,12 +34,15 @@ interface Hits {
   hourLabel: (hour: number) => string;
   hitsNudge: (today: number) => string;
   NUDGE_AT: number;
+  hitsWeekByReason: (state: unknown, today: string) => { reason: string; count: number }[];
+  hitsReasonText: (rows: { reason: string; count: number }[]) => string | null;
+  REASON_NAMES: Record<string, string>;
 }
 
 function load(): Hits {
   const src = fs.readFileSync(path.join(extensionDir(), 'hits.js'), 'utf8').replace(/^export /gm, '');
   // eslint-disable-next-line no-new-func
-  return new Function(`${src}\nreturn { RETENTION_DAYS, MAX_HOSTS_PER_DAY, dayKey, lastDays, recordHit, sweepHits, hitsOn, hitsOnHost, hitsSummary, hitsReport, hitsText, hitsRows, hitsByHour, peakHour, hourLabel, hitsNudge, NUDGE_AT };`)() as Hits;
+  return new Function(`${src}\nreturn { RETENTION_DAYS, MAX_HOSTS_PER_DAY, dayKey, lastDays, recordHit, sweepHits, hitsOn, hitsOnHost, hitsSummary, hitsReport, hitsText, hitsRows, hitsByHour, peakHour, hourLabel, hitsNudge, NUDGE_AT, hitsWeekByReason, hitsReasonText, REASON_NAMES };`)() as Hits;
 }
 
 const TODAY = '2026-09-18';
@@ -147,4 +150,23 @@ test('a sokadik megakadásnál a lap egy lépést javasol — alatta hallgat', (
   assert.equal(h.NUDGE_AT, 5);
   assert.equal(h.hitsNudge(4), '');
   assert.match(h.hitsNudge(5), /munkamenet vagy egy rövid zárlat/);
+});
+
+test('a hét okonként: a legnagyobb elöl, holtversenynél az okok sorrendje; a mondat a lap neveivel', () => {
+  const h = load();
+  let s = {};
+  for (let i = 0; i < 3; i++) s = h.recordHit(s, TODAY, 'keyword');
+  s = h.recordHit(s, TODAY, 'closed');
+  for (let i = 0; i < 3; i++) s = h.recordHit(s, '2026-09-17', 'closed');
+  s = h.recordHit(s, '2026-09-17', 'focus');
+  s = h.recordHit(s, '2026-09-10', 'channel'); // a nyolc napos nem a hété
+  assert.deepEqual(h.hitsWeekByReason(s, TODAY), [
+    { reason: 'closed', count: 4 }, { reason: 'keyword', count: 3 }, { reason: 'focus', count: 1 },
+  ]);
+  assert.equal(h.hitsReasonText(h.hitsWeekByReason(s, TODAY)), 'A héten: 4 zárva oldal · 3 kulcsszó · 1 munkamenet');
+  assert.equal(h.hitsReasonText([]), null, 'üresen nincs mondat');
+  assert.deepEqual(h.hitsWeekByReason({}, TODAY), []);
+  const tie = h.recordHit(h.recordHit({}, TODAY, 'keyword'), TODAY, 'closed');
+  assert.deepEqual(h.hitsWeekByReason(tie, TODAY).map((r) => r.reason), ['closed', 'keyword'], 'holtverseny: az okok rögzített sorrendje');
+  assert.equal(h.REASON_NAMES.rule, 'részleges szabály');
 });
