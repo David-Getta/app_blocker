@@ -1525,6 +1525,32 @@ const WIRES = [
     needle: 'usageDay?.let { Text(UsageLogic.dayNowText(it), style = MaterialTheme.typography.bodySmall) }',
     lost: 'az Android kártya nem mondaná, hogy ma megy el a legtöbb idő',
   },
+  // A MENET-SOROZAT ott is, ahol a döntés van: a gépi kártya és a réteg lába, a telefonok kártyája, az Android sáv.
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: 'if (streakLine) lines.push(streakLine);',
+    lost: 'a gépi kártya nem mondaná a menet-sorozatot',
+  },
+  {
+    file: 'desktop/src/renderer/overlay.ts',
+    needle: '+ streakPart(st);',
+    lost: 'a réteg lába nem mondaná a menet-sorozatot',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/AppUi.kt',
+    needle: 'streakLine?.let { Text(it, style = MaterialTheme.typography.bodySmall) }',
+    lost: 'az Android kártya nem mondaná a menet-sorozatot',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/vpn/BreakerVpnService.kt',
+    needle: '(if (streak >= 2) " · $streak napja minden nap" else "")',
+    lost: 'az Android szűrő-értesítés sora nem mondaná a menet-sorozatot',
+  },
+  {
+    file: 'ios/App/ContentView.swift',
+    needle: 'if let streakLine { Text(streakLine).font(.footnote) }',
+    lost: 'az iPhone kártyája nem mondaná a menet-sorozatot',
+  },
   // A MENET-ÓRA FEDÉSE a böngésző lapjain: a híd leadja, a lap kimondja.
   {
     file: 'desktop/src/main/main.ts',

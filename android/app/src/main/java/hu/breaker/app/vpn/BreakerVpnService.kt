@@ -220,9 +220,12 @@ class BreakerVpnService : VpnService() {
         val focusHourNow = !peakNow && Focus.isHourNow(Focus.peakHour(Focus.byHour(st.focusLog, now)), now)
         // A MÉRT IDŐ NAPJÁN a tükör harmadik fele is: ma megy el a legtöbb idő — a kártya szava, csak elég mintából.
         val usageDay = UsageLogic.isDayNow(FilterHitLogic.peakWeekday(UsageLogic.byWeekday(st.usage, now)), now)
+        // A MENET-SOROZAT is: hány napja ülsz le minden nap — kettőtől, mint a mag szövege; tény, nem felszólítás.
+        val streak = Focus.dayStreak(st.focusLog, now)
         val hitsPart = (if (hitsToday > 0) " · Ma $hitsToday megakadás" else "") + (if (peakNow) " · most a csúcs-óra" else "") +
             (if (peakDay) " · ma a csúcs-nap" else "") + (if (focusDay) " · ma a menet-nap" else "") +
-            (if (focusHourNow) " · most a menet-óra" else "") + (if (usageDay) " · ma a legnagyobb nap" else "")
+            (if (focusHourNow) " · most a menet-óra" else "") + (if (usageDay) " · ma a legnagyobb nap" else "") +
+            (if (streak >= 2) " · $streak napja minden nap" else "")
         val textWithHits = if (hitsPart.isNotEmpty() && strictDns == null) text + hitsPart else text
         return Notification.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_lock_lock)

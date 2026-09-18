@@ -168,7 +168,9 @@ sorozat (kettőtől szól), a megszakadt sorozat nem bűn, csak nulla — tény,
 nem ítélet (`focusDayStreak`/`focusStreakText`, `Focus.dayStreak`; a gépen
 a segéd adja le a statisztika-válaszban, `focusStreak`). A böngésző felugró
 lapja és tiltó lapja is mondja, a menet gombja mellett — a híd adja le az app
-státuszából (`suggest.focusStreak`), a lap kettőtől mondja. A statisztika sora
+státuszából (`suggest.focusStreak`), a lap kettőtől mondja. Ott is, ahol a
+döntés van: a gépi kezdőlap javaslat-kártyája és a réteg lába, a telefonok
+kezdőlapjának kártyája, és az Android szűrő-értesítés sora („· 5 napja minden nap”). A statisztika sora
 a naplóban valaha volt leghosszabb sorozatot is mondja, ha az több a
 mostaninál: „5 napja minden nap leültél (a leghosszabb sorozatod: 12 nap).”
 — mostani sorozat nélkül csak a rekordot: „A leghosszabb sorozatod: 12 nap.”

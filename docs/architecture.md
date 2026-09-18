@@ -156,7 +156,7 @@ következik belőle, oda egy gomb.
 | menet-nap | négy hét menetei a vég napjára | statisztika, heti mondat, a menet-napon a kártya, a réteg, a böngésző lapjai, az Android sáv | — (tény) |
 | menet-óra | négy hét menetei az indulás órájára | statisztika (órák sávja), heti mondat, a menet-órában a kártya, a réteg, a böngésző lapjai, az Android sáv | előjelzés tíz perccel előtte; heti ablak egy kattintással (statisztika, kártya, böngésző, értesítés); a fedést kimondja; ha a csúcs-óra, a sor és a felugró lap kimondja |
 | mért idő napja | négy hét mért ideje a hét napjaira (gép, Android) | statisztika (napok sávja), heti mondat, a napján a kártya, a réteg, az Android sáv | — (tény) |
-| menet-sorozat | a napló napjai visszafelé a mától (vagy a tegnaptól) | statisztika (a rekorddal), heti mondat, a böngésző lapjai a menet gombja mellett | — (tény) |
+| menet-sorozat | a napló napjai visszafelé a mától (vagy a tegnaptól) | statisztika (a rekorddal), heti mondat, a kártya, a réteg, a böngésző lapjai, az Android sáv | — (tény) |
 
 A szabály mindenütt ugyanaz: kétszer ugyanazt nem (ha a menet-óra a csúcs-óra,
 a csúcs-óra gombja és előjelzése szól), elég minta nélkül nincs mondat, futó

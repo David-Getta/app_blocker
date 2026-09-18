@@ -457,6 +457,11 @@ struct ContentView: View {
         return peak
     }
 
+    /// A MENET-SOROZAT: hány napja ülsz le minden nap — a kártya a gomb mellett mondja, kettőtől; tény, nem felszólítás.
+    private var focusStreakLine: String? {
+        Focus.streakText(Focus.dayStreak(store.state.focusLog ?? [], now: now))
+    }
+
     /// A CSÚCS-NAPON: a négy hét csúcs-napja — különben nil. Csak elég mintából; a kártya mondja, hogy ma van.
     private var peakDayNow: (day: Int, count: Int)? {
         guard let peak = FilterHitLogic.peakWeekday(FilterHitLogic.byWeekday(store.state.filterHits ?? [:], now: now)),
@@ -482,7 +487,8 @@ struct ContentView: View {
             let onPeakDay = peakDayNow
             let onFocusDay = focusDayNow
             let inFocusHour = focusHourNow
-            if step > 0 || soon != nil || inPeak != nil || onPeakDay != nil || onFocusDay != nil || inFocusHour != nil {
+            let streakLine = focusStreakLine
+            if step > 0 || soon != nil || inPeak != nil || onPeakDay != nil || onFocusDay != nil || inFocusHour != nil || streakLine != nil {
                 VStack(alignment: .leading, spacing: 8) {
                     if step > 0 { Text(FilterHitLogic.nudgeText(step)).font(.footnote) }
                     if let soon { Text(FilterHitLogic.peakWarnText(soon)).font(.footnote) }
@@ -494,6 +500,8 @@ struct ContentView: View {
                     if let onFocusDay { Text(Focus.dayNowText(onFocusDay)).font(.footnote) }
                     // A MENET-ÓRÁBAN is: most szoktál elkezdeni — a csúcs-óra mondatának tükre, a gombbal.
                     if let inFocusHour { Text(Focus.hourNowText(inFocusHour)).font(.footnote) }
+                    // A MENET-SOROZAT is: hány napja ülsz le minden nap — a gomb mellett; tény, nem felszólítás.
+                    if let streakLine { Text(streakLine).font(.footnote) }
                     // EGY KOPPINTÁS a mondattól a menetig: a legutóbb használt csomag
                     // a szokásos hosszával — szigorítás, ingyen. Futó menet mellett
                     // nincs gomb (egyszerre egy menet fut).

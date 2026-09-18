@@ -401,7 +401,9 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
             val focusHourNow = Focus.peakHour(Focus.byHour(state.focusLog, now))?.takeIf { Focus.isHourNow(it, now) }
             // A MÉRT IDŐ NAPJÁN is: ma megy el a legtöbb idő — a tükör harmadik fele, ítélet nélkül.
             val usageDay = FilterHitLogic.peakWeekday(UsageLogic.byWeekday(state.usage, now))?.takeIf { UsageLogic.isDayNow(it, now) }
-            if (nudge > 0 || peakSoon != null || peakNow != null || peakDay != null || focusDay != null || focusHourNow != null || usageDay != null) {
+            // A MENET-SOROZAT is: hány napja ülsz le minden nap — a gomb mellett; tény, nem felszólítás.
+            val streakLine = Focus.streakText(Focus.dayStreak(state.focusLog, now)).takeIf { it.isNotEmpty() }
+            if (nudge > 0 || peakSoon != null || peakNow != null || peakDay != null || focusDay != null || focusHourNow != null || usageDay != null || streakLine != null) {
                 Card {
                     Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         if (nudge > 0) Text(FilterHitLogic.nudgeText(nudge), style = MaterialTheme.typography.bodySmall)
@@ -411,6 +413,7 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                         focusDay?.let { Text(Focus.dayNowText(it), style = MaterialTheme.typography.bodySmall) }
                         focusHourNow?.let { Text(Focus.hourNowText(it), style = MaterialTheme.typography.bodySmall) }
                         usageDay?.let { Text(UsageLogic.dayNowText(it), style = MaterialTheme.typography.bodySmall) }
+                        streakLine?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
                         // EGY KOPPINTÁS a mondattól a menetig: a legutóbb használt
                         // csomag a szokásos hosszával — szigorítás, ingyen. Futó menet
                         // mellett nincs gomb (egyszerre egy menet fut).

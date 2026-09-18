@@ -14,7 +14,7 @@ import {
   type FocusPack, type FocusRun,
 } from '../shared/focus.js';
 import { hitNudgeStep, peakDayNowText, peakNowText } from '../shared/browser-hits.js';
-import { focusDayNowText, focusHourNowText } from '../shared/focus.js';
+import { focusDayNowText, focusHourNowText, focusStreakText } from '../shared/focus.js';
 import { usageDayNowText } from '../shared/usage.js';
 import {
   formatLockdownRemaining, isLocked, isWindowLockdown, type Lockdown, type LockdownWindow,
@@ -61,6 +61,8 @@ interface Status {
   lastUsedPackId?: string | null;
   /** a mért idő napja (0 = vasárnap; másodperc négy hét alatt) — a láb a „ma van” mondatához */
   usageWeekday?: { day: number; count: number } | null;
+  /** a menet-sorozat: hány napja ülsz le minden nap — a láb mondja, kettőtől */
+  focusStreak?: number;
   now: number;
 }
 
@@ -73,7 +75,14 @@ function hitsLine(st: Status): string {
   const n = st.browserHitsToday ?? 0;
   return (n > 0 ? ` Ma ${n} megakadás a böngészőben.` : '') + peakNowText(st.browserHitsPeak ?? null, st.now)
     + peakDayNowText(st.browserHitsWeekday ?? null, st.now) + focusDayNowText(st.focusWeekday ?? null, st.now)
-    + focusHourNowText(st.focusHour ?? null, st.now) + usageDayNowText(st.usageWeekday ?? null, st.now);
+    + focusHourNowText(st.focusHour ?? null, st.now) + usageDayNowText(st.usageWeekday ?? null, st.now)
+    + streakPart(st);
+}
+
+/** A MENET-SOROZAT a lábban: „5 napja minden nap leültél.” — kettőtől, a mag szövegével; tény, nem felszólítás. */
+function streakPart(st: Status): string {
+  const t = focusStreakText(st.focusStreak ?? 0);
+  return t ? ` ${t}` : '';
 }
 
 /** A leállítás útja a lábban: az appban, próbatétellel — megbízottal az ő jelmondatával a végén. */

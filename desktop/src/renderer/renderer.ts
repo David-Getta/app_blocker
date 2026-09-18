@@ -454,6 +454,9 @@ function renderSuggestCard(now: number): void {
   // A MÉRT IDŐ NAPJÁN is: ma megy el a legtöbb idő — a tükör harmadik fele, ítélet nélkül.
   const usageDayLine = usageDayNowText(status?.usageWeekday ?? null, now).trim();
   if (usageDayLine) lines.push(usageDayLine);
+  // A MENET-SOROZAT is: hány napja ülsz le minden nap — a gomb mellett; tény, nem felszólítás.
+  const streakLine = focusStreakText(status?.focusStreak ?? 0);
+  if (streakLine) lines.push(streakLine);
   $('suggestCard').classList.toggle('hidden', lines.length === 0);
   $('suggestText').textContent = lines.join(' ');
   const pick = suggestedPack();
