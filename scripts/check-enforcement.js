@@ -539,6 +539,19 @@ const WIRES = [
     needle: 'PeakReminder.reschedule(peak: peak)',
     lost: 'iPhone-on az app nem ütemezné az előjelzést a csúcs-óra előtt',
   },
+  // EGY KOPPINTÁS a mondattól a menetig: ha a gomb kiesne, a javaslat csak
+  // szöveg maradna — a csomagkártya egy görgetéssel lejjebb, és senki nem
+  // hiányolná.
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/AppUi.kt',
+    needle: 'Referee.startFocus(pick.id, pick.defaultMinutes, System.currentTimeMillis())',
+    lost: 'az Android javaslat-kártyája nem indítana menetet egy koppintásra',
+  },
+  {
+    file: 'ios/App/ContentView.swift',
+    needle: 'Referee.startFocus(packId: pick.id, minutes: pick.defaultMinutes, now: nowMs())',
+    lost: 'az iPhone javaslat-kártyája nem indítana menetet egy koppintásra',
+  },
   // A MEGAKADÁS-SZÁMLÁLÓ lánca: a háttér könyvel, a link átadja, a híd
   // fogadja, a segéd tartja, a mondat és a statisztika mondja. Ha bármelyik
   // láncszem kiesne, a bővítmény lapja továbbra is számolna — az app viszont

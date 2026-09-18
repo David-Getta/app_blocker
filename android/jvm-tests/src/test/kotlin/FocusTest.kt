@@ -29,6 +29,16 @@ class FocusTest {
 
     private val noBlocklist = emptyList<String>()
 
+    @Test fun `a legutobb hasznalt csomag - a naplo szerint, torolt csomag nelkul, kulonben az elso`() {
+        val a = pack("a.com").copy(id = "pack_a", name = "A")
+        val b = pack("b.com").copy(id = "pack_b", name = "B")
+        fun entry(id: String, at: Long) = Focus.FocusLogEntry(id, id, at, at + 60_000L, at + 60_000L, false)
+        assertNull(Focus.lastUsedPack(emptyList(), emptyList()), "csomag nélkül nincs mit indítani")
+        assertEquals(a, Focus.lastUsedPack(listOf(a, b), emptyList()), "napló nélkül az első")
+        assertEquals(b, Focus.lastUsedPack(listOf(a, b), listOf(entry("pack_a", 1000L), entry("pack_b", 2000L))), "a legfrissebb sor")
+        assertEquals(a, Focus.lastUsedPack(listOf(a, b), listOf(entry("pack_a", 1000L), entry("pack_x", 2000L))), "a törölt csomag sora nem számít")
+    }
+
     // ---------------------------------------------------------- heti ablak
     //
     // A `focus-recurrence.test.ts` tükre: az ablak az ígéret (a kezdés mindig

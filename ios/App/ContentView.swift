@@ -400,11 +400,26 @@ struct ContentView: View {
         Group {
             let step = FilterHitLogic.nudgeStep(FilterHitLogic.hitsToday(store.state.filterHits ?? [:], now: now))
             if step > 0 {
-                Text(FilterHitLogic.nudgeText(step))
-                    .font(.footnote)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding()
-                    .background(Color.orange.opacity(0.11), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(FilterHitLogic.nudgeText(step)).font(.footnote)
+                    // EGY KOPPINTÁS a mondattól a menetig: a legutóbb használt csomag
+                    // a szokásos hosszával — szigorítás, ingyen. Futó menet mellett
+                    // nincs gomb (egyszerre egy menet fut).
+                    if let pick = Focus.lastUsedPack(store.state.focusPacks ?? [], log: store.state.focusLog ?? []),
+                       !Focus.isRunning(store.state.focusRun, now: now) {
+                        Button("Munkamenet: \(pick.name), \(pick.defaultMinutes) perc") {
+                            do {
+                                try Referee.startFocus(packId: pick.id, minutes: pick.defaultMinutes, now: nowMs())
+                            } catch {
+                                flowError = (error as? Referee.RefereeError)?.message ?? "Nem sikerült elindítani."
+                            }
+                        }
+                        .buttonStyle(.bordered)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding()
+                .background(Color.orange.opacity(0.11), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
             }
         }
     }

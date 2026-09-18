@@ -444,6 +444,12 @@ saját csatornán, hogy külön lehessen elnémítani), és a kezdőlap egy kár
 mondja a mondatot; iPhone-on a tunnel nem értesít — a kezdőlap mondja, amíg
 nyitva van. A lépcsők (5, 10, 20) a három magban azonosak (`check-core-sync`).
 
+A telefon kártyáján egy gomb is van — „Munkamenet: Nyelvtanulás, 25 perc” —,
+amely a legutóbb használt csomagot indítja a szokásos hosszával (napló nélkül
+az elsőt; `Focus.lastUsedPack`, mindkét magban tesztelve): egy koppintás a
+mondattól a menetig, szigorítás ingyen. Futó menet mellett nincs gomb
+(egyszerre egy menet fut), csomag nélkül sincs — a mondat akkor is ott van.
+
 **Előjelzés a csúcs-óra előtt:** tíz perccel a hét csúcs-órája előtt egyszer
 szól a gép (amíg fut), Androidon a szolgáltatás (a megakadások csatornáján),
 iPhone-on a rendszer (az app ütemezi, amikor nyitva van; a csúcs változásakor

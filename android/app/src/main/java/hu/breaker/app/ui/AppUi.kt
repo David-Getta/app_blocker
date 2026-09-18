@@ -390,11 +390,19 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
             val nudge = FilterHitLogic.nudgeStep(FilterHitLogic.hitsToday(state.filterHits, now))
             if (nudge > 0) {
                 Card {
-                    Text(
-                        FilterHitLogic.nudgeText(nudge),
-                        Modifier.padding(14.dp),
-                        style = MaterialTheme.typography.bodySmall,
-                    )
+                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(FilterHitLogic.nudgeText(nudge), style = MaterialTheme.typography.bodySmall)
+                        // EGY KOPPINTÁS a mondattól a menetig: a legutóbb használt
+                        // csomag a szokásos hosszával — szigorítás, ingyen. Futó menet
+                        // mellett nincs gomb (egyszerre egy menet fut).
+                        val pick = Focus.lastUsedPack(state.focusPacks, state.focusLog)
+                        if (pick != null && !Focus.isRunning(state.focusRun, now)) {
+                            Button(onClick = {
+                                runCatching { Referee.startFocus(pick.id, pick.defaultMinutes, System.currentTimeMillis()) }
+                                    .onFailure { flowError = it.message ?: "Nem sikerült elindítani." }
+                            }) { Text("Munkamenet: ${pick.name}, ${pick.defaultMinutes} perc") }
+                        }
+                    }
                 }
             }
             FocusPacksCard(state, vpnRunning, onError = { flowError = it })

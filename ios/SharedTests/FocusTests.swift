@@ -15,6 +15,18 @@ final class FocusTests: XCTestCase {
         return d.timeIntervalSince1970 * 1000
     }
 
+    func testTheLastUsedPackFromTheLogWithoutDeletedOnesElseTheFirst() {
+        let a = Focus.Pack(id: "pack_a", name: "A", allowSites: ["a.com"], allowApps: [], defaultMinutes: 25)
+        let b = Focus.Pack(id: "pack_b", name: "B", allowSites: ["b.com"], allowApps: [], defaultMinutes: 50)
+        func e(_ id: String, _ at: Double) -> Focus.LogEntry {
+            Focus.LogEntry(packId: id, packName: id, startedAt: at, endedAt: at + 60_000, plannedEndsAt: at + 60_000, stopped: false)
+        }
+        XCTAssertNil(Focus.lastUsedPack([], log: []), "csomag nélkül nincs mit indítani")
+        XCTAssertEqual(Focus.lastUsedPack([a, b], log: [])?.id, "pack_a", "napló nélkül az első")
+        XCTAssertEqual(Focus.lastUsedPack([a, b], log: [e("pack_a", 1000), e("pack_b", 2000)])?.id, "pack_b", "a legfrissebb sor")
+        XCTAssertEqual(Focus.lastUsedPack([a, b], log: [e("pack_a", 1000), e("pack_x", 2000)])?.id, "pack_a", "a törölt csomag sora nem számít")
+    }
+
     func testDaySeriesCountsASessionOnTheDayItEnded() {
         let day = 86_400_000.0
         let hour = 3_600_000.0

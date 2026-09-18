@@ -54,7 +54,7 @@ cd android
   heti mondat mondja („12 megakadás a szűrőben”), és a szűrő értesítésének
   sora a mait („· Ma 3 megakadás”); az ötödik, tizedik és huszadik mainál a
   szolgáltatás egyszer egy lépést javasol (saját csatornán), a kezdőlap egy
-  kártyán; tíz perccel a hét csúcs-órája előtt a szolgáltatás egyszer előre
+  kártyán, amelynek gombja a legutóbb használt csomagot indítja; tíz perccel a hét csúcs-órája előtt a szolgáltatás egyszer előre
   szól. Tükör, nem ítélet; a fiókba nem megy.
   Lásd `docs/feature-usage-stats.md`.
 - A **kulcsszavak** (bármely oldalon, ha a cím tartalmazza) a zárlat

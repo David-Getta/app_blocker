@@ -51,8 +51,8 @@ percen belül egyszer — a munkamenet fehérlistáján kívül rekedt háttér-
 nem megakadás; `Shared/FilterHits.swift`, `filterHits`
 az állapotban, harminc nap), a statisztika nehézség-sora és a heti mondat
 mondja („12 megakadás a szűrőben”); az ötödik, tizedik és huszadik mainál a
-kezdőlap egy lépést javasol — a tunnel nem értesít, a lap mondja, amíg nyitva
-van; tíz perccel a hét csúcs-órája előtt a rendszer szól (az app ütemezi,
+kezdőlap egy lépést javasol (a kártya gombja a legutóbb használt csomagot
+indítja) — a tunnel nem értesít, a lap mondja, amíg nyitva van; tíz perccel a hét csúcs-órája előtt a rendszer szól (az app ütemezi,
 `App/PeakReminder.swift`). Tükör, nem ítélet; a fiókba nem megy.
 Lásd `docs/feature-usage-stats.md`.
 

@@ -350,6 +350,18 @@ public enum Focus {
         )
     }
 
+    /// A legutóbb használt csomag — a napló legfrissebb olyan sora szerint,
+    /// amelynek a csomagja még megvan —, vagy az első, ha még nem volt menet;
+    /// nil, ha nincs csomag. A javaslat gombja ezt indítja a szokásos hosszával:
+    /// egy koppintás a mondattól a menetig. Az androidos `lastUsedPack` tükre.
+    public static func lastUsedPack(_ packs: [Pack], log: [LogEntry]) -> Pack? {
+        let byId = Dictionary(packs.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        for e in log.sorted(by: { $0.startedAt > $1.startedAt }) {
+            if let p = byId[e.packId] { return p }
+        }
+        return packs.first
+    }
+
     /// Fókuszban töltött idő NAPONTA az utolsó `count` napra, a legrégebbitől
     /// — a hét alakja a menetekre. Egy menet a VÉGÉNEK napjára számít
     /// egészben (nyolc óránál hosszabb menet nincs; a lezárás napja az, amire

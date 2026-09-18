@@ -462,6 +462,18 @@ object Focus {
 
     /** Az ismétlődés kulcsa a lenyomatokhoz: napok rendezve, kezdés, vég — vagy „-”. */
     /**
+     * A legutóbb használt csomag — a napló legfrissebb olyan sora szerint,
+     * amelynek a csomagja még megvan —, vagy az első, ha még nem volt menet;
+     * null, ha nincs csomag. A javaslat gombja ezt indítja a szokásos
+     * hosszával: egy koppintás a mondattól a menetig. A Swift `lastUsedPack`
+     * tükre.
+     */
+    fun lastUsedPack(packs: List<FocusPack>, log: List<FocusLogEntry>): FocusPack? {
+        val byId = packs.associateBy { it.id }
+        return log.sortedByDescending { it.startedAt }.firstNotNullOfOrNull { byId[it.packId] } ?: packs.firstOrNull()
+    }
+
+    /**
      * Fókuszban töltött idő NAPONTA az utolsó [count] napra, a legrégebbitől —
      * a hét alakja a menetekre. Egy menet a VÉGÉNEK napjára számít egészben
      * (nyolc óránál hosszabb menet nincs; a lezárás napja az, amire az ember
