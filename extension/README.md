@@ -209,7 +209,8 @@ valamit, amit a felhasználó nem tiltott le.
     beállítás-lap a harminc nap alakját is rajzolja, ha a hét előtt is volt,
     és a mondat a harminc nap számát is mondja, ha több a hétnél; a
     beállítás-lap a hét csúcs-óráját mondja („A hét csúcsa: 21–22 óra”) és
-    egy óra-sávot rajzol — mikor jár a kéz magától; a hetet az előző héthez
+    egy óra-sávot rajzol — mikor jár a kéz magától; a négy hét csúcs-napját is
+    mondja, és a hét napjainak sávját rajzolja alá; a hetet az előző héthez
     méri („A héten 12 megakadás, az előző héten 18.” — a hídra két hét megy,
     hogy az app is tudja); kulcsszavanként is, a fogó szóval
     („Kulcsszavanként a héten: shorts 7 · reels 3” — melyik kulcsszó dolgozik;

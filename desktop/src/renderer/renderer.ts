@@ -25,7 +25,7 @@ import {
 import {
   hitNudgeStep, hitNudgeText, hitsKeywordLine, hitsReasonLine, hitsTrendText, hourLabel, monthHasOlderHits, peakDayNowText, peakNowText,
   peakWarnKey, peakWarnText,
-  peakWeekdayText,
+  peakWeekdayText, WEEKDAY_NAMES,
 } from '../shared/browser-hits.js';
 import { stepBurstNotices, type BurstNotice, type BurstWatch } from '../shared/burst-notify.js';
 import {
@@ -4263,6 +4263,29 @@ function renderHourStrip(strip: HTMLElement, hours: number[], peak: { hour: numb
   });
 }
 
+/** Hétfőtől vasárnapig — a csúcs-nap holtversenye is a hét elejétől számít. */
+const WEEKDAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
+
+/**
+ * A HÉT NAPJAINAK SÁVJA: a négy hét megakadásai a hét hét napjára osztva,
+ * hétfőtől — a csúcs-nap a mondat, a sáv az alakja (melyik napon jár a kéz
+ * magától, és melyiken nem). Csúcs nélkül nincs sáv.
+ */
+function renderWeekdayStrip(strip: HTMLElement, days: number[], peak: { day: number; count: number } | null): void {
+  strip.textContent = '';
+  const show = peak !== null && peak.count > 0 && days.length === 7;
+  strip.classList.toggle('hidden', !show);
+  if (!show || !peak) return;
+  for (const day of WEEKDAY_ORDER) {
+    const n = days[day] ?? 0;
+    const bar = document.createElement('span');
+    bar.className = day === peak.day ? 'hour-bar peak' : 'hour-bar';
+    bar.style.height = `${Math.min(28, Math.max(2, Math.round((n / peak.count) * 28)))}px`;
+    bar.title = `${WEEKDAY_NAMES[day]}: ${n} megakadás`;
+    strip.appendChild(bar);
+  }
+}
+
 function renderWeek(
   series: { day: string; seconds: number }[] | undefined,
   blockId = 'weekBlock', chartId = 'weekChart',
@@ -4524,6 +4547,9 @@ function renderStats(): void {
   const wd = status?.browserHitsWeekday ?? null;
   $('hitsWeekdayNote').classList.toggle('hidden', wd === null);
   $('hitsWeekdayNote').textContent = wd ? peakWeekdayText(wd) : '';
+  // A HÉT NAPJAINAK SÁVJA a mondat alatt: hétfőtől vasárnapig, a csúcs-nap kiemelve.
+  renderWeekdayStrip($('hitsWeekdayStrip'), status?.browserHitsWeekdays ?? [], wd);
+  $('hitsWeekdayAxis').classList.toggle('hidden', $('hitsWeekdayStrip').classList.contains('hidden'));
   // MELYIK szabály dolgozik: az okok a héten, a legnagyobb elöl. Üresen nincs.
   const reasons = hitsReasonLine(status?.browserHitsReasons ?? []);
   $('hitsReasonNote').classList.toggle('hidden', reasons === '');

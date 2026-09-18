@@ -153,6 +153,8 @@ export function statusOf(
     browserHitsHours: browserHitsByHour(state.browserHits, now),
     // A CSÚCS-NAP: négy hétből, a hét napjaira osztva — melyik napon akad meg a kéz a legtöbbször.
     browserHitsWeekday: peakWeekday(browserHitsByWeekday(state.browserHits, now)),
+    // A hét napjainak sávja — a csúcs-nap a mondat, a sáv az alakja.
+    browserHitsWeekdays: browserHitsByWeekday(state.browserHits, now),
     browserHitsReasons: browserHitsByReason(state.browserHits, now),
     browserHitsTop: browserHitsTopSite(state.browserHits, now, state.sites),
     browserHitsKeywords: browserHitsByKeyword(state.browserHits, now),

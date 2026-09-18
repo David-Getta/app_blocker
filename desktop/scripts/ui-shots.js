@@ -156,6 +156,8 @@ function fakeBridgeSource() {
       browserHitsHours: [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 2, 6, 1, 0],
       // A csúcs-nap négy hétből: vasárnap.
       browserHitsWeekday: { day: 0, count: 14 },
+      // A hét napjainak sávja: vasárnap a csúcs (14), a többi nap kevesebb.
+      browserHitsWeekdays: [14, 3, 5, 2, 4, 6, 1],
       browserHitsReasons: [{ reason: 'closed', count: 7 }, { reason: 'keyword', count: 3 }, { reason: 'focus', count: 2 }],
       browserHitsTop: { label: 'youtube.com', count: 7 },
       browserHitsKeywords: [{ keyword: 'shorts', count: 7 }, { keyword: 'reels', count: 3 }],
@@ -973,6 +975,19 @@ async function main() {
       && !document.getElementById('hitsWeekdayNote')?.classList.contains('hidden'),
     undefined, { timeout: 15_000 },
   ).catch(() => failures.push('a statisztika nem mondja a négy hét csúcs-napját'));
+  // A HÉT NAPJAINAK SÁVJA a mondat alatt: hét rekesz hétfőtől, a csúcs (vasárnap, az utolsó) kiemelve, a napok tengelyével.
+  const wdStrip = await page.evaluate(() => {
+    const el = document.getElementById('hitsWeekdayStrip');
+    const bars = el ? Array.from(el.children) : [];
+    return {
+      hidden: !el || el.classList.contains('hidden'), n: bars.length,
+      peak: bars.findIndex((b) => b.classList.contains('peak')),
+      axis: !document.getElementById('hitsWeekdayAxis')?.classList.contains('hidden'),
+    };
+  });
+  if (wdStrip.hidden || wdStrip.n !== 7 || wdStrip.peak !== 6 || !wdStrip.axis) {
+    failures.push(`a hét napjainak sávja nem áll a csúcs-nap mondata alatt (${JSON.stringify(wdStrip)})`);
+  }
   // AZ ÓRÁK SÁVJA a mondat alatt: huszonnégy rekesz, a csúcs (21) kiemelve.
   const strip = await page.evaluate(() => {
     const el = document.getElementById('hitsHourStrip');

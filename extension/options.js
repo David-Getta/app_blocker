@@ -16,7 +16,7 @@ import { dayKey, formatSeconds, lastDays, topChannels } from './chantime.js';
 import {
   hitsByHour, hitsByWeekday, hitsMonth, hitsReasonText, hitsRows, hitsSummary, hitsText, hitsTrendText, hitsWeekByReason, hourLabel, idleKeywords,
   monthHasOlderHits,
-  idleKeywordsText, keywordsText, keywordsWeek, peakHour, peakWeekday, peakWeekdayText, topHost,
+  idleKeywordsText, keywordsText, keywordsWeek, peakHour, peakWeekday, peakWeekdayText, topHost, WEEKDAY_NAMES,
 } from './hits.js';
 
 const TIME_KEY = 'breaker.chantime';
@@ -104,9 +104,24 @@ async function renderHits() {
   strip.hidden = peak === null;
   $('hitsHoursAxis').hidden = peak === null;
   // A CSÚCS-NAP: melyik napon akad meg a kéz a legtöbbször — négy hétből, a saját könyvből.
-  const weekday = peakWeekday(hitsByWeekday(state, today));
+  const byDay = hitsByWeekday(state, today);
+  const weekday = peakWeekday(byDay);
   $('hitsWeekday').hidden = weekday === null;
   $('hitsWeekday').textContent = weekday ? peakWeekdayText(weekday) : '';
+  // A HÉT NAPJAINAK SÁVJA a mondat alatt: hétfőtől vasárnapig, a csúcs-nap kiemelve.
+  const dayStrip = $('hitsWeekdays');
+  dayStrip.textContent = '';
+  dayStrip.hidden = weekday === null;
+  $('hitsWeekdaysAxis').hidden = weekday === null;
+  if (weekday) {
+    for (const day of [1, 2, 3, 4, 5, 6, 0]) {
+      const bar = el('span', 'hour-bar');
+      bar.style.height = `${Math.max(2, Math.round(((byDay[day] ?? 0) / weekday.count) * 28))}px`;
+      bar.title = `${WEEKDAY_NAMES[day]}: ${byDay[day] ?? 0}`;
+      if (day === weekday.day) bar.classList.add('peak');
+      dayStrip.appendChild(bar);
+    }
+  }
   if (peak) {
     const by = hitsByHour(state, week);
     by.forEach((n, hour) => {

@@ -534,6 +534,19 @@ async function main() {
     // Az óra-tengely a sávval együtt jelenik meg — a sáv órára olvasható.
     const axisHidden = await seeder.evaluate(() => document.querySelector('#hitsHoursAxis')?.hidden ?? null).catch(() => null);
     check(axisHidden === false, 'az óra-tengely nem áll a sáv alatt');
+    // A HÉT NAPJAINAK SÁVJA a csúcs-nap mondata alatt: hét rekesz hétfőtől, a mai
+    // nap kiemelve (a futás minden megakadása ma esett), a napok tengelyével.
+    const wdStrip = await seeder.evaluate(() => {
+      const el = document.querySelector('#hitsWeekdays');
+      const bars = el ? Array.from(el.children) : [];
+      return {
+        hidden: el?.hidden ?? null, n: bars.length, peak: bars.findIndex((b) => b.classList.contains('peak')),
+        axisHidden: document.querySelector('#hitsWeekdaysAxis')?.hidden ?? null,
+      };
+    }).catch(() => null);
+    const todayPos = (new Date().getDay() + 6) % 7;
+    check(!!wdStrip && wdStrip.hidden === false && wdStrip.n === 7 && wdStrip.peak === todayPos && wdStrip.axisHidden === false,
+      `a beállítás-lap a hét napjainak sávját rajzolja, a mai nap kiemelve (${JSON.stringify(wdStrip)})`);
     await seeder.evaluate(async () => {
       const got = await chrome.storage.local.get('breaker.hits');
       const book = got?.['breaker.hits'] ?? { days: {} };

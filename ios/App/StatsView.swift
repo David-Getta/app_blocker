@@ -177,8 +177,11 @@ struct StatsView: View {
                         }
                     }
                     // A CSÚCS-NAP: melyik napon akad meg a kéz a legtöbbször — négy hétből; tény, nem ítélet.
-                    if let wd = FilterHitLogic.peakWeekday(FilterHitLogic.byWeekday(store.state.filterHits ?? [:], now: now)) {
+                    let byDay = FilterHitLogic.byWeekday(store.state.filterHits ?? [:], now: now)
+                    if let wd = FilterHitLogic.peakWeekday(byDay) {
                         Text(FilterHitLogic.peakWeekdayText(wd)).font(.footnote).foregroundStyle(.secondary)
+                        // A HÉT NAPJAINAK SÁVJA a mondat alatt: hétfőtől vasárnapig, a csúcs-nap kiemelve.
+                        WeekdayStrip(days: byDay, peakDay: wd.day, peakCount: wd.count)
                     }
                     // MELYIK oldal akaszt meg a legtöbbször: a hét csúcs-oldala — a lista címkézésével.
                     if let top = FilterHitLogic.topSite(store.state.filterHitHosts ?? [:], now: now) {
@@ -360,6 +363,40 @@ private struct HourStrip: View {
                     ForEach([0, 6, 12, 18, 24], id: \.self) { h in
                         Text("\(h)").font(.caption2).foregroundStyle(.secondary)
                         if h != 24 { Spacer() }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// A HÉT NAPJAINAK SÁVJA: a négy hét megakadásai a hét hét napjára osztva,
+/// hétfőtől — a csúcs-nap a mondat, a sáv az alakja (melyik napon jár a kéz
+/// magától, és melyiken nem). Csúcs nélkül nincs sáv.
+private struct WeekdayStrip: View {
+    let days: [Int]
+    let peakDay: Int
+    let peakCount: Int
+    /// Hétfőtől vasárnapig — a csúcs-nap holtversenye is a hét elejétől számít.
+    private static let order = [1, 2, 3, 4, 5, 6, 0]
+    private static let dayShort = ["V", "H", "K", "Sze", "Cs", "P", "Szo"]
+
+    var body: some View {
+        if days.count == 7 && peakCount > 0 {
+            VStack(spacing: 2) {
+                HStack(alignment: .bottom, spacing: 2) {
+                    ForEach(Self.order, id: \.self) { day in
+                        RoundedRectangle(cornerRadius: 2, style: .continuous)
+                            .fill(Color.accentColor.opacity(day == peakDay ? 1 : 0.45))
+                            .frame(height: Swift.max(2, 28 * Double(days[day]) / Double(peakCount)))
+                            .frame(maxWidth: .infinity)
+                    }
+                }
+                .frame(height: 30, alignment: .bottom)
+                // A napok tengelye a sáv alatt: hét címke, egy-egy a rekesz alá középre.
+                HStack(spacing: 2) {
+                    ForEach(Self.order, id: \.self) { day in
+                        Text(Self.dayShort[day]).font(.caption2).foregroundStyle(.secondary).frame(maxWidth: .infinity)
                     }
                 }
             }

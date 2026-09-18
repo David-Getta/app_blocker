@@ -776,6 +776,7 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                 filterHitsPeak = FilterHitLogic.peakHour(state.filterHitHours, now),
                 filterHitHours = FilterHitLogic.byHour(state.filterHitHours, now),
                 filterHitsWeekday = FilterHitLogic.peakWeekday(FilterHitLogic.byWeekday(state.filterHits, now)),
+                filterHitWeekdays = FilterHitLogic.byWeekday(state.filterHits, now),
                 filterHitsPeakPack = FilterHitLogic.peakHour(state.filterHitHours, now)
                     ?.let { Focus.packCoveringHour(state.focusPacks, it.first) }
                     ?.let { p -> p.recurrence?.let { b -> "${p.name} (${recurrenceLabel(b)})" } },

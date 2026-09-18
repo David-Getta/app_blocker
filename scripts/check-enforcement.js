@@ -1152,6 +1152,32 @@ const WIRES = [
     needle: '(if (peakDay) " · ma a csúcs-nap" else "")',
     lost: 'az Android szűrő-értesítés sora a csúcs-napon nem mondaná, hogy ma van',
   },
+  // A HÉT NAPJAINAK SÁVJA a csúcs-nap mondata alatt — a négy felületen.
+  {
+    file: 'desktop/src/helper/server.ts',
+    needle: 'browserHitsWeekdays: browserHitsByWeekday(state.browserHits, now),',
+    lost: 'a segéd nem adná le a hét napjainak sávját, a gépi statisztika üresen rajzolná',
+  },
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: "renderWeekdayStrip($('hitsWeekdayStrip'), status?.browserHitsWeekdays ?? [], wd);",
+    lost: 'a gépi statisztika nem rajzolná a hét napjainak sávját',
+  },
+  {
+    file: 'extension/options.js',
+    needle: 'dayStrip.hidden = weekday === null;',
+    lost: 'a bővítmény beállítás-lapja nem rajzolná a hét napjainak sávját',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/StatsScreen.kt',
+    needle: 'WeekdayStrip(filterHitWeekdays, peakDay = day, peakCount = count)',
+    lost: 'az Android statisztika nem rajzolná a hét napjainak sávját',
+  },
+  {
+    file: 'ios/App/StatsView.swift',
+    needle: 'WeekdayStrip(days: byDay, peakDay: wd.day, peakCount: wd.count)',
+    lost: 'az iPhone statisztika nem rajzolná a hét napjainak sávját',
+  },
   // AZ ABLAK SZERINT INDULT menet a rétegben és az Android értesítésén is kimondva.
   {
     file: 'desktop/src/renderer/overlay.ts',
@@ -1181,12 +1207,12 @@ const WIRES = [
   },
   {
     file: 'ios/App/StatsView.swift',
-    needle: 'if let wd = FilterHitLogic.peakWeekday(FilterHitLogic.byWeekday(store.state.filterHits ?? [:], now: now)) {',
+    needle: 'if let wd = FilterHitLogic.peakWeekday(byDay) {',
     lost: 'az iPhone statisztika nem mondaná a négy hét csúcs-napját',
   },
   {
     file: 'extension/options.js',
-    needle: 'const weekday = peakWeekday(hitsByWeekday(state, today));',
+    needle: 'const weekday = peakWeekday(byDay);',
     lost: 'a bővítmény beállítás-lapja nem mondaná a négy hét csúcs-napját',
   },
   // CSOMAG FELVÉTELE a telefonon: a kártya gombja a bírót hívja — csak felvétel.

@@ -29,6 +29,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import hu.breaker.app.core.DigestLogic
@@ -76,6 +77,8 @@ fun StatsSection(
     onPeakWindow: () -> Unit = {},
     /** a négy hét csúcs-napja (0 = vasárnap; szám) — melyik napon akad meg a kéz a legtöbbször; null, ha nem volt */
     filterHitsWeekday: Pair<Int, Int>? = null,
+    /** a hét napjainak sávja: a négy hét megakadásai a hét hét napjára osztva (0 = vasárnap) — a csúcs-nap ebből áll; üres, ha nem volt */
+    filterHitWeekdays: List<Int> = emptyList(),
     /** a hét csúcs-oldala (nyers név, szám) — melyik oldal akaszt meg a legtöbbször; null, ha nem volt */
     filterHitsTop: Pair<String, Int>? = null,
     filterHitsReasons: List<Pair<String, Int>> = emptyList(),
@@ -190,7 +193,11 @@ fun StatsSection(
                 }
             }
             // A CSÚCS-NAP: melyik napon akad meg a kéz a legtöbbször — négy hétből; tény, nem ítélet.
-            filterHitsWeekday?.let { Text(FilterHitLogic.peakWeekdayText(it), style = MaterialTheme.typography.bodySmall) }
+            filterHitsWeekday?.let { (day, count) ->
+                Text(FilterHitLogic.peakWeekdayText(day to count), style = MaterialTheme.typography.bodySmall)
+                // A HÉT NAPJAINAK SÁVJA a mondat alatt: hétfőtől vasárnapig, a csúcs-nap kiemelve.
+                WeekdayStrip(filterHitWeekdays, peakDay = day, peakCount = count)
+            }
             // MELYIK oldal akaszt meg a legtöbbször: a hét csúcs-oldala — a lista címkézésével.
             filterHitsTop?.let { (site, count) ->
                 Text("A legtöbbször: ${labelOf(site)} ($count×).", style = MaterialTheme.typography.bodySmall)
@@ -574,6 +581,47 @@ private fun HourStrip(hours: List<Int>, peakHour: Int, peakCount: Int) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
         for (h in listOf(0, 6, 12, 18, 24)) {
             Text("$h", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+/** Hétfőtől vasárnapig — a csúcs-nap holtversenye is a hét elejétől számít. */
+private val WEEKDAY_ORDER = listOf(1, 2, 3, 4, 5, 6, 0)
+
+/**
+ * A HÉT NAPJAINAK SÁVJA: a négy hét megakadásai a hét hét napjára osztva,
+ * hétfőtől — a csúcs-nap a mondat, a sáv az alakja (melyik napon jár a kéz
+ * magától, és melyiken nem). Csúcs nélkül nincs sáv.
+ */
+@Composable
+private fun WeekdayStrip(days: List<Int>, peakDay: Int, peakCount: Int) {
+    if (days.size != 7 || peakCount <= 0) return
+    Row(
+        Modifier.fillMaxWidth().height(30.dp),
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+        verticalAlignment = Alignment.Bottom,
+    ) {
+        for (day in WEEKDAY_ORDER) {
+            val frac = (days[day].toFloat() / peakCount).coerceIn(0f, 1f)
+            Box(
+                Modifier
+                    .weight(1f)
+                    .height((28 * frac).dp.coerceAtLeast(2.dp))
+                    .clip(RoundedCornerShape(topStart = 2.dp, topEnd = 2.dp))
+                    .background(SERIES_1.copy(alpha = if (day == peakDay) 1f else 0.45f)),
+            )
+        }
+    }
+    // A napok tengelye a sáv alatt: hét címke, egy-egy a rekesz alá középre.
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+        for (day in WEEKDAY_ORDER) {
+            Text(
+                DAY_SHORT[day],
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f),
+                textAlign = TextAlign.Center,
+            )
         }
     }
 }

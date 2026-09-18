@@ -523,6 +523,14 @@ négy hétből nem minta, csak zaj. A csúcs-óra mondata mellett, nem helyette;
 a kártyán a menet gombja ugyanúgy ott van; az Android szűrő-értesítésének
 sora is mondja („· ma a csúcs-nap”). Tény, nem ítélet.
 
+**A hét napjainak sávja:** a csúcs-nap mondata alatt hét rekesz hétfőtől
+vasárnapig a négy hét megakadásaival, a csúcs-nap kiemelve, a napok
+tengelyével (H · K · Sze · Cs · P · Szo · V) — a gépi statisztikán
+(`browserHitsWeekdays` a státuszban, `renderWeekdayStrip`), a bővítmény
+beállítás-lapján (`hitsByWeekday`), Androidon és iPhone-on (`WeekdayStrip` a
+`FilterHitLogic.byWeekday` sorából). A csúcs a mondat, a sáv az alakja: melyik
+napon jár a kéz magától, és melyiken nem. Csúcs nélkül nincs sáv.
+
 **Ablak a csúcs-órára:** a statisztika a csúcs-óra mondata alatt — a gépen
 és a telefonokon is — egy gombot mutat — „Heti ablak a csúcs-órára: Nyelvtanulás, minden nap 21:00–22:00” —,
 ami a legutóbb használt csomagra heti ablakot tesz a csúcs egy órájában,

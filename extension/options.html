@@ -54,6 +54,7 @@
   .hour-bar { flex: 1; background: var(--ink-2); opacity: 0.45; border-radius: 2px 2px 0 0; }
   .hour-bar.peak { opacity: 1; }
   .hour-axis { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--ink-2); margin: 0 0 6px; }
+  .weekday-axis span { flex: 1; text-align: center; }
   .time-h { font-size: 0.86rem; margin: 12px 0 6px; color: var(--ink-2); font-weight: 600; }
 </style>
 </head>
@@ -143,6 +144,9 @@
     <div id="hitsHoursAxis" class="hour-axis" hidden><span>0</span><span>6</span><span>12</span><span>18</span><span>24</span></div>
     <!-- A CSÚCS-NAP: melyik napon akad meg a kéz a legtöbbször — négy hétből. -->
     <p class="muted" id="hitsWeekday" hidden></p>
+    <!-- A HÉT NAPJAINAK SÁVJA: hétfőtől vasárnapig a négy hét megakadásaival, a csúcs-nap kiemelve. -->
+    <div id="hitsWeekdays" class="hour-strip" hidden></div>
+    <div id="hitsWeekdaysAxis" class="hour-axis weekday-axis" hidden><span>H</span><span>K</span><span>Sze</span><span>Cs</span><span>P</span><span>Szo</span><span>V</span></div>
     <!-- A HÓNAP alakja: harminc nap, csak ha a hét előtt is volt — különben a hét sorai elegek. -->
     <p class="muted" id="hitsMonthTitle" hidden>Az elmúlt 30 nap, naponta:</p>
     <div id="hitsMonth" class="hour-strip" hidden></div>
