@@ -44,20 +44,21 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **Az előző hét a bővítmény lapján is.** A beállítás-lap a saját
-          könyvéből mondja, app nélkül is: „A héten 12 megakadás, az előző héten 18.”
-          Előző hét nélkül a sor nincs. Bővítmény 0.4.15. A weboldal a
-          három két-hetes mércét mondja: megakadás, menet, feloldás.
+          **Melyik kulcsszó dolgozik.** A megakadás-könyv a fogó szót is
+          elteszi, és a statisztika kulcsszavanként mondja a hetet: a gépi
+          Kulcsszavak kártya, a bővítmény beállítás-lapja és a telefon
+          statisztikája. Ami sosem fog, az nem szerepel — tükör a listára.
+          Bővítmény 0.4.16.
 
-          ### Ami a v0.4.75-ben jött
+          ### Ami a v0.4.76-ban jött
+
+          **Az előző hét a bővítmény lapján is** — a beállítás-lap a saját
+          könyvéből mondja, app nélkül is.
+
+          #### Ami a v0.4.75-ben jött
 
           **A feloldások az előző héthez képest** — a heti mondat és a gépi
           nehézség-sor a két számot egymás mellé teszi.
-
-          #### Ami a v0.4.74-ben jött
-
-          **A menetek az előző héthez képest** — a statisztika
-          munkamenet-blokkja és a heti mondat az előző hetet is mondja.
 
           NOTES
           fi
