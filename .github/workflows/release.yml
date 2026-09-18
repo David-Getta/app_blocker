@@ -44,20 +44,20 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **Az előjelzés a telefon kezdőlapján is.** Tíz perccel a hét
-          csúcs-órája előtt a javaslat kártyája a mondatot is mondja, a
-          munkamenet gombjával együtt — amit az értesítés mond, a lap is.
-          A bővítmény beállítás-lapja a hetet okonként is mondja: melyik
-          szabály dolgozik, app nélkül is.
+          **Ha nem kéred, csendben marad.** Az értesítés a sokadik
+          megakadásnál és a csúcs-óra előtt kikapcsolható — a gépen a
+          háttér-panel kapcsolójával, a telefonon a statisztikán. A kártya
+          és a statisztika sora akkor is mondja: a tükör marad, csak nem
+          szól utánad.
 
-          ### Ami a v0.4.62-ben jött
+          ### Ami a v0.4.63-ban jött
 
-          **Melyik szabály dolgozik** — a gépi statisztika okonként is
-          bontja a hét megakadásait; a weboldal két új kártyája.
+          **Az előjelzés a telefon kezdőlapján is**, a munkamenet gombjával;
+          a bővítmény beállítás-lapja a hetet okonként mondja.
 
-          #### Ami a v0.4.61-ben jött
+          #### Ami a v0.4.62-ben jött
 
-          **Egy koppintás a mondattól a menetig** a telefonon.
+          **Melyik szabály dolgozik** — a gépi statisztika okonként.
 
           NOTES
           fi
