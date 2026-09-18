@@ -87,4 +87,19 @@ object KeywordLogic {
         }
         return null
     }
+
+    /**
+     * Melyik kulcsszó illik a HOSZTNÉVRE — a telefon szűrője csak azt látja. Az
+     * első a lista sorrendjében, vagy null. Ugyanaz a szabály, mint a címnél: ha
+     * benne van, benne van (a `live` a `live.com`-ot is elviszi — a gépen is).
+     */
+    fun keywordInHost(keywords: List<String>, host: String): String? {
+        val hay = Normalizer.normalize(host.trim().trimEnd('.'), Normalizer.Form.NFKC).lowercase()
+        if (hay.isEmpty()) return null
+        for (k in keywords) {
+            val key = normalizeKeyword(k) ?: continue
+            if (hay.contains(key)) return key
+        }
+        return null
+    }
 }

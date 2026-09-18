@@ -199,6 +199,7 @@ public enum Focus {
     public enum Verdict {
         case allow
         case blockedByList
+        case blockedByKeyword
         case blockedByFocus
     }
 
@@ -209,6 +210,10 @@ public enum Focus {
     ///   1. A BLOKKLISTA MINDIG NYER. A munkamenet sosem old fel semmit — csak
     ///      hozzátesz. Ha ez fordítva lenne, egy csomagba felvett `youtube.com`
     ///      feloldaná a tiltott YouTube-ot, próbatétel nélkül.
+    ///   1b. A KULCSSZÓ a hosztnévben -> tiltva. A tunnel csak a hosztnevet
+    ///      látja, abban tilt (`tiktok` -> `www.tiktok.com`); a rendszer-
+    ///      infrastruktúra és a saját fiókkiszolgáló sosem — egy `live`
+    ///      kulcsszó ne vigye el a push-csatornát vagy a saját fiókot.
     ///   2. Nem fut munkamenet -> a blokklista döntött, mehet.
     ///   3. A csomagon rajta van -> mehet.
     ///   4. Rendszer-infrastruktúra -> mehet (lásd fent).
@@ -223,17 +228,23 @@ public enum Focus {
         pack: Pack?,
         now: Double,
         blocked: Set<String>,
-        syncHost: String? = nil
+        syncHost: String? = nil,
+        keywords: [String] = []
     ) -> Verdict {
         let h = normalizedHost(qname)
         if Blocklist.matches(h, blocked: blocked) { return .blockedByList }
+        var ownSync = false
+        if let syncHost {
+            let sh = normalizedHost(syncHost)
+            ownSync = !sh.isEmpty && (h == sh || h.hasSuffix(".\(sh)"))
+        }
+        if !keywords.isEmpty, !isInfrastructure(h), !ownSync, KeywordLogic.keywordInHost(keywords, h) != nil {
+            return .blockedByKeyword
+        }
         guard isRunning(run, now: now), let pack else { return .allow }
         if isSiteAllowed(pack, host: h) { return .allow }
         if isInfrastructure(h) { return .allow }
-        if let syncHost {
-            let sh = normalizedHost(syncHost)
-            if !sh.isEmpty, h == sh || h.hasSuffix(".\(sh)") { return .allow }
-        }
+        if ownSync { return .allow }
         return .blockedByFocus
     }
 

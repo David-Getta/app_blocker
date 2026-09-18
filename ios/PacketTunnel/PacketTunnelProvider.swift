@@ -75,7 +75,9 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
                 pack: store.runningFocusPack(now),
                 now: now,
                 blocked: blocked,
-                syncHost: store.syncHost()
+                syncHost: store.syncHost(),
+                // A kulcsszó a hosztnévben is tilt — a tunnel ennyit lát belőle.
+                keywords: store.state.keywords ?? []
             )
         } else {
             verdict = .allow
@@ -89,7 +91,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
             // CSAK A LISTA tiltása: a munkamenet fehérlistáján kívül a háttér-
             // forgalom is elakad (követők, CDN-ek, más appok), és az nem a kéz
             // mozdulata — így számolva a szám százat mondana egy csendes órára.
-            if verdict == .blockedByList, let name, FilterHitLogic.shouldCount(&hitSeen, name, now: now) {
+            if verdict == .blockedByList || verdict == .blockedByKeyword, let name, FilterHitLogic.shouldCount(&hitSeen, name, now: now) {
                 let day = FilterHitLogic.dayKey(now)
                 let hour = FilterHitLogic.hourOf(now)
                 // Oldalanként is: a lista tételével, nem a nyers hoszttal.

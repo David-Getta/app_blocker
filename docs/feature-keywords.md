@@ -59,9 +59,12 @@ a megbízott lépése a végén itt is áll (`docs/feature-partner-lock.md`).
   böngészőben* — ugyanaz a felület, ugyanaz a szabály: felvenni ingyen,
   levenni próbatétel (a telefon bírója: `Referee.setKeywords`, a függő lista a
   teljesítéskor ül be; a közben felvett szó itt sem vész el). A lista a fiókon
-  át a gépekre átér, és a gépi böngésző tilt vele. A rendszer-szintű
-  DNS-szűrő a címet nem látja, **a telefonon a kulcsszó nem tilt** — ezt nem
-  titkoljuk, a felület kimondja.
+  át a gépekre átér, és a gépi böngésző tilt vele. **A telefonon a kulcsszó a
+  hosztnévben tilt** (`tiktok` → `www.tiktok.com`): a rendszer-szintű
+  DNS-szűrő csak a hosztnevet látja, a webcím útvonalát és a lap címsorát nem
+  — ezt nem titkoljuk, a felület kimondja. A rendszer-infrastruktúra
+  (értesítés, kapcsolat-ellenőrzés, óra) és a saját fiókkiszolgáló sosem
+  esik kulcsszó alá; a blokklista ítélete elsőbb (a megakadás oka a lista).
 
 ## Szinkron
 
@@ -84,9 +87,10 @@ szabad).
 
 ## Őszinte határok
 
-- **Csak a böngészőben tilt**, és csak ott, ahova a bővítmény telepítve van.
-  Inkognitóban alapból nem fut; vendég módban bővítmény nincs. A telefonon
-  a lista szerkeszthető és átér, de ott nem tilt — kimondva.
+- **A gépen csak a böngészőben tilt**, és csak ott, ahova a bővítmény
+  telepítve van. Inkognitóban alapból nem fut; vendég módban bővítmény nincs.
+  A telefonon a hosztnévben tilt — az útvonalat és a címsort ott nem látja
+  senki, kimondva.
 - **Nem tartalom-szűrő.** A webcímet és a lap címsorát nézi, az oldal
   szövegét nem. Amit a cím és a címsor nem mond ki, azt a kulcsszó nem
   látja — és a címsor csak a lap betöltése után ér a laphoz, a webcím már

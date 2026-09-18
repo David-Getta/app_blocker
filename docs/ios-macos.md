@@ -66,9 +66,11 @@ háttérben nem fut.
 
 A **kulcsszavak** (bármely oldalon, ha a cím tartalmazza) a zárlat kártyája
 alján **szerkeszthetők**: felvenni ingyen, levenni próbatétel
-(`Referee.setKeywords`, a függő lista a teljesítéskor ül be). A tunnel a címet
-nem látja, ott a kulcsszó nem tilt — a sor kimondja; a lista a fiókon át a
-gépekre átér, és a gépi böngésző tilt vele (`Shared/Keywords.swift`, a gépi
+(`Referee.setKeywords`, a függő lista a teljesítéskor ül be). A tunnel a
+hosztnévben tilt vele (`Focus.verdict`, `.blockedByKeyword`; az infrastruktúra
+és a fiókkiszolgáló sosem), az útvonalat és a címsort nem látja — a sor
+kimondja; a lista a fiókon át a gépekre átér, és a gépi böngésző a teljes
+címben tilt vele (`Shared/Keywords.swift`, a gépi
 tükre; a blobon `keywords` + `keywordsRev`). Lásd `docs/feature-keywords.md`.
 
 ## Korlátok

@@ -407,12 +407,12 @@ const WIRES = [
   // a munkamenet tiltását is számolná, a háttér-forgalom százat mondana.
   {
     file: 'android/app/src/main/java/hu/breaker/app/vpn/BreakerVpnService.kt',
-    needle: 'verdict == Focus.Verdict.BLOCKED_BY_LIST && name != null && FilterHitLogic.shouldCount(hitSeen, name, now)',
+    needle: '(verdict == Focus.Verdict.BLOCKED_BY_LIST || verdict == Focus.Verdict.BLOCKED_BY_KEYWORD) && name != null && FilterHitLogic.shouldCount(hitSeen, name, now)',
     lost: 'Androidon a szűrő nem (csak a lista tiltásánál) könyvelné a megakadásokat',
   },
   {
     file: 'ios/PacketTunnel/PacketTunnelProvider.swift',
-    needle: 'verdict == .blockedByList, let name, FilterHitLogic.shouldCount(&hitSeen, name, now: now)',
+    needle: 'verdict == .blockedByList || verdict == .blockedByKeyword, let name, FilterHitLogic.shouldCount(&hitSeen, name, now: now)',
     lost: 'iPhone-on a tunnel nem (csak a lista tiltásánál) könyvelné a megakadásokat',
   },
   {
@@ -604,6 +604,28 @@ const WIRES = [
     file: 'ios/Shared/Digest.swift',
     needle: 'filterHitsTop: FilterHitLogic.topSite(st.filterHitHosts ?? [:], now: now)',
     lost: 'iPhone-on a heti mondat nem mondaná a csúcs-oldalt',
+  },
+  // A KULCSSZÓ a telefonon a hosztnévben tilt: a mag tudja, de ha a szolgáltatás
+  // vagy a tunnel nem adná át a listát, a kulcsszó továbbra is csak utazna.
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/Focus.kt',
+    needle: 'KeywordLogic.keywordInHost(keywords, h) != null',
+    lost: 'Androidon az ítélet nem nézné a kulcsszót — a kulcsszó nem tiltana',
+  },
+  {
+    file: 'ios/Shared/Focus.swift',
+    needle: 'KeywordLogic.keywordInHost(keywords, h) != nil',
+    lost: 'iPhone-on az ítélet nem nézné a kulcsszót — a kulcsszó nem tiltana',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/vpn/BreakerVpnService.kt',
+    needle: 'BreakerStore.state.value.keywords,',
+    lost: 'Androidon a szolgáltatás nem adná át a kulcsszavakat az ítéletnek',
+  },
+  {
+    file: 'ios/PacketTunnel/PacketTunnelProvider.swift',
+    needle: 'keywords: store.state.keywords ?? []',
+    lost: 'iPhone-on a tunnel nem adná át a kulcsszavakat az ítéletnek',
   },
   // MELYIK szabály dolgozik: az okok a hídon átjönnek, a segéd tartja — ha a
   // státusz vagy a lap nem mondaná, a bontás csak a bővítmény lapján maradna.

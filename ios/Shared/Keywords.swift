@@ -94,4 +94,19 @@ public enum KeywordLogic {
         }
         return nil
     }
+
+    /// Melyik kulcsszó illik a HOSZTNÉVRE — az iPhone szűrője csak azt látja. Az
+    /// első a lista sorrendjében, vagy nil. Ugyanaz a szabály, mint a címnél: ha
+    /// benne van, benne van (a `live` a `live.com`-ot is elviszi — a gépen is).
+    public static func keywordInHost(_ keywords: [String], _ host: String) -> String? {
+        var h = host.trimmingCharacters(in: .whitespacesAndNewlines)
+        while h.hasSuffix(".") { h.removeLast() }
+        let hay = h.precomposedStringWithCompatibilityMapping.lowercased()
+        if hay.isEmpty { return nil }
+        for k in keywords {
+            guard let key = normalizeKeyword(k) else { continue }
+            if hay.contains(key) { return key }
+        }
+        return nil
+    }
 }

@@ -866,7 +866,8 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                     Text(
                         "Bármely oldal, aminek a webcímében ez a szó szerepel — shorts, reels, egy játék " +
                             "neve —, a gépi böngészőben tiltva. Itt szerkeszthető, és a fiókon át a gépekre " +
-                            "átér; a telefonon nem tilt: a DNS-szűrő a címet nem látja. Felvenni ingyen, " +
+                            "átér; a telefonon a hosztnévben tilt — a szűrő a webcím útvonalát és a címsort " +
+                            "nem látja. Felvenni ingyen, " +
                             "levenni próbatétel.",
                         style = MaterialTheme.typography.bodySmall,
                     )

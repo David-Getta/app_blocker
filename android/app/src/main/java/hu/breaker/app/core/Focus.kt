@@ -188,7 +188,7 @@ object Focus {
     }
 
     /** Mi lett a névvel, és MIÉRT — a felület ezt írja ki. */
-    enum class Verdict { ALLOW, BLOCKED_BY_LIST, BLOCKED_BY_FOCUS }
+    enum class Verdict { ALLOW, BLOCKED_BY_LIST, BLOCKED_BY_KEYWORD, BLOCKED_BY_FOCUS }
 
     /**
      * Átmehet-e ez a név most.
@@ -199,6 +199,10 @@ object Focus {
      *      hozzátesz. Ha ez fordítva lenne, egy csomagba felvett `youtube.com`
      *      feloldaná a tiltott YouTube-ot, próbatétel nélkül: a munkamenet
      *      lenne a kiskapu a blokklistán.
+     *   1b. A KULCSSZÓ a hosztnévben -> tiltva. A telefon szűrője csak a
+     *      hosztnevet látja, abban tilt (`tiktok` -> `www.tiktok.com`); a
+     *      rendszer-infrastruktúra és a saját fiókkiszolgáló sosem — egy
+     *      `live` kulcsszó ne vigye el a push-csatornát vagy a saját fiókot.
      *   2. Nem fut munkamenet -> a blokklista döntött, mehet.
      *   3. A csomagon rajta van -> mehet.
      *   4. Rendszer-infrastruktúra -> mehet (lásd fent).
@@ -216,14 +220,19 @@ object Focus {
         now: Long,
         blocked: Collection<String>,
         syncHost: String? = null,
+        keywords: List<String> = emptyList(),
     ): Verdict {
         val h = qname.trim().lowercase().trimEnd('.')
         if (Blocklist.matches(h, blocked)) return Verdict.BLOCKED_BY_LIST
+        val sh = syncHost?.trim()?.lowercase()?.trimEnd('.')
+        val ownSync = !sh.isNullOrEmpty() && (h == sh || h.endsWith(".$sh"))
+        if (keywords.isNotEmpty() && !isInfrastructure(h) && !ownSync && KeywordLogic.keywordInHost(keywords, h) != null) {
+            return Verdict.BLOCKED_BY_KEYWORD
+        }
         if (!isRunning(run, now) || pack == null) return Verdict.ALLOW
         if (isSiteAllowed(pack, h)) return Verdict.ALLOW
         if (isInfrastructure(h)) return Verdict.ALLOW
-        val sh = syncHost?.trim()?.lowercase()?.trimEnd('.')
-        if (!sh.isNullOrEmpty() && (h == sh || h.endsWith(".$sh"))) return Verdict.ALLOW
+        if (ownSync) return Verdict.ALLOW
         return Verdict.BLOCKED_BY_FOCUS
     }
 

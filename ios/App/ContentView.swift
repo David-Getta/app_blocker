@@ -485,7 +485,7 @@ struct ContentView: View {
         return VStack(alignment: .leading, spacing: 8) {
             Divider()
             Text("Kulcsszavak a böngészőben").font(.headline)
-            Text("Bármely oldal, aminek a webcímében ez a szó szerepel — shorts, reels, egy játék neve —, a gépi böngészőben tiltva. Itt szerkeszthető, és a fiókon át a gépekre átér; az iPhone-on nem tilt: a szűrő a címet nem látja. Felvenni ingyen, levenni próbatétel.")
+            Text("Bármely oldal, aminek a webcímében ez a szó szerepel — shorts, reels, egy játék neve —, a gépi böngészőben tiltva. Itt szerkeszthető, és a fiókon át a gépekre átér; az iPhone-on a hosztnévben tilt — a szűrő a webcím útvonalát és a címsort nem látja. Felvenni ingyen, levenni próbatétel.")
                 .font(.footnote).foregroundStyle(.secondary)
             ForEach(words, id: \.self) { w in
                 HStack {

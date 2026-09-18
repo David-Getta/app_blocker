@@ -484,6 +484,8 @@ class BreakerVpnService : VpnService() {
                     now,
                     BreakerStore.blockedHostnamesNow(now),
                     BreakerStore.syncHost(),
+                    // A kulcsszó a hosztnévben is tilt — a telefon ennyit lát belőle.
+                    BreakerStore.state.value.keywords,
                 )
             }
             val blocked = verdict != Focus.Verdict.ALLOW
@@ -496,7 +498,7 @@ class BreakerVpnService : VpnService() {
             // CSAK A LISTA tiltása: a munkamenet fehérlistáján kívül a háttér-
             // forgalom is elakad (követők, CDN-ek, más appok), és az nem a kéz
             // mozdulata — így számolva a sáv százat mondana egy csendes órára.
-            if (verdict == Focus.Verdict.BLOCKED_BY_LIST && name != null && FilterHitLogic.shouldCount(hitSeen, name, now)) {
+            if ((verdict == Focus.Verdict.BLOCKED_BY_LIST || verdict == Focus.Verdict.BLOCKED_BY_KEYWORD) && name != null && FilterHitLogic.shouldCount(hitSeen, name, now)) {
                 val day = UsageLogic.dayKey(now)
                 val hour = FilterHitLogic.hourOf(now)
                 // Oldalanként is: a lista tételével, nem a nyers hoszttal.

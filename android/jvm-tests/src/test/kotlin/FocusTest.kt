@@ -155,6 +155,20 @@ class FocusTest {
     }
 
     @Test
+    fun `kulcsszo a hosztnevben - tilt, az infrastruktura es a fiokkiszolgalo nem, a lista elsobb`() {
+        val kw = listOf("tiktok", "live")
+        assertEquals(Focus.Verdict.BLOCKED_BY_KEYWORD, Focus.verdict("www.TikTok.com.", null, null, 0L, noBlocklist, null, kw))
+        assertEquals(Focus.Verdict.ALLOW, Focus.verdict("example.com", null, null, 0L, noBlocklist, null, kw))
+        assertEquals(Focus.Verdict.ALLOW, Focus.verdict("mtalk.google.com", null, null, 0L, noBlocklist, null, listOf("google")), "infrastruktúra: sosem")
+        assertEquals(Focus.Verdict.ALLOW, Focus.verdict("live.example.org", null, null, 0L, noBlocklist, "live.example.org", kw), "a fiókkiszolgáló: sosem")
+        assertEquals(Focus.Verdict.BLOCKED_BY_LIST, Focus.verdict("tiktok.com", null, null, 0L, listOf("tiktok.com"), null, kw), "a lista elsőbb")
+        assertEquals(Focus.Verdict.ALLOW, Focus.verdict("tiktok.com", null, null, 0L, noBlocklist, null, emptyList()), "kulcsszó nélkül nincs")
+        // Munkamenet alatt is a kulcsszó tilt — a csomag fehérlistája sem old fel.
+        val run = Focus.FocusRun("pack_1", 0L, 10_000L)
+        assertEquals(Focus.Verdict.BLOCKED_BY_KEYWORD, Focus.verdict("m.tiktok.com", run, pack("tiktok.com"), 1_000L, noBlocklist, null, kw))
+    }
+
+    @Test
     fun `munkamenet nelkul minden mehet, amit a blokklista enged`() {
         assertEquals(
             Focus.Verdict.ALLOW,

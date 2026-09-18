@@ -61,8 +61,10 @@ cd android
 - A **kulcsszavak** (bármely oldalon, ha a cím tartalmazza) a zárlat
   kártyája alján **szerkeszthetők**: felvenni ingyen, levenni próbatétel
   (`Referee.setKeywords`, a függő lista a teljesítéskor ül be). A DNS-szűrő
-  a címet nem látja, ott a kulcsszó nem tilt — a sor kimondja; a lista a
-  fiókon át a gépekre átér, és a gépi böngésző tilt vele (`core/Keywords.kt`,
+  a hosztnévben tilt vele (`Focus.verdict`, `BLOCKED_BY_KEYWORD`; az
+  infrastruktúra és a fiókkiszolgáló sosem), az útvonalat és a címsort nem
+  látja — a sor kimondja; a lista a fiókon át a gépekre átér, és a gépi
+  böngésző a teljes címben tilt vele (`core/Keywords.kt`,
   a gépi tükre; a blobon `keywords` + `keywordsRev`). Lásd
   `docs/feature-keywords.md`.
 

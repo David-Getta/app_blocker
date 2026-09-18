@@ -27,6 +27,19 @@ final class FocusTests: XCTestCase {
         XCTAssertEqual(Focus.lastUsedPack([a, b], log: [e("pack_a", 1000), e("pack_x", 2000)])?.id, "pack_a", "a törölt csomag sora nem számít")
     }
 
+    func testKeywordInTheHostnameBlocksButNotInfraOrTheSyncHostAndTheListWins() {
+        let kw = ["tiktok", "live"]
+        XCTAssertEqual(Focus.verdict("www.TikTok.com.", run: nil, pack: nil, now: 0, blocked: [], syncHost: nil, keywords: kw), .blockedByKeyword)
+        XCTAssertEqual(Focus.verdict("example.com", run: nil, pack: nil, now: 0, blocked: [], syncHost: nil, keywords: kw), .allow)
+        XCTAssertEqual(Focus.verdict("mtalk.google.com", run: nil, pack: nil, now: 0, blocked: [], syncHost: nil, keywords: ["google"]), .allow, "infrastruktúra: sosem")
+        XCTAssertEqual(Focus.verdict("live.example.org", run: nil, pack: nil, now: 0, blocked: [], syncHost: "live.example.org", keywords: kw), .allow, "a fiókkiszolgáló: sosem")
+        XCTAssertEqual(Focus.verdict("tiktok.com", run: nil, pack: nil, now: 0, blocked: ["tiktok.com"], syncHost: nil, keywords: kw), .blockedByList, "a lista elsőbb")
+        XCTAssertEqual(Focus.verdict("tiktok.com", run: nil, pack: nil, now: 0, blocked: [], syncHost: nil, keywords: []), .allow, "kulcsszó nélkül nincs")
+        let pack = Focus.Pack(id: "p1", name: "T", allowSites: ["tiktok.com"], allowApps: [], defaultMinutes: 25)
+        let run = Focus.Run(packId: "p1", startedAt: 0, endsAt: 10_000)
+        XCTAssertEqual(Focus.verdict("m.tiktok.com", run: run, pack: pack, now: 1_000, blocked: [], syncHost: nil, keywords: kw), .blockedByKeyword, "a csomag fehérlistája sem old fel")
+    }
+
     func testDaySeriesCountsASessionOnTheDayItEnded() {
         let day = 86_400_000.0
         let hour = 3_600_000.0
