@@ -405,6 +405,11 @@ struct ContentView: View {
         return peak
     }
 
+    /// A hét csúcs-órája (az óra) — a kártya ablak-gombjához; nil, ha nem volt megakadás.
+    private var peakHourOfWeek: Int? {
+        FilterHitLogic.peakHour(store.state.filterHitHours ?? [:], now: now)?.hour
+    }
+
     /// A CSÚCS-ÓRÁBAN: a csúcs — különben nil. A kártya a tükröt mondja: most jár a kéz magától.
     private var peakNow: (hour: Int, count: Int)? {
         guard let peak = FilterHitLogic.peakHour(store.state.filterHitHours ?? [:], now: now),
@@ -436,6 +441,19 @@ struct ContentView: View {
                                 try Referee.startFocus(packId: pick.id, minutes: pick.defaultMinutes, now: nowMs())
                             } catch {
                                 flowError = (error as? Referee.RefereeError)?.message ?? "Nem sikerült elindítani."
+                            }
+                        }
+                        .buttonStyle(.bordered)
+                    }
+                    // ABLAK A CSÚCS-ÓRÁRA innen is: a mondattól az ablakig egy koppintás
+                    // — a statisztika gombjának tükre, ugyanazokkal a kapukkal.
+                    if let win = Focus.peakWindowPick(store.state.focusPacks ?? [], log: store.state.focusLog ?? [],
+                                                      run: store.state.focusRun, peakHour: peakHourOfWeek, now: now) {
+                        Button("Heti ablak a csúcs-órára: \(win.pack.name), \(recurrenceLabel(win.band))") {
+                            do {
+                                try Referee.addFocusWindow(packId: win.pack.id, band: win.band, now: nowMs())
+                            } catch {
+                                flowError = (error as? Referee.RefereeError)?.message ?? "Nem sikerült felvenni az ablakot."
                             }
                         }
                         .buttonStyle(.bordered)

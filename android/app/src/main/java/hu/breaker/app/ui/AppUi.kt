@@ -409,6 +409,15 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                                     .onFailure { flowError = it.message ?: "Nem sikerült elindítani." }
                             }) { Text("Munkamenet: ${pick.name}, ${pick.defaultMinutes} perc") }
                         }
+                        // ABLAK A CSÚCS-ÓRÁRA innen is: a mondattól az ablakig egy
+                        // koppintás — a statisztika gombjának tükre, ugyanazokkal a
+                        // kapukkal; a jelöltet a mag dönti el, a bíró felveszi (ingyen).
+                        Focus.peakWindowPick(state.focusPacks, state.focusLog, state.focusRun, peak?.first, now)?.let { (p, band) ->
+                            Button(onClick = {
+                                runCatching { Referee.addFocusWindow(p.id, band, System.currentTimeMillis()) }
+                                    .onFailure { flowError = it.message ?: "Nem sikerült felvenni az ablakot." }
+                            }) { Text("Heti ablak a csúcs-órára: ${p.name}, ${recurrenceLabel(band)}") }
+                        }
                     }
                 }
             }

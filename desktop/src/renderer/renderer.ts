@@ -316,6 +316,46 @@ function suggestedPack(): FocusPack | null {
 }
 
 /**
+ * A CSÚCS-ÓRA ABLAKÁNAK jelöltje: a legutóbbi csomag és a csúcs — vagy null,
+ * ha nincs gomb: nincs csúcs vagy csomag, a csomagnak már van ablaka, egy
+ * ablak fedi a csúcs-órát, vagy menet fut. A statisztika és a javaslat
+ * kártyája ugyanezt kérdezi — a Kotlin/Swift `peakWindowPick` tükre.
+ */
+function peakWindowPick(now: number): { pick: FocusPack; peak: { hour: number; count: number } } | null {
+  const pick = suggestedPack();
+  const peak = status?.browserHitsPeak ?? null;
+  if (!pick || !peak || pick.recurrence) return null;
+  if (packCoveringHour(status?.focusPacks ?? [], peak.hour)) return null;
+  if (focusIsRunning(status?.focusRun ?? null, now)) return null;
+  return { pick, peak };
+}
+
+/** A gomb szövege — ugyanaz, mint a telefonon és a bővítményben. */
+function peakWindowLabel(pick: FocusPack, hour: number): string {
+  return `Heti ablak a csúcs-órára: ${pick.name}, ${recurrenceLabel(peakWindowBand(hour))}`;
+}
+
+/**
+ * ABLAK A CSÚCS-ÓRÁRA: ugyanaz az út, mint a csomag ablak-szerkesztőjéé — a
+ * bíró dönt, felvenni ingyen van. A statisztika gombja és a javaslat kártyájáé
+ * is ide fut; a nemet a hívó sora mondja.
+ */
+async function addPeakWindow(noteEl: HTMLElement): Promise<void> {
+  const w = peakWindowPick(Date.now());
+  if (!w) return;
+  try {
+    const r = await call<SetRuleResult & { status: StatusData }>('focus_recurrence', { packId: w.pick.id, band: peakWindowBand(w.peak.hour) });
+    status = r.status;
+    render();
+    // A statisztika nem a fő nézet része: a gombnak azonnal el kell tűnnie,
+    // nem a következő félperces frissítésnél.
+    renderStats();
+  } catch (e) {
+    noteEl.textContent = (e as Error).message;
+  }
+}
+
+/**
  * EGY KATTINTÁS a mondattól a menetig — a statisztika gombjáról és az
  * értesítésről is: a legutóbb használt csomag a szokásos hosszával. Futó
  * menet mellett nem indít (egyszerre egy menet fut). Az értesítésről
@@ -363,6 +403,12 @@ function renderSuggestCard(now: number): void {
   const canStart = lines.length > 0 && pick !== null && !focusIsRunning(status?.focusRun ?? null, now);
   $('suggestStartBtn').classList.toggle('hidden', !canStart);
   $('suggestStartBtn').textContent = canStart && pick ? `Munkamenet: ${pick.name}, ${pick.defaultMinutes} perc` : '';
+  // ABLAK A CSÚCS-ÓRÁRA innen is: a mondattól az ablakig egy kattintás — a
+  // statisztika gombjának tükre, ugyanazokkal a kapukkal (a telefon és a
+  // bővítmény is ezt kínálja a mondat alatt).
+  const win = lines.length > 0 ? peakWindowPick(now) : null;
+  $('suggestWindowBtn').classList.toggle('hidden', win === null);
+  $('suggestWindowBtn').textContent = win ? peakWindowLabel(win.pick, win.peak.hour) : '';
 }
 
 function showHitNudge(today: number, now: number): void {
@@ -3871,21 +3917,9 @@ function setupModal(): void {
   })());
   // ABLAK A CSÚCS-ÓRÁRA: ugyanaz az út, mint a csomag ablak-szerkesztőjéé — a
   // bíró dönt, felvenni ingyen van.
-  $('hitsWindowBtn').addEventListener('click', () => void (async () => {
-    const pick = suggestedPack();
-    const peak = status?.browserHitsPeak ?? null;
-    if (!pick || !peak) return;
-    try {
-      const r = await call<SetRuleResult & { status: StatusData }>('focus_recurrence', { packId: pick.id, band: peakWindowBand(peak.hour) });
-      status = r.status;
-      render();
-      // A statisztika nem a fő nézet része: a gombnak azonnal el kell tűnnie,
-      // nem a következő félperces frissítésnél.
-      renderStats();
-    } catch (e) {
-      $('hitsPeakNote').textContent = (e as Error).message;
-    }
-  })());
+  $('hitsWindowBtn').addEventListener('click', () => void addPeakWindow($('hitsPeakNote')));
+  // A JAVASLAT kártyájáról is: ugyanaz az út, a nem a kártya sorába kerül.
+  $('suggestWindowBtn').addEventListener('click', () => void addPeakWindow($('suggestText')));
   // Az Esc a legfelső réteget zárja. Egy panel, ami csak egérrel csukható be,
   // billentyűzettel csapdába ejt.
   document.addEventListener('keydown', (e) => {
@@ -4467,18 +4501,15 @@ function renderStats(): void {
   // magától indul, amikor a kéz indulna. Felvenni ingyen (szigorítás); a
   // levétel próbatétel, ezt a gomb címe nem rejti. Nincs gomb ablakos csomagon,
   // futó menet mellett, csomag vagy csúcs nélkül.
-  const winPick = suggestedPack();
   // LE VAN-E FEDVE: ha egy csomag heti ablaka már fedi a csúcs-órát, a menet
   // magától indul, amikor a kéz indulna — a sor kimondja, és nincs gomb.
   const covering = peak ? packCoveringHour(status?.focusPacks ?? [], peak.hour) : null;
   $('hitsWindowNote').classList.toggle('hidden', covering === null);
   $('hitsWindowNote').textContent = covering && covering.recurrence
     ? `A csúcs-órában magától indul: ${covering.name} (${recurrenceLabel(covering.recurrence)}).` : '';
-  const canWindow = peak !== null && winPick !== null && !winPick.recurrence && covering === null
-    && !focusIsRunning(status?.focusRun ?? null, Date.now());
-  $('hitsWindowBtn').classList.toggle('hidden', !canWindow);
-  $('hitsWindowBtn').textContent = canWindow && winPick && peak
-    ? `Heti ablak a csúcs-órára: ${winPick.name}, minden nap ${peak.hour}:00–${(peak.hour + 1) % 24}:00` : '';
+  const win = peakWindowPick(Date.now());
+  $('hitsWindowBtn').classList.toggle('hidden', win === null);
+  $('hitsWindowBtn').textContent = win ? peakWindowLabel(win.pick, win.peak.hour) : '';
   $('hitsWindowBtn').title = 'Felvenni ingyen; levenni vagy szűkíteni próbatétel — mint minden ablakot.';
   // MELYIK szabály dolgozik: az okok a héten, a legnagyobb elöl. Üresen nincs.
   const reasons = hitsReasonLine(status?.browserHitsReasons ?? []);

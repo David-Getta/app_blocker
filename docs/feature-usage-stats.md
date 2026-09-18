@@ -518,7 +518,11 @@ szerkesztése a fésülésben csendben letörölné az ablakot. A bővítmény f
 lapján és tiltó lapján is ott a gomb: a híd a javaslattal leadja a csúcs-órát
 (`suggest.peakHour`, csak ha ablak tehető rá), és a `POST /focus_window`
 felteszi — csak felvétel, ablakos csomagra a híd nemet mond, mert a csere
-lazíthat, és arról a bíró próbatételt kezdene, amit a híd nem indíthat el. Ha egy csomag
+lazíthat, és arról a bíró próbatételt kezdene, amit a híd nem indíthat el.
+És a javaslat kártyájáról is — a gépen és a telefonokon —: a sokadik
+megakadás, az előjelzés vagy a csúcs-óra mondata alatt a menet gombja mellett
+ott az ablaké, ugyanazokkal a kapukkal (a gépen `peakWindowPick`, a
+statisztika gombjával közös út). Ha egy csomag
 heti ablaka már fedi a csúcs-órát (legalább egy napon az óra egy részét is
 átfogja, `packCoveringHour`), a gomb helyett a sor mondja — mindhárom
 platformon: „A csúcs-órában magától indul: Nyelvtanulás (minden nap

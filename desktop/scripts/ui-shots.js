@@ -1018,6 +1018,21 @@ async function main() {
       && !document.getElementById('suggestStartBtn')?.classList.contains('hidden'),
     undefined, { timeout: 15_000 },
   ).catch(() => failures.push('a kezdőlap javaslat-kártyája nem mondja a sokadik megakadást a menet gombjával'));
+  // ABLAK A CSÚCS-ÓRÁRA a kártyáról is: a statisztika gombjának tükre — a
+  // kattintás heti ablakot tesz a csomagra, és a gomb eltűnik.
+  await page.evaluate(() => { delete window.__fakePacks[1].recurrence; });
+  await page.waitForFunction(
+    () => /Heti ablak a csúcs-órára: Mély munka, minden nap 21:00–22:00/.test(document.getElementById('suggestWindowBtn')?.textContent || '')
+      && !document.getElementById('suggestWindowBtn')?.classList.contains('hidden'),
+    undefined, { timeout: 15_000 },
+  ).catch(() => failures.push('a javaslat-kártya nem kínálja a csúcs-óra ablakát'));
+  await page.locator('#suggestWindowBtn').click().catch(() => failures.push('a javaslat-kártya ablak-gombja nem kattintható'));
+  await page.waitForFunction(
+    () => document.getElementById('suggestWindowBtn')?.classList.contains('hidden')
+      && window.__fakePacks[1].recurrence && window.__fakePacks[1].recurrence.startMin === 21 * 60,
+    undefined, { timeout: 15_000 },
+  ).catch(() => failures.push('a javaslat-kártya ablak-gombja nem tett heti ablakot, vagy utána is ott maradt'));
+  await page.evaluate(() => { delete window.__fakePacks[1].recurrence; });
   await page.evaluate(() => { window.__fakeStatusPatch = undefined; });
   await page.waitForFunction(
     () => document.getElementById('suggestCard')?.classList.contains('hidden'),

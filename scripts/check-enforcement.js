@@ -1018,7 +1018,7 @@ const WIRES = [
   // dönt (felvenni ingyen). Ha a gomb nem hívná, a mondat ígérne, és nem történne semmi.
   {
     file: 'desktop/src/renderer/renderer.ts',
-    needle: "('focus_recurrence', { packId: pick.id, band: peakWindowBand(peak.hour) })",
+    needle: "('focus_recurrence', { packId: w.pick.id, band: peakWindowBand(w.peak.hour) })",
     lost: 'a csúcs-óra gombja nem tenne heti ablakot — az ígéret üres',
   },
   // A TELEFONOKON IS: a gomb a bírót hívja (csak felvesz), és a telefon a csomag
@@ -1071,6 +1071,22 @@ const WIRES = [
     file: 'extension/blocked.js',
     needle: 'const r = await addFocusWindowInApp(packId, hour);',
     lost: 'a tiltó lap ablak-gombja nem a hídon tenne ablakot — az ígéret üres',
+  },
+  // A JAVASLAT KÁRTYÁJÁRÓL IS — gépen és telefonon: a mondat alatt a gomb ugyanoda fut.
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: "$('suggestWindowBtn').addEventListener('click', () => void addPeakWindow($('suggestText')));",
+    lost: 'a gépi javaslat-kártya ablak-gombja nem tenne ablakot — az ígéret üres',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/AppUi.kt',
+    needle: 'runCatching { Referee.addFocusWindow(p.id, band, System.currentTimeMillis()) }',
+    lost: 'az Android javaslat-kártya ablak-gombja nem tenne ablakot — az ígéret üres',
+  },
+  {
+    file: 'ios/App/ContentView.swift',
+    needle: 'try Referee.addFocusWindow(packId: win.pack.id, band: win.band, now: nowMs())',
+    lost: 'az iPhone javaslat-kártya ablak-gombja nem tenne ablakot — az ígéret üres',
   },
   {
     file: 'desktop/src/renderer/renderer.ts',
