@@ -302,6 +302,18 @@ if (HELPER_MODE) {
           // ablak tartja: aki a tiltó lapra fut, tudja meg, miért.
           return { until: l.until, ...(isWindowLockdown(l, s.lockdownWindows ?? []) ? { byWindow: true } : {}) };
         },
+        async () => {
+          // Az INDOK: amiért a felhasználó maga tiltotta le. A tiltó lapon a
+          // kísértés pillanatában ez a mondat számít — hosztnevenként megy,
+          // mint a zárva-lista, hogy a lap pontos címre mondja.
+          const s = await sharedStatus();
+          const out: { host: string; text: string }[] = [];
+          for (const site of s.sites ?? []) {
+            if (!site.reason) continue;
+            for (const host of site.hostnames ?? []) out.push({ host, text: site.reason });
+          }
+          return out;
+        },
       );
       // Keep the tracker's view of the switch fresh without extra IPC chatter.
       const refreshFocus = (): void => {

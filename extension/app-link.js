@@ -78,6 +78,32 @@ function cleanClosed(list) {
 }
 
 /**
+ * Egy indok-bejegyzés szűrése: hosztnév és egy józan hosszú szöveg — más nem
+ * megy át. A szöveg a felhasználóé (ő írta az appban), de a tárba és a lapra
+ * innen kerül: vezérlőkarakter nélkül, egy szóközzel, legfeljebb 140 jellel.
+ */
+function cleanNotes(list) {
+  return (Array.isArray(list) ? list : [])
+    .filter((n) => n && typeof n.host === 'string' && n.host && typeof n.text === 'string')
+    .map((n) => ({
+      host: n.host.toLowerCase(),
+      text: n.text.replace(/[\u0000-\u001f\u007f-\u009f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 140),
+    }))
+    .filter((n) => n.text);
+}
+
+/**
+ * Az indok ehhez a hosztnévhez, ha az app adott — PONTOS hosztnévre, mint a
+ * zárva-lista: a lap ne mondjon olyan indokot, amit másik címre írtak.
+ */
+export function noteFor(link, host) {
+  const h = String(host ?? '').toLowerCase().replace(/\.$/, '');
+  if (!h) return null;
+  const n = (link?.notes ?? []).find((x) => x && x.host === h);
+  return n ? n.text : null;
+}
+
+/**
  * A tárból vagy a hídról jött zárlat használható alakja: `{ until }` vagy null.
  *
  * Csak a vég kell. A frissességet SZÁNDÉKOSAN nem nézzük (a zárva-listánál
@@ -130,6 +156,7 @@ export async function loadLink() {
     // frissessége számít, ezért a döntés nem innen, hanem a `closedFor`-ból jön.
     closed: cleanClosed(raw.closed),
     lockdown: cleanLockdown(raw.lockdown),
+    notes: cleanNotes(raw.notes),
     // Rekordonként tűrünk: egy sérült bejegyzés ne vigye el a többit.
     rules: rules.filter((r) => r && typeof r.host === 'string' && typeof r.path === 'string')
       .map((r) => ({ host: r.host, path: r.path })),
@@ -245,11 +272,13 @@ export async function pullFromApp(now = Date.now(), fetchImpl = fetch, timeoutMs
     const closed = cleanClosed(body?.closed);
     // A zárlat vége, ha az app tud ilyet — régi app válaszában nincs, az sem hiba.
     const lockdown = cleanLockdown(body?.lockdown);
+    // Az indokok — régi app válaszában nincs, az sem hiba: a lap akkor nem idéz.
+    const notes = cleanNotes(body?.notes);
     // Az ÜRES lista is válasz: azt jelenti, hogy az appban levették az összeset.
     // Csak akkor fogadjuk el, ha a kérés tényleg sikerült — ha nem érjük el az
     // appot, a régi lista marad érvényben.
-    await saveLink({ ...link, port, rules, focus, channels, closed, lockdown, fetchedAt: now, error: null });
-    return { ok: true, rules, focus, channels, closed, lockdown };
+    await saveLink({ ...link, port, rules, focus, channels, closed, lockdown, notes, fetchedAt: now, error: null });
+    return { ok: true, rules, focus, channels, closed, lockdown, notes };
   }
 
   // A PRÓBA idejét megjegyezzük, a szabálylistát viszont nem bántjuk: az app

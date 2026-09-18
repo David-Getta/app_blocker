@@ -179,6 +179,7 @@ test('a zárva lévő oldalak okostul lemennek a hídon — üresen is mező mar
 
   const none = await answer(deps(), 'GET', '/rules', { [TOKEN_HEADER]: 'ABCD-EFGH' });
   assert.deepEqual((none.body as { closed: unknown }).closed, []);
+  assert.deepEqual((none.body as { notes: unknown }).notes, [], 'indok nélkül üres lista, nem hiányzó mező');
 });
 
 test('a zárlat vége is átmegy a hídon — nélküle null, hogy a lap ne ígérjen feloldást', async () => {
@@ -196,4 +197,14 @@ test('a zárlat vége is átmegy a hídon — nélküle null, hogy a lap ne íg�
   const byWindow = { ...deps(), getLockdown: async () => ({ until: 1_800_000_000_000, byWindow: true }) };
   const r3 = await answer(byWindow, 'GET', '/rules', { [TOKEN_HEADER]: 'ABCD-EFGH' });
   assert.deepEqual((r3.body as { lockdown: unknown }).lockdown, { until: 1_800_000_000_000, byWindow: true });
+});
+
+test('az indokok is a válaszban vannak, hosztnevenként — a régi hídon üres lista', async () => {
+  const notes = [{ host: 'youtube.com', text: 'Mert este nem alszom tőle' }];
+  const r = await answer(
+    { token: 'ABCD-EFGH', getRules: async () => [], getNotes: async () => notes },
+    'GET', '/rules', { [TOKEN_HEADER]: 'ABCD-EFGH' },
+  );
+  assert.equal(r.status, 200);
+  assert.deepEqual((r.body as { notes: unknown }).notes, notes);
 });

@@ -413,6 +413,7 @@ body {
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .site-sub { color: var(--text-3); font-size: 0.79rem; margin-top: 2px; }
+.site-reason { color: var(--text-2); font-size: 0.82rem; font-style: italic; margin-top: 3px; }
 .site-status { flex: none; padding-top: 4px; }
 
 /* --- fedőnév ---------------------------------------------------------- */

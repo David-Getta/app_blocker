@@ -177,3 +177,17 @@ if (focus) {
   document.getElementById('rule').textContent =
     rule && rule.trim() ? rule : 'ismeretlen szabály';
 }
+
+// Az INDOK: amiért te magad tiltottad le — a kísértés pillanatában ez a
+// mondat számít, nem a szabály neve. Bármelyik kártya alatt megjelenik, ha az
+// app adott ilyet; a szöveg a tiédről jön, de a lap újra megtisztítja, mert
+// erre a lapra kézzel írt címmel is el lehet jutni.
+{
+  const rawNote = params.get('note') || '';
+  const note = rawNote.replace(/[\u0000-\u001f\u007f-\u009f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 140);
+  const noteEl = document.getElementById('note');
+  if (note && noteEl) {
+    noteEl.textContent = `Ezért tiltottad le: „${note}”`;
+    noteEl.hidden = false;
+  }
+}

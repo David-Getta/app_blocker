@@ -364,14 +364,16 @@ async function main() {
     // nyers DNS-hibalap HELYETT a saját lapját mutatja — okkal, lejárattal.
     // A magyarázat csak friss listából beszélhet, ezért a beültetés mindig a
     // fetchedAt-tal együtt megy.
-    const seedClosed = (closed, fetchedAt) => seeder.evaluate(
+    const seedClosed = (closed, fetchedAt, notes = []) => seeder.evaluate(
       (arg) => chrome.storage.local.set({
-        'breaker.applink': { ...arg.link, closed: arg.closed, fetchedAt: arg.fetchedAt },
+        'breaker.applink': { ...arg.link, closed: arg.closed, notes: arg.notes, fetchedAt: arg.fetchedAt },
       }),
-      { link: LINK, closed, fetchedAt },
+      { link: LINK, closed, notes, fetchedAt },
     );
+    // Az indokkal együtt: a lap a kísértés pillanatában idézi, amiért az ember
+    // maga tiltotta le — a hűtés magyarázata mellett, nem helyette.
     await seedClosed([{ host: '127.0.0.1', reason: 'cooldown', until: Date.now() + 600_000 }],
-      Date.now());
+      Date.now(), [{ host: '127.0.0.1', text: 'Mert este nem alszom tőle' }]);
     await page.goto(`${base}/`).catch(() => { /* a navigációt elkapja a tiltás */ });
     const closedBlocked = await waitForBrowserUrl(
       page, context, /blocked\.html\?.*closedReason=cooldown/, WAIT_MS,
@@ -381,6 +383,8 @@ async function main() {
       const text = await bodyText(page);
       check(text.includes('Adag betelt') && text.includes('Újranyílik'),
         'a tiltó lap adag-nyelven magyaráz és visszaszámol');
+      check(text.includes('Ezért tiltottad le') && text.includes('Mert este nem alszom tőle'),
+        'a tiltó lap idézi az indokot');
     } else if (closedBlocked) {
       // A Playwright nézete leszakadt — a cím paraméterei igazolnak.
       check(closedBlocked.includes('until='),

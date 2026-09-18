@@ -70,7 +70,7 @@ function fakeBridgeSource() {
       return d.getFullYear() + '-' + m + '-' + String(d.getDate()).padStart(2,'0');
     };
     window.__fakeSites = [
-      { id: 'site_1', domain: 'youtube.com', hostnames: ['youtube.com','www.youtube.com','m.youtube.com','youtu.be'],
+      { id: 'site_1', domain: 'youtube.com', hostnames: ['youtube.com','www.youtube.com','m.youtube.com','youtu.be'], reason: 'Mert este nem alszom tőle',
         addedAt: now - 86400000*9, pauseUntil: null, pendingDeleteAt: null,
         dailyLimitSeconds: 1200, usedTodaySeconds: 900, usedTodayElsewhere: 420,
         limitExhausted: false, blockedNow: true },

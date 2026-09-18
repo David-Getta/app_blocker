@@ -10,6 +10,7 @@ import { ipcMain } from 'electron';
 import {
   newBridgeToken, startRulesBridge,
   type BridgeClosed, type BridgeFocus, type BridgeHandle, type BridgeLockdown, type BridgeRule,
+  BridgeNote,
 } from './rules-bridge';
 
 export interface BridgeInfo {
@@ -81,6 +82,7 @@ export function registerRulesBridge(
   getChannels?: () => Promise<{ host: string; allow: string[] }[]>,
   getClosed?: () => Promise<BridgeClosed[]>,
   getLockdown?: () => Promise<BridgeLockdown | null>,
+  getNotes?: () => Promise<BridgeNote[]>,
 ): void {
   ipcMain.handle('breaker:bridge-info', () => ({ ...bridgeInfo(), lastPullAt }));
   if (handle) return;
@@ -92,6 +94,7 @@ export function registerRulesBridge(
     getChannels,
     getClosed,
     getLockdown,
+    getNotes,
     // A LEHÚZÁS ténye. Ebből tudja meg a felület, hogy a bővítmény tényleg ott
     // van — nem csak a kiszolgáló fut.
     notePull: () => { lastPullAt = Date.now(); },

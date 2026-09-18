@@ -12,7 +12,7 @@ import {
 } from '../shared/schedule.js';
 import { dayKey, formatDuration } from '../shared/usage.js';
 import {
-  displayName, displayNameNow, isAliased, MAX_ALIAS_LENGTH, REVEAL_MS,
+  displayName, displayNameNow, isAliased, MAX_ALIAS_LENGTH, REVEAL_MS, MAX_REASON_LENGTH,
 } from '../shared/alias.js';
 import { HELPER_VERSION } from '../shared/protocol.js';
 // A .js itt sem elhagyható: a böngésző natív ESM-betöltője oldja fel futásidőben.
@@ -2187,6 +2187,9 @@ function siteRow(site: SiteInfo, st: StatusData): HTMLElement {
     nameEl.appendChild(peek);
   }
   ident.appendChild(h('div', 'site-sub', `${site.hostnames.length} hosztnév · felvéve: ${new Date(site.addedAt).toLocaleDateString('hu-HU')}`));
+  // Az indok: amiért te magad tiltottad le — a soron is ott áll, hogy a
+  // feloldás gombja mellett ne csak a cím, a szándék is látszódjon.
+  if (site.reason) ident.appendChild(h('div', 'site-reason', `„${site.reason}”`));
   head.appendChild(ident);
   const statusEl = h('div', 'site-status');
   const actions = h('div', 'site-actions');
@@ -2245,6 +2248,8 @@ function siteRow(site: SiteInfo, st: StatusData): HTMLElement {
       burst.addEventListener('click', () => openBurstDialog(site));
       const alias = h('button', 'btn btn-small', 'Fedőnév');
       alias.addEventListener('click', () => openAliasDialog(site));
+      const reason = h('button', 'btn btn-small', 'Indok');
+      reason.addEventListener('click', () => openReasonDialog(site));
       const hosts = h('button', 'btn btn-small', 'Hosztnevek');
       hosts.addEventListener('click', () => openHostnamesDialog(site));
       const parts = h('button', 'btn btn-small',
@@ -2252,7 +2257,7 @@ function siteRow(site: SiteInfo, st: StatusData): HTMLElement {
       parts.addEventListener('click', () => openRulesDialog(site));
       const del = h('button', 'btn btn-small btn-danger', 'Törlés');
       del.addEventListener('click', () => void startDelete(site));
-      actions.append(unlock, sched, limit, burst, alias, hosts, parts, del);
+      actions.append(unlock, sched, limit, burst, alias, reason, hosts, parts, del);
     }
   }
 
@@ -2351,6 +2356,67 @@ function burstMeter(site: SiteInfo, now: number): HTMLElement | null {
  * ettől ugyanúgy blokkolva marad, a hosts fájl egy bájtot sem változik — csak
  * nem a címe áll a listán. Súrlódást oda teszünk, ahol a védelem gyengülne.
  */
+/**
+ * Az indok párbeszéde: miért tiltottad. Se nem lazítás, se nem szigorítás —
+ * az oldal ugyanúgy blokkolva marad —, ezért nincs próbatétel, és levenni is
+ * egy kattintás. A soron, a feloldás lapján és a böngésző tiltó lapján ez a
+ * mondat emlékeztet a kísértés pillanatában.
+ */
+function openReasonDialog(site: SiteInfo): void {
+  const overlay = h('div', 'overlay');
+  const modal = h('div', 'modal modal-small');
+  modal.appendChild(h('h3', undefined, `Indok: ${displayName(site)}`));
+  modal.appendChild(h('p', 'hint',
+    'Egy mondat arról, miért tiltottad le. A soron, a feloldás lapján és a böngésző '
+    + 'tiltó lapján ez áll majd — pont akkor, amikor a legjobban kellene. Nem tiltás és '
+    + 'nem feloldás: bármikor átírható vagy levehető.'));
+
+  const input = h('input', 'alias-input') as HTMLInputElement;
+  input.type = 'text';
+  input.maxLength = MAX_REASON_LENGTH;
+  input.placeholder = 'pl. Mert este nem alszom tőle';
+  input.value = site.reason ?? '';
+  input.spellcheck = false;
+  modal.appendChild(input);
+
+  const err = h('p', 'error hidden');
+  modal.appendChild(err);
+
+  const actions = h('div', 'modal-actions');
+  const left = h('div', 'row-gap');
+  if (site.reason) {
+    const clear = h('button', 'btn btn-small btn-ghost', 'Indok levétele');
+    clear.addEventListener('click', () => void apply(null));
+    left.appendChild(clear);
+  }
+  const cancel = h('button', 'btn btn-small btn-ghost', 'Mégse');
+  cancel.addEventListener('click', () => overlay.remove());
+  const save = h('button', 'btn btn-small btn-primary', 'Mentés');
+  save.addEventListener('click', () => void apply(input.value));
+  const right = h('div', 'row-gap');
+  right.append(cancel, save);
+  actions.append(left, right);
+  modal.appendChild(actions);
+
+  async function apply(value: string | null): Promise<void> {
+    try {
+      status = await call<StatusData>('set_reason', { siteId: site.id, reason: value });
+      overlay.remove();
+      render();
+    } catch (e) {
+      err.textContent = (e as Error).message;
+      err.classList.remove('hidden');
+    }
+  }
+
+  input.addEventListener('keydown', (ev) => {
+    if ((ev as KeyboardEvent).key === 'Enter') void apply(input.value);
+  });
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+  input.focus();
+}
+
 function openAliasDialog(site: SiteInfo): void {
   const overlay = h('div', 'overlay');
   const modal = h('div', 'modal modal-small');
@@ -3098,9 +3164,12 @@ function renderSession(session: SessionInfo | null): void {
     $('sessionTitle').textContent = session.kind === 'delete'
       ? `Végleges törlés: ${site ? displayName(site) : ''}`
       : `Feloldás ${session.minutes} percre: ${site ? displayName(site) : ''}`;
-    $('sessionSubtitle').textContent = session.kind === 'delete'
+    // Az indok a feloldás lapján is ott áll: ezt az egy mondatot pont most kell
+    // elolvasni — mielőtt a próbákba belefog az ember.
+    const why = site?.reason ? ` Ezért tiltottad le: „${site.reason}”` : '';
+    $('sessionSubtitle').textContent = (session.kind === 'delete'
       ? 'A próbák teljesítése után a törlés még 24 órát vár — addig visszavonható.'
-      : 'A próbák teljesítése után az oldal a választott ideig elérhető, majd magától visszazár.';
+      : 'A próbák teljesítése után az oldal a választott ideig elérhető, majd magától visszazár.') + why;
   }
   $('sessionProgress').textContent = remainingText(session.remaining);
 
