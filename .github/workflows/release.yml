@@ -44,21 +44,29 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **Egy kattintás az értesítésről a menetig.** A gépen a sokadik
-          megakadás és a csúcs-óra előtti előjelzés értesítése megmondja,
-          mi indul, és a kattintás indítja a legutóbbi csomagot a szokásos
-          hosszával — egy második értesítés visszaszól, hogy elindult.
-          Futó menet mellett nincs ígéret.
+          **Egy koppintás az értesítésről a menetig — a telefonokon is.**
+          Androidon a sokadik megakadás és az előjelzés értesítésén gomb
+          indítja a legutóbbi csomagot a szokásos hosszával, iPhone-on az
+          előjelzés értesítésén. Futó menet vagy csomag nélkül nincs gomb.
 
-          ### Ami a v0.4.78-ban jött
+          A v0.4.78 és a v0.4.79 nem kapott saját kiadást — ami ott jött,
+          ebben van:
+
+          **Egy kattintás az értesítésről a menetig a gépen** — az értesítés
+          megmondja, mi indul, a kattintás indítja, és visszaszól.
 
           **A nulla hét is mondat a statisztikán** — az előző hét mellett a
           megakadás- és a munkamenet-blokk üres héten is marad, és kimondja.
 
-          #### Ami a v0.4.77-ben jött
+          ### Ami a v0.4.77-ben jött
 
           **Melyik kulcsszó dolgozik** — a statisztika kulcsszavanként
           mondja a hetet (gép, bővítmény, telefon). Bővítmény 0.4.16.
+
+          #### Ami a v0.4.76-ban jött
+
+          **Az előző hét a bővítmény lapján is** — a beállítás-lap a saját
+          könyvéből mondja, app nélkül is.
 
           NOTES
           fi
