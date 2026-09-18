@@ -44,24 +44,27 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **Menet-sorozat.** Hány napja ülsz le minden nap: a statisztika
-          munkamenet-blokkja és a heti mondat mondja a gépen, Androidon és
-          iPhone-on — „5 napja minden nap leültél.” A ma (vagy ha ma még nem,
-          a tegnap) végződő, megszakítás nélküli napok száma menettel; egy
-          nap nem sorozat, a megszakadt sorozat nem bűn, csak nulla. Tény,
-          nem ítélet.
+          **A leghosszabb sorozat.** A statisztika menet-sorozat sora a
+          mostani sorozat mellett a napló rekordját is mondja a gépen,
+          Androidon és iPhone-on — de csak ha az több a mostaninál:
+          „3 napja minden nap leültél (a leghosszabb sorozatod: 7 nap).”
+          Ha a mostani a rekord, nem ismétli; ha most nincs sorozat, de
+          volt, csak a rekordot mondja: „A leghosszabb sorozatod: 7 nap.”
+          Tény, nem elvárás. A heti mondat csak a mostanit mondja.
 
-          ### Ami a v0.4.140-ben jött
+          ### Ami a v0.4.141-ben jött
+
+          **Menet-sorozat:** hány napja ülsz le minden nap — a statisztika
+          munkamenet-blokkja és a heti mondat mondja mindhárom platformon:
+          „5 napja minden nap leültél.” A ma (vagy tegnap) végződő,
+          megszakítás nélküli napok száma menettel; egy nap nem sorozat, a
+          megszakadt sorozat nem bűn, csak nulla.
+
+          #### Ami a v0.4.140-ben jött
 
           **Az Android szűrő-értesítés sora a mért idő napján is szól:**
           „· ma a legnagyobb nap” — ugyanazzal a küszöbbel, mint a kártya.
-          Az architektúra-doksi egy táblában mondja el a tükör öt darabját:
-          miből számol, hol mondja, milyen lépés következik belőle.
-
-          #### Ami a v0.4.139-ben jött
-
-          **A weboldal és a munkamenet-doksi az értesítés ablak-gombjáról és
-          a csúcs-óra meg a menet-óra egybeeséséről.** Kód nem változott.
+          Az architektúra-doksi egy táblában mondja el a tükör öt darabját.
 
           NOTES
           fi
