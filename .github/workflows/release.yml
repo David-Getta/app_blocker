@@ -44,19 +44,20 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **Melyik szabály dolgozik.** A gépi statisztika a hét megakadásai
-          alatt okonként is mondja — „Ebből: 7 zárva oldal · 3 kulcsszó…” —,
-          ami sokat állít meg, az dolgozik; ami sosem, azt érdemes megnézni.
-          A weboldal a kulcsszó-szabályokat és a megakadásokat is bemutatja.
+          **Az előjelzés a telefon kezdőlapján is.** Tíz perccel a hét
+          csúcs-órája előtt a javaslat kártyája a mondatot is mondja, a
+          munkamenet gombjával együtt — amit az értesítés mond, a lap is.
+          A bővítmény beállítás-lapja a hetet okonként is mondja: melyik
+          szabály dolgozik, app nélkül is.
 
-          ### Ami a v0.4.61-ben jött
+          ### Ami a v0.4.62-ben jött
 
-          **Egy koppintás a mondattól a menetig** — a telefon javaslat-
-          kártyáján gomb indítja a legutóbb használt csomagot.
+          **Melyik szabály dolgozik** — a gépi statisztika okonként is
+          bontja a hét megakadásait; a weboldal két új kártyája.
 
-          #### Ami a v0.4.60-ban jött
+          #### Ami a v0.4.61-ben jött
 
-          **Előjelzés a csúcs-óra előtt** mindhárom platformon.
+          **Egy koppintás a mondattól a menetig** a telefonon.
 
           NOTES
           fi
