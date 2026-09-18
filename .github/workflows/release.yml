@@ -44,19 +44,20 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **Egy kattintás a mondattól a menetig — a gépen is.** A statisztika
-          megakadás-blokkja a sokadik megakadásnál a mondatot és egy gombot
-          mutat: a legutóbb használt csomag a szokásos hosszával, egy
-          kattintásra. Szigorítás, ingyen; futó menet mellett nincs gomb.
+          **Melyik oldal akaszt meg a legtöbbször.** A hét csúcs-oldala
+          mindhárom platformon: a statisztika mondja — „A legtöbbször: …” —,
+          és a hétfői mondat is. A gépen a bővítmény napi élbolyából, a
+          telefonon a szűrő könyvéből; a lista tételével, a rejtett lista és
+          a fedőnév itt is fed.
 
-          ### Ami a v0.4.64-ben jött
+          ### Ami a v0.4.65-ben jött
+
+          **Egy kattintás a mondattól a menetig — a gépen is.**
+
+          #### Ami a v0.4.64-ben jött
 
           **Ha nem kéred, csendben marad** — a javaslatok értesítése
-          kikapcsolható a gépen és a két telefonon.
-
-          #### Ami a v0.4.63-ban jött
-
-          **Az előjelzés a telefon kezdőlapján is**, a gombbal.
+          kikapcsolható mindhárom platformon.
 
           NOTES
           fi
