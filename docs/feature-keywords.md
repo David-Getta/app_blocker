@@ -111,6 +111,15 @@ szabad).
   a bővítmény kikapcsolható — ahogy minden más szabálynál; az impulzus ellen
   véd, nem a szándék ellen.
 
+## A próbamező a telefon ítéletét is mondja
+
+A gépi Kulcsszavak kártya próbamezője a bővítmény ítélete mellett a
+telefonét is kiírja: „A telefonon (a hosztnévben): fogná („tiktok”).” vagy
+„nem fogná.” — mert ott a szűrő csak a hosztnevet látja
+(`keywordInHost`, a Kotlin és a Swift mag tükre a TypeScript-magban). Ugyanaz
+a szó a gépen foghat, a telefonon nem: a „shorts” a youtube.com/shorts útját
+fogja, a hosztnévben nincs. Jobb, ha ez itt derül ki, nem a telefonon.
+
 ## Melyik kulcsszó dolgozik
 
 A megakadás-könyv a kulcsszó okánál a fogó szót is eltárolja — a

@@ -103,6 +103,35 @@ export function keywordHaystack(url: string): string {
   return decoded.normalize('NFKC').toLowerCase();
 }
 
+/**
+ * A cím HOSZTNEVE — a telefon ennyit lát a címből: a séma után, az első
+ * perjelig, a felhasználónév és a port nélkül, kisbetűvel, a záró pont nélkül.
+ */
+export function urlHost(url: string): string {
+  const s = String(url ?? '').trim().replace(/^[a-z][a-z0-9+.-]*:\/\//i, '');
+  let host = s.split(/[/?#]/)[0] ?? '';
+  host = host.replace(/^[^@]*@/, '').replace(/:\d+$/, '');
+  while (host.endsWith('.')) host = host.slice(0, -1);
+  return host.normalize('NFKC').toLowerCase();
+}
+
+/**
+ * A TELEFON ítélete: melyik kulcsszó illik a HOSZTNÉVRE — a DNS-szűrő ennyit
+ * lát —, vagy null. Az androidos és az iOS-es `keywordInHost` tükre: a gépi
+ * próbamező ezzel mondja meg, a telefon fogná-e ugyanazt a címet.
+ */
+export function keywordInHost(keywords: string[], host: string): string | null {
+  let h = String(host ?? '').trim();
+  while (h.endsWith('.')) h = h.slice(0, -1);
+  const hay = h.normalize('NFKC').toLowerCase();
+  if (!hay) return null;
+  for (const k of keywords) {
+    const key = normalizeKeyword(k);
+    if (key !== null && hay.includes(key)) return key;
+  }
+  return null;
+}
+
 /** Melyik kulcsszó illik a címre — az első a lista sorrendjében —, vagy null. */
 export function keywordHit(keywords: string[], url: string): string | null {
   const hay = keywordHaystack(url);

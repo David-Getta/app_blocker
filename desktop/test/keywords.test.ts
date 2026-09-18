@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import * as assert from 'node:assert/strict';
 import {
   KEYWORD_SUGGESTIONS, MAX_KEYWORDS, MAX_KEYWORD_LENGTH, MIN_KEYWORD_LENGTH, cleanKeywords, isKeywordsLoosening,
-  keywordHit, keywordsKey, mergeKeywords, normalizeKeyword, sameKeywords,
+  keywordHit, keywordsKey, mergeKeywords, normalizeKeyword, sameKeywords, keywordInHost, urlHost,
 } from '../src/shared/keywords';
 import { defaultState, newId, type HelperState } from '../src/helper/state';
 import * as referee from '../src/helper/referee';
@@ -213,4 +213,16 @@ test('a javaslatok maguk is érvényes kulcsszavak — kanonikus alakban, egysze
   assert.equal(new Set(KEYWORD_SUGGESTIONS).size, KEYWORD_SUGGESTIONS.length);
   assert.ok(KEYWORD_SUGGESTIONS.length <= MAX_KEYWORDS);
   assert.deepEqual(cleanKeywords(KEYWORD_SUGGESTIONS), KEYWORD_SUGGESTIONS);
+});
+
+test('a telefon ítélete a gépen: a hosztnév a címből, és a kulcsszó a hosztnévben', () => {
+  assert.equal(urlHost('https://user@www.YouTube.com:443/shorts/x?y=1#z'), 'www.youtube.com', 'séma, név, port, út nélkül');
+  assert.equal(urlHost('youtube.com/shorts'), 'youtube.com');
+  assert.equal(urlHost('tiktok.com.'), 'tiktok.com', 'a záró pont nélkül');
+  assert.equal(urlHost(''), '');
+  assert.equal(keywordInHost(['tiktok'], 'www.TikTok.com.'), 'tiktok');
+  assert.equal(keywordInHost(['shorts'], 'www.youtube.com'), null, 'a shorts az útvonalban van, a hosztnévben nem');
+  assert.equal(keywordInHost(['live', 'tiktok'], 'live.example.org'), 'live', 'az első a lista sorrendjében');
+  assert.equal(keywordInHost(['tiktok'], ''), null);
+  assert.equal(keywordInHost([], 'tiktok.com'), null);
 });

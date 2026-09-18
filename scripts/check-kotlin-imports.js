@@ -107,9 +107,28 @@ for (const file of files) {
   }
 }
 
-if (problems.length === 0 && orphans.length === 0) {
+// A `??` NEM KOTLIN: a Swift és a TypeScript null-összevonó jele a Kotlin `?:`
+// helyén fordítási hiba — és a Compose-fájlokat csak a CI Android-buildje
+// fordítja, percekkel később, egy kiadási kört elvéve. Itt másodpercek alatt
+// kiderül. A sor-végi megjegyzés és a szöveg-literál nem számít.
+const coalesce = [];
+for (const file of files) {
+  const lines = fs.readFileSync(file, 'utf8').split('\n');
+  lines.forEach((l, i) => {
+    const code = l.replace(/"(?:[^"\\]|\\.)*"/g, '""').replace(/\/\/.*$/, '');
+    if (code.includes('??')) coalesce.push({ file: path.relative(ROOT, file), line: i + 1, text: l.trim() });
+  });
+}
+
+if (problems.length === 0 && orphans.length === 0 && coalesce.length === 0) {
   console.log('kotlin import-ellenőrzés OK');
   process.exit(0);
+}
+
+if (coalesce.length > 0) {
+  console.error('A `??` nem Kotlin — a null-összevonás jele itt `?:`:\n');
+  for (const c of coalesce) console.error(`  ${c.file}:${c.line}  ${c.text}`);
+  console.error('\nA JVM-tesztek a Compose-fájlokat nem fordítják; a CI Android-buildje kapná el,\npercekkel később.\n');
 }
 
 if (orphans.length > 0) {

@@ -918,6 +918,11 @@ const WIRES = [
   },
   {
     file: 'desktop/src/renderer/renderer.ts',
+    needle: "const phone = host ? keywordInHost(status?.keywords ?? [], host) : null;",
+    lost: 'a gépi próbamező nem mondaná a telefon ítéletét — ugyanaz a szó ott mást tesz',
+  },
+  {
+    file: 'desktop/src/renderer/renderer.ts',
     needle: "const hit = keywordHit(status?.keywords ?? [], url);",
     lost: 'a gépi próbamező nem a bővítmény kulcsszó-ítéletét mondaná',
   },

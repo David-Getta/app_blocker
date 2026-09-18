@@ -40,7 +40,7 @@ import {
 import { CATEGORY_PACKS, type CategoryPack } from '../shared/blocklist.js';
 import { windowKey, windowStartingSoon, type LockdownWindow as LockdownWindowRow } from '../shared/lockdown.js';
 import {
-  KEYWORD_SUGGESTIONS, MAX_KEYWORDS, MAX_KEYWORD_LENGTH, MIN_KEYWORD_LENGTH, keywordHit, normalizeKeyword,
+  KEYWORD_SUGGESTIONS, MAX_KEYWORDS, MAX_KEYWORD_LENGTH, MIN_KEYWORD_LENGTH, keywordHit, normalizeKeyword, keywordInHost, urlHost,
 } from '../shared/keywords.js';
 import {
   encodePairingCode, formatPairingCode, resolveServerInput,
@@ -2272,9 +2272,16 @@ function setupKeywordCard(): void {
     if (!url) { note.classList.add('hidden'); note.textContent = ''; return; }
     const hit = keywordHit(status?.keywords ?? [], url);
     note.classList.remove('hidden');
-    note.textContent = hit
+    // A TELEFON ítélete is: ott a szűrő a hosztnévben nézi a szót — ugyanaz a
+    // cím a gépen foghat, a telefonon nem (vagy fordítva). Jobb, ha itt derül ki.
+    const host = urlHost(url);
+    const phone = host ? keywordInHost(status?.keywords ?? [], host) : null;
+    const phoneLine = host
+      ? ` A telefonon (a hosztnévben): ${phone ? `fogná („${phone}”).` : 'nem fogná.'}`
+      : '';
+    note.textContent = (hit
       ? `A böngésző a tiltó lapra vinné: a „${hit}” kulcsszó a címben.`
-      : 'Kulcsszó nem fogja — a lista, a részleges szabály és a csatorna-szűrő külön dönt.';
+      : 'Kulcsszó nem fogja — a lista, a részleges szabály és a csatorna-szűrő külön dönt.') + phoneLine;
   });
 }
 
