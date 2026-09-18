@@ -44,20 +44,20 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A README és a weboldal a mai tükör-újdonságokról.** A csúcs-nap
-          és a menet-nap — melyik napon csúszik a kéz, és melyiken ülsz le —
-          egy helyre gyűjtve, ahol az ember először találkozik az appal. Kód
-          nem változott; a kiadás a doksi kedvéért van.
+          **A menet-nap ott is, ahol a döntés van.** A menet-napon a gépi
+          kezdőlap kártyája és a gyorsbillentyűs réteg lába, a két telefon
+          kezdőlapja kimondja: „Ma a négy hét menet-napja van (kedd, 6 menet) — ilyenkor szoktál leülni.”
+          — a menet gombjával. Tény, nem felszólítás; a döntés az emberé.
 
-          ### Ami a v0.4.117-ben jött
+          ### Ami a v0.4.118-ban jött
+
+          **A README és a weboldal a mai tükör-újdonságokról.** A csúcs-nap
+          és a menet-nap egy helyre gyűjtve. Kód nem változott.
+
+          #### Ami a v0.4.117-ben jött
 
           **A heti mondat a menet-napot is mondja.** A menetek mondata után,
-          szó szerint a statisztika sora — a gépen, Androidon és iPhone-on.
-
-          #### Ami a v0.4.116-ban jött
-
-          **A menet-nap.** Melyik napon ülsz le a legtöbbször — négy hétből,
-          a csúcs-nap tükre, alatta a hét napjainak sávja.
+          szó szerint a statisztika sora — mindhárom platformon.
 
           NOTES
           fi
