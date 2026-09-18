@@ -8,6 +8,7 @@ kettővel korábbiban.
 
 | Verzió | Nap | Mi újság |
 |---|---|---|
+| v0.4.134 (még nincs kiadva) | 2026-09-18 | a mért idő napja ott is, ahol a döntés van |
 | v0.4.133 (még nincs kiadva) | 2026-09-18 | a böngésző lapjai mondják, ha a menet-órát ablak fedi |
 | v0.4.132 (még nincs kiadva) | 2026-09-18 | az Android szűrő-értesítés sora a menet-napon és a menet-órában is |
 | v0.4.131 (még nincs kiadva) | 2026-09-18 | ablak a menet-órára a böngésző lapjairól is |

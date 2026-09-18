@@ -44,28 +44,28 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
+          **A mért idő napja ott is, ahol a döntés van.** A gépi kezdőlap
+          kártyája és a réteg lába, az Android kezdőlapjának kártyája
+          kimondja, ha ma van a négy hét legnagyobb napja:
+          „Ma a négy hét legnagyobb napja van (szombat, átlag 50 p) — ezen a napon megy el a legtöbb idő.”
+          Csak elég mintából (napi negyedóra átlag), a két magban azonos
+          küszöbbel. Tény, nem ítélet.
+
+          ### Ami a v0.4.133-ban jött
+
           **A böngésző lapjai mondják, ha a menet-órát ablak fedi.** A híd a
           javaslattal a fedő csomag nevét is leadja; a felugró lap és a
           tiltó lap a gomb mellett kimondja: „A menet-órában magától indul: Nyelvtanulás.”
           — az app szava, frissen. Ha a menet-óra a csúcs-óra, a csúcs-óra
           fedése mondja. Bővítmény 0.4.32.
 
-          ### Ami a v0.4.132-ben jött
+          #### Ami a v0.4.132-ben jött
 
           **Az Android szűrő-értesítés sora a menet-napon és a menet-órában is
           mond egy szót:** „· ma a menet-nap”, „· most a menet-óra” — a
           csúcs-nap és a csúcs-óra szava mellett, ugyanazzal a küszöbbel; ha a
           menet-óra a csúcs-óra, csak a csúcs-óráé áll ott. A weboldal a híd
           menet-óra ablakát is említi.
-
-          #### Ami a v0.4.131-ben jött
-
-          **Ablak a menet-órára a böngésző lapjairól is.** A híd a
-          javaslattal a menet-órát is leadja, ha ablak tehető rá (és nem a
-          csúcs-óra); a felugró lap és a tiltó lap gombja
-          — „Heti ablak a menet-órára: Nyelvtanulás, minden nap 09:00–10:00” —
-          ugyanazon a befelé menő végponton teszi fel, mint a csúcs-óráét:
-          csak felvétel, a bíró dönt. Bővítmény 0.4.31.
 
           NOTES
           fi
