@@ -29,6 +29,13 @@ fel.
    te tiltottad le.”), és a lába a szokásos utat: levenni az appban,
    próbatétel — megbízottal az ő jelmondatával a végén. A felugró lap a
    számot mondja.
+4b. **A lap címsorában is.** A webcím nem mindig mondja ki, miről szól a lap
+   (egy videó címe nincs benne) — a lap címsora (`<title>`) igen. A
+   tartalom-szkript betöltéskor és minden váltásnál (az egylapos oldalak a
+   címsort cserélik) megnézi, és találatnál a háttérnek szól; **a döntés ott
+   születik**, a saját listájával, a böngészőtől kérdezett címsorból — a lap
+   csak jelez. A tiltó lap ilyenkor azt mondja: „A lap címsora tartalmazza”.
+   Egy címsor szöveg: NFKC és kisbetű, séma és kódolás nélkül.
 5. **Levétel:** a címkére kattintva a szó *levétele* próbatételt indít
    (`siteId: 'keywords'`); a szó **addig marad**, amíg a próbák meg nincsenek,
    és a bővítmény addig tilt vele. Újat felvenni közben is ingyen lehet — és a
@@ -77,9 +84,10 @@ szabad).
 - **Csak a böngészőben tilt**, és csak ott, ahova a bővítmény telepítve van.
   Inkognitóban alapból nem fut; vendég módban bővítmény nincs. A telefonon
   a lista szerkeszthető és átér, de ott nem tilt — kimondva.
-- **Nem tartalom-szűrő.** A cím szövegét nézi, nem az oldalét: egy videó a
-  címében nem hordozza, miről szól. Amit a cím nem mond ki, azt a kulcsszó
-  nem látja.
+- **Nem tartalom-szűrő.** A webcímet és a lap címsorát nézi, az oldal
+  szövegét nem. Amit a cím és a címsor nem mond ki, azt a kulcsszó nem
+  látja — és a címsor csak a lap betöltése után ér a laphoz, a webcím már
+  előtte.
 - **A rövid szó sokra illik.** A „live” a `livestream`-re és az
   `olive.example`-re is; ezért a három betű az alsó határ, és ezért a lap
   mindig kimondja, melyik szó fogott.

@@ -192,6 +192,10 @@ if (focus) {
   document.getElementById('keywordCard').hidden = false;
   document.getElementById('keyword').textContent = (params.get('keyword') || '')
     .replace(/[\x00-\x1f\x7f-\x9f]/g, ' ').trim().slice(0, 40) || 'ismeretlen kulcsszó';
+  // A webcímben vagy a lap címsorában volt: a lap kimondja, hol fogta meg.
+  if (params.get('by') === 'title') {
+    document.getElementById('keywordWhere').textContent = 'A lap címsora tartalmazza:';
+  }
   const keywordFoot = document.getElementById('keywordFoot');
   paintFoot(keywordFoot, keywordFoot.textContent);
 } else {

@@ -429,6 +429,19 @@ const WIRES = [
     needle: "changes['breaker.hits']",
     lost: 'a tiltó lap nem mondaná, hányadszor ma — a könyv csak a felugró lapon látszana',
   },
+  // A KULCSSZÓ A CÍMSORBAN: a tartalom-szkript jelez, a háttér dönt. Ha a
+  // jelzés vagy a kezelő kiesne, a címsor-találat némán átmenne — a webcím
+  // szabálya elfedné, hogy a másik fele nem működik.
+  {
+    file: 'extension/content.js',
+    needle: "type: 'breaker:title-hit'",
+    lost: 'a tartalom-szkript nem jelezné a címsor kulcsszavát',
+  },
+  {
+    file: 'extension/background.js',
+    needle: "if (msg?.type !== 'breaker:title-hit') return false;",
+    lost: 'a háttér nem döntene a címsor kulcsszaváról — a jelzés a semmibe menne',
+  },
   // A MEGAKADÁS-SZÁMLÁLÓ lánca: a háttér könyvel, a link átadja, a híd
   // fogadja, a segéd tartja, a mondat és a statisztika mondja. Ha bármelyik
   // láncszem kiesne, a bővítmény lapja továbbra is számolna — az app viszont

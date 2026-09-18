@@ -51,3 +51,18 @@ export function keywordHit(keywords, url) {
   }
   return null;
 }
+
+/**
+ * Melyik kulcsszó illik egy SZÖVEGRE — a lap címsorára —, vagy null. Nem a
+ * cím-szabály (séma, százalék-kódolás): egy címsor szöveg, csak NFKC és
+ * kisbetű kell. Az első a lista sorrendjében.
+ */
+export function keywordInText(keywords, text) {
+  const hay = String(text ?? '').normalize('NFKC').toLowerCase();
+  if (!hay.trim()) return null;
+  for (const k of Array.isArray(keywords) ? keywords : []) {
+    const key = normalizeKeyword(k);
+    if (key !== null && hay.includes(key)) return key;
+  }
+  return null;
+}

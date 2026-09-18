@@ -28,13 +28,14 @@ interface KeywordsApi {
   cleanKeywords: (raw: unknown) => string[];
   keywordHaystack: (url: unknown) => string;
   keywordHit: (keywords: unknown, url: unknown) => string | null;
+  keywordInText: (keywords: unknown, text: unknown) => string | null;
 }
 
 function load(): KeywordsApi {
   const src = fs.readFileSync(path.join(extensionDir(), 'keywords.js'), 'utf8').replace(/^export /gm, '');
   // eslint-disable-next-line no-new-func
   return new Function(
-    `${src}\nreturn { MAX_KEYWORDS, normalizeKeyword, cleanKeywords, keywordHaystack, keywordHit };`,
+    `${src}\nreturn { MAX_KEYWORDS, normalizeKeyword, cleanKeywords, keywordHaystack, keywordHit, keywordInText };`,
   )() as KeywordsApi;
 }
 
@@ -75,4 +76,16 @@ test('a bővítmény tisztít és illeszt: rossz kódolás nem dob, a séma nem 
   assert.equal(ext.keywordHit('nem lista', 'https://example.com/shorts'), null);
   assert.equal(ext.keywordHit(['shorts', 'reels'], 'https://example.com/reels/shorts'), 'shorts',
     'a lista sorrendje dönt, nem a cím');
+});
+
+test('a lap címsorában is: szöveg, NFKC kisbetűvel — a lista sorrendje dönt, üresen semmi', () => {
+  const ext = load();
+  assert.equal(ext.keywordInText(['shorts', 'reels'], 'Best REELS and Shorts of 2026'), 'shorts', 'a lista sorrendje, nem a szövegé');
+  assert.equal(ext.keywordInText(['játék'], 'A ja' + String.fromCharCode(0x0301) + 'te' + String.fromCharCode(0x0301) + 'k este'), 'játék',
+    'bontott ékezet ugyanaz');
+  assert.equal(ext.keywordInText(['shorts'], 'Hírek'), null);
+  assert.equal(ext.keywordInText(['shorts'], ''), null);
+  assert.equal(ext.keywordInText(['shorts'], null), null);
+  assert.equal(ext.keywordInText('nem lista', 'shorts'), null);
+  assert.equal(ext.keywordInText(['ab', 'két szó', 'live'], 'olive oil live'), 'live', 'a rossz alakú szó nem szabály');
 });

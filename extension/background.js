@@ -13,7 +13,7 @@
 import { authorVerdict, channelVerdict, MAX_CHANNEL_KEY_LENGTH } from './channels.js';
 import { addSeconds, dayKey, sweepDays } from './chantime.js';
 import { firstMatch, ruleLabel } from './rules-core.js';
-import { keywordHit } from './keywords.js';
+import { keywordHit, keywordInText } from './keywords.js';
 // A napkulcs a csatorna-időé (ugyanaz a helyi nap) — a könyv is azzal él.
 import { hitsReport, recordHit, sweepHits } from './hits.js';
 import { activeRules, load, sweep } from './storage.js';
@@ -223,8 +223,11 @@ function blockedParams(hit, fromUrl) {
     return q;
   }
   if (hit.reason === 'keyword') {
-    // A lap kiírja, MELYIK szó fogta meg: az appban azt kell megkeresni.
-    return new URLSearchParams({ keyword: hit.keyword });
+    // A lap kiírja, MELYIK szó fogta meg: az appban azt kell megkeresni — és
+    // hogy a webcímben vagy a lap címsorában volt-e.
+    const q = new URLSearchParams({ keyword: hit.keyword });
+    if (hit.byTitle) q.set('by', 'title');
+    return q;
   }
   return new URLSearchParams({ rule: ruleLabel(hit.rule) });
 }
@@ -309,6 +312,8 @@ chrome.runtime.onMessage.addListener((msg, _sender, respond) => {
     respond({
       rules: withAppRules(activeRules(state, Date.now()), link.rules),
       channels: link.channels,
+      // A kulcsszavak a tartalom-szkriptnek: a lap CÍMSORÁT csak ő látja.
+      keywords: link.keywords ?? [],
     });
   })();
   return true; // aszinkron válasz
@@ -341,6 +346,37 @@ chrome.runtime.onMessage.addListener((msg, _sender, respond) => {
   timeWrite = timeWrite.then(() => recordChannelTime(msg)).catch(() => { /* egy rossz írás ne törje a sort */ });
   respond({});
   return false; // a válasz azonnal megy, az írás a maga sorában fut
+});
+
+// A tartalom-szkript jelzése: a lap CÍMSORÁBAN kulcsszó van. A DÖNTÉS ITT
+// születik, a saját listájával, és a címsort a böngészőtől kérdezzük
+// (sender.tab.title), nem az üzenetből — a lap csak jelez. A tévedés rossz
+// iránya itt is a tiltás felé lejt: legfeljebb egy lap tiltja le saját magát.
+chrome.runtime.onMessage.addListener((msg, sender, respond) => {
+  if (msg?.type !== 'breaker:title-hit') return false;
+  void (async () => {
+    const tabId = sender?.tab?.id;
+    if (typeof tabId !== 'number' || sender.frameId !== 0) { respond({}); return; }
+    const url = sender.url ?? sender.tab?.url ?? '';
+    if (!hostOf(url)) { respond({}); return; }
+    const link = await loadLink();
+    const keyword = keywordInText(link.keywords ?? [], String(sender.tab?.title ?? ''));
+    if (!keyword) { respond({}); return; }
+    const now = Date.now();
+    const lockUntil = lockdownUntil(link, now);
+    const hit = {
+      reason: 'keyword', keyword, byTitle: true, lockUntil,
+      lockWindow: lockUntil > 0 && link?.lockdown?.byWindow === true,
+      note: noteFor(link, hostOf(url)), partner: partnerNameOf(link),
+    };
+    note(`címsor ${url} -> kulcsszó ${keyword}`);
+    try {
+      await chrome.tabs.update(tabId, { url: blockedUrl(hit, url) });
+    } catch { respond({}); return; /* a lap közben eltűnt */ }
+    await recordHitNow(tabId, url, 'keyword', now);
+    respond({ blocked: true });
+  })();
+  return true; // aszinkron válasz
 });
 
 // A tartalom-szkript jelzése: a lejátszó-oldal metaadata szerint a videót ez

@@ -168,8 +168,10 @@ valamit, amit a felhasználó nem tiltott le.
 9. **Kulcsszavak: bármely oldalon, ha a cím tartalmazza.** Az appban felvett
    szavak (`shorts`, `reels`, egy játék neve) a hídon jönnek (`keywords`), és a
    háttér minden navigációnál a cím szövegén keresi őket — séma nélkül, a
-   százalék-kódolás feloldva, kisbetűvel, a hosztnévben is. Találatnál a tiltó
-   lap külön kártyája kimondja, melyik szó fogott. A döntés az egész oldal
+   százalék-kódolás feloldva, kisbetűvel, a hosztnévben is. A lap CÍMSORÁBAN
+   is: a tartalom-szkript betöltéskor és váltáskor megnézi a `<title>`-t, és
+   találatnál a háttérnek szól, ami a böngésző címsorából dönt (`by=title`).
+   Találatnál a tiltó lap külön kártyája kimondja, melyik szó fogott, és hol. A döntés az egész oldal
    zárása után, a csatorna és a részleges szabály előtt megy, mert tágabb,
    mint azok. Itt nem szerkeszthető: levenni az appban kell, ahol
    próbatételbe kerül. A mag a `keywords.js` — a `desktop/src/shared/keywords.ts`

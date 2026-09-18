@@ -213,7 +213,8 @@ ingyen van, rövidíteni vagy visszavonni sehogy.
   böngésző; a telefonon is szerkeszthető, de ott nem tilt). A blokklista egész oldalakat lát, a
   részleges szabály egy oldal egy útvonalát — ez a harmadik: egy szó
   (`shorts`, `reels`, egy játék neve), és a böngésző minden címet a tiltó
-  lapra visz, amiben szerepel, a hosztnévben is. Felvenni ingyen, **levenni
+  lapra visz, amiben szerepel, a hosztnévben is — és a lap **címsorában** is
+  (egy videó címe a webcímben nincs benne, a címsorban igen). Felvenni ingyen, **levenni
   próbatétel**; a szó addig marad, amíg a próbák meg nincsenek, és újat
   felvenni közben is ingyen lehet. A tiltó lap kimondja, melyik szó fogott. A
   lista a fiókon át a többi eszközre is átér (a jelével; azonos jelnél a
@@ -486,8 +487,8 @@ a Swift-tükör minden pusholásnál fordul, és a mag tesztjei is lefutnak), é
 
 Ami még hátravan:
 
-- **Tartalom-alapú blokkolás** (a kulcsszó a címet nézi, nem az oldal
-  szövegét; a DNS-szint egész domaineket lát).
+- **Tartalom-alapú blokkolás** (a kulcsszó a webcímet és a lap címsorát
+  nézi, nem az oldal szövegét; a DNS-szint egész domaineket lát).
 - **IP-szintű szabályok** az egyedi DNS/DoH-proxy megkerülés ellen.
 - **Windows named pipe szűkítése** egyedi DACL-lel (ma helyi, de nem
   felhasználóhoz kötött — lásd `docs/architecture.md`).

@@ -43,9 +43,9 @@ const LINK = {
   error: null,
 };
 
-function html(body) {
+function html(body, title = 'kamu videó-oldal') {
   return ['<!doctype html><html lang="hu"><head><meta charset="utf-8">',
-    '<title>kamu videó-oldal</title></head><body>', body, '</body></html>'].join('');
+    `<title>${title}</title></head><body>`, body, '</body></html>'].join('');
 }
 
 /** Az oldalak. A `base` a saját teljes címünk — a metaadat abszolút címeihez. */
@@ -86,6 +86,8 @@ function pages(base) {
       base.replace(/\//g, '\\/'), '\\/@rossz"}}};</script><p>lejátszó</p>',
     ].join('')),
     '/@rossz': html('<h1>Rossz csatorna oldala</h1>'),
+    // A kulcsszó a lap CÍMSORÁBAN, a webcímben nem: csak a lapban futó kód látja.
+    '/cimsor': html('<p id="cimsor">címsoros lap</p>', 'Tiltott dolgok listája'),
     '/@jo': html('<h1 id="joCsatorna">Jó csatorna oldala</h1>'),
   };
 }
@@ -475,6 +477,15 @@ async function main() {
     await page.goto(`${base}/?x=szabad`).catch(() => {});
     await page.waitForTimeout(500);
     check(!/blocked\.html/.test(page.url()), 'a szó nélküli cím ugyanazon a hoszton szabad');
+    // A CÍMSORBAN: a webcím tiszta, a lap címsora tartalmazza — a tartalom-
+    // szkript jelez, a háttér a böngésző címsorából dönt, és a lap kimondja.
+    await page.goto(`${base}/cimsor`).catch(() => { /* elkapja a tiltás */ });
+    const titleBlocked = await waitForBrowserUrl(page, context, /blocked\.html\?.*keyword=tiltott.*by=title/, WAIT_MS);
+    check(!!titleBlocked, 'a lap címsorában lévő kulcsszó is a tiltó lapra visz');
+    if (titleBlocked && /blocked\.html/.test(page.url())) {
+      const text = await bodyText(page);
+      check(text.includes('A lap címsora tartalmazza'), 'a tiltó lap kimondja, hogy a címsorban volt');
+    }
     // A MEGAKADÁS könyvelve: a tiltó lapra vitt navigáció a mai napra, okkal.
     const hits = await seeder.evaluate(async () => {
       const got = await chrome.storage.local.get('breaker.hits');

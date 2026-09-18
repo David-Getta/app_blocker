@@ -35,9 +35,10 @@
 // viszont a felhasználó szemében a szűrőt járatja le.
 
 (async () => {
-  const [{ matchesRule }, chan] = await Promise.all([
+  const [{ matchesRule }, chan, kw] = await Promise.all([
     import(chrome.runtime.getURL('rules-core.js')),
     import(chrome.runtime.getURL('channels.js')),
+    import(chrome.runtime.getURL('keywords.js')),
   ]);
   const TIME_FLUSH_SECONDS = 10;
 
@@ -369,9 +370,43 @@
     observer.observe(document.documentElement, { childList: true, subtree: true });
   }
 
-  function applyConfig(newRules, newChannels) {
+  // ---------------------------------------------------------------------
+  // KULCSSZÓ A CÍMSORBAN. A navigáció-figyelő a webcímet látja; a lap
+  // címsorát (a <title>-t) csak a lapban futó kód. Betöltéskor és minden
+  // váltásnál (az egylapos oldalak a címsort cserélik) megnézzük; találatnál a
+  // háttérnek szólunk — a döntés OTT születik, a saját listájával, a
+  // böngészőtől kérdezett címsorból. A lap csak jelez.
+  // ---------------------------------------------------------------------
+  let keywords = [];
+  let titleObserver = null;
+  let reportedTitle = '';
+  function checkTitle() {
+    if (keywords.length === 0) return;
+    const title = String(document.title || '');
+    if (!title || title === reportedTitle) return;
+    const hit = kw.keywordInText(keywords, title);
+    if (!hit) return;
+    reportedTitle = title;
+    try {
+      const p = chrome.runtime.sendMessage({ type: 'breaker:title-hit', keyword: hit });
+      if (p && typeof p.catch === 'function') p.catch(() => { /* a háttér épp alszik */ });
+    } catch { /* a lap élete végén a csatorna már zárva lehet */ }
+  }
+  function ensureTitleWatch() {
+    checkTitle();
+    if (titleObserver || keywords.length === 0) return;
+    titleObserver = new MutationObserver(() => checkTitle());
+    // A <title> szövege és a <head> gyerekei: a címsor cseréje is változás.
+    titleObserver.observe(document.head || document.documentElement,
+      { childList: true, subtree: true, characterData: true });
+  }
+
+  function applyConfig(newRules, newChannels, newKeywords) {
     rules = Array.isArray(newRules) ? newRules : [];
     channels = Array.isArray(newChannels) ? newChannels : [];
+    keywords = (Array.isArray(newKeywords) ? newKeywords : []).filter((k) => typeof k === 'string' && k);
+    reportedTitle = '';
+    ensureTitleWatch();
     // Csak azok a szűrők érdekesek, amelyek ERRE az oldalra szólnak — a többi
     // oldalon a csatorna-logika el sem indul, ne is fogyasszon semmit.
     pageFilters = channels.filter(
@@ -386,7 +421,7 @@
 
   async function fetchConfig() {
     const answer = await chrome.runtime.sendMessage({ type: 'breaker:active-rules' });
-    applyConfig(answer?.rules, answer?.channels);
+    applyConfig(answer?.rules, answer?.channels, answer?.keywords);
   }
 
   try {
