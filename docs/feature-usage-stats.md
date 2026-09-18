@@ -595,7 +595,10 @@ kimondja mindhárom platformon („A menet-órában magától indul: Nyelvtanul�
 és ha nem fedi semmi, de lehetne rá ablakot tenni: „(6 menet, nincs rá ablak)”
 (`focusHourPack`, `focusHourWindowOffer` a mondat bemenetén — a segéd, az
 Android és az iOS építi; a fedés erősebb). Ha a menet-óra a csúcs-óra, a
-csúcs-óra sora és mondata mondja — kétszer ugyanazt nem.
+csúcs-óra sora és mondata mondja — kétszer ugyanazt nem. A böngésző lapjai
+is mondják: a híd a javaslattal leadja a fedő csomag nevét
+(`suggest.focusHourPack`), a felugró lap és a tiltó lap a gomb mellett:
+„A menet-órában magától indul: Nyelvtanulás.” Bővítmény 0.4.32.
 
 **A mért idő napja:** a tükör harmadik fele — nem az, mikor csúszik a kéz,
 és nem az, mikor ülsz le, hanem az, melyik napon megy el a legtöbb idő: négy

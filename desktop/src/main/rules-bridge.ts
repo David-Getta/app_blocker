@@ -133,6 +133,12 @@ export interface BridgeSuggest {
    * a csúcs-óra (azt a másik gomb kínálja), vagy nem tehető rá ablak. Régi app nem küldi.
    */
   focusHour?: number | null;
+  /**
+   * LE VAN-E FEDVE a menet-óra: a csomag neve, amelynek heti ablaka fedi — a
+   * lap kimondja, hogy a menet-órában magától indul. Null, ha egyik sem, vagy
+   * a menet-óra a csúcs-óra (azt a csúcs-óra fedése mondja). Régi app nem küldi.
+   */
+  focusHourPack?: string | null;
 }
 
 /**

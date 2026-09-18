@@ -507,7 +507,11 @@ az órák sávja, és a csúcs-óra ott is, ahol a kísértés van — a tiltó 
 felugró lap, a réteg, a telefon kártyája; a csúcs-nap és a menet-nap (melyik
 napon csúszik a kéz, és melyiken ülsz le — négy hétből, a hét napjainak
 sávjával, a heti mondatban is; a csúcs-napon a tiltó lap, a felugró lap, a
-réteg és a telefon kártyája kimondja, hogy ma van); az értesítésről, a felugró lapról és
+réteg és a telefon kártyája kimondja, hogy ma van); a menet-óra (mikor ülsz
+le a legtöbbször — a heti mondatban is, a döntés helyein kimondva, tíz
+perccel előtte előre szólva, a fedése kimondva, és egy kattintás a heti
+ablakig a statisztikáról, a kártyáról és a böngésző lapjairól); az
+értesítésről, a felugró lapról és
 a tiltó lapról egy kattintás a menetig, a csúcs-órára egy kattintás a heti
 ablakig — a telefonon és a böngésző lapjairól is —, és ha egy csomag ablaka
 már fedi, a statisztika kimondja —

@@ -66,6 +66,19 @@ export function peakCoverText(link, now, freshMs) {
 }
 
 /**
+ * LE VAN-E FEDVE a menet-óra: ha egy csomag heti ablaka fedi, a lap kimondja,
+ * hogy a menet magától indul — a csúcs-óra fedésének tükre, az app szava.
+ * Csak összekötve és friss válasz mellett; különben üres.
+ */
+export function focusHourCoverText(link, now, freshMs) {
+  if (!link || typeof link.token !== 'string' || !link.token) return '';
+  const fresh = Number.isFinite(link?.fetchedAt) && link.fetchedAt > 0 && now - link.fetchedAt <= freshMs;
+  const name = link?.suggest?.focusHourPack;
+  if (!fresh || typeof name !== 'string' || !name) return '';
+  return ` A menet-órában magától indul: ${name}.`;
+}
+
+/**
  * A MENET-NAP: ha az app azt mondja, ma szoktál leülni (a négy hét menet-napja,
  * elég mintából — az app szabálya), a lap a gomb mellett kimondja. Csak
  * összekötve és friss válasz mellett; különben üres. Tény, nem felszólítás.

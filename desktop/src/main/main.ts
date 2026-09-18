@@ -359,8 +359,11 @@ if (HELPER_MODE) {
           // gombja már kínálja (null): kétszer ugyanazt nem.
           const fh = s.focusHour ?? null;
           const focusHour = fh && (!peak || peak.hour !== fh.hour) && !pick.recurrence && !packCoveringHour(packs, fh.hour) ? fh.hour : null;
+          // LE VAN-E FEDVE a menet-óra: a csomag, amelynek ablaka fedi — a lap kimondja;
+          // ha a menet-óra a csúcs-óra, a csúcs-óra fedése mondja (kétszer ugyanazt nem).
+          const focusHourPack = fh && (!peak || peak.hour !== fh.hour) ? packCoveringHour(packs, fh.hour)?.name ?? null : null;
           // LE VAN-E FEDVE: a csomag, amelynek ablaka a csúcs-órát fedi — a felugró lap kimondja.
-          return { packId: pick.id, name: pick.name, minutes: pick.defaultMinutes, peakHour, peakPack: covering?.name ?? null, focusDay, focusHourNow, focusHour };
+          return { packId: pick.id, name: pick.name, minutes: pick.defaultMinutes, peakHour, peakPack: covering?.name ?? null, focusDay, focusHourNow, focusHour, focusHourPack };
         },
         async (packId, minutes) => {
           // EGY KATTINTÁS a felugró lapról a menetig: ugyanaz a bírói út, mint

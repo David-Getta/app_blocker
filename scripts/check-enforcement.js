@@ -1075,7 +1075,7 @@ const WIRES = [
   // LE VAN-E FEDVE a felugró lapon: a híd leadja a fedő csomagot, a lap kimondja.
   {
     file: 'desktop/src/main/main.ts',
-    needle: "peakPack: covering?.name ?? null, focusDay, focusHourNow, focusHour };",
+    needle: "peakPack: covering?.name ?? null, focusDay, focusHourNow, focusHour, focusHourPack };",
     lost: 'a híd nem adná le a csúcs-órát fedő csomagot — a felugró lap nem mondaná',
   },
   {
@@ -1249,12 +1249,12 @@ const WIRES = [
   },
   {
     file: 'extension/popup.js',
-    needle: 'const fd = focusDayText(link, Date.now(), CLOSED_FRESH_MS) + focusHourNowText(link, Date.now(), CLOSED_FRESH_MS);',
+    needle: 'const fd = focusDayText(link, Date.now(), CLOSED_FRESH_MS) + focusHourNowText(link, Date.now(), CLOSED_FRESH_MS)',
     lost: 'a felugró lap a menet-napon nem mondaná, hogy ma szoktál leülni',
   },
   {
     file: 'extension/blocked.js',
-    needle: 'const fd = focusDayText(link, Date.now(), CLOSED_FRESH_MS) + focusHourNowText(link, Date.now(), CLOSED_FRESH_MS);',
+    needle: 'const fd = focusDayText(link, Date.now(), CLOSED_FRESH_MS) + focusHourNowText(link, Date.now(), CLOSED_FRESH_MS)',
     lost: 'a tiltó lap a menet-napon nem mondaná, hogy ma szoktál leülni',
   },
   // A MÉRT IDŐ NAPJA: melyik napon megy el a legtöbb idő — a gépi és az Android statisztikán.
@@ -1383,6 +1383,22 @@ const WIRES = [
     file: 'ios/App/ContentView.swift',
     needle: 'FocusHourReminder.reschedule(peak: focusHourKey.isEmpty ? nil : focusHour, canStart:',
     lost: 'az iPhone nem ütemezné a menet-óra előjelzését',
+  },
+  // A MENET-ÓRA FEDÉSE a böngésző lapjain: a híd leadja, a lap kimondja.
+  {
+    file: 'desktop/src/main/main.ts',
+    needle: 'const focusHourPack = fh && (!peak || peak.hour !== fh.hour) ? packCoveringHour(packs, fh.hour)?.name ?? null : null;',
+    lost: 'a híd nem adná le a menet-órát fedő csomagot',
+  },
+  {
+    file: 'extension/popup.js',
+    needle: '+ focusHourCoverText(link, Date.now(), CLOSED_FRESH_MS);',
+    lost: 'a felugró lap nem mondaná, hogy a menet-órát ablak fedi',
+  },
+  {
+    file: 'extension/blocked.js',
+    needle: '+ focusHourCoverText(link, Date.now(), CLOSED_FRESH_MS);',
+    lost: 'a tiltó lap nem mondaná, hogy a menet-órát ablak fedi',
   },
   // A MENET-NAP és a MENET-ÓRA az Android szűrő-értesítésének sorában is.
   {

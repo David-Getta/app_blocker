@@ -224,7 +224,9 @@ export function cleanSuggest(raw) {
   const focusHourNow = raw.focusHourNow === true;
   // A MENET-ÓRA, amire ablak tehető: az app mondja (a csúcs-óra tükre) — csak egész óra, 0–23.
   const focusHour = Number.isInteger(raw.focusHour) && raw.focusHour >= 0 && raw.focusHour <= 23 ? raw.focusHour : null;
-  return { packId: raw.packId, name: raw.name, minutes, peakHour, peakPack, focusDay, focusHourNow, focusHour };
+  // LE VAN-E FEDVE a menet-óra: a csomag neve, amelynek ablaka fedi — kívülről jött szöveg, rövidre vágva.
+  const focusHourPack = typeof raw.focusHourPack === 'string' && raw.focusHourPack ? raw.focusHourPack.slice(0, 40) : null;
+  return { packId: raw.packId, name: raw.name, minutes, peakHour, peakPack, focusDay, focusHourNow, focusHour, focusHourPack };
 }
 
 /**

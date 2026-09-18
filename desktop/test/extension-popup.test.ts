@@ -39,6 +39,7 @@ interface Popup {
   suggestButton: (link: unknown, now: number, freshMs: number) => { packId: string; minutes: number; text: string } | null;
   windowButton: (link: unknown, now: number, freshMs: number) => { packId: string; hour: number; text: string } | null;
   focusHourWindowButton: (link: unknown, now: number, freshMs: number) => { packId: string; hour: number; text: string } | null;
+  focusHourCoverText: (link: unknown, now: number, freshMs: number) => string;
   hourSpan: (h: number) => string;
   peakCoverText: (link: unknown, now: number, freshMs: number) => string;
   focusDayText: (link: unknown, now: number, freshMs: number) => string;
@@ -47,7 +48,7 @@ interface Popup {
 
 function load(): Popup {
   const src = fs.readFileSync(path.join(extensionDir(), 'popup-core.js'), 'utf8').replace(/^export /gm, '');
-  return new Function(`${src}\nreturn { describePopup, spanText, agoText, CLOSED_SHOWN, suggestButton, windowButton, focusHourWindowButton, hourSpan, peakCoverText, focusDayText, focusHourNowText };`)() as Popup;
+  return new Function(`${src}\nreturn { describePopup, spanText, agoText, CLOSED_SHOWN, suggestButton, windowButton, focusHourWindowButton, hourSpan, peakCoverText, focusHourCoverText, focusDayText, focusHourNowText };`)() as Popup;
 }
 
 const NOW = 1_800_000_000_000;
@@ -243,6 +244,16 @@ test('a felugró lap kimondja, ha a csúcs-órát ablak fedi — az app szava, f
   assert.equal(peakCoverText(link({}), NOW, FRESH), '', 'javaslat nélkül nincs');
   assert.equal(peakCoverText(link({ suggest: s, fetchedAt: NOW - 10 * 60_000 }), NOW, FRESH), '', 'elavult válasz mellett nincs');
   assert.equal(peakCoverText(link({ suggest: s, token: null }), NOW, FRESH), '', 'összekötetlenül nincs');
+});
+
+test('a lap kimondja, ha a menet-órát ablak fedi — az app szava, frissen, összekötve', () => {
+  const { focusHourCoverText } = load();
+  const s = { packId: 'pack_1', name: 'Nyelvtanulás', minutes: 25, peakHour: null, peakPack: null, focusHourPack: 'Nyelvtanulás' };
+  assert.equal(focusHourCoverText(link({ suggest: s }), NOW, FRESH), ' A menet-órában magától indul: Nyelvtanulás.');
+  assert.equal(focusHourCoverText(link({ suggest: { ...s, focusHourPack: null } }), NOW, FRESH), '', 'fedés nélkül nincs mondat');
+  assert.equal(focusHourCoverText(link({}), NOW, FRESH), '', 'javaslat nélkül nincs');
+  assert.equal(focusHourCoverText(link({ suggest: s, fetchedAt: NOW - 10 * 60_000 }), NOW, FRESH), '', 'elavult válasz mellett nincs');
+  assert.equal(focusHourCoverText(link({ suggest: s, token: null }), NOW, FRESH), '', 'összekötetlenül nincs');
 });
 
 test('a menet-nap a gomb mellett: az app szava, frissen, összekötve — csak a szó szerinti igaz', () => {

@@ -98,7 +98,8 @@ csomagnak nincs még; csak felvétel, a csere az appé. A párja a menet-órára
 az app menet-órája nem a csúcs-óra (azt a másik gomb kínálja). Mind ott
 van a tiltó lapon is. Ha egy csomag ablaka már fedi a csúcs-órát, a lap a csúcs
 mondata után kimondja: „A csúcs-órában magától indul: Nyelvtanulás.” — az
-app szava, frissen. A csúcs-napon (négy hétből, legalább három megakadásból)
+app szava, frissen; a menet-óráét ugyanígy, a gomb mellett:
+„A menet-órában magától indul: Nyelvtanulás.” A csúcs-napon (négy hétből, legalább három megakadásból)
 a felugró lap és a tiltó lap azt is mondja, hogy ma van; a menet-napon (az
 app mondja, `suggest.focusDay`) a gomb mellett: „Ma a menet-napod van — ilyenkor szoktál leülni.”
 Minden más csak
