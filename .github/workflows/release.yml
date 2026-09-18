@@ -44,22 +44,21 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A leghosszabb sorozat ott is, ahol a döntés van.** A gépi
-          kezdőlap javaslat-kártyája és a gyorsbillentyűs réteg lába, meg a
-          telefonok kezdőlapjának kártyája a mostani sorozat mellett a
-          napló rekordját is mondja, zárójelben — csak a mostani mellett;
-          a puszta rekord a statisztikáé. Ha a mostani a rekord, nem
-          ismétli.
+          **A leghosszabb sorozat a böngésző lapjain is.** A felugró lap és
+          a tiltó lap a menet gombja mellett a mostani sorozat mellett a
+          napló rekordját is mondja, zárójelben, ha több — az app száma a
+          hídon; sorozat nélkül a rekord sem mondat. Bővítmény 0.4.35.
 
-          ### Ami a v0.4.149-ben jött
+          ### Ami a v0.4.150-ben jött
+
+          **A leghosszabb sorozat ott is, ahol a döntés van:** a gépi
+          kártya és a réteg lába, a telefonok kezdőlapjának kártyája a
+          mostani sorozat mellett a rekordot is mondja, zárójelben.
+
+          #### Ami a v0.4.149-ben jött
 
           **A menet-sorozat őszinte korlátja** a README-ben, a weboldalon és
-          a munkamenet-doksiban: miből számol a sorozat. Kód nem változott.
-
-          #### Ami a v0.4.148-ban jött
-
-          **A README, a weboldal és az architektúra a csúcs-nap és a
-          menet-nap egybeeséséről.** Kód nem változott.
+          a munkamenet-doksiban. Kód nem változott.
 
           NOTES
           fi
