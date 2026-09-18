@@ -416,6 +416,11 @@ const EXT_PAIRS = [
   ['HIT_NUDGE_FIRST_STEP',
     scalar(ts.browserHits, /HIT_NUDGE_STEPS\s*=\s*\[\s*(\d+)/, 'ts'),
     scalar(ext.hits, /NUDGE_AT\s*=\s*([^;]+);/, 'ext')],
+  // A hét napjainak nevei: a csúcs-nap mondata a lapon és az appban ugyanazt a
+  // napot ugyanúgy hívja — különben a „ma van” két nevet viselne.
+  ['WEEKDAY_NAMES',
+    quotedWords(ts.browserHits, /WEEKDAY_NAMES\s*=\s*\[([^\]]+)\]/) ?? { missing: 'ts' },
+    quotedWords(ext.hits, /WEEKDAY_NAMES\s*=\s*\[([^\]]+)\]/) ?? { missing: 'ext' }],
 ];
 
 /** Egy szám a két telefon-tükörből — aláhúzás és Kotlin-utótag nélkül. */
