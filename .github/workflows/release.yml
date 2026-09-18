@@ -44,23 +44,22 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **Kulcsszó a lap címsorában is.** A webcím nem mindig mondja ki,
-          miről szól a lap — egy videó címe nincs benne, a lap címsorában
-          viszont igen. A böngésző-bővítmény mostantól a címsort is nézi,
-          betöltéskor és minden váltásnál; találatnál a tiltó lapra visz,
-          és kimondja: „A lap címsora tartalmazza”. A döntés a háttéré, a
-          saját listájával — a lap csak jelez.
+          **Kulcsszó-javaslatok egy koppintással.** A leggyakoribb
+          figyelem-csapdák — shorts, reels, live, stream — a gép kulcsszó-
+          kártyáján és a telefonok blokkjában egy koppintással felvehetők:
+          ingyen, mert felvétel; ami már fent van, azt nem kínálja újra. Nem
+          tilt magától — te döntesz. Ugyanaz a lista a három magban.
 
-          ### Ami a v0.4.50-ben jött
+          ### Ami a v0.4.51-ben jött
+
+          **Kulcsszó a lap címsorában is.** A böngésző-bővítmény a címsort is
+          nézi, betöltéskor és minden váltásnál; találatnál a tiltó lapra
+          visz, és kimondja: „A lap címsora tartalmazza”.
+
+          #### Ami a v0.4.50-ben jött
 
           **Megakadások a telefonon is — és a tiltó lap kimondja, hányadszor
-          ma.** Androidon a szűrő, iPhone-on a tunnel számolja, hányszor
-          állította meg a telefont; a heti mondat és a statisztika mondja.
-          A gépen a tiltó lap: „Ma ez a 7. megakadás.”
-
-          #### Ami a v0.4.49-ben jött
-
-          **A kulcsszavak a telefonon is szerkeszthetők.**
+          ma.**
 
           NOTES
           fi
