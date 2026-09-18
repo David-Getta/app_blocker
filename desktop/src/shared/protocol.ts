@@ -185,6 +185,8 @@ export interface StatusData {
   browserHitsDays?: { day: string; total: number }[];
   /** a hét csúcs-órája: mikor jár a kéz magától — null, ha még nem volt megakadás */
   browserHitsPeak?: { hour: number; count: number } | null;
+  /** a hét megakadásai okonként, a legnagyobb elöl — melyik szabály dolgozik */
+  browserHitsReasons?: { reason: string; count: number }[];
   /** az utolsó feloldás ideje (epoch ms), vagy null, ha még egy sem volt */
   lastUnlockAt?: number | null;
   session: SessionInfo | null;

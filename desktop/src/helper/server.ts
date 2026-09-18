@@ -10,7 +10,9 @@ import { normalizeDomain, expandHostnames } from '../shared/blocklist';
 import { computeTier } from '../shared/challenges';
 import { normalizeAlias, normalizeReason } from '../shared/alias';
 import { cleanDigestLog } from '../shared/digest';
-import { browserHits7d, browserHitsPeakHour, browserHitsSeries, browserHitsToday, putBrowserHits } from '../shared/browser-hits';
+import {
+  browserHits7d, browserHitsByReason, browserHitsPeakHour, browserHitsSeries, browserHitsToday, putBrowserHits,
+} from '../shared/browser-hits';
 import { normalizeRule } from '../shared/urlrules';
 import { focusDaySeries, isRunning, normalizePack, spentWindows, summarizeFocus } from '../shared/focus';
 import { noteBurstUsage, normalizeBurst, type BurstRule } from '../shared/burst';
@@ -133,6 +135,7 @@ export function statusOf(
     browserHitsToday: browserHitsToday(state.browserHits, now),
     browserHitsDays: browserHitsSeries(state.browserHits, now, 7),
     browserHitsPeak: browserHitsPeakHour(state.browserHits, now),
+    browserHitsReasons: browserHitsByReason(state.browserHits, now),
     lastUnlockAt: state.unlockLog.length > 0 ? Math.max(...state.unlockLog) : null,
     session: referee.currentSession(state),
     dohPolicyApplied: dohApplied,

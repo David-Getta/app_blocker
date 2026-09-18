@@ -552,6 +552,18 @@ const WIRES = [
     needle: 'Referee.startFocus(packId: pick.id, minutes: pick.defaultMinutes, now: nowMs())',
     lost: 'az iPhone javaslat-kártyája nem indítana menetet egy koppintásra',
   },
+  // MELYIK szabály dolgozik: az okok a hídon átjönnek, a segéd tartja — ha a
+  // státusz vagy a lap nem mondaná, a bontás csak a bővítmény lapján maradna.
+  {
+    file: 'desktop/src/helper/server.ts',
+    needle: 'browserHitsReasons: browserHitsByReason(state.browserHits, now),',
+    lost: 'a segéd státusza nem mondaná az okokat — a gépi sor mindig üres',
+  },
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: "hitsReasonLine(status?.browserHitsReasons ?? [])",
+    lost: 'a gépi statisztika nem mondaná, melyik szabály dolgozik',
+  },
   // A MEGAKADÁS-SZÁMLÁLÓ lánca: a háttér könyvel, a link átadja, a híd
   // fogadja, a segéd tartja, a mondat és a statisztika mondja. Ha bármelyik
   // láncszem kiesne, a bővítmény lapja továbbra is számolna — az app viszont

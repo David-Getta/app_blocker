@@ -186,3 +186,35 @@ export function browserHitsSeries(
   }
   return out;
 }
+
+/** Az okok nevei — a bővítmény beállítás-lapjának neveivel azonos. */
+export const HIT_REASON_LABELS: Record<string, string> = {
+  closed: 'zárva oldal', focus: 'munkamenet', channel: 'csatorna', rule: 'részleges szabály', keyword: 'kulcsszó', other: 'egyéb',
+};
+const REASON_ORDER = Object.keys(HIT_REASON_LABELS);
+
+/**
+ * Az elmúlt 7 nap megakadásai OKONKÉNT, minden forrásból összeadva — MELYIK
+ * szabály dolgozik. Csak a nem nulla, a legnagyobb elöl; holtversenynél az
+ * okok rögzített sorrendje, hogy a sor ne ugráljon két frissítés között.
+ */
+export function browserHitsByReason(book: BrowserHits | undefined, now: number): { reason: string; count: number }[] {
+  const from = hitDayKey(now - 6 * 86_400_000);
+  const to = hitDayKey(now);
+  const sum = new Map<string, number>();
+  for (const days of Object.values(book ?? {})) {
+    for (const d of days) {
+      if (d.day < from || d.day > to) continue;
+      for (const [r, n] of Object.entries(d.byReason)) sum.set(r, (sum.get(r) ?? 0) + n);
+    }
+  }
+  return [...sum.entries()]
+    .filter(([, n]) => n > 0)
+    .sort((a, b) => b[1] - a[1] || REASON_ORDER.indexOf(a[0]) - REASON_ORDER.indexOf(b[0]))
+    .map(([reason, count]) => ({ reason, count }));
+}
+
+/** „7 zárva oldal · 3 kulcsszó · 2 munkamenet” — üresen üres. */
+export function hitsReasonLine(rows: { reason: string; count: number }[]): string {
+  return rows.map((r) => `${r.count} ${HIT_REASON_LABELS[r.reason] ?? r.reason}`).join(' · ');
+}

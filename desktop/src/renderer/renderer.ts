@@ -22,7 +22,7 @@ import {
   formatLockdownRemaining, isLocked, isWindowLockdown, windowLockdownStarted, LOCKDOWN_CHOICES_MIN,
   MAX_LOCKDOWN_WINDOWS, type Lockdown, type LockdownWindow,
 } from '../shared/lockdown.js';
-import { hitNudgeStep, hitNudgeText, hourLabel, peakWarnKey, peakWarnText } from '../shared/browser-hits.js';
+import { hitNudgeStep, hitNudgeText, hitsReasonLine, hourLabel, peakWarnKey, peakWarnText } from '../shared/browser-hits.js';
 import { stepBurstNotices, type BurstNotice, type BurstWatch } from '../shared/burst-notify.js';
 import {
   cleanDigestLog, daysSinceUnlock, digestDue, digestText, recordDigest, relabelDigest, weekLabel, type DigestEntry,
@@ -4235,6 +4235,10 @@ function renderStats(): void {
   $('hitsPeakNote').classList.toggle('hidden', peak === null);
   $('hitsPeakNote').textContent = peak
     ? `A hét csúcsa: ${hourLabel(peak.hour)} (${peak.count} megakadás) — akkor jár a kéz magától.` : '';
+  // MELYIK szabály dolgozik: az okok a héten, a legnagyobb elöl. Üresen nincs.
+  const reasons = hitsReasonLine(status?.browserHitsReasons ?? []);
+  $('hitsReasonNote').classList.toggle('hidden', reasons === '');
+  $('hitsReasonNote').textContent = reasons ? `Ebből: ${reasons}.` : '';
 
   // A MAI lista vegyes: oldalak és appok együtt, idő szerint. A kérdés itt az,
   // hogy MA mire ment el — a fajta másodlagos. A hétnapos listák maradnak

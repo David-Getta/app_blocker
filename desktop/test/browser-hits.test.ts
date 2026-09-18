@@ -4,9 +4,10 @@
 import { test } from 'node:test';
 import * as assert from 'node:assert/strict';
 import {
-  HIT_NUDGE_STEPS, MAX_HITS_PER_DAY, MAX_HIT_DAYS, MAX_HIT_SOURCES, PEAK_WARN_LEAD_MS, PEAK_WARN_MIN_COUNT,
-  browserHits7d, browserHitsBetween, browserHitsPeakHour, browserHitsSeries, browserHitsToday, cleanBrowserHitDays,
-  cleanBrowserHits, hitDayKey, hitNudgeStep, hitNudgeText, hourLabel, peakWarnKey, peakWarnText, putBrowserHits,
+  HIT_NUDGE_STEPS, HIT_REASON_LABELS, MAX_HITS_PER_DAY, MAX_HIT_DAYS, MAX_HIT_SOURCES, PEAK_WARN_LEAD_MS,
+  PEAK_WARN_MIN_COUNT, browserHits7d, browserHitsBetween, browserHitsByReason, browserHitsPeakHour, browserHitsSeries,
+  browserHitsToday, cleanBrowserHitDays, cleanBrowserHits, hitDayKey, hitNudgeStep, hitNudgeText, hitsReasonLine,
+  hourLabel, peakWarnKey, peakWarnText, putBrowserHits,
 } from '../src/shared/browser-hits';
 import { digestText } from '../src/shared/digest';
 import { summarizeFocus } from '../src/shared/focus';
@@ -139,4 +140,20 @@ test('előjelzés a csúcs-óra előtt: tíz perces ablak, naponta egy kulcs, a 
   assert.equal(peakWarnKey({ hour: 0, count: 3 }, at2(0, 5, 19)), null);
   assert.equal(peakWarnText(peak),
     'Mindjárt 21 óra — a héten ilyenkor akadt meg a kéz a legtöbbször (7×). Egy munkamenet most segítene — te döntesz.');
+});
+
+test('okonként a héten: minden forrásból, a legnagyobb elöl, a sor a bővítmény neveivel', () => {
+  let book = putBrowserHits(undefined, 'a', [{ day: '2026-09-18', total: 5, byReason: { closed: 3, keyword: 2 } }]);
+  book = putBrowserHits(book, 'b', [{ day: '2026-09-17', total: 4, byReason: { closed: 1, focus: 3 } },
+    { day: '2026-09-11', total: 9, byReason: { channel: 9 } }]);
+  assert.deepEqual(browserHitsByReason(book, NOW), [
+    { reason: 'closed', count: 4 }, { reason: 'focus', count: 3 }, { reason: 'keyword', count: 2 },
+  ], 'a nyolc napos nem számít');
+  assert.equal(hitsReasonLine(browserHitsByReason(book, NOW)), '4 zárva oldal · 3 munkamenet · 2 kulcsszó');
+  assert.deepEqual(browserHitsByReason(undefined, NOW), []);
+  assert.equal(hitsReasonLine([]), '');
+  assert.equal(HIT_REASON_LABELS.rule, 'részleges szabály');
+  // Holtversenyben az okok rögzített sorrendje: a sor nem ugrál két frissítés között.
+  const tie = putBrowserHits(undefined, 'a', [{ day: '2026-09-18', total: 4, byReason: { keyword: 2, closed: 2 } }]);
+  assert.deepEqual(browserHitsByReason(tie, NOW).map((r) => r.reason), ['closed', 'keyword']);
 });

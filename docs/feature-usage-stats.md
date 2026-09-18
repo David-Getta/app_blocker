@@ -420,7 +420,10 @@ bővítmény felugró lapja és beállítás-lapja pedig a mait és a hetet, nap
 A híd befelé CSAK ezt fogadja — könyvelést, szabályt soha. Nem szinkronizál:
 a gép saját tükre. A tiltó lap is mondja, a kísértés pillanatában: „Ma ez a
 7. megakadás — ebből a 3. ezen az oldalon.” (a hosztonkénti szám csak a gépen
-marad, a hídra a napi összeg megy).
+marad, a hídra a napi összeg megy). A gépi statisztika a hét alatt az okokat is
+mondja — MELYIK szabály dolgozik: „Ebből: 7 zárva oldal · 3 kulcsszó · 2
+munkamenet.” (`browserHitsReasons` a státuszban, a hídon átjött okonkénti
+számokból; holtversenynél az okok rögzített sorrendje, hogy a sor ne ugráljon).
 
 **Mikor jár a kéz magától:** a bővítmény óránként is könyvel (a nap
 huszonnégy rekesze), a beállítás-lapja a hét csúcs-óráját mondja és egy
