@@ -644,6 +644,19 @@ const WIRES = [
     needle: "const hit = keywordHit(status?.keywords ?? [], url);",
     lost: 'a gépi próbamező nem a bővítmény kulcsszó-ítéletét mondaná',
   },
+  // EGY KATTINTÁS a rétegből: a segéd választja a csomagot, a réteg gombja
+  // indítja. Ha a státusz nem hozná, a gomb az első csomagra esne vissza — nem
+  // hiba, de nem is az, amit ígérünk.
+  {
+    file: 'desktop/src/helper/server.ts',
+    needle: "browserHitsTop: browserHitsTopSite(state.browserHits, now, state.sites),\n    lastUsedPackId: lastUsedPack(",
+    lost: 'a segéd státusza nem választana csomagot a réteg gombjának',
+  },
+  {
+    file: 'desktop/src/renderer/overlay.ts',
+    needle: 'void start(pack, pack.defaultMinutes)',
+    lost: 'a réteg gombja nem indítana menetet egy kattintásra',
+  },
   // MELYIK szabály dolgozik: az okok a hídon átjönnek, a segéd tartja — ha a
   // státusz vagy a lap nem mondaná, a bontás csak a bővítmény lapján maradna.
   {

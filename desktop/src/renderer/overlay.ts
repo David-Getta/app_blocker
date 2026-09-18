@@ -13,6 +13,7 @@ import {
   formatRemaining, MAX_SESSION_MINUTES, SESSION_CHOICES_MIN,
   type FocusPack, type FocusRun,
 } from '../shared/focus.js';
+import { hitNudgeStep } from '../shared/browser-hits.js';
 import {
   formatLockdownRemaining, isLocked, isWindowLockdown, type Lockdown, type LockdownWindow,
 } from '../shared/lockdown.js';
@@ -46,6 +47,8 @@ interface Status {
   partner?: { name: string; setAt: number } | null;
   /** a böngésző mai megakadásai — a réteg lába mondja, a kísértés pillanatában */
   browserHitsToday?: number;
+  /** a legutóbb használt csomag — a sorában egy kattintásos gomb a szokásos hosszal */
+  lastUsedPackId?: string | null;
   now: number;
 }
 
@@ -276,6 +279,10 @@ function render(): void {
   }
 
   const list = h('div', 'packs');
+  // EGY KATTINTÁS a rétegből is: a legutóbb használt csomag (napló nélkül az
+  // első) sorában egy gomb a szokásos hosszal — a választó nélkül. A sor maga
+  // továbbra is a választót nyitja; a gomb a sietős esetnek van.
+  const quickId = status.lastUsedPackId ?? status.focusPacks[0]?.id ?? null;
   status.focusPacks.forEach((pack, i) => {
     const row = h('div', 'pack');
     row.tabIndex = 0;
@@ -286,6 +293,12 @@ function render(): void {
       items.length ? `${items.slice(0, 4).join(', ')}${items.length > 4 ? '…' : ''}`
         : 'nincs engedélyezett tétel'));
     row.appendChild(left);
+    if (pack.id === quickId) {
+      const quick = h('button', 'primary pack-quick', `${pack.defaultMinutes} p`);
+      quick.title = `Indítás most, ${pack.defaultMinutes} percre`;
+      quick.addEventListener('click', (e) => { e.stopPropagation(); void start(pack, pack.defaultMinutes); });
+      row.appendChild(quick);
+    }
     // Számbillentyű: a réteg egy másodpercet kap, és az egérhez nyúlni fél
     // másodperc. Az első kilenc csomag így egyetlen leütéssel indul.
     if (i < 9) row.appendChild(h('div', 'pack-key', String(i + 1)));
@@ -297,7 +310,12 @@ function render(): void {
     list.appendChild(row);
   });
   body.appendChild(list);
-  foot.textContent = 'Válassz számbillentyűvel, vagy kattints. Az Esc bezárja.';
+  // A SOKADIK megakadásnál a láb a mondatot is mondja — a réteg a kísértés
+  // pillanatáé, a mondat itt ér a legtöbbet. Nem tilt, nem ítél.
+  const today = status.browserHitsToday ?? 0;
+  foot.textContent = (hitNudgeStep(today) > 0
+    ? `Ma már ${today} megakadás a böngészőben — egy munkamenet most segítene. ` : '')
+    + 'Válassz számbillentyűvel, vagy kattints. Az Esc bezárja.';
 }
 
 async function start(pack: FocusPack, minutes: number): Promise<void> {

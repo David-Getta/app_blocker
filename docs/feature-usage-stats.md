@@ -457,7 +457,9 @@ sokadik megakadásnál a mondatot és egy gombot is mutat — „Munkamenet:
 Nyelvtanulás, 25 perc” —, a legutóbb használt csomagot a szokásos hosszával
 (a segéd választja, `lastUsedPackId` a statisztika-válaszban; napló nélkül az
 elsőt): egy kattintás a mondattól a menetig, mint a telefonon. Futó menet
-mellett nincs gomb.
+mellett nincs gomb. A gyorsbillentyűs rétegben ugyanez: a legutóbb használt
+csomag sorában egy gomb a szokásos hosszal (a választó nélkül), és a láb a
+sokadik megakadásnál a mondatot is mondja — a réteg a kísértés pillanatáé.
 
 A telefon ugyanígy javasol: Androidon a szolgáltatás az ötödik, tizedik és
 huszadik mai megakadásnál egyszer értesít („Ma már 5 megakadás a szűrőben…”,

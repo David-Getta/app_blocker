@@ -169,3 +169,6 @@ button.ghost { background: transparent; }
 }
 
 .empty { color: var(--ink-2); padding: 10px 4px 4px; }
+
+/* Egy kattintás a rétegből: a legutóbb használt csomag gombja a sorban. */
+.pack-quick { margin-left: 8px; padding: 4px 10px; font-size: 12px; white-space: nowrap; }

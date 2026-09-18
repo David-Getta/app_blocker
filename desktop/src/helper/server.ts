@@ -138,6 +138,7 @@ export function statusOf(
     browserHitsPeak: browserHitsPeakHour(state.browserHits, now),
     browserHitsReasons: browserHitsByReason(state.browserHits, now),
     browserHitsTop: browserHitsTopSite(state.browserHits, now, state.sites),
+    lastUsedPackId: lastUsedPack(state.focusPacks ?? [], state.focusLog ?? [])?.id ?? null,
     lastUnlockAt: state.unlockLog.length > 0 ? Math.max(...state.unlockLog) : null,
     session: referee.currentSession(state),
     dohPolicyApplied: dohApplied,

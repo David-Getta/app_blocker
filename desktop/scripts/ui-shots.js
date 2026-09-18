@@ -147,6 +147,8 @@ function fakeBridgeSource() {
       browserHitsPeak: { hour: 21, count: 6 },
       browserHitsReasons: [{ reason: 'closed', count: 7 }, { reason: 'keyword', count: 3 }, { reason: 'focus', count: 2 }],
       browserHitsTop: { label: 'youtube.com', count: 7 },
+      // A réteg gyorsindítója a segéd választását követi — szándékosan nem az első.
+      lastUsedPackId: 'pack_2',
     });
     // 30 days, because that is what the helper actually sends (and what the
     // chart title claims) — a shorter demo series would make the screenshot lie.
@@ -1788,6 +1790,29 @@ async function main() {
   if (!overNames.includes('Nyelvtanulás')) {
     failures.push(`a rétegen nincsenek csomagok (${JSON.stringify(overNames)})`);
   }
+  // EGY KATTINTÁS a rétegből: a segéd választotta csomag sorában a gomb a
+  // szokásos hosszal, a választó nélkül. Ha az első sorra esne, vagy a
+  // választót nyitná, a gomb ígérete veszne el — csendben.
+  const quick = over.locator('.pack-quick');
+  if (await quick.count() !== 1) failures.push('a rétegen nem pontosan egy gyorsindító gomb van');
+  const quickName = await quick.first().locator('..').locator('.pack-name').textContent().catch(() => '');
+  if (quickName !== 'Mély munka') failures.push(`a gyorsindító nem a segéd választotta csomagon áll: ${quickName}`);
+  if ((await quick.first().textContent().catch(() => '')) !== '90 p') {
+    failures.push('a gyorsindító nem a csomag szokásos hosszát írja');
+  }
+  await quick.first().click();
+  await over.waitForFunction(
+    () => window.__fakeRun && window.__fakeRun.packId === 'pack_2'
+      && Math.round((window.__fakeRun.endsAt - window.__fakeRun.startedAt) / 60000) === 90
+      && !document.body.innerText.includes('Meddig tartson'),
+    undefined, { timeout: 10_000 },
+  ).catch(() => failures.push('a gyorsindító nem indított 90 perces menetet a választó nélkül'));
+  // Vissza a listához: a menet vége után a réteg újra a csomagokat mutatja.
+  await over.evaluate(() => { window.__fakeRun = null; });
+  await over.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await over.waitForSelector('.pack', { timeout: 10_000 })
+    .catch(() => failures.push('a menet vége után a réteg nem tért vissza a listához'));
+
   // Számbillentyű: a réteg egy másodpercet kap, és az egérhez nyúlni fél
   // másodperc. Ha ez nem megy, a funkció lényege veszik el.
   await over.keyboard.press('1');
