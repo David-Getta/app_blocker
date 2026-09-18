@@ -524,6 +524,9 @@ async function main() {
     // könyvelt megakadással megjelenik, a két számmal.
     const hiddenPrev = await seeder.evaluate(() => document.querySelector('#hitsPrev')?.hidden ?? null).catch(() => null);
     check(hiddenPrev === true, 'előző hét nélkül a beállítás-lap nem hasonlít');
+    // Az óra-tengely a sávval együtt jelenik meg — a sáv órára olvasható.
+    const axisHidden = await seeder.evaluate(() => document.querySelector('#hitsHoursAxis')?.hidden ?? null).catch(() => null);
+    check(axisHidden === false, 'az óra-tengely nem áll a sáv alatt');
     await seeder.evaluate(async () => {
       const got = await chrome.storage.local.get('breaker.hits');
       const book = got?.['breaker.hits'] ?? { days: {} };

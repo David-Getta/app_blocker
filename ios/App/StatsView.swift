@@ -287,15 +287,24 @@ private struct HourStrip: View {
 
     var body: some View {
         if hours.count == 24 && peakCount > 0 {
-            HStack(alignment: .bottom, spacing: 2) {
-                ForEach(0..<24, id: \.self) { hour in
-                    RoundedRectangle(cornerRadius: 2, style: .continuous)
-                        .fill(Color.accentColor.opacity(hour == peakHour ? 1 : 0.45))
-                        .frame(height: Swift.max(2, 28 * Double(hours[hour]) / Double(peakCount)))
-                        .frame(maxWidth: .infinity)
+            VStack(spacing: 2) {
+                HStack(alignment: .bottom, spacing: 2) {
+                    ForEach(0..<24, id: \.self) { hour in
+                        RoundedRectangle(cornerRadius: 2, style: .continuous)
+                            .fill(Color.accentColor.opacity(hour == peakHour ? 1 : 0.45))
+                            .frame(height: Swift.max(2, 28 * Double(hours[hour]) / Double(peakCount)))
+                            .frame(maxWidth: .infinity)
+                    }
+                }
+                .frame(height: 30, alignment: .bottom)
+                // Az óra-tengely a sáv alatt: öt szám, hogy a rekeszeket órára lehessen olvasni.
+                HStack(spacing: 0) {
+                    ForEach([0, 6, 12, 18, 24], id: \.self) { h in
+                        Text("\(h)").font(.caption2).foregroundStyle(.secondary)
+                        if h != 24 { Spacer() }
+                    }
                 }
             }
-            .frame(height: 30, alignment: .bottom)
         }
     }
 }

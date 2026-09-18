@@ -2600,6 +2600,9 @@ function limitMeter(site: SiteInfo, duringPause: boolean): HTMLElement {
   } else {
     label = `Napi keret: ${formatDuration(used)} / ${formatDuration(limit)}`;
   }
+  // A KERET BETELT NAPJAI a héten — ezen a gépen mérve: dolgozik-e a keret. Tükör.
+  const full7 = site.limitFullDays7d ?? 0;
+  if (full7 > 0) label += ` · a héten ${full7} napon betelt`;
   wrap.appendChild(h('div', 'limit-label', label));
   // A keret KÖZÖS az eszközök között. Enélkül úgy nézne ki, mintha az app
   // rosszul számolna: a gépen öt perc telt el, a mérő mégis húszat mutat.
@@ -4432,6 +4435,7 @@ function renderStats(): void {
   // AZ ÓRÁK SÁVJA: a nap huszonnégy rekesze a hét megakadásaival — a csúcs a
   // mondat, a sáv az alakja (mikor jár a kéz magától, és mikor nem).
   renderHourStrip($('hitsHourStrip'), status?.browserHitsHours ?? [], peak);
+  $('hitsHourAxis').classList.toggle('hidden', $('hitsHourStrip').classList.contains('hidden'));
   // ABLAK A CSÚCS-ÓRÁRA: a tükör mondja, mikor jár a kéz magától — a gomb heti
   // ablakot tesz a legutóbbi csomagra abban az órában, minden nap: a menet
   // magától indul, amikor a kéz indulna. Felvenni ingyen (szigorítás); a

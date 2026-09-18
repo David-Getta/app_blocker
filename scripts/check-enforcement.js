@@ -522,6 +522,22 @@ const WIRES = [
     needle: 'FilterHitLogic.nudgeText(step)',
     lost: 'az iPhone kezdőlapja nem javasolna lépést a sokadik megakadásnál',
   },
+  // A KERET SORA a héten betelt napokkal: a segéd oldalanként számol, a sor mondja.
+  {
+    file: 'desktop/src/helper/server.ts',
+    needle: 'limitFullDays7d: limitFullDays(state.usage, [s], now).days,',
+    lost: 'a segéd nem adná a keret sorába a héten betelt napokat',
+  },
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: "if (full7 > 0) label += ` · a héten ${full7} napon betelt`;",
+    lost: 'a gépi keret sora nem mondaná a héten betelt napokat',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/AppUi.kt',
+    needle: 'LimitLogic.limitFullDays(usage, listOf(site.domain to site.dailyLimitSeconds), now).days',
+    lost: 'az Android keret sora nem mondaná a héten betelt napokat',
+  },
   // A KERET BETELT NAPJAI: a mag számol, a statisztika és a heti mondat mondja
   // — ha a bekötés kiesne, a keret csendben dolgozna, és senki nem tudná, hányszor.
   {

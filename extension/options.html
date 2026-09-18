@@ -53,6 +53,7 @@
   .hour-strip { display: flex; align-items: flex-end; gap: 2px; height: 30px; margin: 6px 0 4px; }
   .hour-bar { flex: 1; background: var(--ink-2); opacity: 0.45; border-radius: 2px 2px 0 0; }
   .hour-bar.peak { opacity: 1; }
+  .hour-axis { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--ink-2); margin: 0 0 6px; }
   .time-h { font-size: 0.86rem; margin: 12px 0 6px; color: var(--ink-2); font-weight: 600; }
 </style>
 </head>
@@ -138,6 +139,8 @@
     <p class="muted" id="hitsKeywords" hidden></p>
     <p class="muted" id="hitsIdleKeywords" hidden></p>
     <div id="hitsHours" class="hour-strip" hidden></div>
+    <!-- Az óra-tengely a sáv alatt: mikor kezdődik a nap, mikor a délután, az este. -->
+    <div id="hitsHoursAxis" class="hour-axis" hidden><span>0</span><span>6</span><span>12</span><span>18</span><span>24</span></div>
     <ul id="hitsList" class="time-list"></ul>
     <p class="empty" id="hitsEmpty">Az elmúlt 7 napban még nem állított meg.</p>
     <!-- A KÖNYV TÖRLÉSE: a megakadások könyve a tiéd — törölhető; az app is felejt. -->

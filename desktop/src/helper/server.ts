@@ -119,6 +119,8 @@ export function statusOf(
         usedTodaySeconds: Math.round(usedTodayEverywhere(state.usage, state.sharedToday, s.domain, now)),
         usedTodayElsewhere: Math.round(sharedTodaySeconds(state.sharedToday, s.domain, now)),
         limitExhausted: isLimitExhausted(s, state.usage, now, state.sharedToday),
+        // A keret betelt napjai a héten — ezen a gépen mérve; a keret sora mondja.
+        limitFullDays7d: limitFullDays(state.usage, [s], now).days,
         blockedNow: why !== null,
         closedReason: why?.reason,
         closedUntil: why?.until ?? 0,

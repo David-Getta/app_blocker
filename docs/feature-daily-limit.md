@@ -259,4 +259,6 @@ készüléken mérve (a múlt napokra csak a helyi mérés van; a többi eszköz
 — a mag ott is ugyanazt számolja (`LimitLogic.limitFullDays`), csupa nullát.
 Tükör, nem ítélet: azt mutatja, dolgozik-e a keret — vagy túl bő, és sosem
 telik be. A heti mondat rövidebben: „A napi keret 3 napon betelt.” Nulla nap
-nem mondat.
+nem mondat. A keret sora az oldal mellett is mondja (gép: „Napi keret: 15 p /
+20 p · a héten 2 napon betelt”; Android: külön sor alatta), a segéd
+oldalanként számolja (`limitFullDays7d` a státuszban).

@@ -532,6 +532,12 @@ private fun HourStrip(hours: List<Int>, peakHour: Int, peakCount: Int) {
             )
         }
     }
+    // Az óra-tengely a sáv alatt: öt szám, hogy a rekeszeket órára lehessen olvasni.
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        for (h in listOf(0, 6, 12, 18, 24)) {
+            Text("$h", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
 }
 
 @Composable

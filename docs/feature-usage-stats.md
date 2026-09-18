@@ -533,7 +533,9 @@ beállítás-lapján, ugyanabban a mértékben (a csúcs a teljes magasság). A
 telefonon ugyanígy, a szűrő könyvéből (`FilterHitLogic.byHour`, Kotlin és
 Swift). Csúcs nélkül nincs sáv: az üres rajz nem mond semmit. Egy szín — a
 rekesz nem kategória —, és nincs rajta szám: a csúcs mondata mondja a
-számot, a sáv azt mutatja, mikor nem jár a kéz.
+számot, a sáv azt mutatja, mikor nem jár a kéz. A sáv alatt óra-tengely
+(0 · 6 · 12 · 18 · 24), hogy a rekeszeket órára lehessen olvasni — a gépen, a
+bővítmény beállítás-lapján és a telefonokon is.
 
 **A csúcs-óra ott is, ahol a kísértés van:** a tiltó lap a csúcs-órában
 kimondja („Most a hét csúcs-órája van (21–22 óra, 6 megakadás a héten) —

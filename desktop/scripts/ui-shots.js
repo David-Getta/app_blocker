@@ -78,7 +78,7 @@ function fakeBridgeSource() {
     window.__fakeSites = [
       { id: 'site_1', domain: 'youtube.com', hostnames: ['youtube.com','www.youtube.com','m.youtube.com','youtu.be'], reason: 'Mert este nem alszom tőle',
         addedAt: now - 86400000*9, pauseUntil: null, pendingDeleteAt: null,
-        dailyLimitSeconds: 1200, usedTodaySeconds: 900, usedTodayElsewhere: 420,
+        dailyLimitSeconds: 1200, usedTodaySeconds: 900, usedTodayElsewhere: 420, limitFullDays7d: 2,
         limitExhausted: false, blockedNow: true },
       { id: 'site_2', domain: 'reddit.com', hostnames: ['reddit.com','www.reddit.com'],
         addedAt: now - 86400000*4, pauseUntil: null, pendingDeleteAt: null,
@@ -983,6 +983,11 @@ async function main() {
   // A szám nélkül a kártya eltűnik: üresen nincs.
   await page.evaluate(() => { window.__fakeStatusPatch = { browserHitsToday: 12 }; });
   await goTo(page, 'sites');
+  // A KERET SORA a héten betelt napokkal: a keretes oldal sora mondja.
+  await page.waitForFunction(
+    () => Array.from(document.querySelectorAll('.limit-label')).some((el) => /a héten 2 napon betelt/.test(el.textContent || '')),
+    undefined, { timeout: 15_000 },
+  ).catch(() => failures.push('a keret sora nem mondja a héten betelt napokat'));
   await page.waitForFunction(
     () => !document.getElementById('suggestCard')?.classList.contains('hidden')
       && /Ma már \d+ megakadás/.test(document.getElementById('suggestText')?.textContent || '')

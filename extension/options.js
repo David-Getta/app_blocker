@@ -101,6 +101,7 @@ async function renderHits() {
   const strip = $('hitsHours');
   strip.textContent = '';
   strip.hidden = peak === null;
+  $('hitsHoursAxis').hidden = peak === null;
   if (peak) {
     const by = hitsByHour(state, week);
     by.forEach((n, hour) => {

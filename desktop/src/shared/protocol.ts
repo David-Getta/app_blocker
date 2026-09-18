@@ -95,6 +95,8 @@ export interface SiteInfo {
   usedTodayElsewhere: number;
   /** true when today's budget is spent (and the site therefore blocks) */
   limitExhausted: boolean;
+  /** a keret betelt napjai az elmúlt 7 napon, ezen a gépen mérve — a keret sora mondja; régi segéd nem adja */
+  limitFullDays7d?: number;
   /** whether the site is blocked at status time (pause + delete + schedule + budget) */
   blockedNow: boolean;
   /** ha zár: MIÉRT — sima tiltás / menetrend / hűtés / mai keret */

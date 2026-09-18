@@ -1627,6 +1627,11 @@ private fun LimitMeter(
             },
             style = MaterialTheme.typography.bodySmall,
         )
+        // A KERET BETELT NAPJAI a héten — ezen a készüléken mérve: dolgozik-e a keret. Tükör.
+        val full7 = LimitLogic.limitFullDays(usage, listOf(site.domain to site.dailyLimitSeconds), now).days
+        if (full7 > 0) {
+            Text("A héten $full7 napon betelt", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
         // Enélkül úgy nézne ki, mintha az app rosszul számolna: a telefonon öt
         // perc telt el, a mérő mégis húszat mutat.
         if (elsewhere > 0) {
