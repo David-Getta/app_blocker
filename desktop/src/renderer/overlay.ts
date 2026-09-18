@@ -44,7 +44,15 @@ interface Status {
   lockdownWindows?: LockdownWindow[];
   /** a megbízott (párban zárolás), ha van — a leállítás útja az ő jelmondatával ér véget */
   partner?: { name: string; setAt: number } | null;
+  /** a böngésző mai megakadásai — a réteg lába mondja, a kísértés pillanatában */
+  browserHitsToday?: number;
   now: number;
+}
+
+/** A mai megakadások sora a lábban — vagy üres, ha ma még nem állított meg a böngésző. */
+function hitsLine(st: Status): string {
+  const n = st.browserHitsToday ?? 0;
+  return n > 0 ? ` Ma ${n} megakadás a böngészőben.` : '';
 }
 
 /** A leállítás útja a lábban: az appban, próbatétellel — megbízottal az ő jelmondatával a végén. */
@@ -187,8 +195,9 @@ function render(): void {
     // sugallná, hogy van út, csak most épp nem. Nincs út; a láb kimondja —
     // a bővítmény-figyelmeztetés MELLETT, nem helyette: az egyik sem
     // hallgattathatja el a másikat.
-    foot.textContent = [extWarning(), locked].filter((t) => t !== null).join(' ')
-      || stopWayLine(status);
+    // …és a mai megakadások: tükör a kísértés pillanatában, ítélet nélkül.
+    foot.textContent = ([extWarning(), locked].filter((t) => t !== null).join(' ')
+      || stopWayLine(status)) + hitsLine(status);
     return;
   }
 

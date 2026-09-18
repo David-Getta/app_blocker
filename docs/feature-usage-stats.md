@@ -422,6 +422,10 @@ a gép saját tükre. A tiltó lap is mondja, a kísértés pillanatában: „Ma
 7. megakadás — ebből a 3. ezen az oldalon.” (a hosztonkénti szám csak a gépen
 marad, a hídra a napi összeg megy).
 
+A gyorsbillentyűs réteg lába is mondja a mait (a futó menet alatt: „Ma 3
+megakadás a böngészőben.”), és Androidon a szűrő értesítésének sora („· Ma 3
+megakadás”) — ott, ahol a kísértés van, ítélet nélkül.
+
 A telefonon **a szűrő számol**: „12 megakadás a szűrőben.” — a tiltott
 DNS-lekérdezés ugyanaz a pillanat, a kéz odanyúlt, a szűrő megállította. Egy
 hosztnevet két percen belül egyszer (egy oldalbetöltés tucatnyi lekérdezés,

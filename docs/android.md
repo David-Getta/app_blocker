@@ -50,8 +50,9 @@ cd android
 - A **szűrő megakadásai**: a szolgáltatás minden tiltott lekérdezésnél
   könyvel (hosztonként két percen belül egyszer; `core/FilterHits.kt`,
   `filterHits` az állapotban, harminc nap), a statisztika nehézség-sora és a
-  heti mondat mondja („12 megakadás a szűrőben”). Tükör, nem ítélet; a
-  fiókba nem megy. Lásd `docs/feature-usage-stats.md`.
+  heti mondat mondja („12 megakadás a szűrőben”), és a szűrő értesítésének
+  sora a mait („· Ma 3 megakadás”). Tükör, nem ítélet; a fiókba nem megy.
+  Lásd `docs/feature-usage-stats.md`.
 - A **kulcsszavak** (bármely oldalon, ha a cím tartalmazza) a zárlat
   kártyája alján **szerkeszthetők**: felvenni ingyen, levenni próbatétel
   (`Referee.setKeywords`, a függő lista a teljesítéskor ül be). A DNS-szűrő

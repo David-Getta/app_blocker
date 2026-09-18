@@ -442,6 +442,19 @@ const WIRES = [
     needle: "if (msg?.type !== 'breaker:title-hit') return false;",
     lost: 'a háttér nem döntene a címsor kulcsszaváról — a jelzés a semmibe menne',
   },
+  // A MEGAKADÁS OTT IS, AHOL A KÍSÉRTÉS VAN: a réteg lába és az Android
+  // értesítése a mai számot mondja. Ha kiesne, a könyv megvolna — csak pont
+  // ott nem látszana, ahol számít.
+  {
+    file: 'desktop/src/renderer/overlay.ts',
+    needle: '|| stopWayLine(status)) + hitsLine(status);',
+    lost: 'a gyorsbillentyűs réteg nem mondaná a mai megakadásokat',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/vpn/BreakerVpnService.kt',
+    needle: 'FilterHitLogic.hitsToday(st.filterHits, now)',
+    lost: 'az Android értesítése nem mondaná a mai megakadásokat',
+  },
   // A MEGAKADÁS-SZÁMLÁLÓ lánca: a háttér könyvel, a link átadja, a híd
   // fogadja, a segéd tartja, a mondat és a statisztika mondja. Ha bármelyik
   // láncszem kiesne, a bővítmény lapja továbbra is számolna — az app viszont
@@ -503,7 +516,7 @@ const WIRES = [
   },
   {
     file: 'desktop/src/renderer/overlay.ts',
-    needle: '|| stopWayLine(status);',
+    needle: '|| stopWayLine(status))',
     lost: 'a réteg lába a leállítás útját a megbízott nélkül mondaná',
   },
   // A GÉPEN a heti napló sorát a segéd időzítője írja, az app nélkül is. Ha a

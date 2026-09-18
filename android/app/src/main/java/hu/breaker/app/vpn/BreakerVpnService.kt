@@ -186,10 +186,14 @@ class BreakerVpnService : VpnService() {
             title = getString(R.string.vpn_notification_title)
             text = getString(R.string.vpn_notification_text)
         }
+        // A mai megakadások a sor végén: tükör a kísértés pillanatában, ítélet
+        // nélkül — a szigorú Privát DNS sorát nem tolja el, az a fontosabb.
+        val hitsToday = FilterHitLogic.hitsToday(st.filterHits, now)
+        val textWithHits = if (hitsToday > 0 && strictDns == null) "$text · Ma $hitsToday megakadás" else text
         return Notification.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_lock_lock)
             .setContentTitle(title)
-            .setContentText(text)
+            .setContentText(textWithHits)
             .setContentIntent(pi)
             .setOngoing(true)
             .build()
