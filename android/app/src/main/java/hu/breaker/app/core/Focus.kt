@@ -236,6 +236,31 @@ object Focus {
         return Verdict.BLOCKED_BY_FOCUS
     }
 
+    /**
+     * MI LENNE EZZEL a névvel, és miért — a felület próbamezője ezt írja ki.
+     * Ugyanaz az ítélet, mint a szűrőé, szóban: a kulcsszó a hosztnévben
+     * meglephet, itt derül ki előre, nem a hálózati hibánál. Üres névre üres.
+     */
+    fun explain(
+        qname: String,
+        run: FocusRun?,
+        pack: FocusPack?,
+        now: Long,
+        blocked: Collection<String>,
+        syncHost: String? = null,
+        keywords: List<String> = emptyList(),
+    ): String {
+        val h = qname.trim().lowercase().trimEnd('.')
+        if (h.isEmpty()) return ""
+        return when (verdict(h, run, pack, now, blocked, syncHost, keywords)) {
+            Verdict.BLOCKED_BY_LIST -> "Tiltva: a lista."
+            Verdict.BLOCKED_BY_KEYWORD -> "Tiltva: kulcsszó a hosztnévben („${KeywordLogic.keywordInHost(keywords, h) ?: ""}”)."
+            Verdict.BLOCKED_BY_FOCUS -> "Tiltva, amíg a munkamenet tart: nincs a csomagon."
+            Verdict.ALLOW ->
+                if (isRunning(run, now) && pack != null && isInfrastructure(h)) "Átmegy: rendszer-infrastruktúra." else "Átmegy."
+        }
+    }
+
 
     // -----------------------------------------------------------------------
     // A LEZÁRULT menetek naplója — ebből lesz a statisztika.

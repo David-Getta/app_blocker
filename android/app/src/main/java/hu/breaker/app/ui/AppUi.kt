@@ -862,7 +862,7 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                     // szerkeszti és hordozza — felvenni ingyen, levenni próbatétel —,
                     // és kimondja, hogy itt nem érvényesül.
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                    Text("Kulcsszavak a böngészőben", fontWeight = FontWeight.Bold)
+                    Text("Kulcsszavak", fontWeight = FontWeight.Bold)
                     Text(
                         "Bármely oldal, aminek a webcímében ez a szó szerepel — shorts, reels, egy játék " +
                             "neve —, a gépi böngészőben tiltva. Itt szerkeszthető, és a fiókon át a gépekre " +
@@ -871,6 +871,26 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                             "levenni próbatétel.",
                         style = MaterialTheme.typography.bodySmall,
                     )
+                    // MI LENNE EZZEL? Egy hosztnév, és a szűrő ítélete szóban — ugyanaz a
+                    // döntés, mint a szűrőé. Tükör a szabályokra: a kulcsszó a hosztnévben
+                    // meglephet, itt derül ki előre, nem a hálózati hibánál.
+                    var probeInput by rememberSaveable { mutableStateOf("") }
+                    OutlinedTextField(
+                        value = probeInput,
+                        onValueChange = { probeInput = it },
+                        label = { Text("Mi lenne ezzel? pl. www.tiktok.com") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    if (probeInput.isNotBlank()) {
+                        Text(
+                            Focus.explain(
+                                probeInput, BreakerStore.runningFocus(now), BreakerStore.runningFocusPack(now), now,
+                                BreakerStore.blockedHostnamesNow(now), BreakerStore.syncHost(), state.keywords,
+                            ),
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
                     state.keywords.forEach { w ->
                         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                             Text(w, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))

@@ -40,6 +40,18 @@ final class FocusTests: XCTestCase {
         XCTAssertEqual(Focus.verdict("m.tiktok.com", run: run, pack: pack, now: 1_000, blocked: [], syncHost: nil, keywords: kw), .blockedByKeyword, "a csomag fehérlistája sem old fel")
     }
 
+    func testWhatWouldHappenWithThisTheProbeSentenceIsTheSameVerdictInWords() {
+        let kw = ["tiktok"]
+        XCTAssertEqual(Focus.explain("youtube.com", run: nil, pack: nil, now: 0, blocked: ["youtube.com"], syncHost: nil, keywords: kw), "Tiltva: a lista.")
+        XCTAssertEqual(Focus.explain("www.tiktok.com", run: nil, pack: nil, now: 0, blocked: [], syncHost: nil, keywords: kw), "Tiltva: kulcsszó a hosztnévben („tiktok”).")
+        let pack = Focus.Pack(id: "p1", name: "T", allowSites: ["quizlet.com"], allowApps: [], defaultMinutes: 25)
+        let run = Focus.Run(packId: "p1", startedAt: 0, endsAt: 10_000)
+        XCTAssertEqual(Focus.explain("reddit.com", run: run, pack: pack, now: 1_000, blocked: [], syncHost: nil, keywords: kw), "Tiltva, amíg a munkamenet tart: nincs a csomagon.")
+        XCTAssertEqual(Focus.explain("captive.apple.com", run: run, pack: pack, now: 1_000, blocked: [], syncHost: nil, keywords: kw), "Átmegy: rendszer-infrastruktúra.")
+        XCTAssertEqual(Focus.explain("example.com", run: nil, pack: nil, now: 0, blocked: [], syncHost: nil, keywords: kw), "Átmegy.")
+        XCTAssertEqual(Focus.explain("  ", run: nil, pack: nil, now: 0, blocked: [], syncHost: nil, keywords: kw), "", "üres név: nincs mondat")
+    }
+
     func testDaySeriesCountsASessionOnTheDayItEnded() {
         let day = 86_400_000.0
         let hour = 3_600_000.0

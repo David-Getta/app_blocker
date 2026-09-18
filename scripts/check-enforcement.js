@@ -627,6 +627,18 @@ const WIRES = [
     needle: 'keywords: store.state.keywords ?? []',
     lost: 'iPhone-on a tunnel nem adná át a kulcsszavakat az ítéletnek',
   },
+  // MI LENNE EZZEL? A próbamező ugyanazt az ítéletet kérdezi, mint a szűrő.
+  // Ha a lap egy saját, egyszerűsített szabályt írna ki, a próba hazudna.
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/AppUi.kt',
+    needle: 'Focus.explain(',
+    lost: 'az Android próbamezője nem a szűrő ítéletét mondaná',
+  },
+  {
+    file: 'ios/App/ContentView.swift',
+    needle: 'Focus.explain(probeInput,',
+    lost: 'az iPhone próbamezője nem a tunnel ítéletét mondaná',
+  },
   // MELYIK szabály dolgozik: az okok a hídon átjönnek, a segéd tartja — ha a
   // státusz vagy a lap nem mondaná, a bontás csak a bővítmény lapján maradna.
   {

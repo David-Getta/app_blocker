@@ -48,6 +48,8 @@ struct ContentView: View {
     /// Párban zárolás: a megbízott neve a felvételhez, és a jelmondat egyszeri lapja.
     @State private var partnerName = ""
     @State private var keywordInput = ""
+    /// A próbamező: mi lenne ezzel a hosztnévvel — a szűrő ítélete szóban.
+    @State private var probeInput = ""
     @State private var partnerPhrase: Referee.PartnerSetup? = nil
 
     private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
@@ -484,9 +486,20 @@ struct ContentView: View {
         let words = store.state.keywords ?? []
         return VStack(alignment: .leading, spacing: 8) {
             Divider()
-            Text("Kulcsszavak a böngészőben").font(.headline)
+            Text("Kulcsszavak").font(.headline)
             Text("Bármely oldal, aminek a webcímében ez a szó szerepel — shorts, reels, egy játék neve —, a gépi böngészőben tiltva. Itt szerkeszthető, és a fiókon át a gépekre átér; az iPhone-on a hosztnévben tilt — a szűrő a webcím útvonalát és a címsort nem látja. Felvenni ingyen, levenni próbatétel.")
                 .font(.footnote).foregroundStyle(.secondary)
+            // MI LENNE EZZEL? Egy hosztnév, és a tunnel ítélete szóban — ugyanaz a
+            // döntés. Tükör a szabályokra: a kulcsszó a hosztnévben meglephet, itt
+            // derül ki előre, nem a hálózati hibánál.
+            TextField("Mi lenne ezzel? pl. www.tiktok.com", text: $probeInput)
+                .textFieldStyle(.roundedBorder)
+            if !probeInput.trimmingCharacters(in: .whitespaces).isEmpty {
+                Text(Focus.explain(probeInput, run: store.runningFocus(now), pack: store.runningFocusPack(now), now: now,
+                                   blocked: store.blockedHostnamesNow(now), syncHost: store.syncHost(),
+                                   keywords: store.state.keywords ?? []))
+                    .font(.footnote).foregroundStyle(.secondary)
+            }
             ForEach(words, id: \.self) { w in
                 HStack {
                     Text(w).font(.subheadline)

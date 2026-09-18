@@ -169,6 +169,18 @@ class FocusTest {
     }
 
     @Test
+    fun `mi lenne ezzel - a proba mondata ugyanaz az itelet, szoban`() {
+        val kw = listOf("tiktok")
+        assertEquals("Tiltva: a lista.", Focus.explain("youtube.com", null, null, 0L, listOf("youtube.com"), null, kw))
+        assertEquals("Tiltva: kulcsszó a hosztnévben („tiktok”).", Focus.explain("www.tiktok.com", null, null, 0L, noBlocklist, null, kw))
+        val run = Focus.FocusRun("pack_1", 0L, 10_000L)
+        assertEquals("Tiltva, amíg a munkamenet tart: nincs a csomagon.", Focus.explain("reddit.com", run, pack("quizlet.com"), 1_000L, noBlocklist, null, kw))
+        assertEquals("Átmegy: rendszer-infrastruktúra.", Focus.explain("mtalk.google.com", run, pack("quizlet.com"), 1_000L, noBlocklist, null, kw))
+        assertEquals("Átmegy.", Focus.explain("example.com", null, null, 0L, noBlocklist, null, kw))
+        assertEquals("", Focus.explain("  ", null, null, 0L, noBlocklist, null, kw), "üres név: nincs mondat")
+    }
+
+    @Test
     fun `munkamenet nelkul minden mehet, amit a blokklista enged`() {
         assertEquals(
             Focus.Verdict.ALLOW,

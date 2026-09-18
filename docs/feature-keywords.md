@@ -65,6 +65,11 @@ a megbízott lépése a végén itt is áll (`docs/feature-partner-lock.md`).
   — ezt nem titkoljuk, a felület kimondja. A rendszer-infrastruktúra
   (értesítés, kapcsolat-ellenőrzés, óra) és a saját fiókkiszolgáló sosem
   esik kulcsszó alá; a blokklista ítélete elsőbb (a megakadás oka a lista).
+  A kártyán egy **próbamező** is van — „Mi lenne ezzel?” —: egy hosztnév, és
+  a szűrő ítélete szóban („Tiltva: kulcsszó a hosztnévben („tiktok”).”,
+  „Tiltva, amíg a munkamenet tart: nincs a csomagon.”, „Átmegy.”); ugyanaz a
+  döntés, mint a szűrőé (`Focus.explain`), mert a kulcsszó a hosztnévben
+  meglephet, és jobb, ha előre derül ki, nem a hálózati hibánál.
 
 ## Szinkron
 

@@ -248,6 +248,29 @@ public enum Focus {
         return .blockedByFocus
     }
 
+    /// MI LENNE EZZEL a névvel, és miért — a felület próbamezője ezt írja ki.
+    /// Ugyanaz az ítélet, mint a tunnelé, szóban: a kulcsszó a hosztnévben
+    /// meglephet, itt derül ki előre, nem a hálózati hibánál. Üres névre üres.
+    public static func explain(
+        _ qname: String,
+        run: Run?,
+        pack: Pack?,
+        now: Double,
+        blocked: Set<String>,
+        syncHost: String? = nil,
+        keywords: [String] = []
+    ) -> String {
+        let h = normalizedHost(qname)
+        if h.isEmpty { return "" }
+        switch verdict(h, run: run, pack: pack, now: now, blocked: blocked, syncHost: syncHost, keywords: keywords) {
+        case .blockedByList: return "Tiltva: a lista."
+        case .blockedByKeyword: return "Tiltva: kulcsszó a hosztnévben („\(KeywordLogic.keywordInHost(keywords, h) ?? "")”)."
+        case .blockedByFocus: return "Tiltva, amíg a munkamenet tart: nincs a csomagon."
+        case .allow:
+            return isRunning(run, now: now) && pack != nil && isInfrastructure(h) ? "Átmegy: rendszer-infrastruktúra." : "Átmegy."
+        }
+    }
+
     // -----------------------------------------------------------------------
     // A LEZÁRULT menetek naplója — ebből lesz a statisztika.
     //
