@@ -44,20 +44,19 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **Melyik oldal akaszt meg a legtöbbször.** A hét csúcs-oldala
-          mindhárom platformon: a statisztika mondja — „A legtöbbször: …” —,
-          és a hétfői mondat is. A gépen a bővítmény napi élbolyából, a
-          telefonon a szűrő könyvéből; a lista tételével, a rejtett lista és
-          a fedőnév itt is fed.
+          **A csúcs-oldal a bővítményben is.** A felugró lap a mai, a
+          beállítás-lap a heti csúcs-oldalt mondja — a saját könyvéből,
+          pontosan, app nélkül is. A végponti teszt a beállítás-lap sorait
+          is őrzi.
 
-          ### Ami a v0.4.65-ben jött
+          ### Ami a v0.4.66-ban jött
+
+          **Melyik oldal akaszt meg a legtöbbször** — a hét csúcs-oldala
+          mindhárom platformon, a statisztikán és a hétfői mondatban.
+
+          #### Ami a v0.4.65-ben jött
 
           **Egy kattintás a mondattól a menetig — a gépen is.**
-
-          #### Ami a v0.4.64-ben jött
-
-          **Ha nem kéred, csendben marad** — a javaslatok értesítése
-          kikapcsolható mindhárom platformon.
 
           NOTES
           fi
