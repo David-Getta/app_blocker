@@ -114,6 +114,11 @@ interface FocusLogEntry {
 }
 ```
 
+**Az ablak szerint indult menet kimondva:** a gépi kártya, a gyorsbillentyűs
+réteg, a telefonok kártyája, az Android szűrő-értesítése és a bővítmény lapjai
+egyformán mondják („a heti ablak szerint indult”) — aki nem maga indította,
+tudja meg, miért fut, és hogy a vége az ablak vége.
+
 **Menetek ablakból:** a lezárás a naplósorra írja, ha a menet a csomag heti
 ablakának egy előfordulásaként indult (`isWindowRun` a három magban; csak ha
 igaz — a régi sor mezőtlen, és az nem ablak). A statisztika munkamenet-blokkja

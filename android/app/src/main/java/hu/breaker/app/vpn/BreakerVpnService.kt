@@ -173,7 +173,12 @@ class BreakerVpnService : VpnService() {
             text = getString(R.string.vpn_privatedns_text, strictDns)
         } else if (run != null) {
             title = getString(R.string.vpn_focus_title, pack?.name ?: "Munkamenet")
-            text = getString(R.string.vpn_focus_text, Focus.formatRemaining(run.endsAt - now))
+            // Az ablak szerint indult menetnél a sáv is kimondja: aki nem maga
+            // indította, tudja meg, miért fut — és hogy a vége az ablak vége.
+            text = getString(
+                if (Focus.isWindowRun(run, st.focusPacks)) R.string.vpn_focus_window_text else R.string.vpn_focus_text,
+                Focus.formatRemaining(run.endsAt - now),
+            )
         } else if (lock != null) {
             // A zárlat alatt a sáv mondja meg, miért nincs lazítás — és meddig. Az
             // ablak zárlatát ablakénak mondja: aki nem maga indította, tudja meg,

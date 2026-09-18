@@ -10,7 +10,7 @@
 // lenne, és pont az a lényeg, hogy ne az legyen.
 
 import {
-  formatRemaining, MAX_SESSION_MINUTES, SESSION_CHOICES_MIN,
+  formatRemaining, isWindowRun, MAX_SESSION_MINUTES, SESSION_CHOICES_MIN,
   type FocusPack, type FocusRun,
 } from '../shared/focus.js';
 import { hitNudgeStep, peakNowText } from '../shared/browser-hits.js';
@@ -174,6 +174,10 @@ function render(): void {
     const left = h('div', 'left');
     left.appendChild(h('span', 'dot'));
     left.append(document.createTextNode(formatRemaining(run.endsAt - Date.now())));
+    // Az ablak szerint indult menetnél ezt kimondjuk: aki nem maga indította,
+    // tudja meg, miért fut — és hogy a vége az ablak vége. A gépi kártya, a
+    // telefonok és a bővítmény ugyanezt mondja.
+    if (isWindowRun(run, status.focusPacks)) left.append(document.createTextNode(' · a heti ablak szerint indult'));
     box.appendChild(left);
     box.appendChild(h('div', 'what',
       pack && pack.allowSites.length + pack.allowApps.length > 0

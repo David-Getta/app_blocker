@@ -1099,6 +1099,17 @@ const WIRES = [
     needle: 'input.peakWindowOffer = Focus.peakWindowPick(',
     lost: 'az iPhone heti mondat nem mondaná, hogy a csúcs-órára lehetne ablakot tenni',
   },
+  // AZ ABLAK SZERINT INDULT menet a rétegben és az Android értesítésén is kimondva.
+  {
+    file: 'desktop/src/renderer/overlay.ts',
+    needle: "if (isWindowRun(run, status.focusPacks)) left.append(document.createTextNode(' · a heti ablak szerint indult'));",
+    lost: 'a réteg nem mondaná, hogy a menet az ablak szerint indult — aki nem maga indította, nem tudná, miért fut',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/vpn/BreakerVpnService.kt',
+    needle: 'if (Focus.isWindowRun(run, st.focusPacks)) R.string.vpn_focus_window_text else R.string.vpn_focus_text,',
+    lost: 'az Android értesítés nem mondaná, hogy a menet az ablak szerint indult',
+  },
   // A JAVASLAT KÁRTYÁJÁRÓL IS — gépen és telefonon: a mondat alatt a gomb ugyanoda fut.
   {
     file: 'desktop/src/renderer/renderer.ts',
