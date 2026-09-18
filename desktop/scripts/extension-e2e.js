@@ -459,7 +459,8 @@ async function main() {
       (arg) => chrome.storage.local.set({
         'breaker.applink': { ...arg.link, closed: [], keywords: arg.keywords, fetchedAt: arg.fetchedAt },
       }),
-      { link: LINK, keywords: ['tiltott'], fetchedAt: Date.now() },
+      // A második szó sosem fog: a beállítás-lap ezt is kimondja.
+      { link: LINK, keywords: ['tiltott', 'sosem'], fetchedAt: Date.now() },
     );
     await page.goto(`${base}/?x=tiltottdolog`).catch(() => { /* elkapja a tiltás */ });
     const keywordBlocked = await waitForBrowserUrl(page, context, /blocked\.html\?.*keyword=tiltott/, WAIT_MS);
@@ -534,6 +535,9 @@ async function main() {
     // saját könyvéből — a fenti tiltás a „tiltott” szóval ment.
     const kwLine = await seeder.evaluate(() => document.querySelector('#hitsKeywords')?.textContent ?? '').catch(() => '');
     check(/^Kulcsszavanként a héten: .*tiltott \d+/.test(kwLine), `a beállítás-lap kulcsszavanként mondja a hetet (${kwLine})`);
+    // …és azt is, melyik szó nem fogott: a lista második szava a héten egyszer sem.
+    const idleLine = await seeder.evaluate(() => document.querySelector('#hitsIdleKeywords')?.textContent ?? '').catch(() => '');
+    check(idleLine === 'A héten nem fogott: sosem', `a beállítás-lap kimondja, melyik szó nem fogott (${idleLine})`);
     await seedClosed([], Date.now());
 
     // A szünet LETELTEKOR a lap utat ad vissza: a visszaszámláló helyén link

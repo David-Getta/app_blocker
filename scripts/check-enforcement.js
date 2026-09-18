@@ -656,7 +656,12 @@ const WIRES = [
   },
   {
     file: 'extension/options.js',
-    needle: 'keywordsText(keywordsWeek(state, week))',
+    needle: 'idleKeywordsText(idleKeywords(link.keywords ?? [], kwRows))',
+    lost: 'a bővítmény beállítás-lapja nem mondaná, melyik szó nem fogott',
+  },
+  {
+    file: 'extension/options.js',
+    needle: 'keywordsText(kwRows)',
     lost: 'a bővítmény beállítás-lapja nem mondaná kulcsszavanként a hetet',
   },
   {

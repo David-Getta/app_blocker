@@ -471,8 +471,10 @@ Néhány konkrét dolog, amit érdemes előre tudni:
   feloldóját kérdezi a tiltott nevekről, és szól, ha nem a tiltó címre
   oldódnak — a böngésző saját DoH-ját viszont nem látja.
 - **A gépi értesítések csak amíg az app fut** (adag-betelés, a heti ablak
-  menetének indulása, a hétfői visszatekintés): a háttérben ülő védelem
-  magától nem tud értesíteni. A heti ablak menetét a segéd az app nélkül is
+  menetének indulása, a hétfői visszatekintés, a sokadik megakadás és a
+  csúcs-óra előjelzése): a háttérben ülő védelem magától nem tud értesíteni.
+  A telefonon a szűrő szolgáltatása (Android) és a rendszer (iPhone) az app
+  nélkül is szól. A heti ablak menetét a segéd az app nélkül is
   elindítja, és a telefon szűrője betartatja — a böngészőben viszont a
   bővítmény az apptól kérdezi a fehérlistát, tehát ott csak futó app mellett
   érvényesül.
@@ -491,7 +493,9 @@ a Swift-tükör minden pusholásnál fordul, és a mag tesztjei is lefutnak), é
 [`docs/feature-keywords.md`](docs/feature-keywords.md)), és a **megakadások**
 (hányszor állított meg a tiltás — ma, a héten, okonként, óránként, oldalanként;
 a sokadiknál egy lépést javasol, tíz perccel a csúcs-óra előtt előre szól, és
-ha nem kéred, csendben marad — [`docs/feature-usage-stats.md`](docs/feature-usage-stats.md)).
+ha nem kéred, csendben marad; a hét az előző héthez mérve, kulcsszavanként is,
+és az értesítésről egy kattintás a menetig, a csúcs-órára egy kattintás a
+heti ablakig — [`docs/feature-usage-stats.md`](docs/feature-usage-stats.md)).
 
 Ami még hátravan:
 

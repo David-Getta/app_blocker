@@ -118,4 +118,6 @@ bővítményben és a telefonon is —, és a statisztika kulcsszavanként mondj
 hetet: a gépi kártya a hídról („A héten a legtöbbször fogott: shorts 7 · reels 3.”),
 a bővítmény beállítás-lapja a saját könyvéből, a telefon a megakadás-blokkban.
 Ami sosem fog, az nem szerepel: a felesleges szó levétele próbatétel, de hogy
-felesleges-e, itt derül ki. Részletek: `docs/feature-usage-stats.md`.
+felesleges-e, itt derül ki — a bővítmény beállítás-lapja ki is mondja
+(„A héten nem fogott: live, stream”), ha a héten volt kulcsszó-megakadás.
+Részletek: `docs/feature-usage-stats.md`.

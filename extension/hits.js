@@ -297,6 +297,27 @@ export function keywordsText(rows) {
   return `Kulcsszavanként a héten: ${rows.map((r) => `${r.keyword} ${r.count}`).join(' · ')}`;
 }
 
+/**
+ * A lista szavai, amelyek a héten NEM fogtak — a tükör másik fele: ami sosem
+ * fog, azt lehet, hogy fölösleges tartani (a levétel próbatétel, de hogy
+ * fölösleges-e, itt derül ki). Csak akkor mond bármit, ha a héten volt
+ * kulcsszó-megakadás: friss könyv mellett minden szó „nem fogott” lenne, és
+ * az nem tény, hanem hiány.
+ */
+export function idleKeywords(keywords, rows) {
+  if (!Array.isArray(rows) || rows.length === 0) return [];
+  const hit = new Set(rows.map((r) => String(r.keyword).toLowerCase()));
+  return (Array.isArray(keywords) ? keywords : [])
+    .map((k) => String(k).trim().toLowerCase())
+    .filter((k) => k && !hit.has(k));
+}
+
+/** „A héten nem fogott: live, stream” — vagy null, ha nincs ilyen. */
+export function idleKeywordsText(idle) {
+  if (!Array.isArray(idle) || idle.length === 0) return null;
+  return `A héten nem fogott: ${idle.join(', ')}`;
+}
+
 /** „A héten: 4 zárva oldal · 3 munkamenet” — vagy null, ha nincs miről. */
 export function hitsReasonText(rows) {
   if (!rows.length) return null;

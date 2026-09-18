@@ -14,8 +14,8 @@ import { CLOSED_FRESH_MS, loadLink, pullFromApp, setToken, withAppRules } from '
 import { dayKey, formatSeconds, lastDays, topChannels } from './chantime.js';
 // A `lastDays` a csatorna-időé (ugyanaz a naptár) — a könyv is azzal él.
 import {
-  hitsByHour, hitsReasonText, hitsRows, hitsSummary, hitsText, hitsTrendText, hitsWeekByReason, hourLabel, keywordsText,
-  keywordsWeek, peakHour, topHost,
+  hitsByHour, hitsReasonText, hitsRows, hitsSummary, hitsText, hitsTrendText, hitsWeekByReason, hourLabel, idleKeywords,
+  idleKeywordsText, keywordsText, keywordsWeek, peakHour, topHost,
 } from './hits.js';
 
 const TIME_KEY = 'breaker.chantime';
@@ -88,9 +88,16 @@ async function renderHits() {
   $('hitsTop').hidden = top === null;
   $('hitsTop').textContent = top ? `A héten a legtöbbször: ${top.host} (${top.count}×).` : '';
   // MELYIK kulcsszó dolgozik: a hét kulcsszavanként, a saját könyvből.
-  const kw = keywordsText(keywordsWeek(state, week));
+  const kwRows = keywordsWeek(state, week);
+  const kw = keywordsText(kwRows);
   $('hitsKeywords').hidden = kw === null;
   $('hitsKeywords').textContent = kw ?? '';
+  // A LISTA SZAVAI, amelyek a héten nem fogtak: a tükör másik fele — csak ha a
+  // héten volt kulcsszó-megakadás, különben a hiány tényként hangzana.
+  const link = await loadLink();
+  const idle = idleKeywordsText(idleKeywords(link.keywords ?? [], kwRows));
+  $('hitsIdleKeywords').hidden = idle === null;
+  $('hitsIdleKeywords').textContent = idle ?? '';
   const strip = $('hitsHours');
   strip.textContent = '';
   strip.hidden = peak === null;

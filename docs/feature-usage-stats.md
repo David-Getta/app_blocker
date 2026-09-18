@@ -463,7 +463,10 @@ Kulcsszavak kártya a hídról mondja („A héten a legtöbbször fogott: short
 beállítás-lapja a saját könyvéből, pontosan („Kulcsszavanként a héten: shorts 7 · reels 3”),
 a telefon statisztikája a megakadás-blokkban („Kulcsszavanként: tiktok 5.”).
 Ami sosem fog, az nem szerepel — tükör a listára: a felesleges szó levétele
-próbatétel, de hogy felesleges-e, itt derül ki.
+próbatétel, de hogy felesleges-e, itt derül ki. A bővítmény beállítás-lapja
+ezt ki is mondja („A héten nem fogott: live, stream” — `idleKeywords`), de
+csak akkor, ha a héten volt kulcsszó-megakadás: friss könyv mellett minden szó
+„nem fogott” lenne, és az nem tény, hanem hiány.
 
 **A hét az előző héthez képest:** a két szám egymás mellett — „A héten 12
 megakadás, az előző héten 18.” — a statisztika megakadás-blokkjában

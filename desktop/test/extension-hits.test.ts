@@ -30,6 +30,8 @@ interface Hits {
   MAX_KEYWORDS_PER_DAY: number;
   keywordsWeek: (state: unknown, days: string[]) => { keyword: string; count: number }[];
   keywordsText: (rows: { keyword: string; count: number }[]) => string | null;
+  idleKeywords: (keywords: unknown, rows: { keyword: string; count: number }[]) => string[];
+  idleKeywordsText: (idle: string[]) => string | null;
   hitsText: (s: { today: number; week: number }) => string | null;
   hitsRows: (state: unknown, today: string) => { day: string; total: number; detail: string }[];
   hitsOnHost: (state: unknown, day: string, host: string) => number;
@@ -49,7 +51,7 @@ interface Hits {
 function load(): Hits {
   const src = fs.readFileSync(path.join(extensionDir(), 'hits.js'), 'utf8').replace(/^export /gm, '');
   // eslint-disable-next-line no-new-func
-  return new Function(`${src}\nreturn { RETENTION_DAYS, REPORT_DAYS, MAX_HOSTS_PER_DAY, MAX_KEYWORDS_PER_DAY, keywordsWeek, keywordsText, dayKey, lastDays, recordHit, sweepHits, hitsOn, hitsOnHost, hitsSummary, hitsReport, hitsText, hitsTrendText, hitsRows, hitsByHour, peakHour, hourLabel, hitsNudge, NUDGE_AT, hitsWeekByReason, hitsReasonText, REASON_NAMES, TOP_HOSTS_PER_DAY, topHost };`)() as Hits;
+  return new Function(`${src}\nreturn { RETENTION_DAYS, REPORT_DAYS, MAX_HOSTS_PER_DAY, MAX_KEYWORDS_PER_DAY, keywordsWeek, keywordsText, idleKeywords, idleKeywordsText, dayKey, lastDays, recordHit, sweepHits, hitsOn, hitsOnHost, hitsSummary, hitsReport, hitsText, hitsTrendText, hitsRows, hitsByHour, peakHour, hourLabel, hitsNudge, NUDGE_AT, hitsWeekByReason, hitsReasonText, REASON_NAMES, TOP_HOSTS_PER_DAY, topHost };`)() as Hits;
 }
 
 const TODAY = '2026-09-18';
@@ -228,4 +230,14 @@ test('kulcsszavanként is: csak a kulcsszó okánál, a fogó szóval; a hét so
   for (let i = 0; i < h.MAX_KEYWORDS_PER_DAY + 3; i++) many = h.recordHit(many, TODAY, 'keyword', 'a.example', 1, `k${i}`);
   assert.equal(h.keywordsWeek(many, [TODAY]).length, h.MAX_KEYWORDS_PER_DAY, 'a plafon fölött nincs új szó');
   assert.equal(h.hitsOn(many, TODAY), h.MAX_KEYWORDS_PER_DAY + 3, '…de az összegben benne van');
+});
+
+test('ami a héten nem fogott: a lista szavai a hét sorai nélkül — csak ha volt kulcsszó-megakadás', () => {
+  const h = load();
+  const rows = [{ keyword: 'shorts', count: 2 }];
+  assert.deepEqual(h.idleKeywords(['Shorts', 'live', ' stream ', ''], rows), ['live', 'stream'], 'kisbetűsen, üres nélkül');
+  assert.deepEqual(h.idleKeywords(['live'], []), [], 'kulcsszó-megakadás nélkül a hiány nem tény');
+  assert.deepEqual(h.idleKeywords('nem lista', rows), []);
+  assert.equal(h.idleKeywordsText(['live', 'stream']), 'A héten nem fogott: live, stream');
+  assert.equal(h.idleKeywordsText([]), null);
 });
