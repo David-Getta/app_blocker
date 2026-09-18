@@ -44,20 +44,20 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A heti mondat megosztható.** A statisztika naplójában a mostani
-          mondat mellett gomb: a gépen a vágólapra, Androidon és iPhone-on
-          a rendszer megosztójával — egy megbízottnak, egy naplóba.
+          **Futó menet mellett nincs javaslat.** A sokadik megakadás és a
+          csúcs-óra előjelzésének értesítése hallgat, amíg egy menet tart —
+          a lépés, amit ajánlana, már megvan. Mindhárom platformon; a kártya
+          a lapon ettől még mondja a számot.
 
-          ### Ami a v0.4.85-ben jött
+          ### Ami a v0.4.86-ban jött
 
-          **A próbamező a telefon ítéletét is mondja** — a gépi Kulcsszavak
-          kártya kiírja, a telefon fogná-e ugyanazt a címet; és ami a héten
-          nem fogott, a telefonokon is (v0.4.84).
+          **A heti mondat megosztható** — a gépen a vágólapra, a
+          telefonokon a rendszer megosztójával.
 
-          #### Ami a v0.4.83-ban jött
+          #### Ami a v0.4.85-ben jött
 
-          **Ami a héten nem fogott** — a bővítmény beállítás-lapján.
-          Bővítmény 0.4.17.
+          **A próbamező a telefon ítéletét is mondja**, és ami a héten nem
+          fogott, a telefonokon is (v0.4.84).
 
           NOTES
           fi
