@@ -81,7 +81,8 @@ final class PartnerTests: XCTestCase {
         XCTAssertNotEqual(made.salt, lock.salt, "friss só minden felvételnél")
         XCTAssertNil(PartnerLogic.normalizeLock(name: "Anna", salt: "rövid", hash: fx.hash, setAt: 1))
         XCTAssertNil(PartnerLogic.normalizeLock(name: "", salt: fx.salt, hash: fx.hash, setAt: 1))
-        XCTAssertEqual(PartnerLogic.normalizeLock(name: "Anna", salt: fx.salt, hash: fx.hash, setAt: 1), lock)
+        XCTAssertEqual(PartnerLogic.normalizeLock(name: "Anna", salt: fx.salt, hash: fx.hash, setAt: 1),
+                       PartnerLogic.PartnerLock(name: "Anna", salt: fx.salt, hash: fx.hash, setAt: 1))
         XCTAssertEqual(PartnerLogic.normalizeLock(name: "Anna", salt: fx.salt, hash: fx.hash, setAt: nil)?.setAt, 0)
     }
 
@@ -145,13 +146,26 @@ final class PartnerTests: XCTestCase {
     }
 
     // ------------------------------------------------------------------ a bíró
+    //
+    // A tár közzétett `state`-je a fő sorra van dobva, és a tesztfolyamatban
+    // nincs, ami megforgassa: két egymás utáni bíró-hívás közül a második a
+    // RÉGI állapotot látná (a LockdownWindowRefereeTests ugyanígy forgat).
+    // Ezért minden mutáció után `settled` — a hívás, aztán a fő sor.
+
+    @discardableResult
+    private func settled<T>(_ f: () throws -> T) rethrows -> T {
+        let r = try f()
+        pumpMainQueue()
+        return r
+    }
 
     private func addSite(_ domain: String) -> String {
         let id = BreakerStore.shared.newId("site")
-        BreakerStore.shared.mutate { state in
-            state.sites.append(Site(id: id, domain: domain, hostnames: [domain], addedAt: now))
+        settled {
+            BreakerStore.shared.mutate { state in
+                state.sites.append(Site(id: id, domain: domain, hostnames: [domain], addedAt: now))
+            }
         }
-        pumpMainQueue()
         return id
     }
 
@@ -166,11 +180,15 @@ final class PartnerTests: XCTestCase {
         case .transcribe(_, let text): return text
         case .mathChain(_, let problems, let pos): return String(problems[pos].a)
         case .memory(let id, let code, let showMs, let waitMs, _):
-            BreakerStore.shared.mutate { state in
-                guard var ses = state.session else { return }
-                ses.steps[ses.stepIndex] = .memory(id: id, code: code, showMs: showMs, waitMs: waitMs,
-                                                   armedAt: now - Double(showMs + waitMs) - 1000)
-                state.session = ses
+            // A memorizálás és a várakozás „leteltnek” állítva — a tesztben
+            // nem az idő a kérdés, hanem a lépések sora.
+            settled {
+                BreakerStore.shared.mutate { state in
+                    guard var ses = state.session else { return }
+                    ses.steps[ses.stepIndex] = .memory(id: id, code: code, showMs: showMs, waitMs: waitMs,
+                                                       armedAt: now - Double(showMs + waitMs) - 1000)
+                    state.session = ses
+                }
             }
             return code
         case .reverse(_, let text): return ChallengeEngine.reverse(text)
@@ -182,14 +200,14 @@ final class PartnerTests: XCTestCase {
     /// Végigviszi a kísérletet a megbízott lépéséig — a várakozást is átveszi.
     private func solveUntilPartner(_ id: String) throws {
         var guardCount = 0
-        while let step = currentStep(), guardCount < 200 {
+        while let step = currentStep(), guardCount < 40 {
             guardCount += 1
             switch step {
             case .partner: return
             case .delay(_, _, let claimableAt, _):
-                _ = try Referee.claimDelay(sessionId: id, now: (claimableAt ?? now) + 1)
+                try settled { try Referee.claimDelay(sessionId: id, now: (claimableAt ?? now) + 1) }
             default:
-                _ = try Referee.submitAnswer(sessionId: id, answer: solve(step), now: now)
+                try settled { try Referee.submitAnswer(sessionId: id, answer: solve(step), now: now) }
             }
         }
         XCTFail("a kísérlet elfogyott a megbízott lépése előtt")
@@ -197,17 +215,16 @@ final class PartnerTests: XCTestCase {
 
     func testWithAPartnerTheLastStepIsTheirPhraseAfterTheWait() throws {
         let siteId = addSite("youtube.com")
-        let setup = try Referee.setPartner(name: "  Anna ", now: now)
+        let setup = try settled { try Referee.setPartner(name: "  Anna ", now: now) }
         XCTAssertEqual(setup.name, "Anna")
         XCTAssertEqual(setup.phrase.split(separator: " ").count, PartnerLogic.partnerPhraseWords, "négy szó")
         XCTAssertEqual(setup.phrase, setup.phrase.lowercased())
-        pumpMainQueue()
         XCTAssertEqual(BreakerStore.shared.state.partner?.name, "Anna")
-        XCTAssertThrowsError(try Referee.setPartner(name: "Béla", now: now)) { e in
+        XCTAssertThrowsError(try settled { try Referee.setPartner(name: "Béla", now: now) }) { e in
             XCTAssertEqual((e as? Referee.RefereeError)?.code, "PARTNER_SET")
         }
 
-        let ses = try Referee.startSession(kind: .pause, siteId: siteId, minutes: 15, now: now)
+        let ses = try settled { try Referee.startSession(kind: .pause, siteId: siteId, minutes: 15, now: now) }
         guard case .partner(_, let name) = ses.steps.last! else { return XCTFail("az utolsó lépés a megbízotté") }
         XCTAssertEqual(name, "Anna")
         guard case .delay = ses.steps[ses.steps.count - 2] else { return XCTFail("a várakozás után áll") }
@@ -215,36 +232,34 @@ final class PartnerTests: XCTestCase {
         try solveUntilPartner(ses.id)
         // Rossz jelmondat: nem sorsol újat, csak számol; a plafonnál a kísérlet elszáll.
         for _ in 0..<(PartnerLogic.maxPartnerTries - 1) {
-            let r = try Referee.submitAnswer(sessionId: ses.id, answer: "alma bogrács cinege este", now: now)
+            let r = try settled { try Referee.submitAnswer(sessionId: ses.id, answer: "alma bogrács cinege este", now: now) }
             XCTAssertFalse(r.accepted)
             XCTAssertTrue(r.message?.contains("Nem ez a jelmondat") ?? false)
-            pumpMainQueue()
             XCTAssertNotNil(BreakerStore.shared.state.session, "a kísérlet még él")
         }
-        XCTAssertThrowsError(try Referee.submitAnswer(sessionId: ses.id, answer: "megint rossz", now: now)) { e in
+        XCTAssertThrowsError(try settled { try Referee.submitAnswer(sessionId: ses.id, answer: "megint rossz", now: now) }) { e in
             XCTAssertEqual((e as? Referee.RefereeError)?.code, "PARTNER_TRIES")
             XCTAssertTrue((e as? Referee.RefereeError)?.message.contains("elölről") ?? false)
         }
-        pumpMainQueue()
         XCTAssertNil(BreakerStore.shared.state.session, "a plafonnál elszállt")
         XCTAssertNil(BreakerStore.shared.state.sites[0].pauseUntil, "feloldás nem történt")
 
         // Újra: minden lépés elölről, és a jó jelmondat a végén feloldja.
-        let again = try Referee.startSession(kind: .pause, siteId: siteId, minutes: 15, now: now + 1000)
+        let again = try settled { try Referee.startSession(kind: .pause, siteId: siteId, minutes: 15, now: now + 1000) }
         try solveUntilPartner(again.id)
-        let r = try Referee.submitAnswer(sessionId: again.id, answer: " \(setup.phrase.uppercased()) ", now: now + 1000)
+        let r = try settled {
+            try Referee.submitAnswer(sessionId: again.id, answer: " \(setup.phrase.uppercased()) ", now: now + 1000)
+        }
         XCTAssertTrue(r.accepted)
         XCTAssertTrue(r.sessionDone)
-        pumpMainQueue()
         XCTAssertNotNil(BreakerStore.shared.state.sites[0].pauseUntil, "a szünet elindult")
     }
 
     func testAnAbandonedAttemptsComboDoesNotContainThePartnerStep() throws {
         let siteId = addSite("youtube.com")
-        try Referee.setPartner(name: "Anna", now: now)
-        let ses = try Referee.startSession(kind: .pause, siteId: siteId, minutes: 15, now: now)
-        Referee.abandon(sessionId: ses.id)
-        pumpMainQueue()
+        try settled { try Referee.setPartner(name: "Anna", now: now) }
+        let ses = try settled { try Referee.startSession(kind: .pause, siteId: siteId, minutes: 15, now: now) }
+        settled { Referee.abandon(sessionId: ses.id) }
         let debt = try XCTUnwrap(BreakerStore.shared.state.abandons?.first)
         XCTAssertFalse(debt.comboKey.contains("PARTNER"), debt.comboKey)
         XCTAssertNotNil(ChallengeEngine.parseCombo(debt.comboKey), "a kulcs visszaolvasható")
@@ -252,38 +267,37 @@ final class PartnerTests: XCTestCase {
 
     func testRemovingThePartnerIsAChallengeEndingWithTheirPhrase() throws {
         _ = addSite("youtube.com")
-        XCTAssertTrue(try Referee.startPartnerRemoval(now: now).applied, "megbízott nélkül nincs mit levenni")
-        let setup = try Referee.setPartner(name: "Anna", now: now)
-        let r = try Referee.startPartnerRemoval(now: now)
+        XCTAssertTrue(try settled { try Referee.startPartnerRemoval(now: now) }.applied,
+                      "megbízott nélkül nincs mit levenni")
+        let setup = try settled { try Referee.setPartner(name: "Anna", now: now) }
+        let r = try settled { try Referee.startPartnerRemoval(now: now) }
         XCTAssertFalse(r.applied)
         let ses = try XCTUnwrap(r.session)
         XCTAssertEqual(ses.pendingPartnerRemoval, true)
         XCTAssertEqual(ses.siteId, "partner")
         guard case .partner = ses.steps.last! else { return XCTFail("az utolsó lépés a megbízotté") }
-        XCTAssertThrowsError(try Referee.startPartnerRemoval(now: now)) { e in
+        XCTAssertThrowsError(try settled { try Referee.startPartnerRemoval(now: now) }) { e in
             XCTAssertEqual((e as? Referee.RefereeError)?.code, "BUSY")
         }
         try solveUntilPartner(ses.id)
-        let done = try Referee.submitAnswer(sessionId: ses.id, answer: setup.phrase, now: now)
+        let done = try settled { try Referee.submitAnswer(sessionId: ses.id, answer: setup.phrase, now: now) }
         XCTAssertTrue(done.sessionDone)
-        pumpMainQueue()
         XCTAssertNil(BreakerStore.shared.state.partner, "a megbízott lekerült")
         XCTAssertEqual(BreakerStore.shared.state.unlockLog.count, 1, "a lazítás a naplóban")
     }
 
     func testIfThePartnerWentAwayMeanwhileTheStepIsMoot() throws {
         let siteId = addSite("youtube.com")
-        try Referee.setPartner(name: "Anna", now: now)
-        let ses = try Referee.startSession(kind: .pause, siteId: siteId, minutes: 15, now: now)
+        try settled { try Referee.setPartner(name: "Anna", now: now) }
+        let ses = try settled { try Referee.startSession(kind: .pause, siteId: siteId, minutes: 15, now: now) }
         try solveUntilPartner(ses.id)
-        BreakerStore.shared.mutate { state in state.partner = nil }
-        XCTAssertTrue(try Referee.submitAnswer(sessionId: ses.id, answer: "bármi", now: now).sessionDone)
+        settled { BreakerStore.shared.mutate { state in state.partner = nil } }
+        XCTAssertTrue(try settled { try Referee.submitAnswer(sessionId: ses.id, answer: "bármi", now: now) }.sessionDone)
     }
 
     func testThePendingRemovalAndTheStepSurviveASave() throws {
-        try Referee.setPartner(name: "Anna", now: now)
-        try Referee.startPartnerRemoval(now: now)
-        pumpMainQueue()
+        try settled { try Referee.setPartner(name: "Anna", now: now) }
+        try settled { try Referee.startPartnerRemoval(now: now) }
         let data = try JSONEncoder().encode(BreakerStore.shared.state)
         let back = try JSONDecoder().decode(AppState.self, from: data)
         XCTAssertEqual(back.session?.pendingPartnerRemoval, true)
