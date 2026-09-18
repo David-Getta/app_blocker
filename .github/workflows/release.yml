@@ -44,20 +44,21 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **Az ablak szerint indult menet mindenhol kimondva.** A gyorsbillentyűs
-          réteg és az Android szűrő-értesítése is mondja, ha a menet a heti
-          ablak szerint indult — aki nem maga indította, tudja meg, miért fut,
-          és hogy a vége az ablak vége. Eddig a kártyák és a bővítmény mondták.
+          **A csúcs-nap.** Melyik napon akad meg a kéz a legtöbbször — négy
+          hétből, a hét napjaira osztva: „A négy hét csúcs-napja: vasárnap (14 megakadás).”
+          A gépi, az Android és az iOS statisztikán, és a bővítmény
+          beállítás-lapján a saját könyvből. Holtversenynél a hét elejéhez
+          közelebbi nap. Tény, nem ítélet. Bővítmény 0.4.26.
 
-          ### Ami a v0.4.109-ben jött
+          ### Ami a v0.4.110-ben jött
+
+          **Az ablak szerint indult menet mindenhol kimondva.** A
+          gyorsbillentyűs réteg és az Android szűrő-értesítése is mondja.
+
+          #### Ami a v0.4.109-ben jött
 
           **A heti mondat mondja, ha a csúcs-órát nem fedi ablak.** Csak ha
           lehetne rá tenni; a fedés erősebb. Mindhárom platformon.
-
-          #### Ami a v0.4.108-ban jött
-
-          **A felugró lap mondja, ha a csúcs-órát ablak fedi.** Az app szava a
-          hídon. Bővítmény 0.4.25.
 
           NOTES
           fi
