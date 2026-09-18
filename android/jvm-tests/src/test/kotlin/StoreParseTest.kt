@@ -2,6 +2,7 @@ import hu.breaker.app.core.AbandonRec
 import hu.breaker.app.core.AppState
 import hu.breaker.app.core.ChallengeEngine.Kind
 import hu.breaker.app.core.BreakerStore
+import hu.breaker.app.core.LockdownLogic
 import hu.breaker.app.core.ScheduleLogic
 import org.json.JSONObject
 import kotlin.test.Test
@@ -160,5 +161,96 @@ class StoreParseTest {
         val state = parse("{\"sites\":[" + site("youtube") + "]}")
         assertFalse(state.hideSiteList)
         assertNull(state.sites[0].alias)
+    }
+
+    // ---- zárlat-ablakok ----------------------------------------------------
+
+    private fun window(id: String, days: Set<Int>, start: Int, end: Int) =
+        LockdownLogic.LockdownWindow(id, days, start, end)
+
+    @Test fun `a zarlat-ablakok es a jeluk tulelik a mentest`() {
+        // Az ablakból a kör zárlatot ír; ha a lista nem élné túl az
+        // újraindítást, az app kilövése lenne az ablak levétele — ingyen.
+        val state = AppState(
+            lockdownWindows = listOf(
+                window("lw_work", setOf(1, 2, 3, 4, 5), 9 * 60, 17 * 60),
+                window("lw_night", setOf(0, 6), 22 * 60, 6 * 60),
+            ),
+            lockdownWindowsRev = 5,
+            focusRevWindows = "1,2,3,4,5/540/1020;0,6/1320/360",
+        )
+        val round = parse(toJson.invoke(BreakerStore, state).toString())
+        assertEquals(state.lockdownWindows, round.lockdownWindows)
+        assertEquals(5, round.lockdownWindowsRev, "a jel nélkül a másik eszköz jeles levétele nem menne át")
+        assertEquals(state.focusRevWindows, round.focusRevWindows)
+    }
+
+    @Test fun `az utolso ablak levetele ujrainditas utan is levetel marad`() {
+        // A függő lista ÜRES listaként utazik, nem null-ként: a null azt
+        // jelentené, hogy a kísérlet közönséges feloldás, és a próbatétel
+        // végén a bíró szünetet adna az ablak levétele helyett.
+        val session = """{"id":"ses_1","kind":"PAUSE","siteId":"lockdown:windows","minutes":null,
+            "steps":[{"id":"st1","type":"TRANSCRIBE","text":"abc"}],"stepIndex":0,"createdAt":1,
+            "pendingSchedule":null,"pendingLockdownWindows":[]}"""
+        val first = parse("""{"sites":[${site("youtube")}],"session":$session}""")
+        assertNotNull(first.session)
+        assertEquals(emptyList(), first.session!!.pendingLockdownWindows, "üres lista, nem null")
+
+        val second = parse(toJson.invoke(BreakerStore, first).toString())
+        assertEquals(emptyList(), second.session!!.pendingLockdownWindows, "a mentés sem teszi null-lá")
+
+        // Egy másik kísérlet, aminek nincs köze az ablakokhoz, null-t hordoz.
+        val plain = parse("""{"sites":[${site("youtube")}],"session":${session.replace(
+            ""","pendingLockdownWindows":[]""", "")}}""")
+        assertNull(plain.session!!.pendingLockdownWindows)
+        assertNull(parse(toJson.invoke(BreakerStore, plain).toString()).session!!.pendingLockdownWindows)
+    }
+
+    @Test fun `a fuggo szukites is tulel egy mentest`() {
+        val session = """{"id":"ses_1","kind":"PAUSE","siteId":"lockdown:windows","minutes":null,
+            "steps":[{"id":"st1","type":"TRANSCRIBE","text":"abc"}],"stepIndex":0,"createdAt":1,
+            "pendingLockdownWindows":[{"id":"lw_work","days":[1,2,3],"startMin":540,"endMin":1020}]}"""
+        val first = parse("""{"sites":[${site("youtube")}],"session":$session}""")
+        val round = parse(toJson.invoke(BreakerStore, first).toString())
+        assertEquals(listOf(window("lw_work", setOf(1, 2, 3), 540, 1020)), round.session!!.pendingLockdownWindows)
+    }
+
+    @Test fun `szemet ablak a mentett fajlban kiesik, a tobbi marad`() {
+        // A fájlt egy újabb verzió vagy egy kézi szerkesztés is írhatta. Egy
+        // rossz ablak nem viheti el a jókat — és főleg nem a blokklistát.
+        val windows = listOf(
+            """{"id":"ok","days":[1,2,3],"startMin":540,"endMin":1020}""",
+            """{"id":"bad_day","days":[9],"startMin":540,"endMin":1020}""",
+            """{"id":"bad_band","days":[1],"startMin":540,"endMin":0}""",
+            """{"id":"bad_start","days":[1],"startMin":1440,"endMin":60}""",
+            """{"days":[1],"startMin":600,"endMin":700}""",
+            """{"id":"dupe","days":[3,2,1],"startMin":540,"endMin":1020}""",
+            """{"id":"ok","days":[4],"startMin":100,"endMin":200}""",
+            """{"id":"${"x".repeat(41)}","days":[5],"startMin":100,"endMin":200}""",
+            "\"nem is objektum\"",
+            """{"id":"ok2","days":[6],"startMin":1380,"endMin":120}""",
+        ).joinToString(",")
+        val state = parse(
+            """{"sites":[${site("youtube")}],"lockdownWindows":[$windows],
+               "lockdownWindowsRev":-3,"focusRevWindows":null}""",
+        )
+        assertEquals(1, state.sites.size, "a blokklista nem járulékos kár")
+        assertEquals(listOf("ok", "ok2"), state.lockdownWindows.map { it.id })
+        assertEquals(setOf(1, 2, 3), state.lockdownWindows[0].days)
+        assertNull(state.lockdownWindowsRev, "a nem pozitív jel nincs jel")
+        assertNull(state.focusRevWindows)
+
+        // Nem szám a jel helyén: ugyanúgy nincs jel, és nem hasal el a betöltés.
+        val junkRev = parse("""{"sites":[${site("youtube")}],"lockdownWindowsRev":"abc"}""")
+        assertEquals(1, junkRev.sites.size)
+        assertNull(junkRev.lockdownWindowsRev)
+    }
+
+    @Test fun `az ablakok elott irt allapotfajl ablakok nelkul tolt be`() {
+        val state = parse("""{"sites":[${site("youtube")}]}""")
+        assertTrue(state.lockdownWindows.isEmpty())
+        assertNull(state.lockdownWindowsRev)
+        assertNull(state.focusRevWindows)
+        assertEquals(1, state.sites.size)
     }
 }
