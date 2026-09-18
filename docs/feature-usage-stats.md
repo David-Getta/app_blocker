@@ -441,7 +441,12 @@ huszadik mai megakadásnál egyszer szól („Ma már 5 megakadás a böngésző
 Egy munkamenet vagy egy rövid zárlat most segítene — te döntesz.”), és a
 tiltó lap az ötödiktől ugyanezt teszi hozzá a sorához. Nem tilt, nem ítél —
 a döntés az emberé. A heti mondat a csúcs-órát is mondja: „12 megakadás a
-böngészőben, a csúcs 21–22 óra.”
+böngészőben, a csúcs 21–22 óra.” A gépi statisztika megakadás-blokkja a
+sokadik megakadásnál a mondatot és egy gombot is mutat — „Munkamenet:
+Nyelvtanulás, 25 perc” —, a legutóbb használt csomagot a szokásos hosszával
+(a segéd választja, `lastUsedPackId` a statisztika-válaszban; napló nélkül az
+elsőt): egy kattintás a mondattól a menetig, mint a telefonon. Futó menet
+mellett nincs gomb.
 
 A telefon ugyanígy javasol: Androidon a szolgáltatás az ötödik, tizedik és
 huszadik mai megakadásnál egyszer értesít („Ma már 5 megakadás a szűrőben…”,

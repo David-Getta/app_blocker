@@ -11,7 +11,7 @@ import { test } from 'node:test';
 import * as assert from 'node:assert/strict';
 import {
   closeRun, formatRemaining, isAppAllowed, isRunning, isSessionLoosening, isSiteAllowed,
-  MAX_ALLOW_ENTRIES, MAX_SESSION_MINUTES, normalizeMinutes, normalizePack, remainingMs,
+  lastUsedPack, MAX_ALLOW_ENTRIES, MAX_SESSION_MINUTES, normalizeMinutes, normalizePack, remainingMs,
   summarizeFocus, type FocusLogEntry, type FocusPack,
 } from '../src/shared/focus';
 
@@ -208,3 +208,15 @@ function entry(over: Partial<FocusLogEntry> = {}): FocusLogEntry {
     ...over,
   };
 }
+
+test('a legutóbb használt csomag: a napló szerint, törölt csomag nélkül, különben az első', () => {
+  const a = pack({ id: 'pack_a', name: 'A' });
+  const b = pack({ id: 'pack_b', name: 'B' });
+  const entry = (packId: string, at: number): FocusLogEntry => ({
+    packId, packName: packId, startedAt: at, endedAt: at + 60_000, plannedEndsAt: at + 60_000, stopped: false,
+  });
+  assert.equal(lastUsedPack([], []), null, 'csomag nélkül nincs mit indítani');
+  assert.equal(lastUsedPack([a, b], [])?.id, 'pack_a', 'napló nélkül az első');
+  assert.equal(lastUsedPack([a, b], [entry('pack_a', 1000), entry('pack_b', 2000)])?.id, 'pack_b', 'a legfrissebb sor');
+  assert.equal(lastUsedPack([a, b], [entry('pack_a', 1000), entry('pack_x', 2000)])?.id, 'pack_a', 'a törölt csomag sora nem számít');
+});

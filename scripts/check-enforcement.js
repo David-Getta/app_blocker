@@ -552,6 +552,16 @@ const WIRES = [
     needle: 'Referee.startFocus(packId: pick.id, minutes: pick.defaultMinutes, now: nowMs())',
     lost: 'az iPhone javaslat-kártyája nem indítana menetet egy koppintásra',
   },
+  {
+    file: 'desktop/src/helper/server.ts',
+    needle: "lastUsedPackId: lastUsedPack(state.focusPacks ?? [], state.focusLog ?? [])?.id ?? null,",
+    lost: 'a segéd nem választana csomagot a gépi javaslat gombjának — a gomb sosem látszana',
+  },
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: "call<StatusData>('focus_start', { packId: pick.id, minutes: pick.defaultMinutes })",
+    lost: 'a gépi statisztika gombja nem indítana menetet egy kattintásra',
+  },
   // MELYIK szabály dolgozik: az okok a hídon átjönnek, a segéd tartja — ha a
   // státusz vagy a lap nem mondaná, a bontás csak a bővítmény lapján maradna.
   {

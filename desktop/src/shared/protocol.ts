@@ -335,6 +335,8 @@ export interface UsageStatsData {
   weekSeries?: { day: string; seconds: number }[];
   /** fókuszban töltött idő naponta az elmúlt 7 napra (a menet a végének napjára számít) */
   focusDays?: { day: string; seconds: number }[];
+  /** a javaslat gombjának csomagja: a legutóbb használt, napló nélkül az első; null, ha nincs */
+  lastUsedPackId?: string | null;
   /**
    * A munkamenetek összegzése — ma és a héten.
    *

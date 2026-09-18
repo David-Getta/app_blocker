@@ -245,6 +245,21 @@ export interface FocusLogEntry {
   stopped: boolean;
 }
 
+/**
+ * A legutóbb használt csomag — a napló legfrissebb olyan sora szerint, amelynek
+ * a csomagja még megvan —, vagy az első, ha még nem volt menet; null, ha nincs
+ * csomag. A javaslat gombja ezt indítja a szokásos hosszával: egy kattintás a
+ * mondattól a menetig. A Kotlin/Swift `lastUsedPack` tükre.
+ */
+export function lastUsedPack(packs: FocusPack[], log: FocusLogEntry[]): FocusPack | null {
+  const byId = new Map(packs.map((p) => [p.id, p]));
+  for (const e of [...log].sort((a, b) => b.startedAt - a.startedAt)) {
+    const p = byId.get(e.packId);
+    if (p) return p;
+  }
+  return packs[0] ?? null;
+}
+
 /** Ennyi lezárult menetet tartunk meg. A statisztika úgyis hetekben gondolkodik. */
 export const MAX_FOCUS_LOG = 200;
 

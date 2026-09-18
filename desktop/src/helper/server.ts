@@ -14,7 +14,7 @@ import {
   browserHits7d, browserHitsByReason, browserHitsPeakHour, browserHitsSeries, browserHitsToday, putBrowserHits,
 } from '../shared/browser-hits';
 import { normalizeRule } from '../shared/urlrules';
-import { focusDaySeries, isRunning, normalizePack, spentWindows, summarizeFocus } from '../shared/focus';
+import { lastUsedPack, focusDaySeries, isRunning, normalizePack, spentWindows, summarizeFocus } from '../shared/focus';
 import { noteBurstUsage, normalizeBurst, type BurstRule } from '../shared/burst';
 import { LOCKDOWN_CHOICES_MIN } from '../shared/lockdown';
 import {
@@ -609,6 +609,8 @@ async function handle(req: HelperRequest, deps: ServerDeps): Promise<unknown> {
         focusSeries: focusKey ? series(state.usage, focusKey, now, 30) : [],
         weekSeries: totalSeries(state.usage, now, 7),
         focusDays: focusDaySeries(state.focusLog, now, 7),
+        // A javaslat gombjának csomagja: a legutóbb használt, napló nélkül az első.
+        lastUsedPackId: lastUsedPack(state.focusPacks ?? [], state.focusLog ?? [])?.id ?? null,
         // A nap kezdete a HELYI naptár szerint: éjfélkor vált, nem huszonnégy
         // órával ezelőtt. Egy „ma” felirat alatt tegnap esti menetek állnának.
         focusToday: summarizeFocus(state.focusLog, startOfDay(now), now),

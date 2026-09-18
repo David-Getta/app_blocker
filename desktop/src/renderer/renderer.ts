@@ -32,8 +32,8 @@ import {
 } from '../shared/shortcut.js';
 import { MAX_LIMIT_MINUTES } from '../shared/limits.js';
 import {
-  formatRemaining, isWindowRun, MAX_ALLOW_ENTRIES, MAX_PACK_NAME, MAX_SESSION_MINUTES,
-  nextOccurrence, SESSION_CHOICES_MIN, windowRunStarted, type FocusPack, type FocusRun,
+  formatRemaining, isRunning as focusIsRunning, isWindowRun, MAX_ALLOW_ENTRIES, MAX_PACK_NAME,
+  MAX_SESSION_MINUTES, nextOccurrence, SESSION_CHOICES_MIN, windowRunStarted, type FocusPack, type FocusRun,
 } from '../shared/focus.js';
 import { CATEGORY_PACKS, type CategoryPack } from '../shared/blocklist.js';
 import { windowKey, windowStartingSoon, type LockdownWindow as LockdownWindowRow } from '../shared/lockdown.js';
@@ -3742,6 +3742,18 @@ function setupModal(): void {
   $('suggestNotify').addEventListener('change', (e) => {
     try { localStorage.setItem(QUIET_KEY, (e.target as HTMLInputElement).checked ? '0' : '1'); } catch { /* nincs tár: marad */ }
   });
+  // Egy kattintás a mondattól a menetig — szigorítás, ingyen; a bíró ugyanazt
+  // futtatja, mint a csomagkártya gombja. A hiba a mondat helyére kerül.
+  $('hitsStartBtn').addEventListener('click', () => void (async () => {
+    const pick = hitsStartPick;
+    if (!pick) return;
+    try {
+      status = await call<StatusData>('focus_start', { packId: pick.id, minutes: pick.defaultMinutes });
+      render();
+    } catch (e) {
+      $('hitsNudgeText').textContent = (e as Error).message;
+    }
+  })());
   // Az Esc a legfelső réteget zárja. Egy panel, ami csak egérrel csukható be,
   // billentyűzettel csapdába ejt.
   document.addEventListener('keydown', (e) => {
@@ -3814,6 +3826,8 @@ function setupInstall(): void {
 // ------------------------------------------------------------- statistics
 
 let statsData: UsageStatsData | null = null;
+/** A javaslat gombjának csomagja a statisztikán — a segéd választja, a gomb ezt indítja. */
+let hitsStartPick: FocusPack | null = null;
 let statsBusy = false;
 
 /** Domains currently on the block list — used to mark them in the charts. */
@@ -4252,6 +4266,18 @@ function renderStats(): void {
   const reasons = hitsReasonLine(status?.browserHitsReasons ?? []);
   $('hitsReasonNote').classList.toggle('hidden', reasons === '');
   $('hitsReasonNote').textContent = reasons ? `Ebből: ${reasons}.` : '';
+  // A SOKADIK megakadás a statisztikán is: a mondat, és egy kattintás a
+  // menetig — a legutóbb használt csomag a szokásos hosszával (a segéd
+  // választja). Futó menet mellett nincs gomb: egyszerre egy menet fut.
+  const step = hitNudgeStep(status?.browserHitsToday ?? 0);
+  const lastId = statsData.lastUsedPackId ?? null;
+  const pick = (status?.focusPacks ?? []).find((p) => p.id === lastId) ?? null;
+  hitsStartPick = pick;
+  $('hitsNudgeRow').classList.toggle('hidden', step === 0);
+  $('hitsNudgeText').textContent = step > 0 ? hitNudgeText(step) : '';
+  const running = focusIsRunning(status?.focusRun ?? null, Date.now());
+  $('hitsStartBtn').classList.toggle('hidden', step === 0 || pick === null || running);
+  $('hitsStartBtn').textContent = pick ? `Munkamenet: ${pick.name}, ${pick.defaultMinutes} perc` : '';
 
   // A MAI lista vegyes: oldalak és appok együtt, idő szerint. A kérdés itt az,
   // hogy MA mire ment el — a fajta másodlagos. A hétnapos listák maradnak
