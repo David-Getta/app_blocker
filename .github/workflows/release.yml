@@ -44,23 +44,21 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **Egy kattintás a tiltó lapról a menetig.** A tiltó lapon is ott a
-          gomb: „Munkamenet: Nyelvtanulás, 25 perc” — az app javasolt csomagja
-          a hídon indul, a bíró döntésével; futó menet és összekötés nélkül
-          nincs gomb. Bővítmény 0.4.21.
+          **A heti mondat a lefedett csúcs-órát is mondja.** Ha egy csomag
+          heti ablaka fedi a csúcs-órát, a heti mondat a csúcs mellett mondja: „a csúcs 21–22 óra (magától indul: Nyelvtanulás)”
+          — a gépen és a telefonokon is.
 
-          ### Ami a v0.4.93-ban jött
+          ### Ami a v0.4.94-ben jött
+
+          **Egy kattintás a tiltó lapról a menetig** — a tiltó lapon is ott a
+          gomb az app javasolt csomagjára; a bíró dönt, futó menet és
+          összekötés nélkül nincs gomb. Bővítmény 0.4.21.
+
+          #### Ami a v0.4.93-ban jött
 
           **Egy kattintás a felugró lapról a menetig** — a híd a javasolt
-          csomagot is leadja, és befelé egy csak szigorító végpontot nyit;
-          feloldó végpont nincs. És a v0.4.92 tartalma: **a csúcs-óra le
-          van-e fedve** — ha egy csomag heti ablaka fedi, a statisztika
-          kimondja, és a gép nem kínál ablakot arra, ami már van.
-
-          #### Ami a v0.4.91-ben jött
-
-          **A javaslat kártyája a gépi kezdőlapon is** — amit az értesítés
-          mond, a kezdőlap is mondja, egy gombbal a legutóbbi csomagra.
+          csomagot is leadja, és befelé egy csak szigorító végpontot nyit. És
+          a v0.4.92 tartalma: a csúcs-óra le van-e fedve.
 
           NOTES
           fi
