@@ -44,21 +44,22 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A csúcs-óra le van-e fedve.** Ha egy csomag heti ablaka fedi a
-          csúcs-órát, a statisztika kimondja: „A csúcs-órában magától indul: Nyelvtanulás (minden nap 21:00–22:00).”
-          A gép ilyenkor nem kínál ablakot arra, ami már van — a telefonok is
-          mondják.
+          **Egy kattintás a felugró lapról a menetig.** A bővítmény felugró
+          lapján egy gomb indítja az app javasolt csomagját (a legutóbb
+          használtat a szokásos hosszával) — a hídon, a kóddal; a bíró dönt,
+          futó menet mellett nincs gomb. Befelé csak szigorítás mehet: feloldó
+          végpont nincs. Bővítmény 0.4.20.
+
+          A v0.4.92 nem kapott saját kiadást — ami ott jött, ebben van:
+          **a csúcs-óra le van-e fedve** — ha egy csomag heti ablaka fedi a
+          csúcs-órát, a statisztika kimondja, hogy a menet magától indul, és a
+          gép nem kínál ablakot arra, ami már van.
 
           ### Ami a v0.4.91-ben jött
 
           **A javaslat kártyája a gépi kezdőlapon is** — amit az értesítés
           mond, a kezdőlap is mondja, egy gombbal a legutóbbi csomagra; az
           Android szűrő-értesítés sora a csúcs-órában azt is, hogy most van.
-
-          #### Ami a v0.4.90-ben jött
-
-          **A csúcs-óra ott is, ahol a kísértés van** — a tiltó lap, a
-          felugró lap, a réteg lába és a telefon kártyája. Bővítmény 0.4.19.
 
           NOTES
           fi
