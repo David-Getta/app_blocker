@@ -157,6 +157,8 @@ export function statusOf(
     browserHitsWeekdays: browserHitsByWeekday(state.browserHits, now),
     // A menet-nap — a kártya és a réteg a menet-napon mondja, hogy ma van.
     focusWeekday: peakWeekday(focusByWeekday(state.focusLog, now)),
+    // A mért idő napja — négy hétből: a kártya és a réteg lába a „ma van” mondatához.
+    usageWeekday: peakWeekday(usageByWeekday(state.usage, now)),
     // A menet-óra — a kártya és a réteg a menet-órában mondja, hogy most szoktál elkezdeni.
     focusHour: peakFocusHour(focusByHour(state.focusLog, now)),
     browserHitsReasons: browserHitsByReason(state.browserHits, now),

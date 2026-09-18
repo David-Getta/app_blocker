@@ -239,6 +239,17 @@ object UsageLogic {
     fun weekdayText(peak: Pair<Int, Int>): String =
         "A négy hét legnagyobb napja: ${FilterHitLogic.WEEKDAY_NAMES.getOrElse(peak.first) { "?" }} (átlag ${formatDuration(peak.second / 4.0)})."
 
+    /** Ennyi másodperc (négy hét összege) alatt a legnagyobb nap „ma van” mondata nem szól: napi negyedóra átlag alatt nem minta. A gép tükre. */
+    const val USAGE_DAY_MIN_SECONDS = 4 * 15 * 60
+
+    /** MA a mért idő napja van-e: a négy hét legnagyobb napja és a helyi nap egybeesik — és a minta elég. */
+    fun isDayNow(peak: Pair<Int, Int>?, now: Long): Boolean =
+        peak != null && peak.second >= USAGE_DAY_MIN_SECONDS && FilterHitLogic.weekdayOf(dayKey(now)) == peak.first
+
+    /** A tükör a döntés napján: a kezdőlap kártyája a mért idő napján. Tény, nem ítélet. */
+    fun dayNowText(peak: Pair<Int, Int>): String =
+        "Ma a négy hét legnagyobb napja van (${FilterHitLogic.WEEKDAY_NAMES.getOrElse(peak.first) { "?" }}, átlag ${formatDuration(peak.second / 4.0)}) — ezen a napon megy el a legtöbb idő."
+
     data class WeekDelta(
         val key: String, val label: String, val kind: TargetKind,
         val thisWeek: Double, val lastWeek: Double, val deltaPct: Double?,

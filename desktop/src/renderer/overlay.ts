@@ -15,6 +15,7 @@ import {
 } from '../shared/focus.js';
 import { hitNudgeStep, peakDayNowText, peakNowText } from '../shared/browser-hits.js';
 import { focusDayNowText, focusHourNowText } from '../shared/focus.js';
+import { usageDayNowText } from '../shared/usage.js';
 import {
   formatLockdownRemaining, isLocked, isWindowLockdown, type Lockdown, type LockdownWindow,
 } from '../shared/lockdown.js';
@@ -58,6 +59,8 @@ interface Status {
   focusHour?: { hour: number; count: number } | null;
   /** a legutóbb használt csomag — a sorában egy kattintásos gomb a szokásos hosszal */
   lastUsedPackId?: string | null;
+  /** a mért idő napja (0 = vasárnap; másodperc négy hét alatt) — a láb a „ma van” mondatához */
+  usageWeekday?: { day: number; count: number } | null;
   now: number;
 }
 
@@ -70,7 +73,7 @@ function hitsLine(st: Status): string {
   const n = st.browserHitsToday ?? 0;
   return (n > 0 ? ` Ma ${n} megakadás a böngészőben.` : '') + peakNowText(st.browserHitsPeak ?? null, st.now)
     + peakDayNowText(st.browserHitsWeekday ?? null, st.now) + focusDayNowText(st.focusWeekday ?? null, st.now)
-    + focusHourNowText(st.focusHour ?? null, st.now);
+    + focusHourNowText(st.focusHour ?? null, st.now) + usageDayNowText(st.usageWeekday ?? null, st.now);
 }
 
 /** A leállítás útja a lábban: az appban, próbatétellel — megbízottal az ő jelmondatával a végén. */

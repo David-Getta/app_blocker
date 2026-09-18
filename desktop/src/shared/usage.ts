@@ -298,6 +298,20 @@ export function usageWeekdayText(peak: { day: number; count: number }): string {
   return `A négy hét legnagyobb napja: ${WEEKDAY_NAMES[peak.day] ?? '?'} (átlag ${formatDuration(Math.round(peak.count / 4))}).`;
 }
 
+/** Ennyi másodperc (négy hét összege) alatt a legnagyobb nap „ma van” mondata nem szól: napi negyedóra átlag alatt nem minta, csak zaj. A gép és az Android tükre. */
+export const USAGE_DAY_MIN_SECONDS = 4 * 15 * 60;
+
+/** MA a mért idő napja van-e: a négy hét legnagyobb napja és a helyi nap egybeesik — és a minta elég. */
+export function isUsageDayNow(peak: { day: number; count: number } | null | undefined, now: number): boolean {
+  return !!peak && peak.count >= USAGE_DAY_MIN_SECONDS && new Date(now).getDay() === peak.day;
+}
+
+/** A tükör a döntés napján: a kártya és a réteg lába a mért idő napján — különben üres. Tény, nem ítélet. */
+export function usageDayNowText(peak: { day: number; count: number } | null | undefined, now: number): string {
+  return peak && isUsageDayNow(peak, now)
+    ? ` Ma a négy hét legnagyobb napja van (${WEEKDAY_NAMES[peak.day] ?? '?'}, átlag ${formatDuration(Math.round(peak.count / 4))}) — ezen a napon megy el a legtöbb idő.` : '';
+}
+
 export interface WeekDelta {
   key: string;
   label: string;

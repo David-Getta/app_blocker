@@ -381,6 +381,11 @@ const PAIRS = [
   ['SUGGEST_MIN_SECONDS',
     scalar(ts.usage, /SUGGEST_MIN_SECONDS\s*=\s*([^;]+);/, 'ts'),
     scalar(kt.usage, /SUGGEST_MIN_SECONDS\s*=\s*(.+)/, 'kt')],
+  // A mért idő napjának „ma van” küszöbe: ha a gép negyedóránál, a telefon
+  // egy percnél szólna, ugyanaz az ember két napot tudna meg.
+  ['USAGE_DAY_MIN_SECONDS',
+    scalar(ts.usage, /USAGE_DAY_MIN_SECONDS\s*=\s*([^;]+);/, 'ts'),
+    scalar(kt.usage, /USAGE_DAY_MIN_SECONDS\s*=\s*(.+)/, 'kt')],
 ];
 
 /** Egy szám a két telefon-tükörből — aláhúzás és Kotlin-utótag nélkül. */

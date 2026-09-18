@@ -399,7 +399,9 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
             val focusDay = FilterHitLogic.peakWeekday(Focus.byWeekday(state.focusLog, now))?.takeIf { FilterHitLogic.isPeakDayNow(it, now) }
             // A MENET-ÓRÁBAN is: most szoktál elkezdeni — a csúcs-óra mondatának tükre, a gombbal.
             val focusHourNow = Focus.peakHour(Focus.byHour(state.focusLog, now))?.takeIf { Focus.isHourNow(it, now) }
-            if (nudge > 0 || peakSoon != null || peakNow != null || peakDay != null || focusDay != null || focusHourNow != null) {
+            // A MÉRT IDŐ NAPJÁN is: ma megy el a legtöbb idő — a tükör harmadik fele, ítélet nélkül.
+            val usageDay = FilterHitLogic.peakWeekday(UsageLogic.byWeekday(state.usage, now))?.takeIf { UsageLogic.isDayNow(it, now) }
+            if (nudge > 0 || peakSoon != null || peakNow != null || peakDay != null || focusDay != null || focusHourNow != null || usageDay != null) {
                 Card {
                     Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         if (nudge > 0) Text(FilterHitLogic.nudgeText(nudge), style = MaterialTheme.typography.bodySmall)
@@ -408,6 +410,7 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                         peakDay?.let { Text(FilterHitLogic.peakDayNowText(it), style = MaterialTheme.typography.bodySmall) }
                         focusDay?.let { Text(Focus.dayNowText(it), style = MaterialTheme.typography.bodySmall) }
                         focusHourNow?.let { Text(Focus.hourNowText(it), style = MaterialTheme.typography.bodySmall) }
+                        usageDay?.let { Text(UsageLogic.dayNowText(it), style = MaterialTheme.typography.bodySmall) }
                         // EGY KOPPINTÁS a mondattól a menetig: a legutóbb használt
                         // csomag a szokásos hosszával — szigorítás, ingyen. Futó menet
                         // mellett nincs gomb (egyszerre egy menet fut).

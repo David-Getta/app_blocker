@@ -317,6 +317,12 @@ class UsageLogicTest {
         assertEquals(85, by.sum(), "a huszonnyolc napos nem számít")
         assertEquals(today to 75, hu.breaker.app.core.FilterHitLogic.peakWeekday(by), "a csúcs szabálya a csúcs-napéval közös")
         assertEquals("A négy hét legnagyobb napja: szombat (átlag 50 p).", UsageLogic.weekdayText(6 to 12000))
+        // A DÖNTÉS NAPJÁN: ma van-e, és csak elég mintából — a kártya mondata.
+        assertEquals(true, UsageLogic.isDayNow(today to UsageLogic.USAGE_DAY_MIN_SECONDS, now))
+        assertEquals(false, UsageLogic.isDayNow(today to UsageLogic.USAGE_DAY_MIN_SECONDS - 1, now), "negyedóra átlag alatt nem minta")
+        assertEquals(false, UsageLogic.isDayNow((today + 1) % 7 to 99999, now), "más napon nem")
+        assertEquals(false, UsageLogic.isDayNow(null, now))
+        assertEquals("Ma a négy hét legnagyobb napja van (szombat, átlag 50 p) — ezen a napon megy el a legtöbb idő.", UsageLogic.dayNowText(6 to 12000))
         assertEquals(listOf(0, 0, 0, 0, 0, 0, 0), UsageLogic.byWeekday(UsageLogic.UsageState(), now))
     }
 }

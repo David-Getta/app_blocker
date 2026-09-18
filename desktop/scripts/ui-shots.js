@@ -1108,6 +1108,8 @@ async function main() {
       focusWeekday: { day: new Date().getDay(), count: 6 },
       // A MENET-ÓRA is most: a kártya azt is mondja, hogy most szoktál elkezdeni.
       focusHour: { hour: new Date().getHours(), count: 6 },
+      // A MÉRT IDŐ NAPJA is ma: a kártya azt is mondja, hogy ma megy el a legtöbb idő.
+      usageWeekday: { day: new Date().getDay(), count: 12000 },
     };
   });
   await goTo(page, 'sites');
@@ -1127,6 +1129,7 @@ async function main() {
       && /Ma a négy hét csúcs-napja van \([a-záéíóöőúüű]+, 14 megakadás\)/.test(document.getElementById('suggestText')?.textContent || '')
       && /Ma a négy hét menet-napja van \([a-záéíóöőúüű]+, 6 menet\)/.test(document.getElementById('suggestText')?.textContent || '')
       && /Most a menet-órád van \(\d+–\d+ óra, 6 menet\)/.test(document.getElementById('suggestText')?.textContent || '')
+      && /Ma a négy hét legnagyobb napja van \([a-záéíóöőúüű]+, átlag 50 p\)/.test(document.getElementById('suggestText')?.textContent || '')
       && /Munkamenet: Mély munka, 90 perc/.test(document.getElementById('suggestStartBtn')?.textContent || '')
       && !document.getElementById('suggestStartBtn')?.classList.contains('hidden'),
     undefined, { timeout: 15_000 },

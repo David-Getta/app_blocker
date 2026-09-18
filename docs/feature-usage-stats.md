@@ -607,7 +607,12 @@ napja: szombat (átlag 3 ó 20 p).”), alatta a hét napjainak sávja, a nap
 kiemelve. A gépi statisztikán a hét rajza alatt (`usageByWeekday` a segédnél,
 `usageWeekdays` a statisztika-válaszban) és Androidon (`UsageLogic.byWeekday`);
 iPhone-on nincs mérés, ott nincs. A minta hossza és a holtverseny szabálya a
-csúcs-napéval közös. Mérés nélkül nincs. A heti mondat is mondja, a mért idő
+csúcs-napéval közös. Mérés nélkül nincs. A döntés helye is mondja, ha ma
+van: a gépi kezdőlap javaslat-kártyája és a réteg lába (`usageDayNowText`
+a státusz `usageWeekday` mezőjéből), az Android kezdőlapjának kártyája
+(`UsageLogic.dayNowText`): „Ma a négy hét legnagyobb napja van (szombat, átlag 50 p) — ezen a napon megy el a legtöbb idő.”
+— csak elég mintából (napi negyedóra átlag, `USAGE_DAY_MIN_SECONDS`, a két
+magban azonos, `check-core-sync`). Tény, nem ítélet. A heti mondat is mondja, a mért idő
 mondata után, szó szerint (`usageWeekday` a mondat bemenetén — a segéd és az
 Android építi; a Swift bemenet tükör, üresen); mérés vagy nap nélkül nincs.
 

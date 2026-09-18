@@ -3,12 +3,12 @@ import * as assert from 'node:assert/strict';
 import {
   emptyUsage, clearUsage, recordSample, pruneOld, dayKey, dayKeysBack, totalsForDays,
   rank, sumOf, series, totalSeries, weekOverWeek, summarize, formatDuration,
-  usageByWeekday, usageWeekdayText,
+  usageByWeekday, usageWeekdayText, isUsageDayNow, usageDayNowText, USAGE_DAY_MIN_SECONDS,
   siteKey, appKey, kindOf, idOf, labelOf,
   RETENTION_DAYS, MAX_RECORD_SECONDS, MAX_TARGETS_PER_DAY, MAX_LABEL_LENGTH,
   OTHER_SITE_KEY, decideSample, domainFromBrowserUrl, type UsageState,
 } from '../src/shared/usage';
-import { peakWeekday } from '../src/shared/browser-hits';
+import { peakWeekday, WEEKDAY_NAMES } from '../src/shared/browser-hits';
 
 /** An instant N local days before `now` (stepped at noon, DST-safe). */
 function daysAgo(now: number, n: number): number {
@@ -391,4 +391,16 @@ test('a mért idő napja: négy hétből, a hét napjaira osztva — a huszonnyo
   assert.deepEqual(peakWeekday(by), { day: today, count: 75 }, 'a csúcs szabálya a csúcs-napéval közös');
   assert.equal(usageWeekdayText({ day: 6, count: 12000 }), 'A négy hét legnagyobb napja: szombat (átlag 50 p).');
   assert.deepEqual(usageByWeekday(emptyUsage(), NOW), [0, 0, 0, 0, 0, 0, 0]);
+});
+
+test('a mért idő napja a döntés napján: ma van-e, és csak elég mintából — a kártya és a láb mondata', () => {
+  const today = new Date(NOW).getDay();
+  assert.equal(isUsageDayNow({ day: today, count: USAGE_DAY_MIN_SECONDS }, NOW), true);
+  assert.equal(isUsageDayNow({ day: today, count: USAGE_DAY_MIN_SECONDS - 1 }, NOW), false, 'negyedóra átlag alatt nem minta');
+  assert.equal(isUsageDayNow({ day: (today + 1) % 7, count: 99999 }, NOW), false, 'más napon nem');
+  assert.equal(isUsageDayNow(null, NOW), false);
+  assert.equal(usageDayNowText({ day: today, count: 12000 }, NOW),
+    ` Ma a négy hét legnagyobb napja van (${WEEKDAY_NAMES[today]}, átlag 50 p) — ezen a napon megy el a legtöbb idő.`);
+  assert.equal(usageDayNowText({ day: (today + 1) % 7, count: 12000 }, NOW), '', 'más napon üres');
+  assert.equal(usageDayNowText(null, NOW), '');
 });

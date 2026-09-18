@@ -1384,6 +1384,27 @@ const WIRES = [
     needle: 'FocusHourReminder.reschedule(peak: focusHourKey.isEmpty ? nil : focusHour, canStart:',
     lost: 'az iPhone nem ütemezné a menet-óra előjelzését',
   },
+  // A MÉRT IDŐ NAPJA ott is, ahol a döntés van: a gépi kártya és a réteg lába, az Android kártya.
+  {
+    file: 'desktop/src/helper/server.ts',
+    needle: 'usageWeekday: peakWeekday(usageByWeekday(state.usage, now)),',
+    lost: 'a státusz nem vinné a mért idő napját a kártyának és a rétegnek',
+  },
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: 'if (usageDayLine) lines.push(usageDayLine);',
+    lost: 'a gépi kártya nem mondaná, hogy ma megy el a legtöbb idő',
+  },
+  {
+    file: 'desktop/src/renderer/overlay.ts',
+    needle: '+ usageDayNowText(st.usageWeekday ?? null, st.now)',
+    lost: 'a réteg lába nem mondaná, hogy ma megy el a legtöbb idő',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/AppUi.kt',
+    needle: 'usageDay?.let { Text(UsageLogic.dayNowText(it), style = MaterialTheme.typography.bodySmall) }',
+    lost: 'az Android kártya nem mondaná, hogy ma megy el a legtöbb idő',
+  },
   // A MENET-ÓRA FEDÉSE a böngésző lapjain: a híd leadja, a lap kimondja.
   {
     file: 'desktop/src/main/main.ts',

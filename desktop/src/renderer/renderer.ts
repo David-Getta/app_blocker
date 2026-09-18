@@ -10,7 +10,7 @@ import type {
 import {
   PRESET_BANDS, type Band, type Schedule, type ScheduleMode, type Weekday,
 } from '../shared/schedule.js';
-import { dayKey, formatDuration, idOf, suggestBlocks, usageWeekdayText } from '../shared/usage.js';
+import { dayKey, formatDuration, idOf, suggestBlocks, usageDayNowText, usageWeekdayText } from '../shared/usage.js';
 import {
   displayName, displayNameNow, isAliased, MAX_ALIAS_LENGTH, REVEAL_MS, MAX_REASON_LENGTH,
 } from '../shared/alias.js';
@@ -451,6 +451,9 @@ function renderSuggestCard(now: number): void {
   // A MENET-ÓRÁBAN is: most szoktál elkezdeni — a csúcs-óra mondatának tükre, a gombbal.
   const focusHourLine = focusHourNowText(status?.focusHour ?? null, now).trim();
   if (focusHourLine) lines.push(focusHourLine);
+  // A MÉRT IDŐ NAPJÁN is: ma megy el a legtöbb idő — a tükör harmadik fele, ítélet nélkül.
+  const usageDayLine = usageDayNowText(status?.usageWeekday ?? null, now).trim();
+  if (usageDayLine) lines.push(usageDayLine);
   $('suggestCard').classList.toggle('hidden', lines.length === 0);
   $('suggestText').textContent = lines.join(' ');
   const pick = suggestedPack();
