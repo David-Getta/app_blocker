@@ -154,9 +154,10 @@ final class PartnerTests: XCTestCase {
 
     @discardableResult
     private func settled<T>(_ f: () throws -> T) rethrows -> T {
-        let r = try f()
-        pumpMainQueue()
-        return r
+        // Dobásnál is: az ötödik rossz jelmondat a kísérletet viszi el ÉS dob —
+        // a forgatás nélkül az ellenőrzés a még élő kísérletet látná.
+        defer { pumpMainQueue() }
+        return try f()
     }
 
     private func addSite(_ domain: String) -> String {
