@@ -174,12 +174,28 @@ export function hitsOnHost(state, day, host) {
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
 }
 
-/** Ma és az elmúlt 7 nap (a mai nappal) összege. */
+/** Ma, az elmúlt 7 nap, az előző 7 nap és az elmúlt 30 nap (a mai nappal) összege. */
 export function hitsSummary(state, today) {
   const week = lastDays(today, 7).reduce((sum, d) => sum + hitsOn(state, d), 0);
   // Az előző hét: a tizennégy napból az első hét — a hét az előző héthez képest.
   const prevWeek = lastDays(today, 14).slice(0, 7).reduce((sum, d) => sum + hitsOn(state, d), 0);
-  return { today: hitsOn(state, today), week, prevWeek };
+  // A hónap: a könyv harminc napot tart — a mondat akkor mondja, ha több a hétnél.
+  const month = lastDays(today, 30).reduce((sum, d) => sum + hitsOn(state, d), 0);
+  return { today: hitsOn(state, today), week, prevWeek, month };
+}
+
+/** A harminc nap napi sora, a legrégebbitől — a hónap alakja. */
+export function hitsMonth(state, today) {
+  return lastDays(today, 30).map((d) => ({ day: d, total: hitsOn(state, d) }));
+}
+
+/**
+ * A HÓNAP rajza csak akkor mond többet a hétnél, ha a hét ELŐTTI napokon is
+ * volt megakadás — különben ugyanazt a hét oszlopot mutatná, szélesebben.
+ * A gépi mag tükre; a sor a legrégebbitől jön, az utolsó hét nap a hété.
+ */
+export function monthHasOlderHits(series, weekDays = 7) {
+  return series.slice(0, Math.max(0, series.length - weekDays)).some((d) => d.total > 0);
 }
 
 /**
@@ -251,9 +267,12 @@ export function hitsReport(state, today, count = REPORT_DAYS) {
 export function hitsText(summary) {
   const t = summary?.today ?? 0;
   const w = summary?.week ?? 0;
+  const m = summary?.month ?? 0;
   if (w === 0) return null;
-  if (t === 0) return `Ma még nem állított meg a böngésző; az elmúlt 7 napban ${w} megakadás.`;
-  return `Ma ${t} megakadás — a böngésző ennyiszer vitt a tiltó lapra; az elmúlt 7 napban ${w}.`;
+  // A hónap csak akkor kerül a mondatba, ha több a hétnél — különben ugyanazt mondaná.
+  const monthPart = m > w ? `, 30 napban ${m}` : '';
+  if (t === 0) return `Ma még nem állított meg a böngésző; az elmúlt 7 napban ${w} megakadás${monthPart}.`;
+  return `Ma ${t} megakadás — a böngésző ennyiszer vitt a tiltó lapra; az elmúlt 7 napban ${w}${monthPart}.`;
 }
 
 /** Egy nap sora a beállítási lapon: „szept. 18. — 3 (kulcsszó 2, zárva 1)”. */

@@ -197,6 +197,8 @@ valamit, amit a felhasználó nem tiltott le.
     és összekötés nélkül nincs gomb); a felugró lap a hét csúcsát (a
     hosztonkénti könyv csak itt marad; a hídra a nap öt leggyakoribb hosztja
     megy, a gépen belül — melyik oldal akaszt meg a legtöbbször). Óránként is: a
+    beállítás-lap a harminc nap alakját is rajzolja, ha a hét előtt is volt,
+    és a mondat a harminc nap számát is mondja, ha több a hétnél; a
     beállítás-lap a hét csúcs-óráját mondja („A hét csúcsa: 21–22 óra”) és
     egy óra-sávot rajzol — mikor jár a kéz magától; a hetet az előző héthez
     méri („A héten 12 megakadás, az előző héten 18.” — a hídra két hét megy,

@@ -141,6 +141,10 @@
     <div id="hitsHours" class="hour-strip" hidden></div>
     <!-- Az óra-tengely a sáv alatt: mikor kezdődik a nap, mikor a délután, az este. -->
     <div id="hitsHoursAxis" class="hour-axis" hidden><span>0</span><span>6</span><span>12</span><span>18</span><span>24</span></div>
+    <!-- A HÓNAP alakja: harminc nap, csak ha a hét előtt is volt — különben a hét sorai elegek. -->
+    <p class="muted" id="hitsMonthTitle" hidden>Az elmúlt 30 nap, naponta:</p>
+    <div id="hitsMonth" class="hour-strip" hidden></div>
+    <div id="hitsMonthAxis" class="hour-axis" hidden><span id="hitsMonthStart"></span><span id="hitsMonthEnd"></span></div>
     <ul id="hitsList" class="time-list"></ul>
     <p class="empty" id="hitsEmpty">Az elmúlt 7 napban még nem állított meg.</p>
     <!-- A KÖNYV TÖRLÉSE: a megakadások könyve a tiéd — törölhető; az app is felejt. -->

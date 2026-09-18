@@ -542,6 +542,10 @@ async function main() {
     ).catch(() => null);
     const prevLine = await seeder.evaluate(() => document.querySelector('#hitsPrev')?.textContent ?? '').catch(() => '');
     check(/^A héten \d+ megakadás, az előző héten 4\.$/.test(prevLine), `a beállítás-lap a hetet az előző héthez méri (${prevLine})`);
+    // A HÓNAP alakja: a nyolc napos könyvelés a hét előtt van — a harminc napos sáv áll, harminc rekesszel.
+    const monthBars = await seeder.evaluate(() => (document.querySelector('#hitsMonth')?.hidden === false
+      ? document.querySelectorAll('#hitsMonth .hour-bar').length : -1)).catch(() => -1);
+    check(monthBars === 30, `a beállítás-lap a hónap alakját is rajzolja, harminc rekesszel (${monthBars})`);
     // MELYIK kulcsszó dolgozik: a beállítás-lap a hét kulcsszavait mondja a
     // saját könyvéből — a fenti tiltás a „tiltott” szóval ment.
     const kwLine = await seeder.evaluate(() => document.querySelector('#hitsKeywords')?.textContent ?? '').catch(() => '');

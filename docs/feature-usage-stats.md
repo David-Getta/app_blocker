@@ -530,7 +530,9 @@ hét alakja mellett a hónapét is rajzolja (`browserHitsMonth` a státuszban;
 a telefonon a szűrő könyvéből, `daySeries(…, 30)`) — de csak akkor, ha a hét
 előtti napokon is volt megakadás (`monthHasOlderHits`): különben ugyanazt a
 hét oszlopot mutatná, szélesebben. Egy szín, a két szélső nap felirata alul,
-mint a mért idő napi rajzánál.
+mint a mért idő napi rajzánál. A bővítmény beállítás-lapja is rajzolja a saját
+könyvéből, ugyanazzal a szabállyal, és a mondata a harminc nap számát is
+mondja, ha több a hétnél („…az elmúlt 7 napban 12, 30 napban 40.”).
 
 **Az órák sávja:** a csúcs egy szám, a sáv az alakja. A gépi statisztika a
 csúcs-óra mondata alatt a nap huszonnégy rekeszét rajzolja a hét

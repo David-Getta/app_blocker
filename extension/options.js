@@ -14,7 +14,8 @@ import { CLOSED_FRESH_MS, loadLink, pullFromApp, pushHits, setToken, withAppRule
 import { dayKey, formatSeconds, lastDays, topChannels } from './chantime.js';
 // A `lastDays` a csatorna-időé (ugyanaz a naptár) — a könyv is azzal él.
 import {
-  hitsByHour, hitsReasonText, hitsRows, hitsSummary, hitsText, hitsTrendText, hitsWeekByReason, hourLabel, idleKeywords,
+  hitsByHour, hitsMonth, hitsReasonText, hitsRows, hitsSummary, hitsText, hitsTrendText, hitsWeekByReason, hourLabel, idleKeywords,
+  monthHasOlderHits,
   idleKeywordsText, keywordsText, keywordsWeek, peakHour, topHost,
 } from './hits.js';
 
@@ -111,6 +112,27 @@ async function renderHits() {
       if (hour === peak.hour) bar.classList.add('peak');
       strip.appendChild(bar);
     });
+  }
+  // A HÓNAP alakja — a könyv harminc napot tart; csak ha a hét előtt is volt,
+  // különben a hét sorai elegek. A nem üres nap kiemelve, az üres halványan.
+  const month = hitsMonth(state, today);
+  const showMonth = monthHasOlderHits(month);
+  $('hitsMonthTitle').hidden = !showMonth;
+  $('hitsMonth').hidden = !showMonth;
+  $('hitsMonthAxis').hidden = !showMonth;
+  const monthStrip = $('hitsMonth');
+  monthStrip.textContent = '';
+  if (showMonth) {
+    const top = Math.max(1, ...month.map((d) => d.total));
+    for (const d of month) {
+      const bar = el('span', 'hour-bar');
+      bar.style.height = `${Math.max(2, Math.round((d.total / top) * 28))}px`;
+      bar.title = `${d.day}: ${d.total}`;
+      if (d.total > 0) bar.classList.add('peak');
+      monthStrip.appendChild(bar);
+    }
+    $('hitsMonthStart').textContent = month[0].day;
+    $('hitsMonthEnd').textContent = month[month.length - 1].day;
   }
   const rows = hitsRows(state, today);
   const list = $('hitsList');

@@ -522,6 +522,12 @@ const WIRES = [
     needle: 'FilterHitLogic.nudgeText(step)',
     lost: 'az iPhone kezdőlapja nem javasolna lépést a sokadik megakadásnál',
   },
+  // A HÓNAP a bővítmény beállítás-lapján: a saját könyvből, ugyanazzal a szabállyal.
+  {
+    file: 'extension/options.js',
+    needle: 'const showMonth = monthHasOlderHits(month);',
+    lost: 'a bővítmény beállítás-lapja nem rajzolná a hónap alakját',
+  },
   // A MEGAKADÁSOK HARMINC NAPJA: a segéd a hónapot adja, a három statisztika rajzolja.
   {
     file: 'desktop/src/helper/server.ts',
