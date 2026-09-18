@@ -72,6 +72,8 @@ export interface SiteInfo {
   burstUsedSeconds: number;
   /** hányszor telt be MA az adag ezen a gépen (0 = ma még nem) */
   burstTripsToday: number;
+  /** hányszor telt be az adag az elmúlt 7 napon (a könyvből) — a szabály dolgozik-e a héten; régi segéd nem adja */
+  burstTripsWeek?: number;
   /** fedőnév: ha van, a felület ezt mutatja a cím helyett */
   alias?: string;
   /** indok: miért tiltottad (lásd shared/alias.ts) */

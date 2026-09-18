@@ -522,6 +522,33 @@ const WIRES = [
     needle: 'FilterHitLogic.nudgeText(step)',
     lost: 'az iPhone kezdőlapja nem javasolna lépést a sokadik megakadásnál',
   },
+  // A BETELÉSEK KÖNYVE: a betelés a könyvbe is megy, a takarítás hét napot tart,
+  // a státusz a hét összegét adja — ha bármelyik kiesne, a hét sora üres vagy hazug.
+  {
+    file: 'desktop/src/helper/server.ts',
+    needle: 'state.burstTripLog = noteBurstTrip(state.burstTripLog, b.id, today);',
+    lost: 'a segéd nem könyvelné a betelést a hét könyvébe',
+  },
+  {
+    file: 'desktop/src/helper/server.ts',
+    needle: 'burstTripsWeek: burstTripsInDays(state.burstTripLog, s.id, dayKeysBack(now, 7)),',
+    lost: 'a státusz nem adná a hét adag-beteléseit',
+  },
+  {
+    file: 'desktop/src/helper/referee.ts',
+    needle: 'sweepBurstTripLog(state.burstTripLog, state.sites.map((s) => s.id), dayKeysBack(now, 7))',
+    lost: 'a betelések könyve nem takarítana — a régi napok bent maradnának',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/usage/UsageTracker.kt',
+    needle: 'tripLog = BurstLogic.noteTrip(tripLog, siteId, today)',
+    lost: 'Androidon a betelés nem menne a hét könyvébe',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/AppUi.kt',
+    needle: 'BurstLogic.tripsInDays(state.burstTripLog, site.id, days)',
+    lost: 'az Android statisztika nem kapná meg a hét adag-beteléseit',
+  },
   // A KERET SORA a héten betelt napokkal: a segéd oldalanként számol, a sor mondja.
   {
     file: 'desktop/src/helper/server.ts',

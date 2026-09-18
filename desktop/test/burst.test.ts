@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import * as assert from 'node:assert/strict';
 import {
-  isBurstLoosening, isCoolingDown, normalizeBurst, noteBurstUsage,
+  burstTripsInDays, isBurstLoosening, isCoolingDown, normalizeBurst, noteBurstTrip, noteBurstUsage, sweepBurstTripLog,
   type BurstRule, type BurstState,
 } from '../src/shared/burst';
 import { isBlockedNowWithLimit } from '../src/shared/limits';
@@ -237,4 +237,20 @@ test('a tick a törölt oldal és a rég alvó számlálót is kitakarítja', ()
   assert.deepEqual(Object.keys(st.bursts!), ['site_1'], 'az élő oldalé megmarad');
   assert.equal(tick(st, T0 + 25 * 3600_000), true);
   assert.deepEqual(Object.keys(st.bursts!), [], 'egy nap csend után a számláló is megy');
+});
+
+test('a betelések könyve: oldal, nap, darab; a hét összege; a takarítás törölt oldalt és régi napot visz', () => {
+  let log = noteBurstTrip(undefined, 's1', '2026-09-18');
+  log = noteBurstTrip(log, 's1', '2026-09-18');
+  log = noteBurstTrip(log, 's1', '2026-09-10');
+  log = noteBurstTrip(log, 's2', '2026-09-17');
+  assert.equal(log.s1['2026-09-18'], 2);
+  const week = ['2026-09-12', '2026-09-13', '2026-09-14', '2026-09-15', '2026-09-16', '2026-09-17', '2026-09-18'];
+  assert.equal(burstTripsInDays(log, 's1', week), 2, 'a nyolc napos nem a hété');
+  assert.equal(burstTripsInDays(log, 's2', week), 1);
+  assert.equal(burstTripsInDays(log, 'nincs', week), 0);
+  assert.equal(burstTripsInDays(undefined, 's1', week), 0);
+  assert.deepEqual(sweepBurstTripLog(log, ['s1'], week), { s1: { '2026-09-18': 2 } }, 'törölt oldal és régi nap megy');
+  assert.deepEqual(sweepBurstTripLog({ s1: { '2026-09-18': -3, '2026-09-17': 2.9 } }, ['s1'], week), { s1: { '2026-09-17': 2 } }, 'a rossz szám sem marad');
+  assert.deepEqual(sweepBurstTripLog(undefined, ['s1'], week), {});
 });

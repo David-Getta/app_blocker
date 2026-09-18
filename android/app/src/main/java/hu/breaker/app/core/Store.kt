@@ -205,6 +205,8 @@ data class AppState(
      * mutatja meg, hogy a szabály tényleg dolgozik. Napfordulón tiszta lap.
      */
     val burstTrips: Map<String, BurstTrip> = emptyMap(),
+    /** A BETELÉSEK KÖNYVE: oldal → nap → darab, hét napig — a hét összegét a felület mondja. */
+    val burstTripLog: Map<String, Map<String, Int>> = emptyMap(),
     /**
      * Munkamenet-csomagok: „most csak EZ mehet”.
      *
@@ -622,6 +624,8 @@ object BreakerStore {
                 put("count", t.count)
             }
         }))
+        // A betelések könyve: a hét összege innen jön — az újraindítás ne nullázza.
+        put("burstTripLog", JSONObject(s.burstTripLog.mapValues { (_, days) -> JSONObject(days) }))
         // A munkamenet. Blokkolási döntés függ tőle (fehérlista!), ezért
         // újraindulás után is meg kell maradnia — enélkül az app kilövése
         // feloldás lenne, próbatétel nélkül.
@@ -980,6 +984,14 @@ object BreakerStore {
                     runCatching {
                         val t = to.getJSONObject(k)
                         k to BurstTrip(t.getString("day"), t.getInt("count"))
+                    }.getOrNull()
+                }.toMap()
+            } ?: emptyMap(),
+            burstTripLog = o.optJSONObject("burstTripLog")?.let { lo ->
+                lo.keys().asSequence().mapNotNull { k ->
+                    runCatching {
+                        val d = lo.getJSONObject(k)
+                        k to d.keys().asSequence().map { day -> day to d.getInt(day) }.toMap()
                     }.getOrNull()
                 }.toMap()
             } ?: emptyMap(),

@@ -118,6 +118,11 @@ a lényegen (2 perc után zár, 10 perc múlva nyit) nem változtat.
    visszaszámol — a szín mellett szövegben is. Ugyanitt áll a MAI betelések
    száma („ma 2× betelt”) — eszköz-helyi darabszám, napfordulón tiszta
    lappal; azt mutatja meg, hogy a szabály tényleg dolgozik, és mennyit fog.
+   A HÉT is: a betelések könyve (oldal → nap → darab, hét napig; a segédnél
+   `burstTripLog`, Androidon az állapotban) a statisztikán a hét összegét
+   mondja — „Adag-betelések a héten: youtube.com 5× · reddit.com 2×” —, de
+   csak akkor, ha a hét több a mainál; különben a mai sor elég. Eszköz-helyi,
+   mint a mai szám; a fiókba nem megy.
 
 A magot mindkét oldalon teszt fedi (`desktop/test/burst.test.ts`,
 `android/jvm-tests/.../BurstTest.kt`) — ugyanazokkal a számokkal, hogy a két

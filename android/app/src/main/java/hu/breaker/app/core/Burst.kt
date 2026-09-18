@@ -38,6 +38,31 @@ object BurstLogic {
      * értelmes: adag szünet nélkül nem tilt semmit, szünet adag nélkül sosem
      * indul el — fél-kitöltött állapotot nem tárolunk.
      */
+    // ------------------------------------------------------------ a betelések könyve
+    /**
+     * A BETELÉSEK KÖNYVE: oldal → nap → darab, hét napig. A mai darabszám mellé
+     * a hét is: a felület azt mondja, hányszor dolgozott a szabály a héten —
+     * tükör, nem ítélet. Eszköz-helyi, mint a mai szám; a fiókba nem megy.
+     */
+    fun noteTrip(log: Map<String, Map<String, Int>>, siteId: String, day: String): Map<String, Map<String, Int>> {
+        val days = log[siteId] ?: emptyMap()
+        return log + (siteId to (days + (day to ((days[day] ?: 0) + 1))))
+    }
+
+    /** Takarítás: törölt oldal és a megtartott napokon kívüli nap megy; a rossz szám is. */
+    fun sweepTripLog(log: Map<String, Map<String, Int>>, liveIds: Set<String>, keepDays: Collection<String>): Map<String, Map<String, Int>> {
+        val keep = keepDays.toSet()
+        return log.filterKeys { it in liveIds }
+            .mapValues { (_, days) -> days.filter { (day, n) -> day in keep && n > 0 } }
+            .filterValues { it.isNotEmpty() }
+    }
+
+    /** Egy oldal betelései a megadott napokon — a hét összege. */
+    fun tripsInDays(log: Map<String, Map<String, Int>>, siteId: String, days: Collection<String>): Int {
+        val row = log[siteId] ?: return 0
+        return days.sumOf { row[it] ?: 0 }
+    }
+
     fun normalize(burstSeconds: Long?, cooldownSeconds: Long?): Rule? {
         if (burstSeconds == null || cooldownSeconds == null) return null
         if (burstSeconds <= 0 || cooldownSeconds <= 0) return null

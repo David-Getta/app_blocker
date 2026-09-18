@@ -13,7 +13,7 @@ import type {
 } from '../shared/protocol';
 import { PAUSE_CHOICES_MIN } from '../shared/protocol';
 import { isLoosening, normalizeSchedule, ALWAYS, type Band, type Schedule } from '../shared/schedule';
-import { isBurstLoosening, normalizeBurst } from '../shared/burst';
+import { isBurstLoosening, normalizeBurst, sweepBurstTripLog } from '../shared/burst';
 import {
   formatLockdownRemaining, isLocked, isWindowLockdown, isWindowsLoosening, liveLockdown,
   normalizeWindow, normalizeWindows, sameWindows, startLockdown, weekHasFreeTime, windowKey,
@@ -23,7 +23,7 @@ import {
   MAX_KEYWORDS, MAX_KEYWORD_LENGTH, MIN_KEYWORD_LENGTH, cleanKeywords, isKeywordsLoosening, sameKeywords,
 } from '../shared/keywords';
 import { isLimitLoosening, normalizeLimit } from '../shared/limits';
-import { dayKey } from '../shared/usage';
+import { dayKey, dayKeysBack } from '../shared/usage';
 import {
   isFilterLoosening, sanitizeFilter, MAX_CHANNEL_FILTERS, type ChannelFilter,
 } from '../shared/channels';
@@ -905,6 +905,12 @@ export function tick(state: HelperState, now: number): boolean {
       delete state.burstTrips![siteId];
       dirty = true;
     }
+  }
+  // A betelések könyve: törölt oldal és a héten kívüli nap megy — hét napig él.
+  const sweptLog = sweepBurstTripLog(state.burstTripLog, state.sites.map((s) => s.id), dayKeysBack(now, 7));
+  if (JSON.stringify(sweptLog) !== JSON.stringify(state.burstTripLog ?? {})) {
+    state.burstTripLog = sweptLog;
+    dirty = true;
   }
   // A lejárt munkamenetet takarítjuk. A `isRunning` amúgy is hamisat adna rá,
   // de a felület és a bővítmény az állapotot olvassa: egy ottfelejtett rekord

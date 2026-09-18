@@ -100,6 +100,8 @@ fun StatsSection(
      * `labelOf`-on át megy, mint minden más.
      */
     burstTripsToday: List<Pair<String, Int>> = emptyList(),
+    /** adag-betelések az elmúlt 7 napon oldalanként (domain → darab), a könyvből — a szabály dolgozik-e a héten */
+    burstTripsWeek: List<Pair<String, Int>> = emptyList(),
     /** a keret betelt napjai a héten (napok, oldalanként) — ezen a készüléken mérve; null, ha nincs keret */
     limitFullDays: LimitLogic.FullDays? = null,
     hasUsageAccess: Boolean,
@@ -292,6 +294,15 @@ fun StatsSection(
             Text(
                 "Adag-betelések ma: " +
                     burstTripsToday.joinToString(", ") { (label, n) -> "${labelOf(label)} ${n}×" },
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
+        // AZ ADAG A HÉTEN: hányszor telt be oldalanként az elmúlt 7 napon — a
+        // szabály dolgozik-e. Csak ha a hét több a mainál; különben a mai sor elég.
+        if (burstTripsWeek.isNotEmpty() && burstTripsWeek.sumOf { it.second } > burstTripsToday.sumOf { it.second }) {
+            Text(
+                "Adag-betelések a héten: " +
+                    burstTripsWeek.joinToString(", ") { (label, n) -> "${labelOf(label)} ${n}×" },
                 style = MaterialTheme.typography.bodySmall,
             )
         }

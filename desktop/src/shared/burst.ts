@@ -119,3 +119,46 @@ export function isBurstLoosening(current: BurstRule | null, next: BurstRule | nu
   return next.burstSeconds > current.burstSeconds
     || next.cooldownSeconds < current.cooldownSeconds;
 }
+
+/**
+ * A BETELÉSEK KÖNYVE: oldal → nap → darab, hét napig. A mai darabszám mellé
+ * a hét is: a felület azt mondja, hányszor dolgozott a szabály a héten —
+ * tükör, nem ítélet. Eszköz-helyi, mint a mai szám; a fiókba nem megy.
+ */
+export type BurstTripLog = Record<string, Record<string, number>>;
+
+/** Egy betelés könyvelése az oldal napjára. Vissza új könyv — a hívó menti. */
+export function noteBurstTrip(log: BurstTripLog | undefined, siteId: string, day: string): BurstTripLog {
+  const out: BurstTripLog = { ...(log ?? {}) };
+  const days = { ...(out[siteId] ?? {}) };
+  days[day] = (days[day] ?? 0) + 1;
+  out[siteId] = days;
+  return out;
+}
+
+/** Takarítás: törölt oldal és a megtartott napokon kívüli nap megy; a rossz szám is. */
+export function sweepBurstTripLog(
+  log: BurstTripLog | undefined, liveIds: Iterable<string>, keepDays: Iterable<string>,
+): BurstTripLog {
+  const live = new Set(liveIds);
+  const keep = new Set(keepDays);
+  const out: BurstTripLog = {};
+  for (const [siteId, days] of Object.entries(log ?? {})) {
+    if (!live.has(siteId) || !days || typeof days !== 'object') continue;
+    const kept: Record<string, number> = {};
+    for (const [day, n] of Object.entries(days)) {
+      if (keep.has(day) && Number.isFinite(n) && n > 0) kept[day] = Math.floor(n);
+    }
+    if (Object.keys(kept).length > 0) out[siteId] = kept;
+  }
+  return out;
+}
+
+/** Egy oldal betelései a megadott napokon — a hét összege. */
+export function burstTripsInDays(log: BurstTripLog | undefined, siteId: string, days: Iterable<string>): number {
+  const row = log?.[siteId];
+  if (!row) return 0;
+  let n = 0;
+  for (const d of days) n += Number.isFinite(row[d]) ? row[d] : 0;
+  return n;
+}

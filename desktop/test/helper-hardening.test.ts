@@ -444,11 +444,14 @@ test('kötegen belüli betelés: a hűtés a köteg további mintáit is kihagyj
 
   // A betelés meg is számolódik — a felület ebből mondja, hányszor telt be ma.
   assert.equal(onDisk.burstTrips?.burst1?.count, 1, 'egy betelés, egy darab');
+  // …és a könyv is tudja: a hét összege innen jön.
+  assert.equal(Object.values(onDisk.burstTripLog?.burst1 ?? {}).reduce((a, b) => a + b, 0), 1, 'a könyvben is egy');
   const st = (await call('status', {})).data as {
-    sites: { id: string; burstTripsToday: number }[];
+    sites: { id: string; burstTripsToday: number; burstTripsWeek?: number }[];
   };
   assert.equal(st.sites.find((s) => s.id === 'burst1')?.burstTripsToday, 1,
     'a status kiadja a mai darabszámot');
+  assert.equal(st.sites.find((s) => s.id === 'burst1')?.burstTripsWeek, 1, 'a status a hét összegét is kiadja');
   // A hűtés alatt kihagyott minta nem betelés — a darabszám nem mozdul.
   await call('usage_batch', {
     samples: [{ key: 'site:adag.example', label: 'adag', seconds: 10, at: now + 2000 }],
@@ -459,6 +462,7 @@ test('kötegen belüli betelés: a hűtés a köteg további mintáit is kihagyj
   state.sites = state.sites.filter((s) => s.id !== 'burst1');
   delete state.bursts?.burst1;
   delete state.burstTrips?.burst1;
+  delete state.burstTripLog?.burst1;
 });
 
 test('self_test: kérésre lefut, és MINDEN status-válasz hordozza a jelentést', async () => {

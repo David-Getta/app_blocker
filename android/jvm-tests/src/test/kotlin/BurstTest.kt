@@ -116,4 +116,24 @@ class BurstTest {
             "lejárt hűtés nem hűtés")
         BreakerStore.mutate { AppState() }
     }
+
+    @Test fun `a betelesek konyve - oldal, nap, darab, a het osszege, a takaritas torolt oldalt es regi napot visz`() {
+        var log = BurstLogic.noteTrip(emptyMap(), "s1", "2026-09-18")
+        log = BurstLogic.noteTrip(log, "s1", "2026-09-18")
+        log = BurstLogic.noteTrip(log, "s1", "2026-09-10")
+        log = BurstLogic.noteTrip(log, "s2", "2026-09-17")
+        assertEquals(2, log.getValue("s1").getValue("2026-09-18"))
+        val week = listOf("2026-09-12", "2026-09-13", "2026-09-14", "2026-09-15", "2026-09-16", "2026-09-17", "2026-09-18")
+        assertEquals(2, BurstLogic.tripsInDays(log, "s1", week), "a nyolc napos nem a hété")
+        assertEquals(1, BurstLogic.tripsInDays(log, "s2", week))
+        assertEquals(0, BurstLogic.tripsInDays(log, "nincs", week))
+        assertEquals(mapOf("s1" to mapOf("2026-09-18" to 2)), BurstLogic.sweepTripLog(log, setOf("s1"), week), "törölt oldal és régi nap megy")
+        assertEquals(emptyMap(), BurstLogic.sweepTripLog(mapOf("s1" to mapOf("2026-09-18" to 0)), setOf("s1"), week), "a nulla sem marad")
+        // A mentés hordozza a könyvet.
+        val toJson = BreakerStore::class.java.getDeclaredMethod("toJson", AppState::class.java).apply { isAccessible = true }
+        val fromJson = BreakerStore::class.java.getDeclaredMethod("fromJson", org.json.JSONObject::class.java).apply { isAccessible = true }
+        val st = AppState(burstTripLog = mapOf("s1" to mapOf("2026-09-18" to 2)))
+        val back = fromJson.invoke(BreakerStore, org.json.JSONObject(toJson.invoke(BreakerStore, st).toString())) as AppState
+        assertEquals(st.burstTripLog, back.burstTripLog, "a mentés hordozza a könyvet")
+    }
 }

@@ -271,6 +271,8 @@ object UsageTracker {
             val today = UsageLogic.dayKey(now)
             val liveIds = s.sites.map { it.id }.toSet()
             var trips = s.burstTrips.filter { (id, t) -> t.day == today && id in liveIds }
+            // A betelések könyve: törölt oldal és a héten kívüli nap itt hullik ki.
+            var tripLog = BurstLogic.sweepTripLog(s.burstTripLog, liveIds, UsageLogic.dayKeysBack(now, 7))
             for ((bucket, d) in batch) {
                 val at = bucketTime(bucket, now)
                 UsageLogic.recordSample(next, d.key, d.seconds, at, d.label)
@@ -282,6 +284,7 @@ object UsageTracker {
                     if ((bursts[siteId]?.cooldownUntil ?: 0L) > before) {
                         val cur = trips[siteId]
                         trips = trips + (siteId to BurstTrip(today, (cur?.count ?: 0) + 1))
+                        tripLog = BurstLogic.noteTrip(tripLog, siteId, today)
                     }
                 }
                 // A LEGKÉSŐBBI rögzített minta ideje. Nem a `now`: egy köteg
@@ -289,7 +292,7 @@ object UsageTracker {
                 // mikor MÉRTÜNK, nem az, hogy mikor íródott ki.
                 if (at > latest) latest = at
             }
-            s.copy(usage = next, usageLastSampleAt = latest, bursts = bursts, burstTrips = trips)
+            s.copy(usage = next, usageLastSampleAt = latest, bursts = bursts, burstTrips = trips, burstTripLog = tripLog)
         }
     }
 

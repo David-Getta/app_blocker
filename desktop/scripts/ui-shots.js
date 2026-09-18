@@ -93,7 +93,7 @@ function fakeBridgeSource() {
         addedAt: now - 86400000, pauseUntil: null, pendingDeleteAt: null,
         schedule: { mode: 'scheduled_allow', bands: [{ days: [0,1,2,3,4,5,6], startMin: 0, endMin: 1440 }] },
         burstSeconds: 120, cooldownSeconds: 600, cooldownUntil: now + 7 * 60_000,
-        burstUsedSeconds: 0, burstTripsToday: 2,
+        burstUsedSeconds: 0, burstTripsToday: 2, burstTripsWeek: 7,
         usedTodaySeconds: 300, limitExhausted: false, blockedNow: true,
         closedReason: 'cooldown', closedUntil: now + 7 * 60_000 },
     ];
@@ -940,6 +940,12 @@ async function main() {
   // csomagra a csúcs-órában, minden nap — a hamis híd is a bírót játssza
   // (felvenni ingyen), a gomb utána eltűnik, mert a csomagon már ablak van.
   await goTo(page, 'stats');
+  // AZ ADAG A HÉTEN: a betelések könyvéből a hét sora — a mai mellett, mert több.
+  await page.waitForFunction(
+    () => /Adag-betelések a héten: .*7×/.test(document.getElementById('tripsWeek')?.textContent || '')
+      && !document.getElementById('tripsWeek')?.classList.contains('hidden'),
+    undefined, { timeout: 15_000 },
+  ).catch(() => failures.push('a statisztika nem mondja a hét adag-beteléseit'));
   await page.waitForFunction(
     () => /Heti ablak a csúcs-órára: Mély munka, minden nap 21:00–22:00/.test(document.getElementById('hitsWindowBtn')?.textContent || '')
       && !document.getElementById('hitsWindowBtn')?.classList.contains('hidden'),

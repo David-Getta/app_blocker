@@ -231,6 +231,8 @@ export interface HelperState {
    * `day` a helyi naptári nap; napfordulón a számláló tiszta lappal indul.
    */
   burstTrips?: Record<string, { day: string; count: number }>;
+  /** A BETELÉSEK KÖNYVE: oldal → nap → darab, hét napig — a hét összegét a felület mondja. */
+  burstTripLog?: Record<string, Record<string, number>>;
   /**
    * Mikor rögzítettünk UTOLJÁRA mért időt.
    *

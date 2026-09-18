@@ -4498,6 +4498,16 @@ function renderStats(): void {
   $('tripsToday').classList.toggle('hidden', trips.length === 0);
   $('tripsToday').textContent = trips.length > 0
     ? `Adag-betelések ma: ${trips.join(' · ')}` : '';
+  // AZ ADAG A HÉTEN: hányszor telt be oldalanként az elmúlt 7 napon — a szabály
+  // dolgozik-e. Csak ha a hét több a mainál; különben a mai sor elég.
+  const weekTrips = (status?.sites ?? [])
+    .filter((x) => (x.burstTripsWeek ?? 0) > 0)
+    .sort((a, b) => (b.burstTripsWeek ?? 0) - (a.burstTripsWeek ?? 0))
+    .map((x) => `${statLabel(x.domain)} ${x.burstTripsWeek}×`);
+  const weekSum = (status?.sites ?? []).reduce((a, x) => a + (x.burstTripsWeek ?? 0), 0);
+  const todaySum = (status?.sites ?? []).reduce((a, x) => a + (x.burstTripsToday ?? 0), 0);
+  $('tripsWeek').classList.toggle('hidden', weekTrips.length === 0 || weekSum <= todaySum);
+  $('tripsWeek').textContent = weekTrips.length > 0 ? `Adag-betelések a héten: ${weekTrips.join(' · ')}` : '';
   // A KERET BETELT NAPJAI: hány napon érte el a mért idő a napi keretet a héten,
   // és melyik oldalé hányszor — ezen a gépen mérve. Dolgozik-e a keret: tükör.
   const fullLine = limitFullLine(statsData.limitFullDays ?? { days: 0, bySite: [] }, statLabel);

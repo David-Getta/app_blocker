@@ -19,13 +19,13 @@ import { normalizeRule } from '../shared/urlrules';
 import {
   lastUsedPack, focusDaySeries, isRunning, normalizePack, spentWindows, summarizeFocus, summarizeFocusPrevWeek,
 } from '../shared/focus';
-import { noteBurstUsage, normalizeBurst, type BurstRule } from '../shared/burst';
+import { burstTripsInDays, noteBurstTrip, noteBurstUsage, normalizeBurst, type BurstRule } from '../shared/burst';
 import { LOCKDOWN_CHOICES_MIN } from '../shared/lockdown';
 import {
   blockReasonNow, isLimitExhausted, normalizeLimit, sharedTodaySeconds, usedTodayEverywhere,
 } from '../shared/limits';
 import {
-  recordSample, summarize, series, totalSeries, labelOf, emptyUsage, clearUsage, combineUsage, siteKey, dayKey,
+  recordSample, summarize, series, totalSeries, labelOf, emptyUsage, clearUsage, combineUsage, siteKey, dayKey, dayKeysBack,
   MAX_KEY_LENGTH, MAX_LABEL_LENGTH, MAX_BATCH_SAMPLES,
 } from '../shared/usage';
 import type { UsageSummary } from '../shared/usage';
@@ -114,6 +114,8 @@ export function statusOf(
           const t = state.burstTrips?.[s.id];
           return t && t.day === dayKey(now) ? t.count : 0;
         })(),
+        // A hét betelései a könyvből — a szabály dolgozik-e a héten.
+        burstTripsWeek: burstTripsInDays(state.burstTripLog, s.id, dayKeysBack(now, 7)),
         // A keret KÖZÖS: a mérő a többi eszköz mai idejét is tartalmazza,
         // különben a felület mást mutatna, mint ami alapján blokkolunk.
         usedTodaySeconds: Math.round(usedTodayEverywhere(state.usage, state.sharedToday, s.domain, now)),
@@ -597,6 +599,8 @@ async function handle(req: HelperRequest, deps: ServerDeps): Promise<unknown> {
             state.burstTrips[b.id] = cur?.day === today
               ? { day: today, count: cur.count + 1 }
               : { day: today, count: 1 };
+            // …és a könyvbe is: a hét összegét a felület ebből mondja.
+            state.burstTripLog = noteBurstTrip(state.burstTripLog, b.id, today);
           }
         }
         // A LEGKÉSŐBBI elfogadott minta ideje. Nem a `now`: egy köteg
