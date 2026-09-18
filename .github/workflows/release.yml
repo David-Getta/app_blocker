@@ -44,21 +44,21 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **Melyik kulcsszó dolgozik.** A megakadás-könyv a fogó szót is
-          elteszi, és a statisztika kulcsszavanként mondja a hetet: a gépi
-          Kulcsszavak kártya, a bővítmény beállítás-lapja és a telefon
-          statisztikája. Ami sosem fog, az nem szerepel — tükör a listára.
-          Bővítmény 0.4.16.
+          **A nulla hét is mondat a statisztikán.** Ha az előző héten volt
+          mihez mérni, a megakadás- és a munkamenet-blokk üres héten is
+          marad, és kimondja: „A héten nem volt menet.” — az előző hét
+          sora mellett. Mindhárom platformon.
 
-          ### Ami a v0.4.76-ban jött
+          ### Ami a v0.4.77-ben jött
+
+          **Melyik kulcsszó dolgozik** — a megakadás-könyv a fogó szót is
+          elteszi, a statisztika kulcsszavanként mondja a hetet (gép,
+          bővítmény, telefon). Bővítmény 0.4.16.
+
+          #### Ami a v0.4.76-ban jött
 
           **Az előző hét a bővítmény lapján is** — a beállítás-lap a saját
           könyvéből mondja, app nélkül is.
-
-          #### Ami a v0.4.75-ben jött
-
-          **A feloldások az előző héthez képest** — a heti mondat és a gépi
-          nehézség-sor a két számot egymás mellé teszi.
 
           NOTES
           fi
