@@ -8,7 +8,7 @@ kettővel korábbiban.
 
 | Verzió | Nap | Mi újság |
 |---|---|---|
-| v0.4.143 (még nincs kiadva) | 2026-09-18 | a menet-sorozat a böngészőben |
+| v0.4.143 | 2026-09-18 | a menet-sorozat a böngészőben |
 | v0.4.142 | 2026-09-18 | a leghosszabb sorozat |
 | v0.4.141 | 2026-09-18 | menet-sorozat |
 | v0.4.140 | 2026-09-18 | az Android szűrő-értesítés sora a mért idő napján is, a tükör táblája |
