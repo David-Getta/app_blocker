@@ -44,24 +44,22 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
+          **Az Android szűrő-értesítés sora a mért idő napján is szól:**
+          „· ma a legnagyobb nap” — ugyanazzal a küszöbbel, mint a kártya.
+          Az architektúra-doksi egy táblában mondja el a tükör öt darabját:
+          miből számol, hol mondja, milyen lépés következik belőle.
+
+          ### Ami a v0.4.139-ben jött
+
           **A weboldal és a munkamenet-doksi az értesítés ablak-gombjáról és
           a csúcs-óra meg a menet-óra egybeeséséről.** Kód nem változott.
 
-          ### Ami a v0.4.138-ban jött
+          #### Ami a v0.4.138-ban jött
 
           **A felugró lap kimondja, ha a csúcs-óra a menet-órád is.** A híd a
           javaslattal az egybeesést is leadja, és a lap a csúcs mondata után
           mondja: „Ez a menet-órád is: a kéz akkor jár, amikor le szoktál ülni.”
           — az app szava, frissen. Bővítmény 0.4.33.
-
-          #### Ami a v0.4.137-ben jött
-
-          **Egy koppintás az értesítésről az ablakig.** Androidon és
-          iPhone-on a csúcs-óra és a menet-óra előjelzésének második gombja
-          heti ablakot tesz a legutóbbi csomagra abban az órában, minden
-          napra — Androidon „Heti ablak a csúcs-órára: Nyelvtanulás”,
-          iPhone-on „Heti ablak erre az órára”. Csak felvétel, a bíró dönt;
-          a gomb csak akkor van ott, ha az órára ablak tehető.
 
           NOTES
           fi

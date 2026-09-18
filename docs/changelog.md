@@ -8,6 +8,7 @@ kettővel korábbiban.
 
 | Verzió | Nap | Mi újság |
 |---|---|---|
+| v0.4.140 (még nincs kiadva) | 2026-09-18 | az Android szűrő-értesítés sora a mért idő napján is, a tükör táblája |
 | v0.4.139 (még nincs kiadva) | 2026-09-18 | a weboldal és a munkamenet-doksi az értesítés ablak-gombjáról |
 | v0.4.138 (még nincs kiadva) | 2026-09-18 | a felugró lap kimondja, ha a csúcs-óra a menet-órád is |
 | v0.4.137 (még nincs kiadva) | 2026-09-18 | egy koppintás az értesítésről az ablakig |
