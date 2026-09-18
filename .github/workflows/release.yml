@@ -44,19 +44,18 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **Mi lenne ezzel?** A telefon kulcsszó-kártyáján egy próbamező:
-          beírsz egy hosztnevet, és a lap azonnal mondja, mi lenne vele —
-          a lista, egy kulcsszó, a futó munkamenet tiltaná, vagy átmegy.
-          Ugyanaz az ítélet, mint a szűrőé; tükör a szabályokra.
+          **Mi lenne ezzel a címmel?** A gépi Kulcsszavak kártya alján egy
+          próbamező: beírsz egy címet, és a lap mondja, fogná-e egy kulcsszó
+          — ugyanaz az ítélet, mint a bővítményé. A kártya mondata a telefon
+          új igazságát mondja: ott a hosztnévben tilt.
 
-          ### Ami a v0.4.68-ban jött
+          ### Ami a v0.4.69-ben jött
 
-          **A kulcsszó a telefonon is tilt — a hosztnévben**, az
-          infrastruktúra és a fiókkiszolgáló kivételével.
+          **Mi lenne ezzel?** — próbamező a telefon kulcsszó-kártyáján.
 
-          #### Ami a v0.4.67-ben jött
+          #### Ami a v0.4.68-ban jött
 
-          **A csúcs-oldal a bővítményben is.**
+          **A kulcsszó a telefonon is tilt — a hosztnévben.**
 
           NOTES
           fi
