@@ -398,14 +398,15 @@ public enum Focus {
     /// egy koppintás a mondattól a menetig. Az androidos `lastUsedPack` tükre.
     /// LE VAN-E FEDVE az óra: a sáv legalább egy napon az óra egy részét is átfogja.
     /// A csúcs-óra a hét órája, napra nem bontva — ezért elég, ha valamelyik napon
-    /// fedi. Nap nélkül nem ablak.
-    public static func bandCoversHour(_ band: ScheduleLogic.Band, hour: Int) -> Bool {
+    /// fedi. Nap nélkül nem ablak. (Nem nyilvános: a sáv típusa belső, mint a
+    /// `nextOccurrence`-nél — a nyilvános jelölés fordítási hiba lenne.)
+    static func bandCoversHour(_ band: ScheduleLogic.Band, hour: Int) -> Bool {
         let h = min(23, max(0, hour))
         return !band.days.isEmpty && band.startMin < (h + 1) * 60 && band.endMin > h * 60
     }
 
     /// A csomag, amelynek heti ablaka fedi az órát (a csúcs-órát) — az első a listában; nil, ha egyik sem.
-    public static func packCoveringHour(_ packs: [Pack], hour: Int) -> Pack? {
+    static func packCoveringHour(_ packs: [Pack], hour: Int) -> Pack? {
         packs.first { p in p.recurrence.map { bandCoversHour($0, hour: hour) } ?? false }
     }
 
