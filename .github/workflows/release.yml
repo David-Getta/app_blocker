@@ -44,22 +44,19 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **Kulcsszó-javaslatok egy koppintással.** A leggyakoribb
-          figyelem-csapdák — shorts, reels, live, stream — a gép kulcsszó-
-          kártyáján és a telefonok blokkjában egy koppintással felvehetők:
-          ingyen, mert felvétel; ami már fent van, azt nem kínálja újra. Nem
-          tilt magától — te döntesz. Ugyanaz a lista a három magban.
+          **A megakadás ott is látszik, ahol a kísértés van.** A
+          gyorsbillentyűs réteg lába a futó menet alatt hozzáteszi:
+          „Ma 3 megakadás a böngészőben.” — és Androidon a szűrő
+          értesítésének sora: „· Ma 3 megakadás”. Tükör, nem ítélet.
 
-          ### Ami a v0.4.51-ben jött
+          ### Ami a v0.4.52-ben jött
 
-          **Kulcsszó a lap címsorában is.** A böngésző-bővítmény a címsort is
-          nézi, betöltéskor és minden váltásnál; találatnál a tiltó lapra
-          visz, és kimondja: „A lap címsora tartalmazza”.
+          **Kulcsszó-javaslatok egy koppintással** — shorts, reels, live,
+          stream — a gépen és a telefonokon; ami fent van, nem kínálja újra.
 
-          #### Ami a v0.4.50-ben jött
+          #### Ami a v0.4.51-ben jött
 
-          **Megakadások a telefonon is — és a tiltó lap kimondja, hányadszor
-          ma.**
+          **Kulcsszó a lap címsorában is.**
 
           NOTES
           fi
