@@ -44,20 +44,19 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A kulcsszó a telefonon is tilt — a hosztnévben.** Egy `tiktok`
-          kulcsszó mostantól Androidon és iPhone-on is megállítja a
-          `www.tiktok.com`-ot, munkamenet alatt is; a rendszer-infrastruktúra
-          és a saját fiókkiszolgáló sosem esik kulcsszó alá. Az útvonalat és
-          a címsort a telefon nem látja — ez ki van mondva.
+          **Mi lenne ezzel?** A telefon kulcsszó-kártyáján egy próbamező:
+          beírsz egy hosztnevet, és a lap azonnal mondja, mi lenne vele —
+          a lista, egy kulcsszó, a futó munkamenet tiltaná, vagy átmegy.
+          Ugyanaz az ítélet, mint a szűrőé; tükör a szabályokra.
 
-          ### Ami a v0.4.67-ben jött
+          ### Ami a v0.4.68-ban jött
 
-          **A csúcs-oldal a bővítményben is** — a felugró és a beállítás-lap
-          a saját könyvéből mondja.
+          **A kulcsszó a telefonon is tilt — a hosztnévben**, az
+          infrastruktúra és a fiókkiszolgáló kivételével.
 
-          #### Ami a v0.4.66-ban jött
+          #### Ami a v0.4.67-ben jött
 
-          **Melyik oldal akaszt meg a legtöbbször** — mindhárom platformon.
+          **A csúcs-oldal a bővítményben is.**
 
           NOTES
           fi
