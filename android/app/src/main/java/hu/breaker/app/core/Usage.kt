@@ -375,4 +375,37 @@ object UsageLogic {
         val rem = min % 60
         return if (rem == 0L) "$h ó" else "$h ó $rem p"
     }
+
+    // ------------------------------------------------------------- JAVASLAT
+    //
+    // A mérés azt is tudja, mire megy el a legtöbb idő olyan oldalon, ami NINCS
+    // tiltva. Ez nem ítélet, hanem tükör: a hét legnagyobb, nem tiltott
+    // idővivői — a gépen a felvevő kártya sora, a telefonon a hétfő reggeli
+    // visszatekintés utolsó mondata. A `usage.ts` `suggestBlocks` tükre.
+
+    /** Ennyi aktív idő alatt (mp, a héten) nem szólunk: fél óra még nem szokás. */
+    const val SUGGEST_MIN_SECONDS = 30 * 60
+
+    /**
+     * A hét legnagyobb, NEM tiltott oldalai. Kiesik, ami már a listán van (cím
+     * vagy hosztnév szerint), ami egy listázott cím aloldala (azt a hosztnevek
+     * úgyis rendezik), és az „egyéb” gyűjtő. A sorrend a mérésé: a legtöbb idő
+     * elöl.
+     */
+    fun suggestBlocks(
+        top: List<TargetTotal>, sites: List<Site>,
+        minSeconds: Int = SUGGEST_MIN_SECONDS, limit: Int = 3,
+    ): List<TargetTotal> {
+        val out = mutableListOf<TargetTotal>()
+        for (t in top) {
+            if (t.kind != TargetKind.SITE || t.key == OTHER_SITE_KEY || t.seconds < minSeconds) continue
+            val d = idOf(t.key).lowercase()
+            if (d.isEmpty()) continue
+            val listed = sites.any { s -> d == s.domain || d.endsWith(".${s.domain}") || d in s.hostnames }
+            if (listed) continue
+            out.add(t)
+            if (out.size >= limit) break
+        }
+        return out
+    }
 }

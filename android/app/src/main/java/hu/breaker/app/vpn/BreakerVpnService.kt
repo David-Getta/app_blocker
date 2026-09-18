@@ -14,7 +14,9 @@ import android.util.Log
 import hu.breaker.app.MainActivity
 import hu.breaker.app.R
 import hu.breaker.app.core.AliasLogic
+import hu.breaker.app.core.AppState
 import hu.breaker.app.core.BreakerStore
+import hu.breaker.app.core.DigestLogic
 import hu.breaker.app.core.Focus
 import hu.breaker.app.core.LockdownLogic
 import hu.breaker.app.core.Referee
@@ -52,6 +54,11 @@ class BreakerVpnService : VpnService() {
          * nem a sáv halk, állandó csatornája, amit a rendszer joggal tesz hátra.
          */
         private const val LOCKDOWN_CHANNEL_ID = "breaker_lockdown"
+        /** A hétfő reggeli visszatekintés — saját csatornán, hogy külön is kikapcsolható legyen. */
+        private const val NOTIF_DIGEST_ID = 5
+        private const val DIGEST_CHANNEL_ID = "breaker_digest"
+        /** Percenként elég kérdezni, esedékes-e: a válasz egy hétig ugyanaz. */
+        private const val DIGEST_CHECK_MS = 60_000L
 
         private val _running = MutableStateFlow(false)
         val running: StateFlow<Boolean> get() = _running
@@ -78,6 +85,9 @@ class BreakerVpnService : VpnService() {
     private var noticedWindowUntil: Long = -1L
     /** A már bejelentett közelgő ablak-kezdés; egy kezdésről egyszer szólunk. */
     private var warnedWindowStart: Long = 0L
+    /** A már elkönyvelt hét — memóriában is, hogy a tár hibája se szólaltassa meg minden körben. */
+    private var digestDoneKey: String? = null
+    private var digestCheckedAt: Long = 0L
     private var usageTimer: java.util.Timer? = null
     @Volatile private var stopping = false
     private var readerThread: Thread? = null
@@ -262,24 +272,92 @@ class BreakerVpnService : VpnService() {
         )
     }
 
-    /** Egyszeri, lehúzható értesítés a zárlat-ablak csatornáján; az appot nyitja. */
-    private fun notifyOnce(id: Int, title: String, text: String) {
+    /**
+     * Egyszeri, lehúzható értesítés — alapból a zárlat-ablak csatornáján; az
+     * appot nyitja. A hosszú szöveg kinyitva is olvasható (BigText), nem egy
+     * sorra csonkolva.
+     */
+    private fun notifyOnce(
+        id: Int, title: String, text: String,
+        channel: String = LOCKDOWN_CHANNEL_ID, channelName: String = "Zárlat-ablak",
+    ) {
         val nm = getSystemService(NotificationManager::class.java)
         nm.createNotificationChannel(
-            NotificationChannel(LOCKDOWN_CHANNEL_ID, "Zárlat-ablak", NotificationManager.IMPORTANCE_DEFAULT),
+            NotificationChannel(channel, channelName, NotificationManager.IMPORTANCE_DEFAULT),
         )
         val pi = PendingIntent.getActivity(
             this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE,
         )
         nm.notify(
             id,
-            Notification.Builder(this, LOCKDOWN_CHANNEL_ID)
+            Notification.Builder(this, channel)
                 .setSmallIcon(android.R.drawable.ic_lock_lock)
                 .setContentTitle(title)
                 .setContentText(text)
+                .setStyle(Notification.BigTextStyle().bigText(text))
                 .setContentIntent(pi)
                 .setAutoCancel(true)
                 .build(),
+        )
+    }
+
+    /**
+     * Heti visszatekintés: hétfő reggel egy értesítés az elmúlt 7 napról — a
+     * gépen a felület mondja (és csak amíg fut), itt a szolgáltatás, ami az app
+     * nélkül is fut. Egy hétről egyszer, eszközönként: a hét kulcsa az
+     * állapotban marad. Engedély híján csendben marad, és a hetet sem könyveli
+     * el: majd szól, ha szólhat. Ha nincs miről beszélni, a hét el van
+     * könyvelve, értesítés nincs — egy üres mondat zaj lenne.
+     */
+    private fun maybeDigest(now: Long = System.currentTimeMillis()) {
+        if (now - digestCheckedAt < DIGEST_CHECK_MS) return
+        digestCheckedAt = now
+        val st = BreakerStore.state.value
+        val key = DigestLogic.due(st.digestWeekKey, now) ?: return
+        if (key == digestDoneKey) return
+        val nm = getSystemService(NotificationManager::class.java)
+        nm.createNotificationChannel(
+            NotificationChannel(DIGEST_CHANNEL_ID, "Heti visszatekintés", NotificationManager.IMPORTANCE_DEFAULT),
+        )
+        val blocked = nm.getNotificationChannel(DIGEST_CHANNEL_ID)?.importance == NotificationManager.IMPORTANCE_NONE
+        if (!nm.areNotificationsEnabled() || blocked) return
+        // A memóriában is: ha a tár nem ír, ne szóljon minden körben újra.
+        digestDoneKey = key
+        BreakerStore.mutate { it.copy(digestWeekKey = key) }
+        val text = digestText(st, now) ?: return
+        notifyOnce(NOTIF_DIGEST_ID, getString(R.string.digest_title), text, DIGEST_CHANNEL_ID, "Heti visszatekintés")
+    }
+
+    /**
+     * A visszatekintés mondata a mostani állapotból — a mag adja, a címkézés a
+     * statisztikáé: rejtett listánál sorszám, fedőnévnél a fedőnév. A rejtést a
+     * BEÁLLÍTÁS dönti, nem a felület pillanatnyi felfedése: az értesítés a
+     * zárolt képernyőn is ott van.
+     */
+    private fun digestText(st: AppState, now: Long): String? {
+        val summary = UsageLogic.summarize(st.usage, now)
+        val labelOf: (String) -> String = { raw ->
+            val idx = st.sites.indexOfFirst { it.domain == raw }
+            when {
+                idx < 0 -> raw
+                st.hideSiteList -> AliasLogic.maskedLabel(st.sites[idx], idx)
+                else -> AliasLogic.displayName(st.sites[idx])
+            }
+        }
+        val weekAgo = now - 7 * 24 * 3600_000L
+        return DigestLogic.text(
+            DigestLogic.Input(
+                last7Seconds = summary.last7Seconds,
+                topWeekSites = summary.topWeekSites.map { DigestLogic.Top(it.label, it.seconds) },
+                weekOverWeek = summary.weekOverWeek.map { DigestLogic.Delta(it.label, it.deltaPct) },
+                // A napló ablaka a gépével közös: a mai nap kezdete mínusz hat nap.
+                focusWeek = Focus.summarizeFocus(st.focusLog, UsageLogic.startOfDay(now) - 6 * 86_400_000L, now),
+                unlocks7d = st.unlockLog.count { it >= weekAgo },
+                daysTracked = summary.daysTracked,
+                unblockedTop = UsageLogic.suggestBlocks(summary.topWeekSites, st.sites)
+                    .map { DigestLogic.Top(it.label, it.seconds) },
+            ),
+            labelOf,
         )
     }
 
@@ -326,6 +404,11 @@ class BreakerVpnService : VpnService() {
                     // „letiltva” oldal, ami megmondaná, mi történik.
                     runCatching { refreshNotification() }
                         .onFailure { Log.w(TAG, "notification refresh failed: $it") }
+                    // És a hétfő reggeli visszatekintés is innen szól: a
+                    // szolgáltatás az app nélkül is fut, tehát itt tényleg
+                    // hétfő reggel jön, nem az első megnyitáskor.
+                    runCatching { maybeDigest() }
+                        .onFailure { Log.w(TAG, "digest failed: $it") }
                 }
             }, UsageLogic.SAMPLE_INTERVAL_MS, UsageLogic.SAMPLE_INTERVAL_MS)
         }

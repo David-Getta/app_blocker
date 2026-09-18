@@ -392,18 +392,29 @@ volt. Ha nincs miről beszélni (se mérés, se menet, se feloldás), nincs
 
 Szabályok, kimondva:
 
-- **Egy hétről egyszer, gépenként.** A hét kulcsa (a hétfő dátuma) a felület
-  tárában marad; a következő hétfőn újra esedékes.
-- **Ha hétfőn nem futott az app**, az első megnyitáskor szól — még azon a
-  héten. A következő hétfőn már a következőről.
-- **Csak amíg az app fut.** A háttérben ülő védelem magától nem tud
-  értesíteni; ez ugyanaz a korlát, mint az adag-értesítésnél. Engedély
-  híján csendben marad, és a hetet sem könyveli el.
+- **Egy hétről egyszer, eszközönként.** A hét kulcsa (a hétfő dátuma) a
+  gépen a felület tárában, a telefonon az állapotban marad; a következő
+  hétfőn újra esedékes. Szándékosan nem szinkronizál: a gép és a telefon
+  más-más hetet mért, mindkettő a magáét mondja.
+- **A gépen csak amíg az app fut.** A háttérben ülő védelem magától nem tud
+  értesíteni; ez ugyanaz a korlát, mint az adag-értesítésnél. Ha hétfőn nem
+  futott az app, az első megnyitáskor szól — még azon a héten; a következő
+  hétfőn már a következőről. Engedély híján csendben marad, és a hetet sem
+  könyveli el.
+- **Androidon a szűrő szolgáltatása mondja**, ami az app nélkül is fut: ott
+  tényleg hétfő reggel jön, saját, külön kikapcsolható csatornán („Heti
+  visszatekintés”). A mag ugyanaz (`core/Digest.kt`, a gépi tükre, ugyanazokkal
+  a tesztekkel), a mondat is. A rejtést itt a beállítás dönti, nem a felület
+  pillanatnyi felfedése: az értesítés a zárolt képernyőn is ott van.
+- **iPhone-on nincs.** A tunnel-bővítmény nem adhat értesítést, az app nem fut
+  a háttérben, előre ütemezni pedig csak olyan mondatot lehetne, ami a hét
+  végére elavul — inkább nincs, mint hogy hamis legyen.
 - **Gördülő hét nap**, nem naptári hét — pontosan az, amit a statisztika
   csempéi is mutatnak. A felirat „elmúlt 7 nap”-ot mond, nem „múlt hét”-et.
 - **A címkék a statisztika szabályát követik**: rejtett listánál sorszám,
   fedőnévnél a fedőnév. Az értesítés sem szivárogtathat ki olyan címet, amit
   a lista elrejt.
 
-A mag tiszta (`desktop/src/shared/digest.ts`: a hét kulcsa, az esedékesség,
-a szöveg), a felület a statisztika minden frissítése után kérdezi meg.
+A mag tiszta (`desktop/src/shared/digest.ts` és a tükre, `core/Digest.kt`: a
+hét kulcsa, az esedékesség, a szöveg); a gépen a felület a statisztika minden
+frissítése után kérdezi meg, a telefonon a szűrő köre percenként.

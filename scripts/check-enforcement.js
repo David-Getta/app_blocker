@@ -280,6 +280,21 @@ const WIRES = [
     lost: 'a bővítmény nem kérdezné meg, zárva-e az oldal — a hűtött oldalra '
       + 'megint a nyers DNS-hibalap jönne',
   },
+  // A HÉTFŐ REGGELI VISSZATEKINTÉS a telefonon a szolgáltatás köréből szól. A
+  // mag (Digest.kt) teszttel együtt megvan — ha a kör nem kérdezné meg, a
+  // telefon sosem szólna, és semmi nem hasalna el tőle.
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/vpn/BreakerVpnService.kt',
+    needle: 'runCatching { maybeDigest() }',
+    lost: 'a telefonon a hétfő reggeli visszatekintés sosem szólna — a mag '
+      + 'megvan, csak a kör nem kérdezné meg',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/vpn/BreakerVpnService.kt',
+    needle: 'DigestLogic.due(st.digestWeekKey, now)',
+    lost: 'a visszatekintés vagy minden körben szólna, vagy sosem — az '
+      + 'esedékesség és az „egy hétről egyszer” a mag döntése',
+  },
   {
     file: 'android/app/src/main/java/hu/breaker/app/vpn/BreakerVpnService.kt',
     needle: 'BreakerStore.coolingSites(now)',

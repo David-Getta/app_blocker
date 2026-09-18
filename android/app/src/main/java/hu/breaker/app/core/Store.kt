@@ -129,6 +129,14 @@ data class AppState(
      */
     val usageLastSampleAt: Long? = null,
     /**
+     * Melyik hétről szólt már a hétfő reggeli visszatekintés (a hétfő dátuma).
+     *
+     * Helyi könyvelés, mint a gépen a felület tára: egy hétről egyszer,
+     * eszközönként — a szinkronra szándékosan nem megy, mert a másik eszköz
+     * hetéről semmit nem mondana. Lásd core/Digest.kt.
+     */
+    val digestWeekKey: String? = null,
+    /**
      * Rejtve induljon-e a blokkolt oldalak listája.
      *
      * Beállítás, nem pillanatnyi állapot: a felület minden indításkor rejtve
@@ -506,6 +514,7 @@ object BreakerStore {
         put("unlockLog", JSONArray(s.unlockLog))
         put("usage", usageToJson(s.usage))
         put("usageLastSampleAt", s.usageLastSampleAt ?: JSONObject.NULL)
+        put("digestWeekKey", s.digestWeekKey ?: JSONObject.NULL)
         // A közös napi keret adatai. Kis blob, de blokkolási döntés függ tőle,
         // ezért újraindulás után is meg kell maradnia.
         put("sharedToday", s.sharedToday?.let { sh ->
@@ -747,6 +756,7 @@ object BreakerStore {
                     else usageFromJson(o.getJSONObject("usage")),
             usageLastSampleAt =
                 if (o.isNull("usageLastSampleAt")) null else o.optLong("usageLastSampleAt"),
+            digestWeekKey = if (o.isNull("digestWeekKey")) null else o.optString("digestWeekKey"),
             sites = sites,
             unlockLog = unlockLog,
             lastCombo = if (o.isNull("lastCombo")) null else o.optString("lastCombo"),

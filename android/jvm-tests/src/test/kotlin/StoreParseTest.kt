@@ -168,6 +168,12 @@ class StoreParseTest {
         )
     }
 
+    @Test fun `a visszatekintes het-kulcsa tuleli a mentest, es nelkule null`() {
+        val saved = toJson.invoke(BreakerStore, parse("""{"digestWeekKey":"2026-09-07","sites":[]}""")).toString()
+        assertEquals("2026-09-07", parse(saved).digestWeekKey, "egy hétről egyszer — újraindítás után is")
+        assertNull(parse("{\"sites\":[]}").digestWeekKey, "régi állapot: még sosem szólt")
+    }
+
     @Test fun `state written before the hidden list still loads with it off`() {
         val state = parse("{\"sites\":[" + site("youtube") + "]}")
         assertFalse(state.hideSiteList)

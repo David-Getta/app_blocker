@@ -28,6 +28,14 @@ cd android
   mert a telefonon nincs tiltó lap: ez az egyetlen hely, ahol látszik, mi
   történik. A zárlat-ablak eseményei (beérés, és tíz perccel előtte) külön,
   látható csatornán jönnek, lehúzható értesítésként.
+- **Hétfő reggel héttől a szolgáltatás egy heti visszatekintést** ad: az
+  elmúlt 7 nap mért ideje, a legtöbb (és a trend), menetek, feloldások, és a
+  legnagyobb nem tiltott idővivő — ugyanaz a mondat, mint a gépen
+  (`core/Digest.kt`, a gépi mag tükre, ugyanazokkal a tesztekkel). Az app
+  nélkül is jön, mert a szolgáltatás fut; egy hétről egyszer (`digestWeekKey`
+  az állapotban), saját csatornán, amit külön ki lehet kapcsolni. Engedély
+  híján csendben marad, és a hetet sem könyveli el. A rejtett listát a
+  beállítás szerint fedi, mert az értesítés a zárolt képernyőn is ott van.
 
 ## Korlátok
 - Ha a felhasználó a rendszerbeállításokban leállítja a VPN-t, az app feltűnő

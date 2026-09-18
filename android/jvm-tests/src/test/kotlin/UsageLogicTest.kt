@@ -1,3 +1,4 @@
+import hu.breaker.app.core.Site
 import hu.breaker.app.core.UsageLogic
 import hu.breaker.app.core.UsageLogic.Foreground
 import hu.breaker.app.core.UsageLogic.TargetKind
@@ -271,5 +272,34 @@ class UsageLogicTest {
         assertEquals(5.0, b.days[0].seconds["app:x"], "the earlier snapshot is frozen")
         assertEquals(10.0, c.days[0].seconds["app:x"])
         assertTrue(b != c, "successive snapshots must compare unequal or the UI never updates")
+    }
+
+    @Test fun `javaslat - a het legnagyobb, nem tiltott oldalai`() {
+        // A desktop/test/usage.test.ts tükre: ugyanaz a lista, ugyanaz a válasz.
+        fun row(key: String, seconds: Int) =
+            UsageLogic.TargetTotal(key, key.substring(5), TargetKind.SITE, seconds.toDouble())
+        val top = listOf(
+            row("site:youtube.com", 5 * 3600),
+            row("site:m.youtube.com", 2 * 3600),
+            row(UsageLogic.OTHER_SITE_KEY, 9 * 3600),
+            row("site:news.ycombinator.com", 3 * 3600),
+            row("site:reddit.com", 50 * 60),
+            row("site:x.com", 10 * 60),
+            UsageLogic.TargetTotal("app:slack", "Slack", TargetKind.APP, 8.0 * 3600),
+            row("site:twitch.tv", 40 * 60),
+            row("site:netflix.com", 35 * 60),
+        )
+        val sites = listOf(Site("y", "youtube.com", listOf("youtube.com", "youtu.be"), 1L, null, null))
+        assertEquals(
+            listOf("site:news.ycombinator.com", "site:reddit.com", "site:twitch.tv"),
+            UsageLogic.suggestBlocks(top, sites).map { it.key },
+            "a listázott cím és az aloldala kiesik, az app és az egyéb is, a tíz perc kevés, és három a plafon",
+        )
+        assertEquals(30 * 60, UsageLogic.SUGGEST_MIN_SECONDS)
+        assertEquals(
+            listOf("site:news.ycombinator.com", "site:reddit.com", "site:twitch.tv", "site:netflix.com"),
+            UsageLogic.suggestBlocks(top, sites, 30 * 60, 10).map { it.key },
+        )
+        assertTrue(UsageLogic.suggestBlocks(emptyList(), sites).isEmpty())
     }
 }

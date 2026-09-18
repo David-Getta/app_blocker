@@ -20,6 +20,11 @@
     <string name="vpn_window_soon_title">Mindjárt beér a heti ablak</string>
     <string name="vpn_window_soon_text">%1$s múlva zárlat, %2$s-ig. Amíg tart, semmilyen lazítás nem indítható — próbatétellel sem. Ami nyitva van, mentsd el.</string>
     <string name="vpn_lockdown_window_notice_text">Beért a heti ablak: még %1$s (eddig: %2$s). Amíg tart, semmilyen lazítás nem indítható — próbatétellel sem.</string>
+    <!--
+      Hétfő reggel egy mondat az elmúlt hét napról — a gépen a felület mondja,
+      itt a szűrő szolgáltatása, ami az app nélkül is fut. A szöveget a mag adja.
+    -->
+    <string name="digest_title">Heti visszatekintés</string>
     <string name="vpn_privatedns_title">A tiltás most nem érvényesül</string>
     <string name="vpn_privatedns_text">A rendszer szigorú Privát DNS-e (%1$s) megkerüli a Breaker szűrőjét. Beállítások → Hálózat és internet → Privát DNS: állítsd Automatikusra.</string>
     <string name="vpn_revoked_title">A Breaker védelem kikapcsolt!</string>

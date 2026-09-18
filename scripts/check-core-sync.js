@@ -75,6 +75,11 @@ ts.focus = read('desktop/src/shared/focus.ts');
 kt.focus = read('android/app/src/main/java/hu/breaker/app/core/Focus.kt');
 sw.focus = read('ios/Shared/Focus.swift');
 
+ts.digest = read('desktop/src/shared/digest.ts');
+kt.digest = read('android/app/src/main/java/hu/breaker/app/core/Digest.kt');
+ts.usage = read('desktop/src/shared/usage.ts');
+kt.usage = read('android/app/src/main/java/hu/breaker/app/core/Usage.kt');
+
 ts.lockdown = read('desktop/src/shared/lockdown.ts');
 kt.lockdown = read('android/app/src/main/java/hu/breaker/app/core/Lockdown.kt');
 sw.lockdown = read('ios/Shared/Lockdown.swift');
@@ -284,6 +289,19 @@ const CHECKS = [
     scalar(sw.pairing, /maxCodeChars[^=]*=\s*(.+)/, 'swift')],
 ];
 
+// KÉT NYELV KÖZÖTT. Amit csak a gép és az Android tud (iPhone-on a bővítmény
+// nem adhat értesítést, és az app nem fut a háttérben): a hétfő reggeli
+// visszatekintés órája és a javaslat küszöbe. Ha elcsúsznának, a két eszköz
+// más hétfőn — vagy más oldalról — szólna ugyanarról a hétről.
+const PAIRS = [
+  ['DIGEST_HOUR',
+    scalar(ts.digest, /DIGEST_HOUR\s*=\s*([^;]+);/, 'ts'),
+    scalar(kt.digest, /DIGEST_HOUR\s*=\s*(.+)/, 'kt')],
+  ['SUGGEST_MIN_SECONDS',
+    scalar(ts.usage, /SUGGEST_MIN_SECONDS\s*=\s*([^;]+);/, 'ts'),
+    scalar(kt.usage, /SUGGEST_MIN_SECONDS\s*=\s*(.+)/, 'kt')],
+];
+
 // A kódábécé nem szám, de ha eltér, a memória-próba más jeleket adna.
 const ALPHABETS = [
   ['PAIRING_ALPHABET',
@@ -302,6 +320,22 @@ const problems = [];
 const LANGS = ['TypeScript', 'Kotlin', 'Swift'];
 
 for (const [name, ...values] of CHECKS) {
+  const missing = values
+    .map((v, i) => (v && v.missing ? LANGS[i] : null))
+    .filter(Boolean);
+  if (missing.length) {
+    problems.push(`${name}: nem található itt: ${missing.join(', ')} — a minta elavult vagy a konstans eltűnt`);
+    continue;
+  }
+  const asText = values.map((v) => JSON.stringify(v));
+  if (new Set(asText).size !== 1) {
+    problems.push(
+      `${name} eltér:\n` + values.map((v, i) => `    ${LANGS[i].padEnd(11)} ${asText[i]}`).join('\n'),
+    );
+  }
+}
+
+for (const [name, ...values] of PAIRS) {
   const missing = values
     .map((v, i) => (v && v.missing ? LANGS[i] : null))
     .filter(Boolean);
@@ -336,4 +370,4 @@ if (problems.length) {
   process.exit(1);
 }
 
-console.log(`mag-szinkron OK (${CHECKS.length + ALPHABETS.length} érték egyezik mindhárom nyelven)`);
+console.log(`mag-szinkron OK (${CHECKS.length + ALPHABETS.length} érték egyezik mindhárom nyelven, ${PAIRS.length} a gép és az Android között)`);
