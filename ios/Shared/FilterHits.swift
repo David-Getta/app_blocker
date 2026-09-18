@@ -329,6 +329,17 @@ public enum FilterHitLogic {
         "Mindjárt \(peak.hour) óra — a héten ilyenkor akadt meg a kéz a legtöbbször (\(peak.count)×). Egy munkamenet most segítene — te döntesz."
     }
 
+    /// MOST a csúcs-óra van-e: a hét csúcsa és a helyi óra egybeesik.
+    public static func isPeakNow(_ peak: (hour: Int, count: Int)?, now: Double) -> Bool {
+        guard let peak else { return false }
+        return hourOf(now) == peak.hour
+    }
+
+    /// A tükör a kísértés pillanatában: a kezdőlap kártyája a csúcs-órában.
+    public static func peakNowText(_ peak: (hour: Int, count: Int)) -> String {
+        "Most a hét csúcs-órája van (\(hourLabel(peak.hour)), \(peak.count) megakadás a héten) — ilyenkor jár a kéz magától."
+    }
+
     /// Az utolsó `count` nap sora, a legrégebbi elöl — a hét alakja a
     /// megakadásokra; a `seconds` mező itt darab, a rajz kedvéért ugyanaz az alak.
     public static func daySeries(_ days: [String: Int], now: Double, count: Int) -> [(day: String, seconds: Double)] {

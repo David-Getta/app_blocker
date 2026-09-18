@@ -473,6 +473,11 @@ async function main() {
       await page.waitForTimeout(500);
       const later = await bodyText(page);
       check(/Ma ez a \d+\. megakadás/.test(later), 'a tiltó lap kimondja, hányadszor ma');
+      // A CSÚCS-ÓRA a kísértés pillanatában: a hét minden megakadása ebben a
+      // futásban, ebben az órában esett — tehát ez a csúcs-óra, és a lap
+      // kimondja, hogy most van. (A nyolc napos, órák nélküli nap nem számít.)
+      check(/Most a hét csúcs-órája van \(\d+–\d+ óra, \d+ megakadás a héten\)/.test(later),
+        'a tiltó lap a csúcs-órában kimondja, hogy most van');
     }
     // Ugyanaz a hoszt, a szó nélkül: átmegy — a kulcsszó nem az oldalt tiltja.
     await page.goto(`${base}/?x=szabad`).catch(() => {});

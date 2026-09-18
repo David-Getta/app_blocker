@@ -528,6 +528,14 @@ Swift). Csúcs nélkül nincs sáv: az üres rajz nem mond semmit. Egy szín —
 rekesz nem kategória —, és nincs rajta szám: a csúcs mondata mondja a
 számot, a sáv azt mutatja, mikor nem jár a kéz.
 
+**A csúcs-óra ott is, ahol a kísértés van:** a tiltó lap a csúcs-órában
+kimondja („Most a hét csúcs-órája van (21–22 óra, 6 megakadás a héten) —
+ilyenkor jár a kéz magától.”), a felugró lap a hetet, jelöléssel, ha most van
+(„A hét csúcsa: 21–22 óra (6 megakadás) — most.”), a gyorsbillentyűs réteg
+lába a csúcs-órában ugyanazt, és a telefon kezdőlapjának javaslat-kártyája is
+— a menet gombjával, mint az előjelzésnél. Tükör a pillanatban, nem ítélet; a
+csúcs-órán kívül egyik sem szól róla (a felugró lap csak a hetet mondja).
+
 A **sokadik megakadásnál** a gép egy lépést javasol: az ötödik, tizedik és
 huszadik mai megakadásnál egyszer szól („Ma már 5 megakadás a böngészőben.
 Egy munkamenet vagy egy rövid zárlat most segítene — te döntesz.”), és a

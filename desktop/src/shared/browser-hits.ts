@@ -232,6 +232,17 @@ export function peakWarnKey(peak: { hour: number; count: number } | null, now: n
   return null;
 }
 
+/** MOST a csúcs-óra van-e: a hét csúcsa és a helyi óra egybeesik. */
+export function isPeakNow(peak: { hour: number; count: number } | null | undefined, now: number): boolean {
+  return !!peak && new Date(now).getHours() === peak.hour;
+}
+
+/** A tükör a kísértés pillanatában: a réteg lába a csúcs-órában — különben üres. */
+export function peakNowText(peak: { hour: number; count: number } | null | undefined, now: number): string {
+  return peak && isPeakNow(peak, now)
+    ? ` Most a hét csúcs-órája van (${hourLabel(peak.hour)}, ${peak.count} megakadás a héten) — ilyenkor jár a kéz magától.` : '';
+}
+
 /** Az előjelzés mondata. */
 export function peakWarnText(peak: { hour: number; count: number }): string {
   return `Mindjárt ${peak.hour} óra — a héten ilyenkor akadt meg a kéz a legtöbbször (${peak.count}×). Egy munkamenet most segítene — te döntesz.`;

@@ -405,6 +405,13 @@ struct ContentView: View {
         return peak
     }
 
+    /// A CSÚCS-ÓRÁBAN: a csúcs — különben nil. A kártya a tükröt mondja: most jár a kéz magától.
+    private var peakNow: (hour: Int, count: Int)? {
+        guard let peak = FilterHitLogic.peakHour(store.state.filterHitHours ?? [:], now: now),
+              FilterHitLogic.isPeakNow(peak, now: now) else { return nil }
+        return peak
+    }
+
     /// A JAVASLAT kártyája: a sokadik megakadás mondata és/vagy az előjelzés tíz
     /// perccel a csúcs-óra előtt — amit az értesítés mond, a lap is mondja. Nem
     /// tilt, nem ítél. iPhone-on a tunnel nem értesít; a lap mondja, amíg nyitva van.
@@ -412,10 +419,13 @@ struct ContentView: View {
         Group {
             let step = FilterHitLogic.nudgeStep(FilterHitLogic.hitsToday(store.state.filterHits ?? [:], now: now))
             let soon = peakSoon
-            if step > 0 || soon != nil {
+            let inPeak = peakNow
+            if step > 0 || soon != nil || inPeak != nil {
                 VStack(alignment: .leading, spacing: 8) {
                     if step > 0 { Text(FilterHitLogic.nudgeText(step)).font(.footnote) }
                     if let soon { Text(FilterHitLogic.peakWarnText(soon)).font(.footnote) }
+                    // A CSÚCS-ÓRÁBAN a kártya a tükröt mondja — a gombbal, mint az előjelzésnél.
+                    if let inPeak { Text(FilterHitLogic.peakNowText(inPeak)).font(.footnote) }
                     // EGY KOPPINTÁS a mondattól a menetig: a legutóbb használt csomag
                     // a szokásos hosszával — szigorítás, ingyen. Futó menet mellett
                     // nincs gomb (egyszerre egy menet fut).

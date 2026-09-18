@@ -13,7 +13,7 @@ import {
   formatRemaining, MAX_SESSION_MINUTES, SESSION_CHOICES_MIN,
   type FocusPack, type FocusRun,
 } from '../shared/focus.js';
-import { hitNudgeStep } from '../shared/browser-hits.js';
+import { hitNudgeStep, peakNowText } from '../shared/browser-hits.js';
 import {
   formatLockdownRemaining, isLocked, isWindowLockdown, type Lockdown, type LockdownWindow,
 } from '../shared/lockdown.js';
@@ -47,15 +47,21 @@ interface Status {
   partner?: { name: string; setAt: number } | null;
   /** a böngésző mai megakadásai — a réteg lába mondja, a kísértés pillanatában */
   browserHitsToday?: number;
+  /** a hét csúcs-órája — a láb a csúcs-órában kimondja, hogy most van */
+  browserHitsPeak?: { hour: number; count: number } | null;
   /** a legutóbb használt csomag — a sorában egy kattintásos gomb a szokásos hosszal */
   lastUsedPackId?: string | null;
   now: number;
 }
 
-/** A mai megakadások sora a lábban — vagy üres, ha ma még nem állított meg a böngésző. */
+/**
+ * A mai megakadások sora a lábban — vagy üres, ha ma még nem állított meg a
+ * böngésző. A CSÚCS-ÓRÁBAN a láb azt is mondja, hogy most van: a tükör a
+ * pillanaté, ítélet nélkül.
+ */
 function hitsLine(st: Status): string {
   const n = st.browserHitsToday ?? 0;
-  return n > 0 ? ` Ma ${n} megakadás a böngészőben.` : '';
+  return (n > 0 ? ` Ma ${n} megakadás a böngészőben.` : '') + peakNowText(st.browserHitsPeak ?? null, st.now);
 }
 
 /** A leállítás útja a lábban: az appban, próbatétellel — megbízottal az ő jelmondatával a végén. */

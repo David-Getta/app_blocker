@@ -388,13 +388,17 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
             // tíz perccel a csúcs-óra előtt — amit az értesítés mond, a lap is
             // mondja. Nem tilt, nem ítél; a döntés az emberé.
             val nudge = FilterHitLogic.nudgeStep(FilterHitLogic.hitsToday(state.filterHits, now))
-            val peakSoon = FilterHitLogic.peakHour(state.filterHitHours, now)
-                ?.takeIf { FilterHitLogic.peakWarnKey(it, now) != null }
-            if (nudge > 0 || peakSoon != null) {
+            val peak = FilterHitLogic.peakHour(state.filterHitHours, now)
+            val peakSoon = peak?.takeIf { FilterHitLogic.peakWarnKey(it, now) != null }
+            // A CSÚCS-ÓRÁBAN a kártya a tükröt mondja: most jár a kéz magától — a
+            // gombbal, mint az előjelzésnél. A csúcs-órán kívül nem szól róla.
+            val peakNow = peak?.takeIf { FilterHitLogic.isPeakNow(it, now) }
+            if (nudge > 0 || peakSoon != null || peakNow != null) {
                 Card {
                     Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         if (nudge > 0) Text(FilterHitLogic.nudgeText(nudge), style = MaterialTheme.typography.bodySmall)
                         peakSoon?.let { Text(FilterHitLogic.peakWarnText(it), style = MaterialTheme.typography.bodySmall) }
+                        peakNow?.let { Text(FilterHitLogic.peakNowText(it), style = MaterialTheme.typography.bodySmall) }
                         // EGY KOPPINTÁS a mondattól a menetig: a legutóbb használt
                         // csomag a szokásos hosszával — szigorítás, ingyen. Futó menet
                         // mellett nincs gomb (egyszerre egy menet fut).

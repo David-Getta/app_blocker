@@ -6,7 +6,7 @@
 
 import { CLOSED_FRESH_MS, loadLink } from './app-link.js';
 import { describePopup } from './popup-core.js';
-import { dayKey, hitsSummary, hitsText, topHost } from './hits.js';
+import { dayKey, hitsSummary, hitsText, peakNow, peakText, topHost } from './hits.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -73,6 +73,8 @@ async function render() {
     // MELYIK oldal ma: a nap csúcs-oldala a saját könyvből — pontosan.
     const top = text === null ? null : topHost(book, [dayKey()]);
     if (top) text += ` Ma a legtöbbször: ${top.host} (${top.count}×).`;
+    // MIKOR jár a kéz magától: a hét csúcsa — és ha most van, a lap jelöli.
+    if (text !== null) text += peakText(peakNow(book, dayKey(), new Date().getHours()));
   } catch { /* tár nélkül nincs szám — a lap többi része attól még áll */ }
   hits.hidden = text === null;
   hits.textContent = text ?? '';

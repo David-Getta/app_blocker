@@ -5,7 +5,7 @@
 // nélkül. A lap ilyenkor betöltődne, csak épp nem mondaná meg, mi tiltotta le.
 // Modulként fut, hogy a megakadás-könyv magját (hits.js) ugyanabból a fájlból
 // olvassa, amiből a háttér ír — két számolás két számot adna.
-import { dayKey, hitsNudge, hitsOn, hitsOnHost } from './hits.js';
+import { dayKey, hitsNudge, hitsOn, hitsOnHost, peakNow, peakNowText } from './hits.js';
 
 const params = new URLSearchParams(location.search);
 const focus = params.get('focus');
@@ -244,8 +244,10 @@ function paintHits(state) {
   const n = hitsOn(state, today);
   if (n <= 0) { hitsNote.hidden = true; return; }
   const onHost = fromHost ? hitsOnHost(state, today, fromHost) : 0;
+  // A CSÚCS-ÓRÁBAN a lap azt is kimondja, hogy most van — a tükör a pillanaté.
   hitsNote.textContent = `Ma ez a ${n}. megakadás`
-    + (onHost > 1 ? ` — ebből a ${onHost}. ezen az oldalon` : '') + '.' + hitsNudge(n);
+    + (onHost > 1 ? ` — ebből a ${onHost}. ezen az oldalon` : '') + '.'
+    + peakNowText(peakNow(state, today, new Date().getHours())) + hitsNudge(n);
   hitsNote.hidden = false;
 }
 

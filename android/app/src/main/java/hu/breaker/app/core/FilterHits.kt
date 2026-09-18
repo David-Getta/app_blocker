@@ -329,4 +329,11 @@ object FilterHitLogic {
     /** Az előjelzés mondata. */
     fun peakWarnText(peak: Pair<Int, Int>): String =
         "Mindjárt ${peak.first} óra — a héten ilyenkor akadt meg a kéz a legtöbbször (${peak.second}×). Egy munkamenet most segítene — te döntesz."
+
+    /** MOST a csúcs-óra van-e: a hét csúcsa és a helyi óra egybeesik. */
+    fun isPeakNow(peak: Pair<Int, Int>?, now: Long): Boolean = peak != null && hourOf(now) == peak.first
+
+    /** A tükör a kísértés pillanatában: a kezdőlap kártyája a csúcs-órában. */
+    fun peakNowText(peak: Pair<Int, Int>): String =
+        "Most a hét csúcs-órája van (${hourLabel(peak.first)}, ${peak.second} megakadás a héten) — ilyenkor jár a kéz magától."
 }

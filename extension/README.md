@@ -185,7 +185,8 @@ valamit, amit a felhasználó nem tiltott le.
     elmúlt 7 napban 12.” Az appnak is átmegy (`POST /hits`, a kóddal, egy
     állandó forrás-azonosítóval), ahol a heti mondat és a statisztika sora
     mondja; a fiókba nem megy. A tiltó lap is mondja, a kísértés
-    pillanatában: „Ma ez a 7. megakadás — ebből a 3. ezen az oldalon.” (a
+    pillanatában: „Ma ez a 7. megakadás — ebből a 3. ezen az oldalon.”, a
+    csúcs-órában azt is, hogy most van; a felugró lap a hét csúcsát (a
     hosztonkénti könyv csak itt marad; a hídra a nap öt leggyakoribb hosztja
     megy, a gépen belül — melyik oldal akaszt meg a legtöbbször). Óránként is: a
     beállítás-lap a hét csúcs-óráját mondja („A hét csúcsa: 21–22 óra”) és

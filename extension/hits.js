@@ -127,6 +127,28 @@ export function hourLabel(hour) {
 }
 
 /**
+ * A CSÚCS-ÓRA a kísértés pillanatában: a hét csúcsa, és hogy MOST ez az óra-e
+ * ({ hour, count, now }) — vagy null, ha még nem volt. A tükör a pillanaté: a
+ * tiltó lap csak a csúcs-órában mondja, a felugró lap a hetet, jelöléssel.
+ */
+export function peakNow(state, today, hour) {
+  const peak = peakHour(state, lastDays(today, 7));
+  return peak ? { hour: peak.hour, count: peak.count, now: peak.hour === hour } : null;
+}
+
+/** A felugró lap sora a hét csúcsáról — üres, ha nem volt. */
+export function peakText(peak) {
+  if (!peak) return '';
+  return ` A hét csúcsa: ${hourLabel(peak.hour)} (${peak.count} megakadás)${peak.now ? ' — most' : ''}.`;
+}
+
+/** A tiltó lap mondata: csak a csúcs-órában — ilyenkor jár a kéz magától. Különben üres. */
+export function peakNowText(peak) {
+  if (!peak || !peak.now) return '';
+  return ` Most a hét csúcs-órája van (${hourLabel(peak.hour)}, ${peak.count} megakadás a héten) — ilyenkor jár a kéz magától.`;
+}
+
+/**
  * Takarítás: a megtartási időn túli és a jövőbeli napok kiesnek (a jövőbeli
  * nap nem megakadás, hanem elállított óra). A napkulcsok szövegként
  * rendezhetők, mert az alak fix hosszú.

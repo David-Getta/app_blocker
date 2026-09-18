@@ -39,6 +39,9 @@ interface Hits {
   hitsByHour: (state: unknown, days: string[]) => number[];
   peakHour: (state: unknown, days: string[]) => { hour: number; count: number } | null;
   hourLabel: (hour: number) => string;
+  peakNow: (state: unknown, today: string, hour: number) => { hour: number; count: number; now: boolean } | null;
+  peakText: (peak: unknown) => string;
+  peakNowText: (peak: unknown) => string;
   hitsNudge: (today: number) => string;
   NUDGE_AT: number;
   hitsWeekByReason: (state: unknown, today: string) => { reason: string; count: number }[];
@@ -51,7 +54,7 @@ interface Hits {
 function load(): Hits {
   const src = fs.readFileSync(path.join(extensionDir(), 'hits.js'), 'utf8').replace(/^export /gm, '');
   // eslint-disable-next-line no-new-func
-  return new Function(`${src}\nreturn { RETENTION_DAYS, REPORT_DAYS, MAX_HOSTS_PER_DAY, MAX_KEYWORDS_PER_DAY, keywordsWeek, keywordsText, idleKeywords, idleKeywordsText, dayKey, lastDays, recordHit, sweepHits, hitsOn, hitsOnHost, hitsSummary, hitsReport, hitsText, hitsTrendText, hitsRows, hitsByHour, peakHour, hourLabel, hitsNudge, NUDGE_AT, hitsWeekByReason, hitsReasonText, REASON_NAMES, TOP_HOSTS_PER_DAY, topHost };`)() as Hits;
+  return new Function(`${src}\nreturn { RETENTION_DAYS, REPORT_DAYS, MAX_HOSTS_PER_DAY, MAX_KEYWORDS_PER_DAY, keywordsWeek, keywordsText, idleKeywords, idleKeywordsText, dayKey, lastDays, recordHit, sweepHits, hitsOn, hitsOnHost, hitsSummary, hitsReport, hitsText, hitsTrendText, hitsRows, hitsByHour, peakHour, hourLabel, peakNow, peakText, peakNowText, hitsNudge, NUDGE_AT, hitsWeekByReason, hitsReasonText, REASON_NAMES, TOP_HOSTS_PER_DAY, topHost };`)() as Hits;
 }
 
 const TODAY = '2026-09-18';
@@ -155,6 +158,18 @@ test('óránként is: a hét csúcs-órája, holtversenynél a korábbi; a hídr
   assert.deepEqual(h.peakHour(s, week), { hour: 9, count: 2 }, 'holtverseny: a korábbi óra');
   assert.equal(h.peakHour({}, week), null);
   assert.equal(h.hourLabel(23), '23–0 óra');
+  // A CSÚCS-ÓRA a kísértés pillanatában: a felugró lap a hetet mondja (jelöléssel,
+  // ha most van), a tiltó lap csak a csúcs-órában szól — a tükör a pillanaté.
+  assert.deepEqual(h.peakNow(s, TODAY, 9), { hour: 9, count: 2, now: true }, 'a csúcs-órában: most');
+  assert.equal(h.peakNow(s, TODAY, 10)?.now, false);
+  assert.equal(h.peakNow({}, TODAY, 9), null);
+  assert.equal(h.peakText(h.peakNow(s, TODAY, 9)), ' A hét csúcsa: 9–10 óra (2 megakadás) — most.');
+  assert.equal(h.peakText(h.peakNow(s, TODAY, 10)), ' A hét csúcsa: 9–10 óra (2 megakadás).');
+  assert.equal(h.peakText(null), '');
+  assert.equal(h.peakNowText(h.peakNow(s, TODAY, 9)),
+    ' Most a hét csúcs-órája van (9–10 óra, 2 megakadás a héten) — ilyenkor jár a kéz magától.');
+  assert.equal(h.peakNowText(h.peakNow(s, TODAY, 10)), '', 'a csúcs-órán kívül a tiltó lap nem mondja');
+  assert.equal(h.peakNowText(null), '');
   const report = h.hitsReport(s, TODAY);
   const todayRow = report.find((r) => r.day === TODAY) as { byHour?: number[] };
   assert.equal(todayRow.byHour?.[21], 2, 'a rekeszek a hídra mennek');

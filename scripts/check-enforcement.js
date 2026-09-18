@@ -522,6 +522,33 @@ const WIRES = [
     needle: 'FilterHitLogic.nudgeText(step)',
     lost: 'az iPhone kezdőlapja nem javasolna lépést a sokadik megakadásnál',
   },
+  // A CSÚCS-ÓRA a kísértés helyén: a mag tudja, most van-e; ha az öt hely
+  // bekötése kiesne, a csúcs csak a statisztikán állna, a pillanatban nem.
+  {
+    file: 'extension/blocked.js',
+    needle: 'peakNowText(peakNow(state, today, new Date().getHours()))',
+    lost: 'a tiltó lap nem mondaná a csúcs-órában, hogy most van',
+  },
+  {
+    file: 'extension/popup.js',
+    needle: 'peakText(peakNow(book, dayKey(), new Date().getHours()))',
+    lost: 'a felugró lap nem mondaná a hét csúcsát',
+  },
+  {
+    file: 'desktop/src/renderer/overlay.ts',
+    needle: 'peakNowText(st.browserHitsPeak ?? null, st.now)',
+    lost: 'a réteg lába nem mondaná a csúcs-órában, hogy most van',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/AppUi.kt',
+    needle: 'peakNow?.let { Text(FilterHitLogic.peakNowText(it)',
+    lost: 'az Android kezdőlap kártyája nem mondaná a csúcs-órát',
+  },
+  {
+    file: 'ios/App/ContentView.swift',
+    needle: 'Text(FilterHitLogic.peakNowText(inPeak))',
+    lost: 'az iPhone kezdőlap kártyája nem mondaná a csúcs-órát',
+  },
   // AZ ÓRÁK SÁVJA: a rekeszek összeadva megvannak a magban; ha a státusz nem
   // vinné, vagy a statisztika nem rajzolná, a csúcs egy szám maradna alak nélkül.
   {

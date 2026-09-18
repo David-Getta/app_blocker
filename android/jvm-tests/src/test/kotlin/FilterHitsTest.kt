@@ -150,6 +150,15 @@ class FilterHitsTest {
             "Mindjárt 21 óra — a héten ilyenkor akadt meg a kéz a legtöbbször (7×). Egy munkamenet most segítene — te döntesz.",
             FilterHitLogic.peakWarnText(peak),
         )
+        assertEquals(true, FilterHitLogic.isPeakNow(peak, at2(21, 0)), "az óra elején már most van")
+        assertEquals(true, FilterHitLogic.isPeakNow(peak, at2(21, 59)))
+        assertEquals(false, FilterHitLogic.isPeakNow(peak, at2(20, 59)), "előtte még nem")
+        assertEquals(false, FilterHitLogic.isPeakNow(peak, at2(22, 0)), "utána már nem")
+        assertEquals(false, FilterHitLogic.isPeakNow(null, at2(21, 0)))
+        assertEquals(
+            "Most a hét csúcs-órája van (21–22 óra, 7 megakadás a héten) — ilyenkor jár a kéz magától.",
+            FilterHitLogic.peakNowText(peak),
+        )
     }
 
     @Test fun `okonkent - az ok az iteletbol, a het okonkent, a sor es a mentes`() {

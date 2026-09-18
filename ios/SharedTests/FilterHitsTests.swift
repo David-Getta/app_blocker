@@ -129,6 +129,13 @@ final class FilterHitsTests: XCTestCase {
         XCTAssertNil(FilterHitLogic.peakWarnKey((hour: 0, count: 3), now: at2(0, 5, 19)))
         XCTAssertEqual(FilterHitLogic.peakWarnText(peak),
                        "Mindjárt 21 óra — a héten ilyenkor akadt meg a kéz a legtöbbször (7×). Egy munkamenet most segítene — te döntesz.")
+        XCTAssertTrue(FilterHitLogic.isPeakNow(peak, now: at2(21, 0)), "az óra elején már most van")
+        XCTAssertTrue(FilterHitLogic.isPeakNow(peak, now: at2(21, 59)))
+        XCTAssertFalse(FilterHitLogic.isPeakNow(peak, now: at2(20, 59)), "előtte még nem")
+        XCTAssertFalse(FilterHitLogic.isPeakNow(peak, now: at2(22, 0)), "utána már nem")
+        XCTAssertFalse(FilterHitLogic.isPeakNow(nil, now: at2(21, 0)))
+        XCTAssertEqual(FilterHitLogic.peakNowText(peak),
+                       "Most a hét csúcs-órája van (21–22 óra, 7 megakadás a héten) — ilyenkor jár a kéz magától.")
     }
 
     func testPerReasonTheReasonFromTheVerdictTheWeekByReasonTheLineAndTheSave() throws {

@@ -8,7 +8,8 @@ import {
   PEAK_WARN_LEAD_MS, PEAK_WARN_MIN_COUNT, browserHits7d, browserHitsBetween, browserHitsByHour, browserHitsByKeyword, browserHitsByReason,
   browserHitsPeakHour,
   browserHitsPrev7d, browserHitsSeries, browserHitsToday, browserHitsTopSite, cleanBrowserHitDays, cleanBrowserHits, hitDayKey,
-  hitNudgeStep, hitNudgeText, hitsKeywordLine, hitsReasonLine, hitsTrendText, hostSite, hourLabel, peakWarnKey, peakWarnText,
+  hitNudgeStep, hitNudgeText, hitsKeywordLine, hitsReasonLine, hitsTrendText, hostSite, hourLabel, isPeakNow, peakNowText,
+  peakWarnKey, peakWarnText,
   putBrowserHits,
 } from '../src/shared/browser-hits';
 import { digestText } from '../src/shared/digest';
@@ -149,6 +150,15 @@ test('előjelzés a csúcs-óra előtt: tíz perces ablak, naponta egy kulcs, a 
   assert.equal(peakWarnKey({ hour: 0, count: 3 }, at2(0, 5, 19)), null);
   assert.equal(peakWarnText(peak),
     'Mindjárt 21 óra — a héten ilyenkor akadt meg a kéz a legtöbbször (7×). Egy munkamenet most segítene — te döntesz.');
+  assert.equal(isPeakNow(peak, at2(21, 0)), true, 'az óra elején már most van');
+  assert.equal(isPeakNow(peak, at2(21, 59)), true);
+  assert.equal(isPeakNow(peak, at2(20, 59)), false, 'előtte még nem');
+  assert.equal(isPeakNow(peak, at2(22, 0)), false, 'utána már nem');
+  assert.equal(isPeakNow(null, at2(21, 0)), false);
+  assert.equal(peakNowText(peak, at2(21, 30)),
+    ' Most a hét csúcs-órája van (21–22 óra, 7 megakadás a héten) — ilyenkor jár a kéz magától.');
+  assert.equal(peakNowText(peak, at2(20, 30)), '', 'a csúcs-órán kívül a láb nem mondja');
+  assert.equal(peakNowText(null, at2(21, 30)), '');
 });
 
 test('okonként a héten: minden forrásból, a legnagyobb elöl, a sor a bővítmény neveivel', () => {
