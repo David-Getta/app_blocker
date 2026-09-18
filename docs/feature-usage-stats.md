@@ -550,6 +550,15 @@ legalább három menet). A böngésző lapjai is: a híd a javaslattal leadja
 menet gombja mellett mondja („Ma a menet-napod van — ilyenkor szoktál leülni.”),
 frissen, összekötve.
 
+**A menet-óra:** mikor ülsz le a legtöbbször — a négy hét menetei a nap
+huszonnégy órájára osztva, az indulás órája szerint („A négy hét menet-órája:
+9–10 óra (6 menet).”), alatta az órák sávja a menet-órával kiemelve; a
+megakadások csúcs-órájának tükre (négy hétből, mert egy hét kilenc menete
+kevés az órához; holtversenynél a korábbi óra). A gépi statisztika
+munkamenet-blokkjában (`focusByHour`/`peakFocusHour` a segédnél, `focusHours`
+a statisztika-válaszban), Androidon és iPhone-on (`Focus.byHour`). Menet
+nélkül nincs.
+
 **A mért idő napja:** a tükör harmadik fele — nem az, mikor csúszik a kéz,
 és nem az, mikor ülsz le, hanem az, melyik napon megy el a legtöbb idő: négy
 hétből, a hét napjaira osztva, négy-négy nap átlagával („A négy hét legnagyobb

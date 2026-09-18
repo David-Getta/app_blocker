@@ -406,4 +406,30 @@ class FocusTest {
     fun `a menet-nap a dontes napjan - a kartya mondata`() {
         assertEquals("Ma a négy hét menet-napja van (kedd, 6 menet) — ilyenkor szoktál leülni.", Focus.dayNowText(2 to 6))
     }
+
+    @Test
+    fun `a menet-ora - negy hetbol, az indulas oraja szerint, holtversenynel a korabbi ora`() {
+        val day = 86_400_000L
+        val hour = 3_600_000L
+        val now = localTime(20, 0)
+        val log = listOf(
+            entry(now - 3 * hour, now - 2 * hour),            // ma, 17-kor indult
+            entry(now - 5 * hour, now - 4 * hour),            // ma, 15-kor
+            entry(now - 7 * day - hour, now - 7 * day),       // egy hete, 19-kor
+            entry(now - day - hour, now - day),               // tegnap, 19-kor
+            entry(now - 28 * day - hour, now - 28 * day),     // huszonnyolc napja: kiesik
+            entry(now + hour, now + 2 * hour),                // a jövő: kiesik
+        )
+        val by = Focus.byHour(log, now)
+        assertEquals(24, by.size)
+        assertEquals(2, by[19], "tizenkilenckor kettő")
+        assertEquals(1, by[17])
+        assertEquals(1, by[15])
+        assertEquals(4, by.sum(), "a huszonnyolc napos és a jövő nem számít")
+        assertEquals(19 to 2, Focus.peakHour(by))
+        assertEquals(1 to 2, Focus.peakHour(listOf(0, 2, 0, 2)), "holtverseny: a korábbi óra")
+        assertEquals(null, Focus.peakHour(List(24) { 0 }))
+        assertEquals("A négy hét menet-órája: 9–10 óra (6 menet).", Focus.hourText(9 to 6))
+        assertEquals(List(24) { 0 }, Focus.byHour(emptyList(), now))
+    }
 }

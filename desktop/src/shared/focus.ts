@@ -24,7 +24,7 @@
 import { normalizeDomain } from './blocklist.js';
 import { isLoosening, isValidBand, type Band, type Weekday } from './schedule.js';
 import { dayKey, dayKeysBack } from './usage.js';
-import { isPeakDayNow, PEAK_WEEKDAY_DAYS, WEEKDAY_NAMES } from './browser-hits.js';
+import { hourLabel, isPeakDayNow, PEAK_WEEKDAY_DAYS, WEEKDAY_NAMES } from './browser-hits.js';
 
 /** Egy csomagban ennyi engedélyezett tétel lehet. */
 export const MAX_ALLOW_ENTRIES = 40;
@@ -429,6 +429,39 @@ export function focusByWeekday(log: FocusLogEntry[] | undefined, now: number, co
 /** „A négy hét menet-napja: kedd (6 menet).” — melyik napon ülsz le a legtöbbször. */
 export function focusWeekdayText(peak: { day: number; count: number }): string {
   return `A négy hét menet-napja: ${WEEKDAY_NAMES[peak.day] ?? '?'} (${peak.count} menet).`;
+}
+
+/**
+ * A MENET-ÓRA: az utolsó 28 nap menetei a nap huszonnégy órájára osztva, az
+ * INDULÁS órája szerint — a megakadások csúcs-órájának tükre: nem az, mikor
+ * jár a kéz magától, hanem az, mikor ülsz le. Négy hétből, mert egy hét
+ * kilenc menete kevés az órához; a menet a végének napja szerint tartozik a
+ * mintába, mint a napi rajzon. A Kotlin- és Swift-tükör ugyanezt (`Focus.byHour`).
+ */
+export function focusByHour(log: FocusLogEntry[] | undefined, now: number, count = PEAK_WEEKDAY_DAYS): number[] {
+  const by = new Array<number>(24).fill(0);
+  const days = new Set(dayKeysBack(now, count));
+  for (const e of log ?? []) {
+    if (e.endedAt > now) continue;
+    if (!days.has(dayKey(e.endedAt))) continue;
+    by[new Date(e.startedAt).getHours()] += 1;
+  }
+  return by;
+}
+
+/** A menet-óra: (óra, szám) — vagy null. Holtversenynél a korábbi óra. */
+export function peakFocusHour(byHour: number[]): { hour: number; count: number } | null {
+  let best: { hour: number; count: number } | null = null;
+  for (let hour = 0; hour < byHour.length; hour++) {
+    const count = byHour[hour] ?? 0;
+    if (count > 0 && (best === null || count > best.count)) best = { hour, count };
+  }
+  return best;
+}
+
+/** „A négy hét menet-órája: 9–10 óra (6 menet).” — mikor ülsz le a legtöbbször. */
+export function focusHourText(peak: { hour: number; count: number }): string {
+  return `A négy hét menet-órája: ${hourLabel(peak.hour)} (${peak.count} menet).`;
 }
 
 /**

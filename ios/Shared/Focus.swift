@@ -499,6 +499,34 @@ public enum Focus {
         return "A négy hét menet-napja: \(name) (\(peak.count) menet)."
     }
 
+    /// A MENET-ÓRA: az utolsó 28 nap menetei a nap huszonnégy órájára osztva, az
+    /// INDULÁS órája szerint — a megakadások csúcs-órájának tükre: nem az, mikor
+    /// jár a kéz magától, hanem az, mikor ülsz le. Négy hétből; a menet a
+    /// végének napja szerint tartozik a mintába. A gépi `focusByHour` tükre.
+    public static func byHour(_ log: [LogEntry], now: Double, count: Int = FilterHitLogic.peakWeekdayDays) -> [Int] {
+        var by = [Int](repeating: 0, count: 24)
+        let days = Set(UsageStats.dayKeysBack(Date(timeIntervalSince1970: now / 1000), count))
+        for e in log where e.endedAt <= now {
+            guard days.contains(UsageStats.dayKey(Date(timeIntervalSince1970: e.endedAt / 1000))) else { continue }
+            by[Calendar.current.component(.hour, from: Date(timeIntervalSince1970: e.startedAt / 1000))] += 1
+        }
+        return by
+    }
+
+    /// A menet-óra: (óra, szám) — vagy nil. Holtversenynél a korábbi óra.
+    public static func peakHour(_ byHour: [Int]) -> (hour: Int, count: Int)? {
+        var best: (hour: Int, count: Int)?
+        for (hour, count) in byHour.enumerated() where count > 0 {
+            if best == nil || count > best!.count { best = (hour: hour, count: count) }
+        }
+        return best
+    }
+
+    /// „A négy hét menet-órája: 9–10 óra (6 menet).” — mikor ülsz le a legtöbbször.
+    public static func hourText(_ peak: (hour: Int, count: Int)) -> String {
+        "A négy hét menet-órája: \(FilterHitLogic.hourLabel(peak.hour)) (\(peak.count) menet)."
+    }
+
     /// A tükör a döntés napján: a kezdőlap kártyája a menet-napon (a „ma van” szabálya a csúcs-napé: FilterHitLogic.isPeakDayNow).
     public static func dayNowText(_ peak: (day: Int, count: Int)) -> String {
         let name = peak.day >= 0 && peak.day < FilterHitLogic.weekdayNames.count ? FilterHitLogic.weekdayNames[peak.day] : "?"

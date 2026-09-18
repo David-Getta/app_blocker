@@ -1284,6 +1284,27 @@ const WIRES = [
     needle: 'usageWeekday = FilterHitLogic.peakWeekday(UsageLogic.byWeekday(st.usage, now)),',
     lost: 'az Android heti mondat nem mondaná a mért idő napját',
   },
+  // A MENET-ÓRA: mikor ülsz le a legtöbbször — a csúcs-óra tükre, mindhárom statisztikán.
+  {
+    file: 'desktop/src/helper/server.ts',
+    needle: 'focusHours: focusByHour(state.focusLog, now),',
+    lost: 'a segéd nem adná le a menet-órát, a gépi statisztika nem mondaná',
+  },
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: "renderHourStrip($('focusHourStrip'), statsData?.focusHours ?? [], fh, (n) => `${n} menet`);",
+    lost: 'a gépi statisztika nem mondaná és nem rajzolná a menet-órát',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/StatsScreen.kt',
+    needle: 'HourStrip(focusHours, peakHour = hour, peakCount = count)',
+    lost: 'az Android statisztika nem mondaná és nem rajzolná a menet-órát',
+  },
+  {
+    file: 'ios/App/StatsView.swift',
+    needle: 'HourStrip(hours: focusByHour, peakHour: fh.hour, peakCount: fh.count)',
+    lost: 'az iPhone statisztika nem mondaná és nem rajzolná a menet-órát',
+  },
   // AZ ABLAK SZERINT INDULT menet a rétegben és az Android értesítésén is kimondva.
   {
     file: 'desktop/src/renderer/overlay.ts',

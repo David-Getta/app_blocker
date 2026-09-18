@@ -171,4 +171,30 @@ final class FocusTests: XCTestCase {
     func testTheSessionDayOnTheDayOfDecisionIsTheCardSentence() {
         XCTAssertEqual(Focus.dayNowText((day: 2, count: 6)), "Ma a négy hét menet-napja van (kedd, 6 menet) — ilyenkor szoktál leülni.")
     }
+
+    func testTheSessionHourFromFourWeeksByStartHourTiesGoToTheEarlierHour() {
+        let day = 86_400_000.0
+        let hour = 3_600_000.0
+        let now = localTime(20, 0)
+        let log = [
+            entry(now - 3 * hour, now - 2 * hour),            // ma, 17-kor indult
+            entry(now - 5 * hour, now - 4 * hour),            // ma, 15-kor
+            entry(now - 7 * day - hour, now - 7 * day),       // egy hete, 19-kor
+            entry(now - day - hour, now - day),               // tegnap, 19-kor
+            entry(now - 28 * day - hour, now - 28 * day),     // huszonnyolc napja: kiesik
+            entry(now + hour, now + 2 * hour),                // a jövő: kiesik
+        ]
+        let by = Focus.byHour(log, now: now)
+        XCTAssertEqual(by.count, 24)
+        XCTAssertEqual(by[19], 2, "tizenkilenckor kettő")
+        XCTAssertEqual(by[17], 1)
+        XCTAssertEqual(by[15], 1)
+        XCTAssertEqual(by.reduce(0, +), 4, "a huszonnyolc napos és a jövő nem számít")
+        XCTAssertEqual(Focus.peakHour(by)?.hour, 19)
+        XCTAssertEqual(Focus.peakHour(by)?.count, 2)
+        XCTAssertEqual(Focus.peakHour([0, 2, 0, 2])?.hour, 1, "holtverseny: a korábbi óra")
+        XCTAssertNil(Focus.peakHour([Int](repeating: 0, count: 24)))
+        XCTAssertEqual(Focus.hourText((hour: 9, count: 6)), "A négy hét menet-órája: 9–10 óra (6 menet).")
+        XCTAssertEqual(Focus.byHour([], now: now), [Int](repeating: 0, count: 24))
+    }
 }

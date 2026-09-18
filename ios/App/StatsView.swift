@@ -135,6 +135,13 @@ struct StatsView: View {
                     Text(Focus.weekdayText(fwd)).font(.footnote).foregroundStyle(.secondary)
                     WeekdayStrip(days: focusByDay, peakDay: fwd.day, peakCount: fwd.count)
                 }
+                // A MENET-ÓRA: mikor ülsz le a legtöbbször — négy hétből, az indulás órája
+                // szerint; a csúcs-óra tükre, az órák sávjával. Menet nélkül nincs.
+                let focusByHour = Focus.byHour(store.state.focusLog ?? [], now: now)
+                if let fh = Focus.peakHour(focusByHour) {
+                    Text(Focus.hourText(fh)).font(.footnote).foregroundStyle(.secondary)
+                    HourStrip(hours: focusByHour, peakHour: fh.hour, peakCount: fh.count)
+                }
                 // A MEGAKADÁSOK napról napra — a tunnel könyve: ugyanaz a rajz,
                 // darabban. Üresen nincs.
                 let hitDays = FilterHitLogic.daySeries(store.state.filterHits ?? [:], now: now, count: 7)

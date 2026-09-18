@@ -38,7 +38,7 @@ import { limitFullLine, MAX_LIMIT_MINUTES } from '../shared/limits.js';
 import {
   formatRemaining, isRunning as focusIsRunning, isWindowRun, MAX_ALLOW_ENTRIES, MAX_PACK_NAME,
   MAX_SESSION_MINUTES, nextOccurrence, SESSION_CHOICES_MIN, windowRunStarted, type FocusPack, type FocusRun, peakWindowBand,
-  packCoveringHour, focusWeekdayText, focusDayNowText,
+  packCoveringHour, focusWeekdayText, focusDayNowText, focusHourText, peakFocusHour,
 } from '../shared/focus.js';
 import { CATEGORY_PACKS, type CategoryPack } from '../shared/blocklist.js';
 import { windowKey, windowStartingSoon, type LockdownWindow as LockdownWindowRow } from '../shared/lockdown.js';
@@ -4252,7 +4252,11 @@ function renderHitsMonth(series: { day: string; total: number }[]): void {
  * címe a szám. Csúcs nélkül (csupa nulla) a sáv elrejtve: üres rajz nem mond
  * semmit.
  */
-function renderHourStrip(strip: HTMLElement, hours: number[], peak: { hour: number; count: number } | null): void {
+function renderHourStrip(
+  strip: HTMLElement, hours: number[], peak: { hour: number; count: number } | null,
+  // A rekesz felirata: megakadás vagy menet.
+  label: (n: number) => string = (n) => `${n} megakadás`,
+): void {
   strip.textContent = '';
   const show = peak !== null && peak.count > 0 && hours.length === 24;
   strip.classList.toggle('hidden', !show);
@@ -4261,7 +4265,7 @@ function renderHourStrip(strip: HTMLElement, hours: number[], peak: { hour: numb
     const bar = document.createElement('span');
     bar.className = hour === peak.hour ? 'hour-bar peak' : 'hour-bar';
     bar.style.height = `${Math.min(28, Math.max(2, Math.round((n / peak.count) * 28)))}px`;
-    bar.title = `${hourLabel(hour)}: ${n} megakadás`;
+    bar.title = `${hourLabel(hour)}: ${label(n)}`;
     strip.appendChild(bar);
   });
 }
@@ -4473,6 +4477,13 @@ function renderFocusStats(): void {
   $('focusWeekdayNote').textContent = fwd ? focusWeekdayText(fwd) : '';
   renderWeekdayStrip($('focusWeekdayStrip'), statsData?.focusWeekdays ?? [], fwd, (n) => `${n} menet`);
   $('focusWeekdayAxis').classList.toggle('hidden', $('focusWeekdayStrip').classList.contains('hidden'));
+  // A MENET-ÓRA: mikor ülsz le a legtöbbször — négy hétből, az indulás órája
+  // szerint; a csúcs-óra tükre, az órák sávjával. Menet nélkül nincs.
+  const fh = peakFocusHour(statsData?.focusHours ?? []);
+  $('focusHourNote').classList.toggle('hidden', fh === null);
+  $('focusHourNote').textContent = fh ? focusHourText(fh) : '';
+  renderHourStrip($('focusHourStrip'), statsData?.focusHours ?? [], fh, (n) => `${n} menet`);
+  $('focusHourAxis').classList.toggle('hidden', $('focusHourStrip').classList.contains('hidden'));
 
   const parts: string[] = [];
   if (week.topPack) parts.push(`A hét leggyakoribb csomagja: ${week.topPack}.`);

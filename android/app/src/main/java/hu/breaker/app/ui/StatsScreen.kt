@@ -66,6 +66,8 @@ fun StatsSection(
     focusDays: List<Pair<String, Double>> = emptyList(),
     /** a menet-nap sávja: a négy hét menetei a hét hét napjára osztva (0 = vasárnap) — melyik napon ülsz le a legtöbbször */
     focusWeekdays: List<Int> = emptyList(),
+    /** a menet-óra sávja: a négy hét menetei a nap 24 órájára osztva, az indulás órája szerint — mikor ülsz le a legtöbbször */
+    focusHours: List<Int> = emptyList(),
     /** az elmúlt 7 nap megakadásai naponként (a szűrő könyve), a legrégebbitől */
     filterHitDays: List<Pair<String, Double>> = emptyList(),
     /** az elmúlt 30 nap megakadásai naponként — a hónap alakja; csak ha a hét előtt is volt */
@@ -160,7 +162,7 @@ fun StatsSection(
         // írjuk, engedély nélkül is. Ha a kapu alatt lenne, egy mérés nélküli
         // telefonon az app azt mondaná, hogy nincs mit mutatni — pedig pontosan
         // tudja, hányszor ültél le dolgozni.
-        FocusStatsBlock(focusToday, focusWeek, focusDays, focusPrevWeek, focusWeekdays)
+        FocusStatsBlock(focusToday, focusWeek, focusDays, focusPrevWeek, focusWeekdays, focusHours)
         // A MEGAKADÁSOK napról napra — a szűrő könyve: ugyanaz a rajz, mint a
         // mért időé, csak darabban. Üresen nincs.
         // A NULLA HÉT is mondat, ha volt mihez mérni: az előző hét mellett a blokk marad.
@@ -406,6 +408,7 @@ private fun FocusStatsBlock(
     focusDays: List<Pair<String, Double>> = emptyList(),
     prevWeek: Focus.FocusSummary? = null,
     focusWeekdays: List<Int> = emptyList(),
+    focusHours: List<Int> = emptyList(),
 ) {
     // Nulla menetnél nincs üres blokk — kivéve, ha az előző héten volt menet:
     // a nulla hét is mondat, ha volt mihez mérni.
@@ -457,6 +460,12 @@ private fun FocusStatsBlock(
     FilterHitLogic.peakWeekday(focusWeekdays)?.let { (day, count) ->
         Text(Focus.weekdayText(day to count), style = MaterialTheme.typography.bodySmall)
         WeekdayStrip(focusWeekdays, peakDay = day, peakCount = count)
+    }
+    // A MENET-ÓRA: mikor ülsz le a legtöbbször — négy hétből, az indulás órája
+    // szerint; a csúcs-óra tükre, az órák sávjával. Menet nélkül nincs.
+    Focus.peakHour(focusHours)?.let { (hour, count) ->
+        Text(Focus.hourText(hour to count), style = MaterialTheme.typography.bodySmall)
+        HourStrip(focusHours, peakHour = hour, peakCount = count)
     }
 }
 

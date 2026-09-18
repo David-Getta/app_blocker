@@ -627,6 +627,37 @@ object Focus {
     fun weekdayText(peak: Pair<Int, Int>): String =
         "A négy hét menet-napja: ${FilterHitLogic.WEEKDAY_NAMES.getOrElse(peak.first) { "?" }} (${peak.second} menet)."
 
+    /**
+     * A MENET-ÓRA: az utolsó 28 nap menetei a nap huszonnégy órájára osztva, az
+     * INDULÁS órája szerint — a megakadások csúcs-órájának tükre: nem az, mikor
+     * jár a kéz magától, hanem az, mikor ülsz le. Négy hétből; a menet a
+     * végének napja szerint tartozik a mintába. A gépi `focusByHour` tükre.
+     */
+    fun byHour(log: List<FocusLogEntry>, now: Long, count: Int = FilterHitLogic.PEAK_WEEKDAY_DAYS): List<Int> {
+        val by = IntArray(24)
+        val days = UsageLogic.dayKeysBack(now, count).toSet()
+        for (e in log) {
+            if (e.endedAt > now) continue
+            if (UsageLogic.dayKey(e.endedAt) !in days) continue
+            by[FilterHitLogic.hourOf(e.startedAt)] += 1
+        }
+        return by.toList()
+    }
+
+    /** A menet-óra: (óra, szám) — vagy null. Holtversenynél a korábbi óra. */
+    fun peakHour(byHour: List<Int>): Pair<Int, Int>? {
+        var best: Pair<Int, Int>? = null
+        for ((hour, count) in byHour.withIndex()) {
+            val b = best
+            if (count > 0 && (b == null || count > b.second)) best = hour to count
+        }
+        return best
+    }
+
+    /** „A négy hét menet-órája: 9–10 óra (6 menet).” — mikor ülsz le a legtöbbször. */
+    fun hourText(peak: Pair<Int, Int>): String =
+        "A négy hét menet-órája: ${FilterHitLogic.hourLabel(peak.first)} (${peak.second} menet)."
+
     /** A tükör a döntés napján: a kezdőlap kártyája a menet-napon (a „ma van” szabálya a csúcs-napé: FilterHitLogic.isPeakDayNow). */
     fun dayNowText(peak: Pair<Int, Int>): String =
         "Ma a négy hét menet-napja van (${FilterHitLogic.WEEKDAY_NAMES.getOrElse(peak.first) { "?" }}, ${peak.second} menet) — ilyenkor szoktál leülni."
