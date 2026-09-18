@@ -44,21 +44,19 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A bővítmény tükör-állandói mind az őrben.** A csúcs-nap négy
-          hete és küszöbe, a sokadik megakadás első lépcsője — a bővítmény
-          másolatait a mag-összhang őre a gép értékéhez méri, a sorozat
-          küszöbe mellé. Kód nem változott.
+          **A hét napjainak nevei is az őrben.** A mag-összhang őre a gép és
+          a bővítmény napnév-listáját is egymáshoz méri — ugyanaz a nap ne
+          viseljen két nevet. Kód nem változott.
 
-          ### Ami a v0.4.154-ben jött
+          ### Ami a v0.4.155-ben jött
 
-          **A bővítmény is a sorozat-küszöb őrében** — a felugró lap
-          küszöbe a bővítmény állandója, a gép értékéhez mérve. Bővítmény
-          0.4.36.
+          **A bővítmény tükör-állandói mind az őrben** — a csúcs-nap négy
+          hete és küszöbe, a sokadik megakadás első lépcsője a gép
+          értékéhez mérve.
 
-          #### Ami a v0.4.153-ban jött
+          #### Ami a v0.4.154-ben jött
 
-          **A sorozat küszöbe egy helyen** — a három mag egy-egy állandója,
-          a mag-összhang őrében.
+          **A bővítmény is a sorozat-küszöb őrében.** Bővítmény 0.4.36.
 
           NOTES
           fi
