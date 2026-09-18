@@ -8,6 +8,7 @@ kettővel korábbiban.
 
 | Verzió | Nap | Mi újság |
 |---|---|---|
+| v0.4.137 (még nincs kiadva) | 2026-09-18 | egy koppintás az értesítésről az ablakig |
 | v0.4.136 (még nincs kiadva) | 2026-09-18 | a README, a weboldal és az architektúra az este tükör-újdonságairól |
 | v0.4.135 (még nincs kiadva) | 2026-09-18 | amikor a csúcs-óra a menet-óra |
 | v0.4.134 (még nincs kiadva) | 2026-09-18 | a mért idő napja ott is, ahol a döntés van |
