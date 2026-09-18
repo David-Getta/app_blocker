@@ -8,6 +8,7 @@ kettővel korábbiban.
 
 | Verzió | Nap | Mi újság |
 |---|---|---|
+| v0.4.104 (még nincs kiadva) | 2026-09-18 | ablak a csúcs-órára a böngészőből is |
 | v0.4.103 (még nincs kiadva) | 2026-09-18 | ablak a csúcs-órára a telefonon is |
 | v0.4.102 | 2026-09-18 | a bővítmény is rajzolja a harminc napot |
 | v0.4.101 | 2026-09-18 | megakadások harminc napja |

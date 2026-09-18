@@ -44,26 +44,27 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
+          **Ablak a csúcs-órára a böngészőből is.** A bővítmény tiltó lapján
+          és felugró lapján a menet gombja mellett a másik: heti ablak a
+          javasolt csomagra a csúcs egy órájában, minden napra — a hídon, az
+          app bírója teszi fel. Csak felvétel: ablakos csomagra a híd nemet
+          mond, a csere az appé. A híd befelé továbbra is csak szigorít.
+          Bővítmény 0.4.24.
+
+          ### Ami a v0.4.103-ban jött
+
           **Ablak a csúcs-órára a telefonon is.** A statisztika csúcs-óra
           mondata alatt Androidon és iPhone-on is ott a gomb: heti ablak a
           legutóbbi csomagra, a csúcs egy órájában, minden napra — felvenni
-          ingyen. A telefon csak felvesz: cserélni és levenni a gépen lehet,
-          próbatétellel. Ez az első csomag-szerkesztés telefonról, ezért a
-          telefon a csomag jelét is írja a szinkronban — a gép egy ugyanabban
-          a körben tett szerkesztése nem törli le csendben.
+          ingyen. A telefon csak felvesz; a csomag jelét is írja a
+          szinkronban.
 
-          ### Ami a v0.4.102-ben jött
+          #### Ami a v0.4.102-ben jött
 
           **A bővítmény is rajzolja a harminc napot.** A beállítás-lap a
           hét sávja alá a hónapét is odateszi, ha a hét előtti napokon is
           volt megakadás — és a mondat a 30 nap számát is mondja, ha az
           több, mint a heti.
-
-          #### Ami a v0.4.101-ben jött
-
-          **Megakadások harminc napja.** A statisztika a hét alakja mellett
-          a hónapét is rajzolja — a gépen és a telefonokon —, ha a hét
-          előtti napokon is volt megakadás.
 
           NOTES
           fi
