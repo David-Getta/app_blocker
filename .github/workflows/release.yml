@@ -44,26 +44,27 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **Javaslat a felvevő kártyán (gépen).** A mérés azt is tudja, mire
-          megy el a legtöbb idő olyan oldalon, ami nincs a listán — mostantól
-          a felvevő kártya egy sorban mutatja a hét legnagyobb, nem tiltott
-          idővivőit (legalább fél óra, legfeljebb három), egy kattintással
-          tiltva. Tükör, nem ítélet: ami már a listán van, kiesik; rejtett
-          listánál a sor is elmarad. A hétfő reggeli visszatekintés is
-          megnevezi a legnagyobbat: „Nincs tiltva, de sokat vitt: …”.
+          **A hétfő reggeli visszatekintés a telefonon is szól — az app
+          nélkül is.** Androidon a szűrő szolgáltatása mondja el hétfő reggel
+          az elmúlt hét napot: mért idő, a legtöbb (és a trend), menetek,
+          feloldások, és a legnagyobb nem tiltott idővivő — ugyanaz a mondat,
+          mint a gépen, ugyanazzal a maggal. Egy hétről egyszer, saját
+          csatornán, amit külön ki lehet kapcsolni; a rejtett vagy fedőnevű
+          címet az értesítés sem mondja ki. iPhone-on nincs, és a doksi
+          kimondja, miért.
 
-          ### Ami a v0.4.39-ben jött
+          ### Ami a v0.4.40-ben jött
 
-          **Indok: miért tiltottad — egy mondat a kísértés pillanatára.**
-          Minden oldalhoz írhatsz egy saját mondatot, és az ott áll, ahol a
-          döntés születik: a soron, a feloldás és a próbatétel lapján, a
-          böngésző tiltó lapján — mindhárom platformon, a szinkronon az
-          oldallal utazik. Próbatétel nélkül írható át és vehető le.
+          **Javaslat a felvevő kártyán (gépen).** A felvevő kártya egy sorban
+          mutatja a hét legnagyobb, nem tiltott idővivőit (legalább fél óra,
+          legfeljebb három), egy kattintással tiltva. A hétfő reggeli
+          visszatekintés is megnevezi a legnagyobbat.
 
-          #### Ami a v0.4.38-ban jött
+          #### Ami a v0.4.39-ben jött
 
-          **Kategória-csomagok: egy kattintással több oldal** — Közösségi,
-          Videó és stream, Hírek, Vásárlás, mindhárom platformon.
+          **Indok: miért tiltottad** — egy saját mondat minden oldalhoz, ott,
+          ahol a döntés születik: a soron, a feloldás és a próbatétel lapján, a
+          böngésző tiltó lapján, mindhárom platformon.
 
           NOTES
           fi
