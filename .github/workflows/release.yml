@@ -44,29 +44,23 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
+          **Ablak a csúcs-órára.** A gépi statisztika csúcs-óra mondata
+          alatt egy gomb heti ablakot tesz a legutóbbi csomagra a csúcs egy
+          órájában, minden napra: a menet magától indul, amikor a kéz
+          magától indulna — a telefonokon is, mert az ablak a fiókkal
+          utazik. Felvenni ingyen; levenni próbatétel, mint minden ablakot.
+
+          ### Ami a v0.4.80-ban jött
+
           **Egy koppintás az értesítésről a menetig — a telefonokon is.**
-          Androidon a sokadik megakadás és az előjelzés értesítésén gomb
-          indítja a legutóbbi csomagot a szokásos hosszával, iPhone-on az
-          előjelzés értesítésén. Futó menet vagy csomag nélkül nincs gomb.
+          Androidon a sokadik megakadás és az előjelzés értesítésén gomb,
+          iPhone-on az előjelzésén; a gépen a kattintás indít (v0.4.79). A
+          nulla hét is mondat a statisztikán (v0.4.78).
 
-          A v0.4.78 és a v0.4.79 nem kapott saját kiadást — ami ott jött,
-          ebben van:
-
-          **Egy kattintás az értesítésről a menetig a gépen** — az értesítés
-          megmondja, mi indul, a kattintás indítja, és visszaszól.
-
-          **A nulla hét is mondat a statisztikán** — az előző hét mellett a
-          megakadás- és a munkamenet-blokk üres héten is marad, és kimondja.
-
-          ### Ami a v0.4.77-ben jött
+          #### Ami a v0.4.77-ben jött
 
           **Melyik kulcsszó dolgozik** — a statisztika kulcsszavanként
           mondja a hetet (gép, bővítmény, telefon). Bővítmény 0.4.16.
-
-          #### Ami a v0.4.76-ban jött
-
-          **Az előző hét a bővítmény lapján is** — a beállítás-lap a saját
-          könyvéből mondja, app nélkül is.
 
           NOTES
           fi
