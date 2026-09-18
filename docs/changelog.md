@@ -8,10 +8,11 @@ kettővel korábbiban.
 
 | Verzió | Nap | Mi újság |
 |---|---|---|
+| v0.4.121 (még nincs kiadva) | 2026-09-18 | a mért idő napja |
 | v0.4.120 (még nincs kiadva) | 2026-09-18 | a menet-nap a böngészőben |
 | v0.4.119 (még nincs kiadva) | 2026-09-18 | a menet-nap ott is, ahol a döntés van |
 | v0.4.118 (még nincs kiadva) | 2026-09-18 | a README és a weboldal a mai tükör-újdonságokról |
-| v0.4.117 (még nincs kiadva) | 2026-09-18 | a heti mondat a menet-napot is mondja |
+| v0.4.117 | 2026-09-18 | a heti mondat a menet-napot is mondja |
 | v0.4.116 | 2026-09-18 | a menet-nap |
 | v0.4.115 | 2026-09-18 | a hét napjainak sávja |
 | v0.4.114 | 2026-09-18 | a csúcs-nap ott is, ahol a kísértés van |
