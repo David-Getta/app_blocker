@@ -347,3 +347,29 @@ test('a törlés a mai nap nélkül is működik (ma még nem mértünk)', () =>
   const kept = clearUsage(u, true, NOW);
   assert.deepEqual(kept.days, [], 'nincs mai sor, amit meg kellene tartani');
 });
+
+// ---- javaslat: a hét legnagyobb, nem tiltott oldalai -----------------------
+
+test('a javaslat a nem tiltott, sokat vitt oldalakat mondja — a listázottakat és az egyebet nem', async () => {
+  const { suggestBlocks, OTHER_SITE_KEY, SUGGEST_MIN_SECONDS } = await import('../src/shared/usage');
+  const row = (key: string, seconds: number) => ({ key, label: key.slice(5), kind: 'site' as const, seconds });
+  const top = [
+    row('site:youtube.com', 5 * 3600),
+    row('site:m.youtube.com', 2 * 3600),
+    row(OTHER_SITE_KEY, 9 * 3600),
+    row('site:news.ycombinator.com', 3 * 3600),
+    row('site:reddit.com', 50 * 60),
+    row('site:x.com', 10 * 60),
+    { key: 'app:slack', label: 'Slack', kind: 'app' as const, seconds: 8 * 3600 },
+    row('site:twitch.tv', 40 * 60),
+    row('site:netflix.com', 35 * 60),
+  ];
+  const sites = [{ domain: 'youtube.com', hostnames: ['youtube.com', 'youtu.be'] }];
+  const got = suggestBlocks(top, sites);
+  assert.deepEqual(got.map((t) => t.key), ['site:news.ycombinator.com', 'site:reddit.com', 'site:twitch.tv'],
+    'a listázott cím és az aloldala kiesik, az app és az egyéb is, a tíz perc kevés, és három a plafon');
+  assert.equal(SUGGEST_MIN_SECONDS, 30 * 60);
+  assert.deepEqual(suggestBlocks(top, sites, 30 * 60, 10).map((t) => t.key),
+    ['site:news.ycombinator.com', 'site:reddit.com', 'site:twitch.tv', 'site:netflix.com']);
+  assert.deepEqual(suggestBlocks([], sites), []);
+});

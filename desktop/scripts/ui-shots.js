@@ -147,7 +147,7 @@ function fakeBridgeSource() {
         todaySeconds: 3480, yesterdaySeconds: 5280, last7Seconds: 26400, last30Seconds: 98400,
         topToday: [ t('site:youtube.com','youtube.com','site',1500), t('app:com.slack','Slack','app',1080),
                     t('site:reddit.com','reddit.com','site',540), t('app:com.apple.Safari','Safari','app',360) ],
-        topWeekSites: [ t('site:youtube.com','youtube.com','site',9600), t('site:reddit.com','reddit.com','site',5400),
+        topWeekSites: [ t('site:news.ycombinator.com','news.ycombinator.com','site',7300),  t('site:youtube.com','youtube.com','site',9600), t('site:reddit.com','reddit.com','site',5400),
                         t('site:news.example','news.example','site',2700), t('site:github.com','github.com','site',1800) ],
         topWeekApps: [ t('app:com.slack','Slack','app',7200), t('app:com.apple.Safari','Safari','app',4500),
                        t('app:com.microsoft.VSCode','Visual Studio Code','app',3600) ],

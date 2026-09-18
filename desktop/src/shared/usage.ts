@@ -490,3 +490,37 @@ export function combineUsage(states: UsageState[]): UsageState {
     enabled: states.some((s) => s?.enabled === true),
   };
 }
+
+// ----------------------------------------------------------------- JAVASLAT
+//
+// A mérés azt is tudja, mire megy el a legtöbb idő olyan oldalon, ami NINCS
+// tiltva. Ez nem ítélet, hanem tükör: a felvevő kártya egy sorban megmutatja
+// a hét legnagyobb, nem tiltott idővivőit — egy kattintás, és tiltva.
+
+/** Ennyi aktív idő alatt (mp, a héten) nem szólunk: fél óra még nem szokás. */
+export const SUGGEST_MIN_SECONDS = 30 * 60;
+
+/**
+ * A hét legnagyobb, NEM tiltott oldalai — a felvevő kártya javaslata.
+ *
+ * Kiesik, ami már a listán van (cím vagy hosztnév szerint), ami egy listázott
+ * cím aloldala (azt a hosztnevek úgyis rendezik), és az „egyéb” gyűjtő. A
+ * sorrend a mérésé: a legtöbb idő elöl.
+ */
+export function suggestBlocks(
+  top: TargetTotal[], sites: { domain: string; hostnames: string[] }[],
+  minSeconds = SUGGEST_MIN_SECONDS, limit = 3,
+): TargetTotal[] {
+  const out: TargetTotal[] = [];
+  for (const t of top) {
+    if (t.kind !== 'site' || t.key === OTHER_SITE_KEY || t.seconds < minSeconds) continue;
+    const d = idOf(t.key).toLowerCase();
+    if (!d) continue;
+    const listed = sites.some((s) =>
+      d === s.domain || d.endsWith(`.${s.domain}`) || s.hostnames.includes(d));
+    if (listed) continue;
+    out.push(t);
+    if (out.length >= limit) break;
+  }
+  return out;
+}

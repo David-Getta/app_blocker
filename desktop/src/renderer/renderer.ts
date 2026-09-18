@@ -10,7 +10,7 @@ import type {
 import {
   PRESET_BANDS, type Band, type Schedule, type ScheduleMode, type Weekday,
 } from '../shared/schedule.js';
-import { dayKey, formatDuration } from '../shared/usage.js';
+import { dayKey, formatDuration, idOf, suggestBlocks } from '../shared/usage.js';
 import {
   displayName, displayNameNow, isAliased, MAX_ALIAS_LENGTH, REVEAL_MS, MAX_REASON_LENGTH,
 } from '../shared/alias.js';
@@ -2878,6 +2878,24 @@ function renderAddCard(st: StatusData): void {
       packs.appendChild(chip);
     }
   }
+  // JAVASLAT: a hét legnagyobb, nem tiltott idővivői — tükör, nem ítélet. A
+  // mérésből jön, tehát csak akkor van, ha mérünk, és csak ha a statisztika
+  // már megérkezett; rejtett listánál ez is elmarad.
+  const sugg = $('suggestChips');
+  sugg.textContent = '';
+  const picks = hidden ? [] : suggestBlocks(statsData?.summary.topWeekSites ?? [], st.sites);
+  sugg.classList.toggle('hidden', picks.length === 0);
+  if (picks.length) {
+    sugg.appendChild(h('span', 'hint', 'A héten sok időd ment el ide, és nincs tiltva:'));
+    for (const t of picks) {
+      const domain = idOf(t.key);
+      const chip = h('button', 'chip', `${domain} · ${formatDuration(t.seconds)}`);
+      chip.type = 'button';
+      chip.title = 'Blokkolás egy kattintással';
+      chip.addEventListener('click', () => void addSite(domain));
+      sugg.appendChild(chip);
+    }
+  }
   $<HTMLInputElement>('addInput').placeholder = hidden ? 'a cím, amit blokkolni akarsz' : 'pl. www.youtube.com';
   $('presetToggleText').textContent = hidden
     ? 'Ismert szolgáltatásnál a társoldalak blokkolása is (a mobilos és a rövidített címek)'
@@ -3563,6 +3581,8 @@ async function refreshStats(): Promise<void> {
     // A mérés állapota a fő folyamatból jön (a szonda ott fut), a statisztika a
     // helperből — ugyanabban a körben frissül mind a kettő.
     renderStats();
+    // A felvevő kártya javaslata is a statisztikából él.
+    if (status) renderAddCard(status);
   } catch {
     // helper busy or down; keep the previous view rather than blanking it
   } finally {
