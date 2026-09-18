@@ -759,6 +759,12 @@ private struct LockdownWindowSheet: View {
 
     @Environment(\.dismiss) private var dismiss
     @State private var selected = Set<String>()
+    // SAJÁT SÁV: napok és két időpont — mint a gépen. Az előre gyártott sávok
+    // a gyakori esetek; aki 8:30-tól 16-ig akar, itt állítja be.
+    @State private var customDays = Set<Int>()
+    @State private var customStart = Calendar.current.date(from: DateComponents(hour: 9, minute: 0)) ?? Date()
+    @State private var customEnd = Calendar.current.date(from: DateComponents(hour: 17, minute: 0)) ?? Date()
+    private let dayNames = ["V", "H", "K", "Sze", "Cs", "P", "Szo"]
 
     private static let presets: [(label: String, key: String, band: ScheduleLogic.Band)] = [
         ("Munkaidő (H–P 9–17)", "workHours", .init(days: [1, 2, 3, 4, 5], startMin: 9 * 60, endMin: 17 * 60)),
@@ -784,6 +790,21 @@ private struct LockdownWindowSheet: View {
                         )).disabled(already)
                     }
                 }
+                Section("Vagy saját sáv") {
+                    HStack(spacing: 6) {
+                        ForEach([1, 2, 3, 4, 5, 6, 0], id: \.self) { d in
+                            Button(dayNames[d]) {
+                                if customDays.contains(d) { customDays.remove(d) } else { customDays.insert(d) }
+                            }
+                            .buttonStyle(.bordered)
+                            .tint(customDays.contains(d) ? Color.accentColor : Color.secondary)
+                        }
+                    }
+                    DatePicker("Kezdés", selection: $customStart, displayedComponents: .hourAndMinute)
+                    DatePicker("Vég", selection: $customEnd, displayedComponents: .hourAndMinute)
+                    Text("A nap kijelölése nélkül a saját sáv nem számít.")
+                        .font(.footnote).foregroundStyle(.secondary)
+                }
             }
             .navigationTitle("Heti ablak felvétele")
             .toolbar {
@@ -793,11 +814,22 @@ private struct LockdownWindowSheet: View {
         }
     }
 
+    private func minutes(_ date: Date) -> Int {
+        let c = Calendar.current.dateComponents([.hour, .minute], from: date)
+        return (c.hour ?? 0) * 60 + (c.minute ?? 0)
+    }
+
     private func apply() {
-        let added = Self.presets.filter { selected.contains($0.key) }.map {
+        var added = Self.presets.filter { selected.contains($0.key) }.map {
             LockdownLogic.LockdownWindow(id: "", days: $0.band.days, startMin: $0.band.startMin, endMin: $0.band.endMin)
         }
-        if added.isEmpty { onResult(.error("Válassz legalább egy sávot.")); return }
+        if !customDays.isEmpty {
+            let end = minutes(customEnd)
+            // A „00:00” végként az éjfél: a sáv 1440-nel írja le, nem nullával.
+            added.append(LockdownLogic.LockdownWindow(
+                id: "", days: customDays.sorted(), startMin: minutes(customStart), endMin: end == 0 ? 1440 : end))
+        }
+        if added.isEmpty { onResult(.error("Válassz legalább egy sávot, vagy adj meg sajátot.")); return }
         do {
             let r = try Referee.setLockdownWindows(current + added, now: nowMs())
             onResult(r.applied ? .applied : .challenge(r.session?.id ?? ""))

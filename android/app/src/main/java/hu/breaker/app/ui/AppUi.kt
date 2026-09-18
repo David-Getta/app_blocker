@@ -29,6 +29,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -1513,6 +1514,7 @@ private fun BurstLine(site: Site, burst: BurstLogic.State?, now: Long, trip: Bur
  * A teljes listát a bíró kapja: a felvétel szigorítás, azonnal megy; ha egy
  * kijelölés mégis lazítana (nem lehet), a bíró mondja meg.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun LockdownWindowDialog(
     current: List<LockdownLogic.LockdownWindow>,
@@ -1523,6 +1525,12 @@ private fun LockdownWindowDialog(
 ) {
     val have = current.map { LockdownLogic.windowKey(it.band) }.toSet()
     val selected = remember { mutableStateListOf<String>() }
+    // SAJÁT SÁV: napok és két időpont — mint a gépen. Az előre gyártott sávok
+    // a gyakori esetek; aki 8:30-tól 16-ig akar, itt írja be.
+    val customDays = remember { mutableStateListOf<Int>() }
+    var customStart by remember { mutableStateOf("09:00") }
+    var customEnd by remember { mutableStateOf("17:00") }
+    val dayNames = listOf("V", "H", "K", "Sze", "Cs", "P", "Szo")
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Heti ablak felvétele") },
@@ -1548,14 +1556,43 @@ private fun LockdownWindowDialog(
                         )
                     }
                 }
+                Text("Vagy saját sáv — napok, kezdés, vég:", style = MaterialTheme.typography.bodySmall)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    for (d in listOf(1, 2, 3, 4, 5, 6, 0)) {
+                        FilterChip(
+                            selected = d in customDays,
+                            onClick = { if (d in customDays) customDays.remove(d) else customDays.add(d) },
+                            label = { Text(dayNames[d]) },
+                        )
+                    }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = customStart, onValueChange = { customStart = it.take(5) },
+                        label = { Text("Kezdés") }, singleLine = true, modifier = Modifier.weight(1f),
+                    )
+                    OutlinedTextField(
+                        value = customEnd, onValueChange = { customEnd = it.take(5) },
+                        label = { Text("Vég") }, singleLine = true, modifier = Modifier.weight(1f),
+                    )
+                }
             }
         },
         confirmButton = {
             TextButton(onClick = {
                 val added = SCHEDULE_PRESETS.filter { selected.contains(it.second) }.map { (_, _, band) ->
                     LockdownLogic.LockdownWindow("", band.days, band.startMin, band.endMin)
+                }.toMutableList()
+                if (customDays.isNotEmpty()) {
+                    val s = parseClock(customStart)
+                    val e = parseClock(customEnd)
+                    if (s == null || e == null) {
+                        onError("A saját sáv kezdése és vége ÓÓ:PP alakú legyen, például 08:30."); return@TextButton
+                    }
+                    // A „00:00” végként az éjfél: a sáv 1440-nel írja le, nem nullával.
+                    added.add(LockdownLogic.LockdownWindow("", customDays.toSet(), s, if (e == 0) 1440 else e))
                 }
-                if (added.isEmpty()) { onError("Válassz legalább egy sávot."); return@TextButton }
+                if (added.isEmpty()) { onError("Válassz legalább egy sávot, vagy adj meg sajátot."); return@TextButton }
                 try {
                     val r = Referee.setLockdownWindows(current + added, System.currentTimeMillis())
                     if (r.applied) onApplied() else onChallenge()
@@ -1566,6 +1603,16 @@ private fun LockdownWindowDialog(
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Mégse") } },
     )
+}
+
+
+/** „09:00” → 540; „24:00” → 1440; ami nem óra:perc alakú, az null. */
+private fun parseClock(v: String): Int? {
+    val m = Regex("^(\\d{1,2}):(\\d{2})$").find(v.trim()) ?: return null
+    val h = m.groupValues[1].toInt()
+    val min = m.groupValues[2].toInt()
+    if (h > 24 || min > 59 || (h == 24 && min > 0)) return null
+    return h * 60 + min
 }
 
 
