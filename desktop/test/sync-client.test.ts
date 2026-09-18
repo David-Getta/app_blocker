@@ -607,6 +607,34 @@ test('a kifizetett hosztnév-levétel nem jön vissza a másik gép egyidejű í
   assert.deepEqual(afterA.hostnameMarks, afterB.hostnameMarks, 'a jel mindkét gépen ugyanaz');
 });
 
+test('az indok átér a másik eszközre, és a levétel is', async () => {
+  // Az indok az oldal rekordján utazik, mint a fedőnév: a szerkesztés
+  // lépteti a rekordot, a nyertes rekord viszi — és a levétel is átmegy, a
+  // régi indokot a másik gép nem támasztja fel.
+  const a = device([site({ id: 'site_re', domain: 'x.com', hostnames: ['x.com'], addedAt: 30_000 })]);
+  await signUp(a, url, 'indok@example', PASSWORD, 'Munkagép');
+  await syncNow(a, 30_000);
+  const b = device();
+  await signIn(b, url, 'indok@example', PASSWORD, 'Telefon');
+  await syncNow(b, 31_000);
+  assert.equal(b.sites.find((s) => s.domain === 'x.com')!.reason, undefined, 'indok nélkül indul');
+
+  const mineA = a.sites.find((s) => s.domain === 'x.com')!;
+  mineA.reason = 'Mert este nem alszom tőle';
+  bumpRevisions(a, 'gep-a', 32_000);
+  await syncNow(a, 32_000);
+  await syncNow(b, 33_000);
+  const mineB = b.sites.find((s) => s.domain === 'x.com')!;
+  assert.equal(mineB.reason, 'Mert este nem alszom tőle', 'az indok átért');
+
+  // B leveszi: A-n sem marad meg.
+  delete mineB.reason;
+  bumpRevisions(b, 'telefon', 34_000);
+  await syncNow(b, 34_000);
+  await syncNow(a, 35_000);
+  assert.equal(a.sites.find((s) => s.domain === 'x.com')!.reason, undefined, 'a levétel is átment');
+});
+
 test('a zárlat átér a másik eszközre, és lejárta után a kör megnyugszik', async () => {
   // Két dolog egyszerre. Az első a funkció: a gépen indított zárlat a
   // telefonon is él. A második egy csapda, amibe a legelső változat belelépett:
