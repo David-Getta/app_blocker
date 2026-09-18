@@ -45,10 +45,11 @@ enum WindowReminders {
     }
 
     private static func request(_ w: LockdownLogic.LockdownWindow, _ day: Int) -> UNNotificationRequest {
+        let slot = LockdownLogic.reminderSlot(day: day, startMin: w.startMin, lead: 0)
         var when = DateComponents()
-        when.weekday = day + 1 // a Calendar 1-től számol, vasárnappal
-        when.hour = w.startMin / 60
-        when.minute = w.startMin % 60
+        when.weekday = slot.weekday // a Calendar 1-től számol, vasárnappal
+        when.hour = slot.hour
+        when.minute = slot.minute
         let minutes = (w.endMin - w.startMin + 1440) % 1440
         let content = UNMutableNotificationContent()
         content.title = "Zárlat a heti ablak szerint"
@@ -61,13 +62,11 @@ enum WindowReminders {
 
     /// A beérés előtt tíz perccel — éjfél előttről az előző napra esik.
     private static func soonRequest(_ w: LockdownLogic.LockdownWindow, _ day: Int) -> UNNotificationRequest {
-        var minute = w.startMin - Int(LockdownLogic.windowPreWarnMs / 60_000)
-        var weekday = day + 1
-        if minute < 0 { minute += 1440; weekday = weekday == 1 ? 7 : weekday - 1 }
+        let slot = LockdownLogic.reminderSlot(day: day, startMin: w.startMin, lead: Int(LockdownLogic.windowPreWarnMs / 60_000))
         var when = DateComponents()
-        when.weekday = weekday
-        when.hour = minute / 60
-        when.minute = minute % 60
+        when.weekday = slot.weekday
+        when.hour = slot.hour
+        when.minute = slot.minute
         let content = UNMutableNotificationContent()
         content.title = "Mindjárt beér a heti ablak"
         content.body = "\(Int(LockdownLogic.windowPreWarnMs / 60_000)) perc múlva zárlat, \(clock(w.endMin))-ig. "

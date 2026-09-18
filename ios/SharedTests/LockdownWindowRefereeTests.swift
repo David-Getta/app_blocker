@@ -94,6 +94,20 @@ final class LockdownWindowRefereeTests: XCTestCase {
         XCTAssertNil(LockdownLogic.windowStartingSoon(nil, [], at(2027, 3, 8, 8, 55)))
     }
 
+    func testReminderSlotStepsBackOverMidnightToThePreviousDay() {
+        // Hétfő 9:00 → a rendszer hétfője a 2-es; tíz perccel előbb 8:50.
+        let mon = LockdownLogic.reminderSlot(day: 1, startMin: 9 * 60, lead: 0)
+        XCTAssertEqual(mon.weekday, 2); XCTAssertEqual(mon.hour, 9); XCTAssertEqual(mon.minute, 0)
+        let monSoon = LockdownLogic.reminderSlot(day: 1, startMin: 9 * 60, lead: 10)
+        XCTAssertEqual(monSoon.weekday, 2); XCTAssertEqual(monSoon.hour, 8); XCTAssertEqual(monSoon.minute, 50)
+        // Hétfő 0:05 tíz perccel előbb: vasárnap 23:55.
+        let early = LockdownLogic.reminderSlot(day: 1, startMin: 5, lead: 10)
+        XCTAssertEqual(early.weekday, 1); XCTAssertEqual(early.hour, 23); XCTAssertEqual(early.minute, 55)
+        // Vasárnap 0:05 tíz perccel előbb: szombat (7) 23:55 — a hét eleje körbeér.
+        let wrap = LockdownLogic.reminderSlot(day: 0, startMin: 5, lead: 10)
+        XCTAssertEqual(wrap.weekday, 7); XCTAssertEqual(wrap.hour, 23); XCTAssertEqual(wrap.minute, 55)
+    }
+
     func testRemovalInsideTheWindowDoesNotEvenStart() throws {
         try Referee.setLockdownWindows([work], now: sun)
         pumpMainQueue()

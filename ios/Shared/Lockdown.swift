@@ -276,6 +276,20 @@ public enum LockdownLogic {
         return cleanWindows(local + incoming)
     }
 
+    /// Egy ablak-nap emlékeztetőjének helye a héten: a rendszer `weekday`-e
+    /// (1 = vasárnap) és a perc, `lead` perccel a kezdés előtt — éjfél előttről
+    /// az előző napra esik. Az iPhone előre ütemezett emlékeztetői ebből
+    /// épülnek; itt van, hogy tesztelhető legyen, mert az app-célt a CI nem futtatja.
+    static func reminderSlot(day: Int, startMin: Int, lead: Int) -> (weekday: Int, hour: Int, minute: Int) {
+        var minute = startMin - lead
+        var weekday = day + 1
+        if minute < 0 {
+            minute += 1440
+            weekday = weekday == 1 ? 7 : weekday - 1
+        }
+        return (weekday, minute / 60, minute % 60)
+    }
+
     /// A legközelebb beérő ablak-előfordulás, ha `within`-en belül kezdődik —
     /// a jelzéshez. Nem közelgő, ami már él (arról a zárlat beszél), és nincs
     /// miről szólni, ha egy futó zárlat úgyis túlér rajta: az érkezése semmin
