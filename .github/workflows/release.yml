@@ -44,20 +44,20 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **Mi újság a letöltőoldalon.** A letöltés alatt a legutóbbi
-          kiadás jegyzetének első szakasza áll — a kiadás oldaláról, nem
-          kézzel másolva —, és egy link a korábbi jegyzetekhez.
+          **Ami a héten nem fogott.** A bővítmény beállítás-lapja kimondja a
+          lista szavait, amelyek a héten egyszer sem fogtak — ha a héten
+          volt kulcsszó-megakadás. Tükör a listára a másik oldalról.
+          Bővítmény 0.4.17.
 
-          ### Ami a v0.4.81-ben jött
+          ### Ami a v0.4.82-ben jött
+
+          **Mi újság a letöltőoldalon** — a legutóbbi kiadás jegyzetének
+          első szakasza a kiadás oldaláról.
+
+          #### Ami a v0.4.81-ben jött
 
           **Ablak a csúcs-órára** — a gépi statisztika egy gombbal heti
-          ablakot tesz a legutóbbi csomagra a csúcs egy órájában, minden
-          napra; az ablak a fiókkal a telefonokra is utazik.
-
-          #### Ami a v0.4.80-ban jött
-
-          **Egy koppintás az értesítésről a menetig — a telefonokon is**, és
-          a gépen a kattintás indít; a nulla hét is mondat a statisztikán.
+          ablakot tesz a legutóbbi csomagra a csúcs egy órájában.
 
           NOTES
           fi
