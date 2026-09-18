@@ -153,6 +153,9 @@ function fakeBridgeSource() {
       browserHitsKeywords: [{ keyword: 'shorts', count: 7 }, { keyword: 'reels', count: 3 }],
       // A réteg gyorsindítója a segéd választását követi — szándékosan nem az első.
       lastUsedPackId: 'pack_2',
+      // A folt a füstteszté: a státusz egy-egy mezőjét cseréli, hogy egy
+      // állapotot (pl. a sokadik megakadást) meg lehessen nézni.
+      ...(window.__fakeStatusPatch || {}),
     });
     // 30 days, because that is what the helper actually sends (and what the
     // chart title claims) — a shorter demo series would make the screenshot lie.
@@ -968,6 +971,26 @@ async function main() {
   await goTo(page, 'stats');
   await page.waitForSelector('#focusTiles .tile', { timeout: 15_000 })
     .catch(() => failures.push('a munkamenet-statisztika nem jött vissza'));
+
+  // A JAVASLAT kártyája a kezdőlapon: a sokadik megakadásnál (12: a tizes
+  // lépcső) a mondat és a gomb a legutóbbi csomaggal — futó menet nélkül.
+  // A szám nélkül a kártya eltűnik: üresen nincs.
+  await page.evaluate(() => { window.__fakeStatusPatch = { browserHitsToday: 12 }; });
+  await goTo(page, 'sites');
+  await page.waitForFunction(
+    () => !document.getElementById('suggestCard')?.classList.contains('hidden')
+      && /Ma már \d+ megakadás/.test(document.getElementById('suggestText')?.textContent || '')
+      && /Munkamenet: Mély munka, 90 perc/.test(document.getElementById('suggestStartBtn')?.textContent || '')
+      && !document.getElementById('suggestStartBtn')?.classList.contains('hidden'),
+    undefined, { timeout: 15_000 },
+  ).catch(() => failures.push('a kezdőlap javaslat-kártyája nem mondja a sokadik megakadást a menet gombjával'));
+  await page.evaluate(() => { window.__fakeStatusPatch = undefined; });
+  await page.waitForFunction(
+    () => document.getElementById('suggestCard')?.classList.contains('hidden'),
+    undefined, { timeout: 15_000 },
+  ).catch(() => failures.push('a javaslat-kártya a szám nélkül is ott maradt'));
+  // Vissza a statisztikára: a többi lépés ott folytatja.
+  await goTo(page, 'stats');
 
   // the daily budget meter: one per site that has a budget
   // A sötét ág tényleg sötét-e? A világos ágnál ugyanez a mérés fut fordítva;

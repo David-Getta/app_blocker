@@ -536,6 +536,14 @@ lába a csúcs-órában ugyanazt, és a telefon kezdőlapjának javaslat-kárty�
 — a menet gombjával, mint az előjelzésnél. Tükör a pillanatban, nem ítélet; a
 csúcs-órán kívül egyik sem szól róla (a felugró lap csak a hetet mondja).
 
+**A javaslat kártyája a gépi kezdőlapon is:** amit az értesítés mond — a
+sokadik megakadás, az előjelzés tíz perccel a csúcs-óra előtt, a csúcs-órában
+a tükör —, a kezdőlap is mondja, egy gombbal a legutóbbi csomagra
+(„Munkamenet: Nyelvtanulás, 25 perc”), mint a telefonokon. Az értesítés
+kikapcsolható, a kártya nem: nem szól, csak ott van. Futó menet mellett nincs
+gomb; üresen nincs kártya. Az Android szűrő-értesítés sora a csúcs-órában azt
+is mondja: „· most a csúcs-óra”.
+
 A **sokadik megakadásnál** a gép egy lépést javasol: az ötödik, tizedik és
 huszadik mai megakadásnál egyszer szól („Ma már 5 megakadás a böngészőben.
 Egy munkamenet vagy egy rövid zárlat most segítene — te döntesz.”), és a

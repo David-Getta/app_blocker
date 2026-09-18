@@ -200,7 +200,10 @@ class BreakerVpnService : VpnService() {
         // A mai megakadások a sor végén: tükör a kísértés pillanatában, ítélet
         // nélkül — a szigorú Privát DNS sorát nem tolja el, az a fontosabb.
         val hitsToday = FilterHitLogic.hitsToday(st.filterHits, now)
-        val textWithHits = if (hitsToday > 0 && strictDns == null) "$text · Ma $hitsToday megakadás" else text
+        // A CSÚCS-ÓRÁBAN a sor azt is mondja, hogy most van — a tükör a pillanaté.
+        val peakNow = FilterHitLogic.isPeakNow(FilterHitLogic.peakHour(st.filterHitHours, now), now)
+        val hitsPart = (if (hitsToday > 0) " · Ma $hitsToday megakadás" else "") + (if (peakNow) " · most a csúcs-óra" else "")
+        val textWithHits = if (hitsPart.isNotEmpty() && strictDns == null) text + hitsPart else text
         return Notification.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_lock_lock)
             .setContentTitle(title)
@@ -246,7 +249,8 @@ class BreakerVpnService : VpnService() {
         maybePeakWarning(st, now)
         // A mai megakadások is a kulcs része: a sáv sora a következő körben
         // mondja az új számot — nem csak akkor, ha valami más is változik.
-        val hitsKey = "hits:${FilterHitLogic.hitsToday(st.filterHits, now)}:"
+        val hitsKey = "hits:${FilterHitLogic.hitsToday(st.filterHits, now)}:" +
+            "${FilterHitLogic.isPeakNow(FilterHitLogic.peakHour(st.filterHitHours, now), now)}:"
         val key = strictKey + lockKey + hitsKey + if (run != null) {
             "${run.packId}:${Focus.formatRemaining(run.endsAt - now)}"
         } else {

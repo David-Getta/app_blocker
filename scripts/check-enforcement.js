@@ -522,6 +522,19 @@ const WIRES = [
     needle: 'FilterHitLogic.nudgeText(step)',
     lost: 'az iPhone kezdőlapja nem javasolna lépést a sokadik megakadásnál',
   },
+  // A JAVASLAT kártyája a gépi kezdőlapon és az Android sáv sora a csúcs-órában:
+  // amit az értesítés mond, a lap is mondja — ha a bekötés kiesne, csak az
+  // (kikapcsolható) értesítés maradna.
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: 'renderSuggestCard(nowForBurst);',
+    lost: 'a gépi kezdőlap nem mutatná a javaslat kártyáját',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/vpn/BreakerVpnService.kt',
+    needle: 'FilterHitLogic.isPeakNow(FilterHitLogic.peakHour(st.filterHitHours, now), now)',
+    lost: 'az Android szűrő-értesítés sora nem mondaná a csúcs-órát',
+  },
   // A CSÚCS-ÓRA a kísértés helyén: a mag tudja, most van-e; ha az öt hely
   // bekötése kiesne, a csúcs csak a statisztikán állna, a pillanatban nem.
   {

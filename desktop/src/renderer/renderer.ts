@@ -23,7 +23,7 @@ import {
   MAX_LOCKDOWN_WINDOWS, type Lockdown, type LockdownWindow,
 } from '../shared/lockdown.js';
 import {
-  hitNudgeStep, hitNudgeText, hitsKeywordLine, hitsReasonLine, hitsTrendText, hourLabel, peakWarnKey, peakWarnText,
+  hitNudgeStep, hitNudgeText, hitsKeywordLine, hitsReasonLine, hitsTrendText, hourLabel, peakNowText, peakWarnKey, peakWarnText,
 } from '../shared/browser-hits.js';
 import { stepBurstNotices, type BurstNotice, type BurstWatch } from '../shared/burst-notify.js';
 import {
@@ -340,6 +340,29 @@ function clickToStartText(): string {
   return ` Kattints, és indul: ${pick.name}, ${pick.defaultMinutes} perc.`;
 }
 
+/**
+ * A JAVASLAT kártyája a kezdőlapon: a sokadik megakadás mondata, az előjelzés
+ * tíz perccel a csúcs-óra előtt, és a csúcs-órában a tükör — amit az értesítés
+ * mond, a lap is mondja, mint a telefonokon. Az értesítés kikapcsolható, a
+ * kártya nem: nem szól, csak ott van. Egy kattintás a menetig; futó menet
+ * mellett nincs gomb. Üresen nincs kártya. Nem tilt, nem ítél.
+ */
+function renderSuggestCard(now: number): void {
+  const peak = status?.browserHitsPeak ?? null;
+  const lines: string[] = [];
+  const step = hitNudgeStep(status?.browserHitsToday ?? 0);
+  if (step > 0) lines.push(hitNudgeText(step));
+  if (peak && peakWarnKey(peak, now) !== null) lines.push(peakWarnText(peak));
+  const nowLine = peakNowText(peak, now).trim();
+  if (nowLine) lines.push(nowLine);
+  $('suggestCard').classList.toggle('hidden', lines.length === 0);
+  $('suggestText').textContent = lines.join(' ');
+  const pick = suggestedPack();
+  const canStart = lines.length > 0 && pick !== null && !focusIsRunning(status?.focusRun ?? null, now);
+  $('suggestStartBtn').classList.toggle('hidden', !canStart);
+  $('suggestStartBtn').textContent = canStart && pick ? `Munkamenet: ${pick.name}, ${pick.defaultMinutes} perc` : '';
+}
+
 function showHitNudge(today: number, now: number): void {
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
   if (quietSuggestions()) return;
@@ -474,6 +497,7 @@ function render(): void {
   showWindowSoonNotice(status!.lockdown ?? null, status!.lockdownWindows ?? [], nowForBurst);
   showHitNudge(status!.browserHitsToday ?? 0, nowForBurst);
   showPeakWarning(status!.browserHitsPeak ?? null, nowForBurst);
+  renderSuggestCard(nowForBurst);
   renderSelfTestLine();
 
   const sig = sitesFingerprint(status!);
@@ -3819,6 +3843,10 @@ function setupModal(): void {
   $('hitsStartBtn').addEventListener('click', () => {
     if (!hitsStartPick) return;
     void startSuggestedSession(false, (msg) => { $('hitsNudgeText').textContent = msg; });
+  });
+  // A KEZDŐLAP javaslat-kártyájáról is egy kattintás a menetig.
+  $('suggestStartBtn').addEventListener('click', () => {
+    void startSuggestedSession(false, (msg) => { $('suggestText').textContent = msg; });
   });
   // A HETI MONDAT a vágólapra: a gomb két másodpercig mondja, hogy megvan.
   $('journalCopyBtn').addEventListener('click', () => void (async () => {
