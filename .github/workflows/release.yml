@@ -44,21 +44,24 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
+          **Az őszinte korlátok teljesebb listája.** A törlés-védelem leírása
+          most már a maradék két kerülőutat is nevén nevezi: gépről,
+          USB-hibakereséssel az `adb` leveheti az eszközadmint, a gyári
+          visszaállítás pedig az egész telefonnal együtt mindent töröl. Mindkettő
+          messze több egy koppintásnál — hamis biztonságot ígérni rosszabb
+          lenne, mint kimondani a határt. Csak dokumentáció; kód nem változott.
+
+          ### Ami a v0.4.163-ban jött
+
           **A közeleg-a-keret finomabb kis keretnél.** A napi keret betelése
           előtti heads-up küszöbe az utolsó tíz perc, de legfeljebb a keret
           fele — így egy rövid keret (pl. napi öt perc) nem szólal meg már a
-          legelső perctől, hanem a hátsó felében. Húsz perctől felfelé a
-          viselkedés változatlan.
+          legelső perctől, hanem a hátsó felében.
 
-          ### Ami a v0.4.162-ben jött
+          #### Ami a v0.4.162-ben jött
 
           **A README és a weboldal a közeledő napi keretről.** A heads-up
-          bekerült a funkciólistába és a mérés-kártyába. Kód nem változott.
-
-          #### Ami a v0.4.161-ben jött
-
-          **Közeleg a napi keret a böngészőben is** — a felugró lap és a tiltó
-          lap is szól. Bővítmény 0.4.37.
+          bekerült a funkciólistába és a mérés-kártyába.
 
           NOTES
           fi
