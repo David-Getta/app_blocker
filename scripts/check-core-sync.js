@@ -294,6 +294,12 @@ const CHECKS = [
     scalar(ts.limits, /MAX_DIGEST_TARGETS\s*=\s*([^;]+);/, 'ts'),
     scalar(kt.limits, /MAX_DIGEST_TARGETS\s*=\s*(.+)/, 'kt'),
     scalar(sw.limits, /maxDigestTargets\s*=\s*(.+)/, 'swift')],
+  // KÖZELEG A NAPI KERET: ennyivel a betelés előtt szól a heads-up. Ha a három
+  // mag mást mond, ugyanaz az oldal az egyik eszközön szólna, a másikon nem.
+  ['LIMIT_SOON_SECONDS',
+    scalar(ts.limits, /LIMIT_SOON_SECONDS\s*=\s*([^;]+);/, 'ts'),
+    scalar(kt.limits, /LIMIT_SOON_SECONDS\s*=\s*(.+)/, 'kt'),
+    scalar(sw.limits, /limitSoonSeconds[^=]*=\s*(.+)/, 'swift')],
   // Részleges szabályok. Ha az egyik magban 50, a másikban 20 a felső korlát,
   // a szinkron a huszonegyediket az egyik eszközön elfogadja, a másikon eldobja
   // — és a felhasználó csak annyit lát, hogy a szabály „eltűnt”.

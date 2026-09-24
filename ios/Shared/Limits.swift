@@ -186,4 +186,27 @@ enum LimitLogic {
         guard let n = nxt else { return true }
         return n > cur!
     }
+
+    /// A KERET KÖZELSÉGE: ennyi másodpercen belül szólunk, mielőtt a mai keret betelik.
+    static let limitSoonSeconds: Double = 10 * 60
+
+    /// Hány másodperc van hátra a mai keretből — nil, ha nincs keret. Nem megy nulla alá.
+    static func limitRemaining(_ dailyLimitSeconds: Double?, _ usedSeconds: Double) -> Double? {
+        guard let limit = normalizeLimit(dailyLimitSeconds) else { return nil }
+        return max(0, limit - usedSeconds)
+    }
+
+    /// KÖZELEG A NAPI KERET: a legsürgősebb oldal — a legkevesebb hátralévővel, de
+    /// még nem betelve, a küszöbön belül. „Ma még 8 perc a kereted: youtube.com.”
+    /// Tény, nem tiltás. Üres, ha egyik sincs a küszöbön belül. A címkét a hívó adja.
+    static func limitSoonLine(_ candidates: [(label: String, dailyLimitSeconds: Double?, usedSeconds: Double)]) -> String {
+        var best: (label: String, rem: Double)?
+        for c in candidates {
+            guard let rem = limitRemaining(c.dailyLimitSeconds, c.usedSeconds) else { continue }
+            if rem <= 0 || rem > limitSoonSeconds { continue }
+            if best == nil || rem < best!.rem { best = (c.label, rem) }
+        }
+        guard let b = best else { return "" }
+        return "Ma még \(Int(ceil(b.rem / 60))) perc a kereted: \(b.label)."
+    }
 }

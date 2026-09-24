@@ -294,3 +294,34 @@ export function limitFullLine(r: LimitFullDays, labelOf: (domain: string) => str
   const per = r.bySite.map((x) => `${labelOf(x.domain)} ${x.days}×`).join(' · ');
   return `A napi keret a héten ${r.days} napon betelt${per ? `: ${per}` : ''}.`;
 }
+
+/** A KERET KÖZELSÉGE: ennyi másodpercen belül szólunk, mielőtt a mai keret betelik. */
+export const LIMIT_SOON_SECONDS = 10 * 60;
+
+/** Hány másodperc van hátra a mai keretből — null, ha nincs keret. Nem megy nulla alá. */
+export function limitRemaining(dailyLimitSeconds: number | null | undefined, usedSeconds: number): number | null {
+  const limit = normalizeLimit(dailyLimitSeconds);
+  if (limit === null) return null;
+  return Math.max(0, limit - usedSeconds);
+}
+
+/**
+ * KÖZELEG A NAPI KERET: a legsürgősebb oldal — amelyiknek a mai keretéből a
+ * legkevesebb van hátra, de még nem telt be, és a küszöbön belül van.
+ * „Ma még 8 perc a kereted: youtube.com.” Tény, nem tiltás: szól, mielőtt a
+ * keret betelne, hogy ne meglepetés legyen. Üres, ha egyik oldal sincs a
+ * küszöbön belül. A címkét a hívó adja (fedőnév, rejtés — az övé), a mag csak
+ * a számot nézi.
+ */
+export function limitSoonLine(
+  candidates: { label: string; dailyLimitSeconds: number | null | undefined; usedSeconds: number }[],
+): string {
+  let best: { label: string; rem: number } | null = null;
+  for (const c of candidates) {
+    const rem = limitRemaining(c.dailyLimitSeconds, c.usedSeconds);
+    if (rem === null || rem <= 0 || rem > LIMIT_SOON_SECONDS) continue;
+    if (best === null || rem < best.rem) best = { label: c.label, rem };
+  }
+  if (best === null) return '';
+  return `Ma még ${Math.ceil(best.rem / 60)} perc a kereted: ${best.label}.`;
+}

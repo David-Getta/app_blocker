@@ -1,5 +1,7 @@
 package hu.breaker.app.core
 
+import kotlin.math.ceil
+
 /**
  * Napi aktív-idő keret oldalanként — a desktop/src/shared/limits.ts tükre.
  *
@@ -207,4 +209,31 @@ object LimitLogic {
     fun usedTodayEverywhere(
         usage: UsageLogic.UsageState, shared: SharedToday?, domain: String, now: Long,
     ): Double = usedTodaySeconds(usage, domain, now) + sharedTodaySeconds(shared, domain, now)
+
+    /** A KERET KÖZELSÉGE: ennyi másodpercen belül szólunk, mielőtt a mai keret betelik. */
+    const val LIMIT_SOON_SECONDS = 10 * 60
+
+    /** Hány másodperc van hátra a mai keretből — null, ha nincs keret. Nem megy nulla alá. */
+    fun limitRemaining(dailyLimitSeconds: Long?, usedSeconds: Double): Double? {
+        val limit = normalizeLimit(dailyLimitSeconds) ?: return null
+        return maxOf(0.0, limit - usedSeconds)
+    }
+
+    /**
+     * KÖZELEG A NAPI KERET: a legsürgősebb oldal — a legkevesebb hátralévővel,
+     * de még nem betelve, a küszöbön belül.
+     * „Ma még 8 perc a kereted: youtube.com.”
+     * Tény, nem tiltás: szól, mielőtt a keret betelne. Üres, ha egyik sincs a
+     * küszöbön belül. A címkét a hívó adja (fedőnév, rejtés).
+     */
+    fun limitSoonLine(candidates: List<Triple<String, Long?, Double>>): String {
+        var best: Pair<String, Double>? = null
+        for ((label, limit, used) in candidates) {
+            val rem = limitRemaining(limit, used) ?: continue
+            if (rem <= 0.0 || rem > LIMIT_SOON_SECONDS) continue
+            if (best == null || rem < best.second) best = label to rem
+        }
+        val b = best ?: return ""
+        return "Ma még ${ceil(b.second / 60.0).toInt()} perc a kereted: ${b.first}."
+    }
 }

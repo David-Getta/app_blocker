@@ -491,7 +491,19 @@ struct ContentView: View {
             let onFocusDay = focusDayNow
             let inFocusHour = focusHourNow
             let streakLine = focusStreakLine
-            if step > 0 || soon != nil || inPeak != nil || onPeakDay != nil || onFocusDay != nil || inFocusHour != nil || streakLine != nil {
+            // KÖZELEG A NAPI KERET: ha egy oldal mai keretéből kevés van hátra, a
+            // kártya szól a legsürgősebbről, mielőtt betelne. iPhone-on nincs helyi
+            // mérés, csak a többi eszközé (sharedToday) — a keret ott is közös.
+            // Rejtett listánál nincs (a cím ne szivárogjon ki); a fedőnevet a siteLabel adja.
+            let limitSoon: String? = listHidden ? nil : {
+                let line = LimitLogic.limitSoonLine(store.state.sites.map {
+                    (label: siteLabel($0.domain),
+                     dailyLimitSeconds: $0.dailyLimitSeconds,
+                     usedSeconds: LimitLogic.usedTodayEverywhere(UsageStats.State(), store.state.sharedToday, $0.domain, now))
+                })
+                return line.isEmpty ? nil : line
+            }()
+            if step > 0 || soon != nil || inPeak != nil || onPeakDay != nil || onFocusDay != nil || inFocusHour != nil || streakLine != nil || limitSoon != nil {
                 VStack(alignment: .leading, spacing: 8) {
                     if step > 0 { Text(FilterHitLogic.nudgeText(step)).font(.footnote) }
                     if let soon { Text(FilterHitLogic.peakWarnText(soon)).font(.footnote) }
@@ -505,6 +517,7 @@ struct ContentView: View {
                     if let inFocusHour { Text(Focus.hourNowText(inFocusHour)).font(.footnote) }
                     // A MENET-SOROZAT is: hány napja ülsz le minden nap — a gomb mellett; tény, nem felszólítás.
                     if let streakLine { Text(streakLine).font(.footnote) }
+                    if let limitSoon { Text(limitSoon).font(.footnote) }
                     // EGY KOPPINTÁS a mondattól a menetig: a legutóbb használt csomag
                     // a szokásos hosszával — szigorítás, ingyen. Futó menet mellett
                     // nincs gomb (egyszerre egy menet fut).

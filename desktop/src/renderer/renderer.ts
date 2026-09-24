@@ -34,7 +34,7 @@ import {
 import {
   acceleratorFromKeyEvent, DEFAULT_OVERLAY_SHORTCUT, rejectText, shortcutLabel,
 } from '../shared/shortcut.js';
-import { limitFullLine, MAX_LIMIT_MINUTES } from '../shared/limits.js';
+import { limitFullLine, limitSoonLine, MAX_LIMIT_MINUTES } from '../shared/limits.js';
 import {
   formatRemaining, isRunning as focusIsRunning, isWindowRun, MAX_ALLOW_ENTRIES, MAX_PACK_NAME,
   MAX_SESSION_MINUTES, nextOccurrence, SESSION_CHOICES_MIN, windowRunStarted, type FocusPack, type FocusRun, peakWindowBand,
@@ -459,6 +459,15 @@ function renderSuggestCard(now: number): void {
   const streakNow = status?.focusStreak ?? 0;
   const streakLine = focusStreakText(streakNow, streakNow >= FOCUS_STREAK_MIN_DAYS ? status?.focusLongestStreak ?? 0 : 0);
   if (streakLine) lines.push(streakLine);
+  // KÖZELEG A NAPI KERET: ha egy oldal mai keretéből kevés van hátra, szólunk a
+  // legsürgősebbről, mielőtt betelne — tény, nem tiltás. Rejtett listánál nincs
+  // (a cím ne szivárogjon ki); a fedőnevet a displayName adja.
+  if (status && !isListHidden(status)) {
+    const soon = limitSoonLine(status.sites.map((s) => ({
+      label: displayName(s), dailyLimitSeconds: s.dailyLimitSeconds, usedSeconds: s.usedTodaySeconds,
+    })));
+    if (soon) lines.push(soon);
+  }
   $('suggestCard').classList.toggle('hidden', lines.length === 0);
   $('suggestText').textContent = lines.join(' ');
   const pick = suggestedPack();

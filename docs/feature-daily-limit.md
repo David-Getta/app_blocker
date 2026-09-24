@@ -262,3 +262,19 @@ telik be. A heti mondat rövidebben: „A napi keret 3 napon betelt.” Nulla na
 nem mondat. A keret sora az oldal mellett is mondja (gép: „Napi keret: 15 p /
 20 p · a héten 2 napon betelt”; Android: külön sor alatta), a segéd
 oldalanként számolja (`limitFullDays7d` a státuszban).
+
+## Közeleg a napi keret
+
+A keret betelése eddig meglepetés volt: az oldal egyszer csak visszazárt. Most
+a kezdőlap javaslat-kártyája előre szól, ha egy oldal mai keretéből kevés van
+hátra — a legsürgősebbről (a legkevesebb hátralévővel): „Ma még 8 perc a
+kereted: youtube.com.” A küszöb tíz perc (`LIMIT_SOON_SECONDS`, a három magban
+azonos, a mag-összhang őrzi). Tény, nem tiltás: szól, mielőtt betelne, hogy ne
+érjen váratlanul; a betelt keretet már a tiltás mondja, azt itt nem ismétli.
+
+A „mindenhol elhasznált” idő számít (a helyi mérés plusz a többi eszköz mai
+összegzése), mint a tiltásnál — így a telefon a gépen elköltött időt is látja.
+iPhone-on nincs helyi mérés, ott a többi eszköz mérése adja a számot. Rejtett
+listánál nincs sor: a cím ne szivárogjon ki. A mag egy helyen dönt
+(`limitSoonLine`, `LimitLogic.limitSoonLine`), a három kezdőlap ugyanazt a
+mondatot írja ki.

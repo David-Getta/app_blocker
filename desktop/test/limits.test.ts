@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import * as assert from 'node:assert/strict';
 import {
   blockReasonNow, isBlockedNowWithLimit, isLimitExhausted, isLimitLoosening, limitFullDays, limitFullLine, nextDayStartMs,
-  normalizeLimit, usedTodaySeconds,
+  normalizeLimit, usedTodaySeconds, LIMIT_SOON_SECONDS, limitRemaining, limitSoonLine,
 } from '../src/shared/limits';
 import { dayKey, emptyUsage, siteKey, type UsageState } from '../src/shared/usage';
 
@@ -159,4 +159,23 @@ test('a keret betelt napjai: hány napon és melyik oldalé hányszor — ezen a
   assert.equal(limitFullLine(r, (d) => d), 'A napi keret a héten 2 napon betelt: reddit.com 1× · youtube.com 1×.');
   assert.equal(limitFullLine(limitFullDays(u, [site({ domain: 'x.com' })], NOW), (d) => d), '', 'keret nélkül nincs sor');
   assert.equal(limitFullDays(u, [], NOW).days, 0);
+});
+
+test('közeleg a napi keret: a legsürgősebb oldal a küszöbön belül; a sor és a maradék', () => {
+  assert.equal(LIMIT_SOON_SECONDS, 600);
+  assert.equal(limitRemaining(600, 200), 400);
+  assert.equal(limitRemaining(600, 700), 0, 'nem megy nulla alá');
+  assert.equal(limitRemaining(null, 200), null, 'keret nélkül nincs maradék');
+  // A legkevesebbet mondja, ha több is a küszöbön belül van.
+  const two = [
+    { label: 'youtube.com', dailyLimitSeconds: 600, usedSeconds: 300 }, // 5 perc
+    { label: 'x.com', dailyLimitSeconds: 600, usedSeconds: 480 }, // 2 perc — sürgősebb
+    { label: 'reddit.com', dailyLimitSeconds: 3600, usedSeconds: 60 }, // 59 perc — messze
+  ];
+  assert.equal(limitSoonLine(two), 'Ma még 2 perc a kereted: x.com.');
+  assert.equal(limitSoonLine([{ label: 'a', dailyLimitSeconds: 600, usedSeconds: 539 }]), 'Ma még 2 perc a kereted: a.', 'felfelé kerekít (61 mp → 2 perc)');
+  assert.equal(limitSoonLine([{ label: 'a', dailyLimitSeconds: 600, usedSeconds: 600 }]), '', 'betelt keret: a tiltás mondja, nem heads-up');
+  assert.equal(limitSoonLine([{ label: 'a', dailyLimitSeconds: 3600, usedSeconds: 0 }]), '', 'messze a küszöbtől: nincs sor');
+  assert.equal(limitSoonLine([{ label: 'a', dailyLimitSeconds: null, usedSeconds: 500 }]), '', 'keret nélkül nincs sor');
+  assert.equal(limitSoonLine([]), '');
 });

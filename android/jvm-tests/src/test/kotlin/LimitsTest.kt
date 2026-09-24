@@ -298,4 +298,22 @@ class LimitsTest {
         assertEquals("", LimitLogic.limitFullLine(LimitLogic.limitFullDays(u, listOf("x.com" to null), now)) { it }, "keret nélkül nincs sor")
         assertEquals(0, LimitLogic.limitFullDays(u, emptyList(), now).days)
     }
+
+    @Test fun `kozeleg a napi keret - a legsurgosebb oldal a kuszobon belul, a sor es a maradek`() {
+        assertEquals(600, LimitLogic.LIMIT_SOON_SECONDS)
+        assertEquals(400.0, LimitLogic.limitRemaining(600, 200.0))
+        assertEquals(0.0, LimitLogic.limitRemaining(600, 700.0), "nem megy nulla alá")
+        assertEquals(null, LimitLogic.limitRemaining(null, 200.0), "keret nélkül nincs maradék")
+        val two = listOf<Triple<String, Long?, Double>>(
+            Triple("youtube.com", 600, 300.0), // 5 perc
+            Triple("x.com", 600, 480.0),       // 2 perc — sürgősebb
+            Triple("reddit.com", 3600, 60.0),  // 59 perc — messze
+        )
+        assertEquals("Ma még 2 perc a kereted: x.com.", LimitLogic.limitSoonLine(two))
+        assertEquals("Ma még 2 perc a kereted: a.", LimitLogic.limitSoonLine(listOf<Triple<String, Long?, Double>>(Triple("a", 600, 539.0))), "felfelé kerekít")
+        assertEquals("", LimitLogic.limitSoonLine(listOf<Triple<String, Long?, Double>>(Triple("a", 600, 600.0))), "betelt: nem heads-up")
+        assertEquals("", LimitLogic.limitSoonLine(listOf<Triple<String, Long?, Double>>(Triple("a", 3600, 0.0))), "messze: nincs sor")
+        assertEquals("", LimitLogic.limitSoonLine(listOf<Triple<String, Long?, Double>>(Triple("a", null, 500.0))), "keret nélkül nincs")
+        assertEquals("", LimitLogic.limitSoonLine(emptyList()))
+    }
 }

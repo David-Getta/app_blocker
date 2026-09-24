@@ -412,7 +412,14 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
             // A rekord csak a mostani sorozat mellett, zárójelben: a puszta rekord a statisztikáé.
             val streakNow = Focus.dayStreak(state.focusLog, now)
             val streakLine = Focus.streakText(streakNow, if (streakNow >= Focus.STREAK_MIN_DAYS) Focus.longestStreak(state.focusLog, now) else 0).takeIf { it.isNotEmpty() }
-            if (nudge > 0 || peakSoon != null || peakNow != null || peakDay != null || focusDay != null || focusHourNow != null || usageDay != null || streakLine != null) {
+            // KÖZELEG A NAPI KERET: ha egy oldal mai keretéből kevés van hátra, a
+            // kártya szól a legsürgősebbről, mielőtt betelne — tény, nem tiltás.
+            // Rejtett listánál nincs (a cím ne szivárogjon ki); a fedőnevet a
+            // siteLabel adja. A „mindenhol” elhasznált idő számít, mint a tiltásnál.
+            val limitSoon = if (listHidden) null else LimitLogic.limitSoonLine(
+                state.sites.map { Triple(siteLabel(it.domain), it.dailyLimitSeconds, LimitLogic.usedTodayEverywhere(state.usage, state.sharedToday, it.domain, now)) },
+            ).takeIf { it.isNotEmpty() }
+            if (nudge > 0 || peakSoon != null || peakNow != null || peakDay != null || focusDay != null || focusHourNow != null || usageDay != null || streakLine != null || limitSoon != null) {
                 Card {
                     Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         if (nudge > 0) Text(FilterHitLogic.nudgeText(nudge), style = MaterialTheme.typography.bodySmall)
@@ -423,6 +430,7 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                         focusHourNow?.let { Text(Focus.hourNowText(it), style = MaterialTheme.typography.bodySmall) }
                         usageDay?.let { Text(UsageLogic.dayNowText(it), style = MaterialTheme.typography.bodySmall) }
                         streakLine?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+                        limitSoon?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
                         // EGY KOPPINTÁS a mondattól a menetig: a legutóbb használt
                         // csomag a szokásos hosszával — szigorítás, ingyen. Futó menet
                         // mellett nincs gomb (egyszerre egy menet fut).

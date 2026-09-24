@@ -78,7 +78,7 @@ function fakeBridgeSource() {
     window.__fakeSites = [
       { id: 'site_1', domain: 'youtube.com', hostnames: ['youtube.com','www.youtube.com','m.youtube.com','youtu.be'], reason: 'Mert este nem alszom tőle',
         addedAt: now - 86400000*9, pauseUntil: null, pendingDeleteAt: null,
-        dailyLimitSeconds: 1200, usedTodaySeconds: 900, usedTodayElsewhere: 420, limitFullDays7d: 2,
+        dailyLimitSeconds: 1200, usedTodaySeconds: 500, usedTodayElsewhere: 420, limitFullDays7d: 2,
         limitExhausted: false, blockedNow: true },
       { id: 'site_2', domain: 'reddit.com', hostnames: ['reddit.com','www.reddit.com'],
         addedAt: now - 86400000*4, pauseUntil: null, pendingDeleteAt: null,
@@ -1208,6 +1208,15 @@ async function main() {
     () => Array.from(document.querySelectorAll('.focus-sub')).some((el) => /magától indul: minden nap 21:00–22:00.*a héten 3× indult magától/.test(el.textContent || '')),
     undefined, { timeout: 15_000 },
   ).catch(() => failures.push('a csomag sora nem mondja, hányszor indult magától a héten'));
+  // KÖZELEG A NAPI KERET: ha egy oldal mai keretéből kevés van hátra, a kártya
+  // szól, mielőtt betelne — a legsürgősebbet. A youtube kerete 20 perc; 1100
+  // másodperc elhasználva → ~2 perc van hátra.
+  await page.evaluate(() => { window.__fakeSites[0].usedTodaySeconds = 1100; });
+  await page.waitForFunction(
+    () => /Ma még 2 perc a kereted: youtube\.com\./.test(document.getElementById('suggestText')?.textContent || ''),
+    undefined, { timeout: 15_000 },
+  ).catch(() => failures.push('a javaslat-kártya nem szól a közeledő napi keretről'));
+  await page.evaluate(() => { window.__fakeSites[0].usedTodaySeconds = 500; });
   await page.evaluate(() => { delete window.__fakePacks[1].recurrence; });
   await page.evaluate(() => { window.__fakeStatusPatch = undefined; });
   await page.waitForFunction(
