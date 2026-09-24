@@ -50,6 +50,13 @@ utána törölj. Épp ez a pár másodperc gondolkodás a lényeg — az impulzu
 véd, nem a megfontolt szándék ellen. Ugyanaz az elv, mint a zárlaté: nem
 lehetetlenné teszi, hanem drágábbá.
 
+Ugyanígy nyíltan: van két további kerülőút is. Gépről, USB-hibakereséssel a
+fejlesztői eszközök (`adb`) le tudják venni az eszközadmint, aztán törölhetnek;
+a gyári visszaállítás pedig az egész telefonnal együtt mindent letöröl. De
+ezekhez már gép és külön tudás kell, vagy a teljes telefon feláldozása —
+messze több egy impulzusnál, és pont ez a cél. Hamis biztonságot ígérni
+rosszabb lenne, mint kimondani a határt.
+
 ## A többi platformon
 
 A mechanizmus (eszközadmin) Android-oldali, de a *rés* mindenütt ugyanaz: a
