@@ -44,26 +44,25 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **Törlés-védelem az Androidon.** A telefonon a védelem eddig
-          egyetlen koppintással eltűnhetett — hosszan nyomod az ikont,
-          „Eltávolítás”, és vele minden blokk. A törlés-védelem elveszi ezt
-          az egy gombot: amíg be van kapcsolva (a szokásos, dokumentált
-          eszközadmin), az Android előbb a kikapcsolást kéri, és csak utána
-          enged törölni. Bekapcsolni egy koppintás; jogot nem kér, adatot
-          nem lát, és a Beállításokban bármikor kikapcsolható — nem gépzár,
-          csak súrlódás az impulzus ellen.
+          **Törlés-védelem az iPhone-on is.** Androidon az app maga veszi
+          el az egykoppintásos törlést (eszközadmin); iPhone-on ezt appból
+          nem lehet, de a rés ugyanaz. A kezdőlap a zárlat mellett kimondja
+          a rendszer útját: Beállítások → Képernyőidő → Tartalmi és
+          adatvédelmi korlátozások → App-törlések: „Nem engedélyezett”. A
+          törléshez onnantól a Képernyőidő-kód kell, nem egy koppintás.
 
-          ### Ami a v0.4.156-ban jött
+          ### Ami a v0.4.157-ben jött
+
+          **Törlés-védelem az Androidon.** A törlés-védelem elveszi az
+          egykoppintásos törlést: amíg be van kapcsolva (eszközadmin), az
+          Android előbb a kikapcsolást kéri. Jogot nem kér, adatot nem lát,
+          és a Beállításokban bármikor kikapcsolható — nem gépzár.
+
+          #### Ami a v0.4.156-ban jött
 
           **A hét napjainak nevei is az őrben.** A mag-összhang őre a gép
-          és a bővítmény napnév-listáját is egymáshoz méri — ugyanaz a nap
-          ne viseljen két nevet. Kód nem változott.
-
-          #### Ami a v0.4.155-ben jött
-
-          **A bővítmény tükör-állandói mind az őrben** — a csúcs-nap négy
-          hete és küszöbe, a sokadik megakadás első lépcsője a gép
-          értékéhez mérve.
+          és a bővítmény napnév-listáját is egymáshoz méri. Kód nem
+          változott.
 
           NOTES
           fi
