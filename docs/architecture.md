@@ -243,9 +243,11 @@ Három tulajdonsága teszi azzá, ami:
    későbbi vég nyer, `rev`-re való tekintet nélkül.
 
 Amit NEM állítunk: hogy gépzár. Rendszergazdaként a segéd leállítható, a
-telefonon az app letörölhető. A zárlat az appon BELÜL zár le mindent, tehát az
-impulzus ellen véd — és pontosan ennyit mond a felület is.
-Részletek: [`feature-lockdown.md`](feature-lockdown.md).
+telefonon az app letörölhető — a **törlés-védelem** (eszközadmin) elveszi ehhez
+az egykoppintásos utat, de a rendszer beállításaiban ez is kikapcsolható. A
+zárlat az appon BELÜL zár le mindent, tehát az impulzus ellen véd — és pontosan
+ennyit mond a felület is. Részletek: [`feature-lockdown.md`](feature-lockdown.md),
+[`feature-uninstall-guard.md`](feature-uninstall-guard.md).
 
 A **zárlat-ablak** ugyanerre a rétegre épül, nem mellé: egy heti sáv, amiben a
 kör az ablak végéig szóló zárlatot ír a mezőbe — ugyanaz a kapu, ugyanaz a

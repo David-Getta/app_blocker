@@ -165,8 +165,18 @@ ingyen van, rövidíteni vagy visszavonni sehogy.
   későbbi vég nyer, tehát a szinkron sosem tudja visszavonni), és az óra
   átállítása sem rövidíti meg. Őszinte korlát: ez **nem gépzár** —
   rendszergazdaként a háttérszolgáltatás leállítható, a telefonon az app
-  letörölhető; az impulzus ellen véd, nem a megfontolt kerülőút ellen.
+  letörölhető (a **törlés-védelemmel** nehezebben); az impulzus ellen véd, nem
+  a megfontolt kerülőút ellen.
   [`docs/feature-lockdown.md`](docs/feature-lockdown.md).
+
+- **Törlés-védelem: hogy a törlés ne legyen egy koppintás** (Android). A
+  telefonon a védelem egyetlen mozdulattal eltüntethető — hosszan nyomod az
+  ikont, „Eltávolítás”, és vele minden blokk. A törlés-védelem elveszi ezt az
+  egy gombot: amíg be van kapcsolva (a szokásos, dokumentált eszközadmin), az
+  Android előbb a kikapcsolást kéri, és csak utána enged törölni. Bekapcsolni
+  egy koppintás; nem lát bele a telefonba, jogot nem kér, és a rendszer
+  Beállításaiban bármikor kikapcsolható — nem gépzár, csak súrlódás.
+  [`docs/feature-uninstall-guard.md`](docs/feature-uninstall-guard.md).
 
 - **Indok: miért tiltottad — egy mondat a kísértés pillanatára** (mindhárom
   platform). Az oldalhoz írt saját mondat ott áll, ahol a döntés születik: a
@@ -481,6 +491,12 @@ Néhány konkrét dolog, amit érdemes előre tudni:
   kiszolgálónévvel a névfeloldás TLS-en, a VPN mellett megy). Kényszeríteni
   nem tudjuk; az app észleli, a korong és a tartós értesítés kimondja, és a
   hálózati beállításokhoz visz. Az „Automatikus” mód rendben van.
+- **A törlés-védelem nem gépzár.** Az eszközadmin elveszi az egykoppintásos
+  törlést, de a rendszer Beállításaiban (Biztonság → Eszközadmin-alkalmazások)
+  próbatétel nélkül is kikapcsolható — nem tudjuk megakadályozni, és nem is
+  tettetjük. A cél a pár másodperc gondolkodás, nem a lehetetlenné tétel.
+  Always-on VPN-t sem kényszerít: ahhoz eszköz-tulajdonos DPC kellene, ami
+  sokkal több — mi nem vagyunk az.
 - **A gépen az önteszt tényt mond, nem garanciát:** ötpercenként a rendszer
   feloldóját kérdezi a tiltott nevekről, és szól, ha nem a tiltó címre
   oldódnak — a böngésző saját DoH-ját viszont nem látja.

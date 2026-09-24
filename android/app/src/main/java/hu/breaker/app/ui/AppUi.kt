@@ -95,6 +95,7 @@ import hu.breaker.app.core.Pairing
 import hu.breaker.app.core.SyncClient
 import hu.breaker.app.core.UrlRules
 import hu.breaker.app.core.UsageLogic
+import hu.breaker.app.admin.UninstallGuard
 import hu.breaker.app.update.UpdateChecker
 import hu.breaker.app.usage.UsageTracker
 import hu.breaker.app.vpn.BreakerVpnService
@@ -201,6 +202,12 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
     }
     val notifPermission = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
+    ) { }
+    // TÖRLÉS-VÉDELEM bekapcsolása: a rendszer eszközadmin-párbeszéde. Az
+    // eredményt nem itt olvassuk — az állapotot a kártya a rendszertől kérdezi,
+    // másodpercenként, így a jóváhagyás után magától frissül.
+    val adminEnable = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
     ) { }
 
     fun startProtection() {
@@ -900,6 +907,51 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                 onClear = { confirmUsageClear = true },
             )
 
+            // TÖRLÉS-VÉDELEM. „Letörölni 1 gomb” — ez veszi el azt az egy gombot:
+            // amíg aktív eszközadmin, a rendszer nem engedi az egykoppintásos
+            // eltávolítást. Az állapotot a rendszertől kérdezzük (a `now / 2000`
+            // kulcs miatt pár másodpercenként újra), hogy a be- és kikapcsolás
+            // magától látszódjon, app-újraindítás nélkül.
+            val uninstallGuardOn = remember(now / 2000) { UninstallGuard.isActive(context) }
+            Card {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SectionLabel("Törlés-védelem")
+                    if (uninstallGuardOn) {
+                        Text(
+                            "Bekapcsolva: a Breaker nem törölhető egyetlen koppintással. Az " +
+                                "eltávolításhoz előbb ki kell kapcsolni a törlés-védelmet a rendszer " +
+                                "beállításaiban — szándékos, több lépéses döntés, nem egy reflex.",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                        // Nincs csendes, egykoppintásos kikapcsoló: az visszahozná a
+                        // reflexből törlést, ami ellen az egész véd. A gomb csak elvisz a
+                        // rendszer beállításáig, ahol tudatosan lehet kikapcsolni.
+                        OutlinedButton(onClick = { context.startActivity(UninstallGuard.securitySettingsIntent()) }) {
+                            Text("Biztonsági beállítások")
+                        }
+                        Text(
+                            "Őszinte korlát: ez nem gépzár. A rendszer Beállításaiban (Biztonság → " +
+                                "Eszközadmin-alkalmazások) próbatétel nélkül is kikapcsolható — de már " +
+                                "nem egy koppintás, és épp ez a pár másodperc gondolkodás a lényeg.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    } else {
+                        Text(
+                            "Letörölni ma egyetlen koppintás — és vele a védelem is eltűnik. A " +
+                                "törlés-védelem elveszi ezt az egy gombot: amíg be van kapcsolva, az " +
+                                "Android előbb a kikapcsolást kéri, és csak utána enged törölni. " +
+                                "Bekapcsolni egy koppintás; nem lát bele a telefonodba, és bármikor " +
+                                "kikapcsolható a Beállításokban.",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                        Button(onClick = { adminEnable.launch(UninstallGuard.enableIntent(context)) }) {
+                            Text("Törlés-védelem bekapcsolása")
+                        }
+                    }
+                }
+            }
+
             // ZÁRLAT-KÁRTYA. A többitől az különbözteti meg, hogy ennek nincs
             // ellentéte: nincs feloldó gomb, és nem is lesz — pont attól ér
             // valamit.
@@ -915,7 +967,8 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                                 "feloldás, sem keret-emelés, sem szabály-levétel nem indítható, " +
                                 "próbatétellel sem. Blokkolni és szigorítani közben is lehet. " +
                                 "Nincs visszaút: ha elindítod, ki kell várni. Ez nem készülékzár — " +
-                                "az app letörölhető, és ezt nem is titkoljuk; az impulzus ellen véd."
+                                "az app letörölhető (a törlés-védelemmel nehezebben, de nem " +
+                                "lehetetlenül), és ezt nem is titkoljuk; az impulzus ellen véd."
                         },
                         style = MaterialTheme.typography.bodySmall,
                     )

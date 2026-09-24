@@ -30,4 +30,13 @@
     <string name="vpn_privatedns_text">A rendszer szigorú Privát DNS-e (%1$s) megkerüli a Breaker szűrőjét. Beállítások → Hálózat és internet → Privát DNS: állítsd Automatikusra.</string>
     <string name="vpn_revoked_title">A Breaker védelem kikapcsolt!</string>
     <string name="vpn_revoked_text">Egy másik alkalmazás vagy beállítás leállította a VPN-t. Nyisd meg a Breakert a visszakapcsoláshoz.</string>
+    <!--
+      TÖRLÉS-VÉDELEM (eszközadmin). A leírás a rendszer eszközadmin-listáján
+      látszik; a magyarázat a bekapcsoló párbeszédben; a figyelmeztetés a
+      kikapcsolás megerősítő képernyőjén. Mind kimondja az őszinte korlátot:
+      ez nem gépzár, csak súrlódás, és bármikor kikapcsolható.
+    -->
+    <string name="device_admin_description">Amíg be van kapcsolva, a Breaker nem törölhető egyetlen koppintással — előbb itt kell kikapcsolni. Mást nem szabályoz, és semmit nem lát a telefonodból.</string>
+    <string name="device_admin_add_explanation">A törlés-védelem bekapcsolása. Ezután a Breaker nem távolítható el egy koppintással: előbb ki kell kapcsolni az eszközadmint. Csak ennyit ad — nem lát bele a telefonodba, és bármikor kikapcsolható a Beállításokban.</string>
+    <string name="device_admin_disable_warning">Ha kikapcsolod, a Breaker megint egyetlen koppintással letörölhető lesz — és vele a védelem is. Csak akkor tedd, ha tényleg ezt akarod.</string>
 </resources>

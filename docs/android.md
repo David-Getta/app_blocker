@@ -70,10 +70,27 @@ cd android
   a gépi tükre; a blobon `keywords` + `keywordsRev`). Lásd
   `docs/feature-keywords.md`.
 
+## Törlés-védelem (eszközadmin)
+A telefonon a védelmet egyetlen mozdulattal el lehet tüntetni: az ikon hosszú
+nyomása → „Eltávolítás”. A **törlés-védelem** ezt az egy gombot veszi el: amíg
+be van kapcsolva, a Breaker aktív **eszközadmin** (`admin/UninstallGuard.kt`,
+`admin/BreakerDeviceAdminReceiver.kt`), és az Android nem engedi a sima
+eltávolítást — előbb ki kell kapcsolni.
+
+A házirend (`res/xml/device_admin.xml`) **üres**: jogot nem kérünk, adatot nem
+látunk, semmit nem szabályozunk. Az egyetlen használt hatás a törlés súrlódása.
+Bekapcsolni egy koppintás (a felület kártyája a rendszer eszközadmin-
+párbeszédét nyitja); kikapcsolni szándékos lépés a rendszer biztonsági
+beállításain át (csendes, egykoppintásos kikapcsolót nem adunk). Nem gépzár: a
+Beállítások → Biztonság → Eszközadmin-alkalmazások alatt bármikor kikapcsolható.
+Részletek: [`feature-uninstall-guard.md`](feature-uninstall-guard.md).
+
 ## Korlátok
 - Ha a felhasználó a rendszerbeállításokban leállítja a VPN-t, az app feltűnő
   értesítést ad (`onRevoke`). Egyetlen appnál nem tudunk „always-on VPN”-t
-  kikényszeríteni MDM/eszközadminisztrátor nélkül — ez tudatos döntés.
+  kikényszeríteni MDM/eszközadminisztrátor nélkül — ez tudatos döntés. (A
+  törlés-védelem eszközadminja ehhez kevés: az always-on VPN kikényszerítéséhez
+  eszköz-tulajdonos / profil-tulajdonos DPC kellene, ami sokkal több.)
 - A beépített DNS-over-HTTPS-t használó appok elméletileg megkerülhetik; a
   rendszerszintű DNS-t viszont szűrjük.
 - **A rendszer szigorú Privát DNS-e megkerüli a szűrőt** (Beállítások →

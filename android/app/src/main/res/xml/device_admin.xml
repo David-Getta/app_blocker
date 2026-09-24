@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A TÖRLÉS-VÉDELEM házirendje: SZÁNDÉKOSAN ÜRES. Nem kérünk jelszó-, kamera-,
+  titkosítás- vagy adattörlési jogot, semmit nem szabályozunk és semmit nem
+  látunk a telefonból. Az aktív eszközadmin EGYETLEN hatása, amit használunk:
+  amíg él, a rendszer nem engedi az egykoppintásos eltávolítást — előbb ki kell
+  kapcsolni. Ez a súrlódás a lényeg, nem a jogkör.
+-->
+<device-admin xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-policies />
+</device-admin>

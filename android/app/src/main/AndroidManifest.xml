@@ -66,6 +66,24 @@
             android:name=".vpn.FocusWindowReceiver"
             android:exported="false" />
 
+        <!-- TÖRLÉS-VÉDELEM. Amíg ez aktív eszközadmin, a rendszer nem engedi az
+             egykoppintásos eltávolítást — előbb ki kell kapcsolni. A házirend
+             (xml/device_admin) üres: csak ezt az egy súrlódást használjuk, jogot
+             nem kérünk. A BIND_DEVICE_ADMIN engedély garantálja, hogy csak a
+             rendszer indíthatja; ezért kell exportáltnak lennie. -->
+        <receiver
+            android:name=".admin.BreakerDeviceAdminReceiver"
+            android:permission="android.permission.BIND_DEVICE_ADMIN"
+            android:exported="true"
+            android:description="@string/device_admin_description">
+            <meta-data
+                android:name="android.app.device_admin"
+                android:resource="@xml/device_admin" />
+            <intent-filter>
+                <action android:name="android.app.action.DEVICE_ADMIN_ENABLED" />
+            </intent-filter>
+        </receiver>
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.updates"

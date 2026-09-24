@@ -127,9 +127,11 @@ levenni próbatétel, és csak az ablakon kívül. Részletek:
 ## Őszinte korlátok
 
 - **Nem gépzár.** Rendszergazdaként a háttérszolgáltatás leállítható, a
-  telefonon az app letörölhető. A zárlat az appon BELÜL zár le mindent, vagyis
-  az impulzus ellen véd, nem a megfontolt, tíz perces kerülőút ellen. Ezt a
-  felület is kimondja, nem csak ez a lap.
+  telefonon az app letörölhető — a **törlés-védelem** (eszközadmin) elveszi
+  ehhez az egykoppintásos utat, de a rendszer beállításaiban az is kikapcsolható
+  ([`feature-uninstall-guard.md`](feature-uninstall-guard.md)). A zárlat az
+  appon BELÜL zár le mindent, vagyis az impulzus ellen véd, nem a megfontolt,
+  tíz perces kerülőút ellen. Ezt a felület is kimondja, nem csak ez a lap.
 - **Eszközóra-eltérés.** A vég abszolút időpont. Ha a másik eszköz órája
   siet, az onnan indított zárlat itt hosszabbnak látszik. Az irány a
   szigorúbb, és nem titkoljuk.
