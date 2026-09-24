@@ -38,6 +38,9 @@ final class LimitsTests: XCTestCase {
         XCTAssertEqual(LimitLogic.limitSoonLine([("a", 600, 600)]), "", "betelt: nem heads-up")
         XCTAssertEqual(LimitLogic.limitSoonLine([("a", 3600, 0)]), "", "messze: nincs sor")
         XCTAssertEqual(LimitLogic.limitSoonLine([("a", nil, 500)]), "", "keret nélkül nincs")
+        // Kis keret: a hátsó felében szólal meg, nem a legelső perctől.
+        XCTAssertEqual(LimitLogic.limitSoonLine([("a", 300, 0)]), "", "öt perces keret, 0 elhasználva: még nem szól")
+        XCTAssertEqual(LimitLogic.limitSoonLine([("a", 300, 200)]), "Ma még 2 perc a kereted: a.", "öt perces keret: a hátsó felében szól")
         XCTAssertEqual(LimitLogic.limitSoonLine([]), "")
     }
 }

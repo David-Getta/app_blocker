@@ -177,5 +177,8 @@ test('közeleg a napi keret: a legsürgősebb oldal a küszöbön belül; a sor 
   assert.equal(limitSoonLine([{ label: 'a', dailyLimitSeconds: 600, usedSeconds: 600 }]), '', 'betelt keret: a tiltás mondja, nem heads-up');
   assert.equal(limitSoonLine([{ label: 'a', dailyLimitSeconds: 3600, usedSeconds: 0 }]), '', 'messze a küszöbtől: nincs sor');
   assert.equal(limitSoonLine([{ label: 'a', dailyLimitSeconds: null, usedSeconds: 500 }]), '', 'keret nélkül nincs sor');
+  // Kis keret: a hátsó felében szólal meg, nem a legelső perctől (küszöb = a keret fele, ha az kevesebb tíz percnél).
+  assert.equal(limitSoonLine([{ label: 'a', dailyLimitSeconds: 300, usedSeconds: 0 }]), '', 'öt perces keret, 0 elhasználva: még nem szól');
+  assert.equal(limitSoonLine([{ label: 'a', dailyLimitSeconds: 300, usedSeconds: 200 }]), 'Ma még 2 perc a kereted: a.', 'öt perces keret: a hátsó felében szól');
   assert.equal(limitSoonLine([]), '');
 });

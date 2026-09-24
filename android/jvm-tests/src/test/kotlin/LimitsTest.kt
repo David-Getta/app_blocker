@@ -314,6 +314,9 @@ class LimitsTest {
         assertEquals("", LimitLogic.limitSoonLine(listOf<Triple<String, Long?, Double>>(Triple("a", 600, 600.0))), "betelt: nem heads-up")
         assertEquals("", LimitLogic.limitSoonLine(listOf<Triple<String, Long?, Double>>(Triple("a", 3600, 0.0))), "messze: nincs sor")
         assertEquals("", LimitLogic.limitSoonLine(listOf<Triple<String, Long?, Double>>(Triple("a", null, 500.0))), "keret nélkül nincs")
+        // Kis keret: a hátsó felében szólal meg, nem a legelső perctől.
+        assertEquals("", LimitLogic.limitSoonLine(listOf<Triple<String, Long?, Double>>(Triple("a", 300, 0.0))), "öt perces keret, 0 elhasználva: még nem szól")
+        assertEquals("Ma még 2 perc a kereted: a.", LimitLogic.limitSoonLine(listOf<Triple<String, Long?, Double>>(Triple("a", 300, 200.0))), "öt perces keret: a hátsó felében szól")
         assertEquals("", LimitLogic.limitSoonLine(emptyList()))
     }
 }

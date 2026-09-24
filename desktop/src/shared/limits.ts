@@ -307,19 +307,26 @@ export function limitRemaining(dailyLimitSeconds: number | null | undefined, use
 
 /**
  * KÖZELEG A NAPI KERET: a legsürgősebb oldal — amelyiknek a mai keretéből a
- * legkevesebb van hátra, de még nem telt be, és a küszöbön belül van.
- * „Ma még 8 perc a kereted: youtube.com.” Tény, nem tiltás: szól, mielőtt a
- * keret betelne, hogy ne meglepetés legyen. Üres, ha egyik oldal sincs a
- * küszöbön belül. A címkét a hívó adja (fedőnév, rejtés — az övé), a mag csak
- * a számot nézi.
+ * legkevesebb van hátra, de még nem telt be, és a küszöbön belül van (az
+ * utolsó tíz perc, de legfeljebb a keret fele). Például:
+ * „Ma még 8 perc a kereted: youtube.com.”
+ * Tény, nem tiltás: szól, mielőtt a keret betelne, hogy ne meglepetés legyen.
+ * Üres, ha egyik oldal sincs a küszöbön belül. A címkét a hívó adja (fedőnév,
+ * rejtés — az övé), a mag csak a számot nézi.
  */
 export function limitSoonLine(
   candidates: { label: string; dailyLimitSeconds: number | null | undefined; usedSeconds: number }[],
 ): string {
   let best: { label: string; rem: number } | null = null;
   for (const c of candidates) {
-    const rem = limitRemaining(c.dailyLimitSeconds, c.usedSeconds);
-    if (rem === null || rem <= 0 || rem > LIMIT_SOON_SECONDS) continue;
+    const limit = normalizeLimit(c.dailyLimitSeconds);
+    if (limit === null) continue;
+    const rem = Math.max(0, limit - c.usedSeconds);
+    // A küszöb az utolsó tíz perc, de legfeljebb a keret FELE — így egy kis
+    // keret (pl. öt perc) nem szólal meg már a legelső perctől, hanem a hátsó
+    // felében. Nagy keretnél (húsz perctől) a tíz perc a mérvadó.
+    const threshold = Math.min(LIMIT_SOON_SECONDS, limit / 2);
+    if (rem <= 0 || rem > threshold) continue;
     if (best === null || rem < best.rem) best = { label: c.label, rem };
   }
   if (best === null) return '';

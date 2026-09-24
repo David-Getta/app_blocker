@@ -228,9 +228,13 @@ object LimitLogic {
      */
     fun limitSoonLine(candidates: List<Triple<String, Long?, Double>>): String {
         var best: Pair<String, Double>? = null
-        for ((label, limit, used) in candidates) {
-            val rem = limitRemaining(limit, used) ?: continue
-            if (rem <= 0.0 || rem > LIMIT_SOON_SECONDS) continue
+        for ((label, limitRaw, used) in candidates) {
+            val limit = normalizeLimit(limitRaw) ?: continue
+            val rem = maxOf(0.0, limit - used)
+            // A küszöb az utolsó tíz perc, de legfeljebb a keret FELE — egy kis
+            // keret ne szólaljon meg a legelső perctől, hanem a hátsó felében.
+            val threshold = minOf(LIMIT_SOON_SECONDS.toDouble(), limit / 2.0)
+            if (rem <= 0.0 || rem > threshold) continue
             if (best == null || rem < best.second) best = label to rem
         }
         val b = best ?: return ""

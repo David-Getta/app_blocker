@@ -202,8 +202,12 @@ enum LimitLogic {
     static func limitSoonLine(_ candidates: [(label: String, dailyLimitSeconds: Double?, usedSeconds: Double)]) -> String {
         var best: (label: String, rem: Double)?
         for c in candidates {
-            guard let rem = limitRemaining(c.dailyLimitSeconds, c.usedSeconds) else { continue }
-            if rem <= 0 || rem > limitSoonSeconds { continue }
+            guard let limit = normalizeLimit(c.dailyLimitSeconds) else { continue }
+            let rem = max(0, limit - c.usedSeconds)
+            // A küszöb az utolsó tíz perc, de legfeljebb a keret FELE — egy kis
+            // keret ne szólaljon meg a legelső perctől, hanem a hátsó felében.
+            let threshold = min(limitSoonSeconds, limit / 2)
+            if rem <= 0 || rem > threshold { continue }
             if best == nil || rem < best!.rem { best = (c.label, rem) }
         }
         guard let b = best else { return "" }
