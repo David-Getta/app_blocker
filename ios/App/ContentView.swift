@@ -77,6 +77,7 @@ struct ContentView: View {
                     if let ses = store.state.session { resumeBanner(ses) }
                     listSection
                     StatsView(now: now, siteLabel: siteLabel)
+                    uninstallGuardSection
                     lockdownSection
                     SyncCard(siteLabel: siteLabel)
                     tierLine
@@ -593,13 +594,30 @@ struct ContentView: View {
 
     /// A zárlat kártyája. A többitől az különbözteti meg, hogy ennek nincs
     /// ellentéte: nincs feloldó gomb, és nem is lesz — pont attól ér valamit.
+    // TÖRLÉS-VÉDELEM. Androidon az app maga veszi el az egykoppintásos törlést
+    // (eszközadmin). iPhone-on ezt appból NEM lehet — az Apple nem enged rá
+    // jogot —, de a rendszer ad rá utat: a Képernyőidő. A döntés helyén
+    // kimondjuk, hova, hogy a törlés itt se legyen reflex. Nincs mit
+    // kérdeznünk a rendszertől (a Képernyőidő állapotát nem látjuk), ezért ez
+    // magyarázat, nem kapcsoló — őszintén.
+    private var uninstallGuardSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            SectionLabel("Törlés-védelem")
+            Text("A telefonon a védelem egyetlen mozdulattal törölhető: hosszan nyomod az ikont, „Törlés”, és vele minden blokk, zárlat és menetrend. iPhone-on ezt appból nem lehet megakadályozni — az Apple nem enged rá jogot.")
+                .font(.footnote).foregroundStyle(.secondary)
+            Text("A rendszer viszont ad rá utat, magadnak: Beállítások → Képernyőidő → Tartalmi és adatvédelmi korlátozások → App-törlések: „Nem engedélyezett”. Ehhez Képernyőidő-kód kell — onnantól a törléshez a kód kell, nem egy koppintás. Ugyanaz az elv, mint a zárlaté: nem lehetetlen, csak drágább, az impulzus ellen.")
+                .font(.footnote).foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
     private var lockdownSection: some View {
         let live = LockdownLogic.isLocked(store.state.lockdown, now)
         return VStack(alignment: .leading, spacing: 8) {
             SectionLabel("Zárlat")
             Text(live
                  ? "A futó zárlat nem rövidíthető és nem vonható vissza. Hosszabbítani viszont bármikor lehet — a szigorítás mindig ingyen van."
-                 : "Egy időszak, ami alatt a lazítás nem drágább, hanem NEM LÉTEZIK: sem feloldás, sem keret-emelés, sem szabály-levétel nem indítható, próbatétellel sem. Blokkolni és szigorítani közben is lehet. Nincs visszaút: ha elindítod, ki kell várni. Ez nem készülékzár — az app letörölhető, és ezt nem is titkoljuk; az impulzus ellen véd.")
+                 : "Egy időszak, ami alatt a lazítás nem drágább, hanem NEM LÉTEZIK: sem feloldás, sem keret-emelés, sem szabály-levétel nem indítható, próbatétellel sem. Blokkolni és szigorítani közben is lehet. Nincs visszaút: ha elindítod, ki kell várni. Ez nem készülékzár — az app letörölhető (a Képernyőidő korlátozásával nehezebben, lásd a törlés-védelmet), és ezt nem is titkoljuk; az impulzus ellen véd.")
                 .font(.footnote).foregroundStyle(.secondary)
             Button(live ? "Zárlat hosszabbítása" : "Zárlat indítása") { lockdownSheet = true }
                 .buttonStyle(.bordered)

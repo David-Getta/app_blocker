@@ -50,10 +50,19 @@ utána törölj. Épp ez a pár másodperc gondolkodás a lényeg — az impulzu
 véd, nem a megfontolt szándék ellen. Ugyanaz az elv, mint a zárlaté: nem
 lehetetlenné teszi, hanem drágábbá.
 
-## Miért csak Androidon
+## A többi platformon
 
-- **iPhone:** az Apple nem enged appnak ilyen jogot; a saját törlés-védelme a
-  Képernyőidő korlátozásai közt kapcsolható (rendszerszinten, nem appból).
+A mechanizmus (eszközadmin) Android-oldali, de a *rés* mindenütt ugyanaz: a
+törlés egy koppintás. Ahol tudjuk, ott elvesszük az egy gombot; ahol nem, ott
+legalább kimondjuk, hova.
+
+- **iPhone:** az Apple nem enged appnak ilyen jogot, tehát az app maga nem tud
+  törlés-védelmet adni. A rendszer viszont ad rá utat: a **Képernyőidő**
+  (Beállítások → Képernyőidő → Tartalmi és adatvédelmi korlátozások →
+  App-törlések: „Nem engedélyezett”, Képernyőidő-kóddal). Az iOS-app a
+  kezdőlapon, a zárlat mellett, egy „Törlés-védelem” szekcióban kimondja ezt
+  az utat — magyarázat, nem kapcsoló (a Képernyőidő állapotát appból nem
+  látjuk, és nem is tettetjük). A döntés helyén a törlés így itt se reflex.
 - **Windows / macOS:** a gépen a védelmet egy rendszergazdai jogú
   háttérszolgáltatás tartja, ennek eltávolítása eleve rendszergazdai lépés és
   külön eltávolító szkript (`docs/desktop.md`) — ott már megvan a súrlódás.

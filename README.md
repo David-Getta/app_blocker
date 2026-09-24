@@ -175,7 +175,9 @@ ingyen van, rövidíteni vagy visszavonni sehogy.
   egy gombot: amíg be van kapcsolva (a szokásos, dokumentált eszközadmin), az
   Android előbb a kikapcsolást kéri, és csak utána enged törölni. Bekapcsolni
   egy koppintás; nem lát bele a telefonba, jogot nem kér, és a rendszer
-  Beállításaiban bármikor kikapcsolható — nem gépzár, csak súrlódás.
+  Beállításaiban bármikor kikapcsolható — nem gépzár, csak súrlódás. iPhone-on
+  ezt appból nem lehet, de az app kimondja a rendszer útját (Képernyőidő →
+  App-törlések: „Nem engedélyezett”), a döntés helyén.
   [`docs/feature-uninstall-guard.md`](docs/feature-uninstall-guard.md).
 
 - **Indok: miért tiltottad — egy mondat a kísértés pillanatára** (mindhárom
