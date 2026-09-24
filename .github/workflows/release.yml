@@ -44,23 +44,22 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A törlés-védelem a threat-model térképén.** A megkerülési utak
-          listája most külön kimondja az app törlését, környezetenként
-          pontosan: Androidon az eszközadmin, iPhone-on a Képernyőidő, a
-          gépen a segéd tartja a blokkolást admin-leszerelésig. Sehol sem
-          gépzár, a cél a súrlódás. Kód nem változott.
+          **Közeleg a napi keret.** A kezdőlap előre szól, ha egy oldal mai
+          keretéből kevés van hátra — a legsürgősebbről, tíz percen belül:
+          „Ma még 8 perc a kereted: youtube.com.” Tény, nem tiltás; a betelt
+          keretet már a tiltás mondja. Mindhárom platformon, a menet-sorozat
+          sora mellett; rejtett listánál nincs — a cím ne szivárogjon ki.
 
-          ### Ami a v0.4.158-ban jött
+          ### Ami a v0.4.159-ben jött
+
+          **A törlés-védelem a threat-model térképén** — a megkerülési utak
+          listája most külön kimondja az app törlését, környezetenként
+          pontosan. Kód nem változott.
+
+          #### Ami a v0.4.158-ban jött
 
           **Törlés-védelem az iPhone-on is.** A kezdőlap kimondja a rendszer
-          útját (Képernyőidő → App-törlések tiltása kóddal), mert appból ott
-          nem lehet elvenni az egykoppintásos törlést.
-
-          #### Ami a v0.4.157-ben jött
-
-          **Törlés-védelem az Androidon.** Az app maga veszi el az
-          egykoppintásos törlést (eszközadmin); a Beállításokban bármikor
-          kikapcsolható — nem gépzár.
+          útját (Képernyőidő → App-törlések tiltása kóddal).
 
           NOTES
           fi
