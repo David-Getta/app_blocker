@@ -8,7 +8,7 @@ kettővel korábbiban.
 
 | Verzió | Nap | Mi újság |
 |---|---|---|
-| v0.4.161 (még nincs kiadva) | 2026-09-24 | közeleg a napi keret a böngészőben is |
+| v0.4.161 | 2026-09-24 | közeleg a napi keret a böngészőben is |
 | v0.4.160 | 2026-09-24 | közeleg a napi keret |
 | v0.4.159 (nem kapott saját kiadást) | 2026-09-24 | a törlés-védelem a threat-model térképén |
 | v0.4.158 | 2026-09-24 | törlés-védelem az iPhone-on is |
