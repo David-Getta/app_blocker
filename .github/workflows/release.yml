@@ -44,25 +44,23 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **Törlés-védelem az iPhone-on is.** Androidon az app maga veszi
-          el az egykoppintásos törlést (eszközadmin); iPhone-on ezt appból
-          nem lehet, de a rés ugyanaz. A kezdőlap a zárlat mellett kimondja
-          a rendszer útját: Beállítások → Képernyőidő → Tartalmi és
-          adatvédelmi korlátozások → App-törlések: „Nem engedélyezett”. A
-          törléshez onnantól a Képernyőidő-kód kell, nem egy koppintás.
+          **A törlés-védelem a threat-model térképén.** A megkerülési utak
+          listája most külön kimondja az app törlését, környezetenként
+          pontosan: Androidon az eszközadmin, iPhone-on a Képernyőidő, a
+          gépen a segéd tartja a blokkolást admin-leszerelésig. Sehol sem
+          gépzár, a cél a súrlódás. Kód nem változott.
 
-          ### Ami a v0.4.157-ben jött
+          ### Ami a v0.4.158-ban jött
 
-          **Törlés-védelem az Androidon.** A törlés-védelem elveszi az
-          egykoppintásos törlést: amíg be van kapcsolva (eszközadmin), az
-          Android előbb a kikapcsolást kéri. Jogot nem kér, adatot nem lát,
-          és a Beállításokban bármikor kikapcsolható — nem gépzár.
+          **Törlés-védelem az iPhone-on is.** A kezdőlap kimondja a rendszer
+          útját (Képernyőidő → App-törlések tiltása kóddal), mert appból ott
+          nem lehet elvenni az egykoppintásos törlést.
 
-          #### Ami a v0.4.156-ban jött
+          #### Ami a v0.4.157-ben jött
 
-          **A hét napjainak nevei is az őrben.** A mag-összhang őre a gép
-          és a bővítmény napnév-listáját is egymáshoz méri. Kód nem
-          változott.
+          **Törlés-védelem az Androidon.** Az app maga veszi el az
+          egykoppintásos törlést (eszközadmin); a Beállításokban bármikor
+          kikapcsolható — nem gépzár.
 
           NOTES
           fi
