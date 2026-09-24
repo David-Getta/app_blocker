@@ -130,6 +130,19 @@ export function focusStreakText(link, now, freshMs) {
 }
 
 /**
+ * KÖZELEG A NAPI KERET: ha egy oldal mai keretéből kevés van hátra, a lap szól,
+ * mielőtt betelne. A kész mondatot az app adja (a fedőnevet és a rejtést is ő
+ * oldja fel — a lap csak megjeleníti). Csak összekötve és friss válasz mellett.
+ */
+export function limitSoonText(link, now, freshMs) {
+  if (!link || typeof link.token !== 'string' || !link.token) return '';
+  const fresh = Number.isFinite(link?.fetchedAt) && link.fetchedAt > 0 && now - link.fetchedAt <= freshMs;
+  const line = link?.suggest?.limitSoon;
+  if (!fresh || typeof line !== 'string' || !line) return '';
+  return ` ${line}`;
+}
+
+/**
  * A CSÚCS-ÓRA ABLAKÁNAK gombja: { packId, hour, text } — vagy null. Ugyanazok
  * a kapuk, mint a menet gombjánál (összekötve, friss válasz, futó menet
  * nélkül), és az app mondja meg, van-e csúcs-óra, amire ablak tehető.

@@ -277,4 +277,7 @@ A „mindenhol elhasznált” idő számít (a helyi mérés plusz a többi eszk
 iPhone-on nincs helyi mérés, ott a többi eszköz mérése adja a számot. Rejtett
 listánál nincs sor: a cím ne szivárogjon ki. A mag egy helyen dönt
 (`limitSoonLine`, `LimitLogic.limitSoonLine`), a három kezdőlap ugyanazt a
-mondatot írja ki.
+mondatot írja ki. A böngészőben is: a híd a kész mondatot adja le
+(`suggest.limitSoon` — az app oldja fel a fedőnevet és a rejtést), a felugró
+lap és a tiltó lap a menet gombja mellett mondja. Ott van a legtöbb haszna,
+mert a böngészőben telik a keret.

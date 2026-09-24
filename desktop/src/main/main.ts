@@ -15,6 +15,8 @@ import { setupOverlayShortcut } from './overlay-shortcut';
 import { setupExtensionFolder } from './extension-folder';
 import { isFocusHourNow, isWindowRun, packCoveringHour, peakWindowBand, shouldWarnAboutApp, warnDue } from '../shared/focus';
 import { isPeakDayNow } from '../shared/browser-hits';
+import { limitSoonLine } from '../shared/limits';
+import { displayName } from '../shared/alias';
 import * as path from 'path';
 import { HelperClient } from './helper-client';
 import { installHelper } from './install';
@@ -368,8 +370,13 @@ if (HELPER_MODE) {
           const focusStreak = s.focusStreak ?? 0;
           // A LEGHOSSZABB SOROZAT: a lap a mostani mellett, zárójelben mondja — a szám az appé, a küszöb a lapé.
           const focusLongestStreak = s.focusLongestStreak ?? 0;
+          // KÖZELEG A NAPI KERET: a legsürgősebb oldal, ha a mai keretéből kevés van hátra.
+          // A fedőnevet itt oldjuk fel; rejtett listánál nincs (a cím ne szivárogjon ki).
+          const limitSoon = s.hideSiteList === true ? '' : limitSoonLine((s.sites ?? []).map((site) => ({
+            label: displayName(site), dailyLimitSeconds: site.dailyLimitSeconds, usedSeconds: site.usedTodaySeconds,
+          })));
           // LE VAN-E FEDVE: a csomag, amelynek ablaka a csúcs-órát fedi — a felugró lap kimondja.
-          return { packId: pick.id, name: pick.name, minutes: pick.defaultMinutes, peakHour, peakPack: covering?.name ?? null, focusDay, focusHourNow, focusHour, focusHourPack, sameHour, focusStreak, focusLongestStreak };
+          return { packId: pick.id, name: pick.name, minutes: pick.defaultMinutes, peakHour, peakPack: covering?.name ?? null, focusDay, focusHourNow, focusHour, focusHourPack, sameHour, focusStreak, focusLongestStreak, limitSoon };
         },
         async (packId, minutes) => {
           // EGY KATTINTÁS a felugró lapról a menetig: ugyanaz a bírói út, mint

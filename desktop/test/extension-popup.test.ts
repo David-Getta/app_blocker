@@ -46,11 +46,12 @@ interface Popup {
   focusDayText: (link: unknown, now: number, freshMs: number) => string;
   focusHourNowText: (link: unknown, now: number, freshMs: number) => string;
   focusStreakText: (link: unknown, now: number, freshMs: number) => string;
+  limitSoonText: (link: unknown, now: number, freshMs: number) => string;
 }
 
 function load(): Popup {
   const src = fs.readFileSync(path.join(extensionDir(), 'popup-core.js'), 'utf8').replace(/^export /gm, '');
-  return new Function(`${src}\nreturn { describePopup, spanText, agoText, CLOSED_SHOWN, suggestButton, windowButton, focusHourWindowButton, hourSpan, peakCoverText, sameHourText, focusHourCoverText, focusDayText, focusHourNowText, focusStreakText };`)() as Popup;
+  return new Function(`${src}\nreturn { describePopup, spanText, agoText, CLOSED_SHOWN, suggestButton, windowButton, focusHourWindowButton, hourSpan, peakCoverText, sameHourText, focusHourCoverText, focusDayText, focusHourNowText, focusStreakText, limitSoonText };`)() as Popup;
 }
 
 const NOW = 1_800_000_000_000;
@@ -304,6 +305,17 @@ test('a menet-sorozat a gomb mellett: az app száma, kettőtől, frissen, össze
   assert.equal(focusStreakText(link({}), NOW, FRESH), '', 'javaslat nélkül nincs');
   assert.equal(focusStreakText(link({ suggest: s, fetchedAt: NOW - 10 * 60_000 }), NOW, FRESH), '', 'elavult válasz mellett nincs');
   assert.equal(focusStreakText(link({ suggest: s, token: null }), NOW, FRESH), '', 'összekötetlenül nincs');
+});
+
+test('közeleg a napi keret a lapon: az app kész mondata, frissen, összekötve', () => {
+  const { limitSoonText } = load();
+  const s = { packId: 'pack_1', name: 'Nyelvtanulás', minutes: 25, limitSoon: 'Ma még 3 perc a kereted: youtube.com.' };
+  assert.equal(limitSoonText(link({ suggest: s }), NOW, FRESH), ' Ma még 3 perc a kereted: youtube.com.');
+  assert.equal(limitSoonText(link({ suggest: { ...s, limitSoon: '' } }), NOW, FRESH), '', 'üres mondat: nincs');
+  assert.equal(limitSoonText(link({ suggest: { ...s, limitSoon: 42 } }), NOW, FRESH), '', 'csak szöveg');
+  assert.equal(limitSoonText(link({}), NOW, FRESH), '', 'javaslat nélkül nincs');
+  assert.equal(limitSoonText(link({ suggest: s, fetchedAt: NOW - 10 * 60_000 }), NOW, FRESH), '', 'elavult válasz mellett nincs');
+  assert.equal(limitSoonText(link({ suggest: s, token: null }), NOW, FRESH), '', 'összekötetlenül nincs');
 });
 
 test('idő-szöveg napokban: a hetes zárlat nem „kb. 168 ó”', () => {

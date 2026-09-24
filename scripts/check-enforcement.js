@@ -1075,7 +1075,7 @@ const WIRES = [
   // LE VAN-E FEDVE a felugró lapon: a híd leadja a fedő csomagot, a lap kimondja.
   {
     file: 'desktop/src/main/main.ts',
-    needle: "peakPack: covering?.name ?? null, focusDay, focusHourNow, focusHour, focusHourPack, sameHour, focusStreak, focusLongestStreak };",
+    needle: "peakPack: covering?.name ?? null, focusDay, focusHourNow, focusHour, focusHourPack, sameHour, focusStreak, focusLongestStreak, limitSoon };",
     lost: 'a híd nem adná le a csúcs-órát fedő csomagot — a felugró lap nem mondaná',
   },
   {
@@ -1632,13 +1632,34 @@ const WIRES = [
   },
   {
     file: 'extension/popup.js',
-    needle: '+ focusStreakText(link, Date.now(), CLOSED_FRESH_MS);',
+    needle: '+ focusStreakText(link, Date.now(), CLOSED_FRESH_MS)',
     lost: 'a felugró lap nem mondaná a menet-sorozatot',
   },
   {
     file: 'extension/blocked.js',
-    needle: '+ focusStreakText(link, Date.now(), CLOSED_FRESH_MS);',
+    needle: '+ focusStreakText(link, Date.now(), CLOSED_FRESH_MS)',
     lost: 'a tiltó lap nem mondaná a menet-sorozatot',
+  },
+  // KÖZELEG A NAPI KERET a böngészőben: a híd a kész sort adja, a lapok mondják.
+  {
+    file: 'desktop/src/main/main.ts',
+    needle: 'const limitSoon = s.hideSiteList === true ? \'\' : limitSoonLine((s.sites ?? []).map((site) => ({',
+    lost: 'a híd nem adná le a közeledő napi keretet',
+  },
+  {
+    file: 'extension/app-link.js',
+    needle: "const limitSoon = typeof raw.limitSoon === 'string' ? raw.limitSoon.slice(0, 80) : '';",
+    lost: 'a bővítmény eldobná a közeledő keret sorát a híd válaszából',
+  },
+  {
+    file: 'extension/popup.js',
+    needle: '+ limitSoonText(link, Date.now(), CLOSED_FRESH_MS);',
+    lost: 'a felugró lap nem szólna a közeledő napi keretről',
+  },
+  {
+    file: 'extension/blocked.js',
+    needle: '+ limitSoonText(link, Date.now(), CLOSED_FRESH_MS);',
+    lost: 'a tiltó lap nem szólna a közeledő napi keretről',
   },
   // A MENET-NAP és a MENET-ÓRA az Android szűrő-értesítésének sorában is.
   {

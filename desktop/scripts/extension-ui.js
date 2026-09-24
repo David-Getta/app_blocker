@@ -251,14 +251,14 @@ async function main() {
     window.__disk['breaker.applink'] = {
       token: 'JOKOD', port: 8788, rules: [], channels: [], closed: [],
       focus: { running: false },
-      suggest: { packId: 'pack_2', name: 'Mély munka', minutes: 90, focusDay: true, focusHourNow: true, focusHourPack: 'Nyelvtanulás', focusStreak: 5, focusLongestStreak: 12 },
+      suggest: { packId: 'pack_2', name: 'Mély munka', minutes: 90, focusDay: true, focusHourNow: true, focusHourPack: 'Nyelvtanulás', focusStreak: 5, focusLongestStreak: 12, limitSoon: 'Ma még 3 perc a kereted: youtube.com.' },
       fetchedAt: Date.now(), attemptedAt: Date.now(), error: null,
     };
   `);
   await page.goto(`http://127.0.0.1:${port}/popup.html`);
   // A MENET-NAP, a MENET-ÓRA és a MENET-SOROZAT a gomb mellett: az app mondja, a lap kimondja.
   await page.waitForFunction(
-    () => document.getElementById('focusDayNote')?.textContent === 'Ma a menet-napod van — ilyenkor szoktál leülni. Most a menet-órád van. A menet-órában magától indul: Nyelvtanulás. 5 napja minden nap leültél (a leghosszabb sorozatod: 12 nap).'
+    () => document.getElementById('focusDayNote')?.textContent === 'Ma a menet-napod van — ilyenkor szoktál leülni. Most a menet-órád van. A menet-órában magától indul: Nyelvtanulás. 5 napja minden nap leültél (a leghosszabb sorozatod: 12 nap). Ma még 3 perc a kereted: youtube.com.'
       && !document.getElementById('focusDayNote')?.hidden,
     undefined, { timeout: 10_000 },
   ).catch(() => failures.push('a felugró lap nem mondja a menet-napot az app szava szerint'));

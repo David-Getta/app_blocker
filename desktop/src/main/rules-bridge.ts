@@ -151,6 +151,12 @@ export interface BridgeSuggest {
   focusStreak?: number;
   /** A LEGHOSSZABB SOROZAT a naplóban — a lap a mostani sorozat mellett, zárójelben mondja, ha több. Régi app nem küldi. */
   focusLongestStreak?: number;
+  /**
+   * KÖZELEG A NAPI KERET: kész mondat a legsürgősebb oldalról, ha a mai
+   * keretéből kevés van hátra — az app oldja fel a fedőnevet és a rejtést.
+   * Üres, ha egyik oldal sincs a küszöbön belül. Régi app nem küldi.
+   */
+  limitSoon?: string;
 }
 
 /**

@@ -44,22 +44,24 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **Közeleg a napi keret.** A kezdőlap előre szól, ha egy oldal mai
-          keretéből kevés van hátra — a legsürgősebbről, tíz percen belül:
-          „Ma még 8 perc a kereted: youtube.com.” Tény, nem tiltás; a betelt
-          keretet már a tiltás mondja. Mindhárom platformon, a menet-sorozat
-          sora mellett; rejtett listánál nincs — a cím ne szivárogjon ki.
+          **Közeleg a napi keret a böngészőben is.** Amit a kezdőlapok
+          mondanak, azt a felugró lap és a tiltó lap is: ha egy oldal mai
+          keretéből kevés van hátra, szól a menet gombja mellett — „Ma még 8
+          perc a kereted: youtube.com.” A híd a kész mondatot adja (az app
+          oldja fel a fedőnevet); rejtett listánál a cím nem szivárog ki.
+          Bővítmény 0.4.37.
 
-          ### Ami a v0.4.159-ben jött
+          ### Ami a v0.4.160-ban jött
+
+          **Közeleg a napi keret.** A kezdőlap előre szól a legsürgősebb
+          oldalról, ha a mai keretéből kevés van hátra — tíz percen belül,
+          mindhárom platformon. Tény, nem tiltás.
+
+          #### Ami a v0.4.159-ben jött
 
           **A törlés-védelem a threat-model térképén** — a megkerülési utak
-          listája most külön kimondja az app törlését, környezetenként
-          pontosan. Kód nem változott.
-
-          #### Ami a v0.4.158-ban jött
-
-          **Törlés-védelem az iPhone-on is.** A kezdőlap kimondja a rendszer
-          útját (Képernyőidő → App-törlések tiltása kóddal).
+          listája külön kimondja az app törlését, környezetenként. Kód nem
+          változott. (Külön kiadást nem kapott, a v0.4.160 vitte.)
 
           NOTES
           fi

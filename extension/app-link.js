@@ -232,7 +232,9 @@ export function cleanSuggest(raw) {
   const focusStreak = Number.isInteger(raw.focusStreak) && raw.focusStreak >= 0 ? raw.focusStreak : 0;
   // A LEGHOSSZABB SOROZAT: az app száma; csak nemnegatív egész, különben nulla — a lap a mostani mellett mondja.
   const focusLongestStreak = Number.isInteger(raw.focusLongestStreak) && raw.focusLongestStreak >= 0 ? raw.focusLongestStreak : 0;
-  return { packId: raw.packId, name: raw.name, minutes, peakHour, peakPack, focusDay, focusHourNow, focusHour, focusHourPack, sameHour, focusStreak, focusLongestStreak };
+  // KÖZELEG A NAPI KERET: az app kész mondata (a fedőnevet is ő oldja fel) — kívülről jött szöveg, rövidre vágva.
+  const limitSoon = typeof raw.limitSoon === 'string' ? raw.limitSoon.slice(0, 80) : '';
+  return { packId: raw.packId, name: raw.name, minutes, peakHour, peakPack, focusDay, focusHourNow, focusHour, focusHourPack, sameHour, focusStreak, focusLongestStreak, limitSoon };
 }
 
 /**

@@ -79,7 +79,7 @@ test('ablak a csúcs-órára a hídról: a kóddal, csomaggal és órával — c
   let refuse: string | null = null;
   const d = {
     ...deps(),
-    getSuggest: async () => ({ packId: 'pack_1', name: 'Nyelvtanulás', minutes: 25, peakHour: 21, focusHour: 9, focusHourPack: 'Mély munka', sameHour: false, focusStreak: 5, focusLongestStreak: 12 }),
+    getSuggest: async () => ({ packId: 'pack_1', name: 'Nyelvtanulás', minutes: 25, peakHour: 21, focusHour: 9, focusHourPack: 'Mély munka', sameHour: false, focusStreak: 5, focusLongestStreak: 12, limitSoon: 'Ma még 3 perc a kereted: youtube.com.' }),
     addFocusWindow: async (packId: string, hour: number) => {
       if (refuse) throw new Error(refuse);
       added.push({ packId, hour });
@@ -92,6 +92,7 @@ test('ablak a csúcs-órára a hídról: a kóddal, csomaggal és órával — c
   assert.equal((rules.body as { suggest: { sameHour: boolean } }).suggest.sameHour, false, 'az egybeesés jele is lemegy');
   assert.equal((rules.body as { suggest: { focusStreak: number } }).suggest.focusStreak, 5, 'a menet-sorozat is lemegy');
   assert.equal((rules.body as { suggest: { focusLongestStreak: number } }).suggest.focusLongestStreak, 12, 'a rekord is lemegy');
+  assert.equal((rules.body as { suggest: { limitSoon: string } }).suggest.limitSoon, 'Ma még 3 perc a kereted: youtube.com.', 'a közeledő keret sora is lemegy');
   const ok = await answer(d, 'POST', '/focus_window', { [TOKEN_HEADER]: 'ABCD-EFGH' }, { packId: 'pack_1', hour: 21 });
   assert.equal(ok.status, 200);
   assert.deepEqual(added, [{ packId: 'pack_1', hour: 21 }]);
