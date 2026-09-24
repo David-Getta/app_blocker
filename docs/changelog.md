@@ -8,7 +8,7 @@ kettővel korábbiban.
 
 | Verzió | Nap | Mi újság |
 |---|---|---|
-| v0.4.158 (még nincs kiadva) | 2026-09-24 | törlés-védelem az iPhone-on is |
+| v0.4.158 | 2026-09-24 | törlés-védelem az iPhone-on is |
 | v0.4.157 | 2026-09-24 | törlés-védelem az Androidon |
 | v0.4.156 | 2026-09-18 | a hét napjainak nevei is az őrben |
 | v0.4.155 | 2026-09-18 | a bővítmény tükör-állandói mind az őrben |
