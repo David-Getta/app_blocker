@@ -141,6 +141,10 @@ ingyen van, rövidíteni vagy visszavonni sehogy.
   kattintás, **emelni vagy megszüntetni ugyanúgy próbatételekbe kerül**, mint egy
   feloldás. Amíg van keret, a mérés nem kapcsolható ki — abból fogy.
   iPhone-on ez nem építhető meg (nincs ilyen mérési API), lásd a korlátokat.
+  **Közeleg a keret:** ha egy oldal mai keretéből tíz percnél kevesebb van
+  hátra, a kezdőlap kártyája és a böngésző lapjai előre szólnak a
+  legsürgősebbről — „Ma még 8 perc a kereted: youtube.com.” —, hogy a betelés
+  ne érjen váratlanul. Tény, nem tiltás; rejtett listánál a cím nem látszik.
 
 - **Adag-szabály oldalanként** (asztali gép + Android): „2 perc Gemini után
   10 perc szünet, aztán magától kinyílik”. A napi keret testvére: a keret a
