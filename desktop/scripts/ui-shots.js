@@ -1218,11 +1218,16 @@ async function main() {
   ).catch(() => failures.push('a javaslat-kártya nem szól a közeledő napi keretről'));
   await page.evaluate(() => { window.__fakeSites[0].usedTodaySeconds = 500; });
   await page.evaluate(() => { delete window.__fakePacks[1].recurrence; });
-  await page.evaluate(() => { window.__fakeStatusPatch = undefined; });
+  // A kártya minden sora eltűnik: nem csak a sokadik-megakadás számot vesszük
+  // el, hanem az ÓRA- és NAP-függő jeleket is (csúcs-óra, csúcs-nap, menet-nap,
+  // menet-óra, mért idő napja, sorozat) — különben a teszt 21 óra körül a
+  // fixture csúcs-órájától elhasalna. Így az ellenőrzés az óra állásától független.
+  await page.evaluate(() => { window.__fakeStatusPatch = { browserHitsToday: 0, browserHitsPeak: null, browserHitsWeekday: null, focusWeekday: null, focusHour: null, usageWeekday: null, focusStreak: 0 }; });
   await page.waitForFunction(
     () => document.getElementById('suggestCard')?.classList.contains('hidden'),
     undefined, { timeout: 15_000 },
   ).catch(() => failures.push('a javaslat-kártya a szám nélkül is ott maradt'));
+  await page.evaluate(() => { window.__fakeStatusPatch = undefined; });
   // Vissza a statisztikára: a többi lépés ott folytatja.
   await goTo(page, 'stats');
 
