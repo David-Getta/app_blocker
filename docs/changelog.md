@@ -8,6 +8,7 @@ kettővel korábbiban.
 
 | Verzió | Nap | Mi újság |
 |---|---|---|
+| v0.4.163 (még nincs kiadva) | 2026-09-24 | a közeleg-a-keret finomabb kis keretnél |
 | v0.4.162 | 2026-09-24 | a README és a weboldal a közeledő napi keretről |
 | v0.4.161 | 2026-09-24 | közeleg a napi keret a böngészőben is |
 | v0.4.160 | 2026-09-24 | közeleg a napi keret |
