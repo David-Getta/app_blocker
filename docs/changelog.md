@@ -8,7 +8,7 @@ kettővel korábbiban.
 
 | Verzió | Nap | Mi újság |
 |---|---|---|
-| v0.4.162 (még nincs kiadva) | 2026-09-24 | a README és a weboldal a közeledő napi keretről |
+| v0.4.162 | 2026-09-24 | a README és a weboldal a közeledő napi keretről |
 | v0.4.161 | 2026-09-24 | közeleg a napi keret a böngészőben is |
 | v0.4.160 | 2026-09-24 | közeleg a napi keret |
 | v0.4.159 (nem kapott saját kiadást) | 2026-09-24 | a törlés-védelem a threat-model térképén |
