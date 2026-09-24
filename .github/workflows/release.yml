@@ -44,19 +44,26 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A hét napjainak nevei is az őrben.** A mag-összhang őre a gép és
-          a bővítmény napnév-listáját is egymáshoz méri — ugyanaz a nap ne
-          viseljen két nevet. Kód nem változott.
+          **Törlés-védelem az Androidon.** A telefonon a védelem eddig
+          egyetlen koppintással eltűnhetett — hosszan nyomod az ikont,
+          „Eltávolítás”, és vele minden blokk. A törlés-védelem elveszi ezt
+          az egy gombot: amíg be van kapcsolva (a szokásos, dokumentált
+          eszközadmin), az Android előbb a kikapcsolást kéri, és csak utána
+          enged törölni. Bekapcsolni egy koppintás; jogot nem kér, adatot
+          nem lát, és a Beállításokban bármikor kikapcsolható — nem gépzár,
+          csak súrlódás az impulzus ellen.
 
-          ### Ami a v0.4.155-ben jött
+          ### Ami a v0.4.156-ban jött
+
+          **A hét napjainak nevei is az őrben.** A mag-összhang őre a gép
+          és a bővítmény napnév-listáját is egymáshoz méri — ugyanaz a nap
+          ne viseljen két nevet. Kód nem változott.
+
+          #### Ami a v0.4.155-ben jött
 
           **A bővítmény tükör-állandói mind az őrben** — a csúcs-nap négy
           hete és küszöbe, a sokadik megakadás első lépcsője a gép
           értékéhez mérve.
-
-          #### Ami a v0.4.154-ben jött
-
-          **A bővítmény is a sorozat-küszöb őrében.** Bővítmény 0.4.36.
 
           NOTES
           fi
