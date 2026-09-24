@@ -51,6 +51,12 @@ helpert:
 - Windows: kódaláíró tanúsítvány az NSIS csomaghoz, különben SmartScreen szól.
 
 ## Teljes eltávolítás
+A Breaker app törlése önmagában **nem old fel**: a blokkolást a rendszergazdai
+segéd tartja a hosts fájlban, és az a gép indulásakor magától újraindul. Ez
+szándékos — a gépen ez a törlés-védelem (a telefonok eszközadminjának/Képernyő-
+idejének megfelelője, [`feature-uninstall-guard.md`](feature-uninstall-guard.md)).
+A segéd leszereléséhez rendszergazdai jog és az eltávolító szkript kell:
+
 ```bash
 sudo sh desktop/scripts/uninstall-macos.sh        # macOS
 powershell -ExecutionPolicy Bypass -File desktop/scripts/uninstall-windows.ps1   # Windows (admin)

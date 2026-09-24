@@ -322,6 +322,19 @@ Ismert megkerülési utak (szándékosan nem próbáljuk „lelakatolni” a gé
 - Admin/root jogú felhasználó leállíthatja a helpert vagy a VPN-t. A rendszer
   ilyenkor a *blokkolt* állapotból indul újra, és a mobil appok feltűnő
   értesítést adnak, ha a védelmet kikapcsolták.
+- **Az app törlése** a leggyorsabb megkerülés: a védelemmel együtt tűnne el. A
+  **törlés-védelem** ezt drágítja, környezetenként, de sehol sem gépzár (a cél
+  a súrlódás, nem a lehetetlenné tétel — [`feature-uninstall-guard.md`](feature-uninstall-guard.md)):
+  - **Android:** az app maga veszi el az egykoppintásos törlést (eszközadmin,
+    üres házirenddel). A rendszer Beállításaiban (Biztonság → Eszközadmin-
+    alkalmazások) próbatétel nélkül kikapcsolható — de már nem egy koppintás.
+  - **iPhone:** appból nem lehet (az Apple nem enged rá jogot); a rendszer útja
+    a Képernyőidő (App-törlések tiltása kóddal), amit az app a döntés helyén
+    kimond.
+  - **Gép (Windows/macOS):** az Electron-app törlése önmagában **nem old fel** —
+    a blokkolást a rendszergazdai segéd tartja a hosts fájlban, amíg le nem
+    szereled (admin + eltávolító szkript, [`desktop.md`](desktop.md)). Itt a
+    súrlódás eleve a privilegizált segédben van.
 - Egyedi/hardcode-olt DNS vagy DoH-proxy IP-cím megkerülheti a szűrőt (a hosts
   fájl és a sinkhole a névfeloldásra hat). Későbbi bővítés: IP-szintű szabályok.
 - **macOS-en a böngésző-DoH kikapcsolása nem zár, csak alapértelmezést állít.**
