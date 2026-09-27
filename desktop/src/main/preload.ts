@@ -55,6 +55,13 @@ export interface RulesBridgeInfo {
   error?: string;
 }
 
+/** A lista zárjának válasza: engedve; vagy nincs mivel azonosítani (nincs olvasó); vagy elutasítva/hiba. */
+export interface AuthOutcome {
+  ok: boolean;
+  unavailable?: boolean;
+  error?: string;
+}
+
 export interface BreakerBridge {
   call(op: string, payload?: Record<string, unknown>): Promise<
     { ok: true; data: unknown } | { ok: false; error: string; code?: string }
@@ -91,6 +98,8 @@ export interface BreakerBridge {
   /** a bővítmény mappája, amit az app tart frissen — a böngészőbe ezt kell betölteni */
   getExtensionFolder(): Promise<ExtensionFolderInfo>;
   openExtensionFolder(): Promise<void>;
+  /** a rejtett lista zárja: a gép azonosítása (Macen Touch ID); ahol nincs olvasó, azt mondja */
+  authenticate(reason: string): Promise<AuthOutcome>;
   platform: string;
 }
 
@@ -118,6 +127,7 @@ const bridge: BreakerBridge = {
   resetOverlayShortcut: () => ipcRenderer.invoke('breaker:overlay-shortcut-reset'),
   getExtensionFolder: () => ipcRenderer.invoke('breaker:extension-folder'),
   openExtensionFolder: () => ipcRenderer.invoke('breaker:open-extension-folder'),
+  authenticate: (reason) => ipcRenderer.invoke('breaker:authenticate', reason),
   platform: process.platform,
 };
 

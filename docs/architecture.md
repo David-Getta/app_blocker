@@ -487,11 +487,21 @@ Két külön dolog, és pont ez a lényege:
 
 - **`hideSiteList`** — tárolt beállítás a segédben: „rejtve induljon”.
 - **`listOpenThisSession`** — a felület modulszintű változója, ami minden
-  indításkor `false`. A „Lista megnyitása” ezt állítja át.
+  indításkor `false`. A „Lista megnyitása” ezt állítja át — sikeres azonosítás után.
 
-Így a lista minden induláskor csukva van, de aki tényleg dolgozni akar vele, egy
-kattintással hozzáfér — nem kell próbatétel, mert a rejtés nem véd semmit, csak
-nem emlékeztet.
+Így a lista minden induláskor csukva van. A megnyitás viszont **nem egy
+kattintás**: a készülék azonosítását kéri — ujjlenyomat, arc vagy a képernyőzár
+kódja (Androidon BiometricPrompt, iPhone-on LocalAuthentication, Macen Touch ID).
+Eddig a rejtés csak nem emlékeztetett; ettől **véd is**: aki a kezébe veszi a
+telefont, nem koppint rá egy gombra, hogy lássa, mi ellen küzdesz. Próbatétel
+nem kell — a munka itt a saját ujjad vagy kódod. Az azonosítás a rendszeré: az
+app se ujjlenyomatot, se kódot nem lát, csak egy igen/nem választ.
+
+Őszinte korlát: ahol nincs mivel azonosítani (nincs képernyőzár; Windows-gép
+vagy olvasó nélküli Mac), a lista kérésre megnyílik, és a kártya **kimondja**,
+hogy itt nem kért semmit — néma kapu helyett. Elutasított azonosításnál a lista
+rejtve marad, és ezt is kimondja. A megnyitás így is csak erre a munkamenetre
+szól: a beállítás marad „rejtve”. Részletek: [`feature-hidden-list.md`](feature-hidden-list.md).
 
 A rejtés az **egész ablakra** szól, nem csak a listakártyára:
 

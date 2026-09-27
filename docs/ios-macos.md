@@ -91,6 +91,12 @@ tükre; a blobon `keywords` + `keywordsRev`). Lásd `docs/feature-keywords.md`.
   (`Shared/Digest.swift`, a gépi mag tükre, teszttel); mérés híján a
   menetekről és a feloldásokról szól.
 
+- **A rejtett lista zárja** a rendszeré: a lista megnyitása `LAContext`
+  (`App/ListLock.swift`, `.deviceOwnerAuthentication` — Face ID, Touch ID vagy a
+  kód) után nyílik, az app csak igen/nem választ kap. Ahol nincs kód beállítva,
+  nincs mit kérni: a lista kérésre megnyílik, és a kártya kimondja. Az
+  `NSFaceIDUsageDescription` a plistben mondja meg, mire kérjük.
+
 ## A Swift mag
 A `Shared/` mappa (`Blocklist.swift`, `ChallengeEngine.swift`, `Referee.swift`,
 `Store.swift`, `DnsEngine.swift`) a közös logika Swift változata, ugyanazzal az

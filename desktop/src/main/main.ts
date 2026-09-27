@@ -4,7 +4,7 @@
 //                    the same exe with this flag; macOS uses ELECTRON_RUN_AS_NODE
 //                    + dist/helper/index.js directly, bypassing this file)
 
-import { app, BrowserWindow, ipcMain, Menu } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu, systemPreferences } from 'electron';
 import { registerSyncServerIpc } from './sync-server';
 import { extensionSeenRecently, registerRulesBridge, stopRulesBridge } from './rules-bridge-ipc';
 import { isWindowLockdown, liveLockdown } from '../shared/lockdown';
@@ -150,6 +150,22 @@ if (HELPER_MODE) {
       // letöltött frissítést viszont pont a kilépés engedi települni.
       ipcMain.handle('breaker:quit', () => { app.quit(); });
       ipcMain.handle('breaker:app-version', () => app.getVersion());
+
+      // A LISTA ZÁRJA: a rejtett blokklista felfedése a gép azonosítását kéri.
+      // Macen a Touch ID a rendszeré — mi csak igen/nem választ kapunk. Ahol
+      // nincs olvasó (Windows, vagy Mac nélküle), nincs mit kérni: kimondjuk,
+      // nem tettetjük — az Electronnak itt nincs rendszer-azonosító hívása.
+      ipcMain.handle('breaker:authenticate', async (_e, reason: string) => {
+        if (process.platform !== 'darwin' || !systemPreferences.canPromptTouchID()) {
+          return { ok: false, unavailable: true };
+        }
+        try {
+          await systemPreferences.promptTouchID(String(reason ?? '').slice(0, 120));
+          return { ok: true };
+        } catch (err) {
+          return { ok: false, error: (err as Error).message };
+        }
+      });
 
       buildMenu();
       createWindow();

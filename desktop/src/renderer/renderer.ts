@@ -107,6 +107,8 @@ interface Bridge {
   /** a bővítmény mappája, amit az app tart frissen; a régi híd nem tudja */
   getExtensionFolder?(): Promise<{ path: string; version: string | null; refreshed: boolean; error?: string }>;
   openExtensionFolder?(): Promise<void>;
+  /** a rejtett lista zárja: a gép azonosítása (Macen Touch ID); a régi híd nem tudja — akkor „nincs mivel” */
+  authenticate?(reason: string): Promise<{ ok: boolean; unavailable?: boolean; error?: string }>;
   platform: string;
 }
 declare global { interface Window { breaker: Bridge } }
@@ -4036,15 +4038,30 @@ function setupModal(): void {
   });
   applyBackground();
   setView('sites');
-  $('showListBtn').addEventListener('click', () => {
-    // Csak erre a munkamenetre nyitjuk meg: a BEÁLLÍTÁS marad „rejtve”.
-    listOpenThisSession = true;
+  $('showListBtn').addEventListener('click', async () => {
+    // A LISTA ZÁRJA: a felfedés a gép azonosítását kéri (Macen Touch ID). A
+    // rejtés egy kattintás — szigorítás —, a felfedés nem az: így a rejtés VÉD
+    // is, nem csak nem emlékeztet. Ahol nincs olvasó, nincs mit kérni: kimondjuk,
+    // és a lista kérésre megnyílik. Csak erre a munkamenetre: a BEÁLLÍTÁS marad „rejtve”.
+    const gate = $('listGateLine');
+    const r = window.breaker.authenticate
+      ? await window.breaker.authenticate('A blokklista megnyitása — hogy csak te lásd, mi van rajta.')
+      : { ok: false, unavailable: true };
+    if (r.ok || r.unavailable) {
+      gate.textContent = r.ok ? '' : 'Ezen a gépen nincs ujjlenyomat-olvasó, így nincs mivel azonosítani — a lista kérésre megnyílik.';
+      gate.classList.toggle('hidden', r.ok);
+      listOpenThisSession = true;
+    } else {
+      gate.textContent = 'Nem sikerült az azonosítás — a lista rejtve marad.';
+      gate.classList.remove('hidden');
+    }
     render();
   });
   $('hideListBtn').addEventListener('click', async () => {
     const turningOn = status?.hideSiteList !== true;
     // Bekapcsoláskor rögtön össze is csukjuk; kikapcsoláskor nyitva marad.
     listOpenThisSession = !turningOn;
+    $('listGateLine').classList.add('hidden');
     try {
       status = await call<StatusData>('set_hide_list', { hidden: turningOn });
     } catch { /* a következő lekérdezés úgyis hozza */ }

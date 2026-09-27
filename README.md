@@ -111,7 +111,10 @@ ingyen van, rövidíteni vagy visszavonni sehogy.
   van blokkolva”. A rejtés az egész felületre szól: a statisztikában
   `1. rejtett oldal` áll a cím helyett (az idő és a „blokkolt” jelölés marad), és
   a felvevő kártya gyorsgombjai is eltűnnek, mert épp a tipikus címek állnak
-  rajtuk. Megnyitni egy kattintás, de csak a bezárásig marad nyitva.
+  rajtuk. Megnyitni **nem egy kattintás**: a készülék azonosítását kéri —
+  ujjlenyomat, arc vagy a képernyőzár kódja (Macen Touch ID) —, így a rejtés
+  véd is, nem csak nem emlékeztet; és csak a bezárásig marad nyitva. Ahol nincs
+  mivel azonosítani, kérésre megnyílik — és kimondja.
 - **Fiók és eszközök közti szinkron** (mindhárom platform):
   belépsz ugyanabba a fiókba a másik gépeden, és nem kell újra felvenned a
   listát — a többi eszköz statisztikáját is látod, és legelöl az **összes eszköz

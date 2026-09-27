@@ -21,6 +21,8 @@
     </dict>
     <key>CFBundleDisplayName</key>
     <string>Breaker</string>
+    <key>NSFaceIDUsageDescription</key>
+    <string>A rejtett blokklista megnyitásához — hogy csak te lásd, mi van rajta.</string>
     <key>CFBundleShortVersionString</key>
     <string>$(MARKETING_VERSION)</string>
     <key>CFBundleVersion</key>

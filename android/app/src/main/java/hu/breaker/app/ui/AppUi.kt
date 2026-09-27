@@ -6,6 +6,7 @@ import android.net.VpnService
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.fragment.app.FragmentActivity
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
@@ -96,6 +97,8 @@ import hu.breaker.app.core.SyncClient
 import hu.breaker.app.core.UrlRules
 import hu.breaker.app.core.UsageLogic
 import hu.breaker.app.admin.UninstallGuard
+import hu.breaker.app.auth.ListLock
+import hu.breaker.app.R
 import hu.breaker.app.update.UpdateChecker
 import hu.breaker.app.usage.UsageTracker
 import hu.breaker.app.vpn.BreakerVpnService
@@ -246,6 +249,8 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
     // mentett: a beállítás azt mondja, hogy rejtve INDULJON, a megnyitás pedig
     // csak erre a munkamenetre szól.
     var listOpenThisSession by remember { mutableStateOf(false) }
+    // A LISTA ZÁRJÁNAK üzenete: elutasított azonosítás, vagy „nincs mivel” — csak a felületen.
+    var listLockNote by remember { mutableStateOf<String?>(null) }
     val listHidden = state.hideSiteList && !listOpenThisSession
 
     /**
@@ -720,6 +725,7 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                     TextButton(onClick = {
                         val turningOn = !state.hideSiteList
                         listOpenThisSession = !turningOn
+                        listLockNote = null
                         BreakerStore.mutate { it.copy(hideSiteList = turningOn) }
                     }) {
                         Text(if (state.hideSiteList) "Ne rejtse ezután" else "Lista elrejtése")
@@ -751,8 +757,27 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                             modifier = Modifier.weight(1f),
                             style = MaterialTheme.typography.bodySmall,
                         )
-                        Button(onClick = { listOpenThisSession = true }) { Text("Megnyitás") }
+                        Button(onClick = {
+                            // A LISTA ZÁRJA: a felfedés a készülék azonosítását kéri (ujjlenyomat,
+                            // arc vagy a képernyőzár kódja). A rejtés egy koppintás — szigorítás —,
+                            // a felfedés nem az: így a rejtés VÉD is, nem csak nem emlékeztet.
+                            // Ahol nincs képernyőzár, nincs mit kérni: kimondjuk, nem tettetjük.
+                            val host = context as? FragmentActivity
+                            if (host == null || !ListLock.canAuthenticate(context)) {
+                                listLockNote = context.getString(R.string.list_lock_unavailable)
+                                listOpenThisSession = true
+                            } else ListLock.prompt(host,
+                                onSuccess = { listLockNote = null; listOpenThisSession = true },
+                                onFail = { why ->
+                                    val base = context.getString(R.string.list_lock_denied)
+                                    listLockNote = if (why.isEmpty()) base else "$base ($why)"
+                                },
+                            )
+                        }) { Text("Megnyitás") }
                     }
+                }
+                listLockNote?.let {
+                    Text(it, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 6.dp))
                 }
             } else if (state.sites.isEmpty()) {
                 Text("Még nincs blokkolt oldal.", style = MaterialTheme.typography.bodySmall)

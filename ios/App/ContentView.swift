@@ -38,6 +38,8 @@ struct ContentView: View {
     /// mentett: a beállítás azt mondja, hogy rejtve INDULJON, a megnyitás pedig
     /// csak erre a munkamenetre szól.
     @State private var listOpenThisSession = false
+    /// A LISTA ZÁRJÁNAK üzenete: elutasított azonosítás, vagy „nincs mivel” — csak a felületen.
+    @State private var listLockNote: String?
     @State private var successMsg: String?
     @State private var now = nowMs()
     @State private var lockdownSheet = false
@@ -920,6 +922,7 @@ struct ContentView: View {
                     Button(store.state.hideSiteList == true ? "Ne rejtse ezután" : "Lista elrejtése") {
                         let turningOn = store.state.hideSiteList != true
                         listOpenThisSession = !turningOn
+                        listLockNote = nil
                         store.mutate { $0.hideSiteList = turningOn }
                     }
                     .font(.caption)
@@ -942,10 +945,25 @@ struct ContentView: View {
                          : "\(count) A lista el van rejtve, hogy a puszta megnyitás se emlékeztessen rájuk. Megnyitva csak eddig a bezárásig marad.")
                         .font(.footnote).foregroundStyle(.secondary)
                     Spacer()
-                    Button("Megnyitás") { listOpenThisSession = true }.buttonStyle(.bordered)
+                    Button("Megnyitás") {
+                        // A LISTA ZÁRJA: a felfedés a készülék azonosítását kéri (Face ID,
+                        // Touch ID vagy a kód). A rejtés egy koppintás — szigorítás —, a
+                        // felfedés nem az: így a rejtés VÉD is, nem csak nem emlékeztet.
+                        // Ahol nincs kód beállítva, nincs mit kérni: kimondjuk, nem tettetjük.
+                        ListLock.prompt(reason: "A blokklista megnyitása — hogy csak te lásd, mi van rajta.") { outcome in
+                            switch outcome {
+                            case .granted: listLockNote = nil; listOpenThisSession = true
+                            case .unavailable: listLockNote = ListLock.unavailableNote; listOpenThisSession = true
+                            case .denied(let why): listLockNote = why.isEmpty ? ListLock.deniedNote : "\(ListLock.deniedNote) (\(why))"
+                            }
+                        }
+                    }.buttonStyle(.bordered)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .breakerCard()
+                if let n = listLockNote {
+                    Text(n).font(.footnote).foregroundStyle(.secondary)
+                }
             } else {
                 if store.state.sites.isEmpty {
                     Text("Még nincs blokkolt oldal.").font(.footnote).foregroundStyle(.secondary)

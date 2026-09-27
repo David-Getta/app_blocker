@@ -393,6 +393,8 @@ function fakeBridgeSource() {
       install: async () => ({ ok: true }),
       checkUpdate: async () => ({ ok: true }),
       appVersion: async () => '0.0.0-demó',
+      // A LISTA ZÁRJÁNAK hamis kapuja: alapból enged; a füstteszt állítja át.
+      authenticate: async () => window.__fakeAuth || { ok: true },
       quitApp: async () => { window.__quitCalled = (window.__quitCalled || 0) + 1; },
       openReleases: async () => {},
       // A gyorsbillentyű: a hamis híd elfogadja az átállítást és a
@@ -1630,12 +1632,45 @@ async function main() {
     await page.screenshot({ path: path.join(OUT, 'desktop-list-hidden.png'), fullPage: false });
   }
 
-  // Megnyitni egy kattintás — de csak erre a munkamenetre.
+  // A LISTA ZÁRJA: elutasított azonosításnál a lista REJTVE marad, és kimondja.
+  await page.evaluate(() => { window.__fakeAuth = { ok: false }; });
+  await page.getByRole('button', { name: 'Lista megnyitása' }).click();
+  await page.waitForFunction(
+    () => !document.getElementById('listGateLine').classList.contains('hidden'),
+    undefined, { timeout: 10_000 },
+  );
+  if (await page.locator('#siteList .site-row').count() !== 0) {
+    failures.push('a denied authentication still opened the hidden list');
+  }
+  if (!((await page.locator('#listGateLine').textContent()) || '').includes('rejtve marad')) {
+    failures.push('a denied authentication does not say the list stays hidden');
+  }
+  // Ahol nincs olvasó: megnyílik, de KIMONDJA — őszinte korlát, nem néma kapu.
+  await page.evaluate(() => { window.__fakeAuth = { ok: false, unavailable: true }; });
   await page.getByRole('button', { name: 'Lista megnyitása' }).click();
   await page.waitForFunction(
     () => document.querySelectorAll('#siteList .site-row').length === 4,
     undefined, { timeout: 10_000 },
   );
+  if (!((await page.locator('#listGateLine').textContent()) || '').includes('nincs ujjlenyomat-olvasó')) {
+    failures.push('without a reader the reveal does not say so');
+  }
+  // Vissza rejtettre (újraindítás; a hamis kapu is alapra áll), és sikeres
+  // azonosítással: megnyílik — de csak erre a munkamenetre —, a sor pedig eltűnik.
+  await page.reload();
+  await page.waitForFunction(
+    () => !document.getElementById('listHidden').classList.contains('hidden'),
+    undefined, { timeout: 15_000 },
+  );
+  await page.getByRole('button', { name: 'Lista megnyitása' }).click();
+  await page.waitForFunction(
+    () => document.querySelectorAll('#siteList .site-row').length === 4,
+    undefined, { timeout: 10_000 },
+  );
+
+  if (!((await page.locator('#listGateLine').getAttribute('class')) || '').includes('hidden')) {
+    failures.push('after a granted authentication the gate line is still showing');
+  }
 
   // Újraindítás után megint rejtve. Enélkül ez csak egy összecsukó gomb volna.
   await page.reload();

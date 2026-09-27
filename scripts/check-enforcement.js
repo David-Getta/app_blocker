@@ -1646,6 +1646,34 @@ const WIRES = [
     needle: 'const limitSoon = s.hideSiteList === true ? \'\' : limitSoonLine((s.sites ?? []).map((site) => ({',
     lost: 'a híd nem adná le a közeledő napi keretet',
   },
+  // A LISTA ZÁRJA: a rejtett blokklista felfedése a készülék azonosítását kéri —
+  // mind a három platformon, és a híd két oldalán is. Ha bármelyik kimarad, a
+  // rejtés visszacsúszik egykoppintásos összecsukó gombbá.
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/AppUi.kt',
+    needle: '} else ListLock.prompt(host,',
+    lost: 'Androidon a Megnyitás megint azonosítás nélkül fedné fel a listát',
+  },
+  {
+    file: 'ios/App/ContentView.swift',
+    needle: 'ListLock.prompt(reason: "A blokklista megnyitása',
+    lost: 'iPhone-on a Megnyitás megint azonosítás nélkül fedné fel a listát',
+  },
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: '? await window.breaker.authenticate(',
+    lost: 'a gépen a Lista megnyitása megint azonosítás nélkül fedné fel a listát',
+  },
+  {
+    file: 'desktop/src/main/main.ts',
+    needle: "ipcMain.handle('breaker:authenticate', async (_e, reason: string) => {",
+    lost: 'a fő folyamat nem szolgálná ki az azonosítást — a felület kapuja üresbe futna',
+  },
+  {
+    file: 'desktop/src/main/preload.ts',
+    needle: "authenticate: (reason) => ipcRenderer.invoke('breaker:authenticate', reason),",
+    lost: 'a híd nem adná át az azonosítás-kérést a fő folyamatnak',
+  },
   {
     file: 'extension/app-link.js',
     needle: "const limitSoon = typeof raw.limitSoon === 'string' ? raw.limitSoon.slice(0, 80) : '';",

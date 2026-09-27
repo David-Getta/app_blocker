@@ -7,6 +7,9 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- A lista zárja: a rejtett blokklista felfedéséhez a rendszer azonosító
+         párbeszéde (ujjlenyomat, arc vagy képernyőzár-kód). Mi csak igen/nem választ kapunk. -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
     <!-- A Play Store-on kívüli önfrissítéshez (APK letöltés + telepítés). -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <!-- Aktív idő méréséhez: az előtérben lévő app lekérdezése. A felhasználó

@@ -41,6 +41,11 @@ cd android
 - A felvevő kártya **javaslata** (a hét legnagyobb, nem tiltott idővivői, egy
   koppintással tiltva) itt is megvan — `UsageLogic.suggestBlocks`, a gépi
   tükre; rejtett listánál a sor elmarad.
+- A **rejtett lista zárja**: a lista megnyitása a rendszer azonosító
+  párbeszédét kéri (`auth/ListLock.kt`, BiometricPrompt — ujjlenyomat, arc vagy a
+  képernyőzár kódja, minden API-szinten). Az app csak igen/nem választ kap. Ahol
+  nincs képernyőzár, a lista kérésre megnyílik, és a kártya kimondja. Ehhez a
+  `MainActivity` `FragmentActivity` lett — a Compose-kód változatlan.
 - **Párban zárolás** a zárlat kártyáján: a megbízott neve, a sorsolt
   jelmondat egyszeri lapja, és a *Levétel…* (próbatétel). A lépés a
   próbatétel-képernyő végén jelszómezőként jön (`PartnerStepUi`); a mag a

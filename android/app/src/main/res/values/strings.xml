@@ -39,4 +39,15 @@
     <string name="device_admin_description">Amíg be van kapcsolva, a Breaker nem törölhető egyetlen koppintással — előbb itt kell kikapcsolni. Mást nem szabályoz, és semmit nem lát a telefonodból.</string>
     <string name="device_admin_add_explanation">A törlés-védelem bekapcsolása. Ezután a Breaker nem távolítható el egy koppintással: előbb ki kell kapcsolni az eszközadmint. Csak ennyit ad — nem lát bele a telefonodba, és bármikor kikapcsolható a Beállításokban.</string>
     <string name="device_admin_disable_warning">Ha kikapcsolod, a Breaker megint egyetlen koppintással letörölhető lesz — és vele a védelem is. Csak akkor tedd, ha tényleg ezt akarod.</string>
+
+    <!--
+      A LISTA ZÁRJA. A rejtett blokklista felfedése a rendszer azonosító
+      párbeszédét kéri (ujjlenyomat, arc vagy képernyőzár-kód). Mi csak egy
+      igen/nem választ kapunk. Ahol nincs képernyőzár, nincs mit kérni — a
+      lista kérésre megnyílik, és ezt kimondjuk, nem tettetjük.
+    -->
+    <string name="list_lock_title">A blokklista megnyitása</string>
+    <string name="list_lock_subtitle">Ujjlenyomat, arc vagy a képernyőzár kódja — hogy csak te lásd, mi van a listán.</string>
+    <string name="list_lock_unavailable">Ezen a telefonon nincs képernyőzár, így nincs mivel azonosítani — a lista kérésre megnyílik. Ha zárat állítasz be, ezt fogja kérni.</string>
+    <string name="list_lock_denied">Nem sikerült az azonosítás — a lista rejtve marad.</string>
 </resources>
