@@ -44,24 +44,24 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **Az őszinte korlátok teljesebb listája.** A törlés-védelem leírása
-          most már a maradék két kerülőutat is nevén nevezi: gépről,
-          USB-hibakereséssel az `adb` leveheti az eszközadmint, a gyári
-          visszaállítás pedig az egész telefonnal együtt mindent töröl. Mindkettő
-          messze több egy koppintásnál — hamis biztonságot ígérni rosszabb
-          lenne, mint kimondani a határt. Csak dokumentáció; kód nem változott.
+          **A rejtett lista zárja.** A blokkolt oldalak rejtett listáját ezután
+          csak a készülék azonosítása után lehet megnyitni — ujjlenyomat, arc
+          vagy a képernyőzár kódja (Androidon és iPhone-on; Macen Touch ID). A
+          rejtés eddig csak nem emlékeztetett, ettől véd is: aki a kezébe veszi a
+          telefont, nem koppint rá egy gombra, hogy lássa, mi van rajta. A rejtés
+          marad egy koppintás; az azonosítás a rendszeré, az app csak igen/nem
+          választ kap. Ahol nincs mivel azonosítani, a lista kérésre megnyílik —
+          és kimondja.
 
-          ### Ami a v0.4.163-ban jött
+          ### Ami a v0.4.164-ben jött
 
-          **A közeleg-a-keret finomabb kis keretnél.** A napi keret betelése
-          előtti heads-up küszöbe az utolsó tíz perc, de legfeljebb a keret
-          fele — így egy rövid keret (pl. napi öt perc) nem szólal meg már a
-          legelső perctől, hanem a hátsó felében.
+          **Az őszinte korlátok teljesebb listája.** A törlés-védelem leírása a
+          maradék két kerülőutat (adb, gyári visszaállítás) is nevén nevezi.
 
-          #### Ami a v0.4.162-ben jött
+          #### Ami a v0.4.163-ban jött
 
-          **A README és a weboldal a közeledő napi keretről.** A heads-up
-          bekerült a funkciólistába és a mérés-kártyába.
+          **A közeleg-a-keret finomabb kis keretnél.** A heads-up küszöbe az
+          utolsó tíz perc, de legfeljebb a keret fele.
 
           NOTES
           fi
