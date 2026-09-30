@@ -44,24 +44,25 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A gép egyezés-kulcsa az adag-szabályt is nézi.** A gép az
-          oldal-listát kanonikus kulccsal hasonlítja (hogy a másik platform
-          mezősorrendje ne látszódjon változásnak), és ebből a kulcsból az
-          adag-szabály kimaradt: egy csak ebben eltérő fésült rekord
-          „ugyanaz” lett volna — se beírás, se feltöltés. A rev-léptetés
-          eddig elfedte; most a kulcs is nézi, teszt és tű őrzi. A telefonok
-          szerkezeti egyenlőséggel hasonlítanak, ott nem volt rés.
+          **A részleges szabályok jele.** A szabálylista fésülésében eddig a
+          rekord rev-je döntött, ami más szerkesztéstől is nő — és egy régi
+          kliens (ami a mezőt nem ismeri) nagy rev-je azt a listát
+          hitelesítette, amelyikkel épp előbb találkozott: három eszköznél a
+          végeredmény a sorrendtől függött. Most a listának saját jele van (a
+          gép írja, a telefonok hordozzák): a nagyobb jel dönt, a kifizetett
+          levétel átmegy akkor is, ha a másik rekord rev-je nagyobb, és a régi
+          kliens semleges. Ugyanaz a szabály mindhárom nyelven; a fixtúra és a
+          tesztek őrzik.
 
-          ### Ami a v0.4.175-ben jött
+          ### Ami a v0.4.176-ban jött
+
+          **A gép egyezés-kulcsa az adag-szabályt is nézi.** Egy csak ebben
+          eltérő fésült rekord eddig „ugyanaz” lett volna.
+
+          #### Ami a v0.4.175-ben jött
 
           **A fixtúra az oldal-rekord minden mezőjét fésüli.** Menetrend,
-          adag-szabály és részleges szabályok az a/b/c rekordokban, mindhárom
-          nyelven, a kulcsokban is.
-
-          #### Ami a v0.4.174-ben jött
-
-          **A fixtúra a kulcsszavakat és a megbízottat is fésüli.** Nyolc új
-          húzás mindhárom generátorban, a kulcsokban is.
+          adag-szabály és részleges szabályok, mindhárom nyelven.
 
           NOTES
           fi
