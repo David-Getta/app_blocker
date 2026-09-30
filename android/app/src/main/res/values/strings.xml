@@ -53,4 +53,7 @@
     <!-- Ugyanaz a zár a fedőnév mögé bújt valódi cím előtt. -->
     <string name="alias_lock_unavailable">Ezen a telefonon nincs képernyőzár, így nincs mivel azonosítani — a valódi cím kérésre előjön. Ha zárat állítasz be, ezt fogja kérni.</string>
     <string name="alias_lock_denied">Nem sikerült az azonosítás — a valódi cím rejtve marad.</string>
+    <!-- A fedőnév LEVÉTELE felfed — ugyanaz a zár; az átnevezés nem. -->
+    <string name="alias_remove_unavailable">Ezen a telefonon nincs képernyőzár, így nincs mivel azonosítani — a fedőnév kérésre lekerült, a valódi cím látszik.</string>
+    <string name="alias_remove_denied">Nem sikerült az azonosítás — a fedőnév marad.</string>
 </resources>

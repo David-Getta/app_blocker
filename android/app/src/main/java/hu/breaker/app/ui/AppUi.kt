@@ -1427,15 +1427,35 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
             site = site,
             onDismiss = { aliasSite = null },
             onSave = { text ->
-                BreakerStore.mutate { st ->
-                    st.copy(sites = st.sites.map {
-                        if (it.id == site.id) it.copy(alias = AliasLogic.normalize(text)) else it
-                    })
+                val next = AliasLogic.normalize(text)
+                val apply = {
+                    BreakerStore.mutate { st ->
+                        st.copy(sites = st.sites.map {
+                            if (it.id == site.id) it.copy(alias = next) else it
+                        })
+                    }
+                    // Új fedőnév után a felfedés nem élhet tovább: különben a
+                    // beállítás pillanatában is a valódi cím maradna ott.
+                    revealedUntil.remove(site.id)
+                    aliasSite = null
                 }
-                // Új fedőnév után a felfedés nem élhet tovább: különben a
-                // beállítás pillanatában is a valódi cím maradna ott.
-                revealedUntil.remove(site.id)
-                aliasSite = null
+                // A FEDŐNÉV LEVÉTELE felfed: a valódi cím onnantól ott áll a listán.
+                // Ezért ugyanaz a kapu, mint a Mutasd-é. Az átnevezés nem fed fel,
+                // az marad egy koppintás. Elutasításnál a név marad, és a sor kimondja.
+                val removing = next == null && site.alias != null
+                val host = context as? FragmentActivity
+                if (!removing) apply()
+                else if (host == null || !ListLock.canAuthenticate(context)) {
+                    listLockNote = context.getString(R.string.alias_remove_unavailable)
+                    apply()
+                } else ListLock.prompt(host,
+                    onSuccess = { listLockNote = null; apply() },
+                    onFail = { why ->
+                        val base = context.getString(R.string.alias_remove_denied)
+                        listLockNote = if (why.isEmpty()) base else "$base ($why)"
+                        aliasSite = null
+                    },
+                )
             },
         )
     }

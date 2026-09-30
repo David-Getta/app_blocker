@@ -302,8 +302,9 @@ async function handle(req: HelperRequest, deps: ServerDeps): Promise<unknown> {
     case 'set_alias': {
       // Fedőnév: a felületen a cím helyett ez látszik. NEM lazítás — az oldal
       // ettől ugyanúgy blokkolva marad, a hosts fájl változatlan —, ezért nem
-      // jár érte próbatétel, és levenni is egy kattintás. A súrlódás ott van,
-      // ahol a blokkolás gyengülne; itt nem gyengül semmi.
+      // jár érte próbatétel. A súrlódás ott van, ahol a blokkolás gyengülne;
+      // itt nem gyengül semmi. (A LEVÉTEL viszont felfed, ezért a FELÜLET a gép
+      // azonosítását kéri hozzá — az adatvédelmi zár a felületé, nem a bíróé.)
       const site = state.sites.find((s) => s.id === req.siteId);
       if (!site) throw new RefereeError('Ismeretlen oldal.', 'NO_SITE');
       const alias = normalizeAlias(req.alias);

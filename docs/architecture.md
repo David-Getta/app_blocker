@@ -483,7 +483,10 @@ A valódi cím **előhívása** viszont a készülék azonosítását kéri — 
 hanem a saját ujjadat, arcodat vagy kódodat. Ez nem a védelem gyengülése ellen
 véd (az nem gyengül), hanem a kíváncsi szem ellen: aki a kezébe veszi a
 telefont, ne egy gombbal lássa, mi bújik a fedőnév mögött. Ahol nincs mivel
-azonosítani, a cím kérésre előjön, és a felület kimondja.
+azonosítani, a cím kérésre előjön, és a felület kimondja. Ugyanez a kapu áll a
+fedőnév **levétele** előtt is: az is felfed — onnantól a valódi cím áll a
+listán —, az átnevezés viszont nem, az marad egy koppintás. Elutasításnál a
+név marad, és a felület ezt is kimondja.
 
 ## A lista elrejtése
 

@@ -1569,9 +1569,24 @@ async function main() {
     undefined, { timeout: 20_000 },
   );
 
-  // A fedőnév levehető, és akkor újra a cím áll ott.
+  // A FEDŐNÉV LEVÉTELE is a zár mögött: elutasított azonosításnál a név marad,
+  // a párbeszéd kimondja, és a valódi cím NEM kerül a listára.
+  await page.evaluate(() => { window.__fakeAuth = { ok: false }; });
   await page.locator('#siteList .site-row').first()
     .getByRole('button', { name: /^Fedőnév$/ }).click();
+  await page.getByRole('button', { name: /Fedőnév levétele/ }).click();
+  await page.waitForFunction(
+    () => !!document.querySelector('.overlay:not(.hidden) .modal .error:not(.hidden)'),
+    undefined, { timeout: 10_000 },
+  );
+  if (((await page.locator('#siteList .site-row .site-domain').first().textContent()) || '').includes('youtube.com')) {
+    failures.push('a denied authentication still removed the alias and exposed the real domain');
+  }
+  if (!((await page.locator('.overlay:not(.hidden) .modal .error').textContent()) || '').includes('marad')) {
+    failures.push('a denied alias removal does not say the alias stays');
+  }
+  await page.evaluate(() => { window.__fakeAuth = undefined; });
+  // Sikeres azonosítással a fedőnév levehető, és akkor újra a cím áll ott.
   await page.getByRole('button', { name: /Fedőnév levétele/ }).click();
   await page.waitForFunction(
     () => (document.querySelector('#siteList .site-row .site-domain') || {}).textContent

@@ -1690,6 +1690,22 @@ const WIRES = [
     needle: 'if (await gateReveal(`A valódi cím megmutatása:',
     lost: 'a gépen a Mutasd megint azonosítás nélkül mutatná a fedőnév mögötti címet',
   },
+  // A FEDŐNÉV LEVÉTELE felfed — ugyanaz a kapu, az átnevezés nem; mind a három platformon.
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/AppUi.kt',
+    needle: 'onSuccess = { listLockNote = null; apply() },',
+    lost: 'Androidon a fedőnév levétele megint azonosítás nélkül fedné fel a valódi címet',
+  },
+  {
+    file: 'ios/App/ContentView.swift',
+    needle: 'ListLock.prompt(reason: "A fedőnév levétele',
+    lost: 'iPhone-on a fedőnév levétele megint azonosítás nélkül fedné fel a valódi címet',
+  },
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: 'const removing = isAliased(site) && normalizeAlias(value) === undefined;',
+    lost: 'a gépen a fedőnév levétele megint azonosítás nélkül fedné fel a valódi címet',
+  },
   {
     file: 'extension/app-link.js',
     needle: "const limitSoon = typeof raw.limitSoon === 'string' ? raw.limitSoon.slice(0, 80) : '';",

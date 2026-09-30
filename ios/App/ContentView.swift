@@ -1121,15 +1121,31 @@ struct ContentView: View {
     /// A súrlódás ott van, ahol a védelem gyengülne.
     private func aliasSheet(_ site: Site) -> some View {
         AliasSheet(site: site) { text in
-            store.mutate { s in
-                if let i = s.sites.firstIndex(where: { $0.id == site.id }) {
-                    s.sites[i].alias = AliasLogic.normalize(text)
+            let next = AliasLogic.normalize(text)
+            let apply = {
+                store.mutate { s in
+                    if let i = s.sites.firstIndex(where: { $0.id == site.id }) {
+                        s.sites[i].alias = next
+                    }
+                }
+                // Új fedőnév után a felfedés nem élhet tovább: különben a beállítás
+                // pillanatában is a valódi cím maradna ott.
+                revealedUntil[site.id] = nil
+                aliasSite = nil
+            }
+            // A FEDŐNÉV LEVÉTELE felfed: a valódi cím onnantól ott áll a listán.
+            // Ezért ugyanaz a kapu, mint a Mutasd-é. Az átnevezés nem fed fel.
+            let removing = next == nil && site.alias != nil
+            if !removing { apply(); return }
+            ListLock.prompt(reason: "A fedőnév levétele — a valódi cím onnantól látszik.") { outcome in
+                switch outcome {
+                case .granted: listLockNote = nil; apply()
+                case .unavailable: listLockNote = ListLock.aliasRemoveUnavailableNote; apply()
+                case .denied(let why):
+                    listLockNote = why.isEmpty ? ListLock.aliasRemoveDeniedNote : "\(ListLock.aliasRemoveDeniedNote) (\(why))"
+                    aliasSite = nil
                 }
             }
-            // Új fedőnév után a felfedés nem élhet tovább: különben a beállítás
-            // pillanatában is a valódi cím maradna ott.
-            revealedUntil[site.id] = nil
-            aliasSite = nil
         } onCancel: {
             aliasSite = nil
         }

@@ -35,6 +35,11 @@ mögött), tehát a zár is ugyanaz; és ugyanúgy kimondja, ha nincs mivel
 azonosítani, vagy ha az azonosítás nem sikerült. A lista és a fedőnév kapuja egy
 üzenet-sort használ, a lista alatt — rejtve és nyitva egyaránt.
 
+A fedőnév **levétele** is ezen a kapun át megy: az is felfed — onnantól a valódi
+cím áll a listán. Az átnevezés nem fed fel, az marad egy koppintás. Elutasításnál
+a fedőnév marad, és a párbeszéd (a gépen) vagy a sor (a telefonon) kimondja. A
+segéd (a bíró) ebből semmit nem lát: a zár a felületé, a `set_alias` op ugyanaz.
+
 ## Őszinte korlát
 
 - **Ahol nincs mivel azonosítani** — nincs képernyőzár a telefonon, Windows-gép,

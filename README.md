@@ -94,7 +94,8 @@ ingyen van, rövidíteni vagy visszavonni sehogy.
   felületen az látszik: a soron, a párbeszédek címében, a próbatétel-ablakban és a
   statisztikában is. A valódi cím nem tűnik el: egy gombbal **hat másodpercre**
   előhívható — a készülék azonosítása után (ujjlenyomat, arc vagy kód), ahogy a
-  rejtett lista is —, aztán magától visszabújik. Ez inger-eltávolítás, nem titkosítás:
+  rejtett lista is —, aztán magától visszabújik. A fedőnév levétele is az
+  azonosítás mögött van (az felfed), az átnevezés nem. Ez inger-eltávolítás, nem titkosítás:
   a hosts fájlban ott a cím, és ezt a felület is kimondja.
 - **Hosztnevek oldalanként** (asztali gép; a lista szinkronnal a telefonra is
   átmegy): egy oldal tiltása több nevet takar (`youtube.com`, `www.youtube.com`,

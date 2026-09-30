@@ -12,7 +12,7 @@ import {
 } from '../shared/schedule.js';
 import { dayKey, formatDuration, idOf, suggestBlocks, usageDayNowText, usageWeekdayText } from '../shared/usage.js';
 import {
-  displayName, displayNameNow, isAliased, MAX_ALIAS_LENGTH, REVEAL_MS, MAX_REASON_LENGTH,
+  displayName, displayNameNow, isAliased, MAX_ALIAS_LENGTH, normalizeAlias, REVEAL_MS, MAX_REASON_LENGTH,
 } from '../shared/alias.js';
 import { HELPER_VERSION } from '../shared/protocol.js';
 // A .js itt sem elhagyható: a böngésző natív ESM-betöltője oldja fel futásidőben.
@@ -205,11 +205,16 @@ function isListHidden(st: StatusData): boolean {
  * néma kapu). Elutasításra hamis, és a sor ezt is kimondja. A `subject` az
  * alany a mondatban: „a lista”, „a valódi cím”.
  */
-async function gateReveal(reason: string, subject: string): Promise<boolean> {
-  const gate = $('listGateLine');
-  const r = window.breaker.authenticate
+/** A gép azonosításának nyers válasza — ahol a híd nem tudja, „nincs mivel”. */
+async function authGate(reason: string): Promise<{ ok: boolean; unavailable?: boolean; error?: string }> {
+  return window.breaker.authenticate
     ? await window.breaker.authenticate(reason)
     : { ok: false, unavailable: true };
+}
+
+async function gateReveal(reason: string, subject: string): Promise<boolean> {
+  const gate = $('listGateLine');
+  const r = await authGate(reason);
   if (r.ok || r.unavailable) {
     gate.textContent = r.ok ? '' : `Ezen a gépen nincs ujjlenyomat-olvasó, így nincs mivel azonosítani — ${subject} kérésre előjön.`;
     gate.classList.toggle('hidden', r.ok);
@@ -2952,6 +2957,21 @@ function openAliasDialog(site: SiteInfo): void {
   modal.appendChild(actions);
 
   async function apply(value: string | null): Promise<void> {
+    // A FEDŐNÉV LEVÉTELE felfed: a valódi cím onnantól ott áll a listán. Ezért
+    // ugyanaz a kapu, mint a Mutasd-é. Az átnevezés nem fed fel, az marad egy
+    // kattintás. Elutasításnál a név marad, és a párbeszéd mondja ki.
+    const removing = isAliased(site) && normalizeAlias(value) === undefined;
+    if (removing) {
+      const r = await authGate('A fedőnév levétele — a valódi cím onnantól látszik.');
+      if (!r.ok && !r.unavailable) {
+        err.textContent = 'Nem sikerült az azonosítás — a fedőnév marad.';
+        err.classList.remove('hidden');
+        return;
+      }
+      const gate = $('listGateLine');
+      gate.textContent = r.ok ? '' : 'Ezen a gépen nincs ujjlenyomat-olvasó, így nincs mivel azonosítani — a fedőnév kérésre lekerült.';
+      gate.classList.toggle('hidden', r.ok);
+    }
     try {
       status = await call<StatusData>('set_alias', { siteId: site.id, alias: value });
       // Névváltáskor a korábbi felfedésnek nincs értelme.
