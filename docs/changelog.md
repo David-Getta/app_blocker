@@ -8,6 +8,7 @@ kettővel korábbiban.
 
 | Verzió | Nap | Mi újság |
 |---|---|---|
+| v0.4.173 | 2026-09-30 | a fixtúra a különbséget is nézi |
 | v0.4.172 | 2026-09-30 | a rejtett lista kártyája kimondja, hogy a rejtés a fiók egészére szól |
 | v0.4.171 | 2026-09-30 | a rejtés a fiók egészére szól, a weboldalon is; a tükör ellenőrzőlistája |
 | v0.4.170 | 2026-09-30 | a rejtés a fiók egészére szól |
