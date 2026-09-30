@@ -44,24 +44,26 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A fixtúra a kulcsszavakat és a megbízottat is fésüli.** A három
-          nyelv közös fixtúrája és a fuzz eddig a csomagokat, a menetet, a
-          zárlatot, az ablakokat és a rejtést vetette össze; a kulcsszó-lista és
-          a párban zárolás megbízottja — a jeleikkel — kimaradt, pedig épp ott
-          dől el, hogy egy kifizetett levétel átmegy-e a másik eszközre. Most
-          benne vannak: ugyanazok a húzások mindhárom generátorban, a
-          kulcsokban is, és a cserék között a megbízott ki-be és a jele.
+          **A fixtúra az oldal-rekord minden mezőjét fésüli.** A három nyelv
+          közös fixtúrája az oldalaknál eddig a hosztneveket, a törlésre
+          várást, a keretet, a fedőnevet és az indokot vetette össze; a
+          menetrend, az adag-szabály és a részleges szabályok kimaradtak —
+          pedig azonos rev-nél épp a menetrend percei és az adag döntik el, ki
+          a szigorúbb, a szabályoknál pedig három különböző dolog a régi
+          kliens „nem tudok a mezőről”-je, az üres lista és a lista. Most
+          mind benne van: ugyanazok a húzások mindhárom generátorban, a
+          kulcsokban is.
 
-          ### Ami a v0.4.173-ban jött
+          ### Ami a v0.4.174-ben jött
+
+          **A fixtúra a kulcsszavakat és a megbízottat is fésüli.** Nyolc új
+          húzás mindhárom generátorban, a kulcsokban is; a cserék között a
+          megbízott ki-be és a jele.
+
+          #### Ami a v0.4.173-ban jött
 
           **A fixtúra a különbséget is nézi.** Minden esethez egy mező cseréje
-          jár, és a három nyelvnek ugyanazt kell különbségnek tartania — a
-          jelentés nélküli cserét nem.
-
-          #### Ami a v0.4.172-ben jött
-
-          **A rejtett lista kártyája kimondja, hogy a rejtés a fiók egészére
-          szól** — fiókkal; fiók nélkül csendben marad.
+          jár, és a három nyelvnek ugyanazt kell különbségnek tartania.
 
           NOTES
           fi
