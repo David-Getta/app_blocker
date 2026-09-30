@@ -44,26 +44,24 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A fixtúra az oldal-rekord minden mezőjét fésüli.** A három nyelv
-          közös fixtúrája az oldalaknál eddig a hosztneveket, a törlésre
-          várást, a keretet, a fedőnevet és az indokot vetette össze; a
-          menetrend, az adag-szabály és a részleges szabályok kimaradtak —
-          pedig azonos rev-nél épp a menetrend percei és az adag döntik el, ki
-          a szigorúbb, a szabályoknál pedig három különböző dolog a régi
-          kliens „nem tudok a mezőről”-je, az üres lista és a lista. Most
-          mind benne van: ugyanazok a húzások mindhárom generátorban, a
-          kulcsokban is.
+          **A gép egyezés-kulcsa az adag-szabályt is nézi.** A gép az
+          oldal-listát kanonikus kulccsal hasonlítja (hogy a másik platform
+          mezősorrendje ne látszódjon változásnak), és ebből a kulcsból az
+          adag-szabály kimaradt: egy csak ebben eltérő fésült rekord
+          „ugyanaz” lett volna — se beírás, se feltöltés. A rev-léptetés
+          eddig elfedte; most a kulcs is nézi, teszt és tű őrzi. A telefonok
+          szerkezeti egyenlőséggel hasonlítanak, ott nem volt rés.
 
-          ### Ami a v0.4.174-ben jött
+          ### Ami a v0.4.175-ben jött
+
+          **A fixtúra az oldal-rekord minden mezőjét fésüli.** Menetrend,
+          adag-szabály és részleges szabályok az a/b/c rekordokban, mindhárom
+          nyelven, a kulcsokban is.
+
+          #### Ami a v0.4.174-ben jött
 
           **A fixtúra a kulcsszavakat és a megbízottat is fésüli.** Nyolc új
-          húzás mindhárom generátorban, a kulcsokban is; a cserék között a
-          megbízott ki-be és a jele.
-
-          #### Ami a v0.4.173-ban jött
-
-          **A fixtúra a különbséget is nézi.** Minden esethez egy mező cseréje
-          jár, és a három nyelvnek ugyanazt kell különbségnek tartania.
+          húzás mindhárom generátorban, a kulcsokban is.
 
           NOTES
           fi
