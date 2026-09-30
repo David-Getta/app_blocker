@@ -116,7 +116,10 @@ ingyen van, rövidíteni vagy visszavonni sehogy.
   rajtuk. Megnyitni **nem egy kattintás**: a készülék azonosítását kéri —
   ujjlenyomat, arc vagy a képernyőzár kódja (Macen Touch ID) —, így a rejtés
   véd is, nem csak nem emlékeztet; és csak a bezárásig marad nyitva. Ahol nincs
-  mivel azonosítani, kérésre megnyílik — és kimondja.
+  mivel azonosítani, kérésre megnyílik — és kimondja. Fiókkal a rejtés a fiók
+  egészére szól: a telefonon bekapcsolva a gépen is rejtve indul a lista, a
+  kifizetett kikapcsolás is átmegy — és a rejtett lista kártyája ezt ki is
+  mondja; fiók nélkül csendben marad.
 - **Fiók és eszközök közti szinkron** (mindhárom platform):
   belépsz ugyanabba a fiókba a másik gépeden, és nem kell újra felvenned a
   listát — a többi eszköz statisztikáját is látod, és legelöl az **összes eszköz
@@ -137,7 +140,11 @@ ingyen van, rövidíteni vagy visszavonni sehogy.
   van. Ami a teljes címet látja, az a böngésző — innen a bővítmény. Cserébe
   **gyengébb réteg**: csak abban a böngészőben él, vendég módban egyáltalán nem
   fut, inkognitóban külön be kell kapcsolni. A teljes oldal tiltása marad
-  DNS-szintű és megkerülhetetlen; ez az **ingert** veszi el.
+  DNS-szintű és megkerülhetetlen; ez az **ingert** veszi el. A szabálylista a
+  fiókon át a többi gépre is átmegy (a telefon hordozza), saját jellel: a
+  kifizetett levétel akkor sem jön vissza, ha a másik gép közben mást írt az
+  oldalra, és egy frissítetlen telefon a fiókban sem billenti a sorrendtől
+  függően.
   [`extension/`](extension/README.md) ·
   [`docs/feature-partial-block.md`](docs/feature-partial-block.md).
 - **Napi időkeret oldalanként** (asztali gép + Android): „napi 20 perc YouTube”.
