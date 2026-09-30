@@ -44,25 +44,23 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A részleges szabályok jele.** A szabálylista fésülésében eddig a
-          rekord rev-je döntött, ami más szerkesztéstől is nő — és egy régi
-          kliens (ami a mezőt nem ismeri) nagy rev-je azt a listát
-          hitelesítette, amelyikkel épp előbb találkozott: három eszköznél a
-          végeredmény a sorrendtől függött. Most a listának saját jele van (a
-          gép írja, a telefonok hordozzák): a nagyobb jel dönt, a kifizetett
-          levétel átmegy akkor is, ha a másik rekord rev-je nagyobb, és a régi
-          kliens semleges. Ugyanaz a szabály mindhárom nyelven; a fixtúra és a
-          tesztek őrzik.
+          **A README is elmondja, amit az app már tud.** A részleges tiltás
+          pontja most kimondja, hogy a szabálylista a fiókon át átmegy, saját
+          jellel — a kifizetett levétel nem jön vissza, és egy frissítetlen
+          telefon sem billenti a sorrendtől függően; a rejtett lista pontja
+          pedig azt, hogy fiókkal a rejtés a fiók egészére szól, és a kártya
+          ezt ki is mondja.
 
-          ### Ami a v0.4.176-ban jött
+          ### Ami a v0.4.177-ben jött
+
+          **A részleges szabályok jele.** A szabálylista fésülésében a jel
+          dönt, nem a rekord rev-je: a kifizetett levétel átmegy, a régi
+          kliens semleges, három eszköznél a sorrend nem számít.
+
+          #### Ami a v0.4.176-ban jött
 
           **A gép egyezés-kulcsa az adag-szabályt is nézi.** Egy csak ebben
           eltérő fésült rekord eddig „ugyanaz” lett volna.
-
-          #### Ami a v0.4.175-ben jött
-
-          **A fixtúra az oldal-rekord minden mezőjét fésüli.** Menetrend,
-          adag-szabály és részleges szabályok, mindhárom nyelven.
 
           NOTES
           fi
