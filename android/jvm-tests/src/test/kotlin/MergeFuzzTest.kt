@@ -5,6 +5,7 @@ import hu.breaker.app.core.LockdownLogic
 import hu.breaker.app.core.PartnerLogic
 import hu.breaker.app.core.ScheduleLogic
 import hu.breaker.app.core.SyncMerge
+import hu.breaker.app.core.UrlRules
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -33,6 +34,15 @@ class MergeFuzzTest {
     private val hosts = listOf("youtube.com", "www.youtube.com", "m.youtube.com", "music.youtube.com", "youtu.be", "yt.be")
     private val devices = listOf("gep-a", "gep-b", "telefon")
 
+    /** Menetrendek, adag-szabályok és részleges szabályok készlete — a gép merge-random.ts párja. */
+    private val schedules = listOf(
+        ScheduleLogic.Schedule(ScheduleLogic.Mode.SCHEDULED_BLOCK, listOf(ScheduleLogic.Band(setOf(1, 2, 3, 4, 5), 540, 1020))),
+        ScheduleLogic.Schedule(ScheduleLogic.Mode.SCHEDULED_ALLOW, listOf(ScheduleLogic.Band(setOf(0, 6), 600, 720))),
+        ScheduleLogic.Schedule(ScheduleLogic.Mode.SCHEDULED_BLOCK, listOf(ScheduleLogic.Band(setOf(0, 1, 2, 3, 4, 5, 6), 1320, 360))),
+    )
+    private val bursts = listOf(600L to 300L, 1200L to 900L)
+    private val rulePool = listOf(UrlRules.UrlRule("youtube.com", "/@valaki"), UrlRules.UrlRule("youtube.com", "/shorts"))
+
     private fun randomSite(r: Lcg, device: String): SyncMerge.SyncSite {
         val hostnames = hosts.filterIndexed { i, _ -> i == 0 || r.next() < 0.5 }
         val marks = mutableMapOf<String, Int>()
@@ -45,9 +55,27 @@ class MergeFuzzTest {
         val updatedAt = 100L + (r.next() * 5).toInt()
         // A jel sosem nagyobb a rekord rev-jénél — a bemenet is így tisztít.
         for (h in marks.keys.toList()) marks[h] = minOf(marks.getValue(h), rev)
+        // MENETREND, ADAG, RÉSZLEGES SZABÁLYOK — hat húzás, mind feltétel nélkül,
+        // ugyanebben a sorrendben a három nyelvben (desktop/test/merge-random.ts).
+        val schedDraw = r.next()
+        val schedPick = (r.next() * 3).toInt()
+        val burstDraw = r.next()
+        val burstPick = (r.next() * 2).toInt()
+        val rulesDraw = r.next()
+        val rulesPick = (r.next() * 3).toInt()
+        val schedule = if (schedDraw < 0.4) schedules[schedPick] else null
+        val burst = if (burstDraw < 0.3) bursts[burstPick] else null
+        val rules = when {
+            rulesDraw < 0.25 -> null
+            rulesDraw < 0.45 -> emptyList()
+            rulesPick == 2 -> listOf(rulePool[0], rulePool[1])
+            else -> listOf(rulePool[rulesPick])
+        }
         return SyncMerge.SyncSite(
             id = "site_1", domain = "youtube.com", hostnames = hostnames, addedAt = 1_000,
-            pendingDeleteAt = pending, dailyLimitSeconds = limit, alias = alias, reason = reason,
+            pendingDeleteAt = pending, schedule = schedule, dailyLimitSeconds = limit,
+            burstSeconds = burst?.first, cooldownSeconds = burst?.second,
+            alias = alias, reason = reason, rules = rules,
             rev = rev, updatedAt = updatedAt, updatedBy = device,
             hostnameMarks = marks.ifEmpty { null },
         )

@@ -22,6 +22,17 @@ struct Lcg {
 private let hosts = ["youtube.com", "www.youtube.com", "m.youtube.com", "music.youtube.com", "youtu.be", "yt.be"]
 private let devices = ["gep-a", "gep-b", "telefon"]
 
+/// Menetrendek, adag-szabályok és részleges szabályok készlete — a gép merge-random.ts párja.
+private let schedulePool: [ScheduleLogic.Schedule] = [
+    ScheduleLogic.Schedule(mode: .block, bands: [ScheduleLogic.Band(days: [1, 2, 3, 4, 5], startMin: 540, endMin: 1020)]),
+    ScheduleLogic.Schedule(mode: .allow, bands: [ScheduleLogic.Band(days: [0, 6], startMin: 600, endMin: 720)]),
+    ScheduleLogic.Schedule(mode: .block, bands: [ScheduleLogic.Band(days: [0, 1, 2, 3, 4, 5, 6], startMin: 1320, endMin: 360)]),
+]
+private let burstPool: [(Double, Double)] = [(600, 300), (1200, 900)]
+private let rulePool: [UrlRules.UrlRule] = [
+    UrlRules.UrlRule(host: "youtube.com", path: "/@valaki"), UrlRules.UrlRule(host: "youtube.com", path: "/shorts"),
+]
+
 private func randomSite(_ r: inout Lcg, _ device: String) -> SyncMerge.SyncSite {
     var hostnames: [String] = []
     for (i, h) in hosts.enumerated() {
@@ -39,9 +50,27 @@ private func randomSite(_ r: inout Lcg, _ device: String) -> SyncMerge.SyncSite 
     let updatedAt = 100 + Double(Int(r.next() * 5))
     // A jel sosem nagyobb a rekord rev-jénél — a bemenet is így tisztít.
     for h in marks.keys { marks[h] = min(marks[h]!, rev) }
+    // MENETREND, ADAG, RÉSZLEGES SZABÁLYOK — hat húzás, mind feltétel nélkül,
+    // ugyanebben a sorrendben a három nyelvben (desktop/test/merge-random.ts).
+    let schedDraw = r.next()
+    let schedPick = Int(r.next() * 3)
+    let burstDraw = r.next()
+    let burstPick = Int(r.next() * 2)
+    let rulesDraw = r.next()
+    let rulesPick = Int(r.next() * 3)
+    let schedule: ScheduleLogic.Schedule? = schedDraw < 0.4 ? schedulePool[schedPick] : nil
+    let burst: (Double, Double)? = burstDraw < 0.3 ? burstPool[burstPick] : nil
+    var rules: [UrlRules.UrlRule]? = nil
+    if rulesDraw >= 0.45 {
+        rules = rulesPick == 2 ? [rulePool[0], rulePool[1]] : [rulePool[rulesPick]]
+    } else if rulesDraw >= 0.25 {
+        rules = []
+    }
     return SyncMerge.SyncSite(
         id: "site_1", domain: "youtube.com", hostnames: hostnames, addedAt: 1_000,
-        pendingDeleteAt: pending, dailyLimitSeconds: limit, alias: alias, reason: reason,
+        pendingDeleteAt: pending, schedule: schedule, dailyLimitSeconds: limit,
+        burstSeconds: burst?.0, cooldownSeconds: burst?.1,
+        alias: alias, reason: reason, rules: rules,
         rev: rev, updatedAt: updatedAt, updatedBy: device,
         hostnameMarks: marks.isEmpty ? nil : marks
     )

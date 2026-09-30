@@ -2,6 +2,7 @@ import hu.breaker.app.core.FocusSync
 import hu.breaker.app.core.KeywordLogic
 import hu.breaker.app.core.LockdownLogic
 import hu.breaker.app.core.PartnerLogic
+import hu.breaker.app.core.ScheduleLogic
 import hu.breaker.app.core.SyncClient
 import hu.breaker.app.core.SyncMerge
 import org.json.JSONArray
@@ -37,10 +38,23 @@ class MergeFixtureTest {
 
     private fun siteKey(s: SyncMerge.SyncSite): String {
         val marks = (s.hostnameMarks ?: emptyMap()).toSortedMap().entries.joinToString(",") { "${it.key}=${it.value}" }
+        // A menetrend a módjával és a sávjaival (tartalom szerint rendezve), az adag
+        // a párjával, a szabályok rendezve — és a „nincs mező” (-) más, mint az üres ([]).
+        val sched = s.schedule?.let { sc ->
+            val mode = when (sc.mode) {
+                ScheduleLogic.Mode.ALWAYS -> "always"
+                ScheduleLogic.Mode.SCHEDULED_BLOCK -> "scheduled_block"
+                ScheduleLogic.Mode.SCHEDULED_ALLOW -> "scheduled_allow"
+            }
+            mode + ":" + sc.bands.map { LockdownLogic.windowKey(it) }.sorted().joinToString(";")
+        } ?: "-"
+        val burst = if (s.burstSeconds != null && s.cooldownSeconds != null) "${s.burstSeconds}/${s.cooldownSeconds}" else "-"
+        val rules = s.rules?.let { "[" + it.map { r -> r.host + r.path }.sorted().joinToString(",") + "]" } ?: "-"
         return "hosts=[${s.hostnames.sorted().joinToString(",")}] marks=[$marks] rev=${s.rev}" +
             " pending=${opt(s.pendingDeleteAt)} limit=${opt(s.dailyLimitSeconds)} alias=${opt(s.alias)}" +
             " reason=${opt(s.reason)}" +
-            " at=${s.updatedAt} by=${s.updatedBy}"
+            " at=${s.updatedAt} by=${s.updatedBy}" +
+            " sched=$sched burst=$burst rules=$rules"
     }
 
     private fun focusKey(f: FocusSync.SyncFocus): String {

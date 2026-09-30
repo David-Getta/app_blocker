@@ -9,7 +9,8 @@
 import type { SyncSite } from '../src/shared/sync/merge';
 import { emptyFocus, type SyncFocus } from '../src/shared/sync/focus-merge';
 import type { FocusPack } from '../src/shared/focus';
-import type { Band } from '../src/shared/schedule';
+import type { Band, Schedule } from '../src/shared/schedule';
+import type { UrlRule } from '../src/shared/urlrules';
 import { windowKey, type LockdownWindow } from '../src/shared/lockdown';
 import { keywordsKey } from '../src/shared/keywords';
 import { partnerKey, type PartnerLock } from '../src/shared/partner';
@@ -26,6 +27,17 @@ export function rng(seed: number): () => number {
 export const HOSTS = ['youtube.com', 'www.youtube.com', 'm.youtube.com', 'music.youtube.com', 'youtu.be', 'yt.be'];
 export const DEVICES = ['gep-a', 'gep-b', 'telefon'];
 
+/** Menetrendek: érvényes sávokkal, különböző tiltott perc-összeggel — a döntetlen-lánc ezt nézi. */
+export const SCHEDULES: Schedule[] = [
+  { mode: 'scheduled_block', bands: [{ days: [1, 2, 3, 4, 5], startMin: 540, endMin: 1020 }] },
+  { mode: 'scheduled_allow', bands: [{ days: [0, 6], startMin: 600, endMin: 720 }] },
+  { mode: 'scheduled_block', bands: [{ days: [0, 1, 2, 3, 4, 5, 6], startMin: 1320, endMin: 360 }] },
+];
+/** Adag-szabályok: adag és szünet másodpercben — a kettő csak együtt értelmes. */
+export const BURSTS: [number, number][] = [[600, 300], [1200, 900]];
+/** Részleges szabályok KANONIKUS alakban — így egyik nyelv olvasója sem írja át őket. */
+export const RULES: UrlRule[] = [{ host: 'youtube.com', path: '/@valaki' }, { host: 'youtube.com', path: '/shorts' }];
+
 export function randomSite(r: () => number, device: string): SyncSite {
   const hostnames = HOSTS.filter((h, i) => i === 0 || r() < 0.5);
   const marks: Record<string, number> = {};
@@ -40,10 +52,28 @@ export function randomSite(r: () => number, device: string): SyncSite {
   // A jel sosem nagyobb a rekord rev-jénél — a bemenet mindhárom nyelvben
   // így tisztít, tehát a megfelelőségi fixture-ben sem lehet más.
   for (const h of Object.keys(marks)) marks[h] = Math.min(marks[h], rev);
+  // MENETREND, ADAG, RÉSZLEGES SZABÁLYOK — hat húzás, mind feltétel nélkül,
+  // ugyanebben a sorrendben a három nyelvben. A szabályoknál három különböző
+  // dolog a „nem tudok a mezőről” (régi kliens), a „volt, és el lett távolítva”
+  // (üres) és a lista — mindhárom jár, mert a fésülés is így különbözteti.
+  const schedDraw = r();
+  const schedPick = Math.floor(r() * 3);
+  const burstDraw = r();
+  const burstPick = Math.floor(r() * 2);
+  const rulesDraw = r();
+  const rulesPick = Math.floor(r() * 3);
+  const schedule = schedDraw < 0.4 ? SCHEDULES[schedPick] : undefined;
+  const burst = burstDraw < 0.3 ? BURSTS[burstPick] : undefined;
+  const rules: UrlRule[] | undefined = rulesDraw < 0.25 ? undefined
+    : rulesDraw < 0.45 ? []
+      : rulesPick === 2 ? [RULES[0], RULES[1]] : [RULES[rulesPick]];
   return {
     id: 'site_1', domain: 'youtube.com', hostnames, addedAt: 1_000,
     ...(Object.keys(marks).length ? { hostnameMarks: marks } : {}),
     pauseUntil: null, pendingDeleteAt, dailyLimitSeconds, alias, reason, rev, updatedAt, updatedBy: device,
+    ...(schedule ? { schedule } : {}),
+    ...(burst ? { burstSeconds: burst[0], cooldownSeconds: burst[1] } : {}),
+    ...(rules !== undefined ? { rules } : {}),
   };
 }
 
@@ -156,10 +186,18 @@ export function siteConformanceKey(s: SyncSite): string {
   const marks = Object.entries(s.hostnameMarks ?? {}).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
     .map(([k, v]) => `${k}=${v}`).join(',');
   const opt = (v: number | string | null | undefined) => (v === null || v === undefined ? '-' : String(v));
+  // A menetrend a módjával és a sávjaival (tartalom szerint rendezve), az adag
+  // a párjával, a szabályok rendezve — és a „nincs mező” (-) más, mint az üres ([]).
+  const sched = s.schedule
+    ? `${s.schedule.mode}:${s.schedule.bands.map(windowKey).sort().join(';')}` : '-';
+  const burst = s.burstSeconds !== undefined && s.cooldownSeconds !== undefined
+    ? `${s.burstSeconds}/${s.cooldownSeconds}` : '-';
+  const rules = s.rules === undefined ? '-' : `[${s.rules.map((x) => x.host + x.path).sort().join(',')}]`;
   return `hosts=[${[...s.hostnames].sort().join(',')}] marks=[${marks}] rev=${s.rev}`
     + ` pending=${opt(s.pendingDeleteAt)} limit=${opt(s.dailyLimitSeconds)} alias=${opt(s.alias)}`
     + ` reason=${opt(s.reason)}`
-    + ` at=${s.updatedAt} by=${s.updatedBy}`;
+    + ` at=${s.updatedAt} by=${s.updatedBy}`
+    + ` sched=${sched} burst=${burst} rules=${rules}`;
 }
 
 export function focusConformanceKey(f: SyncFocus): string {

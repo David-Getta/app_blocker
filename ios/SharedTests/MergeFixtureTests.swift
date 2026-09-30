@@ -56,10 +56,21 @@ final class MergeFixtureTests: XCTestCase {
     private func siteKey(_ s: SyncMerge.SyncSite) -> String {
         let marks = (s.hostnameMarks ?? [:]).sorted { $0.key < $1.key }
             .map { "\($0.key)=\($0.value)" }.joined(separator: ",")
+        // A menetrend a módjával és a sávjaival (tartalom szerint rendezve), az adag
+        // a párjával, a szabályok rendezve — és a „nincs mező” (-) más, mint az üres ([]).
+        let sched: String = s.schedule.map { sc in
+            sc.mode.rawValue + ":" + sc.bands.map { LockdownLogic.windowKey($0) }.sorted().joined(separator: ";")
+        } ?? "-"
+        let burst: String
+        if let b = s.burstSeconds, let c = s.cooldownSeconds { burst = "\(int(b))/\(int(c))" } else { burst = "-" }
+        let rules: String = s.rules.map { list in
+            "[" + list.map { $0.host + $0.path }.sorted().joined(separator: ",") + "]"
+        } ?? "-"
         return "hosts=[\(s.hostnames.sorted().joined(separator: ","))] marks=[\(marks)] rev=\(s.rev)"
             + " pending=\(opt(s.pendingDeleteAt)) limit=\(opt(s.dailyLimitSeconds)) alias=\(s.alias ?? "-")"
             + " reason=\(s.reason ?? "-")"
             + " at=\(int(s.updatedAt)) by=\(s.updatedBy)"
+            + " sched=\(sched) burst=\(burst) rules=\(rules)"
     }
 
     private func focusKey(_ f: FocusSync.SyncFocus) -> String {
