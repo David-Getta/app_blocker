@@ -1703,8 +1703,20 @@ const WIRES = [
   },
   {
     file: 'desktop/src/renderer/renderer.ts',
-    needle: 'const removing = isAliased(site) && normalizeAlias(value) === undefined;',
+    needle: 'const removing = isAliasRemoval(site.alias, value);',
     lost: 'a gépen a fedőnév levétele megint azonosítás nélkül fedné fel a valódi címet',
+  },
+  // A LEVÉTEL-SZABÁLY A MAGBAN: a három felület ugyanazt az egy függvényt hívja
+  // (isAliasRemoval / isRemoval), nem három saját változatot hord.
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/AppUi.kt',
+    needle: 'val removing = AliasLogic.isRemoval(site.alias, text)',
+    lost: 'Androidon a levétel-szabály kikerülne a magból — három felület, három szabály',
+  },
+  {
+    file: 'ios/App/ContentView.swift',
+    needle: 'let removing = AliasLogic.isRemoval(site.alias, text)',
+    lost: 'iPhone-on a levétel-szabály kikerülne a magból — három felület, három szabály',
   },
   {
     file: 'extension/app-link.js',

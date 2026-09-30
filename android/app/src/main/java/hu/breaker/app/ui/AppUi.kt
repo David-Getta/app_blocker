@@ -1442,7 +1442,7 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                 // A FEDŐNÉV LEVÉTELE felfed: a valódi cím onnantól ott áll a listán.
                 // Ezért ugyanaz a kapu, mint a Mutasd-é. Az átnevezés nem fed fel,
                 // az marad egy koppintás. Elutasításnál a név marad, és a sor kimondja.
-                val removing = next == null && site.alias != null
+                val removing = AliasLogic.isRemoval(site.alias, text)
                 val host = context as? FragmentActivity
                 if (!removing) apply()
                 else if (host == null || !ListLock.canAuthenticate(context)) {

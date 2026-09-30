@@ -1135,7 +1135,7 @@ struct ContentView: View {
             }
             // A FEDŐNÉV LEVÉTELE felfed: a valódi cím onnantól ott áll a listán.
             // Ezért ugyanaz a kapu, mint a Mutasd-é. Az átnevezés nem fed fel.
-            let removing = next == nil && site.alias != nil
+            let removing = AliasLogic.isRemoval(site.alias, text)
             if !removing { apply(); return }
             ListLock.prompt(reason: "A fedőnév levétele — a valódi cím onnantól látszik.") { outcome in
                 switch outcome {

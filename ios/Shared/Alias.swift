@@ -50,6 +50,13 @@ enum AliasLogic {
         normalize(site.alias) != nil
     }
 
+    /// A FEDŐNÉV LEVÉTELE-e a változás: volt fedőnév, és a következő érték már nem az.
+    /// A levétel FELFED, ezért a felület a készülék azonosítását kéri hozzá; az
+    /// átnevezés nem fed fel. Egy helyen — a `shared/alias.ts` tükre.
+    static func isRemoval(_ current: String?, _ next: String?) -> Bool {
+        normalize(current) != nil && normalize(next) == nil
+    }
+
     /// Amit a felületen KI SZABAD írni.
     ///
     /// Minden megjelenítés ezen megy át — a soron, a párbeszédek címében, a

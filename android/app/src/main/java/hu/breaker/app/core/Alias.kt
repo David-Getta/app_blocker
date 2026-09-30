@@ -49,6 +49,14 @@ object AliasLogic {
     fun isAliased(site: Site): Boolean = normalize(site.alias) != null
 
     /**
+     * A FEDŐNÉV LEVÉTELE-e a változás: volt fedőnév, és a következő érték már nem az.
+     * A levétel FELFED, ezért a felület a készülék azonosítását kéri hozzá; az
+     * átnevezés nem fed fel. Egy helyen — a `shared/alias.ts` tükre.
+     */
+    fun isRemoval(current: String?, next: String?): Boolean =
+        normalize(current) != null && normalize(next) == null
+
+    /**
      * Amit a felületen KI SZABAD írni.
      *
      * Minden megjelenítés ezen megy át — a soron, a párbeszédek címében, a

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import * as assert from 'node:assert/strict';
 import {
-  displayName, displayNameNow, isAliased, normalizeAlias, MAX_ALIAS_LENGTH, REVEAL_MS,
+  displayName, displayNameNow, isAliased, isAliasRemoval, normalizeAlias, MAX_ALIAS_LENGTH, REVEAL_MS,
 } from '../src/shared/alias';
 
 test('no alias means the domain is shown', () => {
@@ -70,4 +70,19 @@ test('az indok tiszta alakja: vezérlőkarakter nélkül, egy szóközzel, 140-r
   assert.equal(normalizeReason(undefined), undefined);
   assert.equal(normalizeReason('x'.repeat(300))!.length, 140);
   assert.equal(normalizeReason('a'.repeat(139) + '  b'), 'a'.repeat(139), 'a vágás után nem marad szóköz a végén');
+});
+
+test('a fedőnév levétele felfed, az átnevezés nem — egy szabály, a három felületé', () => {
+  // Volt név, és a következő érték már nem az: ez a levétel (üres, csupa szóköz, null).
+  assert.equal(isAliasRemoval('A videós', ''), true);
+  assert.equal(isAliasRemoval('A videós', '   '), true);
+  assert.equal(isAliasRemoval('A videós', null), true);
+  assert.equal(isAliasRemoval('A videós', undefined), true);
+  // Átnevezés: név → másik név. Nem fed fel.
+  assert.equal(isAliasRemoval('A videós', 'A másik'), false);
+  assert.equal(isAliasRemoval('A videós', 'A videós'), false);
+  // Nem volt név: sem a beállítás, sem az üresen hagyás nem levétel.
+  assert.equal(isAliasRemoval(undefined, 'A videós'), false);
+  assert.equal(isAliasRemoval(undefined, ''), false);
+  assert.equal(isAliasRemoval('   ', ''), false, 'a csupa szóköz sosem volt név');
 });

@@ -486,7 +486,9 @@ telefont, ne egy gombbal lássa, mi bújik a fedőnév mögött. Ahol nincs mive
 azonosítani, a cím kérésre előjön, és a felület kimondja. Ugyanez a kapu áll a
 fedőnév **levétele** előtt is: az is felfed — onnantól a valódi cím áll a
 listán —, az átnevezés viszont nem, az marad egy koppintás. Elutasításnál a
-név marad, és a felület ezt is kimondja.
+név marad, és a felület ezt is kimondja. Hogy melyik változás levétel, azt a mag
+mondja meg egy helyen (`isAliasRemoval` / `isRemoval`), tesztekkel — a három
+felület nem hord három szabályt.
 
 ## A lista elrejtése
 

@@ -38,7 +38,8 @@ azonosítani, vagy ha az azonosítás nem sikerült. A lista és a fedőnév kap
 A fedőnév **levétele** is ezen a kapun át megy: az is felfed — onnantól a valódi
 cím áll a listán. Az átnevezés nem fed fel, az marad egy koppintás. Elutasításnál
 a fedőnév marad, és a párbeszéd (a gépen) vagy a sor (a telefonon) kimondja. A
-segéd (a bíró) ebből semmit nem lát: a zár a felületé, a `set_alias` op ugyanaz.
+segéd (a bíró) ebből semmit nem lát: a zár a felületé, a `set_alias` op ugyanaz. Hogy melyik változás levétel, azt a mag mondja meg egy
+helyen (`isAliasRemoval` / `isRemoval`), tesztekkel mindhárom nyelven.
 
 ## Őszinte korlát
 

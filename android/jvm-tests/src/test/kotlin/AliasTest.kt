@@ -98,4 +98,19 @@ class ReasonTest {
         assertEquals(140, AliasLogic.normalizeReason("x".repeat(300))!!.length)
         assertEquals("a".repeat(139), AliasLogic.normalizeReason("a".repeat(139) + "  b"), "a vágás után nem marad szóköz a végén")
     }
+
+    @Test
+    fun `removing the alias is a reveal, renaming is not`() {
+        // Volt név, és a következő érték már nem az: ez a levétel.
+        assertTrue(AliasLogic.isRemoval("A videós", ""))
+        assertTrue(AliasLogic.isRemoval("A videós", "   "))
+        assertTrue(AliasLogic.isRemoval("A videós", null))
+        // Átnevezés: név → másik név. Nem fed fel.
+        assertFalse(AliasLogic.isRemoval("A videós", "A másik"))
+        assertFalse(AliasLogic.isRemoval("A videós", "A videós"))
+        // Nem volt név: sem a beállítás, sem az üresen hagyás nem levétel.
+        assertFalse(AliasLogic.isRemoval(null, "A videós"))
+        assertFalse(AliasLogic.isRemoval(null, ""))
+        assertFalse(AliasLogic.isRemoval("   ", ""))
+    }
 }

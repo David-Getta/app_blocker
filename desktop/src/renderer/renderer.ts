@@ -12,7 +12,7 @@ import {
 } from '../shared/schedule.js';
 import { dayKey, formatDuration, idOf, suggestBlocks, usageDayNowText, usageWeekdayText } from '../shared/usage.js';
 import {
-  displayName, displayNameNow, isAliased, MAX_ALIAS_LENGTH, normalizeAlias, REVEAL_MS, MAX_REASON_LENGTH,
+  displayName, displayNameNow, isAliased, isAliasRemoval, MAX_ALIAS_LENGTH, REVEAL_MS, MAX_REASON_LENGTH,
 } from '../shared/alias.js';
 import { HELPER_VERSION } from '../shared/protocol.js';
 // A .js itt sem elhagyható: a böngésző natív ESM-betöltője oldja fel futásidőben.
@@ -2960,7 +2960,7 @@ function openAliasDialog(site: SiteInfo): void {
     // A FEDŐNÉV LEVÉTELE felfed: a valódi cím onnantól ott áll a listán. Ezért
     // ugyanaz a kapu, mint a Mutasd-é. Az átnevezés nem fed fel, az marad egy
     // kattintás. Elutasításnál a név marad, és a párbeszéd mondja ki.
-    const removing = isAliased(site) && normalizeAlias(value) === undefined;
+    const removing = isAliasRemoval(site.alias, value);
     if (removing) {
       const r = await authGate('A fedőnév levétele — a valódi cím onnantól látszik.');
       if (!r.ok && !r.unavailable) {
