@@ -44,22 +44,23 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A levétel-szabály a magban.** Hogy egy fedőnév-változás levétel-e
-          (felfed, ezért azonosítást kér) vagy átnevezés (nem fed fel), azt
-          eddig három felület három saját sora döntötte el. Most egy függvény
-          mondja meg a magban, mindhárom nyelven — tesztekkel: volt név, és a
-          következő már nem az. A viselkedés nem változott; a szabály lett egy
-          helyen, ahol a tesztek és az ellenőrző-tűk őrzik.
+          **A rejtés a fiók egészére szól.** A blokklista rejtése eddig
+          eszközönként állt: a telefonon rejtve, a gépen mégis látszott. Most a
+          rejtés a szinkronon átmegy — bekapcsolva bárhol, mindenhol áll (a
+          szigorítás ingyen van). A kikapcsolás a készülék azonosítása után
+          megy, és a kifizetett kikapcsolás is átmegy: a jel dönt, azonos jelnél
+          a rejtett; a régi kliens semleges. Ugyanaz a fésülés mindhárom
+          nyelven, a fixtúra és a fuzz őrzi.
 
-          ### Ami a v0.4.168-ban jött
+          ### Ami a v0.4.169-ben jött
+
+          **A levétel-szabály a magban.** Hogy egy fedőnév-változás levétel-e
+          vagy átnevezés, egy függvény mondja meg mindhárom nyelven, tesztekkel.
+
+          #### Ami a v0.4.168-ban jött
 
           **Ami rejtve van, az zárva is van — a weboldalon is.** A rejtés, a
           fedőnév és a zár egy pontban a funkciólistában.
-
-          #### Ami a v0.4.167-ben jött
-
-          **A fedőnév levétele is a zár mögött.** A levétel felfed, ezért a
-          készülék azonosítását kéri; az átnevezés nem.
 
           NOTES
           fi
