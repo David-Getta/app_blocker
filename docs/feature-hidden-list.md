@@ -41,6 +41,28 @@ a fedőnév marad, és a párbeszéd (a gépen) vagy a sor (a telefonon) kimondj
 segéd (a bíró) ebből semmit nem lát: a zár a felületé, a `set_alias` op ugyanaz. Hogy melyik változás levétel, azt a mag mondja meg egy
 helyen (`isAliasRemoval` / `isRemoval`), tesztekkel mindhárom nyelven.
 
+## A rejtés a fiók egészére szól
+
+A rejtés eddig eszközönként állt: a telefonon rejtve, a gépen mégis látszott a
+lista. Most a `hideSiteList` a szinkron `focus` dokumentumában utazik, a JELÉVEL
+(`hideSiteListRev`), a zárlat-ablakok és a megbízott mintájára:
+
+- **Bekapcsolva bárhol, mindenhol áll.** A rejtés szigorítás, ingyen van — a
+  következő szinkronkor a többi eszközön is rejtve indul a lista.
+- **A kikapcsolás munkába kerül, és a kifizetett kikapcsolás átmegy.** A
+  kikapcsolás a készülék azonosítása után történik, lépteti a jelet, és a
+  nagyobb jel nyer — egy régi blob nem támasztja fel a rejtést, de egy másik
+  eszköz csomag-szerkesztése (ami a jelet nem lépteti) nem is kapcsolja ki.
+- **Azonos jelnél a rejtett** — a szigorúbb irány. Két jel nélküli (régi)
+  kliens között ugyanez: ha bárhol rejtve, mindenhol az.
+- **A régi kliens semleges.** Mező nélkül nem tud kikapcsolni, és a lenyomat
+  a nem rejtett állapotban változatlan, tehát a frissítés utáni első kör
+  senkinél nem léptet fölöslegesen.
+
+A fésülés (`mergeHide`) mindhárom nyelvben ugyanaz, a `fixtures/merge-cases.json`
+80 esete és a fuzz-tesztek őrzik; a megnyitás továbbra is eszközönkénti és
+munkamenetnyi (`listOpenThisSession` nem utazik).
+
 ## Őszinte korlát
 
 - **Ahol nincs mivel azonosítani** — nincs képernyőzár a telefonon, Windows-gép,

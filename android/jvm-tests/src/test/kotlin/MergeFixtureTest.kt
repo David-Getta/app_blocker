@@ -55,7 +55,8 @@ class MergeFixtureTest {
         // Az ablakok TARTALOM szerint, rendezve: az azonosító és a sorrend nem jelentés.
         val windows = f.lockdownWindows.map { LockdownLogic.windowKey(it.band) }.sorted().joinToString(";")
         return "packs=[$packs] run=$run marks=[$marks] rev=${f.rev} at=${f.updatedAt} by=${f.updatedBy}" +
-            " lock=$lock windows=[$windows] wmark=${f.lockdownWindowsRev ?: 0}"
+            " lock=$lock windows=[$windows] wmark=${f.lockdownWindowsRev ?: 0}" +
+            " hide=${if (f.hideSiteList) 1 else 0} hmark=${f.hideSiteListRev ?: 0}"
     }
 
     private fun site(o: JSONObject): SyncMerge.SyncSite =

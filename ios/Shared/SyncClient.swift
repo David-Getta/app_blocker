@@ -253,7 +253,10 @@ enum SyncClient {
                 partnerRev: current.partnerRev,
                 // A kulcsszavak a jelükkel — mint az ablakok.
                 keywords: (current.keywords ?? []).isEmpty ? nil : current.keywords,
-                keywordsRev: current.keywordsRev
+                keywordsRev: current.keywordsRev,
+                // A rejtés a jelével — a fésülés ebből tudja, kié az újabb szó. Csak igazként.
+                hideSiteList: (current.hideSiteList ?? false) ? true : nil,
+                hideSiteListRev: current.hideSiteListRev
             )
             let merged = FocusSync.merge(mine, remote)
 
@@ -284,6 +287,10 @@ enum SyncClient {
                 // következő lehúzáskor már ezt a listát kapja.
                 current.keywords = merged.keywords
                 current.keywordsRev = merged.keywordsRev
+                // A REJTÉS IS a jele szerint: a gépen bekapcsolt rejtés innentől itt
+                // is áll; a kikapcsolás (azonosítás után) csak nagyobb jellel ér ide.
+                current.hideSiteList = (merged.hideSiteList ?? false) ? true : nil
+                current.hideSiteListRev = merged.hideSiteListRev
                 // A lenyomatot ÚJRASZÁMOLJUK, nem a másik eszközét vesszük át:
                 // enélkül a következő mentés fölöslegesen léptetné a számlálót,
                 // és a két eszköz örökké írogatná egymást.

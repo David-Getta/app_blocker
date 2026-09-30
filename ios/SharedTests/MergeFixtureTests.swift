@@ -80,6 +80,7 @@ final class MergeFixtureTests: XCTestCase {
         let windows = (f.lockdownWindows ?? []).map { LockdownLogic.windowKey($0.band) }.sorted().joined(separator: ";")
         return "packs=[\(packs)] run=\(run) marks=[\(marks)] rev=\(int(f.rev)) at=\(int(f.updatedAt)) by=\(f.updatedBy)"
             + " lock=\(lock) windows=[\(windows)] wmark=\(f.lockdownWindowsRev ?? 0)"
+            + " hide=\((f.hideSiteList ?? false) ? 1 : 0) hmark=\(f.hideSiteListRev ?? 0)"
     }
 
     func testSitesMergeTheSameAsTheDesktop() throws {

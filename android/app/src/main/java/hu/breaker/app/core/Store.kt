@@ -294,6 +294,9 @@ data class AppState(
     val partnerRev: Int? = null,
     /** a megbízott kulcsa az utolsó léptetéskor — ebből derül ki, kell-e új jel */
     val focusRevPartner: String? = null,
+    /** A rejtés jele (a focus-blob rev-je, amelyik utoljára be- vagy kikapcsolta) és a lenyomat-kulcsa. */
+    val hideSiteListRev: Int? = null,
+    val focusRevHide: String? = null,
 )
 
 /**
@@ -551,6 +554,8 @@ object BreakerStore {
         put("partner", s.partner?.let { SyncClient.partnerToJson(it) } ?: JSONObject.NULL)
         put("partnerRev", s.partnerRev ?: JSONObject.NULL)
         put("focusRevPartner", s.focusRevPartner ?: JSONObject.NULL)
+        put("hideSiteListRev", s.hideSiteListRev ?: JSONObject.NULL)
+        put("focusRevHide", s.focusRevHide ?: JSONObject.NULL)
         put("sync", s.sync?.let { a ->
             JSONObject().apply {
                 put("serverUrl", a.serverUrl); put("accountId", a.accountId)
@@ -946,6 +951,8 @@ object BreakerStore {
             partner = SyncClient.partnerFromJson(o.optJSONObject("partner")),
             partnerRev = if (o.isNull("partnerRev")) null else o.optInt("partnerRev", 0).takeIf { it > 0 },
             focusRevPartner = if (o.isNull("focusRevPartner")) null else o.optString("focusRevPartner"),
+            hideSiteListRev = if (o.isNull("hideSiteListRev")) null else o.optInt("hideSiteListRev", 0).takeIf { it > 0 },
+            focusRevHide = if (o.isNull("focusRevHide")) null else o.optString("focusRevHide"),
             // Egy sérült fiókbejegyzés a szinkront viszi el, a blokklistát nem:
             // a kettő közül a lista a fontos.
             sync = if (o.isNull("sync")) null else runCatching {

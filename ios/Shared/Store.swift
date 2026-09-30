@@ -229,6 +229,9 @@ struct AppState: Codable, Equatable {
     var partnerRev: Int? = nil
     /// A megbízott kulcsa az utolsó léptetéskor — ebből derül ki, kell-e új jel.
     var focusRevPartner: String? = nil
+    /// A rejtés jele (a focus-blob rev-je, amelyik utoljára be- vagy kikapcsolta) és a lenyomat-kulcsa.
+    var hideSiteListRev: Int? = nil
+    var focusRevHide: String? = nil
     /// KULCSSZÓ-SZABÁLYOK: bármely oldalon, ha a cím tartalmazza. A gépi
     /// böngésző-bővítmény érvényesíti; az iPhone hordozza és fésüli. A
     /// munkamenet blobján utazik, a jelével. Optional, hogy egy korábbi

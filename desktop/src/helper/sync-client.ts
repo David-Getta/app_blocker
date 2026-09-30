@@ -579,6 +579,12 @@ async function syncFocusRound(
       else delete state.partner;
       if (merged.partnerRev) state.partnerRev = merged.partnerRev;
       else delete state.partnerRev;
+      // A REJTÉS IS a jele szerint: a telefonon bekapcsolt rejtés innentől itt
+      // is áll; a kikapcsolás (a készülék azonosítása után) csak nagyobb jellel.
+      if (merged.hideSiteList === true) state.hideSiteList = true;
+      else delete state.hideSiteList;
+      if (merged.hideSiteListRev) state.hideSiteListRev = merged.hideSiteListRev;
+      else delete state.hideSiteListRev;
       state.focusRev = merged.rev;
       state.focusUpdatedAt = merged.updatedAt;
       state.focusUpdatedBy = merged.updatedBy;
@@ -743,6 +749,9 @@ function localFocus(state: HelperState, deviceId: string, now: number): SyncFocu
     // A megbízott a jelével — a lenyomat utazik, a jelmondat sehol nincs.
     ...(state.partner ? { partner: state.partner } : {}),
     ...(state.partnerRev ? { partnerRev: state.partnerRev } : {}),
+    // A rejtés a jelével — a fésülés ebből tudja, kié az újabb szó. Csak igazként.
+    ...(state.hideSiteList === true ? { hideSiteList: true } : {}),
+    ...(state.hideSiteListRev ? { hideSiteListRev: state.hideSiteListRev } : {}),
     // A kulcsszavak a jelükkel — mint az ablakok.
     ...((state.keywords ?? []).length > 0 ? { keywords: state.keywords! } : {}),
     ...(state.keywordsRev ? { keywordsRev: state.keywordsRev } : {}),

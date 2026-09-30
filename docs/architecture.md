@@ -539,6 +539,12 @@ Androidon és iPhone-on ugyanez a beállítás, ugyanazzal a két állapottal
 a statisztika nem tud oldalanként bontani (nincs ilyen API), tehát ott nincs is mit
 elfedni benne.
 
+A `hideSiteList` a **fiók egészére** szól: a `focus` szinkron-dokumentumban
+utazik a jelével (`hideSiteListRev`), a zárlat-ablakok és a megbízott
+mintájára — a jel dönt, azonos jelnél a rejtett, a régi kliens semleges. A
+`listOpenThisSession` viszont nem utazik: a megnyitás eszközönkénti és
+munkamenetnyi. Lásd [`feature-hidden-list.md`](feature-hidden-list.md).
+
 A füstteszt ezt a teljes látható szövegre (`innerText`) nézi meg: rejtett
 listánál egyetlen blokkolt cím sem lehet ott sehol. Ez fogta meg, hogy a
 statisztika a saját, ritkább körén frissül, és a rejtés bekapcsolása után még fél

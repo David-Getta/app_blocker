@@ -236,6 +236,12 @@ rejtve van, sem a másik eszköz adata, sem az összesített sor nem nevezheti m
 az oldalt.** Enélkül a rejtés pont ott lyukadna ki, ahol senki nem keresi — és a
 füstteszt ezt külön ellenőrzi.
 
+Maga a **rejtés-beállítás** is átmegy a szinkronon — a `focus` dokumentumban, a
+jelével (`hideSiteList`, `hideSiteListRev`), a zárlat-ablakok mintájára:
+bekapcsolva bárhol, mindenhol rejtve indul a lista; a kikapcsolás (a készülék
+azonosítása után) lépteti a jelet, és a nagyobb jel nyer; azonos jelnél a
+rejtett. Részletek: [`feature-hidden-list.md`](feature-hidden-list.md).
+
 ## Titkosítás: a kiszolgáló nem látja
 
 Az app eddigi ígérete az volt, hogy „minden mérés ezen a gépen marad”. A

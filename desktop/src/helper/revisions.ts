@@ -170,6 +170,10 @@ function focusFingerprint(state: HelperState): string {
   return FOCUS_FP_V2 + digest([
     packsPart(state), run, ...(windows ? [windows] : []), ...(partner ? ['partner', partner] : []),
     ...(keywords ? ['keywords', keywords] : []),
+    // A REJTÉS IS: a be- és kikapcsolása döntés, tehát léptet. Csak ha rejtve,
+    // címkével — a nem rejtett állapot lenyomata változatlan, tehát a
+    // frissítés utáni első kör senkinél nem léptet fölöslegesen.
+    ...(state.hideSiteList === true ? ['hide', 1] : []),
   ]);
 }
 
@@ -241,13 +245,14 @@ export function bumpFocusRevision(
   markWindows(state);
   markPartner(state);
   markKeywords(state);
+  markHide(state);
   return true;
 }
 
 function isEmptyFocus(state: HelperState): boolean {
   return (state.focusPacks ?? []).length === 0 && !state.focusRun
     && (state.lockdownWindows ?? []).length === 0 && !state.partner
-    && (state.keywords ?? []).length === 0;
+    && (state.keywords ?? []).length === 0 && state.hideSiteList !== true;
 }
 
 /**
@@ -269,6 +274,17 @@ function markKeywords(state: HelperState): void {
   state.focusRevKeywords = cur;
   if (prev === cur || state.focusRev === undefined) return;
   state.keywordsRev = state.focusRev;
+}
+/** A rejtés kulcsa a lenyomatban: rejtve „1”, különben üres. */
+function hideKey(state: HelperState): string {
+  return state.hideSiteList === true ? '1' : '';
+}
+function markHide(state: HelperState): void {
+  const cur = hideKey(state);
+  const prev = state.focusRevHide ?? '';
+  state.focusRevHide = cur;
+  if (prev === cur || state.focusRev === undefined) return;
+  state.hideSiteListRev = state.focusRev;
 }
 
 /**
@@ -340,6 +356,7 @@ export function adoptFocusRevision(state: HelperState): void {
   // levételét lehetne felülírni (azonos jelnél a beállított nyer).
   state.focusRevPartner = partnerKey(state.partner);
   state.focusRevKeywords = keywordsKeyOf(state);
+  state.focusRevHide = hideKey(state);
 }
 
 /**

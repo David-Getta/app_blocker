@@ -66,6 +66,12 @@ public enum FocusSync {
         /// jel dönt, azonos jelnél a bővebb lista. Üresen nincs mező a dróton.
         public var keywords: [String]?
         public var keywordsRev: Int?
+        /// A LISTA REJTÉSE: fiók-szintű beállítás, a JELÉVEL. A bekapcsolás egy
+        /// koppintás (szigorítás), a kikapcsolás a készülék azonosítása (munka) —
+        /// és a kifizetett kikapcsolás átmegy: a jel dönt, azonos jelnél a rejtett.
+        /// Csak igazként utazik; a régi kliens (mező nélkül) semleges.
+        public var hideSiteList: Bool?
+        public var hideSiteListRev: Int?
 
         public init(
             packs: [Focus.Pack] = [], run: Focus.Run? = nil, log: [Focus.LogEntry] = [],
@@ -73,7 +79,8 @@ public enum FocusSync {
             packMarks: [String: Int]? = nil, lockdown: LockdownLogic.Lockdown? = nil,
             lockdownWindows: [LockdownLogic.LockdownWindow]? = nil, lockdownWindowsRev: Int? = nil,
             partner: PartnerLogic.PartnerLock? = nil, partnerRev: Int? = nil,
-            keywords: [String]? = nil, keywordsRev: Int? = nil
+            keywords: [String]? = nil, keywordsRev: Int? = nil,
+            hideSiteList: Bool? = nil, hideSiteListRev: Int? = nil
         ) {
             self.packs = packs
             self.run = run
@@ -89,6 +96,8 @@ public enum FocusSync {
             self.partnerRev = partnerRev
             self.keywords = keywords
             self.keywordsRev = keywordsRev
+            self.hideSiteList = hideSiteList
+            self.hideSiteListRev = hideSiteListRev
         }
 
         /// SAJÁT dekódolás, mert a `log` mező RÉGEBBI blobokból hiányzik.
@@ -121,6 +130,9 @@ public enum FocusSync {
             // A kulcsszavak és a jelük is tűrően.
             keywords = (try? c.decodeIfPresent([String].self, forKey: .keywords)) ?? nil
             keywordsRev = (try? c.decodeIfPresent(Int.self, forKey: .keywordsRev)) ?? nil
+            // A rejtés és a jele is tűrően — csak igazként számít.
+            hideSiteList = ((try? c.decodeIfPresent(Bool.self, forKey: .hideSiteList)) ?? nil) == true ? true : nil
+            hideSiteListRev = (try? c.decodeIfPresent(Int.self, forKey: .hideSiteListRev)) ?? nil
         }
     }
 
@@ -163,7 +175,10 @@ public enum FocusSync {
             partnerRev: mergedPartnerMark(local, incoming),
             // A kulcsszavak ugyanígy: a jel dönt, azonos jelnél a bővebb lista.
             keywords: mergedKeywords(local, incoming),
-            keywordsRev: mergedKeywordsMark(local, incoming)
+            keywordsRev: mergedKeywordsMark(local, incoming),
+            // A rejtés ugyanígy: a jel dönt, azonos jelnél a rejtett — a szigorúbb irány.
+            hideSiteList: mergedHide(local, incoming),
+            hideSiteListRev: mergedHideMark(local, incoming)
         )
     }
 
@@ -181,6 +196,26 @@ public enum FocusSync {
 
     private static func mergedPartnerMark(_ local: SyncFocus, _ incoming: SyncFocus) -> Int? {
         let mark = max(local.partnerRev ?? 0, incoming.partnerRev ?? 0)
+        return mark > 0 ? mark : nil
+    }
+
+    /// A REJTÉS fésülése — a `shared/sync/focus-merge.ts` `mergeHide` tükre: a
+    /// nagyobb jel nyer (a kikapcsolás munkába került, tehát átmegy); azonos
+    /// jelnél a rejtett — ha bárhol rejtve van, mindenhol az. Igaz vagy nil.
+    static func mergeHide(_ localRev: Int, _ local: Bool, _ incomingRev: Int, _ incoming: Bool) -> Bool {
+        if incomingRev > localRev { return incoming }
+        if localRev > incomingRev { return local }
+        return local || incoming
+    }
+
+    private static func mergedHide(_ local: SyncFocus, _ incoming: SyncFocus) -> Bool? {
+        let out = mergeHide(local.hideSiteListRev ?? 0, local.hideSiteList ?? false,
+                            incoming.hideSiteListRev ?? 0, incoming.hideSiteList ?? false)
+        return out ? true : nil
+    }
+
+    private static func mergedHideMark(_ local: SyncFocus, _ incoming: SyncFocus) -> Int? {
+        let mark = max(local.hideSiteListRev ?? 0, incoming.hideSiteListRev ?? 0)
         return mark > 0 ? mark : nil
     }
 

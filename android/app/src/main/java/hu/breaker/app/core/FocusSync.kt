@@ -76,6 +76,14 @@ object FocusSync {
         val partner: PartnerLogic.PartnerLock? = null,
         val partnerRev: Int? = null,
         /**
+         * A LISTA REJTÉSE: fiók-szintű beállítás, a JELÉVEL. A bekapcsolás egy
+         * koppintás (szigorítás), a kikapcsolás a készülék azonosítása (munka)
+         * — és a kifizetett kikapcsolás átmegy: a jel dönt, azonos jelnél a
+         * rejtett. Csak igazként utazik; a régi kliens (mező nélkül) semleges.
+         */
+        val hideSiteList: Boolean = false,
+        val hideSiteListRev: Int? = null,
+        /**
          * KULCSSZÓ-SZABÁLYOK: a lista és a jele — a fésülése az ablakoké: a
          * jel dönt, azonos jelnél a bővebb lista. Üresen nincs mező a dróton.
          * Lásd `KeywordLogic.mergeKeywords`.
@@ -129,6 +137,11 @@ object FocusSync {
                 local.keywordsRev ?: 0, local.keywords, incoming.keywordsRev ?: 0, incoming.keywords,
             ),
             keywordsRev = maxOf(local.keywordsRev ?: 0, incoming.keywordsRev ?: 0).takeIf { it > 0 },
+            // A rejtés ugyanígy: a jel dönt, azonos jelnél a rejtett — a szigorúbb irány.
+            hideSiteList = mergeHide(
+                local.hideSiteListRev ?: 0, local.hideSiteList, incoming.hideSiteListRev ?: 0, incoming.hideSiteList,
+            ),
+            hideSiteListRev = maxOf(local.hideSiteListRev ?: 0, incoming.hideSiteListRev ?: 0).takeIf { it > 0 },
         )
     }
 
@@ -139,6 +152,17 @@ object FocusSync {
      * az újabb blobé, a csak a régebbin élő csomagok a végére. A telefon jelet
      * nem ír, csak hordozza és fésüli. A merge.ts `mergePacks` tükre.
      */
+    /**
+     * A REJTÉS fésülése — a `shared/sync/focus-merge.ts` `mergeHide` tükre: a
+     * nagyobb jel nyer (a kikapcsolás munkába került, tehát átmegy); azonos
+     * jelnél a rejtett — ha bárhol rejtve van, mindenhol az.
+     */
+    fun mergeHide(localRev: Int, local: Boolean, incomingRev: Int, incoming: Boolean): Boolean = when {
+        incomingRev > localRev -> incoming
+        localRev > incomingRev -> local
+        else -> local || incoming
+    }
+
     private fun mergePacks(
         newer: SyncFocus, older: SyncFocus, runPackId: String?,
     ): Pair<List<Focus.FocusPack>, Map<String, Int>?> {
@@ -422,7 +446,7 @@ object FocusSync {
         // A kulcsszavak a jelükkel — tartalom szerint, rendezve.
         val keywords = KeywordLogic.keywordsKey(f.keywords)
         return "$packs//$run//$log//$marks//$lock//$windows//${f.lockdownWindowsRev ?: 0}//$partner//${f.partnerRev ?: 0}" +
-            "//$keywords//${f.keywordsRev ?: 0}//${f.rev}"
+            "//$keywords//${f.keywordsRev ?: 0}//${if (f.hideSiteList) 1 else 0}//${f.hideSiteListRev ?: 0}//${f.rev}"
     }
 
     /**

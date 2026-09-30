@@ -88,7 +88,8 @@ const GROUPS = [
     // a másik gép bővítménye nem kapná meg a listát — és a telefon feltöltése
     // jel nélkül… nem törölne (a jeltelen nem töröl), de a lista sem érne át.
     names: ['packs', 'run', 'log', 'packMarks', 'lockdown', 'lockdownWindows', 'lockdownWindowsRev',
-      'partner', 'partnerRev', 'keywords', 'keywordsRev', 'rev', 'updatedAt', 'updatedBy'],
+      'partner', 'partnerRev', 'keywords', 'keywordsRev', 'hideSiteList', 'hideSiteListRev',
+      'rev', 'updatedAt', 'updatedBy'],
     ts: 'desktop/src/shared/sync/focus-merge.ts',
     kt: 'android/app/src/main/java/hu/breaker/app/core/SyncClient.kt',
     swift: 'ios/Shared/FocusSync.swift',

@@ -121,10 +121,18 @@ private func randomFocus(_ r: inout Lcg, _ device: String) -> FocusSync.SyncFocu
     let markDraw = r.next()
     let markValue = min(1 + Int(r.next() * 5), revInt)
     let windowsRev: Int? = (!windows.isEmpty || markDraw < 0.3) ? markValue : nil
+    // A REJTÉS A JELÉVEL — három húzás, mind feltétel nélkül, ugyanebben a
+    // sorrendben a három nyelvben (desktop/test/merge-random.ts).
+    let hideDraw = r.next()
+    let hideMarkDraw = r.next()
+    let hideMarkValue = min(1 + Int(r.next() * 5), revInt)
+    let hide = hideDraw < 0.3
+    let hideRev: Int? = (hide || hideMarkDraw < 0.2) ? hideMarkValue : nil
     return FocusSync.SyncFocus(
         packs: packs, run: run, log: [], rev: rev, updatedAt: updatedAt, updatedBy: device,
         packMarks: marks.isEmpty ? nil : marks, lockdown: lockdown,
-        lockdownWindows: windows.isEmpty ? nil : windows, lockdownWindowsRev: windowsRev
+        lockdownWindows: windows.isEmpty ? nil : windows, lockdownWindowsRev: windowsRev,
+        hideSiteList: hide ? true : nil, hideSiteListRev: hideRev
     )
 }
 
@@ -145,6 +153,7 @@ private func focusKey(_ f: FocusSync.SyncFocus, runIds: Set<String>) -> String {
     let lock = f.lockdown.map { "\($0.startedAt)/\($0.until)" } ?? "-"
     let windows = (f.lockdownWindows ?? []).map { LockdownLogic.windowKey($0.band) }.sorted().joined(separator: ";")
     return "\(packs)|\(marks)|\(run)|\(f.rev)|\(lock)|\(windows)|\(f.lockdownWindowsRev ?? 0)"
+        + "|\((f.hideSiteList ?? false) ? 1 : 0)|\(f.hideSiteListRev ?? 0)"
 }
 
 final class MergeFuzzTests: XCTestCase {

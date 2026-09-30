@@ -346,6 +346,9 @@ object SyncClient {
         // A MEGBÍZOTT IS, a jelével: a lenyomat utazik, a jelmondat sehol nincs.
         if (f.partner != null) put("partner", partnerToJson(f.partner))
         if (f.partnerRev != null) put("partnerRev", f.partnerRev)
+        // A REJTÉS IS, a jelével — csak igazként, üresen nincs mező.
+        if (f.hideSiteList) put("hideSiteList", true)
+        if (f.hideSiteListRev != null) put("hideSiteListRev", f.hideSiteListRev)
         // A KULCSSZAVAK IS, a jelükkel — üresen nincs mező.
         if (f.keywords.isNotEmpty()) put("keywords", JSONArray(f.keywords))
         if (f.keywordsRev != null) put("keywordsRev", f.keywordsRev)
@@ -486,6 +489,10 @@ object SyncClient {
             // A megbízott is kívülről jött adat: csak a jó alakú, a jele mint a többié.
             partner = partnerFromJson(o.optJSONObject("partner")),
             partnerRev = o.optInt("partnerRev", 0)
+                .takeIf { it > 0 && it <= rev.coerceIn(0, Int.MAX_VALUE.toLong()) },
+            // A rejtés is kívülről jött adat: csak igazként, a jele mint a többié.
+            hideSiteList = o.optBoolean("hideSiteList", false),
+            hideSiteListRev = o.optInt("hideSiteListRev", 0)
                 .takeIf { it > 0 && it <= rev.coerceIn(0, Int.MAX_VALUE.toLong()) },
             // A kulcsszavak is kívülről jött adat: csak az érvényes, egyszer, a plafonig.
             keywords = KeywordLogic.cleanKeywords(stringsFromJson(o.optJSONArray("keywords"))),
@@ -628,6 +635,9 @@ object SyncClient {
                 // A megbízott a jelével — a fésülés ebből tudja, kié az újabb szó.
                 partner = current.partner,
                 partnerRev = current.partnerRev,
+                // A rejtés a jelével — a fésülés ebből tudja, kié az újabb szó.
+                hideSiteList = current.hideSiteList,
+                hideSiteListRev = current.hideSiteListRev,
                 // A kulcsszavak a jelükkel — mint az ablakok.
                 keywords = current.keywords,
                 keywordsRev = current.keywordsRev,
@@ -658,6 +668,10 @@ object SyncClient {
                     // innentől itt is az utolsó szó; a levétel csak nagyobb jellel.
                     partner = merged.partner,
                     partnerRev = merged.partnerRev,
+                    // A REJTÉS IS a jele szerint: a gépen bekapcsolt rejtés innentől
+                    // itt is áll; a kikapcsolás (azonosítás után) csak nagyobb jellel.
+                    hideSiteList = merged.hideSiteList,
+                    hideSiteListRev = merged.hideSiteListRev,
                     // A KULCSSZAVAK IS a jelük szerint — a gép bővítménye a
                     // következő lehúzáskor már ezt a listát kapja.
                     keywords = merged.keywords,

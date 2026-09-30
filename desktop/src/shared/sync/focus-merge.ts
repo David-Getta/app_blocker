@@ -104,6 +104,14 @@ export interface SyncFocus {
   partner?: PartnerLock;
   partnerRev?: number;
   /**
+   * A LISTA REJTÉSE: fiók-szintű beállítás, a JELÉVEL. A bekapcsolás egy
+   * koppintás (szigorítás), a kikapcsolás a készülék azonosítása (munka) —
+   * és a kifizetett kikapcsolás átmegy: a jel dönt, azonos jelnél a rejtett.
+   * Csak igazként utazik; a régi kliens (mező nélkül) semleges.
+   */
+  hideSiteList?: boolean;
+  hideSiteListRev?: number;
+  /**
    * KULCSSZÓ-SZABÁLYOK: a lista és a jele — a fésülése az ablakoké: a jel
    * dönt, azonos jelnél a bővebb lista. Üresen nincs mező. Lásd `mergeKeywords`.
    */
@@ -227,6 +235,8 @@ export function normalizeSyncFocus(raw: unknown, fallbackDevice: string, now?: n
     // A megbízott is kívülről jött adat: csak a jó alakú, a jele mint a többié.
     ...(normalizePartnerLock(o.partner) ? { partner: normalizePartnerLock(o.partner)! } : {}),
     ...(markIn(o.partnerRev, rev) ? { partnerRev: markIn(o.partnerRev, rev) } : {}),
+    ...(o.hideSiteList === true ? { hideSiteList: true } : {}),
+    ...(markIn(o.hideSiteListRev, rev) ? { hideSiteListRev: markIn(o.hideSiteListRev, rev) } : {}),
     // A kulcsszavak is kívülről jött adat: csak az érvényes, egyszer, a plafonig.
     ...(cleanKeywords(o.keywords).length > 0 ? { keywords: cleanKeywords(o.keywords) } : {}),
     ...(markIn(o.keywordsRev, rev) ? { keywordsRev: markIn(o.keywordsRev, rev) } : {}),
@@ -390,6 +400,8 @@ export function mergeFocus(local: SyncFocus, incoming: SyncFocus): SyncFocus {
     ...windowsMerged(local, incoming),
     // A megbízott ugyanígy: a jel dönt, azonos jelnél a beállított.
     ...partnerMerged(local, incoming),
+    // A rejtés ugyanígy: a jel dönt, azonos jelnél a rejtett — a szigorúbb irány.
+    ...hideMerged(local, incoming),
     // A kulcsszavak ugyanígy: a jel dönt, azonos jelnél a bővebb lista.
     ...keywordsMerged(local, incoming),
     rev: Math.max(local.rev, incoming.rev),
@@ -646,6 +658,8 @@ function stable(f: SyncFocus): unknown {
     // A MEGBÍZOTT IS, a jelével: enélkül a felvétele sosem érne fel.
     partner: f.partner ? partnerKey(f.partner) : null,
     partnerRev: f.partnerRev ?? 0,
+    hideSiteList: f.hideSiteList === true,
+    hideSiteListRev: f.hideSiteListRev ?? 0,
     // A KULCSSZAVAK IS, a jelükkel — tartalom szerint, rendezve.
     keywords: keywordsKey(f.keywords ?? []),
     keywordsRev: f.keywordsRev ?? 0,
@@ -704,6 +718,31 @@ function partnerMerged(
     ...(partner ? { partner } : {}),
     ...(mark > 0 ? { partnerRev: mark } : {}),
   };
+}
+
+/** A rejtés és a jele fésülve — üresen egyik mező sincs. */
+function hideMerged(
+  local: SyncFocus, incoming: SyncFocus,
+): { hideSiteList?: boolean; hideSiteListRev?: number } {
+  const ml = local.hideSiteListRev ?? 0;
+  const mi = incoming.hideSiteListRev ?? 0;
+  const hidden = mergeHide(ml, local.hideSiteList === true, mi, incoming.hideSiteList === true);
+  const mark = Math.max(ml, mi);
+  return {
+    ...(hidden ? { hideSiteList: true } : {}),
+    ...(mark > 0 ? { hideSiteListRev: mark } : {}),
+  };
+}
+
+/**
+ * A REJTÉS fésülése: a nagyobb jel nyer (a kikapcsolás munkába került, tehát
+ * átmegy); azonos jelnél a rejtett — ha bárhol rejtve van, mindenhol az.
+ * Mindkét oldalon jel nélkül (régi kliensek) ugyanez: a rejtett nyer.
+ */
+export function mergeHide(localRev: number, local: boolean, incomingRev: number, incoming: boolean): boolean {
+  if (incomingRev > localRev) return incoming;
+  if (localRev > incomingRev) return local;
+  return local || incoming;
 }
 
 /** A beolvasott zárlat, `now` mellett csak ha még él. */

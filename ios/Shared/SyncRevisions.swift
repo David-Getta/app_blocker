@@ -157,6 +157,9 @@ enum SyncRevisions {
             "\(packsPart(state))//\(run)" + (windows.isEmpty ? "" : "//\(windows)")
                 + (partner.isEmpty ? "" : "//partner//\(partner)")
                 + (keywords.isEmpty ? "" : "//keywords//\(keywords)")
+                // A REJTÉS IS: a be- és kikapcsolása döntés, tehát léptet — csak ha
+                // rejtve, címkével; a nem rejtett állapot lenyomata változatlan.
+                + ((state.hideSiteList ?? false) ? "//hide//1" : "")
         )
     }
 
@@ -184,7 +187,7 @@ enum SyncRevisions {
         var next = state
         if state.focusRevFp == nil && (state.focusPacks ?? []).isEmpty && state.focusRun == nil
             && (state.lockdownWindows ?? []).isEmpty && state.partner == nil
-            && (state.keywords ?? []).isEmpty {
+            && (state.keywords ?? []).isEmpty && !(state.hideSiteList ?? false) {
             next.focusRevFp = fp
             return next
         }
@@ -220,6 +223,10 @@ enum SyncRevisions {
         let keywords = keywordsKey(state)
         if keywords != (state.focusRevKeywords ?? "") { next.keywordsRev = Int(newRev) }
         next.focusRevKeywords = keywords
+        // A rejtés jele ugyanígy: ha az előző léptetés óta változott, a jele ez a blob-rev.
+        let hideKey = (state.hideSiteList ?? false) ? "1" : ""
+        if hideKey != (state.focusRevHide ?? "") { next.hideSiteListRev = Int(newRev) }
+        next.focusRevHide = hideKey
         // A CSOMAGOK JELEI: ami az előző léptetés óta bekerült, változott vagy
         // kikerült, az ezt a blob-revet kapja — csomagonként, mint a gépen
         // (helper/revisions.ts `markPacks`). Az első léptetés (nincs még eltett

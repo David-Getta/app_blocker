@@ -94,12 +94,22 @@ export function randomFocus(r: () => number, device: string): SyncFocus {
   const markDraw = r();
   const markValue = Math.min(1 + Math.floor(r() * 5), rev);
   const windowsRev = windows.length > 0 || markDraw < 0.3 ? markValue : undefined;
+  // A REJTÉS A JELÉVEL — három húzás, mind feltétel nélkül, ugyanebben a
+  // sorrendben a három nyelvben: rejtve-e, van-e jel rejtés nélkül is (a
+  // kikapcsolás is jelet hagy), és a jel értéke — legfeljebb a blob rev-je.
+  const hideDraw = r();
+  const hideMarkDraw = r();
+  const hideMarkValue = Math.min(1 + Math.floor(r() * 5), rev);
+  const hide = hideDraw < 0.3;
+  const hideRev = hide || hideMarkDraw < 0.2 ? hideMarkValue : undefined;
   return {
     ...emptyFocus(device), packs, ...(Object.keys(marks).length ? { packMarks: marks } : {}),
     run, rev, updatedAt, updatedBy: device,
     ...(lockdown ? { lockdown } : {}),
     ...(windows.length > 0 ? { lockdownWindows: windows } : {}),
     ...(windowsRev !== undefined ? { lockdownWindowsRev: windowsRev } : {}),
+    ...(hide ? { hideSiteList: true } : {}),
+    ...(hideRev !== undefined ? { hideSiteListRev: hideRev } : {}),
   };
 }
 
@@ -132,5 +142,6 @@ export function focusConformanceKey(f: SyncFocus): string {
   // Az ablakok TARTALOM szerint, rendezve: az azonosító és a sorrend nem jelentés.
   const windows = (f.lockdownWindows ?? []).map(windowKey).sort().join(';');
   return `packs=[${packs}] run=${run} marks=[${marks}] rev=${f.rev} at=${f.updatedAt} by=${f.updatedBy}`
-    + ` lock=${lock} windows=[${windows}] wmark=${f.lockdownWindowsRev ?? 0}`;
+    + ` lock=${lock} windows=[${windows}] wmark=${f.lockdownWindowsRev ?? 0}`
+    + ` hide=${f.hideSiteList ? 1 : 0} hmark=${f.hideSiteListRev ?? 0}`;
 }

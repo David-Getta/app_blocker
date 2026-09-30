@@ -250,6 +250,8 @@ export interface HelperState {
    * szembesít azzal, mi van blokkolva.
    */
   hideSiteList?: boolean;
+  /** a rejtés jele: a focus-blob rev-je, amelyik utoljára be- vagy kikapcsolta */
+  hideSiteListRev?: number;
   /**
    * Melyik hétről íródott már a heti napló sora (a hétfő dátuma). A segéd
    * könyvelése — a felület értesítése külön, a saját tárában könyvel: az a
@@ -321,6 +323,7 @@ export interface HelperState {
   focusRevPartner?: string;
   /** a kulcsszó-lista kulcsa az előző léptetéskor — ebből látszik, változott-e (a jeléhez) */
   focusRevKeywords?: string;
+  focusRevHide?: string;
   /**
    * A csatorna-szűrők szinkron-számlálója — a munkamenet mintájára.
    *
@@ -497,6 +500,10 @@ export function loadState(): HelperState {
       if (parsed.partnerRev !== undefined
         && !(Number.isInteger(parsed.partnerRev) && parsed.partnerRev > 0)) {
         delete parsed.partnerRev;
+      }
+      if (parsed.hideSiteListRev !== undefined
+        && !(Number.isInteger(parsed.hideSiteListRev) && parsed.hideSiteListRev > 0)) {
+        delete parsed.hideSiteListRev;
       }
       if (parsed.session?.pendingLockdownWindows !== undefined) {
         parsed.session.pendingLockdownWindows = normalizeWindows(parsed.session.pendingLockdownWindows);

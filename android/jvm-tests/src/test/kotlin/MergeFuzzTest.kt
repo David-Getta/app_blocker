@@ -113,10 +113,18 @@ class MergeFuzzTest {
         val markDraw = r.next()
         val markValue = minOf(1 + (r.next() * 5).toInt(), rev)
         val windowsRev = if (windows.isNotEmpty() || markDraw < 0.3) markValue else null
+        // A REJTÉS A JELÉVEL — három húzás, mind feltétel nélkül, ugyanebben a
+        // sorrendben a három nyelvben (desktop/test/merge-random.ts).
+        val hideDraw = r.next()
+        val hideMarkDraw = r.next()
+        val hideMarkValue = minOf(1 + (r.next() * 5).toInt(), rev)
+        val hide = hideDraw < 0.3
+        val hideRev = if (hide || hideMarkDraw < 0.2) hideMarkValue else null
         return FocusSync.SyncFocus(
             packs = packs, run = run, rev = rev.toLong(), updatedAt = updatedAt, updatedBy = device,
             packMarks = marks.ifEmpty { null },
             lockdown = lockdown, lockdownWindows = windows, lockdownWindowsRev = windowsRev,
+            hideSiteList = hide, hideSiteListRev = hideRev,
         )
     }
 
@@ -140,7 +148,8 @@ class MergeFuzzTest {
         val run = f.run?.let { "${it.packId}/${it.startedAt}/${it.endsAt}" } ?: "-"
         val lock = f.lockdown?.let { "${it.startedAt}/${it.until}" } ?: "-"
         val windows = f.lockdownWindows.map { LockdownLogic.windowKey(it.band) }.sorted().joinToString(";")
-        return "$packs|$marks|$run|${f.rev}|$lock|$windows|${f.lockdownWindowsRev ?: 0}"
+        return "$packs|$marks|$run|${f.rev}|$lock|$windows|${f.lockdownWindowsRev ?: 0}" +
+            "|${if (f.hideSiteList) 1 else 0}|${f.hideSiteListRev ?: 0}"
     }
 
     @Test

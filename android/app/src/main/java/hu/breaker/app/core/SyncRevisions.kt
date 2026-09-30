@@ -153,7 +153,10 @@ object SyncRevisions {
         return FOCUS_FP_V2 + digest(
             "${packsPart(state)}//$run" + (if (windows.isEmpty()) "" else "//$windows") +
                 (if (partner.isEmpty()) "" else "//partner//$partner") +
-                (if (keywords.isEmpty()) "" else "//keywords//$keywords"),
+                (if (keywords.isEmpty()) "" else "//keywords//$keywords") +
+                // A REJTÉS IS: a be- és kikapcsolása döntés, tehát léptet — csak ha
+                // rejtve, címkével; a nem rejtett állapot lenyomata változatlan.
+                (if (!state.hideSiteList) "" else "//hide//1"),
         )
     }
 
@@ -178,7 +181,8 @@ object SyncRevisions {
         val fp = focusFingerprint(state)
         if (state.focusRevFp == fp) return state
         if (state.focusRevFp == null && state.focusPacks.isEmpty() && state.focusRun == null &&
-            state.lockdownWindows.isEmpty() && state.partner == null && state.keywords.isEmpty()
+            state.lockdownWindows.isEmpty() && state.partner == null && state.keywords.isEmpty() &&
+            !state.hideSiteList
         ) {
             return state.copy(focusRevFp = fp)
         }
@@ -208,6 +212,10 @@ object SyncRevisions {
         val keywordsKey = keywordsKey(state)
         val keywordsMark = if (keywordsKey != (state.focusRevKeywords ?: "")) newRev.coerceIn(0, Int.MAX_VALUE.toLong()).toInt()
             else state.keywordsRev
+        // A rejtés jele ugyanígy: ha az előző léptetés óta változott, a jele ez a blob-rev.
+        val hideKey = if (state.hideSiteList) "1" else ""
+        val hideMark = if (hideKey != (state.focusRevHide ?: "")) newRev.coerceIn(0, Int.MAX_VALUE.toLong()).toInt()
+            else state.hideSiteListRev
         // A CSOMAGOK JELEI: ami az előző léptetés óta bekerült, változott vagy
         // kikerült, az ezt a blob-revet kapja — csomagonként, mint a gépen
         // (helper/revisions.ts `markPacks`). Az első léptetés (nincs még eltett
@@ -235,6 +243,8 @@ object SyncRevisions {
             partnerRev = partnerMark,
             focusRevKeywords = keywordsKey,
             keywordsRev = keywordsMark,
+            focusRevHide = hideKey,
+            hideSiteListRev = hideMark,
             focusRevPacks = packFps,
             focusPackMarks = packMarks,
         )
