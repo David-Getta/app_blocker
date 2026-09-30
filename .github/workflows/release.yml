@@ -44,21 +44,22 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **Ami rejtve van, az zárva is van — a weboldalon is.** A rejtés, a
-          fedőnév és a zár (a rejtett lista megnyitása, a valódi cím
-          megmutatása és a fedőnév levétele a készülék azonosítása után)
-          eddig csak a dokumentációban állt; most a weboldal funkciólistája is
-          kimondja, az őszinte korláttal együtt. Kód nem változott.
+          **A levétel-szabály a magban.** Hogy egy fedőnév-változás levétel-e
+          (felfed, ezért azonosítást kér) vagy átnevezés (nem fed fel), azt
+          eddig három felület három saját sora döntötte el. Most egy függvény
+          mondja meg a magban, mindhárom nyelven — tesztekkel: volt név, és a
+          következő már nem az. A viselkedés nem változott; a szabály lett egy
+          helyen, ahol a tesztek és az ellenőrző-tűk őrzik.
 
-          ### Ami a v0.4.167-ben jött
+          ### Ami a v0.4.168-ban jött
+
+          **Ami rejtve van, az zárva is van — a weboldalon is.** A rejtés, a
+          fedőnév és a zár egy pontban a funkciólistában.
+
+          #### Ami a v0.4.167-ben jött
 
           **A fedőnév levétele is a zár mögött.** A levétel felfed, ezért a
           készülék azonosítását kéri; az átnevezés nem.
-
-          #### Ami a v0.4.166-ban jött
-
-          **A fedőnév zárja.** A fedőnév mögé bújt valódi címet a Mutasd csak a
-          készülék azonosítása után mutatja meg.
 
           NOTES
           fi
