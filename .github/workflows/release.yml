@@ -44,23 +44,24 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A rejtett lista kártyája kimondja, hogy a rejtés a fiók egészére
-          szól.** Fiókkal a kártya kiírja, hogy a többi eszközödön is rejtve
-          indul a lista — ugyanazzal a mondattal mindhárom felületen. Fiók
-          nélkül csendben marad, mert nincs kinek szólnia: a rejtés akkor csak
-          erre az eszközre áll.
+          **A fixtúra a különbséget is nézi.** A három nyelv fésülését eddig
+          is egy közös fixtúra vetette össze; most minden esethez egy mező
+          cseréje is jár, és a gépnek, a telefonnak és az iPhone-nak ugyanazt
+          kell különbségnek tartania — a jelentés nélküli cserét (időbélyeg,
+          eszköznév, ablak-azonosító, a csomagok sorrendje) pedig nem. Ez az
+          a rés, amit a v0.4.170-ben a fixtúra nem látott: a Swift kulcsából
+          kimaradt rejtés. Most látja.
 
-          ### Ami a v0.4.171-ben jött
+          ### Ami a v0.4.172-ben jött
+
+          **A rejtett lista kártyája kimondja, hogy a rejtés a fiók egészére
+          szól** — fiókkal; fiók nélkül csendben marad.
+
+          #### Ami a v0.4.171-ben jött
 
           **A rejtés a fiók egészére szól — a weboldalon is kimondva.** És a
           fejlesztői doksiban az ellenőrzőlista, hány helyen kell egy új
-          szinkron-mezőnek átmennie mindhárom nyelven, és melyik őr mit fog ki.
-
-          #### Ami a v0.4.170-ben jött
-
-          **A rejtés a fiók egészére szól.** A telefonon bekapcsolt rejtés a
-          gépen is áll; a kikapcsolás a készülék azonosítása után átmegy: a jel
-          dönt, azonos jelnél a rejtett.
+          szinkron-mezőnek átmennie mindhárom nyelven.
 
           NOTES
           fi
