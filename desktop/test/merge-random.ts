@@ -8,7 +8,7 @@
 
 import type { SyncSite } from '../src/shared/sync/merge';
 import { emptyFocus, type SyncFocus } from '../src/shared/sync/focus-merge';
-import type { FocusPack } from '../src/shared/focus';
+import type { FocusLogEntry, FocusPack } from '../src/shared/focus';
 import type { Band, Schedule } from '../src/shared/schedule';
 import type { UrlRule } from '../src/shared/urlrules';
 import { windowKey, type LockdownWindow } from '../src/shared/lockdown';
@@ -108,6 +108,22 @@ export const PARTNERS: PartnerLock[] = [
   { name: 'Bela', salt: 'Q0NDQ0NDQ0NDQ0NDQ0NDQw==', hash: 'REREREREREREREREREREREREREREREREREREREREREQ=', setAt: 3 },
 ];
 
+/**
+ * Naplósorok készlete — a napló egyesítés, nem döntés, de a részleteiben
+ * dől el, hogy a három nyelv ugyanoda jut-e: ugyanarról a menetről két
+ * változat (a korábbi vég nyer, a leállítás nyer, a későbbi terv nyer), és
+ * azonos végű sorok más csomaggal (a rendezés harmadik kulcsa a kezdés).
+ */
+export const LOGS: FocusLogEntry[] = [
+  { packId: 'p1', packName: 'csomag p1', startedAt: 1_000, endedAt: 2_000, plannedEndsAt: 2_000, stopped: false },
+  { packId: 'p1', packName: 'csomag p1', startedAt: 1_000, endedAt: 1_500, plannedEndsAt: 2_000, stopped: true },
+  { packId: 'p2', packName: 'csomag p2', startedAt: 3_000, endedAt: 4_000, plannedEndsAt: 4_000, stopped: false, window: true },
+  { packId: 'p3', packName: 'csomag p3', startedAt: 500, endedAt: 4_000, plannedEndsAt: 4_500, stopped: false },
+  { packId: 'p1', packName: 'csomag p1', startedAt: 1_000, endedAt: 2_000, plannedEndsAt: 2_600, stopped: false },
+];
+/** Napló-részhalmazok: az egyes esetekhez, sorrendben — a húzás ezek közül választ. */
+export const LOG_SETS: number[][] = [[0], [1], [0, 2], [1, 2, 3], [4, 3]];
+
 export function randomFocus(r: () => number, device: string): SyncFocus {
   const packs: FocusPack[] = PACK_IDS.filter(() => r() < 0.6).map((id) => ({
     id, name: `csomag ${id} v${Math.floor(r() * 3)}`, allowSites: ['quizlet.com'], allowApps: [],
@@ -168,9 +184,16 @@ export function randomFocus(r: () => number, device: string): SyncFocus {
   const pMarkValue = Math.min(1 + Math.floor(r() * 5), rev);
   const partner = pDraw < 0.3 ? PARTNERS[pPick] : undefined;
   const partnerRev = partner || pMarkDraw < 0.2 ? pMarkValue : undefined;
+  // A NAPLÓ — két húzás, feltétel nélkül, ugyanebben a sorrendben a három
+  // nyelvben: van-e napló, és melyik részhalmaz. A sorok BEMENETI sorrendje
+  // szándékosan nem rendezett: a fésülés rendez, és a kulcs a fésült sorrendet
+  // viszi — a rendezés is tükrözött logika.
+  const logDraw = r();
+  const logPick = Math.floor(r() * 5);
+  const log = logDraw < 0.5 ? LOG_SETS[logPick].map((i) => LOGS[i]) : [];
   return {
     ...emptyFocus(device), packs, ...(Object.keys(marks).length ? { packMarks: marks } : {}),
-    run, rev, updatedAt, updatedBy: device,
+    run, log, rev, updatedAt, updatedBy: device,
     ...(lockdown ? { lockdown } : {}),
     ...(windows.length > 0 ? { lockdownWindows: windows } : {}),
     ...(windowsRev !== undefined ? { lockdownWindowsRev: windowsRev } : {}),
@@ -223,7 +246,9 @@ export function focusConformanceKey(f: SyncFocus): string {
     + ` lock=${lock} windows=[${windows}] wmark=${f.lockdownWindowsRev ?? 0}`
     + ` hide=${f.hideSiteList ? 1 : 0} hmark=${f.hideSiteListRev ?? 0}`
     + ` kw=[${keywordsKey(f.keywords ?? [])}] kmark=${f.keywordsRev ?? 0}`
-    + ` partner=[${partnerKey(f.partner)}] pmark=${f.partnerRev ?? 0}`;
+    + ` partner=[${partnerKey(f.partner)}] pmark=${f.partnerRev ?? 0}`
+    // A napló a FÉSÜLT sorrendben: a rendezés (vég, csomag, kezdés) is tükrözött.
+    + ` log=[${f.log.map((e) => `${e.packId}/${e.startedAt}/${e.endedAt}/${e.plannedEndsAt}/${e.stopped ? 1 : 0}/${e.window ? 1 : 0}`).join(';')}]`;
 }
 
 /** Egy mező cseréje az `a` blobon, és hogy a csere jelentés-e (különbség). */

@@ -103,6 +103,7 @@ final class MergeFixtureTests: XCTestCase {
             + " hide=\((f.hideSiteList ?? false) ? 1 : 0) hmark=\(f.hideSiteListRev ?? 0)"
             + " kw=[\(KeywordLogic.keywordsKey(f.keywords ?? []))] kmark=\(f.keywordsRev ?? 0)"
             + " partner=[\(PartnerLogic.partnerKey(f.partner))] pmark=\(f.partnerRev ?? 0)"
+            + " log=[" + f.log.map { "\($0.packId)/\(int($0.startedAt))/\(int($0.endedAt))/\(int($0.plannedEndsAt))/\($0.stopped ? 1 : 0)/\(($0.window ?? false) ? 1 : 0)" }.joined(separator: ";") + "]"
     }
 
     func testSitesMergeTheSameAsTheDesktop() throws {

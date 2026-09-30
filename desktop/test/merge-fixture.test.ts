@@ -65,7 +65,7 @@ function buildFixture(): { note: string; version: number; sites: unknown[]; focu
       + 'Olvassa: android/jvm-tests MergeFixtureTest, ios/SharedTests MergeFixtureTests. '
       + 'A focus-esetek flip/what/same mezője: egy mező cseréje, és hogy a három nyelv különbségnek tartja-e. '
       + 'A sites-esetek flip/what/af/fa mezője: egy mező cseréje, és a fésülés mindkét sorrendben.',
-    version: 6,
+    version: 7,
     sites,
     focus,
   };

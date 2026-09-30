@@ -114,6 +114,16 @@ class MergeFuzzTest {
         PartnerLogic.PartnerLock("Bela", "Q0NDQ0NDQ0NDQ0NDQ0NDQw==", "REREREREREREREREREREREREREREREREREREREREREQ=", 3L),
     )
 
+    /** Naplósorok készlete és részhalmazai — a gép merge-random.ts LOGS / LOG_SETS párja. */
+    private val logs = listOf(
+        Focus.FocusLogEntry("p1", "csomag p1", 1_000, 2_000, 2_000, false),
+        Focus.FocusLogEntry("p1", "csomag p1", 1_000, 1_500, 2_000, true),
+        Focus.FocusLogEntry("p2", "csomag p2", 3_000, 4_000, 4_000, false, window = true),
+        Focus.FocusLogEntry("p3", "csomag p3", 500, 4_000, 4_500, false),
+        Focus.FocusLogEntry("p1", "csomag p1", 1_000, 2_000, 2_600, false),
+    )
+    private val logSets = listOf(listOf(0), listOf(1), listOf(0, 2), listOf(1, 2, 3), listOf(4, 3))
+
     private fun randomFocus(r: Lcg, device: String): FocusSync.SyncFocus {
         val kept = packIds.filter { r.next() < 0.6 }
         val packs = kept.map { id ->
@@ -176,8 +186,12 @@ class MergeFuzzTest {
         val pMarkValue = minOf(1 + (r.next() * 5).toInt(), rev)
         val partner = if (pDraw < 0.3) partners[pPick] else null
         val partnerRev = if (partner != null || pMarkDraw < 0.2) pMarkValue else null
+        // A NAPLÓ — két húzás, feltétel nélkül, mint a gépen.
+        val logDraw = r.next()
+        val logPick = (r.next() * 5).toInt()
+        val log = if (logDraw < 0.5) logSets[logPick].map { logs[it] } else emptyList()
         return FocusSync.SyncFocus(
-            packs = packs, run = run, rev = rev.toLong(), updatedAt = updatedAt, updatedBy = device,
+            packs = packs, run = run, log = log, rev = rev.toLong(), updatedAt = updatedAt, updatedBy = device,
             packMarks = marks.ifEmpty { null },
             lockdown = lockdown, lockdownWindows = windows, lockdownWindowsRev = windowsRev,
             partner = partner, partnerRev = partnerRev,
@@ -208,7 +222,8 @@ class MergeFuzzTest {
         val windows = f.lockdownWindows.map { LockdownLogic.windowKey(it.band) }.sorted().joinToString(";")
         return "$packs|$marks|$run|${f.rev}|$lock|$windows|${f.lockdownWindowsRev ?: 0}" +
             "|${if (f.hideSiteList) 1 else 0}|${f.hideSiteListRev ?: 0}" +
-            "|${KeywordLogic.keywordsKey(f.keywords)}|${f.keywordsRev ?: 0}|${PartnerLogic.partnerKey(f.partner)}|${f.partnerRev ?: 0}"
+            "|${KeywordLogic.keywordsKey(f.keywords)}|${f.keywordsRev ?: 0}|${PartnerLogic.partnerKey(f.partner)}|${f.partnerRev ?: 0}" +
+            "|" + f.log.joinToString(";") { "${it.packId}/${it.startedAt}/${it.endedAt}/${it.plannedEndsAt}/${if (it.stopped) 1 else 0}/${if (it.window) 1 else 0}" }
     }
 
     @Test

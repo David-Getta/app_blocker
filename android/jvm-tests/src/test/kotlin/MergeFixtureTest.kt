@@ -74,7 +74,8 @@ class MergeFixtureTest {
             " lock=$lock windows=[$windows] wmark=${f.lockdownWindowsRev ?: 0}" +
             " hide=${if (f.hideSiteList) 1 else 0} hmark=${f.hideSiteListRev ?: 0}" +
             " kw=[${KeywordLogic.keywordsKey(f.keywords)}] kmark=${f.keywordsRev ?: 0}" +
-            " partner=[${PartnerLogic.partnerKey(f.partner)}] pmark=${f.partnerRev ?: 0}"
+            " partner=[${PartnerLogic.partnerKey(f.partner)}] pmark=${f.partnerRev ?: 0}" +
+            " log=[" + f.log.joinToString(";") { "${it.packId}/${it.startedAt}/${it.endedAt}/${it.plannedEndsAt}/${if (it.stopped) 1 else 0}/${if (it.window) 1 else 0}" } + "]"
     }
 
     private fun site(o: JSONObject): SyncMerge.SyncSite =

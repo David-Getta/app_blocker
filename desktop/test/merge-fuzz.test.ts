@@ -76,6 +76,8 @@ function focusKey(f: SyncFocus, runIds: Set<string>): string {
     f.hideSiteList === true, f.hideSiteListRev ?? null,
     keywordsKey(f.keywords ?? []), f.keywordsRev ?? null,
     partnerKey(f.partner), f.partnerRev ?? null,
+    // A napló a fésült sorrendben: egyesítés teljes rendezéssel — sorrendfüggetlen.
+    f.log.map((e) => [e.packId, e.startedAt, e.endedAt, e.plannedEndsAt, e.stopped, e.window === true]),
   ]);
 }
 

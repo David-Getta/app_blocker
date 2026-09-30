@@ -107,6 +107,16 @@ private let partners: [PartnerLogic.PartnerLock] = [
     PartnerLogic.PartnerLock(name: "Bela", salt: "Q0NDQ0NDQ0NDQ0NDQ0NDQw==", hash: "REREREREREREREREREREREREREREREREREREREREREQ=", setAt: 3),
 ]
 
+/// Naplósorok készlete és részhalmazai — a gép merge-random.ts LOGS / LOG_SETS párja.
+private let logPool: [Focus.LogEntry] = [
+    Focus.LogEntry(packId: "p1", packName: "csomag p1", startedAt: 1_000, endedAt: 2_000, plannedEndsAt: 2_000, stopped: false, window: nil),
+    Focus.LogEntry(packId: "p1", packName: "csomag p1", startedAt: 1_000, endedAt: 1_500, plannedEndsAt: 2_000, stopped: true, window: nil),
+    Focus.LogEntry(packId: "p2", packName: "csomag p2", startedAt: 3_000, endedAt: 4_000, plannedEndsAt: 4_000, stopped: false, window: true),
+    Focus.LogEntry(packId: "p3", packName: "csomag p3", startedAt: 500, endedAt: 4_000, plannedEndsAt: 4_500, stopped: false, window: nil),
+    Focus.LogEntry(packId: "p1", packName: "csomag p1", startedAt: 1_000, endedAt: 2_000, plannedEndsAt: 2_600, stopped: false, window: nil),
+]
+private let logSets: [[Int]] = [[0], [1], [0, 2], [1, 2, 3], [4, 3]]
+
 private func randomFocus(_ r: inout Lcg, _ device: String) -> FocusSync.SyncFocus {
     var kept: [String] = []
     for id in packIds {
@@ -183,8 +193,12 @@ private func randomFocus(_ r: inout Lcg, _ device: String) -> FocusSync.SyncFocu
     let pMarkValue = min(1 + Int(r.next() * 5), revInt)
     let partner: PartnerLogic.PartnerLock? = pDraw < 0.3 ? partners[pPick] : nil
     let partnerRev: Int? = (partner != nil || pMarkDraw < 0.2) ? pMarkValue : nil
+    // A NAPLÓ — két húzás, feltétel nélkül, mint a gépen.
+    let logDraw = r.next()
+    let logPick = Int(r.next() * 5)
+    let log: [Focus.LogEntry] = logDraw < 0.5 ? logSets[logPick].map { logPool[$0] } : []
     return FocusSync.SyncFocus(
-        packs: packs, run: run, log: [], rev: rev, updatedAt: updatedAt, updatedBy: device,
+        packs: packs, run: run, log: log, rev: rev, updatedAt: updatedAt, updatedBy: device,
         packMarks: marks.isEmpty ? nil : marks, lockdown: lockdown,
         lockdownWindows: windows.isEmpty ? nil : windows, lockdownWindowsRev: windowsRev,
         partner: partner, partnerRev: partnerRev,
@@ -213,6 +227,7 @@ private func focusKey(_ f: FocusSync.SyncFocus, runIds: Set<String>) -> String {
         + "|\((f.hideSiteList ?? false) ? 1 : 0)|\(f.hideSiteListRev ?? 0)"
         + "|\(KeywordLogic.keywordsKey(f.keywords ?? []))|\(f.keywordsRev ?? 0)"
         + "|\(PartnerLogic.partnerKey(f.partner))|\(f.partnerRev ?? 0)"
+        + "|" + f.log.map { "\($0.packId)/\(Int($0.startedAt))/\(Int($0.endedAt))/\(Int($0.plannedEndsAt))/\($0.stopped ? 1 : 0)/\(($0.window ?? false) ? 1 : 0)" }.joined(separator: ";")
 }
 
 final class MergeFuzzTests: XCTestCase {
