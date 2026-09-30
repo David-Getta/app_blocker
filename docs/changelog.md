@@ -8,6 +8,7 @@ kettővel korábbiban.
 
 | Verzió | Nap | Mi újság |
 |---|---|---|
+| v0.4.171 | 2026-09-30 | a rejtés a fiók egészére szól, a weboldalon is; a tükör ellenőrzőlistája |
 | v0.4.170 | 2026-09-30 | a rejtés a fiók egészére szól |
 | v0.4.169 | 2026-09-30 | a levétel-szabály a magban |
 | v0.4.168 | 2026-09-30 | ami rejtve van, az zárva is van, a weboldalon is |
