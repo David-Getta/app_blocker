@@ -939,10 +939,16 @@ struct ContentView: View {
                 let count = open == 0
                     ? "\(store.state.sites.count) oldal van blokkolva."
                     : "\(store.state.sites.count) oldal van a listán, ebből \(open) most szabad."
+                // FIÓKKAL a rejtés a fiók egészére szól — kimondjuk; fiók nélkül nincs
+                // kinek szólnia, csendben marad. Ugyanez a mondat a gépen és Androidon.
+                let account = store.state.sync != nil
+                    ? " A rejtés a fiók egészére szól: a többi eszközödön is rejtve indul a lista." : ""
+                let hiddenText = (store.state.sites.isEmpty
+                    ? "A lista el van rejtve. Még nincs benne egyetlen oldal sem."
+                    : "\(count) A lista el van rejtve, hogy a puszta megnyitás se emlékeztessen rájuk. Megnyitva csak eddig a bezárásig marad.")
+                    + account
                 HStack(alignment: .top) {
-                    Text(store.state.sites.isEmpty
-                         ? "A lista el van rejtve. Még nincs benne egyetlen oldal sem."
-                         : "\(count) A lista el van rejtve, hogy a puszta megnyitás se emlékeztessen rájuk. Megnyitva csak eddig a bezárásig marad.")
+                    Text(hiddenText)
                         .font(.footnote).foregroundStyle(.secondary)
                     Spacer()
                     Button("Megnyitás") {

@@ -748,12 +748,16 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                         }
                         val count = if (open == 0) "${state.sites.size} oldal van blokkolva."
                             else "${state.sites.size} oldal van a listán, ebből $open most szabad."
+                        // FIÓKKAL a rejtés a fiók egészére szól — kimondjuk; fiók nélkül nincs
+                        // kinek szólnia, csendben marad. Ugyanez a mondat a gépen és iPhone-on.
+                        val account = if (state.sync != null)
+                            " A rejtés a fiók egészére szól: a többi eszközödön is rejtve indul a lista." else ""
                         Text(
                             if (state.sites.isEmpty())
-                                "A lista el van rejtve. Még nincs benne egyetlen oldal sem."
+                                "A lista el van rejtve. Még nincs benne egyetlen oldal sem.$account"
                             else "$count A lista el van rejtve, " +
                                 "hogy a puszta megnyitás se emlékeztessen rájuk. Megnyitva csak " +
-                                "eddig a bezárásig marad.",
+                                "eddig a bezárásig marad.$account",
                             modifier = Modifier.weight(1f),
                             style = MaterialTheme.typography.bodySmall,
                         )

@@ -1659,6 +1659,26 @@ async function main() {
   if (!hiddenCard.includes('4 oldal')) {
     failures.push(`the collapsed list does not say how many sites are blocked: ${hiddenCard.trim()}`);
   }
+  // FIÓKKAL a kártya kimondja, hogy a rejtés a fiók egészére szól; fiók
+  // nélkül csendben marad — nincs kinek szólnia. (A kép fiók nélkül készül.)
+  if (hiddenCard.includes('fiók egészére')) {
+    failures.push('without an account the hidden list still talks about the account');
+  }
+  await page.evaluate(() => {
+    window.__fakeSync = {
+      serverUrl: 'https://sync.pelda.hu', accountId: 'david@example',
+      deviceName: 'Mac gép', lastSyncAt: Date.now() - 60_000,
+    };
+  });
+  await page.waitForFunction(
+    () => document.getElementById('listHiddenText').textContent.includes('fiók egészére'),
+    undefined, { timeout: 10_000 },
+  ).catch(() => failures.push('with an account the hidden list does not say the hiding is account-wide'));
+  await page.evaluate(() => { window.__fakeSync = undefined; });
+  await page.waitForFunction(
+    () => !document.getElementById('listHiddenText').textContent.includes('fiók egészére'),
+    undefined, { timeout: 10_000 },
+  ).catch(() => failures.push('after signing out the hidden list still talks about the account'));
   if (!CHECK_ONLY) {
     await page.screenshot({ path: path.join(OUT, 'desktop-list-hidden.png'), fullPage: false });
   }

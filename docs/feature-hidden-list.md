@@ -58,6 +58,10 @@ lista. Most a `hideSiteList` a szinkron `focus` dokumentumában utazik, a JELÉV
 - **A régi kliens semleges.** Mező nélkül nem tud kikapcsolni, és a lenyomat
   a nem rejtett állapotban változatlan, tehát a frissítés utáni első kör
   senkinél nem léptet fölöslegesen.
+- **A kártya kimondja.** Fiókkal a rejtett lista kártyája kiírja, hogy a
+  rejtés a fiók egészére szól, és a többi eszközön is rejtve indul a lista —
+  ugyanazzal a mondattal mindhárom felületen; fiók nélkül csendben marad,
+  mert nincs kinek szólnia.
 
 A fésülés (`mergeHide`) mindhárom nyelvben ugyanaz, a `fixtures/merge-cases.json`
 80 esete és a fuzz-tesztek őrzik; a megnyitás továbbra is eszközönkénti és

@@ -2934,6 +2934,24 @@ const WIRES = [
     needle: 'if (merged.hideSiteList === true) state.hideSiteList = true;',
     lost: 'a gép a fésült rejtést nem venné át az állapotba',
   },
+  // A REJTETT LISTA KÁRTYÁJA fiókkal kimondja, hogy a rejtés a fiók egészére
+  // szól; fiók nélkül csendben marad. Ha a sor kiesne, a rejtés csendben
+  // hatna a többi eszközre — a felhasználó a gépen keresné, miért rejtett.
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: 'const account = st.sync?.accountId',
+    lost: 'a gépen a rejtett lista kártyája nem mondaná ki, hogy a rejtés a fiók egészére szól',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/AppUi.kt',
+    needle: 'val account = if (state.sync != null)',
+    lost: 'Androidon a rejtett lista kártyája nem mondaná ki, hogy a rejtés a fiók egészére szól',
+  },
+  {
+    file: 'ios/App/ContentView.swift',
+    needle: 'let account = store.state.sync != nil',
+    lost: 'iPhone-on a rejtett lista kártyája nem mondaná ki, hogy a rejtés a fiók egészére szól',
+  },
 ];
 
 /**

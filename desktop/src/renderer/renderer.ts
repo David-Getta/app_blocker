@@ -2638,10 +2638,14 @@ function renderSiteList(st: StatusData): void {
     // szünetelő vagy a menetrend szerint nyitott oldal „most szabad”.
     const open = st.sites.filter((s) => !s.blockedNow).length;
     const count = open === 0 ? `${n} oldal van blokkolva.` : `${n} oldal van a listán, ebből ${open} most szabad.`;
-    $('listHiddenText').textContent = n === 0
+    // FIÓKKAL a rejtés a fiók egészére szól — kimondjuk; fiók nélkül nincs
+    // kinek szólnia, csendben marad. Ugyanez a mondat a telefonokon.
+    const account = st.sync?.accountId
+      ? ' A rejtés a fiók egészére szól: a többi eszközödön is rejtve indul a lista.' : '';
+    $('listHiddenText').textContent = (n === 0
       ? 'A lista el van rejtve. Még nincs benne egyetlen oldal sem.'
       : `${count} A lista el van rejtve, hogy a puszta megnyitás `
-        + 'se emlékeztessen rájuk. Megnyitva csak eddig a bezárásig marad.';
+        + 'se emlékeztessen rájuk. Megnyitva csak eddig a bezárásig marad.') + account;
     return;
   }
 
