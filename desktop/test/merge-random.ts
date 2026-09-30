@@ -307,3 +307,71 @@ export function flipFocus(r: () => number, a: SyncFocus): FocusFlip {
       return bumpAt();
   }
 }
+
+/** Egy mező cseréje az `a` oldal-rekordon, és a fajtája. */
+export interface SiteFlip { flip: SyncSite; what: string }
+
+/**
+ * EGY MEZŐ CSERÉJE az oldal-rekordon — a KÖZELI rekordok fésüléséhez. A
+ * véletlen a/b/c rekordok sok mezőben térnek el egymástól; a szigorúság-lánc
+ * éles esetei (azonos rev, egyetlen mezőben más rekord: menetrend, keret,
+ * adag, törlésre várás, egy név jellel vagy jel nélkül, a szabálylista jellel
+ * vagy jel nélkül, az időbélyeg és az eszköznév döntetlenje) ritkán jönnek ki
+ * belőlük. Itt az `a` és egy egy mezőben más párja fésülődik, MINDKÉT
+ * sorrendben: a három nyelvnek ugyanazt kell adnia, és a két sorrendnek is.
+ * Egy húzás, az a/b/c után: a fuzz-generátorokat nem érinti.
+ */
+export function flipSite(r: () => number, a: SyncSite): SiteFlip {
+  const kind = Math.floor(r() * 14);
+  const withMarks = (s: SyncSite, marks: Record<string, number>): SyncSite => {
+    const out: SyncSite = { ...s };
+    if (Object.keys(marks).length > 0) out.hostnameMarks = marks; else delete out.hostnameMarks;
+    return out;
+  };
+  const marks = { ...(a.hostnameMarks ?? {}) };
+  const extra = a.hostnames.filter((h) => h !== HOSTS[0]);
+  switch (kind) {
+    case 0: // egy név levétele JELLEL (kifizetett) — vagy felvétele jellel, ha csak a fő név van
+      if (extra.length > 0) {
+        return { what: 'host-mark', flip: withMarks({ ...a, hostnames: a.hostnames.filter((h) => h !== extra[0]) }, { ...marks, [extra[0]]: a.rev }) };
+      }
+      return { what: 'host+mark', flip: withMarks({ ...a, hostnames: [...a.hostnames, HOSTS[1]] }, { ...marks, [HOSTS[1]]: a.rev }) };
+    case 1: { // ugyanez JEL NÉLKÜL (régi kliens): a bővebb nyer, a rekord dönt
+      const bare = { ...marks };
+      if (extra.length > 0) {
+        delete bare[extra[0]];
+        return { what: 'host-', flip: withMarks({ ...a, hostnames: a.hostnames.filter((h) => h !== extra[0]) }, bare) };
+      }
+      delete bare[HOSTS[1]];
+      return { what: 'host+', flip: withMarks({ ...a, hostnames: [...a.hostnames, HOSTS[1]] }, bare) };
+    }
+    case 2: return { what: 'pending', flip: { ...a, pendingDeleteAt: a.pendingDeleteAt === null ? 5_000 : null } };
+    case 3: return a.schedule
+      ? { what: 'sched-', flip: { ...a, schedule: undefined } }
+      : { what: 'sched+', flip: { ...a, schedule: SCHEDULES[0] } };
+    case 4: return { what: 'limit', flip: { ...a, dailyLimitSeconds: (a.dailyLimitSeconds ?? 0) + 600 } };
+    case 5: return a.burstSeconds !== undefined
+      ? { what: 'burst-', flip: { ...a, burstSeconds: undefined, cooldownSeconds: undefined } }
+      : { what: 'burst+', flip: { ...a, burstSeconds: 600, cooldownSeconds: 300 } };
+    case 6: return a.cooldownSeconds !== undefined
+      ? { what: 'cooldown', flip: { ...a, cooldownSeconds: a.cooldownSeconds + 300 } }
+      : { what: 'burst+', flip: { ...a, burstSeconds: 600, cooldownSeconds: 300 } };
+    // A fedőnév és az indok nem billenti a szigorúságot: azonos rev-nél a
+    // döntetlent az időbélyeg és az eszköznév töri el. Ugyanaz az eszköz nem ír
+    // két rekordot ugyanazzal a rev-vel (minden szerkesztés léptet), ezért a
+    // csere MÁSIK eszköztől jön — így a döntetlen-törés determinisztikus.
+    case 7: return { what: 'alias', flip: { ...a, alias: a.alias ? undefined : 'n9', updatedBy: 'masik' } };
+    case 8: return { what: 'reason', flip: { ...a, reason: a.reason ? undefined : 'r9', updatedBy: 'masik' } };
+    case 9: // a szabálylista cseréje JELLEL: a lista ki vagy be, a jel a rekord rev-je
+      return a.rules && a.rules.length > 0
+        ? { what: 'rules-mark', flip: { ...a, rules: [], rulesRev: a.rev } }
+        : { what: 'rules+mark', flip: { ...a, rules: [RULES[0]], rulesRev: a.rev } };
+    case 10: // ugyanez JEL NÉLKÜL (régi rekord): a rekord rev-je dönt
+      return a.rules && a.rules.length > 0
+        ? { what: 'rules-', flip: { ...a, rules: [], rulesRev: undefined } }
+        : { what: 'rules+', flip: { ...a, rules: [RULES[0]], rulesRev: undefined } };
+    case 11: return { what: 'rev', flip: { ...a, rev: a.rev + 1 } };
+    case 12: return { what: 'updatedAt', flip: { ...a, updatedAt: a.updatedAt + 1 } };
+    default: return { what: 'updatedBy', flip: { ...a, updatedBy: 'masik' } };
+  }
+}

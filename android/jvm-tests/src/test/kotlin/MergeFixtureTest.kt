@@ -96,6 +96,12 @@ class MergeFixtureTest {
             val ab = SyncMerge.mergeSite(a, b)
             assertEquals(c.getString("ab"), siteKey(ab), "oldal, két eszköz, mag $seed")
             assertEquals(c.getString("abc"), siteKey(SyncMerge.mergeSite(ab, cc)), "oldal, három eszköz, mag $seed")
+            // KÖZELI REKORDOK: az a és egy egy mezőben más párja, mindkét sorrendben —
+            // a szigorúság-lánc és a döntetlen-törés éles esetei.
+            val flip = site(c.getJSONObject("flip"))
+            val what = c.getString("what")
+            assertEquals(c.getString("af"), siteKey(SyncMerge.mergeSite(a, flip)), "közeli, mag $seed: $what")
+            assertEquals(c.getString("fa"), siteKey(SyncMerge.mergeSite(flip, a)), "közeli fordítva, mag $seed: $what")
         }
     }
 

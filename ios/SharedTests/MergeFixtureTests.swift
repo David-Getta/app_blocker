@@ -18,6 +18,11 @@ private struct SiteCase: Decodable {
     let c: SyncMerge.SyncSite
     let ab: String
     let abc: String
+    /// Egy mező cseréje az `a`-n, a fajtája, és a fésülés mindkét sorrendben.
+    let flip: SyncMerge.SyncSite
+    let what: String
+    let af: String
+    let fa: String
 }
 
 private struct FocusCase: Decodable {
@@ -107,6 +112,10 @@ final class MergeFixtureTests: XCTestCase {
             let ab = SyncMerge.mergeSite(c.a, c.b)
             XCTAssertEqual(siteKey(ab), c.ab, "oldal, két eszköz, mag \(c.seed)")
             XCTAssertEqual(siteKey(SyncMerge.mergeSite(ab, c.c)), c.abc, "oldal, három eszköz, mag \(c.seed)")
+            // KÖZELI REKORDOK: az a és egy egy mezőben más párja, mindkét sorrendben —
+            // a szigorúság-lánc és a döntetlen-törés éles esetei.
+            XCTAssertEqual(siteKey(SyncMerge.mergeSite(c.a, c.flip)), c.af, "közeli, mag \(c.seed): \(c.what)")
+            XCTAssertEqual(siteKey(SyncMerge.mergeSite(c.flip, c.a)), c.fa, "közeli fordítva, mag \(c.seed): \(c.what)")
         }
     }
 

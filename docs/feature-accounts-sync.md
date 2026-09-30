@@ -361,7 +361,11 @@ Amit a tesztek bizonyítanak, és amit másképp nem lehetne:
   KÜLÖNBSÉGET is nézi: minden esethez egy mező cseréje jár (`flip`), és a
   három nyelvnek ugyanazt kell különbségnek tartania (`sameFocus` /
   `FocusSync.same`) — a jelentés nélküli cserét (időbélyeg, eszköznév,
-  ablak-azonosító, a csomagok sorrendje) pedig nem.
+  ablak-azonosító, a csomagok sorrendje) pedig nem. Az oldalaknál a KÖZELI
+  rekordokat is fésüli: az `a` és egy egy mezőben más párja, mindkét
+  sorrendben — a szigorúság-lánc (menetrend, keret, adag, törlésre várás) és
+  a döntetlen-törés (időbélyeg, eszköznév) éles esetei, amiket a véletlen
+  rekordok ritkán hoznak ki.
 
 Egy dolog iPhone-on más: a **napi keret nem érvényesül** (nincs ilyen mérési
 API), de a rekordban MEGŐRIZZÜK. Enélkül elég lenne egyszer megnyitni a

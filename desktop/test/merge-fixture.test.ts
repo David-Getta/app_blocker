@@ -20,7 +20,7 @@ import * as path from 'node:path';
 import { mergeSite } from '../src/shared/sync/merge';
 import { mergeFocus, normalizeSyncFocus, sameFocus } from '../src/shared/sync/focus-merge';
 import {
-  DEVICES, flipFocus, focusConformanceKey, randomFocus, randomSite, rng, siteConformanceKey,
+  DEVICES, flipFocus, flipSite, focusConformanceKey, randomFocus, randomSite, rng, siteConformanceKey,
 } from './merge-random';
 
 /** dist-test/test/… → a tároló gyökere. */
@@ -34,7 +34,16 @@ function buildFixture(): { note: string; version: number; sites: unknown[]; focu
     const r = rng(seed);
     const [a, b, c] = DEVICES.map((d) => randomSite(r, d));
     const ab = mergeSite(a, b);
-    sites.push({ seed, a, b, c, ab: siteConformanceKey(ab), abc: siteConformanceKey(mergeSite(ab, c)) });
+    // KÖZELI REKORDOK: az `a` és egy egy mezőben más párja, mindkét sorrendben.
+    // A szigorúság-lánc és a döntetlen-törés éles esetei; a két sorrendnek
+    // ugyanoda kell jutnia (a fésülés szimmetrikus), és a három nyelvnek is.
+    const { flip, what } = flipSite(r, a);
+    const af = siteConformanceKey(mergeSite(a, flip));
+    const fa = siteConformanceKey(mergeSite(flip, a));
+    assert.equal(af, fa, `a közeli rekordok fésülése nem szimmetrikus: mag ${seed}, ${what}`);
+    sites.push({
+      seed, a, b, c, ab: siteConformanceKey(ab), abc: siteConformanceKey(mergeSite(ab, c)), flip, what, af, fa,
+    });
   }
   for (let seed = 1; seed <= SEEDS; seed++) {
     const r = rng(seed);
@@ -54,8 +63,9 @@ function buildFixture(): { note: string; version: number; sites: unknown[]; focu
   return {
     note: 'Generálja és őrzi: desktop/test/merge-fixture.test.ts (UPDATE_MERGE_FIXTURE=1 npm test). '
       + 'Olvassa: android/jvm-tests MergeFixtureTest, ios/SharedTests MergeFixtureTests. '
-      + 'A focus-esetek flip/what/same mezője: egy mező cseréje, és hogy a három nyelv különbségnek tartja-e.',
-    version: 5,
+      + 'A focus-esetek flip/what/same mezője: egy mező cseréje, és hogy a három nyelv különbségnek tartja-e. '
+      + 'A sites-esetek flip/what/af/fa mezője: egy mező cseréje, és a fésülés mindkét sorrendben.',
+    version: 6,
     sites,
     focus,
   };
