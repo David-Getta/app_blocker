@@ -44,24 +44,23 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A rejtés a fiók egészére szól — a weboldalon is kimondva.** A
-          funkciólista rejtés–fedőnév–zár pontja most azt is mondja, hogy a
-          telefonon bekapcsolt rejtés a gépen is áll. A fejlesztői doksiban
-          pedig ott az ellenőrzőlista, hány helyen kell egy új szinkron-mezőnek
-          átmennie mindhárom nyelven, és melyik őr mit fog ki: a v0.4.170
-          tanulsága, ahol a fixtúra egy Swift-rést fogott ki, és a javítás
-          közben még két tükör-rés derült ki — mindhárom kapott tesztet és tűt.
+          **A rejtett lista kártyája kimondja, hogy a rejtés a fiók egészére
+          szól.** Fiókkal a kártya kiírja, hogy a többi eszközödön is rejtve
+          indul a lista — ugyanazzal a mondattal mindhárom felületen. Fiók
+          nélkül csendben marad, mert nincs kinek szólnia: a rejtés akkor csak
+          erre az eszközre áll.
 
-          ### Ami a v0.4.170-ben jött
+          ### Ami a v0.4.171-ben jött
+
+          **A rejtés a fiók egészére szól — a weboldalon is kimondva.** És a
+          fejlesztői doksiban az ellenőrzőlista, hány helyen kell egy új
+          szinkron-mezőnek átmennie mindhárom nyelven, és melyik őr mit fog ki.
+
+          #### Ami a v0.4.170-ben jött
 
           **A rejtés a fiók egészére szól.** A telefonon bekapcsolt rejtés a
           gépen is áll; a kikapcsolás a készülék azonosítása után átmegy: a jel
-          dönt, azonos jelnél a rejtett; a régi kliens semleges.
-
-          #### Ami a v0.4.169-ben jött
-
-          **A levétel-szabály a magban.** Hogy egy fedőnév-változás levétel-e
-          vagy átnevezés, egy függvény mondja meg mindhárom nyelven, tesztekkel.
+          dönt, azonos jelnél a rejtett.
 
           NOTES
           fi
