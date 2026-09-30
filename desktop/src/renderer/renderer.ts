@@ -198,6 +198,29 @@ function isListHidden(st: StatusData): boolean {
 }
 
 /**
+ * A ZÁR KAPUJA: a gép azonosítása (Macen Touch ID) a rejtett lista és a fedőnév
+ * mögé bújt cím felfedése előtt — ugyanaz a rés, ugyanaz a kapu. A rejtés egy
+ * kattintás, a felfedés nem az. Igaz, ha mehet a felfedés: sikeres azonosításra,
+ * vagy ha nincs mivel azonosítani — utóbbit a sor KIMONDJA (őszinte korlát, nem
+ * néma kapu). Elutasításra hamis, és a sor ezt is kimondja. A `subject` az
+ * alany a mondatban: „a lista”, „a valódi cím”.
+ */
+async function gateReveal(reason: string, subject: string): Promise<boolean> {
+  const gate = $('listGateLine');
+  const r = window.breaker.authenticate
+    ? await window.breaker.authenticate(reason)
+    : { ok: false, unavailable: true };
+  if (r.ok || r.unavailable) {
+    gate.textContent = r.ok ? '' : `Ezen a gépen nincs ujjlenyomat-olvasó, így nincs mivel azonosítani — ${subject} kérésre előjön.`;
+    gate.classList.toggle('hidden', r.ok);
+    return true;
+  }
+  gate.textContent = `Nem sikerült az azonosítás — ${subject} rejtve marad.`;
+  gate.classList.remove('hidden');
+  return false;
+}
+
+/**
  * A statisztika a saját, ritkább körén frissül — de a CÍMKÉI az oldallistából
  * jönnek (fedőnév, „blokkolt” jelölés). Ha az oldallista változik, a diagram
  * fél percig a régit mutatná: fedőnév beállítása után ott maradna a valódi cím.
@@ -2643,8 +2666,13 @@ function siteRow(site: SiteInfo, st: StatusData): HTMLElement {
       ? 'A valódi cím látszik; mindjárt visszabújik'
       : `A valódi cím ${Math.round(REVEAL_MS / 1000)} másodpercre látszik`;
     peek.disabled = showing;
-    peek.addEventListener('click', () => {
-      revealedUntil.set(site.id, Date.now() + REVEAL_MS);
+    peek.addEventListener('click', async () => {
+      // A FEDŐNÉV ZÁRJA: a valódi cím előhívása is a gép azonosítását kéri —
+      // ugyanaz a rés (egy kattintás, és látszik, mi bújik a név mögött),
+      // ugyanaz a kapu, mint a rejtett listánál.
+      if (await gateReveal(`A valódi cím megmutatása: ${displayName(site)} — hogy csak te lásd.`, 'a valódi cím')) {
+        revealedUntil.set(site.id, Date.now() + REVEAL_MS);
+      }
       render();
     });
     nameEl.appendChild(peek);
@@ -2893,7 +2921,7 @@ function openAliasDialog(site: SiteInfo): void {
   modal.appendChild(h('p', 'hint',
     'A listán a cím helyett ez a név fog állni. A valódi cím nem tűnik el: a '
     + `név mellett egy gombbal ${Math.round(REVEAL_MS / 1000)} másodpercre `
-    + 'előhívható, aztán magától visszabújik. A statisztikában is a fedőnév '
+    + 'előhívható — a gép azonosítása után (Macen Touch ID) —, aztán magától visszabújik. A statisztikában is a fedőnév '
     + 'látszik majd.'));
 
   const input = h('input', 'alias-input') as HTMLInputElement;
@@ -4043,17 +4071,8 @@ function setupModal(): void {
     // rejtés egy kattintás — szigorítás —, a felfedés nem az: így a rejtés VÉD
     // is, nem csak nem emlékeztet. Ahol nincs olvasó, nincs mit kérni: kimondjuk,
     // és a lista kérésre megnyílik. Csak erre a munkamenetre: a BEÁLLÍTÁS marad „rejtve”.
-    const gate = $('listGateLine');
-    const r = window.breaker.authenticate
-      ? await window.breaker.authenticate('A blokklista megnyitása — hogy csak te lásd, mi van rajta.')
-      : { ok: false, unavailable: true };
-    if (r.ok || r.unavailable) {
-      gate.textContent = r.ok ? '' : 'Ezen a gépen nincs ujjlenyomat-olvasó, így nincs mivel azonosítani — a lista kérésre megnyílik.';
-      gate.classList.toggle('hidden', r.ok);
+    if (await gateReveal('A blokklista megnyitása — hogy csak te lásd, mi van rajta.', 'a lista')) {
       listOpenThisSession = true;
-    } else {
-      gate.textContent = 'Nem sikerült az azonosítás — a lista rejtve marad.';
-      gate.classList.remove('hidden');
     }
     render();
   });

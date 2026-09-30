@@ -449,7 +449,9 @@ azért, hogy „megnézze a statisztikát” —, és a listán ott áll a `yout
 az kapott egy ingert. A név felidézi, mi van a másik oldalon.
 
 Ezért minden oldalnak adható **fedőnév**. Ha van, a felület azt mutatja a cím
-helyett, és a valódi cím egy gombbal, **hat másodpercre** hívható elő.
+helyett, és a valódi cím egy gombbal, **hat másodpercre** hívható elő — a
+készülék azonosítása után (ujjlenyomat, arc vagy kód; lásd lentebb, a rejtett
+lista zárjánál): ugyanaz a kíváncsi szem, ugyanaz a zár.
 
 Két dolog fontos ebben:
 
@@ -476,6 +478,12 @@ ugyanaz a név az egyik eszközön elférne, a másikon csonkulna.
 A fedőnév beállítása és levétele **nem kerül próbatételbe**. A súrlódás ott van,
 ahol a védelem gyengülne; itt nem gyengül semmi: az oldal ugyanúgy blokkolva
 marad, a hosts fájl egy bájtot sem változik.
+
+A valódi cím **előhívása** viszont a készülék azonosítását kéri — nem próbatételt,
+hanem a saját ujjadat, arcodat vagy kódodat. Ez nem a védelem gyengülése ellen
+véd (az nem gyengül), hanem a kíváncsi szem ellen: aki a kezébe veszi a
+telefont, ne egy gombbal lássa, mi bújik a fedőnév mögött. Ahol nincs mivel
+azonosítani, a cím kérésre előjön, és a felület kimondja.
 
 ## A lista elrejtése
 

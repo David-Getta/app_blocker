@@ -23,6 +23,9 @@ enum ListLock {
 
     static let unavailableNote = "Ezen a készüléken nincs kód beállítva, így nincs mivel azonosítani — a lista kérésre megnyílik. Ha kódot állítasz be, ezt fogja kérni."
     static let deniedNote = "Nem sikerült az azonosítás — a lista rejtve marad."
+    /// Ugyanaz a zár a fedőnév mögé bújt valódi cím előtt.
+    static let aliasUnavailableNote = "Ezen a készüléken nincs kód beállítva, így nincs mivel azonosítani — a valódi cím kérésre előjön. Ha kódot állítasz be, ezt fogja kérni."
+    static let aliasDeniedNote = "Nem sikerült az azonosítás — a valódi cím rejtve marad."
 
     /// Van-e MIVEL azonosítani: biometria vagy készülékkód.
     static func canAuthenticate() -> Bool {

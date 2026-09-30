@@ -1538,7 +1538,23 @@ async function main() {
     await page.screenshot({ path: path.join(OUT, 'desktop-alias.png'), fullPage: false });
   }
 
-  // A felfedés IDEIGLENES: megmutatja a címet, aztán magától visszabújik.
+  // A FEDŐNÉV ZÁRJA: elutasított azonosításnál a valódi cím REJTVE marad, és a sor kimondja.
+  await page.evaluate(() => { window.__fakeAuth = { ok: false }; });
+  await page.locator('#siteList .site-row').first()
+    .getByRole('button', { name: /Mutasd/ }).click();
+  await page.waitForFunction(
+    () => !document.getElementById('listGateLine').classList.contains('hidden'),
+    undefined, { timeout: 10_000 },
+  );
+  if (((await page.locator('#siteList .site-row .site-domain').first().textContent()) || '').includes('youtube.com')) {
+    failures.push('a denied authentication still revealed the real domain behind the alias');
+  }
+  if (!((await page.locator('#listGateLine').textContent()) || '').includes('rejtve marad')) {
+    failures.push('a denied alias reveal does not say the real domain stays hidden');
+  }
+  await page.evaluate(() => { window.__fakeAuth = undefined; });
+  // A felfedés IDEIGLENES: megmutatja a címet, aztán magától visszabújik —
+  // sikeres azonosítás után.
   await page.locator('#siteList .site-row').first()
     .getByRole('button', { name: /Mutasd/ }).click();
   await page.waitForFunction(

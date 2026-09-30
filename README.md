@@ -92,8 +92,9 @@ ingyen van, rövidíteni vagy visszavonni sehogy.
   ingerforrás — aki megnyitja az appot, és ott áll előtte a `youtube.com`, az már
   fél lépéssel közelebb van. Minden oldalnak adható saját név, és onnantól a
   felületen az látszik: a soron, a párbeszédek címében, a próbatétel-ablakban és a
-  statisztikában is. A valódi cím nem tűnik el, egy gombbal **hat másodpercre**
-  előhívható, aztán magától visszabújik. Ez inger-eltávolítás, nem titkosítás:
+  statisztikában is. A valódi cím nem tűnik el: egy gombbal **hat másodpercre**
+  előhívható — a készülék azonosítása után (ujjlenyomat, arc vagy kód), ahogy a
+  rejtett lista is —, aztán magától visszabújik. Ez inger-eltávolítás, nem titkosítás:
   a hosts fájlban ott a cím, és ezt a felület is kimondja.
 - **Hosztnevek oldalanként** (asztali gép; a lista szinkronnal a telefonra is
   átmegy): egy oldal tiltása több nevet takar (`youtube.com`, `www.youtube.com`,

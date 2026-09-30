@@ -776,9 +776,6 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                         }) { Text("Megnyitás") }
                     }
                 }
-                listLockNote?.let {
-                    Text(it, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 6.dp))
-                }
             } else if (state.sites.isEmpty()) {
                 Text("Még nincs blokkolt oldal.", style = MaterialTheme.typography.bodySmall)
             } else {
@@ -796,8 +793,24 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                                 weekTrips = BurstLogic.tripsInDays(state.burstTripLog, site.id, UsageLogic.dayKeysBack(now, 7)),
                                 revealedUntil = revealedUntil[site.id],
                                 onReveal = {
-                                    revealedUntil[site.id] =
-                                        System.currentTimeMillis() + AliasLogic.REVEAL_MS
+                                    // A FEDŐNÉV ZÁRJA: a valódi cím előhívása is a készülék
+                                    // azonosítását kéri — ugyanaz a rés (egy koppintás, és látszik,
+                                    // mi bújik a név mögött), ugyanaz a kapu, mint a rejtett listánál.
+                                    val reveal = {
+                                        revealedUntil[site.id] =
+                                            System.currentTimeMillis() + AliasLogic.REVEAL_MS
+                                    }
+                                    val host = context as? FragmentActivity
+                                    if (host == null || !ListLock.canAuthenticate(context)) {
+                                        listLockNote = context.getString(R.string.alias_lock_unavailable)
+                                        reveal()
+                                    } else ListLock.prompt(host,
+                                        onSuccess = { listLockNote = null; reveal() },
+                                        onFail = { why ->
+                                            val base = context.getString(R.string.alias_lock_denied)
+                                            listLockNote = if (why.isEmpty()) base else "$base ($why)"
+                                        },
+                                    )
                                 },
                                 onPause = { pauseSite = site },
                                 onDelete = { deleteSite = site },
@@ -811,6 +824,13 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                         }
                     }
                 }
+            }
+
+            // A ZÁR ÜZENETE — a rejtett lista és a fedőnév kapujáé egyaránt:
+            // elutasított azonosítás, vagy „nincs mivel”. A lista alatt, akár
+            // rejtve, akár nyitva.
+            listLockNote?.let {
+                Text(it, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 6.dp))
             }
 
             // Usage statistics. The summary is derived from state.usage, so it is
@@ -1465,7 +1485,7 @@ private fun AliasDialog(site: Site, onDismiss: () -> Unit, onSave: (String) -> U
                 Text(
                     "Ha adsz nevet, a felület ezt írja ki a cím helyett — a listán, a " +
                         "párbeszédek címében és a statisztikában is. A valódi cím egy gombbal, " +
-                        "hat másodpercre előhívható.",
+                        "hat másodpercre előhívható — a készülék azonosítása után, ahogy a rejtett lista is.",
                     style = MaterialTheme.typography.bodySmall,
                 )
                 OutlinedTextField(

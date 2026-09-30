@@ -26,6 +26,15 @@ A rejtés bekapcsolása egy koppintás, azonnal érvényes, és újraindítás u
 pedig csak nyitott lista mellett érhető el — vagyis szintén az azonosítás után.
 Így nincs olyan út, amin a rejtett lista azonosítás nélkül előkerülne.
 
+## A fedőnév felfedése is
+
+Ugyanez a zár áll a **fedőnév** mögött: egy fedőnevesített oldal valódi címét a
+„Mutasd” gomb hat másodpercre előhívja — ettől a kiadástól szintén a készülék
+azonosítása után. A rés ugyanaz (egy koppintás, és látszik, mi bújik a név
+mögött), tehát a zár is ugyanaz; és ugyanúgy kimondja, ha nincs mivel
+azonosítani, vagy ha az azonosítás nem sikerült. A lista és a fedőnév kapuja egy
+üzenet-sort használ, a lista alatt — rejtve és nyitva egyaránt.
+
 ## Őszinte korlát
 
 - **Ahol nincs mivel azonosítani** — nincs képernyőzár a telefonon, Windows-gép,

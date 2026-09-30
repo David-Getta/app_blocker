@@ -1674,6 +1674,22 @@ const WIRES = [
     needle: "authenticate: (reason) => ipcRenderer.invoke('breaker:authenticate', reason),",
     lost: 'a híd nem adná át az azonosítás-kérést a fő folyamatnak',
   },
+  // A FEDŐNÉV ZÁRJA: a valódi cím előhívása ugyanazon a kapun át — mind a három platformon.
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/AppUi.kt',
+    needle: 'onSuccess = { listLockNote = null; reveal() },',
+    lost: 'Androidon a Mutasd megint azonosítás nélkül mutatná a fedőnév mögötti címet',
+  },
+  {
+    file: 'ios/App/ContentView.swift',
+    needle: 'ListLock.prompt(reason: "A valódi cím megmutatása',
+    lost: 'iPhone-on a Mutasd megint azonosítás nélkül mutatná a fedőnév mögötti címet',
+  },
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: 'if (await gateReveal(`A valódi cím megmutatása:',
+    lost: 'a gépen a Mutasd megint azonosítás nélkül mutatná a fedőnév mögötti címet',
+  },
   {
     file: 'extension/app-link.js',
     needle: "const limitSoon = typeof raw.limitSoon === 'string' ? raw.limitSoon.slice(0, 80) : '';",

@@ -50,4 +50,7 @@
     <string name="list_lock_subtitle">Ujjlenyomat, arc vagy a képernyőzár kódja — hogy csak te lásd, mi van a listán.</string>
     <string name="list_lock_unavailable">Ezen a telefonon nincs képernyőzár, így nincs mivel azonosítani — a lista kérésre megnyílik. Ha zárat állítasz be, ezt fogja kérni.</string>
     <string name="list_lock_denied">Nem sikerült az azonosítás — a lista rejtve marad.</string>
+    <!-- Ugyanaz a zár a fedőnév mögé bújt valódi cím előtt. -->
+    <string name="alias_lock_unavailable">Ezen a telefonon nincs képernyőzár, így nincs mivel azonosítani — a valódi cím kérésre előjön. Ha zárat állítasz be, ezt fogja kérni.</string>
+    <string name="alias_lock_denied">Nem sikerült az azonosítás — a valódi cím rejtve marad.</string>
 </resources>

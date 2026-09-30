@@ -965,6 +965,10 @@ struct ContentView: View {
                     Text(n).font(.footnote).foregroundStyle(.secondary)
                 }
             } else {
+                // A ZÁR ÜZENETE nyitott listánál is — a fedőnév kapujáé.
+                if let n = listLockNote {
+                    Text(n).font(.footnote).foregroundStyle(.secondary)
+                }
                 if store.state.sites.isEmpty {
                     Text("Még nincs blokkolt oldal.").font(.footnote).foregroundStyle(.secondary)
                 }
@@ -1028,7 +1032,17 @@ struct ContentView: View {
                 // A valódi cím nem tűnik el, csak nem ül ott: néha tényleg tudni
                 // kell, melyik sor melyik.
                 if aliased && !revealing {
-                    Button("Mutasd") { revealedUntil[site.id] = nowMs() + AliasLogic.revealMs }
+                    Button("Mutasd") {
+                        // A FEDŐNÉV ZÁRJA: a valódi cím előhívása is a készülék azonosítását
+                        // kéri — ugyanaz a rés, ugyanaz a kapu, mint a rejtett listánál.
+                        ListLock.prompt(reason: "A valódi cím megmutatása — hogy csak te lásd.") { outcome in
+                            switch outcome {
+                            case .granted: listLockNote = nil; revealedUntil[site.id] = nowMs() + AliasLogic.revealMs
+                            case .unavailable: listLockNote = ListLock.aliasUnavailableNote; revealedUntil[site.id] = nowMs() + AliasLogic.revealMs
+                            case .denied(let why): listLockNote = why.isEmpty ? ListLock.aliasDeniedNote : "\(ListLock.aliasDeniedNote) (\(why))"
+                            }
+                        }
+                    }
                         .font(.caption).buttonStyle(.borderless)
                 }
             }
