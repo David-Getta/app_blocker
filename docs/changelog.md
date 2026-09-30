@@ -8,6 +8,7 @@ kettővel korábbiban.
 
 | Verzió | Nap | Mi újság |
 |---|---|---|
+| v0.4.167 | 2026-09-30 | a fedőnév levétele is a zár mögött |
 | v0.4.166 | 2026-09-30 | a fedőnév zárja |
 | v0.4.165 | 2026-09-27 | a rejtett lista zárja |
 | v0.4.164 | 2026-09-24 | az őszinte korlátok teljesebb listája |
