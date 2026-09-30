@@ -44,23 +44,21 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A fedőnév levétele is a zár mögött.** A fedőnév levétele felfed —
-          onnantól a valódi cím áll a listán —, ezért ugyanazt a kaput kapta,
-          mint a Mutasd: ujjlenyomat, arc vagy kód (Macen Touch ID). Az
-          átnevezés nem fed fel, az marad egy koppintás. Elutasításnál a név
-          marad, és a felület kimondja; ahol nincs mivel azonosítani, kérésre
-          lekerül — és kimondja. A segéd (a bíró) ebből semmit nem lát: a zár a
-          felületé.
+          **Ami rejtve van, az zárva is van — a weboldalon is.** A rejtés, a
+          fedőnév és a zár (a rejtett lista megnyitása, a valódi cím
+          megmutatása és a fedőnév levétele a készülék azonosítása után)
+          eddig csak a dokumentációban állt; most a weboldal funkciólistája is
+          kimondja, az őszinte korláttal együtt. Kód nem változott.
 
-          ### Ami a v0.4.166-ban jött
+          ### Ami a v0.4.167-ben jött
+
+          **A fedőnév levétele is a zár mögött.** A levétel felfed, ezért a
+          készülék azonosítását kéri; az átnevezés nem.
+
+          #### Ami a v0.4.166-ban jött
 
           **A fedőnév zárja.** A fedőnév mögé bújt valódi címet a Mutasd csak a
           készülék azonosítása után mutatja meg.
-
-          #### Ami a v0.4.165-ben jött
-
-          **A rejtett lista zárja.** A rejtett blokklista csak a készülék
-          azonosítása után nyílik meg.
 
           NOTES
           fi
