@@ -44,23 +44,23 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A fixtúra a közeli rekordokat is fésüli.** A véletlen rekordok
-          sok mezőben térnek el egymástól; a szigorúság-lánc éles esetei —
-          azonos rev, és csak a menetrend, a keret, az adag, a törlésre
-          várás, egy név vagy a szabálylista más, jellel vagy jel nélkül, vagy
-          csak az időbélyeg és az eszköznév — ritkán jönnek ki belőlük. Most
-          minden oldal-esethez egy egy mezőben más pár is jár, és a fésülést
-          mindkét sorrendben mindhárom nyelvnek ugyanúgy kell adnia.
+          **A fixtúra a naplót is fésüli.** A három nyelv közös fixtúrájában a
+          menetek naplója eddig üres volt — pedig épp ott dől el a
+          legkényesebb tükrözött logika: ugyanarról a menetről két változat
+          közül melyik marad (a korábbi vég, a leállítás, a későbbi terv), és
+          az azonos végű sorok sorrendje. Most a blobokban naplósorok is
+          vannak, és a kulcs a fésült sorrendet viszi — a rendezésnek is
+          bájtra egyeznie kell a gépen, a telefonon és az iPhone-on.
 
-          ### Ami a v0.4.178-ban jött
+          ### Ami a v0.4.179-ben jött
+
+          **A fixtúra a közeli rekordokat is fésüli.** Az oldal-rekord egy
+          mezőjének cseréje, a fésülés mindkét sorrendben, mindhárom nyelven.
+
+          #### Ami a v0.4.178-ban jött
 
           **A README is elmondja, amit az app már tud.** A részleges szabályok
           jele és a fiók-szintű rejtés a funkciólistában.
-
-          #### Ami a v0.4.177-ben jött
-
-          **A részleges szabályok jele.** A szabálylista fésülésében a jel
-          dönt, nem a rekord rev-je; három eszköznél a sorrend nem számít.
 
           NOTES
           fi
