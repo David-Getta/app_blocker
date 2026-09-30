@@ -8,6 +8,7 @@ kettővel korábbiban.
 
 | Verzió | Nap | Mi újság |
 |---|---|---|
+| v0.4.169 | 2026-09-30 | a levétel-szabály a magban |
 | v0.4.168 | 2026-09-30 | ami rejtve van, az zárva is van, a weboldalon is |
 | v0.4.167 | 2026-09-30 | a fedőnév levétele is a zár mögött |
 | v0.4.166 | 2026-09-30 | a fedőnév zárja |
