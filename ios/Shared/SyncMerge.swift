@@ -54,10 +54,16 @@ enum SyncMerge {
         /// előállította őket a dekódoláshoz; a saját dekódolás óta egyiket sem
         /// állítja elő — és a hiányukat a CI elnyelte, a Swift mag napokig nem
         /// fordult. Új mező → új kulcs IDE IS, különben nem utazik.
+        /// A szabálylista JELE: a rekord rev-je, amelyik a listát utoljára
+        /// változtatta. A fésülésben a nagyobb jel dönt; azonos jelnél a régi
+        /// szabály; a mező nélküli rekord (régi kliens) a másik oldal listáját
+        /// ÉS jelét viszi. Az iPhone nem ír ilyet, hordozza. Lásd `mergeRules`.
+        var rulesRev: Int? = nil
+
         enum CodingKeys: String, CodingKey {
             case id, domain, hostnames, addedAt, pendingDeleteAt, schedule
             case dailyLimitSeconds, burstSeconds, cooldownSeconds, alias, reason, rules
-            case rev, updatedAt, updatedBy, hostnameMarks
+            case rev, updatedAt, updatedBy, hostnameMarks, rulesRev
         }
 
         init(
@@ -66,7 +72,7 @@ enum SyncMerge {
             dailyLimitSeconds: Double? = nil, burstSeconds: Double? = nil,
             cooldownSeconds: Double? = nil, alias: String? = nil, reason: String? = nil,
             rules: [UrlRules.UrlRule]? = nil, rev: Int, updatedAt: Double, updatedBy: String,
-            hostnameMarks: [String: Int]? = nil
+            hostnameMarks: [String: Int]? = nil, rulesRev: Int? = nil
         ) {
             self.id = id
             self.domain = domain
@@ -84,6 +90,7 @@ enum SyncMerge {
             self.updatedAt = updatedAt
             self.updatedBy = updatedBy
             self.hostnameMarks = hostnameMarks
+            self.rulesRev = rulesRev
         }
 
         /// SAJÁT dekódolás, hogy a jelek TŰRŐEN jöjjenek: egy nem-egész érték
@@ -119,6 +126,14 @@ enum SyncMerge {
                 cleanedMarks = SyncMerge.capHostnameMarks(valid, hostsValue)
             }
             hostnameMarks = cleanedMarks
+            // A szabálylista jele: pozitív egész, legfeljebb a rekord rev-je — és
+            // csak lista mellett; mező nélkül nincs jel.
+            let rawRulesRev = (try? c.decodeIfPresent(Int.self, forKey: .rulesRev)) ?? nil
+            if rules != nil, let m = rawRulesRev, m > 0, m <= revValue {
+                rulesRev = m
+            } else {
+                rulesRev = nil
+            }
         }
 
         /// A `pendingDeleteAt` KIÍRÁSA kötelező, nem elhagyható.
@@ -146,6 +161,8 @@ enum SyncMerge {
             try c.encode(updatedAt, forKey: .updatedAt)
             try c.encode(updatedBy, forKey: .updatedBy)
             try c.encodeIfPresent(hostnameMarks, forKey: .hostnameMarks)
+            // A szabálylista jele csak lista mellett: mező nélkül nincs jel.
+            if rules != nil { try c.encodeIfPresent(rulesRev, forKey: .rulesRev) }
         }
     }
 
@@ -298,7 +315,9 @@ enum SyncMerge {
 
     private static func withRules(_ winner: SyncSite, _ a: SyncSite, _ b: SyncSite) -> SyncSite {
         var out = winner
-        out.rules = mergeRules(a, b)
+        let (rules, mark) = mergeRules(a, b)
+        out.rules = rules
+        out.rulesRev = mark > 0 ? mark : nil
         return out
     }
 
@@ -316,13 +335,21 @@ enum SyncMerge {
     ///     ezt a mezőt: ami átmegy rajta, abból eltűnik. Ha a hiányt mindenestül
     ///     törlésnek vennénk, elég lenne egy frissítetlen eszköz a fiókban, és a
     ///     gépen felvett összes szabály csendben eltűnne.
-    private static func mergeRules(_ a: SyncSite, _ b: SyncSite) -> [UrlRules.UrlRule]? {
+    ///  4. **A JEL DÖNT, nem a rekord rev-je** (`rulesRev`). A rekord rev-je más
+    ///     szerkesztéstől is nő, és egy mező nélküli régi kliens nagy rev-je azt
+    ///     a listát hitelesítené, amelyikkel épp előbb találkozott — három
+    ///     eszköznél az eredmény a sorrendtől függött. A mező nélküli rekord a
+    ///     másik oldal listáját ÉS jelét viszi; jel nélkül a régi szabály.
+    private static func mergeRules(_ a: SyncSite, _ b: SyncSite) -> ([UrlRules.UrlRule]?, Int) {
         let ar = cleanRules(a.rules)
         let br = cleanRules(b.rules)
-        guard let ar = ar else { return br }
-        guard let br = br else { return ar }
-        if a.rev == b.rev { return unionRules(ar, br) }
-        return a.rev > b.rev ? ar : br
+        let ma = ar == nil ? 0 : (a.rulesRev ?? 0)
+        let mb = br == nil ? 0 : (b.rulesRev ?? 0)
+        guard let ar = ar else { return (br, mb) }
+        guard let br = br else { return (ar, ma) }
+        if ma != mb { return ma > mb ? (ar, ma) : (br, mb) }
+        if a.rev == b.rev { return (unionRules(ar, br), ma) }
+        return (a.rev > b.rev ? ar : br, ma)
     }
 
     /// Szemétszűrés: a szinkronon át érkező szabály ugyanolyan megbízhatatlan,

@@ -66,13 +66,18 @@ private func randomSite(_ r: inout Lcg, _ device: String) -> SyncMerge.SyncSite 
     } else if rulesDraw >= 0.25 {
         rules = []
     }
+    // A SZABÁLYLISTA JELE — két húzás, feltétel nélkül, mint a gépen.
+    let rulesMarkDraw = r.next()
+    let rulesMarkValue = min(1 + Int(r.next() * 5), rev)
+    let rulesRev: Int? = (rules != nil && rulesMarkDraw < 0.6) ? rulesMarkValue : nil
     return SyncMerge.SyncSite(
         id: "site_1", domain: "youtube.com", hostnames: hostnames, addedAt: 1_000,
         pendingDeleteAt: pending, schedule: schedule, dailyLimitSeconds: limit,
         burstSeconds: burst?.0, cooldownSeconds: burst?.1,
         alias: alias, reason: reason, rules: rules,
         rev: rev, updatedAt: updatedAt, updatedBy: device,
-        hostnameMarks: marks.isEmpty ? nil : marks
+        hostnameMarks: marks.isEmpty ? nil : marks,
+        rulesRev: rulesRev
     )
 }
 

@@ -68,6 +68,7 @@ export function bumpRevisions(state: HelperState, deviceId: string, now: number)
     if (site.revFp === fp) {
       // Frissítés utáni első kör: a lista még nincs eltéve — innentől van.
       if (!site.revHosts) site.revHosts = [...site.hostnames];
+      if (site.revRulesKey === undefined) site.revRulesKey = rulesKey(site);
       continue;
     }
     site.rev = (site.rev ?? 0) + 1;
@@ -75,6 +76,7 @@ export function bumpRevisions(state: HelperState, deviceId: string, now: number)
     site.updatedBy = deviceId;
     site.revFp = fp;
     markHostnames(site);
+    markRules(site);
     changed++;
   }
   if (bumpFocusRevision(state, deviceId, now)) changed++;
@@ -407,7 +409,27 @@ export function adoptChannelsRevision(state: HelperState): void {
  * fölöslegesen a számlálót, és nem indul be egy végtelen oda-vissza írás.
  */
 export function adoptRevision(site: SiteRec): SiteRec {
-  return { ...site, revFp: fingerprint(site), revHosts: [...site.hostnames] };
+  return { ...site, revFp: fingerprint(site), revHosts: [...site.hostnames], revRulesKey: rulesKey(site) };
+}
+
+/** A szabálylista tartalmi kulcsa — a „nincs mező” más, mint az üres lista. */
+function rulesKey(site: SiteRec): string {
+  return site.rules === undefined ? '-' : [...site.rules].map((r) => `${r.host}${r.path}`).sort().join('|');
+}
+
+/**
+ * A szabálylista JELE: ha a lista az előző léptetés óta változott, a jele ez
+ * a rev. A fésülés ebből tudja, melyik eszköz mondta az újabbat (merge.ts,
+ * `mergeRules`) — a rekord rev-je helyett, ami más szerkesztéstől is nő, és
+ * egy mező nélküli (régi) klienstől is jöhet. Az első léptetés (nincs még
+ * eltett kulcs) jel nélkül megy; az átvett jel marad, amíg a lista nem változik.
+ */
+function markRules(site: SiteRec): void {
+  const prev = site.revRulesKey;
+  const key = rulesKey(site);
+  site.revRulesKey = key;
+  if (prev === undefined || site.rev === undefined || prev === key) return;
+  site.rulesRev = site.rev;
 }
 
 /**

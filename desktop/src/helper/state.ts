@@ -59,6 +59,10 @@ export interface SiteRec {
    * ne kelljen minden gépen újra felvenni. Lásd docs/feature-partial-block.md.
    */
   rules?: UrlRule[];
+  /** a szabálylista jele: az a `rev`, amelyik a listát utoljára változtatta (lásd shared/sync/merge.ts) */
+  rulesRev?: number;
+  /** a szabálylista kulcsa az utolsó rev-léptetéskor/átvételkor — ebből lesz a jel; helyi */
+  revRulesKey?: string;
 
   // --- szinkron (lásd helper/revisions.ts és shared/sync/merge.ts) ---
   /** hányszor változott érdemben ez a rekord; ez dönt az összefésülésnél */

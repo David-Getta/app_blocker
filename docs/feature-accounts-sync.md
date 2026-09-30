@@ -115,6 +115,14 @@ Ezért:
   el (mindegyik a saját, szigorúbb vagy kifizetett listáját tartja), de a
   régi gép próbatétele hiába. A hurok megáll, amint a régi kliens frissül —
   ezért érdemes minden gépet egyszerre frissíteni.
+- **A részleges szabályok jele.** A szabálylista egyben utazik, és a
+  fésülésében a JELE dönt (`rulesRev`: az a rev, amelyik a listát utoljára
+  változtatta): a nagyobb jel nyer, azonos jelnél egyenlő rev-nél unió,
+  különben az újabb rekordé; a mező nélküli (régi) kliens rekordja a másik
+  oldal listáját és jelét viszi — nem a saját rev-jével hitelesíti, mert úgy
+  három eszköznél az eredmény a sorrendtől függött. A gép bélyegzi a
+  léptetésben, a telefon hordozza; a fixtúra és a tesztek mindhárom nyelven
+  őrzik. Lásd docs/feature-partial-block.md.
 - **A munkamenet-csomagok ugyanígy, csomagonként.** A csomaglista egy
   blobban utazik, és a blob `rev`-jét a telefon egy menet indításával is
   lépteti; jel nélkül egy azonos rev-ű, frissebb telefon-blob egyben hozta

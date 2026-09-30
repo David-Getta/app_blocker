@@ -156,6 +156,8 @@ object SyncClient {
             alias = s.alias, reason = s.reason, rules = s.rules,
             rev = maxOf(s.rev, 1), updatedAt = s.updatedAt, updatedBy = s.updatedBy,
             hostnameMarks = s.hostnameMarks,
+            // A szabálylista jele is hordozott: a gépen kifizetett levétel nyoma.
+            rulesRev = s.rulesRev,
         )
     }
 
@@ -174,6 +176,7 @@ object SyncClient {
                     alias = m.alias, reason = m.reason, rules = m.rules,
                     rev = m.rev, updatedAt = m.updatedAt, updatedBy = m.updatedBy,
                     hostnameMarks = m.hostnameMarks,
+                    rulesRev = m.rulesRev,
                 )
             )
         }
@@ -223,6 +226,8 @@ object SyncClient {
                 put("rev", s.rev); put("updatedAt", s.updatedAt); put("updatedBy", s.updatedBy)
                 // A jelek csak akkor, ha vannak: a hiányzó és az üres itt ugyanaz.
                 if (s.hostnameMarks != null) put("hostnameMarks", JSONObject(s.hostnameMarks))
+                // A szabálylista jele csak lista mellett: mező nélkül nincs jel.
+                if (s.rules != null && s.rulesRev != null) put("rulesRev", s.rulesRev)
             })
         }
         return arr.toString()
@@ -287,6 +292,10 @@ object SyncClient {
                     hostnameMarks = marksFromJson(o, "hostnameMarks", o.optInt("rev", 1))?.let {
                         SyncMerge.capHostnameMarks(it, (0 until hosts.length()).map { i -> hosts.getString(i) })
                     },
+                    // A szabálylista jele: pozitív egész, legfeljebb a rekord rev-je —
+                    // és csak lista mellett; mező nélkül nincs jel.
+                    rulesRev = if (o.isNull("rules")) null
+                        else o.optInt("rulesRev", 0).takeIf { it > 0 && it <= o.optInt("rev", 1) },
                 ))
             }
         }

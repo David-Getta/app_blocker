@@ -70,7 +70,7 @@ final class MergeFixtureTests: XCTestCase {
             + " pending=\(opt(s.pendingDeleteAt)) limit=\(opt(s.dailyLimitSeconds)) alias=\(s.alias ?? "-")"
             + " reason=\(s.reason ?? "-")"
             + " at=\(int(s.updatedAt)) by=\(s.updatedBy)"
-            + " sched=\(sched) burst=\(burst) rules=\(rules)"
+            + " sched=\(sched) burst=\(burst) rules=\(rules) rmark=\(s.rulesRev ?? 0)"
     }
 
     private func focusKey(_ f: FocusSync.SyncFocus) -> String {

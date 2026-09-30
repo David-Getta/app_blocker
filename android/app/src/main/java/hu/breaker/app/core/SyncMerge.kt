@@ -61,6 +61,13 @@ object SyncMerge {
          * ír újat. Lásd `withHostnames` (merge.ts tükre).
          */
         val hostnameMarks: Map<String, Int>? = null,
+        /**
+         * A szabálylista JELE: a rekord rev-je, amelyik a listát utoljára
+         * változtatta. A fésülésben a nagyobb jel dönt; azonos jelnél a régi
+         * szabály; a mező nélküli rekord (régi kliens) a másik oldal listáját
+         * ÉS jelét viszi. A telefon nem ír ilyet, hordozza. Lásd `mergeRules`.
+         */
+        val rulesRev: Int? = null,
     )
 
     // --------------------------------------------------------- szigorúság
@@ -225,8 +232,10 @@ object SyncMerge {
     }
 
     private fun withRules(winner: SyncSite, a: SyncSite, b: SyncSite): SyncSite {
-        val rules = mergeRules(a, b)
-        return if (rules == winner.rules) winner else winner.copy(rules = rules)
+        val (rules, mark) = mergeRules(a, b)
+        val rulesRev = mark.takeIf { it > 0 }
+        return if (rules == winner.rules && rulesRev == winner.rulesRev) winner
+            else winner.copy(rules = rules, rulesRev = rulesRev)
     }
 
     /**
@@ -245,14 +254,22 @@ object SyncMerge {
      *     ismeri ezt a mezőt: ami átmegy rajta, abból eltűnik. Ha a hiányt
      *     mindenestül törlésnek vennénk, elég lenne egy frissítetlen eszköz a
      *     fiókban, és a gépen felvett összes szabály csendben eltűnne.
+     *  4. **A JEL DÖNT, nem a rekord rev-je** (`rulesRev`). A rekord rev-je más
+     *     szerkesztéstől is nő, és egy mező nélküli régi kliens nagy rev-je azt
+     *     a listát hitelesítené, amelyikkel épp előbb találkozott — három
+     *     eszköznél az eredmény a sorrendtől függött. A mező nélküli rekord a
+     *     másik oldal listáját ÉS jelét viszi; jel nélkül a régi szabály.
      */
-    private fun mergeRules(a: SyncSite, b: SyncSite): List<UrlRules.UrlRule>? {
+    private fun mergeRules(a: SyncSite, b: SyncSite): Pair<List<UrlRules.UrlRule>?, Int> {
         val ar = cleanRules(a.rules)
         val br = cleanRules(b.rules)
-        if (ar == null) return br
-        if (br == null) return ar
-        if (a.rev == b.rev) return unionRules(ar, br)
-        return if (a.rev > b.rev) ar else br
+        val ma = if (ar == null) 0 else (a.rulesRev ?: 0)
+        val mb = if (br == null) 0 else (b.rulesRev ?: 0)
+        if (ar == null) return br to mb
+        if (br == null) return ar to ma
+        if (ma != mb) return if (ma > mb) ar to ma else br to mb
+        if (a.rev == b.rev) return unionRules(ar, br) to ma
+        return (if (a.rev > b.rev) ar else br) to ma
     }
 
     /** Szemétszűrés: a szinkronon át érkező szabály ugyanolyan megbízhatatlan, mint bármi más. */

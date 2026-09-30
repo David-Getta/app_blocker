@@ -276,6 +276,7 @@ function toSyncSites(sites: SiteRec[], deviceId: string): SyncSite[] {
     pauseUntil: null, pendingDeleteAt: s.pendingDeleteAt,
     schedule: s.schedule, dailyLimitSeconds: s.dailyLimitSeconds, alias: s.alias, reason: s.reason,
     rules: s.rules,
+    ...(s.rulesRev ? { rulesRev: s.rulesRev } : {}),
     rev: s.rev ?? 1, updatedAt: s.updatedAt ?? s.addedAt, updatedBy: s.updatedBy ?? deviceId,
   })).map((s) => cleanSite(s as unknown as Record<string, unknown>));
 }
@@ -299,6 +300,8 @@ function fromSyncSites(merged: SyncSite[], local: SiteRec[]): SiteRec[] {
     pendingDeleteAt: m.pendingDeleteAt,
     schedule: m.schedule, dailyLimitSeconds: m.dailyLimitSeconds, alias: m.alias, reason: m.reason,
     rules: m.rules,
+    // A szabálylista jele is a fésülés eredményéből jön, mint a nevek jelei.
+    rulesRev: m.rulesRev,
     rev: m.rev, updatedAt: m.updatedAt, updatedBy: m.updatedBy,
   } as SiteRec));
 }
@@ -389,6 +392,11 @@ function cleanSite(s: Record<string, unknown>): SyncSite {
   const hostnames = cleanHostnames(s.hostnames);
   const rev = Number.isFinite(s.rev) ? (s.rev as number) : 1;
   const marks = cleanMarks(s.hostnameMarks, hostnames, rev);
+  const rules = cleanRules(s.rules);
+  // A szabálylista jele: pozitív egész, legfeljebb a rekord rev-je — és csak
+  // lista mellett; mező nélkül nincs jel (a régi kliens rekordja semleges).
+  const rulesRev = rules !== undefined && Number.isInteger(s.rulesRev)
+    && (s.rulesRev as number) > 0 && (s.rulesRev as number) <= rev ? (s.rulesRev as number) : undefined;
   return {
     id: s.id as string,
     domain: s.domain as string,
@@ -407,7 +415,8 @@ function cleanSite(s: Record<string, unknown>): SyncSite {
     // Ezért NEM alakítjuk üres tömbbé — az azt jelentené, hogy minden szabály
     // törölve, és egy frissítetlen telefon a fiókban csendben letörölné a gépen
     // felvetteket (lásd merge.ts `mergeRules`).
-    rules: cleanRules(s.rules),
+    rules,
+    ...(rulesRev !== undefined ? { rulesRev } : {}),
     rev: Number.isInteger(s.rev) ? (s.rev as number) : 1,
     updatedAt: Number.isFinite(s.updatedAt) ? (s.updatedAt as number) : 0,
     updatedBy: typeof s.updatedBy === 'string' ? s.updatedBy : '',
@@ -450,6 +459,7 @@ function canonical(s: SyncSite): unknown[] {
     // Rendezve: a sorrend nem jelent semmit, viszont ha számítana, minden kör
     // „változást” látna, és fölöslegesen feltöltene.
     s.rules ? s.rules.map((r) => `${r.host}${r.path}`).sort() : null,
+    s.rulesRev ?? null,
     s.rev, s.updatedAt, s.updatedBy,
   ];
 }

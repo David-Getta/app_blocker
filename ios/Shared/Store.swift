@@ -57,6 +57,8 @@ struct Site: Codable, Identifiable, Equatable {
     /// az iPhone nem ír ilyet, de HORDOZZA: enélkül egy itteni szerkesztés
     /// letörölné a gépen kifizetett levétel nyomát. Lásd SyncMerge.
     var hostnameMarks: [String: Int]?
+    /// A szabálylista jele — az iPhone nem ír ilyet, hordozza. Lásd SyncMerge.
+    var rulesRev: Int?
 }
 
 struct SessionRec: Codable, Equatable, Identifiable {

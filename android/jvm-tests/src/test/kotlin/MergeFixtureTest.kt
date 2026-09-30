@@ -54,7 +54,7 @@ class MergeFixtureTest {
             " pending=${opt(s.pendingDeleteAt)} limit=${opt(s.dailyLimitSeconds)} alias=${opt(s.alias)}" +
             " reason=${opt(s.reason)}" +
             " at=${s.updatedAt} by=${s.updatedBy}" +
-            " sched=$sched burst=$burst rules=$rules"
+            " sched=$sched burst=$burst rules=$rules rmark=${s.rulesRev ?: 0}"
     }
 
     private fun focusKey(f: FocusSync.SyncFocus): String {

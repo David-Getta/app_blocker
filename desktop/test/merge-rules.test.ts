@@ -68,6 +68,37 @@ test('an app version that does not know the field cannot delete the rules', () =
   assert.deepEqual(labels(mergeSite(mine, emptied)), []);
 });
 
+test('the mark decides: a paid removal beats a higher rev, and an old client does not endorse the list it met first', () => {
+  // A JEL: a lista levétele (kifizetett) nagyobb jellel átmegy akkor is, ha a
+  // másik rekord rev-je más szerkesztéstől nagyobb — a rekord rev-je nem a
+  // szabálylista története.
+  const kept = site({ rev: 6, rules: [R('youtube.com/@egy')], rulesRev: 2 });
+  const removed = site({ rev: 4, rules: [], rulesRev: 4, updatedBy: 'gep-b' });
+  assert.deepEqual(labels(mergeSite(kept, removed)), []);
+  assert.equal(mergeSite(kept, removed).rulesRev, 4);
+  assert.equal(mergeSite(removed, kept).rulesRev, 4);
+  // Azonos jelnél a régi szabály: egyenlő revnél unió, a jel marad.
+  const x = site({ rev: 5, rules: [R('youtube.com/@egy')], rulesRev: 3 });
+  const y = site({ rev: 5, rules: [R('youtube.com/@ketto')], rulesRev: 3, updatedBy: 'gep-b' });
+  assert.deepEqual(labels(mergeSite(x, y)), ['youtube.com/@egy', 'youtube.com/@ketto']);
+  assert.equal(mergeSite(x, y).rulesRev, 3);
+  // Régi kliens (nincs mező, nagy rev) és két új kliens: a sorrend nem számít.
+  // A rekord rev-jével a régi kliens azt a listát hitelesítette volna,
+  // amelyikkel épp előbb találkozott — [egy] vagy [] a sorrendtől függően.
+  const old = site({ rev: 9, updatedBy: 'telefon' });
+  const d = site({ rev: 2, rules: [R('youtube.com/@egy')], rulesRev: 2 });
+  const e = site({ rev: 3, rules: [], rulesRev: 3, updatedBy: 'gep-b' });
+  const viaD = mergeSite(mergeSite(old, d), e);
+  const viaE = mergeSite(mergeSite(old, e), d);
+  assert.deepEqual(labels(viaD), []);
+  assert.deepEqual(labels(viaE), []);
+  assert.equal(viaD.rulesRev, 3);
+  assert.equal(viaE.rulesRev, 3);
+  assert.equal(mergeSite(old, d).rulesRev, 2, 'a régi kliens a másik jelét viszi, nem a saját rev-jét');
+  // Jel nélküli (régi) rekordok között a régi szabály áll.
+  assert.deepEqual(labels(mergeSite(site({ rev: 5, rules: [R('youtube.com/@egy')] }), site({ rev: 3, rules: [] }))), ['youtube.com/@egy']);
+});
+
 test('a site that never had rules stays without the field', () => {
   // Ha minden rekordba beletennénk egy üres tömböt, két szerkezetileg azonos
   // lista különbözőnek látszana, és a szinkron minden körben feltöltene.

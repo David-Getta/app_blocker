@@ -2960,6 +2960,29 @@ const WIRES = [
     needle: 's.burstSeconds ?? null, s.cooldownSeconds ?? null,',
     lost: 'a gép egyezés-kulcsa nem nézné az adag-szabályt — egy csak ebben eltérő fésült rekord nem íródna be és nem menne fel',
   },
+  // A RÉSZLEGES SZABÁLYOK JELE: a fésülés a jel szerint dönt mindhárom nyelven,
+  // és a gép a léptetésben bélyegzi. Ha a jel nem érne a fésült rekordba, a
+  // rekord rev-je döntene — sorrendfüggően, egy régi kliens mellett.
+  {
+    file: 'desktop/src/shared/sync/merge.ts',
+    needle: 'const { rules, mark } = mergeRules(a, b);',
+    lost: 'a gépen a szabálylista jele nem érne a fésült rekordba — a régi kliens rev-je döntene, sorrendfüggően',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/SyncMerge.kt',
+    needle: 'val (rules, mark) = mergeRules(a, b)',
+    lost: 'Androidon a szabálylista jele nem érne a fésült rekordba — a régi kliens rev-je döntene, sorrendfüggően',
+  },
+  {
+    file: 'ios/Shared/SyncMerge.swift',
+    needle: 'let (rules, mark) = mergeRules(a, b)',
+    lost: 'iPhone-on a szabálylista jele nem érne a fésült rekordba — a régi kliens rev-je döntene, sorrendfüggően',
+  },
+  {
+    file: 'desktop/src/helper/revisions.ts',
+    needle: 'markRules(site);',
+    lost: 'a szabálylista sosem kapna jelet a gépen — a kifizetett levétel nem érne át egy régi kliens mellett',
+  },
 ];
 
 /**

@@ -405,6 +405,20 @@ test('a list that differs only in the burst rule is a change; the order of names
   ), true);
 });
 
+test('the rule mark travels only with a list, only up to the record rev, and its change is a difference', () => {
+  const base = {
+    id: 'a', domain: 'youtube.com', hostnames: ['youtube.com'], addedAt: 1,
+    pendingDeleteAt: null, rev: 3, updatedAt: 5, updatedBy: 'telefon',
+  };
+  const rules = [{ host: 'youtube.com', path: '/x' }];
+  assert.equal(normalizeIncomingSites([{ ...base, rules, rulesRev: 2 }])[0].rulesRev, 2);
+  assert.equal(normalizeIncomingSites([{ ...base, rules, rulesRev: 99 }])[0].rulesRev, undefined, 'a rev fölötti jel eldobva');
+  assert.equal(normalizeIncomingSites([{ ...base, rulesRev: 2 }])[0].rulesRev, undefined, 'lista nélkül nincs jel');
+  assert.equal(normalizeIncomingSites([{ ...base, rules: [], rulesRev: 3 }])[0].rulesRev, 3, 'az üres lista is lista');
+  const s: SyncSite = { ...base, pauseUntil: null, rules };
+  assert.equal(sameSites([{ ...s, rulesRev: 2 }], [{ ...s, rulesRev: 3 }]), false, 'a jel cseréje különbség');
+});
+
 test('the same Android payload twice is not seen as a change', () => {
   const a = normalizeIncomingSites(JSON.parse(ANDROID_PAYLOAD));
   const b = normalizeIncomingSites(JSON.parse(ANDROID_PAYLOAD));

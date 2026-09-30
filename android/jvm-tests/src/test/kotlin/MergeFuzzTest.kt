@@ -71,6 +71,10 @@ class MergeFuzzTest {
             rulesPick == 2 -> listOf(rulePool[0], rulePool[1])
             else -> listOf(rulePool[rulesPick])
         }
+        // A SZABÁLYLISTA JELE — két húzás, feltétel nélkül, mint a gépen.
+        val rulesMarkDraw = r.next()
+        val rulesMarkValue = minOf(1 + (r.next() * 5).toInt(), rev)
+        val rulesRev = if (rules != null && rulesMarkDraw < 0.6) rulesMarkValue else null
         return SyncMerge.SyncSite(
             id = "site_1", domain = "youtube.com", hostnames = hostnames, addedAt = 1_000,
             pendingDeleteAt = pending, schedule = schedule, dailyLimitSeconds = limit,
@@ -78,6 +82,7 @@ class MergeFuzzTest {
             alias = alias, reason = reason, rules = rules,
             rev = rev, updatedAt = updatedAt, updatedBy = device,
             hostnameMarks = marks.ifEmpty { null },
+            rulesRev = rulesRev,
         )
     }
 

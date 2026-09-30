@@ -175,7 +175,8 @@ enum SyncClient {
                 rev: max(s.rev ?? 1, 1), updatedAt: s.updatedAt ?? s.addedAt,
                 updatedBy: s.updatedBy ?? "",
                 // A jelek is hordozottak: a gépen kifizetett levétel nyoma.
-                hostnameMarks: s.hostnameMarks
+                hostnameMarks: s.hostnameMarks,
+                rulesRev: s.rulesRev
             )
         }
     }
@@ -198,6 +199,7 @@ enum SyncClient {
             out.updatedAt = m.updatedAt
             out.updatedBy = m.updatedBy
             out.hostnameMarks = m.hostnameMarks
+            out.rulesRev = m.rulesRev
             out.revFp = SyncRevisions.fingerprint(out)
             return out
         }

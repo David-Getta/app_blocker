@@ -67,6 +67,14 @@ export interface SyncSite {
    * Lásd `mergeRules`.
    */
   rules?: UrlRule[];
+  /**
+   * A szabálylista JELE: a rekord `rev`-je, amelyik a listát utoljára
+   * változtatta. A fésülésben a nagyobb jel dönt; azonos jelnél a régi
+   * szabály (egyenlő revnél unió, különben az újabb rekord listája); a mező
+   * nélküli rekord (régi kliens) a másik oldal listáját ÉS jelét viszi — nem
+   * a saját rev-jével hitelesíti. Lásd `mergeRules`.
+   */
+  rulesRev?: number;
   /** hányszor módosult ez a rekord; csak nő */
   rev: number;
   /** mikor módosult utoljára (ms) */
@@ -291,13 +299,11 @@ export function capHostnameMarks(
 }
 
 function withRules(winner: SyncSite, a: SyncSite, b: SyncSite): SyncSite {
-  const rules = mergeRules(a, b);
-  if (rules === undefined) {
-    if (winner.rules === undefined) return winner;
-    const { rules: _drop, ...rest } = winner;
-    return rest;
-  }
-  return { ...winner, rules };
+  const { rules, mark } = mergeRules(a, b);
+  const out: SyncSite = { ...winner };
+  if (rules === undefined) delete out.rules; else out.rules = rules;
+  if (mark > 0) out.rulesRev = mark; else delete out.rulesRev;
+  return out;
 }
 
 /**
@@ -317,14 +323,23 @@ function withRules(winner: SyncSite, a: SyncSite, b: SyncSite): SyncSite {
  *      frissítetlen telefon a fiókban, és a gépen felvett összes szabály
  *      csendben eltűnne. Ezért a „nem tudok a mezőről” nem törölhet: olyankor a
  *      másik oldal listája marad.
+ *   4. **A JEL DÖNT, nem a rekord rev-je** (`rulesRev`: az a rev, amelyik a
+ *      listát utoljára változtatta). A rekord rev-je más szerkesztéstől is nő,
+ *      és egy mező nélküli régi kliens nagy rev-je azt a listát „hitelesítené”,
+ *      amelyikkel épp előbb találkozott — három eszköznél az eredmény a
+ *      sorrendtől függött. A jellel nem: a mező nélküli rekord a másik oldal
+ *      listáját ÉS jelét viszi; jel nélküli (régi) rekordoknál a régi szabály.
  */
-function mergeRules(a: SyncSite, b: SyncSite): UrlRule[] | undefined {
+function mergeRules(a: SyncSite, b: SyncSite): { rules: UrlRule[] | undefined; mark: number } {
   const ar = cleanRules(a.rules);
   const br = cleanRules(b.rules);
-  if (ar === undefined) return br;
-  if (br === undefined) return ar;
-  if (a.rev === b.rev) return unionRules(ar, br);
-  return a.rev > b.rev ? ar : br;
+  const ma = ar === undefined ? 0 : (a.rulesRev ?? 0);
+  const mb = br === undefined ? 0 : (b.rulesRev ?? 0);
+  if (ar === undefined) return { rules: br, mark: mb };
+  if (br === undefined) return { rules: ar, mark: ma };
+  if (ma !== mb) return ma > mb ? { rules: ar, mark: ma } : { rules: br, mark: mb };
+  if (a.rev === b.rev) return { rules: unionRules(ar, br), mark: ma };
+  return { rules: a.rev > b.rev ? ar : br, mark: ma };
 }
 
 /** Szemétszűrés: a szinkronon át érkező szabály ugyanolyan megbízhatatlan, mint bármi más. */

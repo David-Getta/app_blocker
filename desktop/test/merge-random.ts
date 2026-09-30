@@ -67,6 +67,11 @@ export function randomSite(r: () => number, device: string): SyncSite {
   const rules: UrlRule[] | undefined = rulesDraw < 0.25 ? undefined
     : rulesDraw < 0.45 ? []
       : rulesPick === 2 ? [RULES[0], RULES[1]] : [RULES[rulesPick]];
+  // A SZABÁLYLISTA JELE — két húzás, feltétel nélkül: van-e jel (csak lista
+  // mellett; a jel nélküli lista a régi rekord), és az értéke, legfeljebb a rev.
+  const rulesMarkDraw = r();
+  const rulesMarkValue = Math.min(1 + Math.floor(r() * 5), rev);
+  const rulesRev = rules !== undefined && rulesMarkDraw < 0.6 ? rulesMarkValue : undefined;
   return {
     id: 'site_1', domain: 'youtube.com', hostnames, addedAt: 1_000,
     ...(Object.keys(marks).length ? { hostnameMarks: marks } : {}),
@@ -74,6 +79,7 @@ export function randomSite(r: () => number, device: string): SyncSite {
     ...(schedule ? { schedule } : {}),
     ...(burst ? { burstSeconds: burst[0], cooldownSeconds: burst[1] } : {}),
     ...(rules !== undefined ? { rules } : {}),
+    ...(rulesRev !== undefined ? { rulesRev } : {}),
   };
 }
 
@@ -197,7 +203,7 @@ export function siteConformanceKey(s: SyncSite): string {
     + ` pending=${opt(s.pendingDeleteAt)} limit=${opt(s.dailyLimitSeconds)} alias=${opt(s.alias)}`
     + ` reason=${opt(s.reason)}`
     + ` at=${s.updatedAt} by=${s.updatedBy}`
-    + ` sched=${sched} burst=${burst} rules=${rules}`;
+    + ` sched=${sched} burst=${burst} rules=${rules} rmark=${s.rulesRev ?? 0}`;
 }
 
 export function focusConformanceKey(f: SyncFocus): string {

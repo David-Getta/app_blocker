@@ -56,6 +56,8 @@ data class Site(
      * letörölné a gépen kifizetett levétel nyomát. Lásd SyncMerge.
      */
     val hostnameMarks: Map<String, Int>? = null,
+    /** A szabálylista jele — a telefon nem ír ilyet, hordozza. Lásd SyncMerge. */
+    val rulesRev: Int? = null,
 )
 
 data class SessionRec(
@@ -591,6 +593,7 @@ object BreakerStore {
                 put("updatedBy", site.updatedBy)
                 put("revFp", site.revFp ?: JSONObject.NULL)
                 put("hostnameMarks", site.hostnameMarks?.let { JSONObject(it) } ?: JSONObject.NULL)
+                put("rulesRev", site.rulesRev ?: JSONObject.NULL)
             }
         }))
         put("unlockLog", JSONArray(s.unlockLog))
@@ -799,6 +802,7 @@ object BreakerStore {
                         updatedBy = s.optString("updatedBy", ""),
                         revFp = if (s.isNull("revFp")) null else s.optString("revFp"),
                         hostnameMarks = SyncClient.marksFromJson(s),
+                        rulesRev = if (s.isNull("rulesRev")) null else s.optInt("rulesRev", 0).takeIf { it > 0 },
                     )
                 }.getOrNull()
             }

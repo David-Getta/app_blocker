@@ -194,7 +194,14 @@ fölösleges: a szinkron nem dobhat el olyan mezőt, amit nem ért, különben a
 telefon minden körben letörölné a gépen felvett szabályokat.
 
 Az összefésülés a rekord többi mezőjétől külön kezeli őket
-(`shared/sync/merge.ts`, `mergeRules`): egyenlő `rev`-nél EGYESÍT (két eszközön
-egyszerre felvett szabályból egyik sem veszhet el), nagyobb `rev`-nél a
-nyertesé érvényes (az eltávolítás mögött ott a próbatétel), a **hiányzó mező**
-pedig nem törlés, hanem „nem tudok róla”.
+(`shared/sync/merge.ts`, `mergeRules`), és a szabálylistának saját JELE van
+(`rulesRev`: az a `rev`, amelyik a listát utoljára változtatta — a gép írja a
+`commit()` eleji léptetésben, a telefonok hordozzák). A **nagyobb jel dönt**:
+az eltávolítás mögött ott a próbatétel, és átmegy akkor is, ha a másik rekord
+`rev`-je más szerkesztéstől nagyobb. Azonos jelnél a régi szabály: egyenlő
+`rev`-nél EGYESÍT (két eszközön egyszerre felvett szabályból egyik sem veszhet
+el), különben az újabb rekord listája. A **hiányzó mező** pedig nem törlés,
+hanem „nem tudok róla”: a másik oldal listája ÉS jele marad. Ez utóbbi azért
+a jel és nem a rekord `rev`-je: egy régi kliens nagy `rev`-je azt a listát
+hitelesítette volna, amelyikkel épp előbb találkozott, és három eszköznél az
+eredmény a sorrendtől függött.

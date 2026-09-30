@@ -29,11 +29,41 @@ class MergeRulesTest {
         rules: List<UrlRules.UrlRule>? = null,
         updatedAt: Long = 1_000,
         updatedBy: String = "gep-a",
+        rulesRev: Int? = null,
     ) = SyncSite(
         id = "site_1", domain = "youtube.com", hostnames = listOf("youtube.com"),
         addedAt = 1_000, pendingDeleteAt = null, schedule = null, dailyLimitSeconds = null,
         alias = null, rules = rules, rev = rev, updatedAt = updatedAt, updatedBy = updatedBy,
+        rulesRev = rulesRev,
     )
+
+    @Test fun `the mark decides, and an old client does not endorse the list it met first`() {
+        // A JEL: a kifizetett levétel nagyobb jellel átmegy akkor is, ha a másik
+        // rekord rev-je más szerkesztéstől nagyobb.
+        val kept = site(rev = 6, rules = listOf(r("youtube.com/@egy")), rulesRev = 2)
+        val removed = site(rev = 4, rules = emptyList(), rulesRev = 4, updatedBy = "gep-b")
+        assertEquals(emptyList(), labels(SyncMerge.mergeSite(kept, removed)))
+        assertEquals(4, SyncMerge.mergeSite(kept, removed).rulesRev)
+        assertEquals(4, SyncMerge.mergeSite(removed, kept).rulesRev)
+        // Azonos jelnél a régi szabály: egyenlő revnél unió, a jel marad.
+        val x = site(rev = 5, rules = listOf(r("youtube.com/@egy")), rulesRev = 3)
+        val y = site(rev = 5, rules = listOf(r("youtube.com/@ketto")), rulesRev = 3, updatedBy = "gep-b")
+        assertEquals(listOf("youtube.com/@egy", "youtube.com/@ketto"), labels(SyncMerge.mergeSite(x, y)))
+        assertEquals(3, SyncMerge.mergeSite(x, y).rulesRev)
+        // Régi kliens (nincs mező, nagy rev) és két új kliens: a sorrend nem számít.
+        val old = site(rev = 9, updatedBy = "telefon")
+        val d = site(rev = 2, rules = listOf(r("youtube.com/@egy")), rulesRev = 2)
+        val e = site(rev = 3, rules = emptyList(), rulesRev = 3, updatedBy = "gep-b")
+        val viaD = SyncMerge.mergeSite(SyncMerge.mergeSite(old, d), e)
+        val viaE = SyncMerge.mergeSite(SyncMerge.mergeSite(old, e), d)
+        assertEquals(emptyList(), labels(viaD))
+        assertEquals(emptyList(), labels(viaE))
+        assertEquals(3, viaD.rulesRev)
+        assertEquals(3, viaE.rulesRev)
+        assertEquals(2, SyncMerge.mergeSite(old, d).rulesRev, "a régi kliens a másik jelét viszi, nem a saját rev-jét")
+        // Jel nélküli (régi) rekordok között a régi szabály áll.
+        assertEquals(listOf("youtube.com/@egy"), labels(SyncMerge.mergeSite(site(rev = 5, rules = listOf(r("youtube.com/@egy"))), site(rev = 3, rules = emptyList()))))
+    }
 
     private fun labels(s: SyncSite) = (s.rules ?: emptyList()).map { it.host + it.path }.sorted()
 

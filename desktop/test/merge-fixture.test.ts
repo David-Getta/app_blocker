@@ -55,7 +55,7 @@ function buildFixture(): { note: string; version: number; sites: unknown[]; focu
     note: 'Generálja és őrzi: desktop/test/merge-fixture.test.ts (UPDATE_MERGE_FIXTURE=1 npm test). '
       + 'Olvassa: android/jvm-tests MergeFixtureTest, ios/SharedTests MergeFixtureTests. '
       + 'A focus-esetek flip/what/same mezője: egy mező cseréje, és hogy a három nyelv különbségnek tartja-e.',
-    version: 4,
+    version: 5,
     sites,
     focus,
   };

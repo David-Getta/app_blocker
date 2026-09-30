@@ -127,6 +127,42 @@ final class SyncMergeTests: XCTestCase {
         XCTAssertEqual(merged.first?.hostnames, ["m.youtube.com", "youtube.com"], "a jel nélküli m. bekerül, a jeles music. nem jön vissza")
     }
 
+    func testTheRuleMarkDecidesAndAnOldClientDoesNotEndorseTheListItMetFirst() {
+        func rec(_ rev: Int, _ rules: [UrlRules.UrlRule]?, _ mark: Int?, _ by: String) -> SyncMerge.SyncSite {
+            SyncMerge.SyncSite(
+                id: "site_1", domain: "youtube.com", hostnames: ["youtube.com"], addedAt: 1_000,
+                rules: rules, rev: rev, updatedAt: 100, updatedBy: by, rulesRev: mark
+            )
+        }
+        let r1 = UrlRules.UrlRule(host: "youtube.com", path: "/@egy")
+        let r2 = UrlRules.UrlRule(host: "youtube.com", path: "/@ketto")
+        // A JEL: a kifizetett levétel nagyobb jellel átmegy akkor is, ha a másik
+        // rekord rev-je más szerkesztéstől nagyobb.
+        let kept = rec(6, [r1], 2, "a")
+        let removed = rec(4, [], 4, "b")
+        XCTAssertEqual(SyncMerge.mergeSite(kept, removed).rules, [])
+        XCTAssertEqual(SyncMerge.mergeSite(kept, removed).rulesRev, 4)
+        XCTAssertEqual(SyncMerge.mergeSite(removed, kept).rulesRev, 4)
+        // Azonos jelnél a régi szabály: egyenlő revnél unió, a jel marad.
+        let x = rec(5, [r1], 3, "a")
+        let y = rec(5, [r2], 3, "b")
+        XCTAssertEqual(SyncMerge.mergeSite(x, y).rules, [r1, r2])
+        XCTAssertEqual(SyncMerge.mergeSite(x, y).rulesRev, 3)
+        // Régi kliens (nincs mező, nagy rev) és két új kliens: a sorrend nem számít.
+        let old = rec(9, nil, nil, "telefon")
+        let d = rec(2, [r1], 2, "a")
+        let e = rec(3, [], 3, "b")
+        let viaD = SyncMerge.mergeSite(SyncMerge.mergeSite(old, d), e)
+        let viaE = SyncMerge.mergeSite(SyncMerge.mergeSite(old, e), d)
+        XCTAssertEqual(viaD.rules, [])
+        XCTAssertEqual(viaE.rules, [])
+        XCTAssertEqual(viaD.rulesRev, 3)
+        XCTAssertEqual(viaE.rulesRev, 3)
+        XCTAssertEqual(SyncMerge.mergeSite(old, d).rulesRev, 2, "a régi kliens a másik jelét viszi, nem a saját rev-jét")
+        // Jel nélküli (régi) rekordok között a régi szabály áll.
+        XCTAssertEqual(SyncMerge.mergeSite(rec(5, [r1], nil, "a"), rec(3, [], nil, "b")).rules, [r1])
+    }
+
     func testAMissingRecordNeverMeansDeletion() {
         let mine = site(id: "site_a")
         var theirs = site(id: "site_b", addedAt: 2_000)
