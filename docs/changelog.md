@@ -8,6 +8,7 @@ kettővel korábbiban.
 
 | Verzió | Nap | Mi újság |
 |---|---|---|
+| v0.4.177 | 2026-09-30 | a részleges szabályok jele |
 | v0.4.176 | 2026-09-30 | a gép egyezés-kulcsa az adag-szabályt is nézi |
 | v0.4.175 | 2026-09-30 | a fixtúra az oldal-rekord minden mezőjét fésüli |
 | v0.4.174 | 2026-09-30 | a fixtúra a kulcsszavakat és a megbízottat is fésüli |
