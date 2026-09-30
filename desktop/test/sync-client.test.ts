@@ -13,8 +13,9 @@ import * as path from 'node:path';
 import { spawn, type ChildProcess } from 'node:child_process';
 import {
   signIn, signInWithRecovery, signOut, signUp, syncNow, normalizeServerUrl,
-  normalizeIncomingSites, SyncError,
+  normalizeIncomingSites, sameSites, SyncError,
 } from '../src/helper/sync-client';
+import type { SyncSite } from '../src/shared/sync/merge';
 import { bumpRevisions } from '../src/helper/revisions';
 import { defaultState, type HelperState, type SiteRec } from '../src/helper/state';
 
@@ -381,6 +382,27 @@ test('what Android writes, the desktop reads correctly', () => {
   assert.equal(rd.pendingDeleteAt, null);
   assert.equal(rd.dailyLimitSeconds, undefined);
   assert.equal(rd.alias, undefined);
+});
+
+test('a list that differs only in the burst rule is a change; the order of names and rules is not', () => {
+  const base: SyncSite = {
+    id: 'a', domain: 'youtube.com', hostnames: ['youtube.com', 'm.youtube.com'], addedAt: 1,
+    pauseUntil: null, pendingDeleteAt: null, rev: 2, updatedAt: 5, updatedBy: 'telefon',
+  };
+  // Az adag-szabály is a rekord része, és utazik: ha a kulcs nem nézné, egy
+  // csak ebben eltérő fésült rekord „ugyanaz” lenne — se beírás, se feltöltés.
+  // (A rev-léptetés ma elfedi; a kulcsnak akkor is minden utazó mezőt néznie kell.)
+  assert.equal(sameSites([base], [{ ...base, burstSeconds: 600, cooldownSeconds: 300 }]), false);
+  assert.equal(sameSites(
+    [{ ...base, burstSeconds: 600, cooldownSeconds: 300 }],
+    [{ ...base, burstSeconds: 600, cooldownSeconds: 900 }],
+  ), false);
+  // A sorrend nem jelentés: a hosztnevek és a szabályok rendezve hasonlítanak.
+  assert.equal(sameSites([base], [{ ...base, hostnames: ['m.youtube.com', 'youtube.com'] }]), true);
+  assert.equal(sameSites(
+    [{ ...base, rules: [{ host: 'youtube.com', path: '/a' }, { host: 'youtube.com', path: '/b' }] }],
+    [{ ...base, rules: [{ host: 'youtube.com', path: '/b' }, { host: 'youtube.com', path: '/a' }] }],
+  ), true);
 });
 
 test('the same Android payload twice is not seen as a change', () => {

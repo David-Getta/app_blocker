@@ -422,6 +422,13 @@ Melyik őr mit fog ki — és mit nem:
 A tanulság röviden: egy fiók-szintű mező nem „egy mező”, hanem tizenkét hely
 nyelvenként; és a fixtúra, bármilyen jó, a tizenkettőből hármat lát.
 
+Az oldal-rekordra ugyanez áll, egy különbséggel: a telefonok az oldal-listát
+szerkezeti egyenlőséggel hasonlítják (ott minden mező benne van), a gép
+kanonikus kulccsal (`sameSites`), hogy a mezők sorrendje és a másik platform
+kihagyott nil-jei ne látszódjanak változásnak. A kanonikus kulcsnak tehát
+minden utazó mezőt néznie kell — az adag-szabály a v0.4.176-ig hiányzott
+belőle; a rev-léptetés elfedte, a teszt és a tű most őrzi.
+
 ## Mikor szinkronizál magától
 
 A felhasználó nem fogja nyomkodni a „Szinkronizálás most” gombot. Ha csak kézzel

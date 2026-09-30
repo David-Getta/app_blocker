@@ -428,7 +428,7 @@ function decodeSites(acc: SyncAccount, payload: string | undefined): SyncSite[] 
  * verziót, a verziószám a végtelenségig nőne, és a kiszolgáló minden tíz
  * percben írna egyet a semmiért.
  */
-function sameSites(a: SyncSite[], b: SyncSite[]): boolean {
+export function sameSites(a: SyncSite[], b: SyncSite[]): boolean {
   return JSON.stringify(a.map(canonical)) === JSON.stringify(b.map(canonical));
 }
 
@@ -441,6 +441,10 @@ function canonical(s: SyncSite): unknown[] {
     s.pendingDeleteAt ?? null,
     s.schedule ? [s.schedule.mode, s.schedule.bands] : null,
     s.dailyLimitSeconds ?? null,
+    // Az adag-szabály is utazik: ha a kulcs nem nézné, egy csak ebben eltérő
+    // fésült rekord „ugyanaz” lenne — se beírás, se feltöltés. (A telefonok
+    // szerkezeti egyenlőséggel hasonlítanak, ott minden mező benne van.)
+    s.burstSeconds ?? null, s.cooldownSeconds ?? null,
     s.alias ?? null,
     s.reason ?? null,
     // Rendezve: a sorrend nem jelent semmit, viszont ha számítana, minden kör

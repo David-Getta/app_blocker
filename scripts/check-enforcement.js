@@ -2952,6 +2952,14 @@ const WIRES = [
     needle: 'let account = store.state.sync != nil',
     lost: 'iPhone-on a rejtett lista kártyája nem mondaná ki, hogy a rejtés a fiók egészére szól',
   },
+  // A GÉP EGYEZÉS-KULCSA az oldal-rekordnál: minden utazó mezőt néznie kell. A
+  // telefonok szerkezeti egyenlőséggel hasonlítanak, ott nem tud kimaradni
+  // semmi; a gép kanonikus kulcsából az adag-szabály egyszer kimaradt.
+  {
+    file: 'desktop/src/helper/sync-client.ts',
+    needle: 's.burstSeconds ?? null, s.cooldownSeconds ?? null,',
+    lost: 'a gép egyezés-kulcsa nem nézné az adag-szabályt — egy csak ebben eltérő fésült rekord nem íródna be és nem menne fel',
+  },
 ];
 
 /**
