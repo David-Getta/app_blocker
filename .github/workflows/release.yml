@@ -44,23 +44,23 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A fedőnév zárja.** A fedőnév mögé bújt valódi címet a „Mutasd” gomb
-          ezután is hat másodpercre mutatja meg — de csak a készülék azonosítása
-          után (ujjlenyomat, arc vagy kód; Macen Touch ID), ahogy a rejtett
-          lista is. Ugyanaz a rés, ugyanaz a zár: egy koppintás ne mutassa meg,
-          mi bújik a név mögött. A lista és a fedőnév kapuja egy üzenet-sort
-          használ; ahol nincs mivel azonosítani, a cím kérésre előjön — és
-          kimondja.
+          **A fedőnév levétele is a zár mögött.** A fedőnév levétele felfed —
+          onnantól a valódi cím áll a listán —, ezért ugyanazt a kaput kapta,
+          mint a Mutasd: ujjlenyomat, arc vagy kód (Macen Touch ID). Az
+          átnevezés nem fed fel, az marad egy koppintás. Elutasításnál a név
+          marad, és a felület kimondja; ahol nincs mivel azonosítani, kérésre
+          lekerül — és kimondja. A segéd (a bíró) ebből semmit nem lát: a zár a
+          felületé.
 
-          ### Ami a v0.4.165-ben jött
+          ### Ami a v0.4.166-ban jött
+
+          **A fedőnév zárja.** A fedőnév mögé bújt valódi címet a Mutasd csak a
+          készülék azonosítása után mutatja meg.
+
+          #### Ami a v0.4.165-ben jött
 
           **A rejtett lista zárja.** A rejtett blokklista csak a készülék
-          azonosítása után nyílik meg — ujjlenyomat, arc vagy kód; Macen Touch ID.
-
-          #### Ami a v0.4.164-ben jött
-
-          **Az őszinte korlátok teljesebb listája.** A törlés-védelem leírása az
-          adb-t és a gyári visszaállítást is nevén nevezi.
+          azonosítása után nyílik meg.
 
           NOTES
           fi
