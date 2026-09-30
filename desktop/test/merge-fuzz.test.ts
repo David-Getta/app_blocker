@@ -14,6 +14,8 @@ import { mergeSite, type SyncSite } from '../src/shared/sync/merge';
 import { mergeFocus, type SyncFocus } from '../src/shared/sync/focus-merge';
 import { DEVICES, randomFocus, randomSite, rng } from './merge-random';
 import { windowKey } from '../src/shared/lockdown';
+import { keywordsKey } from '../src/shared/keywords';
+import { partnerKey } from '../src/shared/partner';
 
 /**
  * A NEVEK és a JELEIK — ezek fésülődnek nevenként. A rekord többi mezője
@@ -69,6 +71,11 @@ function focusKey(f: SyncFocus, runIds: Set<string>): string {
     f.lockdown ?? null,
     (f.lockdownWindows ?? []).map(windowKey).sort(),
     f.lockdownWindowsRev ?? null,
+    // A rejtés, a kulcsszavak és a megbízott a jelükkel — mint a Kotlin és a
+    // Swift fuzz kulcsában: ami a fésülésben dől el, az itt is mérve van.
+    f.hideSiteList === true, f.hideSiteListRev ?? null,
+    keywordsKey(f.keywords ?? []), f.keywordsRev ?? null,
+    partnerKey(f.partner), f.partnerRev ?? null,
   ]);
 }
 

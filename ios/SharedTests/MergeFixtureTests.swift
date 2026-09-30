@@ -85,6 +85,8 @@ final class MergeFixtureTests: XCTestCase {
         return "packs=[\(packs)] run=\(run) marks=[\(marks)] rev=\(int(f.rev)) at=\(int(f.updatedAt)) by=\(f.updatedBy)"
             + " lock=\(lock) windows=[\(windows)] wmark=\(f.lockdownWindowsRev ?? 0)"
             + " hide=\((f.hideSiteList ?? false) ? 1 : 0) hmark=\(f.hideSiteListRev ?? 0)"
+            + " kw=[\(KeywordLogic.keywordsKey(f.keywords ?? []))] kmark=\(f.keywordsRev ?? 0)"
+            + " partner=[\(PartnerLogic.partnerKey(f.partner))] pmark=\(f.partnerRev ?? 0)"
     }
 
     func testSitesMergeTheSameAsTheDesktop() throws {

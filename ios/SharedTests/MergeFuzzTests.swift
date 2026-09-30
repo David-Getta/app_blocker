@@ -66,6 +66,13 @@ private let windowPool: [ScheduleLogic.Band] = [
     ScheduleLogic.Band(days: [0, 6], startMin: 0, endMin: 1440),
 ]
 
+/// Kulcsszó-készletek és két rögzített megbízott-zár — a gép merge-random.ts-ének párja.
+private let keywordSets: [[String]] = [["shorts"], ["reels"], ["shorts", "reels"]]
+private let partners: [PartnerLogic.PartnerLock] = [
+    PartnerLogic.PartnerLock(name: "Anna", salt: "QUFBQUFBQUFBQUFBQUFBQQ==", hash: "QkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkI=", setAt: 5),
+    PartnerLogic.PartnerLock(name: "Bela", salt: "Q0NDQ0NDQ0NDQ0NDQ0NDQw==", hash: "REREREREREREREREREREREREREREREREREREREREREQ=", setAt: 3),
+]
+
 private func randomFocus(_ r: inout Lcg, _ device: String) -> FocusSync.SyncFocus {
     var kept: [String] = []
     for id in packIds {
@@ -128,10 +135,26 @@ private func randomFocus(_ r: inout Lcg, _ device: String) -> FocusSync.SyncFocu
     let hideMarkValue = min(1 + Int(r.next() * 5), revInt)
     let hide = hideDraw < 0.3
     let hideRev: Int? = (hide || hideMarkDraw < 0.2) ? hideMarkValue : nil
+    // KULCSSZAVAK ÉS MEGBÍZOTT A JELÜKKEL — nyolc húzás, mind feltétel nélkül,
+    // ugyanebben a sorrendben a három nyelvben (desktop/test/merge-random.ts).
+    let kwDraw = r.next()
+    let kwPick = Int(r.next() * 3)
+    let kwMarkDraw = r.next()
+    let kwMarkValue = min(1 + Int(r.next() * 5), revInt)
+    let keywords: [String] = kwDraw < 0.4 ? keywordSets[kwPick] : []
+    let keywordsRev: Int? = (!keywords.isEmpty || kwMarkDraw < 0.2) ? kwMarkValue : nil
+    let pDraw = r.next()
+    let pPick = Int(r.next() * 2)
+    let pMarkDraw = r.next()
+    let pMarkValue = min(1 + Int(r.next() * 5), revInt)
+    let partner: PartnerLogic.PartnerLock? = pDraw < 0.3 ? partners[pPick] : nil
+    let partnerRev: Int? = (partner != nil || pMarkDraw < 0.2) ? pMarkValue : nil
     return FocusSync.SyncFocus(
         packs: packs, run: run, log: [], rev: rev, updatedAt: updatedAt, updatedBy: device,
         packMarks: marks.isEmpty ? nil : marks, lockdown: lockdown,
         lockdownWindows: windows.isEmpty ? nil : windows, lockdownWindowsRev: windowsRev,
+        partner: partner, partnerRev: partnerRev,
+        keywords: keywords.isEmpty ? nil : keywords, keywordsRev: keywordsRev,
         hideSiteList: hide ? true : nil, hideSiteListRev: hideRev
     )
 }
@@ -154,6 +177,8 @@ private func focusKey(_ f: FocusSync.SyncFocus, runIds: Set<String>) -> String {
     let windows = (f.lockdownWindows ?? []).map { LockdownLogic.windowKey($0.band) }.sorted().joined(separator: ";")
     return "\(packs)|\(marks)|\(run)|\(f.rev)|\(lock)|\(windows)|\(f.lockdownWindowsRev ?? 0)"
         + "|\((f.hideSiteList ?? false) ? 1 : 0)|\(f.hideSiteListRev ?? 0)"
+        + "|\(KeywordLogic.keywordsKey(f.keywords ?? []))|\(f.keywordsRev ?? 0)"
+        + "|\(PartnerLogic.partnerKey(f.partner))|\(f.partnerRev ?? 0)"
 }
 
 final class MergeFuzzTests: XCTestCase {

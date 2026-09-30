@@ -1,5 +1,7 @@
 import hu.breaker.app.core.FocusSync
+import hu.breaker.app.core.KeywordLogic
 import hu.breaker.app.core.LockdownLogic
+import hu.breaker.app.core.PartnerLogic
 import hu.breaker.app.core.SyncClient
 import hu.breaker.app.core.SyncMerge
 import org.json.JSONArray
@@ -56,7 +58,9 @@ class MergeFixtureTest {
         val windows = f.lockdownWindows.map { LockdownLogic.windowKey(it.band) }.sorted().joinToString(";")
         return "packs=[$packs] run=$run marks=[$marks] rev=${f.rev} at=${f.updatedAt} by=${f.updatedBy}" +
             " lock=$lock windows=[$windows] wmark=${f.lockdownWindowsRev ?: 0}" +
-            " hide=${if (f.hideSiteList) 1 else 0} hmark=${f.hideSiteListRev ?: 0}"
+            " hide=${if (f.hideSiteList) 1 else 0} hmark=${f.hideSiteListRev ?: 0}" +
+            " kw=[${KeywordLogic.keywordsKey(f.keywords)}] kmark=${f.keywordsRev ?: 0}" +
+            " partner=[${PartnerLogic.partnerKey(f.partner)}] pmark=${f.partnerRev ?: 0}"
     }
 
     private fun site(o: JSONObject): SyncMerge.SyncSite =

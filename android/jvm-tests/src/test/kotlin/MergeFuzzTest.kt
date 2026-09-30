@@ -1,6 +1,8 @@
 import hu.breaker.app.core.Focus
 import hu.breaker.app.core.FocusSync
+import hu.breaker.app.core.KeywordLogic
 import hu.breaker.app.core.LockdownLogic
+import hu.breaker.app.core.PartnerLogic
 import hu.breaker.app.core.ScheduleLogic
 import hu.breaker.app.core.SyncMerge
 import kotlin.test.Test
@@ -72,6 +74,13 @@ class MergeFuzzTest {
         ScheduleLogic.Band(setOf(0, 6), 0, 1440),
     )
 
+    /** Kulcsszó-készletek és két rögzített megbízott-zár — a gép merge-random.ts-ének párja. */
+    private val keywordSets = listOf(listOf("shorts"), listOf("reels"), listOf("shorts", "reels"))
+    private val partners = listOf(
+        PartnerLogic.PartnerLock("Anna", "QUFBQUFBQUFBQUFBQUFBQQ==", "QkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkI=", 5L),
+        PartnerLogic.PartnerLock("Bela", "Q0NDQ0NDQ0NDQ0NDQ0NDQw==", "REREREREREREREREREREREREREREREREREREREREREQ=", 3L),
+    )
+
     private fun randomFocus(r: Lcg, device: String): FocusSync.SyncFocus {
         val kept = packIds.filter { r.next() < 0.6 }
         val packs = kept.map { id ->
@@ -120,11 +129,27 @@ class MergeFuzzTest {
         val hideMarkValue = minOf(1 + (r.next() * 5).toInt(), rev)
         val hide = hideDraw < 0.3
         val hideRev = if (hide || hideMarkDraw < 0.2) hideMarkValue else null
+        // KULCSSZAVAK ÉS MEGBÍZOTT A JELÜKKEL — nyolc húzás, mind feltétel nélkül,
+        // ugyanebben a sorrendben a három nyelvben (desktop/test/merge-random.ts).
+        val kwDraw = r.next()
+        val kwPick = (r.next() * 3).toInt()
+        val kwMarkDraw = r.next()
+        val kwMarkValue = minOf(1 + (r.next() * 5).toInt(), rev)
+        val keywords = if (kwDraw < 0.4) keywordSets[kwPick] else emptyList()
+        val keywordsRev = if (keywords.isNotEmpty() || kwMarkDraw < 0.2) kwMarkValue else null
+        val pDraw = r.next()
+        val pPick = (r.next() * 2).toInt()
+        val pMarkDraw = r.next()
+        val pMarkValue = minOf(1 + (r.next() * 5).toInt(), rev)
+        val partner = if (pDraw < 0.3) partners[pPick] else null
+        val partnerRev = if (partner != null || pMarkDraw < 0.2) pMarkValue else null
         return FocusSync.SyncFocus(
             packs = packs, run = run, rev = rev.toLong(), updatedAt = updatedAt, updatedBy = device,
             packMarks = marks.ifEmpty { null },
             lockdown = lockdown, lockdownWindows = windows, lockdownWindowsRev = windowsRev,
+            partner = partner, partnerRev = partnerRev,
             hideSiteList = hide, hideSiteListRev = hideRev,
+            keywords = keywords, keywordsRev = keywordsRev,
         )
     }
 
@@ -149,7 +174,8 @@ class MergeFuzzTest {
         val lock = f.lockdown?.let { "${it.startedAt}/${it.until}" } ?: "-"
         val windows = f.lockdownWindows.map { LockdownLogic.windowKey(it.band) }.sorted().joinToString(";")
         return "$packs|$marks|$run|${f.rev}|$lock|$windows|${f.lockdownWindowsRev ?: 0}" +
-            "|${if (f.hideSiteList) 1 else 0}|${f.hideSiteListRev ?: 0}"
+            "|${if (f.hideSiteList) 1 else 0}|${f.hideSiteListRev ?: 0}" +
+            "|${KeywordLogic.keywordsKey(f.keywords)}|${f.keywordsRev ?: 0}|${PartnerLogic.partnerKey(f.partner)}|${f.partnerRev ?: 0}"
     }
 
     @Test

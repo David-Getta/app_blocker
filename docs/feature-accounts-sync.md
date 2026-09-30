@@ -338,7 +338,8 @@ Amit a tesztek bizonyítanak, és amit másképp nem lehetne:
 - **az összefésülés maga is megfelelőségi próbán megy át.** A tároló
   gyökerében a `fixtures/merge-cases.json` a gép által kiszámolt
   bemeneteket (véletlen, de rögzített magú oldalak és munkamenet-blobok
-  három eszközről) és a két, majd három eszköz összefésülésének
+  három eszközről — csomagok, menet, zárlat, ablakok, kulcsszavak,
+  megbízott és rejtés, a jeleikkel) és a két, majd három eszköz összefésülésének
   eredmény-kulcsát tartja; a gép tesztje írja és őrzi (elavul, ha a szabály
   változik, és megmondja, hogyan kell frissíteni), a Kotlin
   (`MergeFixtureTest`) és a Swift (`MergeFixtureTests`) teszt ugyanezt a
