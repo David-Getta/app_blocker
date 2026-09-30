@@ -27,6 +27,10 @@ private struct FocusCase: Decodable {
     let c: FocusSync.SyncFocus
     let ab: String
     let abc: String
+    /// Egy mező cseréje az `a`-n, a fajtája, és hogy a gép különbségnek tartja-e.
+    let flip: FocusSync.SyncFocus
+    let what: String
+    let same: Bool
 }
 
 private struct Fixture: Decodable {
@@ -104,6 +108,12 @@ final class MergeFixtureTests: XCTestCase {
             let ab = FocusSync.merge(a, b)
             XCTAssertEqual(focusKey(ab), c.ab, "munkamenet, két eszköz, mag \(c.seed)")
             XCTAssertEqual(focusKey(FocusSync.merge(ab, cc)), c.abc, "munkamenet, három eszköz, mag \(c.seed)")
+            // EGY MEZŐ CSERÉJE: ugyanazt tartja-e különbségnek a Swift, mint a gép —
+            // és ami nem jelentés (időbélyeg, eszköznév, ablak-azonosító, a
+            // csomagok sorrendje), azt nem. A v0.4.170-ben pont a Swift kulcsából
+            // maradt ki a rejtés, és a fésülés fixtúrája nem látta; ez látja.
+            let flip = FocusSync.normalize(c.flip, fallbackDevice: "x")
+            XCTAssertEqual(FocusSync.same(a, flip), c.same, "különbség, mag \(c.seed): \(c.what)")
         }
     }
 }

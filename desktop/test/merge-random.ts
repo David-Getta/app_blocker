@@ -145,3 +145,81 @@ export function focusConformanceKey(f: SyncFocus): string {
     + ` lock=${lock} windows=[${windows}] wmark=${f.lockdownWindowsRev ?? 0}`
     + ` hide=${f.hideSiteList ? 1 : 0} hmark=${f.hideSiteListRev ?? 0}`;
 }
+
+/** Egy mező cseréje az `a` blobon, és hogy a csere jelentés-e (különbség). */
+export interface FocusFlip { flip: SyncFocus; what: string; same: boolean }
+
+/**
+ * EGY MEZŐ CSERÉJE — a különbség-kulcs (`sameFocus` / `FocusSync.same`)
+ * megfelelőségéhez. A fésülés fixtúrája azt nézi, hogy a három tükör ugyanoda
+ * jut; ez azt, hogy ugyanazt tartja KÜLÖNBSÉGNEK. A v0.4.170-ben a Swift
+ * kulcsából kimaradt a rejtés: azonos rev mellett a cseréje
+ * „nincs mit feltölteni” lett volna — és a fésülés fixtúrája ezt nem látta.
+ *
+ * Tizenhét fajta: tizenhárom jelentés (különbség), négy nem az (időbélyeg,
+ * eszköznév, ablak-azonosító, a csomagok sorrendje). A várt érték a fajtából
+ * következik, és a gép tesztje ellenőrzi is — így egy hatástalan csere (amit
+ * a normalizálás visszaírna) nem marad néma. EGY húzás, az a/b/c UTÁN: a
+ * Kotlin és a Swift fuzz-generátort nem érinti, a fixtúra a cserét JSON-ban
+ * viszi, a tükrök csak visszajátsszák.
+ */
+export function flipFocus(r: () => number, a: SyncFocus): FocusFlip {
+  const kind = Math.floor(r() * 17);
+  const first = a.packs[0];
+  const diff = (what: string, flip: SyncFocus): FocusFlip => ({ what, flip, same: false });
+  const noDiff = (what: string, flip: SyncFocus): FocusFlip => ({ what, flip, same: true });
+  const addPack = (): FocusFlip => diff('packs+', {
+    ...a, packs: [...a.packs, { id: 'p9', name: 'csomag p9 v0', allowSites: ['quizlet.com'], allowApps: [], defaultMinutes: 50 }],
+  });
+  const bumpAt = (): FocusFlip => noDiff('updatedAt', { ...a, updatedAt: a.updatedAt + 1 });
+  // Egy MÁSIK érvényes jel: pozitív, legfeljebb a rev — ha nincs ilyen (rev 1,
+  // jel 1), akkor a jel elhagyása, ami szintén különbség (0).
+  const otherMark = (cur: number | undefined): number | undefined => (cur !== 1 ? 1 : a.rev >= 2 ? 2 : undefined);
+  const ws = a.lockdownWindows ?? [];
+  switch (kind) {
+    case 0: return first ? diff('packs-', { ...a, packs: a.packs.slice(1) }) : addPack();
+    case 1: return first ? diff('pack.name', { ...a, packs: [{ ...first, name: `${first.name} x` }, ...a.packs.slice(1)] }) : addPack();
+    case 2: {
+      if (!first) return addPack();
+      const bare: FocusPack = {
+        id: first.id, name: first.name, allowSites: first.allowSites, allowApps: first.allowApps, defaultMinutes: first.defaultMinutes,
+      };
+      return diff('pack.recurrence', { ...a, packs: [first.recurrence ? bare : { ...bare, recurrence: WIN }, ...a.packs.slice(1)] });
+    }
+    case 3:
+      if (a.run) return diff('run-', { ...a, run: null });
+      return first ? diff('run+', { ...a, run: { packId: first.id, startedAt: 10, endsAt: 610_000 } }) : addPack();
+    case 4: return diff('log+', {
+      ...a, log: [...a.log, { packId: 'p1', packName: 'csomag', startedAt: 1, endedAt: 2, plannedEndsAt: 2, stopped: false }],
+    });
+    case 5: return a.lockdown
+      ? diff('lockdown-', { ...a, lockdown: undefined })
+      : diff('lockdown+', { ...a, lockdown: { startedAt: 100, until: 2_000 } });
+    case 6: return ws.length > 0
+      ? diff('windows-', { ...a, lockdownWindows: ws.slice(1) })
+      : diff('windows+', { ...a, lockdownWindows: [{ id: 'w1@flip', ...WINDOWS[0] }] });
+    case 7: return diff('wmark', { ...a, lockdownWindowsRev: otherMark(a.lockdownWindowsRev) });
+    case 8: return a.keywords?.length
+      ? diff('keywords-', { ...a, keywords: [] })
+      : diff('keywords+', { ...a, keywords: ['shorts'] });
+    case 9: return diff('kmark', { ...a, keywordsRev: otherMark(a.keywordsRev) });
+    case 10: return a.hideSiteList
+      ? diff('hide-', { ...a, hideSiteList: undefined })
+      : diff('hide+', { ...a, hideSiteList: true });
+    case 11: return diff('hmark', { ...a, hideSiteListRev: otherMark(a.hideSiteListRev) });
+    case 12: return diff('rev', { ...a, rev: a.rev + 1 });
+    case 13: {
+      const marks = { ...(a.packMarks ?? {}) };
+      const m = otherMark(marks.p4);
+      if (m === undefined) delete marks.p4; else marks.p4 = m;
+      return diff('packMarks', { ...a, packMarks: marks });
+    }
+    case 14: return bumpAt();
+    case 15: return noDiff('updatedBy', { ...a, updatedBy: 'masik' });
+    default:
+      // Ami NEM jelentés: az ablak azonosítója és a csomagok sorrendje.
+      if (ws.length > 0) return noDiff('window.id', { ...a, lockdownWindows: [{ ...ws[0], id: 'w9@flip' }, ...ws.slice(1)] });
+      if (a.packs.length >= 2) return noDiff('packs.order', { ...a, packs: [...a.packs].reverse() });
+      return bumpAt();
+  }
+}

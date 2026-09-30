@@ -346,7 +346,11 @@ Amit a tesztek bizonyítanak, és amit másképp nem lehetne:
   kulcsnak bájtra egyeznie kell. Mellette nyelvenként egy fuzz-teszt
   (ugyanazzal a véletlennel, mint a gépé) nézi, hogy három eszköz bármilyen
   sorrendben ugyanoda jut. Ha a tükör egy szabályban elcsúszik, a CI bukik
-  — a mag számával —, nem egy felhasználó telefonja.
+  — a mag számával —, nem egy felhasználó telefonja. És a fixtúra a
+  KÜLÖNBSÉGET is nézi: minden esethez egy mező cseréje jár (`flip`), és a
+  három nyelvnek ugyanazt kell különbségnek tartania (`sameFocus` /
+  `FocusSync.same`) — a jelentés nélküli cserét (időbélyeg, eszköznév,
+  ablak-azonosító, a csomagok sorrendje) pedig nem.
 
 Egy dolog iPhone-on más: a **napi keret nem érvényesül** (nincs ilyen mérési
 API), de a rekordban MEGŐRIZZÜK. Enélkül elég lenne egyszer megnyitni a
@@ -404,15 +408,16 @@ Melyik őr mit fog ki — és mit nem:
 
 - a **fixtúra** a normalizálás és a fésülés útját fogja. A v0.4.170-ben ez
   fogta ki a Swift `normalize` rését: a dekódolás megvolt, a fésülés megvolt,
-  a kettő között veszett el a mező. NEM fogja az egyezés-kulcsot, az átvételt
-  és a jel bélyegzését — azok nem a fésülés részei;
-- a **nyelvenkénti teszt** fogja az egyezés-kulcsot (a mező cseréje
+  a kettő között veszett el a mező. A v0.4.173 óta az egyezés-kulcsot is: egy
+  mező cseréje mindhárom nyelvben különbség-e. NEM fogja az átvételt és a jel
+  bélyegzését — azok nem a fésülés részei;
+- a **nyelvenkénti teszt** fogja az egyezés-kulcsot a mező felől (a cseréje
   különbség-e) és az átvétel kulcsát (az átvett jel marad-e egy saját
   szerkesztés után) — a másik két Swift/Kotlin rés ezeken derült ki;
 - a **tűk** azt fogják, ha egy sor eltűnik — nem azt, ha rossz.
 
 A tanulság röviden: egy fiók-szintű mező nem „egy mező”, hanem tizenkét hely
-nyelvenként; és a fixtúra, bármilyen jó, a tizenkettőből kettőt lát.
+nyelvenként; és a fixtúra, bármilyen jó, a tizenkettőből hármat lát.
 
 ## Mikor szinkronizál magától
 

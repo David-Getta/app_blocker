@@ -18,9 +18,9 @@ import * as assert from 'node:assert/strict';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { mergeSite } from '../src/shared/sync/merge';
-import { mergeFocus } from '../src/shared/sync/focus-merge';
+import { mergeFocus, normalizeSyncFocus, sameFocus } from '../src/shared/sync/focus-merge';
 import {
-  DEVICES, focusConformanceKey, randomFocus, randomSite, rng, siteConformanceKey,
+  DEVICES, flipFocus, focusConformanceKey, randomFocus, randomSite, rng, siteConformanceKey,
 } from './merge-random';
 
 /** dist-test/test/… → a tároló gyökere. */
@@ -40,12 +40,22 @@ function buildFixture(): { note: string; version: number; sites: unknown[]; focu
     const r = rng(seed);
     const [a, b, c] = DEVICES.map((d) => randomFocus(r, d));
     const ab = mergeFocus(a, b);
-    focus.push({ seed, a, b, c, ab: focusConformanceKey(ab), abc: focusConformanceKey(mergeFocus(ab, c)) });
+    // EGY MEZŐ CSERÉJE: a három nyelvnek ugyanazt kell KÜLÖNBSÉGNEK tartania
+    // (`sameFocus` / `FocusSync.same`), és ami nem jelentés, azt nem. A várt
+    // érték a fajtából jön; itt azt is ellenőrizzük, hogy a csere tényleg az,
+    // aminek szántuk — egy hatástalan csere néma lyuk volna a fixtúrában.
+    const { flip, what, same } = flipFocus(r, a);
+    const observed = sameFocus(normalizeSyncFocus(a, 'x'), normalizeSyncFocus(flip, 'x'));
+    assert.equal(observed, same, `a csere nem az, aminek szántuk: mag ${seed}, ${what}`);
+    focus.push({
+      seed, a, b, c, ab: focusConformanceKey(ab), abc: focusConformanceKey(mergeFocus(ab, c)), flip, what, same,
+    });
   }
   return {
     note: 'Generálja és őrzi: desktop/test/merge-fixture.test.ts (UPDATE_MERGE_FIXTURE=1 npm test). '
-      + 'Olvassa: android/jvm-tests MergeFixtureTest, ios/SharedTests MergeFixtureTests.',
-    version: 1,
+      + 'Olvassa: android/jvm-tests MergeFixtureTest, ios/SharedTests MergeFixtureTests. '
+      + 'A focus-esetek flip/what/same mezője: egy mező cseréje, és hogy a három nyelv különbségnek tartja-e.',
+    version: 2,
     sites,
     focus,
   };

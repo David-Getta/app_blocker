@@ -94,6 +94,12 @@ class MergeFixtureTest {
             val ab = FocusSync.merge(a, b)
             assertEquals(c.getString("ab"), focusKey(ab), "munkamenet, két eszköz, mag $seed")
             assertEquals(c.getString("abc"), focusKey(FocusSync.merge(ab, cc)), "munkamenet, három eszköz, mag $seed")
+            // EGY MEZŐ CSERÉJE: ugyanazt tartja-e különbségnek a Kotlin, mint a gép —
+            // és ami nem jelentés (időbélyeg, eszköznév, ablak-azonosító, a
+            // csomagok sorrendje), azt nem. A v0.4.170-ben a Swift kulcsából kimaradt
+            // rejtést a fésülés fixtúrája nem látta; ez látja.
+            val flip = focus(c.getJSONObject("flip"))
+            assertEquals(c.getBoolean("same"), FocusSync.same(a, flip), "különbség, mag $seed: ${c.getString("what")}")
         }
     }
 }
