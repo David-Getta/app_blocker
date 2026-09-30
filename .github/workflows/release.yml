@@ -44,24 +44,23 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A rejtett lista zárja.** A blokkolt oldalak rejtett listáját ezután
-          csak a készülék azonosítása után lehet megnyitni — ujjlenyomat, arc
-          vagy a képernyőzár kódja (Androidon és iPhone-on; Macen Touch ID). A
-          rejtés eddig csak nem emlékeztetett, ettől véd is: aki a kezébe veszi a
-          telefont, nem koppint rá egy gombra, hogy lássa, mi van rajta. A rejtés
-          marad egy koppintás; az azonosítás a rendszeré, az app csak igen/nem
-          választ kap. Ahol nincs mivel azonosítani, a lista kérésre megnyílik —
-          és kimondja.
+          **A fedőnév zárja.** A fedőnév mögé bújt valódi címet a „Mutasd” gomb
+          ezután is hat másodpercre mutatja meg — de csak a készülék azonosítása
+          után (ujjlenyomat, arc vagy kód; Macen Touch ID), ahogy a rejtett
+          lista is. Ugyanaz a rés, ugyanaz a zár: egy koppintás ne mutassa meg,
+          mi bújik a név mögött. A lista és a fedőnév kapuja egy üzenet-sort
+          használ; ahol nincs mivel azonosítani, a cím kérésre előjön — és
+          kimondja.
 
-          ### Ami a v0.4.164-ben jött
+          ### Ami a v0.4.165-ben jött
 
-          **Az őszinte korlátok teljesebb listája.** A törlés-védelem leírása a
-          maradék két kerülőutat (adb, gyári visszaállítás) is nevén nevezi.
+          **A rejtett lista zárja.** A rejtett blokklista csak a készülék
+          azonosítása után nyílik meg — ujjlenyomat, arc vagy kód; Macen Touch ID.
 
-          #### Ami a v0.4.163-ban jött
+          #### Ami a v0.4.164-ben jött
 
-          **A közeleg-a-keret finomabb kis keretnél.** A heads-up küszöbe az
-          utolsó tíz perc, de legfeljebb a keret fele.
+          **Az őszinte korlátok teljesebb listája.** A törlés-védelem leírása az
+          adb-t és a gyári visszaállítást is nevén nevezi.
 
           NOTES
           fi
