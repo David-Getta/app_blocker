@@ -361,6 +361,59 @@ típusa `number | null`, és a fésülés `!== null`-t néz — egy hiányzó ku
 törlésre várna. A Swift ezért kézzel írja ki a mezőt, a TS oldal pedig
 beérkezéskor kiegyenesíti a rekordokat.
 
+### Új mező a munkamenet-dokumentumban: hány helyen kell átmennie
+
+A v0.4.170-ben a lista rejtése (`hideSiteList` + `hideSiteListRev`) került a
+munkamenet-dokumentumba, a megbízott mintájára. A Swift-tükörben három helyen
+maradt ki — és a háromból csak EGYET fogott ki a fixtúra. Ez a lista azért
+van, hogy a következő mezőnél ne kelljen újra megtalálni a helyeket. Egy
+fiók-szintű mezőnek a jelével nyelvenként ezeken kell átmennie:
+
+| Hely | Gép (TS) | Android (Kotlin) | iPhone/Mac (Swift) |
+|---|---|---|---|
+| a rekord mezői | `SyncFocus` (`focus-merge.ts`) | `FocusSync.SyncFocus` | `FocusSync.SyncFocus` + `init(from:)` (a hiányzó kulcs nem dobhat) |
+| bejövő normalizálás — a jel legfeljebb a blob `rev`-je | `normalizeSyncFocus` | `SyncClient.focusFromJson` | `FocusSync.normalize` — ÚJRAÉPÍTI a rekordot |
+| fésülés | `mergeFocus` | `FocusSync.merge` | `FocusSync.merge` |
+| egyezés-kulcs (kell-e feltölteni, kell-e beírni) | `sameFocus` | `FocusSync.same` | `FocusSync.same` |
+| drót kifelé | a rekord maga | `SyncClient.focusToJson` | `Encodable` (a nil kimarad — az igazként utazó mezőnek jó) |
+| építés az állapotból | `sync-client.ts` | `SyncClient` | `SyncClient` |
+| átvétel az állapotba | `sync-client.ts` | `SyncClient` | `SyncClient` |
+| lenyomat (mitől „változott”) | `revisions.ts` | `SyncRevisions.focusFingerprint` | `SyncRevisions.focusFingerprint` |
+| üres-vizsgálat (az első léptetés ne üresen legyen) | `isEmptyFocus` | `bumpFocus` üres ága | `bumpFocus` üres ága |
+| a jel bélyegzése léptetéskor | `bumpFocusRevision` | `bumpFocus` | `bumpFocus` |
+| az átvétel kulcsa (az átvett jelet ne írja felül a következő saját szerkesztés) | `adoptFocusRevision` | `adoptFocus` | `adoptFocus` |
+| mentés | `state.ts` | `Store.kt` | `AppState` (`Codable`) |
+
+És ami a tesztelést hordozza — ezek nélkül a fenti sorok egy része csendben
+kimaradhat:
+
+- a fixtúra generátora és kulcsa (`desktop/test/merge-random.ts`): a mező
+  húzása feltétel nélkül, mindhárom nyelvben ugyanabban a sorrendben, és
+  benne a `focusConformanceKey`-ben; a Kotlin/Swift visszajátszás kulcsa
+  (`MergeFixtureTest` / `MergeFixtureTests`) bájtra ugyanaz;
+- a fuzz-generátorok nyelvenként (`MergeFuzzTest` / `MergeFuzzTests`) —
+  ugyanazok a húzások, ugyanabban a sorrendben;
+- a drótnevek listája (`scripts/check-wire-names.js`);
+- nyelvenként saját teszt a mezőre (a gépen a `hide-sync.test.ts`, Androidon
+  a `HideSyncTest`, iPhone-on a `HideSyncTests` a minta): a fésülés, a drót
+  és a normalizálás, a jel léptetése, az átvett jel, a mentés;
+- tűk (`scripts/check-enforcement.js`) a három elveszési helyre:
+  normalizálás, egyezés-kulcs, átvétel.
+
+Melyik őr mit fog ki — és mit nem:
+
+- a **fixtúra** a normalizálás és a fésülés útját fogja. A v0.4.170-ben ez
+  fogta ki a Swift `normalize` rését: a dekódolás megvolt, a fésülés megvolt,
+  a kettő között veszett el a mező. NEM fogja az egyezés-kulcsot, az átvételt
+  és a jel bélyegzését — azok nem a fésülés részei;
+- a **nyelvenkénti teszt** fogja az egyezés-kulcsot (a mező cseréje
+  különbség-e) és az átvétel kulcsát (az átvett jel marad-e egy saját
+  szerkesztés után) — a másik két Swift/Kotlin rés ezeken derült ki;
+- a **tűk** azt fogják, ha egy sor eltűnik — nem azt, ha rossz.
+
+A tanulság röviden: egy fiók-szintű mező nem „egy mező”, hanem tizenkét hely
+nyelvenként; és a fixtúra, bármilyen jó, a tizenkettőből kettőt lát.
+
 ## Mikor szinkronizál magától
 
 A felhasználó nem fogja nyomkodni a „Szinkronizálás most” gombot. Ha csak kézzel
