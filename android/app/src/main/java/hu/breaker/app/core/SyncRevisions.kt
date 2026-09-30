@@ -160,6 +160,9 @@ object SyncRevisions {
         )
     }
 
+    /** A rejtés kulcsa: „1”, ha rejtve — a jel csak akkor lép, ha ez az előző léptetés óta változott. */
+    private fun hideKey(state: AppState): String = if (state.hideSiteList) "1" else ""
+
     /** A kulcsszó-lista tartalmi kulcsa — üres listára üres szöveg. */
     fun keywordsKey(state: AppState): String = KeywordLogic.keywordsKey(state.keywords)
 
@@ -213,8 +216,8 @@ object SyncRevisions {
         val keywordsMark = if (keywordsKey != (state.focusRevKeywords ?: "")) newRev.coerceIn(0, Int.MAX_VALUE.toLong()).toInt()
             else state.keywordsRev
         // A rejtés jele ugyanígy: ha az előző léptetés óta változott, a jele ez a blob-rev.
-        val hideKey = if (state.hideSiteList) "1" else ""
-        val hideMark = if (hideKey != (state.focusRevHide ?: "")) newRev.coerceIn(0, Int.MAX_VALUE.toLong()).toInt()
+        val hideNow = hideKey(state)
+        val hideMark = if (hideNow != (state.focusRevHide ?: "")) newRev.coerceIn(0, Int.MAX_VALUE.toLong()).toInt()
             else state.hideSiteListRev
         // A CSOMAGOK JELEI: ami az előző léptetés óta bekerült, változott vagy
         // kikerült, az ezt a blob-revet kapja — csomagonként, mint a gépen
@@ -243,7 +246,7 @@ object SyncRevisions {
             partnerRev = partnerMark,
             focusRevKeywords = keywordsKey,
             keywordsRev = keywordsMark,
-            focusRevHide = hideKey,
+            focusRevHide = hideNow,
             hideSiteListRev = hideMark,
             focusRevPacks = packFps,
             focusPackMarks = packMarks,
@@ -260,6 +263,9 @@ object SyncRevisions {
             // egy másik eszköz levételét lehetne felülírni.
             focusRevPartner = PartnerLogic.partnerKey(state.partner),
             focusRevKeywords = keywordsKey(state),
+            // A rejtés kulcsa is: az átvett rejtés (és a kifizetett kikapcsolás)
+            // jele a másik eszközé — a következő saját szerkesztés ne írja felül.
+            focusRevHide = hideKey(state),
             // A csomagok lenyomata is: az átvett lista nem a miénk — a következő
             // saját léptetés ne bélyegezze át a jelét.
             focusRevPacks = packFingerprints(state),

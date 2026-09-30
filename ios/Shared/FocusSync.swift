@@ -537,8 +537,12 @@ public enum FocusSync {
         let partner = PartnerLogic.partnerKey(f.partner)
         // A kulcsszavak a jelükkel — tartalom szerint, rendezve.
         let keywords = KeywordLogic.keywordsKey(f.keywords ?? [])
+        // A rejtés a jelével: a cseréje is különbség — azonos rev mellett is fel
+        // kell mennie, és az átvett rejtést azonos rev mellett is be kell írni.
+        let hide = (f.hideSiteList ?? false) ? 1 : 0
         return "\(packs)//\(run)//\(log)//\(marks)//\(lock)//\(windows)//\(f.lockdownWindowsRev ?? 0)"
-            + "//\(partner)//\(f.partnerRev ?? 0)//\(keywords)//\(f.keywordsRev ?? 0)//\(f.rev)"
+            + "//\(partner)//\(f.partnerRev ?? 0)//\(keywords)//\(f.keywordsRev ?? 0)"
+            + "//\(hide)//\(f.hideSiteListRev ?? 0)//\(f.rev)"
     }
 
     /// A csomag-jelek kiegyenesítése: csak azonosító → pozitív egész, legfeljebb
@@ -614,7 +618,13 @@ public enum FocusSync {
             partnerRev: raw.partnerRev.flatMap { $0 > 0 && $0 <= revInt(raw.rev) ? $0 : nil },
             // A kulcsszavak is kívülről jött adat: csak az érvényes, egyszer, a plafonig.
             keywords: cleanedKeywords(raw.keywords),
-            keywordsRev: raw.keywordsRev.flatMap { $0 > 0 && $0 <= revInt(raw.rev) ? $0 : nil }
+            keywordsRev: raw.keywordsRev.flatMap { $0 > 0 && $0 <= revInt(raw.rev) ? $0 : nil },
+            // A rejtés csak igazként számít; a jele pozitív egész, legfeljebb a
+            // blob rev-je — mint a többié. Ez a sor HIÁNYZOTT az első körben, és
+            // a fixtúra-visszajátszás fogta ki: a normalizálás újraépíti a
+            // rekordot, tehát amit itt nem viszünk át, az a dróton elveszett.
+            hideSiteList: (raw.hideSiteList ?? false) ? true : nil,
+            hideSiteListRev: raw.hideSiteListRev.flatMap { $0 > 0 && $0 <= revInt(raw.rev) ? $0 : nil }
         )
     }
 

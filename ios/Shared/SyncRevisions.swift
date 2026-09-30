@@ -163,6 +163,11 @@ enum SyncRevisions {
         )
     }
 
+    /// A rejtés kulcsa: „1”, ha rejtve — a jel csak akkor lép, ha ez az előző léptetés óta változott.
+    private static func hideKey(_ state: AppState) -> String {
+        (state.hideSiteList ?? false) ? "1" : ""
+    }
+
     /// A kulcsszó-lista tartalmi kulcsa — üres listára üres szöveg.
     static func keywordsKey(_ state: AppState) -> String {
         KeywordLogic.keywordsKey(state.keywords ?? [])
@@ -224,9 +229,9 @@ enum SyncRevisions {
         if keywords != (state.focusRevKeywords ?? "") { next.keywordsRev = Int(newRev) }
         next.focusRevKeywords = keywords
         // A rejtés jele ugyanígy: ha az előző léptetés óta változott, a jele ez a blob-rev.
-        let hideKey = (state.hideSiteList ?? false) ? "1" : ""
-        if hideKey != (state.focusRevHide ?? "") { next.hideSiteListRev = Int(newRev) }
-        next.focusRevHide = hideKey
+        let hideNow = hideKey(state)
+        if hideNow != (state.focusRevHide ?? "") { next.hideSiteListRev = Int(newRev) }
+        next.focusRevHide = hideNow
         // A CSOMAGOK JELEI: ami az előző léptetés óta bekerült, változott vagy
         // kikerült, az ezt a blob-revet kapja — csomagonként, mint a gépen
         // (helper/revisions.ts `markPacks`). Az első léptetés (nincs még eltett
@@ -255,6 +260,9 @@ enum SyncRevisions {
         // eszköz levételét lehetne felülírni.
         next.focusRevPartner = PartnerLogic.partnerKey(state.partner)
         next.focusRevKeywords = keywordsKey(state)
+        // A rejtés kulcsa is: az átvett rejtés (és a kifizetett kikapcsolás)
+        // jele a másik eszközé — a következő saját szerkesztés ne írja felül.
+        next.focusRevHide = hideKey(state)
         // A csomagok lenyomata is: az átvett lista nem a miénk — a következő
         // saját léptetés ne bélyegezze át a jelét.
         next.focusRevPacks = packFingerprints(state)

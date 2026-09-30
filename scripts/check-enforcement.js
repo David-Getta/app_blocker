@@ -2888,6 +2888,52 @@ const WIRES = [
     needle: 'SyncMerge.cleanIncoming(',
     lost: 'az iPhone a szinkronon jött szemét-hosztnevet tovább hordozná a gép felé',
   },
+  // A REJTÉS A FIÓK EGÉSZÉRE SZÓL: a `hideSiteList` a jelével utazik a
+  // munkamenet-dokumentumban. Három hely, ahol csendben elveszhet: a bejövő
+  // normalizálás (újraépíti a rekordot), az egyezés-kulcs (ha nincs benne, a
+  // cseréje „nincs mit feltölteni”), és az átvétel az állapotba. Az elsőt a
+  // fixtúra-visszajátszás egyszer már kifogta a Swiftben — a másik kettőt nem
+  // fogná ki, ezért tű mindhárom nyelvre.
+  {
+    file: 'ios/Shared/FocusSync.swift',
+    needle: 'hideSiteList: (raw.hideSiteList ?? false) ? true : nil,',
+    lost: 'az iPhone normalizálása eldobná a rejtést — a telefonon bekapcsolt rejtés sosem állna be',
+  },
+  {
+    file: 'ios/Shared/FocusSync.swift',
+    needle: '+ "//\\(hide)//\\(f.hideSiteListRev ?? 0)//\\(f.rev)"',
+    lost: 'az iPhone-on a rejtés cseréje nem számítana különbségnek — azonos rev mellett nem menne fel és nem íródna be',
+  },
+  {
+    file: 'ios/Shared/SyncClient.swift',
+    needle: 'current.hideSiteList = (merged.hideSiteList ?? false) ? true : nil',
+    lost: 'az iPhone a fésült rejtést nem venné át az állapotba',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/SyncClient.kt',
+    needle: 'hideSiteList = o.optBoolean("hideSiteList", false),',
+    lost: 'a telefon a dróton jött rejtést eldobná',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/FocusSync.kt',
+    needle: '//${if (f.hideSiteList) 1 else 0}//${f.hideSiteListRev ?: 0}//${f.rev}',
+    lost: 'a telefonon a rejtés cseréje nem számítana különbségnek — azonos rev mellett nem menne fel és nem íródna be',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/SyncClient.kt',
+    needle: 'hideSiteList = merged.hideSiteList,',
+    lost: 'a telefon a fésült rejtést nem venné át az állapotba',
+  },
+  {
+    file: 'desktop/src/shared/sync/focus-merge.ts',
+    needle: 'hideSiteListRev: f.hideSiteListRev ?? 0,',
+    lost: 'a gépen a rejtés cseréje nem számítana különbségnek — azonos rev mellett nem menne fel és nem íródna be',
+  },
+  {
+    file: 'desktop/src/helper/sync-client.ts',
+    needle: 'if (merged.hideSiteList === true) state.hideSiteList = true;',
+    lost: 'a gép a fésült rejtést nem venné át az állapotba',
+  },
 ];
 
 /**
