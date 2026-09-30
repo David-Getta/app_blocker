@@ -44,24 +44,24 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A fixtúra a különbséget is nézi.** A három nyelv fésülését eddig
-          is egy közös fixtúra vetette össze; most minden esethez egy mező
-          cseréje is jár, és a gépnek, a telefonnak és az iPhone-nak ugyanazt
-          kell különbségnek tartania — a jelentés nélküli cserét (időbélyeg,
-          eszköznév, ablak-azonosító, a csomagok sorrendje) pedig nem. Ez az
-          a rés, amit a v0.4.170-ben a fixtúra nem látott: a Swift kulcsából
-          kimaradt rejtés. Most látja.
+          **A fixtúra a kulcsszavakat és a megbízottat is fésüli.** A három
+          nyelv közös fixtúrája és a fuzz eddig a csomagokat, a menetet, a
+          zárlatot, az ablakokat és a rejtést vetette össze; a kulcsszó-lista és
+          a párban zárolás megbízottja — a jeleikkel — kimaradt, pedig épp ott
+          dől el, hogy egy kifizetett levétel átmegy-e a másik eszközre. Most
+          benne vannak: ugyanazok a húzások mindhárom generátorban, a
+          kulcsokban is, és a cserék között a megbízott ki-be és a jele.
 
-          ### Ami a v0.4.172-ben jött
+          ### Ami a v0.4.173-ban jött
+
+          **A fixtúra a különbséget is nézi.** Minden esethez egy mező cseréje
+          jár, és a három nyelvnek ugyanazt kell különbségnek tartania — a
+          jelentés nélküli cserét nem.
+
+          #### Ami a v0.4.172-ben jött
 
           **A rejtett lista kártyája kimondja, hogy a rejtés a fiók egészére
           szól** — fiókkal; fiók nélkül csendben marad.
-
-          #### Ami a v0.4.171-ben jött
-
-          **A rejtés a fiók egészére szól — a weboldalon is kimondva.** És a
-          fejlesztői doksiban az ellenőrzőlista, hány helyen kell egy új
-          szinkron-mezőnek átmennie mindhárom nyelven.
 
           NOTES
           fi
