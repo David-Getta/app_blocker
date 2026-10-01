@@ -1725,7 +1725,7 @@ const WIRES = [
   },
   {
     file: 'extension/app-link.js',
-    needle: "const limitSoon = typeof raw.limitSoon === 'string' ? raw.limitSoon.slice(0, 80) : '';",
+    needle: "const limitSoon = typeof raw.limitSoon === 'string' ? [...raw.limitSoon].slice(0, 80).join('') : '';",
     lost: 'a bővítmény eldobná a közeledő keret sorát a híd válaszából',
   },
   {
