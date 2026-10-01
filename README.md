@@ -483,6 +483,7 @@ Amit érdemes futtatni fejlesztés közben:
 | `cd android/jvm-tests && gradle test` | az Android mag SDK nélkül |
 | `cd ios && swift test -c release -Xswiftc -enable-testing` (macOS) | a Swift mag tesztjei és a közös fixtúrák visszajátszása, ahogy a CI futtatja (optimalizálva: a tiszta Swift scrypt hibakereső módban lassú) |
 | `UPDATE_MERGE_FIXTURE=1 npm test` (és a többi `UPDATE_…_FIXTURE`) | egy közös fixtúra újraírása a gép szabályából — utána a Kotlin és a Swift teszt mutatja, hol csúszott el a tükör |
+| `node scripts/check-all.js` | mind az alábbi őrök egyben (a mappában lévő összes `check-*.js`), és hogy a CI mindet futtatja-e |
 | `node scripts/check-text.js` | magyar idézőjel-párok (Kotlinban lezáratlan sztring = fordítási hiba) |
 | `node scripts/check-kotlin-imports.js` | hiányzó import a saját mag-típusainkra a Compose-fájlokban |
 | `node scripts/check-core-sync.js` | a TS/Kotlin/Swift mag számai (nehézségi szintek, határidők, plafonok) és a hosztnév-kiegészítés listája egyeznek-e, és nincs-e nyelv- vagy naptárfüggő hívás a magban |

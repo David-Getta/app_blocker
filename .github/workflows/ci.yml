@@ -48,6 +48,10 @@ jobs:
       # nem fogja ki: ott nincs teszt, és a Codable a tulajdonságnevekből
       # képzi a kulcsokat.
       - run: node scripts/check-wire-names.js
+      # Minden check-*.js őr fut-e itt. Egy új őr, amit senki nem futtat, nem
+      # őr — és semmi nem jelezné, hogy kimaradt. (Helyben a `check-all.js`
+      # paraméter nélkül mind a hét őrt lefuttatja.)
+      - run: node scripts/check-all.js --ci-only
 
   desktop:
     name: Desktop mag + tesztek
