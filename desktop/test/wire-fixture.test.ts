@@ -71,6 +71,16 @@ const SITE_TOLERATED: unknown[] = [
   { id: 'g8', domain: 't.com', hostnames: ['t.com'], schedule: { mode: 'scheduled_block', bands: [{ days: [9], startMin: 0, endMin: 60 }] } },
   { id: 'g9', domain: 'u.com', hostnames: ['u.com'], schedule: [] },
   { id: 'g10', domain: 'v.com', hostnames: ['v.com'], schedule: null },
+  // A részleges szabályok: csak a kanonikus alak megy át (a magok kanonikus
+  // alakban írnak); ami nem lista, az „nem tudok róla” (nem üres lista!).
+  { id: 'h1', domain: 'w.com', hostnames: ['w.com'], rules: 'x' },
+  { id: 'h2', domain: 'x.com', hostnames: ['x.com'], rules: [
+    null, 5, { host: 'x.com', path: '/a' }, { host: 5, path: '/b' }, { host: 'x.com', path: 5 },
+    { host: 'X.COM', path: '/c' }, { host: 'x.com', path: 'd' }, { host: 'x.com', path: '/a b' },
+    { host: 'x.com', path: `/${'p'.repeat(600)}` }, { host: 'www.x.com', path: '/@Valaki' }, { path: '/e' },
+  ] },
+  { id: 'h3', domain: 'y.com', hostnames: ['y.com'], rules: [] },
+  { id: 'h4', domain: 'z.com', hostnames: ['z.com'], rules: null },
 ];
 
 /** Kiesik: nem objektum, vagy az azonosítója, a domainje nem jó. */
@@ -103,7 +113,8 @@ function siteKey(s: SyncSite): string {
     + `|limit=${opt(s.dailyLimitSeconds)}|alias=${opt(s.alias)}|reason=${opt(s.reason)}`
     + `|rev=${s.rev}|at=${s.updatedAt}|by=${s.updatedBy}`
     + `|marks=${Object.keys(s.hostnameMarks ?? {}).sort().map((k) => `${k}=${s.hostnameMarks![k]}`).join(',')}`
-    + `|sched=${scheduleKey(s.schedule)}`;
+    + `|sched=${scheduleKey(s.schedule)}`
+    + `|rules=${s.rules === undefined ? '-' : `[${s.rules.map((r) => r.host + r.path).join(',')}]`}`;
 }
 
 // ------------------------------------------------------------- munkamenet

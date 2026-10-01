@@ -116,7 +116,12 @@ enum SyncMerge {
             cooldownSeconds = c.lenient(Double.self, .cooldownSeconds)
             alias = c.lenient(String.self, .alias)
             reason = c.lenient(String.self, .reason)
-            rules = try c.decodeIfPresent([UrlRules.UrlRule].self, forKey: .rules)
+            // A részleges szabályok: ami nem lista, az „nem tudok róla” (nil, nem
+            // üres lista); a listából csak a KANONIKUS alak megy át, átírás
+            // nélkül — a gép `cleanRules`-a szerint. Eddig egyetlen rossz
+            // szabály az egész oldalt vitte.
+            rules = c.lenient([Lossy<UrlRules.UrlRule>].self, .rules)?
+                .compactMap { $0.value }.filter(SyncMerge.isWireRule)
             let revValue = c.lenient(Int.self, .rev) ?? 1
             rev = revValue
             updatedAt = c.lenient(Double.self, .updatedAt) ?? 0
@@ -456,6 +461,13 @@ enum SyncMerge {
             return nil
         }
         return cleanIncoming((top.value ?? []).compactMap { $0.value })
+    }
+
+    /// Kanonikus-e egy dróton jött szabály: hoszt-alakú hoszt, `/`-rel kezdődő,
+    /// legfeljebb 512 egységnyi, szóköz nélküli út — a gép `cleanRules`-a.
+    static func isWireRule(_ r: UrlRules.UrlRule) -> Bool {
+        Blocklist.isCanonicalHostname(r.host) && r.path.hasPrefix("/") && r.path.utf16.count <= 512
+            && !r.path.unicodeScalars.contains(where: TextLogic.isSpace)
     }
 
     static func cleanIncoming(_ sites: [SyncSite]) -> [SyncSite] {

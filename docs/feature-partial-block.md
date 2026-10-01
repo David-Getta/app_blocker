@@ -230,3 +230,11 @@ egységben mérte — hat emodzsis szabályt, amit az app elfogadott, a bővítm
 beállítás-lapja „nem oldal-részlet”-nek mondott. Most kódpontban mér, mint a
 három mag; a plafont (`MAX_RULE_PATH_LENGTH`) a mag-szinkron őr a bővítményben
 is nézi.
+
+A szinkronon jött szabálylistát a három mag ugyanúgy olvassa (a gép
+`cleanRules`-a a referencia): ami nem lista, az „nem tudok róla” — NEM üres
+lista, mert az üres lista azt jelentené, hogy minden szabály törölve —, a
+listából csak a KANONIKUS alak megy át, átírás nélkül (hoszt-alakú hoszt,
+`/`-rel kezdődő, szóköz nélküli út). Eddig az Android újranormalizált (a
+„X.COM” kisbetűsítve átment, a gépen kiesett), az iPhone pedig egyetlen rossz
+szabály miatt az egész oldalt eldobta. A `fixtures/wire-cases.json` kimondja.

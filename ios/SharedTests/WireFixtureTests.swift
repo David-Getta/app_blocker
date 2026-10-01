@@ -36,13 +36,20 @@ final class WireFixtureTests: XCTestCase {
     private func opt(_ v: Double?) -> String { v.map { int($0) } ?? "-" }
 
     private func siteKey(_ s: SyncMerge.SyncSite) -> String {
-        let marks = (s.hostnameMarks ?? [:]).sorted { $0.key < $1.key }
+        // Részenként, külön `let`-ekben: egy hosszú `+`-lánc a Swift
+        // típusellenőrzőjének túl sok lehet.
+        let marks: String = (s.hostnameMarks ?? [:]).sorted { $0.key < $1.key }
             .map { "\($0.key)=\($0.value)" }.joined(separator: ",")
-        return "\(s.id)|\(s.domain)|\(s.hostnames.joined(separator: ","))|added=\(int(s.addedAt))"
-            + "|del=\(opt(s.pendingDeleteAt))|limit=\(opt(s.dailyLimitSeconds))"
-            + "|alias=\(s.alias ?? "-")|reason=\(s.reason ?? "-")"
-            + "|rev=\(s.rev)|at=\(int(s.updatedAt))|by=\(s.updatedBy)|marks=\(marks)"
-            + "|sched=\(scheduleKey(s.schedule))"
+        let rules: String
+        if let list = s.rules {
+            rules = "[" + list.map { $0.host + $0.path }.joined(separator: ",") + "]"
+        } else {
+            rules = "-"
+        }
+        let head = "\(s.id)|\(s.domain)|\(s.hostnames.joined(separator: ","))|added=\(int(s.addedAt))"
+        let mid = "|del=\(opt(s.pendingDeleteAt))|limit=\(opt(s.dailyLimitSeconds))|alias=\(s.alias ?? "-")|reason=\(s.reason ?? "-")"
+        let tail = "|rev=\(s.rev)|at=\(int(s.updatedAt))|by=\(s.updatedBy)|marks=\(marks)|sched=\(scheduleKey(s.schedule))|rules=\(rules)"
+        return head + mid + tail
     }
 
     /// A menetrend HATÁSA (a döntés normalizálása után), mint a gép kulcsában.

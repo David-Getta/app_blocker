@@ -599,13 +599,19 @@ object SyncClient {
     private fun rulesFromJson(o: JSONObject): List<UrlRules.UrlRule>? {
         if (o.isNull("rules")) return null
         val arr = o.optJSONArray("rules") ?: return null
+        // Csak a KANONIKUS alak megy át, átírás nélkül — a gép `cleanRules`-a
+        // szerint: hoszt-alakú hoszt, `/`-rel kezdődő, szóköz nélküli út. A
+        // magok kanonikus alakban írnak; amit a normalizálás átírna (eddig a
+        // „X.COM” is átment kisbetűsítve), az nem a másik mag írása, hanem
+        // szemét — és a gépen kiesett volna, itt nem.
         val out = ArrayList<UrlRules.UrlRule>()
         for (i in 0 until arr.length()) {
             val r = arr.optJSONObject(i) ?: continue
-            val norm = UrlRules.normalizeRule(r.optString("host") + r.optString("path")) ?: continue
-            if (out.any { UrlRules.sameRule(it, norm) }) continue
-            if (out.size >= UrlRules.MAX_RULES_PER_SITE) break
-            out.add(norm)
+            val host = stringOf(r, "host") ?: continue
+            val path = stringOf(r, "path") ?: continue
+            if (!Blocklist.isCanonicalHostname(host)) continue
+            if (!path.startsWith("/") || path.length > 512 || path.any { TextLogic.isSpace(it) }) continue
+            out.add(UrlRules.UrlRule(host, path))
         }
         return out
     }
