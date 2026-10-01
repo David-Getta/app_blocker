@@ -8,6 +8,7 @@ kettővel korábbiban.
 
 | Verzió | Nap | Mi újság |
 |---|---|---|
+| v0.4.187 | 2026-10-01 | a fixtúra a munkamenet-döntést is nézi |
 | v0.4.186 | 2026-10-01 | a szinkron plafonjai is őrizve |
 | v0.4.185 | 2026-10-01 | ugyanaz a döntés mindhárom platformon, kimondva |
 | v0.4.184 | 2026-10-01 | egy új szinkron-mező nem maradhat ki a fixtúrából |
