@@ -1,3 +1,4 @@
+import CoreFoundation
 import Foundation
 import XCTest
 @testable import BreakerShared
@@ -266,6 +267,41 @@ final class MergeFixtureTests: XCTestCase {
             // maradt ki a rejtés, és a fésülés fixtúrája nem látta; ez látja.
             let flip = FocusSync.normalize(c.flip, fallbackDevice: "x")
             XCTAssertEqual(FocusSync.same(a, flip), c.same, "különbség, mag \(c.seed): \(c.what)")
+        }
+    }
+
+    private func schedule(_ o: [String: Any]) -> ScheduleLogic.Schedule {
+        let mode = ScheduleLogic.Mode(rawValue: o["mode"] as? String ?? "") ?? .always
+        let bands = (o["bands"] as? [[String: Any]] ?? []).map { b in
+            ScheduleLogic.Band(days: b["days"] as? [Int] ?? [], startMin: b["startMin"] as? Int ?? 0, endMin: b["endMin"] as? Int ?? 0)
+        }
+        return ScheduleLogic.Schedule(mode: mode, bands: bands)
+    }
+
+    func testTheScheduleDecisionIsTheSameAsTheDesktopInUTC() throws {
+        // A sávok helyi időben értékelődnek ki; a fixtúra UTC-ben készült. A
+        // futtató gép óráját UTC-re kérjük (TZ, majd a rendszer-zóna újraolvasása);
+        // ha nem sikerül, kimondva kihagyunk — egy más zónában futó összevetés nem
+        // a tükörről szólna, hanem az óráról. Ez dönt a gépen és a telefonon
+        // EGYSZERRE ugyanarról az oldalról.
+        setenv("TZ", "UTC", 1)
+        CFTimeZoneResetSystem()
+        guard TimeZone.current.secondsFromGMT() == 0 else {
+            throw XCTSkip("a menetrend-fixtúra csak UTC-ben játszható vissza; ez a gép: \(TimeZone.current.identifier)")
+        }
+        let here = URL(fileURLWithPath: #filePath)
+        let root = here.deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let url = root.appendingPathComponent("fixtures").appendingPathComponent("merge-cases.json")
+        let top = try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any]
+        let cases = top?["schedules"] as? [[String: Any]] ?? []
+        XCTAssertGreaterThanOrEqual(cases.count, 60, "a fixture-ben van elég eset")
+        for c in cases {
+            let seed = c["seed"] as? Int ?? -1
+            let s = schedule(c["schedule"] as? [String: Any] ?? [:])
+            let other = schedule(c["other"] as? [String: Any] ?? [:])
+            let now = (c["now"] as? NSNumber)?.doubleValue ?? 0
+            XCTAssertEqual(ScheduleLogic.isBlockedBySchedule(s, now), c["blocked"] as? Bool ?? false, "menetrend tilt-e, mag \(seed)")
+            XCTAssertEqual(ScheduleLogic.isLoosening(s, other, now), c["loosening"] as? Bool ?? false, "menetrend lazítás-e, mag \(seed)")
         }
     }
 }

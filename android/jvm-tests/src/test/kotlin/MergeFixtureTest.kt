@@ -259,4 +259,38 @@ class MergeFixtureTest {
             assertEquals(c.getBoolean("same"), FocusSync.same(a, flip), "különbség, mag $seed: ${c.getString("what")}")
         }
     }
+
+    private fun schedule(o: JSONObject): ScheduleLogic.Schedule {
+        val mode = when (o.getString("mode")) {
+            "scheduled_block" -> ScheduleLogic.Mode.SCHEDULED_BLOCK
+            "scheduled_allow" -> ScheduleLogic.Mode.SCHEDULED_ALLOW
+            else -> ScheduleLogic.Mode.ALWAYS
+        }
+        val bands = o.getJSONArray("bands")
+        return ScheduleLogic.Schedule(mode, (0 until bands.length()).map { j ->
+            val b = bands.getJSONObject(j)
+            val days = b.getJSONArray("days")
+            ScheduleLogic.Band((0 until days.length()).map { days.getInt(it) }.toSet(), b.getInt("startMin"), b.getInt("endMin"))
+        })
+    }
+
+    @Test
+    fun `menetrend - a Kotlin ugyanazt donti, mint a gep, UTC-ben`() {
+        // A sávok helyi időben értékelődnek ki; a fixtúra UTC-ben készült, és itt
+        // is abban jár — kimondva, nem a futtató gép véletlen beállításából. Ez
+        // dönt a gépen és a telefonon EGYSZERRE ugyanarról az oldalról: egy
+        // elcsúszott sáv-számtan az oldalt az egyiken zárja, a másikon nyitja.
+        java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone("UTC"))
+        val cases = JSONObject(fixtureFile().readText()).getJSONArray("schedules")
+        assertTrue(cases.length() >= 60, "a fixture-ben van elég eset")
+        for (i in 0 until cases.length()) {
+            val c = cases.getJSONObject(i)
+            val seed = c.getInt("seed")
+            val s = schedule(c.getJSONObject("schedule"))
+            val other = schedule(c.getJSONObject("other"))
+            val now = c.getLong("now")
+            assertEquals(c.getBoolean("blocked"), ScheduleLogic.isBlockedBySchedule(s, now), "menetrend tilt-e, mag $seed")
+            assertEquals(c.getBoolean("loosening"), ScheduleLogic.isLoosening(s, other, now), "menetrend lazítás-e, mag $seed")
+        }
+    }
 }

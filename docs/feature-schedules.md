@@ -122,3 +122,18 @@ magnak nincs rá fogyasztója, ezért ott szándékosan nincs tükre.
 - `nextOpenAt`: percre pontos nyitás, éjfélátnyúlás, több napnyi várakozás,
   a sosem nyíló nulla.
 - Integráció: menetrenddel a `activeHostnames` a sávhatáron vált.
+
+## A három mag ugyanazt dönti
+
+A menetrend az, ami a gépen és a telefonon EGYSZERRE dönt ugyanarról az
+oldalról: egy elcsúszott sáv-számtan az oldalt az egyiken zárja, a másikon
+nyitja, ugyanabban a percben. Ezért a `fixtures/merge-cases.json` menetrend-
+szekciója (írja `desktop/test/merge-fixture.test.ts`) kézzel válogatott éleket
+és véletlen heti sávrendszereket tart — mindhárom mód, éjfélen átnyúló és
+érvénytelen sávok, a sávhatár perce másodpercekkel —, és azt, hogy a gép
+szerint tilt-e most, és lazítás-e a csere egy másik menetrendre; a Kotlin
+(`MergeFixtureTest`) és a Swift (`MergeFixtureTests`) ugyanezt játssza vissza.
+A sávok helyi időben értékelődnek ki, ezért a három teszt UTC-ben jár — a gép
+és az Android beállítja, a Swift beállítja, vagy ha nem tudja, kimondva
+kihagyja. Ami a fixtúrában nincs: óraátállás és más időzóna — ott a három mag
+a saját platformjának órájára hagyatkozik, és ezt itt kimondjuk.

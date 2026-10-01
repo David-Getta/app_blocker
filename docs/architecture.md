@@ -225,7 +225,7 @@ stimmelő mezőnevek és a huzalozás sem mondja meg, hogy a három mag UGYANAZT
 számolja-e ugyanabból. Ezt a fixtúra kérdezi: a gép kiszámolt bemeneteket és
 eredmény-kulcsokat ír, a másik két nyelv a saját drót-olvasóján át veszi a
 bemeneteket, a saját magjával számol, és a kulcsnak bájtra egyeznie kell.
-Ma öt szekció: az oldal-rekordok fésülése minden mezővel (hosztnevek a
+Ma hét szekció: az oldal-rekordok fésülése minden mezővel (hosztnevek a
 jeleikkel, törlésre várás, keret, fedőnév, indok, menetrend, adag, részleges
 szabályok a jelükkel), és minden esethez egy egy mezőben más pár mindkét
 sorrendben — a szigorúság-lánc és a döntetlen-törés éles esetei; a
@@ -237,7 +237,12 @@ eszközről; a döntés — tilt-e most: szünet, törlésre várás, közös na
 és az adag-számláló mérés-sorozatból, lépésenként (ezt a gép és az Android
 tükrözi, az iPhone nem mér előteret); és a munkamenet-döntés — mi mehet egy
 menet alatt — a két telefon DNS-motorában, a gép közös darabjaiból írt
-referencia szerint. A fésülés-generátorok véletlenje
+referencia szerint; és a menetrend — tilt-e most egy heti sávrendszer
+(éjfélen átnyúló és érvénytelen sávokkal, mindhárom módban) szerint, és
+lazítás-e a csere egy másikra — UTC-ben, mert a sávok helyi időben
+értékelődnek ki: a három teszt ezt kimondja és beállítja (a Swift kihagy, ha
+nem tudja). Ez az, ami a gépen és a telefonon EGYSZERRE dönt ugyanarról az
+oldalról. A fésülés-generátorok véletlenje
 szerződés: a Kotlin és a Swift fuzz ugyanazt a sorozatot húzza ugyanabból a
 magból. És az őr: a drótnév-ellenőrző azt is nézi, hogy minden őrzött
 drót-mező ott van a fixtúra generátorában — egy új mező nem maradhat ki

@@ -386,7 +386,15 @@ Amit a tesztek bizonyítanak, és amit másképp nem lehetne:
   saját fiókkiszolgáló átmegy, minden más tiltva, mert a menet fehérlista —
   a két telefon DNS-motora ugyanazt dönti, a gép közös darabjaiból írt
   referencia szerint. A rendszer-infrastruktúra kivétele nincs benne: a két
-  telefon listája szándékosan különbözik, azt a `check-infra-allow` őrzi.
+  telefon listája szándékosan különbözik, azt a `check-infra-allow` őrzi. És a
+  MENETRENDET is (`isBlockedBySchedule`, `isLoosening`): kézzel válogatott élek
+  (a sávhatár perce másodpercekkel, az éjfélen átnyúló sáv két napja, a sávos
+  „mindig”, a csupa rossz sáv) és véletlen heti sávrendszerek — mindhárom
+  módban, éjfélen átnyúló és érvénytelen sávokkal —, egy időpont két héten
+  belül, és a csere egy másik menetrendre: tilt-e most, és lazítás-e a csere.
+  Ez dönt a gépen és a telefonon EGYSZERRE ugyanarról az oldalról. A sávok
+  helyi időben értékelődnek ki, ezért a három teszt UTC-ben jár: a gép és az
+  Android beállítja, a Swift beállítja, vagy ha nem tudja, kimondva kihagyja.
 - **a szöveg-tisztítás is megfelelőségi próbán megy át.** A
   `fixtures/text-cases.json` (írja `desktop/test/text-fixture.test.ts`,
   `UPDATE_TEXT_FIXTURE=1 npm test`) a fedőnév, az indok, a kulcsszó és a

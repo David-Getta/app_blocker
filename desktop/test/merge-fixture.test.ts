@@ -21,10 +21,12 @@ import { mergeSite } from '../src/shared/sync/merge';
 import { mergeFocus, normalizeSyncFocus, sameFocus } from '../src/shared/sync/focus-merge';
 import { combineUsage } from '../src/shared/usage';
 import { isBlockedNowWithLimit } from '../src/shared/limits';
+import { isBlockedBySchedule, isLoosening, type Schedule } from '../src/shared/schedule';
 import { noteBurstUsage, type BurstState } from '../src/shared/burst';
 import {
-  DECISION_NOW, DEVICES, flipFocus, flipSite, focusConformanceKey, randomBurstRun, randomDecision, randomFocus,
-  randomSite, randomUsage, randomVerdict, referenceVerdict, rng, siteConformanceKey, usageConformanceKey,
+  DECISION_NOW, DEVICES, SCHEDULE_WEEK_START, flipFocus, flipSite, focusConformanceKey, randomBurstRun, randomDecision,
+  randomFocus, randomScheduleCase, randomSite, randomUsage, randomVerdict, referenceVerdict, rng, siteConformanceKey,
+  usageConformanceKey,
 } from './merge-random';
 
 // A döntés napkulcsa helyi időben számolódik; a fixtúra UTC-ben készül, és a
@@ -38,8 +40,40 @@ const SEEDS = 80;
 
 interface Fixture {
   note: string; version: number; sites: unknown[]; focus: unknown[]; usage: unknown[]; decisions: unknown[];
-  bursts: unknown[]; verdicts: unknown[];
+  bursts: unknown[]; verdicts: unknown[]; schedules: unknown[];
 }
+
+/** Perc a hét kezdetétől (hétfő 00:00 UTC) epoch ms-ben, másodperc-eltolással. */
+const atWeek = (day: number, hour: number, minute: number, second = 0) =>
+  SCHEDULE_WEEK_START + ((day * 24 + hour) * 60 + minute) * 60_000 + second * 1000;
+const WORK: Schedule = { mode: 'scheduled_block', bands: [{ days: [1, 2, 3, 4, 5], startMin: 540, endMin: 1020 }] };
+const NIGHT: Schedule = { mode: 'scheduled_block', bands: [{ days: [1], startMin: 1320, endMin: 360 }] };
+const OPEN_WEEKEND: Schedule = { mode: 'scheduled_allow', bands: [{ days: [0, 6], startMin: 0, endMin: 1440 }] };
+const ALWAYS_WITH_BANDS: Schedule = { mode: 'always', bands: [{ days: [1], startMin: 0, endMin: 1440 }] };
+const ALL_BROKEN: Schedule = { mode: 'scheduled_allow', bands: [{ days: [], startMin: 0, endMin: 1440 }, { days: [1], startMin: 1440, endMin: 60 }] };
+/**
+ * Kézzel válogatott élek: a sávhatár perce (a percen belül másodpercekkel), az
+ * éjfélen átnyúló sáv két napja, a nyitó mód, a sávos „mindig”, a csupa rossz
+ * sáv. A hét 2026-09-28-tól (hétfő) indul; a nap itt 0 = hétfő a hét elejétől.
+ */
+const CURATED_SCHEDULES: Array<{ schedule: Schedule; other: Schedule; now: number }> = [
+  { schedule: WORK, other: OPEN_WEEKEND, now: atWeek(0, 8, 59, 59) },
+  { schedule: WORK, other: OPEN_WEEKEND, now: atWeek(0, 9, 0, 0) },
+  { schedule: WORK, other: WORK, now: atWeek(0, 16, 59, 59) },
+  { schedule: WORK, other: NIGHT, now: atWeek(0, 17, 0, 0) },
+  { schedule: WORK, other: WORK, now: atWeek(5, 12, 0, 0) },
+  { schedule: NIGHT, other: WORK, now: atWeek(0, 21, 59, 0) },
+  { schedule: NIGHT, other: NIGHT, now: atWeek(0, 22, 0, 0) },
+  { schedule: NIGHT, other: NIGHT, now: atWeek(1, 0, 0, 0) },
+  { schedule: NIGHT, other: NIGHT, now: atWeek(1, 5, 59, 59) },
+  { schedule: NIGHT, other: OPEN_WEEKEND, now: atWeek(1, 6, 0, 0) },
+  { schedule: NIGHT, other: NIGHT, now: atWeek(2, 1, 0, 0) },
+  { schedule: OPEN_WEEKEND, other: WORK, now: atWeek(5, 23, 59, 59) },
+  { schedule: OPEN_WEEKEND, other: WORK, now: atWeek(6, 0, 0, 0) },
+  { schedule: ALWAYS_WITH_BANDS, other: WORK, now: atWeek(0, 12, 0, 0) },
+  { schedule: ALL_BROKEN, other: OPEN_WEEKEND, now: atWeek(6, 12, 0, 0) },
+  { schedule: WORK, other: ALL_BROKEN, now: atWeek(3, 10, 0, 0) },
+];
 
 function buildFixture(): Fixture {
   const sites: unknown[] = [];
@@ -48,6 +82,7 @@ function buildFixture(): Fixture {
   const decisions: unknown[] = [];
   const bursts: unknown[] = [];
   const verdicts: unknown[] = [];
+  const schedules: unknown[] = [];
   for (let seed = 1; seed <= SEEDS; seed++) {
     const r = rng(seed);
     const [a, b, c] = DEVICES.map((d) => randomSite(r, d));
@@ -120,6 +155,25 @@ function buildFixture(): Fixture {
     const c = randomVerdict(r);
     verdicts.push({ seed, ...c, verdict: referenceVerdict(c) });
   }
+  // A MENETREND: tilt-e most egy heti sávrendszer szerint, és lazítás-e a
+  // csere egy másikra. Ez dönt a gépen és a telefonon EGYSZERRE ugyanarról az
+  // oldalról; a sávok helyi időben értékelődnek ki, ezért UTC-ben (lásd fent).
+  // Előbb a kézzel válogatott élek (a sávhatár perce, az éjfélen átnyúló sáv
+  // két napja), aztán a véletlen esetek.
+  CURATED_SCHEDULES.forEach((c, i) => {
+    schedules.push({
+      seed: 1000 + i, ...c, blocked: isBlockedBySchedule(c.schedule, c.now), loosening: isLoosening(c.schedule, c.other, c.now),
+    });
+  });
+  for (let seed = 1; seed <= SEEDS; seed++) {
+    const r = rng(seed);
+    const c = randomScheduleCase(r);
+    schedules.push({ seed, ...c, blocked: isBlockedBySchedule(c.schedule, c.now), loosening: isLoosening(c.schedule, c.other, c.now) });
+  }
+  // Nem elfajult: zár is, nyit is; lazítás is, nem is.
+  const sch = schedules as Array<{ blocked: boolean; loosening: boolean }>;
+  assert.ok(sch.some((c) => c.blocked) && sch.some((c) => !c.blocked), 'a menetrend-esetek egyfélék');
+  assert.ok(sch.some((c) => c.loosening) && sch.some((c) => !c.loosening), 'a lazítás-esetek egyfélék');
   return {
     note: 'Generálja és őrzi: desktop/test/merge-fixture.test.ts (UPDATE_MERGE_FIXTURE=1 npm test). '
       + 'Olvassa: android/jvm-tests MergeFixtureTest, ios/SharedTests MergeFixtureTests. '
@@ -128,14 +182,16 @@ function buildFixture(): Fixture {
       + 'A usage-esetek: három eszköz mérése és az egyesítés kulcsa. '
       + 'A decisions-esetek: oldal, helyi mérés, a többi eszköz mai összegzése, időpont — és hogy tilt-e most. '
       + 'A bursts-esetek (gép és Android): adag-szabály, minták, és a számláló állapota minden minta után. '
-      + 'A verdicts-esetek (a két telefon): név, lista, kulcsszavak, menet, csomag, saját kiszolgáló — és a döntés.',
-    version: 11,
+      + 'A verdicts-esetek (a két telefon): név, lista, kulcsszavak, menet, csomag, saját kiszolgáló — és a döntés. '
+      + 'A schedules-esetek: menetrend, egy másik menetrend, időpont (UTC-ben értékelve) — tilt-e most, és lazítás-e a csere.',
+    version: 12,
     sites,
     focus,
     usage,
     decisions,
     bursts,
     verdicts,
+    schedules,
   };
 }
 
@@ -145,7 +201,7 @@ function render(f: Fixture): string {
   return `{\n"note": ${JSON.stringify(f.note)},\n"version": ${f.version},\n`
     + `"sites": [\n${rows(f.sites)}\n],\n"focus": [\n${rows(f.focus)}\n],\n"usage": [\n${rows(f.usage)}\n],\n`
     + `"decisions": [\n${rows(f.decisions)}\n],\n"bursts": [\n${rows(f.bursts)}\n],\n`
-    + `"verdicts": [\n${rows(f.verdicts)}\n]\n}\n`;
+    + `"verdicts": [\n${rows(f.verdicts)}\n],\n"schedules": [\n${rows(f.schedules)}\n]\n}\n`;
 }
 
 test('a megfelelőségi fixture a gép szabályaival egyezik (a Kotlin és a Swift ebből dolgozik)', () => {

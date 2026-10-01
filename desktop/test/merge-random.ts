@@ -9,7 +9,7 @@
 import type { SyncSite } from '../src/shared/sync/merge';
 import { emptyFocus, type SyncFocus } from '../src/shared/sync/focus-merge';
 import { isRunning, isSiteAllowed, type FocusLogEntry, type FocusPack, type FocusRun } from '../src/shared/focus';
-import type { Band, Schedule } from '../src/shared/schedule';
+import type { Band, Schedule, ScheduleMode, Weekday } from '../src/shared/schedule';
 import type { UrlRule } from '../src/shared/urlrules';
 import { windowKey, type LockdownWindow } from '../src/shared/lockdown';
 import { keywordInHost, keywordsKey } from '../src/shared/keywords';
@@ -618,4 +618,56 @@ export function referenceVerdict(c: VerdictCase): VerdictLabel {
   if (isSiteAllowed(c.pack, h)) return 'allow';
   if (ownSync) return 'allow';
   return 'focus';
+}
+
+// ------------------------------------------------------------ a menetrend
+//
+// A MENETREND az, ami a gépen és a telefonon EGYSZERRE dönt ugyanarról az
+// oldalról: ha a sáv-számtan elcsúszik, az oldal a telefonon zárva, a gépen
+// nyitva — vagy fordítva — ugyanabban a percben. A sávok helyi időben
+// értékelődnek ki, ezért a fixtúra UTC-ben jár (a három teszt beállítja, vagy
+// kimondva kihagy); az időpontok egy rögzített hét környékén szórnak, perc ÉS
+// másodperc szinten, hogy a sávhatár és a hét fordulása is sorra kerüljön.
+
+/** A menetrend-fixtúra hete: 2026-09-28, hétfő, 00:00 UTC. */
+export const SCHEDULE_WEEK_START = Date.UTC(2026, 8, 28);
+
+export interface ScheduleCase { schedule: Schedule; other: Schedule; now: number }
+
+/**
+ * Egy véletlen menetrend: mód (mindig / tiltó sávok / nyitó sávok), 1–3 sáv,
+ * véletlen napok (akár egy sem), éjfélen átnyúló sáv a harmadában, és néha
+ * egy ROSSZ sáv (hetedik nap, 1440-es kezdet, nullás vég), amit a
+ * normalizálásnak mindhárom nyelven ki kell szűrnie — ha minden sáv rossz, a
+ * menetrend „mindig tilt”. Csak a fixtúráé: a húzások száma nem szerződés.
+ */
+export function randomSchedule(r: () => number): Schedule {
+  const modeDraw = r();
+  const mode: ScheduleMode = modeDraw < 0.15 ? 'always' : modeDraw < 0.6 ? 'scheduled_block' : 'scheduled_allow';
+  const count = 1 + Math.floor(r() * 3);
+  const bands: Band[] = [];
+  for (let i = 0; i < count; i++) {
+    const days: Weekday[] = [];
+    for (let d = 0; d < 7; d++) if (r() < 0.5) days.push(d as Weekday);
+    const startMin = Math.floor(r() * 1440);
+    const wrapDraw = r();
+    const plainEnd = 1 + Math.floor(r() * 1440);
+    const wrappedEnd = Math.max(1, Math.floor(r() * (startMin + 1)));
+    const endMin = wrapDraw < 0.3 ? wrappedEnd : plainEnd;
+    const brokenDraw = r();
+    if (brokenDraw < 0.08) bands.push({ days: [...days, 7 as Weekday], startMin, endMin });
+    else if (brokenDraw < 0.12) bands.push({ days, startMin: 1440, endMin });
+    else if (brokenDraw < 0.16) bands.push({ days, startMin, endMin: 0 });
+    else bands.push({ days, startMin, endMin });
+  }
+  return { mode, bands };
+}
+
+/** Egy eset: a menetrend, egy másik (a csere célja), és egy időpont két héten belül. */
+export function randomScheduleCase(r: () => number): ScheduleCase {
+  for (let i = 0; i < 4; i++) r();
+  const schedule = randomSchedule(r);
+  const other = randomSchedule(r);
+  const now = SCHEDULE_WEEK_START + Math.floor(r() * 14 * 1440) * 60_000 + Math.floor(r() * 60_000);
+  return { schedule, other, now };
 }
