@@ -44,25 +44,25 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A heti visszatekintés mondatának közös fixtúrája.** A hétfő
-          reggeli mondatot mindhárom platform maga írja a saját számaiból,
-          amik a fiókon utaznak; ha a három mondat-író eltérne — egy
-          kerekítés, egy vesszőhiba, egy kimaradt tagmondat —, ugyanarról a
-          hétről három mondatot kapnál. A közös fixtúra most heteket tart:
-          üres hét, csak feloldás, csak előző hét, minden mező egyszerre, a
-          trend az öt százalék két oldalán — és a három mondatnak bájtra
-          egyeznie kell. Egy kimondott eltérés marad: a megakadás szava a
-          platformé (a gépen a böngésző, a telefonon a szűrő akaszt meg).
+          **A statisztika számai ugyanazok mindhárom platformon.** A
+          statisztika képernyője az egyesített mérésből összegez: ma, tegnap,
+          hét, hónap, a mai és a heti toplisták, a hét az előző héthez. A
+          közös fixtúra most ezt is nézi, és egy valódi apróságot igazított:
+          holtversenyben eddig a gép és az Android a beszúrás sorrendjére
+          hagyatkozott — az eszközönként más lehet, és két egyforma idejű
+          célpont a két képernyőn fordítva állt volna; most a kulcs dönt,
+          mindhárom magban. Az iPhone összegzője kevesebbet mond, de amit
+          mond, az a gépé.
 
-          ### Ami a v0.4.193-ban jött
+          ### Ami a v0.4.194-ben jött
+
+          **A heti visszatekintés mondatának közös fixtúrája.** A három
+          mondat-író bájtra ugyanazt írja; a megakadás szava a platformé.
+
+          #### Ami a v0.4.193-ban jött
 
           **A fixtúra a zárlat-ablakokat is nézi.** Szabad idő, lazítás, élő
           ablak, megkövetelt zárlat, közelgő ablak — UTC-ben kimondva.
-
-          #### Ami a v0.4.192-ben jött
-
-          **A fixtúra a részleges szabályt is nézi.** Kanonikus alak és
-          illesztés mindhárom nyelven; az út hossza kódpontban.
 
           NOTES
           fi
