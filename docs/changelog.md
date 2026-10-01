@@ -8,6 +8,7 @@ kettővel korábbiban.
 
 | Verzió | Nap | Mi újság |
 |---|---|---|
+| v0.4.183 | 2026-10-01 | a fixtúra az adag-számlálót is nézi |
 | v0.4.182 | 2026-10-01 | a fixtúra a döntést is nézi |
 | v0.4.181 | 2026-10-01 | a fixtúra a használati statisztika egyesítését is nézi |
 | v0.4.180 | 2026-09-30 | a fixtúra a naplót is fésüli |
