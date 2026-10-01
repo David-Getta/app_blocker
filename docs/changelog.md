@@ -8,6 +8,7 @@ kettővel korábbiban.
 
 | Verzió | Nap | Mi újság |
 |---|---|---|
+| v0.4.184 | 2026-10-01 | egy új szinkron-mező nem maradhat ki a fixtúrából |
 | v0.4.183 | 2026-10-01 | a fixtúra az adag-számlálót is nézi |
 | v0.4.182 | 2026-10-01 | a fixtúra a döntést is nézi |
 | v0.4.181 | 2026-10-01 | a fixtúra a használati statisztika egyesítését is nézi |
