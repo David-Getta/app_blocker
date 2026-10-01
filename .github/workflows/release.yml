@@ -44,23 +44,24 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **Egy új szinkron-mező nem maradhat ki a fixtúrából.** A közös
-          fixtúra sokáig nem vetette össze a kulcsszavakat, a megbízottat, a
-          menetrendet, az adagot és a részleges szabályokat — a három nyelv
-          fésülése ott nem volt ellenőrizve, és semmi nem szólt. Mostantól a
-          drótnév-őr azt is nézi, hogy minden őrzött drót-mező ott van a
-          fixtúra generátorában: ami a drótra kerül, annak az összevetésbe is
-          be kell kerülnie. Őr, nem emlékezet.
+          **Ugyanaz a döntés mindhárom platformon — kimondva.** Az
+          architektúra-doksi most egyben írja le a közös próbasort, ami a gép,
+          az Android és az iPhone összefésülését (lista, menet, napló, mérés)
+          és döntését (tilt-e most, adag) minden kiadás előtt bájtra összeveti
+          — és azt, hogy egy új szinkron-mező nem maradhat ki belőle. A
+          weboldal „Jó, ha tudod” pontja ugyanezt mondja a felhasználónak:
+          nem ígéret tartja, hanem próba; ahol az egyik platform nem tud
+          valamit, az app kimondja.
 
-          ### Ami a v0.4.183-ban jött
+          ### Ami a v0.4.184-ben jött
+
+          **Egy új szinkron-mező nem maradhat ki a fixtúrából.** A drótnév-őr
+          a fixtúra generátorát is nézi.
+
+          #### Ami a v0.4.183-ban jött
 
           **A fixtúra az adag-számlálót is nézi.** Mérés-sorozat és a
           számláló állapota minden minta után, a gépen és az Androidon.
-
-          #### Ami a v0.4.182-ben jött
-
-          **A fixtúra a döntést is nézi.** Tilt-e most: szünet, törlésre
-          várás, közös napi keret — mindhárom nyelven ugyanaz.
 
           NOTES
           fi
