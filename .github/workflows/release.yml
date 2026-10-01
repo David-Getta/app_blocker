@@ -44,27 +44,26 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
+          **A munkamenet magja ugyanaz mindhárom platformon.** Az ismétlődő
+          menet minden eszközön magától indul; ha a három mag más ablakot
+          tartana esedékesnek, a menet az egyik eszközön elindulna, a
+          másikon nem. A közös fixtúra most ezt is nézi — az ablak
+          előfordulását a széleken, két egyforma ablak holtversenyét, a
+          lezárást, a legutóbbi csomagot, a hátralévő idő szövegét —, és
+          három valódi eltérést igazított: az Android egy nagyon nagy
+          percszámot negatívra fordított, az engedélyezett appok nevét a
+          három mag háromféleképp tisztította (a lista minden szinkronban
+          átíródhatott), és az app-egyezésben az üres tétel mindent
+          engedett — most semmit.
+
+          ### Ami a v0.4.199-ben jött
+
           **A közös napi keret egy szabállyal olvasódik mindhárom
-          platformon.** A keret eszközök között közös: mindegyik feltölti a
-          mai percét, a többi hozzáadja. Ezt a blobot eddig mindhárom kliens
-          a maga módján olvasta — a gép a tömböt, az Android a szövegként
-          írt számot, az iPhone az igaz/hamisat is elfogadta, és a plafon
-          fölött mindhárom mást vágott le. Most egy szabály: csak szám, a
-          legnagyobbak maradnak. A keret betelt napjainak sora holtversenyben
-          kódegység szerint áll — a gép eddig a nyelvi beállítását követte, és
-          magyarul a „cz.hu” a „csak.hu” elé került. A közös fixtúra őrzi, és
-          egy őr tiltja a nyelvfüggő rendezést a közös magban. Az őrök egyike
-          pedig a két telefon közti eltéréseket eddig elnyelte — most
-          buktat.
+          platformon.** A betelt napok holtversenye kódegység szerint.
 
-          ### Ami a v0.4.198-ban jött
+          #### Ami a v0.4.198-ban jött
 
-          **A próbatétel válasza ugyanúgy számít mindhárom platformon.** A
-          fejszámolás, a memória-kód és az átgépelés szabálya kimondva.
-
-          #### Ami a v0.4.197-ben jött
-
-          **A titkosítás közös fixtúrája: a gép burkol, a telefon nyit.**
+          **A próbatétel válasza ugyanúgy számít mindhárom platformon.**
 
           NOTES
           fi
