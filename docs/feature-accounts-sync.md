@@ -446,6 +446,17 @@ Amit a tesztek bizonyítanak, és amit másképp nem lehetne:
   (`PairingFixtureTests`) ugyanezt játssza vissza. A gépen kiírt kódot a
   telefonon gépelik be: ha egy bit eltér, a kód nem nyílik ki — vagy MÁS
   címet ad. A Swift párosítónak ez az első tesztje.
+- **a heti visszatekintés mondata is megfelelőségi próbán megy át.** A
+  `fixtures/digest-cases.json` (írja `desktop/test/digest-fixture.test.ts`,
+  `UPDATE_DIGEST_FIXTURE=1 npm test`) egy-egy hét számait és a gép mondatát
+  tartja — kézzel válogatott és véletlen hetek, a hiányzó mezőkkel (régi
+  hívó) is —, a Kotlin (`DigestFixtureTest`) és a Swift
+  (`DigestFixtureTests`) ugyanezt a hetet a saját mondat-írójába adja, és a
+  mondatnak bájtra egyeznie kell. Egy kimondott eltérés: a megakadás szava a
+  platformé (a gépen a böngésző-bővítmény, a telefonon a DNS-szűrő akaszt
+  meg), azt a visszajátszók a gépére írják át a hasonlítás előtt. A számok a
+  szinkronon utaznak; ha a három mondat eltérne, a felhasználó ugyanarról a
+  hétről három mondatot kapna.
 
 Egy dolog iPhone-on más: a **napi keret nem érvényesül** (nincs ilyen mérési
 API), de a rekordban MEGŐRIZZÜK. Enélkül elég lenne egyszer megnyitni a

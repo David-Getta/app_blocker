@@ -867,3 +867,16 @@ látszik, nem csak a pillanat — tükör, nem ítélet.
   társneveivel és az aloldalaival együtt. A napló sem szivárogtathat ki olyan
   címet, amit a lista elrejt.
 - Üresen (se sor, se mondat) a blokk nincs — mint a többi.
+
+**A három mag ugyanazt a mondatot írja.** A `fixtures/digest-cases.json` (írja
+`desktop/test/digest-fixture.test.ts`, `UPDATE_DIGEST_FIXTURE=1 npm test`)
+kézzel válogatott és véletlen heteket tart — üres hét, csak feloldás, csak előző
+hét, minden mező egyszerre; a trend az öt százalék két oldalán, a kerekítés
+felezőjén; a menet-óra, ami a csúcs-óra — és a gép mondatát a `[név]`
+címkézéssel. A Kotlin (`DigestFixtureTest`) és a Swift (`DigestFixtureTests`)
+ugyanezt a hetet a saját mondat-írójába adja, és a mondatnak bájtra egyeznie
+kell — EGY kimondott szót leszámítva: a megakadás szava a platformé (a gépen a
+böngésző-bővítmény, a telefonon a DNS-szűrő akaszt meg), azt a két
+visszajátszó a gépére írja át a hasonlítás előtt. Ami a fixtúrában nincs: a
+hét kulcsa és az esedékesség (helyi idő, naptár) — azokat a nyelvenkénti
+tesztek nézik.

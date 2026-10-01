@@ -278,7 +278,14 @@ a részleges szabályt is nézi: a beírt szöveg kanonikus alakját és a szab�
 illesztését egy címre — itt az út hossza kódpontban számol mindhárom magban
 (a Swift grafémát, a gép és az Android UTF-16 egységet számolt), a szélek a
 kimondott szóköz-készlet szerint vágnak, és az út kisbetűje a gép szabálya
-szerint készül.
+szerint készül. A réteg negyedik fájlja a HETI VISSZATEKINTÉSÉ
+(`fixtures/digest-cases.json`, írja `desktop/test/digest-fixture.test.ts`,
+visszajátssza a Kotlin `DigestFixtureTest` és a Swift `DigestFixtureTests`):
+egy hét számaiból a három mag ugyanazt a hétfő reggeli mondatot írja — a
+trend kerekítése, a menetek, a sorozat, a csúcs-óra és a menet-óra, a
+feloldások, a keret, az adag, a megakadások, a nem tiltott idővivő —, egy
+kimondott szót leszámítva: a megakadás szava a platformé (a gépen a
+böngésző, a telefonon a szűrő), azt a visszajátszók a gépére írják át.
 
 ## Biztonsági modell és őszinte korlátok
 
