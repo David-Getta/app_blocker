@@ -21,8 +21,8 @@ final class DigestFixtureTests: XCTestCase {
     private func num(_ v: Any?) -> Double { (v as? NSNumber)?.doubleValue ?? 0 }
     private func int(_ v: Any?) -> Int { (v as? NSNumber)?.intValue ?? 0 }
 
-    private func tops(_ v: Any?) -> [Digest.Top] {
-        (v as? [[String: Any]] ?? []).map { Digest.Top(label: $0["label"] as? String ?? "", seconds: num($0["seconds"])) }
+    private func tops(_ v: Any?) -> [DigestLogic.Top] {
+        (v as? [[String: Any]] ?? []).map { DigestLogic.Top(label: $0["label"] as? String ?? "", seconds: num($0["seconds"])) }
     }
 
     private func summary(_ v: Any?) -> Focus.Summary? {
@@ -44,13 +44,13 @@ final class DigestFixtureTests: XCTestCase {
     }
 
     /// A gép DigestInput-ja az iPhone Input-jává: a hiányzó mező a régi hívó alapértéke.
-    private func input(_ o: [String: Any]) -> Digest.Input {
-        var input = Digest.Input(
+    private func input(_ o: [String: Any]) -> DigestLogic.Input {
+        var input = DigestLogic.Input(
             last7Seconds: num(o["last7Seconds"]),
             topWeekSites: tops(o["topWeekSites"]),
             topWeekApps: tops(o["topWeekApps"]),
             weekOverWeek: (o["weekOverWeek"] as? [[String: Any]] ?? []).map {
-                Digest.Delta(label: $0["label"] as? String ?? "", deltaPct: ($0["deltaPct"] as? NSNumber)?.doubleValue)
+                DigestLogic.Delta(label: $0["label"] as? String ?? "", deltaPct: ($0["deltaPct"] as? NSNumber)?.doubleValue)
             },
             focusWeek: summary(o["focusWeek"]) ?? Focus.Summary(sessions: 0, totalMs: 0, stoppedEarly: 0, topPack: nil),
             unlocks7d: int(o["unlocks7d"]),
@@ -87,7 +87,7 @@ final class DigestFixtureTests: XCTestCase {
             let seed = c["seed"] as? Int ?? -1
             let expected = c["text"] as? String
             // A platform szava: a gépen a böngésző-bővítmény, az iPhone-on a DNS-szűrő akaszt meg.
-            let got = Digest.text(input(c["input"] as? [String: Any] ?? [:]), labelOf: { "[\($0)]" })?
+            let got = DigestLogic.text(input(c["input"] as? [String: Any] ?? [:]), labelOf: { "[\($0)]" })?
                 .replacingOccurrences(of: " a szűrőben", with: " a böngészőben")
             XCTAssertEqual(got, expected, "visszatekintés, mag \(seed)")
             if got != nil { sentences += 1 }
