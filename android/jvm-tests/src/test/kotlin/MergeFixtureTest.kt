@@ -203,13 +203,39 @@ class MergeFixtureTest {
 
     @Test
     fun `hasznalat - a Kotlin egyesites ugyanazt adja, mint a gep`() {
+        // Az összegző napkulcsa helyi időben jár; a fixtúra UTC-ben készült.
+        java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone("UTC"))
         val cases = JSONObject(fixtureFile().readText()).getJSONArray("usage")
         assertTrue(cases.length() >= 50, "a fixture-ben van elég eset")
+        val tops = { rows: List<UsageLogic.TargetTotal> -> rows.joinToString(",") { "${it.key}=${it.label}=${it.seconds.toLong()}" } }
         for (i in 0 until cases.length()) {
             val c = cases.getJSONObject(i)
             val seed = c.getInt("seed")
             val states = listOf("a", "b", "c").map { SyncClient.usageFromJson(c.getJSONObject(it).toString()) }
-            assertEquals(c.getString("abc"), usageKey(UsageLogic.combineUsage(states)), "használat, három eszköz, mag $seed")
+            val combined = UsageLogic.combineUsage(states)
+            assertEquals(c.getString("abc"), usageKey(combined), "használat, három eszköz, mag $seed")
+            // AZ ÖSSZEGZŐ: a statisztika képernyőjének számai az egyesített
+            // mérésből — ugyanannak kell lenniük, mint a gépen. Holtversenyben a
+            // kulcs dönt, mindhárom magban.
+            val now = c.getLong("now")
+            val want = c.getJSONObject("summary")
+            val s = UsageLogic.summarize(combined, now, 8)
+            assertEquals(want.getInt("enabled"), if (s.enabled) 1 else 0, "összegző kapcsoló, mag $seed")
+            assertEquals(want.getLong("today"), s.todaySeconds.toLong(), "összegző ma, mag $seed")
+            assertEquals(want.getLong("yday"), s.yesterdaySeconds.toLong(), "összegző tegnap, mag $seed")
+            assertEquals(want.getLong("w7"), s.last7Seconds.toLong(), "összegző hét, mag $seed")
+            assertEquals(want.getLong("w30"), s.last30Seconds.toLong(), "összegző hónap, mag $seed")
+            assertEquals(want.getString("topToday"), tops(s.topToday), "összegző mai toplista, mag $seed")
+            assertEquals(want.getString("weekSites"), tops(s.topWeekSites), "összegző heti oldalak, mag $seed")
+            assertEquals(want.getString("weekApps"), tops(s.topWeekApps), "összegző heti appok, mag $seed")
+            val mixed = UsageLogic.rank(combined, UsageLogic.totalsForDays(combined, UsageLogic.dayKeysBack(now, 7)), null, 8)
+            assertEquals(want.getString("weekMixed"), tops(mixed), "összegző heti vegyes toplista, mag $seed")
+            val wow = s.weekOverWeek.joinToString(",") {
+                val delta = it.deltaPct?.let { d -> Math.floor(d * 100 + 0.5).toLong().toString() } ?: "-"
+                "${it.key}=${it.label}=${it.thisWeek.toLong()}/${it.lastWeek.toLong()}/$delta"
+            }
+            assertEquals(want.getString("wow"), wow, "összegző a hét az előző héthez, mag $seed")
+            assertEquals(want.getInt("days"), s.daysTracked, "összegző napok, mag $seed")
         }
     }
 

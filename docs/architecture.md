@@ -233,7 +233,8 @@ munkamenet-blobok fésülése minden mezővel (csomagok a jeleikkel, menet, napl
 — ugyanarról a menetről két változat is —, zárlat, ablakok, kulcsszavak,
 megbízott, rejtés, a jeleikkel), és minden esethez egy mező cseréje, amit a
 három nyelvnek ugyanúgy kell különbségnek tartania; a mérés egyesítése három
-eszközről; a döntés — tilt-e most: szünet, törlésre várás, közös napi keret;
+eszközről és az összegzője (ma, tegnap, hét, hónap, toplisták holtversenyben
+a kulcs szerint, a hét az előző héthez — az iPhone a maga kisebb részén); a döntés — tilt-e most: szünet, törlésre várás, közös napi keret;
 és az adag-számláló mérés-sorozatból, lépésenként (ezt a gép és az Android
 tükrözi, az iPhone nem mér előteret); és a munkamenet-döntés — mi mehet egy
 menet alatt — a két telefon DNS-motorában, a gép közös darabjaiból írt

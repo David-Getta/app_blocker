@@ -225,6 +225,10 @@ final class MergeFixtureTests: XCTestCase {
     }
 
     func testUsageCombinesTheSameAsTheDesktop() throws {
+        setenv("TZ", "UTC", 1)
+        CFTimeZoneResetSystem()
+        let utc = TimeZone.current.secondsFromGMT() == 0
+        var summaries = 0
         // A mérés a dróton SZÖVEGKÉNT jön (`UsageStats.parse`), ezért a
         // fixtúrából is így: a három állapotot visszaírjuk JSON-ná, és a
         // saját olvasónk veszi — ugyanaz az út, mint az éles körben.
@@ -246,8 +250,25 @@ final class MergeFixtureTests: XCTestCase {
                 }
                 states.append(parsed)
             }
-            XCTAssertEqual(usageKey(UsageStats.combine(states)), c["abc"] as? String ?? "", "használat, három eszköz, mag \(seed)")
+            let combined = UsageStats.combine(states)
+            XCTAssertEqual(usageKey(combined), c["abc"] as? String ?? "", "használat, három eszköz, mag \(seed)")
+            // AZ ÖSSZEGZŐ: az iPhone kevesebbet mond (ma, hét, a mai és a heti vegyes
+            // toplista), de amit mond, az a gépé kell legyen. A napkulcs helyi
+            // időben jár; a fixtúra UTC-ben készült — csak UTC-ben hasonlítunk.
+            if utc, let want = c["summary"] as? [String: Any] {
+                let now = (c["now"] as? NSNumber)?.doubleValue ?? 0
+                let s = UsageStats.summarize(combined, now: Date(timeIntervalSince1970: now / 1000), topLimit: 8)
+                let tops = { (rows: [UsageStats.Target]) -> String in
+                    rows.map { "\($0.key)=\($0.label)=\(Int($0.seconds))" }.joined(separator: ",")
+                }
+                XCTAssertEqual(Int(s.todaySeconds), (want["today"] as? NSNumber)?.intValue, "összegző ma, mag \(seed)")
+                XCTAssertEqual(Int(s.last7Seconds), (want["w7"] as? NSNumber)?.intValue, "összegző hét, mag \(seed)")
+                XCTAssertEqual(tops(s.topToday), want["topToday"] as? String, "összegző mai toplista, mag \(seed)")
+                XCTAssertEqual(tops(s.top), want["weekMixed"] as? String, "összegző heti vegyes toplista, mag \(seed)")
+                summaries += 1
+            }
         }
+        if utc { XCTAssertGreaterThan(summaries, 50, "az összegző egy esetre sem futott") }
     }
 
     func testFocusMergesTheSameAsTheDesktop() throws {

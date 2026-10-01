@@ -369,7 +369,13 @@ Amit a tesztek bizonyítanak, és amit másképp nem lehetne:
   rekordok ritkán hoznak ki. És a használati statisztika EGYESÍTÉSÉT is
   (`combineUsage`): három eszköz mérése — napok, célok, címkék, kapcsoló —
   a dróton át, és a három nyelvnek az összeget, a címke-versenyt és a napok
-  sorrendjét is bájtra ugyanúgy kell adnia. És a DÖNTÉST is: egy oldal, a
+  sorrendjét is bájtra ugyanúgy kell adnia. És az egyesített mérés
+  ÖSSZEGZŐJÉT is (`summarize`): ma, tegnap, hét, hónap, a mai és a heti
+  toplisták, a hét az előző héthez — a statisztika képernyőjének számai; az
+  iPhone összegzője kevesebbet mond (ma, hét, a mai és a heti vegyes
+  toplista), de amit mond, az a gépé. Holtversenyben a kulcs dönt, mindhárom
+  magban — a gép és az Android a beszúrás sorrendjére hagyatkozott, az
+  eszközönként más lehet. És a DÖNTÉST is: egy oldal, a
   helyi mérés, a többi eszköz mai összegzése és egy időpont — tilt-e most
   (`isBlockedNowWithLimit`): a szünet, a törlésre várás és a közös napi keret
   (a saját sor kihagyva, a nem mai nap kihagyva) mindhárom nyelven ugyanazt

@@ -247,7 +247,9 @@ export function rank(
   const rows = Object.entries(totals)
     .filter(([k]) => (opts.kind ? kindOf(k) === opts.kind : true))
     .map(([k, s]) => ({ key: k, label: labelOf(state, k), kind: kindOf(k), seconds: s }))
-    .sort((a, b) => b.seconds - a.seconds);
+    // Holtversenyben a kulcs dönt, nem a beszúrás sorrendje: az eszközönként
+    // más lehet, és a három mag toplistája ugyanabból másképp állna.
+    .sort((a, b) => b.seconds - a.seconds || (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
   return opts.limit ? rows.slice(0, opts.limit) : rows;
 }
 
@@ -343,7 +345,7 @@ export function weekOverWeek(state: UsageState, now: number, limit = 5): WeekDel
         deltaPct: lastWeek > 0 ? ((thisWeek - lastWeek) / lastWeek) * 100 : null,
       };
     })
-    .sort((a, b) => b.thisWeek - a.thisWeek)
+    .sort((a, b) => b.thisWeek - a.thisWeek || (a.key < b.key ? -1 : a.key > b.key ? 1 : 0))
     .slice(0, limit);
 }
 

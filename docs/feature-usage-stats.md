@@ -880,3 +880,12 @@ böngésző-bővítmény, a telefonon a DNS-szűrő akaszt meg), azt a két
 visszajátszó a gépére írja át a hasonlítás előtt. Ami a fixtúrában nincs: a
 hét kulcsa és az esedékesség (helyi idő, naptár) — azokat a nyelvenkénti
 tesztek nézik.
+
+**Az összegző is a három mag közös próbáján megy át.** A `fixtures/merge-cases.json`
+használat-esetei az egyesített mérés összegzőjét is tartják (`summarize`: ma,
+tegnap, hét, hónap, a mai és a heti toplisták, a hét az előző héthez), és a
+Kotlin meg a Swift ugyanabból ugyanazt számolja — az iPhone összegzője
+kevesebbet mond (ma, hét, a mai és a heti vegyes toplista), de amit mond, az a
+gépé. Holtversenyben a kulcs dönt, mindhárom magban: a gép és az Android a
+beszúrás sorrendjére hagyatkozott, ami eszközönként más lehet, és két egyforma
+idejű célpont a két képernyőn fordítva állt volna.

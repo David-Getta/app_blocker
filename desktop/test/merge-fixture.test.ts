@@ -31,7 +31,7 @@ import { noteBurstUsage, type BurstState } from '../src/shared/burst';
 import {
   DECISION_NOW, DEVICES, SCHEDULE_WEEK_START, flipFocus, flipSite, focusConformanceKey, randomBurstRun, randomDecision,
   randomFocus, randomScheduleCase, randomSite, randomUsage, randomVerdict, randomWindowsCase, referenceVerdict, rng,
-  siteConformanceKey, usageConformanceKey, type WindowsCase,
+  siteConformanceKey, usageConformanceKey, usageSummaryParts, type WindowsCase,
 } from './merge-random';
 
 // A döntés napkulcsa helyi időben számolódik; a fixtúra UTC-ben készül, és a
@@ -171,8 +171,16 @@ function buildFixture(): Fixture {
   for (let seed = 1; seed <= SEEDS; seed++) {
     const r = rng(seed);
     const [a, b, c] = DEVICES.map((d) => randomUsage(r, d));
-    usage.push({ seed, a, b, c, abc: usageConformanceKey(combineUsage([a, b, c])) });
+    const combined = combineUsage([a, b, c]);
+    // AZ ÖSSZEGZŐ az egyesített mérésen, a döntés időpontjában (dél UTC, a
+    // mérés utolsó napja): ma, tegnap, hét, hónap, toplisták, a hét az előző
+    // héthez — a statisztika képernyőjének számai, amiknek a három magon
+    // ugyanannak kell lenniük. Holtversenyben a kulcs dönt, mindhárom magban.
+    usage.push({ seed, a, b, c, abc: usageConformanceKey(combined), now: DECISION_NOW, summary: usageSummaryParts(combined, DECISION_NOW) });
   }
+  const sums = usage as Array<{ summary: { wow: string; topToday: string } }>;
+  assert.ok(sums.some((u) => /\/\d+,|\/\d+$/.test(u.summary.wow)), 'egy trendnek sincs előző hete — a fixtúra elfajult');
+  assert.ok(sums.some((u) => u.summary.topToday.includes(',')), 'a mai toplista mindig egyetlen sor — a fixtúra elfajult');
   // A DÖNTÉS: tilt-e most — szünet, törlésre várás, közös napi keret. Ez az,
   // amiért az egész szinkron van: ugyanaz a bemenet, ugyanaz a döntés
   // mindhárom nyelven. A menetrend kimarad (helyi idő), lásd randomDecision.
@@ -245,14 +253,15 @@ function buildFixture(): Fixture {
       + 'Olvassa: android/jvm-tests MergeFixtureTest, ios/SharedTests MergeFixtureTests. '
       + 'A focus-esetek flip/what/same mezője: egy mező cseréje, és hogy a három nyelv különbségnek tartja-e. '
       + 'A sites-esetek flip/what/af/fa mezője: egy mező cseréje, és a fésülés mindkét sorrendben. '
-      + 'A usage-esetek: három eszköz mérése és az egyesítés kulcsa. '
+      + 'A usage-esetek: három eszköz mérése, az egyesítés kulcsa, és az összegző (summary) a now időpontban: ma, tegnap, hét, hónap, '
+      + 'toplisták (kulcs=címke=mp, holtversenyben a kulcs dönt), a hét az előző héthez (ez/múlt/századszázalék), napok. '
       + 'A decisions-esetek: oldal, helyi mérés, a többi eszköz mai összegzése, időpont — és hogy tilt-e most. '
       + 'A bursts-esetek (gép és Android): adag-szabály, minták, és a számláló állapota minden minta után. '
       + 'A verdicts-esetek (a két telefon): név, lista, kulcsszavak, menet, csomag, saját kiszolgáló — és a döntés. '
       + 'A schedules-esetek: menetrend, egy másik menetrend, időpont (UTC-ben értékelve) — tilt-e most, és lazítás-e a csere. '
       + 'A windows-esetek: zárlat-ablakok, a csere célja, futó zárlat, időpont, a közelgő ablak kerete (UTC-ben) — szabad idő, '
       + 'lazítás, élő ablak, megkövetelt zárlat, ablak-zárlat-e, közelgő ablak, a következő előfordulás (nextOcc).',
-    version: 13,
+    version: 14,
     sites,
     focus,
     usage,

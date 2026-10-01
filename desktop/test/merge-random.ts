@@ -14,7 +14,9 @@ import type { UrlRule } from '../src/shared/urlrules';
 import { windowKey, type Lockdown, type LockdownWindow } from '../src/shared/lockdown';
 import { keywordInHost, keywordsKey } from '../src/shared/keywords';
 import { partnerKey, type PartnerLock } from '../src/shared/partner';
-import type { UsageDay, UsageState } from '../src/shared/usage';
+import {
+  dayKeysBack, rank, summarize, totalsForDays, type TargetTotal, type UsageDay, type UsageState, type WeekDelta,
+} from '../src/shared/usage';
 import type { Limitable, SharedToday } from '../src/shared/limits';
 import type { BurstRule } from '../src/shared/burst';
 
@@ -405,7 +407,8 @@ export function flipSite(r: () => number, a: SyncSite): SiteFlip {
 }
 
 /** A mérés napjai, céljai és címkéi — a használati statisztika egyesítéséhez. */
-export const USAGE_DAYS = ['2026-09-28', '2026-09-29', '2026-09-30'];
+/** Két nap az előző hétből is, hogy a hét az előző héthez képest (weekOverWeek) ne csak null legyen. */
+export const USAGE_DAYS = ['2026-09-20', '2026-09-22', '2026-09-28', '2026-09-29', '2026-09-30'];
 export const USAGE_KEYS = ['site:youtube.com', 'site:reddit.com', 'app:com.example.app', 'app:Safari'];
 export const USAGE_LABELS = ['YouTube', 'Reddit', 'Példa app', 'Safari'];
 
@@ -706,4 +709,31 @@ export function randomWindowsCase(r: () => number): WindowsCase {
   const withinDraw = r();
   const within = withinDraw < 0.4 ? 600_000 : withinDraw < 0.7 ? 3_600_000 : 6 * 3_600_000;
   return { windows, next, cur, now, within };
+}
+
+// ------------------------------------------------------- a statisztika összegzője
+//
+// A statisztika képernyője ebből áll: ma, tegnap, hét, hónap, a mai és a heti
+// toplisták, a hét az előző héthez. Ugyanabból az egyesített mérésből a három
+// magnak ugyanazt kell mondania — különben a gép és a telefon más számot mutat
+// ugyanarra a kérdésre. Az iPhone összegzője kevesebbet mond (ma, hét, a mai
+// és a heti vegyes toplista); azt a Swift teszt a maga részén nézi.
+
+export interface UsageSummaryParts {
+  enabled: number; today: number; yday: number; w7: number; w30: number;
+  topToday: string; weekSites: string; weekApps: string; weekMixed: string; wow: string; days: number;
+}
+
+/** Az összegző mezői szövegként: toplista `kulcs=címke=mp`, a trend `ez/múlt/századszázalék` (`-`, ha nincs előző hét). */
+export function usageSummaryParts(state: UsageState, now: number): UsageSummaryParts {
+  const s = summarize(state, now, 8);
+  const tops = (rows: TargetTotal[]) => rows.map((t) => `${t.key}=${t.label}=${t.seconds}`).join(',');
+  const wow = (rows: WeekDelta[]) => rows.map((w) =>
+    `${w.key}=${w.label}=${w.thisWeek}/${w.lastWeek}/${w.deltaPct === null ? '-' : Math.floor(w.deltaPct * 100 + 0.5)}`).join(',');
+  const weekMixed = rank(state, totalsForDays(state, dayKeysBack(now, 7)), { limit: 8 });
+  return {
+    enabled: s.enabled ? 1 : 0, today: s.todaySeconds, yday: s.yesterdaySeconds, w7: s.last7Seconds, w30: s.last30Seconds,
+    topToday: tops(s.topToday), weekSites: tops(s.topWeekSites), weekApps: tops(s.topWeekApps), weekMixed: tops(weekMixed),
+    wow: wow(s.weekOverWeek), days: s.daysTracked,
+  };
 }

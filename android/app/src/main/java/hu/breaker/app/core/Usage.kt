@@ -200,7 +200,8 @@ object UsageLogic {
         var rows = totals.entries
             .filter { kind == null || kindOf(it.key) == kind }
             .map { TargetTotal(it.key, labelOf(state, it.key), kindOf(it.key), it.value) }
-            .sortedByDescending { it.seconds }
+            // Holtversenyben a kulcs dönt, nem a beszúrás sorrendje — mint a gépen és az iPhone-on.
+            .sortedWith(compareByDescending<TargetTotal> { it.seconds }.thenBy { it.key })
         if (limit != null) rows = rows.take(limit)
         return rows
     }
@@ -267,7 +268,7 @@ object UsageLogic {
                 key, labelOf(state, key), kindOf(key), thisWeek, lastWeek,
                 if (lastWeek > 0) ((thisWeek - lastWeek) / lastWeek) * 100 else null,
             )
-        }.sortedByDescending { it.thisWeek }.take(limit)
+        }.sortedWith(compareByDescending<WeekDelta> { it.thisWeek }.thenBy { it.key }).take(limit)
     }
 
     data class Summary(
