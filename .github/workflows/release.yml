@@ -44,27 +44,27 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
+          **A közös napi keret egy szabállyal olvasódik mindhárom
+          platformon.** A keret eszközök között közös: mindegyik feltölti a
+          mai percét, a többi hozzáadja. Ezt a blobot eddig mindhárom kliens
+          a maga módján olvasta — a gép a tömböt, az Android a szövegként
+          írt számot, az iPhone az igaz/hamisat is elfogadta, és a plafon
+          fölött mindhárom mást vágott le. Most egy szabály: csak szám, a
+          legnagyobbak maradnak. A keret betelt napjainak sora holtversenyben
+          kódegység szerint áll — a gép eddig a nyelvi beállítását követte, és
+          magyarul a „cz.hu” a „csak.hu” elé került. A közös fixtúra őrzi, és
+          egy őr tiltja a nyelvfüggő rendezést a közös magban. Az őrök egyike
+          pedig a két telefon közti eltéréseket eddig elnyelte — most
+          buktat.
+
+          ### Ami a v0.4.198-ban jött
+
           **A próbatétel válasza ugyanúgy számít mindhárom platformon.** A
-          hibás válasz ára nagy — a fejszámolás lánca elölről indul, a
-          memória-kód cserélődik —, és eddig három motor olvasta a beírást a
-          maga nyelvén: a gép a „157abc”-t 157-nek vette, az Android a nem
-          latin számjegyet is számnak, az iPhone a kód mellől a sorvéget nem
-          vágta le, és az ékezet szétbontott alakját is elfogadta az
-          átgépelésben. Most a szabály kimondva: a szóköz bárhol kiesik (a
-          közös készlet szerint), előjel és csak számjegy; a kód szélei
-          ugyanúgy; a szöveg betűre pontos. A közös fixtúra őrzi, a fokkal,
-          a hátralévő-jelzéssel és a kombináció-kulccsal együtt.
+          fejszámolás, a memória-kód és az átgépelés szabálya kimondva.
 
-          ### Ami a v0.4.197-ben jött
+          #### Ami a v0.4.197-ben jött
 
-          **A titkosítás közös fixtúrája: a gép burkol, a telefon nyit.** Hat
-          fiók, a helyreállító kód alakjai, a blobok és amit nem szabad
-          kinyitni; a jelszó hossza kódpontban, mindenhol.
-
-          #### Ami a v0.4.196-ban jött
-
-          **A menetek számai ugyanazok mindhárom platformon.** A napló
-          összegzői a közös fixtúrában, UTC-ben.
+          **A titkosítás közös fixtúrája: a gép burkol, a telefon nyit.**
 
           NOTES
           fi
