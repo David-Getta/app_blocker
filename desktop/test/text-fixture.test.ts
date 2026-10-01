@@ -150,6 +150,8 @@ function curatedTexts(): string[] {
     // A görög szó végi szigma: a JS és a Java ς-t ad (Final_Sigma), a Swift
     // `lowercased()` σ-t adott — a tükör a szabályt maga alkalmazza.
     'ΣΟΦΟΣ', 'Σ', 'ΟΔΟΣ.', 'ΟΔΟΣ ΟΔΟΣ', 'ΑΣ\u0301Α', 'ΟΔΟΣ\u200bΟΔΟΣ', 'Σ ΑΣΑ',
+    // A már kisbetűs σ marad σ: a szabály csak a nagy Σ-ra szól.
+    'οδοσ', 'οδος', 'ΟΔΟΣ οδοσ', 'σ', 'Σσ',
     'két szó', 'két\u00a0szó', 'két\ufeffszó', 'két\u200bszó', '🍕🍕', '🍕🍕🍕', 'x'.repeat(40), 'x'.repeat(41),
     'a\u0301lom', 'álom', 'alma bogrács cinege délután', 'Alma  Bogrács\tCinege\u00a0Délután', '\ufeffalma\u3000bogrács',
   ];

@@ -409,10 +409,11 @@ Amit a tesztek bizonyítanak, és amit másképp nem lehetne:
   Swift szóköz-fogalma a BOM-ot nem ismeri), a vágás kódpontban számol
   (nem UTF-16 egységben: a gép egy fél emodzsit hagyott volna a dróton; nem
   grafémában: az iPhone egy zászlót egynek), a kisbetűsítés a JS és a Java
-  szabálya szerint megy (a görög szó végi szigma ς; a Swift `lowercased()`
-  σ-t adott volna, a tükör a Final_Sigma szabályt maga alkalmazza — ezt a
-  fixtúra első CI-köre fogta ki), és a tiszta alak tiszta alakja ugyanaz (a
-  megbízott neve nem végződik lógó szóközre). A fájl csupa ASCII,
+  szabálya szerint megy (a nagy Σ a szó végén ς; a már kisbetűs σ marad σ; a
+  Swift `lowercased()` σ-t adott volna, a tükör a Final_Sigma szabályt maga
+  alkalmazza az eredeti szövegen — mindkét felét a fixtúra egy-egy CI-köre
+  fogta ki), és a tiszta alak tiszta alakja ugyanaz (a megbízott neve nem
+  végződik lógó szóközre). A fájl csupa ASCII,
   hogy a láthatatlan jelek láthatók legyenek. Egy szándékos kivétel kimondva:
   a domain-tisztítás egy `www.`-t vág le, nem mindet — nem idempotens,
   mindhárom magban ugyanúgy. És a RÉSZLEGES SZABÁLY is benne van: beírt

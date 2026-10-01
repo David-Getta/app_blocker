@@ -75,17 +75,21 @@ enum TextLogic {
     /// — a case-ignorable jeleket átlépve). Egy görög kulcsszó vagy jelmondat
     /// így a telefonon más bájtsor lett volna, mint a gépen — a fixtúra fogta ki.
     static func lowercase(_ value: String) -> String {
-        let lowered = value.lowercased()
-        let scalars = Array(lowered.unicodeScalars)
-        guard scalars.contains(where: { $0.value == 0x03C3 }) else { return lowered }
-        var out = String.UnicodeScalarView()
+        let scalars = Array(value.unicodeScalars)
+        guard scalars.contains(where: { $0.value == 0x03A3 }) else { return value.lowercased() }
+        // A szabály CSAK a nagy Σ-ra szól, és az EREDETI szöveg szomszédain
+        // dől el: a már kisbetűs σ a szó végén is σ marad — a gép és a Java így
+        // teszi. (Az első változat a kisbetűsítés UTÁN cserélt minden szó végi
+        // σ-t, és a kisbetűs bemenetet is átírta; a fixtúra fogta ki.)
+        var pre = String.UnicodeScalarView()
         for (i, u) in scalars.enumerated() {
-            out.append(u.value == 0x03C3 && isFinalSigma(scalars, at: i) ? finalSigma : u)
+            pre.append(u.value == 0x03A3 ? (isFinalSigma(scalars, at: i) ? finalSigma : smallSigma) : u)
         }
-        return String(out)
+        return String(pre).lowercased()
     }
 
     private static let finalSigma = Unicode.Scalar(UInt32(0x03C2))!
+    private static let smallSigma = Unicode.Scalar(UInt32(0x03C3))!
 
     /// Final_Sigma: előtte (case-ignorable jeleken át) cased betű áll, utána (ugyanúgy) nem.
     private static func isFinalSigma(_ s: [Unicode.Scalar], at i: Int) -> Bool {

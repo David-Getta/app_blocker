@@ -72,6 +72,10 @@ final class TextLogicTests: XCTestCase {
         XCTAssertEqual(scalars(PartnerLogic.normalizePhrase("Σ ΑΣΑ")), scalars("σ ασα"))
         XCTAssertEqual(scalars(TextLogic.lowercase("ΑΣ\u{0301}Α")), scalars("ασ\u{0301}α"))
         XCTAssertEqual(scalars(TextLogic.lowercase("ΟΔΟΣ.")), scalars("οδος."))
+        // A már kisbetűs σ a szó végén is σ marad: a szabály csak a nagy Σ-ra szól.
+        XCTAssertEqual(scalars(TextLogic.lowercase("οδοσ")), scalars("οδοσ"))
+        XCTAssertEqual(scalars(TextLogic.lowercase("ΟΔΟΣ οδοσ")), scalars("οδος οδοσ"))
+        XCTAssertEqual(scalars(KeywordLogic.normalizeKeyword("οδοσ")), scalars("οδοσ"))
     }
 
     func testDomainEdgesBomAndNoBreakSpace() {
