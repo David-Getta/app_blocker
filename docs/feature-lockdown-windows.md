@@ -113,3 +113,23 @@ mentsd el. A gép és az Android a saját köréből mondja (`windowStartingSoon
 semmin nem változtatna. iPhone-on ez is előre ütemezett, ezért futó zárlat
 alatt is szól, és csak akkor fér bele, ha az ablak-napok száma legfeljebb
 harminc (a rendszer hatvannégy függő kérést enged; a beérés kérése az elsőbb).
+
+## A három mag ugyanazt dönti
+
+A heti ablak minden eszközön UGYANAKKOR zár és ugyanakkor enged: a lista a
+munkamenet-blobon utazik, a döntést mindhárom mag maga hozza, helyi időben. Ha
+az előfordulás-számtan elcsúszna, az egyik eszköz zárlatot tartana, a másik
+nem — vagy a kettő más zárlatot állítana elő, és a szinkron kettőnek látná.
+Ezért a `fixtures/merge-cases.json` ablak-szekciója (írja
+`desktop/test/merge-fixture.test.ts`) kézzel válogatott éleket (a közelgő
+ablak tízperces kerete egy másodperccel innen és túl, az élő ablak, a futó
+zárlat, ami túlér rajta és ami nem, az éjfélen átnyúló ablak másnap hajnalban,
+két ablak egyszerre, a szabad idő nélküli hét, az üres lista, az ablak végén
+véget érő kézi zárlat) és véletlen ablak-listákat tart — rossz sávokkal is —,
+és azt, hogy a gép szerint marad-e szabad idő, lazítás-e a csere, mi az élő
+ablak, mit követelnek meg az ablakok, ablak-zárlat-e, mi a közelgő ablak és a
+következő előfordulás; a Kotlin (`MergeFixtureTest`) és a Swift
+(`MergeFixtureTests`) ugyanezt játssza vissza. A három teszt UTC-ben jár — a
+gép és az Android beállítja, a Swift beállítja, vagy ha nem tudja, kimondva
+kihagyja. Ami a fixtúrában nincs: óraátállás és más időzóna — ott a három mag
+a saját platformjának órájára hagyatkozik, és ezt itt kimondjuk.

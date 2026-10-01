@@ -11,7 +11,7 @@ import { emptyFocus, type SyncFocus } from '../src/shared/sync/focus-merge';
 import { isRunning, isSiteAllowed, type FocusLogEntry, type FocusPack, type FocusRun } from '../src/shared/focus';
 import type { Band, Schedule, ScheduleMode, Weekday } from '../src/shared/schedule';
 import type { UrlRule } from '../src/shared/urlrules';
-import { windowKey, type LockdownWindow } from '../src/shared/lockdown';
+import { windowKey, type Lockdown, type LockdownWindow } from '../src/shared/lockdown';
 import { keywordInHost, keywordsKey } from '../src/shared/keywords';
 import { partnerKey, type PartnerLock } from '../src/shared/partner';
 import type { UsageDay, UsageState } from '../src/shared/usage';
@@ -670,4 +670,40 @@ export function randomScheduleCase(r: () => number): ScheduleCase {
   const other = randomSchedule(r);
   const now = SCHEDULE_WEEK_START + Math.floor(r() * 14 * 1440) * 60_000 + Math.floor(r() * 60_000);
   return { schedule, other, now };
+}
+
+// ------------------------------------------------------- a zárlat-ablakok
+//
+// A heti ablak minden eszközön UGYANAKKOR zár és ugyanakkor enged: a lista a
+// munkamenet-blobon utazik, a döntést mindhárom mag maga hozza, helyi időben.
+// Ha az előfordulás-számtan elcsúszik, az egyik eszköz zárlatot tart, a másik
+// nem — vagy a kettő más zárlatot állít elő, és a szinkron kettőnek látja.
+// UTC-ben, mint a menetrend.
+
+export interface WindowsCase {
+  windows: LockdownWindow[]; next: LockdownWindow[]; cur: Lockdown | null; now: number; within: number;
+}
+
+/**
+ * Egy eset: ablakok (a menetrend sáv-generátorából, azonosítóval — rossz sáv
+ * is lehet köztük), a csere célja (néha üres), egy futó, lejárt vagy hiányzó
+ * zárlat, egy időpont két héten belül, és a közelgő ablak kerete (az alap tíz
+ * perc ritkán talál; egy és hat óra is sorra kerül).
+ */
+export function randomWindowsCase(r: () => number): WindowsCase {
+  for (let i = 0; i < 4; i++) r();
+  const toWindows = (bands: Band[], prefix: string): LockdownWindow[] =>
+    bands.map((b, i) => ({ id: `${prefix}${i + 1}`, ...b }));
+  const windows = toWindows(randomSchedule(r).bands, 'w');
+  const nextDraw = r();
+  const next = nextDraw < 0.2 ? [] : toWindows(randomSchedule(r).bands, 'n');
+  const curDraw = r();
+  const now = SCHEDULE_WEEK_START + Math.floor(r() * 14 * 1440) * 60_000 + Math.floor(r() * 60_000);
+  const cur: Lockdown | null = curDraw < 0.5 ? null
+    : curDraw < 0.65 ? { startedAt: now - 3_600_000, until: now + 1_800_000 }
+    : curDraw < 0.8 ? { startedAt: now - 3_600_000, until: now + 2 * 86_400_000 }
+    : { startedAt: now - 3 * 3_600_000, until: now - 3_600_000 };
+  const withinDraw = r();
+  const within = withinDraw < 0.4 ? 600_000 : withinDraw < 0.7 ? 3_600_000 : 6 * 3_600_000;
+  return { windows, next, cur, now, within };
 }

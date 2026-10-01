@@ -293,4 +293,52 @@ class MergeFixtureTest {
             assertEquals(c.getBoolean("loosening"), ScheduleLogic.isLoosening(s, other, now), "menetrend lazítás-e, mag $seed")
         }
     }
+
+    private fun bands(a: JSONArray): List<ScheduleLogic.Band> = (0 until a.length()).map { i ->
+        val w = a.getJSONObject(i)
+        val days = w.getJSONArray("days")
+        ScheduleLogic.Band((0 until days.length()).map { days.getInt(it) }.toSet(), w.getInt("startMin"), w.getInt("endMin"))
+    }
+
+    private fun str(c: JSONObject, key: String): String? = if (c.isNull(key)) null else c.getString(key)
+
+    private fun occKey(o: Focus.Occurrence?): String? = o?.let { "${it.startsAt}/${it.endsAt}" }
+
+    private fun lockKey(l: LockdownLogic.Lockdown?): String? = l?.let { "${it.startedAt}/${it.until}" }
+
+    @Test
+    fun `zarlat-ablakok - a Kotlin ugyanazt donti, mint a gep, UTC-ben`() {
+        // A heti ablak minden eszközön UGYANAKKOR zár és ugyanakkor enged; az
+        // előfordulás-számtan helyi időben jár, a fixtúra UTC-ben készült.
+        java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone("UTC"))
+        val cases = JSONObject(fixtureFile().readText()).getJSONArray("windows")
+        assertTrue(cases.length() >= 60, "a fixture-ben van elég eset")
+        for (i in 0 until cases.length()) {
+            val c = cases.getJSONObject(i)
+            val seed = c.getInt("seed")
+            val windows = bands(c.getJSONArray("windows"))
+            val next = bands(c.getJSONArray("next"))
+            val cur = if (c.isNull("cur")) null else c.getJSONObject("cur").let {
+                LockdownLogic.Lockdown(it.getLong("startedAt"), it.getLong("until"))
+            }
+            val now = c.getLong("now")
+            val within = c.getLong("within")
+            assertEquals(c.getBoolean("free"), LockdownLogic.weekHasFreeTime(windows, now), "szabad idő, mag $seed")
+            assertEquals(c.getBoolean("loosening"), LockdownLogic.isWindowsLoosening(windows, next, now), "lazítás, mag $seed")
+            assertEquals(str(c, "due"), occKey(LockdownLogic.dueWindow(windows, now)), "élő ablak, mag $seed")
+            val lock = LockdownLogic.windowLockdown(cur, windows, now)
+            assertEquals(str(c, "lock"), lockKey(lock), "megkövetelt zárlat, mag $seed")
+            val probe = lock ?: cur
+            val isWin: Boolean? = probe?.let { LockdownLogic.isWindowLockdown(it, windows) }
+            val wantWin: Boolean? = if (c.isNull("isWin")) null else c.getBoolean("isWin")
+            assertEquals(wantWin, isWin, "ablak-zárlat-e, mag $seed")
+            assertEquals(
+                str(c, "soon"), occKey(LockdownLogic.windowStartingSoon(cur, windows, now, within)),
+                "közelgő ablak, mag $seed",
+            )
+            val first = windows.firstOrNull()
+            val nextOcc = if (first != null && ScheduleLogic.isValidBand(first)) occKey(Focus.nextOccurrence(first, now)) else null
+            assertEquals(str(c, "nextOcc"), nextOcc, "következő előfordulás, mag $seed")
+        }
+    }
 }

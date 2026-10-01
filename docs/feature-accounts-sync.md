@@ -395,6 +395,17 @@ Amit a tesztek bizonyítanak, és amit másképp nem lehetne:
   Ez dönt a gépen és a telefonon EGYSZERRE ugyanarról az oldalról. A sávok
   helyi időben értékelődnek ki, ezért a három teszt UTC-ben jár: a gép és az
   Android beállítja, a Swift beállítja, vagy ha nem tudja, kimondva kihagyja.
+  És a ZÁRLAT-ABLAKOKAT is, ugyanígy UTC-ben: ablakok (rossz sáv is köztük),
+  a csere célja, egy futó, lejárt vagy hiányzó zárlat, egy időpont és a
+  közelgő ablak kerete — marad-e szabad idő a héten (`weekHasFreeTime`),
+  lazítás-e a csere (`isWindowsLoosening`), az élő ablak előfordulása
+  (`dueLockdownWindow`), a zárlat, amit az ablakok most megkövetelnek
+  (`windowLockdown`: futó zárlat mellett a kezdése marad, a vége tolódik),
+  ablak-zárlat-e (`isWindowLockdown`), a közelgő ablak (`windowStartingSoon`)
+  és a következő előfordulás (`nextOccurrence`, amit a csomagok ablaka is
+  használ). A heti ablak minden eszközön ugyanakkor zár és ugyanakkor enged;
+  ha az előfordulás-számtan elcsúszna, két eszköz más zárlatot állítana elő,
+  és a szinkron kettőnek látná.
 - **a szöveg-tisztítás is megfelelőségi próbán megy át.** A
   `fixtures/text-cases.json` (írja `desktop/test/text-fixture.test.ts`,
   `UPDATE_TEXT_FIXTURE=1 npm test`) a fedőnév, az indok, a kulcsszó és a

@@ -304,4 +304,55 @@ final class MergeFixtureTests: XCTestCase {
             XCTAssertEqual(ScheduleLogic.isLoosening(s, other, now), c["loosening"] as? Bool ?? false, "menetrend lazítás-e, mag \(seed)")
         }
     }
+
+    private func bands(_ arr: [[String: Any]]) -> [ScheduleLogic.Band] {
+        arr.map { w in
+            ScheduleLogic.Band(days: w["days"] as? [Int] ?? [], startMin: w["startMin"] as? Int ?? 0, endMin: w["endMin"] as? Int ?? 0)
+        }
+    }
+
+    private func occKey(_ o: Focus.Occurrence?) -> String? { o.map { "\(Int64($0.startsAt))/\(Int64($0.endsAt))" } }
+
+    private func lockKey(_ l: LockdownLogic.Lockdown?) -> String? { l.map { "\(Int64($0.startedAt))/\(Int64($0.until))" } }
+
+    func testTheLockdownWindowsDecideTheSameAsTheDesktopInUTC() throws {
+        // A heti ablak minden eszközön UGYANAKKOR zár és ugyanakkor enged; az
+        // előfordulás-számtan helyi időben jár, a fixtúra UTC-ben készült.
+        setenv("TZ", "UTC", 1)
+        CFTimeZoneResetSystem()
+        guard TimeZone.current.secondsFromGMT() == 0 else {
+            throw XCTSkip("az ablak-fixtúra csak UTC-ben játszható vissza; ez a gép: \(TimeZone.current.identifier)")
+        }
+        let here = URL(fileURLWithPath: #filePath)
+        let root = here.deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let url = root.appendingPathComponent("fixtures").appendingPathComponent("merge-cases.json")
+        let top = try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any]
+        let cases = top?["windows"] as? [[String: Any]] ?? []
+        XCTAssertGreaterThanOrEqual(cases.count, 60, "a fixture-ben van elég eset")
+        for c in cases {
+            let seed = c["seed"] as? Int ?? -1
+            let windows = bands(c["windows"] as? [[String: Any]] ?? [])
+            let next = bands(c["next"] as? [[String: Any]] ?? [])
+            var cur: LockdownLogic.Lockdown? = nil
+            if let cu = c["cur"] as? [String: Any] {
+                cur = LockdownLogic.Lockdown(startedAt: (cu["startedAt"] as? NSNumber)?.doubleValue ?? 0,
+                                             until: (cu["until"] as? NSNumber)?.doubleValue ?? 0)
+            }
+            let now = (c["now"] as? NSNumber)?.doubleValue ?? 0
+            let within = (c["within"] as? NSNumber)?.doubleValue ?? 0
+            XCTAssertEqual(LockdownLogic.weekHasFreeTime(windows, now), c["free"] as? Bool ?? false, "szabad idő, mag \(seed)")
+            XCTAssertEqual(LockdownLogic.isWindowsLoosening(windows, next, now), c["loosening"] as? Bool ?? false, "lazítás, mag \(seed)")
+            XCTAssertEqual(occKey(LockdownLogic.dueWindow(windows, now)), c["due"] as? String, "élő ablak, mag \(seed)")
+            let lock = LockdownLogic.windowLockdown(cur, windows, now)
+            XCTAssertEqual(lockKey(lock), c["lock"] as? String, "megkövetelt zárlat, mag \(seed)")
+            let probe = lock ?? cur
+            let isWin: Bool? = probe.map { LockdownLogic.isWindowLockdown($0, windows) }
+            XCTAssertEqual(isWin, c["isWin"] as? Bool, "ablak-zárlat-e, mag \(seed)")
+            XCTAssertEqual(occKey(LockdownLogic.windowStartingSoon(cur, windows, now, within: within)), c["soon"] as? String,
+                           "közelgő ablak, mag \(seed)")
+            var nextOcc: String? = nil
+            if let first = windows.first, ScheduleLogic.isValidBand(first) { nextOcc = occKey(Focus.nextOccurrence(first, now: now)) }
+            XCTAssertEqual(nextOcc, c["nextOcc"] as? String, "következő előfordulás, mag \(seed)")
+        }
+    }
 }

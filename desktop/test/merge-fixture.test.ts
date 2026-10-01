@@ -21,12 +21,17 @@ import { mergeSite } from '../src/shared/sync/merge';
 import { mergeFocus, normalizeSyncFocus, sameFocus } from '../src/shared/sync/focus-merge';
 import { combineUsage } from '../src/shared/usage';
 import { isBlockedNowWithLimit } from '../src/shared/limits';
-import { isBlockedBySchedule, isLoosening, type Schedule } from '../src/shared/schedule';
+import { isBlockedBySchedule, isLoosening, isValidBand, type Schedule } from '../src/shared/schedule';
+import {
+  dueLockdownWindow, isWindowLockdown, isWindowsLoosening, weekHasFreeTime, windowLockdown, windowStartingSoon,
+  type Lockdown, type LockdownWindow,
+} from '../src/shared/lockdown';
+import { nextOccurrence, type Occurrence } from '../src/shared/focus';
 import { noteBurstUsage, type BurstState } from '../src/shared/burst';
 import {
   DECISION_NOW, DEVICES, SCHEDULE_WEEK_START, flipFocus, flipSite, focusConformanceKey, randomBurstRun, randomDecision,
-  randomFocus, randomScheduleCase, randomSite, randomUsage, randomVerdict, referenceVerdict, rng, siteConformanceKey,
-  usageConformanceKey,
+  randomFocus, randomScheduleCase, randomSite, randomUsage, randomVerdict, randomWindowsCase, referenceVerdict, rng,
+  siteConformanceKey, usageConformanceKey, type WindowsCase,
 } from './merge-random';
 
 // A döntés napkulcsa helyi időben számolódik; a fixtúra UTC-ben készül, és a
@@ -40,7 +45,7 @@ const SEEDS = 80;
 
 interface Fixture {
   note: string; version: number; sites: unknown[]; focus: unknown[]; usage: unknown[]; decisions: unknown[];
-  bursts: unknown[]; verdicts: unknown[]; schedules: unknown[];
+  bursts: unknown[]; verdicts: unknown[]; schedules: unknown[]; windows: unknown[];
 }
 
 /** Perc a hét kezdetétől (hétfő 00:00 UTC) epoch ms-ben, másodperc-eltolással. */
@@ -56,6 +61,51 @@ const ALL_BROKEN: Schedule = { mode: 'scheduled_allow', bands: [{ days: [], star
  * éjfélen átnyúló sáv két napja, a nyitó mód, a sávos „mindig”, a csupa rossz
  * sáv. A hét 2026-09-28-tól (hétfő) indul; a nap itt 0 = hétfő a hét elejétől.
  */
+const W_WORK: LockdownWindow = { id: 'work', days: [1, 2, 3, 4, 5], startMin: 540, endMin: 1020 };
+const W_NIGHT: LockdownWindow = { id: 'night', days: [1], startMin: 1320, endMin: 360 };
+const W_ALL: LockdownWindow = { id: 'all', days: [0, 1, 2, 3, 4, 5, 6], startMin: 0, endMin: 1440 };
+/**
+ * Kézzel válogatott ablak-élek: a közelgő ablak kerete (tíz perc; egy másodperc
+ * fölötte már nem), az élő ablak, a futó zárlat, ami túlér rajta (nincs mit
+ * kérni) és ami nem (kitolódik, a kezdése marad), az éjfélen átnyúló ablak
+ * másnap hajnalban, két ablak egyszerre, a szabad idő nélküli hét, az üres
+ * lista, és az ablak végén véget érő kézi zárlat (ablak-zárlat).
+ */
+const CURATED_WINDOWS: WindowsCase[] = [
+  { windows: [W_WORK], next: [W_WORK], cur: null, now: atWeek(0, 8, 55, 0), within: 600_000 },
+  { windows: [W_WORK], next: [], cur: null, now: atWeek(0, 8, 49, 59), within: 600_000 },
+  { windows: [W_WORK], next: [W_NIGHT], cur: null, now: atWeek(0, 12, 0, 0), within: 600_000 },
+  { windows: [W_WORK], next: [W_WORK], cur: { startedAt: atWeek(0, 7, 0), until: atWeek(0, 18, 0) }, now: atWeek(0, 12, 0), within: 600_000 },
+  { windows: [W_WORK], next: [W_WORK], cur: { startedAt: atWeek(0, 7, 0), until: atWeek(0, 10, 0) }, now: atWeek(0, 9, 30), within: 600_000 },
+  { windows: [W_NIGHT], next: [W_NIGHT], cur: null, now: atWeek(1, 2, 0, 0), within: 600_000 },
+  { windows: [W_NIGHT, W_WORK], next: [W_WORK], cur: null, now: atWeek(1, 5, 59, 59), within: 6 * 3_600_000 },
+  { windows: [W_ALL], next: [W_WORK], cur: null, now: atWeek(3, 12, 0), within: 600_000 },
+  { windows: [], next: [W_WORK], cur: null, now: atWeek(3, 12, 0), within: 600_000 },
+  { windows: [W_WORK], next: [], cur: { startedAt: atWeek(0, 7, 0), until: atWeek(0, 17, 0) }, now: atWeek(0, 16, 59, 59), within: 600_000 },
+  { windows: [W_WORK], next: [W_WORK], cur: { startedAt: atWeek(0, 7, 0), until: atWeek(0, 17, 0) }, now: atWeek(0, 17, 0, 0), within: 600_000 },
+  { windows: [W_WORK], next: [W_WORK], cur: null, now: atWeek(5, 8, 55, 0), within: 6 * 3_600_000 },
+];
+
+const occKey = (o: Occurrence | null) => (o ? `${o.startsAt}/${o.endsAt}` : null);
+const lockKey = (l: Lockdown | null) => (l ? `${l.startedAt}/${l.until}` : null);
+
+/** Minden, amit a három magnak egy ablak-esetről ugyanúgy kell mondania. */
+function windowsAnswers(c: WindowsCase) {
+  const lockOut = windowLockdown(c.cur, c.windows, c.now);
+  const probe = lockOut ?? c.cur;
+  const first = c.windows[0];
+  return {
+    free: weekHasFreeTime(c.windows, c.now),
+    loosening: isWindowsLoosening(c.windows, c.next, c.now),
+    due: occKey(dueLockdownWindow(c.windows, c.now)),
+    lock: lockKey(lockOut),
+    isWin: probe ? isWindowLockdown(probe, c.windows) : null,
+    soon: occKey(windowStartingSoon(c.cur, c.windows, c.now, c.within)),
+    // `nextOcc`, nem `next`: a `next` az eset ablak-listája (a csere célja).
+    nextOcc: first && isValidBand(first) ? occKey(nextOccurrence(first, c.now)) : null,
+  };
+}
+
 const CURATED_SCHEDULES: Array<{ schedule: Schedule; other: Schedule; now: number }> = [
   { schedule: WORK, other: OPEN_WEEKEND, now: atWeek(0, 8, 59, 59) },
   { schedule: WORK, other: OPEN_WEEKEND, now: atWeek(0, 9, 0, 0) },
@@ -83,6 +133,7 @@ function buildFixture(): Fixture {
   const bursts: unknown[] = [];
   const verdicts: unknown[] = [];
   const schedules: unknown[] = [];
+  const windows: unknown[] = [];
   for (let seed = 1; seed <= SEEDS; seed++) {
     const r = rng(seed);
     const [a, b, c] = DEVICES.map((d) => randomSite(r, d));
@@ -174,6 +225,21 @@ function buildFixture(): Fixture {
   const sch = schedules as Array<{ blocked: boolean; loosening: boolean }>;
   assert.ok(sch.some((c) => c.blocked) && sch.some((c) => !c.blocked), 'a menetrend-esetek egyfélék');
   assert.ok(sch.some((c) => c.loosening) && sch.some((c) => !c.loosening), 'a lazítás-esetek egyfélék');
+  // A ZÁRLAT-ABLAKOK: marad-e szabad idő, lazítás-e a csere, az élő ablak, a
+  // megkövetelt zárlat (futó zárlat mellett és nélkül), ablak-zárlat-e, a
+  // közelgő ablak, a következő előfordulás — UTC-ben, mint a menetrend. A
+  // heti ablak minden eszközön ugyanakkor zár és ugyanakkor enged.
+  CURATED_WINDOWS.forEach((c, i) => windows.push({ seed: 1000 + i, ...c, ...windowsAnswers(c) }));
+  for (let seed = 1; seed <= SEEDS; seed++) {
+    const r = rng(seed);
+    const c = randomWindowsCase(r);
+    windows.push({ seed, ...c, ...windowsAnswers(c) });
+  }
+  const win = windows as Array<ReturnType<typeof windowsAnswers>>;
+  for (const key of ['due', 'lock', 'soon', 'nextOcc'] as const) {
+    assert.ok(win.some((c) => c[key] !== null) && win.some((c) => c[key] === null), `az ablak-esetek egyfélék: ${key}`);
+  }
+  assert.ok(win.some((c) => c.isWin === true) && win.some((c) => c.isWin === false), 'az ablak-zárlat-esetek egyfélék');
   return {
     note: 'Generálja és őrzi: desktop/test/merge-fixture.test.ts (UPDATE_MERGE_FIXTURE=1 npm test). '
       + 'Olvassa: android/jvm-tests MergeFixtureTest, ios/SharedTests MergeFixtureTests. '
@@ -183,8 +249,10 @@ function buildFixture(): Fixture {
       + 'A decisions-esetek: oldal, helyi mérés, a többi eszköz mai összegzése, időpont — és hogy tilt-e most. '
       + 'A bursts-esetek (gép és Android): adag-szabály, minták, és a számláló állapota minden minta után. '
       + 'A verdicts-esetek (a két telefon): név, lista, kulcsszavak, menet, csomag, saját kiszolgáló — és a döntés. '
-      + 'A schedules-esetek: menetrend, egy másik menetrend, időpont (UTC-ben értékelve) — tilt-e most, és lazítás-e a csere.',
-    version: 12,
+      + 'A schedules-esetek: menetrend, egy másik menetrend, időpont (UTC-ben értékelve) — tilt-e most, és lazítás-e a csere. '
+      + 'A windows-esetek: zárlat-ablakok, a csere célja, futó zárlat, időpont, a közelgő ablak kerete (UTC-ben) — szabad idő, '
+      + 'lazítás, élő ablak, megkövetelt zárlat, ablak-zárlat-e, közelgő ablak, a következő előfordulás (nextOcc).',
+    version: 13,
     sites,
     focus,
     usage,
@@ -192,6 +260,7 @@ function buildFixture(): Fixture {
     bursts,
     verdicts,
     schedules,
+    windows,
   };
 }
 
@@ -201,7 +270,8 @@ function render(f: Fixture): string {
   return `{\n"note": ${JSON.stringify(f.note)},\n"version": ${f.version},\n`
     + `"sites": [\n${rows(f.sites)}\n],\n"focus": [\n${rows(f.focus)}\n],\n"usage": [\n${rows(f.usage)}\n],\n`
     + `"decisions": [\n${rows(f.decisions)}\n],\n"bursts": [\n${rows(f.bursts)}\n],\n`
-    + `"verdicts": [\n${rows(f.verdicts)}\n],\n"schedules": [\n${rows(f.schedules)}\n]\n}\n`;
+    + `"verdicts": [\n${rows(f.verdicts)}\n],\n"schedules": [\n${rows(f.schedules)}\n],\n`
+    + `"windows": [\n${rows(f.windows)}\n]\n}\n`;
 }
 
 test('a megfelelőségi fixture a gép szabályaival egyezik (a Kotlin és a Swift ebből dolgozik)', () => {
