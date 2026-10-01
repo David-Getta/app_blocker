@@ -44,24 +44,25 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A szinkron plafonjai is őrizve.** A három mag számait eddig is
-          egy őr vetette össze (nehézségi fokok, ablakok, hosszkorlátok); a
-          szinkron plafonjai — hány hosztnév-jel, hány csomag, hány csomag-jel
-          fér egy rekordba, a mérés hány célt tart meg egy napra, az adag és a
-          szünet felső határa — kimaradtak belőle. Egy eltérő plafon nem
-          hibaüzenet, hanem nem konvergáló szinkron: az egyik eszköz 64 jelre
-          vág, a másik nem, és a két eszköz körönként egymást írja felül. Most
-          ezek is a listán vannak, és a CI elhasal, ha bármelyik eltér.
+          **A fixtúra a munkamenet-döntést is nézi.** Egy menet alatt a
+          telefon DNS-motora dönt minden névről: a lista mindig nyer, a
+          kulcsszó a hosztnévben tilt, a csomagon lévő név és a saját
+          fiókkiszolgáló átmegy, minden más tiltva — a menet fehérlista. Ez a
+          fehérlista legdrágább hibája lenne: egy név, ami az egyik telefonon
+          átmegy, a másikon nem. A közös fixtúrában most döntés-esetek is
+          vannak — név, lista, kulcsszavak, menet, csomag, saját kiszolgáló —,
+          és az Androidnak és az iPhone-nak ugyanazt kell mondania, a gép
+          közös darabjaiból írt referencia szerint.
 
-          ### Ami a v0.4.185-ben jött
+          ### Ami a v0.4.186-ban jött
+
+          **A szinkron plafonjai is őrizve.** Hosztnév-jelek, csomagok,
+          csomag-jelek, mérés-célok, adag és szünet felső határa.
+
+          #### Ami a v0.4.185-ben jött
 
           **Ugyanaz a döntés mindhárom platformon — kimondva.** Az
           architektúra-doksi negyedik rétege és a weboldal egy mondata.
-
-          #### Ami a v0.4.184-ben jött
-
-          **Egy új szinkron-mező nem maradhat ki a fixtúrából.** A drótnév-őr
-          a fixtúra generátorát is nézi.
 
           NOTES
           fi
