@@ -272,8 +272,12 @@ neve és jelmondata, a domain tiszta alakja — ugyanazt tartja-e a három mag
 szóköznek (a készlet kimondott: a JS huszonöt kódpontja, a BOM-mal és a nem
 törő szóközzel; a platformok saját fogalma mind másképp tudta), ugyanott
 vág-e (kódpontban, nem UTF-16 egységben és nem grafémában), ugyanúgy
-kezeli-e az NFKC-t és a kisbetűsítést. Ez fogta ki, hogy a gép egy fél
-emodzsit hagyhatott a fedőnév végén, és hogy a két telefon a jelmondat nem
+kezeli-e az NFKC-t és a kisbetűsítést — és a böngésző-bővítmény is
+visszajátssza a kulcsszó és a részleges szabály szekcióit a kiszállított
+másolatán (`desktop/test/extension-fixture.test.ts`), mert a böngészőben ő
+dönt; ez fogta ki, hogy a bővítmény az út hosszát még UTF-16 egységben mérte.
+A fixtúra fogta ki azt is, hogy a gép egy fél emodzsit hagyhatott a fedőnév
+végén, és hogy a két telefon a jelmondat nem
 törő szóközét nem vette szóköznek — a lenyomat nem egyezett volna —, és az
 első CI-körében azt, hogy az iPhone a görög szó végi szigmát σ-nak írta
 kisbetűvel, a gép és az Android ς-nek. A réteg harmadik fájlja a PÁROSÍTÓ

@@ -221,3 +221,12 @@ A Kotlin (`TextFixtureTest`) és a Swift (`TextFixtureTests`) ugyanezt játssza
 vissza. Az út hossza kódpontban számol mindhárom magban (egy emodzsi egy); a
 szélek a kimondott szóköz-készlet szerint; az út kisbetűje a gép szabálya
 szerint (a görög szó végi szigma ς).
+
+A bővítmény a negyedik visszajátszó: a böngészőben ő dönt a címről, a saját
+másolatával (`extension/rules-core.js`), és a `desktop/test/extension-fixture.test.ts`
+a KISZÁLLÍTOTT fájlt futtatja a fixtúra szabály- és illesztés-szekcióján. Az
+első futása egy eltérést fogott: a bővítmény az út hosszát még UTF-16
+egységben mérte — hat emodzsis szabályt, amit az app elfogadott, a bővítmény
+beállítás-lapja „nem oldal-részlet”-nek mondott. Most kódpontban mér, mint a
+három mag; a plafont (`MAX_RULE_PATH_LENGTH`) a mag-szinkron őr a bővítményben
+is nézi.

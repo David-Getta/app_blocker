@@ -23,7 +23,10 @@ fel.
    betű mindenre illene — az nem szabály, hanem baleset; egy emodzsi egy).
    Legfeljebb 40 szó. A szóköz fogalma a három magban ugyanaz a kimondott
    készlet (a BOM-mal és a nem törő szóközzel) — a `fixtures/text-cases.json`
-   őrzi, hogy a gépen felvett szó a telefonon is ugyanaz legyen.
+   őrzi, hogy a gépen felvett szó a telefonon is ugyanaz legyen — és a
+   böngészőben is: a bővítmény kiszállított `keywords.js`-e ugyanezt a
+   szekciót játssza vissza (`desktop/test/extension-fixture.test.ts`), a
+   plafonjait (40 szó, 3–40 kódpont) a mag-szinkron őr nézi.
 2. A segéd a listát tartja, és a **hídon leadja** a böngésző-bővítménynek
    (`keywords`). A bővítmény tisztítva tárolja, és minden navigációnál dönt:
    az egész oldal zárása (a segéd „zárva” listája) után, a csatorna-szűrő és

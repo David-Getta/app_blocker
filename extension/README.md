@@ -248,7 +248,12 @@ valamit, amit a felhasználó nem tiltott le.
 
 A magból két példány van: egy TypeScript (az app) és egy ESM (itt). Ezt a
 `desktop/test/extension-core.test.ts` őrzi: a KÉT megvalósítást ugyanazon a
-bemenet- és URL-táblázaton hajtja végig, és eltérésnél elhasal.
+bemenet- és URL-táblázaton hajtja végig, és eltérésnél elhasal. És a
+`desktop/test/extension-fixture.test.ts` a közös szöveg-fixtúrát
+(`fixtures/text-cases.json`) is lefuttatja a kiszállított `rules-core.js`-en és
+`keywords.js`-en — ugyanazt, amit a két telefon visszajátszik. Az első futása
+fogta ki, hogy az út hosszát itt még UTF-16 egységben mértük, az appban
+kódpontban.
 
 Enélkül a legcsendesebb hiba állna elő, amit ez a funkció produkálni tud: az
 ember felvesz egy szabályt, az appban szépen megjelenik, a böngésző meg

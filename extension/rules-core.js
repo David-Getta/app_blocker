@@ -49,7 +49,11 @@ export function normalizeRule(input) {
   if (path === '' || path === '/') return null;
   if (!path.startsWith('/')) return null;
   path = path.replace(/\/{2,}/g, '/');
-  if (path.length > MAX_RULE_PATH_LENGTH) return null;
+  // KÓDPONTBAN, mint az app magja (urlrules.ts) és a két telefon: a `length`
+  // UTF-16 egységet számolt, és egy emodzsis út, amit az app elfogadott, itt
+  // „nem oldal-részlet” lett. A közös szöveg-fixtúra (fixtures/text-cases.json)
+  // ezt a fájlt is visszajátssza.
+  if ([...path].length > MAX_RULE_PATH_LENGTH) return null;
   if (CONTROL_OR_SPACE.test(path)) return null;
   return { host: stripAliasPrefix(host), path: path.toLowerCase() };
 }

@@ -83,6 +83,10 @@ sw.focus = read('ios/Shared/Focus.swift');
 const ext = { popupCore: read('extension/popup-core.js') };
 // A megakadások könyve is: a csúcs-nap ablaka és küszöbe, a javaslat első lépcsője.
 ext.hits = read('extension/hits.js');
+// A bővítmény a kulcsszó és a részleges szabály saját másolatával dönt a
+// böngészőben — a plafonjainak az appéval kell egyeznie.
+ext.keywords = read('extension/keywords.js');
+ext.rules = read('extension/rules-core.js');
 
 ts.digest = read('desktop/src/shared/digest.ts');
 kt.digest = read('android/app/src/main/java/hu/breaker/app/core/Digest.kt');
@@ -457,6 +461,21 @@ const PAIRS = [
 // A gép és a böngésző-bővítmény között: a felugró lap a sorozatot a maga
 // másolatával mondja kettőtől. Ha elcsúszna, a lap más napon szólna, mint az app.
 const EXT_PAIRS = [
+  // A bővítmény a teljes címről MAGA dönt (kulcsszó, részleges szabály). Ha a
+  // plafonja más volna, az appban felvett szó vagy szabály a böngészőben
+  // csendben kiesne — vagy a bővítmény beállítás-lapja elutasítaná.
+  ['MAX_KEYWORDS',
+    scalar(ts.keywords, /MAX_KEYWORDS\s*=\s*([^;]+);/, 'ts'),
+    scalar(ext.keywords, /MAX_KEYWORDS\s*=\s*([^;]+);/, 'ext')],
+  ['MAX_KEYWORD_LENGTH',
+    scalar(ts.keywords, /MAX_KEYWORD_LENGTH\s*=\s*([^;]+);/, 'ts'),
+    scalar(ext.keywords, /MAX_KEYWORD_LENGTH\s*=\s*([^;]+);/, 'ext')],
+  ['MIN_KEYWORD_LENGTH',
+    scalar(ts.keywords, /MIN_KEYWORD_LENGTH\s*=\s*([^;]+);/, 'ts'),
+    scalar(ext.keywords, /MIN_KEYWORD_LENGTH\s*=\s*([^;]+);/, 'ext')],
+  ['MAX_RULE_PATH_LENGTH',
+    scalar(ts.rules, /MAX_RULE_PATH_LENGTH\s*=\s*([^;]+);/, 'ts'),
+    scalar(ext.rules, /MAX_RULE_PATH_LENGTH\s*=\s*([^;]+);/, 'ext')],
   ['FOCUS_STREAK_MIN_DAYS',
     scalar(ts.focus, /FOCUS_STREAK_MIN_DAYS\s*=\s*([^;]+);/, 'ts'),
     scalar(ext.popupCore, /STREAK_MIN_DAYS\s*=\s*([^;]+);/, 'ext')],
