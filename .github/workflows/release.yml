@@ -53,7 +53,9 @@ jobs:
           vették szóköznek, a gép igen — egy ilyen jelmondat az egyik eszközön
           nem nyitott volna. Most a szóköz-készlet kimondott, a vágás
           kódpontban számol, a megbízott neve nem végződik lógó szóközre, és
-          egy közös fixtúra őrzi, hogy a három mag ugyanarra tisztít.
+          egy közös fixtúra őrzi, hogy a három mag ugyanarra tisztít. Az első
+          futása rögtön fogott is egyet: a görög szó végi szigmát az iPhone
+          másképp írta kisbetűvel, mint a gép és az Android — már nem.
 
           ### Ami a v0.4.187-ben jött
 
