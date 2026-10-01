@@ -634,3 +634,17 @@ appnál. Ha ott kikapcsolod az alagutat, a szűrés megáll — a blokklistáná
   logikát fedi (magok, összefésülés, számlálók), és a fordítást — de VPN-t nem
   futtat. Ezt nem hallgatjuk el: a „minden letesztelve” itt pont annyira lenne
   igaz, mint a hamis biztonságérzet, ami ellen az egész app szól.
+
+## A három mag ugyanazt számolja a naplóból
+
+A menetek naplója a szinkronon utazik; a statisztika és a heti mondat belőle
+számol mindhárom platformon: a hét és az előző hét összegzője, a menet-nap, a
+menet-óra, a sorozat és a leghosszabb sorozat, az ablakból indult menetek
+csomagonként, a napi rajz. A `fixtures/merge-cases.json` napló-szekciója (írja
+`desktop/test/merge-fixture.test.ts`) véletlen naplókat tart — a mai naphoz
+húzott és három hétre szórt sorok, jövőbeli és nagyon régi sor, korai és késői
+vég, ablakból indult menet, három csomag holtversenyre —, és a gép számait; a
+Kotlin (`MergeFixtureTest`) és a Swift (`MergeFixtureTests`) ugyanazt számolja.
+A leggyakoribb csomag holtversenyben az először látott, mindhárom magban. A
+napkulcs helyi időben jár, ezért a három teszt UTC-ben — a gép és az Android
+beállítja, a Swift beállítja, vagy ha nem tudja, kimondva kihagyja.

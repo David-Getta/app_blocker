@@ -367,4 +367,42 @@ class MergeFixtureTest {
             assertEquals(str(c, "nextOcc"), nextOcc, "következő előfordulás, mag $seed")
         }
     }
+
+    private fun logEntries(a: JSONArray): List<Focus.FocusLogEntry> = (0 until a.length()).map { i ->
+        val e = a.getJSONObject(i)
+        Focus.FocusLogEntry(
+            packId = e.getString("packId"), packName = e.getString("packName"), startedAt = e.getLong("startedAt"),
+            endedAt = e.getLong("endedAt"), plannedEndsAt = e.getLong("plannedEndsAt"), stopped = e.getBoolean("stopped"),
+            window = e.optBoolean("window", false),
+        )
+    }
+
+    private fun summaryKey(s: Focus.FocusSummary): String =
+        "${s.sessions}/${s.totalMs}/${s.stoppedEarly}/${s.windowRuns}/${s.topPack ?: "-"}"
+
+    @Test
+    fun `menetek osszegzese - a Kotlin ugyanazt szamolja a naplobol, mint a gep, UTC-ben`() {
+        // A napló a szinkronon utazik; a statisztika és a heti mondat belőle
+        // számol. A napkulcs helyi időben jár; a fixtúra UTC-ben készült.
+        java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone("UTC"))
+        val cases = JSONObject(fixtureFile().readText()).getJSONArray("focusLogs")
+        assertTrue(cases.length() >= 50, "a fixture-ben van elég eset")
+        for (i in 0 until cases.length()) {
+            val c = cases.getJSONObject(i)
+            val seed = c.getInt("seed")
+            val log = logEntries(c.getJSONArray("log"))
+            val now = c.getLong("now")
+            val weekAgo = now - 7 * 86_400_000L
+            assertEquals(c.getString("week"), summaryKey(Focus.summarizeFocus(log, weekAgo, now)), "a hét összegzője, mag $seed")
+            assertEquals(c.getString("prev"), summaryKey(Focus.summarizeFocusPrevWeek(log, now)), "az előző hét összegzője, mag $seed")
+            assertEquals(c.getString("byWeekday"), Focus.byWeekday(log, now).joinToString(","), "menet-napok, mag $seed")
+            assertEquals(c.getString("byHour"), Focus.byHour(log, now).joinToString(","), "menet-órák, mag $seed")
+            assertEquals(c.getInt("streak"), Focus.dayStreak(log, now), "sorozat, mag $seed")
+            assertEquals(c.getInt("longest"), Focus.longestStreak(log, now), "leghosszabb sorozat, mag $seed")
+            val runs = Focus.windowRunsByPack(log, weekAgo, now).toSortedMap().entries.joinToString(",") { "${it.key}=${it.value}" }
+            assertEquals(c.getString("runs"), runs, "ablakból indult menetek, mag $seed")
+            val series = Focus.daySeries(log, now, 7).joinToString(",") { "${it.first}:${it.second.toLong()}" }
+            assertEquals(c.getString("series"), series, "napi rajz, mag $seed")
+        }
+    }
 }

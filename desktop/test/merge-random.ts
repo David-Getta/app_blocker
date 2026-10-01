@@ -737,3 +737,50 @@ export function usageSummaryParts(state: UsageState, now: number): UsageSummaryP
     wow: wow(s.weekOverWeek), days: s.daysTracked,
   };
 }
+
+// ------------------------------------------------------- a menetek összegzése
+//
+// A menetek naplója a szinkronon utazik; a statisztika és a heti mondat
+// belőle számol: a hét és az előző hét összegzője, a menet-nap, a menet-óra,
+// a sorozat és a leghosszabb sorozat, a napi rajz, az ablakból indult menetek
+// csomagonként. Ugyanabból a naplóból a három magnak ugyanazt kell mondania.
+// A napkulcs helyi időben jár — UTC-ben, mint a menetrend.
+
+/** A menet-napló fixtúrájának időpontja: 2026-09-30, szerda, 15:30 UTC. */
+export const FOCUS_LOG_NOW = Date.UTC(2026, 8, 30, 15, 30);
+
+export interface FocusLogCase { log: FocusLogEntry[]; now: number }
+
+/**
+ * Egy véletlen napló: 0–12 sor, a napok a mai naphoz húzva (hogy sorozat is
+ * legyen) vagy három hétre szórva (hogy az előző hét és a kieső is legyen),
+ * néha a jövőben (nem számít) vagy nagyon régen; a hossz 5–120 perc; a terv
+ * a hosszal egyenlő (időben), hosszabb (korai vég) vagy rövidebb (késői vég,
+ * nem korai); ablakból indult a harmada; három csomag, holtversenyre is.
+ */
+export function randomFocusLogCase(r: () => number): FocusLogCase {
+  for (let i = 0; i < 4; i++) r();
+  const now = FOCUS_LOG_NOW;
+  const n = Math.floor(r() * 13);
+  const log: FocusLogEntry[] = [];
+  for (let i = 0; i < n; i++) {
+    const nearDraw = r();
+    const daysAgo = nearDraw < 0.6 ? Math.floor(r() * 5) : Math.floor(r() * 22);
+    const whenDraw = r();
+    const endedAt = whenDraw < 0.08 ? now + 3_600_000
+      : whenDraw < 0.14 ? now - 40 * 86_400_000
+      : now - daysAgo * 86_400_000 - Math.floor(r() * 720) * 60_000;
+    const minutes = 5 + Math.floor(r() * 115);
+    const startedAt = endedAt - minutes * 60_000;
+    const planDraw = r();
+    const plannedMinutes = planDraw < 0.5 ? minutes : planDraw < 0.85 ? minutes + 10 : Math.max(1, minutes - 5);
+    const id = ['p1', 'p2', 'p3'][Math.floor(r() * 3)];
+    const stopped = r() < 0.4;
+    const window = r() < 0.3;
+    log.push({
+      packId: id, packName: `csomag ${id}`, startedAt, endedAt, plannedEndsAt: startedAt + plannedMinutes * 60_000, stopped,
+      ...(window ? { window: true } : {}),
+    });
+  }
+  return { log, now };
+}

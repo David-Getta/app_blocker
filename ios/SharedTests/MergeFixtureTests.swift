@@ -376,4 +376,52 @@ final class MergeFixtureTests: XCTestCase {
             XCTAssertEqual(nextOcc, c["nextOcc"] as? String, "következő előfordulás, mag \(seed)")
         }
     }
+
+    private func logEntries(_ arr: [[String: Any]]) -> [Focus.LogEntry] {
+        arr.map { e in
+            Focus.LogEntry(
+                packId: e["packId"] as? String ?? "", packName: e["packName"] as? String ?? "",
+                startedAt: (e["startedAt"] as? NSNumber)?.doubleValue ?? 0, endedAt: (e["endedAt"] as? NSNumber)?.doubleValue ?? 0,
+                plannedEndsAt: (e["plannedEndsAt"] as? NSNumber)?.doubleValue ?? 0, stopped: e["stopped"] as? Bool ?? false,
+                window: e["window"] as? Bool
+            )
+        }
+    }
+
+    private func summaryKey(_ s: Focus.Summary) -> String {
+        "\(s.sessions)/\(Int64(s.totalMs))/\(s.stoppedEarly)/\(s.windowRuns)/\(s.topPack ?? "-")"
+    }
+
+    func testTheFocusLogSummariesAreTheSameAsTheDesktopInUTC() throws {
+        // A napló a szinkronon utazik; a statisztika és a heti mondat belőle számol.
+        // A napkulcs helyi időben jár; a fixtúra UTC-ben készült.
+        setenv("TZ", "UTC", 1)
+        CFTimeZoneResetSystem()
+        guard TimeZone.current.secondsFromGMT() == 0 else {
+            throw XCTSkip("a napló-fixtúra csak UTC-ben játszható vissza; ez a gép: \(TimeZone.current.identifier)")
+        }
+        let here = URL(fileURLWithPath: #filePath)
+        let root = here.deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let url = root.appendingPathComponent("fixtures").appendingPathComponent("merge-cases.json")
+        let top = try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any]
+        let cases = top?["focusLogs"] as? [[String: Any]] ?? []
+        XCTAssertGreaterThanOrEqual(cases.count, 50, "a fixture-ben van elég eset")
+        for c in cases {
+            let seed = c["seed"] as? Int ?? -1
+            let log = logEntries(c["log"] as? [[String: Any]] ?? [])
+            let now = (c["now"] as? NSNumber)?.doubleValue ?? 0
+            let weekAgo = now - 7 * 86_400_000
+            XCTAssertEqual(summaryKey(Focus.summarizeFocus(log, since: weekAgo, now: now)), c["week"] as? String, "a hét összegzője, mag \(seed)")
+            XCTAssertEqual(summaryKey(Focus.summarizeFocusPrevWeek(log, now: now)), c["prev"] as? String, "az előző hét összegzője, mag \(seed)")
+            XCTAssertEqual(Focus.byWeekday(log, now: now).map(String.init).joined(separator: ","), c["byWeekday"] as? String, "menet-napok, mag \(seed)")
+            XCTAssertEqual(Focus.byHour(log, now: now).map(String.init).joined(separator: ","), c["byHour"] as? String, "menet-órák, mag \(seed)")
+            XCTAssertEqual(Focus.dayStreak(log, now: now), c["streak"] as? Int, "sorozat, mag \(seed)")
+            XCTAssertEqual(Focus.longestStreak(log, now: now), c["longest"] as? Int, "leghosszabb sorozat, mag \(seed)")
+            let runs = Focus.windowRunsByPack(log, since: weekAgo, now: now).sorted { $0.key < $1.key }
+                .map { "\($0.key)=\($0.value)" }.joined(separator: ",")
+            XCTAssertEqual(runs, c["runs"] as? String, "ablakból indult menetek, mag \(seed)")
+            let series = Focus.daySeries(log, now: now, count: 7).map { "\($0.day):\(Int64($0.seconds))" }.joined(separator: ",")
+            XCTAssertEqual(series, c["series"] as? String, "napi rajz, mag \(seed)")
+        }
+    }
 }

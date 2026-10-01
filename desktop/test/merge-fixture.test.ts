@@ -26,12 +26,15 @@ import {
   dueLockdownWindow, isWindowLockdown, isWindowsLoosening, weekHasFreeTime, windowLockdown, windowStartingSoon,
   type Lockdown, type LockdownWindow,
 } from '../src/shared/lockdown';
-import { nextOccurrence, type Occurrence } from '../src/shared/focus';
+import {
+  focusByHour, focusByWeekday, focusDaySeries, focusDayStreak, focusLongestStreak, nextOccurrence, summarizeFocus,
+  summarizeFocusPrevWeek, windowRunsByPack, type FocusSummary, type Occurrence,
+} from '../src/shared/focus';
 import { noteBurstUsage, type BurstState } from '../src/shared/burst';
 import {
   DECISION_NOW, DEVICES, SCHEDULE_WEEK_START, flipFocus, flipSite, focusConformanceKey, randomBurstRun, randomDecision,
-  randomFocus, randomScheduleCase, randomSite, randomUsage, randomVerdict, randomWindowsCase, referenceVerdict, rng,
-  siteConformanceKey, usageConformanceKey, usageSummaryParts, type WindowsCase,
+  randomFocus, randomFocusLogCase, randomScheduleCase, randomSite, randomUsage, randomVerdict, randomWindowsCase,
+  referenceVerdict, rng, siteConformanceKey, usageConformanceKey, usageSummaryParts, type FocusLogCase, type WindowsCase,
 } from './merge-random';
 
 // A döntés napkulcsa helyi időben számolódik; a fixtúra UTC-ben készül, és a
@@ -45,7 +48,25 @@ const SEEDS = 80;
 
 interface Fixture {
   note: string; version: number; sites: unknown[]; focus: unknown[]; usage: unknown[]; decisions: unknown[];
-  bursts: unknown[]; verdicts: unknown[]; schedules: unknown[]; windows: unknown[];
+  bursts: unknown[]; verdicts: unknown[]; schedules: unknown[]; windows: unknown[]; focusLogs: unknown[];
+}
+
+const summaryKey = (s: FocusSummary) => `${s.sessions}/${s.totalMs}/${s.stoppedEarly}/${s.windowRuns}/${s.topPack ?? '-'}`;
+
+/** Minden, amit a három magnak egy naplóról ugyanúgy kell mondania. */
+function focusLogAnswers(c: FocusLogCase) {
+  const weekAgo = c.now - 7 * 86_400_000;
+  const runs = windowRunsByPack(c.log, weekAgo, c.now);
+  return {
+    week: summaryKey(summarizeFocus(c.log, weekAgo, c.now)),
+    prev: summaryKey(summarizeFocusPrevWeek(c.log, c.now)),
+    byWeekday: focusByWeekday(c.log, c.now).join(','),
+    byHour: focusByHour(c.log, c.now).join(','),
+    streak: focusDayStreak(c.log, c.now),
+    longest: focusLongestStreak(c.log, c.now),
+    runs: Object.keys(runs).sort().map((k) => `${k}=${runs[k]}`).join(','),
+    series: focusDaySeries(c.log, c.now, 7).map((d) => `${d.day}:${d.seconds}`).join(','),
+  };
 }
 
 /** Perc a hét kezdetétől (hétfő 00:00 UTC) epoch ms-ben, másodperc-eltolással. */
@@ -134,6 +155,7 @@ function buildFixture(): Fixture {
   const verdicts: unknown[] = [];
   const schedules: unknown[] = [];
   const windows: unknown[] = [];
+  const focusLogs: unknown[] = [];
   for (let seed = 1; seed <= SEEDS; seed++) {
     const r = rng(seed);
     const [a, b, c] = DEVICES.map((d) => randomSite(r, d));
@@ -248,6 +270,19 @@ function buildFixture(): Fixture {
     assert.ok(win.some((c) => c[key] !== null) && win.some((c) => c[key] === null), `az ablak-esetek egyfélék: ${key}`);
   }
   assert.ok(win.some((c) => c.isWin === true) && win.some((c) => c.isWin === false), 'az ablak-zárlat-esetek egyfélék');
+  // A MENETEK ÖSSZEGZÉSE a naplóból: a hét és az előző hét, a menet-nap, a
+  // menet-óra, a sorozat és a leghosszabb sorozat, az ablakból indult menetek
+  // csomagonként, a napi rajz — a statisztika és a heti mondat számai; UTC-ben.
+  for (let seed = 1; seed <= SEEDS; seed++) {
+    const r = rng(seed);
+    const c = randomFocusLogCase(r);
+    focusLogs.push({ seed, ...c, ...focusLogAnswers(c) });
+  }
+  const fl = focusLogs as Array<ReturnType<typeof focusLogAnswers>>;
+  assert.ok(fl.some((c) => c.streak >= 2), 'egy sorozat sincs — a fixtúra elfajult');
+  assert.ok(fl.some((c) => c.runs !== ''), 'ablakból indult menet sincs — a fixtúra elfajult');
+  assert.ok(fl.some((c) => !c.prev.startsWith('0/')), 'előző heti menet sincs — a fixtúra elfajult');
+  assert.ok(fl.some((c) => !c.week.endsWith('/-')) && fl.some((c) => c.week.startsWith('0/')), 'a heti összegzők egyfélék');
   return {
     note: 'Generálja és őrzi: desktop/test/merge-fixture.test.ts (UPDATE_MERGE_FIXTURE=1 npm test). '
       + 'Olvassa: android/jvm-tests MergeFixtureTest, ios/SharedTests MergeFixtureTests. '
@@ -260,8 +295,10 @@ function buildFixture(): Fixture {
       + 'A verdicts-esetek (a két telefon): név, lista, kulcsszavak, menet, csomag, saját kiszolgáló — és a döntés. '
       + 'A schedules-esetek: menetrend, egy másik menetrend, időpont (UTC-ben értékelve) — tilt-e most, és lazítás-e a csere. '
       + 'A windows-esetek: zárlat-ablakok, a csere célja, futó zárlat, időpont, a közelgő ablak kerete (UTC-ben) — szabad idő, '
-      + 'lazítás, élő ablak, megkövetelt zárlat, ablak-zárlat-e, közelgő ablak, a következő előfordulás (nextOcc).',
-    version: 14,
+      + 'lazítás, élő ablak, megkövetelt zárlat, ablak-zárlat-e, közelgő ablak, a következő előfordulás (nextOcc). '
+      + 'A focusLogs-esetek: napló és időpont (UTC) — a hét és az előző hét összegzője (menet/ms/korai/ablakból/csúcs-csomag), '
+      + 'menet-napok, menet-órák, sorozat, leghosszabb sorozat, ablakból indult menetek csomagonként, a napi rajz.',
+    version: 15,
     sites,
     focus,
     usage,
@@ -270,6 +307,7 @@ function buildFixture(): Fixture {
     verdicts,
     schedules,
     windows,
+    focusLogs,
   };
 }
 
@@ -280,7 +318,7 @@ function render(f: Fixture): string {
     + `"sites": [\n${rows(f.sites)}\n],\n"focus": [\n${rows(f.focus)}\n],\n"usage": [\n${rows(f.usage)}\n],\n`
     + `"decisions": [\n${rows(f.decisions)}\n],\n"bursts": [\n${rows(f.bursts)}\n],\n`
     + `"verdicts": [\n${rows(f.verdicts)}\n],\n"schedules": [\n${rows(f.schedules)}\n],\n`
-    + `"windows": [\n${rows(f.windows)}\n]\n}\n`;
+    + `"windows": [\n${rows(f.windows)}\n],\n"focusLogs": [\n${rows(f.focusLogs)}\n]\n}\n`;
 }
 
 test('a megfelelőségi fixture a gép szabályaival egyezik (a Kotlin és a Swift ebből dolgozik)', () => {

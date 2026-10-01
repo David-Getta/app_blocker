@@ -411,7 +411,15 @@ Amit a tesztek bizonyítanak, és amit másképp nem lehetne:
   és a következő előfordulás (`nextOccurrence`, amit a csomagok ablaka is
   használ). A heti ablak minden eszközön ugyanakkor zár és ugyanakkor enged;
   ha az előfordulás-számtan elcsúszna, két eszköz más zárlatot állítana elő,
-  és a szinkron kettőnek látná.
+  és a szinkron kettőnek látná. És a MENETEK ÖSSZEGZÉSÉT a naplóból
+  (`summarizeFocus` és társai), ugyanígy UTC-ben: véletlen naplók — a mai
+  naphoz húzott és három hétre szórt sorok, jövőbeli és nagyon régi sor,
+  korai és késői vég, ablakból indult menet, három csomag holtversenyre —, és
+  a hét meg az előző hét összegzője (menet, idő, korai vég, ablakból indult, a
+  leggyakoribb csomag: holtversenyben az először látott), a menet-napok, a
+  menet-órák, a sorozat és a leghosszabb sorozat, az ablakból indult menetek
+  csomagonként, a napi rajz. A napló a szinkronon utazik; a statisztika és a
+  heti mondat belőle számol mindhárom platformon.
 - **a szöveg-tisztítás is megfelelőségi próbán megy át.** A
   `fixtures/text-cases.json` (írja `desktop/test/text-fixture.test.ts`,
   `UPDATE_TEXT_FIXTURE=1 npm test`) a fedőnév, az indok, a kulcsszó és a
