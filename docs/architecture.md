@@ -216,6 +216,31 @@ senki. Ez a projekt visszatérő hibafajtája: a mag megvan, teszt is van rá, c
 Ma száztíz fölötti pont, a hosts fájlba írástól a próbatételek sorsolásáig és
 a zárlat-ablak köréig; a pontos számot a szkript írja ki.
 
+**Negyedik réteg: a megfelelőségi fixtúra** (`fixtures/merge-cases.json`,
+írja `desktop/test/merge-fixture.test.ts`, visszajátssza a Kotlin
+`MergeFixtureTest` és a Swift `MergeFixtureTests`). Az egyező számok, a
+stimmelő mezőnevek és a huzalozás sem mondja meg, hogy a három mag UGYANAZT
+számolja-e ugyanabból. Ezt a fixtúra kérdezi: a gép kiszámolt bemeneteket és
+eredmény-kulcsokat ír, a másik két nyelv a saját drót-olvasóján át veszi a
+bemeneteket, a saját magjával számol, és a kulcsnak bájtra egyeznie kell.
+Ma öt szekció: az oldal-rekordok fésülése minden mezővel (hosztnevek a
+jeleikkel, törlésre várás, keret, fedőnév, indok, menetrend, adag, részleges
+szabályok a jelükkel), és minden esethez egy egy mezőben más pár mindkét
+sorrendben — a szigorúság-lánc és a döntetlen-törés éles esetei; a
+munkamenet-blobok fésülése minden mezővel (csomagok a jeleikkel, menet, napló
+— ugyanarról a menetről két változat is —, zárlat, ablakok, kulcsszavak,
+megbízott, rejtés, a jeleikkel), és minden esethez egy mező cseréje, amit a
+három nyelvnek ugyanúgy kell különbségnek tartania; a mérés egyesítése három
+eszközről; a döntés — tilt-e most: szünet, törlésre várás, közös napi keret;
+és az adag-számláló mérés-sorozatból, lépésenként (ezt a gép és az Android
+tükrözi, az iPhone nem mér előteret). A fésülés-generátorok véletlenje
+szerződés: a Kotlin és a Swift fuzz ugyanazt a sorozatot húzza ugyanabból a
+magból. És az őr: a drótnév-ellenőrző azt is nézi, hogy minden őrzött
+drót-mező ott van a fixtúra generátorában — egy új mező nem maradhat ki
+csendben az összevetésből. A fixtúra fogta ki a v0.4.170 Swift-rését (a
+normalizálás eldobta a rejtést), és a szabálylista sorrendfüggését egy régi
+kliens mellett, amiből a szabályok jele lett.
+
 ## Biztonsági modell és őszinte korlátok
 
 A Breaker **önkontroll-eszköz elszánt, de önmagával együttműködő felhasználónak**,
