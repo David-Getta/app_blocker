@@ -404,3 +404,13 @@ test('a mért idő napja a döntés napján: ma van-e, és csak elég mintából
   assert.equal(usageDayNowText({ day: (today + 1) % 7, count: 12000 }, NOW), '', 'más napon üres');
   assert.equal(usageDayNowText(null, NOW), '');
 });
+
+test('a címke KÓDPONTBAN vágódik — a fiókon utazik, fél emodzsi nem mehet a telefonra', () => {
+  const pizza = String.fromCodePoint(0x1f355);
+  const st = emptyUsage();
+  const now = Date.UTC(2026, 8, 7, 12, 0);
+  recordSample(st, appKey('jatek'), 60, now, `${'a'.repeat(MAX_LABEL_LENGTH - 1)}${pizza}${pizza}`);
+  const label = st.labels[appKey('jatek')];
+  assert.equal(label, `${'a'.repeat(MAX_LABEL_LENGTH - 1)}${pizza}`, 'egy egész emodzsi marad, nem a fele');
+  assert.equal([...label].length, MAX_LABEL_LENGTH);
+});

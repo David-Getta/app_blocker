@@ -168,7 +168,10 @@ export function recordSample(
     state.days.sort((a, b) => (a.day < b.day ? -1 : a.day > b.day ? 1 : 0));
   }
   bucket.seconds[key] = (bucket.seconds[key] ?? 0) + amount;
-  if (label) state.labels[key] = label.slice(0, MAX_LABEL_LENGTH);
+  // KÓDPONTBAN vágva: a címke a fiókon a telefonokig utazik, és egy félbe
+  // vágott emodzsi (párja nélküli fél) az iPhone olvasóján az egész mérést
+  // vinné. Az Android ugyanígy vág (TextLogic.takeCodePoints).
+  if (label) state.labels[key] = [...label].slice(0, MAX_LABEL_LENGTH).join('');
   coalesceDay(bucket);
   pruneOld(state, now);
   return state;

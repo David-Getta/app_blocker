@@ -325,4 +325,15 @@ class UsageLogicTest {
         assertEquals("Ma a négy hét legnagyobb napja van (szombat, átlag 50 p) — ezen a napon megy el a legtöbb idő.", UsageLogic.dayNowText(6 to 12000))
         assertEquals(listOf(0, 0, 0, 0, 0, 0, 0), UsageLogic.byWeekday(UsageLogic.UsageState(), now))
     }
+
+    @Test fun `a cimke kodpontban vagodik - fel emodzsi nem mehet a telefonra`() {
+        val pizza = String(Character.toChars(0x1F355))
+        val st = UsageLogic.UsageState()
+        val now = 1_788_782_400_000L
+        val long = "a".repeat(UsageLogic.MAX_LABEL_LENGTH - 1) + pizza + pizza
+        UsageLogic.recordSample(st, UsageLogic.appKey("jatek"), 60.0, now, long)
+        val label = st.labels[UsageLogic.appKey("jatek")]!!
+        assertEquals("a".repeat(UsageLogic.MAX_LABEL_LENGTH - 1) + pizza, label, "egy egész emodzsi marad, nem a fele")
+        assertEquals(UsageLogic.MAX_LABEL_LENGTH, label.codePointCount(0, label.length))
+    }
 }

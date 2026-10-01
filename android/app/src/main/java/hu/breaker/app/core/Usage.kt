@@ -135,7 +135,9 @@ object UsageLogic {
             state.days.sortBy { it.day }
         }
         bucket.seconds[key] = (bucket.seconds[key] ?: 0.0) + amount
-        if (label != null) state.labels[key] = label.take(MAX_LABEL_LENGTH)
+        // Kódpontban, mint a gép: a címke a fiókon utazik, egy félbe vágott
+        // emodzsi az iPhone olvasóján az egész mérést vinné.
+        if (label != null) state.labels[key] = TextLogic.takeCodePoints(label, MAX_LABEL_LENGTH)
         coalesceDay(bucket)
         pruneOld(state, now)
     }
