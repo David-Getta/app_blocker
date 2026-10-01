@@ -12,8 +12,9 @@ próbatétel** — a megbízott jelmondatával a végén, tehát a levételhez i
 
 ## Hogyan működik
 
-1. A *Zárlat* kártyán (gépen, Androidon, iPhone-on) beírod a megbízott nevét,
-   és az app **sorsol egy jelmondatot**: négy szó a próbatételek szólistájából,
+1. A *Zárlat* kártyán (gépen, Androidon, iPhone-on) beírod a megbízott nevét
+   (legfeljebb 40 karakter — a mező mindhárom felületen ott megáll, a mentés
+   nem vág csendben), és az app **sorsol egy jelmondatot**: négy szó a próbatételek szólistájából,
    kisbetűvel (például „alma bogrács cinege délután”).
 2. A jelmondat **egyszer látszik**, egy lapon: átadod a megbízottnak, és
    bezárod. Az app csak a **lenyomatát** tartja meg (scrypt, ugyanazokkal a

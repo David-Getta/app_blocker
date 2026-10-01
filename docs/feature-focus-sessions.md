@@ -694,6 +694,8 @@ Kotlin `trim`-jével (a BOM-ot nem ismeri) és szintén UTF-16-ban, az iPhone
 grafémában vágott. A felvételkor az Android csak a szóközt, a tabot és a
 sorvéget vonta össze, az iPhone a saját szóköz-fogalmával, a gép semmit. Most
 a felvétel és a fogadás ugyanazt teszi mindhárom magban (a mentett állapot
-olvasása a gépen és Androidon is), és a szöveg-fixtúra kimondja. A naplósort az iPhone eddig se nem vágta, se az üres nevét nem
-pótolta, se az azonosító nélküli sort nem dobta el — most a gép
-`normalizeLogEntry`-jét tükrözi.
+olvasása a gépen és Androidon is), és a szöveg-fixtúra kimondja. A név mezője
+a telefonokon is a 40. karakternél áll meg, mint a gépen — eddig a telefon
+többet engedett beírni, és a felvétel csendben levágta. A naplósort az iPhone
+eddig se nem vágta, se az üres nevét nem pótolta, se az azonosító nélküli sort
+nem dobta el — most a gép `normalizeLogEntry`-jét tükrözi.

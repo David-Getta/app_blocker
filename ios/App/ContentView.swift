@@ -581,7 +581,12 @@ struct ContentView: View {
                     .font(.caption).foregroundStyle(.secondary)
                 Text("Egy csomag megmondja, mi mehet a menet alatt — minden más tiltva. Felvenni itt is lehet; szerkeszteni, törölni és az ablakát cserélni a gépen.")
                     .font(.footnote).foregroundStyle(.secondary)
-                TextField("Név (pl. Nyelvtanulás)", text: $newPackName)
+                // A mag plafonjánál áll meg, skalárban, mint a gépi mező —
+                // különben a felvétel csendben levágná, amit a mező még mutatott.
+                TextField("Név (pl. Nyelvtanulás)", text: Binding(
+                    get: { newPackName },
+                    set: { newPackName = TextLogic.takeScalars($0, Focus.maxPackName) }
+                ))
                     .textFieldStyle(.roundedBorder)
                 TextField("Engedett oldalak, vesszővel (üresen minden tiltva)", text: $newPackSites)
                     .textFieldStyle(.roundedBorder)
@@ -764,7 +769,12 @@ struct ContentView: View {
                 Text("Egy megbízott — társ, barát, szülő —, aki egy jelmondatot kap: minden lazítás végén ő írja be. Nem helyetted csinálja végig, csak az utolsó szót ő mondja ki. Felvenni ingyen; levenni próbatétel, a végén az ő jelmondatával. Nem gépzár: az impulzus ellen véd, nem a szándék ellen.")
                     .font(.footnote).foregroundStyle(.secondary)
                 HStack(spacing: 8) {
-                    TextField("a megbízott neve, pl. Anna", text: $partnerName)
+                    // A mag plafonjánál áll meg, skalárban — különben a mentés
+                    // csendben levágná, amit a mező még mutatott.
+                    TextField("a megbízott neve, pl. Anna", text: Binding(
+                        get: { partnerName },
+                        set: { partnerName = TextLogic.takeScalars($0, PartnerLogic.maxPartnerName) }
+                    ))
                         .textFieldStyle(.roundedBorder)
                     Button("Felvétel") { setPartner() }.buttonStyle(.bordered)
                 }

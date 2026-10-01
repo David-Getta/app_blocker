@@ -88,6 +88,7 @@ import hu.breaker.app.core.DigestLogic
 import hu.breaker.app.core.LimitLogic
 import hu.breaker.app.core.FilterHitLogic
 import hu.breaker.app.core.KeywordLogic
+import hu.breaker.app.core.PartnerLogic
 import hu.breaker.app.core.LockdownLogic
 import hu.breaker.app.core.Referee
 import hu.breaker.app.core.ScheduleLogic
@@ -1198,7 +1199,9 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             OutlinedTextField(
                                 value = partnerName,
-                                onValueChange = { partnerName = it },
+                                // A mag plafonjánál áll meg, kódpontban — különben a
+                                // mentés csendben levágná, amit a mező még mutatott.
+                                onValueChange = { partnerName = TextLogic.takeCodePoints(it, PartnerLogic.MAX_PARTNER_NAME) },
                                 placeholder = { Text("a megbízott neve, pl. Anna") },
                                 modifier = Modifier.weight(1f),
                                 singleLine = true,
@@ -3306,7 +3309,10 @@ private fun NewFocusPackCard(state: AppState, onError: (String) -> Unit) {
                 style = MaterialTheme.typography.bodySmall,
             )
             OutlinedTextField(
-                value = name, onValueChange = { name = it }, label = { Text("Név (pl. Nyelvtanulás)") },
+                // A mag plafonjánál áll meg, kódpontban, mint a gépi mező —
+                // különben a felvétel csendben levágná, amit a mező még mutatott.
+                value = name, onValueChange = { name = TextLogic.takeCodePoints(it, Focus.MAX_PACK_NAME) },
+                label = { Text("Név (pl. Nyelvtanulás)") },
                 singleLine = true, modifier = Modifier.fillMaxWidth(),
             )
             OutlinedTextField(
