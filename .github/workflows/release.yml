@@ -44,25 +44,24 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A fixtúra a menetrendet is nézi.** A menetrend az, ami a gépen és
-          a telefonon EGYSZERRE dönt ugyanarról az oldalról: egy elcsúszott
-          sáv-számtan az oldalt az egyiken zárja, a másikon nyitja, ugyanabban
-          a percben. A közös fixtúrában most menetrend-esetek is vannak —
-          kézzel válogatott élek (a sávhatár perce, az éjfélen átnyúló sáv két
-          napja, a csupa rossz sáv) és véletlen heti sávrendszerek mindhárom
-          módban —, és a három magnak ugyanazt kell mondania: tilt-e most, és
-          lazítás-e a csere. A sávok helyi időben értékelődnek ki, ezért a
-          három teszt UTC-ben jár, kimondva.
+          **A párosító kód közös fixtúrája.** A gépen kiírt kódot a telefonon
+          gépelik be — ez a legközvetlenebb szerződés a három platform
+          között: ha egy bit eltér, a kód nem nyílik ki, vagy MÁS címet ad. A
+          gép most minden esetre kimondja, mit ad (kód, cím vagy semmi), a két
+          telefonnak ugyanazt kell adnia: címek a négy osztályból, portok a
+          határokon, kézzel írt alakok (kötőjel, szóköz, kisbetű, O/0, I/1,
+          nem latin számjegy, elgépelés), szemét. Az iPhone párosítójának ez
+          az első tesztje, és rögtön két apróságot igazított a géphez.
 
-          ### Ami a v0.4.189-ben jött
+          ### Ami a v0.4.190-ben jött
+
+          **A fixtúra a menetrendet is nézi.** Tilt-e most egy heti
+          sávrendszer szerint, és lazítás-e a csere — UTC-ben kimondva.
+
+          #### Ami a v0.4.189-ben jött
 
           **A böngésző-bővítmény nem marad szűrő nélkül egy elvesző
           üzenettől.** Háromszor próbál, növekvő szünettel.
-
-          #### Ami a v0.4.188-ban jött
-
-          **A szöveg-tisztítás egyforma mindhárom magban.** Kimondott
-          szóköz-készlet, kódpontos vágás, közös fixtúra.
 
           NOTES
           fi
