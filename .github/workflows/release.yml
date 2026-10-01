@@ -44,25 +44,28 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A csomag neve minden eszközön ugyanaz.** A munkamenet-csomag
-          neve eddig három szabállyal tisztult: egy iPhone-on felvett hosszú,
-          emodzsis nevet a gép félbe vághatott egy emodzsin — és a párja
-          nélküli felet visszaküldve az iPhone a munkamenet-dokumentumot nem
-          tudta elolvasni —, az Android és az iPhone más-más szóközt ismert,
-          és máshol vágott. Most egy szabály van (a közös szóköz-készlet,
-          legfeljebb 40 karakter, kódpontban), a felvételkor és a fogadáskor
-          is, és a menet-napló sora is ugyanígy tisztul. A közös fixtúra
-          kimondja. A Swift-tesztek optimalizált fordítással futnak: közel öt
-          perc helyett fél perc.
+          **Egy hibás rekord nem viszi el a többit.** A szinkronon jött
+          blokklistát és munkamenetet az iPhone eddig egyben olvasta: egyetlen
+          hibás oldal vagy csomag az egész listát vitte, és a telefon a saját
+          listáját tolta fel a többiek helyett. Most mindhárom platform
+          elemenként olvas, ugyanazzal a szabállyal: csak a hibás elem esik
+          ki, a rossz típusú mező az alapértékét kapja, és egy kiesett csomag
+          nem törlődhet emiatt a többi eszközről. Az Android a szövegként írt
+          számot sem veszi többé számnak. Új közös próba mondja ki
+          (`wire-cases.json`).
 
-          ### Ami a v0.4.203-ban jött
+          A telefonon a csomag és a megbízott nevének mezője is a 40.
+          karakternél megáll, mint a gépen — eddig többet engedett, és a
+          mentés csendben levágta.
 
-          **A leírás azt mondja, ami igaz.** A README a nyolc közös fixtúrát
-          sorolja, és nem állítja, hogy az iPhone-mag ellenőrizetlen.
+          ### Ami a v0.4.204-ben jött
 
-          #### Ami a v0.4.202-ben jött
+          **A csomag neve minden eszközön ugyanaz.** Egy szabállyal tisztul,
+          kódpontban vágva; a Swift-tesztek fél perc alatt futnak.
 
-          **A dátum nem függ a telefon nyelvétől és naptárától.**
+          #### Ami a v0.4.203-ban jött
+
+          **A leírás azt mondja, ami igaz.**
 
           NOTES
           fi
