@@ -21,6 +21,7 @@
 //
 // Pure és függőségmentes, hogy a Kotlin/Swift oldal pontosan tükrözhesse.
 
+import { cleanLine } from './alias.js';
 import { normalizeDomain } from './blocklist.js';
 import { isLoosening, isValidBand, type Band, type Weekday } from './schedule.js';
 import { dayKey, dayKeysBack } from './usage.js';
@@ -102,10 +103,19 @@ export function normalizeAllowSite(input: string): string | null {
   return normalizeDomain(input);
 }
 
+/** Egy engedélyezett app nevének plafonja — KÓDPONTBAN, mint minden szöveg a dróton. */
+export const MAX_ALLOW_APP_LENGTH = 64;
+
+/**
+ * Az engedélyezett app neve tisztán: ugyanaz a sor-tisztítás, mint a
+ * fedőnévé (a közös szóköz-készlet, kódpontos vágás). A név a fiókon utazik,
+ * és a fogadó oldal is újra tisztítja — ha a három mag másképp tisztítana
+ * (az Android Java-regexe csak az ASCII szóközt ismerte, az iPhone grafémában
+ * vágott, a gép UTF-16 egységben), ugyanaz a lista minden körben átíródna.
+ * A közös fixtúra (fixtures/text-cases.json) kimondja.
+ */
 export function normalizeAllowApp(input: string): string | null {
-  const s = (input ?? '').trim().replace(/\s+/g, ' ');
-  if (!s) return null;
-  return s.slice(0, 64);
+  return cleanLine(input, MAX_ALLOW_APP_LENGTH) ?? null;
 }
 
 /** Egy kívülről jött csomag használható alakja, vagy null. */
@@ -164,6 +174,8 @@ export function isAppAllowed(pack: FocusPack, app: string): boolean {
   if (!a) return false;
   return pack.allowApps.some((x) => {
     const y = x.toLowerCase();
+    // Az üres tétel NEM enged mindent: a `includes('')` igaz volna minden appra.
+    if (!y) return false;
     return a === y || a.includes(y) || y.includes(a);
   });
 }

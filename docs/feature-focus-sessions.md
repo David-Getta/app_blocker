@@ -648,3 +648,38 @@ Kotlin (`MergeFixtureTest`) és a Swift (`MergeFixtureTests`) ugyanazt számolja
 A leggyakoribb csomag holtversenyben az először látott, mindhárom magban. A
 napkulcs helyi időben jár, ezért a három teszt UTC-ben — a gép és az Android
 beállítja, a Swift beállítja, vagy ha nem tudja, kimondva kihagyja.
+
+## A munkamenet magja ugyanaz mindhárom platformon
+
+Az ismétlődő menet (a csomag heti ablaka) minden eszközön MAGÁTÓL indul: a
+bíró minden körben megkérdezi, melyik ablak esedékes. Ha a három mag más
+előfordulást számolna, vagy két egyszerre esedékes ablak közül mást
+választana, a menet az egyik eszközön elindulna, a másikon nem — vagy más
+csomaggal. A `fixtures/focus-cases.json` (írja
+`desktop/test/focus-fixture.test.ts`, `UPDATE_FOCUS_FIXTURE=1 npm test`) ezt
+kérdezi, UTC-ben: minden csomag mostani előfordulását (a sáv szélein, perc
+pontosan, éjfélen átnyúló és egész napos sávval, érvénytelen sávokkal is), az
+esedékes ablakot (futó saját és másik menet, elköltött és nem elköltött ablak,
+két egyforma ablak holtversenye — a kisebb azonosító nyer, KÓDEGYSÉG szerint,
+mint a gépen; az iPhone eddig a Swift `<`-ét használta), hogy a futó menet
+ablak-menet-e, a lezárást a 200 soros napló vágásával, a legutóbb használt
+csomagot (egyforma kezdésnél az első a naplóban — az iPhone eddig a nem
+garantáltan stabil `sorted`-ra hagyatkozott), a hátralévő idő szövegét és a
+percek tisztítását. A Kotlin (`FocusFixtureTest`) és a Swift
+(`FocusFixtureTests`) ugyanezt játssza vissza.
+
+A percek tisztítása egy valódi eltérést fogott: a dróton jött csomag
+hárommilliárdos `defaultMinutes`-e a gépen a 480 perces plafonra vágódott, az
+Androidon a `toInt()` negatívra fordította, és az alapértelmezett 25 lett
+belőle (az iPhone `Int(...)`-je egy Int-be nem férő számon összeomlott volna).
+Most mindhárom előbb vág, és csak utána alakít.
+
+Az engedélyezett appok neve is a fiókon utazik, és a fogadó oldal is
+újratisztítja — a szöveg-fixtúra (`fixtures/text-cases.json`) most ezt is nézi:
+a gép a fedőnév sor-tisztítását kapta (a közös szóköz-készlet, kódpontos
+vágás), az Android Java-regexe eddig csak az ASCII szóközt ismerte, az iPhone
+grafémában vágott és a BOM-ot nem ismerte. Az app-egyezés (melyik ablak mehet
+egy menet alatt) a közös szélek szerint vág, a gép kisbetűjével (a szó végi
+szigmával), és kódegységre keres (a Swift `contains` grafémában és kanonikus
+egyenértékűséggel keresett). És egy szigorítás: az üres tétel nem enged
+mindent — a `includes('')` minden appra igaz volt.

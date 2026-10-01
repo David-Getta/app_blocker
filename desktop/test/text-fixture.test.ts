@@ -31,6 +31,7 @@ import { MAX_KEYWORDS, cleanKeywords, normalizeKeyword } from '../src/shared/key
 import { MAX_PARTNER_NAME, normalizePartnerName, normalizePhrase } from '../src/shared/partner';
 import { normalizeDomain } from '../src/shared/blocklist';
 import { matchesRule, normalizeRule, type UrlRule } from '../src/shared/urlrules';
+import { MAX_ALLOW_APP_LENGTH, isAppAllowed, normalizeAllowApp, type FocusPack } from '../src/shared/focus';
 import { rng } from './merge-random';
 
 /** dist-test/test/… → a tároló gyökere. */
@@ -41,11 +42,12 @@ const SEEDS = 60;
 interface TextCase { in: string; out: string | null }
 interface ListCase { in: string[]; out: string[] }
 interface MatchCase { rule: string; url: string; out: boolean }
+interface AppMatchCase { apps: string[]; app: string; out: boolean }
 interface Fixture {
   note: string; version: number;
   alias: TextCase[]; reason: TextCase[]; keyword: TextCase[]; keywords: ListCase[];
   partnerName: TextCase[]; phrase: TextCase[]; domain: TextCase[];
-  rule: TextCase[]; ruleMatch: MatchCase[];
+  rule: TextCase[]; ruleMatch: MatchCase[]; allowApp: TextCase[]; appMatch: AppMatchCase[];
 }
 
 // ----------------------------------------------------- a részleges szabály
@@ -195,6 +197,39 @@ const KEYWORD_LISTS: string[][] = [
   ['két szó', 'két\u00a0szó', 'két\u200bszó', 'ΟΔΟΣ', 'İstanbul'],
 ];
 
+/**
+ * App-nevek az egyezéshez: kis- és nagybetű, részlet mindkét irányban, a görög
+ * szó végi szigma, az ß, a pont nélküli/pontos i, ékezet két alakban, emodzsi,
+ * a BOM és a nem törő szóköz a szélen, a nulla szélességű szóköz belül, és az
+ * üres tétel — ami NEM enged mindent.
+ */
+const ch = (code: number): string => String.fromCodePoint(code);
+const APP_NAMES = [
+  'Word', 'Microsoft Word', 'word', 'WORD ', ' Excel', 'Visual Studio Code', 'code', 'Code', 'Slack',
+  'ΟΔΟΣ', 'οδος', 'οδοσ', 'Straße', 'STRASSE', 'straße', 'İstanbul', 'istanbul', 'ISTANBUL',
+  'é', 'e' + ch(0x301), 'Café', 'Cafe' + ch(0x301), 'Ő', 'ő',
+  ch(0x1f355) + ' Pizza', 'Pizza', ch(0xfeff) + 'Slack', 'Slack' + ch(0xa0), 'Sl' + ch(0x200b) + 'ack',
+  '', ' ', 'x', 'X',
+];
+
+function appMatchCases(): AppMatchCase[] {
+  const pack = (apps: string[]): FocusPack => ({ id: 'p', name: 'p', allowSites: [], allowApps: apps, defaultMinutes: 30 }) as FocusPack;
+  const pairs: Array<[string[], string]> = [
+    [['Word'], 'Microsoft Word'], [['Microsoft Word'], 'word'], [['ΟΔΟΣ'], 'οδος'], [['ΟΔΟΣ'], 'οδοσ'],
+    [['é'], 'e' + ch(0x301)], [['e'], 'e' + ch(0x301)], [['Cafe' + ch(0x301)], 'café'], [['Café'], 'cafe'],
+    [[''], 'Slack'], [['', 'Word'], 'Excel'], [['Slack'], ch(0xfeff) + 'Slack' + ch(0xa0)], [['Slack'], ' '],
+    [['İstanbul'], 'istanbul'], [['ISTANBUL'], 'istanbul'], [['Straße'], 'STRASSE'], [['x'], 'X'],
+  ];
+  for (let seed = 1; seed <= 120; seed++) {
+    const r = rng(6000 + seed);
+    for (let i = 0; i < 4; i++) r();
+    const pick = () => APP_NAMES[Math.floor(r() * APP_NAMES.length)];
+    const apps = Array.from({ length: 1 + Math.floor(r() * 3) }, pick);
+    pairs.push([apps, pick()]);
+  }
+  return pairs.map(([apps, app]) => ({ apps, app, out: isAppAllowed(pack(apps), app) }));
+}
+
 function buildFixture(): Fixture {
   const texts = curatedTexts();
   for (let seed = 1; seed <= SEEDS; seed++) texts.push(composed(rng(seed), FRAGMENTS, 6));
@@ -242,8 +277,9 @@ function buildFixture(): Fixture {
       + 'A bemenet és a gép tiszta alakja (null: nem érvényes); a Kotlin TextFixtureTest és a Swift '
       + 'TextFixtureTests ugyanezt a fájlt játssza vissza a saját magjával. Csupa ASCII, hogy a '
       + 'láthatatlan jelek (BOM, nem törő szóköz) láthatók legyenek. A rule-esetek: beírt szöveg → '
-      + 'a részleges szabály kanonikus alakja (host|path); a ruleMatch-esetek: szabály és cím → illik-e.',
-    version: 2,
+      + 'a részleges szabály kanonikus alakja (host|path); a ruleMatch-esetek: szabály és cím → illik-e. '
+      + 'Az allowApp: az engedélyezett app nevének tiszta alakja; az appMatch: engedett appok és egy app → átmehet-e.',
+    version: 3,
     alias: texts.map((t) => ({ in: t, out: normalizeAlias(t) ?? null })),
     reason: texts.map((t) => ({ in: t, out: normalizeReason(t) ?? null })),
     keyword: texts.map((t) => ({ in: t, out: normalizeKeyword(t) })),
@@ -253,6 +289,8 @@ function buildFixture(): Fixture {
     domain: domains.map((d) => ({ in: d, out: normalizeDomain(d) })),
     rule: ruleInputs.map((x) => ({ in: x, out: ruleKey(normalizeRule(x)) })),
     ruleMatch,
+    allowApp: texts.map((t) => ({ in: t, out: normalizeAllowApp(t) })),
+    appMatch: appMatchCases(),
   };
 }
 
@@ -265,6 +303,7 @@ function ascii(s: string): string {
 const renderCase = (c: TextCase) => `  {"in":${ascii(c.in)},"out":${c.out === null ? 'null' : ascii(c.out)}}`;
 const renderList = (c: ListCase) => `  {"in":[${c.in.map(ascii).join(',')}],"out":[${c.out.map(ascii).join(',')}]}`;
 const renderMatch = (c: MatchCase) => `  {"rule":${ascii(c.rule)},"url":${ascii(c.url)},"out":${c.out}}`;
+const renderAppMatch = (c: AppMatchCase) => `  {"apps":[${c.apps.map(ascii).join(',')}],"app":${ascii(c.app)},"out":${c.out}}`;
 
 function render(f: Fixture): string {
   const section = (name: string, rows: string[]) => ` "${name}": [\n${rows.join(',\n')}\n ]`;
@@ -278,6 +317,8 @@ function render(f: Fixture): string {
     section('domain', f.domain.map(renderCase)),
     section('rule', f.rule.map(renderCase)),
     section('ruleMatch', f.ruleMatch.map(renderMatch)),
+    section('allowApp', f.allowApp.map(renderCase)),
+    section('appMatch', f.appMatch.map(renderAppMatch)),
   ].join(',\n');
   return `{\n "note": ${ascii(f.note)},\n "version": ${f.version},\n${body}\n}\n`;
 }
@@ -317,6 +358,9 @@ test('a szöveg-fixtúra friss, a tisztítás idempotens, és nem hagy párja n�
   for (const c of built.keyword) again(normalizeKeyword, c);
   for (const c of built.partnerName) again(normalizePartnerName, c);
   for (const c of built.phrase) again(normalizePhrase, c);
+  for (const c of built.allowApp) again(normalizeAllowApp, c);
+  assert.ok(built.appMatch.some((c) => c.out) && built.appMatch.some((c) => !c.out), 'az app-egyezés egyféle');
+  assert.ok(built.appMatch.some((c) => c.apps.includes('') && !c.out), 'az üres tétel nem enged mindent');
   // A domain-tisztítás szándékosan NEM idempotens: egy `www.`-t vág le, nem
   // mindet (a `www.www.youtube.com` a `www.youtube.com`), mindhárom magban
   // ugyanúgy — a fixtúra ezt csak tükrözi, nem ítéli.
@@ -334,8 +378,9 @@ test('a szöveg-fixtúra friss, a tisztítás idempotens, és nem hagy párja n�
   assert.equal(longest(built.alias), MAX_ALIAS_LENGTH);
   assert.equal(longest(built.reason), MAX_REASON_LENGTH);
   assert.equal(longest(built.partnerName), MAX_PARTNER_NAME);
+  assert.equal(longest(built.allowApp), MAX_ALLOW_APP_LENGTH);
   // A fixtúra nem elfajult: minden szekcióban van érvényes és érvénytelen is.
-  for (const name of ['alias', 'keyword', 'partnerName', 'domain', 'rule'] as const) {
+  for (const name of ['alias', 'keyword', 'partnerName', 'domain', 'rule', 'allowApp'] as const) {
     const cases = built[name];
     assert.ok(cases.some((c) => c.out === null) && cases.some((c) => c.out !== null), name);
   }

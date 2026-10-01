@@ -100,7 +100,7 @@ enum LimitLogic {
     /// Kódegység (UTF-16) szerinti sorrend — a gép (`<` a JS-ben) és az Android
     /// (`String.compareTo`) rendje.
     static func utf16Less(_ a: String, _ b: String) -> Bool {
-        a.utf16.lexicographicallyPrecedes(b.utf16)
+        TextLogic.utf16Less(a, b)
     }
 
     /// Egy célra egy nap legfeljebb egy nap lehet.

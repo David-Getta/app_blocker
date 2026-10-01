@@ -67,6 +67,16 @@ export function normalizeReason(value: string | undefined | null): string | unde
   return normalizeTo(value, MAX_REASON_LENGTH);
 }
 
+/**
+ * Egy SOR tiszta alakja: a vezérlők szóközre, a szóköz-futamok egy szóközre
+ * (a kimondott készlet szerint), a szélek le, és legfeljebb `max` KÓDPONT —
+ * vágás után a szélek újra le. A fedőnév, az indok és az engedélyezett app
+ * neve ezen megy át; a Kotlin és a Swift a TextLogic-kal ugyanezt teszi.
+ */
+export function cleanLine(value: string | undefined | null, max: number): string | undefined {
+  return normalizeTo(value, max);
+}
+
 function normalizeTo(value: string | undefined | null, max: number): string | undefined {
   if (typeof value !== 'string') return undefined;
   const cleaned = value

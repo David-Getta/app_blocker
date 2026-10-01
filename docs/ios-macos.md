@@ -141,4 +141,9 @@ NFD alakot is elfogadta volna). És a napi keretté (`LimitFixtureTests`, a
 `fixtures/limit-cases.json` ellen, UTC-ben): az iPhone nem mér, de a keret itt
 is a többi eszköz percéből érvényesül — a dróton jövő összegzést most a gép
 szabálya szerint olvassa (az igaz/hamis nem szám, a nap csak ASCII
-számjegy), és a betelt napok holtversenye kódegység szerint áll.
+számjegy), és a betelt napok holtversenye kódegység szerint áll. És a munkamenet magjáé
+(`FocusFixtureTests`, a `fixtures/focus-cases.json` ellen, UTC-ben): az
+ismétlődő menet előfordulása és az esedékes ablak (holtversenyben kódegység,
+nem a Swift `<`), a lezárás, a legutóbb használt csomag (rendezés nélkül, mert
+a `sorted` stabilitása nincs kimondva), a hátralévő idő szövege és a percek
+(az `Int(...)` előtt vágva — egy Int-be nem férő szám nem omlaszthat össze).

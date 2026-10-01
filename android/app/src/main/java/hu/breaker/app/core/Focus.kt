@@ -80,9 +80,12 @@ object Focus {
     /** Percek -> használható hossz, vagy null. */
     fun normalizeMinutes(value: Double?): Int? {
         if (value == null || !value.isFinite()) return null
-        val rounded = Math.round(value).toInt()
+        // Long-ban vágunk, és csak UTÁNA lesz Int: a `toInt()` egy hárommilliárdos
+        // számot negatívra fordított volna (a dróton jött csomag a gépen 480
+        // perces lett, itt az alapértelmezett 25). A közös fixtúra kimondja.
+        val rounded = Math.round(value)
         if (rounded < 1) return null
-        return minOf(rounded, MAX_SESSION_MINUTES)
+        return minOf(rounded, MAX_SESSION_MINUTES.toLong()).toInt()
     }
 
     /**
@@ -93,10 +96,19 @@ object Focus {
      */
     fun normalizeAllowSite(input: String): String? = Blocklist.normalizeDomain(input)
 
+    /** Egy engedélyezett app nevének plafonja — KÓDPONTBAN, mint a gépen. */
+    const val MAX_ALLOW_APP_LENGTH = 64
+
+    /**
+     * Az engedélyezett app neve tisztán — a gép `cleanLine` szabálya: a
+     * vezérlők szóközre, a közös szóköz-készlet szerinti futamok egy szóközre,
+     * kódpontos vágás, a szélek le. A Java regex `\s`-e csak az ASCII szóközt
+     * ismerte: a nem törő szóköz itt megmaradt, a gépen nem — és a lista a
+     * szinkronban minden körben átíródott volna.
+     */
     fun normalizeAllowApp(input: String): String? {
-        val s = input.trim().replace(Regex("\\s+"), " ")
-        if (s.isEmpty()) return null
-        return s.take(64)
+        val s = TextLogic.trimSpaces(TextLogic.takeCodePoints(TextLogic.collapseSpaces(input), MAX_ALLOW_APP_LENGTH))
+        return s.ifEmpty { null }
     }
 
     /**
@@ -122,11 +134,14 @@ object Focus {
      * viselkedne, és senki nem értené, miért.
      */
     fun isAppAllowed(pack: FocusPack, app: String): Boolean {
-        val a = app.trim().lowercase()
+        // A szélek a közös készlet szerint (a BOM is), a kisbetű a gépé (a
+        // `lowercase()` a Locale.ROOT szerint, a szó végi szigmával együtt).
+        val a = TextLogic.trimSpaces(app).lowercase()
         if (a.isEmpty()) return false
         return pack.allowApps.any {
             val y = it.lowercase()
-            a == y || a.contains(y) || y.contains(a)
+            // Az üres tétel NEM enged mindent: a `contains("")` igaz volna minden appra.
+            y.isNotEmpty() && (a == y || a.contains(y) || y.contains(a))
         }
     }
 

@@ -512,6 +512,14 @@ Amit a tesztek bizonyítanak, és amit másképp nem lehetne:
   lazítás, a hátralévő, és a döntés a többi eszköz percével — UTC-ben. A Kotlin
   (`LimitFixtureTest`) és a Swift (`LimitFixtureTests`) ugyanezt játssza
   vissza.
+- **a munkamenet magja is megfelelőségi próbán megy át.** A
+  `fixtures/focus-cases.json` (írja `desktop/test/focus-fixture.test.ts`,
+  `UPDATE_FOCUS_FIXTURE=1 npm test`) az ismétlődő menet indulását (előfordulás,
+  esedékes ablak, holtverseny), az ablak-menetet, a lezárást, a legutóbb
+  használt csomagot, a hátralévő idő szövegét és a percek tisztítását tartja,
+  UTC-ben; a Kotlin (`FocusFixtureTest`) és a Swift (`FocusFixtureTests`)
+  ugyanezt játssza vissza. A csomag engedélyezett appjainak neve a fiókon
+  utazik — a szöveg-fixtúra ennek a tisztítását és az app-egyezést is nézi.
 
 Egy dolog iPhone-on más: a **napi keret nem érvényesül** (nincs ilyen mérési
 API), de a rekordban MEGŐRIZZÜK. Enélkül elég lenne egyszer megnyitni a

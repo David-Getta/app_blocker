@@ -344,7 +344,17 @@ nap, kerekítés után pozitív, a legnagyobbak maradnak, holtversenyben a kulcs
 `localeCompare`-je a nyelvi beállítást követte), a „ma még N perc” sor, a
 lazítás, a hátralévő, és hogy kimerült-e a keret a többi eszköz percével (a
 gép itt a nyers keretet nézte, egy napnál nagyobbat vágás nélkül; most a
-közös `normalizeLimit`-et, mint a két telefon).
+közös `normalizeLimit`-et, mint a két telefon). A réteg nyolcadik fájlja a
+MUNKAMENET MAGJÁÉ (`fixtures/focus-cases.json`, írja
+`desktop/test/focus-fixture.test.ts`, visszajátssza a Kotlin `FocusFixtureTest`
+és a Swift `FocusFixtureTests`, UTC-ben): az ismétlődő menet előfordulása és
+az esedékes ablak (holtversenyben a kisebb azonosító, kódegység szerint), az
+ablak-menet, a lezárás a napló vágásával, a legutóbb használt csomag, a
+hátralévő idő szövege és a percek tisztítása — az Android `toInt()`-je egy
+hárommilliárdos percszámot negatívra fordított. A szöveg-fixtúra pedig az
+engedélyezett app nevét és az app-egyezést is nézi (a Java-regex csak az
+ASCII szóközt ismerte, a Swift grafémában vágott és keresett; az üres tétel
+eddig mindent engedett).
 
 ## Biztonsági modell és őszinte korlátok
 

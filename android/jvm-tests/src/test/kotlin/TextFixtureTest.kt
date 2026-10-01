@@ -1,5 +1,6 @@
 import hu.breaker.app.core.AliasLogic
 import hu.breaker.app.core.Blocklist
+import hu.breaker.app.core.Focus
 import hu.breaker.app.core.KeywordLogic
 import hu.breaker.app.core.PartnerLogic
 import hu.breaker.app.core.TextLogic
@@ -111,6 +112,22 @@ class TextFixtureTest {
             assertEquals(
                 c.getBoolean("out"), UrlRules.matchesRule(rule!!, c.getString("url")),
                 "ruleMatch #$i: ${show(ruleText)} ~ ${show(c.getString("url"))}",
+            )
+        }
+    }
+    @Test fun `az engedelyezett app neve ugyanaz, mint a gepen`() = check("allowApp") { Focus.normalizeAllowApp(it) }
+
+    @Test fun `az app-egyezes ugyanaz, mint a gepen - az ures tetel nem enged mindent`() {
+        val arr = fixture.getJSONArray("appMatch")
+        assertTrue(arr.length() > 50, "appMatch: kevés eset — a fixtúra csonka?")
+        for (i in 0 until arr.length()) {
+            val c = arr.getJSONObject(i)
+            val apps = strings(c.getJSONArray("apps"))
+            val app = c.getString("app")
+            val pack = Focus.FocusPack("p", "p", emptyList(), apps, 30)
+            assertEquals(
+                c.getBoolean("out"), Focus.isAppAllowed(pack, app),
+                "appMatch #$i: ${apps.joinToString(", ") { show(it) }} ~ ${show(app)}",
             )
         }
     }

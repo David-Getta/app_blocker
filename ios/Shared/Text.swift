@@ -59,6 +59,32 @@ enum TextLogic {
         return String(out)
     }
 
+    /// Kódegység (UTF-16) szerinti sorrend — a gép (`<` a JS-ben) és az Android
+    /// (`String.compareTo`) rendje. A Swift `<` a kanonikus alakot hasonlítja.
+    static func utf16Less(_ a: String, _ b: String) -> Bool {
+        a.utf16.lexicographicallyPrecedes(b.utf16)
+    }
+
+    /// Egyezés KÓDPONTRA — a Swift `==` a kanonikusan egyenértékű alakokat
+    /// (NFC „é” és NFD „e + ékezet”) egynek veszi, a gép és az Android nem.
+    static func sameScalars(_ a: String, _ b: String) -> Bool {
+        a.unicodeScalars.elementsEqual(b.unicodeScalars)
+    }
+
+    /// Részszöveg-e KÓDEGYSÉGRE — a JS `includes` és a Kotlin `contains` tükre.
+    /// A Swift `contains` grafémában keres, kanonikus egyenértékűséggel: az
+    /// „e + ékezet”-ben nem találja az „e”-t, a gép igen. Az üres részszöveg
+    /// mindenben benne van, mint a JS-ben.
+    static func utf16Contains(_ haystack: String, _ needle: String) -> Bool {
+        let h = Array(haystack.utf16), n = Array(needle.utf16)
+        if n.isEmpty { return true }
+        if n.count > h.count { return false }
+        for i in 0...(h.count - n.count) where h[i] == n[0] {
+            if h[i..<(i + n.count)].elementsEqual(n) { return true }
+        }
+        return false
+    }
+
     /// A szélek le a kimondott készlet szerint — a JS `trim()` tükre.
     static func trimSpaces(_ value: String) -> String {
         var scalars = Array(value.unicodeScalars)

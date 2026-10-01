@@ -108,9 +108,11 @@ public enum Focus {
     /// Percek -> használható hossz, vagy nil.
     public static func normalizeMinutes(_ value: Double?) -> Int? {
         guard let value, value.isFinite else { return nil }
-        let rounded = Int(value.rounded())
+        // Double-ben vágunk, és csak UTÁNA lesz Int: az `Int(...)` egy
+        // Int-be nem férő számon nem kerekít, hanem összeomlik.
+        let rounded = value.rounded(.toNearestOrAwayFromZero)
         if rounded < 1 { return nil }
-        return min(rounded, maxSessionMinutes)
+        return Int(min(rounded, Double(maxSessionMinutes)))
     }
 
     /// Egy engedélyezett oldal megtisztítása — ugyanazon a magon, mint a
@@ -119,13 +121,17 @@ public enum Focus {
         Blocklist.normalizeDomain(input)
     }
 
+    /// Egy engedélyezett app nevének plafonja — KÓDPONTBAN (skalárban), mint a gépen.
+    public static let maxAllowAppLength = 64
+
+    /// Az engedélyezett app neve tisztán — a gép `cleanLine` szabálya: a
+    /// vezérlők szóközre, a közös szóköz-készlet szerinti futamok egy szóközre,
+    /// skalár szerinti vágás, a szélek le. A `prefix` grafémában vágott, a
+    /// `.whitespaces` a BOM-ot nem ismerte — a lista a szinkronban minden
+    /// körben átíródott volna.
     public static func normalizeAllowApp(_ input: String) -> String? {
-        let collapsed = input
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .split(whereSeparator: { $0.isWhitespace })
-            .joined(separator: " ")
-        if collapsed.isEmpty { return nil }
-        return String(collapsed.prefix(64))
+        let s = TextLogic.trimSpaces(TextLogic.takeScalars(TextLogic.collapseSpaces(input), maxAllowAppLength))
+        return s.isEmpty ? nil : s
     }
 
     /// Átmehet-e ez a hoszt a munkamenet alatt.
@@ -142,11 +148,16 @@ public enum Focus {
     /// Átmehet-e ez az app. iPhone-on nem érvényesítjük — a gépen igen, és a
     /// szabálynak mindkét helyen ugyanannak kell lennie.
     public static func isAppAllowed(_ pack: Pack, app: String) -> Bool {
-        let a = app.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        // A szélek a közös készlet szerint, a kisbetű a gépé (a szó végi
+        // szigmával), a keresés kódegységre — a Swift `contains` grafémában és
+        // kanonikus egyenértékűséggel keresett volna.
+        let a = TextLogic.lowercase(TextLogic.trimSpaces(app))
         if a.isEmpty { return false }
         return pack.allowApps.contains {
-            let y = $0.lowercased()
-            return a == y || a.contains(y) || y.contains(a)
+            let y = TextLogic.lowercase($0)
+            // Az üres tétel NEM enged mindent.
+            if y.isEmpty { return false }
+            return TextLogic.sameScalars(a, y) || TextLogic.utf16Contains(a, y) || TextLogic.utf16Contains(y, a)
         }
     }
 
@@ -456,10 +467,15 @@ public enum Focus {
 
     public static func lastUsedPack(_ packs: [Pack], log: [LogEntry]) -> Pack? {
         let byId = Dictionary(packs.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
-        for e in log.sorted(by: { $0.startedAt > $1.startedAt }) {
-            if let p = byId[e.packId] { return p }
+        // A legkésőbb indult sor, aminek a csomagja megvan; egyforma kezdésnél az
+        // ELSŐ a naplóban — a gép stabil rendezésének eredménye, rendezés nélkül
+        // (a Swift `sorted` stabilitása nincs kimondva).
+        var best: (startedAt: Double, pack: Pack)?
+        for e in log {
+            guard let p = byId[e.packId] else { continue }
+            if best == nil || e.startedAt > best!.startedAt { best = (startedAt: e.startedAt, pack: p) }
         }
-        return packs.first
+        return best?.pack ?? packs.first
     }
 
     /// Fókuszban töltött idő NAPONTA az utolsó `count` napra, a legrégebbitől
@@ -749,8 +765,9 @@ public enum Focus {
             // váltja ki a háromórás ablakot.
             let spent = log.contains { $0.packId == pack.id && $0.startedAt == occ.startsAt }
             if spent { continue }
+            // Azonos kezdésnél a kisebb azonosító — kódegység szerint, mint a gépen.
             if let b = best,
-               !(occ.startsAt < b.startsAt || (occ.startsAt == b.startsAt && pack.id < b.pack.id)) {
+               !(occ.startsAt < b.startsAt || (occ.startsAt == b.startsAt && TextLogic.utf16Less(pack.id, b.pack.id))) {
                 continue
             }
             best = DueRecurrence(pack: pack, startsAt: occ.startsAt, endsAt: occ.endsAt)

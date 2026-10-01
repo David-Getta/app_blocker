@@ -230,6 +230,12 @@ const CHECKS = [
     scalar(ts.focus, /MAX_PACK_NAME\s*=\s*([^;]+);/, 'ts'),
     scalar(kt.focus, /MAX_PACK_NAME\s*=\s*(.+)/, 'kt'),
     scalar(sw.focus, /maxPackName\s*=\s*(.+)/, 'swift')],
+  // Az engedélyezett app nevének plafonja: a név a fiókon utazik, és a fogadó
+  // oldal is vág — eltérő plafon mellett a lista minden körben átíródna.
+  ['MAX_ALLOW_APP_LENGTH',
+    scalar(ts.focus, /MAX_ALLOW_APP_LENGTH\s*=\s*([^;]+);/, 'ts'),
+    scalar(kt.focus, /MAX_ALLOW_APP_LENGTH\s*=\s*(.+)/, 'kt'),
+    scalar(sw.focus, /maxAllowAppLength\s*=\s*(.+)/, 'swift')],
   ['MAX_SESSION_MINUTES',
     scalar(ts.focus, /MAX_SESSION_MINUTES\s*=\s*([^;]+);/, 'ts'),
     scalar(kt.focus, /MAX_SESSION_MINUTES\s*=\s*(.+)/, 'kt'),

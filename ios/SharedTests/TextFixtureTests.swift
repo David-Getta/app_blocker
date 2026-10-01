@@ -30,6 +30,12 @@ private struct MatchCase: Decodable {
     let out: Bool
 }
 
+private struct AppMatchCase: Decodable {
+    let apps: [String]
+    let app: String
+    let out: Bool
+}
+
 private struct Fixture: Decodable {
     let version: Int
     let alias: [TextCase]
@@ -41,6 +47,8 @@ private struct Fixture: Decodable {
     let domain: [TextCase]
     let rule: [TextCase]
     let ruleMatch: [MatchCase]
+    let allowApp: [TextCase]
+    let appMatch: [AppMatchCase]
 }
 
 final class TextFixtureTests: XCTestCase {
@@ -136,6 +144,20 @@ final class TextFixtureTests: XCTestCase {
                 continue
             }
             XCTAssertEqual(UrlRules.matchesRule(rule, c.url), c.out, "ruleMatch #\(i): \(show(c.rule)) ~ \(show(c.url))")
+        }
+    }
+    func testTheAllowedAppNameIsTheSameAsTheDesktop() throws {
+        let f = try load()
+        check(f.allowApp, "allowApp") { Focus.normalizeAllowApp($0) }
+    }
+
+    func testTheAppMatchIsTheSameAsTheDesktopAndAnEmptyEntryAllowsNothing() throws {
+        let f = try load()
+        XCTAssertGreaterThan(f.appMatch.count, 50, "appMatch: kevés eset — a fixtúra csonka?")
+        for (i, c) in f.appMatch.enumerated() {
+            let pack = Focus.Pack(id: "p", name: "p", allowSites: [], allowApps: c.apps, defaultMinutes: 30)
+            XCTAssertEqual(Focus.isAppAllowed(pack, app: c.app), c.out,
+                           "appMatch #\(i): \(c.apps.map { show($0) }.joined(separator: ", ")) ~ \(show(c.app))")
         }
     }
 }
