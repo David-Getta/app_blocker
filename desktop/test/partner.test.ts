@@ -236,3 +236,12 @@ test('fésülés: a jel dönt, azonos jelnél a beállított — és a korábban
   assert.deepEqual(ok.partner, a);
   assert.equal(ok.partnerRev, 4);
 });
+
+test('a jelmondat és a név szóközei: a nem törő szóköz és a BOM is szóköz, a név kódpontban vágva', () => {
+  // A jelmondatot hasoljuk: ha a gép és a telefon mást tart szóköznek, az
+  // egyik eszközön nem nyit — ezért a készlet kimondva, mindhárom magban.
+  assert.equal(normalizePhrase('Alma\u00a0Bogrács\ufeff Cinege'), 'alma bogrács cinege');
+  assert.equal(normalizePhrase('\ufeffalma\u3000bogrács'), 'alma bogrács');
+  assert.equal(normalizePartnerName('Anya\u00a0'), 'Anya');
+  assert.equal(normalizePartnerName('🍕'.repeat(45)), '🍕'.repeat(MAX_PARTNER_NAME));
+});

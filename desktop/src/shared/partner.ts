@@ -58,7 +58,9 @@ export function normalizePartnerName(raw: unknown): string | null {
   if (typeof raw !== 'string') return null;
   const cleaned = raw.normalize('NFKC').replace(CONTROL_CHARS, ' ').trim().split(/\s+/).join(' ');
   if (cleaned === '') return null;
-  return [...cleaned].slice(0, MAX_PARTNER_NAME).join('');
+  // Kódpontban vágva; a vágás szóköz elé eshet, és a lógó szóköz nélkül a
+  // tiszta alak tiszta alakja is ugyanaz (a fixtúra ezt számon kéri).
+  return [...cleaned].slice(0, MAX_PARTNER_NAME).join('').trim();
 }
 
 /** A tárból vagy a szinkronból jött rekord, ha jó alakú — különben semmi. */

@@ -38,11 +38,13 @@ object AliasLogic {
 
     private fun normalizeTo(value: String?, max: Int): String? {
         if (value == null) return null
-        val sb = StringBuilder(value.length)
-        for (ch in value) sb.append(if (isControl(ch)) ' ' else ch)
-        val collapsed = sb.toString().replace(WHITESPACE, " ").trim()
+        // A szóköz a kimondott készlet (TextLogic.SPACES), nem a Java regex
+        // `\s`-e: az csak ASCII, és a nem törő szóköz belül maradt volna.
+        val collapsed = TextLogic.collapseSpaces(value)
         if (collapsed.isEmpty()) return null
-        return collapsed.take(max).trim()
+        // KÓDPONTBAN vágunk: a `take` egy emodzsit félbe vágott volna. A vágás
+        // szóköz elé eshet; a maradék végén ne maradjon lógó szóköz.
+        return TextLogic.trimSpaces(TextLogic.takeCodePoints(collapsed, max))
     }
 
     /** Van-e elrejtve a valódi cím? */
@@ -85,9 +87,4 @@ object AliasLogic {
     fun maskedLabel(site: Site, index: Int): String =
         normalize(site.alias) ?: "${index + 1}. rejtett oldal"
 
-    /** C0, DEL és C1 — ugyanaz a tartomány, mint a TS `CONTROL_CHARS`. */
-    private fun isControl(ch: Char): Boolean =
-        ch.code < 0x20 || (ch.code in 0x7f..0x9f)
-
-    private val WHITESPACE = Regex("\\s+")
 }

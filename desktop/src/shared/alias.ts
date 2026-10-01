@@ -27,6 +27,26 @@ export interface Aliasable {
 export const CONTROL_CHARS = /[\u0000-\u001f\u007f-\u009f]/g;
 
 /**
+ * MI A SZÓKÖZ. A tisztítás a JS `\s` készletét veszi szóköznek — pontosan
+ * ez a huszonöt kódpont: a C0 szóközei (tab, soremelés, függőleges tab,
+ * lapdobás, kocsi-vissza), a szóköz, a nem törő szóköz, az ogham-szóköz, a
+ * tizenegy tipográfiai szóköz (U+2000–U+200A), a sor- és a bekezdés-
+ * elválasztó, a keskeny és a matematikai nem törő szóköz, az ideografikus
+ * szóköz és a BOM (U+FEFF). Kimondva azért, mert a három platform saját
+ * fogalma eltér: a Java regex `\s`-e csak ASCII, a Kotlin és a Swift
+ * szóköz-fogalma a BOM-ot nem ismeri. A Kotlin (TextLogic.SPACES) és a Swift
+ * (TextLogic.isSpace) ugyanezt a listát hordozza; a gép tesztje bizonyítja,
+ * hogy a `\s` tényleg ez a lista, és a `fixtures/text-cases.json` azt, hogy a
+ * három mag ugyanúgy tisztít. A láthatatlan, de nem szóköz jelek (U+200B,
+ * U+200D, U+2060) egyikben sem azok: maradnak.
+ */
+export const WHITESPACE_CODE_POINTS: readonly number[] = [
+  0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x20, 0xa0, 0x1680,
+  0x2000, 0x2001, 0x2002, 0x2003, 0x2004, 0x2005, 0x2006, 0x2007, 0x2008, 0x2009, 0x200a,
+  0x2028, 0x2029, 0x202f, 0x205f, 0x3000, 0xfeff,
+];
+
+/**
  * Használható fedőnév, vagy undefined („nincs fedőnév”).
  *
  * A vezérlőkaraktereket kiszedjük: azok a soron láthatatlanok maradnának, de a
@@ -54,7 +74,12 @@ function normalizeTo(value: string | undefined | null, max: number): string | un
     .replace(/\s+/g, ' ')
     .trim();
   if (cleaned === '') return undefined;
-  return cleaned.slice(0, max).trim();
+  // KÓDPONTBAN vágunk, nem UTF-16 egységben. A `slice` egy emodzsit félbe
+  // vágott volna, és a maradék fél — egy párja nélküli helyettesítő — a
+  // JSON-on át a telefonokig jutott volna, ahol az iPhone olvasója az ilyen
+  // szöveget eldobja. A kulcsszó és a megbízott neve is kódpontban számol; a
+  // Kotlin (TextLogic.takeCodePoints) és a Swift (TextLogic.takeScalars) is.
+  return [...cleaned].slice(0, max).join('').trim();
 }
 
 /** Van-e elrejtve a valódi cím? */

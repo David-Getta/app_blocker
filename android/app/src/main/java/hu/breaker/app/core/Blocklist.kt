@@ -42,7 +42,8 @@ object Blocklist {
     )
 
     fun normalizeDomain(input: String): String? {
-        var s = input.trim().lowercase()
+        // A szélek a kimondott szóköz-készlet szerint: a BOM is lekerül, mint a gépen.
+        var s = TextLogic.trimSpaces(input).lowercase()
         if (s.isEmpty()) return null
         s = s.replace(Regex("^[a-z][a-z0-9+.-]*://"), "")
         s = s.replace(Regex("^[^/@]*@"), "")

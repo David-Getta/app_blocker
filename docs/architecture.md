@@ -243,7 +243,17 @@ magból. És az őr: a drótnév-ellenőrző azt is nézi, hogy minden őrzött
 drót-mező ott van a fixtúra generátorában — egy új mező nem maradhat ki
 csendben az összevetésből. A fixtúra fogta ki a v0.4.170 Swift-rését (a
 normalizálás eldobta a rejtést), és a szabálylista sorrendfüggését egy régi
-kliens mellett, amiből a szabályok jele lett.
+kliens mellett, amiből a szabályok jele lett. A réteg második fájlja a
+SZÖVEG-TISZTÍTÁSÉ (`fixtures/text-cases.json`, írja
+`desktop/test/text-fixture.test.ts`, visszajátssza a Kotlin `TextFixtureTest`
+és a Swift `TextFixtureTests`): a fedőnév, az indok, a kulcsszó, a megbízott
+neve és jelmondata, a domain tiszta alakja — ugyanazt tartja-e a három mag
+szóköznek (a készlet kimondott: a JS huszonöt kódpontja, a BOM-mal és a nem
+törő szóközzel; a platformok saját fogalma mind másképp tudta), ugyanott
+vág-e (kódpontban, nem UTF-16 egységben és nem grafémában), ugyanúgy
+kezeli-e az NFKC-t és a kisbetűsítést. Ez fogta ki, hogy a gép egy fél
+emodzsit hagyhatott a fedőnév végén, és hogy a két telefon a jelmondat nem
+törő szóközét nem vette szóköznek — a lenyomat nem egyezett volna.
 
 ## Biztonsági modell és őszinte korlátok
 

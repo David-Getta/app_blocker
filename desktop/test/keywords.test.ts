@@ -226,3 +226,13 @@ test('a telefon ítélete a gépen: a hosztnév a címből, és a kulcsszó a ho
   assert.equal(keywordInHost(['tiktok'], ''), null);
   assert.equal(keywordInHost([], 'tiktok.com'), null);
 });
+
+test('a BOM és a nem törő szóköz: a szélen levágva, belül nem szabály; a hossz kódpontban', () => {
+  assert.equal(normalizeKeyword('\ufeffShorts\ufeff'), 'shorts');
+  assert.equal(normalizeKeyword('\u00a0reels\u00a0'), 'reels');
+  assert.equal(normalizeKeyword('két\u00a0szó'), null, 'a nem törő szóköz is szóköz');
+  assert.equal(normalizeKeyword('két\ufeffszó'), null, 'a BOM is szóköz');
+  assert.equal(normalizeKeyword('két\u200bszó'), 'két\u200bszó', 'a nulla szélességű szóköz nem szóköz — marad');
+  assert.equal(normalizeKeyword('🍕🍕🍕'), '🍕🍕🍕', 'három kódpont: elég');
+  assert.equal(normalizeKeyword('🍕🍕'), null, 'két kódpont: kevés — UTF-16 egységben négy lenne');
+});

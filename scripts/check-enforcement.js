@@ -2983,6 +2983,65 @@ const WIRES = [
     needle: 'markRules(site);',
     lost: 'a szabálylista sosem kapna jelet a gépen — a kifizetett levétel nem érne át egy régi kliens mellett',
   },
+  // A SZÖVEG-TISZTÍTÁS a kimondott szóköz-készleten át. Ha egy mag a saját
+  // platform-fogalmához nyúlna vissza, a BOM és a nem törő szóköz megint
+  // máshol lenne szóköz, és a megbízott jelmondata az egyik eszközön nem
+  // nyitna; a fixtúra (text-cases.json) csak a következő CI-körben szólna.
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/Alias.kt',
+    needle: 'TextLogic.collapseSpaces(value)',
+    lost: 'az androidos fedőnév és indok a Java regex ASCII-szóközével tisztulna — a nem törő szóköz belül maradna',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/Keywords.kt',
+    needle: 'TextLogic.trimSpaces(',
+    lost: 'az androidos kulcsszó a BOM-ot nem venné szóköznek — a gépen felvett kulcsszó a telefonon más lenne',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/Partner.kt',
+    needle: 'TextLogic.collapseSpaces(Normalizer.normalize(raw, Normalizer.Form.NFKC))',
+    lost: 'az androidos jelmondat kanonikus alakja eltérne a gépétől — a megbízott jelmondata a telefonon nem nyitna',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/Blocklist.kt',
+    needle: 'TextLogic.trimSpaces(input)',
+    lost: 'az androidos domain-tisztítás a BOM-os beillesztést elutasítaná, a gép elfogadná',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/AppUi.kt',
+    needle: 'TextLogic.takeCodePoints(it, AliasLogic.MAX_ALIAS_LENGTH)',
+    lost: 'az androidos fedőnév-mező UTF-16 egységben vágna — egy emodzsi fele maradna a mezőben',
+  },
+  {
+    file: 'ios/Shared/Alias.swift',
+    needle: 'TextLogic.collapseSpaces(value)',
+    lost: 'az iPhone fedőneve és indoka a Swift szóköz-fogalmával tisztulna — a BOM belül maradna',
+  },
+  {
+    file: 'ios/Shared/Keywords.swift',
+    needle: 'TextLogic.trimSpaces(TextLogic.controlsToSpaces(nfkc))',
+    lost: 'az iPhone kulcsszava a BOM-ot nem venné szóköznek — a gépen felvett kulcsszó a telefonon más lenne',
+  },
+  {
+    file: 'ios/Shared/Partner.swift',
+    needle: 'TextLogic.collapseSpaces(raw.precomposedStringWithCompatibilityMapping)',
+    lost: 'az iPhone jelmondatának kanonikus alakja eltérne a gépétől — a megbízott jelmondata nem nyitna',
+  },
+  {
+    file: 'ios/Shared/Blocklist.swift',
+    needle: 'TextLogic.trimSpaces(input)',
+    lost: 'az iPhone domain-tisztítása a BOM-os beillesztést elutasítaná, a gép elfogadná',
+  },
+  {
+    file: 'ios/App/ContentView.swift',
+    needle: 'TextLogic.takeScalars($0, AliasLogic.maxAliasLength)',
+    lost: 'az iPhone fedőnév-mezője grafémát számolna — negyven zászló férne bele, a mag húszat tartana meg',
+  },
+  {
+    file: 'desktop/src/shared/alias.ts',
+    needle: "[...cleaned].slice(0, max).join('')",
+    lost: 'a gép fedőneve és indoka UTF-16 egységben vágna — egy fél emodzsi menne a dróton a telefonokig',
+  },
 ];
 
 /**

@@ -122,4 +122,8 @@ megfelelőségi teszt (`MergeFixtureTests`): a tároló gyökerében álló
 eredmény-kulcsokat tartja, a Swift a saját dekódolóján át olvassa őket, a saját
 fésülésével számol, és a kulcsnak bájtra egyeznie kell. Ha a Swift tükör egy
 szabályban elcsúszik a másik kettőtől, itt bukik — a mag számával —, nem egy
-felhasználó telefonján.
+felhasználó telefonján. Ugyanígy a szöveg-tisztításé (`TextFixtureTests`, a
+`fixtures/text-cases.json` ellen): a fedőnév, az indok, a kulcsszó, a
+megbízott neve és jelmondata, a domain tiszta alakja skalárra ugyanaz, mint a
+gépen — a szóköz kimondott készlet (a BOM-mal), a vágás skalárban, nem
+grafémában (`TextLogic`, Text.swift).

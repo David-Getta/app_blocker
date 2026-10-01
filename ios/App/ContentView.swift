@@ -1496,7 +1496,8 @@ private struct AliasSheet: View {
             // egyik SDK-n sem kell verziót figyelni.
             TextField("pl. A videós", text: Binding(
                 get: { text },
-                set: { text = String($0.prefix(AliasLogic.maxAliasLength)) }
+                // Skalárban vág, mint a mag: a `prefix` grafémát számolt volna.
+                set: { text = TextLogic.takeScalars($0, AliasLogic.maxAliasLength) }
             ))
                 .textFieldStyle(.roundedBorder)
                 #if os(iOS)
@@ -1590,7 +1591,7 @@ private struct ReasonSheet: View {
                 .font(.footnote).foregroundStyle(.secondary)
             TextField("pl. Mert este nem alszom tőle", text: Binding(
                 get: { text },
-                set: { text = String($0.prefix(AliasLogic.maxReasonLength)) }
+                set: { text = TextLogic.takeScalars($0, AliasLogic.maxReasonLength) }
             ))
                 .textFieldStyle(.roundedBorder)
             HStack {

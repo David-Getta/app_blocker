@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import * as assert from 'node:assert/strict';
 import {
   displayName, displayNameNow, isAliased, isAliasRemoval, normalizeAlias, MAX_ALIAS_LENGTH, REVEAL_MS,
+  WHITESPACE_CODE_POINTS,
 } from '../src/shared/alias';
 
 test('no alias means the domain is shown', () => {
@@ -85,4 +86,24 @@ test('a fedőnév levétele felfed, az átnevezés nem — egy szabály, a háro
   assert.equal(isAliasRemoval(undefined, 'A videós'), false);
   assert.equal(isAliasRemoval(undefined, ''), false);
   assert.equal(isAliasRemoval('   ', ''), false, 'a csupa szóköz sosem volt név');
+});
+
+test('a vágás kódpontban számol: egy emodzsi nem vágódik félbe', () => {
+  // 39 betű + két emodzsi: UTF-16 egységben vágva a 40. egy fél emodzsi lett
+  // volna — párja nélküli helyettesítő, amit az iPhone JSON-olvasója eldob.
+  const a = normalizeAlias(`${'a'.repeat(MAX_ALIAS_LENGTH - 1)}🍕🍕`)!;
+  assert.equal(a, `${'a'.repeat(MAX_ALIAS_LENGTH - 1)}🍕`);
+  assert.equal([...a].length, MAX_ALIAS_LENGTH);
+  assert.equal(normalizeAlias('🍕'.repeat(45)), '🍕'.repeat(MAX_ALIAS_LENGTH));
+});
+
+test('a nem törő szóköz és a BOM is szóköz — a kimondott lista a JS \\s készlete', () => {
+  assert.equal(normalizeAlias('A\u00a0videós'), 'A videós');
+  assert.equal(normalizeAlias('\ufeffA videós\ufeff'), 'A videós');
+  assert.equal(normalizeAlias('\u00a0\ufeff'), undefined);
+  // Ami láthatatlan, de nem szóköz, marad: egyik mag sem veszi szóköznek.
+  assert.equal(normalizeAlias('A\u200bvideós'), 'A\u200bvideós');
+  for (const cp of WHITESPACE_CODE_POINTS) {
+    assert.equal(normalizeAlias(`A${String.fromCodePoint(cp)}B`), 'A B', `U+${cp.toString(16)}`);
+  }
 });

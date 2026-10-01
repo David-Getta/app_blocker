@@ -387,6 +387,24 @@ Amit a tesztek bizonyítanak, és amit másképp nem lehetne:
   a két telefon DNS-motora ugyanazt dönti, a gép közös darabjaiból írt
   referencia szerint. A rendszer-infrastruktúra kivétele nincs benne: a két
   telefon listája szándékosan különbözik, azt a `check-infra-allow` őrzi.
+- **a szöveg-tisztítás is megfelelőségi próbán megy át.** A
+  `fixtures/text-cases.json` (írja `desktop/test/text-fixture.test.ts`,
+  `UPDATE_TEXT_FIXTURE=1 npm test`) a fedőnév, az indok, a kulcsszó és a
+  kulcsszó-lista, a megbízott neve és jelmondata, a domain bemeneteit és a
+  gép tiszta alakját tartja: kézzel válogatott buktatók (minden szóköz-fajta,
+  a BOM, a nulla szélességű jelek, vezérlők ékezettel, NFKC-érzékeny jelek,
+  emodzsik a plafon körül) és rögzített magú véletlen összerakások. A Kotlin
+  (`TextFixtureTest`) és a Swift (`TextFixtureTests`) ugyanezt a fájlt
+  játssza vissza, és a tiszta alaknak bájtra (a Swiftben skalárra) egyeznie
+  kell. Ami mögötte áll: a szóköz fogalma a három magban KIMONDOTT lista (a
+  JS huszonöt kódpontja — a Java regex `\s`-e csak ASCII, a Kotlin és a
+  Swift szóköz-fogalma a BOM-ot nem ismeri), a vágás kódpontban számol
+  (nem UTF-16 egységben: a gép egy fél emodzsit hagyott volna a dróton; nem
+  grafémában: az iPhone egy zászlót egynek), és a tiszta alak tiszta alakja
+  ugyanaz (a megbízott neve nem végződik lógó szóközre). A fájl csupa ASCII,
+  hogy a láthatatlan jelek láthatók legyenek. Egy szándékos kivétel kimondva:
+  a domain-tisztítás egy `www.`-t vág le, nem mindet — nem idempotens,
+  mindhárom magban ugyanúgy.
 
 Egy dolog iPhone-on más: a **napi keret nem érvényesül** (nincs ilyen mérési
 API), de a rekordban MEGŐRIZZÜK. Enélkül elég lenne egyszer megnyitni a

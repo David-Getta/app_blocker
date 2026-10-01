@@ -19,8 +19,11 @@ fel.
    figyelem-csapdák, ugyanaz a lista a három magban; ami fent van, nem
    ajánlja újra). A szó
    **kanonikus alakban** kerül fel: kisbetű, NFKC, a szélek levágva; szóköz
-   nem lehet benne (egy cím sem tartalmaz szóközt), és 3–40 karakter (egy-két
-   betű mindenre illene — az nem szabály, hanem baleset). Legfeljebb 40 szó.
+   nem lehet benne (egy cím sem tartalmaz szóközt), és 3–40 kódpont (egy-két
+   betű mindenre illene — az nem szabály, hanem baleset; egy emodzsi egy).
+   Legfeljebb 40 szó. A szóköz fogalma a három magban ugyanaz a kimondott
+   készlet (a BOM-mal és a nem törő szóközzel) — a `fixtures/text-cases.json`
+   őrzi, hogy a gépen felvett szó a telefonon is ugyanaz legyen.
 2. A segéd a listát tartja, és a **hídon leadja** a böngésző-bővítménynek
    (`keywords`). A bővítmény tisztítva tárolja, és minden navigációnál dönt:
    az egész oldal zárása (a segéd „zárva” listája) után, a csatorna-szűrő és

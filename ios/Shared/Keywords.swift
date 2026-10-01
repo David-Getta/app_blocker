@@ -19,19 +19,14 @@ public enum KeywordLogic {
     /// Javaslatok egy koppintásra — a gépi lista tükre; ami fent van, nem kínáljuk újra.
     public static let suggestions = ["shorts", "reels", "live", "stream"]
 
-    /// C0, DEL és C1 — ugyanaz a tartomány, mint a fedőnévnél.
-    private static func isControl(_ ch: Character) -> Bool {
-        guard let scalar = ch.unicodeScalars.first, ch.unicodeScalars.count == 1 else { return false }
-        return scalar.value < 0x20 || (scalar.value >= 0x7f && scalar.value <= 0x9f)
-    }
-
-    /// Egy kulcsszó kanonikus alakja — vagy nil, ha nem az.
+    /// Egy kulcsszó kanonikus alakja — vagy nil, ha nem az. A szóköz a kimondott
+    /// készlet (TextLogic): a BOM a szélen lekerül, belül szóköz — a Swift
+    /// `isWhitespace` ezt nem tudta, a gép igen.
     public static func normalizeKeyword(_ raw: String?) -> String? {
         guard let raw else { return nil }
         let nfkc = raw.precomposedStringWithCompatibilityMapping
-        let noControls = String(nfkc.map { isControl($0) ? " " : $0 })
-        let cleaned = noControls.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        if cleaned.isEmpty || cleaned.contains(where: { $0.isWhitespace }) { return nil }
+        let cleaned = TextLogic.trimSpaces(TextLogic.controlsToSpaces(nfkc)).lowercased()
+        if cleaned.isEmpty || cleaned.unicodeScalars.contains(where: TextLogic.isSpace) { return nil }
         let len = cleaned.unicodeScalars.count
         if len < minKeywordLength || len > maxKeywordLength { return nil }
         return cleaned

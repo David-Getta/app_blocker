@@ -73,17 +73,11 @@ public enum PartnerLogic {
         }
     }
 
-    /// C0, DEL és C1 — ugyanaz a tartomány, mint a fedőnévnél.
-    private static func isControl(_ ch: Character) -> Bool {
-        guard let scalar = ch.unicodeScalars.first, ch.unicodeScalars.count == 1 else { return false }
-        return scalar.value < 0x20 || (scalar.value >= 0x7f && scalar.value <= 0x9f)
-    }
-
-    /// NFKC, a vezérlők szóközre, a szóközök egyre, a szélek le.
+    /// NFKC, a vezérlők szóközre, a szóközök egyre, a szélek le. A szóköz a
+    /// kimondott készlet (TextLogic), nem a Swift `isWhitespace`-e: a jelmondatba
+    /// került BOM a gépen szóköz, itt nem lett volna — a lenyomat nem egyezik.
     private static func clean(_ raw: String) -> String {
-        let nfkc = raw.precomposedStringWithCompatibilityMapping
-        let noControls = String(nfkc.map { isControl($0) ? " " : $0 })
-        return noControls.split(whereSeparator: { $0.isWhitespace }).joined(separator: " ")
+        TextLogic.collapseSpaces(raw.precomposedStringWithCompatibilityMapping)
     }
 
     /// A jelmondat KANONIKUS alakja — ezt hasoljuk, és ezt hasonlítjuk.
@@ -98,7 +92,9 @@ public enum PartnerLogic {
         guard let raw else { return nil }
         let cleaned = clean(raw)
         if cleaned.isEmpty { return nil }
-        return String(cleaned.prefix(maxPartnerName))
+        // Skalárban, mint a gép és az Android: a `prefix` grafémát számolt volna.
+        // A vágás szóköz elé eshet; a lógó szóköz nélkül.
+        return TextLogic.trimSpaces(TextLogic.takeScalars(cleaned, maxPartnerName))
     }
 
     /// base64-nek látszik-e, a hossz a megadott sávban (mint a TS minta).

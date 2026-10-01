@@ -44,13 +44,14 @@ object PartnerLogic {
         val setAt: Long,
     )
 
-    /** C0, DEL és C1 — ugyanaz a tartomány, mint a fedőnévnél. */
-    private fun isControl(ch: Char): Boolean = ch.code < 0x20 || (ch.code in 0x7f..0x9f)
-
+    /**
+     * NFKC, a vezérlők szóközre, a szóközök egyre, a szélek le. A szóköz a
+     * kimondott készlet (TextLogic.SPACES), nem a Java regex `\s`-e: az csak
+     * ASCII, és a jelmondatba került nem törő szóköz a gépen szóköz lett
+     * volna, itt nem — a lenyomat nem egyezett volna.
+     */
     private fun clean(raw: String): String =
-        Normalizer.normalize(raw, Normalizer.Form.NFKC)
-            .map { if (isControl(it)) ' ' else it }.joinToString("")
-            .trim().split(Regex("\\s+")).filter { it.isNotEmpty() }.joinToString(" ")
+        TextLogic.collapseSpaces(Normalizer.normalize(raw, Normalizer.Form.NFKC))
 
     /**
      * A jelmondat KANONIKUS alakja — ezt hasoljuk, és ezt hasonlítjuk.
@@ -64,9 +65,8 @@ object PartnerLogic {
         if (raw == null) return null
         val cleaned = clean(raw)
         if (cleaned.isEmpty()) return null
-        val cps = cleaned.codePoints().toArray()
-        return if (cps.size <= MAX_PARTNER_NAME) cleaned
-        else String(cps, 0, MAX_PARTNER_NAME)
+        // Kódpontban vágva, a lógó szóköz nélkül — mint a gépen.
+        return TextLogic.trimSpaces(TextLogic.takeCodePoints(cleaned, MAX_PARTNER_NAME))
     }
 
     /** A tárból vagy a szinkronból jött rekord, ha jó alakú — különben semmi. */

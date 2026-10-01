@@ -12,8 +12,10 @@ a böngésző tiltó lapján.
   ezért az indok írása, átírása és levétele nem jár próbatétellel — mint a
   fedőnév. A súrlódás ott van, ahol a blokkolás gyengülne; itt nem gyengül.
 - **Tisztítva.** Ugyanaz a tisztítás, mint a fedőnévé: vezérlőkarakter nélkül,
-  egy szóközzel, 140 karakterre vágva — a segéd, a telefon tárolója és a
-  bővítmény is újra megtisztítja, mert egyik sem bízhat a másik bemenetében.
+  egy szóközzel, 140 kódpontra vágva (egy emodzsi egy, és sosem fél) — a
+  segéd, a telefon tárolója és a bővítmény is újra megtisztítja, mert egyik
+  sem bízhat a másik bemenetében. A három mag ugyanarra tisztít; a
+  `fixtures/text-cases.json` őrzi.
 - **Nem titkosítás és nem bizonyíték:** a saját mondatod, a saját eszközeiden.
 
 ## Hol látszik

@@ -41,7 +41,8 @@ enum Blocklist {
     ]
 
     static func normalizeDomain(_ input: String) -> String? {
-        var s = input.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        // A szélek a kimondott szóköz-készlet szerint: a BOM is lekerül, mint a gépen.
+        var s = TextLogic.trimSpaces(input).lowercased()
         if s.isEmpty { return nil }
         s = s.replacingOccurrences(of: "^[a-z][a-z0-9+.-]*://", with: "", options: .regularExpression)
         s = s.replacingOccurrences(of: "^[^/@]*@", with: "", options: .regularExpression)

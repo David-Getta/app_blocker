@@ -127,3 +127,10 @@ test('a hosts-blokk csak hosztnév-alakú nevet ír ki — ez az utolsó háló'
   const lines = block.split('\n');
   for (const l of lines) assert.match(l, /^(0\.0\.0\.0 |:: |#)/, `idegen sor a blokkban: ${l}`);
 });
+
+test('a szélen álló BOM és nem törő szóköz nem rontja el a domaint — belül igen', () => {
+  assert.equal(normalizeDomain('\ufeffyoutube.com\ufeff'), 'youtube.com');
+  assert.equal(normalizeDomain('\u00a0youtube.com\u00a0'), 'youtube.com');
+  assert.equal(normalizeDomain('youtube\u00a0.com'), null);
+  assert.equal(normalizeDomain('youtube.com\u200b'), null);
+});

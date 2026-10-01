@@ -23,16 +23,18 @@ object KeywordLogic {
     /** Javaslatok egy koppintásra — a gépi lista tükre; ami fent van, nem kínáljuk újra. */
     val SUGGESTIONS = listOf("shorts", "reels", "live", "stream")
 
-    /** C0, DEL és C1 — ugyanaz a tartomány, mint a fedőnévnél. */
-    private fun isControl(ch: Char): Boolean = ch.code < 0x20 || (ch.code in 0x7f..0x9f)
-
-    /** Egy kulcsszó kanonikus alakja — vagy null, ha nem az. */
+    /**
+     * Egy kulcsszó kanonikus alakja — vagy null, ha nem az. A szóköz a
+     * kimondott készlet (TextLogic.SPACES): a BOM a szélen lekerül, belül
+     * szóköz — a Kotlin `isWhitespace` ezt nem tudta, a gép igen.
+     */
     fun normalizeKeyword(raw: String?): String? {
         if (raw == null) return null
-        val cleaned = Normalizer.normalize(raw, Normalizer.Form.NFKC)
-            .map { if (isControl(it)) ' ' else it }.joinToString("")
-            .trim().lowercase()
-        if (cleaned.isEmpty() || cleaned.any { it.isWhitespace() }) return null
+        val cleaned = TextLogic.trimSpaces(
+            Normalizer.normalize(raw, Normalizer.Form.NFKC)
+                .map { if (TextLogic.isControl(it)) ' ' else it }.joinToString(""),
+        ).lowercase()
+        if (cleaned.isEmpty() || cleaned.any { TextLogic.isSpace(it) }) return null
         val len = cleaned.codePointCount(0, cleaned.length)
         if (len < MIN_KEYWORD_LENGTH || len > MAX_KEYWORD_LENGTH) return null
         return cleaned

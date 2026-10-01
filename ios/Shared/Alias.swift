@@ -35,14 +35,15 @@ enum AliasLogic {
 
     private static func normalizeTo(_ value: String?, _ max: Int) -> String? {
         guard let value else { return nil }
-        let withoutControls = String(value.map { isControl($0) ? " " : $0 })
-        let collapsed = withoutControls
-            .split(whereSeparator: { $0.isWhitespace })
-            .joined(separator: " ")
+        // A szóköz a kimondott készlet (TextLogic), nem a Swift `isWhitespace`-e:
+        // az a BOM-ot nem ismeri, a gép igen — és skalár szinten, hogy egy
+        // vezérlő a rá tapadó ékezettel együtt se maradjon benne.
+        let collapsed = TextLogic.collapseSpaces(value)
         if collapsed.isEmpty { return nil }
-        let cut = String(collapsed.prefix(max))
-        let trimmed = cut.trimmingCharacters(in: .whitespaces)
-        return trimmed.isEmpty ? nil : trimmed
+        // SKALÁRBAN vágunk, nem grafémában: a `prefix` egy zászlót egynek
+        // számolt, a gép kettőnek. A vágás szóköz elé eshet; a maradék végén
+        // ne maradjon lógó szóköz.
+        return TextLogic.trimSpaces(TextLogic.takeScalars(collapsed, max))
     }
 
     /// Van-e elrejtve a valódi cím?
@@ -81,11 +82,5 @@ enum AliasLogic {
     /// fedőnév erősebb: azt épp azért adta meg, hogy AZ látszódjon.
     static func maskedLabel(_ site: Site, index: Int) -> String {
         normalize(site.alias) ?? "\(index + 1). rejtett oldal"
-    }
-
-    /// C0, DEL és C1 — ugyanaz a tartomány, mint a TS `CONTROL_CHARS`.
-    private static func isControl(_ ch: Character) -> Bool {
-        guard let scalar = ch.unicodeScalars.first, ch.unicodeScalars.count == 1 else { return false }
-        return scalar.value < 0x20 || (scalar.value >= 0x7f && scalar.value <= 0x9f)
     }
 }

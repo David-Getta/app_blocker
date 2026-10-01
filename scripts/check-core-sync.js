@@ -595,6 +595,37 @@ for (const [name, ...values] of EXT_PAIRS) {
   }
 }
 
+// ------------------------------------------------------ a szóköz-készlet
+//
+// A szöveg-tisztítás szóköz-fogalma a három magban KIMONDOTT lista (a JS `\s`
+// huszonöt kódpontja), nem a platformé: a Java regex `\s`-e csak ASCII, a
+// Kotlin és a Swift szóköz-fogalma a BOM-ot nem ismeri. A listát a három
+// forrásból olvassuk ki és hasonlítjuk; a viselkedést a text-cases.json
+// fixtúra nézi, ez itt csak a lista betűit — de ez másodpercek alatt szól,
+// a fixtúra csak a telefonok tesztkörében.
+function codePointList(text, needle) {
+  const start = text.indexOf(needle);
+  if (start < 0) return null;
+  const end = text.indexOf('\n\n', start);
+  const block = text.slice(start, end < 0 ? text.length : end);
+  const found = [];
+  for (const m of block.matchAll(/0x([0-9a-fA-F]+)|\\u([0-9a-fA-F]{4})/g)) found.push(parseInt(m[1] ?? m[2], 16));
+  return found.sort((a, b) => a - b);
+}
+const SPACE_LISTS = [
+  codePointList(ts.alias, 'WHITESPACE_CODE_POINTS'),
+  codePointList(read('android/app/src/main/java/hu/breaker/app/core/Text.kt'), 'val SPACES'),
+  codePointList(read('ios/Shared/Text.swift'), 'static let spaces'),
+];
+if (SPACE_LISTS.some((l) => !l || l.length === 0)) {
+  problems.push('a szóköz-készlet nem található mindhárom magban — a minta elavult vagy a lista eltűnt');
+} else if (new Set(SPACE_LISTS.map((l) => JSON.stringify(l))).size !== 1) {
+  problems.push(
+    'a szóköz-készlet eltér:\n'
+      + SPACE_LISTS.map((l, i) => `    ${LANGS[i].padEnd(11)} ${l.map((c) => c.toString(16)).join(' ')}`).join('\n'),
+  );
+}
+
 if (problems.length) {
   console.error('A három mag szétcsúszott:\n');
   for (const p of problems) console.error('  ' + p + '\n');

@@ -74,6 +74,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import hu.breaker.app.core.AliasLogic
+import hu.breaker.app.core.TextLogic
 import hu.breaker.app.core.BurstLogic
 import hu.breaker.app.core.BurstTrip
 import hu.breaker.app.core.AppState
@@ -1514,7 +1515,8 @@ private fun AliasDialog(site: Site, onDismiss: () -> Unit, onSave: (String) -> U
                 )
                 OutlinedTextField(
                     value = text,
-                    onValueChange = { text = it.take(AliasLogic.MAX_ALIAS_LENGTH) },
+                    // Kódpontban vág: a `take` egy emodzsit félbe hagyott volna a mezőben.
+                    onValueChange = { text = TextLogic.takeCodePoints(it, AliasLogic.MAX_ALIAS_LENGTH) },
                     placeholder = { Text("pl. A videós") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
@@ -1560,7 +1562,7 @@ private fun ReasonDialog(site: Site, onDismiss: () -> Unit, onSave: (String) -> 
                 )
                 OutlinedTextField(
                     value = text,
-                    onValueChange = { text = it.take(AliasLogic.MAX_REASON_LENGTH) },
+                    onValueChange = { text = TextLogic.takeCodePoints(it, AliasLogic.MAX_REASON_LENGTH) },
                     placeholder = { Text("pl. Mert este nem alszom tőle") },
                     modifier = Modifier.fillMaxWidth(),
                 )

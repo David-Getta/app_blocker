@@ -25,7 +25,10 @@ próbatétel** — a megbízott jelmondatával a végén, tehát a levételhez i
    ablak-lazítás — mind ezen az egy kapun jön ki, tehát mindre vonatkozik.
 4. A lépésen a jelmondatot **a megbízott írja be** (jelszómező, beillesztés-őr
    nélkül — ez nem gyakorlat, hanem másvalaki döntése). A kanonikus alak
-   számít: kis-nagybetű, dupla szóköz nem. Rossz jelmondat nem sorsol új
+   számít: kis-nagybetű, dupla szóköz nem — és a szóköz fogalma mindhárom
+   magban ugyanaz a kimondott készlet, a nem törő szóközzel és a BOM-mal,
+   hogy a gépen felvett jelmondat a telefonon is nyisson (a
+   `fixtures/text-cases.json` őrzi). Rossz jelmondat nem sorsol új
    feladatot, csak számol; **ötször** rossz jelmondat után a kísérlet
    érvénytelen — elölről, minden lépéssel (a feladott kísérletek könyvelése
    szerint, tehát kedvezmény sincs).
