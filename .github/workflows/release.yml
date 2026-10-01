@@ -44,25 +44,24 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A fixtúra a döntést is nézi.** Az egész szinkron azért van, hogy
-          ugyanarra a bemenetre ugyanaz legyen a döntés: tilt-e most az
-          oldal. A közös fixtúrában mostantól döntés-esetek is vannak — egy
-          oldal, a helyi mérés, a többi eszköz mai összegzése és egy időpont
-          —, és a gépnek, a telefonnak és az iPhone-nak ugyanazt kell
-          mondania: a kifizetett szünet visz, a törlésre váró oldal zár, a
-          közös napi keret a többi eszköz mai perceivel fogy (a saját sor és a
-          nem mai nap nem számít). A részleges menetrend kimarad: helyi
-          időben értékelődik ki, az a nyelvenkénti teszteké marad.
+          **A fixtúra az adag-számlálót is nézi.** Az adag-szabály — ennyi
+          használat után ennyi szünet — a gépen és az Androidon érvényesül,
+          és a számlálója a legérzékenyebb részlet: a hűtés alatt mért perc
+          nem számít, egy szünetnyi csend tiszta lapot ad, egy elkésett
+          régi minta nem gyárthat hamis pihenőt. A közös fixtúrában most
+          mérés-sorozatok is vannak, és a két mérő nyelvnek a számláló
+          állapotát minden minta után ugyanúgy kell adnia. Az iPhone nem mér
+          előteret, ott a szabály nem érvényesül — kimondva, nem elhallgatva.
 
-          ### Ami a v0.4.181-ben jött
+          ### Ami a v0.4.182-ben jött
+
+          **A fixtúra a döntést is nézi.** Tilt-e most: szünet, törlésre
+          várás, közös napi keret — mindhárom nyelven ugyanaz.
+
+          #### Ami a v0.4.181-ben jött
 
           **A fixtúra a használati statisztika egyesítését is nézi.** Három
           eszköz mérése a dróton át, mindhárom nyelven ugyanaz az összeg.
-
-          #### Ami a v0.4.180-ban jött
-
-          **A fixtúra a naplót is fésüli.** Ugyanarról a menetről két változat,
-          azonos végű sorok — és a fésült sorrend is tükrözött.
 
           NOTES
           fi
