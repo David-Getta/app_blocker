@@ -253,8 +253,11 @@ object SyncClient {
         (o.opt(key) as? Number)?.toDouble()?.takeIf { it.isFinite() }
 
     /** Csak egész JSON-szám, Int-tartományban — a gép `Number.isInteger`-e. */
-    internal fun intOf(o: JSONObject, key: String): Int? {
-        val d = numberOf(o, key) ?: return null
+    internal fun intOf(o: JSONObject, key: String): Int? = intValue(o.opt(key))
+
+    /** Ugyanez egy értékre (tömb eleme). */
+    internal fun intValue(v: Any?): Int? {
+        val d = (v as? Number)?.toDouble()?.takeIf { it.isFinite() } ?: return null
         if (d != Math.floor(d) || d < Int.MIN_VALUE || d > Int.MAX_VALUE) return null
         return d.toInt()
     }
@@ -309,7 +312,9 @@ object SyncClient {
                     hostnames = hostnames,
                     addedAt = numberOf(o, "addedAt")?.toLong() ?: 0,
                     pendingDeleteAt = numberOf(o, "pendingDeleteAt")?.toLong(),
-                    schedule = if (o.isNull("schedule")) null else scheduleFromJson(o.getJSONObject("schedule")),
+                    // Ami nem objektum, az nincs (mint a hiányzó: mindig tiltva) —
+                    // eddig az egész oldalt vitte.
+                    schedule = o.optJSONObject("schedule")?.let { scheduleFromJson(it) },
                     dailyLimitSeconds = numberOf(o, "dailyLimitSeconds")?.toLong(),
                     burstSeconds = numberOf(o, "burstSeconds")?.toLong(),
                     cooldownSeconds = numberOf(o, "cooldownSeconds")?.toLong(),
@@ -612,14 +617,21 @@ object SyncClient {
             // Ismeretlen mód -> ALWAYS: a bizonytalanság a TILTÁS felé dől.
             else -> ScheduleLogic.Mode.ALWAYS
         }
+        // SÁVONKÉNT tűrve, a gép `scheduleIn`-je szerint: a rosszul formált sáv
+        // (nem objektum, a nap nem egész számok tömbje, a perc nem egész) kiesik,
+        // a többi marad. Eddig egyetlen ilyen sáv az egész oldalt vitte, a
+        // `getInt` pedig a „540” szöveget is percnek vette. A tartalmi szűrés
+        // (napok 0–6, percek a napon belül) a döntésé (`ScheduleLogic.normalize`).
         val bandsArr = o.optJSONArray("bands")
-        val bands = if (bandsArr == null) emptyList() else (0 until bandsArr.length()).map { i ->
-            val b = bandsArr.getJSONObject(i)
-            val days = b.getJSONArray("days")
-            ScheduleLogic.Band(
-                days = (0 until days.length()).map { days.getInt(it) }.toSet(),
-                startMin = b.getInt("startMin"), endMin = b.getInt("endMin"),
-            )
+        val bands = mutableListOf<ScheduleLogic.Band>()
+        for (i in 0 until (bandsArr?.length() ?: 0)) {
+            val b = bandsArr!!.opt(i) as? JSONObject ?: continue
+            val daysArr = b.opt("days") as? JSONArray ?: continue
+            val days = (0 until daysArr.length()).map { intValue(daysArr.opt(it)) }
+            if (days.any { it == null }) continue
+            val start = intOf(b, "startMin") ?: continue
+            val end = intOf(b, "endMin") ?: continue
+            bands.add(ScheduleLogic.Band(days = days.filterNotNull().toSet(), startMin = start, endMin = end))
         }
         return ScheduleLogic.Schedule(mode, bands)
     }

@@ -1,4 +1,5 @@
 import hu.breaker.app.core.FocusSync
+import hu.breaker.app.core.ScheduleLogic
 import hu.breaker.app.core.SyncClient
 import hu.breaker.app.core.SyncMerge
 import org.json.JSONObject
@@ -34,7 +35,20 @@ class WireFixtureTest {
         "${s.id}|${s.domain}|${s.hostnames.joinToString(",")}|added=${s.addedAt}|del=${opt(s.pendingDeleteAt)}" +
             "|limit=${opt(s.dailyLimitSeconds)}|alias=${opt(s.alias)}|reason=${opt(s.reason)}" +
             "|rev=${s.rev}|at=${s.updatedAt}|by=${s.updatedBy}" +
-            "|marks=" + (s.hostnameMarks ?: emptyMap()).toSortedMap().entries.joinToString(",") { "${it.key}=${it.value}" }
+            "|marks=" + (s.hostnameMarks ?: emptyMap()).toSortedMap().entries.joinToString(",") { "${it.key}=${it.value}" } +
+            "|sched=" + scheduleKey(s.schedule)
+
+    /** A menetrend HATÁSA (a döntés normalizálása után), mint a gép kulcsában. */
+    private fun scheduleKey(s: ScheduleLogic.Schedule?): String {
+        if (s == null) return "-"
+        val n = ScheduleLogic.normalize(s)
+        val mode = when (n.mode) {
+            ScheduleLogic.Mode.ALWAYS -> "always"
+            ScheduleLogic.Mode.SCHEDULED_BLOCK -> "scheduled_block"
+            ScheduleLogic.Mode.SCHEDULED_ALLOW -> "scheduled_allow"
+        }
+        return "$mode:" + n.bands.joinToString(";") { b -> b.days.sorted().joinToString(",") + "/" + b.startMin + "/" + b.endMin }
+    }
 
     private fun focusKey(f: FocusSync.SyncFocus): String {
         val packs = f.packs.joinToString(";") { p ->

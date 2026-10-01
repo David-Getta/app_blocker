@@ -23,6 +23,7 @@ import * as path from 'node:path';
 import { normalizeIncomingSites } from '../src/helper/sync-client';
 import { normalizeSyncFocus, type SyncFocus } from '../src/shared/sync/focus-merge';
 import type { SyncSite } from '../src/shared/sync/merge';
+import { normalizeSchedule, type Schedule } from '../src/shared/schedule';
 import { rng } from './merge-random';
 
 /** dist-test/test/… → a tároló gyökere. */
@@ -54,6 +55,22 @@ const SITE_TOLERATED: unknown[] = [
   { id: 'f10', domain: 'j.com', hostnames: ['j.com', 'm.j.com'], rev: 2.5, hostnameMarks: { 'j.com': 2, 'm.j.com': 1 } },
   { id: 'f11', domain: 'k.com', hostnames: ['k.com', 'm.k.com'], rev: 3, hostnameMarks: { 'k.com': '2', 'm.k.com': 1.5, 'x.k.com': 3, 'w.k.com': 4, '': 1 } },
   { id: 'f12', domain: 'l.com', hostnames: ['l.com'], rev: 2, hostnameMarks: 'x' },
+  // A menetrend: a rosszul formált sáv kiesik, a többi marad; ami nem
+  // objektum, az nincs (mindig tiltva); az ismeretlen mód „mindig”.
+  { id: 'g1', domain: 'm.com', hostnames: ['m.com'], schedule: 'x' },
+  { id: 'g2', domain: 'n.com', hostnames: ['n.com'], schedule: { mode: 'scheduled_block', bands: 'x' } },
+  { id: 'g3', domain: 'o.com', hostnames: ['o.com'], schedule: { mode: 'scheduled_block', bands: [
+    null, 5, { days: [1, 2], startMin: 540, endMin: 600 }, { days: 'x', startMin: 1, endMin: 2 },
+    { days: [1, '2'], startMin: 1, endMin: 2 }, { days: [3], startMin: '540', endMin: 600 },
+    { days: [4], startMin: 540.5, endMin: 600 }, { days: [5], startMin: 0 }, { days: [5], startMin: 60, endMin: 120 },
+  ] } },
+  { id: 'g4', domain: 'p.com', hostnames: ['p.com'], schedule: { mode: 'jovobeli', bands: [{ days: [1], startMin: 0, endMin: 60 }] } },
+  { id: 'g5', domain: 'q.com', hostnames: ['q.com'], schedule: { mode: 5, bands: [{ days: [1], startMin: 0, endMin: 60 }] } },
+  { id: 'g6', domain: 'r.com', hostnames: ['r.com'], schedule: { mode: 'scheduled_allow' } },
+  { id: 'g7', domain: 's.com', hostnames: ['s.com'], schedule: { mode: 'scheduled_allow', bands: [{ days: [0, 6], startMin: 1320, endMin: 360 }] } },
+  { id: 'g8', domain: 't.com', hostnames: ['t.com'], schedule: { mode: 'scheduled_block', bands: [{ days: [9], startMin: 0, endMin: 60 }] } },
+  { id: 'g9', domain: 'u.com', hostnames: ['u.com'], schedule: [] },
+  { id: 'g10', domain: 'v.com', hostnames: ['v.com'], schedule: null },
 ];
 
 /** Kiesik: nem objektum, vagy az azonosítója, a domainje nem jó. */
@@ -73,12 +90,20 @@ const SITE_DROPPED: unknown[] = [
   { id: 'd8', domain: ' youtube.com', hostnames: [] },
 ];
 
+/** A menetrend HATÁSA (a döntés normalizálása után) — a nyers alak magonként más típusú. */
+function scheduleKey(s: Schedule | undefined): string {
+  if (s === undefined) return '-';
+  const n = normalizeSchedule(s);
+  return `${n.mode}:${n.bands.map((b) => `${[...new Set(b.days)].sort((x, y) => x - y).join(',')}/${b.startMin}/${b.endMin}`).join(';')}`;
+}
+
 function siteKey(s: SyncSite): string {
   const opt = (v: unknown) => (v === undefined || v === null ? '-' : String(v));
   return `${s.id}|${s.domain}|${s.hostnames.join(',')}|added=${s.addedAt}|del=${opt(s.pendingDeleteAt)}`
     + `|limit=${opt(s.dailyLimitSeconds)}|alias=${opt(s.alias)}|reason=${opt(s.reason)}`
     + `|rev=${s.rev}|at=${s.updatedAt}|by=${s.updatedBy}`
-    + `|marks=${Object.keys(s.hostnameMarks ?? {}).sort().map((k) => `${k}=${s.hostnameMarks![k]}`).join(',')}`;
+    + `|marks=${Object.keys(s.hostnameMarks ?? {}).sort().map((k) => `${k}=${s.hostnameMarks![k]}`).join(',')}`
+    + `|sched=${scheduleKey(s.schedule)}`;
 }
 
 // ------------------------------------------------------------- munkamenet

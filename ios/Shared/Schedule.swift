@@ -31,6 +31,24 @@ enum ScheduleLogic {
     struct Schedule: Codable, Equatable {
         let mode: Mode
         let bands: [Band]
+
+        init(mode: Mode, bands: [Band]) {
+            self.mode = mode
+            self.bands = bands
+        }
+
+        enum CodingKeys: String, CodingKey { case mode, bands }
+
+        /// TŰRŐ dekódolás, a gép `scheduleIn`-je szerint: a nem szöveg mód
+        /// „always”, a sávok közül a rosszul formált (nem objektum, a nap nem
+        /// egész számok tömbje, a perc nem egész) kiesik, a többi marad, és a
+        /// hiányzó sávlista üres. Eddig egyetlen ilyen sáv az egész oldalt vitte
+        /// (a szinkronon az egész listát). A tartalmi szűrés a `normalize`-é.
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            mode = c.lenient(Mode.self, .mode) ?? .always
+            bands = c.lossyArray(Band.self, .bands)
+        }
     }
 
     static let always = Schedule(mode: .always, bands: [])

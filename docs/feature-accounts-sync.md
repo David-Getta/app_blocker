@@ -536,6 +536,8 @@ Amit a tesztek bizonyítanak, és amit másképp nem lehetne:
   vissza. Az iPhone eddig a listát egyben dekódolta — egy rossz rekord az
   egészet vitte, és a kör a saját listáját tolta fel a többiek helyett; egy
   nem JSON blokklista-blob most megállítja a kört, mint a gépen és Androidon.
+  A menetrend is sávonként tűr (lásd `docs/feature-schedules.md`): a gép
+  döntését eddig egy nem tömb sávlista ledöntötte.
 
 Egy dolog iPhone-on más: a **napi keret nem érvényesül** (nincs ilyen mérési
 API), de a rekordban MEGŐRIZZÜK. Enélkül elég lenne egyszer megnyitni a

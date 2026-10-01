@@ -42,6 +42,16 @@ final class WireFixtureTests: XCTestCase {
             + "|del=\(opt(s.pendingDeleteAt))|limit=\(opt(s.dailyLimitSeconds))"
             + "|alias=\(s.alias ?? "-")|reason=\(s.reason ?? "-")"
             + "|rev=\(s.rev)|at=\(int(s.updatedAt))|by=\(s.updatedBy)|marks=\(marks)"
+            + "|sched=\(scheduleKey(s.schedule))"
+    }
+
+    /// A menetrend HATÁSA (a döntés normalizálása után), mint a gép kulcsában.
+    private func scheduleKey(_ s: ScheduleLogic.Schedule?) -> String {
+        guard let s else { return "-" }
+        let n = ScheduleLogic.normalize(s)
+        return n.mode.rawValue + ":" + n.bands.map { b in
+            Array(Set(b.days)).sorted().map(String.init).joined(separator: ",") + "/\(b.startMin)/\(b.endMin)"
+        }.joined(separator: ";")
     }
 
     private func focusKey(_ f: FocusSync.SyncFocus) -> String {

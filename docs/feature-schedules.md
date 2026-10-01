@@ -137,3 +137,18 @@ A sávok helyi időben értékelődnek ki, ezért a három teszt UTC-ben jár �
 és az Android beállítja, a Swift beállítja, vagy ha nem tudja, kimondva
 kihagyja. Ami a fixtúrában nincs: óraátállás és más időzóna — ott a három mag
 a saját platformjának órájára hagyatkozik, és ezt itt kimondjuk.
+
+### A menetrend a dróton
+
+A menetrend az oldal-rekorddal a fiókon utazik, és minden olvasó kívülről
+jött adatnak veszi. A szabály mindhárom magban ugyanaz (a gép `scheduleIn`-je,
+az Android `scheduleFromJson`-ja, a Swift tűrő `Schedule`-dekódolása): ami nem
+objektum, az nincs (mint a hiányzó: mindig tiltva); a nem szöveg vagy
+ismeretlen mód „mindig”; a sávok közül a rosszul formált (nem objektum, a nap
+nem egész számok tömbje, a perc nem egész) kiesik, a többi marad; a tartalmi
+szűrés (napok 0–6, percek a napon belül, üresen „mindig”) a döntésé. Eddig a
+gép nyersen tartotta a menetrendet, és egy `bands: "x"` vagy egy `null` sáv a
+döntést és a fésülést is ledöntötte (kivételt dobott); a két telefon egy ilyen
+sáv miatt az egész oldalt eldobta, az Android a „540” szöveget percnek vette.
+A `fixtures/wire-cases.json` oldal-esetei kimondják — a kulcs a menetrend
+HATÁSA (normalizálva), nem a nyers alakja.

@@ -152,3 +152,21 @@ test('nextOpenAt fuzz: amit mond, az tényleg nyitás — és nem késik', () =>
     }
   }
 });
+
+test('a dróton jött rosszul formált menetrend nem dönti le a döntést — mindig tiltva', () => {
+  // A szinkron nyers objektumot ad; eddig a `bands: "x"` és a `null` sáv
+  // kivételt dobott (a `filter` nem függvény, a `null.days`), és a döntés meg a
+  // fésülés is elhasalt rajta. Most a bizonytalanság a tiltás felé dől.
+  const now = Date.UTC(2026, 8, 7, 12, 0);
+  const junk: unknown[] = [
+    { mode: 'scheduled_allow', bands: 'x' },
+    { mode: 'scheduled_allow', bands: [null] },
+    { mode: 'scheduled_allow', bands: [5, 'x', []] },
+    { mode: 'scheduled_allow' },
+    'x', 5, [],
+  ];
+  for (const s of junk) {
+    assert.deepEqual(normalizeSchedule(s as Schedule), ALWAYS, JSON.stringify(s));
+    assert.equal(isBlockedBySchedule(s as Schedule, now), true, JSON.stringify(s));
+  }
+});

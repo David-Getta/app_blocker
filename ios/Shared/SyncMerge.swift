@@ -108,7 +108,9 @@ enum SyncMerge {
             hostnames = hostsValue
             addedAt = c.lenient(Double.self, .addedAt) ?? 0
             pendingDeleteAt = c.lenient(Double.self, .pendingDeleteAt)
-            schedule = try c.decodeIfPresent(ScheduleLogic.Schedule.self, forKey: .schedule)
+            // Ami nem objektum, az nincs (mint a hiányzó: mindig tiltva) — eddig
+            // az egész oldalt vitte.
+            schedule = c.lenient(ScheduleLogic.Schedule.self, .schedule)
             dailyLimitSeconds = c.lenient(Double.self, .dailyLimitSeconds)
             burstSeconds = c.lenient(Double.self, .burstSeconds)
             cooldownSeconds = c.lenient(Double.self, .cooldownSeconds)

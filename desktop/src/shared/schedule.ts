@@ -24,6 +24,8 @@ export interface Schedule {
 export const ALWAYS: Schedule = { mode: 'always', bands: [] };
 
 export function isValidBand(b: Band): boolean {
+  // A sáv a dróton is jöhet: egy `null` vagy szám elem nem sáv, és nem dönthet le.
+  if (!b || typeof b !== 'object') return false;
   if (!Array.isArray(b.days) || b.days.length === 0) return false;
   if (b.days.some((d) => d < 0 || d > 6 || !Number.isInteger(d))) return false;
   if (!Number.isInteger(b.startMin) || !Number.isInteger(b.endMin)) return false;
@@ -38,9 +40,11 @@ export function normalizeSchedule(s: Schedule | undefined | null): Schedule {
   // Fail closed on anything unrecognised. An unknown mode would fall through
   // isBlockedBySchedule's switch and yield undefined — the site would be
   // silently unblocked while still looking protected in the UI.
-  if (!s || !VALID_MODES.includes(s.mode)) return ALWAYS;
+  if (!s || typeof s !== 'object' || !VALID_MODES.includes(s.mode)) return ALWAYS;
   if (s.mode === 'always') return ALWAYS;
-  const bands = (s.bands ?? []).filter(isValidBand);
+  // Csak tömb: a dróton jött `bands: "x"` eddig kivételt dobott (a `filter`
+  // nem függvény), és a döntés meg a fésülés is elhasalt rajta.
+  const bands = (Array.isArray(s.bands) ? s.bands : []).filter(isValidBand);
   if (bands.length === 0) return ALWAYS; // an empty schedule is just "always blocked"
   return { mode: s.mode, bands };
 }

@@ -16,6 +16,7 @@
 // másikét.
 
 import type { UrlRule } from '../shared/urlrules';
+import type { Band, Schedule } from '../shared/schedule';
 import { normalizeHostname } from '../shared/blocklist';
 import * as crypto from 'crypto';
 import {
@@ -377,6 +378,28 @@ function cleanHostnames(raw: unknown): string[] {
   return out;
 }
 
+/**
+ * A dróton jött menetrend SZERKEZETE: objektum, a módja szöveg (különben
+ * „always”), a sávok közül csak a jól formált marad — objektum, egész számok
+ * tömbje a nap, egész a két perc. A TARTALMI szűrés (napok 0–6, percek a
+ * napon belül, üresen „mindig”) a döntésé (`normalizeSchedule`), mindhárom
+ * magban ugyanúgy. A két telefon típusos olvasója a rosszul formált sávot nem
+ * tudja ábrázolni, így kihagyja; a gép eddig nyersen tartotta — a `bands: "x"`
+ * a döntést is ledöntötte, a telefonok pedig az egész oldalt eldobták. Ami
+ * nem objektum, az nincs (mint a hiányzó: mindig tiltva). Közös fixtúra:
+ * fixtures/wire-cases.json.
+ */
+function scheduleIn(raw: unknown): SyncSite['schedule'] {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
+  const o = raw as { mode?: unknown; bands?: unknown };
+  const isInt = (v: unknown): v is number => typeof v === 'number' && Number.isInteger(v);
+  const bands = (Array.isArray(o.bands) ? o.bands : []).filter((b): b is Band => !!b && typeof b === 'object'
+    && Array.isArray((b as Band).days) && (b as Band).days.every(isInt)
+    && isInt((b as Band).startMin) && isInt((b as Band).endMin))
+    .map((b) => ({ days: [...b.days], startMin: b.startMin, endMin: b.endMin }));
+  return { mode: (typeof o.mode === 'string' ? o.mode : 'always') as Schedule['mode'], bands };
+}
+
 /** Egy részleges szabály a dróton: hoszt és `/`-rel kezdődő út, mindkettő szöveg. */
 function cleanRules(raw: unknown): SyncSite['rules'] {
   if (!Array.isArray(raw)) return undefined;
@@ -408,7 +431,7 @@ function cleanSite(s: Record<string, unknown>): SyncSite {
     addedAt: Number.isFinite(s.addedAt) ? (s.addedAt as number) : 0,
     pauseUntil: null,
     pendingDeleteAt: typeof s.pendingDeleteAt === 'number' ? s.pendingDeleteAt : null,
-    schedule: (s.schedule as SyncSite['schedule']) ?? undefined,
+    schedule: scheduleIn(s.schedule),
     dailyLimitSeconds: typeof s.dailyLimitSeconds === 'number' ? s.dailyLimitSeconds : undefined,
     burstSeconds: typeof s.burstSeconds === 'number' ? s.burstSeconds : undefined,
     cooldownSeconds: typeof s.cooldownSeconds === 'number' ? s.cooldownSeconds : undefined,

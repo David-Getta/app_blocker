@@ -2518,6 +2518,31 @@ const WIRES = [
     lost: 'az Android a szám-azonosítójú naplósort is megtartaná (az optString szöveggé teszi)',
   },
 
+  // A MENETREND A DRÓTON: a rosszul formált sáv kiesik, a többi marad, és a
+  // gép döntése nem hasalhat el rajta. Ha egy olvasó visszatér a nyers
+  // átvételhez vagy a szigorú dekódoláshoz, egy hibás sáv a gépen a döntést,
+  // a telefonon az egész oldalt (a szinkronon az egész listát) viszi.
+  {
+    file: 'desktop/src/shared/schedule.ts',
+    needle: 'const bands = (Array.isArray(s.bands) ? s.bands : []).filter(isValidBand);',
+    lost: 'a gép döntése kivételt dobna egy nem tömb sávlistán',
+  },
+  {
+    file: 'desktop/src/helper/sync-client.ts',
+    needle: 'schedule: scheduleIn(s.schedule),',
+    lost: 'a gép a dróton jött menetrendet nyersen tartaná',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/SyncClient.kt',
+    needle: 'schedule = o.optJSONObject("schedule")?.let { scheduleFromJson(it) },',
+    lost: 'az Android egy nem objektum menetrend miatt az egész oldalt eldobná',
+  },
+  {
+    file: 'ios/Shared/Schedule.swift',
+    needle: 'bands = c.lossyArray(Band.self, .bands)',
+    lost: 'az iPhone egy rosszul formált sáv miatt az egész oldalt eldobná',
+  },
+
   // A CSOMAG NEVE egy szabállyal tisztul a felvételkor és a fogadáskor is. Ha
   // egy hívó visszatér a saját `trim`/`take`/`prefix`-éhez, a név eszközönként
   // más lesz — a gép UTF-16-os vágása egy emodzsit félbe vágott, és a fél az
