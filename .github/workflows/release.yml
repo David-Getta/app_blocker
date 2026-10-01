@@ -44,24 +44,24 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A böngésző-bővítmény is a közös szabály szerint olvas.** A
-          böngészőben a bővítmény dönt a kulcsszóról és a részleges
-          szabályról, a saját másolatával. Mostantól a kiszállított fájljai
-          is visszajátsszák a közös szöveg-fixtúrát — ugyanazt, amit a két
-          telefon —, és az első futás egy eltérést fogott: a bővítmény az út
-          hosszát még más mértékegységben mérte, így néhány emodzsis
-          szabályt, amit az app elfogadott, a bővítmény beállítás-lapja
-          elutasított. Most ugyanúgy mér; a plafonjait a mag-őr is nézi.
+          **A dátum nem függ a telefon nyelvétől és naptárától.** Ha az
+          iPhone-on buddhista vagy japán naptár volt beállítva, a mag más
+          évszámmal írta a napot, mint a gép és az Android — és a közös napi
+          keret a többi eszköz percét ott sosem számolta, vagyis az iPhone-on
+          a keret nem érvényesült. Androidon arab vagy perzsa nyelven a hét
+          kulcsa nem latin számjegyekkel íródott, és a visszatekintések
+          naplója az ilyen hetet eldobta volna. Most mindkét telefon kimondott
+          gregorián naptárral és nyelvfüggetlen számjeggyel számol, és egy őr
+          tiltja a visszacsúszást. Ugyanez az őr a tiltott hosztnevek előre
+          megadott listáját is összeveti a három magban.
 
-          ### Ami a v0.4.200-ban jött
+          ### Ami a v0.4.201-ben jött
 
-          **A munkamenet magja ugyanaz mindhárom platformon.** Az ismétlődő
-          menet, a lezárás, az engedélyezett appok neve és egyezése.
+          **A böngésző-bővítmény is a közös szabály szerint olvas.**
 
-          #### Ami a v0.4.199-ben jött
+          #### Ami a v0.4.200-ban jött
 
-          **A közös napi keret egy szabállyal olvasódik mindhárom
-          platformon.**
+          **A munkamenet magja ugyanaz mindhárom platformon.**
 
           NOTES
           fi
