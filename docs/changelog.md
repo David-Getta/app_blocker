@@ -8,6 +8,7 @@ kettővel korábbiban.
 
 | Verzió | Nap | Mi újság |
 |---|---|---|
+| v0.4.190 | 2026-10-01 | a fixtúra a menetrendet is nézi |
 | v0.4.189 | 2026-10-01 | a bővítmény nem marad szűrő nélkül egy elvesző üzenettől |
 | v0.4.188 | 2026-10-01 | a görög szigma esete is a jegyzetben |
 | v0.4.187 | 2026-10-01 | a fixtúra a munkamenet-döntést is nézi |
