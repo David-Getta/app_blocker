@@ -236,3 +236,9 @@ test('a BOM és a nem törő szóköz: a szélen levágva, belül nem szabály; 
   assert.equal(normalizeKeyword('🍕🍕🍕'), '🍕🍕🍕', 'három kódpont: elég');
   assert.equal(normalizeKeyword('🍕🍕'), null, 'két kódpont: kevés — UTF-16 egységben négy lenne');
 });
+
+test('a görög szó végi szigma kisbetűje ς — a JS Final_Sigma szabálya, amit a két telefonnak is tartania kell', () => {
+  // Ο Δ Ο Σ → ο δ ο ς (U+03C2), nem σ (U+03C3): a Swift `lowercased()` ezt nem tudta, a tükör maga alkalmazza.
+  assert.equal(normalizeKeyword('ΟΔΟΣ'), '\u03bf\u03b4\u03bf\u03c2');
+  assert.equal(normalizeKeyword('ΣΟΦΟΣ'), '\u03c3\u03bf\u03c6\u03bf\u03c2');
+});

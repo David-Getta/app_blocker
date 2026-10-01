@@ -253,7 +253,9 @@ törő szóközzel; a platformok saját fogalma mind másképp tudta), ugyanott
 vág-e (kódpontban, nem UTF-16 egységben és nem grafémában), ugyanúgy
 kezeli-e az NFKC-t és a kisbetűsítést. Ez fogta ki, hogy a gép egy fél
 emodzsit hagyhatott a fedőnév végén, és hogy a két telefon a jelmondat nem
-törő szóközét nem vette szóköznek — a lenyomat nem egyezett volna.
+törő szóközét nem vette szóköznek — a lenyomat nem egyezett volna —, és az
+első CI-körében azt, hogy az iPhone a görög szó végi szigmát σ-nak írta
+kisbetűvel, a gép és az Android ς-nek.
 
 ## Biztonsági modell és őszinte korlátok
 

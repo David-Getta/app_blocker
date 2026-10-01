@@ -3023,6 +3023,16 @@ const WIRES = [
     lost: 'az iPhone kulcsszava a BOM-ot nem venné szóköznek — a gépen felvett kulcsszó a telefonon más lenne',
   },
   {
+    file: 'ios/Shared/Keywords.swift',
+    needle: 'TextLogic.lowercase(TextLogic.trimSpaces(TextLogic.controlsToSpaces(nfkc)))',
+    lost: 'az iPhone kulcsszava a görög szó végi szigmát σ-nak írná, a gép és az Android ς-nek — más bájtsor a dróton',
+  },
+  {
+    file: 'ios/Shared/Partner.swift',
+    needle: 'TextLogic.lowercase(clean(raw))',
+    lost: 'az iPhone jelmondatának kisbetűje eltérne a gépétől a görög szó végi szigmán — a lenyomat nem egyezne',
+  },
+  {
     file: 'ios/Shared/Partner.swift',
     needle: 'TextLogic.collapseSpaces(raw.precomposedStringWithCompatibilityMapping)',
     lost: 'az iPhone jelmondatának kanonikus alakja eltérne a gépétől — a megbízott jelmondata nem nyitna',

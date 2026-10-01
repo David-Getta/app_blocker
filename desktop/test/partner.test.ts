@@ -245,3 +245,8 @@ test('a jelmondat és a név szóközei: a nem törő szóköz és a BOM is szó
   assert.equal(normalizePartnerName('Anya\u00a0'), 'Anya');
   assert.equal(normalizePartnerName('🍕'.repeat(45)), '🍕'.repeat(MAX_PARTNER_NAME));
 });
+
+test('a jelmondat görög szó végi szigmája ς — a lenyomatnak a telefonon is ugyanabból kell készülnie', () => {
+  assert.equal(normalizePhrase('ΟΔΟΣ ΟΔΟΣ'), '\u03bf\u03b4\u03bf\u03c2 \u03bf\u03b4\u03bf\u03c2');
+  assert.equal(normalizePhrase('Σ ΑΣΑ'), '\u03c3 \u03b1\u03c3\u03b1', 'egyedül álló és betű előtti szigma nem szóvégi');
+});

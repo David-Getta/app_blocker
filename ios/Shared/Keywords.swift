@@ -25,7 +25,8 @@ public enum KeywordLogic {
     public static func normalizeKeyword(_ raw: String?) -> String? {
         guard let raw else { return nil }
         let nfkc = raw.precomposedStringWithCompatibilityMapping
-        let cleaned = TextLogic.trimSpaces(TextLogic.controlsToSpaces(nfkc)).lowercased()
+        // A kisbetű is a gép szabálya szerint: a görög szó végi szigma ς, nem σ.
+        let cleaned = TextLogic.lowercase(TextLogic.trimSpaces(TextLogic.controlsToSpaces(nfkc)))
         if cleaned.isEmpty || cleaned.unicodeScalars.contains(where: TextLogic.isSpace) { return nil }
         let len = cleaned.unicodeScalars.count
         if len < minKeywordLength || len > maxKeywordLength { return nil }

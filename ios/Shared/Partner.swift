@@ -84,7 +84,9 @@ public enum PartnerLogic {
     /// Kis-nagybetű, dupla szóköz nem számít; NFKC, hogy ugyanaz a leütött
     /// szöveg ugyanaz a bájtsor legyen minden platformon.
     public static func normalizePhrase(_ raw: String) -> String {
-        clean(raw).lowercased()
+        // A kisbetű is a gép szabálya szerint: a görög szó végi szigma ς, nem σ —
+        // különben a lenyomat nem egyezne a gépével.
+        TextLogic.lowercase(clean(raw))
     }
 
     /// A megbízott neve tisztán — vagy nil, ha nem maradt belőle semmi.

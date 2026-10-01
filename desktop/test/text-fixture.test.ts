@@ -82,6 +82,9 @@ function curatedTexts(): string[] {
     `${'a'.repeat(39)}🍕🍕`, '🍕'.repeat(45), 'é'.repeat(30), `${'a'.repeat(39)} bbbb`, 'x'.repeat(60),
     'x'.repeat(150), 'szó '.repeat(40), `${'x'.repeat(139)} y`, `${'x'.repeat(140)}y`,
     'Shorts', ' Shorts ', 'SHORTS', 'ＳＨＯＲＴＳ', 'ﬁlm', '①②③', 'Ⅻ', 'ｼｮｰﾄ', '㎞', 'ΟΔΟΣ', 'İstanbul', 'straße', 'STRASSE',
+    // A görög szó végi szigma: a JS és a Java ς-t ad (Final_Sigma), a Swift
+    // `lowercased()` σ-t adott — a tükör a szabályt maga alkalmazza.
+    'ΣΟΦΟΣ', 'Σ', 'ΟΔΟΣ.', 'ΟΔΟΣ ΟΔΟΣ', 'ΑΣ\u0301Α', 'ΟΔΟΣ\u200bΟΔΟΣ', 'Σ ΑΣΑ',
     'két szó', 'két\u00a0szó', 'két\ufeffszó', 'két\u200bszó', '🍕🍕', '🍕🍕🍕', 'x'.repeat(40), 'x'.repeat(41),
     'álom', 'álom', 'alma bogrács cinege délután', 'Alma  Bogrács\tCinege\u00a0Délután', '\ufeffalma\u3000bogrács',
   ];

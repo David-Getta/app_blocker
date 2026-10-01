@@ -61,4 +61,11 @@ class TextLogicTest {
         assertNull(Blocklist.normalizeDomain("youtube\u00A0.com"))
         assertNull(Blocklist.normalizeDomain("youtube.com\u200B"))
     }
+
+    @Test fun `a gorog szo vegi szigma kisbetuje - a Java is a Final_Sigma szabalyt koveti, mint a JS`() {
+        assertEquals("\u03BF\u03B4\u03BF\u03C2", KeywordLogic.normalizeKeyword("ΟΔΟΣ"))
+        assertEquals("\u03C3\u03BF\u03C6\u03BF\u03C2", KeywordLogic.normalizeKeyword("ΣΟΦΟΣ"))
+        assertEquals("\u03BF\u03B4\u03BF\u03C2 \u03BF\u03B4\u03BF\u03C2", PartnerLogic.normalizePhrase("ΟΔΟΣ ΟΔΟΣ"))
+        assertEquals("\u03C3 \u03B1\u03C3\u03B1", PartnerLogic.normalizePhrase("Σ ΑΣΑ"))
+    }
 }

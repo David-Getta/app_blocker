@@ -69,6 +69,34 @@ enum TextLogic {
         return String(out)
     }
 
+    /// Kisbetű a gép (JS) és az Android (Java) szabálya szerint. A Swift
+    /// `lowercased()` a görög nagy szigmát (Σ) mindig σ-ra írja; a JS és a Java
+    /// a szó végén ς-t ad (Unicode Final_Sigma: előtte cased betű áll, utána nem
+    /// — a case-ignorable jeleket átlépve). Egy görög kulcsszó vagy jelmondat
+    /// így a telefonon más bájtsor lett volna, mint a gépen — a fixtúra fogta ki.
+    static func lowercase(_ value: String) -> String {
+        let lowered = value.lowercased()
+        let scalars = Array(lowered.unicodeScalars)
+        guard scalars.contains(where: { $0.value == 0x03C3 }) else { return lowered }
+        var out = String.UnicodeScalarView()
+        for (i, u) in scalars.enumerated() {
+            out.append(u.value == 0x03C3 && isFinalSigma(scalars, at: i) ? finalSigma : u)
+        }
+        return String(out)
+    }
+
+    private static let finalSigma = Unicode.Scalar(UInt32(0x03C2))!
+
+    /// Final_Sigma: előtte (case-ignorable jeleken át) cased betű áll, utána (ugyanúgy) nem.
+    private static func isFinalSigma(_ s: [Unicode.Scalar], at i: Int) -> Bool {
+        var j = i - 1
+        while j >= 0, s[j].properties.isCaseIgnorable { j -= 1 }
+        guard j >= 0, s[j].properties.isCased else { return false }
+        var k = i + 1
+        while k < s.count, s[k].properties.isCaseIgnorable { k += 1 }
+        return !(k < s.count && s[k].properties.isCased)
+    }
+
     /// Az első `max` skalár — egy emodzsi (és egy helyettesítő-pár) együtt marad vagy együtt esik.
     static func takeScalars(_ value: String, _ max: Int) -> String {
         var out = String.UnicodeScalarView()

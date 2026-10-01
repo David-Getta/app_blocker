@@ -63,6 +63,17 @@ final class TextLogicTests: XCTestCase {
                        String(repeating: "a", count: 39))
     }
 
+    func testTheGreekFinalSigmaIsLoweredLikeTheDesktopAndAndroid() {
+        // A JS és a Java a szó végi Σ-t ς-nek írja (Final_Sigma); a Swift `lowercased()` σ-nak.
+        XCTAssertEqual(scalars(KeywordLogic.normalizeKeyword("ΟΔΟΣ")), scalars("οδος"))
+        XCTAssertEqual(scalars(KeywordLogic.normalizeKeyword("ΣΟΦΟΣ")), scalars("σοφος"))
+        XCTAssertEqual(scalars(PartnerLogic.normalizePhrase("ΟΔΟΣ ΟΔΟΣ")), scalars("οδος οδος"))
+        // Egyedül álló, vagy (case-ignorable jelen át) betű előtt álló szigma nem szóvégi.
+        XCTAssertEqual(scalars(PartnerLogic.normalizePhrase("Σ ΑΣΑ")), scalars("σ ασα"))
+        XCTAssertEqual(scalars(TextLogic.lowercase("ΑΣ\u{0301}Α")), scalars("ασ\u{0301}α"))
+        XCTAssertEqual(scalars(TextLogic.lowercase("ΟΔΟΣ.")), scalars("οδος."))
+    }
+
     func testDomainEdgesBomAndNoBreakSpace() {
         XCTAssertEqual(Blocklist.normalizeDomain("\u{FEFF}youtube.com\u{FEFF}"), "youtube.com")
         XCTAssertEqual(Blocklist.normalizeDomain("\u{00A0}youtube.com\u{00A0}"), "youtube.com")
