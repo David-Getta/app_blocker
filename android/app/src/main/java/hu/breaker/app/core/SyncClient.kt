@@ -436,8 +436,10 @@ object SyncClient {
                 val p = arr!!.getJSONObject(i)
                 val id = p.optString("id")
                 if (id.isNotEmpty()) seenIds.add(id)
-                val name = p.optString("name").trim().take(Focus.MAX_PACK_NAME)
-                if (id.isEmpty() || name.isEmpty()) return@runCatching
+                // Csak valódi szöveg: az `optString` egy számot is szöveggé tenne,
+                // a gép (és az iPhone) az ilyen csomagot eldobja.
+                val name = (p.opt("name") as? String)?.let { Focus.normalizePackName(it) }
+                if (id.isEmpty() || name == null) return@runCatching
                 if (packs.any { it.id == id } || packs.size >= FocusSync.MAX_PACKS) return@runCatching
                 packs.add(Focus.FocusPack(
                     id = id,
@@ -527,8 +529,7 @@ object SyncClient {
                 if (packId.isEmpty() || endedAt <= 0) return@runCatching
                 out.add(Focus.FocusLogEntry(
                     packId = packId,
-                    packName = e.optString("packName").ifEmpty { "Ismeretlen csomag" }
-                        .take(Focus.MAX_PACK_NAME),
+                    packName = Focus.logPackName((e.opt("packName") as? String).orEmpty()),
                     startedAt = e.optLong("startedAt", 0),
                     endedAt = endedAt,
                     plannedEndsAt = e.optLong("plannedEndsAt", endedAt),

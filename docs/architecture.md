@@ -363,7 +363,11 @@ hátralévő idő szövege és a percek tisztítása — az Android `toInt()`-je
 hárommilliárdos percszámot negatívra fordított. A szöveg-fixtúra pedig az
 engedélyezett app nevét és az app-egyezést is nézi (a Java-regex csak az
 ASCII szóközt ismerte, a Swift grafémában vágott és keresett; az üres tétel
-eddig mindent engedett).
+eddig mindent engedett), és a csomag nevét meg a naplósor nevét (a gép
+UTF-16-ban vágott, egy emodzsit félbe — a párja nélküli fél az iPhone
+olvasóján az egész munkamenet-dokumentumot vitte —, az Android a saját
+szóköz-fogalmával, az iPhone grafémában; a felvételkor a két telefon más-más
+készlettel vonta össze a szóközöket, a gép sehogy).
 
 ## Biztonsági modell és őszinte korlátok
 

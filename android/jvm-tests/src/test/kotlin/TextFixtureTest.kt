@@ -117,6 +117,10 @@ class TextFixtureTest {
     }
     @Test fun `az engedelyezett app neve ugyanaz, mint a gepen`() = check("allowApp") { Focus.normalizeAllowApp(it) }
 
+    @Test fun `a csomag neve ugyanaz, mint a gepen`() = check("packName") { Focus.normalizePackName(it) }
+
+    @Test fun `a naplosor neve ugyanaz, mint a gepen - uresre Ismeretlen csomag`() = check("logPackName") { Focus.logPackName(it) }
+
     @Test fun `az app-egyezes ugyanaz, mint a gepen - az ures tetel nem enged mindent`() {
         val arr = fixture.getJSONArray("appMatch")
         assertTrue(arr.length() > 50, "appMatch: kevés eset — a fixtúra csonka?")

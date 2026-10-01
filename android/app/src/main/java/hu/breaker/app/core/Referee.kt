@@ -994,8 +994,8 @@ object Referee {
      * hogy a fésülésben ez a változat nyerjen. A Swift `addFocusPack` tükre.
      */
     fun addFocusPack(name: String, allowSites: List<String>, defaultMinutes: Int): Focus.FocusPack {
-        val cleanName = name.trim().split(' ', '\t', '\n').filter { it.isNotEmpty() }.joinToString(" ").take(Focus.MAX_PACK_NAME)
-        if (cleanName.isEmpty()) throw RefereeException("Adj nevet a csomagnak.", "BAD_NAME")
+        val cleanName = Focus.normalizePackName(name)
+            ?: throw RefereeException("Adj nevet a csomagnak.", "BAD_NAME")
         val sites = LinkedHashSet<String>()
         for (s in allowSites) {
             val n = Focus.normalizeAllowSite(s) ?: continue

@@ -519,7 +519,10 @@ Amit a tesztek bizonyítanak, és amit másképp nem lehetne:
   használt csomagot, a hátralévő idő szövegét és a percek tisztítását tartja,
   UTC-ben; a Kotlin (`FocusFixtureTest`) és a Swift (`FocusFixtureTests`)
   ugyanezt játssza vissza. A csomag engedélyezett appjainak neve a fiókon
-  utazik — a szöveg-fixtúra ennek a tisztítását és az app-egyezést is nézi.
+  utazik — a szöveg-fixtúra ennek a tisztítását és az app-egyezést is nézi,
+  és a csomag nevét meg a naplósor nevét is (`normalizePackName`,
+  `logPackName`: a közös sor-tisztítás, 40 kódpont; üres naplónévre
+  „Ismeretlen csomag”).
 
 Egy dolog iPhone-on más: a **napi keret nem érvényesül** (nincs ilyen mérési
 API), de a rekordban MEGŐRIZZÜK. Enélkül elég lenne egyszer megnyitni a

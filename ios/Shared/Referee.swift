@@ -845,9 +845,9 @@ enum Referee {
     /// androidos `addFocusPack` tükre.
     @discardableResult
     static func addFocusPack(name: String, allowSites: [String], defaultMinutes: Int) throws -> Focus.Pack {
-        let words = name.split(whereSeparator: { $0.isWhitespace }).map(String.init)
-        let cleanName = String(words.joined(separator: " ").prefix(Focus.maxPackName))
-        if cleanName.isEmpty { throw RefereeError(message: "Adj nevet a csomagnak.", code: "BAD_NAME") }
+        guard let cleanName = Focus.normalizePackName(name) else {
+            throw RefereeError(message: "Adj nevet a csomagnak.", code: "BAD_NAME")
+        }
         var sites: [String] = []
         for s in allowSites {
             guard let n = Focus.normalizeAllowSite(s), !sites.contains(n), sites.count < Focus.maxAllowEntries else { continue }

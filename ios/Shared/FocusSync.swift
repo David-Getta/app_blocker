@@ -492,6 +492,19 @@ public enum FocusSync {
         return Array(ordered.suffix(Focus.maxFocusLog))
     }
 
+    /// Egy kívülről jött naplósor: azonosító és pozitív vég nélkül kiesik, a
+    /// név a közös szabállyal tisztul (`Focus.logPackName`). A gép
+    /// `normalizeLogEntry`-jének és az Android olvasójának tükre — eddig az
+    /// iPhone a nevet se nem vágta, se az üreset nem pótolta.
+    static func cleanLogEntry(_ e: Focus.LogEntry) -> Focus.LogEntry? {
+        guard !e.packId.isEmpty, e.endedAt > 0 else { return nil }
+        return Focus.LogEntry(
+            packId: e.packId, packName: Focus.logPackName(e.packName), startedAt: e.startedAt,
+            endedAt: e.endedAt, plannedEndsAt: e.plannedEndsAt, stopped: e.stopped,
+            window: e.window == true ? true : nil
+        )
+    }
+
     /// A futó menet megtisztítása: ha a csomagja nincs meg, eldobjuk.
     ///
     /// Nem tippelünk. A fehérlista TARTALMA nem az a dolog, amit kitalálni
@@ -569,12 +582,11 @@ public enum FocusSync {
         var seenIds: [String] = []
         for p in raw.packs {
             if !p.id.isEmpty { seenIds.append(p.id) }
-            let name = p.name.trimmingCharacters(in: .whitespacesAndNewlines)
-            if p.id.isEmpty || name.isEmpty { continue }
+            guard !p.id.isEmpty, let name = Focus.normalizePackName(p.name) else { continue }
             if packs.contains(where: { $0.id == p.id }) || packs.count >= maxPacks { continue }
             packs.append(Focus.Pack(
                 id: p.id,
-                name: String(name.prefix(Focus.maxPackName)),
+                name: name,
                 allowSites: normalized(p.allowSites, Focus.normalizeAllowSite),
                 allowApps: normalized(p.allowApps, Focus.normalizeAllowApp),
                 defaultMinutes: Focus.normalizeMinutes(Double(p.defaultMinutes)) ?? 25,
@@ -594,7 +606,7 @@ public enum FocusSync {
             // A naplót NEM kötjük a csomagokhoz: egy menet naplósora akkor is
             // igaz marad, ha a csomagot azóta törölték. Épp ezért van benne a
             // NÉV is, nem csak az azonosító.
-            log: capLog(raw.log),
+            log: capLog(raw.log.compactMap(cleanLogEntry)),
             // Nemnegatív egész, mint a gépen és Androidon: egy tört rev-ből
             // tört jel lenne, amit a visszaolvasás eldob.
             rev: Double(revInt(raw.rev)),

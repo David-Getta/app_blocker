@@ -131,10 +131,11 @@ fésülésével számol, és a kulcsnak bájtra egyeznie kell. Ha a Swift tükö
 szabályban elcsúszik a másik kettőtől, itt bukik — a mag számával —, nem egy
 felhasználó telefonján. Ugyanígy a szöveg-tisztításé (`TextFixtureTests`, a
 `fixtures/text-cases.json` ellen): a fedőnév, az indok, a kulcsszó, a
-megbízott neve és jelmondata, a domain tiszta alakja skalárra ugyanaz, mint a
-gépen — a szóköz kimondott készlet (a BOM-mal), a vágás skalárban, nem
-grafémában (`TextLogic`, Text.swift). És a párosító kódé (`PairingFixtureTests`,
-a `fixtures/pairing-cases.json` ellen): a gépen kiírt kód itt ugyanoda nyílik;
+megbízott neve és jelmondata, a domain, az engedélyezett app és a csomag
+neve: a tiszta alakjuk skalárra ugyanaz, mint a gépen — a szóköz kimondott
+készlet (a BOM-mal), a vágás skalárban, nem grafémában (`TextLogic`,
+Text.swift). És a párosító kódé (`PairingFixtureTests`, a
+`fixtures/pairing-cases.json` ellen): a gépen kiírt kód itt ugyanoda nyílik;
 a Swift párosítónak ez az első tesztje — eddig csak fordult. És a szinkron
 titkosításáé (`CryptoFixtureTests`, a `fixtures/crypto-cases.json` ellen): a
 gépen burkolt adatkulcs itt a jelszóval és a helyreállító kóddal is kinyílik, a

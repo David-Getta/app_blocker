@@ -118,12 +118,39 @@ export function normalizeAllowApp(input: string): string | null {
   return cleanLine(input, MAX_ALLOW_APP_LENGTH) ?? null;
 }
 
+/**
+ * A csomag neve tisztán, vagy null (nincs neve): ugyanaz a sor-tisztítás,
+ * mint a fedőnévé és az engedélyezett appé — a közös szóköz-készlet, a
+ * szóköz-futam egy szóköz, kódpontos vágás. A név a fiókon utazik, és a
+ * fogadó oldal újra tisztítja. Eddig három szabály volt: a gép UTF-16
+ * egységben vágott (egy emodzsit félbe, és a párja nélküli fél az iPhone
+ * olvasóján az egész munkamenet-dokumentumot vitte), az Android a saját
+ * szóköz-fogalmával vágta a széleket és UTF-16-ban vágott, az iPhone
+ * grafémában — ugyanaz a név eszközönként más lett. A felvételkor a két
+ * telefon a futamokat is összevonta (más-más készlettel), a gép nem.
+ * A közös fixtúra (fixtures/text-cases.json) kimondja.
+ */
+export function normalizePackName(input: unknown): string | null {
+  return typeof input === 'string' ? cleanLine(input, MAX_PACK_NAME) ?? null : null;
+}
+
+/**
+ * A naplósorban álló név: a csomag neve AKKOR, ugyanazzal a tisztítással;
+ * ha nincs használható, „Ismeretlen csomag”. A sor a fiókon utazik, és a
+ * gép egyezés-vizsgálata (sameFocus) a nevet is nézi — ha a három mag
+ * másképp vágná, ugyanaz a sor eszközönként más lenne, és a gép minden
+ * körben feltöltené.
+ */
+export function logPackName(input: unknown): string {
+  return normalizePackName(input) ?? 'Ismeretlen csomag';
+}
+
 /** Egy kívülről jött csomag használható alakja, vagy null. */
 export function normalizePack(raw: unknown): FocusPack | null {
   if (!raw || typeof raw !== 'object') return null;
   const p = raw as Partial<FocusPack>;
   if (typeof p.id !== 'string' || !p.id) return null;
-  const name = (typeof p.name === 'string' ? p.name : '').trim().slice(0, MAX_PACK_NAME);
+  const name = normalizePackName(p.name);
   if (!name) return null;
 
   const sites: string[] = [];

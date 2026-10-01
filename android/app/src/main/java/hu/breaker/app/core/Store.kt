@@ -1038,8 +1038,8 @@ object BreakerStore {
             runCatching {
                 val p = arr.getJSONObject(i)
                 val id = p.optString("id")
-                val name = p.optString("name").trim().take(Focus.MAX_PACK_NAME)
-                if (id.isEmpty() || name.isEmpty()) return@runCatching
+                val name = (p.opt("name") as? String)?.let { Focus.normalizePackName(it) }
+                if (id.isEmpty() || name == null) return@runCatching
                 if (out.any { it.id == id }) return@runCatching
                 out.add(Focus.FocusPack(
                     id = id,

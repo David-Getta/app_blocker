@@ -112,6 +112,21 @@ object Focus {
     }
 
     /**
+     * A csomag neve tisztán, vagy null — ugyanaz a `cleanLine` szabály,
+     * MAX_PACK_NAME kódponttal. Eddig a fogadás a Kotlin `trim`-jével (más
+     * szóköz-fogalom, a BOM-ot nem ismeri) és UTF-16-ban vágott (egy emodzsit
+     * félbe), a felvétel csak a szóközt, a tabot és a sorvéget vonta össze.
+     * A gép `normalizePackName` tükre; a közös fixtúra kimondja.
+     */
+    fun normalizePackName(input: String): String? {
+        val s = TextLogic.trimSpaces(TextLogic.takeCodePoints(TextLogic.collapseSpaces(input), MAX_PACK_NAME))
+        return s.ifEmpty { null }
+    }
+
+    /** A naplósor neve: a tiszta csomagnév, vagy „Ismeretlen csomag”. A gép `logPackName` tükre. */
+    fun logPackName(input: String): String = normalizePackName(input) ?: "Ismeretlen csomag"
+
+    /**
      * Átmehet-e ez a hoszt a munkamenet alatt.
      *
      * Egyezés vagy ALDOMAIN. A `translate.google.com` átmegy, ha a `google.com`

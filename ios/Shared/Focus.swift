@@ -134,6 +134,21 @@ public enum Focus {
         return s.isEmpty ? nil : s
     }
 
+    /// A csomag neve tisztán, vagy nil — ugyanaz a `cleanLine` szabály,
+    /// `maxPackName` skalárral. Eddig a fogadás a `.whitespacesAndNewlines`
+    /// szerint vágta a széleket (a BOM-ot nem ismeri) és grafémában vágott, a
+    /// felvétel a `Character.isWhitespace` szerint vont össze. A gép
+    /// `normalizePackName` tükre; a közös fixtúra kimondja.
+    public static func normalizePackName(_ input: String) -> String? {
+        let s = TextLogic.trimSpaces(TextLogic.takeScalars(TextLogic.collapseSpaces(input), maxPackName))
+        return s.isEmpty ? nil : s
+    }
+
+    /// A naplósor neve: a tiszta csomagnév, vagy „Ismeretlen csomag”. A gép `logPackName` tükre.
+    public static func logPackName(_ input: String) -> String {
+        normalizePackName(input) ?? "Ismeretlen csomag"
+    }
+
     /// Átmehet-e ez a hoszt a munkamenet alatt.
     ///
     /// Egyezés vagy ALDOMAIN. A `translate.google.com` átmegy, ha a

@@ -31,7 +31,9 @@ import { MAX_KEYWORDS, cleanKeywords, normalizeKeyword } from '../src/shared/key
 import { MAX_PARTNER_NAME, normalizePartnerName, normalizePhrase } from '../src/shared/partner';
 import { normalizeDomain } from '../src/shared/blocklist';
 import { matchesRule, normalizeRule, type UrlRule } from '../src/shared/urlrules';
-import { MAX_ALLOW_APP_LENGTH, isAppAllowed, normalizeAllowApp, type FocusPack } from '../src/shared/focus';
+import {
+  MAX_ALLOW_APP_LENGTH, MAX_PACK_NAME, isAppAllowed, logPackName, normalizeAllowApp, normalizePackName, type FocusPack,
+} from '../src/shared/focus';
 import { rng } from './merge-random';
 
 /** dist-test/test/… → a tároló gyökere. */
@@ -48,6 +50,7 @@ interface Fixture {
   alias: TextCase[]; reason: TextCase[]; keyword: TextCase[]; keywords: ListCase[];
   partnerName: TextCase[]; phrase: TextCase[]; domain: TextCase[];
   rule: TextCase[]; ruleMatch: MatchCase[]; allowApp: TextCase[]; appMatch: AppMatchCase[];
+  packName: TextCase[]; logPackName: TextCase[];
 }
 
 // ----------------------------------------------------- a részleges szabály
@@ -278,8 +281,9 @@ function buildFixture(): Fixture {
       + 'TextFixtureTests ugyanezt a fájlt játssza vissza a saját magjával. Csupa ASCII, hogy a '
       + 'láthatatlan jelek (BOM, nem törő szóköz) láthatók legyenek. A rule-esetek: beírt szöveg → '
       + 'a részleges szabály kanonikus alakja (host|path); a ruleMatch-esetek: szabály és cím → illik-e. '
-      + 'Az allowApp: az engedélyezett app nevének tiszta alakja; az appMatch: engedett appok és egy app → átmehet-e.',
-    version: 3,
+      + 'Az allowApp: az engedélyezett app nevének tiszta alakja; az appMatch: engedett appok és egy app → átmehet-e. '
+      + 'A packName: a csomag nevének tiszta alakja; a logPackName: a naplósor neve (üresre „Ismeretlen csomag”).',
+    version: 4,
     alias: texts.map((t) => ({ in: t, out: normalizeAlias(t) ?? null })),
     reason: texts.map((t) => ({ in: t, out: normalizeReason(t) ?? null })),
     keyword: texts.map((t) => ({ in: t, out: normalizeKeyword(t) })),
@@ -291,6 +295,8 @@ function buildFixture(): Fixture {
     ruleMatch,
     allowApp: texts.map((t) => ({ in: t, out: normalizeAllowApp(t) })),
     appMatch: appMatchCases(),
+    packName: texts.map((t) => ({ in: t, out: normalizePackName(t) })),
+    logPackName: texts.map((t) => ({ in: t, out: logPackName(t) })),
   };
 }
 
@@ -319,6 +325,8 @@ function render(f: Fixture): string {
     section('ruleMatch', f.ruleMatch.map(renderMatch)),
     section('allowApp', f.allowApp.map(renderCase)),
     section('appMatch', f.appMatch.map(renderAppMatch)),
+    section('packName', f.packName.map(renderCase)),
+    section('logPackName', f.logPackName.map(renderCase)),
   ].join(',\n');
   return `{\n "note": ${ascii(f.note)},\n "version": ${f.version},\n${body}\n}\n`;
 }
@@ -359,6 +367,9 @@ test('a szöveg-fixtúra friss, a tisztítás idempotens, és nem hagy párja n�
   for (const c of built.partnerName) again(normalizePartnerName, c);
   for (const c of built.phrase) again(normalizePhrase, c);
   for (const c of built.allowApp) again(normalizeAllowApp, c);
+  for (const c of built.packName) again(normalizePackName, c);
+  for (const c of built.logPackName) again(logPackName, c);
+  assert.ok(built.logPackName.every((c) => c.out !== null), 'a naplósornak mindig van neve');
   assert.ok(built.appMatch.some((c) => c.out) && built.appMatch.some((c) => !c.out), 'az app-egyezés egyféle');
   assert.ok(built.appMatch.some((c) => c.apps.includes('') && !c.out), 'az üres tétel nem enged mindent');
   // A domain-tisztítás szándékosan NEM idempotens: egy `www.`-t vág le, nem
@@ -379,8 +390,9 @@ test('a szöveg-fixtúra friss, a tisztítás idempotens, és nem hagy párja n�
   assert.equal(longest(built.reason), MAX_REASON_LENGTH);
   assert.equal(longest(built.partnerName), MAX_PARTNER_NAME);
   assert.equal(longest(built.allowApp), MAX_ALLOW_APP_LENGTH);
+  assert.equal(longest(built.packName), MAX_PACK_NAME);
   // A fixtúra nem elfajult: minden szekcióban van érvényes és érvénytelen is.
-  for (const name of ['alias', 'keyword', 'partnerName', 'domain', 'rule', 'allowApp'] as const) {
+  for (const name of ['alias', 'keyword', 'partnerName', 'domain', 'rule', 'allowApp', 'packName'] as const) {
     const cases = built[name];
     assert.ok(cases.some((c) => c.out === null) && cases.some((c) => c.out !== null), name);
   }

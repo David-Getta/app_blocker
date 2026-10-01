@@ -49,6 +49,8 @@ private struct Fixture: Decodable {
     let ruleMatch: [MatchCase]
     let allowApp: [TextCase]
     let appMatch: [AppMatchCase]
+    let packName: [TextCase]
+    let logPackName: [TextCase]
 }
 
 final class TextFixtureTests: XCTestCase {
@@ -149,6 +151,16 @@ final class TextFixtureTests: XCTestCase {
     func testTheAllowedAppNameIsTheSameAsTheDesktop() throws {
         let f = try load()
         check(f.allowApp, "allowApp") { Focus.normalizeAllowApp($0) }
+    }
+
+    func testThePackNameIsTheSameAsTheDesktop() throws {
+        let f = try load()
+        check(f.packName, "packName") { Focus.normalizePackName($0) }
+    }
+
+    func testTheLogPackNameIsTheSameAsTheDesktop() throws {
+        let f = try load()
+        check(f.logPackName, "logPackName") { Focus.logPackName($0) as String? }
     }
 
     func testTheAppMatchIsTheSameAsTheDesktopAndAnEmptyEntryAllowsNothing() throws {

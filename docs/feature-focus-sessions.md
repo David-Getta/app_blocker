@@ -683,3 +683,17 @@ egy menet alatt) a közös szélek szerint vág, a gép kisbetűjével (a szó v
 szigmával), és kódegységre keres (a Swift `contains` grafémában és kanonikus
 egyenértékűséggel keresett). És egy szigorítás: az üres tétel nem enged
 mindent — a `includes('')` minden appra igaz volt.
+
+A csomag neve ugyanígy egy szabályt kapott (`normalizePackName`, és a
+naplósorra `logPackName`): a közös sor-tisztítás, legfeljebb 40 KÓDPONT, a
+szóköz-futam egy szóköz. Eddig három volt: a gép a széleket vágta és UTF-16
+egységben vágott — egy iPhone-on felvett hosszú, emodzsis nevet félbe vághatott
+egy emodzsin, és a párja nélküli fél a fiókon át visszajutott az iPhone-ra,
+ahol az olvasó az egész munkamenet-dokumentumot eldobja —, az Android a
+Kotlin `trim`-jével (a BOM-ot nem ismeri) és szintén UTF-16-ban, az iPhone
+grafémában vágott. A felvételkor az Android csak a szóközt, a tabot és a
+sorvéget vonta össze, az iPhone a saját szóköz-fogalmával, a gép semmit. Most
+a felvétel és a fogadás ugyanazt teszi mindhárom magban (a mentett állapot
+olvasása a gépen és Androidon is), és a szöveg-fixtúra kimondja. A naplósort az iPhone eddig se nem vágta, se az üres nevét nem
+pótolta, se az azonosító nélküli sort nem dobta el — most a gép
+`normalizeLogEntry`-jét tükrözi.

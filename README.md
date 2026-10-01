@@ -461,8 +461,8 @@ cd ios && xcodegen generate && open Breaker.xcodeproj
   tesztje kiszámolt bemeneteket és eredményeket ír, a Kotlin és a Swift a saját
   magjával visszajátssza, és bájtra egyeznie kell. Ma nyolc fájl: az
   összefésülés, a döntés, a menetrend, a zárlat-ablakok, a statisztika és a
-  menet-napló (`merge-cases.json`); a szöveg-tisztítás, a részleges szabály és
-  az engedélyezett app neve (`text-cases.json`); a párosító kód; a heti mondat;
+  menet-napló (`merge-cases.json`); a szöveg-tisztítás, a részleges szabály,
+  az engedélyezett app és a csomag neve (`text-cases.json`); a párosító kód; a heti mondat;
   a titkosítás (a gép burkol, a telefon nyit); a próbatétel válasza; a napi
   keret és a dróton jövő mai összegzése; a munkamenet magja. A böngésző-
   bővítmény a szöveg-fixtúra szabály- és kulcsszó-részét a kiszállított

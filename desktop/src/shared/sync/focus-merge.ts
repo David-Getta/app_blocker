@@ -27,7 +27,7 @@
 // A doksi: docs/feature-focus-sessions.md
 
 import {
-  MAX_ALLOW_ENTRIES, MAX_FOCUS_LOG, normalizePack,
+  MAX_ALLOW_ENTRIES, MAX_FOCUS_LOG, logPackName, normalizePack,
   type FocusLogEntry, type FocusPack, type FocusRun,
 } from '../focus.js';
 import {
@@ -288,8 +288,7 @@ export function normalizeLogEntry(raw: unknown): FocusLogEntry | null {
   const startedAt = numberOr(e.startedAt, 0);
   return {
     packId: e.packId,
-    packName: typeof e.packName === 'string' && e.packName
-      ? e.packName.slice(0, MAX_PACK_NAME_IN_LOG) : 'Ismeretlen csomag',
+    packName: logPackName(e.packName),
     startedAt,
     endedAt,
     plannedEndsAt: numberOr(e.plannedEndsAt, endedAt),
@@ -298,9 +297,6 @@ export function normalizeLogEntry(raw: unknown): FocusLogEntry | null {
     ...(e.window === true ? { window: true } : {}),
   };
 }
-
-/** A naplóban tárolt névnek is van felső határa — kívülről jött szöveg. */
-const MAX_PACK_NAME_IN_LOG = 40;
 
 /**
  * Két napló egyesítése.

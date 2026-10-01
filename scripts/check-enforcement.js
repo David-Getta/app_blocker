@@ -2478,6 +2478,51 @@ const WIRES = [
     lost: 'az iPhone az igaz/hamisat is másodpercnek venné a közös keretben',
   },
 
+  // A CSOMAG NEVE egy szabállyal tisztul a felvételkor és a fogadáskor is. Ha
+  // egy hívó visszatér a saját `trim`/`take`/`prefix`-éhez, a név eszközönként
+  // más lesz — a gép UTF-16-os vágása egy emodzsit félbe vágott, és a fél az
+  // iPhone olvasóján az egész munkamenet-dokumentumot vitte.
+  {
+    file: 'desktop/src/shared/focus.ts',
+    needle: 'const name = normalizePackName(p.name)',
+    lost: 'a gép UTF-16-ban vágná a csomag nevét, egy emodzsit félbe',
+  },
+  {
+    file: 'desktop/src/shared/sync/focus-merge.ts',
+    needle: 'packName: logPackName(e.packName)',
+    lost: 'a gép a naplósor nevét UTF-16-ban vágná',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/SyncClient.kt',
+    needle: 'Focus.normalizePackName(it)',
+    lost: 'az Android a saját szóköz-fogalmával és UTF-16-ban vágná a fogadott csomag nevét',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/SyncClient.kt',
+    needle: 'Focus.logPackName(',
+    lost: 'az Android UTF-16-ban vágná a fogadott naplósor nevét',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/Referee.kt',
+    needle: 'val cleanName = Focus.normalizePackName(name)',
+    lost: 'az Android a felvételkor csak a szóközt, a tabot és a sorvéget vonná össze',
+  },
+  {
+    file: 'ios/Shared/FocusSync.swift',
+    needle: 'let name = Focus.normalizePackName(p.name)',
+    lost: 'az iPhone grafémában vágná a fogadott csomag nevét',
+  },
+  {
+    file: 'ios/Shared/FocusSync.swift',
+    needle: 'raw.log.compactMap(cleanLogEntry)',
+    lost: 'az iPhone a naplósor nevét se nem vágná, se az üreset nem pótolná',
+  },
+  {
+    file: 'ios/Shared/Referee.swift',
+    needle: 'guard let cleanName = Focus.normalizePackName(name)',
+    lost: 'az iPhone a felvételkor a saját szóköz-fogalmával és grafémában vágna',
+  },
+
   // A PRÓBATÉTEL VÁLASZA — a fejszámolás számának és a memória-kódnak a
   // tisztítása a kimondott, közös szabály szerint, nem a nyelv sajátja szerint.
   // A hibás válasz ára itt nagy (a lánc elölről, új kód): ha egy motor a saját
