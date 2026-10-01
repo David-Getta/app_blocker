@@ -1040,20 +1040,28 @@ object SyncClient {
 
     /** `internal`, hogy a megfelelőségi fixtúra a dróton át olvashassa (MergeFixtureTest). */
     internal fun usageFromJson(text: String): UsageLogic.UsageState {
+        // A gép `combineUsage`-a szerint: csak szöveg a nap és a címke, csak
+        // objektum a másodpercek, csak pozitív JSON-szám a másodperc — egy rossz
+        // érték csak magát viszi (eddig a `getDouble` az egész napot vitte, a
+        // „600” szöveget pedig számnak vette) —, és a kapcsoló csak a valódi
+        // `true`-ra igaz (eddig a hiánya is igaz volt).
         val o = JSONObject(text)
         val days = mutableListOf<UsageLogic.UsageDay>()
-        o.optJSONArray("days")?.let { arr ->
-            for (i in 0 until arr.length()) runCatching {
-                val d = arr.getJSONObject(i)
-                val secs = mutableMapOf<String, Double>()
-                val so = d.getJSONObject("seconds")
-                for (k in so.keys()) secs[k] = so.getDouble(k)
-                days.add(UsageLogic.UsageDay(d.getString("day"), secs))
+        val arr = o.optJSONArray("days")
+        for (i in 0 until (arr?.length() ?: 0)) {
+            val d = arr!!.opt(i) as? JSONObject ?: continue
+            val day = stringOf(d, "day") ?: continue
+            val so = d.opt("seconds") as? JSONObject ?: continue
+            val secs = mutableMapOf<String, Double>()
+            for (k in so.keys()) {
+                val v = numberOf(so, k) ?: continue
+                if (v > 0) secs[k] = v
             }
+            days.add(UsageLogic.UsageDay(day, secs))
         }
         val labels = mutableMapOf<String, String>()
-        o.optJSONObject("labels")?.let { lo -> for (k in lo.keys()) runCatching { labels[k] = lo.getString(k) } }
-        return UsageLogic.UsageState(days, labels, o.optBoolean("enabled", true))
+        o.optJSONObject("labels")?.let { lo -> for (k in lo.keys()) stringOf(lo, k)?.let { labels[k] = it } }
+        return UsageLogic.UsageState(days, labels, o.opt("enabled") == true)
     }
 
     /** Helyreállító kód: 160 véletlen bit, nyolc négyes csoportban (Crockford base32). */

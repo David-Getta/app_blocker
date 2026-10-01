@@ -21,6 +21,7 @@ private struct Fixture: Decodable {
     let version: Int
     let sites: [WireCase]
     let focus: [WireCase]
+    let usage: [WireCase]
 }
 
 final class WireFixtureTests: XCTestCase {
@@ -110,6 +111,28 @@ final class WireFixtureTests: XCTestCase {
                 continue
             }
             XCTAssertEqual(focusKey(focus), c.out, "focus #\(i): \(c.input)")
+        }
+    }
+
+    /// A mérés kulcsa: a napok az egyesített sorrendben, a másodpercek és a címkék rendezve.
+    private func usageKey(_ u: UsageStats.State) -> String {
+        let days: String = u.days.map { d in
+            let secs = d.seconds.sorted { $0.key < $1.key }.map { "\($0.key)=\(int($0.value))" }.joined(separator: ",")
+            return d.day + ":{" + secs + "}"
+        }.joined(separator: ";")
+        let labels: String = u.labels.sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" }.joined(separator: ",")
+        return "enabled=\(u.enabled ? 1 : 0) days=[\(days)] labels=[\(labels)]"
+    }
+
+    func testAnotherDevicesUsageIsReadLikeTheDesktop() throws {
+        let f = try load()
+        XCTAssertGreaterThan(f.usage.count, 15, "usage: kevés eset — a fixtúra csonka?")
+        for (i, c) in f.usage.enumerated() {
+            guard let state = UsageStats.parse(c.input) else {
+                XCTFail("usage #\(i): nem olvasható — \(c.input)")
+                continue
+            }
+            XCTAssertEqual(usageKey(UsageStats.combine([state])), c.out, "usage #\(i): \(c.input)")
         }
     }
 

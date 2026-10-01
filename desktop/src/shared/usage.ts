@@ -498,7 +498,10 @@ export function combineUsage(states: UsageState[]): UsageState {
     if (!st || !Array.isArray(st.days)) continue;
     const mine: Record<string, number> = {};
     for (const d of st.days) {
-      if (!d || typeof d.day !== 'string' || !d.seconds) continue;
+      // A másodpercek objektuma csak objektum lehet: egy tömb (`[5]`) a „0”
+      // kulcsra 5 másodpercet írt volna, egy szöveg egy üres napot.
+      if (!d || typeof d.day !== 'string' || !d.seconds || typeof d.seconds !== 'object'
+        || Array.isArray(d.seconds)) continue;
       let bucket = byDay.get(d.day);
       if (!bucket) { bucket = {}; byDay.set(d.day, bucket); }
       for (const [k, s] of Object.entries(d.seconds)) {

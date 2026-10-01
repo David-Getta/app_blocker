@@ -889,3 +889,15 @@ kevesebbet mond (ma, hét, a mai és a heti vegyes toplista), de amit mond, az a
 gépé. Holtversenyben a kulcs dönt, mindhárom magban: a gép és az Android a
 beszúrás sorrendjére hagyatkozott, ami eszközönként más lehet, és két egyforma
 idejű célpont a két képernyőn fordítva állt volna.
+
+**A többi eszköz mérését a három mag ugyanúgy olvassa.** A
+`fixtures/wire-cases.json` mérés-esetei egy másik eszköz hibás mérését tartják
+(szövegként írt másodperc, igaz, negatív, tömb a másodpercek helyén, nem
+szöveg nap vagy címke, nem objektum nap, hiányzó kapcsoló), és az egyesítés
+eredményét. A szabály a gépé: csak szöveg a nap és a címke, csak objektum a
+másodpercek, csak pozitív JSON-szám a másodperc — egy rossz érték csak magát
+viszi —, és a kapcsoló csak a valódi `true`-ra igaz. Eddig az iPhone az igazat
+1 másodpercnek vette, és egyetlen nem objektum nap miatt az összeset
+eldobta; az Android a „600” szöveget számnak vette, egy rossz érték miatt az
+egész napot eldobta, és a hiányzó kapcsolót igaznak; a gép egy tömböt
+(`[5]`) a „0” kulcsra írt 5 másodpercnek.

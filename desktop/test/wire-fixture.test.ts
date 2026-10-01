@@ -24,13 +24,14 @@ import { normalizeIncomingSites } from '../src/helper/sync-client';
 import { normalizeSyncFocus, type SyncFocus } from '../src/shared/sync/focus-merge';
 import type { SyncSite } from '../src/shared/sync/merge';
 import { normalizeSchedule, type Schedule } from '../src/shared/schedule';
-import { rng } from './merge-random';
+import { rng, usageConformanceKey } from './merge-random';
+import { combineUsage, type UsageState } from '../src/shared/usage';
 
 /** dist-test/test/… → a tároló gyökere. */
 const FIXTURE = path.resolve(__dirname, '..', '..', '..', 'fixtures', 'wire-cases.json');
 
 interface WireCase { in: string; out: string }
-interface Fixture { note: string; version: number; sites: WireCase[]; focus: WireCase[] }
+interface Fixture { note: string; version: number; sites: WireCase[]; focus: WireCase[]; usage: WireCase[] }
 
 // ------------------------------------------------------------------ oldalak
 
@@ -302,6 +303,43 @@ function focusCases(): unknown[] {
   return out;
 }
 
+// -------------------------------------------------------- statisztika
+
+/**
+ * Egy MÁSIK eszköz mérése a dróton: napok, kulcsonként másodpercek, címkék, a
+ * kapcsoló. Csak az egyesítés (`combineUsage`) eredménye számít — a három mag
+ * a sajátjával egyesít. A szabály: csak szöveg a nap és a címke, csak
+ * objektum a másodpercek, csak pozitív JSON-szám a másodperc (az igaz nem
+ * egy), és a kapcsoló csak a valódi `true`-ra igaz.
+ */
+const USAGE_DAYS: unknown[] = [
+  { day: '2026-09-07', seconds: { 'youtube.com': 600, 'reddit.com': 120 } },
+  { day: '2026-09-08', seconds: { 'youtube.com': '600', 'a.com': true, 'b.com': 30, 'c.com': -5, 'd.com': null, 'e.com': [5] } },
+  { day: '2026-09-09', seconds: 'x' },
+  { day: '2026-09-10', seconds: [5] },
+  { day: 5, seconds: { 'youtube.com': 60 } },
+  { seconds: { 'youtube.com': 60 } },
+  null, 'x', 5,
+  { day: '2026-09-07', seconds: { 'youtube.com': 60 } },
+  { day: '2026-09-11', seconds: {} },
+];
+const USAGE_LABELS: unknown[] = [
+  { 'youtube.com': 'YouTube', 'reddit.com': 5, 'b.com': '', 'zz.com': 'Sosem mért' },
+  'x',
+  null,
+];
+const USAGE_ENABLED: unknown[] = [true, false, 'true', 1, null, undefined];
+
+function usageCases(): unknown[] {
+  const out: unknown[] = [];
+  for (const d of USAGE_DAYS) out.push({ days: [USAGE_DAYS[0], d], labels: USAGE_LABELS[0], enabled: true });
+  for (const l of USAGE_LABELS) out.push({ days: [USAGE_DAYS[0]], labels: l, enabled: true });
+  for (const e of USAGE_ENABLED) out.push({ days: [USAGE_DAYS[0]], labels: {}, ...(e === undefined ? {} : { enabled: e }) });
+  out.push({ days: USAGE_DAYS, labels: USAGE_LABELS[0], enabled: true });
+  out.push({ days: 'x', labels: {}, enabled: true });
+  return out;
+}
+
 function buildFixture(): Fixture {
   return {
     note: 'Generálja és őrzi: desktop/test/wire-fixture.test.ts (UPDATE_WIRE_FIXTURE=1 npm test). '
@@ -317,6 +355,10 @@ function buildFixture(): Fixture {
       const text = JSON.stringify(b);
       return { in: text, out: focusKey(normalizeSyncFocus(JSON.parse(text), 'gep')) };
     }),
+    usage: usageCases().map((u) => {
+      const text = JSON.stringify(u);
+      return { in: text, out: usageConformanceKey(combineUsage([JSON.parse(text) as UsageState])) };
+    }),
   };
 }
 
@@ -329,7 +371,8 @@ function render(f: Fixture): string {
   const row = (c: WireCase) => `  {"in":${ascii(c.in)},"out":${ascii(c.out)}}`;
   return `{\n "note": ${ascii(f.note)},\n "version": ${f.version},\n`
     + ` "sites": [\n${f.sites.map(row).join(',\n')}\n ],\n`
-    + ` "focus": [\n${f.focus.map(row).join(',\n')}\n ]\n}\n`;
+    + ` "focus": [\n${f.focus.map(row).join(',\n')}\n ],\n`
+    + ` "usage": [\n${f.usage.map(row).join(',\n')}\n ]\n}\n`;
 }
 
 test('a dróton jött rekordok fixtúrája friss, és egy rossz elem nem viszi a többit', () => {

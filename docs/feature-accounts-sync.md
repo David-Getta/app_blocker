@@ -542,7 +542,8 @@ Amit a tesztek bizonyítanak, és amit másképp nem lehetne:
   magát viszi, nem az ablakot), a kulcsszavak és a megbízott — az iPhone eddig
   egy rossz ablak vagy kulcsszó miatt az összeset eldobta, az Android a
   szövegként írt zárlat-véget is időnek vette, a gép a „540” szöveget és a
-  `null`-t is percnek.
+  `null`-t is percnek. A többi eszköz mérése ugyanígy (lásd
+  `docs/feature-usage-stats.md`).
 
 Egy dolog iPhone-on más: a **napi keret nem érvényesül** (nincs ilyen mérési
 API), de a rekordban MEGŐRIZZÜK. Enélkül elég lenne egyszer megnyitni a

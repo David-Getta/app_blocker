@@ -173,15 +173,20 @@ enum UsageStats {
         // A helyi változók neve SZÁNDÉKOSAN nem a mezőnév: a drótnév-őr a
         // `let/var days:` alakú deklarációt keresi, és egy azonos nevű helyi
         // változó eltakarná a State-tulajdonság átnevezését.
+        // A gép `combineUsage`-a szerint. Elemenként: egy nem objektum nap csak
+        // magát viszi (eddig a `[[String: Any]]`-ra kényszerítés az összeset).
+        // Csak JSON-szám a másodperc: a JSONSerialization az igazat is
+        // NSNumber-ként adja, és a `as? Double` 1-nek vette volna.
         var parsedDays: [Day] = []
-        for raw in obj["days"] as? [[String: Any]] ?? [] {
+        for case let raw as [String: Any] in obj["days"] as? [Any] ?? [] {
             guard let day = raw["day"] as? String,
                   let secs = raw["seconds"] as? [String: Any] else { continue }
             var out: [String: Double] = [:]
             for (k, v) in secs {
-                let num = (v as? Double) ?? (v as? NSNumber)?.doubleValue
-                guard let n = num, n.isFinite, n > 0 else { continue }
-                out[k] = n
+                guard let n = v as? NSNumber, CFGetTypeID(n as CFTypeRef) != CFBooleanGetTypeID() else { continue }
+                let d = n.doubleValue
+                guard d.isFinite, d > 0 else { continue }
+                out[k] = d
             }
             parsedDays.append(Day(day: day, seconds: out))
         }
@@ -189,7 +194,11 @@ enum UsageStats {
         for (k, v) in obj["labels"] as? [String: Any] ?? [:] {
             if let s = v as? String { parsedLabels[k] = s }
         }
-        return State(days: parsedDays, labels: parsedLabels, enabled: obj["enabled"] as? Bool ?? true)
+        // A kapcsoló csak a valódi `true`-ra igaz — a hiánya, az 1 és a „true”
+        // szöveg nem (eddig a hiány igaz volt, az 1 is).
+        let flag = obj["enabled"] as? NSNumber
+        let on = flag.map { CFGetTypeID($0 as CFTypeRef) == CFBooleanGetTypeID() && $0.boolValue } ?? false
+        return State(days: parsedDays, labels: parsedLabels, enabled: on)
     }
 
     // -------------------------------------------------------------- kiírás

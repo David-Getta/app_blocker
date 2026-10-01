@@ -2,6 +2,7 @@ import hu.breaker.app.core.FocusSync
 import hu.breaker.app.core.ScheduleLogic
 import hu.breaker.app.core.SyncClient
 import hu.breaker.app.core.SyncMerge
+import hu.breaker.app.core.UsageLogic
 import org.json.JSONObject
 import java.io.File
 import kotlin.test.Test
@@ -70,6 +71,27 @@ class WireFixtureTest {
             " kw=[${f.keywords.joinToString(",")}] kmark=${f.keywordsRev ?: 0}" +
             " partner=$partner pmark=${f.partnerRev ?: 0}" +
             " hide=${if (f.hideSiteList) 1 else 0} hmark=${f.hideSiteListRev ?: 0}"
+    }
+
+    /** A mérés kulcsa: a napok az egyesített sorrendben, a másodpercek és a címkék rendezve. */
+    private fun usageKey(u: UsageLogic.UsageState): String {
+        val days = u.days.joinToString(";") { d ->
+            d.day + ":{" + d.seconds.toSortedMap().entries.joinToString(",") { "${it.key}=${it.value.toLong()}" } + "}"
+        }
+        val labels = u.labels.toSortedMap().entries.joinToString(",") { "${it.key}=${it.value}" }
+        return "enabled=${if (u.enabled) 1 else 0} days=[$days] labels=[$labels]"
+    }
+
+    @Test fun `egy masik eszkoz meresenek olvasasa ugyanaz, mint a gepen`() {
+        val cases = fixture.getJSONArray("usage")
+        assertTrue(cases.length() > 15, "usage: kevés eset — a fixtúra csonka?")
+        val bad = mutableListOf<String>()
+        for (i in 0 until cases.length()) {
+            val c = cases.getJSONObject(i)
+            val got = usageKey(UsageLogic.combineUsage(listOf(SyncClient.usageFromJson(c.getString("in")))))
+            if (got != c.getString("out")) bad.add("usage #$i: ${c.getString("in")}\n  a gép:   ${c.getString("out")}\n  Android: $got")
+        }
+        assertEquals(emptyList(), bad.take(8), "${bad.size} eltérés")
     }
 
     @Test fun `az oldal-lista olvasasa ugyanaz, mint a gepen - egy rossz rekord nem viszi a tobbit`() {

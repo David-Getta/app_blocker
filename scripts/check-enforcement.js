@@ -2553,6 +2553,19 @@ const WIRES = [
     lost: 'a gép a „540” szöveget és a null-t is percnek venné egy zárlat-ablakban',
   },
 
+  // A TÖBBI ESZKÖZ MÉRÉSE is a gép szabálya szerint: csak pozitív JSON-szám a
+  // másodperc (az igaz nem egy), és egy rossz érték csak magát viszi.
+  {
+    file: 'ios/Shared/UsageStats.swift',
+    needle: 'guard let n = v as? NSNumber, CFGetTypeID(n as CFTypeRef) != CFBooleanGetTypeID() else { continue }',
+    lost: 'az iPhone az igazat 1 másodpercnek venné egy másik eszköz mérésében',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/SyncClient.kt',
+    needle: 'val v = numberOf(so, k) ?: continue',
+    lost: 'az Android a „600” szöveget számnak venné, és egy rossz érték miatt az egész napot eldobná',
+  },
+
   // A MENETREND A DRÓTON: a rosszul formált sáv kiesik, a többi marad, és a
   // gép döntése nem hasalhat el rajta. Ha egy olvasó visszatér a nyers
   // átvételhez vagy a szigorú dekódoláshoz, egy hibás sáv a gépen a döntést,
