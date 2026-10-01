@@ -2453,6 +2453,31 @@ const WIRES = [
     lost: 'az iPhone szinkronja nem hozná le a munkamenetet',
   },
 
+  // A KÖZÖS KERET BLOBJA egy szabállyal olvasódik: csak JSON-szám, ASCII nap,
+  // a plafon fölött a legnagyobbak. Ha egy kliens visszatér a saját
+  // JSON-olvasójához (`optDouble`, `as? Double`), a keret ott más ütemben telik
+  // be — a fixtúra a magot nézi, nem a hívót.
+  {
+    file: 'desktop/src/helper/sync-client.ts',
+    needle: 'parseTodayDigest(decrypt(key, d.payload), d.deviceId)',
+    lost: 'a gép a tömbként érkező másodperceket is elfogadná',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/SyncClient.kt',
+    needle: 'LimitLogic.parseTodayDigest(SyncCrypto.decrypt(key, blob), deviceId)',
+    lost: 'az Android a szövegként írt számot is percnek venné a közös keretben',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/Store.kt',
+    needle: 'LimitLogic.secondsOf(',
+    lost: 'a mentett közös keret a szövegként írt számot is percnek venné',
+  },
+  {
+    file: 'ios/Shared/SyncClient.swift',
+    needle: 'LimitLogic.parseTodayDigest(text, deviceId: deviceId)',
+    lost: 'az iPhone az igaz/hamisat is másodpercnek venné a közös keretben',
+  },
+
   // A PRÓBATÉTEL VÁLASZA — a fejszámolás számának és a memória-kódnak a
   // tisztítása a kimondott, közös szabály szerint, nem a nyelv sajátja szerint.
   // A hibás válasz ára itt nagy (a lánc elölről, új kód): ha egy motor a saját

@@ -951,12 +951,9 @@ object SyncClient {
             val blob = d.optString("payload", "")
             if (blob.isEmpty()) continue
             runCatching {
-                val o = JSONObject(SyncCrypto.decrypt(key, blob))
-                val secs = o.optJSONObject("seconds") ?: JSONObject()
-                val map = secs.keys().asSequence().associateWith { k -> secs.optDouble(k, 0.0) }
                 // Az eszközazonosító a KISZOLGÁLÓTÓL jön, nem a blob belsejéből:
                 // így egy eszköz nem beszélhet a másik nevében.
-                LimitLogic.normalizeTodayDigest(o.optString("day", ""), map, deviceId)
+                LimitLogic.parseTodayDigest(SyncCrypto.decrypt(key, blob), deviceId)
             }.getOrNull()?.let { devices.add(it) }
         }
         return state.copy(sharedToday = LimitLogic.SharedToday(acc.deviceId, devices))

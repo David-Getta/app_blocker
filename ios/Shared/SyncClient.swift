@@ -439,13 +439,8 @@ enum SyncClient {
                   deviceId != acc.deviceId,
                   let blob = row["payload"] as? String, !blob.isEmpty else { continue }
             // Rekordonként tűrünk: egy sérült sor ne vigye el a többi eszközét.
-            guard let text = try? SyncCrypto.decrypt(key, blob),
-                  let obj = (try? JSONSerialization.jsonObject(with: Data(text.utf8)))
-                      as? [String: Any] else { continue }
-            let seconds = (obj["seconds"] as? [String: Any])?.compactMapValues { $0 as? Double }
-            if let d = LimitLogic.normalizeTodayDigest(
-                day: obj["day"] as? String, seconds: seconds, deviceId: deviceId
-            ) {
+            guard let text = try? SyncCrypto.decrypt(key, blob) else { continue }
+            if let d = LimitLogic.parseTodayDigest(text, deviceId: deviceId) {
                 devices.append(d)
             }
         }

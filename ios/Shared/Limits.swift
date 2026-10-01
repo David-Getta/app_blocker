@@ -66,7 +66,9 @@ enum LimitLogic {
             }
             if n > 0 { bySite.append(SiteDays(domain: domain, days: n)) }
         }
-        bySite.sort { $0.days != $1.days ? $0.days > $1.days : $0.domain < $1.domain }
+        // Holtversenyben a domain kódegység (UTF-16) szerint — a gép és az Android
+        // rendje. A Swift `<` a kanonikus alakot hasonlítaná, nem a bájtokat.
+        bySite.sort { $0.days != $1.days ? $0.days > $1.days : utf16Less($0.domain, $1.domain) }
         return FullDays(days: full.count, bySite: bySite)
     }
 
@@ -95,28 +97,72 @@ enum LimitLogic {
         return seconds.isFinite && seconds > 0 ? seconds : 0
     }
 
+    /// Kódegység (UTF-16) szerinti sorrend — a gép (`<` a JS-ben) és az Android
+    /// (`String.compareTo`) rendje.
+    static func utf16Less(_ a: String, _ b: String) -> Bool {
+        a.utf16.lexicographicallyPrecedes(b.utf16)
+    }
+
+    /// Egy célra egy nap legfeljebb egy nap lehet.
+    private static let digestMaxSeconds: Double = 24 * 3600
+
+    /// `YYYY-MM-DD`, CSAK ASCII számjegyekkel. A `Character.isNumber` minden
+    /// írás számjegyét elfogadta volna (arab-indiai, teljes szélességű), a gép
+    /// és az Android nem.
+    static func isDayKey(_ day: String) -> Bool {
+        let u = Array(day.utf8)
+        guard u.count == 10, u[4] == 0x2D, u[7] == 0x2D else { return false }
+        for (i, b) in u.enumerated() where i != 4 && i != 7 {
+            if b < 0x30 || b > 0x39 { return false }
+        }
+        return true
+    }
+
     /// Amit a kiszolgálóról kaptunk -> használható összegzés, vagy nil.
     ///
     /// A `deviceId` KÍVÜLRŐL jön (a kiszolgáló mondja meg, kié a sor), nem a
     /// blob belsejéből: különben egy eszköz a másik nevében beszélhetne, és a
     /// saját sorunk kihagyása nem érne semmit.
+    ///
+    /// A szabály a gépé (limits.ts), kimondva: ASCII nap; a másodperc
+    /// kerekítve, egy napra vágva, és csak ha így is pozitív; a plafon fölött a
+    /// LEGNAGYOBBAK maradnak, holtversenyben a kulcs kódegység szerint. A közös
+    /// fixtúra (fixtures/limit-cases.json) kimondja.
     static func normalizeTodayDigest(
         day: String?, seconds: [String: Double]?, deviceId: String
     ) -> TodayDigest? {
-        guard let day = day, day.count == 10 else { return nil }
-        let parts = day.split(separator: "-", omittingEmptySubsequences: false)
-        guard parts.count == 3, parts[0].count == 4, parts[1].count == 2, parts[2].count == 2,
-              parts.allSatisfy({ $0.allSatisfy { $0.isNumber } }) else { return nil }
-
-        var out: [String: Double] = [:]
-        for (k, v) in (seconds ?? [:]).sorted(by: { $0.key < $1.key }) {
-            if out.count >= maxDigestTargets { break }
-            guard !k.isEmpty, v.isFinite, v > 0 else { continue }
+        guard let day = day, isDayKey(day) else { return nil }
+        var valid: [(key: String, seconds: Double)] = []
+        for (k, v) in seconds ?? [:] {
+            guard !k.isEmpty, v.isFinite else { continue }
             // Egy nap egy célra legfeljebb egy nap lehet. Ennél nagyobb szám nem
             // mérésből származik, és az egész keretet azonnal elégetné.
-            out[k] = min(v.rounded(), 24 * 3600)
+            let s = min(v.rounded(.toNearestOrAwayFromZero), digestMaxSeconds)
+            if s > 0 { valid.append((k, s)) }
         }
+        valid.sort { $0.seconds != $1.seconds ? $0.seconds > $1.seconds : utf16Less($0.key, $1.key) }
+        var out: [String: Double] = [:]
+        for e in valid.prefix(maxDigestTargets) { out[e.key] = e.seconds }
         return TodayDigest(deviceId: deviceId, day: day, seconds: out)
+    }
+
+    /// A `seconds` objektum számai — CSAK a JSON-számok. Az `as? Double` az
+    /// igaz/hamisat is számnak vette volna (a JSON-olvasó NSNumber-ként adja), a
+    /// gép nem.
+    static func secondsOf(_ raw: Any?) -> [String: Double] {
+        guard let dict = raw as? [String: Any] else { return [:] }
+        var out: [String: Double] = [:]
+        for (k, v) in dict {
+            guard let n = v as? NSNumber, CFGetTypeID(n as CFTypeRef) != CFBooleanGetTypeID() else { continue }
+            out[k] = n.doubleValue
+        }
+        return out
+    }
+
+    /// A visszafejtett blob SZÖVEGE -> összegzés, vagy nil (a hibás JSON is nil).
+    static func parseTodayDigest(_ text: String, deviceId: String) -> TodayDigest? {
+        guard let obj = (try? JSONSerialization.jsonObject(with: Data(text.utf8))) as? [String: Any] else { return nil }
+        return normalizeTodayDigest(day: obj["day"] as? String, seconds: secondsOf(obj["seconds"]), deviceId: deviceId)
     }
 
     /// A TÖBBI eszköz mai másodpercei egy oldalra.

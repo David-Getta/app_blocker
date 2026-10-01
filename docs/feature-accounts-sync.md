@@ -499,6 +499,19 @@ Amit a tesztek bizonyítanak, és amit másképp nem lehetne:
   az első tesztje; az első írása két eltérést igazított: az iPhone a
   helyreállító kódot grafémánként szűrte, és a jelszó hosszát a három mag
   három mércével mérte — most kódpontban, NFKC után, mindhárom.
+- **a közös keret blobja is megfelelőségi próbán megy át.** A
+  `fixtures/limit-cases.json` (írja `desktop/test/limit-fixture.test.ts`,
+  `UPDATE_LIMIT_FIXTURE=1 npm test`) a dróton jövő mai összegzést a blob
+  SZÖVEGÉBŐL olvastatja mindhárom maggal (`parseTodayDigest`): a blob alakja
+  (nem objektum, hibás JSON, tömbként érkező másodpercek), a nap (ASCII
+  számjegy, szóköz és sorvég a szélén, arab-indiai és teljes szélességű
+  számjegy), a szám élei (kerekítés a felénél, egy napra vágás, negatív, nulla,
+  kitevős alak) és ami nem szám (szöveg, igaz/hamis, null, objektum), a kulcsok
+  (üres, `__proto__`, ékezet, emodzsi), és a 200-as plafon fölötti vágás sok
+  holtversennyel. Mellette a keret betelt napjai és sora, a „ma még N perc”, a
+  lazítás, a hátralévő, és a döntés a többi eszköz percével — UTC-ben. A Kotlin
+  (`LimitFixtureTest`) és a Swift (`LimitFixtureTests`) ugyanezt játssza
+  vissza.
 
 Egy dolog iPhone-on más: a **napi keret nem érvényesül** (nincs ilyen mérési
 API), de a rekordban MEGŐRIZZÜK. Enélkül elég lenne egyszer megnyitni a

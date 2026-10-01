@@ -42,9 +42,13 @@ export function usedTodaySeconds(usage: UsageState, domain: string, now: number)
 export function isLimitExhausted(
   site: Limitable, usage: UsageState, now: number, shared?: SharedToday | null,
 ): boolean {
-  const limit = site.dailyLimitSeconds;
-  if (!Number.isFinite(limit) || (limit as number) <= 0) return false;
-  return usedTodayEverywhere(usage, shared, site.domain, now) >= (limit as number);
+  // Ugyanaz a mérce, mint a lazítás-kérdésnél és a két telefonon: a keret
+  // kerekítve, egy napra vágva. A nyers szám egy napnál nagyobb keretet is
+  // komolyan vett volna — több eszköz összeadott ideje mellett az a telefonon
+  // már zárt, a gépen még nem.
+  const limit = normalizeLimit(site.dailyLimitSeconds);
+  if (limit === null) return false;
+  return usedTodayEverywhere(usage, shared, site.domain, now) >= limit;
 }
 
 /**
@@ -200,30 +204,56 @@ export function makeTodayDigest(usage: UsageState, deviceId: string, now: number
   return { deviceId, day, seconds };
 }
 
+/** Egy célra egy nap legfeljebb egy nap lehet. */
+const DIGEST_MAX_SECONDS = 24 * 3600;
+
 /**
  * Amit a kiszolgálóról kaptunk -> használható összegzés, vagy null.
  *
  * A `deviceId` KÍVÜLRŐL jön (a kiszolgáló mondja meg, kié a sor), nem a blob
  * belsejéből: különben egy eszköz a másik nevében beszélhetne, és a saját
  * sorunkat is kihagyhatatlanná tehetné.
+ *
+ * A SZABÁLY KIMONDVA, mert három mag olvassa ugyanazt a blobot: a nap
+ * `YYYY-MM-DD` ASCII számjegyekkel; a másodperc csak JSON-SZÁM lehet (nem
+ * szöveg, nem igaz/hamis, nem null), kerekítve, egy napra vágva, és csak ha
+ * így is pozitív; a `seconds` csak objektum lehet (tömb nem). Ha több cél jön,
+ * mint a plafon, a LEGNAGYOBBAK maradnak, holtversenyben a kulcs kódegység
+ * szerint — nem a beérkezés sorrendje, mert azt a három JSON-olvasó nem
+ * egyformán őrzi meg. A legnagyobbak megtartása a szigorúbb irány: a keret
+ * hamarabb fogy, nem később. A közös fixtúra (fixtures/limit-cases.json)
+ * kimondja; eddig a gép a tömböt, az Android a szövegként írt számot, az
+ * iPhone az igaz/hamisat is elfogadta.
  */
 export function normalizeTodayDigest(parsed: unknown, deviceId: string): TodayDigest | null {
-  if (!parsed || typeof parsed !== 'object') return null;
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
   const raw = parsed as Partial<TodayDigest>;
-  if (typeof raw.day !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(raw.day)) return null;
-  const seconds: Record<string, number> = {};
-  const src = raw.seconds && typeof raw.seconds === 'object' ? raw.seconds : {};
-  let kept = 0;
+  if (typeof raw.day !== 'string' || !/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(raw.day)) return null;
+  const src = raw.seconds && typeof raw.seconds === 'object' && !Array.isArray(raw.seconds) ? raw.seconds : {};
+  const valid: [string, number][] = [];
   for (const [k, v] of Object.entries(src)) {
-    if (kept >= MAX_DIGEST_TARGETS) break;
-    if (typeof k !== 'string' || k === '') continue;
-    if (typeof v !== 'number' || !Number.isFinite(v) || v <= 0) continue;
+    if (k === '' || typeof v !== 'number' || !Number.isFinite(v)) continue;
     // Egy nap egy célra legfeljebb egy nap lehet. Ennél nagyobb szám nem
     // mérésből származik, és az egész keretet azonnal elégetné.
-    seconds[k] = Math.min(Math.round(v), 24 * 3600);
-    kept++;
+    const s = Math.min(Math.round(v), DIGEST_MAX_SECONDS);
+    if (s > 0) valid.push([k, s]);
   }
+  valid.sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+  // `fromEntries`, nem értékadás: a `__proto__` kulcs értékadással a prototípust
+  // írná át, és a sor csendben eltűnne — a két telefon megtartja.
+  const seconds: Record<string, number> = Object.fromEntries(valid.slice(0, MAX_DIGEST_TARGETS));
   return { deviceId, day: raw.day, seconds };
+}
+
+/** A visszafejtett blob SZÖVEGE -> összegzés, vagy null (a hibás JSON is null, nem kivétel). */
+export function parseTodayDigest(text: string, deviceId: string): TodayDigest | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    return null;
+  }
+  return normalizeTodayDigest(parsed, deviceId);
 }
 
 /**
@@ -284,7 +314,11 @@ export function limitFullDays(usage: UsageState, sites: Limitable[], now: number
     }
     if (n > 0) bySite.push({ domain: site.domain, days: n });
   }
-  bySite.sort((a, b) => b.days - a.days || a.domain.localeCompare(b.domain));
+  // Holtversenyben a domain KÓDEGYSÉG szerint — nem `localeCompare`: az a gép
+  // nyelvi beállítását követi (magyarul a „cz.hu” a „csak.hu” elé kerül, mert
+  // a „cs” külön betű), a két telefon pedig kódegység szerint rendez. Ugyanaz
+  // a hét ugyanazt a sort mondja minden eszközön.
+  bySite.sort((a, b) => b.days - a.days || (a.domain < b.domain ? -1 : a.domain > b.domain ? 1 : 0));
   return { days: full.size, bySite };
 }
 

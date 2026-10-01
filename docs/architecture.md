@@ -184,8 +184,14 @@ szabályok és a mérés-célok korlátja, mert egy eltérő plafon nem hibaüze
 hanem nem konvergáló szinkron), és elhasal, ha bármelyik eltér. Enélkül egy nehézségi paraméter átírása a
 desktopon csendben elcsúszhatna a másik kettőtől: ugyanaz az app, két
 különböző szigorúsággal, hibaüzenet nélkül. A szkript szándékosan nem másolja
-be az értékeket — akkor ugyanaz a csúszás történne, csak eggyel odébb. A Kotlin
-mag és a bitszintű DNS-motor JVM-en unit-tesztelt.
+be az értékeket — akkor ugyanaz a csúszás történne, csak eggyel odébb. A
+közös magban a nyelvfüggő hívás is tilos (`localeCompare`, a Java
+`toLowerCase()`-e, a Swift `localized…` hívásai): a rendezés a gép nyelvét
+követné — magyar beállításon a „cz.hu” a „csak.hu” elé kerül —, a többi
+eszközét nem. Az őrnek volt egy saját vakfoltja is: a két telefon közötti párok
+és feliratok a kilépés UTÁN gyűltek, és sosem buktattak; most a kilépés az
+összes ellenőrzés mögött áll, és egy beágyazott zárójeles Swift-behelyettesítés
+sem téveszti meg. A Kotlin mag és a bitszintű DNS-motor JVM-en unit-tesztelt.
 
 A számok mellett a **dróton menő MEZŐNEVEK** is őrizve vannak
 (`scripts/check-wire-names.js`): a szinkron JSON-t cserél, és egy átnevezés az
@@ -325,7 +331,20 @@ elölről, új kód), és három motor olvasta a beírást a maga nyelvén: a g�
 számnak, az iPhone a sorvéget nem vágta a kód mellől és az NFD átgépelést is
 elfogadta — most a szabály kimondva (szóköz ki a közös készlet szerint,
 előjel, csak ASCII számjegy; a kód szélei ugyanazzal a készlettel; a szöveg
-kódpontra pontos), mindhárom motorban, a hívót az érvényesítés-őr nézi.
+kódpontra pontos), mindhárom motorban, a hívót az érvényesítés-őr nézi. A
+réteg hetedik fájlja a NAPI KERETÉ (`fixtures/limit-cases.json`, írja
+`desktop/test/limit-fixture.test.ts`, visszajátssza a Kotlin `LimitFixtureTest`
+és a Swift `LimitFixtureTests`, UTC-ben): a dróton jövő mai összegzés a blob
+szövegéből — ezt a három kliens a saját JSON-olvasójával olvasta, és
+mindhárom másban engedett (a gép a tömböt, az Android a szövegként írt
+számot, az iPhone az igaz/hamisat), a 200-as plafon fölött pedig mindhárom
+más sorrendben vágott; most egy szabály (`parseTodayDigest`: csak szám, ASCII
+nap, kerekítés után pozitív, a legnagyobbak maradnak, holtversenyben a kulcs)
+—, a keret betelt napjai és a sora (holtversenyben kódegység; a gép
+`localeCompare`-je a nyelvi beállítást követte), a „ma még N perc” sor, a
+lazítás, a hátralévő, és hogy kimerült-e a keret a többi eszköz percével (a
+gép itt a nyers keretet nézte, egy napnál nagyobbat vágás nélkül; most a
+közös `normalizeLimit`-et, mint a két telefon).
 
 ## Biztonsági modell és őszinte korlátok
 

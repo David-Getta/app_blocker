@@ -626,17 +626,12 @@ if (SPACE_LISTS.some((l) => !l || l.length === 0)) {
   );
 }
 
-if (problems.length) {
-  console.error('A három mag szétcsúszott:\n');
-  for (const p of problems) console.error('  ' + p + '\n');
-  console.error('A TypeScript a referencia (desktop/src/shared) — ahhoz kell igazítani a másik kettőt.');
-  process.exit(1);
-}
-
 const PHONE_LANGS = ['Kotlin', 'Swift'];
 for (const [name, kotlinLabel, swiftLabel] of PHONE_LABELS) {
   // A két nyelv a behelyettesítést másképp írja ($hour / \(hour)); a váz ugyanaz kell legyen.
-  const norm = (t) => (t || '').replace(/\$\{[^}]+\}|\$[a-z]+|\\\([^)]*\)/g, '#');
+  // A Swift-behelyettesítésben zárójel is lehet (`\((hour + 1) % 24)`): egy
+  // szintnyi beágyazást elfogadunk, különben a minta az első `)`-nél megállna.
+  const norm = (t) => (t || '').replace(/\$\{[^}]+\}|\$[a-z]+|\\\((?:[^()]|\([^()]*\))*\)/g, '#');
   if (!kotlinLabel || !swiftLabel) {
     problems.push(`${name}: nem található — a minta elavult vagy a felirat eltűnt`);
   } else if (norm(kotlinLabel) !== norm(swiftLabel)) {
@@ -659,4 +654,52 @@ for (const [name, ...values] of PHONE_PAIRS) {
   }
 }
 
-console.log(`mag-szinkron OK (${CHECKS.length + ALPHABETS.length} érték egyezik mindhárom nyelven, ${PAIRS.length} a gép és az Android között, ${PHONE_PAIRS.length} a két telefon között, ${EXT_PAIRS.length} a gép és a bővítmény között)`);
+// A KÖZÖS MAG NEM RENDEZ A GÉP NYELVI BEÁLLÍTÁSA SZERINT.
+//
+// A `localeCompare` a futtató gép nyelvét követi: magyar beállításon a „cs”,
+// a „ny”, a „sz” külön betű, tehát a „cz.hu” a „csak.hu” elé kerül — a két
+// telefon kódegység szerint rendez, és ugyanaz a hét két eszközön két sort
+// mondott. A Java `toLowerCase()`-e ugyanígy nyelvfüggő (a török i), a Swift
+// `localized…` hívásai is. A magban ezek tilosak; a felület (renderer,
+// bővítmény-beállítások) rendezhet nyelv szerint, mert az nem utazik.
+const LOCALE_BANS = [
+  { dir: 'desktop/src/shared', ext: '.ts', needles: ['localeCompare(', 'Intl.Collator', 'toLocaleLowerCase(', 'toLocaleUpperCase('] },
+  { dir: 'android/app/src/main/java/hu/breaker/app/core', ext: '.kt', needles: ['.toLowerCase()', '.toUpperCase()', 'Collator', 'CASE_INSENSITIVE_ORDER'] },
+  { dir: 'ios/Shared', ext: '.swift', needles: ['localizedCompare', 'localizedStandardCompare', 'caseInsensitiveCompare', 'localizedLowercase', 'localizedUppercase', 'lowercased(with:', 'uppercased(with:'] },
+];
+function walk(dir, ext) {
+  const out = [];
+  for (const e of fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true })) {
+    const rel = path.join(dir, e.name);
+    if (e.isDirectory()) out.push(...walk(rel, ext));
+    else if (e.name.endsWith(ext)) out.push(rel);
+  }
+  return out;
+}
+let localeFiles = 0;
+for (const ban of LOCALE_BANS) {
+  for (const rel of walk(ban.dir, ban.ext)) {
+    localeFiles++;
+    const lines = fs.readFileSync(path.join(ROOT, rel), 'utf8').split('\n');
+    lines.forEach((line, i) => {
+      const t = line.trim();
+      if (t.startsWith('//') || t.startsWith('*') || t.startsWith('/*')) return;
+      for (const n of ban.needles) {
+        if (line.includes(n)) problems.push(`${rel}:${i + 1}: nyelvfüggő hívás a közös magban (${n}) — a rendezés és a kisbetű a gép nyelvét követné, a többi eszközét nem`);
+      }
+    });
+  }
+}
+
+// A kilépés az ÖSSZES ellenőrzés után áll. Korábban a két telefon közötti
+// párok és feliratok a kilépés után gyűltek, és sosem buktattak — egy
+// elnyelt eltérés rosszabb, mint egy hiányzó ellenőrzés, mert biztonságot
+// mutat, amit nem ad.
+if (problems.length) {
+  console.error('A három mag szétcsúszott:\n');
+  for (const p of problems) console.error('  ' + p + '\n');
+  console.error('A TypeScript a referencia (desktop/src/shared) — ahhoz kell igazítani a másik kettőt.');
+  process.exit(1);
+}
+
+console.log(`mag-szinkron OK (${CHECKS.length + ALPHABETS.length} érték egyezik mindhárom nyelven, ${PAIRS.length} a gép és az Android között, ${PHONE_PAIRS.length} a két telefon között, ${EXT_PAIRS.length} a gép és a bővítmény között; ${localeFiles} magfájl nyelvfüggő hívás nélkül)`);

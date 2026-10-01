@@ -520,7 +520,9 @@ export function combineUsage(states: UsageState[]): UsageState {
 
   return {
     // A napok rendezve, mert a `series` és a diagramok sorrendet feltételeznek.
-    days: [...byDay.entries()].sort((a, b) => a[0].localeCompare(b[0]))
+    // Kódegység szerint, nem `localeCompare`-rel: a mag nem rendez a gép nyelvi
+    // beállítása szerint (a check-core-sync őrzi).
+    days: [...byDay.entries()].sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0))
       .map(([day, seconds]) => ({ day, seconds })),
     labels,
     // Ha BÁRMELYIK eszköz mér, az összesített szám valódi. A helyi kapcsoló

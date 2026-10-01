@@ -161,26 +161,61 @@ object LimitLogic {
         return TodayDigest(deviceId, day, seconds)
     }
 
+    /** Egy célra egy nap legfeljebb egy nap lehet. */
+    private const val DIGEST_MAX_SECONDS = 24.0 * 3600.0
+
+    private val DAY_KEY = Regex("^[0-9]{4}-[0-9]{2}-[0-9]{2}$")
+
     /**
      * Amit a kiszolgálóról kaptunk -> használható összegzés, vagy null.
      *
      * A `deviceId` KÍVÜLRŐL jön (a kiszolgáló mondja meg, kié a sor), nem a
      * blob belsejéből: különben egy eszköz a másik nevében beszélhetne, és a
      * saját sorunkat is kihagyhatatlanná tehetné.
+     *
+     * A szabály a gépé (limits.ts), kimondva: a nap `YYYY-MM-DD` ASCII
+     * számjegyekkel; a másodperc kerekítve, egy napra vágva, és csak ha így is
+     * pozitív; a plafon fölött a LEGNAGYOBBAK maradnak, holtversenyben a kulcs
+     * kódegység szerint — nem a beérkezés sorrendje, mert azt a JSON-olvasó
+     * nem őrzi meg. A közös fixtúra (fixtures/limit-cases.json) kimondja.
      */
     fun normalizeTodayDigest(
         day: String?, seconds: Map<String, Double>?, deviceId: String,
     ): TodayDigest? {
-        if (day == null || !Regex("""^\d{4}-\d{2}-\d{2}$""").matches(day)) return null
-        val out = LinkedHashMap<String, Double>()
+        if (day == null || !DAY_KEY.matches(day)) return null
+        val valid = ArrayList<Pair<String, Double>>()
         for ((k, v) in seconds.orEmpty()) {
-            if (out.size >= MAX_DIGEST_TARGETS) break
-            if (k.isEmpty() || !v.isFinite() || v <= 0) continue
+            if (k.isEmpty() || !v.isFinite()) continue
             // Egy nap egy célra legfeljebb egy nap lehet. Ennél nagyobb szám nem
             // mérésből származik, és az egész keretet azonnal elégetné.
-            out[k] = minOf(Math.round(v).toDouble(), 24.0 * 3600.0)
+            val s = minOf(Math.round(v).toDouble(), DIGEST_MAX_SECONDS)
+            if (s > 0) valid.add(k to s)
         }
+        val out = LinkedHashMap<String, Double>()
+        valid.sortedWith(compareByDescending<Pair<String, Double>> { it.second }.thenBy { it.first })
+            .take(MAX_DIGEST_TARGETS)
+            .forEach { (k, s) -> out[k] = s }
         return TodayDigest(deviceId, day, out)
+    }
+
+    /**
+     * A `seconds` objektum számai — CSAK a JSON-számok. Az `optDouble` a
+     * szövegként írt számot is elfogadta volna („120”), a gép nem.
+     */
+    fun secondsOf(o: org.json.JSONObject?): Map<String, Double> {
+        if (o == null) return emptyMap()
+        val out = LinkedHashMap<String, Double>()
+        for (k in o.keys()) {
+            val v = o.opt(k)
+            if (v is Number) out[k] = v.toDouble()
+        }
+        return out
+    }
+
+    /** A visszafejtett blob SZÖVEGE -> összegzés, vagy null (a hibás JSON is null, nem kivétel). */
+    fun parseTodayDigest(text: String, deviceId: String): TodayDigest? {
+        val o = runCatching { org.json.JSONObject(text) }.getOrNull() ?: return null
+        return normalizeTodayDigest(o.opt("day") as? String, secondsOf(o.optJSONObject("seconds")), deviceId)
     }
 
     /**

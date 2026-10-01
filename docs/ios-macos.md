@@ -137,4 +137,8 @@ skalárban számol, nem grafémában, ahogy a gép. És a próbatétel válaszá
 (`ChallengeFixtureTests`, a `fixtures/challenge-cases.json` ellen): ugyanaz a
 beírás ugyanúgy számít — a kód mellől a sorvég is lejön, a fejszámolás száma a
 közös szabály szerint olvasódik, az átgépelés skalárra pontos (a Swift `==` az
-NFD alakot is elfogadta volna).
+NFD alakot is elfogadta volna). És a napi keretté (`LimitFixtureTests`, a
+`fixtures/limit-cases.json` ellen, UTC-ben): az iPhone nem mér, de a keret itt
+is a többi eszköz percéből érvényesül — a dróton jövő összegzést most a gép
+szabálya szerint olvassa (az igaz/hamis nem szám, a nap csak ASCII
+számjegy), és a betelt napok holtversenye kódegység szerint áll.

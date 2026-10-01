@@ -36,7 +36,7 @@ import {
   emptyChannels, mergeChannels, normalizeSyncChannels, sameChannels, type SyncChannels,
 } from '../shared/sync/channels-merge.js';
 import { closeRun, isWindowRun, MAX_FOCUS_LOG, type FocusRun } from '../shared/focus.js';
-import { makeTodayDigest, normalizeTodayDigest, type TodayDigest } from '../shared/limits.js';
+import { makeTodayDigest, parseTodayDigest, type TodayDigest } from '../shared/limits.js';
 
 /** Ennél tovább egy szinkron-kör nem tarthat; a segéd nem állhat meg miatta. */
 export const SYNC_TIMEOUT_MS = 15_000;
@@ -510,10 +510,10 @@ export async function syncToday(state: HelperState, now: number): Promise<number
     // közös keret feleakkora lenne, mint amit a felhasználó beállított.
     if (!d || typeof d.deviceId !== 'string' || d.deviceId === acc.deviceId) continue;
     try {
-      const parsed = d.payload ? JSON.parse(decrypt(key, d.payload)) : null;
+      if (!d.payload) continue;
       // Az eszközazonosító a KISZOLGÁLÓTÓL jön, nem a blob belsejéből: így egy
       // eszköz nem beszélhet a másik nevében.
-      const norm = normalizeTodayDigest(parsed, d.deviceId);
+      const norm = parseTodayDigest(decrypt(key, d.payload), d.deviceId);
       if (norm) devices.push(norm);
     } catch { /* egy sérült sor ne vigye el a többi eszközét */ }
   }

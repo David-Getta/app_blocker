@@ -249,6 +249,27 @@ Két apróság, ami a tervben még nem volt kimondva, de a megvalósításnál k
   keret” két különböző dolog, és a tárolt `null` nem tudná megkülönböztetni
   őket a „nem változik” esettől.
 
+**A blob egy szabállyal olvasódik, mindhárom eszközön.** A mai összegzést a
+gép, az Android és az iPhone is lehozza, és mindegyik a saját JSON-olvasójával
+olvasta: a gép a tömbként érkező `seconds`-t is elfogadta, az Android a
+szövegként írt számot („120”), az iPhone az igaz/hamisat (a JSON-olvasó
+NSNumber-ként adja), és a 200-as plafon fölött mindhárom más sorrendben vágott
+— a gép a beérkezés, az iPhone a kulcs, az Android a hash-tábla rendjében.
+Ugyanabból a blobból így három különböző közös keret lehetett. Most a szabály a
+magban áll (`parseTodayDigest`, a három nyelven ugyanígy): a nap `YYYY-MM-DD`
+ASCII számjegyekkel; a másodperc csak JSON-szám, kerekítve, egy napra vágva,
+és csak ha így is pozitív; a plafon fölött a LEGNAGYOBBAK maradnak (a
+szigorúbb irány), holtversenyben a kulcs kódegység szerint. A
+`fixtures/limit-cases.json` kimondja; egy őszinte korlát: az Android
+JSON-olvasója a hibás JSON-t engedékenyebben olvassa (idézőjel nélküli kulcs),
+ezt a fixtúra nem fedi — a mi küldőink csak szabályos JSON-t írnak.
+
+A döntés is egy mércével megy: a gép a nyers keretet nézte, a két telefon a
+kerekített, egy napra vágott alakot. Egy napnál nagyobb keretnél (amit a
+felület nem enged, de a dróton állhat) a telefon a több eszköz összeadott
+ideje mellett már zárt, a gép még nem; most a gép is a közös `normalizeLimit`
+szerint dönt — ez csak szigorít.
+
 ## A keret betelt napjai (tükör)
 
 A statisztika és a heti mondat kimondja, hány napon érte el a mért idő a napi
@@ -258,7 +279,10 @@ készüléken mérve (a múlt napokra csak a helyi mérés van; a többi eszköz
 összegzése nem marad meg napokra). iPhone-on nincs mérés, ezért ott nincs sor
 — a mag ott is ugyanazt számolja (`LimitLogic.limitFullDays`), csupa nullát.
 Tükör, nem ítélet: azt mutatja, dolgozik-e a keret — vagy túl bő, és sosem
-telik be. A heti mondat rövidebben: „A napi keret 3 napon betelt.” Nulla nap
+telik be. Holtversenyben a domain kódegység szerint áll: a gép eddig
+`localeCompare`-rel rendezett, ami a gép nyelvét követi — magyar beállításon a
+„cs” és a „ny” külön betű, a „cz.hu” a „csak.hu”, a „nz.com” a „nyugat.hu” elé
+került, a telefonon fordítva. A heti mondat rövidebben: „A napi keret 3 napon betelt.” Nulla nap
 nem mondat. A keret sora az oldal mellett is mondja (gép: „Napi keret: 15 p /
 20 p · a héten 2 napon betelt”; Android: külön sor alatta), a segéd
 oldalanként számolja (`limitFullDays7d` a státuszban).

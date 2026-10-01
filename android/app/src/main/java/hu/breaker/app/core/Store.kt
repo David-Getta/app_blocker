@@ -979,10 +979,9 @@ object BreakerStore {
                 val arr = sh.optJSONArray("devices") ?: JSONArray()
                 val devices = (0 until arr.length()).mapNotNull { i ->
                     val d = arr.getJSONObject(i)
-                    val secs = d.optJSONObject("seconds") ?: JSONObject()
-                    val map = secs.keys().asSequence().associateWith { k -> secs.optDouble(k, 0.0) }
                     LimitLogic.normalizeTodayDigest(
-                        d.optString("day", ""), map, d.optString("deviceId", ""),
+                        d.opt("day") as? String, LimitLogic.secondsOf(d.optJSONObject("seconds")),
+                        d.optString("deviceId", ""),
                     )
                 }
                 LimitLogic.SharedToday(sh.getString("selfDeviceId"), devices)
