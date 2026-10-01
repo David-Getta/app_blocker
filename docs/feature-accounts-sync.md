@@ -279,7 +279,10 @@ fedőneveket és a mért időket nem.
 A jelszóra van egy **alsó hosszkorlát: 10 karakter**, és ez nem formaság. A
 jelszó itt nem egy weboldal belépője: ez tartja a kulcsot, ami az adatot nyitja.
 Aki a kiszolgálóra betör, offline próbálkozhat vele, korlátlanul — ott már csak
-az scrypt lassúsága és a jelszó hossza védi.
+az scrypt lassúsága és a jelszó hossza védi. A karakter itt kódpont, NFKC
+után — ugyanaz a mérce mindhárom magban, és a közös fixtúra kimondja: egy
+emodzsi egy, egy zászló kettő, mindenhol. (A gép UTF-16 egységben mért, az
+iPhone grafémában: öt emodzsi a gépen átment, öt zászló az iPhone-on elbukott.)
 
 Ennek az ára őszintén: **elfelejtett jelszó = elveszett szinkron-adat**. Ezért a
 regisztrációnál kapsz egy **helyreállító kódot**, ami ugyanazt az adatkulcsot
@@ -339,7 +342,9 @@ Amit a tesztek bizonyítanak, és amit másképp nem lehetne:
 - az Android mag kibontja azokat a burkolatokat, amiket a **valódi asztali kód**
   gyártott, és ugyanazt a belépőkulcsot állítja elő. Ezek az értékek nincsenek a
   tesztben kiszámolva, csak bemásolva — ha bármi elcsúszik (kulcsszármaztatás,
-  HKDF-címke, blob-formátum, base64), a burkolat nem nyílik ki;
+  HKDF-címke, blob-formátum, base64), a burkolat nem nyílik ki — és ugyanezt
+  mondja a közös titkosítás-fixtúra hat fiókra, mindhárom magon (lásd
+  lejjebb);
 - az Android kliens a **valódi kiszolgálóval** fut végig (gyerekfolyamatként
   indított `server/server.js`): két eszköz, egyesített lista, helyben maradó
   szünet, kijelentkezés után is megmaradó blokkok;
@@ -471,6 +476,29 @@ Amit a tesztek bizonyítanak, és amit másképp nem lehetne:
   meg), azt a visszajátszók a gépére írják át a hasonlítás előtt. A számok a
   szinkronon utaznak; ha a három mondat eltérne, a felhasználó ugyanarról a
   hétről három mondatot kapna.
+- **a titkosítás is megfelelőségi próbán megy át — a gép burkol, a telefon
+  nyit.** A `fixtures/crypto-cases.json` (írja
+  `desktop/test/crypto-fixture.test.ts`, `UPDATE_CRYPTO_FIXTURE=1 npm test`)
+  a gép valódi kódjával készül: scrypt-vektorok (az RFC kettője), hat fiók
+  jelszava és fiókazonosítója, a belőlük származó belépőkulcs, a jelszóval és
+  a helyreállító kóddal burkolt adatkulcs, a helyreállító kód kézzel írt
+  alakja (kisbetű, szóköz, O a 0 és l az 1 helyett), a gép blobjai és amit nem
+  szabad kinyitni — más előtag, csonka, rossz méretű IV és címke, babrált
+  titkos és címke, üres titkos, más kulcs. A jelszavak a buktatók: ékezet két
+  alakban (NFC és NFD — ugyanaz a kulcs), emodzsi, teljes szélességű betű és
+  ligatúra (NFKC után a sima alak — ugyanaz a kulcs), szóköz a szélen (a
+  jelszó része; a levágott alak MÁS jelszó), vegyes írás. Mellette a
+  helyreállító kód tiszta alakja a buktató jelekre (ß, pont nélküli i,
+  ligatúra, különálló ékezet, teljes szélességű betű, emodzsi) és a jelszó
+  hossza a korlát két oldalán. A Kotlin (`CryptoFixtureTest`) és a Swift
+  (`CryptoFixtureTests`) ugyanezt játssza vissza: egy scrypt fiókonként, és a
+  belépőkulcsnak bájtra egyeznie kell, a burkolatnak ki kell nyílnia, a
+  blobnak ugyanazt kell adnia, a babráltnak dobnia. A blobok IV-je itt
+  rögzített magú (a fájl kétszer ugyanaz), a termék titkosítója véletlent húz
+  — ezt a három teszt külön nézi. A Swift titkosításának és scryptjének ez
+  az első tesztje; az első írása két eltérést igazított: az iPhone a
+  helyreállító kódot grafémánként szűrte, és a jelszó hosszát a három mag
+  három mércével mérte — most kódpontban, NFKC után, mindhárom.
 
 Egy dolog iPhone-on más: a **napi keret nem érvényesül** (nincs ilyen mérési
 API), de a rekordban MEGŐRIZZÜK. Enélkül elég lenne egyszer megnyitni a

@@ -291,7 +291,28 @@ egy hét számaiból a három mag ugyanazt a hétfő reggeli mondatot írja — 
 trend kerekítése, a menetek, a sorozat, a csúcs-óra és a menet-óra, a
 feloldások, a keret, az adag, a megakadások, a nem tiltott idővivő —, egy
 kimondott szót leszámítva: a megakadás szava a platformé (a gépen a
-böngésző, a telefonon a szűrő), azt a visszajátszók a gépére írják át.
+böngésző, a telefonon a szűrő), azt a visszajátszók a gépére írják át. A
+réteg ötödik fájlja a SZINKRON TITKOSÍTÁSÁÉ (`fixtures/crypto-cases.json`,
+írja `desktop/test/crypto-fixture.test.ts`, visszajátssza a Kotlin
+`CryptoFixtureTest` és a Swift `CryptoFixtureTests`): a gép burkol és
+titkosít, a telefon nyit — scrypt-vektorok (az RFC kettője, és a mi
+paramétereink a fiókokon át), a jelszóból származó belépőkulcs és a vele
+burkolt adatkulcs hat fiókra (ékezet két alakban, NFC és NFD; emodzsi;
+teljes szélességű betű, ligatúra és bekarikázott számjegy, ami NFKC után a
+sima alak; szóköz a szélen, ami a jelszó része; vegyes írás), a helyreállító
+kód tiszta alakja a kézzel írt és a buktató alakokra, a jelszó hossza a
+korlát két oldalán, a gép blobjai (üres, ékezetes, emodzsis, hosszú, a
+szabványos base64-ábécével is), és amit nem szabad kinyitni (más előtag,
+csonka, rossz méretű IV és címke, babrált titkos és címke, üres titkos, más
+kulcs). A blobok IV-je a fixtúrában rögzített magú, hogy a fájl kétszer
+ugyanaz legyen — a termék titkosítója véletlent húz, és a teszt ezt is
+nézi. A Swift titkosításának és scryptjének ez az első tesztje; az első
+írása két eltérést igazított: az iPhone a helyreállító kódot grafémánként
+szűrte (egy különálló ékezet az egész betűt elvitte, a gép és az Android
+csak az ékezetet), és a jelszó hosszát a három mag három mércével mérte (a
+gép UTF-16 egységben NFKC után, az Android egységben NFKC nélkül, az iPhone
+grafémában) — most kódpontban, NFKC után, mindhárom, és a hívót az
+érvényesítés-őr nézi.
 
 ## Biztonsági modell és őszinte korlátok
 

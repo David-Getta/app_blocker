@@ -94,7 +94,7 @@ object SyncClient {
         state: AppState, serverUrl: String, accountId: String, password: String, deviceName: String,
     ): Pair<AppState, String> {
         val url = normalizeServerUrl(serverUrl)
-        if (password.length < SyncCrypto.MIN_PASSWORD_LENGTH) {
+        if (SyncCrypto.passwordLength(password) < SyncCrypto.MIN_PASSWORD_LENGTH) {
             throw SyncException(
                 "A jelszó legalább ${SyncCrypto.MIN_PASSWORD_LENGTH} karakter legyen.",
                 "WEAK_PASSWORD",

@@ -84,6 +84,19 @@ export function authKey(password: string, accountId: string): string {
   return subKey(rootKey(password, accountId), 'auth').toString('base64');
 }
 
+/**
+ * A jelszó hossza KÓDPONTBAN, NFKC után.
+ *
+ * Nem UTF-16 egységben (öt emodzsi tíznek számított volna, és átment volna a
+ * tízes korláton) és nem grafémában (az iPhone egy zászlót egynek számolt, a
+ * gép kettőnek — ugyanaz a jelszó az egyik eszközön elment, a másikon nem).
+ * Ugyanaz a mérce, amivel a szöveg-tisztítás vág; a három mag ugyanezt
+ * számolja, és a közös fixtúra (fixtures/crypto-cases.json) kimondja.
+ */
+export function passwordLength(password: string): number {
+  return [...password.normalize('NFKC')].length;
+}
+
 /** Friss, véletlen adatkulcs. Ez titkosítja a tartalmat. */
 export function newDataKey(): Buffer {
   return crypto.randomBytes(KEY_LEN);
@@ -204,7 +217,7 @@ export interface Enrollment {
 }
 
 export function enroll(accountId: string, password: string): Enrollment {
-  if (password.normalize('NFKC').length < MIN_PASSWORD_LENGTH) {
+  if (passwordLength(password) < MIN_PASSWORD_LENGTH) {
     throw new Error(`A jelszó legalább ${MIN_PASSWORD_LENGTH} karakter legyen.`);
   }
   const root = rootKey(password, accountId);
@@ -248,7 +261,7 @@ export function unlockWithRecovery(code: string, wrappedByRecovery: string): Buf
 export function rewrapForNewPassword(
   accountId: string, dataKey: Buffer, newPassword: string,
 ): { authKey: string; wrappedByPassword: string } {
-  if (newPassword.normalize('NFKC').length < MIN_PASSWORD_LENGTH) {
+  if (passwordLength(newPassword) < MIN_PASSWORD_LENGTH) {
     throw new Error(`A jelszó legalább ${MIN_PASSWORD_LENGTH} karakter legyen.`);
   }
   const root = rootKey(newPassword, accountId);

@@ -10,7 +10,7 @@
 import { test } from 'node:test';
 import * as assert from 'node:assert/strict';
 import {
-  BLOB_PREFIX, decrypt, encrypt, enroll, newRecoveryCode, normalizeRecoveryCode,
+  BLOB_PREFIX, decrypt, encrypt, enroll, newRecoveryCode, normalizeRecoveryCode, passwordLength,
   recoveryKey, rewrapForNewPassword, unlockWithPassword, unlockWithRecovery,
   unwrapDataKey, wrapDataKey,
 } from '../src/shared/sync/crypto';
@@ -113,4 +113,16 @@ test('a short password cannot open an account', () => {
     /legalább 10/,
     'jelszócserénél sem lehet gyengíteni',
   );
+});
+
+test('a jelszó hossza kódpontban számol, NFKC után — nem egységben, nem grafémában', () => {
+  // Öt emodzsi tíz UTF-16 egység: az régen átment, pedig öt jel. Öt zászló
+  // grafémában öt, kódpontban tíz: az iPhone-on elbukott, a gépen nem — most
+  // mindhárom mag ugyanazt mondja, és a közös fixtúra kimondja.
+  const accent = String.fromCodePoint(0x301);
+  assert.equal(passwordLength('😀😀😀😀😀'), 5);
+  assert.equal(passwordLength('🇭🇺🇭🇺🇭🇺🇭🇺🇭🇺'), 10);
+  assert.equal(passwordLength('ﬁﬁﬁﬁﬁ'), 10, 'a ligatúra NFKC után két betű');
+  assert.equal(passwordLength('e' + accent), 1, 'a különálló ékezet NFKC után összeáll');
+  assert.throws(() => enroll('acc_emodzsi', '😀😀😀😀😀'), /legalább 10/, 'öt emodzsi nem tíz');
 });

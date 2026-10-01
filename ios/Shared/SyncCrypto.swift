@@ -51,6 +51,15 @@ enum SyncCrypto {
         )
     }
 
+    /// A jelszó hossza KÓDPONTBAN (skalárban), NFKC után — a gép mércéje.
+    ///
+    /// Nem grafémában: a `count` egy zászlót egynek számolt, a gép kettőnek —
+    /// ugyanaz a jelszó itt elbukott a tízes korláton, a gépen elment. A közös
+    /// fixtúra (fixtures/crypto-cases.json) kimondja.
+    static func passwordLength(_ password: String) -> Int {
+        password.precomposedStringWithCompatibilityMapping.unicodeScalars.count
+    }
+
     /// Egy gyökérből több, egymástól független alkulcs (HKDF-SHA256).
     static func subKey(_ root: [UInt8], _ label: String) -> [UInt8] {
         let key = HKDF<SHA256>.deriveKey(
@@ -82,15 +91,22 @@ enum SyncCrypto {
     }
 
     /// A kód beírásakor a kötőjelek és a kis-nagybetű ne számítson.
+    ///
+    /// Skalárra, nem grafémára: a gép és az Android UTF-16 egységenként szűr —
+    /// egy különálló ékezet (E + U+0301) ott az E-t meghagyja, az ékezetet
+    /// eldobja; a graféma-szűrés az egész betűt eldobta volna. A közös fixtúra
+    /// (fixtures/crypto-cases.json) fogta ki.
     static func normalizeRecoveryCode(_ code: String) -> String {
-        String(code.uppercased().compactMap { ch -> Character? in
-            switch ch {
-            case "O": return "0"
-            case "I", "L": return "1"
-            case "0"..."9", "A"..."Z": return ch
-            default: return nil
+        var out = ""
+        for s in code.uppercased().unicodeScalars {
+            switch s.value {
+            case 0x4F: out.append("0")                         // O -> 0
+            case 0x49, 0x4C: out.append("1")                   // I, L -> 1
+            case 0x30...0x39, 0x41...0x5A: out.unicodeScalars.append(s)
+            default: break
             }
-        })
+        }
+        return out
     }
 
     // MARK: - titkosítás

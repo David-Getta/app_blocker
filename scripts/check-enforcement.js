@@ -2453,6 +2453,26 @@ const WIRES = [
     lost: 'az iPhone szinkronja nem hozná le a munkamenetet',
   },
 
+  // A JELSZÓ HOSSZA — ugyanazzal a mércével mindhárom magban (kódpont, NFKC
+  // után). Ha a kliens a nyelv saját `length`/`count`-jára hagyatkozik,
+  // ugyanaz a jelszó az egyik eszközön elmegy, a másikon „rövid” — és a
+  // fixtúra ezt nem fogja ki, mert az a magot nézi, nem a hívót.
+  {
+    file: 'desktop/src/shared/sync/crypto.ts',
+    needle: 'passwordLength(password) < MIN_PASSWORD_LENGTH',
+    lost: 'a gép a jelszót UTF-16 egységben mérné — öt emodzsi átmenne tízként',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/SyncClient.kt',
+    needle: 'SyncCrypto.passwordLength(password)',
+    lost: 'az Android a jelszót UTF-16 egységben, NFKC nélkül mérné',
+  },
+  {
+    file: 'ios/Shared/SyncClient.swift',
+    needle: 'SyncCrypto.passwordLength(password)',
+    lost: 'az iPhone a jelszót grafémában mérné — a gépen elment jelszó itt elbukna',
+  },
+
   // A MENET LEZÁRÁSA. Ha ezt nem hívja senki, a menet a saját idejében
   // „lejár” ugyan (az `isRunning` hamisat ad rá), de a naplóba SOHA nem kerül
   // be — és a statisztikából pont azok a menetek hiányoznának, amiket a

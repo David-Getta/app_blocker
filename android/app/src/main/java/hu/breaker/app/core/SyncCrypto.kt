@@ -61,6 +61,19 @@ object SyncCrypto {
         )
     }
 
+    /**
+     * A jelszó hossza KÓDPONTBAN, NFKC után — a gép mércéje.
+     *
+     * Nem UTF-16 egységben (öt emodzsi tíznek számított volna) és nem
+     * grafémában (az iPhone egy zászlót egynek számolt, a gép kettőnek):
+     * ugyanaz a jelszó ne menjen el az egyik eszközön és bukjon a másikon.
+     * A közös fixtúra (fixtures/crypto-cases.json) kimondja.
+     */
+    fun passwordLength(password: String): Int {
+        val normalized = java.text.Normalizer.normalize(password, java.text.Normalizer.Form.NFKC)
+        return normalized.codePointCount(0, normalized.length)
+    }
+
     /** Egy gyökérből több, egymástól független alkulcs (HKDF-SHA256). */
     fun subKey(root: ByteArray, label: String): ByteArray =
         hkdf(root, ByteArray(0), "breaker-$label-v1".toByteArray(Charsets.UTF_8), KEY_LEN)

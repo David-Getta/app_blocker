@@ -93,7 +93,7 @@ enum SyncClient {
         state: AppState, serverUrl: String, accountId: String, password: String, deviceName: String
     ) async throws -> (AppState, String) {
         let url = try normalizeServerUrl(serverUrl)
-        if password.count < SyncCrypto.minPasswordLength {
+        if SyncCrypto.passwordLength(password) < SyncCrypto.minPasswordLength {
             throw SyncError(
                 "A jelszó legalább \(SyncCrypto.minPasswordLength) karakter legyen.", "WEAK_PASSWORD"
             )

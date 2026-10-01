@@ -128,4 +128,9 @@ megbízott neve és jelmondata, a domain tiszta alakja skalárra ugyanaz, mint a
 gépen — a szóköz kimondott készlet (a BOM-mal), a vágás skalárban, nem
 grafémában (`TextLogic`, Text.swift). És a párosító kódé (`PairingFixtureTests`,
 a `fixtures/pairing-cases.json` ellen): a gépen kiírt kód itt ugyanoda nyílik;
-a Swift párosítónak ez az első tesztje — eddig csak fordult.
+a Swift párosítónak ez az első tesztje — eddig csak fordult. És a szinkron
+titkosításáé (`CryptoFixtureTests`, a `fixtures/crypto-cases.json` ellen): a
+gépen burkolt adatkulcs itt a jelszóval és a helyreállító kóddal is kinyílik, a
+gép blobja itt olvasható, a babrált nem — a Swift titkosításának és scryptjének
+ez az első tesztje; a helyreállító kód tisztítása és a jelszó hossza ettől
+skalárban számol, nem grafémában, ahogy a gép.
