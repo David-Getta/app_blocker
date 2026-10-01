@@ -8,6 +8,7 @@ kettővel korábbiban.
 
 | Verzió | Nap | Mi újság |
 |---|---|---|
+| v0.4.181 | 2026-10-01 | a fixtúra a használati statisztika egyesítését is nézi |
 | v0.4.180 | 2026-09-30 | a fixtúra a naplót is fésüli |
 | v0.4.179 | 2026-09-30 | a fixtúra a közeli rekordokat is fésüli |
 | v0.4.178 | 2026-09-30 | a README is elmondja, amit az app már tud |
