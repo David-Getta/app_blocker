@@ -44,25 +44,24 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A statisztika számai ugyanazok mindhárom platformon.** A
-          statisztika képernyője az egyesített mérésből összegez: ma, tegnap,
-          hét, hónap, a mai és a heti toplisták, a hét az előző héthez. A
-          közös fixtúra most ezt is nézi, és egy valódi apróságot igazított:
-          holtversenyben eddig a gép és az Android a beszúrás sorrendjére
-          hagyatkozott — az eszközönként más lehet, és két egyforma idejű
-          célpont a két képernyőn fordítva állt volna; most a kulcs dönt,
-          mindhárom magban. Az iPhone összegzője kevesebbet mond, de amit
-          mond, az a gépé.
+          **A menetek számai ugyanazok mindhárom platformon.** A menetek
+          naplója a fiókon utazik; a statisztika és a heti mondat belőle
+          számol: a hét és az előző hét összegzője, a menet-nap, a menet-óra,
+          a sorozat és a leghosszabb sorozat, az ablakból indult menetek, a
+          napi rajz. A közös fixtúra most ezt is nézi — véletlen naplókkal,
+          jövőbeli és nagyon régi sorral, korai és késői véggel, három csomag
+          holtversenyével —, és a három magnak ugyanazt kell mondania,
+          UTC-ben kimondva.
 
-          ### Ami a v0.4.194-ben jött
+          ### Ami a v0.4.195-ben jött
+
+          **A statisztika számai ugyanazok mindhárom platformon.** Az
+          egyesített mérés összegzője; holtversenyben a kulcs dönt.
+
+          #### Ami a v0.4.194-ben jött
 
           **A heti visszatekintés mondatának közös fixtúrája.** A három
           mondat-író bájtra ugyanazt írja; a megakadás szava a platformé.
-
-          #### Ami a v0.4.193-ban jött
-
-          **A fixtúra a zárlat-ablakokat is nézi.** Szabad idő, lazítás, élő
-          ablak, megkövetelt zárlat, közelgő ablak — UTC-ben kimondva.
 
           NOTES
           fi
