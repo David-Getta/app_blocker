@@ -16,6 +16,7 @@ import { keywordsKey } from '../src/shared/keywords';
 import { partnerKey, type PartnerLock } from '../src/shared/partner';
 import type { UsageDay, UsageState } from '../src/shared/usage';
 import type { Limitable, SharedToday } from '../src/shared/limits';
+import type { BurstRule } from '../src/shared/burst';
 
 /** Determinisztikus véletlen (LCG): a mag a hibaüzenetben áll, a bukás megismételhető. */
 export function rng(seed: number): () => number {
@@ -514,4 +515,40 @@ export function randomDecision(r: () => number): DecisionCase {
   if (oldDraw < 0.4) devices.push({ deviceId: 'old', day: DECISION_YESTERDAY, seconds: { [key]: 1_200 } });
   const shared: SharedToday | null = sharedDraw < 0.8 ? { selfDeviceId: 'me', devices } : null;
   return { site, usage, shared };
+}
+
+/** Egy mérés-minta az adag-számlálónak: ennyi másodperc, ekkor. */
+export interface BurstSample { seconds: number; at: number }
+export interface BurstRun { rule: BurstRule; samples: BurstSample[] }
+
+/**
+ * Az ADAG-SZÁMLÁLÓ bemenete: egy szabály és nyolc mérés-minta — a kimenet a
+ * számláló állapota minden minta után (`noteBurstUsage` /
+ * `BurstLogic.noteUsage`). A minták időköze hol kisebb a szünetnél (gyűlik),
+ * hol nagyobb (tiszta lap), hol a hűtésbe esik (nem számít), és néha egy
+ * elkésett régi minta jön (a `lastAt` nem léphet hátra). A gép és az Android
+ * mér és tilt; az iPhone nem mér előteret, ott a szabály nem érvényesül —
+ * ezért ez a két nyelv tükre. Csak a fixtúráé: a fuzz-generátorokat nem érinti.
+ */
+export function randomBurstRun(r: () => number): BurstRun {
+  // Bemelegítés, mint a döntésnél: az LCG első húzásai kis magoknál összetartanak.
+  for (let i = 0; i < 4; i++) r();
+  const rule: BurstRule = {
+    burstSeconds: 300 * (1 + Math.floor(r() * 3)),
+    cooldownSeconds: 120 * (1 + Math.floor(r() * 3)),
+  };
+  const GAPS = [10_000, 60_000, 130_000, 250_000, 400_000];
+  const samples: BurstSample[] = [];
+  let at = 1_000_000;
+  for (let i = 0; i < 8; i++) {
+    const seconds = 60 * (1 + Math.floor(r() * 4));
+    const gap = GAPS[Math.floor(r() * 5)];
+    const late = r() < 0.2;
+    // Az elkésett minta a MÚLTBÓL jön: nem a sorban következő időpont, hanem
+    // egy korábbi — a köteg így hozza. Az időpont-sor egyébként előre halad.
+    const sampleAt = late ? Math.max(0, at - 30_000) : at + gap;
+    if (!late) at = sampleAt;
+    samples.push({ seconds, at: sampleAt });
+  }
+  return { rule, samples };
 }

@@ -131,7 +131,8 @@ levétel is a rendes próbatételek mögé kerül.
 - [x] A szabályok átvétele az appból (helyi híd)
 - [x] Kotlin és Swift tükör, és szinkron a fiókon át
 - [ ] Aláírt bővítmény-csomag, hogy ne kelljen fejlesztői mód
-- [ ] Végponttól végpontig futó teszt valódi bővítmény-betöltéssel
+- [x] Végponttól végpontig futó teszt valódi bővítmény-betöltéssel
+      (`desktop/scripts/extension-e2e.js`, a CI futtatja)
 
 ## A híd: hogyan veszi át a bővítmény az app szabályait
 

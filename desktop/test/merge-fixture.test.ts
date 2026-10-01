@@ -21,9 +21,10 @@ import { mergeSite } from '../src/shared/sync/merge';
 import { mergeFocus, normalizeSyncFocus, sameFocus } from '../src/shared/sync/focus-merge';
 import { combineUsage } from '../src/shared/usage';
 import { isBlockedNowWithLimit } from '../src/shared/limits';
+import { noteBurstUsage, type BurstState } from '../src/shared/burst';
 import {
-  DECISION_NOW, DEVICES, flipFocus, flipSite, focusConformanceKey, randomDecision, randomFocus, randomSite,
-  randomUsage, rng, siteConformanceKey, usageConformanceKey,
+  DECISION_NOW, DEVICES, flipFocus, flipSite, focusConformanceKey, randomBurstRun, randomDecision, randomFocus,
+  randomSite, randomUsage, rng, siteConformanceKey, usageConformanceKey,
 } from './merge-random';
 
 // A döntés napkulcsa helyi időben számolódik; a fixtúra UTC-ben készül, és a
@@ -37,6 +38,7 @@ const SEEDS = 80;
 
 interface Fixture {
   note: string; version: number; sites: unknown[]; focus: unknown[]; usage: unknown[]; decisions: unknown[];
+  bursts: unknown[];
 }
 
 function buildFixture(): Fixture {
@@ -44,6 +46,7 @@ function buildFixture(): Fixture {
   const focus: unknown[] = [];
   const usage: unknown[] = [];
   const decisions: unknown[] = [];
+  const bursts: unknown[] = [];
   for (let seed = 1; seed <= SEEDS; seed++) {
     const r = rng(seed);
     const [a, b, c] = DEVICES.map((d) => randomSite(r, d));
@@ -92,18 +95,35 @@ function buildFixture(): Fixture {
     const blocked = isBlockedNowWithLimit(site, u, DECISION_NOW, shared);
     decisions.push({ seed, now: DECISION_NOW, site, usage: u, shared, blocked });
   }
+  // AZ ADAG-SZÁMLÁLÓ: egy szabály, nyolc minta, és a számláló állapota minden
+  // minta után. A gép és az Android tükre (az iPhone nem mér, ott nincs mit
+  // tükrözni — kimondva). Lépésenként rögzítve, hogy egy eltérés a helyén
+  // látszódjon, ne csak a végén.
+  for (let seed = 1; seed <= SEEDS; seed++) {
+    const r = rng(seed);
+    const { rule, samples } = randomBurstRun(r);
+    const states: string[] = [];
+    let st: BurstState | undefined;
+    for (const sm of samples) {
+      st = noteBurstUsage(rule, st, sm.seconds, sm.at);
+      states.push(`${st.usedSeconds}/${st.lastAt}/${st.cooldownUntil}`);
+    }
+    bursts.push({ seed, rule, samples, states });
+  }
   return {
     note: 'Generálja és őrzi: desktop/test/merge-fixture.test.ts (UPDATE_MERGE_FIXTURE=1 npm test). '
       + 'Olvassa: android/jvm-tests MergeFixtureTest, ios/SharedTests MergeFixtureTests. '
       + 'A focus-esetek flip/what/same mezője: egy mező cseréje, és hogy a három nyelv különbségnek tartja-e. '
       + 'A sites-esetek flip/what/af/fa mezője: egy mező cseréje, és a fésülés mindkét sorrendben. '
       + 'A usage-esetek: három eszköz mérése és az egyesítés kulcsa. '
-      + 'A decisions-esetek: oldal, helyi mérés, a többi eszköz mai összegzése, időpont — és hogy tilt-e most.',
-    version: 9,
+      + 'A decisions-esetek: oldal, helyi mérés, a többi eszköz mai összegzése, időpont — és hogy tilt-e most. '
+      + 'A bursts-esetek (gép és Android): adag-szabály, minták, és a számláló állapota minden minta után.',
+    version: 10,
     sites,
     focus,
     usage,
     decisions,
+    bursts,
   };
 }
 
@@ -112,7 +132,7 @@ function render(f: Fixture): string {
   const rows = (items: unknown[]) => items.map((x) => ' ' + JSON.stringify(x)).join(',\n');
   return `{\n"note": ${JSON.stringify(f.note)},\n"version": ${f.version},\n`
     + `"sites": [\n${rows(f.sites)}\n],\n"focus": [\n${rows(f.focus)}\n],\n"usage": [\n${rows(f.usage)}\n],\n`
-    + `"decisions": [\n${rows(f.decisions)}\n]\n}\n`;
+    + `"decisions": [\n${rows(f.decisions)}\n],\n"bursts": [\n${rows(f.bursts)}\n]\n}\n`;
 }
 
 test('a megfelelőségi fixture a gép szabályaival egyezik (a Kotlin és a Swift ebből dolgozik)', () => {

@@ -376,7 +376,11 @@ Amit a tesztek bizonyítanak, és amit másképp nem lehetne:
   mondja. A menetrend vagy nincs, vagy egész hetes nyitó sáv (menetrend
   nélkül az oldal mindig zár, és a keret sosem dönt), mert a sávok helyi
   időben értékelődnek ki, és a három teszt a futtató gép időzónájában fut —
-  az időpont dél UTC-ben van, hogy a napkulcs ettől még ugyanaz legyen.
+  az időpont dél UTC-ben van, hogy a napkulcs ettől még ugyanaz legyen. És
+  az ADAG-SZÁMLÁLÓT is (`noteBurstUsage`): egy szabály, nyolc mérés-minta
+  (gyűlő, tiszta lappal induló, hűtésbe eső és elkésett), és a számláló
+  állapota minden minta után — a gép és az Android tükre; az iPhone nem mér
+  előteret, ott a szabály nem érvényesül, tehát ott nincs mit tükrözni.
 
 Egy dolog iPhone-on más: a **napi keret nem érvényesül** (nincs ilyen mérési
 API), de a rekordban MEGŐRIZZÜK. Enélkül elég lenne egyszer megnyitni a

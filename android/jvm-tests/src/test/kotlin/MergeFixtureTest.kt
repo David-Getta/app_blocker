@@ -1,3 +1,4 @@
+import hu.breaker.app.core.BurstLogic
 import hu.breaker.app.core.FocusSync
 import hu.breaker.app.core.KeywordLogic
 import hu.breaker.app.core.LimitLogic
@@ -139,6 +140,29 @@ class MergeFixtureTest {
                 )
             }
             assertEquals(c.getBoolean("blocked"), LimitLogic.isBlockedNowWithLimit(site, usage, now, shared), "döntés, mag $seed")
+        }
+    }
+
+    @Test
+    fun `adag-szamlalo - ugyanaz a hutes ugyanabbol a meres-sorozatbol, mint a gepen`() {
+        // Az iPhone nem mér előteret, ott az adag-szabály nem érvényesül — ez a
+        // két mérő nyelv (gép, Android) tükre. Lépésenként: egy eltérés a helyén látszik.
+        val cases = JSONObject(fixtureFile().readText()).getJSONArray("bursts")
+        assertTrue(cases.length() >= 50, "a fixture-ben van elég eset")
+        for (i in 0 until cases.length()) {
+            val c = cases.getJSONObject(i)
+            val seed = c.getInt("seed")
+            val ro = c.getJSONObject("rule")
+            val rule = BurstLogic.Rule(ro.getLong("burstSeconds"), ro.getLong("cooldownSeconds"))
+            val samples = c.getJSONArray("samples")
+            val expected = c.getJSONArray("states")
+            var st: BurstLogic.State? = null
+            for (j in 0 until samples.length()) {
+                val sm = samples.getJSONObject(j)
+                st = BurstLogic.noteUsage(rule, st, sm.getDouble("seconds"), sm.getLong("at"))
+                val key = "${st.usedSeconds.toLong()}/${st.lastAt}/${st.cooldownUntil}"
+                assertEquals(expected.getString(j), key, "adag, mag $seed, ${j + 1}. minta")
+            }
         }
     }
 
