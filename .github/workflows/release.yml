@@ -44,24 +44,26 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A párosító kód közös fixtúrája.** A gépen kiírt kódot a telefonon
-          gépelik be — ez a legközvetlenebb szerződés a három platform
-          között: ha egy bit eltér, a kód nem nyílik ki, vagy MÁS címet ad. A
-          gép most minden esetre kimondja, mit ad (kód, cím vagy semmi), a két
-          telefonnak ugyanazt kell adnia: címek a négy osztályból, portok a
-          határokon, kézzel írt alakok (kötőjel, szóköz, kisbetű, O/0, I/1,
-          nem latin számjegy, elgépelés), szemét. Az iPhone párosítójának ez
-          az első tesztje, és rögtön két apróságot igazított a géphez.
+          **A fixtúra a részleges szabályt is nézi.** A szabályt (egy oldal
+          egy útvonala) a gépen és Androidon kézzel írják be, és a szinkronon
+          utazik; ha a három platform máshogy tisztítaná, a rekord minden
+          körben átíródna, ha máshogy illesztené, egy csatorna az egyik gépen
+          tiltva volna, a másikon nem. A közös fixtúra most a beírt szöveg
+          kanonikus alakját és a szabály illesztését is tartja — mobil előtag,
+          dupla perjel, lekérdezés, görög út, a határ emodzsival —, és a három
+          magnak ugyanazt kell adnia. Az út hossza mostantól kódpontban
+          számol mindhárom magban, és az iPhone az útban is a gép szerint ír
+          kisbetűt.
 
-          ### Ami a v0.4.190-ben jött
+          ### Ami a v0.4.191-ben jött
+
+          **A párosító kód közös fixtúrája.** A gépen kiírt kódot a
+          telefonon gépelik be; az iPhone párosítójának első tesztje.
+
+          #### Ami a v0.4.190-ben jött
 
           **A fixtúra a menetrendet is nézi.** Tilt-e most egy heti
           sávrendszer szerint, és lazítás-e a csere — UTC-ben kimondva.
-
-          #### Ami a v0.4.189-ben jött
-
-          **A böngésző-bővítmény nem marad szűrő nélkül egy elvesző
-          üzenettől.** Háromszor próbál, növekvő szünettel.
 
           NOTES
           fi
