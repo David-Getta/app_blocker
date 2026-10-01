@@ -547,9 +547,13 @@ Néhány konkrét dolog, amit érdemes előre tudni:
   tud értesíteni.
   A telefonon a szűrő szolgáltatása (Android) és a rendszer (iPhone) az app
   nélkül is szól. A heti ablak menetét a segéd az app nélkül is
-  elindítja, és a telefon szűrője betartatja — a böngészőben viszont a
-  bővítmény az apptól kérdezi a fehérlistát, tehát ott csak futó app mellett
-  érvényesül.
+  elindítja, a telefon szűrője betartatja, és a böngésző is: az app egy hétre
+  előre leküldi a bővítménynek az ablakokat, és ha az app nem válaszol, a
+  bővítmény a most tartót tartja be. Két rés marad, mindkettő a szigorúbb
+  irányba: amit az app utolsó szava óta máshol (a szinkronon át) vettél le,
+  azt a böngésző az app következő indulásáig még betartja; és egy hétnél
+  tovább zárva tartott app után a böngésző nem tud a további ablakokról —
+  azokat a gépen akkor csak a segéd indítja el, a böngésző nem tartja be.
 
 ## Következő lépések (ötletek a bővítéshez)
 

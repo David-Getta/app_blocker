@@ -18,7 +18,7 @@ import { keywordHit, keywordInText } from './keywords.js';
 import { hitsReport, recordHit, sweepHits } from './hits.js';
 import { activeRules, load, sweep } from './storage.js';
 import {
-  closedFor, dueForRefresh, focusActive, focusAllows, loadLink, lockdownUntil, pullFromApp,
+  closedFor, dueForRefresh, effectiveFocus, focusAllows, loadLink, lockdownUntil, pullFromApp,
   withAppRules,
   noteFor,
   partnerNameOf, pushHits,
@@ -56,12 +56,15 @@ async function decide(url) {
   // a feloldás útja az ő jelmondatával ér véget — a próbatétel mellé.
   const partner = partnerNameOf(link);
 
-  if (focusActive(link, now)) {
+  // A HATÁSOS menet: az app élő szava, vagy ha az app nem válaszol, a tárolt
+  // heti ablak — a segéd az ablak menetét az app nélkül is elindítja.
+  const focus = effectiveFocus(link, now);
+  if (focus) {
     const host = hostOf(url);
     // A bővítmény SAJÁT lapjai (a tiltó lap, a beállítások) sosem esnek bele:
     // különben a munkamenet alatt nem lehetne megnézni, mi fut és meddig.
-    if (host && !focusAllows(link, host)) {
-      return { reason: 'focus', focus: link.focus, lockUntil, lockWindow, note, partner };
+    if (host && !focusAllows(link, host, now)) {
+      return { reason: 'focus', focus, lockUntil, lockWindow, note, partner };
     }
   }
 

@@ -257,6 +257,8 @@ export interface StatusData {
   focusRun: import('./focus').FocusRun | null;
   /** mely csomagok ÉLŐ heti ablaka van már elköltve (a menete véget ért) */
   focusSpent?: string[];
+  /** a heti ablakok következő hete, az elköltöttek nélkül (a böngésző-hídnak) */
+  focusWindows?: import('./focus').WindowOccurrence[];
   /**
    * Miért nem megy a munkamenet szinkronja, ha nem megy.
    *

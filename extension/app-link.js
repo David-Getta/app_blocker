@@ -67,6 +67,39 @@ function withTimeout(promise, ms) {
  */
 export const CLOSED_FRESH_MS = 3 * 20 * 1000;
 
+/**
+ * Ennyi ideig az app ÉLŐ szava dönt a munkamenetről a legutóbbi sikeres
+ * lehúzás után. Utána — ha az app nem válaszol — a tárolt heti ablakok is
+ * élnek: a segéd az ablak menetét az app nélkül is elindítja, és a
+ * böngészőben különben senki nem tartaná be. Három lehúzásnyi idő, mint a
+ * zárva-listánál.
+ */
+export const FOCUS_FRESH_MS = 3 * 20 * 1000;
+
+/** Ennél több ablak-előfordulás nem tárolódik (az app egy hetet küld). */
+const MAX_FOCUS_WINDOWS = 64;
+
+/**
+ * A hídról jött heti ablak-előfordulások tisztán: csomag-azonosító, név,
+ * engedett oldalak, kezdés, vég — a rosszul formált kimarad. Régi app
+ * válaszában nincs: az nem hiba, üres lista (az ablak akkor csak futó app
+ * mellett él, ahogy eddig).
+ */
+function cleanFocusWindows(list) {
+  return (Array.isArray(list) ? list : [])
+    .filter((w) => w && typeof w.packId === 'string' && w.packId
+      && Number.isFinite(w.startsAt) && Number.isFinite(w.endsAt) && w.endsAt > w.startsAt
+      && Array.isArray(w.allowSites))
+    .slice(0, MAX_FOCUS_WINDOWS)
+    .map((w) => ({
+      packId: w.packId,
+      name: typeof w.name === 'string' ? [...w.name].slice(0, 40).join('') : '',
+      allowSites: w.allowSites.filter((h) => typeof h === 'string' && h),
+      startsAt: w.startsAt,
+      endsAt: w.endsAt,
+    }));
+}
+
 /** Egy zárva-bejegyzés szűrése: csak az ismert alak megy át. */
 function cleanClosed(list) {
   const reasons = ['always', 'schedule', 'cooldown', 'limit'];
@@ -175,6 +208,9 @@ export async function loadLink() {
       // A heti ablak szerint indult (nem gombnyomásra): a felugró és a tiltó
       // lap ezt kimondja, hogy aki nem maga indította, tudja, miért fut.
       window: focus.window === true,
+      // A heti ablakok következő hete: ha az app nem válaszol, ezekből él a
+      // menet a böngészőben (lásd `effectiveFocus`).
+      windows: cleanFocusWindows(focus.windows),
     },
     // A MOST zárva lévő hosztnevek, okkal — a tiltó lap ebből magyaráz. A
     // frissessége számít, ezért a döntés nem innen, hanem a `closedFor`-ból jön.
@@ -469,15 +505,34 @@ export function dueForRefresh(link, now) {
  * kevesebb tiltás.
  */
 /**
- * Fut-e MOST munkamenet.
+ * A MOST hatásos munkamenet: { name, endsAt, allowSites, window } — vagy null.
  *
- * A lejáratot HELYBEN nézzük, nem az apptól kérdezzük: ha az appot bezárták,
- * a munkamenet a saját idejéig akkor is tart — de egy perccel sem tovább.
- * Enélkül egy bezárt app örökre bent tartana a fehérlistában.
+ * Amíg az app friss szava megvan (FOCUS_FRESH_MS), az dönt: ő tudja, fut-e
+ * menet, és hogy egy ablakét már leállították-e (kifizetett próbatétellel).
+ * Ha az app régebben szólt — bezárták, vagy nem válaszol —, a tárolt heti
+ * ablakok közül a most tartó is érvényes: a segéd az app nélkül is elindítja
+ * a menetét, és a böngészőben különben senki nem tartaná be. Ilyenkor az
+ * ablak előbbre való, mint egy tárolt kézi menet — a segéd is lezárja a kézi
+ * menetet az ablak kezdetén.
+ *
+ * A lejáratot HELYBEN nézzük: ha az appot bezárták, a menet a saját idejéig
+ * tart — de egy perccel sem tovább.
  */
-export function focusActive(link, now = Date.now()) {
+export function effectiveFocus(link, now = Date.now()) {
   const f = link?.focus;
-  return !!f && f.running === true && f.endsAt > now;
+  const live = f && f.running === true && f.endsAt > now
+    ? { name: f.name, endsAt: f.endsAt, allowSites: f.allowSites ?? [], window: f.window === true }
+    : null;
+  const fresh = Number.isFinite(link?.fetchedAt) && link.fetchedAt > 0 && now - link.fetchedAt <= FOCUS_FRESH_MS;
+  if (fresh) return live;
+  const w = (f?.windows ?? []).find((o) => o.startsAt <= now && now < o.endsAt);
+  if (w) return { name: w.name, endsAt: w.endsAt, allowSites: w.allowSites, window: true };
+  return live;
+}
+
+/** Fut-e MOST munkamenet (a hatásos, lásd `effectiveFocus`). */
+export function focusActive(link, now = Date.now()) {
+  return effectiveFocus(link, now) !== null;
 }
 
 /**
@@ -487,10 +542,10 @@ export function focusActive(link, now = Date.now()) {
  * engedi. A `notgoogle.com` viszont NEM — a végén hasonlító tartománynév a
  * leggyakoribb megkerülés.
  */
-export function focusAllows(link, host) {
+export function focusAllows(link, host, now = Date.now()) {
   const h = String(host ?? '').trim().toLowerCase().replace(/\.+$/, '');
   if (!h) return false;
-  return (link?.focus?.allowSites ?? []).some((a) => h === a || h.endsWith(`.${a}`));
+  return (effectiveFocus(link, now)?.allowSites ?? []).some((a) => h === a || h.endsWith(`.${a}`));
 }
 
 /**

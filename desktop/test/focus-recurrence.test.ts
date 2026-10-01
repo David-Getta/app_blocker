@@ -10,7 +10,8 @@ import { test } from 'node:test';
 import * as assert from 'node:assert/strict';
 import {
   dueRecurrence, isRecurrenceLoosening, isWindowRun, nextOccurrence, normalizeRecurrence,
-  occurrenceAt, RECURRENCE_MIN_REMAINING_MS, spentWindows, windowRunStarted,
+  occurrenceAt, RECURRENCE_MIN_REMAINING_MS, spentWindows, upcomingWindows, windowRunStarted,
+  MAX_WINDOW_OCCURRENCES, WINDOW_LOOKAHEAD_DAYS,
   type FocusLogEntry, type FocusPack,
 } from '../src/shared/focus';
 import type { Band, Weekday } from '../src/shared/schedule';
@@ -380,6 +381,57 @@ test('spentWindows: az élő ablak, aminek a menete már véget ért', () => {
   assert.deepEqual(spentWindows(st.focusPacks!, st.focusLog, MON(9, 45)), ['p1'], 'leállítva: elköltött');
   assert.deepEqual(spentWindows(st.focusPacks!, st.focusLog, MON(12, 5)), [], 'az ablak után nincs élő ablak');
   assert.deepEqual(spentWindows(st.focusPacks!, st.focusLog, TUE(9, 30)), [], 'másnap tiszta lap');
+});
+
+// ------------------------------------------------- a böngésző előre-listája
+
+test('upcomingWindows: a következő hét előfordulásai, kezdés szerint', () => {
+  const list = upcomingWindows([pack()], [], SUN(20));
+  // Vasárnap este: hétfőtől péntekig öt ablak, a következő vasárnap estéig.
+  assert.deepEqual(list.map((o) => o.startsAt), [
+    MON(9), TUE(9), at(2026, 9, 9, 9, 0), at(2026, 9, 10, 9, 0), at(2026, 9, 11, 9, 0),
+  ]);
+  assert.deepEqual(list[0], {
+    packId: 'p1', name: 'Mély munka', allowSites: ['github.com'], startsAt: MON(9), endsAt: MON(12),
+  });
+  assert.equal(WINDOW_LOOKAHEAD_DAYS, 7);
+});
+
+test('upcomingWindows: a most tartó benne van, a lejárt nem, az elköltött sem', () => {
+  assert.equal(upcomingWindows([pack()], [], MON(9, 30))[0].startsAt, MON(9), 'a mostani is');
+  assert.equal(upcomingWindows([pack()], [], MON(12))[0].startsAt, TUE(9), 'a vég percében már a következő');
+  // A naplóban a mai ablak menete: leállították — a böngésző se tartsa be.
+  assert.equal(upcomingWindows([pack()], [log()], MON(9, 45))[0].startsAt, TUE(9));
+  // Más csomag naplója nem költi el.
+  assert.equal(upcomingWindows([pack()], [log({ packId: 'p2' })], MON(9, 45))[0].startsAt, MON(9));
+});
+
+test('upcomingWindows: a tegnapról átnyúló ablak is, amíg tart', () => {
+  const night = pack({ recurrence: NIGHT });
+  assert.deepEqual(upcomingWindows([night], [], TUE(1)).slice(0, 1).map((o) => [o.startsAt, o.endsAt]),
+    [[MON(22), TUE(6)]]);
+  assert.equal(upcomingWindows([night], [], TUE(6))[0].startsAt, at(2026, 9, 14, 22, 0), 'utána a jövő hétfő');
+});
+
+test('upcomingWindows: ablak nélküli és érvénytelen csomag kimarad; a sorrend determinisztikus', () => {
+  const a = pack({ id: 'b', name: 'B' });
+  const b = pack({ id: 'a', name: 'A' });
+  const none = pack({ id: 'c', recurrence: undefined });
+  const bad = pack({ id: 'd', recurrence: { days: [], startMin: 600, endMin: 660 } });
+  const list = upcomingWindows([a, none, bad, b], [], SUN(20));
+  assert.deepEqual(list.slice(0, 2).map((o) => o.packId), ['a', 'b'], 'azonos kezdésnél azonosító szerint');
+  assert.equal(list.length, 10);
+  assert.ok(list.every((o) => o.packId === 'a' || o.packId === 'b'));
+});
+
+test('upcomingWindows: a lista felső korlátos, és nem osztja a csomag tömbjét', () => {
+  const many = Array.from({ length: 20 }, (_, i) => pack({
+    id: `p${String(i).padStart(2, '0')}`, recurrence: { days: [0, 1, 2, 3, 4, 5, 6], startMin: 600, endMin: 660 },
+  }));
+  assert.equal(upcomingWindows(many, [], SUN(20)).length, MAX_WINDOW_OCCURRENCES);
+  const p = pack();
+  upcomingWindows([p], [], SUN(20))[0].allowSites.push('youtube.com');
+  assert.deepEqual(p.allowSites, ['github.com']);
 });
 
 test('a futó csomag ablaka is befagy', () => {

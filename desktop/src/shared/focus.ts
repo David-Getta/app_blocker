@@ -897,6 +897,59 @@ export function spentWindows(
   return out;
 }
 
+/** Egy heti ablak egy előfordulása a böngészőnek: mi mehet, mettől meddig. */
+export interface WindowOccurrence {
+  packId: string;
+  name: string;
+  allowSites: string[];
+  startsAt: number;
+  endsAt: number;
+}
+
+/** Ennyi napra előre mondja meg az app a böngészőnek az ablakokat. */
+export const WINDOW_LOOKAHEAD_DAYS = 7;
+/** Ennél több előfordulás nem megy le — egy hét, csomagonként naponta egy, bőven. */
+export const MAX_WINDOW_OCCURRENCES = 64;
+
+/**
+ * A heti ablakok előfordulásai MOSTANTÓL `days` napig, a már elköltöttek
+ * (a saját menetük a naplóban — leállítva vagy lefutva) nélkül.
+ *
+ * MIÉRT. A heti ablak menetét a segéd az app nélkül is elindítja, a
+ * böngészőben viszont a fehérlistát a bővítmény tartja be — és eddig csak
+ * akkor tudott róla, ha az app futott és a hídon szólt. Ha az app zárva volt,
+ * az ablak a böngészőben nem élt. Ezzel a listával a bővítmény előre tudja,
+ * mikor mi mehet, és az app nélkül is betartja; amíg az app válaszol, az app
+ * élő szava dönt (lásd extension/app-link.js `effectiveFocus`).
+ *
+ * Az előfordulás ugyanaz, mint a segéd indításánál (`occurrenceAt`): a
+ * tegnapról átnyúló is benne van, ha még tart. Sorrend: kezdés, aztán
+ * csomag-azonosító (kódegység szerint).
+ */
+export function upcomingWindows(
+  packs: FocusPack[], log: FocusLogEntry[] | undefined, now: number, days = WINDOW_LOOKAHEAD_DAYS,
+): WindowOccurrence[] {
+  const horizon = localAt(now, days, 0);
+  const out: WindowOccurrence[] = [];
+  for (const pack of packs) {
+    const band = pack.recurrence;
+    if (!band || !isValidBand(band)) continue;
+    for (let d = -1; d <= days; d++) {
+      const start = localAt(now, d, band.startMin);
+      if (!band.days.includes(new Date(start).getDay() as Weekday)) continue;
+      const occ = occurrenceAt(band, start);
+      // A saját kezdésénél kérdezve az előfordulás önmaga — ha nem (óraátállás
+      // a kezdés percében), nem találgatunk.
+      if (!occ || occ.startsAt !== start) continue;
+      if (occ.endsAt <= now || occ.startsAt >= horizon) continue;
+      if (spentIn(log, pack.id, occ)) continue;
+      out.push({ packId: pack.id, name: pack.name, allowSites: [...pack.allowSites], startsAt: occ.startsAt, endsAt: occ.endsAt });
+    }
+  }
+  out.sort((a, b) => a.startsAt - b.startsAt || (a.packId < b.packId ? -1 : a.packId > b.packId ? 1 : 0));
+  return out.slice(0, MAX_WINDOW_OCCURRENCES);
+}
+
 /**
  * Ablak-menet-e ez a futás: a csomag ismétlődésének egy előfordulása, pontosan
  * annak kezdésével és végével. Az ilyen menetet az óra-ugrás elnyelése nem

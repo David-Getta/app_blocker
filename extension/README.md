@@ -227,6 +227,15 @@ valamit, amit a felhasználó nem tiltott le.
     („A héten: 4 zárva oldal · 3 kulcsszó”) — melyik szabály dolgozik. A mag
     a `hits.js`, a kiszállított bájtokon tesztelve.
 
+11. **A heti ablakot az app nélkül is betartja.** A heti ablak menetét a gépen
+    a segéd az app nélkül is elindítja — a böngészőben viszont csak ez a
+    bővítmény tarthatja be. Az app minden lehúzással a következő hét ablakait
+    is leküldi (`focus.windows`: csomag, név, engedett oldalak, kezdés, vég —
+    az elköltött nélkül); amíg az app friss (egy perc), az ő élő szava dönt,
+    ha hallgat, a most tartó tárolt ablak (`effectiveFocus`). Az app bezárása
+    így nem az ablak feloldása. Ami az app utolsó szava óta máshol lekerült,
+    azt az app következő indulásáig még betartja — a szigorúbb irány.
+
 ## Fájlok
 
 | Fájl | Mi ez |

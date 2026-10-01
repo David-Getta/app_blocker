@@ -4,14 +4,18 @@
 // tárolt kapcsolat-állapotot töltjük be és kirakjuk. A Beállítások gomb a
 // beállítási lapra visz — minden, ami módosítás, ott van, itt semmi.
 
-import { CLOSED_FRESH_MS, addFocusWindowInApp, loadLink, pullFromApp, startFocusInApp } from './app-link.js';
+import { CLOSED_FRESH_MS, addFocusWindowInApp, effectiveFocus, loadLink, pullFromApp, startFocusInApp } from './app-link.js';
 import { describePopup, focusDayText, focusHourCoverText, focusHourNowText, focusHourWindowButton, focusStreakText, hourSpan, limitSoonText, peakCoverText, sameHourText, suggestButton, windowButton } from './popup-core.js';
 import { dayKey, hitsSummary, hitsText, peakDayNow, peakDayNowText, peakNow, peakText, topHost } from './hits.js';
 
 const $ = (id) => document.getElementById(id);
 
 async function render() {
-  const link = await loadLink();
+  const stored = await loadLink();
+  // A HATÁSOS menet a lapon is: ha az app nem válaszol, a tárolt heti ablak
+  // is fut — a lap ugyanazt mondja, mint amit a döntés betart.
+  const eff = effectiveFocus(stored, Date.now());
+  const link = { ...stored, focus: eff ? { ...stored.focus, running: true, ...eff } : { ...stored.focus, running: false } };
   const d = describePopup(link, Date.now(), CLOSED_FRESH_MS);
 
   const state = $('state');

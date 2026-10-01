@@ -273,7 +273,11 @@ if (HELPER_MODE) {
           // „mindent tilts, kivéve ötöt” egy hosts-fájlban nem leírható.
           const s = await sharedStatus();
           const run = s.focusRun;
-          if (!run) return { running: false };
+          // A heti ablakok következő hete is lemegy, a futó menettől függetlenül:
+          // ha az app bezárul, a segéd az ablak menetét akkor is elindítja, és a
+          // bővítmény ebből tudja, hogy a böngészőben is be kell tartani.
+          const windows = s.focusWindows ?? [];
+          if (!run) return { running: false, windows };
           const packs = s.focusPacks ?? [];
           const pack = packs.find((p) => p.id === run.packId);
           return {
@@ -283,6 +287,7 @@ if (HELPER_MODE) {
             allowSites: pack?.allowSites ?? [],
             // Aki nem maga indította, a böngészőben is tudja meg, miért fut.
             window: isWindowRun(run, packs),
+            windows,
           };
         },
         async () => {

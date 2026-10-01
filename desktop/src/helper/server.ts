@@ -18,7 +18,7 @@ import {
 } from '../shared/browser-hits';
 import { normalizeRule } from '../shared/urlrules';
 import {
-  lastUsedPack, focusDaySeries, focusDayStreak, focusLongestStreak, focusByWeekday, focusByHour, peakFocusHour, isRunning, normalizePack, spentWindows, summarizeFocus, summarizeFocusPrevWeek,
+  lastUsedPack, focusDaySeries, focusDayStreak, focusLongestStreak, focusByWeekday, focusByHour, peakFocusHour, isRunning, normalizePack, spentWindows, summarizeFocus, upcomingWindows, summarizeFocusPrevWeek,
   windowRunsByPack,
 } from '../shared/focus';
 import { burstTripsInDays, noteBurstTrip, noteBurstUsage, normalizeBurst, type BurstRule } from '../shared/burst';
@@ -139,6 +139,9 @@ export function statusOf(
     // Az élő ablak, aminek a menete ma már véget ért: a felület ne mondja
     // rá, hogy „most él” — a segéd sem indítja újra ebben az ablakban.
     focusSpent: spentWindows(state.focusPacks ?? [], state.focusLog, now),
+    // A heti ablakok következő hete, az elköltöttek nélkül: a böngésző ebből
+    // tartja be az ablakot akkor is, ha az app (és vele a híd) zárva van.
+    focusWindows: upcomingWindows(state.focusPacks ?? [], state.focusLog, now),
     tier: computeTier(state.unlockLog, now),
     unlocks7d: state.unlockLog.filter((t) => t >= now - 7 * 24 * 3600_000).length,
     unlocksPrev7d: state.unlockLog.filter((t) => t >= now - 14 * 24 * 3600_000 && t < now - 7 * 24 * 3600_000).length,

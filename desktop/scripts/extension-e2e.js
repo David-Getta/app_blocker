@@ -678,6 +678,34 @@ async function main() {
     await page.goto(`${base}/`);
     await page.waitForTimeout(1200);
     check((await browserUrl(page, context)) === `${base}/`, 'az elavult zárva-lista nem tilt');
+
+    // A HETI ABLAK APP NÉLKÜL. Az app régen szólt (bezárták), de előre
+    // leküldte az ablakot, ami most tart: a böngésző betartja — a fehérlistán
+    // kívüli lap a tiltó lapra fut, az ablak nevével és jelével.
+    const seedFocus = (focus, fetchedAt) => seeder.evaluate(
+      (arg) => chrome.storage.local.set({
+        'breaker.applink': { ...arg.link, closed: [], focus: arg.focus, fetchedAt: arg.fetchedAt },
+      }),
+      { link: LINK, focus, fetchedAt },
+    );
+    const nowWindow = {
+      packId: 'p1', name: 'Mély munka', allowSites: ['example.org'],
+      startsAt: Date.now() - 60_000, endsAt: Date.now() + 600_000,
+    };
+    await seedFocus({ running: false, windows: [nowWindow] }, Date.now() - 10 * 60_000);
+    await page.goto(`${base}/`).catch(() => { /* a navigációt elkapja a tiltás */ });
+    const windowBlocked = await waitForBrowserUrl(page, context, /blocked\.html\?.*focus=/, WAIT_MS);
+    check(!!windowBlocked, 'app nélkül is a most tartó heti ablak tilt a böngészőben');
+    const windowParams = windowBlocked ? new URL(windowBlocked).searchParams : null;
+    check(!!windowParams && windowParams.get('window') === '1' && windowParams.get('focus') === 'Mély munka',
+      'a tiltó lap az ablak nevét és jelét kapja');
+
+    // Amíg az app friss, az ő szava dönt: ha azt mondja, nem fut menet (az
+    // ablakét leállították), a tárolt ablak nem tilt.
+    await seedFocus({ running: false, windows: [nowWindow] }, Date.now());
+    await page.goto(`${base}/`);
+    await page.waitForTimeout(1200);
+    check((await browserUrl(page, context)) === `${base}/`, 'friss app-szónál a tárolt ablak nem tilt');
   } finally {
     await context.close().catch(() => {});
     server.close();

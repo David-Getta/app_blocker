@@ -98,6 +98,12 @@ export interface BridgeFocus {
   allowSites?: string[];
   /** a heti ablak szerint indult, nem gombnyomásra — a vége az ablak vége */
   window?: boolean;
+  /**
+   * A heti ablakok következő hete, az elköltöttek nélkül. A bővítmény ebből
+   * tartja be az ablakot akkor is, ha az app (és vele ez a híd) zárva van —
+   * amíg az app válaszol, a fenti élő állapot dönt.
+   */
+  windows?: { packId: string; name: string; allowSites: string[]; startsAt: number; endsAt: number }[];
 }
 
 /**

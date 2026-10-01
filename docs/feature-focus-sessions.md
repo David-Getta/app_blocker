@@ -502,9 +502,40 @@ ablak, hanem sima menet.
   megérkezik, jellel, tehát a gép egyidejű szerkesztése nem nyeli el. A
   szerkesztés, a törlés és a heti ablak beállítása a gép dolga, ahol a csomag
   szerkesztője is van; a telefon csak hozzáad, mint az ablaknál.
-- A gépen a segéd az ablak menetét akkor is elindítja, ha az app nem fut — de
-  a böngésző-bővítmény az apptól kérdezi a fehérlistát, tehát a böngészőben
-  csak futó app mellett érvényesül. A telefon szűrője ettől független.
+- A gépen a segéd az ablak menetét akkor is elindítja, ha az app nem fut, és
+  a böngésző is betartja (lásd lent, „Az ablak a böngészőben, app nélkül”).
+  A rések: amit az app utolsó szava óta máshol levettél, azt a böngésző az
+  app következő indulásáig még betartja; egy hétnél tovább zárva tartott app
+  után a további ablakokról nem tud. Mindkettő a szigorúbb irány, vagy
+  pontosan a régi viselkedés. A telefon szűrője ettől független.
+
+### Az ablak a böngészőben, app nélkül
+
+A gépen a fehérlistát egyedül a böngésző-bővítmény tudja betartani, és ő a
+hídon, az apptól tud a menetről. Eddig ezért a heti ablak a böngészőben csak
+futó app mellett élt: az app bezárása — semmi próbatétel — az ablak
+feloldása volt a böngészőben, holott a segéd a menetet közben elindította.
+
+Most az app minden lehúzásnál a heti ablakok **következő hetét** is leküldi
+(`upcomingWindows`, a segéd állapotából; az elköltött — leállított vagy
+lefutott — előfordulás nélkül), a bővítmény tárolja, és a döntés két
+forrásból áll össze (`effectiveFocus` az `extension/app-link.js`-ben):
+
+- **amíg az app friss** (az utolsó sikeres lehúzás legfeljebb egy perce
+  volt — három lehúzásnyi idő), az app élő szava dönt. Ő tudja, hogy egy
+  ablak menetét kifizetett próbatétellel leállították; ha a tárolt lista
+  ilyenkor is élne, a leállítás a böngészőben nem érne semmit;
+- **ha az app hallgat**, a most tartó tárolt ablak érvényes, és előbbre
+  való egy tárolt kézi menetnél — a segéd is lezárja a kézi menetet az ablak
+  kezdetén. Az ablak után a kézi menet a saját idejéig tart, ahogy eddig.
+
+A lista egy hétre szól, legfeljebb 64 előfordulás; a bővítmény a rosszul
+formált tételt eldobja (régi app válaszában nincs ilyen mező — az üres lista,
+nem hiba). Tesztek: a kiszállított `effectiveFocus` és `focusAllows` a
+`desktop/test/extension-focus.test.ts`-ben, a tárolás a
+`desktop/test/extension-storage.test.ts`-ben, a valódi böngészőben a
+`desktop/scripts/extension-e2e.js` (régi lehúzás + most tartó ablak → tiltó
+lap, az ablak nevével; friss „nem fut” → nem tilt).
 
 ## A telefon eddig kiskapu volt
 

@@ -73,8 +73,27 @@ const WIRES = [
   },
   {
     file: 'extension/background.js',
-    needle: 'focusActive',
+    needle: 'effectiveFocus(link, now)',
     lost: 'a böngésző-bővítmény nem érvényesítené a fehérlistát a gépen',
+  },
+  // A HETI ABLAK APP NÉLKÜL. A segéd az ablak menetét az app nélkül is
+  // elindítja, a böngészőben viszont csak a bővítmény tarthatja be — és ő csak
+  // abból tud róla, amit a híd előre leküldött. Ha a lánc bármelyik szeme
+  // kiesik, az app bezárása megint az ablak feloldása lenne, csendben.
+  {
+    file: 'desktop/src/helper/server.ts',
+    needle: 'focusWindows: upcomingWindows(',
+    lost: 'a segéd nem mondaná meg a hídnak a heti ablakokat — a böngésző csak futó app mellett tartaná be őket',
+  },
+  {
+    file: 'desktop/src/main/main.ts',
+    needle: 'if (!run) return { running: false, windows };',
+    lost: 'a híd nem küldené le a heti ablakokat, amikor épp nem fut menet — a böngésző az app nélkül nem tudna róluk',
+  },
+  {
+    file: 'extension/app-link.js',
+    needle: 'windows: cleanFocusWindows(focus.windows)',
+    lost: 'a bővítmény nem tárolná a heti ablakokat — az app bezárása az ablak feloldása lenne',
   },
   {
     file: 'desktop/src/helper/server.ts',
