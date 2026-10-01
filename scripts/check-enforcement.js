@@ -103,6 +103,19 @@ const WIRES = [
     needle: 'upcomingLockdownWindows(s.lockdownWindows',
     lost: 'a híd nem küldené le a zárlat-ablakokat — zárva lévő app mellett a tiltó lap feloldást ígérne a zárlat alatt',
   },
+  // AZ APP SZABÁLYÁNAK ÚTJA. A részleges szabály tiltó lapja alapból a
+  // bővítmény saját útját mondja (beállítások, tíz perc). Az appból jött
+  // szabálynál ez hazugság: ott az app útja él, zárlat alatt egyik sem.
+  {
+    file: 'extension/background.js',
+    needle: "if (hit.rule?.fromApp === true) q.set('ruleFrom', 'app');",
+    lost: 'az app szabályának tiltó lapja a bővítmény tíz perces útját ígérné — zárlat alatt is',
+  },
+  {
+    file: 'extension/blocked.js',
+    needle: "if (params.get('ruleFrom') === 'app') {",
+    lost: 'az app szabályának tiltó lapja a bővítmény tíz perces útját ígérné — zárlat alatt is',
+  },
   {
     file: 'extension/app-link.js',
     needle: 'for (const w of l?.windows ?? [])',

@@ -235,7 +235,12 @@ function blockedParams(hit, fromUrl) {
     if (hit.byTitle) q.set('by', 'title');
     return q;
   }
-  return new URLSearchParams({ rule: ruleLabel(hit.rule) });
+  const q = new URLSearchParams({ rule: ruleLabel(hit.rule) });
+  // Az appból jött szabályt az appban lehet levenni, próbatétellel — nem a
+  // bővítmény beállításaiban, tíz perc várással. A lap ebből tudja, melyik
+  // utat mondja (és hogy zárlat alatt az app útja sincs).
+  if (hit.rule?.fromApp === true) q.set('ruleFrom', 'app');
+  return q;
 }
 
 // Kis, MEMÓRIABELI nyomkövető gyűrű: mit látott a navigáció-figyelő, és mit

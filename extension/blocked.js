@@ -206,6 +206,14 @@ if (focus) {
   const rule = params.get('rule');
   document.getElementById('rule').textContent =
     rule && rule.trim() ? rule : 'ismeretlen szabály';
+  // Az APPBÓL jött szabályt nem a bővítmény beállításaiban lehet levenni (ott
+  // a gombja le is van tiltva), hanem az appban, próbatétellel — zárlat alatt
+  // sehogy, megbízottal az ő jelmondatával. A láb ezt mondja; a bővítmény
+  // saját szabályánál marad a tíz perces út, arra a zárlat nem vonatkozik.
+  if (params.get('ruleFrom') === 'app') {
+    paintFoot(document.getElementById('ruleFoot'),
+      'Ezt a szabályt a Breaker appban vetted fel: levenni ott lehet, és próbatételbe kerül — szigorítani ingyen.');
+  }
 }
 
 // Az INDOK: amiért te magad tiltottad le — a kísértés pillanatában ez a

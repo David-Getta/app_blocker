@@ -125,7 +125,12 @@ Beállítások gomb a beállítási lapra visz — minden, ami módosítás, ott
 ## Mit csinál pontosan
 
 1. **Megállítja a navigációt**, ha a cím a szabály alá esik — a saját tiltó lapja
-   jön, ami megnevezi a szabályt, ami megfogta.
+   jön, ami megnevezi a szabályt, ami megfogta. A lába azt az utat mondja,
+   ami tényleg létezik: a bővítmény saját szabályát a beállításaiban, tíz perc
+   várással lehet levenni; az appból jöttet az appban, próbatétellel (a
+   beállítás-lapon a gombja le is van tiltva) — zárlat alatt sehogy, és
+   megbízottal az ő jelmondatával. A háttér ezért jelzi a lapnak, ha a
+   szabály az appé (`ruleFrom=app`).
 2. **Eltünteti a találatokat a felületről.** Ez legalább annyira fontos: a
    főoldalon a csatorna videói `/watch?v=...` címre mutatnak, amiben a csatorna
    nem szerepel — a navigáció megállítása tehát csak akkor lépne működésbe,

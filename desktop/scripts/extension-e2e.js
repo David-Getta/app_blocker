@@ -739,6 +739,29 @@ async function main() {
     const freshBlocked = await waitForBrowserUrl(page, context, /blocked\.html\?.*zarlatproba2/, WAIT_MS);
     check(!!freshBlocked && new URL(freshBlocked).searchParams.get('lockdownUntil') === null,
       'friss app-szónál a tárolt zárlat-ablak nem mond zárlatot');
+
+    // AZ APP SZABÁLYA: a részleges szabály, ami az appból jött, az appban
+    // vehető le, próbatétellel — a lap nem a bővítmény tíz perces útját mondja
+    // (ott a gombja le is van tiltva). Zárlat alatt az app útja sincs.
+    await seedLock(null, Date.now());
+    await page.goto(`${base}/tiltott/app`).catch(() => { /* a navigációt elkapja a tiltás */ });
+    const appRuleBlocked = await waitForBrowserUrl(page, context, /blocked\.html\?.*ruleFrom=app/, WAIT_MS);
+    check(!!appRuleBlocked, 'az app szabályának tiltó lapja tudja, hogy a szabály az appé');
+    if (appRuleBlocked && /blocked\.html/.test(page.url())) {
+      const text = await bodyText(page);
+      check(text.includes('a Breaker appban vetted fel') && !text.includes('tíz percet várni'),
+        'az app szabályánál a lap az app útját mondja, nem a bővítmény tíz percét');
+    }
+    await seedLock({ until: Date.now() + 3600_000 }, Date.now());
+    await page.goto(`${base}/tiltott/app2`).catch(() => { /* a navigációt elkapja a tiltás */ });
+    const appRuleLocked = await waitForBrowserUrl(page, context, /blocked\.html\?.*lockdownUntil=\d+/, WAIT_MS);
+    if (appRuleLocked && /blocked\.html/.test(page.url())) {
+      const text = await bodyText(page);
+      check(text.includes('Zárlat van érvényben') && !text.includes('próbatételbe kerül'),
+        'zárlat alatt az app szabályának lapja sem ígér próbatételt');
+    } else {
+      check(false, 'zárlat alatt az app szabályának lapja sem ígér próbatételt');
+    }
   } finally {
     await context.close().catch(() => {});
     server.close();
