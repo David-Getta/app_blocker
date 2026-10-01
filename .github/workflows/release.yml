@@ -44,28 +44,26 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
+          **A menetrend és a részleges szabály a szinkronon sem dönt le
+          semmit.** A gép eddig nyersen tartotta a szinkronon jött
+          menetrendet: egy hibás sávlista a döntést és a fésülést is ledöntötte
+          (kivételt dobott). A két telefon egy ilyen sáv miatt az egész oldalt
+          eldobta. Most mindhárom platform ugyanúgy olvas: a hibás sáv kiesik,
+          a többi marad, és ami nem értelmezhető, az a tiltás felé dől. A
+          részleges szabályokból csak a kanonikus alak megy át, átírás nélkül
+          — az Android eddig újranormalizált, az iPhone egy rossz szabály
+          miatt az oldalt dobta el.
+
+          ### Ami a v0.4.205-ben jött
+
           **Egy hibás rekord nem viszi el a többit.** A szinkronon jött
-          blokklistát és munkamenetet az iPhone eddig egyben olvasta: egyetlen
-          hibás oldal vagy csomag az egész listát vitte, és a telefon a saját
-          listáját tolta fel a többiek helyett. Most mindhárom platform
-          elemenként olvas, ugyanazzal a szabállyal: csak a hibás elem esik
-          ki, a rossz típusú mező az alapértékét kapja, és egy kiesett csomag
-          nem törlődhet emiatt a többi eszközről. Az Android a szövegként írt
-          számot sem veszi többé számnak. Új közös próba mondja ki
-          (`wire-cases.json`).
+          listákat mindhárom platform elemenként olvassa, ugyanazzal a
+          szabállyal; a telefonon a csomag és a megbízott neve is a 40.
+          karakternél megáll.
 
-          A telefonon a csomag és a megbízott nevének mezője is a 40.
-          karakternél megáll, mint a gépen — eddig többet engedett, és a
-          mentés csendben levágta.
+          #### Ami a v0.4.204-ben jött
 
-          ### Ami a v0.4.204-ben jött
-
-          **A csomag neve minden eszközön ugyanaz.** Egy szabállyal tisztul,
-          kódpontban vágva; a Swift-tesztek fél perc alatt futnak.
-
-          #### Ami a v0.4.203-ban jött
-
-          **A leírás azt mondja, ami igaz.**
+          **A csomag neve minden eszközön ugyanaz.**
 
           NOTES
           fi
