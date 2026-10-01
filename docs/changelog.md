@@ -8,6 +8,7 @@ kettővel korábbiban.
 
 | Verzió | Nap | Mi újság |
 |---|---|---|
+| v0.4.196 | 2026-10-01 | a menetek számai ugyanazok mindhárom platformon |
 | v0.4.195 | 2026-10-01 | a statisztika számai ugyanazok mindhárom platformon |
 | v0.4.194 | 2026-10-01 | a heti visszatekintés mondatának közös fixtúrája |
 | v0.4.193 | 2026-10-01 | a fixtúra a zárlat-ablakokat is nézi |
