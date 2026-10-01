@@ -5,6 +5,7 @@ import hu.breaker.app.core.PartnerLogic
 import hu.breaker.app.core.ScheduleLogic
 import hu.breaker.app.core.SyncClient
 import hu.breaker.app.core.SyncMerge
+import hu.breaker.app.core.UsageLogic
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -80,6 +81,27 @@ class MergeFixtureTest {
 
     private fun site(o: JSONObject): SyncMerge.SyncSite =
         SyncClient.sitesFromJson(JSONArray().put(o).toString()).single()
+
+    /** A használati statisztika kulcsa: a napok az egyesített sorrendben, a célok és a címkék rendezve. */
+    private fun usageKey(u: UsageLogic.UsageState): String {
+        val days = u.days.joinToString(";") { d ->
+            d.day + ":{" + d.seconds.toSortedMap().entries.joinToString(",") { "${it.key}=${it.value.toLong()}" } + "}"
+        }
+        val labels = u.labels.toSortedMap().entries.joinToString(",") { "${it.key}=${it.value}" }
+        return "enabled=${if (u.enabled) 1 else 0} days=[$days] labels=[$labels]"
+    }
+
+    @Test
+    fun `hasznalat - a Kotlin egyesites ugyanazt adja, mint a gep`() {
+        val cases = JSONObject(fixtureFile().readText()).getJSONArray("usage")
+        assertTrue(cases.length() >= 50, "a fixture-ben van elég eset")
+        for (i in 0 until cases.length()) {
+            val c = cases.getJSONObject(i)
+            val seed = c.getInt("seed")
+            val states = listOf("a", "b", "c").map { SyncClient.usageFromJson(c.getJSONObject(it).toString()) }
+            assertEquals(c.getString("abc"), usageKey(UsageLogic.combineUsage(states)), "használat, három eszköz, mag $seed")
+        }
+    }
 
     private fun focus(o: JSONObject): FocusSync.SyncFocus =
         SyncClient.focusFromJson(o.toString(), "x")

@@ -982,7 +982,8 @@ object SyncClient {
         put("labels", JSONObject().apply { for ((k, v) in u.labels) put(k, v) })
     }.toString()
 
-    private fun usageFromJson(text: String): UsageLogic.UsageState {
+    /** `internal`, hogy a megfelelőségi fixtúra a dróton át olvashassa (MergeFixtureTest). */
+    internal fun usageFromJson(text: String): UsageLogic.UsageState {
         val o = JSONObject(text)
         val days = mutableListOf<UsageLogic.UsageDay>()
         o.optJSONArray("days")?.let { arr ->

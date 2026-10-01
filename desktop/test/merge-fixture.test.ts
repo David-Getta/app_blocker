@@ -19,17 +19,22 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { mergeSite } from '../src/shared/sync/merge';
 import { mergeFocus, normalizeSyncFocus, sameFocus } from '../src/shared/sync/focus-merge';
+import { combineUsage } from '../src/shared/usage';
 import {
-  DEVICES, flipFocus, flipSite, focusConformanceKey, randomFocus, randomSite, rng, siteConformanceKey,
+  DEVICES, flipFocus, flipSite, focusConformanceKey, randomFocus, randomSite, randomUsage, rng,
+  siteConformanceKey, usageConformanceKey,
 } from './merge-random';
 
 /** dist-test/test/… → a tároló gyökere. */
 const FIXTURE = path.resolve(__dirname, '..', '..', '..', 'fixtures', 'merge-cases.json');
 const SEEDS = 80;
 
-function buildFixture(): { note: string; version: number; sites: unknown[]; focus: unknown[] } {
+interface Fixture { note: string; version: number; sites: unknown[]; focus: unknown[]; usage: unknown[] }
+
+function buildFixture(): Fixture {
   const sites: unknown[] = [];
   const focus: unknown[] = [];
+  const usage: unknown[] = [];
   for (let seed = 1; seed <= SEEDS; seed++) {
     const r = rng(seed);
     const [a, b, c] = DEVICES.map((d) => randomSite(r, d));
@@ -60,22 +65,33 @@ function buildFixture(): { note: string; version: number; sites: unknown[]; focu
       seed, a, b, c, ab: focusConformanceKey(ab), abc: focusConformanceKey(mergeFocus(ab, c)), flip, what, same,
     });
   }
+  // A HASZNÁLATI STATISZTIKA egyesítése: három eszköz mérése — napok, célok,
+  // címkék (a több időt mérő eszközé), kapcsoló (ha bármelyik mér, az összeg
+  // valódi). Nem fésülés, hanem összeadás — de a három nyelvnek itt is bájtra
+  // ugyanazt kell adnia, a napok sorrendjével együtt.
+  for (let seed = 1; seed <= SEEDS; seed++) {
+    const r = rng(seed);
+    const [a, b, c] = DEVICES.map((d) => randomUsage(r, d));
+    usage.push({ seed, a, b, c, abc: usageConformanceKey(combineUsage([a, b, c])) });
+  }
   return {
     note: 'Generálja és őrzi: desktop/test/merge-fixture.test.ts (UPDATE_MERGE_FIXTURE=1 npm test). '
       + 'Olvassa: android/jvm-tests MergeFixtureTest, ios/SharedTests MergeFixtureTests. '
       + 'A focus-esetek flip/what/same mezője: egy mező cseréje, és hogy a három nyelv különbségnek tartja-e. '
-      + 'A sites-esetek flip/what/af/fa mezője: egy mező cseréje, és a fésülés mindkét sorrendben.',
-    version: 7,
+      + 'A sites-esetek flip/what/af/fa mezője: egy mező cseréje, és a fésülés mindkét sorrendben. '
+      + 'A usage-esetek: három eszköz mérése és az egyesítés kulcsa.',
+    version: 8,
     sites,
     focus,
+    usage,
   };
 }
 
 /** Esetenként egy sor: olvasható diff, mégis kompakt fájl. */
-function render(f: { note: string; version: number; sites: unknown[]; focus: unknown[] }): string {
+function render(f: Fixture): string {
   const rows = (items: unknown[]) => items.map((x) => ' ' + JSON.stringify(x)).join(',\n');
   return `{\n"note": ${JSON.stringify(f.note)},\n"version": ${f.version},\n`
-    + `"sites": [\n${rows(f.sites)}\n],\n"focus": [\n${rows(f.focus)}\n]\n}\n`;
+    + `"sites": [\n${rows(f.sites)}\n],\n"focus": [\n${rows(f.focus)}\n],\n"usage": [\n${rows(f.usage)}\n]\n}\n`;
 }
 
 test('a megfelelőségi fixture a gép szabályaival egyezik (a Kotlin és a Swift ebből dolgozik)', () => {

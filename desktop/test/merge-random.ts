@@ -14,6 +14,7 @@ import type { UrlRule } from '../src/shared/urlrules';
 import { windowKey, type LockdownWindow } from '../src/shared/lockdown';
 import { keywordsKey } from '../src/shared/keywords';
 import { partnerKey, type PartnerLock } from '../src/shared/partner';
+import type { UsageDay, UsageState } from '../src/shared/usage';
 
 /** Determinisztikus véletlen (LCG): a mag a hibaüzenetben áll, a bukás megismételhető. */
 export function rng(seed: number): () => number {
@@ -399,4 +400,47 @@ export function flipSite(r: () => number, a: SyncSite): SiteFlip {
     case 12: return { what: 'updatedAt', flip: { ...a, updatedAt: a.updatedAt + 1 } };
     default: return { what: 'updatedBy', flip: { ...a, updatedBy: 'masik' } };
   }
+}
+
+/** A mérés napjai, céljai és címkéi — a használati statisztika egyesítéséhez. */
+export const USAGE_DAYS = ['2026-09-28', '2026-09-29', '2026-09-30'];
+export const USAGE_KEYS = ['site:youtube.com', 'site:reddit.com', 'app:com.example.app', 'app:Safari'];
+export const USAGE_LABELS = ['YouTube', 'Reddit', 'Példa app', 'Safari'];
+
+/**
+ * Egy eszköz mérése — a használati statisztika egyesítéséhez (`combineUsage`
+ * / `UsageLogic.combineUsage` / `UsageStats.combine`). Harminckét húzás, mind
+ * feltétel nélkül: naponként van-e nap, célonként van-e mérés és mennyi
+ * (egész percek, hogy a három nyelv számformátuma ne játsszon), célonként
+ * van-e címke (az eszköz nevével, hogy a címke-verseny — a több időt mérő
+ * eszközé — látható legyen), és a kapcsoló. Ezt csak a fixtúra használja: a
+ * Kotlin és a Swift a kész állapotokat olvassa a dróton át.
+ */
+export function randomUsage(r: () => number, device: string): UsageState {
+  const days: UsageDay[] = [];
+  for (const day of USAGE_DAYS) {
+    const hasDay = r() < 0.6;
+    const seconds: Record<string, number> = {};
+    for (const k of USAGE_KEYS) {
+      const hasKey = r() < 0.5;
+      const amount = 60 * (1 + Math.floor(r() * 5));
+      if (hasDay && hasKey) seconds[k] = amount;
+    }
+    if (hasDay) days.push({ day, seconds });
+  }
+  const labels: Record<string, string> = {};
+  for (let i = 0; i < USAGE_KEYS.length; i++) {
+    const hasLabel = r() < 0.6;
+    if (hasLabel) labels[USAGE_KEYS[i]] = `${USAGE_LABELS[i]} (${device})`;
+  }
+  const enabled = r() < 0.7;
+  return { days, labels, enabled };
+}
+
+/** A használati statisztika megfelelőségi kulcsa — a napok az EGYESÍTETT sorrendben, a célok és a címkék rendezve. */
+export function usageConformanceKey(u: UsageState): string {
+  const byKey = ([a]: [string, unknown], [b]: [string, unknown]) => (a < b ? -1 : a > b ? 1 : 0);
+  const days = u.days.map((d) => `${d.day}:{${Object.entries(d.seconds).sort(byKey).map(([k, v]) => `${k}=${v}`).join(',')}}`).join(';');
+  const labels = Object.entries(u.labels).sort(byKey).map(([k, v]) => `${k}=${v}`).join(',');
+  return `enabled=${u.enabled ? 1 : 0} days=[${days}] labels=[${labels}]`;
 }

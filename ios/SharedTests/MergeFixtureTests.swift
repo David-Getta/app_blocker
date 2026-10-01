@@ -120,6 +120,41 @@ final class MergeFixtureTests: XCTestCase {
         }
     }
 
+    /// A használati statisztika kulcsa: a napok az egyesített sorrendben, a célok és a címkék rendezve.
+    private func usageKey(_ u: UsageStats.State) -> String {
+        let days = u.days.map { d -> String in
+            d.day + ":{" + d.seconds.sorted { $0.key < $1.key }.map { "\($0.key)=\(Int($0.value))" }.joined(separator: ",") + "}"
+        }.joined(separator: ";")
+        let labels = u.labels.sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" }.joined(separator: ",")
+        return "enabled=\(u.enabled ? 1 : 0) days=[\(days)] labels=[\(labels)]"
+    }
+
+    func testUsageCombinesTheSameAsTheDesktop() throws {
+        // A mérés a dróton SZÖVEGKÉNT jön (`UsageStats.parse`), ezért a
+        // fixtúrából is így: a három állapotot visszaírjuk JSON-ná, és a
+        // saját olvasónk veszi — ugyanaz az út, mint az éles körben.
+        let here = URL(fileURLWithPath: #filePath)
+        let root = here.deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let url = root.appendingPathComponent("fixtures").appendingPathComponent("merge-cases.json")
+        let top = try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any]
+        let cases = top?["usage"] as? [[String: Any]] ?? []
+        XCTAssertGreaterThanOrEqual(cases.count, 50, "a fixture-ben van elég eset")
+        for c in cases {
+            let seed = c["seed"] as? Int ?? -1
+            var states: [UsageStats.State] = []
+            for dev in ["a", "b", "c"] {
+                let obj = c[dev] as? [String: Any] ?? [:]
+                let data = try JSONSerialization.data(withJSONObject: obj)
+                guard let parsed = UsageStats.parse(String(decoding: data, as: UTF8.self)) else {
+                    XCTFail("a mérés nem olvasható, mag \(seed), eszköz \(dev)")
+                    return
+                }
+                states.append(parsed)
+            }
+            XCTAssertEqual(usageKey(UsageStats.combine(states)), c["abc"] as? String ?? "", "használat, három eszköz, mag \(seed)")
+        }
+    }
+
     func testFocusMergesTheSameAsTheDesktop() throws {
         let fixture = try loadFixture()
         XCTAssertGreaterThanOrEqual(fixture.focus.count, 50, "a fixture-ben van elég eset")

@@ -366,7 +366,10 @@ Amit a tesztek bizonyítanak, és amit másképp nem lehetne:
   rekordokat is fésüli: az `a` és egy egy mezőben más párja, mindkét
   sorrendben — a szigorúság-lánc (menetrend, keret, adag, törlésre várás) és
   a döntetlen-törés (időbélyeg, eszköznév) éles esetei, amiket a véletlen
-  rekordok ritkán hoznak ki.
+  rekordok ritkán hoznak ki. És a használati statisztika EGYESÍTÉSÉT is
+  (`combineUsage`): három eszköz mérése — napok, célok, címkék, kapcsoló —
+  a dróton át, és a három nyelvnek az összeget, a címke-versenyt és a napok
+  sorrendjét is bájtra ugyanúgy kell adnia.
 
 Egy dolog iPhone-on más: a **napi keret nem érvényesül** (nincs ilyen mérési
 API), de a rekordban MEGŐRIZZÜK. Enélkül elég lenne egyszer megnyitni a
