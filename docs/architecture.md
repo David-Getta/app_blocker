@@ -235,7 +235,9 @@ megbízott, rejtés, a jeleikkel), és minden esethez egy mező cseréje, amit a
 három nyelvnek ugyanúgy kell különbségnek tartania; a mérés egyesítése három
 eszközről; a döntés — tilt-e most: szünet, törlésre várás, közös napi keret;
 és az adag-számláló mérés-sorozatból, lépésenként (ezt a gép és az Android
-tükrözi, az iPhone nem mér előteret). A fésülés-generátorok véletlenje
+tükrözi, az iPhone nem mér előteret); és a munkamenet-döntés — mi mehet egy
+menet alatt — a két telefon DNS-motorában, a gép közös darabjaiból írt
+referencia szerint. A fésülés-generátorok véletlenje
 szerződés: a Kotlin és a Swift fuzz ugyanazt a sorozatot húzza ugyanabból a
 magból. És az őr: a drótnév-ellenőrző azt is nézi, hogy minden őrzött
 drót-mező ott van a fixtúra generátorában — egy új mező nem maradhat ki

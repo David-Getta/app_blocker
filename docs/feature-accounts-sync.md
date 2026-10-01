@@ -380,7 +380,13 @@ Amit a tesztek bizonyítanak, és amit másképp nem lehetne:
   az ADAG-SZÁMLÁLÓT is (`noteBurstUsage`): egy szabály, nyolc mérés-minta
   (gyűlő, tiszta lappal induló, hűtésbe eső és elkésett), és a számláló
   állapota minden minta után — a gép és az Android tükre; az iPhone nem mér
-  előteret, ott a szabály nem érvényesül, tehát ott nincs mit tükrözni.
+  előteret, ott a szabály nem érvényesül, tehát ott nincs mit tükrözni. És
+  a MUNKAMENET-DÖNTÉST is (`Focus.verdict`): mi mehet egy menet alatt — a
+  lista mindig nyer, a kulcsszó a hosztnévben tilt, a csomagon lévő név és a
+  saját fiókkiszolgáló átmegy, minden más tiltva, mert a menet fehérlista —
+  a két telefon DNS-motora ugyanazt dönti, a gép közös darabjaiból írt
+  referencia szerint. A rendszer-infrastruktúra kivétele nincs benne: a két
+  telefon listája szándékosan különbözik, azt a `check-infra-allow` őrzi.
 
 Egy dolog iPhone-on más: a **napi keret nem érvényesül** (nincs ilyen mérési
 API), de a rekordban MEGŐRIZZÜK. Enélkül elég lenne egyszer megnyitni a

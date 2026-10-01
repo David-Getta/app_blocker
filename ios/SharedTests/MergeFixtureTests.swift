@@ -180,6 +180,49 @@ final class MergeFixtureTests: XCTestCase {
         }
     }
 
+    func testTheFocusVerdictIsTheSameAsTheReference() throws {
+        // A tunnel döntése: lista, kulcsszó a hosztnévben, csomag, saját
+        // fiókkiszolgáló. A rendszer-infrastruktúra kivétele szándékosan nincs a
+        // fixtúrában (a két telefon listája különbözik; a check-infra-allow őrzi).
+        let here = URL(fileURLWithPath: #filePath)
+        let root = here.deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let url = root.appendingPathComponent("fixtures").appendingPathComponent("merge-cases.json")
+        let top = try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any]
+        let cases = top?["verdicts"] as? [[String: Any]] ?? []
+        XCTAssertGreaterThanOrEqual(cases.count, 50, "a fixture-ben van elég eset")
+        for c in cases {
+            let seed = c["seed"] as? Int ?? -1
+            var pack: Focus.Pack? = nil
+            if let p = c["pack"] as? [String: Any] {
+                pack = Focus.Pack(
+                    id: p["id"] as? String ?? "", name: p["name"] as? String ?? "",
+                    allowSites: p["allowSites"] as? [String] ?? [], allowApps: p["allowApps"] as? [String] ?? [],
+                    defaultMinutes: p["defaultMinutes"] as? Int ?? 25, recurrence: nil
+                )
+            }
+            var run: Focus.Run? = nil
+            if let r = c["run"] as? [String: Any] {
+                run = Focus.Run(packId: r["packId"] as? String ?? "",
+                                startedAt: (r["startedAt"] as? NSNumber)?.doubleValue ?? 0,
+                                endsAt: (r["endsAt"] as? NSNumber)?.doubleValue ?? 0)
+            }
+            let verdict = Focus.verdict(
+                c["host"] as? String ?? "", run: run, pack: pack,
+                now: (c["now"] as? NSNumber)?.doubleValue ?? 0,
+                blocked: Set(c["blocked"] as? [String] ?? []),
+                syncHost: c["syncHost"] as? String, keywords: c["keywords"] as? [String] ?? []
+            )
+            let label: String
+            switch verdict {
+            case .allow: label = "allow"
+            case .blockedByList: label = "list"
+            case .blockedByKeyword: label = "keyword"
+            case .blockedByFocus: label = "focus"
+            }
+            XCTAssertEqual(label, c["verdict"] as? String ?? "", "munkamenet-döntés, mag \(seed): \(c["host"] as? String ?? "")")
+        }
+    }
+
     func testUsageCombinesTheSameAsTheDesktop() throws {
         // A mérés a dróton SZÖVEGKÉNT jön (`UsageStats.parse`), ezért a
         // fixtúrából is így: a három állapotot visszaírjuk JSON-ná, és a

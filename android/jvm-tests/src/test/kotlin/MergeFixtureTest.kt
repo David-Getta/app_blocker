@@ -1,4 +1,5 @@
 import hu.breaker.app.core.BurstLogic
+import hu.breaker.app.core.Focus
 import hu.breaker.app.core.FocusSync
 import hu.breaker.app.core.KeywordLogic
 import hu.breaker.app.core.LimitLogic
@@ -163,6 +164,40 @@ class MergeFixtureTest {
                 val key = "${st.usedSeconds.toLong()}/${st.lastAt}/${st.cooldownUntil}"
                 assertEquals(expected.getString(j), key, "adag, mag $seed, ${j + 1}. minta")
             }
+        }
+    }
+
+    @Test
+    fun `munkamenet-dontes - mi mehet egy menet alatt, ugyanugy mint a referencia`() {
+        // A DNS-motor döntése: lista, kulcsszó a hosztnévben, csomag, saját
+        // fiókkiszolgáló. A rendszer-infrastruktúra kivétele szándékosan nincs a
+        // fixtúrában (a két telefon listája különbözik; a check-infra-allow őrzi).
+        val cases = JSONObject(fixtureFile().readText()).getJSONArray("verdicts")
+        assertTrue(cases.length() >= 50, "a fixture-ben van elég eset")
+        fun strings(a: JSONArray) = (0 until a.length()).map { a.getString(it) }
+        for (i in 0 until cases.length()) {
+            val c = cases.getJSONObject(i)
+            val seed = c.getInt("seed")
+            val pack = if (c.isNull("pack")) null else c.getJSONObject("pack").let { p ->
+                Focus.FocusPack(
+                    p.getString("id"), p.getString("name"), strings(p.getJSONArray("allowSites")),
+                    strings(p.getJSONArray("allowApps")), p.getInt("defaultMinutes"),
+                )
+            }
+            val run = if (c.isNull("run")) null else c.getJSONObject("run").let { r ->
+                Focus.FocusRun(r.getString("packId"), r.getLong("startedAt"), r.getLong("endsAt"))
+            }
+            val verdict = Focus.verdict(
+                c.getString("host"), run, pack, c.getLong("now"), strings(c.getJSONArray("blocked")),
+                if (c.isNull("syncHost")) null else c.getString("syncHost"), strings(c.getJSONArray("keywords")),
+            )
+            val label = when (verdict) {
+                Focus.Verdict.ALLOW -> "allow"
+                Focus.Verdict.BLOCKED_BY_LIST -> "list"
+                Focus.Verdict.BLOCKED_BY_KEYWORD -> "keyword"
+                Focus.Verdict.BLOCKED_BY_FOCUS -> "focus"
+            }
+            assertEquals(c.getString("verdict"), label, "munkamenet-döntés, mag $seed: ${c.getString("host")}")
         }
     }
 

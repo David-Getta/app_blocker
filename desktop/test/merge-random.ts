@@ -8,11 +8,11 @@
 
 import type { SyncSite } from '../src/shared/sync/merge';
 import { emptyFocus, type SyncFocus } from '../src/shared/sync/focus-merge';
-import type { FocusLogEntry, FocusPack } from '../src/shared/focus';
+import { isRunning, isSiteAllowed, type FocusLogEntry, type FocusPack, type FocusRun } from '../src/shared/focus';
 import type { Band, Schedule } from '../src/shared/schedule';
 import type { UrlRule } from '../src/shared/urlrules';
 import { windowKey, type LockdownWindow } from '../src/shared/lockdown';
-import { keywordsKey } from '../src/shared/keywords';
+import { keywordInHost, keywordsKey } from '../src/shared/keywords';
 import { partnerKey, type PartnerLock } from '../src/shared/partner';
 import type { UsageDay, UsageState } from '../src/shared/usage';
 import type { Limitable, SharedToday } from '../src/shared/limits';
@@ -551,4 +551,71 @@ export function randomBurstRun(r: () => number): BurstRun {
     samples.push({ seconds, at: sampleAt });
   }
   return { rule, samples };
+}
+
+/**
+ * A MUNKAMENET-DÖNTÉS: mi mehet egy menet alatt. A két telefon DNS-motora
+ * dönti (`Focus.verdict`), a gép a böngésző-bővítményben; a szabálysor
+ * ugyanaz, és a gép közös darabjaiból összerakható — ez a referencia:
+ *
+ *   1. a blokklista mindig nyer (végződés szerint, a kiterjesztett
+ *      hosztnév-listán — ahogy a DNS-motor illeszt);
+ *   1b. kulcsszó a hosztnévben → tiltva, kivéve a saját fiókkiszolgálót;
+ *   2. nem fut menet, vagy nincs csomag → mehet;
+ *   3. a csomagon rajta van (egyezés vagy aldomain) → mehet;
+ *   4. a saját fiókkiszolgáló → mehet;
+ *   5. minden más → tiltva: a menet fehérlista.
+ *
+ * A rendszer-infrastruktúra kivétele (`isInfrastructure`) szándékosan nincs
+ * benne: a két telefon listája különbözik (Google, illetve Apple hosztok), ezt
+ * a check-infra-allow őrzi. A nevek készlete ezért egyik listát sem érinti.
+ */
+export const VERDICT_HOSTS = [
+  'youtube.com', 'www.youtube.com', 'music.youtube.com', 'quizlet.com', 'app.quizlet.com',
+  'reddit.com', 'tiktok.com', 'www.tiktok.com', 'notyoutube.com', 'live.example.org',
+  'sync.pelda.hu', 'api.sync.pelda.hu', 'example.org',
+];
+export const VERDICT_BLOCKED: string[][] = [[], ['youtube.com'], ['youtube.com', 'tiktok.com'], ['reddit.com']];
+export const VERDICT_KEYWORDS: string[][] = [[], ['tiktok'], ['live'], ['tiktok', 'quiz']];
+export const VERDICT_PACKS: FocusPack[] = [
+  { id: 'p1', name: 'Tanulás', allowSites: ['quizlet.com'], allowApps: [], defaultMinutes: 25 },
+  { id: 'p2', name: 'Kutatás', allowSites: ['youtube.com', 'example.org'], allowApps: [], defaultMinutes: 50 },
+];
+export const VERDICT_NOW = 1_000_000;
+export const VERDICT_SYNC_HOST = 'sync.pelda.hu';
+
+export interface VerdictCase {
+  host: string; blocked: string[]; keywords: string[];
+  run: FocusRun | null; pack: FocusPack | null; syncHost: string | null; now: number;
+}
+
+/** Hat húzás a bemelegítés után — csak a fixtúráé. */
+export function randomVerdict(r: () => number): VerdictCase {
+  for (let i = 0; i < 4; i++) r();
+  const host = VERDICT_HOSTS[Math.floor(r() * VERDICT_HOSTS.length)];
+  const blocked = VERDICT_BLOCKED[Math.floor(r() * VERDICT_BLOCKED.length)];
+  const keywords = VERDICT_KEYWORDS[Math.floor(r() * VERDICT_KEYWORDS.length)];
+  const runDraw = Math.floor(r() * 3);
+  const packDraw = Math.floor(r() * 3);
+  const syncDraw = r();
+  const pack = packDraw === 0 ? null : VERDICT_PACKS[packDraw - 1];
+  // Menet: nincs, fut (a vége a jövőben), vagy már lejárt (a vége a múltban).
+  const run: FocusRun | null = runDraw === 0 || !pack ? null
+    : { packId: pack.id, startedAt: 10, endsAt: runDraw === 1 ? VERDICT_NOW + 600_000 : VERDICT_NOW - 1 };
+  return { host, blocked, keywords, run, pack, syncHost: syncDraw < 0.5 ? VERDICT_SYNC_HOST : null, now: VERDICT_NOW };
+}
+
+export type VerdictLabel = 'allow' | 'list' | 'keyword' | 'focus';
+
+/** A referencia-döntés a gép közös darabjaiból — a telefonok `Focus.verdict`-jének sorrendjében. */
+export function referenceVerdict(c: VerdictCase): VerdictLabel {
+  const h = c.host.trim().toLowerCase().replace(/\.+$/, '');
+  if (c.blocked.some((b) => h === b || h.endsWith(`.${b}`))) return 'list';
+  const sh = (c.syncHost ?? '').trim().toLowerCase().replace(/\.+$/, '');
+  const ownSync = sh !== '' && (h === sh || h.endsWith(`.${sh}`));
+  if (c.keywords.length > 0 && !ownSync && keywordInHost(c.keywords, h) !== null) return 'keyword';
+  if (!isRunning(c.run, c.now) || !c.pack) return 'allow';
+  if (isSiteAllowed(c.pack, h)) return 'allow';
+  if (ownSync) return 'allow';
+  return 'focus';
 }
