@@ -299,7 +299,16 @@ async function main() {
     }
     const measured = timeState.includes('@jo');
     check(measured, 'a csatorna-idő gyűlik az engedélyezett csatorna lapján');
-    if (!measured) console.log(`   (a mért állapot: ${timeState})`);
+    if (!measured) {
+      // Tükör, nem ítélet: melyik előfeltétel nem teljesült. A mérő csak akkor
+      // számol, ha a lap látszik ÉS fókuszban van, és csak ha a háttér adott
+      // szűrőt erre a hosztra — egy üres tár magában nem mondja meg, melyik.
+      await page.bringToFront();
+      const seen = await page.evaluate(() => ({ visible: document.visibilityState, focus: document.hasFocus() }));
+      const cfg = await seeder.evaluate(() => chrome.runtime.sendMessage({ type: 'breaker:active-rules' }));
+      console.log(`   (a mért állapot: ${timeState}; a lap: ${JSON.stringify(seen)}; `
+        + `a háttér szűrői: ${(cfg?.channels ?? []).length})`);
+    }
     let optText = '';
     for (let i = 0; i < 8 && !optText.includes('@jo'); i++) {
       await seeder.reload();

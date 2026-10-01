@@ -108,6 +108,16 @@ valódi bővítményt betöltve játssza végig a rétegeket egy kamu videó-old
 a rejtést, a három metaadat-forrást, az elavulás-őrt, az egylapos váltást és
 a régi címalapú réteget is.
 
+A lap a szűrőit betöltéskor a háttértől kéri. A háttér egy MV3 service
+worker: ha épp indul vagy frissül, az első üzenet elveszhet — a port válasz
+nélkül záródik. Eddig egy ilyen lap szűrő és csatorna-idő-mérés nélkül maradt
+újratöltésig, csendben: a navigáció megállítása (a háttér saját rétege)
+megvolt, a hírfolyam-rejtés és a mérés nem. Ezért a lap háromszor próbál,
+növekvő szünettel (0,3 / 1 / 3 másodperc); ami azután sem jön, azt a
+tár-figyelő hozza, ha a háttér később ír. A végponti teszt csatorna-idő lépése
+bukáskor kimondja, melyik előfeltétel hiányzott (a lap látszott-e és fókuszban
+volt-e, adott-e a háttér szűrőt) — egy üres tár magában nem mondja meg.
+
 ## Csatorna-idő: melyik csatorna vitte az időt
 
 Ha a lap csatornája már azonosított (a szűrő miatt úgyis az), a bővítmény

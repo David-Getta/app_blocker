@@ -67,6 +67,11 @@ const WIRES = [
     lost: 'az iPhone alagútja nem venné figyelembe a munkamenetet',
   },
   {
+    file: 'extension/content.js',
+    needle: 'await fetchConfigWithRetry()',
+    lost: 'a lap egyetlen elvesző üzenettől szűrő és csatorna-idő-mérés nélkül maradna újratöltésig — csendben',
+  },
+  {
     file: 'extension/background.js',
     needle: 'focusActive',
     lost: 'a böngésző-bővítmény nem érvényesítené a fehérlistát a gépen',

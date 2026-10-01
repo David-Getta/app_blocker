@@ -421,13 +421,37 @@
 
   async function fetchConfig() {
     const answer = await chrome.runtime.sendMessage({ type: 'breaker:active-rules' });
-    applyConfig(answer?.rules, answer?.channels, answer?.keywords);
+    // Válasz nélkül záródó port vagy üres válasz: ez nem beállítás, hanem
+    // elveszett üzenet — a hívó újrapróbál.
+    if (!answer || typeof answer !== 'object') throw new Error('a háttér nem válaszolt');
+    applyConfig(answer.rules, answer.channels, answer.keywords);
+  }
+
+  /**
+   * ÚJRAPRÓBÁLVA. A háttér egy MV3 service worker: ha épp indul vagy frissül,
+   * az első üzenet elveszhet — a port válasz nélkül záródik. Eddig egy ilyen
+   * lap szűrő és csatorna-idő-mérés nélkül maradt újratöltésig: a navigáció
+   * megállítása megvolt, de a hírfolyam-rejtés és a mérés csendben kimaradt,
+   * és semmi nem jelezte. Három próba, növekvő szünettel; ami azután sem
+   * jön, azt a tár-figyelő hozza, ha a háttér később ír.
+   */
+  const CONFIG_RETRY_DELAYS = [300, 1000, 3000];
+  async function fetchConfigWithRetry() {
+    for (let attempt = 0; ; attempt++) {
+      try {
+        await fetchConfig();
+        return;
+      } catch (e) {
+        if (attempt >= CONFIG_RETRY_DELAYS.length) throw e;
+        await new Promise((resolve) => setTimeout(resolve, CONFIG_RETRY_DELAYS[attempt]));
+      }
+    }
   }
 
   try {
-    await fetchConfig();
+    await fetchConfigWithRetry();
   } catch {
-    // A háttér épp alszik vagy frissül. Rejtés nélkül indulunk — a navigáció
+    // A háttér a próbák után sem felelt. Rejtés nélkül indulunk — a navigáció
     // megállítása attól még megvan, és az a fontosabb réteg. A tár-figyelő
     // lent ettől még él: ha a háttér később ír, innen is felébredünk.
   }
