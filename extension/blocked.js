@@ -39,8 +39,9 @@ const lockdownText = () => {
 // véget — a láb ezt mondja a próbatétel mellé, mert a kísértés pillanatában
 // ez a különbség: nem elég egyedül átrágni magad rajta. A nevet a lap újra
 // tisztítja, mert erre a lapra kézzel írt címmel is el lehet jutni.
-const partnerName = (params.get('partner') || '')
-  .replace(/[\x00-\x1f\x7f-\x9f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 40);
+// KÓDPONTBAN vágva, mint az app magja — a `slice` egy emodzsit félbe vágna.
+const partnerName = [...(params.get('partner') || '')
+  .replace(/[\x00-\x1f\x7f-\x9f]/g, ' ').replace(/\s+/g, ' ').trim()].slice(0, 40).join('');
 const withPartner = (text) => (partnerName
   ? `${text} A feloldáshoz a megbízottad (${partnerName}) jelmondata is kell — az utolsó szó az övé.`
   : text);
@@ -192,8 +193,8 @@ if (focus) {
   // MELYIK szó — az appban azt kell megkeresni, ha levennéd. Újra tisztítva,
   // mert erre a lapra kézzel írt címmel is el lehet jutni.
   document.getElementById('keywordCard').hidden = false;
-  document.getElementById('keyword').textContent = (params.get('keyword') || '')
-    .replace(/[\x00-\x1f\x7f-\x9f]/g, ' ').trim().slice(0, 40) || 'ismeretlen kulcsszó';
+  document.getElementById('keyword').textContent = [...(params.get('keyword') || '')
+    .replace(/[\x00-\x1f\x7f-\x9f]/g, ' ').trim()].slice(0, 40).join('') || 'ismeretlen kulcsszó';
   // A webcímben vagy a lap címsorában volt: a lap kimondja, hol fogta meg.
   if (params.get('by') === 'title') {
     document.getElementById('keywordWhere').textContent = 'A lap címsora tartalmazza:';
@@ -213,7 +214,7 @@ if (focus) {
 // erre a lapra kézzel írt címmel is el lehet jutni.
 {
   const rawNote = params.get('note') || '';
-  const note = rawNote.replace(/[\u0000-\u001f\u007f-\u009f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 140);
+  const note = [...rawNote.replace(/[\u0000-\u001f\u007f-\u009f]/g, ' ').replace(/\s+/g, ' ').trim()].slice(0, 140).join('');
   const noteEl = document.getElementById('note');
   if (note && noteEl) {
     noteEl.textContent = `Ezért tiltottad le: „${note}”`;

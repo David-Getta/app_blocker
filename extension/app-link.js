@@ -89,7 +89,9 @@ function cleanNotes(list) {
     .filter((n) => n && typeof n.host === 'string' && n.host && typeof n.text === 'string')
     .map((n) => ({
       host: n.host.toLowerCase(),
-      text: n.text.replace(/[\u0000-\u001f\u007f-\u009f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 140),
+      // KÓDPONTBAN vágva, mint az app magja: a `slice` egy emodzsit félbe vágna,
+      // és a lapon a fele értelmetlen jelként maradna.
+      text: [...n.text.replace(/[\u0000-\u001f\u007f-\u009f]/g, ' ').replace(/\s+/g, ' ').trim()].slice(0, 140).join(''),
     }))
     .filter((n) => n.text);
 }
@@ -129,7 +131,7 @@ function cleanLockdown(raw) {
  */
 function cleanPartner(raw) {
   if (!raw || typeof raw !== 'object' || typeof raw.name !== 'string') return null;
-  const name = raw.name.replace(/[\x00-\x1f\x7f-\x9f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 40);
+  const name = [...raw.name.replace(/[\x00-\x1f\x7f-\x9f]/g, ' ').replace(/\s+/g, ' ').trim()].slice(0, 40).join('');
   return name ? { name } : null;
 }
 
@@ -217,7 +219,7 @@ export function cleanSuggest(raw) {
   if (!Number.isInteger(minutes) || minutes <= 0) return null;
   const peakHour = Number.isInteger(raw.peakHour) && raw.peakHour >= 0 && raw.peakHour <= 23 ? raw.peakHour : null;
   // LE VAN-E FEDVE: a csomag neve, amelynek ablaka a csúcs-órát fedi — kívülről jött szöveg, rövidre vágva.
-  const peakPack = typeof raw.peakPack === 'string' && raw.peakPack ? raw.peakPack.slice(0, 40) : null;
+  const peakPack = typeof raw.peakPack === 'string' && raw.peakPack ? [...raw.peakPack].slice(0, 40).join('') : null;
   // A MENET-NAP: az app mondja, ma szoktál-e leülni — csak a szó szerinti igaz számít.
   const focusDay = raw.focusDay === true;
   // A MENET-ÓRA: az app mondja, most szoktál-e elkezdeni — csak a szó szerinti igaz számít.
@@ -225,7 +227,7 @@ export function cleanSuggest(raw) {
   // A MENET-ÓRA, amire ablak tehető: az app mondja (a csúcs-óra tükre) — csak egész óra, 0–23.
   const focusHour = Number.isInteger(raw.focusHour) && raw.focusHour >= 0 && raw.focusHour <= 23 ? raw.focusHour : null;
   // LE VAN-E FEDVE a menet-óra: a csomag neve, amelynek ablaka fedi — kívülről jött szöveg, rövidre vágva.
-  const focusHourPack = typeof raw.focusHourPack === 'string' && raw.focusHourPack ? raw.focusHourPack.slice(0, 40) : null;
+  const focusHourPack = typeof raw.focusHourPack === 'string' && raw.focusHourPack ? [...raw.focusHourPack].slice(0, 40).join('') : null;
   // AMIKOR A CSÚCS-ÓRA A MENET-ÓRA: az app mondja — csak a szó szerinti igaz számít.
   const sameHour = raw.sameHour === true;
   // A MENET-SOROZAT: hány napja ülsz le minden nap — az app száma; csak nemnegatív egész, különben nulla.
@@ -233,7 +235,7 @@ export function cleanSuggest(raw) {
   // A LEGHOSSZABB SOROZAT: az app száma; csak nemnegatív egész, különben nulla — a lap a mostani mellett mondja.
   const focusLongestStreak = Number.isInteger(raw.focusLongestStreak) && raw.focusLongestStreak >= 0 ? raw.focusLongestStreak : 0;
   // KÖZELEG A NAPI KERET: az app kész mondata (a fedőnevet is ő oldja fel) — kívülről jött szöveg, rövidre vágva.
-  const limitSoon = typeof raw.limitSoon === 'string' ? raw.limitSoon.slice(0, 80) : '';
+  const limitSoon = typeof raw.limitSoon === 'string' ? [...raw.limitSoon].slice(0, 80).join('') : '';
   return { packId: raw.packId, name: raw.name, minutes, peakHour, peakPack, focusDay, focusHourNow, focusHour, focusHourPack, sameHour, focusStreak, focusLongestStreak, limitSoon };
 }
 

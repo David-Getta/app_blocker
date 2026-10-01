@@ -59,3 +59,32 @@ test('az indok PONTOS hosztnévre szól, a kézzel írt cím alakja nem dönt', 
   assert.equal(noteFor({}, 'youtube.com'), null);
   assert.equal(noteFor(link, ''), null);
 });
+
+test('a lapra kerülő szöveg KÓDPONTBAN vágódik — emodzsi nem marad félbe', () => {
+  // Az app magja a fedőnevet, az indokot, a megbízott és a csomag nevét
+  // kódpontban korlátozza; a lap eddig UTF-16 egységben vágott, így egy
+  // érvényes, emodzsis indok vagy név a lapon félbe vágódott (értelmetlen jel).
+  const src = fs.readFileSync(path.join(extensionDir(), 'app-link.js'), 'utf8');
+  const partnerSrc = src.match(/function cleanPartner\(raw\) \{[\s\S]*?\n\}/)?.[0];
+  const suggestSrc = src.match(/export function cleanSuggest\(raw\) \{[\s\S]*?\n\}/)?.[0]?.replace(/^export /, '');
+  assert.ok(partnerSrc && suggestSrc, 'a bővítményben nincs cleanPartner / cleanSuggest');
+  // eslint-disable-next-line no-new-func
+  const { cleanPartner, cleanSuggest } = new Function(`${partnerSrc}\n${suggestSrc}\nreturn { cleanPartner, cleanSuggest };`)() as {
+    cleanPartner: (raw: unknown) => { name: string } | null;
+    cleanSuggest: (raw: unknown) => { peakPack: string | null; limitSoon: string } | null;
+  };
+  const pizza = String.fromCodePoint(0x1f355);
+  const lone = (s: string) => /[\ud800-\udbff](?![\udc00-\udfff])|(?:^|[^\ud800-\udbff])[\udc00-\udfff]/.test(s);
+
+  const note = cleanNotes([{ host: 'a.hu', text: pizza.repeat(150) }])[0].text;
+  assert.equal([...note].length, 140);
+  assert.ok(!lone(note), 'fél emodzsi az indokban');
+
+  const name = cleanPartner({ name: `${'a'.repeat(39)}${pizza}${pizza}` })!.name;
+  assert.equal(name, `${'a'.repeat(39)}${pizza}`);
+
+  const s = cleanSuggest({ packId: 'p', name: 'Munka', minutes: 25, peakPack: `${'b'.repeat(39)}${pizza}x`, limitSoon: pizza.repeat(90) })!;
+  assert.equal(s.peakPack, `${'b'.repeat(39)}${pizza}`);
+  assert.equal([...s.limitSoon].length, 80);
+  assert.ok(!lone(s.limitSoon));
+});
