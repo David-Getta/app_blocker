@@ -8,6 +8,7 @@ kettővel korábbiban.
 
 | Verzió | Nap | Mi újság |
 |---|---|---|
+| v0.4.204 | 2026-10-01 | a csomag neve minden eszközön ugyanaz |
 | v0.4.203 | 2026-10-01 | a leírás azt mondja, ami igaz |
 | v0.4.202 | 2026-10-01 | a dátum nem függ a telefon nyelvétől és naptárától |
 | v0.4.201 | 2026-10-01 | a böngésző-bővítmény is a közös szabály szerint olvas |
