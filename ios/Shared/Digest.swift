@@ -20,7 +20,7 @@ public enum DigestLogic {
 
     /// A hét kulcsa: a hétfő helyi dátuma, ÉÉÉÉ-HH-NN.
     public static func weekKey(_ now: Double) -> String {
-        let cal = Calendar.current
+        let cal = LocalCalendar.gregorian
         let date = Date(timeIntervalSince1970: now / 1000)
         // Calendar: vasárnap = 1 … szombat = 7; a JS getDay vasárnap = 0 …
         // szombat = 6. Ugyanaz a visszalépés: hétfőn nulla, vasárnap hat.
@@ -37,7 +37,7 @@ public enum DigestLogic {
         if lastKey == key { return nil }
         let parts = key.split(separator: "-").compactMap { Int($0) }
         guard parts.count == 3 else { return nil }
-        let dueAt = Calendar.current.date(from: DateComponents(
+        let dueAt = LocalCalendar.gregorian.date(from: DateComponents(
             year: parts[0], month: parts[1], day: parts[2], hour: digestHour, minute: 0, second: 0
         ))!.timeIntervalSince1970 * 1000
         return now >= dueAt ? key : nil
@@ -307,7 +307,7 @@ public enum DigestLogic {
     static func inputFor(_ st: AppState, now: Double) -> Input {
         let weekAgo = now - 7 * 24 * 3_600_000
         // A napló ablaka a gépével közös: a mai nap kezdete mínusz hat nap.
-        let dayStart = Calendar.current.startOfDay(for: Date(timeIntervalSince1970: now / 1000))
+        let dayStart = LocalCalendar.gregorian.startOfDay(for: Date(timeIntervalSince1970: now / 1000))
             .timeIntervalSince1970 * 1000
         var input = Input(
             focusWeek: Focus.summarizeFocus(st.focusLog ?? [], since: dayStart - 6 * 24 * 3_600_000, now: now),

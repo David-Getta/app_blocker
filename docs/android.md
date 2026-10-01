@@ -112,3 +112,16 @@ Részletek: [`feature-uninstall-guard.md`](feature-uninstall-guard.md).
 A `core/ChallengeEngine.kt`, `core/Blocklist.kt` és a `vpn/DnsEngine.kt` tiszta
 Kotlin (Android API nélkül). Ezek JVM-en is fordíthatók és unit-tesztelhetők —
 a próbatétel-motor és a bitszintű DNS-csomagkezelés így ellenőrzött.
+
+## A mag nem függ a telefon nyelvétől és naptárától
+
+A napkulcs és a hét kulcsa a szinkron közös nyelve: gregorián év, latin
+számjegy. A mag ezért kimondott `GregorianCalendar()`-t és `Locale.ROOT`-os
+formázást használ — Androidon a `Calendar.getInstance()` amúgy is gregorián
+(a platform így szűkíti), de a mag a JVM-en is fut, ahol thai nyelven
+buddhista naptárt adna; a hét kulcsa viszont a telefon nyelvével formázódott,
+és arab vagy perzsa nyelven nem latin számjegyet írt (a visszatekintések
+naplója az ilyen hetet eldobta volna). A `LocaleIndependenceTest` arab,
+perzsa, thai, japán és magyar alapértelmezéssel is ugyanazt a kulcsot várja;
+a `scripts/check-core-sync.js` tiltja a `Calendar.getInstance(`-t és a
+`Locale.ROOT` nélküli `format`-ot a magban.

@@ -86,7 +86,7 @@ object UsageLogic {
      * mondaná. Ugyanaz a számítás, mint a gépen (`helper/server.ts`).
      */
     fun startOfDay(now: Long): Long {
-        val c = Calendar.getInstance().apply {
+        val c = java.util.GregorianCalendar().apply {
             timeInMillis = now
             set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
             set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
@@ -95,7 +95,7 @@ object UsageLogic {
     }
 
     fun dayKey(now: Long): String {
-        val c = Calendar.getInstance().apply { timeInMillis = now }
+        val c = java.util.GregorianCalendar().apply { timeInMillis = now }
         // Locale.ROOT: locales with native digit shapes (e.g. Arabic-Indic) would
         // produce keys whose lexicographic order is no longer chronological, and
         // retention plus every aggregation depends on that ordering.
@@ -106,7 +106,7 @@ object UsageLogic {
 
     /** Last [count] local day keys ending with today, oldest first (noon-stepped, DST-safe). */
     fun dayKeysBack(now: Long, count: Int): List<String> {
-        val base = Calendar.getInstance().apply {
+        val base = java.util.GregorianCalendar().apply {
             timeInMillis = now
             set(Calendar.HOUR_OF_DAY, 12); set(Calendar.MINUTE, 0)
             set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)

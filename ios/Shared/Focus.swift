@@ -423,7 +423,7 @@ public enum Focus {
     /// nappal ezelőtti nap kezdetéig — azt már nem, az a mostani hét ablaka. A
     /// statisztika és a heti mondat a két hetet egymás mellé teszi: irány, nem ítélet.
     public static func summarizeFocusPrevWeek(_ log: [LogEntry], now: Double) -> Summary {
-        let start = Calendar.current.startOfDay(for: Date(timeIntervalSince1970: now / 1000)).timeIntervalSince1970 * 1000
+        let start = LocalCalendar.gregorian.startOfDay(for: Date(timeIntervalSince1970: now / 1000)).timeIntervalSince1970 * 1000
         return summarizeFocus(log, since: start - 13 * 86_400_000, now: start - 6 * 86_400_000 - 1)
     }
 
@@ -506,7 +506,7 @@ public enum Focus {
         for e in log where e.endedAt <= now {
             let d = Date(timeIntervalSince1970: e.endedAt / 1000)
             guard days.contains(UsageStats.dayKey(d)) else { continue }
-            by[Calendar.current.component(.weekday, from: d) - 1] += 1
+            by[LocalCalendar.gregorian.component(.weekday, from: d) - 1] += 1
         }
         return by
     }
@@ -526,7 +526,7 @@ public enum Focus {
         let days = Set(UsageStats.dayKeysBack(Date(timeIntervalSince1970: now / 1000), count))
         for e in log where e.endedAt <= now {
             guard days.contains(UsageStats.dayKey(Date(timeIntervalSince1970: e.endedAt / 1000))) else { continue }
-            by[Calendar.current.component(.hour, from: Date(timeIntervalSince1970: e.startedAt / 1000))] += 1
+            by[LocalCalendar.gregorian.component(.hour, from: Date(timeIntervalSince1970: e.startedAt / 1000))] += 1
         }
         return by
     }
@@ -566,7 +566,7 @@ public enum Focus {
         var best = 0
         var run = 0
         var prev: String? = nil
-        let cal = Calendar.current
+        let cal = LocalCalendar.gregorian
         for k in days {
             let p = k.split(separator: "-").compactMap { Int($0) }
             guard p.count == 3, let noon = cal.date(from: DateComponents(year: p[0], month: p[1], day: p[2], hour: 12)),
@@ -676,9 +676,7 @@ public enum Focus {
     }
 
     private static func localCalendar() -> Calendar {
-        var cal = Calendar(identifier: .gregorian)
-        cal.timeZone = TimeZone.current
-        return cal
+        LocalCalendar.gregorian
     }
 
     /// Egy helyi időpont: a `now` napjától `dayOffset` nappal, `min` perccel éjfél után.

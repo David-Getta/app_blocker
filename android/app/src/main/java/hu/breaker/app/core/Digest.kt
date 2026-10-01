@@ -30,12 +30,16 @@ object DigestLogic {
 
     /** A hét kulcsa: a hétfő helyi dátuma, ÉÉÉÉ-HH-NN. */
     fun weekKey(now: Long): String {
-        val c = Calendar.getInstance().apply { timeInMillis = now }
+        val c = java.util.GregorianCalendar().apply { timeInMillis = now }
         // Calendar: vasárnap = 1 … szombat = 7; a JS getDay vasárnap = 0 …
         // szombat = 6. Ugyanaz a visszalépés: hétfőn nulla, vasárnap hat.
         val jsDay = (c.get(Calendar.DAY_OF_WEEK) + 6) % 7
         c.add(Calendar.DAY_OF_MONTH, -((jsDay + 6) % 7))
-        return "%04d-%02d-%02d".format(
+        // Locale.ROOT: a készülék nyelve szerinti formázás arab vagy perzsa
+        // nyelven nem latin számjegyet írt volna — a napló-tisztító (ASCII
+        // `\d`) az ilyen hetet eldobta volna, és a címke is más lett volna.
+        return String.format(
+            java.util.Locale.ROOT, "%04d-%02d-%02d",
             c.get(Calendar.YEAR), c.get(Calendar.MONTH) + 1, c.get(Calendar.DAY_OF_MONTH),
         )
     }
@@ -48,7 +52,7 @@ object DigestLogic {
         val key = weekKey(now)
         if (lastKey == key) return null
         val parts = key.split("-").map { it.toInt() }
-        val dueAt = Calendar.getInstance().apply {
+        val dueAt = java.util.GregorianCalendar().apply {
             clear()
             set(parts[0], parts[1] - 1, parts[2], DIGEST_HOUR, 0, 0)
         }.timeInMillis

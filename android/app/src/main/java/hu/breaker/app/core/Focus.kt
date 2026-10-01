@@ -457,7 +457,7 @@ object Focus {
 
     /** Egy helyi időpont: a `now` napjától `dayOffset` nappal, `min` perccel éjfél után. */
     private fun localAt(now: Long, dayOffset: Int, min: Int): Long {
-        val c = Calendar.getInstance().apply { timeInMillis = now }
+        val c = java.util.GregorianCalendar().apply { timeInMillis = now }
         c.set(Calendar.HOUR_OF_DAY, 0); c.set(Calendar.MINUTE, 0)
         c.set(Calendar.SECOND, 0); c.set(Calendar.MILLISECOND, 0)
         c.add(Calendar.DAY_OF_MONTH, dayOffset + min / 1440)
@@ -469,7 +469,7 @@ object Focus {
 
     /** A sáv MOSTANI előfordulása — vagy null, ha `now` nincs benne. */
     fun occurrenceAt(band: ScheduleLogic.Band, now: Long): Occurrence? {
-        val c = Calendar.getInstance().apply { timeInMillis = now }
+        val c = java.util.GregorianCalendar().apply { timeInMillis = now }
         val day = c.get(Calendar.DAY_OF_WEEK) - 1
         val minute = c.get(Calendar.HOUR_OF_DAY) * 60 + c.get(Calendar.MINUTE)
         val prevDay = (day + 6) % 7
@@ -499,7 +499,7 @@ object Focus {
         for (d in 0..7) {
             val start = localAt(now, d, band.startMin)
             if (start < now) continue
-            val day = Calendar.getInstance().apply { timeInMillis = start }.get(Calendar.DAY_OF_WEEK) - 1
+            val day = java.util.GregorianCalendar().apply { timeInMillis = start }.get(Calendar.DAY_OF_WEEK) - 1
             if (day !in band.days) continue
             occurrenceAt(band, start)?.let { return it }
         }
@@ -704,7 +704,7 @@ object Focus {
         var prev: String? = null
         for (k in days) {
             val (y, m, d) = k.split("-").map { it.toInt() }
-            val cal = java.util.Calendar.getInstance().apply { clear(); set(y, m - 1, d, 12, 0, 0); add(java.util.Calendar.DAY_OF_MONTH, -1) }
+            val cal = java.util.GregorianCalendar().apply { clear(); set(y, m - 1, d, 12, 0, 0); add(java.util.Calendar.DAY_OF_MONTH, -1) }
             val yesterday = UsageLogic.dayKey(cal.timeInMillis)
             run = if (prev == yesterday) run + 1 else 1
             if (run > best) best = run

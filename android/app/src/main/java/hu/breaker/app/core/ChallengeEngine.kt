@@ -148,7 +148,7 @@ object ChallengeEngine {
      */
     fun daysSinceUnlock(unlockLog: List<Long>, now: Long): Int? {
         val last = unlockLog.maxOrNull() ?: return null
-        fun dayStart(t: Long): Long = Calendar.getInstance().apply {
+        fun dayStart(t: Long): Long = java.util.GregorianCalendar().apply {
             timeInMillis = t
             set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
             set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)

@@ -1558,7 +1558,7 @@ private func windowNextLabel(_ b: ScheduleLogic.Band, now: Double) -> String {
     if occ.startsAt <= now {
         return " · az ablak most él (\(clock.string(from: Date(timeIntervalSince1970: occ.endsAt / 1000)))-ig)"
     }
-    let cal = Calendar.current
+    let cal = LocalCalendar.gregorian
     let start = Date(timeIntervalSince1970: occ.startsAt / 1000)
     let today = cal.startOfDay(for: Date(timeIntervalSince1970: now / 1000))
     let dayDiff = cal.dateComponents([.day], from: today, to: cal.startOfDay(for: start)).day ?? 0

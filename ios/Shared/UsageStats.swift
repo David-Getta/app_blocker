@@ -59,7 +59,7 @@ enum UsageStats {
 
     /// Helyi naptári nap, `YYYY-MM-DD`. Ugyanaz az alak, amit a másik két mag ír.
     static func dayKey(_ now: Date) -> String {
-        let c = Calendar.current.dateComponents([.year, .month, .day], from: now)
+        let c = LocalCalendar.gregorian.dateComponents([.year, .month, .day], from: now)
         return String(format: "%04d-%02d-%02d", c.year ?? 0, c.month ?? 0, c.day ?? 0)
     }
 
@@ -68,7 +68,7 @@ enum UsageStats {
     /// Délben lép, hogy a nyári időszámítás váltása ne ejtsen ki és ne
     /// duplázzon meg egy napot.
     static func dayKeysBack(_ now: Date, _ count: Int) -> [String] {
-        let cal = Calendar.current
+        let cal = LocalCalendar.gregorian
         let noon = cal.date(bySettingHour: 12, minute: 0, second: 0, of: now) ?? now
         var out: [String] = []
         for i in stride(from: count - 1, through: 0, by: -1) {

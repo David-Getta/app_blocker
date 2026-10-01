@@ -27,7 +27,7 @@ public enum FilterHitLogic {
 
     /// A nap kulcsa helyi idő szerint — ugyanaz, mint a mérésé.
     public static func dayKey(_ now: Double) -> String {
-        let c = Calendar.current.dateComponents([.year, .month, .day], from: Date(timeIntervalSince1970: now / 1000))
+        let c = LocalCalendar.gregorian.dateComponents([.year, .month, .day], from: Date(timeIntervalSince1970: now / 1000))
         return String(format: "%04d-%02d-%02d", c.year ?? 0, c.month ?? 0, c.day ?? 0)
     }
 
@@ -104,7 +104,7 @@ public enum FilterHitLogic {
 
     /// A nap órája helyi idő szerint, 0–23.
     public static func hourOf(_ now: Double) -> Int {
-        Calendar.current.component(.hour, from: Date(timeIntervalSince1970: now / 1000))
+        LocalCalendar.gregorian.component(.hour, from: Date(timeIntervalSince1970: now / 1000))
     }
 
     /// Az órák könyve egy megakadással több: nap → 24 rekesz. MIKOR jár a kéz
@@ -161,9 +161,9 @@ public enum FilterHitLogic {
         var by = [Int](repeating: 0, count: 7)
         let base = Date(timeIntervalSince1970: now / 1000)
         for back in 0..<count {
-            let d = Calendar.current.date(byAdding: .day, value: -back, to: base) ?? base
+            let d = LocalCalendar.gregorian.date(byAdding: .day, value: -back, to: base) ?? base
             let key = dayKey(d.timeIntervalSince1970 * 1000)
-            by[Calendar.current.component(.weekday, from: d) - 1] += max(0, hitsBetween(days, key, key))
+            by[LocalCalendar.gregorian.component(.weekday, from: d) - 1] += max(0, hitsBetween(days, key, key))
         }
         return by
     }
@@ -192,7 +192,7 @@ public enum FilterHitLogic {
     /// MA a csúcs-nap van-e: a négy hét csúcs-napja és a helyi nap egybeesik — és a minta elég.
     public static func isPeakDayNow(_ peak: (day: Int, count: Int)?, now: Double) -> Bool {
         guard let peak, peak.count >= peakDayMinCount else { return false }
-        return Calendar.current.component(.weekday, from: Date(timeIntervalSince1970: now / 1000)) - 1 == peak.day
+        return LocalCalendar.gregorian.component(.weekday, from: Date(timeIntervalSince1970: now / 1000)) - 1 == peak.day
     }
 
     /// A tükör a kísértés napján: a kezdőlap kártyája a csúcs-napon.
@@ -362,7 +362,7 @@ public enum FilterHitLogic {
     /// nulla órás csúcs ablaka az előző estén van: a kulcs a csúcs napjáé.
     public static func peakWarnKey(_ peak: (hour: Int, count: Int)?, now: Double) -> String? {
         guard let peak, peak.count >= peakWarnMinCount else { return nil }
-        let cal = Calendar.current
+        let cal = LocalCalendar.gregorian
         let base = Date(timeIntervalSince1970: now / 1000)
         for offset in 0...1 {
             guard let day = cal.date(byAdding: .day, value: offset, to: base) else { continue }
@@ -403,7 +403,7 @@ public enum FilterHitLogic {
     public static func daySeries(_ days: [String: Int], now: Double, count: Int) -> [(day: String, seconds: Double)] {
         let base = Date(timeIntervalSince1970: now / 1000)
         return (0..<count).reversed().map { back in
-            let d = Calendar.current.date(byAdding: .day, value: -back, to: base) ?? base
+            let d = LocalCalendar.gregorian.date(byAdding: .day, value: -back, to: base) ?? base
             let key = dayKey(d.timeIntervalSince1970 * 1000)
             return (day: key, seconds: Double(hitsBetween(days, key, key)))
         }

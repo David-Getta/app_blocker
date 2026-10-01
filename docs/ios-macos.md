@@ -147,3 +147,10 @@ ismétlődő menet előfordulása és az esedékes ablak (holtversenyben kódegy
 nem a Swift `<`), a lezárás, a legutóbb használt csomag (rendezés nélkül, mert
 a `sorted` stabilitása nincs kimondva), a hátralévő idő szövege és a percek
 (az `Int(...)` előtt vágva — egy Int-be nem férő szám nem omlaszthat össze).
+
+### A mag naptára gregorián
+A mag a dátumot `LocalCalendar.gregorian`-nal számolja (gregorián naptár a
+készülék időzónájában), nem a `Calendar.current`-tel: az utóbbi a felhasználó
+beállított naptárát követi (buddhista: 2569, japán: 8), a napkulcs viszont a
+szinkron közös nyelve. A `LocalCalendarTests` mutatja a különbséget, a
+`scripts/check-core-sync.js` tiltja a visszacsúszást.

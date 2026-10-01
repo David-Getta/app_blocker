@@ -497,8 +497,10 @@ private struct FocusWeekBars: View {
     private static func weekday(_ key: String) -> Int {
         let parts = key.split(separator: "-").compactMap { Int($0) }
         guard parts.count == 3,
-              let d = Calendar.current.date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2]))
+              let d = LocalCalendar.gregorian.date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2]))
         else { return 0 }
-        return Calendar.current.component(.weekday, from: d) - 1
+        // A napkulcs gregorián év: a felhasználó naptárával (buddhista, japán)
+        // visszabontva más nap — és más hét-nap — jönne ki.
+        return LocalCalendar.gregorian.component(.weekday, from: d) - 1
     }
 }

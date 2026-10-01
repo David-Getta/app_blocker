@@ -185,10 +185,15 @@ hanem nem konvergáló szinkron), és elhasal, ha bármelyik eltér. Enélkül e
 desktopon csendben elcsúszhatna a másik kettőtől: ugyanaz az app, két
 különböző szigorúsággal, hibaüzenet nélkül. A szkript szándékosan nem másolja
 be az értékeket — akkor ugyanaz a csúszás történne, csak eggyel odébb. A
-közös magban a nyelvfüggő hívás is tilos (`localeCompare`, a Java
-`toLowerCase()`-e, a Swift `localized…` hívásai): a rendezés a gép nyelvét
-követné — magyar beállításon a „cz.hu” a „csak.hu” elé kerül —, a többi
-eszközét nem. Az őrnek volt egy saját vakfoltja is: a két telefon közötti párok
+közös magban a nyelv- és naptárfüggő hívás is tilos (`localeCompare`, a
+`toLocale…`, a Java `toLowerCase()`-e és `Locale.ROOT` nélküli `format`-ja,
+a `Calendar.getInstance()`, a Swift `localized…` hívásai és a
+`Calendar.current`): a rendezés, a számjegy és a dátum a készülék
+beállítását követné — magyar beállításon a „cz.hu” a „csak.hu” elé kerül, arab
+nyelven a hét kulcsa nem latin számjegyű, buddhista naptárú iPhone-on a
+napkulcs éve 2569 —, a többi eszközét nem. Az őr a hosztnév-kiegészítés
+előre megadott listáját (PRESETS: a YouTube-hoz a youtu.be, az X-hez a
+twitter.com) is összeveti a három magban. Az őrnek volt egy saját vakfoltja is: a két telefon közötti párok
 és feliratok a kilépés UTÁN gyűltek, és sosem buktattak; most a kilépés az
 összes ellenőrzés mögött áll, és egy beágyazott zárójeles Swift-behelyettesítés
 sem téveszti meg. A Kotlin mag és a bitszintű DNS-motor JVM-en unit-tesztelt.

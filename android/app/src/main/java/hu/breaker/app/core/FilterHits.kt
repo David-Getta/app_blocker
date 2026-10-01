@@ -119,7 +119,7 @@ object FilterHitLogic {
     // ------------------------------------------------------------ óránként
 
     /** A nap órája helyi idő szerint, 0–23. */
-    fun hourOf(now: Long): Int = java.util.Calendar.getInstance().apply { timeInMillis = now }.get(java.util.Calendar.HOUR_OF_DAY)
+    fun hourOf(now: Long): Int = java.util.GregorianCalendar().apply { timeInMillis = now }.get(java.util.Calendar.HOUR_OF_DAY)
 
     /**
      * Az órák könyve egy megakadással több: { nap → 24 rekesz }. MIKOR jár a kéz
@@ -171,7 +171,7 @@ object FilterHitLogic {
 
     /** Egy „ÉÉÉÉ-HH-NN” napkulcs hétköznapja (0 = vasárnap, mint a gépen a Date.getDay). */
     fun weekdayOf(day: String): Int {
-        val cal = java.util.Calendar.getInstance()
+        val cal = java.util.GregorianCalendar()
         cal.clear()
         cal.set(day.substring(0, 4).toInt(), day.substring(5, 7).toInt() - 1, day.substring(8, 10).toInt())
         return cal.get(java.util.Calendar.DAY_OF_WEEK) - 1
@@ -371,7 +371,7 @@ object FilterHitLogic {
     fun peakWarnKey(peak: Pair<Int, Int>?, now: Long): String? {
         if (peak == null || peak.second < PEAK_WARN_MIN_COUNT) return null
         for (offset in 0..1) {
-            val c = java.util.Calendar.getInstance().apply {
+            val c = java.util.GregorianCalendar().apply {
                 timeInMillis = now
                 add(java.util.Calendar.DAY_OF_MONTH, offset)
                 set(java.util.Calendar.HOUR_OF_DAY, peak.first)

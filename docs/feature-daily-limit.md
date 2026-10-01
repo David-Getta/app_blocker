@@ -270,6 +270,17 @@ felület nem enged, de a dróton állhat) a telefon a több eszköz összeadott
 ideje mellett már zárt, a gép még nem; most a gép is a közös `normalizeLimit`
 szerint dönt — ez csak szigorít.
 
+**A napkulcs gregorián, akármilyen naptárat állított be a felhasználó.** A
+többi eszköz sora csak akkor számít, ha a napja a mai napkulcs. Az iPhone-mag
+a napkulcsot a felhasználó naptárával számolta (`Calendar.current`):
+buddhista naptárnál „2569-10-01”, japánnál „0008-10-01” — a gép és az Android
+„2026-10-01”-et ír. Egy ilyen iPhone-on a közös keret így SOSEM érvényesült
+volna, mert az iPhone maga nem mér, és a többi eszköz sora sosem volt „mai”.
+Most a mag kimondott gregorián naptárral számol (`LocalCalendar`), és a
+mag-szinkron őr tiltja a `Calendar.current`-et a magban. Az Android ugyanígy
+kimondott gregoriánt és `Locale.ROOT`-os formázást kapott (a hét kulcsa arab
+nyelven eddig nem latin számjeggyel íródott).
+
 ## A keret betelt napjai (tükör)
 
 A statisztika és a heti mondat kimondja, hány napon érte el a mért idő a napi

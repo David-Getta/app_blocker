@@ -37,7 +37,7 @@ object ScheduleLogic {
     private data class Parts(val day: Int, val minute: Int)
 
     private fun localParts(now: Long): Parts {
-        val c = Calendar.getInstance().apply { timeInMillis = now }
+        val c = java.util.GregorianCalendar().apply { timeInMillis = now }
         // Calendar.DAY_OF_WEEK is 1=Sunday..7=Saturday; normalize to 0..6.
         return Parts(c.get(Calendar.DAY_OF_WEEK) - 1, c.get(Calendar.HOUR_OF_DAY) * 60 + c.get(Calendar.MINUTE))
     }

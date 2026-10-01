@@ -679,6 +679,46 @@ for (const [name, ...values] of PHONE_PAIRS) {
   }
 }
 
+// A HOSZTNÉV-KIEGÉSZÍTÉS ELŐRE MEGADOTT LISTÁJA (PRESETS) mindhárom magban.
+//
+// Egy oldal felvételekor a gép és az Android ebből a térképből teszi a
+// tiltásba a rokon hosztokat (a YouTube-hoz a youtu.be-t, az X-hez a
+// twitter.com-ot), és a lista a hosztnév-jelekkel a szinkronon utazik. Ha az
+// egyik magban egy sor hiányozna vagy elírnánk, ugyanaz a „YouTube” a gépen
+// a rövid linket is zárná, a telefonon nem — és semmi nem hasalna el tőle.
+// A kategória-csomagoknak saját fixtúrájuk van; ez a térkép eddig őrizetlen volt.
+function presetMap(text, startNeedle, label) {
+  const at = text.indexOf(startNeedle);
+  if (at < 0) return { missing: label };
+  // A térkép a deklarációtól az első üres sorig tart (mindhárom fájlban így áll).
+  const rest = text.slice(at);
+  const end = rest.search(/\n\s*\n/);
+  const body = end < 0 ? rest : rest.slice(0, end);
+  const out = {};
+  const re = /["']([a-z0-9.-]+)["']\s*(?::|to)\s*(?:listOf\(|\[)([^\])]*)[\])]/g;
+  let m;
+  while ((m = re.exec(body)) !== null) {
+    out[m[1]] = [...m[2].matchAll(/["']([^"']+)["']/g)].map((x) => x[1]);
+  }
+  return Object.keys(out).length ? out : { missing: `${label} (üres térkép)` };
+}
+const PRESET_MAPS = [
+  presetMap(read('desktop/src/shared/blocklist.ts'), 'export const PRESETS', 'ts'),
+  presetMap(read('android/app/src/main/java/hu/breaker/app/core/Blocklist.kt'), 'val PRESETS', 'kt'),
+  presetMap(read('ios/Shared/Blocklist.swift'), 'static let presets', 'swift'),
+];
+{
+  const missing = PRESET_MAPS.filter((x) => x.missing).map((x) => x.missing);
+  if (missing.length) {
+    problems.push(`PRESETS: nem található itt: ${missing.join(', ')} — a minta elavult vagy a térkép eltűnt`);
+  } else {
+    const asText = PRESET_MAPS.map((x) => JSON.stringify(Object.keys(x).sort().map((k) => [k, x[k]])));
+    if (new Set(asText).size !== 1) {
+      problems.push('PRESETS eltér:\n' + asText.map((t, i) => `    ${LANGS[i].padEnd(11)} ${t}`).join('\n'));
+    }
+  }
+}
+
 // A KÖZÖS MAG NEM RENDEZ A GÉP NYELVI BEÁLLÍTÁSA SZERINT.
 //
 // A `localeCompare` a futtató gép nyelvét követi: magyar beállításon a „cs”,
@@ -688,9 +728,14 @@ for (const [name, ...values] of PHONE_PAIRS) {
 // `localized…` hívásai is. A magban ezek tilosak; a felület (renderer,
 // bővítmény-beállítások) rendezhet nyelv szerint, mert az nem utazik.
 const LOCALE_BANS = [
-  { dir: 'desktop/src/shared', ext: '.ts', needles: ['localeCompare(', 'Intl.Collator', 'toLocaleLowerCase(', 'toLocaleUpperCase('] },
-  { dir: 'android/app/src/main/java/hu/breaker/app/core', ext: '.kt', needles: ['.toLowerCase()', '.toUpperCase()', 'Collator', 'CASE_INSENSITIVE_ORDER'] },
-  { dir: 'ios/Shared', ext: '.swift', needles: ['localizedCompare', 'localizedStandardCompare', 'caseInsensitiveCompare', 'localizedLowercase', 'localizedUppercase', 'lowercased(with:', 'uppercased(with:'] },
+  { dir: 'desktop/src/shared', ext: '.ts', needles: ['localeCompare(', 'Intl.Collator', 'toLocaleLowerCase(', 'toLocaleUpperCase(', 'toLocaleString(', 'toLocaleDateString(', 'toLocaleTimeString('] },
+  // A Kotlin-magban a naptár is kimondott: `GregorianCalendar()`. Androidon a
+  // `Calendar.getInstance()` amúgy is gregorián (a platform így szűkíti), de a
+  // mag a JVM-en is fut (a tesztek), ahol thai nyelven buddhista naptárt ad.
+  { dir: 'android/app/src/main/java/hu/breaker/app/core', ext: '.kt', needles: ['.toLowerCase()', '.toUpperCase()', 'Collator', 'CASE_INSENSITIVE_ORDER', 'Calendar.getInstance('] },
+  // A Swift-magban a `Calendar.current` a felhasználó naptárát követi
+  // (buddhista: 2569, japán: 8) — a napkulcs a szinkron nyelve, gregorián.
+  { dir: 'ios/Shared', ext: '.swift', needles: ['localizedCompare', 'localizedStandardCompare', 'caseInsensitiveCompare', 'localizedLowercase', 'localizedUppercase', 'lowercased(with:', 'uppercased(with:', 'Calendar.current', 'Calendar.autoupdatingCurrent'] },
 ];
 function walk(dir, ext) {
   const out = [];
@@ -702,15 +747,33 @@ function walk(dir, ext) {
   return out;
 }
 let localeFiles = 0;
+// A Kotlin `format` a készülék nyelvével formáz (arab nyelven nem latin
+// számjegyet ír): a magban az első argumentuma mindig `Locale.ROOT`.
+function kotlinFormatProblems(rel, text) {
+  const out = [];
+  const re = /\.format\(/g;
+  let m;
+  while ((m = re.exec(text)) !== null) {
+    const line = text.slice(text.lastIndexOf('\n', m.index) + 1, m.index).trim();
+    if (line.startsWith('//') || line.startsWith('*')) continue;
+    const after = text.slice(m.index + m[0].length).trimStart();
+    if (!/^(java\.util\.)?Locale\.ROOT\b/.test(after)) {
+      out.push(`${rel}:${text.slice(0, m.index).split('\n').length}: a format nyelvfüggő (az első argumentuma nem Locale.ROOT) — arab nyelven nem latin számjegyet írna`);
+    }
+  }
+  return out;
+}
 for (const ban of LOCALE_BANS) {
   for (const rel of walk(ban.dir, ban.ext)) {
     localeFiles++;
-    const lines = fs.readFileSync(path.join(ROOT, rel), 'utf8').split('\n');
+    const whole = fs.readFileSync(path.join(ROOT, rel), 'utf8');
+    if (ban.ext === '.kt') problems.push(...kotlinFormatProblems(rel, whole));
+    const lines = whole.split('\n');
     lines.forEach((line, i) => {
       const t = line.trim();
       if (t.startsWith('//') || t.startsWith('*') || t.startsWith('/*')) return;
       for (const n of ban.needles) {
-        if (line.includes(n)) problems.push(`${rel}:${i + 1}: nyelvfüggő hívás a közös magban (${n}) — a rendezés és a kisbetű a gép nyelvét követné, a többi eszközét nem`);
+        if (line.includes(n)) problems.push(`${rel}:${i + 1}: nyelv- vagy naptárfüggő hívás a közös magban (${n}) — a rendezés, a kisbetű vagy a dátum a készülék beállítását követné, a többi eszközét nem`);
       }
     });
   }
@@ -727,4 +790,4 @@ if (problems.length) {
   process.exit(1);
 }
 
-console.log(`mag-szinkron OK (${CHECKS.length + ALPHABETS.length} érték egyezik mindhárom nyelven, ${PAIRS.length} a gép és az Android között, ${PHONE_PAIRS.length} a két telefon között, ${EXT_PAIRS.length} a gép és a bővítmény között; ${localeFiles} magfájl nyelvfüggő hívás nélkül)`);
+console.log(`mag-szinkron OK (${CHECKS.length + ALPHABETS.length} érték egyezik mindhárom nyelven, ${PAIRS.length} a gép és az Android között, ${PHONE_PAIRS.length} a két telefon között, ${EXT_PAIRS.length} a gép és a bővítmény között; ${localeFiles} magfájl nyelvfüggő hívás nélkül; a hosztnév-kiegészítés ${Object.keys(PRESET_MAPS[0]).length} sora mindhárom magban)`);
