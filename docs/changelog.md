@@ -8,6 +8,7 @@ kettővel korábbiban.
 
 | Verzió | Nap | Mi újság |
 |---|---|---|
+| v0.4.209 | 2026-10-01 | a heti ablak a böngészőben app nélkül is |
 | v0.4.208 | 2026-10-01 | nem marad fél emodzsi a böngésző lapjain és a mérés címkéjén |
 | v0.4.207 | 2026-10-01 | a zárlat, az ablakok, a kulcsszavak és a mérés is egy szabállyal jönnek át |
 | v0.4.206 | 2026-10-01 | a menetrend és a részleges szabály a szinkronon sem dönt le semmit |
