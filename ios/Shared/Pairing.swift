@@ -69,7 +69,8 @@ enum Pairing {
 
     /// Cím -> párosító kód, vagy nil (tartománynév és HTTPS nem kódolható).
     static func encode(_ url: String) -> String? {
-        let trimmed = url.trimmingCharacters(in: .whitespaces)
+        // A szélek a kimondott szóköz-készlet szerint (a BOM és a soremelés is), mint a gépen.
+        let trimmed = TextLogic.trimSpaces(url)
         guard let re = try? NSRegularExpression(
             pattern: "^http://([0-9.]+)(?::([0-9]+))?/?$", options: [.caseInsensitive]
         ) else { return nil }
@@ -117,8 +118,11 @@ enum Pairing {
 
     /// Beírt szöveg -> kiszolgáló-cím, vagy nil.
     static func decode(_ input: String) -> String? {
+        // Csak az ASCII betű és számjegy marad — mint a gép `[^0-9A-Z]` szűrője. Az
+        // `isNumber` a nem latin számjegyekre is igaz volna, és egy ilyen jel a kód
+        // végén itt rontotta volna el, amit a gép szó nélkül kiszűr.
         var clean = ""
-        for ch in input.uppercased() where ch.isNumber || (ch.isLetter && ch.isASCII) {
+        for ch in input.uppercased() where ch.isASCII && (ch.isNumber || ch.isLetter) {
             switch ch {
             case "O": clean.append("0")
             case "I", "L": clean.append("1")
@@ -184,15 +188,22 @@ enum Pairing {
     /// dönteni, melyikbe kell írni — pont az a fajta apró döntés, amitől
     /// abbahagyják.
     static func resolveServerInput(_ input: String) -> String? {
-        let raw = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        let raw = TextLogic.trimSpaces(input)
         if raw.isEmpty { return nil }
         let lower = raw.lowercased()
         if lower.hasPrefix("http://") || lower.hasPrefix("https://") { return raw }
         if let fromCode = decode(raw) { return fromCode }
-        let hostLike = raw.allSatisfy { $0.isLetter || $0.isNumber || $0 == "." || $0 == "-" || $0 == ":" }
-        if hostLike { return "http://\(raw)" }
+        // Séma nélküli cím: ASCII betű, számjegy, pont, kötőjel, és legfeljebb egy
+        // `:port` — ugyanaz a minta, mint a gépen és Androidon. A régi, lazább
+        // ellenőrzés (bármilyen betű, bárhány kettőspont) olyat fogadott el, amit a
+        // gép nem — ugyanaz az app két véleménnyel arról, mi egy cím.
+        if hostLikeRegex.firstMatch(in: raw, range: NSRange(raw.startIndex..<raw.endIndex, in: raw)) != nil {
+            return "http://\(raw)"
+        }
         return nil
     }
+
+    private static let hostLikeRegex = try! NSRegularExpression(pattern: "^[A-Za-z0-9.-]+(?::[0-9]+)?$")
 
     /// Ahogy a felületen áll: négyes csoportokban, olvashatóan.
     static func format(_ code: String) -> String {

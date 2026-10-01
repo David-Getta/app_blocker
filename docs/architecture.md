@@ -260,7 +260,16 @@ kezeli-e az NFKC-t és a kisbetűsítést. Ez fogta ki, hogy a gép egy fél
 emodzsit hagyhatott a fedőnév végén, és hogy a két telefon a jelmondat nem
 törő szóközét nem vette szóköznek — a lenyomat nem egyezett volna —, és az
 első CI-körében azt, hogy az iPhone a görög szó végi szigmát σ-nak írta
-kisbetűvel, a gép és az Android ς-nek.
+kisbetűvel, a gép és az Android ς-nek. A réteg harmadik fájlja a PÁROSÍTÓ
+KÓDÉ (`fixtures/pairing-cases.json`, írja `desktop/test/pairing-fixture.test.ts`,
+visszajátssza a Kotlin `PairingFixtureTest` és a Swift `PairingFixtureTests`):
+a gépen kiírt kódot a telefonon gépelik be, tehát ez a legközvetlenebb
+szerződés a három nyelv között — cím → kód, beírt szöveg → cím (kézzel írt
+alakok: kötőjel, szóköz, kisbetű, O/0, I/1, nem latin számjegy, teljes
+szélességű betű, elgépelés, szemét), egy mező kódnak és címnek, a kód olvasható
+alakja. A Swift párosítónak ez az első tesztje; az első írása két eltérést
+igazított: a nem latin számjegyet a kód végén a gép kiszűri, az iPhone nem
+tudta, és a séma nélküli cím mintája lazább volt, mint a gépé.
 
 ## Biztonsági modell és őszinte korlátok
 

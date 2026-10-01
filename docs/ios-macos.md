@@ -126,4 +126,6 @@ felhasználó telefonján. Ugyanígy a szöveg-tisztításé (`TextFixtureTests`
 `fixtures/text-cases.json` ellen): a fedőnév, az indok, a kulcsszó, a
 megbízott neve és jelmondata, a domain tiszta alakja skalárra ugyanaz, mint a
 gépen — a szóköz kimondott készlet (a BOM-mal), a vágás skalárban, nem
-grafémában (`TextLogic`, Text.swift).
+grafémában (`TextLogic`, Text.swift). És a párosító kódé (`PairingFixtureTests`,
+a `fixtures/pairing-cases.json` ellen): a gépen kiírt kód itt ugyanoda nyílik;
+a Swift párosítónak ez az első tesztje — eddig csak fordult.

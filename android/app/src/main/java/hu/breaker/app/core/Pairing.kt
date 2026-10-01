@@ -75,8 +75,9 @@ object Pairing {
 
     /** Cím -> párosító kód, vagy null (tartománynév és HTTPS nem kódolható). */
     fun encode(url: String): String? {
+        // A szélek a kimondott szóköz-készlet szerint (a BOM is), mint a gépen.
         val m = Regex("""^http://([0-9.]+)(?::(\d+))?/?$""", RegexOption.IGNORE_CASE)
-            .find(url.trim()) ?: return null
+            .find(TextLogic.trimSpaces(url)) ?: return null
         val ip = parseIPv4(m.groupValues[1]) ?: return null
         val portText = m.groupValues[2]
         val port = if (portText.isEmpty()) DEFAULT_SYNC_PORT else portText.toIntOrNull() ?: return null
@@ -165,7 +166,7 @@ object Pairing {
      * döntés, amitől abbahagyják.
      */
     fun resolveServerInput(input: String): String? {
-        val raw = input.trim()
+        val raw = TextLogic.trimSpaces(input)
         if (raw.isEmpty()) return null
         if (Regex("^https?://", RegexOption.IGNORE_CASE).containsMatchIn(raw)) return raw
         decode(raw)?.let { return it }

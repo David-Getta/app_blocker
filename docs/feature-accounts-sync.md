@@ -416,6 +416,17 @@ Amit a tesztek bizonyítanak, és amit másképp nem lehetne:
   hogy a láthatatlan jelek láthatók legyenek. Egy szándékos kivétel kimondva:
   a domain-tisztítás egy `www.`-t vág le, nem mindet — nem idempotens,
   mindhárom magban ugyanúgy.
+- **a párosító kód is megfelelőségi próbán megy át.** A
+  `fixtures/pairing-cases.json` (írja `desktop/test/pairing-fixture.test.ts`,
+  `UPDATE_PAIRING_FIXTURE=1 npm test`) a gép kimeneteit tartja: cím → kód a
+  négy címosztályból, portokkal a határokon és ami nem kódolható; beírt
+  szöveg → cím a kézzel írt alakokkal (kötőjel, szóköz, kisbetű, O/0, I/1, a
+  török pont nélküli i, nem latin számjegy a kód végén, teljes szélességű
+  betű, egy elgépelt karakter, szemét); az egy mező (kód VAGY cím); és a kód
+  olvasható alakja. A Kotlin (`PairingFixtureTest`) és a Swift
+  (`PairingFixtureTests`) ugyanezt játssza vissza. A gépen kiírt kódot a
+  telefonon gépelik be: ha egy bit eltér, a kód nem nyílik ki — vagy MÁS
+  címet ad. A Swift párosítónak ez az első tesztje.
 
 Egy dolog iPhone-on más: a **napi keret nem érvényesül** (nincs ilyen mérési
 API), de a rekordban MEGŐRIZZÜK. Enélkül elég lenne egyszer megnyitni a
