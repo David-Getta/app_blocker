@@ -8,6 +8,7 @@ kettővel korábbiban.
 
 | Verzió | Nap | Mi újság |
 |---|---|---|
+| v0.4.205 | 2026-10-01 | egy hibás rekord nem viszi el a többit |
 | v0.4.204 | 2026-10-01 | a csomag neve minden eszközön ugyanaz |
 | v0.4.203 | 2026-10-01 | a leírás azt mondja, ami igaz |
 | v0.4.202 | 2026-10-01 | a dátum nem függ a telefon nyelvétől és naptárától |
