@@ -177,6 +177,12 @@ const CHECKS = [
     scalar(ts.lockdown, /MAX_LOCKDOWN_WINDOWS\s*=\s*([^;]+);/, 'ts'),
     scalar(kt.lockdown, /MAX_LOCKDOWN_WINDOWS\s*=\s*(.+)/, 'kt'),
     scalar(sw.lockdown, /maxLockdownWindows\s*=\s*(.+)/, 'swift')],
+  // Az ablak azonosítójának plafonja: a dróton jött ablak ezen túl kiesik —
+  // ha a magok másképp mérnék, ugyanaz az ablak az egyiken megmaradna.
+  ['MAX_WINDOW_ID',
+    scalar(ts.lockdown, /MAX_WINDOW_ID\s*=\s*([^;]+);/, 'ts'),
+    scalar(kt.lockdown, /MAX_WINDOW_ID\s*=\s*(.+)/, 'kt'),
+    scalar(sw.lockdown, /maxWindowId\s*=\s*(.+)/, 'swift')],
   ['MIN_FREE_MINUTES_PER_WEEK',
     scalar(ts.lockdown, /MIN_FREE_MINUTES_PER_WEEK\s*=\s*([^;]+);/, 'ts'),
     scalar(kt.lockdown, /MIN_FREE_MINUTES_PER_WEEK\s*=\s*(.+)/, 'kt'),
@@ -192,6 +198,10 @@ const CHECKS = [
     scalar(ts.digest, /DIGEST_HOUR\s*=\s*([^;]+);/, 'ts'),
     scalar(kt.digest, /DIGEST_HOUR\s*=\s*(.+)/, 'kt'),
     scalar(sw.digest, /digestHour\s*=\s*(.+)/, 'swift')],
+  ['MAX_DIGEST_TEXT',
+    scalar(ts.digest, /MAX_DIGEST_TEXT\s*=\s*([^;]+);/, 'ts'),
+    scalar(kt.digest, /MAX_DIGEST_TEXT\s*=\s*(.+)/, 'kt'),
+    scalar(sw.digest, /maxDigestText\s*=\s*(.+)/, 'swift')],
   ['MAX_DIGEST_LOG',
     scalar(ts.digest, /MAX_DIGEST_LOG\s*=\s*([^;]+);/, 'ts'),
     scalar(kt.digest, /MAX_DIGEST_LOG\s*=\s*(.+)/, 'kt'),
@@ -450,6 +460,14 @@ const PAIRS = [
   ['MAX_LABEL_LENGTH',
     scalar(ts.usage, /MAX_LABEL_LENGTH\s*=\s*([^;]+);/, 'ts'),
     scalar(kt.usage, /MAX_LABEL_LENGTH\s*=\s*(.+)/, 'kt')],
+  // A megőrzés és egy minta felső határa: ha elcsúszna, a két mérő más
+  // hosszú múltat tartana, vagy egy nagy minta az egyiken többet érne.
+  ['RETENTION_DAYS',
+    scalar(ts.usage, /RETENTION_DAYS\s*=\s*([^;]+);/, 'ts'),
+    scalar(kt.usage, /RETENTION_DAYS\s*=\s*(.+)/, 'kt')],
+  ['MAX_RECORD_SECONDS',
+    scalar(ts.usage, /MAX_RECORD_SECONDS\s*=\s*([^;]+);/, 'ts'),
+    scalar(kt.usage, /MAX_RECORD_SECONDS\s*=\s*(.+)/, 'kt')],
   ['MAX_BURST_MINUTES',
     scalar(ts.burst, /MAX_BURST_MINUTES\s*=\s*([^;]+);/, 'ts'),
     scalar(kt.burst, /MAX_BURST_MINUTES\s*=\s*(.+)/, 'kt')],
