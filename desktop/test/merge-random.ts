@@ -450,12 +450,15 @@ export function usageConformanceKey(u: UsageState): string {
  * A DÖNTÉS bemenete: egy oldal, a helyi mérés, a többi eszköz mai összegzése
  * és egy időpont — a kimenet: tilt-e MOST (`isBlockedNowWithLimit`).
  *
- * Az időpont dél UTC-ben, és menetrend nincs: a menetrend és a napkulcs
- * helyi időben értékelődik ki, és a három teszt a futtató gép időzónájában
- * fut. Délben a napkulcs −12…+11 órás eltolásnál is ugyanaz a nap, egy
- * sáv viszont nem — ezért itt a szünet, a törlésre várás és a KÖZÖS napi
- * keret dől el (a saját sor kihagyva, a nem mai nap kihagyva, a távoli
- * másodpercek csak hozzáadnak), a menetrend a nyelvenkénti teszteké marad.
+ * Az időpont dél UTC-ben, és a menetrend vagy nincs, vagy EGÉSZ HETES nyitó
+ * sáv: a menetrend és a napkulcs helyi időben értékelődik ki, és a három
+ * teszt a futtató gép időzónájában fut. Délben a napkulcs −12…+11 órás
+ * eltolásnál is ugyanaz a nap; egy részleges sáv viszont nem lenne — az
+ * egész hetes sáv igen, az minden helyi percet lefed. Menetrend nélkül az
+ * oldal mindig zár (a keret sosem dönt), a nyitó sávval a keret dönt: így
+ * dől el itt a szünet, a törlésre várás és a KÖZÖS napi keret (a saját sor
+ * kihagyva, a nem mai nap kihagyva, a távoli másodpercek csak hozzáadnak);
+ * a részleges sávok a nyelvenkénti teszteké maradnak.
  */
 export const DECISION_NOW = 1790769600000;
 export const DECISION_TODAY = '2026-09-30';
@@ -464,8 +467,19 @@ export const DECISION_DOMAIN = 'youtube.com';
 
 export interface DecisionCase { site: Limitable & { domain: string }; usage: UsageState; shared: SharedToday | null }
 
-/** Tizenegy húzás, mind feltétel nélkül — csak a fixtúráé. */
+/** Egész hetes nyitó menetrend: minden helyi percben enged — a keret dönt. */
+export const OPEN_ALL_WEEK: Schedule = {
+  mode: 'scheduled_allow', bands: [{ days: [0, 1, 2, 3, 4, 5, 6], startMin: 0, endMin: 1440 }],
+};
+
+/** Tizenkét húzás, mind feltétel nélkül — csak a fixtúráé. */
 export function randomDecision(r: () => number): DecisionCase {
+  // BEMELEGÍTÉS: az LCG első húzásai kis, szomszédos magoknál szinte azonosak
+  // (0,236…0,267), tehát egy háromutas választás az első húzásból mindig
+  // ugyanoda esne. Négy eldobott húzás után a sorozat már szétterül. Csak itt:
+  // a fésülés-generátorok sorrendje a Kotlin és Swift fuzz szerződése.
+  for (let i = 0; i < 4; i++) r();
+  const schedDraw = r();
   const pauseDraw = Math.floor(r() * 3);
   const pendingDraw = r();
   const limitDraw = Math.floor(r() * 3);
@@ -483,6 +497,8 @@ export function randomDecision(r: () => number): DecisionCase {
     // Szünet: nincs, él (a jövőben jár le), vagy már lejárt (nem számít).
     pauseUntil: pauseDraw === 0 ? null : pauseDraw === 1 ? DECISION_NOW + 60_000 : DECISION_NOW - 60_000,
     pendingDeleteAt: pendingDraw < 0.3 ? DECISION_NOW + 3_600_000 : null,
+    // Nyitó menetrend a kétharmadban: enélkül az oldal mindig zár, és a keret sosem dönt.
+    ...(schedDraw < 0.66 ? { schedule: OPEN_ALL_WEEK } : {}),
     ...(limitDraw === 0 ? {} : { dailyLimitSeconds: limitValue }),
   };
   const days: UsageDay[] = [];

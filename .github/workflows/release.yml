@@ -51,8 +51,8 @@ jobs:
           —, és a gépnek, a telefonnak és az iPhone-nak ugyanazt kell
           mondania: a kifizetett szünet visz, a törlésre váró oldal zár, a
           közös napi keret a többi eszköz mai perceivel fogy (a saját sor és a
-          nem mai nap nem számít). A menetrend kimarad: helyi időben
-          értékelődik ki, az a nyelvenkénti teszteké marad.
+          nem mai nap nem számít). A részleges menetrend kimarad: helyi
+          időben értékelődik ki, az a nyelvenkénti teszteké marad.
 
           ### Ami a v0.4.181-ben jött
 

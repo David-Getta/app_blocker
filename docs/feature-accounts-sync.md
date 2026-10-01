@@ -373,9 +373,10 @@ Amit a tesztek bizonyítanak, és amit másképp nem lehetne:
   helyi mérés, a többi eszköz mai összegzése és egy időpont — tilt-e most
   (`isBlockedNowWithLimit`): a szünet, a törlésre várás és a közös napi keret
   (a saját sor kihagyva, a nem mai nap kihagyva) mindhárom nyelven ugyanazt
-  mondja. A menetrend kimarad belőle, mert helyi időben értékelődik ki, és a
-  három teszt a futtató gép időzónájában fut — az időpont dél UTC-ben van,
-  hogy a napkulcs ettől még ugyanaz legyen.
+  mondja. A menetrend vagy nincs, vagy egész hetes nyitó sáv (menetrend
+  nélkül az oldal mindig zár, és a keret sosem dönt), mert a sávok helyi
+  időben értékelődnek ki, és a három teszt a futtató gép időzónájában fut —
+  az időpont dél UTC-ben van, hogy a napkulcs ettől még ugyanaz legyen.
 
 Egy dolog iPhone-on más: a **napi keret nem érvényesül** (nincs ilyen mérési
 API), de a rekordban MEGŐRIZZÜK. Enélkül elég lenne egyszer megnyitni a

@@ -143,11 +143,20 @@ final class MergeFixtureTests: XCTestCase {
             let now = (c["now"] as? NSNumber)?.doubleValue ?? 0
             let s = c["site"] as? [String: Any] ?? [:]
             let domain = s["domain"] as? String ?? ""
+            // A menetrend a dróton: a mód szövege és a sávok.
+            var schedule: ScheduleLogic.Schedule? = nil
+            if let sc = s["schedule"] as? [String: Any] {
+                let mode = ScheduleLogic.Mode(rawValue: sc["mode"] as? String ?? "") ?? .always
+                let bands = (sc["bands"] as? [[String: Any]] ?? []).map { b in
+                    ScheduleLogic.Band(days: b["days"] as? [Int] ?? [], startMin: b["startMin"] as? Int ?? 0, endMin: b["endMin"] as? Int ?? 0)
+                }
+                schedule = ScheduleLogic.Schedule(mode: mode, bands: bands)
+            }
             let site = Site(
                 id: "s", domain: domain, hostnames: [domain], addedAt: 0,
                 pauseUntil: (s["pauseUntil"] as? NSNumber)?.doubleValue,
                 pendingDeleteAt: (s["pendingDeleteAt"] as? NSNumber)?.doubleValue,
-                schedule: nil, alias: nil, reason: nil,
+                schedule: schedule, alias: nil, reason: nil,
                 dailyLimitSeconds: (s["dailyLimitSeconds"] as? NSNumber)?.doubleValue,
                 burstSeconds: nil, cooldownSeconds: nil, rules: nil
             )

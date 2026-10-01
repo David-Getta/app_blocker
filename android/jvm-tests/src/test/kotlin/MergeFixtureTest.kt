@@ -105,10 +105,25 @@ class MergeFixtureTest {
             val seed = c.getInt("seed")
             val now = c.getLong("now")
             val s = c.getJSONObject("site")
+            // A menetrend a dróton: a mód szövege és a sávok — mint a SyncClient olvasója.
+            val schedule = if (s.isNull("schedule")) null else s.getJSONObject("schedule").let { sc ->
+                val mode = when (sc.getString("mode")) {
+                    "scheduled_block" -> ScheduleLogic.Mode.SCHEDULED_BLOCK
+                    "scheduled_allow" -> ScheduleLogic.Mode.SCHEDULED_ALLOW
+                    else -> ScheduleLogic.Mode.ALWAYS
+                }
+                val bands = sc.getJSONArray("bands")
+                ScheduleLogic.Schedule(mode, (0 until bands.length()).map { j ->
+                    val b = bands.getJSONObject(j)
+                    val days = b.getJSONArray("days")
+                    ScheduleLogic.Band((0 until days.length()).map { days.getInt(it) }.toSet(), b.getInt("startMin"), b.getInt("endMin"))
+                })
+            }
             val site = Site(
                 id = "s", domain = s.getString("domain"), hostnames = listOf(s.getString("domain")), addedAt = 0,
                 pauseUntil = if (s.isNull("pauseUntil")) null else s.getLong("pauseUntil"),
                 pendingDeleteAt = if (s.isNull("pendingDeleteAt")) null else s.getLong("pendingDeleteAt"),
+                schedule = schedule,
                 dailyLimitSeconds = if (s.isNull("dailyLimitSeconds")) null else s.getLong("dailyLimitSeconds"),
             )
             val usage = SyncClient.usageFromJson(c.getJSONObject("usage").toString())
