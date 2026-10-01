@@ -44,25 +44,25 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A böngésző-bővítmény nem marad szűrő nélkül egy elvesző
-          üzenettől.** A lap a csatorna-szűrőit betöltéskor a háttértől kéri;
-          a háttér egy service worker, és ha épp indul, az első üzenet
-          elveszhet. Eddig egy ilyen lap szűrő és csatorna-idő-mérés nélkül
-          maradt újratöltésig, csendben — a navigáció megállítása megvolt, a
-          hírfolyam-rejtés és a mérés nem. Most háromszor próbál, növekvő
-          szünettel; ami azután sem jön, azt a tár-figyelő hozza. A végponti
-          teszt bukáskor kimondja, melyik előfeltétel hiányzott.
+          **A fixtúra a menetrendet is nézi.** A menetrend az, ami a gépen és
+          a telefonon EGYSZERRE dönt ugyanarról az oldalról: egy elcsúszott
+          sáv-számtan az oldalt az egyiken zárja, a másikon nyitja, ugyanabban
+          a percben. A közös fixtúrában most menetrend-esetek is vannak —
+          kézzel válogatott élek (a sávhatár perce, az éjfélen átnyúló sáv két
+          napja, a csupa rossz sáv) és véletlen heti sávrendszerek mindhárom
+          módban —, és a három magnak ugyanazt kell mondania: tilt-e most, és
+          lazítás-e a csere. A sávok helyi időben értékelődnek ki, ezért a
+          három teszt UTC-ben jár, kimondva.
 
-          ### Ami a v0.4.188-ban jött
+          ### Ami a v0.4.189-ben jött
+
+          **A böngésző-bővítmény nem marad szűrő nélkül egy elvesző
+          üzenettől.** Háromszor próbál, növekvő szünettel.
+
+          #### Ami a v0.4.188-ban jött
 
           **A szöveg-tisztítás egyforma mindhárom magban.** Kimondott
-          szóköz-készlet, kódpontos vágás, közös fixtúra — ami rögtön fogott
-          is egyet: a görög szó végi szigmát az iPhone másképp írta.
-
-          #### Ami a v0.4.187-ben jött
-
-          **A fixtúra a munkamenet-döntést is nézi.** Egy menet alatt a két
-          telefon DNS-motora ugyanazt dönti, a gép referenciája szerint.
+          szóköz-készlet, kódpontos vágás, közös fixtúra.
 
           NOTES
           fi
