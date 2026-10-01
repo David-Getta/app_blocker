@@ -44,24 +44,22 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A dátum nem függ a telefon nyelvétől és naptárától.** Ha az
-          iPhone-on buddhista vagy japán naptár volt beállítva, a mag más
-          évszámmal írta a napot, mint a gép és az Android — és a közös napi
-          keret a többi eszköz percét ott sosem számolta, vagyis az iPhone-on
-          a keret nem érvényesült. Androidon arab vagy perzsa nyelven a hét
-          kulcsa nem latin számjegyekkel íródott, és a visszatekintések
-          naplója az ilyen hetet eldobta volna. Most mindkét telefon kimondott
-          gregorián naptárral és nyelvfüggetlen számjeggyel számol, és egy őr
-          tiltja a visszacsúszást. Ugyanez az őr a tiltott hosztnevek előre
-          megadott listáját is összeveti a három magban.
+          **A leírás azt mondja, ami igaz.** A README azt állította, hogy az
+          iPhone/macOS mag „fordítással nincs ellenőrizve” — valójában minden
+          pusholásnál lefordul, és kétszáznál több teszt fut rajta. Most a
+          README felsorolja a nyolc közös fixtúrát, amivel a három mag
+          ugyanazt kell mondja, és a weboldal is a mostani, tágabb próbasort
+          írja le (összefésülés, döntések, szöveg-tisztítás, titkosítás,
+          próbatétel, heti mondat — a böngésző-bővítménnyel együtt).
 
-          ### Ami a v0.4.201-ben jött
+          ### Ami a v0.4.202-ben jött
+
+          **A dátum nem függ a telefon nyelvétől és naptárától.** Buddhista
+          vagy japán naptárú iPhone-on a közös napi keret most érvényesül.
+
+          #### Ami a v0.4.201-ben jött
 
           **A böngésző-bővítmény is a közös szabály szerint olvas.**
-
-          #### Ami a v0.4.200-ban jött
-
-          **A munkamenet magja ugyanaz mindhárom platformon.**
 
           NOTES
           fi
