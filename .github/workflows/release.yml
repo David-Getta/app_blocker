@@ -44,22 +44,25 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A leírás azt mondja, ami igaz.** A README azt állította, hogy az
-          iPhone/macOS mag „fordítással nincs ellenőrizve” — valójában minden
-          pusholásnál lefordul, és kétszáznál több teszt fut rajta. Most a
-          README felsorolja a nyolc közös fixtúrát, amivel a három mag
-          ugyanazt kell mondja, és a weboldal is a mostani, tágabb próbasort
-          írja le (összefésülés, döntések, szöveg-tisztítás, titkosítás,
-          próbatétel, heti mondat — a böngésző-bővítménnyel együtt).
+          **A csomag neve minden eszközön ugyanaz.** A munkamenet-csomag
+          neve eddig három szabállyal tisztult: egy iPhone-on felvett hosszú,
+          emodzsis nevet a gép félbe vághatott egy emodzsin — és a párja
+          nélküli felet visszaküldve az iPhone a munkamenet-dokumentumot nem
+          tudta elolvasni —, az Android és az iPhone más-más szóközt ismert,
+          és máshol vágott. Most egy szabály van (a közös szóköz-készlet,
+          legfeljebb 40 karakter, kódpontban), a felvételkor és a fogadáskor
+          is, és a menet-napló sora is ugyanígy tisztul. A közös fixtúra
+          kimondja. A Swift-tesztek optimalizált fordítással futnak: közel öt
+          perc helyett fél perc.
 
-          ### Ami a v0.4.202-ben jött
+          ### Ami a v0.4.203-ban jött
 
-          **A dátum nem függ a telefon nyelvétől és naptárától.** Buddhista
-          vagy japán naptárú iPhone-on a közös napi keret most érvényesül.
+          **A leírás azt mondja, ami igaz.** A README a nyolc közös fixtúrát
+          sorolja, és nem állítja, hogy az iPhone-mag ellenőrizetlen.
 
-          #### Ami a v0.4.201-ben jött
+          #### Ami a v0.4.202-ben jött
 
-          **A böngésző-bővítmény is a közös szabály szerint olvas.**
+          **A dátum nem függ a telefon nyelvétől és naptárától.**
 
           NOTES
           fi
