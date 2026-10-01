@@ -449,13 +449,27 @@ cd ios && xcodegen generate && open Breaker.xcodeproj
   adatot a mérés” figyelmeztetés, a fedőnév és a lista elrejtése — utóbbi arra is,
   hogy újraindítás után is rejtve marad, és hogy közben az ablakban sehol nem
   marad ott egy blokkolt cím). Mindez sötét és világos témában is. ✅ Zöld.
-- **Android:** a platformfüggetlen mag (`ChallengeEngine`, `Blocklist`,
-  `ScheduleLogic`, `UsageLogic`, `LimitLogic`, `Referee`, `BreakerStore`) és a bitszintű
-  `DnsEngine` JVM-en unit-tesztelt, Android SDK nélkül futtatva
-  (`android/jvm-tests`). ✅ Zöld. A teljes APK-hoz SDK kell — a CI buildeli.
-- **iOS/macOS:** a projekt XcodeGennel generálható; a fordításhoz macOS + Xcode
-  szükséges. A Swift mag a tesztelt TS/Kotlin mag tükre, de itt fordítással nincs
-  ellenőrizve.
+- **Android:** a platformfüggetlen mag és a bitszintű `DnsEngine` JVM-en
+  unit-tesztelt, Android SDK nélkül futtatva (`android/jvm-tests`, négyszáznál
+  több teszt). ✅ Zöld. A teljes APK-hoz SDK kell — a CI buildeli.
+- **iOS/macOS:** a CI macOS-futója minden pusholásnál lefordítja az
+  XcodeGen-projektet (aláírás nélkül), és `swift test`-tel lefuttatja a Swift
+  mag tesztjeit (`ios/SharedTests`, kétszáznál több teszt). ✅ Zöld. A valódi
+  alagút (Network Extension) viselkedése csak eszközön derül ki — a CI a
+  logikát és a fordítást fedi, VPN-t nem futtat.
+- **A három mag ugyanazt mondja — közös fixtúrák** (`fixtures/`): a gép
+  tesztje kiszámolt bemeneteket és eredményeket ír, a Kotlin és a Swift a saját
+  magjával visszajátssza, és bájtra egyeznie kell. Ma nyolc fájl: az
+  összefésülés, a döntés, a menetrend, a zárlat-ablakok, a statisztika és a
+  menet-napló (`merge-cases.json`); a szöveg-tisztítás, a részleges szabály és
+  az engedélyezett app neve (`text-cases.json`); a párosító kód; a heti mondat;
+  a titkosítás (a gép burkol, a telefon nyit); a próbatétel válasza; a napi
+  keret és a dróton jövő mai összegzése; a munkamenet magja. A böngésző-
+  bővítmény a szöveg-fixtúra szabály- és kulcsszó-részét a kiszállított
+  fájljain játssza vissza. A fixtúrák többsége már az első futásán valódi
+  eltérést fogott — egy fél emodzsit a fedőnév végén, a görög szó végi
+  szigmát, a helyreállító kód grafémás szűrését, az út hosszának más
+  mértékegységét a bővítményben. ✅ Zöld.
 
 Amit érdemes futtatni fejlesztés közben:
 
@@ -465,9 +479,11 @@ Amit érdemes futtatni fejlesztés közben:
 | `cd desktop && npm run ui:check` | a renderer tényleg betöltődik és végigkattintható (fejetlen Chromium) |
 | `cd desktop && npm run ui:shots` | ugyanaz, plusz frissíti a `docs/images` képeket |
 | `cd android/jvm-tests && gradle test` | az Android mag SDK nélkül |
+| `cd ios && swift test` (macOS) | a Swift mag tesztjei és a közös fixtúrák visszajátszása |
+| `UPDATE_MERGE_FIXTURE=1 npm test` (és a többi `UPDATE_…_FIXTURE`) | egy közös fixtúra újraírása a gép szabályából — utána a Kotlin és a Swift teszt mutatja, hol csúszott el a tükör |
 | `node scripts/check-text.js` | magyar idézőjel-párok (Kotlinban lezáratlan sztring = fordítási hiba) |
 | `node scripts/check-kotlin-imports.js` | hiányzó import a saját mag-típusainkra a Compose-fájlokban |
-| `node scripts/check-core-sync.js` | a TS/Kotlin/Swift mag számai (nehézségi szintek, határidők) egyeznek-e |
+| `node scripts/check-core-sync.js` | a TS/Kotlin/Swift mag számai (nehézségi szintek, határidők, plafonok) és a hosztnév-kiegészítés listája egyeznek-e, és nincs-e nyelv- vagy naptárfüggő hívás a magban |
 | `node scripts/check-ui-wiring.js` | van-e olyan gomb a felületen, amihez nem tartozik kezelő |
 | `node scripts/check-enforcement.js` | a döntést tényleg MEGKÉRDEZI-e valaki (a hosts fájltól a frissítés-keresésig) |
 | `node scripts/check-infra-allow.js` | a munkamenet kivétellistája szűk maradt-e |
