@@ -44,23 +44,24 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A fixtúra a naplót is fésüli.** A három nyelv közös fixtúrájában a
-          menetek naplója eddig üres volt — pedig épp ott dől el a
-          legkényesebb tükrözött logika: ugyanarról a menetről két változat
-          közül melyik marad (a korábbi vég, a leállítás, a későbbi terv), és
-          az azonos végű sorok sorrendje. Most a blobokban naplósorok is
-          vannak, és a kulcs a fésült sorrendet viszi — a rendezésnek is
-          bájtra egyeznie kell a gépen, a telefonon és az iPhone-on.
+          **A fixtúra a használati statisztika egyesítését is nézi.** A
+          mérés a fiók egészére szól: a telefon és a gép számai összeadódnak,
+          a címke onnan jön, ahol a célt tényleg használták, és ha bármelyik
+          eszköz mér, az összeg valódi. Ezt eddig nyelvenként külön tesztek
+          őrizték; most a közös fixtúrában három eszköz mérése is ott van, és
+          a gépnek, a telefonnak és az iPhone-nak az összeget, a címkéket és a
+          napok sorrendjét is bájtra ugyanúgy kell adnia — a saját
+          drót-olvasóján át.
 
-          ### Ami a v0.4.179-ben jött
+          ### Ami a v0.4.180-ban jött
+
+          **A fixtúra a naplót is fésüli.** Ugyanarról a menetről két változat,
+          azonos végű sorok — és a fésült sorrend is tükrözött.
+
+          #### Ami a v0.4.179-ben jött
 
           **A fixtúra a közeli rekordokat is fésüli.** Az oldal-rekord egy
-          mezőjének cseréje, a fésülés mindkét sorrendben, mindhárom nyelven.
-
-          #### Ami a v0.4.178-ban jött
-
-          **A README is elmondja, amit az app már tud.** A részleges szabályok
-          jele és a fiók-szintű rejtés a funkciólistában.
+          mezőjének cseréje, a fésülés mindkét sorrendben.
 
           NOTES
           fi
