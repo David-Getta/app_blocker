@@ -44,24 +44,23 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A fixtúra az adag-számlálót is nézi.** Az adag-szabály — ennyi
-          használat után ennyi szünet — a gépen és az Androidon érvényesül,
-          és a számlálója a legérzékenyebb részlet: a hűtés alatt mért perc
-          nem számít, egy szünetnyi csend tiszta lapot ad, egy elkésett
-          régi minta nem gyárthat hamis pihenőt. A közös fixtúrában most
-          mérés-sorozatok is vannak, és a két mérő nyelvnek a számláló
-          állapotát minden minta után ugyanúgy kell adnia. Az iPhone nem mér
-          előteret, ott a szabály nem érvényesül — kimondva, nem elhallgatva.
+          **Egy új szinkron-mező nem maradhat ki a fixtúrából.** A közös
+          fixtúra sokáig nem vetette össze a kulcsszavakat, a megbízottat, a
+          menetrendet, az adagot és a részleges szabályokat — a három nyelv
+          fésülése ott nem volt ellenőrizve, és semmi nem szólt. Mostantól a
+          drótnév-őr azt is nézi, hogy minden őrzött drót-mező ott van a
+          fixtúra generátorában: ami a drótra kerül, annak az összevetésbe is
+          be kell kerülnie. Őr, nem emlékezet.
 
-          ### Ami a v0.4.182-ben jött
+          ### Ami a v0.4.183-ban jött
+
+          **A fixtúra az adag-számlálót is nézi.** Mérés-sorozat és a
+          számláló állapota minden minta után, a gépen és az Androidon.
+
+          #### Ami a v0.4.182-ben jött
 
           **A fixtúra a döntést is nézi.** Tilt-e most: szünet, törlésre
           várás, közös napi keret — mindhárom nyelven ugyanaz.
-
-          #### Ami a v0.4.181-ben jött
-
-          **A fixtúra a használati statisztika egyesítését is nézi.** Három
-          eszköz mérése a dróton át, mindhárom nyelven ugyanaz az összeg.
 
           NOTES
           fi
