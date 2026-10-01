@@ -116,7 +116,16 @@ megvolt, a hírfolyam-rejtés és a mérés nem. Ezért a lap háromszor próbá
 növekvő szünettel (0,3 / 1 / 3 másodperc); ami azután sem jön, azt a
 tár-figyelő hozza, ha a háttér később ír. A végponti teszt csatorna-idő lépése
 bukáskor kimondja, melyik előfeltétel hiányzott (a lap látszott-e és fókuszban
-volt-e, adott-e a háttér szűrőt) — egy üres tár magában nem mondja meg.
+volt-e, adott-e a háttér szűrőt) — egy üres tár magában nem mondja meg. A
+lépés gyökérokát ez a kimondás találta meg: a teszt csak a lap elrejtésére
+épített (a másik lap előrehozására), a fej nélküli böngésző ezt viszont nem
+mindig veszi elrejtésnek — a lap láthatóan, fókusz nélkül állt, és a körönkénti
+1,8 másodperc öt kör alatt sem érte el a tíz másodperces kiírást. Ha átment,
+az is csak azért, mert egy korábbi lépés oldalelhagyása már beírta ugyanazt
+a csatornát. Most a mérés üres tárral indul, előbb az elrejtéses utat
+próbálja, és ha az nem ír, a lapot folyamatosan előtérben tartja, és a tíz
+másodperces kiírást várja — mindkettő a mérő valódi útja; a sor megmondja,
+melyik írt, és hogy az elrejtés megtörtént-e.
 
 ## Csatorna-idő: melyik csatorna vitte az időt
 

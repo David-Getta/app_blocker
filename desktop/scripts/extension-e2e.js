@@ -271,42 +271,66 @@ async function main() {
 
     // ----------------------- 3,5. a csatorna-idő gyűlik, és meg is jelenik
     // Az engedélyezett feltöltő lapján mérünk: a lap előtérben van, a
-    // csatorna azonosított — a másodperceknek gyűlniük kell. A kiírást a lap
-    // elrejtése váltja ki (láthatóság-váltás), mert a valóságban is az.
+    // csatorna azonosított — a másodperceknek gyűlniük kell. A mérő csak akkor
+    // számol, ha a lap látszik ÉS fókuszban van, és KÉT úton ír ki: a lap
+    // elrejtésekor, és folyamatos nézés közben tíz másodpercenként
+    // (TIME_FLUSH_SECONDS) — a valóságban az egyórás nézést ez utóbbi viszi.
     //
-    // KÖRÖKBEN, nem egy rögzített várakozással: a mérő csak akkor számol, ha
-    // a lap látszik ÉS fókuszban van, a kiírás pedig egy üzenet a háttérnek,
-    // ami egy terhelt futtatón később ér oda. Egy rögzített 3,5 + 0,5
-    // másodperc a CI-n időnként üres tárat talált, pedig a mérő jó — a lap
-    // csak még nem kapott fókuszt, vagy az írás még úton volt. Minden kör
-    // legalább egy másodpercet gyűjt, aztán elrejti a lapot és megvárja az
-    // írást; ami az első körben nem jött össze, a másodikban igen.
+    // Eddig a teszt CSAK az elrejtésre épített: körönként 1,8 másodpercet
+    // gyűjtött, aztán a másik lapot hozta előre. A fej nélküli böngésző ezt
+    // nem mindig veszi elrejtésnek — ilyenkor a lap fókusz nélkül, de
+    // láthatóan állt, a tíz másodperc öt kör alatt sem jött össze, és a teszt
+    // üres tárat talált, pedig a mérő jó. Most előbb az elrejtéses utat
+    // próbáljuk; ha az nem ír, a lapot folyamatosan előtérben tartjuk, és a
+    // tíz másodperces kiírást várjuk. A sor megmondja, melyik út írt, és hogy
+    // az elrejtés megtörtént-e.
     await page.goto(`${base}/watch?v=goodvid1234`);
     const readTime = () => seeder.evaluate(async () => {
       const got = await chrome.storage.local.get('breaker.chantime');
       return JSON.stringify(got['breaker.chantime'] ?? {});
     });
-    let timeState = '{}';
-    for (let round = 0; round < 5 && !timeState.includes('@jo'); round++) {
+    // Tiszta lappal: a 3. lépés ugyanezen a lapon járt, és az oldalelhagyáskor
+    // kiírt másodpercei már a tárban lehetnek — azok nem ennek a mérésnek a
+    // bizonyítékai. Kivárjuk a háttér sorát (minden írás a tárból olvas, nincs
+    // memóriabeli másolat), aztán ürítünk.
+    await seeder.waitForTimeout(800);
+    await seeder.evaluate(() => chrome.storage.local.remove('breaker.chantime'));
+    let timeState = await readTime();
+    check(timeState === '{}', 'a csatorna-idő mérése üres tárral indul');
+    const hideStates = [];
+    for (let round = 0; round < 2 && !timeState.includes('@jo'); round++) {
       await page.bringToFront();
       await page.evaluate(() => window.focus());
       await page.waitForTimeout(1800);
-      await seeder.bringToFront(); // a lap elrejtése váltja ki a kiírást
+      await seeder.bringToFront(); // a lap elrejtése váltja ki a kiírást — ha a böngésző elrejtésnek veszi
+      hideStates.push(await page.evaluate(() => document.visibilityState));
       for (let i = 0; i < 10 && !timeState.includes('@jo'); i++) {
         await seeder.waitForTimeout(300);
         timeState = await readTime();
       }
     }
+    const viaHide = timeState.includes('@jo');
+    if (!viaHide) {
+      // Folyamatos nézés: a lap előtérben, fókuszban marad, a tárat a másik
+      // lapból olvassuk (az olvasás nem veszi el a fókuszt).
+      await page.bringToFront();
+      await page.evaluate(() => window.focus());
+      for (let i = 0; i < 32 && !timeState.includes('@jo'); i++) {
+        await page.waitForTimeout(500);
+        timeState = await readTime();
+      }
+    }
     const measured = timeState.includes('@jo');
     check(measured, 'a csatorna-idő gyűlik az engedélyezett csatorna lapján');
+    console.log(`   (a kiírás útja: ${measured ? (viaHide ? 'elrejtéskor' : 'folyamatos nézésben, tíz másodpercenként') : 'egyik sem'}; `
+      + `a lap a másik lap előrehozása után: ${JSON.stringify(hideStates)})`);
     if (!measured) {
       // Tükör, nem ítélet: melyik előfeltétel nem teljesült. A mérő csak akkor
       // számol, ha a lap látszik ÉS fókuszban van, és csak ha a háttér adott
       // szűrőt erre a hosztra — egy üres tár magában nem mondja meg, melyik.
-      await page.bringToFront();
       const seen = await page.evaluate(() => ({ visible: document.visibilityState, focus: document.hasFocus() }));
       const cfg = await seeder.evaluate(() => chrome.runtime.sendMessage({ type: 'breaker:active-rules' }));
-      console.log(`   (a mért állapot: ${timeState}; a lap: ${JSON.stringify(seen)}; `
+      console.log(`   (a mért állapot: ${timeState}; a lap most: ${JSON.stringify(seen)}; `
         + `a háttér szűrői: ${(cfg?.channels ?? []).length})`);
     }
     let optText = '';
