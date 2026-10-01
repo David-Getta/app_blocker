@@ -479,7 +479,7 @@ Amit érdemes futtatni fejlesztés közben:
 | `cd desktop && npm run ui:check` | a renderer tényleg betöltődik és végigkattintható (fejetlen Chromium) |
 | `cd desktop && npm run ui:shots` | ugyanaz, plusz frissíti a `docs/images` képeket |
 | `cd android/jvm-tests && gradle test` | az Android mag SDK nélkül |
-| `cd ios && swift test` (macOS) | a Swift mag tesztjei és a közös fixtúrák visszajátszása |
+| `cd ios && swift test -c release -Xswiftc -enable-testing` (macOS) | a Swift mag tesztjei és a közös fixtúrák visszajátszása, ahogy a CI futtatja (optimalizálva: a tiszta Swift scrypt hibakereső módban lassú) |
 | `UPDATE_MERGE_FIXTURE=1 npm test` (és a többi `UPDATE_…_FIXTURE`) | egy közös fixtúra újraírása a gép szabályából — utána a Kotlin és a Swift teszt mutatja, hol csúszott el a tükör |
 | `node scripts/check-text.js` | magyar idézőjel-párok (Kotlinban lezáratlan sztring = fordítási hiba) |
 | `node scripts/check-kotlin-imports.js` | hiányzó import a saját mag-típusainkra a Compose-fájlokban |

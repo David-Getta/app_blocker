@@ -110,8 +110,15 @@ könyvtárként fordítja (az appot és az alagutat továbbra is az XcodeGen-pro
 építi), a `SharedTests/` mappa tesztjei pedig macOS-en futnak:
 
 ```sh
-cd ios && swift test
+cd ios && swift test                                   # hibakereső fordítás
+cd ios && swift test -c release -Xswiftc -enable-testing   # ahogy a CI futtatja
 ```
+
+A CI optimalizált fordítással futtat (a `@testable` importhoz kellő
+`-enable-testing`-gel): a titkosítás közös fixtúrája hat fiókra futtat
+scryptet a tiszta Swift megvalósításon, ami hibakereső módban nagyságrenddel
+lassabb. Mérve: a 215 teszt futása 287 másodpercről 33-ra, az iOS-job 387-ről
+239 másodpercre csökkent.
 
 A CI iOS-jobja minden push-nál futtatja. Ami ott van: az összefésülések
 tükör-tesztjei (`FocusSyncTests`, `SyncMergeTests` — ugyanazok az esetek, mint a
