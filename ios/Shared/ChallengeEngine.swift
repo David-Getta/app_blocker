@@ -271,6 +271,37 @@ enum ChallengeEngine {
 
     static func reverse(_ s: String) -> String { String(s.reversed()) }
 
+    /// Két szöveg egyezése KÓDPONTRA — a gép és az Android szabálya. A Swift `==`
+    /// a kanonikusan egyenértékű alakokat egynek veszi (az NFD „e + ékezet” és az
+    /// NFC „é” egyezik); a gép és az Android nem — ugyanaz az átgépelés itt
+    /// átment volna, ott nem. A közös fixtúra (fixtures/challenge-cases.json)
+    /// kimondja.
+    static func sameText(_ a: String, _ b: String) -> Bool {
+        a.unicodeScalars.elementsEqual(b.unicodeScalars)
+    }
+
+    /// A fejszámolás válasza számmá — a gép szabálya, kimondva: a közös
+    /// szóköz-készlet (TextLogic.spaces) ki, előjel, CSAK ASCII számjegy,
+    /// legfeljebb tizenöt — más semmi. A közös fixtúra kimondja.
+    static func parseMathAnswer(_ answer: String) -> Int? {
+        var digits = answer.unicodeScalars.filter { !TextLogic.isSpace($0) }
+        var negative = false
+        if let first = digits.first, first == "+" || first == "-" {
+            negative = first == "-"
+            digits.removeFirst()
+        }
+        guard !digits.isEmpty, digits.count <= 15,
+              digits.allSatisfy({ $0.value >= 0x30 && $0.value <= 0x39 }) else { return nil }
+        let n = digits.reduce(0) { $0 * 10 + Int($1.value - 0x30) }
+        return negative ? -n : n
+    }
+
+    /// A memória-kód válasza: a szélek szóköze le (a közös készlet szerint —
+    /// a `.whitespaces` a sorvéget nem vágta), nagybetű.
+    static func cleanCodeAnswer(_ answer: String) -> String {
+        TextLogic.trimSpaces(answer).uppercased()
+    }
+
     /// A megbízott jelmondata: négy szó a próbatételek szólistájából,
     /// kisbetűvel, szóközzel. Csak a felvételkor születik; a lenyomata marad.
     static func makePartnerPhrase(_ count: Int = PartnerLogic.partnerPhraseWords) -> String {
@@ -280,14 +311,13 @@ enum ChallengeEngine {
     static func applyAnswer(_ step: Step, answer: String, tier: Int, kind: Kind, now: Double) -> Outcome {
         switch step {
         case .transcribe(_, let text):
-            if answer == text { return Outcome(ok: true, done: true, step: step, message: nil) }
+            if sameText(answer, text) { return Outcome(ok: true, done: true, step: step, message: nil) }
             return Outcome(ok: false, done: false, step: step,
                 message: "Nem egyezik karakterre pontosan. Ellenőrizd az írásjeleket és a kis-/nagybetűket.")
 
         case .mathChain(let id, let problems, let pos):
             let expected = problems[pos].a
-            let cleaned = answer.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: " ", with: "")
-            if let given = Int(cleaned), given == expected {
+            if let given = parseMathAnswer(answer), given == expected {
                 let next = Step.mathChain(id: id, problems: problems, pos: pos + 1)
                 if pos + 1 >= problems.count { return Outcome(ok: true, done: true, step: next, message: nil) }
                 return Outcome(ok: true, done: false, step: next, message: nil)
@@ -302,14 +332,14 @@ enum ChallengeEngine {
                 return Outcome(ok: false, done: false, step: step,
                     message: "Még tart a memorizálás vagy a várakozás — a kivárást nem lehet megúszni.")
             }
-            if answer.trimmingCharacters(in: .whitespaces).uppercased() == code {
+            if cleanCodeAnswer(answer) == code {
                 return Outcome(ok: true, done: true, step: step, message: nil)
             }
             return Outcome(ok: false, done: false, step: makeStep("MEMORY", tier: tier, kind: kind),
                 message: "Nem ez volt a kód. Új kódot kapsz.")
 
         case .reverse(_, let text):
-            if answer == reverse(text) { return Outcome(ok: true, done: true, step: step, message: nil) }
+            if sameText(answer, reverse(text)) { return Outcome(ok: true, done: true, step: step, message: nil) }
             return Outcome(ok: false, done: false, step: makeStep("REVERSE", tier: tier, kind: kind),
                 message: "Nem pontos a visszafelé gépelés. Új mondatot kapsz.")
 

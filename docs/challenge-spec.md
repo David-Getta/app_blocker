@@ -53,6 +53,35 @@ váljon rutinná. Ezért:
   lejár, **10 perces átvételi ablak** nyílik; ha lecsúszol róla, az **egész
   kísérlet érvénytelen**, elölről kell kezdeni.
 
+## A válasz szabálya — mindhárom platformon ugyanaz
+
+A hibás válasz ára nagy (a fejszámolás lánca elölről indul, a memória-kód
+cserélődik), ezért nem lehet véletlen, hogy egy beírás számít-e. A szabály
+kimondva, a három motorban ugyanúgy, és a `fixtures/challenge-cases.json`
+(írja `desktop/test/challenge-fixture.test.ts`, visszajátssza a Kotlin
+`ChallengeFixtureTest` és a Swift `ChallengeFixtureTests`) őrzi:
+
+- **Átgépelés és visszafelé:** kódpontra pontos egyezés. Nincs tisztítás,
+  nincs normalizálás: a szélső szóköz hiba, a kisbetű hiba, a kanonikusan
+  egyenértékű alak (NFD „e + ékezet” az NFC „é” helyett) hiba. (A Swift `==`
+  az utóbbit egynek vette volna — most skalárra hasonlít, mint a gép és az
+  Android.)
+- **Fejszámolás:** minden szóköz ki a három mag közös szóköz-készlete szerint
+  (tab, sorvég, nem törő szóköz, BOM is), aztán előjel és CSAK ASCII
+  számjegy, legfeljebb tizenöt — más semmi. A „1 57” tehát 157; a „157abc”,
+  a „157.0”, az arab-indiai vagy teljes szélességű számjegy nem szám, hanem
+  hibás válasz. (A gép `parseInt`-je a szemetet a szám után elfogadta, az
+  Android `toLongOrNull`-ja a nem latin számjegyet — egyik sem volt szándék.)
+- **Memória-kód:** a szélek szóköze le ugyanazzal a készlettel, nagybetű,
+  pontos egyezés. Belső szóköz hiba. Az időzítés szerveroldali: a mutatás és a
+  várakozás végének pillanatában már elfogadott, egy ezredmásodperccel
+  előtte nem — és az élesítés előtt (`armedAt` nélkül) sosem; a korai válasz
+  nem hiba, a lépés marad.
+- **Mi marad, mi cserélődik:** az átgépelés hibája ugyanazt a szöveget hagyja
+  (az újragépelés maga az erőfeszítés), a fejszámolás, a memória és a
+  visszafelé hibája új lépést ad; a várakozás és a megbízott lépése itt nem
+  válaszol semmire.
+
 ## Nehézségi tierek
 
 `computeTier(unlockLog, now)` az elmúlt 7 nap feloldásainak száma alapján:

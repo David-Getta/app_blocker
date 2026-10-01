@@ -133,4 +133,8 @@ titkosításáé (`CryptoFixtureTests`, a `fixtures/crypto-cases.json` ellen): a
 gépen burkolt adatkulcs itt a jelszóval és a helyreállító kóddal is kinyílik, a
 gép blobja itt olvasható, a babrált nem — a Swift titkosításának és scryptjének
 ez az első tesztje; a helyreállító kód tisztítása és a jelszó hossza ettől
-skalárban számol, nem grafémában, ahogy a gép.
+skalárban számol, nem grafémában, ahogy a gép. És a próbatétel válaszáé
+(`ChallengeFixtureTests`, a `fixtures/challenge-cases.json` ellen): ugyanaz a
+beírás ugyanúgy számít — a kód mellől a sorvég is lejön, a fejszámolás száma a
+közös szabály szerint olvasódik, az átgépelés skalárra pontos (a Swift `==` az
+NFD alakot is elfogadta volna).

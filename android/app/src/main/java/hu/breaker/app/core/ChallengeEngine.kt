@@ -309,6 +309,26 @@ object ChallengeEngine {
 
     fun reverse(s: String): String = s.reversed()
 
+    /**
+     * A fejszámolás válasza számmá — a gép szabálya, kimondva: a közös
+     * szóköz-készlet (TextLogic.SPACES) ki, előjel, CSAK ASCII számjegy,
+     * legfeljebb tizenöt — más semmi. A `toLongOrNull` a nem latin számjegyet
+     * is elfogadta volna, a gép a szemetet a szám után: ugyanaz a beírás két
+     * eszközön kétfelé dőlt. A közös fixtúra (fixtures/challenge-cases.json)
+     * kimondja.
+     */
+    fun parseMathAnswer(answer: String): Long? {
+        val s = answer.filter { !TextLogic.isSpace(it) }
+        val negative = s.startsWith("-")
+        val digits = if (negative || s.startsWith("+")) s.substring(1) else s
+        if (digits.isEmpty() || digits.length > 15 || !digits.all { it in '0'..'9' }) return null
+        val n = digits.toLong()
+        return if (negative) -n else n
+    }
+
+    /** A memória-kód válasza: a szélek szóköze le (a közös készlet szerint), nagybetű. */
+    fun cleanCodeAnswer(answer: String): String = TextLogic.trimSpaces(answer).uppercase()
+
     fun applyAnswer(step: Step, answer: String, tier: Int, kind: Kind, now: Long): Outcome = when (step) {
         is Step.Transcribe ->
             if (answer == step.text) Outcome(ok = true, done = true, step = step)
@@ -317,7 +337,7 @@ object ChallengeEngine {
 
         is Step.MathChain -> {
             val expected = step.problems[step.pos].a
-            val given = answer.trim().replace(" ", "").toLongOrNull()
+            val given = parseMathAnswer(answer)
             when {
                 given != null && given == expected -> {
                     val next = step.copy(pos = step.pos + 1)
@@ -335,7 +355,7 @@ object ChallengeEngine {
             if (step.armedAt == null || now < step.armedAt + step.showMs + step.waitMs) {
                 Outcome(false, false, step,
                     "Még tart a memorizálás vagy a várakozás — a kivárást nem lehet megúszni.")
-            } else if (answer.trim().uppercase() == step.code) {
+            } else if (cleanCodeAnswer(answer) == step.code) {
                 Outcome(true, true, step)
             } else {
                 Outcome(false, false, makeStep("MEMORY", tier, kind), "Nem ez volt a kód. Új kódot kapsz.")

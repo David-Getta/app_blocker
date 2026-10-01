@@ -340,6 +340,27 @@ export function reverseString(s: string): string {
   return [...s].reverse().join('');
 }
 
+/**
+ * A fejszámolás válasza számmá — a szabály KIMONDVA, mert három mag olvassa.
+ *
+ * Minden szóköz ki (a JS `\s` készlete: a három mag közös szóköz-listája, lásd
+ * alias.ts), aztán előjel és CSAK ASCII számjegy, legfeljebb tizenöt — más
+ * semmi. A `parseInt` a „157abc”-t 157-nek vette (a szemét átment), az Android
+ * a nem latin számjegyet is számnak: ugyanaz a beírás két eszközön kétfelé
+ * dőlt, és a rossz oldalon az egész lánc elölről indul. A közös fixtúra
+ * (fixtures/challenge-cases.json) kimondja.
+ */
+export function parseMathAnswer(answer: string): number | null {
+  const s = answer.replace(/\s+/g, '');
+  if (!/^[+-]?[0-9]{1,15}$/.test(s)) return null;
+  return Number(s);
+}
+
+/** A memória-kód válasza: a szélek szóköze le (a közös készlet szerint), nagybetű. */
+export function cleanCodeAnswer(answer: string): string {
+  return answer.trim().toUpperCase();
+}
+
 /** Validates one submitted answer against the current (non-DELAY) step. */
 export function applyAnswer(
   step: Step, answer: string, tier: number, kind: 'pause' | 'delete', rng: RNG, now: number,
@@ -351,8 +372,8 @@ export function applyAnswer(
     }
     case 'MATH_CHAIN': {
       const expected = step.problems[step.pos].a;
-      const given = Number.parseInt(answer.trim().replace(/\s+/g, ''), 10);
-      if (Number.isFinite(given) && given === expected) {
+      const given = parseMathAnswer(answer);
+      if (given !== null && given === expected) {
         const next = { ...step, pos: step.pos + 1 };
         if (next.pos >= step.problems.length) return { ok: true, done: true, step: next };
         return { ok: true, done: false, step: next };
@@ -366,7 +387,7 @@ export function applyAnswer(
       if (step.armedAt === null || now < step.armedAt + step.showMs + step.waitMs) {
         return { ok: false, done: false, step, message: 'Még tart a memorizálás vagy a várakozás — a kivárást nem lehet megúszni.' };
       }
-      if (answer.trim().toUpperCase() === step.code) return { ok: true, done: true, step };
+      if (cleanCodeAnswer(answer) === step.code) return { ok: true, done: true, step };
       const regenerated = makeStep('MEMORY', tier, kind, rng);
       return { ok: false, done: false, step: regenerated, message: 'Nem ez volt a kód. Új kódot kapsz.' };
     }

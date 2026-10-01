@@ -2453,6 +2453,47 @@ const WIRES = [
     lost: 'az iPhone szinkronja nem hozná le a munkamenetet',
   },
 
+  // A PRÓBATÉTEL VÁLASZA — a fejszámolás számának és a memória-kódnak a
+  // tisztítása a kimondott, közös szabály szerint, nem a nyelv sajátja szerint.
+  // A hibás válasz ára itt nagy (a lánc elölről, új kód): ha egy motor a saját
+  // `parseInt`/`toLongOrNull`/`Int()`-jére tér vissza, ugyanaz a beírás két
+  // eszközön kétfelé dől — és semmi nem hasal el tőle.
+  {
+    file: 'desktop/src/shared/challenges.ts',
+    needle: 'const given = parseMathAnswer(answer)',
+    lost: 'a gép a „157abc”-t 157-nek venné, és a szemét átmenne',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/ChallengeEngine.kt',
+    needle: 'val given = parseMathAnswer(answer)',
+    lost: 'az Android a nem latin számjegyet is számnak venné, a belső tabot nem',
+  },
+  {
+    file: 'ios/Shared/ChallengeEngine.swift',
+    needle: 'if let given = parseMathAnswer(answer)',
+    lost: 'az iPhone a belső nem törő szóközt nem vágná ki a számból',
+  },
+  {
+    file: 'desktop/src/shared/challenges.ts',
+    needle: 'cleanCodeAnswer(answer) === step.code',
+    lost: 'a gép a kódot a saját trim-jével tisztítaná — a szabály kimondatlan maradna',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/ChallengeEngine.kt',
+    needle: 'cleanCodeAnswer(answer) == step.code',
+    lost: 'az Android a kód mellől a BOM-ot nem vágná le',
+  },
+  {
+    file: 'ios/Shared/ChallengeEngine.swift',
+    needle: 'cleanCodeAnswer(answer) == code',
+    lost: 'az iPhone a kód mellől a sorvéget nem vágná le',
+  },
+  {
+    file: 'ios/Shared/ChallengeEngine.swift',
+    needle: 'sameText(answer, text)',
+    lost: 'az iPhone az NFD átgépelést is elfogadná, a gép és az Android nem',
+  },
+
   // A JELSZÓ HOSSZA — ugyanazzal a mércével mindhárom magban (kódpont, NFKC
   // után). Ha a kliens a nyelv saját `length`/`count`-jára hagyatkozik,
   // ugyanaz a jelszó az egyik eszközön elmegy, a másikon „rövid” — és a

@@ -312,7 +312,20 @@ szűrte (egy különálló ékezet az egész betűt elvitte, a gép és az Andro
 csak az ékezetet), és a jelszó hosszát a három mag három mércével mérte (a
 gép UTF-16 egységben NFKC után, az Android egységben NFKC nélkül, az iPhone
 grafémában) — most kódpontban, NFKC után, mindhárom, és a hívót az
-érvényesítés-őr nézi.
+érvényesítés-őr nézi. A réteg hatodik fájlja a PRÓBATÉTEL VÁLASZÁÉ
+(`fixtures/challenge-cases.json`, írja `desktop/test/challenge-fixture.test.ts`,
+visszajátssza a Kotlin `ChallengeFixtureTest` és a Swift
+`ChallengeFixtureTests`): a fok a feloldások naplójából (a hét határa
+ezredmásodpercre, a jövőbeli sor), a hátralévő-jelzés, a kombináció-kulcs
+oda-vissza (ismétlődő típus, túl hosszú, ismeretlen, üres rész, kisbetű), és a
+válasz — a lépés a gép alakjában, a beírás, az időpont: jó-e, kész-e, marad-e
+a lépés vagy újat kap, hol áll a lánc. A hibás válasz ára nagy (a lánc
+elölről, új kód), és három motor olvasta a beírást a maga nyelvén: a gép
+`parseInt`-je a „157abc”-t 157-nek vette, az Android a nem latin számjegyet
+számnak, az iPhone a sorvéget nem vágta a kód mellől és az NFD átgépelést is
+elfogadta — most a szabály kimondva (szóköz ki a közös készlet szerint,
+előjel, csak ASCII számjegy; a kód szélei ugyanazzal a készlettel; a szöveg
+kódpontra pontos), mindhárom motorban, a hívót az érvényesítés-őr nézi.
 
 ## Biztonsági modell és őszinte korlátok
 
