@@ -52,6 +52,11 @@ jobs:
           hétre előre átadja az ablakokat a bővítménynek is, és a lap meg a
           felugró lap ilyenkor is a zárlatot mondja.
 
+          **Az appban felvett részleges szabály tiltó lapja az app útját
+          mondja.** Eddig azt írta, hogy a szabály a bővítmény beállításaiban,
+          tíz perc várással levehető — az appból jött szabálynál ez nem igaz:
+          azt az appban lehet levenni, próbatétellel, zárlat alatt sehogy.
+
           ### Ami a v0.4.209-ben jött
 
           **A heti ablak a böngészőben akkor is él, ha az app zárva van.**
