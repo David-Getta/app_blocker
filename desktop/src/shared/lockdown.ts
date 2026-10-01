@@ -180,6 +180,11 @@ export function windowKey(w: Band): string {
 }
 
 /** Egy kívülről jött ablak használható alakja, vagy undefined. */
+/** A dróton jött szám — csak ha valóban JSON-szám; különben NaN (érvénytelen). */
+function numberOnly(v: unknown): number {
+  return typeof v === 'number' ? v : NaN;
+}
+
 export function normalizeWindow(raw: unknown): LockdownWindow | undefined {
   if (!raw || typeof raw !== 'object') return undefined;
   const w = raw as Partial<LockdownWindow>;
@@ -187,7 +192,9 @@ export function normalizeWindow(raw: unknown): LockdownWindow | undefined {
   const rawDays: unknown[] = Array.isArray(w.days) ? w.days : [];
   const days = [...new Set(rawDays.filter((d): d is Weekday =>
     typeof d === 'number' && Number.isInteger(d) && d >= 0 && d <= 6))].sort((x, y) => x - y);
-  const band: Band = { days, startMin: Number(w.startMin), endMin: Number(w.endMin) };
+  // Csak JSON-szám: a `Number()` a „540” szöveget, a `null`-t (0) és az igazat
+  // (1) is percnek vette volna — a két telefon dekódolója nem.
+  const band: Band = { days, startMin: numberOnly(w.startMin), endMin: numberOnly(w.endMin) };
   if (!isValidBand(band)) return undefined;
   return { id: w.id, ...band };
 }

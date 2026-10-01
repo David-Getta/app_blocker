@@ -2518,6 +2518,41 @@ const WIRES = [
     lost: 'az Android a szám-azonosítójú naplósort is megtartaná (az optString szöveggé teszi)',
   },
 
+  // A MUNKAMENET-DOKUMENTUM TÖBBI MEZŐJE is elemenként és típus szerint: egy
+  // rossz zárlat-ablak vagy kulcsszó csak magát viszi, a szövegként írt szám
+  // nem szám. Ha egy olvasó visszatér a kényszerítő `opt…`-hoz vagy az egyben
+  // dekódoláshoz, ugyanaz a blob eszközönként más zárlatot és más listát ad.
+  {
+    file: 'ios/Shared/FocusSync.swift',
+    needle: 'lockdownWindows = c.lenient([Lossy<LockdownLogic.LockdownWindow>].self, .lockdownWindows)?',
+    lost: 'az iPhone egy rossz zárlat-ablak miatt az összeset elveszítené',
+  },
+  {
+    file: 'ios/Shared/FocusSync.swift',
+    needle: 'keywords = c.lenient([Lossy<String>].self, .keywords)?.compactMap { $0.value }',
+    lost: 'az iPhone egy nem szöveg kulcsszó miatt az összeset elveszítené',
+  },
+  {
+    file: 'ios/Shared/Lockdown.swift',
+    needle: 'until = c.lenient(Double.self, .until) ?? 0',
+    lost: 'az iPhone egy szövegként írt kezdés miatt az egész zárlatot eldobná',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/SyncClient.kt',
+    needle: 'LockdownLogic.parse(numberOf(l, "until") ?: 0.0, numberOf(l, "startedAt"))',
+    lost: 'az Android a szövegként írt zárlat-véget is időnek venné',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/SyncClient.kt',
+    needle: '.filter { it in 0..6 }.toSet()',
+    lost: 'az Android egy rossz nap miatt az egész zárlat-ablakot eldobná, a gép csak a napot',
+  },
+  {
+    file: 'desktop/src/shared/lockdown.ts',
+    needle: 'startMin: numberOnly(w.startMin), endMin: numberOnly(w.endMin)',
+    lost: 'a gép a „540” szöveget és a null-t is percnek venné egy zárlat-ablakban',
+  },
+
   // A MENETREND A DRÓTON: a rosszul formált sáv kiesik, a többi marad, és a
   // gép döntése nem hasalhat el rajta. Ha egy olvasó visszatér a nyers
   // átvételhez vagy a szigorú dekódoláshoz, egy hibás sáv a gépen a döntést,

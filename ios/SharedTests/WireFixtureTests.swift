@@ -75,7 +75,18 @@ final class WireFixtureTests: XCTestCase {
             "\(e.packId)/\(e.packName)/\(int(e.startedAt))/\(int(e.endedAt))/\(int(e.plannedEndsAt))"
                 + "/\(e.stopped ? 1 : 0)/\(e.window == true ? 1 : 0)"
         }.joined(separator: ";")
-        return "packs=[\(packs)] marks=[\(marks)] log=[\(log)] rev=\(int(f.rev)) at=\(int(f.updatedAt)) by=\(f.updatedBy)"
+        let run: String = f.run.map { "\($0.packId)/\(int($0.startedAt))/\(int($0.endsAt))" } ?? "-"
+        let lock: String = f.lockdown.map { "\(int($0.startedAt))/\(int($0.until))" } ?? "-"
+        let windows: String = (f.lockdownWindows ?? []).map { w in
+            "\(w.id):" + w.days.map(String.init).joined(separator: ",") + "/\(w.startMin)/\(w.endMin)"
+        }.joined(separator: ";")
+        let partner: String = f.partner.map { "\($0.name)|\($0.salt)|\($0.hash)|\(int($0.setAt))" } ?? "-"
+        let kw: String = (f.keywords ?? []).joined(separator: ",")
+        let a = "packs=[\(packs)] marks=[\(marks)] log=[\(log)] rev=\(int(f.rev)) at=\(int(f.updatedAt)) by=\(f.updatedBy)"
+        let b = " run=\(run) lock=\(lock) windows=[\(windows)] wmark=\(f.lockdownWindowsRev ?? 0)"
+        let c = " kw=[\(kw)] kmark=\(f.keywordsRev ?? 0) partner=\(partner) pmark=\(f.partnerRev ?? 0)"
+        let d = " hide=\(f.hideSiteList == true ? 1 : 0) hmark=\(f.hideSiteListRev ?? 0)"
+        return a + b + c + d
     }
 
     func testTheSiteListIsReadLikeTheDesktopAndOneBadRecordDropsOnlyItself() throws {

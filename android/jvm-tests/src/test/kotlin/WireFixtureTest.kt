@@ -61,7 +61,15 @@ class WireFixtureTest {
             "${e.packId}/${e.packName}/${e.startedAt}/${e.endedAt}/${e.plannedEndsAt}" +
                 "/${if (e.stopped) 1 else 0}/${if (e.window) 1 else 0}"
         }
-        return "packs=[$packs] marks=[$marks] log=[$log] rev=${f.rev} at=${f.updatedAt} by=${f.updatedBy}"
+        val run = f.run?.let { "${it.packId}/${it.startedAt}/${it.endsAt}" } ?: "-"
+        val lock = f.lockdown?.let { "${it.startedAt}/${it.until}" } ?: "-"
+        val windows = f.lockdownWindows.joinToString(";") { w -> "${w.id}:${w.days.sorted().joinToString(",")}/${w.startMin}/${w.endMin}" }
+        val partner = f.partner?.let { "${it.name}|${it.salt}|${it.hash}|${it.setAt}" } ?: "-"
+        return "packs=[$packs] marks=[$marks] log=[$log] rev=${f.rev} at=${f.updatedAt} by=${f.updatedBy}" +
+            " run=$run lock=$lock windows=[$windows] wmark=${f.lockdownWindowsRev ?: 0}" +
+            " kw=[${f.keywords.joinToString(",")}] kmark=${f.keywordsRev ?: 0}" +
+            " partner=$partner pmark=${f.partnerRev ?: 0}" +
+            " hide=${if (f.hideSiteList) 1 else 0} hmark=${f.hideSiteListRev ?: 0}"
     }
 
     @Test fun `az oldal-lista olvasasa ugyanaz, mint a gepen - egy rossz rekord nem viszi a tobbit`() {

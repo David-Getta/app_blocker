@@ -537,7 +537,12 @@ Amit a tesztek bizonyítanak, és amit másképp nem lehetne:
   egészet vitte, és a kör a saját listáját tolta fel a többiek helyett; egy
   nem JSON blokklista-blob most megállítja a kört, mint a gépen és Androidon.
   A menetrend is sávonként tűr (lásd `docs/feature-schedules.md`): a gép
-  döntését eddig egy nem tömb sávlista ledöntötte.
+  döntését eddig egy nem tömb sávlista ledöntötte. És a munkamenet-dokumentum
+  többi mezője is: a futó menet, a zárlat, a zárlat-ablakok (a rossz nap csak
+  magát viszi, nem az ablakot), a kulcsszavak és a megbízott — az iPhone eddig
+  egy rossz ablak vagy kulcsszó miatt az összeset eldobta, az Android a
+  szövegként írt zárlat-véget is időnek vette, a gép a „540” szöveget és a
+  `null`-t is percnek.
 
 Egy dolog iPhone-on más: a **napi keret nem érvényesül** (nincs ilyen mérési
 API), de a rekordban MEGŐRIZZÜK. Enélkül elég lenne egyszer megnyitni a

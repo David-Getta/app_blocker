@@ -722,7 +722,13 @@ export function normalizeRecurrence(raw: unknown): Band | undefined {
   const rawDays: unknown[] = Array.isArray(b.days) ? b.days : [];
   const days = [...new Set(rawDays.filter((d): d is Weekday =>
     typeof d === 'number' && Number.isInteger(d) && d >= 0 && d <= 6))].sort((x, y) => x - y);
-  const band: Band = { days, startMin: Number(b.startMin), endMin: Number(b.endMin) };
+  // Csak JSON-szám: a `Number()` a „540” szöveget és a `null`-t (0) is percnek
+  // vette volna — a két telefon dekódolója nem.
+  const band: Band = {
+    days,
+    startMin: typeof b.startMin === 'number' ? b.startMin : NaN,
+    endMin: typeof b.endMin === 'number' ? b.endMin : NaN,
+  };
   if (!isValidBand(band)) return undefined;
   if (bandMinutes(band) > MAX_SESSION_MINUTES) return undefined;
   return band;

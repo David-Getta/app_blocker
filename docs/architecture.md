@@ -381,6 +381,10 @@ rossz nevű csomag azonosítója pedig nem lett „látott”, így a jele sírk
 látszott volna, és a csomag mindenhol törlődött volna), az Android pedig az org.json
 kényszerítésével a „5” szöveget számnak, az 5-öt szövegnek vette, és egy
 hiányzó felvételi idő vagy egy nem lista hosztnév-mező az egész oldalt vitte.
+A későbbi körök a menetrendre, a részleges szabályokra és a
+munkamenet-dokumentum többi mezőjére (futó menet, zárlat, ablakok,
+kulcsszavak, megbízott) is kiterjesztették — a gép döntését egy nem tömb
+sávlista addig ledöntötte.
 
 ## Biztonsági modell és őszinte korlátok
 

@@ -176,6 +176,54 @@ const LOG_DROPPED: unknown[] = [
   { packId: 'e5', endedAt: true },
 ];
 
+/**
+ * A munkamenet-dokumentum többi mezője: a futó menet, a zárlat, az ablakok, a
+ * kulcsszavak, a megbízott, a rejtés és a jeleik — mezőnként egy-egy hibás
+ * változat. A szabály ugyanaz: csak JSON-szám a szám, csak szöveg a szöveg, a
+ * listák elemenként tűrnek, és ami nem értelmezhető, az nincs.
+ */
+const SALT = 'A'.repeat(24);
+const HASH = 'B'.repeat(44);
+const FIELD_VARIANTS: Record<string, unknown>[] = [
+  { run: { packId: 'p1', startedAt: 1000, endsAt: 5000 } },
+  { run: { packId: 'p1', startedAt: '1000', endsAt: 5000 } },
+  { run: { packId: 'p1', endsAt: 5000 } },
+  { run: { packId: 'p1', startedAt: 1000, endsAt: '5000' } },
+  { run: { packId: 'zz', startedAt: 1000, endsAt: 5000 } },
+  { run: { packId: 5, startedAt: 1000, endsAt: 5000 } },
+  { run: { packId: 'p1', startedAt: 1000, endsAt: 0 } },
+  { run: 'x' },
+  { lockdown: { startedAt: 1000, until: 9000 } },
+  { lockdown: { until: 9000 } },
+  { lockdown: { until: '9000' } },
+  { lockdown: { startedAt: 20000, until: 9000 } },
+  { lockdown: { startedAt: '1000', until: 9000 } },
+  { lockdown: { until: -5 } },
+  { lockdown: 'x' },
+  { lockdownWindows: [
+    { id: 'w1', days: [1, 2], startMin: 540, endMin: 600 },
+    { id: 'w2', days: [1, '2', 9, 1.5], startMin: 600, endMin: 660 },
+    { id: 'w3', days: [3], startMin: '540', endMin: 600 },
+    { id: 5, days: [4], startMin: 0, endMin: 60 },
+    null, 'x',
+    { id: 'w1', days: [5], startMin: 0, endMin: 60 },
+    { id: 'w6', days: [2, 1], startMin: 540, endMin: 600 },
+    { id: 'w7', days: [6], startMin: null, endMin: 60 },
+    { id: 'w8', days: [0], startMin: 0, endMin: 60 },
+  ], lockdownWindowsRev: 3 },
+  { lockdownWindows: 'x', lockdownWindowsRev: '3' },
+  { keywords: ['shorts', 12345, null, 'reels', 'Shorts', true, '  live  '], keywordsRev: 2 },
+  { keywords: 'x', keywordsRev: 9 },
+  { partner: { name: 'Anna', salt: SALT, hash: HASH, setAt: 1000 }, partnerRev: 4 },
+  { partner: { name: 'Anna', salt: SALT, hash: HASH, setAt: '1000' }, partnerRev: 1.5 },
+  { partner: { name: 5, salt: SALT, hash: HASH, setAt: 1000 } },
+  { partner: { name: 'Anna', salt: 5, hash: HASH } },
+  { partner: 'x' },
+  { hideSiteList: true, hideSiteListRev: 2 },
+  { hideSiteList: 'true', hideSiteListRev: 2 },
+  { hideSiteList: 1 },
+];
+
 /** A jelek: a megmaradó, a kiesett (látott) és a sosem látott (sírkő) csomagé is. */
 const MARK_IDS = ['p1', 'p2', 't1', 't2', 'x1', 'x2', 'x4', 'gone'];
 
@@ -187,8 +235,16 @@ function focusKey(f: SyncFocus): string {
   const marks = Object.keys(f.packMarks ?? {}).sort().map((k) => `${k}=${f.packMarks![k]}`);
   const log = f.log.map((e) => `${e.packId}/${e.packName}/${e.startedAt}/${e.endedAt}/${e.plannedEndsAt}`
     + `/${e.stopped ? 1 : 0}/${e.window ? 1 : 0}`);
+  const run = f.run ? `${f.run.packId}/${f.run.startedAt}/${f.run.endsAt}` : '-';
+  const lock = f.lockdown ? `${f.lockdown.startedAt}/${f.lockdown.until}` : '-';
+  const windows = (f.lockdownWindows ?? []).map((w) => `${w.id}:${w.days.join(',')}/${w.startMin}/${w.endMin}`);
+  const partner = f.partner ? `${f.partner.name}|${f.partner.salt}|${f.partner.hash}|${f.partner.setAt}` : '-';
   return `packs=[${packs.join(';')}] marks=[${marks.join(',')}] log=[${log.join(';')}]`
-    + ` rev=${f.rev} at=${f.updatedAt} by=${f.updatedBy}`;
+    + ` rev=${f.rev} at=${f.updatedAt} by=${f.updatedBy}`
+    + ` run=${run} lock=${lock} windows=[${windows.join(';')}] wmark=${f.lockdownWindowsRev ?? 0}`
+    + ` kw=[${(f.keywords ?? []).join(',')}] kmark=${f.keywordsRev ?? 0}`
+    + ` partner=${partner} pmark=${f.partnerRev ?? 0}`
+    + ` hide=${f.hideSiteList ? 1 : 0} hmark=${f.hideSiteListRev ?? 0}`;
 }
 
 // ------------------------------------------------------------------ esetek
@@ -225,6 +281,9 @@ function focusCases(): unknown[] {
   for (const p of [...PACK_TOLERATED, ...PACK_DROPPED]) out.push(blob([PACK_GOOD[0], p], [LOG_GOOD[0]], allMarks));
   for (const e of [...LOG_TOLERATED, ...LOG_DROPPED]) out.push(blob([PACK_GOOD[0]], [LOG_GOOD[0], e], {}));
   out.push(blob([...PACK_GOOD, ...PACK_TOLERATED, ...PACK_DROPPED], [...LOG_GOOD, ...LOG_TOLERATED, ...LOG_DROPPED], allMarks));
+  for (const v of FIELD_VARIANTS) {
+    out.push({ packs: [PACK_GOOD[0]], log: [], rev: 5, updatedAt: 10, updatedBy: 'gep', ...v });
+  }
   // A csomag- és a naplólista maga sem lista: üres, nem hiba.
   out.push({ packs: 'x', log: {}, rev: 1, updatedAt: 1, updatedBy: 'gep' });
   // A jelek értékenként tűrnek: a rossz érték csak magát viszi, nem az összeset.

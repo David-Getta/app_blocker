@@ -401,7 +401,8 @@ object SyncClient {
     /** Egy JSON-tömb szövegei — ami nem szöveg, az kimarad. */
     internal fun stringsFromJson(arr: JSONArray?): List<String> {
         if (arr == null) return emptyList()
-        return (0 until arr.length()).mapNotNull { i -> if (arr.isNull(i)) null else arr.optString(i) }
+        // Csak szöveg: az `optString` a 12345-öt is kulcsszóvá tette volna.
+        return (0 until arr.length()).mapNotNull { i -> arr.opt(i) as? String }
     }
 
     /** A megbízott drót-alakja: név, só, lenyomat, dátum — a jelmondat nincs benne. */
@@ -412,11 +413,12 @@ object SyncClient {
     /** Kívülről jött adat: csak a jó alakú marad. */
     internal fun partnerFromJson(o: JSONObject?): PartnerLogic.PartnerLock? {
         if (o == null) return null
+        // Csak szöveg és csak JSON-szám — a gép `normalizePartnerLock`-ja szerint.
         return PartnerLogic.normalizeLock(
-            if (o.isNull("name")) null else o.optString("name"),
-            if (o.isNull("salt")) null else o.optString("salt"),
-            if (o.isNull("hash")) null else o.optString("hash"),
-            if (o.isNull("setAt")) null else o.optLong("setAt", 0),
+            stringOf(o, "name"),
+            stringOf(o, "salt"),
+            stringOf(o, "hash"),
+            numberOf(o, "setAt")?.toLong(),
         )
     }
 
@@ -435,15 +437,18 @@ object SyncClient {
     internal fun windowsFromJson(arr: JSONArray?): List<LockdownLogic.LockdownWindow> {
         if (arr == null) return emptyList()
         val raw = (0 until arr.length()).mapNotNull { i ->
-            runCatching {
-                val w = arr.getJSONObject(i)
-                val days = w.getJSONArray("days")
-                LockdownLogic.LockdownWindow(
-                    id = w.getString("id"),
-                    days = (0 until days.length()).map { days.getInt(it) }.toSet(),
-                    startMin = w.getInt("startMin"), endMin = w.getInt("endMin"),
-                )
-            }.getOrNull()
+            // A gép `normalizeWindow`-ja: szöveg-azonosító, a napok közül csak
+            // az egész 0–6 marad (a többi kiesik, nem az egész ablak), a perc
+            // csak egész JSON-szám. Az ellenőrzés a `cleanWindow`-é.
+            val w = arr.opt(i) as? JSONObject ?: return@mapNotNull null
+            val id = stringOf(w, "id") ?: return@mapNotNull null
+            val daysArr = w.optJSONArray("days")
+            val days = (0 until (daysArr?.length() ?: 0)).mapNotNull { intValue(daysArr!!.opt(it)) }
+                .filter { it in 0..6 }.toSet()
+            LockdownLogic.LockdownWindow(
+                id = id, days = days,
+                startMin = intOf(w, "startMin") ?: -1, endMin = intOf(w, "endMin") ?: -1,
+            )
         }
         return LockdownLogic.cleanWindows(raw)
     }
@@ -488,11 +493,12 @@ object SyncClient {
                 ))
             }
         }
-        val rawRun = if (o.isNull("run")) null else o.optJSONObject("run")?.let {
+        // A gép `normalizeRun`-ja: szöveg-azonosító, csak JSON-szám idők.
+        val rawRun = o.optJSONObject("run")?.let {
             Focus.FocusRun(
-                packId = it.optString("packId"),
-                startedAt = it.optLong("startedAt", 0),
-                endsAt = it.optLong("endsAt", 0),
+                packId = stringOf(it, "packId").orEmpty(),
+                startedAt = numberOf(it, "startedAt")?.toLong() ?: 0,
+                endsAt = numberOf(it, "endsAt")?.toLong() ?: 0,
             )
         }
         // Nemnegatív egész, mint a gépen és az iPhone-on: csak JSON-szám, lefelé
@@ -525,10 +531,8 @@ object SyncClient {
             // Kívülről jött adat: ami nem értelmes, az nincs — és `now` mellett
             // a lejárt sem.
             lockdown = o.optJSONObject("lockdown")?.let { l ->
-                LockdownLogic.parse(
-                    l.optDouble("until", 0.0),
-                    if (l.isNull("startedAt")) null else l.optDouble("startedAt", 0.0),
-                )
+                // Csak JSON-szám (az `optDouble` a „9000” szöveget is elfogadta).
+                LockdownLogic.parse(numberOf(l, "until") ?: 0.0, numberOf(l, "startedAt"))
             }?.let { if (now == null) it else LockdownLogic.live(it, now) },
             // Az ablakok kívülről jött adat, mint minden más; a jel pozitív
             // egész, legfeljebb a blob rev-je — mint a csomag-jelek.

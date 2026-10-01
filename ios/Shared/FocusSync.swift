@@ -125,14 +125,16 @@ public enum FocusSync {
             lockdown = (try? c.decodeIfPresent(
                 LockdownLogic.Lockdown.self, forKey: .lockdown)) ?? nil
             // Az ablakok és a jelük is tűrően: egy sérült mező ne vigye el a blobot.
-            lockdownWindows = (try? c.decodeIfPresent(
-                [LockdownLogic.LockdownWindow].self, forKey: .lockdownWindows)) ?? nil
+            // Elemenként: egy rossz ablak csak magát viszi (eddig az összeset).
+            lockdownWindows = c.lenient([Lossy<LockdownLogic.LockdownWindow>].self, .lockdownWindows)?
+                .compactMap { $0.value }
             lockdownWindowsRev = (try? c.decodeIfPresent(Int.self, forKey: .lockdownWindowsRev)) ?? nil
             // A megbízott és a jele is tűrően: egy sérült mező ne vigye el a blobot.
             partner = (try? c.decodeIfPresent(PartnerLogic.PartnerLock.self, forKey: .partner)) ?? nil
             partnerRev = (try? c.decodeIfPresent(Int.self, forKey: .partnerRev)) ?? nil
             // A kulcsszavak és a jelük is tűrően.
-            keywords = (try? c.decodeIfPresent([String].self, forKey: .keywords)) ?? nil
+            // Elemenként: egy nem szöveg elem csak magát viszi (eddig az összeset).
+            keywords = c.lenient([Lossy<String>].self, .keywords)?.compactMap { $0.value }
             keywordsRev = (try? c.decodeIfPresent(Int.self, forKey: .keywordsRev)) ?? nil
             // A rejtés és a jele is tűrően — csak igazként számít.
             hideSiteList = ((try? c.decodeIfPresent(Bool.self, forKey: .hideSiteList)) ?? nil) == true ? true : nil

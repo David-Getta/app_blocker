@@ -111,6 +111,17 @@ public enum Focus {
             self.startedAt = startedAt
             self.endsAt = endsAt
         }
+
+        enum CodingKeys: String, CodingKey { case packId, startedAt, endsAt }
+
+        /// TŰRŐ dekódolás, a gép `normalizeRun`-ja szerint: szöveg-azonosító,
+        /// csak JSON-szám idők (a hiányzó kezdés nulla); a `cleanRun` dönt.
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            packId = c.lenient(String.self, .packId) ?? ""
+            startedAt = c.lenient(Double.self, .startedAt) ?? 0
+            endsAt = c.lenient(Double.self, .endsAt) ?? 0
+        }
     }
 
     /// Fut-e most munkamenet.

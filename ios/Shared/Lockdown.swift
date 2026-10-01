@@ -40,6 +40,14 @@ public enum LockdownLogic {
             case startedAt
             case until
         }
+
+        /// TŰRŐ dekódolás: csak JSON-szám (a „9000” szöveg nem idő); a hiány
+        /// nulla, és a `parse` dönt — a gép `parseLockdown`-ja szerint.
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            startedAt = c.lenient(Double.self, .startedAt) ?? 0
+            until = c.lenient(Double.self, .until) ?? 0
+        }
     }
 
     /// Tart-e most zárlat.
@@ -162,6 +170,17 @@ public enum LockdownLogic {
             case startMin
             case endMin
         }
+
+        /// TŰRŐ dekódolás, a gép `normalizeWindow`-ja szerint: a napok közül a
+        /// nem egész kiesik (nem az egész ablak), a perc csak egész JSON-szám;
+        /// a `cleanWindow` dönt. Eddig egy rossz ablak az összeset vitte.
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            id = c.lenient(String.self, .id) ?? ""
+            days = c.lossyArray(Int.self, .days)
+            startMin = c.lenient(Int.self, .startMin) ?? -1
+            endMin = c.lenient(Int.self, .endMin) ?? -1
+        }
     }
 
     /// Az ablak tartalmi kulcsa: napok (rendezve), kezdés, vég.
@@ -172,7 +191,8 @@ public enum LockdownLogic {
 
     /// Egy kívülről jött ablak használható alakja, vagy nil.
     static func cleanWindow(_ w: LockdownWindow?) -> LockdownWindow? {
-        guard let w, !w.id.isEmpty, w.id.count <= maxWindowId else { return nil }
+        // UTF-16 egységben, mint a gép (`length`) és az Android — a `count` grafémát számol.
+        guard let w, !w.id.isEmpty, w.id.utf16.count <= maxWindowId else { return nil }
         let days = Array(Set(w.days.filter { (0...6).contains($0) })).sorted()
         let band = ScheduleLogic.Band(days: days, startMin: w.startMin, endMin: w.endMin)
         guard ScheduleLogic.isValidBand(band) else { return nil }
