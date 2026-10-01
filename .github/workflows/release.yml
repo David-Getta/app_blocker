@@ -44,24 +44,25 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A fixtúra a használati statisztika egyesítését is nézi.** A
-          mérés a fiók egészére szól: a telefon és a gép számai összeadódnak,
-          a címke onnan jön, ahol a célt tényleg használták, és ha bármelyik
-          eszköz mér, az összeg valódi. Ezt eddig nyelvenként külön tesztek
-          őrizték; most a közös fixtúrában három eszköz mérése is ott van, és
-          a gépnek, a telefonnak és az iPhone-nak az összeget, a címkéket és a
-          napok sorrendjét is bájtra ugyanúgy kell adnia — a saját
-          drót-olvasóján át.
+          **A fixtúra a döntést is nézi.** Az egész szinkron azért van, hogy
+          ugyanarra a bemenetre ugyanaz legyen a döntés: tilt-e most az
+          oldal. A közös fixtúrában mostantól döntés-esetek is vannak — egy
+          oldal, a helyi mérés, a többi eszköz mai összegzése és egy időpont
+          —, és a gépnek, a telefonnak és az iPhone-nak ugyanazt kell
+          mondania: a kifizetett szünet visz, a törlésre váró oldal zár, a
+          közös napi keret a többi eszköz mai perceivel fogy (a saját sor és a
+          nem mai nap nem számít). A menetrend kimarad: helyi időben
+          értékelődik ki, az a nyelvenkénti teszteké marad.
 
-          ### Ami a v0.4.180-ban jött
+          ### Ami a v0.4.181-ben jött
+
+          **A fixtúra a használati statisztika egyesítését is nézi.** Három
+          eszköz mérése a dróton át, mindhárom nyelven ugyanaz az összeg.
+
+          #### Ami a v0.4.180-ban jött
 
           **A fixtúra a naplót is fésüli.** Ugyanarról a menetről két változat,
           azonos végű sorok — és a fésült sorrend is tükrözött.
-
-          #### Ami a v0.4.179-ben jött
-
-          **A fixtúra a közeli rekordokat is fésüli.** Az oldal-rekord egy
-          mezőjének cseréje, a fésülés mindkét sorrendben.
 
           NOTES
           fi
