@@ -162,11 +162,18 @@ jobs:
             tail -40 "$log"
             exit 1
           fi
+      # OPTIMALIZÁLT fordítással (-c release), a @testable importhoz kellő
+      # -enable-testing-gel. A titkosítás közös fixtúrája hat fiókra futtat
+      # scryptet (N = 2^15) a tiszta Swift megvalósításon, ami hibakereső
+      # fordításban nagyságrenddel lassabb: a tesztek futása így ~290 másodperc
+      # volt, és minden push CI-idejét ez vitte. Az optimalizálás az IEEE
+      # lebegőpontot és a túlcsordulás-csapdát nem változtatja; a szándékos
+      # `assert` a magban nincs (a CI-lépés a fordítást is külön ellenőrzi).
       - name: Swift-tesztek (a mag, macOS-en)
         working-directory: ios
         run: |
           log="$RUNNER_TEMP/swift-test.log"
-          if swift test > "$log" 2>&1; then
+          if swift test -c release -Xswiftc -enable-testing > "$log" 2>&1; then
             tail -40 "$log"
           else
             echo "::group::Hibák (fordítás vagy bukó teszt)"
