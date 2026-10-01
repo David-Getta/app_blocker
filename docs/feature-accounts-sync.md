@@ -427,7 +427,10 @@ kimaradhat:
   (`MergeFixtureTest` / `MergeFixtureTests`) bájtra ugyanaz;
 - a fuzz-generátorok nyelvenként (`MergeFuzzTest` / `MergeFuzzTests`) —
   ugyanazok a húzások, ugyanabban a sorrendben;
-- a drótnevek listája (`scripts/check-wire-names.js`);
+- a drótnevek listája (`scripts/check-wire-names.js`) — ami azt is nézi,
+  hogy minden őrzött drót-mező szerepel a fixtúra generátorában: egy új mező
+  nem maradhat ki csendben az összevetésből (a jelenlétét nézi, nem azt, hogy
+  a generátor húz is rá — arra a lefedettséget néző szem marad);
 - nyelvenként saját teszt a mezőre (a gépen a `hide-sync.test.ts`, Androidon
   a `HideSyncTest`, iPhone-on a `HideSyncTests` a minta): a fésülés, a drót
   és a normalizálás, a jel léptetése, az átvett jel, a mentés;

@@ -263,6 +263,38 @@ for (const group of GROUPS) {
 }
 
 /**
+ * A FIXTÚRA LEFEDÉSE: minden őrzött drót-mező szerepeljen a megfelelőségi
+ * fixtúra generátorában (desktop/test/merge-random.ts).
+ *
+ * A v0.4.174–175 tapasztalata: a kulcsszavak, a megbízott, a menetrend, az
+ * adag és a részleges szabályok sokáig kimaradtak a generátorból — a három
+ * nyelv fésülése ezekre a mezőkre nem volt összevetve, és semmi nem szólt.
+ * Ez az őr azt garantálja, hogy egy ÚJ drót-mező ne maradhasson ki csendben.
+ *
+ * Amit NEM garantál, és ezt ki kell mondani: a név JELENLÉTÉT nézi a
+ * generátor kódjában (megjegyzések nélkül), nem azt, hogy a generátor tényleg
+ * húz is rá, se azt, hogy a megfelelőségi kulcs viszi. Arra a fixtúra
+ * lefedettségét néző szem marad — ez csak a csendes kimaradást zárja.
+ */
+const GENERATOR = 'desktop/test/merge-random.ts';
+const generator = readStripped(GENERATOR);
+if (generator === null) {
+  problems.push(`a megfelelőségi fixtúra generátora nincs meg (${GENERATOR})`);
+} else {
+  for (const group of GROUPS) {
+    for (const field of group.names) {
+      checked++;
+      if (!new RegExp(`\\b${field}\\b`).test(generator)) {
+        problems.push(
+          `${group.what}: a(z) „${field}” mező nincs a megfelelőségi fixtúra generátorában (${GENERATOR}). `
+          + 'A három nyelv fésülése erre a mezőre nincs összevetve — a tükör itt csendben elcsúszhat.',
+        );
+      }
+    }
+  }
+}
+
+/**
  * A HORDOZÁS: a drót-mező a HELYI modellen is legyen meg.
  *
  * A v0.4.18 előtti VALÓS rés: a Swift drót-típusa (SyncSite) vitte az
