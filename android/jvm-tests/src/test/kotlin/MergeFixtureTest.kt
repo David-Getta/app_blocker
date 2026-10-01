@@ -1,9 +1,11 @@
 import hu.breaker.app.core.FocusSync
 import hu.breaker.app.core.KeywordLogic
+import hu.breaker.app.core.LimitLogic
 import hu.breaker.app.core.LockdownLogic
 import hu.breaker.app.core.PartnerLogic
 import hu.breaker.app.core.ScheduleLogic
 import hu.breaker.app.core.SyncClient
+import hu.breaker.app.core.Site
 import hu.breaker.app.core.SyncMerge
 import hu.breaker.app.core.UsageLogic
 import org.json.JSONArray
@@ -89,6 +91,40 @@ class MergeFixtureTest {
         }
         val labels = u.labels.toSortedMap().entries.joinToString(",") { "${it.key}=${it.value}" }
         return "enabled=${if (u.enabled) 1 else 0} days=[$days] labels=[$labels]"
+    }
+
+    @Test
+    fun `dontes - tilt-e most, ugyanugy mint a gep`() {
+        // A napkulcs helyi időben számolódik: a fixtúra UTC-ben készül, dél UTC-s
+        // időponttal. Itt kimondjuk az UTC-t, hogy a futtató gép időzónája ne játsszon.
+        java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone("UTC"))
+        val cases = JSONObject(fixtureFile().readText()).getJSONArray("decisions")
+        assertTrue(cases.length() >= 50, "a fixture-ben van elég eset")
+        for (i in 0 until cases.length()) {
+            val c = cases.getJSONObject(i)
+            val seed = c.getInt("seed")
+            val now = c.getLong("now")
+            val s = c.getJSONObject("site")
+            val site = Site(
+                id = "s", domain = s.getString("domain"), hostnames = listOf(s.getString("domain")), addedAt = 0,
+                pauseUntil = if (s.isNull("pauseUntil")) null else s.getLong("pauseUntil"),
+                pendingDeleteAt = if (s.isNull("pendingDeleteAt")) null else s.getLong("pendingDeleteAt"),
+                dailyLimitSeconds = if (s.isNull("dailyLimitSeconds")) null else s.getLong("dailyLimitSeconds"),
+            )
+            val usage = SyncClient.usageFromJson(c.getJSONObject("usage").toString())
+            val shared = if (c.isNull("shared")) null else c.getJSONObject("shared").let { sh ->
+                val devs = sh.getJSONArray("devices")
+                LimitLogic.SharedToday(
+                    selfDeviceId = sh.getString("selfDeviceId"),
+                    devices = (0 until devs.length()).map { j ->
+                        val d = devs.getJSONObject(j)
+                        val secs = d.getJSONObject("seconds")
+                        LimitLogic.TodayDigest(d.getString("deviceId"), d.getString("day"), secs.keys().asSequence().associateWith { secs.getDouble(it) })
+                    },
+                )
+            }
+            assertEquals(c.getBoolean("blocked"), LimitLogic.isBlockedNowWithLimit(site, usage, now, shared), "döntés, mag $seed")
+        }
     }
 
     @Test

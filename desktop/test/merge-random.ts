@@ -15,6 +15,7 @@ import { windowKey, type LockdownWindow } from '../src/shared/lockdown';
 import { keywordsKey } from '../src/shared/keywords';
 import { partnerKey, type PartnerLock } from '../src/shared/partner';
 import type { UsageDay, UsageState } from '../src/shared/usage';
+import type { Limitable, SharedToday } from '../src/shared/limits';
 
 /** Determinisztikus véletlen (LCG): a mag a hibaüzenetben áll, a bukás megismételhető. */
 export function rng(seed: number): () => number {
@@ -443,4 +444,58 @@ export function usageConformanceKey(u: UsageState): string {
   const days = u.days.map((d) => `${d.day}:{${Object.entries(d.seconds).sort(byKey).map(([k, v]) => `${k}=${v}`).join(',')}}`).join(';');
   const labels = Object.entries(u.labels).sort(byKey).map(([k, v]) => `${k}=${v}`).join(',');
   return `enabled=${u.enabled ? 1 : 0} days=[${days}] labels=[${labels}]`;
+}
+
+/**
+ * A DÖNTÉS bemenete: egy oldal, a helyi mérés, a többi eszköz mai összegzése
+ * és egy időpont — a kimenet: tilt-e MOST (`isBlockedNowWithLimit`).
+ *
+ * Az időpont dél UTC-ben, és menetrend nincs: a menetrend és a napkulcs
+ * helyi időben értékelődik ki, és a három teszt a futtató gép időzónájában
+ * fut. Délben a napkulcs −12…+11 órás eltolásnál is ugyanaz a nap, egy
+ * sáv viszont nem — ezért itt a szünet, a törlésre várás és a KÖZÖS napi
+ * keret dől el (a saját sor kihagyva, a nem mai nap kihagyva, a távoli
+ * másodpercek csak hozzáadnak), a menetrend a nyelvenkénti teszteké marad.
+ */
+export const DECISION_NOW = 1790769600000;
+export const DECISION_TODAY = '2026-09-30';
+export const DECISION_YESTERDAY = '2026-09-29';
+export const DECISION_DOMAIN = 'youtube.com';
+
+export interface DecisionCase { site: Limitable & { domain: string }; usage: UsageState; shared: SharedToday | null }
+
+/** Tizenegy húzás, mind feltétel nélkül — csak a fixtúráé. */
+export function randomDecision(r: () => number): DecisionCase {
+  const pauseDraw = Math.floor(r() * 3);
+  const pendingDraw = r();
+  const limitDraw = Math.floor(r() * 3);
+  const usedToday = 300 * Math.floor(r() * 6);
+  const yesterdayDraw = r();
+  const otherDraw = r();
+  const otherSeconds = 300 * Math.floor(r() * 5);
+  const selfDraw = r();
+  const oldDraw = r();
+  const sharedDraw = r();
+  const limitValue = 600 * (1 + Math.floor(r() * 2));
+  const key = `site:${DECISION_DOMAIN}`;
+  const site = {
+    domain: DECISION_DOMAIN,
+    // Szünet: nincs, él (a jövőben jár le), vagy már lejárt (nem számít).
+    pauseUntil: pauseDraw === 0 ? null : pauseDraw === 1 ? DECISION_NOW + 60_000 : DECISION_NOW - 60_000,
+    pendingDeleteAt: pendingDraw < 0.3 ? DECISION_NOW + 3_600_000 : null,
+    ...(limitDraw === 0 ? {} : { dailyLimitSeconds: limitValue }),
+  };
+  const days: UsageDay[] = [];
+  if (usedToday > 0) days.push({ day: DECISION_TODAY, seconds: { [key]: usedToday } });
+  // A tegnapi perc nem számít a mai keretbe.
+  if (yesterdayDraw < 0.5) days.push({ day: DECISION_YESTERDAY, seconds: { [key]: 900 } });
+  const usage: UsageState = { days, labels: {}, enabled: true };
+  const devices: SharedToday['devices'] = [];
+  // A saját sorunk visszajön a kiszolgálótól — ki kell hagyni, különben minden perc kétszer számítana.
+  if (selfDraw < 0.5) devices.push({ deviceId: 'me', day: DECISION_TODAY, seconds: { [key]: 900 } });
+  if (otherDraw < 0.6) devices.push({ deviceId: 'other', day: DECISION_TODAY, seconds: { [key]: otherSeconds } });
+  // A másik eszköz TEGNAPI sora: más időzóna, más nap — nem számít.
+  if (oldDraw < 0.4) devices.push({ deviceId: 'old', day: DECISION_YESTERDAY, seconds: { [key]: 1_200 } });
+  const shared: SharedToday | null = sharedDraw < 0.8 ? { selfDeviceId: 'me', devices } : null;
+  return { site, usage, shared };
 }

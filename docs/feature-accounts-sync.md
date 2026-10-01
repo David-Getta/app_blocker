@@ -369,7 +369,13 @@ Amit a tesztek bizonyítanak, és amit másképp nem lehetne:
   rekordok ritkán hoznak ki. És a használati statisztika EGYESÍTÉSÉT is
   (`combineUsage`): három eszköz mérése — napok, célok, címkék, kapcsoló —
   a dróton át, és a három nyelvnek az összeget, a címke-versenyt és a napok
-  sorrendjét is bájtra ugyanúgy kell adnia.
+  sorrendjét is bájtra ugyanúgy kell adnia. És a DÖNTÉST is: egy oldal, a
+  helyi mérés, a többi eszköz mai összegzése és egy időpont — tilt-e most
+  (`isBlockedNowWithLimit`): a szünet, a törlésre várás és a közös napi keret
+  (a saját sor kihagyva, a nem mai nap kihagyva) mindhárom nyelven ugyanazt
+  mondja. A menetrend kimarad belőle, mert helyi időben értékelődik ki, és a
+  három teszt a futtató gép időzónájában fut — az időpont dél UTC-ben van,
+  hogy a napkulcs ettől még ugyanaz legyen.
 
 Egy dolog iPhone-on más: a **napi keret nem érvényesül** (nincs ilyen mérési
 API), de a rekordban MEGŐRIZZÜK. Enélkül elég lenne egyszer megnyitni a

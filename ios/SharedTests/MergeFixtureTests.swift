@@ -129,6 +129,48 @@ final class MergeFixtureTests: XCTestCase {
         return "enabled=\(u.enabled ? 1 : 0) days=[\(days)] labels=[\(labels)]"
     }
 
+    func testTheBlockDecisionIsTheSameAsTheDesktop() throws {
+        // A napkulcs helyi időben számolódik: a fixtúra UTC-ben készül, dél UTC-s
+        // időponttal — délben a nap −12…+11 órás eltolásnál is ugyanaz (a CI UTC-ben jár).
+        let here = URL(fileURLWithPath: #filePath)
+        let root = here.deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let url = root.appendingPathComponent("fixtures").appendingPathComponent("merge-cases.json")
+        let top = try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any]
+        let cases = top?["decisions"] as? [[String: Any]] ?? []
+        XCTAssertGreaterThanOrEqual(cases.count, 50, "a fixture-ben van elég eset")
+        for c in cases {
+            let seed = c["seed"] as? Int ?? -1
+            let now = (c["now"] as? NSNumber)?.doubleValue ?? 0
+            let s = c["site"] as? [String: Any] ?? [:]
+            let domain = s["domain"] as? String ?? ""
+            let site = Site(
+                id: "s", domain: domain, hostnames: [domain], addedAt: 0,
+                pauseUntil: (s["pauseUntil"] as? NSNumber)?.doubleValue,
+                pendingDeleteAt: (s["pendingDeleteAt"] as? NSNumber)?.doubleValue,
+                schedule: nil, alias: nil, reason: nil,
+                dailyLimitSeconds: (s["dailyLimitSeconds"] as? NSNumber)?.doubleValue,
+                burstSeconds: nil, cooldownSeconds: nil, rules: nil
+            )
+            let usageData = try JSONSerialization.data(withJSONObject: c["usage"] as? [String: Any] ?? [:])
+            guard let usage = UsageStats.parse(String(decoding: usageData, as: UTF8.self)) else {
+                XCTFail("a mérés nem olvasható, mag \(seed)")
+                return
+            }
+            var shared: LimitLogic.SharedToday? = nil
+            if let sh = c["shared"] as? [String: Any] {
+                let devices = (sh["devices"] as? [[String: Any]] ?? []).map { d -> LimitLogic.TodayDigest in
+                    var secs: [String: Double] = [:]
+                    for (k, v) in d["seconds"] as? [String: Any] ?? [:] {
+                        if let n = (v as? NSNumber)?.doubleValue { secs[k] = n }
+                    }
+                    return LimitLogic.TodayDigest(deviceId: d["deviceId"] as? String ?? "", day: d["day"] as? String ?? "", seconds: secs)
+                }
+                shared = LimitLogic.SharedToday(selfDeviceId: sh["selfDeviceId"] as? String ?? "", devices: devices)
+            }
+            XCTAssertEqual(LimitLogic.isBlockedNowWithLimit(site, usage, shared, now), c["blocked"] as? Bool ?? false, "döntés, mag \(seed)")
+        }
+    }
+
     func testUsageCombinesTheSameAsTheDesktop() throws {
         // A mérés a dróton SZÖVEGKÉNT jön (`UsageStats.parse`), ezért a
         // fixtúrából is így: a három állapotot visszaírjuk JSON-ná, és a

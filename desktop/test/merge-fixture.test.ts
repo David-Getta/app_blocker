@@ -20,21 +20,30 @@ import * as path from 'node:path';
 import { mergeSite } from '../src/shared/sync/merge';
 import { mergeFocus, normalizeSyncFocus, sameFocus } from '../src/shared/sync/focus-merge';
 import { combineUsage } from '../src/shared/usage';
+import { isBlockedNowWithLimit } from '../src/shared/limits';
 import {
-  DEVICES, flipFocus, flipSite, focusConformanceKey, randomFocus, randomSite, randomUsage, rng,
-  siteConformanceKey, usageConformanceKey,
+  DECISION_NOW, DEVICES, flipFocus, flipSite, focusConformanceKey, randomDecision, randomFocus, randomSite,
+  randomUsage, rng, siteConformanceKey, usageConformanceKey,
 } from './merge-random';
+
+// A döntés napkulcsa helyi időben számolódik; a fixtúra UTC-ben készül, és a
+// CI mindhárom futtatója UTC-ben jár. Itt kimondjuk, hogy egy más időzónás
+// gépen újragenerált fájl se térjen el (dél UTC: a nap ettől még ugyanaz).
+process.env.TZ = 'UTC';
 
 /** dist-test/test/… → a tároló gyökere. */
 const FIXTURE = path.resolve(__dirname, '..', '..', '..', 'fixtures', 'merge-cases.json');
 const SEEDS = 80;
 
-interface Fixture { note: string; version: number; sites: unknown[]; focus: unknown[]; usage: unknown[] }
+interface Fixture {
+  note: string; version: number; sites: unknown[]; focus: unknown[]; usage: unknown[]; decisions: unknown[];
+}
 
 function buildFixture(): Fixture {
   const sites: unknown[] = [];
   const focus: unknown[] = [];
   const usage: unknown[] = [];
+  const decisions: unknown[] = [];
   for (let seed = 1; seed <= SEEDS; seed++) {
     const r = rng(seed);
     const [a, b, c] = DEVICES.map((d) => randomSite(r, d));
@@ -74,16 +83,27 @@ function buildFixture(): Fixture {
     const [a, b, c] = DEVICES.map((d) => randomUsage(r, d));
     usage.push({ seed, a, b, c, abc: usageConformanceKey(combineUsage([a, b, c])) });
   }
+  // A DÖNTÉS: tilt-e most — szünet, törlésre várás, közös napi keret. Ez az,
+  // amiért az egész szinkron van: ugyanaz a bemenet, ugyanaz a döntés
+  // mindhárom nyelven. A menetrend kimarad (helyi idő), lásd randomDecision.
+  for (let seed = 1; seed <= SEEDS; seed++) {
+    const r = rng(seed);
+    const { site, usage: u, shared } = randomDecision(r);
+    const blocked = isBlockedNowWithLimit(site, u, DECISION_NOW, shared);
+    decisions.push({ seed, now: DECISION_NOW, site, usage: u, shared, blocked });
+  }
   return {
     note: 'Generálja és őrzi: desktop/test/merge-fixture.test.ts (UPDATE_MERGE_FIXTURE=1 npm test). '
       + 'Olvassa: android/jvm-tests MergeFixtureTest, ios/SharedTests MergeFixtureTests. '
       + 'A focus-esetek flip/what/same mezője: egy mező cseréje, és hogy a három nyelv különbségnek tartja-e. '
       + 'A sites-esetek flip/what/af/fa mezője: egy mező cseréje, és a fésülés mindkét sorrendben. '
-      + 'A usage-esetek: három eszköz mérése és az egyesítés kulcsa.',
-    version: 8,
+      + 'A usage-esetek: három eszköz mérése és az egyesítés kulcsa. '
+      + 'A decisions-esetek: oldal, helyi mérés, a többi eszköz mai összegzése, időpont — és hogy tilt-e most.',
+    version: 9,
     sites,
     focus,
     usage,
+    decisions,
   };
 }
 
@@ -91,7 +111,8 @@ function buildFixture(): Fixture {
 function render(f: Fixture): string {
   const rows = (items: unknown[]) => items.map((x) => ' ' + JSON.stringify(x)).join(',\n');
   return `{\n"note": ${JSON.stringify(f.note)},\n"version": ${f.version},\n`
-    + `"sites": [\n${rows(f.sites)}\n],\n"focus": [\n${rows(f.focus)}\n],\n"usage": [\n${rows(f.usage)}\n]\n}\n`;
+    + `"sites": [\n${rows(f.sites)}\n],\n"focus": [\n${rows(f.focus)}\n],\n"usage": [\n${rows(f.usage)}\n],\n`
+    + `"decisions": [\n${rows(f.decisions)}\n]\n}\n`;
 }
 
 test('a megfelelőségi fixture a gép szabályaival egyezik (a Kotlin és a Swift ebből dolgozik)', () => {
