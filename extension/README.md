@@ -170,7 +170,10 @@ valamit, amit a felhasználó nem tiltott le.
    lejártakor visszaáll a rendes szövegre. A vég a hídon jön le az apptól,
    minden lehúzással — és vele az is, ha a heti zárlat-ablak tartja: a láb
    és a felugró lap ilyenkor „a heti ablak szerint”-et mond, hogy tudd, nem
-   kézzel indított döntés volt, hanem a hétköznap.
+   kézzel indított döntés volt, hanem a hétköznap. A heti zárlat-ablakokat az
+   app egy hétre előre leküldi (`lockdown.windows`): ha az app hallgat, a most
+   tartó ablak is zárlat a lapon (`effectiveLockdown`) — a segéd az ablak
+   zárlatát az app nélkül is elindítja.
 
 7. **Idézi az indokot.** Ha az appban egy mondatot írtál az oldalhoz — miért
    tiltottad —, a tiltó lap bármelyik kártyája alatt idézi: „Ezért tiltottad

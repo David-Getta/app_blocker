@@ -54,7 +54,9 @@ szigorítás.
   „az appban feloldható, próbatétellel” — mert az az út most nincs —, hanem a
   zárlatot és a hátralévő időt. A felugró lap is kimondja. A zárlat vége a hídon
   megy le; a frissesség-szabály itt más, mint a zárva-listánál: a zárlat csak
-  hosszabbodhat, tehát egy régebbi lehúzás vége is igaz alsó becslés.
+  hosszabbodhat, tehát egy régebbi lehúzás vége is igaz alsó becslés. A heti
+  zárlat-ablakot a lap az app nélkül is tudja (lásd
+  [`feature-lockdown-windows.md`](feature-lockdown-windows.md)).
 - **A gyorsbillentyűs rétegben:** futó menet alatt nincs leállító gomb — egy
   szürke, letiltott gomb azt sugallná, hogy van út, csak most nem —, a láb a
   zárlatról beszél.

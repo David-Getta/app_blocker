@@ -18,7 +18,7 @@ import { keywordHit, keywordInText } from './keywords.js';
 import { hitsReport, recordHit, sweepHits } from './hits.js';
 import { activeRules, load, sweep } from './storage.js';
 import {
-  closedFor, dueForRefresh, effectiveFocus, focusAllows, loadLink, lockdownUntil, pullFromApp,
+  closedFor, dueForRefresh, effectiveFocus, effectiveLockdown, focusAllows, loadLink, pullFromApp,
   withAppRules,
   noteFor,
   partnerNameOf, pushHits,
@@ -47,8 +47,11 @@ async function decide(url) {
   // A ZÁRLAT vége MINDEN találatra rámegy: zárlat alatt egyik lap sem
   // ígérhet appbeli próbatételt — se a menet leállítását, se új csatornát, se
   // feloldást. Egyszer számoljuk, itt; a lap címe viszi tovább.
-  const lockUntil = lockdownUntil(link, now);
-  const lockWindow = lockUntil > 0 && link?.lockdown?.byWindow === true;
+  // A HATÁSOS zárlat: a tárolt vég, vagy ha az app hallgat, a most tartó
+  // heti zárlat-ablak is — a lap ne ígérjen feloldást, ami nincs.
+  const lock = effectiveLockdown(link, now);
+  const lockUntil = lock?.until ?? 0;
+  const lockWindow = lock?.byWindow === true;
   // Az INDOK: amiért a felhasználó maga tiltotta le ezt a címet. Minden
   // találatra rámegy, ha van — a lap a kísértés pillanatában ezt idézi.
   const note = noteFor(link, hostOf(url));
@@ -367,10 +370,10 @@ chrome.runtime.onMessage.addListener((msg, sender, respond) => {
     const keyword = keywordInText(link.keywords ?? [], String(sender.tab?.title ?? ''));
     if (!keyword) { respond({}); return; }
     const now = Date.now();
-    const lockUntil = lockdownUntil(link, now);
+    const lock = effectiveLockdown(link, now);
     const hit = {
-      reason: 'keyword', keyword, byTitle: true, lockUntil,
-      lockWindow: lockUntil > 0 && link?.lockdown?.byWindow === true,
+      reason: 'keyword', keyword, byTitle: true, lockUntil: lock?.until ?? 0,
+      lockWindow: lock?.byWindow === true,
       note: noteFor(link, hostOf(url)), partner: partnerNameOf(link),
     };
     note(`címsor ${url} -> kulcsszó ${keyword}`);

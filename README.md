@@ -224,7 +224,9 @@ ingyen van, rövidíteni vagy visszavonni sehogy.
   (előre gyártott sávokból vagy saját sávból), módosítható (bővíteni ingyen,
   szűkíteni próbatétel) és levehető (próbatétel); Androidon a szűrő értesítése
   szól, amikor az ablak beér, iPhone-on az app heti emlékeztetőt ütemez rá.
-  Lásd `docs/feature-lockdown-windows.md`.
+  A gépen a böngésző tiltó lapja az app nélkül is tudja: az app egy hétre
+  előre leküldi az ablakokat, és zárva lévő app mellett sem ígér feloldást
+  az ablak alatt. Lásd `docs/feature-lockdown-windows.md`.
 - **Párban zárolás: a lazítás végén a megbízott jelmondata** (mindhárom
   platform). A próbatétel a saját impulzusod ellen véd — van, akinek az kell,
   hogy a lazítás **más ember döntése is** legyen. Kiválasztasz egy megbízottat

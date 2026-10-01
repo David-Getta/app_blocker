@@ -88,6 +88,20 @@ mezőket. Minden sor mondja, mikor jön az ablak legközelebb. A sáv az ablak z
 tudja meg, miért van minden zárva. A tiltó lap és a gyorsbillentyűs réteg
 ugyanazt a zárlatot mutatja, mint a kézinél.
 
+**A böngészőben az app nélkül is.** Az ablak zárlatát a segéd az app nélkül
+is elindítja — a böngésző tiltó lapja viszont a hídon, a futó apptól tudott
+a zárlatról, és zárva lévő app mellett azt írta a lába, hogy a tiltás az
+appban, próbatétellel feloldható. Az ablak alatt ez az út nincs. Most a híd
+minden lehúzással a zárlat-ablakok következő hetét is leküldi
+(`upcomingLockdownWindows` — ugyanazok az előfordulások, amiket a segéd köre
+a maga idejében elindít, a `dueLockdownWindow` szerint; teszt veti össze), a
+bővítmény tárolja, és ha az app több mint egy perce hallgat, a most tartó
+tárolt ablak is zárlat a lapon, az ablak jelével (`effectiveLockdown` az
+`extension/app-link.js`-ben). Amíg az app friss, az ő szava dönt — ő tudja,
+ha egy ablakot azóta levettek. Őszinte rés, a szigorúbb irányba: ha egy
+ablakot máshol (a szinkronon át) vettél le, amíg a gépen az app zárva volt,
+a lap az app következő indulásáig még zárlatot mondhat az ablak idejében.
+
 **Telefonon:** a zárlat kártyája felsorolja az ablakokat, mindegyiknél
 *Módosítás…* (bővíteni ingyen, szűkíteni próbatétel) és *Levétel…*
 (próbatétel — a szokásos próbatétel-lap, „Zárlat-ablak lazítása” fejléccel;

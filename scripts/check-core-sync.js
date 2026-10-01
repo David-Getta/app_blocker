@@ -87,6 +87,9 @@ ext.hits = read('extension/hits.js');
 // böngészőben — a plafonjainak az appéval kell egyeznie.
 ext.keywords = read('extension/keywords.js');
 ext.rules = read('extension/rules-core.js');
+// A híd a heti ablakokat és a zárlat-ablakokat egy hétre előre leküldi; a
+// bővítmény a maga plafonjáig tárolja — ha kisebb volna, a hét vége kiesne.
+ext.appLink = read('extension/app-link.js');
 
 ts.digest = read('desktop/src/shared/digest.ts');
 kt.digest = read('android/app/src/main/java/hu/breaker/app/core/Digest.kt');
@@ -514,6 +517,14 @@ const EXT_PAIRS = [
   ['WEEKDAY_NAMES',
     quotedWords(ts.browserHits, /WEEKDAY_NAMES\s*=\s*\[([^\]]+)\]/) ?? { missing: 'ts' },
     quotedWords(ext.hits, /WEEKDAY_NAMES\s*=\s*\[([^\]]+)\]/) ?? { missing: 'ext' }],
+  // Az előre-listák plafonja: amit az app egy hétre leküld, azt a bővítmény
+  // mind megtartja — a heti ablakból és a zárlat-ablakból is.
+  ['MAX_WINDOW_OCCURRENCES (munkamenet)',
+    scalar(ts.focus, /MAX_WINDOW_OCCURRENCES\s*=\s*([^;]+);/, 'ts'),
+    scalar(ext.appLink, /MAX_FOCUS_WINDOWS\s*=\s*([^;]+);/, 'ext')],
+  ['MAX_WINDOW_OCCURRENCES (zárlat)',
+    scalar(ts.focus, /MAX_WINDOW_OCCURRENCES\s*=\s*([^;]+);/, 'ts'),
+    scalar(ext.appLink, /MAX_LOCKDOWN_WINDOWS\s*=\s*([^;]+);/, 'ext')],
 ];
 
 /** Egy szám a két telefon-tükörből — aláhúzás és Kotlin-utótag nélkül. */

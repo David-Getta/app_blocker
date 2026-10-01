@@ -95,6 +95,19 @@ const WIRES = [
     needle: 'windows: cleanFocusWindows(focus.windows)',
     lost: 'a bővítmény nem tárolná a heti ablakokat — az app bezárása az ablak feloldása lenne',
   },
+  // A ZÁRLAT-ABLAK APP NÉLKÜL. Ugyanez a lánc a zárlatra: a segéd az ablak
+  // zárlatát az app nélkül is elindítja, és ha a lap nem tud róla, olyan
+  // feloldást ígér, ami nincs.
+  {
+    file: 'desktop/src/main/main.ts',
+    needle: 'upcomingLockdownWindows(s.lockdownWindows',
+    lost: 'a híd nem küldené le a zárlat-ablakokat — zárva lévő app mellett a tiltó lap feloldást ígérne a zárlat alatt',
+  },
+  {
+    file: 'extension/app-link.js',
+    needle: 'for (const w of l?.windows ?? [])',
+    lost: 'a tiltó lap nem tudna a tárolt zárlat-ablakról — app nélkül feloldást ígérne, ami nincs',
+  },
   {
     file: 'desktop/src/helper/server.ts',
     needle: 'summarizeFocus',
@@ -3059,7 +3072,7 @@ const WIRES = [
   // zárlat alatt pont az az út nincs. Nem hibás tiltás, hanem hazug lap.
   {
     file: 'extension/background.js',
-    needle: 'const lockUntil = lockdownUntil(link, now);',
+    needle: 'const lock = effectiveLockdown(link, now);',
     lost: 'a tiltó lap zárlat alatt is próbatételt ígérne',
   },
   {
@@ -3069,7 +3082,7 @@ const WIRES = [
   },
   {
     file: 'desktop/src/main/main.ts',
-    needle: 'liveLockdown(s.lockdown, Date.now())',
+    needle: 'liveLockdown(s.lockdown, now)',
     lost: 'a híd nem adná ki a zárlat végét, a bővítmény semmit nem tudna róla',
   },
   // A ZÁRLAT-ABLAK. Az ablak nem új érvényesítés, hanem egy időzítő a

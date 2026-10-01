@@ -65,6 +65,7 @@ function loadShipped(): Shipped {
   if (!fresh) throw new Error('a bővítményben nincs FOCUS_FRESH_MS');
   const body = [
     fresh[0].replace('export const', 'const'),
+    exportedFunction(src, 'appFresh(link, now = Date.now())'),
     exportedFunction(src, 'effectiveFocus(link, now = Date.now())'),
     exportedFunction(src, 'focusAllows(link, host, now = Date.now())'),
   ].join('\n');

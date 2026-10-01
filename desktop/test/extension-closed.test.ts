@@ -33,8 +33,12 @@ function loadClosed(): {
   cleanClosed: (list: unknown) => { host: string; reason: string; until: number }[];
   closedFor: (link: unknown, host: unknown, now?: number) =>
     { host: string; reason: string; until: number } | null;
-  cleanLockdown: (raw: unknown) => { until: number } | null;
+  cleanLockdown: (raw: unknown) => {
+    until: number; byWindow?: boolean; windows?: { startsAt: number; endsAt: number }[];
+  } | null;
   lockdownUntil: (link: unknown, now?: number) => number;
+  effectiveLockdown: (link: unknown, now?: number) => { until: number; byWindow: boolean } | null;
+  FOCUS_FRESH_MS: number;
   cleanPartner: (raw: unknown) => { name: string } | null;
   partnerNameOf: (link: unknown) => string | null;
 } {
@@ -50,18 +54,26 @@ function loadClosed(): {
   // A zárlat két függvénye ugyanebből a modulból, ugyanígy kivágva.
   const lockCleanSrc = pick(/function cleanLockdown\(raw\) \{[\s\S]*?\n\}/, 'cleanLockdown');
   const lockUntilSrc = pick(/export function lockdownUntil\(link[\s\S]*?\n\}/, 'lockdownUntil');
+  // A hatásos zárlat a frissességet és a tárolt heti ablakokat is nézi.
+  const lockEffSrc = pick(/export function effectiveLockdown\(link[\s\S]*?\n\}/, 'effectiveLockdown');
+  const freshSrc = pick(/export function appFresh\(link[\s\S]*?\n\}/, 'appFresh');
+  const freshConstSrc = pick(/export const FOCUS_FRESH_MS = [^;]+;/, 'FOCUS_FRESH_MS');
+  const lockMaxSrc = pick(/const MAX_LOCKDOWN_WINDOWS = [^;]+;/, 'MAX_LOCKDOWN_WINDOWS');
   // A megbízott két függvénye ugyanígy: a tisztítás és a név.
   const partnerCleanSrc = pick(/function cleanPartner\(raw\) \{[\s\S]*?\n\}/, 'cleanPartner');
   const partnerNameSrc = pick(/export function partnerNameOf\(link\) \{[\s\S]*?\n\}/, 'partnerNameOf');
   // eslint-disable-next-line no-new-func
   return new Function(
-    `${constSrc}\n${cleanSrc}\n${forSrc}\n${lockCleanSrc}\n${lockUntilSrc}\n${partnerCleanSrc}\n${partnerNameSrc}\n`
-    + 'return { CLOSED_FRESH_MS, cleanClosed, closedFor, cleanLockdown, lockdownUntil, cleanPartner, partnerNameOf };',
+    `${constSrc}\n${cleanSrc}\n${forSrc}\n${freshConstSrc}\n${lockMaxSrc}\n${freshSrc}\n`
+    + `${lockCleanSrc}\n${lockEffSrc}\n${lockUntilSrc}\n${partnerCleanSrc}\n${partnerNameSrc}\n`
+    + 'return { CLOSED_FRESH_MS, cleanClosed, closedFor, cleanLockdown, lockdownUntil, effectiveLockdown, '
+    + 'FOCUS_FRESH_MS, cleanPartner, partnerNameOf };',
   )() as ReturnType<typeof loadClosed>;
 }
 
 const {
-  CLOSED_FRESH_MS, cleanClosed, closedFor, cleanLockdown, lockdownUntil, cleanPartner, partnerNameOf,
+  CLOSED_FRESH_MS, cleanClosed, closedFor, cleanLockdown, lockdownUntil, effectiveLockdown, FOCUS_FRESH_MS,
+  cleanPartner, partnerNameOf,
 } = loadClosed();
 const NOW = 1_800_000_000_000;
 
@@ -180,4 +192,51 @@ test('zárlatot csak a még tartó vég mond — frissességtől függetlenül',
   // Egy órája nem értük el az appot: a zárlat vége attól még igaz alsó becslés.
   assert.equal(lockdownUntil({ lockdown: { until: NOW + 60_000 }, fetchedAt: NOW - 3600_000 }, NOW),
     NOW + 60_000, 'elavult kapcsolatnál is szól');
+});
+
+// ---------------------------------------------------------------------------
+// A zárlat-ablak app nélkül
+// ---------------------------------------------------------------------------
+//
+// A segéd az ablak zárlatát az app nélkül is elindítja — a tiltó lap viszont
+// csak a hídról tudott róla, és zárva lévő app mellett feloldást ígért, ami
+// nincs. Az app egy hetet előre leküld; ha hallgat, ebből szól a lap.
+
+const occ = (startsAt: number, endsAt: number) => ({ startsAt, endsAt });
+
+test('a zárlat-ablakok a tárban: csak valódi számok, kezdés a vég előtt', () => {
+  assert.deepEqual(cleanLockdown({ until: 0, windows: [occ(NOW, NOW + 5)] }),
+    { until: 0, windows: [occ(NOW, NOW + 5)] }, 'futó zárlat nélkül is tárolódik');
+  assert.deepEqual(cleanLockdown({
+    until: NOW + 5, byWindow: true,
+    windows: [occ(NOW, NOW + 5), occ(5, 4), occ(5, 5), { startsAt: '1', endsAt: 2 }, null, 7, { startsAt: 1 }],
+  }), { until: NOW + 5, byWindow: true, windows: [occ(NOW, NOW + 5)] });
+  // A jel ablak nélküli zárlathoz tartozik — futó zárlat nélkül nincs mit jelölnie.
+  assert.deepEqual(cleanLockdown({ until: 0, byWindow: true, windows: [occ(1, 2)] }), { until: 0, windows: [occ(1, 2)] });
+  assert.equal(cleanLockdown({ until: 0, windows: [] }), null);
+  assert.equal(cleanLockdown({ until: 0, windows: 'x' }), null);
+  assert.equal(cleanLockdown({ windows: Array.from({ length: 100 }, (_, i) => occ(i, i + 1)) })?.windows?.length, 64);
+});
+
+test('ha az app hallgat, a most tartó zárlat-ablak is zárlat — az ablak jelével', () => {
+  const stale = NOW - FOCUS_FRESH_MS - 1;
+  const link = { fetchedAt: stale, lockdown: { until: 0, windows: [occ(NOW - 60_000, NOW + 3600_000)] } };
+  assert.deepEqual(effectiveLockdown(link, NOW), { until: NOW + 3600_000, byWindow: true });
+  assert.equal(lockdownUntil(link, NOW), NOW + 3600_000);
+  assert.equal(effectiveLockdown(link, NOW - 60_001), null, 'előtte nem');
+  assert.equal(effectiveLockdown(link, NOW + 3600_000), null, 'a végével vége');
+  // A tárolt, hosszabb kézi zárlat nem rövidül az ablaktól.
+  const longer = { ...link, lockdown: { ...link.lockdown, until: NOW + 7200_000 } };
+  assert.deepEqual(effectiveLockdown(longer, NOW), { until: NOW + 7200_000, byWindow: false });
+  // A rövidebbet az ablak kitolja, és onnantól az ablak tartja.
+  const shorter = { ...link, lockdown: { ...link.lockdown, until: NOW + 60_000 } };
+  assert.deepEqual(effectiveLockdown(shorter, NOW), { until: NOW + 3600_000, byWindow: true });
+});
+
+test('amíg az app friss, a zárlatról az ő szava dönt', () => {
+  // Ő tudja, ha egy ablakot azóta levettek — a tárolt lista ne mondjon zárlatot.
+  const link = { fetchedAt: NOW, lockdown: { until: 0, windows: [occ(NOW - 60_000, NOW + 3600_000)] } };
+  assert.equal(effectiveLockdown(link, NOW), null);
+  assert.equal(effectiveLockdown(link, NOW + FOCUS_FRESH_MS), null, 'a határon még friss');
+  assert.notEqual(effectiveLockdown(link, NOW + FOCUS_FRESH_MS + 1), null, 'utána a tárolt ablak');
 });

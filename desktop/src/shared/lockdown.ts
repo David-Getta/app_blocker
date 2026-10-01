@@ -20,7 +20,9 @@
 // Swift tükrözi. Lásd docs/feature-lockdown.md.
 
 import { inAnyBand, isLoosening, isValidBand, type Band, type Weekday } from './schedule.js';
-import { nextOccurrence, occurrenceAt, type Occurrence } from './focus.js';
+import {
+  MAX_WINDOW_OCCURRENCES, nextOccurrence, occurrenceAt, occurrencesAhead, WINDOW_LOOKAHEAD_DAYS, type Occurrence,
+} from './focus.js';
 
 /** Egy zárlat legfeljebb ennyi lehet. Ami ennél hosszabb, az már nem döntés. */
 export const MAX_LOCKDOWN_DAYS = 30;
@@ -380,4 +382,32 @@ export function windowStartingSoon(
   if (!soonest || soonest.startsAt - now > withinMs) return null;
   if (isLocked(cur, now) && cur!.until >= soonest.endsAt) return null;
   return soonest;
+}
+
+/**
+ * A zárlat-ablakok előfordulásai MOSTANTÓL `days` napig (a még tartó is),
+ * kezdés, aztán vég szerint, az azonos előfordulás egyszer.
+ *
+ * MIÉRT. A zárlatot az ablakban a segéd az app nélkül is elindítja — a
+ * böngésző tiltó lapja viszont csak a hídon, a futó apptól tudott róla.
+ * Zárva lévő app mellett a lap így olyan feloldási utat ígért (próbatétel
+ * az appban), ami a zárlat alatt nincs. Ezzel a listával a bővítmény előre
+ * tudja, mikor tart az ablak zárlata (lásd extension/app-link.js
+ * `effectiveLockdown`).
+ */
+export function upcomingLockdownWindows(
+  windows: Band[], now: number, days = WINDOW_LOOKAHEAD_DAYS,
+): Occurrence[] {
+  const seen = new Set<string>();
+  const out: Occurrence[] = [];
+  for (const w of windows) {
+    for (const occ of occurrencesAhead(w, now, days)) {
+      const key = `${occ.startsAt}/${occ.endsAt}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(occ);
+    }
+  }
+  out.sort((a, b) => a.startsAt - b.startsAt || a.endsAt - b.endsAt);
+  return out.slice(0, MAX_WINDOW_OCCURRENCES);
 }

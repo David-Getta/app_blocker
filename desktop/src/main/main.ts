@@ -7,7 +7,7 @@
 import { app, BrowserWindow, ipcMain, Menu, systemPreferences } from 'electron';
 import { registerSyncServerIpc } from './sync-server';
 import { extensionSeenRecently, registerRulesBridge, stopRulesBridge } from './rules-bridge-ipc';
-import { isWindowLockdown, liveLockdown } from '../shared/lockdown';
+import { isWindowLockdown, liveLockdown, upcomingLockdownWindows } from '../shared/lockdown';
 import {
   hideOverlay, takeWarning, toggleOverlay, unregisterOverlayShortcut, warnAboutApp,
 } from './overlay';
@@ -320,11 +320,16 @@ if (HELPER_MODE) {
           // appban feloldható, próbatétellel — zárlat alatt pont ez az út
           // nincs, és a lap ne ígérjen olyat, ami nem létezik.
           const s = await sharedStatus();
-          const l = liveLockdown(s.lockdown, Date.now());
-          if (!l) return null;
+          const now = Date.now();
+          // A heti zárlat-ablakok következő hete is lemegy, a futó zárlattól
+          // függetlenül: a segéd az ablak zárlatát az app nélkül is elindítja,
+          // és a lap ebből tudja, hogy akkor sincs feloldás.
+          const windows = upcomingLockdownWindows(s.lockdownWindows ?? [], now);
+          const l = liveLockdown(s.lockdown, now);
+          if (!l) return windows.length > 0 ? { until: 0, windows } : null;
           // Az ablak zárlata ugyanaz a zárlat — de a lap mondja ki, hogy az
           // ablak tartja: aki a tiltó lapra fut, tudja meg, miért.
-          return { until: l.until, ...(isWindowLockdown(l, s.lockdownWindows ?? []) ? { byWindow: true } : {}) };
+          return { until: l.until, ...(isWindowLockdown(l, s.lockdownWindows ?? []) ? { byWindow: true } : {}), windows };
         },
         async () => {
           // Az INDOK: amiért a felhasználó maga tiltotta le. A tiltó lapon a

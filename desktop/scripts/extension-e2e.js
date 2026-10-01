@@ -706,6 +706,39 @@ async function main() {
     await page.goto(`${base}/`);
     await page.waitForTimeout(1200);
     check((await browserUrl(page, context)) === `${base}/`, 'friss app-szónál a tárolt ablak nem tilt');
+
+    // A ZÁRLAT-ABLAK APP NÉLKÜL. A segéd az ablak zárlatát az app nélkül is
+    // elindítja: a tiltó lap ilyenkor se ígérjen feloldást. Régi lehúzás, a
+    // most tartó tárolt zárlat-ablak → a lap a zárlatról beszél, az ablak
+    // jelével; friss lehúzás, futó zárlat nélkül → a lap nem mond zárlatot.
+    // Kulcsszóval tiltunk: annak a lába az app útjáról beszél (a részleges
+    // szabályé a bővítmény sajátjáról, arra a zárlat nem vonatkozik).
+    const seedLock = (lockdown, fetchedAt) => seeder.evaluate(
+      (arg) => chrome.storage.local.set({
+        'breaker.applink': {
+          ...arg.link, closed: [], keywords: ['zarlatproba'], lockdown: arg.lockdown, fetchedAt: arg.fetchedAt,
+        },
+      }),
+      { link: LINK, lockdown, fetchedAt },
+    );
+    const lockEnd = Date.now() + 600_000;
+    const lockWin = { until: 0, windows: [{ startsAt: Date.now() - 60_000, endsAt: lockEnd }] };
+    await seedLock(lockWin, Date.now() - 10 * 60_000);
+    await page.goto(`${base}/?q=zarlatproba1`).catch(() => { /* a navigációt elkapja a tiltás */ });
+    const lockWinBlocked = await waitForBrowserUrl(page, context, /blocked\.html\?/, WAIT_MS);
+    const lockWinParams = lockWinBlocked ? new URL(lockWinBlocked).searchParams : null;
+    check(!!lockWinParams && lockWinParams.get('lockdownUntil') === String(lockEnd)
+      && lockWinParams.get('lockdownWindow') === '1',
+    'app nélkül is a most tartó zárlat-ablak: a tiltó lap nem ígér feloldást');
+    if (lockWinBlocked && /blocked\.html/.test(page.url())) {
+      const text = await bodyText(page);
+      check(text.includes('Zárlat van érvényben a heti ablak szerint'), 'a lap lába az ablak zárlatáról beszél');
+    }
+    await seedLock(lockWin, Date.now());
+    await page.goto(`${base}/?q=zarlatproba2`).catch(() => { /* a navigációt elkapja a tiltás */ });
+    const freshBlocked = await waitForBrowserUrl(page, context, /blocked\.html\?.*zarlatproba2/, WAIT_MS);
+    check(!!freshBlocked && new URL(freshBlocked).searchParams.get('lockdownUntil') === null,
+      'friss app-szónál a tárolt zárlat-ablak nem mond zárlatot');
   } finally {
     await context.close().catch(() => {});
     server.close();

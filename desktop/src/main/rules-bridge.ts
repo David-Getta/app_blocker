@@ -62,9 +62,16 @@ export interface BridgeClosed {
  * ez az út nincs. A lap ne ígérjen olyat, ami nem létezik.
  */
 export interface BridgeLockdown {
+  /** a futó zárlat vége — nulla, ha most nem tart (de van heti zárlat-ablak) */
   until: number;
   /** a heti ablak tartja-e — a lap ezt is kimondja: nem kézzel indított döntés, hanem a hétköznap */
   byWindow?: boolean;
+  /**
+   * A heti zárlat-ablakok következő hete. A segéd az ablak zárlatát az app
+   * nélkül is elindítja; a bővítmény ebből tudja akkor is, ha az app (és vele
+   * ez a híd) zárva van — különben a tiltó lap feloldást ígérne.
+   */
+  windows?: { startsAt: number; endsAt: number }[];
 }
 
 /**

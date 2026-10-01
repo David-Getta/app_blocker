@@ -4,7 +4,7 @@
 // tárolt kapcsolat-állapotot töltjük be és kirakjuk. A Beállítások gomb a
 // beállítási lapra visz — minden, ami módosítás, ott van, itt semmi.
 
-import { CLOSED_FRESH_MS, addFocusWindowInApp, effectiveFocus, loadLink, pullFromApp, startFocusInApp } from './app-link.js';
+import { CLOSED_FRESH_MS, addFocusWindowInApp, effectiveFocus, effectiveLockdown, loadLink, pullFromApp, startFocusInApp } from './app-link.js';
 import { describePopup, focusDayText, focusHourCoverText, focusHourNowText, focusHourWindowButton, focusStreakText, hourSpan, limitSoonText, peakCoverText, sameHourText, suggestButton, windowButton } from './popup-core.js';
 import { dayKey, hitsSummary, hitsText, peakDayNow, peakDayNowText, peakNow, peakText, topHost } from './hits.js';
 
@@ -15,7 +15,13 @@ async function render() {
   // A HATÁSOS menet a lapon is: ha az app nem válaszol, a tárolt heti ablak
   // is fut — a lap ugyanazt mondja, mint amit a döntés betart.
   const eff = effectiveFocus(stored, Date.now());
-  const link = { ...stored, focus: eff ? { ...stored.focus, running: true, ...eff } : { ...stored.focus, running: false } };
+  // A zárlat ugyanígy: ha az app hallgat, a most tartó heti zárlat-ablak is.
+  const lock = effectiveLockdown(stored, Date.now());
+  const link = {
+    ...stored,
+    focus: eff ? { ...stored.focus, running: true, ...eff } : { ...stored.focus, running: false },
+    lockdown: lock ? { until: lock.until, byWindow: lock.byWindow } : null,
+  };
   const d = describePopup(link, Date.now(), CLOSED_FRESH_MS);
 
   const state = $('state');

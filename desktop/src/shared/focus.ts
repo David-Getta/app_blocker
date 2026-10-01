@@ -897,6 +897,34 @@ export function spentWindows(
   return out;
 }
 
+/** Ennyi napra előre mondja meg az app a böngészőnek az ablakokat. */
+export const WINDOW_LOOKAHEAD_DAYS = 7;
+/** Ennél több előfordulás nem megy le — egy hét, csomagonként naponta egy, bőven. */
+export const MAX_WINDOW_OCCURRENCES = 64;
+
+/**
+ * Egy heti sáv előfordulásai, amik MOST vagy a következő `days` napban
+ * tartanak (a még tartó, tegnapról átnyúló is), kezdés szerint. Érvénytelen
+ * sávnak nincs előfordulása. A böngésző-híd előre-listáinak közös darabja:
+ * a csomag ablaka és a zárlat-ablak is ebből megy le.
+ */
+export function occurrencesAhead(band: Band, now: number, days = WINDOW_LOOKAHEAD_DAYS): Occurrence[] {
+  if (!isValidBand(band)) return [];
+  const horizon = localAt(now, days, 0);
+  const out: Occurrence[] = [];
+  for (let d = -1; d <= days; d++) {
+    const start = localAt(now, d, band.startMin);
+    if (!band.days.includes(new Date(start).getDay() as Weekday)) continue;
+    const occ = occurrenceAt(band, start);
+    // A saját kezdésénél kérdezve az előfordulás önmaga — ha nem (óraátállás
+    // a kezdés percében), nem találgatunk.
+    if (!occ || occ.startsAt !== start) continue;
+    if (occ.endsAt <= now || occ.startsAt >= horizon) continue;
+    out.push(occ);
+  }
+  return out;
+}
+
 /** Egy heti ablak egy előfordulása a böngészőnek: mi mehet, mettől meddig. */
 export interface WindowOccurrence {
   packId: string;
@@ -905,11 +933,6 @@ export interface WindowOccurrence {
   startsAt: number;
   endsAt: number;
 }
-
-/** Ennyi napra előre mondja meg az app a böngészőnek az ablakokat. */
-export const WINDOW_LOOKAHEAD_DAYS = 7;
-/** Ennél több előfordulás nem megy le — egy hét, csomagonként naponta egy, bőven. */
-export const MAX_WINDOW_OCCURRENCES = 64;
 
 /**
  * A heti ablakok előfordulásai MOSTANTÓL `days` napig, a már elköltöttek
@@ -929,19 +952,11 @@ export const MAX_WINDOW_OCCURRENCES = 64;
 export function upcomingWindows(
   packs: FocusPack[], log: FocusLogEntry[] | undefined, now: number, days = WINDOW_LOOKAHEAD_DAYS,
 ): WindowOccurrence[] {
-  const horizon = localAt(now, days, 0);
   const out: WindowOccurrence[] = [];
   for (const pack of packs) {
     const band = pack.recurrence;
-    if (!band || !isValidBand(band)) continue;
-    for (let d = -1; d <= days; d++) {
-      const start = localAt(now, d, band.startMin);
-      if (!band.days.includes(new Date(start).getDay() as Weekday)) continue;
-      const occ = occurrenceAt(band, start);
-      // A saját kezdésénél kérdezve az előfordulás önmaga — ha nem (óraátállás
-      // a kezdés percében), nem találgatunk.
-      if (!occ || occ.startsAt !== start) continue;
-      if (occ.endsAt <= now || occ.startsAt >= horizon) continue;
+    if (!band) continue;
+    for (const occ of occurrencesAhead(band, now, days)) {
       if (spentIn(log, pack.id, occ)) continue;
       out.push({ packId: pack.id, name: pack.name, allowSites: [...pack.allowSites], startsAt: occ.startsAt, endsAt: occ.endsAt });
     }

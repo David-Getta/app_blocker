@@ -78,6 +78,17 @@ export const FOCUS_FRESH_MS = 3 * 20 * 1000;
 
 /** Ennél több ablak-előfordulás nem tárolódik (az app egy hetet küld). */
 const MAX_FOCUS_WINDOWS = 64;
+/** Ennél több zárlat-ablak-előfordulás sem (hét ablak, egy hét). */
+const MAX_LOCKDOWN_WINDOWS = 64;
+
+/**
+ * Friss-e az app szava: az utolsó sikeres lehúzás legfeljebb FOCUS_FRESH_MS
+ * régi. Amíg igen, az app élő állapota dönt a munkamenetről és a zárlatról;
+ * utána a tárolt heti ablakok is élnek.
+ */
+export function appFresh(link, now = Date.now()) {
+  return Number.isFinite(link?.fetchedAt) && link.fetchedAt > 0 && now - link.fetchedAt <= FOCUS_FRESH_MS;
+}
 
 /**
  * A hídról jött heti ablak-előfordulások tisztán: csomag-azonosító, név,
@@ -150,11 +161,20 @@ export function noteFor(link, host) {
  */
 function cleanLockdown(raw) {
   if (!raw || typeof raw !== 'object') return null;
-  const until = Number(raw.until);
-  if (!Number.isFinite(until) || until <= 0) return null;
+  const n = Number(raw.until);
+  const until = Number.isFinite(n) && n > 0 ? n : 0;
+  // A heti zárlat-ablakok következő hete (lásd `effectiveLockdown`): csak
+  // valódi számok, kezdés a vég előtt. Régi app válaszában nincs — az nem
+  // hiba, üres lista.
+  const windows = (Array.isArray(raw.windows) ? raw.windows : [])
+    .filter((w) => w && Number.isFinite(w.startsAt) && Number.isFinite(w.endsAt) && w.endsAt > w.startsAt)
+    .slice(0, MAX_LOCKDOWN_WINDOWS)
+    .map((w) => ({ startsAt: w.startsAt, endsAt: w.endsAt }));
+  if (until === 0 && windows.length === 0) return null;
   // A heti ablak tartja-e: csak a szó szerinti igaz számít — a lap ebből
   // mondja, hogy nem kézzel indított döntés, hanem a hétköznap.
-  return raw.byWindow === true ? { until, byWindow: true } : { until };
+  const out = until > 0 && raw.byWindow === true ? { until, byWindow: true } : { until };
+  return windows.length > 0 ? { ...out, windows } : out;
 }
 
 /**
@@ -523,8 +543,7 @@ export function effectiveFocus(link, now = Date.now()) {
   const live = f && f.running === true && f.endsAt > now
     ? { name: f.name, endsAt: f.endsAt, allowSites: f.allowSites ?? [], window: f.window === true }
     : null;
-  const fresh = Number.isFinite(link?.fetchedAt) && link.fetchedAt > 0 && now - link.fetchedAt <= FOCUS_FRESH_MS;
-  if (fresh) return live;
+  if (appFresh(link, now)) return live;
   const w = (f?.windows ?? []).find((o) => o.startsAt <= now && now < o.endsAt);
   if (w) return { name: w.name, endsAt: w.endsAt, allowSites: w.allowSites, window: true };
   return live;
@@ -576,14 +595,31 @@ export function closedFor(link, host, now = Date.now()) {
 }
 
 /**
- * Meddig tart a zárlat (epoch ms), vagy 0, ha nincs vagy lejárt.
+ * A MOST hatásos zárlat: { until, byWindow } — vagy null.
  *
- * Frissesség nélkül, szándékosan — lásd `cleanLockdown`: a zárlat csak
- * hosszabbodhat, egy régebbi vég is igaz alsó becslés.
+ * A tárolt vég frissesség nélkül számít, szándékosan — lásd `cleanLockdown`:
+ * a zárlat csak hosszabbodhat, egy régebbi vég is igaz alsó becslés. Ha az
+ * app régebben szólt (bezárták, nem válaszol), a tárolt heti zárlat-ablakok
+ * közül a most tartó is számít: a segéd az ablak zárlatát az app nélkül is
+ * elindítja, és a lap különben olyan feloldást ígérne, ami nincs. Amíg az
+ * app friss, az ő szava dönt (ő tudja, ha egy ablakot azóta levettek).
  */
+export function effectiveLockdown(link, now = Date.now()) {
+  const l = link?.lockdown;
+  const until = Number(l?.until);
+  let best = Number.isFinite(until) && until > now ? { until, byWindow: l.byWindow === true } : null;
+  if (appFresh(link, now)) return best;
+  for (const w of l?.windows ?? []) {
+    if (w.startsAt <= now && now < w.endsAt && (!best || w.endsAt > best.until)) {
+      best = { until: w.endsAt, byWindow: true };
+    }
+  }
+  return best;
+}
+
+/** Meddig tart a zárlat (epoch ms), vagy 0 — a hatásos, lásd `effectiveLockdown`. */
 export function lockdownUntil(link, now = Date.now()) {
-  const until = Number(link?.lockdown?.until);
-  return Number.isFinite(until) && until > now ? until : 0;
+  return effectiveLockdown(link, now)?.until ?? 0;
 }
 
 export function withAppRules(localActive, appRules) {
