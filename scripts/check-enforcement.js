@@ -2478,6 +2478,46 @@ const WIRES = [
     lost: 'az iPhone az igaz/hamisat is másodpercnek venné a közös keretben',
   },
 
+  // A DRÓTON JÖTT LISTÁK elemenként tűrnek, mint a gépen. Ha az iPhone
+  // visszatér az egyben-dekódoláshoz, egyetlen rossz rekord az egész listát
+  // viszi: a kör üresnek látja a kiszolgálót, és a saját listáját tolja fel —
+  // a munkamenetnél a kiesett csomag jele ráadásul sírkőnek látszik.
+  {
+    file: 'ios/Shared/SyncClient.swift',
+    needle: 'guard let decoded = SyncMerge.sitesFromJson(text)',
+    lost: 'az iPhone egy rossz oldal-rekord miatt az egész listát üresnek látná, és a sajátját tolná fel',
+  },
+  {
+    file: 'ios/Shared/SyncClient.swift',
+    needle: 'FocusSync.fromJson(text, fallbackDevice: acc.deviceId, now: now)',
+    lost: 'az iPhone egy rossz csomag miatt az egész munkamenet-dokumentumot eldobná',
+  },
+  {
+    file: 'ios/Shared/FocusSync.swift',
+    needle: 'packs = c.lossyArray(Focus.Pack.self, .packs)',
+    lost: 'az iPhone egy rossz csomag miatt az összes csomagot elveszítené',
+  },
+  {
+    file: 'ios/Shared/Focus.swift',
+    needle: 'name = c.lenient(String.self, .name) ?? ""',
+    lost: 'egy rossz nevű csomag azonosítója nem lenne „látott” — a jele sírkőnek látszana, a csomag mindenhol törlődne',
+  },
+  {
+    file: 'ios/Shared/SyncMerge.swift',
+    needle: 'let hostsValue = c.lossyStrings(.hostnames)',
+    lost: 'az iPhone egy nem szöveg hosztnév miatt az egész oldalt eldobná',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/SyncClient.kt',
+    needle: 'addedAt = numberOf(o, "addedAt")?.toLong() ?: 0',
+    lost: 'az Android a szövegként írt számot számnak venné, a hiányzó felvételi időre az egész oldalt eldobná',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/SyncClient.kt',
+    needle: 'val packId = stringOf(e, "packId").orEmpty()',
+    lost: 'az Android a szám-azonosítójú naplósort is megtartaná (az optString szöveggé teszi)',
+  },
+
   // A CSOMAG NEVE egy szabállyal tisztul a felvételkor és a fogadáskor is. Ha
   // egy hívó visszatér a saját `trim`/`take`/`prefix`-éhez, a név eszközönként
   // más lesz — a gép UTF-16-os vágása egy emodzsit félbe vágott, és a fél az
@@ -3020,8 +3060,8 @@ const WIRES = [
     lost: 'a telefon a szinkronon jött szemét-hosztnevet tovább hordozná a gép felé',
   },
   {
-    file: 'ios/Shared/SyncClient.swift',
-    needle: 'SyncMerge.cleanIncoming(',
+    file: 'ios/Shared/SyncMerge.swift',
+    needle: 'return cleanIncoming((top.value ?? []).compactMap { $0.value })',
     lost: 'az iPhone a szinkronon jött szemét-hosztnevet tovább hordozná a gép felé',
   },
   // A REJTÉS A FIÓK EGÉSZÉRE SZÓL: a `hideSiteList` a jelével utazik a
@@ -3047,7 +3087,7 @@ const WIRES = [
   },
   {
     file: 'android/app/src/main/java/hu/breaker/app/core/SyncClient.kt',
-    needle: 'hideSiteList = o.optBoolean("hideSiteList", false),',
+    needle: 'hideSiteList = o.opt("hideSiteList") == true,',
     lost: 'a telefon a dróton jött rejtést eldobná',
   },
   {
@@ -3182,6 +3222,28 @@ const WIRES = [
     file: 'ios/App/ContentView.swift',
     needle: 'TextLogic.takeScalars($0, AliasLogic.maxAliasLength)',
     lost: 'az iPhone fedőnév-mezője grafémát számolna — negyven zászló férne bele, a mag húszat tartana meg',
+  },
+  // A csomag és a megbízott neve a mag plafonjánál áll meg a telefonon is —
+  // különben a mentés csendben levágná, amit a mező még mutatott.
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/AppUi.kt',
+    needle: 'TextLogic.takeCodePoints(it, Focus.MAX_PACK_NAME)',
+    lost: 'az androidos csomagnév-mező hosszabbat engedne, mint amit a felvétel megtart',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/AppUi.kt',
+    needle: 'TextLogic.takeCodePoints(it, PartnerLogic.MAX_PARTNER_NAME)',
+    lost: 'az androidos megbízott-mező hosszabbat engedne, mint amit a mentés megtart',
+  },
+  {
+    file: 'ios/App/ContentView.swift',
+    needle: 'TextLogic.takeScalars($0, Focus.maxPackName)',
+    lost: 'az iPhone csomagnév-mezője hosszabbat engedne, mint amit a felvétel megtart',
+  },
+  {
+    file: 'ios/App/ContentView.swift',
+    needle: 'TextLogic.takeScalars($0, PartnerLogic.maxPartnerName)',
+    lost: 'az iPhone megbízott-mezője hosszabbat engedne, mint amit a mentés megtart',
   },
   {
     file: 'desktop/src/shared/alias.ts',

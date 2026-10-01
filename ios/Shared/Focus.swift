@@ -78,6 +78,26 @@ public enum Focus {
             self.defaultMinutes = defaultMinutes
             self.recurrence = recurrence
         }
+
+        enum CodingKeys: String, CodingKey {
+            case id, name, allowSites, allowApps, defaultMinutes, recurrence
+        }
+
+        /// TŰRŐ dekódolás, a gép `normalizePack`-je szerint: egy objektum mindig
+        /// csomag lesz (a rossz típusú mező az alapértékét kapja), és a
+        /// normalizálás dönt róla. Ez nem kényelem: ha egy rossz nevű csomag
+        /// itt elhasalna, az azonosítója nem lenne „látott”, a jele a csomag
+        /// nélkül sírkőnek látszana — és a csomag MINDENHOL törlődne.
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            id = c.lenient(String.self, .id) ?? ""
+            name = c.lenient(String.self, .name) ?? ""
+            allowSites = c.lossyStrings(.allowSites)
+            allowApps = c.lossyStrings(.allowApps)
+            // Csak JSON-szám: a „30” szöveg és az igaz nem hossz (a gépen sem).
+            defaultMinutes = Focus.normalizeMinutes(c.lenient(Double.self, .defaultMinutes)) ?? 25
+            recurrence = c.lenient(ScheduleLogic.Band.self, .recurrence)
+        }
     }
 
     public struct Run: Codable, Equatable {
@@ -336,6 +356,25 @@ public enum Focus {
             self.plannedEndsAt = plannedEndsAt
             self.stopped = stopped
             self.window = window
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case packId, packName, startedAt, endedAt, plannedEndsAt, stopped, window
+        }
+
+        /// TŰRŐ dekódolás, a gép `normalizeLogEntry`-je szerint: a hiányzó vagy
+        /// rossz típusú mező az alapértékét kapja (csak JSON-szám a szám, csak
+        /// a valódi `true` igaz), és a `FocusSync.cleanLogEntry` dönt a sorról.
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            packId = c.lenient(String.self, .packId) ?? ""
+            packName = c.lenient(String.self, .packName) ?? ""
+            startedAt = c.lenient(Double.self, .startedAt) ?? 0
+            let ended = c.lenient(Double.self, .endedAt) ?? 0
+            endedAt = ended
+            plannedEndsAt = c.lenient(Double.self, .plannedEndsAt) ?? ended
+            stopped = c.lenient(Bool.self, .stopped) == true
+            window = c.lenient(Bool.self, .window) == true ? true : nil
         }
     }
 

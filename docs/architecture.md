@@ -367,7 +367,20 @@ eddig mindent engedett), és a csomag nevét meg a naplósor nevét (a gép
 UTF-16-ban vágott, egy emodzsit félbe — a párja nélküli fél az iPhone
 olvasóján az egész munkamenet-dokumentumot vitte —, az Android a saját
 szóköz-fogalmával, az iPhone grafémában; a felvételkor a két telefon más-más
-készlettel vonta össze a szóközöket, a gép sehogy).
+készlettel vonta össze a szóközöket, a gép sehogy). A réteg kilencedik fájlja
+a DRÓTON JÖTT REKORDOKÉ (`fixtures/wire-cases.json`, írja
+`desktop/test/wire-fixture.test.ts`, visszajátssza a Kotlin `WireFixtureTest`
+és a Swift `WireFixtureTests` — a szinkron saját olvasóján át): oldal-listák
+és munkamenet-dokumentumok hibás elemekkel, és hogy mi marad belőlük. A
+szabály a gépé: a rekord csak az azonosító (az oldalnál a domain) hibájára
+esik ki, minden más mező rossz típusa az alapértékét kapja — csak JSON-szám a
+szám, csak szöveg a szöveg, csak a valódi `true` igaz. Két valódi hibát
+fogott: az iPhone a listát EGYBEN dekódolta (egyetlen rossz rekord az egészet
+vitte, a kör üresnek látta a kiszolgálót, és a saját listáját tolta fel; egy
+rossz nevű csomag azonosítója pedig nem lett „látott”, így a jele sírkőnek
+látszott volna, és a csomag mindenhol törlődött volna), az Android pedig az org.json
+kényszerítésével a „5” szöveget számnak, az 5-öt szövegnek vette, és egy
+hiányzó felvételi idő vagy egy nem lista hosztnév-mező az egész oldalt vitte.
 
 ## Biztonsági modell és őszinte korlátok
 

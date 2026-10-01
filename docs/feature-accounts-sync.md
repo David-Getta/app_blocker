@@ -523,6 +523,19 @@ Amit a tesztek bizonyítanak, és amit másképp nem lehetne:
   és a csomag nevét meg a naplósor nevét is (`normalizePackName`,
   `logPackName`: a közös sor-tisztítás, 40 kódpont; üres naplónévre
   „Ismeretlen csomag”).
+- **egy rossz rekord nem viszi a többit.** A `fixtures/wire-cases.json` (írja
+  `desktop/test/wire-fixture.test.ts`, `UPDATE_WIRE_FIXTURE=1 npm test`)
+  dróton jött oldal-listákat és munkamenet-dokumentumokat tart hibás
+  elemekkel (nem objektum, rossz azonosító vagy domain, szövegként írt szám,
+  szám-azonosító, nem lista mező, nem egész jel), és a gép olvasójának
+  eredményét. A szabály: a rekord csak az azonosító (az oldalnál a domain)
+  hibájára esik ki, minden más rossz típusú mező az alapértékét kapja, és a
+  jelek értékenként tűrnek. A kiesett, de szöveg-azonosítójú csomag „látott”:
+  a jele is kiesik, különben sírkőnek látszana. A Kotlin (`WireFixtureTest`)
+  és a Swift (`WireFixtureTests`) a szinkron saját olvasóján át játssza
+  vissza. Az iPhone eddig a listát egyben dekódolta — egy rossz rekord az
+  egészet vitte, és a kör a saját listáját tolta fel a többiek helyett; egy
+  nem JSON blokklista-blob most megállítja a kört, mint a gépen és Androidon.
 
 Egy dolog iPhone-on más: a **napi keret nem érvényesül** (nincs ilyen mérési
 API), de a rekordban MEGŐRIZZÜK. Enélkül elég lenne egyszer megnyitni a

@@ -1,0 +1,76 @@
+import hu.breaker.app.core.FocusSync
+import hu.breaker.app.core.SyncClient
+import hu.breaker.app.core.SyncMerge
+import org.json.JSONObject
+import java.io.File
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
+
+/**
+ * A dróton jött rekordok közös fixtúrája (`fixtures/wire-cases.json`, írja a
+ * `desktop/test/wire-fixture.test.ts`): egy rossz elem nem viheti a többit, és
+ * az Android olvasója (SyncClient.sitesFromJson / focusFromJson) ugyanazt
+ * tartja meg belőle, mint a gépé — ugyanazokkal az alapértékekkel, és a
+ * kiesett, de látott csomag jelét is ugyanúgy dobja.
+ */
+class WireFixtureTest {
+
+    private fun fixtureFile(): File {
+        var dir: File? = File(".").absoluteFile
+        while (dir != null) {
+            val f = File(dir, "fixtures/wire-cases.json")
+            if (f.isFile) return f
+            dir = dir.parentFile
+        }
+        error("fixtures/wire-cases.json nincs meg a tároló gyökerében")
+    }
+
+    private val fixture: JSONObject by lazy { JSONObject(fixtureFile().readText()) }
+
+    private fun opt(v: Any?): String = v?.toString() ?: "-"
+
+    private fun siteKey(s: SyncMerge.SyncSite): String =
+        "${s.id}|${s.domain}|${s.hostnames.joinToString(",")}|added=${s.addedAt}|del=${opt(s.pendingDeleteAt)}" +
+            "|limit=${opt(s.dailyLimitSeconds)}|alias=${opt(s.alias)}|reason=${opt(s.reason)}" +
+            "|rev=${s.rev}|at=${s.updatedAt}|by=${s.updatedBy}" +
+            "|marks=" + (s.hostnameMarks ?: emptyMap()).toSortedMap().entries.joinToString(",") { "${it.key}=${it.value}" }
+
+    private fun focusKey(f: FocusSync.SyncFocus): String {
+        val packs = f.packs.joinToString(";") { p ->
+            val rec = p.recurrence?.let { b -> b.days.sorted().joinToString(",") + "/" + b.startMin + "/" + b.endMin } ?: "-"
+            "${p.id}|${p.name}|${p.allowSites.joinToString(",")}|${p.allowApps.joinToString(",")}|${p.defaultMinutes}|$rec"
+        }
+        val marks = (f.packMarks ?: emptyMap()).toSortedMap().entries.joinToString(",") { "${it.key}=${it.value}" }
+        val log = f.log.joinToString(";") { e ->
+            "${e.packId}/${e.packName}/${e.startedAt}/${e.endedAt}/${e.plannedEndsAt}" +
+                "/${if (e.stopped) 1 else 0}/${if (e.window) 1 else 0}"
+        }
+        return "packs=[$packs] marks=[$marks] log=[$log] rev=${f.rev} at=${f.updatedAt} by=${f.updatedBy}"
+    }
+
+    @Test fun `az oldal-lista olvasasa ugyanaz, mint a gepen - egy rossz rekord nem viszi a tobbit`() {
+        val cases = fixture.getJSONArray("sites")
+        assertTrue(cases.length() > 40, "sites: kevés eset — a fixtúra csonka?")
+        val bad = mutableListOf<String>()
+        for (i in 0 until cases.length()) {
+            val c = cases.getJSONObject(i)
+            val got = SyncClient.sitesFromJson(c.getString("in")).joinToString("\n") { siteKey(it) }
+            if (got != c.getString("out")) bad.add("sites #$i: ${c.getString("in")}\n  a gép:   ${c.getString("out")}\n  Android: $got")
+        }
+        // Az összes eltérés egyszerre — egy olvasó-szabály több esetet is érint.
+        assertEquals(emptyList(), bad.take(8), "${bad.size} eltérés")
+    }
+
+    @Test fun `a munkamenet-dokumentum olvasasa ugyanaz, mint a gepen - a kiesett csomag jele is kiesik`() {
+        val cases = fixture.getJSONArray("focus")
+        assertTrue(cases.length() > 40, "focus: kevés eset — a fixtúra csonka?")
+        val bad = mutableListOf<String>()
+        for (i in 0 until cases.length()) {
+            val c = cases.getJSONObject(i)
+            val got = focusKey(SyncClient.focusFromJson(c.getString("in"), "gep"))
+            if (got != c.getString("out")) bad.add("focus #$i: ${c.getString("in")}\n  a gép:   ${c.getString("out")}\n  Android: $got")
+        }
+        assertEquals(emptyList(), bad.take(8), "${bad.size} eltérés")
+    }
+}

@@ -231,9 +231,8 @@ enum SyncClient {
             var remote = FocusSync.SyncFocus(updatedBy: acc.deviceId)
             if let blob = pulled["payload"] as? String,
                let text = try? SyncCrypto.decrypt(key, blob),
-               let decoded = try? JSONDecoder().decode(
-                   FocusSync.SyncFocus.self, from: Data(text.utf8)) {
-                remote = FocusSync.normalize(decoded, fallbackDevice: acc.deviceId, now: now)
+               let decoded = FocusSync.fromJson(text, fallbackDevice: acc.deviceId, now: now) {
+                remote = decoded
             }
 
             let mine = FocusSync.SyncFocus(
@@ -336,8 +335,12 @@ enum SyncClient {
             var remote: [SyncMerge.SyncSite] = []
             if let blob = pulled["payload"] as? String {
                 let text = try SyncCrypto.decrypt(key, blob)
-                remote = SyncMerge.cleanIncoming(
-                    (try? JSONDecoder().decode([SyncMerge.SyncSite].self, from: Data(text.utf8))) ?? [])
+                // Egy nem-JSON blob nem üres lista: üresnek véve a saját listánkat
+                // tolnánk fel a többiek helyett. A gép és az Android itt megáll.
+                guard let decoded = SyncMerge.sitesFromJson(text) else {
+                    throw SyncError("A fiókban lévő blokklista nem olvasható.", "BAD_PAYLOAD")
+                }
+                remote = decoded
             }
             let mine = toSyncSites(current.sites)
             let merged = SyncMerge.mergeLists(mine, remote)

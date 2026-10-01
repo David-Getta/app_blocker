@@ -99,31 +99,34 @@ enum SyncMerge {
         /// szigorral (a `rev` hiányát a gép is 1-nek veszi).
         init(from decoder: Decoder) throws {
             let c = try decoder.container(keyedBy: CodingKeys.self)
+            // A rekord csak az azonosító és a domain hibájára esik ki (a lista
+            // olvasója elemenként tűr, lásd `sitesFromJson`); minden más mező
+            // rossz típusa az alapértékét kapja — mint a gépen és Androidon.
             id = try c.decode(String.self, forKey: .id)
             domain = try c.decode(String.self, forKey: .domain)
-            let hostsValue = try c.decode([String].self, forKey: .hostnames)
+            let hostsValue = c.lossyStrings(.hostnames)
             hostnames = hostsValue
-            addedAt = try c.decodeIfPresent(Double.self, forKey: .addedAt) ?? 0
-            pendingDeleteAt = try c.decodeIfPresent(Double.self, forKey: .pendingDeleteAt)
+            addedAt = c.lenient(Double.self, .addedAt) ?? 0
+            pendingDeleteAt = c.lenient(Double.self, .pendingDeleteAt)
             schedule = try c.decodeIfPresent(ScheduleLogic.Schedule.self, forKey: .schedule)
-            dailyLimitSeconds = try c.decodeIfPresent(Double.self, forKey: .dailyLimitSeconds)
-            burstSeconds = try c.decodeIfPresent(Double.self, forKey: .burstSeconds)
-            cooldownSeconds = try c.decodeIfPresent(Double.self, forKey: .cooldownSeconds)
-            alias = try c.decodeIfPresent(String.self, forKey: .alias)
-            reason = try c.decodeIfPresent(String.self, forKey: .reason)
+            dailyLimitSeconds = c.lenient(Double.self, .dailyLimitSeconds)
+            burstSeconds = c.lenient(Double.self, .burstSeconds)
+            cooldownSeconds = c.lenient(Double.self, .cooldownSeconds)
+            alias = c.lenient(String.self, .alias)
+            reason = c.lenient(String.self, .reason)
             rules = try c.decodeIfPresent([UrlRules.UrlRule].self, forKey: .rules)
-            let revValue = try c.decodeIfPresent(Int.self, forKey: .rev) ?? 1
+            let revValue = c.lenient(Int.self, .rev) ?? 1
             rev = revValue
-            updatedAt = try c.decodeIfPresent(Double.self, forKey: .updatedAt) ?? 0
-            updatedBy = try c.decodeIfPresent(String.self, forKey: .updatedBy) ?? ""
+            updatedAt = c.lenient(Double.self, .updatedAt) ?? 0
+            updatedBy = c.lenient(String.self, .updatedBy) ?? ""
             // Ugyanaz a szűrés, mint a gépen és Androidon (`cleanMarks`): csak
-            // pozitív, a rekord rev-jénél nem nagyobb jel, a plafonnal — egy
-            // kulccsal írt szemét ne járjon másképp itt, mint a másik kettőn.
-            let rawMarks = (try? c.decodeIfPresent([String: Int].self, forKey: .hostnameMarks)) ?? nil
+            // pozitív egész, a rekord rev-jénél nem nagyobb jel, a plafonnal —
+            // egy kulccsal írt szemét ne járjon másképp itt, mint a másik kettőn.
+            // Értékenként: egy rossz jel csak magát viszi, nem az összeset.
             var cleanedMarks: [String: Int]? = nil
-            if let m = rawMarks {
+            if let m = c.lossyIntMap(.hostnameMarks) {
                 let valid = m.filter { !$0.key.isEmpty && $0.value > 0 && $0.value <= revValue }
-                cleanedMarks = SyncMerge.capHostnameMarks(valid, hostsValue)
+                cleanedMarks = SyncMerge.capHostnameMarks(valid, hostsValue.filter { Blocklist.isCanonicalHostname($0) })
             }
             hostnameMarks = cleanedMarks
             // A szabálylista jele: pozitív egész, legfeljebb a rekord rev-je — és
@@ -441,6 +444,18 @@ enum SyncMerge {
     /// szűrőn, mint a helyben felvett oldal. Ami nem hosztnév-alakú, az nem a
     /// másik mag írása, hanem szemét — a gépen ezek a nevek a root-tulajdonú
     /// hosts fájlba mennek. A rossz domainű rekord egészében kimarad.
+    /// A dróton jött oldal-lista: REKORDONKÉNT tűrve — egy rossz rekord kiesik,
+    /// a többi marad, mint a gépen és Androidon. Eddig egyetlen rossz rekord
+    /// az egész listát vitte, a kör üresnek látta a kiszolgálót, és a saját
+    /// listáját tolta fel a többiek helyett. Nil, ha a szöveg nem JSON (a gép
+    /// és az Android ilyenkor megáll — itt is); ha JSON, de nem lista, üres.
+    static func sitesFromJson(_ text: String) -> [SyncSite]? {
+        guard let top = try? JSONDecoder().decode(Lossy<[Lossy<SyncSite>]>.self, from: Data(text.utf8)) else {
+            return nil
+        }
+        return cleanIncoming((top.value ?? []).compactMap { $0.value })
+    }
+
     static func cleanIncoming(_ sites: [SyncSite]) -> [SyncSite] {
         sites.compactMap { s in
             guard !s.id.isEmpty, Blocklist.isCanonicalHostname(s.domain) else { return nil }

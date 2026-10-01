@@ -155,6 +155,12 @@ ismétlődő menet előfordulása és az esedékes ablak (holtversenyben kódegy
 nem a Swift `<`), a lezárás, a legutóbb használt csomag (rendezés nélkül, mert
 a `sorted` stabilitása nincs kimondva), a hátralévő idő szövege és a percek
 (az `Int(...)` előtt vágva — egy Int-be nem férő szám nem omlaszthat össze).
+És a dróton jött rekordoké (`WireFixtureTests`, a `fixtures/wire-cases.json`
+ellen, a szinkron saját olvasóján át: `SyncMerge.sitesFromJson`,
+`FocusSync.fromJson`): a Swift `Codable` egy rossz elemre az egész listát
+eldobta — most elemenként tűr (`Wire.swift`: `Lossy`, `lenient`), a rossz
+típusú mező az alapértékét kapja, és a kiesett csomag jele is kiesik, mint a
+gépen.
 
 ### A mag naptára gregorián
 A mag a dátumot `LocalCalendar.gregorian`-nal számolja (gregorián naptár a

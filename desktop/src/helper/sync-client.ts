@@ -390,7 +390,10 @@ function cleanRules(raw: unknown): SyncSite['rules'] {
 
 function cleanSite(s: Record<string, unknown>): SyncSite {
   const hostnames = cleanHostnames(s.hostnames);
-  const rev = Number.isFinite(s.rev) ? (s.rev as number) : 1;
+  // Csak EGÉSZ rev — a jelek felső határa is ez. Eddig a határ a tört rev
+  // volt (2.5 mellett egy 2-es jel átment), a rekord rev-je viszont 1 lett: a
+  // jel nagyobb volt a rekordnál, amit a következő olvasás már eldobott.
+  const rev = Number.isInteger(s.rev) ? (s.rev as number) : 1;
   const marks = cleanMarks(s.hostnameMarks, hostnames, rev);
   const rules = cleanRules(s.rules);
   // A szabálylista jele: pozitív egész, legfeljebb a rekord rev-je — és csak
@@ -417,7 +420,7 @@ function cleanSite(s: Record<string, unknown>): SyncSite {
     // felvetteket (lásd merge.ts `mergeRules`).
     rules,
     ...(rulesRev !== undefined ? { rulesRev } : {}),
-    rev: Number.isInteger(s.rev) ? (s.rev as number) : 1,
+    rev,
     updatedAt: Number.isFinite(s.updatedAt) ? (s.updatedAt as number) : 0,
     updatedBy: typeof s.updatedBy === 'string' ? s.updatedBy : '',
   };

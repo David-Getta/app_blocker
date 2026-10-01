@@ -459,12 +459,14 @@ cd ios && xcodegen generate && open Breaker.xcodeproj
   logikát és a fordítást fedi, VPN-t nem futtat.
 - **A három mag ugyanazt mondja — közös fixtúrák** (`fixtures/`): a gép
   tesztje kiszámolt bemeneteket és eredményeket ír, a Kotlin és a Swift a saját
-  magjával visszajátssza, és bájtra egyeznie kell. Ma nyolc fájl: az
+  magjával visszajátssza, és bájtra egyeznie kell. Ma kilenc fájl: az
   összefésülés, a döntés, a menetrend, a zárlat-ablakok, a statisztika és a
   menet-napló (`merge-cases.json`); a szöveg-tisztítás, a részleges szabály,
-  az engedélyezett app és a csomag neve (`text-cases.json`); a párosító kód; a heti mondat;
-  a titkosítás (a gép burkol, a telefon nyit); a próbatétel válasza; a napi
-  keret és a dróton jövő mai összegzése; a munkamenet magja. A böngésző-
+  az engedélyezett app és a csomag neve (`text-cases.json`); a párosító kód;
+  a heti mondat; a titkosítás (a gép burkol, a telefon nyit); a próbatétel
+  válasza; a napi keret és a dróton jövő mai összegzése; a munkamenet magja;
+  és a dróton jött rekordok olvasása — egy rossz elem nem viszi a többit
+  (`wire-cases.json`). A böngésző-
   bővítmény a szöveg-fixtúra szabály- és kulcsszó-részét a kiszállított
   fájljain játssza vissza. A fixtúrák többsége már az első futásán valódi
   eltérést fogott — egy fél emodzsit a fedőnév végén, a görög szó végi

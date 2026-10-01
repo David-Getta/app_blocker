@@ -169,7 +169,9 @@ export function normalizePack(raw: unknown): FocusPack | null {
     name,
     allowSites: sites,
     allowApps: apps,
-    defaultMinutes: normalizeMinutes(p.defaultMinutes) ?? 25,
+    // Csak JSON-szám: a `Number()` a „30”-at és az igazat (1) is számnak
+    // venné, az iPhone dekódolója nem — a dróton a szám szám.
+    defaultMinutes: (typeof p.defaultMinutes === 'number' ? normalizeMinutes(p.defaultMinutes) : null) ?? 25,
     ...(recurrence ? { recurrence } : {}),
   };
 }

@@ -109,14 +109,18 @@ public enum FocusSync {
         /// eltűntek. Ugyanez vár minden ezután hozzáadott mezőre.
         public init(from decoder: Decoder) throws {
             let c = try decoder.container(keyedBy: CodingKeys.self)
-            packs = try c.decodeIfPresent([Focus.Pack].self, forKey: .packs) ?? []
-            run = try c.decodeIfPresent(Focus.Run.self, forKey: .run)
-            log = try c.decodeIfPresent([Focus.LogEntry].self, forKey: .log) ?? []
-            rev = try c.decodeIfPresent(Double.self, forKey: .rev) ?? 0
-            updatedAt = try c.decodeIfPresent(Double.self, forKey: .updatedAt) ?? 0
-            updatedBy = try c.decodeIfPresent(String.self, forKey: .updatedBy) ?? ""
-            // A jelek TŰRŐEN: egy nem-egész érték ne vigye el az egész blobot.
-            packMarks = (try? c.decodeIfPresent([String: Int].self, forKey: .packMarks)) ?? nil
+            // ELEMENKÉNT tűrve, mint a gépen és Androidon: egy rossz csomag vagy
+            // naplósor kiesik, a többi marad (lásd Wire.swift). Eddig egyetlen
+            // rossz elem az egész blobot vitte.
+            packs = c.lossyArray(Focus.Pack.self, .packs)
+            run = c.lenient(Focus.Run.self, .run)
+            log = c.lossyArray(Focus.LogEntry.self, .log)
+            rev = c.lenient(Double.self, .rev) ?? 0
+            updatedAt = c.lenient(Double.self, .updatedAt) ?? 0
+            updatedBy = c.lenient(String.self, .updatedBy) ?? ""
+            // A jelek TŰRŐEN, értékenként: egy nem-egész érték csak magát vigye
+            // (eddig az összes jelet — a gép csak a rosszat dobta).
+            packMarks = c.lossyIntMap(.packMarks)
             // Tűrően, mint a jelek: egy sérült zárlat-mező ne vigye el a blobot.
             lockdown = (try? c.decodeIfPresent(
                 LockdownLogic.Lockdown.self, forKey: .lockdown)) ?? nil
@@ -490,6 +494,14 @@ public enum FocusSync {
             return a.startedAt < b.startedAt
         }
         return Array(ordered.suffix(Focus.maxFocusLog))
+    }
+
+    /// A dróton jött munkamenet-dokumentum, normalizálva — nil, ha a szöveg nem
+    /// JSON-objektum. Elemenként tűr (lásd `SyncFocus.init(from:)`); a közös
+    /// fixtúra (fixtures/wire-cases.json) ezen az úton olvas, mint a szinkron.
+    public static func fromJson(_ text: String, fallbackDevice: String, now: Double? = nil) -> SyncFocus? {
+        guard let decoded = try? JSONDecoder().decode(SyncFocus.self, from: Data(text.utf8)) else { return nil }
+        return normalize(decoded, fallbackDevice: fallbackDevice, now: now)
     }
 
     /// Egy kívülről jött naplósor: azonosító és pozitív vég nélkül kiesik, a

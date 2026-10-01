@@ -240,6 +240,28 @@ object SyncClient {
      * null. Legfeljebb 64 — a kiszolgáló nem hizlalhatja a rekordot. A Store
      * is ezzel olvas.
      */
+    // ---- a dróton jött mezők típusa — a gép szabálya szerint ----
+    //
+    // Az org.json `optLong`/`optInt`/`optString`-je KÉNYSZERÍT: a „5” szövegből
+    // számot, a 5 számból szöveget, az 1.5-ből 1-et csinál. A gép (`typeof v
+    // === 'number'`, `Number.isInteger`) és az iPhone dekódolója nem — ugyanaz
+    // a hibás rekord eszközönként mást jelentett volna. Közös fixtúra:
+    // fixtures/wire-cases.json.
+
+    /** Csak JSON-szám, véges. */
+    internal fun numberOf(o: JSONObject, key: String): Double? =
+        (o.opt(key) as? Number)?.toDouble()?.takeIf { it.isFinite() }
+
+    /** Csak egész JSON-szám, Int-tartományban — a gép `Number.isInteger`-e. */
+    internal fun intOf(o: JSONObject, key: String): Int? {
+        val d = numberOf(o, key) ?: return null
+        if (d != Math.floor(d) || d < Int.MIN_VALUE || d > Int.MAX_VALUE) return null
+        return d.toInt()
+    }
+
+    /** Csak JSON-szöveg — a szám nem szöveg. */
+    internal fun stringOf(o: JSONObject, key: String): String? = o.opt(key) as? String
+
     internal fun marksFromJson(o: JSONObject, key: String = "hostnameMarks", maxRev: Int = Int.MAX_VALUE): Map<String, Int>? {
         val m = o.optJSONObject(key) ?: return null
         val out = LinkedHashMap<String, Int>()
@@ -247,7 +269,7 @@ object SyncClient {
         while (keys.hasNext()) {
             val k = keys.next()
             if (k.isEmpty()) continue
-            val v = m.optInt(k, 0)
+            val v = intOf(m, k) ?: continue
             if (v > 0 && v <= maxRev) out[k] = v
             // A VALÓDI plafon a hívóé (`capHostnameMarks` / `capPackMarks`):
             // az tudja, mely nevek vannak jelen, és azok jele marad. Itt csak
@@ -264,38 +286,46 @@ object SyncClient {
             // Rekordonként tűrünk: egy sérült sor ne vigye el a többi oldalt.
             runCatching {
                 val o = arr.getJSONObject(i)
-                val hosts = o.getJSONArray("hostnames")
+                // A rekord csak az azonosító és a domain hibájára esik ki; minden
+                // más mező rossz típusa az alapértékét kapja — mint a gépen.
+                val id = stringOf(o, "id")
+                require(!id.isNullOrEmpty()) { "nincs azonosító" }
                 // A DOMAIN és a HOSZTNEVEK ugyanazon a szűrőn, mint a helyben
                 // felvett oldal. A blob titkosított, de a jelszó a saját lista
                 // lazítására jogosít, nem szemét bejuttatására — a gépen ezek a
                 // nevek a root-tulajdonú hosts fájlba mennek. Ami nem
                 // hosztnév-alakú, az nem oldal: a rekord kimarad.
-                val domain = o.getString("domain")
-                require(Blocklist.isCanonicalHostname(domain)) { "nem hosztnév: $domain" }
+                val domain = stringOf(o, "domain")
+                require(domain != null && Blocklist.isCanonicalHostname(domain)) { "nem hosztnév: $domain" }
+                val hostsArr = o.optJSONArray("hostnames")
+                val hostnames = (0 until (hostsArr?.length() ?: 0))
+                    .mapNotNull { hostsArr!!.opt(it) as? String }
+                    .filter { Blocklist.isCanonicalHostname(it) }.distinct()
+                // Csak egész rev; a jelek felső határa is ez (a gépen is).
+                val rev = intOf(o, "rev") ?: 1
                 out.add(SyncMerge.SyncSite(
-                    id = o.getString("id"),
-                    domain = domain,
-                    hostnames = (0 until hosts.length()).map { hosts.getString(it) }
-                        .filter { Blocklist.isCanonicalHostname(it) }.distinct(),
-                    addedAt = o.getLong("addedAt"),
-                    pendingDeleteAt = if (o.isNull("pendingDeleteAt")) null else o.getLong("pendingDeleteAt"),
+                    id = id!!,
+                    domain = domain!!,
+                    hostnames = hostnames,
+                    addedAt = numberOf(o, "addedAt")?.toLong() ?: 0,
+                    pendingDeleteAt = numberOf(o, "pendingDeleteAt")?.toLong(),
                     schedule = if (o.isNull("schedule")) null else scheduleFromJson(o.getJSONObject("schedule")),
-                    dailyLimitSeconds = if (o.isNull("dailyLimitSeconds")) null else o.getLong("dailyLimitSeconds"),
-                    burstSeconds = if (o.isNull("burstSeconds")) null else o.getLong("burstSeconds"),
-                    cooldownSeconds = if (o.isNull("cooldownSeconds")) null else o.getLong("cooldownSeconds"),
-                    alias = AliasLogic.normalize(if (o.isNull("alias")) null else o.optString("alias")),
-                    reason = AliasLogic.normalizeReason(if (o.isNull("reason")) null else o.optString("reason")),
+                    dailyLimitSeconds = numberOf(o, "dailyLimitSeconds")?.toLong(),
+                    burstSeconds = numberOf(o, "burstSeconds")?.toLong(),
+                    cooldownSeconds = numberOf(o, "cooldownSeconds")?.toLong(),
+                    alias = AliasLogic.normalize(stringOf(o, "alias")),
+                    reason = AliasLogic.normalizeReason(stringOf(o, "reason")),
                     rules = rulesFromJson(o),
-                    rev = o.optInt("rev", 1),
-                    updatedAt = o.optLong("updatedAt", 0),
-                    updatedBy = o.optString("updatedBy", ""),
-                    hostnameMarks = marksFromJson(o, "hostnameMarks", o.optInt("rev", 1))?.let {
-                        SyncMerge.capHostnameMarks(it, (0 until hosts.length()).map { i -> hosts.getString(i) })
+                    rev = rev,
+                    updatedAt = numberOf(o, "updatedAt")?.toLong() ?: 0,
+                    updatedBy = stringOf(o, "updatedBy") ?: "",
+                    hostnameMarks = marksFromJson(o, "hostnameMarks", rev)?.let {
+                        SyncMerge.capHostnameMarks(it, hostnames)
                     },
                     // A szabálylista jele: pozitív egész, legfeljebb a rekord rev-je —
                     // és csak lista mellett; mező nélkül nincs jel.
                     rulesRev = if (o.isNull("rules")) null
-                        else o.optInt("rulesRev", 0).takeIf { it > 0 && it <= o.optInt("rev", 1) },
+                        else intOf(o, "rulesRev")?.takeIf { it > 0 && it <= rev },
                 ))
             }
         }
@@ -434,7 +464,9 @@ object SyncClient {
         for (i in 0 until (arr?.length() ?: 0)) {
             runCatching {
                 val p = arr!!.getJSONObject(i)
-                val id = p.optString("id")
+                // Csak szöveg-azonosító „látott” — a gépen is; a számot az
+                // `optString` szöveggé tenné, és egy idegen jel kiesne miatta.
+                val id = stringOf(p, "id").orEmpty()
                 if (id.isNotEmpty()) seenIds.add(id)
                 // Csak valódi szöveg: az `optString` egy számot is szöveggé tenne,
                 // a gép (és az iPhone) az ilyen csomagot eldobja.
@@ -446,7 +478,7 @@ object SyncClient {
                     name = name,
                     allowSites = stringList(p, "allowSites") { Focus.normalizeAllowSite(it) },
                     allowApps = stringList(p, "allowApps") { Focus.normalizeAllowApp(it) },
-                    defaultMinutes = Focus.normalizeMinutes(p.optDouble("defaultMinutes")) ?: 25,
+                    defaultMinutes = Focus.normalizeMinutes(numberOf(p, "defaultMinutes")) ?: 25,
                     recurrence = Focus.cleanRecurrence(p.optJSONObject("recurrence")?.let { bandFromJson(it) }),
                 ))
             }
@@ -458,8 +490,9 @@ object SyncClient {
                 endsAt = it.optLong("endsAt", 0),
             )
         }
-        // Nemnegatív egész, mint a gépen és az iPhone-on (az optLong csonkol).
-        val rev = o.optLong("rev", 0).coerceAtLeast(0)
+        // Nemnegatív egész, mint a gépen és az iPhone-on: csak JSON-szám, lefelé
+        // kerekítve (az `optLong` a „5” szöveget is 5-nek venné).
+        val rev = Math.floor(numberOf(o, "rev") ?: 0.0).toLong().coerceAtLeast(0)
         // A jel legfeljebb a blob rev-je; a plafonnál a jelen lévő csomagok
         // jele marad. A KIESETT csomag jele is kiesik: ami a listán volt, de
         // itt nem értelmezhető (vagy a plafon fölött van), az nem törölt
@@ -481,8 +514,8 @@ object SyncClient {
             // is, nem csak az azonosító.
             log = focusLogFromJson(o),
             rev = rev,
-            updatedAt = o.optLong("updatedAt", 0),
-            updatedBy = o.optString("updatedBy").ifEmpty { fallbackDevice },
+            updatedAt = numberOf(o, "updatedAt")?.toLong() ?: 0,
+            updatedBy = stringOf(o, "updatedBy").orEmpty().ifEmpty { fallbackDevice },
             packMarks = marks,
             // Kívülről jött adat: ami nem értelmes, az nincs — és `now` mellett
             // a lejárt sem.
@@ -495,19 +528,19 @@ object SyncClient {
             // Az ablakok kívülről jött adat, mint minden más; a jel pozitív
             // egész, legfeljebb a blob rev-je — mint a csomag-jelek.
             lockdownWindows = windowsFromJson(o.optJSONArray("lockdownWindows")),
-            lockdownWindowsRev = o.optInt("lockdownWindowsRev", 0)
+            lockdownWindowsRev = (intOf(o, "lockdownWindowsRev") ?: 0)
                 .takeIf { it > 0 && it <= rev.coerceIn(0, Int.MAX_VALUE.toLong()) },
             // A megbízott is kívülről jött adat: csak a jó alakú, a jele mint a többié.
             partner = partnerFromJson(o.optJSONObject("partner")),
-            partnerRev = o.optInt("partnerRev", 0)
+            partnerRev = (intOf(o, "partnerRev") ?: 0)
                 .takeIf { it > 0 && it <= rev.coerceIn(0, Int.MAX_VALUE.toLong()) },
             // A rejtés is kívülről jött adat: csak igazként, a jele mint a többié.
-            hideSiteList = o.optBoolean("hideSiteList", false),
-            hideSiteListRev = o.optInt("hideSiteListRev", 0)
+            hideSiteList = o.opt("hideSiteList") == true,
+            hideSiteListRev = (intOf(o, "hideSiteListRev") ?: 0)
                 .takeIf { it > 0 && it <= rev.coerceIn(0, Int.MAX_VALUE.toLong()) },
             // A kulcsszavak is kívülről jött adat: csak az érvényes, egyszer, a plafonig.
             keywords = KeywordLogic.cleanKeywords(stringsFromJson(o.optJSONArray("keywords"))),
-            keywordsRev = o.optInt("keywordsRev", 0)
+            keywordsRev = (intOf(o, "keywordsRev") ?: 0)
                 .takeIf { it > 0 && it <= rev.coerceIn(0, Int.MAX_VALUE.toLong()) },
         )
     }
@@ -524,17 +557,19 @@ object SyncClient {
         for (i in 0 until arr.length()) {
             runCatching {
                 val e = arr.getJSONObject(i)
-                val packId = e.optString("packId")
-                val endedAt = e.optLong("endedAt", 0)
+                // A gép `normalizeLogEntry`-je: csak szöveg-azonosító, csak
+                // JSON-szám, és csak a valódi `true` igaz (a „true” szöveg nem).
+                val packId = stringOf(e, "packId").orEmpty()
+                val endedAt = numberOf(e, "endedAt")?.toLong() ?: 0
                 if (packId.isEmpty() || endedAt <= 0) return@runCatching
                 out.add(Focus.FocusLogEntry(
                     packId = packId,
-                    packName = Focus.logPackName((e.opt("packName") as? String).orEmpty()),
-                    startedAt = e.optLong("startedAt", 0),
+                    packName = Focus.logPackName(stringOf(e, "packName").orEmpty()),
+                    startedAt = numberOf(e, "startedAt")?.toLong() ?: 0,
                     endedAt = endedAt,
-                    plannedEndsAt = e.optLong("plannedEndsAt", endedAt),
-                    stopped = e.optBoolean("stopped", false),
-                    window = e.optBoolean("window", false),
+                    plannedEndsAt = numberOf(e, "plannedEndsAt")?.toLong() ?: endedAt,
+                    stopped = e.opt("stopped") == true,
+                    window = e.opt("window") == true,
                 ))
             }
         }
@@ -547,7 +582,8 @@ object SyncClient {
         val arr = o.optJSONArray(key) ?: return emptyList()
         val out = mutableListOf<String>()
         for (i in 0 until arr.length()) {
-            val n = normalize(arr.optString(i)) ?: continue
+            // Csak szöveg: a szám (`optString`-gel „5”) a gépen kiesik.
+            val n = (arr.opt(i) as? String)?.let(normalize) ?: continue
             if (out.contains(n) || out.size >= Focus.MAX_ALLOW_ENTRIES) continue
             out.add(n)
         }
