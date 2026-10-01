@@ -44,24 +44,28 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A menetek számai ugyanazok mindhárom platformon.** A menetek
-          naplója a fiókon utazik; a statisztika és a heti mondat belőle
-          számol: a hét és az előző hét összegzője, a menet-nap, a menet-óra,
-          a sorozat és a leghosszabb sorozat, az ablakból indult menetek, a
-          napi rajz. A közös fixtúra most ezt is nézi — véletlen naplókkal,
-          jövőbeli és nagyon régi sorral, korai és késői véggel, három csomag
-          holtversenyével —, és a három magnak ugyanazt kell mondania,
-          UTC-ben kimondva.
+          **A titkosítás közös fixtúrája: a gép burkol, a telefon nyit.** A
+          szinkron adatkulcsát a jelszóból származó kulcs burkolja, és a
+          telefonon ugyanannak kell kinyílnia. Eddig az Android egy kézzel
+          bemásolt fiókon mérte magát, az iPhone titkosítása sosem futott
+          teszten. Most hat fiók — ékezet két alakban, emodzsi, teljes
+          szélességű betű, szóköz a szélen —, a helyreállító kód kézzel írt
+          alakjai, a gép blobjai és amit nem szabad kinyitni, mindhárom
+          magon. Két igazítás jött belőle: az iPhone a helyreállító kódból
+          egy különálló ékezettel az egész betűt elvitte; és a jelszó
+          hosszát a három mag három mércével mérte — most kódpontban,
+          mindenhol ugyanúgy.
 
-          ### Ami a v0.4.195-ben jött
+          ### Ami a v0.4.196-ban jött
+
+          **A menetek számai ugyanazok mindhárom platformon.** A napló
+          összegzői — hét, előző hét, menet-nap, menet-óra, sorozat — a
+          közös fixtúrában, UTC-ben.
+
+          #### Ami a v0.4.195-ben jött
 
           **A statisztika számai ugyanazok mindhárom platformon.** Az
           egyesített mérés összegzője; holtversenyben a kulcs dönt.
-
-          #### Ami a v0.4.194-ben jött
-
-          **A heti visszatekintés mondatának közös fixtúrája.** A három
-          mondat-író bájtra ugyanazt írja; a megakadás szava a platformé.
 
           NOTES
           fi
