@@ -44,25 +44,26 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A fixtúra a munkamenet-döntést is nézi.** Egy menet alatt a
-          telefon DNS-motora dönt minden névről: a lista mindig nyer, a
-          kulcsszó a hosztnévben tilt, a csomagon lévő név és a saját
-          fiókkiszolgáló átmegy, minden más tiltva — a menet fehérlista. Ez a
-          fehérlista legdrágább hibája lenne: egy név, ami az egyik telefonon
-          átmegy, a másikon nem. A közös fixtúrában most döntés-esetek is
-          vannak — név, lista, kulcsszavak, menet, csomag, saját kiszolgáló —,
-          és az Androidnak és az iPhone-nak ugyanazt kell mondania, a gép
-          közös darabjaiból írt referencia szerint.
+          **A szöveg-tisztítás egyforma mindhárom magban.** A fedőnév, az
+          indok, a kulcsszó, a megbízott neve és jelmondata, a domain a
+          billentyűzetről jön, és a szinkronon át utazik; eddig a három
+          platform a saját szóköz-fogalmával tisztított, és máshol vágott. A
+          gép egy fél emodzsit is hagyhatott a fedőnév végén, amit az iPhone
+          olvasója eldob; a telefonok a nem törő szóközt és a BOM-ot nem
+          vették szóköznek, a gép igen — egy ilyen jelmondat az egyik eszközön
+          nem nyitott volna. Most a szóköz-készlet kimondott, a vágás
+          kódpontban számol, a megbízott neve nem végződik lógó szóközre, és
+          egy közös fixtúra őrzi, hogy a három mag ugyanarra tisztít.
 
-          ### Ami a v0.4.186-ban jött
+          ### Ami a v0.4.187-ben jött
+
+          **A fixtúra a munkamenet-döntést is nézi.** Egy menet alatt a két
+          telefon DNS-motora ugyanazt dönti, a gép referenciája szerint.
+
+          #### Ami a v0.4.186-ban jött
 
           **A szinkron plafonjai is őrizve.** Hosztnév-jelek, csomagok,
           csomag-jelek, mérés-célok, adag és szünet felső határa.
-
-          #### Ami a v0.4.185-ben jött
-
-          **Ugyanaz a döntés mindhárom platformon — kimondva.** Az
-          architektúra-doksi negyedik rétege és a weboldal egy mondata.
 
           NOTES
           fi
