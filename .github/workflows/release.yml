@@ -44,26 +44,24 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
+          **A zárlat, az ablakok, a kulcsszavak és a mérés is egy szabállyal
+          jönnek át.** A szinkronon jött munkamenet többi mezőjét és a többi
+          eszköz mérését eddig mindhárom platform kicsit másképp olvasta: az
+          iPhone egy hibás zárlat-ablak vagy kulcsszó miatt az összeset
+          eldobta, és egy „igaz” értéket 1 másodpercnek számolt; az Android a
+          szövegként írt számot (például egy zárlat végét) is számnak vette.
+          Most mindhárom ugyanúgy olvas: csak a szám szám, csak a szöveg
+          szöveg, és egy hibás elem csak önmagát viszi.
+
+          ### Ami a v0.4.206-ban jött
+
           **A menetrend és a részleges szabály a szinkronon sem dönt le
-          semmit.** A gép eddig nyersen tartotta a szinkronon jött
-          menetrendet: egy hibás sávlista a döntést és a fésülést is ledöntötte
-          (kivételt dobott). A két telefon egy ilyen sáv miatt az egész oldalt
-          eldobta. Most mindhárom platform ugyanúgy olvas: a hibás sáv kiesik,
-          a többi marad, és ami nem értelmezhető, az a tiltás felé dől. A
-          részleges szabályokból csak a kanonikus alak megy át, átírás nélkül
-          — az Android eddig újranormalizált, az iPhone egy rossz szabály
-          miatt az oldalt dobta el.
+          semmit.** Egy hibás sáv kiesik, a többi marad; a részleges
+          szabályokból csak a kanonikus alak megy át.
 
-          ### Ami a v0.4.205-ben jött
+          #### Ami a v0.4.205-ben jött
 
-          **Egy hibás rekord nem viszi el a többit.** A szinkronon jött
-          listákat mindhárom platform elemenként olvassa, ugyanazzal a
-          szabállyal; a telefonon a csomag és a megbízott neve is a 40.
-          karakternél megáll.
-
-          #### Ami a v0.4.204-ben jött
-
-          **A csomag neve minden eszközön ugyanaz.**
+          **Egy hibás rekord nem viszi el a többit.**
 
           NOTES
           fi
