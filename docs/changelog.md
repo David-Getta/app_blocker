@@ -8,6 +8,7 @@ kettővel korábbiban.
 
 | Verzió | Nap | Mi újság |
 |---|---|---|
+| v0.4.199 | 2026-10-01 | a közös napi keret egy szabállyal olvasódik mindhárom platformon |
 | v0.4.198 | 2026-10-01 | a próbatétel válasza ugyanúgy számít mindhárom platformon |
 | v0.4.197 | 2026-10-01 | a titkosítás közös fixtúrája, a gép burkol, a telefon nyit |
 | v0.4.196 | 2026-10-01 | a menetek számai ugyanazok mindhárom platformon |
