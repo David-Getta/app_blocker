@@ -44,26 +44,26 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A fixtúra a részleges szabályt is nézi.** A szabályt (egy oldal
-          egy útvonala) a gépen és Androidon kézzel írják be, és a szinkronon
-          utazik; ha a három platform máshogy tisztítaná, a rekord minden
-          körben átíródna, ha máshogy illesztené, egy csatorna az egyik gépen
-          tiltva volna, a másikon nem. A közös fixtúra most a beírt szöveg
-          kanonikus alakját és a szabály illesztését is tartja — mobil előtag,
-          dupla perjel, lekérdezés, görög út, a határ emodzsival —, és a három
-          magnak ugyanazt kell adnia. Az út hossza mostantól kódpontban
-          számol mindhárom magban, és az iPhone az útban is a gép szerint ír
-          kisbetűt.
+          **A fixtúra a zárlat-ablakokat is nézi.** A heti ablak minden
+          eszközön ugyanakkor zár és ugyanakkor enged: a lista a fiókon
+          utazik, a döntést mindhárom platform maga hozza. Ha az
+          előfordulás-számtan elcsúszna, az egyik eszköz zárlatot tartana, a
+          másik nem — vagy a kettő más zárlatot állítana elő. A közös
+          fixtúrában most ablak-esetek is vannak: marad-e szabad idő a héten,
+          lazítás-e a csere, az élő ablak, a zárlat, amit az ablakok most
+          megkövetelnek (futó zárlat mellett és nélkül), ablak-zárlat-e, a
+          közelgő ablak és a következő előfordulás — és a három magnak
+          ugyanazt kell mondania, UTC-ben kimondva.
 
-          ### Ami a v0.4.191-ben jött
+          ### Ami a v0.4.192-ben jött
+
+          **A fixtúra a részleges szabályt is nézi.** Kanonikus alak és
+          illesztés mindhárom nyelven; az út hossza kódpontban.
+
+          #### Ami a v0.4.191-ben jött
 
           **A párosító kód közös fixtúrája.** A gépen kiírt kódot a
           telefonon gépelik be; az iPhone párosítójának első tesztje.
-
-          #### Ami a v0.4.190-ben jött
-
-          **A fixtúra a menetrendet is nézi.** Tilt-e most egy heti
-          sávrendszer szerint, és lazítás-e a csere — UTC-ben kimondva.
 
           NOTES
           fi
