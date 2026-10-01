@@ -44,28 +44,25 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A szöveg-tisztítás egyforma mindhárom magban.** A fedőnév, az
-          indok, a kulcsszó, a megbízott neve és jelmondata, a domain a
-          billentyűzetről jön, és a szinkronon át utazik; eddig a három
-          platform a saját szóköz-fogalmával tisztított, és máshol vágott. A
-          gép egy fél emodzsit is hagyhatott a fedőnév végén, amit az iPhone
-          olvasója eldob; a telefonok a nem törő szóközt és a BOM-ot nem
-          vették szóköznek, a gép igen — egy ilyen jelmondat az egyik eszközön
-          nem nyitott volna. Most a szóköz-készlet kimondott, a vágás
-          kódpontban számol, a megbízott neve nem végződik lógó szóközre, és
-          egy közös fixtúra őrzi, hogy a három mag ugyanarra tisztít. Az első
-          futása rögtön fogott is egyet: a görög szó végi szigmát az iPhone
-          másképp írta kisbetűvel, mint a gép és az Android — már nem.
+          **A böngésző-bővítmény nem marad szűrő nélkül egy elvesző
+          üzenettől.** A lap a csatorna-szűrőit betöltéskor a háttértől kéri;
+          a háttér egy service worker, és ha épp indul, az első üzenet
+          elveszhet. Eddig egy ilyen lap szűrő és csatorna-idő-mérés nélkül
+          maradt újratöltésig, csendben — a navigáció megállítása megvolt, a
+          hírfolyam-rejtés és a mérés nem. Most háromszor próbál, növekvő
+          szünettel; ami azután sem jön, azt a tár-figyelő hozza. A végponti
+          teszt bukáskor kimondja, melyik előfeltétel hiányzott.
 
-          ### Ami a v0.4.187-ben jött
+          ### Ami a v0.4.188-ban jött
+
+          **A szöveg-tisztítás egyforma mindhárom magban.** Kimondott
+          szóköz-készlet, kódpontos vágás, közös fixtúra — ami rögtön fogott
+          is egyet: a görög szó végi szigmát az iPhone másképp írta.
+
+          #### Ami a v0.4.187-ben jött
 
           **A fixtúra a munkamenet-döntést is nézi.** Egy menet alatt a két
           telefon DNS-motora ugyanazt dönti, a gép referenciája szerint.
-
-          #### Ami a v0.4.186-ban jött
-
-          **A szinkron plafonjai is őrizve.** Hosztnév-jelek, csomagok,
-          csomag-jelek, mérés-célok, adag és szünet felső határa.
 
           NOTES
           fi
