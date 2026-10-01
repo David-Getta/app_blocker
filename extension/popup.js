@@ -16,11 +16,11 @@ async function render() {
   // is fut — a lap ugyanazt mondja, mint amit a döntés betart.
   const eff = effectiveFocus(stored, Date.now());
   // A zárlat ugyanígy: ha az app hallgat, a most tartó heti zárlat-ablak is.
-  const lock = effectiveLockdown(stored, Date.now());
+  const effLock = effectiveLockdown(stored, Date.now());
   const link = {
     ...stored,
     focus: eff ? { ...stored.focus, running: true, ...eff } : { ...stored.focus, running: false },
-    lockdown: lock ? { until: lock.until, byWindow: lock.byWindow } : null,
+    lockdown: effLock ? { until: effLock.until, byWindow: effLock.byWindow } : null,
   };
   const d = describePopup(link, Date.now(), CLOSED_FRESH_MS);
 
