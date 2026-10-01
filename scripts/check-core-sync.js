@@ -102,6 +102,17 @@ ts.lockdown = read('desktop/src/shared/lockdown.ts');
 kt.lockdown = read('android/app/src/main/java/hu/breaker/app/core/Lockdown.kt');
 sw.lockdown = read('ios/Shared/Lockdown.swift');
 
+// A szinkron fésülése és a plafonjai: a hosztnév-jelek, a csomagok és a
+// csomag-jelek korlátja — és az adag-szabály korlátai a két mérő nyelvben.
+ts.merge = read('desktop/src/shared/sync/merge.ts');
+kt.merge = read('android/app/src/main/java/hu/breaker/app/core/SyncMerge.kt');
+sw.merge = read('ios/Shared/SyncMerge.swift');
+ts.focusMerge = read('desktop/src/shared/sync/focus-merge.ts');
+kt.focusSync = read('android/app/src/main/java/hu/breaker/app/core/FocusSync.kt');
+sw.focusSync = read('ios/Shared/FocusSync.swift');
+ts.burst = read('desktop/src/shared/burst.ts');
+kt.burst = read('android/app/src/main/java/hu/breaker/app/core/Burst.kt');
+
 function scalar(text, re, label) {
   const m = text.match(re);
   if (!m) return { missing: label };
@@ -311,6 +322,22 @@ const CHECKS = [
     scalar(ts.rules, /MAX_RULE_PATH_LENGTH\s*=\s*([^;]+);/, 'ts'),
     scalar(kt.rules, /MAX_RULE_PATH_LENGTH\s*=\s*(.+)/, 'kt'),
     scalar(sw.rules, /maxRulePathLength\s*=\s*(.+)/, 'swift')],
+  // A SZINKRON PLAFONJAI. Egy eltérő plafon nem hibaüzenet, hanem nem
+  // konvergáló szinkron: ha az egyik mag 64 jelre vág, a másik nem, ugyanabból
+  // a két blobból más jön ki, és a két eszköz körönként egymást írja felül —
+  // a fixtúra csak a plafon alatt járó esetekben látná.
+  ['MAX_HOSTNAME_MARKS',
+    scalar(ts.merge, /MAX_HOSTNAME_MARKS\s*=\s*([^;]+);/, 'ts'),
+    scalar(kt.merge, /MAX_HOSTNAME_MARKS\s*=\s*(.+)/, 'kt'),
+    scalar(sw.merge, /maxHostnameMarks\s*=\s*(.+)/, 'swift')],
+  ['MAX_PACKS',
+    scalar(ts.focusMerge, /MAX_PACKS\s*=\s*([^;]+);/, 'ts'),
+    scalar(kt.focusSync, /MAX_PACKS\s*=\s*(.+)/, 'kt'),
+    scalar(sw.focusSync, /maxPacks\s*=\s*(.+)/, 'swift')],
+  ['MAX_PACK_MARKS',
+    scalar(ts.focusMerge, /MAX_PACK_MARKS\s*=\s*([^;]+);/, 'ts'),
+    scalar(kt.focusSync, /MAX_PACK_MARKS\s*=\s*(.+)/, 'kt'),
+    scalar(sw.focusSync, /maxPackMarks\s*=\s*(.+)/, 'swift')],
   ['MAX_ALIAS_LENGTH',
     scalar(ts.alias, /MAX_ALIAS_LENGTH\s*=\s*([^;]+);/, 'ts'),
     scalar(kt.alias, /MAX_ALIAS_LENGTH[^=]*=\s*(.+)/, 'kt'),
@@ -402,6 +429,23 @@ const PAIRS = [
   ['USAGE_DAY_MIN_SECONDS',
     scalar(ts.usage, /USAGE_DAY_MIN_SECONDS\s*=\s*([^;]+);/, 'ts'),
     scalar(kt.usage, /USAGE_DAY_MIN_SECONDS\s*=\s*(.+)/, 'kt')],
+  // A mérés plafonjai és az adag-szabály korlátai csak a két mérő nyelvben
+  // élnek (az iPhone nem mér előteret). Ha a gép kétszáz célt tart meg egy
+  // napra, a telefon ötvenet, ugyanaz a nap az egyiken teljes, a másikon
+  // „egyéb”-be hajtva; ha az adag plafonja más, ugyanaz a szabály az egyik
+  // eszközön él, a másikon nincs.
+  ['MAX_TARGETS_PER_DAY',
+    scalar(ts.usage, /MAX_TARGETS_PER_DAY\s*=\s*([^;]+);/, 'ts'),
+    scalar(kt.usage, /MAX_TARGETS_PER_DAY\s*=\s*(.+)/, 'kt')],
+  ['MAX_LABEL_LENGTH',
+    scalar(ts.usage, /MAX_LABEL_LENGTH\s*=\s*([^;]+);/, 'ts'),
+    scalar(kt.usage, /MAX_LABEL_LENGTH\s*=\s*(.+)/, 'kt')],
+  ['MAX_BURST_MINUTES',
+    scalar(ts.burst, /MAX_BURST_MINUTES\s*=\s*([^;]+);/, 'ts'),
+    scalar(kt.burst, /MAX_BURST_MINUTES\s*=\s*(.+)/, 'kt')],
+  ['MAX_COOLDOWN_MINUTES',
+    scalar(ts.burst, /MAX_COOLDOWN_MINUTES\s*=\s*([^;]+);/, 'ts'),
+    scalar(kt.burst, /MAX_COOLDOWN_MINUTES\s*=\s*(.+)/, 'kt')],
 ];
 
 // A gép és a böngésző-bővítmény között: a felugró lap a sorozatot a maga

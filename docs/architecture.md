@@ -178,8 +178,10 @@ Hogy a „pontos tükör” ne csak szándék maradjon, a CI ellenőrzi is:
 `scripts/check-core-sync.js` a HÁROM FORRÁSBÓL olvassa ki a döntő számokat
 (nehézségi szintek négy fokozata, a várakozási ablak, a törlés türelmi ideje, a
 kísérlet elévülése, a feladás hűtési ideje, az óraugrás küszöbe, a
-feladás-nyilvántartás korlátja, a szünethosszok és a memóriakód ábécéje), és
-elhasal, ha bármelyik eltér. Enélkül egy nehézségi paraméter átírása a
+feladás-nyilvántartás korlátja, a szünethosszok, a memóriakód ábécéje — és a
+szinkron plafonjai: a hosztnév-jelek, a csomagok, a csomag-jelek, a részleges
+szabályok és a mérés-célok korlátja, mert egy eltérő plafon nem hibaüzenet,
+hanem nem konvergáló szinkron), és elhasal, ha bármelyik eltér. Enélkül egy nehézségi paraméter átírása a
 desktopon csendben elcsúszhatna a másik kettőtől: ugyanaz az app, két
 különböző szigorúsággal, hibaüzenet nélkül. A szkript szándékosan nem másolja
 be az értékeket — akkor ugyanaz a csúszás történne, csak eggyel odébb. A Kotlin
