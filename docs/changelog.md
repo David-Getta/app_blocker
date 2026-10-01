@@ -8,6 +8,7 @@ kettővel korábbiban.
 
 | Verzió | Nap | Mi újság |
 |---|---|---|
+| v0.4.202 | 2026-10-01 | a dátum nem függ a telefon nyelvétől és naptárától |
 | v0.4.201 | 2026-10-01 | a böngésző-bővítmény is a közös szabály szerint olvas |
 | v0.4.200 | 2026-10-01 | a munkamenet magja ugyanaz mindhárom platformon |
 | v0.4.199 | 2026-10-01 | a közös napi keret egy szabállyal olvasódik mindhárom platformon |
