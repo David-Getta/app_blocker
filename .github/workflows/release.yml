@@ -44,22 +44,21 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A heti ablak a böngészőben akkor is él, ha az app zárva van.** A
-          gépen a heti ablak menetét a háttérvédelem eddig is elindította, a
-          böngészőben viszont csak futó app mellett érvényesült — az app
-          bezárása az ablak feloldása volt. Most az app egy hétre előre átadja
-          a bővítménynek az ablakokat, és ha az app nem válaszol, a böngésző a
-          most tartót betartja. Amíg az app fut, az ő szava dönt: a leállított
-          ablak menete nem tér vissza.
+          **A tiltó lap zárva lévő app mellett sem ígér feloldást a heti
+          zárlat-ablak alatt.** A heti zárlat-ablakot a háttérvédelem az app
+          nélkül is elindítja, a böngésző tiltó lapja viszont eddig csak a futó
+          apptól tudott róla — app nélkül azt írta, hogy a tiltás az appban
+          feloldható, holott az ablak alatt ez az út nincs. Most az app egy
+          hétre előre átadja az ablakokat a bővítménynek is, és a lap meg a
+          felugró lap ilyenkor is a zárlatot mondja.
 
-          ### Ami a v0.4.208-ban jött
+          ### Ami a v0.4.209-ben jött
+
+          **A heti ablak a böngészőben akkor is él, ha az app zárva van.**
+
+          #### Ami a v0.4.208-ban jött
 
           **Nem marad fél emodzsi a böngésző lapjain és a mérés címkéjén.**
-
-          #### Ami a v0.4.207-ben jött
-
-          **A zárlat, az ablakok, a kulcsszavak és a mérés is egy szabállyal
-          jönnek át.**
 
           NOTES
           fi
