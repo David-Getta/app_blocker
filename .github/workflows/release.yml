@@ -44,23 +44,22 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **Nem marad fél emodzsi a böngésző lapjain és a mérés címkéjén.** A
-          böngésző tiltó és felugró lapja az indokot, a megbízott és a csomag
-          nevét eddig rossz helyen vágta: egy érvényes, emodzsis szöveg félbe
-          vágódott, és a fele értelmetlen jelként maradt. A mérés címkéje (az
-          app vagy az oldal neve) ugyanígy, és ez a fiókon a telefonig is
-          eljutott. Most mindhárom karakterenként vág, ahogy az app.
+          **A heti ablak a böngészőben akkor is él, ha az app zárva van.** A
+          gépen a heti ablak menetét a háttérvédelem eddig is elindította, a
+          böngészőben viszont csak futó app mellett érvényesült — az app
+          bezárása az ablak feloldása volt. Most az app egy hétre előre átadja
+          a bővítménynek az ablakokat, és ha az app nem válaszol, a böngésző a
+          most tartót betartja. Amíg az app fut, az ő szava dönt: a leállított
+          ablak menete nem tér vissza.
 
-          ### Ami a v0.4.207-ben jött
+          ### Ami a v0.4.208-ban jött
+
+          **Nem marad fél emodzsi a böngésző lapjain és a mérés címkéjén.**
+
+          #### Ami a v0.4.207-ben jött
 
           **A zárlat, az ablakok, a kulcsszavak és a mérés is egy szabállyal
-          jönnek át.** Csak a szám szám, csak a szöveg szöveg, és egy hibás
-          elem csak önmagát viszi.
-
-          #### Ami a v0.4.206-ban jött
-
-          **A menetrend és a részleges szabály a szinkronon sem dönt le
-          semmit.**
+          jönnek át.**
 
           NOTES
           fi
