@@ -114,7 +114,9 @@ export function normalizeRule(input: string): UrlRule | null {
 
   // Több egymás utáni `/` egyetlen szegmenshatár.
   path = path.replace(/\/{2,}/g, '/');
-  if (path.length > MAX_RULE_PATH_LENGTH) return null;
+  // Kódpontban, mint a fedőnév és a kulcsszó: a Kotlin és a Swift ugyanígy
+  // számol (a Swift `count` grafémát számolt volna, a `length` UTF-16 egységet).
+  if ([...path].length > MAX_RULE_PATH_LENGTH) return null;
   // Vezérlőkarakter és szóköz nem való egy útba; a felületen se lenne látható,
   // mit tiltott le az ember.
   // eslint-disable-next-line no-control-regex

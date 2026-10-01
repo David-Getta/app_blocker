@@ -269,7 +269,12 @@ alakok: kötőjel, szóköz, kisbetű, O/0, I/1, nem latin számjegy, teljes
 szélességű betű, elgépelés, szemét), egy mező kódnak és címnek, a kód olvasható
 alakja. A Swift párosítónak ez az első tesztje; az első írása két eltérést
 igazított: a nem latin számjegyet a kód végén a gép kiszűri, az iPhone nem
-tudta, és a séma nélküli cím mintája lazább volt, mint a gépé.
+tudta, és a séma nélküli cím mintája lazább volt, mint a gépé. A szöveg-fixtúra
+a részleges szabályt is nézi: a beírt szöveg kanonikus alakját és a szabály
+illesztését egy címre — itt az út hossza kódpontban számol mindhárom magban
+(a Swift grafémát, a gép és az Android UTF-16 egységet számolt), a szélek a
+kimondott szóköz-készlet szerint vágnak, és az út kisbetűje a gép szabálya
+szerint készül.
 
 ## Biztonsági modell és őszinte korlátok
 

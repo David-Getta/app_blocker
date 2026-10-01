@@ -206,3 +206,18 @@ hanem „nem tudok róla”: a másik oldal listája ÉS jele marad. Ez utóbbi 
 a jel és nem a rekord `rev`-je: egy régi kliens nagy `rev`-je azt a listát
 hitelesítette volna, amelyikkel épp előbb találkozott, és három eszköznél az
 eredmény a sorrendtől függött.
+
+## A három mag ugyanazt a szabályt látja
+
+A szabályt a gépen és Androidon kézzel írják be, és a jelével (`rulesRev`)
+utazik; az illesztést a gép bővítménye hozza, de a mag mindhárom nyelvben ott
+áll. A `fixtures/text-cases.json` (írja `desktop/test/text-fixture.test.ts`)
+ezért a részleges szabályt is tartja: beírt szöveg → kanonikus szabály
+(`host|path`), és szabály × cím → illik-e — kézzel válogatott élek (mobil
+előtag, dupla perjel, lekérdezés, horgony, szóköz és vezérlő az útban, a
+200 kódpontos határ emodzsival, görög út, BOM a szélen) és véletlen
+összerakások, a felük a szabály közelében, a szegmenshatár mindkét oldalával.
+A Kotlin (`TextFixtureTest`) és a Swift (`TextFixtureTests`) ugyanezt játssza
+vissza. Az út hossza kódpontban számol mindhárom magban (egy emodzsi egy); a
+szélek a kimondott szóköz-készlet szerint; az út kisbetűje a gép szabálya
+szerint (a görög szó végi szigma ς).

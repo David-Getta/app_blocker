@@ -415,7 +415,14 @@ Amit a tesztek bizonyítanak, és amit másképp nem lehetne:
   megbízott neve nem végződik lógó szóközre). A fájl csupa ASCII,
   hogy a láthatatlan jelek láthatók legyenek. Egy szándékos kivétel kimondva:
   a domain-tisztítás egy `www.`-t vág le, nem mindet — nem idempotens,
-  mindhárom magban ugyanúgy.
+  mindhárom magban ugyanúgy. És a RÉSZLEGES SZABÁLY is benne van: beírt
+  szöveg → kanonikus szabály (`host|path`: séma, felhasználó, `www.` és mobil
+  előtag le, lekérdezés és horgony le, dupla perjel egy, az út kisbetűs és
+  legfeljebb 200 kódpont), és szabály × cím → illik-e (a hoszt vagy
+  aldomainje, az út szegmenshatáron) — kézzel válogatott élek és véletlen
+  összerakások, a felük a szabály közelében. A szabályt a gépen és Androidon
+  kézzel írják be, és a jelével utazik; az illesztést a gép bővítménye hozza,
+  de a mag mindhárom nyelvben ott áll.
 - **a párosító kód is megfelelőségi próbán megy át.** A
   `fixtures/pairing-cases.json` (írja `desktop/test/pairing-fixture.test.ts`,
   `UPDATE_PAIRING_FIXTURE=1 npm test`) a gép kimeneteit tartja: cím → kód a

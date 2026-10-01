@@ -24,6 +24,12 @@ private struct ListCase: Decodable {
     enum CodingKeys: String, CodingKey { case input = "in", out }
 }
 
+private struct MatchCase: Decodable {
+    let rule: String
+    let url: String
+    let out: Bool
+}
+
 private struct Fixture: Decodable {
     let version: Int
     let alias: [TextCase]
@@ -33,6 +39,8 @@ private struct Fixture: Decodable {
     let partnerName: [TextCase]
     let phrase: [TextCase]
     let domain: [TextCase]
+    let rule: [TextCase]
+    let ruleMatch: [MatchCase]
 }
 
 final class TextFixtureTests: XCTestCase {
@@ -111,6 +119,23 @@ final class TextFixtureTests: XCTestCase {
             let got = KeywordLogic.cleanKeywords(c.input)
             XCTAssertEqual(got.map { Array($0.unicodeScalars) }, c.out.map { Array($0.unicodeScalars) },
                            "keywords #\(i): \(c.input.map { show($0) })")
+        }
+    }
+
+    func testThePartialRuleFormIsTheSameAsTheDesktop() throws {
+        let f = try load()
+        check(f.rule, "rule") { UrlRules.normalizeRule($0).map { "\($0.host)|\($0.path)" } }
+    }
+
+    func testThePartialRuleMatchingIsTheSameAsTheDesktop() throws {
+        let f = try load()
+        XCTAssertGreaterThan(f.ruleMatch.count, 50, "ruleMatch: kevés eset — a fixtúra csonka?")
+        for (i, c) in f.ruleMatch.enumerated() {
+            guard let rule = UrlRules.normalizeRule(c.rule) else {
+                XCTFail("ruleMatch #\(i): az illesztendő szabály nem szabály: \(show(c.rule))")
+                continue
+            }
+            XCTAssertEqual(UrlRules.matchesRule(rule, c.url), c.out, "ruleMatch #\(i): \(show(c.rule)) ~ \(show(c.url))")
         }
     }
 }

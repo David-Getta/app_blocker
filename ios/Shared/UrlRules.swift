@@ -86,7 +86,8 @@ enum UrlRules {
     /// Amit NEM fogadunk el: hoszt út nélkül (az az egész oldal, arra a sima
     /// tiltás van), és út hoszt nélkül (nem tudnánk, mihez tartozik).
     static func normalizeRule(_ input: String) -> UrlRule? {
-        let raw = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        // A szélek a kimondott szóköz-készlet szerint (a BOM is), mint a gépen.
+        let raw = TextLogic.trimSpaces(input)
         if raw.isEmpty { return nil }
         guard let host = Blocklist.normalizeDomain(raw) else { return nil }
 
@@ -106,12 +107,14 @@ enum UrlRules {
         if !path.hasPrefix("/") { return nil }
 
         path = collapseSlashes(path)
-        if path.count > maxRulePathLength { return nil }
+        // Skalárban, mint a gép és az Android: a `count` grafémát számolt volna.
+        if path.unicodeScalars.count > maxRulePathLength { return nil }
         // Vezérlőkarakter és szóköz nem való egy útba; a felületen se lenne
         // látható, mit tiltott le az ember.
         if path.unicodeScalars.contains(where: { $0.value <= 0x20 }) { return nil }
 
-        return UrlRule(host: stripAliasPrefix(host), path: path.lowercased())
+        // A kisbetű a gép szabálya szerint (a görög szó végi szigma ς, nem σ).
+        return UrlRule(host: stripAliasPrefix(host), path: TextLogic.lowercase(path))
     }
 
     /// Ugyanaz a szabály-e (a duplikátumot nem vesszük fel kétszer).
@@ -150,7 +153,7 @@ enum UrlRules {
     /// platform apró különbségeken csúszna szét — pont azon, hogy melyik URL
     /// számít tiltottnak.
     private static func splitUrl(_ url: String) -> (host: String, path: String)? {
-        let trimmed = url.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = TextLogic.trimSpaces(url)
         if trimmed.isEmpty { return nil }
         let s = dropScheme(trimmed)
         let cut = firstCut(s)
@@ -165,7 +168,7 @@ enum UrlRules {
         path = collapseSlashes(path)
         while path.hasSuffix("/") { path.removeLast() }
         if path.isEmpty { path = "/" }
-        return (host, path.lowercased())
+        return (host, TextLogic.lowercase(path))
     }
 
     /// Ahogy a felületen látszik: `youtube.com/@valaki`.

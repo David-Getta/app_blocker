@@ -3,6 +3,7 @@ import hu.breaker.app.core.Blocklist
 import hu.breaker.app.core.KeywordLogic
 import hu.breaker.app.core.PartnerLogic
 import hu.breaker.app.core.TextLogic
+import hu.breaker.app.core.UrlRules
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -92,5 +93,25 @@ class TextFixtureTest {
         assertTrue(TextLogic.isSpace('\uFEFF'), "a BOM is szóköz — a Kotlin isWhitespace ezt nem tudja")
         assertTrue(TextLogic.isSpace('\u00A0'), "a nem törő szóköz is — a Java regex \\s-e nem tudja")
         assertFalse(TextLogic.isSpace('\u200B'), "a nulla szélességű szóköz NEM szóköz — egyik magban sem")
+    }
+
+    private fun ruleKey(r: UrlRules.UrlRule?): String? = r?.let { "${it.host}|${it.path}" }
+
+    @Test fun `a reszleges szabaly kanonikus alakja ugyanaz, mint a gepen`() =
+        check("rule") { ruleKey(UrlRules.normalizeRule(it)) }
+
+    @Test fun `a reszleges szabaly illesztese ugyanaz, mint a gepen`() {
+        val arr = fixture.getJSONArray("ruleMatch")
+        assertTrue(arr.length() > 50, "ruleMatch: kevés eset — a fixtúra csonka?")
+        for (i in 0 until arr.length()) {
+            val c = arr.getJSONObject(i)
+            val ruleText = c.getString("rule")
+            val rule = UrlRules.normalizeRule(ruleText)
+            assertTrue(rule != null, "ruleMatch #$i: az illesztendő szabály nem szabály: ${show(ruleText)}")
+            assertEquals(
+                c.getBoolean("out"), UrlRules.matchesRule(rule!!, c.getString("url")),
+                "ruleMatch #$i: ${show(ruleText)} ~ ${show(c.getString("url"))}",
+            )
+        }
     }
 }

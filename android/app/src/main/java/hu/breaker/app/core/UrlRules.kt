@@ -79,7 +79,8 @@ object UrlRules {
      * tiltás van), és út hoszt nélkül (nem tudnánk, mihez tartozik).
      */
     fun normalizeRule(input: String): UrlRule? {
-        val raw = input.trim()
+        // A szélek a kimondott szóköz-készlet szerint (a BOM is), mint a gépen.
+        val raw = TextLogic.trimSpaces(input)
         if (raw.isEmpty()) return null
 
         val host = Blocklist.normalizeDomain(raw) ?: return null
@@ -102,7 +103,8 @@ object UrlRules {
         if (!path.startsWith("/")) return null
 
         path = path.replace(Regex("/{2,}"), "/")
-        if (path.length > MAX_RULE_PATH_LENGTH) return null
+        // Kódpontban, mint a gépen: egy emodzsi egy, nem kettő.
+        if (path.codePointCount(0, path.length) > MAX_RULE_PATH_LENGTH) return null
         // Vezérlőkarakter és szóköz nem való egy útba; a felületen se lenne
         // látható, mit tiltott le az ember.
         if (path.any { it.code <= 0x20 }) return null
@@ -147,7 +149,7 @@ object UrlRules {
      * számít tiltottnak.
      */
     private fun splitUrl(url: String): Pair<String, String>? {
-        var s = url.trim()
+        var s = TextLogic.trimSpaces(url)
         if (s.isEmpty()) return null
         s = s.replace(Regex("^[a-zA-Z][a-zA-Z0-9+.-]*://"), "")
         s = s.replace(Regex("^[^/@]*@"), "")
