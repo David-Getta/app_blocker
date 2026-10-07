@@ -35,7 +35,8 @@ ingyen van, rövidíteni vagy visszavonni sehogy.
   nem végezhető el.
 - **Időzített menetrend**: egy oldal tiltható csak bizonyos sávokban (pl. munkaidő),
   vagy fordítva, csak bizonyos sávokban engedélyezhető — sablonból vagy saját
-  sávval (napok, kezdés, vég). Szigorítani egy kattintás, **lazítani ugyanúgy
+  sávval (napok, kezdés, vég). A sor kimondja, mikor vált legközelebb
+  („zár 1 ó 30 p múlva”). Szigorítani egy kattintás, **lazítani ugyanúgy
   próbatételekbe kerül**, mint egy feloldás.
 - **Aktív idő mérése és statisztikák**: melyik oldalon és appban mennyit töltesz —
   **csak amikor tényleg ott vagy** (fókuszban lévő ablak, aktív fül, nem tétlen),
@@ -401,6 +402,9 @@ A blokkolás bekapcsolása **egy kattintás**. Kikapcsolni **nem az** — ez a l
 - A **DELAY** lépés valós idejű várakozás (akár 10–120 perc), aminek a végén csak
   egy szűk **10 perces ablakban** vehető át a feloldás — különben az egész
   kísérlet elölről indul.
+- A megváltott szünet **vége nem meglepetés**: két perccel a visszazárás előtt
+  egy értesítés szól („youtube.com 2 perc múlva újra zárva”) — a gépen és
+  Androidon az app nélkül is, iPhone-on előre ütemezve.
 
 Részletek: [`docs/challenge-spec.md`](docs/challenge-spec.md).
 
