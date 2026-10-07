@@ -45,29 +45,31 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **Zárlat alatt a böngésző-bővítmény saját szabálya sem vehető le.**
-          A zárlat ígérete, hogy amíg tart, semmi nem lazítható. A
-          bővítmény beállítás-lapján felvett szabályokra ez eddig nem állt:
-          tíz perc várással zárlat alatt is levehetők voltak. Most a levétel
-          nem indul, és ami már folyamatban volt, az visszavonódik.
+          **Az óra előreállítása nem rövidíti a hűtést.** Az adag-szabály
+          szünete eddig a rendszeróra szerint telt: aki tíz perccel
+          előretekerte az órát, átugrott egy egész szünetet. A munkamenetnél
+          és a zárlatnál ezt már elnyeltük — most a hűtésnél is, a gépen és
+          Androidon: amennyi hátra volt, annyi van hátra. A lecsukott gép
+          ideje viszont pihenő marad: egy adag közepén lecsukott laptopon
+          reggel tiszta lappal indulsz.
 
-          **A telefon kimondja, hogy ami már nyitva volt, még mehet.** A
-          szűrő az új kapcsolatokat fogja meg; egy szóló videó egy darabig
-          még mehet. A menet első két percében ezt Androidon a tartós
-          értesítés, iPhone-on a menet kártyája kimondja — zárd be és nyisd
-          újra. Androidon a sáv mostantól kibontható.
+          **A réteg megmondja, miért nézi appként a böngészőt.** Ha a
+          munkamenet alatt olyan böngésző van elöl, amelynek a címét a gép
+          nem látja, és bővítmény sincs benne összekötve, azt appként
+          nézzük. A réteg eddig csak annyit írt: nincs a listán. Most
+          kimondja az okát is: ha engedett oldalon vagy, hagyd figyelmen
+          kívül; ha összekötöd benne a bővítményt, ott az oldal dönt.
 
-          ### Ami a v0.4.215-ben jött
+          ### Ami a v0.4.216-ban jött
 
-          **A napi keret akkor is fogy, ha a gép nem látja a böngésző címét**
-          (a bővítmény mondja meg, melyik oldal van elöl), és **gépelés
-          közben nem zárjuk le a lapot**.
+          **Zárlat alatt a böngésző-bővítmény saját szabálya sem vehető le**,
+          és **a telefon kimondja, hogy ami már nyitva volt, még mehet** — a
+          menet első két percében.
 
-          #### Ami a v0.4.214-ben jött
+          #### Ami a v0.4.215-ben jött
 
-          **A munkamenet nem nyaggat a böngészőért** — engedett oldalon csend
-          van; ha egy nem engedett oldal mégis látszik, a réteg kimondja,
-          hogy abban a böngészőben a fehérlistát senki nem tartja be.
+          **A napi keret akkor is fogy, ha a gép nem látja a böngésző címét**,
+          és **gépelés közben nem zárjuk le a lapot**.
 
           NOTES
           fi
