@@ -44,23 +44,24 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A munkamenet nem nyaggat a böngészőért.** Ha a csomagod engedett
-          oldalán dolgoztál, a gép eddig hárompercenként felugrott azzal, hogy
-          a böngésző „nincs a listán”. Most a böngészőnél a benne nyitott oldal
-          dönt: engedett oldalon csend van. Ha viszont egy nem engedett oldal
-          mégis nyitva látszik, a réteg kimondja, hogy abban a böngészőben a
-          fehérlistát most senki nem tartja be — például mert nincs benne a
-          bővítmény, vagy inkognitóban nem fut.
+          **A napi keret akkor is fogy, ha a gép nem látja a böngésző címét.**
+          macOS-en minden frissítés után újra meg kell adni az „Automatizálás”
+          engedélyt — addig a böngészőben töltött idő nem az oldalra, hanem a
+          böngészőre könyvelődött, és az oldal napi kerete nem fogyott. Most
+          ahol a böngésző-bővítmény fut, ő mondja meg, melyik oldal van elöl
+          (csak a tartományt, csak a saját gépeden futó appnak). A statisztika
+          kártyája kimondja, mi mérődik ilyenkor és mi nem.
 
-          ### Ami a v0.4.213-ban jött
+          ### Ami a v0.4.214-ben jött
+
+          **A munkamenet nem nyaggat a böngészőért** — engedett oldalon csend
+          van; ha egy nem engedett oldal mégis nyitva látszik, a réteg
+          kimondja, hogy abban a böngészőben a fehérlistát senki nem tartja be.
+
+          #### Ami a v0.4.213-ban jött
 
           **A már nyitott lap is lezárul** — a munkamenet indulásakor vagy a
           napi keret beteltekor a nyitva hagyott videó is a tiltó lapra fut.
-
-          #### Ami a v0.4.212-ben jött
-
-          **Mérés-őr: a kilépés sem kapcsolja ki a napi keretet** — ha
-          bekapcsolod, az app nélkül a kerettel védett oldalak zárva vannak.
 
           NOTES
           fi
