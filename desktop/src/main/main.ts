@@ -23,6 +23,10 @@ import { HelperClient } from './helper-client';
 import { installHelper } from './install';
 import { initUpdater, requestUpdateCheck } from './updater';
 import { UsageTracker } from './tracker';
+import { needsMeasurement } from '../shared/measure-guard';
+
+/** Ennél több hosztnév nem megy le a mérés-őrrel (a bővítmény is ennyit tárol). */
+const MAX_GUARD_HOSTS = 2000;
 import {
   BACKGROUND_FLAG, closeAction, LAUNCH_AGENT_LABEL, launchAgentPlist, launchAgentUsable, startsHidden, WINDOWS_RUN_NAME,
 } from '../shared/background';
@@ -546,6 +550,19 @@ if (HELPER_MODE) {
           if (pack.recurrence) throw new Error('Ennek a csomagnak már van heti ablaka — az appban szerkeszthető.');
           const r = await client.call('focus_recurrence', { packId, band: peakWindowBand(hour) }) as { applied?: boolean };
           if (r.applied === false) throw new Error('Ez próbatételbe kerülne — az appból megy.');
+        },
+        async () => {
+          // A MÉRÉS-ŐR a böngészőnek: ha az app elhallgat, a segéd a keretes
+          // oldalakat a hosts-ban zárja — a bővítmény ebből tudja megmondani a
+          // tiltó lapon, miért, a DNS csupasz hibaoldala helyett.
+          const s = await sharedStatus();
+          if (!s.requireMeasurement) return null;
+          const hosts = new Set<string>();
+          for (const site of s.sites ?? []) {
+            if (!needsMeasurement(site)) continue;
+            for (const h of site.hostnames) hosts.add(h);
+          }
+          return { hosts: [...hosts].slice(0, MAX_GUARD_HOSTS) };
         },
       );
       // Keep the tracker's view of the switch fresh without extra IPC chatter.

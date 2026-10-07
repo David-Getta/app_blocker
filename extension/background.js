@@ -18,7 +18,7 @@ import { keywordHit, keywordInText } from './keywords.js';
 import { hitsReport, recordHit, sweepHits } from './hits.js';
 import { activeRules, load, sweep } from './storage.js';
 import {
-  closedFor, dueForRefresh, effectiveFocus, effectiveLockdown, focusAllows, loadLink, pullFromApp,
+  closedFor, dueForRefresh, effectiveFocus, effectiveLockdown, focusAllows, loadLink, measureGuardFor, pullFromApp,
   withAppRules,
   noteFor,
   partnerNameOf, pushHits,
@@ -78,6 +78,15 @@ async function decide(url) {
   // meg arról, hogy most az egész zárva — az a tágabb, tehát az az igazabb ok.
   const closed = closedFor(link, hostOf(url), now);
   if (closed) return { reason: 'closed', closed, lockUntil, lockWindow, note, partner };
+  // A MÉRÉS-ŐR: ha az app elhallgatott, a segéd a keretes oldalakat a hosts-ban
+  // zárja. A zárva-lista ilyenkor már elavult (az app nem frissíti), ezért ez
+  // külön ág — a lap megmondja, miért zárva, és mi nyitja: az app elindítása.
+  if (measureGuardFor(link, hostOf(url), now)) {
+    return {
+      reason: 'closed', closed: { host: hostOf(url), reason: 'nomeasure', until: 0 },
+      lockUntil, lockWindow, note, partner,
+    };
+  }
 
   // A KULCSSZÓ: bármely oldalon, ha a cím tartalmazza. Az egész oldal zárása
   // UTÁN (az a tágabb ok), a csatorna és a részleges szabály ELŐTT (ez tágabb

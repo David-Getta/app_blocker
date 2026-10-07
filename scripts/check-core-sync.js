@@ -90,6 +90,9 @@ ext.rules = read('extension/rules-core.js');
 // A híd a heti ablakokat és a zárlat-ablakokat egy hétre előre leküldi; a
 // bővítmény a maga plafonjáig tárolja — ha kisebb volna, a hét vége kiesne.
 ext.appLink = read('extension/app-link.js');
+// A mérés-őr türelmi ideje: a segéd ennyi csend után zár, a tiltó lap ennyi
+// után mondja, hogy zárva — ha elcsúszna, a lap mást mondana, mint ami van.
+ts.measureGuard = read('desktop/src/shared/measure-guard.ts');
 
 ts.digest = read('desktop/src/shared/digest.ts');
 kt.digest = read('android/app/src/main/java/hu/breaker/app/core/Digest.kt');
@@ -522,6 +525,9 @@ const EXT_PAIRS = [
   ['MAX_WINDOW_OCCURRENCES (munkamenet)',
     scalar(ts.focus, /MAX_WINDOW_OCCURRENCES\s*=\s*([^;]+);/, 'ts'),
     scalar(ext.appLink, /MAX_FOCUS_WINDOWS\s*=\s*([^;]+);/, 'ext')],
+  ['APP_GRACE_MS (mérés-őr)',
+    scalar(ts.measureGuard, /APP_GRACE_MS\s*=\s*([^;]+);/, 'ts'),
+    scalar(ext.appLink, /MEASURE_GUARD_SILENT_MS\s*=\s*([^;]+);/, 'ext')],
   ['MAX_WINDOW_OCCURRENCES (zárlat)',
     scalar(ts.focus, /MAX_WINDOW_OCCURRENCES\s*=\s*([^;]+);/, 'ts'),
     scalar(ext.appLink, /MAX_LOCKDOWN_WINDOWS\s*=\s*([^;]+);/, 'ext')],

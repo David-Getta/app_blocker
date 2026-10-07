@@ -134,6 +134,19 @@ const WIRES = [
     needle: 'deps.noteClient?.(Date.now());',
     lost: 'a segéd sosem látná az app jelét — a mérés-őr futó app mellett is zárna',
   },
+  // …és a böngésző tiltó lapja is tudja, miért zár a mérés-őr: a híd leküldi
+  // az őrzött hosztokat, a bővítmény a hallgató app mellett ezekre a saját
+  // lapját adja a DNS csupasz hibaoldala helyett.
+  {
+    file: 'desktop/src/main/main.ts',
+    needle: 'if (!needsMeasurement(site)) continue;',
+    lost: 'a híd nem küldené le a mérés-őr hosztjait — app nélkül a böngésző csak egy névfeloldási hibát mutatna',
+  },
+  {
+    file: 'extension/background.js',
+    needle: 'if (measureGuardFor(link, hostOf(url), now)) {',
+    lost: 'a tiltó lap nem mondaná meg, hogy a mérés-őr zár — és hogy az app elindítása nyitja',
+  },
   {
     file: 'desktop/src/renderer/renderer.ts',
     needle: "'set_require_measurement'",

@@ -269,6 +269,17 @@ test('a zárlat vége is átmegy a hídon — nélküle null, hogy a lap ne íg�
   assert.deepEqual((r3.body as { lockdown: unknown }).lockdown, { until: 1_800_000_000_000, byWindow: true });
 });
 
+test('a mérés-őr is átmegy a hídon — nélküle null, hogy a lap ne mondjon olyat, ami nincs', async () => {
+  // Ha az app elhallgat, a segéd a keretes oldalakat a hosts-ban zárja. A
+  // bővítmény ebből a listából tudja megmondani a tiltó lapon, miért.
+  const guarded = { ...deps(), getMeasureGuard: async () => ({ hosts: ['youtube.com', 'www.youtube.com'] }) };
+  const r = await answer(guarded, 'GET', '/rules', { [TOKEN_HEADER]: 'ABCD-EFGH' });
+  assert.equal(r.status, 200);
+  assert.deepEqual((r.body as { measureGuard: unknown }).measureGuard, { hosts: ['youtube.com', 'www.youtube.com'] });
+  const none = await answer(deps(), 'GET', '/rules', { [TOKEN_HEADER]: 'ABCD-EFGH' });
+  assert.equal((none.body as { measureGuard: unknown }).measureGuard, null, 'őr nélkül null, nem hiányzó mező');
+});
+
 test('a megbízott neve is átmegy a hídon — nélküle null, hogy a lap ne mondjon olyat, ami nincs', async () => {
   // A tiltó lap lába a feloldás útját mondja; megbízottal az az út az ő
   // jelmondatával ér véget — a lapnak tudnia kell róla. Csak a név megy: a

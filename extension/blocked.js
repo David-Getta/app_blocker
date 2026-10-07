@@ -126,6 +126,17 @@ if (focus) {
       left: (min) => `Nyit: még ${roughly(min)}.`,
       done: 'A menetrend szerint az oldal újra nyitva.',
     },
+    nomeasure: {
+      title: 'A Breaker most nem mér — ez az oldal addig zárva.',
+      body: 'Ennek az oldalnak napi kerete vagy adagja van, ami a mért időből '
+        + 'fogy — a mérés pedig az appban fut. Bekapcsoltad a mérés-őrt: amíg a '
+        + 'Breaker nem fut, az ilyen oldal minden böngészőben és appban zárva.',
+      foot: 'Indítsd el a Breakert: a mérés újraindul, és az oldal pár '
+        + 'másodpercen belül nyit, ha a keretből maradt. A mérés-őrt kikapcsolni '
+        + 'az appban lehet, próbatétellel.',
+      left: null,
+      done: null,
+    },
     always: {
       title: 'Ezt az oldalt te tiltottad le.',
       body: 'A Breaker blokklistáján van, ezért minden böngészőben és appban '

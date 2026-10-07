@@ -39,6 +39,9 @@ function loadClosed(): {
   lockdownUntil: (link: unknown, now?: number) => number;
   effectiveLockdown: (link: unknown, now?: number) => { until: number; byWindow: boolean } | null;
   FOCUS_FRESH_MS: number;
+  cleanMeasureGuard: (raw: unknown) => { hosts: string[] } | null;
+  measureGuardFor: (link: unknown, host: unknown, now?: number) => boolean;
+  MEASURE_GUARD_SILENT_MS: number;
   cleanPartner: (raw: unknown) => { name: string } | null;
   partnerNameOf: (link: unknown) => string | null;
 } {
@@ -59,6 +62,11 @@ function loadClosed(): {
   const freshSrc = pick(/export function appFresh\(link[\s\S]*?\n\}/, 'appFresh');
   const freshConstSrc = pick(/export const FOCUS_FRESH_MS = [^;]+;/, 'FOCUS_FRESH_MS');
   const lockMaxSrc = pick(/const MAX_LOCKDOWN_WINDOWS = [^;]+;/, 'MAX_LOCKDOWN_WINDOWS');
+  // A mérés-őr: a tisztítás, a döntés és a két állandója.
+  const guardSilentSrc = pick(/export const MEASURE_GUARD_SILENT_MS = [^;]+;/, 'MEASURE_GUARD_SILENT_MS');
+  const guardMaxSrc = pick(/const MAX_GUARD_HOSTS = [^;]+;/, 'MAX_GUARD_HOSTS');
+  const guardCleanSrc = pick(/function cleanMeasureGuard\(raw\) \{[\s\S]*?\n\}/, 'cleanMeasureGuard');
+  const guardForSrc = pick(/export function measureGuardFor\(link[\s\S]*?\n\}/, 'measureGuardFor');
   // A megbízott két függvénye ugyanígy: a tisztítás és a név.
   const partnerCleanSrc = pick(/function cleanPartner\(raw\) \{[\s\S]*?\n\}/, 'cleanPartner');
   const partnerNameSrc = pick(/export function partnerNameOf\(link\) \{[\s\S]*?\n\}/, 'partnerNameOf');
@@ -66,14 +74,15 @@ function loadClosed(): {
   return new Function(
     `${constSrc}\n${cleanSrc}\n${forSrc}\n${freshConstSrc}\n${lockMaxSrc}\n${freshSrc}\n`
     + `${lockCleanSrc}\n${lockEffSrc}\n${lockUntilSrc}\n${partnerCleanSrc}\n${partnerNameSrc}\n`
+    + `${guardSilentSrc}\n${guardMaxSrc}\n${guardCleanSrc}\n${guardForSrc}\n`
     + 'return { CLOSED_FRESH_MS, cleanClosed, closedFor, cleanLockdown, lockdownUntil, effectiveLockdown, '
-    + 'FOCUS_FRESH_MS, cleanPartner, partnerNameOf };',
+    + 'FOCUS_FRESH_MS, cleanPartner, partnerNameOf, cleanMeasureGuard, measureGuardFor, MEASURE_GUARD_SILENT_MS };',
   )() as ReturnType<typeof loadClosed>;
 }
 
 const {
   CLOSED_FRESH_MS, cleanClosed, closedFor, cleanLockdown, lockdownUntil, effectiveLockdown, FOCUS_FRESH_MS,
-  cleanPartner, partnerNameOf,
+  cleanPartner, partnerNameOf, cleanMeasureGuard, measureGuardFor, MEASURE_GUARD_SILENT_MS,
 } = loadClosed();
 const NOW = 1_800_000_000_000;
 
@@ -239,4 +248,35 @@ test('amíg az app friss, a zárlatról az ő szava dönt', () => {
   assert.equal(effectiveLockdown(link, NOW), null);
   assert.equal(effectiveLockdown(link, NOW + FOCUS_FRESH_MS), null, 'a határon még friss');
   assert.notEqual(effectiveLockdown(link, NOW + FOCUS_FRESH_MS + 1), null, 'utána a tárolt ablak');
+});
+
+// ---------------------------------------------------------------------------
+// A mérés-őr a tiltó lapon
+// ---------------------------------------------------------------------------
+//
+// Ha az app elhallgat, a segéd a keretes oldalakat a hosts-ban zárja. A
+// zárva-lista ilyenkor már elavult — a lap a mérés-őr listájából tudja
+// megmondani, miért zárva, és hogy az app elindítása nyitja.
+
+test('a mérés-őr a tárban: csak szöveges hosztok, kisbetűvel, egyszer — a rossz alak nem őr', () => {
+  assert.deepEqual(cleanMeasureGuard({ hosts: ['YouTube.com.', 'youtube.com', 7, '', ' www.youtube.com '] }),
+    { hosts: ['youtube.com', 'www.youtube.com'] });
+  assert.deepEqual(cleanMeasureGuard({ hosts: [] }), { hosts: [] }, 'bekapcsolt őr keretes oldal nélkül');
+  for (const junk of [null, undefined, 42, 'x', {}, { hosts: 'youtube.com' }]) {
+    assert.equal(cleanMeasureGuard(junk), null, `${JSON.stringify(junk)} nem őr`);
+  }
+  assert.equal(cleanMeasureGuard({ hosts: Array.from({ length: 3000 }, (_, i) => `h${i}.hu`) })?.hosts.length, 2000);
+});
+
+test('a mérés-őr csak akkor szól, ha az app a türelmi időn túl hallgat', () => {
+  assert.equal(MEASURE_GUARD_SILENT_MS, 3 * 60 * 1000);
+  const link = { fetchedAt: NOW, measureGuard: { hosts: ['youtube.com'] } };
+  assert.equal(measureGuardFor(link, 'youtube.com', NOW + MEASURE_GUARD_SILENT_MS), false, 'a határon még nem');
+  assert.equal(measureGuardFor(link, 'youtube.com', NOW + MEASURE_GUARD_SILENT_MS + 1), true);
+  assert.equal(measureGuardFor(link, 'YOUTUBE.com.', NOW + 3600_000), true, 'a hoszt is tisztul');
+  assert.equal(measureGuardFor(link, 'wiki.org', NOW + 3600_000), false, 'nem őrzött hoszt');
+  assert.equal(measureGuardFor({ fetchedAt: NOW }, 'youtube.com', NOW + 3600_000), false, 'nincs bekapcsolva');
+  assert.equal(measureGuardFor({ measureGuard: { hosts: ['youtube.com'] } }, 'youtube.com', NOW), true,
+    'soha nem lehúzott kapcsolat: nincs friss szó');
+  assert.equal(measureGuardFor(null, 'youtube.com', NOW), false);
 });

@@ -75,6 +75,16 @@ export interface BridgeLockdown {
 }
 
 /**
+ * A MÉRÉS-ŐR, ahogy a bővítménynek kell: be van-e kapcsolva, és mely
+ * hosztnevekre szól (a napi kerettel vagy adaggal védett oldalakéi). Ha az app
+ * elhallgat, a segéd ezeket a hosts-ban zárja — a bővítmény ebből tudja
+ * megmondani a tiltó lapon, miért, a DNS csupasz hibaoldala helyett.
+ */
+export interface BridgeMeasureGuard {
+  hosts: string[];
+}
+
+/**
  * A futó munkamenet, ahogy a bővítménynek kell.
  *
  * Ez FEHÉRLISTA: ha fut, minden más tiltva. A böngésző az egyetlen hely, ahol
@@ -228,6 +238,8 @@ export interface BridgeDeps {
   putHits?: (source: string, days: unknown[]) => Promise<void>;
   /** a javasolt csomag a felugró lapnak — null, ha nincs mit indítani */
   getSuggest?: () => Promise<BridgeSuggest | null>;
+  /** a mérés-őr (lásd shared/measure-guard.ts) — null, ha nincs bekapcsolva */
+  getMeasureGuard?: () => Promise<BridgeMeasureGuard | null>;
   /**
    * A MÁSODIK befelé menő út: a menet indítása a felugró lapról. Csak
    * SZIGORÍTÁS jöhet be — a bíró dönt, a bővítmény nem vehet le semmit.
@@ -334,7 +346,7 @@ export async function answer(
   // kozmetika: a bővítmény három másodperc után továbblép, a sorosan kétszer
   // lekérdezett állapot pedig ennek a duplájába is telhet, és akkor a
   // szabályok CSENDBEN nem frissülnének.
-  const [rules, focus, channels, closed, lockdown, notes, partner, keywords, suggest] = await Promise.all([
+  const [rules, focus, channels, closed, lockdown, notes, partner, keywords, suggest, measureGuard] = await Promise.all([
     deps.getRules(),
     deps.getFocus ? deps.getFocus() : Promise.resolve({ running: false }),
     deps.getChannels ? deps.getChannels() : Promise.resolve([]),
@@ -344,6 +356,7 @@ export async function answer(
     deps.getPartner ? deps.getPartner() : Promise.resolve(null),
     deps.getKeywords ? deps.getKeywords() : Promise.resolve([]),
     deps.getSuggest ? deps.getSuggest() : Promise.resolve(null),
+    deps.getMeasureGuard ? deps.getMeasureGuard() : Promise.resolve(null),
   ]);
   // Feljegyezzük, hogy VOLT lehúzás. Enélkül az app csak azt tudja, hogy a híd
   // FUT — azt nem, hogy beszél-e vele bárki. A kettő között pedig ott a
@@ -352,7 +365,9 @@ export async function answer(
   deps.notePull?.();
   return {
     status: 200,
-    body: { protocol: BRIDGE_PROTOCOL, rules, focus, channels, closed, lockdown, notes, partner, keywords, suggest },
+    body: {
+      protocol: BRIDGE_PROTOCOL, rules, focus, channels, closed, lockdown, notes, partner, keywords, suggest, measureGuard,
+    },
   };
 }
 

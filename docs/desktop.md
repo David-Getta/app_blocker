@@ -102,6 +102,10 @@ fájlban zárva vannak, amíg vissza nem jön.
   ezt is lefedi.
 - **Helyi beállítás**, nem szinkronizál: a mérés is ezen a gépen fut. A
   telefonokon a mérés a szűrő szolgáltatásában jár, ott ilyen rés nincs.
+- **A böngésző megmondja, miért.** A DNS-zárás a böngészőben csupasz
+  névfeloldási hibát adna. Ezért a híd leküldi az őrzött hosztokat, és ha az
+  app három percnél régebben szólt, a bővítmény tiltó lapja ezekre kimondja:
+  a Breaker most nem mér, és az app elindítása nyitja (ha a keretből maradt).
 
 Őszinte korlátok:
 

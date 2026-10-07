@@ -762,6 +762,30 @@ async function main() {
     } else {
       check(false, 'zárlat alatt az app szabályának lapja sem ígér próbatételt');
     }
+
+    // A MÉRÉS-ŐR: ha az app elhallgatott, a segéd a keretes oldalakat a
+    // hosts-ban zárja — a lap megmondja, miért, és mi nyitja (az app
+    // elindítása), a DNS csupasz hibaoldala helyett. Friss app-szónál a mérés
+    // fut: nincs mit mondani.
+    const seedGuard = (measureGuard, fetchedAt) => seeder.evaluate(
+      (arg) => chrome.storage.local.set({
+        'breaker.applink': { ...arg.link, closed: [], measureGuard: arg.measureGuard, fetchedAt: arg.fetchedAt },
+      }),
+      { link: LINK, measureGuard, fetchedAt },
+    );
+    await seedGuard({ hosts: ['127.0.0.1'] }, Date.now() - 10 * 60_000);
+    await page.goto(`${base}/?orzott=1`).catch(() => { /* a navigációt elkapja a tiltás */ });
+    const guardBlocked = await waitForBrowserUrl(page, context, /blocked\.html\?.*closedReason=nomeasure/, WAIT_MS);
+    check(!!guardBlocked, 'app nélkül a mérés-őr keretes oldala tiltó lapra fut, okkal');
+    if (guardBlocked && /blocked\.html/.test(page.url())) {
+      const text = await bodyText(page);
+      check(text.includes('A Breaker most nem mér') && text.includes('Indítsd el a Breakert'),
+        'a tiltó lap megmondja, hogy a mérés-őr zár, és hogy az app elindítása nyitja');
+    }
+    await seedGuard({ hosts: ['127.0.0.1'] }, Date.now());
+    await page.goto(`${base}/`);
+    await page.waitForTimeout(1200);
+    check((await browserUrl(page, context)) === `${base}/`, 'friss app-szónál a mérés-őr nem tilt');
   } finally {
     await context.close().catch(() => {});
     server.close();

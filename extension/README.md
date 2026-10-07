@@ -166,7 +166,12 @@ valamit, amit a felhasználó nem tiltott le.
    MAGYARÁZAT, nem érvényesítés — a tiltást a DNS tartja, bővítmény nélkül is.
    És csak friss adatból beszél: ha az app nem elérhető, vagy a bejegyzés
    ideje lejárt, a lap inkább hallgat, mint hogy zárva-t mondjon egy már
-   kinyílt oldalra.
+   kinyílt oldalra. Egy kivétellel: a **mérés-őr** (ha bekapcsoltad) épp az app
+   hallgatásakor zár — a keretes oldalakat a segéd a hosts-ban zárja, amíg a
+   Breaker nem fut. Az app ezért leküldi az őrzött hosztokat
+   (`measureGuard`), és ha három percnél régebben szólt (ugyanannyi, mint a
+   segéd türelmi ideje), a lap ezekre megmondja, miért zárva, és hogy az app
+   elindítása nyitja (`measureGuardFor`).
 
 6. **Zárlat alatt nem ígér feloldást.** Minden tiltó lap lába alapból azt
    mondja, merre van a lazítás útja az appban (feloldás, a menet leállítása,

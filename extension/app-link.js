@@ -82,6 +82,28 @@ const MAX_FOCUS_WINDOWS = 64;
 const MAX_LOCKDOWN_WINDOWS = 64;
 
 /**
+ * Ennyi csend után számít az app távollévőnek a MÉRÉS-ŐR szempontjából —
+ * ugyanannyi, mint a segédben (APP_GRACE_MS, shared/measure-guard.ts): a lap
+ * akkor mondja, hogy zárva, amikor a segéd is zár.
+ */
+export const MEASURE_GUARD_SILENT_MS = 3 * 60 * 1000;
+/** Ennél több őrzött hosztnév nem tárolódik (az app is ennyit küld). */
+const MAX_GUARD_HOSTS = 2000;
+
+/**
+ * A mérés-őr a hídról: { hosts } — vagy null, ha nincs bekapcsolva. Régi app
+ * válaszában nincs: az nem hiba, nincs őr (a lap akkor nem magyaráz).
+ */
+function cleanMeasureGuard(raw) {
+  if (!raw || typeof raw !== 'object' || !Array.isArray(raw.hosts)) return null;
+  const hosts = [...new Set(raw.hosts
+    .filter((h) => typeof h === 'string')
+    .map((h) => h.trim().toLowerCase().replace(/\.+$/, ''))
+    .filter((h) => h && h.length <= 253))].slice(0, MAX_GUARD_HOSTS);
+  return { hosts };
+}
+
+/**
  * Friss-e az app szava: az utolsó sikeres lehúzás legfeljebb FOCUS_FRESH_MS
  * régi. Amíg igen, az app élő állapota dönt a munkamenetről és a zárlatról;
  * utána a tárolt heti ablakok is élnek.
@@ -236,6 +258,8 @@ export async function loadLink() {
     // frissessége számít, ezért a döntés nem innen, hanem a `closedFor`-ból jön.
     closed: cleanClosed(raw.closed),
     lockdown: cleanLockdown(raw.lockdown),
+    // A mérés-őr: ha az app elhallgat, ezek a hosztok zárva (lásd `measureGuardFor`).
+    measureGuard: cleanMeasureGuard(raw.measureGuard),
     notes: cleanNotes(raw.notes),
     partner: cleanPartner(raw.partner),
     // A kulcsszavak — a mag szűrőjén át, mint minden más.
@@ -397,11 +421,14 @@ export async function pullFromApp(now = Date.now(), fetchImpl = fetch, timeoutMs
     const keywords = cleanKeywords(body?.keywords);
     // A javasolt csomag — régi app válaszában nincs, az sem hiba: nincs gomb.
     const suggest = cleanSuggest(body?.suggest);
+    // A mérés-őr — régi app válaszában nincs, az sem hiba: nincs őr.
+    const measureGuard = cleanMeasureGuard(body?.measureGuard);
     // Az ÜRES lista is válasz: azt jelenti, hogy az appban levették az összeset.
     // Csak akkor fogadjuk el, ha a kérés tényleg sikerült — ha nem érjük el az
     // appot, a régi lista marad érvényben.
     await saveLink({
-      ...link, port, rules, focus, channels, closed, lockdown, notes, partner, keywords, suggest, fetchedAt: now, error: null,
+      ...link, port, rules, focus, channels, closed, lockdown, notes, partner, keywords, suggest, measureGuard,
+      fetchedAt: now, error: null,
     });
     return { ok: true, rules, focus, channels, closed, lockdown, notes, partner, keywords, suggest };
   }
@@ -592,6 +619,21 @@ export function closedFor(link, host, now = Date.now()) {
     return c;
   }
   return null;
+}
+
+/**
+ * Zárva tartja-e MOST a mérés-őr ezt a hosztot: be van kapcsolva, a hoszt a
+ * keretes oldalaké, és az app régebben szólt, mint a türelmi idő — vagyis a
+ * segéd is zárja. Ilyenkor a lap megmondja, miért (és hogy mi nyitja: az app
+ * elindítása), a DNS csupasz hibaoldala helyett. Amíg az app friss, nincs mit
+ * mondani: a mérés fut.
+ */
+export function measureGuardFor(link, host, now = Date.now()) {
+  const h = String(host ?? '').trim().toLowerCase().replace(/\.+$/, '');
+  if (!h || !link?.measureGuard) return false;
+  const last = Number.isFinite(link.fetchedAt) ? link.fetchedAt : 0;
+  if (now - last <= MEASURE_GUARD_SILENT_MS) return false;
+  return link.measureGuard.hosts.includes(h);
 }
 
 /**
