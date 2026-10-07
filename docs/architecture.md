@@ -513,14 +513,20 @@ Ismert megkerülési utak (szándékosan nem próbáljuk „lelakatolni” a gé
   veszi, tehát a felhasználó a böngésző beállításaiban visszakapcsolhatja.
   Rendes zárás MDM/konfigurációs profilt igényelne. Ezért a felület csak annyit
   állít, hogy a házirendet alkalmaztuk — nem azt, hogy a DoH nem kapcsolható be.
-- **A telepítő átmeneti fájljai.** A privilegizált telepítés egy shell-, illetve
-  PowerShell-szkriptet és egy plistet ír a felhasználó temp könyvtárába, és azt
-  futtatja emelt joggal. A név mostantól véletlen, a könyvtár 0700 — előre
-  odakészített fájl tehát nem léphet a helyünkre. Ami marad: a SAJÁT
-  felhasználóként már kódot futtató támadó a kiírás és az emelt futtatás közötti
-  pillanatban elvileg átírhatja a tartalmat, és ezzel root/SYSTEM jogot szerez.
-  A teljes megoldás az volna, hogy a privilegizált rész egyáltalán ne fájlból
-  olvasson (a parancsot a parancssorban kapja meg), ez még hátravan.
+- **A telepítő emelt része nem fájlból olvas** (v0.4.212 óta). Korábban a
+  privilegizált telepítés egy shell-, illetve PowerShell-szkriptet és egy
+  plistet írt a felhasználó temp könyvtárába, és azt futtatta emelt joggal; a
+  SAJÁT felhasználóként már kódot futtató támadó a kiírás és az emelt futtatás
+  közötti pillanatban kicserélhette a tartalmat — root/SYSTEM jogért. Most a
+  teljes parancs az emelt folyamat parancssorában megy, az pedig indítás után
+  nem írható át: macOS-en `do shell script "…" with administrator privileges`,
+  a plist base64-ben a parancsban (a gyökér-héj maga írja a helyére);
+  Windowson `powershell -EncodedCommand` (`src/shared/install-script.ts`, a
+  tesztek a parancsból visszafejtik, amit írni akartunk, és a telepítő
+  forrásában ideiglenes fájlt sem engednek). Ami marad, az a saját
+  felhasználóként futó támadó általános ereje: az app helyett ő is kérhet
+  rendszergazdai jóváhagyást — ez ellen a jelszókérő ablak szövege véd, nem a
+  kód.
 - **Más gyártó appját nem rontjuk el a szigor kedvéért.** A Firefox
   policies.json-t macOS-en az app bundle-jébe kellene tenni, ami érvényteleníti
   a Firefox aláírását, és a saját frissítőjét is elronthatja. Ezt nem tesszük:
