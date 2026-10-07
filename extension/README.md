@@ -43,8 +43,9 @@ a könyv nem nő tőle. Gépelés közben nem zár: ha az utolsó két percben �
 lapon, egy sáv szól, és a gépelés-csend után zárul (legfeljebb tíz perc).
 
 **A zárás előtt is szól.** Ha a lap még nyitva van, de az utolsó két percben
-jár — a szünete véget ér, a menetrend szerint zárul, vagy a mai keretből
-ennyi maradt —, a tetején egy sáv mondja, mennyi van hátra („A szünet 2 perc
+jár — a szünete véget ér, a menetrend szerint zárul, a mai keretből ennyi
+maradt, vagy az adagból (ennyi használat után szünet; egy rövid adagnál a
+fele a küszöb) —, a tetején egy sáv mondja, mennyi van hátra („A szünet 2 perc
 múlva véget ér — utána ez az oldal újra zárva.”). Az app a hídon adja le a
 közelgő zárásokat (`soon`), a háttér az újranézés válaszába teszi, a lap csak
 kimondja. Bezárható, és ugyanarra a zárásra nem jön vissza — a bezárás a

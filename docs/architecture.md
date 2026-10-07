@@ -453,7 +453,8 @@ nélkül — egy weboldal nem éri el, a bővítmény a `host_permissions` jogá
 Kifelé (`GET /rules`) a szabályok, a futó menet, a csatorna-szűrők, a zárva-lista,
 a zárlat, az indokok, a megbízott, a kulcsszavak, a javasolt csomag és a
 közelgő zárások (`soon`: a szünet vége, a menetrend szerinti zárás, a napi
-keretből hátralévő idő — a lap ebből szól előre az utolsó két percben) mennek.
+keretből és az adagból hátralévő idő — a lap ebből szól előre az utolsó két
+percben) mennek.
 Befelé négy út van, és mind a lazítás irányában zárt: a megakadás-könyv
 (`POST /hits` — könyvelés, bíró nélkül), a menet indítása a felugró lapról
 (`POST /focus_start` — szigorítás; a segéd bírója dönt, ugyanúgy, mint az app

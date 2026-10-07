@@ -23,6 +23,7 @@ import {
 } from '../shared/focus';
 import { isPeakDayNow } from '../shared/browser-hits';
 import { limitRemaining, limitSoonLine } from '../shared/limits';
+import { normalizeBurst } from '../shared/burst';
 import { nextCloseAt } from '../shared/schedule';
 import { displayName } from '../shared/alias';
 import * as path from 'path';
@@ -627,6 +628,16 @@ if (HELPER_MODE) {
             }
             const left = limitRemaining(site.dailyLimitSeconds, site.usedTodaySeconds);
             if (left !== null && left > 0 && left * 1000 <= SOON_HORIZON_MS) push({ kind: 'limit', left });
+            // Az ADAG: ennyi használat után szünet — a hátralévő aktív
+            // másodpercek, mint a keretnél (a hűtés alatt az oldal már zárva,
+            // a fenti `blockedNow` kiveszi).
+            const rule = normalizeBurst(site.burstSeconds, site.cooldownSeconds);
+            if (rule) {
+              const burstLeft = rule.burstSeconds - (site.burstUsedSeconds ?? 0);
+              if (burstLeft > 0 && burstLeft * 1000 <= SOON_HORIZON_MS) {
+                push({ kind: 'burst', left: burstLeft, of: rule.burstSeconds, cool: rule.cooldownSeconds });
+              }
+            }
           }
           return out.slice(0, MAX_SOON_HOSTS);
         },

@@ -172,6 +172,9 @@ export function cleanSoon(list) {
       out.push({ host, kind: e.kind, at: e.at });
     } else if (e.kind === 'limit' && Number.isFinite(e.left) && e.left > 0) {
       out.push({ host, kind: 'limit', left: e.left });
+    } else if (e.kind === 'burst' && Number.isFinite(e.left) && e.left > 0
+      && Number.isFinite(e.of) && e.of > 0 && Number.isFinite(e.cool) && e.cool > 0) {
+      out.push({ host, kind: 'burst', left: e.left, of: e.of, cool: e.cool });
     }
     if (out.length >= MAX_SOON) break;
   }
@@ -190,7 +193,12 @@ export function cleanSoon(list) {
  *
  * Az `id` a zárás azonosítója (fajta és időpont): a lap ebből tudja, hogy a
  * bezárt sáv UGYANARRÓL a zárásról szólna-e. A meghosszabbított szünet már
- * másik zárás. A keretnek nincs időpontja (aktív idő), az azonosítója a fajta.
+ * másik zárás. A keretnek és az adagnak nincs időpontja (aktív idő), az
+ * azonosítójuk a fajta.
+ *
+ * Az ADAG (ennyi használat után szünet) ugyanígy aktív idő; a küszöbe az
+ * utolsó két perc, de legfeljebb az adag fele, és a sáv a szünet hosszát is
+ * kimondja (`cool`, másodperc).
  */
 export function closingSoonFor(link, host, now = Date.now()) {
   const h = String(host ?? '').trim().toLowerCase().replace(/\.+$/, '');
@@ -199,10 +207,14 @@ export function closingSoonFor(link, host, now = Date.now()) {
   let best = null;
   for (const e of link.soon ?? []) {
     if (e.host !== h) continue;
-    const leftMs = e.kind === 'limit' ? e.left * 1000 - since : e.at - now;
-    if (!(leftMs > 0) || leftMs > SOON_BANNER_MS) continue;
+    const active = e.kind === 'limit' || e.kind === 'burst';
+    const leftMs = active ? e.left * 1000 - since : e.at - now;
+    // Az ADAG küszöbe legfeljebb a fele: egy kétperces adag ne az elejétől szóljon.
+    const horizon = e.kind === 'burst' ? Math.min(SOON_BANNER_MS, (e.of * 1000) / 2) : SOON_BANNER_MS;
+    if (!(leftMs > 0) || leftMs > horizon) continue;
     if (best === null || leftMs < best.leftMs) {
-      best = { kind: e.kind, leftMs, id: e.kind === 'limit' ? 'limit' : `${e.kind}@${e.at}` };
+      best = { kind: e.kind, leftMs, id: active ? e.kind : `${e.kind}@${e.at}` };
+      if (e.kind === 'burst') best.cool = e.cool;
     }
   }
   return best;

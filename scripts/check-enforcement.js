@@ -3740,6 +3740,18 @@ const WIRES = [
     needle: 'showSoonBanner(r.soon);',
     lost: 'a lap nem tenné ki a zárás előtti sávot',
   },
+  // Az ADAG is szól előre: az app leadja a hátralévő aktív másodperceket, a
+  // bővítmény a sávban kimondja (a szünet hosszával).
+  {
+    file: 'desktop/src/main/main.ts',
+    needle: "push({ kind: 'burst', left: burstLeft, of: rule.burstSeconds, cool: rule.cooldownSeconds });",
+    lost: 'az app nem mondaná meg a bővítménynek, mikor telik be egy adag — a lap figyelmeztetés nélkül zárulna',
+  },
+  {
+    file: 'extension/app-link.js',
+    needle: "} else if (e.kind === 'burst' && Number.isFinite(e.left) && e.left > 0",
+    lost: 'a bővítmény eldobná az adag jelét, és a sáv nem szólna',
+  },
   // A bezárás a ZÁRÁSRA szól, nem a fajtára: a × a sávon MOST álló zárást
   // jegyzi, és ha a háttér már nem mond semmit, a bezárás elévül — különben
   // egy bezárt keret-sáv után a lap élete végéig nem jönne több.

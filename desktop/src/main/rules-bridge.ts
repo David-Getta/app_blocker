@@ -73,9 +73,13 @@ export interface BridgeClosed {
  */
 export interface BridgeSoon {
   host: string;
-  kind: 'pause' | 'schedule' | 'limit';
+  kind: 'pause' | 'schedule' | 'limit' | 'burst';
   at?: number;
   left?: number;
+  /** az adag hossza (mp) — a lap küszöbe legfeljebb a fele, hogy egy rövid adag ne az elejétől szóljon */
+  of?: number;
+  /** a szünet hossza az adag után (mp) — a lap kimondja */
+  cool?: number;
 }
 
 /** Ennyin belüli zárásról megy le jel: a sáv úgyis csak az utolsó percekben szól. */

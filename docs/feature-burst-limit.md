@@ -36,6 +36,13 @@ odapillantás belefér, a belefeledkezés nem.
   engedett.
 - A sorban futó mérce mutatja, mennyi van még az adagból, hűtés alatt pedig
   azt, mikor nyílik ki magától.
+- **A böngésző lapja előre szól**, mielőtt az adag betelik: a tetején egy
+  sáv mondja, hogy az adagból ezen az oldalon kevesebb mint ennyi perc
+  maradt, és utána mennyi a szünet. A küszöb az utolsó két perc, de
+  legfeljebb az adag fele — egy kétperces adag ne az elejétől szóljon. Az
+  app a hídon a hátralévő aktív másodperceket adja le (`soon`, `burst`
+  fajta), mint a napi keretnél; a bővítmény a lehúzás óta eltelt időt
+  levonja. Bezárható, és ugyanarra nem jön vissza.
 
 ## Súrlódás — ugyanaz az irány, mint mindenhol
 

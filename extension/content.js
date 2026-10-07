@@ -113,8 +113,10 @@ const SOON_WORDS = {
   pause: (n) => `A szünet ${n} perc múlva véget ér — utána ez az oldal újra zárva. Mentsd el, amit írsz.`,
   schedule: (n) => `A menetrend szerint ez az oldal ${n} perc múlva zárul. Mentsd el, amit írsz.`,
   limit: (n) => `A mai keretből ezen az oldalon kevesebb mint ${n} perc maradt. Mentsd el, amit írsz.`,
-  focus: (n, name) => `Munkamenet indul ${n} perc múlva${name ? ` (${name})` : ''} — ez az oldal nincs benne, `
+  focus: (n, soon) => `Munkamenet indul ${n} perc múlva${soon.name ? ` (${soon.name})` : ''} — ez az oldal nincs benne, `
     + 'akkor zárul. Mentsd el, amit írsz.',
+  burst: (n, soon) => `Az adagból ezen az oldalon kevesebb mint ${n} perc maradt — utána `
+    + `${Math.max(1, Math.round(soon.cool / 60))} perc szünet. Mentsd el, amit írsz.`,
 };
 let soonBanner = null;
 let soonText = null;
@@ -134,7 +136,10 @@ function showSoonBanner(soon) {
   // A bezárt zárás: a sáv nem áll ott — egy másik fajta elavult szövege sem.
   if (soonDismissed === key) return hideSoonBanner();
   soonShown = key;
-  const text = words(Math.max(1, Math.ceil(soon.leftMs / 60_000)), typeof soon.name === 'string' ? soon.name : '');
+  const text = words(Math.max(1, Math.ceil(soon.leftMs / 60_000)), {
+    name: typeof soon.name === 'string' ? soon.name : '',
+    cool: Number.isFinite(soon.cool) && soon.cool > 0 ? soon.cool : 60,
+  });
   if (soonBanner) {
     soonText.textContent = text;
     return;

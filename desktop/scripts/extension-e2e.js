@@ -887,6 +887,16 @@ async function main() {
     check(typeof limitText === 'string' && limitText.includes('A mai keretből'),
       `a keret vége előtt is szól a sáv (${limitText})`);
     await seedSoon([]);
+    // Az adag (ennyi használat után szünet) is: a szünet hosszával.
+    await page.waitForFunction(() => !document.getElementById('breaker-soon'), undefined, { timeout: WAIT_MS }).catch(() => null);
+    await seedSoon([{ host: '127.0.0.1', kind: 'burst', left: 50, of: 120, cool: 600 }]);
+    const burstText = await page.waitForFunction(
+      () => document.getElementById('breaker-soon')?.shadowRoot?.textContent || null,
+      undefined, { timeout: WAIT_MS },
+    ).then((h) => h.jsonValue()).catch(() => null);
+    check(typeof burstText === 'string' && burstText.includes('Az adagból') && burstText.includes('10 perc szünet'),
+      `az adag betelte előtt is szól a sáv, a szünet hosszával (${burstText})`);
+    await seedSoon([]);
     // A heti ablakos menet indulása előtt is: a lap nincs a csomagban, akkor zárul.
     await page.goto(`${base}/`);
     await page.bringToFront();

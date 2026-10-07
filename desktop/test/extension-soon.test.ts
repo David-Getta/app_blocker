@@ -25,8 +25,9 @@ function loadSoon(): {
   MAX_SOON: number;
   SOON_BANNER_MS: number;
   FOCUS_FRESH_MS: number;
-  cleanSoon: (list: unknown) => { host: string; kind: string; at?: number; left?: number }[];
-  closingSoonFor: (link: unknown, host: unknown, now?: number) => { kind: string; leftMs: number; id: string } | null;
+  cleanSoon: (list: unknown) => { host: string; kind: string; at?: number; left?: number; of?: number; cool?: number }[];
+  closingSoonFor: (link: unknown, host: unknown, now?: number) =>
+    { kind: string; leftMs: number; id: string; cool?: number } | null;
   focusStartingSoonFor: (link: unknown, host: unknown, now?: number) =>
     { kind: string; leftMs: number; name: string; id: string } | null;
 } {
@@ -160,4 +161,28 @@ test('a zárás azonosítója: fajta és időpont — a meghosszabbított szüne
   assert.notEqual(a?.id, c?.id, 'más fajta, más zárás');
   // A keretnek nincs időpontja (aktív idő): az azonosítója a fajta.
   assert.equal(closingSoonFor(link([{ host: 'youtube.com', kind: 'limit', left: 60 }]), 'youtube.com', NOW)?.id, 'limit');
+});
+
+test('az adag (ennyi használat után szünet): aktív idő, a küszöb legfeljebb a fele', () => {
+  // Tisztítás: hossz és szünet nélkül nem adag.
+  assert.deepEqual(cleanSoon([
+    { host: 'gemini.google.com', kind: 'burst', left: 50, of: 120, cool: 600 },
+    { host: 'a.com', kind: 'burst', left: 50, of: 120 },              // szünet nélkül
+    { host: 'b.com', kind: 'burst', left: 50, cool: 600 },            // hossz nélkül
+    { host: 'c.com', kind: 'burst', left: 0, of: 120, cool: 600 },    // elfogyott
+  ]), [{ host: 'gemini.google.com', kind: 'burst', left: 50, of: 120, cool: 600 }]);
+  // Kétperces adag: a küszöb a fele, egy perc — 90 mp hátra még csend, 50 mp már szól.
+  const at = (left: number, of = 120) => link([{ host: 'gemini.google.com', kind: 'burst', left, of, cool: 600 }], NOW);
+  assert.equal(closingSoonFor(at(90), 'gemini.google.com', NOW), null, 'egy rövid adag ne az elejétől szóljon');
+  assert.deepEqual(closingSoonFor(at(50), 'gemini.google.com', NOW),
+    { kind: 'burst', leftMs: 50_000, id: 'burst', cool: 600 });
+  // Hosszú adagnál az utolsó két perc a küszöb.
+  assert.equal(closingSoonFor(at(150, 1800), 'gemini.google.com', NOW), null);
+  assert.equal(closingSoonFor(at(110, 1800), 'gemini.google.com', NOW)?.kind, 'burst');
+  // A keret és az adag közül a közelebbi nyer.
+  const both = link([
+    { host: 'gemini.google.com', kind: 'limit', left: 100 },
+    { host: 'gemini.google.com', kind: 'burst', left: 40, of: 300, cool: 600 },
+  ], NOW);
+  assert.equal(closingSoonFor(both, 'gemini.google.com', NOW)?.kind, 'burst');
 });
