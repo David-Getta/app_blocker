@@ -8,6 +8,7 @@ kettővel korábbiban.
 
 | Verzió | Nap | Mi újság |
 |---|---|---|
+| v0.4.226 | 2026-10-07 | adag-sáv, óraátállítás, Android időmező |
 | v0.4.225 | 2026-10-07 | pontosabb előjelzések, négy javítás |
 | v0.4.224 | 2026-10-07 | a heti ablakos menet előtt tíz perccel értesítés |
 | v0.4.223 | 2026-10-07 | a lap a munkamenet indulása előtt is szól |
