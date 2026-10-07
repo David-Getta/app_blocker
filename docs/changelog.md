@@ -8,6 +8,7 @@ kettővel korábbiban.
 
 | Verzió | Nap | Mi újság |
 |---|---|---|
+| v0.4.224 | 2026-10-07 | a heti ablakos menet előtt tíz perccel értesítés |
 | v0.4.223 | 2026-10-07 | a lap a munkamenet indulása előtt is szól |
 | v0.4.222 | 2026-10-07 | a böngésző lapja is előre szól a zárás előtt |
 | v0.4.221 | 2026-10-07 | a napi keret vége is előre szól |
