@@ -487,6 +487,15 @@ class FocusTest {
         assertEquals("", Focus.streakText(0, 1), "egy nap rekordnak sem sorozat")
     }
 
+    @Test fun `a friss menet - az elso ket perc, visszaugro oran nem`() {
+        val run = Focus.FocusRun("p1", 1_800_000_000_000L, 1_800_000_000_000L + 50 * 60_000L)
+        assertEquals(true, Focus.isFreshRun(run, run.startedAt), "az indulás pillanata")
+        assertEquals(true, Focus.isFreshRun(run, run.startedAt + Focus.FRESH_RUN_NOTE_MS - 1))
+        assertEquals(false, Focus.isFreshRun(run, run.startedAt + Focus.FRESH_RUN_NOTE_MS), "két perc után csend")
+        assertEquals(false, Focus.isFreshRun(run, run.startedAt - 1), "visszaugró óra: nem")
+        assertEquals(false, Focus.isFreshRun(null, run.startedAt), "menet nélkül: nem")
+    }
+
     @Test fun `amikor a csucs-nap a menet-nap - a mondat, mas napon nincs`() {
         assertEquals("A csúcs-nap és a menet-nap ugyanaz: kedd — a kéz azon a napon csúszik, amelyiken le szoktál ülni.", Focus.sameDayText(2 to 14, 2 to 6))
         assertEquals(null, Focus.sameDayText(0 to 14, 2 to 6), "más nap: nincs")

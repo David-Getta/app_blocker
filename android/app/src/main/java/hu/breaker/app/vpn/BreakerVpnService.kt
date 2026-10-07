@@ -182,6 +182,10 @@ class BreakerVpnService : VpnService() {
             text = getString(
                 if (Focus.isWindowRun(run, st.focusPacks)) R.string.vpn_focus_window_text else R.string.vpn_focus_text,
                 Focus.formatRemaining(run.endsAt - now),
+            ) + (
+                // A DÖNTÉS PILLANATÁBAN (az első két percben): ami már nyitva volt,
+                // egy darabig még mehet — a szűrő az új névfeloldásokat látja.
+                if (Focus.isFreshRun(run, now)) " " + getString(R.string.vpn_focus_fresh_note) else ""
             )
         } else if (lock != null) {
             // A zárlat alatt a sáv mondja meg, miért nincs lazítás — és meddig. Az
@@ -231,6 +235,9 @@ class BreakerVpnService : VpnService() {
             .setSmallIcon(android.R.drawable.ic_lock_lock)
             .setContentTitle(title)
             .setContentText(textWithHits)
+            // Kibontható: a sor a tükör szavaival együtt hosszabb egy sornál —
+            // összecsukva levágódna, kibontva végig olvasható.
+            .setStyle(Notification.BigTextStyle().bigText(textWithHits))
             .setContentIntent(pi)
             .setOngoing(true)
             .build()
@@ -277,7 +284,9 @@ class BreakerVpnService : VpnService() {
             "${FilterHitLogic.isPeakNow(FilterHitLogic.peakHour(st.filterHitHours, now), now)}:" +
             "${FilterHitLogic.isPeakDayNow(FilterHitLogic.peakWeekday(FilterHitLogic.byWeekday(st.filterHits, now)), now)}:"
         val key = strictKey + lockKey + hitsKey + if (run != null) {
-            "${run.packId}:${Focus.formatRemaining(run.endsAt - now)}"
+            // A friss menet jele is a kulcs része: a két perc leteltével a
+            // fél mondat eltűnik — akkor is, ha a hátralévő perc épp nem vált.
+            "${run.packId}:${Focus.formatRemaining(run.endsAt - now)}:${Focus.isFreshRun(run, now)}"
         } else {
             // A hűtés is a kulcs része: induláskor, percváltásnál és lejáratkor
             // átrajzolunk — közben nem.

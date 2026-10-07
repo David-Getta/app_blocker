@@ -114,6 +114,9 @@ Részletek: [`feature-uninstall-guard.md`](feature-uninstall-guard.md).
   névfeloldást nem kér. Kilőni nem tudjuk: a VPN csak a DNS-t látja, a forgalom
   többi része mellette megy (egy teljes forgalom-átvevő VPN sokkal nagyobb
   beavatkozás lenne). Az app bezárása és újranyitása érvényesíti a tiltást.
+  A döntés pillanatában ezt a sáv is kimondja: a menet első két percében a
+  tartós értesítés egy fél mondattal szól (`Focus.isFreshRun`), utána
+  csendben marad. A sáv kibontható, így a hosszabb sora is végig olvasható.
 
 ## A közös mag tesztelése JVM-en
 A `core/ChallengeEngine.kt`, `core/Blocklist.kt` és a `vpn/DnsEngine.kt` tiszta

@@ -77,6 +77,17 @@ object Focus {
     fun remainingMs(run: FocusRun?, now: Long): Long =
         if (isRunning(run, now)) run!!.endsAt - now else 0L
 
+    /**
+     * A menet első két perce: a döntés pillanata. A telefon szűrője a
+     * névfeloldásokat látja — ami már nyitva volt (egy szóló videó), egy
+     * darabig még mehet. A sáv ilyenkor ezt kimondja, utána csendben marad.
+     */
+    const val FRESH_RUN_NOTE_MS = 2 * 60_000L
+
+    /** Friss-e a menet (az indulása óta nem telt el két perc). Visszaugró órán nem. */
+    fun isFreshRun(run: FocusRun?, now: Long): Boolean =
+        run != null && now >= run.startedAt && now - run.startedAt < FRESH_RUN_NOTE_MS
+
     /** Percek -> használható hossz, vagy null. */
     fun normalizeMinutes(value: Double?): Int? {
         if (value == null || !value.isFinite()) return null
