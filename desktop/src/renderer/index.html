@@ -388,6 +388,19 @@
         végpontig titkosítva — a kiszolgáló nem látja. Telemetria sehol nincs.
       </p>
 
+      <!--
+        MÉRÉS-ŐR: ha az app nem fut, a keretes és adagos oldalak zárva. A
+        kilépés különben ingyen kikapcsolná a keretet (a mérés az appban fut).
+        Csak akkor látszik, ha van mit őriznie — vagy be van kapcsolva.
+      -->
+      <div id="measureGuard" class="hidden">
+        <p class="hint" id="measureGuardText"></p>
+        <div class="sync-actions">
+          <button id="measureGuardBtn" class="btn btn-small"></button>
+        </div>
+        <p id="measureGuardError" class="error hidden"></p>
+      </div>
+
       <div id="usageOff" class="hint hidden">A mérés jelenleg ki van kapcsolva.</div>
       <div id="usageBlocked" class="error hidden"></div>
 

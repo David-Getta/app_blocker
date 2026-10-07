@@ -35,6 +35,7 @@ import {
   acceleratorFromKeyEvent, DEFAULT_OVERLAY_SHORTCUT, rejectText, shortcutLabel,
 } from '../shared/shortcut.js';
 import { limitFullLine, limitSoonLine, MAX_LIMIT_MINUTES } from '../shared/limits.js';
+import { needsMeasurement } from '../shared/measure-guard.js';
 import {
   formatRemaining, isRunning as focusIsRunning, isWindowRun, MAX_ALLOW_ENTRIES, MAX_PACK_NAME,
   MAX_SESSION_MINUTES, nextOccurrence, SESSION_CHOICES_MIN, windowRunStarted, type FocusPack, type FocusRun, peakWindowBand,
@@ -3687,6 +3688,12 @@ function renderSession(session: SessionInfo | null): void {
     $('sessionSubtitle').textContent =
       'A megbízott addig MARAD, amíg a próbák meg nincsenek — és az utolsó lépés az ő '
       + 'jelmondata, tehát a levételhez ő is kell.';
+  } else if (session.siteId === 'measure') {
+    // A mérés-őr kikapcsolása: addig MARAD, a kilépés addig zárja a keretes oldalakat.
+    $('sessionTitle').textContent = 'A mérés-őr kikapcsolása';
+    $('sessionSubtitle').textContent =
+      'A mérés-őr addig MARAD, amíg a próbák meg nincsenek — amíg él, a kilépés a '
+      + 'keretes oldalakat is bezárja. Utána a kilépés újra megállítja a keretet.';
   } else if (session.siteId === 'keywords') {
     // Kulcsszó levétele: a lista addig marad, a bővítmény addig tilt.
     $('sessionTitle').textContent = 'Kulcsszó levétele';
@@ -4706,6 +4713,7 @@ function renderStats(): void {
 
   const enabled = status?.usageEnabled ?? s.enabled;
   $<HTMLButtonElement>('usageToggle').textContent = enabled ? 'Mérés kikapcsolása' : 'Mérés bekapcsolása';
+  renderMeasureGuard();
   $('usageOff').classList.toggle('hidden', enabled);
   renderProbeWarning(enabled);
   $('statsBody').classList.toggle('hidden', !enabled && s.daysTracked === 0);
@@ -4913,7 +4921,49 @@ function diagnosticsText(): string {
   ].join('\n');
 }
 
+/**
+ * A MÉRÉS-ŐR sora (lásd shared/measure-guard.ts): ha az app nem fut, a
+ * keretes és adagos oldalak zárva. Csak akkor látszik, ha van mit őriznie,
+ * vagy be van kapcsolva — keret nélkül egy ilyen kapcsoló csak zaj volna.
+ */
+function renderMeasureGuard(): void {
+  const box = $('measureGuard');
+  const on = status?.requireMeasurement === true;
+  const covered = (status?.sites ?? []).filter((x) => needsMeasurement(x)).length;
+  box.classList.toggle('hidden', !on && covered === 0);
+  if (!on && covered === 0) return;
+  const what = covered === 0
+    ? 'most egy oldalon sincs napi keret vagy adag'
+    : `most ${covered} oldalon van napi keret vagy adag`;
+  $('measureGuardText').textContent = on
+    ? `Mérés-őr bekapcsolva: ha a Breaker nem fut — kiléptél belőle, vagy nem indult el —, a napi `
+      + `kerettel vagy adaggal védett oldal zárva van, amíg az app vissza nem jön (${what}). `
+      + 'A kifizetett feloldás ezt is felülírja. Kikapcsolni próbatétellel lehet.'
+    : 'A napi keret és az adag a mért időből fogy, a mérés pedig az appban fut: ha kilépsz a '
+      + 'Breakerből, a keret nem fogy, amíg újra nem indul. A mérés-őr ezt a rést is bezárja — ha '
+      + `az app nem fut, a keretes oldalak zárva (${what}). Bekapcsolni ingyen, kikapcsolni próbatétel.`;
+  $<HTMLButtonElement>('measureGuardBtn').textContent = on ? 'Mérés-őr kikapcsolása…' : 'Mérés-őr bekapcsolása';
+}
+
 function setupStats(): void {
+  $('measureGuardBtn').addEventListener('click', async () => {
+    const err = $('measureGuardError');
+    err.classList.add('hidden');
+    try {
+      // A segéd dönt: bekapcsolni ingyen, kikapcsolni próbatétel — utóbbinál a
+      // státuszban jön a kísérlet, és a szokásos próbatétel-lap nyílik.
+      const r = await call<SetRuleResult & { status: StatusData }>('set_require_measurement', {
+        on: status?.requireMeasurement !== true,
+      });
+      status = r.status;
+      render();
+      renderMeasureGuard();
+      if (!r.applied && r.session) openModal(r.session); // lazítás -> próbatétel
+    } catch (e) {
+      err.textContent = (e as Error).message;
+      err.classList.remove('hidden');
+    }
+  });
   $('usageToggle').addEventListener('click', async () => {
     const enabled = status?.usageEnabled ?? true;
     try {

@@ -104,7 +104,10 @@ Három dolog, ami első ránézésre nem nyilvánvaló:
    nem nyitotta az appot. A v0.4.211 óta az ablak bezárása csak elrejt, és az
    app bejelentkezéskor rejtve indul (lásd [`desktop.md`](desktop.md)). Ami
    marad, az a szándékos kilépés és a rendszer indítási kapcsolója — a
-   felület a kilépés gomb alatt kimondja, hogy ilyenkor a mérés áll.
+   felület a kilépés gomb alatt kimondja, hogy ilyenkor a mérés áll. Aki ezt
+   is be akarja zárni, bekapcsolja a **mérés-őrt** (v0.4.212): ha az app nem
+   jelentkezik, a keretes és adagos oldalak zárva, amíg vissza nem jön.
+   Bekapcsolni ingyen, kikapcsolni próbatétel (lásd [`desktop.md`](desktop.md)).
 
 ## Felület
 

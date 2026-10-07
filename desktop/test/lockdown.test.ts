@@ -162,6 +162,12 @@ function looseningEntries(state: HelperState, siteId: string, packId: string, no
       state.keywords = ['shorts'];
       return referee.setKeywords(state, [], now);
     }],
+    // A mérés-őr kikapcsolása is lazítás: onnantól a kilépés megint ingyen
+    // kikapcsolná a keretet.
+    ['setRequireMeasurement', 'mérés-őr kikapcsolása', () => {
+      state.requireMeasurement = true;
+      return referee.setRequireMeasurement(state, false, now);
+    }],
     // A megbízott levétele is lazítás — a kapu ugyanaz. A rekord itt csak
     // alak: a zárlat előbb állítja meg, mint hogy a jelmondat szóba jönne.
     ['startPartnerRemoval', 'megbízott levétele', () => {

@@ -79,6 +79,39 @@ Ezért az app nem áll le, ha bezárják az ablakát (`src/shared/background.ts`
 
 Az eltávolító szkriptek (lent) az indítási bejegyzést is viszik.
 
+### Mérés-őr: a kilépés sem kapcsolja ki a keretet
+
+A kilépés és a rendszer indítási kapcsolója után is marad egy rés: amíg az app
+nem fut, a keretes oldal korlátlanul nyitva van. Aki ezt is be akarja zárni,
+a Statisztika kártyán bekapcsolja a **mérés-őrt** (`shared/measure-guard.ts`):
+ha az app nem jelentkezik, a napi kerettel vagy adaggal védett oldalak a hosts
+fájlban zárva vannak, amíg vissza nem jön.
+
+- **Honnan tudja a segéd, hogy az app fut.** Az app húsz másodpercenként
+  amúgy is kérdez (a munkamenet állapotát), a felülete még sűrűbben — a segéd
+  bármelyik kérését jelnek veszi (macOS-en a socketet csak a telepítő
+  felhasználó érheti el). Külön életjel nincs, így egy régebbi app is jelen
+  lévőnek látszik. Három perc csend után távollét.
+- **Indulás és ébredés.** A segéd indulásakor és alvásból ébredve (a körei
+  közötti nagy ugrás) újraindul a türelmi idő: a bejelentkezésnek és a
+  fedélnyitásnak nem jár bezárás.
+- **Visszatéréskor azonnal nyit**, nem a következő körben.
+- **A kifizetett feloldás felülírja**, mint minden más tiltást.
+- **Bekapcsolni ingyen, kikapcsolni próbatétel** (zárlat alatt sehogy) — a
+  bíró minden lazító útja ugyanazon a kapun megy ki, a zárlat-teszt táblája
+  ezt is lefedi.
+- **Helyi beállítás**, nem szinkronizál: a mérés is ezen a gépen fut. A
+  telefonokon a mérés a szűrő szolgáltatásában jár, ott ilyen rés nincs.
+
+Őszinte korlátok:
+
+- A mérés-őr az app JELENLÉTÉT nézi, nem a mérés minőségét. Ha az app fut, de
+  a mérés nem lát semmit (macOS-en megtagadott engedély), azt a statisztika
+  kártya külön mondja — a keret ilyenkor sem fogy, a mérés-őr pedig nem zár.
+- Egy szándékos kerülőút — egy program, ami az app helyett kérdezgeti a
+  segédet — ezt is kijátssza. A mérés-őr az impulzus ellen véd (a kilépés egy
+  kattintás), nem a megfontolt, tíz perces kerülőút ellen; ahogy a zárlat sem.
+
 ## Aláírás (ajánlott éles használatra)
 - macOS: `electron-builder.yml` → `mac.identity` (Developer ID) + notarizáció,
   különben a Gatekeeper figyelmeztet.

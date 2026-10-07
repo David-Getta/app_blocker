@@ -9,16 +9,31 @@ import {
   buildManagedBlock, extractManagedBlock, hasLegacyBlock, replaceManagedBlock, stripLegacyBlocks,
 } from '../shared/blocklist';
 import { isBlockedNowWithLimit } from '../shared/limits';
+import { closedForMissingMeasurement } from '../shared/measure-guard';
 import type { HelperState } from './state';
 import { hostsFilePath } from './paths';
 
-export function activeHostnames(state: HelperState, now: number): string[] {
+/**
+ * Jelen van-e MOST az app (a mérés). A segéd indításkor köti be a saját
+ * jelenlét-figyelőjét (lásd index.ts); amíg nem tette, jelen lévőnek
+ * vesszük — a tesztek és a régi hívók így a mérés-őr nélküli viselkedést
+ * kapják.
+ */
+let presenceProbe: () => boolean = () => true;
+export function setPresenceProbe(probe: () => boolean): void {
+  presenceProbe = probe;
+}
+
+export function activeHostnames(state: HelperState, now: number, appPresent = presenceProbe()): string[] {
   const set = new Set<string>();
+  const required = state.requireMeasurement === true;
   for (const site of state.sites) {
     // Pause, pending-delete, weekly schedule, today's budget AND the burst
-    // cooldown, in one decision.
+    // cooldown, in one decision — plus the measurement guard: with the app
+    // gone, a budgeted site cannot be counted, so (if asked for) it stays shut.
     if (!isBlockedNowWithLimit(site, state.usage, now, state.sharedToday,
-      state.bursts?.[site.id])) continue;
+      state.bursts?.[site.id])
+      && !closedForMissingMeasurement(site, required, appPresent, now)) continue;
     for (const h of site.hostnames) set.add(h);
   }
   return [...set].sort();

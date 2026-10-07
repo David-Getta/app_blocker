@@ -128,6 +128,8 @@ export interface SessionRec {
    * jelmondatával, tehát a levételhez is ő kell.
    */
   pendingPartnerRemoval?: true;
+  /** ha van, a teljesítés a mérés-őrt kapcsolja ki (lazítás) — lásd shared/measure-guard.ts */
+  pendingRequireMeasurementOff?: true;
   /** hányszor volt rossz a jelmondat ebben a kísérletben — a plafonnál a kísérlet elszáll */
   partnerTries?: number;
 }
@@ -246,6 +248,13 @@ export interface HelperState {
    * mező teszi különbséggé a kettőt.
    */
   usageLastSampleAt?: number;
+  /**
+   * MÉRÉS NÉLKÜL NINCS KERET-IDŐ: ha az app nem jelentkezik (kiléptek belőle,
+   * nem indult el), a keretes és adagos oldalak zárva — lásd
+   * shared/measure-guard.ts. Csak bekapcsolva van jelen. Bekapcsolni ingyen,
+   * kikapcsolni próbatétel. Helyi beállítás: a mérés is ezen a gépen fut.
+   */
+  requireMeasurement?: true;
   /**
    * Rejtve induljon-e a blokkolt oldalak listája.
    *
@@ -425,6 +434,11 @@ export function loadState(): HelperState {
       if (parsed.digestLog !== undefined) parsed.digestLog = cleanDigestLog(parsed.digestLog);
       // A böngésző könyve is: ami nem nap, az nem nap.
       if (parsed.browserHits !== undefined) parsed.browserHits = cleanBrowserHits(parsed.browserHits);
+      // A mérés-őr: csak a szó szerinti igaz kapcsolja be — egy „true” szöveg
+      // vagy egy szám nem (lásd shared/measure-guard.ts).
+      if (parsed.requireMeasurement !== undefined && (parsed.requireMeasurement as unknown) !== true) {
+        delete parsed.requireMeasurement;
+      }
       // A session whose stepIndex does not address a real step can only wedge
       // the referee — every operation on it reads steps[stepIndex]. Dropping it
       // means the unlock attempt starts over, which is friction in the safe

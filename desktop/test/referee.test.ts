@@ -392,6 +392,27 @@ test('a state file whose session points past its steps is not loaded', () => {
   }
 });
 
+test('a mérés-őrt betöltéskor csak a szó szerinti igaz kapcsolja be', () => {
+  // Egy kézzel átírt állapotfájlban a „true” szöveg vagy egy szám ne kapcsoljon
+  // be olyan szigorítást, amit a felület kikapcsoltnak mutatna — és fordítva.
+  const file = process.env.BREAKER_STATE!;
+  const backup = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : null;
+  const base = {
+    version: 1, sites: [], unlockLog: [], lastCombo: null, dohApplied: false,
+    usage: { days: [], labels: {}, enabled: true }, session: null,
+  };
+  try {
+    for (const junk of ['true', 1, false, null, {}]) {
+      fs.writeFileSync(file, JSON.stringify({ ...base, requireMeasurement: junk }));
+      assert.equal(loadState().requireMeasurement, undefined, `${JSON.stringify(junk)} nem kapcsol be`);
+    }
+    fs.writeFileSync(file, JSON.stringify({ ...base, requireMeasurement: true }));
+    assert.equal(loadState().requireMeasurement, true);
+  } finally {
+    if (backup !== null) fs.writeFileSync(file, backup);
+  }
+});
+
 test('a rossz alakú zárlat-ablak nem viszi el a segédet betöltéskor', () => {
   // Az ablakok listáján a lenyomat és a kör a NAPOK tömbjén jár. Ha egy
   // rossz alakú ablak bekerülne, minden mentés kivételt dobna — a segéd

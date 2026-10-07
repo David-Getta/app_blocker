@@ -227,6 +227,15 @@ function finishSession(state: HelperState, now: number): void {
     state.abandons = (state.abandons ?? []).filter((a) => a.siteId !== s.siteId);
     return;
   }
+  // A MÉRÉS-ŐR kikapcsolása sem oldalhoz tartozik: az egész gépé. Idáig csak
+  // próbatétellel lehet eljutni — a lazítás ára ez a menet volt.
+  if (s.pendingRequireMeasurementOff) {
+    delete state.requireMeasurement;
+    state.unlockLog = [...state.unlockLog.filter((t) => t > now - 30 * 24 * 3600_000), now];
+    state.session = null;
+    state.abandons = (state.abandons ?? []).filter((a) => a.siteId !== s.siteId);
+    return;
+  }
   // A munkamenet nem egy OLDALHOZ tartozik, hanem az egész géphez: ezért itt
   // áll, a site-keresés előtt. A -1 azt jelenti: állítsd le most.
   if (s.pendingFocusEnd !== undefined) {
@@ -1237,6 +1246,33 @@ export function setKeywords(state: HelperState, input: unknown, now: number): Se
     id: newId('ses'), kind: 'pause', siteId: 'keywords',
     steps: plan.steps, stepIndex: 0, createdAt: now,
     pendingKeywords: next,
+  };
+  state.lastCombo = plan.comboKey;
+  armCurrent(state.session, now);
+  return { applied: false, session: sessionInfo(state.session, now) };
+}
+
+// ---------------------------------------------------------------- mérés-őr
+
+/**
+ * A mérés-őr be- és kikapcsolása (lásd shared/measure-guard.ts). Bekapcsolni
+ * ingyen — szigorítás: ha az app nem jelentkezik, a keretes oldalak zárva.
+ * Kikapcsolni próbatétel, mert onnantól a kilépés megint ingyen kikapcsolná a
+ * keretet. A segéd tartja; a felület csak kéri.
+ */
+export function setRequireMeasurement(state: HelperState, on: boolean, now: number): SetRuleResult {
+  const current = state.requireMeasurement === true;
+  if (on === current) return { applied: true, session: null };
+  if (on) {
+    state.requireMeasurement = true;
+    return { applied: true, session: null };
+  }
+  if (state.session) throw new RefereeError('Előbb fejezd be a folyamatban lévő kísérletet.', 'BUSY');
+  const plan = planLoosening(state, 'pause', null, now);
+  state.session = {
+    id: newId('ses'), kind: 'pause', siteId: 'measure',
+    steps: plan.steps, stepIndex: 0, createdAt: now,
+    pendingRequireMeasurementOff: true,
   };
   state.lastCombo = plan.comboKey;
   armCurrent(state.session, now);

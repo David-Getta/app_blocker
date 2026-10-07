@@ -227,6 +227,11 @@ export interface StatusData {
   dohPolicyApplied: boolean;
   /** whether active-time measurement is switched on */
   usageEnabled: boolean;
+  /**
+   * A mérés-őr: ha az app nem jelentkezik, a keretes és adagos oldalak zárva
+   * (lásd shared/measure-guard.ts). Régi segéd nem küldi — az kikapcsoltat jelent.
+   */
+  requireMeasurement?: boolean;
   /** rejtve induljon-e a blokkolt oldalak listája (felületi beállítás) */
   hideSiteList?: boolean;
   /**
@@ -317,6 +322,7 @@ export type HelperRequest =
   // Az azonosító nélküli ablak újnak számít, a segéd ad neki azonosítót.
   | { id: number; op: 'lockdown_windows'; windows: import('./lockdown').LockdownWindow[] }
   | { id: number; op: 'set_keywords'; words: string[] }
+  | { id: number; op: 'set_require_measurement'; on: boolean }
   | { id: number; op: 'browser_hits'; source: string; days: unknown[] }
   // Párban zárolás. Felvenni ingyen: a segéd sorsolja a jelmondatot, EGYSZER
   // adja vissza, és csak a lenyomatát tartja meg. Levenni próbatétel — a

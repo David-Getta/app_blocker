@@ -114,6 +114,31 @@ const WIRES = [
     needle: 'createWindow({ show: !startsHidden(process.argv) });',
     lost: 'a bejelentkezéskori indítás ablakkal nyílna — vagy a kapcsoló hatástalan volna',
   },
+  // A MÉRÉS-ŐR. Bekapcsolva a kilépés sem kapcsolja ki a keretet: ha az app
+  // nem jelentkezik, a keretes oldalak zárva. Három szem: a hosts-blokk
+  // kérdezi, a segéd köti be a jelenlét-figyelőt, a kérések a jelek. Ha
+  // bármelyik kiesik, a kapcsoló a felületen bekapcsoltnak látszik, és semmit
+  // nem tesz — csendben.
+  {
+    file: 'desktop/src/helper/hosts.ts',
+    needle: '!closedForMissingMeasurement(site, required, appPresent, now)',
+    lost: 'a mérés-őr bekapcsolva sem zárná a keretes oldalakat — a kilépés továbbra is kikapcsolná a keretet',
+  },
+  {
+    file: 'desktop/src/helper/index.ts',
+    needle: 'setPresenceProbe(() => appPresent(appLastSeen, lastTickAt, Date.now()));',
+    lost: 'a hosts-blokk mindig jelen lévőnek látná az appot — a mérés-őr hatástalan volna',
+  },
+  {
+    file: 'desktop/src/helper/server.ts',
+    needle: 'deps.noteClient?.(Date.now());',
+    lost: 'a segéd sosem látná az app jelét — a mérés-őr futó app mellett is zárna',
+  },
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: "'set_require_measurement'",
+    lost: 'a mérés-őr kapcsolója nem kérné a segédtől a váltást',
+  },
   // A ZÁRLAT-ABLAK APP NÉLKÜL. Ugyanez a lánc a zárlatra: a segéd az ablak
   // zárlatát az app nélkül is elindítja, és ha a lap nem tud róla, olyan
   // feloldást ígér, ami nincs.

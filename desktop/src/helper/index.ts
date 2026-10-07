@@ -9,7 +9,8 @@
 // BREAKER_STATE/BREAKER_HOSTS/BREAKER_SOCKET pointing at writable paths.
 
 import { loadState, saveState } from './state';
-import { activeHostnames, applyBlocklist, applyDohPolicies, watchHosts } from './hosts';
+import { activeHostnames, applyBlocklist, applyDohPolicies, setPresenceProbe, watchHosts } from './hosts';
+import { appPresent, WAKE_GAP_MS } from '../shared/measure-guard';
 import { startServer } from './server';
 import { runSelfTest } from './selftest';
 import type { SelfTestReport } from '../shared/selftest';
@@ -23,6 +24,13 @@ export function runHelper(): void {
   const log = (m: string) => console.log(`[breaker-helper ${new Date().toISOString()}] ${m}`);
   const state = loadState();
   let dohApplied = state.dohApplied;
+
+  // AZ APP JELENLÉTE (a mérés-őrhöz, lásd shared/measure-guard.ts): az app
+  // bármelyik kérése jel. Induláskor a segéd indulása a horgony — a
+  // bejelentkezésnek és az app elindulásának is jár a türelmi idő.
+  let appLastSeen = Date.now();
+  let lastTickAt = Date.now();
+  setPresenceProbe(() => appPresent(appLastSeen, lastTickAt, Date.now()));
 
   // The installing user's uid is baked into the daemon launch args, so the
   // socket can be restricted to that account (see server.ts).
@@ -111,6 +119,12 @@ export function runHelper(): void {
 
   setInterval(() => {
     try {
+      // Ébredés: a kör régen járt — az appnak jár a türelmi idő, mielőtt
+      // távollévőnek látszana; különben minden fedélnyitás bezárná a keretes
+      // oldalakat, amíg az app újra nem kérdez.
+      const tickAt = Date.now();
+      if (tickAt - lastTickAt > WAKE_GAP_MS) appLastSeen = Math.max(appLastSeen, tickAt);
+      lastTickAt = tickAt;
       const dirty = tick(state, Date.now());
       // A HETI NAPLÓ sora: hétfő reggel héttől, egy hétről egyszer — a segéd
       // írja, az app nélkül is. Könyvelés, nem érvényesítés, ezért nem a bíró
@@ -194,6 +208,20 @@ export function runHelper(): void {
   startServer({
     getState: () => state,
     commit,
+    // Minden kérés az apptól jön: jelenlét. Ha épp távollévő volt, és a
+    // mérés-őr zárva tartotta a keretes oldalakat, most azonnal nyitunk —
+    // nem a következő körben.
+    noteClient: (now) => {
+      const was = appPresent(appLastSeen, lastTickAt, now);
+      appLastSeen = Math.max(appLastSeen, now);
+      if (!was && state.requireMeasurement) {
+        try {
+          applyBlocklist(state, now);
+        } catch (e) {
+          log(`hosts apply failed: ${String(e)}`);
+        }
+      }
+    },
     dohApplied: () => dohApplied,
     log,
     selfTest: () => lastSelfTest,

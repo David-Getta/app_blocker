@@ -136,6 +136,7 @@ function fakeBridgeSource() {
       selfTest: window.__fakeSelfTest || undefined,
       focusSyncError: window.__fakeFocusSyncError,
       session, dohPolicyApplied: true, usageEnabled: true, now: Date.now(),
+      requireMeasurement: window.__fakeRequireMeasurement === true,
       focusPacks: window.__fakePacks, focusRun: window.__fakeRun,
       channelFilters: window.__fakeChannelFilters,
       // Egy heti zárlat-ablak, hogy a képernyőkép mutassa a kártya listáját.
@@ -310,6 +311,19 @@ function fakeBridgeSource() {
               { deviceId: 'd2', name: 'Telefon', self: false, todaySeconds: 1200,
                 last7Seconds: 9000, top: [{ label: 'reddit.com', seconds: 5400 }] },
             ] } };
+        }
+        if (op === 'set_require_measurement') {
+          // A mérés-őr: bekapcsolni ingyen, kikapcsolni próbatétel — a hamis
+          // híd a bírót játssza, ahogy a többi kapcsolónál.
+          if (payload.on) {
+            window.__fakeRequireMeasurement = true;
+            return { ok: true, data: { applied: true, session: null, status: status() } };
+          }
+          session = {
+            id: 'ses_measure', kind: 'pause', siteId: 'measure', remaining: 'many',
+            current: { id: 'st_m1', type: 'TRANSCRIBE', text: 'A kilépés nem kibúvó: a keret a mért időből fogy.' },
+          };
+          return { ok: true, data: { applied: false, session, status: status() } };
         }
         if (op === 'set_hide_list') {
           window.__fakeHideList = payload.hidden === true;
@@ -958,6 +972,34 @@ async function main() {
 
   await page.addInitScript(() => { window.__fakeNoFocusStats = false; window.__fakeNoFocusWeek = false; });
   await page.reload();
+
+  // A MÉRÉS-ŐR: a statisztika kártyán áll, ha van keretes oldal. Bekapcsolni
+  // ingyen (a sor és a gomb felirata vált), kikapcsolni próbatétel — és a
+  // próbatétel fejléce kimondja, mit kapcsol ki, nem „Feloldás null percre”.
+  await goTo(page, 'stats');
+  await page.waitForFunction(
+    () => !document.getElementById('measureGuard')?.classList.contains('hidden')
+      && /Mérés-őr bekapcsolása/.test(document.getElementById('measureGuardBtn')?.textContent || '')
+      && /keretes oldalak zárva/.test(document.getElementById('measureGuardText')?.textContent || ''),
+    undefined, { timeout: 15_000 },
+  ).catch(() => failures.push('a mérés-őr sora nem látszik a keretes oldalak mellett'));
+  await page.locator('#measureGuardBtn').click();
+  await page.waitForFunction(
+    () => /Mérés-őr kikapcsolása/.test(document.getElementById('measureGuardBtn')?.textContent || '')
+      && /Mérés-őr bekapcsolva/.test(document.getElementById('measureGuardText')?.textContent || ''),
+    undefined, { timeout: 10_000 },
+  ).catch(() => failures.push('a mérés-őr bekapcsolása nem látszik a soron'));
+  await page.locator('#measureGuardBtn').click();
+  await page.waitForFunction(
+    () => !document.getElementById('sessionModal')?.classList.contains('hidden')
+      && /A mérés-őr kikapcsolása/.test(document.getElementById('sessionTitle')?.textContent || ''),
+    undefined, { timeout: 10_000 },
+  ).catch(() => failures.push('a mérés-őr kikapcsolása nem nyitott próbatételt a saját fejlécével'));
+  await page.evaluate(async () => {
+    await window.breaker.call('abandon');
+    window.__fakeRequireMeasurement = false;
+    document.getElementById('sessionModal')?.classList.add('hidden');
+  });
 
   // ABLAK A CSÚCS-ÓRÁRA: a megakadás-blokk gombja heti ablakot tesz a legutóbbi
   // csomagra a csúcs-órában, minden nap — a hamis híd is a bírót játssza

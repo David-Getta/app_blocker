@@ -555,6 +555,10 @@ Néhány konkrét dolog, amit érdemes előre tudni:
   kapcsolója az indítási listán megállítja a mérést, amíg az app újra nem
   indul — a tiltás ettől él, a keret viszont nem fogy. Ezt a felület a
   kilépés gomb alatt kimondja; a rendszer kapcsolóját az app nem írja felül.
+  Aki ezt a rést is be akarja zárni, bekapcsolja a **mérés-őrt** (a
+  Statisztika kártyán): ha az app nem jelentkezik, a keretes és adagos
+  oldalak zárva, amíg vissza nem jön — bekapcsolni ingyen, kikapcsolni
+  próbatétel.
   A telefonon a szűrő szolgáltatása (Android) és a rendszer (iPhone) az app
   nélkül is szól. A heti ablak menetét a segéd az app nélkül is
   elindítja, a telefon szűrője betartatja, és a böngésző is: az app egy hétre

@@ -73,6 +73,8 @@ export interface ServerDeps {
   runSelfTest: () => Promise<SelfTestReport>;
   /** uid of the user allowed to talk to the (root) helper; undefined in dev */
   ownerUid?: number;
+  /** minden kérés az app jelenléte — a mérés-őr ebből tudja, fut-e (lásd shared/measure-guard.ts) */
+  noteClient?: (now: number) => void;
 }
 
 /** A mai nap kezdete helyi idő szerint. */
@@ -178,6 +180,8 @@ export function statusOf(
     session: referee.currentSession(state),
     dohPolicyApplied: dohApplied,
     usageEnabled: state.usage.enabled,
+    // A mérés-őr: ha az app nem jelentkezik, a keretes oldalak zárva.
+    requireMeasurement: state.requireMeasurement === true,
     hideSiteList: state.hideSiteList === true,
     // Csak a TÉNYLEG futó zárlat megy ki: a lejártat a tick takarítaná, de a
     // felület nem várhat rá — egy másodpercig sem mondhatja zárva, ami nyitva.
@@ -371,6 +375,13 @@ async function handle(req: HelperRequest, deps: ServerDeps): Promise<unknown> {
           && (w as { id: string }).id ? (w as { id: string }).id : newId('lw') }
         : w));
       const r = referee.setLockdownWindows(state, windows, now);
+      deps.commit();
+      return { ...r, status: statusOf(state, deps.dohApplied(), deps.selfTest()) };
+    }
+
+    case 'set_require_measurement': {
+      // Bekapcsolni ingyen, kikapcsolni próbatétel — a bíró dönt.
+      const r = referee.setRequireMeasurement(state, req.on === true, now);
       deps.commit();
       return { ...r, status: statusOf(state, deps.dohApplied(), deps.selfTest()) };
     }
@@ -778,6 +789,8 @@ export function startServer(deps: ServerDeps): net.Server {
           try {
             const req = JSON.parse(line) as HelperRequest;
             reqId = req.id;
+            // A kérés maga a jel: az app fut (a socketet csak ő érheti el).
+            deps.noteClient?.(Date.now());
             resp = { id: req.id, ok: true, data: await handle(req, deps) };
           } catch (e) {
             const code = e instanceof RefereeError ? e.code
