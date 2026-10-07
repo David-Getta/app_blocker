@@ -36,6 +36,7 @@ import {
 } from '../shared/shortcut.js';
 import { limitFullLine, limitSoonLine, MAX_LIMIT_MINUTES } from '../shared/limits.js';
 import { needsMeasurement } from '../shared/measure-guard.js';
+import { refreshDue, VISIBLE_REFRESH_MS } from '../shared/refresh-cadence.js';
 import {
   formatRemaining, isRunning as focusIsRunning, isWindowRun, MAX_ALLOW_ENTRIES, MAX_PACK_NAME,
   MAX_SESSION_MINUTES, nextOccurrence, SESSION_CHOICES_MIN, windowRunStarted, type FocusPack, type FocusRun, peakWindowBand,
@@ -100,6 +101,7 @@ interface Bridge {
   onUpdateState(cb: (s: UpdateState) => void): void;
   appVersion?(): Promise<string>;
   quitApp?(): Promise<void>;
+  onVisibility?(cb: (visible: boolean) => void): void;
   openReleases?(): Promise<void>;
   /** a réteg gyorsbillentyűje; a régi híd (frissítés előtt) nem tudja — akkor az alapértelmezés felirata áll */
   getOverlayShortcut?(): Promise<OverlayShortcutView>;
@@ -249,7 +251,32 @@ function sitesFingerprint(st: StatusData): string {
 let failStreak = 0;
 let everConnected = false;
 
+/** Látszik-e az ablak — a fő folyamat mondja (rejtve ritkábban kérdezünk, és nem rajzolunk). */
+let windowVisible = true;
+/** Az utolsó lekérdezés ideje — a ritkább, rejtett ütemhez. */
+let lastRefreshAt = 0;
+
 async function refresh(): Promise<void> {
+  lastRefreshAt = Date.now();
+  // REJTVE csak az értesítések kellenek: a teljes felület újrarajzolása itt
+  // fölösleges munka (shared/refresh-cadence.ts). Előhozáskor jön a rajz.
+  if (!windowVisible) {
+    try {
+      status = await call<StatusData>('status');
+      helperUp = true;
+      everConnected = true;
+      failStreak = 0;
+      if (digestWanted()) void refreshStats();
+      runNotices();
+    } catch {
+      failStreak += 1;
+      if (failStreak >= 2) {
+        helperUp = false;
+        status = null;
+      }
+    }
+    return;
+  }
   try {
     status = await call<StatusData>('status');
     helperUp = true;
@@ -605,6 +632,44 @@ function unlockStreakLabel(lastUnlockAt: number | null | undefined): string {
 
 // ---------------------------------------------------------------- render
 
+/**
+ * Az ÉRTESÍTÉSEK egy körben — a rajzolástól külön, mert rejtett ablaknál is
+ * kellenek (a heti ablak beérése, az adag, az előjelzések), rajzolni viszont
+ * akkor nem kell semmit (shared/refresh-cadence.ts). Élő segéd-kapcsolatot
+ * feltételez: a hívó csak akkor hívja. A kör idejét adja vissza.
+ */
+function runNotices(): number {
+  // Adag-értesítés: két egymás utáni státusz-kép különbségéből derül ki a
+  // betelés és a szünet letelte. Itt a helye, mert csak élő segéd-kapcsolat
+  // mellett friss a kép — szakadás alatt a lépegető nem lép, így visszatérve
+  // sem mond „most telt be”-t egy rég futó hűtésre.
+  const nowForBurst = Date.now();
+  const stepped = stepBurstNotices(
+    burstWatches,
+    status!.sites.map((s) => ({
+      id: s.id, label: statLabel(s.domain), closedReason: s.closedReason, closedUntil: s.closedUntil,
+    })),
+    nowForBurst,
+  );
+  burstWatches = stepped.watches;
+  for (const n of stepped.notices) showBurstNotice(n, nowForBurst);
+  // A heti ablak menete, ha most tűnt fel — akkor is, ha az app később nyílt
+  // meg, mint ahogy a menet indult.
+  const windowRun = windowRunStarted(seenFocusRun, status!.focusRun, status!.focusPacks ?? [], nowForBurst);
+  seenFocusRun = status!.focusRun ?? null;
+  if (windowRun) showWindowRunNotice(windowRun);
+  // Ugyanez a zárlat-ablakra: az ablak beért, és onnantól minden zárva van.
+  const windowLock = windowLockdownStarted(
+    seenLockdown, status!.lockdown ?? null, status!.lockdownWindows ?? [], nowForBurst);
+  seenLockdown = status!.lockdown ?? null;
+  if (windowLock) showWindowLockdownNotice(windowLock, nowForBurst);
+  showWindowSoonNotice(status!.lockdown ?? null, status!.lockdownWindows ?? [], nowForBurst);
+  showHitNudge(status!.browserHitsToday ?? 0, nowForBurst);
+  showPeakWarning(status!.browserHitsPeak ?? null, nowForBurst);
+  showFocusHourWarning(status!.focusHour ?? null, status!.browserHitsPeak ?? null, nowForBurst);
+  return nowForBurst;
+}
+
 function render(): void {
   const pill = $('statusPill');
   if (!helperUp) {
@@ -650,34 +715,7 @@ function render(): void {
     return;
   }
 
-  // Adag-értesítés: két egymás utáni státusz-kép különbségéből derül ki a
-  // betelés és a szünet letelte. Itt a helye, mert csak élő segéd-kapcsolat
-  // mellett friss a kép — szakadás alatt a lépegető nem lép, így visszatérve
-  // sem mond „most telt be”-t egy rég futó hűtésre.
-  const nowForBurst = Date.now();
-  const stepped = stepBurstNotices(
-    burstWatches,
-    status!.sites.map((s) => ({
-      id: s.id, label: statLabel(s.domain), closedReason: s.closedReason, closedUntil: s.closedUntil,
-    })),
-    nowForBurst,
-  );
-  burstWatches = stepped.watches;
-  for (const n of stepped.notices) showBurstNotice(n, nowForBurst);
-  // A heti ablak menete, ha most tűnt fel — akkor is, ha az app később nyílt
-  // meg, mint ahogy a menet indult.
-  const windowRun = windowRunStarted(seenFocusRun, status!.focusRun, status!.focusPacks ?? [], nowForBurst);
-  seenFocusRun = status!.focusRun ?? null;
-  if (windowRun) showWindowRunNotice(windowRun);
-  // Ugyanez a zárlat-ablakra: az ablak beért, és onnantól minden zárva van.
-  const windowLock = windowLockdownStarted(
-    seenLockdown, status!.lockdown ?? null, status!.lockdownWindows ?? [], nowForBurst);
-  seenLockdown = status!.lockdown ?? null;
-  if (windowLock) showWindowLockdownNotice(windowLock, nowForBurst);
-  showWindowSoonNotice(status!.lockdown ?? null, status!.lockdownWindows ?? [], nowForBurst);
-  showHitNudge(status!.browserHitsToday ?? 0, nowForBurst);
-  showPeakWarning(status!.browserHitsPeak ?? null, nowForBurst);
-  showFocusHourWarning(status!.focusHour ?? null, status!.browserHitsPeak ?? null, nowForBurst);
+  const nowForBurst = runNotices();
   renderSuggestCard(nowForBurst);
   renderSelfTestLine();
 
@@ -5076,4 +5114,13 @@ if ('Notification' in window && Notification.permission === 'default') {
   void Notification.requestPermission();
 }
 void refresh();
-setInterval(() => void refresh(), 2000);
+setInterval(() => {
+  if (refreshDue(windowVisible, lastRefreshAt, Date.now())) void refresh();
+}, VISIBLE_REFRESH_MS);
+// A fő folyamat jelzi, ha az ablak elrejtőzik vagy előjön. Előjövéskor azonnal
+// frissítünk és rajzolunk — ne a régi kép fogadjon.
+window.breaker.onVisibility?.((visible) => {
+  const wasHidden = !windowVisible;
+  windowVisible = visible;
+  if (visible && wasHidden) void refresh();
+});

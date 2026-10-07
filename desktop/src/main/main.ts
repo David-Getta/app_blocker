@@ -120,6 +120,14 @@ if (HELPER_MODE) {
     // app akadályozza a leállítást.
     win.on('session-end', () => { quitting = true; });
     win.on('closed', () => { if (mainWin === win) mainWin = null; });
+    // A LÁTHATÓSÁG a felületnek: rejtve (vagy kicsinyítve) ritkábban kérdez, és
+    // nem rajzol — az értesítések ettől mennek tovább (shared/refresh-cadence.ts).
+    const sendVisibility = () => {
+      if (win.isDestroyed()) return;
+      win.webContents.send('breaker:visibility', win.isVisible() && !win.isMinimized());
+    };
+    for (const ev of ['show', 'hide', 'minimize', 'restore'] as const) win.on(ev as 'show', sendVisibility);
+    win.webContents.on('did-finish-load', sendVisibility);
     mainWin = win;
     // Az ablak fókuszba kerülése jó pillanat frissítést nézni: aki naphosszat
     // futni hagyja az appot, az a hatóránkénti körök KÖZÖTT ülne régi

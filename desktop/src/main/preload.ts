@@ -85,6 +85,8 @@ export interface BreakerBridge {
   startSyncServer(): Promise<SyncServerState>;
   stopSyncServer(): Promise<SyncServerState>;
   onUpdateState(cb: (s: UpdateState) => void): void;
+  /** az ablak látható-e (rejtve a felület ritkábban kérdez, és nem rajzol) */
+  onVisibility(cb: (visible: boolean) => void): void;
   /** a futó app verziója — a fiók-panel mutatja, hogy látszódjon, MI fut */
   appVersion(): Promise<string>;
   /** kilépés a felületről; a tiltást nem érinti (az a segédé) */
@@ -119,6 +121,7 @@ const bridge: BreakerBridge = {
   startSyncServer: () => ipcRenderer.invoke('breaker:sync-server-start'),
   stopSyncServer: () => ipcRenderer.invoke('breaker:sync-server-stop'),
   onUpdateState: (cb) => ipcRenderer.on('breaker:update-state', (_e, s: UpdateState) => cb(s)),
+  onVisibility: (cb) => ipcRenderer.on('breaker:visibility', (_e, v: unknown) => cb(v === true)),
   appVersion: () => ipcRenderer.invoke('breaker:app-version'),
   quitApp: () => ipcRenderer.invoke('breaker:quit'),
   openReleases: () => ipcRenderer.invoke('breaker:open-releases'),

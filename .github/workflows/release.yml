@@ -59,6 +59,11 @@ jobs:
           kicserélhette. Most a teljes parancs a jóváhagyott folyamatnak
           közvetlenül megy át — nincs fájl, amit ki lehetne cserélni.
 
+          **Kevesebb terhelés a háttérben.** A rejtett ablak eddig két
+          másodpercenként frissített és rajzolt mindent újra; most csak
+          tízmásodpercenként néz rá, rajzolás nélkül — az értesítések ugyanúgy
+          jönnek.
+
           ### Ami a v0.4.211-ben jött
 
           **Az ablak bezárása többé nem kapcsolja ki a napi keretet** — az app
