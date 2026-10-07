@@ -83,6 +83,11 @@ reddit.com/r/valami
 - **Levenni tíz perc várakozás**, és addig tilt. Enélkül a részleges tiltás egy
   kikapcsoló gomb lenne, és pont az a lényeg, hogy ne az legyen.
 - **Meggondolni magad ingyen van**: a visszaszámlálás bármikor megszakítható.
+- **Őszinte korlát:** a tíz perc a rendszeróra szerint telik — aki előretekeri
+  az órát, átugorja. A bővítmény ezt megbízhatóan nem tudja észlelni (a
+  háttere bármikor újraindulhat). Az app szabályainál nem így van: ott a
+  várakozás eltelt időt mér, az óraugrást elnyeli a segéd. Aki ezt a rést sem
+  akarja, az appban vegye fel a szabályt.
 
 ### Összekötés az appal
 
