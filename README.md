@@ -38,7 +38,9 @@ ingyen van, rövidíteni vagy visszavonni sehogy.
   **lazítani ugyanúgy próbatételekbe kerül**, mint egy feloldás.
 - **Aktív idő mérése és statisztikák**: melyik oldalon és appban mennyit töltesz —
   **csak amikor tényleg ott vagy** (fókuszban lévő ablak, aktív fül, nem tétlen),
-  nem attól, hogy nyitva van. Napi/heti/havi bontás, top lista, 30 napos idősor,
+  nem attól, hogy nyitva van. Ahol a gép a böngésző címét nem látja (macOS-en
+  egy frissítés után visszavont engedély), a böngésző-bővítmény mondja meg,
+  melyik oldal van elöl — így az oldal kerete akkor is fogy. Napi/heti/havi bontás, top lista, 30 napos idősor,
   az elmúlt 7 nap naponta sávokban (a hét alakja — gépen és Androidon), a
   fókuszban töltött idő naponta (mindhárom platformon; iPhone-on ez az
   egyetlen diagram, mert ott csak a menetek adata igazi), hét-a-héthez
@@ -165,7 +167,8 @@ ingyen van, rövidíteni vagy visszavonni sehogy.
   Bevezetni vagy szigorítani egy kattintás, **nagyobb adag, rövidebb szünet
   vagy a levétel próbatételbe kerül**. A tiltás nem néma: a böngészőben a
   bővítmény tiltó lapja megmondja az okot és visszaszámol (a szünet
-  leteltekor visszautat ad), a telefonon a tartós értesítés beszél.
+  leteltekor visszautat ad), a telefonon a tartós értesítés beszél. Az óra
+  előretekerése nem rövidíti a szünetet: amennyi hátra volt, annyi van hátra.
   Részletek: `docs/feature-burst-limit.md`.
 
 - **Zárlat: amikor a lazítás nem drága, hanem nincs** (mindhárom platform).
