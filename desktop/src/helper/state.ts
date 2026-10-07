@@ -18,6 +18,7 @@ import type { UrlRule } from '../shared/urlrules';
 import { normalizeWindows, parseLockdown } from '../shared/lockdown';
 import { cleanKeywords } from '../shared/keywords';
 import { cleanBrowserHits } from '../shared/browser-hits';
+import { normalizeBurst } from '../shared/burst';
 import { stateFilePath } from './paths';
 
 export interface SiteRec {
@@ -63,6 +64,14 @@ export interface SiteRec {
   rulesRev?: number;
   /** a szabálylista kulcsa az utolsó rev-léptetéskor/átvételkor — ebből lesz a jel; helyi */
   revRulesKey?: string;
+  /**
+   * Az adag-szabály még SOSEM ment fel a fiókba (helyi jel). A v0.4.227 előtti
+   * gép az adag-szabályt nem tette a drótra: ami akkor itt állt be, az csak
+   * itt élt. A frissítés utáni első kör ezt friss szigorításként teszi rá a
+   * fésülés eredményére (lásd sync-client.ts `reapplyUnsyncedBursts`), aztán
+   * a jel lekerül.
+   */
+  burstUnsynced?: boolean;
 
   // --- szinkron (lásd helper/revisions.ts és shared/sync/merge.ts) ---
   /** hányszor változott érdemben ez a rekord; ez dönt az összefésülésnél */
@@ -266,6 +275,12 @@ export interface HelperState {
   /** a rejtés jele: a focus-blob rev-je, amelyik utoljára be- vagy kikapcsolta */
   hideSiteListRev?: number;
   /**
+   * Az állapot már abból a korból való, amikor az adag-szabály a drótra
+   * kerül. Hiánya = régi állapotfájl: a betöltés megjelöli a helyi adag-
+   * szabályokat (`SiteRec.burstUnsynced`), egyszer.
+   */
+  burstOnWire?: boolean;
+  /**
    * Melyik hétről íródott már a heti napló sora (a hétfő dátuma). A segéd
    * könyvelése — a felület értesítése külön, a saját tárában könyvel: az a
    * futó app dolga, ez a mindig futó segédé. Szinkronra nem megy.
@@ -408,7 +423,7 @@ export interface SyncAccount {
 export function defaultState(): HelperState {
   return {
     version: 1, sites: [], unlockLog: [], lastCombo: null, session: null,
-    dohApplied: false, usage: emptyUsage(),
+    dohApplied: false, usage: emptyUsage(), burstOnWire: true,
   };
 }
 
@@ -525,6 +540,16 @@ export function loadState(): HelperState {
       }
       if (parsed.session?.pendingLockdownWindows !== undefined) {
         parsed.session.pendingLockdownWindows = normalizeWindows(parsed.session.pendingLockdownWindows);
+      }
+      // A drót a v0.4.227 előtt nem vitte az adag-szabályt: ami addig itt
+      // állt be, az a fiókban nincs meg. Egyszer megjelöljük, és a következő
+      // kör friss szigorításként teszi fel — így egy közben történt telefonos
+      // szerkesztés (nagyobb rev, adag nélkül) sem törli.
+      if (parsed.burstOnWire !== true) {
+        for (const site of parsed.sites) {
+          if (normalizeBurst(site.burstSeconds, site.cooldownSeconds) !== null) site.burstUnsynced = true;
+        }
+        parsed.burstOnWire = true;
       }
       return parsed;
     }

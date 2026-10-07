@@ -3598,6 +3598,25 @@ const WIRES = [
     needle: 'PauseReminders.reschedule(views, now: now)',
     lost: 'az iPhone nem ütemezné a szünet vége előtti értesítést',
   },
+  // AZ ADAG-SZABÁLY A GÉP DRÓTJÁN IS. A v0.4.227 előtt kimaradt: a telefon
+  // szabályát a gép egy ingyenes szerkesztése mindenhonnan letörölte, a gépen
+  // beállított pedig sosem ért át. A fel nem ment régi szabály az első körben
+  // friss szigorításként kerül fel.
+  {
+    file: 'desktop/src/helper/sync-client.ts',
+    needle: 'burstSeconds: s.burstSeconds, cooldownSeconds: s.cooldownSeconds,',
+    lost: 'a gép nem tenné a drótra az adag-szabályt — egy fedőnév-szerkesztés letörölné a telefonét',
+  },
+  {
+    file: 'desktop/src/helper/sync-client.ts',
+    needle: 'burstSeconds: m.burstSeconds, cooldownSeconds: m.cooldownSeconds,',
+    lost: 'a gép nem venné át a telefonon beállított adag-szabályt',
+  },
+  {
+    file: 'desktop/src/helper/sync-client.ts',
+    needle: 'reapplyUnsyncedBursts(mergeSiteLists(mine, remote), state.sites, acc.deviceId, now)',
+    lost: 'a frissítés előtt beállított, fel nem ment adag-szabályt egy telefonos írás letörölné',
+  },
   // A NEM VÉGES VÉGIDŐ NEM SZIGORÍTÁS. A `NaN < current` hamis: a socketen
   // jött `"x"` a menetet NaN véggel írta el — ami nem fut, vagyis próbatétel
   // nélkül, zárlat alatt is leállt. A bíró elutasítja, a közös szabály

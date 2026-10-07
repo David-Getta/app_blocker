@@ -33,6 +33,7 @@ import {
   emptyFocus, mergeFocus, mergeLog, normalizeSyncFocus, sameFocus, type SyncFocus,
 } from '../shared/sync/focus-merge.js';
 import { liveLockdown } from '../shared/lockdown';
+import { isBurstLoosening, normalizeBurst } from '../shared/burst';
 import {
   emptyChannels, mergeChannels, normalizeSyncChannels, sameChannels, type SyncChannels,
 } from '../shared/sync/channels-merge.js';
@@ -276,10 +277,48 @@ function toSyncSites(sites: SiteRec[], deviceId: string): SyncSite[] {
     ...(s.hostnameMarks ? { hostnameMarks: s.hostnameMarks } : {}),
     pauseUntil: null, pendingDeleteAt: s.pendingDeleteAt,
     schedule: s.schedule, dailyLimitSeconds: s.dailyLimitSeconds, alias: s.alias, reason: s.reason,
+    // Az ADAG-SZABÁLY is utazik. A v0.4.227 előtt kimaradt: a telefon
+    // szabályát a gép egy ingyenes szerkesztése (nagyobb rev, adag nélkül)
+    // mindenhonnan letörölte, a gépen beállított pedig sosem ért át.
+    burstSeconds: s.burstSeconds, cooldownSeconds: s.cooldownSeconds,
     rules: s.rules,
     ...(s.rulesRev ? { rulesRev: s.rulesRev } : {}),
     rev: s.rev ?? 1, updatedAt: s.updatedAt ?? s.addedAt, updatedBy: s.updatedBy ?? deviceId,
   })).map((s) => cleanSite(s as unknown as Record<string, unknown>));
+}
+
+/**
+ * A FEL NEM MENT adag-szabály rátétele a fésülés eredményére — egyszeri
+ * átmenet a v0.4.227-re.
+ *
+ * A régi gép az adag-szabályt nem tette a drótra, a rev-et viszont léptette:
+ * a fiókban a rekord adag nélkül állt. Ha azóta egy telefon is írt rá
+ * (nagyobb rev, adag nélkül), a fésülés azt adná, és a helyi szabály — amiért
+ * senki nem fizetett levételt — eltűnne. Ezért a megjelölt helyi szabály
+ * friss SZIGORÍTÁSKÉNT kerül rá a fésült rekordra: mezőnként a szigorúbb (a
+ * kisebb adag, a hosszabb szünet), a rev eggyel nagyobb, hogy át is menjen.
+ * Amit a fésült rekord már legalább ilyen szigorúan tud, ahhoz nem nyúlunk.
+ */
+export function reapplyUnsyncedBursts(
+  merged: SyncSite[], local: SiteRec[], deviceId: string, now: number,
+): SyncSite[] {
+  const byId = new Map(local.map((s) => [s.id, s]));
+  return merged.map((m) => {
+    const l = byId.get(m.id);
+    if (!l || l.burstUnsynced !== true) return m;
+    const mine = normalizeBurst(l.burstSeconds, l.cooldownSeconds);
+    const theirs = normalizeBurst(m.burstSeconds, m.cooldownSeconds);
+    if (mine === null || !isBurstLoosening(mine, theirs)) return m;
+    const burstSeconds = theirs === null ? mine.burstSeconds : Math.min(mine.burstSeconds, theirs.burstSeconds);
+    const cooldownSeconds = theirs === null
+      ? mine.cooldownSeconds : Math.max(mine.cooldownSeconds, theirs.cooldownSeconds);
+    return { ...m, burstSeconds, cooldownSeconds, rev: m.rev + 1, updatedAt: now, updatedBy: deviceId };
+  });
+}
+
+/** A fel nem ment adag-szabály jele le: a kör a fiókba vitte (vagy ott már megvolt). */
+function clearBurstUnsynced(state: HelperState): void {
+  for (const site of state.sites) delete site.burstUnsynced;
 }
 
 /**
@@ -300,6 +339,9 @@ function fromSyncSites(merged: SyncSite[], local: SiteRec[]): SiteRec[] {
     pauseUntil: byId.get(m.id)?.pauseUntil ?? null,
     pendingDeleteAt: m.pendingDeleteAt,
     schedule: m.schedule, dailyLimitSeconds: m.dailyLimitSeconds, alias: m.alias, reason: m.reason,
+    // Az adag-szabály a fésülés eredményéből — a SZÁMLÁLÓ nem a rekordé
+    // (`state.bursts`), az eszköz-helyi marad.
+    burstSeconds: m.burstSeconds, cooldownSeconds: m.cooldownSeconds,
     rules: m.rules,
     // A szabálylista jele is a fésülés eredményéből jön, mint a nevek jelei.
     rulesRev: m.rulesRev,
@@ -839,7 +881,7 @@ export async function syncNow(state: HelperState, now: number): Promise<SyncResu
     });
     const remote = decodeSites(acc, pulled.payload);
     const mine = toSyncSites(state.sites, acc.deviceId);
-    const merged = mergeSiteLists(mine, remote);
+    const merged = reapplyUnsyncedBursts(mergeSiteLists(mine, remote), state.sites, acc.deviceId, now);
 
     if (!sameSites(merged, mine)) {
       state.sites = fromSyncSites(merged, state.sites);
@@ -847,6 +889,7 @@ export async function syncNow(state: HelperState, now: number): Promise<SyncResu
     }
     if (sameSites(merged, remote) && pulled.version > 0) {
       acc.sitesVersion = pulled.version;
+      clearBurstUnsynced(state);
       break; // a kiszolgálón már pontosan ez van: nincs mit feltölteni
     }
 
@@ -861,6 +904,7 @@ export async function syncNow(state: HelperState, now: number): Promise<SyncResu
     });
     if (push.ok) {
       acc.sitesVersion = push.version;
+      clearBurstUnsynced(state);
       break;
     }
     // Ütközés: valaki közben írt. Vissza az elejére, most már az ő verziójával.

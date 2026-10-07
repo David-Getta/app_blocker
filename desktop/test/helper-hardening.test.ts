@@ -21,7 +21,7 @@ import { test, before, after } from 'node:test';
 import * as assert from 'node:assert/strict';
 import { startServer, MAX_BATCH_SAMPLES } from '../src/helper/server';
 import { applyBlocklist, legacyHelperSuspected, resetLegacyDetection } from '../src/helper/hosts';
-import { defaultState, saveState, type HelperState } from '../src/helper/state';
+import { defaultState, loadState, saveState, type HelperState } from '../src/helper/state';
 import { MAX_TARGETS_PER_DAY, OTHER_SITE_KEY } from '../src/shared/usage';
 import type { SelfTestReport } from '../src/shared/selftest';
 
@@ -654,4 +654,27 @@ test('focus_change: nem véges végidő nem állítja le a menetet — se szöve
   assert.equal(longer.ok, true);
   assert.equal(state.focusRun!.endsAt, endsAt + 10 * 60_000);
   state.focusRun = null;
+});
+
+test('régi állapotfájl: a betöltés egyszer megjelöli a helyi adag-szabályokat', () => {
+  // A v0.4.227 előtti gép az adag-szabályt nem tette a drótra. A jel mondja
+  // meg a szinkronnak, hogy ezek a szabályok a fiókban nincsenek meg.
+  const old = defaultState();
+  delete old.burstOnWire;
+  old.sites = [
+    { id: 'm1', domain: 'a.example', hostnames: ['a.example'], addedAt: 1, pauseUntil: null, pendingDeleteAt: null,
+      burstSeconds: 120, cooldownSeconds: 600 },
+    { id: 'm2', domain: 'b.example', hostnames: ['b.example'], addedAt: 1, pauseUntil: null, pendingDeleteAt: null },
+  ];
+  saveState(old);
+  const loaded = loadState();
+  assert.equal(loaded.burstOnWire, true);
+  assert.equal(loaded.sites.find((x) => x.id === 'm1')!.burstUnsynced, true, 'az adagos oldal jelet kap');
+  assert.equal(loaded.sites.find((x) => x.id === 'm2')!.burstUnsynced, undefined, 'az adag nélküli nem');
+  // Másodszor már nem: a jel egyszeri, és a friss állapot eleve az új korból való.
+  loaded.sites[0].burstUnsynced = undefined;
+  saveState(loaded);
+  assert.equal(loadState().sites.find((x) => x.id === 'm1')!.burstUnsynced, undefined);
+  assert.equal(defaultState().burstOnWire, true);
+  saveState(state);
 });

@@ -63,6 +63,19 @@ ugyanazért, amiért a napi keretet: próbatétellel fizettek érte.
 - **A beállítás szinkronizálódik** a blokklista rekordján (a lazítást a
   rekord `rev`-je védi, mint minden más oldal-mezőt; egyenlő rev-nél a
   szigorúbb nyer: kisebb adag, hosszabb szünet).
+  **A gép csak a v0.4.227 óta teszi a drótra** (`sync-client.ts`
+  `toSyncSites` / `fromSyncSites`) — előtte kihagyta, a rev-et viszont
+  léptette. Ebből két hiba lett, amit egy független átnézés talált: a gépen
+  beállított szabály sosem ért át, a telefonon beállítottat pedig a gép egy
+  ingyenes szerkesztése (fedőnév, indok — nagyobb rev, adag nélkül)
+  mindenhonnan letörölte, próbatétel nélkül. **Átmenet:** a régi
+  állapotfájl betöltése egyszer megjelöli a gép helyi adag-szabályait
+  (`burstUnsynced`), és az első kör friss szigorításként teszi rá őket a
+  fésülés eredményére (`reapplyUnsyncedBursts`: mezőnként a szigorúbb,
+  eggyel nagyobb rev-vel) — így egy közben történt telefonos írás sem
+  viszi el. **Őszinte korlát:** amit a régi gép a telefonról már
+  letörölt, azt nem tudjuk visszahozni — az a fiókban sehol nincs meg. Ha
+  egy telefonon beállított adag-szabály eltűnt, állítsd be újra.
 - **A számláló eszköz-helyi** (`HelperState.bursts` / `AppState.bursts`),
   és szándékosan nem megy a drótra: a szinkron tízperces körökben jár, egy
   kétperces adaghoz az túl lassú — ebből nem pontatlan közös számláló lesz,

@@ -16,7 +16,7 @@ import {
   normalizeIncomingSites, sameSites, SyncError,
 } from '../src/helper/sync-client';
 import type { SyncSite } from '../src/shared/sync/merge';
-import { bumpRevisions } from '../src/helper/revisions';
+import { adoptRevision, bumpRevisions } from '../src/helper/revisions';
 import { defaultState, type HelperState, type SiteRec } from '../src/helper/state';
 
 let child: ChildProcess;
@@ -782,4 +782,94 @@ test('a crafted blob a másik gép hosts fájljába sem jut el', async () => {
   for (const s of victim.sites) {
     for (const h of s.hostnames) assert.doesNotMatch(h, /\s/, `szóköz vagy soremelés a listában: ${JSON.stringify(h)}`);
   }
+});
+
+test('az adag-szabály átér a másik eszközre, és egy ingyenes szerkesztés sem törli', async () => {
+  // EZ VOLT A RÉS: a gép a drótra nem tette az adag-szabályt. A telefonon
+  // beállított szabályt a gép egy fedőnév-szerkesztése (nagyobb rev, adag
+  // nélkül) mindenhonnan letörölte — próbatétel nélkül.
+  const acc = 'adag@example';
+  const a = device([site({ id: 'site_adag', domain: 'tiktok.com', hostnames: ['tiktok.com'] })]);
+  await signUp(a, url, acc, PASSWORD, 'Munkagép');
+  await syncNow(a, 2_000);
+  const b = device();
+  await signIn(b, url, acc, PASSWORD, 'Telefon');
+  await syncNow(b, 3_000);
+
+  // A „telefon” adag-szabályt tesz rá: szigorítás, ingyen.
+  const bs = b.sites.find((x) => x.id === 'site_adag')!;
+  bs.burstSeconds = 120;
+  bs.cooldownSeconds = 600;
+  await syncNow(b, 4_000);
+
+  await syncNow(a, 5_000);
+  const as = a.sites.find((x) => x.id === 'site_adag')!;
+  assert.equal(as.burstSeconds, 120, 'a gép átvette az adagot');
+  assert.equal(as.cooldownSeconds, 600);
+
+  // A gép ingyen szerkeszt (fedőnév) — nagyobb rev.
+  as.alias = 'Videó';
+  await syncNow(a, 6_000);
+  await syncNow(b, 7_000);
+  const after = b.sites.find((x) => x.id === 'site_adag')!;
+  assert.equal(after.alias, 'Videó', 'a fedőnév átért');
+  assert.equal(after.burstSeconds, 120, 'az adag-szabály megmaradt');
+  assert.equal(after.cooldownSeconds, 600);
+});
+
+test('a frissítés előtt a gépen beállított, fel nem ment adag-szabályt egy telefonos írás sem törli', async () => {
+  // AZ ÁTMENET. A régi gép a szabályt helyben tartotta, a rev-et léptette, de
+  // a fiókba adag nélkül írt. Ha azóta a telefon is írt a rekordra (nagyobb
+  // rev, adag nélkül), a puszta fésülés a telefonét adná, és a gép szabálya —
+  // amiért senki nem fizetett levételt — eltűnne. A betöltés megjelöli
+  // (`burstUnsynced`), a kör friss szigorításként teszi rá.
+  const acc = 'adag-atmenet@example';
+  const a = device([site({ id: 'site_atm', domain: 'twitch.tv', hostnames: ['twitch.tv'] })]);
+  await signUp(a, url, acc, PASSWORD, 'Munkagép');
+  await syncNow(a, 2_000);
+  const b = device();
+  await signIn(b, url, acc, PASSWORD, 'Telefon');
+  await syncNow(b, 3_000);
+  const bs = b.sites.find((x) => x.id === 'site_atm')!;
+  bs.alias = 'Közvetítés';
+  await syncNow(b, 4_000);
+
+  // A régi gép állapota: helyben adag, a lenyomat már átvett (a rev-léptetés
+  // megtörtént és felment — adag nélkül), és a betöltés jele rajta.
+  const i = a.sites.findIndex((x) => x.id === 'site_atm');
+  a.sites[i] = adoptRevision({ ...a.sites[i], burstSeconds: 300, cooldownSeconds: 1800, burstUnsynced: true });
+  await syncNow(a, 5_000);
+  const as = a.sites.find((x) => x.id === 'site_atm')!;
+  assert.equal(as.burstSeconds, 300, 'a gép szabálya megmaradt');
+  assert.equal(as.cooldownSeconds, 1800);
+  assert.equal(as.alias, 'Közvetítés', 'a telefon írása is megmaradt');
+  assert.equal(as.burstUnsynced, undefined, 'a kör után a jel lekerült');
+
+  await syncNow(b, 6_000);
+  const after = b.sites.find((x) => x.id === 'site_atm')!;
+  assert.equal(after.burstSeconds, 300, 'és most már a telefonra is átért');
+  assert.equal(after.cooldownSeconds, 1800);
+  assert.equal(after.alias, 'Közvetítés');
+});
+
+test('az átmenet nem lazít: a fiókban lévő szigorúbb adag mezőnként marad', async () => {
+  const acc = 'adag-szigorubb@example';
+  const a = device([site({ id: 'site_sz', domain: 'kick.com', hostnames: ['kick.com'] })]);
+  await signUp(a, url, acc, PASSWORD, 'Munkagép');
+  await syncNow(a, 2_000);
+  const b = device();
+  await signIn(b, url, acc, PASSWORD, 'Telefon');
+  await syncNow(b, 3_000);
+  // A telefon szabálya: kisebb adag, rövidebb szünet.
+  const bs = b.sites.find((x) => x.id === 'site_sz')!;
+  bs.burstSeconds = 60;
+  bs.cooldownSeconds = 300;
+  await syncNow(b, 4_000);
+  // A régi gép szabálya: nagyobb adag, hosszabb szünet — egyik sem szigorúbb a másiknál.
+  const i = a.sites.findIndex((x) => x.id === 'site_sz');
+  a.sites[i] = adoptRevision({ ...a.sites[i], burstSeconds: 600, cooldownSeconds: 3600, burstUnsynced: true });
+  await syncNow(a, 5_000);
+  const as = a.sites.find((x) => x.id === 'site_sz')!;
+  assert.equal(as.burstSeconds, 60, 'a kisebb adag marad');
+  assert.equal(as.cooldownSeconds, 3600, 'a hosszabb szünet marad');
 });
