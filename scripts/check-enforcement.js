@@ -3647,6 +3647,11 @@ const WIRES = [
     needle: 'let total = max(0, clampedInt(ceil(ms / 1000)))',
     lost: 'egy abszurd törlési idő a szinkronról leállítaná az iPhone-appot',
   },
+  {
+    file: 'ios/Shared/UsageStats.swift',
+    needle: 'let s = clampedInt(max(0, seconds.rounded()))',
+    lost: 'egy másik eszköz abszurd mérése (vagy a napló egy abszurd menete) leállítaná az iPhone-appot a statisztikán és a szinkron kártyáján',
+  },
 
   // A NAPI KERET VÉGE ELŐRE: a mag megvan (gép, Android, tesztekkel) — ezek a
   // tűk azt őrzik, hogy szól is valaki, mielőtt a keret betelik.

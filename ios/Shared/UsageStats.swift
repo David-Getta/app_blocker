@@ -204,8 +204,13 @@ enum UsageStats {
     // -------------------------------------------------------------- kiírás
 
     /// Magyar, olvasható időtartam: „2 ó 15 p”, „45 p”, „30 mp”.
+    ///
+    /// LEÁLLÁS NÉLKÜL (`clampedInt`): az idő gyakran a dróton jön — egy másik
+    /// eszköz mérése, a szinkronizált napló menetei —, és egy abszurd érték
+    /// (1e300, vagy két nagy szám összege: végtelen) az `Int(_:)`-ben minden
+    /// megnyitáskor elvinné az appot, a statisztikán és a szinkron kártyáján.
     static func formatDuration(_ seconds: Double) -> String {
-        let s = Int(max(0, seconds.rounded()))
+        let s = clampedInt(max(0, seconds.rounded()))
         if s < 60 { return "\(s) mp" }
         let min = Int((Double(s) / 60).rounded())
         if min < 60 { return "\(min) p" }

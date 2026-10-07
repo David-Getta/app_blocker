@@ -20,10 +20,19 @@ final class SafeIntTests: XCTestCase {
             _ = Focus.formatRemaining(ms)
             _ = PauseNotify.text("x", leftMs: ms)
             _ = DigestLogic.hm(ms)
+            _ = Focus.windowSoonText("x", leftMs: ms, endClock: "18:50")
+            // Egy másik eszköz mérése, a szinkronizált napló menetei: a
+            // statisztika és a szinkron kártyája ezen át írja ki.
+            _ = UsageStats.formatDuration(ms / 1000)
         }
+        // Két nagy, véges mérés összege végtelen — az sem állíthatja le.
+        _ = UsageStats.formatDuration(1e308 + 1e308)
         // A szokásos értékek változatlanok.
         XCTAssertEqual(LockdownLogic.formatRemaining(90 * 60_000), "1 ó 30 p")
         XCTAssertEqual(Focus.formatRemaining(30 * 60_000), "30 perc")
         XCTAssertEqual(PauseNotify.text("x", leftMs: 120_000), "x 2 perc múlva újra zárva — a szünet véget ér.")
+        XCTAssertEqual(UsageStats.formatDuration(30), "30 mp")
+        XCTAssertEqual(UsageStats.formatDuration(45 * 60), "45 p")
+        XCTAssertEqual(UsageStats.formatDuration(135 * 60), "2 ó 15 p")
     }
 }
