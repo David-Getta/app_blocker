@@ -8,6 +8,7 @@ kettővel korábbiban.
 
 | Verzió | Nap | Mi újság |
 |---|---|---|
+| v0.4.219 | 2026-10-07 | a menetrend megmondja, mikor vált |
 | v0.4.218 | 2026-10-07 | saját sáv a menetrendben |
 | v0.4.217 | 2026-10-07 | a hűtés nem rövidül az órával, a vak böngésző oka |
 | v0.4.216 | 2026-10-07 | a friss menet mondata iPhone-on is |
