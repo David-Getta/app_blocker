@@ -12,6 +12,7 @@ jobs:
   text:
     name: Szöveg-ellenőrzés
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -57,6 +58,7 @@ jobs:
   desktop:
     name: Desktop mag + tesztek
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: desktop
@@ -75,6 +77,11 @@ jobs:
   ui-smoke:
     name: Renderer füstteszt (Playwright)
     runs-on: ubuntu-latest
+    # Az alapértelmezett korlát hat óra. A böngésző telepítése egyszer
+    # beragadt, és csak kézi leállítás vetett véget neki — a többi job zöld
+    # volt, a kiadás mégis állt. Rendesen négy perc alatt végez; húsz perc
+    # bőven elég, és egy akadás így pirosként látszik, nem várakozásként.
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: desktop
@@ -89,6 +96,7 @@ jobs:
       - run: npm run build
       - run: npm i --no-save playwright@1.56.1
       - run: npx playwright install --with-deps chromium
+        timeout-minutes: 10
       - run: node scripts/ui-shots.js --check
       # A bővítmény beállítási lapja ugyanabban a böngészőben, ugyanabból a
       # telepítésből — külön futóért nem éri meg egy tíz másodperces ellenőrzés.
@@ -105,6 +113,7 @@ jobs:
   sync-server:
     name: Szinkron-kiszolgáló tesztek
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     defaults:
       run:
         working-directory: server
@@ -119,6 +128,7 @@ jobs:
   android-core-tests:
     name: Android mag tesztek (JVM, SDK nélkül)
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: android/jvm-tests
@@ -134,6 +144,7 @@ jobs:
   ios-build:
     name: iOS fordítás (aláírás nélkül) + Swift-tesztek
     runs-on: macos-latest
+    timeout-minutes: 40
     # A Swift magot eddig CSAK a kiadási munkafolyamat fordította — vagyis egy
     # fordítási hiba napokig bent maradhatott, és csak kiadáskor derült volna
     # ki. Ez a job minden push-nál lefordítja, aláírás nélkül — és lefuttatja a
@@ -191,6 +202,7 @@ jobs:
   android-build:
     name: Android build (assembleDebug)
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     defaults:
       run:
         working-directory: android

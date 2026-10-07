@@ -29,6 +29,7 @@ jobs:
   prepare:
     name: Draft release létrehozása
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - name: Draft release
@@ -79,6 +80,7 @@ jobs:
       matrix:
         os: [macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
     defaults:
       run:
         working-directory: desktop
@@ -170,6 +172,7 @@ jobs:
     name: Böngésző-bővítmény (zip)
     needs: prepare
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       # Csomagolatlanul is betölthető a mappa, de csak akkor, ha valaki
@@ -188,6 +191,7 @@ jobs:
     name: Android APK + AAB
     needs: prepare
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     defaults:
       run:
         working-directory: android
@@ -266,6 +270,7 @@ jobs:
     name: iOS/macOS archívum (best-effort)
     needs: prepare
     runs-on: macos-latest
+    timeout-minutes: 40
     continue-on-error: true # aláírás nélkül nem készül feltölthető IPA — nem blokkolja a kiadást
     steps:
       - uses: actions/checkout@v4
@@ -336,6 +341,7 @@ jobs:
     # félbehagyott kiadás élesítette a draftot a félkész fájlokkal (v0.1.1).
     if: ${{ !cancelled() && needs.desktop.result == 'success' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - name: Draft -> közzététel
