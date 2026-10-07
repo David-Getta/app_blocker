@@ -171,8 +171,10 @@ test('a böngésző nem app-kérdés: a nyitott oldala dönt, türelmi idővel �
   // engedély) és a bővítmény sem szólt.
   assert.deepEqual(foregroundWarning(p, NOW, { appId: 'org.mozilla.firefox', appName: 'Firefox' }, later),
     { kind: 'app', app: 'Firefox' });
+  // …és ilyenkor a jel megmondja, hogy vak böngészőről van szó — a réteg
+  // ezt kimondja, ne csak annyit, hogy „nincs a listán”.
   assert.deepEqual(foregroundWarning(p, NOW, { appId: 'com.google.Chrome', appName: 'Google Chrome', browser: true }, later),
-    { kind: 'app', app: 'Google Chrome' });
+    { kind: 'app', app: 'Google Chrome', blindBrowser: true });
 
   // Két egymás utáni látás kell ugyanarról az oldalról: egy épp átirányított
   // lap egy mintán még a régi címet mutathatja.

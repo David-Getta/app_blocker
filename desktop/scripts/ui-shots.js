@@ -2377,6 +2377,19 @@ async function main() {
   await over.evaluate(() => { window.__fakeWarn = null; });
   await over.getByRole('button', { name: 'Értem' }).click({ timeout: 5000 })
     .catch(() => failures.push('az app-figyelmeztetésen nincs „Értem” gomb'));
+  // A VAK BÖNGÉSZŐ: appként nézzük, mert nem látunk bele — és ezt kimondjuk.
+  await over.evaluate(() => {
+    window.__fakeWarn = { kind: 'app', app: 'Google Chrome', blindBrowser: true };
+    window.dispatchEvent(new Event('focus'));
+  });
+  await over.waitForFunction(
+    () => document.getElementById('title')?.textContent === 'Google Chrome'
+      && /nem látunk bele/.test(document.body.innerText) && /bővítményt/.test(document.body.innerText),
+    undefined, { timeout: 10_000 },
+  ).catch(() => failures.push('a vak böngészőnél a réteg nem mondja meg, miért nézi appként'));
+  await over.evaluate(() => { window.__fakeWarn = null; });
+  await over.getByRole('button', { name: 'Értem' }).click({ timeout: 5000 })
+    .catch(() => failures.push('a vak böngésző figyelmeztetésén nincs „Értem” gomb'));
 
   // Az Esc zárja. Egy ottfelejtett, mindig felül lévő réteg a legrosszabb, amit
   // ez a funkció tehet.

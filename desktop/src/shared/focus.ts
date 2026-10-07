@@ -265,7 +265,12 @@ export const APP_WARN_COOLDOWN_MS = 3 * 60_000;
  * oldal, ami nincs a listán, és mégis nyitva látszik egy böngészőben.
  */
 export type ForegroundWarning =
-  | { kind: 'app'; app: string }
+  /**
+   * `blindBrowser`: böngésző, amiről nem tudjuk, mi van benne (a címét nem
+   * látjuk, a bővítmény sem szólt) — ezért nézzük appként. A réteg ezt
+   * kimondja, különben az engedett oldalon dolgozó nem értené, miért szólunk.
+   */
+  | { kind: 'app'; app: string; blindBrowser?: true }
   | { kind: 'site'; browser: string; host: string };
 
 /**
@@ -309,9 +314,10 @@ export function foregroundWarning(
     if (isSiteAllowed(pack, fg.domain)) return null;
     return { kind: 'site', browser: fg.appName || fg.appId, host: fg.domain };
   }
-  return shouldWarnAboutApp(pack, fg.appId, fg.appName)
-    ? { kind: 'app', app: fg.appName || fg.appId }
-    : null;
+  if (!shouldWarnAboutApp(pack, fg.appId, fg.appName)) return null;
+  return fg.browser === true
+    ? { kind: 'app', app: fg.appName || fg.appId, blindBrowser: true }
+    : { kind: 'app', app: fg.appName || fg.appId };
 }
 
 /**

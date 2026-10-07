@@ -195,6 +195,18 @@ function render(): void {
         'Ebben a böngészőben a fehérlistát most senki nem tartja be: a bővítmény nincs benne, '
         + 'nincs összekötve az appal, ki van kapcsolva, vagy inkognitóban nem fut.'));
       foot.textContent = 'A bővítmény ott tilt, ahol fut; ahol nem, ott csak szólni tudunk.';
+    } else if (warning.blindBrowser) {
+      // VAK BÖNGÉSZŐ: a címét nem látjuk, a bővítmény sem szólt — ezért nézzük
+      // appként. Kimondjuk, különben az engedett oldalon dolgozó nem értené,
+      // miért szólunk.
+      $('title').textContent = warning.app;
+      box.appendChild(h('div', 'what',
+        `Most ${pack?.name ?? 'egy munkamenet'} fut — ebbe a böngészőbe nem látunk bele, ezért `
+        + `appként nézzük, és appként nincs a listán. ${left}`));
+      box.appendChild(h('div', 'what',
+        'Ha engedett oldalon vagy, ezt hagyd figyelmen kívül. Ha összekötöd benne a '
+        + 'bővítményt, a böngészőben az oldal dönt, nem az app — és ott a fehérlista tilt is.'));
+      foot.textContent = 'A böngésző címét a rendszeren át nem látjuk; az összekötött bővítmény jele pótolja.';
     } else {
       $('title').textContent = warning.app;
       box.appendChild(h('div', 'what',
