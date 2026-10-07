@@ -44,40 +44,24 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **Mérés-őr: a kilépés sem kapcsolja ki a napi keretet.** A keret és
-          az adag a mért időből fogy, a mérés pedig az appban fut — ha
-          kilépsz belőle, a keret nem fogy, amíg újra nem indul. Aki ezt a
-          rést is be akarja zárni, a Statisztika kártyán bekapcsolja a
-          mérés-őrt: ha az app nem fut, a napi kerettel vagy adaggal védett
-          oldalak zárva vannak, amíg vissza nem jön — és a böngésző tiltó
-          lapja megmondja, miért, és hogy az app elindítása nyitja.
-          Bekapcsolni ingyen, kikapcsolni próbatétel.
+          **A már nyitott lap is lezárul.** A böngésző-bővítmény eddig csak
+          akkor döntött, amikor egy lapra navigáltál: ha a munkamenet
+          indulásakor vagy a napi keret beteltekor már nyitva volt egy videó,
+          az ment tovább. Most a látható lap legfeljebb egy percen belül a
+          tiltó lapra fut — okkal (menet fut, keret betelt). Ez nem számít
+          megakadásnak, a heti számod nem nő tőle.
 
-          **Biztonságosabb telepítés.** A háttérvédelem telepítése eddig egy
-          ideiglenes fájlt futtatott rendszergazdaként; egy, a gépen a te
-          nevedben már futó kártékony program a kiírás és a futtatás között
-          kicserélhette. Most a teljes parancs a jóváhagyott folyamatnak
-          közvetlenül megy át — nincs fájl, amit ki lehetne cserélni.
+          ### Ami a v0.4.212-ben jött
 
-          **Kevesebb terhelés a háttérben.** A rejtett ablak eddig két
-          másodpercenként frissített és rajzolt mindent újra; most csak
-          tízmásodpercenként néz rá, rajzolás nélkül — az értesítések ugyanúgy
-          jönnek.
+          **Mérés-őr: a kilépés sem kapcsolja ki a napi keretet** — ha
+          bekapcsolod, az app nélkül a kerettel védett oldalak zárva vannak.
+          Biztonságosabb telepítés, kevesebb terhelés a háttérben, és az app
+          meg a bővítmény is kimondja, ha a bővítmény inkognitóban nem fut.
 
-          **A bővítmény kimondja, fut-e nálad inkognitóban.** Eddig csak
-          általánosságban írta, hogy ott engedély kell — most a böngészőtől
-          megkérdezi, és ha nem fut, megmondja, mi nem érvényesül ott, és
-          odavisz, ahol be lehet kapcsolni. Az app is megtudja: ha a
-          bővítmény inkognitóban nem fut, a munkamenetek kártyája kimondja.
-
-          ### Ami a v0.4.211-ben jött
+          #### Ami a v0.4.211-ben jött
 
           **Az ablak bezárása többé nem kapcsolja ki a napi keretet** — az app
           a háttérben fut tovább, és bejelentkezéskor magától indul.
-
-          #### Ami a v0.4.210-ben jött
-
-          **A tiltó lap nem ígér olyan feloldást, ami nincs.**
 
           NOTES
           fi
