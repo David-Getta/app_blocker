@@ -108,6 +108,41 @@ object ScheduleLogic {
     }
 
     /**
+     * Beírt időpont → perc éjfél után, vagy null.
+     *
+     * A szerkesztők saját sávja szövegmezőből jön, és a telefonon a kettőspont
+     * a szimbólumok mögött lapul — a számbillentyűzeten sokszor nincs is. Ezért
+     * a „8:30” és a „08:30” mellett a „8.30” és a „8,30” (a számbillentyűzet
+     * tizedesjele), az egész óra („8”), és a csupa számjegy („830”, „0830”) is
+     * megy. Csak ASCII számjegy; a „24:00” az 1440 (a nap vége), ennél több nem.
+     */
+    fun parseClock(v: String): Int? {
+        val t = v.trim()
+        val sep = Regex("^([0-9]{1,2})[:.,]([0-9]{2})$").find(t)
+        val (h, m) = when {
+            sep != null -> sep.groupValues[1].toInt() to sep.groupValues[2].toInt()
+            Regex("^[0-9]{1,2}$").matches(t) -> t.toInt() to 0
+            Regex("^[0-9]{3,4}$").matches(t) -> t.dropLast(2).toInt() to t.takeLast(2).toInt()
+            else -> return null
+        }
+        if (h > 24 || m > 59 || (h == 24 && m > 0)) return null
+        return h * 60 + m
+    }
+
+    /**
+     * A szerkesztők saját sávja (menetrend, heti ablak): napok és két beírt
+     * időpont — vagy null, ha az időpont nem olvasható. A „00:00” végként az
+     * éjfél: a sáv 1440-nel írja le, nem nullával. A „24:00” kezdésként nem nap
+     * eleje, hanem érvénytelen — a mag eldobná, és a sáv csendben elveszne.
+     */
+    fun customBand(days: Set<Int>, start: String, end: String): Band? {
+        val s = parseClock(start) ?: return null
+        val e = parseClock(end) ?: return null
+        if (s >= 1440) return null
+        return Band(days, s, if (e == 0) 1440 else e)
+    }
+
+    /**
      * Would switching old -> new reduce blocked time in the next 7 days?
      *
      * Sampled every minute: bands are whole minutes, so a minute step cannot

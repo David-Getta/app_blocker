@@ -107,7 +107,11 @@ is mutatja („most blokkolva” / „most szabad”).
 
 - Desktop: renderer modal (screenshot: `docs/images/desktop-schedule.png`),
   end-to-end tesztelve.
-- Android: Compose `ScheduleDialog` (AppUi.kt).
+- Android: Compose `ScheduleDialog` (AppUi.kt). A kezdés és a vég
+  szövegmező, számbillentyűzettel — azon a kettőspont sokszor nincs, ezért a
+  „8:30” mellett a „8.30”, a „8,30”, az egész óra („8”) és a csupa számjegy
+  („830”) is megy. Az olvasás a magé (`ScheduleLogic.parseClock`,
+  `customBand`), tesztekkel; a zárlat-ablak szerkesztője ugyanezt használja.
 - iOS/macOS: SwiftUI `ScheduleEditor` (App/ScheduleEditor.swift).
 
 Szabadon szerkeszthető heti rács (napok × órák) nincs: a sávok listája és a

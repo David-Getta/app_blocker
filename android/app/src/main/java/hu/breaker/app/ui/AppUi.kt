@@ -1678,10 +1678,16 @@ private fun ScheduleDialog(
                         OutlinedTextField(
                             value = customStart, onValueChange = { customStart = it.take(5) },
                             label = { Text("Kezdés") }, singleLine = true, modifier = Modifier.weight(1f),
+                            // Számbillentyűzet tizedesjellel: a kettőspont ott nincs, de a „8.30”,
+                            // a „8,30” és a „830” is megy (ScheduleLogic.parseClock).
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         )
                         OutlinedTextField(
                             value = customEnd, onValueChange = { customEnd = it.take(5) },
                             label = { Text("Vég") }, singleLine = true, modifier = Modifier.weight(1f),
+                            // Számbillentyűzet tizedesjellel: a kettőspont ott nincs, de a „8.30”,
+                            // a „8,30” és a „830” is megy (ScheduleLogic.parseClock).
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         )
                     }
                 }
@@ -1695,7 +1701,7 @@ private fun ScheduleDialog(
                     if (customDays.isNotEmpty()) {
                         val band = customBandOf(customDays.toSet(), customStart, customEnd)
                         if (band == null) {
-                            onError("A saját sáv kezdése és vége ÓÓ:PP alakú legyen, például 08:30."); return@TextButton
+                            onError("A saját sáv kezdése és vége óra:perc legyen — például 8:30, 8.30 vagy 830."); return@TextButton
                         }
                         if (bands.none { LockdownLogic.windowKey(it) == LockdownLogic.windowKey(band) }) bands.add(band)
                     }
@@ -2282,10 +2288,16 @@ private fun LockdownWindowDialog(
                     OutlinedTextField(
                         value = customStart, onValueChange = { customStart = it.take(5) },
                         label = { Text("Kezdés") }, singleLine = true, modifier = Modifier.weight(1f),
+                        // Számbillentyűzet tizedesjellel: a kettőspont ott nincs, de a „8.30”,
+                        // a „8,30” és a „830” is megy (ScheduleLogic.parseClock).
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     )
                     OutlinedTextField(
                         value = customEnd, onValueChange = { customEnd = it.take(5) },
                         label = { Text("Vég") }, singleLine = true, modifier = Modifier.weight(1f),
+                        // Számbillentyűzet tizedesjellel: a kettőspont ott nincs, de a „8.30”,
+                        // a „8,30” és a „830” is megy (ScheduleLogic.parseClock).
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     )
                 }
             }
@@ -2298,7 +2310,7 @@ private fun LockdownWindowDialog(
                 if (customDays.isNotEmpty()) {
                     val band = customBandOf(customDays.toSet(), customStart, customEnd)
                     if (band == null) {
-                        onError("A saját sáv kezdése és vége ÓÓ:PP alakú legyen, például 08:30."); return@TextButton
+                        onError("A saját sáv kezdése és vége óra:perc legyen — például 8:30, 8.30 vagy 830."); return@TextButton
                     }
                     added.add(LockdownLogic.LockdownWindow(existing?.id ?: "", band.days, band.startMin, band.endMin))
                 }
@@ -2326,30 +2338,12 @@ private fun LockdownWindowDialog(
 }
 
 
-/** „09:00” → 540; „24:00” → 1440; ami nem óra:perc alakú, az null. */
-private fun parseClock(v: String): Int? {
-    val m = Regex("^(\\d{1,2}):(\\d{2})$").find(v.trim()) ?: return null
-    val h = m.groupValues[1].toInt()
-    val min = m.groupValues[2].toInt()
-    if (h > 24 || min > 59 || (h == 24 && min > 0)) return null
-    return h * 60 + min
-}
-
 /** 540 → „09:00”; az 1440 (éjfél mint vég) „00:00” — a szerkesztő ezt vissza is olvassa 1440-nek. */
 private fun clockLabel(min: Int): String = "%02d:%02d".format((min % 1440) / 60, min % 60)
 
-/**
- * A szerkesztők saját sávja (menetrend, heti ablak): napok és két beírt
- * időpont — vagy null, ha az időpont nem óra:perc alakú. A „00:00” végként az
- * éjfél: a sáv 1440-nel írja le, nem nullával. A „24:00” kezdésként nem nap
- * eleje, hanem érvénytelen — a mag eldobná, és a sáv csendben elveszne.
- */
-private fun customBandOf(days: Set<Int>, start: String, end: String): ScheduleLogic.Band? {
-    val s = parseClock(start) ?: return null
-    val e = parseClock(end) ?: return null
-    if (s >= 1440) return null
-    return ScheduleLogic.Band(days, s, if (e == 0) 1440 else e)
-}
+/** A szerkesztők saját sávja — a szabály a magé (`ScheduleLogic.customBand`, tesztekkel). */
+private fun customBandOf(days: Set<Int>, start: String, end: String): ScheduleLogic.Band? =
+    ScheduleLogic.customBand(days, start, end)
 
 
 /**
