@@ -505,6 +505,44 @@ export async function addFocusWindowInApp(packId, hour, fetchImpl = fetch, timeo
   return postToApp('/focus_window', { packId, hour }, fetchImpl, timeoutMs);
 }
 
+/** Egy fül címének tartománya — csak valódi weboldalé (http/https); máskor null. */
+function tabHost(url) {
+  try {
+    const u = new URL(String(url ?? ''));
+    return /^https?:$/.test(u.protocol) && u.hostname ? u.hostname.toLowerCase() : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * A MÉRŐ JELE: melyik oldal van elöl ebben a böngészőben.
+ *
+ * Az app a böngésző címét a rendszeren át olvassa; ha ez nem megy (macOS-en a
+ * frissítés után visszavont „Automatizálás” engedély, Windowson egy címsor,
+ * amit a szonda nem lát), a böngészőben töltött idő APPKÉNT könyvelődik, és az
+ * oldal napi kerete nem fogy. Itt viszont pontosan tudjuk, melyik fül van elöl.
+ * Ha a böngésző nincs fókuszban, a jel semmiről nem szól — ezt is megmondjuk,
+ * különben az app egy régi oldalra könyvelné egy másik app perceit.
+ *
+ * @returns {Promise<{focused: boolean, host: string|null}>}
+ */
+export async function currentTabHint(api = globalThis.chrome) {
+  try {
+    const w = await api.windows.getLastFocused({ populate: false });
+    if (!w || w.focused !== true) return { focused: false, host: null };
+    const [tab] = await api.tabs.query({ active: true, windowId: w.id });
+    return { focused: true, host: tabHost(tab?.url) };
+  } catch {
+    return { focused: false, host: null };
+  }
+}
+
+/** A jel az appnak, a hídon, a kóddal. Hiba esetén csend: a következő kör hozza. */
+export async function postTabHint(hint, fetchImpl = fetch, timeoutMs = PORT_TIMEOUT_MS) {
+  return postToApp('/tab', { focused: hint.focused === true, host: hint.host ?? null }, fetchImpl, timeoutMs);
+}
+
 /** Egy befelé menő kérés a hídon: { ok } vagy { ok: false, error } — a bíró nemje szöveggel, nem hálózati hibaként. */
 async function postToApp(path, payload, fetchImpl, timeoutMs) {
   const link = await loadLink();

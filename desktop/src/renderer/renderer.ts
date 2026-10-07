@@ -902,9 +902,13 @@ let focusExtendDraft = '';
  * Ugyanaz a hibafajta, mint a telefonon a kikapcsolt védelem: az app olyasmit
  * ígér, amit épp nem tud betartani.
  */
+/** Az utolsó híd-állapot: a mérő-figyelmeztetés is ebből tudja, össze van-e kötve a bővítmény. */
+let lastBridgeInfo: RulesBridgeInfo | null = null;
+
 function renderFocusExtensionWarning(): void {
   const box = $('focusExtWarn');
   void window.breaker.getBridgeInfo().then((info) => {
+    lastBridgeInfo = info;
     // A bővítmény húsz másodpercenként kérdez; két percnél régebbi lehúzás azt
     // jelenti, hogy nincs ott. A híd FUTÁSA önmagában nem elég bizonyíték.
     const fresh = !!info.lastPullAt && Date.now() - info.lastPullAt < 2 * 60_000;
@@ -4578,6 +4582,21 @@ let trackerState: {
  * felület védelmet mutatna ott, ahol nincs. Ezért kimondjuk, és megmondjuk,
  * hol lehet megadni.
  */
+/**
+ * A mondat vége: mi fogy közben. Ha a böngésző-bővítmény össze van kötve, a
+ * böngészőben töltött időt az ő jeléből mérjük (lásd shared/usage.ts
+ * `withTabHint`) — ott az oldalak kerete fogy, a többi appé nem. Enélkül azt
+ * mondanánk, hogy semmi nem fogy, ami nem igaz.
+ */
+function probeWarningTail(): string {
+  const info = lastBridgeInfo;
+  const connected = !!info?.lastPullAt && Date.now() - info.lastPullAt < 2 * 60_000;
+  return connected
+    ? 'A böngészőben töltött időt közben a bővítmény jeléből mérjük: ott az oldalak kerete '
+      + 'fogy, a többi app ideje viszont nem mérődik.'
+    : 'Amíg nincs adat, a napi időkeret sem fogy.';
+}
+
 function renderProbeWarning(measurementOn: boolean): void {
   const el = $('usageBlocked');
   // A KÉZBESÍTÉS hibája előbbre való, mint a szondáé: ha a mért idő eljut a
@@ -4595,8 +4614,7 @@ function renderProbeWarning(measurementOn: boolean): void {
   el.classList.toggle('hidden', !show);
   if (!show) return;
   if (trackerState!.platform !== 'darwin') {
-    el.textContent = 'A mérés be van kapcsolva, de nem kap adatot az előtérről. '
-      + 'Amíg nincs adat, a napi időkeret sem fogy.';
+    el.textContent = `A mérés be van kapcsolva, de nem kap adatot az előtérről. ${probeWarningTail()}`;
     return;
   }
   const where = 'Rendszerbeállítások → Adatvédelem és biztonság → Automatizálás, ott a '
@@ -4614,12 +4632,11 @@ function renderProbeWarning(measurementOn: boolean): void {
   el.textContent = trackerState!.neverWorked
     ? `A mérés be van kapcsolva, de még egyszer sem kapott adatot. macOS-en ehhez `
       + `engedély kell; az engedélykérő ablak az első méréskor jön fel, és ha `
-      + `elkattintottad, itt adhatod meg: ${where} Amíg nincs adat, a napi `
-      + 'időkeret sem fogy.'
+      + `elkattintottad, itt adhatod meg: ${where} ${probeWarningTail()}`
     : `A mérés korábban kapott adatot, most viszont nem. macOS-en ez jellemzően `
       + `FRISSÍTÉS után fordul elő: amíg nincs Apple fejlesztői aláírás, a rendszer `
       + `az új változatot külön appnak látja, és az engedélyt újra kell adni: ${where} `
-      + 'Amíg nincs adat, a napi időkeret sem fogy.';
+      + probeWarningTail();
 }
 
 /**

@@ -452,13 +452,20 @@ A gép és a böngésző-bővítmény között egy helyi HTTP-híd él (`127.0.0
 nélkül — egy weboldal nem éri el, a bővítmény a `host_permissions` jogán igen.
 Kifelé (`GET /rules`) a szabályok, a futó menet, a csatorna-szűrők, a zárva-lista,
 a zárlat, az indokok, a megbízott, a kulcsszavak és a javasolt csomag mennek.
-Befelé három út van, és mind a lazítás irányában zárt: a megakadás-könyv
+Befelé négy út van, és mind a lazítás irányában zárt: a megakadás-könyv
 (`POST /hits` — könyvelés, bíró nélkül), a menet indítása a felugró lapról
 (`POST /focus_start` — szigorítás; a segéd bírója dönt, ugyanúgy, mint az app
 gombjánál: futó menet mellett nem indul, ismeretlen csomag nem indul), és a
 heti ablak a csúcs-órára vagy a menet-órára (`POST /focus_window` — csak
 FELVÉTEL, ablak nélküli csomagra; az órát a lap mondja, az app szava szerint; ablakos csomagra a híd nemet mond, mert a csere lazíthat, és arról
-a bíró próbatételt kezdene — azt a híd nem indíthatja el).
+a bíró próbatételt kezdene — azt a híd nem indíthatja el), és az elöl lévő
+oldal jele (`POST /tab` — `{focused, host}`; a mérés kap rajta szemet ott, ahol
+a szonda vak: macOS-en a frissítés után visszavont engedély, Windowson a nem
+látott címsor. A szonda saját látványát sosem írja felül, nem-böngészőt nem
+nevez át oldalnak, és csak a friss, fókuszos jel számít — lásd
+`shared/usage.ts` `withTabHint`. Jel nélkül az idő appként könyvelődne, és az
+oldal kerete nem fogyna; egy hamis jel tehát legfeljebb ugyanott hagy, ahol a
+jel nélküli állapot.)
 Feloldó végpont nincs, és nem is lesz: aki a kódot ismeri, legfeljebb
 szigoríthat.
 

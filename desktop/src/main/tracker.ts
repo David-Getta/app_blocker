@@ -16,7 +16,8 @@ import { withDeadline } from '../shared/deadline';
 import { DeliveryHealth } from '../shared/delivery-health';
 import { execFile, spawn } from 'child_process';
 import {
-  decideSample, domainFromBrowserUrl, SAMPLE_INTERVAL_MS, MAX_LABEL_LENGTH, type Foreground,
+  decideSample, domainFromBrowserUrl, SAMPLE_INTERVAL_MS, MAX_LABEL_LENGTH, type Foreground, type TabHint,
+  withTabHint,
 } from '../shared/usage';
 import { SampleBuffer } from '../shared/sample-buffer';
 import { ProbeSupervisor } from '../shared/probe-supervisor';
@@ -35,6 +36,16 @@ const MAC_BROWSERS: Record<string, 'chromium' | 'safari'> = {
 };
 
 const WIN_BROWSERS = new Set(['chrome', 'msedge', 'brave', 'vivaldi', 'firefox', 'opera']);
+
+/**
+ * Böngészők, amiknek a címét a szonda NEM tudja kiolvasni macOS-en (nincs
+ * hozzá AppleScript-szótáruk). Böngészőnek mégis tudjuk őket: ha bennük fut a
+ * bővítmény, az ő jele mondja meg az oldalt (lásd `withTabHint`).
+ */
+const MAC_OTHER_BROWSERS = new Set([
+  'org.mozilla.firefox', 'org.mozilla.firefoxdeveloperedition', 'org.mozilla.nightly',
+  'com.operasoftware.Opera', 'com.operasoftware.OperaGX',
+]);
 
 const FLUSH_INTERVAL_MS = 30_000;
 const PROBE_TIMEOUT_MS = 4_000;
@@ -80,14 +91,21 @@ async function macForeground(): Promise<Foreground | null> {
   };
 
   const flavour = MAC_BROWSERS[fg.appId];
-  if (!flavour) return fg;
+  if (!flavour) {
+    if (MAC_OTHER_BROWSERS.has(fg.appId)) fg.browser = true;
+    return fg;
+  }
   fg.browser = true;
 
   const script = flavour === 'safari'
     ? `tell application id "${fg.appId}" to return URL of front document`
     : `tell application id "${fg.appId}" to return URL of active tab of front window`;
   const url = await run('/usr/bin/osascript', ['-e', script]);
-  if (url) {
+  // A null a megtagadott (vagy egy frissítés után visszavont) engedély: akkor
+  // NEM tudjuk, mi van benne. Bármi más — az új lap, a tiltó lap címe is —
+  // látvány: tudjuk.
+  if (url !== null) {
+    fg.seen = true;
     const domain = domainFromBrowserUrl(url);
     if (domain) fg.domain = domain;
   }
@@ -235,9 +253,14 @@ export function parseWinLine(line: string): Foreground | null {
   // Second check, in JS: the probe only prints absolute http(s) URLs, but the
   // consequence of a stray page-input value getting through is that what the
   // user typed becomes a stored "site". Verify rather than trust.
+  // Üres cím: a szonda nem látta, vagy nem webcím — nem tudjuk, melyik, tehát
+  // nem is állítjuk, hogy látjuk (`seen`); a bővítmény jele pótolhatja.
   if (url && WIN_BROWSERS.has(name.toLowerCase())) {
     const domain = domainFromBrowserUrl(url);
-    if (domain) fg.domain = domain;
+    if (domain) {
+      fg.domain = domain;
+      fg.seen = true;
+    }
   }
   return fg;
 }
@@ -283,6 +306,11 @@ export interface TrackerDeps {
    * terhelés lenne — és a kettő előbb-utóbb máshogy válaszolna.
    */
   onForeground?: (fg: Foreground | null) => void;
+  /**
+   * A böngésző-bővítmény jele: melyik oldal van elöl (lásd `withTabHint`).
+   * Csak ott számít, ahol a szonda maga nem látta a címet.
+   */
+  tabHint?: () => TabHint | null;
 }
 
 export class UsageTracker {
@@ -338,10 +366,13 @@ export class UsageTracker {
       // A határidő NEM az `execFile`-é: ez azt zárja, hogy a szonda ígérete
       // egyáltalán nem teljesül. Enélkül egyetlen beragadt lekérdezés a
       // folyamat hátralévő életére megállítaná a mérést, némán.
-      const fg = await withDeadline<Foreground | null>(
+      const probed = await withDeadline<Foreground | null>(
         probeForeground(this.deps.log), PROBE_DEADLINE_MS, null,
       );
-      this.health.record(fg !== null);
+      // Az egészség a SZONDÁÉ: ha az engedély hiányzik, a felület ezt mondja —
+      // a bővítmény jele a mérést menti meg, a hiányzó engedélyt nem pótolja.
+      this.health.record(probed !== null);
+      const fg = withTabHint(probed, this.deps.tabHint?.() ?? null, Date.now());
       this.deps.onForeground?.(fg);
       const now = Date.now();
       const decision = decideSample({ lastAt: this.lastAt, now, idleSeconds, fg });

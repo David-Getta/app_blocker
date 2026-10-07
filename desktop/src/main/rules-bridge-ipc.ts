@@ -7,6 +7,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { ipcMain } from 'electron';
+import type { TabHint } from '../shared/usage';
 import {
   newBridgeToken, startRulesBridge,
   type BridgeClosed, type BridgeFocus, type BridgeHandle, type BridgeLockdown, type BridgeRule,
@@ -33,6 +34,8 @@ let info: BridgeInfo = { running: false };
 let lastPullAt = 0;
 /** Fut-e a bővítmény inkognitóban — az utolsó lehúzás szerint; null: nem tudni. */
 let lastIncognito: boolean | null = null;
+/** A böngésző utolsó jele: melyik oldal van elöl (lásd shared/usage.ts `withTabHint`). */
+let lastTab: TabHint | null = null;
 
 function tokenFile(userDataDir: string): string {
   return path.join(userDataDir, 'extension-bridge.json');
@@ -85,6 +88,11 @@ export function extensionIncognitoOff(now = Date.now()): boolean {
   return extensionSeenRecently(now) && lastIncognito === false;
 }
 
+/** A böngésző utolsó jele, ahogy érkezett — a frissességét a mérő dönti el. */
+export function extensionTabHint(): TabHint | null {
+  return lastTab;
+}
+
 export function registerRulesBridge(
   userDataDir: string,
   getRules: () => Promise<BridgeRule[]>,
@@ -126,6 +134,8 @@ export function registerRulesBridge(
       // A régi bővítmény nem mondja: az utolsó tudott érték marad, nem törlődik.
       if (info.incognito !== null) lastIncognito = info.incognito;
     },
+    // Az érkezés ideje az APP órája szerint: a bővítményét nem kell elhinni.
+    noteTab: (hint) => { lastTab = { focused: hint.focused, host: hint.host, at: Date.now() }; },
   }).then(
     (h) => { handle = h; info = { running: true, port: h.port, token }; },
     // A híd elmaradása nem hiba, amitől bármi más ne menne: a bővítmény ilyenkor

@@ -817,6 +817,45 @@ async function main() {
     await seedClosed([{ host: '127.0.0.1', reason: 'limit', until: Date.now() + 3_600_000 }], Date.now());
     const openLimit = await waitForBrowserUrl(page, context, /blocked\.html\?.*closedReason=limit/, WAIT_MS);
     check(!!openLimit, 'a keret beteltekor a nyitott lap is a tiltó lapra fut, okkal');
+
+    // A MÉRŐ JELE. Az összekötött bővítmény (kód, port) a hídon megmondja,
+    // melyik oldal van elöl — ebből méri az app az oldalt ott, ahol a gép maga
+    // nem tudja kiolvasni a címet. Egy kamu app fogadja; a /rules hibát ad,
+    // hogy a lehúzás ne írja felül a beültetett kapcsot. (Fejnélküli módban az
+    // ablak fókusza bizonytalan: fókusz nélkül a jel hoszt nélkül jön — az is
+    // helyes alak.)
+    const tabPosts = [];
+    const fakeApp = http.createServer((req, res) => {
+      let raw = '';
+      req.on('data', (c) => { raw += c; });
+      req.on('end', () => {
+        if (req.method === 'POST' && req.url === '/tab') {
+          let body = null;
+          try { body = JSON.parse(raw); } catch { /* rossz alak: a vizsgálat elkapja */ }
+          tabPosts.push({ token: req.headers['x-breaker-token'], body });
+          res.setHeader('content-type', 'application/json');
+          res.end('{"ok":true}');
+          return;
+        }
+        res.statusCode = 500;
+        res.end('{}');
+      });
+    });
+    await new Promise((r) => fakeApp.listen(0, '127.0.0.1', r));
+    const appPort = fakeApp.address().port;
+    await seeder.evaluate((arg) => chrome.storage.local.set({
+      'breaker.applink': {
+        ...arg.link, token: 'TESZ-TKOD', port: arg.port, closed: [], focus: { running: false }, fetchedAt: Date.now(),
+      },
+    }), { link: LINK, port: appPort });
+    await page.goto(`${base}/`);
+    await page.bringToFront();
+    const tabT0 = Date.now();
+    while (tabPosts.length === 0 && Date.now() - tabT0 < WAIT_MS) await new Promise((r) => setTimeout(r, 200));
+    const goodPost = tabPosts.find((p) => p.token === 'TESZ-TKOD' && p.body && typeof p.body.focused === 'boolean'
+      && (p.body.focused ? p.body.host === '127.0.0.1' : p.body.host === null));
+    check(!!goodPost, `az összekötött bővítmény a hídon megmondja, melyik oldal van elöl (${JSON.stringify(tabPosts.slice(0, 3))})`);
+    fakeApp.close();
   } finally {
     await context.close().catch(() => {});
     server.close();

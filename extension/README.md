@@ -94,11 +94,21 @@ lehetne, a bővítmény lenne a legolcsóbb kiskapu az egész appban.
 Amíg az app nincs nyitva, a legutóbb letöltött lista marad érvényben — vagyis
 **tovább tilt**, nem enged át. A híd csak a saját gépen belül él (`127.0.0.1`),
 kóddal védett, és a lazítás irányában **zárt**: ezen az úton semmit nem lehet
-feloldani. Befelé három út van, mind szigorítás: a megakadás-könyv
+feloldani. Befelé négy út van, egyik sem lazít: a megakadás-könyv
 (`POST /hits`), a menet indítása a felugró lapról (`POST /focus_start` — a
-bíró dönt róla, mint az app gombjánál), és a heti ablak a csúcs-órára
+bíró dönt róla, mint az app gombjánál), a heti ablak a csúcs-órára
 (`POST /focus_window` — csak felvétel, ablak nélküli csomagra; a csere az
-appé).
+appé), és az elöl lévő oldal jele (`POST /tab`).
+
+**A mérő jele.** Az app a böngésző címét a rendszeren át olvassa; ha ez nem
+megy (macOS-en minden aláíratlan frissítés után újra kell adni az
+„Automatizálás” engedélyt), a böngészőben töltött idő appként könyvelődik, és
+az oldal napi kerete nem fogy. A bővítmény ezért megmondja, melyik oldal van
+elöl — fül- és ablakváltáskor, navigáláskor és a látható lapok újranézésekor.
+Csak a TARTOMÁNYT (`youtube.com`), csak a saját gépeden futó appnak, a kóddal;
+és ha a böngésző nincs fókuszban, azt is, hogy most semmiről nem szól. Az app
+a saját szonda-látványát előnyben részesíti, és a jelet csak böngészőre
+alkalmazza.
 
 ### A felugró lap (az ikonra kattintva)
 

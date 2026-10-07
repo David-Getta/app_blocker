@@ -7,7 +7,9 @@
 import { app, BrowserWindow, ipcMain, Menu, Notification, systemPreferences, Tray } from 'electron';
 import * as fs from 'fs';
 import { registerSyncServerIpc } from './sync-server';
-import { extensionIncognitoOff, extensionSeenRecently, registerRulesBridge, stopRulesBridge } from './rules-bridge-ipc';
+import {
+  extensionIncognitoOff, extensionSeenRecently, extensionTabHint, registerRulesBridge, stopRulesBridge,
+} from './rules-bridge-ipc';
 import { isWindowLockdown, liveLockdown, upcomingLockdownWindows } from '../shared/lockdown';
 import {
   hideOverlay, takeWarning, toggleOverlay, unregisterOverlayShortcut, warnAboutForeground,
@@ -348,6 +350,10 @@ if (HELPER_MODE) {
           }
         },
         isEnabled: () => usageEnabled,
+        // A böngésző jele: ahol a szonda a címet nem látja (macOS-en a frissítés
+        // után visszavont engedély), a bővítmény mondja meg az oldalt — enélkül
+        // az idő appként könyvelődne, és az oldal kerete nem fogyna.
+        tabHint: () => extensionTabHint(),
         log: (m) => console.log(`[breaker-tracker] ${m}`),
         // A munkamenet appokra vonatkozó fele. TILTANI nem tudunk — egy futó
         // programot nem lövünk ki —, de szólni igen. Ugyanazt a szondát

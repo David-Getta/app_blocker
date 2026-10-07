@@ -3475,6 +3475,26 @@ const WIRES = [
     needle: 'extensionNoIncognito: extensionIncognitoOff(),',
     lost: 'a réteg nem mondaná ki, hogy a bővítmény inkognitóban nem fut',
   },
+  {
+    file: 'desktop/src/main/tracker.ts',
+    needle: 'const fg = withTabHint(probed, this.deps.tabHint?.() ?? null, Date.now());',
+    lost: 'vak szonda mellett a böngészőidő appként könyvelődne — az oldal napi kerete és adagja nem fogyna',
+  },
+  {
+    file: 'desktop/src/main/main.ts',
+    needle: 'tabHint: () => extensionTabHint(),',
+    lost: 'a bővítmény jele sosem jutna el a mérőig',
+  },
+  {
+    file: 'desktop/src/main/rules-bridge-ipc.ts',
+    needle: 'noteTab: (hint) => { lastTab = { focused: hint.focused, host: hint.host, at: Date.now() }; },',
+    lost: 'a híd elnyelné a bővítmény jelét — a mérő nem tudná, melyik oldal van elöl',
+  },
+  {
+    file: 'extension/background.js',
+    needle: 'chrome.windows.onFocusChanged.addListener(() => { void sendTabHint(); });',
+    lost: 'a bővítmény nem szólna, ha a böngésző háttérbe kerül — az app egy régi oldalra könyvelhetné egy másik app perceit',
+  },
 ];
 
 /**

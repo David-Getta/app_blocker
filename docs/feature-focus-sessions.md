@@ -96,9 +96,9 @@ dolgozott, hárompercenként azt kapta, hogy a böngésző „nincs a listán”
 fel nem vette a böngészőt is az appok közé. Pedig a böngésző tároló: benne az
 oldalak listája dönt, és a fehérlistát a bővítmény tartja.
 
-Most a mérő megjelöli a böngészőt (azt, aminek a címét ki tudjuk olvasni:
-macOS-en a Chromium-alapúak és a Safari, Windowson a szokásos folyamatnevek),
-és a menet ennél a NYITOTT OLDALT nézi (`foregroundWarning`):
+Most a mérő megjelöli a böngészőt, és ha TUDJUK, mi van benne (a címe
+kiolvasható volt, vagy a bővítmény jele megmondta — lásd a mérés leírását), a
+menet ennél a NYITOTT OLDALT nézi (`foregroundWarning`):
 
 - engedett oldal, új lap, a bővítmény tiltó lapja → nincs mit mondani;
 - nem engedett oldal, és mégis látszik → abban a böngészőben a fehérlistát
@@ -111,8 +111,9 @@ azután zárhatja le a nyitott lapot), és ugyanannak az oldalnak két egymás u
 mintán kell látszania (egy épp átirányított lap egy mintán még a régi címet
 mutathatja). A türelmi idő a figyelmeztetéseké, közös az appokéval.
 
-Ahol a címet nem tudjuk kiolvasni (például Firefox macOS-en), ott marad az
-app-szabály: ha nincs a listán, szólunk — mert nem látjuk, mit nézel benne.
+Ahol nem tudjuk, mi van benne (macOS-en a megtagadott engedély, és a
+bővítmény sem szól), ott marad az app-szabály: ha nincs a listán, szólunk —
+mert nem látjuk, mit nézel benne.
 
 ## Adatmodell
 

@@ -147,7 +147,7 @@ test('a böngésző nem app-kérdés: a nyitott oldala dönt, türelmi idővel �
   const { foregroundWarning, siteSightings, SITE_WARN_GRACE_MS, SITE_WARN_SIGHTINGS } = await import('../src/shared/focus');
   const p = pack({ allowSites: ['docs.google.com'], allowApps: ['Word'] });
   const later = NOW + SITE_WARN_GRACE_MS;
-  const chrome = { appId: 'com.google.Chrome', appName: 'Google Chrome', browser: true as const };
+  const chrome = { appId: 'com.google.Chrome', appName: 'Google Chrome', browser: true as const, seen: true as const };
   // Engedett oldalon a böngésző NEM „nincs a listán” — eddig hárompercenként
   // ezt kapta, aki a csomag oldalán dolgozott.
   assert.equal(foregroundWarning(p, NOW, { ...chrome, domain: 'docs.google.com' }, later), null);
@@ -166,9 +166,13 @@ test('a böngésző nem app-kérdés: a nyitott oldala dönt, türelmi idővel �
   assert.deepEqual(foregroundWarning(p, NOW, { appId: 'com.valve.steam', appName: 'Steam' }, later),
     { kind: 'app', app: 'Steam' });
   assert.equal(foregroundWarning(p, NOW, { appId: 'com.microsoft.Word', appName: 'Microsoft Word' }, later), null);
-  // Ahol a címet nem tudjuk kiolvasni (nincs jel), ott marad az app-szabály.
+  // Ahol nem tudjuk, mi van benne, ott marad az app-szabály: az ismeretlen
+  // böngésző, és az ismert is, ha a címét nem láttuk (macOS-en a megtagadott
+  // engedély) és a bővítmény sem szólt.
   assert.deepEqual(foregroundWarning(p, NOW, { appId: 'org.mozilla.firefox', appName: 'Firefox' }, later),
     { kind: 'app', app: 'Firefox' });
+  assert.deepEqual(foregroundWarning(p, NOW, { appId: 'com.google.Chrome', appName: 'Google Chrome', browser: true }, later),
+    { kind: 'app', app: 'Google Chrome' });
 
   // Két egymás utáni látás kell ugyanarról az oldalról: egy épp átirányított
   // lap egy mintán még a régi címet mutathatja.

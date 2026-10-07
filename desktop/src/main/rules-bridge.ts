@@ -22,6 +22,7 @@
 // helyes irány: a hiba a szigorúbb oldalra dől.
 
 import * as crypto from 'crypto';
+import { normalizeDomain } from '../shared/blocklist';
 import * as http from 'http';
 import type { AddressInfo } from 'net';
 
@@ -263,6 +264,12 @@ export interface BridgeDeps {
    * érvényesíti, tehát ez a különbség nem részletkérdés.
    */
   notePull?: (info: { incognito: boolean | null }) => void;
+  /**
+   * A NEGYEDIK befelé menő út: a böngésző jele, melyik oldal van elöl (lásd
+   * shared/usage.ts `withTabHint`). Csak a mérést segíti ott, ahol a szonda a
+   * címet nem látja — az oldalra szabott keret így fogy. Szabályt nem ír.
+   */
+  noteTab?: (hint: { focused: boolean; host: string | null }) => void;
 }
 
 /** A befelé menő törzs plafonja: egy hét megakadás-sora, bőven. */
@@ -285,11 +292,28 @@ export async function answer(
   headers: Record<string, unknown>, body?: unknown,
 ): Promise<{ status: number; body: unknown }> {
   const path = (url ?? '').split('?')[0];
-  // BEFELÉ három út van, és mind a lazítás irányában zárt. A megakadás-könyv:
+  // BEFELÉ négy út van, és mind a lazítás irányában zárt. A megakadás-könyv:
   // csak könyvelés jön rajta, szabály soha. A menet indítása: szigorítás — a
-  // bíró dönt róla, ugyanúgy, mint az app gombjánál. És a heti ablak a
+  // bíró dönt róla, ugyanúgy, mint az app gombjánál. A heti ablak a
   // csúcs-órára: csak FELVÉTEL, ablak nélküli csomagra — a csere lazíthat, az
-  // az appé. A bővítmény nem vehet le semmit az appban.
+  // az appé. És az elöl lévő oldal jele: a mérés kap rajta szemet ott, ahol a
+  // szonda vak — a jel nélkül az idő appként könyvelődne, és az oldal kerete
+  // nem fogyna; a szonda saját látványát pedig sosem írja felül. A bővítmény
+  // nem vehet le semmit az appban.
+  if (method === 'POST' && path === '/tab') {
+    if (!tokenMatches(deps.token, headers[TOKEN_HEADER])) {
+      return { status: 401, body: { error: 'Hiányzó vagy rossz kód.' } };
+    }
+    const b = body && typeof body === 'object' ? body as { focused?: unknown; host?: unknown } : {};
+    if (typeof b.focused !== 'boolean' || (b.host !== null && typeof b.host !== 'string')) {
+      return { status: 400, body: { error: 'Fókusz és hoszt (vagy null) kell.' } };
+    }
+    // A hoszt a mérés kulcsa lesz: ugyanaz a tisztítás, mint a szonda által
+    // olvasott címé. Ami nem tartománynév (localhost, szemét), az nem oldal.
+    const host = typeof b.host === 'string' ? normalizeDomain(b.host) : null;
+    deps.noteTab?.({ focused: b.focused, host });
+    return { status: 200, body: { ok: true } };
+  }
   if (method === 'POST' && path === '/focus_start') {
     if (!tokenMatches(deps.token, headers[TOKEN_HEADER])) {
       return { status: 401, body: { error: 'Hiányzó vagy rossz kód.' } };

@@ -18,7 +18,8 @@ import { keywordHit, keywordInText } from './keywords.js';
 import { hitsReport, recordHit, sweepHits } from './hits.js';
 import { activeRules, load, sweep } from './storage.js';
 import {
-  closedFor, dueForRefresh, effectiveFocus, effectiveLockdown, focusAllows, loadLink, measureGuardFor, pullFromApp,
+  closedFor, currentTabHint, dueForRefresh, effectiveFocus, effectiveLockdown, focusAllows, loadLink, measureGuardFor,
+  postTabHint, pullFromApp,
   withAppRules,
   noteFor,
   partnerNameOf, pushHits,
@@ -309,6 +310,8 @@ chrome.webNavigation.onBeforeNavigate.addListener((details) => {
 // döntés navigációnként; kétszer átirányítani ugyanoda pedig nem baj.
 chrome.webNavigation.onCommitted.addListener((details) => {
   void enforce('megtörtént', details);
+  // A fő keret új címe: a mérő jele is lépjen vele.
+  if (isTopFrame(details)) void sendTabHint();
 });
 
 // A YouTube egyetlen lapon belül vált csatornát (History API), tehát az
@@ -361,10 +364,28 @@ chrome.runtime.onMessage.addListener((msg, sender, respond) => {
     return false;
   }
   refreshInBackground();
+  // Az újranézés a mérő jelét is frissen tartja: az app csak a friss jelet hiszi el.
+  void sendTabHint();
   void enforce('újranézés', { tabId, url, frameId: 0 }, { record: false })
     .finally(() => respond({ ok: true }));
   return true; // aszinkron válasz
 });
+
+// A MÉRŐ JELE (lásd app-link.js `currentTabHint`): melyik oldal van elöl. Fül-
+// és ablakváltáskor, navigáláskor azonnal, és a látható lapok újranézésekor
+// húsz másodpercenként. Ugyanazt a jelet tíz másodpercen belül nem küldjük el
+// újra: a sok nyitott lap ne kopogtasson feleslegesen.
+let lastTabHint = { key: '', at: 0 };
+async function sendTabHint() {
+  const hint = await currentTabHint();
+  const key = `${hint.focused}|${hint.host ?? ''}`;
+  const now = Date.now();
+  if (key === lastTabHint.key && now - lastTabHint.at < 10_000) return;
+  lastTabHint = { key, at: now };
+  await postTabHint(hint);
+}
+chrome.windows.onFocusChanged.addListener(() => { void sendTabHint(); });
+chrome.tabs.onActivated.addListener(() => { void sendTabHint(); });
 
 // A CSATORNA-IDŐ írása. A tartalom-szkriptek jelentik, mennyi időt vitt a
 // lapjuk csatornája; az írás ITT történik, egyetlen sorban — két lap

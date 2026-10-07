@@ -85,6 +85,26 @@ mérés akkor is működik, csak az oldal-bontás marad el.
 böngészőben működik. Ha nem sikerül, csak app-szintű adat lesz — ezt jelezzük is
 a felületen, nem hazudunk pontosságot.
 
+**A böngésző-bővítmény jele (macOS és Windows).** Ha a szonda a címet nem
+látja — macOS-en minden aláíratlan frissítés visszaveszi az automatizálási
+engedélyt, Windowson a címsor kiolvasása böngészőnként bizonytalan —, a
+böngészőben töltött idő appként könyvelődne, és az oldalra szabott napi keret
+meg adag nem fogyna. Ahol a bővítmény fut és össze van kötve, ott ő mondja meg,
+melyik oldal van elöl (`POST /tab`), és a mérő ebből könyvel (`withTabHint`):
+
+- a szonda saját látványa elsőbb — ha a címet kiolvasta, a jel nem számít;
+- a jel csak ismert böngészőre kerül (egy szövegszerkesztő perce sosem lesz
+  oldal-perc), és csak a friss (egy percen belüli), fókuszos jel számít;
+- ha a szonda semmit nem látott (macOS-en a „System Events” engedélye is
+  hiányzik), a fókuszos böngésző oldala akkor is mérődik — a böngésző maga
+  mondja, hogy elöl van;
+- macOS-en a Firefox és az Opera címét a szonda nem tudja kiolvasni: náluk a
+  bővítmény jele az egyetlen forrás.
+
+A statisztika kártyája kimondja: hiányzó engedély mellett, összekötött
+bővítménnyel a böngésző oldalai mérődnek (a keretük fogy), a többi app ideje
+viszont nem.
+
 **Android**: az `UsageStatsManager` pontos előtér-időt ad appokra. Oldalakra a
 böngészőn belül nincs rendszer-API; a VPN-ben látott DNS-lekéréseket rendeljük
 az éppen előtérben lévő böngészőhöz — ez **közelítés**, a felületen így is

@@ -1390,10 +1390,16 @@ async function main() {
   if (await page.locator('#usageBlocked:not(.hidden)').count() !== 0) {
     failures.push('the measurement warning shows even though the probe is fine');
   }
+  // Összekötött bővítmény NÉLKÜL: semmi nem fogy, és ezt mondjuk.
   await page.evaluate(() => {
+    window.__fakeBridge = { running: false };
     window.__fakeTracker = { blocked: true, neverWorked: true, samplesDropped: false, platform: 'darwin' };
   });
   await page.waitForSelector('#usageBlocked:not(.hidden)', { timeout: 15_000 });
+  await page.waitForFunction(
+    () => document.getElementById('usageBlocked').textContent.includes('napi időkeret sem fogy'),
+    undefined, { timeout: 15_000 },
+  ).catch(() => { /* a lenti vizsgálat kimondja */ });
   const blockedText = (await page.locator('#usageBlocked').textContent()) || '';
   for (const needle of ['Automatizálás', 'napi időkeret']) {
     if (!blockedText.includes(needle)) {
@@ -1418,6 +1424,18 @@ async function main() {
     () => document.getElementById('usageBlocked').textContent.includes('FRISSÍTÉS'),
     undefined, { timeout: 15_000 },
   ).catch(() => failures.push('a frissítés utáni engedélyvesztés esete nincs megkülönböztetve'));
+  // Összekötött bővítménnyel a böngésző oldalai a jeléből mérődnek: a mondat
+  // nem állíthatja, hogy semmi nem fogy — azt mondja, mi fogy és mi nem.
+  await page.evaluate(() => {
+    window.__fakeBridge = { running: true, port: 8788, token: 'ABCD-EFGH-JKMN-PQRS', lastPullAt: Date.now() };
+  });
+  await page.waitForFunction(
+    () => {
+      const t = document.getElementById('usageBlocked').textContent;
+      return t.includes('a bővítmény jeléből mérjük') && t.includes('a többi app') && !t.includes('sem fogy');
+    },
+    undefined, { timeout: 15_000 },
+  ).catch(() => failures.push('összekötött bővítménynél a mérő-figyelmeztetés nem mondja, hogy a böngésző oldalai mérődnek'));
   await page.evaluate(() => {
     window.__fakeTracker = { blocked: false, neverWorked: false, samplesDropped: false, platform: 'darwin' };
   });

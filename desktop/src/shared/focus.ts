@@ -295,14 +295,15 @@ export const SITE_WARN_SIGHTINGS = 2;
  * menet már elég régóta fut ahhoz, hogy a bővítmény lezárja, akkor abban a
  * böngészőben a fehérlistát senki nem tartja — ezt mondjuk ki.
  *
- * Csak az a böngésző számít ilyennek, aminek a címét ki tudjuk olvasni (a mérő
- * `browser` jele). Ahol nem látjuk, mit nézel, ott marad az app-szabály.
+ * Csak az a böngésző számít ilyennek, amiről TUDJUK, mi van benne (a mérő
+ * `seen` jele: a címe kiolvasható volt, vagy a bővítmény megmondta). Ahol nem
+ * látjuk, mit nézel, ott marad az app-szabály.
  */
 export function foregroundWarning(
   pack: FocusPack, startedAt: number,
-  fg: { appId: string; appName: string; domain?: string; browser?: boolean }, now: number,
+  fg: { appId: string; appName: string; domain?: string; browser?: boolean; seen?: boolean }, now: number,
 ): ForegroundWarning | null {
-  if (fg.browser === true) {
+  if (fg.browser === true && fg.seen === true) {
     if (!fg.domain) return null;
     if (now - startedAt < SITE_WARN_GRACE_MS) return null;
     if (isSiteAllowed(pack, fg.domain)) return null;

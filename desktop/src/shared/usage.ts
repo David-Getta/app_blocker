@@ -395,12 +395,68 @@ export interface Foreground {
   appName: string;
   /** active tab domain, when the focused app is a browser and it could be read */
   domain?: string;
-  /**
-   * a böngésző, aminek a címét ki tudjuk olvasni — akkor is, ha épp nem
-   * webcím van benne (új lap, a bővítmény tiltó lapja). A munkamenet ennél
-   * az oldalt nézi, nem az appot (lásd `foregroundWarning`).
-   */
+  /** ismert böngésző — az azonosítója / folyamatneve szerint */
   browser?: true;
+  /**
+   * TUDJUK, mi van benne: a cím kiolvasható volt (vagy a bővítmény megmondta)
+   * — akkor is, ha épp nem webcím (új lap, a bővítmény tiltó lapja). A
+   * munkamenet csak ilyenkor nézi az oldalt az app helyett (`foregroundWarning`):
+   * ahol nem látjuk, mit nézel, ott marad az app-szabály.
+   */
+  seen?: true;
+}
+
+/**
+ * A böngésző-bővítmény jele: melyik oldal van elöl abban a böngészőben, ahol
+ * fut.
+ *
+ * MIÉRT. A mérő a böngésző címét a rendszeren át olvassa — macOS-en
+ * AppleScripttel, Windowson UI Automationnel. Ha ez nem megy (macOS-en a
+ * megtagadott vagy egy frissítés után visszavont „Automatizálás” engedély,
+ * Windowson egy címsor, amit a szonda nem lát), a böngészőben töltött idő
+ * APPKÉNT könyvelődik („Google Chrome”), és az oldalra szabott napi keret meg
+ * adag NEM FOGY. A bővítmény viszont pontosan tudja, melyik fül van elöl.
+ */
+export interface TabHint {
+  /** a böngésző ablaka van-e fókuszban — ha nem, a jel semmiről nem szól */
+  focused: boolean;
+  /** az elöl lévő fül tartománya — null, ha nem weboldal (új lap, tiltó lap) */
+  host: string | null;
+  /** mikor ÉRKEZETT (az app órája szerint — a bővítményét nem kell elhinni) */
+  at: number;
+}
+
+/**
+ * Ennyi ideig hisszük el a jelet. A bővítmény fül- és ablakváltáskor azonnal
+ * küldi, látható lapnál húsz másodpercenként frissíti — ennél régebbi jel már
+ * nem a mostról szól.
+ */
+export const TAB_HINT_FRESH_MS = 60_000;
+
+/**
+ * Az app-azonosító, amikor a szonda semmit nem látott, és csak a bővítmény
+ * jele szól. A minta ilyenkor mindig oldalra megy (a jel tartománya a kulcs),
+ * ez csak a látvány kitöltője.
+ */
+export const HINT_APP_ID = 'browser.hint';
+
+/**
+ * A szonda látványa, a bővítmény jelével kiegészítve.
+ *
+ * A szonda saját szeme ELSŐBB: ha látta a címet, a jelre nincs szükség. A jel
+ * csak ismert böngészőre kerülhet (egy jel sosem nevezhet át egy szövegszerkesztő-
+ * percet oldalnak), csak friss és fókuszos jel számít — és ha a szonda semmit
+ * nem látott (macOS-en a „System Events” engedélye is hiányzik), a fókuszos
+ * böngésző oldala akkor is mérődik: a böngésző maga mondja, hogy elöl van.
+ */
+export function withTabHint(fg: Foreground | null, hint: TabHint | null, now: number): Foreground | null {
+  const fresh = !!hint && hint.focused && Math.abs(now - hint.at) <= TAB_HINT_FRESH_MS;
+  if (!fg) {
+    if (!fresh || !hint!.host) return null;
+    return { appId: HINT_APP_ID, appName: 'Böngésző', browser: true, seen: true, domain: hint!.host };
+  }
+  if (fg.browser !== true || fg.seen === true || !fresh) return fg;
+  return { ...fg, seen: true, ...(hint!.host ? { domain: hint!.host } : {}) };
 }
 
 export interface SampleDecision {

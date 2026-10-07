@@ -203,6 +203,9 @@ interface LinkApi {
   withAppRules: (
     local: { host: string; path: string }[], app: { host: string; path: string }[],
   ) => { host: string; path: string; fromApp?: boolean }[];
+  currentTabHint: (api: unknown) => Promise<{ focused: boolean; host: string | null }>;
+  postTabHint: (hint: { focused: boolean; host: string | null }, fetchImpl?: unknown, timeoutMs?: number) =>
+    Promise<{ ok: boolean; error?: string }>;
 }
 
 function freshLink(): LinkApi {
@@ -288,6 +291,40 @@ test('a lehúzás megmondja az appnak, fut-e a bővítmény inkognitóban — ha
   } finally {
     g.chrome = before;
   }
+});
+
+test('a mérő jele: a fókuszos ablak elöl lévő fülének tartománya — fókusz nélkül semmi', async () => {
+  // Az app ebből méri az oldalt ott, ahol a gép maga nem tudja kiolvasni a
+  // címet. Ha a böngésző nincs elöl, a jel ezt mondja — különben az app egy
+  // régi oldalra könyvelné egy másik app perceit.
+  const ext = freshLink();
+  const api = (focused: boolean, url: string | undefined) => ({
+    windows: { getLastFocused: async () => ({ id: 7, focused }) },
+    tabs: { query: async (q: { active: boolean; windowId: number }) => (q.active && q.windowId === 7 ? [{ url }] : []) },
+  });
+  assert.deepEqual(await ext.currentTabHint(api(true, 'https://www.YouTube.com/watch?v=x')),
+    { focused: true, host: 'www.youtube.com' });
+  assert.deepEqual(await ext.currentTabHint(api(true, 'chrome://newtab/')), { focused: true, host: null });
+  assert.deepEqual(await ext.currentTabHint(api(true, undefined)), { focused: true, host: null });
+  assert.deepEqual(await ext.currentTabHint(api(false, 'https://youtube.com/')), { focused: false, host: null });
+  const broken = { windows: { getLastFocused: async () => { throw new Error('nincs ablak'); } } };
+  assert.deepEqual(await ext.currentTabHint(broken), { focused: false, host: null });
+
+  // A küldés: a hídon, a kóddal, a /tab útra — összekötés nélkül nem megy ki.
+  const sent: { url: string; init: { method: string; headers: Record<string, string>; body: string } }[] = [];
+  const app = async (url: string, init: { method: string; headers: Record<string, string>; body: string }) => {
+    sent.push({ url, init });
+    return { ok: true, status: 200, json: async () => ({ ok: true }) };
+  };
+  assert.equal((await ext.postTabHint({ focused: true, host: 'youtube.com' }, app)).ok, false, 'kód nélkül nem');
+  await ext.setToken('ABCD-EFGH');
+  await ext.pullFromApp(1000, fakeApp(8790, 'ABCD-EFGH', []));
+  assert.equal((await ext.postTabHint({ focused: true, host: 'youtube.com' }, app)).ok, true);
+  const last = sent[sent.length - 1];
+  assert.equal(last.url, 'http://127.0.0.1:8790/tab');
+  assert.equal(last.init.method, 'POST');
+  assert.equal(last.init.headers['x-breaker-token'], 'ABCD-EFGH');
+  assert.deepEqual(JSON.parse(last.init.body), { focused: true, host: 'youtube.com' });
 });
 
 test('egy néma port nem állítja meg a keresést', async () => {
