@@ -265,7 +265,11 @@ ingyen van, rövidíteni vagy visszavonni sehogy.
   dolgozni, nem fog előbb ablakot keresni. Indítani és hosszabbítani ingyen van,
   **leállítani próbatétel**; a futó csomag közben nem szerkeszthető. A
   fehérlistát a gépen a böngésző-bővítmény érvényesíti (csak ott látszik a
-  teljes cím), az appoknál a réteg **szól, de nem tilt**.
+  teljes cím) — a menet indulásakor **a már nyitott lapot is lezárja**, nem
+  csak a következő navigálást —, az appoknál a réteg **szól, de nem tilt**. A
+  böngésző nem „tiltott app”: benne a nyitott oldal dönt; ha egy nem engedett
+  oldal mégis látszik, a réteg kimondja, hogy abban a böngészőben a
+  fehérlistát most senki nem tartja be.
 
   **A telefonon ez erősebb**: ott a DNS-szűrő minden névfeloldást lát, tehát
   bővítmény nélkül betartatja a fehérlistát — szűk, tételesen indokolt
@@ -305,8 +309,9 @@ ingyen van, rövidíteni vagy visszavonni sehogy.
   hátralévő részre — a hiba iránya a szigorúbb, és a leállítás ott is próbatétel.
 
   A gépen a fehérlistát KIZÁRÓLAG a bővítmény tudja betartatni, ezért az app és
-  a gyorsbillentyűs réteg is **szól, ha az nincs összekötve** — enélkül az
-  indítás csendben nem tiltana semmit a böngészőben. Az óra átállítása sem
+  a gyorsbillentyűs réteg is **szól, ha az nincs összekötve**, vagy ha
+  inkognitóban nem fut — enélkül az indítás csendben nem tiltana semmit a
+  böngészőben. Az óra átállítása sem
   rövidíti meg a menetet: amennyi hátra volt, annyi van hátra. Lásd
   [`docs/feature-focus-sessions.md`](docs/feature-focus-sessions.md).
 
