@@ -111,9 +111,12 @@ export function isBlockedBySchedule(schedule: Schedule, now: number): boolean {
  */
 function nextDecisionAt(s: Schedule, now: number, blocked: boolean): number {
   if (isBlockedBySchedule(s, now) === blocked) return now;
-  const start = new Date(now);
-  start.setSeconds(0, 0);
-  let t = start.getTime();
+  // A percre vágás ABSZOLÚT időben, nem helyiben: az őszi átállás kétszer
+  // előforduló órájában a helyi `setSeconds` az ELSŐ előfordulásra ugrana
+  // vissza, egy órával korábbra — és a „következő” váltás a múltban lenne.
+  // (Az eltolások egész percek, így a kettő máskor ugyanaz; a Kotlin és a
+  // Swift tükör is így vág — lásd fixtures/dst-cases.json.)
+  let t = Math.floor(now / 60_000) * 60_000;
   // Nyolc napnyi perc: óraátállással együtt is bőven egy teljes hét. Ha ez
   // alatt sincs váltás, a menetrend gyakorlatilag sosem vált.
   for (let i = 0; i < 8 * 24 * 60; i++) {

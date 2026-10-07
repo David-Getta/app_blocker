@@ -554,10 +554,16 @@ ablak, hanem sima menet.
   elindított egy menetet, az ablak megmarad, a telefon menete is. Jel nélkül
   (régi kliens) az újabb blob dönt, ahogy régen; amíg a fiókban régi kliens
   is van, a csomag oda-vissza járhat — frissítés után rendeződik.
-- Az őszi óraátállítás éjszakáján a 2:00 és 3:00 közötti percek kétszer
-  vannak. Egy ebbe eső ablak-kezdést vagy -véget a három platform nem
-  biztosan ugyanarra a pillanatra tesz — évente egyszer két menet és két
-  naplósor lehet belőle. Napközbeni ablaknál nincs ilyen.
+- Az óraátállítás éjszakáján a három platform ugyanazt a szabályt követi:
+  a kétszer előforduló falióra-idő (ősszel a 2:00–2:59) az ELSŐ
+  előfordulás, a kihagyott (tavasszal a 2:xx) az átállás előtti eltolással
+  olvasva, vagyis egy órával később. Ez a JS szabálya; a Java naptára
+  magától a második előfordulást adta (egy 2:30-as ablak az Androidon egy
+  órával később indult, két naplósorral), a Foundation verziónként
+  máshogy dönt — ezért a Kotlin és a Swift mag kimondva követi. A
+  `fixtures/dst-cases.json` Europe/Budapest időzónában őrzi, a 2026-os
+  tavaszi és őszi éjszakán. Más időzónák szabálya ugyanez, de a fixtúra
+  csak ezt az egyet nézi.
 - A telefonon az ablakot a DNS-útvonal köre nézi, tizenöt másodpercenként; az
   indítás legfeljebb ennyit késhet. A gépen a segéd köre pár másodperc.
 - A telefon a csomagot indítja és betartatja, és fel is tud venni újat (név,

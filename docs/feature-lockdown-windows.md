@@ -145,5 +145,8 @@ ablak, mit követelnek meg az ablakok, ablak-zárlat-e, mi a közelgő ablak és
 következő előfordulás; a Kotlin (`MergeFixtureTest`) és a Swift
 (`MergeFixtureTests`) ugyanezt játssza vissza. A három teszt UTC-ben jár — a
 gép és az Android beállítja, a Swift beállítja, vagy ha nem tudja, kimondva
-kihagyja. Ami a fixtúrában nincs: óraátállás és más időzóna — ott a három mag
-a saját platformjának órájára hagyatkozik, és ezt itt kimondjuk.
+kihagyja. Az óraátállást külön fixtúra nézi (`fixtures/dst-cases.json`,
+Europe/Budapest, a 2026-os tavaszi és őszi éjszaka): a kétszer előforduló
+falióra-idő az első előfordulás, a kihagyott az átállás előtti eltolással —
+mindhárom magban. Más időzónát a fixtúra nem néz; ott a szabály ugyanez, de
+a platform órájára hagyatkozik.

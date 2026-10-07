@@ -164,8 +164,12 @@ illetve zár legközelebb (`nextOpen`/`nextClose`); a Kotlin
 (`MergeFixtureTest`) és a Swift (`MergeFixtureTests`) ugyanezt játssza vissza.
 A sávok helyi időben értékelődnek ki, ezért a három teszt UTC-ben jár — a gép
 és az Android beállítja, a Swift beállítja, vagy ha nem tudja, kimondva
-kihagyja. Ami a fixtúrában nincs: óraátállás és más időzóna — ott a három mag
-a saját platformjának órájára hagyatkozik, és ezt itt kimondjuk.
+kihagyja. Az óraátállást külön fixtúra nézi (`fixtures/dst-cases.json`,
+Europe/Budapest, a 2026-os tavaszi és őszi éjszaka): a menetrend döntése és
+a következő váltás mindhárom magban ugyanaz. Ez talált is egy hibát: a gép
+a következő váltást helyi időben percre vágva kereste, és az őszi kétszer
+előforduló órában így egy órával korábbról indult — a „következő” váltás a
+múltban lett volna. Most abszolút időben vág, mint a két telefon.
 
 ### A menetrend a dróton
 

@@ -384,7 +384,18 @@ hiányzó felvételi idő vagy egy nem lista hosztnév-mező az egész oldalt vi
 A későbbi körök a menetrendre, a részleges szabályokra és a
 munkamenet-dokumentum többi mezőjére (futó menet, zárlat, ablakok,
 kulcsszavak, megbízott) is kiterjesztették — a gép döntését egy nem tömb
-sávlista addig ledöntötte.
+sávlista addig ledöntötte. A réteg tizedik fájlja az ÓRAÁTÁLLÍTÁSÉ
+(`fixtures/dst-cases.json`, írja `desktop/test/dst-fixture.test.ts`,
+visszajátssza a Kotlin `DstFixtureTest` és a Swift `DstFixtureTests`): a
+többi fixtúra UTC-ben jár, ez Europe/Budapest időzónában, a 2026-os tavaszi
+és őszi éjszakán — hajnali sávok előfordulása és a menetrend döntése
+negyedóránként. Két valódi hibát fogott: a Java naptára a kétszer előforduló
+őszi 2:30-at a második előfordulásra tette (a gép az elsőre — egy hajnali
+heti ablak az Androidon egy órával később indult volna, két naplósorral), a
+gép pedig a menetrend következő váltását helyi időben percre vágva kereste,
+és az ismétlődő órában egy múltbeli időpontot adott. A szabály mindhárom
+magban a JS-é: a kétszer előforduló idő az első, a kihagyott az átállás
+előtti eltolással.
 
 ## Biztonsági modell és őszinte korlátok
 

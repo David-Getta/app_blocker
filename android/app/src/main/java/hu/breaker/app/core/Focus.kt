@@ -490,7 +490,27 @@ object Focus {
         // Mezőkkel, nem percek hozzáadásával: az óraátállás napján a 9:00 az
         // a 9:00, nem éjfél plusz ötszáznegyven perc.
         c.set(Calendar.HOUR_OF_DAY, (min % 1440) / 60); c.set(Calendar.MINUTE, min % 60)
-        return c.timeInMillis
+        return firstWallTime(c)
+    }
+
+    /**
+     * A kétszer előforduló falióra-időből (az őszi átállás órája) az ELSŐ — a
+     * gép (JS) szabálya. A Java naptára magától a másodikat adná: egy 2:30-kor
+     * induló heti ablak itt egy órával később indulna, mint a gépen, és a
+     * napló két sort kapna. A kihagyott időt (tavasszal a 2:xx) a Java már
+     * magától a JS szerint olvassa: az átállás előtti eltolással, egy órával
+     * később. Lásd fixtures/dst-cases.json.
+     */
+    private fun firstWallTime(c: java.util.GregorianCalendar): Long {
+        val t = c.timeInMillis
+        val shift = c.timeZone.dstSavings.toLong()
+        if (shift <= 0L) return t
+        val e = java.util.GregorianCalendar(c.timeZone).apply { timeInMillis = t - shift }
+        val same = e.get(Calendar.YEAR) == c.get(Calendar.YEAR) &&
+            e.get(Calendar.DAY_OF_YEAR) == c.get(Calendar.DAY_OF_YEAR) &&
+            e.get(Calendar.HOUR_OF_DAY) == c.get(Calendar.HOUR_OF_DAY) &&
+            e.get(Calendar.MINUTE) == c.get(Calendar.MINUTE)
+        return if (same) t - shift else t
     }
 
     /** A sáv MOSTANI előfordulása — vagy null, ha `now` nincs benne. */

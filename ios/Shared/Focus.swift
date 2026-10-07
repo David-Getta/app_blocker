@@ -768,7 +768,42 @@ public enum Focus {
         dc.hour = (min % 1440) / 60
         dc.minute = min % 60
         dc.second = 0
-        return cal.date(from: dc).map { $0.timeIntervalSince1970 * 1000 }
+        return wallTime(cal, dc).map { $0.timeIntervalSince1970 * 1000 }
+    }
+
+    /// A kért falióra-idő pillanata a gép (JS) szabálya szerint: a kétszer
+    /// előforduló időből (az őszi átállás órája) az ELSŐ, a kihagyottat
+    /// (tavasszal a 2:xx) az átállás előtti eltolással olvasva, vagyis egy
+    /// órával később. A Foundation ezt verziónként máshogy dönti el, ezért itt
+    /// kimondva — különben egy hajnali heti ablak az iPhone-on más pillanatban
+    /// indulna, mint a gépen. Lásd fixtures/dst-cases.json.
+    private static func wallTime(_ cal: Calendar, _ dc: DateComponents) -> Date? {
+        guard let d = cal.date(from: dc), let h = dc.hour, let m = dc.minute else { return nil }
+        let got = cal.dateComponents([.hour, .minute], from: d)
+        if got.hour != h || got.minute != m {
+            // Kihagyott idő: egy órával korábbi falióra-idő (az még az átállás
+            // előtt van), plusz egy óra — ez az átállás előtti eltolás.
+            var e = dc
+            if h > 0 {
+                e.hour = h - 1
+            } else {
+                e.day = (dc.day ?? 1) - 1
+                e.hour = 23
+            }
+            return cal.date(from: e)?.addingTimeInterval(3600) ?? d
+        }
+        // Kétszer előforduló idő: ha egy órával (vagy fél órával) korábban is
+        // ugyanez a falióra-idő volt, az az első előfordulás.
+        let wall: (Date) -> [Int] = { x in
+            let c = cal.dateComponents([.year, .month, .day, .hour, .minute], from: x)
+            return [c.year ?? 0, c.month ?? 0, c.day ?? 0, c.hour ?? 0, c.minute ?? 0]
+        }
+        let mine = wall(d)
+        for shift in [3600.0, 1800.0] {
+            let earlier = d.addingTimeInterval(-shift)
+            if wall(earlier) == mine { return earlier }
+        }
+        return d
     }
 
     /// A sáv MOSTANI előfordulása — vagy nil, ha `now` nincs benne.
