@@ -1654,6 +1654,32 @@ async function main() {
     const site = window.__fakeSites.find((x) => x.id === 'site_2');
     site.schedule = { mode: 'scheduled_block', bands: [{ days: [1, 2, 3, 4, 5], startMin: 540, endMin: 1020 }] };
   });
+  // (d) A SZABAD SÁV VÉGE: a menetrend szerint szabad oldal sora megmondja,
+  // mikor zár legközelebb. A sáv a teszt saját órájához igazodik: másfél óra
+  // múlva kezdődik, így a sor „1 ó 29 p” vagy „1 ó 30 p” múlvát mond.
+  await page.evaluate(() => {
+    const site = window.__fakeSites.find((x) => x.id === 'site_2');
+    const d = new Date();
+    const m = d.getHours() * 60 + d.getMinutes();
+    site.schedule = { mode: 'scheduled_block', bands: [{
+      days: [0, 1, 2, 3, 4, 5, 6], startMin: (m + 90) % 1440, endMin: ((m + 150) % 1440) || 1440,
+    }] };
+    site.blockedNow = false;
+  });
+  await page.waitForFunction(
+    () => [...document.querySelectorAll('#siteList .site-row')]
+      .some((r) => /reddit\.com/.test(r.textContent || '')
+        && /Most szabad \(menetrend szerint\) — zár 1 ó (29|30) p múlva/.test(r.textContent || '')),
+    undefined, { timeout: 10_000 },
+  ).catch(async () => {
+    const row = await redditRow.textContent().catch(() => '');
+    failures.push(`menetrend: a szabad sáv sora nem mondja, mikor zár: ${row}`);
+  });
+  await page.evaluate(() => {
+    const site = window.__fakeSites.find((x) => x.id === 'site_2');
+    site.schedule = { mode: 'scheduled_block', bands: [{ days: [1, 2, 3, 4, 5], startMin: 540, endMin: 1020 }] };
+    site.blockedNow = true;
+  });
   // A következő lépés a menetrend-szerkesztőt nyitva várja (onnan csukja be).
   await page.locator('#siteList .site-row').first()
     .getByRole('button', { name: /Menetrend/ }).click();

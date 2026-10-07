@@ -1792,8 +1792,14 @@ private fun SiteCard(
                         "Törlés ${fmtRemain(site.pendingDeleteAt!! - now)} múlva",
                         MaterialTheme.colorScheme.error,
                     )
+                    // A zárás oka csak akkor a menetrend, ha a menetrend tilt: a
+                    // betelt keret vagy az adag-szünet a saját sorában szól.
                     scheduled -> StatusChip(
-                        if (blockedNow) "Most blokkolva (menetrend)" else "Most szabad (menetrend)",
+                        when {
+                            !blockedNow -> "Most szabad (menetrend)"
+                            ScheduleLogic.isBlockedBySchedule(site.schedule!!, now) -> "Most blokkolva (menetrend)"
+                            else -> "Most blokkolva"
+                        },
                         if (blockedNow) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.tertiary,
                     )
                     else -> StatusChip("Blokkolva", MaterialTheme.colorScheme.secondary)
@@ -1823,6 +1829,7 @@ private fun SiteCard(
                     }) { Text("Törlés visszavonása") }
                 }
                 else -> {
+                    ScheduleLine(site, now)
                     LimitMeter(site, usage, shared, now, duringPause = false)
                     BurstLine(site, burst, now, trip, weekTrips)
                     if (!hasSession) {
@@ -1879,6 +1886,30 @@ private fun StatusChip(text: String, tone: Color) {
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
         )
     }
+}
+
+/**
+ * A MENETREND KÖVETKEZŐ VÁLTÁSA egy sorban:
+ * „A menetrend szerint zár 2 ó 15 p múlva.” / „… nyit 45 perc múlva.”
+ * Tény, nem figyelmeztetés — a szabad sáv vége ne meglepetés legyen, a zárt
+ * sávé ne találgatás. Percenként egyszer számol: a kártya másodpercenként
+ * rajzol, a keresés egy hét percein lépkedhet.
+ */
+@Composable
+private fun ScheduleLine(site: Site, now: Long) {
+    val schedule = site.schedule ?: return
+    if (schedule.mode == ScheduleLogic.Mode.ALWAYS) return
+    val flip = remember(schedule, now / 60_000L) {
+        if (ScheduleLogic.isBlockedBySchedule(schedule, now)) "nyit" to ScheduleLogic.nextOpenAt(schedule, now)
+        else "zár" to ScheduleLogic.nextCloseAt(schedule, now)
+    }
+    val (verb, at) = flip
+    if (at <= now) return
+    Text(
+        "A menetrend szerint $verb ${LockdownLogic.formatRemaining(at - now)} múlva.",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
 }
 
 /**

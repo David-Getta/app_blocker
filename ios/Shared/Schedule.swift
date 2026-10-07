@@ -66,9 +66,18 @@ enum ScheduleLogic {
         return bands.isEmpty ? always : Schedule(mode: s.mode, bands: bands)
     }
 
-    private static func localParts(_ now: Double) -> (day: Int, minute: Int) {
+    private static func localCalendar() -> Calendar {
         var cal = Calendar(identifier: .gregorian)
         cal.timeZone = TimeZone.current
+        return cal
+    }
+
+    private static func localParts(_ now: Double) -> (day: Int, minute: Int) {
+        partsOf(localCalendar(), now)
+    }
+
+    /// A helyi nap és perc egy (újrahasznosítható) naptárral — a keresés egyet használ végig.
+    private static func partsOf(_ cal: Calendar, _ now: Double) -> (day: Int, minute: Int) {
         let date = Date(timeIntervalSince1970: now / 1000)
         let c = cal.dateComponents([.weekday, .hour, .minute], from: date)
         // Calendar weekday is 1=Sunday..7=Saturday; normalize to 0..6.
@@ -76,7 +85,11 @@ enum ScheduleLogic {
     }
 
     static func inAnyBand(_ bands: [Band], _ now: Double) -> Bool {
-        let (day, minute) = localParts(now)
+        inAnyBandAt(bands, localParts(now))
+    }
+
+    private static func inAnyBandAt(_ bands: [Band], _ p: (day: Int, minute: Int)) -> Bool {
+        let (day, minute) = p
         let prev = (day + 6) % 7
         for b in bands {
             if b.endMin > b.startMin {
@@ -89,13 +102,45 @@ enum ScheduleLogic {
         return false
     }
 
-    static func isBlockedBySchedule(_ schedule: Schedule, _ now: Double) -> Bool {
-        let s = normalize(schedule)
+    /// A döntés egy már tisztított menetrendre, a helyi nap és perc szerint.
+    private static func blockedAt(_ s: Schedule, _ p: (day: Int, minute: Int)) -> Bool {
         switch s.mode {
         case .always: return true
-        case .block: return inAnyBand(s.bands, now)
-        case .allow: return !inAnyBand(s.bands, now)
+        case .block: return inAnyBandAt(s.bands, p)
+        case .allow: return !inAnyBandAt(s.bands, p)
         }
+    }
+
+    static func isBlockedBySchedule(_ schedule: Schedule, _ now: Double) -> Bool {
+        blockedAt(normalize(schedule), localParts(now))
+    }
+
+    /// Az első perchatár `now` után, ahol a menetrend döntése `blocked` — vagy
+    /// 0, ha nyolc napon belül sincs ilyen. Ha már most annyi: `now`. A gép
+    /// `nextDecisionAt`-jének tükre: percre lépked, és MAGÁT a döntést kérdezi
+    /// (`blockedAt`), így óraátállásnál sem mondhat mást, mint amit a tiltás
+    /// tenni fog. Egy naptárral lépked végig — a telefon másodpercenként rajzol.
+    private static func nextDecisionAt(_ schedule: Schedule, _ now: Double, _ blocked: Bool) -> Double {
+        let s = normalize(schedule)
+        let cal = localCalendar()
+        if blockedAt(s, partsOf(cal, now)) == blocked { return now }
+        var t = (now / 60_000).rounded(.down) * 60_000
+        for _ in 0..<(8 * 24 * 60) {
+            t += 60_000
+            if blockedAt(s, partsOf(cal, t)) == blocked { return t }
+        }
+        return 0
+    }
+
+    /// A menetrend következő nyitása (epoch ms): most nyitva → `now`; a mindig tiltó sosem nyit → 0.
+    static func nextOpenAt(_ schedule: Schedule, _ now: Double) -> Double {
+        if normalize(schedule).mode == .always { return 0 }
+        return nextDecisionAt(schedule, now, false)
+    }
+
+    /// A menetrend következő zárása (epoch ms): most zár → `now`; egy héten belül sem zár → 0.
+    static func nextCloseAt(_ schedule: Schedule, _ now: Double) -> Double {
+        nextDecisionAt(schedule, now, true)
     }
 
     /// Combines pause (always wins), pending delete, and the schedule.

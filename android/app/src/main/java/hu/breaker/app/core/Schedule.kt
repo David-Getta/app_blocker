@@ -36,16 +36,21 @@ object ScheduleLogic {
 
     private data class Parts(val day: Int, val minute: Int)
 
-    private fun localParts(now: Long): Parts {
-        val c = java.util.GregorianCalendar().apply { timeInMillis = now }
+    private fun localParts(now: Long): Parts = partsOf(java.util.GregorianCalendar(), now)
+
+    /** A helyi nap és perc egy (újrahasznosítható) naptárral — a keresés egyet használ végig. */
+    private fun partsOf(c: java.util.GregorianCalendar, now: Long): Parts {
+        c.timeInMillis = now
         // Calendar.DAY_OF_WEEK is 1=Sunday..7=Saturday; normalize to 0..6.
         return Parts(c.get(Calendar.DAY_OF_WEEK) - 1, c.get(Calendar.HOUR_OF_DAY) * 60 + c.get(Calendar.MINUTE))
     }
 
     private fun prevDay(day: Int): Int = (day + 6) % 7
 
-    fun inAnyBand(bands: List<Band>, now: Long): Boolean {
-        val (day, minute) = localParts(now)
+    fun inAnyBand(bands: List<Band>, now: Long): Boolean = inAnyBandAt(bands, localParts(now))
+
+    private fun inAnyBandAt(bands: List<Band>, p: Parts): Boolean {
+        val (day, minute) = p
         val prev = prevDay(day)
         for (b in bands) {
             if (b.endMin > b.startMin) {
@@ -58,14 +63,42 @@ object ScheduleLogic {
         return false
     }
 
-    fun isBlockedBySchedule(schedule: Schedule, now: Long): Boolean {
-        val s = normalize(schedule)
-        return when (s.mode) {
-            Mode.ALWAYS -> true
-            Mode.SCHEDULED_BLOCK -> inAnyBand(s.bands, now)
-            Mode.SCHEDULED_ALLOW -> !inAnyBand(s.bands, now)
-        }
+    /** A döntés egy már tisztított menetrendre, a helyi nap és perc szerint. */
+    private fun blockedAt(s: Schedule, p: Parts): Boolean = when (s.mode) {
+        Mode.ALWAYS -> true
+        Mode.SCHEDULED_BLOCK -> inAnyBandAt(s.bands, p)
+        Mode.SCHEDULED_ALLOW -> !inAnyBandAt(s.bands, p)
     }
+
+    fun isBlockedBySchedule(schedule: Schedule, now: Long): Boolean = blockedAt(normalize(schedule), localParts(now))
+
+    /**
+     * Az első perchatár `now` után, ahol a menetrend döntése `blocked` — vagy
+     * 0, ha nyolc napon belül sincs ilyen. Ha már most annyi: `now`. A gép
+     * `nextDecisionAt`-jének tükre: percre lépked, és MAGÁT a döntést kérdezi
+     * (`blockedAt`), így óraátállásnál sem mondhat mást, mint amit a tiltás
+     * tenni fog. Egy naptárral lépked végig — a telefon másodpercenként rajzol.
+     */
+    private fun nextDecisionAt(schedule: Schedule, now: Long, blocked: Boolean): Long {
+        val s = normalize(schedule)
+        val cal = java.util.GregorianCalendar()
+        if (blockedAt(s, partsOf(cal, now)) == blocked) return now
+        var t = now - Math.floorMod(now, 60_000L)
+        repeat(8 * 24 * 60) {
+            t += 60_000L
+            if (blockedAt(s, partsOf(cal, t)) == blocked) return t
+        }
+        return 0L
+    }
+
+    /** A menetrend következő nyitása (epoch ms): most nyitva → `now`; a mindig tiltó sosem nyit → 0. */
+    fun nextOpenAt(schedule: Schedule, now: Long): Long {
+        if (normalize(schedule).mode == Mode.ALWAYS) return 0L
+        return nextDecisionAt(schedule, now, false)
+    }
+
+    /** A menetrend következő zárása (epoch ms): most zár → `now`; egy héten belül sem zár → 0. */
+    fun nextCloseAt(schedule: Schedule, now: Long): Long = nextDecisionAt(schedule, now, true)
 
     /** Combines pause (always wins), pending delete, and the schedule. */
     fun isBlockedNow(pauseUntil: Long?, pendingDeleteAt: Long?, schedule: Schedule?, now: Long): Boolean {

@@ -323,6 +323,9 @@ final class MergeFixtureTests: XCTestCase {
             let now = (c["now"] as? NSNumber)?.doubleValue ?? 0
             XCTAssertEqual(ScheduleLogic.isBlockedBySchedule(s, now), c["blocked"] as? Bool ?? false, "menetrend tilt-e, mag \(seed)")
             XCTAssertEqual(ScheduleLogic.isLoosening(s, other, now), c["loosening"] as? Bool ?? false, "menetrend lazítás-e, mag \(seed)")
+            // A következő váltás: a sor ebből mondja, mikor nyit és mikor zár.
+            XCTAssertEqual(ScheduleLogic.nextOpenAt(s, now), (c["nextOpen"] as? NSNumber)?.doubleValue ?? -1, "menetrend következő nyitása, mag \(seed)")
+            XCTAssertEqual(ScheduleLogic.nextCloseAt(s, now), (c["nextClose"] as? NSNumber)?.doubleValue ?? -1, "menetrend következő zárása, mag \(seed)")
         }
     }
 

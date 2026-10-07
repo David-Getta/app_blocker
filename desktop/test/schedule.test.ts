@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import * as assert from 'node:assert/strict';
 import {
-  isBlockedBySchedule, inAnyBand, isLoosening, nextOpenAt, normalizeSchedule, ALWAYS,
+  isBlockedBySchedule, inAnyBand, isLoosening, nextCloseAt, nextOpenAt, normalizeSchedule, ALWAYS,
   type Schedule, type Band,
 } from '../src/shared/schedule';
 
@@ -151,6 +151,60 @@ test('nextOpenAt fuzz: amit mond, az tényleg nyitás — és nem késik', () =>
         `#${i}: egy perccel korábban már nyitva volt — késve szól`);
     }
   }
+});
+
+test('nextCloseAt: a nextOpenAt tükre — a szabad sáv vége percre pontos, a sosem záró nulla', () => {
+  // Hétköznap 9–17 tiltva: hétfő 8:00-kor szabad → 9:00-kor zár.
+  assert.equal(nextCloseAt(workHours, at(1, 8, 0)), at(1, 9, 0));
+  // Péntek este szabad → a hétvégén át hétfő 9:00-ig nem zár.
+  assert.equal(nextCloseAt(workHours, at(5, 18, 0)), at(8, 9, 0));
+  // Zárt pillanatra maga a pillanat jön vissza; a mindig tiltó most is zár.
+  const closedNow = at(1, 10, 0);
+  assert.equal(nextCloseAt(workHours, closedNow), closedNow);
+  assert.equal(nextCloseAt(ALWAYS, closedNow), closedNow);
+  // A másodperc nem számít: a perc határán vált, ugyanott, mint a tiltás.
+  assert.equal(nextCloseAt(workHours, at(1, 8, 59) + 59_000), at(1, 9, 0));
+  // Egész héten szabad: sosem zár — a sor ilyenkor nem mond időpontot.
+  const open: Schedule = {
+    mode: 'scheduled_allow',
+    bands: [{ days: [0, 1, 2, 3, 4, 5, 6], startMin: 0, endMin: 1440 }],
+  };
+  assert.equal(nextCloseAt(open, at(1, 10, 0)), 0);
+});
+
+test('nextCloseAt fuzz: amit mond, az tényleg zárás — és nem késik', () => {
+  let seed = 0xc105e;
+  const rnd = (n: number): number => {
+    seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+    return seed % n;
+  };
+  let checked = 0;
+  for (let i = 0; i < 160; i++) {
+    const bands: Band[] = Array.from({ length: 1 + rnd(3) }, () => ({
+      days: Array.from({ length: 1 + rnd(7) }, () => rnd(7) as 0|1|2|3|4|5|6),
+      startMin: rnd(1440),
+      endMin: 1 + rnd(1440),
+    }));
+    const s: Schedule = { mode: rnd(2) === 0 ? 'scheduled_block' : 'scheduled_allow', bands };
+    const now = at(rnd(7), rnd(24), rnd(60));
+    if (isBlockedBySchedule(s, now)) continue; // csak szabadon kérdezzük
+    checked++;
+    const close = nextCloseAt(s, now);
+    if (close === 0) {
+      for (let m = 1; m <= 8 * 24 * 60; m += 60) {
+        assert.equal(isBlockedBySchedule(s, now + m * 60_000), false,
+          `#${i}: nullát mondott, pedig ${m} perc múlva zárna`);
+      }
+      continue;
+    }
+    assert.ok(close > now, `#${i}: a zárás előttünk kell legyen`);
+    assert.equal(isBlockedBySchedule(s, close), true, `#${i}: a mondott pillanat szabad`);
+    if (close - now > 60_000) {
+      assert.equal(isBlockedBySchedule(s, close - 60_000), false,
+        `#${i}: egy perccel korábban már zárt — késve szól`);
+    }
+  }
+  assert.ok(checked > 20, 'kevés szabad eset — a fuzz nem mér semmit');
 });
 
 test('a dróton jött rosszul formált menetrend nem dönti le a döntést — mindig tiltva', () => {

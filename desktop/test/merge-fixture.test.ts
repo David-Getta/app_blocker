@@ -21,7 +21,9 @@ import { mergeSite } from '../src/shared/sync/merge';
 import { mergeFocus, normalizeSyncFocus, sameFocus } from '../src/shared/sync/focus-merge';
 import { combineUsage } from '../src/shared/usage';
 import { isBlockedNowWithLimit } from '../src/shared/limits';
-import { isBlockedBySchedule, isLoosening, isValidBand, type Schedule } from '../src/shared/schedule';
+import {
+  isBlockedBySchedule, isLoosening, isValidBand, nextCloseAt, nextOpenAt, type Schedule,
+} from '../src/shared/schedule';
 import {
   dueLockdownWindow, isWindowLockdown, isWindowsLoosening, weekHasFreeTime, windowLockdown, windowStartingSoon,
   type Lockdown, type LockdownWindow,
@@ -77,6 +79,8 @@ const NIGHT: Schedule = { mode: 'scheduled_block', bands: [{ days: [1], startMin
 const OPEN_WEEKEND: Schedule = { mode: 'scheduled_allow', bands: [{ days: [0, 6], startMin: 0, endMin: 1440 }] };
 const ALWAYS_WITH_BANDS: Schedule = { mode: 'always', bands: [{ days: [1], startMin: 0, endMin: 1440 }] };
 const ALL_BROKEN: Schedule = { mode: 'scheduled_allow', bands: [{ days: [], startMin: 0, endMin: 1440 }, { days: [1], startMin: 1440, endMin: 60 }] };
+/** Egész héten szabad: sosem zár — a „zár … múlva” sor itt hallgat (nextClose = 0). */
+const OPEN_ALL_WEEK: Schedule = { mode: 'scheduled_allow', bands: [{ days: [0, 1, 2, 3, 4, 5, 6], startMin: 0, endMin: 1440 }] };
 /**
  * Kézzel válogatott élek: a sávhatár perce (a percen belül másodpercekkel), az
  * éjfélen átnyúló sáv két napja, a nyitó mód, a sávos „mindig”, a csupa rossz
@@ -144,6 +148,11 @@ const CURATED_SCHEDULES: Array<{ schedule: Schedule; other: Schedule; now: numbe
   { schedule: ALWAYS_WITH_BANDS, other: WORK, now: atWeek(0, 12, 0, 0) },
   { schedule: ALL_BROKEN, other: OPEN_WEEKEND, now: atWeek(6, 12, 0, 0) },
   { schedule: WORK, other: ALL_BROKEN, now: atWeek(3, 10, 0, 0) },
+  // A váltás élei: sosem zár; szombat délben zár (hétfő 9-kor nyit) a hétvégi
+  // tiltás; az éjfélen átnyúló sáv vége a következő napon.
+  { schedule: OPEN_ALL_WEEK, other: WORK, now: atWeek(2, 12, 0, 0) },
+  { schedule: { mode: 'scheduled_block', bands: [{ days: [0, 6], startMin: 0, endMin: 1440 }] }, other: WORK, now: atWeek(5, 12, 30, 15) },
+  { schedule: NIGHT, other: WORK, now: atWeek(1, 3, 15, 0) },
 ];
 
 function buildFixture(): Fixture {
@@ -241,20 +250,31 @@ function buildFixture(): Fixture {
   // oldalról; a sávok helyi időben értékelődnek ki, ezért UTC-ben (lásd fent).
   // Előbb a kézzel válogatott élek (a sávhatár perce, az éjfélen átnyúló sáv
   // két napja), aztán a véletlen esetek.
+  // A KÖVETKEZŐ VÁLTÁS is: mikor nyit (nextOpen) és mikor zár (nextClose)
+  // legközelebb — a sor ebből mondja, hogy „nyit/zár … múlva”, és a gép
+  // ebből írja a zárás végét is (closedUntil). Ha a két telefon máskor
+  // mondaná, ugyanaz az oldal három eszközön három időpontban nyílna.
+  const decide = (c: { schedule: Schedule; other: Schedule; now: number }) => ({
+    blocked: isBlockedBySchedule(c.schedule, c.now),
+    loosening: isLoosening(c.schedule, c.other, c.now),
+    nextOpen: nextOpenAt(c.schedule, c.now),
+    nextClose: nextCloseAt(c.schedule, c.now),
+  });
   CURATED_SCHEDULES.forEach((c, i) => {
-    schedules.push({
-      seed: 1000 + i, ...c, blocked: isBlockedBySchedule(c.schedule, c.now), loosening: isLoosening(c.schedule, c.other, c.now),
-    });
+    schedules.push({ seed: 1000 + i, ...c, ...decide(c) });
   });
   for (let seed = 1; seed <= SEEDS; seed++) {
     const r = rng(seed);
     const c = randomScheduleCase(r);
-    schedules.push({ seed, ...c, blocked: isBlockedBySchedule(c.schedule, c.now), loosening: isLoosening(c.schedule, c.other, c.now) });
+    schedules.push({ seed, ...c, ...decide(c) });
   }
-  // Nem elfajult: zár is, nyit is; lazítás is, nem is.
-  const sch = schedules as Array<{ blocked: boolean; loosening: boolean }>;
+  // Nem elfajult: zár is, nyit is; lazítás is, nem is; a váltás jövőbeli is,
+  // most-i is, soha-sem is.
+  const sch = schedules as Array<{ blocked: boolean; loosening: boolean; now: number; nextOpen: number; nextClose: number }>;
   assert.ok(sch.some((c) => c.blocked) && sch.some((c) => !c.blocked), 'a menetrend-esetek egyfélék');
   assert.ok(sch.some((c) => c.loosening) && sch.some((c) => !c.loosening), 'a lazítás-esetek egyfélék');
+  assert.ok(sch.some((c) => c.nextOpen > c.now) && sch.some((c) => c.nextClose > c.now), 'nincs jövőbeli váltás');
+  assert.ok(sch.some((c) => c.nextOpen === 0) && sch.some((c) => c.nextClose === 0), 'nincs soha nem nyíló vagy soha nem záró menetrend');
   // A ZÁRLAT-ABLAKOK: marad-e szabad idő, lazítás-e a csere, az élő ablak, a
   // megkövetelt zárlat (futó zárlat mellett és nélkül), ablak-zárlat-e, a
   // közelgő ablak, a következő előfordulás — UTC-ben, mint a menetrend. A
@@ -293,7 +313,8 @@ function buildFixture(): Fixture {
       + 'A decisions-esetek: oldal, helyi mérés, a többi eszköz mai összegzése, időpont — és hogy tilt-e most. '
       + 'A bursts-esetek (gép és Android): adag-szabály, minták, és a számláló állapota minden minta után. '
       + 'A verdicts-esetek (a két telefon): név, lista, kulcsszavak, menet, csomag, saját kiszolgáló — és a döntés. '
-      + 'A schedules-esetek: menetrend, egy másik menetrend, időpont (UTC-ben értékelve) — tilt-e most, és lazítás-e a csere. '
+      + 'A schedules-esetek: menetrend, egy másik menetrend, időpont (UTC-ben értékelve) — tilt-e most, lazítás-e a csere, '
+      + 'és a következő nyitás és zárás (nextOpen/nextClose: epoch ms; now, ha már most annyi; 0, ha nyolc napon belül sincs). '
       + 'A windows-esetek: zárlat-ablakok, a csere célja, futó zárlat, időpont, a közelgő ablak kerete (UTC-ben) — szabad idő, '
       + 'lazítás, élő ablak, megkövetelt zárlat, ablak-zárlat-e, közelgő ablak, a következő előfordulás (nextOcc). '
       + 'A focusLogs-esetek: napló és időpont (UTC) — a hét és az előző hét összegzője (menet/ms/korai/ablakból/csúcs-csomag), '

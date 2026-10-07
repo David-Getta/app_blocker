@@ -113,15 +113,25 @@ is mutatja („most blokkolva” / „most szabad”).
 Szabadon szerkeszthető heti rács (napok × órák) nincs: a sávok listája és a
 saját sáv ugyanazt kifejezi, és a heti ablak szerkesztőjével egy a nyelvük.
 
-## A következő nyitás kiszámolható tény
+## A következő váltás kiszámolható tény
 
 A `nextOpenAt(schedule, now)` (shared/schedule.ts) megmondja, mikor enged
-legközelebb a menetrend — percre lépkedve MAGÁT a tiltás-döntést kérdezi, nem
-másolja a sáv-számtant, így óraátállásnál sem mondhat mást, mint amit a
-tiltás tesz. A sosem nyíló menetrendre nullát ad. Ebből számol vissza a
-bővítmény tiltó lapja („Nyit: még kb. 2 óra”) és az oldalsor korongja
-(„nyit X múlva”). Csak az asztali státusz-út használja; a Kotlin/Swift
-magnak nincs rá fogyasztója, ezért ott szándékosan nincs tükre.
+legközelebb a menetrend, a tükre, a `nextCloseAt` pedig azt, mikor zár — mind
+a kettő percre lépkedve MAGÁT a tiltás-döntést kérdezi, nem másolja a
+sáv-számtant, így óraátállásnál sem mondhat mást, mint amit a tiltás tesz. A
+sosem nyíló (és a sosem záró) menetrendre nullát adnak. Ebből számol vissza a
+bővítmény tiltó lapja („Nyit: még kb. 2 óra”), és ebből mondja a sor mindhárom
+felületen, mikor vált: a gépen a korong („Most szabad (menetrend szerint) —
+zár 1 ó 30 p múlva”, „… — nyit 45 perc múlva”), a telefonon a menetrend-chip
+alatti sor („A menetrend szerint zár 1 ó 30 p múlva.”). Tény, nem
+figyelmeztetés: a szabad sáv vége ne a zárásnál derüljön ki.
+
+A Kotlin és a Swift mag is kapott tükröt (`ScheduleLogic.nextOpenAt` /
+`nextCloseAt`), ugyanazzal a döntéssel, egyetlen naptárral végiglépkedve. A
+felület percenként egyszer számol menetrendenként — a lista másodpercenként
+rajzolódik, a keresés pedig egy hét percein lépkedhet. A telefonon a chip is
+pontosabb lett: ha az oldalt nem a menetrend zárja (hanem a betelt keret vagy
+az adag-szünet), nem mondja, hogy „(menetrend)” — az ok a saját sorában szól.
 
 ## Tesztek
 
@@ -130,7 +140,9 @@ magnak nincs rá fogyasztója, ezért ott szándékosan nincs tükre.
 - `isLoosening`: szigorítás=false, lazítás=true, always→block=szigorítás,
   block→allow általában lazítás, azonos menetrend=false.
 - `nextOpenAt`: percre pontos nyitás, éjfélátnyúlás, több napnyi várakozás,
-  a sosem nyíló nulla.
+  a sosem nyíló nulla; `nextCloseAt` ugyanígy (a másodperc nem számít, a
+  sosem záró nulla), mindkettőre fuzz: amit mond, az tényleg váltás, és nem
+  késik.
 - Integráció: menetrenddel a `activeHostnames` a sávhatáron vált.
 
 ## A három mag ugyanazt dönti
@@ -141,7 +153,8 @@ nyitja, ugyanabban a percben. Ezért a `fixtures/merge-cases.json` menetrend-
 szekciója (írja `desktop/test/merge-fixture.test.ts`) kézzel válogatott éleket
 és véletlen heti sávrendszereket tart — mindhárom mód, éjfélen átnyúló és
 érvénytelen sávok, a sávhatár perce másodpercekkel —, és azt, hogy a gép
-szerint tilt-e most, és lazítás-e a csere egy másik menetrendre; a Kotlin
+szerint tilt-e most, lazítás-e a csere egy másik menetrendre, és mikor nyit,
+illetve zár legközelebb (`nextOpen`/`nextClose`); a Kotlin
 (`MergeFixtureTest`) és a Swift (`MergeFixtureTests`) ugyanezt játssza vissza.
 A sávok helyi időben értékelődnek ki, ezért a három teszt UTC-ben jár — a gép
 és az Android beállítja, a Swift beállítja, vagy ha nem tudja, kimondva

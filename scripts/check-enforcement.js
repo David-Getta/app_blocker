@@ -3561,6 +3561,25 @@ const WIRES = [
     needle: 'days: customDays.sorted(), startMin: minutes(customStart), endMin: end == 0 ? 1440 : end)',
     lost: 'az iPhone menetrend-szerkesztőjében nem lehetne saját sávot megadni',
   },
+
+  // A MENETREND KÖVETKEZŐ VÁLTÁSA a sorban: a szabad sáv vége és a zárt sáv
+  // nyitása tény, nem meglepetés. A mag megvan mindhárom nyelven, a fixtúra
+  // őrzi — ezek a tűk azt, hogy a felület tényleg ki is mondja.
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: 'const closes = scheduleCloseAt(site.schedule!, now);',
+    lost: 'a gépi sor nem mondaná, mikor zár a menetrend szerint szabad oldal',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/AppUi.kt',
+    needle: 'ScheduleLine(site, now)',
+    lost: 'az Android kártyája nem mondaná, mikor vált a menetrend',
+  },
+  {
+    file: 'ios/App/ContentView.swift',
+    needle: 'if let line = scheduleFlips.line(schedule, now: now) {',
+    lost: 'az iPhone sora nem mondaná, mikor vált a menetrend',
+  },
 ];
 
 /**

@@ -60,6 +60,8 @@ struct ContentView: View {
     @State private var partnerPhrase: Referee.PartnerSetup? = nil
 
     private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+    /// A menetrend következő váltása, percenként egyszer számolva (lásd `ScheduleFlipMemo`).
+    @State private var scheduleFlips = ScheduleFlipMemo()
     private let presets = ["youtube.com", "facebook.com", "instagram.com", "tiktok.com", "x.com", "reddit.com"]
 
     var body: some View {
@@ -1079,9 +1081,15 @@ struct ContentView: View {
                 let blockedNow = LimitLogic.isBlockedNowWithLimit(
                     site, UsageStats.State(), store.state.sharedToday, now
                 )
-                if scheduled {
-                    Text(blockedNow ? "Most blokkolva (menetrend)" : "Most szabad (menetrend szerint)")
+                if scheduled, let schedule = site.schedule {
+                    // A zárás oka csak akkor a menetrend, ha a menetrend tilt: a
+                    // betelt keret a saját sorában szól.
+                    Text(!blockedNow ? "Most szabad (menetrend szerint)"
+                         : ScheduleLogic.isBlockedBySchedule(schedule, now) ? "Most blokkolva (menetrend)" : "Most blokkolva")
                         .foregroundStyle(blockedNow ? Color.green : Color.orange)
+                    if let line = scheduleFlips.line(schedule, now: now) {
+                        Text(line).font(.footnote).foregroundStyle(.secondary)
+                    }
                 } else {
                     Text("Blokkolva").foregroundStyle(.green)
                 }
@@ -1549,6 +1557,36 @@ private func nextWindowCut(_ packs: [Focus.Pack]) -> (name: String, clock: Strin
     let f = DateFormatter()
     f.dateFormat = "HH:mm"
     return (cut.name, f.string(from: Date(timeIntervalSince1970: cut.startsAt / 1000)))
+}
+
+/// A MENETREND KÖVETKEZŐ VÁLTÁSA egy sorban:
+/// „A menetrend szerint zár 2 ó 15 p múlva.” / „… nyit 45 perc múlva.”
+/// Tény, nem figyelmeztetés. Percenként egyszer számol menetrendenként: a
+/// főképernyő másodpercenként rajzol, a keresés pedig egy hét percein
+/// lépkedhet. Osztály, hogy a gyorsítótár írása ne rajzoltasson újra.
+final class ScheduleFlipMemo {
+    private var minute: Int64 = -1
+    private var memo: [String: (verb: String, at: Double)] = [:]
+
+    func line(_ schedule: ScheduleLogic.Schedule, now: Double) -> String? {
+        let m = Int64((now / 60_000).rounded(.down))
+        if m != minute {
+            memo.removeAll()
+            minute = m
+        }
+        let key = schedule.mode.rawValue + "|" + schedule.bands.map { LockdownLogic.windowKey($0) }.joined(separator: ";")
+        let flip: (verb: String, at: Double)
+        if let hit = memo[key] {
+            flip = hit
+        } else {
+            flip = ScheduleLogic.isBlockedBySchedule(schedule, now)
+                ? (verb: "nyit", at: ScheduleLogic.nextOpenAt(schedule, now))
+                : (verb: "zár", at: ScheduleLogic.nextCloseAt(schedule, now))
+            memo[key] = flip
+        }
+        guard flip.at > now else { return nil }
+        return "A menetrend szerint \(flip.verb) \(LockdownLogic.formatRemaining(flip.at - now)) múlva."
+    }
 }
 
 /// „H–P 09:00–12:00”, „minden nap 22:00–06:00”, „H, Sze, P 18:00–20:00” — mint a gépen.

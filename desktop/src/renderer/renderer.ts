@@ -8,7 +8,7 @@ import type {
 // Explicit .js so the browser's native ESM loader resolves it at runtime
 // (TypeScript's bundler resolution does not rewrite the specifier).
 import {
-  PRESET_BANDS, type Band, type Schedule, type ScheduleMode, type Weekday,
+  PRESET_BANDS, nextCloseAt, type Band, type Schedule, type ScheduleMode, type Weekday,
 } from '../shared/schedule.js';
 import { dayKey, formatDuration, idOf, suggestBlocks, usageDayNowText, usageWeekdayText } from '../shared/usage.js';
 import {
@@ -2782,11 +2782,16 @@ function siteRow(site: SiteInfo, st: StatusData): HTMLElement {
         if (site.closedReason === 'cooldown') label = 'Most blokkolva (adag-szünet)';
         else if (site.closedReason === 'limit') label = 'Most blokkolva (mai keret)';
         else if (site.closedReason === 'schedule' && (site.closedUntil ?? 0) > now) {
-          label = `Most blokkolva (menetrend) — nyit ${fmtRemain(site.closedUntil - now)} múlva`;
+          label = `Most blokkolva (menetrend) — nyit ${formatLockdownRemaining(site.closedUntil! - now)} múlva`;
         }
         statusEl.appendChild(h('span', 'pill pill-ok', label));
       } else {
-        statusEl.appendChild(h('span', 'pill pill-warn', 'Most szabad (menetrend szerint)'));
+        // A SZABAD SÁV VÉGE IS TÉNY: mikor zár legközelebb a menetrend. Nem
+        // figyelmeztetés — csak ne a zárás legyen a meglepetés.
+        const closes = scheduleCloseAt(site.schedule!, now);
+        statusEl.appendChild(h('span', 'pill pill-warn', closes > now
+          ? `Most szabad (menetrend szerint) — zár ${formatLockdownRemaining(closes - now)} múlva`
+          : 'Most szabad (menetrend szerint)'));
       }
     } else {
       statusEl.appendChild(h('span', 'pill pill-ok', 'Blokkolva'));
@@ -3564,6 +3569,28 @@ async function startPause(minutes: number): Promise<void> {
 }
 
 // ------------------------------------------------------------- schedule editor
+
+/**
+ * A menetrend következő zárása, percenként egyszer számolva menetrendenként:
+ * a lista másodpercenként rajzolódik, a keresés pedig akár egy hét percein
+ * lépked végig. Egy percen belül nem változhat — a döntés percre szól.
+ */
+const scheduleCloseMemo = new Map<string, number>();
+let scheduleCloseMinute = -1;
+function scheduleCloseAt(schedule: Schedule, now: number): number {
+  const minute = Math.floor(now / 60_000);
+  if (minute !== scheduleCloseMinute) {
+    scheduleCloseMemo.clear();
+    scheduleCloseMinute = minute;
+  }
+  const key = JSON.stringify(schedule);
+  let at = scheduleCloseMemo.get(key);
+  if (at === undefined) {
+    at = nextCloseAt(schedule, now);
+    scheduleCloseMemo.set(key, at);
+  }
+  return at;
+}
 
 const PRESET_LABELS: { key: keyof typeof PRESET_BANDS; label: string }[] = [
   { key: 'workHours', label: 'Munkaidő (H–P 9–17)' },

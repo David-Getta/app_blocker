@@ -317,6 +317,9 @@ class MergeFixtureTest {
             val now = c.getLong("now")
             assertEquals(c.getBoolean("blocked"), ScheduleLogic.isBlockedBySchedule(s, now), "menetrend tilt-e, mag $seed")
             assertEquals(c.getBoolean("loosening"), ScheduleLogic.isLoosening(s, other, now), "menetrend lazítás-e, mag $seed")
+            // A következő váltás: a sor ebből mondja, mikor nyit és mikor zár.
+            assertEquals(c.getLong("nextOpen"), ScheduleLogic.nextOpenAt(s, now), "menetrend következő nyitása, mag $seed")
+            assertEquals(c.getLong("nextClose"), ScheduleLogic.nextCloseAt(s, now), "menetrend következő zárása, mag $seed")
         }
     }
 

@@ -101,29 +101,46 @@ export function isBlockedBySchedule(schedule: Schedule, now: number): boolean {
 }
 
 /**
- * A KÖVETKEZŐ pillanat (epoch ms), amikor a menetrend enged — vagy 0, ha egy
- * héten belül sincs ilyen (a mindig tiltó menetrend sosem nyit magától).
+ * Az első perchatár `now` után, ahol a menetrend döntése `blocked` — vagy 0,
+ * ha nyolc napon belül sincs ilyen. Ha már most annyi, `now`.
  *
  * Perchatáron lépked, és minden lépésnél MAGÁT A DÖNTÉST kérdezi
  * (isBlockedBySchedule) — nem másolja le a sáv-számtant. Így óraátállásnál
  * is pontosan azt mondja, amit a tiltás tenni fog, mert ugyanazt kérdezi.
- * Az ára legfeljebb nyolc napnyi perc egy sosem nyíló menetrendre; azt a
- * mód-ellenőrzés úgyis levágja.
+ * Az ára legfeljebb nyolc napnyi perc egy sosem váltó menetrendre.
  */
-export function nextOpenAt(schedule: Schedule, now: number): number {
-  const s = normalizeSchedule(schedule);
-  if (s.mode === 'always') return 0;
-  if (!isBlockedBySchedule(s, now)) return now;
+function nextDecisionAt(s: Schedule, now: number, blocked: boolean): number {
+  if (isBlockedBySchedule(s, now) === blocked) return now;
   const start = new Date(now);
   start.setSeconds(0, 0);
   let t = start.getTime();
   // Nyolc napnyi perc: óraátállással együtt is bőven egy teljes hét. Ha ez
-  // alatt sincs nyitás, a menetrend gyakorlatilag mindig tilt.
+  // alatt sincs váltás, a menetrend gyakorlatilag sosem vált.
   for (let i = 0; i < 8 * 24 * 60; i++) {
     t += 60_000;
-    if (!isBlockedBySchedule(s, t)) return t;
+    if (isBlockedBySchedule(s, t) === blocked) return t;
   }
   return 0;
+}
+
+/**
+ * A KÖVETKEZŐ pillanat (epoch ms), amikor a menetrend enged — vagy 0, ha egy
+ * héten belül sincs ilyen (a mindig tiltó menetrend sosem nyit magától).
+ */
+export function nextOpenAt(schedule: Schedule, now: number): number {
+  const s = normalizeSchedule(schedule);
+  if (s.mode === 'always') return 0;
+  return nextDecisionAt(s, now, false);
+}
+
+/**
+ * A KÖVETKEZŐ pillanat (epoch ms), amikor a menetrend zár — a `nextOpenAt`
+ * tükre. Ha most is zár, `now`; ha egy héten belül sem zár (a sávokban
+ * szabad menetrend egész hetet fedő sávval), 0. A sor ebből mondja:
+ * „zár … múlva” — a szabad sáv vége tény, nem meglepetés.
+ */
+export function nextCloseAt(schedule: Schedule, now: number): number {
+  return nextDecisionAt(normalizeSchedule(schedule), now, true);
 }
 
 /**
