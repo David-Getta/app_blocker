@@ -3598,6 +3598,47 @@ const WIRES = [
     needle: 'PauseReminders.reschedule(views, now: now)',
     lost: 'az iPhone nem ütemezné a szünet vége előtti értesítést',
   },
+  // A SZÜNET VÉGE CSAK AKKOR SZÓL, HA UTÁNA TÉNYLEG ZÁR. Egy nyitott
+  // menetrend-sávban véget érő szünet után az oldal nyitva marad, és a
+  // „mindjárt újra zárva” hamis volna. A döntés a magé (`closesAfterPause`,
+  // fixtúrával); ezek a tűk azt őrzik, hogy minden szóló hely kérdezze.
+  {
+    file: 'desktop/src/helper/server.ts',
+    needle: 'closesAfterPause(s, state.usage, state.sharedToday, state.bursts?.[s.id])',
+    lost: 'a segéd nem mondaná meg, hogy az oldal a szünet végén zárul-e — a gép hamisan szólna',
+  },
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: 'closes: s.closesAfterPause ?? true,',
+    lost: 'a gép akkor is azt mondaná, hogy „újra zárva”, ha a szünet után nyitva marad',
+  },
+  {
+    file: 'desktop/src/main/main.ts',
+    needle: '(site.closesAfterPause ?? true)',
+    lost: 'a böngésző lapja akkor is azt mondaná, hogy a szünet után zárva, ha nyitva marad',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/vpn/BreakerVpnService.kt',
+    needle: 'LimitLogic.closesAfterPause(site, st.usage, st.sharedToday, st.bursts[site.id])',
+    lost: 'az Android akkor is azt mondaná, hogy „újra zárva”, ha a szünet után nyitva marad',
+  },
+  {
+    file: 'ios/App/ContentView.swift',
+    needle: 'LimitLogic.closesAfterPause($0, UsageStats.State(), shared)',
+    lost: 'az iPhone akkor is ütemezné a „mindjárt újra zárva” szót, ha a szünet után nyitva marad',
+  },
+  // A KERET ELŐJELZÉSE SZÜNET ALATT HALLGAT: a kifizetett szünet a keretet is
+  // legyőzi, a keret fogyása akkor nem zárás (arról a szünet vége szól).
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: 'paused: s.pauseUntil !== null && s.pauseUntil > nowForBurst,',
+    lost: 'a gép szünet alatt is azt mondaná, hogy fogy a keret — pedig akkor nem zár',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/vpn/BreakerVpnService.kt',
+    needle: 'paused = site.pauseUntil != null && site.pauseUntil > now,',
+    lost: 'az Android szünet alatt is azt mondaná, hogy fogy a keret — pedig akkor nem zár',
+  },
 
   // A HETI ABLAK MENETE ELŐTT TÍZ PERCCEL szól mindhárom app — a zárlat-ablak
   // előjelzésének tükre. A döntés a magé (`windowRunStartingSoon`, a
@@ -3676,7 +3717,7 @@ const WIRES = [
   },
   {
     file: 'desktop/src/main/main.ts',
-    needle: "if (site.pauseUntil - now <= SOON_HORIZON_MS) push({ kind: 'pause', at: site.pauseUntil });",
+    needle: "push({ kind: 'pause', at: site.pauseUntil });",
     lost: 'az app nem mondaná meg a bővítménynek, mikor ér véget egy szünet',
   },
   {

@@ -3,7 +3,8 @@ import * as assert from 'node:assert/strict';
 import { PAUSE_END_WARN_MS, pauseEndText, stepPauseNotices } from '../src/shared/pause-notify';
 
 const T = 1_800_000_000_000;
-const site = (pauseUntil: number | null, id = 's1', label = 'youtube.com') => ({ id, label, pauseUntil });
+const site = (pauseUntil: number | null, id = 's1', label = 'youtube.com', closes = true) =>
+  ({ id, label, pauseUntil, closes });
 
 test('a hosszú szünet élesít, és a figyelmeztetés idején egyszer szól', () => {
   let r = stepPauseNotices({}, [site(T + 10 * 60_000)], T);
@@ -55,4 +56,19 @@ test('a szöveg: a hátralévő perc felfelé kerekít, és legalább egy', () =
   assert.equal(pauseEndText('youtube.com', 61_000), 'youtube.com 2 perc múlva újra zárva — a szünet véget ér.');
   assert.equal(pauseEndText('youtube.com', 60_000), 'youtube.com 1 perc múlva újra zárva — a szünet véget ér.');
   assert.equal(pauseEndText('youtube.com', 5_000), 'youtube.com 1 perc múlva újra zárva — a szünet véget ér.');
+});
+
+test('ha az oldal a szünet végén nem zárul, nem szól — a „mindjárt újra zárva” hamis volna', () => {
+  // Hétköznap 9–17 tiltás, 16:30-kor egy órára feloldva: 17:30-kor a menetrend
+  // már nyitva hagyja. A hívó a mag döntéséből tölti ki (`closesAfterPause`).
+  let r = stepPauseNotices({}, [site(T + 10 * 60_000, 's1', 'youtube.com', false)], T);
+  assert.deepEqual(r.watches, {}, 'nem is élesít');
+  r = stepPauseNotices(r.watches, [site(T + 10 * 60_000, 's1', 'youtube.com', false)], T + 8 * 60_000 + 1);
+  assert.deepEqual(r.notices, []);
+  // Ha közben zárulóvá válik (a keret közben elfogyott) — és még van idő —, élesít, és szól.
+  r = stepPauseNotices(r.watches, [site(T + 20 * 60_000, 's1', 'youtube.com', false)], T + 9 * 60_000);
+  r = stepPauseNotices(r.watches, [site(T + 20 * 60_000)], T + 10 * 60_000);
+  assert.equal(r.watches.s1, T + 20 * 60_000);
+  r = stepPauseNotices(r.watches, [site(T + 20 * 60_000)], T + 18 * 60_000 + 1);
+  assert.equal(r.notices.length, 1);
 });

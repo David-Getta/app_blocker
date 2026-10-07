@@ -536,6 +536,9 @@ class BreakerVpnService : VpnService() {
                 site.id,
                 if (st.hideSiteList) AliasLogic.maskedLabel(site, i) else AliasLogic.displayName(site),
                 site.pauseUntil,
+                // Csak ha a szünet végén TÉNYLEG zárul: egy nyitott menetrend-sávban
+                // véget érő szünet után nyitva marad, és a szó hamis volna.
+                LimitLogic.closesAfterPause(site, st.usage, st.sharedToday, st.bursts[site.id]),
             )
         }
         val r = PauseNotify.step(pauseWatches, views, now)
@@ -565,6 +568,8 @@ class BreakerVpnService : VpnService() {
                 if (st.hideSiteList) AliasLogic.maskedLabel(site, i) else AliasLogic.displayName(site),
                 site.dailyLimitSeconds,
                 LimitLogic.usedTodayEverywhere(st.usage, st.sharedToday, site.domain, now),
+                // Szünet alatt a keret fogyása nem zárás — arról a szünet vége szól.
+                paused = site.pauseUntil != null && site.pauseUntil > now,
             )
         }
         val r = LimitLogic.stepNotices(limitWatches, views, UsageLogic.dayKey(now))

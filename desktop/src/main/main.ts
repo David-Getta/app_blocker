@@ -613,7 +613,12 @@ if (HELPER_MODE) {
               for (const host of hosts) out.push({ host, ...e });
             };
             if (site.pauseUntil !== null && site.pauseUntil > now) {
-              if (site.pauseUntil - now <= SOON_HORIZON_MS) push({ kind: 'pause', at: site.pauseUntil });
+              // Csak ha a szünet végén TÉNYLEG zárul (a segéd döntése): egy
+              // nyitott menetrend-sávban véget érő szünet után nyitva marad,
+              // és a lap „utána újra zárva” mondata hamis volna.
+              if (site.pauseUntil - now <= SOON_HORIZON_MS && (site.closesAfterPause ?? true)) {
+                push({ kind: 'pause', at: site.pauseUntil });
+              }
               continue;
             }
             if (site.schedule && site.schedule.mode !== 'always') {

@@ -141,6 +141,10 @@ class MergeFixtureTest {
                 )
             }
             assertEquals(c.getBoolean("blocked"), LimitLogic.isBlockedNowWithLimit(site, usage, now, shared), "döntés, mag $seed")
+            // Zárul-e a szünet végén (szünet nélkül null) — a szünet vége előtti szó ebből dönt.
+            if (!c.isNull("afterPause")) {
+                assertEquals(c.getBoolean("afterPause"), LimitLogic.closesAfterPause(site, usage, shared), "a szünet vége, mag $seed")
+            }
         }
     }
 

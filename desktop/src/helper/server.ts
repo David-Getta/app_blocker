@@ -24,7 +24,7 @@ import {
 import { burstTripsInDays, noteBurstTrip, noteBurstUsage, normalizeBurst, type BurstRule } from '../shared/burst';
 import { LOCKDOWN_CHOICES_MIN } from '../shared/lockdown';
 import {
-  blockReasonNow, isLimitExhausted, normalizeLimit, sharedTodaySeconds, usedTodayEverywhere,
+  blockReasonNow, closesAfterPause, isLimitExhausted, normalizeLimit, sharedTodaySeconds, usedTodayEverywhere,
 } from '../shared/limits';
 import {
   recordSample, summarize, series, totalSeries, usageByWeekday, labelOf, emptyUsage, clearUsage, combineUsage, siteKey, dayKey, dayKeysBack,
@@ -103,6 +103,10 @@ export function statusOf(
       return {
         id: s.id, domain: s.domain, hostnames: s.hostnames, addedAt: s.addedAt,
         pauseUntil: s.pauseUntil, pendingDeleteAt: s.pendingDeleteAt,
+        // Ugyanaz a döntés a szünet végének pillanatában: a szünet vége előtti
+        // szó („mindjárt újra zárva”) csak akkor igaz, ha az oldal akkor zárul.
+        closesAfterPause: s.pauseUntil !== null && s.pauseUntil > now
+          && closesAfterPause(s, state.usage, state.sharedToday, state.bursts?.[s.id]),
         schedule: s.schedule,
         alias: s.alias,
         reason: s.reason,

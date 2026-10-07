@@ -56,6 +56,12 @@ export interface SiteInfo {
   addedAt: number;
   /** epoch ms until which blocking is paused, or null when actively blocked */
   pauseUntil: number | null;
+  /**
+   * Zárul-e az oldal a szünete VÉGÉN (a szünetet nem számítva — lásd
+   * `closesAfterPause`). A szünet vége előtti szó csak ilyenkor mondhatja,
+   * hogy „újra zárva”. Szünet nélkül hamis; régi segéd nem küldi.
+   */
+  closesAfterPause?: boolean;
   /** epoch ms when the site will actually be deleted, or null */
   pendingDeleteAt: number | null;
   /** weekly schedule (absent = always blocked) */

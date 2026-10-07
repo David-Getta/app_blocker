@@ -6,12 +6,16 @@
 // látja — a visszazárás némán történne meg, félbehagyott mondat közepén.
 //
 // A modul szándékosan tiszta, mint az adag-értesítésé (burst-notify.ts): két
-// egymás utáni képből mondja meg, van-e mondanivaló. Két hallgatási szabály:
+// egymás utáni képből mondja meg, van-e mondanivaló. Három hallgatási szabály:
 //
 // - a frissen indított RÖVID szünetre (amit már a figyelmeztetési időn belül
 //   látunk először) nem szól: a felhasználó épp most állította be, tudja;
 // - egy szünetről egyszer szól. Ha közben a vége változik (új feloldás),
-//   az új szünet új figyelést kap; ha eltűnik (visszakapcsolta), hallgat.
+//   az új szünet új figyelést kap; ha eltűnik (visszakapcsolta), hallgat;
+// - ha az oldal a szünet végén NEM zárul (`closes` — például a szünet egy
+//   nyitott menetrend-sávban ér véget), arról sem szól, mert a mondat
+//   („mindjárt újra zárva”) akkor hamis volna. A hívó a mag döntéséből
+//   tölti ki (`closesAfterPause`, limits.ts).
 //
 // Ugyanez a szabály a Kotlin (`PauseNotify`) és a Swift (`PauseNotify`) magban.
 
@@ -24,6 +28,8 @@ export interface PauseView {
   /** a MEGJELENÍTENDŐ név (fedőnév / rejtett sorszám), nem a nyers domain */
   label: string;
   pauseUntil: number | null;
+  /** zárul-e az oldal a szünet végén (`closesAfterPause`) — ha nem, nincs miről szólni */
+  closes: boolean;
 }
 
 /** A figyelt szünetek: oldal → a szünet vége, amiről még nem szóltunk. */
@@ -47,7 +53,7 @@ export function stepPauseNotices(
   const notices: PauseNotice[] = [];
   for (const s of sites) {
     const until = s.pauseUntil;
-    if (until === null || !Number.isFinite(until) || until <= now) continue;
+    if (until === null || !Number.isFinite(until) || until <= now || !s.closes) continue;
     if (until - now > PAUSE_END_WARN_MS) {
       watches[s.id] = until; // élesítve: a figyelmeztetés idején szólunk
       continue;

@@ -20,7 +20,7 @@ import * as path from 'node:path';
 import { mergeSite } from '../src/shared/sync/merge';
 import { mergeFocus, normalizeSyncFocus, sameFocus } from '../src/shared/sync/focus-merge';
 import { combineUsage } from '../src/shared/usage';
-import { isBlockedNowWithLimit } from '../src/shared/limits';
+import { closesAfterPause, isBlockedNowWithLimit } from '../src/shared/limits';
 import {
   isBlockedBySchedule, isLoosening, isValidBand, nextCloseAt, nextOpenAt, type Schedule,
 } from '../src/shared/schedule';
@@ -219,8 +219,17 @@ function buildFixture(): Fixture {
     const r = rng(seed);
     const { site, usage: u, shared } = randomDecision(r);
     const blocked = isBlockedNowWithLimit(site, u, DECISION_NOW, shared);
-    decisions.push({ seed, now: DECISION_NOW, site, usage: u, shared, blocked });
+    // ZÁRUL-E A SZÜNET VÉGÉN: ugyanaz a döntés a szünet végének pillanatában,
+    // a szünetet nem számítva — a szünet vége előtti szó ebből tudja, hogy
+    // mondhatja-e: „újra zárva”. Szünet nélkül nincs kérdés (null).
+    const afterPause = site.pauseUntil === null ? null : closesAfterPause(site, u, shared);
+    decisions.push({ seed, now: DECISION_NOW, site, usage: u, shared, blocked, afterPause });
   }
+  const dec = decisions as Array<{ afterPause: boolean | null; blocked: boolean; site: { pauseUntil: number | null } }>;
+  assert.ok(dec.some((d) => d.afterPause === true) && dec.some((d) => d.afterPause === false),
+    'a szünet vége mindig ugyanazt mondja — a fixtúra elfajult');
+  assert.ok(dec.some((d) => d.afterPause === false && (d.site.pauseUntil ?? 0) > DECISION_NOW + 24 * 3_600_000),
+    'nincs éjfélen átnyúló szünet, ami után a keret nyitva hagyja — a fixtúra elfajult');
   // AZ ADAG-SZÁMLÁLÓ: egy szabály, nyolc minta, és a számláló állapota minden
   // minta után. A gép és az Android tükre (az iPhone nem mér, ott nincs mit
   // tükrözni — kimondva). Lépésenként rögzítve, hogy egy eltérés a helyén
@@ -310,7 +319,8 @@ function buildFixture(): Fixture {
       + 'A sites-esetek flip/what/af/fa mezője: egy mező cseréje, és a fésülés mindkét sorrendben. '
       + 'A usage-esetek: három eszköz mérése, az egyesítés kulcsa, és az összegző (summary) a now időpontban: ma, tegnap, hét, hónap, '
       + 'toplisták (kulcs=címke=mp, holtversenyben a kulcs dönt), a hét az előző héthez (ez/múlt/századszázalék), napok. '
-      + 'A decisions-esetek: oldal, helyi mérés, a többi eszköz mai összegzése, időpont — és hogy tilt-e most. '
+      + 'A decisions-esetek: oldal, helyi mérés, a többi eszköz mai összegzése, időpont — és hogy tilt-e most, '
+      + 'meg hogy a szünet végén zárul-e (afterPause; szünet nélkül null). '
       + 'A bursts-esetek (gép és Android): adag-szabály, minták, és a számláló állapota minden minta után. '
       + 'A verdicts-esetek (a két telefon): név, lista, kulcsszavak, menet, csomag, saját kiszolgáló — és a döntés. '
       + 'A schedules-esetek: menetrend, egy másik menetrend, időpont (UTC-ben értékelve) — tilt-e most, lazítás-e a csere, '

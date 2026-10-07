@@ -220,6 +220,19 @@ enum LimitLogic {
                                 usage: usage, shared: shared, now: now)
     }
 
+    /// Zár-e az oldal a szünete VÉGÉN — a szünetet nem számítva. A gépi
+    /// `closesAfterPause` tükre: a menetrend és a törlésre várás az akkori
+    /// időpontban, és a napi keret a mostani mérésből (a következő napon a
+    /// keret nulláról indul). Egy nyitott menetrend-sávban véget érő szünet
+    /// után az oldal nyitva marad — a „mindjárt újra zárva” hamis volna.
+    /// Nincs szünet (vagy nem szám): hamis.
+    static func closesAfterPause(_ site: Site, _ usage: UsageStats.State, _ shared: SharedToday?) -> Bool {
+        guard let until = site.pauseUntil, until.isFinite else { return false }
+        var open = site
+        open.pauseUntil = nil
+        return isBlockedNowWithLimit(open, usage, shared, until)
+    }
+
     /// Lazítás-e a keret változtatása (vagyis próbatételbe kerül-e)?
     ///
     /// Emelni vagy megszüntetni több időt vesz az oldalon, tehát ugyanolyan

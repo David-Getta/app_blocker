@@ -105,6 +105,28 @@ class LimitsTest {
         assertFalse(LimitLogic.isBlockedNowWithLimit(s, usageWith("youtube.com", 99999.0), now))
     }
 
+    @Test fun `closesAfterPause - a szunet vegen ugyanaz a dontes, a szunetet nem szamitva`() {
+        // 2026. május 20., szerda 15:00 helyi idő — a gépi teszt pillanata.
+        val wed = java.util.GregorianCalendar(2026, 4, 20, 15, 0).timeInMillis
+        val work = ScheduleLogic.Schedule(
+            ScheduleLogic.Mode.SCHEDULED_BLOCK, listOf(ScheduleLogic.Band(setOf(1, 2, 3, 4, 5), 9 * 60, 17 * 60)),
+        )
+        val empty = UsageLogic.UsageState()
+        assertTrue(LimitLogic.closesAfterPause(site(schedule = work, pauseUntil = wed + 90 * 60_000), empty), "16:30-kor még munkaidő")
+        assertFalse(LimitLogic.closesAfterPause(site(schedule = work, pauseUntil = wed + 150 * 60_000), empty), "17:30-kor a tiltás már véget ért")
+        assertTrue(LimitLogic.closesAfterPause(site(pauseUntil = wed + 60_000), empty), "menetrend nélkül mindig zárul")
+        assertFalse(LimitLogic.closesAfterPause(site(), empty), "szünet nélkül nincs miről szólni")
+        // A keret a mostani mérésből — a következő napon nulláról indul.
+        val open = ScheduleLogic.Schedule(
+            ScheduleLogic.Mode.SCHEDULED_ALLOW, listOf(ScheduleLogic.Band(setOf(0, 1, 2, 3, 4, 5, 6), 0, 1440)),
+        )
+        val spent = usageWith("youtube.com", 600.0, wed)
+        assertTrue(LimitLogic.closesAfterPause(site(limit = 600, schedule = open, pauseUntil = wed + 60_000), spent))
+        assertFalse(LimitLogic.closesAfterPause(site(limit = 600, schedule = open, pauseUntil = wed + 60_000), usageWith("youtube.com", 100.0, wed)))
+        val tomorrow = java.util.GregorianCalendar(2026, 4, 21, 0, 30).timeInMillis
+        assertFalse(LimitLogic.closesAfterPause(site(limit = 600, schedule = open, pauseUntil = tomorrow), spent), "új nap, új keret")
+    }
+
     @Test fun `a pending deletion still blocks regardless of the budget`() {
         val s = site(limit = 600, pendingDeleteAt = now + 3600_000)
         assertTrue(LimitLogic.isBlockedNowWithLimit(s, usageWith("youtube.com", 0.0), now))

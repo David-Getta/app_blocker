@@ -2,10 +2,12 @@ package hu.breaker.app.core
 
 /**
  * Mikor szóljon az app, hogy egy szünet (feloldás) mindjárt véget ér — a gép
- * `shared/pause-notify.ts`-ének tükre, ugyanazzal a két hallgatási szabállyal:
+ * `shared/pause-notify.ts`-ének tükre, ugyanazzal a három hallgatási szabállyal:
  * a frissen indított RÖVID szünetre (amit már a figyelmeztetési időn belül
- * látunk először) nem szól, és egy szünetről egyszer szól; ha közben a vége
- * változik (új feloldás), az új szünet új figyelést kap.
+ * látunk először) nem szól; egy szünetről egyszer szól (ha közben a vége
+ * változik, az új szünet új figyelést kap); és ha az oldal a szünet végén
+ * nem zárul (`closes`, a `LimitLogic.closesAfterPause` döntése), hallgat —
+ * a „mindjárt újra zárva” akkor hamis volna.
  *
  * A feloldás próbatétellel kifizetett idő, és a vége nem lehet meglepetés: a
  * VPN-szolgáltatás köre hívja, tehát akkor is szól, ha az app nincs nyitva.
@@ -17,8 +19,11 @@ object PauseNotify {
     /** Az értesítés címe — ugyanaz mindhárom platformon. */
     const val TITLE = "Breaker — mindjárt vége a szünetnek"
 
-    /** Amit a lépegető egy oldalról tudni akar; a `label` a megjelenítendő név (fedőnév / rejtett). */
-    data class View(val id: String, val label: String, val pauseUntil: Long?)
+    /**
+     * Amit a lépegető egy oldalról tudni akar; a `label` a megjelenítendő név
+     * (fedőnév / rejtett), a `closes` az, hogy a szünet végén zárul-e.
+     */
+    data class View(val id: String, val label: String, val pauseUntil: Long?, val closes: Boolean)
 
     data class Notice(val label: String, val until: Long)
 
@@ -30,7 +35,7 @@ object PauseNotify {
         val notices = mutableListOf<Notice>()
         for (s in sites) {
             val until = s.pauseUntil ?: continue
-            if (until <= now) continue
+            if (until <= now || !s.closes) continue
             if (until - now > PAUSE_END_WARN_MS) {
                 watches[s.id] = until // élesítve: a figyelmeztetés idején szólunk
                 continue

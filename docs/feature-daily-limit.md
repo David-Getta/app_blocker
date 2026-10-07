@@ -339,10 +339,13 @@ mert a böngészőben telik a keret.
 épp az oldalon van, annak a keret vége félbehagyott videó közepén jött (a
 nyitott lap is bezárul). Ezért amikor egy oldal a küszöb alá ér, az app egyszer
 értesítést is ad, ugyanazzal a mondattal: a gépen az app köre (az ablak
-rejtve is fut), Androidon a VPN-szolgáltatásé, saját csatornán. Két hallgatási
-szabály, mint a szünet végénél: csak akkor szól, ha ma már a küszöb FÖLÖTT is
+rejtve is fut), Androidon a VPN-szolgáltatásé, saját csatornán. Hallgatási
+szabályok, mint a szünet végénél: csak akkor szól, ha ma már a küszöb FÖLÖTT is
 látta (az induláskor már fogyó keretre nem — az nem most lépte át), és
-naponta oldalanként egyszer. A mag dönt (`stepLimitNotices`,
+naponta oldalanként egyszer. Szünet alatt sem szól: a kifizetett szünet a
+keretet is legyőzi, tehát a keret fogyása akkor nem zárás — arról a szünet
+vége szól. A figyelés megmarad: ha a szünet után még fogyóban van, akkor
+szól. A mag dönt (`stepLimitNotices`,
 `LimitLogic.stepNotices`, tesztekkel); a cím a gépen és Androidon ugyanaz (a
 mag-összhang őrzi). Rejtett listánál a sorszám vagy a fedőnév áll a név
 helyett. iPhone-on nincs: ott nincs helyi mérés, a keret a többi eszközről

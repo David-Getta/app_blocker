@@ -4,7 +4,9 @@ import Foundation
 /// `shared/pause-notify.ts`-ének tükre. iPhone-on az app nem fut a háttérben,
 /// ezért itt nem lépegetünk, hanem ELŐRE ütemezünk: minden szünetre, ami
 /// hosszabb a figyelmeztetésnél, egy helyi értesítés a vége előtt két perccel
-/// (`plan`). A frissen indított rövid szünetre ugyanúgy nem szól, mint a gépen.
+/// (`plan`). A frissen indított rövid szünetre ugyanúgy nem szól, mint a gépen;
+/// és arról sem, ami a szünet végén nem zárul (`closes` — a
+/// `LimitLogic.closesAfterPause` döntése): a „mindjárt újra zárva” hamis volna.
 enum PauseNotify {
     /// Ennyivel a szünet vége előtt szól az app.
     static let pauseEndWarnMs: Double = 2 * 60_000
@@ -27,6 +29,8 @@ enum PauseNotify {
         let id: String
         let label: String
         let pauseUntil: Double?
+        /// zárul-e az oldal a szünet végén — ha nem, nincs miről szólni
+        let closes: Bool
     }
 
     /// Az ütemezendő értesítések: minden szünet, aminek a figyelmeztetése még a
@@ -34,7 +38,7 @@ enum PauseNotify {
     /// a gép `stepPauseNotices`-ének első hallgatási szabálya.
     static func plan(_ sites: [View], now: Double) -> [Reminder] {
         sites.compactMap { s in
-            guard let until = s.pauseUntil, until.isFinite, until - now > pauseEndWarnMs else { return nil }
+            guard let until = s.pauseUntil, until.isFinite, until - now > pauseEndWarnMs, s.closes else { return nil }
             return Reminder(
                 id: reminderIdPrefix + s.id,
                 fireAt: until - pauseEndWarnMs,

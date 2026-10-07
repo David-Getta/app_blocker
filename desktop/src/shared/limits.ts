@@ -118,6 +118,27 @@ export function isBlockedNowWithLimit(
 }
 
 /**
+ * Zár-e az oldal a szünete VÉGÉN — a szünetet nem számítva: a menetrend és a
+ * törlésre várás az akkori időpontban, a hűtés, és a napi keret a mostani
+ * mérésből (ha a vég már a következő napra esik, a keret nulláról indul).
+ *
+ * MIÉRT. A szünet vége előtti szó azt mondja: „újra zárva”. De egy nyitott
+ * menetrend-sávban véget érő szünet után (16:30-kor feloldva egy órára, a
+ * munkaidő-tiltás 17-kor véget ér) az oldal nyitva marad — a szó hamis
+ * volna. Ugyanez a döntés, mint mindenhol (`isBlockedNowWithLimit`), csak a
+ * szünet végének pillanatában.
+ *
+ * Nincs szünet (vagy nem szám): hamis — nincs miről szólni.
+ */
+export function closesAfterPause(
+  site: Limitable, usage: UsageState, shared?: SharedToday | null, burst?: BurstState | null,
+): boolean {
+  const until = site.pauseUntil;
+  if (until === null || until === undefined || !Number.isFinite(until)) return false;
+  return isBlockedNowWithLimit({ ...site, pauseUntil: null }, usage, until, shared, burst);
+}
+
+/**
  * Is changing the budget a loosening (i.e. does it need the unlock challenges)?
  *
  * Raising it or taking it away buys more time on the site, so it goes through
@@ -377,7 +398,10 @@ export function limitSoonLine(
 //
 // - csak akkor, ha ma már a küszöb FÖLÖTT is láttuk (élesítve): az app
 //   indulásakor már fogyóban lévő keretre nem — az nem most lépte át;
-// - naponta oldalanként egyszer.
+// - naponta oldalanként egyszer;
+// - SZÜNET ALATT nem: a kifizetett szünet a keretet is legyőzi, tehát a
+//   keret fogyása akkor nem zárást jelent (arról a szünet vége szól). A
+//   figyelés megmarad: ha a szünet után még fogyóban van, akkor szól.
 //
 // Ugyanez a Kotlin `LimitLogic.stepNotices`-ban; iPhone-on nincs saját mérés.
 
@@ -400,7 +424,11 @@ export interface LimitNotice {
  */
 export function stepLimitNotices(
   prev: Record<string, LimitWatch>,
-  sites: { id: string; label: string; dailyLimitSeconds: number | null | undefined; usedSeconds: number }[],
+  sites: {
+    id: string; label: string; dailyLimitSeconds: number | null | undefined; usedSeconds: number;
+    /** él-e most szünet az oldalon — akkor a keret fogyása nem zárás */
+    paused?: boolean;
+  }[],
   day: string,
 ): { watches: Record<string, LimitWatch>; notices: LimitNotice[] } {
   const watches: Record<string, LimitWatch> = {};
@@ -414,7 +442,7 @@ export function stepLimitNotices(
     const threshold = Math.min(LIMIT_SOON_SECONDS, limit / 2);
     if (rem > threshold) {
       w.armed = true;
-    } else if (rem > 0 && w.armed && !w.told) {
+    } else if (rem > 0 && w.armed && !w.told && s.paused !== true) {
       w.told = true;
       notices.push({
         label: s.label,

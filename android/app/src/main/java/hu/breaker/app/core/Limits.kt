@@ -92,6 +92,22 @@ object LimitLogic {
     }
 
     /**
+     * Zár-e az oldal a szünete VÉGÉN — a szünetet nem számítva. A gépi
+     * `closesAfterPause` tükre: a menetrend és a törlésre várás az akkori
+     * időpontban, a hűtés, és a napi keret a mostani mérésből (a következő
+     * napon a keret nulláról indul). Egy nyitott menetrend-sávban véget érő
+     * szünet után az oldal nyitva marad — a „mindjárt újra zárva” hamis volna.
+     * Nincs szünet: hamis.
+     */
+    fun closesAfterPause(
+        site: Site, usage: UsageLogic.UsageState, shared: SharedToday? = null,
+        burst: BurstLogic.State? = null,
+    ): Boolean {
+        val until = site.pauseUntil ?: return false
+        return isBlockedNowWithLimit(site.copy(pauseUntil = null), usage, until, shared, burst)
+    }
+
+    /**
      * Lazítás-e a keret változtatása (vagyis próbatételbe kerül-e)?
      *
      * Emelni vagy megszüntetni több időt vesz az oldalon, tehát ugyanolyan
@@ -289,7 +305,11 @@ object LimitLogic {
     /** Egy figyelt keret: melyik napra élesítettük, és szóltunk-e már aznap. */
     data class LimitWatch(val day: String, val armed: Boolean, val told: Boolean)
 
-    data class LimitView(val id: String, val label: String, val dailyLimitSeconds: Long?, val usedSeconds: Double)
+    /** A `paused`: él-e most szünet az oldalon — akkor a keret fogyása nem zárás (arról a szünet vége szól). */
+    data class LimitView(
+        val id: String, val label: String, val dailyLimitSeconds: Long?, val usedSeconds: Double,
+        val paused: Boolean = false,
+    )
 
     data class LimitNotice(val label: String, val text: String)
 
@@ -306,7 +326,7 @@ object LimitLogic {
             val threshold = minOf(LIMIT_SOON_SECONDS.toDouble(), limit / 2.0)
             if (rem > threshold) {
                 w = w.copy(armed = true)
-            } else if (rem > 0.0 && w.armed && !w.told) {
+            } else if (rem > 0.0 && w.armed && !w.told && !s.paused) {
                 w = w.copy(told = true)
                 notices.add(LimitNotice(s.label, limitSoonLine(listOf(Triple(s.label, s.dailyLimitSeconds, s.usedSeconds)))))
             }

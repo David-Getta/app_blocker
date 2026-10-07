@@ -186,7 +186,14 @@ mint az előző).
   perccel a visszazárás előtt egy értesítés szól („youtube.com 2 perc múlva
   újra zárva — a szünet véget ér.”) — egyszer, és csak akkor, ha a szünet
   ennél hosszabb volt (a frissen indított rövidre hallgat: épp most állítottad
-  be). A szabály és a mondat a közös magban él (`shared/pause-notify.ts`, a
+  be), és csak ha az oldal a szünet végén TÉNYLEG zárul. Egy nyitott
+  menetrend-sávban véget érő szünet után (16:30-kor feloldva egy órára, a
+  munkaidő-tiltás 17-kor véget ér) az oldal nyitva marad — a „mindjárt újra
+  zárva” hamis volna. Ezt ugyanaz a döntés mondja meg, mint mindenhol, csak a
+  szünet végének pillanatában, a szünetet nem számítva (`closesAfterPause`,
+  mindhárom magban; a közös döntés-fixtúra is őrzi, egy éjfélen átnyúló
+  szünettel, ami után a napi keret már nulláról indul). A böngésző sávja
+  ugyanezt nézi. A szabály és a mondat a közös magban él (`shared/pause-notify.ts`, a
   Kotlin és a Swift `PauseNotify`), a mondatot a szöveg-fixtúra őrzi. A gépen
   az app köre szól (az ablak rejtve is fut), Androidon a VPN-szolgáltatásé
   (az app nélkül is), iPhone-on a rendszer: az app nem fut a háttérben, ezért

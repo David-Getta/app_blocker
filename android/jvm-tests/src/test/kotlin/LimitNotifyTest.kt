@@ -9,8 +9,8 @@ import kotlin.test.assertTrue
  * már fogyó keretre hallgat, új napon tiszta lappal indul.
  */
 class LimitNotifyTest {
-    private fun site(used: Double, limit: Long? = 1800, id: String = "s1", label: String = "youtube.com") =
-        LimitLogic.LimitView(id, label, limit, used)
+    private fun site(used: Double, limit: Long? = 1800, id: String = "s1", label: String = "youtube.com", paused: Boolean = false) =
+        LimitLogic.LimitView(id, label, limit, used, paused)
 
     @Test
     fun `a kuszob atlepesekor egyszer szol`() {
@@ -52,5 +52,15 @@ class LimitNotifyTest {
         assertEquals(listOf(LimitLogic.LimitNotice("youtube.com", "Ma még 3 perc a kereted: youtube.com.")), r.notices)
         val none = LimitLogic.stepNotices(emptyMap(), listOf(site(100.0, null)), "2026-10-07")
         assertTrue(none.watches.isEmpty())
+    }
+
+    @Test
+    fun `szunet alatt hallgat, de a figyeles megmarad - a szunet utan szol`() {
+        var r = LimitLogic.stepNotices(emptyMap(), listOf(site(600.0)), "2026-10-07")
+        r = LimitLogic.stepNotices(r.watches, listOf(site(1260.0, paused = true)), "2026-10-07")
+        assertTrue(r.notices.isEmpty(), "a kifizetett szünet a keretet is legyőzi: a fogyás most nem zárás")
+        assertEquals(LimitLogic.LimitWatch("2026-10-07", armed = true, told = false), r.watches["s1"])
+        r = LimitLogic.stepNotices(r.watches, listOf(site(1320.0)), "2026-10-07")
+        assertEquals(listOf(LimitLogic.LimitNotice("youtube.com", "Ma még 8 perc a kereted: youtube.com.")), r.notices)
     }
 }

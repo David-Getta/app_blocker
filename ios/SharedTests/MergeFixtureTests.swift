@@ -178,6 +178,10 @@ final class MergeFixtureTests: XCTestCase {
                 shared = LimitLogic.SharedToday(selfDeviceId: sh["selfDeviceId"] as? String ?? "", devices: devices)
             }
             XCTAssertEqual(LimitLogic.isBlockedNowWithLimit(site, usage, shared, now), c["blocked"] as? Bool ?? false, "döntés, mag \(seed)")
+            // Zárul-e a szünet végén (szünet nélkül null) — a szünet vége előtti szó ebből dönt.
+            if let after = c["afterPause"] as? Bool {
+                XCTAssertEqual(LimitLogic.closesAfterPause(site, usage, shared), after, "a szünet vége, mag \(seed)")
+            }
         }
     }
 

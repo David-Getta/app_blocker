@@ -172,10 +172,16 @@ struct ContentView: View {
             // értesítés — előre ütemezve, mert az app nem fut a háttérben. A
             // kérések a szünetek listáját (és a lista elrejtését) követik.
             let hidden = store.state.hideSiteList == true
+            // Csak ha a szünet végén TÉNYLEG zárul (ugyanaz a döntés, a szünet
+            // végének pillanatában): egy nyitott menetrend-sávban véget érő
+            // szünet után nyitva marad, és a szó hamis volna. A kulcs része is:
+            // ha közben változik (menetrend, a többi eszköz mérése), átütemez.
+            let shared = store.state.sharedToday
+            let closesOf: (Site) -> Bool = { LimitLogic.closesAfterPause($0, UsageStats.State(), shared) }
             let pauseKey = "\(hidden)|" + store.state.sites
                 // A vég szövegként megy a kulcsba, nem `Int64`-ként: egy dróton jött
                 // abszurd érték (1e300) az egész-átalakításnál leállítaná az appot.
-                .map { "\($0.id):\($0.pauseUntil ?? 0):\(AliasLogic.displayName($0))" }
+                .map { "\($0.id):\($0.pauseUntil ?? 0):\(AliasLogic.displayName($0)):\(closesOf($0))" }
                 .joined(separator: ",")
             if remindedPauses != pauseKey {
                 remindedPauses = pauseKey
@@ -183,7 +189,8 @@ struct ContentView: View {
                     PauseNotify.View(
                         id: site.id,
                         label: hidden ? AliasLogic.maskedLabel(site, index: i) : AliasLogic.displayName(site),
-                        pauseUntil: site.pauseUntil)
+                        pauseUntil: site.pauseUntil,
+                        closes: closesOf(site))
                 }
                 PauseReminders.reschedule(views, now: now)
             }

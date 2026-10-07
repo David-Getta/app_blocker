@@ -484,7 +484,7 @@ export function randomDecision(r: () => number): DecisionCase {
   // a fésülés-generátorok sorrendje a Kotlin és Swift fuzz szerződése.
   for (let i = 0; i < 4; i++) r();
   const schedDraw = r();
-  const pauseDraw = Math.floor(r() * 3);
+  const pauseDraw = Math.floor(r() * 4);
   const pendingDraw = r();
   const limitDraw = Math.floor(r() * 3);
   const usedToday = 300 * Math.floor(r() * 6);
@@ -498,8 +498,11 @@ export function randomDecision(r: () => number): DecisionCase {
   const key = `site:${DECISION_DOMAIN}`;
   const site = {
     domain: DECISION_DOMAIN,
-    // Szünet: nincs, él (a jövőben jár le), vagy már lejárt (nem számít).
-    pauseUntil: pauseDraw === 0 ? null : pauseDraw === 1 ? DECISION_NOW + 60_000 : DECISION_NOW - 60_000,
+    // Szünet: nincs, él (a jövőben jár le), már lejárt (nem számít), vagy él és
+    // 36 óra múlva jár le — az minden időzónában túl van legalább egy éjfélen:
+    // a szünet végén a napi keret már nulláról indul (`closesAfterPause`).
+    pauseUntil: pauseDraw === 0 ? null : pauseDraw === 1 ? DECISION_NOW + 60_000
+      : pauseDraw === 2 ? DECISION_NOW - 60_000 : DECISION_NOW + 36 * 3_600_000,
     pendingDeleteAt: pendingDraw < 0.3 ? DECISION_NOW + 3_600_000 : null,
     // Nyitó menetrend a kétharmadban: enélkül az oldal mindig zár, és a keret sosem dönt.
     ...(schedDraw < 0.66 ? { schedule: OPEN_ALL_WEEK } : {}),

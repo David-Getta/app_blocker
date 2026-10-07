@@ -43,4 +43,33 @@ final class LimitsTests: XCTestCase {
         XCTAssertEqual(LimitLogic.limitSoonLine([("a", 300, 200)]), "Ma még 2 perc a kereted: a.", "öt perces keret: a hátsó felében szól")
         XCTAssertEqual(LimitLogic.limitSoonLine([]), "")
     }
+
+    /// A szünet végén ugyanaz a döntés, a szünetet nem számítva — a gépi
+    /// `closesAfterPause` tükre. iPhone-on a keretet a többi eszköz mérése fogyasztja.
+    func testClosesAfterPauseIsTheSameDecisionAtThePausesEnd() {
+        let cal = LocalCalendar.gregorian
+        // 2026. május 20., szerda 15:00 helyi idő.
+        let wed = (cal.date(from: DateComponents(year: 2026, month: 5, day: 20, hour: 15))?.timeIntervalSince1970 ?? 0) * 1000
+        let tomorrow = (cal.date(from: DateComponents(year: 2026, month: 5, day: 21, hour: 0, minute: 30))?.timeIntervalSince1970 ?? 0) * 1000
+        let work = ScheduleLogic.Schedule(mode: .block, bands: [ScheduleLogic.Band(days: [1, 2, 3, 4, 5], startMin: 540, endMin: 1020)])
+        let open = ScheduleLogic.Schedule(mode: .allow, bands: [ScheduleLogic.Band(days: [0, 1, 2, 3, 4, 5, 6], startMin: 0, endMin: 1440)])
+        func site(_ pause: Double?, _ schedule: ScheduleLogic.Schedule?, limit: Double? = nil) -> Site {
+            Site(id: "s", domain: "youtube.com", hostnames: ["youtube.com"], addedAt: 0,
+                 pauseUntil: pause, pendingDeleteAt: nil, schedule: schedule, dailyLimitSeconds: limit)
+        }
+        let none = UsageStats.State()
+        XCTAssertTrue(LimitLogic.closesAfterPause(site(wed + 90 * 60_000, work), none, nil), "16:30-kor még munkaidő")
+        XCTAssertFalse(LimitLogic.closesAfterPause(site(wed + 150 * 60_000, work), none, nil), "17:30-kor a tiltás már véget ért")
+        XCTAssertTrue(LimitLogic.closesAfterPause(site(wed + 60_000, nil), none, nil), "menetrend nélkül mindig zárul")
+        XCTAssertFalse(LimitLogic.closesAfterPause(site(nil, nil), none, nil), "szünet nélkül nincs miről szólni")
+        XCTAssertFalse(LimitLogic.closesAfterPause(site(.nan, nil), none, nil))
+        // A keret: a gép ma elfogyasztotta — a szünet végén zárul; éjfél után új nap, új keret.
+        let today = UsageStats.dayKey(Date(timeIntervalSince1970: wed / 1000))
+        let shared = LimitLogic.SharedToday(selfDeviceId: "me", devices: [
+            LimitLogic.TodayDigest(deviceId: "pc", day: today, seconds: [UsageStats.siteKey("youtube.com"): 600]),
+        ])
+        XCTAssertTrue(LimitLogic.closesAfterPause(site(wed + 60_000, open, limit: 600), none, shared))
+        XCTAssertFalse(LimitLogic.closesAfterPause(site(wed + 60_000, open, limit: 1200), none, shared), "van még keret")
+        XCTAssertFalse(LimitLogic.closesAfterPause(site(tomorrow, open, limit: 600), none, shared), "új nap, új keret")
+    }
 }

@@ -46,3 +46,14 @@ test('kis keretnél a fele a küszöb; keret nélkül nincs figyelés', () => {
   const none = stepLimitNotices({}, [site(100, null)], '2026-10-07');
   assert.deepEqual(none.watches, {});
 });
+
+test('szünet alatt hallgat, de a figyelés megmarad — a szünet után szól', () => {
+  // A kifizetett szünet a keretet is legyőzi: a fogyás akkor nem zárás, arról
+  // a szünet vége szól. Ha a szünet után még fogyóban van, akkor jön a szó.
+  let r = stepLimitNotices({}, [site(600)], '2026-10-07');
+  r = stepLimitNotices(r.watches, [{ ...site(1260), paused: true }], '2026-10-07');
+  assert.deepEqual(r.notices, []);
+  assert.deepEqual(r.watches.s1, { day: '2026-10-07', armed: true, told: false });
+  r = stepLimitNotices(r.watches, [site(1320)], '2026-10-07');
+  assert.deepEqual(r.notices, [{ label: 'youtube.com', text: 'Ma még 8 perc a kereted: youtube.com.' }]);
+});

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import * as assert from 'node:assert/strict';
 import {
-  blockReasonNow, isBlockedNowWithLimit, isLimitExhausted, isLimitLoosening, limitFullDays, limitFullLine, nextDayStartMs,
+  blockReasonNow, closesAfterPause, isBlockedNowWithLimit, isLimitExhausted, isLimitLoosening, limitFullDays, limitFullLine, nextDayStartMs,
   normalizeLimit, usedTodaySeconds, LIMIT_SOON_SECONDS, limitRemaining, limitSoonLine,
 } from '../src/shared/limits';
 import { dayKey, emptyUsage, siteKey, type UsageState } from '../src/shared/usage';
@@ -181,4 +181,34 @@ test('közeleg a napi keret: a legsürgősebb oldal a küszöbön belül; a sor 
   assert.equal(limitSoonLine([{ label: 'a', dailyLimitSeconds: 300, usedSeconds: 0 }]), '', 'öt perces keret, 0 elhasználva: még nem szól');
   assert.equal(limitSoonLine([{ label: 'a', dailyLimitSeconds: 300, usedSeconds: 200 }]), 'Ma még 2 perc a kereted: a.', 'öt perces keret: a hátsó felében szól');
   assert.equal(limitSoonLine([]), '');
+});
+
+// ------------------------------------------------- zárul-e a szünet végén
+
+test('closesAfterPause: a szünet végén ugyanaz a döntés, a szünetet nem számítva', () => {
+  // NOW: 2026. május 20., szerda 15:00 (helyi idő).
+  const work = {
+    mode: 'scheduled_block' as const,
+    bands: [{ days: [1, 2, 3, 4, 5] as (0|1|2|3|4|5|6)[], startMin: 9 * 60, endMin: 17 * 60 }],
+  };
+  // 16:30-ig feloldva: 16:30-kor még munkaidő — zárul.
+  assert.equal(closesAfterPause(site({ schedule: work, pauseUntil: NOW + 90 * 60_000 }), emptyUsage()), true);
+  // 17:30-ig feloldva: akkor a tiltás már véget ért — nyitva marad, nincs miről szólni.
+  assert.equal(closesAfterPause(site({ schedule: work, pauseUntil: NOW + 150 * 60_000 }), emptyUsage()), false);
+  // Menetrend nélkül (mindig tiltva) mindig zárul; szünet nélkül nincs miről szólni.
+  assert.equal(closesAfterPause(site({ pauseUntil: NOW + 60_000 }), emptyUsage()), true);
+  assert.equal(closesAfterPause(site(), emptyUsage()), false);
+  assert.equal(closesAfterPause(site({ pauseUntil: Number.NaN }), emptyUsage()), false);
+});
+
+test('closesAfterPause: a keret a mostani mérésből — a következő napon nulláról indul', () => {
+  const open = { mode: 'scheduled_allow' as const, bands: [{ days: [0, 1, 2, 3, 4, 5, 6] as (0|1|2|3|4|5|6)[], startMin: 0, endMin: 1440 }] };
+  const s = (pauseUntil: number) => site({ schedule: open, dailyLimitSeconds: 600, pauseUntil });
+  // Ma elfogyott a keret: a szünet végén (még ma) zárul.
+  assert.equal(closesAfterPause(s(NOW + 60_000), usageWith('youtube.com', 600)), true);
+  // Van még keret: nyitva marad — a keret előjelzése szól majd, ha fogy.
+  assert.equal(closesAfterPause(s(NOW + 60_000), usageWith('youtube.com', 100)), false);
+  // A szünet éjfél után ér véget: új nap, új keret — nyitva marad.
+  const tomorrow = new Date(2026, 4, 21, 0, 30).getTime();
+  assert.equal(closesAfterPause(s(tomorrow), usageWith('youtube.com', 600)), false);
 });

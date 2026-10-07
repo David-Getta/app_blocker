@@ -686,7 +686,11 @@ function runNotices(): number {
   // feloldás vége ne félbehagyott mondat közepén érjen (shared/pause-notify.ts).
   const pauses = stepPauseNotices(
     pauseWatches,
-    status!.sites.map((s) => ({ id: s.id, label: statLabel(s.domain), pauseUntil: s.pauseUntil })),
+    status!.sites.map((s) => ({
+      id: s.id, label: statLabel(s.domain), pauseUntil: s.pauseUntil,
+      // Régi segéd nem küldi: akkor a régi viselkedés (szól).
+      closes: s.closesAfterPause ?? true,
+    })),
     nowForBurst,
   );
   pauseWatches = pauses.watches;
@@ -701,6 +705,7 @@ function runNotices(): number {
     limitWatches,
     status!.sites.map((s) => ({
       id: s.id, label: statLabel(s.domain), dailyLimitSeconds: s.dailyLimitSeconds, usedSeconds: s.usedTodaySeconds,
+      paused: s.pauseUntil !== null && s.pauseUntil > nowForBurst,
     })),
     dayKey(nowForBurst),
   );
