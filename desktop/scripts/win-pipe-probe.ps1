@@ -37,13 +37,18 @@ if (-not (Test-Pipe)) {
 }
 Write-Host "a SYSTEM-szerver fut: \\.\pipe\$pipeName"
 
-# 2. Az ACL, ahogy a Windows látja.
+# 2. Az ACL, ahogy a Windows látja: a rendszergazda kliens-végén át olvasva
+#    (a pipe nem fájl — a fájlos ACL-olvasó 87-es hibával elhasal rajta).
 try {
-  $acl = [System.IO.Directory]::GetAccessControl("\\.\pipe\$pipeName")
+  $c = New-Object System.IO.Pipes.NamedPipeClientStream('.', $pipeName, [System.IO.Pipes.PipeDirection]::InOut)
+  $c.Connect(5000)
+  $sec = $c.GetAccessControl()
   Write-Host '--- a pipe ACL-je ---'
-  foreach ($rule in $acl.Access) {
-    Write-Host ("{0,-40} {1,-6} {2}" -f $rule.IdentityReference, $rule.AccessControlType, $rule.FileSystemRights)
+  Write-Host ($sec.GetSecurityDescriptorSddlForm([System.Security.AccessControl.AccessControlSections]::Access))
+  foreach ($rule in $sec.GetAccessRules($true, $true, [System.Security.Principal.NTAccount])) {
+    Write-Host ("{0,-40} {1,-6} {2}" -f $rule.IdentityReference, $rule.AccessControlType, $rule.PipeAccessRights)
   }
+  $c.Dispose()
 } catch {
   Write-Host "az ACL nem olvasható: $($_.Exception.Message)"
 }
@@ -71,9 +76,15 @@ $admin = Invoke-PipeStatus
 Write-Host "rendszergazda: $admin"
 
 # 4. Egy sima helyi felhasználó, megszemélyesítve — ahogy a nem emelt app.
+# A `net user` 14 karakternél hosszabb jelszónál rákérdez, és csövön át
+# nincs, aki válaszoljon — a fiók létre sem jönne. A New-LocalUser nem kérdez,
+# viszont csoport nélkül hoz létre: a Felhasználók (S-1-5-32-545) tagság kell
+# a helyi bejelentkezéshez, pont ahogy egy valódi sima fióknak.
 $user = 'breakerprobe'
 $pass = 'Pr0be-' + [guid]::NewGuid().ToString('N').Substring(0, 12) + '!aA1'
-net user $user $pass /add | Out-Null
+$secure = ConvertTo-SecureString $pass -AsPlainText -Force
+New-LocalUser -Name $user -Password $secure -AccountNeverExpires -PasswordNeverExpires | Out-Null
+Add-LocalGroupMember -SID 'S-1-5-32-545' -Member $user
 Add-Type -TypeDefinition @'
 using System;
 using System.Runtime.InteropServices;
@@ -104,7 +115,7 @@ Write-Host "sima felhasználó: $plain"
 # 5. Takarítás.
 Stop-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
 Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
-net user $user /delete | Out-Null
+Remove-LocalUser -Name $user -ErrorAction SilentlyContinue
 if (Test-Path $log) { Write-Host '--- a szerver naplója ---'; Get-Content $log | Write-Host }
 
 if ($plain.StartsWith('OK')) { Write-Host 'EREDMÉNY: a sima felhasználó eléri a segédet'; exit 0 }
