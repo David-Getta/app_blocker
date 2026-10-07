@@ -4,7 +4,8 @@
 //                    the same exe with this flag; macOS uses ELECTRON_RUN_AS_NODE
 //                    + dist/helper/index.js directly, bypassing this file)
 
-import { app, BrowserWindow, ipcMain, Menu, systemPreferences } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu, Notification, systemPreferences, Tray } from 'electron';
+import * as fs from 'fs';
 import { registerSyncServerIpc } from './sync-server';
 import { extensionSeenRecently, registerRulesBridge, stopRulesBridge } from './rules-bridge-ipc';
 import { isWindowLockdown, liveLockdown, upcomingLockdownWindows } from '../shared/lockdown';
@@ -22,6 +23,9 @@ import { HelperClient } from './helper-client';
 import { installHelper } from './install';
 import { initUpdater, requestUpdateCheck } from './updater';
 import { UsageTracker } from './tracker';
+import {
+  BACKGROUND_FLAG, closeAction, LAUNCH_AGENT_LABEL, launchAgentPlist, launchAgentUsable, startsHidden, WINDOWS_RUN_NAME,
+} from '../shared/background';
 import type { StatusData } from '../shared/protocol';
 
 const HELPER_MODE = process.argv.includes('--helper');
@@ -43,7 +47,35 @@ if (HELPER_MODE) {
 } else {
   const client = new HelperClient();
 
-  const createWindow = () => {
+  /**
+   * A fő ablak. Nem a getAllWindows()-ból keressük: a gyorsbillentyűs réteg is
+   * BrowserWindow, és egy rejtett fő ablak mellett az elsőként visszaadott
+   * ablak a réteg is lehet.
+   */
+  let mainWin: BrowserWindow | null = null;
+  /** Kilépés közben az ablak tényleg bezárul; máskor csak elrejtőzik. */
+  let quitting = false;
+  /** A tálca-ikon (Windows) — hivatkozás nélkül a szemétgyűjtő eltüntetné. */
+  let tray: Tray | null = null;
+
+  /**
+   * Az első elrejtéskor egyszer kimondjuk, hogy az app nem állt le — ez új
+   * viselkedés, és egy némán tovább futó app meglepetés lenne. Utána csend.
+   */
+  const noteHiddenOnce = () => {
+    const flag = path.join(app.getPath('userData'), 'background-notice-shown');
+    if (fs.existsSync(flag)) return;
+    try { fs.writeFileSync(flag, String(Date.now())); } catch { return; }
+    if (!Notification.isSupported()) return;
+    new Notification({
+      title: 'Breaker — a háttérben fut tovább',
+      body: process.platform === 'win32'
+        ? 'A mérés és az értesítések nem állnak le. Kilépni a tálca ikonjáról lehet.'
+        : 'A mérés és az értesítések nem állnak le. Kilépni a menüből lehet: Breaker › Kilépés.',
+    }).show();
+  };
+
+  const createWindow = (opts: { show: boolean } = { show: true }) => {
     const win = new BrowserWindow({
       width: 1060,
       height: 760,
@@ -56,20 +88,114 @@ if (HELPER_MODE) {
       // (drag / no-drag) eleve erre készült. Windowson marad a rendes keret:
       // ott a hiddenInset épp a gombokat venné el.
       ...(process.platform === 'darwin' ? { titleBarStyle: 'hiddenInset' as const } : {}),
+      // Bejelentkezéskor rejtve indul: a mérés és az értesítések futnak, az
+      // ablak csak kérésre jön elő.
+      show: opts.show,
       webPreferences: {
         preload: path.join(__dirname, 'preload.js'),
         contextIsolation: true,
         nodeIntegration: false,
         sandbox: true,
+        // A rejtett ablak időzítőit a Chromium percenkéntire ritkítaná — a
+        // heti ablak értesítése így percekkel később szólna.
+        backgroundThrottling: false,
       },
     });
     win.setMenuBarVisibility(false);
+    // A BEZÁRÁS ELREJT, nem állít le (lásd shared/background.ts): a mérés —
+    // amiből a napi keret és az adag fogy — és a gépi értesítések az appban
+    // futnak. Kilépés közben viszont tényleg bezárul.
+    win.on('close', (e) => {
+      if (closeAction(quitting) === 'close') return;
+      e.preventDefault();
+      win.hide();
+      noteHiddenOnce();
+    });
+    // Windowson a leállítás és a kijelentkezés NEM küld before-quit-et: itt
+    // jelezzük, különben a bezárás elrejtene, és a rendszer azt látná, hogy az
+    // app akadályozza a leállítást.
+    win.on('session-end', () => { quitting = true; });
+    win.on('closed', () => { if (mainWin === win) mainWin = null; });
+    mainWin = win;
     // Az ablak fókuszba kerülése jó pillanat frissítést nézni: aki naphosszat
     // futni hagyja az appot, az a hatóránkénti körök KÖZÖTT ülne régi
     // verzión — pont ő járna a legrosszabbul. Türelmi idővel, hogy a sűrű
     // váltogatás ne kérdezzen sokat.
     win.on('focus', () => { requestUpdateCheck(); });
     void win.loadFile(path.join(__dirname, '..', 'ui', 'renderer', 'index.html'));
+  };
+
+  /** A fő ablak elő: a rejtett megjelenik, a megszűnt helyett új nyílik. */
+  const showMain = () => {
+    if (mainWin && !mainWin.isDestroyed()) {
+      if (mainWin.isMinimized()) mainWin.restore();
+      mainWin.show();
+      mainWin.focus();
+    } else {
+      createWindow({ show: true });
+    }
+  };
+
+  /**
+   * Bejelentkezéskor induljon az app — rejtve. Fejlesztés közben nem írunk
+   * semmit (a futtató nem az, amit a felhasználó telepített).
+   *
+   * A rendszer kapcsolóját NEM írjuk felül: ha valaki a Feladatkezelőben vagy
+   * a Rendszerbeállításokban kikapcsolta, kikapcsolva marad — a felület
+   * kimondja, hogy akkor a mérés áll, amíg az app nem fut. Csak a hiányzó vagy
+   * elavult (máshova mutató) bejegyzést pótoljuk.
+   */
+  const ensureLoginStart = () => {
+    if (!app.isPackaged) return;
+    try {
+      if (process.platform === 'win32') {
+        const args = [BACKGROUND_FLAG];
+        const ours = app.getLoginItemSettings({ path: process.execPath, args }).launchItems
+          ?.find((i) => i.name === WINDOWS_RUN_NAME);
+        const current = !!ours && ours.path.toLowerCase() === process.execPath.toLowerCase()
+          && ours.args.join(' ') === args.join(' ');
+        if (current) return;
+        app.setLoginItemSettings({
+          openAtLogin: true, path: process.execPath, args, name: WINDOWS_RUN_NAME,
+          // A meglévő bejegyzés ki/be állapota marad, ami volt.
+          ...(ours ? { enabled: ours.enabled } : {}),
+        });
+      } else if (process.platform === 'darwin') {
+        if (!launchAgentUsable(process.execPath)) return;
+        const dir = path.join(app.getPath('home'), 'Library', 'LaunchAgents');
+        const file = path.join(dir, `${LAUNCH_AGENT_LABEL}.plist`);
+        const want = launchAgentPlist(process.execPath);
+        let have = '';
+        try { have = fs.readFileSync(file, 'utf8'); } catch { /* még nincs */ }
+        if (have === want) return;
+        fs.mkdirSync(dir, { recursive: true });
+        fs.writeFileSync(file, want);
+      }
+    } catch (err) {
+      console.log(`[login-start] ${(err as Error).message}`);
+    }
+  };
+
+  /**
+   * Windowson a háttérben futó appnak látszania kell: tálca-ikon, rajta a
+   * megnyitás és a kilépés. Macen ezt a Dock és a menü adja.
+   */
+  const setupTray = async () => {
+    if (process.platform !== 'win32' || tray) return;
+    try {
+      const icon = await app.getFileIcon(process.execPath, { size: 'small' });
+      tray = new Tray(icon);
+      tray.setToolTip('Breaker — a háttérben mér és értesít');
+      tray.setContextMenu(Menu.buildFromTemplate([
+        { label: 'Breaker megnyitása', click: () => showMain() },
+        { type: 'separator' },
+        // A kilépés NEM feloldás (a tiltást a segéd tartja), de a mérés megáll.
+        { label: 'Kilépés (a mérés megáll)', click: () => app.quit() },
+      ]));
+      tray.on('click', () => showMain());
+    } catch (err) {
+      console.log(`[tray] ${(err as Error).message}`);
+    }
   };
 
   /**
@@ -86,7 +212,8 @@ if (HELPER_MODE) {
           { role: 'hide', label: 'Breaker elrejtése' },
           { role: 'unhide', label: 'Összes megjelenítése' },
           { type: 'separator' },
-          // A kilépés NEM feloldás: a tiltást a háttérszolgáltatás tartja.
+          // A kilépés NEM feloldás: a tiltást a háttérszolgáltatás tartja. A
+          // mérés viszont megáll vele — a felület ezt kimondja.
           { role: 'quit', label: 'Kilépés a Breakerből' },
         ],
       },
@@ -119,13 +246,9 @@ if (HELPER_MODE) {
   if (!gotLock) {
     app.quit();
   } else {
-    app.on('second-instance', () => {
-      const [win] = BrowserWindow.getAllWindows();
-      if (win) {
-        if (win.isMinimized()) win.restore();
-        win.focus();
-      }
-    });
+    // A második indítás (a háttérben futó app mellett kattintanak rá) az
+    // ablakot hozza elő — a rejtettet is.
+    app.on('second-instance', () => { showMain(); });
 
     app.whenReady().then(() => {
       ipcMain.handle('breaker:call', async (_e, op: string, payload: Record<string, unknown>) => {
@@ -168,7 +291,9 @@ if (HELPER_MODE) {
       });
 
       buildMenu();
-      createWindow();
+      createWindow({ show: !startsHidden(process.argv) });
+      ensureLoginStart();
+      void setupTray();
       initUpdater();
 
       // Active-time measurement runs in this (user-session) process; the helper
@@ -462,30 +587,26 @@ if (HELPER_MODE) {
       // gomb bezárná a réteget, és látszólag nem történne semmi.
       ipcMain.handle('breaker:show-main', () => {
         hideOverlay();
-        const [first] = BrowserWindow.getAllWindows();
-        if (first && !first.isDestroyed()) {
-          if (first.isMinimized()) first.restore();
-          first.show();
-          first.focus();
-        } else {
-          createWindow();
-        }
+        showMain();
       });
 
       app.on('before-quit', () => {
+        // ELŐSZÖR ez: enélkül az ablak bezárása elrejtené az ablakot, és a
+        // kilépés sosem érne véget.
+        quitting = true;
         tracker.stop();
         stopRulesBridge();
         unregisterOverlayShortcut();
       });
-      app.on('activate', () => {
-        if (BrowserWindow.getAllWindows().length === 0) createWindow();
-      });
+      // A Dock-ikon: a rejtett ablakot hozza elő.
+      app.on('activate', () => { showMain(); });
     });
 
     app.on('window-all-closed', () => {
-      // Blocking is enforced by the helper daemon, not by this window,
-      // so quitting the GUI is always safe.
-      app.quit();
+      // NEM lépünk ki. A tiltást a segéd tartja, de a mérés (napi keret,
+      // adag) és a gépi értesítések az appban futnak — ezért a bezárás csak
+      // elrejt (lásd shared/background.ts). Ide csak akkor érünk, ha az ablak
+      // mégis megszűnt; a következő megnyitás újat nyit.
     });
   }
 }

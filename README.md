@@ -58,7 +58,7 @@ ingyen van, rövidíteni vagy visszavonni sehogy.
   statisztika okonként is bontja: melyik szabály dolgozik — és a hetet az
   előző héthez méri, ítélet nélkül). Egy hétről
   egyszer; a gépen
-  csak amíg az app fut, Androidon a szűrő szolgáltatása mondja, az app nélkül
+  az app mondja (a háttérben fut, bejelentkezéskor indul), Androidon a szűrő szolgáltatása mondja, az app nélkül
   is (iPhone-on hétfő reggel egy emlékeztető hív oda, a mondat az appban
   születik); a rejtett vagy fedőnevű címet az értesítés
   sem mondja ki. A mondatok **heti naplóban** megmaradnak a statisztikán,
@@ -543,10 +543,18 @@ Néhány konkrét dolog, amit érdemes előre tudni:
   sajátjából, fiókkal a közösből — a telefonon leült nap a gépen is számít,
   ha a napló odaért. A menet a végének helyi napjára számít, a futó menet
   csak a végén; a nap a helyi óra szerint fordul.
-- **A gépi értesítések csak amíg az app fut** (adag-betelés, a heti ablak
+- **A gépen a mérés és a gépi értesítések csak amíg az app fut** (a mért
+  idő, amiből a napi keret és az adag fogy; az adag-betelés, a heti ablak
   menetének indulása, a hétfői visszatekintés, a sokadik megakadás, a
-  csúcs-óra és a menet-óra előjelzése): a háttérben ülő védelem magától nem
-  tud értesíteni.
+  csúcs-óra és a menet-óra előjelzése): a háttérben ülő védelem nem lát bele
+  a felhasználó munkamenetébe, és értesíteni sem tud. Ezért az app a
+  háttérben fut tovább — az ablak bezárása csak elrejti —, és
+  bejelentkezéskor magától indul, ablak nélkül (macOS-en egy felhasználói
+  indító-ügynök, Windowson az indítási lista és egy tálca-ikon). Ami marad:
+  a szándékos kilépés (a menüből, a tálcáról) és a rendszer saját
+  kapcsolója az indítási listán megállítja a mérést, amíg az app újra nem
+  indul — a tiltás ettől él, a keret viszont nem fogy. Ezt a felület a
+  kilépés gomb alatt kimondja; a rendszer kapcsolóját az app nem írja felül.
   A telefonon a szűrő szolgáltatása (Android) és a rendszer (iPhone) az app
   nélkül is szól. A heti ablak menetét a segéd az app nélkül is
   elindítja, a telefon szűrője betartatja, és a böngésző is: az app egy hétre

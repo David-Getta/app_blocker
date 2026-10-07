@@ -813,9 +813,11 @@ Szabályok, kimondva:
   hétfőn újra esedékes. Szándékosan nem szinkronizál: a gép és a telefon
   más-más hetet mért, mindkettő a magáét mondja.
 - **A gépen csak amíg az app fut.** A háttérben ülő védelem magától nem tud
-  értesíteni; ez ugyanaz a korlát, mint az adag-értesítésnél. Ha hétfőn nem
-  futott az app, az első megnyitáskor szól — még azon a héten; a következő
-  hétfőn már a következőről. Engedély híján csendben marad, és a hetet sem
+  értesíteni; ez ugyanaz a korlát, mint az adag-értesítésnél. Az app ezért a
+  háttérben fut tovább (a bezárás csak elrejti), és bejelentkezéskor rejtve
+  indul — lásd [`desktop.md`](desktop.md). Ha hétfőn mégsem futott (kilépés
+  után), az első indításkor szól — még azon a héten; a következő hétfőn már
+  a következőről. Engedély híján csendben marad, és a hetet sem
   könyveli el.
 - **Androidon a szűrő szolgáltatása mondja**, ami az app nélkül is fut: ott
   tényleg hétfő reggel jön, saját, külön kikapcsolható csatornán („Heti

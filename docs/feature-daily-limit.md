@@ -98,9 +98,13 @@ Három dolog, ami első ránézésre nem nyilvánvaló:
    „mindent törlök” nincs többé; keret nélkül viszont továbbra is mindent visz,
    mert az a saját adat.
 3. **A desktop mérő a GUI-ban fut**, tehát a keret csak akkor fogy, amíg a Breaker
-   fut. Ez őszintén kiírandó a felületen; a helper enélkül nem tud a fogyásról.
-   (Alternatíva később: a helper is számolhatna, ha kap egy „még mindig aktív”
-   jelzést.)
+   fut; a helper enélkül nem tud a fogyásról. Ez sokáig valódi kiskapu volt:
+   az ablak bezárása az egész appot leállította, és vele a keretet is —
+   ingyen, egy kattintással; egy újraindítás után pedig addig, amíg valaki meg
+   nem nyitotta az appot. A v0.4.211 óta az ablak bezárása csak elrejt, és az
+   app bejelentkezéskor rejtve indul (lásd [`desktop.md`](desktop.md)). Ami
+   marad, az a szándékos kilépés és a rendszer indítási kapcsolója — a
+   felület a kilépés gomb alatt kimondja, hogy ilyenkor a mérés áll.
 
 ## Felület
 

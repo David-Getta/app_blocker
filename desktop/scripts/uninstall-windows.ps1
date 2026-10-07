@@ -5,6 +5,12 @@ Write-Host "Breaker helper feladat eltávolítása..."
 schtasks /End /TN "BreakerHelper" 2>$null
 schtasks /Delete /F /TN "BreakerHelper" 2>$null
 
+Write-Host "A bejelentkezéskori indítás eltávolítása..."
+# A „Breaker” bejegyzés a felhasználó saját indítási listájában (HKCU) van:
+# rendszergazdai PowerShellből is a futtató felhasználóé.
+Remove-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" -Name "Breaker" -ErrorAction SilentlyContinue
+Remove-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run" -Name "Breaker" -ErrorAction SilentlyContinue
+
 Write-Host "Hosts-bejegyzések eltávolítása..."
 $hosts = Join-Path $env:SystemRoot "System32\drivers\etc\hosts"
 $content = Get-Content $hosts -Raw

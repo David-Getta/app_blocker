@@ -95,6 +95,25 @@ const WIRES = [
     needle: 'windows: cleanFocusWindows(focus.windows)',
     lost: 'a bővítmény nem tárolná a heti ablakokat — az app bezárása az ablak feloldása lenne',
   },
+  // AZ APP A HÁTTÉRBEN. A mérés — amiből a napi keret és az adag fogy — és a
+  // gépi értesítések az appban futnak. Ha a bezárás megint leállítaná az
+  // appot, vagy bejelentkezéskor nem indulna, egy kattintás (vagy egy
+  // újraindítás) ingyen kikapcsolná a keretet: semmi nem hasalna el tőle.
+  {
+    file: 'desktop/src/main/main.ts',
+    needle: "if (closeAction(quitting) === 'close') return;",
+    lost: 'az ablak bezárása leállítaná az appot — vele a mérést, a napi keretet és az adagot',
+  },
+  {
+    file: 'desktop/src/main/main.ts',
+    needle: 'ensureLoginStart();',
+    lost: 'az app bejelentkezéskor nem indulna — újraindítás után a mérés állna, amíg valaki meg nem nyitja',
+  },
+  {
+    file: 'desktop/src/main/main.ts',
+    needle: 'createWindow({ show: !startsHidden(process.argv) });',
+    lost: 'a bejelentkezéskori indítás ablakkal nyílna — vagy a kapcsoló hatástalan volna',
+  },
   // A ZÁRLAT-ABLAK APP NÉLKÜL. Ugyanez a lánc a zárlatra: a segéd az ablak
   // zárlatát az app nélkül is elindítja, és ha a lap nem tud róla, olyan
   // feloldást ígér, ami nincs.

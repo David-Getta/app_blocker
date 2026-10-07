@@ -6,6 +6,17 @@ echo "Breaker helper leállítása és eltávolítása..."
 launchctl bootout system/hu.breaker.helper 2>/dev/null || true
 rm -f /Library/LaunchDaemons/hu.breaker.helper.plist
 
+echo "A bejelentkezéskori indítás eltávolítása..."
+# A felhasználói indító-ügynök a felhasználó saját mappájában van, nem a
+# rendszeréban: sudo alatt a hívó felhasználóé ($SUDO_USER), különben a miénk.
+AGENT_USER="${SUDO_USER:-$(id -un)}"
+AGENT_HOME=$(eval echo "~$AGENT_USER")
+AGENT_UID=$(id -u "$AGENT_USER" 2>/dev/null || echo "")
+if [ -n "$AGENT_UID" ]; then
+  launchctl bootout "gui/$AGENT_UID/hu.breaker.agent" 2>/dev/null || true
+fi
+rm -f "$AGENT_HOME/Library/LaunchAgents/hu.breaker.agent.plist"
+
 echo "Hosts-bejegyzések eltávolítása..."
 python3 - <<'PY'
 import re

@@ -66,7 +66,9 @@ ugyanazért, amiért a napi keretet: próbatétellel fizettek érte.
   A betelés pillanatában és a szünet leteltekor **az app értesítést dob**
   (`shared/burst-notify.ts`: két egymás utáni státusz-kép különbségéből) —
   az Android tartós értesítésének gépes párja. Őszinte korlát: csak amíg az
-  app fut, mert a segéd arc nélküli démon, értesítést dobni nem tud. Az
+  app fut, mert a segéd arc nélküli démon, értesítést dobni nem tud — az app
+  ezért a háttérben fut tovább, és bejelentkezéskor rejtve indul; a mérés,
+  amiből az adag fogy, ugyanígy az appban jár. Az
   induláskor már futó hűtésre nem mond „most telt be”-t (a kezdetét nem
   látta), a leteltét viszont bejelenti; a vége ELŐTT eltűnő hűtésről
   (megváltott szünet, levett szabály, törölt oldal) hallgat — ott a
