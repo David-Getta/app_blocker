@@ -44,29 +44,28 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A napi keret akkor is fogy, ha a gép nem látja a böngésző címét.**
-          macOS-en minden frissítés után újra meg kell adni az „Automatizálás”
-          engedélyt — addig a böngészőben töltött idő nem az oldalra, hanem a
-          böngészőre könyvelődött, és az oldal napi kerete nem fogyott. Most
-          ahol a böngésző-bővítmény fut, ő mondja meg, melyik oldal van elöl
-          (csak a tartományt, csak a saját gépeden futó appnak). A statisztika
-          kártyája kimondja, mi mérődik ilyenkor és mi nem.
+          **Zárlat alatt a böngésző-bővítmény saját szabálya sem vehető le.**
+          A zárlat ígérete, hogy amíg tart, semmi nem lazítható. A
+          bővítmény beállítás-lapján felvett szabályokra ez eddig nem állt:
+          tíz perc várással zárlat alatt is levehetők voltak. Most a levétel
+          nem indul, és ami már folyamatban volt, az visszavonódik.
 
-          **Gépelés közben nem zárjuk le a lapot.** Ha a munkamenet indulásakor
-          vagy a keret beteltekor épp írsz egy oldalon, a lap nem fut azonnal a
-          tiltó lapra — a félkész szöveg nem veszhet el. A lap tetején egy sáv
-          szól, és ha két percig nem gépelsz (legkésőbb tíz perc múlva), zárul.
+          **Androidon a sáv kimondja, hogy ami már nyitva volt, még mehet.**
+          A szűrő az új kapcsolatokat fogja meg; egy szóló videó egy darabig
+          még mehet. A menet első két percében a tartós értesítés ezt
+          kimondja — zárd be és nyisd újra. A sáv mostantól kibontható.
 
-          ### Ami a v0.4.214-ben jött
+          ### Ami a v0.4.215-ben jött
+
+          **A napi keret akkor is fogy, ha a gép nem látja a böngésző címét**
+          (a bővítmény mondja meg, melyik oldal van elöl), és **gépelés
+          közben nem zárjuk le a lapot**.
+
+          #### Ami a v0.4.214-ben jött
 
           **A munkamenet nem nyaggat a böngészőért** — engedett oldalon csend
-          van; ha egy nem engedett oldal mégis nyitva látszik, a réteg
-          kimondja, hogy abban a böngészőben a fehérlistát senki nem tartja be.
-
-          #### Ami a v0.4.213-ban jött
-
-          **A már nyitott lap is lezárul** — a munkamenet indulásakor vagy a
-          napi keret beteltekor a nyitva hagyott videó is a tiltó lapra fut.
+          van; ha egy nem engedett oldal mégis látszik, a réteg kimondja,
+          hogy abban a böngészőben a fehérlistát senki nem tartja be.
 
           NOTES
           fi
