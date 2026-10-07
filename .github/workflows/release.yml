@@ -45,22 +45,24 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A lap a heti ablakos munkamenet indulása előtt is szól.** Ha
-          egy menet minden kedden 18:00-kor indul, és épp egy olyan oldalon
-          vagy, ami nincs a menet csomagjában, az utolsó két percben sáv áll
-          a lap tetején:
-          „Munkamenet indul 2 perc múlva (Nyelvtanulás) — ez az oldal nincs benne, akkor zárul.”
-          Ha az oldal a csomagban van, nem szól — neki nem változik semmi.
+          **A heti ablakos munkamenet előtt tíz perccel értesítés jön.** A
+          zárlat-ablak előtt az app eddig is szólt; a heti ablak menete szó
+          nélkül indult — pedig az is lezár mindent, ami nincs a csomagban.
+          Most mindhárom platformon jön egy szó tíz perccel előtte:
+          „Nyelvtanulás: 10 perc múlva indul a heti ablak szerint, 18:50-ig.”
+          Ami nyitva van, legyen idő elmenteni. iPhone-on a rendszer szól
+          (az app előre ütemezi), Androidon saját csatornán, hogy külön is
+          elnémítható legyen.
 
-          ### Ami a v0.4.222-ben jött
+          ### Ami a v0.4.223-ban jött
+
+          **A lap a heti ablakos munkamenet indulása előtt is szól** — ha az
+          oldal nincs a csomagban, az utolsó két percben sáv áll a tetején.
+
+          #### Ami a v0.4.222-ben jött
 
           **A böngésző lapja is előre szól a zárás előtt** — a szünet vége,
           a menetrend és a napi keret utolsó két percében.
-
-          #### Ami a v0.4.221-ben jött
-
-          **A napi keret vége is előre szól** — értesítésben, a gépen és
-          Androidon.
 
           NOTES
           fi
