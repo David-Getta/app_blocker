@@ -8,6 +8,7 @@ kettővel korábbiban.
 
 | Verzió | Nap | Mi újság |
 |---|---|---|
+| v0.4.211 | 2026-10-07 | a bezárás nem kapcsolja ki a keretet |
 | v0.4.210 | 2026-10-01 | az app szabályának tiltó lapja is |
 | v0.4.209 | 2026-10-01 | a heti ablak a böngészőben app nélkül is |
 | v0.4.208 | 2026-10-01 | nem marad fél emodzsi a böngésző lapjain és a mérés címkéjén |
