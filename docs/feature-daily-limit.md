@@ -334,3 +334,16 @@ mondatot írja ki. A böngészőben is: a híd a kész mondatot adja le
 (`suggest.limitSoon` — az app oldja fel a fedőnevet és a rejtést), a felugró
 lap és a tiltó lap a menet gombja mellett mondja. Ott van a legtöbb haszna,
 mert a böngészőben telik a keret.
+
+**Értesítésben is.** A kártya sora csak annak szól, aki az appot nézi — aki
+épp az oldalon van, annak a keret vége félbehagyott videó közepén jött (a
+nyitott lap is bezárul). Ezért amikor egy oldal a küszöb alá ér, az app egyszer
+értesítést is ad, ugyanazzal a mondattal: a gépen az app köre (az ablak
+rejtve is fut), Androidon a VPN-szolgáltatásé, saját csatornán. Két hallgatási
+szabály, mint a szünet végénél: csak akkor szól, ha ma már a küszöb FÖLÖTT is
+látta (az induláskor már fogyó keretre nem — az nem most lépte át), és
+naponta oldalanként egyszer. A mag dönt (`stepLimitNotices`,
+`LimitLogic.stepNotices`, tesztekkel); a cím a gépen és Androidon ugyanaz (a
+mag-összhang őrzi). Rejtett listánál a sorszám vagy a fedőnév áll a név
+helyett. iPhone-on nincs: ott nincs helyi mérés, a keret a többi eszközről
+fogy — arról, hogy mikor, az iPhone csak a következő szinkronnál tudna.

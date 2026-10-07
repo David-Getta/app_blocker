@@ -275,4 +275,43 @@ object LimitLogic {
         val b = best ?: return ""
         return "Ma még ${ceil(b.second / 60.0).toInt()} perc a kereted: ${b.first}."
     }
+
+    // --------------------------------------------- A KERET VÉGE ELŐRE (értesítés)
+    //
+    // A gép `stepLimitNotices`-ának tükre: amikor egy oldal mai keretéből a
+    // küszöbnyi idő marad (a „ma még” sor küszöbe), az app egyszer szól — csak
+    // ha ma már a küszöb FÖLÖTT is láttuk (az induláskor már fogyó keretre nem),
+    // és naponta oldalanként egyszer. A mondat a soré.
+
+    /** Az értesítés címe — ugyanaz a gépen és Androidon. */
+    const val LIMIT_SOON_TITLE = "Breaker — fogy a mai keret"
+
+    /** Egy figyelt keret: melyik napra élesítettük, és szóltunk-e már aznap. */
+    data class LimitWatch(val day: String, val armed: Boolean, val told: Boolean)
+
+    data class LimitView(val id: String, val label: String, val dailyLimitSeconds: Long?, val usedSeconds: Double)
+
+    data class LimitNotice(val label: String, val text: String)
+
+    data class LimitStep(val watches: Map<String, LimitWatch>, val notices: List<LimitNotice>)
+
+    fun stepNotices(prev: Map<String, LimitWatch>, sites: List<LimitView>, day: String): LimitStep {
+        val watches = mutableMapOf<String, LimitWatch>()
+        val notices = mutableListOf<LimitNotice>()
+        for (s in sites) {
+            val limit = normalizeLimit(s.dailyLimitSeconds) ?: continue
+            val old = prev[s.id]
+            var w = if (old != null && old.day == day) old else LimitWatch(day, armed = false, told = false)
+            val rem = maxOf(0.0, limit - s.usedSeconds)
+            val threshold = minOf(LIMIT_SOON_SECONDS.toDouble(), limit / 2.0)
+            if (rem > threshold) {
+                w = w.copy(armed = true)
+            } else if (rem > 0.0 && w.armed && !w.told) {
+                w = w.copy(told = true)
+                notices.add(LimitNotice(s.label, limitSoonLine(listOf(Triple(s.label, s.dailyLimitSeconds, s.usedSeconds)))))
+            }
+            watches[s.id] = w
+        }
+        return LimitStep(watches, notices)
+    }
 }

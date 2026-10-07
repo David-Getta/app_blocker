@@ -366,3 +366,65 @@ export function limitSoonLine(
   if (best === null) return '';
   return `Ma még ${Math.ceil(best.rem / 60)} perc a kereted: ${best.label}.`;
 }
+
+// ------------------------------------------------- A KERET VÉGE ELŐRE (értesítés)
+//
+// A „ma még N perc” sor a kártyán áll — de aki épp az oldalon van, az nem az
+// appot nézi, és a keret vége félbehagyott videó közepén jön (a nyitott lap
+// is bezárul). Ezért amikor egy oldal mai keretéből a küszöbnyi idő marad (az
+// utolsó tíz perc, de legfeljebb a keret fele — ugyanaz, mint a soré), az app
+// egyszer szól. Két hallgatási szabály, mint a szünet végénél:
+//
+// - csak akkor, ha ma már a küszöb FÖLÖTT is láttuk (élesítve): az app
+//   indulásakor már fogyóban lévő keretre nem — az nem most lépte át;
+// - naponta oldalanként egyszer.
+//
+// Ugyanez a Kotlin `LimitLogic.stepNotices`-ban; iPhone-on nincs saját mérés.
+
+/** Egy figyelt keret: melyik napra élesítettük, és szóltunk-e már aznap. */
+export interface LimitWatch {
+  day: string;
+  armed: boolean;
+  told: boolean;
+}
+
+export interface LimitNotice {
+  label: string;
+  text: string;
+}
+
+/**
+ * Egy kör: a figyelt keretek (`prev`) és a mostani oldalak alapján megmondja,
+ * miről kell most szólni. A `day` a mai napkulcs (`dayKey`); új napon a
+ * figyelés tiszta lappal indul. A mondat ugyanaz, mint a soré (`limitSoonLine`).
+ */
+export function stepLimitNotices(
+  prev: Record<string, LimitWatch>,
+  sites: { id: string; label: string; dailyLimitSeconds: number | null | undefined; usedSeconds: number }[],
+  day: string,
+): { watches: Record<string, LimitWatch>; notices: LimitNotice[] } {
+  const watches: Record<string, LimitWatch> = {};
+  const notices: LimitNotice[] = [];
+  for (const s of sites) {
+    const limit = normalizeLimit(s.dailyLimitSeconds);
+    if (limit === null) continue;
+    const old = prev[s.id];
+    const w: LimitWatch = old && old.day === day ? { ...old } : { day, armed: false, told: false };
+    const rem = Math.max(0, limit - s.usedSeconds);
+    const threshold = Math.min(LIMIT_SOON_SECONDS, limit / 2);
+    if (rem > threshold) {
+      w.armed = true;
+    } else if (rem > 0 && w.armed && !w.told) {
+      w.told = true;
+      notices.push({
+        label: s.label,
+        text: limitSoonLine([{ label: s.label, dailyLimitSeconds: s.dailyLimitSeconds, usedSeconds: s.usedSeconds }]),
+      });
+    }
+    watches[s.id] = w;
+  }
+  return { watches, notices };
+}
+
+/** Az értesítés címe — ugyanaz a gépen és Androidon. */
+export const LIMIT_SOON_TITLE = 'Breaker — fogy a mai keret';

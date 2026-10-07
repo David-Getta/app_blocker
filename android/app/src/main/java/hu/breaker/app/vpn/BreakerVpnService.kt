@@ -15,6 +15,7 @@ import android.util.Log
 import hu.breaker.app.MainActivity
 import hu.breaker.app.R
 import hu.breaker.app.core.PauseNotify
+import hu.breaker.app.core.LimitLogic
 import hu.breaker.app.core.AliasLogic
 import hu.breaker.app.core.FilterHitLogic
 import hu.breaker.app.core.KeywordLogic
@@ -73,6 +74,9 @@ class BreakerVpnService : VpnService() {
         /** A szünet vége előtti egyszeri szó — saját csatornán, hogy külön is elnémítható legyen. */
         private const val NOTIF_PAUSE_END_ID = 9
         private const val PAUSE_CHANNEL_ID = "breaker_pause_end"
+        /** A fogyó napi keret egyszeri szava — saját csatornán, hogy külön is elnémítható legyen. */
+        private const val NOTIF_LIMIT_SOON_ID = 10
+        private const val LIMIT_CHANNEL_ID = "breaker_limit_soon"
 
         private val _running = MutableStateFlow(false)
         val running: StateFlow<Boolean> get() = _running
@@ -523,6 +527,32 @@ class BreakerVpnService : VpnService() {
         }
     }
 
+    /** A figyelt napi keretek (oldal → nap, élesítve, szóltunk-e) — `LimitLogic.stepNotices` köréről körre. */
+    @Volatile private var limitWatches: Map<String, LimitLogic.LimitWatch> = emptyMap()
+
+    /**
+     * A NAPI KERET VÉGE ELŐRE: amikor egy oldal mai keretéből a küszöbnyi idő
+     * marad (a „ma még” sor küszöbe), egyszer szól — a sor mondatával. A
+     * közös keret: a többi eszköz mai ideje is beleszámít, mint a mérőben.
+     */
+    private fun maybeLimitSoonNotice() {
+        val now = System.currentTimeMillis()
+        val st = BreakerStore.state.value
+        val views = st.sites.mapIndexed { i, site ->
+            LimitLogic.LimitView(
+                site.id,
+                if (st.hideSiteList) AliasLogic.maskedLabel(site, i) else AliasLogic.displayName(site),
+                site.dailyLimitSeconds,
+                LimitLogic.usedTodayEverywhere(st.usage, st.sharedToday, site.domain, now),
+            )
+        }
+        val r = LimitLogic.stepNotices(limitWatches, views, UsageLogic.dayKey(now))
+        limitWatches = r.watches
+        for (n in r.notices) {
+            notifyOnce(NOTIF_LIMIT_SOON_ID, LimitLogic.LIMIT_SOON_TITLE, n.text, LIMIT_CHANNEL_ID, "Napi keret")
+        }
+    }
+
     /**
      * A visszatekintés mondata a mostani állapotból — a mag adja, a címkézés a
      * statisztikáé: rejtett listánál sorszám, fedőnévnél a fedőnév. A rejtést a
@@ -593,6 +623,9 @@ class BreakerVpnService : VpnService() {
                     // A szünet vége előre: két perccel a visszazárás előtt.
                     runCatching { maybePauseEndNotice() }
                         .onFailure { Log.w(TAG, "pause notice failed: $it") }
+                    // A napi keret vége előre: a küszöbnyi idő maradt.
+                    runCatching { maybeLimitSoonNotice() }
+                        .onFailure { Log.w(TAG, "limit notice failed: $it") }
                 }
             }, UsageLogic.SAMPLE_INTERVAL_MS, UsageLogic.SAMPLE_INTERVAL_MS)
         }

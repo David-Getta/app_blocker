@@ -466,6 +466,10 @@ const CHECKS = [
 // visszatekintés órája és a javaslat küszöbe. Ha elcsúsznának, a két eszköz
 // más hétfőn — vagy más oldalról — szólna ugyanarról a hétről.
 const PAIRS = [
+  // A fogyó napi keret értesítésének címe: a gép és az Android ugyanazt mondja.
+  ['LIMIT_SOON_TITLE',
+    quotedText(ts.limits, /LIMIT_SOON_TITLE\s*=\s*'([^']+)'/, 'ts'),
+    quotedText(kt.limits, /LIMIT_SOON_TITLE\s*=\s*"([^"]+)"/, 'kt')],
   ['SUGGEST_MIN_SECONDS',
     scalar(ts.usage, /SUGGEST_MIN_SECONDS\s*=\s*([^;]+);/, 'ts'),
     scalar(kt.usage, /SUGGEST_MIN_SECONDS\s*=\s*(.+)/, 'kt')],

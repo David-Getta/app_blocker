@@ -3613,6 +3613,19 @@ const WIRES = [
     needle: 'let total = max(0, clampedInt(ceil(ms / 1000)))',
     lost: 'egy abszurd törlési idő a szinkronról leállítaná az iPhone-appot',
   },
+
+  // A NAPI KERET VÉGE ELŐRE: a mag megvan (gép, Android, tesztekkel) — ezek a
+  // tűk azt őrzik, hogy szól is valaki, mielőtt a keret betelik.
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: 'const limits = stepLimitNotices(',
+    lost: 'a gép nem szólna előre, mielőtt a napi keret betelik',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/vpn/BreakerVpnService.kt',
+    needle: 'runCatching { maybeLimitSoonNotice() }',
+    lost: 'az Android nem szólna előre, mielőtt a napi keret betelik',
+  },
 ];
 
 /**

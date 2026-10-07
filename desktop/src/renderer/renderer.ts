@@ -35,7 +35,9 @@ import {
 import {
   acceleratorFromKeyEvent, DEFAULT_OVERLAY_SHORTCUT, rejectText, shortcutLabel,
 } from '../shared/shortcut.js';
-import { limitFullLine, limitSoonLine, MAX_LIMIT_MINUTES } from '../shared/limits.js';
+import {
+  LIMIT_SOON_TITLE, limitFullLine, limitSoonLine, MAX_LIMIT_MINUTES, stepLimitNotices, type LimitWatch,
+} from '../shared/limits.js';
 import { needsMeasurement } from '../shared/measure-guard.js';
 import { refreshDue, VISIBLE_REFRESH_MS } from '../shared/refresh-cadence.js';
 import {
@@ -153,6 +155,8 @@ let notifiedStepId: string | null = null;
 let burstWatches: Record<string, BurstWatch> | null = null;
 /** A figyelt szünetek (oldal → a szünet vége), amiről még nem szóltunk — shared/pause-notify.ts. */
 let pauseWatches: PauseWatches = {};
+/** A figyelt napi keretek (oldal → nap, élesítve, szóltunk-e) — shared/limits.ts `stepLimitNotices`. */
+let limitWatches: Record<string, LimitWatch> = {};
 
 function clearStepTimers(): void {
   for (const t of stepTimers) clearInterval(t);
@@ -668,6 +672,21 @@ function runNotices(): number {
   for (const n of pauses.notices) {
     if ('Notification' in window && Notification.permission === 'granted') {
       new Notification(PAUSE_END_TITLE, { body: pauseEndText(n.label, n.until - nowForBurst) });
+    }
+  }
+  // A NAPI KERET VÉGE előre: amikor egy oldal mai keretéből a küszöbnyi idő
+  // marad, egyszer szól — a „ma még” sor mondatával (shared/limits.ts).
+  const limits = stepLimitNotices(
+    limitWatches,
+    status!.sites.map((s) => ({
+      id: s.id, label: statLabel(s.domain), dailyLimitSeconds: s.dailyLimitSeconds, usedSeconds: s.usedTodaySeconds,
+    })),
+    dayKey(nowForBurst),
+  );
+  limitWatches = limits.watches;
+  for (const n of limits.notices) {
+    if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification(LIMIT_SOON_TITLE, { body: n.text });
     }
   }
   // A heti ablak menete, ha most tűnt fel — akkor is, ha az app később nyílt
