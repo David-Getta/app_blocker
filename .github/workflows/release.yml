@@ -45,31 +45,25 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **Az óra előreállítása nem rövidíti a hűtést.** Az adag-szabály
-          szünete eddig a rendszeróra szerint telt: aki tíz perccel
-          előretekerte az órát, átugrott egy egész szünetet. A munkamenetnél
-          és a zárlatnál ezt már elnyeltük — most a hűtésnél is, a gépen és
-          Androidon: amennyi hátra volt, annyi van hátra. A lecsukott gép
-          ideje viszont pihenő marad: egy adag közepén lecsukott laptopon
-          reggel tiszta lappal indulsz.
+          **Saját sáv a menetrendben.** A menetrend eddig csak három
+          sablont ismert (munkaidő, esti lekapcsolás, hétvége). Most a
+          napokat és az órákat magad adod meg — például hétfő és szerda
+          18:30–20:30 —, ugyanúgy, mint a zárlat heti ablakánál. A gépen,
+          Androidon és iPhone-on is.
 
-          **A réteg megmondja, miért nézi appként a böngészőt.** Ha a
-          munkamenet alatt olyan böngésző van elöl, amelynek a címét a gép
-          nem látja, és bővítmény sincs benne összekötve, azt appként
-          nézzük. A réteg eddig csak annyit írt: nincs a listán. Most
-          kimondja az okát is: ha engedett oldalon vagy, hagyd figyelmen
-          kívül; ha összekötöd benne a bővítményt, ott az oldal dönt.
+          **A meglévő sávok nem vesznek el.** A szerkesztő eddig csak a
+          sablonokat mutatta: egy másik eszközön megadott sávot meg sem
+          látott, és az „Alkalmaz” csendben eldobta. Most minden mostani
+          sáv pipával áll ott, és csak az esik ki, amiről leveszed.
 
-          ### Ami a v0.4.216-ban jött
+          ### Ami a v0.4.217-ben jött
 
-          **Zárlat alatt a böngésző-bővítmény saját szabálya sem vehető le**,
-          és **a telefon kimondja, hogy ami már nyitva volt, még mehet** — a
-          menet első két percében.
+          **Az óra előreállítása nem rövidíti a hűtést**, és **a réteg
+          megmondja, miért nézi appként a böngészőt**.
 
-          #### Ami a v0.4.215-ben jött
+          #### Ami a v0.4.216-ban jött
 
-          **A napi keret akkor is fogy, ha a gép nem látja a böngésző címét**,
-          és **gépelés közben nem zárjuk le a lapot**.
+          **Zárlat alatt a böngésző-bővítmény saját szabálya sem vehető le.**
 
           NOTES
           fi
