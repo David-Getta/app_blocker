@@ -64,6 +64,11 @@ jobs:
           tízmásodpercenként néz rá, rajzolás nélkül — az értesítések ugyanúgy
           jönnek.
 
+          **A bővítmény kimondja, fut-e nálad inkognitóban.** Eddig csak
+          általánosságban írta, hogy ott engedély kell — most a böngészőtől
+          megkérdezi, és ha nem fut, megmondja, mi nem érvényesül ott, és
+          odavisz, ahol be lehet kapcsolni.
+
           ### Ami a v0.4.211-ben jött
 
           **Az ablak bezárása többé nem kapcsolja ki a napi keretet** — az app

@@ -4,6 +4,7 @@
 // tárolt kapcsolat-állapotot töltjük be és kirakjuk. A Beállítások gomb a
 // beállítási lapra visz — minden, ami módosítás, ott van, itt semmi.
 
+import { incognitoAllowed, incognitoText } from './incognito.js';
 import { CLOSED_FRESH_MS, addFocusWindowInApp, effectiveFocus, effectiveLockdown, loadLink, pullFromApp, startFocusInApp } from './app-link.js';
 import { describePopup, focusDayText, focusHourCoverText, focusHourNowText, focusHourWindowButton, focusStreakText, hourSpan, limitSoonText, peakCoverText, sameHourText, suggestButton, windowButton } from './popup-core.js';
 import { dayKey, hitsSummary, hitsText, peakDayNow, peakDayNowText, peakNow, peakText, topHost } from './hits.js';
@@ -175,3 +176,11 @@ $('peakWindow').addEventListener('click', () => addWindowFrom($('peakWindow')));
 $('focusHourWindow').addEventListener('click', () => addWindowFrom($('focusHourWindow')));
 
 void render();
+
+// INKOGNITÓBAN MOST: csak ha NEM fut ott — a felugró lap rövid, a jó hírt a
+// beállítás-lap mondja.
+void incognitoAllowed().then((allowed) => {
+  if (allowed !== false) return;
+  $('incognitoNote').hidden = false;
+  $('incognitoNote').textContent = incognitoText(false);
+});

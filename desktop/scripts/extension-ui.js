@@ -48,7 +48,10 @@ const FAKE_CHROME = `
       get: async (key) => ({ [key]: window.__disk[key] }),
       set: async (obj) => { Object.assign(window.__disk, obj); },
     } },
-    runtime: { getURL: (p) => p, sendMessage: async () => ({ rules: [] }) },
+    runtime: { id: 'breakerteszt', getURL: (p) => p, sendMessage: async () => ({ rules: [] }) },
+    // Inkognitóban fut-e: a hamis böngésző a window.__incognito-t mondja.
+    extension: { isAllowedIncognitoAccess: async () => window.__incognito === true },
+    tabs: { create: async (o) => { window.__tabsCreated = o.url; } },
   };
   // Hamis app a hídon. A lap ELŐTT kerül be, tehát ugyanazon az úton megy,
   // mint élesben: a kód a fejlécben, a válasz JSON-ban.
@@ -101,6 +104,22 @@ async function main() {
   );
   const delay = await page.locator('#delay').innerText();
   if (!/^\d+ perc$/.test(delay)) failures.push(`a várakozás hossza nem jött át: ${delay}`);
+
+  // INKOGNITÓBAN MOST: a hamis böngésző szerint ott nem fut — a lap kimondja
+  // (nem csak a szabályt ismétli), és odavisz, ahol be lehet kapcsolni.
+  await page.waitForFunction(
+    () => /Inkognitóban most NEM fut/.test(document.getElementById('incognitoState')?.textContent || ''),
+    undefined, { timeout: 10_000 },
+  ).catch(() => failures.push('a beállítás-lap nem mondja ki, hogy inkognitóban most nem fut'));
+  if (await page.locator('#incognitoOpen').isHidden()) {
+    failures.push('inkognitóban nem fut, de nincs gomb a bekapcsoláshoz');
+  } else {
+    await page.locator('#incognitoOpen').click();
+    const opened = await page.evaluate(() => window.__tabsCreated);
+    if (opened !== 'chrome://extensions/?id=breakerteszt') {
+      failures.push(`az inkognitó-gomb nem a bővítmény beállításaihoz visz: ${opened}`);
+    }
+  }
 
   // Üresen az „üres” üzenet áll ott, nem egy néma lista.
   if (await page.locator('#empty').isHidden()) {
@@ -232,6 +251,12 @@ async function main() {
     if (!popupText.includes(must)) failures.push(`a felugró lapról hiányzik: ${must}`);
   }
   if (popupText.includes('lejart.example')) failures.push('a lejárt zárás ott maradt a felugró lapon');
+  // Inkognitóban most nem fut (a hamis böngésző szerint): a felugró lap is kimondja.
+  await page.waitForFunction(
+    () => !document.getElementById('incognitoNote')?.hidden
+      && /Inkognitóban most NEM fut/.test(document.getElementById('incognitoNote')?.textContent || ''),
+    undefined, { timeout: 10_000 },
+  ).catch(() => failures.push('a felugró lap nem mondja ki, hogy inkognitóban most nem fut'));
   // A Beállítások gomb tényleg a beállításokhoz visz — és a lap bezáródik.
   await page.evaluate(() => {
     window.__optionsOpened = 0;

@@ -23,6 +23,11 @@ Részletesen: [`docs/feature-partial-block.md`](../docs/feature-partial-block.md
 | Vendég mód | ✅ | ❌ ott bővítmény nem fut |
 | Más alkalmazások | ✅ | ❌ |
 
+Az inkognitót nem csak szabályként mondja: a beállítás-lap a böngészőtől
+megkérdezi, NÁLAD most fut-e ott (`incognito.js`), és ki is mondja; ha nem,
+a felugró lap is, és Chromium-alapú böngészőben egy gomb a bővítmény
+engedély-lapjára visz („Engedélyezés inkognitó módban”).
+
 **A két réteg egymás mellett áll, nem egymás helyett.** Aki azt akarja, hogy egy
 oldal egyáltalán ne menjen, az az appban tiltsa le az egészet. Ez a réteg az
 **ingert** veszi el, nem a hozzáférést — és a beállítások lapja ezt ki is mondja.

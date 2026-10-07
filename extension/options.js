@@ -6,6 +6,7 @@
 // lap látja az ÖSSZES szabályt és a tárolót — pont az, amit nem szabad
 // kiadni a kezünkből.
 
+import { extensionSettingsUrl, incognitoAllowed, incognitoText } from './incognito.js';
 import { ruleLabel } from './rules-core.js';
 import {
   addRule, cancelRemoval, load, REMOVE_DELAY_MS, startRemoval, sweep,
@@ -323,3 +324,20 @@ $('hitsClearBtn').addEventListener('click', async () => {
   try { await pushHits([]); } catch { /* app nélkül: a következő jelentés rendezi */ }
   await renderHits();
 });
+
+// INKOGNITÓBAN MOST: a böngésző mondja meg, fut-e ott a bővítmény — a lap
+// kimondja, és ha nem, odavisz, ahol be lehet kapcsolni (Chromiumban).
+async function renderIncognito() {
+  const allowed = await incognitoAllowed();
+  const text = incognitoText(allowed);
+  $('incognitoState').hidden = text === null;
+  $('incognitoState').textContent = text ?? '';
+  const url = allowed === false ? extensionSettingsUrl() : null;
+  $('incognitoOpen').hidden = url === null;
+  $('incognitoOpen').dataset.url = url ?? '';
+}
+$('incognitoOpen').addEventListener('click', () => {
+  const url = $('incognitoOpen').dataset.url;
+  if (url) void chrome.tabs?.create?.({ url });
+});
+void renderIncognito();
