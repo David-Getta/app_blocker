@@ -69,6 +69,15 @@ adni bármit, és a munkamenet önmagát oldaná fel — csendben, próbatétel 
 **Egyszerre egy munkamenet fut.** Enélkül a leállítás próbatételét meg lehetne
 kerülni: indítok egy „minden engedve” csomagot, és kész.
 
+**A végidő csak véges szám lehet.** A segéd socketjét a felhasználó nevében
+futó bármely program elérheti, nem csak az app gombja. Egy szöveg (`"x"`) a
+`Number()`-en át NaN lett, és mivel a `NaN < vég` hamis, a „rövidítés”
+szigorításnak látszott: a menet NaN véggel íródott el — ami nem fut. Vagyis
+egyetlen sor leállította, próbatétel nélkül, zárlat alatt is. Most a bíró
+elutasítja (`BAD_END`), a közös szabály (`isSessionLoosening`) pedig a nem
+véges véget lazításnak veszi; a valódi socketen futó teszt a szöveget, az
+objektumot és az `1e999`-et (Infinity) is kipróbálja.
+
 ## Mit tud érvényesíteni, és mit nem
 
 Ez a funkció három rétegen fekszik, és a felület mindegyiknél kimondja, mit tud:

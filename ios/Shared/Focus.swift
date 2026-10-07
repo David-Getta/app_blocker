@@ -221,7 +221,10 @@ public enum Focus {
     /// A hosszabbítás INGYEN van, a rövidítés próbatétel — a szigorítás
     /// irányába mindenhol szabad az út.
     public static func isSessionLoosening(currentEndsAt: Double, nextEndsAt: Double) -> Bool {
-        nextEndsAt < currentEndsAt
+        // A nem véges vég lazítás (a gép szabálya): a `NaN < current` hamis
+        // volna, és egy NaN-végű — vagyis nem futó — menet szigorításnak
+        // számítana.
+        !(nextEndsAt.isFinite && nextEndsAt >= currentEndsAt)
     }
 
     // -----------------------------------------------------------------------

@@ -77,6 +77,10 @@ test('extending is free, shortening is not', () => {
   assert.equal(isSessionLoosening(end, end), false, 'ugyanaz nem lazítás');
   assert.equal(isSessionLoosening(end, end - 60_000), true, 'rövidíteni nem');
   assert.equal(isSessionLoosening(end, NOW), true, 'azonnali leállítás sem');
+  // A nem véges vég a menet vége: a `NaN < end` hamis volna — lazítás.
+  assert.equal(isSessionLoosening(end, NaN), true, 'NaN');
+  assert.equal(isSessionLoosening(end, Infinity), true, 'Infinity (mentéskor null)');
+  assert.equal(isSessionLoosening(end, -Infinity), true, '-Infinity');
 });
 
 test('a pack from outside cannot be nonsense', () => {

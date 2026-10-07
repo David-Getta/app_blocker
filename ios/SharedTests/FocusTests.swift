@@ -15,6 +15,18 @@ final class FocusTests: XCTestCase {
         return d.timeIntervalSince1970 * 1000
     }
 
+    // A gép `extending is free, shortening is not` esete: hosszabbítani szabad,
+    // rövidíteni nem — és a nem véges vég is lazítás, nem szigorítás.
+    func testExtendingIsFreeShorteningAndANonFiniteEndAreNot() {
+        let end: Double = 1_800_000_000_000
+        XCTAssertFalse(Focus.isSessionLoosening(currentEndsAt: end, nextEndsAt: end + 60_000))
+        XCTAssertFalse(Focus.isSessionLoosening(currentEndsAt: end, nextEndsAt: end))
+        XCTAssertTrue(Focus.isSessionLoosening(currentEndsAt: end, nextEndsAt: end - 60_000))
+        XCTAssertTrue(Focus.isSessionLoosening(currentEndsAt: end, nextEndsAt: .nan))
+        XCTAssertTrue(Focus.isSessionLoosening(currentEndsAt: end, nextEndsAt: .infinity))
+        XCTAssertTrue(Focus.isSessionLoosening(currentEndsAt: end, nextEndsAt: -.infinity))
+    }
+
     // Az androidos FocusTest `a friss menet` esete: a döntés pillanata két perc,
     // visszaugró órán nem.
     func testTheFreshRunIsTheFirstTwoMinutesNotOnABackwardsClock() {

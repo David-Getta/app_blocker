@@ -1007,6 +1007,12 @@ export function changeFocus(
 ): FocusChangeResult {
   const run = state.focusRun;
   if (!isRunning(run, now)) throw new RefereeError('Nem fut munkamenet.', 'NO_FOCUS');
+  // A socket bárkié, aki a felhasználó nevében fut: a `"x"`, a `{}` és az
+  // `1e999` ugyanúgy ideér, mint egy szám. Nem véges végidő nincs — se
+  // szigorításnak, se lazításnak.
+  if (nextEndsAt !== null && !Number.isFinite(nextEndsAt)) {
+    throw new RefereeError('Érvénytelen időpont.', 'BAD_END');
+  }
   const current = (run as FocusRun).endsAt;
   const next = nextEndsAt === null ? now : nextEndsAt;
 

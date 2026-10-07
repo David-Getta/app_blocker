@@ -920,6 +920,11 @@ enum Referee {
             guard let run = state.focusRun, Focus.isRunning(run, now: now) else {
                 thrown = RefereeError(message: "Nem fut munkamenet.", code: "NO_FOCUS"); return
             }
+            // Nem véges végidő nincs — se szigorításnak, se lazításnak (a gép
+            // bírójának szabálya, ahol a socketen bármi ideér).
+            if let n = nextEndsAt, !n.isFinite {
+                thrown = RefereeError(message: "Érvénytelen időpont.", code: "BAD_END"); return
+            }
             let next = nextEndsAt ?? now
             if !Focus.isSessionLoosening(currentEndsAt: run.endsAt, nextEndsAt: next) {
                 state.focusRun = Focus.Run(

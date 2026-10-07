@@ -600,3 +600,58 @@ test('usage_enable: adag-szabály mellett a mérés nem kapcsolható ki', async 
   assert.equal((await call('usage_enable', { enabled: false })).ok, true);
   assert.equal(state.usage.enabled, false);
 });
+
+/** Egy NYERS sor a socketen — a JSON.stringify az `1e999`-et null-lá tenné. */
+function callRaw(line: string): Promise<{ ok: boolean; data?: unknown; error?: string; code?: string }> {
+  return new Promise((resolve, reject) => {
+    const sock = net.createConnection(process.env.BREAKER_SOCKET!);
+    let buf = '';
+    sock.setEncoding('utf8');
+    sock.on('connect', () => sock.write(line + '\n'));
+    sock.on('data', (chunk: string) => {
+      buf += chunk;
+      const nl = buf.indexOf('\n');
+      if (nl < 0) return;
+      sock.end();
+      resolve(JSON.parse(buf.slice(0, nl)));
+    });
+    sock.on('error', reject);
+    setTimeout(() => { sock.destroy(); reject(new Error('timeout')); }, 5000);
+  });
+}
+
+test('focus_change: nem véges végidő nem állítja le a menetet — se szöveg, se objektum, se 1e999', async () => {
+  // EZ VOLT A KISKAPU: a `Number("x")` NaN, a `NaN < current` hamis, tehát
+  // a „rövidítés” szigorításnak látszott, és a menet NaN véggel íródott el —
+  // ami nem fut. Próbatétel nélkül, zárlat alatt is leállt bármelyik menet.
+  const saved = await call('focus_save', {
+    pack: { id: '', name: 'Mély munka', allowSites: ['github.com'], allowApps: [], defaultMinutes: 50 },
+  });
+  const packs = (saved.data as { focusPacks: { id: string }[] }).focusPacks;
+  const packId = packs[packs.length - 1].id;
+  state.focusRun = null;
+  state.session = null;
+  const started = await call('focus_start', { packId, minutes: 50 });
+  assert.equal(started.ok, true);
+  const endsAt = state.focusRun!.endsAt;
+
+  for (const raw of ['"x"', '{}', '[]', '1e999', '-1e999', 'true']) {
+    const res = await callRaw(`{"id":${nextId++},"op":"focus_change","endsAt":${raw}}`);
+    const run = state.focusRun as { endsAt: number } | null;
+    assert.ok(run !== null && Number.isFinite(run.endsAt) && run.endsAt >= endsAt,
+      `${raw}: a menet vége érintetlen (${run?.endsAt})`);
+    if (res.ok) {
+      // A `true` → 1: az egy múltbeli időpont, tehát rövidítés — próbatétel.
+      const d = res.data as { applied: boolean };
+      assert.equal(d.applied, false, `${raw}: nem alkalmazódhatott próbatétel nélkül`);
+      state.session = null;
+    } else {
+      assert.equal(res.code, 'BAD_END', `${raw}: ${res.error}`);
+    }
+  }
+  // A rendes hosszabbítás továbbra is ingyen megy.
+  const longer = await call('focus_change', { endsAt: endsAt + 10 * 60_000 });
+  assert.equal(longer.ok, true);
+  assert.equal(state.focusRun!.endsAt, endsAt + 10 * 60_000);
+  state.focusRun = null;
+});

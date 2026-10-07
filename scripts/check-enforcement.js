@@ -3598,6 +3598,25 @@ const WIRES = [
     needle: 'PauseReminders.reschedule(views, now: now)',
     lost: 'az iPhone nem ütemezné a szünet vége előtti értesítést',
   },
+  // A NEM VÉGES VÉGIDŐ NEM SZIGORÍTÁS. A `NaN < current` hamis: a socketen
+  // jött `"x"` a menetet NaN véggel írta el — ami nem fut, vagyis próbatétel
+  // nélkül, zárlat alatt is leállt. A bíró elutasítja, a közös szabály
+  // lazításnak veszi.
+  {
+    file: 'desktop/src/helper/referee.ts',
+    needle: 'if (nextEndsAt !== null && !Number.isFinite(nextEndsAt)) {',
+    lost: 'a segéd bírója elfogadná a NaN végidőt — egy szöveg próbatétel nélkül leállítaná a menetet',
+  },
+  {
+    file: 'desktop/src/shared/focus.ts',
+    needle: 'return !(Number.isFinite(nextEndsAt) && nextEndsAt >= currentEndsAt);',
+    lost: 'a nem véges végidő szigorításnak számítana — a menet próbatétel nélkül leállna',
+  },
+  {
+    file: 'ios/Shared/Focus.swift',
+    needle: '!(nextEndsAt.isFinite && nextEndsAt >= currentEndsAt)',
+    lost: 'az iPhone a nem véges végidőt szigorításnak venné',
+  },
   // A SZÜNET VÉGE CSAK AKKOR SZÓL, HA UTÁNA TÉNYLEG ZÁR. Egy nyitott
   // menetrend-sávban véget érő szünet után az oldal nyitva marad, és a
   // „mindjárt újra zárva” hamis volna. A döntés a magé (`closesAfterPause`,

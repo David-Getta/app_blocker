@@ -217,7 +217,10 @@ export function isAppAllowed(pack: FocusPack, app: string): boolean {
  * negyvenre rövidítené, az ugyanazt a próbatételt kapja, mint egy feloldásnál.
  */
 export function isSessionLoosening(currentEndsAt: number, nextEndsAt: number): boolean {
-  return nextEndsAt < currentEndsAt;
+  // A NEM VÉGES vég lazítás: a `NaN < current` hamis volna, és a „szigorítás”
+  // egy NaN-végű menetet írna el — ami nem fut, vagyis próbatétel nélkül
+  // leállt (a JSON `1e999`-e pedig Infinity, ami mentéskor null lesz).
+  return !(Number.isFinite(nextEndsAt) && nextEndsAt >= currentEndsAt);
 }
 
 /** Ahogy a felületen áll: „Nyelvtanulás — 42 perc van hátra”. */
