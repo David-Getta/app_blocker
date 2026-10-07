@@ -8,6 +8,8 @@ kettővel korábbiban.
 
 | Verzió | Nap | Mi újság |
 |---|---|---|
+| v0.4.217 (még nincs kiadva) | 2026-10-07 | a hűtés nem rövidül az órával, a vak böngésző oka |
+| v0.4.216 | 2026-10-07 | a friss menet mondata iPhone-on is |
 | v0.4.215 | 2026-10-07 | gépelés közben nem zárjuk le a lapot |
 | v0.4.214 | 2026-10-07 | a munkamenet nem nyaggat a böngészőért |
 | v0.4.213 | 2026-10-07 | a már nyitott lap is lezárul |
