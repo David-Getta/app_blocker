@@ -67,9 +67,8 @@ jobs:
           **A bővítmény kimondja, fut-e nálad inkognitóban.** Eddig csak
           általánosságban írta, hogy ott engedély kell — most a böngészőtől
           megkérdezi, és ha nem fut, megmondja, mi nem érvényesül ott, és
-          odavisz, ahol be lehet kapcsolni. Az app is megtudja: ha futó
-          munkamenet mellett a bővítmény inkognitóban nem fut, a munkamenet
-          kártyája kimondja.
+          odavisz, ahol be lehet kapcsolni. Az app is megtudja: ha a
+          bővítmény inkognitóban nem fut, a munkamenetek kártyája kimondja.
 
           ### Ami a v0.4.211-ben jött
 
