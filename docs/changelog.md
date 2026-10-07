@@ -8,6 +8,8 @@ kettővel korábbiban.
 
 | Verzió | Nap | Mi újság |
 |---|---|---|
+| v0.4.212 | 2026-10-07 | a kártya nem csak futó menet mellett szól |
+| v0.4.213 (még nincs kiadva) | 2026-10-07 | biztonságosabb telepítés |
 | v0.4.211 | 2026-10-07 | a bezárás nem kapcsolja ki a keretet |
 | v0.4.210 | 2026-10-01 | az app szabályának tiltó lapja is |
 | v0.4.209 | 2026-10-01 | a heti ablak a böngészőben app nélkül is |
