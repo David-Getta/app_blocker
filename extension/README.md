@@ -47,13 +47,17 @@ jár — a szünete véget ér, a menetrend szerint zárul, vagy a mai keretből
 ennyi maradt —, a tetején egy sáv mondja, mennyi van hátra („A szünet 2 perc
 múlva véget ér — utána ez az oldal újra zárva.”). Az app a hídon adja le a
 közelgő zárásokat (`soon`), a háttér az újranézés válaszába teszi, a lap csak
-kimondja. Bezárható, és ugyanarra a zárásra nem jön vissza. Régi jelre nem
+kimondja. Bezárható, és ugyanarra a zárásra nem jön vissza — a bezárás a
+ZÁRÁSRA szól (fajta és időpont), nem a fajtára: a meghosszabbított szünetről,
+vagy a megemelt, aztán újra fogyó keretről újra szól. Régi jelre nem
 szól (a szünetet azóta visszakapcsolhattad), csak pontos hosztnévre; a keretnél
 a lehúzás óta eltelt időt levonja — inkább korábban, mint későn. A heti
 ablakos munkamenet indulása előtt is szól, ha az oldal nincs a csomagban
 („Munkamenet indul 2 perc múlva (Nyelvtanulás) — ez az oldal nincs benne,
 akkor zárul.”): ezt a bővítmény a tárolt ablakokból maga számolja, ugyanúgy,
-ahogy a menetet az app nélkül is érvényesíti.
+ahogy a menetet az app nélkül is érvényesíti. Futó menet mellett is, ha a
+lapot az most engedi: az ablak kezdetén a segéd a másik csomag kézi menetét
+lezárja.
 
 **A két réteg egymás mellett áll, nem egymás helyett.** Aki azt akarja, hogy egy
 oldal egyáltalán ne menjen, az az appban tiltsa le az egészet. Ez a réteg az

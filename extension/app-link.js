@@ -180,13 +180,17 @@ export function cleanSoon(list) {
 
 /**
  * Zárul-e HAMAROSAN ez a most még nyitott hosztnév — és miért: `{ kind,
- * leftMs }`, vagy null. Csak friss lehúzásból (`appFresh`): egy régi jelre ne
+ * leftMs, id }`, vagy null. Csak friss lehúzásból (`appFresh`): egy régi jelre ne
  * mondjunk zárást, ami azóta talán el is maradt (visszakapcsolta, megváltotta).
  * Csak az utolsó `SOON_BANNER_MS`-en belül, és a legközelebbi nyer.
  *
  * A keret nem óra, hanem aktív idő: az app a lehúzáskor hátralévő
  * másodperceket adja, és azóta — ha a lapon voltál — ennyivel kevesebb. Az
  * eltelt időt levonjuk: inkább korábban szóljunk, mint későn.
+ *
+ * Az `id` a zárás azonosítója (fajta és időpont): a lap ebből tudja, hogy a
+ * bezárt sáv UGYANARRÓL a zárásról szólna-e. A meghosszabbított szünet már
+ * másik zárás. A keretnek nincs időpontja (aktív idő), az azonosítója a fajta.
  */
 export function closingSoonFor(link, host, now = Date.now()) {
   const h = String(host ?? '').trim().toLowerCase().replace(/\.+$/, '');
@@ -197,7 +201,9 @@ export function closingSoonFor(link, host, now = Date.now()) {
     if (e.host !== h) continue;
     const leftMs = e.kind === 'limit' ? e.left * 1000 - since : e.at - now;
     if (!(leftMs > 0) || leftMs > SOON_BANNER_MS) continue;
-    if (best === null || leftMs < best.leftMs) best = { kind: e.kind, leftMs };
+    if (best === null || leftMs < best.leftMs) {
+      best = { kind: e.kind, leftMs, id: e.kind === 'limit' ? 'limit' : `${e.kind}@${e.at}` };
+    }
   }
   return best;
 }
@@ -682,23 +688,34 @@ export function effectiveFocus(link, now = Date.now()) {
 
 /**
  * Indul-e HAMAROSAN heti ablakos munkamenet, ami ezt a lapot zárja: `{ kind:
- * 'focus', leftMs, name }`, vagy null — a zárás előtti sáv másik fele.
+ * 'focus', leftMs, name, id }`, vagy null — a zárás előtti sáv másik fele.
  *
  * A tárolt ablakokból számol, ugyanúgy, ahogy a menetet a bővítmény az app
  * nélkül is érvényesíti (`effectiveFocus`): ha az ablak a listán van, a menet
  * el is indul. Csak az utolsó `SOON_BANNER_MS`-ben, és csak ha ez az oldal
- * NINCS a csomagban (egyezés vagy aldomain, mint a `focusAllows`-nál). Ha már
- * fut menet, nincs mit előre mondani: a nem engedett lap már zárva.
+ * NINCS a csomagban (egyezés vagy aldomain, mint a `focusAllows`-nál).
+ *
+ * Futó menet mellett is szól, ha a lapot az most engedi: az ablak kezdetén a
+ * segéd egy MÁSIK csomag kézi menetét lezárja (a mag `windowRunStartingSoon`-
+ * jának szabálya), és ami eddig ment, figyelmeztetés nélkül zárulna. Ha a
+ * futó menet nem engedi, a lap már zárva — nincs mit előre mondani. A csomag
+ * SAJÁT menete mellett az ablak nem indít újat, de akkor a két lista ugyanaz,
+ * tehát az engedett lap az ablakban is engedett: a szűrő ezt magától kiveszi.
  */
 export function focusStartingSoonFor(link, host, now = Date.now()) {
   const h = String(host ?? '').trim().toLowerCase().replace(/\.+$/, '');
-  if (!h || effectiveFocus(link, now)) return null;
+  if (!h) return null;
+  const allows = (list) => (list ?? []).some((a) => h === a || h.endsWith(`.${a}`));
+  const cur = effectiveFocus(link, now);
+  if (cur && !allows(cur.allowSites)) return null;
   let best = null;
   for (const w of link?.focus?.windows ?? []) {
     const leftMs = w.startsAt - now;
     if (!(leftMs > 0) || leftMs > SOON_BANNER_MS) continue;
-    if ((w.allowSites ?? []).some((a) => h === a || h.endsWith(`.${a}`))) continue;
-    if (best === null || leftMs < best.leftMs) best = { kind: 'focus', leftMs, name: w.name ?? '' };
+    if (allows(w.allowSites)) continue;
+    if (best === null || leftMs < best.leftMs) {
+      best = { kind: 'focus', leftMs, name: w.name ?? '', id: `focus@${w.packId}@${w.startsAt}` };
+    }
   }
   return best;
 }

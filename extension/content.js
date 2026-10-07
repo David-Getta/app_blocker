@@ -103,6 +103,11 @@ function showClosingBanner(reason) {
  * vége, a menetrend szerinti zárás vagy a napi keret közeleg. A háttér mondja
  * meg (az újranézés válaszában), mi és mennyi; a sáv csak kimondja. Bezárható:
  * egy zárásról egyszer elég szólni, ugyanarra nem jön vissza.
+ *
+ * A bezárás a ZÁRÁSRA szól, nem a fajtára (a háttér `id`-je: fajta és
+ * időpont). Amíg a háttér ugyanezt mondja, a sáv nem jön vissza; ha mást
+ * mond, vagy semmit, elfelejtjük — egy későbbi zárásról (megemelt, aztán
+ * újra fogyó keret; meghosszabbított szünet) újra szólni kell.
  */
 const SOON_WORDS = {
   pause: (n) => `A szünet ${n} perc múlva véget ér — utána ez az oldal újra zárva. Mentsd el, amit írsz.`,
@@ -113,11 +118,22 @@ const SOON_WORDS = {
 };
 let soonBanner = null;
 let soonText = null;
+/** A bezárt zárás azonosítója — amíg a háttér ezt mondja, a sáv nem jön vissza. */
 let soonDismissed = null;
+/** A sávon MOST álló zárás azonosítója: a × ezt jegyzi, nem azt, amivel a sáv született. */
+let soonShown = null;
+function soonKey(soon) {
+  return typeof soon?.id === 'string' && soon.id ? soon.id : String(soon?.kind ?? '');
+}
 function showSoonBanner(soon) {
   const words = SOON_WORDS[soon?.kind];
   if (!words || closingBanner) return hideSoonBanner();
-  if (soonDismissed === soon.kind) return;
+  const key = soonKey(soon);
+  // Másik zárás jött: a régi bezárás róla nem szól.
+  if (soonDismissed !== null && soonDismissed !== key) soonDismissed = null;
+  // A bezárt zárás: a sáv nem áll ott — egy másik fajta elavult szövege sem.
+  if (soonDismissed === key) return hideSoonBanner();
+  soonShown = key;
   const text = words(Math.max(1, Math.ceil(soon.leftMs / 60_000)), typeof soon.name === 'string' ? soon.name : '');
   if (soonBanner) {
     soonText.textContent = text;
@@ -140,7 +156,7 @@ function showSoonBanner(soon) {
   close.style.cssText = 'all:initial;position:absolute;right:12px;top:50%;transform:translateY(-50%);'
     + 'font:20px/1 system-ui,sans-serif;color:#fffbeb;cursor:pointer;padding:4px 8px;';
   close.addEventListener('click', () => {
-    soonDismissed = soon.kind;
+    soonDismissed = soonShown;
     hideSoonBanner();
   });
   box.append(msg, close);
@@ -609,7 +625,13 @@ function hideSoonBanner() {
         p.then((r) => {
           // A zárás előtti sáv: ha a háttér közelgő zárást mond, kitesszük
           // (vagy frissítjük); ha már nem mond, levesszük.
-          if (r?.soon) showSoonBanner(r.soon); else hideSoonBanner();
+          if (r?.soon) {
+            showSoonBanner(r.soon);
+          } else {
+            // Nincs közelgő zárás: a bezárás is elévül — a következő újra szól.
+            soonDismissed = null;
+            hideSoonBanner();
+          }
           if (!r?.deferred) return;
           if (!firstDeferredAt) firstDeferredAt = Date.now();
           hideSoonBanner();

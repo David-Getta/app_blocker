@@ -3691,8 +3691,21 @@ const WIRES = [
   },
   {
     file: 'extension/content.js',
-    needle: 'if (r?.soon) showSoonBanner(r.soon); else hideSoonBanner();',
+    needle: 'showSoonBanner(r.soon);',
     lost: 'a lap nem tenné ki a zárás előtti sávot',
+  },
+  // A bezárás a ZÁRÁSRA szól, nem a fajtára: a × a sávon MOST álló zárást
+  // jegyzi, és ha a háttér már nem mond semmit, a bezárás elévül — különben
+  // egy bezárt keret-sáv után a lap élete végéig nem jönne több.
+  {
+    file: 'extension/content.js',
+    needle: 'soonDismissed = soonShown;',
+    lost: 'a × a sáv születésekori fajtáját jegyezné — ha közben másik zárás állt rajta, az visszajönne',
+  },
+  {
+    file: 'extension/content.js',
+    needle: 'if (soonDismissed === key) return hideSoonBanner();',
+    lost: 'egy bezárt zárás mellett a másik fajta sávja elavult szöveggel ott maradna',
   },
   {
     file: 'extension/background.js',

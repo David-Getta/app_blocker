@@ -852,7 +852,8 @@ async function main() {
     await page.goto(`${base}/`);
     await page.bringToFront();
     await page.waitForTimeout(600);
-    await seedSoon([{ host: '127.0.0.1', kind: 'pause', at: Date.now() + 90_000 }]);
+    const pauseEnd = Date.now() + 90_000;
+    await seedSoon([{ host: '127.0.0.1', kind: 'pause', at: pauseEnd }]);
     const soonText = await page.waitForFunction(
       () => document.getElementById('breaker-soon')?.shadowRoot?.textContent || null,
       undefined, { timeout: WAIT_MS },
@@ -861,9 +862,19 @@ async function main() {
       `a szünet vége előtt a lap tetején sáv szól (${soonText})`);
     check((await browserUrl(page, context)) === `${base}/`, 'a sáv mellett a lap nyitva marad');
     await page.evaluate(() => document.getElementById('breaker-soon')?.shadowRoot?.querySelector('button')?.click());
-    await seedSoon([{ host: '127.0.0.1', kind: 'pause', at: Date.now() + 80_000 }]);
+    await seedSoon([{ host: '127.0.0.1', kind: 'pause', at: pauseEnd }]);
     await page.waitForTimeout(1500);
     check(!(await page.evaluate(() => !!document.getElementById('breaker-soon'))), 'a bezárt sáv ugyanarra a zárásra nem jön vissza');
+    // A bezárás a ZÁRÁSRA szól, nem a fajtára: a meghosszabbított szünet már
+    // másik zárás — arról újra szól.
+    await seedSoon([{ host: '127.0.0.1', kind: 'pause', at: pauseEnd + 20_000 }]);
+    const againText = await page.waitForFunction(
+      () => document.getElementById('breaker-soon')?.shadowRoot?.textContent || null,
+      undefined, { timeout: WAIT_MS },
+    ).then((h) => h.jsonValue()).catch(() => null);
+    check(typeof againText === 'string' && /A szünet \d perc múlva véget ér/.test(againText),
+      `egy másik zárásról a bezárt sáv után is szól (${againText})`);
+    await seedSoon([]);
     // A keret is: aktív idő, a lehúzáskor hátralévő másodpercekből.
     await page.goto(`${base}/@jo`);
     await page.bringToFront();
