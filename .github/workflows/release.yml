@@ -44,26 +44,24 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A tiltó lap zárva lévő app mellett sem ígér feloldást a heti
-          zárlat-ablak alatt.** A heti zárlat-ablakot a háttérvédelem az app
-          nélkül is elindítja, a böngésző tiltó lapja viszont eddig csak a futó
-          apptól tudott róla — app nélkül azt írta, hogy a tiltás az appban
-          feloldható, holott az ablak alatt ez az út nincs. Most az app egy
-          hétre előre átadja az ablakokat a bővítménynek is, és a lap meg a
-          felugró lap ilyenkor is a zárlatot mondja.
+          **A gépen az ablak bezárása többé nem kapcsolja ki a napi keretet.**
+          A tiltást a háttérvédelem tartja, a mért időt viszont — amiből a
+          napi keret és az adag fogy — az app méri, és az értesítéseket is az
+          app adja. Eddig az ablak bezárása az egész appot leállította, és
+          vele a keretet is; egy újraindítás után pedig addig, amíg valaki meg
+          nem nyitotta. Most a bezárás csak elrejti az appot, és
+          bejelentkezéskor magától indul, ablak nélkül (Windowson tálca-ikon
+          hozza vissza). Kilépni továbbra is lehet; a kilépés gomb alatt az
+          app kimondja, hogy utána a keret nem fogy.
 
-          **Az appban felvett részleges szabály tiltó lapja az app útját
-          mondja.** Eddig azt írta, hogy a szabály a bővítmény beállításaiban,
-          tíz perc várással levehető — az appból jött szabálynál ez nem igaz:
-          azt az appban lehet levenni, próbatétellel, zárlat alatt sehogy.
+          ### Ami a v0.4.210-ben jött
 
-          ### Ami a v0.4.209-ben jött
+          **A tiltó lap nem ígér olyan feloldást, ami nincs** — a zárlat-ablak
+          alatt app nélkül sem, és az appban felvett szabálynál sem.
+
+          #### Ami a v0.4.209-ben jött
 
           **A heti ablak a böngészőben akkor is él, ha az app zárva van.**
-
-          #### Ami a v0.4.208-ban jött
-
-          **Nem marad fél emodzsi a böngésző lapjain és a mérés címkéjén.**
 
           NOTES
           fi
