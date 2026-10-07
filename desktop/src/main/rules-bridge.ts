@@ -58,6 +58,30 @@ export interface BridgeClosed {
 }
 
 /**
+ * Egy most még NYITOTT hosztnév, ami hamarosan zárul — és miért.
+ *
+ * A böngészőben telik a legtöbb idő, és ott a zárás a legkeményebb: a nyitott
+ * lap a tiltó lapra fut. A tartalom-szkript ebből tesz ki egy sávot az utolsó
+ * percekben, hogy a vége ne félbehagyott mondat közepén érjen. Magyarázat,
+ * nem érvényesítés, mint a zárva-lista: ha a bővítmény nincs ott, a zárás
+ * attól még zárás.
+ *
+ * - `pause`: a szünet vége (`at`, epoch ms);
+ * - `schedule`: a menetrend szerinti zárás (`at`, epoch ms);
+ * - `limit`: a mai keretből hátralévő aktív másodpercek (`left`) — idő
+ *   helyett, mert a keret csak az oldalon töltött idővel fogy.
+ */
+export interface BridgeSoon {
+  host: string;
+  kind: 'pause' | 'schedule' | 'limit';
+  at?: number;
+  left?: number;
+}
+
+/** Ennyin belüli zárásról megy le jel: a sáv úgyis csak az utolsó percekben szól. */
+export const SOON_HORIZON_MS = 10 * 60_000;
+
+/**
  * A futó ZÁRLAT, ahogy a bővítménynek kell: csak a vége.
  *
  * Magyarázat, nem érvényesítés — mint a zárva-lista. A tiltó lap enélkül azt
@@ -226,6 +250,8 @@ export interface BridgeDeps {
   getChannels?: () => Promise<{ host: string; allow: string[] }[]>;
   /** a MOST zárva lévő hosztnevek, okkal — a tiltó lap ebből magyaráz */
   getClosed?: () => Promise<BridgeClosed[]>;
+  /** a hamarosan záruló, most még nyitott hosztnevek — a lap ebből szól előre */
+  getSoon?: () => Promise<BridgeSoon[]>;
   /** a futó zárlat, ha van — a tiltó lap ebből tudja, hogy most nincs feloldás */
   getLockdown?: () => Promise<BridgeLockdown | null>;
   getNotes?: () => Promise<BridgeNote[]>;
@@ -372,7 +398,7 @@ export async function answer(
   // kozmetika: a bővítmény három másodperc után továbblép, a sorosan kétszer
   // lekérdezett állapot pedig ennek a duplájába is telhet, és akkor a
   // szabályok CSENDBEN nem frissülnének.
-  const [rules, focus, channels, closed, lockdown, notes, partner, keywords, suggest, measureGuard] = await Promise.all([
+  const [rules, focus, channels, closed, lockdown, notes, partner, keywords, suggest, measureGuard, soon] = await Promise.all([
     deps.getRules(),
     deps.getFocus ? deps.getFocus() : Promise.resolve({ running: false }),
     deps.getChannels ? deps.getChannels() : Promise.resolve([]),
@@ -383,6 +409,7 @@ export async function answer(
     deps.getKeywords ? deps.getKeywords() : Promise.resolve([]),
     deps.getSuggest ? deps.getSuggest() : Promise.resolve(null),
     deps.getMeasureGuard ? deps.getMeasureGuard() : Promise.resolve(null),
+    deps.getSoon ? deps.getSoon() : Promise.resolve([]),
   ]);
   // Feljegyezzük, hogy VOLT lehúzás. Enélkül az app csak azt tudja, hogy a híd
   // FUT — azt nem, hogy beszél-e vele bárki. A kettő között pedig ott a
@@ -396,6 +423,7 @@ export async function answer(
     status: 200,
     body: {
       protocol: BRIDGE_PROTOCOL, rules, focus, channels, closed, lockdown, notes, partner, keywords, suggest, measureGuard,
+      soon,
     },
   };
 }

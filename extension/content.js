@@ -98,6 +98,62 @@ function showClosingBanner(reason) {
   closingBanner = host;
 }
 
+/**
+ * A ZÁRÁS ELŐTTI SÁV: a lap még nyitva, de az utolsó percekben jár — a szünet
+ * vége, a menetrend szerinti zárás vagy a napi keret közeleg. A háttér mondja
+ * meg (az újranézés válaszában), mi és mennyi; a sáv csak kimondja. Bezárható:
+ * egy zárásról egyszer elég szólni, ugyanarra nem jön vissza.
+ */
+const SOON_WORDS = {
+  pause: (n) => `A szünet ${n} perc múlva véget ér — utána ez az oldal újra zárva. Mentsd el, amit írsz.`,
+  schedule: (n) => `A menetrend szerint ez az oldal ${n} perc múlva zárul. Mentsd el, amit írsz.`,
+  limit: (n) => `A mai keretből ezen az oldalon kevesebb mint ${n} perc maradt. Mentsd el, amit írsz.`,
+};
+let soonBanner = null;
+let soonText = null;
+let soonDismissed = null;
+function showSoonBanner(soon) {
+  const words = SOON_WORDS[soon?.kind];
+  if (!words || closingBanner) return hideSoonBanner();
+  if (soonDismissed === soon.kind) return;
+  const text = words(Math.max(1, Math.ceil(soon.leftMs / 60_000)));
+  if (soonBanner) {
+    soonText.textContent = text;
+    return;
+  }
+  const host = document.createElement('div');
+  host.id = 'breaker-soon';
+  host.style.cssText = 'all:initial;position:fixed;top:0;left:0;right:0;z-index:2147483647;';
+  const root = host.attachShadow({ mode: 'open' });
+  const box = document.createElement('div');
+  box.setAttribute('role', 'status');
+  box.style.cssText = 'font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;background:#78350f;'
+    + 'color:#fffbeb;padding:10px 44px 10px 16px;box-shadow:0 2px 10px rgba(0,0,0,.35);position:relative;';
+  const msg = document.createElement('span');
+  msg.textContent = text;
+  const close = document.createElement('button');
+  close.type = 'button';
+  close.textContent = '×';
+  close.setAttribute('aria-label', 'Bezárás');
+  close.style.cssText = 'all:initial;position:absolute;right:12px;top:50%;transform:translateY(-50%);'
+    + 'font:20px/1 system-ui,sans-serif;color:#fffbeb;cursor:pointer;padding:4px 8px;';
+  close.addEventListener('click', () => {
+    soonDismissed = soon.kind;
+    hideSoonBanner();
+  });
+  box.append(msg, close);
+  root.appendChild(box);
+  (document.body ?? document.documentElement).appendChild(host);
+  soonBanner = host;
+  soonText = msg;
+}
+function hideSoonBanner() {
+  if (!soonBanner) return;
+  soonBanner.remove();
+  soonBanner = null;
+  soonText = null;
+}
+
 (async () => {
   const [{ matchesRule }, chan, kw] = await Promise.all([
     import(chrome.runtime.getURL('rules-core.js')),
@@ -549,8 +605,12 @@ function showClosingBanner(reason) {
       const p = chrome.runtime.sendMessage({ type: 'breaker:recheck', editing: editingNow() });
       if (p && typeof p.then === 'function') {
         p.then((r) => {
+          // A zárás előtti sáv: ha a háttér közelgő zárást mond, kitesszük
+          // (vagy frissítjük); ha már nem mond, levesszük.
+          if (r?.soon) showSoonBanner(r.soon); else hideSoonBanner();
           if (!r?.deferred) return;
           if (!firstDeferredAt) firstDeferredAt = Date.now();
+          hideSoonBanner();
           showClosingBanner(r.reason);
         }).catch(() => { /* a háttér alszik — a következő kör hozza */ });
       }

@@ -280,6 +280,20 @@ test('a mérés-őr is átmegy a hídon — nélküle null, hogy a lap ne mondjo
   assert.equal((none.body as { measureGuard: unknown }).measureGuard, null, 'őr nélkül null, nem hiányzó mező');
 });
 
+test('a közelgő zárások is átmennek a hídon — nélkülük üres lista, nem hiányzó mező', async () => {
+  // A lap ebből szól előre az utolsó percekben: a szünet vége, a menetrend
+  // szerinti zárás, a napi keretből hátralévő idő.
+  const soon = [
+    { host: 'youtube.com', kind: 'pause' as const, at: 1_800_000_000_000 },
+    { host: 'reddit.com', kind: 'limit' as const, left: 90 },
+  ];
+  const r = await answer({ ...deps(), getSoon: async () => soon }, 'GET', '/rules', { [TOKEN_HEADER]: 'ABCD-EFGH' });
+  assert.equal(r.status, 200);
+  assert.deepEqual((r.body as { soon: unknown }).soon, soon);
+  const none = await answer(deps(), 'GET', '/rules', { [TOKEN_HEADER]: 'ABCD-EFGH' });
+  assert.deepEqual((none.body as { soon: unknown }).soon, []);
+});
+
 test('az inkognitó-jel a lehúzással jön: csak a szó szerinti 1/0 számít, a hiánya „nem tudni”', async () => {
   // A bővítmény minden lehúzáskor megmondja, fut-e inkognitóban; az app ebből
   // mondja ki, ha ott a munkamenet nem érvényesül. A régi bővítmény nem küldi:

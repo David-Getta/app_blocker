@@ -129,7 +129,9 @@ figyelmeztetés: a szabad sáv vége ne a zárásnál derüljön ki.
 A Kotlin és a Swift mag is kapott tükröt (`ScheduleLogic.nextOpenAt` /
 `nextCloseAt`), ugyanazzal a döntéssel, egyetlen naptárral végiglépkedve. A
 felület percenként egyszer számol menetrendenként — a lista másodpercenként
-rajzolódik, a keresés pedig egy hét percein lépkedhet. A telefonon a chip is
+rajzolódik, a keresés pedig egy hét percein lépkedhet. A böngészőben a lap is
+szól: a menetrend szerinti zárás előtti két percben egy sáv a tetején (az app a
+hídon adja le a zárás idejét, `soon`). A telefonon a chip is
 pontosabb lett: ha az oldalt nem a menetrend zárja (hanem a betelt keret vagy
 az adag-szünet), nem mondja, hogy „(menetrend)” — az ok a saját sorában szól.
 

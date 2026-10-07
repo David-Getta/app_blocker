@@ -191,7 +191,10 @@ mint az előző).
   az app köre szól (az ablak rejtve is fut), Androidon a VPN-szolgáltatásé
   (az app nélkül is), iPhone-on a rendszer: az app nem fut a háttérben, ezért
   a kérés ELŐRE ütemezett helyi értesítés, ami a szünetek listáját követi. A
-  név a lista elrejtését követi (rejtett listánál sorszám vagy fedőnév).
+  név a lista elrejtését követi (rejtett listánál sorszám vagy fedőnév). A
+  böngészőben a lap maga is szól: az utolsó két percben egy sáv a tetején
+  (`extension/README.md`) — ott telik a legtöbb idő, és ott a legkeményebb a
+  zárás, mert a nyitott lap a tiltó lapra fut.
 - **A blokkolás alapból zár.** Ha bármi elromlik (lejárt session, elrontott
   hosts fájl), a rendszer a *blokkolt* állapot felé esik vissza, nem a nyitott
   felé.

@@ -148,6 +148,60 @@ function cleanClosed(list) {
     }));
 }
 
+/** Ennyi közelgő zárást tárolunk (az app is ennyit küld). */
+export const MAX_SOON = 500;
+
+/**
+ * A ZÁRÁS ELŐTTI SÁV ennyivel a zárás előtt jelenik meg a lapon — ugyanannyi,
+ * mint az app értesítése a szünet végéről (`PAUSE_END_WARN_MS`), a mag-szinkron
+ * őr nézi.
+ */
+export const SOON_BANNER_MS = 2 * 60_000;
+
+/**
+ * Egy közelgő-zárás bejegyzés szűrése: hosztnév, fajta, és a fajtához illő
+ * szám (`at` a szünetnél és a menetrendnél, `left` másodperc a keretnél). A
+ * rosszul formált kimarad; régi app nem küldi — az üres lista.
+ */
+export function cleanSoon(list) {
+  const out = [];
+  for (const e of Array.isArray(list) ? list : []) {
+    if (!e || typeof e.host !== 'string' || !e.host) continue;
+    const host = e.host.toLowerCase();
+    if ((e.kind === 'pause' || e.kind === 'schedule') && Number.isFinite(e.at) && e.at > 0) {
+      out.push({ host, kind: e.kind, at: e.at });
+    } else if (e.kind === 'limit' && Number.isFinite(e.left) && e.left > 0) {
+      out.push({ host, kind: 'limit', left: e.left });
+    }
+    if (out.length >= MAX_SOON) break;
+  }
+  return out;
+}
+
+/**
+ * Zárul-e HAMAROSAN ez a most még nyitott hosztnév — és miért: `{ kind,
+ * leftMs }`, vagy null. Csak friss lehúzásból (`appFresh`): egy régi jelre ne
+ * mondjunk zárást, ami azóta talán el is maradt (visszakapcsolta, megváltotta).
+ * Csak az utolsó `SOON_BANNER_MS`-en belül, és a legközelebbi nyer.
+ *
+ * A keret nem óra, hanem aktív idő: az app a lehúzáskor hátralévő
+ * másodperceket adja, és azóta — ha a lapon voltál — ennyivel kevesebb. Az
+ * eltelt időt levonjuk: inkább korábban szóljunk, mint későn.
+ */
+export function closingSoonFor(link, host, now = Date.now()) {
+  const h = String(host ?? '').trim().toLowerCase().replace(/\.+$/, '');
+  if (!h || !appFresh(link, now)) return null;
+  const since = Math.max(0, now - link.fetchedAt);
+  let best = null;
+  for (const e of link.soon ?? []) {
+    if (e.host !== h) continue;
+    const leftMs = e.kind === 'limit' ? e.left * 1000 - since : e.at - now;
+    if (!(leftMs > 0) || leftMs > SOON_BANNER_MS) continue;
+    if (best === null || leftMs < best.leftMs) best = { kind: e.kind, leftMs };
+  }
+  return best;
+}
+
 /**
  * Egy indok-bejegyzés szűrése: hosztnév és egy józan hosszú szöveg — más nem
  * megy át. A szöveg a felhasználóé (ő írta az appban), de a tárba és a lapra
@@ -260,6 +314,9 @@ export async function loadLink() {
     // A MOST zárva lévő hosztnevek, okkal — a tiltó lap ebből magyaráz. A
     // frissessége számít, ezért a döntés nem innen, hanem a `closedFor`-ból jön.
     closed: cleanClosed(raw.closed),
+    // A hamarosan záruló, most még nyitott hosztnevek — a lap ebből szól előre
+    // (lásd `closingSoonFor`); a frissessége itt is számít.
+    soon: cleanSoon(raw.soon),
     lockdown: cleanLockdown(raw.lockdown),
     // A mérés-őr: ha az app elhallgat, ezek a hosztok zárva (lásd `measureGuardFor`).
     measureGuard: cleanMeasureGuard(raw.measureGuard),
@@ -430,12 +487,14 @@ export async function pullFromApp(now = Date.now(), fetchImpl = fetch, timeoutMs
     const suggest = cleanSuggest(body?.suggest);
     // A mérés-őr — régi app válaszában nincs, az sem hiba: nincs őr.
     const measureGuard = cleanMeasureGuard(body?.measureGuard);
+    // A közelgő zárások — régi app válaszában nincs, az sem hiba: nincs sáv.
+    const soon = cleanSoon(body?.soon);
     // Az ÜRES lista is válasz: azt jelenti, hogy az appban levették az összeset.
     // Csak akkor fogadjuk el, ha a kérés tényleg sikerült — ha nem érjük el az
     // appot, a régi lista marad érvényben.
     await saveLink({
       ...link, port, rules, focus, channels, closed, lockdown, notes, partner, keywords, suggest, measureGuard,
-      fetchedAt: now, error: null,
+      soon, fetchedAt: now, error: null,
     });
     return { ok: true, rules, focus, channels, closed, lockdown, notes, partner, keywords, suggest };
   }

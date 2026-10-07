@@ -91,6 +91,7 @@ ext.rules = read('extension/rules-core.js');
 // bővítmény a maga plafonjáig tárolja — ha kisebb volna, a hét vége kiesne.
 ext.appLink = read('extension/app-link.js');
 ts.bridge = read('desktop/src/main/rules-bridge.ts');
+ts.main = read('desktop/src/main/main.ts');
 // A mérés-őr türelmi ideje: a segéd ennyi csend után zár, a tiltó lap ennyi
 // után mondja, hogy zárva — ha elcsúszna, a lap mást mondana, mint ami van.
 ts.measureGuard = read('desktop/src/shared/measure-guard.ts');
@@ -508,6 +509,14 @@ const PAIRS = [
 // A gép és a böngésző-bővítmény között: a felugró lap a sorozatot a maga
 // másolatával mondja kettőtől. Ha elcsúszna, a lap más napon szólna, mint az app.
 const EXT_PAIRS = [
+  // A ZÁRÁS ELŐTTI SÁV a lapon ugyanakkor szól, mint az app értesítése a szünet
+  // végéről; és a bővítmény annyi közelgő zárást tárol, amennyit az app küld.
+  ['SOON_BANNER_MS / PAUSE_END_WARN_MS',
+    scalar(ts.pauseNotify, /PAUSE_END_WARN_MS\s*=\s*([^;]+);/, 'ts'),
+    scalar(ext.appLink, /SOON_BANNER_MS\s*=\s*([^;]+);/, 'ext')],
+  ['MAX_SOON',
+    scalar(ts.main, /MAX_SOON_HOSTS\s*=\s*([^;]+);/, 'ts'),
+    scalar(ext.appLink, /MAX_SOON\s*=\s*([^;]+);/, 'ext')],
   // A bővítmény a teljes címről MAGA dönt (kulcsszó, részleges szabály). Ha a
   // plafonja más volna, az appban felvett szó vagy szabály a böngészőben
   // csendben kiesne — vagy a bővítmény beállítás-lapja elutasítaná.

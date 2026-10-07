@@ -42,6 +42,15 @@ fut. A címet a háttér a böngészőtől veszi, nem a laptól; és ez nem mega
 a könyv nem nő tőle. Gépelés közben nem zár: ha az utolsó két percben írtál a
 lapon, egy sáv szól, és a gépelés-csend után zárul (legfeljebb tíz perc).
 
+**A zárás előtt is szól.** Ha a lap még nyitva van, de az utolsó két percben
+jár — a szünete véget ér, a menetrend szerint zárul, vagy a mai keretből
+ennyi maradt —, a tetején egy sáv mondja, mennyi van hátra („A szünet 2 perc
+múlva véget ér — utána ez az oldal újra zárva.”). Az app a hídon adja le a
+közelgő zárásokat (`soon`), a háttér az újranézés válaszába teszi, a lap csak
+kimondja. Bezárható, és ugyanarra a zárásra nem jön vissza. Régi jelre nem
+szól (a szünetet azóta visszakapcsolhattad), csak pontos hosztnévre; a keretnél
+a lehúzás óta eltelt időt levonja — inkább korábban, mint későn.
+
 **A két réteg egymás mellett áll, nem egymás helyett.** Aki azt akarja, hogy egy
 oldal egyáltalán ne menjen, az az appban tiltsa le az egészet. Ez a réteg az
 **ingert** veszi el, nem a hozzáférést — és a beállítások lapja ezt ki is mondja.

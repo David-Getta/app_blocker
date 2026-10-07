@@ -3626,6 +3626,35 @@ const WIRES = [
     needle: 'runCatching { maybeLimitSoonNotice() }',
     lost: 'az Android nem szólna előre, mielőtt a napi keret betelik',
   },
+
+  // A BÖNGÉSZŐ LAPJA IS ELŐRE SZÓL: az app leadja a közelgő zárásokat, a háttér
+  // az újranézés válaszába teszi, a lap sávot tesz ki. Ha egy láncszem kiesik,
+  // semmi nem hasal el — a lap egyszerűen némán fut a tiltó lapra, mint eddig.
+  {
+    file: 'desktop/src/main/rules-bridge.ts',
+    needle: "deps.getSoon ? deps.getSoon() : Promise.resolve([]),",
+    lost: 'a híd nem adná le a közelgő zárásokat a bővítménynek',
+  },
+  {
+    file: 'desktop/src/main/main.ts',
+    needle: "if (site.pauseUntil - now <= SOON_HORIZON_MS) push({ kind: 'pause', at: site.pauseUntil });",
+    lost: 'az app nem mondaná meg a bővítménynek, mikor ér véget egy szünet',
+  },
+  {
+    file: 'extension/app-link.js',
+    needle: 'const soon = cleanSoon(body?.soon);',
+    lost: 'a bővítmény nem tárolná a közelgő zárásokat',
+  },
+  {
+    file: 'extension/background.js',
+    needle: 'closingSoonFor(await loadLink(), hostOf(url), Date.now())',
+    lost: 'az újranézés válasza nem vinné a lapnak a közelgő zárást',
+  },
+  {
+    file: 'extension/content.js',
+    needle: 'if (r?.soon) showSoonBanner(r.soon); else hideSoonBanner();',
+    lost: 'a lap nem tenné ki a zárás előtti sávot',
+  },
 ];
 
 /**

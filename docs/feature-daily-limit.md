@@ -347,3 +347,8 @@ naponta oldalanként egyszer. A mag dönt (`stepLimitNotices`,
 mag-összhang őrzi). Rejtett listánál a sorszám vagy a fedőnév áll a név
 helyett. iPhone-on nincs: ott nincs helyi mérés, a keret a többi eszközről
 fogy — arról, hogy mikor, az iPhone csak a következő szinkronnál tudna.
+
+**A böngésző lapján is.** Az utolsó két percben a lap tetején egy sáv mondja,
+hogy a mai keretből ezen az oldalon már csak ennyi maradt. Az app a hídon a
+hátralévő aktív másodperceket adja le (nem időpontot — a keret csak az
+oldalon töltött idővel fogy), a bővítmény a lehúzás óta eltelt időt levonja.

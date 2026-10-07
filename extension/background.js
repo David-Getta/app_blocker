@@ -18,7 +18,7 @@ import { keywordHit, keywordInText } from './keywords.js';
 import { hitsReport, recordHit, sweepHits } from './hits.js';
 import { activeRules, cancelPendingRemovals, load, sweep } from './storage.js';
 import {
-  closedFor, currentTabHint, dueForRefresh, effectiveFocus, effectiveLockdown, focusAllows, loadLink, measureGuardFor,
+  closedFor, closingSoonFor, currentTabHint, dueForRefresh, effectiveFocus, effectiveLockdown, focusAllows, loadLink, measureGuardFor,
   postTabHint, pullFromApp,
   withAppRules,
   noteFor,
@@ -384,7 +384,12 @@ chrome.runtime.onMessage.addListener((msg, sender, respond) => {
   // Gépelés közben halasztunk: a lap mondja meg, gépelnek-e rajta (a saját,
   // izolált világából — a weboldal kódja ezt nem írhatja át).
   void enforce('újranézés', { tabId, url, frameId: 0 }, { record: false, defer: msg.editing === true })
-    .then((r) => respond({ ok: true, deferred: r?.deferred === true, reason: r?.reason ?? null }))
+    .then(async (r) => {
+      // A ZÁRÁS ELŐTTI SÁV: ha a lap még nyitva marad, de az utolsó percekben
+      // jár (szünet vége, menetrend, napi keret), a lap ebből szól előre.
+      const soon = r?.redirected ? null : closingSoonFor(await loadLink(), hostOf(url), Date.now());
+      respond({ ok: true, deferred: r?.deferred === true, reason: r?.reason ?? null, soon });
+    })
     .catch(() => respond({ ok: false }));
   return true; // aszinkron válasz
 });

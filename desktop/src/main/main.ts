@@ -10,6 +10,7 @@ import { registerSyncServerIpc } from './sync-server';
 import {
   extensionIncognitoOff, extensionSeenRecently, extensionTabHint, registerRulesBridge, stopRulesBridge,
 } from './rules-bridge-ipc';
+import { SOON_HORIZON_MS, type BridgeSoon } from './rules-bridge';
 import { isWindowLockdown, liveLockdown, upcomingLockdownWindows } from '../shared/lockdown';
 import {
   hideOverlay, takeWarning, toggleOverlay, unregisterOverlayShortcut, warnAboutForeground,
@@ -21,7 +22,8 @@ import {
   warnDue,
 } from '../shared/focus';
 import { isPeakDayNow } from '../shared/browser-hits';
-import { limitSoonLine } from '../shared/limits';
+import { limitRemaining, limitSoonLine } from '../shared/limits';
+import { nextCloseAt } from '../shared/schedule';
 import { displayName } from '../shared/alias';
 import * as path from 'path';
 import { HelperClient } from './helper-client';
@@ -32,6 +34,8 @@ import { needsMeasurement } from '../shared/measure-guard';
 
 /** Ennél több hosztnév nem megy le a mérés-őrrel (a bővítmény is ennyit tárol). */
 const MAX_GUARD_HOSTS = 2000;
+/** Ennél több közelgő zárás nem megy le (a bővítmény is ennyit tárol). */
+const MAX_SOON_HOSTS = 500;
 import {
   BACKGROUND_FLAG, closeAction, LAUNCH_AGENT_LABEL, launchAgentPlist, launchAgentUsable, startsHidden, WINDOWS_RUN_NAME,
 } from '../shared/background';
@@ -593,6 +597,33 @@ if (HELPER_MODE) {
             for (const h of site.hostnames) hosts.add(h);
           }
           return { hosts: [...hosts].slice(0, MAX_GUARD_HOSTS) };
+        },
+        async () => {
+          // A HAMAROSAN ZÁRULÓ, most még nyitott hosztnevek: a lap ebből szól
+          // előre az utolsó percekben. Ugyanazok a hosztnevek, mint a
+          // zárva-listán — a lap ne magyarázzon olyan címen, amit a DNS nem zár.
+          // A szünet erősebb a menetrendnél: szünet alatt csak a vége számít.
+          const s = await sharedStatus();
+          const now = Date.now();
+          const out: BridgeSoon[] = [];
+          for (const site of s.sites ?? []) {
+            if (site.blockedNow || site.pendingDeleteAt !== null) continue;
+            const hosts = site.hostnames ?? [];
+            const push = (e: Omit<BridgeSoon, 'host'>): void => {
+              for (const host of hosts) out.push({ host, ...e });
+            };
+            if (site.pauseUntil !== null && site.pauseUntil > now) {
+              if (site.pauseUntil - now <= SOON_HORIZON_MS) push({ kind: 'pause', at: site.pauseUntil });
+              continue;
+            }
+            if (site.schedule && site.schedule.mode !== 'always') {
+              const closes = nextCloseAt(site.schedule, now);
+              if (closes > now && closes - now <= SOON_HORIZON_MS) push({ kind: 'schedule', at: closes });
+            }
+            const left = limitRemaining(site.dailyLimitSeconds, site.usedTodaySeconds);
+            if (left !== null && left > 0 && left * 1000 <= SOON_HORIZON_MS) push({ kind: 'limit', left });
+          }
+          return out.slice(0, MAX_SOON_HOSTS);
         },
       );
       // Keep the tracker's view of the switch fresh without extra IPC chatter.

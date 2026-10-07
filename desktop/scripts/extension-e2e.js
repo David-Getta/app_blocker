@@ -843,6 +843,40 @@ async function main() {
     check((await page.locator('#szoveg').inputValue().catch(() => '')).startsWith('Félkész'), 'a szöveg megmarad');
     await seedFocus({ running: false }, Date.now());
 
+    // A ZÁRÁS ELŐTTI SÁV. A lap még nyitva, de a szünete másfél perc múlva
+    // véget ér: a tetején egy sáv mondja, mennyi van hátra — a lap nem fut a
+    // tiltó lapra. Bezárható, és ugyanarra a zárásra nem jön vissza.
+    const seedSoon = (soon) => seeder.evaluate((arg) => chrome.storage.local.set({
+      'breaker.applink': { ...arg.link, closed: [], soon: arg.soon, fetchedAt: Date.now() },
+    }), { link: LINK, soon });
+    await page.goto(`${base}/`);
+    await page.bringToFront();
+    await page.waitForTimeout(600);
+    await seedSoon([{ host: '127.0.0.1', kind: 'pause', at: Date.now() + 90_000 }]);
+    const soonText = await page.waitForFunction(
+      () => document.getElementById('breaker-soon')?.shadowRoot?.textContent || null,
+      undefined, { timeout: WAIT_MS },
+    ).then((h) => h.jsonValue()).catch(() => null);
+    check(typeof soonText === 'string' && /A szünet \d perc múlva véget ér/.test(soonText),
+      `a szünet vége előtt a lap tetején sáv szól (${soonText})`);
+    check((await browserUrl(page, context)) === `${base}/`, 'a sáv mellett a lap nyitva marad');
+    await page.evaluate(() => document.getElementById('breaker-soon')?.shadowRoot?.querySelector('button')?.click());
+    await seedSoon([{ host: '127.0.0.1', kind: 'pause', at: Date.now() + 80_000 }]);
+    await page.waitForTimeout(1500);
+    check(!(await page.evaluate(() => !!document.getElementById('breaker-soon'))), 'a bezárt sáv ugyanarra a zárásra nem jön vissza');
+    // A keret is: aktív idő, a lehúzáskor hátralévő másodpercekből.
+    await page.goto(`${base}/@jo`);
+    await page.bringToFront();
+    await page.waitForTimeout(600);
+    await seedSoon([{ host: '127.0.0.1', kind: 'limit', left: 70 }]);
+    const limitText = await page.waitForFunction(
+      () => document.getElementById('breaker-soon')?.shadowRoot?.textContent || null,
+      undefined, { timeout: WAIT_MS },
+    ).then((h) => h.jsonValue()).catch(() => null);
+    check(typeof limitText === 'string' && limitText.includes('A mai keretből'),
+      `a keret vége előtt is szól a sáv (${limitText})`);
+    await seedSoon([]);
+
     // A MÉRŐ JELE. Az összekötött bővítmény (kód, port) a hídon megmondja,
     // melyik oldal van elöl — ebből méri az app az oldalt ott, ahol a gép maga
     // nem tudja kiolvasni a címet. Egy kamu app fogadja; a /rules hibát ad,
