@@ -125,6 +125,30 @@ jobs:
       # Nincs npm ci: a kiszolgálónak szándékosan nincs függősége.
       - run: npm test
 
+  # A Windows-segéd SYSTEM-ként fut, az app a felhasználóé, NEM emelt jogokkal.
+  # Hogy a kettő beszélni tud-e, azt semmi más nem nézi: a többi teszt egy
+  # felhasználóval, egy gépen fut. Ez a próba a valódi szervert SYSTEM-ként
+  # indítja, és egy friss, sima helyi fiókkal kopogtat.
+  windows-helper-pipe:
+    name: Windows segéd-csatorna (SYSTEM-szerver, sima felhasználó)
+    runs-on: windows-latest
+    timeout-minutes: 15
+    # Első kör: felderítés — a kimenet a napló, a piros nem állítja meg a CI-t.
+    continue-on-error: true
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: npm ci
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+      - run: npx tsc -p tsconfig.json
+      - run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/win-pipe-probe.ps1
+
   android-core-tests:
     name: Android mag tesztek (JVM, SDK nélkül)
     runs-on: ubuntu-latest
