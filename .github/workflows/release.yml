@@ -44,22 +44,21 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **Mérés-őr: a kilépés sem kapcsolja ki a napi keretet.** A keret és
-          az adag a mért időből fogy, a mérés pedig az appban fut — ha
-          kilépsz belőle, a keret nem fogy, amíg újra nem indul. Aki ezt a
-          rést is be akarja zárni, a Statisztika kártyán bekapcsolja a
-          mérés-őrt: ha az app nem fut, a napi kerettel vagy adaggal védett
-          oldalak zárva vannak, amíg vissza nem jön. Bekapcsolni ingyen,
-          kikapcsolni próbatétel; a kifizetett feloldás ezt is felülírja.
+          **Biztonságosabb telepítés.** A háttérvédelem telepítése eddig egy
+          ideiglenes fájlt futtatott rendszergazdaként; egy, a gépen a te
+          nevedben már futó kártékony program a kiírás és a futtatás között
+          kicserélhette, és rendszergazdai jogot szerzett vele. Most a teljes
+          parancs a jóváhagyott folyamatnak közvetlenül megy át — nincs
+          fájl, amit ki lehetne cserélni.
 
-          ### Ami a v0.4.211-ben jött
+          ### Ami a v0.4.212-ben jött
 
-          **Az ablak bezárása többé nem kapcsolja ki a napi keretet** — az app
-          a háttérben fut tovább, és bejelentkezéskor magától indul.
+          **Mérés-őr: a kilépés sem kapcsolja ki a napi keretet** (a
+          Statisztika kártyán bekapcsolható).
 
-          #### Ami a v0.4.210-ben jött
+          #### Ami a v0.4.211-ben jött
 
-          **A tiltó lap nem ígér olyan feloldást, ami nincs.**
+          **Az ablak bezárása többé nem kapcsolja ki a napi keretet.**
 
           NOTES
           fi
