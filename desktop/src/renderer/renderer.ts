@@ -1438,7 +1438,7 @@ function recurrenceLabel(b: Band): string {
  * nincs nap vagy időpont: a hívó mondja meg, mit ír ki ilyenkor.
  */
 function bandFields(current: Band | undefined, defaults: { startMin: number; endMin: number }): {
-  box: HTMLElement; read: () => Band | null; set: (band: Band) => void;
+  box: HTMLElement; read: () => Band | null; set: (band: Band) => void; hasDays: () => boolean;
 } {
   const box = h('div', 'recurrence-editor');
   const selected = new Set<Weekday>(current?.days ?? [1, 2, 3, 4, 5]);
@@ -1494,7 +1494,7 @@ function bandFields(current: Band | undefined, defaults: { startMin: number; end
     end.value = minutesLabel(band.endMin);
     paint();
   };
-  return { box, read, set };
+  return { box, read, set, hasDays: () => selected.size > 0 };
 }
 
 function recurrenceEditor(pack: FocusPack, overlay: HTMLElement): HTMLElement {
@@ -3581,12 +3581,25 @@ function openScheduleDialog(site: SiteInfo): void {
 
   const current: Schedule = site.schedule ?? { mode: 'always', bands: [] };
   let mode: ScheduleMode = current.mode;
-  const selectedPresets = new Set<keyof typeof PRESET_BANDS>();
-  // seed preset selection from current bands (best effort by JSON match)
-  for (const { key } of PRESET_LABELS) {
-    if (current.bands.some((b) => JSON.stringify(b) === JSON.stringify(PRESET_BANDS[key]))) {
-      selectedPresets.add(key);
-    }
+  // A SÁVOK EGY LISTÁBAN: elöl a mostaniak — a saját sávok is, nem csak a
+  // sablonok —, utánuk a még fel nem vett sablonok, mindegyik egy pipával.
+  // Eddig a szerkesztő csak a sablonokat ismerte: egy nem sablon sávot az
+  // „Alkalmaz” csendben eldobott, és „sávokban szabad” módban ez ingyen ment
+  // (kevesebb szabad idő szigorítás) — a felhasználó észre sem vette.
+  const rows: { band: Band; label: string; on: boolean }[] = [];
+  const seen = new Set<string>();
+  for (const band of mode === 'always' ? [] : current.bands) {
+    const key = windowKey(band);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const preset = PRESET_LABELS.find((p) => windowKey(PRESET_BANDS[p.key]) === key);
+    rows.push({ band, label: preset?.label ?? recurrenceLabel(band), on: true });
+  }
+  for (const { key, label } of PRESET_LABELS) {
+    const band = PRESET_BANDS[key];
+    if (seen.has(windowKey(band))) continue;
+    seen.add(windowKey(band));
+    rows.push({ band, label, on: false });
   }
 
   const modeWrap = h('div', 'sched-modes');
@@ -3613,27 +3626,41 @@ function openScheduleDialog(site: SiteInfo): void {
   }
 
   presetWrap.appendChild(h('div', 'hint', 'Sávok:'));
-  for (const { key, label } of PRESET_LABELS) {
+  for (const r of rows) {
     const row = h('label', 'sched-radio');
     const cb = h('input') as HTMLInputElement;
-    cb.type = 'checkbox'; cb.checked = selectedPresets.has(key);
-    cb.addEventListener('change', () => {
-      if (cb.checked) selectedPresets.add(key); else selectedPresets.delete(key);
-    });
-    row.append(cb, document.createTextNode(' ' + label));
+    cb.type = 'checkbox'; cb.checked = r.on;
+    cb.addEventListener('change', () => { r.on = cb.checked; });
+    row.append(cb, document.createTextNode(' ' + r.label));
     presetWrap.appendChild(row);
   }
+  // SAJÁT SÁV: napok, kezdés, vég — ugyanazok a mezők, mint a heti ablaknál.
+  // Nap nélkül nem számít, így a mezők alapértéke nem kerül be magától.
+  presetWrap.appendChild(h('div', 'hint', 'Saját sáv — napok, kezdés, vég (nap nélkül nem számít):'));
+  const custom = bandFields({ days: [], startMin: 9 * 60, endMin: 17 * 60 }, { startMin: 9 * 60, endMin: 17 * 60 });
+  custom.box.id = 'schedCustom';
+  presetWrap.appendChild(custom.box);
   renderPresets();
 
   const err = h('p', 'error');
   err.classList.add('hidden');
   const apply = h('button', 'btn btn-primary', 'Alkalmaz');
   apply.addEventListener('click', async () => {
-    const bands = mode === 'always' ? [] : [...selectedPresets].map((k) => PRESET_BANDS[k]);
-    if (mode !== 'always' && bands.length === 0) {
-      err.textContent = 'Válassz legalább egy sávot, vagy a „Mindig tiltva” módot.';
+    const fail = (text: string): void => {
+      err.textContent = text;
       err.classList.remove('hidden');
-      return;
+    };
+    let bands: Band[] = [];
+    if (mode !== 'always') {
+      bands = rows.filter((r) => r.on).map((r) => r.band);
+      if (custom.hasDays()) {
+        const band = custom.read();
+        if (!band) return fail('Adj meg kezdést és véget a saját sávhoz.');
+        if (!bands.some((b) => windowKey(b) === windowKey(band))) bands.push(band);
+      }
+      if (bands.length === 0) {
+        return fail('Válassz legalább egy sávot, adj meg sajátot, vagy a „Mindig tiltva” módot.');
+      }
     }
     const schedule: Schedule = { mode, bands };
     try {
@@ -3645,8 +3672,7 @@ function openScheduleDialog(site: SiteInfo): void {
         openModal(r.session); // loosening -> challenges
       }
     } catch (e) {
-      err.textContent = (e as Error).message;
-      err.classList.remove('hidden');
+      fail((e as Error).message);
     }
   });
   const cancel = h('button', 'btn btn-ghost', 'Mégse');

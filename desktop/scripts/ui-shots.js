@@ -402,6 +402,14 @@ function fakeBridgeSource() {
           window.__selfTestCalls = (window.__selfTestCalls || 0) + 1;
           return { ok: true, data: status() };
         }
+        if (op === 'set_schedule') {
+          // A menetrend: a hamis híd feljegyzi, mit kapott — a füstteszt ebből
+          // látja, hogy a saját sáv és a meglévő sávok tényleg a hídig érnek.
+          window.__lastSchedule = payload;
+          const site = window.__fakeSites.find((x) => x.id === payload.siteId);
+          if (site) site.schedule = payload.schedule;
+          return { ok: true, data: { applied: true, session: null } };
+        }
         return { ok: true, data: {} };
       },
       install: async () => ({ ok: true }),
@@ -1582,9 +1590,74 @@ async function main() {
     .getByRole('button', { name: /Menetrend/ }).click();
   // the editor is built on the fly (no id), so anchor on its heading
   await page.getByRole('heading', { name: /Menetrend:/ }).waitFor({ timeout: 10_000 });
+
+  // A SAJÁT SÁV. A szerkesztő eddig csak a három sablont ismerte: egy nem
+  // sablon sávot (a telefonról, a szinkronon át) az „Alkalmaz” csendben
+  // eldobott. Most a mostani sávok — a sajátok is — pipával állnak ott, és
+  // a napok + két időpont egy új sávot ad hozzá.
+  await page.getByRole('button', { name: /^Mégse$/ }).click().catch(() => { /* már zárva */ });
+  const redditRow = page.locator('#siteList .site-row', { hasText: 'reddit.com' }).first();
+  const scheduleSent = () => page.evaluate(() => JSON.stringify(window.__lastSchedule?.schedule ?? null));
+  // (a) Változtatás nélkül az „Alkalmaz” ugyanazt küldi vissza: a sablon sáv
+  // pipával áll ott, a többi sablon pipa nélkül.
+  await redditRow.getByRole('button', { name: /Menetrend/ }).click();
+  await page.getByRole('heading', { name: /Menetrend: reddit\.com/ }).waitFor({ timeout: 10_000 });
+  const presetOn = await page.getByRole('checkbox', { name: /Munkaidő \(H–P 9–17\)/ }).isChecked().catch(() => null);
+  const eveningOn = await page.getByRole('checkbox', { name: /Esti lekapcsolás/ }).isChecked().catch(() => null);
+  if (presetOn !== true || eveningOn !== false) {
+    failures.push(`menetrend: a mostani sablon sáv nincs bepipálva, vagy egy másik igen (munkaidő: ${presetOn}, esti: ${eveningOn})`);
+  }
+  await page.getByRole('button', { name: /^Alkalmaz$/ }).click();
+  const untouched = await scheduleSent();
+  if (untouched !== JSON.stringify({ mode: 'scheduled_block', bands: [{ days: [1, 2, 3, 4, 5], startMin: 540, endMin: 1020 }] })) {
+    failures.push(`menetrend: változtatás nélkül mást küldött vissza: ${untouched}`);
+  }
+  // (b) Egy SAJÁT sáv a mostaniak közt — a telefonról jöhetett. Pipával
+  // látszik, a saját mezőkkel egy újat adunk mellé, és mindkettő a hídig ér.
+  await page.evaluate(() => {
+    const site = window.__fakeSites.find((x) => x.id === 'site_2');
+    site.schedule = { mode: 'scheduled_block', bands: [{ days: [1, 3], startMin: 1110, endMin: 1230 }] };
+  });
+  await redditRow.getByRole('button', { name: /Menetrend/ }).click();
+  await page.getByRole('heading', { name: /Menetrend: reddit\.com/ }).waitFor({ timeout: 10_000 });
+  const ownOn = await page.getByRole('checkbox', { name: /H, Sze 18:30–20:30/ }).isChecked().catch(() => null);
+  if (ownOn !== true) failures.push(`menetrend: a meglévő saját sáv nem látszik bepipálva (${ownOn})`);
+  await page.locator('#schedCustom').getByRole('button', { name: 'péntek' }).click();
+  await page.locator('#schedCustom input[aria-label="kezdés"]').fill('07:00');
+  await page.locator('#schedCustom input[aria-label="vég"]').fill('08:00');
+  // A képernyőkép itt: a meglévő saját sáv pipával, a sablonok, és egy új
+  // saját sáv kitöltve — a szerkesztő minden része egyszerre látszik.
+  await page.locator('#schedCustom input[aria-label="vég"]').blur();
   if (!CHECK_ONLY) {
     await page.screenshot({ path: path.join(OUT, 'desktop-schedule.png'), fullPage: false });
   }
+  await page.getByRole('button', { name: /^Alkalmaz$/ }).click();
+  const withOwn = await scheduleSent();
+  const want = JSON.stringify({ mode: 'scheduled_block', bands: [
+    { days: [1, 3], startMin: 1110, endMin: 1230 }, { days: [5], startMin: 420, endMin: 480 },
+  ] });
+  if (withOwn !== want) failures.push(`menetrend: a saját sáv nem így ért a hídig: ${withOwn} (várt: ${want})`);
+  // (c) Pipa és nap nélkül nincs mit alkalmazni — kimondja, nem küld üreset.
+  await page.evaluate(() => { window.__lastSchedule = undefined; });
+  await redditRow.getByRole('button', { name: /Menetrend/ }).click();
+  await page.getByRole('heading', { name: /Menetrend: reddit\.com/ }).waitFor({ timeout: 10_000 });
+  for (const cb of await page.locator('.sched-presets input[type="checkbox"]').all()) {
+    if (await cb.isChecked()) await cb.uncheck();
+  }
+  await page.getByRole('button', { name: /^Alkalmaz$/ }).click();
+  const emptyErr = await page.getByText(/Válassz legalább egy sávot/).isVisible({ timeout: 5_000 }).catch(() => false);
+  if (!emptyErr || (await scheduleSent()) !== 'null') {
+    failures.push(`menetrend: üres sávlistánál nem szólt (${emptyErr}), vagy mégis küldött (${await scheduleSent()})`);
+  }
+  await page.getByRole('button', { name: /^Mégse$/ }).click().catch(() => { /* már zárva */ });
+  await page.evaluate(() => {
+    const site = window.__fakeSites.find((x) => x.id === 'site_2');
+    site.schedule = { mode: 'scheduled_block', bands: [{ days: [1, 2, 3, 4, 5], startMin: 540, endMin: 1020 }] };
+  });
+  // A következő lépés a menetrend-szerkesztőt nyitva várja (onnan csukja be).
+  await page.locator('#siteList .site-row').first()
+    .getByRole('button', { name: /Menetrend/ }).click();
+  await page.getByRole('heading', { name: /Menetrend:/ }).waitFor({ timeout: 10_000 });
 
   // --------------------------------------------------------------- fedőnév
   //

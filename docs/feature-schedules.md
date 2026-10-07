@@ -90,9 +90,19 @@ próbákkal, és a váltás csak a sorozat teljesítése után íródik be.
 ## UI (kész)
 
 Mindhárom platformon van „Menetrend…” gomb az oldalsoron, ami egy szerkesztőt
-nyit: mód-választó (mindig tiltva / sávokban tiltva / sávokban szabad) + sáv-
-sablonok („Munkaidő H–P 9–17”, „Esti lekapcsolás 22–06”, „Hétvége”). Lazításnál
-a próbatétel-folyamat indul. Az oldalsor a menetrend szerinti aktuális állapotot
+nyit: mód-választó (mindig tiltva / sávokban tiltva / sávokban szabad), a sávok
+listája pipával, és egy saját sáv. A listában elöl a mostani sávok állnak — a
+saját sávok is, a felületen ugyanúgy leírva, mint a heti ablakok („H, Sze
+18:30–20:30”) —, utánuk a még fel nem vett sablonok („Munkaidő H–P 9–17”,
+„Esti lekapcsolás 22–06”, „Hétvége”). A saját sáv: napok, kezdés, vég —
+ugyanazok a mezők, mint a heti ablaknál; nap nélkül nem számít, a „00:00” vég
+az éjfél. Lazításnál a próbatétel-folyamat indul.
+
+A szerkesztő eddig csak a sablonokat ismerte: egy nem sablon sávot (egy másik
+eszközről, a szinkronon át) az „Alkalmaz” csendben eldobott — „sávokban
+szabad” módban ráadásul ingyen, mert a kevesebb szabad idő szigorítás. Most
+a mostani sávok pipával állnak ott, és csak az esik ki, amiről a pipát
+leveszed. A `check-enforcement.js` mindhárom szerkesztőben őrzi. Az oldalsor a menetrend szerinti aktuális állapotot
 is mutatja („most blokkolva” / „most szabad”).
 
 - Desktop: renderer modal (screenshot: `docs/images/desktop-schedule.png`),
@@ -100,8 +110,8 @@ is mutatja („most blokkolva” / „most szabad”).
 - Android: Compose `ScheduleDialog` (AppUi.kt).
 - iOS/macOS: SwiftUI `ScheduleEditor` (App/ScheduleEditor.swift).
 
-Későbbi finomítás: szabadon szerkeszthető heti rács (napok × órák) a sablonok
-mellé.
+Szabadon szerkeszthető heti rács (napok × órák) nincs: a sávok listája és a
+saját sáv ugyanazt kifejezi, és a heti ablak szerkesztőjével egy a nyelvük.
 
 ## A következő nyitás kiszámolható tény
 

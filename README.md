@@ -34,8 +34,9 @@ ingyen van, rövidíteni vagy visszavonni sehogy.
 - **Végleges törlés 24 órás türelmi idővel** — a legnehezebb út, ami impulzusból
   nem végezhető el.
 - **Időzített menetrend**: egy oldal tiltható csak bizonyos sávokban (pl. munkaidő),
-  vagy fordítva, csak bizonyos sávokban engedélyezhető. Szigorítani egy kattintás,
-  **lazítani ugyanúgy próbatételekbe kerül**, mint egy feloldás.
+  vagy fordítva, csak bizonyos sávokban engedélyezhető — sablonból vagy saját
+  sávval (napok, kezdés, vég). Szigorítani egy kattintás, **lazítani ugyanúgy
+  próbatételekbe kerül**, mint egy feloldás.
 - **Aktív idő mérése és statisztikák**: melyik oldalon és appban mennyit töltesz —
   **csak amikor tényleg ott vagy** (fókuszban lévő ablak, aktív fül, nem tétlen),
   nem attól, hogy nyitva van. Ahol a gép a böngésző címét nem látja (macOS-en

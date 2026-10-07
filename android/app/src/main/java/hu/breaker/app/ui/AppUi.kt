@@ -1590,6 +1590,10 @@ private val SCHEDULE_PRESETS = listOf(
     Triple("Hétvége (Szo–V egész nap)", "weekend", ScheduleLogic.Band(setOf(0, 6), 0, 1440)),
 )
 
+/** A menetrend-szerkesztő egy sora: a sáv és a felirata (sablonnév, vagy a sáv maga). */
+private data class ScheduleRow(val label: String, val band: ScheduleLogic.Band)
+
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ScheduleDialog(
     site: Site,
@@ -1599,17 +1603,41 @@ private fun ScheduleDialog(
     onError: (String) -> Unit,
 ) {
     var mode by remember { mutableStateOf(site.schedule?.mode ?: ScheduleLogic.Mode.ALWAYS) }
-    val selected = remember {
-        mutableStateListOf<String>().apply {
-            val bands = site.schedule?.bands ?: emptyList()
-            for ((_, key, band) in SCHEDULE_PRESETS) if (bands.contains(band)) add(key)
+    // A SÁVOK EGY LISTÁBAN, mint a gépen: elöl a mostaniak — a saját sávok is,
+    // nem csak a sablonok —, utánuk a még fel nem vett sablonok, mindegyik egy
+    // pipával. Eddig a szerkesztő csak a sablonokat ismerte: egy nem sablon
+    // sávot (a gépről, a szinkronon át) az „Alkalmaz” csendben eldobott.
+    val rows = remember {
+        val out = mutableListOf<ScheduleRow>()
+        val seen = mutableSetOf<String>()
+        val current = site.schedule?.takeIf { it.mode != ScheduleLogic.Mode.ALWAYS }?.bands ?: emptyList()
+        for (b in current) {
+            val key = LockdownLogic.windowKey(b)
+            if (!seen.add(key)) continue
+            val preset = SCHEDULE_PRESETS.firstOrNull { LockdownLogic.windowKey(it.third) == key }
+            out.add(ScheduleRow(preset?.first ?: recurrenceLabel(b), b))
         }
+        val nowOn = out.size
+        for ((label, _, band) in SCHEDULE_PRESETS) {
+            if (seen.add(LockdownLogic.windowKey(band))) out.add(ScheduleRow(label, band))
+        }
+        out.toList() to nowOn
     }
+    val checked = remember { mutableStateListOf<Boolean>().apply { repeat(rows.first.size) { add(it < rows.second) } } }
+    // SAJÁT SÁV: napok és két időpont — ugyanaz, mint a heti ablaknál. Nap
+    // nélkül nem számít, így a mezők alapértéke nem kerül be magától.
+    val customDays = remember { mutableStateListOf<Int>() }
+    var customStart by remember { mutableStateOf("09:00") }
+    var customEnd by remember { mutableStateOf("17:00") }
+    val dayNames = listOf("V", "H", "K", "Sze", "Cs", "P", "Szo")
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Menetrend: ${AliasLogic.displayName(site)}") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Column(
+                Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
                 Text(
                     "Szigorítani (több tiltott idő) azonnal megy. Lazítani ugyanúgy próbatételekbe kerül, mint egy feloldás.",
                     style = MaterialTheme.typography.bodySmall,
@@ -1627,24 +1655,54 @@ private fun ScheduleDialog(
                 }
                 if (mode != ScheduleLogic.Mode.ALWAYS) {
                     Text("Sávok:", style = MaterialTheme.typography.bodySmall)
-                    for ((label, key, _) in SCHEDULE_PRESETS) {
+                    rows.first.forEachIndexed { i, row ->
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Checkbox(
-                                checked = selected.contains(key),
-                                onCheckedChange = { on -> if (on) selected.add(key) else selected.remove(key) },
-                            )
-                            Text(label, style = MaterialTheme.typography.bodyMedium)
+                            Checkbox(checked = checked[i], onCheckedChange = { on -> checked[i] = on })
+                            Text(row.label, style = MaterialTheme.typography.bodyMedium)
                         }
+                    }
+                    Text(
+                        "Saját sáv — napok, kezdés, vég (nap nélkül nem számít):",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        for (d in listOf(1, 2, 3, 4, 5, 6, 0)) {
+                            FilterChip(
+                                selected = d in customDays,
+                                onClick = { if (d in customDays) customDays.remove(d) else customDays.add(d) },
+                                label = { Text(dayNames[d]) },
+                            )
+                        }
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedTextField(
+                            value = customStart, onValueChange = { customStart = it.take(5) },
+                            label = { Text("Kezdés") }, singleLine = true, modifier = Modifier.weight(1f),
+                        )
+                        OutlinedTextField(
+                            value = customEnd, onValueChange = { customEnd = it.take(5) },
+                            label = { Text("Vég") }, singleLine = true, modifier = Modifier.weight(1f),
+                        )
                     }
                 }
             }
         },
         confirmButton = {
             TextButton(onClick = {
-                val bands = if (mode == ScheduleLogic.Mode.ALWAYS) emptyList()
-                    else SCHEDULE_PRESETS.filter { selected.contains(it.second) }.map { it.third }
-                if (mode != ScheduleLogic.Mode.ALWAYS && bands.isEmpty()) {
-                    onError("Válassz legalább egy sávot, vagy a „Mindig tiltva” módot."); return@TextButton
+                val bands = mutableListOf<ScheduleLogic.Band>()
+                if (mode != ScheduleLogic.Mode.ALWAYS) {
+                    rows.first.forEachIndexed { i, row -> if (checked[i]) bands.add(row.band) }
+                    if (customDays.isNotEmpty()) {
+                        val band = customBandOf(customDays.toSet(), customStart, customEnd)
+                        if (band == null) {
+                            onError("A saját sáv kezdése és vége ÓÓ:PP alakú legyen, például 08:30."); return@TextButton
+                        }
+                        if (bands.none { LockdownLogic.windowKey(it) == LockdownLogic.windowKey(band) }) bands.add(band)
+                    }
+                    if (bands.isEmpty()) {
+                        onError("Válassz legalább egy sávot, adj meg sajátot, vagy a „Mindig tiltva” módot.")
+                        return@TextButton
+                    }
                 }
                 try {
                     val r = Referee.startScheduleChange(
@@ -2207,13 +2265,11 @@ private fun LockdownWindowDialog(
                     .map { (_, _, band) -> LockdownLogic.LockdownWindow("", band.days, band.startMin, band.endMin) }
                     .toMutableList()
                 if (customDays.isNotEmpty()) {
-                    val s = parseClock(customStart)
-                    val e = parseClock(customEnd)
-                    if (s == null || e == null) {
+                    val band = customBandOf(customDays.toSet(), customStart, customEnd)
+                    if (band == null) {
                         onError("A saját sáv kezdése és vége ÓÓ:PP alakú legyen, például 08:30."); return@TextButton
                     }
-                    // A „00:00” végként az éjfél: a sáv 1440-nel írja le, nem nullával.
-                    added.add(LockdownLogic.LockdownWindow(existing?.id ?: "", customDays.toSet(), s, if (e == 0) 1440 else e))
+                    added.add(LockdownLogic.LockdownWindow(existing?.id ?: "", band.days, band.startMin, band.endMin))
                 }
                 if (added.isEmpty()) {
                     onError(
@@ -2250,6 +2306,19 @@ private fun parseClock(v: String): Int? {
 
 /** 540 → „09:00”; az 1440 (éjfél mint vég) „00:00” — a szerkesztő ezt vissza is olvassa 1440-nek. */
 private fun clockLabel(min: Int): String = "%02d:%02d".format((min % 1440) / 60, min % 60)
+
+/**
+ * A szerkesztők saját sávja (menetrend, heti ablak): napok és két beírt
+ * időpont — vagy null, ha az időpont nem óra:perc alakú. A „00:00” végként az
+ * éjfél: a sáv 1440-nel írja le, nem nullával. A „24:00” kezdésként nem nap
+ * eleje, hanem érvénytelen — a mag eldobná, és a sáv csendben elveszne.
+ */
+private fun customBandOf(days: Set<Int>, start: String, end: String): ScheduleLogic.Band? {
+    val s = parseClock(start) ?: return null
+    val e = parseClock(end) ?: return null
+    if (s >= 1440) return null
+    return ScheduleLogic.Band(days, s, if (e == 0) 1440 else e)
+}
 
 
 /**

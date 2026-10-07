@@ -2,6 +2,11 @@ import SwiftUI
 
 /// Weekly schedule editor. Mirrors the desktop editor: tightening applies
 /// immediately, loosening returns a challenge session id to open.
+///
+/// A SÁVOK EGY LISTÁBAN, mint a gépen: elöl a mostaniak — a saját sávok is,
+/// nem csak a sablonok —, utánuk a még fel nem vett sablonok, mindegyik egy
+/// kapcsolóval. Eddig a szerkesztő csak a sablonokat ismerte: egy nem sablon
+/// sávot (a gépről, a szinkronon át) az „Alkalmaz” csendben eldobott.
 struct ScheduleEditor: View {
     let site: Site
     let onResult: (Result) -> Void
@@ -17,17 +22,57 @@ struct ScheduleEditor: View {
         ("Hétvége (Szo–V egész nap)", "weekend", .init(days: [0, 6], startMin: 0, endMin: 1440)),
     ]
 
+    /// A szerkesztő egy sora: a sáv és a felirata (sablonnév, vagy a sáv maga).
+    private struct Row {
+        let label: String
+        let band: ScheduleLogic.Band
+    }
+
+    private let rows: [Row]
     @State private var mode: ScheduleLogic.Mode
-    @State private var selected: Set<String>
+    @State private var checked: [Bool]
+    // SAJÁT SÁV: napok és két időpont — ugyanaz, mint a heti ablaknál. Nap
+    // nélkül nem számít, így a választók alapértéke nem kerül be magától.
+    @State private var customDays = Set<Int>()
+    @State private var customStart: Date
+    @State private var customEnd: Date
+    private let dayNames = ["V", "H", "K", "Sze", "Cs", "P", "Szo"]
 
     init(site: Site, onResult: @escaping (Result) -> Void) {
         self.site = site
         self.onResult = onResult
         _mode = State(initialValue: site.schedule?.mode ?? .always)
-        var initial = Set<String>()
-        let bands = site.schedule?.bands ?? []
-        for p in Self.presets where bands.contains(p.band) { initial.insert(p.key) }
-        _selected = State(initialValue: initial)
+        var out: [Row] = []
+        var seen = Set<String>()
+        let current: [ScheduleLogic.Band] = site.schedule.map { $0.mode == .always ? [] : $0.bands } ?? []
+        for b in current {
+            let key = LockdownLogic.windowKey(b)
+            if seen.contains(key) { continue }
+            seen.insert(key)
+            let preset = Self.presets.first { LockdownLogic.windowKey($0.band) == key }
+            out.append(Row(label: preset?.label ?? recurrenceLabel(b), band: b))
+        }
+        let nowOn = out.count
+        for p in Self.presets {
+            let key = LockdownLogic.windowKey(p.band)
+            if seen.contains(key) { continue }
+            seen.insert(key)
+            out.append(Row(label: p.label, band: p.band))
+        }
+        rows = out
+        _checked = State(initialValue: out.indices.map { $0 < nowOn })
+        _customStart = State(initialValue: Self.clock(9 * 60))
+        _customEnd = State(initialValue: Self.clock(17 * 60))
+    }
+
+    /// Perc-a-napban → a választó dátuma; az 1440 (éjfél mint vég) 00:00.
+    private static func clock(_ min: Int) -> Date {
+        Calendar.current.date(from: DateComponents(hour: (min % 1440) / 60, minute: min % 60)) ?? Date()
+    }
+
+    private func minutes(_ date: Date) -> Int {
+        let c = Calendar.current.dateComponents([.hour, .minute], from: date)
+        return (c.hour ?? 0) * 60 + (c.minute ?? 0)
     }
 
     var body: some View {
@@ -46,12 +91,24 @@ struct ScheduleEditor: View {
                 }
                 if mode != .always {
                     Section("Sávok") {
-                        ForEach(Self.presets, id: \.key) { p in
-                            Toggle(p.label, isOn: Binding(
-                                get: { selected.contains(p.key) },
-                                set: { on in if on { selected.insert(p.key) } else { selected.remove(p.key) } }
-                            ))
+                        ForEach(rows.indices, id: \.self) { i in
+                            Toggle(rows[i].label, isOn: $checked[i])
                         }
+                    }
+                    Section("Saját sáv") {
+                        HStack(spacing: 6) {
+                            ForEach([1, 2, 3, 4, 5, 6, 0], id: \.self) { d in
+                                Button(dayNames[d]) {
+                                    if customDays.contains(d) { customDays.remove(d) } else { customDays.insert(d) }
+                                }
+                                .buttonStyle(.bordered)
+                                .tint(customDays.contains(d) ? Color.accentColor : Color.secondary)
+                            }
+                        }
+                        DatePicker("Kezdés", selection: $customStart, displayedComponents: .hourAndMinute)
+                        DatePicker("Vég", selection: $customEnd, displayedComponents: .hourAndMinute)
+                        Text("A nap kijelölése nélkül a saját sáv nem számít.")
+                            .font(.footnote).foregroundStyle(.secondary)
                     }
                 }
             }
@@ -64,10 +121,20 @@ struct ScheduleEditor: View {
     }
 
     private func apply() {
-        let bands = mode == .always ? []
-            : Self.presets.filter { selected.contains($0.key) }.map { $0.band }
-        if mode != .always && bands.isEmpty {
-            onResult(.error("Válassz legalább egy sávot, vagy a „Mindig tiltva” módot.")); return
+        var bands: [ScheduleLogic.Band] = []
+        if mode != .always {
+            for (i, row) in rows.enumerated() where checked[i] { bands.append(row.band) }
+            if !customDays.isEmpty {
+                // A „00:00” végként az éjfél: a sáv 1440-nel írja le, nem nullával.
+                let end = minutes(customEnd)
+                let band = ScheduleLogic.Band(
+                    days: customDays.sorted(), startMin: minutes(customStart), endMin: end == 0 ? 1440 : end)
+                let key = LockdownLogic.windowKey(band)
+                if !bands.contains(where: { LockdownLogic.windowKey($0) == key }) { bands.append(band) }
+            }
+            if bands.isEmpty {
+                onResult(.error("Válassz legalább egy sávot, adj meg sajátot, vagy a „Mindig tiltva” módot.")); return
+            }
         }
         do {
             let r = try Referee.startScheduleChange(

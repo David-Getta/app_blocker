@@ -3525,6 +3525,42 @@ const WIRES = [
     needle: 'val bursts = BurstLogic.shiftCooldowns(state.bursts, last, shift)',
     lost: 'az óra előretekerése egy egész hűtést (adag-szünetet) átugorna Androidon',
   },
+
+  // A MENETREND SAJÁT SÁVJA. A szerkesztő eddig csak a három sablont ismerte:
+  // egy nem sablon sávot (egy másik eszközről, a szinkronon át) az „Alkalmaz”
+  // csendben eldobott — „sávokban szabad” módban ingyen, mert a kevesebb
+  // szabad idő szigorítás. Ha egy szerkesztő visszatér a sablon-pipákhoz, a
+  // saját sáv megint elveszik, és semmi nem hasal el tőle.
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: "for (const band of mode === 'always' ? [] : current.bands) {",
+    lost: 'a gépi menetrend-szerkesztő egy nem sablon sávot csendben eldobna',
+  },
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: 'if (custom.hasDays()) {',
+    lost: 'a gépi menetrend-szerkesztőben nem lehetne saját sávot megadni',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/AppUi.kt',
+    needle: 'val current = site.schedule?.takeIf { it.mode != ScheduleLogic.Mode.ALWAYS }?.bands ?: emptyList()',
+    lost: 'az Android menetrend-szerkesztője egy nem sablon sávot csendben eldobna',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/AppUi.kt',
+    needle: 'if (bands.none { LockdownLogic.windowKey(it) == LockdownLogic.windowKey(band) }) bands.add(band)',
+    lost: 'az Android menetrend-szerkesztőjében nem lehetne saját sávot megadni',
+  },
+  {
+    file: 'ios/App/ScheduleEditor.swift',
+    needle: 'let current: [ScheduleLogic.Band] = site.schedule.map { $0.mode == .always ? [] : $0.bands } ?? []',
+    lost: 'az iPhone menetrend-szerkesztője egy nem sablon sávot csendben eldobna',
+  },
+  {
+    file: 'ios/App/ScheduleEditor.swift',
+    needle: 'days: customDays.sorted(), startMin: minutes(customStart), endMin: end == 0 ? 1440 : end)',
+    lost: 'az iPhone menetrend-szerkesztőjében nem lehetne saját sávot megadni',
+  },
 ];
 
 /**
