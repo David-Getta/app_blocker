@@ -680,6 +680,29 @@ export function effectiveFocus(link, now = Date.now()) {
   return live;
 }
 
+/**
+ * Indul-e HAMAROSAN heti ablakos munkamenet, ami ezt a lapot zárja: `{ kind:
+ * 'focus', leftMs, name }`, vagy null — a zárás előtti sáv másik fele.
+ *
+ * A tárolt ablakokból számol, ugyanúgy, ahogy a menetet a bővítmény az app
+ * nélkül is érvényesíti (`effectiveFocus`): ha az ablak a listán van, a menet
+ * el is indul. Csak az utolsó `SOON_BANNER_MS`-ben, és csak ha ez az oldal
+ * NINCS a csomagban (egyezés vagy aldomain, mint a `focusAllows`-nál). Ha már
+ * fut menet, nincs mit előre mondani: a nem engedett lap már zárva.
+ */
+export function focusStartingSoonFor(link, host, now = Date.now()) {
+  const h = String(host ?? '').trim().toLowerCase().replace(/\.+$/, '');
+  if (!h || effectiveFocus(link, now)) return null;
+  let best = null;
+  for (const w of link?.focus?.windows ?? []) {
+    const leftMs = w.startsAt - now;
+    if (!(leftMs > 0) || leftMs > SOON_BANNER_MS) continue;
+    if ((w.allowSites ?? []).some((a) => h === a || h.endsWith(`.${a}`))) continue;
+    if (best === null || leftMs < best.leftMs) best = { kind: 'focus', leftMs, name: w.name ?? '' };
+  }
+  return best;
+}
+
 /** Fut-e MOST munkamenet (a hatásos, lásd `effectiveFocus`). */
 export function focusActive(link, now = Date.now()) {
   return effectiveFocus(link, now) !== null;

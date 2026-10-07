@@ -49,7 +49,11 @@ múlva véget ér — utána ez az oldal újra zárva.”). Az app a hídon adja
 közelgő zárásokat (`soon`), a háttér az újranézés válaszába teszi, a lap csak
 kimondja. Bezárható, és ugyanarra a zárásra nem jön vissza. Régi jelre nem
 szól (a szünetet azóta visszakapcsolhattad), csak pontos hosztnévre; a keretnél
-a lehúzás óta eltelt időt levonja — inkább korábban, mint későn.
+a lehúzás óta eltelt időt levonja — inkább korábban, mint későn. A heti
+ablakos munkamenet indulása előtt is szól, ha az oldal nincs a csomagban
+(„Munkamenet indul 2 perc múlva (Nyelvtanulás) — ez az oldal nincs benne,
+akkor zárul.”): ezt a bővítmény a tárolt ablakokból maga számolja, ugyanúgy,
+ahogy a menetet az app nélkül is érvényesíti.
 
 **A két réteg egymás mellett áll, nem egymás helyett.** Aki azt akarja, hogy egy
 oldal egyáltalán ne menjen, az az appban tiltsa le az egészet. Ez a réteg az

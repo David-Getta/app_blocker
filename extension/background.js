@@ -18,7 +18,8 @@ import { keywordHit, keywordInText } from './keywords.js';
 import { hitsReport, recordHit, sweepHits } from './hits.js';
 import { activeRules, cancelPendingRemovals, load, sweep } from './storage.js';
 import {
-  closedFor, closingSoonFor, currentTabHint, dueForRefresh, effectiveFocus, effectiveLockdown, focusAllows, loadLink, measureGuardFor,
+  closedFor, closingSoonFor, currentTabHint, dueForRefresh, effectiveFocus, effectiveLockdown, focusAllows,
+  focusStartingSoonFor, loadLink, measureGuardFor,
   postTabHint, pullFromApp,
   withAppRules,
   noteFor,
@@ -387,12 +388,25 @@ chrome.runtime.onMessage.addListener((msg, sender, respond) => {
     .then(async (r) => {
       // A ZÁRÁS ELŐTTI SÁV: ha a lap még nyitva marad, de az utolsó percekben
       // jár (szünet vége, menetrend, napi keret), a lap ebből szól előre.
-      const soon = r?.redirected ? null : closingSoonFor(await loadLink(), hostOf(url), Date.now());
+      const soon = r?.redirected ? null : soonestClose(await loadLink(), hostOf(url), Date.now());
       respond({ ok: true, deferred: r?.deferred === true, reason: r?.reason ?? null, soon });
     })
     .catch(() => respond({ ok: false }));
   return true; // aszinkron válasz
 });
+
+/**
+ * A zárás előtti sávnak a KÖZELEBBI zárás: az app jele (szünet vége,
+ * menetrend, napi keret) vagy egy induló heti ablakos menet, ami ezt a lapot
+ * nem engedi — vagy null.
+ */
+function soonestClose(link, host, now) {
+  const a = closingSoonFor(link, host, now);
+  const b = focusStartingSoonFor(link, host, now);
+  if (!a) return b;
+  if (!b) return a;
+  return b.leftMs < a.leftMs ? b : a;
+}
 
 // A MÉRŐ JELE (lásd app-link.js `currentTabHint`): melyik oldal van elöl. Fül-
 // és ablakváltáskor, navigáláskor azonnal, és a látható lapok újranézésekor

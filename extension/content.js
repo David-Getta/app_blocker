@@ -108,6 +108,8 @@ const SOON_WORDS = {
   pause: (n) => `A szünet ${n} perc múlva véget ér — utána ez az oldal újra zárva. Mentsd el, amit írsz.`,
   schedule: (n) => `A menetrend szerint ez az oldal ${n} perc múlva zárul. Mentsd el, amit írsz.`,
   limit: (n) => `A mai keretből ezen az oldalon kevesebb mint ${n} perc maradt. Mentsd el, amit írsz.`,
+  focus: (n, name) => `Munkamenet indul ${n} perc múlva${name ? ` (${name})` : ''} — ez az oldal nincs benne, `
+    + 'akkor zárul. Mentsd el, amit írsz.',
 };
 let soonBanner = null;
 let soonText = null;
@@ -116,7 +118,7 @@ function showSoonBanner(soon) {
   const words = SOON_WORDS[soon?.kind];
   if (!words || closingBanner) return hideSoonBanner();
   if (soonDismissed === soon.kind) return;
-  const text = words(Math.max(1, Math.ceil(soon.leftMs / 60_000)));
+  const text = words(Math.max(1, Math.ceil(soon.leftMs / 60_000)), typeof soon.name === 'string' ? soon.name : '');
   if (soonBanner) {
     soonText.textContent = text;
     return;

@@ -27,6 +27,8 @@ function loadSoon(): {
   FOCUS_FRESH_MS: number;
   cleanSoon: (list: unknown) => { host: string; kind: string; at?: number; left?: number }[];
   closingSoonFor: (link: unknown, host: unknown, now?: number) => { kind: string; leftMs: number } | null;
+  focusStartingSoonFor: (link: unknown, host: unknown, now?: number) =>
+    { kind: string; leftMs: number; name: string } | null;
 } {
   const src = fs.readFileSync(path.join(extensionDir(), 'app-link.js'), 'utf8');
   const pick = (re: RegExp, what: string): string => {
@@ -41,14 +43,16 @@ function loadSoon(): {
     pick(/export function appFresh\(link[\s\S]*?\n\}/, 'appFresh'),
     pick(/export function cleanSoon\(list\) \{[\s\S]*?\n\}/, 'cleanSoon'),
     pick(/export function closingSoonFor\(link, host[\s\S]*?\n\}/, 'closingSoonFor'),
+    pick(/export function effectiveFocus\(link[\s\S]*?\n\}/, 'effectiveFocus'),
+    pick(/export function focusStartingSoonFor\(link, host[\s\S]*?\n\}/, 'focusStartingSoonFor'),
   ];
   // eslint-disable-next-line no-new-func
   return new Function(
-    `${parts.join('\n')}\nreturn { MAX_SOON, SOON_BANNER_MS, FOCUS_FRESH_MS, cleanSoon, closingSoonFor };`,
+    `${parts.join('\n')}\nreturn { MAX_SOON, SOON_BANNER_MS, FOCUS_FRESH_MS, cleanSoon, closingSoonFor, focusStartingSoonFor };`,
   )() as ReturnType<typeof loadSoon>;
 }
 
-const { MAX_SOON, SOON_BANNER_MS, FOCUS_FRESH_MS, cleanSoon, closingSoonFor } = loadSoon();
+const { MAX_SOON, SOON_BANNER_MS, FOCUS_FRESH_MS, cleanSoon, closingSoonFor, focusStartingSoonFor } = loadSoon();
 const NOW = 1_800_000_000_000;
 
 const link = (soon: unknown[], fetchedAt = NOW - 5_000) => ({ fetchedAt, soon: cleanSoon(soon) });
@@ -100,4 +104,27 @@ test('régi jelre és lejártra hallgat', () => {
   assert.equal(closingSoonFor(spent, 'youtube.com', NOW), null);
   assert.equal(closingSoonFor({}, 'youtube.com', NOW), null);
   assert.ok(SOON_BANNER_MS === 2 * 60_000);
+});
+
+test('a heti ablakos menet indulása előtt szól — ha az oldal nincs a csomagban', () => {
+  const win = (startsAt: number, allowSites = ['example.org'], name = 'Nyelvtanulás') =>
+    ({ packId: 'p', name, allowSites, startsAt, endsAt: startsAt + 3_600_000 });
+  const linkWith = (windows: unknown[], running = false) => ({
+    fetchedAt: NOW - 5_000,
+    focus: { running, endsAt: running ? NOW + 600_000 : 0, allowSites: [], windows },
+  });
+  const l = linkWith([win(NOW + 90_000)]);
+  assert.deepEqual(focusStartingSoonFor(l, 'youtube.com', NOW), { kind: 'focus', leftMs: 90_000, name: 'Nyelvtanulás' });
+  // A csomag oldala (és az aldomainje) nyitva marad: arról nincs mit mondani.
+  assert.equal(focusStartingSoonFor(l, 'example.org', NOW), null);
+  assert.equal(focusStartingSoonFor(l, 'docs.example.org', NOW), null);
+  // Messzebb, mint két perc: csend; már elindult: csend.
+  assert.equal(focusStartingSoonFor(linkWith([win(NOW + 5 * 60_000)]), 'youtube.com', NOW), null);
+  assert.equal(focusStartingSoonFor(linkWith([win(NOW - 1)]), 'youtube.com', NOW), null);
+  // Ha már fut menet, a nem engedett lap már zárva — nincs mit előre mondani.
+  assert.equal(focusStartingSoonFor(linkWith([win(NOW + 60_000)], true), 'youtube.com', NOW), null);
+  // A legközelebbi nyer.
+  const two = linkWith([win(NOW + 100_000, [], 'Késő'), win(NOW + 30_000, [], 'Korai')]);
+  assert.equal(focusStartingSoonFor(two, 'youtube.com', NOW)?.name, 'Korai');
+  assert.equal(focusStartingSoonFor({}, 'youtube.com', NOW), null);
 });

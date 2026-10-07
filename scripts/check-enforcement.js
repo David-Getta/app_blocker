@@ -3647,13 +3647,23 @@ const WIRES = [
   },
   {
     file: 'extension/background.js',
-    needle: 'closingSoonFor(await loadLink(), hostOf(url), Date.now())',
+    needle: 'soonestClose(await loadLink(), hostOf(url), Date.now())',
     lost: 'az újranézés válasza nem vinné a lapnak a közelgő zárást',
+  },
+  {
+    file: 'extension/background.js',
+    needle: 'const a = closingSoonFor(link, host, now);',
+    lost: 'az app jelzett zárásai (szünet, menetrend, keret) kimaradnának a sávból',
   },
   {
     file: 'extension/content.js',
     needle: 'if (r?.soon) showSoonBanner(r.soon); else hideSoonBanner();',
     lost: 'a lap nem tenné ki a zárás előtti sávot',
+  },
+  {
+    file: 'extension/background.js',
+    needle: 'const b = focusStartingSoonFor(link, host, now);',
+    lost: 'a lap nem szólna a heti ablakos munkamenet indulása előtt',
   },
 ];
 

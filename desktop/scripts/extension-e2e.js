@@ -876,6 +876,26 @@ async function main() {
     check(typeof limitText === 'string' && limitText.includes('A mai keretből'),
       `a keret vége előtt is szól a sáv (${limitText})`);
     await seedSoon([]);
+    // A heti ablakos menet indulása előtt is: a lap nincs a csomagban, akkor zárul.
+    await page.goto(`${base}/`);
+    await page.bringToFront();
+    await page.waitForTimeout(600);
+    await seeder.evaluate((arg) => chrome.storage.local.set({
+      'breaker.applink': {
+        ...arg.link, closed: [], soon: [], fetchedAt: Date.now(),
+        focus: { running: false, windows: [{
+          packId: 'p1', name: 'Nyelvtanulás', allowSites: ['example.org'],
+          startsAt: Date.now() + 90_000, endsAt: Date.now() + 3_600_000,
+        }] },
+      },
+    }), { link: LINK });
+    const focusSoonText = await page.waitForFunction(
+      () => document.getElementById('breaker-soon')?.shadowRoot?.textContent || null,
+      undefined, { timeout: WAIT_MS },
+    ).then((h) => h.jsonValue()).catch(() => null);
+    check(typeof focusSoonText === 'string' && focusSoonText.includes('Munkamenet indul')
+      && focusSoonText.includes('Nyelvtanulás'), `a heti ablakos menet előtt is szól a sáv (${focusSoonText})`);
+    await seedFocus({ running: false }, Date.now());
 
     // A MÉRŐ JELE. Az összekötött bővítmény (kód, port) a hídon megmondja,
     // melyik oldal van elöl — ebből méri az app az oldalt ott, ahol a gép maga

@@ -600,6 +600,14 @@ nem hiba). Tesztek: a kiszállított `effectiveFocus` és `focusAllows` a
 `desktop/scripts/extension-e2e.js` (régi lehúzás + most tartó ablak → tiltó
 lap, az ablak nevével; friss „nem fut” → nem tilt).
 
+**Az indulás előtt a lap szól.** Ugyanebből a tárolt listából a bővítmény azt
+is tudja, hogy két percen belül indul egy ablak: ha a nyitott lap nincs a
+csomagban, a tetején egy sáv mondja („Munkamenet indul 2 perc múlva
+(Nyelvtanulás) — ez az oldal nincs benne, akkor zárul.”) — a zárás ne
+félbehagyott mondat közepén érjen. Ha már fut menet, nincs ilyen sáv: a nem
+engedett lap akkor már zárva (`focusStartingSoonFor`, tesztekkel; a zárás
+előtti sáv többi fajtáját lásd az `extension/README.md`-ben).
+
 ## A telefon eddig kiskapu volt
 
 A munkamenet a v0.4.2-ig **csak az asztali appban létezett**. Elindítod a gépen
