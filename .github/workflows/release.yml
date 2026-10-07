@@ -52,6 +52,11 @@ jobs:
           (csak a tartományt, csak a saját gépeden futó appnak). A statisztika
           kártyája kimondja, mi mérődik ilyenkor és mi nem.
 
+          **Gépelés közben nem zárjuk le a lapot.** Ha a munkamenet indulásakor
+          vagy a keret beteltekor épp írsz egy oldalon, a lap nem fut azonnal a
+          tiltó lapra — a félkész szöveg nem veszhet el. A lap tetején egy sáv
+          szól, és ha két percig nem gépelsz (legkésőbb tíz perc múlva), zárul.
+
           ### Ami a v0.4.214-ben jött
 
           **A munkamenet nem nyaggat a böngészőért** — engedett oldalon csend
