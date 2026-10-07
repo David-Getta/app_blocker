@@ -116,6 +116,20 @@ fájlban zárva vannak, amíg vissza nem jön.
   segédet — ezt is kijátssza. A mérés-őr az impulzus ellen véd (a kilépés egy
   kattintás), nem a megfontolt, tíz perces kerülőút ellen; ahogy a zárlat sem.
 
+## Őszinte korlát: a már élő kapcsolat
+
+A gép a hosts-fájlban zár: egy tiltás (a menet indulása, a betelt keret, a
+menetrend, a zárlat) az ÚJ névfeloldásokat fogja meg. Egy program, aminek már
+van nyitott kapcsolata — egy szóló videó, egy élő közvetítés —, azt egy ideig
+még használhatja.
+
+- **Böngésző a bővítménnyel:** itt nincs ilyen rés — a látható lap újranézeti
+  magát, és ha az oldala közben lezárult, a tiltó lapra fut (gépelés közben a
+  gépelés-csend után, lásd `docs/feature-focus-sessions.md`).
+- **Más programok és a bővítmény nélküli böngésző:** a kapcsolatot nem lőjük
+  ki — egy futó programot nem zárunk be helyetted. A program bezárása és
+  újranyitása érvényesíti a tiltást.
+
 ## Aláírás (ajánlott éles használatra)
 - macOS: `electron-builder.yml` → `mac.identity` (Developer ID) + notarizáció,
   különben a Gatekeeper figyelmeztet.

@@ -107,6 +107,13 @@ Részletek: [`feature-uninstall-guard.md`](feature-uninstall-guard.md).
   hálózati beállításokhoz visz. Az „Automatikus” mód nem gond: ott a rendszer
   a VPN DNS-ét próbálja TLS-en, nem kap választ, és sima kérdéssel folytatja,
   amit a szűrő lát.
+- **A már élő kapcsolat egy darabig még mehet.** A szűrő a névfeloldásokat
+  látja: egy tiltás (a menet indulása, a betelt keret, a menetrend) az ÚJ
+  kapcsolatokat fogja meg. Egy app, aminek már van nyitott kapcsolata — egy
+  szóló videó, egy élő közvetítés —, azt egy ideig még használhatja, amíg újra
+  névfeloldást nem kér. Kilőni nem tudjuk: a VPN csak a DNS-t látja, a forgalom
+  többi része mellette megy (egy teljes forgalom-átvevő VPN sokkal nagyobb
+  beavatkozás lenne). Az app bezárása és újranyitása érvényesíti a tiltást.
 
 ## A közös mag tesztelése JVM-en
 A `core/ChallengeEngine.kt`, `core/Blocklist.kt` és a `vpn/DnsEngine.kt` tiszta

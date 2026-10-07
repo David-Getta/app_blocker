@@ -82,6 +82,12 @@ tükre; a blobon `keywords` + `keywordsRev`). Lásd `docs/feature-keywords.md`.
   ez önkontroll-eszköz, nem felügyeleti szoftver.
 - A Network Extension éles teszteléséhez valós eszköz és a megfelelő
   provisioning profil kell.
+- **A már élő kapcsolat egy darabig még mehet.** A szűrő a névfeloldásokat
+  látja: egy tiltás (a menet indulása, a menetrend) az ÚJ kapcsolatokat fogja
+  meg. Egy app, aminek már van nyitott kapcsolata — egy szóló videó, egy élő
+  közvetítés —, azt egy ideig még használhatja, amíg újra névfeloldást nem
+  kér. Kilőni nem tudjuk; az app bezárása és újranyitása érvényesíti a
+  tiltást.
 - **Heti visszatekintés értesítésben nincs** (a hétfő reggeli mondat, ami a
   gépen és Androidon jön): a bővítmény nem adhat értesítést, az app nem fut a
   háttérben, előre ütemezni pedig csak olyan mondatot lehetne, ami a hét
