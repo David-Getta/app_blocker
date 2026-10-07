@@ -50,10 +50,11 @@ jobs:
           tíz perc várással zárlat alatt is levehetők voltak. Most a levétel
           nem indul, és ami már folyamatban volt, az visszavonódik.
 
-          **Androidon a sáv kimondja, hogy ami már nyitva volt, még mehet.**
-          A szűrő az új kapcsolatokat fogja meg; egy szóló videó egy darabig
-          még mehet. A menet első két percében a tartós értesítés ezt
-          kimondja — zárd be és nyisd újra. A sáv mostantól kibontható.
+          **A telefon kimondja, hogy ami már nyitva volt, még mehet.** A
+          szűrő az új kapcsolatokat fogja meg; egy szóló videó egy darabig
+          még mehet. A menet első két percében ezt Androidon a tartós
+          értesítés, iPhone-on a menet kártyája kimondja — zárd be és nyisd
+          újra. Androidon a sáv mostantól kibontható.
 
           ### Ami a v0.4.215-ben jött
 
