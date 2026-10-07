@@ -148,7 +148,7 @@ const CURATED_SCHEDULES: Array<{ schedule: Schedule; other: Schedule; now: numbe
   { schedule: ALWAYS_WITH_BANDS, other: WORK, now: atWeek(0, 12, 0, 0) },
   { schedule: ALL_BROKEN, other: OPEN_WEEKEND, now: atWeek(6, 12, 0, 0) },
   { schedule: WORK, other: ALL_BROKEN, now: atWeek(3, 10, 0, 0) },
-  // A váltás élei: sosem zár; szombat délben zár (hétfő 9-kor nyit) a hétvégi
+  // A váltás élei: sosem zár; szombat délben zár (hétfő 0:00-kor nyit) a hétvégi
   // tiltás; az éjfélen átnyúló sáv vége a következő napon.
   { schedule: OPEN_ALL_WEEK, other: WORK, now: atWeek(2, 12, 0, 0) },
   { schedule: { mode: 'scheduled_block', bands: [{ days: [0, 6], startMin: 0, endMin: 1440 }] }, other: WORK, now: atWeek(5, 12, 30, 15) },
