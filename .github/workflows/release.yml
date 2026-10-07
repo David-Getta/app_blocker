@@ -44,24 +44,22 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A gépen az ablak bezárása többé nem kapcsolja ki a napi keretet.**
-          A tiltást a háttérvédelem tartja, a mért időt viszont — amiből a
-          napi keret és az adag fogy — az app méri, és az értesítéseket is az
-          app adja. Eddig az ablak bezárása az egész appot leállította, és
-          vele a keretet is; egy újraindítás után pedig addig, amíg valaki meg
-          nem nyitotta. Most a bezárás csak elrejti az appot, és
-          bejelentkezéskor magától indul, ablak nélkül (Windowson tálca-ikon
-          hozza vissza). Kilépni továbbra is lehet; a kilépés gomb alatt az
-          app kimondja, hogy utána a keret nem fogy.
+          **Mérés-őr: a kilépés sem kapcsolja ki a napi keretet.** A keret és
+          az adag a mért időből fogy, a mérés pedig az appban fut — ha
+          kilépsz belőle, a keret nem fogy, amíg újra nem indul. Aki ezt a
+          rést is be akarja zárni, a Statisztika kártyán bekapcsolja a
+          mérés-őrt: ha az app nem fut, a napi kerettel vagy adaggal védett
+          oldalak zárva vannak, amíg vissza nem jön. Bekapcsolni ingyen,
+          kikapcsolni próbatétel; a kifizetett feloldás ezt is felülírja.
 
-          ### Ami a v0.4.210-ben jött
+          ### Ami a v0.4.211-ben jött
 
-          **A tiltó lap nem ígér olyan feloldást, ami nincs** — a zárlat-ablak
-          alatt app nélkül sem, és az appban felvett szabálynál sem.
+          **Az ablak bezárása többé nem kapcsolja ki a napi keretet** — az app
+          a háttérben fut tovább, és bejelentkezéskor magától indul.
 
-          #### Ami a v0.4.209-ben jött
+          #### Ami a v0.4.210-ben jött
 
-          **A heti ablak a böngészőben akkor is él, ha az app zárva van.**
+          **A tiltó lap nem ígér olyan feloldást, ami nincs.**
 
           NOTES
           fi
