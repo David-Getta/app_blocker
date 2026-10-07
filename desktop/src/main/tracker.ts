@@ -81,6 +81,7 @@ async function macForeground(): Promise<Foreground | null> {
 
   const flavour = MAC_BROWSERS[fg.appId];
   if (!flavour) return fg;
+  fg.browser = true;
 
   const script = flavour === 'safari'
     ? `tell application id "${fg.appId}" to return URL of front document`
@@ -230,6 +231,7 @@ export function parseWinLine(line: string): Foreground | null {
     appId: name.slice(0, MAX_LABEL_LENGTH),
     appName: (desc || name).slice(0, MAX_LABEL_LENGTH),
   };
+  if (WIN_BROWSERS.has(name.toLowerCase())) fg.browser = true;
   // Second check, in JS: the probe only prints absolute http(s) URLs, but the
   // consequence of a stray page-input value getting through is that what the
   // user typed becomes a stored "site". Verify rather than trust.

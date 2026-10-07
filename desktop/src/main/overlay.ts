@@ -14,6 +14,7 @@
 
 import * as path from 'path';
 import { BrowserWindow, globalShortcut, screen } from 'electron';
+import type { ForegroundWarning } from '../shared/focus';
 
 /**
  * Az alapértelmezett kombináció.
@@ -25,10 +26,11 @@ export const OVERLAY_SHORTCUT = 'CommandOrControl+Alt+B';
 
 let win: BrowserWindow | null = null;
 /**
- * Ha van, a réteg NEM a csomaglistát mutatja, hanem azt, hogy ez az app nincs
- * a listán. Egyszer használatos: a réteg elolvassa, és ezzel törlődik.
+ * Ha van, a réteg NEM a csomaglistát mutatja, hanem azt, hogy ez az app —
+ * vagy ez a böngészőben nyitva látott oldal — nincs a listán. Egyszer
+ * használatos: a réteg elolvassa, és ezzel törlődik.
  */
-let pendingWarning: string | null = null;
+let pendingWarning: ForegroundWarning | null = null;
 
 function build(): BrowserWindow {
   // A teljes képernyőt lefedjük, de átlátszóan: a réteg RÁÜL arra, amit épp
@@ -81,25 +83,30 @@ export function toggleOverlay(): void {
 }
 
 /**
- * A réteg előhívása figyelmeztetésként.
+ * A réteg előhívása figyelmeztetésként — egy appról, ami nincs a listán, vagy
+ * egy böngészőben nyitva látott oldalról, ami nincs a listán.
  *
  * Nem tiltás: egy futó programot nem lövünk ki. Amit tudunk, az annyi, hogy
  * szólunk — és a felület ki is mondja, hogy ez gyengébb réteg, mint a
  * böngészőben érvényesített fehérlista.
+ *
+ * Ha a réteg már látszik, a `focus` esemény nem jön újra — ezért szólunk neki
+ * külön, és ő olvassa ki (enélkül a figyelmeztetés a következő előhívásig
+ * csendben várt volna).
  */
-export function warnAboutApp(appName: string): void {
-  pendingWarning = appName;
+export function warnAboutForeground(warning: ForegroundWarning): void {
+  pendingWarning = warning;
   if (!win || win.isDestroyed()) win = build();
   if (!win.isVisible()) {
     win.showInactive();
     win.focus();
   } else {
-    win.webContents.send('breaker:overlay-warn', appName);
+    win.webContents.send('breaker:overlay-warn');
   }
 }
 
 /** A réteg egyszer olvassa ki, és ezzel törli. */
-export function takeWarning(): string | null {
+export function takeWarning(): ForegroundWarning | null {
   const w = pendingWarning;
   pendingWarning = null;
   return w;

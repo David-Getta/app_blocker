@@ -260,6 +260,70 @@ export function shouldWarnAboutApp(
  */
 export const APP_WARN_COOLDOWN_MS = 3 * 60_000;
 
+/**
+ * A munkamenet alatti szólás tárgya: egy app, ami nincs a listán — vagy egy
+ * oldal, ami nincs a listán, és mégis nyitva látszik egy böngészőben.
+ */
+export type ForegroundWarning =
+  | { kind: 'app'; app: string }
+  | { kind: 'site'; browser: string; host: string };
+
+/**
+ * A menet indulása után ennyi ideig a böngészőben látott oldalért nem szólunk.
+ *
+ * A bővítmény a lehúzáskor tudja meg, hogy menet fut (látható lap mellett
+ * legfeljebb kb. negyven másodperc alatt), és csak AZUTÁN zárhatja le a már
+ * nyitott lapot. Addig egy nem engedett oldal látványa nem a bővítmény
+ * hiánya — ha szólnánk, olyat állítanánk, ami nem igaz.
+ */
+export const SITE_WARN_GRACE_MS = 60_000;
+
+/**
+ * Ennyi egymás utáni mintán kell ugyanannak a nem engedett oldalnak
+ * látszania. Egy épp átirányítás alatt álló lap egy mintán még a régi címet
+ * mutathatja — kettő (öt másodperc különbséggel) már nem véletlen.
+ */
+export const SITE_WARN_SIGHTINGS = 2;
+
+/**
+ * Mit mondjunk az előtérben lévőre a munkamenet alatt.
+ *
+ * A BÖNGÉSZŐ NEM APP-KÉRDÉS. Benne élnek az engedett oldalak, és a
+ * fehérlistát a bővítmény tartja — ha a böngészőt appként néznénk, az
+ * engedett oldalon dolgozót is hárompercenként megszólítanánk, hogy
+ * „nincs a listán”. A böngészőnél ezért a NYITOTT OLDAL dönt: ha nincs a listán, és a
+ * menet már elég régóta fut ahhoz, hogy a bővítmény lezárja, akkor abban a
+ * böngészőben a fehérlistát senki nem tartja — ezt mondjuk ki.
+ *
+ * Csak az a böngésző számít ilyennek, aminek a címét ki tudjuk olvasni (a mérő
+ * `browser` jele). Ahol nem látjuk, mit nézel, ott marad az app-szabály.
+ */
+export function foregroundWarning(
+  pack: FocusPack, startedAt: number,
+  fg: { appId: string; appName: string; domain?: string; browser?: boolean }, now: number,
+): ForegroundWarning | null {
+  if (fg.browser === true) {
+    if (!fg.domain) return null;
+    if (now - startedAt < SITE_WARN_GRACE_MS) return null;
+    if (isSiteAllowed(pack, fg.domain)) return null;
+    return { kind: 'site', browser: fg.appName || fg.appId, host: fg.domain };
+  }
+  return shouldWarnAboutApp(pack, fg.appId, fg.appName)
+    ? { kind: 'app', app: fg.appName || fg.appId }
+    : null;
+}
+
+/**
+ * Az egymás utáni látások számlálója: ugyanaz az oldal → eggyel több; más
+ * oldal → elölről; nincs mit látni → semmi.
+ */
+export function siteSightings(
+  prev: { host: string; count: number } | null, host: string | null,
+): { host: string; count: number } | null {
+  if (!host) return null;
+  return prev && prev.host === host ? { host, count: prev.count + 1 } : { host, count: 1 };
+}
+
 // ---------------------------------------------------------------------------
 // A lezárult munkamenetek naplója
 // ---------------------------------------------------------------------------

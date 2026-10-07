@@ -7,14 +7,17 @@
 import { app, BrowserWindow, ipcMain, Menu, Notification, systemPreferences, Tray } from 'electron';
 import * as fs from 'fs';
 import { registerSyncServerIpc } from './sync-server';
-import { extensionSeenRecently, registerRulesBridge, stopRulesBridge } from './rules-bridge-ipc';
+import { extensionIncognitoOff, extensionSeenRecently, registerRulesBridge, stopRulesBridge } from './rules-bridge-ipc';
 import { isWindowLockdown, liveLockdown, upcomingLockdownWindows } from '../shared/lockdown';
 import {
-  hideOverlay, takeWarning, toggleOverlay, unregisterOverlayShortcut, warnAboutApp,
+  hideOverlay, takeWarning, toggleOverlay, unregisterOverlayShortcut, warnAboutForeground,
 } from './overlay';
 import { setupOverlayShortcut } from './overlay-shortcut';
 import { setupExtensionFolder } from './extension-folder';
-import { isFocusHourNow, isWindowRun, packCoveringHour, peakWindowBand, shouldWarnAboutApp, warnDue } from '../shared/focus';
+import {
+  foregroundWarning, isFocusHourNow, isWindowRun, packCoveringHour, peakWindowBand, SITE_WARN_SIGHTINGS, siteSightings,
+  warnDue,
+} from '../shared/focus';
 import { isPeakDayNow } from '../shared/browser-hits';
 import { limitSoonLine } from '../shared/limits';
 import { displayName } from '../shared/alias';
@@ -315,7 +318,10 @@ if (HELPER_MODE) {
       // hogy az előtér-szonda ne kérdezze meg minden öt másodpercben.
       let focusPack: import('../shared/focus').FocusPack | null = null;
       let focusEndsAt: number | null = null;
+      let focusStartedAt = 0;
       let lastAppWarnAt: number | null = null;
+      // Ugyanaz a nem engedett oldal hány egymás utáni mintán látszott.
+      let siteSeen: { host: string; count: number } | null = null;
       void client.call('status').then((s) => { usageEnabled = (s as StatusData).usageEnabled; })
         .catch(() => { /* helper not installed yet */ });
       const tracker = new UsageTracker({
@@ -347,13 +353,23 @@ if (HELPER_MODE) {
         // programot nem lövünk ki —, de szólni igen. Ugyanazt a szondát
         // használjuk, amit a mérés: egy második ugyanerre fölösleges terhelés
         // lenne, és a kettő előbb-utóbb máshogy válaszolna.
+        // A BÖNGÉSZŐ NEM APP: benne a nyitott oldal dönt (lásd `foregroundWarning`).
+        // Ha egy nem engedett oldal két mintán át látszik, abban a böngészőben a
+        // fehérlistát senki nem tartja — ezt mondjuk ki, nem azt, hogy a böngésző
+        // „nincs a listán”.
         onForeground: (fg) => {
-          if (!fg || !focusPack || !focusEndsAt || focusEndsAt <= Date.now()) return;
-          if (!shouldWarnAboutApp(focusPack, fg.appId, fg.appName)) return;
           const now = Date.now();
+          if (!fg || !focusPack || !focusEndsAt || focusEndsAt <= now) {
+            siteSeen = null;
+            return;
+          }
+          const warning = foregroundWarning(focusPack, focusStartedAt, fg, now);
+          siteSeen = siteSightings(siteSeen, warning?.kind === 'site' ? warning.host : null);
+          if (!warning) return;
+          if (warning.kind === 'site' && (siteSeen?.count ?? 0) < SITE_WARN_SIGHTINGS) return;
           if (!warnDue(lastAppWarnAt, now)) return;
           lastAppWarnAt = now;
-          warnAboutApp(fg.appName || fg.appId);
+          warnAboutForeground(warning);
         },
       });
       tracker.start();
@@ -582,6 +598,7 @@ if (HELPER_MODE) {
             const run = st.focusRun;
             focusEndsAt = run && run.endsAt > Date.now() ? run.endsAt : null;
             focusPack = run ? (st.focusPacks ?? []).find((p) => p.id === run.packId) ?? null : null;
+            focusStartedAt = run ? run.startedAt : 0;
             if (!focusEndsAt) lastAppWarnAt = null;
           })
           .catch(() => { /* ignore */ });
@@ -603,8 +620,10 @@ if (HELPER_MODE) {
       // fog tiltani semmit.
       ipcMain.handle('breaker:overlay-state', () => ({
         shortcutOk: overlayShortcut.registered(),
-        warnApp: takeWarning(),
+        warn: takeWarning(),
         extensionStale: !extensionSeenRecently(),
+        // Ott van, de inkognitóban nem fut: a réteg lába ezt is kimondja.
+        extensionNoIncognito: extensionIncognitoOff(),
       }));
       ipcMain.handle('breaker:overlay-toggle', () => { toggleOverlay(); });
       ipcMain.handle('breaker:overlay-hide', () => { hideOverlay(); });

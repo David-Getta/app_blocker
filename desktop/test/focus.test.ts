@@ -143,6 +143,44 @@ test('the session warns about an app that is not on the list', async () => {
   assert.equal(warnDue(NOW, NOW + APP_WARN_COOLDOWN_MS), true);
 });
 
+test('a böngésző nem app-kérdés: a nyitott oldala dönt, türelmi idővel és két látással', async () => {
+  const { foregroundWarning, siteSightings, SITE_WARN_GRACE_MS, SITE_WARN_SIGHTINGS } = await import('../src/shared/focus');
+  const p = pack({ allowSites: ['docs.google.com'], allowApps: ['Word'] });
+  const later = NOW + SITE_WARN_GRACE_MS;
+  const chrome = { appId: 'com.google.Chrome', appName: 'Google Chrome', browser: true as const };
+  // Engedett oldalon a böngésző NEM „nincs a listán” — eddig hárompercenként
+  // ezt kapta, aki a csomag oldalán dolgozott.
+  assert.equal(foregroundWarning(p, NOW, { ...chrome, domain: 'docs.google.com' }, later), null);
+  // Új lap, a bővítmény tiltó lapja: nincs webcím, nincs mit mondani.
+  assert.equal(foregroundWarning(p, NOW, chrome, later), null);
+  // Nem engedett oldal, a menet elég régi: abban a böngészőben senki nem tartja.
+  assert.deepEqual(foregroundWarning(p, NOW, { ...chrome, domain: 'youtube.com' }, later),
+    { kind: 'site', browser: 'Google Chrome', host: 'youtube.com' });
+  // A türelmi időn belül nem: a bővítmény még nem tudhat a menetről.
+  assert.equal(foregroundWarning(p, NOW, { ...chrome, domain: 'youtube.com' }, later - 1), null);
+  // Visszaugró óra: a türelmi idő nem telt le, hallgatunk.
+  assert.equal(foregroundWarning(p, NOW, { ...chrome, domain: 'youtube.com' }, NOW - 60_000), null);
+  // A végén hasonlító név nem engedett — ugyanaz a szabály, mint a bővítményé.
+  assert.equal(foregroundWarning(p, NOW, { ...chrome, domain: 'notdocs.google.com' }, later)?.kind, 'site');
+  // Más app: a régi szabály marad, a nevével.
+  assert.deepEqual(foregroundWarning(p, NOW, { appId: 'com.valve.steam', appName: 'Steam' }, later),
+    { kind: 'app', app: 'Steam' });
+  assert.equal(foregroundWarning(p, NOW, { appId: 'com.microsoft.Word', appName: 'Microsoft Word' }, later), null);
+  // Ahol a címet nem tudjuk kiolvasni (nincs jel), ott marad az app-szabály.
+  assert.deepEqual(foregroundWarning(p, NOW, { appId: 'org.mozilla.firefox', appName: 'Firefox' }, later),
+    { kind: 'app', app: 'Firefox' });
+
+  // Két egymás utáni látás kell ugyanarról az oldalról: egy épp átirányított
+  // lap egy mintán még a régi címet mutathatja.
+  const once = siteSightings(null, 'youtube.com');
+  assert.deepEqual(once, { host: 'youtube.com', count: 1 });
+  assert.ok(once!.count < SITE_WARN_SIGHTINGS);
+  const twice = siteSightings(once, 'youtube.com');
+  assert.equal(twice?.count, SITE_WARN_SIGHTINGS);
+  assert.deepEqual(siteSightings(twice, 'reddit.com'), { host: 'reddit.com', count: 1 }, 'más oldal: elölről');
+  assert.equal(siteSightings(twice, null), null, 'nincs oldal: semmi');
+});
+
 // ---------------------------------------------------------------------------
 // A lezárult munkamenetek naplója
 // ---------------------------------------------------------------------------

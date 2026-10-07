@@ -77,6 +77,14 @@ export function extensionSeenRecently(now = Date.now()): boolean {
   return lastPullAt > 0 && now - lastPullAt < 2 * 60_000;
 }
 
+/**
+ * A bővítmény ott van, de inkognitóban NEM fut — az utolsó lehúzás szerint.
+ * A régi bővítmény nem mondja meg: az nem „nem fut”, hanem nem tudjuk (hamis).
+ */
+export function extensionIncognitoOff(now = Date.now()): boolean {
+  return extensionSeenRecently(now) && lastIncognito === false;
+}
+
 export function registerRulesBridge(
   userDataDir: string,
   getRules: () => Promise<BridgeRule[]>,

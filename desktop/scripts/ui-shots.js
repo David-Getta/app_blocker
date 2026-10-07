@@ -440,12 +440,14 @@ function fakeBridgeSource() {
       getBridgeInfo: async () => window.__fakeBridge || { running: false },
       getOverlayState: async () => ({
         shortcutOk: true,
-        warnApp: window.__fakeWarn || null,
+        warn: window.__fakeWarn || null,
         // Alapból ÖSSZEKÖTÖTT bővítményt színlelünk: így a figyelmeztetés
         // megjelenése mindig szándékos, nem a hamis híd mellékhatása.
         extensionStale: window.__fakeExtStale === true,
+        extensionNoIncognito: window.__fakeExtNoIncognito === true,
       }),
       hideOverlay: async () => { window.__overlayHidden = true; },
+      onOverlayWarn: (cb) => { window.__pushOverlayWarn = cb; },
       showMain: async () => { window.__mainShown = true; },
       toggleOverlay: async () => {},
       startSyncServer: async () => {
@@ -2317,6 +2319,46 @@ async function main() {
     undefined, { timeout: 10_000 },
   ).catch(() => failures.push('a réteg nem szól arról, hogy nincs bővítmény'));
   await over.evaluate(() => { window.__fakeExtStale = false; });
+  // Ott van, de inkognitóban nem fut: a láb ezt is kimondja — a menet ott nem tilt.
+  await over.evaluate(() => { window.__fakeExtNoIncognito = true; });
+  await over.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await over.waitForFunction(
+    () => /inkognitóban nem fut/.test(document.getElementById('foot')?.innerText || ''),
+    undefined, { timeout: 10_000 },
+  ).catch(() => failures.push('a réteg nem szól arról, hogy a bővítmény inkognitóban nem fut'));
+  await over.evaluate(() => { window.__fakeExtNoIncognito = false; });
+  await over.evaluate(() => window.dispatchEvent(new Event('focus')));
+
+  // A BÖNGÉSZŐBEN LÁTOTT OLDAL: a menet alatt nem mehetne, mégis nyitva van —
+  // ott a bővítmény nem tartja a fehérlistát. A réteg ezt mondja, nem azt,
+  // hogy a böngésző „nincs a listán”. A MÁR LÁTSZÓ réteg is megkapja: a jelzés
+  // a saját útján jön, nem a fókusszal.
+  await over.evaluate(() => {
+    window.__fakeWarn = { kind: 'site', browser: 'Safari', host: 'youtube.com' };
+    window.__pushOverlayWarn?.();
+  });
+  await over.waitForFunction(
+    () => document.getElementById('title')?.textContent === 'youtube.com'
+      && /fehérlistát most senki nem tartja be/.test(document.body.innerText)
+      && /\(Safari\)/.test(document.body.innerText),
+    undefined, { timeout: 10_000 },
+  ).catch(() => failures.push('a réteg nem mondja ki, hogy a böngészőben nyitott oldalt senki nem zárja'));
+  await over.evaluate(() => { window.__fakeWarn = null; });
+  await over.getByRole('button', { name: 'Értem' }).click({ timeout: 5000 })
+    .catch(() => failures.push('az oldal-figyelmeztetésen nincs „Értem” gomb'));
+  // Az app-figyelmeztetés marad, a saját szövegével.
+  await over.evaluate(() => {
+    window.__fakeWarn = { kind: 'app', app: 'Steam' };
+    window.dispatchEvent(new Event('focus'));
+  });
+  await over.waitForFunction(
+    () => document.getElementById('title')?.textContent === 'Steam'
+      && /ez az app nincs benne/.test(document.body.innerText),
+    undefined, { timeout: 10_000 },
+  ).catch(() => failures.push('a réteg app-figyelmeztetése nem a nevét és a szövegét mutatja'));
+  await over.evaluate(() => { window.__fakeWarn = null; });
+  await over.getByRole('button', { name: 'Értem' }).click({ timeout: 5000 })
+    .catch(() => failures.push('az app-figyelmeztetésen nincs „Értem” gomb'));
 
   // Az Esc zárja. Egy ottfelejtett, mindig felül lévő réteg a legrosszabb, amit
   // ez a funkció tehet.

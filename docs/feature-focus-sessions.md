@@ -77,7 +77,7 @@ Ez a funkció három rétegen fekszik, és a felület mindegyiknél kimondja, mi
 |---|---|---|
 | **Böngésző-bővítmény** | a fehérlista teljes érvényesítése: ami nincs a listán, oda nem enged navigálni — és a már nyitott ilyen lapot is lezárja | csak abban a böngészőben él, ahova telepítve van; vendég módban nem fut |
 | **DNS (hosts)** | a meglévő blokklista végig érvényes | „mindent tilts, kivéve ötöt” egy hosts-fájlban nem leírható |
-| **Appok** | a mérés látja, mi van előtérben | egy appot bezárni nem tudunk — figyelmeztetünk, nem tiltunk |
+| **Appok** | a mérés látja, mi van előtérben; a böngészőnél a nyitott oldalt | egy appot bezárni nem tudunk — figyelmeztetünk, nem tiltunk |
 
 A **böngésző az egyetlen hely, ahol a fehérlista tényleg érvényesíthető**, mert
 csak ott látszik a teljes cím. A DNS a hosztnévnél tovább nem lát, és a
@@ -88,6 +88,31 @@ Az appoknál a helyzet nyíltan gyengébb: a mérés (`tracker`) tudja, melyik a
 van előtérben, de egy futó programot nem lövünk ki. Ez szándékos — egy app
 kilövése adatot veszíthet, és a Breaker soha nem tesz olyat, amit a felhasználó
 nem kért.
+
+### A böngésző nem app — benne a nyitott oldal dönt
+
+A böngésző eddig appként esett a figyelés alá: aki a csomag ENGEDETT oldalán
+dolgozott, hárompercenként azt kapta, hogy a böngésző „nincs a listán” — hacsak
+fel nem vette a böngészőt is az appok közé. Pedig a böngésző tároló: benne az
+oldalak listája dönt, és a fehérlistát a bővítmény tartja.
+
+Most a mérő megjelöli a böngészőt (azt, aminek a címét ki tudjuk olvasni:
+macOS-en a Chromium-alapúak és a Safari, Windowson a szokásos folyamatnevek),
+és a menet ennél a NYITOTT OLDALT nézi (`foregroundWarning`):
+
+- engedett oldal, új lap, a bővítmény tiltó lapja → nincs mit mondani;
+- nem engedett oldal, és mégis látszik → abban a böngészőben a fehérlistát
+  senki nem tartja (nincs benne bővítmény, nincs összekötve, ki van kapcsolva,
+  vagy inkognitóban nem fut). A réteg ezt mondja ki, az oldal nevével.
+
+Két fék, hogy ne állítsunk olyat, ami nem igaz: a menet indulása után egy
+percig nem szólunk (a bővítmény a lehúzáskor tudja meg, hogy menet fut, és csak
+azután zárhatja le a nyitott lapot), és ugyanannak az oldalnak két egymás utáni
+mintán kell látszania (egy épp átirányított lap egy mintán még a régi címet
+mutathatja). A türelmi idő a figyelmeztetéseké, közös az appokéval.
+
+Ahol a címet nem tudjuk kiolvasni (például Firefox macOS-en), ott marad az
+app-szabály: ha nincs a listán, szólunk — mert nem látjuk, mit nézel benne.
 
 ## Adatmodell
 

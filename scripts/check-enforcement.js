@@ -3455,6 +3455,26 @@ const WIRES = [
     needle: "void enforce('újranézés', { tabId, url, frameId: 0 }, { record: false })",
     lost: 'a lap újranézési kérése válasz nélkül maradna: a nyitott lapot senki nem zárná le',
   },
+  {
+    file: 'desktop/src/main/main.ts',
+    needle: 'const warning = foregroundWarning(focusPack, focusStartedAt, fg, now);',
+    lost: 'a munkamenet a böngészőt appként nézné: az engedett oldalon dolgozót is hárompercenként megszólítaná',
+  },
+  {
+    file: 'desktop/src/main/tracker.ts',
+    needle: 'if (WIN_BROWSERS.has(name.toLowerCase())) fg.browser = true;',
+    lost: 'Windowson a böngésző nem kapná meg a jelét — a menet appként nézné',
+  },
+  {
+    file: 'desktop/src/renderer/overlay.ts',
+    needle: 'bridge.onOverlayWarn?.(() => { void refresh(); });',
+    lost: 'a már látszó réteg nem venné észre az új figyelmeztetést — a következő előhívásig csendben várna',
+  },
+  {
+    file: 'desktop/src/main/main.ts',
+    needle: 'extensionNoIncognito: extensionIncognitoOff(),',
+    lost: 'a réteg nem mondaná ki, hogy a bővítmény inkognitóban nem fut',
+  },
 ];
 
 /**

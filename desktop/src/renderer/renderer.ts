@@ -1594,7 +1594,9 @@ function openFocusEditor(pack: FocusPack | null): void {
   apps.rows = 3;
   apps.placeholder = 'egy soronként, pl. Word';
   apps.value = (pack?.allowApps ?? []).join('\n');
-  box.appendChild(h('label', undefined, 'Engedélyezett appok'));
+  // A böngészőt nem kell felvenni: benne az oldalak listája dönt, a menet a
+  // böngészőt nem nézi appként (lásd `foregroundWarning`).
+  box.appendChild(h('label', undefined, 'Engedélyezett appok (a böngészőt nem kell felvenni)'));
   box.appendChild(apps);
   box.appendChild(counter(apps));
 

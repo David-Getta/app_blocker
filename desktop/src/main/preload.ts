@@ -77,9 +77,12 @@ export interface BreakerBridge {
   getBridgeInfo(): Promise<RulesBridgeInfo>;
   getOverlayState(): Promise<{
     shortcutOk: boolean;
-    warnApp?: string | null;
+    /** amiről a rétegnek szólnia kell: egy app vagy egy böngészőben látott oldal */
+    warn?: { kind: 'app'; app: string } | { kind: 'site'; browser: string; host: string } | null;
     /** igaz, ha a bővítmény két percnél régebben jelentkezett (vagy soha) */
     extensionStale?: boolean;
+    /** igaz, ha a bővítmény friss, de inkognitóban nem fut */
+    extensionNoIncognito?: boolean;
   }>;
   toggleOverlay(): Promise<void>;
   hideOverlay(): Promise<void>;
@@ -89,6 +92,8 @@ export interface BreakerBridge {
   onUpdateState(cb: (s: UpdateState) => void): void;
   /** az ablak látható-e (rejtve a felület ritkábban kérdez, és nem rajzol) */
   onVisibility(cb: (visible: boolean) => void): void;
+  /** a már látszó réteg: új figyelmeztetés vár, olvasd ki */
+  onOverlayWarn(cb: () => void): void;
   /** a futó app verziója — a fiók-panel mutatja, hogy látszódjon, MI fut */
   appVersion(): Promise<string>;
   /** kilépés a felületről; a tiltást nem érinti (az a segédé) */
@@ -124,6 +129,7 @@ const bridge: BreakerBridge = {
   stopSyncServer: () => ipcRenderer.invoke('breaker:sync-server-stop'),
   onUpdateState: (cb) => ipcRenderer.on('breaker:update-state', (_e, s: UpdateState) => cb(s)),
   onVisibility: (cb) => ipcRenderer.on('breaker:visibility', (_e, v: unknown) => cb(v === true)),
+  onOverlayWarn: (cb) => ipcRenderer.on('breaker:overlay-warn', () => cb()),
   appVersion: () => ipcRenderer.invoke('breaker:app-version'),
   quitApp: () => ipcRenderer.invoke('breaker:quit'),
   openReleases: () => ipcRenderer.invoke('breaker:open-releases'),

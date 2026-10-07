@@ -395,6 +395,12 @@ export interface Foreground {
   appName: string;
   /** active tab domain, when the focused app is a browser and it could be read */
   domain?: string;
+  /**
+   * a böngésző, aminek a címét ki tudjuk olvasni — akkor is, ha épp nem
+   * webcím van benne (új lap, a bővítmény tiltó lapja). A munkamenet ennél
+   * az oldalt nézi, nem az appot (lásd `foregroundWarning`).
+   */
+  browser?: true;
 }
 
 export interface SampleDecision {

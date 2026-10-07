@@ -11,7 +11,7 @@
 
 import {
   formatRemaining, isWindowRun, MAX_SESSION_MINUTES, SESSION_CHOICES_MIN,
-  type FocusPack, type FocusRun,
+  type FocusPack, type FocusRun, type ForegroundWarning,
 } from '../shared/focus.js';
 import { hitNudgeStep, peakDayNowText, peakNowText } from '../shared/browser-hits.js';
 import { FOCUS_STREAK_MIN_DAYS, focusDayNowText, focusHourNowText, focusStreakText } from '../shared/focus.js';
@@ -33,8 +33,11 @@ interface OverlayBridge {
   hideOverlay(): Promise<void>;
   showMain(): Promise<void>;
   getOverlayState(): Promise<{
-    shortcutOk: boolean; warnApp: string | null; extensionStale?: boolean;
+    shortcutOk: boolean; warn?: ForegroundWarning | null; extensionStale?: boolean;
+    extensionNoIncognito?: boolean;
   }>;
+  /** a már látszó réteg: új figyelmeztetés vár (régebbi preloadban nincs) */
+  onOverlayWarn?(cb: () => void): void;
 }
 const bridge = (window as unknown as { breaker: OverlayBridge }).breaker;
 
@@ -115,9 +118,15 @@ const $ = (id: string): HTMLElement => document.getElementById(id) as HTMLElemen
  * jelenti, hogy minden rendben — olyankor a szokásos mondat áll ott.
  */
 function extWarning(): string | null {
-  if (!extensionStale) return null;
-  return 'A böngésző-bővítmény nincs összekötve — a fehérlistát a gépen ő '
-    + 'érvényesíti, enélkül a böngészőben nem tilt semmit. A blokklista él.';
+  if (extensionStale) {
+    return 'A böngésző-bővítmény nincs összekötve — a fehérlistát a gépen ő '
+      + 'érvényesíti, enélkül a böngészőben nem tilt semmit. A blokklista él.';
+  }
+  // Ott van, de inkognitóban nem fut: a menet ott nem tilt — a blokklista igen.
+  if (extensionNoIncognito) {
+    return 'A böngésző-bővítmény inkognitóban nem fut — ott a fehérlista nem tilt. A blokklista él.';
+  }
+  return null;
 }
 
 function h(tag: string, cls?: string, text?: string): HTMLElement {
@@ -135,11 +144,11 @@ async function call<T>(op: string, payload?: Record<string, unknown>): Promise<T
 
 let status: Status | null = null;
 /**
- * Ha van, a réteg NEM a csomaglistát mutatja, hanem azt, hogy ez az app nincs
- * a listán. Az appokat nem tudjuk letiltani — egy futó programot nem lövünk ki
- * —, de szólni tudunk.
+ * Ha van, a réteg NEM a csomaglistát mutatja, hanem azt, hogy ez az app —
+ * vagy ez a böngészőben nyitva látott oldal — nincs a listán. Az appokat nem
+ * tudjuk letiltani — egy futó programot nem lövünk ki —, de szólni tudunk.
  */
-let warnApp: string | null = null;
+let warning: ForegroundWarning | null = null;
 /**
  * Nincs összekötve a böngésző-bővítmény.
  *
@@ -148,6 +157,8 @@ let warnApp: string | null = null;
  * böngészőben — és épp ez a réteg az, ahonnan a legtöbben indítanak.
  */
 let extensionStale = false;
+/** A bővítmény ott van, de inkognitóban nem fut (az utolsó lehúzás szerint). */
+let extensionNoIncognito = false;
 /** Melyik csomagnál tartunk a hossz-választásban (null = még a listánál). */
 let choosing: FocusPack | null = null;
 
@@ -168,24 +179,37 @@ function render(): void {
 
   const run = status.focusRun;
 
-  if (warnApp && run && run.endsAt > Date.now()) {
+  if (warning && run && run.endsAt > Date.now()) {
     const pack = status.focusPacks.find((p) => p.id === run.packId);
+    const left = `Még ${formatRemaining(run.endsAt - Date.now())} van hátra.`;
     $('kicker').textContent = 'Nincs a listán';
-    $('title').textContent = warnApp;
     const box = h('div', 'running');
-    box.appendChild(h('div', 'what',
-      `Most ${pack?.name ?? 'egy munkamenet'} fut — ez az app nincs benne. `
-      + `Még ${formatRemaining(run.endsAt - Date.now())} van hátra.`));
-    box.appendChild(h('div', 'what',
-      'Bezárni nem tudjuk helyetted, és nem is fogjuk: egy futó program adatot '
-      + 'veszíthet. Ezt a döntést neked kell meghoznod.'));
+    if (warning.kind === 'site') {
+      // A BÖNGÉSZŐBEN látott oldal: a menet alatt nem mehetne, mégis nyitva van.
+      // Ahol a bővítmény fut, ott ez nem fordulhat elő — tehát ott nem fut.
+      $('title').textContent = warning.host;
+      box.appendChild(h('div', 'what',
+        `Most ${pack?.name ?? 'egy munkamenet'} fut — ez az oldal nincs benne, mégis nyitva van `
+        + `(${warning.browser}). ${left}`));
+      box.appendChild(h('div', 'what',
+        'Ebben a böngészőben a fehérlistát most senki nem tartja be: a bővítmény nincs benne, '
+        + 'nincs összekötve az appal, ki van kapcsolva, vagy inkognitóban nem fut.'));
+      foot.textContent = 'A bővítmény ott tilt, ahol fut; ahol nem, ott csak szólni tudunk.';
+    } else {
+      $('title').textContent = warning.app;
+      box.appendChild(h('div', 'what',
+        `Most ${pack?.name ?? 'egy munkamenet'} fut — ez az app nincs benne. ${left}`));
+      box.appendChild(h('div', 'what',
+        'Bezárni nem tudjuk helyetted, és nem is fogjuk: egy futó program adatot '
+        + 'veszíthet. Ezt a döntést neked kell meghoznod.'));
+      foot.textContent = 'A böngészőben a fehérlista tényleg tilt; az appoknál csak szólni tudunk.';
+    }
     body.appendChild(box);
     const row = h('div', 'mins');
     const ok = h('button', 'primary', 'Értem');
-    ok.addEventListener('click', () => { warnApp = null; close(); });
+    ok.addEventListener('click', () => { warning = null; close(); });
     row.appendChild(ok);
     body.appendChild(row);
-    foot.textContent = 'A böngészőben a fehérlista tényleg tilt; az appoknál csak szólni tudunk.';
     return;
   }
 
@@ -385,8 +409,9 @@ async function refresh(): Promise<void> {
     // Egyszer olvasható: ha a réteg máskor is előjön, ne a régi figyelmeztetés
     // fogadja.
     const st = await bridge.getOverlayState();
-    if (st.warnApp) warnApp = st.warnApp;
+    if (st.warn) warning = st.warn;
     extensionStale = st.extensionStale === true;
+    extensionNoIncognito = st.extensionNoIncognito === true;
   } catch { /* a réteg enélkül is használható */ }
   render();
 }
@@ -411,3 +436,5 @@ $('scrim').addEventListener('click', (e) => {
 void refresh();
 setInterval(() => { if (status?.focusRun) render(); }, 1000);
 window.addEventListener('focus', () => { void refresh(); });
+// A MÁR LÁTSZÓ réteg új figyelmeztetése: a `focus` ilyenkor nem jön újra.
+bridge.onOverlayWarn?.(() => { void refresh(); });
