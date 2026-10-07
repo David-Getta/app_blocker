@@ -13,6 +13,7 @@
 // HA AZ APP NINCS NYITVA, az utoljára letöltött listát használjuk. Vagyis
 // TOVÁBB TILT, nem enged át: a hiba a szigorúbb oldalra dől.
 
+import { incognitoAllowed } from './incognito.js';
 import { cleanKeywords } from './keywords.js';
 
 const KEY = 'breaker.applink';
@@ -21,6 +22,8 @@ const KEY = 'breaker.applink';
 export const FIRST_PORT = 8788;
 export const PORT_TRIES = 10;
 export const TOKEN_HEADER = 'x-breaker-token';
+/** Fut-e a bővítmény inkognitóban: '1' / '0' — az app ebből tudja kimondani, ha nem. */
+export const INCOGNITO_HEADER = 'x-breaker-incognito';
 /**
  * Ennél sűrűbben nincs értelme kérdezni; a szolgáltatás-worker sokszor ébred.
  *
@@ -356,6 +359,10 @@ export async function pullFromApp(now = Date.now(), fetchImpl = fetch, timeoutMs
     : range(FIRST_PORT, PORT_TRIES);
 
   let lastError = 'Az app nem érhető el ezen a gépen.';
+  // Fut-e inkognitóban: az app ebből tudja kimondani, ha ott a munkamenet és a
+  // kulcsszó nem érvényesül. Ha a böngésző nem tudja megmondani, nem küldjük.
+  const incognito = await incognitoAllowed();
+  const extra = typeof incognito === 'boolean' ? { [INCOGNITO_HEADER]: incognito ? '1' : '0' } : {};
   for (const port of ports) {
     let res;
     // A megszakítás a VALÓDI kérést is leállítja, nem csak a várakozást: egy
@@ -363,7 +370,7 @@ export async function pullFromApp(now = Date.now(), fetchImpl = fetch, timeoutMs
     const ctrl = typeof AbortController === 'function' ? new AbortController() : null;
     try {
       res = await withTimeout(fetchImpl(`http://127.0.0.1:${port}/rules`, {
-        headers: { [TOKEN_HEADER]: link.token },
+        headers: { [TOKEN_HEADER]: link.token, ...extra },
         cache: 'no-store',
         ...(ctrl ? { signal: ctrl.signal } : {}),
       }), timeoutMs);

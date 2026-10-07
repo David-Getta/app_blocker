@@ -52,6 +52,8 @@ export interface RulesBridgeInfo {
    * szám régi, a menet nem tiltana semmit a böngészőben.
    */
   lastPullAt?: number;
+  /** fut-e a bővítmény inkognitóban (az utolsó lehúzás szerint); null/hiány: nem tudni */
+  incognito?: boolean | null;
   error?: string;
 }
 

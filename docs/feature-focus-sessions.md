@@ -320,6 +320,16 @@ Ez azt is jelenti, hogy a munkamenet indítása után **legfeljebb húsz
 másodpercig** még átmehet egy oldal. Ezt nem takarjuk el: a réteg a szándékot
 támogatja, nem egy elektromos kerítés.
 
+### Inkognitóban — ha nem fut ott, az app is kimondja
+
+A bővítmény inkognitóban alapból nem fut, és ott a munkamenet fehérlistáját
+senki nem érvényesíti (az egész oldal tiltása, a DNS, igen). A bővítmény
+minden lehúzáskor megmondja az appnak, fut-e inkognitóban (az
+`x-breaker-incognito` fejlécben, `1` / `0`); ha nem, a munkamenet kártyája
+kimondja, és megmondja, hol kapcsolható be. A régi bővítmény nem küldi: az
+„nem tudni”, és akkor hallgatunk — nem állítunk olyat, amit nem tudunk. A
+fejléc nevét a mag-szinkron őr veti össze a két oldalon.
+
 ## A lejárat IDŐPONT, nem állapot
 
 A bővítmény a munkamenet végét **helyben** nézi, nem az apptól kérdezi:

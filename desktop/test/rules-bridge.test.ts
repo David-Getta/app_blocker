@@ -12,7 +12,7 @@
 import { test } from 'node:test';
 import * as assert from 'node:assert/strict';
 import {
-  answer, newBridgeToken, startRulesBridge, TOKEN_HEADER, tokenMatches,
+  answer, INCOGNITO_HEADER, newBridgeToken, startRulesBridge, TOKEN_HEADER, tokenMatches,
 } from '../src/main/rules-bridge';
 
 const RULES = [{ host: 'youtube.com', path: '/@valaki' }];
@@ -278,6 +278,20 @@ test('a mérés-őr is átmegy a hídon — nélküle null, hogy a lap ne mondjo
   assert.deepEqual((r.body as { measureGuard: unknown }).measureGuard, { hosts: ['youtube.com', 'www.youtube.com'] });
   const none = await answer(deps(), 'GET', '/rules', { [TOKEN_HEADER]: 'ABCD-EFGH' });
   assert.equal((none.body as { measureGuard: unknown }).measureGuard, null, 'őr nélkül null, nem hiányzó mező');
+});
+
+test('az inkognitó-jel a lehúzással jön: csak a szó szerinti 1/0 számít, a hiánya „nem tudni”', async () => {
+  // A bővítmény minden lehúzáskor megmondja, fut-e inkognitóban; az app ebből
+  // mondja ki, ha ott a munkamenet nem érvényesül. A régi bővítmény nem küldi:
+  // az nem „nem fut”, hanem nem tudjuk.
+  const seen: (boolean | null)[] = [];
+  const d = { ...deps(), notePull: (info: { incognito: boolean | null }) => { seen.push(info.incognito); } };
+  for (const v of ['1', '0', undefined, 'true', '', 1, '1, 0']) {
+    await answer(d, 'GET', '/rules', { [TOKEN_HEADER]: 'ABCD-EFGH', [INCOGNITO_HEADER]: v });
+  }
+  assert.deepEqual(seen, [true, false, null, null, null, null, null]);
+  await answer(d, 'GET', '/rules', { [TOKEN_HEADER]: 'ROSSZ', [INCOGNITO_HEADER]: '0' });
+  assert.equal(seen.length, 7, 'rossz kóddal nincs lehúzás, jel sincs');
 });
 
 test('a megbízott neve is átmegy a hídon — nélküle null, hogy a lap ne mondjon olyat, ami nincs', async () => {

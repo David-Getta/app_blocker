@@ -3425,6 +3425,26 @@ const WIRES = [
     needle: "[...cleaned].slice(0, max).join('')",
     lost: 'a gép fedőneve és indoka UTF-16 egységben vágna — egy fél emodzsi menne a dróton a telefonokig',
   },
+  {
+    file: 'extension/app-link.js',
+    needle: 'headers: { [TOKEN_HEADER]: link.token, ...extra },',
+    lost: 'a bővítmény nem mondaná meg az appnak, hogy inkognitóban nem fut — a munkamenet kártyája hallgatna róla',
+  },
+  {
+    file: 'desktop/src/main/rules-bridge.ts',
+    needle: "deps.notePull?.({ incognito: ih === '1' ? true : ih === '0' ? false : null });",
+    lost: 'a híd elnyelné a bővítmény inkognitó-jelét — az app nem tudná, hogy ott a munkamenet nem érvényesül',
+  },
+  {
+    file: 'desktop/src/main/rules-bridge-ipc.ts',
+    needle: 'if (info.incognito !== null) lastIncognito = info.incognito;',
+    lost: 'a felület sosem kapná meg a bővítmény inkognitó-állapotát',
+  },
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: 'if (fresh && info.incognito === false) {',
+    lost: 'a munkamenet kártyája nem mondaná ki, hogy inkognitóban a fehérlista nem érvényesül',
+  },
 ];
 
 /**

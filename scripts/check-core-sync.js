@@ -90,6 +90,7 @@ ext.rules = read('extension/rules-core.js');
 // A híd a heti ablakokat és a zárlat-ablakokat egy hétre előre leküldi; a
 // bővítmény a maga plafonjáig tárolja — ha kisebb volna, a hét vége kiesne.
 ext.appLink = read('extension/app-link.js');
+ts.bridge = read('desktop/src/main/rules-bridge.ts');
 // A mérés-őr türelmi ideje: a segéd ennyi csend után zár, a tiltó lap ennyi
 // után mondja, hogy zárva — ha elcsúszna, a lap mást mondana, mint ami van.
 ts.measureGuard = read('desktop/src/shared/measure-guard.ts');
@@ -128,6 +129,12 @@ function scalar(text, re, label) {
   if (!m) return { missing: label };
   const v = evalNumber(m[1]);
   return Number.isFinite(v) ? v : { missing: `${label} (nem szám: ${m[1]})` };
+}
+
+/** Egy idézett szöveg (fejlécnév és társai) — hiányában jelölve, mint a szám. */
+function quotedText(text, re, label) {
+  const m = text.match(re);
+  return m ? m[1] : { missing: label };
 }
 
 function list(text, re, label) {
@@ -531,6 +538,21 @@ const EXT_PAIRS = [
   ['MAX_WINDOW_OCCURRENCES (zárlat)',
     scalar(ts.focus, /MAX_WINDOW_OCCURRENCES\s*=\s*([^;]+);/, 'ts'),
     scalar(ext.appLink, /MAX_LOCKDOWN_WINDOWS\s*=\s*([^;]+);/, 'ext')],
+  // A híd és a bővítmény közös szavai. Egy elcsúszott port-tartomány vagy
+  // fejlécnév nem hiba sehol: a bővítmény nem találja az appot, vagy az app
+  // nem kapja meg a jelet — és mindkét fél „nem tudni”-ként éli túl, csendben.
+  ['BRIDGE_PORT',
+    scalar(ts.bridge, /BRIDGE_PORT\s*=\s*([^;]+);/, 'ts'),
+    scalar(ext.appLink, /FIRST_PORT\s*=\s*([^;]+);/, 'ext')],
+  ['BRIDGE_PORT_TRIES',
+    scalar(ts.bridge, /BRIDGE_PORT_TRIES\s*=\s*([^;]+);/, 'ts'),
+    scalar(ext.appLink, /PORT_TRIES\s*=\s*([^;]+);/, 'ext')],
+  ['TOKEN_HEADER',
+    quotedText(ts.bridge, /TOKEN_HEADER\s*=\s*'([^']+)'/, 'ts'),
+    quotedText(ext.appLink, /TOKEN_HEADER\s*=\s*'([^']+)'/, 'ext')],
+  ['INCOGNITO_HEADER',
+    quotedText(ts.bridge, /INCOGNITO_HEADER\s*=\s*'([^']+)'/, 'ts'),
+    quotedText(ext.appLink, /INCOGNITO_HEADER\s*=\s*'([^']+)'/, 'ext')],
 ];
 
 /** Egy szám a két telefon-tükörből — aláhúzás és Kotlin-utótag nélkül. */

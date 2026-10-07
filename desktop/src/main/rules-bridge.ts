@@ -33,6 +33,8 @@ export const BRIDGE_PORT_TRIES = 10;
 export const BRIDGE_PROTOCOL = 1;
 /** A kód fejlécének neve. Egyedi fejléc: weboldalról már az előellenőrzés elbukik. */
 export const TOKEN_HEADER = 'x-breaker-token';
+/** A bővítmény ebben mondja meg, fut-e inkognitóban ('1' / '0'). */
+export const INCOGNITO_HEADER = 'x-breaker-incognito';
 
 export interface BridgeRule {
   host: string;
@@ -260,7 +262,7 @@ export interface BridgeDeps {
    * kiszolgáló fut. A munkamenet fehérlistáját a gépen KIZÁRÓLAG a bővítmény
    * érvényesíti, tehát ez a különbség nem részletkérdés.
    */
-  notePull?: () => void;
+  notePull?: (info: { incognito: boolean | null }) => void;
 }
 
 /** A befelé menő törzs plafonja: egy hét megakadás-sora, bőven. */
@@ -362,7 +364,10 @@ export async function answer(
   // FUT — azt nem, hogy beszél-e vele bárki. A kettő között pedig ott a
   // legcsendesebb hiba: a felhasználó elindít egy munkamenetet, a fehérlistát
   // viszont senki nem érvényesíti, és minden nyitva marad.
-  deps.notePull?.();
+  // Fut-e a bővítmény inkognitóban — csak a szó szerinti '1' / '0' számít;
+  // régi bővítmény nem küldi, az „nem tudni”.
+  const ih = headers[INCOGNITO_HEADER];
+  deps.notePull?.({ incognito: ih === '1' ? true : ih === '0' ? false : null });
   return {
     status: 200,
     body: {

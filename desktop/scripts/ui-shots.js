@@ -690,6 +690,27 @@ async function main() {
     () => document.getElementById('focusExtWarn')?.classList.contains('hidden'),
     undefined, { timeout: 10_000 },
   ).catch(() => failures.push('a friss bővítmény-kapcsolat mellett is riaszt'));
+  // Ott van, de inkognitóban NEM fut: ezt kimondjuk — ott a fehérlista nem
+  // érvényesül. Ha a bővítmény nem tudja megmondani (régi bővítmény), hallgatunk.
+  await page.evaluate(() => {
+    window.__fakeBridge = {
+      running: true, port: 8788, token: 'ABCD-EFGH-JKMN-PQRS', lastPullAt: Date.now(), incognito: false,
+    };
+  });
+  await page.waitForFunction(
+    () => /inkognitóban nem fut/.test(document.getElementById('focusExtWarn')?.textContent || '')
+      && !document.getElementById('focusExtWarn')?.classList.contains('hidden'),
+    undefined, { timeout: 10_000 },
+  ).catch(() => failures.push('a munkamenet kártyája nem mondja ki, hogy a bővítmény inkognitóban nem fut'));
+  await page.evaluate(() => {
+    window.__fakeBridge = {
+      running: true, port: 8788, token: 'ABCD-EFGH-JKMN-PQRS', lastPullAt: Date.now(), incognito: true,
+    };
+  });
+  await page.waitForFunction(
+    () => document.getElementById('focusExtWarn')?.classList.contains('hidden'),
+    undefined, { timeout: 10_000 },
+  ).catch(() => failures.push('inkognitóban is futó bővítmény mellett is riaszt'));
 
   // PERCRE PONTOS HOSSZ. A gyorsgombok a gyakori eseteket fedik; a szabad mező
   // azt, amikor a felhasználó tudja, hogy 43 perce van ebédig. Ha ez csak a

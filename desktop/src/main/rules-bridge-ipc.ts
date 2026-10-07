@@ -31,6 +31,8 @@ let info: BridgeInfo = { running: false };
  * bővítmény érvényesíti.
  */
 let lastPullAt = 0;
+/** Fut-e a bővítmény inkognitóban — az utolsó lehúzás szerint; null: nem tudni. */
+let lastIncognito: boolean | null = null;
 
 function tokenFile(userDataDir: string): string {
   return path.join(userDataDir, 'extension-bridge.json');
@@ -91,7 +93,7 @@ export function registerRulesBridge(
   addFocusWindow?: (packId: string, hour: number) => Promise<void>,
   getMeasureGuard?: () => Promise<BridgeMeasureGuard | null>,
 ): void {
-  ipcMain.handle('breaker:bridge-info', () => ({ ...bridgeInfo(), lastPullAt }));
+  ipcMain.handle('breaker:bridge-info', () => ({ ...bridgeInfo(), lastPullAt, incognito: lastIncognito }));
   if (handle) return;
   const token = loadOrCreateToken(userDataDir);
   void startRulesBridge({
@@ -111,7 +113,11 @@ export function registerRulesBridge(
     getMeasureGuard,
     // A LEHÚZÁS ténye. Ebből tudja meg a felület, hogy a bővítmény tényleg ott
     // van — nem csak a kiszolgáló fut.
-    notePull: () => { lastPullAt = Date.now(); },
+    notePull: (info) => {
+      lastPullAt = Date.now();
+      // A régi bővítmény nem mondja: az utolsó tudott érték marad, nem törlődik.
+      if (info.incognito !== null) lastIncognito = info.incognito;
+    },
   }).then(
     (h) => { handle = h; info = { running: true, port: h.port, token }; },
     // A híd elmaradása nem hiba, amitől bármi más ne menne: a bővítmény ilyenkor

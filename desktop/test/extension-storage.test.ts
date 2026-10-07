@@ -218,6 +218,7 @@ function freshLink(): LinkApi {
   // Az app-link a kulcsszó-tisztítást a `keywords.js`-ből veszi: ugyanazokat
   // a kiszállított bájtokat töltjük elé, amiket a böngésző is.
   const src = fs.readFileSync(path.join(extensionDir(), 'keywords.js'), 'utf8')
+    + '\n' + fs.readFileSync(path.join(extensionDir(), 'incognito.js'), 'utf8')
     + '\n' + fs.readFileSync(path.join(extensionDir(), 'app-link.js'), 'utf8');
   const names: string[] = [];
   const body = src
@@ -257,6 +258,36 @@ test('the app rules arrive, even when the app moved to another port', async () =
   assert.deepEqual(r.rules, [{ host: 'youtube.com', path: '/@valaki' }]);
   // A megtalált portot megjegyezzük: tíz kérés helyett egy.
   assert.equal((await ext.loadLink()).port, 8790);
+});
+
+test('a lehúzás megmondja az appnak, fut-e a bővítmény inkognitóban — ha a böngésző nem tudja, nem küldi', async () => {
+  // Az app ebből mondja ki a munkamenet kártyáján, ha inkognitóban a
+  // fehérlista nem érvényesül. A böngésző válaszát a kiszállított incognito.js
+  // olvassa — a `globalThis.chrome`-ról, ezért azt cseréljük a teszt idejére.
+  const seen: (string | undefined)[] = [];
+  const app = async (_url: string, init: { headers: Record<string, string> }) => {
+    seen.push(init.headers['x-breaker-incognito']);
+    return { ok: true, status: 200, json: async () => ({ protocol: 1, rules: [] }) };
+  };
+  const g = globalThis as { chrome?: unknown };
+  const before = g.chrome;
+  try {
+    for (const [allowed, want] of [[false, '0'], [true, '1'], [null, undefined]] as const) {
+      g.chrome = allowed === null ? undefined : { extension: { isAllowedIncognitoAccess: async () => allowed } };
+      const ext = freshLink();
+      await ext.setToken('ABCD-EFGH');
+      assert.equal((await ext.pullFromApp(1000, app)).ok, true);
+      assert.equal(seen[seen.length - 1], want, String(allowed));
+    }
+    // Ha a böngésző kérdése hibát dob, a lehúzás attól még megy, jel nélkül.
+    g.chrome = { extension: { isAllowedIncognitoAccess: async () => { throw new Error('nincs ilyen'); } } };
+    const ext = freshLink();
+    await ext.setToken('ABCD-EFGH');
+    assert.equal((await ext.pullFromApp(1000, app)).ok, true);
+    assert.equal(seen[seen.length - 1], undefined);
+  } finally {
+    g.chrome = before;
+  }
 });
 
 test('egy néma port nem állítja meg a keresést', async () => {

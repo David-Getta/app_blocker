@@ -82,6 +82,7 @@ interface RulesBridgeInfo {
   token?: string;
   /** mikor húzta le a bővítmény utoljára a szabályokat (0 = még soha) */
   lastPullAt?: number;
+  incognito?: boolean | null;
   error?: string;
 }
 interface Bridge {
@@ -907,6 +908,16 @@ function renderFocusExtensionWarning(): void {
     // A bővítmény húsz másodpercenként kérdez; két percnél régebbi lehúzás azt
     // jelenti, hogy nincs ott. A híd FUTÁSA önmagában nem elég bizonyíték.
     const fresh = !!info.lastPullAt && Date.now() - info.lastPullAt < 2 * 60_000;
+    // Ott van, de inkognitóban NEM fut: a munkamenet ott nem tilt — kimondjuk,
+    // és megmondjuk, hol kapcsolható be (a bővítmény lapjai is mondják).
+    if (fresh && info.incognito === false) {
+      box.classList.remove('hidden');
+      box.textContent = 'A böngésző-bővítmény inkognitóban nem fut: ott a munkamenet '
+        + 'fehérlistája, a kulcsszavak és a részleges szabályok nem érvényesülnek (az egész '
+        + 'oldal tiltása igen). Bekapcsolni a böngésző bővítmény-beállításainál lehet: '
+        + '„Engedélyezés inkognitó módban”.';
+      return;
+    }
     box.classList.toggle('hidden', fresh);
     if (fresh) return;
     box.textContent = info.lastPullAt
