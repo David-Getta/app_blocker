@@ -116,7 +116,7 @@ public enum LockdownLogic {
     /// A zárlat hossza napokban is mérhető, ezért nem a percre pontos alak kell
     /// — aki hét napot zárt le, annak a másodpercek csak nézegetnivalót adnának.
     static func formatRemaining(_ ms: Double) -> String {
-        let total = Int(max(0, (ms / 1000).rounded(.up)))
+        let total = max(0, clampedInt((ms / 1000).rounded(.up)))
         let days = total / 86_400
         let hours = (total % 86_400) / 3600
         let mins = (total % 3600) / 60

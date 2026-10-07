@@ -3598,6 +3598,21 @@ const WIRES = [
     needle: 'PauseReminders.reschedule(views, now: now)',
     lost: 'az iPhone nem ütemezné a szünet vége előtti értesítést',
   },
+
+  // A DRÓTON JÖTT ABSZURD IDŐ NEM ÁLLÍTHATJA LE AZ IPHONE-APPOT. A Swift
+  // `Int(_:)` a tartományon kívüli értéken összeomlik; a zárlat vége
+  // magasvízjelként terjed, tehát egy hibás eszköz egyetlen értéke minden
+  // indításkor elvinné az appot. A formázók a telítő `clampedInt`-en át alakítanak.
+  {
+    file: 'ios/Shared/Lockdown.swift',
+    needle: 'let total = max(0, clampedInt((ms / 1000).rounded(.up)))',
+    lost: 'egy abszurd zárlat-vég a szinkronról leállítaná az iPhone-appot',
+  },
+  {
+    file: 'ios/App/ContentView.swift',
+    needle: 'let total = max(0, clampedInt(ceil(ms / 1000)))',
+    lost: 'egy abszurd törlési idő a szinkronról leállítaná az iPhone-appot',
+  },
 ];
 
 /**

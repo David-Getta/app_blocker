@@ -701,7 +701,7 @@ public enum Focus {
 
     /// Ahogy a felületen áll: „Nyelvtanulás — 42 perc van hátra”.
     public static func formatRemaining(_ ms: Double) -> String {
-        let total = max(0, Int((ms / 60_000).rounded(.up)))
+        let total = max(0, clampedInt((ms / 60_000).rounded(.up)))
         if total >= 60 {
             let h = total / 60
             let m = total % 60

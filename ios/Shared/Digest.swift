@@ -151,7 +151,7 @@ public enum DigestLogic {
     public static func hm(_ seconds: Double) -> String {
         // floor(x + 0.5): pontosan a JS Math.round — a felfelé kerekítés a
         // felezőnél, hogy a három mag ugyanazt a percet mondja.
-        let total = max(0, Int((seconds / 60 + 0.5).rounded(.down)))
+        let total = max(0, clampedInt((seconds / 60 + 0.5).rounded(.down)))
         let h = total / 60
         let m = total % 60
         return h > 0 ? "\(h) ó \(m) p" : "\(m) p"
@@ -177,7 +177,7 @@ public enum DigestLogic {
             func trendOf(_ label: String) -> String {
                 guard let pct = input.weekOverWeek.first(where: { $0.label == label })?.deltaPct,
                       abs(pct) > 5 else { return "" }
-                let rounded = Int((pct + 0.5).rounded(.down))
+                let rounded = clampedInt((pct + 0.5).rounded(.down))
                 return " (\(pct > 0 ? "▲ +" : "▼ ")\(rounded)% az előző héthez képest)"
             }
             if let top = input.topWeekSites.first, top.seconds > 0 {

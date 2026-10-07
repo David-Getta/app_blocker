@@ -44,7 +44,7 @@ enum PauseNotify {
 
     /// „youtube.com 2 perc múlva újra zárva — a szünet véget ér.” — a perc felfelé kerekít, legalább egy.
     static func text(_ label: String, leftMs: Double) -> String {
-        let minutes = max(1, Int((leftMs / 60_000).rounded(.up)))
+        let minutes = max(1, clampedInt((leftMs / 60_000).rounded(.up)))
         return "\(label) \(minutes) perc múlva újra zárva — a szünet véget ér."
     }
 }

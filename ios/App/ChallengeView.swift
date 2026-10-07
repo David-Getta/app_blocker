@@ -275,7 +275,7 @@ private struct DelayView: View {
 }
 
 private func fmtRemain(_ ms: Double) -> String {
-    let total = Int(max(0, ceil(ms / 1000)))
+    let total = max(0, clampedInt(ceil(ms / 1000)))
     let h = total / 3600, m = (total % 3600) / 60, s = total % 60
     if h > 0 { return "\(h) ó \(String(format: "%02d", m)) p" }
     return "\(m):\(String(format: "%02d", s))"
