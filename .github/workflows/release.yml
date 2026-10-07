@@ -45,24 +45,23 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A menetrend megmondja, mikor vált.** Egy menetrend szerint
-          szabad oldalról eddig nem derült ki, meddig szabad — a zárás volt
-          a meglepetés. Most a sor kimondja: „zár 1 ó 30 p múlva”, a zárt
-          oldalnál pedig „nyit 45 perc múlva”. A gépen, Androidon és
-          iPhone-on is. Tény, nem figyelmeztetés.
+          **A szünet vége előre szól.** A feloldás vége eddig meglepetés
+          volt: aki épp írt vagy nézett valamit, annak a visszazárás egy
+          félbehagyott mondat közepén jött. Most két perccel előtte egy
+          értesítés szól („youtube.com 2 perc múlva újra zárva”) — egyszer,
+          és csak akkor, ha a szünet ennél hosszabb volt. A gépen és
+          Androidon az app nélkül is, iPhone-on előre ütemezve. Rejtett
+          listánál a név helyett sorszám vagy a fedőnév áll.
 
-          A telefonon a jelzés pontosabb is lett: ha az oldalt nem a
-          menetrend zárja, hanem a betelt keret, nem mondja, hogy
-          menetrend.
+          ### Ami a v0.4.219-ben jött
 
-          ### Ami a v0.4.218-ban jött
+          **A menetrend megmondja, mikor vált** — „zár 1 ó 30 p múlva”,
+          „nyit 45 perc múlva”.
 
-          **Saját sáv a menetrendben** (napok, kezdés, vég), és **a meglévő
-          sávok nem vesznek el** a szerkesztőben.
+          #### Ami a v0.4.218-ban jött
 
-          #### Ami a v0.4.217-ben jött
-
-          **Az óra előreállítása nem rövidíti a hűtést.**
+          **Saját sáv a menetrendben**, és a meglévő sávok nem vesznek el a
+          szerkesztőben.
 
           NOTES
           fi
