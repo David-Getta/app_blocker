@@ -45,28 +45,21 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A szünet vége előre szól.** A feloldás vége eddig meglepetés
-          volt: aki épp írt vagy nézett valamit, annak a visszazárás egy
-          félbehagyott mondat közepén jött. Most két perccel előtte egy
-          értesítés szól („youtube.com 2 perc múlva újra zárva”) — egyszer,
-          és csak akkor, ha a szünet ennél hosszabb volt. A gépen és
-          Androidon az app nélkül is, iPhone-on előre ütemezve. Rejtett
-          listánál a név helyett sorszám vagy a fedőnév áll.
+          **A napi keret vége is előre szól.** A „ma még 8 perc a kereted”
+          sor eddig csak a kezdőlapon állt — aki épp az oldalon volt, annak a
+          keret vége egy félbehagyott videó közepén jött. Most amikor a mai
+          keretből tíz perc (kis keretnél a fele) marad, egy értesítés is
+          szól, egyszer, ugyanazzal a mondattal. A gépen és Androidon; a
+          többi eszközön elköltött idő is számít.
 
-          **Az iPhone-app egy hibás szinkron-érték miatt sem áll le.** Ha egy
-          eszköz abszurd időt írt (például egy zárlat végére), az iPhone-app
-          eddig minden indításkor leállt volna; most a hátralévő idő
-          kiírása telítődik, mint a gépen és Androidon.
+          ### Ami a v0.4.220-ban jött
 
-          ### Ami a v0.4.219-ben jött
+          **A szünet vége előre szól** — két perccel a visszazárás előtt —,
+          és **az iPhone-app egy hibás szinkron-érték miatt sem áll le**.
 
-          **A menetrend megmondja, mikor vált** — „zár 1 ó 30 p múlva”,
-          „nyit 45 perc múlva”.
+          #### Ami a v0.4.219-ben jött
 
-          #### Ami a v0.4.218-ban jött
-
-          **Saját sáv a menetrendben**, és a meglévő sávok nem vesznek el a
-          szerkesztőben.
+          **A menetrend megmondja, mikor vált.**
 
           NOTES
           fi
