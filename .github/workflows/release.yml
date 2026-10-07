@@ -53,6 +53,11 @@ jobs:
           Androidon az app nélkül is, iPhone-on előre ütemezve. Rejtett
           listánál a név helyett sorszám vagy a fedőnév áll.
 
+          **Az iPhone-app egy hibás szinkron-érték miatt sem áll le.** Ha egy
+          eszköz abszurd időt írt (például egy zárlat végére), az iPhone-app
+          eddig minden indításkor leállt volna; most a hátralévő idő
+          kiírása telítődik, mint a gépen és Androidon.
+
           ### Ami a v0.4.219-ben jött
 
           **A menetrend megmondja, mikor vált** — „zár 1 ó 30 p múlva”,
