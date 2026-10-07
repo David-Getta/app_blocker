@@ -20,6 +20,8 @@ final class PauseNotifyTests: XCTestCase {
             .init(id: "s2", label: "reddit.com", pauseUntil: nil),
             .init(id: "s3", label: "x.com", pauseUntil: t - 1),
             .init(id: "s4", label: "y.com", pauseUntil: t + PauseNotify.pauseEndWarnMs),
+            .init(id: "s5", label: "z.com", pauseUntil: .infinity),
+            .init(id: "s6", label: "w.com", pauseUntil: .nan),
         ], now: t)
         XCTAssertEqual(plan, [])
     }

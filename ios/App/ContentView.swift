@@ -166,7 +166,9 @@ struct ContentView: View {
             // kérések a szünetek listáját (és a lista elrejtését) követik.
             let hidden = store.state.hideSiteList == true
             let pauseKey = "\(hidden)|" + store.state.sites
-                .map { "\($0.id):\(Int64($0.pauseUntil ?? 0)):\(AliasLogic.displayName($0))" }
+                // A vég szövegként megy a kulcsba, nem `Int64`-ként: egy dróton jött
+                // abszurd érték (1e300) az egész-átalakításnál leállítaná az appot.
+                .map { "\($0.id):\($0.pauseUntil ?? 0):\(AliasLogic.displayName($0))" }
                 .joined(separator: ",")
             if remindedPauses != pauseKey {
                 remindedPauses = pauseKey

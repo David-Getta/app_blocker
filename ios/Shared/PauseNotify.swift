@@ -34,7 +34,7 @@ enum PauseNotify {
     /// a gép `stepPauseNotices`-ének első hallgatási szabálya.
     static func plan(_ sites: [View], now: Double) -> [Reminder] {
         sites.compactMap { s in
-            guard let until = s.pauseUntil, until - now > pauseEndWarnMs else { return nil }
+            guard let until = s.pauseUntil, until.isFinite, until - now > pauseEndWarnMs else { return nil }
             return Reminder(
                 id: reminderIdPrefix + s.id,
                 fireAt: until - pauseEndWarnMs,
