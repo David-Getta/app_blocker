@@ -45,21 +45,23 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A napi keret vége is előre szól.** A „ma még 8 perc a kereted”
-          sor eddig csak a kezdőlapon állt — aki épp az oldalon volt, annak a
-          keret vége egy félbehagyott videó közepén jött. Most amikor a mai
-          keretből tíz perc (kis keretnél a fele) marad, egy értesítés is
-          szól, egyszer, ugyanazzal a mondattal. A gépen és Androidon; a
-          többi eszközön elköltött idő is számít.
+          **A böngésző lapja is előre szól a zárás előtt.** A zárás a
+          böngészőben a legkeményebb: a nyitott lap a tiltó lapra fut, ami
+          épp benne volt, félbemarad — és az értesítés könnyen elsikkad egy
+          videó mögött. Most az utolsó két percben egy sáv áll a lap tetején:
+          „A szünet 2 perc múlva véget ér — utána ez az oldal újra zárva.”
+          Ugyanígy a menetrend szerinti zárás előtt és a napi keret utolsó
+          perceiben. Bezárható, és ugyanarra nem jön vissza.
 
-          ### Ami a v0.4.220-ban jött
+          ### Ami a v0.4.221-ben jött
 
-          **A szünet vége előre szól** — két perccel a visszazárás előtt —,
-          és **az iPhone-app egy hibás szinkron-érték miatt sem áll le**.
+          **A napi keret vége is előre szól** — értesítésben, a gépen és
+          Androidon.
 
-          #### Ami a v0.4.219-ben jött
+          #### Ami a v0.4.220-ban jött
 
-          **A menetrend megmondja, mikor vált.**
+          **A szünet vége előre szól**, és az iPhone-app egy hibás
+          szinkron-érték miatt sem áll le.
 
           NOTES
           fi
