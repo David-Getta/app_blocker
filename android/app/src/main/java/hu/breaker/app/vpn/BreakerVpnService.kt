@@ -14,6 +14,7 @@ import android.os.ParcelFileDescriptor
 import android.util.Log
 import hu.breaker.app.MainActivity
 import hu.breaker.app.R
+import hu.breaker.app.core.PauseNotify
 import hu.breaker.app.core.AliasLogic
 import hu.breaker.app.core.FilterHitLogic
 import hu.breaker.app.core.KeywordLogic
@@ -69,6 +70,9 @@ class BreakerVpnService : VpnService() {
         private const val NOTIF_PEAK_ID = 7
         /** Az előjelzés a menet-óra előtt — ugyanazon a csatornán, külön azonosítóval. */
         private const val NOTIF_FOCUS_HOUR_ID = 8
+        /** A szünet vége előtti egyszeri szó — saját csatornán, hogy külön is elnémítható legyen. */
+        private const val NOTIF_PAUSE_END_ID = 9
+        private const val PAUSE_CHANNEL_ID = "breaker_pause_end"
 
         private val _running = MutableStateFlow(false)
         val running: StateFlow<Boolean> get() = _running
@@ -488,6 +492,37 @@ class BreakerVpnService : VpnService() {
         notifyOnce(NOTIF_DIGEST_ID, getString(R.string.digest_title), text, DIGEST_CHANNEL_ID, "Heti visszatekintés")
     }
 
+    /** A figyelt szünetek (oldal → vég), amiről még nem szóltunk — `PauseNotify.step` köréről körre. */
+    @Volatile private var pauseWatches: Map<String, Long> = emptyMap()
+
+    /**
+     * A SZÜNET VÉGE ELŐRE: két perccel a visszazárás előtt egyszer szól — a
+     * feloldás próbatétellel kifizetett idő, és a vége ne félbehagyott mondat
+     * közepén érjen. A szolgáltatás köre hívja, tehát az app nélkül is; a
+     * frissen indított rövid szünetre hallgat (`PauseNotify`). A név a lista
+     * elrejtését követi, mint a visszatekintésé: az értesítés a zárolt
+     * képernyőn is ott van.
+     */
+    private fun maybePauseEndNotice() {
+        val now = System.currentTimeMillis()
+        val st = BreakerStore.state.value
+        val views = st.sites.mapIndexed { i, site ->
+            PauseNotify.View(
+                site.id,
+                if (st.hideSiteList) AliasLogic.maskedLabel(site, i) else AliasLogic.displayName(site),
+                site.pauseUntil,
+            )
+        }
+        val r = PauseNotify.step(pauseWatches, views, now)
+        pauseWatches = r.watches
+        for (n in r.notices) {
+            notifyOnce(
+                NOTIF_PAUSE_END_ID, PauseNotify.TITLE, PauseNotify.text(n.label, n.until - now),
+                PAUSE_CHANNEL_ID, "Szünet vége",
+            )
+        }
+    }
+
     /**
      * A visszatekintés mondata a mostani állapotból — a mag adja, a címkézés a
      * statisztikáé: rejtett listánál sorszám, fedőnévnél a fedőnév. A rejtést a
@@ -555,6 +590,9 @@ class BreakerVpnService : VpnService() {
                     // hétfő reggel jön, nem az első megnyitáskor.
                     runCatching { maybeDigest() }
                         .onFailure { Log.w(TAG, "digest failed: $it") }
+                    // A szünet vége előre: két perccel a visszazárás előtt.
+                    runCatching { maybePauseEndNotice() }
+                        .onFailure { Log.w(TAG, "pause notice failed: $it") }
                 }
             }, UsageLogic.SAMPLE_INTERVAL_MS, UsageLogic.SAMPLE_INTERVAL_MS)
         }

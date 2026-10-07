@@ -122,6 +122,9 @@ ts.focusMerge = read('desktop/src/shared/sync/focus-merge.ts');
 kt.focusSync = read('android/app/src/main/java/hu/breaker/app/core/FocusSync.kt');
 sw.focusSync = read('ios/Shared/FocusSync.swift');
 ts.burst = read('desktop/src/shared/burst.ts');
+ts.pauseNotify = read('desktop/src/shared/pause-notify.ts');
+kt.pauseNotify = read('android/app/src/main/java/hu/breaker/app/core/PauseNotify.kt');
+sw.pauseNotify = read('ios/Shared/PauseNotify.swift');
 kt.burst = read('android/app/src/main/java/hu/breaker/app/core/Burst.kt');
 
 function scalar(text, re, label) {
@@ -145,6 +148,15 @@ function list(text, re, label) {
 
 /** Egy sor a táblázatban: mit hasonlítunk, és honnan vesszük mindhárom nyelven. */
 const CHECKS = [
+  // A szünet vége előtt ennyivel szól mindhárom app — és ugyanazzal a címmel.
+  ['PAUSE_END_WARN_MS',
+    scalar(ts.pauseNotify, /PAUSE_END_WARN_MS\s*=\s*([^;]+);/, 'ts'),
+    scalar(kt.pauseNotify, /PAUSE_END_WARN_MS\s*=\s*(.+)/, 'kt'),
+    scalar(sw.pauseNotify, /pauseEndWarnMs[^=]*=\s*(.+)/, 'swift')],
+  ['PAUSE_END_TITLE',
+    quotedText(ts.pauseNotify, /PAUSE_END_TITLE\s*=\s*'([^']+)'/, 'ts'),
+    quotedText(kt.pauseNotify, /TITLE\s*=\s*"([^"]+)"/, 'kt'),
+    quotedText(sw.pauseNotify, /static let title\s*=\s*"([^"]+)"/, 'swift')],
   ['CLAIM_WINDOW_MS',
     scalar(ts.challenges, /CLAIM_WINDOW_MS\s*=\s*([^;]+);/, 'ts'),
     scalar(kt.engine, /CLAIM_WINDOW_MS[^=]*=\s*(.+)/, 'kt'),

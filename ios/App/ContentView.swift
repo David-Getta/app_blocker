@@ -48,6 +48,8 @@ struct ContentView: View {
     @State private var lockdownWindowEdit: LockdownLogic.LockdownWindow? = nil
     /// Amelyik listához a heti emlékeztetők utoljára igazodtak; nil = még sosem.
     @State private var remindedWindows: [LockdownLogic.LockdownWindow]? = nil
+    /// A szünetek kulcsa, amire a „mindjárt vége a szünetnek” kérések utoljára íródtak.
+    @State private var remindedPauses: String? = nil
     @State private var digestReminderArmed = false
     /// Melyik csúcsra van ütemezve az előjelzés („óra:szám”) — csak változásra kérünk újra.
     @State private var peakScheduled = ""
@@ -158,6 +160,23 @@ struct ContentView: View {
             if remindedWindows != windows {
                 remindedWindows = windows
                 WindowReminders.reschedule(windows)
+            }
+            // A SZÜNET VÉGE ELŐRE: két perccel a visszazárás előtt egy helyi
+            // értesítés — előre ütemezve, mert az app nem fut a háttérben. A
+            // kérések a szünetek listáját (és a lista elrejtését) követik.
+            let hidden = store.state.hideSiteList == true
+            let pauseKey = "\(hidden)|" + store.state.sites
+                .map { "\($0.id):\(Int64($0.pauseUntil ?? 0)):\(AliasLogic.displayName($0))" }
+                .joined(separator: ",")
+            if remindedPauses != pauseKey {
+                remindedPauses = pauseKey
+                let views = store.state.sites.enumerated().map { i, site in
+                    PauseNotify.View(
+                        id: site.id,
+                        label: hidden ? AliasLogic.maskedLabel(site, index: i) : AliasLogic.displayName(site),
+                        pauseUntil: site.pauseUntil)
+                }
+                PauseReminders.reschedule(views, now: now)
             }
             // A hétfő reggeli emlékeztető a visszatekintésre — egyszer, az
             // első körben; ismétlődő kérés, a rendszer tartja.

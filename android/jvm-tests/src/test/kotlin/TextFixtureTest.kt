@@ -3,6 +3,7 @@ import hu.breaker.app.core.Blocklist
 import hu.breaker.app.core.Focus
 import hu.breaker.app.core.KeywordLogic
 import hu.breaker.app.core.PartnerLogic
+import hu.breaker.app.core.PauseNotify
 import hu.breaker.app.core.TextLogic
 import hu.breaker.app.core.UrlRules
 import org.json.JSONArray
@@ -133,6 +134,17 @@ class TextFixtureTest {
                 c.getBoolean("out"), Focus.isAppAllowed(pack, app),
                 "appMatch #$i: ${apps.joinToString(", ") { show(it) }} ~ ${show(app)}",
             )
+        }
+    }
+
+    @Test fun `a szunet vegenek mondata ugyanaz, mint a gepen - a perc felfele kerekit`() {
+        val arr = fixture.getJSONArray("pauseEnd")
+        assertTrue(arr.length() >= 40, "pauseEnd: kevés eset — a fixtúra csonka?")
+        for (i in 0 until arr.length()) {
+            val c = arr.getJSONObject(i)
+            val label = c.getString("label")
+            val leftMs = c.getLong("leftMs")
+            assertEquals(c.getString("out"), PauseNotify.text(label, leftMs), "pauseEnd #$i: ${show(label)} $leftMs ms")
         }
     }
 }

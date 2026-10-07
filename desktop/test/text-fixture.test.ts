@@ -34,6 +34,7 @@ import { matchesRule, normalizeRule, type UrlRule } from '../src/shared/urlrules
 import {
   MAX_ALLOW_APP_LENGTH, MAX_PACK_NAME, isAppAllowed, logPackName, normalizeAllowApp, normalizePackName, type FocusPack,
 } from '../src/shared/focus';
+import { pauseEndText } from '../src/shared/pause-notify';
 import { rng } from './merge-random';
 
 /** dist-test/test/… → a tároló gyökere. */
@@ -45,12 +46,13 @@ interface TextCase { in: string; out: string | null }
 interface ListCase { in: string[]; out: string[] }
 interface MatchCase { rule: string; url: string; out: boolean }
 interface AppMatchCase { apps: string[]; app: string; out: boolean }
+interface PauseEndCase { label: string; leftMs: number; out: string }
 interface Fixture {
   note: string; version: number;
   alias: TextCase[]; reason: TextCase[]; keyword: TextCase[]; keywords: ListCase[];
   partnerName: TextCase[]; phrase: TextCase[]; domain: TextCase[];
   rule: TextCase[]; ruleMatch: MatchCase[]; allowApp: TextCase[]; appMatch: AppMatchCase[];
-  packName: TextCase[]; logPackName: TextCase[];
+  packName: TextCase[]; logPackName: TextCase[]; pauseEnd: PauseEndCase[];
 }
 
 // ----------------------------------------------------- a részleges szabály
@@ -282,8 +284,9 @@ function buildFixture(): Fixture {
       + 'láthatatlan jelek (BOM, nem törő szóköz) láthatók legyenek. A rule-esetek: beírt szöveg → '
       + 'a részleges szabály kanonikus alakja (host|path); a ruleMatch-esetek: szabály és cím → illik-e. '
       + 'Az allowApp: az engedélyezett app nevének tiszta alakja; az appMatch: engedett appok és egy app → átmehet-e. '
-      + 'A packName: a csomag nevének tiszta alakja; a logPackName: a naplósor neve (üresre „Ismeretlen csomag”).',
-    version: 4,
+      + 'A packName: a csomag nevének tiszta alakja; a logPackName: a naplósor neve (üresre „Ismeretlen csomag”). '
+      + 'A pauseEnd: a szünet végének értesítése — név és hátralévő ms → a mondat (a perc felfelé kerekít, legalább egy).',
+    version: 5,
     alias: texts.map((t) => ({ in: t, out: normalizeAlias(t) ?? null })),
     reason: texts.map((t) => ({ in: t, out: normalizeReason(t) ?? null })),
     keyword: texts.map((t) => ({ in: t, out: normalizeKeyword(t) })),
@@ -297,8 +300,16 @@ function buildFixture(): Fixture {
     appMatch: appMatchCases(),
     packName: texts.map((t) => ({ in: t, out: normalizePackName(t) })),
     logPackName: texts.map((t) => ({ in: t, out: logPackName(t) })),
+    // A SZÜNET VÉGÉNEK mondata: a három app ugyanazt mondja ugyanarról a
+    // szünetről — a perc kerekítése (felfelé, legalább egy) a széleken dől el.
+    pauseEnd: PAUSE_LABELS.flatMap((label) => PAUSE_LEFT_MS.map((leftMs) => ({
+      label, leftMs, out: pauseEndText(label, leftMs),
+    }))),
   };
 }
+
+const PAUSE_LABELS = ['youtube.com', '1. rejtett oldal', 'Munka \u{1F355}', 'x'];
+const PAUSE_LEFT_MS = [-70_000, -1, 0, 1, 59_999, 60_000, 60_001, 119_999, 120_000, 3_600_000];
 
 // ------------------------------------------------------------------ kiírás
 
@@ -310,6 +321,7 @@ const renderCase = (c: TextCase) => `  {"in":${ascii(c.in)},"out":${c.out === nu
 const renderList = (c: ListCase) => `  {"in":[${c.in.map(ascii).join(',')}],"out":[${c.out.map(ascii).join(',')}]}`;
 const renderMatch = (c: MatchCase) => `  {"rule":${ascii(c.rule)},"url":${ascii(c.url)},"out":${c.out}}`;
 const renderAppMatch = (c: AppMatchCase) => `  {"apps":[${c.apps.map(ascii).join(',')}],"app":${ascii(c.app)},"out":${c.out}}`;
+const renderPauseEnd = (c: PauseEndCase) => `  {"label":${ascii(c.label)},"leftMs":${c.leftMs},"out":${ascii(c.out)}}`;
 
 function render(f: Fixture): string {
   const section = (name: string, rows: string[]) => ` "${name}": [\n${rows.join(',\n')}\n ]`;
@@ -327,6 +339,7 @@ function render(f: Fixture): string {
     section('appMatch', f.appMatch.map(renderAppMatch)),
     section('packName', f.packName.map(renderCase)),
     section('logPackName', f.logPackName.map(renderCase)),
+    section('pauseEnd', f.pauseEnd.map(renderPauseEnd)),
   ].join(',\n');
   return `{\n "note": ${ascii(f.note)},\n "version": ${f.version},\n${body}\n}\n`;
 }

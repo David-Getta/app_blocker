@@ -36,6 +36,12 @@ private struct AppMatchCase: Decodable {
     let out: Bool
 }
 
+private struct PauseEndCase: Decodable {
+    let label: String
+    let leftMs: Double
+    let out: String
+}
+
 private struct Fixture: Decodable {
     let version: Int
     let alias: [TextCase]
@@ -51,6 +57,7 @@ private struct Fixture: Decodable {
     let appMatch: [AppMatchCase]
     let packName: [TextCase]
     let logPackName: [TextCase]
+    let pauseEnd: [PauseEndCase]
 }
 
 final class TextFixtureTests: XCTestCase {
@@ -170,6 +177,15 @@ final class TextFixtureTests: XCTestCase {
             let pack = Focus.Pack(id: "p", name: "p", allowSites: [], allowApps: c.apps, defaultMinutes: 30)
             XCTAssertEqual(Focus.isAppAllowed(pack, app: c.app), c.out,
                            "appMatch #\(i): \(c.apps.map { show($0) }.joined(separator: ", ")) ~ \(show(c.app))")
+        }
+    }
+
+    func testThePauseEndSentenceIsTheSameAsTheDesktop() throws {
+        let f = try load()
+        XCTAssertGreaterThanOrEqual(f.pauseEnd.count, 40, "pauseEnd: kevés eset — a fixtúra csonka?")
+        for (i, c) in f.pauseEnd.enumerated() {
+            XCTAssertTrue(same(PauseNotify.text(c.label, leftMs: c.leftMs), c.out),
+                          "pauseEnd #\(i): \(show(c.label)) \(c.leftMs) ms")
         }
     }
 }

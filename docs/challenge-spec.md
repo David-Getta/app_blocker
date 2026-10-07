@@ -181,6 +181,17 @@ mint az előző).
   (`BreakerStore.loadLastTick`), a szinkronon KÍVÜL, mert helyi szám. A kiírás
   ritkítva megy (percenként), de a ritkítás ideje kisebb, mint az ugrás-küszöb,
   tehát a késleltetett kiírás önmagában sosem látszik ugrásnak.
+- **A szünet vége nem meglepetés.** A feloldás próbatétellel kifizetett idő;
+  aki épp ír, néz vagy olvas, annak két perc kell, hogy befejezze. Ezért két
+  perccel a visszazárás előtt egy értesítés szól („youtube.com 2 perc múlva
+  újra zárva — a szünet véget ér.”) — egyszer, és csak akkor, ha a szünet
+  ennél hosszabb volt (a frissen indított rövidre hallgat: épp most állítottad
+  be). A szabály és a mondat a közös magban él (`shared/pause-notify.ts`, a
+  Kotlin és a Swift `PauseNotify`), a mondatot a szöveg-fixtúra őrzi. A gépen
+  az app köre szól (az ablak rejtve is fut), Androidon a VPN-szolgáltatásé
+  (az app nélkül is), iPhone-on a rendszer: az app nem fut a háttérben, ezért
+  a kérés ELŐRE ütemezett helyi értesítés, ami a szünetek listáját követi. A
+  név a lista elrejtését követi (rejtett listánál sorszám vagy fedőnév).
 - **A blokkolás alapból zár.** Ha bármi elromlik (lejárt session, elrontott
   hosts fájl), a rendszer a *blokkolt* állapot felé esik vissza, nem a nyitott
   felé.

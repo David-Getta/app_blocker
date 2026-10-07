@@ -3580,6 +3580,24 @@ const WIRES = [
     needle: 'if let line = scheduleFlips.line(schedule, now: now) {',
     lost: 'az iPhone sora nem mondaná, mikor vált a menetrend',
   },
+
+  // A SZÜNET VÉGE ELŐRE: a mag megvan mindhárom nyelven (tesztekkel, a mondat
+  // a szöveg-fixtúrában) — ezek a tűk azt őrzik, hogy szól is valaki.
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: 'const pauses = stepPauseNotices(',
+    lost: 'a gép nem szólna előre, mielőtt a szünet véget ér',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/vpn/BreakerVpnService.kt',
+    needle: 'runCatching { maybePauseEndNotice() }',
+    lost: 'az Android nem szólna előre, mielőtt a szünet véget ér',
+  },
+  {
+    file: 'ios/App/ContentView.swift',
+    needle: 'PauseReminders.reschedule(views, now: now)',
+    lost: 'az iPhone nem ütemezné a szünet vége előtti értesítést',
+  },
 ];
 
 /**

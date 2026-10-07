@@ -28,6 +28,7 @@ import {
   peakWeekday, peakWeekdayText, WEEKDAY_NAMES,
 } from '../shared/browser-hits.js';
 import { stepBurstNotices, type BurstNotice, type BurstWatch } from '../shared/burst-notify.js';
+import { PAUSE_END_TITLE, pauseEndText, stepPauseNotices, type PauseWatches } from '../shared/pause-notify.js';
 import {
   cleanDigestLog, daysSinceUnlock, digestDue, digestText, recordDigest, relabelDigest, weekLabel, type DigestEntry,
 } from '../shared/digest.js';
@@ -150,6 +151,8 @@ let stepTimers: ReturnType<typeof setInterval>[] = [];
 let notifiedStepId: string | null = null;
 // Adag-értesítés: az előző kör hűtés-képe (null = az indulás utáni első kör).
 let burstWatches: Record<string, BurstWatch> | null = null;
+/** A figyelt szünetek (oldal → a szünet vége), amiről még nem szóltunk — shared/pause-notify.ts. */
+let pauseWatches: PauseWatches = {};
 
 function clearStepTimers(): void {
   for (const t of stepTimers) clearInterval(t);
@@ -654,6 +657,19 @@ function runNotices(): number {
   );
   burstWatches = stepped.watches;
   for (const n of stepped.notices) showBurstNotice(n, nowForBurst);
+  // A SZÜNET VÉGE előre: két perccel a visszazárás előtt egyszer szól — a
+  // feloldás vége ne félbehagyott mondat közepén érjen (shared/pause-notify.ts).
+  const pauses = stepPauseNotices(
+    pauseWatches,
+    status!.sites.map((s) => ({ id: s.id, label: statLabel(s.domain), pauseUntil: s.pauseUntil })),
+    nowForBurst,
+  );
+  pauseWatches = pauses.watches;
+  for (const n of pauses.notices) {
+    if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification(PAUSE_END_TITLE, { body: pauseEndText(n.label, n.until - nowForBurst) });
+    }
+  }
   // A heti ablak menete, ha most tűnt fel — akkor is, ha az app később nyílt
   // meg, mint ahogy a menet indult.
   const windowRun = windowRunStarted(seenFocusRun, status!.focusRun, status!.focusPacks ?? [], nowForBurst);
