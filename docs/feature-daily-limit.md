@@ -47,6 +47,15 @@ A „nincs keret” külön választás marad, nem a mező kiürítése: a nulla
 „nincs” két különböző dolog, és egy üres mező nem mondja meg, melyikre
 gondoltál.
 
+## A betelt keret a nyitott lapot is zárja (a böngészőben)
+
+A keret beteltekor a segéd a hosts-ban zárja az oldalt — ez az ÚJ kéréseket
+állítja meg. Egy már betöltött lap viszont élhet tovább: egy elindított videó
+akár egy órán át is szólhat a „betelt” keret után. Ahol a böngésző-bővítmény
+fut, ott ez sincs így: a látható lap húsz másodpercenként újranézeti magát, és
+ha az oldala közben zárva lett, a tiltó lapra fut — okkal (a keret betelt).
+Bővítmény nélkül ez a rés megmarad; a DNS a betöltött lapot nem éri el.
+
 ## Zárva mért idő nem fogyaszt
 
 A tiltott oldal hibalapján a fül címsorában ott marad a cím, és a mérő

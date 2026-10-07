@@ -786,6 +786,37 @@ async function main() {
     await page.goto(`${base}/`);
     await page.waitForTimeout(1200);
     check((await browserUrl(page, context)) === `${base}/`, 'friss app-szónál a mérés-őr nem tilt');
+
+    // A NYITOTT LAP IS. A tiltás eddig csak navigáláskor dőlt el: a menet
+    // indulásakor vagy a keret beteltekor már nyitott lap nyitva maradt, a
+    // benne szóló videó ment tovább. Most a látható lap a tár változására
+    // újranézeti magát — és NAVIGÁLÁS NÉLKÜL fut a tiltó lapra. A könyv a
+    // próbálkozásokat számolja: ez nem az, tehát nem is nő tőle.
+    const hitBook = () => seeder.evaluate(async () => {
+      const got = await chrome.storage.local.get('breaker.hits');
+      return JSON.stringify(got?.['breaker.hits']?.days ?? {});
+    });
+    await seedFocus({ running: false }, Date.now());
+    await page.goto(`${base}/`);
+    await page.bringToFront();
+    await page.waitForTimeout(600);
+    const bookBefore = await hitBook();
+    await seedFocus({
+      running: true, name: 'Mély munka', endsAt: Date.now() + 600_000, allowSites: ['example.org'],
+      window: false, windows: [],
+    }, Date.now());
+    const openFocus = await waitForBrowserUrl(page, context, /blocked\.html\?.*focus=/, WAIT_MS);
+    check(!!openFocus, 'a menet indulásakor a már nyitott lap is a tiltó lapra fut, navigálás nélkül');
+    check((await hitBook()) === bookBefore, 'a nyitott lap újranézése nem megakadás: a könyv nem nő');
+
+    await seedFocus({ running: false }, Date.now());
+    await page.goto(`${base}/`);
+    await page.bringToFront();
+    await page.waitForTimeout(600);
+    check((await browserUrl(page, context)) === `${base}/`, 'menet nélkül a lap marad');
+    await seedClosed([{ host: '127.0.0.1', reason: 'limit', until: Date.now() + 3_600_000 }], Date.now());
+    const openLimit = await waitForBrowserUrl(page, context, /blocked\.html\?.*closedReason=limit/, WAIT_MS);
+    check(!!openLimit, 'a keret beteltekor a nyitott lap is a tiltó lapra fut, okkal');
   } finally {
     await context.close().catch(() => {});
     server.close();

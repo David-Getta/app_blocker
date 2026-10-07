@@ -75,7 +75,7 @@ Ez a funkció három rétegen fekszik, és a felület mindegyiknél kimondja, mi
 
 | Réteg | Mit tud | Korlát |
 |---|---|---|
-| **Böngésző-bővítmény** | a fehérlista teljes érvényesítése: ami nincs a listán, oda nem enged navigálni | csak abban a böngészőben él, ahova telepítve van; vendég módban nem fut |
+| **Böngésző-bővítmény** | a fehérlista teljes érvényesítése: ami nincs a listán, oda nem enged navigálni — és a már nyitott ilyen lapot is lezárja | csak abban a böngészőben él, ahova telepítve van; vendég módban nem fut |
 | **DNS (hosts)** | a meglévő blokklista végig érvényes | „mindent tilts, kivéve ötöt” egy hosts-fájlban nem leírható |
 | **Appok** | a mérés látja, mi van előtérben | egy appot bezárni nem tudunk — figyelmeztetünk, nem tiltunk |
 
@@ -319,6 +319,24 @@ A bővítmény **húsz másodpercenként** kérdezi meg az appot. Nem egy percen
 Ez azt is jelenti, hogy a munkamenet indítása után **legfeljebb húsz
 másodpercig** még átmehet egy oldal. Ezt nem takarjuk el: a réteg a szándékot
 támogatja, nem egy elektromos kerítés.
+
+### A már nyitott lap is
+
+A tiltás eddig csak NAVIGÁLÁSKOR dőlt el: a munkamenet indulásakor már
+nyitott lap nyitva maradt, a benne szóló videó ment tovább, amíg az ember
+máshová nem kattintott. Most a látható lap újranézeti magát a bővítmény
+hátterével — ugyanazzal a döntéssel, mint a navigáció:
+
+- a szabályok változásakor azonnal (a bővítmény tára változott);
+- amikor a lap láthatóvá válik;
+- látható lapnál húsz másodpercenként — ez ébreszti a bővítmény hátterét,
+  hogy az appot is megkérdezze. Enélkül egy navigálás nélkül nézett videó
+  mellett a bővítmény meg sem tudná, hogy elindult egy munkamenet.
+
+A rejtett fül nem kérdez: ami nem látszik, az nem viszi el a figyelmet, és
+amikor előjön, úgyis újranéz. Az így lezárt lap nem megakadás — a könyv a
+próbálkozásokat számolja, nem azt, hogy a szabály utolért egy nyitott lapot.
+Ugyanez a napi keretre is áll: ha betelik, a nyitott lap is a tiltó lapra fut.
 
 ### Inkognitóban — ha nem fut ott, az app is kimondja
 

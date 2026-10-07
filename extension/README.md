@@ -30,6 +30,13 @@ engedély-lapjára visz („Engedélyezés inkognitó módban”). Az appnak is
 megmondja minden lehúzáskor (`x-breaker-incognito` fejléc), így a munkamenet
 kártyája is kimondja, ha inkognitóban a fehérlista nem érvényesül.
 
+**A már nyitott lap is.** A tiltás nem csak navigáláskor dől el: a látható
+lap a szabályok változásakor, láthatóvá váláskor és húsz másodpercenként
+újranézeti magát (`breaker:recheck`), ugyanazzal a döntéssel. Így a munkamenet
+indulásakor vagy a keret beteltekor a nyitva hagyott videó is a tiltó lapra
+fut. A címet a háttér a böngészőtől veszi, nem a laptól; és ez nem megakadás,
+a könyv nem nő tőle.
+
 **A két réteg egymás mellett áll, nem egymás helyett.** Aki azt akarja, hogy egy
 oldal egyáltalán ne menjen, az az appban tiltsa le az egészet. Ez a réteg az
 **ingert** veszi el, nem a hozzáférést — és a beállítások lapja ezt ki is mondja.

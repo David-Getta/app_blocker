@@ -264,7 +264,7 @@ function note(what) {
   self.__breakerTrace = trace;
 }
 
-async function enforce(kind, details) {
+async function enforce(kind, details, { record = true } = {}) {
   if (!isTopFrame(details)) return;
   let hit;
   try {
@@ -288,7 +288,10 @@ async function enforce(kind, details) {
     return;
   }
   // Megállítottunk: a könyvelés az átirányítás UTÁN, hogy sose késleltesse.
-  // A fogó kulcsszó is a könyvbe megy: MELYIK kulcsszó dolgozik.
+  // A fogó kulcsszó is a könyvbe megy: MELYIK kulcsszó dolgozik. A nyitott lap
+  // újranézése NEM megakadás: nem a felhasználó próbált odamenni, hanem a
+  // szabály ért utol egy már nyitott lapot — a könyv a próbálkozásokat számolja.
+  if (!record) return;
   await recordHitNow(details.tabId, details.url, hit.reason, Date.now(), hit.keyword ?? '');
 }
 
@@ -337,6 +340,29 @@ chrome.runtime.onMessage.addListener((msg, _sender, respond) => {
       keywords: link.keywords ?? [],
     });
   })();
+  return true; // aszinkron válasz
+});
+
+// A NYITOTT LAP ÚJRANÉZÉSE. A tiltás eddig csak navigáláskor dőlt el: a
+// munkamenet indulásakor, a keret beteltekor vagy egy új szabály felvételekor
+// már nyitott lap nyitva maradt, a benne szóló videó ment tovább. A
+// tartalom-szkript most szól (tár-változáskor, láthatóvá váláskor, látható
+// lapnál húsz másodpercenként), és a döntés ITT születik — ugyanaz, mint a
+// navigációnál. A CÍMET a böngészőtől vesszük (a küldő fül), nem az
+// üzenetből: a lap nem mondhatja meg, mit nézzünk helyette. A lehúzást is
+// ez ébreszti: navigálás nélkül a bővítmény meg sem tudná, hogy az appban
+// elindult egy munkamenet.
+chrome.runtime.onMessage.addListener((msg, sender, respond) => {
+  if (msg?.type !== 'breaker:recheck') return false;
+  const tabId = sender.tab?.id;
+  const url = sender.tab?.url;
+  if (typeof tabId !== 'number' || sender.frameId !== 0 || typeof url !== 'string') {
+    respond({ ok: false });
+    return false;
+  }
+  refreshInBackground();
+  void enforce('újranézés', { tabId, url, frameId: 0 }, { record: false })
+    .finally(() => respond({ ok: true }));
   return true; // aszinkron válasz
 });
 

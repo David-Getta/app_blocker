@@ -3445,6 +3445,16 @@ const WIRES = [
     needle: 'if (fresh && info.incognito === false) {',
     lost: 'a munkamenet kártyája nem mondaná ki, hogy inkognitóban a fehérlista nem érvényesül',
   },
+  {
+    file: 'extension/content.js',
+    needle: 'recheckTimer = setInterval(recheck, RECHECK_MS);',
+    lost: 'a menet indulásakor vagy a keret beteltekor már nyitott lap nyitva maradna — a videó ment volna tovább',
+  },
+  {
+    file: 'extension/background.js',
+    needle: "void enforce('újranézés', { tabId, url, frameId: 0 }, { record: false })",
+    lost: 'a lap újranézési kérése válasz nélkül maradna: a nyitott lapot senki nem zárná le',
+  },
 ];
 
 /**

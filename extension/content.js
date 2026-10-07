@@ -34,6 +34,12 @@
 // következő navigációnál újra esélyt kap, egy tévesen tiltott jó videó
 // viszont a felhasználó szemében a szűrőt járatja le.
 
+/**
+ * A látható lap ennyi időnként nézeti újra magát — ugyanannyi, amennyi
+ * időnként a bővítmény legfeljebb az appot kérdezi (lásd app-link.js).
+ */
+const RECHECK_MS = 20_000;
+
 (async () => {
   const [{ matchesRule }, chan, kw] = await Promise.all([
     import(chrome.runtime.getURL('rules-core.js')),
@@ -456,6 +462,55 @@
     // lent ettől még él: ha a háttér később ír, innen is felébredünk.
   }
 
+  // ---------------------------------------------------------------------
+  // A NYITOTT LAP IS. A tiltás eddig csak navigáláskor dőlt el: a munkamenet
+  // indulásakor, a keret beteltekor vagy egy új szabály felvételekor már
+  // nyitott lap nyitva maradt, a benne szóló videó ment tovább. Most a
+  // LÁTHATÓ lap újranézeti magát a háttérrel — ugyanazzal a döntéssel, mint a
+  // navigáció:
+  //   - a szabályok változásakor (tár) — azonnal;
+  //   - amikor a lap láthatóvá válik — a háttérben maradt fülön ez dönt;
+  //   - látható lapnál húsz másodpercenként: ez ÉBRESZTI a hátteret, hogy az
+  //     appot is megkérdezze. Enélkül egy navigálás nélkül nézett videó
+  //     mellett a bővítmény meg sem tudná, hogy elindult egy munkamenet.
+  // A rejtett lap nem kérdez: ami nem látszik, az nem viszi el a figyelmet,
+  // és amikor előjön, úgyis újranéz.
+  // ---------------------------------------------------------------------
+  let recheckTimer = null;
+  function recheck() {
+    // A bővítmény frissítése után a régi lapokon árván marad ez a szkript:
+    // ilyenkor megállunk, nem próbálkozunk húsz másodpercenként a semmibe.
+    if (!chrome.runtime?.id) {
+      if (recheckTimer !== null) clearInterval(recheckTimer);
+      recheckTimer = null;
+      return;
+    }
+    if (document.visibilityState !== 'visible') return;
+    if (!/^https?:$/.test(location.protocol)) return;
+    try {
+      const p = chrome.runtime.sendMessage({ type: 'breaker:recheck' });
+      if (p && typeof p.catch === 'function') p.catch(() => { /* a háttér alszik — a következő kör hozza */ });
+    } catch { /* a lap élete végén a csatorna már zárva lehet */ }
+  }
+  recheckTimer = setInterval(recheck, RECHECK_MS);
+  document.addEventListener('visibilitychange', recheck);
+
+  /**
+   * Csak a lehúzás bélyegei változtak-e (idő, port, hibaüzenet) — a szabályok
+   * nem. A háttér húsz másodpercenként húz le, és minden nyitott lap hallja:
+   * ha ilyenkor mind a hátteret hívná, a sok nyitott fül folyamatos terhelés
+   * lenne a semmiért.
+   */
+  function onlyStampsChanged(change) {
+    if (!change || !change.oldValue || !change.newValue) return false;
+    const strip = (v) => JSON.stringify({ ...v, fetchedAt: 0, attemptedAt: 0, error: null, port: null });
+    try {
+      return strip(change.oldValue) === strip(change.newValue);
+    } catch {
+      return false;
+    }
+  }
+
   // A szűrők és szabályok menet közben is változnak: az app frissíti a
   // hátteret, az a tárat. E nélkül egy régóta nyitva lévő lap a betöltéskori
   // állapotot őrizné — az újonnan bekapcsolt szűrő a régi lapokon
@@ -467,7 +522,9 @@
       // `breaker.` előtagú, és tízmásodpercenként íródik — ha arra is
       // frissítenénk, minden nyitott lap folyamatosan a hátteret hívná.
       if (!changes['breaker.applink'] && !changes['breaker.partial']) return;
+      if (!changes['breaker.partial'] && onlyStampsChanged(changes['breaker.applink'])) return;
       fetchConfig().catch(() => { /* a háttér épp alszik */ });
+      recheck();
     });
   } catch { /* nagyon régi böngésző — marad a betöltéskori állapot */ }
 })();
