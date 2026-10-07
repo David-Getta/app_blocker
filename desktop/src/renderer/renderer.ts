@@ -43,6 +43,7 @@ import { refreshDue, VISIBLE_REFRESH_MS } from '../shared/refresh-cadence.js';
 import {
   formatRemaining, isRunning as focusIsRunning, isWindowRun, MAX_ALLOW_ENTRIES, MAX_PACK_NAME,
   MAX_SESSION_MINUTES, nextOccurrence, SESSION_CHOICES_MIN, windowRunStarted, type FocusPack, type FocusRun, peakWindowBand,
+  WINDOW_SOON_TITLE, windowSoonText,
   packCoveringHour, focusWeekdayText, focusDayNowText, focusHourText, focusHourNowText, focusHourWarnText, focusStreakText, FOCUS_STREAK_MIN_DAYS, sameDayText, sameHourText, peakFocusHour,
 } from '../shared/focus.js';
 import { CATEGORY_PACKS, type CategoryPack } from '../shared/blocklist.js';
@@ -364,6 +365,26 @@ function showWindowSoonNotice(lock: Lockdown | null, windows: LockdownWindowRow[
     body: `${fmtRemain(occ.startsAt - now)} múlva zárlat, ${fmtClock(occ.endsAt)}-ig. `
       + 'Amíg tart, semmilyen lazítás nem indítható — próbatétellel sem.',
   });
+}
+
+/** A már bejelentett közelgő ablak-menet („csomag@kezdés”); egy előfordulásról egyszer szólunk. */
+let warnedFocusWindow = '';
+
+/**
+ * Tíz perccel a heti ablak menete előtt egyszer szólunk — a zárlat-ablak
+ * előjelzésének tükre: a menet is lezár mindent, ami nincs a csomagban, és
+ * ami nyitva van, félbemarad. A döntés a segédé (`focusWindowSoon`, a mag
+ * `windowRunStartingSoon`-ja a naplóval); itt csak a szó van.
+ */
+function showFocusWindowSoonNotice(
+  soon: { packId: string; name: string; startsAt: number; endsAt: number } | null | undefined, now: number,
+): void {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  if (!soon) return;
+  const key = `${soon.packId}@${soon.startsAt}`;
+  if (key === warnedFocusWindow) return;
+  warnedFocusWindow = key;
+  new Notification(WINDOW_SOON_TITLE, { body: windowSoonText(soon.name, soon.startsAt - now, fmtClock(soon.endsAt)) });
 }
 
 /** HA NEM KÉRED, csendben marad: a javaslatok értesítése kikapcsolható — a beállítás a tárban. */
@@ -700,6 +721,8 @@ function runNotices(): number {
   seenLockdown = status!.lockdown ?? null;
   if (windowLock) showWindowLockdownNotice(windowLock, nowForBurst);
   showWindowSoonNotice(status!.lockdown ?? null, status!.lockdownWindows ?? [], nowForBurst);
+  // Ugyanez a heti ablak menetére: tíz perccel előtte egyszer.
+  showFocusWindowSoonNotice(status!.focusWindowSoon, nowForBurst);
   showHitNudge(status!.browserHitsToday ?? 0, nowForBurst);
   showPeakWarning(status!.browserHitsPeak ?? null, nowForBurst);
   showFocusHourWarning(status!.focusHour ?? null, status!.browserHitsPeak ?? null, nowForBurst);

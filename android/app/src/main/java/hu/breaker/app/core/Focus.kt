@@ -573,6 +573,59 @@ object Focus {
         return best
     }
 
+    /**
+     * Ennyivel a heti ablak menete előtt szól az app — ugyanannyival, mint a
+     * zárlat-ablak beérése előtt (`LockdownLogic.WINDOW_PRE_WARN_MS`).
+     */
+    const val WINDOW_SOON_MS = 10 * 60_000L
+
+    /**
+     * A legközelebb induló heti ablak menete, ha `withinMs`-en belül indul —
+     * vagy null. A `focus.ts` `windowRunStartingSoon`-jának tükre: ami már
+     * tart, arról nem szól; a csomag saját futó menete mellett sem (az ablak
+     * mellé úgysem indul új); az elköltött előfordulásról sem. Egy másik
+     * csomag menete nem hallgattatja el — azt az ablak kezdetén a kör zárja
+     * le. Több közül a korábban induló, azonos kezdésnél a kisebb azonosítójú.
+     */
+    fun windowRunStartingSoon(
+        packs: List<FocusPack>,
+        run: FocusRun?,
+        log: List<FocusLogEntry>,
+        now: Long,
+        withinMs: Long = WINDOW_SOON_MS,
+    ): DueRecurrence? {
+        var best: DueRecurrence? = null
+        for (pack in packs) {
+            val band = pack.recurrence ?: continue
+            if (!ScheduleLogic.isValidBand(band)) continue
+            if (isRunning(run, now) && run!!.packId == pack.id) continue
+            val occ = nextOccurrence(band, now) ?: continue
+            if (occ.startsAt <= now || occ.startsAt - now > withinMs) continue
+            if (log.any { it.packId == pack.id && it.startedAt == occ.startsAt }) continue
+            val b = best
+            if (b == null || occ.startsAt < b.startsAt ||
+                (occ.startsAt == b.startsAt && pack.id < b.pack.id)
+            ) {
+                best = DueRecurrence(pack, occ.startsAt, occ.endsAt)
+            }
+        }
+        return best
+    }
+
+    /** Az értesítés címe — ugyanaz mindhárom platformon. */
+    const val WINDOW_SOON_TITLE = "Breaker — mindjárt indul a munkamenet"
+
+    /**
+     * Az értesítés szövege, például:
+     * „Nyelvtanulás: 10 perc múlva indul a heti ablak szerint, 18:50-ig. …”
+     * A perc felfelé kerekít, legalább egy; a vég órája a hívó helyi alakjában jön.
+     */
+    fun windowSoonText(name: String, leftMs: Long, endClock: String): String {
+        val minutes = maxOf(1L, (leftMs + 59_999L) / 60_000L)
+        return "$name: $minutes perc múlva indul a heti ablak szerint, $endClock-ig. " +
+            "Amíg tart, csak a csomagban felsoroltak mehetnek — ami nyitva van, mentsd el."
+    }
+
     /** Az ismétlődés kulcsa a lenyomatokhoz: napok rendezve, kezdés, vég — vagy „-”. */
     /**
      * A legutóbb használt csomag — a napló legfrissebb olyan sora szerint,

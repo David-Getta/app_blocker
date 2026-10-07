@@ -19,7 +19,7 @@ import {
 import { normalizeRule } from '../shared/urlrules';
 import {
   lastUsedPack, focusDaySeries, focusDayStreak, focusLongestStreak, focusByWeekday, focusByHour, peakFocusHour, isRunning, normalizePack, spentWindows, summarizeFocus, upcomingWindows, summarizeFocusPrevWeek,
-  windowRunsByPack,
+  windowRunsByPack, windowRunStartingSoon,
 } from '../shared/focus';
 import { burstTripsInDays, noteBurstTrip, noteBurstUsage, normalizeBurst, type BurstRule } from '../shared/burst';
 import { LOCKDOWN_CHOICES_MIN } from '../shared/lockdown';
@@ -144,6 +144,13 @@ export function statusOf(
     // A heti ablakok következő hete, az elköltöttek nélkül: a böngésző ebből
     // tartja be az ablakot akkor is, ha az app (és vele a híd) zárva van.
     focusWindows: upcomingWindows(state.focusPacks ?? [], state.focusLog, now),
+    // A tíz percen belül induló ablak-menet: a felület ebből szól előre — a
+    // zárlat-ablak beérése előtt is szól, és ez is lezár mindent, ami nincs
+    // a csomagban. A döntés a magé (`windowRunStartingSoon`), a naplóval.
+    focusWindowSoon: (() => {
+      const soon = windowRunStartingSoon(state.focusPacks ?? [], state.focusRun, state.focusLog, now);
+      return soon ? { packId: soon.pack.id, name: soon.pack.name, startsAt: soon.startsAt, endsAt: soon.endsAt } : null;
+    })(),
     tier: computeTier(state.unlockLog, now),
     unlocks7d: state.unlockLog.filter((t) => t >= now - 7 * 24 * 3600_000).length,
     unlocksPrev7d: state.unlockLog.filter((t) => t >= now - 14 * 24 * 3600_000 && t < now - 7 * 24 * 3600_000).length,

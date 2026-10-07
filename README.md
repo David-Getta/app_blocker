@@ -309,6 +309,9 @@ ingyen van, rövidíteni vagy visszavonni sehogy.
   ablak vége az ablak vége: a laptop alvása nem tolja el. Az ablak az ígéret:
   egy másik csomag kézi menete az ablak kezdetén véget ér (az indító lap előre
   szól), a saját csomag egyperces kézi menete pedig nem költi el az ablakot.
+  **Tíz perccel előtte értesítés jön** mindhárom platformon, mint a
+  zárlat-ablak előtt — a menet is lezár mindent, ami nincs a csomagban (az
+  iPhone-on a rendszer ütemezi, mert ott az app nem fut a háttérben).
   Őszinte korlát: egy
   eszköz, ami a leállításkor nem volt hálózaton, a szinkronig újraindíthatja a
   hátralévő részre — a hiba iránya a szigorúbb, és a leállítás ott is próbatétel.

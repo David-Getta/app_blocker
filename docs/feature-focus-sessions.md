@@ -608,6 +608,39 @@ félbehagyott mondat közepén érjen. Ha már fut menet, nincs ilyen sáv: a ne
 engedett lap akkor már zárva (`focusStartingSoonFor`, tesztekkel; a zárás
 előtti sáv többi fajtáját lásd az `extension/README.md`-ben).
 
+### Tíz perccel előtte értesítés is jön
+
+A zárlat-ablak beérése előtt az app eddig is szólt tíz perccel; a heti ablak
+menete szó nélkül indult — pedig az is lezár mindent, ami nincs a csomagban,
+és ami épp nyitva van, félbemarad. Most mindhárom platformon jön egy
+értesítés tíz perccel előtte:
+
+> **Breaker — mindjárt indul a munkamenet**
+> Nyelvtanulás: 10 perc múlva indul a heti ablak szerint, 18:50-ig. Amíg
+> tart, csak a csomagban felsoroltak mehetnek — ami nyitva van, mentsd el.
+
+A döntés a magé (`windowRunStartingSoon`, a három nyelven ugyanaz — a
+`fixtures/focus-cases.json` `soon` szakasza a határokon is őrzi: a pont tíz
+perc még szól, egy ezredmásodperccel több már nem, a kezdés pillanata már
+nem előjelzés). Ami már tart, arról nem szól; a csomag saját futó menete
+mellett sem (az ablak mellé úgysem indul új menet); az elköltött
+előfordulásról sem. Egy MÁSIK csomag kézi menete nem hallgattatja el — azt az
+ablak kezdetén a kör lezárja, tehát pont erről kell szólni. Egy
+előfordulásról egyszer szól.
+
+- **A gépen** a segéd mondja meg (az állapot `focusWindowSoon` mezője, a
+  naplóval együtt döntve), a felület szól — ha az értesítés engedélyezve van.
+- **Androidon** a szűrő köre szól, saját csatornán („Heti munkamenet”), hogy
+  külön is elnémítható legyen.
+- **iPhone-on** az app nem fut a háttérben, ezért a rendszer szól: az app
+  hetente ismétlődő emlékeztetőt ütemez minden ablakos nap kezdése elé
+  (`Focus.windowReminderPlan`). A rendszer 64 függő kérést enged egy appnak;
+  a zárlat-ablaké az elsőbb, a menetek előjelzése abból kap, ami utána marad
+  — és ha nem fér be mind, egy sem kerül fel: egy félig ütemezett hét
+  (hétfőn szól, csütörtökön nem) rosszabb a kimondott hiánynál. Őszinte
+  határ: előre ütemezett, tehát akkor is szól, ha a csomag menete épp
+  kézzel fut.
+
 ## A telefon eddig kiskapu volt
 
 A munkamenet a v0.4.2-ig **csak az asztali appban létezett**. Elindítod a gépen

@@ -968,6 +968,65 @@ export function spentWindows(
   return out;
 }
 
+/**
+ * Ennyivel a heti ablak menete előtt szól az app — ugyanannyival, mint a
+ * zárlat-ablak beérése előtt (lockdown.ts `WINDOW_PRE_WARN_MS`).
+ */
+export const WINDOW_SOON_MS = 10 * 60_000;
+
+/**
+ * A legközelebb induló heti ablak menete, ha `withinMs`-en belül indul — vagy null.
+ *
+ * MIÉRT. A zárlat-ablak beérése előtt az app tíz perccel szól; a heti ablak
+ * menete eddig szó nélkül indult — pedig az is lezár mindent, ami nincs a
+ * csomagban, és ami épp nyitva van, ugyanúgy félbemarad.
+ *
+ * Nem szól arról, ami már tart (azt a kör indítja, onnantól a menet beszél);
+ * ha a csomag SAJÁT menete fut (az ablak mellé úgysem indul új — lásd
+ * `dueRecurrence`); és ha az előfordulás már elköltve (a saját menete a
+ * naplóban). Egy MÁSIK csomag futó menete nem hallgattatja el: az ablak
+ * kezdetén a kör lezárja. Több közül a korábban induló, azonos kezdésnél a
+ * kisebb azonosítójú (kódegység szerint) — ugyanaz a rend, mint az indításé.
+ */
+export function windowRunStartingSoon(
+  packs: FocusPack[],
+  run: FocusRun | null | undefined,
+  log: FocusLogEntry[] | undefined,
+  now: number,
+  withinMs = WINDOW_SOON_MS,
+): DueRecurrence | null {
+  let best: DueRecurrence | null = null;
+  for (const pack of packs) {
+    const band = pack.recurrence;
+    if (!band || !isValidBand(band)) continue;
+    if (isRunning(run, now) && run!.packId === pack.id) continue;
+    const occ = nextOccurrence(band, now);
+    if (!occ || occ.startsAt <= now || occ.startsAt - now > withinMs) continue;
+    if (spentIn(log, pack.id, occ)) continue;
+    if (!best || occ.startsAt < best.startsAt
+      || (occ.startsAt === best.startsAt && pack.id < best.pack.id)) {
+      best = { pack, ...occ };
+    }
+  }
+  return best;
+}
+
+/** Az értesítés címe — ugyanaz mindhárom platformon. */
+export const WINDOW_SOON_TITLE = 'Breaker — mindjárt indul a munkamenet';
+
+/**
+ * Az értesítés szövege, tény, nem felszólítás — például:
+ * „Nyelvtanulás: 10 perc múlva indul a heti ablak szerint, 18:50-ig. …”
+ * Utána: amíg tart, csak a csomagban felsoroltak mehetnek, és ami nyitva van,
+ * mentsd el. A perc felfelé kerekít, legalább egy; a vég órája a hívó helyi
+ * alakjában jön.
+ */
+export function windowSoonText(name: string, leftMs: number, endClock: string): string {
+  const minutes = Math.max(1, Math.ceil(leftMs / 60_000));
+  return `${name}: ${minutes} perc múlva indul a heti ablak szerint, ${endClock}-ig. `
+    + 'Amíg tart, csak a csomagban felsoroltak mehetnek — ami nyitva van, mentsd el.';
+}
+
 /** Ennyi napra előre mondja meg az app a böngészőnek az ablakokat. */
 export const WINDOW_LOOKAHEAD_DAYS = 7;
 /** Ennél több előfordulás nem megy le — egy hét, csomagonként naponta egy, bőven. */

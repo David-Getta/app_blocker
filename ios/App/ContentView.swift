@@ -49,6 +49,8 @@ struct ContentView: View {
     @State private var lockdownWindowEdit: LockdownLogic.LockdownWindow? = nil
     /// Amelyik listához a heti emlékeztetők utoljára igazodtak; nil = még sosem.
     @State private var remindedWindows: [LockdownLogic.LockdownWindow]? = nil
+    /// A csomagok ablakainak kulcsa (azonosító, név, ablak) — a menetek előjelzése ezt követi.
+    @State private var remindedFocusWindows: String? = nil
     /// A szünetek kulcsa, amire a „mindjárt vége a szünetnek” kérések utoljára íródtak.
     @State private var remindedPauses: String? = nil
     @State private var digestReminderArmed = false
@@ -156,11 +158,15 @@ struct ContentView: View {
             Referee.tick(now: now)
             if !store.state.sites.isEmpty { tunnel.ensureRunning() }
             // A heti emlékeztetők az ablakok listáját követik — a szinkronból
-            // jött változást is, amíg az app nyitva van.
+            // jött változást is, amíg az app nyitva van. A csomagok ablakait is:
+            // tíz perccel a heti ablakos menet előtt ugyanígy szólunk.
             let windows = store.state.lockdownWindows ?? []
-            if remindedWindows != windows {
+            let packs = store.state.focusPacks ?? []
+            let focusWindows = packs.map { "\($0.id)|\($0.name)|\(Focus.recurrenceKey($0.recurrence))" }.joined(separator: ";")
+            if remindedWindows != windows || remindedFocusWindows != focusWindows {
                 remindedWindows = windows
-                WindowReminders.reschedule(windows)
+                remindedFocusWindows = focusWindows
+                WindowReminders.reschedule(windows, packs: packs)
             }
             // A SZÜNET VÉGE ELŐRE: két perccel a visszazárás előtt egy helyi
             // értesítés — előre ütemezve, mert az app nem fut a háttérben. A

@@ -849,6 +849,75 @@ public enum Focus {
         return best
     }
 
+    /// Ennyivel a heti ablak menete előtt szól az app — ugyanannyival, mint a
+    /// zárlat-ablak beérése előtt (`LockdownLogic.windowPreWarnMs`).
+    public static let windowSoonMs: Double = 10 * 60_000
+
+    /// A legközelebb induló heti ablak menete, ha `within`-en belül indul —
+    /// vagy nil. A `focus.ts` `windowRunStartingSoon`-jának tükre: ami már
+    /// tart, arról nem szól; a csomag saját futó menete mellett sem (az ablak
+    /// mellé úgysem indul új); az elköltött előfordulásról sem. Egy másik
+    /// csomag menete nem hallgattatja el — azt az ablak kezdetén a kör zárja
+    /// le. Több közül a korábban induló, azonos kezdésnél a kisebb azonosítójú.
+    static func windowRunStartingSoon(
+        _ packs: [Pack], run: Run?, log: [LogEntry], now: Double, within: Double = windowSoonMs
+    ) -> DueRecurrence? {
+        var best: DueRecurrence?
+        for pack in packs {
+            guard let band = pack.recurrence, ScheduleLogic.isValidBand(band) else { continue }
+            if let run, isRunning(run, now: now), run.packId == pack.id { continue }
+            guard let occ = nextOccurrence(band, now: now), occ.startsAt > now, occ.startsAt - now <= within else { continue }
+            if log.contains(where: { $0.packId == pack.id && $0.startedAt == occ.startsAt }) { continue }
+            if let b = best,
+               !(occ.startsAt < b.startsAt || (occ.startsAt == b.startsAt && TextLogic.utf16Less(pack.id, b.pack.id))) {
+                continue
+            }
+            best = DueRecurrence(pack: pack, startsAt: occ.startsAt, endsAt: occ.endsAt)
+        }
+        return best
+    }
+
+    /// Az értesítés címe — ugyanaz mindhárom platformon.
+    public static let windowSoonTitle = "Breaker — mindjárt indul a munkamenet"
+
+    /// Az értesítés szövege, például:
+    /// „Nyelvtanulás: 10 perc múlva indul a heti ablak szerint, 18:50-ig. …”
+    /// A perc felfelé kerekít, legalább egy; a vég órája a hívó helyi alakjában jön.
+    static func windowSoonText(_ name: String, leftMs: Double, endClock: String) -> String {
+        let minutes = max(1, clampedInt((leftMs / 60_000).rounded(.up)))
+        return "\(name): \(minutes) perc múlva indul a heti ablak szerint, \(endClock)-ig. "
+            + "Amíg tart, csak a csomagban felsoroltak mehetnek — ami nyitva van, mentsd el."
+    }
+
+    /// Az ablak-menetek emlékeztetőinek azonosító-eleje — ezzel szedi le az app a régieket.
+    static let windowReminderIdPrefix = "focus-window:"
+
+    /// A heti ablakok menete előtti emlékeztetők TERVE: minden ablakos csomag
+    /// minden napjára egy, tíz perccel a kezdés előtt — heti ismétlődő kérés,
+    /// mert iPhone-on az app nem fut a háttérben. A rendszer keretéből annyi
+    /// jut, amennyi a zárlat-ablakok terve (`used`) és a többi emlékeztető
+    /// tartaléka után marad; ha nem fér be mind, egy sem kerül fel — egy
+    /// félig ütemezett hét (hétfőn szól, csütörtökön nem) rosszabb a kimondott
+    /// hiánynál. Őszinte határ: előre ütemezett, tehát akkor is szól, ha a
+    /// csomag menete épp kézzel fut. Itt van, nem az appban, hogy a tervet a
+    /// tesztek is lássák: az app-célt a CI nem futtatja.
+    static func windowReminderPlan(_ packs: [Pack], used: Int) -> [LockdownLogic.Reminder] {
+        let lead = Int(windowSoonMs / 60_000)
+        var out: [LockdownLogic.Reminder] = []
+        for pack in packs.sorted(by: { TextLogic.utf16Less($0.id, $1.id) }) {
+            guard let band = pack.recurrence, ScheduleLogic.isValidBand(band) else { continue }
+            for day in Array(Set(band.days)).sorted() {
+                let s = LockdownLogic.reminderSlot(day: day, startMin: band.startMin, lead: lead)
+                out.append(LockdownLogic.Reminder(
+                    id: "\(windowReminderIdPrefix)\(pack.id):\(day)", weekday: s.weekday, hour: s.hour, minute: s.minute,
+                    title: windowSoonTitle,
+                    body: windowSoonText(pack.name, leftMs: windowSoonMs, endClock: LockdownLogic.clockLabel(band.endMin))))
+            }
+        }
+        let room = LockdownLogic.maxPendingReminders - LockdownLogic.reservedReminders - used
+        return out.count <= room ? out : []
+    }
+
     /// Az ismétlődés kulcsa a lenyomatokhoz: napok rendezve, kezdés, vég — vagy „-”.
     static func recurrenceKey(_ b: ScheduleLogic.Band?) -> String {
         guard let b else { return "-" }

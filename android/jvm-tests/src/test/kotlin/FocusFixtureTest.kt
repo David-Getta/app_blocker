@@ -11,9 +11,10 @@ import kotlin.test.assertTrue
  * Megfelelőség a géppel a MUNKAMENET MAGJÁBAN: a `fixtures/focus-cases.json` a
  * gép döntéseit tartja (desktop/test/focus-fixture.test.ts írja és őrzi) — az
  * ismétlődő menet előfordulásait és az esedékes ablakot, az ablak-menetet, a
- * lezárást, a legutóbb használt csomagot, a hátralévő idő szövegét és a
- * percek tisztítását. Ha az Android más ablakot tartana esedékesnek, a menet
- * itt elindulna, a gépen nem — vagy más csomaggal.
+ * lezárást, a legutóbb használt csomagot, a hátralévő idő szövegét, a percek
+ * tisztítását, a közelgő ablak-menetet és az értesítése szövegét. Ha az
+ * Android más ablakot tartana esedékesnek, a menet itt elindulna, a gépen nem
+ * — vagy más csomaggal.
  * A napok és az órák helyi időben számolnak: a teszt UTC-ben jár, mint a fixtúra.
  */
 class FocusFixtureTest {
@@ -139,6 +140,27 @@ class FocusFixtureTest {
             }
             val expected = if (c.isNull("out")) null else c.getString("out")
             assertEquals(expected, Focus.lastUsedPack(ps, lg)?.id, "legutóbbi csomag $i")
+        }
+    }
+
+    @Test fun `a kozelgo ablak-menet ugyanaz, mint a gepen - tiz perccel elotte, a hatarokon`() {
+        val cases = fixture.getJSONArray("soon")
+        assertTrue(cases.length() >= 100, "a fixture-ben van elég eset")
+        for (i in 0 until cases.length()) {
+            val c = cases.getJSONObject(i)
+            val seed = c.getInt("seed")
+            val got = Focus.windowRunStartingSoon(packs(c.getJSONArray("packs")), run(c, "run"), log(c.getJSONArray("log")), c.getLong("now"))
+            val expected = if (c.isNull("out")) null else c.getJSONArray("out").let { "${it.getString(0)}@${it.getLong(1)}-${it.getLong(2)}" }
+            assertEquals(expected, got?.let { "${it.pack.id}@${it.startsAt}-${it.endsAt}" }, "közelgő ablak-menet, mag $seed")
+        }
+    }
+
+    @Test fun `a kozelgo ablak-menet ertesitesenek szovege ugyanaz, mint a gepen`() {
+        val cases = fixture.getJSONArray("soonText")
+        assertTrue(cases.length() > 0)
+        for (i in 0 until cases.length()) {
+            val p = cases.getJSONArray(i)
+            assertEquals(p.getString(3), Focus.windowSoonText(p.getString(0), p.getLong(1), p.getString(2)), "szöveg $i")
         }
     }
 

@@ -27,7 +27,9 @@ cd android
   vagy a heti ablaké, és hogy meddig), adag-szünet, különben az alapállapot —,
   mert a telefonon nincs tiltó lap: ez az egyetlen hely, ahol látszik, mi
   történik. A zárlat-ablak eseményei (beérés, és tíz perccel előtte) külön,
-  látható csatornán jönnek, lehúzható értesítésként.
+  látható csatornán jönnek, lehúzható értesítésként; a heti ablakos menet
+  előtti tíz perces szó a sajátján („Heti munkamenet”), hogy külön is
+  elnémítható legyen.
 - **Hétfő reggel héttől a szolgáltatás egy heti visszatekintést** ad: az
   elmúlt 7 nap mért ideje, a legtöbb (és a trend), menetek, feloldások, és a
   legnagyobb nem tiltott idővivő — ugyanaz a mondat, mint a gépen

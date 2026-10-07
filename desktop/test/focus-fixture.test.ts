@@ -8,13 +8,15 @@
 // csomaggal. A lezárás a naplóba ír, ami a fiókon utazik; a hátralévő idő
 // szövege a három kezdőlapon áll.
 //
-// Hat szekció, UTC-ben (a napok és az órák helyi időben számolnak; a Swift
+// Nyolc szekció, UTC-ben (a napok és az órák helyi időben számolnak; a Swift
 // kimondva kihagy, ha nem tudja beállítani): az ismétlődés (minden csomag
 // mostani előfordulása, az esedékes ablak — holtversenyben a kisebb
 // azonosító, kódegység szerint —, és hogy a futó menet ablak-menet-e); az
 // ablak-menet a határokon; a lezárás (a 200 soros napló vágásával); a
-// legutóbb használt csomag; a hátralévő idő szövege; és a percek tisztítása
-// (a nagy szám a Kotlinban túlcsordult).
+// legutóbb használt csomag; a hátralévő idő szövege; a percek tisztítása
+// (a nagy szám a Kotlinban túlcsordult); a közelgő ablak-menet (tíz perccel
+// előtte szól — a határokon: pont tíz perc, egy ezredmásodperccel több, a
+// kezdés pillanata); és az értesítés szövege.
 //
 //   UPDATE_FOCUS_FIXTURE=1 npm test     — a fájl újraírása
 
@@ -23,7 +25,8 @@ import * as assert from 'node:assert/strict';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import {
-  MAX_FOCUS_LOG, closeIfEnded, dueRecurrence, formatRemaining, isWindowRun, lastUsedPack, normalizeMinutes, occurrenceAt,
+  MAX_FOCUS_LOG, WINDOW_SOON_MS, closeIfEnded, dueRecurrence, formatRemaining, isWindowRun, lastUsedPack, nextOccurrence,
+  normalizeMinutes, occurrenceAt, windowRunStartingSoon, windowSoonText,
   type FocusLogEntry, type FocusPack, type FocusRun,
 } from '../src/shared/focus';
 import { isValidBand, type Band, type Weekday } from '../src/shared/schedule';
@@ -49,9 +52,14 @@ interface CloseCase {
   out: { entry: FocusLogEntry; logLength: number; first: number; last: number } | null;
 }
 interface LastUsedCase { packs: string[]; log: [string, number][]; out: string | null }
+interface SoonCase {
+  seed: number; now: number; packs: PackIn[]; run: FocusRun | null; log: FocusLogEntry[];
+  out: [string, number, number] | null;
+}
 interface Fixture {
   note: string; version: number; recurrence: RecurrenceCase[]; windowRun: WindowRunCase[]; close: CloseCase[];
   lastUsed: LastUsedCase[]; remaining: [number, string][]; minutes: [number, number | null][];
+  soon: SoonCase[]; soonText: [string, number, string, string][];
 }
 
 function warm(seed: number): () => number { const r = rng(seed); for (let i = 0; i < 4; i++) r(); return r; }
@@ -214,6 +222,65 @@ function lastUsedCases(): LastUsedCase[] {
   return out;
 }
 
+// -------------------------------------------------------- közelgő ablak-menet
+
+function soonCases(): SoonCase[] {
+  const out: SoonCase[] = [];
+  for (let seed = 1; seed <= 140; seed++) {
+    const r = warm(9000 + seed);
+    const ids = [...IDS].sort(() => r() - 0.5).slice(0, 1 + Math.floor(r() * 4));
+    const packs: PackIn[] = [];
+    for (const id of ids) {
+      // Néha ugyanaz a sáv, mint az előzőé: két egyszerre induló ablak — a holtverseny.
+      const band = r() < 0.15 ? null : (packs.length && r() < 0.3 && packs[packs.length - 1].band ? { ...packs[packs.length - 1].band! } : randomBand(r));
+      packs.push({ id, name: `csomag ${id}`, band });
+    }
+    // Az időpont: többnyire egy sáv kezdése ELŐTT, a határokon — pont tíz perc,
+    // egy ezredmásodperccel több vagy kevesebb, a kezdés pillanata —, néha bárhol.
+    let now: number;
+    const edged = packs.find((p) => p.band && isValidBand(p.band));
+    if (edged && r() < 0.8) {
+      const b = edged.band!;
+      const start = at(pick(r, b.days), b.startMin);
+      now = start - pick(r, [0, 1, MIN, 5 * MIN, WINDOW_SOON_MS - 1, WINDOW_SOON_MS, WINDOW_SOON_MS + 1, 11 * MIN, 30 * MIN]);
+    } else {
+      now = WEEK + Math.floor(r() * 9 * DAY) - DAY;
+    }
+    // A futó menet: nincs, vagy az egyik csomagé — fut a kezdésen túl, épp lejár, vagy már lejárt.
+    let run: FocusRun | null = null;
+    if (r() < 0.35) {
+      const target = pick(r, packs);
+      run = { packId: target.id, startedAt: now - 20 * MIN, endsAt: now + pick(r, [-1, 0, 1, 5 * MIN, 30 * MIN]) };
+    }
+    // A napló: néha a közelgő előfordulás SAJÁT menete (elköltve — ezt a kör
+    // egy siető órájú eszköz szinkronjából kaphatja), néha egy régi sor.
+    const log: FocusLogEntry[] = [];
+    for (const p of packs) {
+      if (!p.band || !isValidBand(p.band)) continue;
+      const o = nextOccurrence(p.band, now);
+      if (o && o.startsAt > now && r() < 0.15) log.push(logEntry(p.id, o.startsAt, o.endsAt));
+    }
+    if (r() < 0.3) log.push(logEntry(pick(r, IDS), now - 3 * DAY, now - 3 * DAY + 45 * MIN));
+    const soon = windowRunStartingSoon(toPacks(packs), run, log, now);
+    out.push({ seed, now, packs, run, log, out: soon ? [soon.pack.id, soon.startsAt, soon.endsAt] : null });
+  }
+  return out;
+}
+
+const SOON_TEXT_NAMES = ['Nyelvtanulás', 'Ő', 'a b'];
+const SOON_TEXT_LEFT = [-60_001, -1, 0, 1, 59_999, 60_000, 60_001, 599_999, 600_000, 600_001];
+const SOON_TEXT_CLOCKS = ['18:50', '00:00'];
+
+function soonTextCases(): [string, number, string, string][] {
+  const out: [string, number, string, string][] = [];
+  for (const name of SOON_TEXT_NAMES) {
+    for (const left of SOON_TEXT_LEFT) {
+      for (const clock of SOON_TEXT_CLOCKS) out.push([name, left, clock, windowSoonText(name, left, clock)]);
+    }
+  }
+  return out;
+}
+
 const REMAINING = [
   -60_000, -1, 0, 1, 59_999, 60_000, 60_001, 119_999, 120_000, 120_001, 3_540_000, 3_599_999, 3_600_000,
   3_600_001, 5_400_000, 7_200_000, 7_260_000, 28_800_000, 2 * 86_400_000,
@@ -225,12 +292,14 @@ function buildFixture(): Fixture {
     note: 'Generálja és őrzi: desktop/test/focus-fixture.test.ts (UPDATE_FOCUS_FIXTURE=1 npm test). '
       + 'Az ismétlődés (a csomagok mostani előfordulása, az esedékes ablak, ablak-menet-e a futó menet), az '
       + 'ablak-menet a határokon, a lezárás (a 200 soros napló vágásával), a legutóbb használt csomag, a hátralévő '
-      + 'idő szövege és a percek tisztítása — UTC-ben. Olvassa: android/jvm-tests FocusFixtureTest, '
-      + 'ios/SharedTests FocusFixtureTests. Csupa ASCII.',
-    version: 1,
+      + 'idő szövege, a percek tisztítása, a közelgő ablak-menet (tíz perccel előtte) és az értesítés szövege '
+      + '— UTC-ben. Olvassa: android/jvm-tests FocusFixtureTest, ios/SharedTests FocusFixtureTests. Csupa ASCII.',
+    version: 2,
     recurrence: recurrenceCases(), windowRun: windowRunCases(), close: closeCases(), lastUsed: lastUsedCases(),
     remaining: REMAINING.map((ms) => [ms, formatRemaining(ms)]),
     minutes: MINUTES.map((v) => [v, normalizeMinutes(v)]),
+    soon: soonCases(),
+    soonText: soonTextCases(),
   };
 }
 
@@ -251,7 +320,9 @@ function render(f: Fixture): string {
     + ` "close": [\n${rows(f.close)}\n ],\n`
     + ` "lastUsed": [\n${rows(f.lastUsed)}\n ],\n`
     + ` "remaining": [\n${rows(f.remaining)}\n ],\n`
-    + ` "minutes": [\n${rows(f.minutes)}\n ]\n}\n`;
+    + ` "minutes": [\n${rows(f.minutes)}\n ],\n`
+    + ` "soon": [\n${rows(f.soon)}\n ],\n`
+    + ` "soonText": [\n${rows(f.soonText)}\n ]\n}\n`;
 }
 
 test('a munkamenet fixtúrája friss, és nem elfajult', () => {
@@ -267,6 +338,16 @@ test('a munkamenet fixtúrája friss, és nem elfajult', () => {
   assert.ok(built.close.some((c) => c.out && c.out.logLength === MAX_FOCUS_LOG && c.logLength === MAX_FOCUS_LOG), 'a napló vágása előjön');
   assert.ok(built.lastUsed.some((c) => c.out === null) && built.lastUsed.filter((c) => c.out).length > 10);
   assert.equal(normalizeMinutes(3e9), 480, 'a nagy szám a plafonra vág, nem fordul át');
+  const soon = built.soon;
+  assert.ok(soon.filter((c) => c.out).length > 25 && soon.filter((c) => !c.out).length > 25, 'közelgő és nem közelgő ablak is');
+  assert.ok(soon.some((c) => c.out && c.out[1] - c.now === WINDOW_SOON_MS), 'a pont tíz perc még szól');
+  assert.ok(soon.some((c) => !c.out && c.packs.some((p) => p.band && isValidBand(p.band)
+    && nextOccurrence(p.band, c.now)?.startsAt === c.now + WINDOW_SOON_MS + 1)), 'az egy ezredmásodperccel több már nem');
+  assert.ok(soon.some((c) => !c.out && c.run && c.run.endsAt > c.now
+    && windowRunStartingSoon(toPacks(c.packs), null, c.log, c.now)?.pack.id === c.run.packId), 'a csomag saját menete mellett hallgat');
+  assert.ok(soon.some((c) => !c.out && c.log.some((e) => e.startedAt > c.now)), 'az elköltött előfordulásról hallgat');
+  assert.ok(soon.some((c) => c.out && c.packs.filter((p) => p.band && c.out
+    && nextOccurrence(p.band, c.now)?.startsAt === c.out[1]).length > 1), 'van holtverseny két egyszerre induló ablak között');
   const text = render(built);
   if (process.env.UPDATE_FOCUS_FIXTURE) {
     fs.mkdirSync(path.dirname(FIXTURE), { recursive: true });

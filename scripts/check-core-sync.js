@@ -298,6 +298,17 @@ const CHECKS = [
     scalar(ts.focus, /RECURRENCE_MIN_REMAINING_MS\s*=\s*([^;]+);/, 'ts'),
     scalar(kt.focus, /RECURRENCE_MIN_REMAINING_MS\s*=\s*(.+)/, 'kt'),
     scalar(sw.focus, /recurrenceMinRemainingMs[^=]*=\s*(.+)/, 'swift')],
+  // A heti ablak MENETE előtt ennyivel szól mindhárom app — és ugyanazzal a
+  // címmel. Ha szétcsúszna, ugyanarról az ablakról a gép tíz, a telefon öt
+  // perccel előbb szólna, és egyik sem tudná, melyik az igaz.
+  ['WINDOW_SOON_MS',
+    scalar(ts.focus, /WINDOW_SOON_MS\s*=\s*([^;]+);/, 'ts'),
+    scalar(kt.focus, /WINDOW_SOON_MS\s*=\s*(.+)/, 'kt'),
+    scalar(sw.focus, /windowSoonMs[^=]*=\s*(.+)/, 'swift')],
+  ['WINDOW_SOON_TITLE',
+    quotedText(ts.focus, /WINDOW_SOON_TITLE\s*=\s*'([^']+)'/, 'ts'),
+    quotedText(kt.focus, /WINDOW_SOON_TITLE\s*=\s*"([^"]+)"/, 'kt'),
+    quotedText(sw.focus, /static let windowSoonTitle\s*=\s*"([^"]+)"/, 'swift')],
   // HÁNY LÉPÉS EGY KÍSÉRLET. Ha ez szétcsúszik, ugyanaz a fok az egyik
   // eszközön három feladat, a másikon hat — vagyis a felhasználó a gyengébb
   // eszközön old fel, és semmi nem jelzi.

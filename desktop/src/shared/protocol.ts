@@ -265,6 +265,11 @@ export interface StatusData {
   /** a heti ablakok következő hete, az elköltöttek nélkül (a böngésző-hídnak) */
   focusWindows?: import('./focus').WindowOccurrence[];
   /**
+   * A tíz percen belül induló heti ablak menete, ha van (`windowRunStartingSoon`)
+   * — a felület ebből szól előre. Hiányzik vagy null = nincs mit mondani.
+   */
+  focusWindowSoon?: { packId: string; name: string; startsAt: number; endsAt: number } | null;
+  /**
    * Miért nem megy a munkamenet szinkronja, ha nem megy.
    *
    * A munkamenet köre szándékosan nem állítja meg az egész szinkront (a

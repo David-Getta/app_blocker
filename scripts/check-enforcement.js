@@ -3599,6 +3599,40 @@ const WIRES = [
     lost: 'az iPhone nem ütemezné a szünet vége előtti értesítést',
   },
 
+  // A HETI ABLAK MENETE ELŐTT TÍZ PERCCEL szól mindhárom app — a zárlat-ablak
+  // előjelzésének tükre. A döntés a magé (`windowRunStartingSoon`, a
+  // fixtúrában is); ezek a tűk azt őrzik, hogy a döntésből szó is legyen.
+  {
+    file: 'desktop/src/helper/server.ts',
+    needle: 'windowRunStartingSoon(state.focusPacks ?? [], state.focusRun, state.focusLog, now)',
+    lost: 'a segéd nem mondaná meg a felületnek, hogy mindjárt indul a heti ablak menete',
+  },
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: 'showFocusWindowSoonNotice(status!.focusWindowSoon, nowForBurst);',
+    lost: 'a gép nem szólna előre, mielőtt a heti ablak menete elindul',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/vpn/BreakerVpnService.kt',
+    needle: 'val focusSoon = Focus.windowRunStartingSoon(st.focusPacks, run, st.focusLog, now)',
+    lost: 'az Android nem nézné, mindjárt indul-e a heti ablak menete',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/vpn/BreakerVpnService.kt',
+    needle: 'runCatching { notifyFocusWindowSoon(focusSoon, now) }',
+    lost: 'az Android nem szólna előre, mielőtt a heti ablak menete elindul',
+  },
+  {
+    file: 'ios/App/WindowReminders.swift',
+    needle: 'let plan = lockPlan + Focus.windowReminderPlan(packs, used: lockPlan.count)',
+    lost: 'az iPhone nem ütemezné a heti ablak menete előtti értesítést',
+  },
+  {
+    file: 'ios/App/ContentView.swift',
+    needle: 'WindowReminders.reschedule(windows, packs: packs)',
+    lost: 'az iPhone nem követné a csomagok ablakait az emlékeztetőkkel',
+  },
+
   // A DRÓTON JÖTT ABSZURD IDŐ NEM ÁLLÍTHATJA LE AZ IPHONE-APPOT. A Swift
   // `Int(_:)` a tartományon kívüli értéken összeomlik; a zárlat vége
   // magasvízjelként terjed, tehát egy hibás eszköz egyetlen értéke minden

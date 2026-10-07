@@ -6,10 +6,11 @@ import XCTest
 // Megfelelőség a géppel a MUNKAMENET MAGJÁBAN: a `fixtures/focus-cases.json` a
 // gép döntéseit tartja (desktop/test/focus-fixture.test.ts írja és őrzi) — az
 // ismétlődő menet előfordulásait és az esedékes ablakot, az ablak-menetet, a
-// lezárást, a legutóbb használt csomagot, a hátralévő idő szövegét és a percek
-// tisztítását. Ha az iPhone más ablakot tartana esedékesnek, a menet itt
-// elindulna, a gépen nem — vagy más csomaggal. A napok és az órák helyi
-// időben számolnak: a teszt UTC-ben jár, és kimondva kihagy, ha nem tudja.
+// lezárást, a legutóbb használt csomagot, a hátralévő idő szövegét, a percek
+// tisztítását, a közelgő ablak-menetet és az értesítése szövegét. Ha az
+// iPhone más ablakot tartana esedékesnek, a menet itt elindulna, a gépen nem
+// — vagy más csomaggal. A napok és az órák helyi időben számolnak: a teszt
+// UTC-ben jár, és kimondva kihagy, ha nem tudja.
 final class FocusFixtureTests: XCTestCase {
 
     private func load() throws -> [String: Any] {
@@ -133,6 +134,27 @@ final class FocusFixtureTests: XCTestCase {
                                       plannedEndsAt: at + 1_800_000, stopped: false)
             }
             XCTAssertEqual(Focus.lastUsedPack(ps, log: lg)?.id, c["out"] as? String, "legutóbbi csomag \(i)")
+        }
+    }
+
+    func testTheUpcomingWindowRunIsTheSameAsTheDesktopTenMinutesAheadAtTheEdges() throws {
+        try requireUTC()
+        let cases = try load()["soon"] as? [[String: Any]] ?? []
+        XCTAssertGreaterThanOrEqual(cases.count, 100, "a fixture-ben van elég eset")
+        for c in cases {
+            let seed = int(c["seed"])
+            let got = Focus.windowRunStartingSoon(packs(c["packs"]), run: run(c["run"]), log: log(c["log"]), now: num(c["now"]))
+            var expected: String?
+            if let d = c["out"] as? [Any] { expected = "\(str(d[0]))@\(Int64(num(d[1])))-\(Int64(num(d[2])))" }
+            XCTAssertEqual(got.map { "\($0.pack.id)@\(Int64($0.startsAt))-\(Int64($0.endsAt))" }, expected, "közelgő ablak-menet, mag \(seed)")
+        }
+    }
+
+    func testTheUpcomingWindowRunNoticeTextIsTheSameAsTheDesktop() throws {
+        let cases = try load()["soonText"] as? [[Any]] ?? []
+        XCTAssertFalse(cases.isEmpty)
+        for (i, p) in cases.enumerated() {
+            XCTAssertEqual(Focus.windowSoonText(str(p[0]), leftMs: num(p[1]), endClock: str(p[2])), str(p[3]), "szöveg \(i)")
         }
     }
 

@@ -77,6 +77,9 @@ class BreakerVpnService : VpnService() {
         /** A fogyó napi keret egyszeri szava — saját csatornán, hogy külön is elnémítható legyen. */
         private const val NOTIF_LIMIT_SOON_ID = 10
         private const val LIMIT_CHANNEL_ID = "breaker_limit_soon"
+        /** A heti ablak menete előtti egyszeri szó — saját csatornán, hogy külön is elnémítható legyen. */
+        private const val NOTIF_FOCUS_WINDOW_SOON_ID = 11
+        private const val FOCUS_WINDOW_CHANNEL_ID = "breaker_focus_window"
 
         private val _running = MutableStateFlow(false)
         val running: StateFlow<Boolean> get() = _running
@@ -103,6 +106,8 @@ class BreakerVpnService : VpnService() {
     private var noticedWindowUntil: Long = -1L
     /** A már bejelentett közelgő ablak-kezdés; egy kezdésről egyszer szólunk. */
     private var warnedWindowStart: Long = 0L
+    /** A már bejelentett közelgő ablak-menet („csomag@kezdés”); egy előfordulásról egyszer szólunk. */
+    private var warnedFocusWindow: String = ""
     /** A már elkönyvelt hét — memóriában is, hogy a tár hibája se szólaltassa meg minden körben. */
     private var digestDoneKey: String? = null
     private var digestCheckedAt: Long = 0L
@@ -284,6 +289,13 @@ class BreakerVpnService : VpnService() {
             warnedWindowStart = soon.startsAt
             runCatching { notifyWindowSoon(soon, now) }
         }
+        // Ugyanez a heti ablak MENETÉRE: tíz perccel előtte egyszer — a menet is
+        // lezár mindent, ami nincs a csomagban. A döntés a magé, a naplóval.
+        val focusSoon = Focus.windowRunStartingSoon(st.focusPacks, run, st.focusLog, now)
+        if (focusSoon != null && "${focusSoon.pack.id}@${focusSoon.startsAt}" != warnedFocusWindow) {
+            warnedFocusWindow = "${focusSoon.pack.id}@${focusSoon.startsAt}"
+            runCatching { notifyFocusWindowSoon(focusSoon, now) }
+        }
         maybePeakWarning(st, now)
         maybeFocusHourWarning(st, now)
         // A mai megakadások is a kulcs része: a sáv sora a következő körben
@@ -337,6 +349,15 @@ class BreakerVpnService : VpnService() {
             NOTIF_WINDOW_SOON_ID, getString(R.string.vpn_window_soon_title),
             getString(R.string.vpn_window_soon_text,
                 LockdownLogic.formatRemaining(occ.startsAt - now), clockLabel(occ.endsAt, now)),
+        )
+    }
+
+    /** Tíz perccel a heti ablak menete előtt — egyszer, lehúzható, saját csatornán. */
+    private fun notifyFocusWindowSoon(soon: Focus.DueRecurrence, now: Long) {
+        notifyOnce(
+            NOTIF_FOCUS_WINDOW_SOON_ID, Focus.WINDOW_SOON_TITLE,
+            Focus.windowSoonText(soon.pack.name, soon.startsAt - now, clockLabel(soon.endsAt, now)),
+            FOCUS_WINDOW_CHANNEL_ID, "Heti munkamenet",
         )
     }
 

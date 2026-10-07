@@ -46,4 +46,46 @@ final class WindowReminderPlanTests: XCTestCase {
         XCTAssertTrue(start?.body.contains("00:00") ?? false, "az éjfél mint vég 00:00")
         XCTAssertEqual(LockdownLogic.reminderPlan([]), [])
     }
+
+    // ------------------------------------------------ a heti ablakos menet előtt
+
+    private func pack(_ id: String, _ days: [Int], _ start: Int, _ end: Int, name: String = "Nyelvtanulás") -> Focus.Pack {
+        Focus.Pack(id: id, name: name, allowSites: [], allowApps: [], defaultMinutes: 50,
+                   recurrence: ScheduleLogic.Band(days: days, startMin: start, endMin: end))
+    }
+
+    func testEveryFocusWindowDayGetsAHeadsUpTenMinutesBefore() {
+        let plan = Focus.windowReminderPlan([pack("p1", [3, 1], 18 * 60, 18 * 60 + 50)], used: 0)
+        XCTAssertEqual(plan.count, 2, "két nap, napi egy előjelzés")
+        XCTAssertTrue(plan.allSatisfy { $0.id.hasPrefix(Focus.windowReminderIdPrefix) })
+        XCTAssertEqual(Set(plan.map { $0.id }).count, plan.count, "az azonosítók egyediek")
+        XCTAssertEqual(plan.map { $0.weekday }, [2, 4], "hétfő és szerda, napok szerint rendezve")
+        XCTAssertTrue(plan.allSatisfy { $0.hour == 17 && $0.minute == 50 }, "tíz perccel előbb")
+        XCTAssertTrue(plan.allSatisfy { $0.title == Focus.windowSoonTitle })
+        XCTAssertEqual(plan.first?.body, Focus.windowSoonText("Nyelvtanulás", leftMs: Focus.windowSoonMs, endClock: "18:50"))
+        XCTAssertTrue(plan.first?.body.contains("10 perc múlva") ?? false)
+    }
+
+    func testAFocusWindowAtMidnightWarnsOnThePreviousDay() {
+        let plan = Focus.windowReminderPlan([pack("p", [0], 5, 60)], used: 0)
+        XCTAssertEqual(plan.first?.weekday, 7, "vasárnap 0:05 előtt tíz perccel: szombat")
+        XCTAssertEqual(plan.first?.hour, 23); XCTAssertEqual(plan.first?.minute, 55)
+    }
+
+    func testPacksWithoutAValidWindowGetNothing() {
+        let none = Focus.Pack(id: "x", name: "X", allowSites: [], allowApps: [], defaultMinutes: 30, recurrence: nil)
+        XCTAssertEqual(Focus.windowReminderPlan([none, pack("bad", [], 600, 660)], used: 0), [])
+    }
+
+    func testTheFocusPlanGetsOnlyWhatTheLockdownPlanLeavesAndIsAllOrNothing() {
+        // Két csomag, mind a hét napra: 14 előjelzés. A keret 64, a tartalék 4.
+        let packs = [pack("p_a", [0, 1, 2, 3, 4, 5, 6], 600, 650), pack("p_b", [0, 1, 2, 3, 4, 5, 6], 900, 950)]
+        XCTAssertEqual(Focus.windowReminderPlan(packs, used: 64 - 4 - 14).count, 14, "pont belefér")
+        XCTAssertEqual(Focus.windowReminderPlan(packs, used: 64 - 4 - 13), [], "eggyel kevesebb hely: egy sem — nem félig")
+        // A zárlat-ablakok tervével együtt sosem lépi át a rendszer plafonját.
+        let windows = (0..<4).map { window("w\($0)", [0, 1, 2, 3, 4, 5, 6], 60 * $0, 60 * $0 + 30) }
+        let lock = LockdownLogic.reminderPlan(windows)
+        let total = lock.count + Focus.windowReminderPlan(packs, used: lock.count).count
+        XCTAssertLessThanOrEqual(total, LockdownLogic.maxPendingReminders - LockdownLogic.reservedReminders)
+    }
 }

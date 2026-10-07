@@ -324,6 +324,9 @@ public enum LockdownLogic {
 
     /// A rendszer ennyi függő kérést enged egy appnak; efölött az újak elvesznek.
     static let maxPendingReminders = 64
+    /// A heti ablakok emlékeztetői ennyit hagynak a többinek (a hétfő reggeli
+    /// visszatekintés, a csúcs-óra és a menet-óra előjelzése, a szünetek vége).
+    static let reservedReminders = 4
     /// Az emlékeztetők azonosítójának eleje — ezzel szedi le az app a régieket.
     static let reminderIdPrefix = "lockdown-window:"
 
@@ -332,7 +335,7 @@ public enum LockdownLogic {
     /// kérése az elsőbb: ha a kettő együtt nem fér be, az előjelzés marad el.
     static func reminderPlan(_ windows: [LockdownWindow]) -> [Reminder] {
         let slots = windows.reduce(0) { $0 + $1.days.count }
-        let warn = slots * 2 <= maxPendingReminders - 4
+        let warn = slots * 2 <= maxPendingReminders - reservedReminders
         let lead = Int(windowPreWarnMs / 60_000)
         var out: [Reminder] = []
         for w in windows {

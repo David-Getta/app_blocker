@@ -37,7 +37,10 @@ app **előre ütemezi** (`UNUserNotificationCenter`, heti ismétlődő kérés m
 ablak-napra a kezdésre és tíz perccel előbbre, ha belefér a rendszer
 hatvannégyes keretébe). A tervet — mikor, mit mondjon — a mag adja
 (`LockdownLogic.reminderPlan`), teszttel; az app csak rendszer-kérést gyárt
-belőle. Az első ablaknál az app értesítési engedélyt kér.
+belőle. Az első ablaknál az app értesítési engedélyt kér. Ugyanígy szól tíz
+perccel minden heti ablakos munkamenet előtt (`Focus.windowReminderPlan`): a
+két terv egy keretből él, a zárlat-ablaké az elsőbb, és a menetek
+előjelzése csak egészben kerül fel — ha nem fér be mind, egy sem.
 
 A **párban zárolás** itt is a zárlat kártyáján van: a megbízott neve, a sorsolt
 jelmondat egyszeri lapja (kijelölhető, hogy át lehessen küldeni; lehúzni nem
