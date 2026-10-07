@@ -19,11 +19,14 @@ interface Api {
   REMOVE_DELAY_MS: number;
   MAX_RULES: number;
   load: () => Promise<Store>;
-  activeRules: (s: Store, now: number) => RuleRec[];
+  activeRules: (s: Store, now: number, lockUntil?: number) => RuleRec[];
   addRule: (input: string, now?: number) => Promise<{ ok: boolean; error?: string; label?: string }>;
-  startRemoval: (h: string, p: string, now?: number) => Promise<{ ok: boolean; removeAt?: number }>;
+  startRemoval: (h: string, p: string, now?: number, lockUntil?: number) =>
+    Promise<{ ok: boolean; removeAt?: number; error?: string }>;
   cancelRemoval: (h: string, p: string) => Promise<void>;
-  sweep: (now?: number) => Promise<RuleRec[]>;
+  sweep: (now?: number, lockUntil?: number) => Promise<RuleRec[]>;
+  cancelPendingRemovals: () => Promise<number>;
+  LOCKED_REMOVAL_TEXT: string;
 }
 
 /**
@@ -115,6 +118,35 @@ test('removing is NOT a button: it blocks until the wait is over', async () => {
   assert.equal(ext.activeRules(state, NOW + ext.REMOVE_DELAY_MS - 1).length, 1);
   // Utána már nem.
   assert.equal(ext.activeRules(state, NOW + ext.REMOVE_DELAY_MS + 1).length, 0);
+});
+
+test('zárlat alatt a saját szabály sem vehető le, és a függő levétel sem jut ki', async () => {
+  // A zárlat ígérete: részleges szabály levétele nem indítható. A bővítmény
+  // saját szabályai eddig tíz perc várással zárlat alatt is levehetők voltak.
+  const ext = freshExtension();
+  const lockUntil = NOW + 3_600_000;
+  await ext.addRule('youtube.com/@valaki', NOW);
+  // Az indítás: nemet mond, egy mondattal — és a szabály érintetlen.
+  const refused = await ext.startRemoval('youtube.com', '/@valaki', NOW, lockUntil);
+  assert.equal(refused.ok, false);
+  assert.equal(refused.error, ext.LOCKED_REMOVAL_TEXT);
+  assert.equal((await ext.load()).rules[0].removeAt, null);
+
+  // Egy MÁR futó levétel: a zárlat alatt a határidő után is tilt, a takarítás
+  // sem viszi el — és a zárlat visszavonja (a kivárt idő elvész, mint az appban).
+  const before = await ext.startRemoval('youtube.com', '/@valaki', NOW);
+  assert.equal(before.ok, true);
+  const later = NOW + ext.REMOVE_DELAY_MS + 1;
+  const state = await ext.load();
+  assert.equal(ext.activeRules(state, later, lockUntil).length, 1, 'zárlat alatt nem teljesül');
+  assert.equal(ext.activeRules(state, later).length, 0, 'zárlat nélkül teljesült volna');
+  assert.equal((await ext.sweep(later, lockUntil)).length, 1);
+  assert.equal(await ext.cancelPendingRemovals(), 1);
+  assert.equal((await ext.load()).rules[0].removeAt, null);
+  assert.equal(await ext.cancelPendingRemovals(), 0, 'nincs mit visszavonni: nem ír');
+  // A zárlat után elölről: a levétel újra indítható, a teljes várással.
+  const again = await ext.startRemoval('youtube.com', '/@valaki', lockUntil + 1, lockUntil);
+  assert.equal(again.removeAt, lockUntil + 1 + ext.REMOVE_DELAY_MS);
 });
 
 test('pressing remove again does not push the deadline out', async () => {

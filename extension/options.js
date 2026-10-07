@@ -9,9 +9,11 @@
 import { extensionSettingsUrl, incognitoAllowed, incognitoText } from './incognito.js';
 import { ruleLabel } from './rules-core.js';
 import {
-  addRule, cancelRemoval, load, REMOVE_DELAY_MS, startRemoval, sweep,
+  addRule, cancelPendingRemovals, cancelRemoval, load, LOCKED_REMOVAL_TEXT, REMOVE_DELAY_MS, startRemoval, sweep,
 } from './storage.js';
-import { CLOSED_FRESH_MS, loadLink, pullFromApp, pushHits, setToken, withAppRules } from './app-link.js';
+import {
+  CLOSED_FRESH_MS, effectiveLockdown, loadLink, pullFromApp, pushHits, setToken, withAppRules,
+} from './app-link.js';
 import { dayKey, formatSeconds, lastDays, topChannels } from './chantime.js';
 // A `lastDays` a csatorna-időé (ugyanaz a naptár) — a könyv is azzal él.
 import {
@@ -170,10 +172,14 @@ async function renderHits() {
 }
 
 async function render() {
-  await sweep();
-  const state = await load();
   const link = await loadLink();
   const now = Date.now();
+  // ZÁRLAT alatt a saját szabályok sem vehetők le, és a függő levétel is
+  // visszavonódik — ugyanaz az ígéret, mint az appban.
+  const lockUntil = effectiveLockdown(link, now)?.until ?? 0;
+  if (lockUntil > now) await cancelPendingRemovals();
+  await sweep(now, lockUntil);
+  const state = await load();
   renderLink(link);
   renderClosedNow(link, now);
   void renderChannelTime();
@@ -209,10 +215,15 @@ async function render() {
         await render();
       });
       li.appendChild(keep);
+    } else if (lockUntil > now) {
+      // NINCS gomb: zárlat alatt nincs út — egy szürke gomb azt sugallná, hogy
+      // van, csak most nem.
+      left.appendChild(el('div', 'muted', LOCKED_REMOVAL_TEXT));
+      li.appendChild(el('span', 'muted', 'zárlat'));
     } else {
       const drop = el('button', undefined, 'Levétel');
       drop.addEventListener('click', async () => {
-        await startRemoval(rule.host, rule.path);
+        await startRemoval(rule.host, rule.path, Date.now(), effectiveLockdown(await loadLink(), Date.now())?.until ?? 0);
         await render();
       });
       li.appendChild(drop);

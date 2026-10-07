@@ -44,10 +44,21 @@ async function save(state) {
   await chrome.storage.local.set({ [KEY]: state });
 }
 
-/** Csak azok, amik MOST tiltanak (a lejárt visszaszámlálásúak már nem). */
-export function activeRules(state, now) {
+/**
+ * Csak azok, amik MOST tiltanak (a lejárt visszaszámlálásúak már nem).
+ *
+ * ZÁRLAT alatt (`lockUntil` a jövőben) függő levétel nem teljesül: a zárlat
+ * ígérete, hogy részleges szabály levétele nem indítható — és ami félig kint
+ * volt, az sem jut ki. (A háttér a zárlat észlelésekor vissza is vonja őket,
+ * lásd `cancelPendingRemovals`; ez a kapu addig is tart.)
+ */
+export function activeRules(state, now, lockUntil = 0) {
+  if (lockUntil > now) return state.rules.slice();
   return state.rules.filter((r) => r.removeAt === null || r.removeAt > now);
 }
+
+/** A zárlat mondata a levétel helyén — ugyanaz a szó, mint az appban. */
+export const LOCKED_REMOVAL_TEXT = 'Zárlat van érvényben: amíg tart, szabály nem vehető le.';
 
 /**
  * Új szabály. Szigorítás, tehát azonnal érvényes, kérdés nélkül.
@@ -81,7 +92,9 @@ export async function addRule(input, now = Date.now()) {
  *
  * @returns {Promise<{ok: boolean, removeAt?: number, error?: string}>}
  */
-export async function startRemoval(host, path, now = Date.now()) {
+export async function startRemoval(host, path, now = Date.now(), lockUntil = 0) {
+  // Zárlat alatt a levétel el sem indul — mint az appban: nincs mit kivárni.
+  if (lockUntil > now) return { ok: false, error: LOCKED_REMOVAL_TEXT };
   const state = await load();
   const rule = state.rules.find((r) => r.host === host && r.path === path);
   if (!rule) return { ok: false, error: 'Nincs ilyen szabály.' };
@@ -102,10 +115,28 @@ export async function cancelRemoval(host, path) {
   await save(state);
 }
 
-/** A lejárt visszaszámlálású szabályok tényleges kitakarítása. */
-export async function sweep(now = Date.now()) {
+/** A lejárt visszaszámlálású szabályok tényleges kitakarítása — zárlat alatt semmié. */
+export async function sweep(now = Date.now(), lockUntil = 0) {
   const state = await load();
+  if (lockUntil > now) return state.rules;
   const kept = state.rules.filter((r) => r.removeAt === null || r.removeAt > now);
   if (kept.length !== state.rules.length) await save({ rules: kept });
   return kept;
+}
+
+/**
+ * A függő levételek visszavonása — a zárlat észlelésekor. Az app ugyanígy
+ * visszavonja a folyamatban lévő törléseket: a kivárt idő elvész, a zárlat
+ * után elölről kell kezdeni. Csak akkor ír, ha volt mit visszavonni.
+ *
+ * @returns {Promise<number>} hányat vont vissza
+ */
+export async function cancelPendingRemovals() {
+  const state = await load();
+  let n = 0;
+  for (const r of state.rules) {
+    if (r.removeAt !== null) { r.removeAt = null; n++; }
+  }
+  if (n > 0) await save(state);
+  return n;
 }

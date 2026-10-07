@@ -3500,6 +3500,21 @@ const WIRES = [
     needle: "const p = chrome.runtime.sendMessage({ type: 'breaker:recheck', editing: editingNow() });",
     lost: 'a lap gépelés közben is a tiltó lapra futna — a félkész szöveg elveszne',
   },
+  {
+    file: 'extension/background.js',
+    needle: 'const rule = firstMatch(withAppRules(activeRules(state, now, lockUntil), link.rules), url);',
+    lost: 'zárlat alatt a bővítmény saját szabályának függő levétele kijutna — a zárlat ígérete megtörne',
+  },
+  {
+    file: 'extension/background.js',
+    needle: 'if (lockUntil > now && state.rules.some((r) => r.removeAt !== null)) void cancelPendingRemovals();',
+    lost: 'a zárlat nem vonná vissza a bővítmény saját szabályainak függő levételét',
+  },
+  {
+    file: 'extension/options.js',
+    needle: 'if (lockUntil > now) await cancelPendingRemovals();',
+    lost: 'a beállítás-lap zárlat alatt is a levétel visszaszámlálását mutatná',
+  },
 ];
 
 /**

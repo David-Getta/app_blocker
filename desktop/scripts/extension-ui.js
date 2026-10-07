@@ -381,6 +381,38 @@ async function main() {
     undefined, { timeout: 10_000 },
   ).catch(() => failures.push('a tiltó lap menet-óra gombja nem a hídon tett ablakot, vagy nem mondta ki, hogy megvan'));
 
+  // ZÁRLAT ALATT a bővítmény SAJÁT szabálya sem vehető le — ugyanaz az ígéret,
+  // mint az appban: nincs gomb (egy szürke gomb azt sugallná, hogy van út,
+  // csak most nem), a mondat kimondja, és a függő levétel is visszavonódik.
+  const lockPage = await browser.newPage();
+  lockPage.on('pageerror', (e) => failures.push(`hiba a zárlatos beállítás-lapon: ${e.message}`));
+  await lockPage.addInitScript(FAKE_CHROME);
+  await lockPage.addInitScript(`
+    window.__disk['breaker.partial'] = { rules: [
+      { host: 'youtube.com', path: '/@sajat', addedAt: Date.now() - 60000, removeAt: Date.now() + 5 * 60000 },
+    ] };
+    window.__disk['breaker.applink'] = {
+      token: null, port: null, rules: [], channels: [], focus: { running: false }, closed: [],
+      lockdown: { until: Date.now() + 3600000 },
+      fetchedAt: Date.now(), attemptedAt: Date.now(), error: null,
+    };
+  `);
+  await lockPage.goto(`http://127.0.0.1:${port}/options.html`);
+  await lockPage.waitForFunction(
+    () => /Zárlat van érvényben/.test(document.querySelector('#list li')?.textContent || ''),
+    undefined, { timeout: 10_000 },
+  ).catch(() => failures.push('zárlat alatt a saját szabály sorában nincs ott a zárlat mondata'));
+  const lockRow = lockPage.locator('#list li').filter({ hasText: 'youtube.com/@sajat' });
+  if (await lockRow.getByRole('button').count() !== 0) {
+    failures.push('zárlat alatt a saját szabály sorában gomb van (levétel vagy „mégis maradjon”)');
+  }
+  const pendingLeft = await lockPage.evaluate(() => {
+    const r = window.__disk['breaker.partial']?.rules?.[0];
+    return r ? String(r.removeAt) : 'nincs szabály';
+  });
+  if (pendingLeft !== 'null') failures.push(`zárlat alatt a függő levétel nem vonódott vissza (${pendingLeft})`);
+  await lockPage.close();
+
   await browser.close();
   server.close();
 

@@ -52,7 +52,10 @@ szigorítás.
   után.
 - **A böngésző-bővítményben:** a tiltó lap lába zárlat alatt nem azt írja, hogy
   „az appban feloldható, próbatétellel” — mert az az út most nincs —, hanem a
-  zárlatot és a hátralévő időt. A felugró lap is kimondja. A zárlat vége a hídon
+  zárlatot és a hátralévő időt. A felugró lap is kimondja. A bővítmény SAJÁT
+  részleges szabályai (a beállítás-lapon felvettek) sem vehetők le: a levétel
+  gombja helyén a zárlat mondata áll, és a függő levételük visszavonódik — a
+  kivárt tíz perc elvész, mint az appban a törléseké. A zárlat vége a hídon
   megy le; a frissesség-szabály itt más, mint a zárva-listánál: a zárlat csak
   hosszabbodhat, tehát egy régebbi lehúzás vége is igaz alsó becslés. A heti
   zárlat-ablakot a lap az app nélkül is tudja (lásd

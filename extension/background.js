@@ -16,7 +16,7 @@ import { firstMatch, ruleLabel } from './rules-core.js';
 import { keywordHit, keywordInText } from './keywords.js';
 // A napkulcs a csatorna-időé (ugyanaz a helyi nap) — a könyv is azzal él.
 import { hitsReport, recordHit, sweepHits } from './hits.js';
-import { activeRules, load, sweep } from './storage.js';
+import { activeRules, cancelPendingRemovals, load, sweep } from './storage.js';
 import {
   closedFor, currentTabHint, dueForRefresh, effectiveFocus, effectiveLockdown, focusAllows, loadLink, measureGuardFor,
   postTabHint, pullFromApp,
@@ -53,6 +53,10 @@ async function decide(url) {
   const lock = effectiveLockdown(link, now);
   const lockUntil = lock?.until ?? 0;
   const lockWindow = lock?.byWindow === true;
+  // ZÁRLAT ALATT a bővítmény saját szabályainak függő levétele sem jut ki: a
+  // zárlat visszavonja őket (mint az app a folyamatban lévő törléseket). Csak
+  // akkor ír, ha volt mit — a navigációt nem lassítja.
+  if (lockUntil > now && state.rules.some((r) => r.removeAt !== null)) void cancelPendingRemovals();
   // Az INDOK: amiért a felhasználó maga tiltotta le ezt a címet. Minden
   // találatra rámegy, ha van — a lap a kísértés pillanatában ezt idézi.
   const note = noteFor(link, hostOf(url));
@@ -104,7 +108,7 @@ async function decide(url) {
 
   // Az app szabályai HOZZÁADÓDNAK a sajátokhoz. Ha az app épp nem érhető el, az
   // utoljára letöltött lista marad érvényben — vagyis tovább tilt, nem enged át.
-  const rule = firstMatch(withAppRules(activeRules(state, now), link.rules), url);
+  const rule = firstMatch(withAppRules(activeRules(state, now, lockUntil), link.rules), url);
   return rule ? { reason: 'rule', rule, lockUntil, lockWindow, note, partner } : null;
 }
 
@@ -346,8 +350,9 @@ chrome.runtime.onMessage.addListener((msg, _sender, respond) => {
   void (async () => {
     const state = await load();
     const link = await loadLink();
+    const now = Date.now();
     respond({
-      rules: withAppRules(activeRules(state, Date.now()), link.rules),
+      rules: withAppRules(activeRules(state, now, effectiveLockdown(link, now)?.until ?? 0), link.rules),
       channels: link.channels,
       // A kulcsszavak a tartalom-szkriptnek: a lap CÍMSORÁT csak ő látja.
       keywords: link.keywords ?? [],
