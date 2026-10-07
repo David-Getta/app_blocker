@@ -265,8 +265,17 @@ function note(what) {
   self.__breakerTrace = trace;
 }
 
-async function enforce(kind, details, { record = true } = {}) {
-  if (!isTopFrame(details)) return;
+/**
+ * A döntés és az átirányítás. Visszaadja, mi történt: null (mehet, vagy hiba),
+ * `{ deferred, reason }` (halasztva), vagy `{ redirected: true }`.
+ *
+ * `defer`: a NYITOTT lap újranézésénél, ha a lapon épp gépelnek. Ilyenkor nem
+ * irányítunk át — a félkész szöveg elveszne, és egy futó dolgot sem lövünk ki
+ * úgy, hogy adat vész el. A lap kimondja, és a gépelés-csend után zárul (lásd
+ * content.js). A navigálásnál nincs halasztás: aki elnavigál, nem gépel.
+ */
+async function enforce(kind, details, { record = true, defer = false } = {}) {
+  if (!isTopFrame(details)) return null;
   let hit;
   try {
     hit = await decide(details.url);
@@ -274,10 +283,11 @@ async function enforce(kind, details, { record = true } = {}) {
     // A döntés hibája NEM lehet néma átengedés némán: legalább a nyomban
     // maradjon ott. (A tiltás maga ilyenkor a másik hálóra marad.)
     note(`${kind} ${details.url} DÖNTÉS-HIBA ${err}`);
-    return;
+    return null;
   }
-  note(`${kind} ${details.url} -> ${hit ? hit.reason : 'mehet'}`);
-  if (!hit) return;
+  note(`${kind} ${details.url} -> ${hit ? hit.reason : 'mehet'}${hit && defer ? ' (halasztva: gépelés)' : ''}`);
+  if (!hit) return null;
+  if (defer) return { deferred: true, reason: hit.reason };
   const target = blockedUrl(hit, details.url);
   // A lapot NEM zárjuk be: a becsukódó lap ijesztő, és nem mondja meg, mi
   // történt. A saját lapunk viszont megnevezi a szabályt, ami megfogta.
@@ -286,14 +296,14 @@ async function enforce(kind, details, { record = true } = {}) {
   } catch (err) {
     // A lap közben eltűnhetett. Ez nem hiba, csak elkéstünk vele.
     note(`átirányítás nem ment: ${err}`);
-    return;
+    return null;
   }
   // Megállítottunk: a könyvelés az átirányítás UTÁN, hogy sose késleltesse.
   // A fogó kulcsszó is a könyvbe megy: MELYIK kulcsszó dolgozik. A nyitott lap
   // újranézése NEM megakadás: nem a felhasználó próbált odamenni, hanem a
   // szabály ért utol egy már nyitott lapot — a könyv a próbálkozásokat számolja.
-  if (!record) return;
-  await recordHitNow(details.tabId, details.url, hit.reason, Date.now(), hit.keyword ?? '');
+  if (record) await recordHitNow(details.tabId, details.url, hit.reason, Date.now(), hit.keyword ?? '');
+  return { redirected: true };
 }
 
 chrome.webNavigation.onBeforeNavigate.addListener((details) => {
@@ -366,8 +376,11 @@ chrome.runtime.onMessage.addListener((msg, sender, respond) => {
   refreshInBackground();
   // Az újranézés a mérő jelét is frissen tartja: az app csak a friss jelet hiszi el.
   void sendTabHint();
-  void enforce('újranézés', { tabId, url, frameId: 0 }, { record: false })
-    .finally(() => respond({ ok: true }));
+  // Gépelés közben halasztunk: a lap mondja meg, gépelnek-e rajta (a saját,
+  // izolált világából — a weboldal kódja ezt nem írhatja át).
+  void enforce('újranézés', { tabId, url, frameId: 0 }, { record: false, defer: msg.editing === true })
+    .then((r) => respond({ ok: true, deferred: r?.deferred === true, reason: r?.reason ?? null }))
+    .catch(() => respond({ ok: false }));
   return true; // aszinkron válasz
 });
 
@@ -381,8 +394,10 @@ async function sendTabHint() {
   const key = `${hint.focused}|${hint.host ?? ''}`;
   const now = Date.now();
   if (key === lastTabHint.key && now - lastTabHint.at < 10_000) return;
-  lastTabHint = { key, at: now };
-  await postTabHint(hint);
+  // Csak a KIMENT jel számít elküldöttnek: ha az app épp nem volt elérhető
+  // (vagy még nincs összekötve), a következő alkalom ne nyelje el.
+  const r = await postTabHint(hint);
+  if (r?.ok) lastTabHint = { key, at: now };
 }
 chrome.windows.onFocusChanged.addListener(() => { void sendTabHint(); });
 chrome.tabs.onActivated.addListener(() => { void sendTabHint(); });

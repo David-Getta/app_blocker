@@ -40,6 +40,64 @@
  */
 const RECHECK_MS = 20_000;
 
+/**
+ * GÉPELÉS KÖZBEN NEM ZÁRUNK. Ha a lap közben lezárul (menet indul, keret
+ * betelik), az újranézés átirányítaná — és a félkész szöveg elveszne. Ezért
+ * ha az utolsó két percben gépeltél a lapon, a lap csak szól, és a
+ * gépelés-csend után zárul. Legfeljebb tíz percig halasztható: nem kiskapu,
+ * hanem idő a mentésre. A számlálás ITT, a tartalom-szkript izolált világában
+ * van — a weboldal kódja nem írhatja át.
+ */
+const EDIT_QUIET_MS = 2 * 60_000;
+const MAX_DEFER_MS = 10 * 60_000;
+let lastInputAt = 0;
+let firstDeferredAt = 0;
+document.addEventListener('input', (e) => {
+  const t = e.target;
+  if (!t) return;
+  const textInput = t.tagName === 'INPUT'
+    && /^(text|search|email|url|tel|number|password)?$/i.test(t.getAttribute('type') ?? '');
+  if (t.isContentEditable || t.tagName === 'TEXTAREA' || textInput) lastInputAt = Date.now();
+}, true);
+
+/** Gépelnek-e most a lapon, és halasztható-e még a zárás. */
+function editingNow(now = Date.now()) {
+  if (!lastInputAt || now - lastInputAt >= EDIT_QUIET_MS) return false;
+  return !firstDeferredAt || now - firstDeferredAt < MAX_DEFER_MS;
+}
+
+/** A zárás okai a sávon — ugyanazok a szavak, mint a tiltó lapon. */
+const CLOSING_REASONS = {
+  focus: 'munkamenet fut',
+  closed: 'az oldal zárva',
+  keyword: 'kulcsszó',
+  channel: 'csatorna-szűrő',
+  rule: 'részleges szabály',
+};
+
+/**
+ * A sáv a lap tetején: a lap közben lezárult, de mert épp gépelsz, még nem
+ * zárjuk be. Árnyék-DOM-ban, hogy a lap stílusa ne törje szét.
+ */
+let closingBanner = null;
+function showClosingBanner(reason) {
+  if (closingBanner) return;
+  const host = document.createElement('div');
+  host.id = 'breaker-closing';
+  host.style.cssText = 'all:initial;position:fixed;top:0;left:0;right:0;z-index:2147483647;';
+  const root = host.attachShadow({ mode: 'open' });
+  const box = document.createElement('div');
+  box.setAttribute('role', 'alert');
+  box.style.cssText = 'font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;background:#1f2937;'
+    + 'color:#f9fafb;padding:10px 16px;box-shadow:0 2px 10px rgba(0,0,0,.35);';
+  const why = CLOSING_REASONS[reason] ?? 'szabály';
+  box.textContent = `Ez az oldal közben lezárult (${why}). Mentsd el, amit írsz: ha két percig `
+    + 'nem gépelsz — de legkésőbb tíz perc múlva —, a lap a tiltó lapra fut.';
+  root.appendChild(box);
+  (document.body ?? document.documentElement).appendChild(host);
+  closingBanner = host;
+}
+
 (async () => {
   const [{ matchesRule }, chan, kw] = await Promise.all([
     import(chrome.runtime.getURL('rules-core.js')),
@@ -488,8 +546,14 @@ const RECHECK_MS = 20_000;
     if (document.visibilityState !== 'visible') return;
     if (!/^https?:$/.test(location.protocol)) return;
     try {
-      const p = chrome.runtime.sendMessage({ type: 'breaker:recheck' });
-      if (p && typeof p.catch === 'function') p.catch(() => { /* a háttér alszik — a következő kör hozza */ });
+      const p = chrome.runtime.sendMessage({ type: 'breaker:recheck', editing: editingNow() });
+      if (p && typeof p.then === 'function') {
+        p.then((r) => {
+          if (!r?.deferred) return;
+          if (!firstDeferredAt) firstDeferredAt = Date.now();
+          showClosingBanner(r.reason);
+        }).catch(() => { /* a háttér alszik — a következő kör hozza */ });
+      }
     } catch { /* a lap élete végén a csatorna már zárva lehet */ }
   }
   recheckTimer = setInterval(recheck, RECHECK_MS);

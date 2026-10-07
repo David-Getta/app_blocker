@@ -54,6 +54,8 @@ A keret beteltekor a segéd a hosts-ban zárja az oldalt — ez az ÚJ kérések
 akár egy órán át is szólhat a „betelt” keret után. Ahol a böngésző-bővítmény
 fut, ott ez sincs így: a látható lap húsz másodpercenként újranézeti magát, és
 ha az oldala közben zárva lett, a tiltó lapra fut — okkal (a keret betelt).
+Ha épp gépelsz rajta, nem azonnal: egy sáv szól, és a gépelés-csend után zár
+(legfeljebb tíz perc) — a félkész szöveg nem veszhet el.
 Bővítmény nélkül ez a rés megmarad; a DNS a betöltött lapot nem éri el.
 
 ## Zárva mért idő nem fogyaszt

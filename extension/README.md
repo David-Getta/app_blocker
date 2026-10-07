@@ -35,7 +35,8 @@ lap a szabályok változásakor, láthatóvá váláskor és húsz másodpercenk
 újranézeti magát (`breaker:recheck`), ugyanazzal a döntéssel. Így a munkamenet
 indulásakor vagy a keret beteltekor a nyitva hagyott videó is a tiltó lapra
 fut. A címet a háttér a böngészőtől veszi, nem a laptól; és ez nem megakadás,
-a könyv nem nő tőle.
+a könyv nem nő tőle. Gépelés közben nem zár: ha az utolsó két percben írtál a
+lapon, egy sáv szól, és a gépelés-csend után zárul (legfeljebb tíz perc).
 
 **A két réteg egymás mellett áll, nem egymás helyett.** Aki azt akarja, hogy egy
 oldal egyáltalán ne menjen, az az appban tiltsa le az egészet. Ez a réteg az

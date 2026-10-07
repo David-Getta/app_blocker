@@ -364,6 +364,15 @@ amikor előjön, úgyis újranéz. Az így lezárt lap nem megakadás — a kön
 próbálkozásokat számolja, nem azt, hogy a szabály utolért egy nyitott lapot.
 Ugyanez a napi keretre is áll: ha betelik, a nyitott lap is a tiltó lapra fut.
 
+**Gépelés közben nem zárunk.** Ha az utolsó két percben gépeltél a lapon (egy
+szövegmezőbe, egy szerkeszthető részbe), az újranézés nem irányít át — a
+félkész szöveg elveszne, és egy futó dolgot sem zárunk le úgy, hogy adat vész
+el. A lap tetején egy sáv kimondja, hogy az oldal közben lezárult, és miért; a
+gépelés-csend után a lap a tiltó lapra fut. Legfeljebb tíz percig halasztható:
+idő a mentésre, nem kiskapu. A számlálás a bővítmény izolált világában fut — a
+weboldal kódja nem írhatja át. A navigálásnál nincs halasztás: aki elnavigál,
+nem gépel.
+
 ### Inkognitóban — ha nem fut ott, az app is kimondja
 
 A bővítmény inkognitóban alapból nem fut, és ott a munkamenet fehérlistáját

@@ -3452,7 +3452,7 @@ const WIRES = [
   },
   {
     file: 'extension/background.js',
-    needle: "void enforce('újranézés', { tabId, url, frameId: 0 }, { record: false })",
+    needle: "void enforce('újranézés', { tabId, url, frameId: 0 }, { record: false, defer: msg.editing === true })",
     lost: 'a lap újranézési kérése válasz nélkül maradna: a nyitott lapot senki nem zárná le',
   },
   {
@@ -3494,6 +3494,11 @@ const WIRES = [
     file: 'extension/background.js',
     needle: 'chrome.windows.onFocusChanged.addListener(() => { void sendTabHint(); });',
     lost: 'a bővítmény nem szólna, ha a böngésző háttérbe kerül — az app egy régi oldalra könyvelhetné egy másik app perceit',
+  },
+  {
+    file: 'extension/content.js',
+    needle: "const p = chrome.runtime.sendMessage({ type: 'breaker:recheck', editing: editingNow() });",
+    lost: 'a lap gépelés közben is a tiltó lapra futna — a félkész szöveg elveszne',
   },
 ];
 

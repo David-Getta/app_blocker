@@ -89,6 +89,8 @@ function pages(base) {
     // A kulcsszó a lap CÍMSORÁBAN, a webcímben nem: csak a lapban futó kód látja.
     '/cimsor': html('<p id="cimsor">címsoros lap</p>', 'Tiltott dolgok listája'),
     '/@jo': html('<h1 id="joCsatorna">Jó csatorna oldala</h1>'),
+    // Egy lap, amin írni lehet: a zárás gépelés közben nem viheti el a szöveget.
+    '/iras': html('<textarea id="szoveg" rows="4" cols="40"></textarea>'),
   };
 }
 
@@ -817,6 +819,29 @@ async function main() {
     await seedClosed([{ host: '127.0.0.1', reason: 'limit', until: Date.now() + 3_600_000 }], Date.now());
     const openLimit = await waitForBrowserUrl(page, context, /blocked\.html\?.*closedReason=limit/, WAIT_MS);
     check(!!openLimit, 'a keret beteltekor a nyitott lap is a tiltó lapra fut, okkal');
+
+    // GÉPELÉS KÖZBEN NEM ZÁRUNK. Ha a lapon épp írsz, amikor a menet indul, a
+    // lap nem fut a tiltó lapra (a félkész szöveg elveszne) — a tetején egy
+    // sáv mondja, hogy lezárult, és a gépelés-csend után zárul.
+    await seedFocus({ running: false }, Date.now());
+    await page.goto(`${base}/iras`);
+    await page.bringToFront();
+    await page.waitForTimeout(600);
+    await page.locator('#szoveg').click();
+    await page.keyboard.type('Félkész gondolat, amit nem akarok elveszíteni');
+    await seedFocus({
+      running: true, name: 'Mély munka', endsAt: Date.now() + 600_000, allowSites: ['example.org'],
+      window: false, windows: [],
+    }, Date.now());
+    const bannerText = await page.waitForFunction(
+      () => document.getElementById('breaker-closing')?.shadowRoot?.textContent || null,
+      undefined, { timeout: WAIT_MS },
+    ).then((h) => h.jsonValue()).catch(() => null);
+    check(typeof bannerText === 'string' && bannerText.includes('Mentsd el') && bannerText.includes('munkamenet fut'),
+      `gépelés közben a lezárult lap szól, okkal (${bannerText})`);
+    check((await browserUrl(page, context)) === `${base}/iras`, 'gépelés közben a lap nem fut a tiltó lapra');
+    check((await page.locator('#szoveg').inputValue().catch(() => '')).startsWith('Félkész'), 'a szöveg megmarad');
+    await seedFocus({ running: false }, Date.now());
 
     // A MÉRŐ JELE. Az összekötött bővítmény (kód, port) a hídon megmondja,
     // melyik oldal van elöl — ebből méri az app az oldalt ott, ahol a gép maga

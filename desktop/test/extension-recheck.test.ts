@@ -83,9 +83,31 @@ test('a bekötés: a látható lap kérdez, a háttér a böngésző szerinti c�
   assert.ok(handler.length > 0 && handler.includes('const url = sender.tab?.url;'), 'a cím a böngészőtől jön');
   assert.ok(!/msg\??\.url/.test(handler.slice(0, handler.indexOf('return true;'))), 'nem az üzenet címe');
   assert.ok(handler.includes('sender.frameId !== 0'), 'csak a fő keret');
-  assert.ok(handler.includes("enforce('újranézés', { tabId, url, frameId: 0 }, { record: false })"));
+  assert.ok(handler.includes("enforce('újranézés', { tabId, url, frameId: 0 }, { record: false, defer: msg.editing === true })"));
   // A könyv a PRÓBÁLKOZÁSOKAT számolja: az újranézés nem megakadás.
   const enforce = bg.slice(bg.indexOf('async function enforce('), bg.indexOf('chrome.webNavigation.onBeforeNavigate'));
-  assert.ok(enforce.indexOf('if (!record) return;') > 0
-    && enforce.indexOf('if (!record) return;') < enforce.indexOf('await recordHitNow('));
+  assert.ok(enforce.includes('if (record) await recordHitNow('));
+  // Gépelés közben az újranézés HALASZT, az átirányítás előtt tér vissza.
+  assert.ok(enforce.indexOf("if (defer) return { deferred: true, reason: hit.reason };") > 0
+    && enforce.indexOf("if (defer) return { deferred: true, reason: hit.reason };") < enforce.indexOf('await chrome.tabs.update('));
+});
+
+test('gépelés közben a zárás halaszt — két perc csendig, legfeljebb tíz percig', () => {
+  const content = read('content.js');
+  const quiet = (content.match(/const EDIT_QUIET_MS = ([^;]+);/) ?? [])[1];
+  const max = (content.match(/const MAX_DEFER_MS = ([^;]+);/) ?? [])[1];
+  const fn = (content.match(/function editingNow\(now = Date\.now\(\)\) \{[\s\S]*?\n\}/) ?? [])[0];
+  assert.ok(quiet && max && fn, 'a tartalom-szkriptben nincs meg a gépelés-szabály');
+  const editing = (lastInputAt: number, firstDeferredAt: number) =>
+    // eslint-disable-next-line no-new-func
+    new Function(`const EDIT_QUIET_MS = ${quiet}; const MAX_DEFER_MS = ${max};
+      let lastInputAt = ${lastInputAt}; let firstDeferredAt = ${firstDeferredAt};
+      ${fn}
+      return editingNow;`)() as (now?: number) => boolean;
+  const T = 1_800_000_000_000;
+  assert.equal(editing(0, 0)(T), false, 'nem gépelt: zárhat');
+  assert.equal(editing(T - 60_000, 0)(T), true, 'egy perce gépelt: halaszt');
+  assert.equal(editing(T - 2 * 60_000, 0)(T), false, 'két perc csend: zár');
+  assert.equal(editing(T - 30_000, T - 9 * 60_000)(T), true, 'kilenc perce halaszt: még igen');
+  assert.equal(editing(T - 30_000, T - 10 * 60_000)(T), false, 'tíz perc után akkor is zár, ha gépel — nem kiskapu');
 });
