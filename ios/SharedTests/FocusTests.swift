@@ -15,6 +15,17 @@ final class FocusTests: XCTestCase {
         return d.timeIntervalSince1970 * 1000
     }
 
+    // Az androidos FocusTest `a friss menet` esete: a döntés pillanata két perc,
+    // visszaugró órán nem.
+    func testTheFreshRunIsTheFirstTwoMinutesNotOnABackwardsClock() {
+        let run = Focus.Run(packId: "p1", startedAt: 1_800_000_000_000, endsAt: 1_800_000_000_000 + 50 * 60_000)
+        XCTAssertTrue(Focus.isFreshRun(run, now: run.startedAt), "az indulás pillanata")
+        XCTAssertTrue(Focus.isFreshRun(run, now: run.startedAt + Focus.freshRunNoteMs - 1))
+        XCTAssertFalse(Focus.isFreshRun(run, now: run.startedAt + Focus.freshRunNoteMs), "két perc után csend")
+        XCTAssertFalse(Focus.isFreshRun(run, now: run.startedAt - 1), "visszaugró óra: nem")
+        XCTAssertFalse(Focus.isFreshRun(nil, now: run.startedAt), "menet nélkül: nem")
+    }
+
     func testTheLastUsedPackFromTheLogWithoutDeletedOnesElseTheFirst() {
         let a = Focus.Pack(id: "pack_a", name: "A", allowSites: ["a.com"], allowApps: [], defaultMinutes: 25)
         let b = Focus.Pack(id: "pack_b", name: "B", allowSites: ["b.com"], allowApps: [], defaultMinutes: 50)

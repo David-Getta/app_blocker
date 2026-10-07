@@ -136,6 +136,17 @@ public enum Focus {
         return run.endsAt - now
     }
 
+    /// A menet első két perce: a döntés pillanata. A szűrő a névfeloldásokat
+    /// látja — ami már nyitva volt (egy szóló videó), egy darabig még mehet. A
+    /// kártya ilyenkor ezt kimondja, utána csendben marad. (Androidon a sáv.)
+    public static let freshRunNoteMs: Double = 120_000 // két perc
+
+    /// Friss-e a menet (az indulása óta nem telt el két perc). Visszaugró órán nem.
+    public static func isFreshRun(_ run: Run?, now: Double) -> Bool {
+        guard let run else { return false }
+        return now >= run.startedAt && now - run.startedAt < freshRunNoteMs
+    }
+
     /// Percek -> használható hossz, vagy nil.
     public static func normalizeMinutes(_ value: Double?) -> Int? {
         guard let value, value.isFinite else { return nil }

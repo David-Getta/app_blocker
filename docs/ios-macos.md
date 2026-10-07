@@ -87,7 +87,9 @@ tükre; a blobon `keywords` + `keywordsRev`). Lásd `docs/feature-keywords.md`.
   meg. Egy app, aminek már van nyitott kapcsolata — egy szóló videó, egy élő
   közvetítés —, azt egy ideig még használhatja, amíg újra névfeloldást nem
   kér. Kilőni nem tudjuk; az app bezárása és újranyitása érvényesíti a
-  tiltást.
+  tiltást. A döntés pillanatában ezt a menet kártyája is kimondja: az első
+  két percben egy fél mondattal (`Focus.isFreshRun`, az androidos sáv
+  tükre), utána csendben marad.
 - **Heti visszatekintés értesítésben nincs** (a hétfő reggeli mondat, ami a
   gépen és Androidon jön): a bővítmény nem adhat értesítést, az app nem fut a
   háttérben, előre ütemezni pedig csak olyan mondatot lehetne, ami a hét

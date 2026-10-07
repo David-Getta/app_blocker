@@ -82,7 +82,7 @@ object Focus {
      * névfeloldásokat látja — ami már nyitva volt (egy szóló videó), egy
      * darabig még mehet. A sáv ilyenkor ezt kimondja, utána csendben marad.
      */
-    const val FRESH_RUN_NOTE_MS = 2 * 60_000L
+    const val FRESH_RUN_NOTE_MS = 120_000L // két perc
 
     /** Friss-e a menet (az indulása óta nem telt el két perc). Visszaugró órán nem. */
     fun isFreshRun(run: FocusRun?, now: Long): Boolean =

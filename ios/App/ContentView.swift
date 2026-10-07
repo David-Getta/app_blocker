@@ -245,6 +245,12 @@ struct ContentView: View {
                      ? "Ebben a csomagban nincs engedélyezett oldal — minden más tiltva."
                      : "Most csak ez mehet: \(pack.allowSites.joined(separator: ", ")). Minden más tiltva.")
                     .font(.footnote)
+                // A DÖNTÉS PILLANATÁBAN (az első két percben): ami már nyitva volt,
+                // egy darabig még mehet — a szűrő az új névfeloldásokat látja.
+                if Focus.isFreshRun(run, now: now) {
+                    Text("Ami már nyitva volt (egy szóló videó), egy darabig még mehet — zárd be és nyisd újra.")
+                        .font(.footnote).foregroundStyle(.orange)
+                }
                 // A kivétellista LÉTEZÉSÉT kimondjuk. Egy titkos kivétel
                 // rosszabb lenne, mint egy nyílt: a felhasználó előbb-utóbb
                 // észreveszi, hogy valami mégis átment, és onnantól semmiben

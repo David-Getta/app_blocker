@@ -566,6 +566,11 @@ function phoneScalar(text, re, label) {
 // A két telefon között: a szűrő megakadásainak szabályai. Ha a két készülék
 // más ablakkal számolna, ugyanaz a hét két számot adna.
 const PHONE_PAIRS = [
+  // A friss menet két perce: ha a két telefon más ideig mondaná, ugyanaz a
+  // menet az egyiken még szólna, a másikon már nem.
+  ['FRESH_RUN_NOTE_MS',
+    phoneScalar(kt.focus, /FRESH_RUN_NOTE_MS\s*=\s*([\d_]+L?)/, 'kt'),
+    phoneScalar(sw.focus, /freshRunNoteMs:\s*Double\s*=\s*([\d_]+)/, 'sw')],
   ['FILTER_HIT_RETENTION_DAYS',
     phoneScalar(kt.filterHits, /RETENTION_DAYS\s*=\s*([\d_]+)/, 'kt'),
     phoneScalar(sw.filterHits, /retentionDays\s*=\s*([\d_]+)/, 'sw')],
