@@ -13,7 +13,7 @@ import type {
 } from '../shared/protocol';
 import { PAUSE_CHOICES_MIN } from '../shared/protocol';
 import { isLoosening, normalizeSchedule, ALWAYS, type Band, type Schedule } from '../shared/schedule';
-import { isBurstLoosening, normalizeBurst, sweepBurstTripLog } from '../shared/burst';
+import { isBurstLoosening, normalizeBurst, shiftCooldowns, sweepBurstTripLog } from '../shared/burst';
 import {
   formatLockdownRemaining, isLocked, isWindowLockdown, isWindowsLoosening, liveLockdown,
   normalizeWindow, normalizeWindows, sameWindows, startLockdown, weekHasFreeTime, windowKey,
@@ -848,6 +848,11 @@ function absorbClockJump(state: HelperState, now: number): void {
       endsAt: state.focusRun.endsAt + shift,
     };
   }
+  // A HŰTÉS VÉGE IS TOLÓDIK (shared/burst.ts `shiftCooldowns`). Eddig ez
+  // kimaradt, és a doksi a napi keret korlátjával mentette — de a hűtés nem
+  // naphoz tartozik, hanem időtartam, mint a menet: az ugrás elnyelhető. Az
+  // óra tíz perccel előretekerése egy egész szünetet ugrott át.
+  state.bursts = shiftCooldowns(state.bursts, last, shift);
 }
 
 export function tick(state: HelperState, now: number): boolean {

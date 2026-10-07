@@ -104,6 +104,15 @@ object BurstLogic {
         st != null && st.cooldownUntil > now
 
     /**
+     * Az óraugrás elnyelése a hűtésen (lásd Referee.absorbClockJump — a gépi
+     * `shiftCooldowns` tükre). Ami az előző körkor még tartott, annak a vége
+     * az ugrással tolódik: amennyi hátra volt, annyi van hátra. A számláló
+     * többi része marad: a lecsukott készülék ideje pihenőnek számít.
+     */
+    fun shiftCooldowns(bursts: Map<String, State>, coolingAt: Long, shift: Long): Map<String, State> =
+        bursts.mapValues { (_, b) -> if (b.cooldownUntil > coolingAt) b.copy(cooldownUntil = b.cooldownUntil + shift) else b }
+
+    /**
      * Lazítás-e a szabály cseréje — mert a lazítás próbatételbe kerül.
      * Szigorítás (ingyen): felvétel, kisebb adag, hosszabb szünet. Lazítás:
      * levétel, nagyobb adag, rövidebb szünet — vegyesnél a lazító fele dönt.

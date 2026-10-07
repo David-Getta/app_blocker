@@ -106,6 +106,26 @@ export function isCoolingDown(st: BurstState | undefined | null, now: number): b
 }
 
 /**
+ * Az óraugrás elnyelése a hűtésen (lásd helper/referee.ts `absorbClockJump`).
+ *
+ * Ami az előző körkor (`coolingAt`) még tartott, annak a vége az ugrással
+ * tolódik: AMENNYI HÁTRA VOLT, ANNYI VAN HÁTRA — mint a menetnél és a
+ * zárlatnál. Enélkül az óra tíz perccel előretekerése egy egész szünetet
+ * átugrott. A számláló többi része marad: a lecsukott gép ideje pihenőnek
+ * számít, nem adagnak — így reggel nem tíz másodperc után jön a szünet.
+ */
+export function shiftCooldowns(
+  bursts: Record<string, BurstState> | undefined, coolingAt: number, shift: number,
+): Record<string, BurstState> | undefined {
+  if (!bursts) return bursts;
+  const out: Record<string, BurstState> = {};
+  for (const [id, b] of Object.entries(bursts)) {
+    out[id] = b.cooldownUntil > coolingAt ? { ...b, cooldownUntil: b.cooldownUntil + shift } : b;
+  }
+  return out;
+}
+
+/**
  * LAZÍTÁS-e a szabály cseréje — mert a lazítás próbatételbe kerül.
  *
  * Szigorítás (ingyen): szabály felvétele, kisebb adag, hosszabb szünet.

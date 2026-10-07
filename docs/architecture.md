@@ -581,6 +581,10 @@ Ismert megkerülési utak (szándékosan nem próbáljuk „lelakatolni” a gé
   megszerzett lezárást. A részletek és a megmaradt vakfolt:
   `docs/feature-focus-sessions.md`.
 
+  És a HŰTÉSRE (adag-szünet) is, a gépen és Androidon: a most tartó hűtés vége
+  ugyanígy tolódik (`shiftCooldowns`) — a hűtés időtartam, nem nap. A
+  számlálót viszont nem toljuk: a lecsukott gép ideje pihenő, nem adag.
+
   **A NAPI KERETNÉL viszont nem zárható be**, és ezt kimondjuk: a keret egy
   NAPHOZ tartozik, nem egy időtartamhoz, a napváltás pedig egy alvó gépnél
   valódi. A két esetet nem lehet megkülönböztetni, és itt a szigorúbb választás

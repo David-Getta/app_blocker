@@ -136,4 +136,44 @@ class BurstTest {
         val back = fromJson.invoke(BreakerStore, org.json.JSONObject(toJson.invoke(BreakerStore, st).toString())) as AppState
         assertEquals(st.burstTripLog, back.burstTripLog, "a mentés hordozza a könyvet")
     }
+
+    @Test fun `az ora elorealitasa nem roviditi a hutest - a szamlalo pihenonek marad`() {
+        // A gépi burst.test.ts párja, a bírón át: az ugrás-elnyelés a hűtés
+        // végét is tolja (amennyi hátra volt, annyi van hátra), a számláló
+        // idejét nem (a lecsukott készülék ideje pihenő).
+        val t0 = 1_800_000_000_000L
+        BreakerStore.init(Context())
+        BreakerStore.mutate { AppState() }
+        BreakerStore.saveLastTick(0)
+        hu.breaker.app.core.Referee.tick(t0) // az alapvonal
+        BreakerStore.mutate {
+            it.copy(bursts = mapOf(
+                "s1" to BurstLogic.State(usedSeconds = 0.0, lastAt = t0 - 60_000, cooldownUntil = t0 + 540_000),
+                "s2" to BurstLogic.State(usedSeconds = 30.0, lastAt = t0, cooldownUntil = t0 - 1),
+            ))
+        }
+        val jumped = t0 + 8 * 3_600_000L
+        hu.breaker.app.core.Referee.tick(jumped)
+        val b = BreakerStore.state.value.bursts["s1"]
+        assertTrue(b != null && BurstLogic.isCoolingDown(b, jumped), "az ugrás nem fejezte be a szünetet")
+        val left = b!!.cooldownUntil - jumped
+        assertTrue(left >= 540_000 - 2 * 60_000L && left <= 540_000, "amennyi hátra volt, annyi van hátra ($left)")
+        assertEquals(t0 - 60_000, b.lastAt, "a számláló ideje nem tolódik")
+        val s2 = BreakerStore.state.value.bursts["s2"]
+        if (s2 != null) assertEquals(t0 - 1, s2.cooldownUntil, "ami lejárt, az nem éled újra")
+        BreakerStore.mutate { AppState() }
+        BreakerStore.saveLastTick(0)
+    }
+
+    @Test fun `a huteseltolas csak a tarto hutest tolja`() {
+        val t0 = 1_800_000_000_000L
+        val out = BurstLogic.shiftCooldowns(mapOf(
+            "tart" to BurstLogic.State(0.0, t0, t0 + 60_000),
+            "lejart" to BurstLogic.State(30.0, t0, t0 - 1),
+            "nincs" to BurstLogic.State(30.0, t0, 0),
+        ), t0, 3_600_000L)
+        assertEquals(t0 + 60_000 + 3_600_000L, out["tart"]?.cooldownUntil)
+        assertEquals(t0 - 1, out["lejart"]?.cooldownUntil)
+        assertEquals(0L, out["nincs"]?.cooldownUntil)
+    }
 }

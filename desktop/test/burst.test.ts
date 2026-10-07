@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import * as assert from 'node:assert/strict';
 import {
-  burstTripsInDays, isBurstLoosening, isCoolingDown, normalizeBurst, noteBurstTrip, noteBurstUsage, sweepBurstTripLog,
+  burstTripsInDays, isBurstLoosening, isCoolingDown, normalizeBurst, noteBurstTrip, noteBurstUsage, shiftCooldowns, sweepBurstTripLog,
   type BurstRule, type BurstState,
 } from '../src/shared/burst';
 import { isBlockedNowWithLimit } from '../src/shared/limits';
@@ -223,6 +223,41 @@ test('a fél-kitöltött kérés hiba, nem meglepetés', () => {
   const st = stateWith(siteWith({ burstSeconds: 120, cooldownSeconds: 600 }));
   assert.throws(() => startBurstChange(st, 'site_1', 60, null, T0), /mindkét szám/);
   assert.equal(st.sites[0].burstSeconds, 120, 'a szabály nem változott');
+});
+
+// ------------------------------------------------------------- óraugrás
+
+test('az óra előreállítása nem rövidíti a hűtést — a számlálót viszont pihenőnek hagyja', () => {
+  // A KIBÚVÓ, amit ez zár: tíz perc szünet, és az óra tíz perccel előre — a
+  // hűtés „lejárt”. A menetnél és a zárlatnál ezt már elnyeltük; a hűtés is
+  // időtartam, nem nap, tehát ugyanúgy elnyelhető.
+  const st = stateWith(siteWith({ burstSeconds: 120, cooldownSeconds: 600 }));
+  tick(st, T0); // az alapvonal
+  st.bursts = {
+    site_1: { usedSeconds: 0, lastAt: T0 - 60_000, cooldownUntil: T0 + 540_000 }, // kilenc perc hátra
+  };
+  const jumped = T0 + 8 * 3600_000; // nyolc órát ugrik az óra (vagy ennyit aludt a gép)
+  tick(st, jumped);
+  const b = st.bursts!.site_1;
+  assert.equal(isCoolingDown(b, jumped), true, 'az ugrás nem fejezte be a szünetet');
+  const left = b.cooldownUntil - jumped;
+  // A szokásos kör-ütem (két perc) tényleg eltelhetett; a nyolc órából semmi.
+  assert.ok(left >= 540_000 - referee.CLOCK_JUMP_THRESHOLD_MS && left <= 540_000,
+    `amennyi hátra volt, annyi van hátra (${left})`);
+  assert.equal(b.lastAt, T0 - 60_000, 'a számláló ideje nem tolódik: a lecsukott gép ideje pihenő');
+});
+
+test('a hűtés-eltolás csak a tartó hűtést tolja, a lejártat nem élesztí fel', () => {
+  const bursts = {
+    tart: { usedSeconds: 0, lastAt: T0, cooldownUntil: T0 + 60_000 },
+    lejart: { usedSeconds: 30, lastAt: T0, cooldownUntil: T0 - 1 },
+    nincs: { usedSeconds: 30, lastAt: T0, cooldownUntil: 0 },
+  };
+  const out = shiftCooldowns(bursts, T0, 3600_000)!;
+  assert.equal(out.tart.cooldownUntil, T0 + 60_000 + 3600_000);
+  assert.equal(out.lejart.cooldownUntil, T0 - 1, 'ami lejárt, az nem éled újra');
+  assert.equal(out.nincs.cooldownUntil, 0);
+  assert.equal(shiftCooldowns(undefined, T0, 1), undefined);
 });
 
 // ------------------------------------------------------------- takarítás

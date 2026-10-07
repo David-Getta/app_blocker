@@ -856,7 +856,10 @@ object Referee {
                 if (LockdownLogic.isWindowLockdown(it, state.lockdownWindows.map { w -> w.band })) it
                 else LockdownLogic.Lockdown(it.startedAt + shift, it.until + shift)
             }
-            state.copy(session = session, sites = sites, focusRun = run, lockdown = lock)
+            // A HŰTÉS VÉGE IS TOLÓDIK (BurstLogic.shiftCooldowns): a hűtés
+            // időtartam, mint a menet — az óra előretekerése nem ugorhatja át.
+            val bursts = BurstLogic.shiftCooldowns(state.bursts, last, shift)
+            state.copy(session = session, sites = sites, focusRun = run, lockdown = lock, bursts = bursts)
         }
     }
 

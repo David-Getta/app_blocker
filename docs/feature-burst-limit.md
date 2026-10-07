@@ -96,10 +96,19 @@ ugyanazért, amiért a napi keretet: próbatétellel fizettek érte.
 
 ## Pontosság — kimondva
 
-Az óra átállítása a hűtést is érinti: a lejárat rendszeridőben áll, tehát
-aki előretekeri az órát, annak a szünet hamarabb „jár le”. Ez ugyanaz a
-kimondott korlát, mint a napi keretnél (lásd feature-daily-limit.md) — a
-rendszeróra az igazság, és ezen becsapni csak saját magát tudja az ember.
+**Az óra átállítása nem rövidíti a hűtést.** Sokáig ez kimondott korlát
+volt, a napi keret mintájára — de a hasonlat hamis volt: a keret egy NAPHOZ
+tartozik (ott az óraugrás és az alvó gép napváltása nem különböztethető meg),
+a hűtés viszont IDŐTARTAM, mint a munkamenet. Az ugrást tehát ugyanúgy el
+lehet nyelni: a segéd (és az Android) karbantartó köre az óraugrásnál a most
+tartó hűtés végét is eltolja — **amennyi hátra volt, annyi van hátra**
+(`shiftCooldowns`, mindkét magban). Eddig az óra tíz perccel előretekerése egy
+egész szünetet átugrott.
+
+A számláló többi része NEM tolódik: a lecsukott gép ideje pihenőnek számít,
+nem adagnak. Ha egy adag közepén csukod le a laptopot, reggel tiszta lappal
+indul — nem tíz másodperc után jön a szünet. Az ár: az óra előretekerése
+legfeljebb egy adagnyi friss időt ad, a szünetet viszont nem rövidíti.
 
 
 A mérés kötegekben érkezik (gépen ~fél percenként, telefonon hasonló

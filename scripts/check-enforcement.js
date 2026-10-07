@@ -3515,6 +3515,16 @@ const WIRES = [
     needle: 'if (lockUntil > now) await cancelPendingRemovals();',
     lost: 'a beállítás-lap zárlat alatt is a levétel visszaszámlálását mutatná',
   },
+  {
+    file: 'desktop/src/helper/referee.ts',
+    needle: 'state.bursts = shiftCooldowns(state.bursts, last, shift);',
+    lost: 'az óra előretekerése egy egész hűtést (adag-szünetet) átugorna a gépen',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/Referee.kt',
+    needle: 'val bursts = BurstLogic.shiftCooldowns(state.bursts, last, shift)',
+    lost: 'az óra előretekerése egy egész hűtést (adag-szünetet) átugorna Androidon',
+  },
 ];
 
 /**
