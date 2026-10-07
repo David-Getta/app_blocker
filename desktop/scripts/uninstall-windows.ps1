@@ -1,4 +1,4 @@
-# Breaker teljes eltávolítása Windowson. Rendszergazdai PowerShellből futtasd:
+﻿# Breaker teljes eltávolítása Windowson. Rendszergazdai PowerShellből futtasd:
 #   powershell -ExecutionPolicy Bypass -File uninstall-windows.ps1
 
 Write-Host "Breaker helper feladat eltávolítása..."

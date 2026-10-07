@@ -1,4 +1,4 @@
-# A Windows-segéd csatornájának próbája (CI, windows-latest).
+﻿# A Windows-segéd csatornájának próbája (CI, windows-latest).
 #
 # A telepített segéd SYSTEM-ként fut (ütemezett feladat), az app viszont a
 # bejelentkezett felhasználóé, NEM emelt jogokkal. A kérdés: egy sima (nem
@@ -10,6 +10,8 @@
 # Kilépési kód: 0, ha a sima felhasználó kap választ; 1, ha nem.
 
 $ErrorActionPreference = 'Stop'
+# A CI naplója csövön át olvas: UTF-8 nélkül az ékezetek kérdőjelek lennének.
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $desktop = Split-Path -Parent $PSScriptRoot
 $node = (Get-Command node).Source
 $server = Join-Path $PSScriptRoot 'win-pipe-probe-server.js'
