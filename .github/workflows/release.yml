@@ -44,24 +44,23 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A már nyitott lap is lezárul.** A böngésző-bővítmény eddig csak
-          akkor döntött, amikor egy lapra navigáltál: ha a munkamenet
-          indulásakor vagy a napi keret beteltekor már nyitva volt egy videó,
-          az ment tovább. Most a látható lap legfeljebb egy percen belül a
-          tiltó lapra fut — okkal (menet fut, keret betelt). Ez nem számít
-          megakadásnak, a heti számod nem nő tőle.
+          **A munkamenet nem nyaggat a böngészőért.** Ha a csomagod engedett
+          oldalán dolgoztál, a gép eddig hárompercenként felugrott azzal, hogy
+          a böngésző „nincs a listán”. Most a böngészőnél a benne nyitott oldal
+          dönt: engedett oldalon csend van. Ha viszont egy nem engedett oldal
+          mégis nyitva látszik, a réteg kimondja, hogy abban a böngészőben a
+          fehérlistát most senki nem tartja be — például mert nincs benne a
+          bővítmény, vagy inkognitóban nem fut.
 
-          ### Ami a v0.4.212-ben jött
+          ### Ami a v0.4.213-ban jött
+
+          **A már nyitott lap is lezárul** — a munkamenet indulásakor vagy a
+          napi keret beteltekor a nyitva hagyott videó is a tiltó lapra fut.
+
+          #### Ami a v0.4.212-ben jött
 
           **Mérés-őr: a kilépés sem kapcsolja ki a napi keretet** — ha
           bekapcsolod, az app nélkül a kerettel védett oldalak zárva vannak.
-          Biztonságosabb telepítés, kevesebb terhelés a háttérben, és az app
-          meg a bővítmény is kimondja, ha a bővítmény inkognitóban nem fut.
-
-          #### Ami a v0.4.211-ben jött
-
-          **Az ablak bezárása többé nem kapcsolja ki a napi keretet** — az app
-          a háttérben fut tovább, és bejelentkezéskor magától indul.
 
           NOTES
           fi
