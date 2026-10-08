@@ -45,37 +45,35 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **Android: a Breaker a Google Play mostani követelményére frissült.** Az app
-          mostantól az Android 16-ra (API 36) céloz — a Play 2026. augusztus 31. óta csak
-          ilyen frissítést fogad. Az Android 15-től a rendszer a tartalmat az állapotsor
-          és a navigációs sáv mögé is rajzolja. A Breaker felülete ezt most kezeli: a
-          fejléc nem csúszik az állapotsor alá, a lap alja nem a navigációs sáv alá, és a
-          billentyűzet sem takar el gombot. Ezt fordításkor ellenőrizzük; valódi telefonon
-          a felületet a CI nem próbálja ki.
+          **A telefon szól, ha a Breaker értesítései ki vannak kapcsolva.** A szünet
+          végét és a közelgő heti ablakot a telefon értesítésben mondja el (Androidon a
+          betelő keretet is). Ha az app értesítései a rendszerben ki voltak kapcsolva,
+          mindez eddig nyomtalanul elmaradt. Most a beállítások között egy csendes
+          kártya kimondja, mi marad el, és egy gombbal a kapcsolóhoz visz. Ha
+          szándékosan kapcsoltad ki, ez csak egy tény: a védelem ettől ugyanúgy működik.
 
-          **Az asztali app szól, ha a rendszer visszautasít egy értesítést.** A szünet
-          végét, a betelő keretet, a közelgő heti ablakot az app értesítésben mondja el.
-          Ha a rendszer egyet visszautasított, az eddig nyomtalanul elmaradt. Most a
-          beállítások lapja csendben kimondja, és azt is, hol kapcsolható be. Nem ugrik
-          fel semmi, nem nógat — ha szándékosan kapcsoltad ki, ez csak egy tény.
+          **Windowson az értesítés a telepített Breakeré.** Az asztali app eddig nem a
+          telepítő parancsikonjának azonosítójával küldte az értesítéseit, ezért a
+          Windows nem kötötte őket a Breakerhez: se a nevét, se az ikonját nem kapták, és
+          a Gépház értesítési listáján sem „Breaker” néven álltak. Most ugyanazt az
+          azonosítót mondja. Ha korábban a Gépházban állítottál rajtuk, az új,
+          „Breaker” nevű sorban kell újra megtenned. Ezt a CI valódi Windowson nem
+          tudja megnézni.
 
-          **Értesítés kipróbálása.** A beállítások lapján egy gomb küld egy
-          próba-értesítést. Hogy egy értesítés tényleg látszott-e, azt az app nem tudja,
-          csak azt, hogy a rendszer átvette vagy visszautasította. A gomb ezt mondja meg,
-          és azt, hol kapcsolható be, ha mégsem láttad. Macen a mostani asztali
-          keretrendszer semmit nem jelez vissza: ott a kézbesítési sor ma nem szólal
-          meg, a gomb viszont igen.
+          **iPhone: a helyi hálózat engedélye magyarázattal jön.** Az iPhone a gépen
+          futó szinkron-kiszolgálót csak engedéllyel éri el. A rendszer kérdése mellett
+          most ott a mondat, mire kell, és ha nemet mondtál, a szinkron hibaüzenete
+          megmondja, hol kapcsolható be.
 
-          ### Ami a v0.4.241-ben jött
+          ### Ami a v0.4.242-ben jött
 
-          **Régebbi Macre nem kerül olyan frissítés, ami ott el sem indulna.** Ez és az
-          ezutáni verziók a híd: a korábbi frissítők a következő asztali verziók
-          csomagját nem ismerik fel. Ha a Maceden a Breaker régóta nem futott, nyisd meg,
-          hogy a frissítés eljusson hozzá.
+          **Android: a Breaker a Google Play mostani követelményére frissült.**
 
-          #### Ami a v0.4.240-ben jött
+          #### Ami a v0.4.241-ben jött
 
-          **Új kategória-csomag: Szerencsejáték.**
+          **Régebbi Macre nem kerül olyan frissítés, ami ott el sem indulna.** Ha a
+          Maceden a Breaker régóta nem futott, nyisd meg, hogy a frissítés eljusson
+          hozzá.
           NOTES
           fi
 
