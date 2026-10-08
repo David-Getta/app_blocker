@@ -45,30 +45,28 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
+          **Egy friss telepítés vagy egy régóta nem szinkronizált gép nem
+          törölheti a csatorna-szűrőidet.** Eddig a szűrők listája egészében
+          annak a gépnek a listája lett, amelyik utoljára „szólt” róla — és
+          ehhez néhány ingyenes szerkesztés is elég volt: egy új gépen felvett
+          saját szűrő a többit mindenhol letörölhette. Most a szűrők
+          oldalanként fésülődnek: egy máshol bekapcsolt szűrőt csak a
+          kifizetett kikapcsolás vagy levétel visz el, és egy másik gép
+          ingyenes szerkesztése egyetlen csatornát sem nyithat meg rajta.
+
+          **Frissíts minden gépet.** Egy még nem frissített gép kifizetett
+          levétele nem tartja meg magát a frissítettekkel szemben — a szűrő
+          visszajön, és a levételt egy frissített gépen újra kell kérni.
+
+          ### Ami a v0.4.232-ben jött
+
           **Egy régóta nem szinkronizált eszköz nem törölheti a heti
-          zárlat-ablakaidat.** Eddig az ablak-lista egészében annak az
-          eszköznek a listája lett, amelyik utoljára „szólt” róla — és ehhez
-          egy ingyenes felvétel is elég volt: egy elavult eszközön felvett új
-          ablak a régi listával együtt mindenhol letörölte a máshol felvett
-          ablakokat. Most minden ablaknak saját jele van: amit felvettél, azt
-          csak a saját levétele viszi el, és az próbatétel. Ha a hét megtelne
-          — hét ablak, vagy nem maradna egy szabad óra —, a régi ablakok
-          maradnak, nem az utoljára felvettek.
+          zárlat-ablakaidat.**
 
-          **Frissíts minden eszközt.** Egy még nem frissített eszköz
-          kifizetett levétele nem tartja meg magát a frissítettekkel szemben
-          — az ablak visszajön, és a levételt egy frissített eszközön újra
-          kell kérni.
-
-          ### Ami a v0.4.231-ben jött
+          #### Ami a v0.4.231-ben jött
 
           **Egy régóta nem szinkronizált eszköz nem törölheti a
           kulcsszavaidat.**
-
-          #### Ami a v0.4.230-ban jött
-
-          **A megbízottat nem lehet leváltani egy másik eszközről — levenni
-          is csak az ő jelmondatával.**
 
           NOTES
           fi
