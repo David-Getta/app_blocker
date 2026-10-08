@@ -53,9 +53,15 @@ async function checkA11y(page, label, failures) {
   ]));
   const violations = await page.evaluate(async () => {
     const res = await window.axe.run(document, { resultTypes: ['violations'] });
+    // Kontraszthibánál a mért színek és az arány is: enélkül a hibaüzenetből
+    // csak az derül ki, HOL rossz, az nem, MENNYIRE és MITŐL.
+    const detail = (n) => {
+      const d = (n.any && n.any[0] && n.any[0].data) || {};
+      return d.contrastRatio ? ` (${d.fgColor} a ${d.bgColor}-on: ${d.contrastRatio}:1)` : '';
+    };
     return res.violations.map((v) => ({
       id: v.id, impact: v.impact, help: v.help, n: v.nodes.length,
-      where: v.nodes.slice(0, 3).map((n) => (n.target || []).join(' ')),
+      where: v.nodes.slice(0, 3).map((n) => (n.target || []).join(' ') + detail(n)),
     }));
   });
   for (const v of violations) {

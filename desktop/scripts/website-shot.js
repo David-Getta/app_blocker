@@ -15,6 +15,7 @@ const fs = require('fs');
 const http = require('http');
 const path = require('path');
 const { chromium } = require('playwright');
+const { installAxe, checkA11y } = require('./a11y-check');
 
 const ROOT = path.join(__dirname, '..', '..');
 const SITE = path.join(ROOT, 'website');
@@ -71,6 +72,10 @@ async function main() {
     if (m.type() === 'error') failures.push(`konzol-hiba: ${m.text()}`);
   });
 
+  // Az akadálymentességi próba (a11y-check.js) a letöltőoldalon is: a régi
+  // halvány szürke itt is ott maradt (4,2:1 a lapon, 3,85:1 a kártyán), miután
+  // az appból már kikerült — senki nem nézte.
+  await installAxe(page, failures);
   await page.addInitScript((release) => {
     // Windowsnak adjuk ki magunkat, hogy az elsődleges kártya determinisztikus
     // legyen — enélkül a futtató gépétől függene, mit fotózunk.
@@ -106,6 +111,8 @@ async function main() {
   if (!text.includes('kicsomagolva betöltendő')) {
     failures.push('a bővítmény nem kapott saját, érthető feliratot');
   }
+
+  await checkA11y(page, 'letöltőoldal', failures);
 
   if (!CHECK_ONLY) {
     fs.mkdirSync(OUT, { recursive: true });

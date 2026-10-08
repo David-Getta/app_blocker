@@ -20,7 +20,7 @@
 
   --text: #f2f4f7;
   --text-2: #9aa4b0;
-  --text-3: #6a7481;
+  --text-3: #848e9a; /* legalább 4,5:1 a lapon és a kártyán is (a régi #6a7481 a kártyán 3,85:1) */
 
   --primary: #f4f6f9;
   --primary-hover: #ffffff;
@@ -237,5 +237,10 @@ footer a:hover { color: var(--text); }
 
 /* Mi újság: a kiadás jegyzete — bekezdések, a vastag a jegyzeté. */
 .whatsnew p { margin: 0 0 var(--s3); line-height: 1.55; }
-.whatsnew p.muted { opacity: 0.75; font-size: 0.95em; }
+/* Átlátszóság nélkül: a halvány szín már maga a halványítás — a 0,75-ös
+   átlátszóság alatta 4,5:1 alá vitte a linket. */
+.whatsnew p.muted { font-size: 0.95em; }
+/* A link a téma kékje: enélkül a böngésző alap-kékje (#0000ee) maradt, ami a
+   sötét lapon 2,1:1 — gyakorlatilag olvashatatlan. */
+.whatsnew a { color: var(--accent); }
 .whatsnew.hidden { display: none; }
