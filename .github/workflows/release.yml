@@ -45,41 +45,33 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **Windows: az app végre eléri a védelmet.** Egy új, valódi
-          Windows-próba megmutatta: a háttérszolgáltatás csatornája a nem
-          emelt appnak csak olvasható volt, így a windowsos app egyetlen
-          kérést sem tudott küldeni — a „Védelem telepítése” gomb sosem
-          tűnt el. Most a csatorna nyitott, de csak a telepítéskor kapott
-          kulccsal szól. **Windowson frissítés után egyszer még kérd a
-          telepítést** (egy rendszergazdai engedély).
+          **A futó munkamenetet a szinkron már csak a leállítás nyomával
+          állítja le.** Egy független átnézés megmutatta: a munkamenetről a
+          szinkron számlálója döntött, azt pedig egy csomag átnevezése is
+          lépteti — egy friss telepítés vagy egy hálózaton kívül lévő
+          telefon néhány átnevezéssel próbatétel nélkül leállította a futó
+          menetet. Most menetet csak a rá szóló lezárás állít le (leállítás
+          vagy lejárat), a kifizetett rövidítést egy régi változat nem írja
+          felül, és a futó menet csomagját a szinkron sem törölheti, sem
+          bővítheti.
 
-          **Egy független átnézés négy kiskaput talált — mind zárva:**
+          **Frissíts minden eszközt.** Egy még nem frissített app
+          rövidítése a frissítettek szemében régi változatnak látszhat.
 
-          - Egy szöveg a háttérszolgáltatás csatornáján próbatétel nélkül
-            leállította a munkamenetet, zárlat alatt is.
-          - A gép szinkronja nem vitte az adag-szabályt: a telefonon
-            beállítottat a gép egy fedőnév-szerkesztése mindenhonnan
-            letörölte. Ha egy telefonos adag-szabály eltűnt, állítsd be újra.
-          - Az óra visszaállítása megnyújtotta a kifizetett szünetet, és a
-            lejártat is feltámasztotta.
-          - Az óra előre-, majd visszaállítása leállította a heti ablakos
-            munkamenetet; az ugrás utáni pillanatban pedig egy várakozás
-            azonnal átvehető volt.
+          Őszinte korlát: ha a menetet egy eszközön meghosszabbítod, egy
+          másikon közben próbatétellel rövidíted, a rövidítés nyer.
 
-          Őszinte korlát: a heti zárlat-ablak vége az ablak vége — ha az
-          órát az ablak vége utánra állítod, a zárlat lejártnak látszik. A
-          gépen ehhez rendszergazdai jog kell.
+          ### Ami a v0.4.227-ben jött
 
-          ### Ami a v0.4.226-ban jött
+          **Windows: az app végre eléri a védelmet** (frissítés után egyszer
+          még kérd a telepítést), és egy független átnézés négy kiskaput
+          talált — mind zárva.
+
+          #### Ami a v0.4.226-ban jött
 
           **A böngésző sávja az adag betelte előtt is szól;** óraátállítás
           éjszakáján a három platform ugyanarra a pillanatra teszi a heti
           ablakot; Androidon az időmező a „8.30” alakot is elfogadja.
-
-          #### Ami a v0.4.225-ben jött
-
-          **Pontosabb előjelzések** — a szünet vége csak akkor szól, ha utána
-          tényleg zár.
 
           NOTES
           fi
