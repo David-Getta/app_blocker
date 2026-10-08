@@ -8,6 +8,7 @@ kettővel korábbiban.
 
 | Verzió | Nap | Mi újság |
 |---|---|---|
+| v0.4.235 | 2026-10-08 | a részleges szabályok egyenként fésülődnek |
 | v0.4.234 | 2026-10-08 | a felhúzott rev nem hozza vissza egy oldal régi, lazább beállítását |
 | v0.4.233 | 2026-10-08 | a csatorna-szűrőt csak a kifizetett levétele viszi el |
 | v0.4.232 | 2026-10-08 | a zárlat-ablakot csak a saját levétele viszi el |
