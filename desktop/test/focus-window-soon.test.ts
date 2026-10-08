@@ -56,12 +56,25 @@ test('a csomag saját futó menete mellett hallgat; egy másik csomagé mellett 
 });
 
 test('az elköltött előfordulásról hallgat (a saját menete a naplóban)', () => {
+  // Egy közelgő ablak saját menete csak egy SIETŐ órájú eszközről jöhet: ott
+  // már elindult és leállították. A két óra eltérésének tűrésén belül ez
+  // elkölti az ablakot.
   const spent: FocusLogEntry = {
+    packId: 'p1', packName: 'Nyelvtanulás', startedAt: MON(18), endedAt: MON(18, 2), plannedEndsAt: MON(18, 50), stopped: true,
+  };
+  assert.equal(windowRunStartingSoon([pack()], null, [spent], MON(17, 58)), null);
+  // Egy másik csomag sora nem költi el.
+  assert.ok(windowRunStartingSoon([pack()], null, [{ ...spent, packId: 'p2' }], MON(17, 58)));
+});
+
+test('a messze jövőben véget ért sor nem költ el: az az óra előre-, majd visszaállításának nyoma', () => {
+  // 17:55-kor egy 18:20-kor véget ért menet még nem történt meg — az óra járt
+  // előre, aztán vissza. Ami nem történt meg, az nem fizetett semmit: az ablak
+  // menete újra jön, és az app szól előtte.
+  const future: FocusLogEntry = {
     packId: 'p1', packName: 'Nyelvtanulás', startedAt: MON(18), endedAt: MON(18, 20), plannedEndsAt: MON(18, 50), stopped: true,
   };
-  assert.equal(windowRunStartingSoon([pack()], null, [spent], MON(17, 55)), null);
-  // Egy másik csomag sora nem költi el.
-  assert.ok(windowRunStartingSoon([pack()], null, [{ ...spent, packId: 'p2' }], MON(17, 55)));
+  assert.ok(windowRunStartingSoon([pack()], null, [future], MON(17, 55)));
 });
 
 test('több közül a korábban induló; azonos kezdésnél a kisebb azonosító, kódegység szerint', () => {

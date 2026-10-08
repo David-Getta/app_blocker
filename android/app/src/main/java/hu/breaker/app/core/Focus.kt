@@ -463,6 +463,20 @@ object Focus {
     /** Ennél kevesebb hátralévő idővel már nem indul menetrend szerinti menet. */
     const val RECURRENCE_MIN_REMAINING_MS = 60_000L
 
+    /**
+     * Ennyivel a JÖVŐBEN véget ért naplósort még elfogadjuk (két eszköz órája
+     * ennyit eltérhet) — a `focus.ts` `FUTURE_LOG_TOLERANCE_MS`-ének tükre.
+     */
+    const val FUTURE_LOG_TOLERANCE_MS = 5 * 60_000L
+
+    /**
+     * Az ablak SAJÁT menete van-e a naplóban — a `focus.ts` `spentIn` tükre. A
+     * jövőben véget ért sor nem számít: az óra előre-, majd visszaállítása
+     * nyoma, nem kifizetett menet.
+     */
+    private fun spentIn(log: List<FocusLogEntry>, packId: String, occ: Occurrence, now: Long): Boolean =
+        log.any { it.packId == packId && it.startedAt == occ.startsAt && it.endedAt <= now + FUTURE_LOG_TOLERANCE_MS }
+
     /** Egy ablak-előfordulás: mikor kezdődik és mikor ér véget (epoch ms). */
     data class Occurrence(val startsAt: Long, val endsAt: Long)
 
@@ -581,8 +595,7 @@ object Focus {
             // Csak az ablak SAJÁT menete (a kezdése az ablak kezdése) számít
             // elköltöttnek: a csomag egyperces kézi menete az ablakon belül nem
             // váltja ki a háromórás ablakot.
-            val spent = log.any { it.packId == pack.id && it.startedAt == occ.startsAt }
-            if (spent) continue
+            if (spentIn(log, pack.id, occ, now)) continue
             val b = best
             if (b == null || occ.startsAt < b.startsAt ||
                 (occ.startsAt == b.startsAt && pack.id < b.pack.id)
@@ -621,7 +634,7 @@ object Focus {
             if (isRunning(run, now) && run!!.packId == pack.id) continue
             val occ = nextOccurrence(band, now) ?: continue
             if (occ.startsAt <= now || occ.startsAt - now > withinMs) continue
-            if (log.any { it.packId == pack.id && it.startedAt == occ.startsAt }) continue
+            if (spentIn(log, pack.id, occ, now)) continue
             val b = best
             if (b == null || occ.startsAt < b.startsAt ||
                 (occ.startsAt == b.startsAt && pack.id < b.pack.id)

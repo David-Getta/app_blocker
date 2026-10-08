@@ -732,6 +732,17 @@ public enum Focus {
     /// Ennél kevesebb hátralévő idővel már nem indul menetrend szerinti menet.
     public static let recurrenceMinRemainingMs: Double = 60_000
 
+    /// Ennyivel a JÖVŐBEN véget ért naplósort még elfogadjuk (két eszköz órája
+    /// ennyit eltérhet) — a `focus.ts` `FUTURE_LOG_TOLERANCE_MS`-ének tükre.
+    public static let futureLogToleranceMs: Double = 5 * 60_000
+
+    /// Az ablak SAJÁT menete van-e a naplóban — a `focus.ts` `spentIn` tükre.
+    /// A jövőben véget ért sor nem számít: az óra előre-, majd
+    /// visszaállításának nyoma, nem kifizetett menet.
+    static func spentIn(_ log: [LogEntry], packId: String, occ: Occurrence, now: Double) -> Bool {
+        log.contains { $0.packId == packId && $0.startedAt == occ.startsAt && $0.endedAt <= now + futureLogToleranceMs }
+    }
+
     /// Egy ablak-előfordulás: mikor kezdődik és mikor ér véget (epoch ms).
     public struct Occurrence: Equatable {
         public let startsAt: Double
@@ -875,8 +886,7 @@ public enum Focus {
             // Csak az ablak SAJÁT menete (a kezdése az ablak kezdése) számít
             // elköltöttnek: a csomag egyperces kézi menete az ablakon belül nem
             // váltja ki a háromórás ablakot.
-            let spent = log.contains { $0.packId == pack.id && $0.startedAt == occ.startsAt }
-            if spent { continue }
+            if spentIn(log, packId: pack.id, occ: occ, now: now) { continue }
             // Azonos kezdésnél a kisebb azonosító — kódegység szerint, mint a gépen.
             if let b = best,
                !(occ.startsAt < b.startsAt || (occ.startsAt == b.startsAt && TextLogic.utf16Less(pack.id, b.pack.id))) {
@@ -905,7 +915,7 @@ public enum Focus {
             guard let band = pack.recurrence, ScheduleLogic.isValidBand(band) else { continue }
             if let run, isRunning(run, now: now), run.packId == pack.id { continue }
             guard let occ = nextOccurrence(band, now: now), occ.startsAt > now, occ.startsAt - now <= within else { continue }
-            if log.contains(where: { $0.packId == pack.id && $0.startedAt == occ.startsAt }) { continue }
+            if spentIn(log, packId: pack.id, occ: occ, now: now) { continue }
             if let b = best,
                !(occ.startsAt < b.startsAt || (occ.startsAt == b.startsAt && TextLogic.utf16Less(pack.id, b.pack.id))) {
                 continue

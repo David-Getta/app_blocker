@@ -730,6 +730,13 @@ export function warnDue(lastWarnAt: number | null, now: number): boolean {
 /** Ennél kevesebb hátralévő idővel már nem indul menetrend szerinti menet. */
 export const RECURRENCE_MIN_REMAINING_MS = 60_000;
 
+/**
+ * Ennyivel a JÖVŐBEN véget ért naplósort még elfogadjuk (két eszköz órája
+ * ennyit eltérhet). Ami ennél később ér véget, az még nem történt meg: az óra
+ * előre-, majd visszaállításának nyoma (lásd `spentIn`).
+ */
+export const FUTURE_LOG_TOLERANCE_MS = 5 * 60_000;
+
 /** Egy ablak-előfordulás: mikor kezdődik és mikor ér véget (epoch ms). */
 export interface Occurrence { startsAt: number; endsAt: number }
 
@@ -933,7 +940,7 @@ export function dueRecurrence(
     const occ = occurrenceAt(band, now);
     if (!occ) continue;
     if (occ.endsAt - now < RECURRENCE_MIN_REMAINING_MS) continue;
-    if (spentIn(log, pack.id, occ)) continue;
+    if (spentIn(log, pack.id, occ, now)) continue;
     if (!best || occ.startsAt < best.startsAt
       || (occ.startsAt === best.startsAt && pack.id < best.pack.id)) {
       best = { pack, ...occ };
@@ -947,9 +954,16 @@ export function dueRecurrence(
  * ára ki van fizetve. Csak a sajátja: a csomag kézi menete az ablakon belül,
  * akár egyperces, nem fogyasztja el az ablakot — különben egy perc kézi menet
  * a tizenöt másodperces kör-résben kiváltaná a háromórás ablakot.
+ *
+ * A JÖVŐBEN véget ért sor nem számít (`FUTURE_LOG_TOLERANCE_MS` tűréssel):
+ * az ablak-menet vége az ablak vége, az óra előreállítása tehát lezárta és
+ * naplózta — és a visszaállítás után az ablak „elköltöttnek” látszott, a
+ * menet nem indult újra. Próbatétel nélkül, zárlat alatt is; a szinkron a
+ * többi eszközre is elvitte. Ami még nem történt meg, az nem fizetett semmit.
  */
-function spentIn(log: FocusLogEntry[] | undefined, packId: string, occ: Occurrence): boolean {
-  return (log ?? []).some((e) => e.packId === packId && e.startedAt === occ.startsAt);
+function spentIn(log: FocusLogEntry[] | undefined, packId: string, occ: Occurrence, now: number): boolean {
+  return (log ?? []).some((e) => e.packId === packId && e.startedAt === occ.startsAt
+    && e.endedAt <= now + FUTURE_LOG_TOLERANCE_MS);
 }
 
 /**
@@ -966,7 +980,7 @@ export function spentWindows(
     const band = pack.recurrence;
     if (!band || !isValidBand(band)) continue;
     const occ = occurrenceAt(band, now);
-    if (occ && spentIn(log, pack.id, occ)) out.push(pack.id);
+    if (occ && spentIn(log, pack.id, occ, now)) out.push(pack.id);
   }
   return out;
 }
@@ -1005,7 +1019,7 @@ export function windowRunStartingSoon(
     if (isRunning(run, now) && run!.packId === pack.id) continue;
     const occ = nextOccurrence(band, now);
     if (!occ || occ.startsAt <= now || occ.startsAt - now > withinMs) continue;
-    if (spentIn(log, pack.id, occ)) continue;
+    if (spentIn(log, pack.id, occ, now)) continue;
     if (!best || occ.startsAt < best.startsAt
       || (occ.startsAt === best.startsAt && pack.id < best.pack.id)) {
       best = { pack, ...occ };
@@ -1090,7 +1104,7 @@ export function upcomingWindows(
     const band = pack.recurrence;
     if (!band) continue;
     for (const occ of occurrencesAhead(band, now, days)) {
-      if (spentIn(log, pack.id, occ)) continue;
+      if (spentIn(log, pack.id, occ, now)) continue;
       out.push({ packId: pack.id, name: pack.name, allowSites: [...pack.allowSites], startsAt: occ.startsAt, endsAt: occ.endsAt });
     }
   }

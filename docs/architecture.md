@@ -419,9 +419,12 @@ Három tulajdonsága teszi azzá, ami:
 2. **Rövidíteni nem lehet.** A mezőhöz egyetlen út vezet, és annak az eredménye
    sosem rövidebb a mostaninál. A rövidítés nem tiltott, hanem
    megfogalmazhatatlan.
-3. **Sem az óra, sem a szinkron nem viszi el.** Az óra-ugrás eltolja a végét
-   (amennyi hátra volt, annyi van hátra), a fésülése pedig magasvízjel: a
-   későbbi vég nyer, `rev`-re való tekintet nélkül.
+3. **Sem az óra, sem a szinkron nem viszi el** — a kézi zárlatot. Az óra-ugrás
+   eltolja a végét (amennyi hátra volt, annyi van hátra), a fésülése pedig
+   magasvízjel: a későbbi vég nyer, `rev`-re való tekintet nélkül. Az
+   ABLAK-zárlat vége az ablak vége, az nem tolódik (az alvás nem
+   hosszabbíthatja a hétköznapot) — az óra előreállítása ott őszinte korlát,
+   lásd [`feature-lockdown.md`](feature-lockdown.md).
 
 Amit NEM állítunk: hogy gépzár. Rendszergazdaként a segéd leállítható, a
 telefonon az app letörölhető — a **törlés-védelem** (eszközadmin) elveszi ehhez

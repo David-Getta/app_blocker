@@ -108,6 +108,16 @@ készülék nem tudja megkülönböztetni az átállított órát a felfüggeszt
 géptől, de nem is kell — egy lecsukott laptop előtt nem telik a zárlat, mert
 nem is kísért.
 
+**Őszinte korlát — az ablak-zárlat.** A heti ablak zárlata NEM tolódik: a vége
+az ablak vége, mert az alvás nem hosszabbíthatja a hétköznapot, és a kettőt
+(alvás vagy átállított óra) az app nem tudja megkülönböztetni. Aki az órát az
+ablak vége utánra állítja, annak a zárlat lejártnak látszik — és amit közben
+próbatétellel lazít (menetrend, keret, maga az ablak), az az óra
+visszaállítása után is megmarad. A gépen ehhez rendszergazdai jog kell
+(ugyanaz, ami a segéd leállításához is elég); a telefonon az óra szabadon
+állítható. A javításhoz megbízható időforrás kellene — ez még hátravan. A
+kézi zárlatra ez nem vonatkozik: annak a vége az ugrással tolódik.
+
 ### A szinkron nem tudja visszavonni
 
 A zárlat a **munkamenet blobján** utazik (nem a blokklistán: nem egy oldal

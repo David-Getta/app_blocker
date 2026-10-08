@@ -3598,6 +3598,49 @@ const WIRES = [
     needle: 'PauseReminders.reschedule(views, now: now)',
     lost: 'az iPhone nem ütemezné a szünet vége előtti értesítést',
   },
+  // AZ ÓRA ÁLLÍTÁSA. Az elnyelés minden parancs előtt fut (nem csak a 15 mp-es
+  // körben); visszafelé a szünet vége is visszacsúszik; és a jövőben véget ért
+  // naplósor nem költi el az ablakot. Bármelyik kiesése egy-egy kiskapu volt.
+  {
+    file: 'desktop/src/helper/server.ts',
+    needle: 'referee.absorbClock(state, now);',
+    lost: 'a parancs a nyers órával futna az ugrás utáni résben — a várakozás azonnal átvehető',
+  },
+  {
+    file: 'desktop/src/helper/index.ts',
+    needle: 'absorbClock(state, Date.now());',
+    lost: 'az időzített szinkron-kör az ugrás utáni résben lejártnak látná a zárlatot',
+  },
+  {
+    file: 'desktop/src/helper/referee.ts',
+    needle: 'if (site.pauseUntil !== null && Number.isFinite(site.pauseUntil)) site.pauseUntil += jump;',
+    lost: 'az óra visszaállítása megnyújtaná a kifizetett szünetet, és feltámasztaná a lejártat',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/Referee.kt',
+    needle: 'site.pauseUntil?.let { p -> site.copy(pauseUntil = p + jump) } ?: site',
+    lost: 'az Androidon az óra visszaállítása megnyújtaná a szünetet',
+  },
+  {
+    file: 'ios/Shared/Referee.swift',
+    needle: 'if let p = copy.pauseUntil { copy.pauseUntil = p + jump }',
+    lost: 'az iPhone-on az óra visszaállítása megnyújtaná a szünetet',
+  },
+  {
+    file: 'desktop/src/shared/focus.ts',
+    needle: '&& e.endedAt <= now + FUTURE_LOG_TOLERANCE_MS);',
+    lost: 'a jövőben véget ért naplósor elköltené az ablakot — az óra előre-vissza állítása leállítaná az ablak-menetet',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/Focus.kt',
+    needle: 'it.endedAt <= now + FUTURE_LOG_TOLERANCE_MS',
+    lost: 'az Androidon a jövőben véget ért naplósor elköltené az ablakot',
+  },
+  {
+    file: 'ios/Shared/Focus.swift',
+    needle: '$0.endedAt <= now + futureLogToleranceMs',
+    lost: 'az iPhone-on a jövőben véget ért naplósor elköltené az ablakot',
+  },
   // A WINDOWS-SEGÉD KAPUJA. Az alapértelmezett pipe-leíró a nem emelt appnak
   // csak olvasást adott: az app egyetlen kérést sem tudott küldeni. A pipe
   // most mindenkinek írható, de csak a kulcsot bemutató kapcsolat kap szót —

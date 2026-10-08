@@ -234,6 +234,10 @@ export function statusOf(
 async function handle(req: HelperRequest, deps: ServerDeps): Promise<unknown> {
   const state = deps.getState();
   const now = Date.now();
+  // Az óraugrást a parancs ELŐTT nyeljük el, nem csak a 15 mp-es körben:
+  // különben az ugrás utáni résben egy DELAY azonnal átvehető, egy szinkron-kör
+  // pedig a zárlatot lejártnak látná (referee.ts `absorbClockJump`).
+  referee.absorbClock(state, now);
   switch (req.op) {
     case 'status':
       return statusOf(state, deps.dohApplied(), deps.selfTest());

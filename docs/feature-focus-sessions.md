@@ -279,6 +279,22 @@ háttérszolgáltatás közben nem futott: akkor a fehérlistát sem tartatta be
 A KEZDÉS is tolódik, nem csak a vég. Enélkül a naplóba egy ötvenperces menet
 nyolc és fél órásként kerülne be.
 
+### Az ablak-menet: a jövőben véget ért sor nem költ el
+
+Az ablak-menet vége az ablak vége — az alvás nem tolja (lásd lent). Egy
+független átnézés megmutatta, mire volt ez jó: az órát az ablak vége utánra
+állítva a kör lezárta és naplózta a menetet, a visszaállítás után pedig az
+ablak „elköltöttnek” látszott (a saját menete a naplóban), tehát a menet nem
+indult újra. Próbatétel nélkül, zárlat alatt is, és a szinkron a többi
+eszközre is elvitte.
+
+Most a naplósor, ami a JÖVŐBEN ért véget, nem költi el az ablakot (`spentIn`,
+mindhárom magban, a közös fixtúrával): ami még nem történt meg, az nem
+fizetett semmit. A tűrés öt perc (`FUTURE_LOG_TOLERANCE_MS`) — két eszköz
+órája ennyit eltérhet, és egy siető órájú eszköz valódi leállítása így is
+elkölti. **Őszinte korlát:** ez az öt perc a nyereség felső határa; ennél
+többet az óra állításával nem lehet kiváltani.
+
 ### Aminek ez az ára volt — és hogyan zárult be
 
 Sokáig ez volt a funkció legkellemetlenebb pontja. Ha KÉT eszköz van, és az

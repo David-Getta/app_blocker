@@ -717,6 +717,10 @@ object Referee {
     }
 
     fun claimDelay(sessionId: String, now: Long): SubmitResult {
+        // Az óraugrás elnyelése az átvétel ELŐTT, nem csak a DNS-körben: az
+        // ugrás és a következő kör közti résben a várakozás különben azonnal
+        // átvehető volna (a gép szabálya, server.ts).
+        absorbClockJump(now)
         // Expiry clears the session as a separate committed mutation, so the
         // exception below cannot roll it back.
         val pre = BreakerStore.state.value.session
@@ -789,8 +793,12 @@ object Referee {
      * dátumot. Az alvás kívülről ugyanígy néz ki, és ugyanígy kezeljük: alvás
      * közben nem telik a várakozás (ez a szigorúbb irány).
      *
-     * A pauseUntil szándékosan kimarad: ott az előre ugró óra korábban zár
-     * vissza, a szigorítást pedig nem kell védeni.
+     * A pauseUntil előre ugró órán kimarad: ott korábban zár vissza, a
+     * szigorítást pedig nem kell védeni. VISSZAFELÉ viszont minden szünet
+     * vége ugyanannyit csúszik vissza (a gép szabálya, referee.ts): enélkül az
+     * óra visszaállítása egy kifizetett negyedórás szünetet órákra nyújtott,
+     * és a már lejártat is feltámasztotta. Visszafelé nincs küszöb — az alvás
+     * sosem visz vissza.
      *
      * AZ ALAPVONAL A LEMEZRŐL JÖN (BreakerStore.loadLastTick), nem a
      * memóriából. Amíg memóriában élt, az app KILÖVÉSE után az első kör csak
@@ -808,6 +816,14 @@ object Referee {
         if (fresh || jumped || now < lastTickSavedAt || now - lastTickSavedAt >= TICK_SAVE_INTERVAL_MS) {
             lastTickSavedAt = now
             BreakerStore.saveLastTick(now)
+        }
+        if (!fresh && jump < 0) {
+            BreakerStore.mutate { state ->
+                state.copy(sites = state.sites.map { site ->
+                    site.pauseUntil?.let { p -> site.copy(pauseUntil = p + jump) } ?: site
+                })
+            }
+            return
         }
         if (!jumped) return
         val shift = jump - CLOCK_JUMP_THRESHOLD_MS

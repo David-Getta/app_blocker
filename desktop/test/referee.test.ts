@@ -657,6 +657,42 @@ test('a rendes ütem nem tolja el a futó munkamenetet', () => {
   assert.equal(state.focusLog![0].stopped, false, 'magától járt le, nem állították le');
 });
 
+test('az óra VISSZAÁLLÍTÁSA sem nyújtja meg a kifizetett szünetet, és a lejártat sem támasztja fel', () => {
+  // EZ VOLT A RÉS: a szünet vége fali idő. Egy negyedórás, kifizetett
+  // szünet után az óra tíz órával visszaállítva tíz és negyed óra szabadság
+  // lett — és egy már LEJÁRT szünet is újraéledt.
+  const { state, siteId } = stateWithSite();
+  const now = Date.now();
+  state.sites.push({ ...state.sites[0], id: `${siteId}_2`, domain: 'reddit.com', hostnames: ['reddit.com'] });
+  state.sites[0].pauseUntil = now + 15 * 60_000;   // él még
+  state.sites[1].pauseUntil = now - 60_000;        // egy perce lejárt
+  referee.tick(state, now);
+  const back = now - 10 * 3600_000;
+  referee.tick(state, back);
+  assert.equal(state.sites[0].pauseUntil! - back, 15 * 60_000, 'ami hátra volt, annyi maradt');
+  const second = state.sites.find((x) => x.id === `${siteId}_2`)!;
+  assert.ok(second.pauseUntil === null || second.pauseUntil <= back, 'a lejárt szünet lejárt marad');
+});
+
+test('a parancs előtt is elnyeljük az ugrást: a 15 mp-es kör előtti résben sem vehető át a várakozás', () => {
+  // A szerver minden parancs előtt `absorbClock`-ot hív. Itt a bíró szintjén:
+  // az ugrás után a kör még nem futott, a parancs viszont már igen.
+  const { state, siteId } = stateWithSite();
+  const now = Date.now();
+  state.unlockLog = Array.from({ length: 8 }, (_, i) => now - (i + 1) * 3600_000); // tier 3
+  referee.startSession(state, 'delete', siteId, undefined, now);
+  while (state.session!.steps[state.session!.stepIndex].type !== 'DELAY') {
+    const step = state.session!.steps[state.session!.stepIndex];
+    referee.submitAnswer(state, state.session!.id, solveStep(step, now), now);
+  }
+  referee.tick(state, now);
+  const delay = state.session!.steps[state.session!.stepIndex] as DelayStep;
+  const jumped = delay.claimableAt! + 60_000; // épp a várakozás vége utánra
+  referee.absorbClock(state, jumped);
+  const claim = referee.claimDelay(state, state.session!.id, jumped);
+  assert.equal(claim.accepted, false, 'az átvétel a parancs előtti elnyelés után sem megy át');
+});
+
 test('normal tick cadence is not treated as a clock jump', () => {
   const { state, siteId } = stateWithSite();
   const now = Date.now();

@@ -527,6 +527,9 @@ enum Referee {
     }
 
     static func claimDelay(sessionId: String, now: Double) throws -> SubmitResult {
+        // Az óraugrás elnyelése az átvétel ELŐTT (a gép szabálya, server.ts):
+        // az ugrás utáni résben a várakozás különben azonnal átvehető volna.
+        absorbClockJump(now)
         // Expiry clears the session in its own committed mutation first.
         if let pre = BreakerStore.shared.state.session, pre.id == sessionId,
            case let .delay(_, _, claimableAt?, window) = pre.steps[pre.stepIndex],
@@ -594,8 +597,11 @@ enum Referee {
     /// measure elapsed time, not a date. Sleep looks identical from here and is
     /// treated the same: the wait does not run while the device is off.
     ///
-    /// pauseUntil is deliberately left alone: a jump that ends an unlock early
-    /// blocks more, and tightening never needs protecting.
+    /// pauseUntil is left alone on a FORWARD jump: a jump that ends an unlock
+    /// early blocks more, and tightening never needs protecting. VISSZAFELÉ
+    /// viszont minden szünet vége ugyanannyit csúszik vissza (a gép szabálya,
+    /// referee.ts): enélkül az óra visszaállítása egy kifizetett negyedórás
+    /// szünetet órákra nyújtott, és a lejártat is feltámasztotta.
     ///
     /// AZ ALAPVONAL A LEMEZRŐL JÖN (BreakerStore.loadLastTick), nem a
     /// memóriából. Amíg memóriában élt, az app kilövése után az első kör csak
@@ -617,6 +623,15 @@ enum Referee {
         if fresh || jumped || now < lastTickSavedAt || now - lastTickSavedAt >= tickSaveIntervalMs {
             lastTickSavedAt = now
             BreakerStore.shared.saveLastTick(now)
+        }
+        if !fresh && jump < 0 {
+            return BreakerStore.shared.mutate { state in
+                state.sites = state.sites.map { site in
+                    var copy = site
+                    if let p = copy.pauseUntil { copy.pauseUntil = p + jump }
+                    return copy
+                }
+            }
         }
         guard jumped else { return BreakerStore.shared.state }
         let shift = jump - clockJumpThresholdMs

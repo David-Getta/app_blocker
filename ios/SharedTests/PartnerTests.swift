@@ -206,7 +206,11 @@ final class PartnerTests: XCTestCase {
             switch step {
             case .partner: return
             case .delay(_, _, let claimableAt, _):
-                try settled { try Referee.claimDelay(sessionId: id, now: (claimableAt ?? now) + 1) }
+                // Közben a kör rendesen ketyegett: az átvétel előtti
+                // óraugrás-elnyelés ezt nem tartja ugrásnak.
+                let at = (claimableAt ?? now) + 1
+                BreakerStore.shared.saveLastTick(at - 1000)
+                try settled { try Referee.claimDelay(sessionId: id, now: at) }
             default:
                 try settled { try Referee.submitAnswer(sessionId: id, answer: solve(step), now: now) }
             }

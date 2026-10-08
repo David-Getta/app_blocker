@@ -298,6 +298,13 @@ const CHECKS = [
     scalar(ts.focus, /RECURRENCE_MIN_REMAINING_MS\s*=\s*([^;]+);/, 'ts'),
     scalar(kt.focus, /RECURRENCE_MIN_REMAINING_MS\s*=\s*(.+)/, 'kt'),
     scalar(sw.focus, /recurrenceMinRemainingMs[^=]*=\s*(.+)/, 'swift')],
+  // A jövőben véget ért naplósor tűrése. Ha szétcsúszna, ugyanaz az óra-
+  // visszaállítás az egyik eszközön újraindítaná az ablak-menetet, a másikon
+  // nem — és a szinkron a kettő közül a szigorúbbat vinné, de csak félig.
+  ['FUTURE_LOG_TOLERANCE_MS',
+    scalar(ts.focus, /FUTURE_LOG_TOLERANCE_MS\s*=\s*([^;]+);/, 'ts'),
+    scalar(kt.focus, /FUTURE_LOG_TOLERANCE_MS\s*=\s*(.+)/, 'kt'),
+    scalar(sw.focus, /futureLogToleranceMs[^=]*=\s*(.+)/, 'swift')],
   // A heti ablak MENETE előtt ennyivel szól mindhárom app — és ugyanazzal a
   // címmel. Ha szétcsúszna, ugyanarról az ablakról a gép tíz, a telefon öt
   // perccel előbb szólna, és egyik sem tudná, melyik az igaz.

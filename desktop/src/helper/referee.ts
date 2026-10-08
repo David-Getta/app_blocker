@@ -785,14 +785,33 @@ export const CLOCK_JUMP_THRESHOLD_MS = 2 * 60_000;
  * a date. Suspend/hibernate looks the same from here and is treated the same:
  * the wait does not run while the machine is off, which is the strict side.
  *
- * pauseUntil is deliberately NOT adjusted: a jump that ends an unlock early
- * blocks more, and tightening never needs protecting.
+ * pauseUntil is NOT adjusted on a forward jump: a jump that ends an unlock
+ * early blocks more, and tightening never needs protecting.
+ *
+ * VISSZAFELÉ viszont igen. A szünet (feloldás) vége fali idő: az óra tíz
+ * órával visszaállítva egy negyedórás, kifizetett szünetből tíz és negyed óra
+ * lett, és a már lejárt szünet is újraéledt. Ezért visszafelé MINDEN szünet
+ * vége ugyanannyit csúszik vissza: ami hátra volt, annyi marad, ami lejárt,
+ * lejárt marad. Visszafelé nincs küszöb — az alvás sosem visz vissza, tehát
+ * minden visszalépés az óra állítása (vagy egy NTP-korrekció, amire ugyanez
+ * a helyes válasz). A többi határidő visszafelé szigorúbb lesz, azokhoz nem
+ * nyúlunk.
+ *
+ * Nem csak a 15 mp-es kör hívja: minden parancs is (`absorbClock`, a
+ * server.ts-ből) — különben az ugrás és a következő kör közti résben a
+ * nyers órával futna a parancs (egy DELAY átvétele, egy szinkron-kör).
  */
 function absorbClockJump(state: HelperState, now: number): void {
   const last = state.lastTickAt;
   state.lastTickAt = now;
   if (last === undefined || !Number.isFinite(last)) return;
   const jump = now - last;
+  if (jump < 0) {
+    for (const site of state.sites) {
+      if (site.pauseUntil !== null && Number.isFinite(site.pauseUntil)) site.pauseUntil += jump;
+    }
+    return;
+  }
   if (jump <= CLOCK_JUMP_THRESHOLD_MS) return; // ordinary tick cadence
 
   const shift = jump - CLOCK_JUMP_THRESHOLD_MS;
@@ -853,6 +872,11 @@ function absorbClockJump(state: HelperState, now: number): void {
   // naphoz tartozik, hanem időtartam, mint a menet: az ugrás elnyelhető. Az
   // óra tíz perccel előretekerése egy egész szünetet ugrott át.
   state.bursts = shiftCooldowns(state.bursts, last, shift);
+}
+
+/** Az óraugrás elnyelése egy parancs előtt — lásd `absorbClockJump`. */
+export function absorbClock(state: HelperState, now: number): void {
+  absorbClockJump(state, now);
 }
 
 export function tick(state: HelperState, now: number): boolean {

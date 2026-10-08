@@ -38,6 +38,32 @@ final class RefereeClockTests: XCTestCase {
         RunLoop.main.run(until: Date().addingTimeInterval(0.05))
     }
 
+    // A gép és a Kotlin tesztjének tükre: a szünet vége fali idő, tehát az
+    // óra visszaállítása egy kifizetett negyedórás szünetből órákat csinált,
+    // a lejártat pedig feltámasztotta. Visszafelé minden szünet vége
+    // ugyanannyit csúszik vissza.
+    func testSettingTheClockBackNeitherStretchesAPauseNorRevivesAnExpiredOne() {
+        let live = Site(id: "site_elo", domain: "youtube.com", hostnames: ["youtube.com"],
+                        addedAt: now - 86_400_000, pauseUntil: now + 15 * 60_000)
+        let gone = Site(id: "site_lejart", domain: "reddit.com", hostnames: ["reddit.com"],
+                        addedAt: now - 86_400_000, pauseUntil: now - 60_000)
+        BreakerStore.shared.mutate { state in
+            state.sites = [live, gone]
+            state.session = nil
+        }
+        pumpMainQueue()
+        BreakerStore.shared.saveLastTick(now)
+
+        let back = now - 10 * 3_600_000
+        Referee.tick(now: back)
+        pumpMainQueue()
+        let sites = BreakerStore.shared.state.sites
+        XCTAssertEqual((sites.first { $0.id == "site_elo" }?.pauseUntil ?? 0) - back, 15 * 60_000,
+                       "ami hátra volt, annyi maradt")
+        let expired = sites.first { $0.id == "site_lejart" }?.pauseUntil
+        XCTAssertTrue(expired == nil || expired! <= back, "a lejárt szünet lejárt marad")
+    }
+
     func testTheDeletionDeadlineMovesWithTheClockAfterARestart() {
         let site = Site(
             id: "site_ora", domain: "youtube.com", hostnames: ["youtube.com"],

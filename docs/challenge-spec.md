@@ -167,11 +167,23 @@ mint az előző).
   24 órás türelmi ideje eltelt időt mér, nem dátumot: a segéd minden
   karbantartó körben nézi, mennyit ugrott a fali óra, és a *védő* határidőket
   (várakozás célpontja, folyamatban lévő törlés, a kísérlet kora) ugyanannyival
-  kitolja. A `pauseUntil` szándékosan kimarad — egy előre ugró óra ott korábban
-  visszazár, ami szigorítás. A gép alvása kívülről ugyanígy néz ki, és ugyanígy
+  kitolja. A `pauseUntil` előre ugró órán kimarad — ott korábban visszazár,
+  ami szigorítás. A gép alvása kívülről ugyanígy néz ki, és ugyanígy
   kezeljük: alvás közben nem telik a várakozás. Mindhárom platformon él — a kör
   az asztali segédben, az Android VPN-szolgáltatásban, illetve az iOS/macOS
   tunnelben fut.
+- **Az óra visszaállítása sem hosszabbít.** A szünet (feloldás) vége fali idő:
+  egy kifizetett negyedórás szünet után az óra tíz órával visszaállítva tíz
+  és negyed óra szabadság lett, és a már lejárt szünet is újraéledt. Visszafelé
+  minden szünet vége ugyanannyit csúszik vissza — ami hátra volt, annyi marad,
+  ami lejárt, lejárt marad. Visszafelé nincs küszöb: az alvás sosem visz
+  vissza, tehát minden visszalépés az óra állítása (vagy NTP-korrekció, amire
+  ugyanez a helyes válasz).
+- **A kör előtti rés is zárva.** Az elnyelés eddig csak a karbantartó körben
+  futott (a gépen 15 másodpercenként): az ugrás után a kör előtt küldött
+  átvétel a nyers órával futott, és egy négyórás várakozás azonnal
+  átvehető volt. Most a gép segédje minden parancs ELŐTT elnyeli az ugrást
+  (a szinkron időzítője is), a telefonokon a várakozás átvétele maga is.
 
   **Az alapvonal a LEMEZEN van, nem a memóriában.** Enélkül a védelem egy
   folyamat-leállítással megkerülhető: az app kilövése után az első kör csak új

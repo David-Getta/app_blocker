@@ -25,7 +25,7 @@ import * as assert from 'node:assert/strict';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import {
-  MAX_FOCUS_LOG, WINDOW_SOON_MS, closeIfEnded, dueRecurrence, formatRemaining, isWindowRun, lastUsedPack, nextOccurrence,
+  FUTURE_LOG_TOLERANCE_MS, MAX_FOCUS_LOG, WINDOW_SOON_MS, closeIfEnded, dueRecurrence, formatRemaining, isWindowRun, lastUsedPack, nextOccurrence,
   normalizeMinutes, occurrenceAt, windowRunStartingSoon, windowSoonText,
   type FocusLogEntry, type FocusPack, type FocusRun,
 } from '../src/shared/focus';
@@ -132,12 +132,19 @@ function recurrenceCases(): RecurrenceCase[] {
     const occT = occOf(target);
     if (roll < 0.2 && occT) run = { packId: target.id, startedAt: occT.startsAt, endsAt: occT.endsAt };
     else if (roll < 0.45) run = { packId: target.id, startedAt: now - 30 * MIN, endsAt: now + pick(r, [-1, 0, 1, 30]) * MIN };
-    // A napló: néha az ablak saját menete (elköltve), néha egy kézi menet az ablakon belül (nem az).
+    // A napló: néha az ablak saját menete (elköltve), néha egy kézi menet az
+    // ablakon belül (nem az). A saját menet többnyire a MÚLTBAN ért véget
+    // (leállították), néha a JÖVŐBEN — az óra előre-, majd visszaállításának
+    // nyoma: a tűrésen belül még elkölt (két eszköz órája eltérhet), azon túl
+    // nem (FUTURE_LOG_TOLERANCE_MS).
     const log: FocusLogEntry[] = [];
     for (const p of packs) {
       const o = occOf(p);
-      if (o && r() < 0.35) log.push(logEntry(p.id, o.startsAt, o.endsAt, r() < 0.5));
-      else if (o && r() < 0.25) log.push(logEntry(p.id, o.startsAt + MIN, o.startsAt + 2 * MIN));
+      if (o && r() < 0.35) {
+        const end = pick(r, [Math.max(o.startsAt, now - MIN), Math.max(o.startsAt, now),
+          now + FUTURE_LOG_TOLERANCE_MS, now + FUTURE_LOG_TOLERANCE_MS + 1, o.endsAt]);
+        log.push(logEntry(p.id, o.startsAt, end, r() < 0.5));
+      } else if (o && r() < 0.25) log.push(logEntry(p.id, o.startsAt + MIN, o.startsAt + 2 * MIN));
     }
     if (r() < 0.3) log.push(logEntry(pick(r, IDS), now - 3 * DAY, now - 3 * DAY + 45 * MIN));
     const occ = packs.filter((p) => p.band && isValidBand(p.band)).map((p) => {
@@ -252,13 +259,17 @@ function soonCases(): SoonCase[] {
       const target = pick(r, packs);
       run = { packId: target.id, startedAt: now - 20 * MIN, endsAt: now + pick(r, [-1, 0, 1, 5 * MIN, 30 * MIN]) };
     }
-    // A napló: néha a közelgő előfordulás SAJÁT menete (elköltve — ezt a kör
-    // egy siető órájú eszköz szinkronjából kaphatja), néha egy régi sor.
+    // A napló: néha a közelgő előfordulás SAJÁT menete. Ez csak egy siető
+    // órájú eszköz szinkronjából jöhet (a tűrésen belül elkölt), vagy az óra
+    // előre-, majd visszaállításának nyoma (azon túl nem — az még nem
+    // történt meg). Néha egy régi sor.
     const log: FocusLogEntry[] = [];
     for (const p of packs) {
       if (!p.band || !isValidBand(p.band)) continue;
       const o = nextOccurrence(p.band, now);
-      if (o && o.startsAt > now && r() < 0.15) log.push(logEntry(p.id, o.startsAt, o.endsAt));
+      if (o && o.startsAt > now && r() < 0.3) {
+        log.push(logEntry(p.id, o.startsAt, pick(r, [o.startsAt, o.startsAt + MIN, o.endsAt])));
+      }
     }
     if (r() < 0.3) log.push(logEntry(pick(r, IDS), now - 3 * DAY, now - 3 * DAY + 45 * MIN));
     const soon = windowRunStartingSoon(toPacks(packs), run, log, now);
@@ -329,6 +340,18 @@ test('a munkamenet fixtúrája friss, és nem elfajult', () => {
   const built = buildFixture();
   const rec = built.recurrence;
   assert.ok(rec.filter((c) => c.due).length > 20 && rec.some((c) => !c.due), 'esedékes és nem esedékes ablak is');
+  // A jövőben véget ért saját sor: a tűrésen túl nem költ el (az ablak újra
+  // esedékes), azon belül igen.
+  const ownOf = (c: RecurrenceCase, id: string) => {
+    const o = c.occ.find((x) => x[0] === id);
+    return c.log.find((e) => e.packId === id && o && e.startedAt === o[1]);
+  };
+  assert.ok(rec.some((c) => c.due && (ownOf(c, c.due[0])?.endedAt ?? 0) > c.now + FUTURE_LOG_TOLERANCE_MS),
+    'a messze jövőben véget ért saját menet nem költi el az ablakot');
+  assert.ok(rec.some((c) => c.packs.some((p) => {
+    const e = ownOf(c, p.id);
+    return e && e.endedAt > c.now && e.endedAt <= c.now + FUTURE_LOG_TOLERANCE_MS && c.due?.[0] !== p.id;
+  })), 'a tűrésen belül a jövőben véget ért saját menet még elkölti');
   assert.ok(rec.some((c) => c.due && c.packs.filter((p) => p.band && JSON.stringify(p.band) === JSON.stringify(c.packs.find((q) => q.id === c.due![0])!.band)).length > 1),
     'van holtverseny két egyforma ablak között');
   assert.ok(rec.some((c) => c.occ.some((o) => o[1] !== null && o[2]! <= o[1]! + 0)) === false, 'az előfordulás vége a kezdete után van');
@@ -345,7 +368,10 @@ test('a munkamenet fixtúrája friss, és nem elfajult', () => {
     && nextOccurrence(p.band, c.now)?.startsAt === c.now + WINDOW_SOON_MS + 1)), 'az egy ezredmásodperccel több már nem');
   assert.ok(soon.some((c) => !c.out && c.run && c.run.endsAt > c.now
     && windowRunStartingSoon(toPacks(c.packs), null, c.log, c.now)?.pack.id === c.run.packId), 'a csomag saját menete mellett hallgat');
-  assert.ok(soon.some((c) => !c.out && c.log.some((e) => e.startedAt > c.now)), 'az elköltött előfordulásról hallgat');
+  assert.ok(soon.some((c) => !c.out && c.log.some((e) => e.startedAt > c.now && e.endedAt <= c.now + FUTURE_LOG_TOLERANCE_MS)),
+    'az elköltött előfordulásról hallgat (a siető óra tűrésén belül)');
+  assert.ok(soon.some((c) => c.out && c.log.some((e) => e.packId === c.out![0] && e.startedAt === c.out![1]
+    && e.endedAt > c.now + FUTURE_LOG_TOLERANCE_MS)), 'a messze jövőben véget ért sor nem költ el — szól');
   assert.ok(soon.some((c) => c.out && c.packs.filter((p) => p.band && c.out
     && nextOccurrence(p.band, c.now)?.startsAt === c.out[1]).length > 1), 'van holtverseny két egyszerre induló ablak között');
   const text = render(built);

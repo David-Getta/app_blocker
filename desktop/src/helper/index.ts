@@ -15,7 +15,7 @@ import { startServer } from './server';
 import { CLIENT_KEY_ARG, keyHashFromArgs } from '../shared/client-key';
 import { runSelfTest } from './selftest';
 import type { SelfTestReport } from '../shared/selftest';
-import { tick } from './referee';
+import { absorbClock, tick } from './referee';
 import { journalTick } from './digest-journal';
 import { bumpRevisions } from './revisions';
 import { syncNow, syncToday } from './sync-client';
@@ -67,6 +67,9 @@ export function runHelper(): void {
     if (!state.sync) return;
     state.sync.lastAttemptAt = Date.now();
     try {
+      // Az időzítő is a parancsok szabálya szerint: előbb az óraugrás
+      // elnyelése, csak aztán a kör (referee.ts `absorbClock`).
+      absorbClock(state, Date.now());
       const r = await syncNow(state, Date.now());
       commit();
       if (r.changed) log(`sync (${why}): a lista változott, ${r.sites} oldal`);

@@ -164,12 +164,18 @@ class RefereeTest {
         assertFalse(Referee.claimDelay(BreakerStore.state.value.session!!.id, now).accepted, "too early")
 
         val inWindow = delay.claimableAt!! + 1000
+        // Közben a kör rendesen ketyegett (a DNS-kérésekkel): az átvétel előtti
+        // elnyelés ezt nem tartja óraugrásnak.
+        BreakerStore.saveLastTick(inWindow - 1000)
         assertTrue(Referee.claimDelay(BreakerStore.state.value.session!!.id, inWindow).sessionDone)
         val site = BreakerStore.state.value.sites[0]
         assertNotNull(site.pendingDeleteAt)
         assertTrue(site.pendingDeleteAt!! > inWindow + 23 * 3600_000L, "~24h grace")
         assertTrue(BreakerStore.blockedHostnamesNow(inWindow).isNotEmpty(), "still blocked during grace")
 
+        // A türelmi idő alatt is ketyegett a kör — egyetlen huszonnégy órás
+        // ugrást az elnyelés (helyesen) az óra állításának venne.
+        BreakerStore.saveLastTick(site.pendingDeleteAt!! + 1 - 1000)
         Referee.tick(site.pendingDeleteAt!! + 1)
         assertTrue(BreakerStore.state.value.sites.isEmpty(), "removed only after the grace period")
     }
@@ -330,6 +336,46 @@ class RefereeTest {
         assertTrue(after > jumped, "az átvétel az ugrás után sincs esedékes")
         assertFalse(Referee.claimDelay(BreakerStore.state.value.session!!.id, jumped).accepted)
         assertEquals(jumped, BreakerStore.loadLastTick(), "az új alapvonal is kiíródott")
+    }
+
+    @Test fun `setting the clock back neither stretches a paid pause nor revives an expired one`() {
+        // A gép tesztjének tükre: a szünet vége fali idő, tehát az óra tíz
+        // órával visszaállítva egy negyedórás szünetből tíz és negyed óra lett,
+        // a már lejárt pedig újraéledt. Visszafelé minden szünet vége
+        // ugyanannyit csúszik vissza.
+        val a = addSite("youtube.com")
+        val b = addSite("reddit.com")
+        BreakerStore.mutate { s ->
+            s.copy(sites = s.sites.map {
+                when (it.id) {
+                    a -> it.copy(pauseUntil = now + 15 * 60_000L)
+                    b -> it.copy(pauseUntil = now - 60_000L)
+                    else -> it
+                }
+            })
+        }
+        BreakerStore.saveLastTick(now)
+        val back = now - 10 * 3600_000L
+        Referee.tick(back)
+        val sites = BreakerStore.state.value.sites
+        assertEquals(15 * 60_000L, sites.first { it.id == a }.pauseUntil!! - back, "ami hátra volt, annyi maradt")
+        val expired = sites.first { it.id == b }.pauseUntil
+        assertTrue(expired == null || expired <= back, "a lejárt szünet lejárt marad")
+    }
+
+    @Test fun `claiming absorbs a clock jump first, even before the next tick`() {
+        // A DNS-kör ritkán áll, de a rés ott van: az ugrás után az átvétel
+        // előbb jöhet, mint a kör. A `claimDelay` maga is elnyeli.
+        val id = addSite("youtube.com")
+        BreakerStore.mutate { s -> s.copy(unlockLog = (1..8).map { now - it * 3600_000L }) }
+        Referee.startSession(Kind.DELETE, id, null, now)
+        solveUntil { it is Step.Delay }
+        val target = BreakerStore.state.value.session!!.steps
+            .filterIsInstance<Step.Delay>().first().claimableAt!!
+        BreakerStore.saveLastTick(now)
+        val jumped = target + 60_000L
+        assertFalse(Referee.claimDelay(BreakerStore.state.value.session!!.id, jumped).accepted,
+            "a parancs előtti elnyelés után a várakozás még hátravan")
     }
 
     @Test fun `a pending deletion cannot be rushed by the clock`() {
