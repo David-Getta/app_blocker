@@ -8,6 +8,7 @@ kettővel korábbiban.
 
 | Verzió | Nap | Mi újság |
 |---|---|---|
+| v0.4.246 | 2026-10-08 | olvashatóbb felület; a felolvasó is eligazodik az ablakokban |
 | v0.4.245 | 2026-10-08 | új kategória-csomag: Felnőtt tartalom; a böngésző saját DNS-e Androidon, kimondva |
 | v0.4.244 | 2026-10-08 | a Play-be szánt Android-csomag nem frissíti magát |
 | v0.4.243 | 2026-10-08 | kikapcsolt értesítés a telefonon, Windows-értesítés azonosítója, helyi hálózat iPhone-on |
