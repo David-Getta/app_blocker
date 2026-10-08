@@ -268,6 +268,15 @@ Cím: `https://david-getta.github.io/app_blocker/`
 ## 5. Hivatalos áruházak
 
 ### Google Play (Android)
+
+A Play 2026. augusztus 31. óta csak a 36-os API-ra (Android 16) célzó
+frissítést fogad; az app erre céloz (`targetSdk = 36`). A 35-ös API-tól a
+rendszer a tartalmat a rendszersávok mögé rajzolja (edge-to-edge): a felület a
+biztonságos területen tartja magát (`WindowInsets.safeDrawing`). A CI ezt
+lefordítja és a lint végzetes hibáit is nézi, de eszközön nem próbálja ki — egy
+kiadás előtt érdemes egy telefonon ránézni, hogy semmi nem csúszik az
+állapotsor vagy a navigációs sáv alá.
+
 1. Google Play Console fiók (egyszeri $25).
 2. Töltsd fel a workflow által készített **AAB**-t (`Breaker-vX.Y.Z.aab`).
 3. Első feltöltéskor engedélyezd a **Play App Signing**-ot.

@@ -1,7 +1,7 @@
 # Android — build és futtatás
 
 ## Előfeltételek
-- Android SDK (API 34), JDK 17
+- Android SDK (API 36), JDK 17
 - `local.properties` a `sdk.dir` beállítással, vagy `ANDROID_HOME` env
 
 ## Build

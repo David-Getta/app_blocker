@@ -6,12 +6,16 @@ plugins {
 
 android {
     namespace = "hu.breaker.app"
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "hu.breaker.app"
         minSdk = 26
-        targetSdk = 34
+        // API 36 (Android 16): a Google Play 2026. augusztus 31. óta csak erre
+        // célzó frissítést fogad. A 35-től a rendszer a tartalmat a rendszer-
+        // sávok mögé rajzolja (edge-to-edge) — a felület ezért a biztonságos
+        // területen tartja magát (MainActivity, BreakerApp).
+        targetSdk = 36
         // A CI a git tagből állítja be (BREAKER_VERSION_*). Helyi buildhez marad a default.
         versionCode = (System.getenv("BREAKER_VERSION_CODE") ?: "1").toInt()
         versionName = System.getenv("BREAKER_VERSION_NAME") ?: "0.1.0"

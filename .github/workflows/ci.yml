@@ -341,4 +341,6 @@ jobs:
         with:
           packages: ''
       - run: chmod +x gradlew
-      - run: ./gradlew assembleDebug --no-daemon
+      # A lintVitalRelease az, ami a kiadás buildjét (assembleRelease) megállítja
+      # egy végzetes lint-hibán — itt minden pushnál lefut, nem csak a kiadáskor.
+      - run: ./gradlew assembleDebug lintVitalRelease --no-daemon
