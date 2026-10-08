@@ -1050,6 +1050,20 @@ function renderFocusCard(st: StatusData): void {
     runBox.appendChild(h('div', 'hint',
       pack ? `${pack.name} — mehet: ${[...pack.allowSites, ...pack.allowApps].join(', ') || 'semmi'}`
         : 'Ismeretlen csomag.'));
+    // Egy MÁSIK csomag heti ablaka a futó menetre rárétegződik (focus.ts
+    // `effectivePack`): nem állítja le, de amíg tart, ő is szól. Kimondjuk,
+    // különben a felhasználó azt látná, hogy a csomagja engedi, a böngésző
+    // mégis zár.
+    const overlays = st.focusEffective?.overlays ?? [];
+    if (st.focusEffective && overlays.length > 0) {
+      const one = overlays.length === 1;
+      const names = overlays.map((o) =>
+        `${o.name} (${new Date(o.endsAt).toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' })}-ig)`).join(', ');
+      const now = [...st.focusEffective.allowSites, ...st.focusEffective.allowApps].join(', ') || 'semmi';
+      runBox.appendChild(h('div', 'hint focus-overlay',
+        `Közben ${one ? 'egy heti ablak is tart' : 'heti ablakok is tartanak'}: ${names}. `
+        + `Amíg ${one ? 'tart' : 'tartanak'}, csak az mehet, amit ${one ? 'mindkét' : 'mindegyik'} csomag enged — most: ${now}.`));
+    }
     const actions = h('div', 'focus-actions');
     for (const min of FOCUS_EXTEND_MIN) {
       const b = h('button', 'btn btn-small', `+${min} perc`);

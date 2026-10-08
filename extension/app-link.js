@@ -322,6 +322,12 @@ export async function loadLink() {
       allowSites: Array.isArray(focus.allowSites)
         ? focus.allowSites.filter((h) => typeof h === 'string' && h)
         : [],
+      // A futó menet SAJÁT csomagjának listája, a rárétegződő ablakok metszete
+      // nélkül — app nélkül ebből számolunk (lásd `effectiveFocus`). Régi app
+      // nem küldi: akkor null, és a fenti, metszett lista marad az alap.
+      packAllowSites: Array.isArray(focus.packAllowSites)
+        ? focus.packAllowSites.filter((h) => typeof h === 'string' && h)
+        : null,
       // A heti ablak szerint indult (nem gombnyomásra): a felugró és a tiltó
       // lap ezt kimondja, hogy aki nem maga indította, tudja, miért fut.
       window: focus.window === true,
@@ -677,12 +683,16 @@ export function dueForRefresh(link, now) {
  * A MOST hatásos munkamenet: { name, endsAt, allowSites, window } — vagy null.
  *
  * Amíg az app friss szava megvan (FOCUS_FRESH_MS), az dönt: ő tudja, fut-e
- * menet, és hogy egy ablakét már leállították-e (kifizetett próbatétellel).
+ * menet, és hogy egy ablakét már leállították-e (kifizetett próbatétellel) —
+ * a listája a most hatásos, a rárétegződő ablakok metszete már benne.
+ *
  * Ha az app régebben szólt — bezárták, vagy nem válaszol —, a tárolt heti
- * ablakok közül a most tartó is érvényes: a segéd az app nélkül is elindítja
- * a menetét, és a böngészőben különben senki nem tartaná be. Ilyenkor az
- * ablak előbbre való, mint egy tárolt kézi menet — a segéd is lezárja a kézi
- * menetet az ablak kezdetén.
+ * ablakok közül a most tartók is érvényesek: a segéd az app nélkül is
+ * betartja őket, és a böngészőben különben senki nem tenné. Ugyanúgy, mint a
+ * segédben (focus.ts `effectivePack`): a futó menetet az ablak NEM váltja ki,
+ * hanem rárétegződik — a lista a menet saját csomagjának és a most tartó
+ * ablakoknak a METSZETE. Ha nem fut menet, az elsőként kezdődő ablak a menet
+ * (a segéd is azt indítja), a többi arra rétegződik.
  *
  * A lejáratot HELYBEN nézzük: ha az appot bezárták, a menet a saját idejéig
  * tart — de egy perccel sem tovább.
@@ -693,9 +703,28 @@ export function effectiveFocus(link, now = Date.now()) {
     ? { name: f.name, endsAt: f.endsAt, allowSites: f.allowSites ?? [], window: f.window === true }
     : null;
   if (appFresh(link, now)) return live;
-  const w = (f?.windows ?? []).find((o) => o.startsAt <= now && now < o.endsAt);
-  if (w) return { name: w.name, endsAt: w.endsAt, allowSites: w.allowSites, window: true };
-  return live;
+  const ws = (f?.windows ?? []).filter((o) => o.startsAt <= now && now < o.endsAt);
+  // A futó menet alapja a SAJÁT listája: a tárolt `allowSites` a lehúzáskor
+  // tartó ablakok metszete — egy azóta véget ért ablak szűkítése nem ragadhat
+  // rá. Régi app nem küldi: akkor a tárolt lista (szigorúbb, nem lazább).
+  const base = live
+    ? { ...live, allowSites: f.packAllowSites ?? live.allowSites }
+    : ws.length > 0 ? { name: ws[0].name, endsAt: ws[0].endsAt, allowSites: ws[0].allowSites, window: true } : null;
+  if (!base) return null;
+  let sites = base.allowSites;
+  for (const w of ws) sites = intersectSites(sites, w.allowSites);
+  return { ...base, allowSites: sites };
+}
+
+/**
+ * Két engedett-lista metszete az aldomain-szabállyal: ami MINDKETTŐN átmegy.
+ * A `google.com` és a `translate.google.com` metszete a `translate.google.com`
+ * — a mag `intersectPacks`-ének oldal-fele.
+ */
+export function intersectSites(a, b) {
+  const covers = (list, h) => list.some((x) => h === x || h.endsWith(`.${x}`));
+  const out = [...a.filter((h) => covers(b, h)), ...b.filter((h) => covers(a, h))];
+  return out.filter((h, i) => out.indexOf(h) === i);
 }
 
 /**
@@ -707,12 +736,13 @@ export function effectiveFocus(link, now = Date.now()) {
  * el is indul. Csak az utolsó `SOON_BANNER_MS`-ben, és csak ha ez az oldal
  * NINCS a csomagban (egyezés vagy aldomain, mint a `focusAllows`-nál).
  *
- * Futó menet mellett is szól, ha a lapot az most engedi: az ablak kezdetén a
- * segéd egy MÁSIK csomag kézi menetét lezárja (a mag `windowRunStartingSoon`-
- * jának szabálya), és ami eddig ment, figyelmeztetés nélkül zárulna. Ha a
- * futó menet nem engedi, a lap már zárva — nincs mit előre mondani. A csomag
- * SAJÁT menete mellett az ablak nem indít újat, de akkor a két lista ugyanaz,
- * tehát az engedett lap az ablakban is engedett: a szűrő ezt magától kiveszi.
+ * Futó menet mellett is szól, ha a lapot az most engedi: az ablak egy MÁSIK
+ * csomag menetére rárétegződik (a mag `windowRunStartingSoon`-jának és
+ * `effectivePack`-jének szabálya), és ami eddig ment, de az ablak nem engedi,
+ * figyelmeztetés nélkül zárulna. Ha a futó menet nem engedi, a lap már zárva
+ * — nincs mit előre mondani. A csomag SAJÁT menete mellett az ablak nem
+ * indít újat, de akkor a két lista ugyanaz, tehát az engedett lap az
+ * ablakban is engedett: a szűrő ezt magától kiveszi.
  */
 export function focusStartingSoonFor(link, host, now = Date.now()) {
   const h = String(host ?? '').trim().toLowerCase().replace(/\.+$/, '');

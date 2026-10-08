@@ -68,6 +68,12 @@ interface Status {
   focusStreak?: number;
   /** a leghosszabb sorozat — a láb a mostani mellett, zárójelben mondja */
   focusLongestStreak?: number;
+  /** a futó menet alatt MOST hatásos lista és a rárétegződő heti ablakok (focus.ts `effectivePack`) */
+  focusEffective?: {
+    allowSites: string[];
+    allowApps: string[];
+    overlays: { packId: string; name: string; endsAt: number }[];
+  } | null;
   now: number;
 }
 
@@ -239,10 +245,22 @@ function render(): void {
     // telefonok és a bővítmény ugyanezt mondja.
     if (isWindowRun(run, status.focusPacks)) left.append(document.createTextNode(' · a heti ablak szerint indult'));
     box.appendChild(left);
+    // A HATÁSOS lista: ha közben egy másik csomag heti ablaka is tart, a kettő
+    // metszete (focus.ts `effectivePack`) — és kimondjuk, miért szűkebb.
+    const eff = status.focusEffective;
+    const overlays = eff?.overlays ?? [];
+    const list = eff ? [...eff.allowSites, ...eff.allowApps]
+      : pack ? [...pack.allowSites, ...pack.allowApps] : [];
     box.appendChild(h('div', 'what',
-      pack && pack.allowSites.length + pack.allowApps.length > 0
-        ? `Most csak ez mehet: ${[...pack.allowSites, ...pack.allowApps].join(', ')}`
-        : 'Ebben a csomagban nincs engedélyezett tétel — minden tiltva.'));
+      list.length > 0 ? `Most csak ez mehet: ${list.join(', ')}`
+        : overlays.length > 0 ? 'Most semmi nem mehet: a csomagoknak nincs közös tétele — minden tiltva.'
+          : 'Ebben a csomagban nincs engedélyezett tétel — minden tiltva.'));
+    if (overlays.length > 0) {
+      const one = overlays.length === 1;
+      box.appendChild(h('div', 'what',
+        `Közben ${overlays.map((o) => o.name).join(', ')} heti ablaka is tart — amíg tart, `
+        + `csak az mehet, amit ${one ? 'mindkét' : 'mindegyik'} csomag enged.`));
+    }
     body.appendChild(box);
 
     const row = h('div', 'mins');

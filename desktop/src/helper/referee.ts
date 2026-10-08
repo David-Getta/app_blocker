@@ -32,7 +32,7 @@ import { hostnameBelongsTo, MAX_HOSTNAMES_PER_SITE, normalizeHostname } from '..
 import {
   closeIfEnded, closeRun, dueRecurrence, isRecurrenceLoosening, isRunning, isSessionLoosening,
   isWindowRun, MAX_FOCUS_LOG, MAX_RUN_CUTS, normalizeMinutes, normalizeRecurrence, runOrigin,
-  sameRecurrence, type FocusPack, type FocusRun,
+  sameRecurrence, windowRunFor, type FocusPack, type FocusRun,
 } from '../shared/focus';
 import type { AbandonRec, HelperState, SessionRec } from './state';
 import { newId } from './state';
@@ -979,16 +979,19 @@ export function tick(state: HelperState, now: number): boolean {
   }
   // MENETREND SZERINTI INDÍTÁS. Az ablakban, ha nem fut semmi, és a napló
   // szerint ebben az ablakban még nem indult, a csomag menete magától indul —
-  // az ablak kezdésével és végével (focus.ts: „az ablak az ígéret”). A
-  // telefon ugyanezt teszi; a szinkron a két azonos menetet egynek látja.
+  // az ablak végéig (focus.ts: „az ablak az ígéret”). A telefon ugyanezt
+  // teszi; a szinkron a két azonos menetet egynek látja.
+  //
+  // Egy MÁSIK csomag futó menetét az ablak NEM állítja le — eddig igen, és
+  // mivel ablakot felvenni ingyen van, egy most kezdődő, kétperces ablak egy
+  // laza csomagra próbatétel nélkül véget vetett egy kétórás menetnek. Most
+  // az ablak rárétegződik (focus.ts `effectivePack`: amíg tart, csak az
+  // mehet, amit mindkét csomag enged), a saját menete pedig akkor indul, ha a
+  // futó menet véget ér, és az ablakból még van hátra — onnan, ahol az véget
+  // ért (`windowRunFor`), hogy a napló ne írja kétszer ugyanazt az órát.
   const due = dueRecurrence(state.focusPacks ?? [], state.focusRun, state.focusLog, now);
-  if (due) {
-    // Egy MÁSIK csomag kézi menete az ablak kezdetén véget ér — az ablak az
-    // ígéret. A naplóba a saját idejével kerül, nem leállítottként: nem a
-    // felhasználó állította le, az ablak jött. (A csomag saját menete mellett
-    // a `dueRecurrence` nem ad esedékest.)
-    if (isRunning(state.focusRun, now)) logFocusEnd(state, now, false);
-    state.focusRun = { packId: due.pack.id, startedAt: due.startsAt, endsAt: due.endsAt };
+  if (due && !isRunning(state.focusRun, now)) {
+    state.focusRun = windowRunFor(due, state.focusLog, now);
     dirty = true;
   }
   return dirty;

@@ -20,7 +20,7 @@ import {
 import { normalizeRule } from '../shared/urlrules';
 import {
   lastUsedPack, focusDaySeries, focusDayStreak, focusLongestStreak, focusByWeekday, focusByHour, peakFocusHour, isRunning, normalizePack, spentWindows, summarizeFocus, upcomingWindows, summarizeFocusPrevWeek,
-  windowRunsByPack, windowRunStartingSoon,
+  windowRunsByPack, windowRunStartingSoon, dueRecurrences, effectivePack,
 } from '../shared/focus';
 import { burstTripsInDays, noteBurstTrip, noteBurstUsage, normalizeBurst, type BurstRule } from '../shared/burst';
 import { LOCKDOWN_CHOICES_MIN } from '../shared/lockdown';
@@ -162,6 +162,17 @@ export function statusOf(
     focusWindowSoon: (() => {
       const soon = windowRunStartingSoon(state.focusPacks ?? [], state.focusRun, state.focusLog, now);
       return soon ? { packId: soon.pack.id, name: soon.pack.name, startsAt: soon.startsAt, endsAt: soon.endsAt } : null;
+    })(),
+    // A futó menet alatt MOST hatásos fehérlista: a menet csomagja, metszve a
+    // közben tartó más heti ablakokkal. A bővítmény és a réteg ezt kapja — az
+    // ablak nem állítja le a menetet, de amíg tart, ő is szól.
+    focusEffective: (() => {
+      const packs = state.focusPacks ?? [];
+      const eff = effectivePack(packs, state.focusRun, state.focusLog, now);
+      if (!eff) return null;
+      const overlays = dueRecurrences(packs, state.focusRun, state.focusLog, now)
+        .map((d) => ({ packId: d.pack.id, name: d.pack.name, endsAt: d.endsAt }));
+      return { allowSites: eff.allowSites, allowApps: eff.allowApps, overlays };
     })(),
     tier: computeTier(state.unlockLog, now),
     unlocks7d: state.unlockLog.filter((t) => t >= now - 7 * 24 * 3600_000).length,

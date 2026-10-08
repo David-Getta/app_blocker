@@ -276,6 +276,17 @@ export interface StatusData {
    */
   focusWindowSoon?: { packId: string; name: string; startsAt: number; endsAt: number } | null;
   /**
+   * A futó menet alatt MOST hatásos fehérlista (`effectivePack`): a menet
+   * csomagja, metszve a közben tartó MÁS heti ablakokkal — és azok az ablakok
+   * (`overlays`), hogy a felület megmondhassa, miért szűkebb. Null, ha nem fut
+   * menet. A böngésző-híd és a réteg ezt kapja, nem a csomagot.
+   */
+  focusEffective?: {
+    allowSites: string[];
+    allowApps: string[];
+    overlays: { packId: string; name: string; endsAt: number }[];
+  } | null;
+  /**
    * Miért nem megy a munkamenet szinkronja, ha nem megy.
    *
    * A munkamenet köre szándékosan nem állítja meg az egész szinkront (a

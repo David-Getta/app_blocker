@@ -143,7 +143,17 @@ export interface BridgeFocus {
   name?: string;
   /** mikor jár le — a tiltó lap ebből mondja meg, mennyi van hátra */
   endsAt?: number;
+  /**
+   * A MOST hatásos lista: a menet csomagja, metszve a közben tartó más heti
+   * ablakokkal (focus.ts `effectivePack`).
+   */
   allowSites?: string[];
+  /**
+   * A futó menet SAJÁT csomagjának listája, metszet nélkül. Ha az app nem
+   * válaszol, a bővítmény ebből és az épp tartó ablakokból számolja a
+   * metszetet — így egy közben véget ért ablak szűkítése nem ragad rá.
+   */
+  packAllowSites?: string[];
   /** a heti ablak szerint indult, nem gombnyomásra — a vége az ablak vége */
   window?: boolean;
   /**

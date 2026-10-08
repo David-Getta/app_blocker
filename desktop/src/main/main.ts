@@ -451,7 +451,11 @@ if (HELPER_MODE) {
             running: true,
             name: pack?.name,
             endsAt: run.endsAt,
-            allowSites: pack?.allowSites ?? [],
+            // A HATÁSOS lista: ha közben egy másik csomag heti ablaka is tart,
+            // a kettő metszete — az ablak nem állítja le a menetet, de amíg
+            // tart, ő is szól (`effectivePack`).
+            allowSites: s.focusEffective?.allowSites ?? pack?.allowSites ?? [],
+            packAllowSites: pack?.allowSites ?? [],
             // Aki nem maga indította, a böngészőben is tudja meg, miért fut.
             window: isWindowRun(run, packs),
             windows,
@@ -653,7 +657,12 @@ if (HELPER_MODE) {
             usageEnabled = st.usageEnabled;
             const run = st.focusRun;
             focusEndsAt = run && run.endsAt > Date.now() ? run.endsAt : null;
-            focusPack = run ? (st.focusPacks ?? []).find((p) => p.id === run.packId) ?? null : null;
+            const own = run ? (st.focusPacks ?? []).find((p) => p.id === run.packId) ?? null : null;
+            // A hatásos lista a réteg figyelmeztetéséhez is: amíg egy másik
+            // csomag heti ablaka is tart, a kettő metszete.
+            focusPack = own && st.focusEffective
+              ? { ...own, allowSites: st.focusEffective.allowSites, allowApps: st.focusEffective.allowApps }
+              : own;
             focusStartedAt = run ? run.startedAt : 0;
             if (!focusEndsAt) lastAppWarnAt = null;
           })

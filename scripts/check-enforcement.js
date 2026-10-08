@@ -2908,6 +2908,48 @@ const WIRES = [
     needle: 'if let due = Focus.dueRecurrence(',
     lost: 'az iPhone-on az ablak sosem indítana menetet — a gép nélkül a reggel szabad lenne',
   },
+  // A RÁRÉTEGZŐDŐ ABLAK. Egy másik csomag futó menetét az ablak nem állítja
+  // le (ablakot felvenni ingyen van — egy most kezdődő, kétperces ablak így
+  // próbatétel nélkül véget vetett egy kétórás menetnek), hanem rárétegződik:
+  // amíg tart, csak az mehet, amit mindkét csomag enged. Ha a lánc bármelyik
+  // szeme kiesik, vagy megint a leállítás, vagy az ablak listája nem
+  // érvényesül a futó menet alatt — csendben.
+  {
+    file: 'desktop/src/helper/referee.ts',
+    needle: 'if (due && !isRunning(state.focusRun, now)) {',
+    lost: 'az ablak a kezdetén megint lezárná a futó menetet — egy ingyen felvett ablak '
+      + 'próbatétel nélkül véget vetne egy hosszú menetnek',
+  },
+  {
+    file: 'desktop/src/helper/referee.ts',
+    needle: 'state.focusRun = windowRunFor(due, state.focusLog, now);',
+    lost: 'a rárétegződés utáni ablak-menet az ablak kezdetével indulna — a napló '
+      + 'ugyanazt az órát kétszer írná, a heti összegző többet mondana, mint amennyi volt',
+  },
+  {
+    file: 'desktop/src/helper/server.ts',
+    needle: 'const eff = effectivePack(packs, state.focusRun, state.focusLog, now);',
+    lost: 'a segéd nem mondaná meg a hatásos listát — a futó menet alatt a rárétegződő '
+      + 'ablak sehol nem érvényesülne a gépen',
+  },
+  {
+    file: 'desktop/src/main/main.ts',
+    needle: 'allowSites: s.focusEffective?.allowSites ?? pack?.allowSites ?? [],',
+    lost: 'a híd a futó menet csomagjának listáját küldené, nem a hatásosat — az ablak '
+      + 'alatt a böngésző a tágabb listát engedné',
+  },
+  {
+    file: 'desktop/src/main/main.ts',
+    needle: 'focusPack = own && st.focusEffective',
+    lost: 'az app-figyelmeztetés a csomag listáját nézné, nem a hatásosat — az ablak '
+      + 'alatt egy nem engedett app szó nélkül futhatna',
+  },
+  {
+    file: 'extension/app-link.js',
+    needle: 'for (const w of ws) sites = intersectSites(sites, w.allowSites);',
+    lost: 'app nélkül a böngésző a futó menet vagy az ablak listáját engedné, nem a '
+      + 'kettő metszetét',
+  },
   {
     file: 'desktop/src/helper/server.ts',
     needle: 'referee.setFocusRecurrence(',

@@ -51,6 +51,7 @@ interface Shipped {
     name: string; endsAt: number; allowSites: string[]; window: boolean;
   } | null;
   focusAllows: (link: Link, host: string, now?: number) => boolean;
+  intersectSites: (a: string[], b: string[]) => string[];
 }
 
 /**
@@ -68,12 +69,13 @@ function loadShipped(): Shipped {
     exportedFunction(src, 'appFresh(link, now = Date.now())'),
     exportedFunction(src, 'effectiveFocus(link, now = Date.now())'),
     exportedFunction(src, 'focusAllows(link, host, now = Date.now())'),
+    exportedFunction(src, 'intersectSites(a, b)'),
   ].join('\n');
   // eslint-disable-next-line no-new-func
-  return new Function(`${body}\nreturn { FOCUS_FRESH_MS, effectiveFocus, focusAllows };`)() as Shipped;
+  return new Function(`${body}\nreturn { FOCUS_FRESH_MS, effectiveFocus, focusAllows, intersectSites };`)() as Shipped;
 }
 
-const { FOCUS_FRESH_MS, effectiveFocus, focusAllows } = loadShipped();
+const { FOCUS_FRESH_MS, effectiveFocus, focusAllows, intersectSites } = loadShipped();
 
 /** Egy friss lehúzás egy futó menettel — ilyenkor az app élő szava dönt. */
 const NOW = 1_700_000_000_000;
@@ -167,22 +169,91 @@ test('ha az app hallgat, a most tartó ablak él a böngészőben', () => {
   assert.equal(effectiveFocus(link, NOW + 3600_000 - 1), null, 'előtte nincs');
 });
 
-test('app nélkül az ablak előbbre való, mint a tárolt kézi menet', () => {
-  // A segéd az ablak kezdetén a kézi menetet lezárja és az ablakét indítja —
-  // a böngésző ugyanezt teszi, különben a régi menet listája engedne át.
+test('app nélkül az ablak a tárolt kézi menetre RÁRÉTEGZŐDIK: a kettő metszete él', () => {
+  // A segéd a kézi menetet nem állítja le az ablak kezdetén — ablakot felvenni
+  // ingyen van, és egy most kezdődő ablak így próbatétel nélkül véget vetett
+  // egy hosszú menetnek. Amíg az ablak tart, a kettő metszetét tartja be; a
+  // böngésző ugyanezt teszi, különben a régi menet listája engedne át.
   const link = {
     fetchedAt: NOW,
     focus: {
-      running: true, name: 'Kézi', endsAt: NOW + 3 * 3600_000, allowSites: ['youtube.com'],
+      running: true, name: 'Kézi', endsAt: NOW + 3 * 3600_000,
+      allowSites: ['youtube.com', 'github.com'], packAllowSites: ['youtube.com', 'github.com'],
       windows: [win(NOW + 3600_000, NOW + 7200_000)],
     },
   };
   const during = NOW + 3600_000 + 60_000;
-  assert.equal(effectiveFocus(link, during)?.name, 'Mély munka');
-  assert.equal(focusAllows(link, 'youtube.com', during), false);
-  // Az ablak után a kézi menet a saját idejéig tart, ahogy eddig.
-  assert.equal(effectiveFocus(link, NOW + 7200_000 + 60_000)?.name, 'Kézi');
+  const eff = effectiveFocus(link, during);
+  assert.equal(eff?.name, 'Kézi', 'a futó menet marad');
+  assert.equal(eff?.endsAt, NOW + 3 * 3600_000, 'a saját idejével');
+  assert.deepEqual(eff?.allowSites, ['github.com'], 'amit mindkettő enged');
+  assert.equal(focusAllows(link, 'youtube.com', during), false, 'amit az ablak nem enged, zárva');
+  assert.equal(focusAllows(link, 'gist.github.com', during), true);
+  // Az ablak után a kézi menet a saját listájával tart, a saját idejéig.
+  assert.equal(focusAllows(link, 'youtube.com', NOW + 7200_000 + 60_000), true);
   assert.equal(effectiveFocus(link, NOW + 3 * 3600_000), null);
+});
+
+test('app nélkül a már metszett tárolt lista nem ragad a menetre az ablak után', () => {
+  // Az app az ablak alatt szólt utoljára: a tárolt lista a metszet. Az ablak
+  // után a menet SAJÁT listája él — különben az ablak szűkítése a menet
+  // végéig rajta maradna.
+  const link = {
+    fetchedAt: NOW + 3600_000 + 60_000,
+    focus: {
+      running: true, name: 'Kézi', endsAt: NOW + 3 * 3600_000,
+      allowSites: ['github.com'], packAllowSites: ['youtube.com', 'github.com'],
+      windows: [win(NOW + 3600_000, NOW + 7200_000)],
+    },
+  };
+  const after = NOW + 7200_000 + 60_000;
+  assert.ok(after - link.fetchedAt > FOCUS_FRESH_MS, 'az app már nem friss');
+  assert.deepEqual(effectiveFocus(link, after)?.allowSites, ['youtube.com', 'github.com']);
+  // Régi app (a saját lista nélkül): a tárolt lista az alap — szigorúbb,
+  // nem lazább.
+  const old = { ...link, focus: { ...link.focus, packAllowSites: undefined } };
+  assert.deepEqual(effectiveFocus(old, after)?.allowSites, ['github.com']);
+});
+
+test('app nélkül, menet nélkül: az elsőként kezdődő ablak a menet, a többi rárétegződik', () => {
+  const link = {
+    fetchedAt: 0,
+    focus: {
+      running: false,
+      windows: [
+        win(NOW, NOW + 3600_000, ['github.com', 'youtube.com']),
+        { ...win(NOW + 600_000, NOW + 7200_000, ['github.com']), packId: 'p2', name: 'Másik' },
+      ],
+    },
+  };
+  assert.deepEqual(effectiveFocus(link, NOW + 60_000)?.allowSites, ['github.com', 'youtube.com']);
+  const both = effectiveFocus(link, NOW + 700_000);
+  assert.equal(both?.name, 'Mély munka');
+  assert.deepEqual(both?.allowSites, ['github.com']);
+  assert.equal(effectiveFocus(link, NOW + 3600_000 + 60_000)?.name, 'Másik');
+});
+
+test('intersectSites: a metszet az aldomain-szabállyal — a mag `intersectPacks`-ével egyezik', () => {
+  assert.deepEqual(intersectSites(['google.com'], ['translate.google.com']), ['translate.google.com']);
+  assert.deepEqual(intersectSites(['translate.google.com'], ['google.com']), ['translate.google.com']);
+  assert.deepEqual(intersectSites(['a.com', 'b.com'], ['b.com', 'c.com']), ['b.com']);
+  assert.deepEqual(intersectSites(['a.com'], []), []);
+  assert.deepEqual(intersectSites(['notgoogle.com'], ['google.com']), [], 'a végén hasonló név nem aldomain');
+  // Ugyanaz a kérdés, mint az appé: minden hosztra a metszet pontosan azt
+  // engedi, amit mindkét lista.
+  const lists = [['google.com'], ['translate.google.com', 'github.com'], ['github.com', 'gist.github.com'], []];
+  for (const a of lists) {
+    for (const b of lists) {
+      const cut = intersectSites(a, b);
+      for (const c of CASES) {
+        assert.equal(
+          isSiteAllowed(pack(cut), c.host),
+          isSiteAllowed(pack(a), c.host) && isSiteAllowed(pack(b), c.host),
+          `${JSON.stringify(a)} ∩ ${JSON.stringify(b)} @ ${c.host}`,
+        );
+      }
+    }
+  }
 });
 
 test('soha nem lehúzott kapcsolatnál is a tárolt ablak dönt (nincs friss szó)', () => {

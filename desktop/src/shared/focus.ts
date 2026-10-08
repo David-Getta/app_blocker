@@ -986,15 +986,17 @@ export function windowRunStarted(
 export interface DueRecurrence extends Occurrence { pack: FocusPack }
 
 /**
- * Melyik csomag ablaka esedékes MOST — vagy null.
+ * Melyik csomag ablaka esedékes MOST — vagy null. Az első a `dueRecurrences`
+ * listájából.
  *
- * Nem indul, ha a csomag SAJÁT menete fut; ha a naplóban ott az ablak saját
+ * Nem esedékes, ha a csomag SAJÁT menete fut; ha a naplóban ott az ablak saját
  * menete (leállítva vagy lerövidítve — a próbatétel ára ki van fizetve); vagy
- * ha egy percnél kevesebb van hátra. Egy MÁSIK csomag kézi menete nem tartja
- * vissza: a hívó (a referee köre) zárja le az ablak kezdetén — különben egy
- * 8:59-kor indított, nyolcórás eldobható menet az egész ablakot kiváltaná,
- * próbatétel nélkül. Több esedékes ablak közül a korábban kezdődő, azonos
- * kezdésnél a kisebb azonosítójú — hogy minden eszköz ugyanazt válassza.
+ * ha egy percnél kevesebb van hátra. Egy MÁSIK csomag menete alatt az ablak
+ * RÁRÉTEGZŐDIK (`effectivePack`): a menet nem áll le, de amíg az ablak tart,
+ * csak az mehet, amit mindkét csomag enged. A menete akkor indul, ha a futó
+ * menet véget ér, és az ablakból még van hátra. Több esedékes ablak közül a
+ * korábban kezdődő, azonos kezdésnél a kisebb azonosítójú — hogy minden eszköz
+ * ugyanazt válassza.
  */
 export function dueRecurrence(
   packs: FocusPack[],
@@ -1002,7 +1004,21 @@ export function dueRecurrence(
   log: FocusLogEntry[] | undefined,
   now: number,
 ): DueRecurrence | null {
-  let best: DueRecurrence | null = null;
+  return dueRecurrences(packs, run, log, now)[0] ?? null;
+}
+
+/**
+ * Az összes MOST esedékes ablak, a `dueRecurrence` sorrendjében (korábbi
+ * kezdés, aztán a kisebb azonosító kódegységenként). Egy futó menet alatt
+ * mindegyik rárétegződik (`effectivePack`).
+ */
+export function dueRecurrences(
+  packs: FocusPack[],
+  run: FocusRun | null | undefined,
+  log: FocusLogEntry[] | undefined,
+  now: number,
+): DueRecurrence[] {
+  const out: DueRecurrence[] = [];
   for (const pack of packs) {
     const band = pack.recurrence;
     if (!band || !isValidBand(band)) continue;
@@ -1011,12 +1027,74 @@ export function dueRecurrence(
     if (!occ) continue;
     if (occ.endsAt - now < RECURRENCE_MIN_REMAINING_MS) continue;
     if (spentIn(log, pack.id, occ, now)) continue;
-    if (!best || occ.startsAt < best.startsAt
-      || (occ.startsAt === best.startsAt && pack.id < best.pack.id)) {
-      best = { pack, ...occ };
-    }
+    out.push({ pack, ...occ });
   }
-  return best;
+  return out.sort((x, y) => (x.startsAt - y.startsAt) || (x.pack.id < y.pack.id ? -1 : x.pack.id > y.pack.id ? 1 : 0));
+}
+
+/**
+ * A futó menet alatt MOST hatásos csomag — vagy null, ha nem fut menet (vagy a
+ * csomagja nincs meg).
+ *
+ * A menet csomagja, és ha közben egy MÁSIK csomag heti ablaka is tart (és az
+ * ablakot nem állították le), annak a fehérlistája IS: METSZET. Eddig az ablak
+ * a kezdetén leállította a futó kézi menetet — és mivel ablakot felvenni ingyen
+ * van, egy most kezdődő, kétperces ablak egy laza csomagra próbatétel nélkül
+ * véget vetett egy kétórás menetnek. Most egyik sem enged a másikból: a menet
+ * fut tovább, az ablak alatt pedig csak az mehet, amit mindkettő enged. Így egy
+ * 8:59-kor indított, laza „eldobható” menet sem váltja ki az ablakot.
+ *
+ * A neve és a hossza a menet csomagjáé. Az oldal-lista PONTOS metszet (az
+ * aldomain-szabállyal: a `google.com` és a `translate.google.com` metszete a
+ * `translate.google.com`). Az app-lista a laza app-egyezés miatt csak
+ * közelítés — az appot a menet csak jelzi, nem tiltja.
+ */
+export function effectivePack(
+  packs: FocusPack[],
+  run: FocusRun | null | undefined,
+  log: FocusLogEntry[] | undefined,
+  now: number,
+): FocusPack | null {
+  if (!run || !isRunning(run, now)) return null;
+  const own = packs.find((p) => p.id === run.packId);
+  if (!own) return null;
+  let out = own;
+  for (const due of dueRecurrences(packs, run, log, now)) out = intersectPacks(out, due.pack);
+  return out;
+}
+
+/**
+ * Az esedékes ablak menete: az ablak végéig — és az ablak kezdetétől, vagy ha
+ * az ablakban előbb egy másik menet futott (az ablak arra rárétegződött), ott
+ * kezdődik, ahol az véget ért. Különben a napló ugyanazt az órát kétszer írná,
+ * egyszer a futó menetnél, egyszer az ablakénál, és a heti összegző többet
+ * mondana, mint amennyi volt. Az azonossága ilyenkor is az ablak kezdete
+ * (`origin`): a szinkron és az „elköltve” ehhez az ablakhoz köti.
+ *
+ * Ha az eszköz az ablak kezdetén aludt, és menet sem futott, a menet az ablak
+ * kezdetével indul, mint eddig — az ablak az ígéret.
+ */
+export function windowRunFor(due: DueRecurrence, log: FocusLogEntry[] | undefined, now: number): FocusRun {
+  let start = due.startsAt;
+  for (const e of log ?? []) {
+    if (e.endedAt > start && e.endedAt <= now) start = e.endedAt;
+  }
+  return start > due.startsAt
+    ? { packId: due.pack.id, startedAt: start, endsAt: due.endsAt, origin: due.startsAt }
+    : { packId: due.pack.id, startedAt: due.startsAt, endsAt: due.endsAt };
+}
+
+/** Két csomag fehérlistájának metszete — az első neve, hossza és ablaka marad. */
+export function intersectPacks(a: FocusPack, b: FocusPack): FocusPack {
+  const sites = [
+    ...a.allowSites.filter((s) => isSiteAllowed(b, s)),
+    ...b.allowSites.filter((s) => isSiteAllowed(a, s)),
+  ].filter((s, i, all) => all.indexOf(s) === i);
+  const apps = [
+    ...a.allowApps.filter((x) => isAppAllowed(b, x)),
+    ...b.allowApps.filter((x) => isAppAllowed(a, x)),
+  ].filter((x, i, all) => all.indexOf(x) === i);
+  return { ...a, allowSites: sites, allowApps: apps };
 }
 
 /**
@@ -1074,7 +1152,8 @@ export const WINDOW_SOON_MS = 10 * 60_000;
  * ha a csomag SAJÁT menete fut (az ablak mellé úgysem indul új — lásd
  * `dueRecurrence`); és ha az előfordulás már elköltve (a saját menete a
  * naplóban). Egy MÁSIK csomag futó menete nem hallgattatja el: az ablak
- * kezdetén a kör lezárja. Több közül a korábban induló, azonos kezdésnél a
+ * rárétegződik (`effectivePack`), és amit a futó menet eddig engedett, az
+ * ablak alatt zárulhat. Több közül a korábban induló, azonos kezdésnél a
  * kisebb azonosítójú (kódegység szerint) — ugyanaz a rend, mint az indításé.
  */
 export function windowRunStartingSoon(
@@ -1186,12 +1265,15 @@ export function upcomingWindows(
 
 /**
  * Ablak-menet-e ez a futás: a csomag ismétlődésének egy előfordulása, pontosan
- * annak kezdésével és végével. Az ilyen menetet az óra-ugrás elnyelése nem
- * tolja el — az ablak vége az ablak vége. A meghosszabbított menet már nem az.
+ * annak kezdésével (az EREDETI kezdés, `runOrigin` — a rárétegződés után
+ * később induló ablak-menet is az; lásd `windowRunFor`) és végével. Az ilyen
+ * menetet az óra-ugrás elnyelése nem tolja el — az ablak vége az ablak vége.
+ * A meghosszabbított menet már nem az.
  */
 export function isWindowRun(run: FocusRun, packs: FocusPack[]): boolean {
   const band = packs.find((p) => p.id === run.packId)?.recurrence;
   if (!band) return false;
-  const occ = occurrenceAt(band, run.startedAt);
-  return !!occ && occ.startsAt === run.startedAt && occ.endsAt === run.endsAt;
+  const start = runOrigin(run);
+  const occ = occurrenceAt(band, start);
+  return !!occ && occ.startsAt === start && occ.endsAt === run.endsAt;
 }

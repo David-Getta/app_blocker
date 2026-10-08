@@ -9,7 +9,8 @@
 import { test } from 'node:test';
 import * as assert from 'node:assert/strict';
 import {
-  dueRecurrence, isRecurrenceLoosening, isWindowRun, nextOccurrence, normalizeRecurrence,
+  dueRecurrence, dueRecurrences, effectivePack, intersectPacks, isRecurrenceLoosening, isSiteAllowed, isWindowRun,
+  nextOccurrence, normalizeRecurrence, windowRunFor,
   occurrenceAt, RECURRENCE_MIN_REMAINING_MS, spentWindows, upcomingWindows, windowRunStarted,
   MAX_WINDOW_OCCURRENCES, WINDOW_LOOKAHEAD_DAYS,
   type FocusLogEntry, type FocusPack,
@@ -81,10 +82,74 @@ test('dueRecurrence: a csomag saját futó menete mellett nem indul; a másik cs
   assert.equal(dueRecurrence([pack()], own, [], MON(9, 30)), null, 'a sajátja fut');
   assert.ok(dueRecurrence([pack()], { ...own, endsAt: MON(9, 20) }, [], MON(9, 30)),
     'a lejárt menet nem számít');
-  // Egy MÁSIK csomag kézi menete nem tartja vissza az ablakot — azt a kör
-  // zárja le az ablak kezdetén, különben egy eldobható menet kiváltaná.
+  // Egy MÁSIK csomag kézi menete nem tartja vissza az ablakot — az ablak
+  // rárétegződik (`effectivePack`), különben egy eldobható menet kiváltaná.
   const other = { packId: 'p2', startedAt: MON(8, 59), endsAt: MON(17) };
   assert.ok(dueRecurrence([pack()], other, [], MON(9, 30)), 'a másik csomag menete nem véd');
+});
+
+test('dueRecurrences: minden most esedékes ablak, a dueRecurrence rendjében', () => {
+  const b2 = pack({ id: 'b2' });
+  const a1 = pack({ id: 'a1', recurrence: { days: [1], startMin: 9 * 60 + 30, endMin: 11 * 60 } });
+  const a0 = pack({ id: 'a0' });
+  assert.deepEqual(dueRecurrences([b2, a1, a0], null, [], MON(9, 45)).map((d) => d.pack.id), ['a0', 'b2', 'a1'],
+    'korábbi kezdés, azonos kezdésnél a kisebb azonosító');
+  assert.equal(dueRecurrence([b2, a1, a0], null, [], MON(9, 45))?.pack.id, 'a0', 'a dueRecurrence az első');
+  // A futó menet SAJÁT csomagja kimarad: önmagára nem rétegződik.
+  const own = { packId: 'a0', startedAt: MON(9), endsAt: MON(12) };
+  assert.deepEqual(dueRecurrences([b2, a1, a0], own, [], MON(9, 45)).map((d) => d.pack.id), ['b2', 'a1']);
+});
+
+test('effectivePack: a futó menet csomagja, metszve a közben tartó MÁS ablakokkal', () => {
+  const win = pack({ id: 'w', allowSites: ['translate.google.com', 'github.com'], allowApps: ['Microsoft Word'] });
+  const own = pack({ id: 'm', recurrence: undefined, allowSites: ['google.com', 'youtube.com'], allowApps: ['Word', 'Steam'] });
+  const run = { packId: 'm', startedAt: MON(8), endsAt: MON(13) };
+  const eff = effectivePack([win, own], run, [], MON(10));
+  assert.equal(eff?.id, 'm', 'a neve és a hossza a futó menetéé');
+  assert.deepEqual(eff?.allowSites, ['translate.google.com'], 'oldalra pontos metszet, aldomainnel');
+  assert.deepEqual(eff?.allowApps, ['Word', 'Microsoft Word'], 'appra a laza egyezés szerint — közelítés');
+  assert.deepEqual(effectivePack([win, own], run, [], MON(12, 30))?.allowSites, ['google.com', 'youtube.com'],
+    'az ablak után a saját listája');
+  assert.equal(effectivePack([win, own], null, [], MON(10)), null, 'menet nélkül nincs');
+  assert.equal(effectivePack([win, own], { ...run, endsAt: MON(9, 30) }, [], MON(10)), null, 'lejárt menettel sincs');
+  assert.equal(effectivePack([win], run, [], MON(10)), null, 'a csomagja nélkül sincs');
+  // A leállított — kifizetett — ablak nem rétegződik rá.
+  const paid: FocusLogEntry = {
+    packId: 'w', packName: 'w', startedAt: MON(9), endedAt: MON(9, 10), plannedEndsAt: MON(12), stopped: true,
+  };
+  assert.deepEqual(effectivePack([win, own], run, [paid], MON(10))?.allowSites, ['google.com', 'youtube.com']);
+});
+
+test('intersectPacks: az oldal-metszet pontosan azt engedi, amit mindkét csomag', () => {
+  const lists = [['google.com'], ['translate.google.com', 'github.com'], ['github.com', 'gist.github.com'], [], ['notgoogle.com']];
+  const hosts = ['google.com', 'translate.google.com', 'a.translate.google.com', 'mail.google.com', 'notgoogle.com',
+    'github.com', 'gist.github.com', 'x.gist.github.com', 'youtube.com'];
+  for (const a of lists) {
+    for (const b of lists) {
+      const cut = intersectPacks(pack({ allowSites: a }), pack({ id: 'q', allowSites: b }));
+      assert.equal(cut.id, 'p1', 'az első csomag marad');
+      for (const h of hosts) {
+        assert.equal(isSiteAllowed(cut, h), isSiteAllowed(pack({ allowSites: a }), h) && isSiteAllowed(pack({ allowSites: b }), h),
+          `${JSON.stringify(a)} ∩ ${JSON.stringify(b)} @ ${h}`);
+      }
+    }
+  }
+});
+
+test('windowRunFor: ott kezdődik, ahol az előző menet véget ért — az azonossága az ablak kezdete', () => {
+  const due = dueRecurrence([pack()], null, [], MON(10))!;
+  assert.deepEqual(windowRunFor(due, [], MON(10)), { packId: 'p1', startedAt: MON(9), endsAt: MON(12) },
+    'alvó gép, menet nélkül: az ablak kezdetével, mint eddig');
+  const prev: FocusLogEntry = {
+    packId: 'p2', packName: 'Más', startedAt: MON(8), endedAt: MON(9, 40), plannedEndsAt: MON(9, 40), stopped: false,
+  };
+  const run = windowRunFor(due, [prev], MON(10));
+  assert.deepEqual(run, { packId: 'p1', startedAt: MON(9, 40), endsAt: MON(12), origin: MON(9) });
+  assert.ok(isWindowRun(run, [pack()]), 'ablak-menet az eredeti kezdés szerint: az óra-ugrás nem tolja');
+  assert.equal(windowRunFor(due, [{ ...prev, endedAt: MON(10, 5) }], MON(10)).startedAt, MON(9), 'a jövőbeli sor nem számít');
+  assert.equal(windowRunFor(due, [{ ...prev, endedAt: MON(8, 50) }], MON(10)).startedAt, MON(9), 'az ablak előtti sem');
+  // A kézzel indított, meghosszabbított menet nem ablak-menet: a vége nem az ablak vége.
+  assert.equal(isWindowRun({ ...run, endsAt: MON(12, 30) }, [pack()]), false);
 });
 
 test('dueRecurrence: a napló az őr — ami ebben az ablakban indult, nem indul újra', () => {
@@ -309,19 +374,44 @@ test('a levétel próbatétele alatt beért ablak menete is a próbatétel ára'
   assert.equal(st.focusRun, null, 'ablak nélkül nem indul újra');
 });
 
-test('egy másik csomag kézi menete az ablak kezdetén véget ér — az ablak az ígéret', () => {
-  // Eddig az ablak várt, amíg a másik menet tart: egy 8:59-kor indított,
-  // nyolcórás eldobható menet az egész ablakot kiváltotta, próbatétel nélkül.
+test('egy másik csomag menetét az ablak NEM állítja le — rárétegződik, a saját menete utána indul', () => {
+  // Eddig az ablak a kezdetén lezárta a másik menetet. Mivel ablakot felvenni
+  // ingyen van, egy most kezdődő, kétperces ablak egy laza csomagra próbatétel
+  // nélkül véget vetett egy kétórás menetnek. Most a menet fut tovább, és amíg
+  // az ablak tart, csak az mehet, amit mindkét csomag enged.
   const st = stateWithPack();
   setFocusRecurrence(st, 'p1', WEEKDAYS, NOW);
-  saveFocusPack(st, { id: 'p2', name: 'Más', allowSites: [], allowApps: [], defaultMinutes: 50 }, NOW);
-  startFocus(st, 'p2', 480, MON(8, 59));
-  assert.equal(tick(st, MON(9, 1)), true);
-  assert.deepEqual(st.focusRun, { packId: 'p1', startedAt: MON(9), endsAt: MON(12) }, 'az ablak jött');
+  saveFocusPack(st, { id: 'p2', name: 'Más', allowSites: ['github.com', 'youtube.com'], allowApps: [], defaultMinutes: 50 }, NOW);
+  startFocus(st, 'p2', 60, MON(8, 59));
+  tick(st, MON(9, 1));
+  assert.deepEqual(st.focusRun, { packId: 'p2', startedAt: MON(8, 59), endsAt: MON(9, 59) }, 'a futó menet marad');
+  assert.equal(st.focusLog?.length ?? 0, 0, 'semmi nem zárult le');
+  const eff = effectivePack(st.focusPacks!, st.focusRun, st.focusLog, MON(9, 1));
+  assert.equal(eff?.id, 'p2', 'a neve és a hossza a futó menetéé');
+  assert.deepEqual(eff?.allowSites, ['github.com'], 'amíg az ablak tart, csak a közös');
+  // A menet végén az ablak menete indul — onnan, ahol a másik véget ért, az
+  // ablak végéig; az azonossága az ablak kezdete. Rendes kör-ütemben, hogy az
+  // óra-ugrás elnyelése ne tolja a menetet.
+  for (let m = 2; m <= 60; m++) tick(st, MON(9) + m * 60_000);
+  assert.deepEqual(st.focusRun, { packId: 'p1', startedAt: MON(9, 59), endsAt: MON(12), origin: MON(9) });
+  assert.ok(isWindowRun(st.focusRun!, st.focusPacks!), 'ablak-menet: a vége az ablak vége');
   const row = st.focusLog!.at(-1)!;
   assert.equal(row.packId, 'p2');
-  assert.equal(row.endedAt, MON(9, 1), 'a másik menet a naplóba a saját idejével');
-  assert.equal(row.stopped, false, 'nem leállítva: az ablak jött');
+  assert.equal(row.endedAt, MON(9, 59), 'a másik menet a saját idejéig tartott');
+  assert.equal(row.stopped, false);
+});
+
+test('a 8:59-kor indított, nyolcórás laza menet sem váltja ki az ablakot: alatta a metszet él', () => {
+  const st = stateWithPack();
+  setFocusRecurrence(st, 'p1', WEEKDAYS, NOW);
+  saveFocusPack(st, { id: 'p2', name: 'Laza', allowSites: ['youtube.com'], allowApps: [], defaultMinutes: 50 }, NOW);
+  startFocus(st, 'p2', 480, MON(8, 59));
+  tick(st, MON(9, 1));
+  assert.equal(st.focusRun?.packId, 'p2');
+  assert.deepEqual(effectivePack(st.focusPacks!, st.focusRun, st.focusLog, MON(9, 1))?.allowSites, [],
+    'a laza csomag listájából az ablak alatt semmi nem marad');
+  assert.deepEqual(effectivePack(st.focusPacks!, st.focusRun, st.focusLog, MON(12, 1))?.allowSites, ['youtube.com'],
+    'az ablak után a saját listája');
 });
 
 test('a saját csomag kézi menete az ablakon belül nem szakad meg, és nem költi el az ablakot', () => {
@@ -334,8 +424,9 @@ test('a saját csomag kézi menete az ablakon belül nem szakad meg, és nem kö
   assert.equal(st.focusRun?.startedAt, MON(9) + 5_000, 'a kézi menet marad');
   // Rendes kör-ütemben, hogy az óra-ugrás elnyelése ne tolja a kézi menetet.
   for (let m = 1; m <= 6; m++) tick(st, MON(9, m));
-  assert.deepEqual(st.focusRun, { packId: 'p1', startedAt: MON(9), endsAt: MON(12) },
-    'a kézi menet után az ablak menete indul, az ablak kezdésével');
+  assert.deepEqual(st.focusRun, { packId: 'p1', startedAt: MON(9) + 305_000, endsAt: MON(12), origin: MON(9) },
+    'a kézi menet után az ablak menete indul — ott, ahol a kézi véget ért, hogy a napló ne írja kétszer ugyanazt');
+  assert.ok(isWindowRun(st.focusRun!, st.focusPacks!));
   assert.equal(st.focusLog!.at(-1)!.startedAt, MON(9) + 5_000, 'a kézi menet a naplóban');
 });
 
