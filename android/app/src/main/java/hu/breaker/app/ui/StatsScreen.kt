@@ -29,6 +29,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
@@ -335,7 +337,7 @@ fun StatsSection(
         // csúcs-nap és a menet-nap harmadik fele; a sáv az alakja, hétfőtől.
         FilterHitLogic.peakWeekday(usageWeekdays)?.let { (day, count) ->
             Text(UsageLogic.weekdayText(day to count), style = MaterialTheme.typography.bodySmall)
-            WeekdayStrip(usageWeekdays, peakDay = day, peakCount = count)
+            WeekdayStrip(usageWeekdays, peakDay = day, peakCount = count) { "átlag ${UsageLogic.formatDuration(it / 4.0)}" }
         }
 
         // A MAI NAP KÜLÖN. A csempesorban eddig is volt egy mai szám, de hogy
@@ -489,7 +491,7 @@ private fun FocusStatsBlock(
     Focus.streakText(focusStreak, focusLongestStreak).takeIf { it.isNotEmpty() }?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
     FilterHitLogic.peakWeekday(focusWeekdays)?.let { (day, count) ->
         Text(Focus.weekdayText(day to count), style = MaterialTheme.typography.bodySmall)
-        WeekdayStrip(focusWeekdays, peakDay = day, peakCount = count)
+        WeekdayStrip(focusWeekdays, peakDay = day, peakCount = count) { "$it menet" }
         // AMIKOR A CSÚCS-NAP A MENET-NAP: a tükör két fele egy napra mutat — a sor kimondja.
         Focus.sameDayText(filterHitsWeekday, day to count)?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
     }
@@ -497,7 +499,7 @@ private fun FocusStatsBlock(
     // szerint; a csúcs-óra tükre, az órák sávjával. Menet nélkül nincs.
     Focus.peakHour(focusHours)?.let { (hour, count) ->
         Text(Focus.hourText(hour to count), style = MaterialTheme.typography.bodySmall)
-        HourStrip(focusHours, peakHour = hour, peakCount = count)
+        HourStrip(focusHours, peakHour = hour, peakCount = count) { "$it menet" }
         // LE VAN-E FEDVE: ha egy csomag heti ablaka a menet-órát fedi, a menet
         // magától indul, amikor le szoktál ülni — a statisztika kimondja.
         focusHourPack?.let { Text("A menet-órában magától indul: $it.", style = MaterialTheme.typography.bodySmall) }
@@ -626,10 +628,18 @@ private fun weekdayOf(day: String): Int {
  * sávjának tükre, ugyanabban a mértékben (a csúcs a teljes magasság).
  */
 @Composable
-private fun HourStrip(hours: List<Int>, peakHour: Int, peakCount: Int) {
+private fun HourStrip(
+    hours: List<Int>, peakHour: Int, peakCount: Int,
+    // A rekesz felirata a felolvasónak: megakadás vagy menet.
+    label: (Int) -> String = { "$it megakadás" },
+) {
     if (hours.size != 24 || peakCount <= 0) return
+    // A SÁV A FELOLVASÓNAK egy elem, a nevében a nem üres órák a számukkal —
+    // a rekeszek külön semmit nem mondanak, a tengely számai csak zajt.
+    val said = hours.mapIndexedNotNull { h, n -> if (n > 0) "${FilterHitLogic.hourLabel(h)}: ${label(n)}" else null }
     Row(
-        Modifier.fillMaxWidth().height(30.dp),
+        Modifier.fillMaxWidth().height(30.dp)
+            .clearAndSetSemantics { contentDescription = "Óránként: " + said.joinToString(", ") },
         horizontalArrangement = Arrangement.spacedBy(2.dp),
         verticalAlignment = Alignment.Bottom,
     ) {
@@ -645,7 +655,7 @@ private fun HourStrip(hours: List<Int>, peakHour: Int, peakCount: Int) {
         }
     }
     // Az óra-tengely a sáv alatt: öt szám, hogy a rekeszeket órára lehessen olvasni.
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+    Row(Modifier.fillMaxWidth().clearAndSetSemantics {}, horizontalArrangement = Arrangement.SpaceBetween) {
         for (h in listOf(0, 6, 12, 18, 24)) {
             Text("$h", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
@@ -661,10 +671,17 @@ private val WEEKDAY_ORDER = listOf(1, 2, 3, 4, 5, 6, 0)
  * magától, és melyiken nem). Csúcs nélkül nincs sáv.
  */
 @Composable
-private fun WeekdayStrip(days: List<Int>, peakDay: Int, peakCount: Int) {
+private fun WeekdayStrip(
+    days: List<Int>, peakDay: Int, peakCount: Int,
+    // A rekesz felirata a felolvasónak: darab (megakadás, menet) vagy idő.
+    label: (Int) -> String = { "$it megakadás" },
+) {
     if (days.size != 7 || peakCount <= 0) return
+    // A nulla nap is szám: a sáv arról is szól, melyik napon NEM.
+    val said = WEEKDAY_ORDER.map { d -> "${FilterHitLogic.WEEKDAY_NAMES[d]}: ${label(days[d])}" }
     Row(
-        Modifier.fillMaxWidth().height(30.dp),
+        Modifier.fillMaxWidth().height(30.dp)
+            .clearAndSetSemantics { contentDescription = "A hét napjai szerint: " + said.joinToString(", ") },
         horizontalArrangement = Arrangement.spacedBy(2.dp),
         verticalAlignment = Alignment.Bottom,
     ) {
@@ -680,7 +697,7 @@ private fun WeekdayStrip(days: List<Int>, peakDay: Int, peakCount: Int) {
         }
     }
     // A napok tengelye a sáv alatt: hét címke, egy-egy a rekesz alá középre.
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+    Row(Modifier.fillMaxWidth().clearAndSetSemantics {}, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
         for (day in WEEKDAY_ORDER) {
             Text(
                 DAY_SHORT[day],

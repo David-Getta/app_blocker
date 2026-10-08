@@ -138,7 +138,7 @@ struct StatsView: View {
                 let focusByDay = Focus.byWeekday(store.state.focusLog ?? [], now: now)
                 if let fwd = FilterHitLogic.peakWeekday(focusByDay) {
                     Text(Focus.weekdayText(fwd)).font(.footnote).foregroundStyle(.secondary)
-                    WeekdayStrip(days: focusByDay, peakDay: fwd.day, peakCount: fwd.count)
+                    WeekdayStrip(days: focusByDay, peakDay: fwd.day, peakCount: fwd.count) { "\($0) menet" }
                     // AMIKOR A CSÚCS-NAP A MENET-NAP: a tükör két fele egy napra mutat — a sor kimondja.
                     if let same = Focus.sameDayText(FilterHitLogic.peakWeekday(FilterHitLogic.byWeekday(store.state.filterHits ?? [:], now: now)), fwd) {
                         Text(same).font(.footnote).foregroundStyle(.secondary)
@@ -149,7 +149,7 @@ struct StatsView: View {
                 let focusByHour = Focus.byHour(store.state.focusLog ?? [], now: now)
                 if let fh = Focus.peakHour(focusByHour) {
                     Text(Focus.hourText(fh)).font(.footnote).foregroundStyle(.secondary)
-                    HourStrip(hours: focusByHour, peakHour: fh.hour, peakCount: fh.count)
+                    HourStrip(hours: focusByHour, peakHour: fh.hour, peakCount: fh.count) { "\($0) menet" }
                     // AMIKOR A CSÚCS-ÓRA A MENET-ÓRA: a tükör két fele egy pontra mutat — a sor kimondja.
                     if let same = Focus.sameHourText(FilterHitLogic.peakHour(store.state.filterHitHours ?? [:], now: now), fh) {
                         Text(same).font(.footnote).foregroundStyle(.secondary)
@@ -397,6 +397,15 @@ private struct HourStrip: View {
     let hours: [Int]
     let peakHour: Int
     let peakCount: Int
+    /// A rekesz felirata a felolvasónak: megakadás vagy menet.
+    var label: (Int) -> String = { "\($0) megakadás" }
+
+    private var spoken: String {
+        let parts: [String] = (0..<24).filter { hours[$0] > 0 }.map { h in
+            FilterHitLogic.hourLabel(h) + ": " + label(hours[h])
+        }
+        return "Óránként: " + parts.joined(separator: ", ")
+    }
 
     var body: some View {
         if hours.count == 24 && peakCount > 0 {
@@ -418,6 +427,10 @@ private struct HourStrip: View {
                     }
                 }
             }
+            // A SÁV A FELOLVASÓNAK egy elem, a nevében a nem üres órák a számukkal —
+            // a rekeszek külön semmit nem mondanak, a tengely számai csak zajt.
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(spoken)
         }
     }
 }
@@ -429,9 +442,18 @@ private struct WeekdayStrip: View {
     let days: [Int]
     let peakDay: Int
     let peakCount: Int
+    /// A rekesz felirata a felolvasónak: megakadás vagy menet.
+    var label: (Int) -> String = { "\($0) megakadás" }
     /// Hétfőtől vasárnapig — a csúcs-nap holtversenye is a hét elejétől számít.
     private static let order = [1, 2, 3, 4, 5, 6, 0]
     private static let dayShort = ["V", "H", "K", "Sze", "Cs", "P", "Szo"]
+
+    private var spoken: String {
+        let parts: [String] = Self.order.map { d in
+            FilterHitLogic.weekdayNames[d] + ": " + label(days[d])
+        }
+        return "A hét napjai szerint: " + parts.joined(separator: ", ")
+    }
 
     var body: some View {
         if days.count == 7 && peakCount > 0 {
@@ -452,6 +474,9 @@ private struct WeekdayStrip: View {
                     }
                 }
             }
+            // A nulla nap is szám: a sáv arról is szól, melyik napon NEM.
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(spoken)
         }
     }
 }
