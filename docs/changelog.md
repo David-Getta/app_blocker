@@ -8,6 +8,7 @@ kettővel korábbiban.
 
 | Verzió | Nap | Mi újság |
 |---|---|---|
+| v0.4.241 | 2026-10-08 | régebbi Macre nem kerül el nem induló frissítés; a híd-kiadás |
 | v0.4.240 | 2026-10-08 | új kategória-csomag: Szerencsejáték; biztonsági javítás a frissítőben |
 | v0.4.239 | 2026-10-08 | a végigcsinált próbatétel akkor is hat, ha közben a sor összevonódott |
 | v0.4.238 | 2026-10-08 | az újra felvett oldalt a régi törlés akkor sem viszi el, ha közben összevonódtak |
