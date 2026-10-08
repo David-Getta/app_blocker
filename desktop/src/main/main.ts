@@ -47,6 +47,7 @@ import {
 } from '../shared/background';
 import type { StatusData } from '../shared/protocol';
 import { APP_ID } from '../shared/app-id';
+import { registerDohProfileIpc } from './doh-profile';
 
 const HELPER_MODE = process.argv.includes('--helper');
 /** Indítási füstpróba: a rendes indulás, nyom és hálózat nélkül (smoke.ts). */
@@ -415,6 +416,10 @@ if (HELPER_MODE) {
       // szinkron papíron létezik, gyakorlatban nem: terminált nyitni és külön
       // szolgáltatást futtatni a legtöbben nem fognak — és igazuk lenne.
       registerSyncServerIpc(app.getPath('userData'));
+      // macOS: a böngésző-DoH zár profil mentése és megnyitása. A segéd
+      // gépszintű beállítása ott csak ajánlás; a profil kötelezővé teszi —
+      // ha a felhasználó maga telepíti.
+      registerDohProfileIpc();
       // A bővítmény mappája: az app csomagolja ki és tartja frissen, a
       // böngészőbe egyszer kell betölteni — nem minden kiadásnál újra.
       setupExtensionFolder(app.getPath('userData'), (m) => console.log(`[extension] ${m}`));

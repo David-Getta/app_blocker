@@ -608,6 +608,17 @@ Ismert megkerülési utak (szándékosan nem próbáljuk „lelakatolni” a gé
   veszi, tehát a felhasználó a böngésző beállításaiban visszakapcsolhatja.
   Rendes zárás MDM/konfigurációs profilt igényelne. Ezért a felület csak annyit
   állít, hogy a házirendet alkalmaztuk — nem azt, hogy a DoH nem kapcsolható be.
+  A profilt (v0.4.254 óta) az app el is készíti: a Kinézet panelen menthető
+  `.mobileconfig` (`dohProfileXml`, a segéddel közös böngészőlistából) egy
+  `com.apple.ManagedClient.preferences` payloadban, „Forced” értékként adja
+  ugyanazt — a Chromium (policy_loader_mac.mm: `AppValueIsForced`) ezt
+  kötelezőnek veszi, a Firefox a kapcsolójával együtt kapja. A telepítés a
+  felhasználó lépése a Rendszerbeállításokban; az app csendben nem tesz fel
+  profilt, és a profil eltávolítható (`PayloadRemovalDisallowed: false`).
+  Aláíratlan: a rendszer ezt ki is írja. A teszt a szerkezetet egy saját
+  plist-olvasóval, a CI macOS-próbája a valódi `plutil`-lal nézi. Amit nem
+  tudunk ellenőrizni: hogy egy adott gépen egy szervezeti beállítás
+  (allowUIConfigurationProfileInstallation) tiltja-e a kézi telepítést.
 - **A telepítő emelt része nem fájlból olvas** (v0.4.212 óta). Korábban a
   privilegizált telepítés egy shell-, illetve PowerShell-szkriptet és egy
   plistet írt a felhasználó temp könyvtárába, és azt futtatta emelt joggal; a

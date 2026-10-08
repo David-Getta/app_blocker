@@ -3132,6 +3132,19 @@ const WIRES = [
     needle: 'scripts/mac-doh-probe.sh',
     lost: 'senki nem nézné meg valódi macOS-en, hogy a házirend (a Firefox kapcsolójával) felkerül, és az eltávolító python nélkül is lefut',
   },
+  // A macOS DoH-zár profil: a fő folyamat regisztrálja a mentést, a felület
+  // köti be a gombot. Ha bármelyik kimarad, a doksi egy nem létező lehetőséget
+  // ígér.
+  {
+    file: 'desktop/src/main/main.ts',
+    needle: 'registerDohProfileIpc();',
+    lost: 'Macen a DoH-zár profil gombja nem csinálna semmit — a fő folyamat nem hallgatná a kérést',
+  },
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: 'setupDohProfile();',
+    lost: 'Macen a DoH-zár profil doboza sosem jelenne meg',
+  },
 
   // A SÚRLÓDÁS ESZKALÁCIÓJA. Enélkül minden próbatétel a legkönnyebb fokon
   // maradna, és a „nem lesz könnyebb attól, hogy sokszor csinálod” ígéret

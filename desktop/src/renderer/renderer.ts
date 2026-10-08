@@ -122,6 +122,8 @@ interface Bridge {
   openExtensionFolder?(): Promise<void>;
   /** a rejtett lista zárja: a gép azonosítása (Macen Touch ID); a régi híd nem tudja — akkor „nincs mivel” */
   authenticate?(reason: string): Promise<{ ok: boolean; unavailable?: boolean; error?: string }>;
+  /** macOS: a böngésző-DoH zár profil mentése és megnyitása; a régi híd nem tudja — akkor nincs gomb */
+  saveDohProfile?(): Promise<{ ok: true; path: string } | { ok: false; canceled?: boolean; error?: string }>;
   platform: string;
 }
 declare global { interface Window { breaker: Bridge } }
@@ -1468,6 +1470,45 @@ function setupSelfTest(): void {
     } finally {
       btn.disabled = false;
       btn.textContent = 'Tiltás ellenőrzése';
+    }
+  });
+}
+
+// ---------------------------------------------- macOS: böngésző-DoH zár profil
+
+/**
+ * A böngésző-DoH zár (csak macOS). A segéd a gépszintű beállításokba írja a
+ * tilalmat, de macOS-en ez csak ajánlás: a böngésző beállításaiban
+ * visszakapcsolható. A profil kötelezővé teszi — a felhasználó maga
+ * telepíti, és ugyanott bármikor eltávolíthatja. Csak szigorít.
+ */
+function setupDohProfile(): void {
+  const box = $('dohProfileBox');
+  const save = window.breaker.saveDohProfile;
+  if (window.breaker.platform !== 'darwin' || !save) return;
+  box.classList.remove('hidden');
+  const btn = $('dohProfileBtn') as HTMLButtonElement;
+  const note = $('dohProfileNote');
+  btn.addEventListener('click', async () => {
+    btn.disabled = true;
+    try {
+      const r = await save();
+      note.classList.remove('hidden');
+      if (r.ok) {
+        note.className = 'hint';
+        note.textContent = `Elmentve: ${r.path}. Telepítés: Rendszerbeállítások › Adatvédelem és `
+          + 'biztonság › Profilok (újabb macOS-en: Általános › Eszközkezelés) — ott jóváhagyod. '
+          + 'Ellenőrzés: chrome://policy — a DnsOverHttpsMode mellett kötelező (Mandatory) szint '
+          + 'áll. A profilt ugyanott bármikor eltávolíthatod.';
+      } else if ('canceled' in r && r.canceled) {
+        note.className = 'hint';
+        note.textContent = 'Nem mentettünk semmit.';
+      } else {
+        note.className = 'error';
+        note.textContent = `A profil nem készült el: ${'error' in r ? r.error : 'ismeretlen hiba'}`;
+      }
+    } finally {
+      btn.disabled = false;
     }
   });
 }
@@ -5607,6 +5648,7 @@ setupKeywordCard();
 setupShortcutControls();
 void refreshOverlayShortcut();
 setupSelfTest();
+setupDohProfile();
 if ('Notification' in window && Notification.permission === 'default') {
   void Notification.requestPermission();
 }

@@ -566,7 +566,11 @@ Néhány konkrét dolog, amit érdemes előre tudni:
   kötött. A blokkolás és a heti menetrend iPhone-on is ugyanúgy működik.
 - **macOS-en a böngésző-DoH kikapcsolása nem zár, csak alapértelmezést állít.**
   MDM-profil nélkül a Chromium ajánlásnak veszi a gépszintű beállítást, tehát
-  visszakapcsolható. Windowson ez házirend-kulcs, ott zár.
+  visszakapcsolható. Windowson ez házirend-kulcs, ott zár. Aki Macen is zárat
+  akar, az app beállításaiból (Kinézet panel) elmenthet egy konfigurációs
+  profilt, és maga telepíti: a profilból jövő érték kötelező. Bármikor
+  eltávolítható — súrlódás, nem lakat; hogy a böngésző tényleg kötelezőnek
+  vette-e, a chrome://policy oldalon látszik.
 - **Androidon a rendszer szigorú Privát DNS-e megkerüli a szűrőt** (megadott
   kiszolgálónévvel a névfeloldás TLS-en, a VPN mellett megy). Kényszeríteni
   nem tudjuk; az app észleli, a korong és a tartós értesítés kimondja, és a

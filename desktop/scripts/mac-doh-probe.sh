@@ -11,7 +11,9 @@
 #   2. az eltávolítás után a mieink eltűntek, egy IDEGEN érték és egy idegen
 #      Firefox-házirend viszont marad (és vele a kapcsoló is), a hosts-blokk
 #      kikerül, a hosts többi része érintetlen;
-#   3. ha a Firefox-tartományban már csak a miénk volt, a kapcsoló is megy.
+#   3. ha a Firefox-tartományban már csak a miénk volt, a kapcsoló is megy;
+#   4. a DoH-zár profil a valódi plutil szerint érvényes, és ugyanazt
+#      kényszeríti, amit a segéd beállít.
 # Kilépési kód 0, ha minden stimmel; különben 1.
 set -u
 cd "$(dirname "$0")/.."
@@ -65,6 +67,28 @@ defaults delete "$FF" DisableAppUpdate
 apply
 sh scripts/uninstall-macos.sh > /dev/null || bad "az eltávolító (második kör) hibával állt meg"
 [ -z "$(rd "$FF" EnterprisePoliciesEnabled)" ] || bad "a házirend-kapcsoló ott maradt, pedig már csak a miénk volt"
+
+# 5. A DoH-zár profil (a felhasználó telepíti): a valódi plutil szerint
+# érvényes plist, és ugyanazt kényszeríti, amit a segéd beállít.
+PROFILE_DIR=$(mktemp -d)
+PROFILE="$PROFILE_DIR/Breaker-DoH.mobileconfig"
+"$NODE" -e "process.stdout.write(require('./dist/helper/doh-policy').dohProfileXml())" > "$PROFILE"
+plutil -lint "$PROFILE" > /dev/null || bad "a DoH-zár profil nem érvényes plist (plutil -lint)"
+plutil -convert json -o - "$PROFILE" | "$NODE" -e '
+  let s = ""; process.stdin.on("data", (d) => (s += d)).on("end", () => {
+    const p = JSON.parse(s);
+    const prefs = p.PayloadContent[0];
+    const f = (d) => prefs.PayloadContent[d].Forced[0].mcx_preference_settings;
+    const ok = p.PayloadType === "Configuration" && p.PayloadRemovalDisallowed === false
+      && prefs.PayloadType === "com.apple.ManagedClient.preferences"
+      && ["com.google.Chrome", "com.microsoft.Edge", "org.chromium.Chromium", "com.brave.Browser"]
+        .every((d) => f(d).DnsOverHttpsMode === "off")
+      && f("org.mozilla.firefox").EnterprisePoliciesEnabled === true
+      && f("org.mozilla.firefox").DNSOverHTTPS.Enabled === false
+      && f("org.mozilla.firefox").DNSOverHTTPS.Locked === true;
+    process.exit(ok ? 0 : 1);
+  });' || bad "a DoH-zár profil szerkezete nem az, aminek lennie kell"
+rm -rf "$PROFILE_DIR"
 
 rm -f "$HOSTS_BEFORE"
 if [ "$fail" -eq 0 ]; then

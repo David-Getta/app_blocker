@@ -80,3 +80,114 @@ export function windowsDohCommands(): Array<{ cmd: string; args: string[] }> {
   }
   return out;
 }
+
+// ------------------------------------------------- macOS: a DoH-zár profil
+//
+// macOS-en a segéd a gépszintű beállításokba (/Library/Preferences) írja a
+// tilalmat, de a Chromium onnan csak AJÁNLÁSKÉNT veszi (az értéket csak akkor
+// kezeli kötelezőnek, ha a rendszer „rákényszerítettnek” látja —
+// policy_loader_mac.mm: AppValueIsForced), vagyis a böngésző beállításaiban
+// visszakapcsolható. Egy konfigurációs profil kényszerített értékként adja
+// ugyanezt. A profilt a felhasználó MAGA telepíti (a Rendszerbeállításokban),
+// és ugyanott bármikor eltávolíthatja — súrlódás, nem lakat.
+
+/** A profil azonosítója: újratelepítéskor ugyanezt cseréli, nem tesz mellé egy másodikat. */
+export const DOH_PROFILE_ID = 'hu.breaker.doh';
+const DOH_PROFILE_UUID = 'EC01BAFF-2B29-4C93-ACE0-9EC7BBAEDA87';
+const DOH_PREFS_PAYLOAD_UUID = '8BE58CB4-0FB4-47D0-966A-D7DC0ABA22A0';
+
+const xmlText = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const domainOf = (prefPath: string) => prefPath.slice(prefPath.lastIndexOf('/') + 1);
+
+/** Egy alkalmazás kényszerített beállításai a ManagedClient-payloadban. */
+function forcedDomain(domain: string, settings: string[], indent: string): string[] {
+  return [
+    `${indent}<key>${xmlText(domain)}</key>`,
+    `${indent}<dict>`,
+    `${indent}  <key>Forced</key>`,
+    `${indent}  <array>`,
+    `${indent}    <dict>`,
+    `${indent}      <key>mcx_preference_settings</key>`,
+    `${indent}      <dict>`,
+    ...settings.map((l) => `${indent}        ${l}`),
+    `${indent}      </dict>`,
+    `${indent}    </dict>`,
+    `${indent}  </array>`,
+    `${indent}</dict>`,
+  ];
+}
+
+/** A DoH-zár profil (.mobileconfig) szövege — aláíratlan, a felhasználó telepíti. */
+export function dohProfileXml(): string {
+  const ind = '        ';
+  const domains: string[] = [];
+  for (const t of CHROMIUM_TARGETS) {
+    domains.push(...forcedDomain(domainOf(t.macDomain), [
+      `<key>${CHROMIUM_DOH_VALUE.name}</key>`,
+      `<string>${CHROMIUM_DOH_VALUE.value}</string>`,
+    ], ind));
+  }
+  domains.push(...forcedDomain(domainOf(FIREFOX_MAC_DOMAIN), [
+    `<key>${FIREFOX_MAC_ENABLE_KEY}</key>`,
+    '<true/>',
+    '<key>DNSOverHTTPS</key>',
+    '<dict>',
+    '  <key>Enabled</key>',
+    '  <false/>',
+    '  <key>Locked</key>',
+    '  <true/>',
+    '</dict>',
+  ], ind));
+  return [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">',
+    '<plist version="1.0">',
+    '<dict>',
+    '  <key>PayloadContent</key>',
+    '  <array>',
+    '    <dict>',
+    '      <key>PayloadType</key>',
+    '      <string>com.apple.ManagedClient.preferences</string>',
+    '      <key>PayloadVersion</key>',
+    '      <integer>1</integer>',
+    '      <key>PayloadIdentifier</key>',
+    `      <string>${DOH_PROFILE_ID}.preferences</string>`,
+    '      <key>PayloadUUID</key>',
+    `      <string>${DOH_PREFS_PAYLOAD_UUID}</string>`,
+    '      <key>PayloadDisplayName</key>',
+    `      <string>${xmlText('Böngészők: titkosított DNS kikapcsolva')}</string>`,
+    '      <key>PayloadEnabled</key>',
+    '      <true/>',
+    '      <key>PayloadContent</key>',
+    '      <dict>',
+    ...domains,
+    '      </dict>',
+    '    </dict>',
+    '  </array>',
+    '  <key>PayloadDisplayName</key>',
+    `  <string>${xmlText('Breaker — böngésző-DoH zár')}</string>`,
+    '  <key>PayloadDescription</key>',
+    `  <string>${xmlText(
+      'A Chrome, az Edge, a Chromium, a Brave és a Firefox saját titkosított DNS-e (DoH) '
+      + 'kikapcsolva és zárolva, hogy a Breaker tiltása ezekben a böngészőkben is érvényesüljön. '
+      + 'A profilt a Rendszerbeállításokban bármikor eltávolíthatod.',
+    )}</string>`,
+    '  <key>PayloadIdentifier</key>',
+    `  <string>${DOH_PROFILE_ID}</string>`,
+    '  <key>PayloadOrganization</key>',
+    '  <string>Breaker</string>',
+    '  <key>PayloadRemovalDisallowed</key>',
+    '  <false/>',
+    '  <key>PayloadScope</key>',
+    '  <string>System</string>',
+    '  <key>PayloadType</key>',
+    '  <string>Configuration</string>',
+    '  <key>PayloadUUID</key>',
+    `  <string>${DOH_PROFILE_UUID}</string>`,
+    '  <key>PayloadVersion</key>',
+    '  <integer>1</integer>',
+    '</dict>',
+    '</plist>',
+    '',
+  ].join('\n');
+}

@@ -13,7 +13,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import {
   CHROMIUM_DOH_VALUE, CHROMIUM_TARGETS, FIREFOX_MAC_DOMAIN, FIREFOX_MAC_ENABLE_KEY, FIREFOX_POLICY_JSON,
-  FIREFOX_WIN_KEY, FIREFOX_WIN_VALUES, windowsDohCommands,
+  FIREFOX_WIN_KEY, FIREFOX_WIN_VALUES, DOH_PROFILE_ID, dohProfileXml, windowsDohCommands,
 } from '../src/helper/doh-policy';
 
 /** A tár gyökere — a tesztek forrásból és fordított kimenetből (dist-test) is futnak. */
@@ -101,4 +101,84 @@ test('a segéd nem írja felül a Firefox policies.json-ját', () => {
   const src = read('desktop/src/helper/hosts.ts');
   assert.ok(!/['"`]policies\.json['"`]|['"`]distribution['"`]/.test(src), 'a hosts.ts megint a policies.json-hoz nyúl');
   assert.ok(src.includes('windowsDohCommands()'));
+});
+
+/**
+ * Egy XML-plist beolvasása — csak az, amit a profil használ (dict, array, key,
+ * string, integer, true, false). Ha egy címke nincs lezárva vagy rossz helyen
+ * áll, kivételt dob: így a teszt a jólformáltságot is nézi. A valódi macOS
+ * `plutil -lint`-je a CI macOS-próbájában fut (mac-doh-probe.sh).
+ */
+function parsePlist(xml: string): unknown {
+  const body = xml.replace(/^<\?xml[^>]*>\s*<!DOCTYPE[^>]*>\s*<plist version="1\.0">/, '').replace(/<\/plist>\s*$/, '');
+  const tokens = body.match(/<[^>]+>|[^<]+/g) ?? [];
+  let i = 0;
+  const skipWs = () => { while (i < tokens.length && !tokens[i].startsWith('<') && tokens[i].trim() === '') i++; };
+  const text = (tag: string): string => {
+    let t = '';
+    if (!tokens[i].startsWith('<')) t = tokens[i++];
+    if (tokens[i++] !== `</${tag}>`) throw new Error(`lezáratlan <${tag}>`);
+    return t.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+  };
+  const value = (): unknown => {
+    skipWs();
+    const tok = tokens[i++];
+    if (tok === '<true/>') return true;
+    if (tok === '<false/>') return false;
+    if (tok === '<string>') return text('string');
+    if (tok === '<integer>') return Number(text('integer'));
+    if (tok === '<array>') {
+      const out: unknown[] = [];
+      for (;;) { skipWs(); if (tokens[i] === '</array>') { i++; return out; } out.push(value()); }
+    }
+    if (tok === '<dict>') {
+      const out: Record<string, unknown> = {};
+      for (;;) {
+        skipWs();
+        if (tokens[i] === '</dict>') { i++; return out; }
+        if (tokens[i++] !== '<key>') throw new Error('a dict-ben kulcs nélküli érték');
+        const k = text('key');
+        if (k in out) throw new Error(`kétszer szereplő kulcs: ${k}`);
+        out[k] = value();
+      }
+    }
+    throw new Error(`váratlan elem: ${tok}`);
+  };
+  const v = value();
+  skipWs();
+  if (i !== tokens.length) throw new Error('maradék a plist után');
+  return v;
+}
+
+test('a macOS-profil: érvényes plist, ugyanazokat a böngészőket kényszeríti, mint a segéd', () => {
+  const p = parsePlist(dohProfileXml()) as Record<string, any>;
+  assert.equal(p.PayloadType, 'Configuration');
+  assert.equal(p.PayloadIdentifier, DOH_PROFILE_ID);
+  assert.equal(p.PayloadScope, 'System');
+  assert.equal(p.PayloadRemovalDisallowed, false, 'a felhasználó bármikor eltávolíthatja — súrlódás, nem lakat');
+  assert.match(p.PayloadUUID, /^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/);
+  assert.equal(p.PayloadContent.length, 1);
+  const prefs = p.PayloadContent[0];
+  assert.equal(prefs.PayloadType, 'com.apple.ManagedClient.preferences');
+  assert.notEqual(prefs.PayloadUUID, p.PayloadUUID);
+  const domains = prefs.PayloadContent as Record<string, any>;
+  const forced = (d: string) => {
+    assert.ok(domains[d], `hiányzik: ${d}`);
+    assert.equal(domains[d].Forced.length, 1);
+    return domains[d].Forced[0].mcx_preference_settings;
+  };
+  for (const t of CHROMIUM_TARGETS) {
+    const d = t.macDomain.slice(t.macDomain.lastIndexOf('/') + 1);
+    assert.deepEqual(forced(d), { DnsOverHttpsMode: 'off' });
+  }
+  // A Firefox a kapcsoló nélkül macOS-en egyetlen házirendet sem olvasna.
+  assert.deepEqual(forced('org.mozilla.firefox'), {
+    [FIREFOX_MAC_ENABLE_KEY]: true, DNSOverHTTPS: { Enabled: false, Locked: true },
+  });
+  assert.equal(Object.keys(domains).length, CHROMIUM_TARGETS.length + 1);
+});
+
+test('a plist-olvasó tényleg elkapja a rossz profilt', () => {
+  assert.throws(() => parsePlist('<plist version="1.0"><dict><key>a</key><string>x</dict></plist>'));
+  assert.throws(() => parsePlist('<plist version="1.0"><dict><key>a</key><true/><key>a</key><true/></dict></plist>'));
 });

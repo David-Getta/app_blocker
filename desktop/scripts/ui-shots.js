@@ -439,6 +439,11 @@ function fakeBridgeSource() {
         path: '/Users/demo/Library/Application Support/Breaker/extension', version: '0.4.0', refreshed: false,
       }),
       openExtensionFolder: async () => { window.__folderOpened = (window.__folderOpened || 0) + 1; },
+      // A böngésző-DoH zár profil (macOS): a hamis híd darwin, tehát a gomb látszik.
+      saveDohProfile: async () => {
+        window.__dohProfileSaved = (window.__dohProfileSaved || 0) + 1;
+        return { ok: true, path: '/Users/demo/Downloads/Breaker-DoH.mobileconfig' };
+      },
       getUpdateState: async () => window.__fakeUpdate,
       getTrackerState: async () => window.__fakeTracker,
       // A füstteszt innen hajtja a frissítési sávot: ugyanaz a csatorna, amit
@@ -2336,6 +2341,25 @@ async function main() {
   // A szokásos lapon (nincs tárolt hiba) a sor rejtve marad.
   if (await page.locator('#notifyDeliveryNote.hidden').count() !== 1) {
     failures.push('hiba nélkül is ott a meg nem jelent értesítés sora');
+  }
+  // A BÖNGÉSZŐ-DoH ZÁR (macOS): a doboz látszik, és a gomb kimondja, hova
+  // mentett és hol kell telepíteni — egy néma gomb elromlottnak látszana, egy
+  // hely nélküli üzenet után pedig senki nem találná meg a profilt.
+  if (await page.locator('#dohProfileBox.hidden').count() !== 0) {
+    failures.push('macOS-en nem látszik a böngésző-DoH zár doboza');
+  }
+  await page.locator('#dohProfileBtn').evaluate((b) => b.click());
+  await page.waitForFunction(
+    () => !document.getElementById('dohProfileNote').classList.contains('hidden'),
+    undefined, { timeout: 5_000 },
+  ).catch(() => {});
+  const dohNote = (await page.locator('#dohProfileNote').textContent()) || '';
+  if (!dohNote.includes('Elmentve: /Users/demo/Downloads/Breaker-DoH.mobileconfig')
+    || !dohNote.includes('Profilok') || !dohNote.includes('chrome://policy')) {
+    failures.push(`a DoH-zár profil gombja nem mondja, hova mentett és hol kell telepíteni: ${dohNote}`);
+  }
+  if (await page.evaluate(() => window.__dohProfileSaved) !== 1) {
+    failures.push('a DoH-zár profil gombja nem hívta a hidat');
   }
 
   // A felület a rendszer beállítását követi, tehát KÉT megjelenése van. Ha
