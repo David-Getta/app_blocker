@@ -322,6 +322,13 @@ function finishSession(state: HelperState, now: number): void {
   if (s.pendingChannelFilter) {
     const p = s.pendingChannelFilter;
     const list = state.channelFilters ?? [];
+    // A KIFIZETETT LAZÍTÁS SZÁMLÁLÓJA itt nő, és csak itt — a régi gazdagépé,
+    // aminek a szűrője lazult (kikapcsolás, bővítés, levétel, gazdagép-csere).
+    // A szinkron oldalanként ebből dönt (shared/sync/channels-merge.ts); ha a
+    // lazítás más úton történne, számláló nélkül a többi gép szigorúbb
+    // szűrője visszavenné.
+    const cur = list.find((f) => f.id === p.id);
+    if (cur) state.channelLoosens = { ...(state.channelLoosens ?? {}), [cur.host]: (state.channelLoosens?.[cur.host] ?? 0) + 1 };
     state.channelFilters = p.next === null
       ? list.filter((f) => f.id !== p.id)
       : list.map((f) => (f.id === p.id ? p.next! : f));

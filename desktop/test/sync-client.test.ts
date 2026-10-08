@@ -597,8 +597,10 @@ test('a lazítás rev-munkával ér át, és mindkét gép ugyanoda jut', async 
   assert.equal(a.channelFilters?.[0]?.enabled, true);
 
   // A kikapcsolás a helyi kapun (referee) át történik — itt az EREDMÉNYÉT
-  // játsszuk el: a lista változik, a syncNow lépteti a számlálót.
+  // játsszuk el: a lista változik, és a bíró a teljesítéskor lépteti a
+  // kifizetett lazítás számlálóját (a syncNow léptetése csak jelet ír).
   a.channelFilters = [{ ...a.channelFilters![0], enabled: false }];
+  a.channelLoosens = { 'youtube.com': (a.channelLoosens?.['youtube.com'] ?? 0) + 1 };
   await syncNow(a, 1_510_000);
 
   const b = device();
@@ -606,6 +608,22 @@ test('a lazítás rev-munkával ér át, és mindkét gép ugyanoda jut', async 
   await syncNow(b, 1_520_000);
   assert.equal(b.channelFilters?.[0]?.enabled, false,
     'a próbatétellel megszerzett kikapcsolás a másik gépen is érvényes');
+});
+
+test('kapun kívüli lazítás (számláló nélkül) nem ér át: a másik gép bekapcsolt szűrője marad', async () => {
+  const a = device([site()]);
+  await signIn(a, url, ACCOUNT, PW2, 'Munkagép');
+  a.channelFilters = [{ id: 'chf_kapu', host: 'twitch.tv', allow: ['@jo'], enabled: true }];
+  await syncNow(a, 1_530_000);
+  // Kézzel átírt állapot: kikapcsolva, de a bíró nem könyvelt kifizetett lazítást.
+  a.channelFilters = (a.channelFilters ?? []).map((f) => (f.host === 'twitch.tv' ? { ...f, enabled: false } : f));
+  await syncNow(a, 1_540_000);
+  const b = device();
+  await signIn(b, url, ACCOUNT, PW2, 'Harmadik gép');
+  b.channelFilters = [{ id: 'chf_kapu', host: 'twitch.tv', allow: ['@jo'], enabled: true }];
+  await syncNow(b, 1_550_000);
+  assert.equal(b.channelFilters?.find((f) => f.host === 'twitch.tv')?.enabled, true,
+    'a számláló nélküli kikapcsolás nem győzheti le a bekapcsolt szűrőt');
 });
 
 test('egy RÉGI kiszolgáló mellett a kör nem hal meg, és nem is néma', async () => {

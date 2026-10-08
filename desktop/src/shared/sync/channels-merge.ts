@@ -27,7 +27,7 @@
 // A doksi: docs/feature-channel-filter.md
 
 import {
-  MAX_ALLOW_PER_FILTER, MAX_CHANNEL_FILTERS, isFilterLoosening, normalizeFilterHost, sanitizeFilter,
+  MAX_ALLOW_PER_FILTER, MAX_CHANNEL_FILTERS, normalizeFilterHost, sanitizeFilter,
   type ChannelFilter,
 } from '../channels.js';
 
@@ -299,13 +299,15 @@ function pickNewer(a: SyncChannels, b: SyncChannels): SyncChannels {
 }
 
 /**
- * Az ingyenes és a fizetett szerkesztés könyvelése a léptetésben: ami oldal
- * az előző léptetés óta megváltozott (felvétel, módosítás, levétel), az ezt
- * a blob-rev-et kapja jelnek; és ha a változás bekapcsolt szűrőn lazított —
- * kikapcsolás, új csatorna, törlés vagy gazdagép-csere —, a kifizetett
- * lazítások száma eggyel nő. Ilyen változás csak próbatétel után történhet
- * (a kapu, `isFilterLoosening`), tehát a számláló a kifizetett munkát
- * számolja. Az azonosító cseréje nem változás.
+ * A szerkesztés könyvelése a léptetésben: ami oldal az előző léptetés óta
+ * megváltozott (felvétel, módosítás, levétel), az ezt a blob-rev-et kapja
+ * jelnek. Az azonosító cseréje nem változás.
+ *
+ * A KIFIZETETT LAZÍTÁS SZÁMLÁLÓJÁHOZ itt nem nyúlunk: azt a bíró lépteti, a
+ * próbatétel teljesítésekor (helper/referee.ts). Eddig ez a függvény
+ * következtetett rá az állapot változásából — de akkor egy kapun kívül
+ * történt lazítás (egy hiba, egy kézzel átírt állapot) is kifizetettnek
+ * számított volna, és átment volna a többi gépre.
  */
 export function markChannelChanges(
   marks: ChannelMarks | undefined, loosens: ChannelMarks | undefined,
@@ -318,11 +320,8 @@ export function markChannelChanges(
   const before = new Map(prev.map((f) => [f.host, f]));
   const after = new Map(next.map((f) => [f.host, f]));
   for (const h of new Set([...before.keys(), ...after.keys()])) {
-    const p = before.get(h);
-    const n = after.get(h);
-    if (sameFilter(p, n)) continue;
+    if (sameFilter(before.get(h), after.get(h))) continue;
     m.set(h, rev);
-    if (p && p.enabled && (!n || isFilterLoosening(p, n))) c.set(h, (c.get(h) ?? 0) + 1);
   }
   const present = next.map((f) => f.host);
   const outMarks = capChannelMarks(m, present);

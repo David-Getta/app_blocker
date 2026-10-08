@@ -166,11 +166,17 @@ test('a kifizetett lazítás számolódik, és a szinkronban átmegy; az ingyene
   referee.startChannelFilterSave(state, { id: f.id, host: f.host, allow: ['@jo'], enabled: true }, NOW);
   bumpChannelsRevision(state, 'gep', NOW + 1);
   assert.equal(state.channelLoosens, undefined);
-  // Próbatétellel: a kikapcsolás — a számláló nő.
+  // Próbatétellel: a kikapcsolás — a számlálót a BÍRÓ lépteti, a teljesítéskor
+  // (nem a léptetés következtet rá az állapot változásából).
   referee.startChannelFilterSave(state, { id: f.id, host: f.host, allow: ['@jo'], enabled: false }, NOW);
   solveWholeSession(state, NOW);
+  assert.deepEqual(state.channelLoosens, { 'youtube.com': 1 }, 'a teljesítés bélyegzett');
   bumpChannelsRevision(state, 'gep', NOW + 2);
   assert.deepEqual(state.channelLoosens, { 'youtube.com': 1 });
+  // Kapun kívüli lazítás (kézzel átírt állapot): a léptetés nem számolja fizetettnek.
+  state.channelFilters = [{ ...state.channelFilters![0], allow: ['@jo', '@uj'] }];
+  bumpChannelsRevision(state, 'gep', NOW + 3);
+  assert.deepEqual(state.channelLoosens, { 'youtube.com': 1 }, 'a számláló nem nőtt');
   // A másik gép a régi, bekapcsolt szűrővel: a kifizetett kikapcsolás nyer.
   const mine: SyncChannels = {
     filters: state.channelFilters!, rev: state.channelsRev ?? 0, updatedAt: 1, updatedBy: 'gep',

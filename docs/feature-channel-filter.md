@@ -168,10 +168,13 @@ szám kíséri őket:
   levétel nyoma (sírkő).
 - **a kifizetett lazítások száma** (`loosens`): kikapcsolás, új csatorna
   bekapcsolt szűrőn, törlés vagy gazdagép-csere bekapcsoltan — ezekhez
-  próbatétel kellett. A léptetés a legutóbbi pillanatkép és a mostani lista
-  különbségéből könyveli (`markChannelChanges`), tehát csak a kapun átment
-  lazítás növelheti; az átvett listát a szinkron szintén eltárolja, hogy a
-  következő helyi léptetés ne könyvelje a miénknek.
+  próbatétel kellett. A számlálót a BÍRÓ lépteti, a próbatétel
+  teljesítésekor (a régi gazdagépét, aminek a szűrője lazult). A léptetés a
+  legutóbbi pillanatkép és a mostani lista különbségéből csak a jelet írja
+  (`markChannelChanges`); eddig a számlálót is ebből következtette ki — de
+  akkor egy kapun kívül történt lazítás (egy hiba, egy kézzel átírt állapot)
+  is kifizetettnek számított volna. Az átvett listát a szinkron szintén
+  eltárolja, hogy a következő helyi léptetés ne könyvelje a miénknek.
 
 A fésülés oldalanként: **a több kifizetett lazítás nyer, egészében** — a
 kifizetett kikapcsolás, bővítés és levétel átmegy. **Egyenlő számnál a

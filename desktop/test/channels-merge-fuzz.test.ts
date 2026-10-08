@@ -59,6 +59,9 @@ function randomOp(state: HelperState, r: () => number, freeOnly: boolean, ids: {
   const cur = list[i];
   if (roll < 0.45) {
     if (freeOnly && cur.enabled) return;
+    // A bekapcsolt szűrő törlése próbatétel: a bíró a teljesítéskor lépteti
+    // a régi gazdagép számlálóját — itt ezt utánozzuk.
+    if (cur.enabled) paid(state, cur.host);
     state.channelFilters = list.filter((_, j) => j !== i);
     return;
   }
@@ -66,8 +69,16 @@ function randomOp(state: HelperState, r: () => number, freeOnly: boolean, ids: {
   let allow = r() < 0.5 ? randomAllow(r) : cur.allow.filter(() => r() < 0.7);
   if (allow.length === 0) allow = [cur.allow[0]];
   const next = { host, allow, enabled: r() < 0.6 };
-  if (freeOnly && isFilterLoosening(cur, next)) return;
+  if (isFilterLoosening(cur, next)) {
+    if (freeOnly) return;
+    paid(state, cur.host);
+  }
   state.channelFilters = list.map((f, j) => (j === i ? { id: cur.id, ...next } : f));
+}
+
+/** A bíró könyvelése egy kifizetett lazításnál: a régi gazdagép számlálója nő. */
+function paid(state: HelperState, host: string): void {
+  state.channelLoosens = { ...(state.channelLoosens ?? {}), [host]: (state.channelLoosens?.[host] ?? 0) + 1 };
 }
 
 function blob(s: HelperState, device: string): SyncChannels {

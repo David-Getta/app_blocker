@@ -160,20 +160,22 @@ test('a jelek és a számlálók a dróton tisztán jönnek', () => {
   assert.equal(dup.filters.length, 1, 'oldalanként egy szűrő');
 });
 
-test('a léptetés könyvelése: ingyen jel, lazításnál a számláló is nő', () => {
+test('a léptetés csak jelet ír — a kifizetett lazítás számlálója a bíróé', () => {
   const prev = [yt(['@a', '@b']), { id: 'chf_2', host: 'tiktok.com', allow: ['@t'], enabled: false }];
   const free = markChannelChanges(undefined, undefined, prev,
     [yt(['@a']), { id: 'chf_2', host: 'tiktok.com', allow: ['@t', '@u'], enabled: true }], 4);
-  assert.deepEqual(free, { marks: { 'youtube.com': 4, 'tiktok.com': 4 } }, 'szűkítés és kikapcsoltan bővítés: ingyen');
-  const paid = markChannelChanges({ 'youtube.com': 2 }, undefined, prev, [yt(['@a', '@b', '@c'])], 5);
-  assert.deepEqual(paid, { marks: { 'youtube.com': 5, 'tiktok.com': 5 }, loosens: { 'youtube.com': 1 } },
-    'új csatorna bekapcsoltan: fizetett; kikapcsolt levétele: ingyen');
+  assert.deepEqual(free, { marks: { 'youtube.com': 4, 'tiktok.com': 4 } }, 'szűkítés és kikapcsoltan bővítés: jel');
+  // Egy lazító változás (új csatorna bekapcsoltan) is csak jelet kap itt: ha
+  // nem a bíró írta a számlálót, a változás nem kifizetett — egy kapun kívüli
+  // lazítás (hiba, kézzel átírt állapot) így nem megy át a többi gépre.
+  const loosened = markChannelChanges({ 'youtube.com': 2 }, { 'youtube.com': 1 }, prev, [yt(['@a', '@b', '@c'])], 5);
+  assert.deepEqual(loosened, { marks: { 'youtube.com': 5, 'tiktok.com': 5 }, loosens: { 'youtube.com': 1 } },
+    'a meglévő számláló marad, nem nő');
   const renamed = markChannelChanges(undefined, undefined, prev, [yt(['@b', '@a'], true, 'chf_x'), prev[1]], 6);
   assert.deepEqual(renamed, {}, 'az azonosító és a sorrend nem változás');
   const hostChange = markChannelChanges(undefined, undefined, [yt(['@a'])],
     [{ id: 'chf_1', host: 'twitch.tv', allow: ['@a'], enabled: true }], 7);
-  assert.deepEqual(hostChange, { marks: { 'youtube.com': 7, 'twitch.tv': 7 }, loosens: { 'youtube.com': 1 } },
-    'gazdagép-csere bekapcsoltan: a régi oldal levétele fizetett');
+  assert.deepEqual(hostChange, { marks: { 'youtube.com': 7, 'twitch.tv': 7 } }, 'gazdagép-csere: két jel');
 });
 
 test('a kívülről jött blobot ugyanaz a tisztító nézi át, mint a helyi mentést', () => {
