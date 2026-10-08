@@ -947,3 +947,17 @@ nevében utazik (`-darwinNN.zip`), a frissítő a gép rendszerverziójával vet
 össze, és régebbi gépen nem tölt le semmit — a fiók-panel kimondja, mi a helyzet
 (`shared/update-manifest.ts`, `pickMacUpdate`). A régi frissítők a nevet nem
 ismerik fel, tehát ők sem raknak fel semmit (lásd `docs/releasing.md`).
+
+### A meg nem jelent értesítés
+
+Az asztali app sok mindent értesítésben mond el — a szünet végét, a betelő
+keretet, a közelgő heti ablakot, a hétfői visszatekintést. Ha a rendszer egy
+értesítést nem jelenít meg (a felhasználó letiltotta, vagy macOS-en az
+Electron 42-től az app aláírása nem felel meg a UNNotification-nek), az eddig
+nyomtalanul elmaradt. Most minden értesítés egy úton megy (`notify` a
+rendererben), és ha a rendszer `error` eseményt ad, a beállítások lapja
+kimondja, csendben, a bekapcsolás helyével együtt (`shared/notify-delivery.ts`);
+a következő megjelenő értesítés visszavonja. Egy teszt őrzi, hogy a rendererben
+más út ne is legyen. Macen a csomag füstpróbája azt is nézi, hogy az ad-hoc
+aláírás azonosítója a csomagé (`hu.breaker.app`), és az Info.plist az aláírás
+része — enélkül az értesítések némán vesznének el.

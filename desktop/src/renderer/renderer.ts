@@ -17,6 +17,7 @@ import {
 import { HELPER_VERSION } from '../shared/protocol.js';
 import { versionRowText } from '../shared/smoke.js';
 import { macTooOldText, type MacTooOld } from '../shared/update-manifest.js';
+import { notifyFailText, parseFailedAt } from '../shared/notify-delivery.js';
 // A .js itt sem elhagyható: a böngésző natív ESM-betöltője oldja fel futásidőben.
 import { normalizeRule, ruleLabel } from '../shared/urlrules.js';
 import { MAX_BURST_MINUTES, MAX_COOLDOWN_MINUTES, normalizeBurst } from '../shared/burst.js';
@@ -335,6 +336,42 @@ async function refresh(): Promise<void> {
 /** Az utoljára látott futó menet — ebből derül ki, hogy MOST tűnt-e fel egy új. */
 let seenFocusRun: FocusRun | null = null;
 
+/** Mikor nem jelent meg utoljára értesítés (a böngésző tárában is). */
+let notifyFailedAt: number | null = null;
+const NOTIFY_FAIL_KEY = 'breaker.notifyFailedAt';
+
+/**
+ * Rendszer-értesítés — EGY úton. Engedély híján csendben marad (null): a
+ * felület enélkül is mondja, amit kell. Ha a rendszer NEM jeleníti meg (le
+ * van tiltva, vagy macOS-en az aláírás nem felel meg a UNNotification-nek),
+ * az nem vész el némán: a beállítások lapja kimondja (shared/notify-delivery.ts),
+ * a következő megjelenő értesítés pedig visszavonja.
+ */
+function notify(title: string, body: string): Notification | null {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return null;
+  const n = new Notification(title, { body });
+  n.addEventListener('show', () => noteNotifyDelivery(null));
+  n.addEventListener('error', () => noteNotifyDelivery(Date.now()));
+  return n;
+}
+
+function noteNotifyDelivery(failedAt: number | null): void {
+  if (failedAt === notifyFailedAt) return;
+  notifyFailedAt = failedAt;
+  try {
+    if (failedAt === null) localStorage.removeItem(NOTIFY_FAIL_KEY);
+    else localStorage.setItem(NOTIFY_FAIL_KEY, String(failedAt));
+  } catch { /* nincs tár: csak ebben a futásban látszik */ }
+  renderNotifyDelivery();
+}
+
+function renderNotifyDelivery(): void {
+  const note = document.getElementById('notifyDeliveryNote');
+  if (!note) return;
+  note.textContent = notifyFailedAt === null ? '' : notifyFailText(window.breaker.platform, fmtClock(notifyFailedAt));
+  note.classList.toggle('hidden', notifyFailedAt === null);
+}
+
 /**
  * Az ablak szerint indult menet értesítése: aki nem maga indította, tudja
  * meg, miért van minden zárva — és meddig. Engedély híján csendben marad; a
@@ -343,10 +380,9 @@ let seenFocusRun: FocusRun | null = null;
 function showWindowRunNotice(run: FocusRun): void {
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
   const pack = status?.focusPacks?.find((p) => p.id === run.packId);
-  new Notification('Breaker — munkamenet a heti ablak szerint', {
-    body: `${pack?.name ?? 'Csomag'} — eddig: ${fmtClock(run.endsAt)}. `
-      + 'Amíg tart, csak a csomagban felsoroltak mehetnek.',
-  });
+  notify('Breaker — munkamenet a heti ablak szerint',
+    `${pack?.name ?? 'Csomag'} — eddig: ${fmtClock(run.endsAt)}. `
+      + 'Amíg tart, csak a csomagban felsoroltak mehetnek.');
 }
 
 /** Az utoljára látott zárlat — ebből derül ki, hogy MOST tűnt-e fel egy ablaké. */
@@ -359,10 +395,9 @@ let seenLockdown: Lockdown | null = null;
  */
 function showWindowLockdownNotice(lock: Lockdown, now: number): void {
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
-  new Notification('Breaker — zárlat a heti ablak szerint', {
-    body: `${formatLockdownRemaining(lock.until - now)} van hátra (eddig: ${fmtClock(lock.until)}). `
-      + 'Amíg tart, semmilyen lazítás nem indítható — próbatétellel sem.',
-  });
+  notify('Breaker — zárlat a heti ablak szerint',
+    `${formatLockdownRemaining(lock.until - now)} van hátra (eddig: ${fmtClock(lock.until)}). `
+      + 'Amíg tart, semmilyen lazítás nem indítható — próbatétellel sem.');
 }
 
 /** A már bejelentett közelgő ablak-kezdés; egy kezdésről egyszer szólunk. */
@@ -374,10 +409,9 @@ function showWindowSoonNotice(lock: Lockdown | null, windows: LockdownWindowRow[
   const occ = windowStartingSoon(lock, windows, now);
   if (!occ || occ.startsAt === warnedWindowStart) return;
   warnedWindowStart = occ.startsAt;
-  new Notification('Breaker — mindjárt beér a heti ablak', {
-    body: `${fmtRemain(occ.startsAt - now)} múlva zárlat, ${fmtClock(occ.endsAt)}-ig. `
-      + 'Amíg tart, semmilyen lazítás nem indítható — próbatétellel sem.',
-  });
+  notify('Breaker — mindjárt beér a heti ablak',
+    `${fmtRemain(occ.startsAt - now)} múlva zárlat, ${fmtClock(occ.endsAt)}-ig. `
+      + 'Amíg tart, semmilyen lazítás nem indítható — próbatétellel sem.');
 }
 
 /** A már bejelentett közelgő ablak-menet („csomag@kezdés”); egy előfordulásról egyszer szólunk. */
@@ -397,7 +431,7 @@ function showFocusWindowSoonNotice(
   const key = `${soon.packId}@${soon.startsAt}`;
   if (key === warnedFocusWindow) return;
   warnedFocusWindow = key;
-  new Notification(WINDOW_SOON_TITLE, { body: windowSoonText(soon.name, soon.startsAt - now, fmtClock(soon.endsAt)) });
+  notify(WINDOW_SOON_TITLE, windowSoonText(soon.name, soon.startsAt - now, fmtClock(soon.endsAt)));
 }
 
 /** HA NEM KÉRED, csendben marad: a javaslatok értesítése kikapcsolható — a beállítás a tárban. */
@@ -508,8 +542,8 @@ async function startSuggestedSession(fromNotice = false, onError?: (msg: string)
   try {
     status = await call<StatusData>('focus_start', { packId: pick.id, minutes: pick.defaultMinutes });
     render();
-    if (fromNotice && 'Notification' in window && Notification.permission === 'granted') {
-      new Notification('Breaker — a menet elindult', { body: `${pick.name}, ${pick.defaultMinutes} perc. Csak a csomag oldalai mennek.` });
+    if (fromNotice) {
+      notify('Breaker — a menet elindult', `${pick.name}, ${pick.defaultMinutes} perc. Csak a csomag oldalai mennek.`);
     }
   } catch (e) {
     onError?.((e as Error).message);
@@ -600,9 +634,9 @@ function showHitNudge(today: number, now: number): void {
   try { last = localStorage.getItem('breaker.hitNudge'); } catch { /* nincs tár: szólunk */ }
   if (last === key) return;
   try { localStorage.setItem('breaker.hitNudge', key); } catch { /* nincs tár: legközelebb újra */ }
-  const n = new Notification('Breaker — sokadik megakadás', { body: hitNudgeText(step) + clickToStartText() });
+  const n = notify('Breaker — sokadik megakadás', hitNudgeText(step) + clickToStartText());
   // EGY KATTINTÁS az értesítésről a menetig: a javaslat nem csak mondat.
-  n.onclick = () => void startSuggestedSession(true);
+  if (n) n.onclick = () => void startSuggestedSession(true);
 }
 
 /**
@@ -621,9 +655,9 @@ function showPeakWarning(peak: { hour: number; count: number } | null, now: numb
   try { last = localStorage.getItem('breaker.peakWarn'); } catch { /* nincs tár: szólunk */ }
   if (last === key) return;
   try { localStorage.setItem('breaker.peakWarn', key); } catch { /* nincs tár: legközelebb újra */ }
-  const n = new Notification('Breaker — mindjárt a csúcs-óra', { body: peakWarnText(peak) + clickToStartText() });
+  const n = notify('Breaker — mindjárt a csúcs-óra', peakWarnText(peak) + clickToStartText());
   // EGY KATTINTÁS az értesítésről a menetig: az előjelzés nem csak mondat.
-  n.onclick = () => void startSuggestedSession(true);
+  if (n) n.onclick = () => void startSuggestedSession(true);
 }
 
 /**
@@ -645,9 +679,9 @@ function showFocusHourWarning(
   try { last = localStorage.getItem('breaker.focusHourWarn'); } catch { /* nincs tár: szólunk */ }
   if (last === key) return;
   try { localStorage.setItem('breaker.focusHourWarn', key); } catch { /* nincs tár: legközelebb újra */ }
-  const n = new Notification('Breaker — mindjárt a menet-óra', { body: focusHourWarnText(peak) + clickToStartText() });
+  const n = notify('Breaker — mindjárt a menet-óra', focusHourWarnText(peak) + clickToStartText());
   // EGY KATTINTÁS az értesítésről a menetig: az előjelzés nem csak mondat.
-  n.onclick = () => void startSuggestedSession(true);
+  if (n) n.onclick = () => void startSuggestedSession(true);
 }
 
 function showBurstNotice(n: BurstNotice, now: number): void {
@@ -655,7 +689,7 @@ function showBurstNotice(n: BurstNotice, now: number): void {
   const body = n.kind === 'tripped'
     ? `${n.label}: az adag betelt — nyit ${fmtRemain(n.until - now)} múlva.`
     : `${n.label}: az adag-szünet letelt, az oldal újra nyitva.`;
-  new Notification('Breaker', { body });
+  notify('Breaker', body);
 }
 
 /**
@@ -707,11 +741,7 @@ function runNotices(): number {
     nowForBurst,
   );
   pauseWatches = pauses.watches;
-  for (const n of pauses.notices) {
-    if ('Notification' in window && Notification.permission === 'granted') {
-      new Notification(PAUSE_END_TITLE, { body: pauseEndText(n.label, n.until - nowForBurst) });
-    }
-  }
+  for (const n of pauses.notices) notify(PAUSE_END_TITLE, pauseEndText(n.label, n.until - nowForBurst));
   // A NAPI KERET VÉGE előre: amikor egy oldal mai keretéből a küszöbnyi idő
   // marad, egyszer szól — a „ma még” sor mondatával (shared/limits.ts).
   const limits = stepLimitNotices(
@@ -723,11 +753,7 @@ function runNotices(): number {
     dayKey(nowForBurst),
   );
   limitWatches = limits.watches;
-  for (const n of limits.notices) {
-    if ('Notification' in window && Notification.permission === 'granted') {
-      new Notification(LIMIT_SOON_TITLE, { body: n.text });
-    }
-  }
+  for (const n of limits.notices) notify(LIMIT_SOON_TITLE, n.text);
   // A heti ablak menete, ha most tűnt fel — akkor is, ha az app később nyílt
   // meg, mint ahogy a menet indult.
   const windowRun = windowRunStarted(seenFocusRun, status!.focusRun, status!.focusPacks ?? [], nowForBurst);
@@ -4189,7 +4215,7 @@ function buildDelay(box: HTMLElement, session: SessionInfo, step: StepDisplay): 
       claimBtn.disabled = false;
       if (notifiedStepId !== step.id && 'Notification' in window && Notification.permission === 'granted') {
         notifiedStepId = step.id;
-        new Notification('Breaker', { body: 'Letelt a várakozás — 10 perced van átvenni a feloldást.' });
+        notify('Breaker', 'Letelt a várakozás — 10 perced van átvenni a feloldást.');
       }
     } else {
       countdown.textContent = 'Az átvételi ablak lejárt.';
@@ -4241,6 +4267,10 @@ function setupModal(): void {
   // Az app sora a fiók-panelen: verzió, kézi frissítés-keresés, kilépés.
   // A verzió kiírása nem hiúság: e nélkül nem lehet megmondani, hogy valaki
   // a régi appban keresi-e az új funkciót.
+  // A legutóbbi meg nem jelent értesítés — egy újraindítás nem tünteti el a
+  // sort: a rendszer beállítása attól még ugyanaz.
+  try { notifyFailedAt = parseFailedAt(localStorage.getItem(NOTIFY_FAIL_KEY)); } catch { /* nincs tár */ }
+  renderNotifyDelivery();
   void window.breaker.appVersion?.().then((v) => {
     // A szöveg a füstpróbával közös (shared/smoke.ts): a próba ezt várja.
     $('appVersionRow').textContent = versionRowText(v);
@@ -4450,7 +4480,7 @@ function maybeDigest(): void {
     saveDigestLog(recordDigest(loadDigestLog(), key, text));
     renderJournal();
   }
-  if (text) new Notification('Breaker — heti visszatekintés', { body: text });
+  if (text) notify('Breaker — heti visszatekintés', text);
 }
 
 /**

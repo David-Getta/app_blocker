@@ -2252,6 +2252,29 @@ async function main() {
   await page.evaluate(() => { window.__fakeSync = undefined; });
 
   // ------------------------------------------------------- világos téma
+  // A MEG NEM JELENT ÉRTESÍTÉS. Ha a rendszer egy értesítést nem jelenített meg
+  // (letiltva, vagy macOS-en az aláírás nem felel meg a UNNotification-nek), a
+  // beállítások lapja kimondja — egy újraindítás után is, a tárból. Friss lap,
+  // hogy a tár beültetése ne lógjon át a többi ellenőrzésre.
+  const notifyPage = await browser.newPage({ viewport: { width: 1180, height: 900 } });
+  await notifyPage.addInitScript(fakeBridgeSource());
+  await notifyPage.addInitScript(() => {
+    try { localStorage.setItem('breaker.notifyFailedAt', String(Date.now() - 60_000)); } catch { /* nincs tár */ }
+  });
+  await notifyPage.goto(`http://127.0.0.1:${port}/renderer/index.html`);
+  await notifyPage.waitForSelector('#siteList .site-row', { timeout: 15_000 });
+  const deliveryNote = (await notifyPage.locator('#notifyDeliveryNote').textContent()) || '';
+  if (await notifyPage.locator('#notifyDeliveryNote.hidden').count() !== 0
+    || !deliveryNote.includes('nem jelenítette meg')
+    || !deliveryNote.includes('Rendszerbeállítások › Értesítések › Breaker')) {
+    failures.push(`a meg nem jelent értesítést a beállítások lapja nem mondja ki: ${deliveryNote}`);
+  }
+  await notifyPage.close();
+  // A szokásos lapon (nincs tárolt hiba) a sor rejtve marad.
+  if (await page.locator('#notifyDeliveryNote.hidden').count() !== 1) {
+    failures.push('hiba nélkül is ott a meg nem jelent értesítés sora');
+  }
+
   // A felület a rendszer beállítását követi, tehát KÉT megjelenése van. Ha
   // csak a sötétet néznénk, egy világosban olvashatatlan szín addig maradna
   // bent, amíg valaki panaszkodik. A rács MINDEN cellája ugyanaz a kód, csak
