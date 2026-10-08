@@ -940,6 +940,24 @@ object Referee {
         }
     }
 
+    /**
+     * A végigment törlések SÍRKÖVEI a sírkövek közé (SyncMerge.tombstoneOf
+     * párja a tárolt rekordon): a rekord a szinkron-mezőivel, a kérés
+     * számlálójával megjelölve, a lenyomat nélkül. Csak kifizetett —
+     * számlálós — törlésnek van: a régi, számláló nélküli kérést a fésülés nem
+     * tudja megkülönböztetni egy visszavonástól. Az azonos azonosítójú régi
+     * sírkő helyére kerül; a plafon a fésülésé. A gép `buryDeleted`-jének tükre.
+     */
+    internal fun buryDeleted(gone: List<Site>, deleted: List<Site>): List<Site> {
+        val stones = deleted.mapNotNull { s ->
+            val del = s.deleteLoosens ?: 0
+            if (del > 0 && s.pendingDeleteAt != null) s.copy(pauseUntil = null, goneLoosens = del, revFp = null) else null
+        }
+        if (stones.isEmpty()) return gone
+        val ids = stones.map { it.id }.toSet()
+        return SyncMerge.capGone(stones + gone.filter { it.id !in ids }, { it.id }, { it.pendingDeleteAt })
+    }
+
     /** Az ismétlődés-vizsgálat utolsó tizenöt másodperces szelete (lásd a tick-et). */
     @Volatile private var lastDueSlot = -1L
 
@@ -1016,9 +1034,12 @@ object Referee {
                 // Zárlat alatt a kifizetett törlés is visszavonódik: az oldal
                 // marad, a kivárt idő elvész. A szigorúbb irány, és a zárlat ára.
                 .map { if (locked && it.pendingDeleteAt != null) it.copy(pendingDeleteAt = null) else it }
-                .filter { it.pendingDeleteAt == null || it.pendingDeleteAt > now }
+            // A végigment, KIFIZETETT törlés helyén sírkő marad (`buryDeleted`):
+            // a szinkron viszi, hogy a fiókban maradt rekord ne jöjjön vissza
+            // minden körben, és egy régi eszköz rekordja se támassza fel az oldalt.
+            val (kept, deleted) = sites.partition { it.pendingDeleteAt == null || it.pendingDeleteAt > now }
             val closed = Focus.closeIfEnded(next.focusRun, next.focusPacks, next.focusLog, now)
-            next = next.copy(sites = sites)
+            next = next.copy(sites = kept, goneSites = buryDeleted(next.goneSites, deleted))
             if (closed != null) next = next.copy(focusRun = closed.run, focusLog = closed.log)
             // Az ablak végéig — a gép ugyanezt a menetet állítja elő, a
             // szinkron a kettőt egynek látja.

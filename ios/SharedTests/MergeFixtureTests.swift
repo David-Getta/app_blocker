@@ -26,6 +26,21 @@ private struct SiteCase: Decodable {
     let fa: String
 }
 
+/// Egy lista-eset: három eszköz listája sírkövekkel, a helyi azonosítók, az
+/// időpont — és a fésült lista, a harmadik lista előkészítése, a szétosztás.
+private struct ListCase: Decodable {
+    let seed: Int
+    let a: [SyncMerge.SyncSite]
+    let b: [SyncMerge.SyncSite]
+    let c: [SyncMerge.SyncSite]
+    let local: [String]
+    let now: Double
+    let merged: [String]
+    let settled: [String]
+    let sites: [String]
+    let gone: [String]
+}
+
 private struct FocusCase: Decodable {
     let seed: Int
     /// A kézzel írt eset neve (a menet egy-egy ága), a véletleneknél nincs.
@@ -45,6 +60,7 @@ private struct FocusCase: Decodable {
 
 private struct Fixture: Decodable {
     let sites: [SiteCase]
+    let lists: [ListCase]
     let focus: [FocusCase]
 }
 
@@ -86,7 +102,17 @@ final class MergeFixtureTests: XCTestCase {
         let rmarkParts: [String] = (s.ruleMarks ?? [:]).sorted { TextLogic.utf16Less($0.key, $1.key) }
             .map { "\($0.key)=\($0.value)" }
         let rmarks = " rmarks=[" + rmarkParts.joined(separator: ",") + "]"
-        return head + mid + tail + loos + rmarks
+        let gone = " gone=\(s.goneLoosens ?? 0)"
+        return head + mid + tail + loos + rmarks + gone
+    }
+
+    /// Egy lista kulcsa — a sorrend is számít: a fésülés kanonikus sorrendet ad
+    /// (a gép `listConformanceKey`-e).
+    private func listKey(_ list: [SyncMerge.SyncSite]) -> [String] {
+        list.map { s in
+            let state = SyncMerge.isGone(s) ? "dead" : "live"
+            return "\(s.id)|\(s.domain)|\(state)|" + siteKey(s)
+        }
     }
 
     private func focusKey(_ f: FocusSync.SyncFocus) -> String {
@@ -122,6 +148,21 @@ final class MergeFixtureTests: XCTestCase {
                 "\(e.packId)/\(int(e.startedAt))/\(int(e.endedAt))/\(int(e.plannedEndsAt))/\(e.stopped ? 1 : 0)/\((e.window ?? false) ? 1 : 0)"
                     + "/\(e.cutCount)/\(e.origin.map { int($0) } ?? "-")"
             }.joined(separator: ";") + "]"
+    }
+
+    func testListsWithTombstonesMergeTheSameAsTheDesktop() throws {
+        let fixture = try loadFixture()
+        XCTAssertGreaterThanOrEqual(fixture.lists.count, 50, "a fixture-ben van elég eset")
+        for c in fixture.lists {
+            let local = Set(c.local)
+            let merged = SyncMerge.mergeLists(SyncMerge.mergeLists(c.a, c.b), c.c)
+            XCTAssertEqual(listKey(merged), c.merged, "fésült lista, mag \(c.seed)")
+            let settled = SyncMerge.settleIncoming(c.c, local, c.now)
+            XCTAssertEqual(listKey(settled), c.settled, "előkészítés, mag \(c.seed)")
+            let split = SyncMerge.splitMerged(merged, local, c.now)
+            XCTAssertEqual(split.sites.map { $0.id }, c.sites, "ami tilt, mag \(c.seed)")
+            XCTAssertEqual(split.gone.map { $0.id }, c.gone, "ami sírkő, mag \(c.seed)")
+        }
     }
 
     func testSitesMergeTheSameAsTheDesktop() throws {

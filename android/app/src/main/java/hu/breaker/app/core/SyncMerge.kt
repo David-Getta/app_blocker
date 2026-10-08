@@ -93,6 +93,13 @@ object SyncMerge {
          * A merge.ts tükre.
          */
         val ruleMarks: Map<String, Int>? = null,
+        /**
+         * A VÉGIGMENT törlés jele: annak a törlés-kérésnek a számlálója
+         * ([deleteLoosens]), amelyik valahol végigment. A fésülésben a nagyobb
+         * marad. A rekord halott ([isGone]), ha ez a kérés még mindig az utolsó,
+         * és senki nem vonta vissza. A merge.ts tükre.
+         */
+        val goneLoosens: Int? = null,
     )
 
     // --------------------------------------------------------- szigorúság
@@ -275,6 +282,7 @@ object SyncMerge {
             scheduleLoosens = maxOf(sA, sB).takeIf { it > 0 },
             limitLoosens = maxOf(lA, lB).takeIf { it > 0 },
             burstLoosens = maxOf(bA, bB).takeIf { it > 0 },
+            goneLoosens = maxOf(loosensOf(a.goneLoosens), loosensOf(b.goneLoosens)).takeIf { it > 0 },
         )
         // A hosztnevek nevenként, a jelük szerint; a szabályok a listájuk jele szerint.
         return withHostnames(withRules(out, a, b), a, b)
@@ -414,11 +422,85 @@ object SyncMerge {
     }
 
     /**
+     * HALOTT-e a rekord: a törlése végigment valahol ([SyncSite.goneLoosens]),
+     * és azóta senki nem vonta vissza (a kérés ugyanaz, és még vár) — új kérés
+     * sem jött. A visszavonás és az újabb kérés élő rekordot ad. A halott rekord
+     * nem tilt semmit, de UTAZIK: egy régi eszköz rekordja vele fésülődve maga
+     * is halott lesz. A merge.ts tükre.
+     */
+    fun isGone(s: SyncSite): Boolean {
+        val g = loosensOf(s.goneLoosens)
+        return g > 0 && loosensOf(s.deleteLoosens) == g && s.pendingDeleteAt != null
+    }
+
+    /** Ennél több halott rekordot nem hordunk: a legutóbb töröltek maradnak. */
+    const val MAX_GONE_SITES = 64
+
+    /**
+     * A végigment törlés SÍRKÖVE: a rekord, a kérés számlálójával megjelölve.
+     * Csak kifizetett — számlálós — törlésnek van; a rekord minden mezője
+     * marad (ha egy visszavonás feltámasztja, a menetrendje ne vesszen el).
+     */
+    fun tombstoneOf(s: SyncSite): SyncSite? {
+        val del = loosensOf(s.deleteLoosens)
+        if (del == 0 || s.pendingDeleteAt == null) return null
+        return s.copy(goneLoosens = del)
+    }
+
+    /** Esedékes-e a törlés EZEN az eszközön: vár, és a határideje itt lejárt. */
+    private fun isDue(s: SyncSite, now: Long): Boolean = s.pendingDeleteAt != null && s.pendingDeleteAt <= now
+
+    /**
+     * A beérkezett lista előkészítése ezen az eszközön, a fésülés ELŐTT: ami
+     * nincs a helyi tiltólistán, és a törlése itt már esedékes, az itt
+     * végrehajtott törlés — kifizetett kérésnél sírkő lesz belőle. Sírkőként
+     * kimarad a domain szerinti összevonásból. A merge.ts tükre.
+     */
+    fun settleIncoming(incoming: List<SyncSite>, localIds: Set<String>, now: Long): List<SyncSite> =
+        incoming.map { s -> if (s.id in localIds || !isDue(s, now) || isGone(s)) s else tombstoneOf(s) ?: s }
+
+    /** A fésült lista szétosztása: mi tilt itt, és mi sírkő. */
+    data class Split(val sites: List<SyncSite>, val gone: List<SyncSite>)
+
+    /**
+     * A fésült lista szétosztása ezen az eszközön. A helyi rekord a listán
+     * marad (a sorsát a bíró dönti el), és az is, ami itt még nem esedékes (a
+     * saját határidejéig tilt); az esedékes halott a sírkövek közé kerül; az
+     * esedékes, számlálós, nem halott a listára (a bíró végrehajtja); a
+     * számláló nélküli, régi végigment törlés egyik közé sem. A merge.ts tükre.
+     */
+    fun splitMerged(merged: List<SyncSite>, localIds: Set<String>, now: Long): Split {
+        val sites = mutableListOf<SyncSite>()
+        val gone = mutableListOf<SyncSite>()
+        for (m in merged) {
+            when {
+                m.id in localIds || !isDue(m, now) -> sites.add(m)
+                isGone(m) -> gone.add(m)
+                loosensOf(m.deleteLoosens) > 0 -> sites.add(m)
+            }
+        }
+        return Split(sites, gone)
+    }
+
+    /**
+     * A sírkövek sorrendje és plafonja: a legkésőbbi határidejűek maradnak,
+     * holtversenyben azonosító szerint (kódegység — mint a gépen). A helyi
+     * sírkövekre is ez áll (a bíró ezzel tartja őket).
+     */
+    fun <T> capGone(gone: List<T>, id: (T) -> String, pending: (T) -> Long?): List<T> =
+        gone.sortedWith(compareByDescending<T> { pending(it) ?: 0L }.thenBy { id(it) }).take(MAX_GONE_SITES)
+
+    /**
      * Két lista összefésülése.
      *
      * Ami csak az egyik oldalon van, bekerül — ez SZIGORÍTÁS, tehát ingyen van,
      * és pont ez az, amiért a szinkron kell. Egy hiányzó rekord SOSEM jelent
      * törlést: különben elég lenne egy üres fiókkal belépni, és a lista eltűnne.
+     *
+     * A végigment törlés HALOTT rekordként marad ([isGone]): azonosító szerint
+     * ugyanúgy fésülődik, mint az élők, csak utána dől el, melyik él. A domain
+     * szerinti összevonás csak az élőkre áll; a halottak a végén, plafonnal
+     * ([MAX_GONE_SITES]). A merge.ts tükre.
      */
     fun mergeLists(local: List<SyncSite>, incoming: List<SyncSite>): List<SyncSite> {
         val byId = LinkedHashMap<String, SyncSite>()
@@ -427,11 +509,12 @@ object SyncMerge {
             val mine = byId[s.id]
             byId[s.id] = if (mine == null) s else mergeSite(mine, s)
         }
+        val gone = capGone(byId.values.filter { isGone(it) }, { it.id }, { it.pendingDeleteAt })
         // Ugyanaz a domain kétszer, két eszközről külön felvéve: egy rekordba
         // fésüljük. Enélkül két sorban ugyanaz állna, és az egyiket feloldva a
         // felhasználó azt hinné, feloldotta.
         val byDomain = LinkedHashMap<String, SyncSite>()
-        for (s in byId.values.sortedWith(SORT)) {
+        for (s in byId.values.filter { !isGone(it) }.sortedWith(SORT)) {
             val mine = byDomain[s.domain]
             if (mine == null) { byDomain[s.domain] = s; continue }
             val keep = if (mine.addedAt <= s.addedAt) mine else s
@@ -448,7 +531,7 @@ object SyncMerge {
                 hostnames = (merged.hostnames + extra).distinct().sorted(),
             )
         }
-        return byDomain.values.sortedWith(SORT)
+        return byDomain.values.sortedWith(SORT) + gone.sortedWith(SORT)
     }
 
     /** Stabil sorrend: minden eszközön ugyanaz a lista, ugyanabban a sorrendben. */

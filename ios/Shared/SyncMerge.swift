@@ -80,13 +80,18 @@ enum SyncMerge {
         /// jelenlét. Az iPhone nem szerkeszt szabályt: hordozza és fésüli a
         /// jeleket. A merge.ts tükre.
         var ruleMarks: [String: Int]? = nil
+        /// A VÉGIGMENT törlés jele: annak a törlés-kérésnek a számlálója
+        /// (`deleteLoosens`), amelyik valahol végigment. A fésülésben a nagyobb
+        /// marad. A rekord halott (`isGone`), ha ez a kérés még mindig az utolsó,
+        /// és senki nem vonta vissza. A merge.ts tükre.
+        var goneLoosens: Int? = nil
 
         enum CodingKeys: String, CodingKey {
             case id, domain, hostnames, addedAt, pendingDeleteAt, schedule
             case dailyLimitSeconds, burstSeconds, cooldownSeconds, alias, reason, rules
             case rev, updatedAt, updatedBy, hostnameMarks, rulesRev
             case deleteLoosens, scheduleLoosens, limitLoosens, burstLoosens
-            case ruleMarks
+            case ruleMarks, goneLoosens
         }
 
         init(
@@ -98,7 +103,7 @@ enum SyncMerge {
             hostnameMarks: [String: Int]? = nil, rulesRev: Int? = nil,
             deleteLoosens: Int? = nil, scheduleLoosens: Int? = nil,
             limitLoosens: Int? = nil, burstLoosens: Int? = nil,
-            ruleMarks: [String: Int]? = nil
+            ruleMarks: [String: Int]? = nil, goneLoosens: Int? = nil
         ) {
             self.id = id
             self.domain = domain
@@ -122,6 +127,7 @@ enum SyncMerge {
             self.limitLoosens = limitLoosens
             self.burstLoosens = burstLoosens
             self.ruleMarks = ruleMarks
+            self.goneLoosens = goneLoosens
         }
 
         /// SAJÁT dekódolás, hogy a jelek TŰRŐEN jöjjenek: egy nem-egész érték
@@ -198,6 +204,13 @@ enum SyncMerge {
             } else {
                 ruleMarks = nil
             }
+            // A végigment törlés jele legfeljebb a törlés számlálója: nagyobbat
+            // a fésülés sosem ír — mint a gépen és Androidon.
+            if let g = (try? c.decodeIfPresent(Int.self, forKey: .goneLoosens)) ?? nil, g > 0, g <= (deleteLoosens ?? 0) {
+                goneLoosens = g
+            } else {
+                goneLoosens = nil
+            }
         }
 
         /// A `pendingDeleteAt` KIÍRÁSA kötelező, nem elhagyható.
@@ -233,6 +246,8 @@ enum SyncMerge {
             try c.encodeIfPresent(burstLoosens, forKey: .burstLoosens)
             // A szabályok jelei is csak lista mellett.
             if rules != nil { try c.encodeIfPresent(ruleMarks, forKey: .ruleMarks) }
+            // A végigment törlés jele — a sírkövön.
+            try c.encodeIfPresent(goneLoosens, forKey: .goneLoosens)
         }
     }
 
@@ -424,6 +439,7 @@ enum SyncMerge {
         out.scheduleLoosens = positive(max(sA, sB))
         out.limitLoosens = positive(max(lA, lB))
         out.burstLoosens = positive(max(bA, bB))
+        out.goneLoosens = positive(max(loosensOf(a.goneLoosens), loosensOf(b.goneLoosens)))
         // A hosztnevek nevenként, a jelük szerint; a szabályok a listájuk jele szerint.
         return withHostnames(withRules(out, a, b), a, b)
     }
@@ -580,22 +596,102 @@ enum SyncMerge {
         return out
     }
 
+    /// HALOTT-e a rekord: a törlése végigment valahol (`goneLoosens`), és azóta
+    /// senki nem vonta vissza (a kérés ugyanaz, és még vár) — új kérés sem
+    /// jött. A visszavonás és az újabb kérés élő rekordot ad. A halott rekord
+    /// nem tilt semmit, de UTAZIK: egy régi eszköz rekordja vele fésülődve maga
+    /// is halott lesz. A merge.ts tükre.
+    static func isGone(_ s: SyncSite) -> Bool {
+        let g = loosensOf(s.goneLoosens)
+        return g > 0 && loosensOf(s.deleteLoosens) == g && s.pendingDeleteAt != nil
+    }
+
+    /// Ennél több halott rekordot nem hordunk: a legutóbb töröltek maradnak.
+    static let maxGoneSites = 64
+
+    /// A végigment törlés SÍRKÖVE: a rekord, a kérés számlálójával megjelölve.
+    /// Csak kifizetett — számlálós — törlésnek van; a rekord minden mezője
+    /// marad (ha egy visszavonás feltámasztja, a menetrendje ne vesszen el).
+    static func tombstoneOf(_ s: SyncSite) -> SyncSite? {
+        let del = loosensOf(s.deleteLoosens)
+        guard del > 0, s.pendingDeleteAt != nil else { return nil }
+        var out = s
+        out.goneLoosens = del
+        return out
+    }
+
+    /// Esedékes-e a törlés EZEN az eszközön: vár, és a határideje itt lejárt.
+    private static func isDue(_ s: SyncSite, _ now: Double) -> Bool {
+        guard let at = s.pendingDeleteAt else { return false }
+        return at <= now
+    }
+
+    /// A beérkezett lista előkészítése ezen az eszközön, a fésülés ELŐTT: ami
+    /// nincs a helyi tiltólistán, és a törlése itt már esedékes, az itt
+    /// végrehajtott törlés — kifizetett kérésnél sírkő lesz belőle. Sírkőként
+    /// kimarad a domain szerinti összevonásból. A merge.ts tükre.
+    static func settleIncoming(_ incoming: [SyncSite], _ localIds: Set<String>, _ now: Double) -> [SyncSite] {
+        incoming.map { s in
+            if localIds.contains(s.id) || !isDue(s, now) || isGone(s) { return s }
+            return tombstoneOf(s) ?? s
+        }
+    }
+
+    /// A fésült lista szétosztása ezen az eszközön. A helyi rekord a listán
+    /// marad (a sorsát a bíró dönti el), és az is, ami itt még nem esedékes (a
+    /// saját határidejéig tilt); az esedékes halott a sírkövek közé kerül; az
+    /// esedékes, számlálós, nem halott a listára (a bíró végrehajtja); a
+    /// számláló nélküli, régi végigment törlés egyik közé sem. A merge.ts tükre.
+    static func splitMerged(_ merged: [SyncSite], _ localIds: Set<String>, _ now: Double) -> (sites: [SyncSite], gone: [SyncSite]) {
+        var sites: [SyncSite] = []
+        var gone: [SyncSite] = []
+        for m in merged {
+            if localIds.contains(m.id) || !isDue(m, now) {
+                sites.append(m)
+            } else if isGone(m) {
+                gone.append(m)
+            } else if loosensOf(m.deleteLoosens) > 0 {
+                sites.append(m)
+            }
+        }
+        return (sites: sites, gone: gone)
+    }
+
+    /// A sírkövek sorrendje és plafonja: a legkésőbbi határidejűek maradnak,
+    /// holtversenyben azonosító szerint (kódegység — mint a gépen). A helyi
+    /// sírkövekre is ez áll.
+    static func capGone<T>(_ gone: [T], id: (T) -> String, pending: (T) -> Double?) -> [T] {
+        let sorted = gone.sorted { x, y in
+            let px = pending(x) ?? 0
+            let py = pending(y) ?? 0
+            if px != py { return px > py }
+            return TextLogic.utf16Less(id(x), id(y))
+        }
+        return Array(sorted.prefix(maxGoneSites))
+    }
+
     /// Két lista összefésülése.
     ///
     /// Ami csak az egyik oldalon van, bekerül — ez SZIGORÍTÁS. Egy hiányzó
     /// rekord SOSEM jelent törlést: különben elég lenne egy üres fiókkal
     /// belépni, és a lista eltűnne.
+    ///
+    /// A végigment törlés HALOTT rekordként marad (`isGone`): azonosító szerint
+    /// ugyanúgy fésülődik, mint az élők, csak utána dől el, melyik él. A domain
+    /// szerinti összevonás csak az élőkre áll; a halottak a végén, plafonnal
+    /// (`maxGoneSites`). A merge.ts tükre.
     static func mergeLists(_ local: [SyncSite], _ incoming: [SyncSite]) -> [SyncSite] {
         var byId: [String: SyncSite] = [:]
         for s in local { byId[s.id] = s }
         for s in incoming {
             byId[s.id] = byId[s.id].map { mergeSite($0, s) } ?? s
         }
+        let gone = capGone(byId.values.filter { isGone($0) }, id: { $0.id }, pending: { $0.pendingDeleteAt })
         // Ugyanaz a domain kétszer, két eszközről külön felvéve: egy rekordba
         // fésüljük. Enélkül két sorban ugyanaz állna, és az egyiket feloldva a
         // felhasználó azt hinné, feloldotta.
         var byDomain: [String: SyncSite] = [:]
-        for s in byId.values.sorted(by: sortKey) {
+        for s in byId.values.filter({ !isGone($0) }).sorted(by: sortKey) {
             guard let mine = byDomain[s.domain] else { byDomain[s.domain] = s; continue }
             let keep = mine.addedAt <= s.addedAt ? mine : s
             let dropOriginal = keep.id == mine.id ? s : mine
@@ -611,7 +707,7 @@ enum SyncMerge {
             merged.hostnames = Array(Set(merged.hostnames + extra)).sorted()
             byDomain[s.domain] = merged
         }
-        return byDomain.values.sorted(by: sortKey)
+        return byDomain.values.sorted(by: sortKey) + gone.sorted(by: sortKey)
     }
 
     /// Stabil sorrend: minden eszközön ugyanaz a lista, ugyanabban a sorrendben.

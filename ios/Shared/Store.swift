@@ -73,6 +73,16 @@ struct Site: Codable, Identifiable, Equatable {
     /// HORDOZZA: enélkül egy itteni szerkesztés letörölné a gépen kifizetett
     /// levétel nyomát. Lásd SyncMerge.
     var ruleMarks: [String: Int]? = nil
+    /// A végigment törlés jele: annak a kérésnek a számlálója, amelyik
+    /// végigment (SyncMerge.isGone). A sírkövön áll (AppState.goneSites); élő
+    /// rekordon csak akkor, ha a fésülés hozta, és itt még nem esedékes.
+    var goneLoosens: Int? = nil
+
+    /// HALOTT-e ez a tárolt rekord — a fésülés `isGone`-ja a helyi alakon.
+    var isGoneRecord: Bool {
+        guard let g = goneLoosens, g > 0 else { return false }
+        return deleteLoosens == g && pendingDeleteAt != nil
+    }
 
     /// A számlálók és a szabály-jelek a mag szűrőjén át — mint a dróton:
     /// pozitív egész, legfeljebb a rekord rev-je (csak léptetés írhatja); a
@@ -85,6 +95,8 @@ struct Site: Codable, Identifiable, Equatable {
         out.scheduleLoosens = ok(scheduleLoosens)
         out.limitLoosens = ok(limitLoosens)
         out.burstLoosens = ok(burstLoosens)
+        // A végigment törlés jele legfeljebb a (tisztított) törlés-számláló.
+        out.goneLoosens = goneLoosens.flatMap { g in g > 0 && g <= (out.deleteLoosens ?? 0) ? g : nil }
         if let list = rules, let marks = ruleMarks {
             let valid = marks.filter { entry in
                 guard entry.value > 0, entry.value <= rev, let norm = UrlRules.normalizeRule(entry.key) else { return false }
@@ -151,6 +163,13 @@ struct AbandonRec: Codable, Equatable {
 struct AppState: Codable, Equatable {
     var protectionOn: Bool = false
     var sites: [Site] = []
+    /// A végigment, kifizetett törlések SÍRKÖVEI (legfeljebb
+    /// `SyncMerge.maxGoneSites`). Nem tiltanak semmit; a szinkron viszi őket,
+    /// hogy egy régi eszköz rekordja ne támassza fel az oldalt, és a fiókban
+    /// maradt rekord ne jöjjön vissza minden körben. A bíró írja, a törlés
+    /// végrehajtásakor (Referee.tick). Optional, hogy egy korábbi mentés is
+    /// dekódolható maradjon.
+    var goneSites: [Site]? = nil
     var unlockLog: [Double] = []
     var lastCombo: String? = nil
     var session: SessionRec? = nil
@@ -487,6 +506,12 @@ final class BreakerStore: ObservableObject {
         // A kifizetett lazítások számlálói és a szabály-jelek a lemezről: ugyanaz
         // a tisztítás, mint a dróton.
         decoded.sites = decoded.sites.map { $0.cleaningMarks() }
+        // A sírkövek ugyanígy — és csak a HALOTT marad, a plafonnal.
+        let gone = SyncMerge.capGone(
+            (decoded.goneSites ?? []).map { $0.cleaningMarks() }.filter { $0.isGoneRecord },
+            id: { $0.id }, pending: { $0.pendingDeleteAt }
+        )
+        decoded.goneSites = gone.isEmpty ? nil : gone
         // A kulcsszó-jelek a lemezről: ugyanaz a tisztítás, mint a dróton.
         decoded.keywordMarks = KeywordLogic.cleanKeywordMarks(
             decoded.keywordMarks, decoded.keywords ?? [], maxRev: clampedInt(decoded.focusRev ?? 0)

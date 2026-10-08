@@ -163,6 +163,8 @@ object SyncClient {
             // A kifizetett lazítások mezőnként — a fésülés ezekből dönt.
             deleteLoosens = s.deleteLoosens, scheduleLoosens = s.scheduleLoosens,
             limitLoosens = s.limitLoosens, burstLoosens = s.burstLoosens,
+            // A végigment törlés jele: a sírkövön, és a fésülés hozta, itt még nem esedékes rekordon.
+            goneLoosens = s.goneLoosens,
         )
     }
 
@@ -185,6 +187,7 @@ object SyncClient {
                     ruleMarks = m.ruleMarks,
                     deleteLoosens = m.deleteLoosens, scheduleLoosens = m.scheduleLoosens,
                     limitLoosens = m.limitLoosens, burstLoosens = m.burstLoosens,
+                    goneLoosens = m.goneLoosens,
                 )
             )
         }
@@ -243,6 +246,8 @@ object SyncClient {
                 if (s.scheduleLoosens != null) put("scheduleLoosens", s.scheduleLoosens)
                 if (s.limitLoosens != null) put("limitLoosens", s.limitLoosens)
                 if (s.burstLoosens != null) put("burstLoosens", s.burstLoosens)
+                // A végigment törlés jele — a sírkövön.
+                if (s.goneLoosens != null) put("goneLoosens", s.goneLoosens)
             })
         }
         return arr.toString()
@@ -322,6 +327,7 @@ object SyncClient {
                 // Csak egész rev; a jelek felső határa is ez (a gépen is).
                 val rev = intOf(o, "rev") ?: 1
                 val rules = rulesFromJson(o)
+                val deleteLoosens = intOf(o, "deleteLoosens")?.takeIf { it > 0 && it <= rev }
                 out.add(SyncMerge.SyncSite(
                     id = id!!,
                     domain = domain!!,
@@ -349,11 +355,14 @@ object SyncClient {
                         else intOf(o, "rulesRev")?.takeIf { it > 0 && it <= rev },
                     // A kifizetett lazítások: pozitív egész, legfeljebb a rekord
                     // rev-je (csak léptetés írhatja); ami más, az nincs.
-                    deleteLoosens = intOf(o, "deleteLoosens")?.takeIf { it > 0 && it <= rev },
+                    deleteLoosens = deleteLoosens,
                     scheduleLoosens = intOf(o, "scheduleLoosens")?.takeIf { it > 0 && it <= rev },
                     limitLoosens = intOf(o, "limitLoosens")?.takeIf { it > 0 && it <= rev },
                     burstLoosens = intOf(o, "burstLoosens")?.takeIf { it > 0 && it <= rev },
                     ruleMarks = ruleMarksFromJson(o, rules, rev),
+                    // A végigment törlés jele legfeljebb a törlés számlálója:
+                    // nagyobbat a fésülés sosem ír.
+                    goneLoosens = intOf(o, "goneLoosens")?.takeIf { it > 0 && it <= (deleteLoosens ?: 0) },
                 ))
             }
         }
@@ -905,11 +914,21 @@ object SyncClient {
             val version = pulled.optInt("version", 0)
             val remote = if (pulled.isNull("payload")) emptyList()
                 else sitesFromJson(SyncCrypto.decrypt(key, pulled.getString("payload")))
-            val mine = toSyncSites(current.sites)
-            val merged = SyncMerge.mergeLists(mine, remote)
+            // A SÍRKÖVEK is a fésülésbe mennek (SyncMerge.isGone): a végigment
+            // törlés így nem jön vissza, se a fiókból, se egy régi eszközről. Ami
+            // nincs a helyi listán, és itt már esedékes, az a fésülés előtt
+            // sírkő lesz; utána a fésült lista szétoszlik — a gép tükre.
+            val localIds = current.sites.map { it.id }.toSet()
+            val mine = toSyncSites(current.sites + current.goneSites)
+            val incoming = SyncMerge.settleIncoming(remote, localIds, now)
+            val merged = SyncMerge.mergeLists(mine, incoming)
+            val split = SyncMerge.splitMerged(merged, localIds, now)
 
-            if (merged != mine) {
-                current = current.copy(sites = fromSyncSites(merged, current.sites))
+            if (split.sites != toSyncSites(current.sites) || split.gone != toSyncSites(current.goneSites)) {
+                current = current.copy(
+                    sites = fromSyncSites(split.sites, current.sites),
+                    goneSites = fromSyncSites(split.gone, current.goneSites),
+                )
                 changed = true
             }
             if (merged == remote && version > 0) break // a kiszolgálón már ez van

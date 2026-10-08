@@ -181,7 +181,9 @@ enum SyncClient {
                 deleteLoosens: s.deleteLoosens, scheduleLoosens: s.scheduleLoosens,
                 limitLoosens: s.limitLoosens, burstLoosens: s.burstLoosens,
                 // A szabályok jelei is hordozottak: szabályonként ezekből dől el a fésülés.
-                ruleMarks: s.ruleMarks
+                ruleMarks: s.ruleMarks,
+                // A végigment törlés jele: a sírkövön, és a fésülés hozta, itt még nem esedékes rekordon.
+                goneLoosens: s.goneLoosens
             )
         }
     }
@@ -210,6 +212,7 @@ enum SyncClient {
             out.limitLoosens = m.limitLoosens
             out.burstLoosens = m.burstLoosens
             out.ruleMarks = m.ruleMarks
+            out.goneLoosens = m.goneLoosens
             out.revFp = SyncRevisions.fingerprint(out)
             return out
         }
@@ -364,11 +367,21 @@ enum SyncClient {
                 }
                 remote = decoded
             }
-            let mine = toSyncSites(current.sites)
-            let merged = SyncMerge.mergeLists(mine, remote)
+            // A SÍRKÖVEK is a fésülésbe mennek (SyncMerge.isGone): a végigment
+            // törlés így nem jön vissza, se a fiókból, se egy régi eszközről. Ami
+            // nincs a helyi listán, és itt már esedékes, az a fésülés előtt
+            // sírkő lesz; utána a fésült lista szétoszlik — a gép tükre.
+            let localIds = Set(current.sites.map { $0.id })
+            let gone = current.goneSites ?? []
+            let mine = toSyncSites(current.sites + gone)
+            let incoming = SyncMerge.settleIncoming(remote, localIds, now)
+            let merged = SyncMerge.mergeLists(mine, incoming)
+            let split = SyncMerge.splitMerged(merged, localIds, now)
 
-            if merged != mine {
-                current.sites = fromSyncSites(merged, current.sites)
+            if split.sites != toSyncSites(current.sites) || split.gone != toSyncSites(gone) {
+                current.sites = fromSyncSites(split.sites, current.sites)
+                let kept = fromSyncSites(split.gone, gone)
+                current.goneSites = kept.isEmpty ? nil : kept
                 changed = true
             }
             if merged == remote && version > 0 { break } // a kiszolgálón már ez van

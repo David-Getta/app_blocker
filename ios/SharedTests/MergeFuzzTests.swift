@@ -85,6 +85,12 @@ private func randomSite(_ r: inout Lcg, _ device: String) -> SyncMerge.SyncSite 
     var ruleMarks: [String: Int] = [:]
     if rules != nil && rm0Draw < 0.5 { ruleMarks[SyncMerge.ruleKey(rulePool[0])] = rm0Value }
     if rules != nil && rm1Draw < 0.5 { ruleMarks[SyncMerge.ruleKey(rulePool[1])] = rm1Value }
+    // A VÉGIGMENT TÖRLÉS JELE — két húzás, feltétel nélkül, mint a gépen:
+    // van-e, és mennyi — legfeljebb a törlés számlálója.
+    let goneDraw = r.next()
+    let goneValue = 1 + Int(r.next() * 2)
+    let del: Int = (loosPick == 0 ? loos : nil) ?? 0
+    let gone: Int? = (del > 0 && goneDraw < 0.6) ? min(goneValue, del) : nil
     return SyncMerge.SyncSite(
         id: "site_1", domain: "youtube.com", hostnames: hostnames, addedAt: 1_000,
         pendingDeleteAt: pending, schedule: schedule, dailyLimitSeconds: limit,
@@ -95,7 +101,8 @@ private func randomSite(_ r: inout Lcg, _ device: String) -> SyncMerge.SyncSite 
         rulesRev: rulesRev,
         deleteLoosens: loosPick == 0 ? loos : nil, scheduleLoosens: loosPick == 1 ? loos : nil,
         limitLoosens: loosPick == 2 ? loos : nil, burstLoosens: loosPick == 3 ? loos : nil,
-        ruleMarks: ruleMarks.isEmpty ? nil : ruleMarks
+        ruleMarks: ruleMarks.isEmpty ? nil : ruleMarks,
+        goneLoosens: gone
     )
 }
 
@@ -121,7 +128,8 @@ private func siteKey(_ s: SyncMerge.SyncSite) -> String {
     let rmarks: String = (s.ruleMarks ?? [:]).sorted { $0.key < $1.key }
         .map { "\($0.key)=\($0.value)" }.joined(separator: ",")
     let rest: String = "|" + rules + "|\(s.rulesRev ?? 0)|" + rmarks
-    return head + mid + tail + loos + rest
+    let gone: String = "|\(s.goneLoosens ?? 0)"
+    return head + mid + tail + loos + rest + gone
 }
 
 private let packIds = ["p1", "p2", "p3", "p4"]

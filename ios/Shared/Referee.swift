@@ -761,6 +761,26 @@ enum Referee {
     /// Az ismétlődés-vizsgálat utolsó tizenöt másodperces szelete (lásd a tick-et).
     private static var lastDueSlot = -1
 
+    /// A végigment törlések SÍRKÖVEI a sírkövek közé (`SyncMerge.tombstoneOf`
+    /// párja a tárolt rekordon): a rekord a szinkron-mezőivel, a kérés
+    /// számlálójával megjelölve, a lenyomat nélkül. Csak kifizetett —
+    /// számlálós — törlésnek van: a régi, számláló nélküli kérést a fésülés nem
+    /// tudja megkülönböztetni egy visszavonástól. Az azonos azonosítójú régi
+    /// sírkő helyére kerül; a plafon a fésülésé. A gép `buryDeleted`-jének tükre.
+    static func buryDeleted(_ gone: [Site], _ deleted: [Site]) -> [Site] {
+        let stones: [Site] = deleted.compactMap { s in
+            guard let del = s.deleteLoosens, del > 0, s.pendingDeleteAt != nil else { return nil }
+            var stone = s
+            stone.pauseUntil = nil
+            stone.goneLoosens = del
+            stone.revFp = nil
+            return stone
+        }
+        if stones.isEmpty { return gone }
+        let ids = Set(stones.map { $0.id })
+        return SyncMerge.capGone(stones + gone.filter { !ids.contains($0.id) }, id: { $0.id }, pending: { $0.pendingDeleteAt })
+    }
+
     static func tick(now: Double) {
         // A FRISS állapoton döntünk, nem a közzétetten: az elnyelés épp most
         // tolta el a határidőket, a `BreakerStore.state` viszont csak a fő sor
@@ -834,15 +854,24 @@ enum Referee {
             // Sitting out the claim window ends an attempt too: same bookkeeping,
             // so it is not an escape hatch from a pair one dislikes.
             if sessionDead || lockedSession { dropSession(&state, now) }
+            // A végigment, KIFIZETETT törlés helyén sírkő marad (`buryDeleted`):
+            // a szinkron viszi, hogy a fiókban maradt rekord ne jöjjön vissza
+            // minden körben, és egy régi eszköz rekordja se támassza fel az oldalt.
+            var deleted: [Site] = []
             state.sites = state.sites.compactMap { site in
                 var copy = site
                 if let p = copy.pauseUntil, locked || p <= now { copy.pauseUntil = nil }
                 // Zárlat alatt a kifizetett törlés is visszavonódik: az oldal
                 // marad, a kivárt idő elvész. A szigorúbb irány, és a zárlat ára.
                 if locked { copy.pendingDeleteAt = nil }
-                if let d = copy.pendingDeleteAt, d <= now { return nil }
+                if let d = copy.pendingDeleteAt, d <= now {
+                    deleted.append(copy)
+                    return nil
+                }
                 return copy
             }
+            let buried = buryDeleted(state.goneSites ?? [], deleted)
+            state.goneSites = buried.isEmpty ? nil : buried
             if let closed = Focus.closeIfEnded(
                 state.focusRun, packs: state.focusPacks ?? [],
                 log: state.focusLog ?? [], now: now

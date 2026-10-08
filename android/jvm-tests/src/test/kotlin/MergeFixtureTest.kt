@@ -61,8 +61,15 @@ class MergeFixtureTest {
             " at=${s.updatedAt} by=${s.updatedBy}" +
             " sched=$sched burst=$burst rules=$rules rmark=${s.rulesRev ?: 0}" +
             " loos=${s.deleteLoosens ?: 0}/${s.scheduleLoosens ?: 0}/${s.limitLoosens ?: 0}/${s.burstLoosens ?: 0}" +
-            " rmarks=[" + (s.ruleMarks ?: emptyMap()).toSortedMap().entries.joinToString(",") { "${it.key}=${it.value}" } + "]"
+            " rmarks=[" + (s.ruleMarks ?: emptyMap()).toSortedMap().entries.joinToString(",") { "${it.key}=${it.value}" } + "]" +
+            " gone=${s.goneLoosens ?: 0}"
     }
+
+    /** Egy lista kulcsa — a sorrend is számít: a fésülés kanonikus sorrendet ad (a gép listConformanceKey-e). */
+    private fun listKey(list: List<SyncMerge.SyncSite>): List<String> =
+        list.map { "${it.id}|${it.domain}|${if (SyncMerge.isGone(it)) "dead" else "live"}|${siteKey(it)}" }
+
+    private fun strings(arr: JSONArray): List<String> = (0 until arr.length()).map { arr.getString(it) }
 
     private fun focusKey(f: FocusSync.SyncFocus): String {
         val packs = f.packs.sortedBy { it.id }.joinToString(";") { p ->
@@ -273,6 +280,28 @@ class MergeFixtureTest {
             val what = c.getString("what")
             assertEquals(c.getString("af"), siteKey(SyncMerge.mergeSite(a, flip)), "közeli, mag $seed: $what")
             assertEquals(c.getString("fa"), siteKey(SyncMerge.mergeSite(flip, a)), "közeli fordítva, mag $seed: $what")
+        }
+    }
+
+    @Test
+    fun `listak sirkovekkel - a Kotlin fesules, elokeszites es szetosztas ugyanazt adja, mint a gep`() {
+        val cases = JSONObject(fixtureFile().readText()).getJSONArray("lists")
+        assertTrue(cases.length() >= 50, "a fixture-ben van elég eset")
+        for (i in 0 until cases.length()) {
+            val c = cases.getJSONObject(i)
+            val seed = c.getInt("seed")
+            val a = SyncClient.sitesFromJson(c.getJSONArray("a").toString())
+            val b = SyncClient.sitesFromJson(c.getJSONArray("b").toString())
+            val cc = SyncClient.sitesFromJson(c.getJSONArray("c").toString())
+            val local = strings(c.getJSONArray("local")).toSet()
+            val now = c.getLong("now")
+            val merged = SyncMerge.mergeLists(SyncMerge.mergeLists(a, b), cc)
+            assertEquals(strings(c.getJSONArray("merged")), listKey(merged), "fésült lista, mag $seed")
+            assertEquals(strings(c.getJSONArray("settled")), listKey(SyncMerge.settleIncoming(cc, local, now)),
+                "előkészítés, mag $seed")
+            val split = SyncMerge.splitMerged(merged, local, now)
+            assertEquals(strings(c.getJSONArray("sites")), split.sites.map { it.id }, "ami tilt, mag $seed")
+            assertEquals(strings(c.getJSONArray("gone")), split.gone.map { it.id }, "ami sírkő, mag $seed")
         }
     }
 

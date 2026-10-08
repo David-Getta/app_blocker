@@ -90,6 +90,12 @@ class MergeFuzzTest {
         val ruleMarks = HashMap<String, Int>()
         if (rules != null && rm0Draw < 0.5) ruleMarks[SyncMerge.ruleKey(rulePool[0])] = rm0Value
         if (rules != null && rm1Draw < 0.5) ruleMarks[SyncMerge.ruleKey(rulePool[1])] = rm1Value
+        // A VÉGIGMENT TÖRLÉS JELE — két húzás, feltétel nélkül, mint a gépen:
+        // van-e, és mennyi — legfeljebb a törlés számlálója.
+        val goneDraw = r.next()
+        val goneValue = 1 + (r.next() * 2).toInt()
+        val del = if (loos != null && loosPick == 0) loos else 0
+        val gone = if (del > 0 && goneDraw < 0.6) minOf(goneValue, del) else null
         return SyncMerge.SyncSite(
             id = "site_1", domain = "youtube.com", hostnames = hostnames, addedAt = 1_000,
             pendingDeleteAt = pending, schedule = schedule, dailyLimitSeconds = limit,
@@ -103,6 +109,7 @@ class MergeFuzzTest {
             limitLoosens = loos.takeIf { loosPick == 2 },
             burstLoosens = loos.takeIf { loosPick == 3 },
             ruleMarks = ruleMarks.ifEmpty { null },
+            goneLoosens = gone,
         )
     }
 
@@ -121,7 +128,8 @@ class MergeFuzzTest {
             "|${s.burstSeconds}/${s.cooldownSeconds}|$sched|${s.alias}|${s.reason}|${s.updatedAt}|${s.updatedBy}" +
             "|${s.deleteLoosens ?: 0}/${s.scheduleLoosens ?: 0}/${s.limitLoosens ?: 0}/${s.burstLoosens ?: 0}" +
             "|${s.rules?.map { it.host + it.path }?.sorted()?.joinToString(",") ?: "-"}|${s.rulesRev ?: 0}" +
-            "|${(s.ruleMarks ?: emptyMap()).toSortedMap().entries.joinToString(",") { "${it.key}=${it.value}" }}"
+            "|${(s.ruleMarks ?: emptyMap()).toSortedMap().entries.joinToString(",") { "${it.key}=${it.value}" }}" +
+            "|${s.goneLoosens ?: 0}"
     }
 
     private val packIds = listOf("p1", "p2", "p3", "p4")

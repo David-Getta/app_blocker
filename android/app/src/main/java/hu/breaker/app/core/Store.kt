@@ -74,6 +74,12 @@ data class Site(
     val scheduleLoosens: Int? = null,
     val limitLoosens: Int? = null,
     val burstLoosens: Int? = null,
+    /**
+     * A végigment törlés jele: annak a kérésnek a számlálója, amelyik
+     * végigment (SyncMerge.isGone). A sírkövön áll (AppState.goneSites); élő
+     * rekordon csak akkor, ha a fésülés hozta, és itt még nem esedékes.
+     */
+    val goneLoosens: Int? = null,
 )
 
 data class SessionRec(
@@ -139,6 +145,14 @@ data class BurstTrip(val day: String, val count: Int)
 data class AppState(
     val protectionOn: Boolean = false,
     val sites: List<Site> = emptyList(),
+    /**
+     * A végigment, kifizetett törlések SÍRKÖVEI (legfeljebb
+     * SyncMerge.MAX_GONE_SITES). Nem tiltanak semmit; a szinkron viszi őket,
+     * hogy egy régi eszköz rekordja ne támassza fel az oldalt, és a fiókban
+     * maradt rekord ne jöjjön vissza minden körben. A bíró írja, a törlés
+     * végrehajtásakor (Referee.tick).
+     */
+    val goneSites: List<Site> = emptyList(),
     val unlockLog: List<Long> = emptyList(),
     val lastCombo: String? = null,
     val session: SessionRec? = null,
@@ -564,6 +578,42 @@ object BreakerStore {
         return ScheduleLogic.Schedule(mode, bands)
     }
 
+    /** Egy oldal-rekord a tárolt állapotban — a tiltólista és a sírkövek ugyanígy. */
+    private fun siteToJson(site: Site): JSONObject = JSONObject().apply {
+
+        put("id", site.id); put("domain", site.domain)
+        put("hostnames", JSONArray(site.hostnames))
+        put("addedAt", site.addedAt)
+        put("pauseUntil", site.pauseUntil ?: JSONObject.NULL)
+        put("pendingDeleteAt", site.pendingDeleteAt ?: JSONObject.NULL)
+        put("schedule", site.schedule?.let { scheduleToJson(it) } ?: JSONObject.NULL)
+        put("dailyLimitSeconds", site.dailyLimitSeconds ?: JSONObject.NULL)
+        put("burstSeconds", site.burstSeconds ?: JSONObject.NULL)
+        put("cooldownSeconds", site.cooldownSeconds ?: JSONObject.NULL)
+        put("alias", site.alias ?: JSONObject.NULL)
+        put("reason", site.reason ?: JSONObject.NULL)
+        // A hiányzó kulcs és az üres tömb KÉT KÜLÖNBÖZŐ dolog: az első
+        // azt jelenti, hogy nincs tudomásunk szabályokról, a második
+        // azt, hogy voltak és levették. Lásd SyncMerge.mergeRules.
+        put("rules", site.rules?.let { rs ->
+            JSONArray(rs.map { r ->
+                JSONObject().apply { put("host", r.host); put("path", r.path) }
+            })
+        } ?: JSONObject.NULL)
+        put("rev", site.rev)
+        put("updatedAt", site.updatedAt)
+        put("updatedBy", site.updatedBy)
+        put("revFp", site.revFp ?: JSONObject.NULL)
+        put("hostnameMarks", site.hostnameMarks?.let { JSONObject(it) } ?: JSONObject.NULL)
+        put("rulesRev", site.rulesRev ?: JSONObject.NULL)
+        put("ruleMarks", site.ruleMarks?.let { JSONObject(it) } ?: JSONObject.NULL)
+        put("deleteLoosens", site.deleteLoosens ?: JSONObject.NULL)
+        put("scheduleLoosens", site.scheduleLoosens ?: JSONObject.NULL)
+        put("limitLoosens", site.limitLoosens ?: JSONObject.NULL)
+        put("burstLoosens", site.burstLoosens ?: JSONObject.NULL)
+        put("goneLoosens", site.goneLoosens ?: JSONObject.NULL)
+    }
+
     private fun toJson(s: AppState): JSONObject = JSONObject().apply {
         put("protectionOn", s.protectionOn)
         put("hideSiteList", s.hideSiteList)
@@ -602,40 +652,9 @@ object BreakerStore {
                 put("lastError", a.lastError ?: JSONObject.NULL)
             }
         } ?: JSONObject.NULL)
-        put("sites", JSONArray(s.sites.map { site ->
-            JSONObject().apply {
-                put("id", site.id); put("domain", site.domain)
-                put("hostnames", JSONArray(site.hostnames))
-                put("addedAt", site.addedAt)
-                put("pauseUntil", site.pauseUntil ?: JSONObject.NULL)
-                put("pendingDeleteAt", site.pendingDeleteAt ?: JSONObject.NULL)
-                put("schedule", site.schedule?.let { scheduleToJson(it) } ?: JSONObject.NULL)
-                put("dailyLimitSeconds", site.dailyLimitSeconds ?: JSONObject.NULL)
-                put("burstSeconds", site.burstSeconds ?: JSONObject.NULL)
-                put("cooldownSeconds", site.cooldownSeconds ?: JSONObject.NULL)
-                put("alias", site.alias ?: JSONObject.NULL)
-                put("reason", site.reason ?: JSONObject.NULL)
-                // A hiányzó kulcs és az üres tömb KÉT KÜLÖNBÖZŐ dolog: az első
-                // azt jelenti, hogy nincs tudomásunk szabályokról, a második
-                // azt, hogy voltak és levették. Lásd SyncMerge.mergeRules.
-                put("rules", site.rules?.let { rs ->
-                    JSONArray(rs.map { r ->
-                        JSONObject().apply { put("host", r.host); put("path", r.path) }
-                    })
-                } ?: JSONObject.NULL)
-                put("rev", site.rev)
-                put("updatedAt", site.updatedAt)
-                put("updatedBy", site.updatedBy)
-                put("revFp", site.revFp ?: JSONObject.NULL)
-                put("hostnameMarks", site.hostnameMarks?.let { JSONObject(it) } ?: JSONObject.NULL)
-                put("rulesRev", site.rulesRev ?: JSONObject.NULL)
-                put("ruleMarks", site.ruleMarks?.let { JSONObject(it) } ?: JSONObject.NULL)
-                put("deleteLoosens", site.deleteLoosens ?: JSONObject.NULL)
-                put("scheduleLoosens", site.scheduleLoosens ?: JSONObject.NULL)
-                put("limitLoosens", site.limitLoosens ?: JSONObject.NULL)
-                put("burstLoosens", site.burstLoosens ?: JSONObject.NULL)
-            }
-        }))
+        put("sites", JSONArray(s.sites.map { siteToJson(it) }))
+        // A sírkövek ugyanazon az úton (Referee.tick írja őket).
+        put("goneSites", JSONArray(s.goneSites.map { siteToJson(it) }))
         put("unlockLog", JSONArray(s.unlockLog))
         put("droppedAttempts", JSONArray(s.droppedAttempts))
         put("filterHits", JSONObject(s.filterHits))
@@ -819,6 +838,49 @@ object BreakerStore {
         SyncClient.intOf(s, key)?.takeIf { it > 0 && it <= s.optInt("rev", 0) }
 
     /**
+     * Egy oldal-rekord a tárolt állapotból — a tiltólista és a sírkövek
+     * ugyanígy. Kivételt dob, ha a rekord olvashatatlan: a hívó rekordonként
+     * tűr.
+     */
+    private fun siteFromJson(s: JSONObject): Site = Site(
+        id = s.getString("id"),
+        domain = s.getString("domain"),
+        hostnames = s.getJSONArray("hostnames").let { hs ->
+            (0 until hs.length()).map { j -> hs.getString(j) }
+        },
+        addedAt = s.getLong("addedAt"),
+        pauseUntil = if (s.isNull("pauseUntil")) null else s.getLong("pauseUntil"),
+        pendingDeleteAt = if (s.isNull("pendingDeleteAt")) null else s.getLong("pendingDeleteAt"),
+        schedule = if (s.isNull("schedule")) null else scheduleFromJson(s.getJSONObject("schedule")),
+        dailyLimitSeconds = if (s.isNull("dailyLimitSeconds")) null else s.getLong("dailyLimitSeconds"),
+        burstSeconds = if (s.isNull("burstSeconds")) null else s.getLong("burstSeconds"),
+        cooldownSeconds = if (s.isNull("cooldownSeconds")) null else s.getLong("cooldownSeconds"),
+        // Betöltéskor is normalizálunk: egy régebbi (vagy kézzel
+        // szerkesztett) állapotból is csak tiszta név jöhet be.
+        alias = AliasLogic.normalize(if (s.isNull("alias")) null else s.optString("alias")),
+        reason = AliasLogic.normalizeReason(if (s.isNull("reason")) null else s.optString("reason")),
+        rules = rulesFromJson(s),
+        rev = s.optInt("rev", 0),
+        updatedAt = s.optLong("updatedAt", 0),
+        updatedBy = s.optString("updatedBy", ""),
+        revFp = if (s.isNull("revFp")) null else s.optString("revFp"),
+        hostnameMarks = SyncClient.marksFromJson(s),
+        rulesRev = if (s.isNull("rulesRev")) null else s.optInt("rulesRev", 0).takeIf { it > 0 },
+        // A szabályok jelei a mag szűrőjén át — mint a dróton.
+        ruleMarks = SyncClient.ruleMarksFromJson(s, rulesFromJson(s), s.optInt("rev", 0)),
+        // A kifizetett lazítások számlálói a mag szűrőjén át — mint
+        // a dróton: pozitív egész, legfeljebb a rekord rev-je.
+        deleteLoosens = loosensFrom(s, "deleteLoosens"),
+        scheduleLoosens = loosensFrom(s, "scheduleLoosens"),
+        limitLoosens = loosensFrom(s, "limitLoosens"),
+        burstLoosens = loosensFrom(s, "burstLoosens"),
+        // A végigment törlés jele legfeljebb a (tisztított) törlés-számláló.
+        goneLoosens = SyncClient.intOf(s, "goneLoosens")?.takeIf { g ->
+            g > 0 && g <= (loosensFrom(s, "deleteLoosens") ?: 0)
+        },
+    )
+
+    /**
      * Reads persisted state. Damage is contained per record on purpose: the
      * caller can only fall back to an EMPTY state, which means every block
      * silently disappears — the one outcome this app must never produce by
@@ -828,44 +890,18 @@ object BreakerStore {
      */
     private fun fromJson(o: JSONObject): AppState {
         val sites = o.optJSONArray("sites")?.let { arr ->
-            (0 until arr.length()).mapNotNull { i ->
-                runCatching {
-                    val s = arr.getJSONObject(i)
-                    Site(
-                        id = s.getString("id"),
-                        domain = s.getString("domain"),
-                        hostnames = s.getJSONArray("hostnames").let { hs ->
-                            (0 until hs.length()).map { j -> hs.getString(j) }
-                        },
-                        addedAt = s.getLong("addedAt"),
-                        pauseUntil = if (s.isNull("pauseUntil")) null else s.getLong("pauseUntil"),
-                        pendingDeleteAt = if (s.isNull("pendingDeleteAt")) null else s.getLong("pendingDeleteAt"),
-                        schedule = if (s.isNull("schedule")) null else scheduleFromJson(s.getJSONObject("schedule")),
-                        dailyLimitSeconds = if (s.isNull("dailyLimitSeconds")) null else s.getLong("dailyLimitSeconds"),
-                        burstSeconds = if (s.isNull("burstSeconds")) null else s.getLong("burstSeconds"),
-                        cooldownSeconds = if (s.isNull("cooldownSeconds")) null else s.getLong("cooldownSeconds"),
-                        // Betöltéskor is normalizálunk: egy régebbi (vagy kézzel
-                        // szerkesztett) állapotból is csak tiszta név jöhet be.
-                        alias = AliasLogic.normalize(if (s.isNull("alias")) null else s.optString("alias")),
-                        reason = AliasLogic.normalizeReason(if (s.isNull("reason")) null else s.optString("reason")),
-                        rules = rulesFromJson(s),
-                        rev = s.optInt("rev", 0),
-                        updatedAt = s.optLong("updatedAt", 0),
-                        updatedBy = s.optString("updatedBy", ""),
-                        revFp = if (s.isNull("revFp")) null else s.optString("revFp"),
-                        hostnameMarks = SyncClient.marksFromJson(s),
-                        rulesRev = if (s.isNull("rulesRev")) null else s.optInt("rulesRev", 0).takeIf { it > 0 },
-                        // A szabályok jelei a mag szűrőjén át — mint a dróton.
-                        ruleMarks = SyncClient.ruleMarksFromJson(s, rulesFromJson(s), s.optInt("rev", 0)),
-                        // A kifizetett lazítások számlálói a mag szűrőjén át — mint
-                        // a dróton: pozitív egész, legfeljebb a rekord rev-je.
-                        deleteLoosens = loosensFrom(s, "deleteLoosens"),
-                        scheduleLoosens = loosensFrom(s, "scheduleLoosens"),
-                        limitLoosens = loosensFrom(s, "limitLoosens"),
-                        burstLoosens = loosensFrom(s, "burstLoosens"),
-                    )
-                }.getOrNull()
-            }
+            (0 until arr.length()).mapNotNull { i -> runCatching { siteFromJson(arr.getJSONObject(i)) }.getOrNull() }
+        } ?: emptyList()
+        // A sírkövek: rekordonként tűrve, és csak HALOTT — ami nem az, az nem
+        // sírkő; a plafon a fésülésé.
+        val goneSites = o.optJSONArray("goneSites")?.let { arr ->
+            val dead = (0 until arr.length())
+                .mapNotNull { i -> runCatching { siteFromJson(arr.getJSONObject(i)) }.getOrNull() }
+                .filter { g ->
+                    val gl = g.goneLoosens ?: 0
+                    gl > 0 && g.deleteLoosens == gl && g.pendingDeleteAt != null
+                }
+            SyncMerge.capGone(dead, { it.id }, { it.pendingDeleteAt })
         } ?: emptyList()
         val unlockLog = o.optJSONArray("unlockLog")?.let { arr ->
             (0 until arr.length()).mapNotNull { i -> runCatching { arr.getLong(i) }.getOrNull() }
@@ -986,6 +1022,7 @@ object BreakerStore {
                 } ?: emptyList(),
             ),
             sites = sites,
+            goneSites = goneSites,
             unlockLog = unlockLog,
             droppedAttempts = droppedAttempts,
             filterHits = filterHits,
