@@ -137,7 +137,9 @@ ingyen van, rövidíteni vagy visszavonni sehogy.
   Két eszköz szerkesztése **mezőnként** fésülődik: a menetrendekből az unió, a
   keretekből a kisebb marad, és lazítás csak azzal megy át, amiért próbatételt
   fizettek — egy régóta nem szinkronizált eszköz ingyenes szerkesztései nem
-  hozzák vissza a régi, lazább beállítást.
+  hozzák vissza a régi, lazább beállítást. A **végigment törlés sírkövet
+  hagy**: egy régi eszköz nem támasztja fel az oldalt, és a törölt oldal nem
+  jön vissza körönként a fiókból.
   A kiszolgálót az **asztali app egy gombbal el is indítja**, tehát nem kell
   hozzá se terminál, se Node. Lépésről lépésre:
   [`docs/feature-accounts-sync.md`](docs/feature-accounts-sync.md).

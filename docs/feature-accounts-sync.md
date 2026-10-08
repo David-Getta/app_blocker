@@ -102,6 +102,28 @@ adag-szabály — MEZŐNKÉNT fésülődik, nem rekordonként:
   blokkol. Aki látta a kérést (egyenlő számláló) és visszavonta, az átmegy: a
   visszavonás szigorítás, tehát ingyen van. Két független kérésből egyenlő
   számnál a későbbi határidő marad; az újra kért (több kérés) nyer.
+- **A végigment törlés sírkövet hagy.** Egy hiányzó rekord sosem jelent
+  törlést — különben egy üres fiókkal belépve eltűnne a lista. Ezért a
+  végigment törlés eddig örökre a fiókban maradt: minden kör visszahozta, a
+  bíró újra törölte, a mentése új kört ütemezett (a gép félpercenként húzott,
+  és az oldal egy-egy pillanatra a hosts fájlba is visszakerült); a gép,
+  amelyik hálózat nélkül vitte végig, a fiók régi blobjából visszakapta;
+  zárlat alatt a bíró a visszahozott törlést visszavonta; és egy újra
+  felvett, azonos domainű oldalt a domain szerinti összevonás a régi,
+  kifizetett kéréssel együtt törölt. Most a kifizetett törlés helyén SÍRKŐ
+  marad (`goneLoosens`: a végigment kérés számlálója): a rekord halott, ha ez
+  a kérés még a legutolsó, és senki nem vonta vissza. A sírkő rendes
+  rekordként utazik és azonosító szerint fésülődik — egy régi, a kérést sem
+  látott eszköz rekordja vele fésülődve maga is halott lesz —, a domain
+  szerinti összevonásból pedig kimarad. A visszavonás (aki látta a kérést) és
+  az újabb, kifizetett kérés feltámaszt: a sírkő nem erősebb a kérés
+  szabályánál. Minden eszköz a SAJÁT órája szerint hajt végre: a máshol
+  végigment törlés itt a határidőig tilt (egy előreállított óra így nem viszi
+  szét a korai törlést), a helyi rekord sorsát a saját bírója dönti el
+  (végrehajtja, vagy zárlat alatt visszaveszi), és ami nincs a helyi listán,
+  de itt már esedékes, az a fésülés előtt sírkő lesz — a fiókban maradt,
+  frissítés előtti kifizetett törlés is. Legfeljebb 64 sírkő utazik, a
+  legkésőbbi határidejűek.
 - **A hosztnevek nevenként fésülődnek, jelekkel.** Az oldal névlistája a
   tiltás része (ezek a nevek mennek a hosts fájlba); egy név levétele
   próbatétel, a felvétele ingyen. Mindkettő JELET kap: a rekord `rev`-jét,
@@ -281,6 +303,20 @@ ugyanaz a két menetrend máshogy fésülődne a két gépen — a szinkron sose
   alakja visszaveszi; a rekord-szintű szabálya pedig egy újabb rekordot
   egészében vehet át, a számlálók nélkül. Blokkolás egyik oldalon sem vész el
   — **frissíts minden eszközt**.
+- **A sírkő számlálót kér.** A frissítés előtti, számláló nélküli
+  törlés-kérés nem kap sírkövet: a fésülés nem tudja megkülönböztetni egy
+  visszavonástól. Ha végigment, ezen az eszközön nem jön vissza (az
+  esedékes, idegen rekordot nem vesszük át — a fiókban viszont marad, nem a
+  miénk), egy régi eszköz élő rekordja viszont, ahogy eddig, visszahozhatja.
+- **A sírkövek plafonja.** Legfeljebb 64 végigment törlést hordozunk; egy
+  eszköz, amelyik ennél több törlésről maradt le, a régebbieket
+  visszahozhatja — ahogy a sírkő előtt bármelyiket.
+- **A sírkő a régi kliensen.** A frissítés előtti app a sírkövet lejárt
+  határidejű, várakozó törlésnek látja, ahogy a sírkő előtt a fiókban maradt
+  rekordot: nála a régi körforgás marad, és a domain szerinti összevonás egy
+  újra felvett, azonos domainű oldalt a régi, kifizetett kéréssel együtt
+  törölhet — nála, a frissített eszközökön nem. **Frissíts minden
+  eszközt.**
 
 A **statisztika** ennél egyszerűbb: eszközönként, naponként, célpontonként áll
 össze, ütközés nincs. Minden eszköz csak a SAJÁT napjait tölti fel, és a többiét

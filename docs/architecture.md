@@ -587,7 +587,10 @@ Ismert megkerülési utak (szándékosan nem próbáljuk „lelakatolni” a gé
   származik. Aki tehát tudja a saját fiókjelszavát, a saját appján KÍVÜL is
   összerakhat egy nagy számlálójú, laza rekordot (menetrend nélkül, keret
   nélkül — a futó menethez egy hamis lezáró naplósorral), felnyomhatja, és a
-  többi eszköz próbatétel nélkül átveszi. Ez a nem megbízható kiszolgáló modelljének ára: a kliens
+  többi eszköz próbatétel nélkül átveszi. A végigment törlés sírköve sem ad
+  ehhez újat: egy hamis sírkő egy hamis, lejárt törlés-kérés, és a fogadó
+  eszköz a helyi rekordját a saját bírójával, a saját órája szerint hajtja
+  végre. Ez a nem megbízható kiszolgáló modelljének ára: a kliens
   eszközön futó felhasználót nem lehet kizárni a saját adatából. Amit ez
   megváltoztat: a léc root/jailbreak alól a jelszó ismeretére csökken. Egy
   LEGITIM másik kliens ilyet nem tud: a rekord `rev`-je — amit az ingyenes
