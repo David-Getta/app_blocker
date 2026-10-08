@@ -4141,8 +4141,18 @@ const WIRES = [
   },
   {
     file: '.github/workflows/release.yml',
-    needle: 'BREAKER_SMOKE_OUT="$out" "$exe" --smoke-test',
+    needle: 'run: bash scripts/smoke-packaged.sh',
     lost: 'egy el sem induló becsomagolt app kimehetne kiadásként — és az automatikus frissítéssel minden gépre',
+  },
+  {
+    file: '.github/workflows/ci.yml',
+    needle: 'run: bash scripts/smoke-packaged.sh',
+    lost: 'a becsomagolt app indulása csak a kiadás napján derülne ki, nem a pushnál',
+  },
+  {
+    file: 'desktop/scripts/smoke-packaged.sh',
+    needle: 'BREAKER_SMOKE_OUT="$out" "$exe" --smoke-test',
+    lost: 'a becsomagolt app füstpróbája le sem futna, csak a csomag meglétét nézné',
   },
 ];
 

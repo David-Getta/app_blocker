@@ -937,5 +937,5 @@ elkérte és kiírta az app verzióját. A várt szöveg és a kiírt szöveg eg
 függvényből jön (`shared/smoke.ts`), hogy egy szövegcsere ne adjon hamis
 pirosat. A próba a fő folyamat **első** importja: így egy betöltéskor elhasaló
 modul sem nyit párbeszédablakot, amit a CI-ban senki nem kattintana el. A
-kiadás a becsomagolt appon futtatja, a feltöltés előtt — piros próbánál a kiadás
-draft marad (lásd `docs/releasing.md`).
+CI a becsomagolt appon is futtatja (Mac, Windows), a kiadás pedig a feltöltés
+előtt — piros próbánál a kiadás draft marad (lásd `docs/releasing.md`).

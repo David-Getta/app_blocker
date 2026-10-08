@@ -188,6 +188,47 @@ jobs:
       - run: npx electron . --smoke-test
         timeout-minutes: 3
 
+  # A BECSOMAGOLT app füstpróbája, Macen és Windowson. A kiadás ugyanezt a
+  # szkriptet futtatja a feltöltés előtt — itt viszont minden pushnál kiderül,
+  # ha a csomag nem indul (egy fájl kimarad a csomagból, egy Electron-
+  # frissítés, a csak-Mac vagy csak-Windows indulási út), nem a kiadás napján.
+  # Csak a mappa készül (--dir), telepítő nem: az a kiadás dolga.
+  desktop-package:
+    name: Becsomagolt app füstpróbája (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+      # Az electron-builder a saját Electronját tölti le a csomaghoz.
+      - run: npm ci
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+      - name: Csomagolás (csak mappa, aláírás nélkül — mint a kiadás tanúsítvány nélkül)
+        shell: bash
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+        run: |
+          npm run build
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            npx electron-builder --mac --dir --arm64 --publish never
+          else
+            npx electron-builder --win --dir --x64 --publish never
+          fi
+      - name: Füstpróba — a becsomagolt app elindul
+        shell: bash
+        timeout-minutes: 3
+        run: bash scripts/smoke-packaged.sh
+
   android-core-tests:
     name: Android mag tesztek (JVM, SDK nélkül)
     runs-on: ${{ inputs.ubuntu || 'ubuntu-latest' }}

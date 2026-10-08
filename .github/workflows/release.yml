@@ -133,25 +133,11 @@ jobs:
       # javítást már nem tudná letölteni. A próba a rendes indulást futtatja
       # (src/main/smoke.ts), nyom és frissítés-keresés nélkül. Ha piros, a job
       # elhasal, és a kiadás draft marad: a publish job csak sikeres asztali
-      # buildre élesít. Macen az arm64 csomag fut (a futó Apple szilícium); az
-      # x64 ugyanaz a kód, más processzorra.
+      # buildre élesít. Ugyanez a szkript fut a CI-ban is, minden pushnál.
       - name: Füstpróba — a becsomagolt app elindul
         shell: bash
         timeout-minutes: 3
-        run: |
-          if [ "$RUNNER_OS" = "macOS" ]; then
-            exe="release/mac-arm64/Breaker.app/Contents/MacOS/Breaker"
-          else
-            exe="release/win-unpacked/Breaker.exe"
-          fi
-          [ -f "$exe" ] || { echo "nincs meg a becsomagolt app: $exe" >&2; ls release >&2; exit 1; }
-          # Windowson a grafikus app kimenete nem mindig jut el ide — az
-          # eredmény ezért fájlba is megy, és a kilépési kód dönt.
-          out="$RUNNER_TEMP/smoke.txt"
-          code=0
-          BREAKER_SMOKE_OUT="$out" "$exe" --smoke-test || code=$?
-          cat "$out" 2>/dev/null || echo "a füstpróba nem írt eredményt"
-          exit "$code"
+        run: bash scripts/smoke-packaged.sh
       # Az electron-builder publishere CSENDBEN kihagyja a feltöltést, ha a
       # release már nem draft („existing type not compatible”) — a job attól
       # még sikeresnek látszik, és a kiadáson egy korábbi build fájljai

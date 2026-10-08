@@ -151,10 +151,11 @@ az automatikus frissítő betölthető a csomagból. Piros, ha a fő folyamatban
 elkapatlan hiba van (párbeszédablak helyett kilépési kód), ha a preload vagy a
 felület elhasal, vagy ha 45 másodperc alatt nem áll fel.
 
-Három helyen fut: a CI-ban Linuxon (Xvfb alatt) és Windowson a fejlesztői
-builddel, a kiadásban pedig a **becsomagolt** appon (macOS arm64, Windows), a
-feltöltés előtt. Ha ott piros, a kiadás draft marad — a felhasználókhoz nem jut
-el.
+Fut a CI-ban a fejlesztői builddel (Linuxon Xvfb alatt, és Windowson), a
+**becsomagolt** appon is minden pushnál (macOS arm64 és Windows, csak a mappa,
+telepítő nélkül), és a kiadásban a feltöltés előtt — ugyanazzal a szkripttel
+(`desktop/scripts/smoke-packaged.sh`). Ha a kiadásban piros, a kiadás draft
+marad: a felhasználókhoz nem jut el.
 
 ### Ha a futó képe vált
 
