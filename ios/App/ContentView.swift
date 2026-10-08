@@ -694,7 +694,9 @@ struct ContentView: View {
     }
 
     // ÉRTESÍTÉSEK. A szünet vége, a közelgő heti ablak, a csúcs-óra előjelzése és
-    // a hétfői visszatekintés iPhone-on helyi értesítés. Ha az app értesítései a
+    // a hétfői emlékeztető (kész a hét mondata) iPhone-on helyi értesítés — a
+    // betelő keretről az iPhone nem szól, a visszatekintés mondata sincs
+    // értesítésben (DigestReminder). Ha az app értesítései a
     // rendszerben ki vannak kapcsolva, mindez nyomtalanul elmarad — a rendszer
     // viszont megmondja (a gép csak utólag tudja meg, ha egyet visszautasít).
     // Csak az elutasítás számít: a „még nem kérdezett” nem az, azt az első
@@ -703,7 +705,7 @@ struct ContentView: View {
     private var notificationsSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             SectionLabel("Értesítések")
-            Text("A Breaker értesítései ki vannak kapcsolva. Így nem szól előre a szünet végéről és a közelgő heti ablakról, és a hétfői visszatekintés sem jön meg. Ha szándékosan kapcsoltad ki, a védelem ettől ugyanúgy működik.")
+            Text("A Breaker értesítései ki vannak kapcsolva. Így nem szól előre a szünet végéről és a közelgő heti ablakról, és hétfőn sem jelzi, hogy kész a hét mondata. Ha szándékosan kapcsoltad ki, a védelem ettől ugyanúgy működik.")
                 .font(.footnote).foregroundStyle(.secondary)
             Button("Értesítési beállítások") { openNotificationSettings() }
                 .buttonStyle(.bordered)

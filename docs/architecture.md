@@ -981,9 +981,10 @@ mondja átvételkor azt, hogy „a rendszer átvette”, nem azt, hogy „megjel
 A telefon többet tud: a rendszer előre megmondja, ki vannak-e kapcsolva az app
 értesítései (Android: `NotificationAccess.enabled`, Android 13-tól az engedély
 elutasítása is ez; iPhone: `authorizationStatus == .denied`). Ilyenkor a
-beállítás-kártyák között egy kártya kimondja, mi marad el — a szünet vége, a
-betelő keret, a közelgő heti ablak, a hétfői visszatekintés —, és egy gomb a
-rendszer kapcsolójához visz. Androidon csak amíg a védelem fut (az engedélyt az
+beállítás-kártyák között egy kártya kimondja, mi marad el — Androidon a szünet
+vége, a betelő keret, a közelgő heti ablak és a védelem tartós értesítése;
+iPhone-on a szünet vége, a közelgő heti ablak és a hétfői emlékeztető, hogy kész
+a hét mondata —, és egy gomb a rendszer kapcsolójához visz. Androidon csak amíg a védelem fut (az engedélyt az
 indítása kéri; előtte a „még nem kérdezett” is kikapcsoltnak látszana), iPhone-on
 csak az elutasítás számít. Az egyes csatornák némítása (például csak a heti
 visszatekintésé) szándékos, finomabb döntés: az nem kártya. A kártya magától
