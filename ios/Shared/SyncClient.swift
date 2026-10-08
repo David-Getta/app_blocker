@@ -47,7 +47,9 @@ enum SyncClient {
         do {
             (data, response) = try await URLSession.shared.data(for: req)
         } catch {
-            throw SyncError("A kiszolgáló nem érhető el: \(error.localizedDescription)", "OFFLINE")
+            var message = "A kiszolgáló nem érhető el: \(error.localizedDescription)"
+            if let host = url.host, isLocalNetworkHost(host) { message += " " + localNetworkHint }
+            throw SyncError(message, "OFFLINE")
         }
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             throw SyncError("A kiszolgáló nem JSON-t küldött — biztos jó a cím?", "BAD_SERVER")
@@ -61,6 +63,49 @@ enum SyncClient {
             )
         }
         return json
+    }
+
+    // MARK: - Helyi hálózat
+
+    /// A HELYI HÁLÓZAT ENGEDÉLYHEZ KÖTÖTT: az iPhone (iOS 14 óta) és a Mac
+    /// (macOS 15 óta) egy helyi címet csak akkor ér el, ha a felhasználó a
+    /// rendszer kérdésére igent mondott. Aki elutasította, annak a gépen futó
+    /// szinkron-kiszolgáló „nem érhető el” — és az eredeti hibaüzenet ebből
+    /// semmit nem árul el. Ezért helyi címnél a hiba kimondja, hol kapcsolható
+    /// be; feltételesen, mert az ok lehet más is (kikapcsolt gép, másik Wi-Fi).
+    #if os(iOS)
+    static let localNetworkHint = "Ha a Breakernek nem engedted a helyi hálózatot, itt kapcsolható be: "
+        + "Beállítások › Adatvédelem és biztonság › Helyi hálózat."
+    #else
+    static let localNetworkHint = "Ha a Breakernek nem engedted a helyi hálózatot, itt kapcsolható be: "
+        + "Rendszerbeállítások › Adatvédelem és biztonság › Helyi hálózat."
+    #endif
+
+    /// Helyi hálózati cím-e: magánhálózati vagy link-local IPv4, `.local` név,
+    /// IPv6 egyedi helyi (fc00::/7) vagy link-local (fe80::/10). A visszacsatolás
+    /// (127.x, ::1) nem az: azt a rendszer engedély nélkül is átengedi.
+    static func isLocalNetworkHost(_ rawHost: String) -> Bool {
+        let host = rawHost.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: "[]"))
+        if host.hasSuffix(".local") { return true }
+        let parts = host.split(separator: ".", omittingEmptySubsequences: false)
+        if parts.count == 4 {
+            let ip = parts.compactMap { part -> Int? in
+                guard !part.isEmpty, part.count <= 3, part.allSatisfy({ $0.isASCII && $0.isNumber }),
+                      let n = Int(part), n <= 255 else { return nil }
+                return n
+            }
+            if ip.count == 4 {
+                return ip[0] == 10
+                    || (ip[0] == 172 && (16...31).contains(ip[1]))
+                    || (ip[0] == 192 && ip[1] == 168)
+                    || (ip[0] == 169 && ip[1] == 254)
+            }
+        }
+        if host.contains(":") {
+            return host.hasPrefix("fc") || host.hasPrefix("fd")
+                || host.hasPrefix("fe8") || host.hasPrefix("fe9") || host.hasPrefix("fea") || host.hasPrefix("feb")
+        }
+        return false
     }
 
     /// A megadott cím ésszerűsége. Csak http/https.

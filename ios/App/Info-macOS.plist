@@ -23,6 +23,15 @@
     <string>Breaker</string>
     <key>NSFaceIDUsageDescription</key>
     <string>A rejtett blokklista megnyitásához — hogy csak te lásd, mi van rajta.</string>
+    <!--
+      A helyi hálózat engedélyhez kötött (iOS 14, macOS 15 óta): a rendszer az
+      első helyi kapcsolatnál egyszer kérdez, és EZT a mondatot mutatja mellé.
+      Enélkül a kérdés magyarázat nélkül jönne — aki nemet mond rá, annak a
+      gépen futó szinkron-kiszolgáló „nem érhető el”; a hibaüzenet ilyenkor
+      megmondja, hol kapcsolható be (SyncClient.localNetworkHint).
+    -->
+    <key>NSLocalNetworkUsageDescription</key>
+    <string>A szinkronhoz: a Breaker a te szinkron-kiszolgálódhoz kapcsolódik (jellemzően a gépeden), mást nem keres a hálózaton. A tartalom titkosítva utazik.</string>
     <key>CFBundleShortVersionString</key>
     <string>$(MARKETING_VERSION)</string>
     <key>CFBundleVersion</key>

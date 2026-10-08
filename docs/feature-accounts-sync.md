@@ -27,7 +27,10 @@ Két dolgot, pontosan azt, amit a kérés mond:
    nem látja az adataidat.
 4. **A telefonon** (ugyanazon a Wi-Fi-n) nyisd meg a Breakert, görgess a *Fiók
    és eszközök* kártyáig, írd be UGYANAZT a három adatot, és nyomd meg a
-   **Belépés** gombot.
+   **Belépés** gombot. iPhone-on (és a Swift-es Mac-appban) az első
+   kapcsolódáskor a rendszer megkérdezi, elérheti-e a Breaker a helyi
+   hálózatot: igen kell hozzá. Ha nemet mondtál, a hibaüzenet megmondja, hol
+   kapcsolható be (Beállítások › Adatvédelem és biztonság › Helyi hálózat).
 5. Kész: a lista összefésülődik. Ami a gépen volt, megjelenik a telefonon, és
    fordítva — **semmi nem vész el**, mert a belépés egyesít, nem cserél.
 

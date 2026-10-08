@@ -277,6 +277,16 @@ lefordítja és a lint végzetes hibáit is nézi, de eszközön nem próbálja 
 kiadás előtt érdemes egy telefonon ránézni, hogy semmi nem csúszik az
 állapotsor vagy a navigációs sáv alá.
 
+A következő célszint (API 37, Android 17) a helyi hálózatot is engedélyhez
+köti ([local network permission](https://developer.android.com/privacy-and-security/local-network-permission)):
+a 37-re célzó app egy helyi címet csak futásidőben kért `ACCESS_LOCAL_NETWORK`
+engedéllyel ér el — addig az `INTERNET` engedély hallgatólagosan megadja. A
+Breakernél ez a párosított gép szinkron-kiszolgálója (`http://192.168.x.y:8787`);
+a DNS-szűrő 53-as portja kivétel. A célszint emelésekor tehát engedélykérés
+kell, és egy hibaüzenet, ami megmondja, hol kapcsolható be — mint az iPhone-on
+(`SyncClient.localNetworkHint` a Swift-magban), különben a szinkron csak annyit
+mond, hogy a kiszolgáló nem érhető el.
+
 1. Google Play Console fiók (egyszeri $25).
 2. Töltsd fel a workflow által készített **AAB**-t (`Breaker-vX.Y.Z.aab`).
 3. Első feltöltéskor engedélyezd a **Play App Signing**-ot.
