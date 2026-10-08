@@ -23,7 +23,9 @@ import {
   decrypt, encrypt, enroll, recoveryAuthKey, rewrapForNewPassword, subKey, rootKey,
   unlockWithPassword, unlockWithRecovery,
 } from '../shared/sync/crypto.js';
-import { capHostnameMarks, mergeSiteLists, ruleKey, type SyncSite } from '../shared/sync/merge.js';
+import {
+  capHostnameMarks, mergeSiteLists, ruleKey, settleIncoming, splitMerged, type SyncSite,
+} from '../shared/sync/merge.js';
 import { MAX_PAYLOAD_BYTES, SYNC_PROTOCOL } from '../shared/sync/protocol.js';
 import type { HelperState, SiteRec, SyncAccount } from './state';
 import {
@@ -289,6 +291,8 @@ function toSyncSites(sites: SiteRec[], deviceId: string): SyncSite[] {
     ...(s.scheduleLoosens ? { scheduleLoosens: s.scheduleLoosens } : {}),
     ...(s.limitLoosens ? { limitLoosens: s.limitLoosens } : {}),
     ...(s.burstLoosens ? { burstLoosens: s.burstLoosens } : {}),
+    // A végigment törlés jele: a sírkövön, és a fésülés hozta, itt még nem esedékes rekordon.
+    ...(s.goneLoosens ? { goneLoosens: s.goneLoosens } : {}),
     rev: s.rev ?? 1, updatedAt: s.updatedAt ?? s.addedAt, updatedBy: s.updatedBy ?? deviceId,
   })).map((s) => cleanSite(s as unknown as Record<string, unknown>));
 }
@@ -356,6 +360,7 @@ function fromSyncSites(merged: SyncSite[], local: SiteRec[]): SiteRec[] {
     // A kifizetett lazítások is: a következő fésülés ezekből dönt.
     deleteLoosens: m.deleteLoosens, scheduleLoosens: m.scheduleLoosens,
     limitLoosens: m.limitLoosens, burstLoosens: m.burstLoosens,
+    goneLoosens: m.goneLoosens,
     rev: m.rev, updatedAt: m.updatedAt, updatedBy: m.updatedBy,
   } as SiteRec));
 }
@@ -525,13 +530,19 @@ function cleanRuleMarks(raw: unknown, rules: SyncSite['rules'], rev: number): Re
   return capHostnameMarks(out, rules.map(ruleKey));
 }
 
-/** A négy számláló a dróton — mindegyik csak pozitív egész, legfeljebb a rev. */
+/**
+ * A négy számláló a dróton — mindegyik csak pozitív egész, legfeljebb a rev.
+ * A végigment törlés jele legfeljebb a törlés számlálója: nagyobbat a
+ * fésülés sosem ír (a sírkő a saját kérésének számlálóját hordja).
+ */
 function loosensIn(s: Record<string, unknown>, rev: number): Partial<SyncSite> {
   const out: Partial<SyncSite> = {};
   for (const k of ['deleteLoosens', 'scheduleLoosens', 'limitLoosens', 'burstLoosens'] as const) {
     const v = s[k];
     if (Number.isInteger(v) && (v as number) > 0 && (v as number) <= rev) out[k] = v as number;
   }
+  const g = s.goneLoosens;
+  if (Number.isInteger(g) && (g as number) > 0 && (g as number) <= (out.deleteLoosens ?? 0)) out.goneLoosens = g as number;
   return out;
 }
 
@@ -576,6 +587,8 @@ function canonical(s: SyncSite): unknown[] {
     s.ruleMarks ? Object.entries(s.ruleMarks).sort() : null,
     // A számlálók is: egy kifizetett lazítás nyoma nélkül a lazítás sosem érne át.
     s.deleteLoosens ?? null, s.scheduleLoosens ?? null, s.limitLoosens ?? null, s.burstLoosens ?? null,
+    // A sírkő jele is: enélkül a fiókban maradt rekord sírkővé válása nem menne fel.
+    s.goneLoosens ?? null,
     s.rev, s.updatedAt, s.updatedBy,
   ];
 }
@@ -921,11 +934,23 @@ export async function syncNow(state: HelperState, now: number): Promise<SyncResu
       accountId: acc.accountId, authKey: acc.authKey, collection: 'sites',
     });
     const remote = decodeSites(acc, pulled.payload);
-    const mine = toSyncSites(state.sites, acc.deviceId);
-    const merged = reapplyUnsyncedBursts(mergeSiteLists(mine, remote), state.sites, acc.deviceId, now);
+    // A SÍRKÖVEK is a fésülésbe mennek (shared/sync/merge.ts `isGone`): a
+    // végigment törlés így nem jön vissza, se a fiókból, se egy régi
+    // eszközről. Ami nincs a helyi listán, és itt már esedékes, az a
+    // fésülés előtt sírkő lesz (`settleIncoming`) — utána pedig a fésült
+    // lista szétoszlik: mi tilt itt, és mi sírkő (`splitMerged`).
+    const localIds = new Set(state.sites.map((s) => s.id));
+    const gone = state.goneSites ?? [];
+    const mine = toSyncSites([...state.sites, ...gone], acc.deviceId);
+    const incoming = settleIncoming(remote, localIds, now);
+    const merged = reapplyUnsyncedBursts(mergeSiteLists(mine, incoming), state.sites, acc.deviceId, now);
+    const split = splitMerged(merged, localIds, now);
 
-    if (!sameSites(merged, mine)) {
-      state.sites = fromSyncSites(merged, state.sites);
+    if (!sameSites(split.sites, toSyncSites(state.sites, acc.deviceId))
+      || !sameSites(split.gone, toSyncSites(gone, acc.deviceId))) {
+      state.sites = fromSyncSites(split.sites, state.sites);
+      if (split.gone.length > 0) state.goneSites = split.gone.map((g) => ({ ...g }));
+      else delete state.goneSites;
       changed = true;
     }
     if (sameSites(merged, remote) && pulled.version > 0) {

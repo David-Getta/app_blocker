@@ -425,6 +425,13 @@ const CHECKS = [
     scalar(ts.merge, /MAX_HOSTNAME_MARKS\s*=\s*([^;]+);/, 'ts'),
     scalar(kt.merge, /MAX_HOSTNAME_MARKS\s*=\s*(.+)/, 'kt'),
     scalar(sw.merge, /maxHostnameMarks\s*=\s*(.+)/, 'swift')],
+  // A sírkövek plafonja: ha az egyik mag többet tart, a plafon fölötti
+  // sírkő az egyiknél halott marad, a másiknál kiesik — és egy régi eszköz
+  // rekordja csak az egyiken támasztja fel az oldalt.
+  ['MAX_GONE_SITES',
+    scalar(ts.merge, /MAX_GONE_SITES\s*=\s*([^;]+);/, 'ts'),
+    scalar(kt.merge, /MAX_GONE_SITES\s*=\s*(.+)/, 'kt'),
+    scalar(sw.merge, /maxGoneSites\s*=\s*(.+)/, 'swift')],
   // Az adag-szabály plafonjai a fésülésben is számítanak: a szigorúbb alakot
   // a normál alakon mérjük. Ha az iPhone más plafonnal normálna, ugyanabból a
   // két szabályból más „szigorúbb” jönne ki, és a két eszköz egymást írná.

@@ -34,7 +34,8 @@ import {
   isWindowRun, MAX_FOCUS_LOG, MAX_RUN_CUTS, normalizeMinutes, normalizeRecurrence, runOrigin,
   sameRecurrence, windowRunFor, type FocusPack, type FocusRun,
 } from '../shared/focus';
-import type { AbandonRec, HelperState, SessionRec } from './state';
+import { capGone } from '../shared/sync/merge';
+import type { AbandonRec, HelperState, SessionRec, SiteRec } from './state';
 import { newId } from './state';
 
 const rng = cryptoRng();
@@ -928,6 +929,23 @@ export function absorbClock(state: HelperState, now: number): void {
   absorbClockJump(state, now);
 }
 
+/**
+ * A végigment törlés SÍRKÖVE a sírkövek közé (shared/sync/merge.ts
+ * `tombstoneOf` párja a segéd rekordján): a rekord a szinkron-mezőivel, a
+ * kérés számlálójával megjelölve, a helyi gyorsítótárak nélkül. Csak
+ * kifizetett — számlálós — törlésnek van: a régi, számláló nélküli kérést a
+ * fésülés nem tudja megkülönböztetni egy visszavonástól. Az azonos
+ * azonosítójú régi sírkő helyére kerül; a plafon a fésülésé.
+ */
+function buryDeleted(state: HelperState, site: SiteRec): void {
+  const del = site.deleteLoosens;
+  if (del === undefined || !Number.isInteger(del) || del <= 0) return;
+  const stone: SiteRec = { ...site, pauseUntil: null, goneLoosens: del };
+  delete stone.revFp; delete stone.revHosts; delete stone.revRulesKey; delete stone.revRules;
+  delete stone.burstUnsynced;
+  state.goneSites = capGone([stone, ...(state.goneSites ?? []).filter((g) => g.id !== site.id)]);
+}
+
 export function tick(state: HelperState, now: number): boolean {
   absorbClockJump(state, now);
   let dirty = false;
@@ -972,9 +990,16 @@ export function tick(state: HelperState, now: number): boolean {
       dirty = true;
     }
   }
-  const before = state.sites.length;
-  state.sites = state.sites.filter((site) => site.pendingDeleteAt === null || site.pendingDeleteAt > now);
-  if (state.sites.length !== before) dirty = true;
+  // A végigment, KIFIZETETT törlés helyén sírkő marad (`buryDeleted`): a
+  // szinkron viszi, hogy a fiókban maradt rekord ne jöjjön vissza minden
+  // körben, és egy régi eszköz rekordja se támassza fel az oldalt.
+  const kept: SiteRec[] = [];
+  for (const site of state.sites) {
+    if (site.pendingDeleteAt === null || site.pendingDeleteAt > now) kept.push(site);
+    else buryDeleted(state, site);
+  }
+  if (kept.length !== state.sites.length) dirty = true;
+  state.sites = kept;
   // Az adag-számlálók takarítása: a törölt oldalé, és aminek a hűtése rég
   // lejárt és egy napja nem is gyűlt semmi. E nélkül az állapotfájl lassan,
   // némán hízna — és a hízás pont az a hibafajta, ami sosem hasal el.

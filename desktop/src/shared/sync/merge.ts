@@ -102,6 +102,14 @@ export interface SyncSite {
   limitLoosens?: number;
   /** az adag-szabály lazítása: nagyobb adag, rövidebb szünet, levétel */
   burstLoosens?: number;
+  /**
+   * A BEFEJEZETT törlés jele: annak a törlés-kérésnek a számlálója
+   * (`deleteLoosens`), amelyik valahol végigment — a rekord ott eltűnt. A
+   * fésülésben a nagyobb marad. A rekord HALOTT (`isGone`), ha ez a kérés még
+   * mindig az utolsó, és senki nem vonta vissza: egy régi, a kérést sem látott
+   * eszköz rekordja így nem támasztja fel az oldalt. Lásd `mergeSiteLists`.
+   */
+  goneLoosens?: number;
   /** hányszor módosult ez a rekord; csak nő */
   rev: number;
   /** mikor módosult utoljára (ms) */
@@ -330,6 +338,7 @@ export function mergeSite(a: SyncSite, b: SyncSite): SyncSite {
   const counts: [keyof SyncSite, number][] = [
     ['deleteLoosens', Math.max(ca.del, cb.del)], ['scheduleLoosens', Math.max(ca.sch, cb.sch)],
     ['limitLoosens', Math.max(ca.lim, cb.lim)], ['burstLoosens', Math.max(ca.bur, cb.bur)],
+    ['goneLoosens', Math.max(loosensOf(a.goneLoosens), loosensOf(b.goneLoosens))],
   ];
   for (const [k, v] of counts) {
     if (v > 0) (out as unknown as Record<string, number>)[k] = v;
@@ -510,6 +519,89 @@ function cleanRules(rules: UrlRule[] | undefined): UrlRule[] | undefined {
 }
 
 /**
+ * HALOTT-e a rekord: a törlése végigment valahol (`goneLoosens`), és azóta
+ * senki nem vonta vissza (a kérés ugyanaz, és még vár) — és új kérés sem
+ * jött. A visszavonás (egyenlő számláló, várakozás nélkül) és az újabb kérés
+ * (nagyobb számláló) élő rekordot ad. A halott rekord nem tilt semmit, de
+ * UTAZIK: egy régi eszköz rekordja vele fésülődve maga is halott lesz, nem
+ * támasztja fel az oldalt.
+ */
+export function isGone(s: SyncSite): boolean {
+  const g = loosensOf(s.goneLoosens);
+  return g > 0 && loosensOf(s.deleteLoosens) === g && s.pendingDeleteAt !== null;
+}
+
+/** Ennél több halott rekordot nem hordunk: a legutóbb töröltek maradnak. */
+export const MAX_GONE_SITES = 64;
+
+/**
+ * A végigment törlés SÍRKÖVE: a rekord, a kérés számlálójával megjelölve
+ * (`goneLoosens`). Csak kifizetett — számlálós — törlésnek van: a régi,
+ * számláló nélküli kérést a fésülés nem tudja megkülönböztetni egy
+ * visszavonástól, a sírköve hazudna. A rekord minden mezője marad: ha egy
+ * visszavonás feltámasztja, a menetrendje és a kerete ne vesszen el.
+ */
+export function tombstoneOf(s: SyncSite): SyncSite | null {
+  const del = loosensOf(s.deleteLoosens);
+  if (del === 0 || s.pendingDeleteAt === null) return null;
+  return { ...s, pauseUntil: null, goneLoosens: del };
+}
+
+/** Esedékes-e a törlés EZEN az eszközön: vár, és a határideje itt lejárt. */
+function isDue(s: SyncSite, now: number): boolean {
+  return s.pendingDeleteAt !== null && s.pendingDeleteAt <= now;
+}
+
+/**
+ * A beérkezett lista előkészítése ezen az eszközön, a fésülés ELŐTT.
+ *
+ * Ami nincs a helyi tiltólistán (`localIds`), és a törlése itt már esedékes,
+ * az ezen az eszközön végrehajtott törlés: kifizetett kérésnél sírkő lesz
+ * belőle. Ez a frissítés előtti „zombi” — a végigment törlés, ami a fiókban
+ * eddig örökre ott maradt, és minden körben visszajött. Azért a fésülés
+ * előtt, mert sírkőként kimarad a domain szerinti összevonásból: egy újra
+ * felvett, ugyanolyan domainű oldalt nem visz magával.
+ */
+export function settleIncoming(incoming: SyncSite[], localIds: ReadonlySet<string>, now: number): SyncSite[] {
+  return incoming.map((s) => (localIds.has(s.id) || !isDue(s, now) || isGone(s) ? s : tombstoneOf(s) ?? s));
+}
+
+/**
+ * A fésült lista szétosztása ezen az eszközön: mi tilt, és mi sírkő.
+ *
+ * - A HELYI rekord a listán marad, akkor is, ha a fésülés halottnak mondja:
+ *   a sorsát a bíró dönti el, ahogy eddig — végrehajtja, vagy zárlat alatt
+ *   visszaveszi. Egy eszköz így semmit nem enged el, amit tiltott, csak a
+ *   saját bírója kezéből.
+ * - Ami még NEM ESEDÉKES itt, az is a listára kerül, akkor is, ha máshol
+ *   már végigment: ezen az eszközön a saját órája szerint tilt a határidőig.
+ *   Egy előreállított óra így nem viszi szét a korai törlést.
+ * - Az esedékes halott a sírkövek közé kerül.
+ * - Az esedékes, számlálós, de nem halott rekord a listára (a bíró
+ *   végrehajtja); a számláló nélküli — a régi, végigment törlés — egyik
+ *   közé sem: nem vesszük át, de a fiókban marad, nem a miénk.
+ */
+export function splitMerged(
+  merged: SyncSite[], localIds: ReadonlySet<string>, now: number,
+): { sites: SyncSite[]; gone: SyncSite[] } {
+  const sites: SyncSite[] = [];
+  const gone: SyncSite[] = [];
+  for (const m of merged) {
+    if (localIds.has(m.id) || !isDue(m, now)) sites.push(m);
+    else if (isGone(m)) gone.push(m);
+    else if (loosensOf(m.deleteLoosens) > 0) sites.push(m);
+  }
+  return { sites, gone };
+}
+
+/** A sírkövek sorrendje és plafonja: a legkésőbbi határidejűek maradnak, holtversenyben azonosító szerint. */
+export function capGone<T extends { id: string; pendingDeleteAt: number | null }>(gone: T[]): T[] {
+  return [...gone]
+    .sort((x, y) => (y.pendingDeleteAt ?? 0) - (x.pendingDeleteAt ?? 0) || (x.id < y.id ? -1 : x.id > y.id ? 1 : 0))
+    .slice(0, MAX_GONE_SITES);
+}
+
+/**
  * Két lista összefésülése.
  *
  * Ami csak az egyik oldalon van, az bekerül — ez SZIGORÍTÁS, tehát ingyen van,
@@ -518,6 +610,17 @@ function cleanRules(rules: UrlRule[] | undefined): UrlRule[] | undefined {
  * Egy oldal csak úgy tűnhet el, hogy a törlési folyamat végigment: a rekord
  * addig ott marad `pendingDeleteAt`-tel. Egy hiányzó rekord tehát SOSEM jelent
  * törlést — különben elég lenne egy üres fiókkal belépni, és a lista eltűnne.
+ *
+ * A végigment törlés viszont HALOTT rekordként marad a listában (`isGone`):
+ * azonosító szerint ugyanúgy fésülődik, mint az élők — ezért egy régi, a
+ * kérést sem látott eszköz rekordja vele fésülődve szintén halott lesz, és
+ * nem támasztja fel az oldalt. Előbb minden rekord azonosító szerint
+ * fésülődik, élő és halott együtt; csak utána dől el, melyik él — így a
+ * sorrend nem számít. A domain szerinti összevonás csak az élőkre áll (egy
+ * újra felvett oldal ne haljon meg a régi azonosító sírkövétől), a halottak
+ * plafonja `MAX_GONE_SITES` (a legkésőbbi határidejűek). A halott rekord a
+ * dróton rendes rekord: egy frissítés előtti kliens végigment törlésnek látja
+ * (lejárt határidő), ahogy eddig.
  */
 export function mergeSiteLists(local: SyncSite[], incoming: SyncSite[]): SyncSite[] {
   const byId = new Map<string, SyncSite>();
@@ -526,12 +629,13 @@ export function mergeSiteLists(local: SyncSite[], incoming: SyncSite[]): SyncSit
     const mine = byId.get(s.id);
     byId.set(s.id, mine ? mergeSite(mine, s) : s);
   }
+  const gone = capGone([...byId.values()].filter(isGone));
   // Ugyanaz a domain kétszer, két eszközről külön felvéve: egy rekordba
   // fésüljük. Enélkül a hosts fájlban kétszer szerepelne, és a felületen két
   // sorban ugyanaz állna — a felhasználó pedig az egyiket feloldva azt hinné,
   // feloldotta.
   const byDomain = new Map<string, SyncSite>();
-  for (const s of [...byId.values()].sort(bySortKey)) {
+  for (const s of [...byId.values()].filter((x) => !isGone(x)).sort(bySortKey)) {
     const mine = byDomain.get(s.domain);
     if (!mine) { byDomain.set(s.domain, s); continue; }
     // A régebben felvett azonosítót tartjuk meg: arra hivatkozhat egy futó
@@ -553,7 +657,7 @@ export function mergeSiteLists(local: SyncSite[], incoming: SyncSite[]): SyncSit
       hostnames: [...new Set([...merged.hostnames, ...extra])].sort(),
     });
   }
-  return [...byDomain.values()].sort(bySortKey);
+  return [...[...byDomain.values()].sort(bySortKey), ...gone.sort(bySortKey)];
 }
 
 /** Stabil sorrend: minden eszközön ugyanaz a lista, ugyanabban a sorrendben. */

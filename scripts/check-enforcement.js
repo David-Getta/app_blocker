@@ -3780,8 +3780,33 @@ const WIRES = [
   },
   {
     file: 'desktop/src/helper/sync-client.ts',
-    needle: 'reapplyUnsyncedBursts(mergeSiteLists(mine, remote), state.sites, acc.deviceId, now)',
+    needle: 'reapplyUnsyncedBursts(mergeSiteLists(mine, incoming), state.sites, acc.deviceId, now)',
     lost: 'a frissítés előtt beállított, fel nem ment adag-szabályt egy telefonos írás letörölné',
+  },
+  // A VÉGIGMENT TÖRLÉS SÍRKÖVE. A fésülés tudja (merge.ts `isGone`), de ha a
+  // bíró nem tesz sírkövet, vagy a kör nem viszi és nem osztja szét, akkor a
+  // végigment törlés a fiókból minden körben visszajön (a gép félpercenként
+  // húz, az oldal egy pillanatra a hosts fájlba is visszakerül), és egy régi
+  // eszköz rekordja feltámasztja — semmi nem hasal el tőle.
+  {
+    file: 'desktop/src/helper/referee.ts',
+    needle: 'else buryDeleted(state, site);',
+    lost: 'a végigment, kifizetett törlés helyén nem maradna sírkő — a fiókból minden körben visszajönne',
+  },
+  {
+    file: 'desktop/src/helper/sync-client.ts',
+    needle: 'const mine = toSyncSites([...state.sites, ...gone], acc.deviceId);',
+    lost: 'a sírkövek nem mennének a fésülésbe — egy régi eszköz rekordja feltámasztaná a törölt oldalt',
+  },
+  {
+    file: 'desktop/src/helper/sync-client.ts',
+    needle: 'const incoming = settleIncoming(remote, localIds, now);',
+    lost: 'a fiókban maradt, végigment törlés nem lenne sírkő — a domain szerinti összevonás az újra felvett oldalt is vinné',
+  },
+  {
+    file: 'desktop/src/helper/sync-client.ts',
+    needle: 'const split = splitMerged(merged, localIds, now);',
+    lost: 'a fésült sírkövek a tiltólistára kerülnének — a törölt oldal minden körben visszajönne',
   },
   // A NEM VÉGES VÉGIDŐ NEM SZIGORÍTÁS. A `NaN < current` hamis: a socketen
   // jött `"x"` a menetet NaN véggel írta el — ami nem fut, vagyis próbatétel

@@ -182,7 +182,11 @@ const GROUPS = [
       // A szabályok jelei: szabályonként ezekből dől el a fésülés. Ha egy név
       // elcsúszik, a másik eszköz jel nélkülinek látja a szabályt — a
       // kifizetett levétel sírköve elveszne, és a szabály visszajönne.
-      'ruleMarks'],
+      'ruleMarks',
+      // A végigment törlés sírköve: ha a neve elcsúszik, a másik eszköz élő,
+      // lejárt határidejű rekordnak látja — a végigment törlés minden körben
+      // visszajönne, és egy régi eszköz rekordja feltámasztaná az oldalt.
+      'goneLoosens'],
     ts: 'desktop/src/shared/sync/merge.ts',
     kt: 'android/app/src/main/java/hu/breaker/app/core/SyncClient.kt',
     swift: 'ios/Shared/SyncMerge.swift',
@@ -348,7 +352,7 @@ const CARRY = {
   what: 'egy blokkolt oldal HELYI hordozása',
   names: ['id', 'domain', 'hostnames', 'hostnameMarks', 'addedAt', 'pendingDeleteAt', 'schedule',
     'dailyLimitSeconds', 'burstSeconds', 'cooldownSeconds', 'alias', 'reason', 'rules', 'rulesRev',
-    'deleteLoosens', 'scheduleLoosens', 'limitLoosens', 'burstLoosens', 'ruleMarks'],
+    'deleteLoosens', 'scheduleLoosens', 'limitLoosens', 'burstLoosens', 'ruleMarks', 'goneLoosens'],
   files: [
     {
       name: 'TypeScript (helper SiteRec)',

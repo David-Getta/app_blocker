@@ -19,6 +19,7 @@ import type { SyncSite } from '../src/shared/sync/merge';
 import { adoptRevision, bumpRevisions } from '../src/helper/revisions';
 import { defaultState, type HelperState, type SiteRec } from '../src/helper/state';
 import { closeRun } from '../src/shared/focus';
+import { tick } from '../src/helper/referee';
 
 let child: ChildProcess;
 let url: string;
@@ -944,4 +945,170 @@ test('az átmenet nem lazít: a fiókban lévő szigorúbb adag mezőnként mara
   const as = a.sites.find((x) => x.id === 'site_sz')!;
   assert.equal(as.burstSeconds, 60, 'a kisebb adag marad');
   assert.equal(as.cooldownSeconds, 3600, 'a hosszabb szünet marad');
+});
+
+// ---------------------------------------------------------------- a sírkő
+//
+// A végigment törlés eddig örökre a fiókban maradt (egy hiányzó rekord sosem
+// jelent törlést): minden kör visszahozta, a bíró újra törölte, a mentése új
+// kört ütemezett — a gép félpercenként húzott, az oldal egy-egy pillanatra a
+// hosts fájlba is visszakerült. Most a kifizetett törlés helyén sírkő marad
+// (shared/sync/merge.ts `isGone`), és a sírkő utazik.
+
+/** Egy kifizetett törlés-kérés, ahogy a bíró írja: határidő, és a számláló nő. */
+function requestDelete(st: HelperState, id: string, at: number): void {
+  const s = st.sites.find((x) => x.id === id)!;
+  s.pendingDeleteAt = at;
+  s.deleteLoosens = (s.deleteLoosens ?? 0) + 1;
+}
+
+test('a végigment törlés nem jön vissza a fiókból, és a kör megnyugszik', async () => {
+  const acc = 'torles-zombi@example';
+  const a = device([site({ id: 'site_t1', domain: 'tiktok.com', hostnames: ['tiktok.com'] })]);
+  await signUp(a, url, acc, PASSWORD, 'Munkagép');
+  await syncNow(a, 2_000);
+  requestDelete(a, 'site_t1', 10_000);
+  await syncNow(a, 3_000);
+  assert.equal(tick(a, 11_000), true, 'a törlés végigment');
+  assert.deepEqual(a.goneSites?.map((g) => [g.id, g.goneLoosens]), [['site_t1', 1]], 'a helyén sírkő');
+
+  const r1 = await syncNow(a, 12_000);
+  assert.deepEqual(a.sites, [], 'a fiókban maradt rekord nem jött vissza');
+  assert.equal(r1.changed, false, 'a helyi állapot nem változott');
+  const v = a.sync!.sitesVersion;
+  const r2 = await syncNow(a, 13_000);
+  assert.equal(r2.changed, false);
+  assert.equal(a.sync!.sitesVersion, v, 'a sírkő egyszer ment fel, utána nincs mit feltölteni');
+  assert.equal(tick(a, 14_000), false, 'a bírónak nincs mit újra törölnie — a kör nem ütemez újat');
+});
+
+test('az offline végigment törlést a fiók régi blobja nem támasztja fel', async () => {
+  // A kérés sosem ment fel: a gép 24 órán át nem érte el a kiszolgálót. A
+  // fiókban az oldal él, számláló nélkül — eddig ez visszahozta.
+  const acc = 'torles-offline@example';
+  const a = device([site({ id: 'site_t2', domain: 'tiktok.com', hostnames: ['tiktok.com'] })]);
+  await signUp(a, url, acc, PASSWORD, 'Munkagép');
+  await syncNow(a, 2_000);
+  requestDelete(a, 'site_t2', 10_000);
+  tick(a, 11_000);
+  await syncNow(a, 12_000);
+  assert.deepEqual(a.sites, [], 'a kifizetett törlés áll');
+  const b = device();
+  await signIn(b, url, acc, PASSWORD, 'Telefon');
+  await syncNow(b, 13_000);
+  assert.deepEqual(b.sites, [], 'egy új eszközre sem jön át az oldal');
+});
+
+test('egy elavult eszköz rekordja sem támasztja fel — ingyen felhúzott rev-vel sem', async () => {
+  const acc = 'torles-elavult@example';
+  const a = device([site({ id: 'site_t3', domain: 'tiktok.com', hostnames: ['tiktok.com'] })]);
+  await signUp(a, url, acc, PASSWORD, 'Munkagép');
+  await syncNow(a, 2_000);
+  const b = device();
+  await signIn(b, url, acc, PASSWORD, 'Telefon');
+  await syncNow(b, 2_500);
+  // A gépen kérik és végig is megy; a telefon közben semmit nem lát róla, és
+  // két ingyenes szerkesztéssel felhúzza a rekordja rev-jét.
+  requestDelete(a, 'site_t3', 10_000);
+  tick(a, 11_000);
+  await syncNow(a, 12_000);
+  b.sites[0].alias = 'egy';
+  bumpRevisions(b, b.sync!.deviceId, 12_500);
+  b.sites[0].alias = 'kettő';
+  await syncNow(b, 13_000);
+  assert.equal(b.sites[0].pendingDeleteAt, 10_000, 'a telefonon is esedékes — a sorsát a saját bírója dönti el');
+  tick(b, 13_500);
+  assert.deepEqual(b.sites, [], 'és végre is hajtja');
+  await syncNow(b, 14_000);
+  await syncNow(a, 15_000);
+  assert.deepEqual(a.sites, [], 'a gépre sem jön vissza');
+  assert.deepEqual(a.goneSites?.map((g) => g.id), ['site_t3']);
+});
+
+test('a régi, számláló nélküli végigment törlés nem jön vissza, és a fiókhoz sem nyúlunk', async () => {
+  // A frissítés előtti kérés számláló nélküli: sírkövet nem kap (a fésülés nem
+  // tudná egy visszavonástól megkülönböztetni), de az esedékes idegen rekordot
+  // sem vesszük át — a kör így is megnyugszik.
+  const acc = 'torles-regi@example';
+  const a = device([site({ id: 'site_t4', domain: 'tiktok.com', hostnames: ['tiktok.com'], pendingDeleteAt: 10_000 })]);
+  await signUp(a, url, acc, PASSWORD, 'Munkagép');
+  await syncNow(a, 2_000);
+  tick(a, 11_000);
+  assert.equal(a.goneSites, undefined, 'számláló nélkül nincs sírkő');
+  const v = a.sync!.sitesVersion;
+  const r = await syncNow(a, 12_000);
+  assert.deepEqual(a.sites, [], 'nem jött vissza');
+  assert.equal(r.changed, false);
+  assert.equal(a.sync!.sitesVersion, v, 'a fiókban maradt, nem a miénk — nem töltünk fel helyette semmit');
+  assert.equal(tick(a, 13_000), false, 'a bírónak nincs mit újra törölnie');
+  const c = device();
+  await signIn(c, url, acc, PASSWORD, 'Telefon');
+  await syncNow(c, 14_000);
+  assert.deepEqual(c.sites, [], 'egy új eszköz sem veszi át');
+});
+
+test('a fiókban maradt kifizetett törlés sírkő lesz, és az újra felvett, azonos oldalt nem viszi magával', async () => {
+  // A frissítés előtt végigment kérés a fiókban: vár, a határideje rég lejárt.
+  // Egy új gépen közben ugyanazt a domaint újra felvették, új azonosítóval —
+  // eddig a domain szerinti összevonás a régebbi azonosítót tartotta, a
+  // kifizetett kéréssel együtt, és az újra felvett oldal is törlődött.
+  const acc = 'torles-ujra@example';
+  const o = device([site({ id: 'site_old', domain: 'tiktok.com', hostnames: ['tiktok.com'], addedAt: 1_000 })]);
+  await signUp(o, url, acc, PASSWORD, 'Régi gép');
+  requestDelete(o, 'site_old', 10_000);
+  await syncNow(o, 2_000);
+
+  const n = device([site({ id: 'site_new', domain: 'tiktok.com', hostnames: ['tiktok.com'], addedAt: 20_000 })]);
+  await signIn(n, url, acc, PASSWORD, 'Új gép');
+  await syncNow(n, 21_000);
+  assert.deepEqual(n.sites.map((s) => [s.id, s.pendingDeleteAt]), [['site_new', null]], 'az újra felvett oldal él');
+  assert.deepEqual(n.goneSites?.map((g) => [g.id, g.goneLoosens]), [['site_old', 1]], 'a régi kérés sírkő lett');
+
+  const p = device();
+  await signIn(p, url, acc, PASSWORD, 'Telefon');
+  await syncNow(p, 22_000);
+  assert.deepEqual(p.sites.map((s) => [s.id, s.pendingDeleteAt]), [['site_new', null]], 'a harmadik eszközön is');
+});
+
+test('a máshol végigment törlés itt a saját határidőig tilt', async () => {
+  // Egy előreállított óra így nem viszi szét a korai törlést: minden eszköz a
+  // saját órája szerint hajtja végre.
+  const acc = 'torles-hatarido@example';
+  const a = device([site({ id: 'site_t6', domain: 'tiktok.com', hostnames: ['tiktok.com'] })]);
+  await signUp(a, url, acc, PASSWORD, 'Munkagép');
+  await syncNow(a, 2_000);
+  const b = device();
+  await signIn(b, url, acc, PASSWORD, 'Telefon');
+  requestDelete(a, 'site_t6', 10_000);
+  await syncNow(a, 3_000);
+  await syncNow(b, 4_000);
+  tick(a, 11_000);
+  await syncNow(a, 11_100);
+  await syncNow(b, 9_000);
+  assert.deepEqual(b.sites.map((s) => [s.id, s.pendingDeleteAt]), [['site_t6', 10_000]], 'itt még vár — és tilt');
+  tick(b, 10_001);
+  assert.deepEqual(b.sites, []);
+  assert.deepEqual(b.goneSites?.map((g) => g.id), ['site_t6']);
+});
+
+test('a visszavonás feltámasztja a máshol közben végigment törlést', async () => {
+  // Aki látta a kérést, és visszavonta, az átmegy: a visszavonás szigorítás,
+  // tehát ingyen van — akkor is, ha a másik gépen közben végigment.
+  const acc = 'torles-visszavon@example';
+  const a = device([site({ id: 'site_t7', domain: 'tiktok.com', hostnames: ['tiktok.com'] })]);
+  await signUp(a, url, acc, PASSWORD, 'Munkagép');
+  await syncNow(a, 2_000);
+  const b = device();
+  await signIn(b, url, acc, PASSWORD, 'Telefon');
+  requestDelete(a, 'site_t7', 10_000);
+  await syncNow(a, 3_000);
+  await syncNow(b, 4_000);
+  b.sites[0].pendingDeleteAt = null;
+  tick(a, 11_000);
+  await syncNow(a, 11_100);
+  await syncNow(b, 12_000);
+  assert.deepEqual(b.sites.map((s) => [s.id, s.pendingDeleteAt]), [['site_t7', null]], 'a telefonon él');
+  await syncNow(a, 13_000);
+  assert.deepEqual(a.sites.map((s) => [s.id, s.pendingDeleteAt]), [['site_t7', null]], 'és a gépen is visszajött');
+  assert.equal(a.goneSites, undefined, 'a sírkő nem maradt mellette');
 });

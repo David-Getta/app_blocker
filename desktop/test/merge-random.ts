@@ -6,7 +6,7 @@
 // állítja elő ugyanabból a magból, tehát ugyanazokat az eseteket járja be.
 // Ha itt egy r() hívás sorrendje változik, ott is változnia kell.
 
-import { ruleKey, type SyncSite } from '../src/shared/sync/merge';
+import { isGone, ruleKey, type SyncSite } from '../src/shared/sync/merge';
 import { emptyFocus, normalizeSyncFocus, type SyncFocus } from '../src/shared/sync/focus-merge';
 import { isRunning, isSiteAllowed, type FocusLogEntry, type FocusPack, type FocusRun } from '../src/shared/focus';
 import type { Band, Schedule, ScheduleMode, Weekday } from '../src/shared/schedule';
@@ -95,6 +95,14 @@ export function randomSite(r: () => number, device: string): SyncSite {
   const ruleMarks: Record<string, number> = {};
   if (rules !== undefined && rm0Draw < 0.5) ruleMarks[ruleKey(RULES[0])] = rm0Value;
   if (rules !== undefined && rm1Draw < 0.5) ruleMarks[ruleKey(RULES[1])] = rm1Value;
+  // A VÉGIGMENT TÖRLÉS JELE — két húzás, feltétel nélkül, ugyanebben a
+  // sorrendben a három nyelvben: van-e, és mennyi — legfeljebb a törlés
+  // számlálója (a bemenet mindhárom nyelvben így tisztít). A rekord halott,
+  // ha egyenlő vele, és vár; visszavont, ha egyenlő, és nem vár.
+  const goneDraw = r();
+  const goneValue = 1 + Math.floor(r() * 2);
+  const del = (loosens as Partial<Record<(typeof LOOSENS)[number], number>>).deleteLoosens ?? 0;
+  const goneLoosens = del > 0 && goneDraw < 0.6 ? Math.min(goneValue, del) : undefined;
   return {
     id: 'site_1', domain: 'youtube.com', hostnames, addedAt: 1_000,
     ...(Object.keys(marks).length ? { hostnameMarks: marks } : {}),
@@ -105,6 +113,7 @@ export function randomSite(r: () => number, device: string): SyncSite {
     ...(rulesRev !== undefined ? { rulesRev } : {}),
     ...(Object.keys(ruleMarks).length ? { ruleMarks } : {}),
     ...loosens,
+    ...(goneLoosens !== undefined ? { goneLoosens } : {}),
   };
 }
 
@@ -388,7 +397,8 @@ export function siteConformanceKey(s: SyncSite): string {
     + ` at=${s.updatedAt} by=${s.updatedBy}`
     + ` sched=${sched} burst=${burst} rules=${rules} rmark=${s.rulesRev ?? 0}`
     + ` loos=${s.deleteLoosens ?? 0}/${s.scheduleLoosens ?? 0}/${s.limitLoosens ?? 0}/${s.burstLoosens ?? 0}`
-    + ` rmarks=[${Object.entries(s.ruleMarks ?? {}).sort(([x], [y]) => (x < y ? -1 : x > y ? 1 : 0)).map(([k, v]) => `${k}=${v}`).join(',')}]`;
+    + ` rmarks=[${Object.entries(s.ruleMarks ?? {}).sort(([x], [y]) => (x < y ? -1 : x > y ? 1 : 0)).map(([k, v]) => `${k}=${v}`).join(',')}]`
+    + ` gone=${s.goneLoosens ?? 0}`;
 }
 
 export function focusConformanceKey(f: SyncFocus): string {
@@ -543,7 +553,7 @@ export interface SiteFlip { flip: SyncSite; what: string }
  * Egy húzás, az a/b/c után: a fuzz-generátorokat nem érinti.
  */
 export function flipSite(r: () => number, a: SyncSite): SiteFlip {
-  const kind = Math.floor(r() * 16);
+  const kind = Math.floor(r() * 17);
   const withMarks = (s: SyncSite, marks: Record<string, number>): SyncSite => {
     const out: SyncSite = { ...s };
     if (Object.keys(marks).length > 0) out.hostnameMarks = marks; else delete out.hostnameMarks;
@@ -603,8 +613,79 @@ export function flipSite(r: () => number, a: SyncSite): SiteFlip {
         ruleMarks: { ...(a.ruleMarks ?? {}), [ruleKey(RULES[0])]: a.rev + 1 }, rev: a.rev + 1,
       },
     };
+    // A végigment törlés sírköve: a kérés számlálója a jelen, és vár — a
+    // rekord halott. Számláló nélkül egy kifizetett kéréssel (a rev-vel).
+    case 15: {
+      const del = a.deleteLoosens ?? a.rev;
+      return { what: 'gone', flip: { ...a, pendingDeleteAt: a.pendingDeleteAt ?? 5_000, deleteLoosens: del, goneLoosens: del } };
+    }
     default: return { what: 'updatedBy', flip: { ...a, updatedBy: 'masik' } };
   }
+}
+
+/** A lista-esetek „most”-ja: a határidők körülötte — egy lejárt, egy épp most, egy jövőbeli. */
+export const LIST_NOW = 6_000;
+/**
+ * A lista-esetek rekordjai: négy azonosító, három domain — kettő UGYANAZON a
+ * domainen, hogy a domain szerinti összevonás és a sírkő találkozzon.
+ */
+export const LIST_SITES: { id: string; domain: string; addedAt: number }[] = [
+  { id: 's1', domain: 'youtube.com', addedAt: 1_000 },
+  { id: 's2', domain: 'youtu.be', addedAt: 2_000 },
+  { id: 's3', domain: 'youtube.com', addedAt: 3_000 },
+  { id: 's4', domain: 'yt.be', addedAt: 4_000 },
+];
+export interface ListCase { a: SyncSite[]; b: SyncSite[]; c: SyncSite[]; local: string[]; now: number }
+
+/**
+ * Három eszköz listája, sírkövekkel — a lista-szintű fésüléshez
+ * (`mergeSiteLists`), az előkészítéshez (`settleIncoming`) és a
+ * szétosztáshoz (`splitMerged`). Rekordonként öt húzás, feltétel nélkül,
+ * ugyanebben a sorrendben a három nyelvben: van-e, milyen állapotú (élő,
+ * vár, halott, visszavont, régi — számláló nélküli — kérés), mikor jár le,
+ * mennyi a számláló, mennyi a rev; a végén azonosítónként egy: helyi-e.
+ */
+export function randomListCase(r: () => number): ListCase {
+  const lists = DEVICES.map((device) => {
+    const out: SyncSite[] = [];
+    for (const { id, domain, addedAt } of LIST_SITES) {
+      const has = r() < 0.6;
+      const kind = Math.floor(r() * 5);
+      const at = LIST_NOW - 1_000 + Math.floor(r() * 3) * 1_000;
+      const count = 1 + Math.floor(r() * 2);
+      const rev = 2 + Math.floor(r() * 4);
+      if (!has) continue;
+      const base: SyncSite = {
+        id, domain, hostnames: [domain], addedAt, pauseUntil: null, pendingDeleteAt: null,
+        rev, updatedAt: 100 + rev, updatedBy: device,
+      };
+      if (kind === 1) out.push({ ...base, pendingDeleteAt: at, deleteLoosens: count });
+      else if (kind === 2) out.push({ ...base, pendingDeleteAt: at, deleteLoosens: count, goneLoosens: count });
+      else if (kind === 3) out.push({ ...base, deleteLoosens: count, goneLoosens: count });
+      else if (kind === 4) out.push({ ...base, pendingDeleteAt: at });
+      else out.push(base);
+    }
+    return out;
+  });
+  const local = LIST_SITES.filter(() => r() < 0.5).map((s) => s.id);
+  return { a: lists[0], b: lists[1], c: lists[2], local, now: LIST_NOW };
+}
+
+/**
+ * A sírkövek plafonja: hetven halott rekord, sok holtversennyel a határidőben
+ * — a legkésőbbi határidejűek maradnak, holtversenyben az azonosító dönt
+ * (kódegység szerint: a `g10` a `g2` előtt).
+ */
+export function goneCapList(): SyncSite[] {
+  return Array.from({ length: 70 }, (_, i) => ({
+    id: `g${i}`, domain: 'youtube.com', hostnames: ['youtube.com'], addedAt: 1_000 + i, pauseUntil: null,
+    pendingDeleteAt: 5_000 + (i % 7) * 10, deleteLoosens: 1, goneLoosens: 1, rev: 2, updatedAt: 100, updatedBy: 'gep-a',
+  }));
+}
+
+/** Egy lista kulcsa — a sorrend is számít: a fésülés kanonikus sorrendet ad. */
+export function listConformanceKey(list: SyncSite[]): string[] {
+  return list.map((s) => `${s.id}|${s.domain}|${isGone(s) ? 'dead' : 'live'}|${siteConformanceKey(s)}`);
 }
 
 /** A mérés napjai, céljai és címkéi — a használati statisztika egyesítéséhez. */

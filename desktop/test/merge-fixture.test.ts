@@ -17,7 +17,7 @@ import { test } from 'node:test';
 import * as assert from 'node:assert/strict';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { mergeSite } from '../src/shared/sync/merge';
+import { mergeSite, mergeSiteLists, settleIncoming, splitMerged } from '../src/shared/sync/merge';
 import { mergeFocus, normalizeSyncFocus, sameFocus, type SyncFocus } from '../src/shared/sync/focus-merge';
 import { combineUsage } from '../src/shared/usage';
 import { closesAfterPause, isBlockedNowWithLimit } from '../src/shared/limits';
@@ -34,7 +34,8 @@ import {
 } from '../src/shared/focus';
 import { noteBurstUsage, type BurstState } from '../src/shared/burst';
 import {
-  DECISION_NOW, DEVICES, FOCUS_MERGE_NOW, SCHEDULE_WEEK_START, flipFocus, focusScenarios, flipSite, focusConformanceKey, randomBurstRun, randomDecision,
+  DECISION_NOW, DEVICES, FOCUS_MERGE_NOW, LIST_NOW, SCHEDULE_WEEK_START, flipFocus, focusScenarios, flipSite, focusConformanceKey,
+  goneCapList, listConformanceKey, randomBurstRun, randomDecision, randomListCase, type ListCase,
   randomFocus, randomFocusLogCase, randomScheduleCase, randomSite, randomUsage, randomVerdict, randomWindowsCase,
   referenceVerdict, rng, siteConformanceKey, usageConformanceKey, usageSummaryParts, type FocusLogCase, type WindowsCase,
 } from './merge-random';
@@ -49,8 +50,25 @@ const FIXTURE = path.resolve(__dirname, '..', '..', '..', 'fixtures', 'merge-cas
 const SEEDS = 80;
 
 interface Fixture {
-  note: string; version: number; sites: unknown[]; focus: unknown[]; usage: unknown[]; decisions: unknown[];
+  note: string; version: number; sites: unknown[]; lists: unknown[]; focus: unknown[]; usage: unknown[]; decisions: unknown[];
   bursts: unknown[]; verdicts: unknown[]; schedules: unknown[]; windows: unknown[]; focusLogs: unknown[];
+}
+
+/**
+ * Egy lista-eset: a három eszköz listájának fésülése (a×b, utána ×c), a
+ * harmadik lista előkészítése a helyi azonosítókkal, és a fésült lista
+ * szétosztása — mindhárom a tükrök dolga is.
+ */
+function listAnswers(lc: ListCase) {
+  const local = new Set(lc.local);
+  const merged = mergeSiteLists(mergeSiteLists(lc.a, lc.b), lc.c);
+  const split = splitMerged(merged, local, lc.now);
+  return {
+    merged: listConformanceKey(merged),
+    settled: listConformanceKey(settleIncoming(lc.c, local, lc.now)),
+    sites: split.sites.map((s) => s.id),
+    gone: split.gone.map((s) => s.id),
+  };
 }
 
 const summaryKey = (s: FocusSummary) => `${s.sessions}/${s.totalMs}/${s.stoppedEarly}/${s.windowRuns}/${s.topPack ?? '-'}`;
@@ -180,6 +198,29 @@ function buildFixture(): Fixture {
       seed, a, b, c, ab: siteConformanceKey(ab), abc: siteConformanceKey(mergeSite(ab, c)), flip, what, af, fa,
     });
   }
+  // LISTÁK, SÍRKÖVEKKEL: három eszköz listája, a domain szerinti összevonás,
+  // a végigment törlés sírköve, az esedékes idegen rekord és a szétosztás —
+  // a végén a sírkövek plafonja egy külön esetben.
+  // Minden ág legyen benne: halott a sírkövek közt, halott a listán (helyi,
+  // vagy itt még nem esedékes), elejtett régi kérés, az előkészítés temet, a
+  // domain szerinti összevonás két élő azonosítót egybe vesz.
+  const lists: unknown[] = [];
+  const seenList = { goneOut: false, deadKept: false, dropped: false, buried: false, folded: false };
+  for (let seed = 1; seed <= SEEDS; seed++) {
+    const lc = randomListCase(rng(seed));
+    const ans = listAnswers(lc);
+    if (ans.gone.length > 0) seenList.goneOut = true;
+    if (ans.merged.some((k) => k.includes('|dead|') && ans.sites.includes(k.split('|')[0]))) seenList.deadKept = true;
+    if (ans.merged.length > ans.sites.length + ans.gone.length) seenList.dropped = true;
+    if (ans.settled.some((k, i) => k !== listConformanceKey([lc.c[i]])[0])) seenList.buried = true;
+    if (!ans.merged.some((k) => k.startsWith('s3|')) && [lc.a, lc.b, lc.c].some((l) => l.some((x) => x.id === 's3'))) {
+      seenList.folded = true;
+    }
+    lists.push({ seed, ...lc, ...ans });
+  }
+  const cap: ListCase = { a: goneCapList(), b: [], c: [], local: [], now: LIST_NOW };
+  lists.push({ seed: 0, ...cap, ...listAnswers(cap) });
+  for (const [k, v] of Object.entries(seenList)) assert.ok(v, `a lista-esetekből hiányzik egy ág: ${k}`);
   // A menet új szabályainak minden ága legyen benne (különben a tükrök egy
   // ágat sosem bizonyítanak): sírkő leállít, rövidítés nyer a hosszabb felett,
   // jövőbeli sor nem számít, eltolt menet.
@@ -351,6 +392,9 @@ function buildFixture(): Fixture {
       + 'A focus-esetek flip/what/same mezője: egy mező cseréje, és hogy a három nyelv különbségnek tartja-e; '
       + 'a now mezője a fésülés időpontja (a jövőben véget ért naplósor nem zár le menetet). '
       + 'A sites-esetek flip/what/af/fa mezője: egy mező cseréje, és a fésülés mindkét sorrendben. '
+      + 'A lists-esetek: három eszköz listája (a, b, c), a helyi azonosítók (local) és az időpont (now) — a fésült lista '
+      + 'kulcsa (merged: a×b, utána ×c, a kanonikus sorrendben), a c előkészítése (settled: az esedékes idegen rekord sírkő), '
+      + 'és a fésült lista szétosztása (sites: ami tilt, gone: ami sírkő). A 0-s mag a sírkövek plafonja. '
       + 'A usage-esetek: három eszköz mérése, az egyesítés kulcsa, és az összegző (summary) a now időpontban: ma, tegnap, hét, hónap, '
       + 'toplisták (kulcs=címke=mp, holtversenyben a kulcs dönt), a hét az előző héthez (ez/múlt/századszázalék), napok. '
       + 'A decisions-esetek: oldal, helyi mérés, a többi eszköz mai összegzése, időpont — és hogy tilt-e most, '
@@ -363,8 +407,9 @@ function buildFixture(): Fixture {
       + 'lazítás, élő ablak, megkövetelt zárlat, ablak-zárlat-e, közelgő ablak, a következő előfordulás (nextOcc). '
       + 'A focusLogs-esetek: napló és időpont (UTC) — a hét és az előző hét összegzője (menet/ms/korai/ablakból/csúcs-csomag), '
       + 'menet-napok, menet-órák, sorozat, leghosszabb sorozat, ablakból indult menetek csomagonként, a napi rajz.',
-    version: 21,
+    version: 22,
     sites,
+    lists,
     focus,
     usage,
     decisions,
@@ -380,7 +425,8 @@ function buildFixture(): Fixture {
 function render(f: Fixture): string {
   const rows = (items: unknown[]) => items.map((x) => ' ' + JSON.stringify(x)).join(',\n');
   return `{\n"note": ${JSON.stringify(f.note)},\n"version": ${f.version},\n`
-    + `"sites": [\n${rows(f.sites)}\n],\n"focus": [\n${rows(f.focus)}\n],\n"usage": [\n${rows(f.usage)}\n],\n`
+    + `"sites": [\n${rows(f.sites)}\n],\n"lists": [\n${rows(f.lists)}\n],\n`
+    + `"focus": [\n${rows(f.focus)}\n],\n"usage": [\n${rows(f.usage)}\n],\n`
     + `"decisions": [\n${rows(f.decisions)}\n],\n"bursts": [\n${rows(f.bursts)}\n],\n`
     + `"verdicts": [\n${rows(f.verdicts)}\n],\n"schedules": [\n${rows(f.schedules)}\n],\n`
     + `"windows": [\n${rows(f.windows)}\n],\n"focusLogs": [\n${rows(f.focusLogs)}\n]\n}\n`;

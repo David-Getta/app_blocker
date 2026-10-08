@@ -15,7 +15,7 @@ import {
   MAX_FOCUS_LOG, normalizePack, withCleanMarks, type FocusLogEntry, type FocusPack, type FocusRun,
 } from '../shared/focus';
 import { normalizeRule, type UrlRule } from '../shared/urlrules';
-import { capHostnameMarks, ruleKey } from '../shared/sync/merge';
+import { capGone, capHostnameMarks, isGone, ruleKey, type SyncSite } from '../shared/sync/merge';
 import { cleanWindowMarks, normalizeWindows, parseLockdown } from '../shared/lockdown';
 import { cleanChannelMarks } from '../shared/sync/channels-merge';
 import { cleanKeywordMarks, cleanKeywords, type KeywordMarks } from '../shared/keywords';
@@ -102,6 +102,12 @@ export interface SiteRec {
   scheduleLoosens?: number;
   limitLoosens?: number;
   burstLoosens?: number;
+  /**
+   * A végigment törlés jele: annak a kérésnek a számlálója, amelyik végigment
+   * (shared/sync/merge.ts `isGone`). A sírkövön áll (`HelperState.goneSites`);
+   * élő rekordon csak akkor, ha a fésülés hozta, és itt még nem esedékes.
+   */
+  goneLoosens?: number;
 }
 
 export interface SessionRec {
@@ -181,6 +187,14 @@ export interface AbandonRec {
 export interface HelperState {
   version: 1;
   sites: SiteRec[];
+  /**
+   * A végigment, kifizetett törlések SÍRKÖVEI (legfeljebb `MAX_GONE_SITES`).
+   * Nem tiltanak semmit; a szinkron viszi őket, hogy egy régi eszköz rekordja
+   * ne támassza fel az oldalt, és a fiókban maradt rekord ne jöjjön vissza
+   * minden körben. A bíró írja, a törlés végrehajtásakor (referee.ts `tick`).
+   * Nem kötelező: régi állapotfájlban nincs.
+   */
+  goneSites?: SiteRec[];
   /** epoch ms of every successful unlock/delete request, for difficulty tiers */
   unlockLog: number[];
   lastCombo: string | null;
@@ -667,21 +681,40 @@ export function loadState(): HelperState {
         const capped = capHostnameMarks(marks, (site.rules ?? []).map(ruleKey));
         if (capped) site.ruleMarks = capped; else delete site.ruleMarks;
       }
-      // A kifizetett lazítások számlálói a mag szűrőjén át — mint a dróton:
-      // pozitív egész, legfeljebb a rekord rev-je (csak léptetés írhatja).
-      for (const site of parsed.sites) {
-        for (const k of ['deleteLoosens', 'scheduleLoosens', 'limitLoosens', 'burstLoosens'] as const) {
-          const v = site[k];
-          if (v === undefined) continue;
-          if (!Number.isInteger(v) || v <= 0 || v > (site.rev ?? 0)) delete site[k];
-        }
+      // A sírkövek: csak tömb, csak rekord-alakú elem (a többit a dróton járó
+      // szűrő úgyis tisztítja), és csak HALOTT — ami nem az, az nem sírkő.
+      if (parsed.goneSites !== undefined) {
+        const gone = (Array.isArray(parsed.goneSites) ? parsed.goneSites : [])
+          .filter((g) => !!g && typeof g === 'object' && typeof g.id === 'string' && g.id !== ''
+            && typeof g.domain === 'string' && Array.isArray(g.hostnames)
+            && typeof g.pendingDeleteAt === 'number' && Number.isFinite(g.pendingDeleteAt));
+        for (const g of gone) cleanLoosens(g);
+        const dead = capGone(gone.filter((g) => isGone(g as unknown as SyncSite)));
+        if (dead.length > 0) parsed.goneSites = dead; else delete parsed.goneSites;
       }
+      for (const site of parsed.sites) cleanLoosens(site);
       return parsed;
     }
   } catch {
     // missing or corrupt -> start fresh
   }
   return defaultState();
+}
+
+/**
+ * A kifizetett lazítások számlálói a mag szűrőjén át — mint a dróton:
+ * pozitív egész, legfeljebb a rekord rev-je (csak léptetés írhatja). A
+ * végigment törlés jele legfeljebb a törlés számlálója: nagyobbat a fésülés
+ * sosem ír.
+ */
+function cleanLoosens(site: SiteRec): void {
+  for (const k of ['deleteLoosens', 'scheduleLoosens', 'limitLoosens', 'burstLoosens'] as const) {
+    const v = site[k];
+    if (v === undefined) continue;
+    if (!Number.isInteger(v) || v <= 0 || v > (site.rev ?? 0)) delete site[k];
+  }
+  const g = site.goneLoosens;
+  if (g !== undefined && !(Number.isInteger(g) && g > 0 && g <= (site.deleteLoosens ?? 0))) delete site.goneLoosens;
 }
 
 export function saveState(state: HelperState): void {
