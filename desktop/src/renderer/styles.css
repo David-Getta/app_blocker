@@ -345,7 +345,8 @@ body {
    hogy melyik van érvényben. */
 .chip-on,
 .chip-on:hover {
-  color: var(--bg);
+  /* A háttérszín itt kevés volt: világosban #f4f5f7 a kéken 4,1:1. */
+  color: var(--on-accent);
   background: var(--accent);
   border-color: var(--accent);
 }
@@ -354,8 +355,11 @@ body {
 .minute-row { display: flex; align-items: center; gap: var(--s3); margin-top: var(--s3); }
 .minute-field { width: 96px; margin-top: 0; padding: 9px 12px; text-align: right; }
 .minute-row .hint { margin: 0; }
-/* Ha most nem a mező dönt (pl. „Nincs keret”), halványul, de olvasható marad. */
-.muted-box { opacity: 0.45; }
+/* Ha most nem a mező dönt (pl. „Nincs keret”), egyik gyorsgomb sem
+   kiválasztott (minutePicker.setMuted), és a szám szürkébb. ÁTLÁTSZÓSÁG NÉLKÜL:
+   a régi 0,45-ös halványítás a továbbra is kattintható gombokat olvashatatlanná
+   tette (2:1 körül) — az akadálymentességi próba fogta ki. */
+.muted-box .minute-field { color: var(--text-3); }
 
 .hint { color: var(--text-3); font-size: 0.85rem; margin: var(--s4) 0 0; }
 .error { color: var(--danger); font-size: 0.87rem; margin: var(--s3) 0 0; }
@@ -1012,7 +1016,7 @@ body {
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--bg);
+  color: var(--on-accent);
   background: var(--accent);
 }
 

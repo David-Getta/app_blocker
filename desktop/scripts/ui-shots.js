@@ -555,6 +555,9 @@ async function main() {
   page.on('console', (m) => { if (m.type() === 'error') failures.push(`console: ${m.text()}`); });
   page.on('requestfailed', (r) => failures.push(`request failed: ${r.url()}`));
 
+  // Az axe a fő lapon is ott van: a párbeszéd-ablakokat és a paneleket csak
+  // a végigjátszás nyitja ki, ezért a próba ott fut, ahol épp nyitva vannak.
+  await installAxe(page, failures);
   await page.addInitScript(fakeBridgeSource());
   await page.goto(`http://127.0.0.1:${port}/renderer/index.html`);
 
@@ -633,6 +636,7 @@ async function main() {
     .getByRole('button', { name: 'Szerkesztés' }).click();
   const recModal = page.locator('.overlay:not(.hidden) .modal');
   await recModal.getByRole('heading', { name: 'Csomag szerkesztése' }).waitFor({ timeout: 10_000 });
+  await checkA11y(page, 'csomag-szerkesztő', failures);
   if (!CHECK_ONLY) {
     // A doksi képe: a csomag szerkesztője a heti ablak blokkjával — odagörgetve,
     // mert a szerkesztő magasabb az ablaknál, és a blokk az alján van.
@@ -1601,6 +1605,7 @@ async function main() {
   await page.waitForSelector('.live-feedback.bad', { timeout: 5_000 });
   await page.locator('.step-submit').click();
   await page.waitForSelector('#stepMessage:not(.hidden)', { timeout: 10_000 });
+  await checkA11y(page, 'próbatétel', failures);
   if (!CHECK_ONLY) {
     await page.screenshot({ path: path.join(OUT, 'desktop-challenge.png'), fullPage: false });
   }
@@ -1650,6 +1655,7 @@ async function main() {
   // A képernyőkép itt: a meglévő saját sáv pipával, a sablonok, és egy új
   // saját sáv kitöltve — a szerkesztő minden része egyszerre látszik.
   await page.locator('#schedCustom input[aria-label="vég"]').blur();
+  await checkA11y(page, 'menetrend', failures);
   if (!CHECK_ONLY) {
     await page.screenshot({ path: path.join(OUT, 'desktop-schedule.png'), fullPage: false });
   }
@@ -1738,6 +1744,7 @@ async function main() {
   if (!statsText.includes('A videós')) {
     failures.push('the statistics do not use the alias');
   }
+  await checkA11y(page, 'fedőnév', failures);
   if (!CHECK_ONLY) {
     await page.screenshot({ path: path.join(OUT, 'desktop-alias.png'), fullPage: false });
   }
@@ -1883,6 +1890,7 @@ async function main() {
     () => !document.getElementById('listHiddenText').textContent.includes('fiók egészére'),
     undefined, { timeout: 10_000 },
   ).catch(() => failures.push('after signing out the hidden list still talks about the account'));
+  await checkA11y(page, 'rejtett lista', failures);
   if (!CHECK_ONLY) {
     await page.screenshot({ path: path.join(OUT, 'desktop-list-hidden.png'), fullPage: false });
   }
@@ -1996,6 +2004,7 @@ async function main() {
   if (await deletingRow.getByRole('button', { name: /^(Feloldás|Törlés)$/ }).count()) {
     failures.push('the deleting row still offers unlock or delete');
   }
+  await checkA11y(page, 'törlés és szünet állapota', failures);
   if (!CHECK_ONLY) {
     await page.screenshot({ path: path.join(OUT, 'desktop-states.png'), fullPage: false });
   }
@@ -2199,6 +2208,7 @@ async function main() {
     () => document.querySelectorAll('#siteList .site-row').length > 0,
     undefined, { timeout: 10_000 },
   );
+  await checkA11y(page, 'fiók-panel', failures);
   if (!CHECK_ONLY) {
     // Odagörgetünk: a kártya a lap alján ül, enélkül a képen a főképernyő
     // teteje lenne — vagyis pont az nem, amit dokumentálni akarunk.
@@ -2550,8 +2560,9 @@ async function main() {
   await over.close();
   await page.evaluate(() => { window.__fakeRun = null; });
 
-  // AKADÁLYMENTESSÉG (scripts/a11y-check.js): a három nézet mindkét témában,
-  // és a réteg — friss lapon, hogy az előző lépések állapota ne zavarjon.
+  // AKADÁLYMENTESSÉG (scripts/a11y-check.js): a három nézet és a párbeszéd-
+  // ablakok mindkét témában, és a réteg — friss lapon, hogy az előző lépések
+  // állapota ne zavarjon.
   for (const scheme of ['dark', 'light']) {
     const a11yPage = await browser.newPage({ viewport: { width: 1180, height: 900 }, colorScheme: scheme });
     a11yPage.on('pageerror', (e) => failures.push(`pageerror (akadálymentességi lap): ${e.message}`));
@@ -2559,10 +2570,41 @@ async function main() {
     await a11yPage.addInitScript(fakeBridgeSource());
     await a11yPage.goto(`http://127.0.0.1:${port}/renderer/index.html`);
     await a11yPage.waitForSelector('#siteList .site-row', { timeout: 15_000 });
+    const theme = scheme === 'dark' ? 'sötét' : 'világos';
     for (const view of ['sites', 'focus', 'stats']) {
       if (view !== 'sites') await goTo(a11yPage, view);
-      await checkA11y(a11yPage, `${view}, ${scheme === 'dark' ? 'sötét' : 'világos'}`, failures);
+      await checkA11y(a11yPage, `${view}, ${theme}`, failures);
     }
+    // A PÁRBESZÉD-ABLAKOK, egyenként: a lista első sorának minden ablaka, a
+    // zárlat két ablaka, és a munkamenet-csomag indítása és szerkesztője. Ezek
+    // a nézetek próbájában nem látszanak — csak kattintásra nyílnak —, és az
+    // első futásnál épp itt volt a legtöbb hiba (címke nélküli mező, cím
+    // nélküli ablak, a napgombok neve).
+    const openDialog = async (label, trigger) => {
+      await trigger.click();
+      const ok = await a11yPage.locator('.overlay:not(.hidden) [role="dialog"]').first()
+        .waitFor({ timeout: 10_000 }).then(() => true, () => false);
+      if (!ok) { failures.push(`akadálymentesség (${label}, ${theme}): az ablak nem nyílt ki dialógusként`); return; }
+      await checkA11y(a11yPage, `${label}, ${theme}`, failures);
+      // Bezárás mentés nélkül: a statikus ablak rejtve marad, a dinamikus kikerül.
+      await a11yPage.evaluate(() => {
+        for (const o of document.querySelectorAll('.overlay:not(.hidden)')) {
+          if (o.id) o.classList.add('hidden'); else o.remove();
+        }
+      });
+    };
+    await goTo(a11yPage, 'sites');
+    const firstRow = a11yPage.locator('#siteList .site-row').first();
+    for (const name of ['Feloldás', 'Menetrend', 'Napi keret', 'Adag', 'Fedőnév', 'Indok', 'Hosztnevek']) {
+      await openDialog(name, firstRow.getByRole('button', { name, exact: true }));
+    }
+    await openDialog('Részek', firstRow.getByRole('button', { name: /^Részek/ }));
+    await openDialog('Zárlat indítása', a11yPage.locator('#lockdownBtn'));
+    await openDialog('Zárlat heti ablaka', a11yPage.locator('#lockdownWindowBtn'));
+    await goTo(a11yPage, 'focus');
+    await openDialog('Csomag indítása', a11yPage.locator('#focusPacks .focus-pack').first()
+      .getByRole('button', { name: 'Indítás' }));
+    await openDialog('Új csomag', a11yPage.locator('#focusNewBtn'));
     await a11yPage.close();
   }
   const a11yOver = await browser.newPage({ viewport: { width: 760, height: 560 } });

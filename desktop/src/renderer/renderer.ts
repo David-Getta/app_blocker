@@ -138,6 +138,34 @@ function h<K extends keyof HTMLElementTagNameMap>(
   return el;
 }
 
+/**
+ * Választó-csip be/ki: a szín mellett a felolvasó is megkapja (aria-pressed) —
+ * enélkül a kiválasztott nap vagy perc csak színből derülne ki.
+ */
+function setOn(el: Element, on: boolean): void {
+  el.classList.toggle('chip-on', on);
+  el.setAttribute('aria-pressed', on ? 'true' : 'false');
+}
+
+let dialogSeq = 0;
+
+/**
+ * Párbeszéd-ablak, a címével. A felolvasó dialógusként kapja (role="dialog",
+ * aria-modal), és a címe a neve — enélkül egy kinyíló ablak a felolvasónak
+ * csak egy újabb doboz a lap alján, cím nélkül. Minden modál ezen át készül;
+ * egy teszt (dialog-markup.test.ts) őrzi, hogy új se kerülje meg.
+ */
+function dialog(cls: string, title: string): HTMLDivElement {
+  const modal = h('div', cls);
+  const head = h('h3', undefined, title);
+  head.id = `dialog-title-${++dialogSeq}`;
+  modal.setAttribute('role', 'dialog');
+  modal.setAttribute('aria-modal', 'true');
+  modal.setAttribute('aria-labelledby', head.id);
+  modal.appendChild(head);
+  return modal;
+}
+
 class CallError extends Error {
   constructor(message: string, public code?: string) { super(message); }
 }
@@ -1386,15 +1414,18 @@ async function changeFocus(endsAt: number | null): Promise<void> {
  */
 function minutePicker(
   choices: number[], initial: number, max: number, onPick?: () => void,
-): { box: HTMLElement; value: () => number | null } {
+): { box: HTMLElement; value: () => number | null; setMuted: (on: boolean) => void } {
   let chosen: number | null = initial;
+  // Ha most nem ez a választó dönt (pl. „Nincs keret”), egyik gombja sem
+  // látszik — és a felolvasónak sem hangzik — kiválasztottnak.
+  let muted = false;
   const box = h('div');
   const row = h('div', 'chips');
   const field = h('input', 'alias-input minute-field') as HTMLInputElement;
 
   const paint = (): void => {
     for (const el of Array.from(row.children)) {
-      el.classList.toggle('chip-on', Number((el as HTMLElement).dataset.min) === chosen);
+      setOn(el, !muted && Number((el as HTMLElement).dataset.min) === chosen);
     }
   };
   for (const min of choices) {
@@ -1428,14 +1459,17 @@ function minutePicker(
   box.appendChild(line);
   paint();
 
-  return { box, value: () => chosen };
+  return {
+    box,
+    value: () => chosen,
+    setMuted: (on: boolean) => { muted = on; box.classList.toggle('muted-box', on); paint(); },
+  };
 }
 
 /** Indítás: csak a hossz kell hozzá. Indítani ingyen van — ez a szigorítás iránya. */
 function openFocusStartDialog(pack: FocusPack): void {
   const overlay = h('div', 'overlay');
-  const modal = h('div', 'modal modal-small');
-  modal.appendChild(h('h3', undefined, pack.name));
+  const modal = dialog('modal modal-small', pack.name);
   modal.appendChild(h('p', 'hint',
     'Meddig tartson? Hosszabbítani közben ingyen lehet; leállítani viszont '
     + 'ugyanabba a próbatételbe kerül, mint egy feloldás.'));
@@ -1568,14 +1602,17 @@ function bandFields(current: Band | undefined, defaults: { startMin: number; end
   const paint = (): void => {
     for (const c of Array.from(chips.children)) {
       const d = Number((c as HTMLElement).dataset.day);
-      c.classList.toggle('chip-on', selected.has(d as Weekday));
+      setOn(c, selected.has(d as Weekday));
     }
   };
   for (const d of DAY_ORDER) {
     const c = h('button', 'chip', DAY_SHORT[d]) as HTMLButtonElement;
     c.type = 'button';
     c.dataset.day = String(d);
-    c.setAttribute('aria-label', DAY_NAMES[d]);
+    // A név a látható rövidítéssel kezdődik („Sze (szerda)”): aki hanggal
+    // vezérel, azt mondja ki, amit lát — egy csak „szerda” nevű gomb erre
+    // nem hallgatna.
+    c.setAttribute('aria-label', `${DAY_SHORT[d]} (${DAY_NAMES[d]})`);
     c.addEventListener('click', () => {
       if (selected.has(d)) selected.delete(d); else selected.add(d);
       paint();
@@ -1671,8 +1708,7 @@ function recurrenceEditor(pack: FocusPack, overlay: HTMLElement): HTMLElement {
 
 function openFocusEditor(pack: FocusPack | null): void {
   const overlay = h('div', 'overlay');
-  const modal = h('div', 'modal');
-  modal.appendChild(h('h3', undefined, pack ? 'Csomag szerkesztése' : 'Új csomag'));
+  const modal = dialog('modal', pack ? 'Csomag szerkesztése' : 'Új csomag');
   modal.appendChild(h('p', 'hint',
     'A csomag FEHÉRLISTA: ami nincs rajta, az a munkamenet alatt tiltva. Ezért '
     + 'nem kell felsorolni, mi zavar — csak azt, ami kell.'));
@@ -2370,8 +2406,7 @@ async function removePartner(): Promise<void> {
 /** A jelmondat EGYSZER látszik: itt. Másolható, aztán át kell adni — nálad ne maradjon. */
 function openPartnerPhraseDialog(name: string, phrase: string): void {
   const overlay = h('div', 'overlay');
-  const modal = h('div', 'modal modal-small');
-  modal.appendChild(h('h3', undefined, `${name} jelmondata`));
+  const modal = dialog('modal modal-small', `${name} jelmondata`);
   modal.appendChild(h('p', 'hint',
     'Ez a jelmondat CSAK MOST látszik: a gép a lenyomatát tartja meg, a szöveget nem. Add át a '
     + 'megbízottadnak, és ne tartsd meg magadnak — pont az a lényeg, hogy nálad ne legyen. Minden '
@@ -2449,8 +2484,7 @@ async function applyLockdownWindows(windows: LockdownWindow[]): Promise<boolean>
  */
 function openLockdownWindowDialog(st: StatusData, existing?: LockdownWindow): void {
   const overlay = h('div', 'overlay');
-  const modal = h('div', 'modal modal-small');
-  modal.appendChild(h('h3', undefined, existing ? 'Heti ablak módosítása' : 'Heti ablak felvétele'));
+  const modal = dialog('modal modal-small', existing ? 'Heti ablak módosítása' : 'Heti ablak felvétele');
   modal.appendChild(h('p', 'hint',
     (existing ? `Most: ${recurrenceLabel(existing)}. ` : '')
     + 'Az ablakban a zárlat magától él, az ablak végéig — a gépen és a telefonon is. Felvenni '
@@ -2510,8 +2544,7 @@ function openLockdownDialog(st: StatusData): void {
   const now = Date.now();
   const live = isLocked(st.lockdown, now);
   const overlay = h('div', 'overlay');
-  const modal = h('div', 'modal modal-small');
-  modal.appendChild(h('h3', undefined, live ? 'Zárlat hosszabbítása' : 'Zárlat indítása'));
+  const modal = dialog('modal modal-small', live ? 'Zárlat hosszabbítása' : 'Zárlat indítása');
   modal.appendChild(h('p', 'hint', live
     ? `Most ${formatLockdownRemaining(st.lockdown!.until - now)} van hátra. A megadott idő `
       + 'MOSTTÓL számít; ha rövidebb a hátralévőnél, nem történik semmi — rövidíteni nem lehet.'
@@ -2523,7 +2556,7 @@ function openLockdownDialog(st: StatusData): void {
   const chips = h('div', 'chips');
   const buttons: HTMLButtonElement[] = [];
   function paint(): void {
-    for (const b of buttons) b.classList.toggle('chip-on', Number(b.dataset.min) === picked);
+    for (const b of buttons) setOn(b, Number(b.dataset.min) === picked);
   }
   for (const min of LOCKDOWN_CHOICES_MIN) {
     const b = h('button', 'chip', formatLockdownRemaining(min * 60_000)) as HTMLButtonElement;
@@ -2542,6 +2575,7 @@ function openLockdownDialog(st: StatusData): void {
   input.type = 'text';
   input.autocomplete = 'off';
   input.spellcheck = false;
+  input.setAttribute('aria-label', 'A megerősítő szó: ZÁRLAT');
   modal.appendChild(input);
 
   const err = h('p', 'error');
@@ -3061,8 +3095,7 @@ function burstMeter(site: SiteInfo, now: number): HTMLElement | null {
  */
 function openReasonDialog(site: SiteInfo): void {
   const overlay = h('div', 'overlay');
-  const modal = h('div', 'modal modal-small');
-  modal.appendChild(h('h3', undefined, `Indok: ${displayName(site)}`));
+  const modal = dialog('modal modal-small', `Indok: ${displayName(site)}`);
   modal.appendChild(h('p', 'hint',
     'Egy mondat arról, miért tiltottad le. A soron, a feloldás lapján és a böngésző '
     + 'tiltó lapján ez áll majd — pont akkor, amikor a legjobban kellene. Nem tiltás és '
@@ -3116,8 +3149,7 @@ function openReasonDialog(site: SiteInfo): void {
 
 function openAliasDialog(site: SiteInfo): void {
   const overlay = h('div', 'overlay');
-  const modal = h('div', 'modal modal-small');
-  modal.appendChild(h('h3', undefined, `Név elrejtése: ${displayName(site)}`));
+  const modal = dialog('modal modal-small', `Név elrejtése: ${displayName(site)}`);
   modal.appendChild(h('p', 'hint',
     'A listán a cím helyett ez a név fog állni. A valódi cím nem tűnik el: a '
     + `név mellett egy gombbal ${Math.round(REVEAL_MS / 1000)} másodpercre `
@@ -3198,8 +3230,7 @@ function openAliasDialog(site: SiteInfo): void {
  */
 function openRulesDialog(site: SiteInfo): void {
   const overlay = h('div', 'overlay');
-  const modal = h('div', 'modal');
-  modal.appendChild(h('h3', undefined, `Csak egy rész: ${displayName(site)}`));
+  const modal = dialog('modal', `Csak egy rész: ${displayName(site)}`);
   modal.appendChild(h('p', 'hint',
     'Nem az egész oldal, csak egy darabja — például egy csatorna. Illeszd be a '
     + 'címét úgy, ahogy a böngészőben látod.'));
@@ -3317,8 +3348,7 @@ function openRulesDialog(site: SiteInfo): void {
 
 function openLimitDialog(site: SiteInfo): void {
   const overlay = h('div', 'overlay');
-  const modal = h('div', 'modal modal-small');
-  modal.appendChild(h('h3', undefined, `Napi keret: ${displayName(site)}`));
+  const modal = dialog('modal modal-small', `Napi keret: ${displayName(site)}`);
   modal.appendChild(h('p', 'hint',
     'Ha a mai aktív idő eléri a keretet, az oldal a nap hátralévő részére ' +
     'magától visszazár, éjfélkor pedig a keret újraindul. Keretet bevezetni ' +
@@ -3339,9 +3369,9 @@ function openLimitDialog(site: SiteInfo): void {
   );
   const none = h('button', 'chip', 'Nincs keret') as HTMLButtonElement;
   function paintNone(): void {
-    none.classList.toggle('chip-on', noLimit);
+    setOn(none, noLimit);
     // A mező marad olvasható, csak jelezzük, hogy most nem ő dönt.
-    picker.box.classList.toggle('muted-box', noLimit);
+    picker.setMuted(noLimit);
   }
   none.addEventListener('click', () => { noLimit = true; paintNone(); });
   const noneRow = h('div', 'chips');
@@ -3392,8 +3422,7 @@ function openLimitDialog(site: SiteInfo): void {
  */
 function openHostnamesDialog(site: SiteInfo): void {
   const overlay = h('div', 'overlay');
-  const modal = h('div', 'modal');
-  modal.appendChild(h('h3', undefined, `Hosztnevek: ${displayName(site)}`));
+  const modal = dialog('modal', `Hosztnevek: ${displayName(site)}`);
   modal.appendChild(h('p', 'hint',
     'Ezek a nevek mennek a tiltásba (a hosts fájlba). Felvenni egy kattintás — csak az '
     + 'oldal aldomainje vagy ismert társoldala lehet; levenni próbatétel, ugyanúgy, mint a '
@@ -3457,8 +3486,7 @@ function openHostnamesDialog(site: SiteInfo): void {
 
 function openBurstDialog(site: SiteInfo): void {
   const overlay = h('div', 'overlay');
-  const modal = h('div', 'modal modal-small');
-  modal.appendChild(h('h3', undefined, `Adag: ${displayName(site)}`));
+  const modal = dialog('modal modal-small', `Adag: ${displayName(site)}`);
   modal.appendChild(h('p', 'hint',
     'Ha az aktív használat eléri az adagot, az oldal ennyi szünetre magától '
     + 'visszazár, majd újra kinyílik — például 2 perc után 10 perc szünet. '
@@ -3489,9 +3517,9 @@ function openBurstDialog(site: SiteInfo): void {
 
   const none = h('button', 'chip', 'Nincs adag-szabály') as HTMLButtonElement;
   function paintNone(): void {
-    none.classList.toggle('chip-on', noRule);
-    burstPick.box.classList.toggle('muted-box', noRule);
-    coolPick.box.classList.toggle('muted-box', noRule);
+    setOn(none, noRule);
+    burstPick.setMuted(noRule);
+    coolPick.setMuted(noRule);
   }
   none.addEventListener('click', () => { noRule = true; paintNone(); });
   const noneRow = h('div', 'chips');
@@ -3730,8 +3758,7 @@ const PRESET_LABELS: { key: keyof typeof PRESET_BANDS; label: string }[] = [
 
 function openScheduleDialog(site: SiteInfo): void {
   const overlay = h('div', 'overlay');
-  const modal = h('div', 'modal modal-small');
-  modal.appendChild(h('h3', undefined, `Menetrend: ${displayName(site)}`));
+  const modal = dialog('modal modal-small', `Menetrend: ${displayName(site)}`);
   modal.appendChild(h('p', 'hint',
     'Szigorítani (több tiltott idő) azonnal megy. Lazítani — kevesebb tiltás — ' +
     'ugyanúgy próbatételekbe kerül, mint egy feloldás.'));
@@ -4069,6 +4096,7 @@ function buildTranscribe(box: HTMLElement, session: SessionInfo, step: StepDispl
   box.appendChild(h('div', 'challenge-text', text));
   const ta = h('textarea');
   ta.spellcheck = false;
+  ta.setAttribute('aria-label', 'Az átgépelt szöveg');
   guardInput(ta);
   const feedback = h('div', 'live-feedback');
   ta.addEventListener('input', () => {
@@ -4096,6 +4124,7 @@ function buildMath(box: HTMLElement, session: SessionInfo, step: StepDisplay): v
   input.type = 'text';
   input.inputMode = 'numeric';
   input.placeholder = 'Eredmény (egész szám, lehet negatív)';
+  input.setAttribute('aria-label', 'Az eredmény');
   guardInput(input);
   const submit = () => void submitAnswer(session, input.value);
   input.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); });
@@ -4137,6 +4166,7 @@ function buildMemory(box: HTMLElement, session: SessionInfo, step: StepDisplay):
       const input = h('input', 'challenge-input') as HTMLInputElement;
       input.autocomplete = 'off';
       input.spellcheck = false;
+      input.setAttribute('aria-label', 'A kód emlékezetből');
       guardInput(input);
       const submit = () => void submitAnswer(session, input.value);
       input.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); });
@@ -4155,6 +4185,7 @@ function buildReverse(box: HTMLElement, session: SessionInfo, step: StepDisplay)
   const input = h('input', 'challenge-input') as HTMLInputElement;
   input.autocomplete = 'off';
   input.spellcheck = false;
+  input.setAttribute('aria-label', 'A mondat visszafelé');
   guardInput(input);
   const submit = () => void submitAnswer(session, input.value);
   input.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); });
@@ -4178,6 +4209,7 @@ function buildPartner(box: HTMLElement, session: SessionInfo, step: StepDisplay)
   input.autocomplete = 'off';
   input.spellcheck = false;
   input.placeholder = 'a jelmondat (négy szó)';
+  input.setAttribute('aria-label', `${name} jelmondata`);
   const submit = () => void submitAnswer(session, input.value);
   input.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); });
   box.append(input, submitButton('Ellenőrzés', submit));

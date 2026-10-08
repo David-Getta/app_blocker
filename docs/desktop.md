@@ -31,6 +31,31 @@ BREAKER_SOCKET=/tmp/breaker/breaker.sock \
 node dist/helper/index.js
 ```
 
+## Felület-próba és akadálymentesség
+
+```bash
+npm run build
+npm i --no-save playwright@1.63.0 axe-core@4.14.0
+node scripts/ui-shots.js --check     # a felület végigjátszása, hamis híddal
+node scripts/extension-ui.js         # a bővítmény lapjai
+```
+
+Mindkét próba lefuttatja az axe-core akadálymentességi ellenőrzését
+(`scripts/a11y-check.js`), és minden szabálysértés bukás: a három nézet
+mindkét témában, a gyorsbillentyűs réteg, a lista első sorának minden
+párbeszéd-ablaka (feloldás, menetrend, napi keret, adag, fedőnév, indok,
+hosztnevek, részek), a zárlat két ablaka, a munkamenet-csomag indítása és
+szerkesztője, a végigjátszás közben nyíló ablakok (próbatétel, fiók-panel),
+valamint a bővítmény beállítási, felugró és tiltó lapja. A CI-ban az axe
+kötelező; helyben, ha nincs telepítve, a próba kimarad és szól.
+
+Amit nem lát: a billentyűzetes bejárás sorrendjét és a fókusz útját (egy
+ablak nyitásakor és zárásakor), azt, hogy a felolvasó ténylegesen mit mond,
+és a telefonos appokat — ezek kézi próbát kívánnak. A forrás-oldali őr
+(`test/dialog-markup.test.ts`) azt nézi, hogy minden modál a közös
+`dialog()` segéden át készüljön (dialógus-szerep és cím), és minden
+választó-csip a `setOn()`-on át (a kiválasztás a felolvasónak is szól).
+
 ## Telepítő csomag
 
 ```bash
