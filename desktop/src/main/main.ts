@@ -29,6 +29,7 @@ import { displayName } from '../shared/alias';
 import * as path from 'path';
 import { HelperClient } from './helper-client';
 import { installHelper } from './install';
+import { readHelperKey } from './helper-key';
 import { initUpdater, requestUpdateCheck } from './updater';
 import { UsageTracker } from './tracker';
 import { needsMeasurement } from '../shared/measure-guard';
@@ -59,7 +60,9 @@ if (HELPER_MODE) {
   // No window, no dock icon, never quit on window-all-closed.
   app.on('window-all-closed', () => { /* keep running */ });
 } else {
-  const client = new HelperClient();
+  // Windowson a segéd csak a telepítéskor kapott kulccsal áll szóba
+  // (shared/client-key.ts); máshol a socket jogai szűkítenek.
+  const client = new HelperClient(process.platform === 'win32' ? { key: readHelperKey } : {});
 
   /**
    * A fő ablak. Nem a getAllWindows()-ból keressük: a gyorsbillentyűs réteg is

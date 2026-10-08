@@ -3598,6 +3598,41 @@ const WIRES = [
     needle: 'PauseReminders.reschedule(views, now: now)',
     lost: 'az iPhone nem ütemezné a szünet vége előtti értesítést',
   },
+  // A WINDOWS-SEGÉD KAPUJA. Az alapértelmezett pipe-leíró a nem emelt appnak
+  // csak olvasást adott: az app egyetlen kérést sem tudott küldeni. A pipe
+  // most mindenkinek írható, de csak a kulcsot bemutató kapcsolat kap szót —
+  // ha a kapu kiesne, bárki vezérelhetné a SYSTEM-segédet; ha a kulcs nem
+  // menne át, az app megint süket volna.
+  {
+    file: 'desktop/src/helper/server.ts',
+    needle: "if (!authed) throw new RefereeError(UNAUTHORIZED_TEXT, 'UNAUTHORIZED');",
+    lost: 'a kulcsos segéd kulcs nélkül is végrehajtaná a parancsokat — bárki vezérelhetné',
+  },
+  {
+    file: 'desktop/src/helper/server.ts',
+    needle: 'server.listen({ path: sock, readableAll: true, writableAll: true },',
+    lost: 'a Windows-segéd pipe-ja a nem emelt appnak csak olvasható maradna — az app süket',
+  },
+  {
+    file: 'desktop/src/helper/index.ts',
+    needle: 'const clientKeySha256 = keyHashFromArgs(process.argv);',
+    lost: 'a segéd nem olvasná ki a kulcs-lenyomatot — a pipe zárva maradna',
+  },
+  {
+    file: 'desktop/src/main/install.ts',
+    needle: 'windowsLauncherCommand(process.execPath, keyHash)',
+    lost: 'a telepítő nem adná át a kulcs-lenyomatot a segédnek',
+  },
+  {
+    file: 'desktop/src/main/main.ts',
+    needle: "new HelperClient(process.platform === 'win32' ? { key: readHelperKey } : {})",
+    lost: 'az app nem mutatná be a kulcsot — a Windows-segéd elutasítaná',
+  },
+  {
+    file: 'desktop/src/main/helper-client.ts',
+    needle: "this.send('hello', { key })",
+    lost: 'a kliens nem kezdené a kapcsolatot a kulccsal',
+  },
   // AZ ADAG-SZABÁLY A GÉP DRÓTJÁN IS. A v0.4.227 előtt kimaradt: a telefon
   // szabályát a gép egy ingyenes szerkesztése mindenhonnan letörölte, a gépen
   // beállított pedig sosem ért át. A fel nem ment régi szabály az első körben

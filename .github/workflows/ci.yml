@@ -128,13 +128,13 @@ jobs:
   # A Windows-segéd SYSTEM-ként fut, az app a felhasználóé, NEM emelt jogokkal.
   # Hogy a kettő beszélni tud-e, azt semmi más nem nézi: a többi teszt egy
   # felhasználóval, egy gépen fut. Ez a próba a valódi szervert SYSTEM-ként
-  # indítja, és egy friss, sima helyi fiókkal kopogtat.
+  # indítja, és egy friss, sima helyi fiókkal kopogtat — kulccsal és anélkül.
+  # Ő mutatta meg, hogy a v0.4.227 előtt a nem emelt app egyetlen kérést sem
+  # tudott küldeni a segédnek („Access denied”).
   windows-helper-pipe:
     name: Windows segéd-csatorna (SYSTEM-szerver, sima felhasználó)
     runs-on: windows-latest
     timeout-minutes: 15
-    # Első kör: felderítés — a kimenet a napló, a piros nem állítja meg a CI-t.
-    continue-on-error: true
     defaults:
       run:
         working-directory: desktop

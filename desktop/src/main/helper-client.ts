@@ -6,6 +6,14 @@ import type { HelperRequest, HelperResponse } from '../shared/protocol';
 
 type Pending = { resolve: (v: unknown) => void; reject: (e: Error) => void };
 
+export interface HelperClientOptions {
+  /**
+   * Windows: az app kulcsa a segédhez (shared/client-key.ts). Ha van, minden
+   * kapcsolat első sora a `hello` vele — a kulcsos segéd enélkül szóba sem áll.
+   */
+  key?: () => string | null;
+}
+
 export class HelperClient {
   private socket: net.Socket | null = null;
   private buffer = '';
@@ -13,14 +21,18 @@ export class HelperClient {
   private pending = new Map<number, Pending>();
   private connectPromise: Promise<void> | null = null;
 
+  constructor(private readonly opts: HelperClientOptions = {}) {}
+
   get connected(): boolean {
     return this.socket !== null;
   }
 
   /** Concurrent callers share the same in-flight connection attempt. */
   private connect(): Promise<void> {
-    if (this.socket) return Promise.resolve();
+    // Előbb a folyamatban lévő kapcsolódás: a kézfogás alatt a socket már él,
+    // de a kérések a `hello` válaszát várják meg.
     if (this.connectPromise) return this.connectPromise;
+    if (this.socket) return Promise.resolve();
     this.connectPromise = new Promise<void>((resolve, reject) => {
       const sock = net.createConnection(socketPath());
       sock.setEncoding('utf8');
@@ -33,14 +45,35 @@ export class HelperClient {
       sock.once('connect', () => {
         sock.removeListener('error', fail);
         this.socket = sock;
-        this.connectPromise = null;
         sock.on('data', (chunk: string) => this.onData(chunk));
         sock.on('error', () => this.teardown());
         sock.on('close', () => this.teardown());
-        resolve();
+        const key = this.opts.key?.() ?? null;
+        if (key === null) {
+          this.connectPromise = null;
+          resolve();
+          return;
+        }
+        // A kulcs az ELSŐ sor: a kulcsos Windows-segéd minden mást elutasít.
+        // A régi segéd nem ismeri a `hello`-t (UNKNOWN_OP) — a kapcsolat
+        // attól még él, és a többi parancs megy.
+        this.send('hello', { key }).then(() => {
+          this.connectPromise = null;
+          resolve();
+        }, (err: Error & { code?: string }) => {
+          this.connectPromise = null;
+          if (err.code === 'UNKNOWN_OP') { resolve(); return; }
+          this.teardown();
+          reject(err);
+        });
       });
     });
     return this.connectPromise;
+  }
+
+  /** A kapcsolat bontása (a függő kérések HELPER_DOWN-nal térnek vissza). */
+  close(): void {
+    this.teardown();
   }
 
   private teardown(): void {
@@ -79,6 +112,11 @@ export class HelperClient {
 
   async call(op: string, payload: Record<string, unknown> = {}): Promise<unknown> {
     await this.connect();
+    return this.send(op, payload);
+  }
+
+  /** Egy kérés a már élő kapcsolaton — a `connect` kézfogása is ezt használja. */
+  private send(op: string, payload: Record<string, unknown>): Promise<unknown> {
     const id = this.nextId++;
     const req = { id, op, ...payload } as HelperRequest;
     return new Promise((resolve, reject) => {

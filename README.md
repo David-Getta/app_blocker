@@ -364,6 +364,10 @@ hiányozzon.
 - **Windows / macOS:** a telepítő egyszer kér rendszergazdai jóváhagyást a
   védelemhez (a segéd ettől tud a hosts fájlba írni). macOS-en nem kér újra
   minden indításnál.
+- **Windows, a v0.4.227 előtti telepítés:** az app addig nem érte el a
+  segédet (a csatorna csak olvasható volt a nem emelt appnak), ezért a
+  „Védelem telepítése” gomb ott maradt. Frissítés után egyszer még kérd a
+  telepítést: az app kulcsot kap, és onnantól a segéd csak vele beszél.
 - **macOS első indítás:** amíg nincs Apple fejlesztői aláírás, a macOS 15
   (Sequoia) és újabb kukába teszi az appot („Rosszindulatú szoftver
   blokkolva”) — ez nem kártevőt jelent, csak azt, hogy nincs aláírva. A
@@ -624,8 +628,6 @@ Ami még hátravan:
 - **Tartalom-alapú blokkolás** (a kulcsszó a webcímet és a lap címsorát
   nézi, nem az oldal szövegét; a DNS-szint egész domaineket lát).
 - **IP-szintű szabályok** az egyedi DNS/DoH-proxy megkerülés ellen.
-- **Windows named pipe szűkítése** egyedi DACL-lel (ma helyi, de nem
-  felhasználóhoz kötött — lásd `docs/architecture.md`).
 - **iOS app-cél tesztjei**: a Swift-mag tesztjei futnak a CI-ban (`swift
   test`), az app-cél (a SwiftUI-képernyők, a tunnel) viszont csak fordul — a
   képernyők viselkedését kézi egyeztetés fedi.

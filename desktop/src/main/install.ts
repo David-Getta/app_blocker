@@ -10,6 +10,8 @@ import { app } from 'electron';
 import { execFile } from 'child_process';
 import * as path from 'path';
 import { launchdPlist, macInstallAppleScript, windowsLauncherCommand } from '../shared/install-script';
+import { clientKeyHash } from '../shared/client-key';
+import { ensureHelperKey } from './helper-key';
 
 function helperEntryPath(): string {
   // Inside the packaged app this resolves into app.asar; Electron's node mode
@@ -44,11 +46,15 @@ async function installMac(): Promise<void> {
 }
 
 async function installWindows(): Promise<void> {
+  // A KULCS LENYOMATA a feladat parancssorába (shared/client-key.ts): a segéd
+  // ezzel ismeri fel a telepítő felhasználó appját — a pipe-ja enélkül
+  // senkinek nem írható, vele bárkinek, de csak a kulcs birtokosa kap szót.
+  const keyHash = clientKeyHash(ensureHelperKey());
   // The inner script must exit non-zero on any failure, and the outer
   // (unelevated) powershell must propagate the elevated child's exit code —
   // Start-Process -Wait alone always exits 0.
   const { code, out } = await runFile('powershell.exe', [
-    '-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', windowsLauncherCommand(process.execPath),
+    '-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', windowsLauncherCommand(process.execPath, keyHash),
   ]);
   if (code !== 0) {
     throw new Error(`A telepítés nem sikerült (kód: ${code}). ${out.trim()}`.trim());

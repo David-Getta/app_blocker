@@ -12,6 +12,7 @@ import { loadState, saveState } from './state';
 import { activeHostnames, applyBlocklist, applyDohPolicies, setPresenceProbe, watchHosts } from './hosts';
 import { appPresent, WAKE_GAP_MS } from '../shared/measure-guard';
 import { startServer } from './server';
+import { CLIENT_KEY_ARG, keyHashFromArgs } from '../shared/client-key';
 import { runSelfTest } from './selftest';
 import type { SelfTestReport } from '../shared/selftest';
 import { tick } from './referee';
@@ -36,6 +37,11 @@ export function runHelper(): void {
   // socket can be restricted to that account (see server.ts).
   const ownerArg = process.argv.find((a) => a.startsWith('--owner-uid='));
   const ownerUid = ownerArg ? Number(ownerArg.split('=')[1]) : undefined;
+  // Windows: a telepítő felhasználó appjának kulcs-lenyomata (shared/client-key.ts).
+  // Rossz alakú kapcsolónál nincs kulcs — a pipe zárva marad, nem nyílik ki.
+  const clientKeySha256 = keyHashFromArgs(process.argv);
+  if (clientKeySha256 !== undefined) log('a csatorna a telepítő felhasználó kulcsával nyílik');
+  else if (process.argv.some((a) => a.startsWith(CLIENT_KEY_ARG))) log('a kulcs-lenyomat érvénytelen — a csatorna zárva marad');
   if (ownerUid !== undefined && Number.isFinite(ownerUid)) {
     log(`socket will be restricted to uid ${ownerUid}`);
   }
@@ -227,6 +233,7 @@ export function runHelper(): void {
     selfTest: () => lastSelfTest,
     runSelfTest: selfTestNow,
     ownerUid: ownerUid !== undefined && Number.isFinite(ownerUid) ? ownerUid : undefined,
+    clientKeySha256,
   });
 }
 

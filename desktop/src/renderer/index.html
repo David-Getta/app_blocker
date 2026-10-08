@@ -98,7 +98,13 @@
 
     <!-- Helper install card (shown when the daemon is not reachable) -->
     <section id="installCard" class="card install-card hidden">
-      <h2>A védelem még nincs telepítve</h2>
+      <h2 id="installTitle">A védelem még nincs telepítve</h2>
+      <p id="installRefused" class="hidden">
+        A háttérszolgáltatás fut, de csak a telepítéskor kapott kulccsal beszél — ezt az
+        appot nem ismeri fel (például mert a gépen más felhasználó telepítette újra, vagy
+        az app adatai elvesztek). Az újratelepítés egy rendszergazdai engedélyért rendbe
+        teszi; a blokkolás közben érvényben marad.
+      </p>
       <p>
         A blokkolást egy rendszerszintű segédszolgáltatás végzi, ami a gép indulásakor
         magától elindul. A telepítéshez <strong>egyetlen egyszeri</strong> rendszergazdai

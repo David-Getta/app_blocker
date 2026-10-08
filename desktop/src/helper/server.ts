@@ -6,6 +6,7 @@ import * as net from 'net';
 import * as path from 'path';
 import type { HelperRequest, HelperResponse, StatusData } from '../shared/protocol';
 import { HELPER_VERSION } from '../shared/protocol';
+import { clientKeyMatches } from '../shared/client-key';
 import { normalizeDomain, expandHostnames } from '../shared/blocklist';
 import { computeTier } from '../shared/challenges';
 import { normalizeAlias, normalizeReason } from '../shared/alias';
@@ -73,6 +74,13 @@ export interface ServerDeps {
   runSelfTest: () => Promise<SelfTestReport>;
   /** uid of the user allowed to talk to the (root) helper; undefined in dev */
   ownerUid?: number;
+  /**
+   * Windows: a telepítő felhasználó appjának kulcs-lenyomata (shared/client-key.ts).
+   * Ha van, a pipe mindenkinek írható, de minden kapcsolat a `hello`-val és a
+   * kulccsal kezd — enélkül egyetlen parancs sem fut. Ha nincs, a pipe az
+   * alapértelmezett leírójával jön létre (csak olvasható a nem emelt appnak).
+   */
+  clientKeySha256?: string;
   /** minden kérés az app jelenléte — a mérés-őr ebből tudja, fut-e (lásd shared/measure-guard.ts) */
   noteClient?: (now: number) => void;
 }
@@ -767,6 +775,10 @@ async function handle(req: HelperRequest, deps: ServerDeps): Promise<unknown> {
   }
 }
 
+/** A kulcs nélküli kliensnek: kimondja, mi a teendő — nem csak azt, hogy „nem”. */
+const UNAUTHORIZED_TEXT = 'A háttérszolgáltatás csak a telepítő felhasználó appjával beszél. '
+  + 'Ha ez a te gépeden a te appod, telepítsd újra a védelmet (egy rendszergazdai engedély).';
+
 export function startServer(deps: ServerDeps): net.Server {
   const sock = socketPath();
   if (process.platform !== 'win32') {
@@ -779,6 +791,9 @@ export function startServer(deps: ServerDeps): net.Server {
   const server = net.createServer((conn) => {
     let buffer = '';
     let queue: Promise<void> = Promise.resolve();
+    // Kulcs nélküli segédnél a kapcsolat eleve hiteles (a socket jogai
+    // szűkítenek); kulccsal csak a `hello` után.
+    let authed = deps.clientKeySha256 === undefined;
     conn.on('data', (chunk) => {
       buffer += chunk.toString('utf8');
       if (buffer.length > MAX_LINE_BYTES) {
@@ -800,9 +815,19 @@ export function startServer(deps: ServerDeps): net.Server {
           try {
             const req = JSON.parse(line) as HelperRequest;
             reqId = req.id;
-            // A kérés maga a jel: az app fut (a socketet csak ő érheti el).
-            deps.noteClient?.(Date.now());
-            resp = { id: req.id, ok: true, data: await handle(req, deps) };
+            if (req.op === 'hello') {
+              if (!authed && !clientKeyMatches(req.key, deps.clientKeySha256 ?? '')) {
+                throw new RefereeError(UNAUTHORIZED_TEXT, 'UNAUTHORIZED');
+              }
+              authed = true;
+              deps.noteClient?.(Date.now());
+              resp = { id: req.id, ok: true, data: { helperVersion: HELPER_VERSION } };
+            } else {
+              if (!authed) throw new RefereeError(UNAUTHORIZED_TEXT, 'UNAUTHORIZED');
+              // A kérés maga a jel: az app fut (a csatornán csak ő szólhat).
+              deps.noteClient?.(Date.now());
+              resp = { id: req.id, ok: true, data: await handle(req, deps) };
+            }
           } catch (e) {
             const code = e instanceof RefereeError ? e.code
               : (e as { code?: string }).code ?? 'INTERNAL';
@@ -811,6 +836,12 @@ export function startServer(deps: ServerDeps): net.Server {
             if (code === 'INTERNAL') deps.log(`request failed: ${msg}`);
           }
           conn.write(JSON.stringify(resp) + '\n');
+          // Kulcs nélkül nincs második esély ugyanazon a kapcsolaton: aki nem
+          // tudja, az próbálgatna — bontunk.
+          if (!resp.ok && resp.code === 'UNAUTHORIZED') {
+            deps.log('a kliens nem mutatta be a kulcsot — a kapcsolat bontva');
+            conn.end();
+          }
         });
       }
     });
@@ -828,8 +859,35 @@ export function startServer(deps: ServerDeps): net.Server {
   //  2. Verify, and refuse to serve if it cannot be verified. Failing open
   //     would mean a root-owned command socket that anyone can talk to.
   const prevMask = process.platform === 'win32' ? null : process.umask(0o177);
+  // WINDOWS: az alapértelmezett leíró a mindenki-csoportnak csak olvasást ad,
+  // a nem emelt app így egy kérést sem tud küldeni. Kulccsal a pipe mindenkinek
+  // írható (a Node egyetlen DACL-lehetősége), a kapuőr pedig a `hello` kulcsa
+  // (fent). Kulcs nélkül marad a régi leíró: inkább ne érje el senki, mint bárki.
+  const openPipe = process.platform === 'win32' && deps.clientKeySha256 !== undefined;
+  const listen = (): void => {
+    if (openPipe) {
+      server.listen({ path: sock, readableAll: true, writableAll: true },
+        () => deps.log(`helper listening on ${sock} (kulccsal)`));
+    } else {
+      server.listen(sock, () => deps.log(`helper listening on ${sock}`));
+    }
+  };
+  if (process.platform === 'win32') {
+    // Az újratelepítés leállítja a régi példányt (schtasks /End), és rögtön
+    // indítja az újat — a régi pipe-ja egy pillanatig még élhet. Ilyenkor
+    // várunk, nem halunk meg: az ütemezett feladat magától nem indulna újra.
+    let retries = 0;
+    server.on('error', (e: NodeJS.ErrnoException) => {
+      if (e.code === 'EADDRINUSE' && retries < 40) {
+        retries += 1;
+        setTimeout(listen, 250);
+        return;
+      }
+      throw e;
+    });
+  }
   try {
-    server.listen(sock, () => deps.log(`helper listening on ${sock}`));
+    listen();
   } finally {
     if (prevMask !== null) process.umask(prevMask);
   }

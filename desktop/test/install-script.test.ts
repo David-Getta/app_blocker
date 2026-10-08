@@ -61,15 +61,24 @@ function decodePowerShell(encoded: string): string {
   return Buffer.from(encoded, 'base64').toString('utf16le');
 }
 
+const KEY_HASH = 'ab'.repeat(32);
+
 test('Windows: a kódolt parancsból pontosan a szkript jön vissza, az útvonal idézve', () => {
   const exe = "C:\\Program Files\\Breaker's\\Breaker.exe";
-  const script = windowsInstallScript(exe);
-  assert.ok(script.includes(`/TR '"C:\\Program Files\\Breaker''s\\Breaker.exe" --helper'`),
-    `az aposztróf nincs duplázva:\n${script}`);
+  const script = windowsInstallScript(exe, KEY_HASH);
+  assert.ok(script.includes(`/TR '"C:\\Program Files\\Breaker''s\\Breaker.exe" --helper --client-key-sha256=${KEY_HASH}'`),
+    `az aposztróf nincs duplázva, vagy hiányzik a kulcs-lenyomat:\n${script}`);
   assert.ok(script.includes(`schtasks /Create /F /TN "${TASK_NAME}" /SC ONSTART /RU SYSTEM`));
+  // A régi példány előbb leáll — különben a /Run nem indítana újat.
+  assert.ok(script.indexOf(`schtasks /End /TN "${TASK_NAME}"`) < script.indexOf('schtasks /Create'),
+    'a /End a /Create előtt');
   assert.equal(decodePowerShell(encodePowerShell(script)), script);
+  // Csak a szigorú alak mehet a parancssorba.
+  for (const bad of ['', 'AB'.repeat(32), 'ab'.repeat(31), `${'ab'.repeat(31)}a"`, `${KEY_HASH} --x`]) {
+    assert.throws(() => windowsInstallScript(exe, bad), /kulcs-lenyomat/, JSON.stringify(bad));
+  }
 
-  const launcher = windowsLauncherCommand(exe);
+  const launcher = windowsLauncherCommand(exe, KEY_HASH);
   const m = launcher.match(/'-EncodedCommand','([A-Za-z0-9+/=]+)'/);
   assert.ok(m, `nincs kódolt parancs az indítóban:\n${launcher}`);
   assert.equal(decodePowerShell(m![1]), script);
@@ -96,5 +105,5 @@ test('a telepítő nem ír ideiglenes fájlt, amit emelt joggal futtatna', () =>
     assert.ok(!code.includes(banned), `a telepítőben ott maradt: ${banned}`);
   }
   assert.ok(code.includes('macInstallAppleScript(plist)'));
-  assert.ok(code.includes('windowsLauncherCommand(process.execPath)'));
+  assert.ok(code.includes('windowsLauncherCommand(process.execPath, keyHash)'));
 });

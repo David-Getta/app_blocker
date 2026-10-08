@@ -259,6 +259,21 @@ function sitesFingerprint(st: StatusData): string {
 
 let failStreak = 0;
 let everConnected = false;
+/**
+ * A segéd KIMONDOTTAN elutasít: él, de ennek az appnak nem felel (Windowson
+ * más kulcsot vár — lásd shared/client-key.ts). Ez nem „újracsatlakozás”: a
+ * várakozás nem segít, csak az újratelepítés — ezért a telepítő kártya jön.
+ */
+let helperRefuses = false;
+
+function noteCallFailure(e: unknown): void {
+  failStreak += 1;
+  helperRefuses = e instanceof CallError && e.code === 'UNAUTHORIZED';
+  if (failStreak >= 2) {
+    helperUp = false;
+    status = null;
+  }
+}
 
 /** Látszik-e az ablak — a fő folyamat mondja (rejtve ritkábban kérdezünk, és nem rajzolunk). */
 let windowVisible = true;
@@ -275,14 +290,11 @@ async function refresh(): Promise<void> {
       helperUp = true;
       everConnected = true;
       failStreak = 0;
+      helperRefuses = false;
       if (digestWanted()) void refreshStats();
       runNotices();
-    } catch {
-      failStreak += 1;
-      if (failStreak >= 2) {
-        helperUp = false;
-        status = null;
-      }
+    } catch (e) {
+      noteCallFailure(e);
     }
     return;
   }
@@ -291,6 +303,7 @@ async function refresh(): Promise<void> {
     helperUp = true;
     everConnected = true;
     failStreak = 0;
+    helperRefuses = false;
     // First successful connection: pull statistics right away rather than
     // waiting for the slow periodic refresh. És hétfőn, amikor a heti
     // visszatekintés esedékes: a főnézeten nyitva hagyott app különben
@@ -302,14 +315,10 @@ async function refresh(): Promise<void> {
     trackerState = await Promise.resolve()
       .then(() => window.breaker.getTrackerState())
       .catch(() => trackerState);
-  } catch {
+  } catch (e) {
     // One flaky poll must not tear the UI down (or close a challenge modal
     // mid-typing) — only flip to "down" after repeated failures.
-    failStreak += 1;
-    if (failStreak >= 2) {
-      helperUp = false;
-      status = null;
-    }
+    noteCallFailure(e);
   }
   render();
 }
@@ -740,7 +749,8 @@ function render(): void {
     if (failStreak < 2) {
       pill.textContent = 'Kapcsolódás…';
     } else {
-      pill.textContent = everConnected ? 'Újracsatlakozás a védelemhez…' : 'A védelem nincs telepítve';
+      pill.textContent = helperRefuses ? 'A védelem nem ismeri fel ezt az appot'
+        : everConnected ? 'Újracsatlakozás a védelemhez…' : 'A védelem nincs telepítve';
     }
     pill.className = 'pill pill-warn';
   } else {
@@ -766,8 +776,12 @@ function render(): void {
     }
   }
 
-  const showInstall = !helperUp && failStreak >= 2 && !everConnected;
+  const showInstall = !helperUp && failStreak >= 2 && (!everConnected || helperRefuses);
   $('installCard').classList.toggle('hidden', !showInstall);
+  // Ugyanaz a gomb, de mást mond: a segéd fut, csak ezt az appot nem ismeri.
+  $('installTitle').textContent = helperRefuses
+    ? 'A védelem nem ismeri fel ezt az appot' : 'A védelem még nincs telepítve';
+  $('installRefused').classList.toggle('hidden', !helperRefuses);
   $('addCard').classList.toggle('hidden', !helperUp);
   $('listCard').classList.toggle('hidden', !helperUp);
   $('channelCard').classList.toggle('hidden', !helperUp);

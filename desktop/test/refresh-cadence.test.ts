@@ -43,7 +43,11 @@ test('a bekötés: a fő folyamat jelzi a láthatóságot, a felület ebből üt
   assert.ok(renderer.includes('if (refreshDue(windowVisible, lastRefreshAt, Date.now())) void refresh();'));
   // Rejtve az értesítések mennek, a rajz nem: a rejtett ág a runNotices-t hívja,
   // és visszatér, mielőtt a render() sorra kerülne.
-  const hidden = renderer.slice(renderer.indexOf('if (!windowVisible) {'), renderer.indexOf('  try {\n    status = await call<StatusData>(\'status\');\n    helperUp = true;\n    everConnected = true;\n    failStreak = 0;\n    // First'));
+  // A rejtett ág a látható ág első sikeréig tart — a horgony a megjegyzés, nem
+  // a sorok pontos rendje (az állapot-mezők köre bővülhet).
+  const end = renderer.indexOf('// First successful connection');
+  assert.ok(end > 0, 'megvan a látható ág horgonya');
+  const hidden = renderer.slice(renderer.indexOf('if (!windowVisible) {'), end);
   assert.ok(hidden.includes('runNotices();'), 'rejtve is mennek az értesítések');
   assert.ok(!hidden.includes('render()'), 'rejtve nincs rajz');
   assert.ok(hidden.includes('return;'));

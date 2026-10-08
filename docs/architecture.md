@@ -453,8 +453,25 @@ A helper root/SYSTEM jogú, ezért a vele kommunikáló helyi socketet szűkítj
   bizonyítani, hogy csak a tulajdonos éri el, **nem szolgál ki** (leállítja a
   szervert). Fail-closed: inkább ne induljon el, mint hogy egy root parancs-
   csatorna nyitva maradjon.
-- **Windows:** named pipe, ami eleve helyi; egyedi DACL beállítása natív kód
-  nélkül nem megoldható, ezért ez ismert korlát (a jövőben szűkíthető).
+- **Windows:** named pipe. A SYSTEM által nyitott pipe alapértelmezett
+  leírója a mindenki-csoportnak csak OLVASÁST ad — a nem emelt app így
+  egyetlen kérést sem tudott küldeni. Ezt a CI Windows-próbája mutatta meg
+  (`desktop/scripts/win-pipe-probe.ps1`: a valódi szerver SYSTEM-ként, egy
+  friss sima fiók megszemélyesítve: „Access denied”); a v0.4.227 előtt a
+  windowsos app nem érte el a segédet. Egyedi DACL natív kód nélkül nem
+  tehető a pipe-ra — a Node csak a „mindenki írhatja”-t ismeri —, ezért a
+  pipe mindenkinek írható, de **csak a kulcsot bemutató kapcsolat kap
+  szót** (`shared/client-key.ts`). Telepítéskor az app 32 bájtos kulcsot
+  ír a saját adatkönyvtárába (a felhasználó profilja: más felhasználó nem
+  olvassa), a SHA-256 lenyomatát a segéd ütemezett feladatának
+  parancssorába süti (`--client-key-sha256=`), mint macOS-en a tulajdonos
+  uid-jét; minden kapcsolat első sora a `hello` a kulccsal. Kulcs nélkül
+  egyetlen parancs sem fut, és a kapcsolat bomlik; hiányzó vagy rossz
+  alakú lenyomatnál a pipe a régi, zárt leírójával jön létre — inkább ne
+  érje el senki, mint bárki. A telepítő a futó régi példányt leállítja
+  (`schtasks /End`), így az új kulcs azonnal él, újraindítás nélkül.
+  Őszinte korlát: a named pipe a hálózaton (SMB) is megszólítható — a
+  kulcs nélkül ott sem felel, de a kapu a kulcs, nem a hely.
 
 ### A böngésző-híd: kifelé olvas, befelé csak szigorít
 

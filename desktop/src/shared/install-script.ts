@@ -17,6 +17,8 @@
 // összerakunk — így tesztelhető, hogy a parancsból VISSZAFEJTHETŐ pontosan az,
 // amit írni akartunk.
 
+import { CLIENT_KEY_ARG, isKeyHash } from './client-key';
+
 /** A segéd LaunchDaemon-címkéje (macOS) és ütemezett feladata (Windows). */
 export const DAEMON_LABEL = 'hu.breaker.helper';
 export const TASK_NAME = 'BreakerHelper';
@@ -94,10 +96,17 @@ export function psSingleQuoted(s: string): string {
  * Az emelt PowerShell szkriptje: a SYSTEM-feladat felvétele és indítása. A
  * belső hiba nem nulla kilépés — a külső, nem emelt héj ezt adja tovább.
  */
-export function windowsInstallScript(exe: string): string {
-  const action = `"${exe}" --helper`;
+export function windowsInstallScript(exe: string, keyHash: string): string {
+  // A lenyomat a parancssorba kerül: csak a szigorú alak mehet át (hexa),
+  // így idézőjel vagy szóköz sem csúszhat bele.
+  if (!isKeyHash(keyHash)) throw new Error('érvénytelen kulcs-lenyomat');
+  const action = `"${exe}" --helper ${CLIENT_KEY_ARG}${keyHash}`;
   return [
     'try {',
+    // A futó régi példány le: enélkül a /Run nem indítana újat (a feladat már
+    // fut), és az új kulcs csak a következő rendszerindításkor élne. Ha nem
+    // fut, vagy még nincs ilyen feladat, a hiba lényegtelen.
+    `  schtasks /End /TN "${TASK_NAME}" 2>&1 | Out-Null`,
     `  schtasks /Create /F /TN "${TASK_NAME}" /SC ONSTART /RU SYSTEM /RL HIGHEST /TR ${psSingleQuoted(action)}`,
     '  if ($LASTEXITCODE -ne 0) { exit 1 }',
     `  schtasks /Run /TN "${TASK_NAME}"`,
@@ -117,8 +126,8 @@ export function encodePowerShell(script: string): string {
  * kódolt szkripttel, megvárja, és a kilépési kódját adja tovább (a
  * `Start-Process -Wait` magában mindig nullával lépne ki).
  */
-export function windowsLauncherCommand(exe: string): string {
-  const encoded = encodePowerShell(windowsInstallScript(exe));
+export function windowsLauncherCommand(exe: string, keyHash: string): string {
+  const encoded = encodePowerShell(windowsInstallScript(exe, keyHash));
   return '$p = Start-Process powershell -Verb RunAs -Wait -PassThru -WindowStyle Hidden '
     + `-ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-EncodedCommand','${encoded}'; exit $p.ExitCode`;
 }

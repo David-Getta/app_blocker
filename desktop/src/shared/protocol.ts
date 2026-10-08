@@ -302,6 +302,10 @@ export interface StatusData {
 
 export type HelperRequest =
   | { id: number; op: 'status' }
+  // A kapcsolat első sora Windowson: a kulcs, amivel az app bizonyítja, hogy
+  // a telepítő felhasználóé (lásd shared/client-key.ts). Kulcs nélküli
+  // segédnél (macOS, Linux) üres jóváhagyás.
+  | { id: number; op: 'hello'; key?: string }
   | { id: number; op: 'add_site'; input: string; usePreset: boolean }
   | { id: number; op: 'start_unlock'; siteId: string; minutes: number }
   | { id: number; op: 'start_delete'; siteId: string }

@@ -1,13 +1,15 @@
 ﻿# A Windows-segéd csatornájának próbája (CI, windows-latest).
 #
 # A telepített segéd SYSTEM-ként fut (ütemezett feladat), az app viszont a
-# bejelentkezett felhasználóé, NEM emelt jogokkal. A kérdés: egy sima (nem
-# rendszergazda) felhasználó tud-e írni a segéd named pipe-jába — vagyis
-# egyáltalán beszélhet-e az app a segéddel. A futtató rendszergazda, ezért a
-# sima felhasználót egy friss helyi fiókkal és megszemélyesítéssel játsszuk el.
+# bejelentkezett felhasználóé, NEM emelt jogokkal. Az alapértelmezett pipe-
+# leíró a mindenki-csoportnak csak olvasást ad — ez a próba mutatta meg, hogy
+# a nem emelt app egyetlen kérést sem tudott küldeni ("Access denied"). Azóta
+# a pipe kulccsal nyílik (shared/client-key.ts): mindenki írhatja, de csak a
+# kulcsot bemutató kapcsolat kap szót.
 #
-# Kimenet: a pipe ACL-je, a rendszergazda és a sima felhasználó eredménye.
-# Kilépési kód: 0, ha a sima felhasználó kap választ; 1, ha nem.
+# A futtató rendszergazda, ezért a sima felhasználót egy friss helyi fiókkal
+# és megszemélyesítéssel játsszuk el. Kilépési kód 0, ha a sima felhasználó
+# kulcs NÉLKÜL elutasítást, kulccsal választ kap; különben 1.
 
 $ErrorActionPreference = 'Stop'
 # A CI naplója csövön át olvas: UTF-8 nélkül az ékezetek kérdőjelek lennének.
@@ -24,8 +26,15 @@ function Test-Pipe { [System.IO.Directory]::GetFiles('\\.\pipe\') -contains "\\.
 
 if (Test-Pipe) { Write-Host "már létezik egy $pipeName pipe — a próba nem tiszta gépen fut"; exit 1 }
 
+# A kulcs és a lenyomata — a telepítő ugyanígy: a kulcs az appé, a lenyomat a segédé.
+$bytes = New-Object byte[] 32
+[System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes)
+$key = -join ($bytes | ForEach-Object { $_.ToString('x2') })
+$sha = [System.Security.Cryptography.SHA256]::Create()
+$keyHash = -join ($sha.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($key)) | ForEach-Object { $_.ToString('x2') })
+
 # 1. A segéd szervere SYSTEM-ként, ahogy a telepítő ütemezett feladata indítja.
-$action = New-ScheduledTaskAction -Execute $node -Argument "`"$server`" `"$log`"" -WorkingDirectory $desktop
+$action = New-ScheduledTaskAction -Execute $node -Argument "`"$server`" `"$log`" $keyHash" -WorkingDirectory $desktop
 $principal = New-ScheduledTaskPrincipal -UserId 'SYSTEM' -LogonType ServiceAccount -RunLevel Highest
 Register-ScheduledTask -TaskName $taskName -Action $action -Principal $principal -Force | Out-Null
 Start-ScheduledTask -TaskName $taskName
@@ -53,27 +62,35 @@ try {
   Write-Host "az ACL nem olvasható: $($_.Exception.Message)"
 }
 
-# Egy kérés–válasz a pipe-on: a `status` egy sor JSON, a válasz is egy sor.
-function Invoke-PipeStatus {
+# Egy kapcsolat a pipe-on: opcionálisan a `hello` a kulccsal, aztán `status`.
+# A válasz: "OK", "UNAUTHORIZED", vagy a hiba szövege.
+function Invoke-PipeSession([string]$withKey) {
   try {
     $p = New-Object System.IO.Pipes.NamedPipeClientStream('.', $pipeName, [System.IO.Pipes.PipeDirection]::InOut)
     $p.Connect(5000)
     $w = New-Object System.IO.StreamWriter($p)
     $w.AutoFlush = $true
     $r = New-Object System.IO.StreamReader($p)
-    $w.Write('{"id":1,"op":"status"}' + "`n")
+    if ($withKey) {
+      $w.Write('{"id":1,"op":"hello","key":"' + $withKey + '"}' + "`n")
+      $hello = $r.ReadLine()
+      if ($null -eq $hello -or -not $hello.Contains('"ok":true')) { $p.Dispose(); return "HIBA: hello → $hello" }
+    }
+    $w.Write('{"id":2,"op":"status"}' + "`n")
     $line = $r.ReadLine()
     $p.Dispose()
     if ($null -eq $line) { return 'HIBA: üres válasz' }
-    return 'OK ' + $line.Substring(0, [Math]::Min(100, $line.Length))
+    if ($line.Contains('"code":"UNAUTHORIZED"')) { return 'UNAUTHORIZED' }
+    if ($line.Contains('"ok":true')) { return 'OK' }
+    return 'HIBA: ' + $line.Substring(0, [Math]::Min(100, $line.Length))
   } catch {
     return 'HIBA ' + $_.Exception.GetType().Name + ': ' + $_.Exception.Message
   }
 }
 
-# 3. A futtató maga (rendszergazda) — az alapvonal.
-$admin = Invoke-PipeStatus
-Write-Host "rendszergazda: $admin"
+# 3. A futtató maga (rendszergazda) — kulcs nélkül neki sem felel.
+$admin = Invoke-PipeSession ''
+Write-Host "rendszergazda, kulcs nélkül: $admin"
 
 # 4. Egy sima helyi felhasználó, megszemélyesítve — ahogy a nem emelt app.
 # A `net user` 14 karakternél hosszabb jelszónál rákérdez, és csövön át
@@ -95,22 +112,25 @@ public static class ProbeLogon {
 }
 '@
 $token = $null
-$plain = 'nincs'
+$plainNoKey = 'nem futott'
+$plainKey = 'nem futott'
 # 2 = interaktív (ahogy az app fut), 3 = hálózati (ha az interaktív nem engedett)
 foreach ($type in 2, 3) {
   if ([ProbeLogon]::LogonUser($user, '.', $pass, $type, 0, [ref]$token)) {
     Write-Host "sima felhasználó bejelentkezve (típus: $type)"
-    $script:plainResult = 'nem futott'
     [System.Security.Principal.WindowsIdentity]::RunImpersonated($token, [Action]{
-      $script:plainResult = Invoke-PipeStatus
+      $script:plainNoKey = Invoke-PipeSession ''
+      $script:plainKey = Invoke-PipeSession $key
     })
-    $plain = $script:plainResult
+    $plainNoKey = $script:plainNoKey
+    $plainKey = $script:plainKey
     break
   } else {
     Write-Host "LogonUser (típus: $type) nem sikerült: $([Runtime.InteropServices.Marshal]::GetLastWin32Error())"
   }
 }
-Write-Host "sima felhasználó: $plain"
+Write-Host "sima felhasználó, kulcs nélkül: $plainNoKey"
+Write-Host "sima felhasználó, kulccsal: $plainKey"
 
 # 5. Takarítás.
 Stop-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
@@ -118,6 +138,9 @@ Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction Silent
 Remove-LocalUser -Name $user -ErrorAction SilentlyContinue
 if (Test-Path $log) { Write-Host '--- a szerver naplója ---'; Get-Content $log | Write-Host }
 
-if ($plain.StartsWith('OK')) { Write-Host 'EREDMÉNY: a sima felhasználó eléri a segédet'; exit 0 }
-Write-Host 'EREDMÉNY: a sima felhasználó NEM éri el a segédet — a nem emelt app sem'
+if ($plainNoKey -eq 'UNAUTHORIZED' -and $plainKey -eq 'OK' -and $admin -eq 'UNAUTHORIZED') {
+  Write-Host 'EREDMÉNY: a sima felhasználó kulccsal eléri a segédet, kulcs nélkül senki sem'
+  exit 0
+}
+Write-Host 'EREDMÉNY: a csatorna nem úgy viselkedik, ahogy kell (lásd fent)'
 exit 1
