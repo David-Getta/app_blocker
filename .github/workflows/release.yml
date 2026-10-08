@@ -45,22 +45,25 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A Firefox titkosított DNS-e nem kerüli meg a telefonos szűrőt.** A Firefox
-          alapból bekapcsolt titkosított DNS-e (DoH) a szűrő mellett oldotta volna fel a
-          neveket, és a tiltás benne nem érvényesült volna. Androidon és iPhone-on a
-          szűrő mostantól a Mozilla szabványos jelzésével kéri a Firefoxot, hogy a
-          rendszer DNS-ét — vagyis a szűrőt — használja.
+          **A telefon szól, ha valami a szűrő mellett akar névfeloldást végezni.** Aki a
+          böngészőben kézzel ad meg titkosított DNS-t (Chrome: Biztonságos DNS, egyéni
+          szolgáltató), annál a tiltás abban a böngészőben nem érvényesül — és eddig
+          semmi nem szólt. Androidon és iPhone-on a szűrő mostantól észreveszi, ha
+          valami egy ismert titkosított-DNS-kiszolgáló nevét keresi, és a főképernyő
+          kártyája megmondja, melyiket és mikor; Androidon azt is, hol állítható vissza
+          a Chrome. Az „Értem” elnémítja — egy másik név visszahozza.
 
-          Ami továbbra is korlát: ha a böngésző titkosított DNS-ét kézzel kapcsoltad be,
-          vagy a Chrome-ban külön szolgáltatót adtál meg, a szűrő azt nem látja.
+          Nem tilt: egy elrontott DNS-beállítás az egész internetet vinné el, a döntés
+          a tiéd. És őszintén: csak az ismert neveket ismeri fel, és nem látja, melyik
+          app kérdezett — ha nem szól, az nem bizonyíték.
 
-          ### Ami a v0.4.249-ben jött
+          ### Ami a v0.4.250-ben jött
+
+          **A Firefox titkosított DNS-e nem kerüli meg a telefonos szűrőt.**
+
+          #### Ami a v0.4.249-ben jött
 
           **A hiba a felolvasónak is elhangzik.**
-
-          #### Ami a v0.4.248-ban jött
-
-          **A sávok a felolvasónak is mondanak valamit.**
           NOTES
           fi
 
