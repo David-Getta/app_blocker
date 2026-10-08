@@ -45,35 +45,29 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A megbízottat nem lehet leváltani egy másik eszközről —
-          levenni is csak az ő jelmondatával.** Eddig a párban zárolás
-          megbízottja azé lett, amelyik eszköz utoljára „szólt” róla, és
-          ezt pár ingyenes csomag-átnevezés is elintézte: egy friss
-          telepítésen felvett saját megbízott minden eszközön leváltotta a
-          valódit, és onnantól a lazítás végén a te jelmondatod kellett. Most
-          a megbízottat csak a levétele viszi el, aminek a végén az ő
-          jelmondata áll. Ha két eszközön egymástól függetlenül vettél fel
-          megbízottat, mindkettő megmarad, és a lazítás végén mindegyikük
-          jelmondata kell — a kártya kimondja, ki áll a fő mellett.
+          **Egy régóta nem szinkronizált eszköz nem törölheti a kulcsszavaidat.**
+          Eddig a kulcsszó-lista egészében annak az eszköznek a listája lett,
+          amelyik utoljára „szólt” róla — és ehhez egy ingyenes felvétel is
+          elég volt: egy elavult eszközön felvett új kulcsszó a régi listával
+          együtt mindenhol letörölte a máshol felvett kulcsszavakat. Most
+          minden kulcsszónak saját jele van: amit felvettél, azt csak a saját
+          levétele viszi el, és az próbatétel. Ha a lista megtelik, a régi
+          kulcsszavak maradnak, nem az utoljára felvettek.
 
-          **Frissíts minden eszközt.** Egy még nem frissített eszköz a régi
-          szabállyal fésül, és ezt a szinkron a többire is átviheti.
+          **Frissíts minden eszközt.** Egy még nem frissített eszköz
+          kifizetett levétele nem tartja meg magát a frissítettekkel szemben
+          — a kulcsszó visszajön, és a levételt egy frissített eszközön újra
+          kell kérni.
 
-          Őszinte korlát: egy hálózaton kívüli, régóta nem szinkronizált
-          eszköz a saját megbízottjaival dönt — ha ott még nincs megbízott,
-          ott a lazítás nélküle megy, amíg nem szinkronizál.
+          ### Ami a v0.4.230-ban jött
 
-          ### Ami a v0.4.229-ben jött
+          **A megbízottat nem lehet leváltani egy másik eszközről — levenni
+          is csak az ő jelmondatával.**
+
+          #### Ami a v0.4.229-ben jött
 
           **A heti ablak nem állítja le a futó munkamenetet —
-          rárétegződik:** amíg tart, csak az mehet, amit mindkét csomag
-          enged.
-
-          #### Ami a v0.4.228-ban jött
-
-          **A futó munkamenetet a szinkron már csak a leállítás nyomával
-          állítja le** — néhány csomag-átnevezés már nem állítja le
-          próbatétel nélkül.
+          rárétegződik.**
 
           NOTES
           fi
