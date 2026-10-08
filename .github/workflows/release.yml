@@ -45,21 +45,26 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **Android: a Play Store-ba szánt csomag nem frissíti magát.** A letölthető APK
-          eddig is maga frissült a GitHub-kiadásokból, és ez így marad. A Play Store-ba
-          szánt csomag (AAB) viszont ugyanezt az önfrissítőt és telepítési engedélyt
-          hordozta, a Play pedig ezt nem engedi: a Play-ből telepített appot csak a Play
-          frissítheti. Mostantól két csomag készül ugyanabból a kódból, és a kiadás minden
-          alkalommal ellenőrzi, hogy a Play-csomagban nincs telepítési engedély. A
-          letölthető APK-n semmi nem változik: ugyanúgy frissül, ugyanazzal az aláírással.
+          **Új kategória-csomag: Felnőtt tartalom.** A felvevő kártyán egy kattintással
+          felvehető a legnagyobb felnőtt-videós oldalak és a nagy fizetős és élő
+          platformok tíz címe. Ugyanaz a szabály, mint a többi csomagnál: felvenni
+          ingyen, levenni oldalanként, próbatétellel. Ez sem teljes lista: ami hiányzik,
+          egyenként vehető fel, és egy kulcsszó (például `porn`) a böngészőben a címben
+          és a lap címsorában, a telefonon a hosztnévben is fogja.
 
-          ### Ami a v0.4.243-ban jött
+          **Egy korlát, kimondva: a böngésző saját biztonságos DNS-e Androidon.** Ha a
+          böngészőben külön szolgáltató van megadva (Chrome: Beállítások › Adatvédelem és
+          biztonság › Biztonságos DNS), a névfeloldás a szűrő mellett megy, és a tiltás
+          abban a böngészőben nem érvényesül. Az alapállás — a jelenlegi szolgáltatóval —
+          rendben van.
+
+          ### Ami a v0.4.244-ben jött
+
+          **Android: a Play Store-ba szánt csomag nem frissíti magát.**
+
+          #### Ami a v0.4.243-ban jött
 
           **A telefon szól, ha a Breaker értesítései ki vannak kapcsolva.**
-
-          #### Ami a v0.4.242-ben jött
-
-          **Android: a Breaker a Google Play mostani követelményére frissült.**
           NOTES
           fi
 
