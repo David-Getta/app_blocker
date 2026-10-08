@@ -265,7 +265,12 @@ menet-napok, a menet-órák, a sorozat és a leghosszabb sorozat, az ablakból
 indult menetek csomagonként, a napi rajz — a statisztika és a heti mondat
 számai. A fésülés-generátorok véletlenje
 szerződés: a Kotlin és a Swift fuzz ugyanazt a sorozatot húzza ugyanabból a
-magból. És az őr: a drótnév-ellenőrző azt is nézi, hogy minden őrzött
+magból. A fuzz MÉLYSÉGE állítható: alapból a megszokott magszám fut (a CI-ban
+gyorsan), `FUZZ_DEPTH=k` mellett mindhárom nyelvben a k-szorosa, ugyanazokkal
+a magokkal (`desktop/test/fuzz-depth.ts`, a Kotlin `FuzzDepth.kt`, a Swift
+`FuzzDepth.swift`). Nem díszítés: az ablakos csomagok fésülésének ritka
+sorrendfüggését a 300 magos futás átengedte, egy százezres megfogta — egy
+szinkron-szabály változása után a mély futás a kötelező kör. És az őr: a drótnév-ellenőrző azt is nézi, hogy minden őrzött
 drót-mező ott van a fixtúra generátorában — egy új mező nem maradhat ki
 csendben az összevetésből. A fixtúra fogta ki a v0.4.170 Swift-rését (a
 normalizálás eldobta a rejtést), és a szabálylista sorrendfüggését egy régi

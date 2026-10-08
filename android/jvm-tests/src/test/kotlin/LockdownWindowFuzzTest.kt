@@ -73,7 +73,7 @@ class LockdownWindowFuzzTest {
     }
 
     @Test fun `az ablak-zarlat sosem rovidit, egyszer ir, es ket eszkozon ugyanaz`() {
-        for (seed in 1..4000) {
+        for (seed in 1..fuzzSeeds(4000)) {
             val r = Rng(seed)
             val ctx = "mag $seed"
             val windows = randomWindows(r, "a")
@@ -133,7 +133,7 @@ class LockdownWindowFuzzTest {
     }
 
     @Test fun `a fesules tartalmankent - a nagyobb jel dont, egyenlonel unio, plafon, szabad ora, egyedi azonosito`() {
-        for (seed in 1..3000) {
+        for (seed in 1..fuzzSeeds(3000)) {
             val r = Rng(seed)
             val ctx = "mag $seed"
             // Néha közös azonosító-séma: két eszköz ugyanazzal az azonosítóval más tartalmat is hozhat.
@@ -180,7 +180,7 @@ class LockdownWindowFuzzTest {
     }
 
     @Test fun `a lazitas - bovites sosem lazitas, az utolso ablak levetele mindig az`() {
-        for (seed in 1..40) {
+        for (seed in 1..fuzzSeeds(40)) {
             val r = Rng(seed)
             val ctx = "mag $seed"
             val a = randomWindows(r, "a", 1).map { it.band }

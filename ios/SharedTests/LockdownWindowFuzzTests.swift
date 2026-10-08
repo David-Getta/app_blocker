@@ -73,7 +73,7 @@ private func randomMarks(
 final class LockdownWindowFuzzTests: XCTestCase {
 
     func testAblakZarlatSosemRoviditEgyszerIrKetEszkozonUgyanaz() {
-        for seed in 1...4000 {
+        for seed in 1...fuzzSeeds(4000) {
             var r = WindowRng(UInt32(seed))
             let ctx = "mag \(seed)"
             let windows = randomWindows(&r, "a")
@@ -140,7 +140,7 @@ final class LockdownWindowFuzzTests: XCTestCase {
     }
 
     func testFesulesTartalmankentANagyobbJelDontEgyenlonelUnioPlafonSzabadOraEgyediAzonosito() {
-        for seed in 1...3000 {
+        for seed in 1...fuzzSeeds(3000) {
             var r = WindowRng(UInt32(seed))
             let ctx = "mag \(seed)"
             // Néha közös azonosító-séma: két eszköz ugyanazzal az azonosítóval más tartalmat is hozhat.
@@ -186,7 +186,7 @@ final class LockdownWindowFuzzTests: XCTestCase {
     }
 
     func testLazitasBovitesSosemLazitasAzUtolsoAblakLeveteleMindigAz() {
-        for seed in 1...12 {
+        for seed in 1...fuzzSeeds(12) {
             var r = WindowRng(UInt32(seed))
             let ctx = "mag \(seed)"
             let a = randomWindows(&r, "a", min: 1).map { $0.band }

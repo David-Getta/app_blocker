@@ -18,6 +18,7 @@ import {
   type WindowMarks,
 } from '../src/shared/lockdown';
 import { inAnyBand, type Weekday } from '../src/shared/schedule';
+import { fuzzSeeds } from './fuzz-depth';
 
 /** Determinisztikus generátor (mulberry32), hogy a hiba visszajátszható legyen. */
 function rng(seed: number): () => number {
@@ -66,7 +67,7 @@ function randomLockdown(r: () => number, now: number): Lockdown | null {
 }
 
 test('az ablak-zárlat sosem rövidít, egyszer ír, és két eszközön ugyanaz', () => {
-  for (let seed = 1; seed <= 4000; seed++) {
+  for (let seed = 1; seed <= fuzzSeeds(4000); seed++) {
     const r = rng(seed);
     const ctx = `mag ${seed}`;
     const windows = randomWindows(r, 'a');
@@ -135,7 +136,7 @@ function randomMarks(r: () => number, mine: LockdownWindow[], other: LockdownWin
 }
 
 test('a fésülés tartalmanként: a nagyobb jel dönt, egyenlőnél unió; plafon, szabad óra, egyedi azonosító', () => {
-  for (let seed = 1; seed <= 3000; seed++) {
+  for (let seed = 1; seed <= fuzzSeeds(3000); seed++) {
     const r = rng(seed);
     const ctx = `mag ${seed}`;
     // Néha közös azonosító-séma: két eszköz ugyanazzal az azonosítóval más tartalmat is hozhat.
@@ -180,7 +181,7 @@ test('a fésülés tartalmanként: a nagyobb jel dönt, egyenlőnél unió; plaf
 });
 
 test('a lazítás: bővítés sosem lazítás, az utolsó ablak levétele mindig az', () => {
-  for (let seed = 1; seed <= 150; seed++) {
+  for (let seed = 1; seed <= fuzzSeeds(150); seed++) {
     const r = rng(seed);
     const ctx = `mag ${seed}`;
     const a = randomWindows(r, 'a', 1);

@@ -4,6 +4,7 @@ import { isFilterLoosening, type ChannelFilter } from '../src/shared/channels';
 import { mergeChannels, type SyncChannels } from '../src/shared/sync/channels-merge';
 import { bumpChannelsRevision } from '../src/helper/revisions';
 import { defaultState, type HelperState } from '../src/helper/state';
+import { fuzzSeeds } from './fuzz-depth';
 
 /**
  * Véletlen-teszt a csatorna-szűrők fésülésére.
@@ -135,7 +136,7 @@ function find(c: SyncChannels, host: string): ChannelFilter | undefined {
 }
 
 test('ingyenes szerkesztés nem lazít a másik eszközön; a fizetett lazítás átmegy', () => {
-  for (let seed = 1; seed <= 3000; seed++) {
+  for (let seed = 1; seed <= fuzzSeeds(3000); seed++) {
     const ctx = `mag ${seed}`;
     const { bx, by } = scenario(seed, true);
     const m = mergeChannels(bx, by);
@@ -170,7 +171,7 @@ test('ingyenes szerkesztés nem lazít a másik eszközön; a fizetett lazítás
 });
 
 test('a fésülés idempotens és elnyelő — a fésültet újra fésülve ugyanaz jön ki', () => {
-  for (let seed = 1; seed <= 3000; seed++) {
+  for (let seed = 1; seed <= fuzzSeeds(3000); seed++) {
     const ctx = `mag ${seed}`;
     const { bx, by } = scenario(seed, false);
     const m = mergeChannels(bx, by);

@@ -88,9 +88,9 @@ export interface SyncFocus {
    * A csomagok KIFIZETETT ABLAK-LAZÍTÁSAI: csomag-azonosító → hányszor
    * szűkítették vagy vették le a heti ablakát próbatétellel. A bíró írja, a
    * teljesítéskor — máshol semmi. A fésülés csomagonként ebből dönt: a több
-   * kifizetett lazítás nyer, egészében; egyenlőnél, ha bármelyik változat
-   * ablakos, a szigorúbb, mezőnként. A törölt csomag számlálója is marad: az
-   * ablakos csomag törlése előtt az ablakot kellett levenni. Lásd `mergePacks`.
+   * kifizetett lazítás nyer, egészében; egyenlőnél az ablakos változat, két
+   * ablakos közül a szigorúbb, mezőnként. A törölt csomag számlálója is marad:
+   * az ablakos csomag törlése előtt az ablakot kellett levenni. Lásd `mergePacks`.
    */
   packLoosens?: Record<string, number>;
   /**

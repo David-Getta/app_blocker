@@ -389,7 +389,7 @@ private func plainRuns(_ fs: [FocusSync.SyncFocus]) -> Bool {
 final class MergeFuzzTests: XCTestCase {
 
     func testSiteMergeIsSymmetricIdempotentAndOrderIndependent() {
-        for seed in 1...300 {
+        for seed in 1...fuzzSeeds(300) {
             var r = Lcg(UInt32(seed))
             let a = randomSite(&r, devices[0])
             let b = randomSite(&r, devices[1])
@@ -412,7 +412,7 @@ final class MergeFuzzTests: XCTestCase {
     }
 
     func testFocusMergeIsSymmetricIdempotentAndOrderIndependent() {
-        for seed in 1...300 {
+        for seed in 1...fuzzSeeds(300) {
             var r = Lcg(UInt32(seed))
             let a = randomFocus(&r, devices[0])
             let b = randomFocus(&r, devices[1])

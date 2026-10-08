@@ -370,7 +370,7 @@ class MergeFuzzTest {
 
     @Test
     fun `oldal - szimmetrikus, idempotens, es harom eszkoz barmilyen sorrendben ugyanoda jut`() {
-        for (seed in 1..300) {
+        for (seed in 1..fuzzSeeds(300)) {
             val r = Lcg(seed)
             val a = randomSite(r, devices[0])
             val b = randomSite(r, devices[1])
@@ -396,7 +396,7 @@ class MergeFuzzTest {
 
     @Test
     fun `munkamenet-blob - a csomagok halmaza es a jelek sorrendtol fuggetlenek, a menet biztonsagos`() {
-        for (seed in 1..300) {
+        for (seed in 1..fuzzSeeds(300)) {
             val r = Lcg(seed)
             val a = randomFocus(r, devices[0])
             val b = randomFocus(r, devices[1])

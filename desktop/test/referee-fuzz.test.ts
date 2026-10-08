@@ -24,6 +24,7 @@ import { defaultState, newId, type HelperState } from '../src/helper/state';
 import * as referee from '../src/helper/referee';
 import { RefereeError } from '../src/helper/referee';
 import { reverseString, type MathChainStep, type MemoryStep, type ReverseStep, type Step, type TranscribeStep } from '../src/shared/challenges';
+import { fuzzSeeds } from './fuzz-depth';
 
 /** Deterministic PRNG (mulberry32) so a failing run can be replayed. */
 function rng(seed: number): () => number {
@@ -160,5 +161,5 @@ function runSequence(seed: number, steps: number): void {
 }
 
 test('no random sequence of actions can unlock a site without solving', () => {
-  for (let seed = 1; seed <= 40; seed++) runSequence(seed, 300);
+  for (let seed = 1; seed <= fuzzSeeds(40); seed++) runSequence(seed, 300);
 });

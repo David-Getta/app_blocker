@@ -16,6 +16,7 @@ import { DEVICES, FOCUS_MERGE_NOW, randomFocus, randomSite, rng, siteConformance
 import { windowKey } from '../src/shared/lockdown';
 import { keywordMarksKey, keywordsKey } from '../src/shared/keywords';
 import { partnerKey } from '../src/shared/partner';
+import { fuzzSeeds } from './fuzz-depth';
 
 /**
  * A rekord EGÉSZE: a nevek és a jeleik, a részleges szabályok és a jeleik, a
@@ -29,7 +30,7 @@ function siteKey(s: SyncSite): string {
 }
 
 test('oldal: szimmetrikus, idempotens, és három eszköz bármilyen sorrendben ugyanoda jut', () => {
-  for (let seed = 1; seed <= 300; seed++) {
+  for (let seed = 1; seed <= fuzzSeeds(300); seed++) {
     const r = rng(seed);
     const [a, b, c] = DEVICES.map((d) => randomSite(r, d));
     const ab = mergeSite(a, b);
@@ -113,7 +114,7 @@ function plainRuns(fs: SyncFocus[]): boolean {
 
 test('munkamenet-blob: a csomagok halmaza és a jelek sorrendtől függetlenek', () => {
   const now = FOCUS_MERGE_NOW;
-  for (let seed = 1; seed <= 300; seed++) {
+  for (let seed = 1; seed <= fuzzSeeds(300); seed++) {
     const r = rng(seed);
     const [a, b, c] = DEVICES.map((d) => randomFocus(r, d));
     const runIds = new Set([a, b, c].flatMap((f) => (f.run ? [f.run.packId] : [])));
