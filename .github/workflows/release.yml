@@ -45,29 +45,41 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A böngésző sávja az adag betelte előtt is szól.** Ha egy oldalon
-          adagolt a használat (például 10 perc, utána 30 perc szünet), a lap
-          tetején sáv jelzi, mielőtt az adag elfogy — legfeljebb két perccel
-          előtte, hogy legyen idő elmenteni, amit írsz.
+          **Windows: az app végre eléri a védelmet.** Egy új, valódi
+          Windows-próba megmutatta: a háttérszolgáltatás csatornája a nem
+          emelt appnak csak olvasható volt, így a windowsos app egyetlen
+          kérést sem tudott küldeni — a „Védelem telepítése” gomb sosem
+          tűnt el. Most a csatorna nyitott, de csak a telepítéskor kapott
+          kulccsal szól. **Windowson frissítés után egyszer még kérd a
+          telepítést** (egy rendszergazdai engedély).
 
-          - **Óraátállítás:** az őszi éjszakán a 2:00–2:59 kétszer van, a
-            tavaszin egyszer sem. Egy hajnali heti ablak eddig az Androidon
-            egy órával később indulhatott, mint a gépen. Most mindhárom
-            platform ugyanarra a pillanatra teszi: a kétszer előforduló idő
-            az első, a kihagyott egy órával később.
-          - **Android:** az időmező a „8.30”, „8” és „830” alakot is
-            elfogadja — a számbillentyűzeten nincs kettőspont.
+          **Egy független átnézés négy kiskaput talált — mind zárva:**
 
-          ### Ami a v0.4.225-ben jött
+          - Egy szöveg a háttérszolgáltatás csatornáján próbatétel nélkül
+            leállította a munkamenetet, zárlat alatt is.
+          - A gép szinkronja nem vitte az adag-szabályt: a telefonon
+            beállítottat a gép egy fedőnév-szerkesztése mindenhonnan
+            letörölte. Ha egy telefonos adag-szabály eltűnt, állítsd be újra.
+          - Az óra visszaállítása megnyújtotta a kifizetett szünetet, és a
+            lejártat is feltámasztotta.
+          - Az óra előre-, majd visszaállítása leállította a heti ablakos
+            munkamenetet; az ugrás utáni pillanatban pedig egy várakozás
+            azonnal átvehető volt.
+
+          Őszinte korlát: a heti zárlat-ablak vége az ablak vége — ha az
+          órát az ablak vége utánra állítod, a zárlat lejártnak látszik. A
+          gépen ehhez rendszergazdai jog kell.
+
+          ### Ami a v0.4.226-ban jött
+
+          **A böngésző sávja az adag betelte előtt is szól;** óraátállítás
+          éjszakáján a három platform ugyanarra a pillanatra teszi a heti
+          ablakot; Androidon az időmező a „8.30” alakot is elfogadja.
+
+          #### Ami a v0.4.225-ben jött
 
           **Pontosabb előjelzések** — a szünet vége csak akkor szól, ha utána
-          tényleg zár; a böngésző sávja futó menet mellett is szól a heti
-          ablak előtt; a sáv bezárása az adott zárásra szól.
-
-          #### Ami a v0.4.224-ben jött
-
-          **A heti ablakos munkamenet előtt tíz perccel értesítés jön** —
-          mindhárom platformon, mint a zárlat-ablak előtt.
+          tényleg zár.
 
           NOTES
           fi
