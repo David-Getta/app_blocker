@@ -38,6 +38,7 @@ enum Blocklist {
         CategoryPack(key: "video", label: "Videó és stream", domains: ["youtube.com", "twitch.tv", "netflix.com", "kick.com", "dailymotion.com"]),
         CategoryPack(key: "news", label: "Hírek", domains: ["index.hu", "telex.hu", "444.hu", "origo.hu", "hvg.hu", "24.hu", "portfolio.hu", "blikk.hu"]),
         CategoryPack(key: "shopping", label: "Vásárlás", domains: ["aliexpress.com", "temu.com", "amazon.com", "ebay.com", "vinted.hu", "emag.hu"]),
+        CategoryPack(key: "gambling", label: "Szerencsejáték", domains: ["szerencsejatek.hu", "tippmix.hu", "tippmixpro.hu", "vegas.hu", "kaszino.hu", "xcasino.hu", "grandcasino.hu", "bet365.com", "unibet.com", "pokerstars.com"]),
     ]
 
     static func normalizeDomain(_ input: String) -> String? {

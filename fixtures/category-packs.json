@@ -49,5 +49,21 @@
       "vinted.hu",
       "emag.hu"
     ]
+  },
+  {
+    "key": "gambling",
+    "label": "Szerencsejáték",
+    "domains": [
+      "szerencsejatek.hu",
+      "tippmix.hu",
+      "tippmixpro.hu",
+      "vegas.hu",
+      "kaszino.hu",
+      "xcasino.hu",
+      "grandcasino.hu",
+      "bet365.com",
+      "unibet.com",
+      "pokerstars.com"
+    ]
   }
 ]

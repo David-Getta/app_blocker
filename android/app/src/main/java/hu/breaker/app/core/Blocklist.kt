@@ -39,6 +39,7 @@ object Blocklist {
         CategoryPack("video", "Videó és stream", listOf("youtube.com", "twitch.tv", "netflix.com", "kick.com", "dailymotion.com")),
         CategoryPack("news", "Hírek", listOf("index.hu", "telex.hu", "444.hu", "origo.hu", "hvg.hu", "24.hu", "portfolio.hu", "blikk.hu")),
         CategoryPack("shopping", "Vásárlás", listOf("aliexpress.com", "temu.com", "amazon.com", "ebay.com", "vinted.hu", "emag.hu")),
+        CategoryPack("gambling", "Szerencsejáték", listOf("szerencsejatek.hu", "tippmix.hu", "tippmixpro.hu", "vegas.hu", "kaszino.hu", "xcasino.hu", "grandcasino.hu", "bet365.com", "unibet.com", "pokerstars.com")),
     )
 
     fun normalizeDomain(input: String): String? {

@@ -3,8 +3,8 @@
 A blokklista oldalanként épül, és az első percekben ez lassú: aki a közösségi
 médiát akarja kizárni, annak nyolc címet kellene egyenként beírnia — és a
 harmadiknál eszébe jut, hogy majd holnap. A kategória-csomag ezt veszi le
-róla: *Közösségi*, *Videó és stream*, *Hírek*, *Vásárlás* — egy-egy gomb, ami
-a csomag minden oldalát felveszi.
+róla: *Közösségi*, *Videó és stream*, *Hírek*, *Vásárlás*, *Szerencsejáték* —
+egy-egy gomb, ami a csomag minden oldalát felveszi.
 
 ## Szabály
 
@@ -17,6 +17,19 @@ a csomag minden oldalát felveszi.
   mint az egyenkénti felvételnél — a *társoldalak blokkolása* kapcsoló szerint.
 - Rejtett listánál a csomag-gombok is elmaradnak, a gyorsgombokkal együtt:
   pont azok a címek állnának rajtuk, amiket az ember tipikusan blokkol.
+
+## A Szerencsejáték-csomag
+
+A hazai engedélyes oldalak (a Szerencsejáték Zrt. oldala és a Tippmix, az
+engedélyes online kaszinók) és három nagy nemzetközi név. **Nem teljes
+lista**, és nem is lehet az: a szerencsejáték-oldalak száma nagy, a címeik
+változnak, és a tiltólistás külföldi oldalak tükörcímeken is futnak. A csomag
+a leggyakoribb belépőket zárja le egy kattintással; ami hiányzik, azt
+egyenként kell felvenni — és egy kulcsszó (`casino`, `kaszino`) a böngészőben
+a címben és a lap címsorában is fogja (`docs/feature-keywords.md`). Aki a
+szerencsejátéktól komolyan el akar szakadni, annak a szolgáltatónál kérhető
+önkizárás erősebb eszköz: az a fióknál zár, nem az eszközön — a kettő együtt
+a legjobb.
 
 ## Hol van
 

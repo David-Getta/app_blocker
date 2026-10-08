@@ -207,4 +207,5 @@ export const CATEGORY_PACKS: CategoryPack[] = [
   { key: 'video', label: 'Videó és stream', domains: ['youtube.com', 'twitch.tv', 'netflix.com', 'kick.com', 'dailymotion.com'] },
   { key: 'news', label: 'Hírek', domains: ['index.hu', 'telex.hu', '444.hu', 'origo.hu', 'hvg.hu', '24.hu', 'portfolio.hu', 'blikk.hu'] },
   { key: 'shopping', label: 'Vásárlás', domains: ['aliexpress.com', 'temu.com', 'amazon.com', 'ebay.com', 'vinted.hu', 'emag.hu'] },
+  { key: 'gambling', label: 'Szerencsejáték', domains: ['szerencsejatek.hu', 'tippmix.hu', 'tippmixpro.hu', 'vegas.hu', 'kaszino.hu', 'xcasino.hu', 'grandcasino.hu', 'bet365.com', 'unibet.com', 'pokerstars.com'] },
 ];
