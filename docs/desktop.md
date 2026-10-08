@@ -38,15 +38,17 @@ npm run build
 npm i --no-save playwright@1.63.0 axe-core@4.14.0
 node scripts/ui-shots.js --check     # a felület végigjátszása, hamis híddal
 node scripts/extension-ui.js         # a bővítmény lapjai
+node scripts/website-shot.js --check # a letöltőoldal
 ```
 
-Mindkét próba lefuttatja az axe-core akadálymentességi ellenőrzését
+Mindhárom próba lefuttatja az axe-core akadálymentességi ellenőrzését
 (`scripts/a11y-check.js`), és minden szabálysértés bukás: a három nézet
 mindkét témában, a gyorsbillentyűs réteg, a lista első sorának minden
 párbeszéd-ablaka (feloldás, menetrend, napi keret, adag, fedőnév, indok,
 hosztnevek, részek), a zárlat két ablaka, a munkamenet-csomag indítása és
 szerkesztője, a végigjátszás közben nyíló ablakok (próbatétel, fiók-panel),
-valamint a bővítmény beállítási, felugró és tiltó lapja. A CI-ban az axe
+valamint a bővítmény beállítási, felugró és tiltó lapja, és a letöltőoldal
+(`scripts/website-shot.js --check`). A CI-ban az axe
 kötelező; helyben, ha nincs telepítve, a próba kimarad és szól.
 
 A billentyűzetet is próbálja: az ablakokat Enterrel nyitja, és megköveteli,
