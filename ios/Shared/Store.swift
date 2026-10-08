@@ -311,12 +311,23 @@ final class BreakerStore: ObservableObject {
 
     // MARK: - mutate
 
+    /// Az utoljára ÍRT állapot — csak tartaléknak, ha a lemez épp nem olvasható.
+    ///
+    /// A közzétett `state` a fő sorra dobva frissül, tehát két egymás utáni
+    /// `mutate` között még a RÉGIT mutatja. Ha a lemezről sem olvasható az
+    /// állapot (a csoport-konténer hiányzik, a fájl még nincs meg), a második
+    /// írás a régiből indult, és csendben eltüntette az elsőt. Egy körön belül
+    /// ez pont az óraugrás elnyelésének eredménye volt (a Swift-teszt mutatta
+    /// meg). A sor szerint utolsó írás mindig a legfrissebb, amit ismerünk.
+    private var latest: AppState?
+
     @discardableResult
     func mutate(_ fn: (inout AppState) -> Void) -> AppState {
         queue.sync {
-            var next = readFromDisk() ?? state
+            var next = readFromDisk() ?? latest ?? state
             fn(&next)
             writeToDisk(next)
+            latest = next
             DispatchQueue.main.async { self.state = next }
             return next
         }
@@ -324,6 +335,10 @@ final class BreakerStore: ObservableObject {
 
     func reload() {
         if let disk = readFromDisk() {
+            // A másik folyamat (az alagút) írása a legfrissebb, amit ismerünk:
+            // a tartalék is ezt viszi tovább, nem a saját régebbi írásunkat.
+            // A figyelő ugyanezen a soron fut, mint a `mutate`.
+            latest = disk
             DispatchQueue.main.async { self.state = disk }
         }
     }
