@@ -45,27 +45,35 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **Két eszközön felvett részleges szabályból egyik sem tűnik el.** Eddig egy
-          oldal részleges szabályai (például egy YouTube-csatorna tiltása) egy listaként
-          utaztak a fiókban, és annak az eszköznek a listája nyert, amelyik többet
-          szerkesztett — ha közben egy másik gépen is felvettél egy szabályt, az
-          csendben eltűnhetett. Most a szabályok egyenként fésülődnek: amit bárhol
-          felvettél, megmarad, és amit próbatétellel levettél, az a régi listát hordozó
-          eszközről sem jön vissza.
+          **A törölt oldal törölve marad.** Eddig egy végigment törlés — a próbatétel és
+          a 24 óra után — a fiókban örökre megmaradt: a gép minden szinkronnál
+          visszahozta egy pillanatra, aztán újra törölte, félpercenként, a végtelenségig;
+          ha a törlés hálózat nélkül ment végig, a fiók régi példánya visszahozta az
+          oldalt; és egy régóta nem szinkronizált eszköz is feltámaszthatta. Most a
+          végigment törlés helyén sírkő marad, ami a többi eszközre is átér — egyik sem
+          történhet meg többé. Ha ugyanazt az oldalt később újra felveszed, az új
+          tiltás él: a régi törlés nem viszi magával.
 
-          **Frissíts minden eszközt.** Egy még nem frissített eszközön kifizetett
-          szabály-levétel nem tartja meg magát a frissítettekkel szemben — a szabály
-          visszajön, és a levételt egy frissített eszközön újra kell kérni.
+          A csatorna-szűrők lazítását mostantól csak a teljesített próbatétel könyveli
+          el. Ami próbatétel nélkül lazult (egy hiba, egy kézzel átírt állapot), az nem
+          megy át a többi eszközre kifizetett lazításként.
 
-          ### Ami a v0.4.234-ben jött
+          A böngésző-bővítmény zárlat alatt a böngésző indulásakor sem törli a saját,
+          levételre váró szabályát: a levétel visszavonódik, ahogy zárlat alatt
+          máskor is.
+
+          **Frissíts minden eszközt.** Egy még nem frissített eszközön a régi
+          körforgás marad, és ott egy újra felvett, azonos oldalt a régi törlés még
+          elvihet. A frissítés előtt kért törlések nem kapnak sírkövet.
+
+          ### Ami a v0.4.235-ben jött
+
+          **Két eszközön felvett részleges szabályból egyik sem tűnik el.**
+
+          #### Ami a v0.4.234-ben jött
 
           **Egy régóta nem szinkronizált eszköz nem hozhatja vissza egy oldal régi,
           lazább beállítását.**
-
-          #### Ami a v0.4.233-ban jött
-
-          **Egy friss telepítés vagy egy régóta nem szinkronizált gép nem törölheti a
-          csatorna-szűrőidet.**
           NOTES
           fi
 
