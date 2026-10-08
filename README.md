@@ -484,6 +484,14 @@ cd ios && xcodegen generate && open Breaker.xcodeproj
   adatot a mérés” figyelmeztetés, a fedőnév és a lista elrejtése — utóbbi arra is,
   hogy újraindítás után is rejtve marad, és hogy közben az ablakban sehol nem
   marad ott egy blokkolt cím). Mindez sötét és világos témában is. ✅ Zöld.
+- **Akadálymentesség:** a felület füstpróbái (a gépen a nézetek és a
+  párbeszéd-ablakok mindkét témában, a böngésző-bővítmény lapjai, a
+  letöltőoldal) minden pusholásnál lefuttatják az axe-core ellenőrzését — minden
+  szabálysértés bukás —, és a billentyűzetet is próbálják: az ablakba ugró
+  fókuszt, a Tab-kört, az Esc-et, a visszatérő fókuszt, és hogy a kétmásodperces
+  frissítés nem viszi el a fókuszt. ✅ Zöld. A telefonokon a felolvasó-jelölés
+  (TalkBack, VoiceOver) kézzel készült, automatikus próba nincs rá; és hogy a
+  felolvasó ténylegesen mit mond, azt egyik platformon sem hallgatta végig senki.
 - **Android:** a platformfüggetlen mag és a bitszintű `DnsEngine` JVM-en
   unit-tesztelt, Android SDK nélkül futtatva (`android/jvm-tests`, négyszáznál
   több teszt). ✅ Zöld. A teljes APK-hoz SDK kell — a CI buildeli.
@@ -513,7 +521,7 @@ Amit érdemes futtatni fejlesztés közben:
 | Parancs | Mit ellenőriz |
 |---|---|
 | `cd desktop && npm test` | a teljes desktop tesztkészlet (build + fordítás + futtatás) |
-| `cd desktop && npm run ui:check` | a renderer tényleg betöltődik és végigkattintható (fejetlen Chromium) |
+| `cd desktop && npm run ui:check` | a renderer tényleg betöltődik és végigkattintható (fejetlen Chromium); ha az `axe-core` telepítve van, az akadálymentességi próbával együtt |
 | `cd desktop && npm run ui:shots` | ugyanaz, plusz frissíti a `docs/images` képeket |
 | `cd android/jvm-tests && gradle test` | az Android mag SDK nélkül |
 | `cd ios && swift test -c release -Xswiftc -enable-testing` (macOS) | a Swift mag tesztjei és a közös fixtúrák visszajátszása, ahogy a CI futtatja (optimalizálva: a tiszta Swift scrypt hibakereső módban lassú) |
