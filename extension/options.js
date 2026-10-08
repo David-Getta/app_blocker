@@ -185,6 +185,11 @@ async function render() {
   void renderChannelTime();
   void renderHits();
   const list = $('list');
+  // A FÓKUSZ A SORBAN MARAD. A lista minden rajzoláskor (gombnyomásra és
+  // félpercenként) újraépül; aki billentyűzettel egy sor gombján állt, eddig
+  // a lap elejére esett — épp a „Levétel” után, amikor a „Mégis maradjon” van
+  // ott, ahol a gomb volt. A sor kulcsa a szabály (gazdagép|út).
+  const focusedRow = document.activeElement?.closest?.('#list > li')?.dataset.key ?? null;
   list.textContent = '';
   // Az appból jött szabályok ugyanabban a listában állnak: a felhasználót nem
   // érdekli, melyik honnan való — az érdekli, mi van tiltva.
@@ -194,6 +199,7 @@ async function render() {
 
   for (const rule of rules) {
     const li = el('li');
+    li.dataset.key = `${rule.host}|${rule.path ?? ''}`;
     const left = el('div');
     left.appendChild(el('div', 'name', ruleLabel(rule)));
     if (rule.fromApp) {
@@ -229,6 +235,10 @@ async function render() {
       li.appendChild(drop);
     }
     list.appendChild(li);
+  }
+  if (focusedRow !== null && (!document.activeElement || document.activeElement === document.body)) {
+    const row = Array.from(list.children).find((li) => li.dataset.key === focusedRow);
+    row?.querySelector('button')?.focus({ preventScroll: true });
   }
 }
 

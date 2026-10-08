@@ -157,8 +157,11 @@ async function main() {
     failures.push('a hibás bevitelből mégis lett szabály');
   }
 
-  // A levétel NEM azonnali: ez a funkció lényege.
-  await page.getByRole('button', { name: 'Levétel' }).click();
+  // A levétel NEM azonnali: ez a funkció lényege. BILLENTYŰZETTEL nyomjuk
+  // meg: a lista ettől újraépül, és a fókusznak a sorban kell maradnia — a
+  // „Mégis maradjon” gombon, ahol a „Levétel” volt —, nem a lap elejére esnie.
+  await page.getByRole('button', { name: 'Levétel' }).focus();
+  await page.keyboard.press('Enter');
   await page.waitForFunction(
     () => document.querySelector('#list li')?.textContent?.includes('Levétel'),
     undefined, { timeout: 10_000 },
@@ -172,6 +175,11 @@ async function main() {
   }
   if ((await page.locator('#list li').count()) !== 1) {
     failures.push('a szabály azonnal eltűnt — a várakozás nem érvényesült');
+  }
+  const focusAfter = await page.evaluate(() => (document.activeElement === document.body
+    ? '(a lap eleje)' : document.activeElement?.textContent ?? '(sehol)'));
+  if (focusAfter !== 'Mégis maradjon') {
+    failures.push(`a levétel után a fókusz nem a visszavonáson áll (most: „${focusAfter}”)`);
   }
 
   // Meggondolni magad ingyen van.
