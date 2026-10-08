@@ -45,29 +45,29 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **Egy friss telepítés vagy egy régóta nem szinkronizált gép nem
-          törölheti a csatorna-szűrőidet.** Eddig a szűrők listája egészében
-          annak a gépnek a listája lett, amelyik utoljára „szólt” róla — és
-          ehhez néhány ingyenes szerkesztés is elég volt: egy új gépen felvett
-          saját szűrő a többit mindenhol letörölhette. Most a szűrők
-          oldalanként fésülődnek: egy máshol bekapcsolt szűrőt csak a
-          kifizetett kikapcsolás vagy levétel visz el, és egy másik gép
-          ingyenes szerkesztése egyetlen csatornát sem nyithat meg rajta.
+          **Egy régóta nem szinkronizált eszköz nem hozhatja vissza egy oldal régi,
+          lazább beállítását.** Eddig egy oldal menetrendje, napi kerete,
+          adag-szabálya és törlése egyben utazott, és annak az eszköznek a rekordja
+          nyert, amelyik többször szerkesztett — akár ingyen, szigorítással is. Így
+          egy régi telefon néhány ingyenes szerkesztéssel visszanöveszthette a máshol
+          lecsökkentett keretet, vagy eltüntethette a gépen felvett menetrendet. Most
+          ezek a mezők külön-külön fésülődnek: lazítás csak azzal megy át, amiért
+          próbatételt fizettél, egyébként mindig a szigorúbb marad — két eszköz
+          menetrendjéből az unió, két keretből a kisebb.
 
-          **Frissíts minden gépet.** Egy még nem frissített gép kifizetett
-          levétele nem tartja meg magát a frissítettekkel szemben — a szűrő
-          visszajön, és a levételt egy frissített gépen újra kell kérni.
+          **Frissíts minden eszközt.** Egy még nem frissített eszközön kifizetett
+          lazítás nem tartja meg magát a frissítettekkel szemben — a szigorúbb
+          beállítás visszajön, és a lazítást egy frissített eszközön újra kell kérni.
 
-          ### Ami a v0.4.232-ben jött
+          ### Ami a v0.4.233-ban jött
+
+          **Egy friss telepítés vagy egy régóta nem szinkronizált gép nem törölheti a
+          csatorna-szűrőidet.**
+
+          #### Ami a v0.4.232-ben jött
 
           **Egy régóta nem szinkronizált eszköz nem törölheti a heti
           zárlat-ablakaidat.**
-
-          #### Ami a v0.4.231-ben jött
-
-          **Egy régóta nem szinkronizált eszköz nem törölheti a
-          kulcsszavaidat.**
-
           NOTES
           fi
 
