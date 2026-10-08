@@ -8,6 +8,7 @@ kettővel korábbiban.
 
 | Verzió | Nap | Mi újság |
 |---|---|---|
+| v0.4.252 | 2026-10-08 | Windowson a Brave és a Chromium sem kerüli meg a tiltást, az eltávolító nem hagy nyomot |
 | v0.4.251 | 2026-10-08 | a telefon szól, ha valami saját titkosított DNS-t keres |
 | v0.4.250 | 2026-10-08 | a Firefox titkosított DNS-e nem kerüli meg a telefonos szűrőt |
 | v0.4.249 | 2026-10-08 | a hiba a felolvasónak is elhangzik |
