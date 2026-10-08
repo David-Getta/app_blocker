@@ -45,33 +45,39 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A próbatétellel levett heti ablak levéve marad.** Egy munkamenet-csomag heti
-          ablakáról a szinkron eddig a csomag jele szerint döntött — azt viszont egy
-          egyszerű átnevezés is lépteti. Egy régóta nem szinkronizált eszköz így egyetlen
-          átnevezéssel visszahozhatta a próbatétellel levett ablakot, és egy máshol ingyen
-          felvett ablak vagy szűkített fehérlista próbatétel nélkül eltűnhetett. Most a
-          kifizetett levétel számít: a bíró a próbatétel teljesítésekor számolja, és a több
-          kifizetett levétel nyer; egyenlőnél az ablakos változat marad. Két ablakos
-          változatból a szigorúbb lesz: a hosszabb ablak és a két fehérlista közös része.
+          **Az újra felvett oldalt a régi törlés akkor sem viszi el, ha közben egy
+          harmadik eszköz összevonta őket.** Ha ugyanazt az oldalt két eszközön külön
+          veszed fel, a szinkron egy sorba vonja. Eddig a régebben felvett példány
+          azonosítója maradt meg. Így egy régi törlés, ami hálózat nélkül ment végig és
+          csak később ért át, magával vitte az újra felvett tiltást is, ha egy régóta nem
+          szinkronizált eszköz addigra a kettőt összevonta. Most az újabban felvett
+          példány azonosítója marad: azt csak a saját, kifizetett törlése viheti el.
 
-          Ha egy csomagot máshol töröltek, de itt épp fut a menete, a csomag a menet
-          végéig megmarad — a próbatétellel levett ablaka viszont nem jön vissza vele.
+          Annak az eszköznek, amelyik a régebbi példányt ismerte, a sora az új
+          azonosítót és felvételi dátumot kapja. A kifizetett szünet, a futó adag-hűtés
+          és a próbatétel adóssága vele megy, nem esik le.
 
-          Három eszköz bármilyen sorrendben ugyanoda jut: ezt egy százezer esetes próba
-          méri, és a három platform közös fixtúrája.
+          A leírás eddig azt állította, hogy a lista fésülésében a sorrend sosem számít.
+          Ez nem volt igaz. Ha egy oldalra két azonosító szól, és az egyiket közben
+          törölték, három eszköz más sorrendben más listára juthat. Most ez ki van
+          mondva, és egy új véletlen-teszt őrzi a határait. Ilyenkor is áll, hogy a
+          legújabban felvett példányt csak a saját törlése viheti el. Ha viszont azt
+          törölted, és a régebbi addigra beleolvadt, az is vele megy.
 
-          **Frissíts minden eszközt.** Egy még nem frissített eszköz a levétel számlálóját
-          nem ismeri: amíg ilyen van a fiókban, egy levett ablak ott visszajöhet. Az
-          ablakról nem tudó eszköz egyidejű átnevezése elvész — nevezd át újra.
+          **Frissíts minden eszközt.** Egy még nem frissített eszköz a régebbi
+          azonosítót tartja meg, és nála a régi törlés még elviheti az újra felvett
+          oldalt. Amíg ilyen eszköz van a fiókban, egy két azonosítóval felvett oldalt a
+          két változat minden szinkronnál felülír a fiókban. A tiltás mindkét eszközön
+          ugyanaz marad.
 
-          ### Ami a v0.4.236-ban jött
+          ### Ami a v0.4.237-ben jött
 
-          **A törölt oldal törölve marad.** A végigment törlés helyén sírkő marad, amit
-          egy régi eszköz vagy a fiók régi példánya sem támaszthat fel.
+          **A próbatétellel levett heti ablak levéve marad.** Egy régóta nem
+          szinkronizált eszköz egy átnevezéssel sem hozhatja vissza.
 
-          #### Ami a v0.4.235-ben jött
+          #### Ami a v0.4.236-ban jött
 
-          **Két eszközön felvett részleges szabályból egyik sem tűnik el.**
+          **A törölt oldal törölve marad.**
           NOTES
           fi
 
