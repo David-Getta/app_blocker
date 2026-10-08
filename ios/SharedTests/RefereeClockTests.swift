@@ -89,6 +89,52 @@ final class RefereeClockTests: XCTestCase {
         pumpMainQueue()
     }
 
+    // A gép és a Kotlin tesztjének tükre: egy MÁSIK csomag futó menetét a heti
+    // ablak nem állítja le — eddig igen, és mivel ablakot felvenni ingyen van,
+    // egy most kezdődő ablak próbatétel nélkül véget vetett egy hosszú
+    // menetnek. Most rárétegződik, és a saját menete ott indul, ahol a másik
+    // véget ért.
+    func testAWindowLayersOverAnotherPacksRunAndItsOwnRunStartsWhereThatEnded() {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = .current
+        func mon(_ hour: Int, _ minute: Int = 0) -> Double {
+            cal.date(from: DateComponents(year: 2026, month: 9, day: 7, hour: hour, minute: minute))!.timeIntervalSince1970 * 1000
+        }
+        let window = Focus.Pack(id: "p_ablak", name: "Mély munka", allowSites: ["github.com"], allowApps: [], defaultMinutes: 50,
+                                recurrence: ScheduleLogic.Band(days: [1, 2, 3, 4, 5], startMin: 9 * 60, endMin: 12 * 60))
+        let other = Focus.Pack(id: "p_mas", name: "Más", allowSites: ["github.com", "youtube.com"], allowApps: [], defaultMinutes: 50)
+        BreakerStore.shared.mutate { state in
+            state.focusPacks = [window, other]
+            state.focusRun = Focus.Run(packId: "p_mas", startedAt: mon(8, 59), endsAt: mon(9, 59))
+            state.focusLog = []
+            state.session = nil
+        }
+        pumpMainQueue()
+        BreakerStore.shared.saveLastTick(mon(9))
+
+        Referee.tick(now: mon(9, 1))
+        pumpMainQueue()
+        XCTAssertEqual(BreakerStore.shared.state.focusRun?.packId, "p_mas", "a futó menet marad")
+        XCTAssertEqual(BreakerStore.shared.state.focusLog?.count ?? 0, 0, "semmi nem zárult le")
+        XCTAssertEqual(BreakerStore.shared.runningFocusPack(mon(9, 1))?.allowSites, ["github.com"],
+                       "amíg az ablak tart, csak a közös — az alagút ezt kapja")
+        for m in 2...60 { Referee.tick(now: mon(9) + Double(m) * 60_000) }
+        pumpMainQueue()
+        let run = BreakerStore.shared.state.focusRun
+        XCTAssertEqual(run?.packId, "p_ablak")
+        XCTAssertEqual(run?.startedAt, mon(9, 59), "ott, ahol a másik véget ért")
+        XCTAssertEqual(run?.origin, mon(9), "az azonossága az ablak kezdete")
+        XCTAssertEqual(run?.endsAt, mon(12))
+        XCTAssertEqual(BreakerStore.shared.state.focusLog?.last?.packId, "p_mas")
+        XCTAssertEqual(BreakerStore.shared.state.focusLog?.last?.stopped, false, "a másik menet a saját idejéig tartott")
+        BreakerStore.shared.mutate { state in
+            state.focusRun = nil
+            state.focusPacks = []
+            state.focusLog = []
+        }
+        pumpMainQueue()
+    }
+
     func testTheDeletionDeadlineMovesWithTheClockAfterARestart() {
         let site = Site(
             id: "site_ora", domain: "youtube.com", hostnames: ["youtube.com"],

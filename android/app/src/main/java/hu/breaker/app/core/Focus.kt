@@ -625,26 +625,40 @@ object Focus {
     data class DueRecurrence(val pack: FocusPack, val startsAt: Long, val endsAt: Long)
 
     /**
-     * Melyik csomag ablaka esedékes MOST — vagy null. Nem indul, ha a csomag
-     * saját menete fut; ha a naplóban ott az ablak saját menete; vagy ha egy
-     * percnél kevesebb van hátra. Egy másik csomag menete nem tartja vissza —
-     * azt a kör zárja le. Több közül a korábban kezdődő, azonos kezdésnél a
-     * kisebb azonosítójú.
+     * Melyik csomag ablaka esedékes MOST — vagy null: az első a
+     * `dueRecurrences` listájából (a `focus.ts` tükre).
      */
     fun dueRecurrence(
         packs: List<FocusPack>,
         run: FocusRun?,
         log: List<FocusLogEntry>,
         now: Long,
-    ): DueRecurrence? {
-        var best: DueRecurrence? = null
+    ): DueRecurrence? = dueRecurrences(packs, run, log, now).firstOrNull()
+
+    /**
+     * Az összes MOST esedékes ablak, a `dueRecurrence` rendjében: a korábban
+     * kezdődő, azonos kezdésnél a kisebb azonosítójú (kódegység szerint) —
+     * hogy minden eszköz ugyanazt válassza.
+     *
+     * Nem esedékes, ha a csomag SAJÁT menete fut; ha a naplóban ott az ablak
+     * saját menete (leállítva vagy lerövidítve — a próbatétel ára ki van
+     * fizetve); vagy ha egy percnél kevesebb van hátra. Egy MÁSIK csomag
+     * menete alatt az ablak RÁRÉTEGZŐDIK (`effectivePack`): a menet nem áll le,
+     * de amíg az ablak tart, csak az mehet, amit mindkét csomag enged. A menete
+     * akkor indul, ha a futó menet véget ér (`windowRunFor`).
+     */
+    fun dueRecurrences(
+        packs: List<FocusPack>,
+        run: FocusRun?,
+        log: List<FocusLogEntry>,
+        now: Long,
+    ): List<DueRecurrence> {
+        val out = mutableListOf<DueRecurrence>()
         for (pack in packs) {
             val band = pack.recurrence ?: continue
             if (!ScheduleLogic.isValidBand(band)) continue
-            // A csomag SAJÁT futó menete mellett nincs mit indítani. Egy MÁSIK
-            // csomag kézi menete nem tartja vissza az ablakot: a hívó (a kör)
-            // zárja le az ablak kezdetén — különben egy 8:59-kor indított,
-            // nyolcórás eldobható menet az egész ablakot kiváltaná.
+            // A csomag SAJÁT futó menete mellett nincs mit indítani, és önmagára
+            // nem is rétegződik.
             if (isRunning(run, now) && run!!.packId == pack.id) continue
             val occ = occurrenceAt(band, now) ?: continue
             if (occ.endsAt - now < RECURRENCE_MIN_REMAINING_MS) continue
@@ -652,14 +666,64 @@ object Focus {
             // elköltöttnek: a csomag egyperces kézi menete az ablakon belül nem
             // váltja ki a háromórás ablakot.
             if (spentIn(log, pack.id, occ, now)) continue
-            val b = best
-            if (b == null || occ.startsAt < b.startsAt ||
-                (occ.startsAt == b.startsAt && pack.id < b.pack.id)
-            ) {
-                best = DueRecurrence(pack, occ.startsAt, occ.endsAt)
-            }
+            out.add(DueRecurrence(pack, occ.startsAt, occ.endsAt))
         }
-        return best
+        return out.sortedWith(compareBy<DueRecurrence> { it.startsAt }.thenBy { it.pack.id })
+    }
+
+    /**
+     * A futó menet alatt MOST hatásos csomag — vagy null, ha nem fut menet (vagy
+     * a csomagja nincs meg). A `focus.ts` `effectivePack`-jének tükre.
+     *
+     * A menet csomagja, és ha közben egy MÁSIK csomag heti ablaka is tart (és az
+     * ablakot nem állították le), annak a fehérlistája IS: METSZET. Eddig az
+     * ablak a kezdetén leállította a futó kézi menetet — és mivel ablakot
+     * felvenni ingyen van, egy most kezdődő, kétperces ablak egy laza csomagra
+     * próbatétel nélkül véget vetett egy kétórás menetnek. Most egyik sem enged
+     * a másikból; egy 8:59-kor indított, laza „eldobható” menet sem váltja ki
+     * az ablakot. A neve és a hossza a menet csomagjáé.
+     */
+    fun effectivePack(
+        packs: List<FocusPack>,
+        run: FocusRun?,
+        log: List<FocusLogEntry>,
+        now: Long,
+    ): FocusPack? {
+        if (run == null || !isRunning(run, now)) return null
+        val own = packs.firstOrNull { it.id == run.packId } ?: return null
+        var out = own
+        for (due in dueRecurrences(packs, run, log, now)) out = intersectPacks(out, due.pack)
+        return out
+    }
+
+    /**
+     * Két csomag fehérlistájának metszete — az első neve, hossza és ablaka
+     * marad. Az oldal-lista PONTOS metszet az aldomain-szabállyal (a
+     * `google.com` és a `translate.google.com` metszete a
+     * `translate.google.com`); az app-lista a laza app-egyezés miatt csak
+     * közelítés.
+     */
+    fun intersectPacks(a: FocusPack, b: FocusPack): FocusPack {
+        val sites = (a.allowSites.filter { isSiteAllowed(b, it) } + b.allowSites.filter { isSiteAllowed(a, it) }).distinct()
+        val apps = (a.allowApps.filter { isAppAllowed(b, it) } + b.allowApps.filter { isAppAllowed(a, it) }).distinct()
+        return a.copy(allowSites = sites, allowApps = apps)
+    }
+
+    /**
+     * Az esedékes ablak menete: az ablak végéig — és az ablak kezdetétől, vagy
+     * ha az ablakban előbb egy másik menet futott (az ablak arra
+     * rárétegződött), ott kezdődik, ahol az véget ért. Különben a napló
+     * ugyanazt az órát kétszer írná. Az azonossága ilyenkor is az ablak
+     * kezdete (`origin`). A `focus.ts` `windowRunFor`-jának tükre.
+     */
+    fun windowRunFor(due: DueRecurrence, log: List<FocusLogEntry>, now: Long): FocusRun {
+        var start = due.startsAt
+        for (e in log) if (e.endedAt > start && e.endedAt <= now) start = e.endedAt
+        return if (start > due.startsAt) {
+            FocusRun(due.pack.id, start, due.endsAt, origin = due.startsAt)
+        } else {
+            FocusRun(due.pack.id, due.startsAt, due.endsAt)
+        }
     }
 
     /**
@@ -673,8 +737,10 @@ object Focus {
      * vagy null. A `focus.ts` `windowRunStartingSoon`-jának tükre: ami már
      * tart, arról nem szól; a csomag saját futó menete mellett sem (az ablak
      * mellé úgysem indul új); az elköltött előfordulásról sem. Egy másik
-     * csomag menete nem hallgattatja el — azt az ablak kezdetén a kör zárja
-     * le. Több közül a korábban induló, azonos kezdésnél a kisebb azonosítójú.
+     * csomag menete nem hallgattatja el — az ablak arra rárétegződik
+     * (`effectivePack`), és amit a menet eddig engedett, az ablak alatt
+     * zárulhat. Több közül a korábban induló, azonos kezdésnél a kisebb
+     * azonosítójú.
      */
     fun windowRunStartingSoon(
         packs: List<FocusPack>,
@@ -930,12 +996,15 @@ object Focus {
 
     /**
      * Ablak-menet-e ez a futás: a csomag ismétlődésének egy előfordulása,
-     * pontosan annak kezdésével és végével. Az óra-ugrás elnyelése az ilyet
-     * nem tolja el — az ablak vége az ablak vége.
+     * pontosan annak kezdésével (az EREDETI kezdés, `runOrigin` — a
+     * rárétegződés után később induló ablak-menet is az; lásd `windowRunFor`)
+     * és végével. Az óra-ugrás elnyelése az ilyet nem tolja el — az ablak vége
+     * az ablak vége.
      */
     fun isWindowRun(run: FocusRun, packs: List<FocusPack>): Boolean {
         val band = packs.firstOrNull { it.id == run.packId }?.recurrence ?: return false
-        val occ = occurrenceAt(band, run.startedAt) ?: return false
-        return occ.startsAt == run.startedAt && occ.endsAt == run.endsAt
+        val start = runOrigin(run)
+        val occ = occurrenceAt(band, start) ?: return false
+        return occ.startsAt == start && occ.endsAt == run.endsAt
     }
 }

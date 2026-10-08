@@ -278,10 +278,22 @@ struct ContentView: View {
                 Text("Még \(Focus.formatRemaining(run.endsAt - now)) — eddig: \(clockText(run.endsAt))"
                      + (Focus.isWindowRun(run, packs: store.state.focusPacks ?? []) ? " · a heti ablak szerint indult" : ""))
                     .font(.subheadline)
-                Text(pack.allowSites.isEmpty
-                     ? "Ebben a csomagban nincs engedélyezett oldal — minden más tiltva."
-                     : "Most csak ez mehet: \(pack.allowSites.joined(separator: ", ")). Minden más tiltva.")
+                // A HATÁSOS lista: ha közben egy másik csomag heti ablaka is tart,
+                // a kettő metszete (`Focus.effectivePack`) — az alagút is ezt nézi.
+                let eff = Focus.effectivePack(store.state.focusPacks ?? [], run: run, log: store.state.focusLog ?? [], now: now) ?? pack
+                let overlays = Focus.dueRecurrences(store.state.focusPacks ?? [], run: run, log: store.state.focusLog ?? [], now: now)
+                Text(!eff.allowSites.isEmpty
+                     ? "Most csak ez mehet: \(eff.allowSites.joined(separator: ", ")). Minden más tiltva."
+                     : !overlays.isEmpty
+                        ? "Most semmi nem mehet: a csomagoknak nincs közös oldala — minden tiltva."
+                        : "Ebben a csomagban nincs engedélyezett oldal — minden más tiltva.")
                     .font(.footnote)
+                // Egy MÁSIK csomag heti ablaka rárétegződik: nem állítja le a
+                // menetet, de amíg tart, ő is szól. Kimondjuk, különben a csomag
+                // engedné, az alagút mégis zárna.
+                if !overlays.isEmpty {
+                    Text(overlayText(overlays)).font(.footnote)
+                }
                 // A DÖNTÉS PILLANATÁBAN (az első két percben): ami már nyitva volt,
                 // egy darabig még mehet — a szűrő az új névfeloldásokat látja.
                 if Focus.isFreshRun(run, now: now) {
@@ -392,11 +404,12 @@ struct ContentView: View {
                 TextField("Hossz percben (üresen a csomag szokásos hossza)", text: $focusMinutes)
                     .keyboardType(.numberPad)
                     .textFieldStyle(.roundedBorder)
-                // Egy csomag heti ablaka félbeszakítja a MÁSIK csomag kézi menetét
-                // (az ablak az ígéret) — mondjuk ki előre, ne a kilences óra legyen
-                // a meglepetés. A következő nyolc órán belüli legkorábbi ablak.
+                // Egy csomag heti ablaka rárétegződik a MÁSIK csomag menetére
+                // (`Focus.effectivePack`): nem állítja le, de amíg tart, csak a
+                // közös mehet — mondjuk ki előre, ne a kilences óra legyen a
+                // meglepetés. A következő nyolc órán belüli legkorábbi ablak.
                 if let cut = nextWindowCut(packs) {
-                    Text("A(z) \(cut.name) heti ablaka \(cut.clock)-kor indul: egy másik csomag menete ott véget ér, és az ablak menete indul.")
+                    Text("A(z) \(cut.name) heti ablaka \(cut.clock)-kor indul: egy másik csomag menete ott nem ér véget, de amíg az ablak tart, csak az mehet, amit mindkét csomag enged.")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
                 ForEach(packs, id: \.id) { pack in
@@ -440,6 +453,14 @@ struct ContentView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding().background(Color.secondary.opacity(0.09), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         }
+    }
+
+    /// A futó menetre rárétegződő heti ablakok mondata — a gép kártyájáé.
+    private func overlayText(_ overlays: [Focus.DueRecurrence]) -> String {
+        let one = overlays.count == 1
+        let names = overlays.map { "\($0.pack.name) (\(clockText($0.endsAt))-ig)" }.joined(separator: ", ")
+        return "Közben \(one ? "egy heti ablak is tart" : "heti ablakok is tartanak"): \(names). "
+            + "Amíg \(one ? "tart" : "tartanak"), csak az mehet, amit \(one ? "mindkét" : "mindegyik") csomag enged."
     }
 
     private func clockText(_ ms: Double) -> String {
@@ -1578,8 +1599,8 @@ private struct AliasSheet: View {
     }
 }
 
-/// A következő nyolc órában induló legkorábbi heti ablak — a kézi menetet az
-/// szakítja félbe. Nil, ha nincs ilyen.
+/// A következő nyolc órában induló legkorábbi heti ablak — a kézi menetre az
+/// rétegződik rá. Nil, ha nincs ilyen.
 private func nextWindowCut(_ packs: [Focus.Pack]) -> (name: String, clock: String)? {
     let now = Date().timeIntervalSince1970 * 1000
     var best: (name: String, startsAt: Double)?

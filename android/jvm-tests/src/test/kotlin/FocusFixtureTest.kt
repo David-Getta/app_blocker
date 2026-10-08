@@ -5,6 +5,7 @@ import org.json.JSONObject
 import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -92,6 +93,50 @@ class FocusFixtureTest {
         for (i in 0 until cases.length()) {
             val c = cases.getJSONObject(i)
             assertEquals(c.getBoolean("out"), Focus.isWindowRun(run(c, "run")!!, packs(c.getJSONArray("packs"))), "ablak-menet $i")
+        }
+    }
+
+    private fun strings(a: JSONArray): List<String> = (0 until a.length()).map { a.getString(it) }
+
+    /** A rárétegződés esetei: a csomagnak oldalai és appjai is vannak. */
+    private fun fullPacks(a: JSONArray): List<Focus.FocusPack> = (0 until a.length()).map { i ->
+        val p = a.getJSONObject(i)
+        Focus.FocusPack(p.getString("id"), p.getString("name"), strings(p.getJSONArray("sites")), strings(p.getJSONArray("apps")), 30, band(p))
+    }
+
+    @Test fun `a raretegzodes ugyanaz, mint a gepen - az esedekes ablakok, a hatasos csomag, az ablak menete`() {
+        val cases = fixture.getJSONArray("overlay")
+        assertTrue(cases.length() >= 100, "a fixture-ben van elég eset")
+        for (i in 0 until cases.length()) {
+            val c = cases.getJSONObject(i)
+            val seed = c.getInt("seed")
+            val now = c.getLong("now")
+            val ps = fullPacks(c.getJSONArray("packs"))
+            val r = run(c, "run")
+            val lg = log(c.getJSONArray("log"))
+            val dueAll = c.getJSONArray("dueAll")
+            val expected = (0 until dueAll.length()).map { k -> dueAll.getJSONArray(k).let { "${it.getString(0)}@${it.getLong(1)}-${it.getLong(2)}" } }
+            val due = Focus.dueRecurrences(ps, r, lg, now)
+            assertEquals(expected, due.map { "${it.pack.id}@${it.startsAt}-${it.endsAt}" }, "esedékes ablakok, mag $seed")
+            val eff = Focus.effectivePack(ps, r, lg, now)
+            if (c.isNull("effective")) {
+                assertNull(eff, "nincs hatásos csomag, mag $seed")
+            } else {
+                val e = c.getJSONObject("effective")
+                assertEquals(e.getString("id"), eff?.id, "hatásos csomag, mag $seed")
+                assertEquals(strings(e.getJSONArray("allowSites")), eff?.allowSites, "hatásos oldalak, mag $seed")
+                assertEquals(strings(e.getJSONArray("allowApps")), eff?.allowApps, "hatásos appok, mag $seed")
+            }
+            val wr = due.firstOrNull()?.let { Focus.windowRunFor(it, lg, now) }
+            if (c.isNull("windowRun")) {
+                assertNull(wr, "nincs ablak-menet, mag $seed")
+            } else {
+                val w = c.getJSONObject("windowRun")
+                val origin = if (w.has("origin")) w.getLong("origin") else null
+                assertEquals(Focus.FocusRun(w.getString("packId"), w.getLong("startedAt"), w.getLong("endsAt"), origin = origin), wr,
+                    "az ablak menete, mag $seed")
+                assertTrue(Focus.isWindowRun(wr!!, ps), "ablak-menet, mag $seed")
+            }
         }
     }
 

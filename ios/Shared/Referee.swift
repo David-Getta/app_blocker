@@ -781,8 +781,10 @@ enum Referee {
         // szerint ebben az ablakban még nem indult, a csomag menete magától
         // indul. Tizenöt másodpercenként nézzük, nem minden körben — az ablak
         // percekben él, nem másodpercekben.
+        // Futó menet mellett nincs mit indítani: az ablak arra rárétegződik
+        // (`Focus.effectivePack`), az állapot nem változik.
         var focusDue = false
-        if slotDue {
+        if slotDue && !Focus.isRunning(st.focusRun, now: now) {
             focusDue = Focus.dueRecurrence(
                 st.focusPacks ?? [], run: st.focusRun, log: st.focusLog ?? [], now: now
             ) != nil
@@ -818,21 +820,21 @@ enum Referee {
                 state.focusRun = closed.run
                 state.focusLog = closed.log
             }
-            // Az ablak kezdésével és végével — a gép ugyanezt a menetet állítja
-            // elő, a szinkron a kettőt egynek látja.
-            if let due = Focus.dueRecurrence(
+            // Az ablak végéig — a gép ugyanezt a menetet állítja elő, a
+            // szinkron a kettőt egynek látja.
+            //
+            // Egy MÁSIK csomag futó menetét az ablak NEM állítja le — eddig
+            // igen, és mivel ablakot felvenni ingyen van, egy most kezdődő,
+            // kétperces ablak egy laza csomagra próbatétel nélkül véget vetett
+            // egy kétórás menetnek. Most az ablak rárétegződik
+            // (`Focus.effectivePack`: amíg tart, csak az mehet, amit mindkét
+            // csomag enged), a saját menete pedig akkor indul, ha a futó menet
+            // véget ér, onnan, ahol az véget ért (`Focus.windowRunFor`).
+            if !Focus.isRunning(state.focusRun, now: now),
+               let due = Focus.dueRecurrence(
                 state.focusPacks ?? [], run: state.focusRun, log: state.focusLog ?? [], now: now
-            ) {
-                // Egy MÁSIK csomag kézi menete az ablak kezdetén véget ér — az
-                // ablak az ígéret. A naplóba a saját idejével, nem leállítottként.
-                if let running = state.focusRun, Focus.isRunning(running, now: now) {
-                    let name = (state.focusPacks ?? []).first { $0.id == running.packId }?.name ?? "Ismeretlen csomag"
-                    let entry = Focus.closeRun(running, packName: name, endedAt: now, stopped: false,
-                                               window: Focus.isWindowRun(running, packs: state.focusPacks ?? []))
-                    let rows: [Focus.LogEntry] = (state.focusLog ?? []) + [entry]
-                    state.focusLog = Array(rows.suffix(Focus.maxFocusLog))
-                }
-                state.focusRun = Focus.Run(packId: due.pack.id, startedAt: due.startsAt, endsAt: due.endsAt)
+               ) {
+                state.focusRun = Focus.windowRunFor(due, log: state.focusLog ?? [], now: now)
             }
         }
     }

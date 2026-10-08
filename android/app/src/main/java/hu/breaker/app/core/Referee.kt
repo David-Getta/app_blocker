@@ -935,7 +935,10 @@ object Referee {
         // szerint ebben az ablakban még nem indult, a csomag menete magától
         // indul. Ez a DNS-útvonalon fut, ezért tizenöt másodpercenként nézzük,
         // nem minden kérdésnél — az ablak percekben él, nem másodpercekben.
-        val focusDue = slotDue && Focus.dueRecurrence(st.focusPacks, st.focusRun, st.focusLog, now) != null
+        // Futó menet mellett nincs mit indítani: az ablak arra rárétegződik
+        // (`Focus.effectivePack`), az állapot nem változik.
+        val focusDue = slotDue && !Focus.isRunning(st.focusRun, now) &&
+            Focus.dueRecurrence(st.focusPacks, st.focusRun, st.focusLog, now) != null
         if (!sessionDead && !lockedSession && !pauseEnded && !deleteDue && !focusEnded && !focusDue &&
             windowLock == null
         ) {
@@ -968,23 +971,19 @@ object Referee {
             val closed = Focus.closeIfEnded(next.focusRun, next.focusPacks, next.focusLog, now)
             next = next.copy(sites = sites)
             if (closed != null) next = next.copy(focusRun = closed.run, focusLog = closed.log)
-            // Az ablak kezdésével és végével — a gép ugyanezt a menetet
-            // állítja elő, a szinkron a kettőt egynek látja.
+            // Az ablak végéig — a gép ugyanezt a menetet állítja elő, a
+            // szinkron a kettőt egynek látja.
+            //
+            // Egy MÁSIK csomag futó menetét az ablak NEM állítja le — eddig
+            // igen, és mivel ablakot felvenni ingyen van, egy most kezdődő,
+            // kétperces ablak egy laza csomagra próbatétel nélkül véget vetett
+            // egy kétórás menetnek. Most az ablak rárétegződik
+            // (`Focus.effectivePack`: amíg tart, csak az mehet, amit mindkét
+            // csomag enged), a saját menete pedig akkor indul, ha a futó menet
+            // véget ér, onnan, ahol az véget ért (`Focus.windowRunFor`).
             val due = Focus.dueRecurrence(next.focusPacks, next.focusRun, next.focusLog, now)
-            if (due != null) {
-                // Egy MÁSIK csomag kézi menete az ablak kezdetén véget ér — az
-                // ablak az ígéret. A naplóba a saját idejével, nem leállítottként:
-                // nem a felhasználó állította le, az ablak jött.
-                val running = next.focusRun
-                var log = next.focusLog
-                if (running != null && Focus.isRunning(running, now)) {
-                    val name = next.focusPacks.firstOrNull { it.id == running.packId }?.name ?: "Ismeretlen csomag"
-                    log = (log + Focus.closeRun(running, name, now, false, Focus.isWindowRun(running, next.focusPacks))).takeLast(Focus.MAX_FOCUS_LOG)
-                }
-                next = next.copy(
-                    focusRun = Focus.FocusRun(due.pack.id, due.startsAt, due.endsAt),
-                    focusLog = log,
-                )
+            if (due != null && !Focus.isRunning(next.focusRun, now)) {
+                next = next.copy(focusRun = Focus.windowRunFor(due, next.focusLog, now))
             }
             next
         }

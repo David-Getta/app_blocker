@@ -2905,7 +2905,7 @@ const WIRES = [
   },
   {
     file: 'ios/Shared/Referee.swift',
-    needle: 'if let due = Focus.dueRecurrence(',
+    needle: 'let due = Focus.dueRecurrence(',
     lost: 'az iPhone-on az ablak sosem indítana menetet — a gép nélkül a reggel szabad lenne',
   },
   // A RÁRÉTEGZŐDŐ ABLAK. Egy másik csomag futó menetét az ablak nem állítja
@@ -2943,6 +2943,40 @@ const WIRES = [
     needle: 'focusPack = own && st.focusEffective',
     lost: 'az app-figyelmeztetés a csomag listáját nézné, nem a hatásosat — az ablak '
       + 'alatt egy nem engedett app szó nélkül futhatna',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/Referee.kt',
+    needle: 'if (due != null && !Focus.isRunning(next.focusRun, now)) {',
+    lost: 'a telefonon az ablak megint lezárná a futó menetet — és a lezárás sora a '
+      + 'szinkronnal a többi eszközön is leállítaná, próbatétel nélkül',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/Referee.kt',
+    needle: 'next = next.copy(focusRun = Focus.windowRunFor(due, next.focusLog, now))',
+    lost: 'a telefon ablak-menete az ablak kezdetével indulna — a napló ugyanazt az órát kétszer írná',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/Store.kt',
+    needle: 'return Focus.effectivePack(state.focusPacks, state.focusRun, state.focusLog, now)',
+    lost: 'az androidos DNS-szűrő a futó menet csomagját nézné, nem a hatásosat — az '
+      + 'ablak alatt a tágabb lista jönne be',
+  },
+  {
+    file: 'ios/Shared/Referee.swift',
+    needle: 'if !Focus.isRunning(state.focusRun, now: now),',
+    lost: 'az iPhone-on az ablak megint lezárná a futó menetet — és a lezárás sora a '
+      + 'szinkronnal a többi eszközön is leállítaná, próbatétel nélkül',
+  },
+  {
+    file: 'ios/Shared/Referee.swift',
+    needle: 'state.focusRun = Focus.windowRunFor(due, log: state.focusLog ?? [], now: now)',
+    lost: 'az iPhone ablak-menete az ablak kezdetével indulna — a napló ugyanazt az órát kétszer írná',
+  },
+  {
+    file: 'ios/Shared/Store.swift',
+    needle: 'Focus.effectivePack(state.focusPacks ?? [], run: state.focusRun, log: state.focusLog ?? [], now: now)',
+    lost: 'az iPhone alagútja a futó menet csomagját nézné, nem a hatásosat — az ablak '
+      + 'alatt a tágabb lista jönne be',
   },
   {
     file: 'extension/app-link.js',

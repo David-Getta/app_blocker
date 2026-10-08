@@ -92,6 +92,48 @@ final class FocusFixtureTests: XCTestCase {
         }
     }
 
+    /// A rárétegződés esetei: a csomagnak oldalai és appjai is vannak.
+    private func fullPacks(_ v: Any?) -> [Focus.Pack] {
+        (v as? [[String: Any]] ?? []).map {
+            Focus.Pack(id: str($0["id"]), name: str($0["name"]),
+                       allowSites: ($0["sites"] as? [Any] ?? []).map { str($0) },
+                       allowApps: ($0["apps"] as? [Any] ?? []).map { str($0) },
+                       defaultMinutes: 30, recurrence: band($0["band"]))
+        }
+    }
+
+    func testTheOverlayIsTheSameAsTheDesktopDueWindowsEffectivePackAndWindowRun() throws {
+        try requireUTC()
+        let cases = try load()["overlay"] as? [[String: Any]] ?? []
+        XCTAssertGreaterThanOrEqual(cases.count, 100, "a fixture-ben van elég eset")
+        for c in cases {
+            let seed = int(c["seed"])
+            let now = num(c["now"])
+            let ps = fullPacks(c["packs"])
+            let r = run(c["run"])
+            let lg = log(c["log"])
+            let due = Focus.dueRecurrences(ps, run: r, log: lg, now: now)
+            let expected = (c["dueAll"] as? [[Any]] ?? []).map { "\(str($0[0]))@\(Int64(num($0[1])))-\(Int64(num($0[2])))" }
+            XCTAssertEqual(due.map { "\($0.pack.id)@\(Int64($0.startsAt))-\(Int64($0.endsAt))" }, expected, "esedékes ablakok, mag \(seed)")
+            let eff = Focus.effectivePack(ps, run: r, log: lg, now: now)
+            if let e = c["effective"] as? [String: Any] {
+                XCTAssertEqual(eff?.id, str(e["id"]), "hatásos csomag, mag \(seed)")
+                XCTAssertEqual(eff?.allowSites, (e["allowSites"] as? [Any] ?? []).map { str($0) }, "hatásos oldalak, mag \(seed)")
+                XCTAssertEqual(eff?.allowApps, (e["allowApps"] as? [Any] ?? []).map { str($0) }, "hatásos appok, mag \(seed)")
+            } else {
+                XCTAssertNil(eff, "nincs hatásos csomag, mag \(seed)")
+            }
+            let wr = due.first.map { Focus.windowRunFor($0, log: lg, now: now) }
+            if let w = c["windowRun"] as? [String: Any] {
+                XCTAssertEqual(wr, Focus.Run(packId: str(w["packId"]), startedAt: num(w["startedAt"]), endsAt: num(w["endsAt"]),
+                                             origin: optNum(w["origin"])), "az ablak menete, mag \(seed)")
+                if let wr { XCTAssertTrue(Focus.isWindowRun(wr, packs: ps), "ablak-menet, mag \(seed)") }
+            } else {
+                XCTAssertNil(wr, "nincs ablak-menet, mag \(seed)")
+            }
+        }
+    }
+
     func testClosingWritesTheSameLogRowAsTheDesktopWithTheCap() throws {
         try requireUTC()
         let week: Double = 1_790_553_600_000 // 2026-09-28 UTC, a fixtúra hete

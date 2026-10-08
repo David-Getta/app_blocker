@@ -15,6 +15,92 @@ final class FocusTests: XCTestCase {
         return d.timeIntervalSince1970 * 1000
     }
 
+    // MARK: - a rárétegződő heti ablak
+    //
+    // A focus-recurrence.test.ts és az androidos FocusTest tükre: egy MÁSIK
+    // csomag futó menetét az ablak nem állítja le, hanem rárétegződik — amíg
+    // tart, csak az mehet, amit mindkét csomag enged.
+
+    /// 2026. szeptember 7., hétfő, helyi idő — a mag is helyi időben gondolkodik.
+    private func mon(_ hour: Int, _ minute: Int = 0) -> Double {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = .current
+        return cal.date(from: DateComponents(year: 2026, month: 9, day: 7, hour: hour, minute: minute))!
+            .timeIntervalSince1970 * 1000
+    }
+
+    private let weekdays = ScheduleLogic.Band(days: [1, 2, 3, 4, 5], startMin: 9 * 60, endMin: 12 * 60)
+
+    private func windowed(_ id: String, sites: [String] = ["github.com"], apps: [String] = [],
+                          band: ScheduleLogic.Band? = nil) -> Focus.Pack {
+        Focus.Pack(id: id, name: id, allowSites: sites, allowApps: apps, defaultMinutes: 50, recurrence: band ?? weekdays)
+    }
+
+    func testAllWindowsDueNowComeInTheDueRecurrenceOrder() {
+        let b2 = windowed("b2")
+        let a1 = windowed("a1", band: ScheduleLogic.Band(days: [1], startMin: 9 * 60 + 30, endMin: 11 * 60))
+        let a0 = windowed("a0")
+        let now = mon(9, 45)
+        XCTAssertEqual(Focus.dueRecurrences([b2, a1, a0], run: nil, log: [], now: now).map { $0.pack.id }, ["a0", "b2", "a1"],
+                       "korábbi kezdés, azonos kezdésnél a kisebb azonosító")
+        XCTAssertEqual(Focus.dueRecurrence([b2, a1, a0], run: nil, log: [], now: now)?.pack.id, "a0")
+        let own = Focus.Run(packId: "a0", startedAt: mon(9), endsAt: mon(12))
+        XCTAssertEqual(Focus.dueRecurrences([b2, a1, a0], run: own, log: [], now: now).map { $0.pack.id }, ["b2", "a1"],
+                       "a futó menet saját csomagja önmagára nem rétegződik")
+    }
+
+    func testTheEffectivePackIsTheRunsPackIntersectedWithOtherLiveWindows() {
+        let win = windowed("w", sites: ["translate.google.com", "github.com"], apps: ["Microsoft Word"])
+        let own = Focus.Pack(id: "m", name: "m", allowSites: ["google.com", "youtube.com"], allowApps: ["Word", "Steam"], defaultMinutes: 50)
+        let run = Focus.Run(packId: "m", startedAt: mon(8), endsAt: mon(13))
+        let eff = Focus.effectivePack([win, own], run: run, log: [], now: mon(10))
+        XCTAssertEqual(eff?.id, "m", "a neve és a hossza a futó menetéé")
+        XCTAssertEqual(eff?.allowSites, ["translate.google.com"], "oldalra pontos metszet, aldomainnel")
+        XCTAssertEqual(eff?.allowApps, ["Word", "Microsoft Word"], "appra a laza egyezés szerint — közelítés")
+        XCTAssertEqual(Focus.effectivePack([win, own], run: run, log: [], now: mon(12, 30))?.allowSites, ["google.com", "youtube.com"],
+                       "az ablak után a saját listája")
+        XCTAssertNil(Focus.effectivePack([win, own], run: nil, log: [], now: mon(10)), "menet nélkül nincs")
+        XCTAssertNil(Focus.effectivePack([win, own], run: Focus.Run(packId: "m", startedAt: mon(8), endsAt: mon(9, 30)), log: [], now: mon(10)),
+                     "lejárt menettel sincs")
+        XCTAssertNil(Focus.effectivePack([win], run: run, log: [], now: mon(10)), "a csomagja nélkül sincs")
+        let paid = Focus.LogEntry(packId: "w", packName: "w", startedAt: mon(9), endedAt: mon(9, 10), plannedEndsAt: mon(12), stopped: true)
+        XCTAssertEqual(Focus.effectivePack([win, own], run: run, log: [paid], now: mon(10))?.allowSites, ["google.com", "youtube.com"],
+                       "a leállított — kifizetett — ablak nem rétegződik rá")
+    }
+
+    func testTheSiteIntersectionAllowsExactlyWhatBothPacksAllow() {
+        let lists: [[String]] = [["google.com"], ["translate.google.com", "github.com"], ["github.com", "gist.github.com"], [], ["notgoogle.com"]]
+        let hosts = ["google.com", "translate.google.com", "a.translate.google.com", "mail.google.com", "notgoogle.com",
+                     "github.com", "gist.github.com", "x.gist.github.com", "youtube.com"]
+        for a in lists {
+            for b in lists {
+                let pa = windowed("p1", sites: a), pb = windowed("q", sites: b)
+                let cut = Focus.intersectPacks(pa, pb)
+                XCTAssertEqual(cut.id, "p1", "az első csomag marad")
+                for h in hosts {
+                    XCTAssertEqual(Focus.isSiteAllowed(cut, host: h),
+                                   Focus.isSiteAllowed(pa, host: h) && Focus.isSiteAllowed(pb, host: h), "\(a) ∩ \(b) @ \(h)")
+                }
+            }
+        }
+    }
+
+    func testTheWindowRunStartsWhereThePreviousRunEndedItsIdentityIsTheWindowStart() throws {
+        let due = try XCTUnwrap(Focus.dueRecurrence([windowed("p1")], run: nil, log: [], now: mon(10)))
+        XCTAssertEqual(Focus.windowRunFor(due, log: [], now: mon(10)), Focus.Run(packId: "p1", startedAt: mon(9), endsAt: mon(12)),
+                       "alvó gép, menet nélkül: az ablak kezdetével, mint eddig")
+        let prev = Focus.LogEntry(packId: "p2", packName: "Más", startedAt: mon(8), endedAt: mon(9, 40), plannedEndsAt: mon(9, 40), stopped: false)
+        let run = Focus.windowRunFor(due, log: [prev], now: mon(10))
+        XCTAssertEqual(run, Focus.Run(packId: "p1", startedAt: mon(9, 40), endsAt: mon(12), origin: mon(9)))
+        XCTAssertTrue(Focus.isWindowRun(run, packs: [windowed("p1")]), "ablak-menet az eredeti kezdés szerint")
+        let future = Focus.LogEntry(packId: "p2", packName: "Más", startedAt: mon(8), endedAt: mon(10, 5), plannedEndsAt: mon(10, 5), stopped: false)
+        XCTAssertEqual(Focus.windowRunFor(due, log: [future], now: mon(10)).startedAt, mon(9), "a jövőbeli sor nem számít")
+        let before = Focus.LogEntry(packId: "p2", packName: "Más", startedAt: mon(8), endedAt: mon(8, 50), plannedEndsAt: mon(8, 50), stopped: false)
+        XCTAssertEqual(Focus.windowRunFor(due, log: [before], now: mon(10)).startedAt, mon(9), "az ablak előtti sem")
+        XCTAssertFalse(Focus.isWindowRun(Focus.Run(packId: "p1", startedAt: mon(9, 40), endsAt: mon(12, 30), origin: mon(9)), packs: [windowed("p1")]),
+                       "a meghosszabbított menet már kézi")
+    }
+
     // A gép `extending is free, shortening is not` esete: hosszabbítani szabad,
     // rövidíteni nem — és a nem véges vég is lazítás, nem szigorítás.
     func testExtendingIsFreeShorteningAndANonFiniteEndAreNot() {

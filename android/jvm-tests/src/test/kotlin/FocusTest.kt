@@ -96,7 +96,8 @@ class FocusTest {
         )
 
         // A csomag SAJÁT futó menete mellett nincs esedékes; egy MÁSIK csomag
-        // kézi menete nem tartja vissza az ablakot — azt a kör zárja le.
+        // kézi menete nem tartja vissza az ablakot — az ablak rárétegződik
+        // (`effectivePack`).
         val own = Focus.FocusRun("pack_1", now - 1000, now + 1000)
         assertNull(Focus.dueRecurrence(listOf(windowed()), own, emptyList(), now), "a saját menete fut")
         val other = Focus.FocusRun("other", now - 1000, now + 1000)
@@ -120,6 +121,72 @@ class FocusTest {
             Focus.isWindowRun(Focus.FocusRun("pack_1", due.startsAt, due.endsAt + 60_000), listOf(windowed())),
             "a meghosszabbított menet már kézi",
         )
+    }
+
+    @Test
+    fun `dueRecurrences - minden most esedekes ablak, a dueRecurrence rendjeben`() {
+        val now = localMs(2026, 9, 7, 9, 45)
+        val b2 = windowed("b2")
+        val a1 = windowed("a1").copy(recurrence = ScheduleLogic.Band(setOf(1), 9 * 60 + 30, 11 * 60))
+        val a0 = windowed("a0")
+        assertEquals(listOf("a0", "b2", "a1"), Focus.dueRecurrences(listOf(b2, a1, a0), null, emptyList(), now).map { it.pack.id },
+            "korábbi kezdés, azonos kezdésnél a kisebb azonosító")
+        assertEquals("a0", Focus.dueRecurrence(listOf(b2, a1, a0), null, emptyList(), now)?.pack?.id)
+        val own = Focus.FocusRun("a0", localMs(2026, 9, 7, 9, 0), localMs(2026, 9, 7, 12, 0))
+        assertEquals(listOf("b2", "a1"), Focus.dueRecurrences(listOf(b2, a1, a0), own, emptyList(), now).map { it.pack.id },
+            "a futó menet saját csomagja önmagára nem rétegződik")
+    }
+
+    @Test
+    fun `effectivePack - a futo menet csomagja, metszve a kozben tarto MAS ablakokkal`() {
+        val win = windowed("w").copy(allowSites = listOf("translate.google.com", "github.com"), allowApps = listOf("Microsoft Word"))
+        val own = pack("google.com", "youtube.com").copy(id = "m", allowApps = listOf("Word", "Steam"))
+        val run = Focus.FocusRun("m", localMs(2026, 9, 7, 8, 0), localMs(2026, 9, 7, 13, 0))
+        val ten = localMs(2026, 9, 7, 10, 0)
+        val eff = Focus.effectivePack(listOf(win, own), run, emptyList(), ten)
+        assertEquals("m", eff?.id, "a neve és a hossza a futó menetéé")
+        assertEquals(listOf("translate.google.com"), eff?.allowSites, "oldalra pontos metszet, aldomainnel")
+        assertEquals(listOf("Word", "Microsoft Word"), eff?.allowApps, "appra a laza egyezés szerint — közelítés")
+        assertEquals(listOf("google.com", "youtube.com"), Focus.effectivePack(listOf(win, own), run, emptyList(), localMs(2026, 9, 7, 12, 30))?.allowSites,
+            "az ablak után a saját listája")
+        assertNull(Focus.effectivePack(listOf(win, own), null, emptyList(), ten), "menet nélkül nincs")
+        assertNull(Focus.effectivePack(listOf(win, own), run.copy(endsAt = localMs(2026, 9, 7, 9, 30)), emptyList(), ten), "lejárt menettel sincs")
+        assertNull(Focus.effectivePack(listOf(win), run, emptyList(), ten), "a csomagja nélkül sincs")
+        val paid = Focus.FocusLogEntry("w", "w", localMs(2026, 9, 7, 9, 0), localMs(2026, 9, 7, 9, 10), localMs(2026, 9, 7, 12, 0), true)
+        assertEquals(listOf("google.com", "youtube.com"), Focus.effectivePack(listOf(win, own), run, listOf(paid), ten)?.allowSites,
+            "a leállított — kifizetett — ablak nem rétegződik rá")
+    }
+
+    @Test
+    fun `intersectPacks - az oldal-metszet pontosan azt engedi, amit mindket csomag`() {
+        val lists = listOf(listOf("google.com"), listOf("translate.google.com", "github.com"), listOf("github.com", "gist.github.com"), emptyList(), listOf("notgoogle.com"))
+        val hosts = listOf("google.com", "translate.google.com", "a.translate.google.com", "mail.google.com", "notgoogle.com",
+            "github.com", "gist.github.com", "x.gist.github.com", "youtube.com")
+        for (a in lists) for (b in lists) {
+            val cut = Focus.intersectPacks(pack(*a.toTypedArray()), pack(*b.toTypedArray()).copy(id = "q"))
+            assertEquals("pack_1", cut.id, "az első csomag marad")
+            for (h in hosts) {
+                assertEquals(
+                    Focus.isSiteAllowed(pack(*a.toTypedArray()), h) && Focus.isSiteAllowed(pack(*b.toTypedArray()), h),
+                    Focus.isSiteAllowed(cut, h), "$a ∩ $b @ $h",
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `windowRunFor - ott kezdodik, ahol az elozo menet veget ert, az azonossaga az ablak kezdete`() {
+        val ten = localMs(2026, 9, 7, 10, 0)
+        val due = Focus.dueRecurrence(listOf(windowed()), null, emptyList(), ten)!!
+        assertEquals(Focus.FocusRun("pack_1", localMs(2026, 9, 7, 9, 0), localMs(2026, 9, 7, 12, 0)),
+            Focus.windowRunFor(due, emptyList(), ten), "alvó gép, menet nélkül: az ablak kezdetével, mint eddig")
+        val prev = Focus.FocusLogEntry("p2", "Más", localMs(2026, 9, 7, 8, 0), localMs(2026, 9, 7, 9, 40), localMs(2026, 9, 7, 9, 40), false)
+        val run = Focus.windowRunFor(due, listOf(prev), ten)
+        assertEquals(Focus.FocusRun("pack_1", localMs(2026, 9, 7, 9, 40), localMs(2026, 9, 7, 12, 0), origin = localMs(2026, 9, 7, 9, 0)), run)
+        assertTrue(Focus.isWindowRun(run, listOf(windowed())), "ablak-menet az eredeti kezdés szerint")
+        assertEquals(localMs(2026, 9, 7, 9, 0), Focus.windowRunFor(due, listOf(prev.copy(endedAt = localMs(2026, 9, 7, 10, 5))), ten).startedAt, "a jövőbeli sor nem számít")
+        assertEquals(localMs(2026, 9, 7, 9, 0), Focus.windowRunFor(due, listOf(prev.copy(endedAt = localMs(2026, 9, 7, 8, 50))), ten).startedAt, "az ablak előtti sem")
+        assertFalse(Focus.isWindowRun(run.copy(endsAt = localMs(2026, 9, 7, 12, 30)), listOf(windowed())))
     }
 
     @Test

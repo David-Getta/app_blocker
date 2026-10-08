@@ -364,7 +364,10 @@ final class BreakerStore: ObservableObject {
         return run
     }
 
-    /// A futó menet csomagja.
+    /// A futó menet HATÁSOS csomagja — az alagút ebből dolgozik: a menet
+    /// csomagja, metszve a közben tartó MÁS heti ablakokkal
+    /// (`Focus.effectivePack`). Az ablak nem állítja le a menetet, de amíg
+    /// tart, ő is szól.
     ///
     /// Ha a csomag nincs meg, nem tippelünk — a fehérlista TARTALMA nem az a
     /// dolog, amit kitalálni szabad. Ilyenkor nil jön vissza, tehát a szűrő úgy
@@ -372,8 +375,7 @@ final class BreakerStore: ObservableObject {
     /// irány — kevesebb kárt okoz, mint mindent eltiltani egy hiányzó rekord
     /// miatt.
     func runningFocusPack(_ now: Double) -> Focus.Pack? {
-        guard let run = runningFocus(now) else { return nil }
-        return (state.focusPacks ?? []).first { $0.id == run.packId }
+        Focus.effectivePack(state.focusPacks ?? [], run: state.focusRun, log: state.focusLog ?? [], now: now)
     }
 
     /// A fiókkiszolgáló hosztneve, ha van fiók.

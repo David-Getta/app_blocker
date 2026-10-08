@@ -929,21 +929,32 @@ public enum Focus {
         let endsAt: Double
     }
 
-    /// Melyik csomag ablaka esedékes MOST — vagy nil. Nem indul, ha a csomag
-    /// saját menete fut; ha a naplóban ott az ablak saját menete; vagy ha egy
-    /// percnél kevesebb van hátra. Egy másik csomag menete nem tartja vissza —
-    /// azt a kör zárja le. Több közül a korábban kezdődő, azonos kezdésnél a
-    /// kisebb azonosítójú.
+    /// Melyik csomag ablaka esedékes MOST — vagy nil: az első a
+    /// `dueRecurrences` listájából (a `focus.ts` tükre).
     static func dueRecurrence(
         _ packs: [Pack], run: Run?, log: [LogEntry], now: Double
     ) -> DueRecurrence? {
-        var best: DueRecurrence?
+        dueRecurrences(packs, run: run, log: log, now: now).first
+    }
+
+    /// Az összes MOST esedékes ablak, a `dueRecurrence` rendjében: a korábban
+    /// kezdődő, azonos kezdésnél a kisebb azonosítójú (kódegység szerint, mint
+    /// a gépen) — hogy minden eszköz ugyanazt válassza.
+    ///
+    /// Nem esedékes, ha a csomag SAJÁT menete fut; ha a naplóban ott az ablak
+    /// saját menete (leállítva vagy lerövidítve — a próbatétel ára ki van
+    /// fizetve); vagy ha egy percnél kevesebb van hátra. Egy MÁSIK csomag
+    /// menete alatt az ablak RÁRÉTEGZŐDIK (`effectivePack`): a menet nem áll
+    /// le, de amíg az ablak tart, csak az mehet, amit mindkét csomag enged. A
+    /// menete akkor indul, ha a futó menet véget ér (`windowRunFor`).
+    static func dueRecurrences(
+        _ packs: [Pack], run: Run?, log: [LogEntry], now: Double
+    ) -> [DueRecurrence] {
+        var out: [DueRecurrence] = []
         for pack in packs {
             guard let band = pack.recurrence, ScheduleLogic.isValidBand(band) else { continue }
-            // A csomag SAJÁT futó menete mellett nincs mit indítani. Egy MÁSIK
-            // csomag kézi menete nem tartja vissza az ablakot: a hívó (a kör)
-            // zárja le az ablak kezdetén — különben egy 8:59-kor indított,
-            // nyolcórás eldobható menet az egész ablakot kiváltaná.
+            // A csomag SAJÁT futó menete mellett nincs mit indítani, és önmagára
+            // nem is rétegződik.
             if let run, isRunning(run, now: now), run.packId == pack.id { continue }
             guard let occ = occurrenceAt(band, now: now) else { continue }
             if occ.endsAt - now < recurrenceMinRemainingMs { continue }
@@ -951,14 +962,66 @@ public enum Focus {
             // elköltöttnek: a csomag egyperces kézi menete az ablakon belül nem
             // váltja ki a háromórás ablakot.
             if spentIn(log, packId: pack.id, occ: occ, now: now) { continue }
-            // Azonos kezdésnél a kisebb azonosító — kódegység szerint, mint a gépen.
-            if let b = best,
-               !(occ.startsAt < b.startsAt || (occ.startsAt == b.startsAt && TextLogic.utf16Less(pack.id, b.pack.id))) {
-                continue
-            }
-            best = DueRecurrence(pack: pack, startsAt: occ.startsAt, endsAt: occ.endsAt)
+            out.append(DueRecurrence(pack: pack, startsAt: occ.startsAt, endsAt: occ.endsAt))
         }
-        return best
+        return out.sorted { x, y in
+            x.startsAt != y.startsAt ? x.startsAt < y.startsAt : TextLogic.utf16Less(x.pack.id, y.pack.id)
+        }
+    }
+
+    /// A futó menet alatt MOST hatásos csomag — vagy nil, ha nem fut menet
+    /// (vagy a csomagja nincs meg). A `focus.ts` `effectivePack`-jének tükre.
+    ///
+    /// A menet csomagja, és ha közben egy MÁSIK csomag heti ablaka is tart (és
+    /// az ablakot nem állították le), annak a fehérlistája IS: METSZET. Eddig az
+    /// ablak a kezdetén leállította a futó kézi menetet — és mivel ablakot
+    /// felvenni ingyen van, egy most kezdődő, kétperces ablak egy laza csomagra
+    /// próbatétel nélkül véget vetett egy kétórás menetnek. Most egyik sem enged
+    /// a másikból; egy 8:59-kor indított, laza „eldobható” menet sem váltja ki
+    /// az ablakot. A neve és a hossza a menet csomagjáé.
+    static func effectivePack(
+        _ packs: [Pack], run: Run?, log: [LogEntry], now: Double
+    ) -> Pack? {
+        guard let run, isRunning(run, now: now),
+              let own = packs.first(where: { $0.id == run.packId }) else { return nil }
+        var out = own
+        for due in dueRecurrences(packs, run: run, log: log, now: now) { out = intersectPacks(out, due.pack) }
+        return out
+    }
+
+    /// Két csomag fehérlistájának metszete — az első neve, hossza és ablaka
+    /// marad. Az oldal-lista PONTOS metszet az aldomain-szabállyal; az
+    /// app-lista a laza app-egyezés miatt csak közelítés. Az ismétlődés a
+    /// kódegységes egyezés (a gép `indexOf`-ja), nem a Swift kanonikus `==`-je.
+    static func intersectPacks(_ a: Pack, _ b: Pack) -> Pack {
+        func add(_ x: String, to list: inout [String]) {
+            if !list.contains(where: { TextLogic.sameScalars($0, x) }) { list.append(x) }
+        }
+        var sites: [String] = []
+        for s in a.allowSites where isSiteAllowed(b, host: s) { add(s, to: &sites) }
+        for s in b.allowSites where isSiteAllowed(a, host: s) { add(s, to: &sites) }
+        var apps: [String] = []
+        for x in a.allowApps where isAppAllowed(b, app: x) { add(x, to: &apps) }
+        for x in b.allowApps where isAppAllowed(a, app: x) { add(x, to: &apps) }
+        return Pack(
+            id: a.id, name: a.name, allowSites: sites, allowApps: apps,
+            defaultMinutes: a.defaultMinutes, recurrence: a.recurrence
+        )
+    }
+
+    /// Az esedékes ablak menete: az ablak végéig — és az ablak kezdetétől, vagy
+    /// ha az ablakban előbb egy másik menet futott (az ablak arra
+    /// rárétegződött), ott kezdődik, ahol az véget ért. Különben a napló
+    /// ugyanazt az órát kétszer írná. Az azonossága ilyenkor is az ablak
+    /// kezdete (`origin`). A `focus.ts` `windowRunFor`-jának tükre.
+    static func windowRunFor(_ due: DueRecurrence, log: [LogEntry], now: Double) -> Run {
+        var start = due.startsAt
+        for e in log {
+            if e.endedAt > start && e.endedAt <= now { start = e.endedAt }
+        }
+        return start > due.startsAt
+            ? Run(packId: due.pack.id, startedAt: start, endsAt: due.endsAt, origin: due.startsAt)
+            : Run(packId: due.pack.id, startedAt: due.startsAt, endsAt: due.endsAt)
     }
 
     /// Ennyivel a heti ablak menete előtt szól az app — ugyanannyival, mint a
@@ -969,8 +1032,10 @@ public enum Focus {
     /// vagy nil. A `focus.ts` `windowRunStartingSoon`-jának tükre: ami már
     /// tart, arról nem szól; a csomag saját futó menete mellett sem (az ablak
     /// mellé úgysem indul új); az elköltött előfordulásról sem. Egy másik
-    /// csomag menete nem hallgattatja el — azt az ablak kezdetén a kör zárja
-    /// le. Több közül a korábban induló, azonos kezdésnél a kisebb azonosítójú.
+    /// csomag menete nem hallgattatja el — az ablak arra rárétegződik
+    /// (`effectivePack`), és amit a menet eddig engedett, az ablak alatt
+    /// zárulhat. Több közül a korábban induló, azonos kezdésnél a kisebb
+    /// azonosítójú.
     static func windowRunStartingSoon(
         _ packs: [Pack], run: Run?, log: [LogEntry], now: Double, within: Double = windowSoonMs
     ) -> DueRecurrence? {
@@ -1038,11 +1103,14 @@ public enum Focus {
     }
 
     /// Ablak-menet-e ez a futás: a csomag ismétlődésének egy előfordulása,
-    /// pontosan annak kezdésével és végével. Az óra-ugrás elnyelése az ilyet
-    /// nem tolja el — az ablak vége az ablak vége.
+    /// pontosan annak kezdésével (az EREDETI kezdés, `runOrigin` — a
+    /// rárétegződés után később induló ablak-menet is az; lásd
+    /// `windowRunFor`) és végével. Az óra-ugrás elnyelése az ilyet nem tolja el
+    /// — az ablak vége az ablak vége.
     static func isWindowRun(_ run: Run, packs: [Pack]) -> Bool {
+        let start = runOrigin(run)
         guard let band = packs.first(where: { $0.id == run.packId })?.recurrence,
-              let occ = occurrenceAt(band, now: run.startedAt) else { return false }
-        return occ.startsAt == run.startedAt && occ.endsAt == run.endsAt
+              let occ = occurrenceAt(band, now: start) else { return false }
+        return occ.startsAt == start && occ.endsAt == run.endsAt
     }
 }

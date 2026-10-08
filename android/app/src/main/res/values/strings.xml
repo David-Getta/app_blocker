@@ -10,6 +10,8 @@
     -->
     <string name="vpn_focus_title">Munkamenet fut: %1$s</string>
     <string name="vpn_focus_text">Csak a csomagban felsoroltak jönnek be. Még %1$s van hátra.</string>
+    <string name="vpn_focus_overlay_note">Közben heti ablak is tart (%1$s): amíg tart, csak az jön be, amit mindkét csomag enged.</string>
+    <string name="vpn_focus_overlay_note_many">Közben heti ablakok is tartanak (%1$s): amíg tartanak, csak az jön be, amit mindegyik csomag enged.</string>
     <string name="vpn_focus_window_text">A heti ablak szerint indult — csak a csomagban felsoroltak jönnek be. Még %1$s van hátra.</string>
     <string name="vpn_focus_fresh_note">Ami már nyitva volt (egy szóló videó), egy darabig még mehet — zárd be és nyisd újra.</string>
     <string name="vpn_burst_title">Adag betelt: %1$s</string>

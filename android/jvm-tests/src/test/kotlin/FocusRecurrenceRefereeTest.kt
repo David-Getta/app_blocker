@@ -86,41 +86,73 @@ class FocusRecurrenceRefereeTest {
     }
 
     @Test
-    fun `egy masik csomag kezi menete az ablak kezdeten veget er, a sajate nem`() {
-        // 2027. március 3. szerda és 4. csütörtök — a többi teszt ideje UTÁN.
+    fun `egy masik csomag menetet az ablak nem allitja le, hanem raretegzodik, a sajate sem szakad meg`() {
+        // 2027. március 3. szerda, 4. csütörtök és 5. péntek — a többi teszt
+        // ideje UTÁN.
         BreakerStore.mutate {
             it.copy(
                 focusPacks = it.focusPacks + Focus.FocusPack(
-                    id = "p2", name = "Más", allowSites = emptyList(), allowApps = emptyList(), defaultMinutes = 50,
+                    id = "p2", name = "Más", allowSites = listOf("github.com", "youtube.com"),
+                    allowApps = emptyList(), defaultMinutes = 50,
+                ) + Focus.FocusPack(
+                    id = "p3", name = "Laza", allowSites = listOf("youtube.com"),
+                    allowApps = emptyList(), defaultMinutes = 50,
                 ),
             )
         }
         // Az óra-ugrás elnyelése miatt előbb egy üres kör: a napnyi ugrást ne a
         // kézi menet nyelje el. Utána rendes ütemben.
         Referee.tick(at(2027, 3, 3, 8, 58))
-        // Egy nyolcórás, eldobható menet 8:59-kor — eddig az egész ablakot kiváltotta.
-        Referee.startFocus("p2", 480, at(2027, 3, 3, 8, 59))
+        // Eddig az ablak a kezdetén lezárta a másik menetet — és mivel ablakot
+        // felvenni ingyen van, egy most kezdődő ablak így próbatétel nélkül
+        // véget vetett egy hosszú menetnek. Most rárétegződik.
+        Referee.startFocus("p2", 60, at(2027, 3, 3, 8, 59))
         Referee.tick(at(2027, 3, 3, 9, 0))
         Referee.tick(at(2027, 3, 3, 9, 1))
-        val run = BreakerStore.state.value.focusRun
-        assertEquals("p1", run?.packId, "az ablak jött, a másik csomag menete véget ért")
-        assertEquals(at(2027, 3, 3, 9), run?.startedAt)
+        assertEquals("p2", BreakerStore.state.value.focusRun?.packId, "a futó menet marad")
+        assertEquals(emptyList(), BreakerStore.state.value.focusLog, "semmi nem zárult le")
+        val eff = BreakerStore.runningFocusPack(at(2027, 3, 3, 9, 1))
+        assertEquals("p2", eff?.id, "a neve és a hossza a futó menetéé")
+        assertEquals(listOf("github.com"), eff?.allowSites, "amíg az ablak tart, csak a közös")
+        // A menet végén az ablak menete indul — onnan, ahol a másik véget ért,
+        // az ablak végéig; az azonossága az ablak kezdete.
+        for (m in 2..60) Referee.tick(at(2027, 3, 3, 9) + m * 60_000L)
+        val window = BreakerStore.state.value.focusRun
+        assertEquals("p1", window?.packId)
+        assertEquals(at(2027, 3, 3, 9, 59), window?.startedAt, "ott, ahol a másik véget ért")
+        assertEquals(at(2027, 3, 3, 12), window?.endsAt)
+        assertEquals(at(2027, 3, 3, 9), window?.origin, "az azonossága az ablak kezdete")
+        assertEquals(true, Focus.isWindowRun(window!!, BreakerStore.state.value.focusPacks))
         val last = BreakerStore.state.value.focusLog.last()
         assertEquals("p2", last.packId)
-        // A 9:00-s kör zárta le: a naplóba az ablak kezdetével, nem a következő körrel.
-        assertEquals(at(2027, 3, 3, 9, 0), last.endedAt, "a naplóba a saját idejével")
-        assertEquals(false, last.stopped, "nem leállítva: az ablak jött")
+        assertEquals(at(2027, 3, 3, 9, 59), last.endedAt, "a másik menet a saját idejéig tartott")
+        assertEquals(false, last.stopped)
+
+        // Egy 8:59-kor indított, nyolcórás laza menet sem váltja ki az ablakot:
+        // alatta a metszet él, utána a saját listája.
+        BreakerStore.mutate { it.copy(focusRun = null) }
+        Referee.tick(at(2027, 3, 4, 8, 58))
+        Referee.startFocus("p3", 480, at(2027, 3, 4, 8, 59))
+        Referee.tick(at(2027, 3, 4, 9, 0))
+        Referee.tick(at(2027, 3, 4, 9, 1))
+        assertEquals("p3", BreakerStore.state.value.focusRun?.packId)
+        assertEquals(emptyList(), BreakerStore.runningFocusPack(at(2027, 3, 4, 9, 1))?.allowSites,
+            "a laza csomag listájából az ablak alatt semmi nem marad")
+        assertEquals(listOf("youtube.com"), BreakerStore.runningFocusPack(at(2027, 3, 4, 12, 1))?.allowSites,
+            "az ablak után a saját listája")
 
         // A saját csomag kézi menete nem szakad meg, és nem is költi el az ablakot.
         BreakerStore.mutate { it.copy(focusRun = null) }
-        Referee.tick(at(2027, 3, 4, 8, 59))
-        Referee.startFocus("p1", 5, at(2027, 3, 4, 9) + 5_000)
-        Referee.tick(at(2027, 3, 4, 9) + 20_000)
-        assertEquals(at(2027, 3, 4, 9) + 5_000, BreakerStore.state.value.focusRun?.startedAt, "a kézi menet marad")
-        for (m in 1..6) Referee.tick(at(2027, 3, 4, 9, m))
-        val window = BreakerStore.state.value.focusRun
-        assertEquals(at(2027, 3, 4, 9), window?.startedAt, "a kézi menet után az ablak menete indul, az ablak kezdésével")
-        assertEquals(at(2027, 3, 4, 12), window?.endsAt)
+        Referee.tick(at(2027, 3, 5, 8, 59))
+        Referee.startFocus("p1", 5, at(2027, 3, 5, 9) + 5_000)
+        Referee.tick(at(2027, 3, 5, 9) + 20_000)
+        assertEquals(at(2027, 3, 5, 9) + 5_000, BreakerStore.state.value.focusRun?.startedAt, "a kézi menet marad")
+        for (m in 1..6) Referee.tick(at(2027, 3, 5, 9, m))
+        val own = BreakerStore.state.value.focusRun
+        assertEquals(at(2027, 3, 5, 9) + 305_000, own?.startedAt,
+            "a kézi menet után az ablak menete indul — ott, ahol a kézi véget ért")
+        assertEquals(at(2027, 3, 5, 9), own?.origin)
+        assertEquals(at(2027, 3, 5, 12), own?.endsAt)
     }
 
     @Test

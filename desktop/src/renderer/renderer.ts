@@ -1412,8 +1412,9 @@ function openFocusStartDialog(pack: FocusPack): void {
   const picker = minutePicker(SESSION_CHOICES_MIN, pack.defaultMinutes, MAX_SESSION_MINUTES);
   modal.appendChild(picker.box);
 
-  // Egy MÁSIK csomag heti ablaka félbeszakítja ezt a menetet (az ablak az
-  // ígéret) — mondjuk ki előre, ne a kilences óra legyen a meglepetés.
+  // Egy MÁSIK csomag heti ablaka rárétegződik erre a menetre (focus.ts
+  // `effectivePack`): nem állítja le, de amíg tart, csak a közös mehet —
+  // mondjuk ki előre, ne a kilences óra legyen a meglepetés.
   const now = Date.now();
   const cut = (status?.focusPacks ?? [])
     .filter((p) => p.id !== pack.id && p.recurrence)
@@ -1424,7 +1425,7 @@ function openFocusStartDialog(pack: FocusPack): void {
   if (cut) {
     modal.appendChild(h('p', 'hint',
       `A(z) ${cut.name} heti ablaka ${fmtClock(cut.occ!.startsAt)}-kor indul: ha ez a menet addig `
-      + 'tart, ott véget ér, és az ablak menete indul.'));
+      + 'tart, nem ér véget, de amíg az ablak tart, csak az mehet, amit mindkét csomag enged.'));
   }
 
   const err = h('p', 'error hidden');

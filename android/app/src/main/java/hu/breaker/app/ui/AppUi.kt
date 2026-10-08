@@ -3169,14 +3169,33 @@ private fun FocusRunningCard(state: AppState, now: Long, onError: (String) -> Un
                     if (Focus.isWindowRun(run, state.focusPacks)) " · a heti ablak szerint indult" else "",
                 style = MaterialTheme.typography.bodyMedium,
             )
+            // A HATÁSOS lista: ha közben egy másik csomag heti ablaka is tart, a
+            // kettő metszete (`Focus.effectivePack`) — a DNS-szűrő is ezt nézi.
+            val eff = Focus.effectivePack(state.focusPacks, run, state.focusLog, now) ?: pack
+            val overlays = Focus.dueRecurrences(state.focusPacks, run, state.focusLog, now)
             Text(
-                if (pack.allowSites.isEmpty()) {
-                    "Ebben a csomagban nincs engedélyezett oldal — minden más tiltva."
+                if (eff.allowSites.isNotEmpty()) {
+                    "Most csak ez mehet: ${eff.allowSites.joinToString(", ")}. Minden más tiltva."
+                } else if (overlays.isNotEmpty()) {
+                    "Most semmi nem mehet: a csomagoknak nincs közös oldala — minden tiltva."
                 } else {
-                    "Most csak ez mehet: ${pack.allowSites.joinToString(", ")}. Minden más tiltva."
+                    "Ebben a csomagban nincs engedélyezett oldal — minden más tiltva."
                 },
                 style = MaterialTheme.typography.bodySmall,
             )
+            // Egy MÁSIK csomag heti ablaka rárétegződik: nem állítja le a
+            // menetet, de amíg tart, ő is szól. Kimondjuk, különben a csomag
+            // engedné, a szűrő mégis zárna.
+            if (overlays.isNotEmpty()) {
+                val one = overlays.size == 1
+                Text(
+                    "Közben ${if (one) "egy heti ablak is tart" else "heti ablakok is tartanak"}: " +
+                        overlays.joinToString(", ") { "${it.pack.name} (${fmtClock(it.endsAt)}-ig)" } +
+                        ". Amíg ${if (one) "tart" else "tartanak"}, csak az mehet, amit " +
+                        "${if (one) "mindkét" else "mindegyik"} csomag enged.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
             // A kivétellista LÉTEZÉSÉT kimondjuk. Egy titkos kivétel rosszabb
             // lenne, mint egy nyílt: a felhasználó előbb-utóbb észreveszi, hogy
             // valami mégis átment, és onnantól semmiben nem hisz.
@@ -3280,9 +3299,10 @@ private fun FocusPacksCard(state: AppState, vpnRunning: Boolean, onError: (Strin
                 label = { Text("Hossz percben (üresen a csomag szokásos hossza)") },
                 singleLine = true,
             )
-            // Egy csomag heti ablaka félbeszakítja a MÁSIK csomag kézi menetét
-            // (az ablak az ígéret) — mondjuk ki előre, ne a kilences óra legyen
-            // a meglepetés. A következő nyolc órán belüli legkorábbi ablak.
+            // Egy csomag heti ablaka rárétegződik a MÁSIK csomag menetére
+            // (`Focus.effectivePack`): nem állítja le, de amíg tart, csak a közös
+            // mehet — mondjuk ki előre, ne a kilences óra legyen a meglepetés.
+            // A következő nyolc órán belüli legkorábbi ablak.
             run {
                 val now = System.currentTimeMillis()
                 val next = state.focusPacks
@@ -3293,8 +3313,8 @@ private fun FocusPacksCard(state: AppState, vpnRunning: Boolean, onError: (Strin
                     val (p, occ) = next
                     val clock = java.text.SimpleDateFormat("HH:mm", java.util.Locale("hu")).format(java.util.Date(occ.startsAt))
                     Text(
-                        "A(z) ${p.name} heti ablaka $clock-kor indul: egy másik csomag menete ott véget ér, " +
-                            "és az ablak menete indul.",
+                        "A(z) ${p.name} heti ablaka $clock-kor indul: egy másik csomag menete ott nem ér véget, " +
+                            "de amíg az ablak tart, csak az mehet, amit mindkét csomag enged.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

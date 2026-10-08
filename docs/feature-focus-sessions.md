@@ -592,15 +592,31 @@ résében elkapva — nem fogyasztja el az ablakot; amikor véget ér, az ablak
 menete indul. Az ablak ELŐTT kézzel indított menet sem: az a saját idejében
 ér véget, az ablak hátralévő része jár.
 
-Egyszerre egy menet fut. Ha az ablak kezdetén épp egy **másik** csomag kézi
-menete megy, az az ablak kezdetén véget ér — a naplóba a saját idejével
-kerül, nem leállítottként —, és az ablak menete indul. Korábban az ablak
-várt, és ez kiskapu volt: egy 8:59-kor indított, nyolcórás eldobható menet az
-egész ablakot kiváltotta, próbatétel nélkül. Az ablak az ígéret; a kézi
-menetet az ablak köré kell tervezni — a gépen az indító párbeszéd előre
-kimondja, ha egy másik csomag ablaka a következő nyolc órában indul. A saját
-csomag kézi menete nem szakad meg — az ugyanaz a fehérlista —, és amikor
-véget ér, az ablak hátralévő része indul.
+Egyszerre egy menet fut — de egy heti ablak attól még **rárétegződik**. Ha az
+ablak kezdetén épp egy **másik** csomag menete megy, az NEM ér véget: amíg az
+ablak tart, csak az mehet, amit **mindkét** csomag enged (`effectivePack`: az
+oldalaknál pontos metszet az aldomain-szabállyal — a `google.com` és a
+`translate.google.com` metszete a `translate.google.com` —, az appoknál a laza
+app-egyezés miatt csak közelítés; az appot a gép úgyis csak jelzi). Amikor a
+futó menet véget ér, és az ablakból még van hátra, az ablak menete indul —
+onnan, ahol a másik véget ért (`windowRunFor`), az ablak végéig. Az azonossága
+akkor is az ablak kezdete (`origin`): ablak-menet marad, és a leállítása
+ugyanúgy elkölti az ablakot.
+
+Korábban az ablak a kezdetén lezárta a futó menetet, és ez rés volt: ablakot
+felvenni ingyen van (szigorítás), így egy most kezdődő, kétperces ablak egy
+laza csomagra próbatétel nélkül véget vetett egy kétórás menetnek — a lezárás
+sora pedig a szinkronnal minden eszközön leállította. Még korábban az ablak
+várt, és az is rés volt: egy 8:59-kor indított, nyolcórás laza menet az egész
+ablakot kiváltotta. A rárétegződés mindkettőt zárja, egyik sem enged a
+másikból. Az indító párbeszéd mindhárom platformon előre kimondja, ha egy
+másik csomag ablaka a következő nyolc órában indul; a kártya, a réteg, az
+androidos sáv és az iPhone kártyája kimondja, ha egy ablak most
+rárétegződik, és mi mehet. Külön leállítani a rárétegződést nem lehet: a futó
+menet leállítása csak a menetet állítja le, utána az ablak menete jön, és
+annak a leállítása külön próbatétel — két vállalás, két ár. A saját csomag
+kézi menete mellett az ablak nem rétegződik (az ugyanaz a fehérlista), és
+amikor véget ér, az ablak hátralévő része indul.
 
 A gépen az app **értesítést dob**, amikor az ablak menete feltűnik — akkor is,
 ha az app később nyílt meg, mint ahogy a menet indult. Aki nem maga indította,
@@ -622,13 +638,15 @@ ablak, hanem sima menet.
 - Egy eszköz, ami a leállítás idején nem volt hálózaton, a szinkron
   megérkezéséig újraindíthatja a menetet az ablak hátralévő részére. A hiba
   iránya a szigorúbb, és a leállítás ott is ugyanaz a próbatétel.
-- A naplóban az ablak ideje áll (9:00–12:00), nem az, hogy melyik eszköz mikor
-  volt ébren. Ha az ablak közepén ért véget egy másik csomag kézi menete, a
-  két sor átfedhet — egy sorral több, nem kibúvó. Ugyanez, ha UGYANANNAK a
-  csomagnak a kézi menete nyúlik át az ablak kezdetén (8:30–9:30): a végén az
-  ablak menete indul, 9:00-tól számolva — a statisztika a fél órát kétszer
-  számolja. Azért nem az „elköltött” ágon megy, mert akkor egy egyperces kézi
-  menet 8:59-kor kiváltaná a háromórás ablakot.
+- A naplóban az ablak menete az ablak kezdetétől áll (9:00–12:00), nem attól,
+  hogy melyik eszköz mikor volt ébren. Ha előtte az ablakban egy másik menet
+  futott — vagy UGYANANNAK a csomagnak a kézi menete nyúlt át az ablak
+  kezdetén (8:30–9:30) —, az ablak menete ott kezdődik, ahol az véget ért
+  (9:30–12:00), hogy a statisztika ne számolja kétszer ugyanazt az időt. Ha
+  egy másik eszköz az előző menetről nem tudott időben, és az ablak
+  kezdetétől indította, a szinkron a kettőt egy menetnek látja (az azonosság
+  az ablak kezdete), és a hosszabb változat marad — ilyenkor az átfedés
+  megmaradhat. Egy kis többlet a statisztikában, nem kibúvó.
 - A csomaglista egy blobban utazik, de **csomagonként** fésülődik: minden
   felvétel, szerkesztés és törlés jelet kap (a blob változat-számát), és
   csomagonként a nagyobb jel dönt. Így ha a gépen most vettél fel egy
@@ -676,9 +694,14 @@ forrásból áll össze (`effectiveFocus` az `extension/app-link.js`-ben):
   volt — három lehúzásnyi idő), az app élő szava dönt. Ő tudja, hogy egy
   ablak menetét kifizetett próbatétellel leállították; ha a tárolt lista
   ilyenkor is élne, a leállítás a böngészőben nem érne semmit;
-- **ha az app hallgat**, a most tartó tárolt ablak érvényes, és előbbre
-  való egy tárolt kézi menetnél — a segéd is lezárja a kézi menetet az ablak
-  kezdetén. Az ablak után a kézi menet a saját idejéig tart, ahogy eddig.
+- **ha az app hallgat**, a most tartó tárolt ablakok is érvényesek, és —
+  mint a segédben — rárétegződnek a tárolt futó menetre: a lista a menet
+  SAJÁT csomagjának (a híd ezt külön leküldi, `packAllowSites`) és a most
+  tartó ablakoknak a metszete (`intersectSites`). Menet nélkül az elsőként
+  kezdődő ablak a menet, a többi arra rétegződik. Az ablak után a futó menet a
+  saját listájával tart, a saját idejéig — egy azóta véget ért ablak
+  szűkítése nem ragad rá. (Régi app a saját listát nem küldi: akkor a tárolt,
+  már metszett lista az alap — szigorúbb, nem lazább.)
 
 A lista egy hétre szól, legfeljebb 64 előfordulás; a bővítmény a rosszul
 formált tételt eldobja (régi app válaszában nincs ilyen mező — az üres lista,
@@ -693,8 +716,8 @@ is tudja, hogy két percen belül indul egy ablak: ha a nyitott lap nincs a
 csomagban, a tetején egy sáv mondja („Munkamenet indul 2 perc múlva
 (Nyelvtanulás) — ez az oldal nincs benne, akkor zárul.”) — a zárás ne
 félbehagyott mondat közepén érjen. Futó menet mellett is szól, ha a lapot
-az most engedi: az ablak kezdetén a segéd egy MÁSIK csomag kézi menetét
-lezárja, és ami eddig ment, figyelmeztetés nélkül zárulna. Ha a futó menet
+az most engedi: az ablak egy MÁSIK csomag menetére rárétegződik, és ami eddig
+ment, de az ablak nem engedi, figyelmeztetés nélkül zárulna. Ha a futó menet
 nem engedi a lapot, az már zárva; a csomag saját menete mellett pedig a két
 lista ugyanaz, tehát nincs miről szólni (`focusStartingSoonFor`, tesztekkel;
 a zárás előtti sáv többi fajtáját lásd az `extension/README.md`-ben).
@@ -715,9 +738,9 @@ A döntés a magé (`windowRunStartingSoon`, a három nyelven ugyanaz — a
 perc még szól, egy ezredmásodperccel több már nem, a kezdés pillanata már
 nem előjelzés). Ami már tart, arról nem szól; a csomag saját futó menete
 mellett sem (az ablak mellé úgysem indul új menet); az elköltött
-előfordulásról sem. Egy MÁSIK csomag kézi menete nem hallgattatja el — azt az
-ablak kezdetén a kör lezárja, tehát pont erről kell szólni. Egy
-előfordulásról egyszer szól.
+előfordulásról sem. Egy MÁSIK csomag menete nem hallgattatja el — az ablak
+arra rárétegződik, és ami eddig ment, de az ablak nem engedi, zárulni fog,
+tehát pont erről kell szólni. Egy előfordulásról egyszer szól.
 
 - **A gépen** a segéd mondja meg (az állapot `focusWindowSoon` mezője, a
   naplóval együtt döntve), a felület szól — ha az értesítés engedélyezve van.
@@ -888,7 +911,11 @@ pontosan, éjfélen átnyúló és egész napos sávval, érvénytelen sávokkal
 esedékes ablakot (futó saját és másik menet, elköltött és nem elköltött ablak,
 két egyforma ablak holtversenye — a kisebb azonosító nyer, KÓDEGYSÉG szerint,
 mint a gépen; az iPhone eddig a Swift `<`-ét használta), hogy a futó menet
-ablak-menet-e, a lezárást a 200 soros napló vágásával, a legutóbb használt
+ablak-menet-e, a rárétegződést (az összes most esedékes ablak, a futó menet
+hatásos csomagja — a metszet oldalra és appra, egy törölt csomag menete
+mellett nincs ilyen —, és az ablak menete, ha most indulna: ott, ahol az
+előző menet véget ért, az ablak kezdetének azonosságával), a lezárást a 200
+soros napló vágásával, a legutóbb használt
 csomagot (egyforma kezdésnél az első a naplóban — az iPhone eddig a nem
 garantáltan stabil `sorted`-ra hagyatkozott), a hátralévő idő szövegét és a
 percek tisztítását. A Kotlin (`FocusFixtureTest`) és a Swift

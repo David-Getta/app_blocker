@@ -57,8 +57,10 @@ ablakos munkamenet indulása előtt is szól, ha az oldal nincs a csomagban
 („Munkamenet indul 2 perc múlva (Nyelvtanulás) — ez az oldal nincs benne,
 akkor zárul.”): ezt a bővítmény a tárolt ablakokból maga számolja, ugyanúgy,
 ahogy a menetet az app nélkül is érvényesíti. Futó menet mellett is, ha a
-lapot az most engedi: az ablak kezdetén a segéd a másik csomag kézi menetét
-lezárja.
+lapot az most engedi: az ablak a másik csomag menetére rárétegződik, és amíg
+tart, csak az mehet, amit mindkét csomag enged. App nélkül a bővítmény ezt a
+metszetet maga számolja (a futó menet saját listájából és a most tartó
+ablakokból).
 
 **A két réteg egymás mellett áll, nem egymás helyett.** Aki azt akarja, hogy egy
 oldal egyáltalán ne menjen, az az appban tiltsa le az egészet. Ez a réteg az

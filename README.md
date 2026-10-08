@@ -306,9 +306,13 @@ ingyen van, rövidíteni vagy visszavonni sehogy.
   végéig tart — a telefonon is, mert az ablak a csomaggal szinkronizál. Felvenni
   és bővíteni egy kattintás, **szűkíteni vagy levenni próbatétel**; a
   leállított menet ugyanabban az ablakban nem indul újra (a napló az őr). Az
-  ablak vége az ablak vége: a laptop alvása nem tolja el. Az ablak az ígéret:
-  egy másik csomag kézi menete az ablak kezdetén véget ér (az indító lap előre
-  szól), a saját csomag egyperces kézi menete pedig nem költi el az ablakot.
+  ablak vége az ablak vége: a laptop alvása nem tolja el. Egy másik csomag
+  futó menetét az ablak nem állítja le, hanem **rárétegződik**: amíg tart,
+  csak az mehet, amit mindkét csomag enged (az indító lap előre szól), és a
+  saját menete ott indul, ahol a másik véget ért. Így se egy ingyen felvett
+  ablak nem vet véget egy hosszú menetnek, se egy 8:59-kor indított laza
+  menet nem váltja ki az ablakot; a saját csomag egyperces kézi menete pedig
+  nem költi el az ablakot.
   **Tíz perccel előtte értesítés jön** mindhárom platformon, mint a
   zárlat-ablak előtt — a menet is lezár mindent, ami nincs a csomagban (az
   iPhone-on a rendszer ütemezi, mert ott az app nem fut a háttérben).

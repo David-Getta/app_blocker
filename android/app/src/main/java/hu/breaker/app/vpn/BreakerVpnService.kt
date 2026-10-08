@@ -199,7 +199,7 @@ class BreakerVpnService : VpnService() {
                 // A DÖNTÉS PILLANATÁBAN (az első két percben): ami már nyitva volt,
                 // egy darabig még mehet — a szűrő az új névfeloldásokat látja.
                 if (Focus.isFreshRun(run, now)) " " + getString(R.string.vpn_focus_fresh_note) else ""
-            )
+            ) + overlayNote(Focus.dueRecurrences(st.focusPacks, run, st.focusLog, now))
         } else if (lock != null) {
             // A zárlat alatt a sáv mondja meg, miért nincs lazítás — és meddig. Az
             // ablak zárlatát ablakénak mondja: aki nem maga indította, tudja meg,
@@ -306,7 +306,9 @@ class BreakerVpnService : VpnService() {
         val key = strictKey + lockKey + hitsKey + if (run != null) {
             // A friss menet jele is a kulcs része: a két perc leteltével a
             // fél mondat eltűnik — akkor is, ha a hátralévő perc épp nem vált.
-            "${run.packId}:${Focus.formatRemaining(run.endsAt - now)}:${Focus.isFreshRun(run, now)}"
+            // A rárétegződő ablak is: beértekor és lejártakor átrajzolunk.
+            "${run.packId}:${Focus.formatRemaining(run.endsAt - now)}:${Focus.isFreshRun(run, now)}:" +
+                Focus.dueRecurrences(st.focusPacks, run, st.focusLog, now).joinToString(",") { it.pack.id }
         } else {
             // A hűtés is a kulcs része: induláskor, percváltásnál és lejáratkor
             // átrajzolunk — közben nem.
@@ -319,6 +321,19 @@ class BreakerVpnService : VpnService() {
         if (key == lastNotifKey) return
         lastNotifKey = key
         getSystemService(NotificationManager::class.java).notify(NOTIF_ID, buildNotification())
+    }
+
+    /**
+     * A futó menetre rárétegződő heti ablakok mondata — vagy üres. Az ablak nem
+     * állítja le a menetet, de amíg tart, ő is szól (`Focus.effectivePack`):
+     * kimondjuk, különben a csomag engedné, a szűrő mégis zárna.
+     */
+    private fun overlayNote(overlays: List<Focus.DueRecurrence>): String {
+        if (overlays.isEmpty()) return ""
+        return " " + getString(
+            if (overlays.size == 1) R.string.vpn_focus_overlay_note else R.string.vpn_focus_overlay_note_many,
+            overlays.joinToString(", ") { it.pack.name },
+        )
     }
 
     /** A zárlat vége olvashatóan: ma csak az óra, máskor a nap is. */

@@ -392,7 +392,10 @@ object BreakerStore {
     }
 
     /**
-     * A FUTÓ munkamenet csomagja, ha van — a DNS-szűrő ebből dolgozik.
+     * A FUTÓ munkamenet HATÁSOS csomagja, ha van — a DNS-szűrő ebből dolgozik:
+     * a menet csomagja, metszve a közben tartó MÁS heti ablakokkal
+     * (`Focus.effectivePack`). Az ablak nem állítja le a menetet, de amíg
+     * tart, ő is szól.
      *
      * Ha a futás csomagja nincs meg, nem tippelünk: a fehérlista TARTALMA nem
      * az a dolog, amit kitalálni szabad. Ilyenkor `null` jön vissza, tehát a
@@ -402,9 +405,7 @@ object BreakerStore {
      */
     fun runningFocusPack(now: Long): Focus.FocusPack? {
         val state = _state.value
-        val run = state.focusRun ?: return null
-        if (!Focus.isRunning(run, now)) return null
-        return state.focusPacks.firstOrNull { it.id == run.packId }
+        return Focus.effectivePack(state.focusPacks, state.focusRun, state.focusLog, now)
     }
 
     /** A futó menet maga, ha tényleg fut. */

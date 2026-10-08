@@ -25,8 +25,8 @@ import * as assert from 'node:assert/strict';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import {
-  FUTURE_LOG_TOLERANCE_MS, MAX_FOCUS_LOG, WINDOW_SOON_MS, closeIfEnded, dueRecurrence, formatRemaining, isWindowRun, lastUsedPack, nextOccurrence,
-  normalizeMinutes, occurrenceAt, windowRunStartingSoon, windowSoonText,
+  FUTURE_LOG_TOLERANCE_MS, MAX_FOCUS_LOG, WINDOW_SOON_MS, closeIfEnded, dueRecurrence, dueRecurrences, effectivePack, formatRemaining,
+  isWindowRun, lastUsedPack, nextOccurrence, normalizeMinutes, occurrenceAt, windowRunFor, windowRunStartingSoon, windowSoonText,
   type FocusLogEntry, type FocusPack, type FocusRun,
 } from '../src/shared/focus';
 import { isValidBand, type Band, type Weekday } from '../src/shared/schedule';
@@ -56,9 +56,16 @@ interface SoonCase {
   seed: number; now: number; packs: PackIn[]; run: FocusRun | null; log: FocusLogEntry[];
   out: [string, number, number] | null;
 }
+interface PackFull extends PackIn { sites: string[]; apps: string[] }
+interface OverlayCase {
+  seed: number; now: number; packs: PackFull[]; run: FocusRun | null; log: FocusLogEntry[];
+  dueAll: [string, number, number][];
+  effective: { id: string; allowSites: string[]; allowApps: string[] } | null;
+  windowRun: FocusRun | null;
+}
 interface Fixture {
-  note: string; version: number; recurrence: RecurrenceCase[]; windowRun: WindowRunCase[]; close: CloseCase[];
-  lastUsed: LastUsedCase[]; remaining: [number, string][]; minutes: [number, number | null][];
+  note: string; version: number; recurrence: RecurrenceCase[]; windowRun: WindowRunCase[]; overlay: OverlayCase[];
+  close: CloseCase[]; lastUsed: LastUsedCase[]; remaining: [number, string][]; minutes: [number, number | null][];
   soon: SoonCase[]; soonText: [string, number, string, string][];
 }
 
@@ -176,6 +183,86 @@ function windowRunCases(): WindowRunCase[] {
       ? { packId: 'p_a', startedAt: o.startsAt + (r() < 0.5 ? shift : 0), endsAt: o.endsAt + (r() < 0.5 ? shift : 0) }
       : { packId: which < 0.85 ? 'p_b' : 'p_x', startedAt: o.startsAt, endsAt: o.endsAt };
     out.push({ packs, run, out: isWindowRun(run, toPacks(packs)) });
+  }
+  return out;
+}
+
+// ------------------------------------------------------------ rárétegződés
+//
+// Egy MÁSIK csomag futó menetét a heti ablak nem állítja le, hanem
+// rárétegződik: amíg tart, csak az mehet, amit mindkét csomag enged. Az összes
+// most esedékes ablak (`dueRecurrences`), a hatásos csomag (`effectivePack`: az
+// oldalaknál pontos metszet az aldomain-szabállyal, az appoknál a laza
+// egyezés szerint), és az ablak menete, ha most indulna (`windowRunFor`: ott,
+// ahol az előző menet véget ért, az ablak kezdetének azonosságával).
+
+/** Oldalak és appok — az aldomain- és a laza app-egyezés buktatóival. */
+const SITES = ['google.com', 'translate.google.com', 'mail.google.com', 'github.com', 'gist.github.com',
+  'youtube.com', 'notgoogle.com', 'bbc.co.uk', 'co.uk'];
+const APPS = ['Word', 'Microsoft Word', 'word', 'Steam', 'Excel', 'Code', 'Visual Studio Code', '\u00c9LET', '\u00e9let napl\u00f3'];
+
+function toFullPacks(packs: PackFull[]): FocusPack[] {
+  return packs.map((p) => ({
+    id: p.id, name: p.name, allowSites: [...p.sites], allowApps: [...p.apps], defaultMinutes: 30,
+    ...(p.band ? { recurrence: p.band } : {}),
+  }) as FocusPack);
+}
+
+function overlayCases(): OverlayCase[] {
+  const out: OverlayCase[] = [];
+  for (let seed = 1; seed <= 160; seed++) {
+    const r = warm(7900 + seed);
+    const ids = [...IDS].sort(() => r() - 0.5).slice(0, 2 + Math.floor(r() * 3));
+    const day = Math.floor(r() * 7) as Weekday;
+    const nowMin = 180 + Math.floor(r() * 1000);
+    const now = at(day, nowMin) + pick(r, [0, 0, 1000, 59_000]);
+    const packs: PackFull[] = ids.map((id) => {
+      const roll = r();
+      // A többség MOST tart — néhol épp kezdődik, vagy egy percen belül véget ér.
+      const band: Band | null = roll < 0.15 ? null
+        : roll < 0.85 ? { days: [day], startMin: nowMin - pick(r, [0, 1, 30, 59, 120]), endMin: nowMin + pick(r, [1, 2, 30, 90, 180]) }
+          : randomBand(r);
+      return {
+        id, name: `csomag ${id}`, band,
+        sites: SITES.filter(() => r() < 0.35), apps: APPS.filter(() => r() < 0.3),
+      };
+    });
+    const tsPacks = toFullPacks(packs);
+    const occOf = (p: PackFull) => (p.band && isValidBand(p.band) ? occurrenceAt(p.band, now) : null);
+    // A futó menet: kézi (fut, vagy épp lejárt), az egyik ablaké, egy törölt csomagé, vagy nincs.
+    const target = pick(r, packs);
+    const rr = r();
+    let run: FocusRun | null = null;
+    if (rr < 0.55) {
+      run = { packId: target.id, startedAt: now - pick(r, [1, 30, 90]) * MIN, endsAt: now + pick(r, [-1, 0, 1, 45, 300]) * MIN };
+    } else if (rr < 0.7) {
+      const o = occOf(target);
+      if (o) run = { packId: target.id, startedAt: o.startsAt, endsAt: o.endsAt };
+    } else if (rr < 0.76) run = { packId: 'p_x', startedAt: now - MIN, endsAt: now + 30 * MIN };
+    const log: FocusLogEntry[] = [];
+    for (const p of packs) {
+      const o = occOf(p);
+      if (!o) continue;
+      // Az ablak saját, leállított menete (elköltve) — vagy a messze jövőben
+      // véget ért sor, ami nem költ el.
+      if (r() < 0.2) {
+        log.push(logEntry(p.id, o.startsAt, pick(r, [Math.max(o.startsAt, now - MIN), now + FUTURE_LOG_TOLERANCE_MS + 1]), true));
+      }
+      // Egy MÁSIK menet, ami az ablakban ért véget (vagy még nem): az ablak
+      // menete onnan indul.
+      if (r() < 0.4) {
+        const end = pick(r, [o.startsAt, o.startsAt + 1, Math.max(o.startsAt + 1, now - 20 * MIN), now - 1, now, now + 1]);
+        log.push(logEntry(pick(r, IDS), end - 40 * MIN, end));
+      }
+    }
+    const due = dueRecurrences(tsPacks, run, log, now);
+    const eff = effectivePack(tsPacks, run, log, now);
+    out.push({
+      seed, now, packs, run, log,
+      dueAll: due.map((d) => [d.pack.id, d.startsAt, d.endsAt]),
+      effective: eff ? { id: eff.id, allowSites: eff.allowSites, allowApps: eff.allowApps } : null,
+      windowRun: due.length > 0 ? windowRunFor(due[0], log, now) : null,
+    });
   }
   return out;
 }
@@ -302,11 +389,12 @@ function buildFixture(): Fixture {
   return {
     note: 'Generálja és őrzi: desktop/test/focus-fixture.test.ts (UPDATE_FOCUS_FIXTURE=1 npm test). '
       + 'Az ismétlődés (a csomagok mostani előfordulása, az esedékes ablak, ablak-menet-e a futó menet), az '
-      + 'ablak-menet a határokon, a lezárás (a 200 soros napló vágásával), a legutóbb használt csomag, a hátralévő '
+      + 'ablak-menet a határokon, a rárétegződés (az összes esedékes ablak, a hatásos csomag metszete, az ablak '
+      + 'menete ott, ahol az előző véget ért), a lezárás (a 200 soros napló vágásával), a legutóbb használt csomag, a hátralévő '
       + 'idő szövege, a percek tisztítása, a közelgő ablak-menet (tíz perccel előtte) és az értesítés szövege '
       + '— UTC-ben. Olvassa: android/jvm-tests FocusFixtureTest, ios/SharedTests FocusFixtureTests. Csupa ASCII.',
-    version: 2,
-    recurrence: recurrenceCases(), windowRun: windowRunCases(), close: closeCases(), lastUsed: lastUsedCases(),
+    version: 3,
+    recurrence: recurrenceCases(), windowRun: windowRunCases(), overlay: overlayCases(), close: closeCases(), lastUsed: lastUsedCases(),
     remaining: REMAINING.map((ms) => [ms, formatRemaining(ms)]),
     minutes: MINUTES.map((v) => [v, normalizeMinutes(v)]),
     soon: soonCases(),
@@ -328,6 +416,7 @@ function render(f: Fixture): string {
   return `{\n "note": ${ascii(JSON.stringify(f.note))},\n "version": ${f.version},\n`
     + ` "recurrence": [\n${rows(f.recurrence)}\n ],\n`
     + ` "windowRun": [\n${rows(f.windowRun)}\n ],\n`
+    + ` "overlay": [\n${rows(f.overlay)}\n ],\n`
     + ` "close": [\n${rows(f.close)}\n ],\n`
     + ` "lastUsed": [\n${rows(f.lastUsed)}\n ],\n`
     + ` "remaining": [\n${rows(f.remaining)}\n ],\n`
@@ -357,6 +446,17 @@ test('a munkamenet fixtúrája friss, és nem elfajult', () => {
   assert.ok(rec.some((c) => c.occ.some((o) => o[1] !== null && o[2]! <= o[1]! + 0)) === false, 'az előfordulás vége a kezdete után van');
   assert.ok(rec.some((c) => c.windowRun === true) && rec.some((c) => c.windowRun === false));
   assert.ok(built.windowRun.some((c) => c.out) && built.windowRun.some((c) => !c.out));
+  const ov = built.overlay;
+  const ownSites = (c: OverlayCase) => c.packs.find((p) => p.id === c.run?.packId)?.sites;
+  assert.ok(ov.filter((c) => c.dueAll.length >= 2).length > 10, 'két-három egyszerre tartó ablak');
+  assert.ok(ov.some((c) => c.effective && c.dueAll.length > 0
+    && JSON.stringify(c.effective.allowSites) !== JSON.stringify(ownSites(c))), 'a rárétegződő ablak szűkít');
+  assert.ok(ov.some((c) => c.effective && c.dueAll.length >= 2), 'több ablak metszete');
+  assert.ok(ov.some((c) => c.effective && c.dueAll.length > 0 && c.effective.allowApps.length > 0), 'app-metszet is');
+  assert.ok(ov.some((c) => c.run && c.run.endsAt > c.now && c.effective === null), 'a törölt csomag menete: nincs hatásos csomag');
+  assert.ok(ov.some((c) => c.windowRun?.origin !== undefined) && ov.some((c) => c.windowRun && c.windowRun.origin === undefined),
+    'az ablak menete késleltetve (az előző menet végétől) és az ablak kezdetétől is');
+  assert.ok(ov.every((c) => !c.windowRun || isWindowRun(c.windowRun, toFullPacks(c.packs))), 'az ablak menete mindig ablak-menet');
   assert.ok(built.close.some((c) => c.out === null) && built.close.some((c) => c.out?.entry.window) && built.close.some((c) => c.out && !c.out.entry.window));
   assert.ok(built.close.some((c) => c.out && c.out.logLength === MAX_FOCUS_LOG && c.logLength === MAX_FOCUS_LOG), 'a napló vágása előjön');
   assert.ok(built.lastUsed.some((c) => c.out === null) && built.lastUsed.filter((c) => c.out).length > 10);

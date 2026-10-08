@@ -50,7 +50,8 @@ test('a csomag saját futó menete mellett hallgat; egy másik csomagé mellett 
   // Ha a saját menete a kezdés előtt lejár, utána még szól: újra indul.
   const ended: FocusRun = { packId: 'p1', startedAt: MON(17, 20), endsAt: MON(17, 52) };
   assert.ok(windowRunStartingSoon([pack()], ended, [], MON(17, 55)));
-  // Egy másik csomag kézi menetét az ablak kezdetén a kör lezárja — erről szólni kell.
+  // Egy másik csomag menetére az ablak rárétegződik, és ami eddig ment, de az
+  // ablak nem engedi, zárulni fog — erről szólni kell.
   const other: FocusRun = { packId: 'p2', startedAt: MON(17, 30), endsAt: MON(19) };
   assert.ok(windowRunStartingSoon([pack()], other, [], MON(17, 55)));
 });
