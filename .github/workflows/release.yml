@@ -45,24 +45,27 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A végigcsinált próbatétel akkor is hat, ha közben a sor összevonódott.** Ha
-          egy szinkronnál a sor egy másik eszközön felvett példánnyal egy sorba olvad,
-          az azonosítója megváltozhat. A futó próbatétel eddig a régi azonosítóra szólt:
-          a teljesítése nem oldott fel semmit, a nehézségi fokba viszont beleszámított.
-          Most a próbatétel a sorral megy, és az összevont sorra hat — ugyanazért az
-          árért, mert a fok a feloldások számától függ, nem a lazítás méretétől.
+          **Új kategória-csomag: Szerencsejáték.** A felvevő kártyán a Közösségi, a
+          Videó és stream, a Hírek és a Vásárlás mellett egy ötödik gomb: a hazai
+          engedélyes szerencsejáték-oldalak (a Szerencsejáték Zrt. oldala, a Tippmix és a
+          TippmixPro, az engedélyes online kaszinók) és három nagy nemzetközi név, egy
+          kattintással. Felvenni ingyen, levenni oldalanként, próbatétellel — mint a
+          többi csomagnál. Ez nem teljes lista: a többit egyenként kell felvenni, és egy
+          kulcsszó (casino, kaszino) a böngészőben a címben és a lap címsorában is fogja.
+          A szolgáltatónál kérhető önkizárás ennél erősebb eszköz, a kettő együtt a
+          legjobb.
 
-          **Frissíts minden eszközt.** Egy még nem frissített eszközön a próbatétel
-          ilyenkor továbbra is hatás nélkül ér véget.
+          **Biztonsági javítás az automatikus frissítőben.** Az asztali app a frissítési
+          jegyzéket egy javított YAML-olvasóval olvassa (js-yaml 4.3.2).
 
-          ### Ami a v0.4.238-ban jött
+          ### Ami a v0.4.239-ben jött
+
+          **A végigcsinált próbatétel akkor is hat, ha közben a sor összevonódott.**
+
+          #### Ami a v0.4.238-ban jött
 
           **Az újra felvett oldalt a régi törlés akkor sem viszi el, ha közben egy
           harmadik eszköz összevonta őket.**
-
-          #### Ami a v0.4.237-ben jött
-
-          **A próbatétellel levett heti ablak levéve marad.**
           NOTES
           fi
 
