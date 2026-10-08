@@ -119,6 +119,16 @@ jobs:
       - run: npm i --no-save playwright@1.63.0
       - run: npx playwright install --with-deps chromium
         timeout-minutes: 10
+      # AZ APP MAGA, Electronban. A többi lépés a felületet egy sima böngészőben
+      # nézi; azt, hogy a fő folyamat, a preload és a felület EGYÜTT feláll-e,
+      # semmi (src/main/smoke.ts). Egy Electron-frissítés vagy egy elkapatlan
+      # hiba a fő folyamatban ugyanazt adná: az app el sem indul. A telepítéskor
+      # kihagyott Electront itt töltjük le. A --no-sandbox csak a próbáé: a
+      # futón a Chromium homokozója nem áll fel (AppArmor), az app maga
+      # homokozóval fut.
+      - run: node node_modules/electron/install.js
+      - run: xvfb-run -a npx electron . --smoke-test --no-sandbox
+        timeout-minutes: 3
       - run: node scripts/ui-shots.js --check
       # A bővítmény beállítási lapja ugyanabban a böngészőben, ugyanabból a
       # telepítésből — külön futóért nem éri meg egy tíz másodperces ellenőrzés.
@@ -170,6 +180,13 @@ jobs:
           ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
       - run: npx tsc -p tsconfig.json
       - run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/win-pipe-probe.ps1
+      # Az indítási füstpróba Windowson is (src/main/smoke.ts): a tálca-ikon és a
+      # többi csak-Windows indulási út itt fut le. A teljes build kell hozzá (a
+      # felület is), és a telepítéskor kihagyott Electron.
+      - run: npm run build
+      - run: node node_modules/electron/install.js
+      - run: npx electron . --smoke-test
+        timeout-minutes: 3
 
   android-core-tests:
     name: Android mag tesztek (JVM, SDK nélkül)

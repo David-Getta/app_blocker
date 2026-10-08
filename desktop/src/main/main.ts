@@ -4,6 +4,10 @@
 //                    the same exe with this flag; macOS uses ELECTRON_RUN_AS_NODE
 //                    + dist/helper/index.js directly, bypassing this file)
 
+// ELSŐ import: a füstpróba-mód a többi modul betöltése ELŐTT élesíti a
+// hibakezelőjét — egy betöltéskor elhasaló modul különben párbeszédablakot
+// nyitna, amit a CI-ban senki nem kattint el (lásd smoke.ts).
+import { isSmoke, watchSmoke } from './smoke';
 import { app, BrowserWindow, ipcMain, Menu, Notification, systemPreferences, Tray } from 'electron';
 import * as fs from 'fs';
 import { registerSyncServerIpc } from './sync-server';
@@ -44,6 +48,8 @@ import {
 import type { StatusData } from '../shared/protocol';
 
 const HELPER_MODE = process.argv.includes('--helper');
+/** Indítási füstpróba: a rendes indulás, nyom és hálózat nélkül (smoke.ts). */
+const SMOKE = isSmoke(process.argv);
 
 // Az app magyar, a Chromium belső nyelve is legyen az: a beépített idő- és
 // dátummezők (a heti ablak 9:00–12:00-ja) a Chromium nyelvét követik, nem a
@@ -147,6 +153,8 @@ if (HELPER_MODE) {
     // verzión — pont ő járna a legrosszabbul. Türelmi idővel, hogy a sűrű
     // váltogatás ne kérdezzen sokat.
     win.on('focus', () => { requestUpdateCheck(); });
+    // A betöltés ELŐTT: egy korai preload-hibát különben lekésnénk.
+    if (SMOKE) watchSmoke(win);
     void win.loadFile(path.join(__dirname, '..', 'ui', 'renderer', 'index.html'));
   };
 
@@ -317,9 +325,11 @@ if (HELPER_MODE) {
 
       buildMenu();
       createWindow({ show: !startsHidden(process.argv) });
-      ensureLoginStart();
+      // A füstpróba nem hagy nyomot a gépen (bejelentkezéskori indítás) és nem
+      // keres frissítést — minden más ugyanúgy indul, mint élesben.
+      if (!SMOKE) ensureLoginStart();
       void setupTray();
-      initUpdater();
+      initUpdater({ checks: !SMOKE });
 
       // Active-time measurement runs in this (user-session) process; the helper
       // stores what it measures. Off until the helper says it is enabled.

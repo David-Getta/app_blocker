@@ -135,6 +135,27 @@ lépésben, `gh release upload --clobber`-rel történik, és el is hasal, ha ne
 - az asseteken a feltöltés ideje a MOSTANI futásé-e,
 - a `latest-mac.yml` és a `latest.yml` fent van-e (enélkül nincs frissítés).
 
+### Füstpróba: elindul-e a becsomagolt app
+
+A telepített appok maguktól frissülnek. Egy el sem induló build ezért nem egy
+gépen hibás, hanem mindenhol — és az el nem induló app a következő javítást már
+nem tudja letölteni. Ezt semmi nem fogta ki: a tesztek a magot futtatják, a
+renderer-füstteszt a felületet egy sima böngészőben.
+
+Az app ezért indítható füstpróba-módban (`--smoke-test`, `src/main/smoke.ts`):
+a rendes indulás fut végig — ablak, preload-híd, mérés, gyorsbillentyű,
+bővítmény-híd —, csak a bejelentkezéskori indítás és a frissítés-keresés marad
+ki, mert azoknak a gépen nyoma maradna, illetve a hálózatra mennének. Zöld, ha a
+felület az indító kódja végén kiírta az app verzióját (a hídon át kérte el), és
+az automatikus frissítő betölthető a csomagból. Piros, ha a fő folyamatban
+elkapatlan hiba van (párbeszédablak helyett kilépési kód), ha a preload vagy a
+felület elhasal, vagy ha 45 másodperc alatt nem áll fel.
+
+Három helyen fut: a CI-ban Linuxon (Xvfb alatt) és Windowson a fejlesztői
+builddel, a kiadásban pedig a **becsomagolt** appon (macOS arm64, Windows), a
+feltöltés előtt. Ha ott piros, a kiadás draft marad — a felhasználókhoz nem jut
+el.
+
 ### Ha a futó képe vált
 
 A linuxos jobok az `ubuntu-latest` címkén futnak, és a GitHub ezt időnként új

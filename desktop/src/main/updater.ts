@@ -173,7 +173,16 @@ function macFallbackEngine(bundle: string): Engine {
 
 // -------------------------------------------------------------------- init
 
-export function initUpdater(): void {
+/**
+ * Keres-e magától frissítést. Az indítási füstpróba (smoke.ts) alatt nem: a
+ * próba a becsomagolt appon is fut, és egy frissítés-keresés onnan a
+ * hálózatra menne, egy talált verzió letöltése pedig a gépen hagyna nyomot.
+ * A motor ettől még felépül — a próba azt is nézi, hogy betölthető-e.
+ */
+let autoChecks = true;
+
+export function initUpdater(opts: { checks?: boolean } = {}): void {
+  autoChecks = opts.checks ?? true;
   // In dev (no packaged app) there is nothing to update.
   if (!app.isPackaged) {
     set({ status: 'idle' });
@@ -235,6 +244,7 @@ function kick(): void {
 }
 
 function startChecking(): void {
+  if (!autoChecks) return;
   setTimeout(kick, 8_000);          // shortly after launch
   setInterval(kick, CHECK_INTERVAL_MS);
 }
@@ -247,7 +257,7 @@ function startChecking(): void {
  * közti sűrű váltogatás ne kérdezze a kiadási oldalt percenként.
  */
 export function requestUpdateCheck(minGapMs = 30 * 60_000): void {
-  if (!engine) return;
+  if (!engine || !autoChecks) return;
   if (Date.now() - lastKickAt < minGapMs) return;
   kick();
 }

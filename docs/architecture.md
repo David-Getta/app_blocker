@@ -921,3 +921,21 @@ valaki mégis kiadna egy új parancsot, hibát kap, nem néma sikert.
 A „sérült állapot” nem elméleti: elég egy áramszünet írás közben, vagy egy
 újabb verzió után visszatelepített régebbi build (a mentett fájlban olyan enum-
 érték van, amit a régi kód nem ismer).
+
+### Az el nem induló kiadás
+
+Az automatikus frissítés a legnagyobb kockázatot is szétteríti: egy el sem
+induló asztali build nem egy gépen hibás, hanem mindegyiken, és az el nem
+induló app a következő javítást már nem tudja letölteni. A magot a tesztek, a
+felületet a renderer-füstteszt nézi — de azt, hogy a fő folyamat, a preload és
+a felület EGYÜTT feláll-e, sokáig semmi.
+
+Ezt az indítási füstpróba (`--smoke-test`, `desktop/src/main/smoke.ts`) fogja
+ki: a rendes indulás fut végig, a bejelentkezéskori indítás és a
+frissítés-keresés nélkül; zöld, ha a felület az indító kódja végén a hídon át
+elkérte és kiírta az app verzióját. A várt szöveg és a kiírt szöveg egy
+függvényből jön (`shared/smoke.ts`), hogy egy szövegcsere ne adjon hamis
+pirosat. A próba a fő folyamat **első** importja: így egy betöltéskor elhasaló
+modul sem nyit párbeszédablakot, amit a CI-ban senki nem kattintana el. A
+kiadás a becsomagolt appon futtatja, a feltöltés előtt — piros próbánál a kiadás
+draft marad (lásd `docs/releasing.md`).

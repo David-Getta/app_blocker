@@ -4115,6 +4115,35 @@ const WIRES = [
     needle: 'const b = focusStartingSoonFor(link, host, now);',
     lost: 'a lap nem szólna a heti ablakos munkamenet indulása előtt',
   },
+  // AZ INDÍTÁSI FÜSTPRÓBA (src/main/smoke.ts). A próba csak akkor ér valamit,
+  // ha a fő ablakot nézi, ha a becsomagolt appon nem keres frissítést, és ha
+  // a CI meg a kiadás tényleg futtatja — különben egy el sem induló build
+  // ugyanúgy kimehetne, mint előtte.
+  {
+    file: 'desktop/src/main/main.ts',
+    needle: 'if (SMOKE) watchSmoke(win);',
+    lost: 'a füstpróba nem nézné a felületet: csak a fő folyamat feléledését látná',
+  },
+  {
+    file: 'desktop/src/main/main.ts',
+    needle: 'initUpdater({ checks: !SMOKE });',
+    lost: 'a füstpróba a becsomagolt appon frissítést keresne, és egy talált verziót letöltene',
+  },
+  {
+    file: '.github/workflows/ci.yml',
+    needle: 'xvfb-run -a npx electron . --smoke-test --no-sandbox',
+    lost: 'a CI nem nézné, hogy az Electron-app egyáltalán feláll-e',
+  },
+  {
+    file: '.github/workflows/ci.yml',
+    needle: 'npx electron . --smoke-test\n',
+    lost: 'a Windows-only indulási utat (tálca) semmi nem futtatná a kiadás előtt',
+  },
+  {
+    file: '.github/workflows/release.yml',
+    needle: 'BREAKER_SMOKE_OUT="$out" "$exe" --smoke-test',
+    lost: 'egy el sem induló becsomagolt app kimehetne kiadásként — és az automatikus frissítéssel minden gépre',
+  },
 ];
 
 /**

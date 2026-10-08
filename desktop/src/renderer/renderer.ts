@@ -15,6 +15,7 @@ import {
   displayName, displayNameNow, isAliased, isAliasRemoval, MAX_ALIAS_LENGTH, REVEAL_MS, MAX_REASON_LENGTH,
 } from '../shared/alias.js';
 import { HELPER_VERSION } from '../shared/protocol.js';
+import { versionRowText } from '../shared/smoke.js';
 // A .js itt sem elhagyható: a böngésző natív ESM-betöltője oldja fel futásidőben.
 import { normalizeRule, ruleLabel } from '../shared/urlrules.js';
 import { MAX_BURST_MINUTES, MAX_COOLDOWN_MINUTES, normalizeBurst } from '../shared/burst.js';
@@ -4238,7 +4239,8 @@ function setupModal(): void {
   // A verzió kiírása nem hiúság: e nélkül nem lehet megmondani, hogy valaki
   // a régi appban keresi-e az új funkciót.
   void window.breaker.appVersion?.().then((v) => {
-    $('appVersionRow').textContent = `Breaker v${v}`;
+    // A szöveg a füstpróbával közös (shared/smoke.ts): a próba ezt várja.
+    $('appVersionRow').textContent = versionRowText(v);
   }).catch(() => { /* régi preload: marad a puszta név */ });
   $('checkUpdateBtn').addEventListener('click', () => {
     const btn = $('checkUpdateBtn') as HTMLButtonElement;
