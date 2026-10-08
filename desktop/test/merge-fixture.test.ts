@@ -18,7 +18,7 @@ import * as assert from 'node:assert/strict';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { mergeSite } from '../src/shared/sync/merge';
-import { mergeFocus, normalizeSyncFocus, sameFocus } from '../src/shared/sync/focus-merge';
+import { mergeFocus, normalizeSyncFocus, sameFocus, type SyncFocus } from '../src/shared/sync/focus-merge';
 import { combineUsage } from '../src/shared/usage';
 import { closesAfterPause, isBlockedNowWithLimit } from '../src/shared/limits';
 import {
@@ -29,12 +29,12 @@ import {
   type Lockdown, type LockdownWindow,
 } from '../src/shared/lockdown';
 import {
-  focusByHour, focusByWeekday, focusDaySeries, focusDayStreak, focusLongestStreak, nextOccurrence, summarizeFocus,
-  summarizeFocusPrevWeek, windowRunsByPack, type FocusSummary, type Occurrence,
+  FUTURE_LOG_TOLERANCE_MS, focusByHour, focusByWeekday, focusDaySeries, focusDayStreak, focusLongestStreak,
+  nextOccurrence, summarizeFocus, summarizeFocusPrevWeek, windowRunsByPack, type FocusSummary, type Occurrence,
 } from '../src/shared/focus';
 import { noteBurstUsage, type BurstState } from '../src/shared/burst';
 import {
-  DECISION_NOW, DEVICES, SCHEDULE_WEEK_START, flipFocus, flipSite, focusConformanceKey, randomBurstRun, randomDecision,
+  DECISION_NOW, DEVICES, FOCUS_MERGE_NOW, SCHEDULE_WEEK_START, flipFocus, focusScenarios, flipSite, focusConformanceKey, randomBurstRun, randomDecision,
   randomFocus, randomFocusLogCase, randomScheduleCase, randomSite, randomUsage, randomVerdict, randomWindowsCase,
   referenceVerdict, rng, siteConformanceKey, usageConformanceKey, usageSummaryParts, type FocusLogCase, type WindowsCase,
 } from './merge-random';
@@ -180,10 +180,28 @@ function buildFixture(): Fixture {
       seed, a, b, c, ab: siteConformanceKey(ab), abc: siteConformanceKey(mergeSite(ab, c)), flip, what, af, fa,
     });
   }
+  // A menet új szabályainak minden ága legyen benne (különben a tükrök egy
+  // ágat sosem bizonyítanak): sírkő leállít, rövidítés nyer a hosszabb felett,
+  // jövőbeli sor nem számít, eltolt menet.
+  const seen = { killed: false, cutWins: false, future: false, origin: false };
+  const note = (a: SyncFocus, b: SyncFocus, ab: SyncFocus): void => {
+    if ((a.run || b.run) && !ab.run) seen.killed = true;
+    if (a.run && b.run && a.run.packId === b.run.packId && a.run.startedAt === b.run.startedAt
+      && (a.run.cuts ?? 0) !== (b.run.cuts ?? 0) && ab.run && ab.run.endsAt < Math.max(a.run.endsAt, b.run.endsAt)) {
+      seen.cutWins = true;
+    }
+    if (ab.run && ab.log.some((e) => e.endedAt > FOCUS_MERGE_NOW + FUTURE_LOG_TOLERANCE_MS && e.packId === ab.run!.packId)) {
+      seen.future = true;
+    }
+    if (ab.run?.origin !== undefined) seen.origin = true;
+  };
   for (let seed = 1; seed <= SEEDS; seed++) {
     const r = rng(seed);
     const [a, b, c] = DEVICES.map((d) => randomFocus(r, d));
-    const ab = mergeFocus(a, b);
+    // A „MOST” is az eset része: a jövőben véget ért naplósor nem zár le
+    // menetet, és ehhez a fésülésnek tudnia kell, mikor van most.
+    const now = FOCUS_MERGE_NOW;
+    const ab = mergeFocus(a, b, now);
     // EGY MEZŐ CSERÉJE: a három nyelvnek ugyanazt kell KÜLÖNBSÉGNEK tartania
     // (`sameFocus` / `FocusSync.same`), és ami nem jelentés, azt nem. A várt
     // érték a fajtából jön; itt azt is ellenőrizzük, hogy a csere tényleg az,
@@ -192,9 +210,24 @@ function buildFixture(): Fixture {
     const observed = sameFocus(normalizeSyncFocus(a, 'x'), normalizeSyncFocus(flip, 'x'));
     assert.equal(observed, same, `a csere nem az, aminek szántuk: mag ${seed}, ${what}`);
     focus.push({
-      seed, a, b, c, ab: focusConformanceKey(ab), abc: focusConformanceKey(mergeFocus(ab, c)), flip, what, same,
+      seed, now, a, b, c, ab: focusConformanceKey(ab), abc: focusConformanceKey(mergeFocus(ab, c, now)), flip, what, same,
     });
+    note(a, b, ab);
   }
+  // KÉZZEL ÍRT ESETEK a menet minden ágára — ugyanúgy a három nyelvnek.
+  focusScenarios().forEach((sc, i) => {
+    const now = FOCUS_MERGE_NOW;
+    const ab = mergeFocus(sc.a, sc.b, now);
+    const { flip, what, same } = flipFocus(rng(10_000 + i), sc.a);
+    const observed = sameFocus(normalizeSyncFocus(sc.a, 'x'), normalizeSyncFocus(flip, 'x'));
+    assert.equal(observed, same, `a csere nem az, aminek szántuk: ${sc.name}, ${what}`);
+    focus.push({
+      seed: -(i + 1), scenario: sc.name, now, a: sc.a, b: sc.b, c: sc.c,
+      ab: focusConformanceKey(ab), abc: focusConformanceKey(mergeFocus(ab, sc.c, now)), flip, what, same,
+    });
+    note(sc.a, sc.b, ab);
+  });
+  for (const [k, v] of Object.entries(seen)) assert.ok(v, `a menet-ág hiányzik a fixtúrából: ${k} — a fixtúra elfajult`);
   // A HASZNÁLATI STATISZTIKA egyesítése: három eszköz mérése — napok, célok,
   // címkék (a több időt mérő eszközé), kapcsoló (ha bármelyik mér, az összeg
   // valódi). Nem fésülés, hanem összeadás — de a három nyelvnek itt is bájtra
@@ -315,7 +348,8 @@ function buildFixture(): Fixture {
   return {
     note: 'Generálja és őrzi: desktop/test/merge-fixture.test.ts (UPDATE_MERGE_FIXTURE=1 npm test). '
       + 'Olvassa: android/jvm-tests MergeFixtureTest, ios/SharedTests MergeFixtureTests. '
-      + 'A focus-esetek flip/what/same mezője: egy mező cseréje, és hogy a három nyelv különbségnek tartja-e. '
+      + 'A focus-esetek flip/what/same mezője: egy mező cseréje, és hogy a három nyelv különbségnek tartja-e; '
+      + 'a now mezője a fésülés időpontja (a jövőben véget ért naplósor nem zár le menetet). '
       + 'A sites-esetek flip/what/af/fa mezője: egy mező cseréje, és a fésülés mindkét sorrendben. '
       + 'A usage-esetek: három eszköz mérése, az egyesítés kulcsa, és az összegző (summary) a now időpontban: ma, tegnap, hét, hónap, '
       + 'toplisták (kulcs=címke=mp, holtversenyben a kulcs dönt), a hét az előző héthez (ez/múlt/századszázalék), napok. '
@@ -329,7 +363,7 @@ function buildFixture(): Fixture {
       + 'lazítás, élő ablak, megkövetelt zárlat, ablak-zárlat-e, közelgő ablak, a következő előfordulás (nextOcc). '
       + 'A focusLogs-esetek: napló és időpont (UTC) — a hét és az előző hét összegzője (menet/ms/korai/ablakból/csúcs-csomag), '
       + 'menet-napok, menet-órák, sorozat, leghosszabb sorozat, ablakból indult menetek csomagonként, a napi rajz.',
-    version: 15,
+    version: 16,
     sites,
     focus,
     usage,

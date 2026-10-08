@@ -16,7 +16,9 @@ test('az ablak jele a dróton: csak ha igaz — a régi sor mezője nincs, és a
   assert.equal(normalizeLogEntry({ packId: 'p', endedAt: 5 })?.window, undefined);
   assert.equal(normalizeLogEntry({ packId: 'p', endedAt: 5, window: 'igen' })?.window, undefined, 'csak a valódi igaz');
 });
-import { MAX_FOCUS_LOG, type FocusLogEntry, type FocusPack } from '../src/shared/focus';
+import {
+  FUTURE_LOG_TOLERANCE_MS, MAX_FOCUS_LOG, MAX_RUN_CUTS, type FocusLogEntry, type FocusPack,
+} from '../src/shared/focus';
 
 const pack = (id: string, sites: string[] = ['quizlet.com']): FocusPack => ({
   id, name: `csomag ${id}`, allowSites: sites, allowApps: ['Word'], defaultMinutes: 50,
@@ -47,17 +49,157 @@ test('a futó munkamenetet egy „nem fut” állapot nem kapcsolja ki azonos re
   assert.deepEqual(mergeFocus(stale, running).run, running.run);
 });
 
-test('a leállítás NAGYOBB rev-vel átmegy — az a próbatétel jele', () => {
+/** A menet lezárásának naplósora — a sírköve a szinkronban. */
+const ended = (over: Partial<FocusLogEntry> = {}): FocusLogEntry => ({
+  packId: 'p1', packName: 'csomag p1', startedAt: 0, endedAt: 5_000, plannedEndsAt: 10_000, stopped: true, ...over,
+});
+
+test('a leállítás a naplósorával megy át — az a próbatétel nyoma', () => {
   const running = focus({
     packs: [pack('p1')],
     run: { packId: 'p1', startedAt: 0, endsAt: 10_000 },
     rev: 4, updatedAt: 100, updatedBy: 'eszkoz-a',
   });
   const stopped = focus({
-    packs: [pack('p1')], run: null, rev: 5, updatedAt: 110, updatedBy: 'eszkoz-b',
+    packs: [pack('p1')], run: null, log: [ended()], rev: 5, updatedAt: 110, updatedBy: 'eszkoz-b',
   });
   assert.equal(mergeFocus(running, stopped).run, null);
   assert.equal(mergeFocus(stopped, running).run, null);
+});
+
+test('felhúzott rev-vel, naplósor nélkül nem áll le a menet (a független átnézés kiskapuja)', () => {
+  // Egy friss telepítés húsz átnevezéssel, vagy egy menet indulásakor
+  // hálózaton kívül lévő telefon két átnevezéssel bármilyen nagy `rev`-et
+  // elér — ingyen. Eddig ez a „nagyobb rev: az övé a döntés” szabállyal
+  // leállította a futó menetet. A menetről nem tud, sort sem írhat róla.
+  const running = focus({
+    packs: [pack('p1')],
+    run: { packId: 'p1', startedAt: 0, endsAt: 10_000 },
+    rev: 4, updatedAt: 100, updatedBy: 'eszkoz-a',
+  });
+  const inflated = focus({
+    packs: [pack('p1')], run: null, rev: 40, updatedAt: 900, updatedBy: 'eszkoz-z',
+  });
+  assert.deepEqual(mergeFocus(running, inflated, 2_000).run, running.run);
+  assert.deepEqual(mergeFocus(inflated, running, 2_000).run, running.run);
+  // Egy MÁSIK menet sora sem jó: a sírkő a menet azonosságára szól.
+  const otherRow = focus({ ...inflated, log: [ended({ startedAt: 1 }), ended({ packId: 'p2' })] });
+  assert.deepEqual(mergeFocus(running, otherRow, 2_000).run, running.run);
+});
+
+test('a kifizetett rövidítés nyer a régi, hosszabb változat felett — rev-től függetlenül', () => {
+  const cut = focus({
+    packs: [pack('p1')], run: { packId: 'p1', startedAt: 0, endsAt: 5_000, cuts: 1 },
+    rev: 2, updatedAt: 100, updatedBy: 'eszkoz-a',
+  });
+  const stale = focus({
+    packs: [pack('p1')], run: { packId: 'p1', startedAt: 0, endsAt: 10_000 },
+    rev: 9, updatedAt: 900, updatedBy: 'eszkoz-z',
+  });
+  assert.deepEqual(mergeFocus(cut, stale).run, cut.run);
+  assert.deepEqual(mergeFocus(stale, cut).run, cut.run);
+  // A rövidítés UTÁNI hosszabbítás ugyanannyi rövidítéssel: a hosszabb nyer.
+  const extended = focus({ ...cut, run: { packId: 'p1', startedAt: 0, endsAt: 7_000, cuts: 1 } });
+  assert.equal(mergeFocus(cut, extended).run?.endsAt, 7_000);
+  assert.equal(mergeFocus(extended, cut).run?.endsAt, 7_000);
+});
+
+test('a leállítás után a rövidítés előtti, régi változat nem támad fel', () => {
+  // A telefon lerövidítette, majd leállította; a gépen még a rövidítés előtti
+  // változat áll, hosszabb véggel. A sor több rövidítést ismert: lezárja.
+  const stale = focus({
+    packs: [pack('p1')], run: { packId: 'p1', startedAt: 0, endsAt: 10_000 }, rev: 9,
+  });
+  const stopped = focus({
+    packs: [pack('p1')], run: null, rev: 3,
+    log: [ended({ endedAt: 3_000, plannedEndsAt: 5_000, cuts: 1 })],
+  });
+  assert.equal(mergeFocus(stale, stopped, 4_000).run, null);
+  assert.equal(mergeFocus(stopped, stale, 4_000).run, null);
+});
+
+test('a hosszabbítás, amiről a lezáró nem tudott, túléli a lezárást', () => {
+  // Egy hálózaton kívül tartott eszköz a régi tervvel zárta le a menetet. Ha
+  // ez elvinné a hosszabbítást, a hosszabbítás ingyen visszavonható lenne.
+  const extended = focus({
+    packs: [pack('p1')], run: { packId: 'p1', startedAt: 0, endsAt: 20_000 }, rev: 3,
+  });
+  const lapsed = focus({
+    packs: [pack('p1')], run: null, rev: 8,
+    log: [ended({ endedAt: 10_000, plannedEndsAt: 10_000, stopped: false })],
+  });
+  assert.equal(mergeFocus(extended, lapsed, 12_000).run?.endsAt, 20_000);
+  assert.equal(mergeFocus(lapsed, extended, 12_000).run?.endsAt, 20_000);
+  // Aki a hosszabbítást is ismerte, annak a leállítása viszi.
+  const stopped = focus({ ...lapsed, log: [ended({ endedAt: 15_000, plannedEndsAt: 20_000 })] });
+  assert.equal(mergeFocus(extended, stopped, 16_000).run, null);
+  assert.equal(mergeFocus(stopped, extended, 16_000).run, null);
+});
+
+test('a jövőben véget ért naplósor nem zár le menetet', () => {
+  // Az óra előreállítása után a telefon „lejártnak” látja a menetet, és a
+  // tervezett végével naplózza — ami a valóságban még nem jött el.
+  const running = focus({
+    packs: [pack('p1')], run: { packId: 'p1', startedAt: 0, endsAt: 3_600_000 }, rev: 2,
+  });
+  const fromTheFuture = focus({
+    packs: [pack('p1')], run: null, rev: 7,
+    log: [ended({ endedAt: 3_600_000, plannedEndsAt: 3_600_000, stopped: false })],
+  });
+  const now = 600_000;
+  assert.ok(mergeFocus(running, fromTheFuture, now).run, 'most még fut');
+  assert.ok(mergeFocus(fromTheFuture, running, now).run, 'sorrendtől függetlenül');
+  // Öt percen belül két eszköz órája eltérhet — ennyit elfogadunk.
+  assert.equal(mergeFocus(running, fromTheFuture, 3_600_000 - FUTURE_LOG_TOLERANCE_MS).run, null);
+});
+
+test('az eltolt menet ugyanaz a menet: a máshol lezárt menetet nem hozza vissza', () => {
+  // A gép aludt: ébredéskor az elnyelés a kezdést és a véget is eltolta. A
+  // telefon közben rendesen lezárta. Az eltolt menet az eredeti kezdését
+  // viszi, a lezárás sora tehát rá is vonatkozik.
+  const shift = 8 * 3_600_000;
+  const woke = focus({
+    packs: [pack('p1')], rev: 2,
+    run: { packId: 'p1', startedAt: 1_000 + shift, endsAt: 3_001_000 + shift, origin: 1_000 },
+  });
+  const phone = focus({
+    packs: [pack('p1')], run: null, rev: 3,
+    log: [ended({ startedAt: 1_000, endedAt: 3_001_000, plannedEndsAt: 3_001_000, stopped: false })],
+  });
+  assert.equal(mergeFocus(woke, phone, 1_000 + shift).run, null);
+  assert.equal(mergeFocus(phone, woke, 1_000 + shift).run, null);
+  // Ha a telefonon még fut, a két változat UGYANAZ a menet: azonos hossznál
+  // az eltolt (később végződő) marad, ahogy eddig.
+  const still = focus({ packs: [pack('p1')], rev: 3, run: { packId: 'p1', startedAt: 1_000, endsAt: 3_001_000 } });
+  assert.deepEqual(mergeFocus(woke, still).run, woke.run);
+  assert.deepEqual(mergeFocus(still, woke).run, woke.run);
+});
+
+test('a naplósorok közül a többet tudó marad', () => {
+  const old = ended({ endedAt: 10_000, plannedEndsAt: 10_000, stopped: false });
+  const knewExtension = ended({ endedAt: 15_000, plannedEndsAt: 20_000, stopped: true });
+  const knewCut = ended({ endedAt: 4_000, plannedEndsAt: 4_000, stopped: false, cuts: 1 });
+  const one = (a: FocusLogEntry[], b: FocusLogEntry[]) => mergeFocus(focus({ log: a }), focus({ log: b })).log;
+  assert.deepEqual(one([old], [knewExtension]), [knewExtension]);
+  assert.deepEqual(one([knewExtension], [old]), [knewExtension]);
+  assert.deepEqual(one([knewExtension], [knewCut]), [knewCut]);
+  assert.deepEqual(one([knewCut], [knewExtension]), [knewCut]);
+});
+
+test('a rövidítésszám és az eredeti kezdés a dróton: csak az értelmes marad', () => {
+  const blob = (run: Record<string, unknown>) => normalizeSyncFocus({
+    packs: [pack('p1')], run: { packId: 'p1', startedAt: 5_000, endsAt: 9_000, ...run }, rev: 1,
+  }, 'eszkoz-a').run;
+  assert.equal(blob({ cuts: 2 })?.cuts, 2);
+  for (const bad of [0, -1, 2.5, '3', null, true]) assert.equal(blob({ cuts: bad })?.cuts, undefined, `cuts: ${bad}`);
+  assert.equal(blob({ cuts: 1e9 })?.cuts, MAX_RUN_CUTS, 'plafon');
+  assert.equal(blob({ origin: 1_000 })?.origin, 1_000);
+  for (const bad of [5_000, 6_000, 0, -5, Number.NaN, '1000', 1_000.5]) {
+    assert.equal(blob({ origin: bad })?.origin, undefined, `origin: ${bad}`);
+  }
+  const row = normalizeLogEntry({ packId: 'p', startedAt: 5_000, endedAt: 9_000, cuts: 1, origin: 4_000 });
+  assert.equal(row?.cuts, 1);
+  assert.equal(row?.origin, 4_000);
 });
 
 test('a hosszabbítás azonos rev mellett is nyer, a rövidítés nem', () => {

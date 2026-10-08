@@ -31,8 +31,8 @@ import { MAX_RULES_PER_SITE, sameRule, type UrlRule } from '../shared/urlrules';
 import { hostnameBelongsTo, MAX_HOSTNAMES_PER_SITE, normalizeHostname } from '../shared/blocklist';
 import {
   closeIfEnded, closeRun, dueRecurrence, isRecurrenceLoosening, isRunning, isSessionLoosening,
-  isWindowRun, MAX_FOCUS_LOG, normalizeMinutes, normalizeRecurrence, sameRecurrence,
-  type FocusPack, type FocusRun,
+  isWindowRun, MAX_FOCUS_LOG, MAX_RUN_CUTS, normalizeMinutes, normalizeRecurrence, runOrigin,
+  sameRecurrence, type FocusPack, type FocusRun,
 } from '../shared/focus';
 import type { AbandonRec, HelperState, SessionRec } from './state';
 import { newId } from './state';
@@ -245,7 +245,12 @@ function finishSession(state: HelperState, now: number): void {
       logFocusEnd(state, now, true);
       state.focusRun = null;
     } else if (state.focusRun) {
-      state.focusRun = { ...state.focusRun, endsAt: s.pendingFocusEnd };
+      // A RÖVIDÍTÉS SZÁMA is lép: a szinkron ebből tudja, hogy ez a változat
+      // kifizetett rövidítés, nem egy régi, hosszabbítás előtti állapot.
+      state.focusRun = {
+        ...state.focusRun, endsAt: s.pendingFocusEnd,
+        cuts: Math.min((state.focusRun.cuts ?? 0) + 1, MAX_RUN_CUTS),
+      };
     }
     state.unlockLog = [...state.unlockLog.filter((t) => t > now - 30 * 24 * 3600_000), now];
     state.session = null;
@@ -860,11 +865,16 @@ function absorbClockJump(state: HelperState, now: number): void {
   // menet délben végződik akkor is, ha a laptop közben aludt — az ablak az
   // ígéret, nem a hossz (focus.ts). Ha eltolnánk, a telefon és a gép két
   // különböző menetet látna ugyanarról a délelőttről.
+  //
+  // Az EREDETI kezdés megmarad (`origin`): a menet azonossága az, nem a tolt
+  // kezdés. Enélkül a telefon lezárásának sora nem ismerné fel az ébredő gép
+  // eltolt menetét, és a szinkron új menetként vinné vissza a telefonra.
   if (state.focusRun && !isWindowRun(state.focusRun, state.focusPacks ?? [])) {
     state.focusRun = {
       ...state.focusRun,
       startedAt: state.focusRun.startedAt + shift,
       endsAt: state.focusRun.endsAt + shift,
+      origin: runOrigin(state.focusRun),
     };
   }
   // A HŰTÉS VÉGE IS TOLÓDIK (shared/burst.ts `shiftCooldowns`). Eddig ez

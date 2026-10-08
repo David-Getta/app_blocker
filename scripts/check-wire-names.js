@@ -137,7 +137,12 @@ const GROUPS = [
   },
   {
     what: 'a futó menet',
-    names: ['packId', 'startedAt', 'endsAt'],
+    // A `cuts` és az `origin` a menet SÍRKŐ-szabályának tudása: a rövidítés
+    // száma és az eltolás előtti kezdés. Ha bármelyik neve elcsúszna, a másik
+    // eszköz eldobná — és egy régi, rövidítés előtti változat legyőzné a
+    // kifizetett rövidítést, vagy a máshol lezárt menet az ébredő gépen
+    // újként futna tovább.
+    names: ['packId', 'startedAt', 'endsAt', 'cuts', 'origin'],
     ts: 'desktop/src/shared/focus.ts',
     kt: 'android/app/src/main/java/hu/breaker/app/core/SyncClient.kt',
     swift: 'ios/Shared/Focus.swift',
@@ -190,7 +195,9 @@ const GROUPS = [
   },
   {
     what: 'egy naplósor',
-    names: ['packName', 'endedAt', 'plannedEndsAt', 'stopped', 'window'],
+    // A sor a menet sírköve is: a `cuts` és az `origin` dönti el, melyik
+    // változatot zárja le.
+    names: ['packName', 'endedAt', 'plannedEndsAt', 'stopped', 'window', 'cuts', 'origin'],
     ts: 'desktop/src/shared/focus.ts',
     kt: 'android/app/src/main/java/hu/breaker/app/core/SyncClient.kt',
     swift: 'ios/Shared/Focus.swift',

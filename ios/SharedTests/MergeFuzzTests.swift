@@ -117,6 +117,18 @@ private let logPool: [Focus.LogEntry] = [
 ]
 private let logSets: [[Int]] = [[0], [1], [0, 2], [1, 2, 3], [4, 3]]
 
+/// A fésülés „most”-ja — a gép merge-random.ts `FOCUS_MERGE_NOW` párja.
+private let focusMergeNow: Double = 500_000
+
+/// Sírkövek: a generált menetekre hivatkozó naplósorok — a gép `TOMBS` párja.
+private let tombs: [Focus.LogEntry] = [
+    Focus.LogEntry(packId: "p1", packName: "csomag p1", startedAt: 10, endedAt: 300_000, plannedEndsAt: 610_000, stopped: true),
+    Focus.LogEntry(packId: "p2", packName: "csomag p2", startedAt: 10, endedAt: 610_000, plannedEndsAt: 610_000, stopped: false),
+    Focus.LogEntry(packId: "p3", packName: "csomag p3", startedAt: 60_010, endedAt: 400_000, plannedEndsAt: 610_000, stopped: true, cuts: 1),
+    Focus.LogEntry(packId: "p1", packName: "csomag p1", startedAt: 60_010, endedAt: 450_000, plannedEndsAt: 670_000, stopped: true, origin: 5),
+    Focus.LogEntry(packId: "p4", packName: "csomag p4", startedAt: 10, endedAt: 900_000, plannedEndsAt: 900_000, stopped: false),
+]
+
 private func randomFocus(_ r: inout Lcg, _ device: String) -> FocusSync.SyncFocus {
     var kept: [String] = []
     for id in packIds {
@@ -196,9 +208,22 @@ private func randomFocus(_ r: inout Lcg, _ device: String) -> FocusSync.SyncFocu
     // A NAPLÓ — két húzás, feltétel nélkül, mint a gépen.
     let logDraw = r.next()
     let logPick = Int(r.next() * 5)
-    let log: [Focus.LogEntry] = logDraw < 0.5 ? logSets[logPick].map { logPool[$0] } : []
+    let rows: [Focus.LogEntry] = logDraw < 0.5 ? logSets[logPick].map { logPool[$0] } : []
+    // A MENET JELEI ÉS A SÍRKŐ — négy húzás, feltétel nélkül, mint a gépen:
+    // rövidítette-e, eltolta-e az óra (eredeti kezdés 5), van-e sírkő, melyik.
+    let cutsDraw = r.next()
+    let originDraw = r.next()
+    let tombDraw = r.next()
+    let tombPick = Int(r.next() * Double(tombs.count))
+    let marked = run.map {
+        Focus.Run(
+            packId: $0.packId, startedAt: $0.startedAt, endsAt: $0.endsAt,
+            cuts: cutsDraw < 0.25 ? 1 : nil, origin: originDraw < 0.2 ? 5 : nil
+        )
+    }
+    let log = tombDraw < 0.3 ? rows + [tombs[tombPick]] : rows
     return FocusSync.SyncFocus(
-        packs: packs, run: run, log: log, rev: rev, updatedAt: updatedAt, updatedBy: device,
+        packs: packs, run: marked, log: log, rev: rev, updatedAt: updatedAt, updatedBy: device,
         packMarks: marks.isEmpty ? nil : marks, lockdown: lockdown,
         lockdownWindows: windows.isEmpty ? nil : windows, lockdownWindowsRev: windowsRev,
         partner: partner, partnerRev: partnerRev,
@@ -207,12 +232,14 @@ private func randomFocus(_ r: inout Lcg, _ device: String) -> FocusSync.SyncFocu
     )
 }
 
-/// A csomagok halmaza, a jelek, a menet és a rev — és a csomagok VÁLTOZATA
-/// is, kivéve azét, amin valamelyik bemenet menete fut: ott három eszköznél
-/// a változat a sorrendtől függhet (a jelenlét nem) — a doksi kimondja, a gép
-/// fuzzja ugyanígy méri.
-private func focusKey(_ f: FocusSync.SyncFocus, runIds: Set<String>) -> String {
-    let packs = f.packs.sorted { $0.id < $1.id }
+/// A csomagok halmaza, a jelek, a rev, a napló és a többi jeles mező — és a
+/// csomagok VÁLTOZATA is, kivéve azét, amin valamelyik bemenet menete fut. A
+/// futó menet és a csomagja külön kérdés (a gép merge-fuzz.test.ts-e kimondja):
+/// egy leváltott menetet a sírköve más sorrendben más ponton ér el. A
+/// `withRun` nélküli kulcs ezeket kihagyja; a menetet a `runSafety` és a sírkő
+/// nélküli esetek mérik.
+private func focusKey(_ f: FocusSync.SyncFocus, runIds: Set<String>, withRun: Bool = true) -> String {
+    let packs = f.packs.filter { withRun || !runIds.contains($0.id) }.sorted { $0.id < $1.id }
         .map { p -> String in
             runIds.contains(p.id)
                 ? p.id
@@ -220,14 +247,33 @@ private func focusKey(_ f: FocusSync.SyncFocus, runIds: Set<String>) -> String {
         }.joined(separator: ",")
     let marks = (f.packMarks ?? [:]).sorted { $0.key < $1.key }
         .map { "\($0.key)=\($0.value)" }.joined(separator: ",")
-    let run = f.run.map { "\($0.packId)/\($0.startedAt)/\($0.endsAt)" } ?? "-"
+    let run = !withRun ? "*" : f.run.map { "\($0.packId)/\($0.startedAt)/\($0.endsAt)/\($0.cutCount)/\(String(describing: $0.origin))" } ?? "-"
     let lock = f.lockdown.map { "\($0.startedAt)/\($0.until)" } ?? "-"
     let windows = (f.lockdownWindows ?? []).map { LockdownLogic.windowKey($0.band) }.sorted().joined(separator: ";")
     return "\(packs)|\(marks)|\(run)|\(f.rev)|\(lock)|\(windows)|\(f.lockdownWindowsRev ?? 0)"
         + "|\((f.hideSiteList ?? false) ? 1 : 0)|\(f.hideSiteListRev ?? 0)"
         + "|\(KeywordLogic.keywordsKey(f.keywords ?? []))|\(f.keywordsRev ?? 0)"
         + "|\(PartnerLogic.partnerKey(f.partner))|\(f.partnerRev ?? 0)"
-        + "|" + f.log.map { "\($0.packId)/\(Int($0.startedAt))/\(Int($0.endedAt))/\(Int($0.plannedEndsAt))/\($0.stopped ? 1 : 0)/\(($0.window ?? false) ? 1 : 0)" }.joined(separator: ";")
+        + "|" + f.log.map { e -> String in
+            "\(e.packId)/\(Int(e.startedAt))/\(Int(e.endedAt))/\(Int(e.plannedEndsAt))/\(e.stopped ? 1 : 0)/\((e.window ?? false) ? 1 : 0)"
+                + "/\(e.cutCount)/\(String(describing: e.origin))"
+        }.joined(separator: ";")
+}
+
+/// A fésült menet biztonsága: egy bemeneté, a csomagja a listán, a fésült napló nem zárja le.
+private func runSafety(_ m: FocusSync.SyncFocus, _ inputs: [FocusSync.SyncFocus], _ seed: Int) {
+    guard let run = m.run else { return }
+    XCTAssertTrue(inputs.contains { $0.run == run }, "a menet egy bemeneté, mag \(seed)")
+    XCTAssertTrue(m.packs.contains { $0.id == run.packId }, "a menet csomagja a listán van, mag \(seed)")
+    var bare = m
+    bare.run = nil
+    XCTAssertEqual(FocusSync.merge(m, bare, now: focusMergeNow).run, run, "a fésült napló nem zárja le, mag \(seed)")
+}
+
+/// Sorrendtől független-e a menet: nincs rövidítés, eltolás, és a menetre szóló sírkő.
+private func plainRuns(_ fs: [FocusSync.SyncFocus]) -> Bool {
+    fs.allSatisfy { f in f.run.map { $0.cutCount == 0 && $0.origin == nil } ?? true }
+        && !fs.contains { f in f.log.contains { e in fs.contains { g in g.run.map { Focus.sameRun(e, $0) } ?? false } } }
 }
 
 final class MergeFuzzTests: XCTestCase {
@@ -262,25 +308,28 @@ final class MergeFuzzTests: XCTestCase {
             let b = randomFocus(&r, devices[1])
             let c = randomFocus(&r, devices[2])
             let runIds = Set([a, b, c].compactMap { $0.run?.packId })
-            let key = { (f: FocusSync.SyncFocus) in focusKey(f, runIds: runIds) }
-            let ab = FocusSync.merge(a, b)
-            XCTAssertEqual(key(ab), key(FocusSync.merge(b, a)), "szimmetria, mag \(seed)")
-            XCTAssertEqual(key(FocusSync.merge(ab, ab)), key(ab), "idempotens, mag \(seed)")
-            let abc = FocusSync.merge(ab, c)
-            XCTAssertEqual(
-                key(abc), key(FocusSync.merge(FocusSync.merge(b, c), a)),
-                "három eszköz (bca), mag \(seed)"
-            )
-            XCTAssertEqual(
-                key(abc), key(FocusSync.merge(FocusSync.merge(c, a), b)),
-                "három eszköz (cab), mag \(seed)"
-            )
+            let full = { (f: FocusSync.SyncFocus) in focusKey(f, runIds: runIds) }
+            let noRun = { (f: FocusSync.SyncFocus) in focusKey(f, runIds: runIds, withRun: false) }
+            let now = focusMergeNow
+            let ab = FocusSync.merge(a, b, now: now)
+            XCTAssertEqual(full(ab), full(FocusSync.merge(b, a, now: now)), "szimmetria, mag \(seed)")
+            XCTAssertEqual(full(FocusSync.merge(ab, ab, now: now)), full(ab), "idempotens, mag \(seed)")
+            let abc = FocusSync.merge(ab, c, now: now)
+            let bca = FocusSync.merge(FocusSync.merge(b, c, now: now), a, now: now)
+            let cab = FocusSync.merge(FocusSync.merge(c, a, now: now), b, now: now)
+            XCTAssertEqual(noRun(abc), noRun(bca), "három eszköz (bca), mag \(seed)")
+            XCTAssertEqual(noRun(abc), noRun(cab), "három eszköz (cab), mag \(seed)")
+            // Sírkő, rövidítés és eltolás nélkül a menet is sorrendtől független.
+            if plainRuns([a, b, c]) {
+                XCTAssertEqual(abc.run, bca.run, "három eszköz, a menet (bca), mag \(seed)")
+                XCTAssertEqual(abc.run, cab.run, "három eszköz, a menet (cab), mag \(seed)")
+            }
             // A jeles csomag a nagyobb jel változatában marad: ha az egyik
-            // oldalon ablakos csomag áll a nagyobb jellel, az ablak marad. A
-            // futó menet csomagja a blob rev-jével számít jeleltnek.
+            // oldalon ablakos csomag áll a nagyobb jellel, az ablak marad — a
+            // futó menet csomagjánál is (csak a fehérlistája metszet).
             for p in a.packs {
-                let ma = effectiveMark(a, p.id)
-                let mb = effectiveMark(b, p.id)
+                let ma = a.packMarks?[p.id] ?? 0
+                let mb = b.packMarks?[p.id] ?? 0
                 if ma > mb && p.recurrence != nil {
                     XCTAssertNotNil(
                         ab.packs.first { $0.id == p.id }?.recurrence,
@@ -288,18 +337,7 @@ final class MergeFuzzTests: XCTestCase {
                     )
                 }
             }
-            // Csomag nélküli menet nem születik: a menet csomagja a listán van.
-            for m in [ab, abc] {
-                if let run = m.run {
-                    XCTAssertTrue(m.packs.contains { $0.id == run.packId }, "a menet csomagja a listán van, mag \(seed)")
-                }
-            }
+            for m in [ab, abc, bca, cab] { runSafety(m, [a, b, c], seed) }
         }
-    }
-
-    private func effectiveMark(_ f: FocusSync.SyncFocus, _ id: String) -> Int {
-        let own = f.packMarks?[id] ?? 0
-        if f.run?.packId == id && f.packs.contains(where: { $0.id == id }) { return max(own, Int(f.rev)) }
-        return own
     }
 }

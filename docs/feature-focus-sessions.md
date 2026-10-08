@@ -240,7 +240,7 @@ A szinkronban három dolog utazik együtt, és a harmadik szándékosan kilóg:
 | Mi | Mi ez | Hogyan fésülődik |
 |---|---|---|
 | csomagok | beállítás | csomagonként: jel nélkül az újabb blob, jellel a nagyobb jel |
-| futó menet | **engedély** | a szigorúbb nyer; lazítani csak nagyobb `rev` |
+| futó menet | **engedély** | a szigorúbb nyer; lazítani csak a nyomával: rövidítés-számláló, lezáró naplósor |
 | napló | **a múlt feljegyzése** | EGYESÍTÉS, a `rev`-hez semmi köze |
 
 A különbség nem következetlenség. A csomagok és a futás azt mondják meg, mi
@@ -248,18 +248,70 @@ A különbség nem következetlenség. A csomagok és a futás azt mondják meg,
 mi *történt*: nem enged meg semmit, nem old fel semmit, és egy elveszett sora
 nem kibúvó, csak pontatlan statisztika.
 
-Ha a napló léptetné a számlálót, egy statisztika-bejegyzés le tudna állítani egy
-futó menetet a másik eszközön, próbatétel nélkül. Ezért marad ki a `rev`
-lenyomatából (`helper/revisions.ts`) — de benne VAN a „van-e mit feltölteni”
-vizsgálatban (`sameFocus`), különben egy telefonon lezárult menet sosem érne fel.
-A kettő nem ugyanaz a kérdés: az egyik azt méri, ki dönthet, a másik azt, hogy
-van-e új adat.
+A napló kimarad a `rev` lenyomatából (`helper/revisions.ts`) — de benne VAN a
+„van-e mit feltölteni” vizsgálatban (`sameFocus`), különben egy telefonon
+lezárult menet sosem érne fel. A kettő nem ugyanaz a kérdés: az egyik azt
+méri, ki dönthet, a másik azt, hogy van-e új adat.
 
-**Két sor akkor ugyanaz, ha a csomag és a KEZDÉS egyezik.** Ez a gyakori eset,
-nem a kivétel: a telefonon próbatétellel leállítod, a gép meg később, a
+**Egy dolgot a naplósor mégis eldönt: a menet végét.** A sor a lezárt menet
+SÍRKÖVE is (lásd lent, „A futó menet a szinkronban”). Ez nem lazítás a
+szabályon: sort csak az ír egy menetről, aki a menetet látta, és vagy
+próbatétellel leállította, vagy kivárta a végét.
+
+**Két sor akkor ugyanaz, ha a csomag és az EREDETI kezdés egyezik** (az
+óra-ugrás eltolhatja a kezdést, a menet attól ugyanaz). Ez a gyakori eset, nem
+a kivétel: a telefonon próbatétellel leállítod, a gép meg később, a
 szinkronból veszi észre — enélkül minden ilyen menet kettőnek számítana.
-Ütközésnél a korábbi vég nyer: a menet akkor ért véget, amikor véget ért, nem
-akkor, amikor a másik eszköz észbe kapott.
+Ütközésnél a TÖBBET TUDÓ sor marad (aki több rövidítést, aztán hosszabb tervet
+ismert), azonos tudásnál a korábbi vég: a menet akkor ért véget, amikor véget
+ért, nem akkor, amikor a másik eszköz észbe kapott.
+
+## A futó menet a szinkronban: a nyom dönt, nem a számláló
+
+Sokáig a blob `rev`-je döntött a menetről is: a nagyobb `rev`-é volt a szó,
+akár a leállítás is. Egy független átnézés megmutatta, mi ezzel a baj: a
+`rev`-et egy csomag átnevezése, egy kulcsszó felvétele is lépteti — ingyen.
+Egy friss telepítés húsz átnevezéssel, vagy egy menet indulásakor hálózaton
+kívül lévő telefon két átnevezéssel bármelyik futó menetet leállította,
+próbatétel nélkül.
+
+Most a menetről a **nyoma** dönt, mindhárom magban ugyanúgy (közös fixtúrával):
+
+- **Menetet csak a rá hivatkozó naplósor zár le.** Aki a menetről nem tudott,
+  sort sem írhatott róla — a felhúzott `rev` semmit nem ér. A sor azt a
+  változatot zárja le, amit ismert: ha a menetet közben valaki
+  meghosszabbította, és erről a lezáró nem tudott, a hosszabbítás túléli.
+  Enélkül egy hálózaton kívül tartott eszköz lejárata ingyen visszavonná a
+  hosszabbítást.
+- **A rövidítésnek számlálója van** (`cuts`). Két változat ugyanarról a
+  menetről: a több kifizetett rövidítés nyer, azonos számnál a hosszabb — a
+  hosszabbítás ingyen van, a rövidítés nem. Egy régi, rövidítés előtti
+  változat így nem írja felül a kifizetett rövidítést, és a leállítás után sem
+  támad fel.
+- **A menet azonossága az eredeti kezdés** (`origin`). Az alvásból ébredő gép
+  eltolja a menetét (lásd lent); az eltolt menet ugyanaz a menet, tehát a
+  telefon közbeni lezárásának sora rá is vonatkozik.
+- **A jövőben véget ért sor nem számít** — ugyanazzal az öt perces tűréssel,
+  mint az ablaknál (`FUTURE_LOG_TOLERANCE_MS`): az óra előreállításának nyoma,
+  nem lezárás.
+- **A futó menet csomagja mindig marad, és a fehérlistája nem bővülhet.**
+  Különben ugyanaz a kiskapu a csomagon át: egy felhúzott jelű törlés (a
+  csomag nélküli menetet minden fogadó eldobja) vagy bővítés (a menet alatt
+  megnyílna, amit a menet zár). A csomag mezői a jelek szerinti győztesé, a
+  fehérlistája a menetet hordozó változattal METSZET: a menet alatt a lista
+  csak szűkülhet.
+
+**Őszinte korlátok.**
+
+- Ha a menetet egy eszközön meghosszabbítod, egy másikon közben próbatétellel
+  rövidíted, a rövidítés nyer — a hosszabbítás elvész. Szigorítás vész el,
+  nem lazítás jön; újra meghosszabbítható.
+- Ha két eszközön egymásról nem tudva két KÜLÖNBÖZŐ menet indul, a szigorúbb
+  marad. Ha ezt utána próbatétellel leállítod, hogy a gyengébb visszajön-e, a
+  szinkron sorrendjétől függ. Mindkét kimenet ára egy kifizetett leállítás.
+- Vegyes flottában (egy még nem frissített app a fiókban) a régi app
+  rövidítése számláló nélkül megy fel, tehát a hosszabb változat legyőzheti.
+  Frissíts minden eszközt egyszerre.
 
 ## Az óra átállítása nem rövidíti a menetet
 
@@ -308,13 +360,18 @@ egyik aludt, a másik ébren volt, a kettő nem ugyanazt látta:
 Azonos `rev` mellett a szigorúbb nyer, tehát a futó menet: az ébren lévő
 eszközön a menet VISSZATÉRT. Próbatétellel leállítható volt, de meglepő.
 
-**A javítás: a lenyomat a futás HOSSZÁT nézi, nem az abszolút időpontjait.**
+**Az első javítás: a lenyomat a futás HOSSZÁT nézi, nem az abszolút
+időpontjait.** Az elnyelés nem döntés, csak helyi újraértelmezés — a
+felhasználó nem csinált semmit. A kezdés és a vég ugyanannyival tolódik, tehát
+a hossz VÁLTOZATLAN, és így nincs is mit léptetni. Ami valódi döntés —
+meghosszabbítás, leállítás, másik csomag —, attól a hossz vagy a csomag
+változik, tehát ugyanúgy léptet, mint eddig.
 
-Az elnyelés nem döntés, csak helyi újraértelmezés — a felhasználó nem csinált
-semmit. A kezdés és a vég ugyanannyival tolódik, tehát a hossz VÁLTOZATLAN, és
-így nincs is mit léptetni. Az ébren lévő eszköz lezárása (nagyobb `rev`) nyer,
-és az a helyes. Ami valódi döntés — meghosszabbítás, leállítás, másik csomag —,
-attól a hossz vagy a csomag változik, tehát ugyanúgy léptet, mint eddig.
+**Ma ez már nem a számlálón áll** (lásd fent, „A futó menet a szinkronban”):
+az eltolt menet az eredeti kezdését viszi (`origin`), tehát ugyanaz a menet,
+mint ami az ébren lévő eszközön lezárult — a lezárás sora rá is vonatkozik, a
+hossza pedig nem több, mint amit a lezáró ismert. Az ébredő eszközön a menet
+legfeljebb addig fut tovább, amíg a szinkron meg nem érkezik.
 
 #### A formátumváltás csapdája, és miért nincs ablaka
 

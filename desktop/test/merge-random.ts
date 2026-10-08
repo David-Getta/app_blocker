@@ -129,6 +129,91 @@ export const LOGS: FocusLogEntry[] = [
 /** Napló-részhalmazok: az egyes esetekhez, sorrendben — a húzás ezek közül választ. */
 export const LOG_SETS: number[][] = [[0], [1], [0, 2], [1, 2, 3], [4, 3]];
 
+/**
+ * A fésülés „most”-ja: a menetek ekkor még futnak (a vég 610 000 vagy
+ * 670 000), a sírkövek közül a 800 000 utáni a jövőben ért véget (öt perc
+ * tűréssel), tehát nem zár le menetet.
+ */
+export const FOCUS_MERGE_NOW = 500_000;
+
+/**
+ * SÍRKÖVEK: naplósorok, amelyek a generált menetek egyikére hivatkoznak — a
+ * menet kezdése 10 vagy 60 010, a vége 610 000 vagy 670 000, az eredeti
+ * kezdése (ha eltolták) 5. Leállítás, lejárat, rövidítés utáni leállítás, egy
+ * eltolt menet sora, és egy a jövőben véget ért sor.
+ */
+export const TOMBS: FocusLogEntry[] = [
+  { packId: 'p1', packName: 'csomag p1', startedAt: 10, endedAt: 300_000, plannedEndsAt: 610_000, stopped: true },
+  { packId: 'p2', packName: 'csomag p2', startedAt: 10, endedAt: 610_000, plannedEndsAt: 610_000, stopped: false },
+  { packId: 'p3', packName: 'csomag p3', startedAt: 60_010, endedAt: 400_000, plannedEndsAt: 610_000, stopped: true, cuts: 1 },
+  { packId: 'p1', packName: 'csomag p1', startedAt: 60_010, endedAt: 450_000, plannedEndsAt: 670_000, stopped: true, origin: 5 },
+  { packId: 'p4', packName: 'csomag p4', startedAt: 10, endedAt: 900_000, plannedEndsAt: 900_000, stopped: false },
+];
+
+/** Egy kézzel írt fésülési eset: a menet új szabályainak egy-egy ága. */
+export interface FocusScenario { name: string; a: SyncFocus; b: SyncFocus; c: SyncFocus }
+
+/**
+ * A MENET SZABÁLYAINAK MINDEN ÁGA, kézzel — a véletlen generátor egyiket-másikat
+ * ritkán hozza, a tükröknek viszont mindet bizonyítaniuk kell. Mindegyik a
+ * `FOCUS_MERGE_NOW` időpontban értendő.
+ */
+export function focusScenarios(): FocusScenario[] {
+  const p = (id: string, sites: string[] = ['quizlet.com']): FocusPack => ({
+    id, name: `csomag ${id}`, allowSites: sites, allowApps: [], defaultMinutes: 50,
+  });
+  const blob = (device: string, over: Partial<SyncFocus>): SyncFocus => ({
+    ...emptyFocus(device), packs: [p('p1')], rev: 3, updatedAt: 100, updatedBy: device, ...over,
+  });
+  const row = (over: Partial<FocusLogEntry>): FocusLogEntry => ({
+    packId: 'p1', packName: 'csomag p1', startedAt: 10, endedAt: 300_000, plannedEndsAt: 610_000, stopped: true, ...over,
+  });
+  const run = { packId: 'p1', startedAt: 10, endsAt: 610_000 };
+  const third = blob('telefon', { rev: 2 });
+  return [
+    // A leállítás naplósora lezárja a menetet — rev-től függetlenül.
+    { name: 'sirko-leallit', a: blob('gep-a', { run, rev: 9 }), b: blob('gep-b', { log: [row({})], rev: 2 }), c: third },
+    // A kifizetett rövidítés nyer a hosszabb, régi változat felett.
+    {
+      name: 'rovidites-nyer',
+      a: blob('gep-a', { run: { ...run, endsAt: 550_000, cuts: 1 }, rev: 2 }),
+      b: blob('gep-b', { run, rev: 9 }), c: third,
+    },
+    // A jövőben véget ért sor nem zár le menetet.
+    {
+      name: 'jovobeli-sor',
+      a: blob('gep-a', { run: { ...run, endsAt: 900_000 } }),
+      b: blob('gep-b', { log: [row({ endedAt: 900_000, plannedEndsAt: 900_000, stopped: false })], rev: 8 }), c: third,
+    },
+    // Az eltolt menet ugyanaz a menet: a lezárás sora rá is vonatkozik.
+    {
+      name: 'eltolt-menet',
+      a: blob('gep-a', { run: { packId: 'p1', startedAt: 60_010, endsAt: 660_010, origin: 5 } }),
+      b: blob('gep-b', { log: [row({ startedAt: 5, endedAt: 400_000, plannedEndsAt: 600_005, stopped: false })] }),
+      c: blob('telefon', { run: { packId: 'p1', startedAt: 5, endsAt: 600_005 }, rev: 2 }),
+    },
+    // A hosszabbítás, amiről a lezáró nem tudott, túléli a lezárást.
+    {
+      name: 'hosszabbitas-tulel',
+      a: blob('gep-a', { run: { ...run, endsAt: 670_000 } }),
+      b: blob('gep-b', { log: [row({ endedAt: 610_000, plannedEndsAt: 610_000, stopped: false })], rev: 8 }), c: third,
+    },
+    // Felhúzott rev, sor nélkül: a menet fut tovább.
+    { name: 'felhuzott-rev', a: blob('gep-a', { run }), b: blob('gep-b', { rev: 50 }), c: third },
+    // Felhúzott jelű törlés: a futó menet csomagja marad.
+    {
+      name: 'csomag-torles',
+      a: blob('gep-a', { run }), b: blob('gep-b', { packs: [], packMarks: { p1: 50 }, rev: 50 }), c: third,
+    },
+    // Felhúzott jelű bővítés: a futó menet fehérlistája nem bővül.
+    {
+      name: 'csomag-bovites',
+      a: blob('gep-a', { run }),
+      b: blob('gep-b', { packs: [p('p1', ['quizlet.com', 'youtube.com'])], packMarks: { p1: 50 }, rev: 50 }), c: third,
+    },
+  ];
+}
+
 export function randomFocus(r: () => number, device: string): SyncFocus {
   const packs: FocusPack[] = PACK_IDS.filter(() => r() < 0.6).map((id) => ({
     id, name: `csomag ${id} v${Math.floor(r() * 3)}`, allowSites: ['quizlet.com'], allowApps: [],
@@ -195,10 +280,22 @@ export function randomFocus(r: () => number, device: string): SyncFocus {
   // viszi — a rendezés is tükrözött logika.
   const logDraw = r();
   const logPick = Math.floor(r() * 5);
-  const log = logDraw < 0.5 ? LOG_SETS[logPick].map((i) => LOGS[i]) : [];
+  const rows = logDraw < 0.5 ? LOG_SETS[logPick].map((i) => LOGS[i]) : [];
+  // A MENET JELEI ÉS A SÍRKŐ — négy húzás, feltétel nélkül, ugyanebben a
+  // sorrendben a három nyelvben: rövidítette-e (egyszer), eltolta-e az óra
+  // (az eredeti kezdés 5), van-e sírkő, és melyik. A sírkő a sorok VÉGÉRE
+  // kerül: a bemeneti sorrend itt sem rendezett.
+  const cutsDraw = r();
+  const originDraw = r();
+  const tombDraw = r();
+  const tombPick = Math.floor(r() * TOMBS.length);
+  const marked = run
+    ? { ...run, ...(cutsDraw < 0.25 ? { cuts: 1 } : {}), ...(originDraw < 0.2 ? { origin: 5 } : {}) }
+    : null;
+  const log = tombDraw < 0.3 ? [...rows, TOMBS[tombPick]] : rows;
   return {
     ...emptyFocus(device), packs, ...(Object.keys(marks).length ? { packMarks: marks } : {}),
-    run, log, rev, updatedAt, updatedBy: device,
+    run: marked, log, rev, updatedAt, updatedBy: device,
     ...(lockdown ? { lockdown } : {}),
     ...(windows.length > 0 ? { lockdownWindows: windows } : {}),
     ...(windowsRev !== undefined ? { lockdownWindowsRev: windowsRev } : {}),
@@ -243,7 +340,8 @@ export function focusConformanceKey(f: SyncFocus): string {
   }).join(';');
   const marks = Object.entries(f.packMarks ?? {}).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
     .map(([k, v]) => `${k}=${v}`).join(',');
-  const run = f.run ? `${f.run.packId}/${f.run.startedAt}/${f.run.endsAt}` : '-';
+  const run = f.run
+    ? `${f.run.packId}/${f.run.startedAt}/${f.run.endsAt}/${f.run.cuts ?? 0}/${f.run.origin ?? '-'}` : '-';
   const lock = f.lockdown ? `${f.lockdown.startedAt}/${f.lockdown.until}` : '-';
   // Az ablakok TARTALOM szerint, rendezve: az azonosító és a sorrend nem jelentés.
   const windows = (f.lockdownWindows ?? []).map(windowKey).sort().join(';');
@@ -253,7 +351,8 @@ export function focusConformanceKey(f: SyncFocus): string {
     + ` kw=[${keywordsKey(f.keywords ?? [])}] kmark=${f.keywordsRev ?? 0}`
     + ` partner=[${partnerKey(f.partner)}] pmark=${f.partnerRev ?? 0}`
     // A napló a FÉSÜLT sorrendben: a rendezés (vég, csomag, kezdés) is tükrözött.
-    + ` log=[${f.log.map((e) => `${e.packId}/${e.startedAt}/${e.endedAt}/${e.plannedEndsAt}/${e.stopped ? 1 : 0}/${e.window ? 1 : 0}`).join(';')}]`;
+    + ` log=[${f.log.map((e) => `${e.packId}/${e.startedAt}/${e.endedAt}/${e.plannedEndsAt}/${e.stopped ? 1 : 0}/${e.window ? 1 : 0}`
+      + `/${e.cuts ?? 0}/${e.origin ?? '-'}`).join(';')}]`;
 }
 
 /** Egy mező cseréje az `a` blobon, és hogy a csere jelentés-e (különbség). */
@@ -266,15 +365,16 @@ export interface FocusFlip { flip: SyncFocus; what: string; same: boolean }
  * kulcsából kimaradt a rejtés: azonos rev mellett a cseréje
  * „nincs mit feltölteni” lett volna — és a fésülés fixtúrája ezt nem látta.
  *
- * Tizenkilenc fajta: tizenöt jelentés (különbség), négy nem az (időbélyeg,
- * eszköznév, ablak-azonosító, a csomagok sorrendje). A várt érték a fajtából
+ * Huszonegy fajta: tizenhét jelentés (különbség), négy nem az (időbélyeg,
+ * eszköznév, ablak-azonosító, a csomagok sorrendje). A menet rövidítésszáma
+ * és eredeti kezdése jelentés: a fésülés ezekből dönt. A várt érték a fajtából
  * következik, és a gép tesztje ellenőrzi is — így egy hatástalan csere (amit
  * a normalizálás visszaírna) nem marad néma. EGY húzás, az a/b/c UTÁN: a
  * Kotlin és a Swift fuzz-generátort nem érinti, a fixtúra a cserét JSON-ban
  * viszi, a tükrök csak visszajátsszák.
  */
 export function flipFocus(r: () => number, a: SyncFocus): FocusFlip {
-  const kind = Math.floor(r() * 19);
+  const kind = Math.floor(r() * 21);
   const first = a.packs[0];
   const diff = (what: string, flip: SyncFocus): FocusFlip => ({ what, flip, same: false });
   const noDiff = (what: string, flip: SyncFocus): FocusFlip => ({ what, flip, same: true });
@@ -330,6 +430,12 @@ export function flipFocus(r: () => number, a: SyncFocus): FocusFlip {
       ? diff('partner-', { ...a, partner: undefined })
       : diff('partner+', { ...a, partner: PARTNERS[0] });
     case 18: return diff('pmark', { ...a, partnerRev: otherMark(a.partnerRev) });
+    case 19:
+      if (!a.run) return first ? diff('run+', { ...a, run: { packId: first.id, startedAt: 10, endsAt: 610_000, cuts: 1 } }) : addPack();
+      return diff('run.cuts', { ...a, run: { ...a.run, cuts: a.run.cuts ? a.run.cuts + 1 : 1 } });
+    case 20:
+      if (!a.run) return diff('log+', { ...a, log: [...a.log, { ...TOMBS[0] }] });
+      return diff('run.origin', { ...a, run: { ...a.run, origin: a.run.origin === 5 ? 6 : 5 } });
     default:
       // Ami NEM jelentés: az ablak azonosítója és a csomagok sorrendje.
       if (ws.length > 0) return noDiff('window.id', { ...a, lockdownWindows: [{ ...ws[0], id: 'w9@flip' }, ...ws.slice(1)] });

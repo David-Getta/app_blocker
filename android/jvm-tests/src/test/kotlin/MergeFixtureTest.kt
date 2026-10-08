@@ -71,7 +71,7 @@ class MergeFixtureTest {
             ).joinToString("|")
         }
         val marks = (f.packMarks ?: emptyMap()).toSortedMap().entries.joinToString(",") { "${it.key}=${it.value}" }
-        val run = f.run?.let { "${it.packId}/${it.startedAt}/${it.endsAt}" } ?: "-"
+        val run = f.run?.let { "${it.packId}/${it.startedAt}/${it.endsAt}/${it.cuts}/${it.origin ?: "-"}" } ?: "-"
         val lock = f.lockdown?.let { "${it.startedAt}/${it.until}" } ?: "-"
         // Az ablakok TARTALOM szerint, rendezve: az azonosító és a sorrend nem jelentés.
         val windows = f.lockdownWindows.map { LockdownLogic.windowKey(it.band) }.sorted().joinToString(";")
@@ -80,7 +80,10 @@ class MergeFixtureTest {
             " hide=${if (f.hideSiteList) 1 else 0} hmark=${f.hideSiteListRev ?: 0}" +
             " kw=[${KeywordLogic.keywordsKey(f.keywords)}] kmark=${f.keywordsRev ?: 0}" +
             " partner=[${PartnerLogic.partnerKey(f.partner)}] pmark=${f.partnerRev ?: 0}" +
-            " log=[" + f.log.joinToString(";") { "${it.packId}/${it.startedAt}/${it.endedAt}/${it.plannedEndsAt}/${if (it.stopped) 1 else 0}/${if (it.window) 1 else 0}" } + "]"
+            " log=[" + f.log.joinToString(";") {
+                "${it.packId}/${it.startedAt}/${it.endedAt}/${it.plannedEndsAt}/${if (it.stopped) 1 else 0}/${if (it.window) 1 else 0}" +
+                    "/${it.cuts}/${it.origin ?: "-"}"
+            } + "]"
     }
 
     private fun site(o: JSONObject): SyncMerge.SyncSite =
@@ -278,9 +281,12 @@ class MergeFixtureTest {
             val a = focus(c.getJSONObject("a"))
             val b = focus(c.getJSONObject("b"))
             val cc = focus(c.getJSONObject("c"))
-            val ab = FocusSync.merge(a, b)
-            assertEquals(c.getString("ab"), focusKey(ab), "munkamenet, két eszköz, mag $seed")
-            assertEquals(c.getString("abc"), focusKey(FocusSync.merge(ab, cc)), "munkamenet, három eszköz, mag $seed")
+            // A „MOST” is az eset része: a jövőben véget ért naplósor nem zár le menetet.
+            val now = c.getLong("now")
+            val name = c.optString("scenario", "").ifEmpty { "mag $seed" }
+            val ab = FocusSync.merge(a, b, now)
+            assertEquals(c.getString("ab"), focusKey(ab), "munkamenet, két eszköz, $name")
+            assertEquals(c.getString("abc"), focusKey(FocusSync.merge(ab, cc, now)), "munkamenet, három eszköz, $name")
             // EGY MEZŐ CSERÉJE: ugyanazt tartja-e különbségnek a Kotlin, mint a gép —
             // és ami nem jelentés (időbélyeg, eszköznév, ablak-azonosító, a
             // csomagok sorrendje), azt nem. A v0.4.170-ben a Swift kulcsából kimaradt

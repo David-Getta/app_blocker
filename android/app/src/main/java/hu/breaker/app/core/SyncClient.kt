@@ -356,6 +356,10 @@ object SyncClient {
             put("packId", f.run.packId)
             put("startedAt", f.run.startedAt)
             put("endsAt", f.run.endsAt)
+            // A rövidítés száma és az eredeti kezdés csak ha van — a fésülés
+            // ezekből dönt (a gép `FocusRun`-jának két mezője).
+            if (f.run.cuts > 0) put("cuts", f.run.cuts)
+            f.run.origin?.let { put("origin", it) }
         })
         // A NAPLÓ IS FELMEGY. Enélkül a telefonon lezárult menetek sosem
         // kerülnének be a statisztikába — aki a telefonján dolgozik, azt
@@ -370,6 +374,9 @@ object SyncClient {
                 put("stopped", e.stopped)
                 // Az ablak jele csak ha igaz — a régi kliens sora mezőtlen, és az nem ablak.
                 if (e.window) put("window", true)
+                // A sor a menet sírköve is: a tudása (rövidítés, eredeti kezdés) is felmegy.
+                if (e.cuts > 0) put("cuts", e.cuts)
+                e.origin?.let { put("origin", it) }
             }
         }))
         put("rev", f.rev)
@@ -495,10 +502,14 @@ object SyncClient {
         }
         // A gép `normalizeRun`-ja: szöveg-azonosító, csak JSON-szám idők.
         val rawRun = o.optJSONObject("run")?.let {
+            val startedAt = numberOf(it, "startedAt")?.toLong() ?: 0
             Focus.FocusRun(
                 packId = stringOf(it, "packId").orEmpty(),
-                startedAt = numberOf(it, "startedAt")?.toLong() ?: 0,
+                startedAt = startedAt,
                 endsAt = numberOf(it, "endsAt")?.toLong() ?: 0,
+                // A gép `cleanCuts` / `cleanOrigin` szabálya: csak az értelmes marad.
+                cuts = Focus.cleanCuts(numberOf(it, "cuts")),
+                origin = Focus.cleanOrigin(numberOf(it, "origin"), startedAt),
             )
         }
         // Nemnegatív egész, mint a gépen és az iPhone-on: csak JSON-szám, lefelé
@@ -571,14 +582,17 @@ object SyncClient {
                 val packId = stringOf(e, "packId").orEmpty()
                 val endedAt = numberOf(e, "endedAt")?.toLong() ?: 0
                 if (packId.isEmpty() || endedAt <= 0) return@runCatching
+                val startedAt = numberOf(e, "startedAt")?.toLong() ?: 0
                 out.add(Focus.FocusLogEntry(
                     packId = packId,
                     packName = Focus.logPackName(stringOf(e, "packName").orEmpty()),
-                    startedAt = numberOf(e, "startedAt")?.toLong() ?: 0,
+                    startedAt = startedAt,
                     endedAt = endedAt,
                     plannedEndsAt = numberOf(e, "plannedEndsAt")?.toLong() ?: endedAt,
                     stopped = e.opt("stopped") == true,
                     window = e.opt("window") == true,
+                    cuts = Focus.cleanCuts(numberOf(e, "cuts")),
+                    origin = Focus.cleanOrigin(numberOf(e, "origin"), startedAt),
                 ))
             }
         }
@@ -668,7 +682,8 @@ object SyncClient {
      *
      * Ugyanaz a menet, mint a blokklistánál — húzd le, fésüld össze, told fel.
      * A különbség az összefésülés szabályában van (`FocusSync`): ott a
-     * szigorúbb nyer, és lazítani csak nagyobb `rev` tud.
+     * szigorúbb nyer, és lazítani csak a nyomával lehet — a rövidítés
+     * számlálójával, a leállítás naplósorával.
      */
     private fun syncFocusRound(
         state: AppState, acc: SyncAccount, key: ByteArray, now: Long,
@@ -710,7 +725,7 @@ object SyncClient {
                 keywords = current.keywords,
                 keywordsRev = current.keywordsRev,
             )
-            val merged = FocusSync.merge(mine, remote)
+            val merged = FocusSync.merge(mine, remote, now)
 
             if (!FocusSync.same(merged, mine)) {
                 current = current.copy(

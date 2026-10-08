@@ -258,8 +258,13 @@ object Referee {
         // ezért áll itt, az oldal-keresés ELŐTT. A -1 azt jelenti: állítsd le
         // most.
         if (s.pendingFocusEnd != null) {
+            // A RÖVIDÍTÉS SZÁMA is lép: a szinkron ebből tudja, hogy ez a
+            // változat kifizetett rövidítés, nem egy régi, hosszabbítás előtti
+            // állapot — a gép referee-jének tükre.
             val nextRun = if (s.pendingFocusEnd < 0) null
-                else state.focusRun?.copy(endsAt = s.pendingFocusEnd)
+                else state.focusRun?.let {
+                    it.copy(endsAt = s.pendingFocusEnd, cuts = minOf(it.cuts + 1, Focus.MAX_RUN_CUTS))
+                }
             // A naplót ITT írjuk, nem a `tick`-ben: csak innen derül ki, hogy a
             // menet PRÓBATÉTELLEL ért véget, nem magától. A kettő nem ugyanaz a
             // mondat, és a statisztikában sem ugyanaz a sor.
@@ -856,9 +861,16 @@ object Referee {
             // Az ABLAK-menet kivétel: annak a vége az ablak vége, nem tolódik a
             // készülék alvásával (Focus.isWindowRun) — különben a telefon és a
             // gép két különböző menetet látna ugyanarról a délelőttről.
+            //
+            // Az EREDETI kezdés megmarad (`origin`): a menet azonossága az, nem
+            // a tolt kezdés — enélkül a gép lezárásának sora nem ismerné fel a
+            // telefon eltolt menetét, és a szinkron új menetként vinné tovább.
             val run = state.focusRun?.let {
                 if (Focus.isWindowRun(it, state.focusPacks)) it
-                else it.copy(startedAt = it.startedAt + shift, endsAt = it.endsAt + shift)
+                else it.copy(
+                    startedAt = it.startedAt + shift, endsAt = it.endsAt + shift,
+                    origin = Focus.runOrigin(it),
+                )
             }
             // A ZÁRLAT VÉGE IS TOLÓDIK. Enélkül az óra előreállítása ingyen
             // befejezné — pont azt az egyetlen dolgot, aminek szándékosan

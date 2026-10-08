@@ -1,5 +1,6 @@
 import android.content.Context
 import hu.breaker.app.core.BreakerStore
+import hu.breaker.app.core.ChallengeEngine.Step
 import hu.breaker.app.core.Focus
 import hu.breaker.app.core.Referee
 import kotlin.test.BeforeTest
@@ -27,7 +28,7 @@ class FocusRefereeTest {
         BreakerStore.mutate {
             it.copy(
                 sites = emptyList(), session = null, unlockLog = emptyList(),
-                abandons = emptyList(), focusRun = null,
+                abandons = emptyList(), focusRun = null, focusLog = emptyList(),
                 focusPacks = listOf(
                     Focus.FocusPack(
                         id = "p1", name = "Nyelvtanulás",
@@ -125,7 +126,58 @@ class FocusRefereeTest {
             50 * 60_000L, run.endsAt - run.startedAt,
             "a menet HOSSZA nem változott — a kezdés is tolódott, különben a napló hazudna",
         )
+        assertEquals(now, run.origin, "az EREDETI kezdés megmarad: a menet azonossága az, nem a tolt kezdés")
         assertTrue(BreakerStore.state.value.focusLog.isEmpty(), "és nem került a naplóba")
+    }
+
+    @Test
+    fun `a kifizetett rovidites lepteti a szamlalot, a hosszabbitas nem`() {
+        // A szinkron ebből tudja, hogy a rövidebb változat kifizetett rövidítés,
+        // nem egy régi, hosszabbítás előtti állapot — a gép referee-jének tükre.
+        Referee.startFocus("p1", 50, now)
+        Referee.tick(now)
+        val end = assertNotNull(BreakerStore.state.value.focusRun).endsAt
+        Referee.changeFocus(end - 10 * 60_000L, now)
+        solveWholeSession(now)
+        val cut = assertNotNull(BreakerStore.state.value.focusRun)
+        assertEquals(end - 10 * 60_000L, cut.endsAt)
+        assertEquals(1, cut.cuts, "egy kifizetett rövidítés")
+        Referee.changeFocus(cut.endsAt + 5 * 60_000L, now)
+        assertEquals(1, BreakerStore.state.value.focusRun?.cuts, "a hosszabbítás ingyen van, nem rövidítés")
+        // A lezárás sora viszi a tudást: a szinkronban ez a sírkő.
+        Referee.changeFocus(null, now)
+        solveWholeSession(now)
+        assertEquals(1, BreakerStore.state.value.focusLog.single().cuts)
+    }
+
+    /** Végigviszi a futó kísérletet — a várakozó lépést a célpontja után veszi át. */
+    private fun solveWholeSession(now: Long) {
+        var guard = 0
+        while (BreakerStore.state.value.session != null && guard++ < 200) {
+            val s = BreakerStore.state.value.session!!
+            when (val step = s.steps[s.stepIndex]) {
+                is Step.Delay -> Referee.claimDelay(s.id, (step.claimableAt ?: 0) + 1)
+                else -> Referee.submitAnswer(s.id, solveStep(step, now), now)
+            }
+        }
+    }
+
+    /** A helyes válasz; a MEMORY lépést visszadátumozzuk a várakozása mögé. */
+    private fun solveStep(step: Step, now: Long): String = when (step) {
+        is Step.Transcribe -> step.text
+        is Step.MathChain -> step.problems[step.pos].a.toString()
+        is Step.Memory -> {
+            BreakerStore.mutate { st ->
+                val ses = st.session!!
+                val steps = ses.steps.toMutableList()
+                steps[ses.stepIndex] = step.copy(armedAt = now - step.showMs - step.waitMs - 1000)
+                st.copy(session = ses.copy(steps = steps))
+            }
+            step.code
+        }
+        is Step.Reverse -> step.text.reversed()
+        is Step.Delay -> error("a várakozást átvenni kell")
+        is Step.Partner -> error("ezek a tesztek megbízott nélkül futnak")
     }
 
     @Test

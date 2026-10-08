@@ -16,18 +16,20 @@
 //
 // A munkamenetnél a szigorítás iránya:
 //
-//   - INDÍTANI és HOSSZABBÍTANI szigorítás  -> azonos `rev` mellett is nyer;
-//   - RÖVIDÍTENI és LEÁLLÍTANI lazítás      -> csak NAGYOBB `rev`-vel nyer.
+//   - INDÍTANI és HOSSZABBÍTANI szigorítás  -> mindig átmegy;
+//   - RÖVIDÍTENI és LEÁLLÍTANI lazítás      -> csak a nyomával: a rövidítés a
+//     menet `cuts` számlálójával, a leállítás egy rá hivatkozó naplósorral.
 //
-// A `rev` csak akkor nő, ha valaki ténylegesen végigcsinálta a próbatételt.
-// Enélkül a leállítás így nézne ki: a telefonon van egy régi, „nem fut”
-// állapot, feltölti, és a gépen próbatétel nélkül eltűnik a munkamenet. Két
-// eszköz és egy jól időzített szinkron elég lenne a kibúvóhoz.
+// Mindkét nyomot csak az írhatja, aki a menetet látta, és a próbatételt
+// végigcsinálta. A blob `rev`-je erre NEM jó: azt egy átnevezés is lépteti,
+// ingyen — és egy régi, „nem fut” állapot nagy `rev`-vel feltöltve a gépen
+// próbatétel nélkül tüntette el a munkamenetet (`mergeRun`).
 //
 // A doksi: docs/feature-focus-sessions.md
 
 import {
-  MAX_ALLOW_ENTRIES, MAX_FOCUS_LOG, logPackName, normalizePack,
+  FUTURE_LOG_TOLERANCE_MS, MAX_ALLOW_ENTRIES, MAX_FOCUS_LOG, cleanCuts, cleanOrigin, logPackName,
+  normalizePack, runOrigin, sameRun,
   type FocusLogEntry, type FocusPack, type FocusRun,
 } from '../focus.js';
 import {
@@ -260,7 +262,13 @@ function normalizeRun(raw: unknown, packs: FocusPack[]): FocusRun | null {
   const startedAt = numberOr(r.startedAt, 0);
   const endsAt = numberOr(r.endsAt, 0);
   if (endsAt <= 0) return null;
-  return { packId: r.packId, startedAt, endsAt };
+  const cuts = cleanCuts(r.cuts);
+  const origin = cleanOrigin(r.origin, startedAt);
+  return {
+    packId: r.packId, startedAt, endsAt,
+    ...(cuts !== undefined ? { cuts } : {}),
+    ...(origin !== undefined ? { origin } : {}),
+  };
 }
 
 /**
@@ -286,6 +294,8 @@ export function normalizeLogEntry(raw: unknown): FocusLogEntry | null {
   const endedAt = numberOr(e.endedAt, 0);
   if (endedAt <= 0) return null;
   const startedAt = numberOr(e.startedAt, 0);
+  const cuts = cleanCuts(e.cuts);
+  const origin = cleanOrigin(e.origin, startedAt);
   return {
     packId: e.packId,
     packName: logPackName(e.packName),
@@ -295,26 +305,31 @@ export function normalizeLogEntry(raw: unknown): FocusLogEntry | null {
     stopped: e.stopped === true,
     // Az ablak jele csak ha igaz — a régi sor mezője nincs, és az nem ablak.
     ...(e.window === true ? { window: true } : {}),
+    ...(cuts !== undefined ? { cuts } : {}),
+    ...(origin !== undefined ? { origin } : {}),
   };
 }
 
 /**
  * Két napló egyesítése.
  *
- * A sor AZONOSSÁGA a `packId` + `startedAt` pár. Egyszerre egy menet fut az
- * egész fiókban, tehát ez a pár egyértelmű — és pont ezért fésülődik össze
- * helyesen az a gyakori eset, amikor UGYANAZT a menetet két eszköz is lezárja:
- * a telefon próbatétellel, a gép meg később, a szinkronból véve észre.
+ * A sor AZONOSSÁGA a csomag és a menet EREDETI kezdése (`runOrigin`: az
+ * óra-ugrás eltolhatja a kezdést, a menet attól ugyanaz). Egyszerre egy menet
+ * fut az egész fiókban, tehát ez a pár egyértelmű — és pont ezért fésülődik
+ * össze helyesen az a gyakori eset, amikor UGYANAZT a menetet két eszköz is
+ * lezárja: a telefon próbatétellel, a gép meg később, a szinkronból véve
+ * észre.
  *
- * Ütközésnél a KORÁBBI vég nyer, mert az van közelebb a valósághoz: a menet
- * akkor ért véget, amikor véget ért, nem akkor, amikor a másik eszköz észbe
- * kapott. Azonos végnél a próbatételes leállítás nyer — azt az egyik oldal
- * láthatta, a másik nem.
+ * Ütközésnél a TÖBBET TUDÓ sor marad (`better`): aki több rövidítést, majd
+ * hosszabb tervet ismert. Azonos tudásnál a KORÁBBI vég, mert az van közelebb
+ * a valósághoz: a menet akkor ért véget, amikor véget ért, nem akkor, amikor
+ * a másik eszköz észbe kapott. Azonos végnél a próbatételes leállítás nyer —
+ * azt az egyik oldal láthatta, a másik nem.
  */
 export function mergeLog(a: FocusLogEntry[], b: FocusLogEntry[]): FocusLogEntry[] {
   const byKey = new Map<string, FocusLogEntry>();
   for (const e of [...a, ...b]) {
-    const key = `${e.packId}|${e.startedAt}`;
+    const key = `${e.packId}|${runOrigin(e)}`;
     const prev = byKey.get(key);
     byKey.set(key, prev ? better(prev, e) : e);
   }
@@ -330,14 +345,33 @@ export function mergeLog(a: FocusLogEntry[], b: FocusLogEntry[]): FocusLogEntry[
  * mond, és minden körben feltöltenek — nem hibás adat, hanem NEM KONVERGÁLÓ
  * szinkron.
  *
- * A tervezett vég is holtverseny lehet, és ez nem elméleti: az egyik eszköz még
- * a hosszabbítás előtti tervet ismerte, a másik már a hosszabbítottat. Ilyenkor
- * a KÉSŐBBI terv marad, mert az a frissebb tudás.
+ * ELŐBB A TUDÁS, aztán a vég. A sor a menet sírköve is (`mergeRun`), és a
+ * tudása dönti el, melyik változatot zárja le — tehát a többet tudó sor marad:
+ *
+ *   1. a TÖBB rövidítést ismerő: aki a kifizetett rövidítés utáni változatot
+ *      zárta le, az tudott a régebbiről is;
+ *   2. a HOSSZABB tervet ismerő: az egyik eszköz még a hosszabbítás előtti
+ *      tervet ismerte, a másik már a hosszabbítottat — és a menet a
+ *      hosszabbítással tovább is futott (a régi terv sírköve nem zárja le);
+ *   3. azonos tudásnál a KORÁBBI vég, aztán a próbatételes leállítás;
+ *   4. a maradék csak a teljes rendezésért: a korábbi (eltolatlan) kezdés, az
+ *      ablak jele, végül a csomag neve kódegységenként.
+ *
+ * A terv HOSSZA számít, nem a vége: az óra-ugrás elnyelése a kezdést és a
+ * véget együtt tolja — attól a tudás nem lesz több.
  */
 function better(x: FocusLogEntry, y: FocusLogEntry): FocusLogEntry {
+  const cx = x.cuts ?? 0;
+  const cy = y.cuts ?? 0;
+  if (cx !== cy) return cx > cy ? x : y;
+  const px = x.plannedEndsAt - x.startedAt;
+  const py = y.plannedEndsAt - y.startedAt;
+  if (px !== py) return px > py ? x : y;
   if (x.endedAt !== y.endedAt) return x.endedAt < y.endedAt ? x : y;
   if (x.stopped !== y.stopped) return x.stopped ? x : y;
-  if (x.plannedEndsAt !== y.plannedEndsAt) return x.plannedEndsAt > y.plannedEndsAt ? x : y;
+  if (x.startedAt !== y.startedAt) return x.startedAt < y.startedAt ? x : y;
+  if ((x.window === true) !== (y.window === true)) return x.window === true ? x : y;
+  if (x.packName !== y.packName) return x.packName < y.packName ? x : y;
   return x;
 }
 
@@ -350,13 +384,15 @@ function better(x: FocusLogEntry, y: FocusLogEntry): FocusLogEntry {
  */
 function capLog(rows: FocusLogEntry[]): FocusLogEntry[] {
   return rows
-    // A `startedAt` a HARMADIK kulcs, és nem díszítés: a `packId` + `startedAt`
-    // pár egyedi, tehát ettől lesz a rendezés TELJES. Enélkül két azonos időben
-    // végződő, azonos csomagú sor sorrendje a bemenet sorrendjétől függne — az
-    // meg a két eszközön más, és a szinkron sosem konvergálna.
+    // A `startedAt` a HARMADIK kulcs, és nem díszítés: ettől lesz a rendezés
+    // TELJES. Enélkül két azonos időben végződő, azonos csomagú sor sorrendje a
+    // bemenet sorrendjétől függne — az meg a két eszközön más, és a szinkron
+    // sosem konvergálna. A NEGYEDIK az azonosság maradéka: az eltolt menet
+    // sora a kezdésében egyezhet egy másikéval, az eredetiében nem.
     .sort((p, q) => (p.endedAt - q.endedAt)
       || (p.packId < q.packId ? -1 : p.packId > q.packId ? 1 : 0)
-      || (p.startedAt - q.startedAt))
+      || (p.startedAt - q.startedAt)
+      || (runOrigin(p) - runOrigin(q)))
     .slice(-MAX_FOCUS_LOG);
 }
 
@@ -371,18 +407,24 @@ function numberOr(v: unknown, fallback: number): number {
  *
  *   - a csomagoknál az utolsó író nyer (ez beállítás, nem tiltás — egy régi
  *     lista visszatérése bosszantó, de nem kibúvó);
- *   - a futásnál a SZIGORÚBB nyer, és lazítani csak nagyobb `rev` tud.
+ *   - a futásnál a SZIGORÚBB nyer, és lazítani csak a nyomával lehet: a
+ *     rövidítés számlálójával, a leállítás naplósorával (`mergeRun`).
+ *
+ * A `now` a jövőbeli naplósorokhoz kell: ami a jövőben ért véget, az nem
+ * zár le menetet. Nélküle minden sor múltbeli.
  */
-export function mergeFocus(local: SyncFocus, incoming: SyncFocus): SyncFocus {
+export function mergeFocus(local: SyncFocus, incoming: SyncFocus, now?: number): SyncFocus {
   const newer = pickNewer(local, incoming);
   const older = newer === local ? incoming : local;
-  const run = mergeRun(local, incoming);
-  const { packs, packMarks } = mergePacks(newer, older, run?.packId);
+  // EGYESÍTÉS, nem választás: lásd a `SyncFocus.log` magyarázatát. ELŐBB a
+  // napló: a menet sorsát ez dönti el (a leállítás nyoma a naplósor).
+  const log = mergeLog(local.log, incoming.log);
+  const { run, carriers } = mergeRun(local, incoming, log, now);
+  const { packs, packMarks } = mergePacks(newer, older, run?.packId, carriers);
   return {
     packs,
     run,
-    // EGYESÍTÉS, nem választás: lásd a `SyncFocus.log` magyarázatát.
-    log: mergeLog(local.log, incoming.log),
+    log,
     ...(packMarks ? { packMarks } : {}),
     // MAGASVÍZJEL, nem döntés: a későbbi vég nyer, `rev`-re való tekintet
     // nélkül. Egy hálózat nélkül maradt eszköz így nem tud feloldani semmit
@@ -433,12 +475,10 @@ export function mergeFocus(local: SyncFocus, incoming: SyncFocus): SyncFocus {
  * ugyanezt teszi.
  */
 function mergePacks(
-  newer: SyncFocus, older: SyncFocus, runPackId?: string,
+  newer: SyncFocus, older: SyncFocus, runPackId?: string, carriers: SyncFocus[] = [],
 ): { packs: FocusPack[]; packMarks: Record<string, number> | undefined } {
-  const en = effectiveMarks(newer);
-  const eo = effectiveMarks(older);
-  const rn = newer.packMarks ?? {};
-  const ro = older.packMarks ?? {};
+  const en = newer.packMarks ?? {};
+  const eo = older.packMarks ?? {};
   // A MENET CSOMAGJA ELÖL: a 30-as plafon vágásából sem eshet ki — csomag
   // nélküli menet a vágásból sem születhet.
   const ids = [
@@ -454,20 +494,15 @@ function mergePacks(
     const mo = eo[id] ?? 0;
     const pn = newer.packs.find((p) => p.id === id);
     const po = older.packs.find((p) => p.id === id);
-    // Egyenlő POZITÍV jelnél a jelenlét nyer; két változat közül a VALÓDI
-    // jel dönt (a szerkesztés erősebb a menet indításánál — a menet jele
-    // csak hatásos), egyenlő valódi jelnél a `preferPack`, ami a két
-    // változatból jön, nem a hordozó blobból; jel nélkül az újabb blob.
+    // Egyenlő POZITÍV jelnél a jelenlét nyer; két változat közül a
+    // `preferPack`, ami a két változatból jön, nem a hordozó blobból; jel
+    // nélkül az újabb blob.
     let pick: FocusPack | undefined;
     if (mo > mn) pick = po;
     else if (mn > mo) pick = pn;
-    else if (mn > 0) {
-      if (pn && po) {
-        const vn = rn[id] ?? 0;
-        const vo = ro[id] ?? 0;
-        pick = vn !== vo ? (vn > vo ? pn : po) : preferPack(pn, po);
-      } else pick = pn ?? po;
-    } else pick = pn;
+    else if (mn > 0) pick = pn && po ? preferPack(pn, po) : pn ?? po;
+    else pick = pn;
+    if (id === runPackId) pick = runPack(id, pick, carriers, pn, po);
     if (pick) chosen.push({ pack: pick, marked: id === runPackId || Math.max(mn, mo) > 0 });
     if (Math.max(mn, mo) > 0) marks[id] = Math.max(mn, mo);
   }
@@ -492,32 +527,41 @@ function capPacks(chosen: { pack: FocusPack; marked: boolean }[]): FocusPack[] {
 }
 
 /**
- * A blob HATÁSOS jelei: a jelei, és a futó menet csomagján legalább a blob
- * `rev`-je.
+ * A FUTÓ MENET CSOMAGJA: mindig marad, és a fehérlistája nem bővülhet.
  *
- * A menet és a csomagja együtt jár. A csomagok és a menet külön dőlnek el,
- * és a kettő össze tud akadni: az egyik eszköz törölte a csomagot (jellel),
- * a másik ugyanabban a körben menetet indított rá. A törlés jele elvinné a
- * csomagot, a menet meg maradna — csomag nélkül, amit a fogadó eldob, a
- * menetet tartó eszközök viszont minden körben újra feltöltenének, mert a
- * kiszolgálón sosem az áll, amit ők látnak. A menet a szigorúbb, tehát a
- * csomagjának maradnia kell; a másik út — a menet dobása — egy ingyenes
- * törléssel állítana le menetet, próbatétel nélkül.
+ * A menet és a csomagja együtt jár. Eddig ezt a menetes blob `rev`-je
+ * védte (a csomag hatásos jele legalább ennyi volt) — csakhogy a menetről már
+ * nem a `rev` dönt (`mergeRun`), a `rev`-et pedig egy átnevezés is lépteti.
+ * Egy hálózaton kívüli eszköz, ami a menetről nem tudott, így két ingyenes
+ * lépéssel tüntethette volna el: felhúzott jellel törli a csomagot, és a
+ * csomag nélküli menetet minden fogadó eldobja. Vagy bővíti a fehérlistát, és
+ * a futó menet alatt megnyílik, amit a menet zár.
  *
- * Miért JEL, és nem utólagos mentés: a jel a bemenet tulajdonsága, a mentés
- * a köztes eredményé lenne, és három eszköznél a sorrendtől függene, melyik
- * köztes menet mentett meg mit. A jel egyszerű: a sírkő csak akkor nyer a
- * menet csomagja fölött, ha a jele nagyobb a menetes blob `rev`-jénél — de
- * a jel sosem nagyobb a saját blobja `rev`-jénél, tehát ilyenkor a másik blob
- * `rev`-je is nagyobb, és a menet is elveszett volna. Csomag nélküli menet
- * így nem születik. A Kotlin- és Swift-tükör ugyanezt teszi.
+ * Ezért a futó menet csomagja:
+ *
+ *   - MINDIG megmarad — ha a jelek szerint törölni kellene, a menetet hordozó
+ *     blob változata áll, a törlés jelével: a törlés így megsemmisül, nem
+ *     halasztódik (aki törölni akarja, a menet után újra törli — kimondott ár);
+ *   - a mezői a jelek szerinti győztesé (név, hossz, ablak — a szűkítés és az
+ *     ablak felvétele ingyen van, átmegy);
+ *   - a fehérlistája viszont csak az, ami a menetet hordozó változat(ok)ban
+ *     IS benne van: METSZET. A menet alatt a lista csak szűkülhet.
+ *
+ * Három eszköznél a változat a sorrendtől függhet (a jelenléte nem) — a
+ * doksi kimondja. A Kotlin- és Swift-tükör ugyanezt teszi.
  */
-function effectiveMarks(f: SyncFocus): Record<string, number> {
-  const marks = { ...(f.packMarks ?? {}) };
-  if (f.run && f.rev > 0 && f.packs.some((p) => p.id === f.run!.packId)) {
-    marks[f.run.packId] = Math.max(marks[f.run.packId] ?? 0, f.rev);
-  }
-  return marks;
+function runPack(
+  id: string, pick: FocusPack | undefined, carriers: SyncFocus[], pn?: FocusPack, po?: FocusPack,
+): FocusPack | undefined {
+  const held = carriers.map((f) => f.packs.find((p) => p.id === id)).filter((p): p is FocusPack => !!p);
+  const base = pick ?? held[0] ?? pn ?? po;
+  if (!base || held.length === 0) return base;
+  const keeps = (list: (p: FocusPack) => string[]) => (x: string) => held.every((h) => list(h).includes(x));
+  return {
+    ...base,
+    allowSites: base.allowSites.filter(keeps((p) => p.allowSites)),
+    allowApps: base.allowApps.filter(keeps((p) => p.allowApps)),
+  };
 }
 
 /**
@@ -575,7 +619,13 @@ function contentKey(f: SyncFocus): string {
     .sort((x, y) => (x.id < y.id ? -1 : x.id > y.id ? 1 : 0))
     .map((p) => `${p.id}\u0001${packOrderKey(p)}`)
     .join('\u0002');
-  const run = f.run ? `${f.run.packId}/${f.run.startedAt}/${f.run.endsAt}` : '-';
+  // A rövidítés és az eredeti kezdés csak ha van: a nélkülük lévő menet kulcsa
+  // ugyanaz, mint a frissítés előtt — egy vegyes flotta így is ugyanazt
+  // választja döntetlenben.
+  const run = f.run
+    ? `${f.run.packId}/${f.run.startedAt}/${f.run.endsAt}`
+      + (f.run.cuts ? `/c${f.run.cuts}` : '') + (f.run.origin !== undefined ? `/o${f.run.origin}` : '')
+    : '-';
   const marks = Object.entries(f.packMarks ?? {})
     .sort(([x], [y]) => (x < y ? -1 : x > y ? 1 : 0))
     .map(([k, v]) => `${k}=${v}`).join(',');
@@ -585,30 +635,94 @@ function contentKey(f: SyncFocus): string {
 /**
  * A FUTÓ munkamenet összefésülése — a kockázatos fele.
  *
- *   - nagyobb `rev` -> az övé a döntés, akár leállítás is (megcsinálta a
- *     próbatételt);
- *   - azonos `rev` -> a SZIGORÚBB nyer: a futó erősebb a nem futónál, két futó
- *     közül a később végződő; azonos lejáratnál a korábban indult (a
- *     hosszabb), és ha az is egyezik, a kisebb csomagazonosítójú.
+ * NEM a blob `rev`-je dönt. Eddig ez döntött (a nagyobb rev-é volt a döntés,
+ * akár a leállítás is), csakhogy a rev-et egy csomag átnevezése, egy
+ * kulcsszó felvétele is lépteti — ingyen. Egy független átnézés megmutatta:
+ * egy friss telepítés húsz átnevezéssel, vagy egy menet indulásakor
+ * hálózaton kívül lévő telefon két átnevezéssel bármelyik futó menetet
+ * leállította, próbatétel nélkül.
  *
- * Így egy régi, „nem fut” állapot visszajátszása nem kapcsol ki semmit, egy
- * hosszabbítás viszont próbatétel nélkül is átmegy — pontosan úgy, ahogy az
- * appban. A döntetlen-lánc teljes rendezés: két azonos lejáratú menet közül
- * nem az nyer, amelyik ELŐBB ért a kiszolgálóra, hanem mindig ugyanaz — így
- * három eszköz bármilyen sorrendben ugyanoda jut (lásd a fuzz-tesztet).
+ * A szabály most a menet AZONOSSÁGÁN áll (csomag + eredeti kezdés,
+ * `sameRun`), és azon, amit a változat TUD (rövidítések száma, hossz):
+ *
+ *   - egy menetet csak a rá hivatkozó NAPLÓSOR zár le (a fésült naplóban; a
+ *     leállítás és a lejárat is ír ilyet) — aki sosem látta a menetet, az nem
+ *     tud róla sort írni. A sor azt a változatot zárja le, amit ismert
+ *     (`endedInLog`): ami nála több rövidítést ismert, vagy annyit, és nem
+ *     hosszabb a tervénél. Egy hosszabbítás, amiről a lezáró nem tudott,
+ *     túléli — különben egy hálózaton kívül tartott eszköz lejárata ingyen
+ *     visszavonná a hosszabbítást;
+ *   - a JÖVŐBEN véget ért sor nem számít (`FUTURE_LOG_TOLERANCE_MS`, mint a
+ *     `spentIn`-nél): az az óra előreállításának nyoma, nem lezárás;
+ *   - két változat UGYANARRÓL a menetről: a több kifizetett rövidítés
+ *     (`cuts`) nyer, azonos számnál a hosszabb (a hosszabbítás ingyen van, a
+ *     rövidítés nem), azonos hossznál a később végződő — az alvásból ébredt
+ *     eszköz eltolt menete, ahogy eddig is;
+ *   - két KÜLÖNBÖZŐ élő menet (két eszköz egymásról nem tudva indított): a
+ *     szigorúbb — a később végződő, azonos lejáratnál a korábban indult, és
+ *     ha az is egyezik, a kisebb csomagazonosítójú.
+ *
+ * `now` nélkül (régi hívó, teszt) minden naplósor múltbeli. A döntetlen-lánc
+ * teljes rendezés, tehát három eszköz bármilyen sorrendben ugyanoda jut.
  */
-function mergeRun(a: SyncFocus, b: SyncFocus): FocusRun | null {
-  if (a.rev !== b.rev) return (a.rev > b.rev ? a : b).run;
-  if (!a.run) return b.run;
-  if (!b.run) return a.run;
-  return stricterRun(a.run, b.run);
+function mergeRun(
+  a: SyncFocus, b: SyncFocus, log: FocusLogEntry[], now?: number,
+): { run: FocusRun | null; carriers: SyncFocus[] } {
+  const ra = a.run && !endedInLog(log, a.run, now) ? a.run : null;
+  const rb = b.run && !endedInLog(log, b.run, now) ? b.run : null;
+  if (!ra && !rb) return { run: null, carriers: [] };
+  if (!rb) return { run: ra, carriers: [a] };
+  if (!ra) return { run: rb, carriers: [b] };
+  const win = sameRun(ra, rb) ? newerVariant(ra, rb) : stricterRun(ra, rb);
+  // A menetet HORDOZÓ blob(ok): akinél pontosan ez a változat áll — a futó
+  // csomag fehérlistája ezekhez képest nem bővülhet (`runPack`).
+  const carriers = [a, b].filter((f) => sameVariant(f.run!, win));
+  return { run: win, carriers };
+}
+
+/** Pontosan ugyanaz-e a két változat: azonosság, vég, rövidítések. */
+function sameVariant(x: FocusRun, y: FocusRun): boolean {
+  return sameRun(x, y) && x.startedAt === y.startedAt && x.endsAt === y.endsAt
+    && (x.cuts ?? 0) === (y.cuts ?? 0);
+}
+
+/**
+ * Lezárta-e a menetnek EZT a változatát egy naplósor — a sírköve.
+ *
+ * Csak az a sor számít, amelyik ugyanerről a menetről szól, és nem a jövőben
+ * ért véget. Az ilyen sor lezárja a változatot, ha több rövidítést ismert
+ * nála, vagy ugyanannyit, és a terve legalább ilyen hosszú volt. A hossz
+ * számít, nem a vég: az óra-ugrás elnyelése a kezdést és a véget együtt
+ * tolja, és az eltolt menet ugyanaz a menet.
+ */
+function endedInLog(log: FocusLogEntry[], run: FocusRun, now?: number): boolean {
+  const limit = now === undefined ? Number.POSITIVE_INFINITY : now + FUTURE_LOG_TOLERANCE_MS;
+  const cuts = run.cuts ?? 0;
+  const length = run.endsAt - run.startedAt;
+  return log.some((e) => sameRun(e, run) && e.endedAt <= limit
+    && (cuts < (e.cuts ?? 0) || length <= e.plannedEndsAt - e.startedAt));
+}
+
+/** Két változat ugyanarról a menetről: a több rövidítés, a hosszabb, végül a később végződő. */
+function newerVariant(x: FocusRun, y: FocusRun): FocusRun {
+  const cx = x.cuts ?? 0;
+  const cy = y.cuts ?? 0;
+  if (cx !== cy) return cx > cy ? x : y;
+  const lx = x.endsAt - x.startedAt;
+  const ly = y.endsAt - y.startedAt;
+  if (lx !== ly) return lx > ly ? x : y;
+  return stricterRun(x, y);
 }
 
 /** A szigorúbb menet, teljes rendezéssel — döntetlen nincs. */
 function stricterRun(x: FocusRun, y: FocusRun): FocusRun {
   if (x.endsAt !== y.endsAt) return x.endsAt > y.endsAt ? x : y;
   if (x.startedAt !== y.startedAt) return x.startedAt < y.startedAt ? x : y;
-  return x.packId <= y.packId ? x : y;
+  if (x.packId !== y.packId) return x.packId < y.packId ? x : y;
+  const ox = runOrigin(x);
+  const oy = runOrigin(y);
+  if (ox !== oy) return ox < oy ? x : y;
+  return (x.cuts ?? 0) >= (y.cuts ?? 0) ? x : y;
 }
 
 /** Ugyanaz-e a két állapot (nincs mit feltölteni). */
@@ -631,14 +745,20 @@ function stable(f: SyncFocus): unknown {
         recurrence: p.recurrence
           ? [[...p.recurrence.days].sort(), p.recurrence.startMin, p.recurrence.endMin] : null,
       })),
-    run: f.run ? { packId: f.run.packId, startedAt: f.run.startedAt, endsAt: f.run.endsAt } : null,
+    run: f.run
+      ? {
+        packId: f.run.packId, startedAt: f.run.startedAt, endsAt: f.run.endsAt,
+        cuts: f.run.cuts ?? 0, origin: runOrigin(f.run),
+      }
+      : null,
     // A NAPLÓ IS BENNE VAN — enélkül egy telefonon lezárult menet sosem érne
     // fel a kiszolgálóra: a kör azt látná, hogy „nincs mit feltölteni”.
     //
     // Ez NEM ugyanaz, mint a `rev` lenyomata (`revisions.ts`), és a kettőt nem
     // szabad összevonni: ez azt méri, van-e mit FELTÖLTENI, az meg azt, hogy
     // ki DÖNTHET. Egy naplósor az elsőre igen, a másodikra nem.
-    log: f.log.map((e) => [e.packId, e.startedAt, e.endedAt, e.plannedEndsAt, e.stopped]),
+    // A rövidítésszám és az eredeti kezdés is: a sor sírkő is, és a tudása dönt.
+    log: f.log.map((e) => [e.packId, e.startedAt, e.endedAt, e.plannedEndsAt, e.stopped, e.cuts ?? 0, runOrigin(e)]),
     // A jelek is: ha csak ők különböznek (egy régi kliens blobja jel nélkül),
     // akkor is fel kell menniük.
     packMarks: f.packMarks ? Object.entries(f.packMarks).sort() : null,

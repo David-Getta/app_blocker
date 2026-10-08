@@ -247,9 +247,14 @@ enum Referee {
                 // mondat, és a statisztikában sem ugyanaz a sor.
                 logFocusEnd(&state, endedAt: now, stopped: true)
                 state.focusRun = nil
-            } else if var run = state.focusRun {
-                run = Focus.Run(packId: run.packId, startedAt: run.startedAt, endsAt: pending)
-                state.focusRun = run
+            } else if let run = state.focusRun {
+                // A RÖVIDÍTÉS SZÁMA is lép: a szinkron ebből tudja, hogy ez a
+                // változat kifizetett rövidítés, nem egy régi, hosszabbítás
+                // előtti állapot — a gép referee-jének tükre.
+                state.focusRun = Focus.Run(
+                    packId: run.packId, startedAt: run.startedAt, endsAt: pending,
+                    cuts: min(run.cutCount + 1, Focus.maxRunCuts), origin: run.origin
+                )
             }
             state.unlockLog = state.unlockLog.filter { $0 > now - 30 * 24 * 3_600_000 } + [now]
             state.session = nil
@@ -664,11 +669,17 @@ enum Referee {
             // Az ABLAK-menet kivétel: annak a vége az ablak vége, nem tolódik a
             // készülék alvásával (Focus.isWindowRun) — különben a telefon és a
             // gép két különböző menetet látna ugyanarról a délelőttről.
+            //
+            // Az EREDETI kezdés megmarad (`origin`): a menet azonossága az, nem a
+            // tolt kezdés — enélkül a gép lezárásának sora nem ismerné fel az
+            // ébredő telefon eltolt menetét, és a szinkron új menetként vinné.
             if let run = state.focusRun, !Focus.isWindowRun(run, packs: state.focusPacks ?? []) {
                 state.focusRun = Focus.Run(
                     packId: run.packId,
                     startedAt: run.startedAt + shift,
-                    endsAt: run.endsAt + shift
+                    endsAt: run.endsAt + shift,
+                    cuts: run.cuts,
+                    origin: Focus.runOrigin(run)
                 )
             }
             // A ZÁRLAT VÉGE IS TOLÓDIK. Enélkül az óra előreállítása ingyen
@@ -942,8 +953,11 @@ enum Referee {
             }
             let next = nextEndsAt ?? now
             if !Focus.isSessionLoosening(currentEndsAt: run.endsAt, nextEndsAt: next) {
+                // A hosszabbítás a változat jeleit megtartja: a rövidítések száma
+                // és az eredeti kezdés a menet tudása, nem a végéé.
                 state.focusRun = Focus.Run(
-                    packId: run.packId, startedAt: run.startedAt, endsAt: next
+                    packId: run.packId, startedAt: run.startedAt, endsAt: next,
+                    cuts: run.cuts, origin: run.origin
                 )
                 result = FocusChangeResult(applied: true, session: nil)
                 return

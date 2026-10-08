@@ -12,7 +12,7 @@ import { test } from 'node:test';
 import * as assert from 'node:assert/strict';
 import { mergeSite, type SyncSite } from '../src/shared/sync/merge';
 import { mergeFocus, type SyncFocus } from '../src/shared/sync/focus-merge';
-import { DEVICES, randomFocus, randomSite, rng } from './merge-random';
+import { DEVICES, FOCUS_MERGE_NOW, randomFocus, randomSite, rng } from './merge-random';
 import { windowKey } from '../src/shared/lockdown';
 import { keywordsKey } from '../src/shared/keywords';
 import { partnerKey } from '../src/shared/partner';
@@ -53,20 +53,27 @@ test('oldal: szimmetrikus, idempotens, és három eszköz bármilyen sorrendben 
 });
 
 /**
- * A csomagok HALMAZA, a jelek, a menet és a rev — és a csomagok VÁLTOZATA is,
- * kivéve azét, amin valamelyik bemenet menete fut. Ott a menet hatásos jele
- * és egy valódi szerkesztés jele döntetlent adhat, amit a valódi jel visz —
- * de három eszköznél a köztes eredmény már valódi jelként hordozza a
- * menetét, és a változat a sorrendtől függhet (a csomag JELENLÉTE nem). Ezt
- * a doksi kimondja; itt a jelenlétet mérjük rajta, a változatot nem.
+ * A csomagok HALMAZA, a jelek, a rev, a napló és a többi jeles mező — és a
+ * csomagok VÁLTOZATA is, kivéve azét, amin valamelyik bemenet menete fut.
+ *
+ * A FUTÓ MENET ÉS A CSOMAGJA itt külön kérdés. A menet egyetlen hely: két
+ * egyidejű menetből a szigorúbb marad, a másik kiesik. Ha a kiesett menetet
+ * leváltó menetet egy harmadik eszköz sírköve (naplósora) zárja le, akkor az
+ * a sorrend, amelyikben a kiesett menet a lezárás UTÁN találkozik a
+ * leváltóval, megtartja — amelyikben előtte, az nem. Ugyanígy a csomagja: a
+ * futó menet csomagja nem törölhető (`runPack`), de a kiesett menetéé már
+ * igen. Mindkét kimenet biztonságos — egyik sem lazít olyat, amiért senki nem
+ * fizetett —, és a szinkron a következő körökben egy állapotra áll be. Ezt a
+ * doksi kimondja; a menetet ezért külön tulajdonságok mérik (`runSafety`).
  */
-function focusKey(f: SyncFocus, runIds: Set<string>): string {
+function focusKey(f: SyncFocus, runIds: Set<string>, withRun: boolean): string {
   return JSON.stringify([
-    [...f.packs].sort((x, y) => (x.id < y.id ? -1 : 1)).map((p) => (runIds.has(p.id)
-      ? [p.id]
-      : [p.id, p.name, [...p.allowSites].sort(), [...p.allowApps].sort(), p.defaultMinutes, p.recurrence ?? null])),
+    [...f.packs].filter((p) => withRun || !runIds.has(p.id))
+      .sort((x, y) => (x.id < y.id ? -1 : 1)).map((p) => (runIds.has(p.id)
+        ? [p.id]
+        : [p.id, p.name, [...p.allowSites].sort(), [...p.allowApps].sort(), p.defaultMinutes, p.recurrence ?? null])),
     f.packMarks ? Object.entries(f.packMarks).sort() : null,
-    f.run, f.rev,
+    withRun ? f.run : null, f.rev,
     // A zárlat és az ablakok a jelükkel — tartalom szerint, rendezve.
     f.lockdown ?? null,
     (f.lockdownWindows ?? []).map(windowKey).sort(),
@@ -77,40 +84,62 @@ function focusKey(f: SyncFocus, runIds: Set<string>): string {
     keywordsKey(f.keywords ?? []), f.keywordsRev ?? null,
     partnerKey(f.partner), f.partnerRev ?? null,
     // A napló a fésült sorrendben: egyesítés teljes rendezéssel — sorrendfüggetlen.
-    f.log.map((e) => [e.packId, e.startedAt, e.endedAt, e.plannedEndsAt, e.stopped, e.window === true]),
+    f.log.map((e) => [e.packId, e.startedAt, e.endedAt, e.plannedEndsAt, e.stopped, e.window === true, e.cuts ?? 0, e.origin ?? null]),
   ]);
 }
 
+/**
+ * A futó menet biztonsága egy fésülés után: a menet a bemenetek egyikéé (nem
+ * születik új), a fésült napló nem zárja le, és a csomagja a listán van.
+ */
+function runSafety(m: SyncFocus, inputs: SyncFocus[], seed: number): void {
+  if (!m.run) return;
+  assert.ok(inputs.some((f) => JSON.stringify(f.run) === JSON.stringify(m.run)), `a menet egy bemeneté, mag ${seed}`);
+  assert.ok(m.packs.some((p) => p.id === m.run!.packId), `a menet csomagja a listán van, mag ${seed}`);
+  const again = mergeFocus(m, { ...m, run: null }, FOCUS_MERGE_NOW);
+  assert.deepEqual(again.run, m.run, `a fésült napló nem zárja le a fésült menetet, mag ${seed}`);
+}
+
+/** Sorrendtől független-e a menet: nincs rövidítés, eltolás, és a menetre szóló sírkő. */
+function plainRuns(fs: SyncFocus[]): boolean {
+  return fs.every((f) => !f.run || (!f.run.cuts && f.run.origin === undefined))
+    && !fs.some((f) => f.log.some((e) => fs.some((g) => g.run && g.run.packId === e.packId
+      && (g.run.origin ?? g.run.startedAt) === (e.origin ?? e.startedAt))));
+}
+
 test('munkamenet-blob: a csomagok halmaza és a jelek sorrendtől függetlenek', () => {
+  const now = FOCUS_MERGE_NOW;
   for (let seed = 1; seed <= 300; seed++) {
     const r = rng(seed);
     const [a, b, c] = DEVICES.map((d) => randomFocus(r, d));
     const runIds = new Set([a, b, c].flatMap((f) => (f.run ? [f.run.packId] : [])));
-    const focusKey2 = (f: SyncFocus) => focusKey(f, runIds);
-    const ab = mergeFocus(a, b);
-    assert.equal(focusKey2(ab), focusKey2(mergeFocus(b, a)), `szimmetria, mag ${seed}`);
-    assert.equal(focusKey2(mergeFocus(ab, ab)), focusKey2(ab), `idempotens, mag ${seed}`);
-    const abc = mergeFocus(ab, c);
-    assert.equal(focusKey2(abc), focusKey2(mergeFocus(mergeFocus(b, c), a)), `három eszköz (bca), mag ${seed}`);
-    assert.equal(focusKey2(abc), focusKey2(mergeFocus(mergeFocus(c, a), b)), `három eszköz (cab), mag ${seed}`);
+    const full = (f: SyncFocus) => focusKey(f, runIds, true);
+    const noRun = (f: SyncFocus) => focusKey(f, runIds, false);
+    const ab = mergeFocus(a, b, now);
+    assert.equal(full(ab), full(mergeFocus(b, a, now)), `szimmetria, mag ${seed}`);
+    assert.equal(full(mergeFocus(ab, ab, now)), full(ab), `idempotens, mag ${seed}`);
+    const abc = mergeFocus(ab, c, now);
+    const bca = mergeFocus(mergeFocus(b, c, now), a, now);
+    const cab = mergeFocus(mergeFocus(c, a, now), b, now);
+    assert.equal(noRun(abc), noRun(bca), `három eszköz (bca), mag ${seed}`);
+    assert.equal(noRun(abc), noRun(cab), `három eszköz (cab), mag ${seed}`);
+    // Ahol a menetre nincs sírkő, rövidítés és eltolás, ott a menet is
+    // sorrendtől független: a szigorúbb marad, mindig ugyanaz.
+    if (plainRuns([a, b, c])) {
+      assert.deepEqual(bca.run, abc.run, `három eszköz, a menet (bca), mag ${seed}`);
+      assert.deepEqual(cab.run, abc.run, `három eszköz, a menet (cab), mag ${seed}`);
+    }
     // A jeles csomag a nagyobb jel változatában marad: ha az egyik oldalon
     // ablakos csomag áll a nagyobb jellel, az ablak az eredményben is ott van.
-    // A futó menet csomagja a blob rev-jével számít jeleltnek (hatásos jel).
+    // A futó menet csomagja is: a mezői a jel szerinti győztesé, csak a
+    // fehérlistája metszet (`runPack`) — az ablaka marad.
     for (const p of a.packs) {
-      const ma = effectiveMark(a, p.id);
-      const mb = effectiveMark(b, p.id);
+      const ma = a.packMarks?.[p.id] ?? 0;
+      const mb = b.packMarks?.[p.id] ?? 0;
       if (ma > mb && p.recurrence) {
         assert.ok(ab.packs.find((x) => x.id === p.id)?.recurrence, `a nagyobb jel ablaka marad: ${p.id}, mag ${seed}`);
       }
     }
-    // Csomag nélküli menet nem születik: a menet csomagja mindig a listán van.
-    for (const m of [ab, abc]) {
-      if (m.run) assert.ok(m.packs.some((p) => p.id === m.run!.packId), `a menet csomagja a listán van, mag ${seed}`);
-    }
+    for (const m of [ab, abc, bca, cab]) runSafety(m, [a, b, c], seed);
   }
 });
-
-function effectiveMark(f: SyncFocus, id: string): number {
-  const own = f.packMarks?.[id] ?? 0;
-  return f.run?.packId === id && f.packs.some((p) => p.id === id) ? Math.max(own, f.rev) : own;
-}

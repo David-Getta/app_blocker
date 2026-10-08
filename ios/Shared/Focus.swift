@@ -105,24 +105,70 @@ public enum Focus {
         public let startedAt: Double
         /// mikor jár le magától
         public let endsAt: Double
+        /// Hányszor RÖVIDÍTETTÉK próbatétellel — csak ha legalább egyszer (nil =
+        /// soha). A szinkron ezzel dönt két változat között ugyanarról a
+        /// menetről: a több kifizetett rövidítés nyer. A focus.ts `cuts` tükre.
+        public let cuts: Int?
+        /// A menet EREDETI kezdése, ha az óra-ugrás elnyelése eltolta — csak
+        /// akkor van. A menet azonossága ez (`runOrigin`) — a focus.ts
+        /// `origin` tükre.
+        public let origin: Double?
 
-        public init(packId: String, startedAt: Double, endsAt: Double) {
+        public init(packId: String, startedAt: Double, endsAt: Double, cuts: Int? = nil, origin: Double? = nil) {
             self.packId = packId
             self.startedAt = startedAt
             self.endsAt = endsAt
+            self.cuts = (cuts ?? 0) > 0 ? cuts : nil
+            self.origin = origin
         }
 
-        enum CodingKeys: String, CodingKey { case packId, startedAt, endsAt }
+        enum CodingKeys: String, CodingKey { case packId, startedAt, endsAt, cuts, origin }
 
         /// TŰRŐ dekódolás, a gép `normalizeRun`-ja szerint: szöveg-azonosító,
-        /// csak JSON-szám idők (a hiányzó kezdés nulla); a `cleanRun` dönt.
+        /// csak JSON-szám idők (a hiányzó kezdés nulla); a `cleanRun` dönt. A
+        /// két jel a gép `cleanCuts` / `cleanOrigin` szabályával tisztul.
         public init(from decoder: Decoder) throws {
             let c = try decoder.container(keyedBy: CodingKeys.self)
             packId = c.lenient(String.self, .packId) ?? ""
-            startedAt = c.lenient(Double.self, .startedAt) ?? 0
+            let start = c.lenient(Double.self, .startedAt) ?? 0
+            startedAt = start
             endsAt = c.lenient(Double.self, .endsAt) ?? 0
+            cuts = Focus.cleanCuts(c.lenient(Double.self, .cuts))
+            origin = Focus.cleanOrigin(c.lenient(Double.self, .origin), startedAt: start)
         }
+
+        /// A rövidítések száma (0, ha nem volt).
+        public var cutCount: Int { cuts ?? 0 }
     }
+
+    /// A rövidítések számának plafonja — a focus.ts `MAX_RUN_CUTS` tükre.
+    public static let maxRunCuts = 1000
+
+    /// A rövidítések száma kívülről: pozitív egész, a plafonig — különben nil (a focus.ts `cleanCuts`).
+    public static func cleanCuts(_ raw: Double?) -> Int? {
+        guard let raw, raw.isFinite, raw == raw.rounded(.towardZero), raw > 0 else { return nil }
+        return Int(min(raw, Double(maxRunCuts)))
+    }
+
+    /// Az eredeti kezdés kívülről: pozitív egész, a kezdés ELŐTTI — különben
+    /// nil (a focus.ts `cleanOrigin`). A 2^53 fölötti szám a gépen sem egész.
+    public static func cleanOrigin(_ raw: Double?, startedAt: Double) -> Double? {
+        guard let raw, raw.isFinite, raw == raw.rounded(.towardZero), raw > 0,
+              raw <= 9_007_199_254_740_991, raw < startedAt else { return nil }
+        return raw
+    }
+
+    /// A menet azonossága a csomag mellett: az eredeti kezdése, eltolás előtt.
+    public static func runOrigin(_ r: Run) -> Double { r.origin ?? r.startedAt }
+
+    /// A naplósor azonossága: a menet eredeti kezdése.
+    public static func runOrigin(_ e: LogEntry) -> Double { e.origin ?? e.startedAt }
+
+    /// Ugyanarról a menetről szól-e a kettő — a focus.ts `sameRun` tükre.
+    public static func sameRun(_ a: Run, _ b: Run) -> Bool { a.packId == b.packId && runOrigin(a) == runOrigin(b) }
+
+    /// A naplósor erről a menetről szól-e.
+    public static func sameRun(_ e: LogEntry, _ r: Run) -> Bool { e.packId == r.packId && runOrigin(e) == runOrigin(r) }
 
     /// Fut-e most munkamenet.
     public static func isRunning(_ run: Run?, now: Double) -> Bool {
@@ -369,10 +415,16 @@ public enum Focus {
         /// — csak ha igaz; a régi sorban nincs (nil), és az nem ablak. A
         /// statisztika és a heti mondat ebből mondja, dolgozik-e az ablak.
         public let window: Bool?
+        /// A lezárt változat rövidítéseinek száma — csak ha volt. A sor a menet
+        /// SÍRKÖVE is a szinkronban — a focus.ts `cuts` tükre.
+        public let cuts: Int?
+        /// A menet eredeti kezdése, ha az óra-ugrás eltolta — a sor azonossága.
+        public let origin: Double?
 
         public init(
             packId: String, packName: String, startedAt: Double,
-            endedAt: Double, plannedEndsAt: Double, stopped: Bool, window: Bool? = nil
+            endedAt: Double, plannedEndsAt: Double, stopped: Bool, window: Bool? = nil,
+            cuts: Int? = nil, origin: Double? = nil
         ) {
             self.packId = packId
             self.packName = packName
@@ -381,11 +433,16 @@ public enum Focus {
             self.plannedEndsAt = plannedEndsAt
             self.stopped = stopped
             self.window = window
+            self.cuts = (cuts ?? 0) > 0 ? cuts : nil
+            self.origin = origin
         }
 
         enum CodingKeys: String, CodingKey {
-            case packId, packName, startedAt, endedAt, plannedEndsAt, stopped, window
+            case packId, packName, startedAt, endedAt, plannedEndsAt, stopped, window, cuts, origin
         }
+
+        /// A rövidítések száma (0, ha nem volt).
+        public var cutCount: Int { cuts ?? 0 }
 
         /// TŰRŐ dekódolás, a gép `normalizeLogEntry`-je szerint: a hiányzó vagy
         /// rossz típusú mező az alapértékét kapja (csak JSON-szám a szám, csak
@@ -394,12 +451,15 @@ public enum Focus {
             let c = try decoder.container(keyedBy: CodingKeys.self)
             packId = c.lenient(String.self, .packId) ?? ""
             packName = c.lenient(String.self, .packName) ?? ""
-            startedAt = c.lenient(Double.self, .startedAt) ?? 0
+            let start = c.lenient(Double.self, .startedAt) ?? 0
+            startedAt = start
             let ended = c.lenient(Double.self, .endedAt) ?? 0
             endedAt = ended
             plannedEndsAt = c.lenient(Double.self, .plannedEndsAt) ?? ended
             stopped = c.lenient(Bool.self, .stopped) == true
             window = c.lenient(Bool.self, .window) == true ? true : nil
+            cuts = Focus.cleanCuts(c.lenient(Double.self, .cuts))
+            origin = Focus.cleanOrigin(c.lenient(Double.self, .origin), startedAt: start)
         }
     }
 
@@ -407,10 +467,12 @@ public enum Focus {
     public static func closeRun(
         _ run: Run, packName: String, endedAt: Double, stopped: Bool, window: Bool = false
     ) -> LogEntry {
+        // A változat ismerete is a sorba kerül: a szinkron ebből tudja, melyik
+        // változatot zárta le ez a sor.
         LogEntry(
             packId: run.packId, packName: packName, startedAt: run.startedAt,
             endedAt: endedAt, plannedEndsAt: run.endsAt, stopped: stopped,
-            window: window ? true : nil
+            window: window ? true : nil, cuts: run.cuts, origin: run.origin
         )
     }
 
@@ -740,7 +802,9 @@ public enum Focus {
     /// A jövőben véget ért sor nem számít: az óra előre-, majd
     /// visszaállításának nyoma, nem kifizetett menet.
     static func spentIn(_ log: [LogEntry], packId: String, occ: Occurrence, now: Double) -> Bool {
-        log.contains { $0.packId == packId && $0.startedAt == occ.startsAt && $0.endedAt <= now + futureLogToleranceMs }
+        // Az azonosság az EREDETI kezdés: a meghosszabbított ablak-menetet az
+        // óra-ugrás elnyelése már eltolhatja, a sora mégis ehhez az ablakhoz tartozik.
+        log.contains { $0.packId == packId && runOrigin($0) == occ.startsAt && $0.endedAt <= now + futureLogToleranceMs }
     }
 
     /// Egy ablak-előfordulás: mikor kezdődik és mikor ér véget (epoch ms).

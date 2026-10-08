@@ -41,11 +41,96 @@ final class FocusSyncTests: XCTestCase {
         XCTAssertEqual(FocusSync.merge(stale, running).run, running.run)
     }
 
-    func testStopPassesWithHigherRev() {
+    /// A menet lezárásának naplósora — a sírköve a szinkronban.
+    private func ended(
+        startedAt: Double = 0, endedAt: Double = 5_000, plannedEndsAt: Double = 10_000,
+        stopped: Bool = true, cuts: Int? = nil, origin: Double? = nil, packId: String = "p1"
+    ) -> Focus.LogEntry {
+        Focus.LogEntry(
+            packId: packId, packName: "csomag", startedAt: startedAt, endedAt: endedAt,
+            plannedEndsAt: plannedEndsAt, stopped: stopped, cuts: cuts, origin: origin
+        )
+    }
+
+    func testStopPassesWithItsLogRow() {
         let running = focus(packs: [pack()], run: Focus.Run(packId: "p1", startedAt: 0, endsAt: 10_000), rev: 4, updatedAt: 100)
-        let stopped = focus(packs: [pack()], run: nil, rev: 5, updatedAt: 110, updatedBy: "eszkoz-b")
+        let stopped = focus(packs: [pack()], run: nil, log: [ended()], rev: 5, updatedAt: 110, updatedBy: "eszkoz-b")
         XCTAssertNil(FocusSync.merge(running, stopped).run)
         XCTAssertNil(FocusSync.merge(stopped, running).run)
+    }
+
+    func testAnInflatedRevWithoutTheRowDoesNotStopTheRun() {
+        // A független átnézés kiskapuja: átnevezésekkel bármekkora rev elérhető,
+        // ingyen. A menetről nem tud, sort sem írhat róla.
+        let running = focus(packs: [pack()], run: Focus.Run(packId: "p1", startedAt: 0, endsAt: 10_000), rev: 4, updatedAt: 100)
+        let inflated = focus(packs: [pack()], run: nil, rev: 40, updatedAt: 900, updatedBy: "eszkoz-z")
+        XCTAssertEqual(FocusSync.merge(running, inflated, now: 2_000).run, running.run)
+        XCTAssertEqual(FocusSync.merge(inflated, running, now: 2_000).run, running.run)
+        let otherRows = focus(packs: [pack()], run: nil, log: [ended(startedAt: 1), ended(packId: "p2")], rev: 40, updatedAt: 900)
+        XCTAssertEqual(FocusSync.merge(running, otherRows, now: 2_000).run, running.run, "más menet sora nem jó")
+    }
+
+    func testAPaidCutBeatsTheOlderLongerVariant() {
+        let cut = focus(packs: [pack()], run: Focus.Run(packId: "p1", startedAt: 0, endsAt: 5_000, cuts: 1), rev: 2, updatedAt: 100)
+        let stale = focus(packs: [pack()], run: Focus.Run(packId: "p1", startedAt: 0, endsAt: 10_000), rev: 9, updatedAt: 900, updatedBy: "eszkoz-z")
+        XCTAssertEqual(FocusSync.merge(cut, stale).run, cut.run)
+        XCTAssertEqual(FocusSync.merge(stale, cut).run, cut.run)
+        // A leállítás után a rövidítés előtti változat nem támad fel.
+        let stopped = focus(packs: [pack()], run: nil, log: [ended(endedAt: 3_000, plannedEndsAt: 5_000, cuts: 1)], rev: 3, updatedAt: 100)
+        XCTAssertNil(FocusSync.merge(stale, stopped, now: 4_000).run)
+        XCTAssertNil(FocusSync.merge(stopped, stale, now: 4_000).run)
+    }
+
+    func testAnExtensionTheCloserDidNotKnowSurvivesTheClose() {
+        let extended = focus(packs: [pack()], run: Focus.Run(packId: "p1", startedAt: 0, endsAt: 20_000), rev: 3, updatedAt: 100)
+        let lapsed = focus(packs: [pack()], run: nil, log: [ended(endedAt: 10_000, plannedEndsAt: 10_000, stopped: false)], rev: 8, updatedAt: 100)
+        XCTAssertEqual(FocusSync.merge(extended, lapsed, now: 12_000).run?.endsAt, 20_000)
+        XCTAssertEqual(FocusSync.merge(lapsed, extended, now: 12_000).run?.endsAt, 20_000)
+        let stopped = focus(packs: [pack()], run: nil, log: [ended(endedAt: 15_000, plannedEndsAt: 20_000)], rev: 8, updatedAt: 100)
+        XCTAssertNil(FocusSync.merge(extended, stopped, now: 16_000).run)
+    }
+
+    func testARowEndingInTheFutureDoesNotCloseTheRun() {
+        let running = focus(packs: [pack()], run: Focus.Run(packId: "p1", startedAt: 0, endsAt: 3_600_000), rev: 2, updatedAt: 100)
+        let future = focus(packs: [pack()], run: nil, log: [ended(endedAt: 3_600_000, plannedEndsAt: 3_600_000, stopped: false)], rev: 7, updatedAt: 100)
+        XCTAssertEqual(FocusSync.merge(running, future, now: 600_000).run, running.run)
+        XCTAssertEqual(FocusSync.merge(future, running, now: 600_000).run, running.run)
+        XCTAssertNil(FocusSync.merge(running, future, now: 3_600_000 - Focus.futureLogToleranceMs).run)
+    }
+
+    func testAShiftedRunIsTheSameRun() {
+        let shift: Double = 8 * 3_600_000
+        let woke = focus(packs: [pack()], run: Focus.Run(packId: "p1", startedAt: 1_000 + shift, endsAt: 3_001_000 + shift, origin: 1_000), rev: 2, updatedAt: 100)
+        let phone = focus(packs: [pack()], run: nil, log: [ended(startedAt: 1_000, endedAt: 3_001_000, plannedEndsAt: 3_001_000, stopped: false)], rev: 3, updatedAt: 100)
+        XCTAssertNil(FocusSync.merge(woke, phone, now: 1_000 + shift).run)
+        XCTAssertNil(FocusSync.merge(phone, woke, now: 1_000 + shift).run)
+        let still = focus(packs: [pack()], run: Focus.Run(packId: "p1", startedAt: 1_000, endsAt: 3_001_000), rev: 3, updatedAt: 100)
+        XCTAssertEqual(FocusSync.merge(woke, still).run, woke.run)
+        XCTAssertEqual(FocusSync.merge(still, woke).run, woke.run)
+    }
+
+    func testAnInflatedDeleteOrWideningDoesNotReachTheRunningPack() {
+        let running = focus(
+            packs: [Focus.Pack(id: "p1", name: "csomag p1", allowSites: ["quizlet.com", "docs.google.com"], allowApps: ["Word"], defaultMinutes: 50, recurrence: nil)],
+            run: Focus.Run(packId: "p1", startedAt: 150, endsAt: 150 + 3_000_000), rev: 3, updatedAt: 100, updatedBy: "gep"
+        )
+        let deleted = focus(packs: [], rev: 40, updatedAt: 900, updatedBy: "telefon", packMarks: ["p1": 40])
+        for (x, y) in [(running, deleted), (deleted, running)] {
+            let m = FocusSync.merge(x, y)
+            XCTAssertEqual(m.run, running.run)
+            XCTAssertEqual(m.packs.map { $0.id }, ["p1"], "a csomagja megvan")
+            XCTAssertEqual(m.packMarks, ["p1": 40], "a csomag a törlés jelével él tovább")
+        }
+        let wider = focus(
+            packs: [Focus.Pack(id: "p1", name: "átnevezve", allowSites: ["quizlet.com", "docs.google.com", "youtube.com"], allowApps: ["Word", "Steam"], defaultMinutes: 50, recurrence: nil)],
+            rev: 40, updatedAt: 900, updatedBy: "telefon", packMarks: ["p1": 40]
+        )
+        for (x, y) in [(running, wider), (wider, running)] {
+            let m = FocusSync.merge(x, y)
+            XCTAssertEqual(m.packs.first?.allowSites, ["quizlet.com", "docs.google.com"], "a youtube nem nyílik meg")
+            XCTAssertEqual(m.packs.first?.allowApps, ["Word"], "a Steam sem")
+            XCTAssertEqual(m.packs.first?.name, "átnevezve")
+        }
     }
 
     func testExtensionWinsAtSameRevShorteningDoesNot() {
@@ -132,8 +217,8 @@ final class FocusSyncTests: XCTestCase {
 
     func testDeletionMarkLeavesNoRunWithoutItsPack() {
         // A gép törölte a csomagot (jellel), a telefon ugyanabban a körben
-        // menetet indított rá. A menet a szigorúbb: a csomagja marad, a jel
-        // a menetes blob rev-je. Csomag nélküli menet nem születik.
+        // menetet indított rá. A menet a szigorúbb: a csomagja marad, a törlés
+        // jele is. Csomag nélküli menet nem születik.
         let deleted = focus(packs: [pack("p2")], rev: 7, updatedAt: 100, updatedBy: "gep", packMarks: ["p1": 7])
         let running = focus(packs: [pack("p1"), pack("p2")], run: Focus.Run(packId: "p1", startedAt: 150, endsAt: 150 + 3_000_000), rev: 7, updatedAt: 200, updatedBy: "telefon")
         for (x, y) in [(deleted, running), (running, deleted)] {
@@ -142,11 +227,12 @@ final class FocusSyncTests: XCTestCase {
             XCTAssertEqual(m.run?.packId, "p1")
             XCTAssertEqual(m.packMarks?["p1"], 7)
         }
-        // Nagyobb rev-vel jött törlés (próbatétel utáni leállítással): a
+        // A menet LEÁLLÍTÁSA után jött törlés (a leállítás naplósorával): a
         // menet is elveszett, és vele a csomag — nincs csomag nélküli menet.
         var stopped = deleted
         stopped.rev = 8
         stopped.packMarks = ["p1": 8]
+        stopped.log = [ended(startedAt: 150, endedAt: 160, plannedEndsAt: 150 + 3_000_000)]
         let m = FocusSync.merge(running, stopped)
         XCTAssertNil(m.run)
         XCTAssertEqual(m.packs.map { $0.id }, ["p2"])
@@ -173,8 +259,8 @@ final class FocusSyncTests: XCTestCase {
 
     func testRealMarkBeatsARunStartTheDesktopEditSurvives() {
         // A gép rev 6-on bővítette az ablakot (jel 6); a telefon ugyanabban a
-        // körben — a régi változattal — menetet indított (hatásos jel 6).
-        // Egyenlő hatásos jel: a VÁLTOZAT a valódi jelé. A menet is marad.
+        // körben — a régi változattal — menetet indított. A VÁLTOZAT a jelé (az
+        // ablak felvétele szigorítás, a menet alatt is átmegy). A menet is marad.
         let wide = ScheduleLogic.Band(days: [1, 2, 3, 4, 5], startMin: 540, endMin: 780)
         let desktop = focus(packs: [pack("p1", recurrence: wide)], rev: 6, updatedAt: 100, updatedBy: "gep", packMarks: ["p1": 6])
         let phone = focus(packs: [pack("p1", recurrence: win)], run: Focus.Run(packId: "p1", startedAt: 150, endsAt: 150 + 3_000_000), rev: 6, updatedAt: 200, updatedBy: "telefon")

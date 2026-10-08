@@ -128,6 +128,40 @@ test('a session stopped by a challenge is logged as stopped', () => {
   assert.ok(st.focusLog![0].endedAt < planned, 'a tervezettnél korábban');
 });
 
+test('a paid shortening counts as a cut, an extension does not', () => {
+  // A szinkron ebből tudja, hogy a rövidebb változat kifizetett rövidítés,
+  // nem egy régi, hosszabbítás előtti állapot (focus-merge.ts `mergeRun`).
+  const st = stateWithPack();
+  startFocus(st, 'p1', 50, NOW);
+  const end = st.focusRun!.endsAt;
+  changeFocus(st, end - 10 * 60_000, NOW);
+  finishChallenge(st, NOW + 5_000);
+  assert.equal(st.focusRun?.endsAt, end - 10 * 60_000);
+  assert.equal(st.focusRun?.cuts, 1, 'egy kifizetett rövidítés');
+  changeFocus(st, st.focusRun!.endsAt + 5 * 60_000, NOW + 6_000);
+  assert.equal(st.focusRun?.cuts, 1, 'a hosszabbítás ingyen van, nem rövidítés');
+  // A lezárás sora viszi a tudást: a szinkronban ez a sírkő.
+  changeFocus(st, null, NOW + 7_000);
+  finishChallenge(st, NOW + 8_000);
+  assert.equal(st.focusLog?.at(-1)?.cuts, 1);
+});
+
+test('a clock jump keeps the original start of a shifted session', () => {
+  // A menet azonossága az eredeti kezdés: az alvásból ébredő gép eltolt menete
+  // ugyanaz a menet, mint ami közben a telefonon lezárult.
+  const st = stateWithPack();
+  startFocus(st, 'p1', 50, NOW);
+  tick(st, NOW);
+  tick(st, NOW + 8 * 3_600_000);
+  assert.ok(st.focusRun, 'nem állt le');
+  assert.equal(st.focusRun!.origin, NOW, 'az eredeti kezdés megmarad');
+  assert.ok(st.focusRun!.startedAt > NOW, 'a kezdés tolódott');
+  // Rendes ütemben a végéig: egy nagy lépés maga is óraugrás lenne.
+  for (let t = NOW + 8 * 3_600_000; t <= NOW + 9 * 3_600_000 && st.focusRun; t += 60_000) tick(st, t);
+  assert.equal(st.focusRun, null, 'lejárt');
+  assert.equal(st.focusLog?.at(-1)?.origin, NOW, 'a lezárás sora is az eredeti kezdést viszi');
+});
+
 test('the log does not grow without bound', () => {
   const st = stateWithPack();
   for (let i = 0; i < MAX_FOCUS_LOG + 15; i++) {

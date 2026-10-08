@@ -68,7 +68,50 @@ object Focus {
         val startedAt: Long,
         /** mikor jár le magától */
         val endsAt: Long,
+        /**
+         * Hányszor RÖVIDÍTETTÉK próbatétellel (0 = soha). A szinkron ezzel
+         * dönt két változat között ugyanarról a menetről: a több kifizetett
+         * rövidítés nyer — a focus.ts `cuts` tükre.
+         */
+        val cuts: Int = 0,
+        /**
+         * A menet EREDETI kezdése, ha az óra-ugrás elnyelése eltolta — csak
+         * akkor van. A menet azonossága ez (`runOrigin`) — a focus.ts
+         * `origin` tükre.
+         */
+        val origin: Long? = null,
     )
+
+    /** A rövidítések számának plafonja — a focus.ts `MAX_RUN_CUTS` tükre. */
+    const val MAX_RUN_CUTS = 1000
+
+    /** A rövidítések száma kívülről: pozitív egész, a plafonig — különben 0 (a focus.ts `cleanCuts`). */
+    fun cleanCuts(raw: Double?): Int {
+        if (raw == null || !raw.isFinite() || raw != Math.floor(raw) || raw <= 0) return 0
+        return minOf(raw, MAX_RUN_CUTS.toDouble()).toInt()
+    }
+
+    /**
+     * Az eredeti kezdés kívülről: pozitív egész, a kezdés ELŐTTI — különben
+     * nincs (a focus.ts `cleanOrigin`). A 2^53 fölötti szám a gépen sem egész.
+     */
+    fun cleanOrigin(raw: Double?, startedAt: Long): Long? {
+        if (raw == null || !raw.isFinite() || raw != Math.floor(raw) || raw <= 0 || raw > 9_007_199_254_740_991.0) return null
+        val v = raw.toLong()
+        return if (v < startedAt) v else null
+    }
+
+    /** A menet azonossága a csomag mellett: az eredeti kezdése, eltolás előtt. */
+    fun runOrigin(run: FocusRun): Long = run.origin ?: run.startedAt
+
+    /** A naplósor azonossága: a menet eredeti kezdése. */
+    fun runOrigin(e: FocusLogEntry): Long = e.origin ?: e.startedAt
+
+    /** Ugyanarról a menetről szól-e a kettő — a focus.ts `sameRun` tükre. */
+    fun sameRun(a: FocusRun, b: FocusRun): Boolean = a.packId == b.packId && runOrigin(a) == runOrigin(b)
+
+    /** A naplósor erről a menetről szól-e. */
+    fun sameRun(e: FocusLogEntry, r: FocusRun): Boolean = e.packId == r.packId && runOrigin(e) == runOrigin(r)
 
     /** Fut-e most munkamenet. */
     fun isRunning(run: FocusRun?, now: Long): Boolean = run != null && run.endsAt > now
@@ -333,6 +376,13 @@ object Focus {
          * mondat ebből mondja, dolgozik-e az ablak.
          */
         val window: Boolean = false,
+        /**
+         * A lezárt változat rövidítéseinek száma (0 = nem volt). A sor a menet
+         * SÍRKÖVE is a szinkronban — a focus.ts `cuts` tükre.
+         */
+        val cuts: Int = 0,
+        /** A menet eredeti kezdése, ha az óra-ugrás eltolta — a sor azonossága. */
+        val origin: Long? = null,
     )
 
     /** Egy naplósor a futó menetből. */
@@ -345,6 +395,10 @@ object Focus {
             plannedEndsAt = run.endsAt,
             stopped = stopped,
             window = window,
+            // A változat ismerete is a sorba kerül: a szinkron ebből tudja,
+            // melyik változatot zárta le ez a sor.
+            cuts = run.cuts,
+            origin = run.origin,
         )
 
     /** Amit a lezárás ad vissza: az új napló, és a futás (mindig null). */
@@ -475,7 +529,9 @@ object Focus {
      * nyoma, nem kifizetett menet.
      */
     private fun spentIn(log: List<FocusLogEntry>, packId: String, occ: Occurrence, now: Long): Boolean =
-        log.any { it.packId == packId && it.startedAt == occ.startsAt && it.endedAt <= now + FUTURE_LOG_TOLERANCE_MS }
+        // Az azonosság az EREDETI kezdés: a meghosszabbított ablak-menetet az
+        // óra-ugrás elnyelése már eltolhatja, a sora mégis ehhez az ablakhoz tartozik.
+        log.any { it.packId == packId && runOrigin(it) == occ.startsAt && it.endedAt <= now + FUTURE_LOG_TOLERANCE_MS }
 
     /** Egy ablak-előfordulás: mikor kezdődik és mikor ér véget (epoch ms). */
     data class Occurrence(val startsAt: Long, val endsAt: Long)

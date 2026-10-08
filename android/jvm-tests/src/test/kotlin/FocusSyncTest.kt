@@ -39,17 +39,132 @@ class FocusSyncTest {
         assertEquals(running.run, FocusSync.merge(stale, running).run)
     }
 
+    /** A menet lezárásának naplósora — a sírköve a szinkronban. */
+    private fun ended(
+        startedAt: Long = 0, endedAt: Long = 5_000, plannedEndsAt: Long = 10_000,
+        stopped: Boolean = true, cuts: Int = 0, origin: Long? = null, packId: String = "p1",
+    ) = Focus.FocusLogEntry(
+        packId = packId, packName = "csomag", startedAt = startedAt, endedAt = endedAt,
+        plannedEndsAt = plannedEndsAt, stopped = stopped, cuts = cuts, origin = origin,
+    )
+
     @Test
-    fun `a leallitas nagyobb rev-vel atmegy`() {
+    fun `a leallitas a naplosoraval megy at`() {
         val running = FocusSync.SyncFocus(
             packs = listOf(pack()), run = Focus.FocusRun("p1", 0, 10_000),
             rev = 4, updatedAt = 100, updatedBy = "eszkoz-a",
         )
         val stopped = FocusSync.SyncFocus(
-            packs = listOf(pack()), run = null, rev = 5, updatedAt = 110, updatedBy = "eszkoz-b",
+            packs = listOf(pack()), run = null, log = listOf(ended()), rev = 5, updatedAt = 110, updatedBy = "eszkoz-b",
         )
         assertNull(FocusSync.merge(running, stopped).run)
         assertNull(FocusSync.merge(stopped, running).run)
+    }
+
+    @Test
+    fun `felhuzott rev-vel, naplosor nelkul nem all le a menet`() {
+        // A független átnézés kiskapuja: átnevezésekkel bármekkora rev elérhető,
+        // ingyen. A menetről nem tud, sort sem írhat róla.
+        val running = FocusSync.SyncFocus(
+            packs = listOf(pack()), run = Focus.FocusRun("p1", 0, 10_000),
+            rev = 4, updatedAt = 100, updatedBy = "eszkoz-a",
+        )
+        val inflated = FocusSync.SyncFocus(
+            packs = listOf(pack()), run = null, rev = 40, updatedAt = 900, updatedBy = "eszkoz-z",
+        )
+        assertEquals(running.run, FocusSync.merge(running, inflated, 2_000).run)
+        assertEquals(running.run, FocusSync.merge(inflated, running, 2_000).run)
+        val otherRows = inflated.copy(log = listOf(ended(startedAt = 1), ended(packId = "p2")))
+        assertEquals(running.run, FocusSync.merge(running, otherRows, 2_000).run, "más menet sora nem jó")
+    }
+
+    @Test
+    fun `a kifizetett rovidites nyer a regi, hosszabb valtozat felett`() {
+        val cut = FocusSync.SyncFocus(
+            packs = listOf(pack()), run = Focus.FocusRun("p1", 0, 5_000, cuts = 1),
+            rev = 2, updatedAt = 100, updatedBy = "eszkoz-a",
+        )
+        val stale = FocusSync.SyncFocus(
+            packs = listOf(pack()), run = Focus.FocusRun("p1", 0, 10_000),
+            rev = 9, updatedAt = 900, updatedBy = "eszkoz-z",
+        )
+        assertEquals(cut.run, FocusSync.merge(cut, stale).run)
+        assertEquals(cut.run, FocusSync.merge(stale, cut).run)
+        // A leállítás után a rövidítés előtti változat nem támad fel.
+        val stopped = FocusSync.SyncFocus(
+            packs = listOf(pack()), run = null, rev = 3,
+            log = listOf(ended(endedAt = 3_000, plannedEndsAt = 5_000, cuts = 1)),
+        )
+        assertNull(FocusSync.merge(stale, stopped, 4_000).run)
+        assertNull(FocusSync.merge(stopped, stale, 4_000).run)
+    }
+
+    @Test
+    fun `a hosszabbitas, amirol a lezaro nem tudott, tuleli a lezarast`() {
+        val extended = FocusSync.SyncFocus(packs = listOf(pack()), run = Focus.FocusRun("p1", 0, 20_000), rev = 3)
+        val lapsed = FocusSync.SyncFocus(
+            packs = listOf(pack()), run = null, rev = 8,
+            log = listOf(ended(endedAt = 10_000, plannedEndsAt = 10_000, stopped = false)),
+        )
+        assertEquals(20_000, FocusSync.merge(extended, lapsed, 12_000).run?.endsAt)
+        assertEquals(20_000, FocusSync.merge(lapsed, extended, 12_000).run?.endsAt)
+        val stopped = lapsed.copy(log = listOf(ended(endedAt = 15_000, plannedEndsAt = 20_000)))
+        assertNull(FocusSync.merge(extended, stopped, 16_000).run)
+    }
+
+    @Test
+    fun `a jovoben veget ert naplosor nem zar le menetet`() {
+        val running = FocusSync.SyncFocus(packs = listOf(pack()), run = Focus.FocusRun("p1", 0, 3_600_000), rev = 2)
+        val future = FocusSync.SyncFocus(
+            packs = listOf(pack()), run = null, rev = 7,
+            log = listOf(ended(endedAt = 3_600_000, plannedEndsAt = 3_600_000, stopped = false)),
+        )
+        assertEquals(running.run, FocusSync.merge(running, future, 600_000).run)
+        assertEquals(running.run, FocusSync.merge(future, running, 600_000).run)
+        assertNull(FocusSync.merge(running, future, 3_600_000 - Focus.FUTURE_LOG_TOLERANCE_MS).run)
+    }
+
+    @Test
+    fun `az eltolt menet ugyanaz a menet`() {
+        val shift = 8 * 3_600_000L
+        val woke = FocusSync.SyncFocus(
+            packs = listOf(pack()), rev = 2,
+            run = Focus.FocusRun("p1", 1_000 + shift, 3_001_000 + shift, origin = 1_000),
+        )
+        val phone = FocusSync.SyncFocus(
+            packs = listOf(pack()), run = null, rev = 3,
+            log = listOf(ended(startedAt = 1_000, endedAt = 3_001_000, plannedEndsAt = 3_001_000, stopped = false)),
+        )
+        assertNull(FocusSync.merge(woke, phone, 1_000 + shift).run)
+        assertNull(FocusSync.merge(phone, woke, 1_000 + shift).run)
+        val still = FocusSync.SyncFocus(packs = listOf(pack()), rev = 3, run = Focus.FocusRun("p1", 1_000, 3_001_000))
+        assertEquals(woke.run, FocusSync.merge(woke, still).run)
+        assertEquals(woke.run, FocusSync.merge(still, woke).run)
+    }
+
+    @Test
+    fun `felhuzott jelu torles es bovites sem eri el a futo menet csomagjat`() {
+        val running = FocusSync.SyncFocus(
+            packs = listOf(pack().copy(allowSites = listOf("quizlet.com", "docs.google.com"))),
+            run = Focus.FocusRun("p1", 150, 150 + 3_000_000), rev = 3, updatedAt = 100, updatedBy = "gep",
+        )
+        val deleted = FocusSync.SyncFocus(packs = emptyList(), packMarks = mapOf("p1" to 40), rev = 40, updatedAt = 900, updatedBy = "telefon")
+        for ((x, y) in listOf(running to deleted, deleted to running)) {
+            val m = FocusSync.merge(x, y)
+            assertEquals(running.run, m.run)
+            assertEquals(listOf("p1"), m.packs.map { it.id }, "a csomagja megvan")
+            assertEquals(mapOf("p1" to 40), m.packMarks, "a csomag a törlés jelével él tovább")
+        }
+        val wider = FocusSync.SyncFocus(
+            packs = listOf(pack().copy(name = "átnevezve", allowSites = listOf("quizlet.com", "docs.google.com", "youtube.com"), allowApps = listOf("Word", "Steam"))),
+            packMarks = mapOf("p1" to 40), rev = 40, updatedAt = 900, updatedBy = "telefon",
+        )
+        for ((x, y) in listOf(running to wider, wider to running)) {
+            val m = FocusSync.merge(x, y)
+            assertEquals(listOf("quizlet.com", "docs.google.com"), m.packs[0].allowSites, "a youtube nem nyílik meg")
+            assertEquals(listOf("Word"), m.packs[0].allowApps, "a Steam sem")
+            assertEquals("átnevezve", m.packs[0].name)
+        }
     }
 
     @Test
@@ -91,9 +206,9 @@ class FocusSyncTest {
     @Test
     fun `a torles jele nem hagy csomag nelkuli menetet - a menet csomagja marad`() {
         // A gép törölte a csomagot (jellel), a telefon ugyanabban a körben
-        // menetet indított rá. A menet a szigorúbb: a csomagja marad, a jel
-        // a menetes blob rev-je. Csomag nélküli menet — amit a fogadó eldob,
-        // a küldő meg minden körben újra feltölt — nem születik.
+        // menetet indított rá. A menet a szigorúbb: a csomagja marad, a törlés
+        // jele is. Csomag nélküli menet — amit a fogadó eldob, a küldő meg
+        // minden körben újra feltölt — nem születik.
         val deleted = FocusSync.SyncFocus(
             packs = listOf(pack("p2")), packMarks = mapOf("p1" to 7),
             rev = 7, updatedAt = 100, updatedBy = "gep",
@@ -108,9 +223,12 @@ class FocusSyncTest {
             assertEquals("p1", m.run?.packId)
             assertEquals(7, m.packMarks?.get("p1"))
         }
-        // Ha a törlés nagyobb rev-vel jött (próbatétel utáni leállítással),
+        // Ha a törlés a menet LEÁLLÍTÁSA után jött (a leállítás naplósorával),
         // a menet is elveszett — és vele a csomag: nincs csomag nélküli menet.
-        val stopped = deleted.copy(rev = 8, packMarks = mapOf("p1" to 8))
+        val stopped = deleted.copy(
+            rev = 8, packMarks = mapOf("p1" to 8),
+            log = listOf(ended(startedAt = 150, endedAt = 160, plannedEndsAt = 150 + 3_000_000)),
+        )
         val m = FocusSync.merge(running, stopped)
         assertNull(m.run)
         assertEquals(listOf("p2"), m.packs.map { it.id })
@@ -137,8 +255,8 @@ class FocusSyncTest {
     @Test
     fun `a valodi jel legyozi a menet inditasat - a gep szerkesztese marad`() {
         // A gép rev 6-on bővítette az ablakot (jel 6); a telefon ugyanabban a
-        // körben — a régi változattal — menetet indított (hatásos jel 6).
-        // Egyenlő hatásos jel: a VÁLTOZAT a valódi jelé. A menet is marad.
+        // körben — a régi változattal — menetet indított. A VÁLTOZAT a jelé (az
+        // ablak felvétele szigorítás, a menet alatt is átmegy). A menet is marad.
         val wide = ScheduleLogic.Band(setOf(1, 2, 3, 4, 5), 540, 780)
         val narrow = ScheduleLogic.Band(setOf(1, 2, 3, 4, 5), 540, 720)
         val desktop = FocusSync.SyncFocus(

@@ -37,7 +37,6 @@ import { isBurstLoosening, normalizeBurst } from '../shared/burst';
 import {
   emptyChannels, mergeChannels, normalizeSyncChannels, sameChannels, type SyncChannels,
 } from '../shared/sync/channels-merge.js';
-import { closeRun, isWindowRun, MAX_FOCUS_LOG, type FocusRun } from '../shared/focus.js';
 import { makeTodayDigest, parseTodayDigest, type TodayDigest } from '../shared/limits.js';
 
 /** Ennél tovább egy szinkron-kör nem tarthat; a segéd nem állhat meg miatta. */
@@ -595,8 +594,8 @@ export async function syncToday(state: HelperState, now: number): Promise<number
  * Ugyanaz a menet, mint a blokklistánál — húzd le, fésüld össze, told fel —,
  * mert ugyanaz a kockázat: két eszköz párhuzamos írása egyik oldalát sem
  * tüntetheti el. A különbség az összefésülés szabályában van
- * (`shared/sync/focus-merge.ts`): ott a szigorúbb nyer, és lazítani csak
- * nagyobb `rev` tud.
+ * (`shared/sync/focus-merge.ts`): ott a szigorúbb nyer, és lazítani csak a
+ * nyomával lehet — a rövidítés számlálójával, a leállítás naplósorával.
  *
  * @returns változott-e a HELYI állapot (a hívónak menteni kell)
  */
@@ -610,28 +609,20 @@ async function syncFocusRound(
     });
     const remote = decodeFocus(acc, pulled.payload, now);
     const mine = localFocus(state, acc.deviceId, now);
-    const merged = mergeFocus(mine, remote);
+    const merged = mergeFocus(mine, remote, now);
 
     if (!sameFocus(merged, mine)) {
-      // HA A MENET MÁSHOL ÉRT VÉGET, ide is bekerül a naplóba.
-      //
-      // A statisztikát eddig csak a helyi bíró töltötte: ő látja, ha a menet
-      // lejár vagy ha itt állítod le próbatétellel. Egy TELEFONON leállított
-      // menet viszont a szinkronon át érkezik — a `focusRun` egyszerűen
-      // eltűnik —, és a statisztikából hiányozna. Aki a telefonján állítja le a
-      // menetet, az azt látná, hogy a héten nem is használta.
-      //
-      // Kettőzés nincs: ha a leállítás ITT történt, a helyi `focusRun` ekkorra
-      // már null, tehát ez az ág nem fut le.
-      logRunEndedElsewhere(state, mine.run, merged.run, Date.now());
       state.focusPacks = merged.packs;
       state.focusRun = merged.run;
       // A NAPLÓ a másik eszközöktől is megjön — ettől lesz a statisztika a
       // fiók egészéről szóló szám, nem csak erről a gépről szóló. A `mergeFocus`
       // ezt EGYESÍTÉSSEL végzi, tehát a helyi sorok nem vesznek el.
       //
-      // A `logRunEndedElsewhere` FÖLÖTTE fut, szándékosan: az a sor, amit ő ír,
-      // már benne kell legyen abban, amit legközelebb feltöltünk.
+      // A MÁSHOL LEÁLLÍTOTT MENET sora is ezzel jön. Eddig külön írtunk egyet,
+      // ha a menet a szinkronból „egyszerűen eltűnt” — de most már nem tűnhet
+      // el egyszerűen: csak a rá hivatkozó naplósor zárja le (`mergeRun`), és
+      // az a sor itt van a fésült naplóban. Egy saját sor kettőzne, és a mi
+      // időnkkel hazudna a másik eszköz lejárata helyett.
       state.focusLog = mergeLog(merged.log, state.focusLog ?? []);
       // A jelek az összefésülés eredményéből: a helyi, régebbi jel nem
       // maradhat meg egy már eldőlt csomag mellett.
@@ -700,25 +691,6 @@ async function syncFocusRound(
     }
   }
   return changed;
-}
-
-/**
- * Naplózza, ha egy MÁSIK eszköz zárta le a nálunk futó menetet.
- *
- * Csak akkor ír, ha nálunk tényleg FUTOTT valami, és a másik oldal
- * megrövidítette vagy leállította. A hosszabbítás nem lezárás.
- */
-function logRunEndedElsewhere(
-  state: HelperState, mine: FocusRun | null, merged: FocusRun | null, now: number,
-): void {
-  if (!mine || mine.endsAt <= now) return;          // nálunk nem futott
-  if (merged && merged.endsAt >= mine.endsAt) return; // hosszabbítás vagy azonos
-  const pack = (state.focusPacks ?? []).find((p) => p.id === mine.packId);
-  const endedAt = merged ? merged.endsAt : now;
-  state.focusLog = [
-    ...(state.focusLog ?? []),
-    closeRun(mine, pack?.name ?? 'Ismeretlen csomag', endedAt, true, isWindowRun(mine, state.focusPacks ?? [])),
-  ].slice(-MAX_FOCUS_LOG);
 }
 
 /**

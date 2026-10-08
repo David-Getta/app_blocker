@@ -63,9 +63,9 @@ test('újra felvéve nagyobb jellel a törlés fölött; a csak a régebbin él�
 
 test('a törlés jele nem hagy csomag nélküli menetet: a menet csomagja marad', () => {
   // A gép törölte a csomagot (jellel), a telefon ugyanabban a körben menetet
-  // indított rá. A menet a szigorúbb: a csomagja marad, a jele a menetes blob
-  // rev-je. Csomag nélküli menet — amit a fogadó eldob, a küldő meg minden
-  // körben újra feltölt — nem születik.
+  // indított rá. A menet a szigorúbb: a csomagja marad, a törlés jele is.
+  // Csomag nélküli menet — amit a fogadó eldob, a küldő meg minden körben
+  // újra feltölt — nem születik.
   const deleted = focus({ packs: [pack('p2')], packMarks: { p1: 7 }, rev: 7, updatedAt: 100 });
   const running = focus({
     packs: [pack('p1'), pack('p2')], run: { packId: 'p1', startedAt: 150, endsAt: 150 + 3_000_000 },
@@ -77,12 +77,62 @@ test('a törlés jele nem hagy csomag nélküli menetet: a menet csomagja marad'
     assert.equal(m.run?.packId, 'p1');
     assert.deepEqual(m.packMarks, { p1: 7 });
   }
-  // Ha a törlés nagyobb rev-vel jött (próbatétel utáni leállítással), a
+  // Ha a törlés a menet LEÁLLÍTÁSA után jött (a leállítás naplósorával), a
   // menet is elveszett — és vele a csomag: nincs csomag nélküli menet.
-  const stopped = focus({ ...deleted, rev: 8, packMarks: { p1: 8 } });
+  const stopped = focus({
+    ...deleted, rev: 8, packMarks: { p1: 8 },
+    log: [{
+      packId: 'p1', packName: 'csomag p1', startedAt: 150, endedAt: 160,
+      plannedEndsAt: 150 + 3_000_000, stopped: true,
+    }],
+  });
   const m = mergeFocus(running, stopped);
   assert.equal(m.run, null);
   assert.deepEqual(m.packs.map((p) => p.id), ['p2']);
+});
+
+test('felhúzott jelű törlés sem viszi el a futó menet csomagját', () => {
+  // Egy hálózaton kívüli eszköz a menetről nem tud, tehát a csomagját törölheti
+  // — átnevezésekkel felhúzott jellel. Ha a csomag eltűnne, a fogadók a
+  // csomag nélküli menetet eldobnák: ingyenes leállítás lenne.
+  const running = focus({
+    packs: [pack('p1')], run: { packId: 'p1', startedAt: 150, endsAt: 150 + 3_000_000 },
+    rev: 3, updatedAt: 100,
+  });
+  const deleted = focus({ packs: [], packMarks: { p1: 40 }, rev: 40, updatedAt: 900, updatedBy: 'telefon' });
+  for (const [x, y] of [[running, deleted], [deleted, running]] as const) {
+    const m = mergeFocus(x, y);
+    assert.deepEqual(m.run, running.run, 'a menet fut');
+    assert.deepEqual(m.packs.map((p) => p.id), ['p1'], 'a csomagja megvan');
+    assert.deepEqual(m.packMarks, { p1: 40 }, 'a csomag a törlés jelével él tovább — a törlés megsemmisül');
+  }
+});
+
+test('a futó menet fehérlistája a szinkronnal nem bővülhet, szűkülni viszont igen', () => {
+  // A menet alatt a csomag befagy — helyben. A szinkronon egy régebbi,
+  // bővebb változat felhúzott jellel jönne, és a menet alatt megnyílna, amit
+  // a menet zár. A fehérlista a menetet hordozó változattal METSZET.
+  const running = focus({
+    packs: [pack('p1', { allowSites: ['quizlet.com', 'docs.google.com'] })],
+    run: { packId: 'p1', startedAt: 150, endsAt: 150 + 3_000_000 }, rev: 3, updatedAt: 100,
+  });
+  const wider = focus({
+    packs: [pack('p1', { name: 'átnevezve', allowSites: ['quizlet.com', 'docs.google.com', 'youtube.com'], allowApps: ['Steam'] })],
+    packMarks: { p1: 40 }, rev: 40, updatedAt: 900, updatedBy: 'telefon',
+  });
+  for (const [x, y] of [[running, wider], [wider, running]] as const) {
+    const m = mergeFocus(x, y);
+    assert.deepEqual(m.packs[0].allowSites, ['quizlet.com', 'docs.google.com'], 'a youtube nem nyílik meg');
+    assert.deepEqual(m.packs[0].allowApps, [], 'az app sem');
+    assert.equal(m.packs[0].name, 'átnevezve', 'a név a jel szerinti győztesé');
+  }
+  // A SZŰKÍTÉS ingyen van — átmegy a menet alatt is.
+  const narrower = focus({
+    packs: [pack('p1', { allowSites: ['quizlet.com'] })], packMarks: { p1: 5 }, rev: 5, updatedAt: 900, updatedBy: 'telefon',
+  });
+  for (const [x, y] of [[running, narrower], [narrower, running]] as const) {
+    assert.deepEqual(mergeFocus(x, y).packs[0].allowSites, ['quizlet.com']);
+  }
 });
 
 test('a jelek plafonja egy szabály: a jelen lévő csomagok jele marad, a töröltekből a legfrissebbek', () => {
@@ -108,9 +158,9 @@ test('a jelek plafonja egy szabály: a jelen lévő csomagok jele marad, a tör�
 
 test('a valódi jel legyőzi a menet indítását: a gép szerkesztése marad a telefon régi változata fölött', () => {
   // A gép rev 6-on bővítette az ablakot (jel 6); a telefon ugyanabban a
-  // körben — a régi változattal — menetet indított (a menet jele hatásos,
-  // rev 6). Egyenlő hatásos jel: a jelenlét nem kérdés, a VÁLTOZAT a valódi
-  // jelé. A menet marad, a szerkesztés is.
+  // körben — a régi változattal — menetet indított. A változat a jelé (az
+  // ablak felvétele szigorítás, a menet alatt is átmegy). A menet marad, a
+  // szerkesztés is.
   const wide: Band = { days: [1, 2, 3, 4, 5], startMin: 540, endMin: 780 };
   const desktop = focus({ packs: [pack('p1', { recurrence: wide })], packMarks: { p1: 6 }, rev: 6, updatedAt: 100 });
   const phone = focus({

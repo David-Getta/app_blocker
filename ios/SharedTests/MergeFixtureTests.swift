@@ -28,6 +28,10 @@ private struct SiteCase: Decodable {
 
 private struct FocusCase: Decodable {
     let seed: Int
+    /// A kézzel írt eset neve (a menet egy-egy ága), a véletleneknél nincs.
+    let scenario: String?
+    /// A fésülés időpontja: a jövőben véget ért naplósor nem zár le menetet.
+    let now: Double
     let a: FocusSync.SyncFocus
     let b: FocusSync.SyncFocus
     let c: FocusSync.SyncFocus
@@ -95,7 +99,7 @@ final class MergeFixtureTests: XCTestCase {
         let packs: String = packParts.joined(separator: ";")
         let marks = (f.packMarks ?? [:]).sorted { $0.key < $1.key }
             .map { "\($0.key)=\($0.value)" }.joined(separator: ",")
-        let run = f.run.map { "\($0.packId)/\(int($0.startedAt))/\(int($0.endsAt))" } ?? "-"
+        let run = f.run.map { "\($0.packId)/\(int($0.startedAt))/\(int($0.endsAt))/\($0.cutCount)/\($0.origin.map { int($0) } ?? "-")" } ?? "-"
         let lock = f.lockdown.map { "\(int($0.startedAt))/\(int($0.until))" } ?? "-"
         // Az ablakok TARTALOM szerint, rendezve: az azonosító és a sorrend nem jelentés.
         let windows = (f.lockdownWindows ?? []).map { LockdownLogic.windowKey($0.band) }.sorted().joined(separator: ";")
@@ -104,7 +108,10 @@ final class MergeFixtureTests: XCTestCase {
             + " hide=\((f.hideSiteList ?? false) ? 1 : 0) hmark=\(f.hideSiteListRev ?? 0)"
             + " kw=[\(KeywordLogic.keywordsKey(f.keywords ?? []))] kmark=\(f.keywordsRev ?? 0)"
             + " partner=[\(PartnerLogic.partnerKey(f.partner))] pmark=\(f.partnerRev ?? 0)"
-            + " log=[" + f.log.map { "\($0.packId)/\(int($0.startedAt))/\(int($0.endedAt))/\(int($0.plannedEndsAt))/\($0.stopped ? 1 : 0)/\(($0.window ?? false) ? 1 : 0)" }.joined(separator: ";") + "]"
+            + " log=[" + f.log.map { e -> String in
+                "\(e.packId)/\(int(e.startedAt))/\(int(e.endedAt))/\(int(e.plannedEndsAt))/\(e.stopped ? 1 : 0)/\((e.window ?? false) ? 1 : 0)"
+                    + "/\(e.cutCount)/\(e.origin.map { int($0) } ?? "-")"
+            }.joined(separator: ";") + "]"
     }
 
     func testSitesMergeTheSameAsTheDesktop() throws {
@@ -283,9 +290,11 @@ final class MergeFixtureTests: XCTestCase {
             let a = FocusSync.normalize(c.a, fallbackDevice: "x")
             let b = FocusSync.normalize(c.b, fallbackDevice: "x")
             let cc = FocusSync.normalize(c.c, fallbackDevice: "x")
-            let ab = FocusSync.merge(a, b)
-            XCTAssertEqual(focusKey(ab), c.ab, "munkamenet, két eszköz, mag \(c.seed)")
-            XCTAssertEqual(focusKey(FocusSync.merge(ab, cc)), c.abc, "munkamenet, három eszköz, mag \(c.seed)")
+            // A „MOST” is az eset része: a jövőben véget ért naplósor nem zár le menetet.
+            let name = c.scenario ?? "mag \(c.seed)"
+            let ab = FocusSync.merge(a, b, now: c.now)
+            XCTAssertEqual(focusKey(ab), c.ab, "munkamenet, két eszköz, \(name)")
+            XCTAssertEqual(focusKey(FocusSync.merge(ab, cc, now: c.now)), c.abc, "munkamenet, három eszköz, \(name)")
             // EGY MEZŐ CSERÉJE: ugyanazt tartja-e különbségnek a Swift, mint a gép —
             // és ami nem jelentés (időbélyeg, eszköznév, ablak-azonosító, a
             // csomagok sorrendje), azt nem. A v0.4.170-ben pont a Swift kulcsából

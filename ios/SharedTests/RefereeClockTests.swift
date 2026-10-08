@@ -64,6 +64,31 @@ final class RefereeClockTests: XCTestCase {
         XCTAssertTrue(expired == nil || expired! <= back, "a lejárt szünet lejárt marad")
     }
 
+    // Az eltolt menet ugyanaz a menet: az EREDETI kezdés megmarad, mert a
+    // szinkron azon ismeri fel — a gép és a Kotlin referee-jének tükre.
+    func testAShiftedRunKeepsItsOriginalStart() {
+        let pack = Focus.Pack(id: "p_ora", name: "Óra", allowSites: [], allowApps: [], defaultMinutes: 50)
+        BreakerStore.shared.mutate { state in
+            state.focusPacks = [pack]
+            state.focusRun = Focus.Run(packId: "p_ora", startedAt: now, endsAt: now + 50 * 60_000)
+            state.session = nil
+        }
+        pumpMainQueue()
+        BreakerStore.shared.saveLastTick(now)
+
+        let jumped = now + 8 * 3_600_000
+        Referee.tick(now: jumped)
+        pumpMainQueue()
+        let run = BreakerStore.shared.state.focusRun
+        XCTAssertEqual(run?.origin, now, "az eredeti kezdés megmarad")
+        XCTAssertGreaterThan(run?.startedAt ?? 0, now, "a kezdés tolódott")
+        BreakerStore.shared.mutate { state in
+            state.focusRun = nil
+            state.focusPacks = []
+        }
+        pumpMainQueue()
+    }
+
     func testTheDeletionDeadlineMovesWithTheClockAfterARestart() {
         let site = Site(
             id: "site_ora", domain: "youtube.com", hostnames: ["youtube.com"],

@@ -135,35 +135,42 @@ Ezért:
   csúcs-órára — az egyetlen, amit telefonról lehet) ugyanígy írja a jelet a
   léptetésében (`SyncRevisions.bumpFocus`), egyébként csak hordozza és
   fésüli; az első léptetés ott is jel nélkül megy.
-- **A menet és a csomagja együtt jár.** A csomagok és a menet külön
-  dőlnek el, és a kettő össze tud akadni: az egyik eszköz törölte a
-  csomagot (jellel), a másik ugyanabban a körben menetet indított rá. A
-  törlés jele elvinné a csomagot, a menet meg maradna csomag nélkül — amit
-  a fogadó eldob, a menetet tartó eszköz viszont minden körben újra
-  feltöltene, mert a kiszolgálón sosem az áll, amit ő lát. Ezért a fésülés
-  a futó menet csomagját a blob `rev`-jével jeleltnek veszi (hatásos jel):
-  a sírkő csak akkor nyer, ha a jele nagyobb a menetes blob rev-jénél — de
-  akkor a másik blob rev-je is nagyobb, és a menet is elveszett volna.
-  Csomag nélküli menet így nem születik — a 30-as csomagplafon vágásából
-  sem: a menet csomagja elöl áll, és a vágásnál a jeles csomag marad, a
-  jeltelen esik ki előbb. A menet a szigorúbb: a csomag visszajön, és a
-  jele a menetes blob rev-je lesz, tehát **a menet után is marad** — a
-  törlés semmisül meg, nem halasztódik; aki törölni akarja, újra törli
-  (ablakos csomagnál újra próbatétellel). Ez kimondott ár.
-- **A menet jele csak hatásos, a szerkesztésé valódi.** Ha a gép rev 6-on
-  szerkesztette a csomagot (jel 6), a telefon pedig ugyanabban a körben —
-  a régi változattal — menetet indított rá (hatásos jel 6), a JELENLÉT
-  nem kérdés, a VÁLTOZAT a valódi jelé: a gép szerkesztése marad, a
-  telefon menete is. Két eszközre ez mindig így dől el. Három eszköznél
-  van egy kimondott sarok: ha ugyanarra a csomagra egyszerre jut egy
-  menet, egy törlés és egy szerkesztés, mind azonos jellel, a csomag
-  jelenléte és a menet sorrendtől független, a változata viszont attól
-  függhet, ki ért előbb a kiszolgálóra — konvergál, csak nem mindegy,
-  melyik változatra. Ennél többet egy plusz mező nélkül nem lehet ígérni,
-  és a doksi inkább kimondja. Kimondott ár marad az is, hogy ha a telefon
-  a szinkron nélkül több léptetést csinált (menet, próbatételes leállítás,
-  újraindítás), a rev-je elmehet a gép jele fölé, és a régi változat nyer
-  — a csomag marad, a szerkesztést újra meg kell csinálni.
+- **A futó menetről nem a `rev` dönt, hanem a nyoma.** A `rev`-et egy
+  csomag átnevezése is lépteti, ingyen — egy független átnézés megmutatta,
+  hogy így egy friss telepítés vagy egy hálózaton kívül lévő telefon
+  próbatétel nélkül leállította a futó menetet. Most menetet csak a rá
+  hivatkozó naplósor zár le (a sor azt a változatot zárja le, amit ismert —
+  egy nem ismert hosszabbítás túléli), a kifizetett rövidítésnek számlálója
+  van (`cuts`: a több rövidítés nyer, azonos számnál a hosszabb), a menet
+  azonossága az eltolás előtti kezdés (`origin`), és a jövőben véget ért sor
+  nem számít (öt perc tűrés). A részletek és az őszinte korlátok:
+  docs/feature-focus-sessions.md, „A futó menet a szinkronban”.
+- **A futó menet csomagja mindig marad, és a fehérlistája nem bővülhet.** A
+  csomagok és a menet külön dőlnek el, és a kettő össze tud akadni: az egyik
+  eszköz törölte a csomagot (jellel), a másik ugyanabban a körben menetet
+  indított rá. Eddig ezt a menetes blob `rev`-je védte (a csomag „hatásos
+  jele” legalább ennyi volt) — de a menetről már nem a `rev` dönt, és egy
+  felhúzott jelű törlés különben elvinné a csomagot: a csomag nélküli menetet
+  minden fogadó eldobja, tehát ingyenes leállítás lenne. Ezért a futó menet
+  csomagja akkor is marad, ha a jelek szerint törölni kellene (a menetet
+  hordozó blob változatával, a törlés jelével) — **a törlés így megsemmisül,
+  nem halasztódik**; aki törölni akarja, a menet után újra törli (ablakos
+  csomagnál próbatétellel). Ez kimondott ár. A csomag mezői (név, hossz,
+  ablak) a jelek szerinti győztesé — az ablak felvétele szigorítás, a menet
+  alatt is átmegy —, a fehérlistája viszont a menetet hordozó változattal
+  METSZET: egy felhúzott jelű bővítés nem nyit meg semmit a menet alatt.
+  Csomag nélküli menet a 30-as csomagplafon vágásából sem születik: a menet
+  csomagja elöl áll, és a vágásnál a jeles csomag marad, a jeltelen esik ki
+  előbb.
+- **Három eszköznél kimondott sarok.** Ha két egyidejű menet közül a
+  gyengébbet a szigorúbb kiszorítja, a szigorúbbat pedig egy harmadik eszköz
+  lezárja, hogy a gyengébb (és a csomagja) visszajön-e, a szinkron
+  sorrendjétől függ — konvergál, csak nem mindegy, melyik állapotra. A futó
+  menet csomagjának változata is függhet a sorrendtől (a jelenléte nem).
+  Mindkét kimenet biztonságos: egyik sem lazít olyat, amiért senki nem
+  fizetett. A fuzz-tesztek mindhárom nyelven ezt mérik: a sorrendfüggetlenség
+  a menet nélkül teljes, a menetre pedig biztonsági tulajdonságok (a menet
+  egy bemeneté, a csomagja a listán van, a fésült napló nem zárja le).
 - **Azonos kulcs, más tartalom: a tartalom dönt.** Egy fésülés után minden
   eszköz a győztes (rev, idő, eszköz) kulcsát veszi át, a tartalma viszont
   a saját fésülése — két ilyen blob kulcsa egyezik. Ha ilyenkor az „első

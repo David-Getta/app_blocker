@@ -305,6 +305,13 @@ const CHECKS = [
     scalar(ts.focus, /FUTURE_LOG_TOLERANCE_MS\s*=\s*([^;]+);/, 'ts'),
     scalar(kt.focus, /FUTURE_LOG_TOLERANCE_MS\s*=\s*(.+)/, 'kt'),
     scalar(sw.focus, /futureLogToleranceMs[^=]*=\s*(.+)/, 'swift')],
+  // A rövidítések számának plafonja: a dróton jött szám ennél nem lehet
+  // nagyobb. Ha szétcsúszna, egy nagy szám két eszközön más változatot adna
+  // ugyanarról a menetről, és a fésülés nem konvergálna.
+  ['MAX_RUN_CUTS',
+    scalar(ts.focus, /MAX_RUN_CUTS\s*=\s*([^;]+);/, 'ts'),
+    scalar(kt.focus, /MAX_RUN_CUTS\s*=\s*(.+)/, 'kt'),
+    scalar(sw.focus, /maxRunCuts[^=]*=\s*(.+)/, 'swift')],
   // A heti ablak MENETE előtt ennyivel szól mindhárom app — és ugyanazzal a
   // címmel. Ha szétcsúszna, ugyanarról az ablakról a gép tíz, a telefon öt
   // perccel előbb szólna, és egyik sem tudná, melyik az igaz.

@@ -12,7 +12,7 @@ import type { Schedule } from '../shared/schedule';
 import { emptyUsage, type UsageState } from '../shared/usage';
 import type { SharedToday } from '../shared/limits';
 import {
-  MAX_FOCUS_LOG, normalizePack, type FocusLogEntry, type FocusPack, type FocusRun,
+  MAX_FOCUS_LOG, normalizePack, withCleanMarks, type FocusLogEntry, type FocusPack, type FocusRun,
 } from '../shared/focus';
 import type { UrlRule } from '../shared/urlrules';
 import { normalizeWindows, parseLockdown } from '../shared/lockdown';
@@ -483,6 +483,9 @@ export function loadState(): HelperState {
             && Number.isFinite((e as FocusLogEntry).startedAt)
             && Number.isFinite((e as FocusLogEntry).endedAt)
             && Number.isFinite((e as FocusLogEntry).plannedEndsAt))
+          // A sor két jele (rövidítésszám, eredeti kezdés) a szinkronban a
+          // sírkő tudása: a rossz jel lekerül, nem a sor.
+          .map((e) => withCleanMarks(e))
           .slice(-MAX_FOCUS_LOG);
       }
       const run = parsed.focusRun;
@@ -492,6 +495,8 @@ export function loadState(): HelperState {
       if (run && !(typeof run.packId === 'string' && Number.isFinite(run.endsAt)
         && (parsed.focusPacks ?? []).some((p) => p.id === run.packId))) {
         parsed.focusRun = null;
+      } else if (run) {
+        parsed.focusRun = withCleanMarks(run);
       }
       const shared = parsed.sharedToday;
       if (shared && !(typeof shared.selfDeviceId === 'string' && Array.isArray(shared.devices))) {

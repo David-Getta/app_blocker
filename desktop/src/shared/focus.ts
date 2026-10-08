@@ -71,6 +71,64 @@ export interface FocusRun {
   startedAt: number;
   /** mikor jár le magától */
   endsAt: number;
+  /**
+   * Hányszor RÖVIDÍTETTÉK próbatétellel — csak ha legalább egyszer. A szinkron
+   * ezzel dönt két változat között ugyanarról a menetről: a több kifizetett
+   * rövidítés nyer, azonos számnál a hosszabb (a hosszabbítás ingyen van). Nem
+   * a blob `rev`-je dönt, mert azt egy átnevezés is lépteti — lásd
+   * focus-merge.ts `mergeRun`.
+   */
+  cuts?: number;
+  /**
+   * A menet EREDETI kezdése — csak ha az óra-ugrás elnyelése eltolta (a
+   * referee `absorbClockJump`-ja a kezdést és a véget együtt tolja). A menet
+   * azonossága ez (`runOrigin`): az alvásból ébredő gép eltolt menete ugyanaz
+   * a menet, mint ami közben a telefonon lezárult — a lezárás sora rá is
+   * vonatkozik.
+   */
+  origin?: number;
+}
+
+/** A rövidítések számának plafonja — a dróton jött szám ennél nem lehet nagyobb. */
+export const MAX_RUN_CUTS = 1000;
+
+/** A rövidítések száma kívülről: pozitív egész, a plafonig — különben nincs. */
+export function cleanCuts(raw: unknown): number | undefined {
+  if (typeof raw !== 'number' || !Number.isInteger(raw) || raw <= 0) return undefined;
+  return Math.min(raw, MAX_RUN_CUTS);
+}
+
+/**
+ * Az eredeti kezdés kívülről: pozitív EGÉSZ (ezredmásodperc, mint a Kotlin
+ * `Long`-ja) és a kezdés ELŐTTI — az elnyelés csak előre tol. Ami ennek nem
+ * felel meg, az nincs: a menet azonossága akkor a kezdése.
+ */
+export function cleanOrigin(raw: unknown, startedAt: number): number | undefined {
+  if (typeof raw !== 'number' || !Number.isSafeInteger(raw) || raw <= 0 || raw >= startedAt) return undefined;
+  return raw;
+}
+
+/** A menet vagy naplósor a két jelével megtisztítva: a rossz jel lekerül, a jó marad. */
+export function withCleanMarks<T extends { startedAt: number; cuts?: number; origin?: number }>(x: T): T {
+  const cuts = cleanCuts(x.cuts);
+  const origin = cleanOrigin(x.origin, x.startedAt);
+  const out = { ...x };
+  delete out.cuts;
+  delete out.origin;
+  return { ...out, ...(cuts !== undefined ? { cuts } : {}), ...(origin !== undefined ? { origin } : {}) };
+}
+
+/** A menet azonossága a csomag mellett: az eredeti kezdése, eltolás előtt. */
+export function runOrigin(r: { startedAt: number; origin?: number }): number {
+  return r.origin ?? r.startedAt;
+}
+
+/** Ugyanarról a menetről szól-e a kettő — menet vagy naplósor, akármelyik. */
+export function sameRun(
+  a: { packId: string; startedAt: number; origin?: number },
+  b: { packId: string; startedAt: number; origin?: number },
+): boolean {
+  return a.packId === b.packId && runOrigin(a) === runOrigin(b);
 }
 
 /** Fut-e most munkamenet. */
@@ -365,6 +423,14 @@ export interface FocusLogEntry {
    * heti mondat ebből mondja, dolgozik-e az ablak.
    */
   window?: boolean;
+  /**
+   * A lezárt változat rövidítéseinek száma — csak ha volt. A sor a menet
+   * SÍRKÖVE is a szinkronban: ebből és a tervezett hosszból dől el, melyik
+   * változatát zárja le (focus-merge.ts `mergeRun`).
+   */
+  cuts?: number;
+  /** A menet eredeti kezdése, ha az óra-ugrás eltolta — a sor azonossága (`runOrigin`). */
+  origin?: number;
 }
 
 /**
@@ -397,6 +463,10 @@ export function closeRun(
     plannedEndsAt: run.endsAt,
     stopped,
     ...(window ? { window: true } : {}),
+    // A változat ismerete is a sorba kerül: a szinkron ebből tudja, melyik
+    // változatot zárta le ez a sor, és melyiket nem ismerte.
+    ...(run.cuts ? { cuts: run.cuts } : {}),
+    ...(run.origin !== undefined ? { origin: run.origin } : {}),
   };
 }
 
@@ -962,7 +1032,9 @@ export function dueRecurrence(
  * többi eszközre is elvitte. Ami még nem történt meg, az nem fizetett semmit.
  */
 function spentIn(log: FocusLogEntry[] | undefined, packId: string, occ: Occurrence, now: number): boolean {
-  return (log ?? []).some((e) => e.packId === packId && e.startedAt === occ.startsAt
+  // Az azonosság az EREDETI kezdés: a meghosszabbított ablak-menetet az
+  // óra-ugrás elnyelése már eltolhatja, a sora mégis ehhez az ablakhoz tartozik.
+  return (log ?? []).some((e) => e.packId === packId && runOrigin(e) === occ.startsAt
     && e.endedAt <= now + FUTURE_LOG_TOLERANCE_MS);
 }
 

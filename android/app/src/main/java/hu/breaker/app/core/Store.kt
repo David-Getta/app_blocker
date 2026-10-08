@@ -661,6 +661,9 @@ object BreakerStore {
         put("focusRun", s.focusRun?.let { r ->
             JSONObject().apply {
                 put("packId", r.packId); put("startedAt", r.startedAt); put("endsAt", r.endsAt)
+                // A szinkron két jele: a rövidítés száma és az eltolás előtti kezdés.
+                if (r.cuts > 0) put("cuts", r.cuts)
+                r.origin?.let { put("origin", it) }
             }
         } ?: JSONObject.NULL)
         put("focusLog", JSONArray(s.focusLog.map { e ->
@@ -669,6 +672,8 @@ object BreakerStore {
                 put("startedAt", e.startedAt); put("endedAt", e.endedAt)
                 put("plannedEndsAt", e.plannedEndsAt); put("stopped", e.stopped)
                 if (e.window) put("window", true)
+                if (e.cuts > 0) put("cuts", e.cuts)
+                e.origin?.let { put("origin", it) }
             }
         }))
         put("focusRev", s.focusRev)
@@ -1077,14 +1082,18 @@ object BreakerStore {
                 val packId = e.optString("packId")
                 val endedAt = e.optLong("endedAt", 0)
                 if (packId.isEmpty() || endedAt <= 0) return@runCatching
+                val startedAt = e.optLong("startedAt", 0)
                 out.add(Focus.FocusLogEntry(
                     packId = packId,
                     packName = e.optString("packName").ifEmpty { "Ismeretlen csomag" },
-                    startedAt = e.optLong("startedAt", 0),
+                    startedAt = startedAt,
                     endedAt = endedAt,
                     plannedEndsAt = e.optLong("plannedEndsAt", endedAt),
                     stopped = e.optBoolean("stopped", false),
                     window = e.optBoolean("window", false),
+                    // A két jel a szinkron sírkövének tudása: a rossz jel lekerül, nem a sor.
+                    cuts = Focus.cleanCuts((e.opt("cuts") as? Number)?.toDouble()),
+                    origin = Focus.cleanOrigin((e.opt("origin") as? Number)?.toDouble(), startedAt),
                 ))
             }
         }
@@ -1094,10 +1103,13 @@ object BreakerStore {
     private fun focusRunFromJson(o: JSONObject): Focus.FocusRun? {
         if (o.isNull("focusRun")) return null
         val r = o.optJSONObject("focusRun") ?: return null
+        val startedAt = r.optLong("startedAt", 0)
         return Focus.FocusRun(
             packId = r.optString("packId"),
-            startedAt = r.optLong("startedAt", 0),
+            startedAt = startedAt,
             endsAt = r.optLong("endsAt", 0),
+            cuts = Focus.cleanCuts((r.opt("cuts") as? Number)?.toDouble()),
+            origin = Focus.cleanOrigin((r.opt("origin") as? Number)?.toDouble(), startedAt),
         )
     }
 

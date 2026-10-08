@@ -216,7 +216,8 @@ enum SyncClient {
     ///
     /// Ugyanaz a menet, mint a blokklistánál — húzd le, fésüld össze, told fel.
     /// A különbség az összefésülés szabályában van (`FocusSync`): ott a
-    /// szigorúbb nyer, és lazítani csak nagyobb `rev` tud.
+    /// szigorúbb nyer, és lazítani csak a nyomával lehet — a rövidítés
+    /// számlálójával, a leállítás naplósorával.
     private static func syncFocusRound(
         _ state: AppState, _ acc: SyncAccount, _ key: [UInt8], _ now: Double
     ) async throws -> AppState {
@@ -259,7 +260,7 @@ enum SyncClient {
                 hideSiteList: (current.hideSiteList ?? false) ? true : nil,
                 hideSiteListRev: current.hideSiteListRev
             )
-            let merged = FocusSync.merge(mine, remote)
+            let merged = FocusSync.merge(mine, remote, now: now)
 
             if !FocusSync.same(merged, mine) {
                 current.focusPacks = merged.packs

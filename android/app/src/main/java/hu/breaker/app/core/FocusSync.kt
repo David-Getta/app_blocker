@@ -97,18 +97,24 @@ object FocusSync {
      *
      * A csomagok és a futás KÜLÖN dőlnek el, mert más a szabályuk: a
      * csomagoknál az utolsó író nyer (ez beállítás — egy régi lista
-     * visszatérése bosszantó, de nem kibúvó), a futásnál a szigorúbb.
+     * visszatérése bosszantó, de nem kibúvó), a futásnál a szigorúbb, és
+     * lazítani csak a nyomával lehet: a rövidítés számlálójával, a leállítás
+     * naplósorával. A `now` a jövőbeli naplósorokhoz kell: ami a jövőben ért
+     * véget, az nem zár le menetet; nélküle minden sor múltbeli. A
+     * focus-merge.ts `mergeFocus` tükre.
      */
-    fun merge(local: SyncFocus, incoming: SyncFocus): SyncFocus {
+    fun merge(local: SyncFocus, incoming: SyncFocus, now: Long? = null): SyncFocus {
         val newer = pickNewer(local, incoming)
         val older = if (newer === local) incoming else local
-        val run = mergeRun(local, incoming)
-        val (packs, packMarks) = mergePacks(newer, older, run?.packId)
+        // EGYESÍTÉS, nem választás: lásd a `log` mező magyarázatát. ELŐBB a
+        // napló: a menet sorsát ez dönti el (a leállítás nyoma a naplósor).
+        val log = mergeLog(local.log, incoming.log)
+        val (run, carriers) = mergeRun(local, incoming, log, now)
+        val (packs, packMarks) = mergePacks(newer, older, run?.packId, carriers)
         return SyncFocus(
             packs = packs,
             run = run,
-            // EGYESÍTÉS, nem választás: lásd a `log` mező magyarázatát.
-            log = mergeLog(local.log, incoming.log),
+            log = log,
             rev = maxOf(local.rev, incoming.rev),
             // Az idő a GYŐZTESÉ, nem a nagyobb: az eredmény kulcsa így az újabb
             // blobé, és három eszköz bármilyen sorrendben ugyanoda jut.
@@ -164,12 +170,10 @@ object FocusSync {
     }
 
     private fun mergePacks(
-        newer: SyncFocus, older: SyncFocus, runPackId: String?,
+        newer: SyncFocus, older: SyncFocus, runPackId: String?, carriers: List<SyncFocus>,
     ): Pair<List<Focus.FocusPack>, Map<String, Int>?> {
-        val en = effectiveMarks(newer)
-        val eo = effectiveMarks(older)
-        val rn = newer.packMarks ?: emptyMap()
-        val ro = older.packMarks ?: emptyMap()
+        val en = newer.packMarks ?: emptyMap()
+        val eo = older.packMarks ?: emptyMap()
         // A MENET CSOMAGJA ELÖL: a 30-as plafon vágásából sem eshet ki.
         val ids = LinkedHashSet<String>()
         if (runPackId != null) ids.add(runPackId)
@@ -184,18 +188,14 @@ object FocusSync {
             val pn = newer.packs.firstOrNull { it.id == id }
             val po = older.packs.firstOrNull { it.id == id }
             // Egyenlő POZITÍV jelnél a jelenlét nyer; két változat közül a
-            // VALÓDI jel dönt (a szerkesztés erősebb a menet indításánál),
-            // egyenlő valódi jelnél a `preferPack`; jel nélkül az újabb blob.
-            val pick = when {
+            // `preferPack`; jel nélkül az újabb blob.
+            var pick = when {
                 mo > mn -> po
                 mn > mo -> pn
-                mn > 0 -> if (pn != null && po != null) {
-                    val vn = rn[id] ?: 0
-                    val vo = ro[id] ?: 0
-                    if (vn != vo) (if (vn > vo) pn else po) else preferPack(pn, po)
-                } else pn ?: po
+                mn > 0 -> if (pn != null && po != null) preferPack(pn, po) else pn ?: po
                 else -> pn
             }
+            if (id == runPackId) pick = runPack(id, pick, carriers, pn, po)
             if (pick != null) chosen.add(pick to (id == runPackId || maxOf(mn, mo) > 0))
             if (maxOf(mn, mo) > 0) marks[id] = maxOf(mn, mo)
         }
@@ -219,20 +219,26 @@ object FocusSync {
     }
 
     /**
-     * A blob HATÁSOS jelei: a jelei, és a futó menet csomagján legalább a
-     * blob `rev`-je. A menet és a csomagja együtt jár: a törlés jele nem
-     * viheti el a csomagot, amíg a másik eszközön menet fut rajta — csomag
-     * nélküli menetet a fogadó eldobna, a menetet tartó eszköz meg minden
-     * körben újra feltöltené. A sírkő csak akkor nyer, ha a jele nagyobb a
-     * menetes blob rev-jénél, de akkor a másik blob rev-je is nagyobb, és a
-     * menet is elveszett volna. A focus-merge.ts `effectiveMarks` tükre.
+     * A FUTÓ MENET CSOMAGJA: mindig marad, és a fehérlistája nem bővülhet — a
+     * focus-merge.ts `runPack` tükre. A mezői a jelek szerinti győztesé; ha a
+     * jelek szerint törölni kellene, a menetet hordozó blob változata áll (a
+     * törlés így megsemmisül, nem halasztódik — kimondott ár); a
+     * fehérlistája csak az, ami a menetet hordozó változat(ok)ban IS benne
+     * van (metszet). A menetről már nem a `rev` dönt, tehát a csomagját sem
+     * védheti — egy felhúzott jelű törlés vagy bővítés különben ingyen vinné el
+     * vagy nyitná meg a futó menetet.
      */
-    private fun effectiveMarks(f: SyncFocus): Map<String, Int> {
-        val run = f.run ?: return f.packMarks ?: emptyMap()
-        if (f.rev <= 0 || f.packs.none { it.id == run.packId }) return f.packMarks ?: emptyMap()
-        val marks = LinkedHashMap(f.packMarks ?: emptyMap())
-        marks[run.packId] = maxOf(marks[run.packId] ?: 0, f.rev.toInt())
-        return marks
+    private fun runPack(
+        id: String, pick: Focus.FocusPack?, carriers: List<SyncFocus>,
+        pn: Focus.FocusPack?, po: Focus.FocusPack?,
+    ): Focus.FocusPack? {
+        val held = carriers.mapNotNull { f -> f.packs.firstOrNull { it.id == id } }
+        val base = pick ?: held.firstOrNull() ?: pn ?: po
+        if (base == null || held.isEmpty()) return base
+        return base.copy(
+            allowSites = base.allowSites.filter { x -> held.all { x in it.allowSites } },
+            allowApps = base.allowApps.filter { x -> held.all { x in it.allowApps } },
+        )
     }
 
     /**
@@ -309,47 +315,97 @@ object FocusSync {
     /** A blob tartalmának kulcsa a döntetlenhez — bájtra ugyanez a három nyelvben. */
     private fun contentKey(f: SyncFocus): String {
         val packs = f.packs.sortedBy { it.id }.joinToString("\u0002") { it.id + "\u0001" + packOrderKey(it) }
-        val run = f.run?.let { "${it.packId}/${it.startedAt}/${it.endsAt}" } ?: "-"
+        // A rövidítés és az eredeti kezdés csak ha van: a nélkülük lévő menet
+        // kulcsa ugyanaz, mint a frissítés előtt — a focus-merge.ts tükre.
+        val run = f.run?.let {
+            "${it.packId}/${it.startedAt}/${it.endsAt}" +
+                (if (it.cuts > 0) "/c${it.cuts}" else "") + (it.origin?.let { o -> "/o$o" } ?: "")
+        } ?: "-"
         val marks = (f.packMarks ?: emptyMap()).toSortedMap().entries.joinToString(",") { "${it.key}=${it.value}" }
         return "$packs\u0003$run\u0003$marks"
     }
 
     /**
-     * A FUTÓ munkamenet összefésülése — a kockázatos fele.
+     * A FUTÓ munkamenet összefésülése — a kockázatos fele. A focus-merge.ts
+     * `mergeRun` tükre.
      *
-     * Egy régi, „nem fut” állapot visszajátszása nem kapcsol ki semmit; egy
-     * hosszabbítás viszont próbatétel nélkül is átmegy, pontosan úgy, ahogy az
-     * appban. Azonos rev-nél a szigorúbb nyer, TELJES rendezéssel: a később
-     * végződő, azonos lejáratnál a korábban indult, ha az is egyezik, a kisebb
-     * csomagazonosítójú — így nem az nyer, amelyik előbb ért a kiszolgálóra,
-     * és három eszköz bármilyen sorrendben ugyanoda jut.
+     * NEM a blob `rev`-je dönt: azt egy átnevezés is lépteti, ingyen, és egy
+     * régi, „nem fut” állapot nagy rev-vel feltöltve próbatétel nélkül
+     * leállította a menetet. A szabály a menet AZONOSSÁGÁN áll (csomag +
+     * eredeti kezdés), és azon, amit a változat tud:
+     *
+     *   - menetet csak a rá hivatkozó NAPLÓSOR zár le (`endedInLog`); a
+     *     jövőben véget ért sor nem számít;
+     *   - két változat ugyanarról a menetről: a több rövidítés, azonos számnál
+     *     a hosszabb, azonos hossznál a később végződő;
+     *   - két különböző élő menet: a szigorúbb (`stricterRun`).
+     *
+     * A második érték a menetet HORDOZÓ blob(ok): akinél pontosan ez a változat
+     * áll — a futó csomag fehérlistája ezekhez képest nem bővülhet.
      */
-    private fun mergeRun(a: SyncFocus, b: SyncFocus): Focus.FocusRun? {
-        if (a.rev != b.rev) return (if (a.rev > b.rev) a else b).run
-        val ar = a.run ?: return b.run
-        val br = b.run ?: return ar
-        return stricterRun(ar, br)
+    private fun mergeRun(
+        a: SyncFocus, b: SyncFocus, log: List<Focus.FocusLogEntry>, now: Long?,
+    ): Pair<Focus.FocusRun?, List<SyncFocus>> {
+        val ra = a.run?.takeIf { !endedInLog(log, it, now) }
+        val rb = b.run?.takeIf { !endedInLog(log, it, now) }
+        if (ra == null && rb == null) return null to emptyList()
+        if (rb == null) return ra to listOf(a)
+        if (ra == null) return rb to listOf(b)
+        val win = if (Focus.sameRun(ra, rb)) newerVariant(ra, rb) else stricterRun(ra, rb)
+        return win to listOf(a, b).filter { sameVariant(it.run!!, win) }
     }
+
+    /**
+     * Lezárta-e a menetnek EZT a változatát egy naplósor — a sírköve: ugyanerről
+     * a menetről szól, nem a jövőben ért véget, és több rövidítést ismert, vagy
+     * ugyanannyit, és a terve legalább ilyen hosszú volt.
+     */
+    private fun endedInLog(log: List<Focus.FocusLogEntry>, run: Focus.FocusRun, now: Long?): Boolean {
+        val limit = if (now == null) Long.MAX_VALUE else now + Focus.FUTURE_LOG_TOLERANCE_MS
+        val length = run.endsAt - run.startedAt
+        return log.any { e ->
+            Focus.sameRun(e, run) && e.endedAt <= limit &&
+                (run.cuts < e.cuts || length <= e.plannedEndsAt - e.startedAt)
+        }
+    }
+
+    /** Két változat ugyanarról a menetről: a több rövidítés, a hosszabb, végül a később végződő. */
+    private fun newerVariant(x: Focus.FocusRun, y: Focus.FocusRun): Focus.FocusRun {
+        if (x.cuts != y.cuts) return if (x.cuts > y.cuts) x else y
+        val lx = x.endsAt - x.startedAt
+        val ly = y.endsAt - y.startedAt
+        if (lx != ly) return if (lx > ly) x else y
+        return stricterRun(x, y)
+    }
+
+    /** Pontosan ugyanaz-e a két változat: azonosság, vég, rövidítések. */
+    private fun sameVariant(x: Focus.FocusRun, y: Focus.FocusRun): Boolean =
+        Focus.sameRun(x, y) && x.startedAt == y.startedAt && x.endsAt == y.endsAt && x.cuts == y.cuts
 
     /** A szigorúbb menet, teljes rendezéssel — döntetlen nincs. */
     private fun stricterRun(x: Focus.FocusRun, y: Focus.FocusRun): Focus.FocusRun {
         if (x.endsAt != y.endsAt) return if (x.endsAt > y.endsAt) x else y
         if (x.startedAt != y.startedAt) return if (x.startedAt < y.startedAt) x else y
-        return if (x.packId <= y.packId) x else y
+        if (x.packId != y.packId) return if (x.packId < y.packId) x else y
+        val ox = Focus.runOrigin(x)
+        val oy = Focus.runOrigin(y)
+        if (ox != oy) return if (ox < oy) x else y
+        return if (x.cuts >= y.cuts) x else y
     }
 
     /**
      * Két napló egyesítése.
      *
-     * A sor AZONOSSÁGA a `packId` + `startedAt` pár. Egyszerre egy menet fut az
-     * egész fiókban, tehát ez a pár egyértelmű — és pont ezért fésülődik össze
+     * A sor AZONOSSÁGA a csomag és a menet EREDETI kezdése (`runOrigin`: az
+     * óra-ugrás eltolhatja a kezdést, a menet attól ugyanaz). Egyszerre egy
+     * menet fut az egész fiókban, tehát ez a pár egyértelmű — és pont ezért fésülődik össze
      * helyesen az a gyakori eset, amikor UGYANAZT a menetet két eszköz is
      * lezárja: a telefon próbatétellel, a gép meg később, a szinkronból véve
      * észre. Enélkül minden ilyen menet kettőnek számítana.
      *
-     * Ütközésnél a KORÁBBI vég nyer, mert az van közelebb a valósághoz.
-     * Azonos végnél a próbatételes leállítás — azt az egyik oldal láthatta,
-     * a másik nem.
+     * Ütközésnél a TÖBBET TUDÓ sor marad (`better`), azonos tudásnál a
+     * KORÁBBI vég, mert az van közelebb a valósághoz. Azonos végnél a
+     * próbatételes leállítás — azt az egyik oldal láthatta, a másik nem.
      */
     fun mergeLog(
         a: List<Focus.FocusLogEntry>,
@@ -357,7 +413,7 @@ object FocusSync {
     ): List<Focus.FocusLogEntry> {
         val byKey = LinkedHashMap<String, Focus.FocusLogEntry>()
         for (e in a + b) {
-            val key = "${e.packId}|${e.startedAt}"
+            val key = "${e.packId}|${Focus.runOrigin(e)}"
             val prev = byKey[key]
             byKey[key] = if (prev == null) e else better(prev, e)
         }
@@ -372,15 +428,23 @@ object FocusSync {
      * menetet másképp sorosítják, a `same` örökre „különbözőt” mond, és minden
      * körben feltöltenek — nem hibás adat, hanem NEM KONVERGÁLÓ szinkron.
      *
-     * A tervezett vég is holtverseny lehet: az egyik eszköz még a hosszabbítás
-     * előtti tervet ismerte. Ilyenkor a KÉSŐBBI terv marad.
+     * ELŐBB A TUDÁS, aztán a vég — a focus-merge.ts `better` tükre: a több
+     * rövidítést ismerő, aztán a hosszabb tervet ismerő; azonos tudásnál a
+     * korábbi vég, aztán a próbatételes leállítás; a maradék csak a teljes
+     * rendezésért (a korábbi kezdés, az ablak jele, a csomag neve
+     * kódegységenként). A terv HOSSZA számít, nem a vége: az óra-ugrás a
+     * kezdést és a véget együtt tolja.
      */
     private fun better(x: Focus.FocusLogEntry, y: Focus.FocusLogEntry): Focus.FocusLogEntry {
+        if (x.cuts != y.cuts) return if (x.cuts > y.cuts) x else y
+        val px = x.plannedEndsAt - x.startedAt
+        val py = y.plannedEndsAt - y.startedAt
+        if (px != py) return if (px > py) x else y
         if (x.endedAt != y.endedAt) return if (x.endedAt < y.endedAt) x else y
         if (x.stopped != y.stopped) return if (x.stopped) x else y
-        if (x.plannedEndsAt != y.plannedEndsAt) {
-            return if (x.plannedEndsAt > y.plannedEndsAt) x else y
-        }
+        if (x.startedAt != y.startedAt) return if (x.startedAt < y.startedAt) x else y
+        if (x.window != y.window) return if (x.window) x else y
+        if (x.packName != y.packName) return if (x.packName < y.packName) x else y
         return x
     }
 
@@ -396,7 +460,9 @@ object FocusSync {
         // `startedAt` pár egyedi, tehát ettől lesz a rendezés TELJES. Enélkül a
         // döntetlen sorok sorrendje a bemenettől függne — az meg a két eszközön
         // más, és a szinkron sosem konvergálna.
-        rows.sortedWith(compareBy({ it.endedAt }, { it.packId }, { it.startedAt }))
+        // A NEGYEDIK az azonosság maradéka: az eltolt menet sora a kezdésében
+        // egyezhet egy másikéval, az eredetiében nem.
+        rows.sortedWith(compareBy({ it.endedAt }, { it.packId }, { it.startedAt }, { Focus.runOrigin(it) }))
             .takeLast(Focus.MAX_FOCUS_LOG)
 
     /**
@@ -425,11 +491,11 @@ object FocusSync {
                 Focus.recurrenceKey(p.recurrence),
             ).joinToString(";")
         }
-        val run = f.run?.let { "${it.packId};${it.startedAt};${it.endsAt}" } ?: "-"
+        val run = f.run?.let { "${it.packId};${it.startedAt};${it.endsAt};${it.cuts};${Focus.runOrigin(it)}" } ?: "-"
         // A NAPLÓ IS BENNE VAN — enélkül egy itt lezárult menet sosem érne fel
         // a kiszolgálóra: a kör azt látná, hogy „nincs mit feltölteni”.
         val log = f.log.joinToString("|") {
-            "${it.packId};${it.startedAt};${it.endedAt};${it.plannedEndsAt};${it.stopped}"
+            "${it.packId};${it.startedAt};${it.endedAt};${it.plannedEndsAt};${it.stopped};${it.cuts};${Focus.runOrigin(it)}"
         }
         // A jelek is: ha csak ők különböznek, akkor is fel kell menniük.
         val marks = (f.packMarks ?: emptyMap()).toSortedMap().entries.joinToString(",") { "${it.key}=${it.value}" }

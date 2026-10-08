@@ -18,6 +18,7 @@ import {
 import type { SyncSite } from '../src/shared/sync/merge';
 import { adoptRevision, bumpRevisions } from '../src/helper/revisions';
 import { defaultState, type HelperState, type SiteRec } from '../src/helper/state';
+import { closeRun } from '../src/shared/focus';
 
 let child: ChildProcess;
 let url: string;
@@ -216,35 +217,67 @@ test('a stale device cannot switch off a running session', async () => {
 
 test('a session stopped on another device still reaches the statistics', async () => {
   // A statisztikát eddig csak a helyi bíró töltötte. Egy TELEFONON leállított
-  // menet a szinkronon át érkezik — a futás egyszerűen eltűnik —, és a
-  // statisztikából hiányozna: aki a telefonján állítja le a menetet, azt látná,
-  // hogy a héten nem is használta.
+  // menet a szinkronon át érkezik, és a statisztikából hiányozna: aki a
+  // telefonján állítja le a menetet, azt látná, hogy a héten nem is használta.
+  // A leállítás sora a naplóval jön — ugyanaz a sor, ami a menetet lezárja.
+  // A fiók a tesztek között KÖZÖS: saját csomag, hogy a leállítás sora ne
+  // keveredjen a későbbi napló-tesztek soraival.
   const a = device([site()]);
   await signIn(a, url, ACCOUNT, PASSWORD, 'Munkagép');
   a.focusPacks = [{
-    id: 'pack_log', name: 'Mély munka',
+    id: 'pack_leallitva', name: 'Mély munka',
     allowSites: ['github.com'], allowApps: [], defaultMinutes: 90,
   }];
-  a.focusRun = { packId: 'pack_log', startedAt: 20_000, endsAt: Date.now() + 3_600_000 };
+  a.focusRun = { packId: 'pack_leallitva', startedAt: 20_000, endsAt: Date.now() + 3_600_000 };
   await syncNow(a, 20_100);
 
-  // A „telefon”: megkapja a menetet, majd NAGYOBB számlálóval leállítja —
-  // pontosan úgy, ahogy egy teljesített próbatétel után történik.
+  // A „telefon”: megkapja a menetet, majd leállítja — pontosan úgy, ahogy egy
+  // teljesített próbatétel után történik: a menet a naplóba kerül, és nem fut.
   const phone = device();
   await signIn(phone, url, ACCOUNT, PASSWORD, 'Telefon');
   await syncNow(phone, 21_000);
-  assert.equal(phone.focusRun?.packId, 'pack_log');
+  assert.equal(phone.focusRun?.packId, 'pack_leallitva');
+  phone.focusLog = [...(phone.focusLog ?? []), closeRun(phone.focusRun!, 'Mély munka', 22_000, true)];
   phone.focusRun = null as HelperState['focusRun'];
-  phone.focusRev = (phone.focusRev ?? 0) + 5;
+  phone.focusRev = (phone.focusRev ?? 0) + 1;
   phone.focusUpdatedAt = 22_000;
   await syncNow(phone, 22_000);
 
-  // A gép következő köre látja, hogy vége — és beírja a naplóba.
+  // A gép következő köre látja, hogy vége — és a sor egyszer kerül a naplóba.
   const before = (a.focusLog ?? []).length;
   await syncNow(a, 23_000);
   assert.equal(a.focusRun, null, 'a menet tényleg leállt');
-  assert.equal((a.focusLog ?? []).length, before + 1, 'és bekerült a statisztikába');
+  assert.equal((a.focusLog ?? []).length, before + 1, 'és bekerült a statisztikába — egyszer');
   assert.equal(a.focusLog!.at(-1)!.packName, 'Mély munka');
+  assert.equal(a.focusLog!.at(-1)!.endedAt, 22_000, 'a telefon ideje, nem a gépé');
+});
+
+test('a counter inflated without the stop row cannot switch off a running session', async () => {
+  // A FÜGGETLEN ÁTNÉZÉS KISKAPUJA: egy eszköz a menetet „elfelejti”, és
+  // ingyenes szerkesztésekkel (átnevezés) bármekkorára felhúzza a számlálót.
+  // Eddig a nagyobb számláló döntött a menetről is — leállította, próbatétel
+  // nélkül. Most csak a menetre hivatkozó naplósor állíthatja le.
+  const a = device([site()]);
+  await signIn(a, url, ACCOUNT, PASSWORD, 'Munkagép');
+  a.focusPacks = [{
+    id: 'pack_tartos', name: 'Tartós',
+    allowSites: ['github.com'], allowApps: [], defaultMinutes: 90,
+  }];
+  a.focusRun = { packId: 'pack_tartos', startedAt: 24_000, endsAt: Date.now() + 3_600_000 };
+  await syncNow(a, 24_100);
+
+  const phone = device();
+  await signIn(phone, url, ACCOUNT, PASSWORD, 'Telefon');
+  await syncNow(phone, 25_000);
+  assert.equal(phone.focusRun?.packId, 'pack_tartos');
+  phone.focusRun = null as HelperState['focusRun'];
+  phone.focusRev = (phone.focusRev ?? 0) + 40;
+  phone.focusUpdatedAt = 26_000;
+  await syncNow(phone, 26_000);
+  assert.equal(phone.focusRun?.packId, 'pack_tartos', 'a telefon visszakapja a menetet');
+
+  await syncNow(a, 27_000);
+  assert.equal(a.focusRun?.packId, 'pack_tartos', 'a gépen sem állt le');
 });
 
 test('signing out never removes a single block', async () => {

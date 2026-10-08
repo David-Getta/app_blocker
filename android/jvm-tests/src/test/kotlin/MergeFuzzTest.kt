@@ -124,6 +124,18 @@ class MergeFuzzTest {
     )
     private val logSets = listOf(listOf(0), listOf(1), listOf(0, 2), listOf(1, 2, 3), listOf(4, 3))
 
+    /** A fésülés „most”-ja — a gép merge-random.ts `FOCUS_MERGE_NOW` párja. */
+    private val focusMergeNow = 500_000L
+
+    /** Sírkövek: a generált menetekre hivatkozó naplósorok — a gép `TOMBS` párja. */
+    private val tombs = listOf(
+        Focus.FocusLogEntry("p1", "csomag p1", 10, 300_000, 610_000, true),
+        Focus.FocusLogEntry("p2", "csomag p2", 10, 610_000, 610_000, false),
+        Focus.FocusLogEntry("p3", "csomag p3", 60_010, 400_000, 610_000, true, cuts = 1),
+        Focus.FocusLogEntry("p1", "csomag p1", 60_010, 450_000, 670_000, true, origin = 5),
+        Focus.FocusLogEntry("p4", "csomag p4", 10, 900_000, 900_000, false),
+    )
+
     private fun randomFocus(r: Lcg, device: String): FocusSync.SyncFocus {
         val kept = packIds.filter { r.next() < 0.6 }
         val packs = kept.map { id ->
@@ -189,9 +201,20 @@ class MergeFuzzTest {
         // A NAPLÓ — két húzás, feltétel nélkül, mint a gépen.
         val logDraw = r.next()
         val logPick = (r.next() * 5).toInt()
-        val log = if (logDraw < 0.5) logSets[logPick].map { logs[it] } else emptyList()
+        val rows = if (logDraw < 0.5) logSets[logPick].map { logs[it] } else emptyList()
+        // A MENET JELEI ÉS A SÍRKŐ — négy húzás, feltétel nélkül, mint a gépen:
+        // rövidítette-e, eltolta-e az óra (eredeti kezdés 5), van-e sírkő, melyik.
+        val cutsDraw = r.next()
+        val originDraw = r.next()
+        val tombDraw = r.next()
+        val tombPick = (r.next() * tombs.size).toInt()
+        val marked = run?.copy(
+            cuts = if (cutsDraw < 0.25) 1 else 0,
+            origin = if (originDraw < 0.2) 5L else null,
+        )
+        val log = if (tombDraw < 0.3) rows + tombs[tombPick] else rows
         return FocusSync.SyncFocus(
-            packs = packs, run = run, log = log, rev = rev.toLong(), updatedAt = updatedAt, updatedBy = device,
+            packs = packs, run = marked, log = log, rev = rev.toLong(), updatedAt = updatedAt, updatedBy = device,
             packMarks = marks.ifEmpty { null },
             lockdown = lockdown, lockdownWindows = windows, lockdownWindowsRev = windowsRev,
             partner = partner, partnerRev = partnerRev,
@@ -200,31 +223,44 @@ class MergeFuzzTest {
         )
     }
 
-    private fun effectiveMark(f: FocusSync.SyncFocus, id: String): Int {
-        val own = f.packMarks?.get(id) ?: 0
-        return if (f.run?.packId == id && f.packs.any { it.id == id }) maxOf(own, f.rev.toInt()) else own
-    }
-
     /**
-     * A csomagok halmaza, a jelek, a menet és a rev — és a csomagok VÁLTOZATA
-     * is, kivéve azét, amin valamelyik bemenet menete fut: ott három
-     * eszköznél a változat a sorrendtől függhet (a jelenlét nem) — a doksi
-     * kimondja, a gép fuzzja ugyanígy méri.
+     * A csomagok halmaza, a jelek, a rev, a napló és a többi jeles mező — és a
+     * csomagok VÁLTOZATA is, kivéve azét, amin valamelyik bemenet menete fut.
+     * A futó menet és a csomagja külön kérdés (a gép merge-fuzz.test.ts-e
+     * kimondja): egy leváltott menetet a sírköve más sorrendben más ponton ér
+     * el. A `withRun` nélküli kulcs ezeket kihagyja; a menetet a
+     * `runSafety` és a sírkő nélküli esetek mérik.
      */
-    private fun focusKey(f: FocusSync.SyncFocus, runIds: Set<String>): String {
-        val packs = f.packs.sortedBy { it.id }.joinToString(",") {
+    private fun focusKey(f: FocusSync.SyncFocus, runIds: Set<String>, withRun: Boolean = true): String {
+        val packs = f.packs.filter { withRun || it.id !in runIds }.sortedBy { it.id }.joinToString(",") {
             if (it.id in runIds) it.id
             else "${it.id}:${it.name}:${it.allowSites.sorted()}:${it.allowApps.sorted()}:${it.defaultMinutes}:${Focus.recurrenceKey(it.recurrence)}"
         }
         val marks = (f.packMarks ?: emptyMap()).toSortedMap().entries.joinToString(",") { "${it.key}=${it.value}" }
-        val run = f.run?.let { "${it.packId}/${it.startedAt}/${it.endsAt}" } ?: "-"
+        val run = if (!withRun) "*" else f.run?.let { "${it.packId}/${it.startedAt}/${it.endsAt}/${it.cuts}/${it.origin}" } ?: "-"
         val lock = f.lockdown?.let { "${it.startedAt}/${it.until}" } ?: "-"
         val windows = f.lockdownWindows.map { LockdownLogic.windowKey(it.band) }.sorted().joinToString(";")
         return "$packs|$marks|$run|${f.rev}|$lock|$windows|${f.lockdownWindowsRev ?: 0}" +
             "|${if (f.hideSiteList) 1 else 0}|${f.hideSiteListRev ?: 0}" +
             "|${KeywordLogic.keywordsKey(f.keywords)}|${f.keywordsRev ?: 0}|${PartnerLogic.partnerKey(f.partner)}|${f.partnerRev ?: 0}" +
-            "|" + f.log.joinToString(";") { "${it.packId}/${it.startedAt}/${it.endedAt}/${it.plannedEndsAt}/${if (it.stopped) 1 else 0}/${if (it.window) 1 else 0}" }
+            "|" + f.log.joinToString(";") {
+                "${it.packId}/${it.startedAt}/${it.endedAt}/${it.plannedEndsAt}/${if (it.stopped) 1 else 0}/${if (it.window) 1 else 0}" +
+                    "/${it.cuts}/${it.origin}"
+            }
     }
+
+    /** A fésült menet biztonsága: egy bemeneté, a csomagja a listán, a fésült napló nem zárja le. */
+    private fun runSafety(m: FocusSync.SyncFocus, inputs: List<FocusSync.SyncFocus>, seed: Int) {
+        val run = m.run ?: return
+        assertTrue(inputs.any { it.run == run }, "a menet egy bemeneté, mag $seed")
+        assertTrue(m.packs.any { it.id == run.packId }, "a menet csomagja a listán van, mag $seed")
+        assertEquals(run, FocusSync.merge(m, m.copy(run = null), focusMergeNow).run, "a fésült napló nem zárja le, mag $seed")
+    }
+
+    /** Sorrendtől független-e a menet: nincs rövidítés, eltolás, és a menetre szóló sírkő. */
+    private fun plainRuns(fs: List<FocusSync.SyncFocus>): Boolean =
+        fs.all { it.run == null || (it.run!!.cuts == 0 && it.run!!.origin == null) } &&
+            fs.none { f -> f.log.any { e -> fs.any { g -> g.run?.let { Focus.sameRun(e, it) } ?: false } } }
 
     @Test
     fun `oldal - szimmetrikus, idempotens, es harom eszkoz barmilyen sorrendben ugyanoda jut`() {
@@ -253,35 +289,40 @@ class MergeFuzzTest {
     }
 
     @Test
-    fun `munkamenet-blob - a csomagok halmaza, a jelek es a menet sorrendtol fuggetlenek`() {
+    fun `munkamenet-blob - a csomagok halmaza es a jelek sorrendtol fuggetlenek, a menet biztonsagos`() {
         for (seed in 1..300) {
             val r = Lcg(seed)
             val a = randomFocus(r, devices[0])
             val b = randomFocus(r, devices[1])
             val c = randomFocus(r, devices[2])
             val runIds = listOfNotNull(a.run?.packId, b.run?.packId, c.run?.packId).toSet()
-            val key = { f: FocusSync.SyncFocus -> focusKey(f, runIds) }
-            val ab = FocusSync.merge(a, b)
-            assertEquals(key(ab), key(FocusSync.merge(b, a)), "szimmetria, mag $seed")
-            assertEquals(key(FocusSync.merge(ab, ab)), key(ab), "idempotens, mag $seed")
-            val abc = FocusSync.merge(ab, c)
-            assertEquals(key(abc), key(FocusSync.merge(FocusSync.merge(b, c), a)), "három eszköz (bca), mag $seed")
-            assertEquals(key(abc), key(FocusSync.merge(FocusSync.merge(c, a), b)), "három eszköz (cab), mag $seed")
+            val full = { f: FocusSync.SyncFocus -> focusKey(f, runIds) }
+            val noRun = { f: FocusSync.SyncFocus -> focusKey(f, runIds, withRun = false) }
+            val now = focusMergeNow
+            val ab = FocusSync.merge(a, b, now)
+            assertEquals(full(ab), full(FocusSync.merge(b, a, now)), "szimmetria, mag $seed")
+            assertEquals(full(FocusSync.merge(ab, ab, now)), full(ab), "idempotens, mag $seed")
+            val abc = FocusSync.merge(ab, c, now)
+            val bca = FocusSync.merge(FocusSync.merge(b, c, now), a, now)
+            val cab = FocusSync.merge(FocusSync.merge(c, a, now), b, now)
+            assertEquals(noRun(abc), noRun(bca), "három eszköz (bca), mag $seed")
+            assertEquals(noRun(abc), noRun(cab), "három eszköz (cab), mag $seed")
+            // Sírkő, rövidítés és eltolás nélkül a menet is sorrendtől független.
+            if (plainRuns(listOf(a, b, c))) {
+                assertEquals(abc.run, bca.run, "három eszköz, a menet (bca), mag $seed")
+                assertEquals(abc.run, cab.run, "három eszköz, a menet (cab), mag $seed")
+            }
             // A jeles csomag a nagyobb jel változatában marad: ha az egyik
-            // oldalon ablakos csomag áll a nagyobb jellel, az ablak marad. A
-            // futó menet csomagja a blob rev-jével számít jeleltnek.
+            // oldalon ablakos csomag áll a nagyobb jellel, az ablak marad — a
+            // futó menet csomagjánál is (csak a fehérlistája metszet).
             for (p in a.packs) {
-                val ma = effectiveMark(a, p.id)
-                val mb = effectiveMark(b, p.id)
+                val ma = a.packMarks?.get(p.id) ?: 0
+                val mb = b.packMarks?.get(p.id) ?: 0
                 if (ma > mb && p.recurrence != null) {
                     assertNotNull(ab.packs.find { it.id == p.id }?.recurrence, "a nagyobb jel ablaka marad: ${p.id}, mag $seed")
                 }
             }
-            // Csomag nélküli menet nem születik: a menet csomagja a listán van.
-            for (m in listOf(ab, abc)) {
-                val run = m.run ?: continue
-                assertTrue(m.packs.any { it.id == run.packId }, "a menet csomagja a listán van, mag $seed")
-            }
+            for (m in listOf(ab, abc, bca, cab)) runSafety(m, listOf(a, b, c), seed)
         }
     }
 }

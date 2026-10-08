@@ -582,12 +582,14 @@ Ismert megkerülési utak (szándékosan nem próbáljuk „lelakatolni” a gé
   de a kiszolgáló csak átlátszatlan blobot tárol, a titkosító kulcs pedig a
   JELSZÓBÓL származik. Aki tehát tudja a saját fiókjelszavát, a saját appján
   KÍVÜL is összerakhat egy nagy `rev`-ű, laza rekordot (menetrend nélkül,
-  keret nélkül, futó menet nélkül), felnyomhatja, és a többi eszköz próbatétel
-  nélkül átveszi. Ez a nem megbízható kiszolgáló modelljének ára: a kliens
+  keret nélkül — a futó menethez egy hamis lezáró naplósorral), felnyomhatja,
+  és a többi eszköz próbatétel nélkül átveszi. Ez a nem megbízható kiszolgáló modelljének ára: a kliens
   eszközön futó felhasználót nem lehet kizárni a saját adatából. Amit ez
   megváltoztat: a léc root/jailbreak alól a jelszó ismeretére csökken. Egy
-  LEGITIM másik kliens ilyet nem tud (visszajátszásnál, egyenlő `rev`-nél a
-  szigorúbb nyer). Aki ezt komolyan akarja zárni, annak a kiszolgálót kell
+  LEGITIM másik kliens ilyet nem tud: visszajátszásnál, egyenlő `rev`-nél a
+  szigorúbb nyer, a futó menetet pedig nem a `rev`, hanem a rá hivatkozó
+  naplósor zárja le — azt csak az írhatja, aki a menetet látta, és
+  próbatétellel leállította vagy kivárta (docs/feature-focus-sessions.md). Aki ezt komolyan akarja zárni, annak a kiszolgálót kell
   megbízhatóvá tennie — az viszont egy másik termék.
 - **Mobilon a próbatétel tartalma a mentett állapotban ül.** A memória-kód és
   a beírandó mondat a gépen a root/SYSTEM segéd állapotfájljában van, és a
