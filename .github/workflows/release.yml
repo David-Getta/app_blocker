@@ -45,29 +45,27 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **Egy régóta nem szinkronizált eszköz nem hozhatja vissza egy oldal régi,
-          lazább beállítását.** Eddig egy oldal menetrendje, napi kerete,
-          adag-szabálya és törlése egyben utazott, és annak az eszköznek a rekordja
-          nyert, amelyik többször szerkesztett — akár ingyen, szigorítással is. Így
-          egy régi telefon néhány ingyenes szerkesztéssel visszanöveszthette a máshol
-          lecsökkentett keretet, vagy eltüntethette a gépen felvett menetrendet. Most
-          ezek a mezők külön-külön fésülődnek: lazítás csak azzal megy át, amiért
-          próbatételt fizettél, egyébként mindig a szigorúbb marad — két eszköz
-          menetrendjéből az unió, két keretből a kisebb.
+          **Két eszközön felvett részleges szabályból egyik sem tűnik el.** Eddig egy
+          oldal részleges szabályai (például egy YouTube-csatorna tiltása) egy listaként
+          utaztak a fiókban, és annak az eszköznek a listája nyert, amelyik többet
+          szerkesztett — ha közben egy másik gépen is felvettél egy szabályt, az
+          csendben eltűnhetett. Most a szabályok egyenként fésülődnek: amit bárhol
+          felvettél, megmarad, és amit próbatétellel levettél, az a régi listát hordozó
+          eszközről sem jön vissza.
 
           **Frissíts minden eszközt.** Egy még nem frissített eszközön kifizetett
-          lazítás nem tartja meg magát a frissítettekkel szemben — a szigorúbb
-          beállítás visszajön, és a lazítást egy frissített eszközön újra kell kérni.
+          szabály-levétel nem tartja meg magát a frissítettekkel szemben — a szabály
+          visszajön, és a levételt egy frissített eszközön újra kell kérni.
 
-          ### Ami a v0.4.233-ban jött
+          ### Ami a v0.4.234-ben jött
+
+          **Egy régóta nem szinkronizált eszköz nem hozhatja vissza egy oldal régi,
+          lazább beállítását.**
+
+          #### Ami a v0.4.233-ban jött
 
           **Egy friss telepítés vagy egy régóta nem szinkronizált gép nem törölheti a
           csatorna-szűrőidet.**
-
-          #### Ami a v0.4.232-ben jött
-
-          **Egy régóta nem szinkronizált eszköz nem törölheti a heti
-          zárlat-ablakaidat.**
           NOTES
           fi
 
