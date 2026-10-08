@@ -8,6 +8,7 @@ kettővel korábbiban.
 
 | Verzió | Nap | Mi újság |
 |---|---|---|
+| v0.4.248 | 2026-10-08 | a sávok a felolvasónak is mondanak valamit |
 | v0.4.247 | 2026-10-08 | billentyűzettel is; a frissítés nem viszi el a fókuszt; telefonok és letöltőoldal |
 | v0.4.246 | 2026-10-08 | olvashatóbb felület; a felolvasó is eligazodik az ablakokban |
 | v0.4.245 | 2026-10-08 | új kategória-csomag: Felnőtt tartalom; a böngésző saját DNS-e Androidon, kimondva |
