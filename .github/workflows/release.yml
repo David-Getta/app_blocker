@@ -45,22 +45,22 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A sávok a felolvasónak is mondanak valamit.** A statisztika sávjai — melyik
-          órában, melyik napon akad meg a kéz, mikor ülsz le, mennyi idő megy el — a
-          felolvasóprogramoknak eddig üresek voltak, a telefonokon csak a tengely
-          számait mondták („0, 6, 12…”). Mostantól a sáv egyetlen elem, a nevében a
-          számokkal: a hét napjai mind (a nulla nap is szám — arról is szól, melyik
-          napon nem), az órák közül a nem üresek. A gépen, a böngésző-bővítmény
-          beállítási lapján, Androidon és iPhone-on is.
+          **A hiba a felolvasónak is elhangzik.** Ha egy gombnyomás nem sikerült — rossz
+          válasz vagy beillesztés a próbatételben, érvénytelen cím, elutasított kérés —,
+          a hibaüzenet eddig csak megjelent; aki nem látja a képernyőt, nem tudta meg.
+          Mostantól a felolvasó kimondja, egyszer: a lap kétmásodperces frissítése nem
+          mondatja el újra és újra. Nyitott ablakban az ablakon belül hangzik el (ott a
+          lap többi része nem hallható). A fejléc állapotjelzője is szól, ha változik —
+          például ha a tiltás nem érvényesül, vagy a védelem lekapcsolódott —,
+          bármelyik nézetben vagy. A böngésző-bővítmény beállítási lapján is.
 
-          ### Ami a v0.4.247-ben jött
+          ### Ami a v0.4.248-ban jött
+
+          **A sávok a felolvasónak is mondanak valamit.**
+
+          #### Ami a v0.4.247-ben jött
 
           **Billentyűzettel is kezelhető.** **A frissítés nem viszi el a fókuszt.**
-          **A telefonokon is.** **A letöltőoldal is olvashatóbb.**
-
-          #### Ami a v0.4.246-ban jött
-
-          **Olvashatóbb felület.**
           NOTES
           fi
 
