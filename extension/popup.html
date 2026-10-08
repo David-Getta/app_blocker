@@ -26,39 +26,42 @@
 </style>
 </head>
 <body>
-  <h1>Breaker</h1>
-  <!-- Összekötve-e az app, és mennyire friss, amit tudunk. -->
-  <div id="state" class="row"></div>
-  <!-- A zárlat: amíg tart, feloldás sehol nem indítható. -->
-  <div id="lockdown" class="row warn" hidden></div>
-  <!-- A megbízott (párban zárolás): a lazítás utolsó szava az övé. -->
-  <div id="partner" class="row" hidden></div>
-  <!-- A futó munkamenet: név, hátralévő idő, hány cím engedett. -->
-  <div id="focus" class="row" hidden></div>
-  <!-- Mi van MOST zárva az app szerint — csak friss listából. -->
-  <div id="closedBox" class="row" hidden>
-    <div id="closedTitle"></div>
-    <ul id="closedList"></ul>
-    <div id="closedMore" class="muted" hidden></div>
-  </div>
-  <!-- Hányszor állított meg a böngésző: ma és az elmúlt 7 napban. -->
-  <div id="hits" class="row" hidden></div>
-  <div id="counts" class="row muted"></div>
-  <!-- EGY KATTINTÁS a menetig: a javasolt csomag az appból, a hídon indítva. Futó menet mellett nincs. -->
-  <button id="startFocus" hidden></button>
-  <div id="startFocusNote" class="row muted" hidden></div>
-  <!-- A MENET-NAP: ha ma szoktál leülni, a lap kimondja — az app szava, frissen. -->
-  <div id="focusDayNote" class="row muted" hidden></div>
-  <!-- ABLAK A CSÚCS-ÓRÁRA: heti ablak a javasolt csomagra a csúcs egy órájában — az appban, a hídon. Csak felvétel. -->
-  <button id="peakWindow" hidden></button>
-  <button id="focusHourWindow" hidden></button>
-  <div id="peakWindowNote" class="row muted" hidden></div>
-  <!-- Ha inkognitóban NEM fut: ott a részleges szabály, a kulcsszó és a menet nem érvényesül. -->
-  <div id="incognitoNote" class="row muted" hidden></div>
-  <button id="openOptions">Beállítások</button>
-  <p class="foot">A teljes oldal-tiltást az app tartja DNS-szinten — ez a lap csak
-    elmondja, mi van most. Vendég módban a bővítmény nem fut, inkognitóban
-    csak akkor, ha engedélyezed.</p>
+  <!-- A felolvasó a fő tájékozódási pontból tudja, hol a tartalom. -->
+  <main>
+    <h1>Breaker</h1>
+    <!-- Összekötve-e az app, és mennyire friss, amit tudunk. -->
+    <div id="state" class="row"></div>
+    <!-- A zárlat: amíg tart, feloldás sehol nem indítható. -->
+    <div id="lockdown" class="row warn" hidden></div>
+    <!-- A megbízott (párban zárolás): a lazítás utolsó szava az övé. -->
+    <div id="partner" class="row" hidden></div>
+    <!-- A futó munkamenet: név, hátralévő idő, hány cím engedett. -->
+    <div id="focus" class="row" hidden></div>
+    <!-- Mi van MOST zárva az app szerint — csak friss listából. -->
+    <div id="closedBox" class="row" hidden>
+      <div id="closedTitle"></div>
+      <ul id="closedList"></ul>
+      <div id="closedMore" class="muted" hidden></div>
+    </div>
+    <!-- Hányszor állított meg a böngésző: ma és az elmúlt 7 napban. -->
+    <div id="hits" class="row" hidden></div>
+    <div id="counts" class="row muted"></div>
+    <!-- EGY KATTINTÁS a menetig: a javasolt csomag az appból, a hídon indítva. Futó menet mellett nincs. -->
+    <button id="startFocus" hidden></button>
+    <div id="startFocusNote" class="row muted" hidden></div>
+    <!-- A MENET-NAP: ha ma szoktál leülni, a lap kimondja — az app szava, frissen. -->
+    <div id="focusDayNote" class="row muted" hidden></div>
+    <!-- ABLAK A CSÚCS-ÓRÁRA: heti ablak a javasolt csomagra a csúcs egy órájában — az appban, a hídon. Csak felvétel. -->
+    <button id="peakWindow" hidden></button>
+    <button id="focusHourWindow" hidden></button>
+    <div id="peakWindowNote" class="row muted" hidden></div>
+    <!-- Ha inkognitóban NEM fut: ott a részleges szabály, a kulcsszó és a menet nem érvényesül. -->
+    <div id="incognitoNote" class="row muted" hidden></div>
+    <button id="openOptions">Beállítások</button>
+    <p class="foot">A teljes oldal-tiltást az app tartja DNS-szinten — ez a lap csak
+      elmondja, mi van most. Vendég módban a bővítmény nem fut, inkognitóban
+      csak akkor, ha engedélyezed.</p>
+  </main>
   <script type="module" src="popup.js"></script>
 </body>
 </html>

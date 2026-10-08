@@ -16,6 +16,7 @@
 const fs = require('fs');
 const http = require('http');
 const path = require('path');
+const { installAxe, checkA11y } = require('./a11y-check');
 
 const ROOT = path.join(__dirname, '..');
 // Serve dist/ui, not dist/ui/renderer: the page imports ../shared/*.js, which
@@ -2548,6 +2549,29 @@ async function main() {
   if (!hidden) failures.push('az Esc nem zárta be a réteget');
   await over.close();
   await page.evaluate(() => { window.__fakeRun = null; });
+
+  // AKADÁLYMENTESSÉG (scripts/a11y-check.js): a három nézet mindkét témában,
+  // és a réteg — friss lapon, hogy az előző lépések állapota ne zavarjon.
+  for (const scheme of ['dark', 'light']) {
+    const a11yPage = await browser.newPage({ viewport: { width: 1180, height: 900 }, colorScheme: scheme });
+    a11yPage.on('pageerror', (e) => failures.push(`pageerror (akadálymentességi lap): ${e.message}`));
+    await installAxe(a11yPage, failures);
+    await a11yPage.addInitScript(fakeBridgeSource());
+    await a11yPage.goto(`http://127.0.0.1:${port}/renderer/index.html`);
+    await a11yPage.waitForSelector('#siteList .site-row', { timeout: 15_000 });
+    for (const view of ['sites', 'focus', 'stats']) {
+      if (view !== 'sites') await goTo(a11yPage, view);
+      await checkA11y(a11yPage, `${view}, ${scheme === 'dark' ? 'sötét' : 'világos'}`, failures);
+    }
+    await a11yPage.close();
+  }
+  const a11yOver = await browser.newPage({ viewport: { width: 760, height: 560 } });
+  await installAxe(a11yOver, failures);
+  await a11yOver.addInitScript(fakeBridgeSource());
+  await a11yOver.goto(`http://127.0.0.1:${port}/renderer/overlay.html`);
+  await a11yOver.waitForSelector('.pack', { timeout: 15_000 });
+  await checkA11y(a11yOver, 'réteg', failures);
+  await a11yOver.close();
 
   await browser.close();
   server.close();

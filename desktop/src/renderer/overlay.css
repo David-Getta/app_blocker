@@ -14,7 +14,10 @@
   color-scheme: dark;
   --ink: #f5f7fa;
   --ink-2: #a7b0bd;
-  --ink-3: #6d7684;
+  /* A leghalványabb sor is legalább 4,5:1 — a legrosszabb esetben is, amikor
+     a réteg mögött fehér tartalom van (az elmosott sötétítés így #24272b-nél
+     világosabb nem lesz). A régi #6d7684 ott 3,26:1 volt. */
+  --ink-3: #88909c;
   --line: rgba(255, 255, 255, 0.10);
   --line-2: rgba(255, 255, 255, 0.16);
   --sheet: rgba(22, 25, 30, 0.86);

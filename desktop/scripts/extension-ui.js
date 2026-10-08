@@ -15,6 +15,7 @@ const fs = require('fs');
 const http = require('http');
 const path = require('path');
 const { chromium } = require('playwright');
+const { installAxe, checkA11y } = require('./a11y-check');
 
 const ROOT = path.join(__dirname, '..', '..', 'extension');
 const TYPES = {
@@ -412,6 +413,25 @@ async function main() {
   });
   if (pendingLeft !== 'null') failures.push(`zárlat alatt a függő levétel nem vonódott vissza (${pendingLeft})`);
   await lockPage.close();
+
+  // AKADÁLYMENTESSÉG (scripts/a11y-check.js): a bővítmény lapjai mindkét
+  // témában — a beállítások, a felugró lap és a tiltó lap két változata.
+  const a11yPages = [
+    'options.html', 'popup.html',
+    'blocked.html?rule=youtube.com/@valaki&from=https://youtube.com/@valaki',
+    'blocked.html?host=youtube.com&reason=list',
+  ];
+  for (const scheme of ['dark', 'light']) {
+    for (const p of a11yPages) {
+      const a11yPage = await browser.newPage({ colorScheme: scheme, viewport: { width: 900, height: 900 } });
+      await installAxe(a11yPage, failures);
+      await a11yPage.addInitScript(FAKE_CHROME);
+      await a11yPage.goto(`http://127.0.0.1:${port}/${p}`);
+      await a11yPage.waitForLoadState('networkidle');
+      await checkA11y(a11yPage, `${p.split('?')[0]}, ${scheme === 'dark' ? 'sötét' : 'világos'}`, failures);
+      await a11yPage.close();
+    }
+  }
 
   await browser.close();
   server.close();

@@ -8,10 +8,14 @@
     color-scheme: light dark;
     --bg: #f6f7f9; --card: #ffffff; --ink: #16181d; --ink-2: #5b6270;
     --line: #e3e6eb; --accent: #2f6fed; --warn: #b4530a; --warn-bg: #fdf3e7;
+    /* Az elsődleges gomb felirata: fehér a sötétkéken (4,55:1). */
+    --on-accent: #ffffff;
   }
   @media (prefers-color-scheme: dark) {
     :root { --bg: #14161a; --card: #1c1f25; --ink: #eef1f5; --ink-2: #a4acba;
-            --line: #2b2f37; --accent: #7aa2ff; --warn: #e9a95d; --warn-bg: #2a2119; }
+            --line: #2b2f37; --accent: #7aa2ff; --warn: #e9a95d; --warn-bg: #2a2119;
+            /* A világoskéken a fehér 2,48:1 volt — sötét felirat kell (7,8:1). */
+            --on-accent: #0b0d10; }
   }
   * { box-sizing: border-box; }
   body {
@@ -37,7 +41,7 @@
     font: inherit; padding: 9px 14px; border-radius: 9px; cursor: pointer;
     border: 1px solid var(--line); background: var(--bg); color: var(--ink);
   }
-  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
   .limits { background: var(--warn-bg); border-color: var(--warn); }
   .limits h2 { color: var(--warn); }
   ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }

@@ -20,6 +20,9 @@
     font: 15px/1.6 -apple-system, "Segoe UI", system-ui, sans-serif;
     padding: 24px;
   }
+  /* A <main> viszi tovább a középre igazítást: a kártya és a sorok alatta
+     ugyanúgy középen, a lap közepén egy csoportban. */
+  main { width: 100%; display: grid; justify-items: center; }
   .card {
     max-width: 30rem; width: 100%; background: var(--card);
     border: 1px solid var(--line); border-radius: 14px; padding: 28px 30px;
@@ -45,88 +48,91 @@
 </style>
 </head>
 <body>
-  <div class="card" id="ruleCard" hidden>
-    <h1>Ezt a részt te tiltottad le.</h1>
-    <p>A szabály, ami megfogta:</p>
-    <p><span class="rule" id="rule">—</span></p>
-    <p>Az oldal többi része továbbra is elérhető — csak ez a darabja nem.</p>
-    <p class="foot" id="ruleFoot">
-      Ha tényleg le akarod venni a szabályt, az a
-      <a href="options.html">Breaker beállításai</a> közt megy, és nem azonnal:
-      tíz percet várni kell rá. Addig marad a tiltás.
-    </p>
-  </div>
+  <!-- A fő tájékozódási pont: a felolvasó innen tudja, hol a tartalom. -->
+  <main>
+    <div class="card" id="ruleCard" hidden>
+      <h1>Ezt a részt te tiltottad le.</h1>
+      <p>A szabály, ami megfogta:</p>
+      <p><span class="rule" id="rule">—</span></p>
+      <p>Az oldal többi része továbbra is elérhető — csak ez a darabja nem.</p>
+      <p class="foot" id="ruleFoot">
+        Ha tényleg le akarod venni a szabályt, az a
+        <a href="options.html">Breaker beállításai</a> közt megy, és nem azonnal:
+        tíz percet várni kell rá. Addig marad a tiltás.
+      </p>
+    </div>
 
-  <div class="card" id="keywordCard" hidden>
-    <h1>Ezt a kulcsszót te tiltottad le.</h1>
-    <p id="keywordWhere">A cím tartalmazza:</p>
-    <p><span class="rule" id="keyword">—</span></p>
-    <p>
-      Bármelyik oldalon, ahol a címben ez a szó szerepel, zárva — ezt a
-      szabályt a Breaker appban vetted fel, és a böngésző érvényesíti.
-    </p>
-    <p class="foot" id="keywordFoot">
-      Levenni a Breaker appban lehet, és próbatételbe kerül — szigorítani
-      ingyen.
-    </p>
-  </div>
+    <div class="card" id="keywordCard" hidden>
+      <h1>Ezt a kulcsszót te tiltottad le.</h1>
+      <p id="keywordWhere">A cím tartalmazza:</p>
+      <p><span class="rule" id="keyword">—</span></p>
+      <p>
+        Bármelyik oldalon, ahol a címben ez a szó szerepel, zárva — ezt a
+        szabályt a Breaker appban vetted fel, és a böngésző érvényesíti.
+      </p>
+      <p class="foot" id="keywordFoot">
+        Levenni a Breaker appban lehet, és próbatételbe kerül — szigorítani
+        ingyen.
+      </p>
+    </div>
 
-  <div class="card" id="channelCard" hidden>
-    <h1 id="channelTitle">Ez a csatorna nincs az engedélyezettek közt.</h1>
-    <p id="channelSeen">A szűrő ezt látta a címben:</p>
-    <p><span class="rule" id="channelKey">—</span></p>
-    <p>
-      Ezen az oldalon (<span id="channelHost">—</span>) most csak azok a
-      csatornák nyílnak meg, amiket felvettél. Az oldal többi része — kezdőlap,
-      keresés — szabad.
-    </p>
-    <p class="foot" id="channelFoot">
-      Új csatornát engedélyezni a Breaker appban lehet, és bekapcsolt szűrőnél
-      próbatételbe kerül — különben ez a képernyő egy kiskapu lenne. A fenti
-      kulcsot érdemes szó szerint felvenni.
-    </p>
-  </div>
+    <div class="card" id="channelCard" hidden>
+      <h1 id="channelTitle">Ez a csatorna nincs az engedélyezettek közt.</h1>
+      <p id="channelSeen">A szűrő ezt látta a címben:</p>
+      <p><span class="rule" id="channelKey">—</span></p>
+      <p>
+        Ezen az oldalon (<span id="channelHost">—</span>) most csak azok a
+        csatornák nyílnak meg, amiket felvettél. Az oldal többi része — kezdőlap,
+        keresés — szabad.
+      </p>
+      <p class="foot" id="channelFoot">
+        Új csatornát engedélyezni a Breaker appban lehet, és bekapcsolt szűrőnél
+        próbatételbe kerül — különben ez a képernyő egy kiskapu lenne. A fenti
+        kulcsot érdemes szó szerint felvenni.
+      </p>
+    </div>
 
-  <div class="card" id="closedCard" hidden>
-    <h1 id="closedTitle">Ez az oldal most zárva van.</h1>
-    <p><span class="rule" id="closedHost">—</span></p>
-    <p id="closedLeft" hidden>—</p>
-    <p id="closedBack" hidden><a id="closedBackLink" href="#">Vissza az oldalra</a></p>
-    <p id="closedBody">—</p>
-    <p class="foot" id="closedFoot">—</p>
-  </div>
+    <div class="card" id="closedCard" hidden>
+      <h1 id="closedTitle">Ez az oldal most zárva van.</h1>
+      <p><span class="rule" id="closedHost">—</span></p>
+      <p id="closedLeft" hidden>—</p>
+      <p id="closedBack" hidden><a id="closedBackLink" href="#">Vissza az oldalra</a></p>
+      <p id="closedBody">—</p>
+      <p class="foot" id="closedFoot">—</p>
+    </div>
 
-  <div class="card" id="focusCard" hidden>
-    <h1>Most munkamenet fut.</h1>
-    <p><span class="rule" id="focusName">—</span></p>
-    <p id="focusLeft">—</p>
-    <p id="focusWindow" hidden>
-      Ez a menet <strong>a heti ablak szerint indult</strong> — te állítottad
-      be előre, hogy ilyenkor ez menjen. A vége az ablak vége.
-    </p>
-    <p>
-      A munkamenet alatt <strong>csak az megy, amit felvettél</strong> — minden
-      más tiltva. Nem azért, mert ez az oldal rossz, hanem mert most nem ez van
-      soron.
-    </p>
-    <p class="foot" id="focusFoot">
-      A munkamenet magától lejár. Hamarabb leállítani a Breaker appban lehet,
-      és ugyanabba a próbatételbe kerül, mint egy feloldás — különben ez a
-      képernyő egy kikapcsoló gomb lenne.
-    </p>
-  </div>
-  <p class="note" id="note" hidden></p>
-  <!-- Hányadszor ma: a bővítmény könyve, a kísértés pillanatában. -->
-  <p class="note" id="hitsNote" hidden></p>
-  <!-- EGY KATTINTÁS a menetig: az app javasolt csomagja, a hídon indítva. Futó menet és összekötés nélkül nincs. -->
-  <button id="startFocus" class="start" type="button" hidden></button>
-  <p class="note" id="startFocusNote" hidden></p>
-  <!-- A MENET-NAP: ha ma szoktál leülni, a lap kimondja — az app szava, frissen. -->
-  <p class="note" id="focusDayNote" hidden></p>
-  <!-- ABLAK A CSÚCS-ÓRÁRA: heti ablak a javasolt csomagra a csúcs egy órájában — az appban, a hídon. Csak felvétel. -->
-  <button id="peakWindow" class="start" type="button" hidden></button>
-  <button id="focusHourWindow" class="start" type="button" hidden></button>
-  <p class="note" id="peakWindowNote" hidden></p>
+    <div class="card" id="focusCard" hidden>
+      <h1>Most munkamenet fut.</h1>
+      <p><span class="rule" id="focusName">—</span></p>
+      <p id="focusLeft">—</p>
+      <p id="focusWindow" hidden>
+        Ez a menet <strong>a heti ablak szerint indult</strong> — te állítottad
+        be előre, hogy ilyenkor ez menjen. A vége az ablak vége.
+      </p>
+      <p>
+        A munkamenet alatt <strong>csak az megy, amit felvettél</strong> — minden
+        más tiltva. Nem azért, mert ez az oldal rossz, hanem mert most nem ez van
+        soron.
+      </p>
+      <p class="foot" id="focusFoot">
+        A munkamenet magától lejár. Hamarabb leállítani a Breaker appban lehet,
+        és ugyanabba a próbatételbe kerül, mint egy feloldás — különben ez a
+        képernyő egy kikapcsoló gomb lenne.
+      </p>
+    </div>
+    <p class="note" id="note" hidden></p>
+    <!-- Hányadszor ma: a bővítmény könyve, a kísértés pillanatában. -->
+    <p class="note" id="hitsNote" hidden></p>
+    <!-- EGY KATTINTÁS a menetig: az app javasolt csomagja, a hídon indítva. Futó menet és összekötés nélkül nincs. -->
+    <button id="startFocus" class="start" type="button" hidden></button>
+    <p class="note" id="startFocusNote" hidden></p>
+    <!-- A MENET-NAP: ha ma szoktál leülni, a lap kimondja — az app szava, frissen. -->
+    <p class="note" id="focusDayNote" hidden></p>
+    <!-- ABLAK A CSÚCS-ÓRÁRA: heti ablak a javasolt csomagra a csúcs egy órájában — az appban, a hídon. Csak felvétel. -->
+    <button id="peakWindow" class="start" type="button" hidden></button>
+    <button id="focusHourWindow" class="start" type="button" hidden></button>
+    <p class="note" id="peakWindowNote" hidden></p>
+  </main>
 <script type="module" src="blocked.js"></script>
 </body>
 </html>

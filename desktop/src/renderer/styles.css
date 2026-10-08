@@ -36,7 +36,10 @@
 
   --text: #f2f4f7;
   --text-2: #9aa4b0;
-  --text-3: #6a7481;
+  /* A LEGHALVÁNYABB SZÖVEG IS OLVASHATÓ: minden felületen legalább 4,5:1 (WCAG
+     AA, kis betűre) — a legsötétebb kártyán (surface-3) is. A régi #6a7481 a
+     kártyán 3,85:1 volt; az akadálymentességi próba (axe) ezt fogta ki. */
+  --text-3: #848e9a;
 
   /* Az elsődleges művelet VILÁGOS, nem színes. Egy sötét felületen ez a
      legerősebb hangsúly, amit adni lehet — és nem kér magának új színt. */
@@ -143,8 +146,10 @@ body {
 }
 .brand-mark svg { width: 100%; height: 100%; display: block; }
 .brand-name {
+  margin: 0;
   font-weight: 620;
   font-size: 1.02rem;
+  line-height: inherit;
   letter-spacing: -0.012em;
 }
 
@@ -903,7 +908,8 @@ body {
 
     --text: #10141a;
     --text-2: #545d69;
-    --text-3: #767f8b;
+    /* Világosban is legalább 4,5:1 minden felületen (a régi #767f8b fehéren 4,05). */
+    --text-3: #646c76;
 
     /* Világos alapon az elsődleges gomb SÖTÉT — ugyanaz a gondolat fordítva:
        a legerősebb hangsúly a legnagyobb világosság-különbség. */

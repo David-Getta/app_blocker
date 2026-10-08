@@ -115,8 +115,9 @@ jobs:
       - run: npm run build
       # Legalább 1.61: a régebbi Playwright nem ismeri az Ubuntu 26.04-et, és a
       # böngésző telepítése el sem indult rajta („does not support chromium”);
-      # az ubuntu-latest pedig október 19-től oda vált.
-      - run: npm i --no-save playwright@1.63.0
+      # az ubuntu-latest pedig október 19-től oda vált. Az axe-core az
+      # akadálymentességi próbáé (scripts/a11y-check.js): a CI-ban kötelező.
+      - run: npm i --no-save playwright@1.63.0 axe-core@4.14.0
       - run: npx playwright install --with-deps chromium
         timeout-minutes: 10
       # AZ APP MAGA, Electronban. A többi lépés a felületet egy sima böngészőben
