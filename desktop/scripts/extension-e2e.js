@@ -182,6 +182,26 @@ async function main() {
     return '';
   }
 
+  // A bővítmény SZÁNDÉKOSAN kétszer irányít a tiltó lapra: a navigálás előtt
+  // és a megtörténtekor is (background.js, „a második háló”). Az előző lépés
+  // tiltásának második átirányítása így még úton lehet, amikor a következő
+  // lépés már új címre indul — a Chromium ezt a mostani navigáció
+  // megszakításaként jelzi (az újabb Chromiumban rendszeresen). Ez nem a
+  // mostani lépés döntése: a bővítmény minden döntésnél frissen olvassa a
+  // tárat. Egyszer újrapróbáljuk, és csak ha a tiltó lap szakította meg; a
+  // második navigáció már csak a mostani állapotból dönthet, tehát egy
+  // valódi hibás tiltást nem takar el.
+  async function goto(page, url) {
+    try {
+      await page.goto(url);
+    } catch (err) {
+      const msg = String(err?.message ?? err);
+      if (!/interrupted by another navigation to "chrome-extension:\/\/[^"]*\/blocked\.html/.test(msg)) throw err;
+      await page.waitForTimeout(500);
+      await page.goto(url);
+    }
+  }
+
   /** Megvárja, hogy a böngésző a mintára illő címen álljon; a címet adja vissza. */
   async function waitForBrowserUrl(page, context, re, ms) {
     const t0 = Date.now();
@@ -212,7 +232,7 @@ async function main() {
     // Nyitva lévő lapon kapcsolják be a szűrőt: a kártyának újratöltés
     // NÉLKÜL kell eltűnnie. E nélkül egy régóta nyitott lap a betöltéskori
     // (üres) állapotot őrizné a lap élete végéig.
-    await page.goto(`${base}/`);
+    await goto(page, `${base}/`);
     await page.waitForTimeout(600);
     check(await page.isVisible('#cardRossz'), 'szűrő nélkül a kártya látszik');
     await seeder.evaluate((link) => chrome.storage.local.set({ 'breaker.applink': link }), LINK);
@@ -221,7 +241,7 @@ async function main() {
     check(liveHidden, 'a menet közben bekapcsolt szűrő újratöltés nélkül is rejt');
 
     // ------------------------------------------------ 1. hírfolyam-rejtés
-    await page.goto(`${base}/`);
+    await goto(page, `${base}/`);
     const hidden = await page.waitForSelector('#cardRossz', { state: 'hidden', timeout: WAIT_MS })
       .then(() => true).catch(() => false);
     check(hidden, 'a nem engedélyezett csatorna videókártyája eltűnik');
@@ -241,7 +261,7 @@ async function main() {
       [`${base}/watch?v=flat1234567`, 'lapos mikroadat: a rossz feltöltő videója tiltó lapra fut'],
       [`${base}/watch?v=player12345`, 'beágyazott lejátszó-adat: a rossz feltöltő videója tiltó lapra fut'],
     ]) {
-      await page.goto(caseUrl);
+      await goto(page, caseUrl);
       const blocked = await waitForBrowserUrl(page, context, /blocked\.html/, WAIT_MS);
       check(!!blocked, name);
       if (blocked && /blocked\.html/.test(page.url())) {
@@ -264,7 +284,7 @@ async function main() {
       [`${base}/watch?v=goodvid1234`, 'az engedélyezett feltöltő videója marad'],
       [`${base}/watch?v=stale123456`, 'a MÁSIK videót megnevező (elavult) metaadat nem tilt'],
     ]) {
-      await page.goto(caseUrl);
+      await goto(page, caseUrl);
       await page.waitForTimeout(1200); // szerző-ellenőrzés 250 ms-onként fut
       // A böngésző szerinti címet nézzük: a Playwright nézete beragadhat a
       // navigáció-versenynél, és egy TÉVES tiltást is eltakarna.
@@ -286,7 +306,7 @@ async function main() {
     // próbáljuk; ha az nem ír, a lapot folyamatosan előtérben tartjuk, és a
     // tíz másodperces kiírást várjuk. A sor megmondja, melyik út írt, és hogy
     // az elrejtés megtörtént-e.
-    await page.goto(`${base}/watch?v=goodvid1234`);
+    await goto(page, `${base}/watch?v=goodvid1234`);
     const readTime = () => seeder.evaluate(async () => {
       const got = await chrome.storage.local.get('breaker.chantime');
       return JSON.stringify(got['breaker.chantime'] ?? {});
@@ -346,7 +366,7 @@ async function main() {
     await page.bringToFront();
 
     // --------------------------- 4. egylapos váltás: a friss metaadat dönt
-    await page.goto(`${base}/watch?v=goodvid1234`);
+    await goto(page, `${base}/watch?v=goodvid1234`);
     await page.waitForTimeout(600);
     await page.evaluate((b) => {
       history.pushState({}, '', '/watch?v=spavid12345');
@@ -364,7 +384,7 @@ async function main() {
     // Előbb el a tiltó lapról: a /@rossz navigációt a háttér még commit
     // előtt átirányítja, tehát ha a lap egy KORÁBBI blocked.html-en állna,
     // a várakozás arra mondana igazat — a régi címre, a régi paraméterekkel.
-    await page.goto(`${base}/`);
+    await goto(page, `${base}/`);
     await page.goto(`${base}/@rossz`).catch(() => { /* a navigációt elkapja a tiltás */ });
     const urlBlocked = await waitForBrowserUrl(page, context, /blocked\.html/, WAIT_MS);
     if (!urlBlocked) {
@@ -668,7 +688,7 @@ async function main() {
     // akkor is, ha a bejegyzés még ott ül a tárban.
     await seedClosed([{ host: '127.0.0.1', reason: 'cooldown', until: Date.now() - 1000 }],
       Date.now());
-    await page.goto(`${base}/`);
+    await goto(page, `${base}/`);
     await page.waitForTimeout(1200);
     check((await browserUrl(page, context)) === `${base}/`, 'a lejárt hűtés nem tilt tovább');
 
@@ -677,7 +697,7 @@ async function main() {
     // tiltás), a tiltást pedig úgyis a DNS tartja.
     await seedClosed([{ host: '127.0.0.1', reason: 'always', until: 0 }],
       Date.now() - 10 * 60_000);
-    await page.goto(`${base}/`);
+    await goto(page, `${base}/`);
     await page.waitForTimeout(1200);
     check((await browserUrl(page, context)) === `${base}/`, 'az elavult zárva-lista nem tilt');
 
@@ -705,7 +725,7 @@ async function main() {
     // Amíg az app friss, az ő szava dönt: ha azt mondja, nem fut menet (az
     // ablakét leállították), a tárolt ablak nem tilt.
     await seedFocus({ running: false, windows: [nowWindow] }, Date.now());
-    await page.goto(`${base}/`);
+    await goto(page, `${base}/`);
     await page.waitForTimeout(1200);
     check((await browserUrl(page, context)) === `${base}/`, 'friss app-szónál a tárolt ablak nem tilt');
 
@@ -785,7 +805,7 @@ async function main() {
         'a tiltó lap megmondja, hogy a mérés-őr zár, és hogy az app elindítása nyitja');
     }
     await seedGuard({ hosts: ['127.0.0.1'] }, Date.now());
-    await page.goto(`${base}/`);
+    await goto(page, `${base}/`);
     await page.waitForTimeout(1200);
     check((await browserUrl(page, context)) === `${base}/`, 'friss app-szónál a mérés-őr nem tilt');
 
@@ -799,7 +819,7 @@ async function main() {
       return JSON.stringify(got?.['breaker.hits']?.days ?? {});
     });
     await seedFocus({ running: false }, Date.now());
-    await page.goto(`${base}/`);
+    await goto(page, `${base}/`);
     await page.bringToFront();
     await page.waitForTimeout(600);
     const bookBefore = await hitBook();
@@ -812,7 +832,7 @@ async function main() {
     check((await hitBook()) === bookBefore, 'a nyitott lap újranézése nem megakadás: a könyv nem nő');
 
     await seedFocus({ running: false }, Date.now());
-    await page.goto(`${base}/`);
+    await goto(page, `${base}/`);
     await page.bringToFront();
     await page.waitForTimeout(600);
     check((await browserUrl(page, context)) === `${base}/`, 'menet nélkül a lap marad');
@@ -824,7 +844,7 @@ async function main() {
     // lap nem fut a tiltó lapra (a félkész szöveg elveszne) — a tetején egy
     // sáv mondja, hogy lezárult, és a gépelés-csend után zárul.
     await seedFocus({ running: false }, Date.now());
-    await page.goto(`${base}/iras`);
+    await goto(page, `${base}/iras`);
     await page.bringToFront();
     await page.waitForTimeout(600);
     await page.locator('#szoveg').click();
@@ -849,7 +869,7 @@ async function main() {
     const seedSoon = (soon) => seeder.evaluate((arg) => chrome.storage.local.set({
       'breaker.applink': { ...arg.link, closed: [], soon: arg.soon, fetchedAt: Date.now() },
     }), { link: LINK, soon });
-    await page.goto(`${base}/`);
+    await goto(page, `${base}/`);
     await page.bringToFront();
     await page.waitForTimeout(600);
     const pauseEnd = Date.now() + 90_000;
@@ -876,7 +896,7 @@ async function main() {
       `egy másik zárásról a bezárt sáv után is szól (${againText})`);
     await seedSoon([]);
     // A keret is: aktív idő, a lehúzáskor hátralévő másodpercekből.
-    await page.goto(`${base}/@jo`);
+    await goto(page, `${base}/@jo`);
     await page.bringToFront();
     await page.waitForTimeout(600);
     await seedSoon([{ host: '127.0.0.1', kind: 'limit', left: 70 }]);
@@ -898,7 +918,7 @@ async function main() {
       `az adag betelte előtt is szól a sáv, a szünet hosszával (${burstText})`);
     await seedSoon([]);
     // A heti ablakos menet indulása előtt is: a lap nincs a csomagban, akkor zárul.
-    await page.goto(`${base}/`);
+    await goto(page, `${base}/`);
     await page.bringToFront();
     await page.waitForTimeout(600);
     await seeder.evaluate((arg) => chrome.storage.local.set({
@@ -948,7 +968,7 @@ async function main() {
         ...arg.link, token: 'TESZ-TKOD', port: arg.port, closed: [], focus: { running: false }, fetchedAt: Date.now(),
       },
     }), { link: LINK, port: appPort });
-    await page.goto(`${base}/`);
+    await goto(page, `${base}/`);
     await page.bringToFront();
     const tabT0 = Date.now();
     while (tabPosts.length === 0 && Date.now() - tabT0 < WAIT_MS) await new Promise((r) => setTimeout(r, 200));
