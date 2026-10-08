@@ -45,33 +45,36 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
+          **A heti ablak nem állítja le a futó munkamenetet — rárétegződik.**
+          Eddig egy most kezdődő heti ablak lezárta egy másik csomag futó
+          menetét, és mivel ablakot felvenni ingyen van, egy kétperces ablak
+          egy laza csomagra próbatétel nélkül véget vetett egy kétórás
+          menetnek. Most a menet fut tovább, és amíg az ablak tart, csak az
+          mehet, amit mindkét csomag enged — a gépen, a böngészőben (app
+          nélkül is), Androidon és iPhone-on. Egy 8:59-kor indított, laza
+          menet sem váltja ki az ablakot. Amikor a menet véget ér, az ablak
+          menete onnan indul, ahol az véget ért; a statisztika nem számolja
+          kétszer ugyanazt az órát. A kártya és a sáv kimondja, ha egy ablak
+          rárétegződik, és mi mehet most.
+
+          **Frissíts minden eszközt.** Egy még nem frissített eszköz az ablak
+          kezdetén továbbra is leállítja a menetet, és ezt a szinkron a
+          többire is átviszi.
+
+          Őszinte korlát: az appoknál a metszet csak közelítés (a gép az
+          appot jelzi, nem tiltja). A futó menet leállítása után az ablak
+          menete jön — annak a leállítása külön próbatétel.
+
+          ### Ami a v0.4.228-ban jött
+
           **A futó munkamenetet a szinkron már csak a leállítás nyomával
-          állítja le.** Egy független átnézés megmutatta: a munkamenetről a
-          szinkron számlálója döntött, azt pedig egy csomag átnevezése is
-          lépteti — egy friss telepítés vagy egy hálózaton kívül lévő
-          telefon néhány átnevezéssel próbatétel nélkül leállította a futó
-          menetet. Most menetet csak a rá szóló lezárás állít le (leállítás
-          vagy lejárat), a kifizetett rövidítést egy régi változat nem írja
-          felül, és a futó menet csomagját a szinkron sem törölheti, sem
-          bővítheti.
+          állítja le** — néhány csomag-átnevezés már nem állítja le
+          próbatétel nélkül.
 
-          **Frissíts minden eszközt.** Egy még nem frissített app
-          rövidítése a frissítettek szemében régi változatnak látszhat.
+          #### Ami a v0.4.227-ben jött
 
-          Őszinte korlát: ha a menetet egy eszközön meghosszabbítod, egy
-          másikon közben próbatétellel rövidíted, a rövidítés nyer.
-
-          ### Ami a v0.4.227-ben jött
-
-          **Windows: az app végre eléri a védelmet** (frissítés után egyszer
-          még kérd a telepítést), és egy független átnézés négy kiskaput
-          talált — mind zárva.
-
-          #### Ami a v0.4.226-ban jött
-
-          **A böngésző sávja az adag betelte előtt is szól;** óraátállítás
-          éjszakáján a három platform ugyanarra a pillanatra teszi a heti
-          ablakot; Androidon az időmező a „8.30” alakot is elfogadja.
+          **Windows: az app végre eléri a védelmet,** és egy független
+          átnézés négy kiskaput talált — mind zárva.
 
           NOTES
           fi
