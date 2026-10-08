@@ -8,6 +8,7 @@ kettővel korábbiban.
 
 | Verzió | Nap | Mi újság |
 |---|---|---|
+| v0.4.250 | 2026-10-08 | a Firefox titkosított DNS-e nem kerüli meg a telefonos szűrőt |
 | v0.4.249 | 2026-10-08 | a hiba a felolvasónak is elhangzik |
 | v0.4.248 | 2026-10-08 | a sávok a felolvasónak is mondanak valamit |
 | v0.4.247 | 2026-10-08 | billentyűzettel is; a frissítés nem viszi el a fókuszt; telefonok és letöltőoldal |
