@@ -282,10 +282,17 @@ data class AppState(
      * jelével. Lásd core/Keywords.kt.
      */
     val keywords: List<String> = emptyList(),
-    /** A kulcsszó-lista JELE: a blob rev-je, amelyik utoljára változtatta (SyncRevisions). */
+    /** A kulcsszó-lista JELE: a blob rev-je, amelyik utoljára változtatta (SyncRevisions) — csak a régi klienseknek. */
     val keywordsRev: Int? = null,
     /** A kulcsszó-lista kulcsa az utolsó léptetéskor — ebből derül ki, kell-e új jel. */
     val focusRevKeywords: String? = null,
+    /**
+     * KULCSSZAVANKÉNT a jelek: kulcsszó → a blob rev-je, amelyik utoljára
+     * felvette vagy levette (SyncRevisions). A fésülés ezekből dönt.
+     */
+    val keywordMarks: Map<String, Int>? = null,
+    /** A kulcsszó-lista az utolsó léptetéskor — ebből látszik, mi került be és mi ki. */
+    val focusRevKeywordList: List<String>? = null,
     /**
      * PÁRBAN ZÁROLÁS: a megbízott lenyomata, ha van. Amíg van, minden lazító
      * próbatétel utolsó lépése az ő jelmondata. A munkamenet blobján utazik, a
@@ -557,6 +564,8 @@ object BreakerStore {
         put("keywords", JSONArray(s.keywords))
         put("keywordsRev", s.keywordsRev ?: JSONObject.NULL)
         put("focusRevKeywords", s.focusRevKeywords ?: JSONObject.NULL)
+        put("keywordMarks", s.keywordMarks?.let { JSONObject(it) } ?: JSONObject.NULL)
+        put("focusRevKeywordList", s.focusRevKeywordList?.let { JSONArray(it) } ?: JSONObject.NULL)
         // A megbízott is a lemezre megy: a lazítás kapuja függ tőle.
         put("partner", s.partner?.let { SyncClient.partnerToJson(it) } ?: JSONObject.NULL)
         put("partnerRev", s.partnerRev ?: JSONObject.NULL)
@@ -968,6 +977,14 @@ object BreakerStore {
             keywords = KeywordLogic.cleanKeywords(SyncClient.stringsFromJson(o.optJSONArray("keywords"))),
             keywordsRev = if (o.isNull("keywordsRev")) null else o.optInt("keywordsRev", 0).takeIf { it > 0 },
             focusRevKeywords = if (o.isNull("focusRevKeywords")) null else o.optString("focusRevKeywords"),
+            // A kulcsszó-jelek is a mag szűrőjén át — mint a dróton.
+            keywordMarks = KeywordLogic.cleanKeywordMarks(
+                SyncClient.marksFromJson(o, "keywordMarks"),
+                KeywordLogic.cleanKeywords(SyncClient.stringsFromJson(o.optJSONArray("keywords"))),
+                o.optLong("focusRev", 0).coerceIn(0, Int.MAX_VALUE.toLong()).toInt(),
+            ),
+            focusRevKeywordList = if (o.isNull("focusRevKeywordList") || o.optJSONArray("focusRevKeywordList") == null) null
+                else KeywordLogic.cleanKeywords(SyncClient.stringsFromJson(o.optJSONArray("focusRevKeywordList"))),
             // Csak a jó alakú marad: egy sérült lenyomat csapda lenne, nem döntés.
             // A társak és a nyomok a fésülés szabálya szerint (a nyommal levett nem él).
             partner = storedPartners.partner,

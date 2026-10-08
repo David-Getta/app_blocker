@@ -155,6 +155,13 @@ Ezért:
   társ (`partnerCo`), és a lazítás végén mindegyikük jelmondata kell. A jel a
   régi kliensek miatt utazik tovább. A részletek és az őszinte korlátok:
   docs/feature-partner-lock.md, „Szinkron”.
+- **A kulcsszavak kulcsszavanként fésülődnek, a saját jelükkel.** A
+  kulcsszó-lista eddig egészében a nagyobb jelet követte, és egy elavult
+  eszközön egy ingyenes felvétel a régi listával mindenhol letörölte a máshol
+  felvett kulcsszavakat. Most minden kulcsszó felvétele és levétele saját jelet
+  kap (`keywordMarks`), kulcsszavanként a nagyobb jel dönt, egyenlő vagy
+  hiányzó jelnél az unió — a hosztnevek mintája. A részletek:
+  docs/feature-keywords.md, „Szinkron”.
 - **A futó menet csomagja mindig marad, és a fehérlistája nem bővülhet.** A
   csomagok és a menet külön dőlnek el, és a kettő össze tud akadni: az egyik
   eszköz törölte a csomagot (jellel), a másik ugyanabban a körben menetet

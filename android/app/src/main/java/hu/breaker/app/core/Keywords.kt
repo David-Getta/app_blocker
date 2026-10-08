@@ -8,9 +8,9 @@ import java.text.Normalizer
  *
  * Érvényesíteni csak a gépi böngésző-bővítmény tudja (csak ő látja a teljes
  * címet); a telefon hordozza és fésüli, hogy a lista minden gépen ugyanaz
- * legyen. Felvenni ingyen, levenni próbatétel; a fésülés a zárlat-ablakoké:
- * a jel dönt, azonos jelnél a bővebb lista. Ha itt változtatsz, a TS és a
- * Swift ikren is.
+ * legyen. Felvenni ingyen, levenni próbatétel; a fésülés KULCSSZAVANKÉNT megy,
+ * a hosztnevek mintájára: a nagyobb jel dönt, egyenlő (vagy hiányzó) jelnél az
+ * unió. Ha itt változtatsz, a TS és a Swift ikren is.
  */
 object KeywordLogic {
 
@@ -65,12 +65,97 @@ object KeywordLogic {
         return cleanKeywords(current).any { it !in have }
     }
 
-    /** Két lista fésülve a jelük szerint: nagyobb jel nyer, azonos jelnél az unió. */
-    fun mergeKeywords(localMark: Int, local: List<String>, incomingMark: Int, incoming: List<String>): List<String> {
-        if (localMark > incomingMark) return cleanKeywords(local)
-        if (incomingMark > localMark) return cleanKeywords(incoming)
-        return cleanKeywords(local + incoming)
+    /** Ennél több kulcsszó-jelet nem hordunk — a `keywords.ts` `MAX_KEYWORD_MARKS`-e. */
+    const val MAX_KEYWORD_MARKS = 128
+
+    /**
+     * A jelek plafonja — a gép `capKeywordMarks`-e: a jelen lévő kulcsszavak
+     * jele mindig marad, a levettekből a legnagyobb jelűek férnek be
+     * (holtversenyben kódegység szerint). Üresen null.
+     */
+    fun capKeywordMarks(marks: Map<String, Int>, present: List<String>): Map<String, Int>? {
+        if (marks.isEmpty()) return null
+        val here = present.toHashSet()
+        val kept = marks.entries.filter { it.key in here }
+        val gone = marks.entries.filter { it.key !in here }
+            .sortedWith(compareByDescending<Map.Entry<String, Int>> { it.value }.thenBy { it.key })
+        val limit = maxOf(kept.size, MAX_KEYWORD_MARKS)
+        val out = LinkedHashMap<String, Int>()
+        for (e in kept + gone) {
+            if (out.size >= limit) break
+            out[e.key] = e.value
+        }
+        return out
     }
+
+    /**
+     * A kívülről (dróton, lemezről) jött kulcsszó-jelek tisztán: csak kanonikus
+     * kulcsszó, csak pozitív egész, legfeljebb a blob rev-je — a plafonnal.
+     */
+    fun cleanKeywordMarks(raw: Map<String, Int>?, keywords: List<String>, maxRev: Int): Map<String, Int>? {
+        if (raw == null) return null
+        val marks = LinkedHashMap<String, Int>()
+        for ((k, v) in raw) {
+            if (v <= 0 || v > maxRev || normalizeKeyword(k) != k) continue
+            marks[k] = v
+        }
+        return capKeywordMarks(marks, keywords)
+    }
+
+    /** A kulcsszavak egy eszközön: a lista és a kulcsszavankénti jelek. */
+    data class KeywordSet(val keywords: List<String>, val keywordMarks: Map<String, Int>? = null)
+
+    /**
+     * Két eszköz kulcsszavai KULCSSZAVANKÉNT fésülve — a gép `mergeKeywordSets`-e.
+     * A jel a kulcsszóhoz tartozik (a blob rev-je, amelyik utoljára felvette
+     * vagy levette), és a nagyobb jel dönt; egyenlő vagy hiányzó jelnél az
+     * unió. Eddig a lista egészében a nagyobb jelet követte — és egy elavult
+     * eszközön egy ingyenes felvétel a régi listával mindenhol letörölte a
+     * máshol felvett kulcsszavakat. A sorrend a jelé (a jeltelen legelöl),
+     * aztán kódegység szerint; a plafon is ebben a sorrendben vág.
+     */
+    fun mergeKeywordSets(a: KeywordSet, b: KeywordSet): KeywordSet {
+        val listA = cleanKeywords(a.keywords)
+        val listB = cleanKeywords(b.keywords)
+        val names = LinkedHashSet<String>(listA + listB)
+        for (m in listOf(a.keywordMarks, b.keywordMarks)) {
+            m?.keys?.forEach { if (normalizeKeyword(it) == it) names.add(it) }
+        }
+        val present = ArrayList<Pair<String, Int>>()
+        val marks = LinkedHashMap<String, Int>()
+        for (k in names) {
+            val ma = a.keywordMarks?.get(k)?.takeIf { it > 0 } ?: 0
+            val mb = b.keywordMarks?.get(k)?.takeIf { it > 0 } ?: 0
+            val inA = k in listA
+            val inB = k in listB
+            val here = if (ma > mb) inA else if (mb > ma) inB else inA || inB
+            val m = maxOf(ma, mb)
+            if (here) present.add(k to m)
+            if (m > 0) marks[k] = m
+        }
+        val keywords = present.sortedWith(compareBy<Pair<String, Int>> { it.second }.thenBy { it.first })
+            .take(MAX_KEYWORDS).map { it.first }
+        return KeywordSet(keywords, capKeywordMarks(marks, keywords))
+    }
+
+    /**
+     * A kulcsszó-jelek a léptetésben — a gép `markKeywordChanges`-e: ami az
+     * előző léptetés óta bekerült vagy kikerült, az ezt a blob-rev-et kapja; a
+     * többi jel marad.
+     */
+    fun markKeywordChanges(marks: Map<String, Int>?, prev: List<String>, next: List<String>, rev: Int): Map<String, Int>? {
+        val out = LinkedHashMap<String, Int>()
+        marks?.forEach { (k, v) -> if (v > 0) out[k] = v }
+        val before = prev.toHashSet()
+        val after = next.toHashSet()
+        for (k in next) if (k !in before) out[k] = rev
+        for (k in prev) if (k !in after) out[k] = rev
+        return capKeywordMarks(out, next)
+    }
+
+    /** A kulcsszó-jelek tartalmi kulcsa — rendezve, a különbség-vizsgálathoz. */
+    fun keywordMarksKey(marks: Map<String, Int>?): String =
+        (marks ?: emptyMap()).toSortedMap().entries.joinToString("|") { "${it.key}=${it.value}" }
 
     /** A cím szövege, amiben keresünk: séma nélkül, százalék-kódolás feloldva, kisbetűvel. */
     fun keywordHaystack(url: String): String {

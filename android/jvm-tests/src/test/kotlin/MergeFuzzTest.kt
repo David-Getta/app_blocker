@@ -207,6 +207,11 @@ class MergeFuzzTest {
         val goneAt = 1L + (r.next() * 3).toInt()
         val partnerCo = if (coDraw < 0.25) listOf(partners[coPick]) else emptyList()
         val partnersGone = if (goneDraw < 0.2) listOf(PartnerLogic.PartnerGone(PartnerLogic.partnerId(partners[gonePick]), goneAt)) else emptyList()
+        // A KULCSSZÓ-JELEK — három húzás, feltétel nélkül, mint a gépen.
+        val kmDraw = r.next()
+        val kmPick = (r.next() * 2).toInt()
+        val kmValue = minOf(1 + (r.next() * 5).toInt(), rev)
+        val keywordMarks = if (kmDraw < 0.35) mapOf(listOf("shorts", "reels")[kmPick] to kmValue) else null
         // A NAPLÓ — két húzás, feltétel nélkül, mint a gépen.
         val logDraw = r.next()
         val logPick = (r.next() * 5).toInt()
@@ -228,7 +233,7 @@ class MergeFuzzTest {
             lockdown = lockdown, lockdownWindows = windows, lockdownWindowsRev = windowsRev,
             partner = partner, partnerRev = partnerRev, partnerCo = partnerCo, partnersGone = partnersGone,
             hideSiteList = hide, hideSiteListRev = hideRev,
-            keywords = keywords, keywordsRev = keywordsRev,
+            keywords = keywords, keywordsRev = keywordsRev, keywordMarks = keywordMarks,
         )
     }
 
@@ -251,7 +256,8 @@ class MergeFuzzTest {
         val windows = f.lockdownWindows.map { LockdownLogic.windowKey(it.band) }.sorted().joinToString(";")
         return "$packs|$marks|$run|${f.rev}|$lock|$windows|${f.lockdownWindowsRev ?: 0}" +
             "|${if (f.hideSiteList) 1 else 0}|${f.hideSiteListRev ?: 0}" +
-            "|${KeywordLogic.keywordsKey(f.keywords)}|${f.keywordsRev ?: 0}|${PartnerLogic.partnerKey(f.partner)}|${f.partnerRev ?: 0}" +
+            "|${KeywordLogic.keywordsKey(f.keywords)}|${f.keywordsRev ?: 0}|${KeywordLogic.keywordMarksKey(f.keywordMarks)}" +
+            "|${PartnerLogic.partnerKey(f.partner)}|${f.partnerRev ?: 0}" +
             "|" + f.partnerCo.joinToString(";") { PartnerLogic.partnerKey(it) } +
             "|" + f.partnersGone.joinToString(";") { "${it.id}@${it.at}" } +
             "|" + f.log.joinToString(";") {

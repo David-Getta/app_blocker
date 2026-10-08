@@ -4,8 +4,9 @@
 import { test } from 'node:test';
 import * as assert from 'node:assert/strict';
 import {
-  KEYWORD_SUGGESTIONS, MAX_KEYWORDS, MAX_KEYWORD_LENGTH, MIN_KEYWORD_LENGTH, cleanKeywords, isKeywordsLoosening,
-  keywordHit, keywordsKey, mergeKeywords, normalizeKeyword, sameKeywords, keywordInHost, urlHost,
+  KEYWORD_SUGGESTIONS, MAX_KEYWORDS, MAX_KEYWORD_LENGTH, MAX_KEYWORD_MARKS, MIN_KEYWORD_LENGTH, capKeywordMarks,
+  cleanKeywordMarks, cleanKeywords, isKeywordsLoosening, keywordHit, keywordMarkOf, keywordsKey, markKeywordChanges,
+  mergeKeywordSets, normalizeKeyword, sameKeywords, keywordInHost, urlHost,
 } from '../src/shared/keywords';
 import { defaultState, newId, type HelperState } from '../src/helper/state';
 import * as referee from '../src/helper/referee';
@@ -45,12 +46,61 @@ test('lazítás-e: ami a mostaniból hiányzik az újból, az levétel; a bőví
   assert.equal(isKeywordsLoosening(['shorts'], ['SHORTS']), false, 'ugyanaz más alakban');
 });
 
-test('fésülés a jel szerint: nagyobb jel nyer, azonos jelnél a bővebb — a jeltelen sosem töröl', () => {
-  assert.deepEqual(mergeKeywords(3, ['shorts'], 5, ['reels']), ['reels'], 'a nagyobb jelű levétel átmegy');
-  assert.deepEqual(mergeKeywords(5, ['shorts'], 3, ['reels']), ['shorts']);
-  assert.deepEqual(mergeKeywords(3, ['shorts'], 3, ['reels']), ['shorts', 'reels'], 'azonos jel: unió');
-  assert.deepEqual(mergeKeywords(0, [], 0, ['shorts']), ['shorts'], 'a jeltelen blob nem törli a listát');
-  assert.deepEqual(mergeKeywords(2, ['shorts'], 0, []), ['shorts']);
+const set = (keywords: string[], keywordMarks?: Record<string, number>) =>
+  ({ keywords, ...(keywordMarks ? { keywordMarks } : {}) });
+
+test('fésülés KULCSSZAVANKÉNT: a nagyobb jel dönt, egyenlőnél és jel nélkül az unió', () => {
+  assert.deepEqual(mergeKeywordSets(set(['shorts']), set([], { shorts: 5 })), { keywords: [], keywordMarks: { shorts: 5 } },
+    'a jeles levétel átmegy');
+  assert.deepEqual(mergeKeywordSets(set(['shorts'], { shorts: 6 }), set([], { shorts: 5 })).keywords, ['shorts'],
+    'a későbbi felvétel nyer');
+  assert.deepEqual(mergeKeywordSets(set(['shorts']), set(['reels'])).keywords, ['reels', 'shorts'],
+    'jel nélkül unió, kódegység szerint');
+  assert.deepEqual(mergeKeywordSets(set([]), set(['shorts'])).keywords, ['shorts'], 'a jeltelen hiány nem töröl');
+  assert.deepEqual(mergeKeywordSets(set(['shorts'], { shorts: 4 }), set([], { shorts: 4 })).keywords, ['shorts'],
+    'egyenlő jel: unió — versenyhelyzet nem old fel');
+  // A TRÜKK: egy elavult eszközön egy ingyenes felvétel felhúzza a jelet — a
+  // régi listája ettől még nem töröl semmit, a reels jele nem változott.
+  const account = set(['shorts', 'reels'], { shorts: 3, reels: 7 });
+  const stale = set(['shorts', 'live'], { shorts: 3, live: 40 });
+  for (const m of [mergeKeywordSets(account, stale), mergeKeywordSets(stale, account)]) {
+    assert.deepEqual(m.keywords, ['shorts', 'reels', 'live'], 'a reels megmarad, a live mellé kerül — a sorrend a jelé');
+    assert.deepEqual(m.keywordMarks, { shorts: 3, reels: 7, live: 40 });
+  }
+});
+
+test('a plafon a régit védi: egy frissen felvett tömeg nem szorítja ki a régi kulcsszavakat', () => {
+  const legacy = ['alma', 'korte', 'szilva'];
+  const junk = Array.from({ length: MAX_KEYWORDS }, (_, i) => `szemet${String(i).padStart(2, '0')}`);
+  for (const m of [
+    mergeKeywordSets(set(legacy), set(junk, Object.fromEntries(junk.map((k) => [k, 50])))),
+    mergeKeywordSets(set(junk, Object.fromEntries(junk.map((k) => [k, 50]))), set(legacy)),
+  ]) {
+    assert.equal(m.keywords.length, MAX_KEYWORDS);
+    for (const k of legacy) assert.ok(m.keywords.includes(k), `a régi ${k} nem szorul ki`);
+  }
+  const lots = new Map(Array.from({ length: 200 }, (_, i) => [`gone${String(i).padStart(3, '0')}`, i + 1] as [string, number]));
+  const capped = capKeywordMarks(lots, ['gone000']);
+  assert.equal(Object.keys(capped!).length, MAX_KEYWORD_MARKS);
+  assert.equal(capped!['gone000'], 1, 'a jelen lévő jele mindig marad');
+  assert.equal(capped!['gone199'], 200, 'a legfrissebb levétel marad');
+  assert.equal(capped!['gone001'], undefined, 'a legrégebbi levétel esik ki');
+});
+
+test('a kulcsszó-jelek tisztán: kanonikus kulcsszó, pozitív egész, legfeljebb a rev — a __proto__ is rendes kulcsszó', () => {
+  assert.deepEqual(
+    cleanKeywordMarks({ shorts: 2, reels: 0, live: 1.5, stream: 9, Shorts: 1, ab: 1, 'két szó': 1, tiktok: '2' }, ['shorts'], 3),
+    { shorts: 2 },
+  );
+  assert.equal(cleanKeywordMarks('x', [], 3), undefined);
+  assert.equal(cleanKeywordMarks([1, 2], [], 3), undefined);
+  assert.equal(cleanKeywordMarks({}, [], 3), undefined);
+  const proto = mergeKeywordSets(set(['__proto__']), set([], JSON.parse('{"__proto__": 5}') as Record<string, number>));
+  assert.deepEqual(proto.keywords, [], 'a jeles levétele átmegy');
+  assert.equal(keywordMarkOf(proto.keywordMarks, '__proto__'), 5);
+  assert.equal(keywordMarkOf({}, '__proto__'), 0, 'az öröklött tulajdonság nem jel');
+  assert.deepEqual(markKeywordChanges({ shorts: 2 }, ['shorts', 'reels'], ['shorts', 'live'], 5), { shorts: 2, reels: 5, live: 5 },
+    'ami bekerült és ami kikerült, az a léptetés jelét kapja; a többi marad');
 });
 
 test('illesztés: a cím bárhol tartalmazza — hosztban is —, kódolás feloldva, kisbetűvel', () => {
@@ -161,6 +211,7 @@ test('a jel: a felvétel és a levétel lépteti a blobot, az átvétel nem', ()
   referee.setKeywords(state, ['shorts'], now);
   assert.equal(bumpFocusRevision(state, 'dev', now), true);
   assert.equal(state.keywordsRev, state.focusRev);
+  assert.deepEqual(state.keywordMarks, { shorts: state.focusRev }, 'a felvett kulcsszó a saját jelét kapja');
   const rev = state.focusRev!;
   assert.equal(bumpFocusRevision(state, 'dev', now + 1), false, 'változatlan: nem léptet');
   state.focusPacks = [{ id: 'p1', name: 'Írás', allowSites: [], allowApps: [], defaultMinutes: 25 }];
@@ -169,6 +220,7 @@ test('a jel: a felvétel és a levétel lépteti a blobot, az átvétel nem', ()
   referee.setKeywords(state, ['shorts', 'reels'], now + 3);
   assert.equal(bumpFocusRevision(state, 'dev', now + 3), true);
   assert.equal(state.keywordsRev, rev + 2);
+  assert.deepEqual(state.keywordMarks, { shorts: rev, reels: rev + 2 }, 'a régi kulcsszó jele nem változik');
   // Egy másik eszközről átvett lista: a lenyomat és a kulcs újraszámolva — nincs léptetés,
   // és a következő saját szerkesztés sem bélyegzi át a jelét.
   state.keywords = ['reels'];
@@ -178,6 +230,27 @@ test('a jel: a felvétel és a levétel lépteti a blobot, az átvétel nem', ()
   state.focusPacks = [];
   assert.equal(bumpFocusRevision(state, 'dev', now + 5), true);
   assert.equal(state.keywordsRev, 9, 'az átvett lista jele marad');
+  assert.deepEqual(state.keywordMarks, { shorts: rev, reels: rev + 2 }, 'az átvétel nem felvétel és nem levétel');
+});
+
+test('a kifizetett levétel jelet hagy — a többi eszközön ez viszi el', () => {
+  const { state } = stateWithSite();
+  const now = 1_700_000_000_000;
+  bumpFocusRevision(state, 'dev', now);
+  referee.setKeywords(state, ['shorts', 'reels'], now);
+  bumpFocusRevision(state, 'dev', now);
+  const added = state.focusRev!;
+  const r = referee.setKeywords(state, ['reels'], now + 1);
+  assert.equal(r.applied, false, 'a levétel próbatétel');
+  solveAll(state, now + 1);
+  bumpFocusRevision(state, 'dev', now + 2);
+  assert.deepEqual(state.keywords, ['reels']);
+  assert.equal(keywordMarkOf(state.keywordMarks, 'shorts'), state.focusRev, 'a levétel a léptetés jelét kapja');
+  assert.equal(keywordMarkOf(state.keywordMarks, 'reels'), added);
+  // A régi példány egy másik eszközön (a felvétel jelével) ettől már nem hozza vissza.
+  const other = focus({ keywords: ['shorts', 'reels'], keywordMarks: { shorts: added, reels: added }, rev: added + 5, updatedBy: 'b' });
+  const mine = focus({ keywords: state.keywords, keywordMarks: state.keywordMarks, rev: state.focusRev!, updatedBy: 'dev' });
+  assert.deepEqual(mergeFocus(mine, other).keywords, ['reels']);
 });
 
 // ------------------------------------------------------------------ a drót
@@ -189,23 +262,33 @@ test('a blob hordozza a kulcsszavakat és a jelüket; a szemét és a túl nagy 
   const n = normalizeSyncFocus({ keywords: ['Shorts', 'ab', 'shorts', 42], keywordsRev: 2, rev: 3 }, 'dev');
   assert.deepEqual(n.keywords, ['shorts']);
   assert.equal(n.keywordsRev, 2);
+  const m = normalizeSyncFocus({ keywords: ['shorts'], keywordMarks: { shorts: 2, reels: 3, live: 9, Shorts: 1 }, rev: 3 }, 'dev');
+  assert.deepEqual(m.keywordMarks, { shorts: 2, reels: 3 }, 'a levétel jele is utazik; a túl nagy és a nem kanonikus kiesik');
   const big = normalizeSyncFocus({ keywords: ['shorts'], keywordsRev: 99, rev: 3 }, 'dev');
   assert.equal(big.keywordsRev, undefined, 'a jel legfeljebb a blob rev-je');
   const none = normalizeSyncFocus({ keywords: [], rev: 3 }, 'dev');
   assert.equal(none.keywords, undefined, 'üresen nincs mező');
 });
 
-test('a blob fésülése: a jel dönt, azonos jelnél az unió; a régi kliens nem töröl', () => {
-  const local = focus({ keywords: ['shorts'], keywordsRev: 3, rev: 3 });
-  const removed = focus({ keywordsRev: 5, rev: 5, updatedBy: 'other' });
+test('a blob fésülése kulcsszavanként: a jeles levétel átmegy, a felhúzott lista-jel és a jeltelen hiány nem töröl', () => {
+  const local = focus({ keywords: ['shorts'], keywordsRev: 3, keywordMarks: { shorts: 3 }, rev: 3 });
+  const removed = focus({ keywordsRev: 5, keywordMarks: { shorts: 5 }, rev: 5, updatedBy: 'other' });
   const merged = mergeFocus(local, removed);
   assert.equal(merged.keywords, undefined, 'a nagyobb jelű levétel átmegy');
   assert.equal(merged.keywordsRev, 5);
+  assert.deepEqual(merged.keywordMarks, { shorts: 5 });
+  // A TRÜKK: egy elavult eszköz felhúzott lista-jellel, a shorts saját jele nélkül.
+  const stale = focus({ keywords: ['reels'], keywordsRev: 40, keywordMarks: { reels: 40 }, rev: 40, updatedAt: 999, updatedBy: 'friss' });
+  for (const m of [mergeFocus(local, stale), mergeFocus(stale, local)]) {
+    assert.deepEqual(m.keywords, ['shorts', 'reels'], 'a shorts megmarad — a reels mellé kerül');
+    assert.equal(m.keywordsRev, 40, 'a lista-jel a régi klienseknek utazik tovább');
+  }
+  const old = focus({ keywordsRev: 9, rev: 9, updatedAt: 999, updatedBy: 'old' });
+  assert.deepEqual(mergeFocus(local, old).keywords, ['shorts'], 'a régi kliens jel nélküli levétele nem viszi el');
   const same = mergeFocus(local, focus({ keywords: ['reels'], keywordsRev: 3, rev: 3 }));
-  assert.deepEqual(same.keywords, ['shorts', 'reels'], 'azonos jel: unió');
-  const old = focus({ rev: 9, updatedAt: 999, updatedBy: 'old' });
-  assert.deepEqual(mergeFocus(local, old).keywords, ['shorts'], 'a jeltelen blob nem viszi el');
+  assert.deepEqual(same.keywords, ['reels', 'shorts'], 'a jeltelen elöl, aztán a jel szerint');
   assert.ok(!sameFocus(local, focus({ ...local, keywords: ['shorts', 'reels'] })), 'a lista cseréje különbség: fel kell tölteni');
+  assert.ok(!sameFocus(local, focus({ ...local, keywordMarks: { shorts: 2 } })), 'a jel cseréje is különbség');
 });
 
 test('a javaslatok maguk is érvényes kulcsszavak — kanonikus alakban, egyszer, a plafon alatt', () => {

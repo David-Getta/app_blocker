@@ -1,4 +1,5 @@
 import hu.breaker.app.core.FocusSync
+import hu.breaker.app.core.KeywordLogic
 import hu.breaker.app.core.ScheduleLogic
 import hu.breaker.app.core.SyncClient
 import hu.breaker.app.core.SyncMerge
@@ -66,10 +67,12 @@ class WireFixtureTest {
         val lock = f.lockdown?.let { "${it.startedAt}/${it.until}" } ?: "-"
         val windows = f.lockdownWindows.joinToString(";") { w -> "${w.id}:${w.days.sorted().joinToString(",")}/${w.startMin}/${w.endMin}" }
         val partner = f.partner?.let { "${it.name}|${it.salt}|${it.hash}|${it.setAt}" } ?: "-"
+        val co = f.partnerCo.joinToString(";") { "${it.name}|${it.salt}|${it.hash}|${it.setAt}" }
+        val gone = f.partnersGone.joinToString(";") { "${it.id}@${it.at}" }
         return "packs=[$packs] marks=[$marks] log=[$log] rev=${f.rev} at=${f.updatedAt} by=${f.updatedBy}" +
             " run=$run lock=$lock windows=[$windows] wmark=${f.lockdownWindowsRev ?: 0}" +
-            " kw=[${f.keywords.joinToString(",")}] kmark=${f.keywordsRev ?: 0}" +
-            " partner=$partner pmark=${f.partnerRev ?: 0}" +
+            " kw=[${f.keywords.joinToString(",")}] kmark=${f.keywordsRev ?: 0} kwm=[${KeywordLogic.keywordMarksKey(f.keywordMarks)}]" +
+            " partner=$partner pmark=${f.partnerRev ?: 0} co=[$co] gone=[$gone]" +
             " hide=${if (f.hideSiteList) 1 else 0} hmark=${f.hideSiteListRev ?: 0}"
     }
 

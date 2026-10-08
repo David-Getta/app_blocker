@@ -25,6 +25,7 @@ import { normalizeSyncFocus, type SyncFocus } from '../src/shared/sync/focus-mer
 import type { SyncSite } from '../src/shared/sync/merge';
 import { normalizeSchedule, type Schedule } from '../src/shared/schedule';
 import { rng, usageConformanceKey } from './merge-random';
+import { keywordMarksKey } from '../src/shared/keywords';
 import { combineUsage, type UsageState } from '../src/shared/usage';
 
 /** dist-test/test/… → a tároló gyökere. */
@@ -185,6 +186,10 @@ const LOG_DROPPED: unknown[] = [
  */
 const SALT = 'A'.repeat(24);
 const HASH = 'B'.repeat(44);
+const SALT2 = 'C'.repeat(24);
+const HASH2 = 'D'.repeat(44);
+const SALT3 = 'E'.repeat(24);
+const HASH3 = 'F'.repeat(44);
 const FIELD_VARIANTS: Record<string, unknown>[] = [
   { run: { packId: 'p1', startedAt: 1000, endsAt: 5000 } },
   { run: { packId: 'p1', startedAt: '1000', endsAt: 5000 } },
@@ -215,11 +220,37 @@ const FIELD_VARIANTS: Record<string, unknown>[] = [
   { lockdownWindows: 'x', lockdownWindowsRev: '3' },
   { keywords: ['shorts', 12345, null, 'reels', 'Shorts', true, '  live  '], keywordsRev: 2 },
   { keywords: 'x', keywordsRev: 9 },
+  // A kulcsszó-jelek: kanonikus kulcsszó, pozitív egész, legfeljebb a rev — a
+  // „__proto__” is rendes kulcsszó (a JSON-ban saját mező, nem az öröklött).
+  {
+    keywords: ['shorts', '__proto__'], keywordsRev: 2,
+    keywordMarks: JSON.parse('{"shorts":2,"reels":3,"live":"2","stream":1.5,"tiktok":9,"Shorts":1,"két szó":1,"ab":1,"__proto__":4}'),
+  },
+  { keywordMarks: 'x' },
+  { keywordMarks: [1, 2] },
   { partner: { name: 'Anna', salt: SALT, hash: HASH, setAt: 1000 }, partnerRev: 4 },
   { partner: { name: 'Anna', salt: SALT, hash: HASH, setAt: '1000' }, partnerRev: 1.5 },
   { partner: { name: 5, salt: SALT, hash: HASH, setAt: 1000 } },
   { partner: { name: 'Anna', salt: 5, hash: HASH } },
   { partner: 'x' },
+  // A társak és a levettek nyoma: a fővel egyező és a rossz alakú társ kiesik,
+  // a rossz azonosságú nyom is; a nem egész vagy nem szám időpont nulla — és a
+  // nyommal levett nem él, a fő a legkorábban felvett élő.
+  {
+    partner: { name: 'Anna', salt: SALT, hash: HASH, setAt: 1000 },
+    partnerCo: [
+      { name: 'Béla', salt: SALT2, hash: HASH2, setAt: 2000 }, { name: 'Anna', salt: SALT, hash: HASH, setAt: 1000 },
+      'x', { name: 5, salt: SALT3, hash: HASH3 },
+    ],
+    partnersGone: [{ id: `${SALT3}|${HASH3}`, at: 7 }, { id: 'rossz', at: 1 }, { id: `${SALT2}|${HASH2}`, at: '3' }, null],
+  },
+  {
+    partner: { name: 'Anna', salt: SALT, hash: HASH, setAt: 1000 },
+    partnerCo: [{ name: 'Béla', salt: SALT2, hash: HASH2, setAt: 2000 }],
+    partnersGone: [{ id: `${SALT}|${HASH}`, at: 1.5 }],
+  },
+  { partnerCo: [{ name: 'Béla', salt: SALT2, hash: HASH2, setAt: 2000 }, { name: 'Cili', salt: SALT3, hash: HASH3, setAt: 500 }] },
+  { partnerCo: 'x', partnersGone: {} },
   { hideSiteList: true, hideSiteListRev: 2 },
   { hideSiteList: 'true', hideSiteListRev: 2 },
   { hideSiteList: 1 },
@@ -240,11 +271,13 @@ function focusKey(f: SyncFocus): string {
   const lock = f.lockdown ? `${f.lockdown.startedAt}/${f.lockdown.until}` : '-';
   const windows = (f.lockdownWindows ?? []).map((w) => `${w.id}:${w.days.join(',')}/${w.startMin}/${w.endMin}`);
   const partner = f.partner ? `${f.partner.name}|${f.partner.salt}|${f.partner.hash}|${f.partner.setAt}` : '-';
+  const co = (f.partnerCo ?? []).map((p) => `${p.name}|${p.salt}|${p.hash}|${p.setAt}`).join(';');
+  const gone = (f.partnersGone ?? []).map((g) => `${g.id}@${g.at}`).join(';');
   return `packs=[${packs.join(';')}] marks=[${marks.join(',')}] log=[${log.join(';')}]`
     + ` rev=${f.rev} at=${f.updatedAt} by=${f.updatedBy}`
     + ` run=${run} lock=${lock} windows=[${windows.join(';')}] wmark=${f.lockdownWindowsRev ?? 0}`
-    + ` kw=[${(f.keywords ?? []).join(',')}] kmark=${f.keywordsRev ?? 0}`
-    + ` partner=${partner} pmark=${f.partnerRev ?? 0}`
+    + ` kw=[${(f.keywords ?? []).join(',')}] kmark=${f.keywordsRev ?? 0} kwm=[${keywordMarksKey(f.keywordMarks)}]`
+    + ` partner=${partner} pmark=${f.partnerRev ?? 0} co=[${co}] gone=[${gone}]`
     + ` hide=${f.hideSiteList ? 1 : 0} hmark=${f.hideSiteListRev ?? 0}`;
 }
 
@@ -346,7 +379,7 @@ function buildFixture(): Fixture {
       + 'Az in egy dróton jött JSON-szöveg (oldal-lista vagy munkamenet-dokumentum), az out a gép olvasójának '
       + 'eredménye kulcsként; a Kotlin WireFixtureTest és a Swift WireFixtureTests a saját olvasójával '
       + 'ugyanezt kell kapja. Egy rossz elem nem viheti a többit.',
-    version: 1,
+    version: 2,
     sites: siteCases().map((arr) => {
       const text = JSON.stringify(arr);
       return { in: text, out: normalizeIncomingSites(JSON.parse(text)).map(siteKey).join('\n') };

@@ -363,7 +363,7 @@ function buildFixture(): Fixture {
       + 'lazítás, élő ablak, megkövetelt zárlat, ablak-zárlat-e, közelgő ablak, a következő előfordulás (nextOcc). '
       + 'A focusLogs-esetek: napló és időpont (UTC) — a hét és az előző hét összegzője (menet/ms/korai/ablakból/csúcs-csomag), '
       + 'menet-napok, menet-órák, sorozat, leghosszabb sorozat, ablakból indult menetek csomagonként, a napi rajz.',
-    version: 17,
+    version: 18,
     sites,
     focus,
     usage,

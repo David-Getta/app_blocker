@@ -16,7 +16,7 @@ import {
 } from '../shared/focus';
 import type { UrlRule } from '../shared/urlrules';
 import { normalizeWindows, parseLockdown } from '../shared/lockdown';
-import { cleanKeywords } from '../shared/keywords';
+import { cleanKeywordMarks, cleanKeywords, type KeywordMarks } from '../shared/keywords';
 import { cleanBrowserHits } from '../shared/browser-hits';
 import { normalizeBurst } from '../shared/burst';
 import { stateFilePath } from './paths';
@@ -210,8 +210,17 @@ export interface HelperState {
    * Hiányzik = nincs kulcsszó. Lásd shared/keywords.ts.
    */
   keywords?: string[];
-  /** A kulcsszó-lista JELE: a blob `rev`-je, amelyik utoljára változtatta (revisions.ts). */
+  /**
+   * A kulcsszó-lista JELE: a blob `rev`-je, amelyik utoljára változtatta
+   * (revisions.ts) — csak a régi kliensek miatt utazik.
+   */
   keywordsRev?: number;
+  /**
+   * A KULCSSZAVANKÉNTI jelek: kulcsszó → a blob `rev`-je, amelyik utoljára
+   * felvette vagy levette (revisions.ts, `markKeywordChanges`). A fésülés
+   * ezekből dönt, kulcsszavanként (shared/keywords.ts, `mergeKeywordSets`).
+   */
+  keywordMarks?: KeywordMarks;
   /**
    * PÁRBAN ZÁROLÁS: a megbízott lenyomata, ha van. Amíg van, minden lazító
    * próbatétel utolsó lépése az ő jelmondata; felvenni ingyen, levenni
@@ -361,6 +370,8 @@ export interface HelperState {
   focusRevPartner?: string;
   /** a kulcsszó-lista kulcsa az előző léptetéskor — ebből látszik, változott-e (a jeléhez) */
   focusRevKeywords?: string;
+  /** a kulcsszó-lista az előző léptetéskor — ebből látszik, mi került be és mi ki (a kulcsszavak jeleihez) */
+  focusRevKeywordList?: string[];
   focusRevHide?: string;
   /**
    * A csatorna-szűrők szinkron-számlálója — a munkamenet mintájára.
@@ -537,6 +548,16 @@ export function loadState(): HelperState {
       if (parsed.keywordsRev !== undefined
         && !(Number.isInteger(parsed.keywordsRev) && parsed.keywordsRev > 0)) {
         delete parsed.keywordsRev;
+      }
+      // A kulcsszó-jelek is a mag szűrőjén át: kanonikus kulcsszó, pozitív
+      // egész, legfeljebb a blob rev-je, a plafonnal — mint a dróton.
+      if (parsed.keywordMarks !== undefined) {
+        const rev = typeof parsed.focusRev === 'number' && Number.isFinite(parsed.focusRev) ? parsed.focusRev : 0;
+        const m = cleanKeywordMarks(parsed.keywordMarks, parsed.keywords ?? [], rev);
+        if (m) parsed.keywordMarks = m; else delete parsed.keywordMarks;
+      }
+      if (parsed.focusRevKeywordList !== undefined) {
+        parsed.focusRevKeywordList = cleanKeywords(parsed.focusRevKeywordList);
       }
       // A PÁRBAN ZÁROLÁS rekordja: csak a jó alakú marad. Egy sérült lenyomat
       // nem „nincs megbízott”, hanem egy megbízott, akinek a jelmondata sosem

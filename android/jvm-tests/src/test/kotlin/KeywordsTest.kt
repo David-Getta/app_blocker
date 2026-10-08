@@ -55,10 +55,42 @@ class KeywordsTest {
         assertTrue(KeywordLogic.isKeywordsLoosening(listOf("shorts", "reels"), listOf("shorts")), "levétel: lazítás")
     }
 
-    @Test fun `fesules a jel szerint es illesztes a cimre`() {
-        assertEquals(listOf("reels"), KeywordLogic.mergeKeywords(3, listOf("shorts"), 5, listOf("reels")))
-        assertEquals(listOf("shorts", "reels"), KeywordLogic.mergeKeywords(3, listOf("shorts"), 3, listOf("reels")), "azonos jel: unió")
-        assertEquals(listOf("shorts"), KeywordLogic.mergeKeywords(0, listOf(), 0, listOf("shorts")), "a jeltelen nem töröl")
+    private fun set(keywords: List<String>, marks: Map<String, Int>? = null) = KeywordLogic.KeywordSet(keywords, marks)
+
+    @Test fun `fesules KULCSSZAVANKENT - a nagyobb jel dont, egyenlonel es jel nelkul az unio`() {
+        assertEquals(set(emptyList(), mapOf("shorts" to 5)), KeywordLogic.mergeKeywordSets(set(listOf("shorts")), set(emptyList(), mapOf("shorts" to 5))),
+            "a jeles levétel átmegy")
+        assertEquals(listOf("shorts"), KeywordLogic.mergeKeywordSets(set(listOf("shorts"), mapOf("shorts" to 6)), set(emptyList(), mapOf("shorts" to 5))).keywords)
+        assertEquals(listOf("reels", "shorts"), KeywordLogic.mergeKeywordSets(set(listOf("shorts")), set(listOf("reels"))).keywords, "jel nélkül unió")
+        assertEquals(listOf("shorts"), KeywordLogic.mergeKeywordSets(set(emptyList()), set(listOf("shorts"))).keywords, "a jeltelen hiány nem töröl")
+        assertEquals(listOf("shorts"), KeywordLogic.mergeKeywordSets(set(listOf("shorts"), mapOf("shorts" to 4)), set(emptyList(), mapOf("shorts" to 4))).keywords,
+            "egyenlő jel: unió")
+        // A TRÜKK: egy elavult eszközön egy ingyenes felvétel — a régi listája nem töröl.
+        val account = set(listOf("shorts", "reels"), mapOf("shorts" to 3, "reels" to 7))
+        val stale = set(listOf("shorts", "live"), mapOf("shorts" to 3, "live" to 40))
+        for (m in listOf(KeywordLogic.mergeKeywordSets(account, stale), KeywordLogic.mergeKeywordSets(stale, account))) {
+            assertEquals(listOf("shorts", "reels", "live"), m.keywords, "a reels megmarad, a live mellé kerül — a sorrend a jelé")
+            assertEquals(mapOf("shorts" to 3, "reels" to 7, "live" to 40), m.keywordMarks)
+        }
+        // A plafon a régit védi.
+        val legacy = listOf("alma", "korte", "szilva")
+        val junk = (0 until KeywordLogic.MAX_KEYWORDS).map { "szemet${it.toString().padStart(2, '0')}" }
+        val crowded = KeywordLogic.mergeKeywordSets(set(legacy), set(junk, junk.associateWith { 50 }))
+        assertEquals(KeywordLogic.MAX_KEYWORDS, crowded.keywords.size)
+        assertTrue(crowded.keywords.containsAll(legacy), "a régi kulcsszavak nem szorulnak ki")
+        val lots = (0 until 200).associate { "gone${it.toString().padStart(3, '0')}" to it + 1 }
+        val capped = KeywordLogic.capKeywordMarks(lots, listOf("gone000"))!!
+        assertEquals(KeywordLogic.MAX_KEYWORD_MARKS, capped.size)
+        assertEquals(1, capped["gone000"], "a jelen lévő jele mindig marad")
+        assertEquals(200, capped["gone199"])
+        assertNull(capped["gone001"], "a legrégebbi levétel esik ki")
+        assertEquals(mapOf("shorts" to 2),
+            KeywordLogic.cleanKeywordMarks(mapOf("shorts" to 2, "reels" to 0, "stream" to 9, "Shorts" to 1, "ab" to 1, "két szó" to 1), listOf("shorts"), 3))
+        assertEquals(mapOf("shorts" to 2, "reels" to 5, "live" to 5),
+            KeywordLogic.markKeywordChanges(mapOf("shorts" to 2), listOf("shorts", "reels"), listOf("shorts", "live"), 5))
+    }
+
+    @Test fun `illesztes a cimre`() {
         val words = listOf("shorts", "tiktok", "játék")
         assertEquals("shorts", KeywordLogic.keywordHit(words, "https://www.youtube.com/shorts/abc"))
         assertEquals("shorts", KeywordLogic.keywordHit(words, "https://www.youtube.com/watch?v=x&list=SHORTS"))
@@ -71,18 +103,24 @@ class KeywordsTest {
 
     @Test fun `a jel - a lista cserele lepteti a blobot, az atvetel nem`() {
         var st = AppState()
-        assertEquals(st.copy(focusRevFp = SyncRevisions.focusFingerprint(st)), SyncRevisions.bumpFocus(st, "telefon", now), "üres: nincs léptetés")
-        st = SyncRevisions.bumpFocus(st.copy(keywords = listOf("shorts")), "telefon", now)
+        assertEquals(st.copy(focusRevFp = SyncRevisions.focusFingerprint(st), focusRevKeywordList = emptyList()),
+            SyncRevisions.bumpFocus(st, "telefon", now), "üres: nincs léptetés")
+        st = SyncRevisions.bumpFocus(SyncRevisions.bumpFocus(st, "telefon", now).copy(keywords = listOf("shorts")), "telefon", now)
         assertEquals(1L, st.focusRev)
         assertEquals(1, st.keywordsRev)
+        assertEquals(mapOf("shorts" to 1), st.keywordMarks, "a felvett kulcsszó a saját jelét kapja")
         assertEquals(st, SyncRevisions.bumpFocus(st, "telefon", now + 1), "változatlanul nem léptet")
         st = SyncRevisions.bumpFocus(st.copy(focusPacks = listOf(Focus.FocusPack("p1", "Írás", emptyList(), emptyList(), 25))), "telefon", now + 2)
         assertEquals(2L, st.focusRev)
         assertEquals(1, st.keywordsRev, "a csomag szerkesztése nem a kulcsszavak jele")
+        assertEquals(mapOf("shorts" to 1), st.keywordMarks, "a csomag szerkesztése a kulcsszó jelét sem bántja")
+        st = SyncRevisions.bumpFocus(st.copy(keywords = emptyList()), "telefon", now + 3)
+        assertEquals(mapOf("shorts" to 3), st.keywordMarks, "a levétel a léptetés jelét kapja")
         val adopted = SyncRevisions.adoptFocus(st.copy(keywords = listOf("reels"), keywordsRev = 9))
-        assertEquals(adopted, SyncRevisions.bumpFocus(adopted, "telefon", now + 3), "az átvétel nem szerkesztés")
-        val edited = SyncRevisions.bumpFocus(adopted.copy(focusPacks = emptyList()), "telefon", now + 4)
+        assertEquals(adopted, SyncRevisions.bumpFocus(adopted, "telefon", now + 4), "az átvétel nem szerkesztés")
+        val edited = SyncRevisions.bumpFocus(adopted.copy(focusPacks = emptyList()), "telefon", now + 5)
         assertEquals(9, edited.keywordsRev, "az átvett lista jele marad")
+        assertEquals(mapOf("shorts" to 3), edited.keywordMarks, "az átvett kulcsszó nem saját felvétel")
     }
 
     @Test fun `a drot - a lista es a jele oda-vissza, a szemet kiesik, a fesules a blobon`() {
@@ -99,23 +137,45 @@ class KeywordsTest {
         assertTrue(text.contains("\"keywordsRev\":3"))
         assertFalse(SyncClient.focusToJson(base).contains("keywords"), "üresen nincs mező")
 
-        val local = base.copy(keywords = listOf("shorts"), keywordsRev = 3, rev = 3)
-        val removed = base.copy(keywordsRev = 5, rev = 5, updatedBy = "other")
+        val withMarks = SyncClient.focusFromJson(
+            JSONObject().put("packs", JSONArray()).put("rev", 3).put("keywords", JSONArray(listOf("shorts")))
+                .put("keywordMarks", JSONObject().put("shorts", 2).put("reels", 3).put("live", 9).put("Shorts", 1).put("stream", 1.5))
+                .toString(),
+            "dev", null,
+        )
+        assertEquals(mapOf("shorts" to 2, "reels" to 3), withMarks.keywordMarks, "a levétel jele is utazik; a túl nagy és a nem kanonikus kiesik")
+        assertTrue(SyncClient.focusToJson(base.copy(keywords = listOf("shorts"), keywordMarks = mapOf("shorts" to 3), rev = 3))
+            .contains("\"keywordMarks\":{\"shorts\":3}"))
+
+        val local = base.copy(keywords = listOf("shorts"), keywordsRev = 3, keywordMarks = mapOf("shorts" to 3), rev = 3)
+        val removed = base.copy(keywordsRev = 5, keywordMarks = mapOf("shorts" to 5), rev = 5, updatedBy = "other")
         assertEquals(emptyList(), FocusSync.merge(local, removed).keywords, "a nagyobb jelű levétel átmegy")
         assertEquals(5, FocusSync.merge(local, removed).keywordsRev)
-        assertEquals(listOf("shorts", "reels"), FocusSync.merge(local, base.copy(keywords = listOf("reels"), keywordsRev = 3, rev = 3)).keywords)
-        assertEquals(listOf("shorts"), FocusSync.merge(local, base.copy(rev = 9, updatedAt = 999, updatedBy = "old")).keywords, "a jeltelen nem viszi el")
+        // A TRÜKK: egy elavult eszköz felhúzott lista-jellel, a shorts saját jele nélkül.
+        val stale = base.copy(keywords = listOf("reels"), keywordsRev = 40, keywordMarks = mapOf("reels" to 40), rev = 40, updatedAt = 999, updatedBy = "friss")
+        for (m in listOf(FocusSync.merge(local, stale), FocusSync.merge(stale, local))) {
+            assertEquals(listOf("shorts", "reels"), m.keywords, "a shorts megmarad — a reels mellé kerül")
+            assertEquals(40, m.keywordsRev)
+        }
+        assertEquals(listOf("shorts"), FocusSync.merge(local, base.copy(keywordsRev = 9, rev = 9, updatedAt = 999, updatedBy = "old")).keywords,
+            "a régi kliens jel nélküli levétele nem viszi el")
         assertFalse(FocusSync.same(local, local.copy(keywords = listOf("shorts", "reels"))), "a lista cseréje különbség")
+        assertFalse(FocusSync.same(local, local.copy(keywordMarks = mapOf("shorts" to 2))), "a jel cseréje is különbség")
     }
 
     @Test fun `a mentes - a lista, a jel es a kulcs tuleli`() {
         val toJson = BreakerStore::class.java.getDeclaredMethod("toJson", AppState::class.java).apply { isAccessible = true }
         val fromJson = BreakerStore::class.java.getDeclaredMethod("fromJson", JSONObject::class.java).apply { isAccessible = true }
-        val st = AppState(keywords = listOf("shorts", "reels"), keywordsRev = 4, focusRevKeywords = "reels|shorts")
+        val st = AppState(
+            keywords = listOf("shorts", "reels"), keywordsRev = 4, focusRevKeywords = "reels|shorts", focusRev = 4,
+            keywordMarks = mapOf("shorts" to 4, "live" to 2), focusRevKeywordList = listOf("shorts", "reels"),
+        )
         val back = fromJson.invoke(BreakerStore, JSONObject(toJson.invoke(BreakerStore, st).toString())) as AppState
         assertEquals(listOf("shorts", "reels"), back.keywords)
         assertEquals(4, back.keywordsRev)
         assertEquals("reels|shorts", back.focusRevKeywords)
+        assertEquals(mapOf("shorts" to 4, "live" to 2), back.keywordMarks)
+        assertEquals(listOf("shorts", "reels"), back.focusRevKeywordList)
         // A kulcsszavak előtt írt fájl: üres lista, jel nélkül.
         val old = fromJson.invoke(BreakerStore, JSONObject("{\"sites\":[]}")) as AppState
         assertEquals(emptyList(), old.keywords)

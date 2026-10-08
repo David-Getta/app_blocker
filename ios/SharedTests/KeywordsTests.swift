@@ -52,10 +52,49 @@ final class KeywordsTests: XCTestCase {
         XCTAssertTrue(KeywordLogic.isKeywordsLoosening(["shorts", "reels"], ["shorts"]), "levétel: lazítás")
     }
 
-    func testMergeByMarkAndMatchingOnTheUrl() {
-        XCTAssertEqual(KeywordLogic.mergeKeywords(3, ["shorts"], 5, ["reels"]), ["reels"])
-        XCTAssertEqual(KeywordLogic.mergeKeywords(3, ["shorts"], 3, ["reels"]), ["shorts", "reels"], "azonos jel: unió")
-        XCTAssertEqual(KeywordLogic.mergeKeywords(0, [], 0, ["shorts"]), ["shorts"], "a jeltelen nem töröl")
+    private func set(_ keywords: [String], _ marks: [String: Int]? = nil) -> KeywordLogic.KeywordSet {
+        KeywordLogic.KeywordSet(keywords: keywords, keywordMarks: marks)
+    }
+
+    func testMergePerKeywordTheHigherMarkDecidesEqualOrMissingIsTheUnion() {
+        XCTAssertEqual(KeywordLogic.mergeKeywordSets(set(["shorts"]), set([], ["shorts": 5])), set([], ["shorts": 5]),
+                       "a jeles levétel átmegy")
+        XCTAssertEqual(KeywordLogic.mergeKeywordSets(set(["shorts"], ["shorts": 6]), set([], ["shorts": 5])).keywords, ["shorts"])
+        XCTAssertEqual(KeywordLogic.mergeKeywordSets(set(["shorts"]), set(["reels"])).keywords, ["reels", "shorts"], "jel nélkül unió")
+        XCTAssertEqual(KeywordLogic.mergeKeywordSets(set([]), set(["shorts"])).keywords, ["shorts"], "a jeltelen hiány nem töröl")
+        XCTAssertEqual(KeywordLogic.mergeKeywordSets(set(["shorts"], ["shorts": 4]), set([], ["shorts": 4])).keywords, ["shorts"],
+                       "egyenlő jel: unió")
+        // A TRÜKK: egy elavult eszközön egy ingyenes felvétel — a régi listája nem töröl.
+        let account = set(["shorts", "reels"], ["shorts": 3, "reels": 7])
+        let stale = set(["shorts", "live"], ["shorts": 3, "live": 40])
+        for m in [KeywordLogic.mergeKeywordSets(account, stale), KeywordLogic.mergeKeywordSets(stale, account)] {
+            XCTAssertEqual(m.keywords, ["shorts", "reels", "live"], "a reels megmarad, a live mellé kerül — a sorrend a jelé")
+            XCTAssertEqual(m.keywordMarks, ["shorts": 3, "reels": 7, "live": 40])
+        }
+        // A plafon a régit védi.
+        let legacy = ["alma", "korte", "szilva"]
+        let junk = (0..<KeywordLogic.maxKeywords).map { "szemet\(String(format: "%02d", $0))" }
+        let crowded = KeywordLogic.mergeKeywordSets(set(legacy), set(junk, Dictionary(uniqueKeysWithValues: junk.map { ($0, 50) })))
+        XCTAssertEqual(crowded.keywords.count, KeywordLogic.maxKeywords)
+        for k in legacy { XCTAssertTrue(crowded.keywords.contains(k), "a régi \(k) nem szorul ki") }
+        let lots = Dictionary(uniqueKeysWithValues: (0..<200).map { ("gone\(String(format: "%03d", $0))", $0 + 1) })
+        let capped = KeywordLogic.capKeywordMarks(lots, ["gone000"])
+        XCTAssertEqual(capped?.count, KeywordLogic.maxKeywordMarks)
+        XCTAssertEqual(capped?["gone000"], 1, "a jelen lévő jele mindig marad")
+        XCTAssertEqual(capped?["gone199"], 200)
+        XCTAssertNil(capped?["gone001"], "a legrégebbi levétel esik ki")
+        XCTAssertEqual(
+            KeywordLogic.cleanKeywordMarks(["shorts": 2, "reels": 0, "stream": 9, "Shorts": 1, "ab": 1, "két szó": 1], ["shorts"], maxRev: 3),
+            ["shorts": 2]
+        )
+        // Bontott ékezet: a gépen nem kanonikus, itt sem — a Swift `==` egynek venné.
+        let combining = String(Character(UnicodeScalar(0x0301)!))
+        XCTAssertNil(KeywordLogic.cleanKeywordMarks(["a" + combining + "lom": 2], [], maxRev: 3))
+        XCTAssertEqual(KeywordLogic.markKeywordChanges(["shorts": 2], prev: ["shorts", "reels"], next: ["shorts", "live"], rev: 5),
+                       ["shorts": 2, "reels": 5, "live": 5])
+    }
+
+    func testMatchingOnTheUrl() {
         let words = ["shorts", "tiktok", "játék"]
         XCTAssertEqual(KeywordLogic.keywordHit(words, "https://www.youtube.com/shorts/abc"), "shorts")
         XCTAssertEqual(KeywordLogic.keywordHit(words, "https://www.youtube.com/watch?v=x&list=SHORTS"), "shorts")
@@ -74,11 +113,13 @@ final class KeywordsTests: XCTestCase {
         st = SyncRevisions.bumpFocus(st, deviceId: "iphone", now: now)
         XCTAssertEqual(st.focusRev, 1)
         XCTAssertEqual(st.keywordsRev, 1)
+        XCTAssertEqual(st.keywordMarks, ["shorts": 1], "a felvett kulcsszó a saját jelét kapja")
         XCTAssertEqual(SyncRevisions.bumpFocus(st, deviceId: "iphone", now: now + 1), st, "változatlanul nem léptet")
         st.focusPacks = [Focus.Pack(id: "p1", name: "Írás", allowSites: [], allowApps: [], defaultMinutes: 25, recurrence: nil)]
         st = SyncRevisions.bumpFocus(st, deviceId: "iphone", now: now + 2)
         XCTAssertEqual(st.focusRev, 2)
         XCTAssertEqual(st.keywordsRev, 1, "a csomag szerkesztése nem a kulcsszavak jele")
+        XCTAssertEqual(st.keywordMarks, ["shorts": 1], "a csomag szerkesztése a kulcsszó jelét sem bántja")
         st.keywords = ["reels"]
         st.keywordsRev = 9
         let adopted = SyncRevisions.adoptFocus(st)
@@ -87,6 +128,7 @@ final class KeywordsTests: XCTestCase {
         edited.focusPacks = []
         edited = SyncRevisions.bumpFocus(edited, deviceId: "iphone", now: now + 4)
         XCTAssertEqual(edited.keywordsRev, 9, "az átvett lista jele marad")
+        XCTAssertEqual(edited.keywordMarks, ["shorts": 1], "az átvett kulcsszó nem saját felvétel")
     }
 
     func testTheWireCarriesTheListAndTheMarkAndMergesOnTheBlob() throws {
@@ -104,17 +146,33 @@ final class KeywordsTests: XCTestCase {
         let bare = String(decoding: try JSONEncoder().encode(FocusSync.SyncFocus(rev: 1, updatedAt: 1, updatedBy: "dev")), as: UTF8.self)
         XCTAssertFalse(bare.contains("keywords"), "üresen nincs mező")
 
-        let removed = FocusSync.SyncFocus(rev: 5, updatedAt: 0, updatedBy: "other", keywordsRev: 5)
-        let merged = FocusSync.merge(mine, removed)
+        let withMarks = """
+        {"packs":[],"rev":3,"keywords":["shorts"],"keywordMarks":{"shorts":2,"reels":3,"live":9,"Shorts":1,"stream":1.5,"tiktok":"2"}}
+        """
+        let wm = FocusSync.normalize(try JSONDecoder().decode(FocusSync.SyncFocus.self, from: Data(withMarks.utf8)), fallbackDevice: "dev")
+        XCTAssertEqual(wm.keywordMarks, ["shorts": 2, "reels": 3], "a levétel jele is utazik; a túl nagy és a nem kanonikus kiesik")
+        let marked = FocusSync.SyncFocus(rev: 3, updatedAt: 1, updatedBy: "dev", keywords: ["shorts"], keywordsRev: 3, keywordMarks: ["shorts": 3])
+        XCTAssertTrue(String(decoding: try JSONEncoder().encode(marked), as: UTF8.self).contains("\"keywordMarks\":{\"shorts\":3}"))
+
+        let removed = FocusSync.SyncFocus(rev: 5, updatedAt: 0, updatedBy: "other", keywordsRev: 5, keywordMarks: ["shorts": 5])
+        let merged = FocusSync.merge(marked, removed)
         XCTAssertNil(merged.keywords, "a nagyobb jelű levétel átmegy")
         XCTAssertEqual(merged.keywordsRev, 5)
-        let same = FocusSync.merge(mine, FocusSync.SyncFocus(rev: 3, updatedAt: 0, updatedBy: "o", keywords: ["reels"], keywordsRev: 3))
-        XCTAssertEqual(same.keywords, ["shorts", "reels"], "azonos jel: unió")
-        let old = FocusSync.SyncFocus(rev: 9, updatedAt: 999, updatedBy: "old")
-        XCTAssertEqual(FocusSync.merge(mine, old).keywords, ["shorts"], "a jeltelen nem viszi el")
-        var swapped = mine
+        // A TRÜKK: egy elavult eszköz felhúzott lista-jellel, a shorts saját jele nélkül.
+        let stale = FocusSync.SyncFocus(rev: 40, updatedAt: 999, updatedBy: "friss", keywords: ["reels"], keywordsRev: 40,
+                                        keywordMarks: ["reels": 40])
+        for m in [FocusSync.merge(marked, stale), FocusSync.merge(stale, marked)] {
+            XCTAssertEqual(m.keywords, ["shorts", "reels"], "a shorts megmarad — a reels mellé kerül")
+            XCTAssertEqual(m.keywordsRev, 40)
+        }
+        let old = FocusSync.SyncFocus(rev: 9, updatedAt: 999, updatedBy: "old", keywordsRev: 9)
+        XCTAssertEqual(FocusSync.merge(marked, old).keywords, ["shorts"], "a régi kliens jel nélküli levétele nem viszi el")
+        var swapped = marked
         swapped.keywords = ["shorts", "reels"]
-        XCTAssertFalse(FocusSync.same(mine, swapped), "a lista cseréje különbség")
+        XCTAssertFalse(FocusSync.same(marked, swapped), "a lista cseréje különbség")
+        var remarked = marked
+        remarked.keywordMarks = ["shorts": 2]
+        XCTAssertFalse(FocusSync.same(marked, remarked), "a jel cseréje is különbség")
     }
 
     func testTheSuggestionsAreValidKeywordsThemselves() {

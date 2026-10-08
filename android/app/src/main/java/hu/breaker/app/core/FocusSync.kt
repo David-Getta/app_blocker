@@ -89,12 +89,14 @@ object FocusSync {
         val hideSiteList: Boolean = false,
         val hideSiteListRev: Int? = null,
         /**
-         * KULCSSZÓ-SZABÁLYOK: a lista és a jele — a fésülése az ablakoké: a
-         * jel dönt, azonos jelnél a bővebb lista. Üresen nincs mező a dróton.
-         * Lásd `KeywordLogic.mergeKeywords`.
+         * KULCSSZÓ-SZABÁLYOK: a lista, és KULCSSZAVANKÉNT a jelük (kulcsszó → a
+         * blob rev-je, amelyik utoljára felvette vagy levette). A fésülés
+         * kulcsszavanként megy — lásd `KeywordLogic.mergeKeywordSets`; a lista
+         * egészének jele csak a régi klienseknek utazik. Üresen nincs mező.
          */
         val keywords: List<String> = emptyList(),
         val keywordsRev: Int? = null,
+        val keywordMarks: Map<String, Int>? = null,
     )
 
     /**
@@ -114,6 +116,11 @@ object FocusSync {
         // A megbízottak AZONOSSÁG szerint: élő megbízottat csak a nyoma visz el,
         // két különböző élő közül egyik sem esik ki (`PartnerLogic.mergePartners`).
         val partners = PartnerLogic.mergePartners(partnerSetOf(local), partnerSetOf(incoming))
+        // A kulcsszavak KULCSSZAVANKÉNT, a jelük szerint (`KeywordLogic.mergeKeywordSets`).
+        val kw = KeywordLogic.mergeKeywordSets(
+            KeywordLogic.KeywordSet(local.keywords, local.keywordMarks),
+            KeywordLogic.KeywordSet(incoming.keywords, incoming.keywordMarks),
+        )
         // EGYESÍTÉS, nem választás: lásd a `log` mező magyarázatát. ELŐBB a
         // napló: a menet sorsát ez dönti el (a leállítás nyoma a naplósor).
         val log = mergeLog(local.log, incoming.log)
@@ -147,11 +154,11 @@ object FocusSync {
             partnerRev = maxOf(local.partnerRev ?: 0, incoming.partnerRev ?: 0).takeIf { it > 0 },
             partnerCo = partners.partnerCo,
             partnersGone = partners.partnersGone,
-            // A kulcsszavak ugyanígy: a jel dönt, azonos jelnél a bővebb lista.
-            keywords = KeywordLogic.mergeKeywords(
-                local.keywordsRev ?: 0, local.keywords, incoming.keywordsRev ?: 0, incoming.keywords,
-            ),
+            // A kulcsszavak kulcsszavanként (fent); a lista egészének jele csak a
+            // régi klienseknek utazik tovább, a nagyobbik.
+            keywords = kw.keywords,
             keywordsRev = maxOf(local.keywordsRev ?: 0, incoming.keywordsRev ?: 0).takeIf { it > 0 },
+            keywordMarks = kw.keywordMarks,
             // A rejtés ugyanígy: a jel dönt, azonos jelnél a rejtett — a szigorúbb irány.
             hideSiteList = mergeHide(
                 local.hideSiteListRev ?: 0, local.hideSiteList, incoming.hideSiteListRev ?: 0, incoming.hideSiteList,
@@ -525,8 +532,9 @@ object FocusSync {
         val partner = PartnerLogic.partnerKey(f.partner) +
             "~" + f.partnerCo.joinToString(";") { PartnerLogic.partnerKey(it) } +
             "~" + f.partnersGone.joinToString(";") { "${it.id}@${it.at}" }
-        // A kulcsszavak a jelükkel — tartalom szerint, rendezve.
-        val keywords = KeywordLogic.keywordsKey(f.keywords)
+        // A kulcsszavak a jelükkel — tartalom szerint, rendezve; a kulcsszavankénti
+        // jelek is: egy levétel jele nélkül a levétel sosem érne át.
+        val keywords = KeywordLogic.keywordsKey(f.keywords) + "~" + KeywordLogic.keywordMarksKey(f.keywordMarks)
         return "$packs//$run//$log//$marks//$lock//$windows//${f.lockdownWindowsRev ?: 0}//$partner//${f.partnerRev ?: 0}" +
             "//$keywords//${f.keywordsRev ?: 0}//${if (f.hideSiteList) 1 else 0}//${f.hideSiteListRev ?: 0}//${f.rev}"
     }

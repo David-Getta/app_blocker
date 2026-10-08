@@ -40,7 +40,9 @@ import {
   cleanPartnerList, cleanPartnersGone, mergePartners, normalizePartnerLock, partnerId, partnerKey,
   type PartnerGone, type PartnerLock,
 } from '../partner.js';
-import { cleanKeywords, keywordsKey, mergeKeywords } from '../keywords.js';
+import {
+  cleanKeywordMarks, cleanKeywords, keywordMarksKey, keywordsKey, mergeKeywordSets, type KeywordMarks,
+} from '../keywords.js';
 
 /** Legfeljebb ennyi csomag utazhat — a felületen sem fér ki több. */
 export const MAX_PACKS = 30;
@@ -131,11 +133,15 @@ export interface SyncFocus {
   hideSiteList?: boolean;
   hideSiteListRev?: number;
   /**
-   * KULCSSZÓ-SZABÁLYOK: a lista és a jele — a fésülése az ablakoké: a jel
-   * dönt, azonos jelnél a bővebb lista. Üresen nincs mező. Lásd `mergeKeywords`.
+   * KULCSSZÓ-SZABÁLYOK: a lista, és KULCSSZAVANKÉNT a jelük (`keywordMarks`:
+   * kulcsszó → a blob rev-je, amelyik utoljára felvette vagy levette). A
+   * fésülés kulcsszavanként megy — a nagyobb jel dönt, egyenlőnél az unió;
+   * lásd `mergeKeywordSets`. A lista egészének jele (`keywordsRev`) csak a
+   * régi klienseknek utazik: ők még azzal fésülnek. Üresen nincs mező.
    */
   keywords?: string[];
   keywordsRev?: number;
+  keywordMarks?: KeywordMarks;
   rev: number;
   updatedAt: number;
   updatedBy: string;
@@ -261,6 +267,8 @@ export function normalizeSyncFocus(raw: unknown, fallbackDevice: string, now?: n
     // A kulcsszavak is kívülről jött adat: csak az érvényes, egyszer, a plafonig.
     ...(cleanKeywords(o.keywords).length > 0 ? { keywords: cleanKeywords(o.keywords) } : {}),
     ...(markIn(o.keywordsRev, rev) ? { keywordsRev: markIn(o.keywordsRev, rev) } : {}),
+    // A kulcsszó-jelek is: kanonikus kulcsszó, pozitív egész, legfeljebb a rev.
+    ...keywordMarksIn(o.keywordMarks, cleanKeywords(o.keywords), rev),
     rev,
     updatedAt: numberOr(o.updatedAt, 0),
     updatedBy: typeof o.updatedBy === 'string' && o.updatedBy ? o.updatedBy : fallbackDevice,
@@ -801,6 +809,8 @@ function stable(f: SyncFocus): unknown {
     // A KULCSSZAVAK IS, a jelükkel — tartalom szerint, rendezve.
     keywords: keywordsKey(f.keywords ?? []),
     keywordsRev: f.keywordsRev ?? 0,
+    // A kulcsszó-jelek is: egy levétel jele nélkül a levétel sosem érne át.
+    keywordMarks: keywordMarksKey(f.keywordMarks),
     rev: f.rev,
   };
 }
@@ -816,18 +826,27 @@ function markIn(raw: unknown, maxRev: number): number | undefined {
   return raw;
 }
 
-/** A kulcsszavak és a jelük fésülve — üresen egyik mező sincs. */
+/**
+ * A kulcsszavak fésülve — KULCSSZAVANKÉNT, a jelük szerint
+ * (`mergeKeywordSets`); a lista egészének jele csak a régi klienseknek
+ * utazik tovább, a nagyobbik. Üresen egyik mező sincs.
+ */
 function keywordsMerged(
   local: SyncFocus, incoming: SyncFocus,
-): { keywords?: string[]; keywordsRev?: number } {
-  const ml = local.keywordsRev ?? 0;
-  const mi = incoming.keywordsRev ?? 0;
-  const keywords = mergeKeywords(ml, local.keywords ?? [], mi, incoming.keywords ?? []);
-  const mark = Math.max(ml, mi);
+): { keywords?: string[]; keywordsRev?: number; keywordMarks?: KeywordMarks } {
+  const { keywords, keywordMarks } = mergeKeywordSets(local, incoming);
+  const mark = Math.max(local.keywordsRev ?? 0, incoming.keywordsRev ?? 0);
   return {
     ...(keywords.length > 0 ? { keywords } : {}),
     ...(mark > 0 ? { keywordsRev: mark } : {}),
+    ...(keywordMarks ? { keywordMarks } : {}),
   };
+}
+
+/** A beolvasott kulcsszó-jelek — üresen nincs mező. */
+function keywordMarksIn(raw: unknown, keywords: string[], rev: number): { keywordMarks?: KeywordMarks } {
+  const keywordMarks = cleanKeywordMarks(raw, keywords, rev);
+  return keywordMarks ? { keywordMarks } : {};
 }
 
 /** Az ablakok és a jelük fésülve — üresen egyik mező sincs. */

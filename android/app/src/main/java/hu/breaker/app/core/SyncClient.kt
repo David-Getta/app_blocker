@@ -406,6 +406,8 @@ object SyncClient {
         // A KULCSSZAVAK IS, a jelükkel — üresen nincs mező.
         if (f.keywords.isNotEmpty()) put("keywords", JSONArray(f.keywords))
         if (f.keywordsRev != null) put("keywordsRev", f.keywordsRev)
+        // A kulcsszavankénti jelek — üresen nincs mező.
+        if (!f.keywordMarks.isNullOrEmpty()) put("keywordMarks", JSONObject(f.keywordMarks))
     }.toString()
 
     /** Egy JSON-tömb szövegei — ami nem szöveg, az kimarad. */
@@ -509,6 +511,7 @@ object SyncClient {
     ): FocusSync.SyncFocus {
         val o = JSONObject(text)
         val partners = partnersFromJson(o)
+        val keywords = KeywordLogic.cleanKeywords(stringsFromJson(o.optJSONArray("keywords")))
         val packs = mutableListOf<Focus.FocusPack>()
         val seenIds = mutableListOf<String>()
         val arr = o.optJSONArray("packs")
@@ -596,9 +599,13 @@ object SyncClient {
             hideSiteListRev = (intOf(o, "hideSiteListRev") ?: 0)
                 .takeIf { it > 0 && it <= rev.coerceIn(0, Int.MAX_VALUE.toLong()) },
             // A kulcsszavak is kívülről jött adat: csak az érvényes, egyszer, a plafonig.
-            keywords = KeywordLogic.cleanKeywords(stringsFromJson(o.optJSONArray("keywords"))),
+            keywords = keywords,
             keywordsRev = (intOf(o, "keywordsRev") ?: 0)
                 .takeIf { it > 0 && it <= rev.coerceIn(0, Int.MAX_VALUE.toLong()) },
+            // A kulcsszó-jelek is: kanonikus kulcsszó, pozitív egész, legfeljebb a rev.
+            keywordMarks = KeywordLogic.cleanKeywordMarks(
+                marksFromJson(o, "keywordMarks"), keywords, rev.coerceIn(0, Int.MAX_VALUE.toLong()).toInt(),
+            ),
         )
     }
 
@@ -763,6 +770,7 @@ object SyncClient {
                 // A kulcsszavak a jelükkel — mint az ablakok.
                 keywords = current.keywords,
                 keywordsRev = current.keywordsRev,
+                keywordMarks = current.keywordMarks,
             )
             val merged = FocusSync.merge(mine, remote, now)
 
@@ -801,6 +809,7 @@ object SyncClient {
                     // következő lehúzáskor már ezt a listát kapja.
                     keywords = merged.keywords,
                     keywordsRev = merged.keywordsRev,
+                    keywordMarks = merged.keywordMarks,
                 )
                 // A lenyomatot ÚJRASZÁMOLJUK, nem a másik eszközét vesszük át:
                 // enélkül a következő mentés fölöslegesen léptetné a számlálót,

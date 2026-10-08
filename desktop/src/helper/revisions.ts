@@ -16,7 +16,7 @@
 
 import * as crypto from 'crypto';
 import { partnersKey } from '../shared/partner';
-import { keywordsKey } from '../shared/keywords';
+import { keywordsKey, markKeywordChanges } from '../shared/keywords';
 import type { HelperState, SiteRec } from './state';
 import { windowKey } from '../shared/lockdown';
 import type { FocusPack } from '../shared/focus';
@@ -196,8 +196,10 @@ export function bumpFocusRevision(
 ): boolean {
   const fp = focusFingerprint(state);
   if (state.focusRevFp === fp) {
-    // Frissítés utáni első kör: a csomagok lenyomata még nincs eltéve — innentől van.
+    // Frissítés utáni első kör: a csomagok lenyomata még nincs eltéve — innentől
+    // van; a kulcsszó-listáé ugyanígy.
     if (!state.focusRevPacks) state.focusRevPacks = packFingerprints(state);
+    if (!state.focusRevKeywordList) state.focusRevKeywordList = [...(state.keywords ?? [])];
     return false;
   }
 
@@ -216,6 +218,7 @@ export function bumpFocusRevision(
       // szerkesztés jel nélkül menne, és az eredeti hiba (a telefon
       // menet-indítása elviszi az ablakot) egyszer még megtörténhetne.
       if (!state.focusRevPacks) state.focusRevPacks = packFingerprints(state);
+      if (!state.focusRevKeywordList) state.focusRevKeywordList = [...(state.keywords ?? [])];
       return false;
     }
   }
@@ -237,6 +240,7 @@ export function bumpFocusRevision(
     // Az üres lista lenyomata is el van téve: a friss gép ELSŐ csomagja
     // így már jelet kap, nem a régi kliens szabálya áll rá.
     if (!state.focusRevPacks) state.focusRevPacks = packFingerprints(state);
+    if (!state.focusRevKeywordList) state.focusRevKeywordList = [...(state.keywords ?? [])];
     return false;
   }
 
@@ -270,12 +274,27 @@ function markPartner(state: HelperState): void {
   state.partnerRev = state.focusRev;
 }
 
-/** A kulcsszó-lista jele — ugyanaz a szabály, mint az ablak-listáé. */
+/**
+ * A kulcsszavak jelei. KULCSSZAVANKÉNT: ami az előző léptetés óta bekerült
+ * vagy kikerült, az ezt a blob-rev-et kapja (`markKeywordChanges`) — a
+ * fésülés ebből dönt. A lista egészének jele (ugyanaz a szabály, mint az
+ * ablak-listáé) csak a régi klienseknek utazik tovább. Az első léptetés
+ * (nincs még eltett lista) kulcsszó-jel nélkül megy.
+ */
 function markKeywords(state: HelperState): void {
   const cur = keywordsKeyOf(state);
   const prev = state.focusRevKeywords ?? '';
   state.focusRevKeywords = cur;
-  if (prev === cur || state.focusRev === undefined) return;
+  const prevList = state.focusRevKeywordList;
+  const list = state.keywords ?? [];
+  state.focusRevKeywordList = [...list];
+  if (state.focusRev === undefined) return;
+  if (prevList) {
+    const marks = markKeywordChanges(state.keywordMarks, prevList, list, state.focusRev);
+    if (marks) state.keywordMarks = marks;
+    else delete state.keywordMarks;
+  }
+  if (prev === cur) return;
   state.keywordsRev = state.focusRev;
 }
 /** A rejtés kulcsa a lenyomatban: rejtve „1”, különben üres. */
@@ -359,6 +378,9 @@ export function adoptFocusRevision(state: HelperState): void {
   // levételét lehetne felülírni (azonos jelnél a beállított nyer).
   state.focusRevPartner = partnersKey(state);
   state.focusRevKeywords = keywordsKeyOf(state);
+  // A kulcsszó-lista is: az átvett kulcsszavak nem a mieink — a következő
+  // saját léptetés ne jelölje őket felvettnek vagy levettnek.
+  state.focusRevKeywordList = [...(state.keywords ?? [])];
   state.focusRevHide = hideKey(state);
 }
 

@@ -189,8 +189,11 @@ enum SyncRevisions {
     /// ott rekordonként megy a számláló; itt EGY blob utazik.
     static func bumpFocus(_ state: AppState, deviceId: String, now: Double) -> AppState {
         let fp = focusFingerprint(state)
-        if state.focusRevFp == fp { return state }
         var next = state
+        // A kulcsszó-lista is el van téve a frissítés utáni első körtől: az első
+        // valódi felvétel vagy levétel így már a saját jelét kapja.
+        if next.focusRevKeywordList == nil { next.focusRevKeywordList = state.keywords ?? [] }
+        if state.focusRevFp == fp { return next }
         if state.focusRevFp == nil && (state.focusPacks ?? []).isEmpty && state.focusRun == nil
             && (state.lockdownWindows ?? []).isEmpty && PartnerLogic.partnersKey(state.partnerSet).isEmpty
             && (state.keywords ?? []).isEmpty && !(state.hideSiteList ?? false) {
@@ -229,6 +232,15 @@ enum SyncRevisions {
         let keywords = keywordsKey(state)
         if keywords != (state.focusRevKeywords ?? "") { next.keywordsRev = Int(newRev) }
         next.focusRevKeywords = keywords
+        // …és KULCSSZAVANKÉNT: ami az előző léptetés óta bekerült vagy kikerült,
+        // az ezt a blob-rev-et kapja — a fésülés ebből dönt. Az első léptetés
+        // (nincs még eltett lista) kulcsszó-jel nélkül megy.
+        if let prevList = state.focusRevKeywordList {
+            next.keywordMarks = KeywordLogic.markKeywordChanges(
+                state.keywordMarks, prev: prevList, next: state.keywords ?? [], rev: clampedInt(newRev)
+            )
+        }
+        next.focusRevKeywordList = state.keywords ?? []
         // A rejtés jele ugyanígy: ha az előző léptetés óta változott, a jele ez a blob-rev.
         let hideNow = hideKey(state)
         if hideNow != (state.focusRevHide ?? "") { next.hideSiteListRev = Int(newRev) }
@@ -261,6 +273,9 @@ enum SyncRevisions {
         // eszköz levételét lehetne felülírni.
         next.focusRevPartner = PartnerLogic.partnersKey(state.partnerSet)
         next.focusRevKeywords = keywordsKey(state)
+        // A kulcsszó-lista is: az átvett kulcsszavak nem a mieink — a következő
+        // saját léptetés ne jelölje őket felvettnek vagy levettnek.
+        next.focusRevKeywordList = state.keywords ?? []
         // A rejtés kulcsa is: az átvett rejtés (és a kifizetett kikapcsolás)
         // jele a másik eszközé — a következő saját szerkesztés ne írja felül.
         next.focusRevHide = hideKey(state)

@@ -74,6 +74,10 @@ public enum FocusSync {
         /// jel dönt, azonos jelnél a bővebb lista. Üresen nincs mező a dróton.
         public var keywords: [String]?
         public var keywordsRev: Int?
+        /// KULCSSZAVANKÉNT a jelek: kulcsszó → a blob rev-je, amelyik utoljára
+        /// felvette vagy levette. A fésülés ezekből dönt (`KeywordLogic.mergeKeywordSets`);
+        /// a lista egészének jele csak a régi klienseknek utazik. Üresen nincs mező.
+        public var keywordMarks: [String: Int]?
         /// A LISTA REJTÉSE: fiók-szintű beállítás, a JELÉVEL. A bekapcsolás egy
         /// koppintás (szigorítás), a kikapcsolás a készülék azonosítása (munka) —
         /// és a kifizetett kikapcsolás átmegy: a jel dönt, azonos jelnél a rejtett.
@@ -88,7 +92,7 @@ public enum FocusSync {
             lockdownWindows: [LockdownLogic.LockdownWindow]? = nil, lockdownWindowsRev: Int? = nil,
             partner: PartnerLogic.PartnerLock? = nil, partnerRev: Int? = nil,
             partnerCo: [PartnerLogic.PartnerLock]? = nil, partnersGone: [PartnerLogic.PartnerGone]? = nil,
-            keywords: [String]? = nil, keywordsRev: Int? = nil,
+            keywords: [String]? = nil, keywordsRev: Int? = nil, keywordMarks: [String: Int]? = nil,
             hideSiteList: Bool? = nil, hideSiteListRev: Int? = nil
         ) {
             self.packs = packs
@@ -107,6 +111,7 @@ public enum FocusSync {
             self.partnersGone = partnersGone
             self.keywords = keywords
             self.keywordsRev = keywordsRev
+            self.keywordMarks = keywordMarks
             self.hideSiteList = hideSiteList
             self.hideSiteListRev = hideSiteListRev
         }
@@ -150,6 +155,8 @@ public enum FocusSync {
             // Elemenként: egy nem szöveg elem csak magát viszi (eddig az összeset).
             keywords = c.lenient([Lossy<String>].self, .keywords)?.compactMap { $0.value }
             keywordsRev = (try? c.decodeIfPresent(Int.self, forKey: .keywordsRev)) ?? nil
+            // A kulcsszó-jelek értékenként tűrnek: egy rossz érték csak magát viszi.
+            keywordMarks = c.lossyIntMap(.keywordMarks)
             // A rejtés és a jele is tűrően — csak igazként számít.
             hideSiteList = ((try? c.decodeIfPresent(Bool.self, forKey: .hideSiteList)) ?? nil) == true ? true : nil
             hideSiteListRev = (try? c.decodeIfPresent(Int.self, forKey: .hideSiteListRev)) ?? nil
@@ -177,6 +184,11 @@ public enum FocusSync {
         // A megbízottak AZONOSSÁG szerint: élő megbízottat csak a nyoma visz el,
         // két különböző élő közül egyik sem esik ki (`PartnerLogic.mergePartners`).
         let partners = PartnerLogic.mergePartners(partnerSet(local), partnerSet(incoming))
+        // A kulcsszavak KULCSSZAVANKÉNT, a jelük szerint (`KeywordLogic.mergeKeywordSets`).
+        let kw = KeywordLogic.mergeKeywordSets(
+            KeywordLogic.KeywordSet(keywords: local.keywords ?? [], keywordMarks: local.keywordMarks),
+            KeywordLogic.KeywordSet(keywords: incoming.keywords ?? [], keywordMarks: incoming.keywordMarks)
+        )
         return SyncFocus(
             packs: packs,
             run: run,
@@ -201,20 +213,15 @@ public enum FocusSync {
             partnerRev: mergedPartnerMark(local, incoming),
             partnerCo: partners.partnerCo.isEmpty ? nil : partners.partnerCo,
             partnersGone: partners.partnersGone.isEmpty ? nil : partners.partnersGone,
-            // A kulcsszavak ugyanígy: a jel dönt, azonos jelnél a bővebb lista.
-            keywords: mergedKeywords(local, incoming),
+            // A kulcsszavak kulcsszavanként (fent); a lista egészének jele csak a
+            // régi klienseknek utazik tovább, a nagyobbik.
+            keywords: kw.keywords.isEmpty ? nil : kw.keywords,
             keywordsRev: mergedKeywordsMark(local, incoming),
+            keywordMarks: kw.keywordMarks,
             // A rejtés ugyanígy: a jel dönt, azonos jelnél a rejtett — a szigorúbb irány.
             hideSiteList: mergedHide(local, incoming),
             hideSiteListRev: mergedHideMark(local, incoming)
         )
-    }
-
-    private static func mergedKeywords(_ local: SyncFocus, _ incoming: SyncFocus) -> [String]? {
-        let out = KeywordLogic.mergeKeywords(
-            local.keywordsRev ?? 0, local.keywords ?? [], incoming.keywordsRev ?? 0, incoming.keywords ?? []
-        )
-        return out.isEmpty ? nil : out
     }
 
     private static func mergedKeywordsMark(_ local: SyncFocus, _ incoming: SyncFocus) -> Int? {
@@ -655,7 +662,8 @@ public enum FocusSync {
             + "~" + (f.partnerCo ?? []).map { PartnerLogic.partnerKey($0) }.joined(separator: ";")
             + "~" + (f.partnersGone ?? []).map { "\($0.id)@\($0.at)" }.joined(separator: ";")
         // A kulcsszavak a jelükkel — tartalom szerint, rendezve.
-        let keywords = KeywordLogic.keywordsKey(f.keywords ?? [])
+        // …és a kulcsszavankénti jelek is: egy levétel jele nélkül a levétel sosem érne át.
+        let keywords = KeywordLogic.keywordsKey(f.keywords ?? []) + "~" + KeywordLogic.keywordMarksKey(f.keywordMarks)
         // A rejtés a jelével: a cseréje is különbség — azonos rev mellett is fel
         // kell mennie, és az átvett rejtést azonos rev mellett is be kell írni.
         let hide = (f.hideSiteList ?? false) ? 1 : 0
@@ -742,6 +750,10 @@ public enum FocusSync {
             // A kulcsszavak is kívülről jött adat: csak az érvényes, egyszer, a plafonig.
             keywords: cleanedKeywords(raw.keywords),
             keywordsRev: raw.keywordsRev.flatMap { $0 > 0 && $0 <= revInt(raw.rev) ? $0 : nil },
+            // A kulcsszó-jelek is: kanonikus kulcsszó, pozitív egész, legfeljebb a rev.
+            keywordMarks: KeywordLogic.cleanKeywordMarks(
+                raw.keywordMarks, KeywordLogic.cleanKeywords(raw.keywords ?? []), maxRev: revInt(raw.rev)
+            ),
             // A rejtés csak igazként számít; a jele pozitív egész, legfeljebb a
             // blob rev-je — mint a többié. Ez a sor HIÁNYZOTT az első körben, és
             // a fixtúra-visszajátszás fogta ki: a normalizálás újraépíti a

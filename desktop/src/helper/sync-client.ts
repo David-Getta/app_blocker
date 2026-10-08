@@ -646,6 +646,9 @@ async function syncFocusRound(
       else delete state.keywords;
       if (merged.keywordsRev) state.keywordsRev = merged.keywordsRev;
       else delete state.keywordsRev;
+      // …és kulcsszavanként a jelük: a fésülés ezekből döntött.
+      if (merged.keywordMarks) state.keywordMarks = merged.keywordMarks;
+      else delete state.keywordMarks;
       // A MEGBÍZOTT IS a jele szerint: a másik eszközön felvett innentől itt
       // is az utolsó szó; a levétel csak nagyobb jellel jön át.
       if (merged.partner) state.partner = merged.partner;
@@ -815,6 +818,7 @@ function localFocus(state: HelperState, deviceId: string, now: number): SyncFocu
     // A kulcsszavak a jelükkel — mint az ablakok.
     ...((state.keywords ?? []).length > 0 ? { keywords: state.keywords! } : {}),
     ...(state.keywordsRev ? { keywordsRev: state.keywordsRev } : {}),
+    ...(state.keywordMarks && Object.keys(state.keywordMarks).length > 0 ? { keywordMarks: state.keywordMarks } : {}),
     rev: state.focusRev ?? 0,
     updatedAt: state.focusUpdatedAt ?? 0,
     updatedBy: state.focusUpdatedBy ?? deviceId,

@@ -12,7 +12,7 @@ import { isRunning, isSiteAllowed, type FocusLogEntry, type FocusPack, type Focu
 import type { Band, Schedule, ScheduleMode, Weekday } from '../src/shared/schedule';
 import type { UrlRule } from '../src/shared/urlrules';
 import { windowKey, type Lockdown, type LockdownWindow } from '../src/shared/lockdown';
-import { keywordInHost, keywordsKey } from '../src/shared/keywords';
+import { keywordInHost, keywordMarksKey, keywordsKey } from '../src/shared/keywords';
 import { partnerId, partnerKey, type PartnerGone, type PartnerLock } from '../src/shared/partner';
 import {
   dayKeysBack, rank, summarize, totalsForDays, type TargetTotal, type UsageDay, type UsageState, type WeekDelta,
@@ -291,6 +291,13 @@ export function randomFocus(r: () => number, device: string): SyncFocus {
   const goneAt = 1 + Math.floor(r() * 3);
   const partnerCo = coDraw < 0.25 ? [PARTNERS[coPick]] : [];
   const partnersGone: PartnerGone[] = goneDraw < 0.2 ? [{ id: partnerId(PARTNERS[gonePick]), at: goneAt }] : [];
+  // A KULCSSZÓ-JELEK — három húzás, feltétel nélkül, ugyanebben a sorrendben
+  // a három nyelvben: van-e jel, melyik kulcsszóé (a listán lévőé is lehet,
+  // a hiányzóé is — az a levétel jele), és mekkora — legfeljebb a blob rev-je.
+  const kmDraw = r();
+  const kmPick = Math.floor(r() * 2);
+  const kmValue = Math.min(1 + Math.floor(r() * 5), rev);
+  const keywordMarks: Record<string, number> = kmDraw < 0.35 ? { [['shorts', 'reels'][kmPick]]: kmValue } : {};
   // A NAPLÓ — két húzás, feltétel nélkül, ugyanebben a sorrendben a három
   // nyelvben: van-e napló, és melyik részhalmaz. A sorok BEMENETI sorrendje
   // szándékosan nem rendezett: a fésülés rendez, és a kulcs a fésült sorrendet
@@ -324,6 +331,7 @@ export function randomFocus(r: () => number, device: string): SyncFocus {
     ...(partnerRev !== undefined ? { partnerRev } : {}),
     ...(partnerCo.length > 0 ? { partnerCo } : {}),
     ...(partnersGone.length > 0 ? { partnersGone } : {}),
+    ...(Object.keys(keywordMarks).length > 0 ? { keywordMarks } : {}),
   };
 }
 
@@ -367,7 +375,7 @@ export function focusConformanceKey(f: SyncFocus): string {
   return `packs=[${packs}] run=${run} marks=[${marks}] rev=${f.rev} at=${f.updatedAt} by=${f.updatedBy}`
     + ` lock=${lock} windows=[${windows}] wmark=${f.lockdownWindowsRev ?? 0}`
     + ` hide=${f.hideSiteList ? 1 : 0} hmark=${f.hideSiteListRev ?? 0}`
-    + ` kw=[${keywordsKey(f.keywords ?? [])}] kmark=${f.keywordsRev ?? 0}`
+    + ` kw=[${keywordsKey(f.keywords ?? [])}] kmark=${f.keywordsRev ?? 0} kwm=[${keywordMarksKey(f.keywordMarks)}]`
     + ` partner=[${partnerKey(f.partner)}] pmark=${f.partnerRev ?? 0}`
     + ` co=[${(f.partnerCo ?? []).map(partnerKey).join(';')}]`
     + ` gone=[${(f.partnersGone ?? []).map((g) => `${g.id}@${g.at}`).join(';')}]`
@@ -386,17 +394,18 @@ export interface FocusFlip { flip: SyncFocus; what: string; same: boolean }
  * kulcsából kimaradt a rejtés: azonos rev mellett a cseréje
  * „nincs mit feltölteni” lett volna — és a fésülés fixtúrája ezt nem látta.
  *
- * Huszonhárom fajta: tizenkilenc jelentés (különbség), négy nem az
- * (időbélyeg, eszköznév, ablak-azonosító, a csomagok sorrendje). A menet
+ * Huszonnégy fajta: húsz jelentés (különbség), négy nem az (időbélyeg,
+ * eszköznév, ablak-azonosító, a csomagok sorrendje). A menet
  * rövidítésszáma és eredeti kezdése jelentés: a fésülés ezekből dönt; a
- * társ-megbízott és a levettek nyoma is: élő megbízottat csak a nyoma visz el. A várt érték a fajtából
+ * társ-megbízott és a levettek nyoma is: élő megbízottat csak a nyoma visz el;
+ * a kulcsszó-jelek is: kulcsszavanként azok döntenek. A várt érték a fajtából
  * következik, és a gép tesztje ellenőrzi is — így egy hatástalan csere (amit
  * a normalizálás visszaírna) nem marad néma. EGY húzás, az a/b/c UTÁN: a
  * Kotlin és a Swift fuzz-generátort nem érinti, a fixtúra a cserét JSON-ban
  * viszi, a tükrök csak visszajátsszák.
  */
 export function flipFocus(r: () => number, a: SyncFocus): FocusFlip {
-  const kind = Math.floor(r() * 23);
+  const kind = Math.floor(r() * 24);
   const first = a.packs[0];
   const diff = (what: string, flip: SyncFocus): FocusFlip => ({ what, flip, same: false });
   const noDiff = (what: string, flip: SyncFocus): FocusFlip => ({ what, flip, same: true });
@@ -470,6 +479,10 @@ export function flipFocus(r: () => number, a: SyncFocus): FocusFlip {
     case 22: return normalizeSyncFocus(a, 'x').partnersGone?.length
       ? diff('partnersGone-', { ...a, partnersGone: undefined })
       : diff('partnersGone+', { ...a, partnersGone: [{ id: partnerId(PARTNER_FLIP), at: 1 }] });
+    // A kulcsszó-jelek is jelentés: a levétel jele nélkül a levétel sosem érne át.
+    case 23: return a.keywordMarks
+      ? diff('keywordMarks-', { ...a, keywordMarks: undefined })
+      : diff('keywordMarks+', { ...a, keywordMarks: { stream: 1 } });
     default:
       // Ami NEM jelentés: az ablak azonosítója és a csomagok sorrendje.
       if (ws.length > 0) return noDiff('window.id', { ...a, lockdownWindows: [{ ...ws[0], id: 'w9@flip' }, ...ws.slice(1)] });

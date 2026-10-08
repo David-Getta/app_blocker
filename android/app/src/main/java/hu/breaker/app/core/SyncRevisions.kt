@@ -187,12 +187,17 @@ object SyncRevisions {
      */
     fun bumpFocus(state: AppState, deviceId: String, now: Long): AppState {
         val fp = focusFingerprint(state)
-        if (state.focusRevFp == fp) return state
+        // A kulcsszó-lista is el van téve a frissítés utáni első körtől: az első
+        // valódi felvétel vagy levétel így már a saját jelét kapja.
+        val kwList = state.focusRevKeywordList ?: state.keywords
+        if (state.focusRevFp == fp) {
+            return if (state.focusRevKeywordList == null) state.copy(focusRevKeywordList = state.keywords) else state
+        }
         if (state.focusRevFp == null && state.focusPacks.isEmpty() && state.focusRun == null &&
             state.lockdownWindows.isEmpty() && partnersKeyOf(state).isEmpty() && state.keywords.isEmpty() &&
             !state.hideSiteList
         ) {
-            return state.copy(focusRevFp = fp)
+            return state.copy(focusRevFp = fp, focusRevKeywordList = kwList)
         }
         // FORMÁTUMVÁLTÁS. A mentésben még a régi alakú lenyomat van; ettől
         // önmagában nem történt semmi. A régi algoritmussal döntjük el, volt-e
@@ -202,7 +207,7 @@ object SyncRevisions {
         // nyel el, sem fölöslegesen nem léptet egy üres telefonon.
         val old = state.focusRevFp
         if (old != null && !old.startsWith(FOCUS_FP_V2) && old == focusFingerprintV1(state)) {
-            return state.copy(focusRevFp = fp)
+            return state.copy(focusRevFp = fp, focusRevKeywordList = kwList)
         }
         val newRev = state.focusRev + 1
         // Az ablak-lista JELE: ha a lista az előző léptetés óta változott, a
@@ -220,6 +225,13 @@ object SyncRevisions {
         val keywordsKey = keywordsKey(state)
         val keywordsMark = if (keywordsKey != (state.focusRevKeywords ?: "")) newRev.coerceIn(0, Int.MAX_VALUE.toLong()).toInt()
             else state.keywordsRev
+        // …és KULCSSZAVANKÉNT: ami az előző léptetés óta bekerült vagy kikerült,
+        // az ezt a blob-rev-et kapja — a fésülés ebből dönt. Az első léptetés
+        // (nincs még eltett lista) kulcsszó-jel nélkül megy.
+        val prevKwList = state.focusRevKeywordList
+        val keywordMarks = if (prevKwList == null) state.keywordMarks else KeywordLogic.markKeywordChanges(
+            state.keywordMarks, prevKwList, state.keywords, newRev.coerceIn(0, Int.MAX_VALUE.toLong()).toInt(),
+        )
         // A rejtés jele ugyanígy: ha az előző léptetés óta változott, a jele ez a blob-rev.
         val hideNow = hideKey(state)
         val hideMark = if (hideNow != (state.focusRevHide ?: "")) newRev.coerceIn(0, Int.MAX_VALUE.toLong()).toInt()
@@ -251,6 +263,8 @@ object SyncRevisions {
             partnerRev = partnerMark,
             focusRevKeywords = keywordsKey,
             keywordsRev = keywordsMark,
+            keywordMarks = keywordMarks,
+            focusRevKeywordList = state.keywords,
             focusRevHide = hideNow,
             hideSiteListRev = hideMark,
             focusRevPacks = packFps,
@@ -268,6 +282,9 @@ object SyncRevisions {
             // egy másik eszköz levételét lehetne felülírni.
             focusRevPartner = partnersKeyOf(state),
             focusRevKeywords = keywordsKey(state),
+            // A kulcsszó-lista is: az átvett kulcsszavak nem a mieink — a
+            // következő saját léptetés ne jelölje őket felvettnek vagy levettnek.
+            focusRevKeywordList = state.keywords,
             // A rejtés kulcsa is: az átvett rejtés (és a kifizetett kikapcsolás)
             // jele a másik eszközé — a következő saját szerkesztés ne írja felül.
             focusRevHide = hideKey(state),

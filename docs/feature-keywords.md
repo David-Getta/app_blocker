@@ -83,13 +83,29 @@ a megbízott lépése a végén itt is áll (`docs/feature-partner-lock.md`).
 
 ## Szinkron
 
-A lista a **munkamenet blobján** utazik (`keywords`: a szavak; `keywordsRev`:
-a jele). A fésülés a zárlat-ablakoké és a megbízotté: a **jel dönt**, nem az
-újabb blob. A jel annak a blobnak a `rev`-je, amelyik a listát utoljára
-változtatta; nagyobb jel nyer, azonos jelnél a **bővebb** (az unió — a
-szigorúbb irány). Egy régi kliens jeltelen blobja (jel = 0) sosem töröl
-listát. Az átvett lista kulcsát a szinkron eltárolja (`focusRevKeywords`),
-hogy a következő helyi szerkesztés ne bélyegezze át a jelét.
+A lista a **munkamenet blobján** utazik (`keywords`: a szavak;
+`keywordMarks`: kulcsszavanként a jelük; `keywordsRev`: a lista egészének
+jele, csak a régi klienseknek). A fésülés **kulcsszavanként** megy, a
+hosztnevek mintájára: minden felvétel és levétel jelet kap — annak a blobnak a
+`rev`-jét, amelyik vitte —, és kulcsszavanként a **nagyobb jel dönt** (ami
+annál áll, benne van vagy nincs, az marad). Egyenlő — vagy hiányzó — jelnél
+az **unió**, a szigorúbb irány.
+
+Miért nem a lista egészének jele. Az ingyenes felvétel is lépteti: egy
+elavult eszközön egy új kulcsszó felvétele felhúzta a jelet, és a régi
+listája mindenhol letörölte a máshol felvett kulcsszavakat — próbatétel
+nélkül. Most egy kulcsszó jele csak akkor változik, ha ő maga változik; egy
+elavult eszköz más szerkesztése nem viszi el, levenni pedig csak a
+próbatétellel lehet, ami a levétel jelét írja.
+
+A sorrend a jelé (a régebben felvett elöl, a jeltelen legelöl), aztán
+kódegység szerint — két eszköz bájtra ugyanazt kapja. A 40-es plafon is ebben
+a sorrendben vág, tehát egy frissen felvett szemét-tömeg nem szoríthatja ki a
+régi kulcsszavakat. A jelek plafonja 128: a jelen lévők jele mindig marad, a
+levettekből a legfrissebbek. A léptetés a lista előző állapotát is eltárolja
+(`focusRevKeywordList`), és abból jelöl; az átvett listát a szinkron szintén
+eltárolja, hogy a következő helyi szerkesztés ne jelölje felvettnek vagy
+levettnek, ami nem itt történt.
 
 A mag három nyelven ugyanaz — `desktop/src/shared/keywords.ts`, a bővítmény
 `keywords.js`-e, `core/Keywords.kt`, `Shared/Keywords.swift` —, és az
@@ -113,6 +129,11 @@ szabad).
 - **A rövid szó sokra illik.** A „live” a `livestream`-re és az
   `olive.example`-re is; ezért a három betű az alsó határ, és ezért a lap
   mindig kimondja, melyik szó fogott.
+- **Egy régi kliens kifizetett levétele nem tartja meg magát.** A frissítés
+  előtt felvett kulcsszavaknak nincs saját jele; ha egy még nem frissített
+  eszköz veszi le őket, a frissített eszközök jeltelen példánya visszahozza
+  (az unió — a szigorúbb irány). Ezért kell minden eszközt frissíteni; a
+  frissített eszközön kifizetett levétel jelet kap, és átmegy.
 - **Nem gépzár.** A segéd állapotfájljába rendszergazdaként bele lehet nyúlni,
   a bővítmény kikapcsolható — ahogy minden más szabálynál; az impulzus ellen
   véd, nem a szándék ellen.

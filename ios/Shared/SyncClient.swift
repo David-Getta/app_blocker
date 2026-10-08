@@ -259,6 +259,7 @@ enum SyncClient {
                 // A kulcsszavak a jelükkel — mint az ablakok.
                 keywords: (current.keywords ?? []).isEmpty ? nil : current.keywords,
                 keywordsRev: current.keywordsRev,
+                keywordMarks: (current.keywordMarks ?? [:]).isEmpty ? nil : current.keywordMarks,
                 // A rejtés a jelével — a fésülés ebből tudja, kié az újabb szó. Csak igazként.
                 hideSiteList: (current.hideSiteList ?? false) ? true : nil,
                 hideSiteListRev: current.hideSiteListRev
@@ -295,6 +296,7 @@ enum SyncClient {
                 // következő lehúzáskor már ezt a listát kapja.
                 current.keywords = merged.keywords
                 current.keywordsRev = merged.keywordsRev
+                current.keywordMarks = merged.keywordMarks
                 // A REJTÉS IS a jele szerint: a gépen bekapcsolt rejtés innentől itt
                 // is áll; a kikapcsolás (azonosítás után) csak nagyobb jellel ér ide.
                 current.hideSiteList = (merged.hideSiteList ?? false) ? true : nil

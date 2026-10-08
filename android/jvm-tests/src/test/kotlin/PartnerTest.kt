@@ -301,7 +301,8 @@ class PartnerTest {
 
     @Test fun `a felvetel es a levetel lepteti a blobot, es a jel a blob szama`() {
         var state = AppState()
-        assertEquals(state.copy(focusRevFp = SyncRevisions.focusFingerprint(state)), SyncRevisions.bumpFocus(state, "dev", now), "üres állapot: nincs léptetés")
+        assertEquals(state.copy(focusRevFp = SyncRevisions.focusFingerprint(state), focusRevKeywordList = emptyList()),
+            SyncRevisions.bumpFocus(state, "dev", now), "üres állapot: nincs léptetés")
         state = state.copy(partner = PartnerLogic.makeLock("Anna", phrase, now))
         state = SyncRevisions.bumpFocus(state, "dev", now)
         assertEquals(1L, state.focusRev)

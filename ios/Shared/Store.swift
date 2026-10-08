@@ -244,10 +244,16 @@ struct AppState: Codable, Equatable {
     /// munkamenet blobján utazik, a jelével. Optional, hogy egy korábbi
     /// mentés is dekódolható maradjon. Lásd Shared/Keywords.swift.
     var keywords: [String]? = nil
-    /// A kulcsszó-lista JELE: a blob rev-je, amelyik utoljára változtatta (SyncRevisions).
+    /// A kulcsszó-lista JELE: a blob rev-je, amelyik utoljára változtatta (SyncRevisions) —
+    /// csak a régi kliensek miatt utazik.
     var keywordsRev: Int? = nil
     /// A kulcsszó-lista kulcsa az utolsó léptetéskor — ebből derül ki, kell-e új jel.
     var focusRevKeywords: String? = nil
+    /// KULCSSZAVANKÉNT a jelek: kulcsszó → a blob rev-je, amelyik utoljára
+    /// felvette vagy levette (SyncRevisions). A fésülés ezekből dönt.
+    var keywordMarks: [String: Int]? = nil
+    /// A kulcsszó-lista az utolsó léptetéskor — ebből látszik, mi került be és mi ki.
+    var focusRevKeywordList: [String]? = nil
 }
 
 extension AppState {
@@ -436,6 +442,10 @@ final class BreakerStore: ObservableObject {
         if let s = decoded.session, s.stepIndex < 0 || s.stepIndex >= s.steps.count {
             decoded.session = nil
         }
+        // A kulcsszó-jelek a lemezről: ugyanaz a tisztítás, mint a dróton.
+        decoded.keywordMarks = KeywordLogic.cleanKeywordMarks(
+            decoded.keywordMarks, decoded.keywords ?? [], maxRev: clampedInt(decoded.focusRev ?? 0)
+        )
         // A megbízottak a lemezről: ugyanaz a tisztítás és rendezés, mint a dróton.
         decoded.setPartners(PartnerLogic.cleanSet(
             partner: decoded.partner, partnerCo: decoded.partnerCo ?? [], partnersGone: decoded.partnersGone ?? []

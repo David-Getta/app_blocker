@@ -14,7 +14,7 @@ import { mergeSite, type SyncSite } from '../src/shared/sync/merge';
 import { mergeFocus, type SyncFocus } from '../src/shared/sync/focus-merge';
 import { DEVICES, FOCUS_MERGE_NOW, randomFocus, randomSite, rng } from './merge-random';
 import { windowKey } from '../src/shared/lockdown';
-import { keywordsKey } from '../src/shared/keywords';
+import { keywordMarksKey, keywordsKey } from '../src/shared/keywords';
 import { partnerKey } from '../src/shared/partner';
 
 /**
@@ -81,8 +81,9 @@ function focusKey(f: SyncFocus, runIds: Set<string>, withRun: boolean): string {
     // A rejtés, a kulcsszavak és a megbízott a jelükkel — mint a Kotlin és a
     // Swift fuzz kulcsában: ami a fésülésben dől el, az itt is mérve van.
     f.hideSiteList === true, f.hideSiteListRev ?? null,
-    keywordsKey(f.keywords ?? []), f.keywordsRev ?? null,
+    keywordsKey(f.keywords ?? []), f.keywordsRev ?? null, keywordMarksKey(f.keywordMarks),
     partnerKey(f.partner), f.partnerRev ?? null,
+    (f.partnerCo ?? []).map(partnerKey), (f.partnersGone ?? []).map((g) => `${g.id}@${g.at}`),
     // A napló a fésült sorrendben: egyesítés teljes rendezéssel — sorrendfüggetlen.
     f.log.map((e) => [e.packId, e.startedAt, e.endedAt, e.plannedEndsAt, e.stopped, e.window === true, e.cuts ?? 0, e.origin ?? null]),
   ]);

@@ -254,6 +254,23 @@ const CHECKS = [
     scalar(ts.keywords, /MAX_KEYWORDS\s*=\s*([^;]+);/, 'ts'),
     scalar(kt.keywords, /MAX_KEYWORDS\s*=\s*(.+)/, 'kt'),
     scalar(sw.keywords, /maxKeywords\s*=\s*(.+)/, 'swift')],
+  // A kulcsszó-jelek plafonja: ha szétcsúszna, egy kifizetett levétel jele az
+  // egyik magban kiesne, a másikban nem — és a két eszköz körönként egymást
+  // írná felül (az egyik visszahozná a levett kulcsszót).
+  ['MAX_KEYWORD_MARKS',
+    scalar(ts.keywords, /MAX_KEYWORD_MARKS\s*=\s*([^;]+);/, 'ts'),
+    scalar(kt.keywords, /MAX_KEYWORD_MARKS\s*=\s*(.+)/, 'kt'),
+    scalar(sw.keywords, /maxKeywordMarks\s*=\s*(.+)/, 'swift')],
+  // A megbízottak plafonja és a levettek nyomának plafonja: ha szétcsúszna, a
+  // fő és a társak magonként más sorrendben esnének ki.
+  ['MAX_PARTNERS',
+    scalar(ts.partner, /MAX_PARTNERS\s*=\s*([^;]+);/, 'ts'),
+    scalar(kt.partner, /MAX_PARTNERS\s*=\s*(.+)/, 'kt'),
+    scalar(sw.partner, /maxPartners\s*=\s*(.+)/, 'swift')],
+  ['MAX_PARTNERS_GONE',
+    scalar(ts.partner, /MAX_PARTNERS_GONE\s*=\s*([^;]+);/, 'ts'),
+    scalar(kt.partner, /MAX_PARTNERS_GONE\s*=\s*(.+)/, 'kt'),
+    scalar(sw.partner, /maxPartnersGone\s*=\s*(.+)/, 'swift')],
   ['MAX_KEYWORD_LENGTH',
     scalar(ts.keywords, /MAX_KEYWORD_LENGTH\s*=\s*([^;]+);/, 'ts'),
     scalar(kt.keywords, /MAX_KEYWORD_LENGTH\s*=\s*(.+)/, 'kt'),

@@ -91,9 +91,13 @@ const GROUPS = [
     // nyoma. Egy elcsúszott név mellett a telefon nem tudna a társról (ott a
     // lazítás az ő jelmondata nélkül menne), vagy a nyomról (a levett
     // megbízott a telefonról visszajönne — ez a szigorúbb irány, de csendes).
+    // A `keywordMarks`: KULCSSZAVANKÉNT a jelek. Egy elcsúszott név mellett a
+    // telefonon kifizetett levétel jele sosem érne át (a kulcsszó mindenhol
+    // maradna), és a telefon felvétele jel nélkül egy régebbi levétellel
+    // szemben elveszne.
     names: ['packs', 'run', 'log', 'packMarks', 'lockdown', 'lockdownWindows', 'lockdownWindowsRev',
-      'partner', 'partnerRev', 'partnerCo', 'partnersGone', 'keywords', 'keywordsRev', 'hideSiteList', 'hideSiteListRev',
-      'rev', 'updatedAt', 'updatedBy'],
+      'partner', 'partnerRev', 'partnerCo', 'partnersGone', 'keywords', 'keywordsRev', 'keywordMarks',
+      'hideSiteList', 'hideSiteListRev', 'rev', 'updatedAt', 'updatedBy'],
     ts: 'desktop/src/shared/sync/focus-merge.ts',
     kt: 'android/app/src/main/java/hu/breaker/app/core/SyncClient.kt',
     swift: 'ios/Shared/FocusSync.swift',
