@@ -162,8 +162,110 @@ function dialog(cls: string, title: string): HTMLDivElement {
   modal.setAttribute('role', 'dialog');
   modal.setAttribute('aria-modal', 'true');
   modal.setAttribute('aria-labelledby', head.id);
+  // Nyitáskor maga az ablak kapja a fókuszt (lásd trapDialog), nem az első
+  // gombja: így egy elhamarkodott Enter semmit nem nyom meg — a felolvasó
+  // pedig az ablak címét mondja.
+  modal.tabIndex = -1;
   modal.appendChild(head);
   return modal;
+}
+
+const FOCUSABLE = 'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), '
+  + 'select:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])';
+
+/**
+ * BILLENTYŰZETTEL IS KEZELHETŐ ABLAK. Nyitáskor a fókusz az ablakba ugrik
+ * (eddig a lap mögötte maradt fókuszban: a Tab a takart lapon járt), a Tab
+ * körbe jár benne, az Esc a Mégse — ha van; bezáráskor a fókusz visszatér
+ * oda, ahonnan az ablakot nyitották. A hívó ezután maga is fókuszálhat egy
+ * mezőt (az nyer). `cancel` nélkül az Esc nem zár: a megbízott jelmondata
+ * csak egyszer látszik, egy véletlen Esc-re elveszne.
+ */
+function trapDialog(overlay: HTMLElement, cancel?: HTMLElement): () => void {
+  const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  // Ha a nyitó gomb közben újrarajzolódott, a jele alapján az utódját keressük.
+  const openerMark = markOf(opener);
+  const box = overlay.querySelector<HTMLElement>('[role="dialog"]') ?? overlay;
+  const onKey = (e: KeyboardEvent): void => {
+    if (e.key === 'Escape') {
+      // A legfelső réteg az ablak: az Esc csak őt zárhatja, a mögötte lévő
+      // panelt (fiók, téma) akkor sem, ha ennek az ablaknak nincs Mégséje.
+      e.stopPropagation();
+      if (cancel) { e.preventDefault(); cancel.click(); }
+      return;
+    }
+    if (e.key !== 'Tab') return;
+    const items = Array.from(box.querySelectorAll<HTMLElement>(FOCUSABLE))
+      .filter((el) => el.offsetParent !== null);
+    if (items.length === 0) { e.preventDefault(); return; }
+    const first = items[0];
+    const last = items[items.length - 1];
+    const at = document.activeElement;
+    if (e.shiftKey && (at === first || at === box)) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && at === last) { e.preventDefault(); first.focus(); }
+  };
+  overlay.addEventListener('keydown', onKey);
+  box.focus();
+  return () => {
+    overlay.removeEventListener('keydown', onKey);
+    const back = opener?.isConnected ? opener : openerMark ? findMark(openerMark) : null;
+    back?.focus({ preventScroll: true });
+  };
+}
+
+/**
+ * HOL ÁLL A FÓKUSZ — úgy leírva, hogy egy újrarajzolás után is megtalálható
+ * legyen. A lap kétmásodpercenként frissül, és a lista, a csomagok, a szűrők
+ * ilyenkor újraépülnek: a billentyűzettel egy sor gombján álló felhasználó
+ * eddig kétmásodpercenként elvesztette a fókuszt (a lap elejére esett). A jel
+ * a legközelebbi azonosítós őstől indul; a sorokon át a sor kulcsa (data-key:
+ * az oldal, a csomag, a szűrő azonosítója) visz, nem a sorszám — egy új sor
+ * felvétele ne vigye át a fókuszt egy másik oldal gombjára.
+ */
+interface FocusMark { root: string; steps: string[]; tag: string }
+
+function markOf(el: Element | null): FocusMark | null {
+  if (!el || el === document.body) return null;
+  const steps: string[] = [];
+  let cur: Element = el;
+  while (!cur.id) {
+    const parent = cur.parentElement;
+    if (!parent) return null;
+    const key = cur instanceof HTMLElement ? cur.dataset.key : undefined;
+    steps.unshift(key !== undefined ? `k:${key}` : `i:${Array.prototype.indexOf.call(parent.children, cur)}`);
+    cur = parent;
+  }
+  return { root: cur.id, steps, tag: el.tagName };
+}
+
+function findMark(m: FocusMark): HTMLElement | null {
+  let cur: Element | null = document.getElementById(m.root);
+  for (const step of m.steps) {
+    if (!cur) return null;
+    const v = step.slice(2);
+    cur = step.startsWith('k:')
+      ? Array.from(cur.children).find((c) => c instanceof HTMLElement && c.dataset.key === v) ?? null
+      : cur.children[Number(v)] ?? null;
+  }
+  return cur instanceof HTMLElement && cur.tagName === m.tag && cur.isConnected ? cur : null;
+}
+
+/** Ha az újrarajzolás elvitte a fókuszt, visszateszi a megfelelő új elemre. */
+function restoreFocus(mark: FocusMark | null): void {
+  if (!mark || (document.activeElement && document.activeElement !== document.body)) return;
+  findMark(mark)?.focus({ preventScroll: true });
+}
+
+/** Dinamikus ablak a lapra (trapDialog); amikor kikerül, a fókusz visszatér. */
+function mountDialog(overlay: HTMLElement, cancel?: HTMLElement): void {
+  document.body.appendChild(overlay);
+  const release = trapDialog(overlay, cancel);
+  const watch = new MutationObserver(() => {
+    if (overlay.isConnected) return;
+    watch.disconnect();
+    release();
+  });
+  watch.observe(document.body, { childList: true });
 }
 
 class CallError extends Error {
@@ -851,6 +953,7 @@ function render(): void {
     return;
   }
 
+  const focusMark = markOf(document.activeElement);
   const nowForBurst = runNotices();
   renderSuggestCard(nowForBurst);
   renderSelfTestLine();
@@ -875,6 +978,7 @@ function render(): void {
   renderProbeWarning(status!.usageEnabled);
   renderResumeBanner(status!);
   if (modalOpen) renderSession(status!.session);
+  restoreFocus(focusMark);
 }
 
 // ------------------------------------------------------------------ nézetek
@@ -1177,6 +1281,7 @@ function renderFocusCard(st: StatusData): void {
   for (const pack of packs) {
     const isRunning = running?.packId === pack.id;
     const row = h('div', `focus-pack${isRunning ? ' focus-pack-on' : ''}`);
+    row.dataset.key = pack.id; // a fókusz-jel ezen át talál vissza (markOf)
     const left = h('div');
     // A jelölés a név MELLÉ kerül, nem BELÉ: a `.focus-name` maradjon pontosan
     // a csomag neve — különben a név „Nyelvtanulásfut” lesz mindenkinek, aki
@@ -1521,7 +1626,7 @@ function openFocusStartDialog(pack: FocusPack): void {
   actions.append(h('div', 'row-gap'), right);
   modal.appendChild(actions);
   overlay.appendChild(modal);
-  document.body.appendChild(overlay);
+  mountDialog(overlay, cancel);
 }
 
 /**
@@ -1838,7 +1943,7 @@ function openFocusEditor(pack: FocusPack | null): void {
   actions.append(left, right);
   modal.appendChild(actions);
   overlay.appendChild(modal);
-  document.body.appendChild(overlay);
+  mountDialog(overlay, cancel);
   name.focus();
 }
 
@@ -2165,6 +2270,7 @@ function renderChannelCard(st: StatusData): void {
   const filters = st.channelFilters ?? [];
   for (const f of filters) {
     const row = h('div', 'site-row');
+    row.dataset.key = f.id; // a fókusz-jel ezen át talál vissza (markOf)
     const head = h('div', 'site-head');
     // A REJTETT LISTA ide is elér. A lista elrejtése arról szól, hogy a
     // blokkolt oldal NEVE ne álljon a képernyőn ingerforrásként — és a szűrő
@@ -2424,7 +2530,8 @@ function openPartnerPhraseDialog(name: string, phrase: string): void {
   actions.append(h('div', 'row-gap'), right);
   modal.appendChild(actions);
   overlay.appendChild(modal);
-  document.body.appendChild(overlay);
+  // Esc nélkül: a jelmondat csak most látszik, egy véletlen Esc-re elveszne.
+  mountDialog(overlay);
 }
 
 /** A heti ablakok listája a zárlat kártyáján — soronként egy ablak és a levétele. */
@@ -2536,7 +2643,7 @@ function openLockdownWindowDialog(st: StatusData, existing?: LockdownWindow): vo
   actions.append(cancel, go);
   modal.append(err, actions);
   overlay.appendChild(modal);
-  document.body.appendChild(overlay);
+  mountDialog(overlay, cancel);
 }
 
 /** A zárlat párbeszéde: hossz, figyelmeztetés, és a szó kiírása. */
@@ -2605,7 +2712,7 @@ function openLockdownDialog(st: StatusData): void {
   actions.append(cancel, go);
   modal.append(err, actions);
   overlay.appendChild(modal);
-  document.body.appendChild(overlay);
+  mountDialog(overlay, cancel);
   input.focus();
 }
 
@@ -2878,6 +2985,7 @@ function renderSiteList(st: StatusData): void {
 function siteRow(site: SiteInfo, st: StatusData): HTMLElement {
   const now = st.now;
   const row = h('div', 'site-row');
+  row.dataset.key = site.id; // a fókusz-jel ezen át talál vissza (markOf)
   // Fejléc: a NÉV és az ÁLLAPOT egy sorban, mert ez a két dolog kell ránézésre.
   // Minden más (mérő, műveletek) ez alá kerül, halványabban.
   const head = h('div', 'site-head');
@@ -3143,7 +3251,7 @@ function openReasonDialog(site: SiteInfo): void {
     if ((ev as KeyboardEvent).key === 'Enter') void apply(input.value);
   });
   overlay.appendChild(modal);
-  document.body.appendChild(overlay);
+  mountDialog(overlay, cancel);
   input.focus();
 }
 
@@ -3215,7 +3323,7 @@ function openAliasDialog(site: SiteInfo): void {
     if ((ev as KeyboardEvent).key === 'Enter') void apply(input.value);
   });
   overlay.appendChild(modal);
-  document.body.appendChild(overlay);
+  mountDialog(overlay, cancel);
   input.focus();
   input.select();
 }
@@ -3342,7 +3450,7 @@ function openRulesDialog(site: SiteInfo): void {
     if ((ev as KeyboardEvent).key === 'Enter') void apply(input.value, false);
   });
   overlay.appendChild(modal);
-  document.body.appendChild(overlay);
+  mountDialog(overlay, cancel);
   input.focus();
 }
 
@@ -3406,7 +3514,7 @@ function openLimitDialog(site: SiteInfo): void {
   actions.append(cancel, apply);
   modal.append(picker.box, noneRow, err, actions);
   overlay.appendChild(modal);
-  document.body.appendChild(overlay);
+  mountDialog(overlay, cancel);
 }
 
 /**
@@ -3480,7 +3588,7 @@ function openHostnamesDialog(site: SiteInfo): void {
     if ((ev as KeyboardEvent).key === 'Enter') void apply(input.value, false);
   });
   overlay.appendChild(modal);
-  document.body.appendChild(overlay);
+  mountDialog(overlay, cancel);
   input.focus();
 }
 
@@ -3559,7 +3667,7 @@ function openBurstDialog(site: SiteInfo): void {
   actions.append(cancel, apply);
   modal.append(noneRow, err, actions);
   overlay.appendChild(modal);
-  document.body.appendChild(overlay);
+  mountDialog(overlay, cancel);
 }
 
 async function doSimple(op: string, payload: Record<string, unknown>): Promise<void> {
@@ -3709,13 +3817,22 @@ async function addSite(value: string): Promise<void> {
 
 // ------------------------------------------------------- session lifecycle
 
+let releasePause: (() => void) | null = null;
+
 function openPauseDialog(siteId: string): void {
   pendingPauseSiteId = siteId;
   $('pauseDialog').classList.remove('hidden');
+  releasePause ??= trapDialog($('pauseDialog'), $('pauseCancel'));
+}
+
+function hidePauseDialog(): void {
+  $('pauseDialog').classList.add('hidden');
+  releasePause?.();
+  releasePause = null;
 }
 
 async function startPause(minutes: number): Promise<void> {
-  $('pauseDialog').classList.add('hidden');
+  hidePauseDialog();
   if (!pendingPauseSiteId) return;
   try {
     const session = await call<SessionInfo>('start_unlock', { siteId: pendingPauseSiteId, minutes });
@@ -3866,7 +3983,7 @@ function openScheduleDialog(site: SiteInfo): void {
   actions.append(cancel, apply);
   modal.append(modeWrap, presetWrap, err, actions);
   overlay.appendChild(modal);
-  document.body.appendChild(overlay);
+  mountDialog(overlay, cancel);
 }
 
 /**
@@ -3905,10 +4022,15 @@ async function startDelete(site: SiteInfo): Promise<void> {
   }
 }
 
+// A próbatétel ablaka Esc nélkül: egy gépelés közben elcsúszott Esc ne
+// csukja be (a kísérlet megmaradna, de a beírt szöveg nem).
+let releaseSession: (() => void) | null = null;
+
 function openModal(session: SessionInfo): void {
   modalOpen = true;
   renderedStepId = null;
   $('sessionModal').classList.remove('hidden');
+  releaseSession ??= trapDialog($('sessionModal'));
   renderSession(session);
 }
 
@@ -3917,6 +4039,8 @@ function closeModal(): void {
   renderedStepId = null;
   clearStepTimers();
   $('sessionModal').classList.add('hidden');
+  releaseSession?.();
+  releaseSession = null;
 }
 
 function setStepMessage(msg: string | null, isError = true): void {
@@ -4433,7 +4557,7 @@ function setupModal(): void {
   }
   $('pauseCancel').addEventListener('click', () => {
     pendingPauseSiteId = null;
-    $('pauseDialog').classList.add('hidden');
+    hidePauseDialog();
   });
 }
 

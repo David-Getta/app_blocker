@@ -2580,21 +2580,63 @@ async function main() {
     // a nézetek próbájában nem látszanak — csak kattintásra nyílnak —, és az
     // első futásnál épp itt volt a legtöbb hiba (címke nélküli mező, cím
     // nélküli ablak, a napgombok neve).
+    // BILLENTYŰZETTEL nyitjuk (fókusz a gombra, Enter), ahogy egy egér nélküli
+    // felhasználó: a fókusznak az ablakba kell ugrania, a Tab nem szökhet ki
+    // belőle a takart lapra, az Esc zár (Mégse), és a fókusz visszatér a
+    // nyitó gombra — akkor is, ha a sor közben újrarajzolódott.
+    const inDialog = () => a11yPage.evaluate(() =>
+      !!document.activeElement?.closest('.overlay:not(.hidden) [role="dialog"]'));
     const openDialog = async (label, trigger) => {
-      await trigger.click();
+      const where = `${label}, ${theme}`;
+      const triggerText = ((await trigger.textContent()) ?? '').trim();
+      await trigger.focus();
+      await a11yPage.keyboard.press('Enter');
       const ok = await a11yPage.locator('.overlay:not(.hidden) [role="dialog"]').first()
         .waitFor({ timeout: 10_000 }).then(() => true, () => false);
-      if (!ok) { failures.push(`akadálymentesség (${label}, ${theme}): az ablak nem nyílt ki dialógusként`); return; }
-      await checkA11y(a11yPage, `${label}, ${theme}`, failures);
-      // Bezárás mentés nélkül: a statikus ablak rejtve marad, a dinamikus kikerül.
-      await a11yPage.evaluate(() => {
-        for (const o of document.querySelectorAll('.overlay:not(.hidden)')) {
-          if (o.id) o.classList.add('hidden'); else o.remove();
-        }
-      });
+      if (!ok) { failures.push(`akadálymentesség (${where}): az ablak nem nyílt ki dialógusként`); return; }
+      if (!(await inDialog())) failures.push(`billentyűzet (${where}): nyitáskor a fókusz nem az ablakban van`);
+      for (let i = 0; i < 25; i++) await a11yPage.keyboard.press('Tab');
+      if (!(await inDialog())) failures.push(`billentyűzet (${where}): a Tab kiszökött az ablakból`);
+      for (let i = 0; i < 7; i++) await a11yPage.keyboard.press('Shift+Tab');
+      if (!(await inDialog())) failures.push(`billentyűzet (${where}): a Shift+Tab kiszökött az ablakból`);
+      await checkA11y(a11yPage, where, failures);
+      await a11yPage.keyboard.press('Escape');
+      const closed = await a11yPage.waitForFunction(
+        () => !document.querySelector('.overlay:not(.hidden) [role="dialog"]'),
+        undefined, { timeout: 5_000 },
+      ).then(() => true, () => false);
+      if (!closed) {
+        failures.push(`billentyűzet (${where}): az Esc nem zárta be az ablakot`);
+        await a11yPage.evaluate(() => {
+          for (const o of document.querySelectorAll('.overlay:not(.hidden)')) {
+            if (o.id) o.classList.add('hidden'); else o.remove();
+          }
+        });
+        return;
+      }
+      const back = await a11yPage.evaluate(() => (document.activeElement?.textContent ?? '').trim());
+      if (back !== triggerText) {
+        failures.push(`billentyűzet (${where}): bezárás után a fókusz nem tért vissza a nyitó gombra (most: „${back}”)`);
+      }
     };
     await goTo(a11yPage, 'sites');
     const firstRow = a11yPage.locator('#siteList .site-row').first();
+    // A lap kétmásodpercenként frissül, és a lista újraépül. A fókusz ettől nem
+    // eshet a lap elejére: ugyanannak a sornak ugyanarra a gombjára kerül. A
+    // próba azt is megköveteli, hogy közben tényleg újraépült a sor — enélkül
+    // üresen menne át.
+    await firstRow.getByRole('button', { name: 'Menetrend', exact: true }).focus();
+    await a11yPage.evaluate(() => { window.__focusedBefore = document.activeElement; });
+    const rebuilt = await a11yPage.waitForFunction(
+      () => !window.__focusedBefore.isConnected, undefined, { timeout: 10_000 },
+    ).then(() => true, () => false);
+    if (!rebuilt) failures.push(`billentyűzet (frissítés, ${theme}): a lista 10 mp alatt sem rajzolódott újra — a próba üres`);
+    const kept = await a11yPage.evaluate(() => {
+      const el = document.activeElement;
+      return el !== window.__focusedBefore && el?.textContent?.trim() === 'Menetrend'
+        && !!el.closest('#siteList .site-row');
+    });
+    if (!kept) failures.push(`billentyűzet (frissítés, ${theme}): az újrarajzolt lista elvitte a fókuszt`);
     for (const name of ['Feloldás', 'Menetrend', 'Napi keret', 'Adag', 'Fedőnév', 'Indok', 'Hosztnevek']) {
       await openDialog(name, firstRow.getByRole('button', { name, exact: true }));
     }

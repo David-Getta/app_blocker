@@ -49,12 +49,20 @@ szerkesztője, a végigjátszás közben nyíló ablakok (próbatétel, fiók-pa
 valamint a bővítmény beállítási, felugró és tiltó lapja. A CI-ban az axe
 kötelező; helyben, ha nincs telepítve, a próba kimarad és szól.
 
-Amit nem lát: a billentyűzetes bejárás sorrendjét és a fókusz útját (egy
-ablak nyitásakor és zárásakor), azt, hogy a felolvasó ténylegesen mit mond,
-és a telefonos appokat — ezek kézi próbát kívánnak. A forrás-oldali őr
-(`test/dialog-markup.test.ts`) azt nézi, hogy minden modál a közös
-`dialog()` segéden át készüljön (dialógus-szerep és cím), és minden
-választó-csip a `setOn()`-on át (a kiválasztás a felolvasónak is szól).
+A billentyűzetet is próbálja: az ablakokat Enterrel nyitja, és megköveteli,
+hogy a fókusz az ablakba ugorjon, a Tab és a Shift+Tab ne szökjön ki belőle a
+takart lapra, az Esc zárjon (ahol van Mégse), és a fókusz visszatérjen a
+nyitó gombra. A lap kétmásodpercenként frissül, és a lista ilyenkor újraépül:
+a próba megvárja egy újraépülést, és megköveteli, hogy a fókusz ugyanannak a
+sornak ugyanazon a gombján maradjon.
+
+Amit nem lát: a teljes bejárás sorrendjét a fő nézetekben, azt, hogy a
+felolvasó ténylegesen mit mond, és a telefonos appokat — ezek kézi próbát
+kívánnak. A forrás-oldali őr (`test/dialog-markup.test.ts`) azt nézi, hogy
+minden modál a közös `dialog()` segéden át készüljön (dialógus-szerep és
+cím) és a `mountDialog()`-on át kerüljön a lapra (fókusz, Tab-kör, Esc),
+minden választó-csip a `setOn()`-on át (a kiválasztás a felolvasónak is
+szól), és hogy a frissítés visszaállítsa a fókuszt.
 
 ## Telepítő csomag
 

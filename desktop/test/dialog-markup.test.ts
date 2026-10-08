@@ -3,8 +3,9 @@
 // Az akadálymentességi próba (scripts/a11y-check.js) csak azt az ablakot látja,
 // amit a füstpróba kinyit. Ez a teszt a forrást nézi: egy új modál vagy egy
 // új csip ne kerülhesse meg a közös segédet — attól nem hasalna el semmi, csak
-// a felolvasó kapna egy cím nélküli dobozt, vagy egy csak színből látszó
-// választást.
+// a felolvasó kapna egy cím nélküli dobozt, egy csak színből látszó
+// választást, vagy a billentyűzetes felhasználó egy ablakot, amiből a Tab a
+// takart lapra szökik.
 
 import { strict as assert } from 'node:assert';
 import { readFileSync } from 'node:fs';
@@ -61,4 +62,27 @@ test('a próbatétel minden beviteli mezőjének van neve', () => {
     assert.ok(ts.includes(`setAttribute('aria-label', '${name}')`), `hiányzik: ${name}`);
   }
   assert.ok(ts.includes("setAttribute('aria-label', `${name} jelmondata`)"), 'a megbízott mezője név nélkül');
+});
+
+test('minden dinamikus ablak a mountDialog() segéden át kerül a lapra (fókusz, Tab-kör, Esc)', () => {
+  const start = ts.indexOf('function mountDialog(overlay: HTMLElement, cancel?: HTMLElement)');
+  assert.ok(start > 0, 'nincs mountDialog() segéd');
+  const body = ts.slice(start, ts.indexOf('\n}\n', start));
+  assert.ok(body.includes('trapDialog(overlay, cancel)'));
+  const outside = ts.replace(body, '');
+  assert.ok(!outside.includes('document.body.appendChild(overlay)'),
+    'ablak a mountDialog() megkerülésével: a fókusz a takart lapon maradna');
+  // Esc nélkül csak a megbízott jelmondata nyílik: az csak egyszer látszik.
+  const noCancel = outside.match(/mountDialog\(overlay\);/g) ?? [];
+  assert.equal(noCancel.length, 1, 'Esc nélküli ablak a jelmondaton kívül is');
+});
+
+test('a statikus ablakok is a fókusz-csapdán át nyílnak, és a frissítés nem viszi el a fókuszt', () => {
+  assert.ok(ts.includes("releasePause ??= trapDialog($('pauseDialog'), $('pauseCancel'));"));
+  assert.ok(ts.includes("releaseSession ??= trapDialog($('sessionModal'));"));
+  assert.ok(/const focusMark = markOf\(document\.activeElement\);[\s\S]*restoreFocus\(focusMark\);\n\}/.test(ts),
+    'a render() nem állítja vissza a fókuszt: a lista kétmásodpercenként elvinné');
+  for (const m of html.match(/<div class="modal(?: [\w-]+)*"[^>]*>/g) ?? []) {
+    assert.ok(m.includes('tabindex="-1"'), `nyitáskor nem fókuszálható: ${m}`);
+  }
 });

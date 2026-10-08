@@ -555,6 +555,9 @@ body {
   to { opacity: 1; transform: none; }
 }
 .modal-small { width: 440px; }
+/* Nyitáskor maga az ablak kapja a fókuszt (trapDialog) — keret nélkül: nem
+   gomb, és a fókusz útja innen indul, a Tab az első gombra visz. */
+.modal:focus { outline: none; }
 .modal h3 {
   margin: 0;
   font-size: 1.2rem;
