@@ -5,7 +5,7 @@ import { strict as assert } from 'node:assert';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { notifyFailText, parseFailedAt } from '../src/shared/notify-delivery';
+import { notifyFailText, notifyTestText, parseFailedAt } from '../src/shared/notify-delivery';
 
 test('a mondat megmondja, mi maradt el, és hol kapcsolható be — platformonként', () => {
   const mac = notifyFailText('darwin', '09:30');
@@ -32,4 +32,20 @@ test('a rendererben MINDEN értesítés a közös úton megy — egy sem kerülh
   assert.equal(raw, 1, 'csak a notify() hozhat létre értesítést, különben a meg nem jelenése némán elveszne');
   assert.match(src, /n\.addEventListener\('error', \(\) => noteNotifyDelivery\(Date\.now\(\)\)\);/);
   assert.match(src, /n\.addEventListener\('show', \(\) => noteNotifyDelivery\(null\)\);/);
+});
+
+test('a próba-gomb nem állítja, hogy az értesítés megjelent — azt csak a felhasználó látja', () => {
+  // A `show` annyi, hogy a rendszer átvette: kikapcsolt értesítésnél és
+  // fókusz-módban is jöhet, a mostani Electron macOS-en hibát sosem ad.
+  for (const platform of ['darwin', 'win32', 'linux']) {
+    for (const outcome of ['sent', 'accepted', 'failed', 'off'] as const) {
+      const text = notifyTestText(platform, outcome);
+      assert.ok(text.trim() !== '', `${platform}/${outcome}: néma`);
+      assert.doesNotMatch(text, /megjelent|kézbesít/i, `${platform}/${outcome}: többet állít, mint amit az app tud: ${text}`);
+    }
+  }
+  // Átvételkor megmondja, hol keresse, ha mégsem látta.
+  assert.ok(notifyTestText('darwin', 'accepted').includes('Rendszerbeállítások › Értesítések › Breaker'));
+  assert.ok(notifyTestText('win32', 'accepted').includes('Gépház › Rendszer › Értesítések › Breaker'));
+  assert.ok(notifyTestText('darwin', 'accepted').includes('fókusz-mód'));
 });

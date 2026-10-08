@@ -952,12 +952,21 @@ ismerik fel, tehát ők sem raknak fel semmit (lásd `docs/releasing.md`).
 
 Az asztali app sok mindent értesítésben mond el — a szünet végét, a betelő
 keretet, a közelgő heti ablakot, a hétfői visszatekintést. Ha a rendszer egy
-értesítést nem jelenít meg (a felhasználó letiltotta, vagy macOS-en az
-Electron 42-től az app aláírása nem felel meg a UNNotification-nek), az eddig
+értesítést visszautasít (macOS-en az Electron 42-től a UNNotification, ha
+nincs engedély, vagy az app aláírása nem felel meg neki), az eddig
 nyomtalanul elmaradt. Most minden értesítés egy úton megy (`notify` a
 rendererben), és ha a rendszer `error` eseményt ad, a beállítások lapja
 kimondja, csendben, a bekapcsolás helyével együtt (`shared/notify-delivery.ts`);
-a következő megjelenő értesítés visszavonja. Egy teszt őrzi, hogy a rendererben
+a következő átvett értesítés visszavonja. Egy teszt őrzi, hogy a rendererben
 más út ne is legyen. Macen a csomag füstpróbája azt is nézi, hogy az ad-hoc
 aláírás azonosítója a csomagé (`hu.breaker.app`), és az Info.plist az aláírás
 része — enélkül az értesítések némán vesznének el.
+
+Amit az app NEM lát: hogy egy átvett értesítés tényleg látszott-e. A `show`
+esemény csak annyi, hogy a rendszer átvette — kikapcsolt értesítésnél és
+fókusz-módban is jöhet. A mostani Electron (31) macOS-en a régi
+NSUserNotificationCenteren küld, és annak nincs hibaútja: ott az `error` sosem
+jön; Windowson a kikapcsolt értesítést a rendszer nem feltétlenül jelzi vissza.
+Ezért van a beállítások lapján az „Értesítés kipróbálása” gomb, és ezért
+mondja átvételkor azt, hogy „a rendszer átvette”, nem azt, hogy „megjelent”
+(`notifyTestText`; teszt őrzi, hogy egyik kimenetele se állítson többet).

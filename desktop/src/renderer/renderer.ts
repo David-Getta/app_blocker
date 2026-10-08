@@ -17,7 +17,7 @@ import {
 import { HELPER_VERSION } from '../shared/protocol.js';
 import { versionRowText } from '../shared/smoke.js';
 import { macTooOldText, type MacTooOld } from '../shared/update-manifest.js';
-import { notifyFailText, parseFailedAt } from '../shared/notify-delivery.js';
+import { notifyFailText, notifyTestText, parseFailedAt } from '../shared/notify-delivery.js';
 // A .js itt sem elhagyható: a böngésző natív ESM-betöltője oldja fel futásidőben.
 import { normalizeRule, ruleLabel } from '../shared/urlrules.js';
 import { MAX_BURST_MINUTES, MAX_COOLDOWN_MINUTES, normalizeBurst } from '../shared/burst.js';
@@ -4305,13 +4305,17 @@ function setupModal(): void {
   $('notifyTestBtn').addEventListener('click', () => {
     const out = $('notifyTestNote');
     out.classList.remove('hidden');
+    const platform = window.breaker.platform;
     const n = notify('Breaker — próba', 'Ha ezt látod, a Breaker értesítései megjelennek.');
     if (!n) {
-      out.textContent = 'Az értesítések ebben az appban nincsenek engedélyezve.';
+      out.textContent = notifyTestText(platform, 'off');
       return;
     }
-    out.textContent = 'Elküldve. Ha nem jelenik meg, alatta megjelenik, hol kapcsolható be.';
-    n.addEventListener('show', () => { out.textContent = 'Megjelent: a rendszer kézbesíti a Breaker értesítéseit.'; });
+    // A `show` csak annyi, hogy a rendszer átvette — hogy látszott-e, azt a
+    // felhasználó tudja, nem az app (shared/notify-delivery.ts).
+    out.textContent = notifyTestText(platform, 'sent');
+    n.addEventListener('show', () => { out.textContent = notifyTestText(platform, 'accepted'); });
+    n.addEventListener('error', () => { out.textContent = notifyTestText(platform, 'failed'); });
   });
   // Ha nem kéred, csendben marad: a kapcsoló a tárba ír, a két értesítés onnan kérdez.
   ($('suggestNotify') as HTMLInputElement).checked = !quietSuggestions();

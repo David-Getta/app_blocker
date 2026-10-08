@@ -600,6 +600,13 @@ Néhány konkrét dolog, amit érdemes előre tudni:
   azt a böngésző az app következő indulásáig még betartja; és egy hétnél
   tovább zárva tartott app után a böngésző nem tud a további ablakokról —
   azokat a gépen akkor csak a segéd indítja el, a böngésző nem tartja be.
+- **Hogy egy gépi értesítés tényleg látszott-e, azt az app nem tudja** —
+  csak azt, ha a rendszer visszautasította; ezt a beállítások lapja csendben
+  kimondja, a bekapcsolás helyével. Ha a Breaker értesítései a rendszerben ki
+  vannak kapcsolva, vagy egy fókusz-mód elnémítja őket, a rendszer ezt nem
+  feltétlenül jelzi vissza (a mostani asztali keretrendszer macOS-en
+  egyáltalán nem). Erre van az **„Értesítés kipróbálása”** gomb: egy
+  kattintás, és a saját szemeddel látod.
 
 ## Következő lépések (ötletek a bővítéshez)
 
