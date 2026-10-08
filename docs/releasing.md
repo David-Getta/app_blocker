@@ -135,6 +135,20 @@ lépésben, `gh release upload --clobber`-rel történik, és el is hasal, ha ne
 - az asseteken a feltöltés ideje a MOSTANI futásé-e,
 - a `latest-mac.yml` és a `latest.yml` fent van-e (enélkül nincs frissítés).
 
+### Ha a futó képe vált
+
+A linuxos jobok az `ubuntu-latest` címkén futnak, és a GitHub ezt időnként új
+főverzióra állítja (2026. október 19-től fokozatosan a 26.04-re). A képpel
+együtt cserélődik minden, amit a futó hoz — rendszercsomagok, a böngésző
+függőségei, az Android SDK —, és ami ettől eltörik, az kódváltozás nélkül,
+egyik napról a másikra lesz piros. Ezért a CI kézzel is indítható egy választott
+képen (Actions → CI → Run workflow → `ubuntu-26.04`): a váltás előtt kiderül,
+mi nem megy.
+
+Ami a képtől függne, de nem kell, hogy függjön, az rögzítve van: a JVM-tesztek
+Gradle-je (`gradle-version` a CI-ban — a kép a sajátját hozná, és az alattunk
+cserélődne), a Node és a Java verziója (`setup-node`, `setup-java`).
+
 ---
 
 ## 2. Hogyan frissül magától az app

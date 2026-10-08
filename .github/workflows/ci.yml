@@ -4,6 +4,19 @@ on:
   push:
     branches: ["**"]
   pull_request:
+  # Kézi indítás egy választott Ubuntu-képen. Az `ubuntu-latest` címke időnként
+  # új főverzióra vált (2026. október 19-től fokozatosan a 26.04-re), és a
+  # képpel együtt cserélődik minden, amit a futó hoz: a rendszercsomagok, a
+  # böngésző függőségei, az Android SDK. Ami ott eltörik, az a váltás napján
+  # derülne ki, kódváltozás nélkül — akár egy kiadás közepén. Így előre
+  # kipróbálható: Actions → CI → Run workflow → ubuntu-26.04.
+  workflow_dispatch:
+    inputs:
+      ubuntu:
+        description: "Ubuntu-kép a linuxos jobokhoz"
+        type: choice
+        options: ["ubuntu-latest", "ubuntu-24.04", "ubuntu-26.04"]
+        default: "ubuntu-latest"
 
 jobs:
   # A magyar idézőjel („ ”) záró jelét ASCII "-re elgépelve a Kotlin sztring
@@ -11,11 +24,11 @@ jobs:
   # mutatott meg. Ez a lépés másodpercek alatt kifogja.
   text:
     name: Szöveg-ellenőrzés
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.ubuntu || 'ubuntu-latest' }}
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: "20"
       - run: node scripts/check-text.js
@@ -57,14 +70,14 @@ jobs:
 
   desktop:
     name: Desktop mag + tesztek
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.ubuntu || 'ubuntu-latest' }}
     timeout-minutes: 15
     defaults:
       run:
         working-directory: desktop
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: "20"
       - run: npm ci
@@ -82,7 +95,7 @@ jobs:
   # null elem-lekérés némán üres ablakot ad. Ez betölti és végigkattintja.
   ui-smoke:
     name: Renderer füstteszt (Playwright)
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.ubuntu || 'ubuntu-latest' }}
     # Az alapértelmezett korlát hat óra. A böngésző telepítése egyszer
     # beragadt, és csak kézi leállítás vetett véget neki — a többi job zöld
     # volt, a kiadás mégis állt. Rendesen négy perc alatt végez; húsz perc
@@ -92,8 +105,8 @@ jobs:
       run:
         working-directory: desktop
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: "20"
       - run: npm ci
@@ -118,14 +131,14 @@ jobs:
 
   sync-server:
     name: Szinkron-kiszolgáló tesztek
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.ubuntu || 'ubuntu-latest' }}
     timeout-minutes: 10
     defaults:
       run:
         working-directory: server
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: "22"
       # Nincs npm ci: a kiszolgálónak szándékosan nincs függősége.
@@ -145,8 +158,8 @@ jobs:
       run:
         working-directory: desktop
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: "20"
       - run: npm ci
@@ -157,18 +170,26 @@ jobs:
 
   android-core-tests:
     name: Android mag tesztek (JVM, SDK nélkül)
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.ubuntu || 'ubuntu-latest' }}
     timeout-minutes: 20
     defaults:
       run:
         working-directory: android/jvm-tests
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v5
+        with:
+          # A Gradle RÖGZÍTVE, nem a futó képéé. A kép a sajátját hozza, és az
+          # cserélődik alattunk (most 9.8.0) — ez a build pedig már most
+          # figyelmeztet, hogy a Gradle 10-zel nem fog menni: egy képfrissítés
+          # napján piros lenne, kódváltozás nélkül. (A v5 szándékos: a v6-ban
+          # a gyorsítótár egy nem nyílt forrású komponensbe került, saját
+          # felhasználási feltételekkel.)
+          gradle-version: "9.8.0"
       # A fuzz itt is tízszeres mélységgel (FuzzDepth.kt) — mint a gépen.
       - run: gradle test --no-daemon
         env:
@@ -184,7 +205,7 @@ jobs:
     # Swift mag tesztjeit is (ios/Package.swift, SharedTests/): a tükör
     # szabályai eddig csak fordultak, most futnak is.
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - run: brew install xcodegen
       - name: Projekt generálása
         working-directory: ios
@@ -234,14 +255,14 @@ jobs:
 
   android-build:
     name: Android build (assembleDebug)
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.ubuntu || 'ubuntu-latest' }}
     timeout-minutes: 30
     defaults:
       run:
         working-directory: android
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
@@ -255,7 +276,7 @@ jobs:
       # („Failed to find package 'tools'”) — a build el sem indul. A futó képe
       # amúgy is hozza a platform-toolsot és a platformokat, a többit a Gradle
       # tölti le magának.
-      - uses: android-actions/setup-android@v3
+      - uses: android-actions/setup-android@v4
         with:
           packages: ''
       - run: chmod +x gradlew

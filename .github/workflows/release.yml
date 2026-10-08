@@ -31,7 +31,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Draft release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -82,8 +82,8 @@ jobs:
       run:
         working-directory: desktop
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: "20"
       - run: npm ci
@@ -171,7 +171,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       # Csomagolatlanul is betölthető a mappa, de csak akkor, ha valaki
       # klónozza a projektet. Egy zip a kiadás mellé annyit jelent, hogy a
       # letöltőoldalról is elérhető — enélkül a funkció papíron létezne.
@@ -193,8 +193,8 @@ jobs:
       run:
         working-directory: android
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
@@ -208,7 +208,7 @@ jobs:
       # („Failed to find package 'tools'”) — a build el sem indul. A futó képe
       # amúgy is hozza a platform-toolsot és a platformokat, a többit a Gradle
       # tölti le magának.
-      - uses: android-actions/setup-android@v3
+      - uses: android-actions/setup-android@v4
         with:
           packages: ''
       - name: Aláíró kulcs visszaállítása (ha van secret)
@@ -270,7 +270,7 @@ jobs:
     timeout-minutes: 40
     continue-on-error: true # aláírás nélkül nem készül feltölthető IPA — nem blokkolja a kiadást
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: XcodeGen
         run: brew install xcodegen
       - name: Projekt generálása
@@ -340,7 +340,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Draft -> közzététel
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
