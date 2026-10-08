@@ -194,6 +194,29 @@ jobs:
       - run: npx electron . --smoke-test
         timeout-minutes: 3
 
+  # A macOS-segéd gépszintű böngésző-házirendje és az eltávolító szkript,
+  # valódi macOS-en, rootként. Ez mutatta volna meg időben, hogy a Firefox
+  # házirend-kapcsolója (EnterprisePoliciesEnabled) hiányzott — a
+  # DNSOverHTTPS ott állt, a Firefox rá se nézett —, és hogy az eltávolító
+  # pythont futtatott, ami a mai macOS-en gyárilag nincs.
+  macos-helper-doh:
+    name: macOS DoH-házirend és eltávolító (root)
+    runs-on: macos-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+      - run: npm ci
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+      - run: npx tsc -p tsconfig.json
+      - run: sudo NODE="$(command -v node)" bash scripts/mac-doh-probe.sh
+
   # A BECSOMAGOLT app füstpróbája, Macen és Windowson. A kiadás ugyanezt a
   # szkriptet futtatja a feltöltés előtt — itt viszont minden pushnál kiderül,
   # ha a csomag nem indul (egy fájl kimarad a csomagból, egy Electron-

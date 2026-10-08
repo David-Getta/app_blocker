@@ -13,7 +13,7 @@ import { closedForMissingMeasurement } from '../shared/measure-guard';
 import type { HelperState } from './state';
 import { hostsFilePath } from './paths';
 import {
-  CHROMIUM_DOH_VALUE, CHROMIUM_TARGETS, FIREFOX_MAC_DOMAIN, windowsDohCommands,
+  CHROMIUM_DOH_VALUE, CHROMIUM_TARGETS, FIREFOX_MAC_DOMAIN, FIREFOX_MAC_ENABLE_KEY, windowsDohCommands,
 } from './doh-policy';
 
 /**
@@ -202,6 +202,10 @@ export async function applyDohPolicies(log: (m: string) => void): Promise<boolea
         'write', FIREFOX_MAC_DOMAIN, 'DNSOverHTTPS',
         '-dict', 'Enabled', '-bool', 'false', 'Locked', '-bool', 'true',
       ]);
+      // A Firefox macOS-en CSAK akkor olvas házirendet, ha ez a kapcsoló igaz
+      // (nsMacPreferencesReader: PoliciesEnabled). A v0.4.253 előtt ez
+      // hiányzott: a DNSOverHTTPS ott állt, a Firefox pedig rá se nézett.
+      await run('/usr/bin/defaults', ['write', FIREFOX_MAC_DOMAIN, FIREFOX_MAC_ENABLE_KEY, '-bool', 'true']);
       try { fs.chmodSync(`${FIREFOX_MAC_DOMAIN}.plist`, 0o644); } catch { /* ok */ }
       log('DoH policies applied (Chromium-family + Firefox machine preferences)');
       return true;

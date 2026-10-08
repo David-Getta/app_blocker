@@ -44,7 +44,13 @@ másodpercen belül visszaállítja.
   szkript ugyanezt leveszi, de csak a mieinket (a Chromium-kulcsban az „off”
   értéket, a Firefoxnál a két saját értéket); a CI Windows-próbája
   (`win-doh-probe.ps1`) a valódi segéd-kóddal írja be, és a valódi
-  eltávolítóval veszi le.
+  eltávolítóval veszi le. macOS-en a Firefoxnál a házirend-kapcsolót
+  (`EnterprisePoliciesEnabled`) is beírjuk: nélküle a Firefox macOS-en
+  egyetlen házirendet sem olvas (a v0.4.253 előtt ez hiányzott — a
+  DNSOverHTTPS ott állt, hatás nélkül). Az eltávolító a kapcsolót csak akkor
+  veszi le, ha a tartományban rajta kívül semmi nem maradt. A CI
+  macOS-próbája (`mac-doh-probe.sh`) ugyanezt rootként, valódi macOS-en
+  nézi, az eltávolító hosts-takarításával együtt.
 
 ### Android — VpnService DNS sinkhole
 Egy helyi `VpnService` (nem távoli VPN — a forgalom nem hagyja el a készüléket)

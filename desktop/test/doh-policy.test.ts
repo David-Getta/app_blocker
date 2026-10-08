@@ -12,8 +12,8 @@ import * as assert from 'node:assert/strict';
 import * as fs from 'fs';
 import * as path from 'path';
 import {
-  CHROMIUM_DOH_VALUE, CHROMIUM_TARGETS, FIREFOX_MAC_DOMAIN, FIREFOX_POLICY_JSON, FIREFOX_WIN_KEY,
-  FIREFOX_WIN_VALUES, windowsDohCommands,
+  CHROMIUM_DOH_VALUE, CHROMIUM_TARGETS, FIREFOX_MAC_DOMAIN, FIREFOX_MAC_ENABLE_KEY, FIREFOX_POLICY_JSON,
+  FIREFOX_WIN_KEY, FIREFOX_WIN_VALUES, windowsDohCommands,
 } from '../src/helper/doh-policy';
 
 /** A tár gyökere — a tesztek forrásból és fordított kimenetből (dist-test) is futnak. */
@@ -73,6 +73,26 @@ test('a macOS-eltávolító mindent visz, amit a segéd ír — és csak ha a mi
   assert.ok(sh.includes(`DnsOverHttpsMode 2>/dev/null)" = "off"`));
   assert.ok(sh.includes(`defaults delete ${FIREFOX_MAC_DOMAIN} DNSOverHTTPS`));
   assert.ok(sh.includes('*"Enabled = 0;"*"Locked = 1;"*'));
+  // A Firefox házirend-kapcsolója csak akkor megy, ha rajta kívül semmi nem maradt.
+  assert.ok(sh.includes(`"{${FIREFOX_MAC_ENABLE_KEY}=1;}"`));
+  assert.ok(sh.includes(`defaults delete ${FIREFOX_MAC_DOMAIN} ${FIREFOX_MAC_ENABLE_KEY}`));
+});
+
+test('a macOS-eltávolító python nélkül is kiveszi a hosts-blokkot', () => {
+  // A mai macOS-en python3 gyárilag nincs: a `set -e` miatt a szkript a
+  // hosts-blokknál megállt volna, és a tiltás bent marad.
+  const sh = read('desktop/scripts/uninstall-macos.sh');
+  assert.ok(!/^\s*python/m.test(sh), 'a szkript megint pythont futtat');
+  assert.ok(sh.includes("awk '/^# >>> BREAKER BLOCK BEGIN/"));
+  assert.ok(sh.includes("grep -q '^# <<< BREAKER BLOCK END' /etc/hosts"), 'csonka blokknál ne dobja ki a fájl végét');
+});
+
+test('macOS-en a Firefox házirend-kapcsolója is felkerül', () => {
+  // Nélküle a Firefox macOS-en egyetlen házirendet sem olvas — a DNSOverHTTPS
+  // ott áll, és semmit nem tesz.
+  assert.equal(FIREFOX_MAC_ENABLE_KEY, 'EnterprisePoliciesEnabled');
+  const src = read('desktop/src/helper/hosts.ts');
+  assert.ok(src.includes("['write', FIREFOX_MAC_DOMAIN, FIREFOX_MAC_ENABLE_KEY, '-bool', 'true']"));
 });
 
 test('a segéd nem írja felül a Firefox policies.json-ját', () => {

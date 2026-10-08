@@ -3122,6 +3122,16 @@ const WIRES = [
     needle: 'scripts/win-doh-probe.ps1',
     lost: 'senki nem nézné meg valódi Windowson, hogy a házirend felkerül, és az eltávolító csak a mieinket veszi le',
   },
+  {
+    file: 'desktop/src/helper/hosts.ts',
+    needle: "['write', FIREFOX_MAC_DOMAIN, FIREFOX_MAC_ENABLE_KEY, '-bool', 'true']",
+    lost: 'macOS-en a Firefox egyetlen házirendet sem olvasna — a DNSOverHTTPS ott állna, hatás nélkül',
+  },
+  {
+    file: '.github/workflows/ci.yml',
+    needle: 'scripts/mac-doh-probe.sh',
+    lost: 'senki nem nézné meg valódi macOS-en, hogy a házirend (a Firefox kapcsolójával) felkerül, és az eltávolító python nélkül is lefut',
+  },
 
   // A SÚRLÓDÁS ESZKALÁCIÓJA. Enélkül minden próbatétel a legkönnyebb fokon
   // maradna, és a „nem lesz könnyebb attól, hogy sokszor csinálod” ígéret

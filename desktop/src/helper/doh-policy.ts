@@ -48,6 +48,16 @@ export const FIREFOX_WIN_VALUES: readonly { name: string; dword: 0 | 1 }[] = [
 export const FIREFOX_MAC_DOMAIN = '/Library/Preferences/org.mozilla.firefox';
 
 /**
+ * A Firefox macOS-en csak akkor olvas házirendet, ha ez igaz (a
+ * mozilla/policy-templates szerint: „Enable policy support on macOS”; a
+ * forrásban nsMacPreferencesReader::PoliciesEnabled). Nélküle a DNSOverHTTPS
+ * ott áll, és semmit nem tesz. Az eltávolító csak akkor veszi le, ha a
+ * tartományban rajta kívül semmi nem maradt — egy másik eszköz saját
+ * Firefox-házirendje enélkül hatástalanná válna.
+ */
+export const FIREFOX_MAC_ENABLE_KEY = 'EnterprisePoliciesEnabled';
+
+/**
  * A v0.4.252 előtti segéd ezt írta a Firefox telepítési mappájába
  * (distribution/policies.json), a meglévő fájlt egészében cserélve. Ma már
  * nem írjuk; az eltávolító csak akkor törli, ha pontosan ez van benne.

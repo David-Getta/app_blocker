@@ -192,6 +192,9 @@ maradna, a titkosított DNS zárolva. Csak a mieinket: a Chromium-családnál
 (Chrome, Edge, Chromium, Brave) az „off” értéket, a Firefoxnál a két saját
 értéket; amit valaki más állított be, marad. Egy szervezet saját házirendjét
 (GPO, MDM) ez nem érinti — azt a következő frissítése úgyis visszaírja.
+A macOS-szkript pythont nem használ (a mai macOS-en gyárilag nincs): a
+hosts-blokkot `awk` veszi ki, és csak akkor nyúl a fájlhoz, ha a blokk mindkét
+jelölője megvan.
 
 Ami a szkript után is marad, az a felhasználó saját mappája és a böngésző:
 az app felhasználói mappája (macOS: `~/Library/Application Support/Breaker`,
