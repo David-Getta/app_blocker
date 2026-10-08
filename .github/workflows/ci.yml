@@ -70,7 +70,13 @@ jobs:
       - run: npm ci
         env:
           ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+      # A FUZZ TÍZSZERES MÉLYSÉGGEL (lásd desktop/test/fuzz-depth.ts): az
+      # ablakos csomagok fésülésének ritka sorrendfüggését a helyi, alap
+      # mélységű futás átengedte. Ez a job így is az iOS-é mellett fut le, a
+      # CI ideje nem nő tőle.
       - run: npm test
+        env:
+          FUZZ_DEPTH: "10"
 
   # A renderert semmi más nem futtatja: egy hiányzó .js kiterjesztés vagy egy
   # null elem-lekérés némán üres ablakot ad. Ez betölti és végigkattintja.
@@ -163,7 +169,10 @@ jobs:
           distribution: temurin
           java-version: "17"
       - uses: gradle/actions/setup-gradle@v4
+      # A fuzz itt is tízszeres mélységgel (FuzzDepth.kt) — mint a gépen.
       - run: gradle test --no-daemon
+        env:
+          FUZZ_DEPTH: "10"
 
   ios-build:
     name: iOS fordítás (aláírás nélkül) + Swift-tesztek
