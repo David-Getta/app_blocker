@@ -4297,6 +4297,22 @@ function setupModal(): void {
     writePref(MOTION_KEY, (e.target as HTMLInputElement).checked ? 'on' : 'off');
     applyBackground();
   });
+  // AZ ÉRTESÍTÉS PRÓBÁJA — a felhasználó kérésére, egy nyugodt pillanatban. Kiderül,
+  // tényleg megjelenik-e; macOS-en (az Electron 42-től) az első értesítés kéri a
+  // rendszer engedélyét, és jobb, ha az itt jön fel, nem egy szünet végi
+  // figyelmeztetésnél. Ha nem jelenik meg, a kézbesítési sor mondja meg, hol
+  // kapcsolható be (notify → noteNotifyDelivery).
+  $('notifyTestBtn').addEventListener('click', () => {
+    const out = $('notifyTestNote');
+    out.classList.remove('hidden');
+    const n = notify('Breaker — próba', 'Ha ezt látod, a Breaker értesítései megjelennek.');
+    if (!n) {
+      out.textContent = 'Az értesítések ebben az appban nincsenek engedélyezve.';
+      return;
+    }
+    out.textContent = 'Elküldve. Ha nem jelenik meg, alatta megjelenik, hol kapcsolható be.';
+    n.addEventListener('show', () => { out.textContent = 'Megjelent: a rendszer kézbesíti a Breaker értesítéseit.'; });
+  });
   // Ha nem kéred, csendben marad: a kapcsoló a tárba ír, a két értesítés onnan kérdez.
   ($('suggestNotify') as HTMLInputElement).checked = !quietSuggestions();
   $('suggestNotify').addEventListener('change', (e) => {

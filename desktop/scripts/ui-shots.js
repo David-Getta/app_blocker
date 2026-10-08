@@ -2270,6 +2270,13 @@ async function main() {
     failures.push(`a meg nem jelent értesítést a beállítások lapja nem mondja ki: ${deliveryNote}`);
   }
   await notifyPage.close();
+  // A PRÓBA GOMBJA mindig mond valamit — a fej nélküli böngészőben nincs
+  // engedély, tehát azt; egy néma gomb elromlottnak látszana.
+  await page.locator('#notifyTestBtn').evaluate((b) => b.click());
+  const testNote = (await page.locator('#notifyTestNote').textContent()) || '';
+  if (await page.locator('#notifyTestNote.hidden').count() !== 0 || testNote.trim() === '') {
+    failures.push('az értesítés próbája néma maradt');
+  }
   // A szokásos lapon (nincs tárolt hiba) a sor rejtve marad.
   if (await page.locator('#notifyDeliveryNote.hidden').count() !== 1) {
     failures.push('hiba nélkül is ott a meg nem jelent értesítés sora');
