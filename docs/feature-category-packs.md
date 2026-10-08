@@ -3,8 +3,8 @@
 A blokklista oldalanként épül, és az első percekben ez lassú: aki a közösségi
 médiát akarja kizárni, annak nyolc címet kellene egyenként beírnia — és a
 harmadiknál eszébe jut, hogy majd holnap. A kategória-csomag ezt veszi le
-róla: *Közösségi*, *Videó és stream*, *Hírek*, *Vásárlás*, *Szerencsejáték* —
-egy-egy gomb, ami a csomag minden oldalát felveszi.
+róla: *Közösségi*, *Videó és stream*, *Hírek*, *Vásárlás*, *Szerencsejáték*,
+*Felnőtt tartalom* — egy-egy gomb, ami a csomag minden oldalát felveszi.
 
 ## Szabály
 
@@ -30,6 +30,17 @@ a címben és a lap címsorában is fogja (`docs/feature-keywords.md`). Aki a
 szerencsejátéktól komolyan el akar szakadni, annak a szolgáltatónál kérhető
 önkizárás erősebb eszköz: az a fióknál zár, nem az eszközön — a kettő együtt
 a legjobb.
+
+## A Felnőtt tartalom-csomag
+
+A legnagyobb nemzetközi felnőtt-videós oldalak, és a nagy fizetős és élő
+platformok (OnlyFans, Chaturbate, Stripchat). **Ez sem teljes lista**, és nem
+is lehet az: ilyen oldalból rengeteg van, és a nagyok tükörcímeken is futnak.
+A csomag a leggyakoribb belépőket zárja le egy kattintással; ami hiányzik, azt
+egyenként kell felvenni — és egy kulcsszó (például `porn`) a böngészőben a
+címben és a lap címsorában, a telefonon a hosztnévben is fogja
+(`docs/feature-keywords.md`). A keresők biztonságos keresése (SafeSearch) jó
+kiegészítés: az a találatokat szűri, a csomag a belépőket.
 
 ## Hol van
 

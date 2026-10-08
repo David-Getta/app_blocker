@@ -219,8 +219,9 @@ ingyen van, rövidíteni vagy visszavonni sehogy.
   három), egy kattintással tiltva — tükör, nem ítélet; rejtett listánál a sor
   is elmarad. iPhone-on nincs, mert ott nincs oldalankénti mérés.
 - **Kategória-csomagok: egy kattintással több oldal** (mindhárom platform).
-  *Közösségi*, *Videó és stream*, *Hírek*, *Vásárlás*, *Szerencsejáték* — egy-egy gomb a felvevő
-  kártyán, ami a csomag minden oldalát felveszi. Felvenni ingyen (szigorítás),
+  *Közösségi*, *Videó és stream*, *Hírek*, *Vásárlás*, *Szerencsejáték*,
+  *Felnőtt tartalom* — egy-egy gomb a felvevő kártyán, ami a csomag minden
+  oldalát felveszi. Felvenni ingyen (szigorítás),
   levenni oldalanként, a szokásos próbatétellel; ami már fent van, nem számít
   bele. Lásd `docs/feature-category-packs.md`.
 - **Zárlat-ablak: heti sáv, amiben a zárlat magától él** (mindhárom

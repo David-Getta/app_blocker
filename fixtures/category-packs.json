@@ -65,5 +65,21 @@
       "unibet.com",
       "pokerstars.com"
     ]
+  },
+  {
+    "key": "adult",
+    "label": "Felnőtt tartalom",
+    "domains": [
+      "pornhub.com",
+      "xvideos.com",
+      "xnxx.com",
+      "xhamster.com",
+      "redtube.com",
+      "youporn.com",
+      "spankbang.com",
+      "onlyfans.com",
+      "chaturbate.com",
+      "stripchat.com"
+    ]
   }
 ]
