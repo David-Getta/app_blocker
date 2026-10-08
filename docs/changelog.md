@@ -8,6 +8,7 @@ kettővel korábbiban.
 
 | Verzió | Nap | Mi újság |
 |---|---|---|
+| v0.4.244 | 2026-10-08 | a Play-be szánt Android-csomag nem frissíti magát |
 | v0.4.243 | 2026-10-08 | kikapcsolt értesítés a telefonon, Windows-értesítés azonosítója, helyi hálózat iPhone-on |
 | v0.4.242 | 2026-10-08 | Android API 36, a visszautasított értesítés, értesítés-próba |
 | v0.4.241 | 2026-10-08 | régebbi Macre nem kerül el nem induló frissítés; a híd-kiadás |
