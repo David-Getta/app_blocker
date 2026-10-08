@@ -562,6 +562,14 @@ Ismert megkerülési utak (szándékosan nem próbáljuk „lelakatolni” a gé
     súrlódás eleve a privilegizált segédben van.
 - Egyedi/hardcode-olt DNS vagy DoH-proxy IP-cím megkerülheti a szűrőt (a hosts
   fájl és a sinkhole a névfeloldásra hat). Későbbi bővítés: IP-szintű szabályok.
+- **A telefonon a böngésző saját biztonságos DNS-e.** A Chrome alapállása (a
+  biztonságos DNS a jelenlegi szolgáltatóval) a rendszer DNS-ét — vagyis a
+  szűrőt — használja: titkosítottra csak ismert szolgáltatónál vált, a Breaker
+  virtuális DNS-e pedig nem az. Ha viszont a böngészőben külön szolgáltató van
+  megadva, a névfeloldás titkosítva, a szűrő mellett megy, és a tiltás abban a
+  böngészőben nem érvényesül. A gépen ezt a házirend kikapcsolja (lásd fent);
+  a telefonon böngésző-házirendet csak eszközkezelés (MDM) adhatna, az app ma
+  nem is jelzi. Kikényszeríteni nem tudjuk — a korlátok között kimondjuk.
 - **macOS-en a böngésző-DoH kikapcsolása nem zár, csak alapértelmezést állít.**
   A Chromium a `/Library/Preferences`-ben talált értéket csak akkor kezeli
   kötelező házirendként, ha az „forced” (MDM-profilból jön); enélkül ajánlásnak

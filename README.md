@@ -562,6 +562,12 @@ Néhány konkrét dolog, amit érdemes előre tudni:
   kiszolgálónévvel a névfeloldás TLS-en, a VPN mellett megy). Kényszeríteni
   nem tudjuk; az app észleli, a korong és a tartós értesítés kimondja, és a
   hálózati beállításokhoz visz. Az „Automatikus” mód rendben van.
+- **Androidon a böngésző saját biztonságos DNS-e is megkerülheti a szűrőt**, ha
+  a böngészőben külön szolgáltató van megadva (Chrome: Beállítások › Adatvédelem
+  és biztonság › Biztonságos DNS). Az alapállás — a jelenlegi szolgáltatóval —
+  rendben van: ilyenkor a böngésző is a szűrőt kérdezi. A gépen ezt házirend
+  kapcsolja ki; a telefonon ilyen házirend eszközkezelés nélkül nincs, és az app
+  ma nem is jelzi.
 - **A törlés-védelem nem gépzár.** Az eszközadmin elveszi az egykoppintásos
   törlést, de a rendszer Beállításaiban (Biztonság → Eszközadmin-alkalmazások)
   próbatétel nélkül is kikapcsolható — nem tudjuk megakadályozni, és nem is
