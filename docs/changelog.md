@@ -8,6 +8,7 @@ kettővel korábbiban.
 
 | Verzió | Nap | Mi újság |
 |---|---|---|
+| v0.4.231 | 2026-10-08 | a kulcsszavakat csak a saját levételük viszi el |
 | v0.4.230 | 2026-10-08 | a megbízottat csak a levétele viszi el |
 | v0.4.229 | 2026-10-08 | a heti ablak rárétegződik, nem állítja le a futó menetet |
 | v0.4.228 | 2026-10-08 | a futó menetet csak a nyoma állítja le |
