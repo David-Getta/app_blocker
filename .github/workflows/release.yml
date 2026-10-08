@@ -45,29 +45,37 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **Régebbi Macre nem kerül olyan frissítés, ami ott el sem indulna.** Az asztali
-          app keretrendszere (az Electron) időnként elengedi a legrégebbi macOS-eket, és
-          a következő asztali verziók a macOS 13-at fogják kérni. A frissítő eddig ezt nem
-          nézte: egy régebbi Macre is feltette volna az új verziót, ami ott el sem indul.
-          Mostantól összeveti a gép rendszerével. Ha a következő verzió ott már nem futna,
-          nem tölt le semmit, és a fiók-panel kimondja, melyik verzió mit kér. A Breaker
-          így is működik tovább — a tiltás, a mérés, minden —, csak újabbat nem kap.
+          **Android: a Breaker a Google Play mostani követelményére frissült.** Az app
+          mostantól az Android 16-ra (API 36) céloz — a Play 2026. augusztus 31. óta csak
+          ilyen frissítést fogad. Az Android 15-től a rendszer a tartalmat az állapotsor
+          és a navigációs sáv mögé is rajzolja. A Breaker felülete ezt most kezeli: a
+          fejléc nem csúszik az állapotsor alá, a lap alja nem a navigációs sáv alá, és a
+          billentyűzet sem takar el gombot. Ezt fordításkor ellenőrizzük; valódi telefonon
+          a felületet a CI nem próbálja ki.
 
-          **Ez a verzió a híd.** A korábbi frissítők a következő asztali verziók csomagját
-          nem ismerik fel. Ha a Maceden a Breaker régóta nem futott, nyisd meg most, hogy
-          ezt a verziót megkapja.
+          **Az asztali app szól, ha a rendszer visszautasít egy értesítést.** A szünet
+          végét, a betelő keretet, a közelgő heti ablakot az app értesítésben mondja el.
+          Ha a rendszer egyet visszautasított, az eddig nyomtalanul elmaradt. Most a
+          beállítások lapja csendben kimondja, és azt is, hol kapcsolható be. Nem ugrik
+          fel semmi, nem nógat — ha szándékosan kapcsoltad ki, ez csak egy tény.
 
-          **Minden kiadás előtt kipróbáljuk, elindul-e az asztali app.** A becsomagolt
-          appot Macen és Windowson is elindítjuk, mielőtt kimegy. Ha nem indul el, a
-          kiadás nem jut el hozzád.
+          **Értesítés kipróbálása.** A beállítások lapján egy gomb küld egy
+          próba-értesítést. Hogy egy értesítés tényleg látszott-e, azt az app nem tudja,
+          csak azt, hogy a rendszer átvette vagy visszautasította. A gomb ezt mondja meg,
+          és azt, hol kapcsolható be, ha mégsem láttad. Macen a mostani asztali
+          keretrendszer semmit nem jelez vissza: ott a kézbesítési sor ma nem szólal
+          meg, a gomb viszont igen.
 
-          ### Ami a v0.4.240-ben jött
+          ### Ami a v0.4.241-ben jött
+
+          **Régebbi Macre nem kerül olyan frissítés, ami ott el sem indulna.** Ez és az
+          ezutáni verziók a híd: a korábbi frissítők a következő asztali verziók
+          csomagját nem ismerik fel. Ha a Maceden a Breaker régóta nem futott, nyisd meg,
+          hogy a frissítés eljusson hozzá.
+
+          #### Ami a v0.4.240-ben jött
 
           **Új kategória-csomag: Szerencsejáték.**
-
-          #### Ami a v0.4.239-ben jött
-
-          **A végigcsinált próbatétel akkor is hat, ha közben a sor összevonódott.**
           NOTES
           fi
 
