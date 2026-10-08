@@ -24,14 +24,10 @@ szűrő sem. Ez ugyanaz a kimondott, gyengébb réteg, mint a részleges tiltás
 A telefonokon a szűrő NEM érvényesül (ott nincs bővítmény-rendszer, és a
 DNS-alapú szűrő címet nem lát). A REKORDOK viszont a fiókon át a gépek közt
 szinkronizálódnak (`channels` gyűjtemény, egy blob a fiók egészére): a másik
-gépen a saját bővítménye érvényesíti ugyanazt a listát. A fésülés szabálya a
-legegyszerűbb — a frissebb oldal nyer (`rev`, majd idő, majd eszköz) —, mert
-a súrlódást nem a szinkron tartja, hanem a helyi kapu: a `rev` csak a
-próbatétel-kapun átment változás után nő, tehát lazítani egy régi állapot
-visszajátszásával nem lehet, és egy vadonatúj, üres gép sem törölhet semmit
-(az üresség nem szerkesztés — lásd `revisions.ts`). Régi fiókkiszolgáló
-mellett a szűrők kimaradnak a szinkronból, és ezt a fiókkártya kiírja — néma
-kimaradás nincs.
+gépen a saját bővítménye érvényesíti ugyanazt a listát. A fésülés
+gazdagépenként megy, a kifizetett lazítások száma szerint — lásd lent,
+„Szinkron”. Régi fiókkiszolgáló mellett a szűrők kimaradnak a szinkronból, és
+ezt a fiókkártya kiírja — néma kimaradás nincs.
 
 ## Mit tekintünk csatornának
 
@@ -160,6 +156,69 @@ A szabály ugyanaz, mint mindenhol az appban:
 A próbatétel UGYANAZ a gépezet, mint a feloldásnál: szintlépcső, kényszerített
 páros feladott kísérlet után, változatosság. A lazítás a próbatétel
 TELJESÍTÉSEKOR lép életbe — addig a szűrő a régi alakjában él.
+
+## Szinkron
+
+A szűrők a fiókon át egy blobként utaznak (`channels`), de **gazdagépenként**
+fésülődnek — oldalanként egy szűrő, a gazdagép az azonosság. Oldalanként két
+szám kíséri őket:
+
+- **a jel** (`marks`): annak a blobnak a `rev`-je, amelyik az oldal szűrőjét
+  utoljára felvette, módosította vagy levette. Ha jel van, szűrő nincs, az a
+  levétel nyoma (sírkő).
+- **a kifizetett lazítások száma** (`loosens`): kikapcsolás, új csatorna
+  bekapcsolt szűrőn, törlés vagy gazdagép-csere bekapcsoltan — ezekhez
+  próbatétel kellett. A léptetés a legutóbbi pillanatkép és a mostani lista
+  különbségéből könyveli (`markChannelChanges`), tehát csak a kapun átment
+  lazítás növelheti; az átvett listát a szinkron szintén eltárolja, hogy a
+  következő helyi léptetés ne könyvelje a miénknek.
+
+A fésülés oldalanként: **a több kifizetett lazítás nyer, egészében** — a
+kifizetett kikapcsolás, bővítés és levétel átmegy. **Egyenlő számnál a
+szigorúbb:** bekapcsolva, ha bárhol be van; az engedélylista a kettő
+metszete (ha csak az egyik bekapcsolt és a metszet üres, a bekapcsolté: a
+kikapcsolt szűrőn ingyen bővített lista nem nyithat meg semmit egy
+bekapcsolton); egy bekapcsolt szűrőt egy ingyenes — kikapcsolt példányon
+végzett — levétel nem visz el; két kikapcsolt közül, amik nem tiltanak
+semmit, a frissebb jelű marad.
+
+Miért. Eddig az egész lista egyben utazott, és a frissebb oldal nyert (`rev`,
+idő, eszköz). Csakhogy a `rev`-et az ingyenes szigorítás is lépteti: egy friss
+telepítés vagy egy régóta nem szinkronizált gép néhány ingyenes szerkesztéssel
+felhúzta a számlálóját, és a régi (vagy szinte üres) listája mindenhol
+letörölte a máshol felvett szűrőket — próbatétel nélkül. Most egy elavult gép
+ingyenes szerkesztése semmit nem lazíthat a többin. Véletlen-teszt őrzi
+(`channels-merge-fuzz.test.ts`): ezernyi véletlen történet egy közös őstől,
+az egyik gép csak ingyen szerkeszt — akárhányszor —, a másik bármit, és a
+fésült eredmény a másik gép egyetlen bekapcsolt szűrőjénél sem enged többet;
+a fizetett lazítás viszont átmegy, és a fésülés szimmetrikus, idempotens és
+elnyelő (a két gép nem írja örökké egymást).
+
+A sorrend a régebbi ígéreté (jel, aztán gazdagép). Ha a kettő együtt több
+szűrő, mint húsz, előbb a kikapcsoltak esnek ki (nem tiltanak semmit), aztán
+a legfrissebbek — a jelük marad. Azonos oldalnál a kisebb azonosító marad. A
+jelek plafonja 64: a jelen lévő szűrőké mindig marad, a levettekből a
+legfrissebbek.
+
+**Őszinte határok.**
+
+- **Két bekapcsolt, diszjunkt engedélylista egyenlő számlálóval** — két gép
+  egymástól függetlenül vett fel szűrőt ugyanarra az oldalra, vagy egy
+  kikapcsolt szűrőt két helyen másképp szerkesztettek és kapcsoltak be: a
+  szigorúbb itt a „semmi”, de üres engedélylista nem lehet (az az egész
+  oldalt tiltaná, amit senki nem kért). A rövidebb lista marad.
+- **Egy kifizetett lazítás az egész szűrőt viszi.** Ha közben máshol ingyen
+  szűkítették ugyanazt a szűrőt, az a szűkítés elveszhet — a szigorúbb
+  irányba ingyen újra megtehető. Két gépen egyszerre kifizetett lazítás közül
+  egyik sem nyer: a szigorúbb marad, a lazítást újra kell kérni.
+- **A plafon a jelek szerint vág**, és a jel egy-egy gép számlálója: ha két
+  gép szűrői együtt túllépik a húszat, egy régóta nem szinkronizált gépen
+  frissen felvett szűrő kiszoríthat egy máshol nemrég felvettet.
+- **Régi kliens.** A régi alkalmazás a frissebb blobot veszi át egészében.
+  Ha a fésült tartalom eltér a nála nagyobb `rev`-ű bejövőtől, eggyel nagyobb
+  `rev`-et kap — különben a régi kliens a saját listáját tartaná meg, és a
+  kettő körönként egymást írná felül. Egy még nem frissített gép kifizetett
+  levétele jel nélkül nem tartja meg magát. Frissíts minden gépet.
 
 ## A lánc
 

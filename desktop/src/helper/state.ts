@@ -16,6 +16,7 @@ import {
 } from '../shared/focus';
 import type { UrlRule } from '../shared/urlrules';
 import { cleanWindowMarks, normalizeWindows, parseLockdown } from '../shared/lockdown';
+import { cleanChannelMarks } from '../shared/sync/channels-merge';
 import { cleanKeywordMarks, cleanKeywords, type KeywordMarks } from '../shared/keywords';
 import { cleanBrowserHits } from '../shared/browser-hits';
 import { normalizeBurst } from '../shared/burst';
@@ -380,16 +381,28 @@ export interface HelperState {
   focusRevKeywordList?: string[];
   focusRevHide?: string;
   /**
-   * A csatorna-szűrők szinkron-számlálója — a munkamenet mintájára.
-   *
-   * A szűrők EGY blobként utaznak, és a frissebb oldal nyer; lazítani itt is
-   * csak elvégzett munkával lehet, mert a `rev` csak a helyi kapun (referee)
-   * átment változás után nő.
+   * A csatorna-szűrők szinkron-számlálója — a munkamenet mintájára. A szűrők
+   * egy blobként utaznak, de GAZDAGÉPENKÉNT fésülődnek
+   * (`shared/sync/channels-merge.ts`): a `rev` csak a blob kulcsa.
    */
   channelsRev?: number;
   channelsUpdatedAt?: number;
   channelsUpdatedBy?: string;
   channelsRevFp?: string;
+  /**
+   * GAZDAGÉPENKÉNT a jel: annak a blobnak a `rev`-je, amelyik az oldal
+   * szűrőjét utoljára felvette, módosította vagy levette (revisions.ts,
+   * `markChannels`). Szűrő nélkül a levétel nyoma.
+   */
+  channelMarks?: Record<string, number>;
+  /**
+   * GAZDAGÉPENKÉNT a kifizetett lazítások száma: kikapcsolás, új csatorna
+   * bekapcsolt szűrőn, törlés vagy gazdagép-csere bekapcsoltan — ezekhez
+   * próbatétel kellett. A fésülésben a több nyer.
+   */
+  channelLoosens?: Record<string, number>;
+  /** A szűrők a legutóbbi léptetéskor (vagy átvételkor) — ebből látszik, mi változott és hogyan. */
+  channelsRevList?: ChannelFilter[];
   /**
    * Miért nem megy a munkamenet szinkronja, ha nem megy.
    *
@@ -551,6 +564,13 @@ export function loadState(): HelperState {
         const rev = typeof parsed.focusRev === 'number' && Number.isFinite(parsed.focusRev) ? parsed.focusRev : 0;
         const m = cleanWindowMarks(parsed.lockdownWindowMarks, parsed.lockdownWindows ?? [], rev);
         if (m) parsed.lockdownWindowMarks = m; else delete parsed.lockdownWindowMarks;
+      }
+      // A csatorna-szűrők jelei és kifizetett lazításai is a mag szűrőjén át — mint a dróton.
+      if (parsed.channelMarks !== undefined || parsed.channelLoosens !== undefined) {
+        const rev = typeof parsed.channelsRev === 'number' && Number.isFinite(parsed.channelsRev) ? parsed.channelsRev : 0;
+        const c = cleanChannelMarks(parsed.channelMarks, parsed.channelLoosens, parsed.channelFilters ?? [], rev);
+        if (c.marks) parsed.channelMarks = c.marks; else delete parsed.channelMarks;
+        if (c.loosens) parsed.channelLoosens = c.loosens; else delete parsed.channelLoosens;
       }
       // A kulcsszavak a mag szűrőjén át: ami nem kulcsszó, az nem az; üresen nincs mező.
       if (parsed.keywords !== undefined) {

@@ -707,9 +707,9 @@ async function syncFocusRound(
  * A csatorna-szűrők szinkronja: az egész lista egy blobként.
  *
  * Ugyanaz a menet, mint a munkamenetnél — húzd le, fésüld össze, told fel —,
- * de a fésülés szabálya a legegyszerűbb: a frissebb oldal listája nyer
- * (`shared/sync/channels-merge.ts`). Lazítani itt is csak elvégzett munkával
- * lehet: a `rev` a helyi próbatétel-kapun átment változás után nő.
+ * a fésülés GAZDAGÉPENKÉNT megy (`shared/sync/channels-merge.ts`): a több
+ * kifizetett lazítás nyer, egyenlőnél a szigorúbb. Egy elavult gép ingyenes
+ * szerkesztése így semmit nem lazíthat a többin.
  *
  * A tiltás a bővítményben él, tehát a szinkron itt a REKORDOKAT viszi át:
  * a másik gépen a saját bővítménye érvényesíti őket.
@@ -733,6 +733,9 @@ async function syncChannelsRound(
       state.channelsRev = merged.rev;
       state.channelsUpdatedAt = merged.updatedAt;
       state.channelsUpdatedBy = merged.updatedBy;
+      // A jelek és a kifizetett lazítások is: a következő fésülés ezekből dönt.
+      if (merged.marks) state.channelMarks = merged.marks; else delete state.channelMarks;
+      if (merged.loosens) state.channelLoosens = merged.loosens; else delete state.channelLoosens;
       // A lenyomatot ÚJRASZÁMOLJUK, nem az övét vesszük át — különben a
       // következő mentés fölöslegesen léptetne, és a két eszköz örökké
       // írogatná egymást.
@@ -771,6 +774,8 @@ function localChannels(state: HelperState, deviceId: string): SyncChannels {
     rev: state.channelsRev ?? 0,
     updatedAt: state.channelsUpdatedAt ?? 0,
     updatedBy: state.channelsUpdatedBy ?? deviceId,
+    ...(state.channelMarks ? { marks: state.channelMarks } : {}),
+    ...(state.channelLoosens ? { loosens: state.channelLoosens } : {}),
   };
 }
 

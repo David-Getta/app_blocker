@@ -170,6 +170,14 @@ Ezért:
   tartalmanként a nagyobb jel dönt, egyenlő vagy hiányzó jelnél az unió; a
   hetes plafon és a heti egy szabad óra a legfrissebbet vágja, nem a régit. A
   részletek: docs/feature-lockdown-windows.md, „Hogyan működik belül”.
+- **A csatorna-szűrők gazdagépenként fésülődnek.** A szűrő-lista eddig
+  egészében a frissebb blobot követte, és a `rev`-et az ingyenes szigorítás
+  is lépteti: egy friss telepítés vagy egy elavult gép néhány ingyenes
+  szerkesztéssel mindenhol letörölhette a máshol felvett szűrőket. Most
+  oldalanként a kifizetett lazítások száma dönt (a több nyer, egészében), és
+  egyenlő számnál a szigorúbb: bekapcsolva, ha bárhol be van, az
+  engedélylista a metszet. A részletek: docs/feature-channel-filter.md,
+  „Szinkron”.
 - **A futó menet csomagja mindig marad, és a fehérlistája nem bővülhet.** A
   csomagok és a menet külön dőlnek el, és a kettő össze tud akadni: az egyik
   eszköz törölte a csomagot (jellel), a másik ugyanabban a körben menetet

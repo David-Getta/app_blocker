@@ -1,6 +1,8 @@
 import { test } from 'node:test';
 import * as assert from 'node:assert/strict';
 import * as referee from '../src/helper/referee';
+import { bumpChannelsRevision } from '../src/helper/revisions';
+import { mergeChannels, type SyncChannels } from '../src/shared/sync/channels-merge';
 import { defaultState, type HelperState } from '../src/helper/state';
 import type {
   MathChainStep, MemoryStep, ReverseStep, Step, TranscribeStep,
@@ -153,4 +155,27 @@ test('szemét bemenetből nem lesz szűrő', () => {
     () => referee.startChannelFilterSave(state, { host: 'youtube.com', allow: ['két szó'], enabled: true }, NOW),
     /oldal|csatorna/,
   );
+});
+
+test('a kifizetett lazítás számolódik, és a szinkronban átmegy; az ingyenes szerkesztés nem', () => {
+  const state = withFilter(true);
+  bumpChannelsRevision(state, 'gep', NOW);
+  const synced = JSON.parse(JSON.stringify(state.channelFilters)) as NonNullable<HelperState['channelFilters']>;
+  const f = state.channelFilters![0];
+  // Ingyen: egy csatorna levétele — jel, számláló nélkül.
+  referee.startChannelFilterSave(state, { id: f.id, host: f.host, allow: ['@jo'], enabled: true }, NOW);
+  bumpChannelsRevision(state, 'gep', NOW + 1);
+  assert.equal(state.channelLoosens, undefined);
+  // Próbatétellel: a kikapcsolás — a számláló nő.
+  referee.startChannelFilterSave(state, { id: f.id, host: f.host, allow: ['@jo'], enabled: false }, NOW);
+  solveWholeSession(state, NOW);
+  bumpChannelsRevision(state, 'gep', NOW + 2);
+  assert.deepEqual(state.channelLoosens, { 'youtube.com': 1 });
+  // A másik gép a régi, bekapcsolt szűrővel: a kifizetett kikapcsolás nyer.
+  const mine: SyncChannels = {
+    filters: state.channelFilters!, rev: state.channelsRev ?? 0, updatedAt: 1, updatedBy: 'gep',
+    marks: state.channelMarks, loosens: state.channelLoosens,
+  };
+  const other: SyncChannels = { filters: synced, rev: 1, updatedAt: 1, updatedBy: 'masik' };
+  assert.equal(mergeChannels(other, mine).filters[0].enabled, false);
 });

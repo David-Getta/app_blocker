@@ -23,6 +23,8 @@ import { windowKey } from '../shared/lockdown';
 import type { FocusPack } from '../shared/focus';
 import { capHostnameMarks } from '../shared/sync/merge';
 import { capPackMarks } from '../shared/sync/focus-merge';
+import { markChannelChanges } from '../shared/sync/channels-merge';
+import type { ChannelFilter } from '../shared/channels';
 
 /**
  * Amit a szinkron lát egy rekordból.
@@ -411,30 +413,65 @@ function channelsFingerprint(state: HelperState): string {
   return digest(rows);
 }
 
+/** A szűrők pillanatképe a léptetéshez — másolat, hogy a későbbi szerkesztés ne írja át. */
+function channelsSnapshot(state: HelperState): ChannelFilter[] {
+  return (state.channelFilters ?? []).map((f) => ({ ...f, allow: [...f.allow] }));
+}
+
 /** @returns változott-e a csatorna-szűrők állapota ezen a gépen */
 export function bumpChannelsRevision(
   state: HelperState, deviceId: string, now: number,
 ): boolean {
   const fp = channelsFingerprint(state);
-  if (state.channelsRevFp === fp) return false;
+  if (state.channelsRevFp === fp) {
+    // A pillanatkép a frissítés utáni első körtől el van téve: az első valódi
+    // szerkesztés így már a saját jelét kapja.
+    if (!state.channelsRevList) state.channelsRevList = channelsSnapshot(state);
+    return false;
+  }
   // AZ ÜRESSÉG NEM SZERKESZTÉS — ugyanaz a védelem, mint a munkamenetnél:
   // egy eszköz, ami még sosem látott szűrőt, ne kapjon 1-es számlálót az
-  // első lenyomat-számolástól, mert frissebb idejével az ÜRES listája nyerne,
-  // és csendben letörölné a másik gépen felvett szűrőket.
+  // első lenyomat-számolástól.
   if (state.channelsRevFp === undefined && (state.channelFilters ?? []).length === 0) {
     state.channelsRevFp = fp;
+    if (!state.channelsRevList) state.channelsRevList = [];
     return false;
   }
   state.channelsRev = (state.channelsRev ?? 0) + 1;
   state.channelsUpdatedAt = now;
   state.channelsUpdatedBy = deviceId;
   state.channelsRevFp = fp;
+  markChannels(state);
   return true;
 }
 
-/** Egy távolról átvett csatorna-lista lenyomatának újraszámolása. */
+/**
+ * A szűrők JELEI és KIFIZETETT LAZÍTÁSAI: ami oldal az előző léptetés óta
+ * megváltozott, az ezt a blob-rev-et kapja; ami bekapcsolt szűrőn lazított
+ * (ehhez próbatétel kellett), annak a számlálója nő. A fésülés ezekből dönt
+ * (`shared/sync/channels-merge.ts`). Az első léptetés (nincs még pillanatkép)
+ * jel nélkül megy.
+ */
+function markChannels(state: HelperState): void {
+  const prev = state.channelsRevList;
+  state.channelsRevList = channelsSnapshot(state);
+  if (!prev) return;
+  const out = markChannelChanges(
+    state.channelMarks, state.channelLoosens, prev, state.channelFilters ?? [], state.channelsRev ?? 0,
+  );
+  if (out.marks) state.channelMarks = out.marks; else delete state.channelMarks;
+  if (out.loosens) state.channelLoosens = out.loosens; else delete state.channelLoosens;
+}
+
+/**
+ * Egy távolról átvett csatorna-lista lenyomatának újraszámolása. A
+ * pillanatkép is: az átvett szűrők nem a mieink — a következő helyi
+ * léptetés ne könyvelje őket a mi szerkesztésünknek (se jelnek, se
+ * kifizetett lazításnak).
+ */
 export function adoptChannelsRevision(state: HelperState): void {
   state.channelsRevFp = channelsFingerprint(state);
+  state.channelsRevList = channelsSnapshot(state);
 }
 
 /**
