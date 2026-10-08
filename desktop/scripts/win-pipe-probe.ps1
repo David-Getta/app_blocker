@@ -41,7 +41,7 @@ Start-ScheduledTask -TaskName $taskName
 for ($i = 0; $i -lt 60 -and -not (Test-Pipe); $i++) { Start-Sleep -Milliseconds 500 }
 if (-not (Test-Pipe)) {
   Write-Host 'a SYSTEM-szerver nem nyitotta meg a pipe-ot; a naplója:'
-  if (Test-Path $log) { Get-Content $log | Write-Host }
+  if (Test-Path $log) { Get-Content -Encoding UTF8 $log | Write-Host }
   exit 1
 }
 Write-Host "a SYSTEM-szerver fut: \\.\pipe\$pipeName"
@@ -136,7 +136,7 @@ Write-Host "sima felhasználó, kulccsal: $plainKey"
 Stop-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
 Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
 Remove-LocalUser -Name $user -ErrorAction SilentlyContinue
-if (Test-Path $log) { Write-Host '--- a szerver naplója ---'; Get-Content $log | Write-Host }
+if (Test-Path $log) { Write-Host '--- a szerver naplója ---'; Get-Content -Encoding UTF8 $log | Write-Host }
 
 if ($plainNoKey -eq 'UNAUTHORIZED' -and $plainKey -eq 'OK' -and $admin -eq 'UNAUTHORIZED') {
   Write-Host 'EREDMÉNY: a sima felhasználó kulccsal eléri a segédet, kulcs nélkül senki sem'
