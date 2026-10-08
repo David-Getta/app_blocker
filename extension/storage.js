@@ -125,6 +125,24 @@ export async function sweep(now = Date.now(), lockUntil = 0) {
 }
 
 /**
+ * Az indulási takarítás — a zárlat tudásával. A böngésző indulásakor (és a
+ * bővítmény telepítésekor, frissítésekor) a lejárt levételek kikerülnek;
+ * zárlat alatt viszont a függő levétel VISSZAVONÓDIK, mint az appban a
+ * folyamatban lévő törlés: a kivárt idő elvész, a szabály marad. Eddig az
+ * indulás a zárlatot nem nézte, és a zárlat alatt lejárt visszaszámlálású
+ * szabály végleg eltűnt — pont az, amit a zárlat tilt.
+ *
+ * @returns {Promise<RuleRec[]>} a megmaradt szabályok
+ */
+export async function startupSweep(now = Date.now(), lockUntil = 0) {
+  if (lockUntil > now) {
+    await cancelPendingRemovals();
+    return (await load()).rules;
+  }
+  return sweep(now, lockUntil);
+}
+
+/**
  * A függő levételek visszavonása — a zárlat észlelésekor. Az app ugyanígy
  * visszavonja a folyamatban lévő törléseket: a kivárt idő elvész, a zárlat
  * után elölről kell kezdeni. Csak akkor ír, ha volt mit visszavonni.

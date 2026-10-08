@@ -16,7 +16,7 @@ import { firstMatch, ruleLabel } from './rules-core.js';
 import { keywordHit, keywordInText } from './keywords.js';
 // A napkulcs a csatorna-időé (ugyanaz a helyi nap) — a könyv is azzal él.
 import { hitsReport, recordHit, sweepHits } from './hits.js';
-import { activeRules, cancelPendingRemovals, load, sweep } from './storage.js';
+import { activeRules, cancelPendingRemovals, load, startupSweep } from './storage.js';
 import {
   closedFor, closingSoonFor, currentTabHint, dueForRefresh, effectiveFocus, effectiveLockdown, focusAllows,
   focusStartingSoonFor, loadLink, measureGuardFor,
@@ -338,9 +338,18 @@ chrome.webNavigation.onHistoryStateUpdated.addListener((details) => {
 
 // A lejárt visszaszámlálású szabályokat valakinek ki kell takarítania. A
 // szolgáltatás-worker amúgy is felébred minden navigációnál, tehát itt a helye —
-// külön ébresztő nélkül.
-chrome.runtime.onStartup.addListener(() => { void sweep(); void pullFromApp(); });
-chrome.runtime.onInstalled.addListener(() => { void sweep(); void pullFromApp(); });
+// külön ébresztő nélkül. A takarítás a HATÁSOS zárlattal megy (a tárolt vég,
+// vagy ha az app hallgat, a most tartó heti ablak), és a lehúzás UTÁN: a
+// böngésző zárva töltött ideje alatt indult zárlatot is látnia kell. Zárlat
+// alatt a függő levétel visszavonódik, nem jár le (storage.js `startupSweep`).
+async function startupCleanup() {
+  try { await pullFromApp(); } catch { /* az app nem fut: a tárolt tudás dönt */ }
+  const now = Date.now();
+  const lock = effectiveLockdown(await loadLink(), now);
+  await startupSweep(now, lock?.until ?? 0);
+}
+chrome.runtime.onStartup.addListener(() => { void startupCleanup(); });
+chrome.runtime.onInstalled.addListener(() => { void startupCleanup(); });
 
 // A beállítások lapja innen kéri le, mi számít MOST aktívnak, hogy ne kelljen
 // két helyen ugyanazt az időkezelést megírni. A tartalom-szkript ugyaninnen

@@ -32,7 +32,10 @@ kártyája is kimondja, ha inkognitóban a fehérlista nem érvényesül.
 
 **Zárlat alatt a saját szabály sem vehető le.** Az app zárlata (és a heti
 zárlat-ablak, az app nélkül is) a bővítmény saját részleges szabályaira is
-vonatkozik: a levétel nem indul, és a függő levétel visszavonódik.
+vonatkozik: a levétel nem indul, és a függő levétel visszavonódik — a
+böngésző indulásakor is: az indulási takarítás előbb lehúzza az app
+tudását, és zárlat alatt nem törli a lejárt visszaszámlálású szabályt,
+hanem visszavonja a levételét (eddig végleg törölte).
 
 **A már nyitott lap is.** A tiltás nem csak navigáláskor dől el: a látható
 lap a szabályok változásakor, láthatóvá váláskor és húsz másodpercenként

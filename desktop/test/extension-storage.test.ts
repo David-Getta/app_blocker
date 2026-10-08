@@ -25,6 +25,7 @@ interface Api {
     Promise<{ ok: boolean; removeAt?: number; error?: string }>;
   cancelRemoval: (h: string, p: string) => Promise<void>;
   sweep: (now?: number, lockUntil?: number) => Promise<RuleRec[]>;
+  startupSweep: (now?: number, lockUntil?: number) => Promise<RuleRec[]>;
   cancelPendingRemovals: () => Promise<number>;
   LOCKED_REMOVAL_TEXT: string;
 }
@@ -181,6 +182,37 @@ test('an expired rule is actually cleaned up, not kept forever', async () => {
   const kept = await ext.sweep(NOW + ext.REMOVE_DELAY_MS + 1);
   assert.deepEqual(kept.map((r) => `${r.host}${r.path}`), ['reddit.com/r/hirek']);
   assert.equal((await ext.load()).rules.length, 1);
+});
+
+test('az indulási takarítás zárlat alatt nem visz el lejárt levételt — visszavonja', async () => {
+  // A böngésző indulása eddig a zárlatot nem nézte: a zárlat alatt lejárt
+  // visszaszámlálású szabály végleg eltűnt. Most zárlat alatt a függő levétel
+  // visszavonódik, mint az appban a folyamatban lévő törlés.
+  const ext = freshExtension();
+  await ext.addRule('youtube.com/@valaki', NOW);
+  await ext.addRule('reddit.com/r/hirek', NOW);
+  await ext.startRemoval('youtube.com', '/@valaki', NOW);
+  const later = NOW + ext.REMOVE_DELAY_MS + 1;
+  const locked = await ext.startupSweep(later, later + 3_600_000);
+  assert.deepEqual(locked.map((r) => [`${r.host}${r.path}`, r.removeAt]),
+    [['youtube.com/@valaki', null], ['reddit.com/r/hirek', null]], 'mindkettő marad, a levétel visszavonva');
+  // Zárlat nélkül a rendes takarítás: a lejárt levétel kikerül.
+  await ext.startRemoval('youtube.com', '/@valaki', later);
+  const free = await ext.startupSweep(later + ext.REMOVE_DELAY_MS + 1, 0);
+  assert.deepEqual(free.map((r) => `${r.host}${r.path}`), ['reddit.com/r/hirek']);
+});
+
+test('a háttér indulása a hatásos zárlattal takarít, a lehúzás után', () => {
+  const bg = fs.readFileSync(path.join(extensionDir(), 'background.js'), 'utf8');
+  const fn = bg.slice(bg.indexOf('async function startupCleanup()'), bg.indexOf('chrome.runtime.onStartup.addListener'));
+  assert.ok(fn.length > 0, 'van indulási takarítás');
+  assert.ok(fn.indexOf('await pullFromApp()') >= 0 && fn.indexOf('await pullFromApp()') < fn.indexOf('startupSweep('),
+    'előbb a lehúzás: a böngésző zárva töltött ideje alatt indult zárlatot is látnia kell');
+  assert.ok(fn.includes('effectiveLockdown(await loadLink(), now)'), 'a hatásos zárlat: a tárolt vég vagy a heti ablak');
+  assert.ok(fn.includes('await startupSweep(now, lock?.until ?? 0);'));
+  assert.ok(bg.includes('chrome.runtime.onStartup.addListener(() => { void startupCleanup(); });'));
+  assert.ok(bg.includes('chrome.runtime.onInstalled.addListener(() => { void startupCleanup(); });'));
+  assert.ok(!/\bvoid sweep\(\)/.test(bg), 'zárlat nélküli takarítás nem maradt a háttérben');
 });
 
 test('a corrupt stored record does not take the whole list down', async () => {
