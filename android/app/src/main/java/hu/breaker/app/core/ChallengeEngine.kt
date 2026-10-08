@@ -40,7 +40,11 @@ object ChallengeEngine {
          * jelmondatát ő írja be. Nem sorsolt próba (a kombináció-kulcsba sem
          * számít), és nem itt ellenőrizzük: a lenyomat a bírónál van.
          */
-        data class Partner(override val id: String, val name: String) : Step()
+        /**
+         * A megbízott lépése; a `partnerId` mondja meg, kié (több élő megbízottnál
+         * mindegyiknek saját lépése van). Régi kísérletben null — akkor a fő megbízotté.
+         */
+        data class Partner(override val id: String, val name: String, val partnerId: String? = null) : Step()
         data class Delay(
             override val id: String,
             val minutes: Int,

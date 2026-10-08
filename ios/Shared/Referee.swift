@@ -54,9 +54,14 @@ enum Referee {
                                                 lastCombo: state.lastCombo, forceCombo: forced)
         // PÁRBAN ZÁROLÁS: ha van megbízott, az utolsó szó az övé — MINDEN
         // lazításnál, mert mind ezen az egy kapun jön ki. A várakozás UTÁN áll.
-        guard let partner = state.partner else { return plan }
+        // Ha több él (társ-megbízott), mindegyiké kell, egyenként — a lépés
+        // tudja, kié (`partnerId`).
+        let partners = PartnerLogic.livePartners(state.partnerSet)
+        if partners.isEmpty { return plan }
         return ChallengeEngine.Plan(
-            steps: plan.steps + [.partner(id: BreakerStore.shared.newId("st"), name: partner.name)],
+            steps: plan.steps + partners.map { p -> ChallengeEngine.Step in
+                .partner(id: BreakerStore.shared.newId("st"), name: p.name, partnerId: PartnerLogic.partnerId(p))
+            },
             comboKey: plan.comboKey
         )
     }
@@ -72,7 +77,7 @@ enum Referee {
         var out: PartnerSetup?
         var thrown: RefereeError?
         BreakerStore.shared.mutate { state in
-            if state.partner != nil {
+            if !PartnerLogic.livePartners(state.partnerSet).isEmpty {
                 thrown = RefereeError(
                     message: "Már van megbízott. Előbb vedd le — az próbatétel, az ő jelmondatával.",
                     code: "PARTNER_SET"); return
@@ -95,7 +100,7 @@ enum Referee {
         var result: PartnerChangeResult?
         var thrown: RefereeError?
         BreakerStore.shared.mutate { state in
-            if state.partner == nil {
+            if PartnerLogic.livePartners(state.partnerSet).isEmpty {
                 result = PartnerChangeResult(applied: true, session: nil); return
             }
             if state.session != nil {
@@ -229,9 +234,17 @@ enum Referee {
 
     private static func finish(_ state: inout AppState, _ s: SessionRec, _ now: Double) {
         // A MEGBÍZOTT LEVÉTELE: nem oldalhoz tartozik. Idáig csak próbatétellel
-        // lehet eljutni — a végén az ő jelmondatával, tehát ő is bólintott.
+        // lehet eljutni — a végén az ő jelmondatával, tehát ő is bólintott. A
+        // levett megbízott NYOMOT kap: a szinkronban élő megbízottat csak ez
+        // viszi el. Csak azok esnek ki, akiknek a jelmondata ebben a
+        // kísérletben elhangzott — aki közben érkezett, és nem bólintott, marad.
         if s.pendingPartnerRemoval == true {
-            state.partner = nil
+            let mainId = state.partner.map { PartnerLogic.partnerId($0) }
+            let said: [String] = s.steps.compactMap { step in
+                guard case .partner(_, _, let pid) = step else { return nil }
+                return pid ?? mainId
+            }
+            state.setPartners(PartnerLogic.removePartners(state.partnerSet, ids: said, at: now))
             state.unlockLog = state.unlockLog.filter { $0 > now - 30 * 24 * 3_600_000 } + [now]
             state.session = nil
             state.abandons = (state.abandons ?? []).filter { $0.siteId != s.siteId }
@@ -470,12 +483,19 @@ enum Referee {
             if case .delay = step {
                 thrown = RefereeError(message: "Ez a lépés várakozás — a Feloldás átvétele gombbal zárható.", code: "DELAY_STEP"); return
             }
-            if case .partner = step {
-                // A jelmondat a lenyomattal összevetve. Rossz jelmondat nem
-                // sorsol újat, csak számol; a plafonnál a kísérlet elszáll —
-                // elölről, minden lépéssel. Ha a megbízott közben (a
-                // szinkronból) lekerült, a lépés tárgytalan: átmegy.
-                if let lock = state.partner, !PartnerLogic.verify(lock, answer) {
+            if case .partner(_, _, let wanted) = step {
+                // A jelmondat a LÉPÉS megbízottjának lenyomatával összevetve.
+                // Rossz jelmondat nem sorsol újat, csak számol; a plafonnál a
+                // kísérlet elszáll — elölről, minden lépéssel. Ha a megbízott
+                // közben (a szinkronból) lekerült, a lépés tárgytalan: átmegy —
+                // és lekerülni csak a nyomával tud.
+                let lock: PartnerLogic.PartnerLock?
+                if let wanted {
+                    lock = PartnerLogic.livePartners(state.partnerSet).first { PartnerLogic.partnerId($0) == wanted }
+                } else {
+                    lock = state.partner
+                }
+                if let lock, !PartnerLogic.verify(lock, answer) {
                     let tries = (s.partnerTries ?? 0) + 1
                     if tries >= PartnerLogic.maxPartnerTries {
                         dropSession(&state, now)

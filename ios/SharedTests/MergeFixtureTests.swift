@@ -108,6 +108,8 @@ final class MergeFixtureTests: XCTestCase {
             + " hide=\((f.hideSiteList ?? false) ? 1 : 0) hmark=\(f.hideSiteListRev ?? 0)"
             + " kw=[\(KeywordLogic.keywordsKey(f.keywords ?? []))] kmark=\(f.keywordsRev ?? 0)"
             + " partner=[\(PartnerLogic.partnerKey(f.partner))] pmark=\(f.partnerRev ?? 0)"
+            + " co=[\((f.partnerCo ?? []).map { PartnerLogic.partnerKey($0) }.joined(separator: ";"))]"
+            + " gone=[\((f.partnersGone ?? []).map { "\($0.id)@\(int($0.at))" }.joined(separator: ";"))]"
             + " log=[" + f.log.map { e -> String in
                 "\(e.packId)/\(int(e.startedAt))/\(int(e.endedAt))/\(int(e.plannedEndsAt))/\(e.stopped ? 1 : 0)/\((e.window ?? false) ? 1 : 0)"
                     + "/\(e.cutCount)/\(e.origin.map { int($0) } ?? "-")"

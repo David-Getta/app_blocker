@@ -69,12 +69,17 @@ object FocusSync {
         /** Az ablak-lista jele: a blob rev-je, amelyik utoljára változtatta. Null = régi kliens. */
         val lockdownWindowsRev: Int? = null,
         /**
-         * PÁRBAN ZÁROLÁS: a megbízott lenyomata és a jele. A fésülése az
-         * ablakoké: nagyobb jel nyer, azonos jelnél a beállított. Lásd
-         * `PartnerLogic.merge`. Null = nincs.
+         * PÁRBAN ZÁROLÁS: a FŐ megbízott lenyomata és a jele. A fésülés NEM a
+         * jel szerint megy, hanem azonosság szerint (`PartnerLogic.mergePartners`):
+         * élő megbízottat csak a nyoma visz el. A jelet a régi kliensek miatt
+         * hordjuk tovább. Null = nincs.
          */
         val partner: PartnerLogic.PartnerLock? = null,
         val partnerRev: Int? = null,
+        /** A fő mellett élő TÁRS-megbízottak — a lazítás végén mindegyik jelmondata kell. */
+        val partnerCo: List<PartnerLogic.PartnerLock> = emptyList(),
+        /** A levett megbízottak nyoma: csak a jelmondatos levételből születik. */
+        val partnersGone: List<PartnerLogic.PartnerGone> = emptyList(),
         /**
          * A LISTA REJTÉSE: fiók-szintű beállítás, a JELÉVEL. A bekapcsolás egy
          * koppintás (szigorítás), a kikapcsolás a készülék azonosítása (munka)
@@ -106,6 +111,9 @@ object FocusSync {
     fun merge(local: SyncFocus, incoming: SyncFocus, now: Long? = null): SyncFocus {
         val newer = pickNewer(local, incoming)
         val older = if (newer === local) incoming else local
+        // A megbízottak AZONOSSÁG szerint: élő megbízottat csak a nyoma visz el,
+        // két különböző élő közül egyik sem esik ki (`PartnerLogic.mergePartners`).
+        val partners = PartnerLogic.mergePartners(partnerSetOf(local), partnerSetOf(incoming))
         // EGYESÍTÉS, nem választás: lásd a `log` mező magyarázatát. ELŐBB a
         // napló: a menet sorsát ez dönti el (a leállítás nyoma a naplósor).
         val log = mergeLog(local.log, incoming.log)
@@ -133,11 +141,12 @@ object FocusSync {
             ),
             lockdownWindowsRev = maxOf(local.lockdownWindowsRev ?: 0, incoming.lockdownWindowsRev ?: 0)
                 .takeIf { it > 0 },
-            // A megbízott ugyanígy: a jel dönt, azonos jelnél a beállított.
-            partner = PartnerLogic.merge(
-                local.partnerRev ?: 0, local.partner, incoming.partnerRev ?: 0, incoming.partner,
-            ),
+            // A megbízott NEM a jel szerint: azonosság szerint (fent). A jel a
+            // régi klienseknek utazik tovább, a nagyobbik.
+            partner = partners.partner,
             partnerRev = maxOf(local.partnerRev ?: 0, incoming.partnerRev ?: 0).takeIf { it > 0 },
+            partnerCo = partners.partnerCo,
+            partnersGone = partners.partnersGone,
             // A kulcsszavak ugyanígy: a jel dönt, azonos jelnél a bővebb lista.
             keywords = KeywordLogic.mergeKeywords(
                 local.keywordsRev ?: 0, local.keywords, incoming.keywordsRev ?: 0, incoming.keywords,
@@ -150,6 +159,10 @@ object FocusSync {
             hideSiteListRev = maxOf(local.hideSiteListRev ?: 0, incoming.hideSiteListRev ?: 0).takeIf { it > 0 },
         )
     }
+
+    /** A blob megbízottjai a fésülés alakjában. */
+    fun partnerSetOf(f: SyncFocus): PartnerLogic.PartnerSet =
+        PartnerLogic.PartnerSet(f.partner, f.partnerCo, f.partnersGone)
 
     /**
      * A csomagok CSOMAGONKÉNT fésülődnek, a jelük szerint: a nagyobb jelnél
@@ -507,8 +520,11 @@ object FocusSync {
         // Az ablakok a jelükkel, tartalom szerint rendezve: az azonosító és a
         // sorrend nem jelentés.
         val windows = f.lockdownWindows.map { LockdownLogic.windowKey(it.band) }.sorted().joinToString("|")
-        // A MEGBÍZOTT IS, a jelével: enélkül a felvétele sosem érne fel.
-        val partner = PartnerLogic.partnerKey(f.partner)
+        // A MEGBÍZOTT IS, a jelével: enélkül a felvétele sosem érne fel. A
+        // társak és a nyomok is — egy levétel nyoma nélkül sosem érne át.
+        val partner = PartnerLogic.partnerKey(f.partner) +
+            "~" + f.partnerCo.joinToString(";") { PartnerLogic.partnerKey(it) } +
+            "~" + f.partnersGone.joinToString(";") { "${it.id}@${it.at}" }
         // A kulcsszavak a jelükkel — tartalom szerint, rendezve.
         val keywords = KeywordLogic.keywordsKey(f.keywords)
         return "$packs//$run//$log//$marks//$lock//$windows//${f.lockdownWindowsRev ?: 0}//$partner//${f.partnerRev ?: 0}" +

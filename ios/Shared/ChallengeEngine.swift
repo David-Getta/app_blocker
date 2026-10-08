@@ -15,13 +15,16 @@ enum ChallengeEngine {
         /// A MEGBÍZOTT lépése: a jelmondatot ő írja be. Nem sorsolt próba — a
         /// terv végére a bíró teszi, ha van megbízott; a válaszát is a bíró
         /// ellenőrzi (a lenyomattal), nem ez a motor. Lásd Shared/Partner.swift.
-        case partner(id: String, name: String)
+        /// A `partnerId` mondja meg, kié a lépés (több élő megbízottnál
+        /// mindegyiknek saját lépése van); régi kísérletben nil — akkor a fő
+        /// megbízotté.
+        case partner(id: String, name: String, partnerId: String? = nil)
 
         var id: String {
             switch self {
             case .transcribe(let id, _), .memory(let id, _, _, _, _),
                  .reverse(let id, _), .mathChain(let id, _, _), .delay(let id, _, _, _),
-                 .partner(let id, _):
+                 .partner(let id, _, _):
                 return id
             }
         }

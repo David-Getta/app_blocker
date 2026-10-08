@@ -227,8 +227,13 @@ struct AppState: Codable, Equatable {
     /// jelével. Optional, hogy egy korábbi verzió mentése is dekódolható
     /// maradjon. Lásd Shared/Partner.swift.
     var partner: PartnerLogic.PartnerLock? = nil
-    /// A megbízott JELE: a blob rev-je, amelyik utoljára felvette vagy levette (SyncRevisions).
+    /// A megbízott JELE: a blob rev-je, amelyik utoljára változtatta (SyncRevisions) —
+    /// csak a régi kliensek miatt utazik, a fésülés azonosság szerint megy.
     var partnerRev: Int? = nil
+    /// A fő mellett élő TÁRS-megbízottak — a lazítás végén mindegyik jelmondata kell.
+    var partnerCo: [PartnerLogic.PartnerLock]? = nil
+    /// A levett megbízottak nyoma — csak a jelmondatos levétel írja.
+    var partnersGone: [PartnerLogic.PartnerGone]? = nil
     /// A megbízott kulcsa az utolsó léptetéskor — ebből derül ki, kell-e új jel.
     var focusRevPartner: String? = nil
     /// A rejtés jele (a focus-blob rev-je, amelyik utoljára be- vagy kikapcsolta) és a lenyomat-kulcsa.
@@ -243,6 +248,20 @@ struct AppState: Codable, Equatable {
     var keywordsRev: Int? = nil
     /// A kulcsszó-lista kulcsa az utolsó léptetéskor — ebből derül ki, kell-e új jel.
     var focusRevKeywords: String? = nil
+}
+
+extension AppState {
+    /// A megbízottak a fésülés alakjában: a fő, a társak, a nyomok.
+    var partnerSet: PartnerLogic.PartnerSet {
+        PartnerLogic.PartnerSet(partner: partner, partnerCo: partnerCo ?? [], partnersGone: partnersGone ?? [])
+    }
+
+    /// A megbízottak beírása — üres listára nincs mező, mint a dróton.
+    mutating func setPartners(_ s: PartnerLogic.PartnerSet) {
+        partner = s.partner
+        partnerCo = s.partnerCo.isEmpty ? nil : s.partnerCo
+        partnersGone = s.partnersGone.isEmpty ? nil : s.partnersGone
+    }
 }
 
 /// Fiók a szinkronhoz.
@@ -417,6 +436,10 @@ final class BreakerStore: ObservableObject {
         if let s = decoded.session, s.stepIndex < 0 || s.stepIndex >= s.steps.count {
             decoded.session = nil
         }
+        // A megbízottak a lemezről: ugyanaz a tisztítás és rendezés, mint a dróton.
+        decoded.setPartners(PartnerLogic.cleanSet(
+            partner: decoded.partner, partnerCo: decoded.partnerCo ?? [], partnersGone: decoded.partnersGone ?? []
+        ))
         return decoded
     }
 

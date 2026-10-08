@@ -145,6 +145,16 @@ Ezért:
   azonossága az eltolás előtti kezdés (`origin`), és a jövőben véget ért sor
   nem számít (öt perc tűrés). A részletek és az őszinte korlátok:
   docs/feature-focus-sessions.md, „A futó menet a szinkronban”.
+- **A megbízottat sem a jel viszi el, hanem a levétel nyoma.** A megbízott
+  (párban zárolás) eddig a jele szerint fésülődött, és a jelet egy ingyenes
+  csomag-átnevezés is lépteti: egy friss eszközön, felhúzott jellel felvett
+  saját megbízott minden eszközön leváltotta a valódit. Most a fésülés
+  azonosság szerint megy (só és lenyomat): élő megbízottat csak a nyoma
+  (`partnersGone`) visz el, ami csak a jelmondatos levételből születik; két
+  különböző élő közül egyik sem esik ki — a legkorábban felvett a fő, a többi
+  társ (`partnerCo`), és a lazítás végén mindegyikük jelmondata kell. A jel a
+  régi kliensek miatt utazik tovább. A részletek és az őszinte korlátok:
+  docs/feature-partner-lock.md, „Szinkron”.
 - **A futó menet csomagja mindig marad, és a fehérlistája nem bővülhet.** A
   csomagok és a menet külön dőlnek el, és a kettő össze tud akadni: az egyik
   eszköz törölte a csomagot (jellel), a másik ugyanabban a körben menetet

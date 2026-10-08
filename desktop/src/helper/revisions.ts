@@ -15,7 +15,7 @@
 // újraindítás nem hajtja fel a számlálót a semmiért.
 
 import * as crypto from 'crypto';
-import { partnerKey } from '../shared/partner';
+import { partnersKey } from '../shared/partner';
 import { keywordsKey } from '../shared/keywords';
 import type { HelperState, SiteRec } from './state';
 import { windowKey } from '../shared/lockdown';
@@ -164,8 +164,9 @@ function focusFingerprint(state: HelperState): string {
   const windows = windowsKey(state);
   // A MEGBÍZOTT IS: a felvétele és a levétele döntés, tehát léptet — enélkül
   // a lenyomat nem érne át. Csak ha van, címkével: a nélküle lévő állapot
-  // lenyomata változatlan marad.
-  const partner = partnerKey(state.partner);
+  // lenyomata változatlan marad. A társak és a levettek nyoma is benne van
+  // (`partnersKey`); társ és nyom nélkül a kulcs a régi.
+  const partner = partnersKey(state);
   // A KULCSSZAVAK IS: a lista cseréje döntés, tehát léptet — csak ha van,
   // címkével, mint a megbízott.
   const keywords = keywordsKeyOf(state);
@@ -253,7 +254,7 @@ export function bumpFocusRevision(
 
 function isEmptyFocus(state: HelperState): boolean {
   return (state.focusPacks ?? []).length === 0 && !state.focusRun
-    && (state.lockdownWindows ?? []).length === 0 && !state.partner
+    && (state.lockdownWindows ?? []).length === 0 && partnersKey(state) === ''
     && (state.keywords ?? []).length === 0 && state.hideSiteList !== true;
 }
 
@@ -262,7 +263,7 @@ function isEmptyFocus(state: HelperState): boolean {
  * léptetés óta változott (felvétel, levétel, csere), a jele ez a blob-rev.
  */
 function markPartner(state: HelperState): void {
-  const cur = partnerKey(state.partner);
+  const cur = partnersKey(state);
   const prev = state.focusRevPartner ?? '';
   state.focusRevPartner = cur;
   if (prev === cur || state.focusRev === undefined) return;
@@ -356,7 +357,7 @@ export function adoptFocusRevision(state: HelperState): void {
   // A megbízott kulcsa is: az átvett megbízott nem a miénk — a következő saját
   // szerkesztés ne bélyegezze át a jelét, mert azzal egy másik eszköz
   // levételét lehetne felülírni (azonos jelnél a beállított nyer).
-  state.focusRevPartner = partnerKey(state.partner);
+  state.focusRevPartner = partnersKey(state);
   state.focusRevKeywords = keywordsKeyOf(state);
   state.focusRevHide = hideKey(state);
 }

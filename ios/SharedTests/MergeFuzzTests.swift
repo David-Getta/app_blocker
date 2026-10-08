@@ -105,6 +105,7 @@ private let keywordSets: [[String]] = [["shorts"], ["reels"], ["shorts", "reels"
 private let partners: [PartnerLogic.PartnerLock] = [
     PartnerLogic.PartnerLock(name: "Anna", salt: "QUFBQUFBQUFBQUFBQUFBQQ==", hash: "QkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkI=", setAt: 5),
     PartnerLogic.PartnerLock(name: "Bela", salt: "Q0NDQ0NDQ0NDQ0NDQ0NDQw==", hash: "REREREREREREREREREREREREREREREREREREREREREQ=", setAt: 3),
+    PartnerLogic.PartnerLock(name: "Cili", salt: "RUVFRUVFRUVFRUVFRUVFRQ==", hash: "RkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkY=", setAt: 4),
 ]
 
 /// Naplósorok készlete és részhalmazai — a gép merge-random.ts LOGS / LOG_SETS párja.
@@ -205,6 +206,15 @@ private func randomFocus(_ r: inout Lcg, _ device: String) -> FocusSync.SyncFocu
     let pMarkValue = min(1 + Int(r.next() * 5), revInt)
     let partner: PartnerLogic.PartnerLock? = pDraw < 0.3 ? partners[pPick] : nil
     let partnerRev: Int? = (partner != nil || pMarkDraw < 0.2) ? pMarkValue : nil
+    // TÁRS-MEGBÍZOTT ÉS A LEVETTEK NYOMA — öt húzás, feltétel nélkül, mint a gépen.
+    let coDraw = r.next()
+    let coPick = Int(r.next() * 3)
+    let goneDraw = r.next()
+    let gonePick = Int(r.next() * 3)
+    let goneAt = Double(1 + Int(r.next() * 3))
+    let partnerCo: [PartnerLogic.PartnerLock] = coDraw < 0.25 ? [partners[coPick]] : []
+    let partnersGone: [PartnerLogic.PartnerGone] = goneDraw < 0.2
+        ? [PartnerLogic.PartnerGone(id: PartnerLogic.partnerId(partners[gonePick]), at: goneAt)] : []
     // A NAPLÓ — két húzás, feltétel nélkül, mint a gépen.
     let logDraw = r.next()
     let logPick = Int(r.next() * 5)
@@ -227,6 +237,7 @@ private func randomFocus(_ r: inout Lcg, _ device: String) -> FocusSync.SyncFocu
         packMarks: marks.isEmpty ? nil : marks, lockdown: lockdown,
         lockdownWindows: windows.isEmpty ? nil : windows, lockdownWindowsRev: windowsRev,
         partner: partner, partnerRev: partnerRev,
+        partnerCo: partnerCo.isEmpty ? nil : partnerCo, partnersGone: partnersGone.isEmpty ? nil : partnersGone,
         keywords: keywords.isEmpty ? nil : keywords, keywordsRev: keywordsRev,
         hideSiteList: hide ? true : nil, hideSiteListRev: hideRev
     )
@@ -254,6 +265,8 @@ private func focusKey(_ f: FocusSync.SyncFocus, runIds: Set<String>, withRun: Bo
         + "|\((f.hideSiteList ?? false) ? 1 : 0)|\(f.hideSiteListRev ?? 0)"
         + "|\(KeywordLogic.keywordsKey(f.keywords ?? []))|\(f.keywordsRev ?? 0)"
         + "|\(PartnerLogic.partnerKey(f.partner))|\(f.partnerRev ?? 0)"
+        + "|" + (f.partnerCo ?? []).map { PartnerLogic.partnerKey($0) }.joined(separator: ";")
+        + "|" + (f.partnersGone ?? []).map { "\($0.id)@\(Int($0.at))" }.joined(separator: ";")
         + "|" + f.log.map { e -> String in
             "\(e.packId)/\(Int(e.startedAt))/\(Int(e.endedAt))/\(Int(e.plannedEndsAt))/\(e.stopped ? 1 : 0)/\((e.window ?? false) ? 1 : 0)"
                 + "/\(e.cutCount)/\(String(describing: e.origin))"

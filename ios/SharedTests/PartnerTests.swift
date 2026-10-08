@@ -86,29 +86,59 @@ final class PartnerTests: XCTestCase {
         XCTAssertEqual(PartnerLogic.normalizeLock(name: "Anna", salt: fx.salt, hash: fx.hash, setAt: nil)?.setAt, 0)
     }
 
-    func testMergeTheMarkDecidesThenTheSetOneThenTheEarlier() {
+    private func set(
+        _ p: PartnerLogic.PartnerLock?, _ co: [PartnerLogic.PartnerLock] = [], _ gone: [PartnerLogic.PartnerGone] = []
+    ) -> PartnerLogic.PartnerSet {
+        PartnerLogic.PartnerSet(partner: p, partnerCo: co, partnersGone: gone)
+    }
+
+    func testMergeByIdentityOnlyATombstoneTakesALivePartnerNotTheMark() {
         let a = PartnerLogic.PartnerLock(name: "Anna", salt: String(repeating: "A", count: 24),
                                          hash: String(repeating: "B", count: 44), setAt: 100)
         let b = PartnerLogic.PartnerLock(name: "Béla", salt: String(repeating: "C", count: 24),
                                          hash: String(repeating: "D", count: 44), setAt: 200)
-        XCTAssertNil(PartnerLogic.merge(3, a, 5, nil), "a nagyobb jelű levétel átmegy")
-        XCTAssertNil(PartnerLogic.merge(5, nil, 3, a), "a helyi, nagyobb jelű levétel marad")
-        XCTAssertEqual(PartnerLogic.merge(3, a, 3, nil), a, "azonos jelnél a beállított nyer")
-        XCTAssertEqual(PartnerLogic.merge(3, nil, 3, b), b)
-        XCTAssertEqual(PartnerLogic.merge(3, b, 3, a), a, "mindkettő beállítva: a korábban felvett")
-        XCTAssertEqual(PartnerLogic.merge(2, a, 3, b), b, "nagyobb jel: a másik megbízott")
+        XCTAssertEqual(PartnerLogic.mergePartners(set(a), set(nil)), set(a))
+        XCTAssertEqual(PartnerLogic.mergePartners(set(b), set(a)), set(a, [b]),
+                       "két különböző élő: mindkettő marad, a korábban felvett a fő")
+        let goneA = [PartnerLogic.PartnerGone(id: PartnerLogic.partnerId(a), at: 7)]
+        XCTAssertEqual(PartnerLogic.mergePartners(set(a), set(nil, [], goneA)), set(nil, [], goneA))
+        XCTAssertEqual(PartnerLogic.mergePartners(set(nil, [], goneA), set(a, [b])), set(b, [], goneA),
+                       "a fő levétele után a társ lép a helyére")
+        XCTAssertEqual(
+            PartnerLogic.cleanPartnersGone([
+                PartnerLogic.PartnerGone(id: PartnerLogic.partnerId(a), at: 3),
+                PartnerLogic.PartnerGone(id: PartnerLogic.partnerId(a), at: 9),
+                PartnerLogic.PartnerGone(id: "rossz", at: 1),
+            ]),
+            [PartnerLogic.PartnerGone(id: PartnerLogic.partnerId(a), at: 9)]
+        )
 
-        let local = FocusSync.SyncFocus(rev: 3, updatedAt: 0, updatedBy: "dev", partner: a, partnerRev: 3)
-        let removed = FocusSync.SyncFocus(rev: 5, updatedAt: 0, updatedBy: "other", partnerRev: 5)
-        let merged = FocusSync.merge(local, removed)
-        XCTAssertNil(merged.partner)
-        XCTAssertEqual(merged.partnerRev, 5)
-        // A régi kliens blobja (jel nélkül) sosem viszi el a megbízottat.
-        let old = FocusSync.SyncFocus(rev: 9, updatedAt: 999, updatedBy: "old")
-        XCTAssertEqual(FocusSync.merge(local, old).partner, a)
-        var swapped = local
+        // A TRÜKK: friss eszközön, felhúzott jellel felvett saját megbízott nem váltja le a valódit.
+        let own = PartnerLogic.PartnerLock(name: "Én", salt: String(repeating: "E", count: 24),
+                                           hash: String(repeating: "F", count: 44), setAt: 50)
+        let account = FocusSync.SyncFocus(rev: 3, updatedAt: 0, updatedBy: "gep", partner: a, partnerRev: 3)
+        let fresh = FocusSync.SyncFocus(rev: 40, updatedAt: 999, updatedBy: "friss", partner: own, partnerRev: 40)
+        for merged in [FocusSync.merge(account, fresh), FocusSync.merge(fresh, account)] {
+            let names = ([merged.partner].compactMap { $0 } + (merged.partnerCo ?? [])).map { $0.name }.sorted()
+            XCTAssertEqual(names, ["Anna", "Én"], "a valódi megmarad — a saját csak mellé kerül")
+            XCTAssertEqual(merged.partnerRev, 40)
+        }
+        // A „nincs megbízott” felhúzott jellel sem viszi el.
+        let none = FocusSync.SyncFocus(rev: 50, updatedAt: 0, updatedBy: "friss", partnerRev: 50)
+        XCTAssertEqual(FocusSync.merge(account, none).partner, a)
+        XCTAssertEqual(FocusSync.merge(none, account).partner, a)
+        // A nyom viszont elviszi.
+        let removed = FocusSync.SyncFocus(rev: 4, updatedAt: 0, updatedBy: "dev", partnerRev: 4, partnersGone: goneA)
+        XCTAssertNil(FocusSync.merge(account, removed).partner)
+        var withCo = account
+        withCo.partnerCo = [own]
+        XCTAssertFalse(FocusSync.same(account, withCo), "a társ is különbség")
+        var withGone = account
+        withGone.partnersGone = [PartnerLogic.PartnerGone(id: PartnerLogic.partnerId(own), at: 1)]
+        XCTAssertFalse(FocusSync.same(account, withGone), "a nyom is különbség")
+        var swapped = account
         swapped.partner = b
-        XCTAssertFalse(FocusSync.same(local, swapped), "a megbízott cseréje különbség: fel kell tölteni")
+        XCTAssertFalse(FocusSync.same(account, swapped), "a megbízott cseréje különbség: fel kell tölteni")
     }
 
     func testTheWireCarriesThePartnerAndDropsTheBadlyShaped() throws {
@@ -143,6 +173,75 @@ final class PartnerTests: XCTestCase {
             try JSONDecoder().decode(FocusSync.SyncFocus.self, from: Data(good.utf8)), fallbackDevice: "dev")
         XCTAssertEqual(ok.partner, a)
         XCTAssertEqual(ok.partnerRev, 4)
+    }
+
+    func testTheWireCarriesCoPartnersAndTombstonesAndDropsTheBadlyShaped() throws {
+        let a = PartnerLogic.PartnerLock(name: "Anna", salt: String(repeating: "A", count: 24),
+                                         hash: String(repeating: "B", count: 44), setAt: 100)
+        let b = PartnerLogic.PartnerLock(name: "Béla", salt: String(repeating: "C", count: 24),
+                                         hash: String(repeating: "D", count: 44), setAt: 200)
+        let c = PartnerLogic.PartnerLock(name: "Cili", salt: String(repeating: "E", count: 24),
+                                         hash: String(repeating: "F", count: 44), setAt: 300)
+        let mine = FocusSync.SyncFocus(
+            rev: 4, updatedAt: 1, updatedBy: "dev", partner: a, partnerRev: 4,
+            partnerCo: [b], partnersGone: [PartnerLogic.PartnerGone(id: PartnerLogic.partnerId(c), at: 7)]
+        )
+        let data = try JSONEncoder().encode(mine)
+        let obj = try XCTUnwrap(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let co = try XCTUnwrap(obj["partnerCo"] as? [[String: Any]])
+        XCTAssertEqual(co.count, 1)
+        XCTAssertEqual(Set(co[0].keys), ["name", "salt", "hash", "setAt"], "a társ jelmondata sincs a dróton")
+        let gone = try XCTUnwrap(obj["partnersGone"] as? [[String: Any]])
+        XCTAssertEqual(Set(gone[0].keys), ["id", "at"])
+        XCTAssertEqual((gone[0]["at"] as? NSNumber)?.doubleValue, 7)
+        let back = FocusSync.normalize(try JSONDecoder().decode(FocusSync.SyncFocus.self, from: data), fallbackDevice: "dev")
+        XCTAssertEqual(back.partner, a)
+        XCTAssertEqual(back.partnerCo, [b])
+        XCTAssertEqual(back.partnersGone, [PartnerLogic.PartnerGone(id: PartnerLogic.partnerId(c), at: 7)])
+        let bare = try JSONEncoder().encode(FocusSync.SyncFocus(rev: 1, updatedAt: 1, updatedBy: "dev", partner: a))
+        let bareObj = try XCTUnwrap(try JSONSerialization.jsonObject(with: bare) as? [String: Any])
+        XCTAssertNil(bareObj["partnerCo"], "társ nélkül nincs mező")
+        XCTAssertNil(bareObj["partnersGone"], "nyom nélkül nincs mező")
+
+        // Kívülről: a fővel egyező és a rossz alakú társ kiesik, a rossz
+        // azonosságú nyom is; a nem egész vagy nem szám időpont nulla.
+        let junk = """
+        {"packs":[],"rev":4,"partner":{"name":"Anna","salt":"\(a.salt)","hash":"\(a.hash)","setAt":100},
+         "partnerCo":[{"name":"Anna","salt":"\(a.salt)","hash":"\(a.hash)","setAt":100},
+                      {"name":"X","salt":"rövid","hash":"rövid"},7],
+         "partnersGone":[{"id":"rossz","at":1},{"id":"\(PartnerLogic.partnerId(c))","at":1.5},
+                         {"id":"\(PartnerLogic.partnerId(b))","at":"9"}]}
+        """
+        let n = FocusSync.normalize(
+            try JSONDecoder().decode(FocusSync.SyncFocus.self, from: Data(junk.utf8)), fallbackDevice: "dev")
+        XCTAssertEqual(n.partner, a)
+        XCTAssertNil(n.partnerCo, "a fővel egyező és a rossz alakú társ kiesik")
+        XCTAssertEqual(n.partnersGone, [
+            PartnerLogic.PartnerGone(id: PartnerLogic.partnerId(b), at: 0),
+            PartnerLogic.PartnerGone(id: PartnerLogic.partnerId(c), at: 0),
+        ])
+        // A nyommal levett fő nem él: a társ lép a helyére — a beolvasáskor is.
+        let tomb = """
+        {"packs":[],"rev":4,"partner":{"name":"Anna","salt":"\(a.salt)","hash":"\(a.hash)","setAt":100},
+         "partnerCo":[{"name":"Béla","salt":"\(b.salt)","hash":"\(b.hash)","setAt":200}],
+         "partnersGone":[{"id":"\(PartnerLogic.partnerId(a))","at":5}]}
+        """
+        let t = FocusSync.normalize(
+            try JSONDecoder().decode(FocusSync.SyncFocus.self, from: Data(tomb.utf8)), fallbackDevice: "dev")
+        XCTAssertEqual(t.partner, b)
+        XCTAssertNil(t.partnerCo)
+    }
+
+    func testAnOldAttemptsPartnerStepStillDecodes() throws {
+        // A frissítés előtti kísérlet lépésében nincs `partnerId` — a mentés
+        // ettől még olvasható (különben az egész állapot olvashatatlan lenne),
+        // és a lépés a fő megbízotté.
+        let old = Data(#"{"partner":{"id":"st1","name":"Anna"}}"#.utf8)
+        let step = try JSONDecoder().decode(ChallengeEngine.Step.self, from: old)
+        guard case .partner(let id, let name, let pid) = step else { return XCTFail("a lépés a megbízotté") }
+        XCTAssertEqual(id, "st1")
+        XCTAssertEqual(name, "Anna")
+        XCTAssertNil(pid)
     }
 
     // ------------------------------------------------------------------ a bíró
@@ -230,7 +329,8 @@ final class PartnerTests: XCTestCase {
         }
 
         let ses = try settled { try Referee.startSession(kind: .pause, siteId: siteId, minutes: 15, now: now) }
-        guard case .partner(_, let name) = ses.steps.last! else { return XCTFail("az utolsó lépés a megbízotté") }
+        guard case .partner(_, let name, let pid) = ses.steps.last! else { return XCTFail("az utolsó lépés a megbízotté") }
+        XCTAssertEqual(pid, BreakerStore.shared.state.partner.map { PartnerLogic.partnerId($0) }, "a lépés tudja, kié")
         XCTAssertEqual(name, "Anna")
         guard case .delay = ses.steps[ses.steps.count - 2] else { return XCTFail("a várakozás után áll") }
 
@@ -275,6 +375,7 @@ final class PartnerTests: XCTestCase {
         XCTAssertTrue(try settled { try Referee.startPartnerRemoval(now: now) }.applied,
                       "megbízott nélkül nincs mit levenni")
         let setup = try settled { try Referee.setPartner(name: "Anna", now: now) }
+        let annaId = PartnerLogic.partnerId(try XCTUnwrap(BreakerStore.shared.state.partner))
         let r = try settled { try Referee.startPartnerRemoval(now: now) }
         XCTAssertFalse(r.applied)
         let ses = try XCTUnwrap(r.session)
@@ -288,7 +389,49 @@ final class PartnerTests: XCTestCase {
         let done = try settled { try Referee.submitAnswer(sessionId: ses.id, answer: setup.phrase, now: now) }
         XCTAssertTrue(done.sessionDone)
         XCTAssertNil(BreakerStore.shared.state.partner, "a megbízott lekerült")
+        XCTAssertEqual(BreakerStore.shared.state.partnersGone?.map { $0.id }, [annaId],
+                       "a levétel nyomot hagy — a többi eszközön ez viszi el")
         XCTAssertEqual(BreakerStore.shared.state.unlockLog.count, 1, "a lazítás a naplóban")
+    }
+
+    func testWithACoPartnerEachPhraseIsNeededAndRemovalTombstonesThoseWhoSaidIt() throws {
+        let siteId = addSite("youtube.com")
+        let anna = try settled { try Referee.setPartner(name: "Anna", now: now) }
+        let annaId = PartnerLogic.partnerId(try XCTUnwrap(BreakerStore.shared.state.partner))
+        // Egy másik eszközön, egymástól függetlenül felvett megbízott a szinkronból.
+        let belaPhrase = "alma bogrács cinege este"
+        let bela = PartnerLogic.makeLock(name: "Béla", phrase: belaPhrase, now: now + 1)
+        settled { BreakerStore.shared.mutate { state in state.partnerCo = [bela] } }
+        XCTAssertThrowsError(try settled { try Referee.setPartner(name: "Cili", now: now) }) { e in
+            XCTAssertEqual((e as? Referee.RefereeError)?.code, "PARTNER_SET")
+        }
+
+        let ses = try settled { try Referee.startSession(kind: .pause, siteId: siteId, minutes: 15, now: now) }
+        let names = ses.steps.compactMap { step -> String? in
+            if case .partner(_, let name, _) = step { return name }
+            return nil
+        }
+        XCTAssertEqual(names, ["Anna", "Béla"], "mindkettőjüké, sorban")
+        try solveUntilPartner(ses.id)
+        XCTAssertFalse(try settled { try Referee.submitAnswer(sessionId: ses.id, answer: belaPhrase, now: now) }.accepted,
+                       "Anna lépésére Béla jelmondata nem jó")
+        XCTAssertTrue(try settled { try Referee.submitAnswer(sessionId: ses.id, answer: anna.phrase, now: now) }.accepted)
+        XCTAssertFalse(try settled { try Referee.submitAnswer(sessionId: ses.id, answer: anna.phrase, now: now) }.accepted,
+                       "Béla lépésére Anna jelmondata sem")
+        XCTAssertTrue(try settled { try Referee.submitAnswer(sessionId: ses.id, answer: belaPhrase, now: now) }.sessionDone)
+
+        let removal = try XCTUnwrap(try settled { try Referee.startPartnerRemoval(now: now + 10) }.session)
+        try solveUntilPartner(removal.id)
+        XCTAssertTrue(try settled { try Referee.submitAnswer(sessionId: removal.id, answer: anna.phrase, now: now + 10) }.accepted)
+        // Közben egy harmadik érkezik a szinkronból: ő nem bólintott — marad.
+        let cili = PartnerLogic.makeLock(name: "Cili", phrase: "dió eper füge gomba", now: now + 2)
+        settled { BreakerStore.shared.mutate { state in state.partnerCo = (state.partnerCo ?? []) + [cili] } }
+        XCTAssertTrue(try settled { try Referee.submitAnswer(sessionId: removal.id, answer: belaPhrase, now: now + 10) }.sessionDone)
+        let st = BreakerStore.shared.state
+        XCTAssertEqual(st.partner?.name, "Cili", "aki nem bólintott, marad")
+        XCTAssertNil(st.partnerCo)
+        XCTAssertEqual((st.partnersGone ?? []).map { $0.id }.sorted(), [annaId, PartnerLogic.partnerId(bela)].sorted(),
+                       "a két bólintó nyomot kap")
     }
 
     func testIfThePartnerWentAwayMeanwhileTheStepIsMoot() throws {
@@ -307,8 +450,9 @@ final class PartnerTests: XCTestCase {
         let back = try JSONDecoder().decode(AppState.self, from: data)
         XCTAssertEqual(back.session?.pendingPartnerRemoval, true)
         let last = try XCTUnwrap(back.session?.steps.last)
-        guard case .partner(_, let name) = last else { return XCTFail("a lépés túléli a mentést") }
+        guard case .partner(_, let name, let pid) = last else { return XCTFail("a lépés túléli a mentést") }
         XCTAssertEqual(name, "Anna")
+        XCTAssertNotNil(pid, "a lépés azonossága is")
         XCTAssertEqual(back.partner?.name, "Anna")
     }
 

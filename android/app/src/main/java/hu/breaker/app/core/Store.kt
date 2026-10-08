@@ -292,8 +292,12 @@ data class AppState(
      * jelével. Lásd core/Partner.kt.
      */
     val partner: PartnerLogic.PartnerLock? = null,
-    /** a jele: a blob rev-je, amelyik utoljára állította vagy vette le */
+    /** a jele: a blob rev-je, amelyik utoljára változtatta — csak a régi kliensek miatt utazik */
     val partnerRev: Int? = null,
+    /** A fő mellett élő TÁRS-megbízottak — a lazítás végén mindegyik jelmondata kell. */
+    val partnerCo: List<PartnerLogic.PartnerLock> = emptyList(),
+    /** A levett megbízottak nyoma — csak a jelmondatos levétel írja. */
+    val partnersGone: List<PartnerLogic.PartnerGone> = emptyList(),
     /** a megbízott kulcsa az utolsó léptetéskor — ebből derül ki, kell-e új jel */
     val focusRevPartner: String? = null,
     /** A rejtés jele (a focus-blob rev-je, amelyik utoljára be- vagy kikapcsolta) és a lenyomat-kulcsa. */
@@ -556,6 +560,8 @@ object BreakerStore {
         // A megbízott is a lemezre megy: a lazítás kapuja függ tőle.
         put("partner", s.partner?.let { SyncClient.partnerToJson(it) } ?: JSONObject.NULL)
         put("partnerRev", s.partnerRev ?: JSONObject.NULL)
+        put("partnerCo", JSONArray(s.partnerCo.map { SyncClient.partnerToJson(it) }))
+        put("partnersGone", JSONArray(s.partnersGone.map { SyncClient.goneToJson(it) }))
         put("focusRevPartner", s.focusRevPartner ?: JSONObject.NULL)
         put("hideSiteListRev", s.hideSiteListRev ?: JSONObject.NULL)
         put("focusRevHide", s.focusRevHide ?: JSONObject.NULL)
@@ -734,7 +740,10 @@ object BreakerStore {
                 put("armedAt", step.armedAt ?: JSONObject.NULL)
             }
             is Step.Reverse -> { put("type", "REVERSE"); put("text", step.text) }
-            is Step.Partner -> { put("type", "PARTNER"); put("name", step.name) }
+            is Step.Partner -> {
+                put("type", "PARTNER"); put("name", step.name)
+                if (step.partnerId != null) put("partnerId", step.partnerId)
+            }
             is Step.Delay -> {
                 put("type", "DELAY"); put("minutes", step.minutes)
                 put("claimableAt", step.claimableAt ?: JSONObject.NULL)
@@ -762,7 +771,7 @@ object BreakerStore {
                 if (o.isNull("armedAt")) null else o.getLong("armedAt"),
             )
             "REVERSE" -> Step.Reverse(id, o.getString("text"))
-            "PARTNER" -> Step.Partner(id, o.getString("name"))
+            "PARTNER" -> Step.Partner(id, o.getString("name"), o.opt("partnerId") as? String)
             "DELAY" -> Step.Delay(
                 id, o.getInt("minutes"),
                 if (o.isNull("claimableAt")) null else o.getLong("claimableAt"),
@@ -911,6 +920,8 @@ object BreakerStore {
                 }.getOrNull()
             }
         } ?: emptyList()
+        // A megbízottak a lemezről: ugyanaz a tisztítás és rendezés, mint a dróton.
+        val storedPartners = SyncClient.partnersFromJson(o)
         return AppState(
             protectionOn = o.optBoolean("protectionOn", false),
             usage = if (o.isNull("usage")) UsageLogic.UsageState()
@@ -958,8 +969,11 @@ object BreakerStore {
             keywordsRev = if (o.isNull("keywordsRev")) null else o.optInt("keywordsRev", 0).takeIf { it > 0 },
             focusRevKeywords = if (o.isNull("focusRevKeywords")) null else o.optString("focusRevKeywords"),
             // Csak a jó alakú marad: egy sérült lenyomat csapda lenne, nem döntés.
-            partner = SyncClient.partnerFromJson(o.optJSONObject("partner")),
+            // A társak és a nyomok a fésülés szabálya szerint (a nyommal levett nem él).
+            partner = storedPartners.partner,
             partnerRev = if (o.isNull("partnerRev")) null else o.optInt("partnerRev", 0).takeIf { it > 0 },
+            partnerCo = storedPartners.partnerCo,
+            partnersGone = storedPartners.partnersGone,
             focusRevPartner = if (o.isNull("focusRevPartner")) null else o.optString("focusRevPartner"),
             hideSiteListRev = if (o.isNull("hideSiteListRev")) null else o.optInt("hideSiteListRev", 0).takeIf { it > 0 },
             focusRevHide = if (o.isNull("focusRevHide")) null else o.optString("focusRevHide"),

@@ -1224,6 +1224,17 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                                 "lenyomata; a többi eszközödre is átér.",
                             style = MaterialTheme.typography.bodySmall,
                         )
+                        // TÁRS-megbízott: két eszközön egymástól függetlenül felvéve.
+                        // A szinkron egyiket sem dobja el a másik kedvéért — kimondjuk,
+                        // hogy mindegyikük jelmondata kell.
+                        if (state.partnerCo.isNotEmpty()) {
+                            Text(
+                                "Mellette: ${state.partnerCo.joinToString(", ") { it.name }}. Két eszközön egymástól " +
+                                    "függetlenül vettél fel megbízottat — a szinkron egyiket sem dobja el a másik " +
+                                    "kedvéért, ezért a lazítás végén mindegyikük jelmondata kell, a levételnél is.",
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
                         TextButton(onClick = {
                             try {
                                 val r = Referee.startPartnerRemoval(System.currentTimeMillis())

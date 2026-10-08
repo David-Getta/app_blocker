@@ -6,7 +6,7 @@ import {
   applyAnswer, computeTier, comboKeyOf, cryptoRng, generatePlan, makePartnerPhrase, remainingHint, toDisplay,
   CLAIM_WINDOW_MS, DELETE_PENDING_MS, SESSION_MAX_AGE_MS, REROLL_COOLDOWN_MS,
 } from '../shared/challenges';
-import { MAX_PARTNER_TRIES, normalizePartnerName } from '../shared/partner';
+import { MAX_PARTNER_TRIES, livePartners, normalizePartnerName, partnerId, removePartners } from '../shared/partner';
 import { makePartnerLock, verifyPhrase } from './partner-crypto';
 import type {
   SessionInfo, SubmitResult, SetScheduleResult, SetLimitResult, SetRuleResult,
@@ -134,8 +134,12 @@ function planLoosening(
   const plan = generatePlan(kind, tier, state.lastCombo, rng, forced);
   // PÁRBAN ZÁROLÁS: ha van megbízott, az utolsó szó az övé — MINDEN lazításnál,
   // mert mind ezen az egy kapun jön ki. A várakozás UTÁN áll: ne kelljen
-  // hívni, amíg a munka nincs meg.
-  if (state.partner) plan.steps.push({ id: newId('st'), type: 'PARTNER', name: state.partner.name });
+  // hívni, amíg a munka nincs meg. Ha több él (társ-megbízott: két eszközön
+  // egymástól függetlenül felvéve), mindegyiké kell, egyenként — a lépés
+  // tudja, kié (`partnerId`).
+  for (const p of livePartners(state)) {
+    plan.steps.push({ id: newId('st'), type: 'PARTNER', name: p.name, partnerId: partnerId(p) });
+  }
   return plan;
 }
 
@@ -219,9 +223,20 @@ function logFocusEnd(state: HelperState, endedAt: number, stopped: boolean): voi
 function finishSession(state: HelperState, now: number): void {
   const s = state.session!;
   // A MEGBÍZOTT LEVÉTELE: nem oldalhoz tartozik. Idáig csak próbatétellel
-  // lehet eljutni — a végén az ő jelmondatával, tehát ő is bólintott.
+  // lehet eljutni — a végén az ő jelmondatával, tehát ő is bólintott. A
+  // levett megbízott NYOMOT kap (`partnersGone`): a szinkronban élő
+  // megbízottat csak ez viszi el. Csak azok esnek ki, akiknek a jelmondata
+  // ebben a kísérletben elhangzott — aki közben (a szinkronból) érkezett, és
+  // nem bólintott, marad.
   if (s.pendingPartnerRemoval) {
-    delete state.partner;
+    const said = s.steps.flatMap((st) => (st.type === 'PARTNER'
+      ? [st.partnerId ?? (state.partner ? partnerId(state.partner) : '')] : []))
+      .filter((id) => id !== '');
+    const next = removePartners(state, said, now);
+    delete state.partner; delete state.partnerCo; delete state.partnersGone;
+    if (next.partner) state.partner = next.partner;
+    if (next.partnerCo) state.partnerCo = next.partnerCo;
+    if (next.partnersGone) state.partnersGone = next.partnersGone;
     state.unlockLog = [...state.unlockLog.filter((t) => t > now - 30 * 24 * 3600_000), now];
     state.session = null;
     state.abandons = (state.abandons ?? []).filter((a) => a.siteId !== s.siteId);
@@ -644,13 +659,19 @@ export function submitAnswer(state: HelperState, sessionId: string, answer: stri
 }
 
 /**
- * A megbízott lépése: a jelmondat a lenyomattal összevetve. Rossz jelmondat
- * nem sorsol újat (nincs mit), de számol: a plafonnál a kísérlet érvénytelen,
- * elölről — a jelmondat nem találgatós játék. Ha a megbízott közben (a
- * szinkronból) lekerült, a lépés tárgytalan: átmegy.
+ * A megbízott lépése: a jelmondat a LÉPÉS megbízottjának lenyomatával
+ * összevetve (több élő megbízottnál mindegyiknek saját lépése van). Rossz
+ * jelmondat nem sorsol újat (nincs mit), de számol: a plafonnál a kísérlet
+ * érvénytelen, elölről — a jelmondat nem találgatós játék. Ha a megbízott
+ * közben (a szinkronból) lekerült, a lépés tárgytalan: átmegy — és lekerülni
+ * csak a nyomával tud, ami az ő jelmondatából született.
  */
 function submitPartner(state: HelperState, s: SessionRec, answer: string, now: number): SubmitResult {
-  const lock = state.partner;
+  const step = s.steps[s.stepIndex];
+  const wanted = step.type === 'PARTNER' ? step.partnerId : undefined;
+  const lock = wanted === undefined
+    ? state.partner
+    : livePartners(state).find((p) => partnerId(p) === wanted);
   if (lock && !verifyPhrase(lock, answer)) {
     s.partnerTries = (s.partnerTries ?? 0) + 1;
     if (s.partnerTries >= MAX_PARTNER_TRIES) {
@@ -1339,7 +1360,7 @@ export function setRequireMeasurement(state: HelperState, on: boolean, now: numb
 export function setPartner(
   state: HelperState, rawName: string, now: number,
 ): { name: string; phrase: string } {
-  if (state.partner) {
+  if (livePartners(state).length > 0) {
     throw new RefereeError('Már van megbízott. Előbb vedd le — az próbatétel, az ő jelmondatával.', 'PARTNER_SET');
   }
   const name = normalizePartnerName(rawName);
@@ -1355,7 +1376,7 @@ export function setPartner(
  * el sem indul).
  */
 export function startPartnerRemoval(state: HelperState, now: number): SetRuleResult {
-  if (!state.partner) return { applied: true, session: null };
+  if (livePartners(state).length === 0) return { applied: true, session: null };
   if (state.session) throw new RefereeError('Előbb fejezd be a folyamatban lévő kísérletet.', 'BUSY');
   const plan = planLoosening(state, 'pause', null, now);
   state.session = {

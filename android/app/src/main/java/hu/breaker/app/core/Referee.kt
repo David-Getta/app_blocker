@@ -65,9 +65,18 @@ object Referee {
         val plan = ChallengeEngine.generatePlan(kind, tier, state.lastCombo, forced)
         // PÁRBAN ZÁROLÁS: ha van megbízott, az utolsó szó az övé — MINDEN
         // lazításnál, mert mind ezen az egy kapun jön ki. A várakozás UTÁN áll.
-        val partner = state.partner ?: return plan
-        return plan.copy(steps = plan.steps + Step.Partner(BreakerStore.newId("st"), partner.name))
+        // Ha több él (társ-megbízott), mindegyiké kell, egyenként — a lépés
+        // tudja, kié (`partnerId`).
+        val partners = PartnerLogic.livePartners(partnerSet(state))
+        if (partners.isEmpty()) return plan
+        return plan.copy(steps = plan.steps + partners.map {
+            Step.Partner(BreakerStore.newId("st"), it.name, PartnerLogic.partnerId(it))
+        })
     }
+
+    /** Az állapot megbízottjai a fésülés alakjában. */
+    private fun partnerSet(state: AppState): PartnerLogic.PartnerSet =
+        PartnerLogic.PartnerSet(state.partner, state.partnerCo, state.partnersGone)
 
     data class PartnerSetup(val name: String, val phrase: String)
     data class PartnerChangeResult(val applied: Boolean, val session: SessionRec?)
@@ -80,7 +89,7 @@ object Referee {
     fun setPartner(rawName: String, now: Long): PartnerSetup {
         var out: PartnerSetup? = null
         BreakerStore.mutate { state ->
-            if (state.partner != null) {
+            if (PartnerLogic.livePartners(partnerSet(state)).isNotEmpty()) {
                 throw RefereeException("Már van megbízott. Előbb vedd le — az próbatétel, az ő jelmondatával.", "PARTNER_SET")
             }
             val name = PartnerLogic.normalizePartnerName(rawName)
@@ -96,7 +105,7 @@ object Referee {
     fun startPartnerRemoval(now: Long): PartnerChangeResult {
         var result: PartnerChangeResult? = null
         BreakerStore.mutate { state ->
-            if (state.partner == null) {
+            if (PartnerLogic.livePartners(partnerSet(state)).isEmpty()) {
                 result = PartnerChangeResult(applied = true, session = null)
                 return@mutate state
             }
@@ -245,10 +254,18 @@ object Referee {
 
     private fun finish(state: AppState, s: SessionRec, now: Long): AppState {
         // A MEGBÍZOTT LEVÉTELE: nem oldalhoz tartozik. Idáig csak próbatétellel
-        // lehet eljutni — a végén az ő jelmondatával, tehát ő is bólintott.
+        // lehet eljutni — a végén az ő jelmondatával, tehát ő is bólintott. A
+        // levett megbízott NYOMOT kap: a szinkronban élő megbízottat csak ez
+        // viszi el. Csak azok esnek ki, akiknek a jelmondata ebben a
+        // kísérletben elhangzott — aki közben érkezett, marad.
         if (s.pendingPartnerRemoval) {
+            val said = s.steps.filterIsInstance<Step.Partner>()
+                .mapNotNull { it.partnerId ?: state.partner?.let { p -> PartnerLogic.partnerId(p) } }
+            val next = PartnerLogic.removePartners(partnerSet(state), said, now)
             return state.copy(
-                partner = null,
+                partner = next.partner,
+                partnerCo = next.partnerCo,
+                partnersGone = next.partnersGone,
                 unlockLog = state.unlockLog.filter { it > now - 30 * 24 * 3600_000L } + now,
                 session = null,
                 abandons = state.abandons.filter { it.siteId != s.siteId },
@@ -671,11 +688,13 @@ object Referee {
                 throw RefereeException("Ez a lépés várakozás — a Feloldás átvétele gombbal zárható.", "DELAY_STEP")
             }
             if (step is Step.Partner) {
-                // A jelmondat a lenyomattal összevetve. Rossz jelmondat nem
-                // sorsol újat, csak számol; a plafonnál a kísérlet elszáll —
-                // elölről, minden lépéssel. Ha a megbízott közben (a
-                // szinkronból) lekerült, a lépés tárgytalan: átmegy.
-                val lock = state.partner
+                // A jelmondat a LÉPÉS megbízottjának lenyomatával összevetve.
+                // Rossz jelmondat nem sorsol újat, csak számol; a plafonnál a
+                // kísérlet elszáll — elölről, minden lépéssel. Ha a megbízott
+                // közben (a szinkronból) lekerült, a lépés tárgytalan: átmegy —
+                // és lekerülni csak a nyomával tud.
+                val lock = if (step.partnerId == null) state.partner
+                    else PartnerLogic.livePartners(partnerSet(state)).firstOrNull { PartnerLogic.partnerId(it) == step.partnerId }
                 if (lock != null && !PartnerLogic.verify(lock, answer)) {
                     val tries = s.partnerTries + 1
                     if (tries >= PartnerLogic.MAX_PARTNER_TRIES) {

@@ -2,7 +2,7 @@
 // GUI (and the user) cannot simply edit the blocklist file to skip challenges.
 
 import { cleanDigestLog } from '../shared/digest';
-import { normalizePartnerLock } from '../shared/partner';
+import { cleanPartnerList, cleanPartnersGone, mergePartners, normalizePartnerLock } from '../shared/partner';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
@@ -218,8 +218,18 @@ export interface HelperState {
    * próbatétel. A munkamenet blobján utazik, a jelével. Lásd shared/partner.ts.
    */
   partner?: import('../shared/partner').PartnerLock;
-  /** a jele: a blob `rev`-je, amelyik utoljára állította vagy vette le — a fésülés ebből dönt */
+  /**
+   * a jele: a blob `rev`-je, amelyik utoljára változtatta. A fésülés már nem
+   * ebből dönt (azonosság szerint megy), csak a régi kliensek miatt utazik.
+   */
   partnerRev?: number;
+  /**
+   * A fő mellett élő TÁRS-megbízottak (két eszközön egymástól függetlenül
+   * felvéve): a lazítás végén mindegyik jelmondata kell. Lásd shared/partner.ts.
+   */
+  partnerCo?: import('../shared/partner').PartnerLock[];
+  /** a levett megbízottak nyoma — csak a jelmondatos levétel írja; élő megbízottat csak ez visz el */
+  partnersGone?: import('../shared/partner').PartnerGone[];
   dohApplied: boolean;
   /** active-time tracking history (stays on this machine) */
   usage: UsageState;
@@ -534,6 +544,19 @@ export function loadState(): HelperState {
       if (parsed.partner !== undefined) {
         const p = normalizePartnerLock(parsed.partner);
         if (p) parsed.partner = p; else delete parsed.partner;
+      }
+      // A társak és a nyomok ugyanígy — és a fésülés szabálya szerint
+      // rendezve: a nyommal levett nem él, a fő a legkorábban felvett.
+      if (parsed.partnerCo !== undefined || parsed.partnersGone !== undefined) {
+        const set = mergePartners({
+          ...(parsed.partner ? { partner: parsed.partner } : {}),
+          partnerCo: cleanPartnerList(parsed.partnerCo),
+          partnersGone: cleanPartnersGone(parsed.partnersGone),
+        }, {});
+        delete parsed.partner; delete parsed.partnerCo; delete parsed.partnersGone;
+        if (set.partner) parsed.partner = set.partner;
+        if (set.partnerCo) parsed.partnerCo = set.partnerCo;
+        if (set.partnersGone) parsed.partnersGone = set.partnersGone;
       }
       if (parsed.partnerRev !== undefined
         && !(Number.isInteger(parsed.partnerRev) && parsed.partnerRev > 0)) {

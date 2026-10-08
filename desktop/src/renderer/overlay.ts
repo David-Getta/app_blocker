@@ -50,6 +50,8 @@ interface Status {
   lockdownWindows?: LockdownWindow[];
   /** a megbízott (párban zárolás), ha van — a leállítás útja az ő jelmondatával ér véget */
   partner?: { name: string; setAt: number } | null;
+  /** a társ-megbízottak — a lazítás végén mindegyikük jelmondata kell */
+  partnerCo?: { name: string; setAt: number }[];
   /** a böngésző mai megakadásai — a réteg lába mondja, a kísértés pillanatában */
   browserHitsToday?: number;
   /** a hét csúcs-órája — a láb a csúcs-órában kimondja, hogy most van */
@@ -99,8 +101,10 @@ function streakPart(st: Status): string {
 
 /** A leállítás útja a lábban: az appban, próbatétellel — megbízottal az ő jelmondatával a végén. */
 function stopWayLine(st: Status): string {
+  const names = st.partner ? [st.partner.name, ...(st.partnerCo ?? []).map((p) => p.name)] : [];
   return 'Hosszabbítani ingyen van. Leállítani az appban lehet, próbatétellel'
-    + (st.partner ? ` — és a megbízottad (${st.partner.name}) jelmondatával a végén.` : '.');
+    + (names.length === 1 ? ` — és a megbízottad (${names[0]}) jelmondatával a végén.`
+      : names.length > 1 ? ` — és a megbízottaid (${names.join(', ')}) jelmondatával a végén.` : '.');
 }
 
 /** A zárlat sora a rétegben, vagy null, ha nincs zárlat. */

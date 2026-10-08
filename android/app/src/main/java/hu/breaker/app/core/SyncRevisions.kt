@@ -146,8 +146,9 @@ object SyncRevisions {
         // frissítés előtt — különben minden telefon egyszer fölöslegesen léptetne.
         val windows = windowsKey(state)
         // A MEGBÍZOTT IS: a felvétele és a levétele döntés, tehát léptet. Csak
-        // ha van, címkével — a nélküle lévő állapot lenyomata változatlan.
-        val partner = PartnerLogic.partnerKey(state.partner)
+        // ha van, címkével — a nélküle lévő állapot lenyomata változatlan. A
+        // társak és a nyomok is benne vannak; nélkülük a kulcs a régi.
+        val partner = partnersKeyOf(state)
         // A KULCSSZAVAK IS: a lista cseréje döntés, tehát léptet — csak ha van, címkével.
         val keywords = keywordsKey(state)
         return FOCUS_FP_V2 + digest(
@@ -170,6 +171,10 @@ object SyncRevisions {
     fun windowsKey(state: AppState): String =
         state.lockdownWindows.map { LockdownLogic.windowKey(it.band) }.sorted().joinToString("|")
 
+    /** A megbízottak kulcsa (fő, társak, nyomok) — a gép `partnersKey`-e. */
+    private fun partnersKeyOf(state: AppState): String =
+        PartnerLogic.partnersKey(PartnerLogic.PartnerSet(state.partner, state.partnerCo, state.partnersGone))
+
     /**
      * A munkamenet számlálójának léptetése.
      *
@@ -184,7 +189,7 @@ object SyncRevisions {
         val fp = focusFingerprint(state)
         if (state.focusRevFp == fp) return state
         if (state.focusRevFp == null && state.focusPacks.isEmpty() && state.focusRun == null &&
-            state.lockdownWindows.isEmpty() && state.partner == null && state.keywords.isEmpty() &&
+            state.lockdownWindows.isEmpty() && partnersKeyOf(state).isEmpty() && state.keywords.isEmpty() &&
             !state.hideSiteList
         ) {
             return state.copy(focusRevFp = fp)
@@ -208,7 +213,7 @@ object SyncRevisions {
             else state.lockdownWindowsRev
         // A megbízott jele ugyanígy: ha az előző léptetés óta változott, a
         // jele ez a blob-rev — a fésülés ebből tudja, kié az újabb szó.
-        val partnerKey = PartnerLogic.partnerKey(state.partner)
+        val partnerKey = partnersKeyOf(state)
         val partnerMark = if (partnerKey != (state.focusRevPartner ?: "")) newRev.coerceIn(0, Int.MAX_VALUE.toLong()).toInt()
             else state.partnerRev
         // A kulcsszavak jele ugyanígy.
@@ -261,7 +266,7 @@ object SyncRevisions {
             // A megbízott kulcsa is: az átvett megbízott nem a miénk — a
             // következő saját szerkesztés ne bélyegezze át a jelét, mert azzal
             // egy másik eszköz levételét lehetne felülírni.
-            focusRevPartner = PartnerLogic.partnerKey(state.partner),
+            focusRevPartner = partnersKeyOf(state),
             focusRevKeywords = keywordsKey(state),
             // A rejtés kulcsa is: az átvett rejtés (és a kifizetett kikapcsolás)
             // jele a másik eszközé — a következő saját szerkesztés ne írja felül.

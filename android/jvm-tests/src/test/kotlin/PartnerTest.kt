@@ -79,26 +79,46 @@ class PartnerTest {
         assertEquals(lock, PartnerLogic.normalizeLock("Anna", salt, fx.getString("hash"), 1L))
     }
 
-    @Test fun `fesules - a jel dont, azonos jelnel a beallitott, es a korabban felvett`() {
+    @Test fun `fesules - AZONOSSAG szerint, elo megbizottat csak a nyoma visz el, a jel nem`() {
         val a = PartnerLogic.PartnerLock("Anna", "A".repeat(24), "B".repeat(44), 100)
         val b = PartnerLogic.PartnerLock("Béla", "C".repeat(24), "D".repeat(44), 200)
-        assertNull(PartnerLogic.merge(3, a, 5, null), "a nagyobb jelű levétel átmegy")
-        assertNull(PartnerLogic.merge(5, null, 3, a), "a helyi, nagyobb jelű levétel marad")
-        assertEquals(a, PartnerLogic.merge(3, a, 3, null), "azonos jelnél a beállított nyer")
-        assertEquals(b, PartnerLogic.merge(3, null, 3, b))
-        assertEquals(a, PartnerLogic.merge(3, b, 3, a), "mindkettő beállítva: a korábban felvett")
-        assertEquals(b, PartnerLogic.merge(2, a, 3, b), "nagyobb jel: a másik megbízott")
+        val set = { p: PartnerLogic.PartnerLock?, co: List<PartnerLogic.PartnerLock>, gone: List<PartnerLogic.PartnerGone> ->
+            PartnerLogic.PartnerSet(p, co, gone)
+        }
+        assertEquals(set(a, emptyList(), emptyList()), PartnerLogic.mergePartners(set(a, emptyList(), emptyList()), PartnerLogic.PartnerSet()))
+        assertEquals(set(a, listOf(b), emptyList()), PartnerLogic.mergePartners(set(b, emptyList(), emptyList()), set(a, emptyList(), emptyList())),
+            "két különböző élő: mindkettő marad, a korábban felvett a fő")
+        val goneA = listOf(PartnerLogic.PartnerGone(PartnerLogic.partnerId(a), 7))
+        assertEquals(set(null, emptyList(), goneA), PartnerLogic.mergePartners(set(a, emptyList(), emptyList()), set(null, emptyList(), goneA)))
+        assertEquals(set(b, emptyList(), goneA), PartnerLogic.mergePartners(set(null, emptyList(), goneA), set(a, listOf(b), emptyList())),
+            "a fő levétele után a társ lép a helyére")
+        assertEquals(
+            listOf(PartnerLogic.PartnerGone(PartnerLogic.partnerId(a), 9)),
+            PartnerLogic.cleanPartnersGone(listOf(
+                PartnerLogic.PartnerGone(PartnerLogic.partnerId(a), 3), PartnerLogic.PartnerGone(PartnerLogic.partnerId(a), 9),
+                PartnerLogic.PartnerGone("rossz", 1),
+            )),
+        )
 
+        // A TRÜKK: friss eszközön, felhúzott jellel felvett saját megbízott nem váltja le a valódit.
+        val own = PartnerLogic.PartnerLock("Én", "E".repeat(24), "F".repeat(44), 50)
         val base = FocusSync.SyncFocus(packs = emptyList(), run = null, log = emptyList(), rev = 0, updatedAt = 0, updatedBy = "dev")
-        val local = base.copy(partner = a, partnerRev = 3, rev = 3)
-        val removed = base.copy(partnerRev = 5, rev = 5, updatedBy = "other")
-        val merged = FocusSync.merge(local, removed)
-        assertNull(merged.partner)
-        assertEquals(5, merged.partnerRev)
-        // A régi kliens blobja (jel nélkül) sosem viszi el a megbízottat.
-        val old = base.copy(rev = 9, updatedAt = 999, updatedBy = "old")
-        assertEquals(a, FocusSync.merge(local, old).partner)
-        assertFalse(FocusSync.same(local, local.copy(partner = b)), "a megbízott cseréje különbség: fel kell tölteni")
+        val account = base.copy(partner = a, partnerRev = 3, rev = 3, updatedBy = "gep")
+        val fresh = base.copy(partner = own, partnerRev = 40, rev = 40, updatedAt = 999, updatedBy = "friss")
+        for (merged in listOf(FocusSync.merge(account, fresh), FocusSync.merge(fresh, account))) {
+            assertEquals(listOf("Anna", "Én"), (listOfNotNull(merged.partner) + merged.partnerCo).map { it.name }.sorted(),
+                "a valódi megmarad — a saját csak mellé kerül")
+            assertEquals(40, merged.partnerRev)
+        }
+        // A „nincs megbízott” felhúzott jellel sem viszi el.
+        val none = base.copy(partnerRev = 50, rev = 50, updatedBy = "friss")
+        assertEquals(a, FocusSync.merge(account, none).partner)
+        assertEquals(a, FocusSync.merge(none, account).partner)
+        // A nyom viszont elviszi.
+        val removed = base.copy(partnersGone = listOf(PartnerLogic.PartnerGone(PartnerLogic.partnerId(a), 5)), partnerRev = 4, rev = 4)
+        assertNull(FocusSync.merge(account, removed).partner)
+        assertFalse(FocusSync.same(account, account.copy(partnerCo = listOf(own))), "a társ is különbség")
+        assertFalse(FocusSync.same(account, account.copy(partnersGone = listOf(PartnerLogic.PartnerGone(PartnerLogic.partnerId(own), 1)))))
     }
 
     @Test fun `drot-alak - a megbizott JSON-ja oda-vissza, a rossz alaku kiesik`() {
@@ -224,6 +244,38 @@ class PartnerTest {
         assertTrue(done.sessionDone)
         assertNull(BreakerStore.state.value.partner, "a megbízott lekerült")
         assertEquals(1, BreakerStore.state.value.unlockLog.size, "a lazítás a naplóban")
+    }
+
+    @Test fun `tars-megbizottnal mindegyik jelmondata kell, a levetel mindegyiket nyommal viszi`() {
+        val siteId = addSite("youtube.com")
+        val anna = Referee.setPartner("Anna", now)
+        val annaId = PartnerLogic.partnerId(BreakerStore.state.value.partner!!)
+        // Egy másik eszközön, egymástól függetlenül felvett megbízott a szinkronból.
+        val belaPhrase = "alma bogrács cinege este"
+        val bela = PartnerLogic.makeLock("Béla", belaPhrase, now + 1)
+        BreakerStore.mutate { it.copy(partnerCo = listOf(bela)) }
+        assertFailsWith<Referee.RefereeException> { Referee.setPartner("Cili", now) }
+
+        val ses = Referee.startSession(Kind.PAUSE, siteId, 15, now)
+        assertEquals(listOf("Anna", "Béla"), ses.steps.filterIsInstance<Step.Partner>().map { it.name }, "mindkettőjüké, sorban")
+        solveUntilPartner(ses.id)
+        assertFalse(Referee.submitAnswer(ses.id, belaPhrase, now).accepted, "Anna lépésére Béla jelmondata nem jó")
+        assertTrue(Referee.submitAnswer(ses.id, anna.phrase, now).accepted)
+        assertFalse(Referee.submitAnswer(ses.id, anna.phrase, now).accepted, "Béla lépésére Anna jelmondata sem")
+        assertTrue(Referee.submitAnswer(ses.id, belaPhrase, now).sessionDone)
+
+        val removal = Referee.startPartnerRemoval(now + 10).session!!
+        solveUntilPartner(removal.id)
+        Referee.submitAnswer(removal.id, anna.phrase, now + 10)
+        // Közben egy harmadik érkezik a szinkronból: ő nem bólintott — marad.
+        val cili = PartnerLogic.makeLock("Cili", "dió eper füge gomba", now + 2)
+        BreakerStore.mutate { it.copy(partnerCo = it.partnerCo + cili) }
+        assertTrue(Referee.submitAnswer(removal.id, belaPhrase, now + 10).sessionDone)
+        val st = BreakerStore.state.value
+        assertEquals("Cili", st.partner?.name, "aki nem bólintott, marad")
+        assertTrue(st.partnerCo.isEmpty())
+        assertEquals(listOf(annaId, PartnerLogic.partnerId(bela)).sorted(), st.partnersGone.map { it.id }.sorted(),
+            "a két bólintó nyomot kap")
     }
 
     @Test fun `ha a megbizott kozben lekerult, a lepese targytalan - atmegy`() {

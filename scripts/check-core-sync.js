@@ -161,7 +161,7 @@ const CHECKS = [
   ['CLAIM_WINDOW_MS',
     scalar(ts.challenges, /CLAIM_WINDOW_MS\s*=\s*([^;]+);/, 'ts'),
     scalar(kt.engine, /CLAIM_WINDOW_MS[^=]*=\s*(.+)/, 'kt'),
-    scalar(sw.engine, /claimWindowMs[^=]*=\s*(.+)/, 'swift')],
+    scalar(sw.engine, /static let claimWindowMs[^=]*=\s*(.+)/, 'swift')],
   ['DELETE_PENDING_MS',
     scalar(ts.challenges, /DELETE_PENDING_MS\s*=\s*([^;]+);/, 'ts'),
     scalar(kt.engine, /DELETE_PENDING_MS[^=]*=\s*(.+)/, 'kt'),

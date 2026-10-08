@@ -53,7 +53,15 @@ export interface DelayStep {
  * számít), és nem itt ellenőrizzük: a lenyomat a bírónál van, a szabály a
  * `partner.ts`-ben. A `name` a felületnek kell: „Kérd meg Annát”.
  */
-export interface PartnerStep { id: string; type: 'PARTNER'; name: string }
+export interface PartnerStep {
+  id: string; type: 'PARTNER'; name: string;
+  /**
+   * Melyik megbízotté a lépés (`partnerId`): ha több él (társ-megbízott), a
+   * lazítás végén mindegyiké kell, egyenként. Régi kísérletben hiányzik — akkor
+   * a fő megbízotté.
+   */
+  partnerId?: string;
+}
 export type Step = TranscribeStep | MathChainStep | MemoryStep | ReverseStep | DelayStep | PartnerStep;
 
 // ------------------------------------------------------------------- tiers

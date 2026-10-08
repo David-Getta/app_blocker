@@ -2290,10 +2290,18 @@ function renderPartner(st: StatusData): void {
   $('partnerName').classList.toggle('hidden', !!p);
   $('partnerSetBtn').classList.toggle('hidden', !!p);
   $('partnerRemoveBtn').classList.toggle('hidden', !p);
+  // TÁRS-megbízott: két eszközön egymástól függetlenül felvéve (vagy egy friss
+  // eszközön a valódi mellé tett). A szinkron egyiket sem dobja el a másik
+  // kedvéért — kimondjuk, hogy mindegyikük jelmondata kell.
+  const co = st.partnerCo ?? [];
+  const coLine = co.length === 0 ? ''
+    : ` Mellette: ${co.map((c) => `${c.name} (${new Date(c.setAt).toLocaleDateString('hu-HU')} óta)`).join(', ')}. `
+      + 'Két eszközön egymástól függetlenül vettél fel megbízottat — a szinkron egyiket sem dobja el a '
+      + 'másik kedvéért, ezért a lazítás végén mindegyikük jelmondata kell, a levételnél is.';
   $('partnerHint').textContent = p
     ? `Megbízott: ${p.name} (${new Date(p.setAt).toLocaleDateString('hu-HU')} óta). Minden lazító `
       + 'próbatétel utolsó lépése az ő jelmondata — a levételé is. A jelmondat nincs meg a gépen, '
-      + 'csak a lenyomata; a többi eszközödre is átér.'
+      + 'csak a lenyomata; a többi eszközödre is átér.' + coLine
     : 'Egy megbízott — társ, barát, szülő —, aki egy jelmondatot kap: minden lazítás végén ő írja be. '
       + 'Nem helyetted csinálja végig, csak az utolsó szót ő mondja ki. Felvenni ingyen; levenni '
       + 'próbatétel, a végén az ő jelmondatával. Nem gépzár: a segéd állapotát rendszergazdaként át '

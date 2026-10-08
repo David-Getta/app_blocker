@@ -87,8 +87,12 @@ const GROUPS = [
     // A `keywords` és a jele: a KULCSSZÓ-SZABÁLYOK. Egy elcsúszott név mellett
     // a másik gép bővítménye nem kapná meg a listát — és a telefon feltöltése
     // jel nélkül… nem törölne (a jeltelen nem töröl), de a lista sem érne át.
+    // A `partnerCo` és a `partnersGone`: a TÁRS-megbízottak és a levettek
+    // nyoma. Egy elcsúszott név mellett a telefon nem tudna a társról (ott a
+    // lazítás az ő jelmondata nélkül menne), vagy a nyomról (a levett
+    // megbízott a telefonról visszajönne — ez a szigorúbb irány, de csendes).
     names: ['packs', 'run', 'log', 'packMarks', 'lockdown', 'lockdownWindows', 'lockdownWindowsRev',
-      'partner', 'partnerRev', 'keywords', 'keywordsRev', 'hideSiteList', 'hideSiteListRev',
+      'partner', 'partnerRev', 'partnerCo', 'partnersGone', 'keywords', 'keywordsRev', 'hideSiteList', 'hideSiteListRev',
       'rev', 'updatedAt', 'updatedBy'],
     ts: 'desktop/src/shared/sync/focus-merge.ts',
     kt: 'android/app/src/main/java/hu/breaker/app/core/SyncClient.kt',
@@ -103,6 +107,16 @@ const GROUPS = [
   {
     what: 'a megbízott',
     names: ['name', 'salt', 'hash', 'setAt'],
+    ts: 'desktop/src/shared/partner.ts',
+    kt: 'android/app/src/main/java/hu/breaker/app/core/SyncClient.kt',
+    swift: 'ios/Shared/Partner.swift',
+  },
+  // A LEVETT MEGBÍZOTT NYOMA: azonosság és időpont. Ha az `id` neve
+  // elcsúszna, a nyom a másik eszközön rossz alakú lenne és kiesne — a levett
+  // megbízott ott élne tovább (szigorúbb, de a levétel nem érne át).
+  {
+    what: 'a levett megbízott nyoma',
+    names: ['id', 'at'],
     ts: 'desktop/src/shared/partner.ts',
     kt: 'android/app/src/main/java/hu/breaker/app/core/SyncClient.kt',
     swift: 'ios/Shared/Partner.swift',

@@ -260,6 +260,12 @@ export interface StatusData {
    * próbatétel utolsó lépése az ő jelmondata.
    */
   partner?: { name: string; setAt: number } | null;
+  /**
+   * A fő mellett élő TÁRS-megbízottak (két eszközön egymástól függetlenül
+   * felvéve) — a lazítás végén mindegyikük jelmondata kell. Üres vagy hiányzik
+   * = nincs társ.
+   */
+  partnerCo?: { name: string; setAt: number }[];
   /** a szinkron állapota, ha van fiók */
   sync?: SyncStatus;
   /** munkamenet-csomagok: „most csak EZ mehet” (lásd shared/focus.ts) */

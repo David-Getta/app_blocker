@@ -36,7 +36,10 @@ import {
   liveLockdown, mergeLockdown, mergeWindows, normalizeWindows, parseLockdown, windowKey,
   type Lockdown, type LockdownWindow,
 } from '../lockdown.js';
-import { mergePartner, normalizePartnerLock, partnerKey, type PartnerLock } from '../partner.js';
+import {
+  cleanPartnerList, cleanPartnersGone, mergePartners, normalizePartnerLock, partnerId, partnerKey,
+  type PartnerGone, type PartnerLock,
+} from '../partner.js';
 import { cleanKeywords, keywordsKey, mergeKeywords } from '../keywords.js';
 
 /** Legfeljebb ennyi csomag utazhat — a felületen sem fér ki több. */
@@ -99,12 +102,26 @@ export interface SyncFocus {
    */
   lockdownWindowsRev?: number;
   /**
-   * PÁRBAN ZÁROLÁS: a megbízott lenyomata és a jele (a blob `rev`-je, amelyik
-   * utoljára állította vagy vette le). A fésülése az ablakoké: nagyobb jel
-   * nyer, azonos jelnél a beállított — lásd `mergePartner`. Hiányzik = nincs.
+   * PÁRBAN ZÁROLÁS: a FŐ megbízott lenyomata (a legkorábban felvett élő) és a
+   * jele (a blob `rev`-je, amelyik utoljára változtatta). A fésülés NEM a jel
+   * szerint megy, hanem azonosság szerint (lásd `mergePartners`): élő
+   * megbízottat csak a nyoma visz el. A jelet a régi kliensek miatt hordjuk
+   * tovább — ők még a jel szerint fésülnek. Hiányzik = nincs.
    */
   partner?: PartnerLock;
   partnerRev?: number;
+  /**
+   * A fő mellett élő TÁRS-megbízottak: két eszközön egymástól függetlenül
+   * felvett (vagy egy friss eszközön a valódi mellé tett) megbízott — a
+   * lazítás végén mindegyik jelmondata kell. Üresen nincs mező.
+   */
+  partnerCo?: PartnerLock[];
+  /**
+   * A levett megbízottak nyoma: azonosság és időpont. Csak a levétel
+   * próbatételéből születik, aminek a végén az ő jelmondata állt — élő
+   * megbízottat csak ez visz el. Üresen nincs mező.
+   */
+  partnersGone?: PartnerGone[];
   /**
    * A LISTA REJTÉSE: fiók-szintű beállítás, a JELÉVEL. A bekapcsolás egy
    * koppintás (szigorítás), a kikapcsolás a készülék azonosítása (munka) —
@@ -235,7 +252,9 @@ export function normalizeSyncFocus(raw: unknown, fallbackDevice: string, now?: n
       ? { lockdownWindows: windowsIn(o.lockdownWindows) } : {}),
     ...(markIn(o.lockdownWindowsRev, rev) ? { lockdownWindowsRev: markIn(o.lockdownWindowsRev, rev) } : {}),
     // A megbízott is kívülről jött adat: csak a jó alakú, a jele mint a többié.
-    ...(normalizePartnerLock(o.partner) ? { partner: normalizePartnerLock(o.partner)! } : {}),
+    // A társak és a nyomok is: a fésülés tisztítja őket (egyszer, rendezve,
+    // a plafonig, a fő nélkül) — ugyanaz a szabály, mint a fogadáskor.
+    ...partnersIn(o),
     ...(markIn(o.partnerRev, rev) ? { partnerRev: markIn(o.partnerRev, rev) } : {}),
     ...(o.hideSiteList === true ? { hideSiteList: true } : {}),
     ...(markIn(o.hideSiteListRev, rev) ? { hideSiteListRev: markIn(o.hideSiteListRev, rev) } : {}),
@@ -771,9 +790,12 @@ function stable(f: SyncFocus): unknown {
     // sorrend nem jelentés.
     lockdownWindows: (f.lockdownWindows ?? []).map(windowKey).sort(),
     lockdownWindowsRev: f.lockdownWindowsRev ?? 0,
-    // A MEGBÍZOTT IS, a jelével: enélkül a felvétele sosem érne fel.
+    // A MEGBÍZOTT IS, a jelével: enélkül a felvétele sosem érne fel. A társak
+    // és a nyomok is — egy levétel nyoma nélkül a levétel sosem érne át.
     partner: f.partner ? partnerKey(f.partner) : null,
     partnerRev: f.partnerRev ?? 0,
+    partnerCo: (f.partnerCo ?? []).map(partnerKey),
+    partnersGone: (f.partnersGone ?? []).map((g) => `${g.id}@${g.at}`),
     hideSiteList: f.hideSiteList === true,
     hideSiteListRev: f.hideSiteListRev ?? 0,
     // A KULCSSZAVAK IS, a jelükkel — tartalom szerint, rendezve.
@@ -822,18 +844,34 @@ function windowsMerged(
   };
 }
 
-/** A megbízott és a jele fésülve — üresen egyik mező sincs. */
+/**
+ * A megbízottak fésülve — azonosság szerint (`mergePartners`), a jel csak a
+ * régi klienseknek utazik tovább, a nagyobbik. Üresen egyik mező sincs.
+ */
 function partnerMerged(
   local: SyncFocus, incoming: SyncFocus,
-): { partner?: PartnerLock; partnerRev?: number } {
-  const ml = local.partnerRev ?? 0;
-  const mi = incoming.partnerRev ?? 0;
-  const partner = mergePartner(ml, local.partner, mi, incoming.partner);
-  const mark = Math.max(ml, mi);
+): { partner?: PartnerLock; partnerRev?: number; partnerCo?: PartnerLock[]; partnersGone?: PartnerGone[] } {
+  const mark = Math.max(local.partnerRev ?? 0, incoming.partnerRev ?? 0);
   return {
-    ...(partner ? { partner } : {}),
+    ...mergePartners(local, incoming),
     ...(mark > 0 ? { partnerRev: mark } : {}),
   };
+}
+
+/**
+ * A beolvasott megbízottak: a fő, a társak és a nyomok — ugyanaz a tisztítás,
+ * mint a fésülésé (a nyommal levett nem él, a fő a legkorábban felvett, a
+ * társak nélküle). Egy régi kliens blobjában csak a fő van.
+ */
+function partnersIn(o: { partner?: unknown; partnerCo?: unknown; partnersGone?: unknown }): {
+  partner?: PartnerLock; partnerCo?: PartnerLock[]; partnersGone?: PartnerGone[];
+} {
+  const main = normalizePartnerLock(o.partner);
+  return mergePartners({
+    ...(main ? { partner: main } : {}),
+    partnerCo: cleanPartnerList(o.partnerCo).filter((p) => !main || partnerId(p) !== partnerId(main)),
+    partnersGone: cleanPartnersGone(o.partnersGone),
+  }, {});
 }
 
 /** A rejtés és a jele fésülve — üresen egyik mező sincs. */

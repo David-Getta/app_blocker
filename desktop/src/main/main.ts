@@ -518,8 +518,12 @@ if (HELPER_MODE) {
           // A MEGBÍZOTT neve, ha van: a tiltó lap ebből mondja ki, hogy a
           // feloldás útja az ő jelmondatával ér véget. Csak a név megy — a
           // lenyomat a segédé, a bővítménynek semmi dolga vele.
+          // Ha társ-megbízott is él, mindegyikük neve: a lazítás végén
+          // mindegyikük jelmondata kell.
           const s = await sharedStatus();
-          return s.partner ? { name: s.partner.name } : null;
+          return s.partner
+            ? { name: [s.partner.name, ...(s.partnerCo ?? []).map((p) => p.name)].join(', ') }
+            : null;
         },
         async () => {
           // A KULCSSZAVAK: bármely oldalon, ha a cím tartalmazza — ezt csak a

@@ -7,13 +7,13 @@
 // Ha itt egy r() hívás sorrendje változik, ott is változnia kell.
 
 import type { SyncSite } from '../src/shared/sync/merge';
-import { emptyFocus, type SyncFocus } from '../src/shared/sync/focus-merge';
+import { emptyFocus, normalizeSyncFocus, type SyncFocus } from '../src/shared/sync/focus-merge';
 import { isRunning, isSiteAllowed, type FocusLogEntry, type FocusPack, type FocusRun } from '../src/shared/focus';
 import type { Band, Schedule, ScheduleMode, Weekday } from '../src/shared/schedule';
 import type { UrlRule } from '../src/shared/urlrules';
 import { windowKey, type Lockdown, type LockdownWindow } from '../src/shared/lockdown';
 import { keywordInHost, keywordsKey } from '../src/shared/keywords';
-import { partnerKey, type PartnerLock } from '../src/shared/partner';
+import { partnerId, partnerKey, type PartnerGone, type PartnerLock } from '../src/shared/partner';
 import {
   dayKeysBack, rank, summarize, totalsForDays, type TargetTotal, type UsageDay, type UsageState, type WeekDelta,
 } from '../src/shared/usage';
@@ -104,14 +104,20 @@ export const WINDOWS: Omit<LockdownWindow, 'id'>[] = [
 /** Kulcsszó-készletek: egy-egy szó, és a kettő együtt — azonos jelnél az unió jön ki. */
 export const KEYWORD_SETS: string[][] = [['shorts'], ['reels'], ['shorts', 'reels']];
 /**
- * Két rögzített megbízott-zár. A só és a lenyomat itt csak ALAKRA jó (base64,
- * a hossz a korláton belül) — a fésülés a jelet és a felvétel idejét nézi, a
- * jelmondatot sehol. A `setAt` különbözik: azonos jelnél a korábbi nyer.
+ * Három rögzített megbízott-zár. A só és a lenyomat itt csak ALAKRA jó
+ * (base64, a hossz a korláton belül) — a fésülés az AZONOSSÁGOT (só és
+ * lenyomat), a levettek nyomát és a felvétel idejét nézi, a jelmondatot
+ * sehol. A `setAt` különbözik: a legkorábban felvett a fő, a többi társ.
  */
 export const PARTNERS: PartnerLock[] = [
   { name: 'Anna', salt: 'QUFBQUFBQUFBQUFBQUFBQQ==', hash: 'QkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkI=', setAt: 5 },
   { name: 'Bela', salt: 'Q0NDQ0NDQ0NDQ0NDQ0NDQw==', hash: 'REREREREREREREREREREREREREREREREREREREREREQ=', setAt: 3 },
+  { name: 'Cili', salt: 'RUVFRUVFRUVFRUVFRUVFRQ==', hash: 'RkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkY=', setAt: 4 },
 ];
+/** A csere-fajták megbízottja — a húzásokban sosem szerepel, tehát a felvétele mindig különbség. */
+export const PARTNER_FLIP: PartnerLock = {
+  name: 'Dora', salt: 'R0dHR0dHR0dHR0dHR0dHRw==', hash: 'SEhISEhISEhISEhISEhISEhISEhISEhISEhISEhISEg=', setAt: 9,
+};
 
 /**
  * Naplósorok készlete — a napló egyesítés, nem döntés, de a részleteiben
@@ -274,6 +280,17 @@ export function randomFocus(r: () => number, device: string): SyncFocus {
   const pMarkValue = Math.min(1 + Math.floor(r() * 5), rev);
   const partner = pDraw < 0.3 ? PARTNERS[pPick] : undefined;
   const partnerRev = partner || pMarkDraw < 0.2 ? pMarkValue : undefined;
+  // TÁRS-MEGBÍZOTT ÉS A LEVETTEK NYOMA — öt húzás, feltétel nélkül, ugyanebben
+  // a sorrendben a három nyelvben: van-e társ, melyik a háromból (lehet a fő
+  // is — a normalizálás kiszűri); van-e nyom, kié, és mikori. A nyom a főt is
+  // eltalálhatja: akkor a fő nem él, és a társ lép a helyére.
+  const coDraw = r();
+  const coPick = Math.floor(r() * 3);
+  const goneDraw = r();
+  const gonePick = Math.floor(r() * 3);
+  const goneAt = 1 + Math.floor(r() * 3);
+  const partnerCo = coDraw < 0.25 ? [PARTNERS[coPick]] : [];
+  const partnersGone: PartnerGone[] = goneDraw < 0.2 ? [{ id: partnerId(PARTNERS[gonePick]), at: goneAt }] : [];
   // A NAPLÓ — két húzás, feltétel nélkül, ugyanebben a sorrendben a három
   // nyelvben: van-e napló, és melyik részhalmaz. A sorok BEMENETI sorrendje
   // szándékosan nem rendezett: a fésülés rendez, és a kulcs a fésült sorrendet
@@ -305,6 +322,8 @@ export function randomFocus(r: () => number, device: string): SyncFocus {
     ...(keywordsRev !== undefined ? { keywordsRev } : {}),
     ...(partner ? { partner } : {}),
     ...(partnerRev !== undefined ? { partnerRev } : {}),
+    ...(partnerCo.length > 0 ? { partnerCo } : {}),
+    ...(partnersGone.length > 0 ? { partnersGone } : {}),
   };
 }
 
@@ -350,6 +369,8 @@ export function focusConformanceKey(f: SyncFocus): string {
     + ` hide=${f.hideSiteList ? 1 : 0} hmark=${f.hideSiteListRev ?? 0}`
     + ` kw=[${keywordsKey(f.keywords ?? [])}] kmark=${f.keywordsRev ?? 0}`
     + ` partner=[${partnerKey(f.partner)}] pmark=${f.partnerRev ?? 0}`
+    + ` co=[${(f.partnerCo ?? []).map(partnerKey).join(';')}]`
+    + ` gone=[${(f.partnersGone ?? []).map((g) => `${g.id}@${g.at}`).join(';')}]`
     // A napló a FÉSÜLT sorrendben: a rendezés (vég, csomag, kezdés) is tükrözött.
     + ` log=[${f.log.map((e) => `${e.packId}/${e.startedAt}/${e.endedAt}/${e.plannedEndsAt}/${e.stopped ? 1 : 0}/${e.window ? 1 : 0}`
       + `/${e.cuts ?? 0}/${e.origin ?? '-'}`).join(';')}]`;
@@ -365,16 +386,17 @@ export interface FocusFlip { flip: SyncFocus; what: string; same: boolean }
  * kulcsából kimaradt a rejtés: azonos rev mellett a cseréje
  * „nincs mit feltölteni” lett volna — és a fésülés fixtúrája ezt nem látta.
  *
- * Huszonegy fajta: tizenhét jelentés (különbség), négy nem az (időbélyeg,
- * eszköznév, ablak-azonosító, a csomagok sorrendje). A menet rövidítésszáma
- * és eredeti kezdése jelentés: a fésülés ezekből dönt. A várt érték a fajtából
+ * Huszonhárom fajta: tizenkilenc jelentés (különbség), négy nem az
+ * (időbélyeg, eszköznév, ablak-azonosító, a csomagok sorrendje). A menet
+ * rövidítésszáma és eredeti kezdése jelentés: a fésülés ezekből dönt; a
+ * társ-megbízott és a levettek nyoma is: élő megbízottat csak a nyoma visz el. A várt érték a fajtából
  * következik, és a gép tesztje ellenőrzi is — így egy hatástalan csere (amit
  * a normalizálás visszaírna) nem marad néma. EGY húzás, az a/b/c UTÁN: a
  * Kotlin és a Swift fuzz-generátort nem érinti, a fixtúra a cserét JSON-ban
  * viszi, a tükrök csak visszajátsszák.
  */
 export function flipFocus(r: () => number, a: SyncFocus): FocusFlip {
-  const kind = Math.floor(r() * 21);
+  const kind = Math.floor(r() * 23);
   const first = a.packs[0];
   const diff = (what: string, flip: SyncFocus): FocusFlip => ({ what, flip, same: false });
   const noDiff = (what: string, flip: SyncFocus): FocusFlip => ({ what, flip, same: true });
@@ -426,9 +448,12 @@ export function flipFocus(r: () => number, a: SyncFocus): FocusFlip {
     }
     case 14: return bumpAt();
     case 15: return noDiff('updatedBy', { ...a, updatedBy: 'masik' });
-    case 17: return a.partner
-      ? diff('partner-', { ...a, partner: undefined })
-      : diff('partner+', { ...a, partner: PARTNERS[0] });
+    // A megbízottak a NORMALIZÁLT alakból: a nyom a fő-t is eltalálhatja, és
+    // akkor a nyers mező elhagyása nem különbség — a csere hatása a
+    // fésülés-utáni állapoton dől el.
+    case 17: return normalizeSyncFocus(a, 'x').partner
+      ? diff('partner-', { ...a, partner: undefined, partnerCo: undefined })
+      : diff('partner+', { ...a, partner: PARTNER_FLIP });
     case 18: return diff('pmark', { ...a, partnerRev: otherMark(a.partnerRev) });
     case 19:
       if (!a.run) return first ? diff('run+', { ...a, run: { packId: first.id, startedAt: 10, endsAt: 610_000, cuts: 1 } }) : addPack();
@@ -436,6 +461,15 @@ export function flipFocus(r: () => number, a: SyncFocus): FocusFlip {
     case 20:
       if (!a.run) return diff('log+', { ...a, log: [...a.log, { ...TOMBS[0] }] });
       return diff('run.origin', { ...a, run: { ...a.run, origin: a.run.origin === 5 ? 6 : 5 } });
+    case 21: {
+      const n = normalizeSyncFocus(a, 'x');
+      return n.partnerCo?.length
+        ? diff('partnerCo-', { ...a, partner: n.partner, partnerCo: undefined })
+        : diff('partnerCo+', { ...a, partnerCo: [...(a.partnerCo ?? []), PARTNER_FLIP] });
+    }
+    case 22: return normalizeSyncFocus(a, 'x').partnersGone?.length
+      ? diff('partnersGone-', { ...a, partnersGone: undefined })
+      : diff('partnersGone+', { ...a, partnersGone: [{ id: partnerId(PARTNER_FLIP), at: 1 }] });
     default:
       // Ami NEM jelentés: az ablak azonosítója és a csomagok sorrendje.
       if (ws.length > 0) return noDiff('window.id', { ...a, lockdownWindows: [{ ...ws[0], id: 'w9@flip' }, ...ws.slice(1)] });

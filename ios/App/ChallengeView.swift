@@ -98,7 +98,7 @@ struct ChallengeView: View {
             ReverseView(text: text) { submit($0) }.id(id)
         case .delay(_, let minutes, let claimableAt, let window):
             DelayView(minutes: minutes, claimableAt: claimableAt, windowMs: window, now: now) { claim() }
-        case .partner(let id, let name):
+        case .partner(let id, let name, _):
             PartnerView(name: name) { submit($0) }.id(id)
         }
     }

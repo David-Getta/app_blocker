@@ -397,6 +397,9 @@ object SyncClient {
         // A MEGBÍZOTT IS, a jelével: a lenyomat utazik, a jelmondat sehol nincs.
         if (f.partner != null) put("partner", partnerToJson(f.partner))
         if (f.partnerRev != null) put("partnerRev", f.partnerRev)
+        // A TÁRSAK és a levettek NYOMA is — üresen nincs mező.
+        if (f.partnerCo.isNotEmpty()) put("partnerCo", JSONArray(f.partnerCo.map { partnerToJson(it) }))
+        if (f.partnersGone.isNotEmpty()) put("partnersGone", JSONArray(f.partnersGone.map { goneToJson(it) }))
         // A REJTÉS IS, a jelével — csak igazként, üresen nincs mező.
         if (f.hideSiteList) put("hideSiteList", true)
         if (f.hideSiteListRev != null) put("hideSiteListRev", f.hideSiteListRev)
@@ -415,6 +418,36 @@ object SyncClient {
     /** A megbízott drót-alakja: név, só, lenyomat, dátum — a jelmondat nincs benne. */
     internal fun partnerToJson(p: PartnerLogic.PartnerLock): JSONObject = JSONObject().apply {
         put("name", p.name); put("salt", p.salt); put("hash", p.hash); put("setAt", p.setAt)
+    }
+
+    /** A levett megbízott nyomának drót-alakja: azonosság és időpont. */
+    internal fun goneToJson(g: PartnerLogic.PartnerGone): JSONObject = JSONObject().apply {
+        put("id", g.id); put("at", g.at)
+    }
+
+    /**
+     * A beolvasott megbízottak: a fő, a társak és a nyomok — a gép
+     * `partnersIn`-je: a rossz alakú kiesik, a fővel egyező társ is, a nyom
+     * időpontja csak nemnegatív, biztonságos egész JSON-szám (különben 0), és
+     * a fésülés szabálya rendezi (a nyommal levett nem él).
+     */
+    internal fun partnersFromJson(o: JSONObject): PartnerLogic.PartnerSet {
+        val main = partnerFromJson(o.optJSONObject("partner"))
+        val coArr = o.optJSONArray("partnerCo")
+        val co = if (coArr == null) emptyList() else (0 until coArr.length())
+            .mapNotNull { partnerFromJson(coArr.opt(it) as? JSONObject) }
+            .filter { main == null || PartnerLogic.partnerId(it) != PartnerLogic.partnerId(main) }
+        val goneArr = o.optJSONArray("partnersGone")
+        val gone = if (goneArr == null) emptyList() else (0 until goneArr.length()).mapNotNull { i ->
+            val g = goneArr.opt(i) as? JSONObject ?: return@mapNotNull null
+            val id = stringOf(g, "id") ?: return@mapNotNull null
+            val at = numberOf(g, "at")
+                ?.takeIf { it >= 0 && it == Math.floor(it) && it <= 9_007_199_254_740_991.0 }?.toLong() ?: 0L
+            PartnerLogic.PartnerGone(id, at)
+        }
+        return PartnerLogic.mergePartners(
+            PartnerLogic.PartnerSet(main, co, PartnerLogic.cleanPartnersGone(gone)), PartnerLogic.PartnerSet(),
+        )
     }
 
     /** Kívülről jött adat: csak a jó alakú marad. */
@@ -475,6 +508,7 @@ object SyncClient {
         text: String, fallbackDevice: String, now: Long? = null,
     ): FocusSync.SyncFocus {
         val o = JSONObject(text)
+        val partners = partnersFromJson(o)
         val packs = mutableListOf<Focus.FocusPack>()
         val seenIds = mutableListOf<String>()
         val arr = o.optJSONArray("packs")
@@ -550,10 +584,13 @@ object SyncClient {
             lockdownWindows = windowsFromJson(o.optJSONArray("lockdownWindows")),
             lockdownWindowsRev = (intOf(o, "lockdownWindowsRev") ?: 0)
                 .takeIf { it > 0 && it <= rev.coerceIn(0, Int.MAX_VALUE.toLong()) },
-            // A megbízott is kívülről jött adat: csak a jó alakú, a jele mint a többié.
-            partner = partnerFromJson(o.optJSONObject("partner")),
+            // A megbízott is kívülről jött adat: csak a jó alakú, a jele mint a
+            // többié; a társak és a nyomok a fésülés szabálya szerint.
+            partner = partners.partner,
             partnerRev = (intOf(o, "partnerRev") ?: 0)
                 .takeIf { it > 0 && it <= rev.coerceIn(0, Int.MAX_VALUE.toLong()) },
+            partnerCo = partners.partnerCo,
+            partnersGone = partners.partnersGone,
             // A rejtés is kívülről jött adat: csak igazként, a jele mint a többié.
             hideSiteList = o.opt("hideSiteList") == true,
             hideSiteListRev = (intOf(o, "hideSiteListRev") ?: 0)
@@ -718,6 +755,8 @@ object SyncClient {
                 // A megbízott a jelével — a fésülés ebből tudja, kié az újabb szó.
                 partner = current.partner,
                 partnerRev = current.partnerRev,
+                partnerCo = current.partnerCo,
+                partnersGone = current.partnersGone,
                 // A rejtés a jelével — a fésülés ebből tudja, kié az újabb szó.
                 hideSiteList = current.hideSiteList,
                 hideSiteListRev = current.hideSiteListRev,
@@ -747,10 +786,13 @@ object SyncClient {
                     // a következő fordulóban már ezek szerint ír zárlatot.
                     lockdownWindows = merged.lockdownWindows,
                     lockdownWindowsRev = merged.lockdownWindowsRev,
-                    // A MEGBÍZOTT IS a jele szerint: a másik eszközön felvett
-                    // innentől itt is az utolsó szó; a levétel csak nagyobb jellel.
+                    // A MEGBÍZOTT IS — azonosság szerint: a másik eszközön
+                    // felvett innentől itt is az utolsó szó (társként, ha itt
+                    // is van); a levétel csak a nyomával érkezik.
                     partner = merged.partner,
                     partnerRev = merged.partnerRev,
+                    partnerCo = merged.partnerCo,
+                    partnersGone = merged.partnersGone,
                     // A REJTÉS IS a jele szerint: a gépen bekapcsolt rejtés innentől
                     // itt is áll; a kikapcsolás (azonosítás után) csak nagyobb jellel.
                     hideSiteList = merged.hideSiteList,

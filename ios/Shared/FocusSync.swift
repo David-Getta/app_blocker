@@ -56,12 +56,20 @@ public enum FocusSync {
         public var lockdownWindows: [LockdownLogic.LockdownWindow]?
         /// Az ablak-lista jele: a blob rev-je, amelyik utoljára változtatta. Nil = régi kliens.
         public var lockdownWindowsRev: Int?
-        /// A MEGBÍZOTT (párban zárolás): a neve és a jelmondat lenyomata — a
-        /// jelmondat nincs a dróton. A levétele próbatétel, tehát a JELE dönt,
-        /// nem az újabb blob; lásd `PartnerLogic.merge`. Nil = nincs.
+        /// A FŐ MEGBÍZOTT (párban zárolás): a neve és a jelmondat lenyomata — a
+        /// jelmondat nincs a dróton. A fésülés NEM a jel szerint megy, hanem
+        /// azonosság szerint (`PartnerLogic.mergePartners`): élő megbízottat
+        /// csak a nyoma visz el. Nil = nincs.
         public var partner: PartnerLogic.PartnerLock?
-        /// A megbízott jele: a blob rev-je, amelyik utoljára felvette vagy levette.
+        /// A megbízott jele: a blob rev-je, amelyik utoljára változtatta — a
+        /// régi kliensek miatt hordjuk tovább, ők még a jel szerint fésülnek.
         public var partnerRev: Int?
+        /// A fő mellett élő TÁRS-megbízottak — a lazítás végén mindegyik
+        /// jelmondata kell. Üresen nincs mező a dróton.
+        public var partnerCo: [PartnerLogic.PartnerLock]?
+        /// A levett megbízottak nyoma: csak a jelmondatos levételből születik,
+        /// és élő megbízottat csak ez visz el. Üresen nincs mező a dróton.
+        public var partnersGone: [PartnerLogic.PartnerGone]?
         /// KULCSSZÓ-SZABÁLYOK: a lista és a jele — a fésülése az ablakoké: a
         /// jel dönt, azonos jelnél a bővebb lista. Üresen nincs mező a dróton.
         public var keywords: [String]?
@@ -79,6 +87,7 @@ public enum FocusSync {
             packMarks: [String: Int]? = nil, lockdown: LockdownLogic.Lockdown? = nil,
             lockdownWindows: [LockdownLogic.LockdownWindow]? = nil, lockdownWindowsRev: Int? = nil,
             partner: PartnerLogic.PartnerLock? = nil, partnerRev: Int? = nil,
+            partnerCo: [PartnerLogic.PartnerLock]? = nil, partnersGone: [PartnerLogic.PartnerGone]? = nil,
             keywords: [String]? = nil, keywordsRev: Int? = nil,
             hideSiteList: Bool? = nil, hideSiteListRev: Int? = nil
         ) {
@@ -94,6 +103,8 @@ public enum FocusSync {
             self.lockdownWindowsRev = lockdownWindowsRev
             self.partner = partner
             self.partnerRev = partnerRev
+            self.partnerCo = partnerCo
+            self.partnersGone = partnersGone
             self.keywords = keywords
             self.keywordsRev = keywordsRev
             self.hideSiteList = hideSiteList
@@ -132,6 +143,9 @@ public enum FocusSync {
             // A megbízott és a jele is tűrően: egy sérült mező ne vigye el a blobot.
             partner = (try? c.decodeIfPresent(PartnerLogic.PartnerLock.self, forKey: .partner)) ?? nil
             partnerRev = (try? c.decodeIfPresent(Int.self, forKey: .partnerRev)) ?? nil
+            // A társak és a nyomok elemenként: egy rossz elem csak magát viszi.
+            partnerCo = c.lenient([Lossy<PartnerLogic.PartnerLock>].self, .partnerCo)?.compactMap { $0.value }
+            partnersGone = c.lenient([Lossy<PartnerLogic.PartnerGone>].self, .partnersGone)?.compactMap { $0.value }
             // A kulcsszavak és a jelük is tűrően.
             // Elemenként: egy nem szöveg elem csak magát viszi (eddig az összeset).
             keywords = c.lenient([Lossy<String>].self, .keywords)?.compactMap { $0.value }
@@ -160,6 +174,9 @@ public enum FocusSync {
         let log = mergeLog(local.log, incoming.log)
         let (run, carriers) = mergeRun(local, incoming, log: log, now: now)
         let (packs, packMarks) = mergePacks(newer, older, runPackId: run?.packId, carriers: carriers)
+        // A megbízottak AZONOSSÁG szerint: élő megbízottat csak a nyoma visz el,
+        // két különböző élő közül egyik sem esik ki (`PartnerLogic.mergePartners`).
+        let partners = PartnerLogic.mergePartners(partnerSet(local), partnerSet(incoming))
         return SyncFocus(
             packs: packs,
             run: run,
@@ -178,13 +195,12 @@ public enum FocusSync {
             // lépteti a jelet; egy csomag-szerkesztés a másik eszközön nem.
             lockdownWindows: mergedWindows(local, incoming),
             lockdownWindowsRev: mergedWindowsMark(local, incoming),
-            // A MEGBÍZOTT is a jele szerint: a levétel próbatétel, ami lépteti;
-            // azonos jelnél a beállított — egy csomag-szerkesztés a másik
-            // eszközön nem viszi el a megbízottat, és fel sem támasztja.
-            partner: PartnerLogic.merge(
-                local.partnerRev ?? 0, local.partner, incoming.partnerRev ?? 0, incoming.partner
-            ),
+            // A megbízott NEM a jel szerint: azonosság szerint (fent). A jel a
+            // régi klienseknek utazik tovább, a nagyobbik.
+            partner: partners.partner,
             partnerRev: mergedPartnerMark(local, incoming),
+            partnerCo: partners.partnerCo.isEmpty ? nil : partners.partnerCo,
+            partnersGone: partners.partnersGone.isEmpty ? nil : partners.partnersGone,
             // A kulcsszavak ugyanígy: a jel dönt, azonos jelnél a bővebb lista.
             keywords: mergedKeywords(local, incoming),
             keywordsRev: mergedKeywordsMark(local, incoming),
@@ -204,6 +220,11 @@ public enum FocusSync {
     private static func mergedKeywordsMark(_ local: SyncFocus, _ incoming: SyncFocus) -> Int? {
         let mark = max(local.keywordsRev ?? 0, incoming.keywordsRev ?? 0)
         return mark > 0 ? mark : nil
+    }
+
+    /// A blob megbízottjai a fésülés alakjában.
+    public static func partnerSet(_ f: SyncFocus) -> PartnerLogic.PartnerSet {
+        PartnerLogic.PartnerSet(partner: f.partner, partnerCo: f.partnerCo ?? [], partnersGone: f.partnersGone ?? [])
     }
 
     private static func mergedPartnerMark(_ local: SyncFocus, _ incoming: SyncFocus) -> Int? {
@@ -628,8 +649,11 @@ public enum FocusSync {
         // sorrend nem jelentés.
         let windows = (f.lockdownWindows ?? []).map { LockdownLogic.windowKey($0.band) }.sorted()
             .joined(separator: "|")
-        // A megbízott a jelével: a cseréje is különbség, fel kell mennie.
+        // A megbízott a jelével: a cseréje is különbség, fel kell mennie. A
+        // társak és a nyomok is — egy levétel nyoma nélkül sosem érne át.
         let partner = PartnerLogic.partnerKey(f.partner)
+            + "~" + (f.partnerCo ?? []).map { PartnerLogic.partnerKey($0) }.joined(separator: ";")
+            + "~" + (f.partnersGone ?? []).map { "\($0.id)@\($0.at)" }.joined(separator: ";")
         // A kulcsszavak a jelükkel — tartalom szerint, rendezve.
         let keywords = KeywordLogic.keywordsKey(f.keywords ?? [])
         // A rejtés a jelével: a cseréje is különbség — azonos rev mellett is fel
@@ -682,6 +706,10 @@ public enum FocusSync {
         let presentIds = packs.map { $0.id }
         let cleaned = cleanMarks(raw.packMarks, presentIds: presentIds, maxRev: revInt(raw.rev))
         let kept = cleaned?.filter { !seenIds.contains($0.key) || presentIds.contains($0.key) }
+        // A megbízottak a fésülés szabálya szerint tisztítva (`PartnerLogic.cleanSet`).
+        let partners = PartnerLogic.cleanSet(
+            partner: raw.partner, partnerCo: raw.partnerCo ?? [], partnersGone: raw.partnersGone ?? []
+        )
         return SyncFocus(
             packs: packs,
             run: cleanRun(raw.run, packs: packs),
@@ -705,11 +733,12 @@ public enum FocusSync {
             lockdownWindows: cleanedWindows(raw.lockdownWindows),
             lockdownWindowsRev: raw.lockdownWindowsRev.flatMap { $0 > 0 && $0 <= revInt(raw.rev) ? $0 : nil },
             // A megbízott kívülről jött adat: csak a jó alakú rekord marad, a
-            // jele pozitív egész, legfeljebb a blob rev-je — mint az ablakoké.
-            partner: raw.partner.flatMap {
-                PartnerLogic.normalizeLock(name: $0.name, salt: $0.salt, hash: $0.hash, setAt: $0.setAt)
-            },
+            // jele pozitív egész, legfeljebb a blob rev-je — mint az ablakoké;
+            // a társak és a nyomok a fésülés szabálya szerint.
+            partner: partners.partner,
             partnerRev: raw.partnerRev.flatMap { $0 > 0 && $0 <= revInt(raw.rev) ? $0 : nil },
+            partnerCo: partners.partnerCo.isEmpty ? nil : partners.partnerCo,
+            partnersGone: partners.partnersGone.isEmpty ? nil : partners.partnersGone,
             // A kulcsszavak is kívülről jött adat: csak az érvényes, egyszer, a plafonig.
             keywords: cleanedKeywords(raw.keywords),
             keywordsRev: raw.keywordsRev.flatMap { $0 > 0 && $0 <= revInt(raw.rev) ? $0 : nil },

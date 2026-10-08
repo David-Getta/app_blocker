@@ -221,6 +221,9 @@ export function statusOf(
     keywords: state.keywords ?? [],
     // Csak a neve és a dátum: a lenyomat a segédé, a jelmondat sehol nincs.
     partner: state.partner ? { name: state.partner.name, setAt: state.partner.setAt } : null,
+    // A TÁRS-megbízottak is (két eszközön egymástól függetlenül felvéve): a
+    // felület kimondja, hogy a lazítás végén mindegyikük jelmondata kell.
+    partnerCo: (state.partnerCo ?? []).map((p) => ({ name: p.name, setAt: p.setAt })),
     sync: state.sync && {
       // Csak amit a felületnek látnia kell. A kulcsok nem kerülnek ki innen.
       serverUrl: state.sync.serverUrl,

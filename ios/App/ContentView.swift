@@ -828,6 +828,13 @@ struct ContentView: View {
             if let partner = store.state.partner {
                 Text("Megbízott: \(partner.name). Minden lazító próbatétel utolsó lépése az ő jelmondata — a levételé is. A jelmondat nincs meg a telefonon, csak a lenyomata; a többi eszközödre is átér.")
                     .font(.footnote).foregroundStyle(.secondary)
+                // TÁRS-megbízott: két eszközön egymástól függetlenül felvéve. A
+                // szinkron egyiket sem dobja el a másik kedvéért — kimondjuk,
+                // hogy mindegyikük jelmondata kell.
+                if let co = store.state.partnerCo, !co.isEmpty {
+                    Text("Mellette: \(co.map { $0.name }.joined(separator: ", ")). Két eszközön egymástól függetlenül vettél fel megbízottat — a szinkron egyiket sem dobja el a másik kedvéért, ezért a lazítás végén mindegyikük jelmondata kell, a levételnél is.")
+                        .font(.footnote).foregroundStyle(.secondary)
+                }
                 Button("Levétel…") { removePartner() }.buttonStyle(.bordered)
             } else {
                 Text("Egy megbízott — társ, barát, szülő —, aki egy jelmondatot kap: minden lazítás végén ő írja be. Nem helyetted csinálja végig, csak az utolsó szót ő mondja ki. Felvenni ingyen; levenni próbatétel, a végén az ő jelmondatával. Nem gépzár: az impulzus ellen véd, nem a szándék ellen.")

@@ -149,8 +149,9 @@ enum SyncRevisions {
         // frissítés előtt — különben minden iPhone egyszer fölöslegesen léptetne.
         let windows = windowsKey(state)
         // A MEGBÍZOTT IS: a felvétele és a levétele döntés, tehát léptet. Csak
-        // ha van, címkével — a nélküle lévő állapot lenyomata változatlan.
-        let partner = PartnerLogic.partnerKey(state.partner)
+        // ha van, címkével — a nélküle lévő állapot lenyomata változatlan. A
+        // társak és a nyomok is benne vannak; nélkülük a kulcs a régi.
+        let partner = PartnerLogic.partnersKey(state.partnerSet)
         // A KULCSSZAVAK IS: a lista cseréje döntés, tehát léptet — csak ha van, címkével.
         let keywords = keywordsKey(state)
         return focusFpV2 + digestHex(
@@ -191,7 +192,7 @@ enum SyncRevisions {
         if state.focusRevFp == fp { return state }
         var next = state
         if state.focusRevFp == nil && (state.focusPacks ?? []).isEmpty && state.focusRun == nil
-            && (state.lockdownWindows ?? []).isEmpty && state.partner == nil
+            && (state.lockdownWindows ?? []).isEmpty && PartnerLogic.partnersKey(state.partnerSet).isEmpty
             && (state.keywords ?? []).isEmpty && !(state.hideSiteList ?? false) {
             next.focusRevFp = fp
             return next
@@ -221,7 +222,7 @@ enum SyncRevisions {
         next.focusRevWindows = windows
         // A megbízott jele ugyanígy: ha az előző léptetés óta változott, a
         // jele ez a blob-rev — a fésülés ebből tudja, kié az újabb szó.
-        let partner = PartnerLogic.partnerKey(state.partner)
+        let partner = PartnerLogic.partnersKey(state.partnerSet)
         if partner != (state.focusRevPartner ?? "") { next.partnerRev = Int(newRev) }
         next.focusRevPartner = partner
         // A kulcsszavak jele ugyanígy.
@@ -258,7 +259,7 @@ enum SyncRevisions {
         // A megbízott kulcsa is: az átvett megbízott nem a miénk — a következő
         // saját szerkesztés ne bélyegezze át a jelét, mert azzal egy másik
         // eszköz levételét lehetne felülírni.
-        next.focusRevPartner = PartnerLogic.partnerKey(state.partner)
+        next.focusRevPartner = PartnerLogic.partnersKey(state.partnerSet)
         next.focusRevKeywords = keywordsKey(state)
         // A rejtés kulcsa is: az átvett rejtés (és a kifizetett kikapcsolás)
         // jele a másik eszközé — a következő saját szerkesztés ne írja felül.

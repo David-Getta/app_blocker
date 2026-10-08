@@ -11,8 +11,8 @@ import * as assert from 'node:assert/strict';
 import * as fs from 'fs';
 import * as path from 'path';
 import {
-  MAX_PARTNER_NAME, MAX_PARTNER_TRIES, mergePartner, normalizePartnerLock, normalizePartnerName,
-  normalizePhrase, type PartnerLock,
+  MAX_PARTNER_NAME, MAX_PARTNER_TRIES, MAX_PARTNERS, MAX_PARTNERS_GONE, cleanPartnersGone, mergePartners,
+  normalizePartnerLock, normalizePartnerName, normalizePhrase, partnerId, type PartnerLock,
 } from '../src/shared/partner';
 import { hashPhrase, makePartnerLock, verifyPhrase } from '../src/helper/partner-crypto';
 import { defaultState, newId, type HelperState } from '../src/helper/state';
@@ -208,33 +208,105 @@ test('a felvétel és a levétel lépteti a blobot, és a megbízott jele a blob
   assert.equal(state.partnerRev, 7, 'az átvett megbízott jele marad');
 });
 
-test('fésülés: a jel dönt, azonos jelnél a beállított — és a korábban felvett', () => {
+test('fésülés: AZONOSSÁG szerint — élő megbízottat csak a nyoma visz el, a jel nem', () => {
   const a: PartnerLock = { name: 'Anna', salt: 'A'.repeat(24), hash: 'B'.repeat(44), setAt: 100 };
   const b: PartnerLock = { name: 'Béla', salt: 'C'.repeat(24), hash: 'D'.repeat(44), setAt: 200 };
-  assert.equal(mergePartner(3, a, 5, undefined), undefined, 'a nagyobb jelű levétel átmegy');
-  assert.equal(mergePartner(5, undefined, 3, a), undefined, 'a helyi, nagyobb jelű levétel marad');
-  assert.equal(mergePartner(3, a, 3, undefined), a, 'azonos jelnél a beállított nyer');
-  assert.equal(mergePartner(3, undefined, 3, b), b);
-  assert.equal(mergePartner(3, b, 3, a), a, 'mindkettő beállítva: a korábban felvett');
-  assert.equal(mergePartner(2, a, 3, b), b, 'nagyobb jel: a másik megbízott');
+  assert.deepEqual(mergePartners({ partner: a }, {}), { partner: a }, 'a hiány nem levétel');
+  assert.deepEqual(mergePartners({}, { partner: a }), { partner: a });
+  // Két különböző élő megbízott: mindkettő marad — a korábban felvett a fő.
+  assert.deepEqual(mergePartners({ partner: b }, { partner: a }), { partner: a, partnerCo: [b] });
+  assert.deepEqual(mergePartners({ partner: a }, { partner: b }), { partner: a, partnerCo: [b] });
+  // A nyom elviszi — mindkét irányból, és a nyom megmarad.
+  const goneA = [{ id: partnerId(a), at: 7 }];
+  assert.deepEqual(mergePartners({ partner: a }, { partnersGone: goneA }), { partnersGone: goneA });
+  assert.deepEqual(mergePartners({ partnersGone: goneA }, { partner: a, partnerCo: [b] }), { partner: b, partnersGone: goneA },
+    'a fő levétele után a társ lép a helyére');
+  // Ugyanaz a nyom kétszer: egyszer, a később levett időponttal.
+  assert.deepEqual(cleanPartnersGone([{ id: partnerId(a), at: 3 }, { id: partnerId(a), at: 9 }, { id: 'rossz', at: 1 }]),
+    [{ id: partnerId(a), at: 9 }]);
+  // A plafonok: legfeljebb nyolc élő (a legkorábban felvettek), a legutóbb levett harminckettő nyoma.
+  const many = Array.from({ length: MAX_PARTNERS + 3 }, (_, i): PartnerLock => ({
+    name: `P${i}`, salt: `${'S'.repeat(20)}${String(i).padStart(4, '0')}`, hash: 'H'.repeat(44), setAt: 1_000 - i,
+  }));
+  const big = mergePartners({ partner: many[0], partnerCo: many.slice(1) }, {});
+  assert.equal(1 + (big.partnerCo?.length ?? 0), MAX_PARTNERS);
+  assert.equal(big.partner?.name, `P${MAX_PARTNERS + 2}`, 'a legkorábban felvett a fő');
+  const gones = Array.from({ length: MAX_PARTNERS_GONE + 5 }, (_, i) => ({ id: `${'G'.repeat(20)}${String(i).padStart(4, '0')}|${'H'.repeat(44)}`, at: i }));
+  const kept = cleanPartnersGone(gones);
+  assert.equal(kept.length, MAX_PARTNERS_GONE);
+  assert.equal(kept[0].at, MAX_PARTNERS_GONE + 4, 'a legutóbb levett elöl');
+});
 
+test('A TRÜKK: friss eszközön, felhúzott jellel felvett saját megbízott nem váltja le a valódit', () => {
+  // Eddig a nagyobb jel nyert: egy friss (vagy a felvétel előtti) eszközön pár
+  // csomag-átnevezés után a saját magad választotta megbízott minden eszközön
+  // leváltotta a valódit — onnantól a te jelmondatod volt az „övé”.
+  const real: PartnerLock = { name: 'Anna', salt: 'A'.repeat(24), hash: 'B'.repeat(44), setAt: 100 };
+  const own: PartnerLock = { name: 'Én', salt: 'E'.repeat(24), hash: 'F'.repeat(44), setAt: 50 };
   const base = emptyFocus('dev');
-  const local = { ...base, partner: a, partnerRev: 3, rev: 3 };
-  const removed = { ...base, partnerRev: 5, rev: 5, updatedBy: 'other' };
-  const merged = mergeFocus(local, removed);
-  assert.equal(merged.partner, undefined);
-  assert.equal(merged.partnerRev, 5);
-  // A régi kliens blobja (jel nélkül) sosem viszi el a megbízottat.
-  const old = { ...base, rev: 9, updatedAt: 999, updatedBy: 'old' };
-  assert.deepEqual(mergeFocus(local, old).partner, a);
-  assert.ok(!sameFocus(local, { ...local, partner: b }), 'a megbízott cseréje különbség: fel kell tölteni');
-  // Kívülről jött adat: a rossz alakú megbízott nincs, a jel a blob rev-jéig.
-  const n = normalizeSyncFocus({ partner: { name: 'X', salt: 'rövid', hash: 'rövid' }, partnerRev: 99, rev: 4 }, 'dev');
-  assert.equal(n.partner, undefined);
-  assert.equal(n.partnerRev, undefined);
-  const ok = normalizeSyncFocus({ partner: a, partnerRev: 4, rev: 4 }, 'dev');
-  assert.deepEqual(ok.partner, a);
-  assert.equal(ok.partnerRev, 4);
+  const account = { ...base, partner: real, partnerRev: 3, rev: 3, updatedBy: 'gep' };
+  const fresh = { ...base, partner: own, partnerRev: 40, rev: 40, updatedAt: 999, updatedBy: 'friss' };
+  for (const merged of [mergeFocus(account, fresh), mergeFocus(fresh, account)]) {
+    const all = [merged.partner, ...(merged.partnerCo ?? [])].map((p) => p?.name);
+    assert.deepEqual(all.sort(), ['Anna', 'Én'], 'a valódi megmarad — a saját csak mellé kerül');
+    assert.equal(merged.partnerRev, 40, 'a jel a régi klienseknek utazik tovább');
+  }
+  // A „nincs megbízott” felhúzott jellel sem viszi el (régi kliens levétele, vagy a trükk).
+  const none = { ...base, partnerRev: 50, rev: 50, updatedBy: 'friss' };
+  assert.deepEqual(mergeFocus(account, none).partner, real);
+  assert.deepEqual(mergeFocus(none, account).partner, real);
+  // A nyom viszont elviszi — az csak a jelmondatos levételből születik.
+  const removed = { ...base, partnersGone: [{ id: partnerId(real), at: 5 }], partnerRev: 4, rev: 4, updatedBy: 'gep' };
+  assert.equal(mergeFocus(account, removed).partner, undefined);
+  assert.deepEqual(mergeFocus(removed, account).partnersGone, [{ id: partnerId(real), at: 5 }]);
+  // A különbség-kulcs a társat és a nyomot is látja: enélkül sosem érnének fel.
+  assert.ok(!sameFocus(account, { ...account, partnerCo: [own] }));
+  assert.ok(!sameFocus(account, { ...account, partnersGone: [{ id: partnerId(own), at: 1 }] }));
+  // Kívülről jött adat: a rossz alakú nincs, a fővel egyező társ kiesik, a
+  // nyommal levett nem él.
+  const n = normalizeSyncFocus({
+    partner: real, partnerCo: [real, own, { name: 'X', salt: 'rövid' }], partnersGone: [{ id: partnerId(own), at: 2 }],
+    partnerRev: 3, rev: 3,
+  }, 'dev');
+  assert.deepEqual(n.partner, real);
+  assert.equal(n.partnerCo, undefined);
+  assert.deepEqual(n.partnersGone, [{ id: partnerId(own), at: 2 }]);
+});
+
+test('társ-megbízottnál a lazítás végén mindegyik jelmondata kell, a levétel mindegyiküket nyommal viszi', () => {
+  const { state, siteId } = stateWithSite();
+  const now = 1_700_000_000_000;
+  const { phrase: annaPhrase } = referee.setPartner(state, 'Anna', now);
+  const annaId = partnerId(state.partner!);
+  // Egy másik eszközön (egymástól függetlenül) felvett megbízott a szinkronból.
+  const belaPhrase = 'alma bogrács cinege este';
+  const bela = makePartnerLock('Béla', belaPhrase, now + 1);
+  state.partnerCo = [bela];
+  assert.throws(() => referee.setPartner(state, 'Cili', now), /Már van megbízott/, 'társ mellett sem vehető fel új');
+
+  const info = referee.startSession(state, 'pause', siteId, 15, now);
+  const partnerSteps = state.session!.steps.filter((st) => st.type === 'PARTNER');
+  assert.deepEqual(partnerSteps.map((st) => st.type === 'PARTNER' && st.name), ['Anna', 'Béla'], 'mindkettőjüké, sorban');
+  solveUntilPartner(state, info.id, now);
+  // Anna lépésére Béla jelmondata nem jó — a lépés tudja, kié.
+  assert.equal(referee.submitAnswer(state, info.id, belaPhrase, now).accepted, false);
+  assert.equal(referee.submitAnswer(state, info.id, annaPhrase, now).accepted, true);
+  assert.equal(referee.submitAnswer(state, info.id, annaPhrase, now).accepted, false, 'Béla lépésére Anna jelmondata sem');
+  assert.equal(referee.submitAnswer(state, info.id, belaPhrase, now).sessionDone, true);
+
+  // A levétel: mindkettőjük jelmondata kell, és mindketten nyomot kapnak.
+  const r = referee.startPartnerRemoval(state, now + 10);
+  solveUntilPartner(state, r.session!.id, now + 10);
+  referee.submitAnswer(state, r.session!.id, annaPhrase, now + 10);
+  // Közben egy harmadik érkezik a szinkronból: ő nem bólintott — marad.
+  const cili = makePartnerLock('Cili', 'dió eper füge gomba', now + 2);
+  state.partnerCo = [...(state.partnerCo ?? []), cili];
+  const done = referee.submitAnswer(state, r.session!.id, belaPhrase, now + 10);
+  assert.equal(done.sessionDone, true);
+  assert.deepEqual(state.partner?.name, 'Cili', 'aki nem bólintott, marad');
+  assert.equal(state.partnerCo, undefined);
+  assert.deepEqual((state.partnersGone ?? []).map((g) => g.id).sort(), [annaId, partnerId(bela)].sort(),
+    'a két bólintó nyomot kap — a szinkron ezzel viszi el őket a többi eszközről');
 });
 
 test('a jelmondat és a név szóközei: a nem törő szóköz és a BOM is szóköz, a név kódpontban vágva', () => {

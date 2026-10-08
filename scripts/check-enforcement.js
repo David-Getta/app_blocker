@@ -402,19 +402,19 @@ const WIRES = [
   // egy üres lapon állna meg — se hiba, se továbblépés.
   {
     file: 'desktop/src/helper/referee.ts',
-    needle: 'if (state.partner) plan.steps.push(',
+    needle: "plan.steps.push({ id: newId('st'), type: 'PARTNER', name: p.name, partnerId: partnerId(p) });",
     lost: 'a gépen a megbízott a tárban ülne, és minden lazítás az ő jelmondata '
       + 'nélkül menne — a mag megvan, a bíró nem kérné',
   },
   {
     file: 'android/app/src/main/java/hu/breaker/app/core/Referee.kt',
-    needle: 'val partner = state.partner ?: return plan',
+    needle: 'Step.Partner(BreakerStore.newId("st"), it.name, PartnerLogic.partnerId(it))',
     lost: 'a telefonon a gépen felvett megbízott nem jelentene semmit — a '
       + 'szinkron lehozná, a bíró nem kérné a jelmondatát',
   },
   {
     file: 'ios/Shared/Referee.swift',
-    needle: 'guard let partner = state.partner else { return plan }',
+    needle: '.partner(id: BreakerStore.shared.newId("st"), name: p.name, partnerId: PartnerLogic.partnerId(p))',
     lost: 'iPhone-on a gépen felvett megbízott nem jelentene semmit — a '
       + 'szinkron lehozná, a bíró nem kérné a jelmondatát',
   },
@@ -431,7 +431,7 @@ const WIRES = [
   },
   {
     file: 'ios/App/ChallengeView.swift',
-    needle: 'case .partner(let id, let name):',
+    needle: 'case .partner(let id, let name, _):',
     lost: 'iPhone-on a megbízott lépése üres lapon állna meg',
   },
   // A FÉLBEMARADT KÍSÉRLET könyvelése az EGY helyen, ahol minden nem
@@ -2347,7 +2347,7 @@ const WIRES = [
   // útját mondaná — a megbízott nélkül, pont a kísértés pillanatában.
   {
     file: 'desktop/src/main/main.ts',
-    needle: 'return s.partner ? { name: s.partner.name } : null;',
+    needle: "? { name: [s.partner.name, ...(s.partnerCo ?? []).map((p) => p.name)].join(', ') }",
     lost: 'a híd nem adná le a megbízottat — a tiltó lap a feloldás útját az ő '
       + 'jelmondata nélkül mondaná',
   },

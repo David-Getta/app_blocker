@@ -251,8 +251,11 @@ enum SyncClient {
                 lockdownWindows: (current.lockdownWindows ?? []).isEmpty ? nil : current.lockdownWindows,
                 lockdownWindowsRev: current.lockdownWindowsRev,
                 // A megbízott a jelével — a lenyomat utazik, a jelmondat sehol nincs.
+                // A társak és a levettek nyoma is; üresen nincs mező.
                 partner: current.partner,
                 partnerRev: current.partnerRev,
+                partnerCo: (current.partnerCo ?? []).isEmpty ? nil : current.partnerCo,
+                partnersGone: (current.partnersGone ?? []).isEmpty ? nil : current.partnersGone,
                 // A kulcsszavak a jelükkel — mint az ablakok.
                 keywords: (current.keywords ?? []).isEmpty ? nil : current.keywords,
                 keywordsRev: current.keywordsRev,
@@ -281,10 +284,13 @@ enum SyncClient {
                 // következő fordulóban már ezek szerint ír zárlatot.
                 current.lockdownWindows = merged.lockdownWindows
                 current.lockdownWindowsRev = merged.lockdownWindowsRev
-                // A MEGBÍZOTT IS: a gépen felvett megbízott innentől itt is az
-                // utolsó szó; a levétele (a jelével) ugyanígy ér ide.
+                // A MEGBÍZOTT IS — azonosság szerint: a gépen felvett megbízott
+                // innentől itt is az utolsó szó (társként, ha itt is van); a
+                // levétele csak a nyomával ér ide.
                 current.partner = merged.partner
                 current.partnerRev = merged.partnerRev
+                current.partnerCo = merged.partnerCo
+                current.partnersGone = merged.partnersGone
                 // A KULCSSZAVAK IS a jelük szerint — a gép bővítménye a
                 // következő lehúzáskor már ezt a listát kapja.
                 current.keywords = merged.keywords

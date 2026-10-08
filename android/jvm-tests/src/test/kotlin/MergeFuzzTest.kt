@@ -112,6 +112,7 @@ class MergeFuzzTest {
     private val partners = listOf(
         PartnerLogic.PartnerLock("Anna", "QUFBQUFBQUFBQUFBQUFBQQ==", "QkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkI=", 5L),
         PartnerLogic.PartnerLock("Bela", "Q0NDQ0NDQ0NDQ0NDQ0NDQw==", "REREREREREREREREREREREREREREREREREREREREREQ=", 3L),
+        PartnerLogic.PartnerLock("Cili", "RUVFRUVFRUVFRUVFRUVFRQ==", "RkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkY=", 4L),
     )
 
     /** Naplósorok készlete és részhalmazai — a gép merge-random.ts LOGS / LOG_SETS párja. */
@@ -198,6 +199,14 @@ class MergeFuzzTest {
         val pMarkValue = minOf(1 + (r.next() * 5).toInt(), rev)
         val partner = if (pDraw < 0.3) partners[pPick] else null
         val partnerRev = if (partner != null || pMarkDraw < 0.2) pMarkValue else null
+        // TÁRS-MEGBÍZOTT ÉS A LEVETTEK NYOMA — öt húzás, feltétel nélkül, mint a gépen.
+        val coDraw = r.next()
+        val coPick = (r.next() * 3).toInt()
+        val goneDraw = r.next()
+        val gonePick = (r.next() * 3).toInt()
+        val goneAt = 1L + (r.next() * 3).toInt()
+        val partnerCo = if (coDraw < 0.25) listOf(partners[coPick]) else emptyList()
+        val partnersGone = if (goneDraw < 0.2) listOf(PartnerLogic.PartnerGone(PartnerLogic.partnerId(partners[gonePick]), goneAt)) else emptyList()
         // A NAPLÓ — két húzás, feltétel nélkül, mint a gépen.
         val logDraw = r.next()
         val logPick = (r.next() * 5).toInt()
@@ -217,7 +226,7 @@ class MergeFuzzTest {
             packs = packs, run = marked, log = log, rev = rev.toLong(), updatedAt = updatedAt, updatedBy = device,
             packMarks = marks.ifEmpty { null },
             lockdown = lockdown, lockdownWindows = windows, lockdownWindowsRev = windowsRev,
-            partner = partner, partnerRev = partnerRev,
+            partner = partner, partnerRev = partnerRev, partnerCo = partnerCo, partnersGone = partnersGone,
             hideSiteList = hide, hideSiteListRev = hideRev,
             keywords = keywords, keywordsRev = keywordsRev,
         )
@@ -243,6 +252,8 @@ class MergeFuzzTest {
         return "$packs|$marks|$run|${f.rev}|$lock|$windows|${f.lockdownWindowsRev ?: 0}" +
             "|${if (f.hideSiteList) 1 else 0}|${f.hideSiteListRev ?: 0}" +
             "|${KeywordLogic.keywordsKey(f.keywords)}|${f.keywordsRev ?: 0}|${PartnerLogic.partnerKey(f.partner)}|${f.partnerRev ?: 0}" +
+            "|" + f.partnerCo.joinToString(";") { PartnerLogic.partnerKey(it) } +
+            "|" + f.partnersGone.joinToString(";") { "${it.id}@${it.at}" } +
             "|" + f.log.joinToString(";") {
                 "${it.packId}/${it.startedAt}/${it.endedAt}/${it.plannedEndsAt}/${if (it.stopped) 1 else 0}/${if (it.window) 1 else 0}" +
                     "/${it.cuts}/${it.origin}"
