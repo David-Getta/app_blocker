@@ -28,7 +28,26 @@ $chromium = @(
 $ff = 'HKLM:\SOFTWARE\Policies\Mozilla\Firefox\DNSOverHTTPS'
 $ours = '{"policies":{"DNSOverHTTPS":{"Enabled":false,"Locked":true}}}'
 
-# A gép saját Firefox-házirendjei, ahogy most vannak.
+# Hogy a policies.json-ellenőrzés ne legyen üres egy Firefox nélküli gépen,
+# a próba maga tesz le kettőt: egy IDEGEN fájlt (egy szervezet vagy egy másik
+# program házirendje — a segéd nem nyúlhat hozzá, az eltávolító sem), és egy
+# pontosan a régi segéd által írtat (azt az eltávolító viheti).
+$foreign = "{`n  ""policies"": {`n    ""DisableAppUpdate"": true`n  }`n}"
+$seedForeign = Join-Path $env:ProgramFiles 'Mozilla Firefox\distribution\policies.json'
+if (-not (Test-Path $seedForeign)) {
+  New-Item -ItemType Directory -Force -Path (Split-Path $seedForeign) | Out-Null
+  Set-Content -Path $seedForeign -Value $foreign -NoNewline
+}
+$seedOurs = $null
+if (${env:ProgramFiles(x86)}) {
+  $seedOurs = Join-Path ${env:ProgramFiles(x86)} 'Mozilla Firefox\distribution\policies.json'
+  if (Test-Path $seedOurs) { $seedOurs = $null } else {
+    New-Item -ItemType Directory -Force -Path (Split-Path $seedOurs) | Out-Null
+    Set-Content -Path $seedOurs -Value "{`n  ""policies"": {`n    ""DNSOverHTTPS"": {`n      ""Enabled"": false,`n      ""Locked"": true`n    }`n  }`n}" -NoNewline
+  }
+}
+
+# A gép Firefox-házirendjei, ahogy most vannak.
 $polFiles = @{}
 foreach ($base in @($env:ProgramFiles, ${env:ProgramFiles(x86)})) {
   if (-not $base) { continue }
@@ -67,6 +86,8 @@ foreach ($pol in $polFiles.Keys) {
   if (($before -replace '\s', '') -eq $ours) { continue }  # a régi segédé volt: mehet
   if (-not (Test-Path $pol) -or (Get-Content $pol -Raw) -ne $before) { Fail "az eltávolító átírta: $pol" }
 }
+
+if ($seedOurs -and (Test-Path $seedOurs)) { Fail "a régi segéd saját policies.json-ja ott maradt: $seedOurs" }
 
 if ($script:fail -eq 0) { Write-Host 'DoH-házirend próba OK (beírás, a gép policies.json-ja érintetlen, levétel, az idegen érték marad)' }
 exit $script:fail
