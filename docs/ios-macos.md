@@ -85,6 +85,14 @@ tükre; a blobon `keywords` + `keywordsRev`). Lásd `docs/feature-keywords.md`.
   ez önkontroll-eszköz, nem felügyeleti szoftver.
 - A Network Extension éles teszteléséhez valós eszköz és a megfelelő
   provisioning profil kell.
+- **A saját titkosított DNS-t (DoH) használó app, böngésző vagy telepített
+  DNS-profil megkerülheti a szűrőt.** A Firefox ALAPBÓL bekapcsolt DoH-ját az
+  alagút a szabványos „kanárival” kikapcsoltatja (`DohCanary`). A kézzel
+  beállítottat nem tiltjuk, de a nyomát jelezzük: ha az alagút egy ismert
+  DoH/DoT-kiszolgáló nevét látja átmenni (`DohHosts`), feljegyzi, és az app
+  kártyája egy napig mondja, melyiket és mikor; az „Értem” csak azt a nevet
+  némítja. Csak a listán lévő neveket ismeri fel, és nem látja, melyik app
+  kérdezett — a csend nem bizonyíték.
 - **A már élő kapcsolat egy darabig még mehet.** A szűrő a névfeloldásokat
   látja: egy tiltás (a menet indulása, a menetrend) az ÚJ kapcsolatokat fogja
   meg. Egy app, aminek már van nyitott kapcsolata — egy szóló videó, egy élő

@@ -107,8 +107,17 @@ Részletek: [`feature-uninstall-guard.md`](feature-uninstall-guard.md).
   kikényszeríteni MDM/eszközadminisztrátor nélkül — ez tudatos döntés. (A
   törlés-védelem eszközadminja ehhez kevés: az always-on VPN kikényszerítéséhez
   eszköz-tulajdonos / profil-tulajdonos DPC kellene, ami sokkal több.)
-- A beépített DNS-over-HTTPS-t használó appok elméletileg megkerülhetik; a
-  rendszerszintű DNS-t viszont szűrjük.
+- **A saját titkosított DNS-t (DoH) használó app vagy böngésző megkerülheti
+  a szűrőt**; a rendszerszintű DNS-t szűrjük. A Firefox ALAPBÓL bekapcsolt
+  DoH-ját a szűrő a szabványos „kanárival” kikapcsoltatja (`DohCanary`). A
+  kézzel beállítottat (Chrome: Biztonságos DNS, egyéni szolgáltató) nem
+  tiltjuk, de a nyomát jelezzük: a szolgáltató nevét a böngésző induláskor a
+  szűrőn át keresi meg, és ha ez egy ismert DoH/DoT-kiszolgáló neve
+  (`DohHosts`), a szolgáltatás feljegyzi, a főképernyő kártyája egy napig
+  mondja, melyiket és mikor, és azt is, hol állítható vissza a Chrome. Az
+  „Értem” csak azt a nevet némítja. Szigorú Privát DNS mellett hallgat (azt
+  a lenti, erősebb kártya mondja). Csak a listán lévő neveket ismeri fel, és
+  nem látja, melyik app kérdezett — a csend nem bizonyíték.
 - **A rendszer szigorú Privát DNS-e megkerüli a szűrőt** (Beállítások →
   Hálózat és internet → Privát DNS, megadott kiszolgálónévvel): a
   névfeloldás TLS-en, közvetlenül a megadott kiszolgálónak megy, a VPN
