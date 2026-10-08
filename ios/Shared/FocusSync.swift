@@ -51,11 +51,16 @@ public enum FocusSync {
         /// Lásd Shared/Lockdown.swift.
         public var lockdown: LockdownLogic.Lockdown?
         /// A ZÁRLAT-ABLAKOK: beállítás, mint a csomagok — de a levétele
-        /// próbatétel, tehát nem az újabb blob dönt róla, hanem a JELE.
-        /// Üresen nincs mező a dróton. Lásd `LockdownLogic.mergeWindows`.
+        /// próbatétel, tehát nem az újabb blob dönt róla, hanem a TARTALMANKÉNTI
+        /// jelek. Üresen nincs mező a dróton. Lásd `LockdownLogic.mergeWindowSets`.
         public var lockdownWindows: [LockdownLogic.LockdownWindow]?
-        /// Az ablak-lista jele: a blob rev-je, amelyik utoljára változtatta. Nil = régi kliens.
+        /// Az ablak-lista egészének jele: a blob rev-je, amelyik utoljára
+        /// változtatta — csak a régi klienseknek utazik, ők még ezzel fésülnek.
         public var lockdownWindowsRev: Int?
+        /// TARTALMANKÉNT a jelek: tartalmi kulcs (`windowKey`) → a blob rev-je,
+        /// amelyik az ilyen ablakot utoljára felvette vagy levette. A fésülés
+        /// ezekből dönt. Üresen nincs mező a dróton.
+        public var lockdownWindowMarks: [String: Int]?
         /// A FŐ MEGBÍZOTT (párban zárolás): a neve és a jelmondat lenyomata — a
         /// jelmondat nincs a dróton. A fésülés NEM a jel szerint megy, hanem
         /// azonosság szerint (`PartnerLogic.mergePartners`): élő megbízottat
@@ -70,8 +75,9 @@ public enum FocusSync {
         /// A levett megbízottak nyoma: csak a jelmondatos levételből születik,
         /// és élő megbízottat csak ez visz el. Üresen nincs mező a dróton.
         public var partnersGone: [PartnerLogic.PartnerGone]?
-        /// KULCSSZÓ-SZABÁLYOK: a lista és a jele — a fésülése az ablakoké: a
-        /// jel dönt, azonos jelnél a bővebb lista. Üresen nincs mező a dróton.
+        /// KULCSSZÓ-SZABÁLYOK: a lista és a lista egészének jele — az utóbbi
+        /// csak a régi klienseknek utazik; a fésülés kulcsszavanként megy, a
+        /// `keywordMarks` szerint. Üresen nincs mező a dróton.
         public var keywords: [String]?
         public var keywordsRev: Int?
         /// KULCSSZAVANKÉNT a jelek: kulcsszó → a blob rev-je, amelyik utoljára
@@ -90,6 +96,7 @@ public enum FocusSync {
             rev: Double = 0, updatedAt: Double = 0, updatedBy: String = "",
             packMarks: [String: Int]? = nil, lockdown: LockdownLogic.Lockdown? = nil,
             lockdownWindows: [LockdownLogic.LockdownWindow]? = nil, lockdownWindowsRev: Int? = nil,
+            lockdownWindowMarks: [String: Int]? = nil,
             partner: PartnerLogic.PartnerLock? = nil, partnerRev: Int? = nil,
             partnerCo: [PartnerLogic.PartnerLock]? = nil, partnersGone: [PartnerLogic.PartnerGone]? = nil,
             keywords: [String]? = nil, keywordsRev: Int? = nil, keywordMarks: [String: Int]? = nil,
@@ -105,6 +112,7 @@ public enum FocusSync {
             self.lockdown = lockdown
             self.lockdownWindows = lockdownWindows
             self.lockdownWindowsRev = lockdownWindowsRev
+            self.lockdownWindowMarks = lockdownWindowMarks
             self.partner = partner
             self.partnerRev = partnerRev
             self.partnerCo = partnerCo
@@ -145,6 +153,8 @@ public enum FocusSync {
             lockdownWindows = c.lenient([Lossy<LockdownLogic.LockdownWindow>].self, .lockdownWindows)?
                 .compactMap { $0.value }
             lockdownWindowsRev = (try? c.decodeIfPresent(Int.self, forKey: .lockdownWindowsRev)) ?? nil
+            // Az ablak-jelek értékenként tűrnek: egy rossz érték csak magát viszi.
+            lockdownWindowMarks = c.lossyIntMap(.lockdownWindowMarks)
             // A megbízott és a jele is tűrően: egy sérült mező ne vigye el a blobot.
             partner = (try? c.decodeIfPresent(PartnerLogic.PartnerLock.self, forKey: .partner)) ?? nil
             partnerRev = (try? c.decodeIfPresent(Int.self, forKey: .partnerRev)) ?? nil
@@ -184,6 +194,11 @@ public enum FocusSync {
         // A megbízottak AZONOSSÁG szerint: élő megbízottat csak a nyoma visz el,
         // két különböző élő közül egyik sem esik ki (`PartnerLogic.mergePartners`).
         let partners = PartnerLogic.mergePartners(partnerSet(local), partnerSet(incoming))
+        // Az ablakok TARTALMANKÉNT, a jelük szerint (`LockdownLogic.mergeWindowSets`).
+        let windows = LockdownLogic.mergeWindowSets(
+            LockdownLogic.WindowSet(windows: local.lockdownWindows ?? [], marks: local.lockdownWindowMarks),
+            LockdownLogic.WindowSet(windows: incoming.lockdownWindows ?? [], marks: incoming.lockdownWindowMarks)
+        )
         // A kulcsszavak KULCSSZAVANKÉNT, a jelük szerint (`KeywordLogic.mergeKeywordSets`).
         let kw = KeywordLogic.mergeKeywordSets(
             KeywordLogic.KeywordSet(keywords: local.keywords ?? [], keywordMarks: local.keywordMarks),
@@ -203,10 +218,12 @@ public enum FocusSync {
             // nélkül. Egy hálózat nélkül maradt eszköz így nem tud feloldani
             // semmit azzal, hogy a régi állapotát tolja fel.
             lockdown: LockdownLogic.merge(local.lockdown, incoming.lockdown),
-            // A JEL DÖNT, nem az újabb blob: a levétel próbatétellel jár, ami
-            // lépteti a jelet; egy csomag-szerkesztés a másik eszközön nem.
-            lockdownWindows: mergedWindows(local, incoming),
+            // A JEL DÖNT, nem az újabb blob — tartalmanként (fent): egy elavult
+            // eszköz ingyenes felvétele nem törölheti a máshol felvett ablakot.
+            // A lista egészének jele csak a régi klienseknek utazik, a nagyobbik.
+            lockdownWindows: windows.windows.isEmpty ? nil : windows.windows,
             lockdownWindowsRev: mergedWindowsMark(local, incoming),
+            lockdownWindowMarks: windows.marks,
             // A megbízott NEM a jel szerint: azonosság szerint (fent). A jel a
             // régi klienseknek utazik tovább, a nagyobbik.
             partner: partners.partner,
@@ -257,14 +274,6 @@ public enum FocusSync {
     private static func mergedHideMark(_ local: SyncFocus, _ incoming: SyncFocus) -> Int? {
         let mark = max(local.hideSiteListRev ?? 0, incoming.hideSiteListRev ?? 0)
         return mark > 0 ? mark : nil
-    }
-
-    private static func mergedWindows(_ local: SyncFocus, _ incoming: SyncFocus) -> [LockdownLogic.LockdownWindow]? {
-        let out = LockdownLogic.mergeWindows(
-            local.lockdownWindowsRev ?? 0, local.lockdownWindows ?? [],
-            incoming.lockdownWindowsRev ?? 0, incoming.lockdownWindows ?? []
-        )
-        return out.isEmpty ? nil : out
     }
 
     private static func mergedWindowsMark(_ local: SyncFocus, _ incoming: SyncFocus) -> Int? {
@@ -654,8 +663,9 @@ public enum FocusSync {
         let lock = f.lockdown.map { "\($0.startedAt);\($0.until)" } ?? "-"
         // Az ablakok a jelükkel, tartalom szerint rendezve: az azonosító és a
         // sorrend nem jelentés.
+        // …és a tartalmankénti jelek is: egy levétel jele nélkül a levétel sosem érne át.
         let windows = (f.lockdownWindows ?? []).map { LockdownLogic.windowKey($0.band) }.sorted()
-            .joined(separator: "|")
+            .joined(separator: "|") + "~" + LockdownLogic.windowMarksKey(f.lockdownWindowMarks)
         // A megbízott a jelével: a cseréje is különbség, fel kell mennie. A
         // társak és a nyomok is — egy levétel nyoma nélkül sosem érne át.
         let partner = PartnerLogic.partnerKey(f.partner)
@@ -740,6 +750,10 @@ public enum FocusSync {
             // egész, legfeljebb a blob rev-je — mint a csomag-jelek.
             lockdownWindows: cleanedWindows(raw.lockdownWindows),
             lockdownWindowsRev: raw.lockdownWindowsRev.flatMap { $0 > 0 && $0 <= revInt(raw.rev) ? $0 : nil },
+            // Az ablak-jelek is: kanonikus tartalmi kulcs, pozitív egész, legfeljebb a rev.
+            lockdownWindowMarks: LockdownLogic.cleanWindowMarks(
+                raw.lockdownWindowMarks, cleanedWindows(raw.lockdownWindows) ?? [], maxRev: revInt(raw.rev)
+            ),
             // A megbízott kívülről jött adat: csak a jó alakú rekord marad, a
             // jele pozitív egész, legfeljebb a blob rev-je — mint az ablakoké;
             // a társak és a nyomok a fésülés szabálya szerint.

@@ -103,7 +103,7 @@ class KeywordsTest {
 
     @Test fun `a jel - a lista cserele lepteti a blobot, az atvetel nem`() {
         var st = AppState()
-        assertEquals(st.copy(focusRevFp = SyncRevisions.focusFingerprint(st), focusRevKeywordList = emptyList()),
+        assertEquals(st.copy(focusRevFp = SyncRevisions.focusFingerprint(st), focusRevKeywordList = emptyList(), focusRevWindows = ""),
             SyncRevisions.bumpFocus(st, "telefon", now), "üres: nincs léptetés")
         st = SyncRevisions.bumpFocus(SyncRevisions.bumpFocus(st, "telefon", now).copy(keywords = listOf("shorts")), "telefon", now)
         assertEquals(1L, st.focusRev)

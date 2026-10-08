@@ -190,14 +190,19 @@ object SyncRevisions {
         // A kulcsszó-lista is el van téve a frissítés utáni első körtől: az első
         // valódi felvétel vagy levétel így már a saját jelét kapja.
         val kwList = state.focusRevKeywordList ?: state.keywords
+        // Az ablak-lista kulcsa ugyanígy el van téve: az első valódi felvétel vagy
+        // levétel tartalmanként is jelet kap.
+        val winKey = state.focusRevWindows ?: windowsKey(state)
         if (state.focusRevFp == fp) {
-            return if (state.focusRevKeywordList == null) state.copy(focusRevKeywordList = state.keywords) else state
+            return if (state.focusRevKeywordList == null || state.focusRevWindows == null) {
+                state.copy(focusRevKeywordList = kwList, focusRevWindows = winKey)
+            } else state
         }
         if (state.focusRevFp == null && state.focusPacks.isEmpty() && state.focusRun == null &&
             state.lockdownWindows.isEmpty() && partnersKeyOf(state).isEmpty() && state.keywords.isEmpty() &&
             !state.hideSiteList
         ) {
-            return state.copy(focusRevFp = fp, focusRevKeywordList = kwList)
+            return state.copy(focusRevFp = fp, focusRevKeywordList = kwList, focusRevWindows = winKey)
         }
         // FORMÁTUMVÁLTÁS. A mentésben még a régi alakú lenyomat van; ettől
         // önmagában nem történt semmi. A régi algoritmussal döntjük el, volt-e
@@ -207,7 +212,7 @@ object SyncRevisions {
         // nyel el, sem fölöslegesen nem léptet egy üres telefonon.
         val old = state.focusRevFp
         if (old != null && !old.startsWith(FOCUS_FP_V2) && old == focusFingerprintV1(state)) {
-            return state.copy(focusRevFp = fp, focusRevKeywordList = kwList)
+            return state.copy(focusRevFp = fp, focusRevKeywordList = kwList, focusRevWindows = winKey)
         }
         val newRev = state.focusRev + 1
         // Az ablak-lista JELE: ha a lista az előző léptetés óta változott, a
@@ -216,6 +221,14 @@ object SyncRevisions {
         val windows = windowsKey(state)
         val mark = if (windows != (state.focusRevWindows ?: "")) newRev.coerceIn(0, Int.MAX_VALUE.toLong()).toInt()
             else state.lockdownWindowsRev
+        // …és TARTALMANKÉNT: ami tartalom az előző léptetés óta bekerült vagy
+        // kikerült, az ezt a blob-rev-et kapja — a fésülés ebből dönt. Az eltett
+        // kulcs a tartalmak listája (a tartalmi kulcsban nincs „|”).
+        val prevWin = state.focusRevWindows
+        val windowMarks = if (prevWin == null) state.lockdownWindowMarks else LockdownLogic.markWindowChanges(
+            state.lockdownWindowMarks, if (prevWin.isEmpty()) emptyList() else prevWin.split("|"),
+            state.lockdownWindows, newRev.coerceIn(0, Int.MAX_VALUE.toLong()).toInt(),
+        )
         // A megbízott jele ugyanígy: ha az előző léptetés óta változott, a
         // jele ez a blob-rev — a fésülés ebből tudja, kié az újabb szó.
         val partnerKey = partnersKeyOf(state)
@@ -259,6 +272,7 @@ object SyncRevisions {
             focusRevFp = fp,
             focusRevWindows = windows,
             lockdownWindowsRev = mark,
+            lockdownWindowMarks = windowMarks,
             focusRevPartner = partnerKey,
             partnerRev = partnerMark,
             focusRevKeywords = keywordsKey,

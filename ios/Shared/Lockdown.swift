@@ -203,14 +203,16 @@ public enum LockdownLogic {
     /// tartalom szerint is egyszer, legfeljebb a plafonig. A duplát az első nyeri.
     static func cleanWindows(_ raw: [LockdownWindow]) -> [LockdownWindow] {
         var out: [LockdownWindow] = []
-        var ids = Set<String>()
+        // Az azonosító kódegységre, mint a gépen és az Androidon: a Swift `==`
+        // két kanonikusan egyenértékű azonosítót egynek venne, és kidobná a másodikat.
+        var ids = Set<[UInt16]>()
         var keys = Set<String>()
         for item in raw {
             guard let w = cleanWindow(item) else { continue }
             let key = windowKey(w.band)
-            if ids.contains(w.id) || keys.contains(key) { continue }
+            if ids.contains(Array(w.id.utf16)) || keys.contains(key) { continue }
             if out.count >= maxLockdownWindows { break }
-            ids.insert(w.id)
+            ids.insert(Array(w.id.utf16))
             keys.insert(key)
             out.append(w)
         }
@@ -284,16 +286,183 @@ public enum LockdownLogic {
         return false
     }
 
-    /// Két eszköz ablak-listája EGGYÉ fésülve, a JELÜK szerint: nagyobb jel
-    /// nyer (a levétel próbatétellel jár, ami lépteti), azonos jelnél a bővebb
-    /// lista — a kettő uniója tartalom szerint. A jeltelen blob (régi kliens)
-    /// jele nulla: az ilyen sosem törölhet listát. A `mergeWindows` tükre.
-    static func mergeWindows(
-        _ localMark: Int, _ local: [LockdownWindow], _ incomingMark: Int, _ incoming: [LockdownWindow]
-    ) -> [LockdownWindow] {
-        if localMark > incomingMark { return cleanWindows(local) }
-        if incomingMark > localMark { return cleanWindows(incoming) }
-        return cleanWindows(local + incoming)
+    /// Ennél több ablak-jelet nem hordunk — a `lockdown.ts` `MAX_WINDOW_MARKS`-e.
+    static let maxWindowMarks = 64
+
+    /// Kanonikus tartalmi kulcs-e: érvényes sáv, a napok szigorúan növekvő
+    /// sorrendben, vezető nulla nélkül — a gép `isWindowKey`-e. Bájtonként
+    /// olvasva: csak ASCII számjegy, vessző és perjel mehet át.
+    static func isWindowKey(_ k: String) -> Bool {
+        let parts = Array(k.utf8).split(separator: UInt8(ascii: "/"), omittingEmptySubsequences: false)
+        guard parts.count == 3 else { return false }
+        var days: [Int] = []
+        for d in parts[0].split(separator: UInt8(ascii: ","), omittingEmptySubsequences: false) {
+            guard d.count == 1, let c = d.first, c >= UInt8(ascii: "0"), c <= UInt8(ascii: "6") else { return false }
+            days.append(Int(c - UInt8(ascii: "0")))
+        }
+        for i in days.indices.dropFirst() where days[i] <= days[i - 1] { return false }
+        guard let start = asciiMinutes(parts[1]), let end = asciiMinutes(parts[2]) else { return false }
+        let band = ScheduleLogic.Band(days: days, startMin: start, endMin: end)
+        return ScheduleLogic.isValidBand(band) && windowKey(band) == k
+    }
+
+    /// Egy–négy ASCII számjegy értéke, vagy nil — a gép `\d{1,4}`-e.
+    private static func asciiMinutes(_ s: ArraySlice<UInt8>) -> Int? {
+        guard (1...4).contains(s.count),
+              s.allSatisfy({ $0 >= UInt8(ascii: "0") && $0 <= UInt8(ascii: "9") }) else { return nil }
+        return s.reduce(0) { $0 * 10 + Int($1 - UInt8(ascii: "0")) }
+    }
+
+    /// A jelek plafonja — a gép `capWindowMarks`-e: a jelen lévő ablakok jele
+    /// mindig marad, a levettekből a legnagyobb jelűek férnek be
+    /// (holtversenyben kódegység szerint). Üresen nil.
+    static func capWindowMarks(_ marks: [String: Int], _ present: [String]) -> [String: Int]? {
+        if marks.isEmpty { return nil }
+        let here = Set(present)
+        var out = marks.filter { here.contains($0.key) }
+        let limit = max(out.count, maxWindowMarks)
+        let gone = marks.filter { !here.contains($0.key) }.sorted { x, y in
+            x.value != y.value ? x.value > y.value : TextLogic.utf16Less(x.key, y.key)
+        }
+        for (k, v) in gone {
+            if out.count >= limit { break }
+            out[k] = v
+        }
+        return out
+    }
+
+    /// A kívülről (dróton, lemezről) jött ablak-jelek tisztán: kanonikus
+    /// tartalmi kulcs, pozitív egész, legfeljebb a blob rev-je — a plafonnal.
+    static func cleanWindowMarks(_ raw: [String: Int]?, _ windows: [LockdownWindow], maxRev: Int) -> [String: Int]? {
+        guard let raw else { return nil }
+        var marks: [String: Int] = [:]
+        for (k, v) in raw where v > 0 && v <= maxRev && isWindowKey(k) { marks[k] = v }
+        return capWindowMarks(marks, windows.map { windowKey($0.band) })
+    }
+
+    /// Egy sáv heti percei SZERKEZET szerint — az óraátállítás nélkül.
+    private static func bandMinutes(_ b: ScheduleLogic.Band) -> Int {
+        b.days.count * (b.endMin > b.startMin ? b.endMin - b.startMin : 1440 - b.startMin + b.endMin)
+    }
+
+    /// A hét szabad percei az ablakok mellett — SZERKEZET szerint (7×1440 perc,
+    /// óraátállítás és időzóna nélkül), a gép `freeMinutesPerWeek`-je: a
+    /// fésülésnek minden eszközön, minden pillanatban ugyanazt kell adnia. Az
+    /// érvénytelen sáv nem fed le semmit.
+    static func freeMinutesPerWeek(_ windows: [ScheduleLogic.Band]) -> Int {
+        var covered = [Bool](repeating: false, count: 7 * 1440)
+        func cover(_ from: Int, _ to: Int) {
+            if from < to { for i in from..<to { covered[i] = true } }
+        }
+        for b in windows where ScheduleLogic.isValidBand(b) {
+            for d in b.days {
+                let base = d * 1440
+                if b.endMin > b.startMin {
+                    cover(base + b.startMin, base + b.endMin)
+                } else {
+                    cover(base + b.startMin, base + 1440)
+                    let next = ((d + 1) % 7) * 1440
+                    cover(next, next + b.endMin)
+                }
+            }
+        }
+        return covered.reduce(0) { $1 ? $0 : $0 + 1 }
+    }
+
+    /// Az ablakok egy eszközön: a lista és a tartalmi kulcsonkénti jelek.
+    struct WindowSet: Equatable {
+        var windows: [LockdownWindow]
+        var marks: [String: Int]?
+
+        init(windows: [LockdownWindow], marks: [String: Int]? = nil) {
+            self.windows = windows
+            self.marks = marks
+        }
+    }
+
+    /// Két eszköz ablakai TARTALMI KULCSONKÉNT fésülve — a gép `mergeWindowSets`-e.
+    /// A jel a tartalomhoz tartozik (napok, kezdés, vég), a nagyobb dönt,
+    /// egyenlő vagy hiányzó jelnél az unió. Eddig a lista egészében a nagyobb
+    /// jelet követte — és egy elavult eszközön egy ingyenes felvétel a régi
+    /// listával mindenhol letörölte a máshol felvett ablakot. Azonos tartalomnál
+    /// a kisebb azonosító marad; ha egy azonosító két tartalomhoz is tartozna,
+    /// a későbbi a tartalmi kulcsát kapja. A sorrend a régebbi ígéreté (jel,
+    /// aztán a kisebb ablak, aztán a kulcs); a hetes plafon és a heti egy szabad
+    /// óra ebben a sorrendben vág — a legfrissebb esik ki, a jele marad.
+    static func mergeWindowSets(_ a: WindowSet, _ b: WindowSet) -> WindowSet {
+        let listA = cleanWindows(a.windows)
+        let listB = cleanWindows(b.windows)
+        var byKey: [String: LockdownWindow] = [:]
+        for w in listA + listB {
+            let k = windowKey(w.band)
+            if let had = byKey[k], !TextLogic.utf16Less(w.id, had.id) { continue }
+            byKey[k] = w
+        }
+        let orderA = listA.map { windowKey($0.band) }
+        let orderB = listB.map { windowKey($0.band) }
+        let keysA = Set(orderA)
+        let keysB = Set(orderB)
+        var names: [String] = []
+        var seen = Set<String>()
+        for k in orderA + orderB where seen.insert(k).inserted { names.append(k) }
+        for m in [a.marks, b.marks] {
+            for k in (m ?? [:]).keys where isWindowKey(k) && seen.insert(k).inserted { names.append(k) }
+        }
+        var present: [(w: LockdownWindow, k: String, m: Int, size: Int)] = []
+        var marks: [String: Int] = [:]
+        for k in names {
+            let ma = max(0, a.marks?[k] ?? 0)
+            let mb = max(0, b.marks?[k] ?? 0)
+            let inA = keysA.contains(k)
+            let inB = keysB.contains(k)
+            let here = ma > mb ? inA : (mb > ma ? inB : (inA || inB))
+            let m = max(ma, mb)
+            if here, let w = byKey[k] { present.append((w: w, k: k, m: m, size: bandMinutes(w.band))) }
+            if m > 0 { marks[k] = m }
+        }
+        present.sort { x, y in
+            if x.m != y.m { return x.m < y.m }
+            if x.size != y.size { return x.size < y.size }
+            return TextLogic.utf16Less(x.k, y.k)
+        }
+        var kept: [LockdownWindow] = []
+        // Kódegységre, mint a gép és az Android: a Swift `==` két kanonikusan
+        // egyenértékű azonosítót egynek venne, és ott nevezne át, ahol ők nem.
+        var ids = Set<[UInt16]>()
+        for p in present {
+            if kept.count >= maxLockdownWindows { break }
+            if freeMinutesPerWeek((kept + [p.w]).map { $0.band }) < minFreeMinutesPerWeek { continue }
+            var id = p.w.id
+            var n = 1
+            while ids.contains(Array(id.utf16)) {
+                id = n == 1 ? p.k : "\(p.k)#\(n)"
+                n += 1
+            }
+            ids.insert(Array(id.utf16))
+            kept.append(LockdownWindow(id: id, days: p.w.days, startMin: p.w.startMin, endMin: p.w.endMin))
+        }
+        return WindowSet(windows: kept, marks: capWindowMarks(marks, kept.map { windowKey($0.band) }))
+    }
+
+    /// Az ablak-jelek a léptetésben — a gép `markWindowChanges`-e: ami tartalom
+    /// az előző léptetés óta bekerült vagy kikerült, az ezt a blob-rev-et kapja;
+    /// a többi jel marad.
+    static func markWindowChanges(
+        _ marks: [String: Int]?, prevKeys: [String], next: [LockdownWindow], rev: Int
+    ) -> [String: Int]? {
+        var out = (marks ?? [:]).filter { $0.value > 0 }
+        let nextKeys = next.map { windowKey($0.band) }
+        let before = Set(prevKeys)
+        let after = Set(nextKeys)
+        for k in nextKeys where !before.contains(k) { out[k] = rev }
+        for k in prevKeys where !after.contains(k) && isWindowKey(k) { out[k] = rev }
+        return capWindowMarks(out, nextKeys)
+    }
+
+    /// Az ablak-jelek tartalmi kulcsa — kódegység szerint rendezve, mint a gépen.
+    static func windowMarksKey(_ marks: [String: Int]?) -> String {
+        (marks ?? [:]).sorted { TextLogic.utf16Less($0.key, $1.key) }
+            .map { "\($0.key)=\($0.value)" }.joined(separator: ";")
     }
 
     /// Egy ablak-nap emlékeztetőjének helye a héten: a rendszer `weekday`-e

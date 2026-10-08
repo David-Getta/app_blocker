@@ -56,8 +56,18 @@ private func randomLockdown(_ r: inout WindowRng, _ now: Double) -> LockdownLogi
     return .init(startedAt: now - floor(r.next() * 3 * day), until: now + 1 + floor(r.next() * 3 * day))
 }
 
+/// A lista tartalmi kulcsai a lista sorrendjében — a fésült sorrend is tükrözött.
 private func keys(_ list: [LockdownLogic.LockdownWindow]) -> [String] {
-    list.map { LockdownLogic.windowKey($0.band) }.sorted()
+    list.map { LockdownLogic.windowKey($0.band) }
+}
+
+/// Véletlen ablak-jelek a két lista tartalmaira — a gép `randomMarks`-e: a nulla nem jel.
+private func randomMarks(
+    _ r: inout WindowRng, _ mine: [LockdownLogic.LockdownWindow], _ other: [LockdownLogic.LockdownWindow]
+) -> [String: Int] {
+    var out: [String: Int] = [:]
+    for w in mine + other where r.next() < 0.5 { out[LockdownLogic.windowKey(w.band)] = Int(r.next() * 4) }
+    return out.filter { $0.value != 0 }
 }
 
 final class LockdownWindowFuzzTests: XCTestCase {
@@ -129,7 +139,7 @@ final class LockdownWindowFuzzTests: XCTestCase {
         }
     }
 
-    func testFesulesNagyobbJelNyerAzonosJelnelABovebbListaAHelyiAzonositokMaradnak() {
+    func testFesulesTartalmankentANagyobbJelDontEgyenlonelUnioPlafonSzabadOraEgyediAzonosito() {
         for seed in 1...3000 {
             var r = WindowRng(UInt32(seed))
             let ctx = "mag \(seed)"
@@ -137,34 +147,40 @@ final class LockdownWindowFuzzTests: XCTestCase {
             let shared = r.next() < 0.3
             let a = randomWindows(&r, shared ? "x" : "a")
             let b = randomWindows(&r, shared ? "x" : "b")
-            let ma = Int(r.next() * 4)
-            let mb = Int(r.next() * 4)
-            let m = LockdownLogic.mergeWindows(ma, a, mb, b)
+            let sa = LockdownLogic.WindowSet(windows: a, marks: randomMarks(&r, a, b))
+            let sb = LockdownLogic.WindowSet(windows: b, marks: randomMarks(&r, b, a))
+            let merged = LockdownLogic.mergeWindowSets(sa, sb)
+            let m = merged.windows
 
             XCTAssertTrue(m.count <= LockdownLogic.maxLockdownWindows, "\(ctx): túl sok ablak")
             XCTAssertEqual(Set(m.map { LockdownLogic.windowKey($0.band) }).count, m.count, "\(ctx): dupla tartalom")
-            XCTAssertEqual(Set(m.map { $0.id }).count, m.count, "\(ctx): dupla azonosító")
-            XCTAssertEqual(LockdownLogic.mergeWindows(ma, m, ma, m), m, "\(ctx): a fésülés nem idempotens")
-
-            if ma > mb { XCTAssertEqual(m, a, "\(ctx): a nagyobb helyi jel nem nyert"); continue }
-            if mb > ma { XCTAssertEqual(m, b, "\(ctx): a nagyobb beérkező jel nem nyert"); continue }
+            XCTAssertEqual(Set(m.map { Array($0.id.utf16) }).count, m.count, "\(ctx): dupla azonosító")
+            XCTAssertTrue(m.isEmpty || LockdownLogic.freeMinutesPerWeek(m.map { $0.band }) >= LockdownLogic.minFreeMinutesPerWeek,
+                          "\(ctx): nincs szabad óra a héten")
+            XCTAssertEqual(LockdownLogic.mergeWindowSets(merged, merged).windows, m, "\(ctx): a fésülés nem idempotens")
+            let flipped = LockdownLogic.mergeWindowSets(sb, sa)
+            XCTAssertEqual(keys(flipped.windows), keys(m), "\(ctx): a fésülés nem szimmetrikus")
+            XCTAssertEqual(flipped.marks, merged.marks, "\(ctx): a jelek nem szimmetrikusak")
 
             let union = Set(keys(a) + keys(b))
-            let mKeys = m.map { LockdownLogic.windowKey($0.band) }
-            for k in keys(a) { XCTAssertTrue(mKeys.contains(k), "\(ctx): helyi ablak elveszett") }
+            let mKeys = keys(m)
             for w in m { XCTAssertTrue(union.contains(LockdownLogic.windowKey(w.band)), "\(ctx): ablak a semmiből") }
-            for w in a {
-                let kept = m.first { LockdownLogic.windowKey($0.band) == LockdownLogic.windowKey(w.band) }
-                XCTAssertEqual(kept?.id, w.id, "\(ctx): a helyi azonosító nem maradt")
-            }
-            if !shared && union.count <= LockdownLogic.maxLockdownWindows {
-                XCTAssertEqual(keys(m), union.sorted(), "\(ctx): azonos jelnél nem az unió")
-                XCTAssertEqual(keys(LockdownLogic.mergeWindows(mb, b, ma, a)), keys(m), "\(ctx): a fésülés nem szimmetrikus")
-            }
-            for w in b where !mKeys.contains(LockdownLogic.windowKey(w.band)) {
-                // Ami a beérkezőből kimaradt, annak oka van: tele a lista, vagy az azonosítója már foglalt.
-                let idTaken = a.contains { $0.id == w.id }
-                XCTAssertTrue(union.count > LockdownLogic.maxLockdownWindows || idTaken, "\(ctx): beérkező ablak ok nélkül veszett el")
+            for k in union {
+                let ma = sa.marks?[k] ?? 0
+                let mb = sb.marks?[k] ?? 0
+                let inA = keys(a).contains(k)
+                let inB = keys(b).contains(k)
+                let want = ma > mb ? inA : (mb > ma ? inB : (inA || inB))
+                let got = mKeys.contains(k)
+                if !want { XCTAssertFalse(got, "\(ctx): a jeles levétel ellenére megmaradt: \(k)") }
+                // Ami jár, az csak a plafon vagy a szabad óra miatt maradhat ki.
+                if want && !got, let w = (a + b).first(where: { LockdownLogic.windowKey($0.band) == k }) {
+                    XCTAssertTrue(m.count >= LockdownLogic.maxLockdownWindows ||
+                                  LockdownLogic.freeMinutesPerWeek((m + [w]).map { $0.band }) < LockdownLogic.minFreeMinutesPerWeek,
+                                  "\(ctx): ablak ok nélkül veszett el: \(k)")
+                }
+                let mark = max(ma, mb)
+                if mark > 0 { XCTAssertEqual(merged.marks?[k], mark, "\(ctx): a jel nem a nagyobbik: \(k)") }
             }
         }
     }

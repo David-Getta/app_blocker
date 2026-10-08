@@ -394,6 +394,8 @@ object SyncClient {
         // gépen felvett ablakot a többi eszközről. Üresen nincs mező.
         if (f.lockdownWindows.isNotEmpty()) put("lockdownWindows", windowsToJson(f.lockdownWindows))
         if (f.lockdownWindowsRev != null) put("lockdownWindowsRev", f.lockdownWindowsRev)
+        // A tartalmankénti ablak-jelek — üresen nincs mező.
+        if (!f.lockdownWindowMarks.isNullOrEmpty()) put("lockdownWindowMarks", JSONObject(f.lockdownWindowMarks))
         // A MEGBÍZOTT IS, a jelével: a lenyomat utazik, a jelmondat sehol nincs.
         if (f.partner != null) put("partner", partnerToJson(f.partner))
         if (f.partnerRev != null) put("partnerRev", f.partnerRev)
@@ -512,6 +514,7 @@ object SyncClient {
         val o = JSONObject(text)
         val partners = partnersFromJson(o)
         val keywords = KeywordLogic.cleanKeywords(stringsFromJson(o.optJSONArray("keywords")))
+        val windows = windowsFromJson(o.optJSONArray("lockdownWindows"))
         val packs = mutableListOf<Focus.FocusPack>()
         val seenIds = mutableListOf<String>()
         val arr = o.optJSONArray("packs")
@@ -584,9 +587,13 @@ object SyncClient {
             }?.let { if (now == null) it else LockdownLogic.live(it, now) },
             // Az ablakok kívülről jött adat, mint minden más; a jel pozitív
             // egész, legfeljebb a blob rev-je — mint a csomag-jelek.
-            lockdownWindows = windowsFromJson(o.optJSONArray("lockdownWindows")),
+            lockdownWindows = windows,
             lockdownWindowsRev = (intOf(o, "lockdownWindowsRev") ?: 0)
                 .takeIf { it > 0 && it <= rev.coerceIn(0, Int.MAX_VALUE.toLong()) },
+            // Az ablak-jelek is: kanonikus tartalmi kulcs, pozitív egész, legfeljebb a rev.
+            lockdownWindowMarks = LockdownLogic.cleanWindowMarks(
+                marksFromJson(o, "lockdownWindowMarks"), windows, rev.coerceIn(0, Int.MAX_VALUE.toLong()).toInt(),
+            ),
             // A megbízott is kívülről jött adat: csak a jó alakú, a jele mint a
             // többié; a társak és a nyomok a fésülés szabálya szerint.
             partner = partners.partner,
@@ -759,6 +766,7 @@ object SyncClient {
                 // Az ablakok a jelükkel — a fésülés ebből tudja, kié az újabb szó.
                 lockdownWindows = current.lockdownWindows,
                 lockdownWindowsRev = current.lockdownWindowsRev,
+                lockdownWindowMarks = current.lockdownWindowMarks,
                 // A megbízott a jelével — a fésülés ebből tudja, kié az újabb szó.
                 partner = current.partner,
                 partnerRev = current.partnerRev,
@@ -794,6 +802,7 @@ object SyncClient {
                     // a következő fordulóban már ezek szerint ír zárlatot.
                     lockdownWindows = merged.lockdownWindows,
                     lockdownWindowsRev = merged.lockdownWindowsRev,
+                    lockdownWindowMarks = merged.lockdownWindowMarks,
                     // A MEGBÍZOTT IS — azonosság szerint: a másik eszközön
                     // felvett innentől itt is az utolsó szó (társként, ha itt
                     // is van); a levétel csak a nyomával érkezik.

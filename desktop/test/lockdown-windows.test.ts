@@ -9,9 +9,10 @@
 import { test } from 'node:test';
 import * as assert from 'node:assert/strict';
 import {
-  dueLockdownWindow, isLocked, isWindowLockdown, isWindowsLoosening, mergeWindows,
-  normalizeWindow, normalizeWindows, sameWindows, weekHasFreeTime, windowLockdown,
-  windowLockdownStarted, MAX_LOCKDOWN_WINDOWS, MIN_FREE_MINUTES_PER_WEEK, type LockdownWindow,
+  cleanWindowMarks, dueLockdownWindow, freeMinutesPerWeek, isLocked, isWindowKey, isWindowLockdown,
+  isWindowsLoosening, markWindowChanges, mergeWindowSets, normalizeWindow, normalizeWindows, sameWindows,
+  weekHasFreeTime, windowKey, windowLockdown, windowLockdownStarted, MAX_LOCKDOWN_WINDOWS,
+  MIN_FREE_MINUTES_PER_WEEK, type LockdownWindow,
 } from '../src/shared/lockdown';
 import { defaultState, newId, type HelperState } from '../src/helper/state';
 import * as referee from '../src/helper/referee';
@@ -140,14 +141,68 @@ test('windowLockdownStarted: az ablak zárlata egyszer szól, a kézi és a lej�
     { startedAt: MON(8), until: MON(17) });
 });
 
-test('mergeWindows: a nagyobb jel nyer, azonos jelnél a bővebb lista; a jeltelen nem töröl', () => {
-  assert.deepEqual(mergeWindows(5, [WORK], 3, []), [WORK], 'a helyi levétel-utáni jel… nem, a helyi jel nagyobb: a helyi lista');
-  assert.deepEqual(mergeWindows(3, [WORK], 5, []), [], 'a másik eszköz jeles levétele átjön');
-  assert.deepEqual(mergeWindows(5, [WORK], 5, [NIGHT]), [WORK, NIGHT], 'azonos jel: unió');
-  assert.deepEqual(mergeWindows(0, [WORK], 0, []), [WORK], 'jel nélkül: unió — az üres nem töröl');
-  assert.deepEqual(mergeWindows(3, [WORK], 0, []), [WORK], 'a jeltelen (régi kliens) üres listája nem töröl');
-  assert.deepEqual(mergeWindows(5, [WORK], 5, [{ ...WORK, id: 'idegen' }]), [WORK], 'azonos tartalom: a helyi azonosító marad');
-  assert.deepEqual(mergeWindows(0, [WORK], 7, []), [], 'kimondott határ: a jeles levétel a jeltelen felvételt is elviszi');
+const wset = (windows: LockdownWindow[], marks?: Record<string, number>) =>
+  ({ lockdownWindows: windows, ...(marks ? { lockdownWindowMarks: marks } : {}) });
+const K = windowKey;
+
+test('az ablakok TARTALMANKÉNT fésülődnek: a nagyobb jel dönt, egyenlőnél és jel nélkül az unió', () => {
+  assert.deepEqual(mergeWindowSets(wset([WORK], { [K(WORK)]: 3 }), wset([], { [K(WORK)]: 5 })),
+    { lockdownWindows: [], lockdownWindowMarks: { [K(WORK)]: 5 } }, 'a jeles levétel átmegy');
+  assert.deepEqual(mergeWindowSets(wset([WORK], { [K(WORK)]: 6 }), wset([], { [K(WORK)]: 5 })).lockdownWindows, [WORK],
+    'a későbbi felvétel nyer');
+  assert.deepEqual(mergeWindowSets(wset([WORK]), wset([NIGHT])).lockdownWindows.map(K), [K(NIGHT), K(WORK)],
+    'jel nélkül unió — a kisebb ablak elöl');
+  assert.deepEqual(mergeWindowSets(wset([WORK]), wset([])).lockdownWindows, [WORK], 'a jeltelen üres lista nem töröl');
+  // A TRÜKK: egy elavult eszközön egy ingyenes felvétel felhúzza a jelet — a régi listája nem töröl.
+  const account = wset([WORK], { [K(WORK)]: 3 });
+  const stale = wset([NIGHT], { [K(NIGHT)]: 40 });
+  for (const m of [mergeWindowSets(account, stale), mergeWindowSets(stale, account)]) {
+    assert.deepEqual(m.lockdownWindows.map(K), [K(WORK), K(NIGHT)], 'a WORK megmarad, a NIGHT mellé kerül');
+  }
+  // Azonos tartalom, más azonosító: a kisebb marad. Azonos azonosító, más tartalom: a későbbi a kulcsát kapja.
+  assert.deepEqual(mergeWindowSets(wset([WORK]), wset([{ ...WORK, id: 'a0' }])).lockdownWindows, [{ ...WORK, id: 'a0' }]);
+  const grown = { ...WORK, endMin: 18 * 60 };
+  const both = mergeWindowSets(wset([WORK], { [K(WORK)]: 2 }), wset([grown], { [K(grown)]: 2 })).lockdownWindows;
+  assert.deepEqual(both.map((w) => w.id), ['w1', K(grown)], 'két tartalom ugyanazzal az azonosítóval: a második átkeresztelve');
+});
+
+test('a plafon és a szabad óra a legfrissebbet ejti ki — az uniós sem zárhatja le az egész hetet', () => {
+  // Két eszköz, egymástól függetlenül: együtt az egész hét zárlat lenne.
+  const mostly = win({ id: 'a1', days: [0, 1, 2, 3, 4, 5, 6], startMin: 0, endMin: 23 * 60 });
+  const rest = win({ id: 'b1', days: [0, 1, 2, 3, 4, 5, 6], startMin: 23 * 60, endMin: 1440 });
+  assert.ok(freeMinutesPerWeek([mostly]) >= MIN_FREE_MINUTES_PER_WEEK);
+  assert.equal(freeMinutesPerWeek([mostly, rest]), 0);
+  for (const m of [
+    mergeWindowSets(wset([mostly], { [K(mostly)]: 2 }), wset([rest], { [K(rest)]: 5 })),
+    mergeWindowSets(wset([rest], { [K(rest)]: 5 }), wset([mostly], { [K(mostly)]: 2 })),
+  ]) {
+    assert.deepEqual(m.lockdownWindows, [mostly], 'a régebbi ígéret marad, a frissebb kiesik');
+    assert.equal(m.lockdownWindowMarks?.[K(rest)], 5, 'a kiesett ablak jele marad');
+  }
+  // A hetes plafon: a nyolcadik — a legfrissebb — esik ki.
+  const eight: LockdownWindow[] = Array.from({ length: MAX_LOCKDOWN_WINDOWS + 1 }, (_, i) =>
+    ({ id: `x${i}`, days: [(i % 7) as LockdownWindow['days'][number]], startMin: 60 * i, endMin: 60 * i + 30 }));
+  const marks = Object.fromEntries(eight.map((w, i) => [K(w), i + 1]));
+  const capped = mergeWindowSets(wset(eight.slice(0, 4), marks), wset(eight.slice(4), marks)).lockdownWindows;
+  assert.equal(capped.length, MAX_LOCKDOWN_WINDOWS);
+  assert.ok(!capped.some((w) => w.id === 'x7'), 'a legfrissebb esett ki');
+});
+
+test('az ablak-jelek tisztán: kanonikus tartalmi kulcs, pozitív egész, legfeljebb a rev', () => {
+  assert.ok(isWindowKey('1,2,3,4,5/540/1020'));
+  assert.ok(!isWindowKey('2,1/540/1020'), 'a napok sorrendje kötött');
+  assert.ok(!isWindowKey('1,1/540/1020'), 'dupla nap nincs');
+  assert.ok(!isWindowKey('1/0540/1020'), 'vezető nulla nincs');
+  assert.ok(!isWindowKey('7/0/60') && !isWindowKey('1/1440/60') && !isWindowKey('1/0/0') && !isWindowKey('x'));
+  assert.ok(!isWindowKey('1/\u06610/60'), 'csak ASCII számjegy');
+  assert.deepEqual(
+    cleanWindowMarks({ [K(WORK)]: 2, [K(NIGHT)]: 9, '2,1/0/60': 1, 'x': 1, [K(allDay('d', [0]))]: 1.5 }, [WORK], 3),
+    { [K(WORK)]: 2 },
+  );
+  assert.equal(cleanWindowMarks('x', [], 3), undefined);
+  const grown = { ...WORK, endMin: 18 * 60 };
+  assert.deepEqual(markWindowChanges({ [K(NIGHT)]: 1 }, [K(WORK), K(NIGHT)], [grown, NIGHT], 4),
+    { [K(NIGHT)]: 1, [K(grown)]: 4, [K(WORK)]: 4 }, 'a módosítás: a régi tartalom levétele, az új felvétele');
 });
 
 // ------------------------------------------------------------ a bíró
@@ -340,6 +395,7 @@ test('az ablak-lista cseréje léptet és jelet kap; a csomag-szerkesztés a jel
   assert.equal(bumpFocusRevision(st, 'gep', SUN(12)), true, 'a felvétel léptet');
   assert.equal(st.focusRev, 1);
   assert.equal(st.lockdownWindowsRev, 1, 'az első jel is jel');
+  assert.deepEqual(st.lockdownWindowMarks, { [K(WORK)]: 1 }, 'a felvett tartalom a saját jelét kapja');
   assert.equal(bumpFocusRevision(st, 'gep', SUN(12)), false, 'változatlanul nem léptet');
 
   st.focusPacks = [{ id: 'p1', name: 'Írás', allowSites: [], allowApps: [], defaultMinutes: 25 }];
@@ -350,11 +406,15 @@ test('az ablak-lista cseréje léptet és jelet kap; a csomag-szerkesztés a jel
   referee.setLockdownWindows(st, [WORK, NIGHT], SUN(12));
   assert.equal(bumpFocusRevision(st, 'gep', SUN(12)), true);
   assert.equal(st.lockdownWindowsRev, 3);
+  assert.deepEqual(st.lockdownWindowMarks, { [K(WORK)]: 1, [K(NIGHT)]: 3 }, 'a régi ablak jele nem változik');
 
   // Egy másik eszközről átvett lista: a lenyomat újraszámolva, nincs léptetés.
   st.lockdownWindows = [NIGHT];
   adoptFocusRevision(st);
   assert.equal(bumpFocusRevision(st, 'gep', SUN(12)), false, 'az átvétel nem szerkesztés');
+  st.focusPacks = [];
+  assert.equal(bumpFocusRevision(st, 'gep', SUN(12)), true);
+  assert.deepEqual(st.lockdownWindowMarks, { [K(WORK)]: 1, [K(NIGHT)]: 3 }, 'az átvett lista nem saját levétel');
 });
 
 // ----------------------------------------------------------- a fésülés
@@ -374,11 +434,16 @@ test('a blob hordozza az ablakokat és a jelüket; a szemét és a túl nagy jel
   assert.equal(normalizeSyncFocus({ lockdownWindows: [], rev: 3 }, 'y').lockdownWindows, undefined,
     'üresen nincs mező');
   assert.equal(normalizeSyncFocus({ lockdownWindowsRev: 1.5, rev: 3 }, 'y').lockdownWindowsRev, undefined);
+  assert.deepEqual(
+    normalizeSyncFocus({ lockdownWindows: [WORK], lockdownWindowMarks: { [K(WORK)]: 2, [K(NIGHT)]: 3, '2,1/0/60': 1, x: 1 }, rev: 3 }, 'y')
+      .lockdownWindowMarks,
+    { [K(WORK)]: 2, [K(NIGHT)]: 3 }, 'a levétel jele is utazik; a nem kanonikus kulcs kiesik',
+  );
 });
 
-test('a fésülésben a jel dönt: a jeles levétel átmegy, a jeltelen üres lista nem töröl', () => {
-  const mine = focus({ rev: 3, updatedAt: 10, lockdownWindows: [WORK], lockdownWindowsRev: 3 });
-  const removed = focus({ rev: 5, updatedAt: 20, lockdownWindowsRev: 5 });
+test('a fésülésben a tartalom jele dönt: a jeles levétel átmegy, a jeltelen üres lista nem töröl', () => {
+  const mine = focus({ rev: 3, updatedAt: 10, lockdownWindows: [WORK], lockdownWindowsRev: 3, lockdownWindowMarks: { [K(WORK)]: 3 } });
+  const removed = focus({ rev: 5, updatedAt: 20, lockdownWindowsRev: 5, lockdownWindowMarks: { [K(WORK)]: 5 } });
   assert.equal(mergeFocus(mine, removed).lockdownWindows, undefined, 'a levétel átjön');
   assert.equal(mergeFocus(removed, mine).lockdownWindows, undefined, 'sorrendtől függetlenül');
   assert.equal(mergeFocus(mine, removed).lockdownWindowsRev, 5);
@@ -391,16 +456,28 @@ test('a fésülésben a jel dönt: a jeles levétel átmegy, a jeltelen üres li
 
   // Egy csomag-szerkesztés a másik eszközön (nagyobb rev, régi jel) sem.
   const packEdit = focus({ rev: 4, updatedAt: 15, lockdownWindows: [WORK], lockdownWindowsRev: 3,
+    lockdownWindowMarks: { [K(WORK)]: 3 },
     packs: [{ id: 'p1', name: 'Írás', allowSites: [], allowApps: [], defaultMinutes: 25 }] });
-  const afterRemoval = focus({ rev: 4, updatedAt: 14, lockdownWindowsRev: 4 });
+  const afterRemoval = focus({ rev: 4, updatedAt: 14, lockdownWindowsRev: 4, lockdownWindowMarks: { [K(WORK)]: 4 } });
   assert.equal(mergeFocus(packEdit, afterRemoval).lockdownWindows, undefined,
     'a levétel jele nagyobb: a csomag-szerkesztés nem támasztja fel');
 
-  // Azonos jel: unió — a szigorúbb irány.
-  const a = focus({ rev: 5, lockdownWindows: [WORK], lockdownWindowsRev: 5 });
-  const b = focus({ rev: 5, lockdownWindows: [NIGHT], lockdownWindowsRev: 5 });
-  assert.deepEqual(mergeFocus(a, b).lockdownWindows, [WORK, NIGHT]);
+  // A TRÜKK: egy elavult eszköz ingyenes felvétellel felhúzza a lista jelét — a WORK-öt nem viszi el.
+  const stale = focus({ rev: 40, updatedAt: 40, lockdownWindows: [NIGHT], lockdownWindowsRev: 40, lockdownWindowMarks: { [K(NIGHT)]: 40 } });
+  for (const m of [mergeFocus(mine, stale), mergeFocus(stale, mine)]) {
+    assert.deepEqual((m.lockdownWindows ?? []).map(K), [K(WORK), K(NIGHT)], 'a WORK megmarad');
+    assert.equal(m.lockdownWindowsRev, 40, 'a lista jele a régi klienseknek utazik tovább');
+  }
+  // A régi kliens jel nélküli levétele nem tartja meg magát — a szigorúbb irány.
+  const oldRemoval = focus({ rev: 6, updatedAt: 60, lockdownWindowsRev: 6 });
+  assert.deepEqual(mergeFocus(mine, oldRemoval).lockdownWindows, [WORK]);
+
+  // Azonos jel: unió — a szigorúbb irány; a kisebb ablak elöl.
+  const a = focus({ rev: 5, lockdownWindows: [WORK], lockdownWindowsRev: 5, lockdownWindowMarks: { [K(WORK)]: 5 } });
+  const b = focus({ rev: 5, lockdownWindows: [NIGHT], lockdownWindowsRev: 5, lockdownWindowMarks: { [K(NIGHT)]: 5 } });
+  assert.deepEqual(mergeFocus(a, b).lockdownWindows, [NIGHT, WORK]);
   assert.equal(sameFocus(a, b), false, 'más ablak: van mit feltölteni');
-  assert.equal(sameFocus(a, focus({ rev: 5, lockdownWindows: [{ ...WORK, id: 'x' }], lockdownWindowsRev: 5 })), true,
-    'az azonosító nem számít');
+  assert.equal(sameFocus(a, focus({ rev: 5, lockdownWindows: [{ ...WORK, id: 'x' }], lockdownWindowsRev: 5,
+    lockdownWindowMarks: { [K(WORK)]: 5 } })), true, 'az azonosító nem számít');
+  assert.equal(sameFocus(a, focus({ ...a, lockdownWindowMarks: { [K(WORK)]: 4 } })), false, 'a jel cseréje különbség');
 });

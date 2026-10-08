@@ -15,7 +15,7 @@ import {
   MAX_FOCUS_LOG, normalizePack, withCleanMarks, type FocusLogEntry, type FocusPack, type FocusRun,
 } from '../shared/focus';
 import type { UrlRule } from '../shared/urlrules';
-import { normalizeWindows, parseLockdown } from '../shared/lockdown';
+import { cleanWindowMarks, normalizeWindows, parseLockdown } from '../shared/lockdown';
 import { cleanKeywordMarks, cleanKeywords, type KeywordMarks } from '../shared/keywords';
 import { cleanBrowserHits } from '../shared/browser-hits';
 import { normalizeBurst } from '../shared/burst';
@@ -198,11 +198,17 @@ export interface HelperState {
    */
   lockdownWindows?: import('../shared/lockdown').LockdownWindow[];
   /**
-   * Az ablak-lista JELE: a munkamenet-blob `rev`-je, amelyik a listát
-   * utoljára változtatta. A fésülésben a nagyobb jel nyer (lásd
-   * `mergeWindows`); a lenyomat-léptetés írja (revisions.ts).
+   * Az ablak-lista egészének JELE: a munkamenet-blob `rev`-je, amelyik a
+   * listát utoljára változtatta — csak a régi kliensek miatt utazik; a
+   * fésülés a tartalmankénti jelekből dönt. A lenyomat-léptetés írja (revisions.ts).
    */
   lockdownWindowsRev?: number;
+  /**
+   * Az ablak-jelek: TARTALMI kulcs → a blob `rev`-je, amelyik az ilyen
+   * ablakot utoljára felvette vagy levette (revisions.ts, `markWindows`). A
+   * fésülés ezekből dönt (shared/lockdown.ts, `mergeWindowSets`).
+   */
+  lockdownWindowMarks?: import('../shared/lockdown').WindowMarks;
   /**
    * KULCSSZÓ-SZABÁLYOK: bármely oldalon, ha a cím tartalmazza. A böngésző-
    * bővítmény érvényesíti (csak ő látja a teljes címet); felvenni ingyen,
@@ -539,6 +545,12 @@ export function loadState(): HelperState {
       if (parsed.lockdownWindowsRev !== undefined
         && !(Number.isInteger(parsed.lockdownWindowsRev) && parsed.lockdownWindowsRev > 0)) {
         delete parsed.lockdownWindowsRev;
+      }
+      // Az ablak-jelek is a mag szűrőjén át — mint a dróton.
+      if (parsed.lockdownWindowMarks !== undefined) {
+        const rev = typeof parsed.focusRev === 'number' && Number.isFinite(parsed.focusRev) ? parsed.focusRev : 0;
+        const m = cleanWindowMarks(parsed.lockdownWindowMarks, parsed.lockdownWindows ?? [], rev);
+        if (m) parsed.lockdownWindowMarks = m; else delete parsed.lockdownWindowMarks;
       }
       // A kulcsszavak a mag szűrőjén át: ami nem kulcsszó, az nem az; üresen nincs mező.
       if (parsed.keywords !== undefined) {

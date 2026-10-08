@@ -250,6 +250,8 @@ enum SyncClient {
                 // Az ablakok a jelükkel — a fésülés ebből tudja, kié az újabb szó.
                 lockdownWindows: (current.lockdownWindows ?? []).isEmpty ? nil : current.lockdownWindows,
                 lockdownWindowsRev: current.lockdownWindowsRev,
+                // …és a tartalmankénti jeleik: a fésülés ezekből dönt.
+                lockdownWindowMarks: (current.lockdownWindowMarks ?? [:]).isEmpty ? nil : current.lockdownWindowMarks,
                 // A megbízott a jelével — a lenyomat utazik, a jelmondat sehol nincs.
                 // A társak és a levettek nyoma is; üresen nincs mező.
                 partner: current.partner,
@@ -285,6 +287,7 @@ enum SyncClient {
                 // következő fordulóban már ezek szerint ír zárlatot.
                 current.lockdownWindows = merged.lockdownWindows
                 current.lockdownWindowsRev = merged.lockdownWindowsRev
+                current.lockdownWindowMarks = merged.lockdownWindowMarks
                 // A MEGBÍZOTT IS — azonosság szerint: a gépen felvett megbízott
                 // innentől itt is az utolsó szó (társként, ha itt is van); a
                 // levétele csak a nyomával ér ide.

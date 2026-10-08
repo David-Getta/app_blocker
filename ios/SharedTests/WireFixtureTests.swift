@@ -85,6 +85,7 @@ final class WireFixtureTests: XCTestCase {
         let kw: String = (f.keywords ?? []).joined(separator: ",")
         let a = "packs=[\(packs)] marks=[\(marks)] log=[\(log)] rev=\(int(f.rev)) at=\(int(f.updatedAt)) by=\(f.updatedBy)"
         let b = " run=\(run) lock=\(lock) windows=[\(windows)] wmark=\(f.lockdownWindowsRev ?? 0)"
+            + " wm=[\(LockdownLogic.windowMarksKey(f.lockdownWindowMarks))]"
         let co: String = (f.partnerCo ?? []).map { "\($0.name)|\($0.salt)|\($0.hash)|\(int($0.setAt))" }.joined(separator: ";")
         let gone: String = (f.partnersGone ?? []).map { "\($0.id)@\(int($0.at))" }.joined(separator: ";")
         let kwm = KeywordLogic.keywordMarksKey(f.keywordMarks)

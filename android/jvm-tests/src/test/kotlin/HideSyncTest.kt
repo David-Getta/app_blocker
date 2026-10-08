@@ -76,7 +76,7 @@ class HideSyncTest {
 
     @Test fun `a jel - a be- es kikapcsolas lepteti a blobot, az atvett jel marad`() {
         var st = AppState()
-        assertEquals(st.copy(focusRevFp = SyncRevisions.focusFingerprint(st), focusRevKeywordList = emptyList()),
+        assertEquals(st.copy(focusRevFp = SyncRevisions.focusFingerprint(st), focusRevKeywordList = emptyList(), focusRevWindows = ""),
             SyncRevisions.bumpFocus(st, "telefon", now), "üres: nincs léptetés")
         st = SyncRevisions.bumpFocus(st.copy(hideSiteList = true), "telefon", now + 1)
         assertEquals(1L, st.focusRev, "a bekapcsolás döntés")

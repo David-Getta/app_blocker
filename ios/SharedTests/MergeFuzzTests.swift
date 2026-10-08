@@ -220,6 +220,12 @@ private func randomFocus(_ r: inout Lcg, _ device: String) -> FocusSync.SyncFocu
     let kmPick = Int(r.next() * 2)
     let kmValue = min(1 + Int(r.next() * 5), revInt)
     let keywordMarks: [String: Int]? = kmDraw < 0.35 ? [["shorts", "reels"][kmPick]: kmValue] : nil
+    // AZ ABLAK-JELEK — három húzás, feltétel nélkül, mint a gépen: van-e jel,
+    // melyik ablak tartalmáé (a hiányzóé is lehet — az a levétel jele), mekkora.
+    let wmDraw = r.next()
+    let wmPick = Int(r.next() * Double(windowPool.count))
+    let wmValue = min(1 + Int(r.next() * 5), revInt)
+    let windowMarks: [String: Int]? = wmDraw < 0.35 ? [LockdownLogic.windowKey(windowPool[wmPick]): wmValue] : nil
     // A NAPLÓ — két húzás, feltétel nélkül, mint a gépen.
     let logDraw = r.next()
     let logPick = Int(r.next() * 5)
@@ -241,6 +247,7 @@ private func randomFocus(_ r: inout Lcg, _ device: String) -> FocusSync.SyncFocu
         packs: packs, run: marked, log: log, rev: rev, updatedAt: updatedAt, updatedBy: device,
         packMarks: marks.isEmpty ? nil : marks, lockdown: lockdown,
         lockdownWindows: windows.isEmpty ? nil : windows, lockdownWindowsRev: windowsRev,
+        lockdownWindowMarks: windowMarks,
         partner: partner, partnerRev: partnerRev,
         partnerCo: partnerCo.isEmpty ? nil : partnerCo, partnersGone: partnersGone.isEmpty ? nil : partnersGone,
         keywords: keywords.isEmpty ? nil : keywords, keywordsRev: keywordsRev, keywordMarks: keywordMarks,
@@ -269,6 +276,7 @@ private func focusKey(_ f: FocusSync.SyncFocus, runIds: Set<String>, withRun: Bo
     return "\(packs)|\(marks)|\(run)|\(f.rev)|\(lock)|\(windows)|\(f.lockdownWindowsRev ?? 0)"
         + "|\((f.hideSiteList ?? false) ? 1 : 0)|\(f.hideSiteListRev ?? 0)"
         + "|\(KeywordLogic.keywordsKey(f.keywords ?? []))|\(f.keywordsRev ?? 0)|\(KeywordLogic.keywordMarksKey(f.keywordMarks))"
+        + "|\(LockdownLogic.windowMarksKey(f.lockdownWindowMarks))"
         + "|\(PartnerLogic.partnerKey(f.partner))|\(f.partnerRev ?? 0)"
         + "|" + (f.partnerCo ?? []).map { PartnerLogic.partnerKey($0) }.joined(separator: ";")
         + "|" + (f.partnersGone ?? []).map { "\($0.id)@\(Int($0.at))" }.joined(separator: ";")

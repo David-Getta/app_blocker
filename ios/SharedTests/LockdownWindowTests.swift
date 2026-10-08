@@ -5,7 +5,8 @@ import XCTest
 // Zárlat-ablak a Swift tükrön — a desktop/test/lockdown-windows.test.ts és az
 // androidos LockdownWindowTest magja. Az iPhone az ablakot hordozza, fésüli
 // és érvényesíti; itt a MAG számtana fut: a kör ugyanazt a zárlatot állítja
-// elő, mint a gép, a vég dönti el, hogy az ablaké, és a fésülés a JEL szerint.
+// elő, mint a gép, a vég dönti el, hogy az ablaké, és a fésülés tartalmanként,
+// a JEL szerint.
 final class LockdownWindowTests: XCTestCase {
 
     private func at(_ y: Int, _ m: Int, _ d: Int, _ h: Int, _ min: Int = 0) -> Double {
@@ -100,13 +101,50 @@ final class LockdownWindowTests: XCTestCase {
         XCTAssertTrue(LockdownLogic.isWindowLockdown(lock(mon(0), tue(0)), bands(allDay("a", [1]))), "24:00-ig")
     }
 
-    func testMergeIsDecidedByTheMark() {
-        XCTAssertEqual(LockdownLogic.mergeWindows(5, [work], 3, []), [work])
-        XCTAssertEqual(LockdownLogic.mergeWindows(3, [work], 5, []), [], "a jeles levétel átjön")
-        XCTAssertEqual(LockdownLogic.mergeWindows(5, [work], 5, [night]), [work, night], "azonos jel: unió")
-        XCTAssertEqual(LockdownLogic.mergeWindows(3, [work], 0, []), [work], "a jeltelen nem töröl")
-        let foreign = LockdownLogic.LockdownWindow(id: "idegen", days: [1, 2, 3, 4, 5], startMin: 540, endMin: 1020)
-        XCTAssertEqual(LockdownLogic.mergeWindows(5, [work], 5, [foreign]), [work], "azonos tartalom: a helyi azonosító marad")
+    private func k(_ w: LockdownLogic.LockdownWindow) -> String { LockdownLogic.windowKey(w.band) }
+    private func wset(_ ws: [LockdownLogic.LockdownWindow], _ marks: [String: Int]? = nil) -> LockdownLogic.WindowSet {
+        LockdownLogic.WindowSet(windows: ws, marks: marks)
+    }
+    /// Egy ablak másik azonosítóval vagy véggel — a Kotlin `copy` párja.
+    private func with(_ w: LockdownLogic.LockdownWindow, id: String? = nil, endMin: Int? = nil) -> LockdownLogic.LockdownWindow {
+        LockdownLogic.LockdownWindow(id: id ?? w.id, days: w.days, startMin: w.startMin, endMin: endMin ?? w.endMin)
+    }
+
+    func testMergeIsDecidedPerContentByTheMark() {
+        XCTAssertEqual(LockdownLogic.mergeWindowSets(wset([work], [k(work): 3]), wset([], [k(work): 5])),
+                       wset([], [k(work): 5]), "a jeles levétel átjön")
+        XCTAssertEqual(LockdownLogic.mergeWindowSets(wset([work], [k(work): 6]), wset([], [k(work): 5])).windows, [work])
+        XCTAssertEqual(LockdownLogic.mergeWindowSets(wset([work]), wset([night])).windows.map { k($0) }, [k(night), k(work)],
+                       "jel nélkül unió — a kisebb ablak elöl")
+        XCTAssertEqual(LockdownLogic.mergeWindowSets(wset([work]), wset([])).windows, [work], "a jeltelen nem töröl")
+        // A TRÜKK: egy elavult eszköz ingyenes felvétele a régi listával nem töröl.
+        let account = wset([work], [k(work): 3])
+        let stale = wset([night], [k(night): 40])
+        for m in [LockdownLogic.mergeWindowSets(account, stale), LockdownLogic.mergeWindowSets(stale, account)] {
+            XCTAssertEqual(m.windows.map { k($0) }, [k(work), k(night)], "a WORK megmarad, a NIGHT mellé kerül")
+        }
+        XCTAssertEqual(LockdownLogic.mergeWindowSets(wset([work]), wset([with(work, id: "a0")])).windows, [with(work, id: "a0")],
+                       "azonos tartalom: a kisebb azonosító marad")
+        let grown = with(work, endMin: 18 * 60)
+        XCTAssertEqual(LockdownLogic.mergeWindowSets(wset([work], [k(work): 2]), wset([grown], [k(grown): 2])).windows.map { $0.id },
+                       ["w1", k(grown)], "két tartalom ugyanazzal az azonosítóval: a második átkeresztelve")
+        // A szabad óra: két eszköz uniója nem zárhatja le az egész hetet — a frissebb esik ki.
+        let mostly = LockdownLogic.LockdownWindow(id: "a1", days: Array(0...6), startMin: 0, endMin: 23 * 60)
+        let rest = LockdownLogic.LockdownWindow(id: "b1", days: Array(0...6), startMin: 23 * 60, endMin: 1440)
+        XCTAssertEqual(LockdownLogic.freeMinutesPerWeek([mostly.band, rest.band]), 0)
+        let trimmed = LockdownLogic.mergeWindowSets(wset([rest], [k(rest): 5]), wset([mostly], [k(mostly): 2]))
+        XCTAssertEqual(trimmed.windows, [mostly])
+        XCTAssertEqual(trimmed.marks?[k(rest)], 5, "a kiesett ablak jele marad")
+        // A kanonikus kulcs és a tisztítás.
+        XCTAssertTrue(LockdownLogic.isWindowKey("1,2,3,4,5/540/1020"))
+        XCTAssertFalse(LockdownLogic.isWindowKey("2,1/540/1020"))
+        XCTAssertFalse(LockdownLogic.isWindowKey("1/0540/1020"))
+        XCTAssertFalse(LockdownLogic.isWindowKey("1,1/0/60"))
+        XCTAssertFalse(LockdownLogic.isWindowKey("1/\u{0661}0/60"), "csak ASCII számjegy")
+        XCTAssertEqual(LockdownLogic.cleanWindowMarks([k(work): 2, k(night): 9, "2,1/0/60": 1, "x": 1], [work], maxRev: 3),
+                       [k(work): 2])
+        XCTAssertEqual(LockdownLogic.markWindowChanges([k(night): 1], prevKeys: [k(work), k(night)], next: [grown, night], rev: 4),
+                       [k(night): 1, k(grown): 4, k(work): 4], "a módosítás: a régi tartalom levétele, az új felvétele")
     }
 
     // MARK: - a szinkron
@@ -120,6 +158,12 @@ final class LockdownWindowTests: XCTestCase {
         let back = FocusSync.normalize(try JSONDecoder().decode(FocusSync.SyncFocus.self, from: data), fallbackDevice: "y")
         XCTAssertEqual(back.lockdownWindows, [work, night])
         XCTAssertEqual(back.lockdownWindowsRev, 3)
+        // A tartalmankénti jelek is oda-vissza.
+        var markedIn = f
+        markedIn.lockdownWindowMarks = [k(work): 3, k(night): 2]
+        let markedData = try JSONEncoder().encode(markedIn)
+        let marked = FocusSync.normalize(try JSONDecoder().decode(FocusSync.SyncFocus.self, from: markedData), fallbackDevice: "y")
+        XCTAssertEqual(marked.lockdownWindowMarks, [k(work): 3, k(night): 2], "a jelek oda-vissza")
         // Üresen nincs mező; a jel legfeljebb a blob rev-je; a szemét kiesik.
         let empty = String(decoding: try JSONEncoder().encode(FocusSync.SyncFocus(updatedBy: "x")), as: UTF8.self)
         XCTAssertFalse(empty.contains("lockdownWindows"))
@@ -135,8 +179,10 @@ final class LockdownWindowTests: XCTestCase {
     }
 
     func testMergeFollowsTheMarkNotTheNewerBlob() {
-        let mine = FocusSync.SyncFocus(rev: 3, updatedAt: 10, updatedBy: "a", lockdownWindows: [work], lockdownWindowsRev: 3)
-        let removed = FocusSync.SyncFocus(rev: 5, updatedAt: 20, updatedBy: "b", lockdownWindowsRev: 5)
+        let mine = FocusSync.SyncFocus(rev: 3, updatedAt: 10, updatedBy: "a", lockdownWindows: [work], lockdownWindowsRev: 3,
+                                       lockdownWindowMarks: [k(work): 3])
+        let removed = FocusSync.SyncFocus(rev: 5, updatedAt: 20, updatedBy: "b", lockdownWindowsRev: 5,
+                                          lockdownWindowMarks: [k(work): 5])
         XCTAssertNil(FocusSync.merge(mine, removed).lockdownWindows, "a levétel átjön")
         XCTAssertNil(FocusSync.merge(removed, mine).lockdownWindows)
         XCTAssertEqual(FocusSync.merge(mine, removed).lockdownWindowsRev, 5)
@@ -144,9 +190,16 @@ final class LockdownWindowTests: XCTestCase {
         let old = FocusSync.SyncFocus(rev: 9, updatedAt: 30, updatedBy: "c")
         XCTAssertEqual(FocusSync.merge(mine, old).lockdownWindows, [work])
         XCTAssertEqual(FocusSync.merge(old, mine).lockdownWindows, [work])
-        // Azonos jel: unió.
-        let other = FocusSync.SyncFocus(rev: 5, updatedAt: 1, updatedBy: "d", lockdownWindows: [night], lockdownWindowsRev: 3)
-        XCTAssertEqual(FocusSync.merge(mine, other).lockdownWindows, [work, night])
+        // A régi kliens jel nélküli levétele sem.
+        let oldRemoval = FocusSync.SyncFocus(rev: 6, updatedAt: 60, updatedBy: "c", lockdownWindowsRev: 6)
+        XCTAssertEqual(FocusSync.merge(mine, oldRemoval).lockdownWindows, [work])
+        // Azonos jel: unió — a kisebb ablak elöl.
+        let other = FocusSync.SyncFocus(rev: 5, updatedAt: 1, updatedBy: "d", lockdownWindows: [night], lockdownWindowsRev: 3,
+                                        lockdownWindowMarks: [k(night): 3])
+        XCTAssertEqual(FocusSync.merge(mine, other).lockdownWindows, [night, work])
+        var remarked = mine
+        remarked.lockdownWindowMarks = [k(work): 2]
+        XCTAssertFalse(FocusSync.same(mine, remarked), "a jel cseréje különbség")
         XCTAssertFalse(FocusSync.same(mine, other), "más ablak: van mit feltölteni")
         var renamed = mine
         renamed.lockdownWindows = [LockdownLogic.LockdownWindow(id: "x", days: [1, 2, 3, 4, 5], startMin: 540, endMin: 1020)]
@@ -161,6 +214,7 @@ final class LockdownWindowTests: XCTestCase {
         st = SyncRevisions.bumpFocus(st, deviceId: "iphone", now: mon(1))
         XCTAssertEqual(st.focusRev, 1)
         XCTAssertEqual(st.lockdownWindowsRev, 1, "az első jel is jel")
+        XCTAssertEqual(st.lockdownWindowMarks, [k(work): 1], "a felvett tartalom a saját jelét kapja")
         XCTAssertEqual(SyncRevisions.bumpFocus(st, deviceId: "iphone", now: mon(1)).focusRev, 1, "változatlanul nem léptet")
         st.focusPacks = [Focus.Pack(id: "p1", name: "Írás", allowSites: [], allowApps: [], defaultMinutes: 25, recurrence: nil)]
         st = SyncRevisions.bumpFocus(st, deviceId: "iphone", now: mon(1))
@@ -169,6 +223,7 @@ final class LockdownWindowTests: XCTestCase {
         st.lockdownWindows = [work, night]
         st = SyncRevisions.bumpFocus(st, deviceId: "iphone", now: mon(1))
         XCTAssertEqual(st.lockdownWindowsRev, 3)
+        XCTAssertEqual(st.lockdownWindowMarks, [k(work): 1, k(night): 3], "a régi ablak jele nem változik")
         st.lockdownWindows = [night]
         let adopted = SyncRevisions.adoptFocus(st)
         XCTAssertEqual(SyncRevisions.bumpFocus(adopted, deviceId: "iphone", now: mon(1)).focusRev, 3, "az átvétel nem szerkesztés")

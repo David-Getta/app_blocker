@@ -271,10 +271,12 @@ data class AppState(
      * szinkronizál, a jelével együtt. Lásd core/Lockdown.kt.
      */
     val lockdownWindows: List<LockdownLogic.LockdownWindow> = emptyList(),
-    /** Az ablak-lista JELE: a blob rev-je, amelyik utoljára változtatta (SyncRevisions). */
+    /** Az ablak-lista egészének JELE (SyncRevisions) — csak a régi kliensek miatt utazik. */
     val lockdownWindowsRev: Int? = null,
-    /** Az ablak-lista kulcsa az utolsó léptetéskor — ebből derül ki, kell-e új jel. */
+    /** Az ablak-lista kulcsa az utolsó léptetéskor — ebből derül ki, kell-e új jel, és mi került be vagy ki. */
     val focusRevWindows: String? = null,
+    /** Az ablak-jelek: tartalmi kulcs → a blob rev-je, amelyik az ilyen ablakot utoljára felvette vagy levette. */
+    val lockdownWindowMarks: Map<String, Int>? = null,
     /**
      * KULCSSZÓ-SZABÁLYOK: bármely oldalon, ha a cím tartalmazza. A gépi
      * böngésző-bővítmény érvényesíti; a telefon hordozza és fésüli, hogy a
@@ -559,6 +561,7 @@ object BreakerStore {
         // kilövése nem vehet le egy ablakot, ami próbatételbe került volna.
         put("lockdownWindows", SyncClient.windowsToJson(s.lockdownWindows))
         put("lockdownWindowsRev", s.lockdownWindowsRev ?: JSONObject.NULL)
+        put("lockdownWindowMarks", s.lockdownWindowMarks?.let { JSONObject(it) } ?: JSONObject.NULL)
         put("focusRevWindows", s.focusRevWindows ?: JSONObject.NULL)
         // A kulcsszavak is a lemezre mennek: a szinkron jele függ tőlük.
         put("keywords", JSONArray(s.keywords))
@@ -972,6 +975,12 @@ object BreakerStore {
             lockdownWindows = SyncClient.windowsFromJson(o.optJSONArray("lockdownWindows")),
             lockdownWindowsRev = if (o.isNull("lockdownWindowsRev")) null
                 else o.optInt("lockdownWindowsRev", 0).takeIf { it > 0 },
+            // Az ablak-jelek is a mag szűrőjén át — mint a dróton.
+            lockdownWindowMarks = LockdownLogic.cleanWindowMarks(
+                SyncClient.marksFromJson(o, "lockdownWindowMarks"),
+                SyncClient.windowsFromJson(o.optJSONArray("lockdownWindows")),
+                o.optLong("focusRev", 0).coerceIn(0, Int.MAX_VALUE.toLong()).toInt(),
+            ),
             focusRevWindows = if (o.isNull("focusRevWindows")) null else o.optString("focusRevWindows"),
             // A kulcsszavak a mag szűrőjén át: ami nem kulcsszó, az nem az.
             keywords = KeywordLogic.cleanKeywords(SyncClient.stringsFromJson(o.optJSONArray("keywords"))),

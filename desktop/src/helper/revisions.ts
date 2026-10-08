@@ -17,6 +17,7 @@
 import * as crypto from 'crypto';
 import { partnersKey } from '../shared/partner';
 import { keywordsKey, markKeywordChanges } from '../shared/keywords';
+import { markWindowChanges } from '../shared/lockdown';
 import type { HelperState, SiteRec } from './state';
 import { windowKey } from '../shared/lockdown';
 import type { FocusPack } from '../shared/focus';
@@ -200,6 +201,7 @@ export function bumpFocusRevision(
     // van; a kulcsszó-listáé ugyanígy.
     if (!state.focusRevPacks) state.focusRevPacks = packFingerprints(state);
     if (!state.focusRevKeywordList) state.focusRevKeywordList = [...(state.keywords ?? [])];
+    if (state.focusRevWindows === undefined) state.focusRevWindows = windowsKey(state);
     return false;
   }
 
@@ -219,6 +221,7 @@ export function bumpFocusRevision(
       // menet-indítása elviszi az ablakot) egyszer még megtörténhetne.
       if (!state.focusRevPacks) state.focusRevPacks = packFingerprints(state);
       if (!state.focusRevKeywordList) state.focusRevKeywordList = [...(state.keywords ?? [])];
+      if (state.focusRevWindows === undefined) state.focusRevWindows = windowsKey(state);
       return false;
     }
   }
@@ -241,6 +244,7 @@ export function bumpFocusRevision(
     // így már jelet kap, nem a régi kliens szabálya áll rá.
     if (!state.focusRevPacks) state.focusRevPacks = packFingerprints(state);
     if (!state.focusRevKeywordList) state.focusRevKeywordList = [...(state.keywords ?? [])];
+    if (state.focusRevWindows === undefined) state.focusRevWindows = windowsKey(state);
     return false;
   }
 
@@ -310,18 +314,27 @@ function markHide(state: HelperState): void {
 }
 
 /**
- * Az ablak-lista jele: ha a lista az előző léptetés óta változott, a jele
- * ez a blob-rev. A szinkron ebből tudja, kié az újabb szó (`mergeWindows`).
- * Az ELSŐ jel is jel — a csomagokkal ellentétben itt nincs olyan szabály,
- * hogy „a régi klienst követjük”, amire vissza lehetne esni: egy jeltelen
- * lista bárkinek a jeles üres listájával szemben elveszne, pedig épp most
- * vették fel.
+ * Az ablakok jelei: TARTALMANKÉNT (a fésülés ebből dönt, `mergeWindowSets`)
+ * és a lista egészének jele (csak a régi klienseknek). Ha a lista az előző
+ * léptetés óta változott, a lista jele ez a blob-rev; ami tartalom bekerült
+ * vagy kikerült, az is ezt kapja.
  */
 function markWindows(state: HelperState): void {
   const cur = windowsKey(state);
-  const prev = state.focusRevWindows ?? '';
+  const prevKey = state.focusRevWindows;
   state.focusRevWindows = cur;
-  if (prev === cur || state.focusRev === undefined) return;
+  if (state.focusRev === undefined) return;
+  // TARTALMANKÉNT is: ami tartalom az előző léptetés óta bekerült vagy
+  // kikerült, az ezt a blob-rev-et kapja — a fésülés ebből dönt
+  // (`mergeWindowSets`). Az eltett kulcs a tartalmak listája (a tartalmi
+  // kulcsban nincs „|”). Az első léptetés (nincs még eltett kulcs) jel nélkül megy.
+  if (prevKey !== undefined) {
+    const prevKeys = prevKey === '' ? [] : prevKey.split('|');
+    const marks = markWindowChanges(state.lockdownWindowMarks, prevKeys, state.lockdownWindows ?? [], state.focusRev);
+    if (marks) state.lockdownWindowMarks = marks;
+    else delete state.lockdownWindowMarks;
+  }
+  if ((prevKey ?? '') === cur) return;
   state.lockdownWindowsRev = state.focusRev;
 }
 

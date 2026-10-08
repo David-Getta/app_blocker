@@ -193,6 +193,9 @@ enum SyncRevisions {
         // A kulcsszó-lista is el van téve a frissítés utáni első körtől: az első
         // valódi felvétel vagy levétel így már a saját jelét kapja.
         if next.focusRevKeywordList == nil { next.focusRevKeywordList = state.keywords ?? [] }
+        // Az ablak-lista kulcsa ugyanígy el van téve: az első valódi felvétel vagy
+        // levétel tartalmanként is jelet kap.
+        if next.focusRevWindows == nil { next.focusRevWindows = windowsKey(state) }
         if state.focusRevFp == fp { return next }
         if state.focusRevFp == nil && (state.focusPacks ?? []).isEmpty && state.focusRun == nil
             && (state.lockdownWindows ?? []).isEmpty && PartnerLogic.partnersKey(state.partnerSet).isEmpty
@@ -222,6 +225,17 @@ enum SyncRevisions {
         // könyvelése ugyanaz, mint a gépen.
         let windows = windowsKey(state)
         if windows != (state.focusRevWindows ?? "") { next.lockdownWindowsRev = Int(newRev) }
+        // …és TARTALMANKÉNT: ami tartalom az előző léptetés óta bekerült vagy
+        // kikerült, az ezt a blob-rev-et kapja — a fésülés ebből dönt. Az eltett
+        // kulcs a tartalmak listája (a tartalmi kulcsban nincs „|”). Az első
+        // léptetés (nincs még eltett kulcs) ablak-jel nélkül megy.
+        if let prevWin = state.focusRevWindows {
+            next.lockdownWindowMarks = LockdownLogic.markWindowChanges(
+                state.lockdownWindowMarks,
+                prevKeys: prevWin.isEmpty ? [] : prevWin.split(separator: "|", omittingEmptySubsequences: false).map(String.init),
+                next: state.lockdownWindows ?? [], rev: clampedInt(newRev)
+            )
+        }
         next.focusRevWindows = windows
         // A megbízott jele ugyanígy: ha az előző léptetés óta változott, a
         // jele ez a blob-rev — a fésülés ebből tudja, kié az újabb szó.

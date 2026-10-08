@@ -213,6 +213,13 @@ const CHECKS = [
     scalar(ts.lockdown, /MIN_FREE_MINUTES_PER_WEEK\s*=\s*([^;]+);/, 'ts'),
     scalar(kt.lockdown, /MIN_FREE_MINUTES_PER_WEEK\s*=\s*(.+)/, 'kt'),
     scalar(sw.lockdown, /minFreeMinutesPerWeek\s*=\s*(.+)/, 'swift')],
+  // Az ablak-jelek plafonja: ha szétcsúszna, egy kifizetett levétel jele az
+  // egyik magban kiesne, a másikban nem — és a két eszköz körönként egymást
+  // írná felül (az egyik visszahozná a levett ablakot).
+  ['MAX_WINDOW_MARKS',
+    scalar(ts.lockdown, /MAX_WINDOW_MARKS\s*=\s*([^;]+);/, 'ts'),
+    scalar(kt.lockdown, /MAX_WINDOW_MARKS\s*=\s*(.+)/, 'kt'),
+    scalar(sw.lockdown, /maxWindowMarks\s*=\s*(.+)/, 'swift')],
   ['WINDOW_PRE_WARN_MS',
     scalar(ts.lockdown, /WINDOW_PRE_WARN_MS\s*=\s*([^;]+);/, 'ts'),
     scalar(kt.lockdown, /WINDOW_PRE_WARN_MS\s*=\s*(.+)/, 'kt'),

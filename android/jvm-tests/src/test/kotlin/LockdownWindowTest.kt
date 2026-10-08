@@ -140,13 +140,46 @@ class LockdownWindowTest {
         assertTrue(LockdownLogic.isWindowLockdown(LockdownLogic.Lockdown(mon(0), tue(0)), bands(allDay("a", setOf(1)))), "24:00-ig")
     }
 
-    @Test fun mergeIsDecidedByTheMark() {
-        assertEquals(listOf(work), LockdownLogic.mergeWindows(5, listOf(work), 3, emptyList()))
-        assertEquals(emptyList(), LockdownLogic.mergeWindows(3, listOf(work), 5, emptyList()), "a jeles levétel átjön")
-        assertEquals(listOf(work, night), LockdownLogic.mergeWindows(5, listOf(work), 5, listOf(night)), "azonos jel: unió")
-        assertEquals(listOf(work), LockdownLogic.mergeWindows(3, listOf(work), 0, emptyList()), "a jeltelen nem töröl")
-        assertEquals(listOf(work), LockdownLogic.mergeWindows(5, listOf(work), 5, listOf(work.copy(id = "idegen"))),
-            "azonos tartalom: a helyi azonosító marad")
+    private fun k(w: LockdownWindow) = LockdownLogic.windowKey(w.band)
+    private fun wset(ws: List<LockdownWindow>, marks: Map<String, Int>? = null) = LockdownLogic.WindowSet(ws, marks)
+
+    @Test fun mergeIsDecidedPerContentByTheMark() {
+        assertEquals(wset(emptyList(), mapOf(k(work) to 5)),
+            LockdownLogic.mergeWindowSets(wset(listOf(work), mapOf(k(work) to 3)), wset(emptyList(), mapOf(k(work) to 5))),
+            "a jeles levétel átjön")
+        assertEquals(listOf(work), LockdownLogic.mergeWindowSets(wset(listOf(work), mapOf(k(work) to 6)), wset(emptyList(), mapOf(k(work) to 5))).windows)
+        assertEquals(listOf(k(night), k(work)), LockdownLogic.mergeWindowSets(wset(listOf(work)), wset(listOf(night))).windows.map { k(it) },
+            "jel nélkül unió — a kisebb ablak elöl")
+        assertEquals(listOf(work), LockdownLogic.mergeWindowSets(wset(listOf(work)), wset(emptyList())).windows, "a jeltelen nem töröl")
+        // A TRÜKK: egy elavult eszköz ingyenes felvétele a régi listával nem töröl.
+        val account = wset(listOf(work), mapOf(k(work) to 3))
+        val stale = wset(listOf(night), mapOf(k(night) to 40))
+        for (m in listOf(LockdownLogic.mergeWindowSets(account, stale), LockdownLogic.mergeWindowSets(stale, account))) {
+            assertEquals(listOf(k(work), k(night)), m.windows.map { k(it) }, "a WORK megmarad, a NIGHT mellé kerül")
+        }
+        assertEquals(listOf(work.copy(id = "a0")), LockdownLogic.mergeWindowSets(wset(listOf(work)), wset(listOf(work.copy(id = "a0")))).windows,
+            "azonos tartalom: a kisebb azonosító marad")
+        val grown = work.copy(endMin = 18 * 60)
+        assertEquals(listOf("w1", k(grown)),
+            LockdownLogic.mergeWindowSets(wset(listOf(work), mapOf(k(work) to 2)), wset(listOf(grown), mapOf(k(grown) to 2))).windows.map { it.id },
+            "két tartalom ugyanazzal az azonosítóval: a második átkeresztelve")
+        // A szabad óra: két eszköz uniója nem zárhatja le az egész hetet — a frissebb esik ki.
+        val mostly = LockdownWindow("a1", (0..6).toSet(), 0, 23 * 60)
+        val rest = LockdownWindow("b1", (0..6).toSet(), 23 * 60, 1440)
+        assertEquals(0, LockdownLogic.freeMinutesPerWeek(listOf(mostly.band, rest.band)))
+        val trimmed = LockdownLogic.mergeWindowSets(wset(listOf(rest), mapOf(k(rest) to 5)), wset(listOf(mostly), mapOf(k(mostly) to 2)))
+        assertEquals(listOf(mostly), trimmed.windows)
+        assertEquals(5, trimmed.marks?.get(k(rest)), "a kiesett ablak jele marad")
+        // A kanonikus kulcs és a tisztítás.
+        assertTrue(LockdownLogic.isWindowKey("1,2,3,4,5/540/1020"))
+        assertFalse(LockdownLogic.isWindowKey("2,1/540/1020"))
+        assertFalse(LockdownLogic.isWindowKey("1/0540/1020"))
+        assertFalse(LockdownLogic.isWindowKey("1,1/0/60"))
+        assertFalse(LockdownLogic.isWindowKey("1/\u06610/60"), "csak ASCII számjegy")
+        assertEquals(mapOf(k(work) to 2), LockdownLogic.cleanWindowMarks(mapOf(k(work) to 2, k(night) to 9, "2,1/0/60" to 1, "x" to 1), listOf(work), 3))
+        assertEquals(mapOf(k(night) to 1, k(grown) to 4, k(work) to 4),
+            LockdownLogic.markWindowChanges(mapOf(k(night) to 1), listOf(k(work), k(night)), listOf(grown, night), 4),
+            "a módosítás: a régi tartalom levétele, az új felvétele")
     }
 
     // ------------------------------------------------------------------ a bíró
@@ -335,14 +368,17 @@ class LockdownWindowTest {
         val parsed = SyncClient.focusFromJson(junk, "y")
         assertEquals(listOf(work), parsed.lockdownWindows)
         assertNull(parsed.lockdownWindowsRev, "a túl nagy jel nincs")
+        val marked = SyncClient.focusFromJson(SyncClient.focusToJson(f.copy(lockdownWindowMarks = mapOf(k(work) to 3, k(night) to 2))), "y")
+        assertEquals(mapOf(k(work) to 3, k(night) to 2), marked.lockdownWindowMarks, "a jelek oda-vissza")
         assertFalse(SyncClient.focusToJson(FocusSync.SyncFocus(updatedBy = "x")).contains("lockdownWindows"),
             "üresen nincs mező")
     }
 
     @Test fun mergeFollowsTheMarkNotTheNewerBlob() {
         val mine = FocusSync.SyncFocus(rev = 3, updatedAt = 10, updatedBy = "a",
-            lockdownWindows = listOf(work), lockdownWindowsRev = 3)
-        val removed = FocusSync.SyncFocus(rev = 5, updatedAt = 20, updatedBy = "b", lockdownWindowsRev = 5)
+            lockdownWindows = listOf(work), lockdownWindowsRev = 3, lockdownWindowMarks = mapOf(k(work) to 3))
+        val removed = FocusSync.SyncFocus(rev = 5, updatedAt = 20, updatedBy = "b", lockdownWindowsRev = 5,
+            lockdownWindowMarks = mapOf(k(work) to 5))
         assertEquals(emptyList(), FocusSync.merge(mine, removed).lockdownWindows, "a levétel átjön")
         assertEquals(emptyList(), FocusSync.merge(removed, mine).lockdownWindows)
         assertEquals(5, FocusSync.merge(mine, removed).lockdownWindowsRev)
@@ -350,10 +386,13 @@ class LockdownWindowTest {
         val old = FocusSync.SyncFocus(rev = 9, updatedAt = 30, updatedBy = "c")
         assertEquals(listOf(work), FocusSync.merge(mine, old).lockdownWindows)
         assertEquals(listOf(work), FocusSync.merge(old, mine).lockdownWindows)
-        // Azonos jel: unió.
+        // A régi kliens jel nélküli levétele sem.
+        assertEquals(listOf(work), FocusSync.merge(mine, FocusSync.SyncFocus(rev = 6, updatedAt = 60, updatedBy = "c", lockdownWindowsRev = 6)).lockdownWindows)
+        // Azonos jel: unió — a kisebb ablak elöl.
         val other = FocusSync.SyncFocus(rev = 5, updatedAt = 1, updatedBy = "d",
-            lockdownWindows = listOf(night), lockdownWindowsRev = 3)
-        assertEquals(listOf(work, night), FocusSync.merge(mine, other).lockdownWindows)
+            lockdownWindows = listOf(night), lockdownWindowsRev = 3, lockdownWindowMarks = mapOf(k(night) to 3))
+        assertEquals(listOf(night, work), FocusSync.merge(mine, other).lockdownWindows)
+        assertFalse(FocusSync.same(mine, mine.copy(lockdownWindowMarks = mapOf(k(work) to 2))), "a jel cseréje különbség")
         assertFalse(FocusSync.same(mine, other), "más ablak: van mit feltölteni")
         assertTrue(FocusSync.same(mine, mine.copy(lockdownWindows = listOf(work.copy(id = "x")))), "az azonosító nem számít")
         assertFalse(FocusSync.isEmpty(FocusSync.SyncFocus(updatedBy = "x", lockdownWindows = listOf(work))))
@@ -374,12 +413,14 @@ class LockdownWindowTest {
         st = SyncRevisions.bumpFocus(st.copy(lockdownWindows = listOf(work)), "telefon", mon(1))
         assertEquals(1L, st.focusRev)
         assertEquals(1, st.lockdownWindowsRev, "az első jel is jel")
+        assertEquals(mapOf(k(work) to 1), st.lockdownWindowMarks, "a felvett tartalom a saját jelét kapja")
         assertEquals(st, SyncRevisions.bumpFocus(st, "telefon", mon(1)), "változatlanul nem léptet")
         st = SyncRevisions.bumpFocus(st.copy(focusPacks = listOf(Focus.FocusPack("p1", "Írás", emptyList(), emptyList(), 25))), "telefon", mon(1))
         assertEquals(2L, st.focusRev)
         assertEquals(1, st.lockdownWindowsRev, "a csomag szerkesztése nem az ablakok jele")
         st = SyncRevisions.bumpFocus(st.copy(lockdownWindows = listOf(work, night)), "telefon", mon(1))
         assertEquals(3, st.lockdownWindowsRev)
+        assertEquals(mapOf(k(work) to 1, k(night) to 3), st.lockdownWindowMarks, "a régi ablak jele nem változik")
         val adopted = SyncRevisions.adoptFocus(st.copy(lockdownWindows = listOf(night)))
         assertEquals(adopted, SyncRevisions.bumpFocus(adopted, "telefon", mon(1)), "az átvétel nem szerkesztés")
     }

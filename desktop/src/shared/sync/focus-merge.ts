@@ -33,7 +33,8 @@ import {
   type FocusLogEntry, type FocusPack, type FocusRun,
 } from '../focus.js';
 import {
-  liveLockdown, mergeLockdown, mergeWindows, normalizeWindows, parseLockdown, windowKey,
+  cleanWindowMarks, liveLockdown, mergeLockdown, mergeWindowSets, normalizeWindows, parseLockdown, windowKey,
+  windowMarksKey, type WindowMarks,
   type Lockdown, type LockdownWindow,
 } from '../lockdown.js';
 import {
@@ -94,15 +95,21 @@ export interface SyncFocus {
   /**
    * A ZÁRLAT-ABLAKOK: heti sávok, amikben a zárlat magától él. Beállítás,
    * mint a csomagok — de a levétele próbatétel, tehát a fésülése nem az
-   * újabb blobé, hanem a JELÉ (lásd `mergeWindows`). Üresen nincs mező.
+   * újabb blobé, hanem a TARTALMANKÉNTI jeleké (lásd `mergeWindowSets`).
+   * Üresen nincs mező.
    */
   lockdownWindows?: LockdownWindow[];
   /**
-   * Az ablak-lista jele: a blob `rev`-je, amelyik a listát utoljára
-   * változtatta. Nagyobb jel nyer, azonos jelnél a bővebb lista. A jel
-   * nélküli blob (régi kliens) jele nulla — az ilyen sosem törölhet listát.
+   * Az ablak-lista egészének jele: a blob `rev`-je, amelyik a listát
+   * utoljára változtatta — csak a régi klienseknek utazik, ők még ezzel
+   * fésülnek.
    */
   lockdownWindowsRev?: number;
+  /**
+   * Az ablak-jelek: TARTALMI kulcs (`windowKey`) → a blob rev-je, amelyik
+   * az ilyen ablakot utoljára felvette vagy levette. A fésülés ezekből dönt.
+   */
+  lockdownWindowMarks?: WindowMarks;
   /**
    * PÁRBAN ZÁROLÁS: a FŐ megbízott lenyomata (a legkorábban felvett élő) és a
    * jele (a blob `rev`-je, amelyik utoljára változtatta). A fésülés NEM a jel
@@ -257,6 +264,8 @@ export function normalizeSyncFocus(raw: unknown, fallbackDevice: string, now?: n
     ...(windowsIn(o.lockdownWindows).length > 0
       ? { lockdownWindows: windowsIn(o.lockdownWindows) } : {}),
     ...(markIn(o.lockdownWindowsRev, rev) ? { lockdownWindowsRev: markIn(o.lockdownWindowsRev, rev) } : {}),
+    // Az ablak-jelek is: kanonikus tartalmi kulcs, pozitív egész, legfeljebb a rev.
+    ...windowMarksIn(o.lockdownWindowMarks, windowsIn(o.lockdownWindows), rev),
     // A megbízott is kívülről jött adat: csak a jó alakú, a jele mint a többié.
     // A társak és a nyomok is: a fésülés tisztítja őket (egyszer, rendezve,
     // a plafonig, a fő nélkül) — ugyanaz a szabály, mint a fogadáskor.
@@ -458,16 +467,16 @@ export function mergeFocus(local: SyncFocus, incoming: SyncFocus, now?: number):
     // azzal, hogy a régi állapotát tolja fel.
     ...(mergeLockdown(local.lockdown, incoming.lockdown)
       ? { lockdown: mergeLockdown(local.lockdown, incoming.lockdown)! } : {}),
-    // A JEL DÖNT, nem az újabb blob: a levétel próbatétellel jár, ami
-    // lépteti a jelet, tehát a levétel átmegy — de a másik eszköz csomag-
-    // szerkesztése (ami a blob `rev`-jét lépteti, a jelet nem) nem viszi el
-    // a listát. Azonos jelnél a bővebb: a szigorúbb irány.
+    // A JEL DÖNT, nem az újabb blob — TARTALMANKÉNT: egy ablak jele csak
+    // akkor változik, ha ő maga változik, tehát egy elavult eszköz ingyenes
+    // felvétele nem töröl, a kifizetett levételt pedig a jele viszi át.
+    // Egyenlő jelnél az unió: a szigorúbb irány (`mergeWindowSets`).
     ...windowsMerged(local, incoming),
-    // A megbízott ugyanígy: a jel dönt, azonos jelnél a beállított.
+    // A megbízott AZONOSSÁG szerint: élő megbízottat csak a nyoma visz el.
     ...partnerMerged(local, incoming),
-    // A rejtés ugyanígy: a jel dönt, azonos jelnél a rejtett — a szigorúbb irány.
+    // A rejtés: a jel dönt, azonos jelnél a rejtett — a szigorúbb irány.
     ...hideMerged(local, incoming),
-    // A kulcsszavak ugyanígy: a jel dönt, azonos jelnél a bővebb lista.
+    // A kulcsszavak kulcsszavanként, a jelük szerint (`mergeKeywordSets`).
     ...keywordsMerged(local, incoming),
     rev: Math.max(local.rev, incoming.rev),
     // Az idő a GYŐZTESÉ, nem a nagyobb: így az eredmény kulcsa (rev, idő,
@@ -798,6 +807,8 @@ function stable(f: SyncFocus): unknown {
     // sorrend nem jelentés.
     lockdownWindows: (f.lockdownWindows ?? []).map(windowKey).sort(),
     lockdownWindowsRev: f.lockdownWindowsRev ?? 0,
+    // Az ablak-jelek is: egy levétel jele nélkül a levétel sosem érne át.
+    lockdownWindowMarks: windowMarksKey(f.lockdownWindowMarks),
     // A MEGBÍZOTT IS, a jelével: enélkül a felvétele sosem érne fel. A társak
     // és a nyomok is — egy levétel nyoma nélkül a levétel sosem érne át.
     partner: f.partner ? partnerKey(f.partner) : null,
@@ -852,15 +863,22 @@ function keywordMarksIn(raw: unknown, keywords: string[], rev: number): { keywor
 /** Az ablakok és a jelük fésülve — üresen egyik mező sincs. */
 function windowsMerged(
   local: SyncFocus, incoming: SyncFocus,
-): { lockdownWindows?: LockdownWindow[]; lockdownWindowsRev?: number } {
-  const ml = local.lockdownWindowsRev ?? 0;
-  const mi = incoming.lockdownWindowsRev ?? 0;
-  const windows = mergeWindows(ml, local.lockdownWindows ?? [], mi, incoming.lockdownWindows ?? []);
-  const mark = Math.max(ml, mi);
+): { lockdownWindows?: LockdownWindow[]; lockdownWindowsRev?: number; lockdownWindowMarks?: WindowMarks } {
+  // TARTALMANKÉNT, a jelük szerint (`mergeWindowSets`); a lista egészének jele
+  // csak a régi klienseknek utazik tovább, a nagyobbik.
+  const { lockdownWindows, lockdownWindowMarks } = mergeWindowSets(local, incoming);
+  const mark = Math.max(local.lockdownWindowsRev ?? 0, incoming.lockdownWindowsRev ?? 0);
   return {
-    ...(windows.length > 0 ? { lockdownWindows: windows } : {}),
+    ...(lockdownWindows.length > 0 ? { lockdownWindows } : {}),
     ...(mark > 0 ? { lockdownWindowsRev: mark } : {}),
+    ...(lockdownWindowMarks ? { lockdownWindowMarks } : {}),
   };
+}
+
+/** A beolvasott ablak-jelek — üresen nincs mező. */
+function windowMarksIn(raw: unknown, windows: LockdownWindow[], rev: number): { lockdownWindowMarks?: WindowMarks } {
+  const lockdownWindowMarks = cleanWindowMarks(raw, windows, rev);
+  return lockdownWindowMarks ? { lockdownWindowMarks } : {};
 }
 
 /**

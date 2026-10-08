@@ -53,17 +53,52 @@ napok, kezdés, vég — csak nem egy csomag indul tőle, hanem a zárlat.
   is. Bent nincs próbatétel; a levételt az ablakon kívül kell elkezdeni ÉS
   befejezni. Ez a szigorúbb irány, és a felület kimondja.
 - **Szinkron:** az ablakok a munkamenet blobján utaznak (`lockdownWindows`),
-  a **jelükkel** (`lockdownWindowsRev`: a blob `rev`-je, amelyik a listát
-  utoljára változtatta — a lenyomat-léptetés írja). Fésülés: **nagyobb jel
-  nyer; azonos jelnél a bővebb lista** (a kettő uniója tartalom szerint). A
-  levétel próbatétellel jár, ami lépteti a blobot ÉS a jelet, tehát a levétel
-  átmegy; a másik eszköz csomag-szerkesztése vagy menet-indítása (ami a blob
-  `rev`-jét lépteti, a jelet nem) sem viszi el a listát, sem nem támasztja fel
-  a levettet. A jel nélküli blob (régi kliens) jele nulla: az ilyen sosem
-  törölhet listát. Őszinte határ: ha két eszköz EGY körben egyszerre vesz fel
-  és le egy-egy ablakot azonos jellel, a bővebb lista marad — a szigorúbb
-  irány; és egy még soha fel nem töltött, jeltelen lista egy másik eszköz
-  jeles levételével szemben elveszik (ingyen visszavehető).
+  a **tartalmankénti jelükkel** (`lockdownWindowMarks`: tartalmi kulcs —
+  napok, kezdés, vég — → annak a blobnak a `rev`-je, amelyik az ilyen
+  ablakot utoljára felvette vagy levette; a lenyomat-léptetés írja). A
+  fésülés **tartalmanként** megy, a kulcsszavak mintájára: a **nagyobb jel
+  dönt** (ami annál áll, benne van vagy nincs, az marad), egyenlő — vagy
+  hiányzó — jelnél az **unió**, a szigorúbb irány. A módosítás a régi
+  tartalom levétele és az új felvétele, külön jellel: a bővítés így sem
+  lazít (az új lefedi a régit), a szűkítés pedig próbatétel volt, és a
+  levétel jele viszi át. A lista egészének jele (`lockdownWindowsRev`) csak a
+  régi klienseknek utazik tovább.
+
+  Miért nem a lista egészének jele. Az ingyenes felvétel is lépteti: egy
+  elavult eszközön egy új ablak felvétele felhúzta a jelet, és a régi
+  listája mindenhol letörölte a máshol felvett ablakot — próbatétel nélkül.
+  Most egy ablak jele csak akkor változik, ha ő maga változik; egy elavult
+  eszköz más szerkesztése nem viszi el, levenni pedig csak a próbatétellel
+  lehet, ami a levétel jelét írja.
+
+  A sorrend a régebbi ígéreté: a jel szerint (a jeltelen elöl), egyenlő
+  jelnél a kisebb ablak, aztán a kulcs. A hetes plafon és a heti egy szabad
+  óra ebben a sorrendben vág — **a legfrissebb esik ki**, nem a régi: egy
+  frissen felvett ablak-tömeg nem szoríthat ki régi ablakot, és két eszköz
+  ablakainak uniója sem zárhatja le az egész hetet (akkor az ablakot sosem
+  lehetne levenni — az csapda, nem döntés). A kiesett ablak jele marad. A
+  szabad órát a fésülés SZERKEZET szerint méri (a hét 7×1440 perce,
+  óraátállítás és időzóna nélkül, `freeMinutesPerWeek`), mert annak minden
+  eszközön, minden pillanatban ugyanazt kell adnia; a bíró a felvételnél a
+  valódi órával, a következő héten mér. Azonos tartalomnál a kisebb
+  azonosító marad; ha egy azonosító két tartalomhoz is tartozna (két eszköz
+  ugyanazt az ablakot másképp bővítette), a későbbi a tartalmi kulcsát kapja
+  azonosítónak. A jelek plafonja 64: a jelen lévők jele mindig marad, a
+  levettekből a legfrissebbek. A léptetés az előző tartalmakat is eltárolja
+  (`focusRevWindows`), és abból jelöl; az átvett listát a szinkron szintén
+  eltárolja, hogy a következő helyi szerkesztés ne jelölje felvettnek vagy
+  levettnek, ami nem itt történt.
+
+  Őszinte határok. **Egy régi kliens kifizetett levétele nem tartja meg
+  magát:** a frissítés előtt felvett ablakoknak nincs saját jele; ha egy még
+  nem frissített eszköz veszi le őket, a frissített eszközök jeltelen
+  példánya visszahozza (az unió — a szigorúbb irány). Ezért kell minden
+  eszközt frissíteni. **A vágás a sorrendtől is függhet:** ha három eszköz
+  ablakainak uniója túlmegy a hetes plafonon vagy a heti szabad órán, a
+  páronkénti fésülés nem társítható — hogy melyik ablak esik ki, az átmeneti
+  állapotokban a szinkron sorrendjétől is függ. A vágás sorrendje (jel,
+  méret, kulcs) mindenhol ugyanaz, és az eszközök a kiszolgálón át ugyanarra
+  az állapotra jutnak; csak az út más.
 - A telefonok az ablakot **hordozzák, fésülik és érvényesítik** (a körük
   zárlatot ír belőle), és szerkesztik is: a bíró ugyanaz a
   `setLockdownWindows` (Kotlin, Swift), ugyanazzal a kapuval, ugyanazzal a

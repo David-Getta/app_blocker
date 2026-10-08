@@ -212,6 +212,12 @@ class MergeFuzzTest {
         val kmPick = (r.next() * 2).toInt()
         val kmValue = minOf(1 + (r.next() * 5).toInt(), rev)
         val keywordMarks = if (kmDraw < 0.35) mapOf(listOf("shorts", "reels")[kmPick] to kmValue) else null
+        // AZ ABLAK-JELEK — három húzás, feltétel nélkül, mint a gépen: van-e jel,
+        // melyik ablak tartalmáé (a hiányzóé is lehet — az a levétel jele), mekkora.
+        val wmDraw = r.next()
+        val wmPick = (r.next() * WINDOWS.size).toInt()
+        val wmValue = minOf(1 + (r.next() * 5).toInt(), rev)
+        val windowMarks = if (wmDraw < 0.35) mapOf(LockdownLogic.windowKey(WINDOWS[wmPick]) to wmValue) else null
         // A NAPLÓ — két húzás, feltétel nélkül, mint a gépen.
         val logDraw = r.next()
         val logPick = (r.next() * 5).toInt()
@@ -234,6 +240,7 @@ class MergeFuzzTest {
             partner = partner, partnerRev = partnerRev, partnerCo = partnerCo, partnersGone = partnersGone,
             hideSiteList = hide, hideSiteListRev = hideRev,
             keywords = keywords, keywordsRev = keywordsRev, keywordMarks = keywordMarks,
+            lockdownWindowMarks = windowMarks,
         )
     }
 
@@ -257,6 +264,7 @@ class MergeFuzzTest {
         return "$packs|$marks|$run|${f.rev}|$lock|$windows|${f.lockdownWindowsRev ?: 0}" +
             "|${if (f.hideSiteList) 1 else 0}|${f.hideSiteListRev ?: 0}" +
             "|${KeywordLogic.keywordsKey(f.keywords)}|${f.keywordsRev ?: 0}|${KeywordLogic.keywordMarksKey(f.keywordMarks)}" +
+            "|${LockdownLogic.windowMarksKey(f.lockdownWindowMarks)}" +
             "|${PartnerLogic.partnerKey(f.partner)}|${f.partnerRev ?: 0}" +
             "|" + f.partnerCo.joinToString(";") { PartnerLogic.partnerKey(it) } +
             "|" + f.partnersGone.joinToString(";") { "${it.id}@${it.at}" } +

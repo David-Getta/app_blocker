@@ -220,8 +220,13 @@ struct AppState: Codable, Equatable {
     var lockdownWindows: [LockdownLogic.LockdownWindow]? = nil
     /// Az ablak-lista JELE: a blob rev-je, amelyik utoljára változtatta (SyncRevisions).
     var lockdownWindowsRev: Int? = nil
-    /// Az ablak-lista kulcsa az utolsó léptetéskor — ebből derül ki, kell-e új jel.
+    /// Az ablak-lista kulcsa az utolsó léptetéskor — ebből derül ki, kell-e új
+    /// jel, és mely tartalmak kerültek be vagy ki (a tartalmi kulcsok „|”-lal).
     var focusRevWindows: String? = nil
+    /// TARTALMANKÉNT az ablak-jelek: tartalmi kulcs → a blob rev-je, amelyik az
+    /// ilyen ablakot utoljára felvette vagy levette (SyncRevisions). A fésülés
+    /// ezekből dönt.
+    var lockdownWindowMarks: [String: Int]? = nil
     /// PÁRBAN ZÁROLÁS: a megbízott neve és a jelmondatának lenyomata — a
     /// jelmondat maga sehol nincs. A munkamenet blobján szinkronizál, a
     /// jelével. Optional, hogy egy korábbi verzió mentése is dekódolható
@@ -445,6 +450,11 @@ final class BreakerStore: ObservableObject {
         // A kulcsszó-jelek a lemezről: ugyanaz a tisztítás, mint a dróton.
         decoded.keywordMarks = KeywordLogic.cleanKeywordMarks(
             decoded.keywordMarks, decoded.keywords ?? [], maxRev: clampedInt(decoded.focusRev ?? 0)
+        )
+        // Az ablak-jelek a lemezről: ugyanaz a tisztítás, mint a dróton.
+        decoded.lockdownWindowMarks = LockdownLogic.cleanWindowMarks(
+            decoded.lockdownWindowMarks, LockdownLogic.cleanWindows(decoded.lockdownWindows ?? []),
+            maxRev: clampedInt(decoded.focusRev ?? 0)
         )
         // A megbízottak a lemezről: ugyanaz a tisztítás és rendezés, mint a dróton.
         decoded.setPartners(PartnerLogic.cleanSet(

@@ -233,19 +233,156 @@ object LockdownLogic {
         return false
     }
 
-    /**
-     * Két eszköz ablak-listája EGGYÉ fésülve, a JELÜK szerint: nagyobb jel
-     * nyer (a levétel próbatétellel jár, ami lépteti), azonos jelnél a bővebb
-     * lista — a kettő uniója tartalom szerint. A jeltelen blob (régi kliens)
-     * jele nulla: az ilyen sosem törölhet listát. A `mergeWindows` tükre.
-     */
-    fun mergeWindows(
-        localMark: Int, local: List<LockdownWindow>, incomingMark: Int, incoming: List<LockdownWindow>,
-    ): List<LockdownWindow> {
-        if (localMark > incomingMark) return cleanWindows(local)
-        if (incomingMark > localMark) return cleanWindows(incoming)
-        return cleanWindows(local + incoming)
+    /** Ennél több ablak-jelet nem hordunk — a `lockdown.ts` `MAX_WINDOW_MARKS`-e. */
+    const val MAX_WINDOW_MARKS = 64
+
+    private val WINDOW_KEY = Regex("^([0-6](?:,[0-6])*)/([0-9]{1,4})/([0-9]{1,4})$")
+
+    /** Kanonikus tartalmi kulcs-e: érvényes sáv, a napok szigorúan növekvő sorrendben, vezető nulla nélkül. */
+    fun isWindowKey(k: String): Boolean {
+        val m = WINDOW_KEY.matchEntire(k) ?: return false
+        val days = m.groupValues[1].split(",").map { it.toInt() }
+        for (i in 1 until days.size) if (days[i] <= days[i - 1]) return false
+        val band = ScheduleLogic.Band(days.toSortedSet(), m.groupValues[2].toInt(), m.groupValues[3].toInt())
+        return ScheduleLogic.isValidBand(band) && windowKey(band) == k
     }
+
+    /**
+     * A jelek plafonja — a gép `capWindowMarks`-e: a jelen lévő ablakok jele
+     * mindig marad, a levettekből a legnagyobb jelűek (holtversenyben kódegység
+     * szerint). Üresen null.
+     */
+    fun capWindowMarks(marks: Map<String, Int>, present: List<String>): Map<String, Int>? {
+        if (marks.isEmpty()) return null
+        val here = present.toHashSet()
+        val kept = marks.entries.filter { it.key in here }
+        val gone = marks.entries.filter { it.key !in here }
+            .sortedWith(compareByDescending<Map.Entry<String, Int>> { it.value }.thenBy { it.key })
+        val limit = maxOf(kept.size, MAX_WINDOW_MARKS)
+        val out = LinkedHashMap<String, Int>()
+        for (e in kept + gone) {
+            if (out.size >= limit) break
+            out[e.key] = e.value
+        }
+        return out
+    }
+
+    /** A kívülről jött ablak-jelek tisztán: kanonikus tartalmi kulcs, pozitív egész, legfeljebb a rev. */
+    fun cleanWindowMarks(raw: Map<String, Int>?, windows: List<LockdownWindow>, maxRev: Int): Map<String, Int>? {
+        if (raw == null) return null
+        val marks = LinkedHashMap<String, Int>()
+        for ((k, v) in raw) {
+            if (v <= 0 || v > maxRev || !isWindowKey(k)) continue
+            marks[k] = v
+        }
+        return capWindowMarks(marks, windows.map { windowKey(it.band) })
+    }
+
+    /** Egy sáv heti percei SZERKEZET szerint — az óraátállítás nélkül. */
+    private fun bandMinutes(b: ScheduleLogic.Band): Int =
+        b.days.size * (if (b.endMin > b.startMin) b.endMin - b.startMin else 1440 - b.startMin + b.endMin)
+
+    /**
+     * A hét szabad percei az ablakok mellett — SZERKEZET szerint (7×1440 perc,
+     * óraátállítás és időzóna nélkül), a gép `freeMinutesPerWeek`-je: a
+     * fésülésnek minden eszközön, minden pillanatban ugyanazt kell adnia. Az
+     * érvénytelen sáv nem fed le semmit.
+     */
+    fun freeMinutesPerWeek(windows: List<ScheduleLogic.Band>): Int {
+        val covered = BooleanArray(7 * 1440)
+        for (b in windows) {
+            if (!ScheduleLogic.isValidBand(b)) continue
+            for (d in b.days) {
+                val base = d * 1440
+                if (b.endMin > b.startMin) {
+                    covered.fill(true, base + b.startMin, base + b.endMin)
+                } else {
+                    covered.fill(true, base + b.startMin, base + 1440)
+                    val next = ((d + 1) % 7) * 1440
+                    covered.fill(true, next, next + b.endMin)
+                }
+            }
+        }
+        return covered.count { !it }
+    }
+
+    /** Az ablakok egy eszközön: a lista és a tartalmi kulcsonkénti jelek. */
+    data class WindowSet(val windows: List<LockdownWindow>, val marks: Map<String, Int>? = null)
+
+    private data class Candidate(val w: LockdownWindow, val k: String, val m: Int, val size: Int)
+
+    /**
+     * Két eszköz ablakai TARTALMI KULCSONKÉNT fésülve — a gép `mergeWindowSets`-e.
+     * A jel a tartalomhoz tartozik, a nagyobb dönt, egyenlő vagy hiányzó jelnél
+     * az unió; azonos tartalomnál a kisebb azonosító marad, és ha egy azonosító
+     * két tartalomhoz is tartozna, a későbbi a tartalmi kulcsát kapja. A
+     * sorrend a régebbi ígéreté (jel, aztán a kisebb ablak, aztán a kulcs); a
+     * hetes plafon és a heti egy szabad óra ebben a sorrendben vág — a
+     * legfrissebb esik ki, a jele marad.
+     */
+    fun mergeWindowSets(a: WindowSet, b: WindowSet): WindowSet {
+        val listA = cleanWindows(a.windows)
+        val listB = cleanWindows(b.windows)
+        val byKey = LinkedHashMap<String, LockdownWindow>()
+        for (w in listA + listB) {
+            val k = windowKey(w.band)
+            val had = byKey[k]
+            if (had == null || w.id < had.id) byKey[k] = w
+        }
+        val keysA = listA.map { windowKey(it.band) }.toHashSet()
+        val keysB = listB.map { windowKey(it.band) }.toHashSet()
+        val names = LinkedHashSet<String>(keysA + keysB)
+        for (m in listOf(a.marks, b.marks)) m?.keys?.forEach { if (isWindowKey(it)) names.add(it) }
+        val present = ArrayList<Candidate>()
+        val marks = LinkedHashMap<String, Int>()
+        for (k in names) {
+            val ma = a.marks?.get(k)?.takeIf { it > 0 } ?: 0
+            val mb = b.marks?.get(k)?.takeIf { it > 0 } ?: 0
+            val inA = k in keysA
+            val inB = k in keysB
+            val here = if (ma > mb) inA else if (mb > ma) inB else inA || inB
+            val m = maxOf(ma, mb)
+            if (here) {
+                val w = byKey.getValue(k)
+                present.add(Candidate(w, k, m, bandMinutes(w.band)))
+            }
+            if (m > 0) marks[k] = m
+        }
+        val kept = ArrayList<LockdownWindow>()
+        val ids = HashSet<String>()
+        for (p in present.sortedWith(compareBy<Candidate>({ it.m }, { it.size }, { it.k }))) {
+            if (kept.size >= MAX_LOCKDOWN_WINDOWS) break
+            if (freeMinutesPerWeek((kept + p.w).map { it.band }) < MIN_FREE_MINUTES_PER_WEEK) continue
+            var id = p.w.id
+            var n = 1
+            while (id in ids) {
+                id = if (n == 1) p.k else "${p.k}#$n"
+                n++
+            }
+            ids.add(id)
+            kept.add(p.w.copy(id = id))
+        }
+        return WindowSet(kept, capWindowMarks(marks, kept.map { windowKey(it.band) }))
+    }
+
+    /**
+     * Az ablak-jelek a léptetésben — a gép `markWindowChanges`-e: ami tartalom az
+     * előző léptetés óta bekerült vagy kikerült, az ezt a blob-rev-et kapja.
+     */
+    fun markWindowChanges(marks: Map<String, Int>?, prevKeys: List<String>, next: List<LockdownWindow>, rev: Int): Map<String, Int>? {
+        val out = LinkedHashMap<String, Int>()
+        marks?.forEach { (k, v) -> if (v > 0) out[k] = v }
+        val nextKeys = next.map { windowKey(it.band) }
+        val before = prevKeys.toHashSet()
+        val after = nextKeys.toHashSet()
+        for (k in nextKeys) if (k !in before) out[k] = rev
+        for (k in prevKeys) if (k !in after && isWindowKey(k)) out[k] = rev
+        return capWindowMarks(out, nextKeys)
+    }
+
+    /** Az ablak-jelek tartalmi kulcsa — rendezve, a különbség-vizsgálathoz. */
+    fun windowMarksKey(marks: Map<String, Int>?): String =
+        (marks ?: emptyMap()).toSortedMap().entries.joinToString(";") { "${it.key}=${it.value}" }
 
     /**
      * A legközelebb beérő ablak-előfordulás, ha `withinMs`-en belül kezdődik —

@@ -108,6 +108,7 @@ final class MergeFixtureTests: XCTestCase {
             + " hide=\((f.hideSiteList ?? false) ? 1 : 0) hmark=\(f.hideSiteListRev ?? 0)"
             + " kw=[\(KeywordLogic.keywordsKey(f.keywords ?? []))] kmark=\(f.keywordsRev ?? 0)"
             + " kwm=[\(KeywordLogic.keywordMarksKey(f.keywordMarks))]"
+            + " wm=[\(LockdownLogic.windowMarksKey(f.lockdownWindowMarks))]"
             + " partner=[\(PartnerLogic.partnerKey(f.partner))] pmark=\(f.partnerRev ?? 0)"
             + " co=[\((f.partnerCo ?? []).map { PartnerLogic.partnerKey($0) }.joined(separator: ";"))]"
             + " gone=[\((f.partnersGone ?? []).map { "\($0.id)@\(int($0.at))" }.joined(separator: ";"))]"

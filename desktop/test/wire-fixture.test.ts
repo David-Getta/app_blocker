@@ -26,6 +26,7 @@ import type { SyncSite } from '../src/shared/sync/merge';
 import { normalizeSchedule, type Schedule } from '../src/shared/schedule';
 import { rng, usageConformanceKey } from './merge-random';
 import { keywordMarksKey } from '../src/shared/keywords';
+import { windowMarksKey } from '../src/shared/lockdown';
 import { combineUsage, type UsageState } from '../src/shared/usage';
 
 /** dist-test/test/… → a tároló gyökere. */
@@ -218,6 +219,17 @@ const FIELD_VARIANTS: Record<string, unknown>[] = [
     { id: 'w8', days: [0], startMin: 0, endMin: 60 },
   ], lockdownWindowsRev: 3 },
   { lockdownWindows: 'x', lockdownWindowsRev: '3' },
+  // Az ablak-jelek: kanonikus tartalmi kulcs (a napok növekvő sorrendben, vezető
+  // nulla nélkül), pozitív egész, legfeljebb a blob rev-je.
+  {
+    lockdownWindows: [{ id: 'w1', days: [1, 2], startMin: 540, endMin: 600 }], lockdownWindowsRev: 3,
+    lockdownWindowMarks: {
+      '1,2/540/600': 2, '2,1/540/600': 1, '1/0540/600': 1, '9/0/60': 1, '1,1/0/60': 1,
+      '3/0/60': 9, '4/0/60': 1.5, '5/0/60': '2', '6/0/1440': 4,
+    },
+  },
+  { lockdownWindowMarks: 'x' },
+  { lockdownWindowMarks: [1, 2] },
   { keywords: ['shorts', 12345, null, 'reels', 'Shorts', true, '  live  '], keywordsRev: 2 },
   { keywords: 'x', keywordsRev: 9 },
   // A kulcsszó-jelek: kanonikus kulcsszó, pozitív egész, legfeljebb a rev — a
@@ -276,6 +288,7 @@ function focusKey(f: SyncFocus): string {
   return `packs=[${packs.join(';')}] marks=[${marks.join(',')}] log=[${log.join(';')}]`
     + ` rev=${f.rev} at=${f.updatedAt} by=${f.updatedBy}`
     + ` run=${run} lock=${lock} windows=[${windows.join(';')}] wmark=${f.lockdownWindowsRev ?? 0}`
+    + ` wm=[${windowMarksKey(f.lockdownWindowMarks)}]`
     + ` kw=[${(f.keywords ?? []).join(',')}] kmark=${f.keywordsRev ?? 0} kwm=[${keywordMarksKey(f.keywordMarks)}]`
     + ` partner=${partner} pmark=${f.partnerRev ?? 0} co=[${co}] gone=[${gone}]`
     + ` hide=${f.hideSiteList ? 1 : 0} hmark=${f.hideSiteListRev ?? 0}`;
@@ -379,7 +392,7 @@ function buildFixture(): Fixture {
       + 'Az in egy dróton jött JSON-szöveg (oldal-lista vagy munkamenet-dokumentum), az out a gép olvasójának '
       + 'eredménye kulcsként; a Kotlin WireFixtureTest és a Swift WireFixtureTests a saját olvasójával '
       + 'ugyanezt kell kapja. Egy rossz elem nem viheti a többit.',
-    version: 2,
+    version: 3,
     sites: siteCases().map((arr) => {
       const text = JSON.stringify(arr);
       return { in: text, out: normalizeIncomingSites(JSON.parse(text)).map(siteKey).join('\n') };

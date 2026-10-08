@@ -162,6 +162,14 @@ Ezért:
   kap (`keywordMarks`), kulcsszavanként a nagyobb jel dönt, egyenlő vagy
   hiányzó jelnél az unió — a hosztnevek mintája. A részletek:
   docs/feature-keywords.md, „Szinkron”.
+- **A zárlat-ablakok tartalmanként fésülődnek, a saját jelükkel.** Az
+  ablak-lista eddig egészében a nagyobb jelet követte, és egy elavult
+  eszközön egy új ablak ingyenes felvétele a régi listával mindenhol
+  letörölte a máshol felvett ablakot. Most minden ablak-tartalom (napok,
+  kezdés, vég) felvétele és levétele saját jelet kap (`lockdownWindowMarks`),
+  tartalmanként a nagyobb jel dönt, egyenlő vagy hiányzó jelnél az unió; a
+  hetes plafon és a heti egy szabad óra a legfrissebbet vágja, nem a régit. A
+  részletek: docs/feature-lockdown-windows.md, „Hogyan működik belül”.
 - **A futó menet csomagja mindig marad, és a fehérlistája nem bővülhet.** A
   csomagok és a menet külön dőlnek el, és a kettő össze tud akadni: az egyik
   eszköz törölte a csomagot (jellel), a másik ugyanabban a körben menetet

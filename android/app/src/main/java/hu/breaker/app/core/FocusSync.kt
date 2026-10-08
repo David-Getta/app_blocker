@@ -62,12 +62,14 @@ object FocusSync {
         val lockdown: LockdownLogic.Lockdown? = null,
         /**
          * A ZÁRLAT-ABLAKOK: beállítás, mint a csomagok — de a levétele
-         * próbatétel, tehát nem az újabb blob dönt róla, hanem a JELE.
-         * Üresen nincs mező a dróton. Lásd `LockdownLogic.mergeWindows`.
+         * próbatétel, tehát nem az újabb blob dönt róla, hanem a TARTALMANKÉNTI
+         * jelek. Üresen nincs mező a dróton. Lásd `LockdownLogic.mergeWindowSets`.
          */
         val lockdownWindows: List<LockdownLogic.LockdownWindow> = emptyList(),
-        /** Az ablak-lista jele: a blob rev-je, amelyik utoljára változtatta. Null = régi kliens. */
+        /** Az ablak-lista egészének jele — csak a régi klienseknek utazik. Null = nincs. */
         val lockdownWindowsRev: Int? = null,
+        /** Az ablak-jelek: tartalmi kulcs → a blob rev-je, amelyik az ilyen ablakot utoljára felvette vagy levette. */
+        val lockdownWindowMarks: Map<String, Int>? = null,
         /**
          * PÁRBAN ZÁROLÁS: a FŐ megbízott lenyomata és a jele. A fésülés NEM a
          * jel szerint megy, hanem azonosság szerint (`PartnerLogic.mergePartners`):
@@ -116,6 +118,11 @@ object FocusSync {
         // A megbízottak AZONOSSÁG szerint: élő megbízottat csak a nyoma visz el,
         // két különböző élő közül egyik sem esik ki (`PartnerLogic.mergePartners`).
         val partners = PartnerLogic.mergePartners(partnerSetOf(local), partnerSetOf(incoming))
+        // Az ablakok TARTALMANKÉNT, a jelük szerint (`LockdownLogic.mergeWindowSets`).
+        val windows = LockdownLogic.mergeWindowSets(
+            LockdownLogic.WindowSet(local.lockdownWindows, local.lockdownWindowMarks),
+            LockdownLogic.WindowSet(incoming.lockdownWindows, incoming.lockdownWindowMarks),
+        )
         // A kulcsszavak KULCSSZAVANKÉNT, a jelük szerint (`KeywordLogic.mergeKeywordSets`).
         val kw = KeywordLogic.mergeKeywordSets(
             KeywordLogic.KeywordSet(local.keywords, local.keywordMarks),
@@ -140,14 +147,12 @@ object FocusSync {
             // tekintet nélkül. Egy hálózat nélkül maradt eszköz így nem tud
             // feloldani semmit azzal, hogy a régi állapotát tolja fel.
             lockdown = LockdownLogic.merge(local.lockdown, incoming.lockdown),
-            // A JEL DÖNT, nem az újabb blob: a levétel próbatétellel jár, ami
-            // lépteti a jelet; egy csomag-szerkesztés a másik eszközön nem.
-            lockdownWindows = LockdownLogic.mergeWindows(
-                local.lockdownWindowsRev ?: 0, local.lockdownWindows,
-                incoming.lockdownWindowsRev ?: 0, incoming.lockdownWindows,
-            ),
+            // TARTALMANKÉNT a jel dönt (fent), nem az újabb blob; a lista
+            // egészének jele csak a régi klienseknek utazik tovább.
+            lockdownWindows = windows.windows,
             lockdownWindowsRev = maxOf(local.lockdownWindowsRev ?: 0, incoming.lockdownWindowsRev ?: 0)
                 .takeIf { it > 0 },
+            lockdownWindowMarks = windows.marks,
             // A megbízott NEM a jel szerint: azonosság szerint (fent). A jel a
             // régi klienseknek utazik tovább, a nagyobbik.
             partner = partners.partner,
@@ -526,7 +531,9 @@ object FocusSync {
         val lock = f.lockdown?.let { "${it.startedAt};${it.until}" } ?: "-"
         // Az ablakok a jelükkel, tartalom szerint rendezve: az azonosító és a
         // sorrend nem jelentés.
-        val windows = f.lockdownWindows.map { LockdownLogic.windowKey(it.band) }.sorted().joinToString("|")
+        // …és a tartalmankénti jelek is: egy levétel jele nélkül a levétel sosem érne át.
+        val windows = f.lockdownWindows.map { LockdownLogic.windowKey(it.band) }.sorted().joinToString("|") +
+            "~" + LockdownLogic.windowMarksKey(f.lockdownWindowMarks)
         // A MEGBÍZOTT IS, a jelével: enélkül a felvétele sosem érne fel. A
         // társak és a nyomok is — egy levétel nyoma nélkül sosem érne át.
         val partner = PartnerLogic.partnerKey(f.partner) +

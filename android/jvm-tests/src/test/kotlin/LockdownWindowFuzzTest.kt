@@ -3,6 +3,7 @@ import hu.breaker.app.core.LockdownLogic
 import hu.breaker.app.core.ScheduleLogic
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -62,7 +63,14 @@ class LockdownWindowFuzzTest {
     }
 
     private fun keys(list: List<LockdownLogic.LockdownWindow>): List<String> =
-        list.map { LockdownLogic.windowKey(it.band) }.sorted()
+        list.map { LockdownLogic.windowKey(it.band) }
+
+    /** Véletlen ablak-jelek a két lista tartalmaira — a gép `randomMarks`-e: a nulla nem jel. */
+    private fun randomMarks(r: Rng, mine: List<LockdownLogic.LockdownWindow>, other: List<LockdownLogic.LockdownWindow>): Map<String, Int> {
+        val out = LinkedHashMap<String, Int>()
+        for (w in mine + other) if (r.next() < 0.5) out[LockdownLogic.windowKey(w.band)] = (r.next() * 4).toInt()
+        return out.filterValues { it != 0 }
+    }
 
     @Test fun `az ablak-zarlat sosem rovidit, egyszer ir, es ket eszkozon ugyanaz`() {
         for (seed in 1..4000) {
@@ -124,7 +132,7 @@ class LockdownWindowFuzzTest {
         }
     }
 
-    @Test fun `a fesules - nagyobb jel nyer, azonos jelnel a bovebb lista, a helyi azonositok maradnak`() {
+    @Test fun `a fesules tartalmankent - a nagyobb jel dont, egyenlonel unio, plafon, szabad ora, egyedi azonosito`() {
         for (seed in 1..3000) {
             val r = Rng(seed)
             val ctx = "mag $seed"
@@ -132,35 +140,41 @@ class LockdownWindowFuzzTest {
             val shared = r.next() < 0.3
             val a = randomWindows(r, if (shared) "x" else "a")
             val b = randomWindows(r, if (shared) "x" else "b")
-            val ma = (r.next() * 4).toInt()
-            val mb = (r.next() * 4).toInt()
-            val m = LockdownLogic.mergeWindows(ma, a, mb, b)
+            val sa = LockdownLogic.WindowSet(a, randomMarks(r, a, b))
+            val sb = LockdownLogic.WindowSet(b, randomMarks(r, b, a))
+            val merged = LockdownLogic.mergeWindowSets(sa, sb)
+            val m = merged.windows
 
             assertTrue(m.size <= LockdownLogic.MAX_LOCKDOWN_WINDOWS, "$ctx: túl sok ablak")
             assertEquals(m.size, m.map { LockdownLogic.windowKey(it.band) }.toSet().size, "$ctx: dupla tartalom")
             assertEquals(m.size, m.map { it.id }.toSet().size, "$ctx: dupla azonosító")
-            assertEquals(m, LockdownLogic.mergeWindows(ma, m, ma, m), "$ctx: a fésülés nem idempotens")
-
-            if (ma > mb) { assertEquals(a, m, "$ctx: a nagyobb helyi jel nem nyert"); continue }
-            if (mb > ma) { assertEquals(b, m, "$ctx: a nagyobb beérkező jel nem nyert"); continue }
+            assertTrue(m.isEmpty() || LockdownLogic.freeMinutesPerWeek(m.map { it.band }) >= LockdownLogic.MIN_FREE_MINUTES_PER_WEEK,
+                "$ctx: nincs szabad óra a héten")
+            assertEquals(m, LockdownLogic.mergeWindowSets(merged, merged).windows, "$ctx: a fésülés nem idempotens")
+            val flipped = LockdownLogic.mergeWindowSets(sb, sa)
+            assertEquals(keys(m), keys(flipped.windows), "$ctx: a fésülés nem szimmetrikus")
+            assertEquals(merged.marks, flipped.marks, "$ctx: a jelek nem szimmetrikusak")
 
             val union = (keys(a) + keys(b)).toSet()
             val mKeys = m.map { LockdownLogic.windowKey(it.band) }
-            for (k in keys(a)) assertTrue(k in mKeys, "$ctx: helyi ablak elveszett")
             for (w in m) assertTrue(LockdownLogic.windowKey(w.band) in union, "$ctx: ablak a semmiből")
-            for (w in a) {
-                val kept = m.find { LockdownLogic.windowKey(it.band) == LockdownLogic.windowKey(w.band) }
-                assertEquals(w.id, kept?.id, "$ctx: a helyi azonosító nem maradt")
-            }
-            if (!shared && union.size <= LockdownLogic.MAX_LOCKDOWN_WINDOWS) {
-                assertEquals(union.sorted(), keys(m), "$ctx: azonos jelnél nem az unió")
-                assertEquals(keys(m), keys(LockdownLogic.mergeWindows(mb, b, ma, a)), "$ctx: a fésülés nem szimmetrikus")
-            }
-            for (w in b) {
-                if (LockdownLogic.windowKey(w.band) in mKeys) continue
-                // Ami a beérkezőből kimaradt, annak oka van: tele a lista, vagy az azonosítója már foglalt.
-                val idTaken = a.any { it.id == w.id }
-                assertTrue(union.size > LockdownLogic.MAX_LOCKDOWN_WINDOWS || idTaken, "$ctx: beérkező ablak ok nélkül veszett el")
+            for (k in union) {
+                val ma = sa.marks?.get(k) ?: 0
+                val mb = sb.marks?.get(k) ?: 0
+                val inA = k in keys(a)
+                val inB = k in keys(b)
+                val want = if (ma > mb) inA else if (mb > ma) inB else inA || inB
+                val got = k in mKeys
+                if (!want) assertFalse(got, "$ctx: a jeles levétel ellenére megmaradt: $k")
+                // Ami jár, az csak a plafon vagy a szabad óra miatt maradhat ki.
+                if (want && !got) {
+                    val w = (a + b).first { LockdownLogic.windowKey(it.band) == k }
+                    assertTrue(m.size >= LockdownLogic.MAX_LOCKDOWN_WINDOWS ||
+                        LockdownLogic.freeMinutesPerWeek((m + w).map { it.band }) < LockdownLogic.MIN_FREE_MINUTES_PER_WEEK,
+                        "$ctx: ablak ok nélkül veszett el: $k")
+                }
+                val mark = maxOf(ma, mb)
+                if (mark > 0) assertEquals(mark, merged.marks?.get(k), "$ctx: a jel nem a nagyobbik: $k")
             }
         }
     }

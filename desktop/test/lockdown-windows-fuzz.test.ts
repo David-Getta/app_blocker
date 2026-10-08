@@ -13,10 +13,11 @@
 import { test } from 'node:test';
 import * as assert from 'node:assert/strict';
 import {
-  dueLockdownWindow, isWindowLockdown, isWindowsLoosening, mergeWindows, normalizeWindows,
-  windowKey, windowLockdown, MAX_LOCKDOWN_WINDOWS, type Lockdown, type LockdownWindow,
+  dueLockdownWindow, freeMinutesPerWeek, isWindowLockdown, isWindowsLoosening, mergeWindowSets, normalizeWindows,
+  windowKey, windowLockdown, MAX_LOCKDOWN_WINDOWS, MIN_FREE_MINUTES_PER_WEEK, type Lockdown, type LockdownWindow,
+  type WindowMarks,
 } from '../src/shared/lockdown';
-import { inAnyBand, type Band, type Weekday } from '../src/shared/schedule';
+import { inAnyBand, type Weekday } from '../src/shared/schedule';
 
 /** Determinisztikus generátor (mulberry32), hogy a hiba visszajátszható legyen. */
 function rng(seed: number): () => number {
@@ -62,10 +63,6 @@ function randomLockdown(r: () => number, now: number): Lockdown | null {
   if (roll < 0.4) return null;
   if (roll < 0.6) return { startedAt: now - 5 * HOUR, until: now - 1 - Math.floor(r() * 2 * HOUR) };
   return { startedAt: now - Math.floor(r() * 3 * DAY), until: now + 1 + Math.floor(r() * 3 * DAY) };
-}
-
-function keys(list: Band[]): string[] {
-  return list.map(windowKey).sort();
 }
 
 test('az ablak-zárlat sosem rövidít, egyszer ír, és két eszközön ugyanaz', () => {
@@ -129,7 +126,15 @@ test('az ablak-zárlat sosem rövidít, egyszer ír, és két eszközön ugyanaz
   }
 });
 
-test('a fésülés: nagyobb jel nyer, azonos jelnél a bővebb lista, a helyi azonosítók maradnak', () => {
+/** Véletlen tartalmi jelek: a lista ablakaié és néhány levett (a másik eszköz ablakai közül). */
+function randomMarks(r: () => number, mine: LockdownWindow[], other: LockdownWindow[]): WindowMarks {
+  const out: WindowMarks = {};
+  for (const w of [...mine, ...other]) if (r() < 0.5) out[windowKey(w)] = Math.floor(r() * 4);
+  for (const k of Object.keys(out)) if (out[k] === 0) delete out[k];
+  return out;
+}
+
+test('a fésülés tartalmanként: a nagyobb jel dönt, egyenlőnél unió; plafon, szabad óra, egyedi azonosító', () => {
   for (let seed = 1; seed <= 3000; seed++) {
     const r = rng(seed);
     const ctx = `mag ${seed}`;
@@ -137,34 +142,39 @@ test('a fésülés: nagyobb jel nyer, azonos jelnél a bővebb lista, a helyi az
     const shared = r() < 0.3;
     const a = randomWindows(r, shared ? 'x' : 'a');
     const b = randomWindows(r, shared ? 'x' : 'b');
-    const ma = Math.floor(r() * 4);
-    const mb = Math.floor(r() * 4);
-    const m = mergeWindows(ma, a, mb, b);
+    const sa = { lockdownWindows: a, lockdownWindowMarks: randomMarks(r, a, b) };
+    const sb = { lockdownWindows: b, lockdownWindowMarks: randomMarks(r, b, a) };
+    const m = mergeWindowSets(sa, sb);
+    const out = m.lockdownWindows;
 
-    assert.ok(m.length <= MAX_LOCKDOWN_WINDOWS, `${ctx}: túl sok ablak`);
-    assert.equal(new Set(m.map(windowKey)).size, m.length, `${ctx}: dupla tartalom`);
-    assert.equal(new Set(m.map((w) => w.id)).size, m.length, `${ctx}: dupla azonosító`);
-    assert.deepEqual(mergeWindows(ma, m, ma, m), m, `${ctx}: a fésülés nem idempotens`);
+    assert.ok(out.length <= MAX_LOCKDOWN_WINDOWS, `${ctx}: túl sok ablak`);
+    assert.equal(new Set(out.map(windowKey)).size, out.length, `${ctx}: dupla tartalom`);
+    assert.equal(new Set(out.map((w) => w.id)).size, out.length, `${ctx}: dupla azonosító`);
+    assert.ok(out.length === 0 || freeMinutesPerWeek(out) >= MIN_FREE_MINUTES_PER_WEEK, `${ctx}: nincs szabad óra a héten`);
+    const again = mergeWindowSets(m, m);
+    assert.deepEqual(again.lockdownWindows, out, `${ctx}: a fésülés nem idempotens`);
+    const flipped = mergeWindowSets(sb, sa);
+    assert.deepEqual(flipped.lockdownWindows.map(windowKey), out.map(windowKey), `${ctx}: a fésülés nem szimmetrikus`);
+    assert.deepEqual(flipped.lockdownWindowMarks, m.lockdownWindowMarks, `${ctx}: a jelek nem szimmetrikusak`);
 
-    if (ma > mb) { assert.deepEqual(m, a, `${ctx}: a nagyobb helyi jel nem nyert`); continue; }
-    if (mb > ma) { assert.deepEqual(m, b, `${ctx}: a nagyobb beérkező jel nem nyert`); continue; }
-
-    const union = new Set([...keys(a), ...keys(b)]);
-    for (const k of keys(a)) assert.ok(m.some((w) => windowKey(w) === k), `${ctx}: helyi ablak elveszett`);
-    for (const w of m) assert.ok(union.has(windowKey(w)), `${ctx}: ablak a semmiből`);
-    for (const w of a) {
-      const kept = m.find((x) => windowKey(x) === windowKey(w));
-      assert.equal(kept?.id, w.id, `${ctx}: a helyi azonosító nem maradt`);
-    }
-    if (!shared && union.size <= MAX_LOCKDOWN_WINDOWS) {
-      assert.deepEqual(keys(m), [...union].sort(), `${ctx}: azonos jelnél nem az unió`);
-      assert.deepEqual(keys(mergeWindows(mb, b, ma, a)), keys(m), `${ctx}: a fésülés nem szimmetrikus`);
-    }
-    for (const w of b) {
-      if (m.some((x) => windowKey(x) === windowKey(w))) continue;
-      // Ami a beérkezőből kimaradt, annak oka van: tele a lista, vagy az azonosítója már foglalt.
-      const idTaken = a.some((x) => x.id === w.id);
-      assert.ok(union.size > MAX_LOCKDOWN_WINDOWS || idTaken, `${ctx}: beérkező ablak ok nélkül veszett el`);
+    const union = new Set([...a, ...b].map(windowKey));
+    for (const w of out) assert.ok(union.has(windowKey(w)), `${ctx}: ablak a semmiből`);
+    for (const k of union) {
+      const ma = sa.lockdownWindowMarks[k] ?? 0;
+      const mb = sb.lockdownWindowMarks[k] ?? 0;
+      const inA = a.some((w) => windowKey(w) === k);
+      const inB = b.some((w) => windowKey(w) === k);
+      const want = ma > mb ? inA : mb > ma ? inB : inA || inB;
+      const got = out.some((w) => windowKey(w) === k);
+      if (!want) assert.ok(!got, `${ctx}: a jeles levétel ellenére megmaradt: ${k}`);
+      // Ami jár, az csak a plafon vagy a szabad óra miatt maradhat ki.
+      if (want && !got) {
+        const w = [...a, ...b].find((x) => windowKey(x) === k)!;
+        assert.ok(out.length >= MAX_LOCKDOWN_WINDOWS || freeMinutesPerWeek([...out, w]) < MIN_FREE_MINUTES_PER_WEEK,
+          `${ctx}: ablak ok nélkül veszett el: ${k}`);
+      }
+      const mark = Math.max(ma, mb);
+      if (mark > 0) assert.equal(m.lockdownWindowMarks?.[k], mark, `${ctx}: a jel nem a nagyobbik: ${k}`);
     }
   }
 });

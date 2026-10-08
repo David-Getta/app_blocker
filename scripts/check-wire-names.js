@@ -95,8 +95,10 @@ const GROUPS = [
     // telefonon kifizetett levétel jele sosem érne át (a kulcsszó mindenhol
     // maradna), és a telefon felvétele jel nélkül egy régebbi levétellel
     // szemben elveszne.
+    // A `lockdownWindowMarks`: TARTALMANKÉNT az ablak-jelek — ugyanez a két
+    // csendes hiba az ablakokra: a levétel nem érne át, a felvétel elveszne.
     names: ['packs', 'run', 'log', 'packMarks', 'lockdown', 'lockdownWindows', 'lockdownWindowsRev',
-      'partner', 'partnerRev', 'partnerCo', 'partnersGone', 'keywords', 'keywordsRev', 'keywordMarks',
+      'lockdownWindowMarks', 'partner', 'partnerRev', 'partnerCo', 'partnersGone', 'keywords', 'keywordsRev', 'keywordMarks',
       'hideSiteList', 'hideSiteListRev', 'rev', 'updatedAt', 'updatedBy'],
     ts: 'desktop/src/shared/sync/focus-merge.ts',
     kt: 'android/app/src/main/java/hu/breaker/app/core/SyncClient.kt',

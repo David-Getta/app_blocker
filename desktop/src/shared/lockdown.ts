@@ -339,28 +339,202 @@ export function windowLockdownStarted(
   return isWindowLockdown(next, windows) ? next : null;
 }
 
+/** Ennél több ablak-jelet nem hordunk: a jelen lévőké mindig marad, a levettekből a legfrissebbek. */
+export const MAX_WINDOW_MARKS = 64;
+
 /**
- * Két eszköz ablak-listája EGGYÉ fésülve, a JELÜK szerint.
- *
- * A jel a blob `rev`-je, amelyik a listát utoljára változtatta (lásd
- * revisions.ts). Nagyobb jel nyer: a levétel próbatétellel jár, ami lépteti
- * a blobot és a jelet, tehát a levétel átmegy, és egy elmaradt eszköz régi
- * listája nem támaszthatja fel — de egy csomag-szerkesztés vagy egy menet
- * indítása a másik eszközön (ami a blob `rev`-jét lépteti, a jelet nem) sem
- * viszi el. Azonos jelnél a BŐVEBB lista (a kettő uniója tartalom szerint):
- * a szigorúbb irány. A jel nélküli blob (régi kliens) jele nulla — az ilyen
- * sosem törölhet listát.
- *
- * Őszinte határ: ha két eszköz egy körben egyszerre vesz fel és le egy-egy
- * ablakot azonos jellel, a levett visszajön; a próbatételt újra kell tenni.
+ * Az ablak-jelek: TARTALMI kulcs (`windowKey`) → a blob rev-je, amelyik az
+ * ilyen tartalmú ablakot utoljára felvette vagy levette. A tartalom az
+ * azonosság, nem az azonosító: a módosítás a régi tartalom levétele és az új
+ * felvétele — a kettő külön jelet kap.
  */
-export function mergeWindows(
-  localMark: number, local: LockdownWindow[], incomingMark: number, incoming: LockdownWindow[],
-): LockdownWindow[] {
-  if (localMark > incomingMark) return normalizeWindows(local);
-  if (incomingMark > localMark) return normalizeWindows(incoming);
-  // Unió TARTALOM szerint: a helyi azonosítója marad, ahol a tartalom azonos.
-  return normalizeWindows([...local, ...incoming]);
+export type WindowMarks = Record<string, number>;
+
+/** Az ablakok egy eszközön: a lista és a tartalmi kulcsonkénti jelek. */
+export interface WindowSet {
+  lockdownWindows?: LockdownWindow[];
+  lockdownWindowMarks?: WindowMarks;
+}
+
+const WINDOW_KEY = /^([0-6](?:,[0-6])*)\/(\d{1,4})\/(\d{1,4})$/;
+
+function codeUnitCompare(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
+/** Kanonikus tartalmi kulcs-e: érvényes sáv, a napok szigorúan növekvő sorrendben, vezető nulla nélkül. */
+export function isWindowKey(k: string): boolean {
+  const m = WINDOW_KEY.exec(k);
+  if (!m) return false;
+  const days = m[1].split(',').map(Number);
+  for (let i = 1; i < days.length; i++) if (days[i] <= days[i - 1]) return false;
+  const band: Band = { days: days as Weekday[], startMin: Number(m[2]), endMin: Number(m[3]) };
+  return isValidBand(band) && windowKey(band) === k;
+}
+
+/** Egy ablak-jel a térképből — csak a SAJÁT, pozitív egész érték számít. */
+export function windowMarkOf(marks: WindowMarks | undefined, k: string): number {
+  if (!marks || !Object.prototype.hasOwnProperty.call(marks, k)) return 0;
+  const v = marks[k];
+  return typeof v === 'number' && Number.isInteger(v) && v > 0 ? v : 0;
+}
+
+/**
+ * A jelek plafonja — EGY szabály a fésülésre, a bemenetre és a léptetésre:
+ * a jelen lévő ablakok jele mindig marad, a levettekből a legnagyobb jelűek
+ * (holtversenyben kódegység szerint). Üresen undefined.
+ */
+export function capWindowMarks(marks: Map<string, number>, present: string[]): WindowMarks | undefined {
+  if (marks.size === 0) return undefined;
+  const here = new Set(present);
+  const kept = [...marks].filter(([k]) => here.has(k));
+  const gone = [...marks].filter(([k]) => !here.has(k))
+    .sort((x, y) => (y[1] - x[1]) || codeUnitCompare(x[0], y[0]));
+  return Object.fromEntries([...kept, ...gone].slice(0, Math.max(kept.length, MAX_WINDOW_MARKS)));
+}
+
+/**
+ * A kívülről (dróton, lemezről) jött ablak-jelek tisztán: kanonikus tartalmi
+ * kulcs, pozitív egész, legfeljebb a blob `rev`-je — a plafonnal.
+ */
+export function cleanWindowMarks(raw: unknown, windows: LockdownWindow[], maxRev: number): WindowMarks | undefined {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
+  const marks = new Map<string, number>();
+  for (const k of Object.keys(raw)) {
+    const v = windowMarkOf(raw as WindowMarks, k);
+    if (v === 0 || v > maxRev || !isWindowKey(k)) continue;
+    marks.set(k, v);
+  }
+  return capWindowMarks(marks, windows.map(windowKey));
+}
+
+/** Egy sáv heti percei SZERKEZET szerint — az óraátállítás nélkül. */
+function bandMinutes(b: Band): number {
+  return b.days.length * (b.endMin > b.startMin ? b.endMin - b.startMin : 1440 - b.startMin + b.endMin);
+}
+
+/**
+ * A hét szabad percei az ablakok mellett — SZERKEZET szerint: a hét 7×1440
+ * perce, óraátállítás és időzóna nélkül. A fésülés ezzel dönt, mert annak
+ * minden eszközön, minden pillanatban ugyanazt kell adnia (a bíró a valódi
+ * órával mér, a következő héten — `weekHasFreeTime`). Az érvénytelen sáv
+ * nem fed le semmit.
+ */
+export function freeMinutesPerWeek(windows: Band[]): number {
+  const covered = new Uint8Array(7 * 1440);
+  for (const b of windows) {
+    if (!isValidBand(b)) continue;
+    for (const d of b.days) {
+      const base = d * 1440;
+      if (b.endMin > b.startMin) {
+        covered.fill(1, base + b.startMin, base + b.endMin);
+      } else {
+        covered.fill(1, base + b.startMin, base + 1440);
+        const next = ((d + 1) % 7) * 1440;
+        covered.fill(1, next, next + b.endMin);
+      }
+    }
+  }
+  let free = 0;
+  for (const c of covered) if (c === 0) free++;
+  return free;
+}
+
+/**
+ * Két eszköz ablakai TARTALMI KULCSONKÉNT fésülve, a jelük szerint.
+ *
+ * MIÉRT. Eddig a lista egészében a nagyobb jelet követte, és a jelet az
+ * ingyenes szigorítás (ablak felvétele, bővítése) is lépteti: egy elavult
+ * eszközön egy új ablak felvétele felhúzta a jelet, és a régi listája
+ * mindenhol letörölte a máshol felvett ablakot — próbatétel nélkül.
+ *
+ * Most a jel a TARTALOMHOZ tartozik (napok, kezdés, vég), és tartalmanként a
+ * nagyobb jel dönt; egyenlő (vagy hiányzó) jelnél az unió. A módosítás a régi
+ * tartalom levétele és az új felvétele: a bővítés így sem lazít (az új
+ * lefedi a régit), a szűkítés pedig próbatétel volt, a levétel jele azt viszi.
+ * Azonos tartalomnál a kisebb azonosító marad; ha egy azonosító két
+ * tartalomhoz is tartozna (két eszköz ugyanazt az ablakot másképp bővítette),
+ * a későbbi a tartalmi kulcsát kapja azonosítónak.
+ *
+ * A sorrend a régebbi ígéreté: a jel szerint (a jeltelen elöl), egyenlő
+ * jelnél a kisebb ablak, aztán a kulcs. A hetes plafon és a heti egy szabad
+ * óra ebben a sorrendben vág — a legfrissebb esik ki, nem a régi: egy
+ * frissen felvett ablak-tömeg nem szoríthat ki régi ablakot, és két eszköz
+ * ablakainak uniója sem zárhatja le az egész hetet (akkor az ablakot sosem
+ * lehetne levenni — az csapda, nem döntés). A kiesett ablak jele marad.
+ */
+export function mergeWindowSets(
+  a: WindowSet, b: WindowSet,
+): { lockdownWindows: LockdownWindow[]; lockdownWindowMarks?: WindowMarks } {
+  const listA = normalizeWindows(a.lockdownWindows);
+  const listB = normalizeWindows(b.lockdownWindows);
+  const byKey = new Map<string, LockdownWindow>();
+  for (const w of [...listA, ...listB]) {
+    const k = windowKey(w);
+    const had = byKey.get(k);
+    if (!had || codeUnitCompare(w.id, had.id) < 0) byKey.set(k, w);
+  }
+  const keysA = new Set(listA.map(windowKey));
+  const keysB = new Set(listB.map(windowKey));
+  const names = new Set<string>([...keysA, ...keysB]);
+  for (const m of [a.lockdownWindowMarks, b.lockdownWindowMarks]) {
+    for (const k of Object.keys(m ?? {})) if (isWindowKey(k)) names.add(k);
+  }
+  const present: { w: LockdownWindow; k: string; m: number; size: number }[] = [];
+  const marks = new Map<string, number>();
+  for (const k of names) {
+    const ma = windowMarkOf(a.lockdownWindowMarks, k);
+    const mb = windowMarkOf(b.lockdownWindowMarks, k);
+    const inA = keysA.has(k);
+    const inB = keysB.has(k);
+    const here = ma > mb ? inA : mb > ma ? inB : inA || inB;
+    const m = Math.max(ma, mb);
+    if (here) {
+      const w = byKey.get(k)!;
+      present.push({ w, k, m, size: bandMinutes(w) });
+    }
+    if (m > 0) marks.set(k, m);
+  }
+  present.sort((x, y) => (x.m - y.m) || (x.size - y.size) || codeUnitCompare(x.k, y.k));
+  const kept: LockdownWindow[] = [];
+  const ids = new Set<string>();
+  for (const p of present) {
+    if (kept.length >= MAX_LOCKDOWN_WINDOWS) break;
+    if (freeMinutesPerWeek([...kept, p.w]) < MIN_FREE_MINUTES_PER_WEEK) continue;
+    let id = p.w.id;
+    for (let n = 1; ids.has(id); n++) id = n === 1 ? p.k : `${p.k}#${n}`;
+    ids.add(id);
+    kept.push({ ...p.w, id });
+  }
+  const lockdownWindowMarks = capWindowMarks(marks, kept.map(windowKey));
+  return { lockdownWindows: kept, ...(lockdownWindowMarks ? { lockdownWindowMarks } : {}) };
+}
+
+/**
+ * Az ablak-jelek a léptetésben: ami tartalom az előző léptetés óta bekerült
+ * vagy kikerült, az ezt a blob-rev-et kapja; a többi jel marad. Az előző
+ * tartalmak a léptetés eltett kulcsából jönnek (`focusRevWindows`).
+ */
+export function markWindowChanges(
+  marks: WindowMarks | undefined, prevKeys: string[], next: LockdownWindow[], rev: number,
+): WindowMarks | undefined {
+  const out = new Map<string, number>();
+  for (const k of Object.keys(marks ?? {})) {
+    const v = windowMarkOf(marks, k);
+    if (v > 0) out.set(k, v);
+  }
+  const nextKeys = next.map(windowKey);
+  const before = new Set(prevKeys);
+  const after = new Set(nextKeys);
+  for (const k of nextKeys) if (!before.has(k)) out.set(k, rev);
+  for (const k of prevKeys) if (!after.has(k) && isWindowKey(k)) out.set(k, rev);
+  return capWindowMarks(out, nextKeys);
+}
+
+/** Az ablak-jelek tartalmi kulcsa — rendezve, a különbség-vizsgálathoz. */
+export function windowMarksKey(marks: WindowMarks | undefined): string {
+  return Object.keys(marks ?? {}).sort(codeUnitCompare)
+    .map((k) => `${k}=${windowMarkOf(marks, k)}`).join(';');
 }
 
 /**
