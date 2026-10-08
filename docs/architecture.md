@@ -960,7 +960,14 @@ kimondja, csendben, a bekapcsolás helyével együtt (`shared/notify-delivery.ts
 a következő átvett értesítés visszavonja. Egy teszt őrzi, hogy a rendererben
 más út ne is legyen. Macen a csomag füstpróbája azt is nézi, hogy az ad-hoc
 aláírás azonosítója a csomagé (`hu.breaker.app`), és az Info.plist az aláírás
-része — enélkül az értesítések némán vesznének el.
+része — enélkül az értesítések némán vesznének el. Windowson ugyanez az
+azonosító az AppUserModelID: a telepítő parancsikonja ezt viseli, és a futó app
+is ezt mondja (`app.setAppUserModelId`, az első ablak előtt; `shared/app-id.ts`,
+teszt köti az `electron-builder.yml`-hez). Az Electron magától
+„electron.app.Breaker”-t mondana, és akkor a Windows az értesítést nem kötné a
+telepített apphoz: se a nevét, se az ikonját nem kapná, a Gépház értesítési
+listáján sem „Breaker” néven állna, és a tálcán a futó app külön ikont kapna a
+kitűzött mellett.
 
 Amit az app NEM lát: hogy egy átvett értesítés tényleg látszott-e. A `show`
 esemény csak annyi, hogy a rendszer átvette — kikapcsolt értesítésnél és

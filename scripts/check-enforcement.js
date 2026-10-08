@@ -4210,6 +4210,16 @@ const WIRES = [
     needle: 'notificationsCheckedAt = now\n                refreshNotificationAccess()',
     lost: 'a kártya sosem jelenne meg: senki nem kérdezné a rendszert',
   },
+  // WINDOWSON AZ ÉRTESÍTÉS AZONOSÍTÓJA. Az Electron magától
+  // „electron.app.Breaker”-t mondana; a telepítő parancsikonja az appId-t
+  // viseli. Ha a kettő elválik, a Windows nem köti az értesítést a telepített
+  // apphoz — és semmi nem hasal el tőle.
+  {
+    file: 'desktop/src/main/main.ts',
+    needle: "if (process.platform === 'win32') app.setAppUserModelId(APP_ID);",
+    lost: 'Windowson az értesítések nem a telepített Breakerhez tartoznának: se név, se ikon, '
+      + 'és a Gépház listáján sem „Breaker” néven állnának',
+  },
 ];
 
 /**

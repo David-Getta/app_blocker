@@ -46,6 +46,7 @@ import {
   BACKGROUND_FLAG, closeAction, LAUNCH_AGENT_LABEL, launchAgentPlist, launchAgentUsable, startsHidden, WINDOWS_RUN_NAME,
 } from '../shared/background';
 import type { StatusData } from '../shared/protocol';
+import { APP_ID } from '../shared/app-id';
 
 const HELPER_MODE = process.argv.includes('--helper');
 /** Indítási füstpróba: a rendes indulás, nyom és hálózat nélkül (smoke.ts). */
@@ -56,6 +57,10 @@ const SMOKE = isSmoke(process.argv);
 // lap `lang="hu"` jelzőjét — angol rendszeren „09:00 AM”-et mutatnának egy
 // magyar felület közepén. A kapcsoló csak az `app.whenReady()` előtt hat.
 app.commandLine.appendSwitch('lang', 'hu');
+
+// Windowson az app ugyanazzal az azonosítóval küld értesítést, amit a telepítő
+// parancsikonja visel (shared/app-id.ts) — még az első ablak és értesítés előtt.
+if (process.platform === 'win32') app.setAppUserModelId(APP_ID);
 
 if (HELPER_MODE) {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
