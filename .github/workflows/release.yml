@@ -45,29 +45,24 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **Windowson a Brave és a Chromium sem kerüli meg a tiltást.** A gép a
-          böngészők saját titkosított DNS-ét (DoH) házirenddel kapcsolja ki, de
-          Windowson eddig csak a Chrome és az Edge kapta meg; a Brave és a Chromium a
-          tiltás mellett oldotta fel a neveket. Most mind a négy, és a Firefox is — a
-          később telepített Firefox is.
+          **Macen a Firefox titkosított DNS-e most tényleg ki van kapcsolva.** A Firefox
+          macOS-en csak akkor veszi figyelembe a gépre tett házirendet, ha egy külön
+          kapcsoló is be van kapcsolva — ez eddig hiányzott. A DoH-tiltás ott állt, a
+          Firefox pedig nem nézett rá. Most a kapcsoló is felkerül.
 
-          **A Firefox saját beállításaihoz nem nyúlunk.** A korábbi verzió a Firefox
-          telepítési mappájában az egész házirend-fájlt lecserélte, vele együtt azt is,
-          amit más tett bele. Mostantól a rendszer saját házirend-helyére írunk, a
-          fájl érintetlen marad.
+          **A Mac-es eltávolító szkript python nélkül is végigfut.** Eddig pythonnal
+          vette ki a tiltást a hosts fájlból, ami a mai macOS-en gyárilag nincs — így a
+          szkript félúton megállhatott, és a tiltás bent maradt. Most a rendszer saját
+          eszközeivel teszi.
 
-          **Az eltávolítás után nem marad nyom a böngészőkben.** Az eltávolító szkript
-          eddig a böngészők DoH-házirendjét nem vette le: a Breaker törlése után a
-          böngésző „szervezet által felügyelt” maradt. Most leveszi — de csak azt, amit
-          a Breaker tett fel.
+          ### Ami a v0.4.252-ben jött
 
-          ### Ami a v0.4.251-ben jött
+          **Windowson a Brave és a Chromium sem kerüli meg a tiltást, és az eltávolítás
+          után nem marad nyom a böngészőkben.**
+
+          #### Ami a v0.4.251-ben jött
 
           **A telefon szól, ha valami a szűrő mellett akar névfeloldást végezni.**
-
-          #### Ami a v0.4.250-ben jött
-
-          **A Firefox titkosított DNS-e nem kerüli meg a telefonos szűrőt.**
           NOTES
           fi
 
