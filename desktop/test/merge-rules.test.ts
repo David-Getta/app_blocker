@@ -40,16 +40,24 @@ test('rules added on two devices at once are both kept', () => {
 });
 
 test('a removal that was paid for is not resurrected', () => {
-  // Az eltávolítás próbatételbe kerül, és a `rev`-et lépteti. A nagyobb rev
-  // mögött ott a munka: az ő listája érvényes, nem az egyesítés.
+  // Az eltávolítás próbatételbe kerül, és SÍRKÖVET kap: a szabály jele a rev,
+  // amelyik levette. A régi listát hordozó eszköz jele kisebb — nem hozza vissza.
   const before = site({ rev: 5, rules: [R('youtube.com/@egy'), R('youtube.com/@ketto')] });
-  const after = site({ rev: 6, rules: [R('youtube.com/@ketto')], updatedAt: 2000 });
+  const after = site({ rev: 6, rules: [R('youtube.com/@ketto')], ruleMarks: { 'youtube.com/@egy': 6 }, updatedAt: 2000 });
   assert.deepEqual(labels(mergeSite(before, after)), ['youtube.com/@ketto']);
   assert.deepEqual(labels(mergeSite(after, before)), ['youtube.com/@ketto']);
+  assert.deepEqual(mergeSite(before, after).ruleMarks, { 'youtube.com/@egy': 6 }, 'a sírkő utazik tovább');
 
   // És az utolsó szabály levétele sem jön vissza.
-  const empty = site({ rev: 7, rules: [], updatedAt: 3000 });
+  const empty = site({ rev: 7, rules: [], ruleMarks: { 'youtube.com/@egy': 6, 'youtube.com/@ketto': 7 }, updatedAt: 3000 });
   assert.deepEqual(labels(mergeSite(after, empty)), []);
+  assert.deepEqual(labels(mergeSite(before, empty)), []);
+
+  // A régi eszköz ingyenes szerkesztései (nagyobb rev) sem hozzák vissza:
+  // a szabály jele dönt, nem a rekordé.
+  const busy = site({ rev: 40, rules: [R('youtube.com/@egy'), R('youtube.com/@ketto')], alias: 'tube', updatedBy: 'gep-b' });
+  assert.deepEqual(labels(mergeSite(busy, after)), ['youtube.com/@ketto']);
+  assert.equal(mergeSite(busy, after).alias, 'tube', 'a fedőnév a frissebb rekordé');
 });
 
 test('an app version that does not know the field cannot delete the rules', () => {
@@ -57,46 +65,65 @@ test('an app version that does not know the field cannot delete the rules', () =
   // átmegy rajta, abból hiányzik. Ha a hiányt „mindent töröltek”-nek vennénk,
   // elég lenne egy frissítetlen telefon a fiókban, és a gépen felvett összes
   // szabály csendben eltűnne — próbatétel nélkül, jelzés nélkül.
-  const mine = site({ rev: 5, rules: [R('youtube.com/@egy')] });
+  const mine = site({ rev: 5, rules: [R('youtube.com/@egy')], ruleMarks: { 'youtube.com/@egy': 5 } });
   const old = site({ rev: 9, updatedAt: 9000, updatedBy: 'regi-telefon' }); // nincs `rules` kulcs
   assert.deepEqual(labels(mergeSite(mine, old)), ['youtube.com/@egy'],
     'a nagyobb rev sem törölhet olyan mezőt, amiről nem tud');
   assert.deepEqual(labels(mergeSite(old, mine)), ['youtube.com/@egy']);
+  assert.deepEqual(mergeSite(old, mine).ruleMarks, { 'youtube.com/@egy': 5 }, 'a jelek is a tudó oldaléi');
 
-  // Az ÜRES LISTA viszont valódi állítás: „volt, és levettem”.
-  const emptied = site({ rev: 9, rules: [], updatedAt: 9000 });
+  // Az üres lista a SÍRKÖVEIVEL valódi állítás: „volt, és levettem”.
+  const emptied = site({ rev: 9, rules: [], ruleMarks: { 'youtube.com/@egy': 9 }, updatedAt: 9000 });
   assert.deepEqual(labels(mergeSite(mine, emptied)), []);
+  // Sírkő nélkül viszont nem — egy jel nélküli levétel (régi kliens) nem
+  // tarthatja meg magát: egyenlő jelnél a jelenlét nyer.
+  const unmarked = site({ rev: 9, rules: [], updatedAt: 9000 });
+  assert.deepEqual(labels(mergeSite(mine, unmarked)), ['youtube.com/@egy']);
 });
 
-test('the mark decides: a paid removal beats a higher rev, and an old client does not endorse the list it met first', () => {
-  // A JEL: a lista levétele (kifizetett) nagyobb jellel átmegy akkor is, ha a
-  // másik rekord rev-je más szerkesztéstől nagyobb — a rekord rev-je nem a
-  // szabálylista története.
-  const kept = site({ rev: 6, rules: [R('youtube.com/@egy')], rulesRev: 2 });
-  const removed = site({ rev: 4, rules: [], rulesRev: 4, updatedBy: 'gep-b' });
+test('a free addition with a higher mark does not take the rule the other device added', () => {
+  // A REGI HIBA: a lista egy jellel utazott, és az ingyenes felvétel nagyobb
+  // jellel EGÉSZÉBEN vitte a listáját — a másik eszközön közben felvett szabály
+  // csendben eltűnt. Szabályonként mindkettő megmarad.
+  const a = site({ rev: 10, rules: [R('youtube.com/@egy'), R('youtube.com/@t')], ruleMarks: { 'youtube.com/@t': 10 }, rulesRev: 10 });
+  const b = site({ rev: 4, rules: [R('youtube.com/@egy'), R('youtube.com/@s')], ruleMarks: { 'youtube.com/@s': 4 }, rulesRev: 4, updatedBy: 'gep-b' });
+  for (const m of [mergeSite(a, b), mergeSite(b, a)]) {
+    assert.deepEqual(labels(m), ['youtube.com/@egy', 'youtube.com/@s', 'youtube.com/@t']);
+    assert.deepEqual(m.ruleMarks, { 'youtube.com/@s': 4, 'youtube.com/@t': 10 });
+    assert.equal(m.rulesRev, 10, 'a lista-jelből a nagyobb megy tovább — a régi kliensek abból fésülnek');
+  }
+});
+
+test('per rule the higher mark decides: a paid removal beats a higher rev, a later re-add beats the removal', () => {
+  const kept = site({ rev: 6, rules: [R('youtube.com/@egy')], ruleMarks: { 'youtube.com/@egy': 2 } });
+  const removed = site({ rev: 4, rules: [], ruleMarks: { 'youtube.com/@egy': 4 }, updatedBy: 'gep-b' });
   assert.deepEqual(labels(mergeSite(kept, removed)), []);
-  assert.equal(mergeSite(kept, removed).rulesRev, 4);
-  assert.equal(mergeSite(removed, kept).rulesRev, 4);
-  // Azonos jelnél a régi szabály: egyenlő revnél unió, a jel marad.
-  const x = site({ rev: 5, rules: [R('youtube.com/@egy')], rulesRev: 3 });
-  const y = site({ rev: 5, rules: [R('youtube.com/@ketto')], rulesRev: 3, updatedBy: 'gep-b' });
-  assert.deepEqual(labels(mergeSite(x, y)), ['youtube.com/@egy', 'youtube.com/@ketto']);
-  assert.equal(mergeSite(x, y).rulesRev, 3);
-  // Régi kliens (nincs mező, nagy rev) és két új kliens: a sorrend nem számít.
-  // A rekord rev-jével a régi kliens azt a listát hitelesítette volna,
-  // amelyikkel épp előbb találkozott — [egy] vagy [] a sorrendtől függően.
+  assert.deepEqual(labels(mergeSite(removed, kept)), []);
+  const readded = site({ rev: 8, rules: [R('youtube.com/@egy')], ruleMarks: { 'youtube.com/@egy': 8 } });
+  assert.deepEqual(labels(mergeSite(removed, readded)), ['youtube.com/@egy']);
+  assert.deepEqual(mergeSite(readded, removed).ruleMarks, { 'youtube.com/@egy': 8 });
+  // Egyenlő jelnél a jelenlét: sorrendtől független, és sosem lazább.
+  const here = site({ rev: 4, rules: [R('youtube.com/@egy')], ruleMarks: { 'youtube.com/@egy': 4 } });
+  assert.deepEqual(labels(mergeSite(removed, here)), ['youtube.com/@egy']);
+  assert.deepEqual(labels(mergeSite(here, removed)), ['youtube.com/@egy']);
+});
+
+test('three devices in any order agree, an old client among them too', () => {
   const old = site({ rev: 9, updatedBy: 'telefon' });
-  const d = site({ rev: 2, rules: [R('youtube.com/@egy')], rulesRev: 2 });
-  const e = site({ rev: 3, rules: [], rulesRev: 3, updatedBy: 'gep-b' });
-  const viaD = mergeSite(mergeSite(old, d), e);
-  const viaE = mergeSite(mergeSite(old, e), d);
-  assert.deepEqual(labels(viaD), []);
-  assert.deepEqual(labels(viaE), []);
-  assert.equal(viaD.rulesRev, 3);
-  assert.equal(viaE.rulesRev, 3);
-  assert.equal(mergeSite(old, d).rulesRev, 2, 'a régi kliens a másik jelét viszi, nem a saját rev-jét');
-  // Jel nélküli (régi) rekordok között a régi szabály áll.
-  assert.deepEqual(labels(mergeSite(site({ rev: 5, rules: [R('youtube.com/@egy')] }), site({ rev: 3, rules: [] }))), ['youtube.com/@egy']);
+  const d = site({ rev: 2, rules: [R('youtube.com/@egy')], ruleMarks: { 'youtube.com/@egy': 2 }, rulesRev: 2 });
+  const e = site({ rev: 3, rules: [], ruleMarks: { 'youtube.com/@egy': 3 }, rulesRev: 3, updatedBy: 'gep-b' });
+  const f = site({ rev: 5, rules: [R('youtube.com/@ketto')], ruleMarks: { 'youtube.com/@ketto': 5 }, rulesRev: 5, updatedBy: 'gep-c' });
+  const orders = [
+    mergeSite(mergeSite(mergeSite(old, d), e), f),
+    mergeSite(mergeSite(mergeSite(f, e), d), old),
+    mergeSite(mergeSite(old, f), mergeSite(e, d)),
+    mergeSite(mergeSite(d, f), mergeSite(old, e)),
+  ];
+  for (const m of orders) {
+    assert.deepEqual(labels(m), ['youtube.com/@ketto']);
+    assert.deepEqual(m.ruleMarks, { 'youtube.com/@egy': 3, 'youtube.com/@ketto': 5 });
+    assert.equal(m.rulesRev, 5);
+  }
 });
 
 test('a site that never had rules stays without the field', () => {

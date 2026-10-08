@@ -195,21 +195,42 @@ fölösleges: a szinkron nem dobhat el olyan mezőt, amit nem ért, különben a
 telefon minden körben letörölné a gépen felvett szabályokat.
 
 Az összefésülés a rekord többi mezőjétől külön kezeli őket
-(`shared/sync/merge.ts`, `mergeRules`), és a szabálylistának saját JELE van
-(`rulesRev`: az a `rev`, amelyik a listát utoljára változtatta — a gép írja a
-`commit()` eleji léptetésben, a telefonok hordozzák). A **nagyobb jel dönt**:
-az eltávolítás mögött ott a próbatétel, és átmegy akkor is, ha a másik rekord
-`rev`-je más szerkesztéstől nagyobb. Azonos jelnél a régi szabály: egyenlő
-`rev`-nél EGYESÍT (két eszközön egyszerre felvett szabályból egyik sem veszhet
-el), különben az újabb rekord listája. A **hiányzó mező** pedig nem törlés,
-hanem „nem tudok róla”: a másik oldal listája ÉS jele marad. Ez utóbbi azért
-a jel és nem a rekord `rev`-je: egy régi kliens nagy `rev`-je azt a listát
-hitelesítette volna, amelyikkel épp előbb találkozott, és három eszköznél az
-eredmény a sorrendtől függött.
+(`shared/sync/merge.ts`, `mergeRules`), SZABÁLYONKÉNT: minden szabálynak
+saját JELE van (`ruleMarks`: szabály-kulcs → az a `rev`, amelyik a szabályt
+utoljára felvette vagy levette; a levett szabály jele sírkő). A **nagyobb jel
+dönt** — ami annál áll, benne van vagy nincs, az marad: a kifizetett levétel
+átmegy akkor is, ha a másik rekord `rev`-je más szerkesztéstől nagyobb, és egy
+később újra felvett szabály a levétel ellen is. **Egyenlő jelnél a jelenlét**
+(a jel nélküli szabály is ilyen): két eszközön egyszerre felvett szabályból
+egyik sem veszhet el. A **hiányzó mező** pedig nem törlés, hanem „nem tudok
+róla”: a másik oldal listája, jelei és lista-jele marad.
+
+A jelet a gép a `commit()` eleji léptetésben írja, a lista változásából (mint
+a hosztnevekét — egy fogópont, nem a felvétel és a levétel két helye); az
+Android a bírónál, a felvételkor és a kifizetett levétel teljesítésekor, azzal
+a rev-vel, amit a mentés léptetése ad; az iPhone nem szerkeszt szabályt, csak
+hordozza és fésüli a jeleket.
+
+**Miért nem elég egy jel a listára.** Eddig így volt (`rulesRev`), és két lyuk
+maradt rajta. Egy ingyenes felvétel nagyobb jellel EGÉSZÉBEN vitte a
+listáját: ha közben egy másik eszközön is felvettek egy szabályt, az csendben
+eltűnt — egy szigorítás lazított a másik eszközön. Egyenlő jelnél pedig a
+rekord `rev`-je döntött, ami más mezőtől is nő: három eszköznél a sorrendtől
+függött, melyik lista marad. A lista-jelet most csak továbbvisszük (a
+nagyobbat): a frissítés előtti kliensek abból fésülnek.
+
+**Kimondott korlátok.** A frissítés előtti kliens a szabályonkénti jelet nem
+ismeri: az ő kifizetett levétele jel nélkül megy fel, és a többi eszköz
+listája visszahozza — a levételt egy frissített eszközön újra kell kérni.
+Ugyanez áll arra a levételre, ami a frissítés előtt történt, és egy eszköz
+azóta nem szinkronizált: annak sincs sírköve. Mindkettő a szigorúbb irányba
+téved (a szabály marad), és megszűnik, amint minden eszköz frissült. A
+plafon (50 szabály) fölött a nagyobb jelűek maradnak; a kiesett szabály jele
+is kiesik, hogy a hiánya ne látsszon kifizetett levételnek.
 
 ## A három mag ugyanazt a szabályt látja
 
-A szabályt a gépen és Androidon kézzel írják be, és a jelével (`rulesRev`)
+A szabályt a gépen és Androidon kézzel írják be, és a jelével (`ruleMarks`)
 utazik; az illesztést a gép bővítménye hozza, de a mag mindhárom nyelvben ott
 áll. A `fixtures/text-cases.json` (írja `desktop/test/text-fixture.test.ts`)
 ezért a részleges szabályt is tartja: beírt szöveg → kanonikus szabály
@@ -237,4 +258,8 @@ lista, mert az üres lista azt jelentené, hogy minden szabály törölve —, a
 listából csak a KANONIKUS alak megy át, átírás nélkül (hoszt-alakú hoszt,
 `/`-rel kezdődő, szóköz nélküli út). Eddig az Android újranormalizált (a
 „X.COM” kisbetűsítve átment, a gépen kiesett), az iPhone pedig egyetlen rossz
-szabály miatt az egész oldalt eldobta. A `fixtures/wire-cases.json` kimondja.
+szabály miatt az egész oldalt eldobta. A szabályok jeleiből is csak az megy
+át, aminek a kulcsa kanonikus szabály-kulcs (ahogy a kézzel beírt szabály is
+lenne), az értéke pozitív egész a rekord `rev`-jéig, és csak szabálylista
+mellett — egy kulccsal írt szemét így nem lehet sírkő egy sosem volt
+szabálynak. A `fixtures/wire-cases.json` kimondja.

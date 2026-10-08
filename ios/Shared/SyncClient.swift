@@ -179,7 +179,9 @@ enum SyncClient {
                 rulesRev: s.rulesRev,
                 // A kifizetett lazítások számlálói: a fésülés mezőnként ebből dönt.
                 deleteLoosens: s.deleteLoosens, scheduleLoosens: s.scheduleLoosens,
-                limitLoosens: s.limitLoosens, burstLoosens: s.burstLoosens
+                limitLoosens: s.limitLoosens, burstLoosens: s.burstLoosens,
+                // A szabályok jelei is hordozottak: szabályonként ezekből dől el a fésülés.
+                ruleMarks: s.ruleMarks
             )
         }
     }
@@ -207,6 +209,7 @@ enum SyncClient {
             out.scheduleLoosens = m.scheduleLoosens
             out.limitLoosens = m.limitLoosens
             out.burstLoosens = m.burstLoosens
+            out.ruleMarks = m.ruleMarks
             out.revFp = SyncRevisions.fingerprint(out)
             return out
         }

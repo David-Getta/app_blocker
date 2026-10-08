@@ -122,6 +122,23 @@ class RuleChangeTest {
         assertNull(BreakerStore.state.value.sites.first().pauseUntil)
     }
 
+    @Test fun `adding and the paid removal both mark the rule with the rev that carries them`() {
+        // A fésülés szabályonként a jel szerint dönt: jel nélkül a telefonon
+        // kifizetett levételt a gép régi listája visszahozná, a telefonon felvett
+        // szabályt pedig egy nagyobb jelű lista elvihetné.
+        Referee.startRuleChange("s1", rule("youtube.com/@egy"), remove = false, now = now)
+        val afterAdd = BreakerStore.state.value.sites.first()
+        assertEquals(mapOf("youtube.com/@egy" to afterAdd.rev), afterAdd.ruleMarks, "a felvétel a léptetett rev-et kapja")
+
+        Referee.startRuleChange("s1", rule("youtube.com/@egy"), remove = true, now = now)
+        assertEquals(afterAdd.ruleMarks, BreakerStore.state.value.sites.first().ruleMarks, "a kísérlet indítása még nem jelöl")
+        finishSession()
+        val afterRemoval = BreakerStore.state.value.sites.first()
+        assertTrue(afterRemoval.rules.isNullOrEmpty())
+        assertEquals(mapOf("youtube.com/@egy" to afterRemoval.rev), afterRemoval.ruleMarks, "a levett szabály jele sírkő")
+        assertTrue(afterRemoval.rev > afterAdd.rev)
+    }
+
     /** Végigcsinálja a futó kísérlet lépéseit — bármilyen kombinációt kapott. */
     private fun finishSession() {
         var guard = 0

@@ -128,14 +128,19 @@ adag-szabály — MEZŐNKÉNT fésülődik, nem rekordonként:
   el (mindegyik a saját, szigorúbb vagy kifizetett listáját tartja), de a
   régi gép próbatétele hiába. A hurok megáll, amint a régi kliens frissül —
   ezért érdemes minden gépet egyszerre frissíteni.
-- **A részleges szabályok jele.** A szabálylista egyben utazik, és a
-  fésülésében a JELE dönt (`rulesRev`: az a rev, amelyik a listát utoljára
-  változtatta): a nagyobb jel nyer, azonos jelnél egyenlő rev-nél unió,
-  különben az újabb rekordé; a mező nélküli (régi) kliens rekordja a másik
-  oldal listáját és jelét viszi — nem a saját rev-jével hitelesíti, mert úgy
-  három eszköznél az eredmény a sorrendtől függött. A gép bélyegzi a
-  léptetésben, a telefon hordozza; a fixtúra és a tesztek mindhárom nyelven
-  őrzik. Lásd docs/feature-partial-block.md.
+- **A részleges szabályok szabályonként, jelekkel** — mint a hosztnevek.
+  Minden felvétel és levétel jelet kap (`ruleMarks`, szabály-kulcs → rev; a
+  levett szabály jele sírkő); szabályonként a nagyobb jel dönt, egyenlőnél a
+  jelenlét. Eddig a lista egy jellel utazott (`rulesRev`), és egy ingyenes
+  felvétel nagyobb jellel egészében vitte a listáját — a másik eszközön
+  közben felvett szabály csendben eltűnt; egyenlő jelnél pedig a rekord rev-je
+  döntött, három eszköznél sorrendfüggően. A lista-jel már csak a régi
+  klienseknek megy tovább. A gép a léptetésben jelöl, az Android a bírónál, az
+  iPhone hordoz; a mező nélküli (régi) kliens rekordja a másik oldal listáját,
+  jeleit és lista-jelét viszi. **Kimondott korlát:** a frissítés előtti
+  kliens levétele (és egy frissítés előtti, még el nem terjedt levétel) jel
+  nélkül megy, és a többi eszköz listája visszahozza. Lásd
+  docs/feature-partial-block.md.
 - **A munkamenet-csomagok ugyanígy, csomagonként.** A csomaglista egy
   blobban utazik, és a blob `rev`-jét a telefon egy menet indításával is
   lépteti; jel nélkül egy azonos rev-ű, frissebb telefon-blob egyben hozta

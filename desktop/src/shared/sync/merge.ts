@@ -75,12 +75,20 @@ export interface SyncSite {
   rules?: UrlRule[];
   /**
    * A szabálylista JELE: a rekord `rev`-je, amelyik a listát utoljára
-   * változtatta. A fésülésben a nagyobb jel dönt; azonos jelnél a régi
-   * szabály (egyenlő revnél unió, különben az újabb rekord listája); a mező
-   * nélküli rekord (régi kliens) a másik oldal listáját ÉS jelét viszi — nem
-   * a saját rev-jével hitelesíti. Lásd `mergeRules`.
+   * változtatta. Már csak a RÉGI klienseknek szól (ők ebből fésülnek); az új
+   * fésülés a szabályonkénti jeleket nézi, ezt csak továbbviszi. Lásd
+   * `mergeRules`.
    */
   rulesRev?: number;
+  /**
+   * A szabályok JELEI: szabály-kulcs (`hoszt` + `út`) → a rekord `rev`-je,
+   * amelyik a szabályt utoljára felvette vagy levette (melyik történt, azt a
+   * `rules` mondja: a levett szabály jele sírkő). Szabályonként a nagyobb jel
+   * dönt; egyenlőnél (a jel nélküli is ilyen) a jelenlét. A gép a léptetésben
+   * írja, az Android a bírónál (felvétel, kifizetett levétel), az iPhone
+   * hordozza. Lásd `mergeRules`.
+   */
+  ruleMarks?: Record<string, number>;
   /**
    * A KIFIZETETT LAZÍTÁSOK száma mezőnként — csak próbatétel után nő (a bíró
    * írja, a teljesítéskor). A fésülésben a több nyer, egyenlőnél a szigorúbb
@@ -406,47 +414,81 @@ export function capHostnameMarks(
 }
 
 function withRules(winner: SyncSite, a: SyncSite, b: SyncSite): SyncSite {
-  const { rules, mark } = mergeRules(a, b);
+  const { rules, marks, mark } = mergeRules(a, b);
   const out: SyncSite = { ...winner };
   if (rules === undefined) delete out.rules; else out.rules = rules;
-  if (mark > 0) out.rulesRev = mark; else delete out.rulesRev;
+  if (rules !== undefined && marks && Object.keys(marks).length > 0) out.ruleMarks = marks; else delete out.ruleMarks;
+  if (rules !== undefined && mark > 0) out.rulesRev = mark; else delete out.rulesRev;
   return out;
 }
 
+/** Egy szabály kulcsa a jelekhez: a kanonikus `hoszt` + `út`. */
+export function ruleKey(r: UrlRule): string {
+  return `${r.host}${r.path}`;
+}
+
+/** Egy jel értéke: csak pozitív egész számít. */
+function markOf(v: number | undefined): number {
+  return typeof v === 'number' && Number.isInteger(v) && v > 0 ? v : 0;
+}
+
 /**
- * A részleges szabályok összefésülése — a rekord többi mezőjétől KÜLÖN.
+ * A részleges szabályok összefésülése — a rekord többi mezőjétől KÜLÖN,
+ * SZABÁLYONKÉNT.
  *
- * Miért nem elég a nyertes rekord szabálylistája:
- *
- *   1. **Egyenlő revnél EGYESÍTÜNK.** A szabály tisztán hozzáadás: egy szabály
- *      felvétele szigorítás. Ha ilyenkor egy egész listát választanánk, két
- *      eszközön egyszerre felvett két szabályból az egyik némán elveszne — a
- *      felhasználó pedig azt hinné, hogy felvette.
- *   2. **Nagyobb rev nyer** — ott van mögötte a próbatétel, tehát az eltávolítás
- *      is átmegy. Egyesítés itt feltámasztaná a kifizetett törlést.
- *   3. **A `undefined` NEM ugyanaz, mint az `[]`.** Egy RÉGI app-verzió nem
+ *   1. **A szabály jele dönt.** Minden felvétel és levétel jelet kap: a rekord
+ *      rev-jét, amelyik vitte (`ruleMarks`). Szabályonként a nagyobb jelnél
+ *      álló állapot (benne van vagy nincs) marad — a kifizetett levétel így
+ *      átmegy, és egy régebbi eszköz ingyenes szerkesztése sem hozza vissza.
+ *   2. **Egyenlő jelnél a jelenlét** — a jel nélküli szabály is ilyen. Két
+ *      eszközön egyszerre felvett két szabály mindkettő megmarad.
+ *   3. **A lista-jel (`rulesRev`) már nem dönt.** Eddig az egész lista egy
+ *      jellel utazott: egy ingyenes felvétel nagyobb jellel EGÉSZÉBEN vitte a
+ *      listáját, és a másik eszközön közben felvett szabály csendben eltűnt;
+ *      egyenlő jelnél pedig a rekord rev-je döntött, ami más mezőtől is nő —
+ *      három eszköznél a sorrendtől függött, melyik lista marad. A lista-jelet
+ *      csak továbbvisszük (a nagyobbat), a régi kliensek abból fésülnek.
+ *   4. **A `undefined` NEM ugyanaz, mint az `[]`.** Egy RÉGI app-verzió nem
  *      ismeri ezt a mezőt: ha egyszer átmegy rajta egy rekord, a mező eltűnik
  *      belőle. Ha ezt „minden szabály törölve”-ként értenénk, elég lenne egy
  *      frissítetlen telefon a fiókban, és a gépen felvett összes szabály
  *      csendben eltűnne. Ezért a „nem tudok a mezőről” nem törölhet: olyankor a
- *      másik oldal listája marad.
- *   4. **A JEL DÖNT, nem a rekord rev-je** (`rulesRev`: az a rev, amelyik a
- *      listát utoljára változtatta). A rekord rev-je más szerkesztéstől is nő,
- *      és egy mező nélküli régi kliens nagy rev-je azt a listát „hitelesítené”,
- *      amelyikkel épp előbb találkozott — három eszköznél az eredmény a
- *      sorrendtől függött. A jellel nem: a mező nélküli rekord a másik oldal
- *      listáját ÉS jelét viszi; jel nélküli (régi) rekordoknál a régi szabály.
+ *      másik oldal listája, jelei és lista-jele marad.
+ *
+ * A plafon: legfeljebb 50 szabály marad (a nagyobb jelűek, egyenlőnél kulcs
+ * szerint); a kiesett szabály jele is kiesik — különben a hiánya a jelével
+ * együtt kifizetett levételnek látszana. A jelek plafonja a hosztneveké.
  */
-function mergeRules(a: SyncSite, b: SyncSite): { rules: UrlRule[] | undefined; mark: number } {
+function mergeRules(a: SyncSite, b: SyncSite): {
+  rules: UrlRule[] | undefined; marks: Record<string, number> | undefined; mark: number;
+} {
   const ar = cleanRules(a.rules);
   const br = cleanRules(b.rules);
-  const ma = ar === undefined ? 0 : (a.rulesRev ?? 0);
-  const mb = br === undefined ? 0 : (b.rulesRev ?? 0);
-  if (ar === undefined) return { rules: br, mark: mb };
-  if (br === undefined) return { rules: ar, mark: ma };
-  if (ma !== mb) return ma > mb ? { rules: ar, mark: ma } : { rules: br, mark: mb };
-  if (a.rev === b.rev) return { rules: unionRules(ar, br), mark: ma };
-  return { rules: a.rev > b.rev ? ar : br, mark: ma };
+  if (ar === undefined && br === undefined) return { rules: undefined, marks: undefined, mark: 0 };
+  if (ar === undefined) return { rules: br, marks: b.ruleMarks, mark: markOf(b.rulesRev) };
+  if (br === undefined) return { rules: ar, marks: a.ruleMarks, mark: markOf(a.rulesRev) };
+  const am = a.ruleMarks ?? {};
+  const bm = b.ruleMarks ?? {};
+  const byKey = new Map<string, UrlRule>();
+  for (const r of [...ar, ...br]) byKey.set(ruleKey(r), r);
+  const inA = new Set(ar.map(ruleKey));
+  const inB = new Set(br.map(ruleKey));
+  const marks: Record<string, number> = {};
+  const present: string[] = [];
+  for (const k of new Set([...byKey.keys(), ...Object.keys(am), ...Object.keys(bm)])) {
+    const ma = markOf(am[k]);
+    const mb = markOf(bm[k]);
+    const here = ma > mb ? inA.has(k) : mb > ma ? inB.has(k) : inA.has(k) || inB.has(k);
+    if (Math.max(ma, mb) > 0) marks[k] = Math.max(ma, mb);
+    if (here) present.push(k);
+  }
+  present.sort((x, y) => (markOf(marks[y]) - markOf(marks[x])) || (x < y ? -1 : x > y ? 1 : 0));
+  for (const k of present.slice(MAX_RULES_PER_SITE)) delete marks[k];
+  const kept = present.slice(0, MAX_RULES_PER_SITE);
+  // Stabil sorrend, hogy két eszköz bájtra ugyanazt a listát kapja — különben
+  // örökké oda-vissza írnák egymást, mert a tartalom „változott”.
+  const rules = kept.map((k) => byKey.get(k)!).sort((x, y) => (ruleKey(x) < ruleKey(y) ? -1 : ruleKey(x) > ruleKey(y) ? 1 : 0));
+  return { rules, marks: capHostnameMarks(marks, kept), mark: Math.max(markOf(a.rulesRev), markOf(b.rulesRev)) };
 }
 
 /** Szemétszűrés: a szinkronon át érkező szabály ugyanolyan megbízhatatlan, mint bármi más. */
@@ -465,18 +507,6 @@ function cleanRules(rules: UrlRule[] | undefined): UrlRule[] | undefined {
     out.push(norm);
   }
   return out;
-}
-
-function unionRules(a: UrlRule[], b: UrlRule[]): UrlRule[] {
-  const out = [...a];
-  for (const r of b) {
-    if (out.some((x) => sameRule(x, r))) continue;
-    if (out.length >= MAX_RULES_PER_SITE) break;
-    out.push(r);
-  }
-  // Stabil sorrend, hogy két eszköz bájtra ugyanazt a listát kapja — különben
-  // örökké oda-vissza írnák egymást, mert a tartalom „változott”.
-  return out.sort((x, y) => (x.host + x.path < y.host + y.path ? -1 : 1));
 }
 
 /**

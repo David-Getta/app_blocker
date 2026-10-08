@@ -6,7 +6,7 @@
 // állítja elő ugyanabból a magból, tehát ugyanazokat az eseteket járja be.
 // Ha itt egy r() hívás sorrendje változik, ott is változnia kell.
 
-import type { SyncSite } from '../src/shared/sync/merge';
+import { ruleKey, type SyncSite } from '../src/shared/sync/merge';
 import { emptyFocus, normalizeSyncFocus, type SyncFocus } from '../src/shared/sync/focus-merge';
 import { isRunning, isSiteAllowed, type FocusLogEntry, type FocusPack, type FocusRun } from '../src/shared/focus';
 import type { Band, Schedule, ScheduleMode, Weekday } from '../src/shared/schedule';
@@ -85,6 +85,16 @@ export function randomSite(r: () => number, device: string): SyncSite {
   const loosPick = Math.floor(r() * 4);
   const loosValue = Math.min(1 + Math.floor(r() * 2), rev);
   const loosens = loosDraw < 0.4 ? { [LOOSENS[loosPick]]: loosValue } : {};
+  // A SZABÁLYOK JELEI — négy húzás, feltétel nélkül, ugyanebben a sorrendben
+  // a három nyelvben: a két készlet-szabály mindegyikére van-e jele, és mennyi
+  // (legfeljebb a rev). A listán nem lévő szabály jele sírkő; csak lista mellett.
+  const rm0Draw = r();
+  const rm0Value = Math.min(1 + Math.floor(r() * 5), rev);
+  const rm1Draw = r();
+  const rm1Value = Math.min(1 + Math.floor(r() * 5), rev);
+  const ruleMarks: Record<string, number> = {};
+  if (rules !== undefined && rm0Draw < 0.5) ruleMarks[ruleKey(RULES[0])] = rm0Value;
+  if (rules !== undefined && rm1Draw < 0.5) ruleMarks[ruleKey(RULES[1])] = rm1Value;
   return {
     id: 'site_1', domain: 'youtube.com', hostnames, addedAt: 1_000,
     ...(Object.keys(marks).length ? { hostnameMarks: marks } : {}),
@@ -93,6 +103,7 @@ export function randomSite(r: () => number, device: string): SyncSite {
     ...(burst ? { burstSeconds: burst[0], cooldownSeconds: burst[1] } : {}),
     ...(rules !== undefined ? { rules } : {}),
     ...(rulesRev !== undefined ? { rulesRev } : {}),
+    ...(Object.keys(ruleMarks).length ? { ruleMarks } : {}),
     ...loosens,
   };
 }
@@ -376,7 +387,8 @@ export function siteConformanceKey(s: SyncSite): string {
     + ` reason=${opt(s.reason)}`
     + ` at=${s.updatedAt} by=${s.updatedBy}`
     + ` sched=${sched} burst=${burst} rules=${rules} rmark=${s.rulesRev ?? 0}`
-    + ` loos=${s.deleteLoosens ?? 0}/${s.scheduleLoosens ?? 0}/${s.limitLoosens ?? 0}/${s.burstLoosens ?? 0}`;
+    + ` loos=${s.deleteLoosens ?? 0}/${s.scheduleLoosens ?? 0}/${s.limitLoosens ?? 0}/${s.burstLoosens ?? 0}`
+    + ` rmarks=[${Object.entries(s.ruleMarks ?? {}).sort(([x], [y]) => (x < y ? -1 : x > y ? 1 : 0)).map(([k, v]) => `${k}=${v}`).join(',')}]`;
 }
 
 export function focusConformanceKey(f: SyncFocus): string {
@@ -531,7 +543,7 @@ export interface SiteFlip { flip: SyncSite; what: string }
  * Egy húzás, az a/b/c után: a fuzz-generátorokat nem érinti.
  */
 export function flipSite(r: () => number, a: SyncSite): SiteFlip {
-  const kind = Math.floor(r() * 15);
+  const kind = Math.floor(r() * 16);
   const withMarks = (s: SyncSite, marks: Record<string, number>): SyncSite => {
     const out: SyncSite = { ...s };
     if (Object.keys(marks).length > 0) out.hostnameMarks = marks; else delete out.hostnameMarks;
@@ -583,6 +595,14 @@ export function flipSite(r: () => number, a: SyncSite): SiteFlip {
     case 12: return { what: 'updatedAt', flip: { ...a, updatedAt: a.updatedAt + 1 } };
     // Egy kifizetett lazítás nyoma: a számláló egy mezőn eggyel nő, a rev vele.
     case 13: return { what: 'loosens', flip: { ...a, limitLoosens: (a.limitLoosens ?? 0) + 1, rev: a.rev + 1 } };
+    // Egy szabály kifizetett levétele: sírkő a léptetett rev-vel.
+    case 14: return {
+      what: 'ruleMark',
+      flip: {
+        ...a, rules: (a.rules ?? []).filter((x) => ruleKey(x) !== ruleKey(RULES[0])),
+        ruleMarks: { ...(a.ruleMarks ?? {}), [ruleKey(RULES[0])]: a.rev + 1 }, rev: a.rev + 1,
+      },
+    };
     default: return { what: 'updatedBy', flip: { ...a, updatedBy: 'masik' } };
   }
 }

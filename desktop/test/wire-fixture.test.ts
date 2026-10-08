@@ -89,6 +89,17 @@ const SITE_TOLERATED: unknown[] = [
   { id: 'k1', domain: 'aa.com', hostnames: ['aa.com'], rev: 3, deleteLoosens: 1, scheduleLoosens: 3, limitLoosens: 4, burstLoosens: 0 },
   { id: 'k2', domain: 'bb.com', hostnames: ['bb.com'], rev: 2, deleteLoosens: '1', scheduleLoosens: 1.5, limitLoosens: -1, burstLoosens: true },
   { id: 'k3', domain: 'cc.com', hostnames: ['cc.com'], rev: 2.5, limitLoosens: 1, burstLoosens: 2 },
+  // A szabályok jelei: csak KANONIKUS szabály-kulcs (ahogy a kézzel beírt
+  // szabály is lenne), pozitív egész, legfeljebb a rekord rev-je, és csak
+  // szabálylista mellett. A listán nem lévő szabály jele sírkő — az is marad.
+  { id: 'm1', domain: 'dd.com', hostnames: ['dd.com'], rev: 4, rules: [{ host: 'dd.com', path: '/a' }],
+    ruleMarks: { 'dd.com/a': 3, 'dd.com/b': 4 } },
+  { id: 'm2', domain: 'ee.com', hostnames: ['ee.com'], rev: 4, rules: [], ruleMarks: {
+    'ee.com/ok': 2, 'ee.com/fent': 5, 'www.ee.com/a': 1, 'ee.com': 1, 'EE.com/q': 1, 'ee.com/a/': 1,
+    'ee.com/x': '1', 'ee.com/y': 1.5, 'ee.com/z': 0, 'ee.com/n': -1, 'ee.com/t': true,
+  } },
+  { id: 'm3', domain: 'ff.com', hostnames: ['ff.com'], rev: 4, ruleMarks: { 'ff.com/a': 1 } },
+  { id: 'm4', domain: 'gg.com', hostnames: ['gg.com'], rev: 4, rules: [], ruleMarks: ['gg.com/a'] },
 ];
 
 /** Kiesik: nem objektum, vagy az azonosítója, a domainje nem jó. */
@@ -123,6 +134,7 @@ function siteKey(s: SyncSite): string {
     + `|marks=${Object.keys(s.hostnameMarks ?? {}).sort().map((k) => `${k}=${s.hostnameMarks![k]}`).join(',')}`
     + `|sched=${scheduleKey(s.schedule)}`
     + `|rules=${s.rules === undefined ? '-' : `[${s.rules.map((r) => r.host + r.path).join(',')}]`}`
+    + `|rmarks=${Object.keys(s.ruleMarks ?? {}).sort().map((k) => `${k}=${s.ruleMarks![k]}`).join(',')}`
     + `|loos=${s.deleteLoosens ?? 0}/${s.scheduleLoosens ?? 0}/${s.limitLoosens ?? 0}/${s.burstLoosens ?? 0}`;
 }
 
@@ -398,7 +410,7 @@ function buildFixture(): Fixture {
       + 'Az in egy dróton jött JSON-szöveg (oldal-lista vagy munkamenet-dokumentum), az out a gép olvasójának '
       + 'eredménye kulcsként; a Kotlin WireFixtureTest és a Swift WireFixtureTests a saját olvasójával '
       + 'ugyanezt kell kapja. Egy rossz elem nem viheti a többit.',
-    version: 4,
+    version: 5,
     sites: siteCases().map((arr) => {
       const text = JSON.stringify(arr);
       return { in: text, out: normalizeIncomingSites(JSON.parse(text)).map(siteKey).join('\n') };

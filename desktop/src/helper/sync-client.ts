@@ -15,7 +15,7 @@
 // akkor újra az 2. lépéstől. Így két eszköz párhuzamos írása sosem tünteti el a
 // másikét.
 
-import type { UrlRule } from '../shared/urlrules';
+import { normalizeRule, type UrlRule } from '../shared/urlrules';
 import type { Band, Schedule } from '../shared/schedule';
 import { normalizeHostname } from '../shared/blocklist';
 import * as crypto from 'crypto';
@@ -23,7 +23,7 @@ import {
   decrypt, encrypt, enroll, recoveryAuthKey, rewrapForNewPassword, subKey, rootKey,
   unlockWithPassword, unlockWithRecovery,
 } from '../shared/sync/crypto.js';
-import { capHostnameMarks, mergeSiteLists, type SyncSite } from '../shared/sync/merge.js';
+import { capHostnameMarks, mergeSiteLists, ruleKey, type SyncSite } from '../shared/sync/merge.js';
 import { MAX_PAYLOAD_BYTES, SYNC_PROTOCOL } from '../shared/sync/protocol.js';
 import type { HelperState, SiteRec, SyncAccount } from './state';
 import {
@@ -282,6 +282,8 @@ function toSyncSites(sites: SiteRec[], deviceId: string): SyncSite[] {
     burstSeconds: s.burstSeconds, cooldownSeconds: s.cooldownSeconds,
     rules: s.rules,
     ...(s.rulesRev ? { rulesRev: s.rulesRev } : {}),
+    // A szabályok jelei: szabályonként ezekből dől el, melyik eszköz mondta az újabbat.
+    ...(s.ruleMarks ? { ruleMarks: s.ruleMarks } : {}),
     // A kifizetett lazítások mezőnként — a fésülés ezekből dönt (merge.ts).
     ...(s.deleteLoosens ? { deleteLoosens: s.deleteLoosens } : {}),
     ...(s.scheduleLoosens ? { scheduleLoosens: s.scheduleLoosens } : {}),
@@ -347,8 +349,10 @@ function fromSyncSites(merged: SyncSite[], local: SiteRec[]): SiteRec[] {
     // (`state.bursts`), az eszköz-helyi marad.
     burstSeconds: m.burstSeconds, cooldownSeconds: m.cooldownSeconds,
     rules: m.rules,
-    // A szabálylista jele is a fésülés eredményéből jön, mint a nevek jelei.
+    // A szabálylista jele és a szabályok jelei is a fésülés eredményéből jönnek,
+    // mint a nevek jelei.
     rulesRev: m.rulesRev,
+    ruleMarks: m.ruleMarks,
     // A kifizetett lazítások is: a következő fésülés ezekből dönt.
     deleteLoosens: m.deleteLoosens, scheduleLoosens: m.scheduleLoosens,
     limitLoosens: m.limitLoosens, burstLoosens: m.burstLoosens,
@@ -472,6 +476,7 @@ function cleanSite(s: Record<string, unknown>): SyncSite {
   // lista mellett; mező nélkül nincs jel (a régi kliens rekordja semleges).
   const rulesRev = rules !== undefined && Number.isInteger(s.rulesRev)
     && (s.rulesRev as number) > 0 && (s.rulesRev as number) <= rev ? (s.rulesRev as number) : undefined;
+  const ruleMarks = cleanRuleMarks(s.ruleMarks, rules, rev);
   return {
     id: s.id as string,
     domain: s.domain as string,
@@ -492,6 +497,7 @@ function cleanSite(s: Record<string, unknown>): SyncSite {
     // felvetteket (lásd merge.ts `mergeRules`).
     rules,
     ...(rulesRev !== undefined ? { rulesRev } : {}),
+    ...(ruleMarks ? { ruleMarks } : {}),
     // A kifizetett lazítások: pozitív egész, legfeljebb a rekord rev-je (csak
     // léptetés írhatja); ami más, az nincs — a régi kliens rekordja semleges.
     ...loosensIn(s, rev),
@@ -499,6 +505,24 @@ function cleanSite(s: Record<string, unknown>): SyncSite {
     updatedAt: Number.isFinite(s.updatedAt) ? (s.updatedAt as number) : 0,
     updatedBy: typeof s.updatedBy === 'string' ? s.updatedBy : '',
   };
+}
+
+/**
+ * A szabályok jelei a dróton: csak KANONIKUS szabály-kulcs (ahogy a kézzel
+ * beírt szabály is lenne) → pozitív egész, legfeljebb a rekord rev-je; és csak
+ * szabálylista mellett — mező nélkül nincs jel. A plafon a fésülésé. Egy
+ * kulccsal írt szemét így nem lehet sírkő egy sosem volt szabálynak.
+ */
+function cleanRuleMarks(raw: unknown, rules: SyncSite['rules'], rev: number): Record<string, number> | undefined {
+  if (rules === undefined || !raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
+  const out: Record<string, number> = {};
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof v !== 'number' || !Number.isInteger(v) || v <= 0 || v > rev) continue;
+    const norm = normalizeRule(k);
+    if (!norm || ruleKey(norm) !== k) continue;
+    out[k] = v;
+  }
+  return capHostnameMarks(out, rules.map(ruleKey));
 }
 
 /** A négy számláló a dróton — mindegyik csak pozitív egész, legfeljebb a rev. */
@@ -548,6 +572,8 @@ function canonical(s: SyncSite): unknown[] {
     // „változást” látna, és fölöslegesen feltöltene.
     s.rules ? s.rules.map((r) => `${r.host}${r.path}`).sort() : null,
     s.rulesRev ?? null,
+    // A szabályok jelei is: egy levétel sírköve nélkül a levétel sosem érne át.
+    s.ruleMarks ? Object.entries(s.ruleMarks).sort() : null,
     // A számlálók is: egy kifizetett lazítás nyoma nélkül a lazítás sosem érne át.
     s.deleteLoosens ?? null, s.scheduleLoosens ?? null, s.limitLoosens ?? null, s.burstLoosens ?? null,
     s.rev, s.updatedAt, s.updatedBy,

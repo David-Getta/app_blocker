@@ -336,9 +336,12 @@ object Referee {
                 cooldownSeconds = if (s.pendingBurst < 0) null else s.pendingCooldown,
                 burstLoosens = (site.burstLoosens ?: 0) + 1,
             )
-            else if (s.pendingRuleRemoval != null) site.copy(
-                rules = (site.rules ?: emptyList())
-                    .filterNot { UrlRules.sameRule(it, s.pendingRuleRemoval) },
+            else if (s.pendingRuleRemoval != null) markRule(
+                site.copy(
+                    rules = (site.rules ?: emptyList())
+                        .filterNot { UrlRules.sameRule(it, s.pendingRuleRemoval) },
+                ),
+                s.pendingRuleRemoval,
             )
             else if (s.kind == Kind.PAUSE) site.copy(pauseUntil = now + (s.minutes ?: 15) * 60_000L)
             else site.copy(
@@ -351,6 +354,21 @@ object Referee {
         return state.copy(
             sites = sites, unlockLog = log, session = null,
             abandons = state.abandons.filter { it.siteId != s.siteId },
+        )
+    }
+
+    /**
+     * A szabály JELE a felvételnél és a kifizetett levételnél: az a rev, amit a
+     * mentés léptetése ad (a szabálylista változik, tehát a rekord pontosan
+     * eggyel lép — BreakerStore.mutate). A levett szabály jele sírkő: a
+     * fésülés szabályonként a nagyobb jel szerint dönt (SyncMerge.mergeRules),
+     * így a levétel átmegy, és egy régebbi eszköz listája sem hozza vissza. A
+     * gépen ugyanezt a léptetés írja a lista változásából (revisions.ts).
+     */
+    private fun markRule(site: Site, rule: UrlRules.UrlRule): Site {
+        val marks = (site.ruleMarks ?: emptyMap()) + (SyncMerge.ruleKey(rule) to site.rev + 1)
+        return site.copy(
+            ruleMarks = SyncMerge.capHostnameMarks(marks, (site.rules ?: emptyList()).map { SyncMerge.ruleKey(it) }),
         )
     }
 
@@ -616,7 +634,7 @@ object Referee {
                 }
                 result = RuleChangeResult(applied = true, session = null)
                 return@mutate state.copy(sites = state.sites.map {
-                    if (it.id == siteId) it.copy(rules = rules + rule) else it
+                    if (it.id == siteId) markRule(it.copy(rules = rules + rule), rule) else it
                 })
             }
 

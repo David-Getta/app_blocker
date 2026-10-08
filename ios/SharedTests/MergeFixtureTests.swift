@@ -83,7 +83,10 @@ final class MergeFixtureTests: XCTestCase {
         let mid = " reason=\(s.reason ?? "-")" + " at=\(int(s.updatedAt)) by=\(s.updatedBy)"
         let tail = " sched=\(sched) burst=\(burst) rules=\(rules) rmark=\(s.rulesRev ?? 0)"
         let loos = " loos=\(s.deleteLoosens ?? 0)/\(s.scheduleLoosens ?? 0)/\(s.limitLoosens ?? 0)/\(s.burstLoosens ?? 0)"
-        return head + mid + tail + loos
+        let rmarkParts: [String] = (s.ruleMarks ?? [:]).sorted { TextLogic.utf16Less($0.key, $1.key) }
+            .map { "\($0.key)=\($0.value)" }
+        let rmarks = " rmarks=[" + rmarkParts.joined(separator: ",") + "]"
+        return head + mid + tail + loos + rmarks
     }
 
     private func focusKey(_ f: FocusSync.SyncFocus) -> String {

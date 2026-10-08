@@ -68,10 +68,16 @@ struct Site: Codable, Identifiable, Equatable {
     var scheduleLoosens: Int? = nil
     var limitLoosens: Int? = nil
     var burstLoosens: Int? = nil
+    /// A szabályok jelei (szabály-kulcs → az a rev, amelyik felvette vagy
+    /// levette; a levett szabály jele sírkő) — az iPhone nem ír ilyet,
+    /// HORDOZZA: enélkül egy itteni szerkesztés letörölné a gépen kifizetett
+    /// levétel nyomát. Lásd SyncMerge.
+    var ruleMarks: [String: Int]? = nil
 
-    /// A számlálók a mag szűrőjén át — mint a dróton: pozitív egész, legfeljebb
-    /// a rekord rev-je (csak léptetés írhatja); ami más, az nincs.
-    func cleaningLoosens() -> Site {
+    /// A számlálók és a szabály-jelek a mag szűrőjén át — mint a dróton:
+    /// pozitív egész, legfeljebb a rekord rev-je (csak léptetés írhatja); a
+    /// szabály-jel kulcsa kanonikus, és csak szabálylista mellett él.
+    func cleaningMarks() -> Site {
         let rev = self.rev ?? 0
         let ok: (Int?) -> Int? = { v in v.flatMap { $0 > 0 && $0 <= rev ? $0 : nil } }
         var out = self
@@ -79,6 +85,15 @@ struct Site: Codable, Identifiable, Equatable {
         out.scheduleLoosens = ok(scheduleLoosens)
         out.limitLoosens = ok(limitLoosens)
         out.burstLoosens = ok(burstLoosens)
+        if let list = rules, let marks = ruleMarks {
+            let valid = marks.filter { entry in
+                guard entry.value > 0, entry.value <= rev, let norm = UrlRules.normalizeRule(entry.key) else { return false }
+                return SyncMerge.ruleKey(norm) == entry.key
+            }
+            out.ruleMarks = SyncMerge.capHostnameMarks(valid, list.map { SyncMerge.ruleKey($0) })
+        } else {
+            out.ruleMarks = nil
+        }
         return out
     }
 }
@@ -469,8 +484,9 @@ final class BreakerStore: ObservableObject {
         if let s = decoded.session, s.stepIndex < 0 || s.stepIndex >= s.steps.count {
             decoded.session = nil
         }
-        // A kifizetett lazítások számlálói a lemezről: ugyanaz a tisztítás, mint a dróton.
-        decoded.sites = decoded.sites.map { $0.cleaningLoosens() }
+        // A kifizetett lazítások számlálói és a szabály-jelek a lemezről: ugyanaz
+        // a tisztítás, mint a dróton.
+        decoded.sites = decoded.sites.map { $0.cleaningMarks() }
         // A kulcsszó-jelek a lemezről: ugyanaz a tisztítás, mint a dróton.
         decoded.keywordMarks = KeywordLogic.cleanKeywordMarks(
             decoded.keywordMarks, decoded.keywords ?? [], maxRev: clampedInt(decoded.focusRev ?? 0)

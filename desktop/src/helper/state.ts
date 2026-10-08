@@ -14,7 +14,8 @@ import type { SharedToday } from '../shared/limits';
 import {
   MAX_FOCUS_LOG, normalizePack, withCleanMarks, type FocusLogEntry, type FocusPack, type FocusRun,
 } from '../shared/focus';
-import type { UrlRule } from '../shared/urlrules';
+import { normalizeRule, type UrlRule } from '../shared/urlrules';
+import { capHostnameMarks, ruleKey } from '../shared/sync/merge';
 import { cleanWindowMarks, normalizeWindows, parseLockdown } from '../shared/lockdown';
 import { cleanChannelMarks } from '../shared/sync/channels-merge';
 import { cleanKeywordMarks, cleanKeywords, type KeywordMarks } from '../shared/keywords';
@@ -65,6 +66,14 @@ export interface SiteRec {
   rulesRev?: number;
   /** a szabálylista kulcsa az utolsó rev-léptetéskor/átvételkor — ebből lesz a jel; helyi */
   revRulesKey?: string;
+  /**
+   * A szabályok jelei: szabály-kulcs → az a `rev`, amelyik felvette vagy
+   * levette (a levett szabály jele sírkő). A léptetés írja (revisions.ts), a
+   * fésülés szabályonként ebből dönt (shared/sync/merge.ts `mergeRules`).
+   */
+  ruleMarks?: Record<string, number>;
+  /** a szabály-kulcsok az utolsó rev-léptetéskor/átvételkor — ebből lesznek a jelek; helyi */
+  revRules?: string[];
   /**
    * Az adag-szabály még SOSEM ment fel a fiókba (helyi jel). A v0.4.227 előtti
    * gép az adag-szabályt nem tette a drótra: ami akkor itt állt be, az csak
@@ -641,6 +650,22 @@ export function loadState(): HelperState {
           if (normalizeBurst(site.burstSeconds, site.cooldownSeconds) !== null) site.burstUnsynced = true;
         }
         parsed.burstOnWire = true;
+      }
+      // A szabályok jelei a mag szűrőjén át — mint a dróton: kanonikus kulcs,
+      // pozitív egész, legfeljebb a rekord rev-je, csak szabálylista mellett.
+      for (const site of parsed.sites) {
+        if (site.ruleMarks === undefined) continue;
+        const marks: Record<string, number> = {};
+        const raw = site.rules !== undefined && site.ruleMarks && typeof site.ruleMarks === 'object'
+          ? Object.entries(site.ruleMarks) : [];
+        for (const [k, v] of raw) {
+          const norm = normalizeRule(k);
+          if (!norm || ruleKey(norm) !== k) continue;
+          if (!Number.isInteger(v) || v <= 0 || v > (site.rev ?? 0)) continue;
+          marks[k] = v;
+        }
+        const capped = capHostnameMarks(marks, (site.rules ?? []).map(ruleKey));
+        if (capped) site.ruleMarks = capped; else delete site.ruleMarks;
       }
       // A kifizetett lazítások számlálói a mag szűrőjén át — mint a dróton:
       // pozitív egész, legfeljebb a rekord rev-je (csak léptetés írhatja).

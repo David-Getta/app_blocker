@@ -149,10 +149,10 @@ ingyen van, rövidíteni vagy visszavonni sehogy.
   **gyengébb réteg**: csak abban a böngészőben él, vendég módban egyáltalán nem
   fut, inkognitóban külön be kell kapcsolni. A teljes oldal tiltása marad
   DNS-szintű és megkerülhetetlen; ez az **ingert** veszi el. A szabálylista a
-  fiókon át a többi gépre is átmegy (a telefon hordozza), saját jellel: a
-  kifizetett levétel akkor sem jön vissza, ha a másik gép közben mást írt az
-  oldalra, és egy frissítetlen telefon a fiókban sem billenti a sorrendtől
-  függően.
+  fiókon át a többi gépre is átmegy (a telefon hordozza), és szabályonként
+  fésülődik, saját jellel: a kifizetett levétel akkor sem jön vissza, ha a
+  másik gép közben mást írt az oldalra, és két eszközön felvett két szabályból
+  egyik sem tűnik el — akkor sem, ha az egyik eszköz többet szerkesztett.
   [`extension/`](extension/README.md) ·
   [`docs/feature-partial-block.md`](docs/feature-partial-block.md).
 - **Napi időkeret oldalanként** (asztali gép + Android): „napi 20 perc YouTube”.

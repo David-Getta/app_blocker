@@ -59,6 +59,12 @@ data class Site(
     /** A szabálylista jele — a telefon nem ír ilyet, hordozza. Lásd SyncMerge. */
     val rulesRev: Int? = null,
     /**
+     * A szabályok jelei (szabály-kulcs → az a rev, amelyik felvette vagy
+     * levette; a levett szabály jele sírkő). A bíró írja a felvételnél és a
+     * kifizetett levételnél (Referee), a többit hordozza. Lásd SyncMerge.
+     */
+    val ruleMarks: Map<String, Int>? = null,
+    /**
      * A KIFIZETETT LAZÍTÁSOK száma mezőnként: a törlés kérése, a menetrend, a
      * napi keret és az adag-szabály lazítása. A bíró írja, a próbatétel
      * teljesítésekor (Referee) — máshol semmi. A fésülés mezőnként ebből dönt
@@ -623,6 +629,7 @@ object BreakerStore {
                 put("revFp", site.revFp ?: JSONObject.NULL)
                 put("hostnameMarks", site.hostnameMarks?.let { JSONObject(it) } ?: JSONObject.NULL)
                 put("rulesRev", site.rulesRev ?: JSONObject.NULL)
+                put("ruleMarks", site.ruleMarks?.let { JSONObject(it) } ?: JSONObject.NULL)
                 put("deleteLoosens", site.deleteLoosens ?: JSONObject.NULL)
                 put("scheduleLoosens", site.scheduleLoosens ?: JSONObject.NULL)
                 put("limitLoosens", site.limitLoosens ?: JSONObject.NULL)
@@ -848,6 +855,8 @@ object BreakerStore {
                         revFp = if (s.isNull("revFp")) null else s.optString("revFp"),
                         hostnameMarks = SyncClient.marksFromJson(s),
                         rulesRev = if (s.isNull("rulesRev")) null else s.optInt("rulesRev", 0).takeIf { it > 0 },
+                        // A szabályok jelei a mag szűrőjén át — mint a dróton.
+                        ruleMarks = SyncClient.ruleMarksFromJson(s, rulesFromJson(s), s.optInt("rev", 0)),
                         // A kifizetett lazítások számlálói a mag szűrőjén át — mint
                         // a dróton: pozitív egész, legfeljebb a rekord rev-je.
                         deleteLoosens = loosensFrom(s, "deleteLoosens"),

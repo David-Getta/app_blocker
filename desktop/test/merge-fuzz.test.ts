@@ -18,19 +18,14 @@ import { keywordMarksKey, keywordsKey } from '../src/shared/keywords';
 import { partnerKey } from '../src/shared/partner';
 
 /**
- * A rekord egésze: a nevek és a jeleik, a menetrend, a keret, az adag, a
- * törlésre várás, a számlálók, a fedőnév — és a szünet is. Mezőnként
- * fésülődik minden (a kifizetett számláló, egyenlőnél a szigorúbb alak — lásd
- * shared/sync/merge.ts), és mindegyik szabály sorrendfüggetlen; ha egy is nem
- * az, két eszköz örökké egymást írná.
- *
- * A RÉSZLEGES SZABÁLYOK még kimaradnak, és ez adósság, nem elv: a lista egy
- * jellel fésülődik, egyenlő jelnél pedig a rekord rev-je dönt — az pedig más
- * mezőtől is nő, így három eszköznél a sorrendtől függ, melyik lista marad.
- * A szabályonkénti jel rendezi (mint a hosztneveknél).
+ * A rekord EGÉSZE: a nevek és a jeleik, a részleges szabályok és a jeleik, a
+ * menetrend, a keret, az adag, a törlésre várás, a számlálók, a fedőnév — és
+ * a szünet is. Mezőnként (a neveknél és a szabályoknál elemenként) fésülődik
+ * minden, és mindegyik szabály sorrendfüggetlen; ha egy is nem az, két eszköz
+ * örökké egymást írná.
  */
 function siteKey(s: SyncSite): string {
-  return `${siteConformanceKey({ ...s, rules: undefined, rulesRev: undefined })} pause=${s.pauseUntil ?? '-'}`;
+  return `${siteConformanceKey(s)} pause=${s.pauseUntil ?? '-'}`;
 }
 
 test('oldal: szimmetrikus, idempotens, és három eszköz bármilyen sorrendben ugyanoda jut', () => {

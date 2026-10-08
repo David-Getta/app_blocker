@@ -74,12 +74,19 @@ enum SyncMerge {
         var scheduleLoosens: Int? = nil
         var limitLoosens: Int? = nil
         var burstLoosens: Int? = nil
+        /// A szabályok JELEI: szabály-kulcs (hoszt + út) → a rekord rev-je,
+        /// amelyik a szabályt utoljára felvette vagy levette (a levett szabály
+        /// jele sírkő). Szabályonként a nagyobb jel dönt; egyenlőnél a
+        /// jelenlét. Az iPhone nem szerkeszt szabályt: hordozza és fésüli a
+        /// jeleket. A merge.ts tükre.
+        var ruleMarks: [String: Int]? = nil
 
         enum CodingKeys: String, CodingKey {
             case id, domain, hostnames, addedAt, pendingDeleteAt, schedule
             case dailyLimitSeconds, burstSeconds, cooldownSeconds, alias, reason, rules
             case rev, updatedAt, updatedBy, hostnameMarks, rulesRev
             case deleteLoosens, scheduleLoosens, limitLoosens, burstLoosens
+            case ruleMarks
         }
 
         init(
@@ -90,7 +97,8 @@ enum SyncMerge {
             rules: [UrlRules.UrlRule]? = nil, rev: Int, updatedAt: Double, updatedBy: String,
             hostnameMarks: [String: Int]? = nil, rulesRev: Int? = nil,
             deleteLoosens: Int? = nil, scheduleLoosens: Int? = nil,
-            limitLoosens: Int? = nil, burstLoosens: Int? = nil
+            limitLoosens: Int? = nil, burstLoosens: Int? = nil,
+            ruleMarks: [String: Int]? = nil
         ) {
             self.id = id
             self.domain = domain
@@ -113,6 +121,7 @@ enum SyncMerge {
             self.scheduleLoosens = scheduleLoosens
             self.limitLoosens = limitLoosens
             self.burstLoosens = burstLoosens
+            self.ruleMarks = ruleMarks
         }
 
         /// SAJÁT dekódolás, hogy a jelek TŰRŐEN jöjjenek: egy nem-egész érték
@@ -176,6 +185,19 @@ enum SyncMerge {
             scheduleLoosens = loosens(.scheduleLoosens)
             limitLoosens = loosens(.limitLoosens)
             burstLoosens = loosens(.burstLoosens)
+            // A szabályok jelei: csak KANONIKUS szabály-kulcs → pozitív egész,
+            // legfeljebb a rekord rev-je; csak szabálylista mellett. A gép
+            // `cleanRuleMarks`-a. Értékenként: egy rossz jel csak magát viszi.
+            if let list = rules, let m = c.lossyIntMap(.ruleMarks) {
+                let valid = m.filter { entry in
+                    guard entry.value > 0, entry.value <= revValue,
+                          let norm = UrlRules.normalizeRule(entry.key) else { return false }
+                    return SyncMerge.ruleKey(norm) == entry.key
+                }
+                ruleMarks = SyncMerge.capHostnameMarks(valid, list.map { SyncMerge.ruleKey($0) })
+            } else {
+                ruleMarks = nil
+            }
         }
 
         /// A `pendingDeleteAt` KIÍRÁSA kötelező, nem elhagyható.
@@ -209,6 +231,8 @@ enum SyncMerge {
             try c.encodeIfPresent(scheduleLoosens, forKey: .scheduleLoosens)
             try c.encodeIfPresent(limitLoosens, forKey: .limitLoosens)
             try c.encodeIfPresent(burstLoosens, forKey: .burstLoosens)
+            // A szabályok jelei is csak lista mellett.
+            if rules != nil { try c.encodeIfPresent(ruleMarks, forKey: .ruleMarks) }
         }
     }
 
@@ -464,41 +488,81 @@ enum SyncMerge {
 
     private static func withRules(_ winner: SyncSite, _ a: SyncSite, _ b: SyncSite) -> SyncSite {
         var out = winner
-        let (rules, mark) = mergeRules(a, b)
-        out.rules = rules
-        out.rulesRev = mark > 0 ? mark : nil
+        let merged = mergeRules(a, b)
+        out.rules = merged.rules
+        out.rulesRev = (merged.rules != nil && merged.mark > 0) ? merged.mark : nil
+        if merged.rules != nil, let m = merged.marks, !m.isEmpty { out.ruleMarks = m } else { out.ruleMarks = nil }
         return out
     }
 
-    /// A részleges szabályok összefésülése — a rekord többi mezőjétől KÜLÖN.
+    /// Egy szabály kulcsa a jelekhez: a kanonikus hoszt + út — a merge.ts `ruleKey`-je.
+    static func ruleKey(_ r: UrlRules.UrlRule) -> String { r.host + r.path }
+
+    private static func markOf(_ v: Int?) -> Int {
+        guard let v = v, v > 0 else { return 0 }
+        return v
+    }
+
+    private struct MergedRules {
+        let rules: [UrlRules.UrlRule]?
+        let marks: [String: Int]?
+        let mark: Int
+    }
+
+    /// A részleges szabályok összefésülése — a rekord többi mezőjétől KÜLÖN,
+    /// SZABÁLYONKÉNT (a merge.ts `mergeRules`-a):
     ///
-    /// Miért nem elég a nyertes rekord szabálylistája:
+    ///  1. **A szabály jele dönt.** A nagyobb jelnél álló állapot (benne van
+    ///     vagy nincs) marad — a kifizetett levétel átmegy, és egy régebbi
+    ///     eszköz ingyenes szerkesztése sem hozza vissza.
+    ///  2. **Egyenlő jelnél a jelenlét** — a jel nélküli szabály is ilyen.
+    ///  3. **A lista-jel (`rulesRev`) már nem dönt**, csak továbbmegy (a
+    ///     nagyobb): egy ingyenes felvétel eddig nagyobb jellel egészében vitte
+    ///     a listáját, és a másik eszközön felvett szabály eltűnt.
+    ///  4. **A `nil` NEM ugyanaz, mint a `[]`.** A mező nélküli rekord (régi
+    ///     kliens) a másik oldal listáját, jeleit és lista-jelét viszi.
     ///
-    ///  1. **Egyenlő revnél EGYESÍTÜNK.** A szabály tisztán hozzáadás: felvenni
-    ///     szigorítás. Ha ilyenkor egy egész listát választanánk, két eszközön
-    ///     egyszerre felvett két szabályból az egyik némán elveszne.
-    ///  2. **Nagyobb rev nyer** — ott van mögötte a próbatétel, tehát az
-    ///     eltávolítás is átmegy. Egyesítés itt feltámasztaná a kifizetett
-    ///     törlést.
-    ///  3. **A `nil` NEM ugyanaz, mint a `[]`.** Egy RÉGI app-verzió nem ismeri
-    ///     ezt a mezőt: ami átmegy rajta, abból eltűnik. Ha a hiányt mindenestül
-    ///     törlésnek vennénk, elég lenne egy frissítetlen eszköz a fiókban, és a
-    ///     gépen felvett összes szabály csendben eltűnne.
-    ///  4. **A JEL DÖNT, nem a rekord rev-je** (`rulesRev`). A rekord rev-je más
-    ///     szerkesztéstől is nő, és egy mező nélküli régi kliens nagy rev-je azt
-    ///     a listát hitelesítené, amelyikkel épp előbb találkozott — három
-    ///     eszköznél az eredmény a sorrendtől függött. A mező nélküli rekord a
-    ///     másik oldal listáját ÉS jelét viszi; jel nélkül a régi szabály.
-    private static func mergeRules(_ a: SyncSite, _ b: SyncSite) -> ([UrlRules.UrlRule]?, Int) {
+    /// A plafon: legfeljebb 50 szabály marad (a nagyobb jelűek, egyenlőnél
+    /// kulcs szerint, kódegységben); a kiesett szabály jele is kiesik.
+    private static func mergeRules(_ a: SyncSite, _ b: SyncSite) -> MergedRules {
         let ar = cleanRules(a.rules)
         let br = cleanRules(b.rules)
-        let ma = ar == nil ? 0 : (a.rulesRev ?? 0)
-        let mb = br == nil ? 0 : (b.rulesRev ?? 0)
-        guard let ar = ar else { return (br, mb) }
-        guard let br = br else { return (ar, ma) }
-        if ma != mb { return ma > mb ? (ar, ma) : (br, mb) }
-        if a.rev == b.rev { return (unionRules(ar, br), ma) }
-        return (a.rev > b.rev ? ar : br, ma)
+        guard let al = ar else {
+            guard let bl = br else { return MergedRules(rules: nil, marks: nil, mark: 0) }
+            return MergedRules(rules: bl, marks: b.ruleMarks, mark: markOf(b.rulesRev))
+        }
+        guard let bl = br else { return MergedRules(rules: al, marks: a.ruleMarks, mark: markOf(a.rulesRev)) }
+        let am = a.ruleMarks ?? [:]
+        let bm = b.ruleMarks ?? [:]
+        var byKey: [String: UrlRules.UrlRule] = [:]
+        for r in al + bl { byKey[ruleKey(r)] = r }
+        let inA = Set(al.map { ruleKey($0) })
+        let inB = Set(bl.map { ruleKey($0) })
+        var keys = Set(byKey.keys)
+        keys.formUnion(am.keys)
+        keys.formUnion(bm.keys)
+        var marks: [String: Int] = [:]
+        var present: [String] = []
+        for k in keys {
+            let ma = markOf(am[k])
+            let mb = markOf(bm[k])
+            let here: Bool
+            if ma > mb { here = inA.contains(k) } else if mb > ma { here = inB.contains(k) } else {
+                here = inA.contains(k) || inB.contains(k)
+            }
+            if max(ma, mb) > 0 { marks[k] = max(ma, mb) }
+            if here { present.append(k) }
+        }
+        present.sort { x, y in
+            let mx = markOf(marks[x])
+            let my = markOf(marks[y])
+            return mx != my ? mx > my : TextLogic.utf16Less(x, y)
+        }
+        for k in present.dropFirst(UrlRules.maxRulesPerSite) { marks.removeValue(forKey: k) }
+        let kept = Array(present.prefix(UrlRules.maxRulesPerSite))
+        // Stabil sorrend, hogy két eszköz bájtra ugyanazt a listát kapja.
+        let rules = kept.compactMap { byKey[$0] }.sorted { TextLogic.utf16Less(ruleKey($0), ruleKey($1)) }
+        return MergedRules(rules: rules, marks: capHostnameMarks(marks, kept), mark: max(markOf(a.rulesRev), markOf(b.rulesRev)))
     }
 
     /// Szemétszűrés: a szinkronon át érkező szabály ugyanolyan megbízhatatlan,
@@ -514,20 +578,6 @@ enum SyncMerge {
             out.append(norm)
         }
         return out
-    }
-
-    private static func unionRules(
-        _ a: [UrlRules.UrlRule], _ b: [UrlRules.UrlRule]
-    ) -> [UrlRules.UrlRule] {
-        var out = a
-        for r in b {
-            if out.contains(where: { UrlRules.sameRule($0, r) }) { continue }
-            if out.count >= UrlRules.maxRulesPerSite { break }
-            out.append(r)
-        }
-        // Stabil sorrend, hogy két eszköz bájtra ugyanazt a listát kapja —
-        // különben örökké oda-vissza írnák egymást, mert a tartalom „változott”.
-        return out.sorted { $0.host + $0.path < $1.host + $1.path }
     }
 
     /// Két lista összefésülése.

@@ -55,3 +55,35 @@ test('a lista változása a léptetett rev-et kapja; más mező nem nyúl a jelh
   assert.equal(bumpRevisions(st, 'gep', 80), 0);
   assert.equal(first(st).rulesRev, 9);
 });
+
+test('szabályonként: a felvétel és a levétel is a léptetett rev-et kapja, a levett szabály jele sírkő', () => {
+  const st = withSite();
+  first(st).rules = [{ host: 'x.com', path: '/a' }];
+  // Az első léptetés (nincs még eltett lista) jel nélkül megy — a frissítés
+  // előtti szabályokra a jelenlét-nyer szabály áll.
+  bumpRevisions(st, 'gep', 10);
+  assert.equal(first(st).ruleMarks, undefined);
+  assert.deepEqual(first(st).revRules, ['x.com/a']);
+
+  first(st).rules = [{ host: 'x.com', path: '/a' }, { host: 'x.com', path: '/b' }];
+  bumpRevisions(st, 'gep', 20);
+  assert.equal(first(st).rev, 2);
+  assert.deepEqual(first(st).ruleMarks, { 'x.com/b': 2 }, 'csak a felvett szabály kap jelet');
+
+  first(st).rules = [{ host: 'x.com', path: '/b' }];
+  bumpRevisions(st, 'gep', 30);
+  assert.deepEqual(first(st).ruleMarks, { 'x.com/a': 3, 'x.com/b': 2 }, 'a levett szabály sírkövet kap');
+
+  first(st).alias = 'iksz';
+  bumpRevisions(st, 'gep', 40);
+  assert.deepEqual(first(st).ruleMarks, { 'x.com/a': 3, 'x.com/b': 2 }, 'más mező nem nyúl a jelekhez');
+
+  // Átvétel: a fésült lista és jelei maradnak, a saját léptetés nem jelöli újra.
+  st.sites[0] = adoptRevision({
+    ...first(st), rules: [{ host: 'x.com', path: '/c' }], ruleMarks: { 'x.com/a': 3, 'x.com/b': 7, 'x.com/c': 6 }, rev: 7,
+  });
+  first(st).alias = 'ipszilon';
+  bumpRevisions(st, 'gep', 50);
+  assert.equal(first(st).rev, 8);
+  assert.deepEqual(first(st).ruleMarks, { 'x.com/a': 3, 'x.com/b': 7, 'x.com/c': 6 });
+});

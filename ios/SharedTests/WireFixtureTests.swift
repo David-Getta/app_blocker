@@ -50,8 +50,11 @@ final class WireFixtureTests: XCTestCase {
         let head = "\(s.id)|\(s.domain)|\(s.hostnames.joined(separator: ","))|added=\(int(s.addedAt))"
         let mid = "|del=\(opt(s.pendingDeleteAt))|limit=\(opt(s.dailyLimitSeconds))|alias=\(s.alias ?? "-")|reason=\(s.reason ?? "-")"
         let tail = "|rev=\(s.rev)|at=\(int(s.updatedAt))|by=\(s.updatedBy)|marks=\(marks)|sched=\(scheduleKey(s.schedule))|rules=\(rules)"
+        let rmarkParts: [String] = (s.ruleMarks ?? [:]).sorted { TextLogic.utf16Less($0.key, $1.key) }
+            .map { "\($0.key)=\($0.value)" }
+        let rmarks = "|rmarks=" + rmarkParts.joined(separator: ",")
         let loos = "|loos=\(s.deleteLoosens ?? 0)/\(s.scheduleLoosens ?? 0)/\(s.limitLoosens ?? 0)/\(s.burstLoosens ?? 0)"
-        return head + mid + tail + loos
+        return head + mid + tail + rmarks + loos
     }
 
     /// A menetrend HATÁSA (a döntés normalizálása után), mint a gép kulcsában.

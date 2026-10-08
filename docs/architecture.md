@@ -269,7 +269,9 @@ magból. És az őr: a drótnév-ellenőrző azt is nézi, hogy minden őrzött
 drót-mező ott van a fixtúra generátorában — egy új mező nem maradhat ki
 csendben az összevetésből. A fixtúra fogta ki a v0.4.170 Swift-rését (a
 normalizálás eldobta a rejtést), és a szabálylista sorrendfüggését egy régi
-kliens mellett, amiből a szabályok jele lett. A réteg második fájlja a
+kliens mellett, amiből a szabályok jele lett — ma már szabályonként, mert a
+lista-jel egyenlő jelnél még mindig a rekord rev-jére hagyatkozott, amit a
+teljes rekordot néző véletlen-teszt fogott ki. A réteg második fájlja a
 SZÖVEG-TISZTÍTÁSÉ (`fixtures/text-cases.json`, írja
 `desktop/test/text-fixture.test.ts`, visszajátssza a Kotlin `TextFixtureTest`
 és a Swift `TextFixtureTests`): a fedőnév, az indok, a kulcsszó, a megbízott

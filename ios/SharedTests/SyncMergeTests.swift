@@ -127,40 +127,57 @@ final class SyncMergeTests: XCTestCase {
         XCTAssertEqual(merged.first?.hostnames, ["m.youtube.com", "youtube.com"], "a jel nélküli m. bekerül, a jeles music. nem jön vissza")
     }
 
-    func testTheRuleMarkDecidesAndAnOldClientDoesNotEndorseTheListItMetFirst() {
-        func rec(_ rev: Int, _ rules: [UrlRules.UrlRule]?, _ mark: Int?, _ by: String) -> SyncMerge.SyncSite {
+    func testPerRuleTheMarkDecidesAndAFreeAdditionDoesNotTakeTheOtherDevicesRule() {
+        func rec(_ rev: Int, _ rules: [UrlRules.UrlRule]?, _ marks: [String: Int]?, _ by: String, listMark: Int? = nil)
+            -> SyncMerge.SyncSite {
             SyncMerge.SyncSite(
                 id: "site_1", domain: "youtube.com", hostnames: ["youtube.com"], addedAt: 1_000,
-                rules: rules, rev: rev, updatedAt: 100, updatedBy: by, rulesRev: mark
+                rules: rules, rev: rev, updatedAt: 100, updatedBy: by, rulesRev: listMark, ruleMarks: marks
             )
         }
         let r1 = UrlRules.UrlRule(host: "youtube.com", path: "/@egy")
-        let r2 = UrlRules.UrlRule(host: "youtube.com", path: "/@ketto")
-        // A JEL: a kifizetett levétel nagyobb jellel átmegy akkor is, ha a másik
-        // rekord rev-je más szerkesztéstől nagyobb.
-        let kept = rec(6, [r1], 2, "a")
-        let removed = rec(4, [], 4, "b")
+        let rs = UrlRules.UrlRule(host: "youtube.com", path: "/@s")
+        let rt = UrlRules.UrlRule(host: "youtube.com", path: "/@t")
+        // A RÉGI HIBA: az ingyenes felvétel nagyobb lista-jellel egészében vitte a
+        // listáját. Szabályonként mindkét felvett szabály megmarad.
+        let a = rec(10, [r1, rt], ["youtube.com/@t": 10], "a", listMark: 10)
+        let b = rec(4, [r1, rs], ["youtube.com/@s": 4], "b", listMark: 4)
+        for m in [SyncMerge.mergeSite(a, b), SyncMerge.mergeSite(b, a)] {
+            XCTAssertEqual(m.rules, [r1, rs, rt])
+            XCTAssertEqual(m.ruleMarks, ["youtube.com/@s": 4, "youtube.com/@t": 10])
+            XCTAssertEqual(m.rulesRev, 10, "a lista-jelből a nagyobb megy tovább")
+        }
+        // A kifizetett levétel sírköve a nagyobb rev-ű, régi listát is legyőzi.
+        let kept = rec(6, [r1], ["youtube.com/@egy": 2], "a")
+        let removed = rec(4, [], ["youtube.com/@egy": 4], "b")
         XCTAssertEqual(SyncMerge.mergeSite(kept, removed).rules, [])
-        XCTAssertEqual(SyncMerge.mergeSite(kept, removed).rulesRev, 4)
-        XCTAssertEqual(SyncMerge.mergeSite(removed, kept).rulesRev, 4)
-        // Azonos jelnél a régi szabály: egyenlő revnél unió, a jel marad.
-        let x = rec(5, [r1], 3, "a")
-        let y = rec(5, [r2], 3, "b")
-        XCTAssertEqual(SyncMerge.mergeSite(x, y).rules, [r1, r2])
-        XCTAssertEqual(SyncMerge.mergeSite(x, y).rulesRev, 3)
-        // Régi kliens (nincs mező, nagy rev) és két új kliens: a sorrend nem számít.
+        XCTAssertEqual(SyncMerge.mergeSite(removed, kept).rules, [])
+        // Egyenlő jelnél a jelenlét; a később újra felvett nyer a levétel ellen.
+        XCTAssertEqual(SyncMerge.mergeSite(removed, rec(4, [r1], ["youtube.com/@egy": 4], "c")).rules, [r1])
+        XCTAssertEqual(SyncMerge.mergeSite(removed, rec(8, [r1], ["youtube.com/@egy": 8], "c")).rules, [r1])
+        // Sírkő nélkül az üres lista nem vesz le semmit.
+        XCTAssertEqual(SyncMerge.mergeSite(kept, rec(9, [], nil, "d")).rules, [r1])
+        // Régi kliens (nincs mező) a másik oldal listáját és jeleit viszi; a sorrend nem számít.
         let old = rec(9, nil, nil, "telefon")
-        let d = rec(2, [r1], 2, "a")
-        let e = rec(3, [], 3, "b")
-        let viaD = SyncMerge.mergeSite(SyncMerge.mergeSite(old, d), e)
-        let viaE = SyncMerge.mergeSite(SyncMerge.mergeSite(old, e), d)
-        XCTAssertEqual(viaD.rules, [])
-        XCTAssertEqual(viaE.rules, [])
-        XCTAssertEqual(viaD.rulesRev, 3)
-        XCTAssertEqual(viaE.rulesRev, 3)
-        XCTAssertEqual(SyncMerge.mergeSite(old, d).rulesRev, 2, "a régi kliens a másik jelét viszi, nem a saját rev-jét")
-        // Jel nélküli (régi) rekordok között a régi szabály áll.
-        XCTAssertEqual(SyncMerge.mergeSite(rec(5, [r1], nil, "a"), rec(3, [], nil, "b")).rules, [r1])
+        let viaKept = SyncMerge.mergeSite(SyncMerge.mergeSite(old, kept), removed)
+        let viaRemoved = SyncMerge.mergeSite(SyncMerge.mergeSite(old, removed), kept)
+        XCTAssertEqual(viaKept.rules, [])
+        XCTAssertEqual(viaRemoved.rules, [])
+        XCTAssertEqual(viaKept.ruleMarks, ["youtube.com/@egy": 4])
+        XCTAssertEqual(viaRemoved.ruleMarks, ["youtube.com/@egy": 4])
+    }
+
+    func testTheRuleMarksTravelOnlyWithAListWithCanonicalKeysUpToTheRev() throws {
+        let json = #"""
+        [{"id":"s1","domain":"a.com","hostnames":["a.com"],"rev":4,"rules":[{"host":"a.com","path":"/x"}],
+          "ruleMarks":{"a.com/x":3,"a.com/y":4,"a.com/z":5,"www.a.com/q":1,"a.com/w":1.5,"a.com/v":"1"}},
+         {"id":"s2","domain":"b.com","hostnames":["b.com"],"rev":4,"ruleMarks":{"b.com/x":1}}]
+        """#
+        let sites = try JSONDecoder().decode([SyncMerge.SyncSite].self, from: Data(json.utf8))
+        XCTAssertEqual(sites[0].ruleMarks, ["a.com/x": 3, "a.com/y": 4], "a sírkő is jel; a rev fölötti és a nem kanonikus nem")
+        XCTAssertNil(sites[1].ruleMarks, "lista nélkül nincs jel")
+        let back = try JSONDecoder().decode([SyncMerge.SyncSite].self, from: JSONEncoder().encode(sites))
+        XCTAssertEqual(back[0].ruleMarks, ["a.com/x": 3, "a.com/y": 4])
     }
 
     // MARK: - mezőnként: a kifizetett számláló, egyenlőnél a szigorúbb alak

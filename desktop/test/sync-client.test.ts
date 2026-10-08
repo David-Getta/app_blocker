@@ -452,6 +452,27 @@ test('the rule mark travels only with a list, only up to the record rev, and its
   assert.equal(sameSites([{ ...s, rulesRev: 2 }], [{ ...s, rulesRev: 3 }]), false, 'a jel cseréje különbség');
 });
 
+test('the rule marks travel only with a list, with canonical keys, up to the record rev', () => {
+  const base = {
+    id: 'a', domain: 'youtube.com', hostnames: ['youtube.com'], addedAt: 1,
+    pendingDeleteAt: null, rev: 3, updatedAt: 5, updatedBy: 'telefon',
+  };
+  const rules = [{ host: 'youtube.com', path: '/x' }];
+  const marks = (raw: unknown, withRules = true) =>
+    normalizeIncomingSites([{ ...base, ...(withRules ? { rules } : {}), ruleMarks: raw }])[0].ruleMarks;
+  assert.deepEqual(marks({ 'youtube.com/x': 3, 'youtube.com/y': 2 }), { 'youtube.com/x': 3, 'youtube.com/y': 2 },
+    'a sírkő (lista nélküli szabály) is jel');
+  assert.deepEqual(marks({ 'youtube.com/x': 4 }), undefined, 'a rev fölötti jel eldobva');
+  assert.deepEqual(marks({ 'www.youtube.com/x': 2, 'youtube.com': 2, '/x': 2, 'youtube.com/x ': 2 }), undefined,
+    'csak kanonikus szabály-kulcs');
+  assert.deepEqual(marks({ 'youtube.com/x': '2', 'youtube.com/y': 1.5, 'youtube.com/z': 0 }), undefined);
+  assert.deepEqual(marks({ 'youtube.com/x': 2 }, false), undefined, 'lista nélkül nincs jel');
+  assert.deepEqual(marks(['youtube.com/x']), undefined);
+  const s: SyncSite = { ...base, pauseUntil: null, rules };
+  assert.equal(sameSites([{ ...s, ruleMarks: { 'youtube.com/x': 2 } }], [{ ...s, ruleMarks: { 'youtube.com/x': 3 } }]), false,
+    'a jel cseréje különbség');
+});
+
 test('the same Android payload twice is not seen as a change', () => {
   const a = normalizeIncomingSites(JSON.parse(ANDROID_PAYLOAD));
   const b = normalizeIncomingSites(JSON.parse(ANDROID_PAYLOAD));

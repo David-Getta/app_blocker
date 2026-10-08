@@ -71,9 +71,9 @@ object SyncMerge {
         val hostnameMarks: Map<String, Int>? = null,
         /**
          * A szabálylista JELE: a rekord rev-je, amelyik a listát utoljára
-         * változtatta. A fésülésben a nagyobb jel dönt; azonos jelnél a régi
-         * szabály; a mező nélküli rekord (régi kliens) a másik oldal listáját
-         * ÉS jelét viszi. A telefon nem ír ilyet, hordozza. Lásd `mergeRules`.
+         * változtatta. Már csak a RÉGI klienseknek szól (ők ebből fésülnek); a
+         * fésülés a szabályonkénti jeleket nézi, ezt csak továbbviszi. A
+         * telefon nem ír ilyet, hordozza. Lásd `mergeRules`.
          */
         val rulesRev: Int? = null,
         /**
@@ -85,6 +85,14 @@ object SyncMerge {
         val scheduleLoosens: Int? = null,
         val limitLoosens: Int? = null,
         val burstLoosens: Int? = null,
+        /**
+         * A szabályok JELEI: szabály-kulcs (hoszt + út) → a rekord rev-je,
+         * amelyik a szabályt utoljára felvette vagy levette (a levett szabály
+         * jele sírkő). Szabályonként a nagyobb jel dönt; egyenlőnél a
+         * jelenlét. Az Android a bírónál írja (felvétel, kifizetett levétel).
+         * A merge.ts tükre.
+         */
+        val ruleMarks: Map<String, Int>? = null,
     )
 
     // --------------------------------------------------------- szigorúság
@@ -330,44 +338,65 @@ object SyncMerge {
     }
 
     private fun withRules(winner: SyncSite, a: SyncSite, b: SyncSite): SyncSite {
-        val (rules, mark) = mergeRules(a, b)
-        val rulesRev = mark.takeIf { it > 0 }
-        return if (rules == winner.rules && rulesRev == winner.rulesRev) winner
-            else winner.copy(rules = rules, rulesRev = rulesRev)
+        val merged = mergeRules(a, b)
+        val rulesRev = merged.mark.takeIf { it > 0 && merged.rules != null }
+        val ruleMarks = merged.marks?.takeIf { merged.rules != null && it.isNotEmpty() }
+        return if (merged.rules == winner.rules && rulesRev == winner.rulesRev && ruleMarks == winner.ruleMarks) winner
+            else winner.copy(rules = merged.rules, rulesRev = rulesRev, ruleMarks = ruleMarks)
     }
 
+    /** Egy szabály kulcsa a jelekhez: a kanonikus hoszt + út — a merge.ts `ruleKey`-je. */
+    fun ruleKey(r: UrlRules.UrlRule): String = r.host + r.path
+
+    private fun markOf(v: Int?): Int = if (v != null && v > 0) v else 0
+
+    private class MergedRules(val rules: List<UrlRules.UrlRule>?, val marks: Map<String, Int>?, val mark: Int)
+
     /**
-     * A részleges szabályok összefésülése — a rekord többi mezőjétől KÜLÖN.
+     * A részleges szabályok összefésülése — a rekord többi mezőjétől KÜLÖN,
+     * SZABÁLYONKÉNT (a merge.ts `mergeRules`-a):
      *
-     * Miért nem elég a nyertes rekord szabálylistája:
+     *  1. **A szabály jele dönt.** A nagyobb jelnél álló állapot (benne van
+     *     vagy nincs) marad — a kifizetett levétel átmegy, és egy régebbi
+     *     eszköz ingyenes szerkesztése sem hozza vissza.
+     *  2. **Egyenlő jelnél a jelenlét** — a jel nélküli szabály is ilyen.
+     *  3. **A lista-jel (`rulesRev`) már nem dönt**, csak továbbmegy (a
+     *     nagyobb): egy ingyenes felvétel eddig nagyobb jellel egészében vitte
+     *     a listáját, és a másik eszközön felvett szabály eltűnt.
+     *  4. **A `null` NEM ugyanaz, mint az üres lista.** A mező nélküli rekord
+     *     (régi kliens) a másik oldal listáját, jeleit és lista-jelét viszi.
      *
-     *  1. **Egyenlő revnél EGYESÍTÜNK.** A szabály tisztán hozzáadás: felvenni
-     *     szigorítás. Ha ilyenkor egy egész listát választanánk, két eszközön
-     *     egyszerre felvett két szabályból az egyik némán elveszne — a
-     *     felhasználó pedig azt hinné, hogy felvette.
-     *  2. **Nagyobb rev nyer** — ott van mögötte a próbatétel, tehát az
-     *     eltávolítás is átmegy. Egyesítés itt feltámasztaná a kifizetett
-     *     törlést.
-     *  3. **A `null` NEM ugyanaz, mint az üres lista.** Egy RÉGI app-verzió nem
-     *     ismeri ezt a mezőt: ami átmegy rajta, abból eltűnik. Ha a hiányt
-     *     mindenestül törlésnek vennénk, elég lenne egy frissítetlen eszköz a
-     *     fiókban, és a gépen felvett összes szabály csendben eltűnne.
-     *  4. **A JEL DÖNT, nem a rekord rev-je** (`rulesRev`). A rekord rev-je más
-     *     szerkesztéstől is nő, és egy mező nélküli régi kliens nagy rev-je azt
-     *     a listát hitelesítené, amelyikkel épp előbb találkozott — három
-     *     eszköznél az eredmény a sorrendtől függött. A mező nélküli rekord a
-     *     másik oldal listáját ÉS jelét viszi; jel nélkül a régi szabály.
+     * A plafon: legfeljebb 50 szabály marad (a nagyobb jelűek, egyenlőnél
+     * kulcs szerint); a kiesett szabály jele is kiesik.
      */
-    private fun mergeRules(a: SyncSite, b: SyncSite): Pair<List<UrlRules.UrlRule>?, Int> {
+    private fun mergeRules(a: SyncSite, b: SyncSite): MergedRules {
         val ar = cleanRules(a.rules)
         val br = cleanRules(b.rules)
-        val ma = if (ar == null) 0 else (a.rulesRev ?: 0)
-        val mb = if (br == null) 0 else (b.rulesRev ?: 0)
-        if (ar == null) return br to mb
-        if (br == null) return ar to ma
-        if (ma != mb) return if (ma > mb) ar to ma else br to mb
-        if (a.rev == b.rev) return unionRules(ar, br) to ma
-        return (if (a.rev > b.rev) ar else br) to ma
+        if (ar == null && br == null) return MergedRules(null, null, 0)
+        if (ar == null) return MergedRules(br, b.ruleMarks, markOf(b.rulesRev))
+        if (br == null) return MergedRules(ar, a.ruleMarks, markOf(a.rulesRev))
+        val am = a.ruleMarks ?: emptyMap()
+        val bm = b.ruleMarks ?: emptyMap()
+        val byKey = LinkedHashMap<String, UrlRules.UrlRule>()
+        for (r in ar + br) byKey[ruleKey(r)] = r
+        val inA = ar.map { ruleKey(it) }.toSet()
+        val inB = br.map { ruleKey(it) }.toSet()
+        val marks = HashMap<String, Int>()
+        val present = ArrayList<String>()
+        val keys = LinkedHashSet<String>().apply { addAll(byKey.keys); addAll(am.keys); addAll(bm.keys) }
+        for (k in keys) {
+            val ma = markOf(am[k])
+            val mb = markOf(bm[k])
+            val here = if (ma > mb) k in inA else if (mb > ma) k in inB else (k in inA || k in inB)
+            if (maxOf(ma, mb) > 0) marks[k] = maxOf(ma, mb)
+            if (here) present.add(k)
+        }
+        present.sortWith(compareByDescending<String> { markOf(marks[it]) }.thenBy { it })
+        for (k in present.drop(UrlRules.MAX_RULES_PER_SITE)) marks.remove(k)
+        val kept = present.take(UrlRules.MAX_RULES_PER_SITE)
+        // Stabil sorrend, hogy két eszköz bájtra ugyanazt a listát kapja.
+        val rules = kept.map { byKey.getValue(it) }.sortedBy { ruleKey(it) }
+        return MergedRules(rules, capHostnameMarks(marks, kept), maxOf(markOf(a.rulesRev), markOf(b.rulesRev)))
     }
 
     /** Szemétszűrés: a szinkronon át érkező szabály ugyanolyan megbízhatatlan, mint bármi más. */
@@ -382,20 +411,6 @@ object SyncMerge {
             out.add(norm)
         }
         return out
-    }
-
-    private fun unionRules(
-        a: List<UrlRules.UrlRule>, b: List<UrlRules.UrlRule>,
-    ): List<UrlRules.UrlRule> {
-        val out = ArrayList(a)
-        for (r in b) {
-            if (out.any { UrlRules.sameRule(it, r) }) continue
-            if (out.size >= UrlRules.MAX_RULES_PER_SITE) break
-            out.add(r)
-        }
-        // Stabil sorrend, hogy két eszköz bájtra ugyanazt a listát kapja —
-        // különben örökké oda-vissza írnák egymást, mert a tartalom „változott”.
-        return out.sortedBy { it.host + it.path }
     }
 
     /**

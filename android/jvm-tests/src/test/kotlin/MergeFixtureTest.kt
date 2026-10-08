@@ -60,7 +60,8 @@ class MergeFixtureTest {
             " reason=${opt(s.reason)}" +
             " at=${s.updatedAt} by=${s.updatedBy}" +
             " sched=$sched burst=$burst rules=$rules rmark=${s.rulesRev ?: 0}" +
-            " loos=${s.deleteLoosens ?: 0}/${s.scheduleLoosens ?: 0}/${s.limitLoosens ?: 0}/${s.burstLoosens ?: 0}"
+            " loos=${s.deleteLoosens ?: 0}/${s.scheduleLoosens ?: 0}/${s.limitLoosens ?: 0}/${s.burstLoosens ?: 0}" +
+            " rmarks=[" + (s.ruleMarks ?: emptyMap()).toSortedMap().entries.joinToString(",") { "${it.key}=${it.value}" } + "]"
     }
 
     private fun focusKey(f: FocusSync.SyncFocus): String {

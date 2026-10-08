@@ -158,6 +158,8 @@ object SyncClient {
             hostnameMarks = s.hostnameMarks,
             // A szabálylista jele is hordozott: a gépen kifizetett levétel nyoma.
             rulesRev = s.rulesRev,
+            // A szabályok jelei: szabályonként ezekből dől el, ki mondta az újabbat.
+            ruleMarks = s.ruleMarks,
             // A kifizetett lazítások mezőnként — a fésülés ezekből dönt.
             deleteLoosens = s.deleteLoosens, scheduleLoosens = s.scheduleLoosens,
             limitLoosens = s.limitLoosens, burstLoosens = s.burstLoosens,
@@ -180,6 +182,7 @@ object SyncClient {
                     rev = m.rev, updatedAt = m.updatedAt, updatedBy = m.updatedBy,
                     hostnameMarks = m.hostnameMarks,
                     rulesRev = m.rulesRev,
+                    ruleMarks = m.ruleMarks,
                     deleteLoosens = m.deleteLoosens, scheduleLoosens = m.scheduleLoosens,
                     limitLoosens = m.limitLoosens, burstLoosens = m.burstLoosens,
                 )
@@ -233,6 +236,8 @@ object SyncClient {
                 if (s.hostnameMarks != null) put("hostnameMarks", JSONObject(s.hostnameMarks))
                 // A szabálylista jele csak lista mellett: mező nélkül nincs jel.
                 if (s.rules != null && s.rulesRev != null) put("rulesRev", s.rulesRev)
+                // A szabályok jelei is csak lista mellett.
+                if (s.rules != null && s.ruleMarks != null) put("ruleMarks", JSONObject(s.ruleMarks))
                 // A kifizetett lazítások — nullánál nincs mező.
                 if (s.deleteLoosens != null) put("deleteLoosens", s.deleteLoosens)
                 if (s.scheduleLoosens != null) put("scheduleLoosens", s.scheduleLoosens)
@@ -316,6 +321,7 @@ object SyncClient {
                     .filter { Blocklist.isCanonicalHostname(it) }.distinct()
                 // Csak egész rev; a jelek felső határa is ez (a gépen is).
                 val rev = intOf(o, "rev") ?: 1
+                val rules = rulesFromJson(o)
                 out.add(SyncMerge.SyncSite(
                     id = id!!,
                     domain = domain!!,
@@ -330,7 +336,7 @@ object SyncClient {
                     cooldownSeconds = numberOf(o, "cooldownSeconds")?.toLong(),
                     alias = AliasLogic.normalize(stringOf(o, "alias")),
                     reason = AliasLogic.normalizeReason(stringOf(o, "reason")),
-                    rules = rulesFromJson(o),
+                    rules = rules,
                     rev = rev,
                     updatedAt = numberOf(o, "updatedAt")?.toLong() ?: 0,
                     updatedBy = stringOf(o, "updatedBy") ?: "",
@@ -347,10 +353,31 @@ object SyncClient {
                     scheduleLoosens = intOf(o, "scheduleLoosens")?.takeIf { it > 0 && it <= rev },
                     limitLoosens = intOf(o, "limitLoosens")?.takeIf { it > 0 && it <= rev },
                     burstLoosens = intOf(o, "burstLoosens")?.takeIf { it > 0 && it <= rev },
+                    ruleMarks = ruleMarksFromJson(o, rules, rev),
                 ))
             }
         }
         return out
+    }
+
+    /**
+     * A szabályok jelei a dróton és a tárolt állapotban: csak KANONIKUS
+     * szabály-kulcs (ahogy a kézzel beírt szabály is lenne) → pozitív egész,
+     * legfeljebb a rekord rev-je; és csak szabálylista mellett — mező nélkül
+     * nincs jel. A plafon a fésülésé. A gép `cleanRuleMarks`-a.
+     */
+    internal fun ruleMarksFromJson(o: JSONObject, rules: List<UrlRules.UrlRule>?, rev: Int): Map<String, Int>? {
+        if (rules == null) return null
+        val obj = o.opt("ruleMarks") as? JSONObject ?: return null
+        val out = HashMap<String, Int>()
+        for (k in obj.keys()) {
+            val v = intValue(obj.opt(k)) ?: continue
+            if (v <= 0 || v > rev) continue
+            val norm = UrlRules.normalizeRule(k) ?: continue
+            if (SyncMerge.ruleKey(norm) != k) continue
+            out[k] = v
+        }
+        return SyncMerge.capHostnameMarks(out, rules.map { SyncMerge.ruleKey(it) })
     }
 
     // ------------------------------------------------------------ munkamenet

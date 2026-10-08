@@ -76,6 +76,15 @@ private func randomSite(_ r: inout Lcg, _ device: String) -> SyncMerge.SyncSite 
     let loosPick = Int(r.next() * 4)
     let loosValue = min(1 + Int(r.next() * 2), rev)
     let loos: Int? = loosDraw < 0.4 ? loosValue : nil
+    // A SZABÁLYOK JELEI — négy húzás, feltétel nélkül, mint a gépen: a két
+    // készlet-szabály mindegyikére van-e jele, és mennyi (legfeljebb a rev).
+    let rm0Draw = r.next()
+    let rm0Value = min(1 + Int(r.next() * 5), rev)
+    let rm1Draw = r.next()
+    let rm1Value = min(1 + Int(r.next() * 5), rev)
+    var ruleMarks: [String: Int] = [:]
+    if rules != nil && rm0Draw < 0.5 { ruleMarks[SyncMerge.ruleKey(rulePool[0])] = rm0Value }
+    if rules != nil && rm1Draw < 0.5 { ruleMarks[SyncMerge.ruleKey(rulePool[1])] = rm1Value }
     return SyncMerge.SyncSite(
         id: "site_1", domain: "youtube.com", hostnames: hostnames, addedAt: 1_000,
         pendingDeleteAt: pending, schedule: schedule, dailyLimitSeconds: limit,
@@ -85,17 +94,15 @@ private func randomSite(_ r: inout Lcg, _ device: String) -> SyncMerge.SyncSite 
         hostnameMarks: marks.isEmpty ? nil : marks,
         rulesRev: rulesRev,
         deleteLoosens: loosPick == 0 ? loos : nil, scheduleLoosens: loosPick == 1 ? loos : nil,
-        limitLoosens: loosPick == 2 ? loos : nil, burstLoosens: loosPick == 3 ? loos : nil
+        limitLoosens: loosPick == 2 ? loos : nil, burstLoosens: loosPick == 3 ? loos : nil,
+        ruleMarks: ruleMarks.isEmpty ? nil : ruleMarks
     )
 }
 
-/// A rekord egésze: a nevek és a jeleik, a menetrend, a keret, az adag, a
-/// törlésre várás, a számlálók, a fedőnév — mezőnként fésülődik minden, és
+/// A rekord EGÉSZE: a nevek és a jeleik, a részleges szabályok és a jeleik, a
+/// menetrend, a keret, az adag, a törlésre várás, a számlálók, a fedőnév —
+/// mezőnként (a neveknél és a szabályoknál elemenként) fésülődik minden, és
 /// mindegyik szabály sorrendfüggetlen (a gép merge-fuzz.test.ts-ének párja).
-///
-/// A RÉSZLEGES SZABÁLYOK még kimaradnak, és ez adósság, nem elv: a lista egy
-/// jellel fésülődik, egyenlő jelnél pedig a rekord rev-je dönt — az pedig más
-/// mezőtől is nő, így három eszköznél a sorrendtől függ, melyik lista marad.
 private func siteKey(_ s: SyncMerge.SyncSite) -> String {
     let marks = (s.hostnameMarks ?? [:]).sorted { $0.key < $1.key }
         .map { "\($0.key)=\($0.value)" }.joined(separator: ",")
@@ -110,7 +117,11 @@ private func siteKey(_ s: SyncMerge.SyncSite) -> String {
     let mid = "|\(opt(s.dailyLimitSeconds))|\(opt(s.burstSeconds))/\(opt(s.cooldownSeconds))|\(sched)"
     let tail = "|\(s.alias ?? "-")|\(s.reason ?? "-")|\(opt(s.updatedAt))|\(s.updatedBy)"
     let loos = "|\(s.deleteLoosens ?? 0)/\(s.scheduleLoosens ?? 0)/\(s.limitLoosens ?? 0)/\(s.burstLoosens ?? 0)"
-    return head + mid + tail + loos
+    let rules: String = s.rules.map { list in list.map { $0.host + $0.path }.sorted().joined(separator: ",") } ?? "-"
+    let rmarks: String = (s.ruleMarks ?? [:]).sorted { $0.key < $1.key }
+        .map { "\($0.key)=\($0.value)" }.joined(separator: ",")
+    let rest: String = "|" + rules + "|\(s.rulesRev ?? 0)|" + rmarks
+    return head + mid + tail + loos + rest
 }
 
 private let packIds = ["p1", "p2", "p3", "p4"]

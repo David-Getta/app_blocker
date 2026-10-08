@@ -21,7 +21,7 @@ import { markWindowChanges } from '../shared/lockdown';
 import type { HelperState, SiteRec } from './state';
 import { windowKey } from '../shared/lockdown';
 import type { FocusPack } from '../shared/focus';
-import { capHostnameMarks } from '../shared/sync/merge';
+import { capHostnameMarks, ruleKey } from '../shared/sync/merge';
 import { capPackMarks } from '../shared/sync/focus-merge';
 import { markChannelChanges } from '../shared/sync/channels-merge';
 import type { ChannelFilter } from '../shared/channels';
@@ -72,6 +72,7 @@ export function bumpRevisions(state: HelperState, deviceId: string, now: number)
       // Frissítés utáni első kör: a lista még nincs eltéve — innentől van.
       if (!site.revHosts) site.revHosts = [...site.hostnames];
       if (site.revRulesKey === undefined) site.revRulesKey = rulesKey(site);
+      if (!site.revRules) site.revRules = (site.rules ?? []).map(ruleKey);
       continue;
     }
     site.rev = (site.rev ?? 0) + 1;
@@ -482,7 +483,10 @@ export function adoptChannelsRevision(state: HelperState): void {
  * fölöslegesen a számlálót, és nem indul be egy végtelen oda-vissza írás.
  */
 export function adoptRevision(site: SiteRec): SiteRec {
-  return { ...site, revFp: fingerprint(site), revHosts: [...site.hostnames], revRulesKey: rulesKey(site) };
+  return {
+    ...site, revFp: fingerprint(site), revHosts: [...site.hostnames], revRulesKey: rulesKey(site),
+    revRules: (site.rules ?? []).map(ruleKey),
+  };
 }
 
 /** A szabálylista tartalmi kulcsa — a „nincs mező” más, mint az üres lista. */
@@ -491,17 +495,36 @@ function rulesKey(site: SiteRec): string {
 }
 
 /**
- * A szabálylista JELE: ha a lista az előző léptetés óta változott, a jele ez
- * a rev. A fésülés ebből tudja, melyik eszköz mondta az újabbat (merge.ts,
- * `mergeRules`) — a rekord rev-je helyett, ami más szerkesztéstől is nő, és
- * egy mező nélküli (régi) klienstől is jöhet. Az első léptetés (nincs még
- * eltett kulcs) jel nélkül megy; az átvett jel marad, amíg a lista nem változik.
+ * A szabályok JELEI: ami az előző léptetés óta bekerült vagy kikerült, az ezt
+ * a rev-et kapja (a levett szabály jele sírkő). A fésülés szabályonként ebből
+ * tudja, melyik eszköz mondta az újabbat (merge.ts, `mergeRules`). Itt, és nem
+ * a felvétel és a levétel két pontján: a lista változásának EGY fogópontja
+ * van, mint a hosztneveknél. Az első léptetés (nincs még eltett lista) jel
+ * nélkül megy; arra a jelenlét-nyer szabály áll.
+ *
+ * A LISTA JELE (`rulesRev`) mellette marad: a régi kliensek abból fésülnek.
  */
 function markRules(site: SiteRec): void {
   const prev = site.revRulesKey;
   const key = rulesKey(site);
   site.revRulesKey = key;
-  if (prev === undefined || site.rev === undefined || prev === key) return;
+  const before = site.revRules;
+  const now = (site.rules ?? []).map(ruleKey);
+  site.revRules = now;
+  if (site.rev === undefined) return;
+  if (before) {
+    const was = new Set(before);
+    const is = new Set(now);
+    const marks = { ...(site.ruleMarks ?? {}) };
+    let touched = false;
+    for (const k of is) if (!was.has(k)) { marks[k] = site.rev; touched = true; }
+    for (const k of was) if (!is.has(k)) { marks[k] = site.rev; touched = true; }
+    if (touched) {
+      const capped = capHostnameMarks(marks, now);
+      if (capped) site.ruleMarks = capped; else delete site.ruleMarks;
+    }
+  }
+  if (prev === undefined || prev === key) return;
   site.rulesRev = site.rev;
 }
 

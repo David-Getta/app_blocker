@@ -30,39 +30,54 @@ class MergeRulesTest {
         updatedAt: Long = 1_000,
         updatedBy: String = "gep-a",
         rulesRev: Int? = null,
+        ruleMarks: Map<String, Int>? = null,
+        alias: String? = null,
     ) = SyncSite(
         id = "site_1", domain = "youtube.com", hostnames = listOf("youtube.com"),
         addedAt = 1_000, pendingDeleteAt = null, schedule = null, dailyLimitSeconds = null,
-        alias = null, rules = rules, rev = rev, updatedAt = updatedAt, updatedBy = updatedBy,
-        rulesRev = rulesRev,
+        alias = alias, rules = rules, rev = rev, updatedAt = updatedAt, updatedBy = updatedBy,
+        rulesRev = rulesRev, ruleMarks = ruleMarks,
     )
 
-    @Test fun `the mark decides, and an old client does not endorse the list it met first`() {
-        // A JEL: a kifizetett levétel nagyobb jellel átmegy akkor is, ha a másik
-        // rekord rev-je más szerkesztéstől nagyobb.
-        val kept = site(rev = 6, rules = listOf(r("youtube.com/@egy")), rulesRev = 2)
-        val removed = site(rev = 4, rules = emptyList(), rulesRev = 4, updatedBy = "gep-b")
+    @Test fun `a free addition with a higher mark does not take the rule the other device added`() {
+        // A RÉGI HIBA: a lista egy jellel utazott, és az ingyenes felvétel nagyobb
+        // jellel EGÉSZÉBEN vitte a listáját. Szabályonként mindkettő megmarad.
+        val a = site(rev = 10, rules = listOf(r("youtube.com/@egy"), r("youtube.com/@t")),
+            ruleMarks = mapOf("youtube.com/@t" to 10), rulesRev = 10)
+        val b = site(rev = 4, rules = listOf(r("youtube.com/@egy"), r("youtube.com/@s")),
+            ruleMarks = mapOf("youtube.com/@s" to 4), rulesRev = 4, updatedBy = "gep-b")
+        for (m in listOf(SyncMerge.mergeSite(a, b), SyncMerge.mergeSite(b, a))) {
+            assertEquals(listOf("youtube.com/@egy", "youtube.com/@s", "youtube.com/@t"), labels(m))
+            assertEquals(mapOf("youtube.com/@s" to 4, "youtube.com/@t" to 10), m.ruleMarks)
+            assertEquals(10, m.rulesRev, "a lista-jelből a nagyobb megy tovább — a régi kliensek abból fésülnek")
+        }
+    }
+
+    @Test fun `per rule the higher mark decides, a later re-add beats the removal, equal marks keep the rule`() {
+        val kept = site(rev = 6, rules = listOf(r("youtube.com/@egy")), ruleMarks = mapOf("youtube.com/@egy" to 2))
+        val removed = site(rev = 4, rules = emptyList(), ruleMarks = mapOf("youtube.com/@egy" to 4), updatedBy = "gep-b")
         assertEquals(emptyList(), labels(SyncMerge.mergeSite(kept, removed)))
-        assertEquals(4, SyncMerge.mergeSite(kept, removed).rulesRev)
-        assertEquals(4, SyncMerge.mergeSite(removed, kept).rulesRev)
-        // Azonos jelnél a régi szabály: egyenlő revnél unió, a jel marad.
-        val x = site(rev = 5, rules = listOf(r("youtube.com/@egy")), rulesRev = 3)
-        val y = site(rev = 5, rules = listOf(r("youtube.com/@ketto")), rulesRev = 3, updatedBy = "gep-b")
-        assertEquals(listOf("youtube.com/@egy", "youtube.com/@ketto"), labels(SyncMerge.mergeSite(x, y)))
-        assertEquals(3, SyncMerge.mergeSite(x, y).rulesRev)
-        // Régi kliens (nincs mező, nagy rev) és két új kliens: a sorrend nem számít.
+        assertEquals(emptyList(), labels(SyncMerge.mergeSite(removed, kept)))
+        val readded = site(rev = 8, rules = listOf(r("youtube.com/@egy")), ruleMarks = mapOf("youtube.com/@egy" to 8))
+        assertEquals(listOf("youtube.com/@egy"), labels(SyncMerge.mergeSite(removed, readded)))
+        assertEquals(mapOf("youtube.com/@egy" to 8), SyncMerge.mergeSite(readded, removed).ruleMarks)
+        val here = site(rev = 4, rules = listOf(r("youtube.com/@egy")), ruleMarks = mapOf("youtube.com/@egy" to 4))
+        assertEquals(listOf("youtube.com/@egy"), labels(SyncMerge.mergeSite(removed, here)))
+        assertEquals(listOf("youtube.com/@egy"), labels(SyncMerge.mergeSite(here, removed)))
+    }
+
+    @Test fun `three devices in any order agree, an old client among them too`() {
         val old = site(rev = 9, updatedBy = "telefon")
-        val d = site(rev = 2, rules = listOf(r("youtube.com/@egy")), rulesRev = 2)
-        val e = site(rev = 3, rules = emptyList(), rulesRev = 3, updatedBy = "gep-b")
-        val viaD = SyncMerge.mergeSite(SyncMerge.mergeSite(old, d), e)
-        val viaE = SyncMerge.mergeSite(SyncMerge.mergeSite(old, e), d)
-        assertEquals(emptyList(), labels(viaD))
-        assertEquals(emptyList(), labels(viaE))
-        assertEquals(3, viaD.rulesRev)
-        assertEquals(3, viaE.rulesRev)
-        assertEquals(2, SyncMerge.mergeSite(old, d).rulesRev, "a régi kliens a másik jelét viszi, nem a saját rev-jét")
-        // Jel nélküli (régi) rekordok között a régi szabály áll.
-        assertEquals(listOf("youtube.com/@egy"), labels(SyncMerge.mergeSite(site(rev = 5, rules = listOf(r("youtube.com/@egy"))), site(rev = 3, rules = emptyList()))))
+        val d = site(rev = 2, rules = listOf(r("youtube.com/@egy")), ruleMarks = mapOf("youtube.com/@egy" to 2), rulesRev = 2)
+        val e = site(rev = 3, rules = emptyList(), ruleMarks = mapOf("youtube.com/@egy" to 3), rulesRev = 3, updatedBy = "gep-b")
+        val f = site(rev = 5, rules = listOf(r("youtube.com/@ketto")), ruleMarks = mapOf("youtube.com/@ketto" to 5),
+            rulesRev = 5, updatedBy = "gep-c")
+        val m = SyncMerge::mergeSite
+        for (x in listOf(m(m(m(old, d), e), f), m(m(m(f, e), d), old), m(m(old, f), m(e, d)), m(m(d, f), m(old, e)))) {
+            assertEquals(listOf("youtube.com/@ketto"), labels(x))
+            assertEquals(mapOf("youtube.com/@egy" to 3, "youtube.com/@ketto" to 5), x.ruleMarks)
+            assertEquals(5, x.rulesRev)
+        }
     }
 
     private fun labels(s: SyncSite) = (s.rules ?: emptyList()).map { it.host + it.path }.sorted()
@@ -78,13 +93,23 @@ class MergeRulesTest {
     }
 
     @Test fun `a removal that was paid for is not resurrected`() {
+        // A levétel SÍRKÖVET kap: a szabály jele a rev, amelyik levette.
         val before = site(rev = 5, rules = listOf(r("youtube.com/@egy"), r("youtube.com/@ketto")))
-        val after = site(rev = 6, rules = listOf(r("youtube.com/@ketto")), updatedAt = 2_000)
+        val after = site(rev = 6, rules = listOf(r("youtube.com/@ketto")), updatedAt = 2_000,
+            ruleMarks = mapOf("youtube.com/@egy" to 6))
         assertEquals(listOf("youtube.com/@ketto"), labels(SyncMerge.mergeSite(before, after)))
         assertEquals(listOf("youtube.com/@ketto"), labels(SyncMerge.mergeSite(after, before)))
+        assertEquals(mapOf("youtube.com/@egy" to 6), SyncMerge.mergeSite(before, after).ruleMarks, "a sírkő utazik tovább")
 
-        val empty = site(rev = 7, rules = emptyList(), updatedAt = 3_000)
+        val empty = site(rev = 7, rules = emptyList(), updatedAt = 3_000,
+            ruleMarks = mapOf("youtube.com/@egy" to 6, "youtube.com/@ketto" to 7))
         assertEquals(emptyList(), labels(SyncMerge.mergeSite(after, empty)))
+        assertEquals(emptyList(), labels(SyncMerge.mergeSite(before, empty)))
+
+        // A régi eszköz ingyenes szerkesztései (nagyobb rev) sem hozzák vissza.
+        val busy = site(rev = 40, rules = listOf(r("youtube.com/@egy"), r("youtube.com/@ketto")), alias = "tube", updatedBy = "gep-b")
+        assertEquals(listOf("youtube.com/@ketto"), labels(SyncMerge.mergeSite(busy, after)))
+        assertEquals("tube", SyncMerge.mergeSite(busy, after).alias, "a fedőnév a frissebb rekordé")
     }
 
     @Test fun `an app version that does not know the field cannot delete the rules`() {
@@ -96,9 +121,12 @@ class MergeRulesTest {
             "a nagyobb rev sem törölhet olyan mezőt, amiről nem tud")
         assertEquals(listOf("youtube.com/@egy"), labels(SyncMerge.mergeSite(old, mine)))
 
-        // Az ÜRES LISTA viszont valódi állítás: „volt, és levettem”.
-        val emptied = site(rev = 9, rules = emptyList(), updatedAt = 9_000)
+        // Az üres lista a SÍRKÖVEIVEL valódi állítás: „volt, és levettem”.
+        val emptied = site(rev = 9, rules = emptyList(), updatedAt = 9_000, ruleMarks = mapOf("youtube.com/@egy" to 9))
         assertEquals(emptyList(), labels(SyncMerge.mergeSite(mine, emptied)))
+        // Sírkő nélkül viszont nem: egyenlő jelnél a jelenlét nyer.
+        val unmarked = site(rev = 9, rules = emptyList(), updatedAt = 9_000)
+        assertEquals(listOf("youtube.com/@egy"), labels(SyncMerge.mergeSite(mine, unmarked)))
     }
 
     @Test fun `a site that never had rules stays without the field`() {
@@ -153,6 +181,11 @@ class MergeRulesTest {
         assertNull(SyncClientJson.decode(SyncClientJson.encode(unknown)).rules)
         assertEquals(emptyList(), SyncClientJson.decode(SyncClientJson.encode(emptied)).rules)
         assertEquals(listOf("youtube.com/@egy"), labels(SyncClientJson.decode(SyncClientJson.encode(withOne))))
+
+        // A jelek a listával utaznak, a sírkő is — lista nélkül nincs jel.
+        val marked = site(rev = 3, rules = emptyList(), ruleMarks = mapOf("youtube.com/@egy" to 3))
+        assertEquals(mapOf("youtube.com/@egy" to 3), SyncClientJson.decode(SyncClientJson.encode(marked)).ruleMarks)
+        assertNull(SyncClientJson.decode(SyncClientJson.encode(marked.copy(rules = null))).ruleMarks)
     }
 }
 

@@ -41,6 +41,7 @@ class WireFixtureTest {
             "|marks=" + (s.hostnameMarks ?: emptyMap()).toSortedMap().entries.joinToString(",") { "${it.key}=${it.value}" } +
             "|sched=" + scheduleKey(s.schedule) +
             "|rules=" + (s.rules?.let { list -> "[" + list.joinToString(",") { it.host + it.path } + "]" } ?: "-") +
+            "|rmarks=" + (s.ruleMarks ?: emptyMap()).toSortedMap().entries.joinToString(",") { "${it.key}=${it.value}" } +
             "|loos=${s.deleteLoosens ?: 0}/${s.scheduleLoosens ?: 0}/${s.limitLoosens ?: 0}/${s.burstLoosens ?: 0}"
 
     /** A menetrend HATÁSA (a döntés normalizálása után), mint a gép kulcsában. */
