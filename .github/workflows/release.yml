@@ -45,35 +45,21 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A telefon szól, ha a Breaker értesítései ki vannak kapcsolva.** A szünet
-          végét és a közelgő heti ablakot a telefon értesítésben mondja el (Androidon a
-          betelő keretet is). Ha az app értesítései a rendszerben ki voltak kapcsolva,
-          mindez eddig nyomtalanul elmaradt. Most a beállítások között egy csendes
-          kártya kimondja, mi marad el, és egy gombbal a kapcsolóhoz visz. Ha
-          szándékosan kapcsoltad ki, ez csak egy tény: a védelem ettől ugyanúgy működik.
+          **Android: a Play Store-ba szánt csomag nem frissíti magát.** A letölthető APK
+          eddig is maga frissült a GitHub-kiadásokból, és ez így marad. A Play Store-ba
+          szánt csomag (AAB) viszont ugyanezt az önfrissítőt és telepítési engedélyt
+          hordozta, a Play pedig ezt nem engedi: a Play-ből telepített appot csak a Play
+          frissítheti. Mostantól két csomag készül ugyanabból a kódból, és a kiadás minden
+          alkalommal ellenőrzi, hogy a Play-csomagban nincs telepítési engedély. A
+          letölthető APK-n semmi nem változik: ugyanúgy frissül, ugyanazzal az aláírással.
 
-          **Windowson az értesítés a telepített Breakeré.** Az asztali app eddig nem a
-          telepítő parancsikonjának azonosítójával küldte az értesítéseit, ezért a
-          Windows nem kötötte őket a Breakerhez: se a nevét, se az ikonját nem kapták, és
-          a Gépház értesítési listáján sem „Breaker” néven álltak. Most ugyanazt az
-          azonosítót mondja. Ha korábban a Gépházban állítottál rajtuk, az új,
-          „Breaker” nevű sorban kell újra megtenned. Ezt a CI valódi Windowson nem
-          tudja megnézni.
+          ### Ami a v0.4.243-ban jött
 
-          **iPhone: a helyi hálózat engedélye magyarázattal jön.** Az iPhone a gépen
-          futó szinkron-kiszolgálót csak engedéllyel éri el. A rendszer kérdése mellett
-          most ott a mondat, mire kell, és ha nemet mondtál, a szinkron hibaüzenete
-          megmondja, hol kapcsolható be.
+          **A telefon szól, ha a Breaker értesítései ki vannak kapcsolva.**
 
-          ### Ami a v0.4.242-ben jött
+          #### Ami a v0.4.242-ben jött
 
           **Android: a Breaker a Google Play mostani követelményére frissült.**
-
-          #### Ami a v0.4.241-ben jött
-
-          **Régebbi Macre nem kerül olyan frissítés, ami ott el sem indulna.** Ha a
-          Maceden a Breaker régóta nem futott, nyisd meg, hogy a frissítés eljusson
-          hozzá.
           NOTES
           fi
 
