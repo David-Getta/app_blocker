@@ -8,6 +8,7 @@ kettővel korábbiban.
 
 | Verzió | Nap | Mi újság |
 |---|---|---|
+| v0.4.237 | 2026-10-08 | a próbatétellel levett heti ablak levéve marad |
 | v0.4.236 | 2026-10-08 | a törölt oldal törölve marad |
 | v0.4.235 | 2026-10-08 | a részleges szabályok egyenként fésülődnek |
 | v0.4.234 | 2026-10-08 | a felhúzott rev nem hozza vissza egy oldal régi, lazább beállítását |
