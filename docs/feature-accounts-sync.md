@@ -358,6 +358,12 @@ ugyanaz a két menetrend máshogy fésülődne a két gépen — a szinkron sose
   törlésre vár, a másikon pedig nem volt kérés, az összevont sor is törlésre
   vár — egy kattintással visszavonható. Egy épp futó próbatétel a
   beolvasztott azonosítóra szólt: a teljesítése nem hat, újra kell kezdeni.
+- **Az összevonás vegyes flottában.** A frissítés előtti app a régebben
+  felvett azonosítót tartja meg, a frissített az újabbat. Amíg mindkettő van
+  a fiókban, és egy oldal két azonosítóval szerepel, a kettő minden körben
+  feltölti a saját változatát: a tiltás mindkettőn ugyanaz, a helyi állapot
+  sem vész el, csak a fiók forog — és a régi eszközön egy később átért régi
+  törlés még elviheti az újra felvett oldalt. **Frissíts minden eszközt.**
 
 A **statisztika** ennél egyszerűbb: eszközönként, naponként, célpontonként áll
 össze, ütközés nincs. Minden eszköz csak a SAJÁT napjait tölti fel, és a többiét
