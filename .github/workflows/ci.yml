@@ -113,9 +113,9 @@ jobs:
         env:
           ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
       - run: npm run build
-      # Legalább 1.61: a régebbi Playwright nem ismeri az Ubuntu 26.04-et — a
-      # böngésző telepítése el sem indult rajta („does not support chromium on
-      # ubuntu26.04-x64”), és az ubuntu-latest október 19-től oda vált.
+      # Legalább 1.61: a régebbi Playwright nem ismeri az Ubuntu 26.04-et, és a
+      # böngésző telepítése el sem indult rajta („does not support chromium”);
+      # az ubuntu-latest pedig október 19-től oda vált.
       - run: npm i --no-save playwright@1.63.0
       - run: npx playwright install --with-deps chromium
         timeout-minutes: 10
