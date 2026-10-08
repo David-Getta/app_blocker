@@ -113,7 +113,9 @@ struct Site: Codable, Identifiable, Equatable {
 struct SessionRec: Codable, Equatable, Identifiable {
     let id: String
     let kind: ChallengeEngine.Kind
-    let siteId: String
+    /// var, not let: ha a sor egy szinkronnál egy másik azonosítóba olvad, a
+    /// futó próbatétel vele megy (SyncClient.carryFolded).
+    var siteId: String
     let minutes: Int?
     var steps: [ChallengeEngine.Step]
     var stepIndex: Int

@@ -338,9 +338,13 @@ function clearBurstUnsynced(state: HelperState): void {
  * Különben a sor új azonosítója tiszta lappal indulna — egy futó hűtés
  * ingyen leesne, egy feladott próbatétel újrasorsolható lenne. Ha az új
  * azonosítón már áll valami, a szigorúbb marad: a később lejáró hűtés, a
- * több betelés, a frissebb adósság. A szünetet a `fromSyncSites` viszi; a
- * futó próbatételt semmi: a beolvasztott sor más tartalmú lehet, mint amire
- * kérték.
+ * több betelés, a frissebb adósság. A szünetet a `fromSyncSites` viszi.
+ *
+ * A FUTÓ PRÓBATÉTEL is a sorra szól, nem az azonosítóra: az összevont sorra
+ * hat. Különben a végigcsinált próbatétel semmit nem oldana fel, és mégis
+ * feloldásnak számítana. Az ára ugyanaz maradt — a fok a feloldások számából
+ * jön, nem a lazítás méretéből —, és a teljesítés mindkét felvétel után
+ * történik: a legújabb lépés a sorról.
  */
 export function carryFolded(state: HelperState, folded: ReadonlyMap<string, string>): void {
   for (const [from, to] of folded) {
@@ -373,6 +377,8 @@ export function carryFolded(state: HelperState, folded: ReadonlyMap<string, stri
       state.abandons = [...state.abandons.filter((a) => a.siteId !== from && a.siteId !== to), { ...theirs, siteId: to }];
     }
   }
+  const target = state.session ? folded.get(state.session.siteId) : undefined;
+  if (state.session && target !== undefined) state.session = { ...state.session, siteId: target };
 }
 
 /**

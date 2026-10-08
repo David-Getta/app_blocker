@@ -48,10 +48,11 @@ lehetséges **kibúvó** is. A szinkron különösen: ha rosszul csináljuk, a
 | Belépéskor a kiszolgáló listája írja felül a helyit | Egy üres (vagy régi) fiókkal be lehetne lépni, és ezzel letörölni a helyi blokkokat. Belépéskor **egyesítés** van, nem csere: a két lista UNIÓJA lesz az eredmény. |
 | A szünet (ideiglenes feloldás) is szinkronizáljon | Egy próbatétel egy eszközön feloldana MINDENHOL. A szünet szándékosan eszközfüggő és rövid életű. |
 
-Amit a szinkron NEM tud megvédeni, és ezt jobb kimondani: a `rev` számláló
-csak a KLIENSEKBEN nő a próbatétel-kapun át. A kiszolgáló átlátszatlan blobot
+Amit a szinkron NEM tud megvédeni, és ezt jobb kimondani: a kifizetett
+lazítások számlálói csak a KLIENSEKBEN nőnek, a próbatétel-kapun át (a `rev`
+ma már nem hitelesít lazítást, lásd lejjebb). A kiszolgáló átlátszatlan blobot
 lát, a kulcs pedig a jelszóból származik — aki tehát tudja a saját
-fiókjelszavát, kézzel is összerakhat egy nagy `rev`-ű, laza rekordot, és a
+fiókjelszavát, kézzel is összerakhat egy nagy számlálójú, laza rekordot, és a
 többi eszköz átveszi. Ez a nem megbízható kiszolgáló ára; a részletek és az,
 hogy mit változtat (a lécet root helyett a jelszó ismeretére viszi), a
 `docs/architecture.md` megkerülési listájában.
@@ -136,7 +137,7 @@ adag-szabály — MEZŐNKÉNT fésülődik, nem rekordonként:
   vonta. Annak az eszköznek, amelyik a régebbit ismerte, a sora az új
   azonosítót és felvételi dátumot kapja; ami nála azonosító szerint állt — a
   kifizetett szünet, az adag-számláló, a mai betelések, a próbatétel
-  adóssága —, az vele megy, a szigorúbb marad.
+  adóssága, a futó próbatétel —, az vele megy, a szigorúbb marad.
 - **A hosztnevek nevenként fésülődnek, jelekkel.** Az oldal névlistája a
   tiltás része (ezek a nevek mennek a hosts fájlba); egy név levétele
   próbatétel, a felvétele ingyen. Mindkettő JELET kap: a rekord `rev`-jét,
@@ -356,8 +357,9 @@ ugyanaz a két menetrend máshogy fésülődne a két gépen — a szinkron sose
   egyik felvételen több a kifizetett lazítás egy mezőn (egy lazább
   menetrend, egy levett név), az összevont sorra is az áll; ha az egyik
   törlésre vár, a másikon pedig nem volt kérés, az összevont sor is törlésre
-  vár — egy kattintással visszavonható. Egy épp futó próbatétel a
-  beolvasztott azonosítóra szólt: a teljesítése nem hat, újra kell kezdeni.
+  vár — egy kattintással visszavonható. Egy épp futó próbatétel az
+  összevont sorra hat: a fok a feloldások számából jön, nem a lazítás
+  méretéből, és a teljesítés mindkét felvétel után történik.
 - **Az összevonás vegyes flottában.** A frissítés előtti app a régebben
   felvett azonosítót tartja meg, a frissített az újabbat. Amíg mindkettő van
   a fiókban, és egy oldal két azonosítóval szerepel, a kettő minden körben

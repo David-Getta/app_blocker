@@ -19,7 +19,7 @@ import type { SyncSite } from '../src/shared/sync/merge';
 import { adoptRevision, bumpRevisions } from '../src/helper/revisions';
 import { defaultState, type HelperState, type SiteRec } from '../src/helper/state';
 import { closeRun } from '../src/shared/focus';
-import { tick } from '../src/helper/referee';
+import { startSession, tick } from '../src/helper/referee';
 
 let child: ChildProcess;
 let url: string;
@@ -1101,7 +1101,7 @@ test('a hálózat nélkül végigment régi törlés az újra felvett oldalt egy
   assert.deepEqual(laptop.goneSites?.map((g) => g.id), ['site_old'], 'a régi törlés sírköve marad');
 });
 
-test('ahol a sor egy másik azonosítóba olvadt, a helyi állapota vele megy: szünet, hűtés, adósság', async () => {
+test('ahol a sor egy másik azonosítóba olvadt, a helyi állapota vele megy: szünet, hűtés, adósság, a futó próbatétel', async () => {
   // A régóta használt gépen a sor a régi azonosítót viselte; egy új eszközön
   // ugyanazt a domaint külön felvették, és az összevonás az újabb azonosítót
   // tartja. A gép kifizetett szünete, futó hűtése és a feladott próbatétel
@@ -1114,6 +1114,7 @@ test('ahol a sor egy másik azonosítóba olvadt, a helyi állapota vele megy: s
   a.abandons = [{ siteId: 'site_a', kind: 'pause', comboKey: 'TYPE+MATH', at: 4_000 }];
   await signUp(a, url, acc, PASSWORD, 'Munkagép');
   await syncNow(a, 6_000);
+  startSession(a, 'delete', 'site_a', undefined, 6_500);
 
   const b = device([site({ id: 'site_b', domain: 'reddit.com', hostnames: ['reddit.com', 'old.reddit.com'], addedAt: 7_000 })]);
   await signIn(b, url, acc, PASSWORD, 'Telefon');
@@ -1126,6 +1127,7 @@ test('ahol a sor egy másik azonosítóba olvadt, a helyi állapota vele megy: s
   assert.deepEqual(a.burstTrips, { site_b: { day: '2026-10-08', count: 2 } });
   assert.deepEqual(a.burstTripLog, { site_b: { '2026-10-08': 2 } });
   assert.deepEqual(a.abandons, [{ siteId: 'site_b', kind: 'pause', comboKey: 'TYPE+MATH', at: 4_000 }], 'az adósság sem');
+  assert.equal(a.session?.siteId, 'site_b', 'a futó próbatétel az összevont sorra hat');
 });
 
 test('a máshol végigment törlés itt a saját határidőig tilt', async () => {

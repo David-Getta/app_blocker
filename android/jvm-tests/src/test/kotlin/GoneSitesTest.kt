@@ -7,6 +7,7 @@ import hu.breaker.app.core.BurstTrip
 import hu.breaker.app.core.ChallengeEngine
 import hu.breaker.app.core.LockdownLogic
 import hu.breaker.app.core.Referee
+import hu.breaker.app.core.SessionRec
 import hu.breaker.app.core.Site
 import hu.breaker.app.core.SyncClient
 import hu.breaker.app.core.SyncMerge
@@ -90,7 +91,7 @@ class GoneSitesTest {
         assertEquals(listOf("old" to false, "new" to true), m(stale, m(phone, phoneDeleted)).map { it.id to SyncMerge.isGone(it) })
     }
 
-    @Test fun `az osszevonas nyoma - a helyi szunet, hutes, beteles es adossag az uj azonositora kerul`() {
+    @Test fun `az osszevonas nyoma - a helyi szunet, hutes, beteles, adossag es a futo probatetel az uj azonositora kerul`() {
         val merged = listOf(
             site("s3", addedAt = 3_000).copy(domain = "youtube.com"), site("s2").copy(domain = "reddit.com"),
             stone("s5").copy(domain = "x.com"),
@@ -102,12 +103,14 @@ class GoneSitesTest {
             burstTrips = mapOf("s1" to BurstTrip("2026-10-08", 2)),
             burstTripLog = mapOf("s1" to mapOf("2026-10-08" to 2)),
             abandons = listOf(AbandonRec("s1", ChallengeEngine.Kind.PAUSE, "TYPE+MATH", 4_000)),
+            session = SessionRec("ses", ChallengeEngine.Kind.PAUSE, "s1", 15, emptyList(), 0, 6_000),
         )
         val after = SyncClient.carryFolded(before, folded)
         assertEquals(mapOf("s3" to BurstLogic.State(300.0, 6_000, 9_000_000)), after.bursts, "a szigorúbb: a futó hűtés nem esik le")
         assertEquals(mapOf("s3" to BurstTrip("2026-10-08", 2)), after.burstTrips)
         assertEquals(mapOf("s3" to mapOf("2026-10-08" to 2)), after.burstTripLog)
         assertEquals(listOf(AbandonRec("s3", ChallengeEngine.Kind.PAUSE, "TYPE+MATH", 4_000)), after.abandons)
+        assertEquals("s3", after.session?.siteId, "a futó próbatétel az összevont sorra hat")
     }
 
     @Test fun `elokeszites es szetosztas - mint a gepen`() {

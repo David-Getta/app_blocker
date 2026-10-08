@@ -203,9 +203,10 @@ object SyncClient {
      * a mai betelések, a betelések könyve és a próbatétel adóssága. Különben
      * a sor új azonosítója tiszta lappal indulna — egy futó hűtés ingyen
      * leesne, egy feladott próbatétel újrasorsolható lenne. Ha az újon már áll
-     * valami, a szigorúbb marad. A futó próbatételt semmi nem viszi át: a
-     * beolvasztott sor más tartalmú lehet, mint amire kérték. A gép
-     * `carryFolded` tükre.
+     * valami, a szigorúbb marad. A FUTÓ PRÓBATÉTEL is a sorra szól: az
+     * összevont sorra hat — az ára ugyanaz (a fok a feloldások számából jön),
+     * és a teljesítés mindkét felvétel után történik. A gép `carryFolded`
+     * tükre.
      */
     internal fun carryFolded(state: AppState, folded: Map<String, String>): AppState {
         if (folded.isEmpty()) return state
@@ -240,7 +241,8 @@ object SyncClient {
                 abandons = abandons.filter { it.siteId != from && it.siteId != to } + theirs.copy(siteId = to)
             }
         }
-        return state.copy(bursts = bursts, burstTrips = trips, burstTripLog = log, abandons = abandons)
+        val session = state.session?.let { s -> folded[s.siteId]?.let { s.copy(siteId = it) } ?: s }
+        return state.copy(bursts = bursts, burstTrips = trips, burstTripLog = log, abandons = abandons, session = session)
     }
 
     /**

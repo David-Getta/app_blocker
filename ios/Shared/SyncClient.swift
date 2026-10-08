@@ -226,9 +226,11 @@ enum SyncClient {
     /// Az összevonás után az azonosító szerint tárolt HELYI állapot az új
     /// azonosítóra kerül (`SyncMerge.foldedIds`: régi → új): a próbatétel
     /// adóssága — különben egy feladott próbatétel újrasorsolható lenne. Ha az
-    /// újon már áll adósság, a frissebb marad. A szünetet a `fromSyncSites`
-    /// viszi; adag-számláló itt nincs (az iPhone nem mér előteret). A gép
-    /// `carryFolded` tükre.
+    /// újon már áll adósság, a frissebb marad. A FUTÓ PRÓBATÉTEL is a sorra
+    /// szól: az összevont sorra hat — az ára ugyanaz (a fok a feloldások
+    /// számából jön), és a teljesítés mindkét felvétel után történik. A
+    /// szünetet a `fromSyncSites` viszi; adag-számláló itt nincs (az iPhone nem
+    /// mér előteret). A gép `carryFolded` tükre.
     static func carryFolded(_ state: inout AppState, _ folded: [String: String]) {
         for (from, to) in folded {
             guard var abandons = state.abandons, abandons.contains(where: { $0.siteId == from }) else { continue }
@@ -238,6 +240,7 @@ enum SyncClient {
             abandons.append(AbandonRec(siteId: to, kind: theirs.kind, comboKey: theirs.comboKey, at: theirs.at))
             state.abandons = abandons
         }
+        if let s = state.session, let to = folded[s.siteId] { state.session?.siteId = to }
     }
 
     struct SyncResult {

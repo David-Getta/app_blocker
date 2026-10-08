@@ -80,7 +80,7 @@ final class GoneSitesTests: XCTestCase {
         XCTAssertEqual(stoneFirst.map { SyncMerge.isGone($0) }, [false, true])
     }
 
-    func testTheFoldTraceCarriesTheLocalDebtToTheNewId() {
+    func testTheFoldTraceCarriesTheLocalDebtAndTheRunningChallengeToTheNewId() {
         var youtube = site("s3", addedAt: 3_000)
         youtube.domain = "youtube.com"
         var reddit = site("s2")
@@ -94,8 +94,10 @@ final class GoneSitesTests: XCTestCase {
         XCTAssertEqual(folded, ["s1": "s3"], "a megmaradt nem olvadt bele semmibe; halottba nem olvad semmi")
         var state = AppState()
         state.abandons = [AbandonRec(siteId: "s1", kind: .pause, comboKey: "TYPE+MATH", at: 4_000)]
+        state.session = SessionRec(id: "ses", kind: .pause, siteId: "s1", minutes: 15, steps: [], stepIndex: 0, createdAt: 6_000)
         SyncClient.carryFolded(&state, folded)
         XCTAssertEqual(state.abandons, [AbandonRec(siteId: "s3", kind: .pause, comboKey: "TYPE+MATH", at: 4_000)])
+        XCTAssertEqual(state.session?.siteId, "s3", "a futó próbatétel az összevont sorra hat")
     }
 
     func testSettleAndSplitLikeTheDesktop() {

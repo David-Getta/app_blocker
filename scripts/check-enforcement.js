@@ -3844,6 +3844,21 @@ const WIRES = [
     lost: 'az összevont sor elvesztené a kifizetett szünetét',
   },
   {
+    file: 'desktop/src/helper/sync-client.ts',
+    needle: 'if (state.session && target !== undefined) state.session = { ...state.session, siteId: target };',
+    lost: 'a futó próbatétel a beolvasztott azonosítóra szólna — a végigcsinált próbatétel semmit nem oldana fel',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/SyncClient.kt',
+    needle: 'val session = state.session?.let { s -> folded[s.siteId]?.let { s.copy(siteId = it) } ?: s }',
+    lost: 'a telefonon a futó próbatétel a beolvasztott azonosítóra szólna — a teljesítése nem hatna',
+  },
+  {
+    file: 'ios/Shared/SyncClient.swift',
+    needle: 'if let s = state.session, let to = folded[s.siteId] { state.session?.siteId = to }',
+    lost: 'az iPhone-on a futó próbatétel a beolvasztott azonosítóra szólna — a teljesítése nem hatna',
+  },
+  {
     file: 'android/app/src/main/java/hu/breaker/app/core/SyncClient.kt',
     needle: 'current = carryFolded(current, folded).copy(',
     lost: 'a telefonon az összevont sor adag-számlálója tiszta lappal indulna — egy futó hűtés ingyen leesne',

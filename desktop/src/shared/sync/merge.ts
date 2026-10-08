@@ -666,7 +666,8 @@ export function mergeSiteLists(local: SyncSite[], incoming: SyncSite[]): SyncSit
  * után kérte, vagyis a régebbi felvételek után is. (Az ára: annak az
  * eszköznek, amelyik a régebbit ismerte, a sora az új azonosítót és felvételi
  * időt kapja; ami nála azonosító szerint állt — szünet, adag-számláló, a
- * próbatétel adóssága —, azt a hívó viszi át, lásd `foldedIds`.)
+ * próbatétel adóssága, a futó próbatétel célja —, azt a hívó viszi át, lásd
+ * `foldedIds`.)
  *
  * A mezők a `mergeSite` szabályával fésülődnek, mintha egy rekord két
  * másolata volna — így a lista fésülése sírkövek nélkül sorrendfüggetlen.
@@ -696,10 +697,10 @@ function foldInto(keep: SyncSite, drop: SyncSite): SyncSite {
  * a domainre ott él egy másik azonosító, az beleolvadt (`foldInto`). A sor
  * ugyanaz maradt, csak más azonosítót visel — ezért a hívó ezzel viszi át,
  * ami nála azonosító szerint állt: a kifizetett szünetet, az adag-számlálót,
- * a próbatétel adósságát. Különben az összevonás egy futó hűtést ingyen
- * levenne, egy kifizetett szünetet pedig elvenne. A futó próbatétel NEM
- * megy át: a beolvasztott sor más tartalmú lehet, mint amire a próbatételt
- * kérték. A Kotlin- és a Swift-tükör ugyanezt teszi.
+ * a próbatétel adósságát és a futó próbatétel célját. Különben az összevonás
+ * egy futó hűtést ingyen levenne, egy kifizetett szünetet elvenne, egy
+ * végigcsinált próbatételt pedig hatástalanná tenne. A Kotlin- és a
+ * Swift-tükör ugyanezt teszi.
  */
 export function foldedIds(
   local: readonly { id: string; domain: string }[], merged: readonly SyncSite[],

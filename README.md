@@ -139,7 +139,9 @@ ingyen van, rövidíteni vagy visszavonni sehogy.
   fizettek — egy régóta nem szinkronizált eszköz ingyenes szerkesztései nem
   hozzák vissza a régi, lazább beállítást. A **végigment törlés sírkövet
   hagy**: egy régi eszköz nem támasztja fel az oldalt, és a törölt oldal nem
-  jön vissza körönként a fiókból.
+  jön vissza körönként a fiókból. Ha ugyanazt az oldalt két eszközön külön
+  vetted fel, **egy sorba olvad**, az újabban felvett példány azonosítójával:
+  egy régi, később átért törlés az újra felvett oldalt nem viszi magával.
   A kiszolgálót az **asztali app egy gombbal el is indítja**, tehát nem kell
   hozzá se terminál, se Node. Lépésről lépésre:
   [`docs/feature-accounts-sync.md`](docs/feature-accounts-sync.md).
