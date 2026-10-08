@@ -3387,28 +3387,40 @@ const WIRES = [
     needle: 's.burstSeconds ?? null, s.cooldownSeconds ?? null,',
     lost: 'a gép egyezés-kulcsa nem nézné az adag-szabályt — egy csak ebben eltérő fésült rekord nem íródna be és nem menne fel',
   },
-  // A RÉSZLEGES SZABÁLYOK JELE: a fésülés a jel szerint dönt mindhárom nyelven,
-  // és a gép a léptetésben bélyegzi. Ha a jel nem érne a fésült rekordba, a
-  // rekord rev-je döntene — sorrendfüggően, egy régi kliens mellett.
+  // A RÉSZLEGES SZABÁLYOK JELEI: a fésülés szabályonként a jel szerint dönt
+  // mindhárom nyelven; a gép a léptetésben jelöl, az Android a bírónál (a
+  // felvételkor és a kifizetett levétel teljesítésekor). Ha a jelek nem érnének
+  // a fésült rekordba, vagy a telefon nem jelölne, a kifizetett levétel sírkő
+  // nélkül menne — a többi eszköz listája visszahozná.
   {
     file: 'desktop/src/shared/sync/merge.ts',
-    needle: 'const { rules, mark } = mergeRules(a, b);',
-    lost: 'a gépen a szabálylista jele nem érne a fésült rekordba — a régi kliens rev-je döntene, sorrendfüggően',
+    needle: 'const { rules, marks, mark } = mergeRules(a, b);',
+    lost: 'a gépen a szabályok jelei nem érnének a fésült rekordba — a kifizetett levétel sírköve elveszne',
   },
   {
     file: 'android/app/src/main/java/hu/breaker/app/core/SyncMerge.kt',
-    needle: 'val (rules, mark) = mergeRules(a, b)',
-    lost: 'Androidon a szabálylista jele nem érne a fésült rekordba — a régi kliens rev-je döntene, sorrendfüggően',
+    needle: 'val merged = mergeRules(a, b)',
+    lost: 'Androidon a szabályok jelei nem érnének a fésült rekordba — a kifizetett levétel sírköve elveszne',
   },
   {
     file: 'ios/Shared/SyncMerge.swift',
-    needle: 'let (rules, mark) = mergeRules(a, b)',
-    lost: 'iPhone-on a szabálylista jele nem érne a fésült rekordba — a régi kliens rev-je döntene, sorrendfüggően',
+    needle: 'let merged = mergeRules(a, b)',
+    lost: 'iPhone-on a szabályok jelei nem érnének a fésült rekordba — a kifizetett levétel sírköve elveszne',
   },
   {
     file: 'desktop/src/helper/revisions.ts',
     needle: 'markRules(site);',
-    lost: 'a szabálylista sosem kapna jelet a gépen — a kifizetett levétel nem érne át egy régi kliens mellett',
+    lost: 'a szabályok sosem kapnának jelet a gépen — a kifizetett levétel sírkő nélkül menne, és visszajönne',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/Referee.kt',
+    needle: 'markRule(it.copy(rules = rules + rule), rule)',
+    lost: 'Androidon a felvett szabály jel nélkül menne — egy nagyobb jelű régi sírkő elvihetné',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/Referee.kt',
+    needle: 'else if (s.pendingRuleRemoval != null) markRule(',
+    lost: 'Androidon a kifizetett szabály-levétel sírkő nélkül menne — a gép régi listája visszahozná',
   },
   // A SZÖVEG-TISZTÍTÁS a kimondott szóköz-készleten át. Ha egy mag a saját
   // platform-fogalmához nyúlna vissza, a BOM és a nem törő szóköz megint
