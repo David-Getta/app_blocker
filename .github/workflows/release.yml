@@ -45,22 +45,22 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A hiba a felolvasónak is elhangzik.** Ha egy gombnyomás nem sikerült — rossz
-          válasz vagy beillesztés a próbatételben, érvénytelen cím, elutasított kérés —,
-          a hibaüzenet eddig csak megjelent; aki nem látja a képernyőt, nem tudta meg.
-          Mostantól a felolvasó kimondja, egyszer: a lap kétmásodperces frissítése nem
-          mondatja el újra és újra. Nyitott ablakban az ablakon belül hangzik el (ott a
-          lap többi része nem hallható). A fejléc állapotjelzője is szól, ha változik —
-          például ha a tiltás nem érvényesül, vagy a védelem lekapcsolódott —,
-          bármelyik nézetben vagy. A böngésző-bővítmény beállítási lapján is.
+          **A Firefox titkosított DNS-e nem kerüli meg a telefonos szűrőt.** A Firefox
+          alapból bekapcsolt titkosított DNS-e (DoH) a szűrő mellett oldotta volna fel a
+          neveket, és a tiltás benne nem érvényesült volna. Androidon és iPhone-on a
+          szűrő mostantól a Mozilla szabványos jelzésével kéri a Firefoxot, hogy a
+          rendszer DNS-ét — vagyis a szűrőt — használja.
 
-          ### Ami a v0.4.248-ban jött
+          Ami továbbra is korlát: ha a böngésző titkosított DNS-ét kézzel kapcsoltad be,
+          vagy a Chrome-ban külön szolgáltatót adtál meg, a szűrő azt nem látja.
+
+          ### Ami a v0.4.249-ben jött
+
+          **A hiba a felolvasónak is elhangzik.**
+
+          #### Ami a v0.4.248-ban jött
 
           **A sávok a felolvasónak is mondanak valamit.**
-
-          #### Ami a v0.4.247-ben jött
-
-          **Billentyűzettel is kezelhető.** **A frissítés nem viszi el a fókuszt.**
           NOTES
           fi
 
