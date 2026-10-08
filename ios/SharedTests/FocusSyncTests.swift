@@ -341,10 +341,20 @@ final class FocusSyncTests: XCTestCase {
     }
 
     func testLogCannotStopARunningSession() {
-        let running = focus(packs: [pack()], run: Focus.Run(packId: "p1", startedAt: 0, endsAt: 10_000), rev: 3, updatedAt: 100)
-        let logged = focus(packs: [pack()], log: [entry("p1", startedAt: 0, endedAt: 2_000, planned: 10_000, stopped: true)], rev: 3, updatedAt: 200, updatedBy: "b")
-        XCTAssertNotNil(FocusSync.merge(running, logged).run, "a napló nem engedély")
-        XCTAssertNotNil(FocusSync.merge(logged, running).run)
+        // EZ A LÉNYEG. Ha a napló a `rev`-hez lenne kötve, egy statisztika-sor
+        // léptetné a számlálót, a nagyobb `rev` pedig azt jelentené, hogy annak
+        // az eszköznek a „nem fut” állapota nyer — vagyis egy naplósorral ki
+        // lehetne kapcsolni a másik gépen futó menetet, próbatétel nélkül. (A
+        // menet SAJÁT leállítás-sora más: az a leállítás nyoma, az leállítja —
+        // lásd fent.)
+        let running = focus(packs: [pack()], run: Focus.Run(packId: "p1", startedAt: 0, endsAt: 10_000), rev: 4, updatedAt: 100)
+        let manyRows = focus(
+            packs: [pack()],
+            log: (0..<20).map { i in entry("p1", startedAt: Double(i * 100), endedAt: Double(i * 100 + 50), planned: 4_000, stopped: false) },
+            rev: 4, updatedAt: 900, updatedBy: "b"
+        )
+        XCTAssertNotNil(FocusSync.merge(running, manyRows).run, "a napló nem engedély")
+        XCTAssertNotNil(FocusSync.merge(manyRows, running).run, "sorrendtől függetlenül")
     }
 
     func testLogCapDropsTheOldestRows() {
