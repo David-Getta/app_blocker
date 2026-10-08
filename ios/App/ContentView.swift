@@ -1,5 +1,9 @@
 import SwiftUI
 import NetworkExtension
+import UserNotifications
+#if os(iOS)
+import UIKit
+#endif
 
 private func fmtRemain(_ ms: Double) -> String {
     // `clampedInt`: a törlés ideje a szinkronon jön — egy abszurd érték ne állítsa le az appot.
@@ -64,6 +68,12 @@ struct ContentView: View {
     @State private var probeInput = ""
     @State private var partnerPhrase: Referee.PartnerSetup? = nil
 
+    /// Az app értesítései a rendszerben ki vannak-e kapcsolva (`notificationsSection`).
+    @State private var notificationsDenied = false
+    /// Mikor kérdeztük utoljára a rendszert — öt másodpercenként elég.
+    @State private var notificationsCheckedAt: Double = 0
+    @Environment(\.openURL) private var openURL
+
     private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
     /// A menetrend következő váltása, percenként egyszer számolva (lásd `ScheduleFlipMemo`).
     @State private var scheduleFlips = ScheduleFlipMemo()
@@ -86,6 +96,7 @@ struct ContentView: View {
                     if let ses = store.state.session { resumeBanner(ses) }
                     listSection
                     StatsView(now: now, siteLabel: siteLabel)
+                    if notificationsDenied { notificationsSection }
                     uninstallGuardSection
                     lockdownSection
                     SyncCard(siteLabel: siteLabel)
@@ -156,6 +167,12 @@ struct ContentView: View {
         .onReceive(timer) { _ in
             now = nowMs()
             Referee.tick(now: now)
+            // AZ ÉRTESÍTÉSEK ÁLLAPOTA öt másodpercenként: a beállítás átkapcsolása
+            // után a kártya magától jön vagy tűnik el.
+            if now - notificationsCheckedAt >= 5000 || now < notificationsCheckedAt {
+                notificationsCheckedAt = now
+                refreshNotificationAccess()
+            }
             if !store.state.sites.isEmpty { tunnel.ensureRunning() }
             // A heti emlékeztetők az ablakok listáját követik — a szinkronból
             // jött változást is, amíg az app nyitva van. A csomagok ablakait is:
@@ -674,6 +691,40 @@ struct ContentView: View {
             .padding()
             .background(Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         }
+    }
+
+    // ÉRTESÍTÉSEK. A szünet vége, a közelgő heti ablak, a csúcs-óra előjelzése és
+    // a hétfői visszatekintés iPhone-on helyi értesítés. Ha az app értesítései a
+    // rendszerben ki vannak kapcsolva, mindez nyomtalanul elmarad — a rendszer
+    // viszont megmondja (a gép csak utólag tudja meg, ha egyet visszautasít).
+    // Csak az elutasítás számít: a „még nem kérdezett” nem az, azt az első
+    // emlékeztető kérdezi meg. Csendben, a többi beállítás között, nem felugró
+    // ablak: ha valaki szándékosan kapcsolta ki, annak ez csak egy tény.
+    private var notificationsSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            SectionLabel("Értesítések")
+            Text("A Breaker értesítései ki vannak kapcsolva. Így nem szól előre a szünet végéről és a közelgő heti ablakról, és a hétfői visszatekintés sem jön meg. Ha szándékosan kapcsoltad ki, a védelem ettől ugyanúgy működik.")
+                .font(.footnote).foregroundStyle(.secondary)
+            Button("Értesítési beállítások") { openNotificationSettings() }
+                .buttonStyle(.bordered)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func refreshNotificationAccess() {
+        Task {
+            let settings = await UNUserNotificationCenter.current().notificationSettings()
+            notificationsDenied = settings.authorizationStatus == .denied
+        }
+    }
+
+    private func openNotificationSettings() {
+        #if os(iOS)
+        let target = UIApplication.openNotificationSettingsURLString
+        #else
+        let target = "x-apple.systempreferences:com.apple.Notifications-Settings.extension"
+        #endif
+        if let url = URL(string: target) { openURL(url) }
     }
 
     /// A zárlat kártyája. A többitől az különbözteti meg, hogy ennek nincs

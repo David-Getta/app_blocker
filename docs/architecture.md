@@ -970,3 +970,14 @@ jön; Windowson a kikapcsolt értesítést a rendszer nem feltétlenül jelzi vi
 Ezért van a beállítások lapján az „Értesítés kipróbálása” gomb, és ezért
 mondja átvételkor azt, hogy „a rendszer átvette”, nem azt, hogy „megjelent”
 (`notifyTestText`; teszt őrzi, hogy egyik kimenetele se állítson többet).
+
+A telefon többet tud: a rendszer előre megmondja, ki vannak-e kapcsolva az app
+értesítései (Android: `NotificationAccess.enabled`, Android 13-tól az engedély
+elutasítása is ez; iPhone: `authorizationStatus == .denied`). Ilyenkor a
+beállítás-kártyák között egy kártya kimondja, mi marad el — a szünet vége, a
+betelő keret, a közelgő heti ablak, a hétfői visszatekintés —, és egy gomb a
+rendszer kapcsolójához visz. Androidon csak amíg a védelem fut (az engedélyt az
+indítása kéri; előtte a „még nem kérdezett” is kikapcsoltnak látszana), iPhone-on
+csak az elutasítás számít. Az egyes csatornák némítása (például csak a heti
+visszatekintésé) szándékos, finomabb döntés: az nem kártya. A kártya magától
+jön és megy, ahogy a beállítás változik; nem ugrik fel, nem nógat.

@@ -606,7 +606,9 @@ Néhány konkrét dolog, amit érdemes előre tudni:
   vannak kapcsolva, vagy egy fókusz-mód elnémítja őket, a rendszer ezt nem
   feltétlenül jelzi vissza (a mostani asztali keretrendszer macOS-en
   egyáltalán nem). Erre van az **„Értesítés kipróbálása”** gomb: egy
-  kattintás, és a saját szemeddel látod.
+  kattintás, és a saját szemeddel látod. A telefonon a rendszer előre
+  megmondja, ha a Breaker értesítései ki vannak kapcsolva: ilyenkor a
+  beállítások között egy kártya kimondja, mi marad el, és a kapcsolóhoz visz.
 
 ## Következő lépések (ötletek a bővítéshez)
 

@@ -4184,6 +4184,32 @@ const WIRES = [
     needle: 'BREAKER_SMOKE_OUT="$out" "$exe" --smoke-test',
     lost: 'a becsomagolt app füstpróbája le sem futna, csak a csomag meglétét nézné',
   },
+  // A KIKAPCSOLT ÉRTESÍTÉS A TELEFONON. A gép csak utólag tudja meg, ha a
+  // rendszer egy értesítést visszautasít; a telefon előre: a rendszer
+  // megmondja. Ha a kérdés vagy a kártya kiesik, a szünet vége, a betelő keret
+  // és a heti ablak előjelzése némán elmaradna — és semmi nem hasalna el tőle.
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/AppUi.kt',
+    needle: 'NotificationAccess.enabled(context)',
+    lost: 'Androidon kikapcsolt értesítéseknél a szünet vége, a betelő keret és a heti '
+      + 'ablak előjelzése némán elmaradna',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/AppUi.kt',
+    needle: 'NotificationAccess.settingsIntent(context)',
+    lost: 'a kártya kimondaná, de nem vinne el a kapcsolóig',
+  },
+  {
+    file: 'ios/App/ContentView.swift',
+    needle: 'if notificationsDenied { notificationsSection }',
+    lost: 'iPhone-on kikapcsolt értesítéseknél a szünet vége és a heti ablak előjelzése '
+      + 'némán elmaradna',
+  },
+  {
+    file: 'ios/App/ContentView.swift',
+    needle: 'notificationsCheckedAt = now\n                refreshNotificationAccess()',
+    lost: 'a kártya sosem jelenne meg: senki nem kérdezné a rendszert',
+  },
 ];
 
 /**

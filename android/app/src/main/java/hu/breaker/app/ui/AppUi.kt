@@ -107,6 +107,7 @@ import hu.breaker.app.R
 import hu.breaker.app.update.UpdateChecker
 import hu.breaker.app.usage.UsageTracker
 import hu.breaker.app.vpn.BreakerVpnService
+import hu.breaker.app.vpn.NotificationAccess
 import hu.breaker.app.vpn.PrivateDns
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -972,6 +973,33 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                 // A törlés visszavonhatatlan: kérdezünk előtte, ahogy a gépen is.
                 onClear = { confirmUsageClear = true },
             )
+
+            // ÉRTESÍTÉSEK. A szünet vége, a betelő keret, a közelgő heti ablak és a
+            // hétfői visszatekintés értesítésben jön, és a védelem tartós értesítése
+            // is ott beszél. Ha az app értesítései ki vannak kapcsolva, mindez
+            // nyomtalanul elmarad — a rendszer viszont megmondja (NotificationAccess).
+            // Csak amíg a védelem fut: az engedélyt az indítása kéri, előtte a
+            // „még nem kérdezett” is kikapcsoltnak látszana. Csendben, a többi
+            // beállítás között; a `now / 2000` kulcs miatt a bekapcsolás után
+            // magától eltűnik.
+            val notificationsOn = remember(now / 2000) { NotificationAccess.enabled(context) }
+            if (vpnRunning && !notificationsOn) {
+                Card {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        SectionLabel("Értesítések")
+                        Text(
+                            "A Breaker értesítései ki vannak kapcsolva. Így nem szól előre a szünet " +
+                                "végéről, a betelő keretről és a közelgő heti ablakról, és a védelem " +
+                                "tartós értesítése sem látszik. Ha szándékosan kapcsoltad ki, a védelem " +
+                                "ettől ugyanúgy működik.",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                        OutlinedButton(onClick = { context.startActivity(NotificationAccess.settingsIntent(context)) }) {
+                            Text("Értesítési beállítások")
+                        }
+                    }
+                }
+            }
 
             // TÖRLÉS-VÉDELEM. „Letörölni 1 gomb” — ez veszi el azt az egy gombot:
             // amíg aktív eszközadmin, a rendszer nem engedi az egykoppintásos
