@@ -397,6 +397,13 @@ public enum FocusSync {
         )
     }
 
+    /// A blob rev-je egész számként — kívülről jött érték, tehát NEM
+    /// `Int(double)`: egy NaN vagy egy óriás szám azzal elvinné az appot.
+    private static func revInt(_ rev: Double) -> Int {
+        guard rev.isFinite, rev > 0, rev < 2_000_000_000 else { return 0 }
+        return Int(rev)
+    }
+
     /// Ennél több csomag-jelet nem hordunk egy blobban. Szándékosan magas: egy
     /// eldobott sírkő feltámaszthatja a csomagot a másik eszközön, tehát a
     /// vágás nem lehet mindennapos — 256 jel több mint kétszáz valaha törölt
