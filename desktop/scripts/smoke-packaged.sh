@@ -22,6 +22,28 @@ if [ ! -f "$exe" ]; then
   exit 1
 fi
 
+# MACEN AZ ALÁÍRÁS AZONOSÍTÓJA IS. Az Electron 42-től a macOS-értesítés a
+# UNNotification-ön megy, és az csak akkor kézbesít, ha az aláírás azonosítója a
+# csomagé (hu.breaker.app), és az Info.plist az aláírás része. Tanúsítvány
+# nélkül (ad-hoc aláírás) ezt semmi nem garantálja magától: egy rossz sorrendű
+# utómunka után a fő bináris „Electron” azonosítóval marad, és minden értesítés
+# némán elvész — az app közben hibátlanul indul.
+if [ "$(uname -s)" = "Darwin" ]; then
+  bundle="release/mac-arm64/Breaker.app"
+  sig=$(codesign -dv --verbose=2 "$bundle" 2>&1)
+  if ! echo "$sig" | grep -q '^Identifier=hu\.breaker\.app$'; then
+    echo "az aláírás azonosítója nem hu.breaker.app — az értesítések elvesznének:" >&2
+    echo "$sig" >&2
+    exit 1
+  fi
+  if ! echo "$sig" | grep -q '^Info\.plist entries='; then
+    echo "az Info.plist nincs az aláírásban — az értesítések elvesznének:" >&2
+    echo "$sig" >&2
+    exit 1
+  fi
+  echo "aláírás: hu.breaker.app, az Info.plist az aláírás része"
+fi
+
 out="${RUNNER_TEMP:-${TMPDIR:-/tmp}}/breaker-smoke.txt"
 rm -f "$out"
 code=0
