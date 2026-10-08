@@ -45,35 +45,33 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A törölt oldal törölve marad.** Eddig egy végigment törlés — a próbatétel és
-          a 24 óra után — a fiókban örökre megmaradt: a gép minden szinkronnál
-          visszahozta egy pillanatra, aztán újra törölte, félpercenként, a végtelenségig;
-          ha a törlés hálózat nélkül ment végig, a fiók régi példánya visszahozta az
-          oldalt; és egy régóta nem szinkronizált eszköz is feltámaszthatta. Most a
-          végigment törlés helyén sírkő marad, ami a többi eszközre is átér — egyik sem
-          történhet meg többé. Ha ugyanazt az oldalt később újra felveszed, az új
-          tiltás él: a régi törlés nem viszi magával.
+          **A próbatétellel levett heti ablak levéve marad.** Egy munkamenet-csomag heti
+          ablakáról a szinkron eddig a csomag jele szerint döntött — azt viszont egy
+          egyszerű átnevezés is lépteti. Egy régóta nem szinkronizált eszköz így egyetlen
+          átnevezéssel visszahozhatta a próbatétellel levett ablakot, és egy máshol ingyen
+          felvett ablak vagy szűkített fehérlista próbatétel nélkül eltűnhetett. Most a
+          kifizetett levétel számít: a bíró a próbatétel teljesítésekor számolja, és a több
+          kifizetett levétel nyer; egyenlőnél az ablakos változat marad. Két ablakos
+          változatból a szigorúbb lesz: a hosszabb ablak és a két fehérlista közös része.
 
-          A csatorna-szűrők lazítását mostantól csak a teljesített próbatétel könyveli
-          el. Ami próbatétel nélkül lazult (egy hiba, egy kézzel átírt állapot), az nem
-          megy át a többi eszközre kifizetett lazításként.
+          Ha egy csomagot máshol töröltek, de itt épp fut a menete, a csomag a menet
+          végéig megmarad — a próbatétellel levett ablaka viszont nem jön vissza vele.
 
-          A böngésző-bővítmény zárlat alatt a böngésző indulásakor sem törli a saját,
-          levételre váró szabályát: a levétel visszavonódik, ahogy zárlat alatt
-          máskor is.
+          Három eszköz bármilyen sorrendben ugyanoda jut: ezt egy százezer esetes próba
+          méri, és a három platform közös fixtúrája.
 
-          **Frissíts minden eszközt.** Egy még nem frissített eszközön a régi
-          körforgás marad, és ott egy újra felvett, azonos oldalt a régi törlés még
-          elvihet. A frissítés előtt kért törlések nem kapnak sírkövet.
+          **Frissíts minden eszközt.** Egy még nem frissített eszköz a levétel számlálóját
+          nem ismeri: amíg ilyen van a fiókban, egy levett ablak ott visszajöhet. Az
+          ablakról nem tudó eszköz egyidejű átnevezése elvész — nevezd át újra.
 
-          ### Ami a v0.4.235-ben jött
+          ### Ami a v0.4.236-ban jött
+
+          **A törölt oldal törölve marad.** A végigment törlés helyén sírkő marad, amit
+          egy régi eszköz vagy a fiók régi példánya sem támaszthat fel.
+
+          #### Ami a v0.4.235-ben jött
 
           **Két eszközön felvett részleges szabályból egyik sem tűnik el.**
-
-          #### Ami a v0.4.234-ben jött
-
-          **Egy régóta nem szinkronizált eszköz nem hozhatja vissza egy oldal régi,
-          lazább beállítását.**
           NOTES
           fi
 
