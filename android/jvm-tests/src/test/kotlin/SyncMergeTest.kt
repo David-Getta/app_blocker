@@ -3,7 +3,9 @@ import hu.breaker.app.core.SyncMerge
 import hu.breaker.app.core.SyncMerge.SyncSite
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
@@ -33,67 +35,128 @@ class SyncMergeTest {
         pendingDeleteAt: Long? = null,
         schedule: ScheduleLogic.Schedule? = null,
         dailyLimitSeconds: Long? = null,
+        burstSeconds: Long? = null,
+        cooldownSeconds: Long? = null,
+        alias: String? = null,
+        reason: String? = null,
         rules: List<hu.breaker.app.core.UrlRules.UrlRule>? = null,
         rev: Int = 1,
         updatedAt: Long = 5_000,
         updatedBy: String = "gep-a",
+        deleteLoosens: Int? = null,
+        scheduleLoosens: Int? = null,
+        limitLoosens: Int? = null,
+        burstLoosens: Int? = null,
         // NEVESÍTVE, nem sorrend szerint: egy új mező a SyncSite-ban így nem
         // csúsztatja el csendben az összes többit.
     ) = SyncSite(
         id = id, domain = domain, hostnames = hostnames, addedAt = addedAt,
         pendingDeleteAt = pendingDeleteAt, schedule = schedule,
-        dailyLimitSeconds = dailyLimitSeconds, alias = null, rules = rules,
+        dailyLimitSeconds = dailyLimitSeconds, burstSeconds = burstSeconds,
+        cooldownSeconds = cooldownSeconds, alias = alias, reason = reason, rules = rules,
         rev = rev, updatedAt = updatedAt, updatedBy = updatedBy,
+        deleteLoosens = deleteLoosens, scheduleLoosens = scheduleLoosens,
+        limitLoosens = limitLoosens, burstLoosens = burstLoosens,
     )
 
+    /** Tilt-e a menetrend egy napon, egy percben — a sávok szerkezete szerint. */
+    private fun blocked(s: ScheduleLogic.Schedule, day: Int, minute: Int): Boolean =
+        s.bands.any { day in it.days && minute >= it.startMin && minute < it.endMin } ==
+            (s.mode == ScheduleLogic.Mode.SCHEDULED_BLOCK)
+
     @Test
-    fun `a schedule is measured by structure, so two timezones agree`() {
-        assertEquals(7 * 1440, SyncMerge.blockedMinutesPerWeek(null))
-        assertEquals(5 * 8 * 60, SyncMerge.blockedMinutesPerWeek(work), "H–P 9–17 = heti 2400 perc")
-        assertEquals(7 * 8 * 60, SyncMerge.blockedMinutesPerWeek(evening), "22–06 = heti 3360 perc")
+    fun `the stricter form of two schedules is their union, by structure, whatever the timezone`() {
+        // Ha az összevetés a telefon helyi idejét használná, két eszköz két
+        // különböző eredményre jutna, és a szinkron sosem állna meg.
+        val both = SyncMerge.joinSchedule(work, evening)!!
+        assertEquals(ScheduleLogic.Mode.SCHEDULED_BLOCK, both.mode)
+        assertTrue(blocked(both, 1, 10 * 60), "hétfő délelőtt: a munkaidő tilt")
+        assertTrue(blocked(both, 3, 23 * 60), "szerda este: az esti sáv tilt")
+        assertFalse(blocked(both, 6, 12 * 60), "szombat délben egyik sem")
+        assertEquals(both, SyncMerge.joinSchedule(evening, work), "a sorrend nem számít")
+        assertNull(SyncMerge.joinSchedule(work, null), "a menetrend nélküli (mindig tilt) lefed mindent")
+        assertSame(work, SyncMerge.joinSchedule(work, work), "ugyanaz marad, nem íródik újra")
+        val wider = ScheduleLogic.Schedule(
+            ScheduleLogic.Mode.SCHEDULED_BLOCK,
+            listOf(ScheduleLogic.Band(setOf(1, 2, 3, 4, 5), 8 * 60, 18 * 60)),
+        )
+        assertSame(wider, SyncMerge.joinSchedule(work, wider), "ha az egyik lefedi a másikat, az marad")
+        // A megengedő mód a komplemens: ami ott nincs megengedve, az tilt.
         val allow = ScheduleLogic.Schedule(ScheduleLogic.Mode.SCHEDULED_ALLOW, work.bands)
-        assertEquals(7 * 1440 - 5 * 8 * 60, SyncMerge.blockedMinutesPerWeek(allow),
-            "a megengedő a komplemens")
+        assertEquals(ScheduleLogic.Schedule(ScheduleLogic.Mode.ALWAYS, emptyList()), SyncMerge.joinSchedule(allow, work),
+            "a munkaidőn kívül tilt + munkaidőben tilt = mindig")
     }
 
     @Test
-    fun `the stricter record wins when neither is newer`() {
+    fun `at equal counters each field takes its stricter form, not one record whole`() {
+        // A régi szabály a rekordokat rendezte (előbb a menetrend, aztán a
+        // keret): a menetrendben szigorúbb, keretben lazább rekord egészében
+        // nyert, és a máshol lecsökkentett keret ingyen visszanőtt.
+        val a = site(rev = 4, schedule = work, dailyLimitSeconds = 3600)
+        val b = site(rev = 4, dailyLimitSeconds = 600, schedule = evening, updatedBy = "gep-b")
+        for (m in listOf(SyncMerge.mergeSite(a, b), SyncMerge.mergeSite(b, a))) {
+            assertEquals(600L, m.dailyLimitSeconds, "a kisebb keret")
+            assertEquals(SyncMerge.joinSchedule(work, evening), m.schedule, "a két menetrend uniója")
+        }
+        val burst = SyncMerge.mergeSite(
+            site(burstSeconds = 300, cooldownSeconds = 600),
+            site(burstSeconds = 600, cooldownSeconds = 1200, updatedBy = "gep-b"),
+        )
+        assertEquals(300L to 1200L, burst.burstSeconds to burst.cooldownSeconds, "a kisebb adag és a hosszabb szünet")
+    }
+
+    @Test
+    fun `a loosening only lands with the paid counter, a higher rev alone carries nothing`() {
         val strict = site(rev = 4, dailyLimitSeconds = 600)
-        val loose = site(rev = 4, dailyLimitSeconds = 3600, updatedAt = 9_999, updatedBy = "gep-b")
-        assertEquals(600L, SyncMerge.mergeSite(strict, loose).dailyLimitSeconds)
-        assertEquals(600L, SyncMerge.mergeSite(loose, strict).dailyLimitSeconds, "a sorrend nem számít")
+        val earned = site(rev = 5, dailyLimitSeconds = 3600, limitLoosens = 1, updatedBy = "gep-b")
+        assertEquals(3600L, SyncMerge.mergeSite(strict, earned).dailyLimitSeconds, "a próbatétel megvolt")
+        assertEquals(3600L, SyncMerge.mergeSite(earned, strict).dailyLimitSeconds)
+        // A TRÜKK: egy elavult eszköz ingyenes szerkesztésekkel felhúzza a rev-et.
+        val stale = site(rev = 99, dailyLimitSeconds = 7200, updatedAt = 99_999, updatedBy = "gep-b")
+        assertEquals(600L, SyncMerge.mergeSite(strict, stale).dailyLimitSeconds, "régi, lazább rekord nem lazít")
+        assertEquals(600L, SyncMerge.mergeSite(stale, strict).dailyLimitSeconds)
+        // A számláló mezőnként: a keret lazítása nem viszi el a máshol felvett menetrendet.
+        val scheduled = site(rev = 6, schedule = work, dailyLimitSeconds = 600)
+        val earnedEvening = site(rev = 5, schedule = evening, dailyLimitSeconds = 3600, limitLoosens = 1, updatedBy = "gep-b")
+        val m = SyncMerge.mergeSite(scheduled, earnedEvening)
+        assertEquals(3600L, m.dailyLimitSeconds)
+        assertEquals(SyncMerge.joinSchedule(work, evening), m.schedule, "a menetrend a saját számlálója szerint dől el")
     }
 
     @Test
-    fun `a loosening only lands with a higher rev`() {
-        val strict = site(rev = 4, dailyLimitSeconds = 600)
-        val earned = site(rev = 5, dailyLimitSeconds = 3600, updatedBy = "gep-b")
-        assertEquals(3600L, SyncMerge.mergeSite(strict, earned).dailyLimitSeconds,
-            "a próbatétel megvolt")
-
-        val stale = site(rev = 3, dailyLimitSeconds = 7200, updatedAt = 99_999, updatedBy = "gep-b")
-        assertEquals(600L, SyncMerge.mergeSite(strict, stale).dailyLimitSeconds,
-            "régi, lazább rekord nem lazít")
+    fun `the alias and the reason come from the newer record, they do not block`() {
+        val older = site(rev = 3, alias = "Régi", reason = "régi indok")
+        val newer = site(rev = 5, alias = "Új", reason = "új indok", updatedBy = "gep-b")
+        for (m in listOf(SyncMerge.mergeSite(older, newer), SyncMerge.mergeSite(newer, older))) {
+            assertEquals("Új", m.alias)
+            assertEquals("új indok", m.reason)
+            assertEquals(5, m.rev)
+        }
     }
 
     @Test
-    fun `a pending deletion is not lost just because the other device wrote later`() {
-        val deleting = site(rev = 3, pendingDeleteAt = 9_000_000)
-        val newer = site(rev = 9, updatedBy = "gep-b")
-        assertEquals(null, SyncMerge.mergeSite(deleting, newer).pendingDeleteAt,
-            "a nagyobb rev azt jelenti, hogy később vonták vissza")
-
-        val older = site(rev = 2, updatedBy = "gep-b")
-        assertEquals(9_000_000L, SyncMerge.mergeSite(deleting, older).pendingDeleteAt,
-            "a törlés folyamatban marad")
+    fun `a pending deletion does not vanish silently, only one who saw it can cancel`() {
+        val deleting = site(rev = 3, pendingDeleteAt = 9_000_000, deleteLoosens = 1)
+        // A másik eszköz nem is tudott a kérésről — a nagyobb rev-je ellenére sem dobja el.
+        val unaware = site(rev = 9, alias = "A videós", updatedBy = "gep-b")
+        val m = SyncMerge.mergeSite(deleting, unaware)
+        assertEquals("A videós", m.alias, "a frissebb rekord fedőneve jön")
+        assertEquals(9_000_000L, m.pendingDeleteAt, "a kifizetett kérés megmarad")
+        // Aki látta a kérést (a számlálója ugyanannyi) és visszavonta: az ingyen van, és átmegy.
+        val cancelled = site(rev = 4, deleteLoosens = 1, updatedBy = "gep-b")
+        assertNull(SyncMerge.mergeSite(deleting, cancelled).pendingDeleteAt)
+        assertNull(SyncMerge.mergeSite(cancelled, deleting).pendingDeleteAt)
     }
 
     @Test
-    fun `two deletions in flight keep the earlier deadline`() {
-        val a = site(rev = 3, pendingDeleteAt = 9_000_000)
-        val b = site(rev = 4, pendingDeleteAt = 8_000_000, updatedBy = "gep-b")
-        assertEquals(8_000_000L, SyncMerge.mergeSite(a, b).pendingDeleteAt)
-        assertEquals(8_000_000L, SyncMerge.mergeSite(b, a).pendingDeleteAt)
+    fun `two independent deletion requests at equal counters keep the later deadline`() {
+        val a = site(rev = 3, pendingDeleteAt = 9_000_000, deleteLoosens = 1)
+        val b = site(rev = 4, pendingDeleteAt = 8_000_000, deleteLoosens = 1, updatedBy = "gep-b")
+        assertEquals(9_000_000L, SyncMerge.mergeSite(a, b).pendingDeleteAt)
+        assertEquals(9_000_000L, SyncMerge.mergeSite(b, a).pendingDeleteAt)
+        // Az újra kért (két kérés) nyer — az övé a frissebb kifizetett döntés.
+        val again = site(rev = 6, pendingDeleteAt = 7_000_000, deleteLoosens = 2)
+        assertEquals(7_000_000L, SyncMerge.mergeSite(a, again).pendingDeleteAt)
     }
 
     @Test
@@ -102,7 +165,7 @@ class SyncMergeTest {
         val b = site(rev = 4, schedule = evening, updatedAt = 10, updatedBy = "gep-b")
         val ab = SyncMerge.mergeSite(a, b)
         assertEquals(ab, SyncMerge.mergeSite(b, a), "mindkét eszköz ugyanazt kapja")
-        assertEquals(7 * 8 * 60, SyncMerge.blockedMinutesPerWeek(ab.schedule), "a többet tiltó marad")
+        assertEquals(SyncMerge.joinSchedule(work, evening), ab.schedule, "mindkettő tiltása marad")
         assertEquals(ab, SyncMerge.mergeSite(ab, a), "és stabil")
         assertEquals(ab, SyncMerge.mergeSite(ab, b))
     }
@@ -161,15 +224,12 @@ class SyncMergeTest {
     }
 
     @Test
-    fun `strictness ranks deletion, schedule and budget in that order`() {
-        val plain = site()
-        assertEquals(-1, SyncMerge.compareStrictness(plain, site(pendingDeleteAt = 1)))
-        assertEquals(1, SyncMerge.compareStrictness(site(schedule = work), plain),
-            "a menetrend nélküli szigorúbb")
-        assertEquals(-1, SyncMerge.compareStrictness(site(dailyLimitSeconds = 600), plain),
-            "a keret szigorít")
-        assertEquals(0, SyncMerge.compareStrictness(plain, site()))
-        assertTrue(SyncMerge.blockedMinutesPerWeek(null) > SyncMerge.blockedMinutesPerWeek(work))
+    fun `the stricter form of a budget and of a burst rule`() {
+        assertEquals(600L, SyncMerge.joinLimit(600, 3600))
+        assertEquals(3600L, SyncMerge.joinLimit(null, 3600), "a keret nélküli a leglazább")
+        assertNull(SyncMerge.joinLimit(null, null))
+        assertEquals(300L to 900L, SyncMerge.joinBurst(300L to 900L, null to null))
+        assertEquals(200L to 900L, SyncMerge.joinBurst(300L to 600L, 200L to 900L), "mindkettő szigorúbbja")
     }
 
     // ------------------------------------------------------------- jelek

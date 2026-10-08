@@ -60,9 +60,11 @@ ugyanazért, amiért a napi keretet: próbatétellel fizettek érte.
 
 ## Mi hol él
 
-- **A beállítás szinkronizálódik** a blokklista rekordján (a lazítást a
-  rekord `rev`-je védi, mint minden más oldal-mezőt; egyenlő rev-nél a
-  szigorúbb nyer: kisebb adag, hosszabb szünet).
+- **A beállítás szinkronizálódik** a blokklista rekordján. A lazítást a
+  saját kifizetett számlálója viszi át (`burstLoosens`: a bíró lépteti a
+  próbatétel teljesítésekor); egyenlő számnál a két szabály szigorúbbja jön
+  ki — a kisebb adag ÉS a hosszabb szünet, akár két rekordból összerakva. A
+  rekord `rev`-je nem hitelesít lazítást (lásd docs/feature-accounts-sync.md).
   **A gép csak a v0.4.227 óta teszi a drótra** (`sync-client.ts`
   `toSyncSites` / `fromSyncSites`) — előtte kihagyta, a rev-et viszont
   léptette. Ebből két hiba lett, amit egy független átnézés talált: a gépen

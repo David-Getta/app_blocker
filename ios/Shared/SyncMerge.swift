@@ -9,6 +9,14 @@ import Foundation
 /// az app többi részét tartja:
 ///
 ///     szigorítás ingyen van, lazítás munkába kerül.
+///
+/// MEZŐNKÉNT dől el, nem rekordonként: a négy tiltó mező (törlés, menetrend,
+/// napi keret, adag-szabály) a saját kifizetett lazítás-számlálóját hordja —
+/// a bíró írja, a próbatétel teljesítésekor. A több kifizetett lazítás nyer;
+/// egyenlő számnál a mező SZIGORÚBB alakja jön ki (a menetrendek uniója, a
+/// kisebb keret, a kisebb adag és a hosszabb szünet, törlés csak ha mindkettő
+/// vár). A rekord `rev`-je nem hitelesít lazítást: az ingyenes szigorítás is
+/// lépteti, és egy elavult eszköz így felhúzott rekordja eddig egészében nyert.
 enum SyncMerge {
 
     /// Egy oldal a szinkronban.
@@ -59,11 +67,19 @@ enum SyncMerge {
         /// szabály; a mező nélküli rekord (régi kliens) a másik oldal listáját
         /// ÉS jelét viszi. Az iPhone nem ír ilyet, hordozza. Lásd `mergeRules`.
         var rulesRev: Int? = nil
+        /// A KIFIZETETT LAZÍTÁSOK száma mezőnként — a bíró írja, a próbatétel
+        /// teljesítésekor. A fésülésben a több nyer, egyenlőnél a szigorúbb
+        /// alak. Nil = nulla (régi kliens). A merge.ts tükre.
+        var deleteLoosens: Int? = nil
+        var scheduleLoosens: Int? = nil
+        var limitLoosens: Int? = nil
+        var burstLoosens: Int? = nil
 
         enum CodingKeys: String, CodingKey {
             case id, domain, hostnames, addedAt, pendingDeleteAt, schedule
             case dailyLimitSeconds, burstSeconds, cooldownSeconds, alias, reason, rules
             case rev, updatedAt, updatedBy, hostnameMarks, rulesRev
+            case deleteLoosens, scheduleLoosens, limitLoosens, burstLoosens
         }
 
         init(
@@ -72,7 +88,9 @@ enum SyncMerge {
             dailyLimitSeconds: Double? = nil, burstSeconds: Double? = nil,
             cooldownSeconds: Double? = nil, alias: String? = nil, reason: String? = nil,
             rules: [UrlRules.UrlRule]? = nil, rev: Int, updatedAt: Double, updatedBy: String,
-            hostnameMarks: [String: Int]? = nil, rulesRev: Int? = nil
+            hostnameMarks: [String: Int]? = nil, rulesRev: Int? = nil,
+            deleteLoosens: Int? = nil, scheduleLoosens: Int? = nil,
+            limitLoosens: Int? = nil, burstLoosens: Int? = nil
         ) {
             self.id = id
             self.domain = domain
@@ -91,6 +109,10 @@ enum SyncMerge {
             self.updatedBy = updatedBy
             self.hostnameMarks = hostnameMarks
             self.rulesRev = rulesRev
+            self.deleteLoosens = deleteLoosens
+            self.scheduleLoosens = scheduleLoosens
+            self.limitLoosens = limitLoosens
+            self.burstLoosens = burstLoosens
         }
 
         /// SAJÁT dekódolás, hogy a jelek TŰRŐEN jöjjenek: egy nem-egész érték
@@ -144,6 +166,16 @@ enum SyncMerge {
             } else {
                 rulesRev = nil
             }
+            // A kifizetett lazítások: pozitív egész, legfeljebb a rekord rev-je
+            // (csak léptetés írhatja); ami más, az nincs — mint a gépen és Androidon.
+            func loosens(_ key: CodingKeys) -> Int? {
+                guard let v = (try? c.decodeIfPresent(Int.self, forKey: key)) ?? nil, v > 0, v <= revValue else { return nil }
+                return v
+            }
+            deleteLoosens = loosens(.deleteLoosens)
+            scheduleLoosens = loosens(.scheduleLoosens)
+            limitLoosens = loosens(.limitLoosens)
+            burstLoosens = loosens(.burstLoosens)
         }
 
         /// A `pendingDeleteAt` KIÍRÁSA kötelező, nem elhagyható.
@@ -173,30 +205,19 @@ enum SyncMerge {
             try c.encodeIfPresent(hostnameMarks, forKey: .hostnameMarks)
             // A szabálylista jele csak lista mellett: mező nélkül nincs jel.
             if rules != nil { try c.encodeIfPresent(rulesRev, forKey: .rulesRev) }
+            try c.encodeIfPresent(deleteLoosens, forKey: .deleteLoosens)
+            try c.encodeIfPresent(scheduleLoosens, forKey: .scheduleLoosens)
+            try c.encodeIfPresent(limitLoosens, forKey: .limitLoosens)
+            try c.encodeIfPresent(burstLoosens, forKey: .burstLoosens)
         }
     }
 
     // MARK: - szigorúság
-
-    /// Hány percet tilt a menetrend egy héten (0…10080).
-    ///
-    /// SZERKEZET szerint néz, nem időbélyeg szerint: két eszköz lehet más
-    /// időzónában, és akkor ugyanaz a két menetrend máshogy hasonlítana össze a
-    /// két gépen — a szinkron sosem konvergálna.
-    static func blockedMinutesPerWeek(_ s: ScheduleLogic.Schedule?) -> Int {
-        let sch = ScheduleLogic.normalize(s)
-        if sch.mode == .always { return 7 * 1440 }
-        var n = 0
-        for day in 0..<7 {
-            for minute in 0..<1440 where blocksAtGrid(sch, day, minute) { n += 1 }
-        }
-        return n
-    }
-
-    private static func blocksAtGrid(_ sch: ScheduleLogic.Schedule, _ day: Int, _ minute: Int) -> Bool {
-        let inBand = anyBandAtGrid(sch.bands, day, minute)
-        return sch.mode == .block ? inBand : !inBand
-    }
+    //
+    // A menetrend SZERKEZET szerint fésülődik, nem időbélyeg szerint: két eszköz
+    // lehet más időzónában, és akkor ugyanaz a két menetrend máshogy fésülődne
+    // a két gépen — a szinkron sosem konvergálna. A sávok amúgy is helyi-óra
+    // percekben vannak megadva.
 
     /// Az `inAnyBand` szerkezeti párja — ugyanaz az éjfél-átfordulás.
     private static func anyBandAtGrid(_ bands: [ScheduleLogic.Band], _ day: Int, _ minute: Int) -> Bool {
@@ -212,57 +233,175 @@ enum SyncMerge {
         return false
     }
 
-    /// Melyik rekord szigorúbb: -1 = `a`, 1 = `b`, 0 = egyforma.
-    ///
-    /// A mezők sorrendje számít: az első különbség dönt, és a nyertes rekord
-    /// EGYBEN marad — az eredmény mindig olyan állapot, ami tényleg létezett
-    /// valamelyik eszközön.
-    static func compareStrictness(_ a: SyncSite, _ b: SyncSite) -> Int {
-        let aDel = a.pendingDeleteAt != nil
-        let bDel = b.pendingDeleteAt != nil
-        if aDel != bDel { return aDel ? 1 : -1 }
+    /// A heti rács: 7×1440 perc, igaz ahol a menetrend tilt — a merge.ts `scheduleGrid`-je.
+    private static func scheduleGrid(_ s: ScheduleLogic.Schedule?) -> [Bool] {
+        let sch = ScheduleLogic.normalize(s)
+        if sch.mode == .always { return [Bool](repeating: true, count: 7 * 1440) }
+        var g = [Bool](repeating: false, count: 7 * 1440)
+        let block = sch.mode == .block
+        for day in 0..<7 {
+            for minute in 0..<1440 where anyBandAtGrid(sch.bands, day, minute) == block {
+                g[day * 1440 + minute] = true
+            }
+        }
+        return g
+    }
 
-        let aMin = blockedMinutesPerWeek(a.schedule)
-        let bMin = blockedMinutesPerWeek(b.schedule)
-        if aMin != bMin { return aMin > bMin ? -1 : 1 }
+    /// Egy rács menetrendként — a merge.ts `scheduleFromGrid`-je: a tiltott
+    /// percek napon belüli szakaszai, az azonos szakaszú napok egy sávban,
+    /// kezdés, aztán vég szerint. Ha minden perc tiltva: mindig.
+    private static func scheduleFromGrid(_ g: [Bool]) -> ScheduleLogic.Schedule {
+        if g.allSatisfy({ $0 }) { return ScheduleLogic.Schedule(mode: .always, bands: []) }
+        var runs: [String: (start: Int, end: Int, days: [Int])] = [:]
+        for day in 0..<7 {
+            var minute = 0
+            while minute < 1440 {
+                if !g[day * 1440 + minute] { minute += 1; continue }
+                let start = minute
+                while minute < 1440 && g[day * 1440 + minute] { minute += 1 }
+                let key = "\(start)/\(minute)"
+                var run = runs[key] ?? (start: start, end: minute, days: [])
+                run.days.append(day)
+                runs[key] = run
+            }
+        }
+        let bands = runs.values
+            .sorted { $0.start != $1.start ? $0.start < $1.start : $0.end < $1.end }
+            .map { ScheduleLogic.Band(days: $0.days, startMin: $0.start, endMin: $0.end) }
+        return ScheduleLogic.Schedule(mode: .block, bands: bands)
+    }
 
-        let aLim = a.dailyLimitSeconds ?? .greatestFiniteMagnitude
-        let bLim = b.dailyLimitSeconds ?? .greatestFiniteMagnitude
-        if aLim != bLim { return aLim < bLim ? -1 : 1 }
+    /// A menetrend nyers kulcsa — bájtra a merge.ts `scheduleRawKey`-je; a hiányzó az üres szöveg.
+    private static func scheduleRawKey(_ s: ScheduleLogic.Schedule?) -> String {
+        guard let s = s else { return "" }
+        let bands = s.bands.map { b in
+            Array(Set(b.days)).sorted().map(String.init).joined(separator: ",") + "/\(b.startMin)/\(b.endMin)"
+        }
+        return s.mode.rawValue + "|" + bands.joined(separator: ";")
+    }
 
-        // Adag-szabály: kisebb adag szigorúbb; azonos adagnál a hosszabb
-        // szünet. A fél-kitöltött (csak egyik mező) nem szabály.
-        let aHasB = (a.burstSeconds ?? 0) > 0 && (a.cooldownSeconds ?? 0) > 0
-        let bHasB = (b.burstSeconds ?? 0) > 0 && (b.cooldownSeconds ?? 0) > 0
-        let aBurst = aHasB ? a.burstSeconds! : .greatestFiniteMagnitude
-        let bBurst = bHasB ? b.burstSeconds! : .greatestFiniteMagnitude
-        if aBurst != bBurst { return aBurst < bBurst ? -1 : 1 }
-        let aCool = aHasB ? a.cooldownSeconds! : 0
-        let bCool = bHasB ? b.cooldownSeconds! : 0
-        if aCool != bCool { return aCool > bCool ? -1 : 1 }
+    private static func isGridForm(_ s: ScheduleLogic.Schedule?, _ g: [Bool]) -> Bool {
+        s != nil && scheduleRawKey(s) == scheduleRawKey(scheduleFromGrid(g))
+    }
 
-        return 0
+    /// Két menetrend SZIGORÚBB alakja — a merge.ts `joinSchedule`-je: minden perc
+    /// tiltva, amit bármelyik tilt. Ha az egyik lefedi a másikat, az marad;
+    /// egyenlőnél a felhasználó saját alakja a rácsból épített ellen, két saját
+    /// közül a kisebb nyers kulcsú (kódegység szerint); különben a rácsból épül.
+    static func joinSchedule(_ a: ScheduleLogic.Schedule?, _ b: ScheduleLogic.Schedule?) -> ScheduleLogic.Schedule? {
+        let ka = scheduleRawKey(a)
+        let kb = scheduleRawKey(b)
+        if ka == kb { return a }
+        let ga = scheduleGrid(a)
+        let gb = scheduleGrid(b)
+        var aCovers = true
+        var bCovers = true
+        for i in 0..<ga.count {
+            if gb[i] && !ga[i] { aCovers = false }
+            if ga[i] && !gb[i] { bCovers = false }
+        }
+        if aCovers && bCovers {
+            let fa = isGridForm(a, ga)
+            let fb = isGridForm(b, gb)
+            if fa != fb { return fa ? b : a }
+            return !TextLogic.utf16Less(kb, ka) ? a : b
+        }
+        if aCovers { return a }
+        if bCovers { return b }
+        return scheduleFromGrid((0..<ga.count).map { ga[$0] || gb[$0] })
+    }
+
+    /// A szigorúbb napi keret — a merge.ts `joinLimit`-je: a kisebb; a keret nélküli a leglazább.
+    static func joinLimit(_ a: Double?, _ b: Double?) -> Double? {
+        guard let na = LimitLogic.normalizeLimit(a) else { return LimitLogic.normalizeLimit(b) == nil ? nil : b }
+        guard let nb = LimitLogic.normalizeLimit(b) else { return a }
+        if na != nb { return na < nb ? a : b }
+        return min(a!, b!)
+    }
+
+    /// Az adag-szabály egy rekordon — a kettő csak együtt értelmes.
+    typealias BurstPair = (burst: Double?, cooldown: Double?)
+
+    /// Az adag-szabály plafonjai — a shared/burst.ts és a core/Burst.kt párja.
+    static let maxBurstMinutes = 24 * 60
+    static let maxCooldownMinutes = 24 * 60
+
+    /// Az adag-szabály normál alakja — a shared/burst.ts `normalizeBurst`-je:
+    /// csak a kettő együtt, pozitívan; kerekítve, a plafonnal.
+    private static func normalizeBurst(_ p: BurstPair) -> (burst: Double, cooldown: Double)? {
+        guard let b = p.burst, let c = p.cooldown, b.isFinite, c.isFinite, b > 0, c > 0 else { return nil }
+        return (min(b.rounded(), Double(maxBurstMinutes * 60)), min(c.rounded(), Double(maxCooldownMinutes * 60)))
+    }
+
+    /// A szigorúbb adag-szabály — a merge.ts `joinBurst`-je: a kisebb adag ÉS a
+    /// hosszabb szünet; ha az egyik mindkettőben legalább olyan szigorú, az marad.
+    static func joinBurst(_ a: BurstPair, _ b: BurstPair) -> BurstPair {
+        guard let na = normalizeBurst(a) else { return normalizeBurst(b) == nil ? (burst: nil, cooldown: nil) : b }
+        guard let nb = normalizeBurst(b) else { return a }
+        let aStricter = na.burst <= nb.burst && na.cooldown >= nb.cooldown
+        let bStricter = nb.burst <= na.burst && nb.cooldown >= na.cooldown
+        if aStricter && bStricter {
+            // Ugyanaz a szabály — a nyers alakok közül a kisebb, hogy a döntés ne függjön a sorrendtől.
+            let ka = a.burst ?? 0
+            let kb = b.burst ?? 0
+            if ka != kb { return ka < kb ? a : b }
+            return (a.cooldown ?? 0) <= (b.cooldown ?? 0) ? a : b
+        }
+        if aStricter { return a }
+        if bStricter { return b }
+        return (burst: min(na.burst, nb.burst), cooldown: max(na.cooldown, nb.cooldown))
+    }
+
+    /// A törlésre várás szigorúbb alakja: csak ha mindkettő vár — akkor a későbbi határidő.
+    private static func joinDelete(_ a: Double?, _ b: Double?) -> Double? {
+        guard let x = a, let y = b else { return nil }
+        return max(x, y)
+    }
+
+    private static func loosensOf(_ v: Int?) -> Int {
+        guard let v = v, v > 0 else { return 0 }
+        return v
+    }
+
+    /// Egy mező a fésülésben: a több kifizetett lazítás nyer; egyenlőnél a szigorúbb alak.
+    private static func byLoosens<T>(_ ca: Int, _ cb: Int, _ va: T, _ vb: T, _ join: (T, T) -> T) -> T {
+        ca != cb ? (ca > cb ? va : vb) : join(va, vb)
+    }
+
+    /// A FRISSEBB rekord — rev, idő, eszköz (kódegység szerint). Már csak a fedőnév és az indok múlik rajta.
+    private static func newerSite(_ a: SyncSite, _ b: SyncSite) -> SyncSite {
+        if a.rev != b.rev { return a.rev > b.rev ? a : b }
+        if a.updatedAt != b.updatedAt { return a.updatedAt > b.updatedAt ? a : b }
+        return !TextLogic.utf16Less(b.updatedBy, a.updatedBy) ? a : b
     }
 
     // MARK: - összefésülés
 
-    /// Két azonos azonosítójú rekord összefésülése. Szimmetrikus.
+    /// Két azonos azonosítójú rekord összefésülése — MEZŐNKÉNT (lásd a fájl
+    /// elejét). Szimmetrikus: minden eszköz ugyanazt kapja.
     static func mergeSite(_ a: SyncSite, _ b: SyncSite) -> SyncSite {
-        if a.rev != b.rev {
-            let newer = a.rev > b.rev ? a : b
-            let older = a.rev > b.rev ? b : a
-            // A hosztnevek itt is nevenként, a jelük szerint: a régebbi rekord
-            // kifizetett levétele nem veszhet el attól, hogy a másik kétszer írt.
-            return withHostnames(withRules(carryPendingDelete(newer, older), a, b), a, b)
-        }
-        let strict = compareStrictness(a, b)
-        if strict != 0 {
-            return withHostnames(withRules(strict < 0 ? carryPendingDelete(a, b) : carryPendingDelete(b, a), a, b), a, b)
-        }
-        let winner: SyncSite
-        if a.updatedAt != b.updatedAt { winner = a.updatedAt > b.updatedAt ? a : b }
-        else { winner = a.updatedBy <= b.updatedBy ? a : b }
-        return withHostnames(withRules(winner, a, b), a, b)
+        let dA = loosensOf(a.deleteLoosens), dB = loosensOf(b.deleteLoosens)
+        let sA = loosensOf(a.scheduleLoosens), sB = loosensOf(b.scheduleLoosens)
+        let lA = loosensOf(a.limitLoosens), lB = loosensOf(b.limitLoosens)
+        let bA = loosensOf(a.burstLoosens), bB = loosensOf(b.burstLoosens)
+        var out = newerSite(a, b)
+        // A törlésre várás nem tűnhet el csendben: a kérése próbatétel (a
+        // számláló nő), a visszavonása ingyen — egyenlő számnál a nem váró nyer.
+        out.pendingDeleteAt = byLoosens(dA, dB, a.pendingDeleteAt, b.pendingDeleteAt, joinDelete)
+        out.schedule = byLoosens(sA, sB, a.schedule, b.schedule, joinSchedule)
+        out.dailyLimitSeconds = byLoosens(lA, lB, a.dailyLimitSeconds, b.dailyLimitSeconds, joinLimit)
+        let burst = byLoosens(bA, bB, (burst: a.burstSeconds, cooldown: a.cooldownSeconds),
+                              (burst: b.burstSeconds, cooldown: b.cooldownSeconds), joinBurst)
+        out.burstSeconds = burst.burst
+        out.cooldownSeconds = burst.cooldown
+        out.rev = max(a.rev, b.rev)
+        let positive: (Int) -> Int? = { $0 > 0 ? $0 : nil }
+        out.deleteLoosens = positive(max(dA, dB))
+        out.scheduleLoosens = positive(max(sA, sB))
+        out.limitLoosens = positive(max(lA, lB))
+        out.burstLoosens = positive(max(bA, bB))
+        // A hosztnevek nevenként, a jelük szerint; a szabályok a listájuk jele szerint.
+        return withHostnames(withRules(out, a, b), a, b)
     }
 
     /// A hosztnevek NEVENKÉNT fésülődnek, a jelük szerint: a nagyobb jelnél
@@ -389,22 +528,6 @@ enum SyncMerge {
         // Stabil sorrend, hogy két eszköz bájtra ugyanazt a listát kapja —
         // különben örökké oda-vissza írnák egymást, mert a tartalom „változott”.
         return out.sorted { $0.host + $0.path < $1.host + $1.path }
-    }
-
-    /// A törlésre várás nem tűnhet el csendben — a türelmi idővel együtt megy át.
-    private static func carryPendingDelete(_ winner: SyncSite, _ loser: SyncSite) -> SyncSite {
-        guard let loserDelete = loser.pendingDeleteAt else { return winner }
-        if let winnerDelete = winner.pendingDeleteAt {
-            let at = min(winnerDelete, loserDelete)
-            if at == winnerDelete { return winner }
-            var out = winner
-            out.pendingDeleteAt = at
-            return out
-        }
-        if winner.rev > loser.rev { return winner } // egy későbbi körben visszavonták
-        var out = winner
-        out.pendingDeleteAt = loserDelete
-        return out
     }
 
     /// Két lista összefésülése.

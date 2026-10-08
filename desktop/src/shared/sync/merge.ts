@@ -9,20 +9,26 @@
 //
 //   szigorítás ingyen van, lazítás munkába kerül.
 //
-// A gyakorlatban:
+// A gyakorlatban MEZŐNKÉNT dől el, nem rekordonként:
 //
-//   1. Alap: utolsó író nyer (`rev`, majd `updatedAt`, majd eszközazonosító).
-//      A döntetlent azért az azonosító töri el, hogy MINDEN eszköz ugyanarra az
-//      eredményre jusson — enélkül két gép örökké oda-vissza írná egymást.
-//   2. Egyenlő `rev` esetén a SZIGORÚBB nyer. Két eszköz egyszerre módosít, az
-//      egyik szigorít, a másik lazít: a szigorúbb marad.
-//   3. Lazítást csak NAGYOBB `rev` hozhat. A `rev` csak akkor nő, ha valaki
-//      ténylegesen végigcsinálta a próbatételt. Egy régi, lazább rekord —
-//      hálózati késés, órabaki, visszajátszás — nem lazíthat.
+//   1. A négy tiltó mező (törlés, menetrend, napi keret, adag-szabály) a saját
+//      KIFIZETETT LAZÍTÁS-számlálóját hordja. A bíró írja, a próbatétel
+//      teljesítésekor — máshol semmi. Mezőnként a több kifizetett lazítás nyer
+//      — a lazítás így átmegy; ami kapun kívül lazulna, azt nem hitelesíti.
+//   2. Egyenlő számnál a mező SZIGORÚBB alakja jön ki — nem az egyik rekordé,
+//      hanem a kettő együtt: a menetrendek uniója (minden perc tiltva, amit
+//      bármelyik tilt), a kisebb keret, a kisebb adag és a hosszabb szünet, a
+//      törlésre várás csak ha mindkettő vár.
+//   3. A `rev` NEM hitelesít lazítást. Az ingyenes szigorítás is lépteti: egy
+//      régóta nem szinkronizált eszköz néhány ingyenes szerkesztéssel felhúzta,
+//      és eddig a régi, lazább rekordja egészében nyert (a máshol lecsökkentett
+//      keret visszanőtt). A rev ma már csak a fedőnév és az indok frissességét
+//      dönti el — azok nem tiltanak.
 //
 // A doksi: docs/feature-accounts-sync.md
 
 import { normalizeBurst } from '../burst.js';
+import { normalizeLimit } from '../limits.js';
 import type { Schedule, Band, Weekday } from '../schedule.js';
 import { ALWAYS, normalizeSchedule } from '../schedule.js';
 import { MAX_RULES_PER_SITE, normalizeRule, sameRule, type UrlRule } from '../urlrules.js';
@@ -75,6 +81,19 @@ export interface SyncSite {
    * a saját rev-jével hitelesíti. Lásd `mergeRules`.
    */
   rulesRev?: number;
+  /**
+   * A KIFIZETETT LAZÍTÁSOK száma mezőnként — csak próbatétel után nő (a bíró
+   * írja, a teljesítéskor). A fésülésben a több nyer, egyenlőnél a szigorúbb
+   * alak. Hiányzó mező = nulla (régi kliens).
+   */
+  /** a törlés kérése (próbatétel és 24 óra) */
+  deleteLoosens?: number;
+  /** a menetrend lazítása (`isLoosening`) */
+  scheduleLoosens?: number;
+  /** a napi keret emelése vagy levétele */
+  limitLoosens?: number;
+  /** az adag-szabály lazítása: nagyobb adag, rövidebb szünet, levétel */
+  burstLoosens?: number;
   /** hányszor módosult ez a rekord; csak nő */
   rev: number;
   /** mikor módosult utoljára (ms) */
@@ -85,22 +104,14 @@ export interface SyncSite {
 
 // ------------------------------------------------------------- szigorúság
 
-/**
- * Blokkol-e a menetrend a hét adott percében.
- *
- * SZERKEZET szerint néz, nem időbélyeg szerint. Ez nem szőrözés: az
- * `isBlockedBySchedule` a gép helyi idejét használja, két eszköz pedig lehet más
- * időzónában — akkor ugyanaz a két menetrend máshogy hasonlítana össze a két
- * gépen, és a szinkron sosem konvergálna. A sávok amúgy is helyi-óra percekben
- * vannak megadva, tehát a szerkezeti összevetés az egyetlen, ami mindenhol
- * ugyanazt adja.
+/*
+ * A menetrend SZERKEZET szerint néz, nem időbélyeg szerint. Ez nem szőrözés:
+ * az `isBlockedBySchedule` a gép helyi idejét használja, két eszköz pedig
+ * lehet más időzónában — akkor ugyanaz a két menetrend máshogy fésülődne a két
+ * gépen, és a szinkron sosem konvergálna. A sávok amúgy is helyi-óra
+ * percekben vannak megadva, tehát a szerkezeti összevetés az egyetlen, ami
+ * mindenhol ugyanazt adja.
  */
-function blocksAtGrid(s: Schedule, day: Weekday, minute: number): boolean {
-  const sch = normalizeSchedule(s);
-  if (sch.mode === 'always') return true;
-  const inBand = anyBandAtGrid(sch.bands, day, minute);
-  return sch.mode === 'scheduled_block' ? inBand : !inBand;
-}
 
 /** Az `inAnyBand` szerkezeti párja — ugyanaz az éjfél-átfordulás. */
 function anyBandAtGrid(bands: Band[], day: Weekday, minute: number): boolean {
@@ -116,112 +127,208 @@ function anyBandAtGrid(bands: Band[], day: Weekday, minute: number): boolean {
   return false;
 }
 
-const minutesCache = new Map<string, number>();
-
-/**
- * Hány percet tilt a menetrend egy héten (0..10080).
- *
- * Ez a menetrendek RENDEZÉSE: több tiltott perc = szigorúbb. Két olyan
- * menetrend, amelyik egymáshoz képest se nem szigorúbb, se nem lazább (az egyik
- * délelőtt tilt, a másik délután), így is összehasonlítható marad, és minden
- * eszköz ugyanazt a számot kapja.
- */
-export function blockedMinutesPerWeek(s: Schedule | undefined): number {
+/** A heti rács: 7×1440 perc, 1 ahol a menetrend tilt — szerkezet szerint (lásd fent). */
+function scheduleGrid(s: Schedule | undefined): Uint8Array {
   const sch = normalizeSchedule(s ?? ALWAYS);
-  if (sch.mode === 'always') return 7 * 1440;
-  // 10 080 kiértékelés menetrendenként. Egy összefésülés kettőt kér, egy lista
-  // sok rekordot — a gyorsítótár nélkül ez percenként milliós nagyságrend lenne
-  // a semmiért, hiszen ugyanaz a néhány menetrend ismétlődik.
-  const key = JSON.stringify(sch);
-  const hit = minutesCache.get(key);
-  if (hit !== undefined) return hit;
-  let n = 0;
+  const g = new Uint8Array(7 * 1440);
+  if (sch.mode === 'always') return g.fill(1);
+  const block = sch.mode === 'scheduled_block';
   for (let day = 0; day < 7; day++) {
     for (let minute = 0; minute < 1440; minute++) {
-      if (blocksAtGrid(sch, day as Weekday, minute)) n++;
+      if (anyBandAtGrid(sch.bands, day as Weekday, minute) === block) g[day * 1440 + minute] = 1;
     }
   }
-  minutesCache.set(key, n);
-  return n;
-}
-
-/** A napi keret „szigorúsága”: kisebb keret szigorúbb, keret nélkül a leglazább. */
-function limitRank(seconds: number | undefined): number {
-  return seconds === undefined ? Number.POSITIVE_INFINITY : seconds;
+  return g;
 }
 
 /**
- * Melyik oldal-rekord szigorúbb: -1 = `a`, 1 = `b`, 0 = egyforma.
- *
- * Mezőnként dönt, és a mezők sorrendje számít: ami többet tilt, az előbbre való.
+ * Egy rács menetrendként: a tiltott percek napon belüli szakaszai, az azonos
+ * szakaszú napok egy sávban — kezdés, aztán vég szerint rendezve. Az éjfélen
+ * átnyúló tiltás két sáv (este és hajnal). Ha minden perc tiltva: mindig.
  */
-export function compareStrictness(a: SyncSite, b: SyncSite): number {
-  // Törlésre várás: aki nem vár törlésre, az szigorúbb (a másik el fog tűnni).
-  const aDel = a.pendingDeleteAt !== null;
-  const bDel = b.pendingDeleteAt !== null;
-  if (aDel !== bDel) return aDel ? 1 : -1;
+function scheduleFromGrid(g: Uint8Array): Schedule {
+  if (g.every((v) => v === 1)) return { mode: 'always', bands: [] };
+  const runs = new Map<string, { startMin: number; endMin: number; days: Weekday[] }>();
+  for (let day = 0; day < 7; day++) {
+    let minute = 0;
+    while (minute < 1440) {
+      if (g[day * 1440 + minute] !== 1) { minute++; continue; }
+      const start = minute;
+      while (minute < 1440 && g[day * 1440 + minute] === 1) minute++;
+      const key = `${start}/${minute}`;
+      const run = runs.get(key) ?? { startMin: start, endMin: minute, days: [] };
+      run.days.push(day as Weekday);
+      runs.set(key, run);
+    }
+  }
+  const bands = [...runs.values()]
+    .sort((x, y) => (x.startMin - y.startMin) || (x.endMin - y.endMin))
+    .map((r) => ({ days: r.days, startMin: r.startMin, endMin: r.endMin }));
+  return { mode: 'scheduled_block', bands };
+}
 
-  // Szünet: a korábban lejáró szigorúbb; a szünet nélküli a legszigorúbb.
-  const aPause = a.pauseUntil ?? 0;
-  const bPause = b.pauseUntil ?? 0;
-  if (aPause !== bPause) return aPause < bPause ? -1 : 1;
+/**
+ * Egy menetrend NYERS kulcsa: a mód és a sávok a tárolt sorrendben; a
+ * hiányzó menetrend az üres szöveg. Csak a döntetlen eltörésére — két,
+ * ugyanannyit tiltó, de másképp leírt menetrend közül minden eszköz
+ * ugyanazt válassza.
+ */
+function scheduleRawKey(s: Schedule | undefined): string {
+  if (s === undefined) return '';
+  const bands = (Array.isArray(s.bands) ? s.bands : [])
+    .map((b) => `${[...new Set(b.days ?? [])].sort((x, y) => x - y).join(',')}/${b.startMin}/${b.endMin}`).join(';');
+  return `${s.mode}|${bands}`;
+}
 
-  // Menetrend: több tiltott perc = szigorúbb.
-  const aMin = blockedMinutesPerWeek(a.schedule);
-  const bMin = blockedMinutesPerWeek(b.schedule);
-  if (aMin !== bMin) return aMin > bMin ? -1 : 1;
+/** A rácsból épített (kanonikus) alakban van-e a menetrend. */
+function isGridForm(s: Schedule | undefined, g: Uint8Array): boolean {
+  return s !== undefined && scheduleRawKey(s) === scheduleRawKey(scheduleFromGrid(g));
+}
 
-  // Napi keret: kisebb = szigorúbb.
-  const aLim = limitRank(a.dailyLimitSeconds);
-  const bLim = limitRank(b.dailyLimitSeconds);
-  if (aLim !== bLim) return aLim < bLim ? -1 : 1;
+/**
+ * Két menetrend SZIGORÚBB alakja: minden perc tiltva, amit bármelyik tilt. Ha
+ * az egyik lefedi a másikat, változatlanul az marad (nincs újraírás);
+ * különben a rácsból épül. Ha a kettő ugyanannyit tilt, a felhasználó saját
+ * alakja nyer a rácsból épített ellen (az esti sáv ne essen szét kettőre),
+ * két saját alak közül a kisebb nyers kulcsú. Ettől a fésülés sorrendje sem
+ * számít: három eszköz bármilyen sorrendben ugyanazt az alakot kapja.
+ */
+export function joinSchedule(a: Schedule | undefined, b: Schedule | undefined): Schedule | undefined {
+  // A gyakori eset: ugyanaz a menetrend mindkét oldalon — nincs mit számolni.
+  if (scheduleRawKey(a) === scheduleRawKey(b)) return a;
+  const ga = scheduleGrid(a);
+  const gb = scheduleGrid(b);
+  let aCovers = true;
+  let bCovers = true;
+  for (let i = 0; i < ga.length; i++) {
+    if (gb[i] === 1 && ga[i] !== 1) aCovers = false;
+    if (ga[i] === 1 && gb[i] !== 1) bCovers = false;
+  }
+  if (aCovers && bCovers) {
+    const fa = isGridForm(a, ga);
+    const fb = isGridForm(b, gb);
+    if (fa !== fb) return fa ? b : a;
+    return scheduleRawKey(a) <= scheduleRawKey(b) ? a : b;
+  }
+  if (aCovers) return a;
+  if (bCovers) return b;
+  const union = new Uint8Array(ga.length);
+  for (let i = 0; i < ga.length; i++) union[i] = ga[i] | gb[i];
+  return scheduleFromGrid(union);
+}
 
-  // Adag-szabály: kisebb adag szigorúbb; azonos adagnál a hosszabb szünet.
-  // A szabály nélküli rekord a legmegengedőbb — mint a keretnél.
-  const aBurst = limitRank(normalizeBurst(a.burstSeconds, a.cooldownSeconds)?.burstSeconds);
-  const bBurst = limitRank(normalizeBurst(b.burstSeconds, b.cooldownSeconds)?.burstSeconds);
-  if (aBurst !== bBurst) return aBurst < bBurst ? -1 : 1;
-  const aCool = normalizeBurst(a.burstSeconds, a.cooldownSeconds)?.cooldownSeconds ?? 0;
-  const bCool = normalizeBurst(b.burstSeconds, b.cooldownSeconds)?.cooldownSeconds ?? 0;
-  if (aCool !== bCool) return aCool > bCool ? -1 : 1;
+/** A szigorúbb napi keret: a kisebb; a keret nélküli (vagy értelmetlen) a leglazább. */
+export function joinLimit(a: number | undefined, b: number | undefined): number | undefined {
+  const na = normalizeLimit(a);
+  const nb = normalizeLimit(b);
+  if (na === null) return nb === null ? undefined : b;
+  if (nb === null) return a;
+  if (na !== nb) return na < nb ? a : b;
+  return Math.min(a as number, b as number);
+}
 
-  return 0;
+/** Az adag-szabály egy rekordon — a két mező csak együtt értelmes. */
+interface BurstPair { burstSeconds?: number; cooldownSeconds?: number }
+
+/**
+ * A szigorúbb adag-szabály: a kisebb adag ÉS a hosszabb szünet. Ha az egyik
+ * mindkettőben legalább olyan szigorú, változatlanul az marad; a szabály
+ * nélküli a leglazább.
+ */
+export function joinBurst(a: BurstPair, b: BurstPair): BurstPair {
+  const na = normalizeBurst(a.burstSeconds, a.cooldownSeconds);
+  const nb = normalizeBurst(b.burstSeconds, b.cooldownSeconds);
+  if (na === null) return nb === null ? {} : b;
+  if (nb === null) return a;
+  const aStricter = na.burstSeconds <= nb.burstSeconds && na.cooldownSeconds >= nb.cooldownSeconds;
+  const bStricter = nb.burstSeconds <= na.burstSeconds && nb.cooldownSeconds >= na.cooldownSeconds;
+  if (aStricter && bStricter) {
+    // Ugyanaz a szabály — a nyers alakok közül a kisebb, hogy a döntés ne függjön a sorrendtől.
+    const ka = [a.burstSeconds ?? 0, a.cooldownSeconds ?? 0];
+    const kb = [b.burstSeconds ?? 0, b.cooldownSeconds ?? 0];
+    return ka[0] !== kb[0] ? (ka[0] < kb[0] ? a : b) : (ka[1] <= kb[1] ? a : b);
+  }
+  if (aStricter) return a;
+  if (bStricter) return b;
+  return {
+    burstSeconds: Math.min(na.burstSeconds, nb.burstSeconds),
+    cooldownSeconds: Math.max(na.cooldownSeconds, nb.cooldownSeconds),
+  };
+}
+
+/** A törlésre várás szigorúbb alakja: csak ha mindkettő vár — akkor a későbbi határidő. */
+function joinDelete(a: number | null, b: number | null): number | null {
+  if (a === null || b === null) return null;
+  return Math.max(a, b);
+}
+
+/** Egy kifizetett-lazítás számláló: csak pozitív egész számít. */
+function loosensOf(v: number | undefined): number {
+  return typeof v === 'number' && Number.isInteger(v) && v > 0 ? v : 0;
+}
+
+/**
+ * Egy mező a fésülésben: a több kifizetett lazítás nyer (a lazítás mögött ott
+ * a munka); egyenlőnél a szigorúbb alak.
+ */
+function byLoosens<T>(ca: number, cb: number, va: T, vb: T, join: (x: T, y: T) => T): T {
+  if (ca !== cb) return ca > cb ? va : vb;
+  return join(va, vb);
+}
+
+/**
+ * A FRISSEBB rekord — `rev`, majd idő, majd eszközazonosító. Már csak a
+ * fedőnév és az indok múlik rajta (azok nem tiltanak), meg a hosztnevek
+ * és a szabályok jel nélküli döntése.
+ */
+function newerSite(a: SyncSite, b: SyncSite): SyncSite {
+  if (a.rev !== b.rev) return a.rev > b.rev ? a : b;
+  if (a.updatedAt !== b.updatedAt) return a.updatedAt > b.updatedAt ? a : b;
+  return a.updatedBy <= b.updatedBy ? a : b;
 }
 
 // ------------------------------------------------------------ összefésülés
 
 /**
- * Két azonos azonosítójú rekord összefésülése.
+ * Két azonos azonosítójú rekord összefésülése — MEZŐNKÉNT (lásd a fájl
+ * elejét).
  *
  * A hívónak mindegy, melyik a „helyi” és melyik a „távoli”: a függvény
- * szimmetrikus, tehát minden eszköz ugyanazt kapja.
+ * szimmetrikus, tehát minden eszköz ugyanazt kapja. A szünet nem utazik
+ * (eszközfüggő); ha mégis érkezne, a rövidebb marad.
  */
 export function mergeSite(a: SyncSite, b: SyncSite): SyncSite {
-  if (a.rev !== b.rev) {
-    const newer = a.rev > b.rev ? a : b;
-    const older = a.rev > b.rev ? b : a;
-    // Nagyobb rev: a változtatás mögött ott a munka (próbatétel), tehát lazítás
-    // is átmehet. A törlésre várást viszont NEM ejtjük el csendben: lásd lent.
-    // A hosztnevek itt is nevenként, a jelük szerint fésülődnek: a régebbi
-    // rekord kifizetett levétele vagy ingyenes felvétele sem veszhet el attól,
-    // hogy a másik eszköz közben kétszer írt ugyanarra a rekordra.
-    return withHostnames(withRules(carryPendingDelete(newer, older), newer, older), a, b);
+  const newer = newerSite(a, b);
+  const ca = { del: loosensOf(a.deleteLoosens), sch: loosensOf(a.scheduleLoosens), lim: loosensOf(a.limitLoosens), bur: loosensOf(a.burstLoosens) };
+  const cb = { del: loosensOf(b.deleteLoosens), sch: loosensOf(b.scheduleLoosens), lim: loosensOf(b.limitLoosens), bur: loosensOf(b.burstLoosens) };
+  // A törlésre várás nem tűnhet el csendben: a kérése próbatétel (a számláló
+  // nő), a visszavonása ingyen — egyenlő számnál a nem váró nyer.
+  const pendingDeleteAt = byLoosens(ca.del, cb.del, a.pendingDeleteAt, b.pendingDeleteAt, joinDelete);
+  const schedule = byLoosens(ca.sch, cb.sch, a.schedule, b.schedule, joinSchedule);
+  const dailyLimitSeconds = byLoosens(ca.lim, cb.lim, a.dailyLimitSeconds, b.dailyLimitSeconds, joinLimit);
+  const burst = byLoosens<BurstPair>(ca.bur, cb.bur,
+    { burstSeconds: a.burstSeconds, cooldownSeconds: a.cooldownSeconds },
+    { burstSeconds: b.burstSeconds, cooldownSeconds: b.cooldownSeconds }, joinBurst);
+  const out: SyncSite = {
+    ...newer,
+    pauseUntil: a.pauseUntil === null || b.pauseUntil === null ? null : Math.min(a.pauseUntil, b.pauseUntil),
+    pendingDeleteAt,
+    rev: Math.max(a.rev, b.rev),
+  };
+  if (schedule === undefined) delete out.schedule; else out.schedule = schedule;
+  if (dailyLimitSeconds === undefined) delete out.dailyLimitSeconds; else out.dailyLimitSeconds = dailyLimitSeconds;
+  if (burst.burstSeconds === undefined) delete out.burstSeconds; else out.burstSeconds = burst.burstSeconds;
+  if (burst.cooldownSeconds === undefined) delete out.cooldownSeconds; else out.cooldownSeconds = burst.cooldownSeconds;
+  const counts: [keyof SyncSite, number][] = [
+    ['deleteLoosens', Math.max(ca.del, cb.del)], ['scheduleLoosens', Math.max(ca.sch, cb.sch)],
+    ['limitLoosens', Math.max(ca.lim, cb.lim)], ['burstLoosens', Math.max(ca.bur, cb.bur)],
+  ];
+  for (const [k, v] of counts) {
+    if (v > 0) (out as unknown as Record<string, number>)[k] = v;
+    else delete (out as unknown as Record<string, unknown>)[k];
   }
-
-  // Egyenlő rev: senki nem „újabb”. Ilyenkor a szigorúbb nyer — egy
-  // versenyhelyzet sosem oldhat fel semmit.
-  const strict = compareStrictness(a, b);
-  if (strict !== 0) {
-    return withHostnames(withRules(carryPendingDelete(strict < 0 ? a : b, strict < 0 ? b : a), a, b), a, b);
-  }
-
-  // Teljesen egyforma szigorúság: a döntetlent az idő, majd az eszközazonosító
-  // töri el, hogy determinisztikus legyen. (A fedőnév térhet el; a hosztnevek
-  // egyesülnek — lásd withHostnames.)
-  const winner = a.updatedAt !== b.updatedAt
-    ? (a.updatedAt > b.updatedAt ? a : b)
-    : (a.updatedBy <= b.updatedBy ? a : b);
-  return withHostnames(withRules(winner, a, b), a, b);
+  // A hosztnevek nevenként, a jelük szerint; a szabályok a listájuk jele szerint.
+  return withHostnames(withRules(out, a, b), a, b);
 }
 
 /**
@@ -370,30 +477,6 @@ function unionRules(a: UrlRule[], b: UrlRule[]): UrlRule[] {
   // Stabil sorrend, hogy két eszköz bájtra ugyanazt a listát kapja — különben
   // örökké oda-vissza írnák egymást, mert a tartalom „változott”.
   return out.sort((x, y) => (x.host + x.path < y.host + y.path ? -1 : 1));
-}
-
-/**
- * A törlésre várás nem tűnhet el csendben.
- *
- * Ha az egyik eszközön elindult a törlés (végigcsinált próbatételek + 24 óra),
- * a másik eszköz nem dobhatja el csak azért, mert a saját rekordja frissebb: az
- * a munkát törölné el. Viszont a türelmi idő MEGMARAD — a másik eszközön is
- * ugyanaddig a határidőig blokkol az oldal, és ott is visszavonható. A
- * visszavonás szigorítás, tehát ingyen van.
- *
- * Csak akkor NEM visszük át, ha a nyertes rekord egy KÉSŐBBI körben szüntette
- * meg (nagyobb rev, és nála már nincs törlésre várás → valaki visszavonta).
- */
-function carryPendingDelete(winner: SyncSite, loser: SyncSite): SyncSite {
-  if (loser.pendingDeleteAt === null) return winner;
-  if (winner.pendingDeleteAt !== null) {
-    // Mindkettő törlésre vár: a korábbi határidő az erősebb (az van előrébb a
-    // folyamatban), de a rekord többi mezője a nyertesé marad.
-    const at = Math.min(winner.pendingDeleteAt, loser.pendingDeleteAt);
-    return at === winner.pendingDeleteAt ? winner : { ...winner, pendingDeleteAt: at };
-  }
-  if (winner.rev > loser.rev) return winner; // visszavonták egy későbbi körben
-  return { ...winner, pendingDeleteAt: loser.pendingDeleteAt };
 }
 
 /**

@@ -84,6 +84,11 @@ const SITE_TOLERATED: unknown[] = [
   ] },
   { id: 'h3', domain: 'y.com', hostnames: ['y.com'], rules: [] },
   { id: 'h4', domain: 'z.com', hostnames: ['z.com'], rules: null },
+  // A kifizetett lazítások: csak pozitív egész, legfeljebb a rekord (egész) rev-je —
+  // csak léptetés írhatja; ami más, az nincs (a régi kliens rekordja semleges).
+  { id: 'k1', domain: 'aa.com', hostnames: ['aa.com'], rev: 3, deleteLoosens: 1, scheduleLoosens: 3, limitLoosens: 4, burstLoosens: 0 },
+  { id: 'k2', domain: 'bb.com', hostnames: ['bb.com'], rev: 2, deleteLoosens: '1', scheduleLoosens: 1.5, limitLoosens: -1, burstLoosens: true },
+  { id: 'k3', domain: 'cc.com', hostnames: ['cc.com'], rev: 2.5, limitLoosens: 1, burstLoosens: 2 },
 ];
 
 /** Kiesik: nem objektum, vagy az azonosítója, a domainje nem jó. */
@@ -117,7 +122,8 @@ function siteKey(s: SyncSite): string {
     + `|rev=${s.rev}|at=${s.updatedAt}|by=${s.updatedBy}`
     + `|marks=${Object.keys(s.hostnameMarks ?? {}).sort().map((k) => `${k}=${s.hostnameMarks![k]}`).join(',')}`
     + `|sched=${scheduleKey(s.schedule)}`
-    + `|rules=${s.rules === undefined ? '-' : `[${s.rules.map((r) => r.host + r.path).join(',')}]`}`;
+    + `|rules=${s.rules === undefined ? '-' : `[${s.rules.map((r) => r.host + r.path).join(',')}]`}`
+    + `|loos=${s.deleteLoosens ?? 0}/${s.scheduleLoosens ?? 0}/${s.limitLoosens ?? 0}/${s.burstLoosens ?? 0}`;
 }
 
 // ------------------------------------------------------------- munkamenet
@@ -392,7 +398,7 @@ function buildFixture(): Fixture {
       + 'Az in egy dróton jött JSON-szöveg (oldal-lista vagy munkamenet-dokumentum), az out a gép olvasójának '
       + 'eredménye kulcsként; a Kotlin WireFixtureTest és a Swift WireFixtureTests a saját olvasójával '
       + 'ugyanezt kell kapja. Egy rossz elem nem viheti a többit.',
-    version: 3,
+    version: 4,
     sites: siteCases().map((arr) => {
       const text = JSON.stringify(arr);
       return { in: text, out: normalizeIncomingSites(JSON.parse(text)).map(siteKey).join('\n') };

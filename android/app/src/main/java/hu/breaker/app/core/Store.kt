@@ -58,6 +58,16 @@ data class Site(
     val hostnameMarks: Map<String, Int>? = null,
     /** A szabálylista jele — a telefon nem ír ilyet, hordozza. Lásd SyncMerge. */
     val rulesRev: Int? = null,
+    /**
+     * A KIFIZETETT LAZÍTÁSOK száma mezőnként: a törlés kérése, a menetrend, a
+     * napi keret és az adag-szabály lazítása. A bíró írja, a próbatétel
+     * teljesítésekor (Referee) — máshol semmi. A fésülés mezőnként ebből dönt
+     * (SyncMerge.mergeSite).
+     */
+    val deleteLoosens: Int? = null,
+    val scheduleLoosens: Int? = null,
+    val limitLoosens: Int? = null,
+    val burstLoosens: Int? = null,
 )
 
 data class SessionRec(
@@ -613,6 +623,10 @@ object BreakerStore {
                 put("revFp", site.revFp ?: JSONObject.NULL)
                 put("hostnameMarks", site.hostnameMarks?.let { JSONObject(it) } ?: JSONObject.NULL)
                 put("rulesRev", site.rulesRev ?: JSONObject.NULL)
+                put("deleteLoosens", site.deleteLoosens ?: JSONObject.NULL)
+                put("scheduleLoosens", site.scheduleLoosens ?: JSONObject.NULL)
+                put("limitLoosens", site.limitLoosens ?: JSONObject.NULL)
+                put("burstLoosens", site.burstLoosens ?: JSONObject.NULL)
             }
         }))
         put("unlockLog", JSONArray(s.unlockLog))
@@ -793,6 +807,10 @@ object BreakerStore {
         }
     }
 
+    /** Egy kifizetett-lazítás számláló: pozitív egész, legfeljebb a rekord rev-je. */
+    private fun loosensFrom(s: JSONObject, key: String): Int? =
+        SyncClient.intOf(s, key)?.takeIf { it > 0 && it <= s.optInt("rev", 0) }
+
     /**
      * Reads persisted state. Damage is contained per record on purpose: the
      * caller can only fall back to an EMPTY state, which means every block
@@ -830,6 +848,12 @@ object BreakerStore {
                         revFp = if (s.isNull("revFp")) null else s.optString("revFp"),
                         hostnameMarks = SyncClient.marksFromJson(s),
                         rulesRev = if (s.isNull("rulesRev")) null else s.optInt("rulesRev", 0).takeIf { it > 0 },
+                        // A kifizetett lazítások számlálói a mag szűrőjén át — mint
+                        // a dróton: pozitív egész, legfeljebb a rekord rev-je.
+                        deleteLoosens = loosensFrom(s, "deleteLoosens"),
+                        scheduleLoosens = loosensFrom(s, "scheduleLoosens"),
+                        limitLoosens = loosensFrom(s, "limitLoosens"),
+                        burstLoosens = loosensFrom(s, "burstLoosens"),
                     )
                 }.getOrNull()
             }

@@ -134,6 +134,10 @@ ingyen van, rövidíteni vagy visszavonni sehogy.
   és mivel nem ért belőlük semmit, nem is kell megbízni benne. A kiszolgáló
   néhány száz sor, függőség nélkül, magadnak is futtathatod (`server/`).
   A kijelentkezés **egyetlen blokkot sem visz el** — a szinkron nem kibúvó.
+  Két eszköz szerkesztése **mezőnként** fésülődik: a menetrendekből az unió, a
+  keretekből a kisebb marad, és lazítás csak azzal megy át, amiért próbatételt
+  fizettek — egy régóta nem szinkronizált eszköz ingyenes szerkesztései nem
+  hozzák vissza a régi, lazább beállítást.
   A kiszolgálót az **asztali app egy gombbal el is indítja**, tehát nem kell
   hozzá se terminál, se Node. Lépésről lépésre:
   [`docs/feature-accounts-sync.md`](docs/feature-accounts-sync.md).

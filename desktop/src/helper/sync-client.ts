@@ -282,6 +282,11 @@ function toSyncSites(sites: SiteRec[], deviceId: string): SyncSite[] {
     burstSeconds: s.burstSeconds, cooldownSeconds: s.cooldownSeconds,
     rules: s.rules,
     ...(s.rulesRev ? { rulesRev: s.rulesRev } : {}),
+    // A kifizetett lazítások mezőnként — a fésülés ezekből dönt (merge.ts).
+    ...(s.deleteLoosens ? { deleteLoosens: s.deleteLoosens } : {}),
+    ...(s.scheduleLoosens ? { scheduleLoosens: s.scheduleLoosens } : {}),
+    ...(s.limitLoosens ? { limitLoosens: s.limitLoosens } : {}),
+    ...(s.burstLoosens ? { burstLoosens: s.burstLoosens } : {}),
     rev: s.rev ?? 1, updatedAt: s.updatedAt ?? s.addedAt, updatedBy: s.updatedBy ?? deviceId,
   })).map((s) => cleanSite(s as unknown as Record<string, unknown>));
 }
@@ -344,6 +349,9 @@ function fromSyncSites(merged: SyncSite[], local: SiteRec[]): SiteRec[] {
     rules: m.rules,
     // A szabálylista jele is a fésülés eredményéből jön, mint a nevek jelei.
     rulesRev: m.rulesRev,
+    // A kifizetett lazítások is: a következő fésülés ezekből dönt.
+    deleteLoosens: m.deleteLoosens, scheduleLoosens: m.scheduleLoosens,
+    limitLoosens: m.limitLoosens, burstLoosens: m.burstLoosens,
     rev: m.rev, updatedAt: m.updatedAt, updatedBy: m.updatedBy,
   } as SiteRec));
 }
@@ -484,10 +492,23 @@ function cleanSite(s: Record<string, unknown>): SyncSite {
     // felvetteket (lásd merge.ts `mergeRules`).
     rules,
     ...(rulesRev !== undefined ? { rulesRev } : {}),
+    // A kifizetett lazítások: pozitív egész, legfeljebb a rekord rev-je (csak
+    // léptetés írhatja); ami más, az nincs — a régi kliens rekordja semleges.
+    ...loosensIn(s, rev),
     rev,
     updatedAt: Number.isFinite(s.updatedAt) ? (s.updatedAt as number) : 0,
     updatedBy: typeof s.updatedBy === 'string' ? s.updatedBy : '',
   };
+}
+
+/** A négy számláló a dróton — mindegyik csak pozitív egész, legfeljebb a rev. */
+function loosensIn(s: Record<string, unknown>, rev: number): Partial<SyncSite> {
+  const out: Partial<SyncSite> = {};
+  for (const k of ['deleteLoosens', 'scheduleLoosens', 'limitLoosens', 'burstLoosens'] as const) {
+    const v = s[k];
+    if (Number.isInteger(v) && (v as number) > 0 && (v as number) <= rev) out[k] = v as number;
+  }
+  return out;
 }
 
 function decodeSites(acc: SyncAccount, payload: string | undefined): SyncSite[] {
@@ -527,6 +548,8 @@ function canonical(s: SyncSite): unknown[] {
     // „változást” látna, és fölöslegesen feltöltene.
     s.rules ? s.rules.map((r) => `${r.host}${r.path}`).sort() : null,
     s.rulesRev ?? null,
+    // A számlálók is: egy kifizetett lazítás nyoma nélkül a lazítás sosem érne át.
+    s.deleteLoosens ?? null, s.scheduleLoosens ?? null, s.limitLoosens ?? null, s.burstLoosens ?? null,
     s.rev, s.updatedAt, s.updatedBy,
   ];
 }

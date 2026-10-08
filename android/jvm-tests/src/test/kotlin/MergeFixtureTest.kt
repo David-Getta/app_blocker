@@ -59,7 +59,8 @@ class MergeFixtureTest {
             " pending=${opt(s.pendingDeleteAt)} limit=${opt(s.dailyLimitSeconds)} alias=${opt(s.alias)}" +
             " reason=${opt(s.reason)}" +
             " at=${s.updatedAt} by=${s.updatedBy}" +
-            " sched=$sched burst=$burst rules=$rules rmark=${s.rulesRev ?: 0}"
+            " sched=$sched burst=$burst rules=$rules rmark=${s.rulesRev ?: 0}" +
+            " loos=${s.deleteLoosens ?: 0}/${s.scheduleLoosens ?: 0}/${s.limitLoosens ?: 0}/${s.burstLoosens ?: 0}"
     }
 
     private fun focusKey(f: FocusSync.SyncFocus): String {

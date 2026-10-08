@@ -70,6 +70,12 @@ private func randomSite(_ r: inout Lcg, _ device: String) -> SyncMerge.SyncSite 
     let rulesMarkDraw = r.next()
     let rulesMarkValue = min(1 + Int(r.next() * 5), rev)
     let rulesRev: Int? = (rules != nil && rulesMarkDraw < 0.6) ? rulesMarkValue : nil
+    // A KIFIZETETT LAZÍTÁSOK — három húzás, feltétel nélkül, mint a gépen:
+    // van-e számláló, melyik mezőé, és mennyi (legfeljebb a rev).
+    let loosDraw = r.next()
+    let loosPick = Int(r.next() * 4)
+    let loosValue = min(1 + Int(r.next() * 2), rev)
+    let loos: Int? = loosDraw < 0.4 ? loosValue : nil
     return SyncMerge.SyncSite(
         id: "site_1", domain: "youtube.com", hostnames: hostnames, addedAt: 1_000,
         pendingDeleteAt: pending, schedule: schedule, dailyLimitSeconds: limit,
@@ -77,18 +83,34 @@ private func randomSite(_ r: inout Lcg, _ device: String) -> SyncMerge.SyncSite 
         alias: alias, reason: reason, rules: rules,
         rev: rev, updatedAt: updatedAt, updatedBy: device,
         hostnameMarks: marks.isEmpty ? nil : marks,
-        rulesRev: rulesRev
+        rulesRev: rulesRev,
+        deleteLoosens: loosPick == 0 ? loos : nil, scheduleLoosens: loosPick == 1 ? loos : nil,
+        limitLoosens: loosPick == 2 ? loos : nil, burstLoosens: loosPick == 3 ? loos : nil
     )
 }
 
-/// A NEVEK és a JELEIK — ezek fésülődnek nevenként. A rekord többi mezője a
-/// rekord-szintű nyertesé, és ott a törlésre várás továbbvitele egy olyan
-/// köztes rekordot ad, ami egyik eszközön sem létezett — ezt itt nem mérjük,
-/// ahogy a gép sem.
+/// A rekord egésze: a nevek és a jeleik, a menetrend, a keret, az adag, a
+/// törlésre várás, a számlálók, a fedőnév — mezőnként fésülődik minden, és
+/// mindegyik szabály sorrendfüggetlen (a gép merge-fuzz.test.ts-ének párja).
+///
+/// A RÉSZLEGES SZABÁLYOK még kimaradnak, és ez adósság, nem elv: a lista egy
+/// jellel fésülődik, egyenlő jelnél pedig a rekord rev-je dönt — az pedig más
+/// mezőtől is nő, így három eszköznél a sorrendtől függ, melyik lista marad.
 private func siteKey(_ s: SyncMerge.SyncSite) -> String {
     let marks = (s.hostnameMarks ?? [:]).sorted { $0.key < $1.key }
         .map { "\($0.key)=\($0.value)" }.joined(separator: ",")
-    return "\(s.hostnames.sorted().joined(separator: ","))|\(marks)|\(s.rev)"
+    let sched = s.schedule.map { sc in
+        sc.mode.rawValue + ":" + sc.bands.map { LockdownLogic.windowKey($0) }.sorted().joined(separator: ";")
+    } ?? "-"
+    // Részenként, külön `let`-ekben: egy hosszú `+`-lánc a Swift
+    // típusellenőrzőjének túl sok lehet.
+    // A generátor értékei kis egészek — egész alakban, mint a gép kulcsában.
+    let opt: (Double?) -> String = { $0.map { String(Int($0)) } ?? "-" }
+    let head = "\(s.hostnames.sorted().joined(separator: ","))|\(marks)|\(s.rev)|\(opt(s.pendingDeleteAt))"
+    let mid = "|\(opt(s.dailyLimitSeconds))|\(opt(s.burstSeconds))/\(opt(s.cooldownSeconds))|\(sched)"
+    let tail = "|\(s.alias ?? "-")|\(s.reason ?? "-")|\(opt(s.updatedAt))|\(s.updatedBy)"
+    let loos = "|\(s.deleteLoosens ?? 0)/\(s.scheduleLoosens ?? 0)/\(s.limitLoosens ?? 0)/\(s.burstLoosens ?? 0)"
+    return head + mid + tail + loos
 }
 
 private let packIds = ["p1", "p2", "p3", "p4"]

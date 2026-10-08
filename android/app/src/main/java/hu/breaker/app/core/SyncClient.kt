@@ -158,6 +158,9 @@ object SyncClient {
             hostnameMarks = s.hostnameMarks,
             // A szabálylista jele is hordozott: a gépen kifizetett levétel nyoma.
             rulesRev = s.rulesRev,
+            // A kifizetett lazítások mezőnként — a fésülés ezekből dönt.
+            deleteLoosens = s.deleteLoosens, scheduleLoosens = s.scheduleLoosens,
+            limitLoosens = s.limitLoosens, burstLoosens = s.burstLoosens,
         )
     }
 
@@ -177,6 +180,8 @@ object SyncClient {
                     rev = m.rev, updatedAt = m.updatedAt, updatedBy = m.updatedBy,
                     hostnameMarks = m.hostnameMarks,
                     rulesRev = m.rulesRev,
+                    deleteLoosens = m.deleteLoosens, scheduleLoosens = m.scheduleLoosens,
+                    limitLoosens = m.limitLoosens, burstLoosens = m.burstLoosens,
                 )
             )
         }
@@ -228,6 +233,11 @@ object SyncClient {
                 if (s.hostnameMarks != null) put("hostnameMarks", JSONObject(s.hostnameMarks))
                 // A szabálylista jele csak lista mellett: mező nélkül nincs jel.
                 if (s.rules != null && s.rulesRev != null) put("rulesRev", s.rulesRev)
+                // A kifizetett lazítások — nullánál nincs mező.
+                if (s.deleteLoosens != null) put("deleteLoosens", s.deleteLoosens)
+                if (s.scheduleLoosens != null) put("scheduleLoosens", s.scheduleLoosens)
+                if (s.limitLoosens != null) put("limitLoosens", s.limitLoosens)
+                if (s.burstLoosens != null) put("burstLoosens", s.burstLoosens)
             })
         }
         return arr.toString()
@@ -331,6 +341,12 @@ object SyncClient {
                     // és csak lista mellett; mező nélkül nincs jel.
                     rulesRev = if (o.isNull("rules")) null
                         else intOf(o, "rulesRev")?.takeIf { it > 0 && it <= rev },
+                    // A kifizetett lazítások: pozitív egész, legfeljebb a rekord
+                    // rev-je (csak léptetés írhatja); ami más, az nincs.
+                    deleteLoosens = intOf(o, "deleteLoosens")?.takeIf { it > 0 && it <= rev },
+                    scheduleLoosens = intOf(o, "scheduleLoosens")?.takeIf { it > 0 && it <= rev },
+                    limitLoosens = intOf(o, "limitLoosens")?.takeIf { it > 0 && it <= rev },
+                    burstLoosens = intOf(o, "burstLoosens")?.takeIf { it > 0 && it <= rev },
                 ))
             }
         }

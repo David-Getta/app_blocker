@@ -75,6 +75,12 @@ class MergeFuzzTest {
         val rulesMarkDraw = r.next()
         val rulesMarkValue = minOf(1 + (r.next() * 5).toInt(), rev)
         val rulesRev = if (rules != null && rulesMarkDraw < 0.6) rulesMarkValue else null
+        // A KIFIZETETT LAZÍTÁSOK — három húzás, feltétel nélkül, mint a gépen:
+        // van-e számláló, melyik mezőé, és mennyi (legfeljebb a rev).
+        val loosDraw = r.next()
+        val loosPick = (r.next() * 4).toInt()
+        val loosValue = minOf(1 + (r.next() * 2).toInt(), rev)
+        val loos = if (loosDraw < 0.4) loosValue else null
         return SyncMerge.SyncSite(
             id = "site_1", domain = "youtube.com", hostnames = hostnames, addedAt = 1_000,
             pendingDeleteAt = pending, schedule = schedule, dailyLimitSeconds = limit,
@@ -83,18 +89,30 @@ class MergeFuzzTest {
             rev = rev, updatedAt = updatedAt, updatedBy = device,
             hostnameMarks = marks.ifEmpty { null },
             rulesRev = rulesRev,
+            deleteLoosens = loos.takeIf { loosPick == 0 },
+            scheduleLoosens = loos.takeIf { loosPick == 1 },
+            limitLoosens = loos.takeIf { loosPick == 2 },
+            burstLoosens = loos.takeIf { loosPick == 3 },
         )
     }
 
     /**
-     * A NEVEK és a JELEIK — ezek fésülődnek nevenként. A rekord többi mezője a
-     * rekord-szintű nyertesé, és ott a törlésre várás továbbvitele egy olyan
-     * köztes rekordot ad, ami egyik eszközön sem létezett — ezt itt nem
-     * mérjük, ahogy a gép sem.
+     * A rekord egésze: a nevek és a jeleik, a menetrend, a keret, az adag, a
+     * törlésre várás, a számlálók, a fedőnév — mezőnként fésülődik minden, és
+     * mindegyik szabály sorrendfüggetlen (a gép merge-fuzz.test.ts-ének párja).
+     *
+     * A RÉSZLEGES SZABÁLYOK még kimaradnak, és ez adósság, nem elv: a lista egy
+     * jellel fésülődik, egyenlő jelnél pedig a rekord rev-je dönt — az pedig más
+     * mezőtől is nő, így három eszköznél a sorrendtől függ, melyik lista marad.
      */
     private fun siteKey(s: SyncMerge.SyncSite): String {
         val marks = (s.hostnameMarks ?: emptyMap()).toSortedMap().entries.joinToString(",") { "${it.key}=${it.value}" }
-        return "${s.hostnames.sorted().joinToString(",")}|$marks|${s.rev}"
+        val sched = s.schedule?.let { sc ->
+            sc.mode.name + ":" + sc.bands.map { LockdownLogic.windowKey(it) }.sorted().joinToString(";")
+        } ?: "-"
+        return "${s.hostnames.sorted().joinToString(",")}|$marks|${s.rev}|${s.pendingDeleteAt}|${s.dailyLimitSeconds}" +
+            "|${s.burstSeconds}/${s.cooldownSeconds}|$sched|${s.alias}|${s.reason}|${s.updatedAt}|${s.updatedBy}" +
+            "|${s.deleteLoosens ?: 0}/${s.scheduleLoosens ?: 0}/${s.limitLoosens ?: 0}/${s.burstLoosens ?: 0}"
     }
 
     private val packIds = listOf("p1", "p2", "p3", "p4")

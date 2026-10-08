@@ -425,6 +425,17 @@ const CHECKS = [
     scalar(ts.merge, /MAX_HOSTNAME_MARKS\s*=\s*([^;]+);/, 'ts'),
     scalar(kt.merge, /MAX_HOSTNAME_MARKS\s*=\s*(.+)/, 'kt'),
     scalar(sw.merge, /maxHostnameMarks\s*=\s*(.+)/, 'swift')],
+  // Az adag-szabály plafonjai a fésülésben is számítanak: a szigorúbb alakot
+  // a normál alakon mérjük. Ha az iPhone más plafonnal normálna, ugyanabból a
+  // két szabályból más „szigorúbb” jönne ki, és a két eszköz egymást írná.
+  ['MAX_BURST_MINUTES',
+    scalar(ts.burst, /MAX_BURST_MINUTES\s*=\s*([^;]+);/, 'ts'),
+    scalar(kt.burst, /MAX_BURST_MINUTES\s*=\s*(.+)/, 'kt'),
+    scalar(sw.merge, /maxBurstMinutes\s*=\s*(.+)/, 'swift')],
+  ['MAX_COOLDOWN_MINUTES',
+    scalar(ts.burst, /MAX_COOLDOWN_MINUTES\s*=\s*([^;]+);/, 'ts'),
+    scalar(kt.burst, /MAX_COOLDOWN_MINUTES\s*=\s*(.+)/, 'kt'),
+    scalar(sw.merge, /maxCooldownMinutes\s*=\s*(.+)/, 'swift')],
   ['MAX_PACKS',
     scalar(ts.focusMerge, /MAX_PACKS\s*=\s*([^;]+);/, 'ts'),
     scalar(kt.focusSync, /MAX_PACKS\s*=\s*(.+)/, 'kt'),
@@ -528,11 +539,10 @@ const PAIRS = [
   ['USAGE_DAY_MIN_SECONDS',
     scalar(ts.usage, /USAGE_DAY_MIN_SECONDS\s*=\s*([^;]+);/, 'ts'),
     scalar(kt.usage, /USAGE_DAY_MIN_SECONDS\s*=\s*(.+)/, 'kt')],
-  // A mérés plafonjai és az adag-szabály korlátai csak a két mérő nyelvben
-  // élnek (az iPhone nem mér előteret). Ha a gép kétszáz célt tart meg egy
-  // napra, a telefon ötvenet, ugyanaz a nap az egyiken teljes, a másikon
-  // „egyéb”-be hajtva; ha az adag plafonja más, ugyanaz a szabály az egyik
-  // eszközön él, a másikon nincs.
+  // A mérés plafonjai csak a két mérő nyelvben élnek (az iPhone nem mér
+  // előteret). Ha a gép kétszáz célt tart meg egy napra, a telefon ötvenet,
+  // ugyanaz a nap az egyiken teljes, a másikon „egyéb”-be hajtva. (Az adag
+  // plafonjai a fésülés miatt mindhárom nyelvben élnek — lásd fent.)
   ['MAX_TARGETS_PER_DAY',
     scalar(ts.usage, /MAX_TARGETS_PER_DAY\s*=\s*([^;]+);/, 'ts'),
     scalar(kt.usage, /MAX_TARGETS_PER_DAY\s*=\s*(.+)/, 'kt')],
@@ -547,12 +557,6 @@ const PAIRS = [
   ['MAX_RECORD_SECONDS',
     scalar(ts.usage, /MAX_RECORD_SECONDS\s*=\s*([^;]+);/, 'ts'),
     scalar(kt.usage, /MAX_RECORD_SECONDS\s*=\s*(.+)/, 'kt')],
-  ['MAX_BURST_MINUTES',
-    scalar(ts.burst, /MAX_BURST_MINUTES\s*=\s*([^;]+);/, 'ts'),
-    scalar(kt.burst, /MAX_BURST_MINUTES\s*=\s*(.+)/, 'kt')],
-  ['MAX_COOLDOWN_MINUTES',
-    scalar(ts.burst, /MAX_COOLDOWN_MINUTES\s*=\s*([^;]+);/, 'ts'),
-    scalar(kt.burst, /MAX_COOLDOWN_MINUTES\s*=\s*(.+)/, 'kt')],
 ];
 
 // A gép és a böngésző-bővítmény között: a felugró lap a sorozatot a maga

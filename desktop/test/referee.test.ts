@@ -84,6 +84,9 @@ test('full pause session: solve every step -> site pauses, then tick re-locks', 
   const site = state.sites[0];
   assert.ok(site.pauseUntil !== null && site.pauseUntil > now);
   assert.equal(state.unlockLog.length, 1);
+  // A szünet eszköz-helyi, nem utazik — a kifizetett lazítás számlálói nem nőnek tőle.
+  assert.deepEqual([site.deleteLoosens, site.scheduleLoosens, site.limitLoosens, site.burstLoosens],
+    [undefined, undefined, undefined, undefined]);
 
   // while paused, the hostnames are not blocked
   assert.deepEqual(activeHostnames(state, now), []);
@@ -129,6 +132,7 @@ test('delete session always ends with DELAY; claim window is enforced', () => {
   assert.equal(done.sessionDone, true);
   const site = state.sites[0];
   assert.ok(site.pendingDeleteAt !== null && site.pendingDeleteAt > inWindow + 23 * 3600_000);
+  assert.equal(site.deleteLoosens, 1, 'a kifizetett törlés-kérés számlálója nőtt — ebből tudja a szinkron');
 
   // still blocked until the 24h grace passes
   assert.deepEqual(activeHostnames(state, inWindow), ['www.youtube.com', 'youtube.com']);
@@ -178,12 +182,14 @@ test('schedule change: tightening applies immediately, loosening needs challenge
   }
   assert.deepEqual(state.sites[0].schedule, workBlock);
   assert.equal(state.sites[0].pauseUntil, null);
+  assert.equal(state.sites[0].scheduleLoosens, 1, 'a kifizetett lazítás számlálója nőtt');
 
   // scheduled_block -> always is tightening => applies immediately, no session
   const tighten = referee.startScheduleChange(state, siteId, { mode: 'always', bands: [] }, now);
   assert.equal(tighten.applied, true);
   assert.equal(tighten.session, null);
   assert.deepEqual(state.sites[0].schedule, { mode: 'always', bands: [] });
+  assert.equal(state.sites[0].scheduleLoosens, 1, 'a szigorítás ingyen van: a számláló nem nő');
 });
 
 test('hosts file: apply, tamper-detect content, pause exclusion', () => {
@@ -717,6 +723,7 @@ test('daily budget: tightening applies at once, loosening needs the challenges',
   const lower = referee.startLimitChange(state, siteId, 10 * 60, now);
   assert.equal(lower.applied, true);
   assert.equal(state.sites[0].dailyLimitSeconds, 10 * 60);
+  assert.equal(state.sites[0].limitLoosens, undefined, 'a szigorítás nem lépteti a számlálót');
 
   // raising it buys time on the site -> gated
   const raise = referee.startLimitChange(state, siteId, 60 * 60, now);
@@ -737,6 +744,7 @@ test('daily budget: tightening applies at once, loosening needs the challenges',
   }
   assert.equal(state.sites[0].dailyLimitSeconds, 60 * 60, 'applied on completion');
   assert.equal(state.sites[0].pauseUntil, null, 'and it is not a pause');
+  assert.equal(state.sites[0].limitLoosens, 1, 'a kifizetett lazítás számlálója nőtt');
 });
 
 test('removing the budget is also gated, and removal really removes it', () => {
@@ -759,6 +767,7 @@ test('removing the budget is also gated, and removal really removes it', () => {
     referee.submitAnswer(state, state.session.id, solveStep(step, now), now);
   }
   assert.equal(state.sites[0].dailyLimitSeconds, undefined);
+  assert.equal(state.sites[0].limitLoosens, 1, 'a levétel is kifizetett lazítás');
 });
 
 test('a spent budget blocks the site in the hosts file', () => {

@@ -316,23 +316,35 @@ object Referee {
                 abandons = state.abandons.filter { it.siteId != s.siteId },
             )
         }
+        // A KIFIZETETT LAZÍTÁS SZÁMLÁLÓJA itt nő, és csak itt: a próbatétel
+        // teljesítésekor. A szinkron mezőnként ebből dönt (SyncMerge.mergeSite)
+        // — ha a lazítás bármely más úton történne (egy hiba, egy kézzel átírt
+        // állapot), számláló nélkül a többi eszköz szigorúbb alakja visszaveszi.
         val sites = state.sites.map { site ->
             if (site.id != s.siteId) site
-            else if (s.pendingSchedule != null) site.copy(schedule = s.pendingSchedule) // gated loosening
+            else if (s.pendingSchedule != null) site.copy(                      // gated loosening
+                schedule = s.pendingSchedule,
+                scheduleLoosens = (site.scheduleLoosens ?: 0) + 1,
+            )
             // -1 = „vedd le a keretet”; bármi más a beállítandó keret
             else if (s.pendingLimit != null) site.copy(
                 dailyLimitSeconds = if (s.pendingLimit < 0) null else s.pendingLimit,
+                limitLoosens = (site.limitLoosens ?: 0) + 1,
             )
             else if (s.pendingBurst != null) site.copy(
                 burstSeconds = if (s.pendingBurst < 0) null else s.pendingBurst,
                 cooldownSeconds = if (s.pendingBurst < 0) null else s.pendingCooldown,
+                burstLoosens = (site.burstLoosens ?: 0) + 1,
             )
             else if (s.pendingRuleRemoval != null) site.copy(
                 rules = (site.rules ?: emptyList())
                     .filterNot { UrlRules.sameRule(it, s.pendingRuleRemoval) },
             )
             else if (s.kind == Kind.PAUSE) site.copy(pauseUntil = now + (s.minutes ?: 15) * 60_000L)
-            else site.copy(pendingDeleteAt = now + ChallengeEngine.DELETE_PENDING_MS)
+            else site.copy(
+                pendingDeleteAt = now + ChallengeEngine.DELETE_PENDING_MS,
+                deleteLoosens = (site.deleteLoosens ?: 0) + 1,
+            )
         }
         val log = state.unlockLog.filter { it > now - 30 * 24 * 3600_000L } + now
         // Megoldva: ennek az oldalnak a tartozása rendezve, a többié marad.

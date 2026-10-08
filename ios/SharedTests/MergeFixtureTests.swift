@@ -76,11 +76,14 @@ final class MergeFixtureTests: XCTestCase {
         let rules: String = s.rules.map { list in
             "[" + list.map { $0.host + $0.path }.sorted().joined(separator: ",") + "]"
         } ?? "-"
-        return "hosts=[\(s.hostnames.sorted().joined(separator: ","))] marks=[\(marks)] rev=\(s.rev)"
+        // Részenként, külön `let`-ekben: egy hosszú `+`-lánc a Swift
+        // típusellenőrzőjének túl sok lehet.
+        let head = "hosts=[\(s.hostnames.sorted().joined(separator: ","))] marks=[\(marks)] rev=\(s.rev)"
             + " pending=\(opt(s.pendingDeleteAt)) limit=\(opt(s.dailyLimitSeconds)) alias=\(s.alias ?? "-")"
-            + " reason=\(s.reason ?? "-")"
-            + " at=\(int(s.updatedAt)) by=\(s.updatedBy)"
-            + " sched=\(sched) burst=\(burst) rules=\(rules) rmark=\(s.rulesRev ?? 0)"
+        let mid = " reason=\(s.reason ?? "-")" + " at=\(int(s.updatedAt)) by=\(s.updatedBy)"
+        let tail = " sched=\(sched) burst=\(burst) rules=\(rules) rmark=\(s.rulesRev ?? 0)"
+        let loos = " loos=\(s.deleteLoosens ?? 0)/\(s.scheduleLoosens ?? 0)/\(s.limitLoosens ?? 0)/\(s.burstLoosens ?? 0)"
+        return head + mid + tail + loos
     }
 
     private func focusKey(_ f: FocusSync.SyncFocus) -> String {

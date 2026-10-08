@@ -12,22 +12,25 @@ import { test } from 'node:test';
 import * as assert from 'node:assert/strict';
 import { mergeSite, type SyncSite } from '../src/shared/sync/merge';
 import { mergeFocus, type SyncFocus } from '../src/shared/sync/focus-merge';
-import { DEVICES, FOCUS_MERGE_NOW, randomFocus, randomSite, rng } from './merge-random';
+import { DEVICES, FOCUS_MERGE_NOW, randomFocus, randomSite, rng, siteConformanceKey } from './merge-random';
 import { windowKey } from '../src/shared/lockdown';
 import { keywordMarksKey, keywordsKey } from '../src/shared/keywords';
 import { partnerKey } from '../src/shared/partner';
 
 /**
- * A NEVEK és a JELEIK — ezek fésülődnek nevenként. A rekord többi mezője
- * (keret, fedőnév) a rekord-szintű nyertesé, és ott a törlésre várás
- * továbbvitele (`carryPendingDelete`) egy olyan köztes rekordot ad, ami
- * egyik eszközön sem létezett: három eszköznél a nyertes a sorrendtől is
- * függhet. Ez régi adósság, nem a nevek szabályáé — itt nem ezt mérjük.
+ * A rekord egésze: a nevek és a jeleik, a menetrend, a keret, az adag, a
+ * törlésre várás, a számlálók, a fedőnév — és a szünet is. Mezőnként
+ * fésülődik minden (a kifizetett számláló, egyenlőnél a szigorúbb alak — lásd
+ * shared/sync/merge.ts), és mindegyik szabály sorrendfüggetlen; ha egy is nem
+ * az, két eszköz örökké egymást írná.
+ *
+ * A RÉSZLEGES SZABÁLYOK még kimaradnak, és ez adósság, nem elv: a lista egy
+ * jellel fésülődik, egyenlő jelnél pedig a rekord rev-je dönt — az pedig más
+ * mezőtől is nő, így három eszköznél a sorrendtől függ, melyik lista marad.
+ * A szabályonkénti jel rendezi (mint a hosztneveknél).
  */
 function siteKey(s: SyncSite): string {
-  return JSON.stringify([
-    [...s.hostnames].sort(), s.hostnameMarks ? Object.entries(s.hostnameMarks).sort() : null, s.rev,
-  ]);
+  return `${siteConformanceKey({ ...s, rules: undefined, rulesRev: undefined })} pause=${s.pauseUntil ?? '-'}`;
 }
 
 test('oldal: szimmetrikus, idempotens, és három eszköz bármilyen sorrendben ugyanoda jut', () => {

@@ -77,6 +77,14 @@ export function randomSite(r: () => number, device: string): SyncSite {
   const rulesMarkDraw = r();
   const rulesMarkValue = Math.min(1 + Math.floor(r() * 5), rev);
   const rulesRev = rules !== undefined && rulesMarkDraw < 0.6 ? rulesMarkValue : undefined;
+  // A KIFIZETETT LAZÍTÁSOK — három húzás, feltétel nélkül, ugyanebben a
+  // sorrendben a három nyelvben: van-e számláló, melyik mezőé, és mennyi —
+  // legfeljebb a rev (csak léptetés írhatja). Egyenlő számnál a szigorúbb
+  // alak jön ki, eltérőnél a több kifizetett lazítás — mindkettő jár.
+  const loosDraw = r();
+  const loosPick = Math.floor(r() * 4);
+  const loosValue = Math.min(1 + Math.floor(r() * 2), rev);
+  const loosens = loosDraw < 0.4 ? { [LOOSENS[loosPick]]: loosValue } : {};
   return {
     id: 'site_1', domain: 'youtube.com', hostnames, addedAt: 1_000,
     ...(Object.keys(marks).length ? { hostnameMarks: marks } : {}),
@@ -85,8 +93,12 @@ export function randomSite(r: () => number, device: string): SyncSite {
     ...(burst ? { burstSeconds: burst[0], cooldownSeconds: burst[1] } : {}),
     ...(rules !== undefined ? { rules } : {}),
     ...(rulesRev !== undefined ? { rulesRev } : {}),
+    ...loosens,
   };
 }
+
+/** A négy kifizetett-lazítás számláló, a húzás sorrendjében. */
+export const LOOSENS = ['deleteLoosens', 'scheduleLoosens', 'limitLoosens', 'burstLoosens'] as const;
 
 export const PACK_IDS = ['p1', 'p2', 'p3', 'p4'];
 export const WIN: Band = { days: [1, 2, 3, 4, 5], startMin: 540, endMin: 720 };
@@ -363,7 +375,8 @@ export function siteConformanceKey(s: SyncSite): string {
     + ` pending=${opt(s.pendingDeleteAt)} limit=${opt(s.dailyLimitSeconds)} alias=${opt(s.alias)}`
     + ` reason=${opt(s.reason)}`
     + ` at=${s.updatedAt} by=${s.updatedBy}`
-    + ` sched=${sched} burst=${burst} rules=${rules} rmark=${s.rulesRev ?? 0}`;
+    + ` sched=${sched} burst=${burst} rules=${rules} rmark=${s.rulesRev ?? 0}`
+    + ` loos=${s.deleteLoosens ?? 0}/${s.scheduleLoosens ?? 0}/${s.limitLoosens ?? 0}/${s.burstLoosens ?? 0}`;
 }
 
 export function focusConformanceKey(f: SyncFocus): string {
@@ -518,7 +531,7 @@ export interface SiteFlip { flip: SyncSite; what: string }
  * Egy húzás, az a/b/c után: a fuzz-generátorokat nem érinti.
  */
 export function flipSite(r: () => number, a: SyncSite): SiteFlip {
-  const kind = Math.floor(r() * 14);
+  const kind = Math.floor(r() * 15);
   const withMarks = (s: SyncSite, marks: Record<string, number>): SyncSite => {
     const out: SyncSite = { ...s };
     if (Object.keys(marks).length > 0) out.hostnameMarks = marks; else delete out.hostnameMarks;
@@ -568,6 +581,8 @@ export function flipSite(r: () => number, a: SyncSite): SiteFlip {
         : { what: 'rules+', flip: { ...a, rules: [RULES[0]], rulesRev: undefined } };
     case 11: return { what: 'rev', flip: { ...a, rev: a.rev + 1 } };
     case 12: return { what: 'updatedAt', flip: { ...a, updatedAt: a.updatedAt + 1 } };
+    // Egy kifizetett lazítás nyoma: a számláló egy mezőn eggyel nő, a rev vele.
+    case 13: return { what: 'loosens', flip: { ...a, limitLoosens: (a.limitLoosens ?? 0) + 1, rev: a.rev + 1 } };
     default: return { what: 'updatedBy', flip: { ...a, updatedBy: 'masik' } };
   }
 }

@@ -185,3 +185,16 @@ döntést és a fésülést is ledöntötte (kivételt dobott); a két telefon e
 sáv miatt az egész oldalt eldobta, az Android a „540” szöveget percnek vette.
 A `fixtures/wire-cases.json` oldal-esetei kimondják — a kulcs a menetrend
 HATÁSA (normalizálva), nem a nyers alakja.
+
+### Két eszköz menetrendje
+
+A lazítás a saját számlálójával megy át (`scheduleLoosens`: a bíró lépteti a
+próbatétel teljesítésekor) — az a menetrend nyer, amiért többször fizettek. Ha
+a számláló egyenlő (két eszköz egyszerre szerkesztett, vagy az egyik csak
+ingyen szigorított), a két menetrend UNIÓJA jön ki: minden perc tiltva, amit
+bármelyik tilt, a heti rács szerint, időzónától függetlenül. Eddig a kettő
+közül a többet tiltó maradt egészében, és a másik eszköz külön sávja
+(mondjuk egy esti tiltás a munkaidő mellé) elveszett. Ha az egyik lefedi a
+másikat, az marad változatlanul; ha ugyanazt tiltják, a saját alakod nyer a
+rácsból épített ellen. Részletek és a kimondott korlátok:
+docs/feature-accounts-sync.md.

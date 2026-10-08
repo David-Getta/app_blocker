@@ -332,8 +332,14 @@ function finishSession(state: HelperState, now: number): void {
   }
   const site = state.sites.find((x) => x.id === s.siteId);
   if (site) {
-    if (s.pendingSchedule) site.schedule = s.pendingSchedule;                  // gated loosening
-    else if (s.pendingRuleRemoval) {
+    // A KIFIZETETT LAZÍTÁS SZÁMLÁLÓJA itt nő, és csak itt: a próbatétel
+    // teljesítésekor. A szinkron mezőnként ebből dönt (shared/sync/merge.ts) —
+    // ha a lazítás bármely más úton történne (egy hiba, egy kézzel átírt
+    // állapot), számláló nélkül a többi eszköz szigorúbb alakja visszaveszi.
+    if (s.pendingSchedule) {
+      site.schedule = s.pendingSchedule;                                       // gated loosening
+      site.scheduleLoosens = (site.scheduleLoosens ?? 0) + 1;
+    } else if (s.pendingRuleRemoval) {
       const drop = s.pendingRuleRemoval;
       site.rules = (site.rules ?? []).filter((r) => !sameRule(r, drop));
     } else if (s.pendingHostnameRemoval) {
@@ -341,11 +347,16 @@ function finishSession(state: HelperState, now: number): void {
       site.hostnames = site.hostnames.filter((x) => x !== drop);
     } else if (s.pendingLimit !== undefined) {
       site.dailyLimitSeconds = s.pendingLimit === null ? undefined : s.pendingLimit;
+      site.limitLoosens = (site.limitLoosens ?? 0) + 1;
     } else if (s.pendingBurst !== undefined) {
       site.burstSeconds = s.pendingBurst?.burstSeconds ?? undefined;
       site.cooldownSeconds = s.pendingBurst?.cooldownSeconds ?? undefined;
+      site.burstLoosens = (site.burstLoosens ?? 0) + 1;
     } else if (s.kind === 'pause') site.pauseUntil = now + (s.minutes ?? 15) * 60_000;
-    else site.pendingDeleteAt = now + DELETE_PENDING_MS;
+    else {
+      site.pendingDeleteAt = now + DELETE_PENDING_MS;
+      site.deleteLoosens = (site.deleteLoosens ?? 0) + 1;
+    }
   }
   state.unlockLog = [...state.unlockLog.filter((t) => t > now - 30 * 24 * 3600_000), now];
   state.session = null;

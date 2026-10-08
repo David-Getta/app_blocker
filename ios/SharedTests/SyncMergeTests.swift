@@ -163,6 +163,114 @@ final class SyncMergeTests: XCTestCase {
         XCTAssertEqual(SyncMerge.mergeSite(rec(5, [r1], nil, "a"), rec(3, [], nil, "b")).rules, [r1])
     }
 
+    // MARK: - mezőnként: a kifizetett számláló, egyenlőnél a szigorúbb alak
+    //
+    // A desktop/test/sync-merge.test.ts és az androidos SyncMergeTest esetei.
+
+    private let work = ScheduleLogic.Schedule(
+        mode: .block, bands: [ScheduleLogic.Band(days: [1, 2, 3, 4, 5], startMin: 9 * 60, endMin: 17 * 60)]
+    )
+    private let evening = ScheduleLogic.Schedule(
+        mode: .block, bands: [ScheduleLogic.Band(days: [0, 1, 2, 3, 4, 5, 6], startMin: 22 * 60, endMin: 6 * 60)]
+    )
+
+    private func rec(
+        rev: Int = 1, schedule: ScheduleLogic.Schedule? = nil, limit: Double? = nil,
+        burst: Double? = nil, cooldown: Double? = nil, pendingDeleteAt: Double? = nil,
+        alias: String? = nil, updatedAt: Double = 5_000, by: String = "gep-a",
+        deleteLoosens: Int? = nil, scheduleLoosens: Int? = nil, limitLoosens: Int? = nil
+    ) -> SyncMerge.SyncSite {
+        SyncMerge.SyncSite(
+            id: "site_1", domain: "youtube.com", hostnames: ["youtube.com"], addedAt: 1_000,
+            pendingDeleteAt: pendingDeleteAt, schedule: schedule, dailyLimitSeconds: limit,
+            burstSeconds: burst, cooldownSeconds: cooldown, alias: alias,
+            rev: rev, updatedAt: updatedAt, updatedBy: by,
+            deleteLoosens: deleteLoosens, scheduleLoosens: scheduleLoosens, limitLoosens: limitLoosens
+        )
+    }
+
+    /// Tilt-e a menetrend egy napon, egy percben — a sávok szerkezete szerint.
+    private func blocked(_ s: ScheduleLogic.Schedule, _ day: Int, _ minute: Int) -> Bool {
+        s.bands.contains { $0.days.contains(day) && minute >= $0.startMin && minute < $0.endMin } == (s.mode == .block)
+    }
+
+    func testTheStricterFormOfTwoSchedulesIsTheirUnionByStructure() {
+        guard let both = SyncMerge.joinSchedule(work, evening) else { return XCTFail("az unió nem a mindig") }
+        XCTAssertEqual(both.mode, .block)
+        XCTAssertTrue(blocked(both, 1, 10 * 60), "hétfő délelőtt: a munkaidő tilt")
+        XCTAssertTrue(blocked(both, 3, 23 * 60), "szerda este: az esti sáv tilt")
+        XCTAssertFalse(blocked(both, 6, 12 * 60), "szombat délben egyik sem")
+        XCTAssertEqual(SyncMerge.joinSchedule(evening, work), both, "a sorrend nem számít")
+        XCTAssertNil(SyncMerge.joinSchedule(work, nil), "a menetrend nélküli (mindig tilt) lefed mindent")
+        XCTAssertEqual(SyncMerge.joinSchedule(work, work), work)
+        let wider = ScheduleLogic.Schedule(
+            mode: .block, bands: [ScheduleLogic.Band(days: [1, 2, 3, 4, 5], startMin: 8 * 60, endMin: 18 * 60)]
+        )
+        XCTAssertEqual(SyncMerge.joinSchedule(work, wider), wider, "ha az egyik lefedi a másikat, az marad")
+        let allow = ScheduleLogic.Schedule(mode: .allow, bands: work.bands)
+        XCTAssertEqual(SyncMerge.joinSchedule(allow, work), ScheduleLogic.Schedule(mode: .always, bands: []),
+                       "a munkaidőn kívül tilt + munkaidőben tilt = mindig")
+    }
+
+    func testAtEqualCountersEachFieldTakesItsStricterForm() {
+        let a = rec(rev: 4, schedule: work, limit: 3600)
+        let b = rec(rev: 4, schedule: evening, limit: 600, by: "gep-b")
+        for m in [SyncMerge.mergeSite(a, b), SyncMerge.mergeSite(b, a)] {
+            XCTAssertEqual(m.dailyLimitSeconds, 600, "a kisebb keret")
+            XCTAssertEqual(m.schedule, SyncMerge.joinSchedule(work, evening), "a két menetrend uniója")
+        }
+        let burst = SyncMerge.mergeSite(rec(burst: 300, cooldown: 600), rec(burst: 600, cooldown: 1200, by: "gep-b"))
+        XCTAssertEqual(burst.burstSeconds, 300, "a kisebb adag")
+        XCTAssertEqual(burst.cooldownSeconds, 1200, "és a hosszabb szünet")
+    }
+
+    func testALooseningOnlyLandsWithThePaidCounter() {
+        let strict = rec(rev: 4, limit: 600)
+        let earned = rec(rev: 5, limit: 3600, by: "gep-b", limitLoosens: 1)
+        XCTAssertEqual(SyncMerge.mergeSite(strict, earned).dailyLimitSeconds, 3600, "a próbatétel megvolt")
+        XCTAssertEqual(SyncMerge.mergeSite(earned, strict).dailyLimitSeconds, 3600)
+        // A TRÜKK: egy elavult eszköz ingyenes szerkesztésekkel felhúzza a rev-et.
+        let stale = rec(rev: 99, limit: 7200, updatedAt: 99_999, by: "gep-b")
+        XCTAssertEqual(SyncMerge.mergeSite(strict, stale).dailyLimitSeconds, 600, "régi, lazább rekord nem lazít")
+        XCTAssertEqual(SyncMerge.mergeSite(stale, strict).dailyLimitSeconds, 600)
+        // A számláló mezőnként: a keret lazítása nem viszi el a máshol felvett menetrendet.
+        let scheduled = rec(rev: 6, schedule: work, limit: 600)
+        let earnedEvening = rec(rev: 5, schedule: evening, limit: 3600, by: "gep-b", limitLoosens: 1)
+        let m = SyncMerge.mergeSite(scheduled, earnedEvening)
+        XCTAssertEqual(m.dailyLimitSeconds, 3600)
+        XCTAssertEqual(m.schedule, SyncMerge.joinSchedule(work, evening), "a menetrend a saját számlálója szerint dől el")
+        XCTAssertEqual(m.limitLoosens, 1, "a számláló a fésültben is ott van")
+    }
+
+    func testAPendingDeletionDoesNotVanishSilentlyOnlyOneWhoSawItCanCancel() {
+        let deleting = rec(rev: 3, pendingDeleteAt: 9_000_000, deleteLoosens: 1)
+        let unaware = rec(rev: 9, alias: "A videós", by: "gep-b")
+        let m = SyncMerge.mergeSite(deleting, unaware)
+        XCTAssertEqual(m.alias, "A videós", "a frissebb rekord fedőneve jön")
+        XCTAssertEqual(m.pendingDeleteAt, 9_000_000, "a kifizetett kérés megmarad")
+        let cancelled = rec(rev: 4, by: "gep-b", deleteLoosens: 1)
+        XCTAssertNil(SyncMerge.mergeSite(deleting, cancelled).pendingDeleteAt)
+        XCTAssertNil(SyncMerge.mergeSite(cancelled, deleting).pendingDeleteAt)
+        // Két független kérés egyenlő számlálóval: a későbbi határidő; az újra kért nyer.
+        let other = rec(rev: 4, pendingDeleteAt: 8_000_000, by: "gep-b", deleteLoosens: 1)
+        XCTAssertEqual(SyncMerge.mergeSite(deleting, other).pendingDeleteAt, 9_000_000)
+        XCTAssertEqual(SyncMerge.mergeSite(other, deleting).pendingDeleteAt, 9_000_000)
+        let again = rec(rev: 6, pendingDeleteAt: 7_000_000, deleteLoosens: 2)
+        XCTAssertEqual(SyncMerge.mergeSite(deleting, again).pendingDeleteAt, 7_000_000)
+    }
+
+    func testTheStricterFormOfABudgetAndOfABurstRule() {
+        XCTAssertEqual(SyncMerge.joinLimit(600, 3600), 600)
+        XCTAssertEqual(SyncMerge.joinLimit(nil, 3600), 3600, "a keret nélküli a leglazább")
+        XCTAssertNil(SyncMerge.joinLimit(nil, nil))
+        let kept = SyncMerge.joinBurst((burst: 300, cooldown: 900), (burst: nil, cooldown: nil))
+        XCTAssertEqual(kept.burst, 300)
+        XCTAssertEqual(kept.cooldown, 900)
+        let both = SyncMerge.joinBurst((burst: 300, cooldown: 600), (burst: 200, cooldown: 900))
+        XCTAssertEqual(both.burst, 200, "mindkettő szigorúbbja")
+        XCTAssertEqual(both.cooldown, 900)
+    }
+
     func testAMissingRecordNeverMeansDeletion() {
         let mine = site(id: "site_a")
         var theirs = site(id: "site_b", addedAt: 2_000)

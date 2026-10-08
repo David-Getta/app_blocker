@@ -59,6 +59,28 @@ struct Site: Codable, Identifiable, Equatable {
     var hostnameMarks: [String: Int]?
     /// A szabálylista jele — az iPhone nem ír ilyet, hordozza. Lásd SyncMerge.
     var rulesRev: Int?
+    /// A KIFIZETETT LAZÍTÁSOK száma mezőnként: a törlés kérése, a menetrend, a
+    /// napi keret és az adag-szabály lazítása. A bíró írja, a próbatétel
+    /// teljesítésekor (Referee) — máshol semmi; amit az iPhone nem lazíthat
+    /// (keret, adag), azt hordozza. A fésülés mezőnként ebből dönt
+    /// (SyncMerge.mergeSite).
+    var deleteLoosens: Int? = nil
+    var scheduleLoosens: Int? = nil
+    var limitLoosens: Int? = nil
+    var burstLoosens: Int? = nil
+
+    /// A számlálók a mag szűrőjén át — mint a dróton: pozitív egész, legfeljebb
+    /// a rekord rev-je (csak léptetés írhatja); ami más, az nincs.
+    func cleaningLoosens() -> Site {
+        let rev = self.rev ?? 0
+        let ok: (Int?) -> Int? = { v in v.flatMap { $0 > 0 && $0 <= rev ? $0 : nil } }
+        var out = self
+        out.deleteLoosens = ok(deleteLoosens)
+        out.scheduleLoosens = ok(scheduleLoosens)
+        out.limitLoosens = ok(limitLoosens)
+        out.burstLoosens = ok(burstLoosens)
+        return out
+    }
 }
 
 struct SessionRec: Codable, Equatable, Identifiable {
@@ -447,6 +469,8 @@ final class BreakerStore: ObservableObject {
         if let s = decoded.session, s.stepIndex < 0 || s.stepIndex >= s.steps.count {
             decoded.session = nil
         }
+        // A kifizetett lazítások számlálói a lemezről: ugyanaz a tisztítás, mint a dróton.
+        decoded.sites = decoded.sites.map { $0.cleaningLoosens() }
         // A kulcsszó-jelek a lemezről: ugyanaz a tisztítás, mint a dróton.
         decoded.keywordMarks = KeywordLogic.cleanKeywordMarks(
             decoded.keywordMarks, decoded.keywords ?? [], maxRev: clampedInt(decoded.focusRev ?? 0)

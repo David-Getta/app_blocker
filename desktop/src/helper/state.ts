@@ -83,6 +83,16 @@ export interface SiteRec {
   updatedBy?: string;
   /** a szinkron-mezők lenyomata a legutóbbi léptetéskor; ebből látszik, hogy változott-e */
   revFp?: string;
+  /**
+   * A KIFIZETETT LAZÍTÁSOK száma mezőnként: a törlés kérése, a menetrend, a
+   * napi keret és az adag-szabály lazítása. A bíró írja, a próbatétel
+   * teljesítésekor (referee.ts) — máshol semmi. A fésülés mezőnként ebből
+   * dönt (shared/sync/merge.ts).
+   */
+  deleteLoosens?: number;
+  scheduleLoosens?: number;
+  limitLoosens?: number;
+  burstLoosens?: number;
 }
 
 export interface SessionRec {
@@ -631,6 +641,15 @@ export function loadState(): HelperState {
           if (normalizeBurst(site.burstSeconds, site.cooldownSeconds) !== null) site.burstUnsynced = true;
         }
         parsed.burstOnWire = true;
+      }
+      // A kifizetett lazítások számlálói a mag szűrőjén át — mint a dróton:
+      // pozitív egész, legfeljebb a rekord rev-je (csak léptetés írhatja).
+      for (const site of parsed.sites) {
+        for (const k of ['deleteLoosens', 'scheduleLoosens', 'limitLoosens', 'burstLoosens'] as const) {
+          const v = site[k];
+          if (v === undefined) continue;
+          if (!Number.isInteger(v) || v <= 0 || v > (site.rev ?? 0)) delete site[k];
+        }
       }
       return parsed;
     }

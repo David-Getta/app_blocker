@@ -206,6 +206,7 @@ test('felvenni és szigorítani ingyen, lazítani próbatétel — és a teljes�
 
   const r2 = startBurstChange(st, 'site_1', 60, 900, T0);
   assert.equal(r2.applied, true, 'kisebb adag, hosszabb szünet: ingyen');
+  assert.equal(st.sites[0].burstLoosens, undefined, 'a szigorítás nem lépteti a számlálót');
 
   const r3 = startBurstChange(st, 'site_1', 300, 900, T0);
   assert.equal(r3.applied, false, 'nagyobb adag: próbatétel');
@@ -217,6 +218,7 @@ test('felvenni és szigorítani ingyen, lazítani próbatétel — és a teljes�
   assert.equal(st.sites[0].burstSeconds, 300, 'a teljesítés alkalmazza a lazítást');
   assert.equal(st.sites[0].cooldownSeconds, 900);
   assert.equal(st.session, null);
+  assert.equal(st.sites[0].burstLoosens, 1, 'a kifizetett lazítás számlálója nőtt');
 });
 
 test('a fél-kitöltött kérés hiba, nem meglepetés', () => {

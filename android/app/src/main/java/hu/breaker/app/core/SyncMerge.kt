@@ -13,6 +13,14 @@ package hu.breaker.app.core
  *
  *   szigorítás ingyen van, lazítás munkába kerül.
  *
+ * MEZŐNKÉNT dől el, nem rekordonként: a négy tiltó mező (törlés, menetrend,
+ * napi keret, adag-szabály) a saját kifizetett lazítás-számlálóját hordja —
+ * a bíró írja, a próbatétel teljesítésekor. A több kifizetett lazítás nyer;
+ * egyenlő számnál a mező SZIGORÚBB alakja jön ki (a menetrendek uniója, a
+ * kisebb keret, a kisebb adag és a hosszabb szünet, törlés csak ha mindkettő
+ * vár). A rekord `rev`-je nem hitelesít lazítást: az ingyenes szigorítás is
+ * lépteti, és egy elavult eszköz így felhúzott rekordja eddig egészében nyert.
+ *
  * Ha ez a fájl elcsúszik a TypeScript változatától, a felhasználó ugyanazt az
  * appot kapja két különböző viselkedéssel — a telefonján más lesz blokkolva,
  * mint a gépén.
@@ -68,34 +76,23 @@ object SyncMerge {
          * ÉS jelét viszi. A telefon nem ír ilyet, hordozza. Lásd `mergeRules`.
          */
         val rulesRev: Int? = null,
+        /**
+         * A KIFIZETETT LAZÍTÁSOK száma mezőnként — a bíró írja, a próbatétel
+         * teljesítésekor. A fésülésben a több nyer, egyenlőnél a szigorúbb
+         * alak. Null = nulla (régi kliens). A merge.ts tükre.
+         */
+        val deleteLoosens: Int? = null,
+        val scheduleLoosens: Int? = null,
+        val limitLoosens: Int? = null,
+        val burstLoosens: Int? = null,
     )
 
     // --------------------------------------------------------- szigorúság
-
-    /**
-     * Hány percet tilt a menetrend egy héten (0..10080).
-     *
-     * SZERKEZET szerint néz, nem időbélyeg szerint. Ez nem szőrözés: két eszköz
-     * lehet más időzónában, és akkor ugyanaz a két menetrend máshogy hasonlítana
-     * össze a két gépen — a szinkron sosem konvergálna. A sávok amúgy is
-     * helyi-óra percekben vannak megadva.
-     */
-    fun blockedMinutesPerWeek(s: ScheduleLogic.Schedule?): Int {
-        val sch = ScheduleLogic.normalize(s)
-        if (sch.mode == ScheduleLogic.Mode.ALWAYS) return 7 * 1440
-        var n = 0
-        for (day in 0 until 7) {
-            for (minute in 0 until 1440) {
-                if (blocksAtGrid(sch, day, minute)) n++
-            }
-        }
-        return n
-    }
-
-    private fun blocksAtGrid(sch: ScheduleLogic.Schedule, day: Int, minute: Int): Boolean {
-        val inBand = anyBandAtGrid(sch.bands, day, minute)
-        return if (sch.mode == ScheduleLogic.Mode.SCHEDULED_BLOCK) inBand else !inBand
-    }
+    //
+    // A menetrend SZERKEZET szerint fésülődik, nem időbélyeg szerint: két eszköz
+    // lehet más időzónában, és akkor ugyanaz a két menetrend máshogy fésülődne
+    // a két gépen — a szinkron sosem konvergálna. A sávok amúgy is helyi-óra
+    // percekben vannak megadva.
 
     /** Az `inAnyBand` szerkezeti párja — ugyanaz az éjfél-átfordulás. */
     private fun anyBandAtGrid(bands: List<ScheduleLogic.Band>, day: Int, minute: Int): Boolean {
@@ -111,67 +108,168 @@ object SyncMerge {
         return false
     }
 
+    /** A heti rács: 7×1440 perc, igaz ahol a menetrend tilt — a merge.ts `scheduleGrid`-je. */
+    private fun scheduleGrid(s: ScheduleLogic.Schedule?): BooleanArray {
+        val sch = ScheduleLogic.normalize(s)
+        val g = BooleanArray(7 * 1440)
+        if (sch.mode == ScheduleLogic.Mode.ALWAYS) {
+            g.fill(true)
+            return g
+        }
+        val block = sch.mode == ScheduleLogic.Mode.SCHEDULED_BLOCK
+        for (day in 0 until 7) {
+            for (minute in 0 until 1440) {
+                if (anyBandAtGrid(sch.bands, day, minute) == block) g[day * 1440 + minute] = true
+            }
+        }
+        return g
+    }
+
     /**
-     * Melyik rekord szigorúbb: -1 = `a`, 1 = `b`, 0 = egyforma.
-     *
-     * A mezők sorrendje számít: az első különbség dönt, és a nyertes rekord
-     * EGYBEN marad. Így az eredmény mindig olyan állapot, ami tényleg létezett
-     * valamelyik eszközön — nem egy összeollózott, sosem volt beállítás.
+     * Egy rács menetrendként — a merge.ts `scheduleFromGrid`-je: a tiltott
+     * percek napon belüli szakaszai, az azonos szakaszú napok egy sávban,
+     * kezdés, aztán vég szerint. Ha minden perc tiltva: mindig.
      */
-    fun compareStrictness(a: SyncSite, b: SyncSite): Int {
-        val aDel = a.pendingDeleteAt != null
-        val bDel = b.pendingDeleteAt != null
-        if (aDel != bDel) return if (aDel) 1 else -1
+    private fun scheduleFromGrid(g: BooleanArray): ScheduleLogic.Schedule {
+        if (g.all { it }) return ScheduleLogic.Schedule(ScheduleLogic.Mode.ALWAYS, emptyList())
+        val runs = LinkedHashMap<Pair<Int, Int>, MutableList<Int>>()
+        for (day in 0 until 7) {
+            var minute = 0
+            while (minute < 1440) {
+                if (!g[day * 1440 + minute]) { minute++; continue }
+                val start = minute
+                while (minute < 1440 && g[day * 1440 + minute]) minute++
+                runs.getOrPut(start to minute) { mutableListOf() }.add(day)
+            }
+        }
+        val bands = runs.entries.sortedWith(compareBy({ it.key.first }, { it.key.second }))
+            .map { ScheduleLogic.Band(it.value.toSortedSet(), it.key.first, it.key.second) }
+        return ScheduleLogic.Schedule(ScheduleLogic.Mode.SCHEDULED_BLOCK, bands)
+    }
 
-        val aMin = blockedMinutesPerWeek(a.schedule)
-        val bMin = blockedMinutesPerWeek(b.schedule)
-        if (aMin != bMin) return if (aMin > bMin) -1 else 1
+    /** A menetrend nyers kulcsa — bájtra a merge.ts `scheduleRawKey`-je; a hiányzó az üres szöveg. */
+    private fun scheduleRawKey(s: ScheduleLogic.Schedule?): String {
+        if (s == null) return ""
+        val mode = when (s.mode) {
+            ScheduleLogic.Mode.ALWAYS -> "always"
+            ScheduleLogic.Mode.SCHEDULED_BLOCK -> "scheduled_block"
+            ScheduleLogic.Mode.SCHEDULED_ALLOW -> "scheduled_allow"
+        }
+        return mode + "|" + s.bands.joinToString(";") { b ->
+            b.days.sorted().joinToString(",") + "/" + b.startMin + "/" + b.endMin
+        }
+    }
 
-        // Napi keret: kisebb = szigorúbb; a keret nélküli a leglazább.
-        val aLim = a.dailyLimitSeconds ?: Long.MAX_VALUE
-        val bLim = b.dailyLimitSeconds ?: Long.MAX_VALUE
-        if (aLim != bLim) return if (aLim < bLim) -1 else 1
+    private fun isGridForm(s: ScheduleLogic.Schedule?, g: BooleanArray): Boolean =
+        s != null && scheduleRawKey(s) == scheduleRawKey(scheduleFromGrid(g))
 
-        // Adag-szabály: kisebb adag szigorúbb; azonos adagnál a hosszabb
-        // szünet. A szabály nélküli a leglazább — mint a keretnél.
-        val aB = BurstLogic.normalize(a.burstSeconds, a.cooldownSeconds)
-        val bB = BurstLogic.normalize(b.burstSeconds, b.cooldownSeconds)
-        val aBurst = aB?.burstSeconds ?: Long.MAX_VALUE
-        val bBurst = bB?.burstSeconds ?: Long.MAX_VALUE
-        if (aBurst != bBurst) return if (aBurst < bBurst) -1 else 1
-        val aCool = aB?.cooldownSeconds ?: 0
-        val bCool = bB?.cooldownSeconds ?: 0
-        if (aCool != bCool) return if (aCool > bCool) -1 else 1
+    /**
+     * Két menetrend SZIGORÚBB alakja — a merge.ts `joinSchedule`-je: minden perc
+     * tiltva, amit bármelyik tilt. Ha az egyik lefedi a másikat, az marad;
+     * egyenlőnél a felhasználó saját alakja a rácsból épített ellen, két saját
+     * közül a kisebb nyers kulcsú; különben a rácsból épül.
+     */
+    fun joinSchedule(a: ScheduleLogic.Schedule?, b: ScheduleLogic.Schedule?): ScheduleLogic.Schedule? {
+        if (scheduleRawKey(a) == scheduleRawKey(b)) return a
+        val ga = scheduleGrid(a)
+        val gb = scheduleGrid(b)
+        var aCovers = true
+        var bCovers = true
+        for (i in ga.indices) {
+            if (gb[i] && !ga[i]) aCovers = false
+            if (ga[i] && !gb[i]) bCovers = false
+        }
+        if (aCovers && bCovers) {
+            val fa = isGridForm(a, ga)
+            val fb = isGridForm(b, gb)
+            if (fa != fb) return if (fa) b else a
+            return if (scheduleRawKey(a) <= scheduleRawKey(b)) a else b
+        }
+        if (aCovers) return a
+        if (bCovers) return b
+        return scheduleFromGrid(BooleanArray(ga.size) { ga[it] || gb[it] })
+    }
 
-        return 0
+    /** A szigorúbb napi keret — a merge.ts `joinLimit`-je: a kisebb; a keret nélküli a leglazább. */
+    fun joinLimit(a: Long?, b: Long?): Long? {
+        val na = LimitLogic.normalizeLimit(a)
+        val nb = LimitLogic.normalizeLimit(b)
+        if (na == null) return if (nb == null) null else b
+        if (nb == null) return a
+        if (na != nb) return if (na < nb) a else b
+        return minOf(a!!, b!!)
+    }
+
+    /**
+     * A szigorúbb adag-szabály — a merge.ts `joinBurst`-je: a kisebb adag ÉS a
+     * hosszabb szünet; ha az egyik mindkettőben legalább olyan szigorú, az marad.
+     */
+    fun joinBurst(a: Pair<Long?, Long?>, b: Pair<Long?, Long?>): Pair<Long?, Long?> {
+        val na = BurstLogic.normalize(a.first, a.second)
+        val nb = BurstLogic.normalize(b.first, b.second)
+        if (na == null) return if (nb == null) Pair(null, null) else b
+        if (nb == null) return a
+        val aStricter = na.burstSeconds <= nb.burstSeconds && na.cooldownSeconds >= nb.cooldownSeconds
+        val bStricter = nb.burstSeconds <= na.burstSeconds && nb.cooldownSeconds >= na.cooldownSeconds
+        if (aStricter && bStricter) {
+            val ka0 = a.first ?: 0L
+            val kb0 = b.first ?: 0L
+            return if (ka0 != kb0) (if (ka0 < kb0) a else b) else (if ((a.second ?: 0L) <= (b.second ?: 0L)) a else b)
+        }
+        if (aStricter) return a
+        if (bStricter) return b
+        return Pair(minOf(na.burstSeconds, nb.burstSeconds), maxOf(na.cooldownSeconds, nb.cooldownSeconds))
+    }
+
+    /** A törlésre várás szigorúbb alakja: csak ha mindkettő vár — akkor a későbbi határidő. */
+    private fun joinDelete(a: Long?, b: Long?): Long? = if (a == null || b == null) null else maxOf(a, b)
+
+    private fun loosensOf(v: Int?): Int = if (v != null && v > 0) v else 0
+
+    /** Egy mező a fésülésben: a több kifizetett lazítás nyer; egyenlőnél a szigorúbb alak. */
+    private fun <T> byLoosens(ca: Int, cb: Int, va: T, vb: T, join: (T, T) -> T): T =
+        if (ca != cb) (if (ca > cb) va else vb) else join(va, vb)
+
+    /** A FRISSEBB rekord — rev, idő, eszköz. Már csak a fedőnév és az indok múlik rajta. */
+    private fun newerSite(a: SyncSite, b: SyncSite): SyncSite = when {
+        a.rev != b.rev -> if (a.rev > b.rev) a else b
+        a.updatedAt != b.updatedAt -> if (a.updatedAt > b.updatedAt) a else b
+        else -> if (a.updatedBy <= b.updatedBy) a else b
     }
 
     // -------------------------------------------------------- összefésülés
 
     /**
-     * Két azonos azonosítójú rekord összefésülése.
-     *
-     * Szimmetrikus: a hívónak mindegy, melyik a helyi és melyik a távoli, minden
-     * eszköz ugyanazt kapja.
+     * Két azonos azonosítójú rekord összefésülése — MEZŐNKÉNT (lásd a fájl
+     * elejét). Szimmetrikus: a hívónak mindegy, melyik a helyi és melyik a
+     * távoli, minden eszköz ugyanazt kapja.
      */
     fun mergeSite(a: SyncSite, b: SyncSite): SyncSite {
-        if (a.rev != b.rev) {
-            val newer = if (a.rev > b.rev) a else b
-            val older = if (a.rev > b.rev) b else a
-            // A hosztnevek itt is nevenként, a jelük szerint: a régebbi rekord
-            // kifizetett levétele nem veszhet el attól, hogy a másik kétszer írt.
-            return withHostnames(withRules(carryPendingDelete(newer, older), a, b), a, b)
-        }
-        val strict = compareStrictness(a, b)
-        if (strict != 0) {
-            val winner = if (strict < 0) carryPendingDelete(a, b) else carryPendingDelete(b, a)
-            return withHostnames(withRules(winner, a, b), a, b)
-        }
-        val winner = when {
-            a.updatedAt != b.updatedAt -> if (a.updatedAt > b.updatedAt) a else b
-            else -> if (a.updatedBy <= b.updatedBy) a else b
-        }
-        return withHostnames(withRules(winner, a, b), a, b)
+        val newer = newerSite(a, b)
+        val dA = loosensOf(a.deleteLoosens); val dB = loosensOf(b.deleteLoosens)
+        val sA = loosensOf(a.scheduleLoosens); val sB = loosensOf(b.scheduleLoosens)
+        val lA = loosensOf(a.limitLoosens); val lB = loosensOf(b.limitLoosens)
+        val bA = loosensOf(a.burstLoosens); val bB = loosensOf(b.burstLoosens)
+        // A törlésre várás nem tűnhet el csendben: a kérése próbatétel (a
+        // számláló nő), a visszavonása ingyen — egyenlő számnál a nem váró nyer.
+        val pendingDeleteAt = byLoosens(dA, dB, a.pendingDeleteAt, b.pendingDeleteAt, ::joinDelete)
+        val schedule = byLoosens(sA, sB, a.schedule, b.schedule, ::joinSchedule)
+        val limit = byLoosens(lA, lB, a.dailyLimitSeconds, b.dailyLimitSeconds, ::joinLimit)
+        val burst = byLoosens(bA, bB, Pair(a.burstSeconds, a.cooldownSeconds), Pair(b.burstSeconds, b.cooldownSeconds), ::joinBurst)
+        val out = newer.copy(
+            pendingDeleteAt = pendingDeleteAt,
+            schedule = schedule,
+            dailyLimitSeconds = limit,
+            burstSeconds = burst.first,
+            cooldownSeconds = burst.second,
+            rev = maxOf(a.rev, b.rev),
+            deleteLoosens = maxOf(dA, dB).takeIf { it > 0 },
+            scheduleLoosens = maxOf(sA, sB).takeIf { it > 0 },
+            limitLoosens = maxOf(lA, lB).takeIf { it > 0 },
+            burstLoosens = maxOf(bA, bB).takeIf { it > 0 },
+        )
+        // A hosztnevek nevenként, a jelük szerint; a szabályok a listájuk jele szerint.
+        return withHostnames(withRules(out, a, b), a, b)
     }
 
     /**
@@ -298,25 +396,6 @@ object SyncMerge {
         // Stabil sorrend, hogy két eszköz bájtra ugyanazt a listát kapja —
         // különben örökké oda-vissza írnák egymást, mert a tartalom „változott”.
         return out.sortedBy { it.host + it.path }
-    }
-
-    /**
-     * A törlésre várás nem tűnhet el csendben.
-     *
-     * Ha az egyik eszközön elindult a törlés (végigcsinált próbatételek + 24
-     * óra), a másik nem dobhatja el csak azért, mert a saját rekordja frissebb:
-     * az a munkát törölné el. A türelmi idő megmarad, és ott is visszavonható —
-     * a visszavonás szigorítás, tehát ingyen van.
-     */
-    private fun carryPendingDelete(winner: SyncSite, loser: SyncSite): SyncSite {
-        val loserDelete = loser.pendingDeleteAt ?: return winner
-        val winnerDelete = winner.pendingDeleteAt
-        if (winnerDelete != null) {
-            val at = minOf(winnerDelete, loserDelete)
-            return if (at == winnerDelete) winner else winner.copy(pendingDeleteAt = at)
-        }
-        if (winner.rev > loser.rev) return winner // egy későbbi körben visszavonták
-        return winner.copy(pendingDeleteAt = loserDelete)
     }
 
     /**

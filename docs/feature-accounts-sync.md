@@ -68,34 +68,47 @@ névfeloldásának átírására nem.
 ## Az összefésülés szabálya
 
 Minden oldal-rekord hordoz egy `rev` számlálót (minden módosításnál nő) és egy
-`updatedAt` bélyeget. Az alap **utolsó író nyer** (LWW), a döntetlent az
-eszközazonosító töri el, hogy minden eszköz UGYANARRA az eredményre jusson.
+`updatedAt` bélyeget. Ezek csak azt döntik el, melyik rekord a FRISSEBB — a
+döntetlent az eszközazonosító töri el, hogy minden eszköz UGYANARRA az
+eredményre jusson. A frissebbé a fedőnév és az indok (azok nem tiltanak).
 
-Ehhez jön egy szabály, ami az app egész logikájából következik:
+A tiltó mezőkre egy szabály áll, ami az app egész logikájából következik:
 
 > **Szigorítás ingyen van, lazítás munkába kerül** — a szinkron ezen nem
 > változtathat.
 
-Ezért:
+Ezért a négy tiltó mező — a törlés kérése, a menetrend, a napi keret és az
+adag-szabály — MEZŐNKÉNT fésülődik, nem rekordonként:
 
-- **A szigorúbb rekord nyer, ha a `rev` egyenlő.** Két eszköz egyszerre módosít,
-  az egyik szigorít, a másik lazít: a szigorúbb marad. Így egy versenyhelyzet
-  soha nem old fel semmit.
-- **Lazítást csak NAGYOBB `rev` hozhat.** A `rev` csak úgy nő, hogy valaki
-  ténylegesen végigcsinálta a próbatételt azon az eszközön. Ha egy régi (kisebb
-  `rev`-ű), lazább rekord érkezik — hálózati késés, órabaki, visszajátszás —,
-  eldobjuk.
-- **Törlés átmegy, de a 24 órás türelmi idővel együtt.** A másik eszközön nem
-  tűnik el azonnal az oldal: ugyanaddig a határidőig blokkol, és ott is
-  visszavonható (a visszavonás szigorítás, tehát ingyen van).
+- **Mindegyik mező a saját kifizetett lazításait számolja**
+  (`deleteLoosens`, `scheduleLoosens`, `limitLoosens`, `burstLoosens`). A
+  számlálót a BÍRÓ lépteti, a próbatétel teljesítésekor — máshol semmi.
+  Mezőnként a több kifizetett lazítás nyer: a lazítás így átmegy, és vele
+  az egész mező (az az alak, amiért fizettek).
+- **Egyenlő számnál a mező szigorúbb alakja jön ki** — nem az egyik rekordé,
+  hanem a kettő együtt: a két menetrend uniója (minden perc tiltva, amit
+  bármelyik tilt), a kisebb keret, a kisebb adag és a hosszabb szünet. Így egy
+  versenyhelyzet soha nem old fel semmit, és egy mező szigorítása sem vész el
+  attól, hogy a másik eszköz közben egy másik mezőt szigorított.
+- **A `rev` nem hitelesít lazítást.** Sokáig ez volt a szabály („lazítást csak
+  nagyobb `rev` hozhat”), és ez volt a lyuk: a `rev` az ingyenes
+  szigorítástól is nő. Egy régóta nem szinkronizált eszköz néhány ingyenes
+  szerkesztéssel felhúzta, és a régi, lazább rekordja EGÉSZÉBEN nyert — a
+  máshol lecsökkentett keret visszanőtt, a felvett menetrend eltűnt. A
+  számlálót csak próbatétel lépteti; a régi, lazább rekordnak nincs miből.
+- **A törlés kérése átmegy, a 24 órás türelmi idővel együtt.** A kérés
+  próbatétel, tehát lépteti a törlés számlálóját: a másik eszköz, ami nem is
+  tudott róla (kisebb számláló), nem dobhatja el — ugyanaddig a határidőig
+  blokkol. Aki látta a kérést (egyenlő számláló) és visszavonta, az átmegy: a
+  visszavonás szigorítás, tehát ingyen van. Két független kérésből egyenlő
+  számnál a későbbi határidő marad; az újra kért (több kérés) nyer.
 - **A hosztnevek nevenként fésülődnek, jelekkel.** Az oldal névlistája a
   tiltás része (ezek a nevek mennek a hosts fájlba); egy név levétele
   próbatétel, a felvétele ingyen. Mindkettő JELET kap: a rekord `rev`-jét,
   amelyik vitte (`hostnameMarks`, név → rev). Nevenként a nagyobb jel dönt —
   ami annál áll, benne van vagy nincs, az marad; egyenlő jelnél (a jel
   nélküli név is ilyen: régi kliens, az oldal felvételekor kapott nevek) a
-  rekord dönt, ahogy a többi mezőnél: eltérő revnél az újabb, egyenlő revnél
-  a bővebb. Erre két eset miatt van szükség, és mindkettő a rekord-szintű
+  rekord dönt: eltérő revnél az újabb, egyenlő revnél a bővebb. Erre két eset miatt van szükség, és mindkettő a rekord-szintű
   szabály lyuka volt: egyenlő revnél az egyesítés visszahozta a kifizetett
   levételt, ha a másik gép ugyanabban a körben bármi mást írt az oldalra; és
   nagyobb revnél a kétszer író gép egyben hozta a régi listáját. A jel a
@@ -225,30 +238,44 @@ Ezért:
   és a jele meg a hiánya együtt sírkőnek látszana — a csomag mindenhol
   törlődne.
 
-Mit jelent „szigorúbb”:
+Mit jelent „szigorúbb” — egyenlő számlálónál ez jön ki, mezőnként:
 
-| Mező | Szigorúbb az, amelyik |
+| Mező | A szigorúbb alak |
 |---|---|
-| menetrend | többet tilt (a tiltott percek halmaza bővebb) |
-| napi keret | kisebb (a keret nélküli a leglazább) |
-| szünet | korábban jár le (a szünet nélküli a legszigorúbb) |
-| törlésre várás | nincs törlésre várás |
+| menetrend | a kettő uniója: minden perc tiltva, amit bármelyik tilt |
+| napi keret | a kisebb (a keret nélküli a leglazább) |
+| adag-szabály | a kisebb adag ÉS a hosszabb szünet (a szabály nélküli a leglazább) |
+| törlésre várás | csak ha mindkettő vár — akkor a későbbi határidő |
+| szünet | a korábban lejáró (a szünet nélküli a legszigorúbb; eszköz-helyi, nem utazik) |
 
-A mezőket **ebben a sorrendben** vetjük össze, és az első különbség dönt; a
-nyertes rekord egyben marad, nem keverünk mezőket két rekordból. Így az eredmény
-mindig egy olyan állapot, ami tényleg létezett valamelyik eszközön — nem egy
-összeollózott, sosem volt beállítás.
+Az eredmény így lehet olyan állapot, ami egyik eszközön sem létezett — és ez
+szándékos: mindkettőnél szigorúbb, és egyik eszköz ingyenes szigorítása sem
+vész el a másik miatt. Ha az egyik alak lefedi a másikat, változatlanul az
+marad (nincs újraírás); ha a kettő ugyanazt tiltja, a felhasználó saját alakja
+nyer a rácsból épített ellen. A fésülés szimmetrikus, és három eszköznél a
+sorrend sem számít — a véletlen-teszt a teljes rekordon őrzi, mindhárom
+nyelven.
 
-Két kivétel van, mert ezek nem beállítások, hanem folyamatok:
+A menetrendek uniója **szerkezet szerint** készül (a heti rács perceiből), nem
+időbélyeg szerint. Ez nem szőrözés: két eszköz lehet más időzónában, és akkor
+ugyanaz a két menetrend máshogy fésülődne a két gépen — a szinkron sosem
+állna meg.
 
-- a **törlésre várás** akkor is átmegy, ha a nyertes rekordban nincs — kivéve,
-  ha a nyertes egy KÉSŐBBI körben (nagyobb `rev`) vonta vissza;
-- két egyszerre futó törlésnél a **korábbi határidő** marad.
+**Kimondott korlátok:**
 
-A menetrendek összevetése **szerkezet szerint** megy (hány percet tilt egy
-héten), nem időbélyeg szerint. Ez nem szőrözés: két eszköz lehet más
-időzónában, és akkor ugyanaz a két menetrend máshogy hasonlítana össze a két
-gépen — a szinkron sosem állna meg.
+- **A kifizetett lazítás az egész mezőt viszi.** Ha az egyik eszközön
+  kifizették a menetrend lazítását, a másikon pedig közben ingyen szigorították
+  ugyanazt a menetrendet, a kifizetett alak nyer — a szigorítást újra meg kell
+  tenni. (A számlálóból nem látszik, hogy a másik oldal alakja friss
+  szigorítás vagy a lazítás előtti régi állapot; a régi állapot nem nyerhet.)
+- **Két eszközön egyszerre kifizetett lazítás** ugyanazon a mezőn egyenlő
+  számlálót ad: a kettő szigorúbbja marad, és a lazítást az egyiken újra ki
+  kell fizetni. Blokkolás nem vész el, csak a próbatétel lehet hiába.
+- **Régi kliens.** A frissítés előtti app a számlálókat nem ismeri: a saját,
+  kifizetett lazítása számláló nélkül megy fel, és a többi eszköz szigorúbb
+  alakja visszaveszi; a rekord-szintű szabálya pedig egy újabb rekordot
+  egészében vehet át, a számlálók nélkül. Blokkolás egyik oldalon sem vész el
+  — **frissíts minden eszközt**.
 
 A **statisztika** ennél egyszerűbb: eszközönként, naponként, célpontonként áll
 össze, ütközés nincs. Minden eszköz csak a SAJÁT napjait tölti fel, és a többiét

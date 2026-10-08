@@ -219,6 +219,16 @@ Ami tehát IGAZ:
 Ha a kiszolgáló egyszer időbélyeget is ad az eszközsorokhoz, a második vélemény
 megbízhatóvá válik, és akkor érdemes megírni. Addig ez a szakasz a válasz.
 
+## Két eszköz kerete
+
+A keret maga az oldal-rekorddal utazik. Az emelése vagy a levétele a saját
+számlálójával megy át (`limitLoosens`: a bíró lépteti a próbatétel
+teljesítésekor); egyenlő számlálónál a KISEBB keret marad — akkor is, ha a
+másik rekord más mezőben szigorúbb. Eddig a két rekord közül az egyik
+egészében nyert, és a menetrendben szigorúbb, keretben lazább rekord a
+máshol lecsökkentett keretet ingyen visszanövesztette. Lásd
+docs/feature-accounts-sync.md.
+
 ## A keret eszközök között közös
 
 Ez volt a funkció legnagyobb lyuka: a keret eszközönként külön ketyegett.

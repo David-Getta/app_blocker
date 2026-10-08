@@ -116,6 +116,9 @@ class RefereeTest {
         assertTrue(site.pauseUntil!! > now)
         assertEquals(1, BreakerStore.state.value.unlockLog.size)
         assertTrue(BreakerStore.blockedHostnamesNow(now).isEmpty(), "paused -> nothing blocked")
+        // A szünet eszköz-helyi, nem utazik — a kifizetett lazítás számlálói nem nőnek tőle.
+        assertEquals(listOf<Int?>(null, null, null, null),
+            listOf(site.deleteLoosens, site.scheduleLoosens, site.limitLoosens, site.burstLoosens))
 
         Referee.tick(site.pauseUntil!! + 1)
         site = BreakerStore.state.value.sites[0]
@@ -171,6 +174,7 @@ class RefereeTest {
         val site = BreakerStore.state.value.sites[0]
         assertNotNull(site.pendingDeleteAt)
         assertTrue(site.pendingDeleteAt!! > inWindow + 23 * 3600_000L, "~24h grace")
+        assertEquals(1, site.deleteLoosens, "a kifizetett törlés-kérés számlálója nőtt — ebből tudja a szinkron")
         assertTrue(BreakerStore.blockedHostnamesNow(inWindow).isNotEmpty(), "still blocked during grace")
 
         // A türelmi idő alatt is ketyegett a kör — egyetlen huszonnégy órás
@@ -213,10 +217,12 @@ class RefereeTest {
         solveUntil { false }
         assertEquals(work, BreakerStore.state.value.sites[0].schedule, "applied once earned")
         assertNull(BreakerStore.state.value.sites[0].pauseUntil, "a schedule change is not a pause")
+        assertEquals(1, BreakerStore.state.value.sites[0].scheduleLoosens, "a kifizetett lazítás számlálója nőtt")
 
         val tighten = Referee.startScheduleChange(id, ScheduleLogic.ALWAYS, now)
         assertTrue(tighten.applied, "going back to always-blocked is free")
         assertNull(BreakerStore.state.value.session)
+        assertEquals(1, BreakerStore.state.value.sites[0].scheduleLoosens, "a szigorítás ingyen van: a számláló nem nő")
     }
 
     @Test fun `difficulty rises with recent unlocks`() {

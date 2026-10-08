@@ -40,7 +40,8 @@ class WireFixtureTest {
             "|rev=${s.rev}|at=${s.updatedAt}|by=${s.updatedBy}" +
             "|marks=" + (s.hostnameMarks ?: emptyMap()).toSortedMap().entries.joinToString(",") { "${it.key}=${it.value}" } +
             "|sched=" + scheduleKey(s.schedule) +
-            "|rules=" + (s.rules?.let { list -> "[" + list.joinToString(",") { it.host + it.path } + "]" } ?: "-")
+            "|rules=" + (s.rules?.let { list -> "[" + list.joinToString(",") { it.host + it.path } + "]" } ?: "-") +
+            "|loos=${s.deleteLoosens ?: 0}/${s.scheduleLoosens ?: 0}/${s.limitLoosens ?: 0}/${s.burstLoosens ?: 0}"
 
     /** A menetrend HATÁSA (a döntés normalizálása után), mint a gép kulcsában. */
     private fun scheduleKey(s: ScheduleLogic.Schedule?): String {

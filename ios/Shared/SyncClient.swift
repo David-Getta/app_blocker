@@ -176,7 +176,10 @@ enum SyncClient {
                 updatedBy: s.updatedBy ?? "",
                 // A jelek is hordozottak: a gépen kifizetett levétel nyoma.
                 hostnameMarks: s.hostnameMarks,
-                rulesRev: s.rulesRev
+                rulesRev: s.rulesRev,
+                // A kifizetett lazítások számlálói: a fésülés mezőnként ebből dönt.
+                deleteLoosens: s.deleteLoosens, scheduleLoosens: s.scheduleLoosens,
+                limitLoosens: s.limitLoosens, burstLoosens: s.burstLoosens
             )
         }
     }
@@ -200,6 +203,10 @@ enum SyncClient {
             out.updatedBy = m.updatedBy
             out.hostnameMarks = m.hostnameMarks
             out.rulesRev = m.rulesRev
+            out.deleteLoosens = m.deleteLoosens
+            out.scheduleLoosens = m.scheduleLoosens
+            out.limitLoosens = m.limitLoosens
+            out.burstLoosens = m.burstLoosens
             out.revFp = SyncRevisions.fingerprint(out)
             return out
         }

@@ -204,6 +204,7 @@ class LimitsTest {
         val lowered = Referee.startLimitChange(id, 600, now)
         assertTrue(lowered.applied)
         assertEquals(600L, siteById(id).dailyLimitSeconds)
+        assertNull(siteById(id).limitLoosens, "a szigorítás nem lépteti a számlálót")
     }
 
     @Test fun `raising a budget takes challenges and only lands when they are done`() {
@@ -216,6 +217,7 @@ class LimitsTest {
         solveSession()
         assertNull(BreakerStore.state.value.session)
         assertEquals(3600L, siteById(id).dailyLimitSeconds, "a kísérlet végén lép életbe")
+        assertEquals(1, siteById(id).limitLoosens, "a kifizetett lazítás számlálója nőtt")
     }
 
     @Test fun `abandoning the challenge leaves the budget where it was`() {
@@ -232,6 +234,17 @@ class LimitsTest {
         assertFalse(r.applied)
         solveSession()
         assertNull(siteById(id).dailyLimitSeconds, "a -1 jelzés levételt jelent, nem 0 másodperces keretet")
+        assertEquals(1, siteById(id).limitLoosens, "a levétel is kifizetett lazítás")
+    }
+
+    @Test fun `loosening a burst rule takes challenges and stamps its counter`() {
+        val id = addSite("youtube.com")
+        assertTrue(Referee.startBurstChange(id, 120, 600, now).applied, "a felvétel ingyen")
+        assertFalse(Referee.startBurstChange(id, 300, 600, now).applied, "nagyobb adag: próbatétel")
+        assertEquals(120L, siteById(id).burstSeconds, "amíg a próbatétel tart, a régi él")
+        solveSession()
+        assertEquals(300L, siteById(id).burstSeconds, "a teljesítés alkalmazza a lazítást")
+        assertEquals(1, siteById(id).burstLoosens, "a kifizetett lazítás számlálója nőtt")
     }
 
     @Test fun `a raise cannot be smuggled in while another attempt is running`() {
@@ -247,6 +260,7 @@ class LimitsTest {
         // próbatétel nélkül hatástalanítja. A keretnél ez már zárva volt.
         val id = addSite("gemini.google.com")
         assertTrue(Referee.startBurstChange(id, 300, 300, now).applied, "az adag felvétele ingyen")
+        assertNull(siteById(id).burstLoosens, "a szigorítás nem lépteti a számlálót")
         val e = assertFailsWith<Referee.RefereeException> { Referee.setUsageEnabled(false) }
         assertEquals("LIMIT_NEEDS_USAGE", e.code)
         assertTrue(e.message!!.contains("adag"), "a hibaüzenet az adagot mondja")

@@ -577,17 +577,20 @@ Ismert megkerülési utak (szándékosan nem próbáljuk „lelakatolni” a gé
 - iOS-en MDM/„supervised” mód nélkül a felhasználó a rendszerbeállításokban ki
   tudja kapcsolni a VPN-t; az on-demand szabály csökkenti ennek kényelmét.
 - **A FIÓK JELSZAVÁVAL hamis szinkron-rekord gyártható.** Az összefésülés a
-  `rev` számlálóban bízik: a nagyobb `rev` mögött ott a munka, tehát egy
-  lazítás is átmegy vele. A számláló helyben csak a próbatétel-kapun át nő —
-  de a kiszolgáló csak átlátszatlan blobot tárol, a titkosító kulcs pedig a
-  JELSZÓBÓL származik. Aki tehát tudja a saját fiókjelszavát, a saját appján
-  KÍVÜL is összerakhat egy nagy `rev`-ű, laza rekordot (menetrend nélkül,
-  keret nélkül — a futó menethez egy hamis lezáró naplósorral), felnyomhatja,
-  és a többi eszköz próbatétel nélkül átveszi. Ez a nem megbízható kiszolgáló modelljének ára: a kliens
+  kifizetett lazítások számlálóiban bízik (mezőnként: törlés, menetrend,
+  keret, adag; a csatorna-szűrőknél gazdagépenként): a több kifizetett lazítás
+  mögött ott a munka, tehát a lazítás átmegy vele. A számláló helyben csak a
+  próbatétel-kapun át nő — a bíró lépteti, a teljesítéskor —, de a kiszolgáló
+  csak átlátszatlan blobot tárol, a titkosító kulcs pedig a JELSZÓBÓL
+  származik. Aki tehát tudja a saját fiókjelszavát, a saját appján KÍVÜL is
+  összerakhat egy nagy számlálójú, laza rekordot (menetrend nélkül, keret
+  nélkül — a futó menethez egy hamis lezáró naplósorral), felnyomhatja, és a
+  többi eszköz próbatétel nélkül átveszi. Ez a nem megbízható kiszolgáló modelljének ára: a kliens
   eszközön futó felhasználót nem lehet kizárni a saját adatából. Amit ez
   megváltoztat: a léc root/jailbreak alól a jelszó ismeretére csökken. Egy
-  LEGITIM másik kliens ilyet nem tud: visszajátszásnál, egyenlő `rev`-nél a
-  szigorúbb nyer, a futó menetet pedig nem a `rev`, hanem a rá hivatkozó
+  LEGITIM másik kliens ilyet nem tud: a rekord `rev`-je — amit az ingyenes
+  szerkesztés is léptet — nem hitelesít lazítást; egyenlő számlálónál a
+  szigorúbb alak jön ki, a futó menetet pedig nem a `rev`, hanem a rá hivatkozó
   naplósor zárja le — azt csak az írhatja, aki a menetet látta, és
   próbatétellel leállította vagy kivárta (docs/feature-focus-sessions.md). Aki ezt komolyan akarja zárni, annak a kiszolgálót kell
   megbízhatóvá tennie — az viszont egy másik termék.

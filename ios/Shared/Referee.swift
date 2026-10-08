@@ -294,12 +294,22 @@ enum Referee {
             state.abandons = (state.abandons ?? []).filter { $0.siteId != s.siteId }
             return
         }
+        // A KIFIZETETT LAZÍTÁS SZÁMLÁLÓJA itt nő, és csak itt: a próbatétel
+        // teljesítésekor. A szinkron mezőnként ebből dönt (SyncMerge.mergeSite)
+        // — ha a lazítás bármely más úton történne (egy hiba, egy kézzel átírt
+        // állapot), számláló nélkül a többi eszköz szigorúbb alakja visszaveszi.
         state.sites = state.sites.map { site in
             guard site.id == s.siteId else { return site }
             var copy = site
-            if let sched = s.pendingSchedule { copy.schedule = sched } // gated loosening
-            else if s.kind == .pause { copy.pauseUntil = now + Double(s.minutes ?? 15) * 60_000 }
-            else { copy.pendingDeleteAt = now + Double(ChallengeEngine.deletePendingMs) }
+            if let sched = s.pendingSchedule {                                    // gated loosening
+                copy.schedule = sched
+                copy.scheduleLoosens = (site.scheduleLoosens ?? 0) + 1
+            } else if s.kind == .pause {
+                copy.pauseUntil = now + Double(s.minutes ?? 15) * 60_000
+            } else {
+                copy.pendingDeleteAt = now + Double(ChallengeEngine.deletePendingMs)
+                copy.deleteLoosens = (site.deleteLoosens ?? 0) + 1
+            }
             return copy
         }
         state.unlockLog = state.unlockLog.filter { $0 > now - 30 * 24 * 3_600_000 } + [now]
