@@ -61,6 +61,90 @@ export function pickMacAsset(assets: ReleaseAsset[], arch: string): ReleaseAsset
 }
 
 /**
+ * A rendszerkövetelményt hordozó Mac-csomag neve: `Breaker-1.2.3-arm64-darwin13.zip`.
+ *
+ * MIÉRT A NÉVBEN. Az Electron időnként feljebb emeli a legrégebbi macOS-t, amin
+ * fut (a 44-es a macOS 13-at kéri). A v0.4.240-ig kiadott frissítők minden
+ * zipet felraknak, aminek a nevében `mac` szerepel, és a régi példányt az új
+ * elindítása ELŐTT törlik: egy macOS 12-es gépen ebből el nem induló app
+ * lenne — és a root segéd is ugyanazt a binárist futtatja. A `darwinNN` név
+ * nem tartalmazza a `mac` szót, tehát a régi frissítő nem látja (marad a működő
+ * verzión), az újabb viszont kiolvassa belőle, mi kell neki.
+ */
+const GATED_MAC_ZIP = /-darwin(\d{1,3})\.zip$/i;
+
+/** A csomag nevéből a legrégebbi macOS főverzió, amin fut — vagy null, ha nincs benne. */
+export function macRequirementOf(name: string): number | null {
+  const m = GATED_MAC_ZIP.exec(name);
+  return m ? Number(m[1]) : null;
+}
+
+/**
+ * A futó macOS főverziója (`process.getSystemVersion()`: „12.7.6” → 12).
+ * Ismeretlen alaknál null — és az óvatos irány, hogy olyankor nem frissítünk.
+ */
+export function macosMajor(systemVersion: string): number | null {
+  const m = /^\s*(\d{1,3})(?:\.\d+)*\s*$/.exec(String(systemVersion));
+  return m ? Number(m[1]) : null;
+}
+
+export type MacPick =
+  | { kind: 'asset'; asset: ReleaseAsset }
+  | { kind: 'too-old'; needs: number; has: string }
+  | { kind: 'none' };
+
+/**
+ * Melyik csomag kell erre a Macre — és fut-e itt egyáltalán.
+ *
+ * Ha a kiadás rendszerkövetelményt hordozó csomagot ad (`darwinNN`), az dönt:
+ * régebbi macOS-en semmit nem töltünk le, és ezt ki is mondjuk (`too-old`) —
+ * egy el nem induló app rosszabb, mint egy régi, működő verzió. A régi nevű
+ * (`mac`) csomag a korábbi kiadásoké; azoknak nem volt külön követelményük azon
+ * túl, amin ez a példány már fut.
+ */
+export function pickMacUpdate(assets: ReleaseAsset[], arch: string, systemVersion: string): MacPick {
+  const gated = assets.filter((a) => macRequirementOf(a.name) !== null);
+  if (gated.length > 0) {
+    const isArm = (n: string) => /arm64/i.test(n);
+    const isUniversal = (n: string) => /universal/i.test(n);
+    const chosen = (arch === 'arm64'
+      ? gated.find((a) => isArm(a.name) && !isUniversal(a.name))
+      : gated.find((a) => !isArm(a.name) && !isUniversal(a.name)))
+      ?? gated.find((a) => isUniversal(a.name));
+    if (!chosen) return { kind: 'none' };
+    const needs = macRequirementOf(chosen.name) as number;
+    const has = macosMajor(systemVersion);
+    if (has === null || has < needs) return { kind: 'too-old', needs, has: String(systemVersion).trim() };
+    return { kind: 'asset', asset: chosen };
+  }
+  const legacy = pickMacAsset(assets, arch);
+  return legacy ? { kind: 'asset', asset: legacy } : { kind: 'none' };
+}
+
+/** Ha a következő verzió ezen a Macen már nem fut: ezt mondja a fiók-panel. */
+export interface MacTooOld {
+  /** a következő verzió (az, amit nem rakunk fel) */
+  version: string;
+  /** a legrégebbi macOS főverzió, amin az fut */
+  needs: number;
+  /** a gép saját rendszerverziója, ahogy kiolvastuk (üres, ha nem sikerült) */
+  has: string;
+}
+
+/**
+ * A fiók-panel mondata. Ragozott szám nélkül írva („macOS 13 kell”,
+ * „macOS 12.7.6 fut”): a szám toldaléka a kiejtésétől függene, és egy
+ * elrontott rag egy őszinte mondatot is gépiessé tesz.
+ */
+export function macTooOldText(t: MacTooOld): string {
+  const has = t.has
+    ? `ezen a Macen macOS ${t.has} fut`
+    : 'ennek a Macnek a rendszerverzióját nem sikerült kiolvasni';
+  return `A következő verzióhoz (v${t.version}) legalább macOS ${t.needs} kell, ${has}. `
+    + 'A Breaker így is működik tovább — a tiltás, a mérés, minden —, csak újabb verziót nem kap.';
+}
+
+/**
  * Minimal reader for electron-builder's `latest-mac.yml`.
  *
  * Only the fields that matter here (version, and per-file url/sha512/size), so

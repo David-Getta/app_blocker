@@ -63,6 +63,8 @@ const ASSETS: [string, string | null][] = [
   ['Breaker-0.4.3.dmg', 'mac'],
   ['Breaker-0.4.3-arm64-mac.zip', null],           // frissítés-csomag, nem kézi letöltés
   ['Breaker-0.4.3-mac.zip', null],
+  ['Breaker-0.4.242-arm64-darwin13.zip', null],      // az újabb frissítés-csomag: a név a macOS-igényt hordozza
+  ['Breaker-0.4.242-x64-darwin13.zip', null],
   ['Breaker-Setup-0.4.3.exe', 'win'],
   ['Breaker-bovitmeny-v0.4.3.zip', 'ext'],
   ['latest.yml', null],

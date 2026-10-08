@@ -4149,6 +4149,36 @@ const WIRES = [
     needle: 'run: bash scripts/smoke-packaged.sh',
     lost: 'a becsomagolt app indulása csak a kiadás napján derülne ki, nem a pushnál',
   },
+  // A MACOS RENDSZERKÖVETELMÉNYE. Az Electron időnként feljebb emeli a
+  // legrégebbi macOS-t; a régi frissítő az ott el nem induló verziót is
+  // felrakná, és a régi példányt az indítás előtt törli. A `darwinNN` nevű
+  // csomagot csak az nézi meg, aki tudja, mit jelent — és régebbi gépen nem
+  // tölt le semmit, hanem kimondja.
+  {
+    file: 'desktop/src/main/mac-updater.ts',
+    needle: 'pickMacUpdate(assets, process.arch, systemVersion)',
+    lost: 'a régebbi macOS-re is letöltené és felrakná az ott el nem induló verziót',
+  },
+  {
+    file: 'desktop/src/main/mac-updater.ts',
+    needle: 'systemVersion = process.getSystemVersion()',
+    lost: 'a gép valódi rendszerverziója helyett üres szöveggel döntene — és így soha nem frissítene',
+  },
+  {
+    file: 'desktop/src/main/updater.ts',
+    needle: 'osTooOld: update ? update.tooOld : undefined',
+    lost: 'a felület nem tudná meg, miért nincs frissítés ezen a Macen',
+  },
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: 'macTooOldText(s.osTooOld)',
+    lost: 'a fiók-panel nem mondaná ki, hogy a következő verzió ezen a Macen már nem fut',
+  },
+  {
+    file: 'website/download.js',
+    needle: '/-darwin\\d+\\.zip$/.test(n)',
+    lost: 'a letöltőoldal az automatikus frissítés csomagját kézi letöltésként kínálná',
+  },
   {
     file: 'desktop/scripts/smoke-packaged.sh',
     needle: 'BREAKER_SMOKE_OUT="$out" "$exe" --smoke-test',

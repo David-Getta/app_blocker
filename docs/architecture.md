@@ -939,3 +939,11 @@ pirosat. A próba a fő folyamat **első** importja: így egy betöltéskor elha
 modul sem nyit párbeszédablakot, amit a CI-ban senki nem kattintana el. A
 CI a becsomagolt appon is futtatja (Mac, Windows), a kiadás pedig a feltöltés
 előtt — piros próbánál a kiadás draft marad (lásd `docs/releasing.md`).
+
+Ugyanebbe a családba tartozik a rendszerkövetelmény: egy Electron-frissítés
+feljebb emelheti a legrégebbi macOS-t, és a frissítő akkor egy olyan gépre is
+felrakná az új verziót, ahol az el sem indul. A követelmény ezért a Mac-csomag
+nevében utazik (`-darwinNN.zip`), a frissítő a gép rendszerverziójával veti
+össze, és régebbi gépen nem tölt le semmit — a fiók-panel kimondja, mi a helyzet
+(`shared/update-manifest.ts`, `pickMacUpdate`). A régi frissítők a nevet nem
+ismerik fel, tehát ők sem raknak fel semmit (lásd `docs/releasing.md`).

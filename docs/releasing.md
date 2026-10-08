@@ -157,6 +157,27 @@ telepítő nélkül), és a kiadásban a feltöltés előtt — ugyanazzal a szk
 (`desktop/scripts/smoke-packaged.sh`). Ha a kiadásban piros, a kiadás draft
 marad: a felhasználókhoz nem jut el.
 
+### Amikor az Electron feljebb emeli a legrégebbi macOS-t
+
+Az Electron időnként elengedi a legrégebbi macOS-t (a 38-as a macOS 11-et, a
+44-es a macOS 12-t). A v0.4.240-ig kiadott Mac-frissítők ezt nem tudják: minden
+zipet felraknak, aminek a nevében `mac` szerepel, és a régi példányt az új
+elindítása **előtt** törlik. Egy macOS 12-es gépen így egy el nem induló app
+maradna — és a root segéd is ugyanazt a binárist futtatja.
+
+Ezért a rendszerkövetelmény a **csomag nevében** utazik:
+`Breaker-0.4.242-arm64-darwin13.zip` (a legrégebbi macOS főverzió, amin fut). A
+`darwin` szóban nincs `mac`, tehát a régi frissítő nem látja — marad a működő
+verzión —, az újabb (v0.4.241-től) pedig kiolvassa: régebbi macOS-en nem tölt le
+semmit, és a fiók-panel kimondja, melyik verzió mit kér, és mi fut a gépen. A
+letöltőoldal ezt a zipet sem kínálja kézi letöltésre.
+
+Teendő, amikor egy Electron-frissítés feljebb emeli a határt: a Mac-zip
+`artifactName`-je kapja meg a `-darwinNN` végződést (és a `mac.minimumSystemVersion`
+ugyanazt az értéket), a DMG neve marad. A váltás előtt legyen kint legalább egy
+olyan kiadás, ami már érti a nevet — különben a régi frissítők egyszerűen nem
+frissítenek tovább, és a felhasználó nem tudja meg, miért.
+
 ### Ha a futó képe vált
 
 A linuxos jobok az `ubuntu-latest` címkén futnak, és a GitHub ezt időnként új

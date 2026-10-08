@@ -1548,6 +1548,27 @@ async function main() {
   await page.evaluate(() => window.__pushUpdate({ status: 'idle' }));
   await page.waitForSelector('#updateBar', { state: 'hidden', timeout: 10_000 });
 
+  // A RÉGEBBI MAC: a következő verzió itt már nem futna, ezért nem töltjük le.
+  // Ezt a fiók-panel mondja ki, csendben — a frissítési sáv NEM jön elő (nincs
+  // mit tenni vele), de a mondat ott van, a verzióval és a két rendszerrel.
+  await page.evaluate(() => window.__pushUpdate({
+    status: 'idle', osTooOld: { version: '9.9.9', needs: 13, has: '12.7.6' },
+  }));
+  if (await page.locator('#updateBar:not(.hidden)').count() !== 0) {
+    failures.push('the update bar nags on a Mac the next version will not run on');
+  }
+  const osNote = (await page.locator('#updateOsNote').textContent()) || '';
+  if (!osNote.includes('v9.9.9') || !osNote.includes('macOS 13') || !osNote.includes('macOS 12.7.6')) {
+    failures.push(`the account panel does not say which version needs which macOS: ${osNote}`);
+  }
+  if (await page.locator('#updateOsNote.hidden').count() !== 0) {
+    failures.push('the too-old-macOS note stays hidden');
+  }
+  await page.evaluate(() => window.__pushUpdate({ status: 'idle' }));
+  if (await page.locator('#updateOsNote.hidden').count() !== 1) {
+    failures.push('the too-old-macOS note stays after a newer check cleared it');
+  }
+
   if (!CHECK_ONLY) {
     fs.mkdirSync(OUT, { recursive: true });
     // A kezdőkép az OLDALAK nézet: az app is azzal nyílik.

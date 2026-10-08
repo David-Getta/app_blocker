@@ -16,6 +16,7 @@ import {
 } from '../shared/alias.js';
 import { HELPER_VERSION } from '../shared/protocol.js';
 import { versionRowText } from '../shared/smoke.js';
+import { macTooOldText, type MacTooOld } from '../shared/update-manifest.js';
 // A .js itt sem elhagyható: a böngésző natív ESM-betöltője oldja fel futásidőben.
 import { normalizeRule, ruleLabel } from '../shared/urlrules.js';
 import { MAX_BURST_MINUTES, MAX_COOLDOWN_MINUTES, normalizeBurst } from '../shared/burst.js';
@@ -70,6 +71,8 @@ interface UpdateState {
   error?: string;
   /** the app applies the update itself (unsigned macOS build) */
   selfManaged?: boolean;
+  /** a következő verzió ezen a Macen már nem fut (shared/update-manifest.ts) */
+  osTooOld?: MacTooOld;
 }
 interface SyncServerState {
   running: boolean;
@@ -4250,7 +4253,8 @@ function setupModal(): void {
       // Ha van újabb, a frissítés-sáv úgyis megszólal (onUpdateState). Ha
       // nincs, azt itt kell kimondani — a néma gomb elromlottnak látszana.
       const s = await window.breaker.getUpdateState();
-      btn.textContent = s.status === 'idle' ? 'Nincs újabb verzió' : 'Frissítés keresése';
+      btn.textContent = s.status !== 'idle' ? 'Frissítés keresése'
+        : s.osTooOld ? 'Ezen a Macen nincs újabb' : 'Nincs újabb verzió';
       setTimeout(() => { btn.textContent = 'Frissítés keresése'; btn.disabled = false; }, 2500);
     }).catch(() => { btn.textContent = 'Frissítés keresése'; btn.disabled = false; });
   });
@@ -5234,6 +5238,11 @@ function setupStats(): void {
 // ------------------------------------------------------------ auto-update
 
 function renderUpdate(s: UpdateState): void {
+  // Ha a következő verzió ezen a Macen már nem fut, a fiók-panel mondja ki,
+  // csendben: nem sáv, nem értesítés — nincs mit tenni vele, csak tudni kell.
+  const osNote = $('updateOsNote');
+  osNote.textContent = s.osTooOld ? macTooOldText(s.osTooOld) : '';
+  osNote.classList.toggle('hidden', !s.osTooOld);
   const bar = $('updateBar');
   const text = $('updateText');
   const btn = $<HTMLButtonElement>('updateBtn');

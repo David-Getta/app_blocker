@@ -24,8 +24,8 @@ import * as os from 'os';
 import * as path from 'path';
 import { execFile, spawn } from 'child_process';
 import {
-  appBundlePath as bundleOf, compareVersions, manifestEntryFor, parseLatestMacYml, pickMacAsset,
-  type ReleaseAsset,
+  appBundlePath as bundleOf, compareVersions, manifestEntryFor, parseLatestMacYml, pickMacUpdate,
+  type MacTooOld, type ReleaseAsset,
 } from '../shared/update-manifest';
 import { relaunchScript } from '../shared/mac-relaunch';
 import { cachedPackageUsable, cleanupStaleUpdates, updateCachePath } from '../shared/update-cache';
@@ -108,8 +108,15 @@ export function hasDeveloperIdSignature(bundle: string): Promise<boolean> {
 
 // ------------------------------------------------------------------- check
 
-/** The newest release, when it is newer than what is running. */
-export async function checkMacUpdate(currentVersion = app.getVersion()): Promise<MacUpdate | null> {
+/**
+ * The newest release, when it is newer than what is running — or, when that
+ * release no longer runs on this Mac, what it would need (`tooOld`). In that
+ * case nothing is downloaded: an app that will not start is worse than an old
+ * one that works.
+ */
+export async function checkMacUpdate(
+  currentVersion = app.getVersion(), systemVersion = process.getSystemVersion(),
+): Promise<MacUpdate | { tooOld: MacTooOld } | null> {
   const body = await getText(LATEST_API, { Accept: 'application/vnd.github+json' });
   const release = JSON.parse(body) as {
     tag_name?: string;
@@ -121,8 +128,10 @@ export async function checkMacUpdate(currentVersion = app.getVersion()): Promise
   const assets: ReleaseAsset[] = (release.assets ?? []).map((a) => ({
     name: a.name, url: a.browser_download_url, size: a.size,
   }));
-  const chosen = pickMacAsset(assets, process.arch);
-  if (!chosen) return null;
+  const pick = pickMacUpdate(assets, process.arch, systemVersion);
+  if (pick.kind === 'too-old') return { tooOld: { version, needs: pick.needs, has: pick.has } };
+  if (pick.kind === 'none') return null;
+  const chosen = pick.asset;
 
   // The checksum is a bonus, not a requirement: an older release without a
   // manifest should still be installable, just without the extra check.

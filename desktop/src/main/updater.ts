@@ -23,6 +23,7 @@ import {
   hasDeveloperIdSignature,
   type MacUpdate,
 } from './mac-updater';
+import type { MacTooOld } from '../shared/update-manifest';
 
 const RELEASES_URL = 'https://github.com/David-Getta/app_blocker/releases/latest';
 const CHECK_INTERVAL_MS = 6 * 60 * 60_000;
@@ -34,6 +35,8 @@ interface UpdaterState {
   error?: string;
   /** true when this build updates itself without Squirrel (unsigned macOS) */
   selfManaged?: boolean;
+  /** a következő verzió ezen a Macen már nem fut — nem töltjük le, kimondjuk */
+  osTooOld?: MacTooOld;
 }
 
 interface Engine {
@@ -117,13 +120,19 @@ function macFallbackEngine(bundle: string): Engine {
       set({ status: 'checking', selfManaged: true });
       try {
         const update = await checkMacUpdate();
-        if (!update) {
+        if (!update || 'tooOld' in update) {
           discardDownload();
           // Nincs mit telepíteni, tehát nincs mit ŐRIZNI sem: egy korábbi
           // futásból ottmaradt csomag ilyenkor tiszta szemét.
           cleanupStaleUpdates();
           pending = null;
-          set({ status: 'idle', version: undefined, percent: undefined });
+          // Ha a következő verzió ezen a Macen már nem futna, nem töltjük le
+          // (egy el nem induló app rosszabb, mint egy régi, működő), és a
+          // fiók-panel kimondja — sáv és nógatás nélkül.
+          set({
+            status: 'idle', version: undefined, percent: undefined,
+            osTooOld: update ? update.tooOld : undefined,
+          });
           return;
         }
         // Az ellenőrzés 6 óránként fut. Ha ugyanazt a verziót már letöltöttük és
@@ -141,7 +150,7 @@ function macFallbackEngine(bundle: string): Engine {
         // érte el — csendben gyűltek, fejenként ~90 MB.
         cleanupStaleUpdates(update.version);
         pending = update;
-        set({ status: 'downloading', version: update.version, percent: 0 });
+        set({ status: 'downloading', version: update.version, percent: 0, osTooOld: undefined });
         downloadedZip = await downloadUpdate(update, (percent) => set({ status: 'downloading', percent }));
         set({ status: 'ready', version: update.version, percent: 100 });
       } catch (e) {

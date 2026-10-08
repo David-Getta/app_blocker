@@ -32,8 +32,10 @@ function classify(name) {
       : { plat: "mac", label: "macOS – Intel" };
   }
   if (n.endsWith(".exe")) return { plat: "win", label: "Windows telepítő (.exe)" };
-  // A -mac.zip az automatikus frissítés csomagja, nem kézi letöltésre való.
-  if (n.endsWith(".zip") && n.includes("mac")) return null;
+  // A -mac.zip az automatikus frissítés csomagja, nem kézi letöltésre való. Az
+  // újabbaké -darwinNN.zip (a név a legrégebbi macOS-t hordozza, amin fut, és
+  // szándékosan nincs benne „mac” — lásd desktop/src/shared/update-manifest.ts).
+  if (n.endsWith(".zip") && (n.includes("mac") || /-darwin\d+\.zip$/.test(n))) return null;
   // A részleges tiltás böngésző-bővítménye. Külön kártyát kap, mert MÁS, mint a
   // többi letöltés: kézzel kell betölteni, és gyengébb réteg — a nyers fájlnév
   // ezt egyikét sem mondaná el.
