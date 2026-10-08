@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -27,6 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
@@ -236,8 +238,14 @@ fun StatsSection(
             }
             // HA NEM KÉRED, csendben marad: az értesítés a sokadik megakadásnál és a
             // csúcs-óra előtt kikapcsolható — a kártya a lapon akkor is mondja.
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Switch(checked = !quietSuggestions, onCheckedChange = { onToggleQuiet() })
+            Row(
+                Modifier.fillMaxWidth().toggleable(
+                    value = !quietSuggestions, role = Role.Switch, onValueChange = { onToggleQuiet() },
+                ),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Switch(checked = !quietSuggestions, onCheckedChange = null)
                 Text("Szóljon a sokadik megakadásnál és a csúcs-óra előtt", style = MaterialTheme.typography.bodySmall)
             }
             // A KÖNYV TÖRLÉSE: a megakadások könyve a tiéd — törölhető. Két

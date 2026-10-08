@@ -29,6 +29,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -66,6 +69,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
@@ -624,8 +628,16 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                         Spacer(Modifier.width(8.dp))
                         Button(onClick = { addSite(addInput) }) { Text("Blokk") }
                     }
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Checkbox(checked = usePreset, onCheckedChange = { usePreset = it })
+                    // A FELIRAT IS a jelölőnégyzet része: a sor az, ami kapcsol (a
+                    // felolvasó a felirattal együtt mondja, és a szövegre koppintva
+                    // is működik) — nem csak a kis négyzet.
+                    Row(
+                        Modifier.fillMaxWidth().toggleable(
+                            value = usePreset, role = Role.Checkbox, onValueChange = { usePreset = it },
+                        ),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Checkbox(checked = usePreset, onCheckedChange = null)
                         Text(
                             if (listHidden) "Társoldalak blokkolása is (a mobilos és a rövidített címek)"
                             else "Társoldalak blokkolása is (pl. youtu.be, m.youtube.com)",
@@ -1696,17 +1708,32 @@ private fun ScheduleDialog(
                     ScheduleLogic.Mode.SCHEDULED_BLOCK to "Csak a kijelölt sávokban tiltva",
                     ScheduleLogic.Mode.SCHEDULED_ALLOW to "A kijelölt sávokban szabad, egyébként tiltva",
                 )
-                for ((m, label) in modes) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        RadioButton(selected = mode == m, onClick = { mode = m })
-                        Text(label, style = MaterialTheme.typography.bodyMedium)
+                // A választás a SOR: a felolvasó a felirattal együtt mondja
+                // („Mindig tiltva”, választógomb, kijelölve), nem egy név
+                // nélküli kört — és a szövegre koppintva is választ.
+                Column(Modifier.selectableGroup()) {
+                    for ((m, label) in modes) {
+                        Row(
+                            Modifier.fillMaxWidth().selectable(
+                                selected = mode == m, role = Role.RadioButton, onClick = { mode = m },
+                            ),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            RadioButton(selected = mode == m, onClick = null)
+                            Text(label, style = MaterialTheme.typography.bodyMedium)
+                        }
                     }
                 }
                 if (mode != ScheduleLogic.Mode.ALWAYS) {
                     Text("Sávok:", style = MaterialTheme.typography.bodySmall)
                     rows.first.forEachIndexed { i, row ->
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Checkbox(checked = checked[i], onCheckedChange = { on -> checked[i] = on })
+                        Row(
+                            Modifier.fillMaxWidth().toggleable(
+                                value = checked[i], role = Role.Checkbox, onValueChange = { on -> checked[i] = on },
+                            ),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Checkbox(checked = checked[i], onCheckedChange = null)
                             Text(row.label, style = MaterialTheme.typography.bodyMedium)
                         }
                     }
@@ -2308,11 +2335,19 @@ private fun LockdownWindowDialog(
                 for ((label, key, band) in SCHEDULE_PRESETS) {
                     if (existing != null) break
                     val already = LockdownLogic.windowKey(band) in have
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        Modifier.fillMaxWidth().toggleable(
+                            value = already || selected.contains(key),
+                            enabled = !already,
+                            role = Role.Checkbox,
+                            onValueChange = { on -> if (on) selected.add(key) else selected.remove(key) },
+                        ),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
                         Checkbox(
                             checked = already || selected.contains(key),
                             enabled = !already,
-                            onCheckedChange = { on -> if (on) selected.add(key) else selected.remove(key) },
+                            onCheckedChange = null,
                         )
                         Text(
                             if (already) "$label — már felvéve" else label,

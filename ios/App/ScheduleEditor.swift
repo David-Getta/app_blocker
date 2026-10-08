@@ -103,6 +103,12 @@ struct ScheduleEditor: View {
                                 }
                                 .buttonStyle(.bordered)
                                 .tint(customDays.contains(d) ? Color.accentColor : Color.secondary)
+                                // A kiválasztás ne csak színből derüljön ki: a VoiceOver a teljes
+                                // napot mondja, és hogy ki van-e jelölve; hangvezérléssel a látható
+                                // rövidítés („Sze”) is megnyomja.
+                                .accessibilityLabel(FilterHitLogic.weekdayNames[d])
+                                .accessibilityInputLabels([dayNames[d], FilterHitLogic.weekdayNames[d]])
+                                .accessibilityAddTraits(customDays.contains(d) ? .isSelected : [])
                             }
                         }
                         DatePicker("Kezdés", selection: $customStart, displayedComponents: .hourAndMinute)
