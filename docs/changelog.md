@@ -8,6 +8,7 @@ kettővel korábbiban.
 
 | Verzió | Nap | Mi újság |
 |---|---|---|
+| v0.4.228 | 2026-10-08 | a futó menetet csak a nyoma állítja le |
 | v0.4.227 | 2026-10-08 | Windows-csatorna, négy kiskapu zárva |
 | v0.4.226 | 2026-10-07 | adag-sáv, óraátállítás, Android időmező |
 | v0.4.225 | 2026-10-07 | pontosabb előjelzések, négy javítás |
