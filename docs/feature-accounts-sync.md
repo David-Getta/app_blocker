@@ -124,6 +124,19 @@ adag-szabály — MEZŐNKÉNT fésülődik, nem rekordonként:
   de itt már esedékes, az a fésülés előtt sírkő lesz — a fiókban maradt,
   frissítés előtti kifizetett törlés is. Legfeljebb 64 sírkő utazik, a
   legkésőbbi határidejűek.
+- **Ugyanaz a domain két azonosítóval egy sorba olvad — az újabban felvett
+  azonosítóval.** Ha ugyanazt az oldalt két eszközön külön vetted fel, mielőtt
+  a kettő találkozott, a fésülés egy sorba vonja: különben a hosts fájlban
+  kétszer állna, és az egyik feloldása azt hitetné, hogy feloldottad. A két
+  rekord mezőnként úgy fésülődik, mintha egy rekord két másolata volna, a
+  hosztnevek egyesülnek. A megmaradó azonosító az ÚJABBAN felvetté — a sort
+  így csak a saját sírköve viheti el. Eddig a régebbi maradt, és egy régi
+  törlés, ami hálózat nélkül ment végig és csak később ért át, az újra
+  felvett oldalt is elvitte, ha egy elavult eszköz addigra a kettőt egybe
+  vonta. Annak az eszköznek, amelyik a régebbit ismerte, a sora az új
+  azonosítót és felvételi dátumot kapja; ami nála azonosító szerint állt — a
+  kifizetett szünet, az adag-számláló, a mai betelések, a próbatétel
+  adóssága —, az vele megy, a szigorúbb marad.
 - **A hosztnevek nevenként fésülődnek, jelekkel.** Az oldal névlistája a
   tiltás része (ezek a nevek mennek a hosts fájlba); egy név levétele
   próbatétel, a felvétele ingyen. Mindkettő JELET kap: a rekord `rev`-jét,
@@ -327,6 +340,24 @@ ugyanaz a két menetrend máshogy fésülődne a két gépen — a szinkron sose
   újra felvett, azonos domainű oldalt a régi, kifizetett kéréssel együtt
   törölhet — nála, a frissített eszközökön nem. **Frissíts minden
   eszközt.**
+- **Az összevonás sorrendje.** Az összevonás a beolvasztott azonosítót
+  eldobja. Ahol egy domainre két azonosító szól, és valamelyiknek sírköve
+  van, ott az eredmény attól függhet, hogy a kettő a sírkő előtt vagy után
+  vonódott össze — három eszköz más sorrendben más listára juthat (a
+  kiszolgálón át futó szinkron ettől még néhány kör alatt megáll, minden
+  eszközön ugyanazzal). Ilyenkor is áll: a legújabban felvett példányt csak a
+  saját sírköve viheti el. A régebbit viszont, ha addigra beleolvadt, az
+  újabb kifizetett törlése is — ezt a törlést a legújabb felvétel után
+  kérték, tehát mindkettő után. Egy régóta nem szinkronizált eszköz a
+  beolvasztott régi példányt később visszahozhatja: akkor az oldal újra
+  tilt, és még egyszer törölni kell. Ahol nincs ilyen pár, ott a sorrend nem
+  számít; mindhármat a véletlen-teszt őrzi (`list-fuzz.test.ts`).
+- **Az összevont két felvétel egy rekord két másolataként fésülődik.** Ha az
+  egyik felvételen több a kifizetett lazítás egy mezőn (egy lazább
+  menetrend, egy levett név), az összevont sorra is az áll; ha az egyik
+  törlésre vár, a másikon pedig nem volt kérés, az összevont sor is törlésre
+  vár — egy kattintással visszavonható. Egy épp futó próbatétel a
+  beolvasztott azonosítóra szólt: a teljesítése nem hat, újra kell kezdeni.
 
 A **statisztika** ennél egyszerűbb: eszközönként, naponként, célpontonként áll
 össze, ütközés nincs. Minden eszköz csak a SAJÁT napjait tölti fel, és a többiét

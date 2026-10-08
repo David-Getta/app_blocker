@@ -678,8 +678,12 @@ enum SyncMerge {
     ///
     /// A végigment törlés HALOTT rekordként marad (`isGone`): azonosító szerint
     /// ugyanúgy fésülődik, mint az élők, csak utána dől el, melyik él. A domain
-    /// szerinti összevonás csak az élőkre áll; a halottak a végén, plafonnal
-    /// (`maxGoneSites`). A merge.ts tükre.
+    /// szerinti összevonás csak az élőkre áll, és az ÚJABBAN felvett
+    /// azonosítót tartja meg (`foldInto`); a halottak a végén, plafonnal
+    /// (`maxGoneSites`). Kimondott korlát: ahol egy domainre két azonosító
+    /// szól, és valamelyiknek sírköve van, az eredmény a sorrendtől függhet — a
+    /// legújabban felvett példányt ilyenkor is csak a saját sírköve viheti el.
+    /// A merge.ts tükre.
     static func mergeLists(_ local: [SyncSite], _ incoming: [SyncSite]) -> [SyncSite] {
         var byId: [String: SyncSite] = [:]
         for s in local { byId[s.id] = s }
@@ -692,22 +696,45 @@ enum SyncMerge {
         // felhasználó azt hinné, feloldotta.
         var byDomain: [String: SyncSite] = [:]
         for s in byId.values.filter({ !isGone($0) }).sorted(by: sortKey) {
-            guard let mine = byDomain[s.domain] else { byDomain[s.domain] = s; continue }
-            let keep = mine.addedAt <= s.addedAt ? mine : s
-            let dropOriginal = keep.id == mine.id ? s : mine
-            var drop = dropOriginal
-            drop.id = keep.id
-            var merged = mergeSite(keep, drop)
-            merged.id = keep.id
-            merged.addedAt = min(keep.addedAt, dropOriginal.addedAt)
-            // A hosztneveket EGYESÍTJÜK: az egyesítés a szigorúbb. Csak a JEL
-            // NÉLKÜLI nevekre: a jelesről a mergeSite már döntött.
-            let marks = merged.hostnameMarks ?? [:]
-            let extra = (keep.hostnames + dropOriginal.hostnames).filter { marks[$0] == nil }
-            merged.hostnames = Array(Set(merged.hostnames + extra)).sorted()
-            byDomain[s.domain] = merged
+            // A rendezés miatt `s` az újabban felvett: az ő azonosítója marad.
+            byDomain[s.domain] = byDomain[s.domain].map { foldInto(s, $0) } ?? s
         }
         return byDomain.values.sorted(by: sortKey) + gone.sorted(by: sortKey)
+    }
+
+    /// Egy MÁSIK azonosítójú, ugyanolyan domainű rekord beolvasztása — az
+    /// ÚJABBAN felvett azonosító marad (`keep`): az összevont sort így csak a
+    /// saját sírköve viheti el, egy régi, később átért törlés nem. A mezők a
+    /// `mergeSite` szabályával fésülődnek, mintha egy rekord két másolata
+    /// volna; a felvétel ideje a megtartotté; a JEL NÉLKÜLI hosztneveket
+    /// egyesítjük (a jelesről a `mergeSite` már döntött). A merge.ts
+    /// `foldInto` tükre.
+    private static func foldInto(_ keep: SyncSite, _ dropOriginal: SyncSite) -> SyncSite {
+        var drop = dropOriginal
+        drop.id = keep.id
+        var merged = mergeSite(keep, drop)
+        merged.id = keep.id
+        merged.addedAt = keep.addedAt
+        let marks = merged.hostnameMarks ?? [:]
+        let extra = (keep.hostnames + dropOriginal.hostnames).filter { marks[$0] == nil }
+        merged.hostnames = Array(Set(merged.hostnames + extra)).sorted()
+        return merged
+    }
+
+    /// Az összevonás nyoma EZEN az eszközön: melyik helyi azonosító olvadt
+    /// bele egy másikba (régi → új). Ami a helyi listán állt, a fésült listán
+    /// nincs, miközben ugyanarra a domainre ott él egy másik azonosító, az
+    /// beleolvadt — a hívó ezzel viszi át, ami nála azonosító szerint állt
+    /// (szünet, a próbatétel adóssága). A merge.ts `foldedIds` tükre.
+    static func foldedIds(_ local: [(id: String, domain: String)], _ merged: [SyncSite]) -> [String: String] {
+        let ids = Set(merged.map { $0.id })
+        var liveByDomain: [String: String] = [:]
+        for s in merged where !isGone(s) { liveByDomain[s.domain] = s.id }
+        var out: [String: String] = [:]
+        for l in local {
+            if let into = liveByDomain[l.domain], !ids.contains(l.id) { out[l.id] = into }
+        }
+        return out
     }
 
     /// Stabil sorrend: minden eszközön ugyanaz a lista, ugyanabban a sorrendben.

@@ -191,7 +191,8 @@ class SyncMergeTest {
             hostnames = listOf("youtube.com", "youtu.be", "m.youtube.com"))
         val m = SyncMerge.mergeLists(listOf(a), listOf(b))
         assertEquals(1, m.size, "két sor ugyanarról az oldalról félrevezető lenne")
-        assertEquals("a", m[0].id, "a régebbi azonosító marad")
+        assertEquals("b", m[0].id, "az újabban felvett azonosító marad — a régi törlés sírköve így nem viheti el")
+        assertEquals(2_000, m[0].addedAt, "a felvétel ideje is az övé")
         assertEquals(listOf("m.youtube.com", "youtu.be", "youtube.com"), m[0].hostnames,
             "a hosztnevek egyesülnek: az egyesítés a szigorúbb")
     }

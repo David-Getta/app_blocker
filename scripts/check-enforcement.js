@@ -3808,6 +3808,61 @@ const WIRES = [
     needle: 'const split = splitMerged(merged, localIds, now);',
     lost: 'a fésült sírkövek a tiltólistára kerülnének — a törölt oldal minden körben visszajönne',
   },
+  // A DOMAIN SZERINTI ÖSSZEVONÁS az újabban felvett azonosítót tartja — a
+  // régi, később átért törlés így nem viszi el az újra felvett oldalt. Ha a
+  // sorrend megfordul, semmi nem hasal el, csak a sírkő megint elvinné. És
+  // ahol a sor egy másik azonosítóba olvadt, a helyi állapota vele megy:
+  // különben egy futó hűtés ingyen leesne, a kifizetett szünet elveszne.
+  {
+    file: 'desktop/src/shared/sync/merge.ts',
+    needle: 'byDomain.set(s.domain, mine ? foldInto(s, mine) : s);',
+    lost: 'az összevonás a régebbi azonosítót tartaná — egy később átért régi törlés az újra felvett oldalt is vinné',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/SyncMerge.kt',
+    needle: 'byDomain[s.domain] = if (mine == null) s else foldInto(s, mine)',
+    lost: 'a telefonon az összevonás a régebbi azonosítót tartaná — egy régi törlés az újra felvett oldalt is vinné',
+  },
+  {
+    file: 'ios/Shared/SyncMerge.swift',
+    needle: 'byDomain[s.domain] = byDomain[s.domain].map { foldInto(s, $0) } ?? s',
+    lost: 'az iPhone-on az összevonás a régebbi azonosítót tartaná — egy régi törlés az újra felvett oldalt is vinné',
+  },
+  {
+    file: 'desktop/src/helper/sync-client.ts',
+    needle: 'const folded = foldedIds(state.sites, merged);',
+    lost: 'a gép nem tudná, melyik sora olvadt egy másik azonosítóba — a hűtése és a szünete elveszne',
+  },
+  {
+    file: 'desktop/src/helper/sync-client.ts',
+    needle: 'carryFolded(state, folded);',
+    lost: 'az összevont sor adag-számlálója és próbatétel-adóssága tiszta lappal indulna — egy futó hűtés ingyen leesne',
+  },
+  {
+    file: 'desktop/src/helper/sync-client.ts',
+    needle: 'state.sites = fromSyncSites(split.sites, state.sites, folded);',
+    lost: 'az összevont sor elvesztené a kifizetett szünetét',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/SyncClient.kt',
+    needle: 'current = carryFolded(current, folded).copy(',
+    lost: 'a telefonon az összevont sor adag-számlálója tiszta lappal indulna — egy futó hűtés ingyen leesne',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/SyncClient.kt',
+    needle: 'sites = fromSyncSites(split.sites, current.sites, folded),',
+    lost: 'a telefonon az összevont sor elvesztené a kifizetett szünetét',
+  },
+  {
+    file: 'ios/Shared/SyncClient.swift',
+    needle: 'carryFolded(&current, folded)',
+    lost: 'az iPhone-on az összevont sor próbatétel-adóssága elveszne — a feladott próbatétel újrasorsolható lenne',
+  },
+  {
+    file: 'ios/Shared/SyncClient.swift',
+    needle: 'current.sites = fromSyncSites(split.sites, current.sites, folded)',
+    lost: 'az iPhone-on az összevont sor elvesztené a kifizetett szünetét',
+  },
   // AZ ABLAKOS CSOMAG OSZTÁLYA: a kifizetett ablak-lazítás számlálója és a
   // győztes osztály saját jele. A logika a fésülésben van; ha a bíró nem
   // bélyegez, vagy a kör nem viszi fel őket, semmi nem hasal el — csak egy

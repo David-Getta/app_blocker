@@ -615,12 +615,22 @@ export function capGone<T extends { id: string; pendingDeleteAt: number | null }
  * azonosító szerint ugyanúgy fésülődik, mint az élők — ezért egy régi, a
  * kérést sem látott eszköz rekordja vele fésülődve szintén halott lesz, és
  * nem támasztja fel az oldalt. Előbb minden rekord azonosító szerint
- * fésülődik, élő és halott együtt; csak utána dől el, melyik él — így a
- * sorrend nem számít. A domain szerinti összevonás csak az élőkre áll (egy
- * újra felvett oldal ne haljon meg a régi azonosító sírkövétől), a halottak
- * plafonja `MAX_GONE_SITES` (a legkésőbbi határidejűek). A halott rekord a
- * dróton rendes rekord: egy frissítés előtti kliens végigment törlésnek látja
- * (lejárt határidő), ahogy eddig.
+ * fésülődik, élő és halott együtt; csak utána dől el, melyik él — azonosítónként
+ * így a sorrend nem számít. A domain szerinti összevonás csak az élőkre áll (egy
+ * újra felvett oldal ne haljon meg a régi azonosító sírkövétől), és az ÚJABBAN
+ * felvett azonosítót tartja meg (`foldInto`). A halottak plafonja
+ * `MAX_GONE_SITES` (a legkésőbbi határidejűek). A halott rekord a dróton rendes
+ * rekord: egy frissítés előtti kliens végigment törlésnek látja (lejárt
+ * határidő), ahogy eddig.
+ *
+ * KIMONDOTT KORLÁT: az összevonás a beolvasztott azonosítót eldobja. Ahol egy
+ * domainre két azonosító szól, és valamelyiknek sírköve van, ott az eredmény
+ * attól függhet, hogy a kettő a sírkő előtt vagy után vonódott össze — három
+ * eszköz más sorrendben más listára juthat. Ilyenkor is áll, hogy a domain
+ * legújabban felvett példányát csak a saját sírköve viheti el; a régebbit
+ * viszont, ha addigra beleolvadt, az újabb kifizetett törlése is. Ahol nincs
+ * ilyen pár, ott három eszköz bármilyen sorrendben ugyanoda jut. Mindhármat a
+ * véletlen-teszt őrzi (`list-fuzz.test.ts`).
  */
 export function mergeSiteLists(local: SyncSite[], incoming: SyncSite[]): SyncSite[] {
   const byId = new Map<string, SyncSite>();
@@ -637,27 +647,72 @@ export function mergeSiteLists(local: SyncSite[], incoming: SyncSite[]): SyncSit
   const byDomain = new Map<string, SyncSite>();
   for (const s of [...byId.values()].filter((x) => !isGone(x)).sort(bySortKey)) {
     const mine = byDomain.get(s.domain);
-    if (!mine) { byDomain.set(s.domain, s); continue; }
-    // A régebben felvett azonosítót tartjuk meg: arra hivatkozhat egy futó
-    // próbatétel a másik eszközön.
-    const keep = mine.addedAt <= s.addedAt ? mine : s;
-    const drop = keep === mine ? s : mine;
-    const merged = mergeSite({ ...keep }, { ...drop, id: keep.id });
-    // A hosztneveket EGYESÍTJÜK, nem választunk: ha az egyik eszközön a
-    // társoldalak is fel voltak véve, a másikon meg nem, akkor az egyesítés
-    // a szigorúbb — és pont az kell. Csak a JEL NÉLKÜLI nevekre: a jeles
-    // névről a `mergeSite` már döntött, az egyesítés nem hozhatja vissza a
-    // kifizetett levételt.
-    const marks = merged.hostnameMarks ?? {};
-    const extra = [...keep.hostnames, ...drop.hostnames].filter((h) => !(h in marks));
-    byDomain.set(s.domain, {
-      ...merged,
-      id: keep.id,
-      addedAt: Math.min(keep.addedAt, drop.addedAt),
-      hostnames: [...new Set([...merged.hostnames, ...extra])].sort(),
-    });
+    // A rendezés miatt `s` az újabban felvett: az ő azonosítója marad.
+    byDomain.set(s.domain, mine ? foldInto(s, mine) : s);
   }
   return [...[...byDomain.values()].sort(bySortKey), ...gone.sort(bySortKey)];
+}
+
+/**
+ * Egy MÁSIK azonosítójú, ugyanolyan domainű rekord beolvasztása — a domain
+ * szerinti összevonás egy lépése. Az ÚJABBAN felvett azonosító marad (`keep`).
+ *
+ * Miért az újabb. Az összevont sort csak a megtartott azonosító sírköve
+ * viheti el: a beolvasztotté később már nem talál rá. Eddig a régebbi
+ * maradt, és egy régi törlés — ami hálózat nélkül ment végig, és csak
+ * később ért át — az újra felvett oldalt is magával vitte, ha egy elavult
+ * eszköz addigra a kettőt egybe fésülte. Most a legújabban felvett példányt
+ * csak a SAJÁT, kifizetett törlése viheti el; azt pedig valaki a felvétele
+ * után kérte, vagyis a régebbi felvételek után is. (Az ára: annak az
+ * eszköznek, amelyik a régebbit ismerte, a sora az új azonosítót és felvételi
+ * időt kapja; ami nála azonosító szerint állt — szünet, adag-számláló, a
+ * próbatétel adóssága —, azt a hívó viszi át, lásd `foldedIds`.)
+ *
+ * A mezők a `mergeSite` szabályával fésülődnek, mintha egy rekord két
+ * másolata volna — így a lista fésülése sírkövek nélkül sorrendfüggetlen.
+ * A felvétel ideje a megtartotté: a következő összevonás ebből tudja, melyik
+ * az újabb. A JEL NÉLKÜLI hosztneveket egyesítjük: azokról a `mergeSite` a
+ * frissebb rekord szerint döntene, itt viszont mindkét felvétel nevei
+ * tiltanak — az egyesítés a szigorúbb. A Kotlin- és a Swift-tükör ugyanezt
+ * teszi.
+ */
+function foldInto(keep: SyncSite, drop: SyncSite): SyncSite {
+  const merged = mergeSite({ ...keep }, { ...drop, id: keep.id });
+  const marks = merged.hostnameMarks ?? {};
+  const extra = [...keep.hostnames, ...drop.hostnames].filter((h) => !(h in marks));
+  return {
+    ...merged,
+    id: keep.id,
+    addedAt: keep.addedAt,
+    hostnames: [...new Set([...merged.hostnames, ...extra])].sort(),
+  };
+}
+
+/**
+ * Az összevonás nyoma EZEN az eszközön: melyik helyi azonosító olvadt bele
+ * egy másikba (régi → új).
+ *
+ * Ami a helyi listán állt, a fésült listán viszont nincs, miközben ugyanarra
+ * a domainre ott él egy másik azonosító, az beleolvadt (`foldInto`). A sor
+ * ugyanaz maradt, csak más azonosítót visel — ezért a hívó ezzel viszi át,
+ * ami nála azonosító szerint állt: a kifizetett szünetet, az adag-számlálót,
+ * a próbatétel adósságát. Különben az összevonás egy futó hűtést ingyen
+ * levenne, egy kifizetett szünetet pedig elvenne. A futó próbatétel NEM
+ * megy át: a beolvasztott sor más tartalmú lehet, mint amire a próbatételt
+ * kérték. A Kotlin- és a Swift-tükör ugyanezt teszi.
+ */
+export function foldedIds(
+  local: readonly { id: string; domain: string }[], merged: readonly SyncSite[],
+): Map<string, string> {
+  const ids = new Set(merged.map((s) => s.id));
+  const liveByDomain = new Map<string, string>();
+  for (const s of merged) if (!isGone(s)) liveByDomain.set(s.domain, s.id);
+  const out = new Map<string, string>();
+  for (const l of local) {
+    const into = liveByDomain.get(l.domain);
+    if (!ids.has(l.id) && into !== undefined) out.set(l.id, into);
+  }
+  return out;
 }
 
 /** Stabil sorrend: minden eszközön ugyanaz a lista, ugyanabban a sorrendben. */

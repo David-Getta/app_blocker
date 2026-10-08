@@ -213,7 +213,8 @@ function buildFixture(): Fixture {
     if (ans.merged.some((k) => k.includes('|dead|') && ans.sites.includes(k.split('|')[0]))) seenList.deadKept = true;
     if (ans.merged.length > ans.sites.length + ans.gone.length) seenList.dropped = true;
     if (ans.settled.some((k, i) => k !== listConformanceKey([lc.c[i]])[0])) seenList.buried = true;
-    if (!ans.merged.some((k) => k.startsWith('s3|')) && [lc.a, lc.b, lc.c].some((l) => l.some((x) => x.id === 's3'))) {
+    // Az összevonás az újabban felvett azonosítót tartja: az s1 olvad az s3-ba.
+    if (!ans.merged.some((k) => k.startsWith('s1|')) && [lc.a, lc.b, lc.c].some((l) => l.some((x) => x.id === 's1'))) {
       seenList.folded = true;
     }
     lists.push({ seed, ...lc, ...ans });
@@ -428,7 +429,8 @@ function buildFixture(): Fixture {
       + 'a now mezője a fésülés időpontja (a jövőben véget ért naplósor nem zár le menetet). '
       + 'A sites-esetek flip/what/af/fa mezője: egy mező cseréje, és a fésülés mindkét sorrendben. '
       + 'A lists-esetek: három eszköz listája (a, b, c), a helyi azonosítók (local) és az időpont (now) — a fésült lista '
-      + 'kulcsa (merged: a×b, utána ×c, a kanonikus sorrendben), a c előkészítése (settled: az esedékes idegen rekord sírkő), '
+      + 'kulcsa (merged: a×b, utána ×c, a kanonikus sorrendben; két élő, azonos domainű azonosítóból az újabban felvett marad), '
+      + 'a c előkészítése (settled: az esedékes idegen rekord sírkő), '
       + 'és a fésült lista szétosztása (sites: ami tilt, gone: ami sírkő). A 0-s mag a sírkövek plafonja. '
       + 'A usage-esetek: három eszköz mérése, az egyesítés kulcsa, és az összegző (summary) a now időpontban: ma, tegnap, hét, hónap, '
       + 'toplisták (kulcs=címke=mp, holtversenyben a kulcs dönt), a hét az előző héthez (ez/múlt/századszázalék), napok. '
@@ -442,7 +444,7 @@ function buildFixture(): Fixture {
       + 'lazítás, élő ablak, megkövetelt zárlat, ablak-zárlat-e, közelgő ablak, a következő előfordulás (nextOcc). '
       + 'A focusLogs-esetek: napló és időpont (UTC) — a hét és az előző hét összegzője (menet/ms/korai/ablakból/csúcs-csomag), '
       + 'menet-napok, menet-órák, sorozat, leghosszabb sorozat, ablakból indult menetek csomagonként, a napi rajz.',
-    version: 23,
+    version: 24,
     sites,
     lists,
     focus,

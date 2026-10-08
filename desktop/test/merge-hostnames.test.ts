@@ -117,9 +117,9 @@ test('a jelek plafonja egy szabály: a jelen lévő nevek jele marad, a levettek
 });
 
 test('azonos domain két azonosítóval: az egyesítés csak a jel nélküli nevekre — a jeles levétel áll', () => {
-  const keep = site({ id: 'site_old', addedAt: 1_000, hostnames: ['youtube.com'], hostnameMarks: { 'music.youtube.com': 5 }, rev: 5 });
-  const drop = site({ id: 'site_new', addedAt: 2_000, hostnames: ['m.youtube.com', 'music.youtube.com', 'youtube.com'], rev: 1, updatedBy: 'b' });
-  const [m] = mergeSiteLists([keep], [drop]);
-  assert.equal(m.id, 'site_old');
+  const old = site({ id: 'site_old', addedAt: 1_000, hostnames: ['youtube.com'], hostnameMarks: { 'music.youtube.com': 5 }, rev: 5 });
+  const fresh = site({ id: 'site_new', addedAt: 2_000, hostnames: ['m.youtube.com', 'music.youtube.com', 'youtube.com'], rev: 1, updatedBy: 'b' });
+  const [m] = mergeSiteLists([old], [fresh]);
+  assert.equal(m.id, 'site_new', 'az újabban felvett azonosító marad');
   assert.deepEqual(m.hostnames, ['m.youtube.com', 'youtube.com'], 'a jel nélküli m. bekerül, a jeles music. nem jön vissza');
 });

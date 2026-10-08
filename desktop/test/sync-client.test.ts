@@ -1070,6 +1070,64 @@ test('a fiókban maradt kifizetett törlés sírkő lesz, és az újra felvett, 
   assert.deepEqual(p.sites.map((s) => [s.id, s.pendingDeleteAt]), [['site_new', null]], 'a harmadik eszközön is');
 });
 
+test('a hálózat nélkül végigment régi törlés az újra felvett oldalt egy elavult eszközön át sem viszi el', async () => {
+  // A laptopon a törlés hálózat nélkül ment végig. Közben egy új telefonon
+  // ugyanazt a domaint felvették, és belépéskor a fiók régi, még élő
+  // rekordjával egybe vonódott; egy harmadik, elavult gép is átvette. Eddig a
+  // régebbi azonosító maradt, és amikor a laptop sírköve átért, a telefonon
+  // felvett tiltást is elvitte. Most az újabban felvett azonosító marad.
+  const acc = 'osszevonas-sirko@example';
+  const laptop = device([site({ id: 'site_old', domain: 'tiktok.com', hostnames: ['tiktok.com'], addedAt: 1_000 })]);
+  await signUp(laptop, url, acc, PASSWORD, 'Laptop');
+  await syncNow(laptop, 2_000);
+  const stale = device();
+  await signIn(stale, url, acc, PASSWORD, 'Régi gép');
+  await syncNow(stale, 3_000);
+  requestDelete(laptop, 'site_old', 10_000);
+  assert.equal(tick(laptop, 11_000), true, 'a törlés hálózat nélkül végigment');
+
+  const phone = device([site({ id: 'site_new', domain: 'tiktok.com', hostnames: ['tiktok.com'], addedAt: 20_000 })]);
+  await signIn(phone, url, acc, PASSWORD, 'Telefon');
+  await syncNow(phone, 21_000);
+  assert.deepEqual(phone.sites.map((x) => x.id), ['site_new'], 'egybe vonódott — az újabb azonosítóval');
+  await syncNow(stale, 22_000);
+  assert.deepEqual(stale.sites.map((x) => x.id), ['site_new'], 'az elavult gépen is');
+
+  await syncNow(laptop, 23_000);
+  for (const [name, d] of [['laptop', laptop], ['régi gép', stale], ['telefon', phone]] as const) {
+    await syncNow(d, 24_000);
+    assert.deepEqual(d.sites.map((x) => [x.id, x.pendingDeleteAt]), [['site_new', null]], `${name}: az újra felvett tiltás él`);
+  }
+  assert.deepEqual(laptop.goneSites?.map((g) => g.id), ['site_old'], 'a régi törlés sírköve marad');
+});
+
+test('ahol a sor egy másik azonosítóba olvadt, a helyi állapota vele megy: szünet, hűtés, adósság', async () => {
+  // A régóta használt gépen a sor a régi azonosítót viselte; egy új eszközön
+  // ugyanazt a domaint külön felvették, és az összevonás az újabb azonosítót
+  // tartja. A gép kifizetett szünete, futó hűtése és a feladott próbatétel
+  // adóssága nem veszhet el attól, hogy a sor átneveződött.
+  const acc = 'osszevonas-helyi@example';
+  const a = device([site({ id: 'site_a', domain: 'reddit.com', hostnames: ['reddit.com'], addedAt: 1_000, pauseUntil: 9_999_000 })]);
+  a.bursts = { site_a: { usedSeconds: 300, lastAt: 5_000, cooldownUntil: 9_000_000 } };
+  a.burstTrips = { site_a: { day: '2026-10-08', count: 2 } };
+  a.burstTripLog = { site_a: { '2026-10-08': 2 } };
+  a.abandons = [{ siteId: 'site_a', kind: 'pause', comboKey: 'TYPE+MATH', at: 4_000 }];
+  await signUp(a, url, acc, PASSWORD, 'Munkagép');
+  await syncNow(a, 6_000);
+
+  const b = device([site({ id: 'site_b', domain: 'reddit.com', hostnames: ['reddit.com', 'old.reddit.com'], addedAt: 7_000 })]);
+  await signIn(b, url, acc, PASSWORD, 'Telefon');
+  await syncNow(b, 8_000);
+  await syncNow(a, 9_000);
+  assert.deepEqual(a.sites.map((x) => x.id), ['site_b'], 'egy sor, az újabb azonosítóval');
+  assert.deepEqual(a.sites[0].hostnames, ['old.reddit.com', 'reddit.com'], 'a két felvétel nevei együtt tiltanak');
+  assert.equal(a.sites[0].pauseUntil, 9_999_000, 'a kifizetett szünet megmarad');
+  assert.deepEqual(a.bursts, { site_b: { usedSeconds: 300, lastAt: 5_000, cooldownUntil: 9_000_000 } }, 'a futó hűtés nem esik le');
+  assert.deepEqual(a.burstTrips, { site_b: { day: '2026-10-08', count: 2 } });
+  assert.deepEqual(a.burstTripLog, { site_b: { '2026-10-08': 2 } });
+  assert.deepEqual(a.abandons, [{ siteId: 'site_b', kind: 'pause', comboKey: 'TYPE+MATH', at: 4_000 }], 'az adósság sem');
+});
+
 test('a máshol végigment törlés itt a saját határidőig tilt', async () => {
   // Egy előreállított óra így nem viszi szét a korai törlést: minden eszköz a
   // saját órája szerint hajtja végre.

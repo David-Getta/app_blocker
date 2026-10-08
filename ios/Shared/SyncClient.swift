@@ -188,14 +188,19 @@ enum SyncClient {
         }
     }
 
-    private static func fromSyncSites(_ merged: [SyncMerge.SyncSite], _ local: [Site]) -> [Site] {
+    private static func fromSyncSites(
+        _ merged: [SyncMerge.SyncSite], _ local: [Site], _ folded: [String: String] = [:]
+    ) -> [Site] {
         var byId: [String: Site] = [:]
         for s in local { byId[s.id] = s }
+        var foldedFrom: [String: String] = [:]
+        for (from, to) in folded { foldedFrom[to] = from }
         return merged.map { m in
             var out = Site(
                 id: m.id, domain: m.domain, hostnames: m.hostnames, addedAt: m.addedAt,
-                // A szünet a HELYI marad: se fel nem megy, se felül nem íródik.
-                pauseUntil: byId[m.id]?.pauseUntil,
+                // A szünet a HELYI marad: se fel nem megy, se felül nem íródik
+                // — akkor sem, ha a sor közben egy másik azonosítóba olvadt.
+                pauseUntil: byId[m.id]?.pauseUntil ?? foldedFrom[m.id].flatMap { byId[$0]?.pauseUntil },
                 pendingDeleteAt: m.pendingDeleteAt,
                 schedule: m.schedule, alias: m.alias, reason: m.reason,
                 dailyLimitSeconds: m.dailyLimitSeconds,
@@ -215,6 +220,23 @@ enum SyncClient {
             out.goneLoosens = m.goneLoosens
             out.revFp = SyncRevisions.fingerprint(out)
             return out
+        }
+    }
+
+    /// Az összevonás után az azonosító szerint tárolt HELYI állapot az új
+    /// azonosítóra kerül (`SyncMerge.foldedIds`: régi → új): a próbatétel
+    /// adóssága — különben egy feladott próbatétel újrasorsolható lenne. Ha az
+    /// újon már áll adósság, a frissebb marad. A szünetet a `fromSyncSites`
+    /// viszi; adag-számláló itt nincs (az iPhone nem mér előteret). A gép
+    /// `carryFolded` tükre.
+    static func carryFolded(_ state: inout AppState, _ folded: [String: String]) {
+        for (from, to) in folded {
+            guard var abandons = state.abandons, abandons.contains(where: { $0.siteId == from }) else { continue }
+            let both = abandons.filter { $0.siteId == from || $0.siteId == to }
+            let theirs = both.dropFirst().reduce(both[0]) { $1.at > $0.at ? $1 : $0 }
+            abandons = abandons.filter { $0.siteId != from && $0.siteId != to }
+            abandons.append(AbandonRec(siteId: to, kind: theirs.kind, comboKey: theirs.comboKey, at: theirs.at))
+            state.abandons = abandons
         }
     }
 
@@ -384,7 +406,10 @@ enum SyncClient {
             let split = SyncMerge.splitMerged(merged, localIds, now)
 
             if split.sites != toSyncSites(current.sites) || split.gone != toSyncSites(gone) {
-                current.sites = fromSyncSites(split.sites, current.sites)
+                // Ami itt egy másik azonosítóba olvadt, annak a helyi állapota vele megy.
+                let folded = SyncMerge.foldedIds(current.sites.map { (id: $0.id, domain: $0.domain) }, merged)
+                carryFolded(&current, folded)
+                current.sites = fromSyncSites(split.sites, current.sites, folded)
                 let kept = fromSyncSites(split.gone, gone)
                 current.goneSites = kept.isEmpty ? nil : kept
                 changed = true

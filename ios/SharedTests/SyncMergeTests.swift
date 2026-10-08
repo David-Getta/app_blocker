@@ -119,11 +119,12 @@ final class SyncMergeTests: XCTestCase {
     }
 
     func testSameDomainTwoIdsUnionOnlyUnmarkedNames() {
-        let keep = site(id: "site_old", hostnames: ["youtube.com"], addedAt: 1_000, rev: 5, hostnameMarks: ["music.youtube.com": 5])
-        let drop = site(id: "site_new", hostnames: ["m.youtube.com", "music.youtube.com", "youtube.com"], addedAt: 2_000, rev: 1, updatedBy: "b")
-        let merged = SyncMerge.mergeLists([keep], [drop])
+        let old = site(id: "site_old", hostnames: ["youtube.com"], addedAt: 1_000, rev: 5, hostnameMarks: ["music.youtube.com": 5])
+        let fresh = site(id: "site_new", hostnames: ["m.youtube.com", "music.youtube.com", "youtube.com"], addedAt: 2_000, rev: 1, updatedBy: "b")
+        let merged = SyncMerge.mergeLists([old], [fresh])
         XCTAssertEqual(merged.count, 1)
-        XCTAssertEqual(merged.first?.id, "site_old")
+        XCTAssertEqual(merged.first?.id, "site_new", "az újabban felvett azonosító marad")
+        XCTAssertEqual(merged.first?.addedAt, 2_000, "a felvétel ideje is az övé")
         XCTAssertEqual(merged.first?.hostnames, ["m.youtube.com", "youtube.com"], "a jel nélküli m. bekerül, a jeles music. nem jön vissza")
     }
 

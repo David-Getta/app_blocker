@@ -53,6 +53,51 @@ final class GoneSitesTests: XCTestCase {
         XCTAssertNil(merged[0].pendingDeleteAt)
     }
 
+    func testAnOldTombstoneDoesNotTakeTheReaddedSiteEvenIfAStaleDeviceFoldedThemFirst() {
+        // A gép gone-sites.test.ts-ének párja: egy elavult eszköz a kettőt
+        // egybe fésülte, mielőtt a régi törlés sírköve átért. Az újabban
+        // felvett azonosító marad, tehát bármilyen sorrendben él.
+        let stale = [site("old")]
+        let phone = [site("new", rev: 1, addedAt: 9_000, by: "telefon")]
+        let laptop = [stone("old")]
+        let m = SyncMerge.mergeLists
+        for r in [m(m(stale, phone), laptop), m(m(phone, laptop), stale), m(m(laptop, stale), phone)] {
+            XCTAssertEqual(r.map { $0.id }, ["new", "old"])
+            XCTAssertEqual(r.map { SyncMerge.isGone($0) }, [false, true])
+        }
+    }
+
+    func testStatedLimitTheNewerCopysDeletionTakesTheFoldedOlderOneIfTheFoldCameFirst() {
+        let stale = [site("old")]
+        let phone = [site("new", rev: 1, addedAt: 9_000, by: "telefon")]
+        let phoneDeleted = [site("new", pending: 5_000, del: 1, gone: 1, rev: 2, addedAt: 9_000, by: "telefon")]
+        let m = SyncMerge.mergeLists
+        let foldedFirst = m(m(stale, phone), phoneDeleted)
+        XCTAssertEqual(foldedFirst.map { $0.id }, ["new"])
+        XCTAssertEqual(foldedFirst.map { SyncMerge.isGone($0) }, [true])
+        let stoneFirst = m(stale, m(phone, phoneDeleted))
+        XCTAssertEqual(stoneFirst.map { $0.id }, ["old", "new"])
+        XCTAssertEqual(stoneFirst.map { SyncMerge.isGone($0) }, [false, true])
+    }
+
+    func testTheFoldTraceCarriesTheLocalDebtToTheNewId() {
+        var youtube = site("s3", addedAt: 3_000)
+        youtube.domain = "youtube.com"
+        var reddit = site("s2")
+        reddit.domain = "reddit.com"
+        var gone = stone("s5")
+        gone.domain = "x.com"
+        let folded = SyncMerge.foldedIds(
+            [(id: "s1", domain: "youtube.com"), (id: "s2", domain: "reddit.com"), (id: "s4", domain: "x.com")],
+            [youtube, reddit, gone]
+        )
+        XCTAssertEqual(folded, ["s1": "s3"], "a megmaradt nem olvadt bele semmibe; halottba nem olvad semmi")
+        var state = AppState()
+        state.abandons = [AbandonRec(siteId: "s1", kind: .pause, comboKey: "TYPE+MATH", at: 4_000)]
+        SyncClient.carryFolded(&state, folded)
+        XCTAssertEqual(state.abandons, [AbandonRec(siteId: "s3", kind: .pause, comboKey: "TYPE+MATH", at: 4_000)])
+    }
+
     func testSettleAndSplitLikeTheDesktop() {
         let incoming = [
             site("z", pending: 5_000, del: 1), site("l", pending: 5_000), site("f", pending: 9_000, del: 1),

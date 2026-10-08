@@ -158,7 +158,8 @@ test('the same domain added on two devices becomes one record', () => {
   });
   const m = mergeSiteLists([a], [b]);
   assert.equal(m.length, 1, 'két sor ugyanarról az oldalról félrevezető lenne');
-  assert.equal(m[0].id, 'a', 'a régebbi azonosító marad — arra hivatkozhat egy futó próba');
+  assert.equal(m[0].id, 'b', 'az újabban felvett azonosító marad — a régi törlés sírköve így nem viheti el');
+  assert.equal(m[0].addedAt, 2_000, 'a felvétel ideje is az övé: a következő összevonás ebből tudja, melyik az újabb');
   assert.deepEqual(m[0].hostnames, ['m.youtube.com', 'youtu.be', 'youtube.com'],
     'a hosztnevek EGYESÜLNEK: az egyesítés a szigorúbb');
 });

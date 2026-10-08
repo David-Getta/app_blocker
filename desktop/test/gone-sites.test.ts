@@ -116,10 +116,40 @@ test('a fiókban maradt kifizetett törlés sírkőként nem viszi magával az �
   const split = splitMerged(merged, new Set(['n']), now);
   assert.deepEqual(split.sites.map((s) => [s.id, s.pendingDeleteAt]), [['n', null]]);
   assert.deepEqual(split.gone.map((s) => s.id), ['z']);
-  // Előkészítés nélkül a domain szerinti összevonás a régebbi azonosítót
-  // tartaná, a kifizetett kéréssel együtt — az újra felvett oldal is törlődne.
+  // Előkészítés nélkül a domain szerinti összevonás a kettőt egybe venné, és a
+  // több kifizetett törlés-kérés nyerne — az újra felvett oldal is törlődne.
   const naive = mergeSiteLists([readded], [zombie]);
-  assert.deepEqual(naive.map((s) => [s.id, s.pendingDeleteAt]), [['z', 5_000]]);
+  assert.deepEqual(naive.map((s) => [s.id, s.pendingDeleteAt]), [['n', 5_000]]);
+});
+
+test('a hálózat nélkül végigment régi törlés sírköve az újra felvett oldalt akkor sem viszi el, ha egy elavult eszköz előbb összevonta őket', () => {
+  // A régi gépen a törlés hálózat nélkül ment végig; közben egy új telefonon
+  // ugyanazt a domaint újra felvették, és egy harmadik, elavult eszköz — nála
+  // a régi rekord még élt — a kettőt egybe fésülte, mielőtt a sírkő átért.
+  // Eddig a régebbi azonosító maradt, és a sírkő az újra felvett oldalt is
+  // elvitte. Most az újabban felvett azonosító marad: bármilyen sorrendben él.
+  const stale = [site({ id: 'old', addedAt: 1_000 })];
+  const phone = [site({ id: 'new', addedAt: 9_000, rev: 1, updatedBy: 'telefon' })];
+  const laptop = [stone({ id: 'old', addedAt: 1_000 })];
+  const m = mergeSiteLists;
+  for (const r of [m(m(stale, phone), laptop), m(m(phone, laptop), stale), m(m(laptop, stale), phone)]) {
+    assert.deepEqual(r.map((s) => [s.id, isGone(s)]), [['new', false], ['old', true]]);
+  }
+});
+
+test('kimondott korlát: az újabb példány kifizetett törlése a beleolvadt régebbit is viszi — ha az összevonás előbb volt', () => {
+  // A telefon csak az újat látta, és kifizetetten törölte. Ahol a kettő már
+  // egybe olvadt, ott a sírkő az egész sort viszi; ahol a sírkő ért át
+  // előbb, ott a régi felvétel él tovább. A törlést a legújabb felvétel UTÁN
+  // kérték, tehát mindkét felvétel után — ezért ez a lazább ág is vállalható.
+  const stale = [site({ id: 'old', addedAt: 1_000 })];
+  const phone = [site({ id: 'new', addedAt: 9_000, rev: 1, updatedBy: 'telefon' })];
+  const phoneDeleted = [stone({ id: 'new', addedAt: 9_000, rev: 2, updatedBy: 'telefon' })];
+  const m = mergeSiteLists;
+  const foldedFirst = m(m(stale, phone), phoneDeleted);
+  assert.deepEqual(foldedFirst.map((s) => [s.id, isGone(s)]), [['new', true]]);
+  const stoneFirst = m(stale, m(phone, phoneDeleted));
+  assert.deepEqual(stoneFirst.map((s) => [s.id, isGone(s)]), [['old', false], ['new', true]]);
 });
 
 test('szétosztás: a helyi és a még nem esedékes marad, az esedékes halott sírkő, a régi kimarad', () => {

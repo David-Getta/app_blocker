@@ -499,8 +499,12 @@ object SyncMerge {
      *
      * A végigment törlés HALOTT rekordként marad ([isGone]): azonosító szerint
      * ugyanúgy fésülődik, mint az élők, csak utána dől el, melyik él. A domain
-     * szerinti összevonás csak az élőkre áll; a halottak a végén, plafonnal
-     * ([MAX_GONE_SITES]). A merge.ts tükre.
+     * szerinti összevonás csak az élőkre áll, és az ÚJABBAN felvett azonosítót
+     * tartja meg ([foldInto]); a halottak a végén, plafonnal
+     * ([MAX_GONE_SITES]). Kimondott korlát: ahol egy domainre két azonosító
+     * szól, és valamelyiknek sírköve van, az eredmény a sorrendtől függhet — a
+     * legújabban felvett példányt ilyenkor is csak a saját sírköve viheti el.
+     * A merge.ts tükre.
      */
     fun mergeLists(local: List<SyncSite>, incoming: List<SyncSite>): List<SyncSite> {
         val byId = LinkedHashMap<String, SyncSite>()
@@ -516,22 +520,49 @@ object SyncMerge {
         val byDomain = LinkedHashMap<String, SyncSite>()
         for (s in byId.values.filter { !isGone(it) }.sortedWith(SORT)) {
             val mine = byDomain[s.domain]
-            if (mine == null) { byDomain[s.domain] = s; continue }
-            val keep = if (mine.addedAt <= s.addedAt) mine else s
-            val drop = if (keep === mine) s else mine
-            val merged = mergeSite(keep, drop.copy(id = keep.id))
-            // A hosztneveket EGYESÍTJÜK: ha az egyik eszközön a társoldalak
-            // is fel voltak véve, a másikon meg nem, az egyesítés a szigorúbb.
-            // Csak a JEL NÉLKÜLI nevekre: a jelesről a mergeSite már döntött.
-            val marks = merged.hostnameMarks ?: emptyMap()
-            val extra = (keep.hostnames + drop.hostnames).filter { it !in marks }
-            byDomain[s.domain] = merged.copy(
-                id = keep.id,
-                addedAt = minOf(keep.addedAt, drop.addedAt),
-                hostnames = (merged.hostnames + extra).distinct().sorted(),
-            )
+            // A rendezés miatt `s` az újabban felvett: az ő azonosítója marad.
+            byDomain[s.domain] = if (mine == null) s else foldInto(s, mine)
         }
         return byDomain.values.sortedWith(SORT) + gone.sortedWith(SORT)
+    }
+
+    /**
+     * Egy MÁSIK azonosítójú, ugyanolyan domainű rekord beolvasztása — az
+     * ÚJABBAN felvett azonosító marad (`keep`): az összevont sort így csak a
+     * saját sírköve viheti el, egy régi, később átért törlés nem. A mezők a
+     * [mergeSite] szabályával fésülődnek, mintha egy rekord két másolata
+     * volna; a felvétel ideje a megtartotté; a JEL NÉLKÜLI hosztneveket
+     * egyesítjük (a jelesről a [mergeSite] már döntött). A merge.ts
+     * `foldInto` tükre.
+     */
+    private fun foldInto(keep: SyncSite, drop: SyncSite): SyncSite {
+        val merged = mergeSite(keep, drop.copy(id = keep.id))
+        val marks = merged.hostnameMarks ?: emptyMap()
+        val extra = (keep.hostnames + drop.hostnames).filter { it !in marks }
+        return merged.copy(
+            id = keep.id,
+            addedAt = keep.addedAt,
+            hostnames = (merged.hostnames + extra).distinct().sorted(),
+        )
+    }
+
+    /**
+     * Az összevonás nyoma EZEN az eszközön: melyik helyi azonosító olvadt bele
+     * egy másikba (régi → új). Ami a helyi listán állt, a fésült listán nincs,
+     * miközben ugyanarra a domainre ott él egy másik azonosító, az beleolvadt
+     * — a hívó ezzel viszi át, ami nála azonosító szerint állt (szünet,
+     * adag-számláló, a próbatétel adóssága). A merge.ts `foldedIds` tükre.
+     */
+    fun foldedIds(local: List<Pair<String, String>>, merged: List<SyncSite>): Map<String, String> {
+        val ids = merged.map { it.id }.toSet()
+        val liveByDomain = HashMap<String, String>()
+        for (s in merged) if (!isGone(s)) liveByDomain[s.domain] = s.id
+        val out = LinkedHashMap<String, String>()
+        for ((id, domain) in local) {
+            val into = liveByDomain[domain]
+            if (id !in ids && into != null) out[id] = into
+        }
+        return out
     }
 
     /** Stabil sorrend: minden eszközön ugyanaz a lista, ugyanabban a sorrendben. */

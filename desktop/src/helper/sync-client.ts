@@ -24,7 +24,7 @@ import {
   unlockWithPassword, unlockWithRecovery,
 } from '../shared/sync/crypto.js';
 import {
-  capHostnameMarks, mergeSiteLists, ruleKey, settleIncoming, splitMerged, type SyncSite,
+  capHostnameMarks, foldedIds, mergeSiteLists, ruleKey, settleIncoming, splitMerged, type SyncSite,
 } from '../shared/sync/merge.js';
 import { MAX_PAYLOAD_BYTES, SYNC_PROTOCOL } from '../shared/sync/protocol.js';
 import type { HelperState, SiteRec, SyncAccount } from './state';
@@ -332,21 +332,67 @@ function clearBurstUnsynced(state: HelperState): void {
 }
 
 /**
+ * Az összevonás után az azonosító szerint tárolt HELYI állapot az új
+ * azonosítóra kerül (`folded`: régi → új, lásd `foldedIds`): az adag-
+ * számláló, a mai betelések, a betelések könyve és a próbatétel adóssága.
+ * Különben a sor új azonosítója tiszta lappal indulna — egy futó hűtés
+ * ingyen leesne, egy feladott próbatétel újrasorsolható lenne. Ha az új
+ * azonosítón már áll valami, a szigorúbb marad: a később lejáró hűtés, a
+ * több betelés, a frissebb adósság. A szünetet a `fromSyncSites` viszi; a
+ * futó próbatételt semmi: a beolvasztott sor más tartalmú lehet, mint amire
+ * kérték.
+ */
+export function carryFolded(state: HelperState, folded: ReadonlyMap<string, string>): void {
+  for (const [from, to] of folded) {
+    const b = state.bursts?.[from];
+    if (b) {
+      const cur = state.bursts![to];
+      state.bursts![to] = cur
+        ? { usedSeconds: Math.max(cur.usedSeconds, b.usedSeconds), lastAt: Math.max(cur.lastAt, b.lastAt),
+          cooldownUntil: Math.max(cur.cooldownUntil, b.cooldownUntil) }
+        : b;
+      delete state.bursts![from];
+    }
+    const t = state.burstTrips?.[from];
+    if (t) {
+      const cur = state.burstTrips![to];
+      state.burstTrips![to] = !cur || t.day > cur.day ? t
+        : t.day === cur.day ? { day: t.day, count: Math.max(t.count, cur.count) } : cur;
+      delete state.burstTrips![from];
+    }
+    const log = state.burstTripLog?.[from];
+    if (log) {
+      const cur = { ...(state.burstTripLog![to] ?? {}) };
+      for (const [day, n] of Object.entries(log)) cur[day] = Math.max(cur[day] ?? 0, n);
+      state.burstTripLog![to] = cur;
+      delete state.burstTripLog![from];
+    }
+    if (state.abandons?.some((a) => a.siteId === from)) {
+      const theirs = state.abandons.filter((a) => a.siteId === from || a.siteId === to)
+        .sort((x, y) => y.at - x.at)[0];
+      state.abandons = [...state.abandons.filter((a) => a.siteId !== from && a.siteId !== to), { ...theirs, siteId: to }];
+    }
+  }
+}
+
+/**
  * Vissza a segéd rekordjaiba, a lenyomatot újraszámolva.
  *
  * A szünet a HELYI marad: se fel nem megy, se felül nem íródik. Így aki itt
  * végigcsinálta a próbát, nem veszíti el a feloldását attól, hogy közben
- * szinkronizált.
+ * szinkronizált — akkor sem, ha a sora közben egy másik azonosítóba olvadt
+ * (`folded`: régi → új, lásd `foldedIds`).
  */
-function fromSyncSites(merged: SyncSite[], local: SiteRec[]): SiteRec[] {
+function fromSyncSites(merged: SyncSite[], local: SiteRec[], folded: ReadonlyMap<string, string>): SiteRec[] {
   const byId = new Map(local.map((s) => [s.id, s]));
+  const foldedFrom = new Map([...folded].map(([from, to]) => [to, from]));
   return merged.map((m) => adoptRevision({
     ...byId.get(m.id),
     id: m.id, domain: m.domain, hostnames: m.hostnames, addedAt: m.addedAt,
     // A jelek az összefésülés eredményéből jönnek — a helyi, régebbi jel nem
     // maradhat meg egy már eldőlt név mellett.
     hostnameMarks: m.hostnameMarks,
-    pauseUntil: byId.get(m.id)?.pauseUntil ?? null,
+    pauseUntil: byId.get(m.id)?.pauseUntil ?? byId.get(foldedFrom.get(m.id) ?? '')?.pauseUntil ?? null,
     pendingDeleteAt: m.pendingDeleteAt,
     schedule: m.schedule, dailyLimitSeconds: m.dailyLimitSeconds, alias: m.alias, reason: m.reason,
     // Az adag-szabály a fésülés eredményéből — a SZÁMLÁLÓ nem a rekordé
@@ -958,7 +1004,10 @@ export async function syncNow(state: HelperState, now: number): Promise<SyncResu
 
     if (!sameSites(split.sites, toSyncSites(state.sites, acc.deviceId))
       || !sameSites(split.gone, toSyncSites(gone, acc.deviceId))) {
-      state.sites = fromSyncSites(split.sites, state.sites);
+      // Ami itt egy másik azonosítóba olvadt, annak a helyi állapota vele megy.
+      const folded = foldedIds(state.sites, merged);
+      carryFolded(state, folded);
+      state.sites = fromSyncSites(split.sites, state.sites, folded);
       if (split.gone.length > 0) state.goneSites = split.gone.map((g) => ({ ...g }));
       else delete state.goneSites;
       changed = true;

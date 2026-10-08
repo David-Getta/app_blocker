@@ -168,15 +168,19 @@ object SyncClient {
         )
     }
 
-    private fun fromSyncSites(merged: List<SyncMerge.SyncSite>, local: List<Site>): List<Site> {
+    private fun fromSyncSites(
+        merged: List<SyncMerge.SyncSite>, local: List<Site>, folded: Map<String, String>,
+    ): List<Site> {
         val byId = local.associateBy { it.id }
+        val foldedFrom = folded.entries.associate { (from, to) -> to to from }
         return merged.map { m ->
             val mine = byId[m.id]
             SyncRevisions.adopt(
                 Site(
                     id = m.id, domain = m.domain, hostnames = m.hostnames, addedAt = m.addedAt,
-                    // A szünet a HELYI marad: se fel nem megy, se felül nem íródik.
-                    pauseUntil = mine?.pauseUntil,
+                    // A szünet a HELYI marad: se fel nem megy, se felül nem íródik
+                    // — akkor sem, ha a sor közben egy másik azonosítóba olvadt.
+                    pauseUntil = mine?.pauseUntil ?: foldedFrom[m.id]?.let { byId[it] }?.pauseUntil,
                     pendingDeleteAt = m.pendingDeleteAt,
                     schedule = m.schedule, dailyLimitSeconds = m.dailyLimitSeconds,
                     burstSeconds = m.burstSeconds, cooldownSeconds = m.cooldownSeconds,
@@ -191,6 +195,52 @@ object SyncClient {
                 )
             )
         }
+    }
+
+    /**
+     * Az összevonás után az azonosító szerint tárolt HELYI állapot az új
+     * azonosítóra kerül ([SyncMerge.foldedIds]: régi → új): az adag-számláló,
+     * a mai betelések, a betelések könyve és a próbatétel adóssága. Különben
+     * a sor új azonosítója tiszta lappal indulna — egy futó hűtés ingyen
+     * leesne, egy feladott próbatétel újrasorsolható lenne. Ha az újon már áll
+     * valami, a szigorúbb marad. A futó próbatételt semmi nem viszi át: a
+     * beolvasztott sor más tartalmú lehet, mint amire kérték. A gép
+     * `carryFolded` tükre.
+     */
+    internal fun carryFolded(state: AppState, folded: Map<String, String>): AppState {
+        if (folded.isEmpty()) return state
+        val bursts = state.bursts.toMutableMap()
+        val trips = state.burstTrips.toMutableMap()
+        val log = state.burstTripLog.toMutableMap()
+        var abandons = state.abandons
+        for ((from, to) in folded) {
+            bursts.remove(from)?.let { b ->
+                val cur = bursts[to]
+                bursts[to] = if (cur == null) b else BurstLogic.State(
+                    usedSeconds = maxOf(cur.usedSeconds, b.usedSeconds),
+                    lastAt = maxOf(cur.lastAt, b.lastAt),
+                    cooldownUntil = maxOf(cur.cooldownUntil, b.cooldownUntil),
+                )
+            }
+            trips.remove(from)?.let { t ->
+                val cur = trips[to]
+                trips[to] = when {
+                    cur == null || t.day > cur.day -> t
+                    t.day == cur.day -> BurstTrip(t.day, maxOf(t.count, cur.count))
+                    else -> cur
+                }
+            }
+            log.remove(from)?.let { l ->
+                val cur = (log[to] ?: emptyMap()).toMutableMap()
+                for ((day, n) in l) cur[day] = maxOf(cur[day] ?: 0, n)
+                log[to] = cur
+            }
+            if (abandons.any { it.siteId == from }) {
+                val theirs = abandons.filter { it.siteId == from || it.siteId == to }.maxByOrNull { it.at }!!
+                abandons = abandons.filter { it.siteId != from && it.siteId != to } + theirs.copy(siteId = to)
+            }
+        }
+        return state.copy(bursts = bursts, burstTrips = trips, burstTripLog = log, abandons = abandons)
     }
 
     /**
@@ -945,9 +995,11 @@ object SyncClient {
             val split = SyncMerge.splitMerged(merged, localIds, now)
 
             if (split.sites != toSyncSites(current.sites) || split.gone != toSyncSites(current.goneSites)) {
-                current = current.copy(
-                    sites = fromSyncSites(split.sites, current.sites),
-                    goneSites = fromSyncSites(split.gone, current.goneSites),
+                // Ami itt egy másik azonosítóba olvadt, annak a helyi állapota vele megy.
+                val folded = SyncMerge.foldedIds(current.sites.map { it.id to it.domain }, merged)
+                current = carryFolded(current, folded).copy(
+                    sites = fromSyncSites(split.sites, current.sites, folded),
+                    goneSites = fromSyncSites(split.gone, current.goneSites, emptyMap()),
                 )
                 changed = true
             }

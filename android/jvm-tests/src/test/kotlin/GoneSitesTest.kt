@@ -1,6 +1,10 @@
 import android.content.Context
+import hu.breaker.app.core.AbandonRec
 import hu.breaker.app.core.AppState
 import hu.breaker.app.core.BreakerStore
+import hu.breaker.app.core.BurstLogic
+import hu.breaker.app.core.BurstTrip
+import hu.breaker.app.core.ChallengeEngine
 import hu.breaker.app.core.LockdownLogic
 import hu.breaker.app.core.Referee
 import hu.breaker.app.core.Site
@@ -62,6 +66,48 @@ class GoneSitesTest {
         val m = SyncMerge.mergeLists(listOf(stone()), listOf(readded))
         assertEquals(listOf("s2" to false, "s1" to true), m.map { it.id to SyncMerge.isGone(it) })
         assertNull(m[0].pendingDeleteAt)
+    }
+
+    @Test fun `a halozat nelkul vegigment regi torles sirkove az ujra felvett oldalt akkor sem viszi el, ha elobb osszevonodtak`() {
+        // A gép gone-sites.test.ts-ének párja: egy elavult eszköz a kettőt
+        // egybe fésülte, mielőtt a régi törlés sírköve átért. Az újabban
+        // felvett azonosító marad, tehát bármilyen sorrendben él.
+        val stale = listOf(site("old"))
+        val phone = listOf(site("new", addedAt = 9_000, rev = 1, by = "telefon"))
+        val laptop = listOf(stone("old"))
+        val m = SyncMerge::mergeLists
+        for (r in listOf(m(m(stale, phone), laptop), m(m(phone, laptop), stale), m(m(laptop, stale), phone))) {
+            assertEquals(listOf("new" to false, "old" to true), r.map { it.id to SyncMerge.isGone(it) })
+        }
+    }
+
+    @Test fun `kimondott korlat - az ujabb peldany torlese a beleolvadt regebbit is viszi, ha az osszevonas elobb volt`() {
+        val stale = listOf(site("old"))
+        val phone = listOf(site("new", addedAt = 9_000, rev = 1, by = "telefon"))
+        val phoneDeleted = listOf(site("new", pending = 5_000, del = 1, gone = 1, addedAt = 9_000, rev = 2, by = "telefon"))
+        val m = SyncMerge::mergeLists
+        assertEquals(listOf("new" to true), m(m(stale, phone), phoneDeleted).map { it.id to SyncMerge.isGone(it) })
+        assertEquals(listOf("old" to false, "new" to true), m(stale, m(phone, phoneDeleted)).map { it.id to SyncMerge.isGone(it) })
+    }
+
+    @Test fun `az osszevonas nyoma - a helyi szunet, hutes, beteles es adossag az uj azonositora kerul`() {
+        val merged = listOf(
+            site("s3", addedAt = 3_000).copy(domain = "youtube.com"), site("s2").copy(domain = "reddit.com"),
+            stone("s5").copy(domain = "x.com"),
+        )
+        val folded = SyncMerge.foldedIds(listOf("s1" to "youtube.com", "s2" to "reddit.com", "s4" to "x.com"), merged)
+        assertEquals(mapOf("s1" to "s3"), folded, "a megmaradt nem olvadt bele semmibe; halottba nem olvad semmi")
+        val before = AppState(
+            bursts = mapOf("s1" to BurstLogic.State(300.0, 5_000, 9_000_000), "s3" to BurstLogic.State(10.0, 6_000, 0)),
+            burstTrips = mapOf("s1" to BurstTrip("2026-10-08", 2)),
+            burstTripLog = mapOf("s1" to mapOf("2026-10-08" to 2)),
+            abandons = listOf(AbandonRec("s1", ChallengeEngine.Kind.PAUSE, "TYPE+MATH", 4_000)),
+        )
+        val after = SyncClient.carryFolded(before, folded)
+        assertEquals(mapOf("s3" to BurstLogic.State(300.0, 6_000, 9_000_000)), after.bursts, "a szigorúbb: a futó hűtés nem esik le")
+        assertEquals(mapOf("s3" to BurstTrip("2026-10-08", 2)), after.burstTrips)
+        assertEquals(mapOf("s3" to mapOf("2026-10-08" to 2)), after.burstTripLog)
+        assertEquals(listOf(AbandonRec("s3", ChallengeEngine.Kind.PAUSE, "TYPE+MATH", 4_000)), after.abandons)
     }
 
     @Test fun `elokeszites es szetosztas - mint a gepen`() {

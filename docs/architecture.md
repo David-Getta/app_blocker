@@ -270,7 +270,14 @@ gyorsan), `FUZZ_DEPTH=k` mellett mindhárom nyelvben a k-szorosa, ugyanazokkal
 a magokkal (`desktop/test/fuzz-depth.ts`, a Kotlin `FuzzDepth.kt`, a Swift
 `FuzzDepth.swift`). Nem díszítés: az ablakos csomagok fésülésének ritka
 sorrendfüggését a 300 magos futás átengedte, egy százezres megfogta — egy
-szinkron-szabály változása után a mély futás a kötelező kör. És az őr: a drótnév-ellenőrző azt is nézi, hogy minden őrzött
+szinkron-szabály változása után a mély futás a kötelező kör. A véletlen-teszt
+azt is kimondja, hol NEM áll a sorrendfüggetlenség: az oldal-lista domain
+szerinti összevonása eldobja a beolvasztott azonosítót, ezért ahol egy
+domainre két azonosító szól és valamelyiknek sírköve van, három eszköz más
+sorrendben más listára juthat. A `list-fuzz.test.ts` ezt a határt őrzi —
+máshol a sorrend nem számít —, és azt, ami ott is áll: a legújabban felvett
+példányt csak a saját sírköve viheti el, és a kiszolgálón át futó szinkron
+néhány kör alatt megáll. És az őr: a drótnév-ellenőrző azt is nézi, hogy minden őrzött
 drót-mező ott van a fixtúra generátorában — egy új mező nem maradhat ki
 csendben az összevetésből. A fixtúra fogta ki a v0.4.170 Swift-rését (a
 normalizálás eldobta a rejtést), és a szabálylista sorrendfüggését egy régi
