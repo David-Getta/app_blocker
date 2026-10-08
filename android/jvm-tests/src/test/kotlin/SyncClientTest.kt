@@ -1,4 +1,8 @@
+import hu.breaker.app.core.AbandonRec
 import hu.breaker.app.core.AppState
+import hu.breaker.app.core.BurstLogic
+import hu.breaker.app.core.ChallengeEngine
+import hu.breaker.app.core.SessionRec
 import hu.breaker.app.core.Site
 import hu.breaker.app.core.SyncClient
 import hu.breaker.app.core.SyncRevisions
@@ -129,6 +133,41 @@ class SyncClientTest {
         var laptop = SyncClient.signIn(AppState(), url, account, password, "Gép")
         laptop = SyncClient.syncNow(laptop, 4_000).state
         assertEquals(null, laptop.sites.first { it.domain == "youtube.com" }.pauseUntil)
+    }
+
+    @Test
+    fun `a row folded into a newer id keeps its pause, cooldown, debt and running challenge`() {
+        // A gép sync-client.test.ts-ének párja, valódi kiszolgálóval: a régóta
+        // használt telefonon a sor a régi azonosítót viselte, egy új gépen
+        // ugyanazt a domaint külön felvették — az összevonás az újabbat tartja,
+        // és ami a telefonon azonosító szerint állt, az vele megy.
+        val url = start() ?: return
+        val account = "kt-fold-" + System.nanoTime()
+        val password = "ez-egy-elég-hosszú-jelszó"
+
+        var phone = SyncClient.signUp(
+            device(site("site_a", "reddit.com").copy(pauseUntil = 9_999_000)), url, account, password, "Telefon",
+        ).first
+        phone = SyncClient.syncNow(phone, 2_000).state.copy(
+            bursts = mapOf("site_a" to BurstLogic.State(300.0, 1_500, 9_000_000)),
+            abandons = listOf(AbandonRec("site_a", ChallengeEngine.Kind.PAUSE, "TYPE+MATH", 1_800)),
+            session = SessionRec("ses", ChallengeEngine.Kind.DELETE, "site_a", null, emptyList(), 0, 1_900),
+        )
+
+        var laptop = SyncClient.signIn(
+            device(site("site_b", "reddit.com", 5_000).copy(hostnames = listOf("old.reddit.com", "reddit.com"))),
+            url, account, password, "Gép",
+        )
+        laptop = SyncClient.syncNow(laptop, 6_000).state
+        assertEquals(listOf("site_b"), laptop.sites.map { it.id }, "egy sor, az újabban felvett azonosítóval")
+
+        phone = SyncClient.syncNow(phone, 7_000).state
+        assertEquals(listOf("site_b"), phone.sites.map { it.id }, "a telefonon is az újabb azonosító")
+        assertEquals(listOf("old.reddit.com", "reddit.com"), phone.sites[0].hostnames, "a két felvétel nevei együtt tiltanak")
+        assertEquals(9_999_000, phone.sites[0].pauseUntil, "a kifizetett szünet megmarad")
+        assertEquals(mapOf("site_b" to BurstLogic.State(300.0, 1_500, 9_000_000)), phone.bursts, "a futó hűtés nem esik le")
+        assertEquals(listOf(AbandonRec("site_b", ChallengeEngine.Kind.PAUSE, "TYPE+MATH", 1_800)), phone.abandons, "az adósság sem")
+        assertEquals("site_b", phone.session?.siteId, "a futó próbatétel az összevont sorra hat")
     }
 
     @Test
