@@ -422,6 +422,44 @@ async function main() {
   if (pendingLeft !== 'null') failures.push(`zárlat alatt a függő levétel nem vonódott vissza (${pendingLeft})`);
   await lockPage.close();
 
+  // A MEGAKADÁSOK SÁVJAI a felolvasónak: kép, a nevében a számokkal (a
+  // rekeszek címét a felolvasók jellemzően nem mondják fel). Egy feltöltött
+  // könyvvel — üres könyvnél nincs sáv. Ugyanez a lap az axe-próbán is átmegy:
+  // a sávokkal több minden látszik, mint az üres lapon.
+  const hitsPage = await browser.newPage({ colorScheme: 'dark' });
+  hitsPage.on('pageerror', (e) => failures.push(`hiba a lapon (megakadások): ${e.message}`));
+  await installAxe(hitsPage, failures);
+  await hitsPage.addInitScript(FAKE_CHROME);
+  await hitsPage.addInitScript(() => {
+    const d = new Date();
+    const key = (x) => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
+    const byHour = new Array(24).fill(0);
+    byHour[21] = 4;
+    const old = new Date(d.getFullYear(), d.getMonth(), d.getDate() - 12);
+    window.__disk['breaker.hits'] = { days: {
+      [key(d)]: { total: 4, byHour, byHost: { 'youtube.com': 4 } },
+      [key(old)]: { total: 2, byHour: new Array(24).fill(0), byHost: { 'youtube.com': 2 } },
+    } };
+  });
+  await hitsPage.goto(`http://127.0.0.1:${port}/options.html`);
+  await hitsPage.waitForFunction(() => document.getElementById('hitsWeekdays')?.hidden === false,
+    undefined, { timeout: 10_000 }).catch(() => failures.push('a megakadások hét-sávja nem jelent meg'));
+  const alts = await hitsPage.evaluate(() => ['hitsWeekdays', 'hitsHours', 'hitsMonth'].map((id) => {
+    const el = document.getElementById(id);
+    return { id, hidden: el?.hidden, role: el?.getAttribute('role'), label: el?.getAttribute('aria-label') ?? '' };
+  }));
+  for (const a of alts) {
+    if (a.hidden) { failures.push(`a(z) ${a.id} sáv nem jelent meg a feltöltött könyvvel`); continue; }
+    if (a.role !== 'img' || !/\d+ megakadás/.test(a.label)) {
+      failures.push(`a(z) ${a.id} sáv a felolvasónak üres (${JSON.stringify(a)})`);
+    }
+  }
+  if (!alts.find((a) => a.id === 'hitsHours')?.label.includes('21–22 óra: 4 megakadás')) {
+    failures.push(`az óra-sáv neve nem a számokat mondja (${JSON.stringify(alts)})`);
+  }
+  await checkA11y(hitsPage, 'options.html megakadásokkal, sötét', failures);
+  await hitsPage.close();
+
   // AKADÁLYMENTESSÉG (scripts/a11y-check.js): a bővítmény lapjai mindkét
   // témában — a beállítások, a felugró lap és a tiltó lap két változata.
   const a11yPages = [

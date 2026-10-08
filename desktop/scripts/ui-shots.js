@@ -1077,6 +1077,15 @@ async function main() {
   if (wdStrip.hidden || wdStrip.n !== 7 || wdStrip.peak !== 6 || !wdStrip.axis) {
     failures.push(`a hét napjainak sávja nem áll a csúcs-nap mondata alatt (${JSON.stringify(wdStrip)})`);
   }
+  // A SÁV A FELOLVASÓNAK: kép, a nevében mind a hét nap a számával — a
+  // rekeszek címét (title) a felolvasók jellemzően nem mondják fel.
+  const wdAlt = await page.evaluate(() => {
+    const el = document.getElementById('hitsWeekdayStrip');
+    return { role: el?.getAttribute('role'), label: el?.getAttribute('aria-label') ?? '' };
+  });
+  if (wdAlt.role !== 'img' || !/^A hét napjai szerint: hétfő: \d+ megakadás,.*vasárnap: \d+ megakadás$/.test(wdAlt.label)) {
+    failures.push(`a hét napjainak sávja a felolvasónak üres (${JSON.stringify(wdAlt)})`);
+  }
   // A MENET-NAP a munkamenet-blokkban: négy hétből a kedd (6 menet), alatta a sáv, a kedd (a második rekesz) kiemelve.
   await page.waitForFunction(
     () => /A négy hét menet-napja: kedd \(6 menet\)\./.test(document.getElementById('focusWeekdayNote')?.textContent || '')

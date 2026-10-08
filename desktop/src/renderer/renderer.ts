@@ -4845,13 +4845,26 @@ function renderHourStrip(
   const show = peak !== null && peak.count > 0 && hours.length === 24;
   strip.classList.toggle('hidden', !show);
   if (!show || !peak) return;
+  const said: string[] = [];
   hours.forEach((n, hour) => {
     const bar = document.createElement('span');
     bar.className = hour === peak.hour ? 'hour-bar peak' : 'hour-bar';
     bar.style.height = `${Math.min(28, Math.max(2, Math.round((n / peak.count) * 28)))}px`;
     bar.title = `${hourLabel(hour)}: ${label(n)}`;
+    if (n > 0) said.push(bar.title);
     strip.appendChild(bar);
   });
+  stripAlt(strip, `Óránként: ${said.join(', ')}`);
+}
+
+/**
+ * A SÁV A FELOLVASÓNAK: egy kép, a nevében a számokkal. A rekeszek címét
+ * (title) a felolvasók jellemzően nem mondják fel — enélkül a sáv nekik üres
+ * doboz volt, miközben a látónak ez az alakja a mondatnak.
+ */
+function stripAlt(strip: HTMLElement, text: string): void {
+  strip.setAttribute('role', 'img');
+  strip.setAttribute('aria-label', text);
 }
 
 /** Hétfőtől vasárnapig — a csúcs-nap holtversenye is a hét elejétől számít. */
@@ -4871,14 +4884,18 @@ function renderWeekdayStrip(
   const show = peak !== null && peak.count > 0 && days.length === 7;
   strip.classList.toggle('hidden', !show);
   if (!show || !peak) return;
+  const said: string[] = [];
   for (const day of WEEKDAY_ORDER) {
     const n = days[day] ?? 0;
     const bar = document.createElement('span');
     bar.className = day === peak.day ? 'hour-bar peak' : 'hour-bar';
     bar.style.height = `${Math.min(28, Math.max(2, Math.round((n / peak.count) * 28)))}px`;
     bar.title = `${WEEKDAY_NAMES[day]}: ${label(n)}`;
+    // A nulla nap is szám: a sáv arról is szól, melyik napon NEM.
+    said.push(bar.title);
     strip.appendChild(bar);
   }
+  stripAlt(strip, `A hét napjai szerint: ${said.join(', ')}`);
 }
 
 function renderWeek(

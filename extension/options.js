@@ -33,6 +33,16 @@ function el(tag, className, text) {
   return node;
 }
 
+/**
+ * A SÁV A FELOLVASÓNAK: egy kép, a nevében a számokkal. A rekeszek címét
+ * (title) a felolvasók jellemzően nem mondják fel — enélkül a sáv nekik üres
+ * doboz volt. Ugyanaz, mint az app statisztikájában (stripAlt).
+ */
+function stripAlt(strip, text) {
+  strip.setAttribute('role', 'img');
+  strip.setAttribute('aria-label', text);
+}
+
 /** Mennyi van hátra, emberi alakban. */
 function remaining(ms) {
   const min = Math.ceil(ms / 60000);
@@ -117,23 +127,29 @@ async function renderHits() {
   dayStrip.hidden = weekday === null;
   $('hitsWeekdaysAxis').hidden = weekday === null;
   if (weekday) {
+    const said = [];
     for (const day of [1, 2, 3, 4, 5, 6, 0]) {
       const bar = el('span', 'hour-bar');
       bar.style.height = `${Math.max(2, Math.round(((byDay[day] ?? 0) / weekday.count) * 28))}px`;
       bar.title = `${WEEKDAY_NAMES[day]}: ${byDay[day] ?? 0}`;
       if (day === weekday.day) bar.classList.add('peak');
+      said.push(`${WEEKDAY_NAMES[day]}: ${byDay[day] ?? 0} megakadás`);
       dayStrip.appendChild(bar);
     }
+    stripAlt(dayStrip, `A hét napjai szerint: ${said.join(', ')}`);
   }
   if (peak) {
     const by = hitsByHour(state, week);
+    const said = [];
     by.forEach((n, hour) => {
       const bar = el('span', 'hour-bar');
       bar.style.height = `${Math.max(2, Math.round((n / peak.count) * 28))}px`;
       bar.title = `${hourLabel(hour)}: ${n}`;
       if (hour === peak.hour) bar.classList.add('peak');
+      if (n > 0) said.push(`${hourLabel(hour)}: ${n} megakadás`);
       strip.appendChild(bar);
     });
+    stripAlt(strip, `Óránként: ${said.join(', ')}`);
   }
   // A HÓNAP alakja — a könyv harminc napot tart; csak ha a hét előtt is volt,
   // különben a hét sorai elegek. A nem üres nap kiemelve, az üres halványan.
@@ -146,13 +162,18 @@ async function renderHits() {
   monthStrip.textContent = '';
   if (showMonth) {
     const top = Math.max(1, ...month.map((d) => d.total));
+    const said = [];
     for (const d of month) {
       const bar = el('span', 'hour-bar');
       bar.style.height = `${Math.max(2, Math.round((d.total / top) * 28))}px`;
       bar.title = `${d.day}: ${d.total}`;
-      if (d.total > 0) bar.classList.add('peak');
+      if (d.total > 0) {
+        bar.classList.add('peak');
+        said.push(`${d.day}: ${d.total} megakadás`);
+      }
       monthStrip.appendChild(bar);
     }
+    stripAlt(monthStrip, `Az elmúlt harminc nap, a megakadásos napok: ${said.join(', ')}`);
     $('hitsMonthStart').textContent = month[0].day;
     $('hitsMonthEnd').textContent = month[month.length - 1].day;
   }
