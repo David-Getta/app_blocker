@@ -97,7 +97,12 @@ const GROUPS = [
     // szemben elveszne.
     // A `lockdownWindowMarks`: TARTALMANKÉNT az ablak-jelek — ugyanez a két
     // csendes hiba az ablakokra: a levétel nem érne át, a felvétel elveszne.
-    names: ['packs', 'run', 'log', 'packMarks', 'lockdown', 'lockdownWindows', 'lockdownWindowsRev',
+    // A `packLoosens` és a `packOwnMarks`: a csomagok kifizetett
+    // ablak-lazításai és a győztes osztály saját jele. Egy elcsúszott név
+    // mellett a gépen kifizetett ablak-levétel a telefonon nem érne át (egy
+    // elavult átnevezés visszahozná az ablakot), a saját jel nélkül pedig a
+    // fésülés három eszköznél a sorrendtől függne.
+    names: ['packs', 'run', 'log', 'packMarks', 'packLoosens', 'packOwnMarks', 'lockdown', 'lockdownWindows', 'lockdownWindowsRev',
       'lockdownWindowMarks', 'partner', 'partnerRev', 'partnerCo', 'partnersGone', 'keywords', 'keywordsRev', 'keywordMarks',
       'hideSiteList', 'hideSiteListRev', 'rev', 'updatedAt', 'updatedBy'],
     ts: 'desktop/src/shared/sync/focus-merge.ts',

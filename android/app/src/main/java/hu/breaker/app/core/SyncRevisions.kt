@@ -258,11 +258,13 @@ object SyncRevisions {
         // a körben tett szerkesztése a fésülésben csendben letörölné.
         val packFps = packFingerprints(state)
         val prevFps = state.focusRevPacks
+        // A SAJÁT JEL a szerkesztett csomagnál maga a közös: a külön szám törlődik.
+        val owns = LinkedHashMap(state.focusPackOwnMarks ?: emptyMap())
         val packMarks = if (prevFps == null) state.focusPackMarks else {
             val rev = newRev.coerceIn(0, Int.MAX_VALUE.toLong()).toInt()
             val marks = LinkedHashMap(state.focusPackMarks ?: emptyMap())
-            for ((id, f) in packFps) if (prevFps[id] != f) marks[id] = rev
-            for (id in prevFps.keys) if (id !in packFps) marks[id] = rev
+            for ((id, f) in packFps) if (prevFps[id] != f) { marks[id] = rev; owns.remove(id) }
+            for (id in prevFps.keys) if (id !in packFps) { marks[id] = rev; owns.remove(id) }
             FocusSync.capPackMarks(marks, packFps.keys)
         }
         return state.copy(
@@ -283,6 +285,7 @@ object SyncRevisions {
             hideSiteListRev = hideMark,
             focusRevPacks = packFps,
             focusPackMarks = packMarks,
+            focusPackOwnMarks = FocusSync.cleanOwnMarks(owns, packMarks),
         )
     }
 

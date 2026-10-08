@@ -285,7 +285,9 @@ object SyncClient {
     /** Csak JSON-szöveg — a szám nem szöveg. */
     internal fun stringOf(o: JSONObject, key: String): String? = o.opt(key) as? String
 
-    internal fun marksFromJson(o: JSONObject, key: String = "hostnameMarks", maxRev: Int = Int.MAX_VALUE): Map<String, Int>? {
+    internal fun marksFromJson(
+        o: JSONObject, key: String = "hostnameMarks", maxRev: Int = Int.MAX_VALUE, min: Int = 1,
+    ): Map<String, Int>? {
         val m = o.optJSONObject(key) ?: return null
         val out = LinkedHashMap<String, Int>()
         val keys = m.keys()
@@ -293,7 +295,7 @@ object SyncClient {
             val k = keys.next()
             if (k.isEmpty()) continue
             val v = intOf(m, k) ?: continue
-            if (v > 0 && v <= maxRev) out[k] = v
+            if (v >= min && v <= maxRev) out[k] = v
             // A VALÓDI plafon a hívóé (`capHostnameMarks` / `capPackMarks`):
             // az tudja, mely nevek vannak jelen, és azok jele marad. Itt csak
             // a szemét ellen van korlát, hogy egy óriás objektum ne egyen memóriát.
@@ -436,6 +438,9 @@ object SyncClient {
         put("updatedBy", f.updatedBy)
         // A csomag-jelek csak akkor, ha vannak: a hiányzó és az üres ugyanaz.
         if (f.packMarks != null) put("packMarks", JSONObject(f.packMarks))
+        // A kifizetett ablak-lazítások és a saját jelek is, csak ha vannak.
+        if (f.packLoosens != null) put("packLoosens", JSONObject(f.packLoosens))
+        if (f.packOwnMarks != null) put("packOwnMarks", JSONObject(f.packOwnMarks))
         // A ZÁRLAT IS FELMEGY. Enélkül a telefon feltöltése LETÖRÖLNÉ a gépen
         // indított zárlatot a többi eszközről — és pont az lenne a kibúvó.
         if (f.lockdown != null) put("lockdown", JSONObject().apply {
@@ -620,6 +625,14 @@ object SyncClient {
             ?.let { FocusSync.capPackMarks(it, presentIds) }
             ?.filterKeys { it !in seenIds || it in presentIds }
             ?.takeIf { it.isNotEmpty() }
+        // A kifizetett ablak-lazítások ugyanígy: pozitív egész, legfeljebb a
+        // rev, a plafonnal; a kiesett csomagé kiesik.
+        val loosens = marksFromJson(o, "packLoosens", rev.coerceIn(0, Int.MAX_VALUE.toLong()).toInt())
+            ?.let { FocusSync.capPackMarks(it, presentIds) }
+            ?.filterKeys { it !in seenIds || it in presentIds }
+            ?.takeIf { it.isNotEmpty() }
+        // A saját jel a megmaradt közös jelekhez igazodik: nemnegatív, kisebb nála.
+        val owns = FocusSync.cleanOwnMarks(marksFromJson(o, "packOwnMarks", Int.MAX_VALUE, 0), marks)
         return FocusSync.SyncFocus(
             packs = packs,
             run = FocusSync.cleanRun(rawRun, packs),
@@ -631,6 +644,8 @@ object SyncClient {
             updatedAt = numberOf(o, "updatedAt")?.toLong() ?: 0,
             updatedBy = stringOf(o, "updatedBy").orEmpty().ifEmpty { fallbackDevice },
             packMarks = marks,
+            packLoosens = loosens,
+            packOwnMarks = owns,
             // Kívülről jött adat: ami nem értelmes, az nincs — és `now` mellett
             // a lejárt sem.
             lockdown = o.optJSONObject("lockdown")?.let { l ->
@@ -812,6 +827,9 @@ object SyncClient {
                 updatedAt = current.focusUpdatedAt,
                 updatedBy = current.focusUpdatedBy ?: acc.deviceId,
                 packMarks = current.focusPackMarks,
+                // A kifizetett ablak-lazítások és a saját jelek — a fésülés ezekből dönt.
+                packLoosens = current.focusPackLoosens,
+                packOwnMarks = current.focusPackOwnMarks,
                 // Csak az ÉLŐ zárlat megy fel; a lejártat nincs értelme vinni — és
                 // a lejövő oldalon is csak az élő számít (focusFromJson + now).
                 lockdown = LockdownLogic.live(current.lockdown, now),
@@ -840,6 +858,8 @@ object SyncClient {
                     focusRun = merged.run,
                     // A jelek az összefésülés eredményéből: a telefon hordozza őket.
                     focusPackMarks = merged.packMarks,
+                    focusPackLoosens = merged.packLoosens,
+                    focusPackOwnMarks = merged.packOwnMarks,
                     // A NAPLÓ a többi eszköztől is megjön — ettől lesz a
                     // statisztika a fiók egészéről szóló szám. Egyesítés, tehát
                     // a helyi sorok nem vesznek el.

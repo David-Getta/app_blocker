@@ -123,6 +123,18 @@ export const LOOSENS = ['deleteLoosens', 'scheduleLoosens', 'limitLoosens', 'bur
 export const PACK_IDS = ['p1', 'p2', 'p3', 'p4'];
 export const WIN: Band = { days: [1, 2, 3, 4, 5], startMin: 540, endMin: 720 };
 /**
+ * Az ablakos csomagok fehérlista-változatai: az alap és három bővebb — mind
+ * tartalmazza az alapot, így a metszet sosem üres (az üres metszet ága
+ * sorrendfüggő lehet, azt külön teszt nézi: focus-pack-loosens.test.ts).
+ */
+export const ALLOW_SETS: string[][] = [
+  ['quizlet.com'], ['duolingo.com', 'quizlet.com'], ['anki.net', 'quizlet.com'], ['anki.net', 'duolingo.com', 'quizlet.com'],
+];
+/** Az ablak-változatok: a hétköznapi, egy szombati (rövidebb heti idő), és egy hosszabb hétköznapi. */
+export const PACK_WINDOWS: Band[] = [
+  WIN, { days: [6], startMin: 480, endMin: 960 }, { days: [1, 2, 3, 4, 5], startMin: 480, endMin: 780 },
+];
+/**
  * A zárlat-ablakok készlete. Az azonosító eszközönként más (`w1@gep-a`): a
  * tartalom szerinti unió így az azonosító-ütközés helyett a KULCS szerinti
  * összevonást járja be — a megfelelőségi kulcs a tartalmat nézi.
@@ -356,8 +368,34 @@ export function randomFocus(r: () => number, device: string): SyncFocus {
     ? { ...run, ...(cutsDraw < 0.25 ? { cuts: 1 } : {}), ...(originDraw < 0.2 ? { origin: 5 } : {}) }
     : null;
   const log = tombDraw < 0.3 ? [...rows, TOMBS[tombPick]] : rows;
+  // AZ ABLAKOS CSOMAGOK VÁLTOZATAI, A KIFIZETETT ABLAK-LAZÍTÁSOK ÉS A SAJÁT
+  // JELEK — csomagonként öt húzás, feltétel nélkül, ugyanebben a sorrendben a
+  // három nyelvben: a fehérlista változata, az ablak változata (csak ablakos
+  // csomagon), a kifizetett ablak-lazítások száma (0–2, legfeljebb a rev — a
+  // nem élő csomagé is: az a törlés előtti levétel nyoma), van-e saját jel, és
+  // mekkora (kisebb a közös jelnél: egy korábbi osztály-döntés nyoma).
+  const packLoosens: Record<string, number> = {};
+  const packOwnMarks: Record<string, number> = {};
+  for (const id of PACK_IDS) {
+    const allowPick = Math.floor(r() * ALLOW_SETS.length);
+    const winPick = Math.floor(r() * PACK_WINDOWS.length);
+    const loosDraw = r();
+    const ownDraw = r();
+    const ownPick = r();
+    const p = packs.find((x) => x.id === id);
+    if (p) {
+      p.allowSites = [...ALLOW_SETS[allowPick]];
+      if (p.recurrence) p.recurrence = PACK_WINDOWS[winPick];
+    }
+    const count = loosDraw < 0.2 ? 1 : loosDraw < 0.3 ? 2 : 0;
+    if (count > 0) packLoosens[id] = Math.min(count, rev);
+    const m = marks[id] ?? 0;
+    if (ownDraw < 0.25 && m > 0) packOwnMarks[id] = Math.floor(ownPick * m);
+  }
   return {
     ...emptyFocus(device), packs, ...(Object.keys(marks).length ? { packMarks: marks } : {}),
+    ...(Object.keys(packLoosens).length ? { packLoosens } : {}),
+    ...(Object.keys(packOwnMarks).length ? { packOwnMarks } : {}),
     run: marked, log, rev, updatedAt, updatedBy: device,
     ...(lockdown ? { lockdown } : {}),
     ...(windows.length > 0 ? { lockdownWindows: windows } : {}),
@@ -410,12 +448,16 @@ export function focusConformanceKey(f: SyncFocus): string {
   }).join(';');
   const marks = Object.entries(f.packMarks ?? {}).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
     .map(([k, v]) => `${k}=${v}`).join(',');
+  const ploos = Object.entries(f.packLoosens ?? {}).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .map(([k, v]) => `${k}=${v}`).join(',');
+  const pown = Object.entries(f.packOwnMarks ?? {}).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .map(([k, v]) => `${k}=${v}`).join(',');
   const run = f.run
     ? `${f.run.packId}/${f.run.startedAt}/${f.run.endsAt}/${f.run.cuts ?? 0}/${f.run.origin ?? '-'}` : '-';
   const lock = f.lockdown ? `${f.lockdown.startedAt}/${f.lockdown.until}` : '-';
   // Az ablakok TARTALOM szerint, rendezve: az azonosító és a sorrend nem jelentés.
   const windows = (f.lockdownWindows ?? []).map(windowKey).sort().join(';');
-  return `packs=[${packs}] run=${run} marks=[${marks}] rev=${f.rev} at=${f.updatedAt} by=${f.updatedBy}`
+  return `packs=[${packs}] run=${run} marks=[${marks}] ploos=[${ploos}] pown=[${pown}] rev=${f.rev} at=${f.updatedAt} by=${f.updatedBy}`
     + ` lock=${lock} windows=[${windows}] wmark=${f.lockdownWindowsRev ?? 0}`
     + ` hide=${f.hideSiteList ? 1 : 0} hmark=${f.hideSiteListRev ?? 0}`
     + ` kw=[${keywordsKey(f.keywords ?? [])}] kmark=${f.keywordsRev ?? 0} kwm=[${keywordMarksKey(f.keywordMarks)}]`
@@ -438,18 +480,27 @@ export interface FocusFlip { flip: SyncFocus; what: string; same: boolean }
  * kulcsából kimaradt a rejtés: azonos rev mellett a cseréje
  * „nincs mit feltölteni” lett volna — és a fésülés fixtúrája ezt nem látta.
  *
- * Huszonöt fajta: huszonegy jelentés (különbség), négy nem az (időbélyeg,
+ * Huszonhét fajta: huszonhárom jelentés (különbség), négy nem az (időbélyeg,
  * eszköznév, ablak-azonosító, a csomagok sorrendje). A menet
  * rövidítésszáma és eredeti kezdése jelentés: a fésülés ezekből dönt; a
  * társ-megbízott és a levettek nyoma is: élő megbízottat csak a nyoma visz el;
- * a kulcsszó- és az ablak-jelek is: elemenként azok döntenek. A várt érték a fajtából
+ * a kulcsszó- és az ablak-jelek is: elemenként azok döntenek; a csomagok
+ * kifizetett ablak-lazításai és saját jelei is: az osztály és az osztályon
+ * belüli döntés ezekből jön. A várt érték a fajtából
  * következik, és a gép tesztje ellenőrzi is — így egy hatástalan csere (amit
  * a normalizálás visszaírna) nem marad néma. EGY húzás, az a/b/c UTÁN: a
  * Kotlin és a Swift fuzz-generátort nem érinti, a fixtúra a cserét JSON-ban
  * viszi, a tükrök csak visszajátsszák.
  */
 export function flipFocus(r: () => number, a: SyncFocus): FocusFlip {
-  const kind = Math.floor(r() * 25);
+  return flipFocusKind(Math.floor(r() * FOCUS_FLIP_KINDS), a);
+}
+
+/** A csere-fajták száma; a fixtúra a ritkákat külön, kényszerítve is felveszi. */
+export const FOCUS_FLIP_KINDS = 27;
+
+/** Egy adott fajtájú csere — a fixtúra így biztosan felveszi a ritkákat is. */
+export function flipFocusKind(kind: number, a: SyncFocus): FocusFlip {
   const first = a.packs[0];
   const diff = (what: string, flip: SyncFocus): FocusFlip => ({ what, flip, same: false });
   const noDiff = (what: string, flip: SyncFocus): FocusFlip => ({ what, flip, same: true });
@@ -531,6 +582,22 @@ export function flipFocus(r: () => number, a: SyncFocus): FocusFlip {
     case 24: return a.lockdownWindowMarks
       ? diff('windowMarks-', { ...a, lockdownWindowMarks: undefined })
       : diff('windowMarks+', { ...a, lockdownWindowMarks: { '0/60/120': 1 } });
+    // A kifizetett ablak-lazítás is jelentés: nélküle a levétel nem érne át.
+    // A törölt csomagé is az (a törlés előtti levétel nyoma).
+    case 25: {
+      const loos = { ...(a.packLoosens ?? {}) };
+      if (loos.p4) delete loos.p4; else loos.p4 = 1;
+      return diff('packLoosens', { ...a, packLoosens: Object.keys(loos).length ? loos : undefined });
+    }
+    // A saját jel is jelentés: az osztályon belül az dönt. Csak jeles csomagnak
+    // lehet (kisebb a közös jelnél); jel nélkül a jel felvétele a csere.
+    case 26: {
+      const id = Object.keys(a.packMarks ?? {}).sort()[0];
+      if (!id) return diff('packMarks', { ...a, packMarks: { p4: 1 } });
+      const owns = { ...(a.packOwnMarks ?? {}) };
+      if (owns[id] !== undefined) delete owns[id]; else owns[id] = 0;
+      return diff('packOwnMarks', { ...a, packOwnMarks: Object.keys(owns).length ? owns : undefined });
+    }
     default:
       // Ami NEM jelentés: az ablak azonosítója és a csomagok sorrendje.
       if (ws.length > 0) return noDiff('window.id', { ...a, lockdownWindows: [{ ...ws[0], id: 'w9@flip' }, ...ws.slice(1)] });

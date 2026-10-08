@@ -28,7 +28,7 @@
 // A doksi: docs/feature-focus-sessions.md
 
 import {
-  FUTURE_LOG_TOLERANCE_MS, MAX_ALLOW_ENTRIES, MAX_FOCUS_LOG, cleanCuts, cleanOrigin, logPackName,
+  FUTURE_LOG_TOLERANCE_MS, MAX_ALLOW_ENTRIES, MAX_FOCUS_LOG, bandMinutes, cleanCuts, cleanOrigin, logPackName,
   normalizePack, runOrigin, sameRun,
   type FocusLogEntry, type FocusPack, type FocusRun,
 } from '../focus.js';
@@ -44,6 +44,7 @@ import {
 import {
   cleanKeywordMarks, cleanKeywords, keywordMarksKey, keywordsKey, mergeKeywordSets, type KeywordMarks,
 } from '../keywords.js';
+import type { Band } from '../schedule.js';
 
 /** Legfeljebb ennyi csomag utazhat — a felületen sem fér ki több. */
 export const MAX_PACKS = 30;
@@ -83,6 +84,25 @@ export interface SyncFocus {
    * nélkül az újabb blob — ahogy eddig. Lásd `mergePacks`.
    */
   packMarks?: Record<string, number>;
+  /**
+   * A csomagok KIFIZETETT ABLAK-LAZÍTÁSAI: csomag-azonosító → hányszor
+   * szűkítették vagy vették le a heti ablakát próbatétellel. A bíró írja, a
+   * teljesítéskor — máshol semmi. A fésülés csomagonként ebből dönt: a több
+   * kifizetett lazítás nyer, egészében; egyenlőnél, ha bármelyik változat
+   * ablakos, a szigorúbb, mezőnként. A törölt csomag számlálója is marad: az
+   * ablakos csomag törlése előtt az ablakot kellett levenni. Lásd `mergePacks`.
+   */
+  packLoosens?: Record<string, number>;
+  /**
+   * A csomagok SAJÁT JELE: csomag-azonosító → a győztes osztály (kifizetett
+   * lazítások, ablakos-e) saját legnagyobb jele — csak ott, ahol KISEBB a
+   * közös jelnél (`packMarks`). A közös jel a nagyobb marad (a régi kliens
+   * csak azt látja); az osztályon belül viszont ez dönt, különben egy
+   * osztály-döntés vesztesének nagyobb jele a győztesre ragadna, és három
+   * eszköznél a sorrendtől függne, melyik változat marad. A helyi
+   * szerkesztés törli (annál a saját jel maga a közös). Lásd `mergePacks`.
+   */
+  packOwnMarks?: Record<string, number>;
   /**
    * A ZÁRLAT, ha van. Miért ITT utazik, és nem a blokklistával: a zárlat nem
    * egy oldal ügye, hanem az egész eszközé — ugyanaz a szint, mint a futó
@@ -207,6 +227,25 @@ export function cleanPackMarks(
   return capPackMarks(out, presentIds);
 }
 
+/**
+ * A saját jelek kiegyenesítése: azonosító → nemnegatív egész, KISEBB, mint a
+ * csomag (már kiegyenesített) közös jele. Ami nem kisebb, az nem hordoz hírt
+ * (a saját jel alapból a közös), és közös jel nélkül saját jel sincs — így a
+ * jelek plafonja ezt is vágja. Üresen nincs mező.
+ */
+export function cleanOwnMarks(
+  raw: unknown, marks: Record<string, number> | undefined,
+): Record<string, number> | undefined {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw) || !marks) return undefined;
+  const out: Record<string, number> = {};
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    const m: unknown = Object.prototype.hasOwnProperty.call(marks, k) ? marks[k] : undefined;
+    if (typeof m !== 'number' || typeof v !== 'number' || !Number.isInteger(v) || v < 0 || v >= m) continue;
+    out[k] = v;
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
 export function emptyFocus(deviceId: string): SyncFocus {
   return { packs: [], run: null, log: [], rev: 0, updatedAt: 0, updatedBy: deviceId };
 }
@@ -248,6 +287,15 @@ export function normalizeSyncFocus(raw: unknown, fallbackDevice: string, now?: n
     Object.entries(rawMarks).filter(([id]) => !seenIds.includes(id) || packs.some((p) => p.id === id)),
   );
   const packMarks = kept && Object.keys(kept).length > 0 ? kept : undefined;
+  // A kifizetett ablak-lazítások ugyanígy: pozitív egész, legfeljebb a blob
+  // rev-je (csak léptetés után írható), a plafonnal; a kiesett csomagé kiesik.
+  const rawLoosens = cleanPackMarks(o.packLoosens, packs.map((p) => p.id), rev);
+  const keptLoosens = rawLoosens && Object.fromEntries(
+    Object.entries(rawLoosens).filter(([id]) => !seenIds.includes(id) || packs.some((p) => p.id === id)),
+  );
+  const packLoosens = keptLoosens && Object.keys(keptLoosens).length > 0 ? keptLoosens : undefined;
+  // A saját jel a megmaradt közös jelekhez igazodik: kisebb nála, nemnegatív.
+  const packOwnMarks = cleanOwnMarks(o.packOwnMarks, packMarks);
   return {
     packs,
     run: normalizeRun(o.run, packs),
@@ -256,6 +304,8 @@ export function normalizeSyncFocus(raw: unknown, fallbackDevice: string, now?: n
     // csak az azonosító.
     log: normalizeLog(o.log),
     ...(packMarks ? { packMarks } : {}),
+    ...(packLoosens ? { packLoosens } : {}),
+    ...(packOwnMarks ? { packOwnMarks } : {}),
     // A zárlat kívülről jött adat, mint minden más: ami nem értelmes, az nincs
     // — és `now` mellett a lejárt sem.
     ...(lockdownIn(o.lockdown, now) ? { lockdown: lockdownIn(o.lockdown, now)! } : {}),
@@ -456,12 +506,14 @@ export function mergeFocus(local: SyncFocus, incoming: SyncFocus, now?: number):
   // napló: a menet sorsát ez dönti el (a leállítás nyoma a naplósor).
   const log = mergeLog(local.log, incoming.log);
   const { run, carriers } = mergeRun(local, incoming, log, now);
-  const { packs, packMarks } = mergePacks(newer, older, run?.packId, carriers);
+  const { packs, packMarks, packLoosens, packOwnMarks } = mergePacks(newer, older, run?.packId, carriers);
   return {
     packs,
     run,
     log,
     ...(packMarks ? { packMarks } : {}),
+    ...(packLoosens ? { packLoosens } : {}),
+    ...(packOwnMarks ? { packOwnMarks } : {}),
     // MAGASVÍZJEL, nem döntés: a későbbi vég nyer, `rev`-re való tekintet
     // nélkül. Egy hálózat nélkül maradt eszköz így nem tud feloldani semmit
     // azzal, hogy a régi állapotát tolja fel.
@@ -493,7 +545,7 @@ export function mergeFocus(local: SyncFocus, incoming: SyncFocus, now?: number):
 }
 
 /**
- * A csomagok CSOMAGONKÉNT fésülődnek, a jelük szerint.
+ * A csomagok CSOMAGONKÉNT fésülődnek.
  *
  * A csomag jele a blob `rev`-je, amelyik utoljára felvette, szerkesztette
  * vagy törölte. Csomagonként a NAGYOBB jel dönt — ami annál áll (ez a
@@ -509,43 +561,163 @@ export function mergeFocus(local: SyncFocus, incoming: SyncFocus, now?: number):
  * A telefonok jelet csak a saját csomag-szerkesztésüknél írnak (ablak a
  * csúcs-órára), egyébként hordozzák és fésülik. A Kotlin- és Swift-tükör
  * ugyanezt teszi.
+ *
+ * AZ ABLAKOS CSOMAG más: az ablak és a fehérlista TILT (a menet magától
+ * indul), a jelet pedig egy ingyenes szerkesztés is lépteti — egy elavult
+ * eszköz egy átnevezéssel egészében visszahozta volna a régi változatot, és
+ * egy máshol ingyen felvett ablak vagy szűkített fehérlista próbatétel
+ * nélkül eltűnt volna. Ezért előbb az OSZTÁLY dönt, egészében:
+ *
+ *   1. a KIFIZETETT ablak-lazítások száma (`packLoosens`, a bíró írja a
+ *      próbatétel teljesítésekor): a több nyer — a változat vagy a törlése;
+ *   2. egyenlő számnál az ABLAKOS változat nyer: ablakot felvenni ingyen van,
+ *      levenni csak próbatétellel (az pedig az 1. pont) — egy azonos számú,
+ *      ablak nélküli változat tehát vagy régebbi, vagy egy olyan eszköz
+ *      szerkesztése, ami az ablakról nem tudott. Az ő átnevezése elvész:
+ *      kimondott korlát.
+ *
+ * Az osztályon belül két ablakos változat MEZŐNKÉNT a szigorúbb
+ * (`stricterPack`), két ablak nélküli a jel szerint, ahogy eddig.
+ *
+ * A SAJÁT JEL (`packOwnMarks`). A közös jel (`packMarks`) a nagyobb marad —
+ * a régi kliens csak ezt látja, és a helyi szerkesztés ehhez képest lép. De
+ * ha az osztály döntött, a vesztes nagyobb jele a győztesre ragadna, és egy
+ * harmadik eszköz azonos osztályú változatával szemben a SORRENDTŐL függne,
+ * melyik nyer: amelyik a vesztessel előbb találkozott, az örökölte a nagy
+ * jelet. Ezért az osztályon belül a győztes osztály SAJÁT legnagyobb jele
+ * dönt — a mezőben csak ott áll, ahol kisebb a közös jelnél (a helyi
+ * szerkesztés törli: annál a saját jel maga a közös). A Kotlin- és
+ * Swift-tükör ugyanezt teszi.
  */
 function mergePacks(
   newer: SyncFocus, older: SyncFocus, runPackId?: string, carriers: SyncFocus[] = [],
-): { packs: FocusPack[]; packMarks: Record<string, number> | undefined } {
+): {
+  packs: FocusPack[]; packMarks: Record<string, number> | undefined;
+  packLoosens: Record<string, number> | undefined; packOwnMarks: Record<string, number> | undefined;
+} {
   const en = newer.packMarks ?? {};
   const eo = older.packMarks ?? {};
+  const ln = newer.packLoosens ?? {};
+  const lo = older.packLoosens ?? {};
+  const sn = newer.packOwnMarks ?? {};
+  const so = older.packOwnMarks ?? {};
   // A MENET CSOMAGJA ELÖL: a 30-as plafon vágásából sem eshet ki — csomag
   // nélküli menet a vágásból sem születhet.
   const ids = [
     ...(runPackId ? [runPackId] : []),
     ...newer.packs.map((p) => p.id),
     ...older.packs.map((p) => p.id),
-    ...Object.keys(en), ...Object.keys(eo),
+    ...Object.keys(en), ...Object.keys(eo), ...Object.keys(ln), ...Object.keys(lo),
   ].filter((id, i, all) => all.indexOf(id) === i);
   const chosen: { pack: FocusPack; marked: boolean }[] = [];
   const marks: Record<string, number> = {};
+  const loosens: Record<string, number> = {};
+  const owns: Record<string, number> = {};
   for (const id of ids) {
     const mn = en[id] ?? 0;
     const mo = eo[id] ?? 0;
+    const cn = ln[id] ?? 0;
+    const co = lo[id] ?? 0;
+    // A saját jel alapból a közös: csak ott van külön szám, ahol kisebb.
+    const tn = sn[id] ?? mn;
+    const to = so[id] ?? mo;
     const pn = newer.packs.find((p) => p.id === id);
     const po = older.packs.find((p) => p.id === id);
-    // Egyenlő POZITÍV jelnél a jelenlét nyer; két változat közül a
-    // `preferPack`, ami a két változatból jön, nem a hordozó blobból; jel
-    // nélkül az újabb blob.
+    const wn = pn?.recurrence ? 1 : 0;
+    const wo = po?.recurrence ? 1 : 0;
     let pick: FocusPack | undefined;
-    if (mo > mn) pick = po;
-    else if (mn > mo) pick = pn;
-    else if (mn > 0) pick = pn && po ? preferPack(pn, po) : pn ?? po;
-    else pick = pn;
+    let own: number;
+    if (cn !== co || wn !== wo) {
+      // AZ OSZTÁLY dönt, egészében — a változat a saját jelével megy tovább.
+      const newerWins = cn !== co ? cn > co : wn > wo;
+      pick = newerWins ? pn : po;
+      own = newerWins ? tn : to;
+    } else if (pn && po && wn === 1) {
+      pick = stricterPack(pn, po, tn, to);
+      own = Math.max(tn, to);
+    } else {
+      // Ablak nélkül a saját jel dönt. Egyenlő POZITÍV jelnél (vagy kifizetett
+      // lazítás után) a jelenlét nyer, két változat közül a `preferPack` — ami
+      // a két változatból jön, nem a hordozó blobból; jel nélkül, az alsó
+      // osztályban, az újabb blob, ahogy eddig.
+      own = Math.max(tn, to);
+      if (tn !== to) pick = tn > to ? pn : po;
+      else if (tn > 0 || cn > 0) pick = pn && po ? preferPack(pn, po) : pn ?? po;
+      else pick = pn;
+    }
     if (id === runPackId) pick = runPack(id, pick, carriers, pn, po);
-    if (pick) chosen.push({ pack: pick, marked: id === runPackId || Math.max(mn, mo) > 0 });
-    if (Math.max(mn, mo) > 0) marks[id] = Math.max(mn, mo);
+    const m = Math.max(mn, mo);
+    const c = Math.max(cn, co);
+    if (pick) chosen.push({ pack: pick, marked: id === runPackId || m > 0 || c > 0 });
+    if (m > 0) marks[id] = m;
+    if (c > 0) loosens[id] = c;
+    if (own < m) owns[id] = own;
   }
   const packs = capPacks(chosen);
   // Ugyanaz a plafon, mint a bemeneten és a léptetésnél — különben a három
-  // hely három listát tartana, és sosem érnének össze.
-  return { packs, packMarks: capPackMarks(marks, packs.map((p) => p.id)) };
+  // hely három listát tartana, és sosem érnének össze. A saját jel a vágott
+  // jelekhez igazodik: kiesett jel mellett nincs mihez kisebbnek lennie.
+  const presentIds = packs.map((p) => p.id);
+  const packMarks = capPackMarks(marks, presentIds);
+  return {
+    packs, packMarks, packLoosens: capPackMarks(loosens, presentIds), packOwnMarks: cleanOwnMarks(owns, packMarks),
+  };
+}
+
+/**
+ * Két ABLAKOS változat, azonos kifizetett-számmal: a SZIGORÚBB, mezőnként.
+ * Ezen a szinten a helyi szabály is csak szigorít: az ablak ingyen csak
+ * bővülhet, a fehérlista csak szűkülhet (`saveFocusPack`), a törléshez előbb
+ * az ablakot kell levenni. Az ablak tehát a hosszabb (több heti perc,
+ * holtversenyben a kulcs), a fehérlista a metszet, a név és a hossz a
+ * nagyobb SAJÁT jelű változaté (azok nem nyitnak semmit), egyenlő jelnél a
+ * kettő kódegység-sorrendje — csak a saját mezőiktől függ, így három
+ * eszköznél sem számít a sorrend. Az eredmény lehet olyan változat, ami egyik
+ * eszközön sem létezett — szándékosan: mindkettőnél szigorúbb. A Kotlin- és
+ * Swift-tükör ugyanezt teszi.
+ */
+function stricterPack(pn: FocusPack, po: FocusPack, tn: number, to: number): FocusPack {
+  const named = tn !== to ? (tn > to ? pn : po) : (nameKey(pn) <= nameKey(po) ? pn : po);
+  return {
+    ...named,
+    allowSites: meetAllow(pn.allowSites, po.allowSites),
+    allowApps: meetAllow(pn.allowApps, po.allowApps),
+    recurrence: longerBand(pn.recurrence!, po.recurrence!),
+  };
+}
+
+/** A név és a hossz sorrendje a döntetlenhez — bájtra ugyanez a három nyelvben. */
+function nameKey(p: FocusPack): string {
+  return `${p.name}\u0001${p.defaultMinutes}`;
+}
+
+/**
+ * Két fehérlista szigorúbbja: a METSZET, rendezve (a sorrend nem jelentés, a
+ * három nyelv így bájtra ugyanazt adja). Ha mindkettő engedett valamit, de
+ * közös elemük nincs, a rövidebb (holtversenyben a rendezett kulcs) — üres
+ * fehérlista mindent tiltana a menet alatt, amit senki nem kért. A
+ * csatorna-szűrők szabálya; három eszköznél ez az ág sorrendfüggő lehet (a
+ * flotta akkor is összeér: az eredmény mindig a rövidebb-vagy-egyenlő).
+ */
+function meetAllow(a: string[], b: string[]): string[] {
+  const common = a.filter((x) => b.includes(x)).sort();
+  if (common.length > 0 || a.length === 0 || b.length === 0) return common;
+  const sa = [...a].sort();
+  const sb = [...b].sort();
+  if (sa.length !== sb.length) return sa.length < sb.length ? sa : sb;
+  return sa.join('\u0001') <= sb.join('\u0001') ? sa : sb;
+}
+
+/** Két heti ablak szigorúbbja: a hosszabb (heti percben), holtversenyben a kulcs. */
+function longerBand(a: Band, b: Band): Band {
+  const wa = a.days.length * bandMinutes(a);
+  const wb = b.days.length * bandMinutes(b);
+  if (wa !== wb) return wa > wb ? a : b;
+  return bandKey(a) <= bandKey(b) ? a : b;
+}
+
+function bandKey(b: Band): string {
+  return `${[...b.days].sort((x, y) => x - y).join(',')}/${b.startMin}/${b.endMin}`;
 }
 
 /**
@@ -577,7 +749,10 @@ function capPacks(chosen: { pack: FocusPack; marked: boolean }[]): FocusPack[] {
  *
  *   - MINDIG megmarad — ha a jelek szerint törölni kellene, a menetet hordozó
  *     blob változata áll, a törlés jelével: a törlés így megsemmisül, nem
- *     halasztódik (aki törölni akarja, a menet után újra törli — kimondott ár);
+ *     halasztódik (aki törölni akarja, a menet után újra törli — kimondott ár).
+ *     AZ ABLAKA NÉLKÜL: ablakos változattal szemben törlés csak magasabb
+ *     osztályból nyerhet, tehát az ablak levétele ki volt fizetve — az nem
+ *     veszhet el azért, mert közben máshol futott egy menet;
  *   - a mezői a jelek szerinti győztesé (név, hossz, ablak — a szűkítés és az
  *     ablak felvétele ingyen van, átmegy);
  *   - a fehérlistája viszont csak az, ami a menetet hordozó változat(ok)ban
@@ -590,7 +765,7 @@ function runPack(
   id: string, pick: FocusPack | undefined, carriers: SyncFocus[], pn?: FocusPack, po?: FocusPack,
 ): FocusPack | undefined {
   const held = carriers.map((f) => f.packs.find((p) => p.id === id)).filter((p): p is FocusPack => !!p);
-  const base = pick ?? held[0] ?? pn ?? po;
+  const base = pick ?? withoutWindow(held[0] ?? pn ?? po);
   if (!base || held.length === 0) return base;
   const keeps = (list: (p: FocusPack) => string[]) => (x: string) => held.every((h) => list(h).includes(x));
   return {
@@ -598,6 +773,14 @@ function runPack(
     allowSites: base.allowSites.filter(keeps((p) => p.allowSites)),
     allowApps: base.allowApps.filter(keeps((p) => p.allowApps)),
   };
+}
+
+/** A változat ablak nélkül (ha volt neki). */
+function withoutWindow(p: FocusPack | undefined): FocusPack | undefined {
+  if (!p?.recurrence) return p;
+  const out: FocusPack = { ...p };
+  delete out.recurrence;
+  return out;
 }
 
 /**
@@ -665,7 +848,17 @@ function contentKey(f: SyncFocus): string {
   const marks = Object.entries(f.packMarks ?? {})
     .sort(([x], [y]) => (x < y ? -1 : x > y ? 1 : 0))
     .map(([k, v]) => `${k}=${v}`).join(',');
-  return `${packs}\u0003${run}\u0003${marks}`;
+  // A kifizetett ablak-lazítások csak ha vannak: a nélkülük lévő blob kulcsa
+  // ugyanaz, mint a frissítés előtt.
+  const loosens = Object.entries(f.packLoosens ?? {})
+    .sort(([x], [y]) => (x < y ? -1 : x > y ? 1 : 0))
+    .map(([k, v]) => `${k}=${v}`).join(',');
+  // A saját jelek is, ugyanígy: csak ha vannak.
+  const owns = Object.entries(f.packOwnMarks ?? {})
+    .sort(([x], [y]) => (x < y ? -1 : x > y ? 1 : 0))
+    .map(([k, v]) => `${k}=${v}`).join(',');
+  return `${packs}\u0003${run}\u0003${marks}` + (loosens ? `\u0003${loosens}` : '')
+    + (owns ? `\u0004${owns}` : '');
 }
 
 /**
@@ -798,6 +991,12 @@ function stable(f: SyncFocus): unknown {
     // A jelek is: ha csak ők különböznek (egy régi kliens blobja jel nélkül),
     // akkor is fel kell menniük.
     packMarks: f.packMarks ? Object.entries(f.packMarks).sort() : null,
+    // A kifizetett ablak-lazítások is: egy levétel számlálója nélkül a levétel
+    // sosem érne át.
+    packLoosens: f.packLoosens ? Object.entries(f.packLoosens).sort() : null,
+    // A saját jelek is: nélkülük egy osztály-döntés nyoma nem érne fel, és a
+    // harmadik eszköz a felfújt közös jellel döntene.
+    packOwnMarks: f.packOwnMarks ? Object.entries(f.packOwnMarks).sort() : null,
     // A ZÁRLAT IS: enélkül egy itt indított zárlat sosem érne fel a
     // kiszolgálóra, mert a kör azt látná, hogy nincs mit feltölteni — és a
     // többi eszközön nem történne semmi.

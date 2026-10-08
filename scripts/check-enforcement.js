@@ -1143,12 +1143,12 @@ const WIRES = [
   },
   {
     file: 'android/app/src/main/java/hu/breaker/app/core/SyncRevisions.kt',
-    needle: 'for ((id, f) in packFps) if (prevFps[id] != f) marks[id] = rev',
+    needle: 'for ((id, f) in packFps) if (prevFps[id] != f) { marks[id] = rev; owns.remove(id) }',
     lost: 'a telefon csomag-szerkesztése jel nélkül menne — a gép ugyanabban a körben tett szerkesztése csendben letörölné',
   },
   {
     file: 'ios/Shared/SyncRevisions.swift',
-    needle: 'for (id, f) in packFps where prevFps[id] != f { marks[id] = Int(newRev) }',
+    needle: 'for (id, f) in packFps where prevFps[id] != f { marks[id] = Int(newRev); owns[id] = nil }',
     lost: 'az iPhone csomag-szerkesztése jel nélkül menne — a gép ugyanabban a körben tett szerkesztése csendben letörölné',
   },
   // A BÖNGÉSZŐBŐL IS: a tiltó lap és a felugró lap gombja a hídon teszi fel az
@@ -3807,6 +3807,52 @@ const WIRES = [
     file: 'desktop/src/helper/sync-client.ts',
     needle: 'const split = splitMerged(merged, localIds, now);',
     lost: 'a fésült sírkövek a tiltólistára kerülnének — a törölt oldal minden körben visszajönne',
+  },
+  // AZ ABLAKOS CSOMAG OSZTÁLYA: a kifizetett ablak-lazítás számlálója és a
+  // győztes osztály saját jele. A logika a fésülésben van; ha a bíró nem
+  // bélyegez, vagy a kör nem viszi fel őket, semmi nem hasal el — csak egy
+  // elavult eszköz átnevezése visszahozza a próbatétellel levett ablakot.
+  {
+    file: 'desktop/src/helper/referee.ts',
+    needle: 'state.focusPackLoosens = { ...(state.focusPackLoosens ?? {}), [packId]: (state.focusPackLoosens?.[packId] ?? 0) + 1 };',
+    lost: 'a kifizetett ablak-levétel számláló nélkül menne — egy elavult eszköz ingyenes átnevezése visszahozná az ablakot',
+  },
+  {
+    file: 'desktop/src/helper/sync-client.ts',
+    needle: '...(state.focusPackLoosens ? { packLoosens: state.focusPackLoosens } : {}),',
+    lost: 'a gépen kifizetett ablak-levétel számlálója nem menne fel — a többi eszközön a régi ablak nyerne',
+  },
+  {
+    file: 'desktop/src/helper/sync-client.ts',
+    needle: '...(state.focusPackOwnMarks ? { packOwnMarks: state.focusPackOwnMarks } : {}),',
+    lost: 'az osztály-döntés nyoma nem menne fel — három eszköznél a sorrendtől függne, melyik csomag-változat marad',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/SyncClient.kt',
+    needle: 'packLoosens = current.focusPackLoosens,',
+    lost: 'a telefon nem vinné fel a kifizetett ablak-levétel számlálóját — a saját feltöltése eltüntetné a fiókból',
+  },
+  {
+    file: 'ios/Shared/SyncClient.swift',
+    needle: 'packLoosens: current.focusPackLoosens,',
+    lost: 'az iPhone nem vinné fel a kifizetett ablak-levétel számlálóját — a saját feltöltése eltüntetné a fiókból',
+  },
+  // A FUTÓ MENET csomagja a törlés ellen is marad — de a kifizetetten levett
+  // ablaka nem jöhet vissza vele (a három nyelvben ugyanaz a sor).
+  {
+    file: 'desktop/src/shared/sync/focus-merge.ts',
+    needle: 'const base = pick ?? withoutWindow(held[0] ?? pn ?? po);',
+    lost: 'a futó menet a kifizetetten levett ablakot is visszahozná a törölt csomaggal',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/core/FocusSync.kt',
+    needle: 'val base = pick ?: (held.firstOrNull() ?: pn ?: po)?.copy(recurrence = null)',
+    lost: 'a telefonon a futó menet a kifizetetten levett ablakot is visszahozná a törölt csomaggal',
+  },
+  {
+    file: 'ios/Shared/FocusSync.swift',
+    needle: 'guard let base = pick ?? revived else { return nil }',
+    lost: 'az iPhone-on a futó menet a kifizetetten levett ablakot is visszahozná a törölt csomaggal',
   },
   // A NEM VÉGES VÉGIDŐ NEM SZIGORÍTÁS. A `NaN < current` hamis: a socketen
   // jött `"x"` a menetet NaN véggel írta el — ami nem fut, vagyis próbatétel

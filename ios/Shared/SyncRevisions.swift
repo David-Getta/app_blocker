@@ -269,9 +269,12 @@ enum SyncRevisions {
         let packFps = packFingerprints(state)
         if let prevFps = state.focusRevPacks {
             var marks = state.focusPackMarks ?? [:]
-            for (id, f) in packFps where prevFps[id] != f { marks[id] = Int(newRev) }
-            for id in prevFps.keys where packFps[id] == nil { marks[id] = Int(newRev) }
+            // A SAJÁT JEL a szerkesztett csomagnál maga a közös: a külön szám törlődik.
+            var owns = state.focusPackOwnMarks ?? [:]
+            for (id, f) in packFps where prevFps[id] != f { marks[id] = Int(newRev); owns[id] = nil }
+            for id in prevFps.keys where packFps[id] == nil { marks[id] = Int(newRev); owns[id] = nil }
             next.focusPackMarks = FocusSync.capPackMarks(marks, Array(packFps.keys))
+            next.focusPackOwnMarks = FocusSync.cleanOwnMarks(owns, next.focusPackMarks)
         }
         next.focusRevPacks = packFps
         return next

@@ -689,6 +689,12 @@ async function syncFocusRound(
       // A jelek az összefésülés eredményéből: a helyi, régebbi jel nem
       // maradhat meg egy már eldőlt csomag mellett.
       state.focusPackMarks = merged.packMarks;
+      // …és a kifizetett ablak-lazítások: a következő fésülés ezekből dönt.
+      if (merged.packLoosens) state.focusPackLoosens = merged.packLoosens;
+      else delete state.focusPackLoosens;
+      // …és a saját jelek: az osztályon belül ezek döntenek, nem a felfújt közös.
+      if (merged.packOwnMarks) state.focusPackOwnMarks = merged.packOwnMarks;
+      else delete state.focusPackOwnMarks;
       // A MÁSIK ESZKÖZÖN INDÍTOTT ZÁRLAT itt lép életbe. A fésülés magasvízjel,
       // tehát ez sosem rövidít: a helyinél csak későbbi vég jöhet vissza.
       state.lockdown = merged.lockdown;
@@ -868,6 +874,10 @@ function localFocus(state: HelperState, deviceId: string, now: number): SyncFocu
     run: run && packs.some((p) => p.id === run.packId) ? run : null,
     log: state.focusLog ?? [],
     ...(state.focusPackMarks ? { packMarks: state.focusPackMarks } : {}),
+    // A kifizetett ablak-lazítások csomagonként — a fésülés ezekből dönt.
+    ...(state.focusPackLoosens ? { packLoosens: state.focusPackLoosens } : {}),
+    // A saját jelek is: egy osztály-döntés nyoma (lásd `mergePacks`).
+    ...(state.focusPackOwnMarks ? { packOwnMarks: state.focusPackOwnMarks } : {}),
     // A ZÁRLAT a munkamenet blobján utazik: nem oldalhoz tartozik, hanem az
     // egész eszközhöz — ugyanaz a szint, mint a futó menet. Csak az ÉLŐ megy
     // fel; a lejártat nincs értelme a többi eszközre vinni — és a lejövő

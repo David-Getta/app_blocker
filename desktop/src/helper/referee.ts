@@ -290,7 +290,16 @@ function finishSession(state: HelperState, now: number): void {
       else logFocusEnd(state, run.endsAt, false);
       state.focusRun = null;
     }
-    applyRecurrence(state, s.pendingRecurrence.packId, s.pendingRecurrence.band);
+    // A kifizetett ablak-lazítás SZÁMLÁLÓJA — csak itt nő, a teljesítéskor, és
+    // csak ha a csomag még megvan (a csere tényleg megtörténik). A szinkron
+    // csomagonként ebből tudja, hogy a szűkítés vagy a levétel kifizetett: egy
+    // elavult eszköz ingyenes szerkesztése nem hozza vissza a régi ablakot
+    // (shared/sync/focus-merge.ts `mergePacks`).
+    const packId = s.pendingRecurrence.packId;
+    if ((state.focusPacks ?? []).some((p) => p.id === packId)) {
+      state.focusPackLoosens = { ...(state.focusPackLoosens ?? {}), [packId]: (state.focusPackLoosens?.[packId] ?? 0) + 1 };
+    }
+    applyRecurrence(state, packId, s.pendingRecurrence.band);
     state.unlockLog = [...state.unlockLog.filter((t) => t > now - 30 * 24 * 3600_000), now];
     state.session = null;
     state.abandons = (state.abandons ?? []).filter((a) => a.siteId !== s.siteId);

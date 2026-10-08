@@ -80,11 +80,13 @@ class MergeFixtureTest {
             ).joinToString("|")
         }
         val marks = (f.packMarks ?: emptyMap()).toSortedMap().entries.joinToString(",") { "${it.key}=${it.value}" }
+        val ploos = (f.packLoosens ?: emptyMap()).toSortedMap().entries.joinToString(",") { "${it.key}=${it.value}" }
+        val pown = (f.packOwnMarks ?: emptyMap()).toSortedMap().entries.joinToString(",") { "${it.key}=${it.value}" }
         val run = f.run?.let { "${it.packId}/${it.startedAt}/${it.endsAt}/${it.cuts}/${it.origin ?: "-"}" } ?: "-"
         val lock = f.lockdown?.let { "${it.startedAt}/${it.until}" } ?: "-"
         // Az ablakok TARTALOM szerint, rendezve: az azonosító és a sorrend nem jelentés.
         val windows = f.lockdownWindows.map { LockdownLogic.windowKey(it.band) }.sorted().joinToString(";")
-        return "packs=[$packs] run=$run marks=[$marks] rev=${f.rev} at=${f.updatedAt} by=${f.updatedBy}" +
+        return "packs=[$packs] run=$run marks=[$marks] ploos=[$ploos] pown=[$pown] rev=${f.rev} at=${f.updatedAt} by=${f.updatedBy}" +
             " lock=$lock windows=[$windows] wmark=${f.lockdownWindowsRev ?: 0}" +
             " hide=${if (f.hideSiteList) 1 else 0} hmark=${f.hideSiteListRev ?: 0}" +
             " kw=[${KeywordLogic.keywordsKey(f.keywords)}] kmark=${f.keywordsRev ?: 0} kwm=[${KeywordLogic.keywordMarksKey(f.keywordMarks)}]" +

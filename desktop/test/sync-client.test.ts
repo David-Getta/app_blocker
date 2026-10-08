@@ -1112,3 +1112,44 @@ test('a visszavonás feltámasztja a máshol közben végigment törlést', asyn
   assert.deepEqual(a.sites.map((s) => [s.id, s.pendingDeleteAt]), [['site_t7', null]], 'és a gépen is visszajött');
   assert.equal(a.goneSites, undefined, 'a sírkő nem maradt mellette');
 });
+
+test('a kifizetetten levett csomag-ablakot egy elavult eszköz átnevezése nem hozza vissza', async () => {
+  // A jel-szabály alatt ez volt a rés: a telefon nem tudott a gépen
+  // próbatétellel levett ablakról, átnevezte a csomagot (ingyen, nagyobb
+  // jellel), és a régi, ablakos változata egészében visszajött — mindkét
+  // eszközre. Most a kifizetett levétel számlálója dönt, egészében.
+  const WIN = { days: [1, 2, 3, 4, 5] as (0 | 1 | 2 | 3 | 4 | 5 | 6)[], startMin: 540, endMin: 720 };
+  const a = device();
+  await signUp(a, url, 'ablak@example', PASSWORD, 'Munkagép');
+  a.focusPacks = [{
+    id: 'pack_ablak', name: 'Mély munka', allowSites: ['quizlet.com'], allowApps: [], defaultMinutes: 50, recurrence: WIN,
+  }];
+  bumpRevisions(a, 'gep-a', 30_000);
+  await syncNow(a, 30_000);
+  const b = device();
+  await signIn(b, url, 'ablak@example', PASSWORD, 'Telefon');
+  await syncNow(b, 31_000);
+  assert.deepEqual(b.focusPacks?.[0]?.recurrence, WIN, 'a telefon megkapja az ablakot');
+
+  // A gép próbatétellel leveszi az ablakot — a bíró hatása: csere + számláló.
+  a.focusPacks = [{ ...a.focusPacks![0] }];
+  delete a.focusPacks[0].recurrence;
+  a.focusPackLoosens = { pack_ablak: 1 };
+  bumpRevisions(a, 'gep-a', 32_000);
+  await syncNow(a, 32_000);
+
+  // A telefon hálózat nélkül háromszor átnevezi — a jele nagyobb a gépénél.
+  for (let i = 1; i <= 3; i++) {
+    b.focusPacks = [{ ...b.focusPacks![0], name: `Mély munka ${i}` }];
+    bumpRevisions(b, 'telefon', 33_000 + i);
+  }
+  await syncNow(b, 34_000);
+  assert.equal(b.focusPacks?.[0]?.recurrence, undefined, 'a telefonon is levéve');
+  assert.equal(b.focusPacks?.[0]?.name, 'Mély munka', 'a győztes változat egészében');
+  assert.deepEqual(b.focusPackLoosens, { pack_ablak: 1 });
+  assert.ok(b.focusPackOwnMarks?.pack_ablak !== undefined, 'a győztes saját jele kisebb a közösnél');
+
+  await syncNow(a, 35_000);
+  assert.equal(a.focusPacks?.[0]?.recurrence, undefined, 'a gépen sem jön vissza');
+  assert.deepEqual(a.focusPackOwnMarks, b.focusPackOwnMarks, 'a két eszköz ugyanazt tartja');
+});

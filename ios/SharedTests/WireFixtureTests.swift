@@ -76,6 +76,10 @@ final class WireFixtureTests: XCTestCase {
         }.joined(separator: ";")
         let marks = (f.packMarks ?? [:]).sorted { $0.key < $1.key }
             .map { "\($0.key)=\($0.value)" }.joined(separator: ",")
+        let ploos: String = (f.packLoosens ?? [:]).sorted { $0.key < $1.key }
+            .map { "\($0.key)=\($0.value)" }.joined(separator: ",")
+        let pown: String = (f.packOwnMarks ?? [:]).sorted { $0.key < $1.key }
+            .map { "\($0.key)=\($0.value)" }.joined(separator: ",")
         let log = f.log.map { e in
             "\(e.packId)/\(e.packName)/\(int(e.startedAt))/\(int(e.endedAt))/\(int(e.plannedEndsAt))"
                 + "/\(e.stopped ? 1 : 0)/\(e.window == true ? 1 : 0)"
@@ -87,7 +91,8 @@ final class WireFixtureTests: XCTestCase {
         }.joined(separator: ";")
         let partner: String = f.partner.map { "\($0.name)|\($0.salt)|\($0.hash)|\(int($0.setAt))" } ?? "-"
         let kw: String = (f.keywords ?? []).joined(separator: ",")
-        let a = "packs=[\(packs)] marks=[\(marks)] log=[\(log)] rev=\(int(f.rev)) at=\(int(f.updatedAt)) by=\(f.updatedBy)"
+        let a = "packs=[\(packs)] marks=[\(marks)] ploos=[\(ploos)] pown=[\(pown)] log=[\(log)]"
+            + " rev=\(int(f.rev)) at=\(int(f.updatedAt)) by=\(f.updatedBy)"
         let b = " run=\(run) lock=\(lock) windows=[\(windows)] wmark=\(f.lockdownWindowsRev ?? 0)"
             + " wm=[\(LockdownLogic.windowMarksKey(f.lockdownWindowMarks))]"
         let co: String = (f.partnerCo ?? []).map { "\($0.name)|\($0.salt)|\($0.hash)|\(int($0.setAt))" }.joined(separator: ";")

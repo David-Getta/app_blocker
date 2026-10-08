@@ -101,8 +101,14 @@ próbatétellel lehet, ami a levétel jelét írja.
 A sorrend a jelé (a régebben felvett elöl, a jeltelen legelöl), aztán
 kódegység szerint — két eszköz bájtra ugyanazt kapja. A 40-es plafon is ebben
 a sorrendben vág, tehát egy frissen felvett szemét-tömeg nem szoríthatja ki a
-régi kulcsszavakat. A jelek plafonja 128: a jelen lévők jele mindig marad, a
-levettekből a legfrissebbek. A léptetés a lista előző állapotát is eltárolja
+régi kulcsszavakat. **Kimondott korlát:** a jel a blob számlálója, és egy
+régóta nem szinkronizált eszközé kisebb lehet — az ott frissen felvett
+kulcsszó régebbinek látszik egy máshol nemrég felvettnél, és ha a kettő
+együtt negyvennél több, azt szoríthatja ki. Ez a plafon természete: két
+eszköz egymástól függetlenül felvett kulcsszavai közül a plafon fölött
+valamelyiknek ki kell esnie, és amelyik kiesik, az a saját eszközén tiltott.
+A jelek plafonja 128: a jelen lévők jele mindig marad, a levettekből a
+legfrissebbek. A léptetés a lista előző állapotát is eltárolja
 (`focusRevKeywordList`), és abból jelöl; az átvett listát a szinkron szintén
 eltárolja, hogy a következő helyi szerkesztés ne jelölje felvettnek vagy
 levettnek, ami nem itt történt.

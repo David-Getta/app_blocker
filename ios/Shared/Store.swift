@@ -246,6 +246,14 @@ struct AppState: Codable, Equatable {
     /// csomag-szerkesztésénél (ablak a csúcs-órára) az iPhone is írja, a
     /// léptetésben. Lásd FocusSync és SyncRevisions.
     var focusPackMarks: [String: Int]? = nil
+    /// A csomagok KIFIZETETT ABLAK-LAZÍTÁSAI (azonosító → hányszor szűkítették
+    /// vagy vették le az ablakát próbatétellel). A gép bírója írja; az iPhone
+    /// HORDOZZA és fésüli — a fésülés csomagonként ebből dönt (FocusSync).
+    var focusPackLoosens: [String: Int]? = nil
+    /// A csomagok SAJÁT JELE (a győztes osztály saját jele), csak ahol kisebb a
+    /// közös jelnél. A fésülés írja; a saját csomag-szerkesztés törli
+    /// (SyncRevisions) — annál a saját jel maga a közös. Lásd FocusSync.
+    var focusPackOwnMarks: [String: Int]? = nil
     /// A csomagok lenyomata az utolsó léptetéskor (azonosító → kivonat) — ebből
     /// derül ki csomagonként, kell-e új jel. Helyi, nem utazik. Lásd SyncRevisions.
     var focusRevPacks: [String: String]? = nil
@@ -512,6 +520,9 @@ final class BreakerStore: ObservableObject {
             id: { $0.id }, pending: { $0.pendingDeleteAt }
         )
         decoded.goneSites = gone.isEmpty ? nil : gone
+        // A csomagok saját jele a lemezről: nemnegatív, kisebb a közös jelnél —
+        // mint a dróton.
+        decoded.focusPackOwnMarks = FocusSync.cleanOwnMarks(decoded.focusPackOwnMarks, decoded.focusPackMarks)
         // A kulcsszó-jelek a lemezről: ugyanaz a tisztítás, mint a dróton.
         decoded.keywordMarks = KeywordLogic.cleanKeywordMarks(
             decoded.keywordMarks, decoded.keywords ?? [], maxRev: clampedInt(decoded.focusRev ?? 0)

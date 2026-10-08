@@ -271,6 +271,18 @@ data class AppState(
      */
     val focusPackMarks: Map<String, Int>? = null,
     /**
+     * A csomagok KIFIZETETT ABLAK-LAZÍTÁSAI (azonosító → hányszor szűkítették
+     * vagy vették le az ablakát próbatétellel). A gép bírója írja; a telefon
+     * HORDOZZA és fésüli — a fésülés csomagonként ebből dönt (FocusSync).
+     */
+    val focusPackLoosens: Map<String, Int>? = null,
+    /**
+     * A csomagok SAJÁT JELE (a győztes osztály saját jele), csak ahol kisebb a
+     * közös jelnél. A fésülés írja; a saját csomag-szerkesztés törli
+     * (SyncRevisions) — annál a saját jel maga a közös. Lásd FocusSync.
+     */
+    val focusPackOwnMarks: Map<String, Int>? = null,
+    /**
      * A csomagok lenyomata az utolsó léptetéskor (azonosító → kivonat) — ebből
      * derül ki csomagonként, kell-e új jel. Helyi, nem utazik. Lásd SyncRevisions.
      */
@@ -740,6 +752,8 @@ object BreakerStore {
         put("focusUpdatedBy", s.focusUpdatedBy ?: JSONObject.NULL)
         put("focusRevFp", s.focusRevFp ?: JSONObject.NULL)
         put("focusPackMarks", s.focusPackMarks?.let { JSONObject(it) } ?: JSONObject.NULL)
+        put("focusPackLoosens", s.focusPackLoosens?.let { JSONObject(it) } ?: JSONObject.NULL)
+        put("focusPackOwnMarks", s.focusPackOwnMarks?.let { JSONObject(it) } ?: JSONObject.NULL)
         put("focusRevPacks", s.focusRevPacks?.let { JSONObject(it) } ?: JSONObject.NULL)
         put("lastCombo", s.lastCombo ?: JSONObject.NULL)
         put("abandons", JSONArray(s.abandons.map { a ->
@@ -1142,6 +1156,12 @@ object BreakerStore {
             focusUpdatedBy = if (o.isNull("focusUpdatedBy")) null else o.optString("focusUpdatedBy"),
             focusRevFp = if (o.isNull("focusRevFp")) null else o.optString("focusRevFp"),
             focusPackMarks = SyncClient.marksFromJson(o, "focusPackMarks"),
+            focusPackLoosens = SyncClient.marksFromJson(o, "focusPackLoosens"),
+            // A saját jel nemnegatív, kisebb a közös jelnél — mint a dróton.
+            focusPackOwnMarks = FocusSync.cleanOwnMarks(
+                SyncClient.marksFromJson(o, "focusPackOwnMarks", Int.MAX_VALUE, 0),
+                SyncClient.marksFromJson(o, "focusPackMarks"),
+            ),
             focusRevPacks = stringMapFromJson(o, "focusRevPacks"),
         )
     }

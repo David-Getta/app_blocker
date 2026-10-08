@@ -54,6 +54,19 @@ object FocusSync {
          */
         val packMarks: Map<String, Int>? = null,
         /**
+         * A csomagok KIFIZETETT ABLAK-LAZÍTÁSAI: azonosító → hányszor szűkítették
+         * vagy vették le a heti ablakát próbatétellel. A gép bírója írja, a
+         * teljesítéskor; a telefon hordozza és fésüli. A törölt csomagé is
+         * marad. Lásd `mergePacks`.
+         */
+        val packLoosens: Map<String, Int>? = null,
+        /**
+         * A csomagok SAJÁT JELE: a győztes osztály saját legnagyobb jele — csak
+         * ahol KISEBB a közös jelnél. Az osztályon belül ez dönt, nem a felhúzott
+         * közös jel. A helyi szerkesztés törli. Lásd `mergePacks`.
+         */
+        val packOwnMarks: Map<String, Int>? = null,
+        /**
          * A ZÁRLAT, ha van. A `rev`-hez SEMMI köze: a fésülése tiszta
          * magasvízjel, a későbbi vég nyer. A zárlat csak szigorítani tud,
          * tehát nem kell megvédeni attól, hogy régebbi rekord írja felül —
@@ -132,9 +145,9 @@ object FocusSync {
         // napló: a menet sorsát ez dönti el (a leállítás nyoma a naplósor).
         val log = mergeLog(local.log, incoming.log)
         val (run, carriers) = mergeRun(local, incoming, log, now)
-        val (packs, packMarks) = mergePacks(newer, older, run?.packId, carriers)
+        val pm = mergePacks(newer, older, run?.packId, carriers)
         return SyncFocus(
-            packs = packs,
+            packs = pm.packs,
             run = run,
             log = log,
             rev = maxOf(local.rev, incoming.rev),
@@ -142,7 +155,9 @@ object FocusSync {
             // blobé, és három eszköz bármilyen sorrendben ugyanoda jut.
             updatedAt = newer.updatedAt,
             updatedBy = newer.updatedBy,
-            packMarks = packMarks,
+            packMarks = pm.packMarks,
+            packLoosens = pm.packLoosens,
+            packOwnMarks = pm.packOwnMarks,
             // MAGASVÍZJEL, nem döntés: a későbbi vég nyer, rev-re való
             // tekintet nélkül. Egy hálózat nélkül maradt eszköz így nem tud
             // feloldani semmit azzal, hogy a régi állapotát tolja fel.
@@ -177,13 +192,6 @@ object FocusSync {
         PartnerLogic.PartnerSet(f.partner, f.partnerCo, f.partnersGone)
 
     /**
-     * A csomagok CSOMAGONKÉNT fésülődnek, a jelük szerint: a nagyobb jelnél
-     * álló állapot (ez a változat, vagy nincs) marad; egyenlő jelnél (a jel
-     * nélküli csomag is ilyen) az újabb blob állapota, ahogy eddig. A sorrend
-     * az újabb blobé, a csak a régebbin élő csomagok a végére. A telefon jelet
-     * nem ír, csak hordozza és fésüli. A merge.ts `mergePacks` tükre.
-     */
-    /**
      * A REJTÉS fésülése — a `shared/sync/focus-merge.ts` `mergeHide` tükre: a
      * nagyobb jel nyer (a kikapcsolás munkába került, tehát átmegy); azonos
      * jelnél a rejtett — ha bárhol rejtve van, mindenhol az.
@@ -194,41 +202,143 @@ object FocusSync {
         else -> local || incoming
     }
 
+    /** A csomagok fésülésének eredménye: a lista és a három jel-térkép. */
+    private data class PackMerge(
+        val packs: List<Focus.FocusPack>,
+        val packMarks: Map<String, Int>?,
+        val packLoosens: Map<String, Int>?,
+        val packOwnMarks: Map<String, Int>?,
+    )
+
+    /**
+     * A csomagok CSOMAGONKÉNT fésülődnek — a focus-merge.ts `mergePacks` tükre.
+     *
+     * Előbb az OSZTÁLY dönt, egészében: a kifizetett ablak-lazítások száma (a
+     * több nyer — a változat vagy a törlése), egyenlő számnál az ABLAKOS
+     * változat (ablakot felvenni ingyen van, levenni csak próbatétellel — az
+     * pedig a számláló). Az osztályon belül két ablakos változat mezőnként a
+     * szigorúbb (`stricterPack`), két ablak nélküli a jel szerint: a nagyobb
+     * jelnél álló állapot (ez a változat, vagy nincs) marad; egyenlő jelnél (a
+     * jel nélküli csomag is ilyen) az újabb blob állapota, ahogy eddig.
+     *
+     * A jel az osztályon belül a SAJÁT jel: a győztes osztály saját legnagyobb
+     * jele. A közös jel (`packMarks`) a nagyobb marad — a régi kliens csak azt
+     * látja —, de egy osztály-döntés vesztesének nagyobb jele különben a
+     * győztesre ragadna, és három eszköznél a sorrendtől függne, melyik
+     * változat marad. A sorrend az újabb blobé, a csak a régebbin élő csomagok
+     * a végére. A telefon jelet csak a saját csomag-szerkesztésénél ír.
+     */
     private fun mergePacks(
         newer: SyncFocus, older: SyncFocus, runPackId: String?, carriers: List<SyncFocus>,
-    ): Pair<List<Focus.FocusPack>, Map<String, Int>?> {
+    ): PackMerge {
         val en = newer.packMarks ?: emptyMap()
         val eo = older.packMarks ?: emptyMap()
+        val ln = newer.packLoosens ?: emptyMap()
+        val lo = older.packLoosens ?: emptyMap()
+        val sn = newer.packOwnMarks ?: emptyMap()
+        val so = older.packOwnMarks ?: emptyMap()
         // A MENET CSOMAGJA ELÖL: a 30-as plafon vágásából sem eshet ki.
         val ids = LinkedHashSet<String>()
         if (runPackId != null) ids.add(runPackId)
         newer.packs.forEach { ids.add(it.id) }
         older.packs.forEach { ids.add(it.id) }
-        ids.addAll(en.keys); ids.addAll(eo.keys)
+        ids.addAll(en.keys); ids.addAll(eo.keys); ids.addAll(ln.keys); ids.addAll(lo.keys)
         val chosen = ArrayList<Pair<Focus.FocusPack, Boolean>>()
         val marks = LinkedHashMap<String, Int>()
+        val loosens = LinkedHashMap<String, Int>()
+        val owns = LinkedHashMap<String, Int>()
         for (id in ids) {
             val mn = en[id] ?: 0
             val mo = eo[id] ?: 0
+            val cn = ln[id] ?: 0
+            val co = lo[id] ?: 0
+            // A saját jel alapból a közös: csak ott van külön szám, ahol kisebb.
+            val tn = sn[id] ?: mn
+            val to = so[id] ?: mo
             val pn = newer.packs.firstOrNull { it.id == id }
             val po = older.packs.firstOrNull { it.id == id }
-            // Egyenlő POZITÍV jelnél a jelenlét nyer; két változat közül a
-            // `preferPack`; jel nélkül az újabb blob.
-            var pick = when {
-                mo > mn -> po
-                mn > mo -> pn
-                mn > 0 -> if (pn != null && po != null) preferPack(pn, po) else pn ?: po
-                else -> pn
+            val wn = if (pn?.recurrence != null) 1 else 0
+            val wo = if (po?.recurrence != null) 1 else 0
+            var pick: Focus.FocusPack?
+            val own: Int
+            if (cn != co || wn != wo) {
+                // AZ OSZTÁLY dönt, egészében — a változat a saját jelével megy tovább.
+                val newerWins = if (cn != co) cn > co else wn > wo
+                pick = if (newerWins) pn else po
+                own = if (newerWins) tn else to
+            } else if (pn != null && po != null && wn == 1) {
+                pick = stricterPack(pn, po, tn, to)
+                own = maxOf(tn, to)
+            } else {
+                // Ablak nélkül a saját jel dönt. Egyenlő POZITÍV jelnél (vagy
+                // kifizetett lazítás után) a jelenlét nyer, két változat közül a
+                // `preferPack`; jel nélkül, az alsó osztályban, az újabb blob.
+                own = maxOf(tn, to)
+                pick = when {
+                    tn != to -> if (tn > to) pn else po
+                    tn > 0 || cn > 0 -> if (pn != null && po != null) preferPack(pn, po) else pn ?: po
+                    else -> pn
+                }
             }
             if (id == runPackId) pick = runPack(id, pick, carriers, pn, po)
-            if (pick != null) chosen.add(pick to (id == runPackId || maxOf(mn, mo) > 0))
-            if (maxOf(mn, mo) > 0) marks[id] = maxOf(mn, mo)
+            val m = maxOf(mn, mo)
+            val c = maxOf(cn, co)
+            if (pick != null) chosen.add(pick to (id == runPackId || m > 0 || c > 0))
+            if (m > 0) marks[id] = m
+            if (c > 0) loosens[id] = c
+            if (own < m) owns[id] = own
         }
         val packs = capPacks(chosen)
         // Ugyanaz a plafon, mint a bemeneten — különben a három hely három
-        // listát tartana, és sosem érnének össze.
-        return packs to capPackMarks(marks, packs.map { it.id })
+        // listát tartana, és sosem érnének össze. A saját jel a vágott jelekhez
+        // igazodik.
+        val presentIds = packs.map { it.id }
+        val packMarks = capPackMarks(marks, presentIds)
+        return PackMerge(packs, packMarks, capPackMarks(loosens, presentIds), cleanOwnMarks(owns, packMarks))
     }
+
+    /**
+     * Két ABLAKOS változat, azonos kifizetett-számmal: a SZIGORÚBB, mezőnként
+     * — a focus-merge.ts `stricterPack` tükre. Az ablak a hosszabb (több heti
+     * perc, holtversenyben a kulcs), a fehérlista a metszet, a név és a hossz a
+     * nagyobb saját jelű változaté, egyenlő jelnél a kettő kódegység-sorrendje.
+     */
+    private fun stricterPack(pn: Focus.FocusPack, po: Focus.FocusPack, tn: Int, to: Int): Focus.FocusPack {
+        val named = if (tn != to) (if (tn > to) pn else po) else (if (nameKey(pn) <= nameKey(po)) pn else po)
+        return named.copy(
+            allowSites = meetAllow(pn.allowSites, po.allowSites),
+            allowApps = meetAllow(pn.allowApps, po.allowApps),
+            recurrence = longerBand(pn.recurrence!!, po.recurrence!!),
+        )
+    }
+
+    /** A név és a hossz sorrendje a döntetlenhez — bájtra ugyanez a három nyelvben. */
+    private fun nameKey(p: Focus.FocusPack): String = p.name + "\u0001" + p.defaultMinutes
+
+    /**
+     * Két fehérlista szigorúbbja: a METSZET, rendezve; ha mindkettő engedett
+     * valamit, de közös elemük nincs, a rövidebb (holtversenyben a rendezett
+     * kulcs) — a focus-merge.ts `meetAllow` tükre.
+     */
+    private fun meetAllow(a: List<String>, b: List<String>): List<String> {
+        val common = a.filter { it in b }.sorted()
+        if (common.isNotEmpty() || a.isEmpty() || b.isEmpty()) return common
+        val sa = a.sorted()
+        val sb = b.sorted()
+        if (sa.size != sb.size) return if (sa.size < sb.size) sa else sb
+        return if (sa.joinToString("\u0001") <= sb.joinToString("\u0001")) sa else sb
+    }
+
+    /** Két heti ablak szigorúbbja: a hosszabb (heti percben), holtversenyben a kulcs. */
+    private fun longerBand(a: ScheduleLogic.Band, b: ScheduleLogic.Band): ScheduleLogic.Band {
+        val wa = a.days.size * Focus.bandMinutes(a)
+        val wb = b.days.size * Focus.bandMinutes(b)
+        if (wa != wb) return if (wa > wb) a else b
+        return if (bandKey(a) <= bandKey(b)) a else b
+    }
+
+    private fun bandKey(b: ScheduleLogic.Band): String =
+        b.days.sorted().joinToString(",") + "/" + b.startMin + "/" + b.endMin
 
     /**
      * A csomagok plafonja (30): a JELES csomag (és a menet csomagja) marad, a
@@ -247,7 +357,9 @@ object FocusSync {
      * A FUTÓ MENET CSOMAGJA: mindig marad, és a fehérlistája nem bővülhet — a
      * focus-merge.ts `runPack` tükre. A mezői a jelek szerinti győztesé; ha a
      * jelek szerint törölni kellene, a menetet hordozó blob változata áll (a
-     * törlés így megsemmisül, nem halasztódik — kimondott ár); a
+     * törlés így megsemmisül, nem halasztódik — kimondott ár), AZ ABLAKA
+     * NÉLKÜL: ablakos változattal szemben törlés csak magasabb osztályból
+     * nyerhet, tehát a levétele ki volt fizetve; a
      * fehérlistája csak az, ami a menetet hordozó változat(ok)ban IS benne
      * van (metszet). A menetről már nem a `rev` dönt, tehát a csomagját sem
      * védheti — egy felhúzott jelű törlés vagy bővítés különben ingyen vinné el
@@ -258,7 +370,7 @@ object FocusSync {
         pn: Focus.FocusPack?, po: Focus.FocusPack?,
     ): Focus.FocusPack? {
         val held = carriers.mapNotNull { f -> f.packs.firstOrNull { it.id == id } }
-        val base = pick ?: held.firstOrNull() ?: pn ?: po
+        val base = pick ?: (held.firstOrNull() ?: pn ?: po)?.copy(recurrence = null)
         if (base == null || held.isEmpty()) return base
         return base.copy(
             allowSites = base.allowSites.filter { x -> held.all { x in it.allowSites } },
@@ -293,6 +405,21 @@ object FocusSync {
             out[id] = v
         }
         return out
+    }
+
+    /**
+     * A saját jelek kiegyenesítése — a focus-merge.ts `cleanOwnMarks` tükre:
+     * azonosító → nemnegatív egész, KISEBB a csomag közös jelénél. Ami nem
+     * kisebb, az nem hordoz hírt, és közös jel nélkül saját jel sincs. Üresen null.
+     */
+    fun cleanOwnMarks(raw: Map<String, Int>?, marks: Map<String, Int>?): Map<String, Int>? {
+        if (raw == null || marks == null) return null
+        val out = LinkedHashMap<String, Int>()
+        for ((k, v) in raw) {
+            val m = marks[k] ?: continue
+            if (v in 0 until m) out[k] = v
+        }
+        return out.ifEmpty { null }
     }
 
     /**
@@ -347,7 +474,12 @@ object FocusSync {
                 (if (it.cuts > 0) "/c${it.cuts}" else "") + (it.origin?.let { o -> "/o$o" } ?: "")
         } ?: "-"
         val marks = (f.packMarks ?: emptyMap()).toSortedMap().entries.joinToString(",") { "${it.key}=${it.value}" }
-        return "$packs\u0003$run\u0003$marks"
+        // A kifizetett ablak-lazítások és a saját jelek csak ha vannak: a
+        // nélkülük lévő blob kulcsa ugyanaz, mint a frissítés előtt.
+        val loosens = (f.packLoosens ?: emptyMap()).toSortedMap().entries.joinToString(",") { "${it.key}=${it.value}" }
+        val owns = (f.packOwnMarks ?: emptyMap()).toSortedMap().entries.joinToString(",") { "${it.key}=${it.value}" }
+        return "$packs\u0003$run\u0003$marks" + (if (loosens.isNotEmpty()) "\u0003$loosens" else "") +
+            (if (owns.isNotEmpty()) "\u0004$owns" else "")
     }
 
     /**
@@ -522,8 +654,12 @@ object FocusSync {
         val log = f.log.joinToString("|") {
             "${it.packId};${it.startedAt};${it.endedAt};${it.plannedEndsAt};${it.stopped};${it.cuts};${Focus.runOrigin(it)}"
         }
-        // A jelek is: ha csak ők különböznek, akkor is fel kell menniük.
-        val marks = (f.packMarks ?: emptyMap()).toSortedMap().entries.joinToString(",") { "${it.key}=${it.value}" }
+        // A jelek is: ha csak ők különböznek, akkor is fel kell menniük. A
+        // kifizetett ablak-lazítások és a saját jelek is: egy levétel
+        // számlálója vagy egy osztály-döntés nyoma nélkül a döntés nem érne át.
+        val marks = (f.packMarks ?: emptyMap()).toSortedMap().entries.joinToString(",") { "${it.key}=${it.value}" } +
+            "~" + (f.packLoosens ?: emptyMap()).toSortedMap().entries.joinToString(",") { "${it.key}=${it.value}" } +
+            "~" + (f.packOwnMarks ?: emptyMap()).toSortedMap().entries.joinToString(",") { "${it.key}=${it.value}" }
         // A ZÁRLAT IS: enélkül egy itt indított zárlat sosem érne fel a
         // kiszolgálóra — a kör azt látná, hogy nincs mit feltölteni. (A gép és
         // az iPhone kulcsában mindig benne volt; itt lemaradt, és egy csak a

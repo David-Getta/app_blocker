@@ -284,6 +284,17 @@ const FIELD_VARIANTS: Record<string, unknown>[] = [
   { hideSiteList: true, hideSiteListRev: 2 },
   { hideSiteList: 'true', hideSiteListRev: 2 },
   { hideSiteList: 1 },
+  // A kifizetett ablak-lazítások: pozitív egész, legfeljebb a rev (a törölt
+  // csomagé is marad). A saját jel: nemnegatív egész, KISEBB a csomag közös
+  // jelénél — közös jel nélkül nincs.
+  {
+    packMarks: { p1: 3, gone: 2 },
+    packLoosens: { p1: 2, gone: 1, big: 9, zero: 0, str: '1', half: 1.5 },
+    packOwnMarks: { p1: 0, gone: 1, nomark: 1 },
+  },
+  { packMarks: { p1: 3 }, packOwnMarks: { p1: 3, neg: -1 } },
+  { packMarks: { p1: 3 }, packOwnMarks: { p1: '1' } },
+  { packLoosens: 'x', packOwnMarks: [] },
 ];
 
 /** A jelek: a megmaradó, a kiesett (látott) és a sosem látott (sírkő) csomagé is. */
@@ -295,6 +306,8 @@ function focusKey(f: SyncFocus): string {
     return `${p.id}|${p.name}|${p.allowSites.join(',')}|${p.allowApps.join(',')}|${p.defaultMinutes}|${rec}`;
   });
   const marks = Object.keys(f.packMarks ?? {}).sort().map((k) => `${k}=${f.packMarks![k]}`);
+  const ploos = Object.keys(f.packLoosens ?? {}).sort().map((k) => `${k}=${f.packLoosens![k]}`);
+  const pown = Object.keys(f.packOwnMarks ?? {}).sort().map((k) => `${k}=${f.packOwnMarks![k]}`);
   const log = f.log.map((e) => `${e.packId}/${e.packName}/${e.startedAt}/${e.endedAt}/${e.plannedEndsAt}`
     + `/${e.stopped ? 1 : 0}/${e.window ? 1 : 0}`);
   const run = f.run ? `${f.run.packId}/${f.run.startedAt}/${f.run.endsAt}` : '-';
@@ -303,7 +316,8 @@ function focusKey(f: SyncFocus): string {
   const partner = f.partner ? `${f.partner.name}|${f.partner.salt}|${f.partner.hash}|${f.partner.setAt}` : '-';
   const co = (f.partnerCo ?? []).map((p) => `${p.name}|${p.salt}|${p.hash}|${p.setAt}`).join(';');
   const gone = (f.partnersGone ?? []).map((g) => `${g.id}@${g.at}`).join(';');
-  return `packs=[${packs.join(';')}] marks=[${marks.join(',')}] log=[${log.join(';')}]`
+  return `packs=[${packs.join(';')}] marks=[${marks.join(',')}] ploos=[${ploos.join(',')}] pown=[${pown.join(',')}]`
+    + ` log=[${log.join(';')}]`
     + ` rev=${f.rev} at=${f.updatedAt} by=${f.updatedBy}`
     + ` run=${run} lock=${lock} windows=[${windows.join(';')}] wmark=${f.lockdownWindowsRev ?? 0}`
     + ` wm=[${windowMarksKey(f.lockdownWindowMarks)}]`
@@ -346,6 +360,12 @@ function focusCases(): unknown[] {
   for (const p of [...PACK_TOLERATED, ...PACK_DROPPED]) out.push(blob([PACK_GOOD[0], p], [LOG_GOOD[0]], allMarks));
   for (const e of [...LOG_TOLERATED, ...LOG_DROPPED]) out.push(blob([PACK_GOOD[0]], [LOG_GOOD[0], e], {}));
   out.push(blob([...PACK_GOOD, ...PACK_TOLERATED, ...PACK_DROPPED], [...LOG_GOOD, ...LOG_TOLERATED, ...LOG_DROPPED], allMarks));
+  // A kiesett (látott) csomag számlálója és saját jele is kiesik, a sosem
+  // látotté (sírkő) marad.
+  out.push({
+    ...blob([...PACK_GOOD, ...PACK_TOLERATED, ...PACK_DROPPED], [], allMarks),
+    packLoosens: allMarks, packOwnMarks: Object.fromEntries(MARK_IDS.map((id) => [id, 0])),
+  });
   for (const v of FIELD_VARIANTS) {
     out.push({ packs: [PACK_GOOD[0]], log: [], rev: 5, updatedAt: 10, updatedBy: 'gep', ...v });
   }
@@ -410,7 +430,7 @@ function buildFixture(): Fixture {
       + 'Az in egy dróton jött JSON-szöveg (oldal-lista vagy munkamenet-dokumentum), az out a gép olvasójának '
       + 'eredménye kulcsként; a Kotlin WireFixtureTest és a Swift WireFixtureTests a saját olvasójával '
       + 'ugyanezt kell kapja. Egy rossz elem nem viheti a többit.',
-    version: 5,
+    version: 6,
     sites: siteCases().map((arr) => {
       const text = JSON.stringify(arr);
       return { in: text, out: normalizeIncomingSites(JSON.parse(text)).map(siteKey).join('\n') };

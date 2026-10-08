@@ -34,7 +34,7 @@ import {
 } from '../src/shared/focus';
 import { noteBurstUsage, type BurstState } from '../src/shared/burst';
 import {
-  DECISION_NOW, DEVICES, FOCUS_MERGE_NOW, LIST_NOW, SCHEDULE_WEEK_START, flipFocus, focusScenarios, flipSite, focusConformanceKey,
+  DECISION_NOW, DEVICES, FOCUS_MERGE_NOW, LIST_NOW, SCHEDULE_WEEK_START, flipFocus, flipFocusKind, focusScenarios, flipSite, focusConformanceKey,
   goneCapList, listConformanceKey, randomBurstRun, randomDecision, randomListCase, type ListCase,
   randomFocus, randomFocusLogCase, randomScheduleCase, randomSite, randomUsage, randomVerdict, randomWindowsCase,
   referenceVerdict, rng, siteConformanceKey, usageConformanceKey, usageSummaryParts, type FocusLogCase, type WindowsCase,
@@ -235,7 +235,22 @@ function buildFixture(): Fixture {
       seen.future = true;
     }
     if (ab.run?.origin !== undefined) seen.origin = true;
+    // A csomagok osztály-döntésének ágai: a kifizetett lazítás dönt, az ablak
+    // dönt, két ablakos változat mezőnként, és a saját jel nyoma.
+    const ids = new Set([...a.packs, ...b.packs].map((p) => p.id));
+    for (const id of ids) {
+      const la = a.packLoosens?.[id] ?? 0;
+      const lb = b.packLoosens?.[id] ?? 0;
+      const wa = !!a.packs.find((p) => p.id === id)?.recurrence;
+      const wb = !!b.packs.find((p) => p.id === id)?.recurrence;
+      if (la !== lb) seenPack.byLoosens = true;
+      else if (wa !== wb) seenPack.byWindow = true;
+      else if (wa && wb) seenPack.joined = true;
+    }
+    if (ab.packOwnMarks) seenPack.ownMark = true;
   };
+  const seenPack = { byLoosens: false, byWindow: false, joined: false, ownMark: false };
+  const whats = new Set<string>();
   for (let seed = 1; seed <= SEEDS; seed++) {
     const r = rng(seed);
     const [a, b, c] = DEVICES.map((d) => randomFocus(r, d));
@@ -254,6 +269,24 @@ function buildFixture(): Fixture {
       seed, now, a, b, c, ab: focusConformanceKey(ab), abc: focusConformanceKey(mergeFocus(ab, c, now)), flip, what, same,
     });
     note(a, b, ab);
+    whats.add(what);
+  }
+  // A CSOMAG-JELEK CSERÉJE biztosan: nyolcvan magból egy-egy fajta kimaradhat,
+  // és akkor a tükrök sosem bizonyítanák, hogy különbségnek tartják.
+  for (const kind of [25, 26]) {
+    const seed = 20_000 + kind;
+    const r = rng(seed);
+    const [a, b, c] = DEVICES.map((d) => randomFocus(r, d));
+    const now = FOCUS_MERGE_NOW;
+    const ab = mergeFocus(a, b, now);
+    const { flip, what, same } = flipFocusKind(kind, a);
+    const observed = sameFocus(normalizeSyncFocus(a, 'x'), normalizeSyncFocus(flip, 'x'));
+    assert.equal(observed, same, `a csere nem az, aminek szántuk: mag ${seed}, ${what}`);
+    focus.push({
+      seed, now, a, b, c, ab: focusConformanceKey(ab), abc: focusConformanceKey(mergeFocus(ab, c, now)), flip, what, same,
+    });
+    note(a, b, ab);
+    whats.add(what);
   }
   // KÉZZEL ÍRT ESETEK a menet minden ágára — ugyanúgy a három nyelvnek.
   focusScenarios().forEach((sc, i) => {
@@ -269,6 +302,8 @@ function buildFixture(): Fixture {
     note(sc.a, sc.b, ab);
   });
   for (const [k, v] of Object.entries(seen)) assert.ok(v, `a menet-ág hiányzik a fixtúrából: ${k} — a fixtúra elfajult`);
+  for (const [k, v] of Object.entries(seenPack)) assert.ok(v, `a csomag-ág hiányzik a fixtúrából: ${k}`);
+  for (const w of ['packLoosens', 'packOwnMarks']) assert.ok(whats.has(w), `a csere-fajta hiányzik a fixtúrából: ${w}`);
   // A HASZNÁLATI STATISZTIKA egyesítése: három eszköz mérése — napok, célok,
   // címkék (a több időt mérő eszközé), kapcsoló (ha bármelyik mér, az összeg
   // valódi). Nem fésülés, hanem összeadás — de a három nyelvnek itt is bájtra
@@ -407,7 +442,7 @@ function buildFixture(): Fixture {
       + 'lazítás, élő ablak, megkövetelt zárlat, ablak-zárlat-e, közelgő ablak, a következő előfordulás (nextOcc). '
       + 'A focusLogs-esetek: napló és időpont (UTC) — a hét és az előző hét összegzője (menet/ms/korai/ablakból/csúcs-csomag), '
       + 'menet-napok, menet-órák, sorozat, leghosszabb sorozat, ablakból indult menetek csomagonként, a napi rajz.',
-    version: 22,
+    version: 23,
     sites,
     lists,
     focus,

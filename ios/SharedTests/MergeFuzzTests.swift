@@ -134,6 +134,17 @@ private func siteKey(_ s: SyncMerge.SyncSite) -> String {
 
 private let packIds = ["p1", "p2", "p3", "p4"]
 private let win = ScheduleLogic.Band(days: [1, 2, 3, 4, 5], startMin: 540, endMin: 720)
+/// Az ablakos csomagok fehérlista- és ablak-változatai — a gép merge-random.ts
+/// ALLOW_SETS / PACK_WINDOWS párja. Minden fehérlista tartalmazza az alapot,
+/// így a metszet sosem üres.
+private let allowSets: [[String]] = [
+    ["quizlet.com"], ["duolingo.com", "quizlet.com"], ["anki.net", "quizlet.com"],
+    ["anki.net", "duolingo.com", "quizlet.com"],
+]
+private let packWindows: [ScheduleLogic.Band] = [
+    win, ScheduleLogic.Band(days: [6], startMin: 480, endMin: 960),
+    ScheduleLogic.Band(days: [1, 2, 3, 4, 5], startMin: 480, endMin: 780),
+]
 /// Az ablakok készlete — a gép merge-random.ts WINDOWS párja.
 private let windowPool: [ScheduleLogic.Band] = [
     ScheduleLogic.Band(days: [1, 2, 3, 4, 5], startMin: 540, endMin: 1020),
@@ -284,9 +295,36 @@ private func randomFocus(_ r: inout Lcg, _ device: String) -> FocusSync.SyncFocu
         )
     }
     let log = tombDraw < 0.3 ? rows + [tombs[tombPick]] : rows
+    // AZ ABLAKOS CSOMAGOK VÁLTOZATAI, A KIFIZETETT ABLAK-LAZÍTÁSOK ÉS A SAJÁT
+    // JELEK — csomagonként öt húzás, feltétel nélkül, ugyanebben a sorrendben,
+    // mint a gépen: fehérlista, ablak (csak ablakos csomagon), a számláló (0–2,
+    // legfeljebb a rev), van-e saját jel, és mekkora.
+    var loosens: [String: Int] = [:]
+    var owns: [String: Int] = [:]
+    var varied = packs
+    for id in packIds {
+        let allowPick = Int(r.next() * Double(allowSets.count))
+        let winPick = Int(r.next() * Double(packWindows.count))
+        let loosDraw = r.next()
+        let ownDraw = r.next()
+        let ownPick = r.next()
+        if let i = varied.firstIndex(where: { $0.id == id }) {
+            let p = varied[i]
+            varied[i] = Focus.Pack(
+                id: p.id, name: p.name, allowSites: allowSets[allowPick], allowApps: p.allowApps,
+                defaultMinutes: p.defaultMinutes, recurrence: p.recurrence != nil ? packWindows[winPick] : nil
+            )
+        }
+        let count = loosDraw < 0.2 ? 1 : loosDraw < 0.3 ? 2 : 0
+        if count > 0 { loosens[id] = min(count, revInt) }
+        let m = marks[id] ?? 0
+        if ownDraw < 0.25 && m > 0 { owns[id] = Int(ownPick * Double(m)) }
+    }
     return FocusSync.SyncFocus(
-        packs: packs, run: marked, log: log, rev: rev, updatedAt: updatedAt, updatedBy: device,
-        packMarks: marks.isEmpty ? nil : marks, lockdown: lockdown,
+        packs: varied, run: marked, log: log, rev: rev, updatedAt: updatedAt, updatedBy: device,
+        packMarks: marks.isEmpty ? nil : marks,
+        packLoosens: loosens.isEmpty ? nil : loosens, packOwnMarks: owns.isEmpty ? nil : owns,
+        lockdown: lockdown,
         lockdownWindows: windows.isEmpty ? nil : windows, lockdownWindowsRev: windowsRev,
         lockdownWindowMarks: windowMarks,
         partner: partner, partnerRev: partnerRev,
@@ -309,8 +347,13 @@ private func focusKey(_ f: FocusSync.SyncFocus, runIds: Set<String>, withRun: Bo
                 ? p.id
                 : "\(p.id):\(p.name):\(p.allowSites.sorted()):\(p.allowApps.sorted()):\(p.defaultMinutes):\(Focus.recurrenceKey(p.recurrence))"
         }.joined(separator: ",")
-    let marks = (f.packMarks ?? [:]).sorted { $0.key < $1.key }
-        .map { "\($0.key)=\($0.value)" }.joined(separator: ",")
+    // A saját jel a változat része: a futó menet csomagjáé a sorrendtől függhet,
+    // mint a változata (`runPack` felülírja a döntést).
+    let owned: [String: Int] = (f.packOwnMarks ?? [:]).filter { withRun || !runIds.contains($0.key) }
+    let markMaps: [[String: Int]] = [f.packMarks ?? [:], f.packLoosens ?? [:], owned]
+    let marks: String = markMaps.map { (m: [String: Int]) -> String in
+        m.sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" }.joined(separator: ",")
+    }.joined(separator: "~")
     let run = !withRun ? "*" : f.run.map { "\($0.packId)/\($0.startedAt)/\($0.endsAt)/\($0.cutCount)/\(String(describing: $0.origin))" } ?? "-"
     let lock = f.lockdown.map { "\($0.startedAt)/\($0.until)" } ?? "-"
     let windows = (f.lockdownWindows ?? []).map { LockdownLogic.windowKey($0.band) }.sorted().joined(separator: ";")
@@ -391,16 +434,17 @@ final class MergeFuzzTests: XCTestCase {
                 XCTAssertEqual(abc.run, bca.run, "három eszköz, a menet (bca), mag \(seed)")
                 XCTAssertEqual(abc.run, cab.run, "három eszköz, a menet (cab), mag \(seed)")
             }
-            // A jeles csomag a nagyobb jel változatában marad: ha az egyik
-            // oldalon ablakos csomag áll a nagyobb jellel, az ablak marad — a
-            // futó menet csomagjánál is (csak a fehérlistája metszet).
+            // Az ablak csak kifizetve tűnhet el: ha az egyik oldalon ablakos
+            // csomag áll, és a másik nem fizetett több ablak-lazítást, az
+            // eredményben is van ablak — akármelyik jele nagyobb. A futó menet
+            // csomagjánál is (csak a fehérlistája metszet).
             for p in a.packs {
-                let ma = a.packMarks?[p.id] ?? 0
-                let mb = b.packMarks?[p.id] ?? 0
-                if ma > mb && p.recurrence != nil {
+                let la = a.packLoosens?[p.id] ?? 0
+                let lb = b.packLoosens?[p.id] ?? 0
+                if la >= lb && p.recurrence != nil {
                     XCTAssertNotNil(
                         ab.packs.first { $0.id == p.id }?.recurrence,
-                        "a nagyobb jel ablaka marad: \(p.id), mag \(seed)"
+                        "ablak csak kifizetve tűnhet el: \(p.id), mag \(seed)"
                     )
                 }
             }

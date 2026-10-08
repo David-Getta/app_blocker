@@ -239,7 +239,7 @@ A szinkronban három dolog utazik együtt, és a harmadik szándékosan kilóg:
 
 | Mi | Mi ez | Hogyan fésülődik |
 |---|---|---|
-| csomagok | beállítás | csomagonként: jel nélkül az újabb blob, jellel a nagyobb jel |
+| csomagok | beállítás | csomagonként: előbb az osztály (kifizetett ablak-lazítás, aztán ablakos-e), azon belül a saját jel; jel nélkül az újabb blob |
 | futó menet | **engedély** | a szigorúbb nyer; lazítani csak a nyomával: rövidítés-számláló, lezáró naplósor |
 | napló | **a múlt feljegyzése** | EGYESÍTÉS, a `rev`-hez semmi köze |
 
@@ -562,6 +562,63 @@ cím, kevesebb app — az átnevezés és a hossz szabad), és a Törlés gomb s
 törli: a kapu az ablak levétele, egyszer, próbatétellel — utána minden
 ingyen.
 
+### Az ablak a szinkronban
+
+A csomag jelét egy ingyenes átnevezés is lépteti — a jel szerint egy
+elavult eszköz egyetlen átnevezéssel egészében visszahozta volna a
+próbatétellel levett ablakot, és egy máshol ingyen felvett ablak vagy
+szűkített fehérlista próbatétel nélkül eltűnt volna. Ezért a csomagok
+fésülésében előbb az **osztály** dönt, egészében:
+
+1. **A kifizetett ablak-lazítások száma** (`packLoosens`). A bíró a
+   próbatétel TELJESÍTÉSEKOR növeli (szűkítés, eltolás, levétel) — máshol
+   semmi —, és csak ha a csomag még megvan. A több nyer: a változat, vagy a
+   törlése. Egy elavult eszköz átnevezése így nem hozza vissza a levett
+   ablakot, akármekkora a jele.
+2. **Egyenlő számnál az ablakos változat nyer.** Ablakot felvenni ingyen van,
+   levenni csak próbatétellel — az pedig az 1. pont. Egy azonos számú, ablak
+   nélküli változat tehát vagy régebbi, vagy egy olyan eszköz szerkesztése,
+   ami az ablakról nem tudott.
+
+Az osztályon belül két ablakos változat **mezőnként a szigorúbb**: az ablak
+a hosszabb (több heti perc, holtversenyben a kulcs), a fehérlista a metszet,
+a név és a hossz a nagyobb jelű változaté (azok nem nyitnak semmit). Két
+ablak nélküli változat a jel szerint, ahogy eddig.
+
+A jel az osztályon belül a **saját jel** (`packOwnMarks`). A közös jel a
+nagyobb marad — a régi kliens csak azt látja —, de egy osztály-döntés
+vesztesének nagyobb jele különben a győztesre ragadna, és három eszköznél a
+sorrendtől függne, melyik változat marad. A saját jel csak ott utazik, ahol
+kisebb a közösnél; a helyi szerkesztés törli. Egy százezer magos futás és a
+három nyelv fuzz-tesztje ezt méri: a csomagok, a jelek, a számlálók és a
+saját jelek minden sorrendben ugyanoda jutnak (a futó menet csomagja külön
+kérdés, lásd fent).
+
+Ha a csomag a fésülés szerint törölt, de valamelyik eszközön épp a menete
+fut, a csomag marad (a menet nem maradhat csomag nélkül) — **az ablaka
+nélkül**: ablakos változattal szemben törlés csak magasabb osztályból
+nyerhet, tehát a levétel ki volt fizetve, és az nem veszhet el azért, mert
+közben máshol futott egy menet.
+
+**Kimondott korlátok:**
+
+- Az ablakról nem tudó eszköz **egyidejű szerkesztése elvész**: ha a
+  telefonon átnevezted a csomagot, a gépen közben ablakot kapott, az ablakos
+  változat nyer, egészében — a régi névvel. Nevezd át újra.
+- Két eszközön **egymástól függetlenül bővített** ablak közül a hosszabb
+  marad (heti percben); ha a kettő más napokat tett hozzá, az egyik napjai
+  elvesznek. Az ablak egy sáv, két sáv uniója nem fér bele.
+- Két eszközön **diszjunktra szűkített** fehérlista: a metszet üres lenne,
+  ami mindent tiltana, amit senki nem kért — ilyenkor a rövidebb marad
+  (holtversenyben a rendezett kulcs). Három eszköznél ez az ág a sorrendtől
+  függhet; a flotta így is egy állapotra áll be, mert az eredmény mindig a
+  rövidebb-vagy-egyenlő.
+- A **frissítés előtti kliens** nem ismeri a számlálót és a saját jelet:
+  a jel szerint fésül, és a feltöltése nélkülük megy. Amíg ilyen eszköz van
+  a fiókban, egy levett ablak ott visszajöhet. **Frissíts minden eszközt.**
+- A frissítés ELŐTT kifizetett levételeknek nincs számlálójuk: azokat a régi
+  jel-szabály védi, ahogy eddig.
+
 Ha a levétel próbatétele alatt ér be az ablak, a segéd elindítja a menetet —
 a próbatétel teljesítése **azt a menetet is lezárja** (a naplóban
 leállítottként), mert az ára ugyanaz. A közben kézzel indított menetet nem
@@ -654,6 +711,11 @@ ablak, hanem sima menet.
   elindított egy menetet, az ablak megmarad, a telefon menete is. Jel nélkül
   (régi kliens) az újabb blob dönt, ahogy régen; amíg a fiókban régi kliens
   is van, a csomag oda-vissza járhat — frissítés után rendeződik.
+- Az ABLAKOS csomagnál a jel nem elég: egy ingyenes átnevezés is lépteti.
+  Ezért előbb az **osztály** dönt, egészében: a kifizetett ablak-lazítások
+  száma (a több nyer), egyenlő számnál az ablakos változat. Az osztályon
+  belül két ablakos változat mezőnként a szigorúbb, két ablak nélküli a jel
+  szerint. Részletek lent, „Az ablak a szinkronban”.
 - Az óraátállítás éjszakáján a három platform ugyanazt a szabályt követi:
   a kétszer előforduló falióra-idő (ősszel a 2:00–2:59) az ELSŐ
   előfordulás, a kihagyott (tavasszal a 2:xx) az átállás előtti eltolással

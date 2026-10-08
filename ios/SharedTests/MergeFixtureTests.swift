@@ -131,11 +131,15 @@ final class MergeFixtureTests: XCTestCase {
         let packs: String = packParts.joined(separator: ";")
         let marks = (f.packMarks ?? [:]).sorted { $0.key < $1.key }
             .map { "\($0.key)=\($0.value)" }.joined(separator: ",")
+        let ploos = (f.packLoosens ?? [:]).sorted { $0.key < $1.key }
+            .map { "\($0.key)=\($0.value)" }.joined(separator: ",")
+        let pown = (f.packOwnMarks ?? [:]).sorted { $0.key < $1.key }
+            .map { "\($0.key)=\($0.value)" }.joined(separator: ",")
         let run = f.run.map { "\($0.packId)/\(int($0.startedAt))/\(int($0.endsAt))/\($0.cutCount)/\($0.origin.map { int($0) } ?? "-")" } ?? "-"
         let lock = f.lockdown.map { "\(int($0.startedAt))/\(int($0.until))" } ?? "-"
         // Az ablakok TARTALOM szerint, rendezve: az azonosító és a sorrend nem jelentés.
         let windows = (f.lockdownWindows ?? []).map { LockdownLogic.windowKey($0.band) }.sorted().joined(separator: ";")
-        return "packs=[\(packs)] run=\(run) marks=[\(marks)] rev=\(int(f.rev)) at=\(int(f.updatedAt)) by=\(f.updatedBy)"
+        return "packs=[\(packs)] run=\(run) marks=[\(marks)] ploos=[\(ploos)] pown=[\(pown)] rev=\(int(f.rev)) at=\(int(f.updatedAt)) by=\(f.updatedBy)"
             + " lock=\(lock) windows=[\(windows)] wmark=\(f.lockdownWindowsRev ?? 0)"
             + " hide=\((f.hideSiteList ?? false) ? 1 : 0) hmark=\(f.hideSiteListRev ?? 0)"
             + " kw=[\(KeywordLogic.keywordsKey(f.keywords ?? []))] kmark=\(f.keywordsRev ?? 0)"

@@ -62,6 +62,8 @@ class WireFixtureTest {
             "${p.id}|${p.name}|${p.allowSites.joinToString(",")}|${p.allowApps.joinToString(",")}|${p.defaultMinutes}|$rec"
         }
         val marks = (f.packMarks ?: emptyMap()).toSortedMap().entries.joinToString(",") { "${it.key}=${it.value}" }
+        val ploos = (f.packLoosens ?: emptyMap()).toSortedMap().entries.joinToString(",") { "${it.key}=${it.value}" }
+        val pown = (f.packOwnMarks ?: emptyMap()).toSortedMap().entries.joinToString(",") { "${it.key}=${it.value}" }
         val log = f.log.joinToString(";") { e ->
             "${e.packId}/${e.packName}/${e.startedAt}/${e.endedAt}/${e.plannedEndsAt}" +
                 "/${if (e.stopped) 1 else 0}/${if (e.window) 1 else 0}"
@@ -72,7 +74,7 @@ class WireFixtureTest {
         val partner = f.partner?.let { "${it.name}|${it.salt}|${it.hash}|${it.setAt}" } ?: "-"
         val co = f.partnerCo.joinToString(";") { "${it.name}|${it.salt}|${it.hash}|${it.setAt}" }
         val gone = f.partnersGone.joinToString(";") { "${it.id}@${it.at}" }
-        return "packs=[$packs] marks=[$marks] log=[$log] rev=${f.rev} at=${f.updatedAt} by=${f.updatedBy}" +
+        return "packs=[$packs] marks=[$marks] ploos=[$ploos] pown=[$pown] log=[$log] rev=${f.rev} at=${f.updatedAt} by=${f.updatedBy}" +
             " run=$run lock=$lock windows=[$windows] wmark=${f.lockdownWindowsRev ?: 0}" +
             " wm=[${LockdownLogic.windowMarksKey(f.lockdownWindowMarks)}]" +
             " kw=[${f.keywords.joinToString(",")}] kmark=${f.keywordsRev ?: 0} kwm=[${KeywordLogic.keywordMarksKey(f.keywordMarks)}]" +

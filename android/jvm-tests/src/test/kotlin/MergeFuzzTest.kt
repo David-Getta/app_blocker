@@ -135,6 +135,19 @@ class MergeFuzzTest {
     private val packIds = listOf("p1", "p2", "p3", "p4")
     private val win = ScheduleLogic.Band(setOf(1, 2, 3, 4, 5), 540, 720)
 
+    /**
+     * Az ablakos csomagok fehérlista- és ablak-változatai — a gép
+     * merge-random.ts ALLOW_SETS / PACK_WINDOWS párja. Minden fehérlista
+     * tartalmazza az alapot, így a metszet sosem üres.
+     */
+    private val allowSets = listOf(
+        listOf("quizlet.com"), listOf("duolingo.com", "quizlet.com"), listOf("anki.net", "quizlet.com"),
+        listOf("anki.net", "duolingo.com", "quizlet.com"),
+    )
+    private val packWindows = listOf(
+        win, ScheduleLogic.Band(setOf(6), 480, 960), ScheduleLogic.Band(setOf(1, 2, 3, 4, 5), 480, 780),
+    )
+
     /** Az ablakok készlete — a gép merge-random.ts WINDOWS párja. */
     private val WINDOWS = listOf(
         ScheduleLogic.Band(setOf(1, 2, 3, 4, 5), 540, 1020),
@@ -268,9 +281,37 @@ class MergeFuzzTest {
             origin = if (originDraw < 0.2) 5L else null,
         )
         val log = if (tombDraw < 0.3) rows + tombs[tombPick] else rows
+        // AZ ABLAKOS CSOMAGOK VÁLTOZATAI, A KIFIZETETT ABLAK-LAZÍTÁSOK ÉS A SAJÁT
+        // JELEK — csomagonként öt húzás, feltétel nélkül, ugyanebben a
+        // sorrendben, mint a gépen: fehérlista, ablak (csak ablakos csomagon),
+        // a számláló (0–2, legfeljebb a rev), van-e saját jel, és mekkora.
+        val loosens = LinkedHashMap<String, Int>()
+        val owns = LinkedHashMap<String, Int>()
+        val varied = packs.toMutableList()
+        for (id in packIds) {
+            val allowPick = (r.next() * allowSets.size).toInt()
+            val winPick = (r.next() * packWindows.size).toInt()
+            val loosDraw = r.next()
+            val ownDraw = r.next()
+            val ownPick = r.next()
+            val i = varied.indexOfFirst { it.id == id }
+            if (i >= 0) {
+                val p = varied[i]
+                varied[i] = p.copy(
+                    allowSites = allowSets[allowPick],
+                    recurrence = if (p.recurrence != null) packWindows[winPick] else null,
+                )
+            }
+            val count = if (loosDraw < 0.2) 1 else if (loosDraw < 0.3) 2 else 0
+            if (count > 0) loosens[id] = minOf(count, rev)
+            val m = marks[id] ?: 0
+            if (ownDraw < 0.25 && m > 0) owns[id] = (ownPick * m).toInt()
+        }
         return FocusSync.SyncFocus(
-            packs = packs, run = marked, log = log, rev = rev.toLong(), updatedAt = updatedAt, updatedBy = device,
+            packs = varied, run = marked, log = log, rev = rev.toLong(), updatedAt = updatedAt, updatedBy = device,
             packMarks = marks.ifEmpty { null },
+            packLoosens = loosens.ifEmpty { null },
+            packOwnMarks = owns.ifEmpty { null },
             lockdown = lockdown, lockdownWindows = windows, lockdownWindowsRev = windowsRev,
             partner = partner, partnerRev = partnerRev, partnerCo = partnerCo, partnersGone = partnersGone,
             hideSiteList = hide, hideSiteListRev = hideRev,
@@ -292,7 +333,12 @@ class MergeFuzzTest {
             if (it.id in runIds) it.id
             else "${it.id}:${it.name}:${it.allowSites.sorted()}:${it.allowApps.sorted()}:${it.defaultMinutes}:${Focus.recurrenceKey(it.recurrence)}"
         }
-        val marks = (f.packMarks ?: emptyMap()).toSortedMap().entries.joinToString(",") { "${it.key}=${it.value}" }
+        val marks = (f.packMarks ?: emptyMap()).toSortedMap().entries.joinToString(",") { "${it.key}=${it.value}" } +
+            "~" + (f.packLoosens ?: emptyMap()).toSortedMap().entries.joinToString(",") { "${it.key}=${it.value}" } +
+            // A saját jel a változat része: a futó menet csomagjáé a sorrendtől
+            // függhet, mint a változata (`runPack` felülírja a döntést).
+            "~" + (f.packOwnMarks ?: emptyMap()).filterKeys { withRun || it !in runIds }.toSortedMap().entries
+                .joinToString(",") { "${it.key}=${it.value}" }
         val run = if (!withRun) "*" else f.run?.let { "${it.packId}/${it.startedAt}/${it.endsAt}/${it.cuts}/${it.origin}" } ?: "-"
         val lock = f.lockdown?.let { "${it.startedAt}/${it.until}" } ?: "-"
         val windows = f.lockdownWindows.map { LockdownLogic.windowKey(it.band) }.sorted().joinToString(";")
@@ -372,14 +418,15 @@ class MergeFuzzTest {
                 assertEquals(abc.run, bca.run, "három eszköz, a menet (bca), mag $seed")
                 assertEquals(abc.run, cab.run, "három eszköz, a menet (cab), mag $seed")
             }
-            // A jeles csomag a nagyobb jel változatában marad: ha az egyik
-            // oldalon ablakos csomag áll a nagyobb jellel, az ablak marad — a
-            // futó menet csomagjánál is (csak a fehérlistája metszet).
+            // Az ablak csak kifizetve tűnhet el: ha az egyik oldalon ablakos
+            // csomag áll, és a másik nem fizetett több ablak-lazítást, az
+            // eredményben is van ablak — akármelyik jele nagyobb. A futó menet
+            // csomagjánál is (csak a fehérlistája metszet).
             for (p in a.packs) {
-                val ma = a.packMarks?.get(p.id) ?: 0
-                val mb = b.packMarks?.get(p.id) ?: 0
-                if (ma > mb && p.recurrence != null) {
-                    assertNotNull(ab.packs.find { it.id == p.id }?.recurrence, "a nagyobb jel ablaka marad: ${p.id}, mag $seed")
+                val la = a.packLoosens?.get(p.id) ?: 0
+                val lb = b.packLoosens?.get(p.id) ?: 0
+                if (la >= lb && p.recurrence != null) {
+                    assertNotNull(ab.packs.find { it.id == p.id }?.recurrence, "ablak csak kifizetve tűnhet el: ${p.id}, mag $seed")
                 }
             }
             for (m in listOf(ab, abc, bca, cab)) runSafety(m, listOf(a, b, c), seed)

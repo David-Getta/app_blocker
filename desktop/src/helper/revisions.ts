@@ -22,7 +22,7 @@ import type { HelperState, SiteRec } from './state';
 import { windowKey } from '../shared/lockdown';
 import type { FocusPack } from '../shared/focus';
 import { capHostnameMarks, ruleKey } from '../shared/sync/merge';
-import { capPackMarks } from '../shared/sync/focus-merge';
+import { capPackMarks, cleanOwnMarks } from '../shared/sync/focus-merge';
 import { markChannelChanges } from '../shared/sync/channels-merge';
 import type { ChannelFilter } from '../shared/channels';
 
@@ -369,13 +369,29 @@ function markPacks(state: HelperState): void {
   state.focusRevPacks = cur;
   if (!prev || state.focusRev === undefined) return;
   const marks = { ...(state.focusPackMarks ?? {}) };
-  for (const [id, f] of Object.entries(cur)) if (prev[id] !== f) marks[id] = state.focusRev;
-  for (const id of Object.keys(prev)) if (!(id in cur)) marks[id] = state.focusRev;
+  // A SAJÁT JEL a szerkesztett csomagnál maga a közös: a külön szám törlődik
+  // (lásd shared/sync/focus-merge.ts `mergePacks`).
+  const owns = { ...(state.focusPackOwnMarks ?? {}) };
+  for (const [id, f] of Object.entries(cur)) {
+    if (prev[id] !== f) {
+      marks[id] = state.focusRev;
+      delete owns[id];
+    }
+  }
+  for (const id of Object.keys(prev)) {
+    if (!(id in cur)) {
+      marks[id] = state.focusRev;
+      delete owns[id];
+    }
+  }
   // Korlát: a törölt csomagok jelei gyűlnek; a legrégebbiek esnek ki — a
   // fésülés és a bemenet plafonjával, hogy három hely ugyanazt tartsa.
   const capped = capPackMarks(marks, Object.keys(cur));
   if (capped) state.focusPackMarks = capped;
   else delete state.focusPackMarks;
+  const keptOwns = cleanOwnMarks(owns, capped);
+  if (keptOwns) state.focusPackOwnMarks = keptOwns;
+  else delete state.focusPackOwnMarks;
 }
 
 /**

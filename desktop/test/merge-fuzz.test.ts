@@ -71,6 +71,11 @@ function focusKey(f: SyncFocus, runIds: Set<string>, withRun: boolean): string {
         ? [p.id]
         : [p.id, p.name, [...p.allowSites].sort(), [...p.allowApps].sort(), p.defaultMinutes, p.recurrence ?? null])),
     f.packMarks ? Object.entries(f.packMarks).sort() : null,
+    f.packLoosens ? Object.entries(f.packLoosens).sort() : null,
+    // A saját jel a változat része: a futó menet csomagjáé ugyanúgy a
+    // sorrendtől függhet, mint a változata (`runPack` felülírja a döntést).
+    f.packOwnMarks
+      ? Object.entries(f.packOwnMarks).filter(([id]) => withRun || !runIds.has(id)).sort() : null,
     withRun ? f.run : null, f.rev,
     // A zárlat és az ablakok a jelükkel — tartalom szerint, rendezve.
     f.lockdown ?? null,
@@ -128,15 +133,15 @@ test('munkamenet-blob: a csomagok halmaza és a jelek sorrendtől függetlenek',
       assert.deepEqual(bca.run, abc.run, `három eszköz, a menet (bca), mag ${seed}`);
       assert.deepEqual(cab.run, abc.run, `három eszköz, a menet (cab), mag ${seed}`);
     }
-    // A jeles csomag a nagyobb jel változatában marad: ha az egyik oldalon
-    // ablakos csomag áll a nagyobb jellel, az ablak az eredményben is ott van.
-    // A futó menet csomagja is: a mezői a jel szerinti győztesé, csak a
-    // fehérlistája metszet (`runPack`) — az ablaka marad.
+    // Az ablak csak kifizetve tűnhet el: ha az egyik oldalon ablakos csomag
+    // áll, és a másik oldal nem fizetett több ablak-lazítást, az eredményben
+    // is van ablak — akármelyik jele nagyobb. A futó menet csomagja is: a
+    // mezői a szabály szerintiek, csak a fehérlistája metszet (`runPack`).
     for (const p of a.packs) {
-      const ma = a.packMarks?.[p.id] ?? 0;
-      const mb = b.packMarks?.[p.id] ?? 0;
-      if (ma > mb && p.recurrence) {
-        assert.ok(ab.packs.find((x) => x.id === p.id)?.recurrence, `a nagyobb jel ablaka marad: ${p.id}, mag ${seed}`);
+      const la = a.packLoosens?.[p.id] ?? 0;
+      const lb = b.packLoosens?.[p.id] ?? 0;
+      if (la >= lb && p.recurrence) {
+        assert.ok(ab.packs.find((x) => x.id === p.id)?.recurrence, `ablak csak kifizetve tűnhet el: ${p.id}, mag ${seed}`);
       }
     }
     for (const m of [ab, abc, bca, cab]) runSafety(m, [a, b, c], seed);

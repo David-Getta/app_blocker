@@ -174,7 +174,15 @@ adag-szabály — MEZŐNKÉNT fésülődik, nem rekordonként:
   csomagot nem jelöl. A telefon a saját csomag-szerkesztésénél (az ablak a
   csúcs-órára — az egyetlen, amit telefonról lehet) ugyanígy írja a jelet a
   léptetésében (`SyncRevisions.bumpFocus`), egyébként csak hordozza és
-  fésüli; az első léptetés ott is jel nélkül megy.
+  fésüli; az első léptetés ott is jel nélkül megy. Az ABLAKOS csomagnál a
+  jel nem elég, mert egy ingyenes átnevezés is lépteti: előbb az osztály
+  dönt, egészében — a kifizetett ablak-lazítások száma (`packLoosens`, a
+  bíró írja a teljesítéskor), egyenlő számnál az ablakos változat —, azon
+  belül két ablakos változat mezőnként a szigorúbb (hosszabb ablak,
+  fehérlista-metszet). Az osztályon belül a győztes osztály saját jele
+  (`packOwnMarks`) dönt, nem a felhúzott közös jel — különben három
+  eszköznél a sorrendtől függne a kimenet. A részletek és az őszinte
+  korlátok: docs/feature-focus-sessions.md, „Az ablak a szinkronban”.
 - **A futó menetről nem a `rev` dönt, hanem a nyoma.** A `rev`-et egy
   csomag átnevezése is lépteti, ingyen — egy független átnézés megmutatta,
   hogy így egy friss telepítés vagy egy hálózaton kívül lévő telefon
@@ -228,8 +236,10 @@ adag-szabály — MEZŐNKÉNT fésülődik, nem rekordonként:
   csomagja akkor is marad, ha a jelek szerint törölni kellene (a menetet
   hordozó blob változatával, a törlés jelével) — **a törlés így megsemmisül,
   nem halasztódik**; aki törölni akarja, a menet után újra törli (ablakos
-  csomagnál próbatétellel). Ez kimondott ár. A csomag mezői (név, hossz,
-  ablak) a jelek szerinti győztesé — az ablak felvétele szigorítás, a menet
+  csomagnál próbatétellel). Ez kimondott ár. A visszahozott csomag ablak
+  nélkül jön: ablakos változattal szemben törlés csak magasabb osztályból
+  nyerhet, tehát az ablak levétele ki volt fizetve. A csomag mezői (név, hossz,
+  ablak) a fésülés szerinti győztesé — az ablak felvétele szigorítás, a menet
   alatt is átmegy —, a fehérlistája viszont a menetet hordozó változattal
   METSZET: egy felhúzott jelű bővítés nem nyit meg semmit a menet alatt.
   Csomag nélküli menet a 30-as csomagplafon vágásából sem születik: a menet

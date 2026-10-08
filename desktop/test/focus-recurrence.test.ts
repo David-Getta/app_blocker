@@ -314,9 +314,27 @@ test('a levétel próbatétele a teljesítéskor veszi le az ablakot', () => {
   const r = setFocusRecurrence(st, 'p1', null, NOW);
   assert.equal(r.applied, false);
   assert.deepEqual(recurrenceOf(st), WEEKDAYS, 'a próbatétel alatt még megvan');
+  assert.equal(st.focusPackLoosens, undefined, 'a felvétel ingyen van: nincs számláló');
   solveWholeSession(st, NOW);
   assert.equal(st.session, null);
   assert.equal(recurrenceOf(st), undefined, 'a teljesítés veszi le');
+  assert.deepEqual(st.focusPackLoosens, { p1: 1 }, 'a kifizetett levétel számlálója — a szinkron ebből dönt');
+});
+
+test('a kifizetett ablak-lazítás számlálója csak a teljesítéskor nő, és csak ha a csomag még megvan', () => {
+  const st = stateWithPack();
+  setFocusRecurrence(st, 'p1', { ...WEEKDAYS, endMin: 13 * 60 }, NOW);
+  setFocusRecurrence(st, 'p1', WEEKDAYS, NOW);
+  assert.equal(st.focusPackLoosens, undefined, 'a próbatétel alatt még nincs');
+  solveWholeSession(st, NOW);
+  assert.deepEqual(st.focusPackLoosens, { p1: 1 }, 'a szűkítés is kifizetett lazítás');
+  assert.deepEqual(recurrenceOf(st), WEEKDAYS);
+  // A próbatétel alatt a csomag eltűnt (a szinkron hozta a törlését): a csere
+  // nem történik meg, a számláló sem nő — nincs mit kifizetettnek mondani.
+  setFocusRecurrence(st, 'p1', null, NOW);
+  st.focusPacks = [];
+  solveWholeSession(st, NOW);
+  assert.deepEqual(st.focusPackLoosens, { p1: 1 });
 });
 
 test('a Mentés ingyenes útján az ablak nem változik — a kapu a setFocusRecurrence', () => {

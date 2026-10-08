@@ -257,6 +257,9 @@ enum SyncClient {
                 updatedAt: current.focusUpdatedAt ?? 0,
                 updatedBy: current.focusUpdatedBy ?? acc.deviceId,
                 packMarks: current.focusPackMarks,
+                // A kifizetett ablak-lazítások és a saját jelek — a fésülés ezekből dönt.
+                packLoosens: current.focusPackLoosens,
+                packOwnMarks: current.focusPackOwnMarks,
                 // Csak az ÉLŐ zárlat megy fel; a lejártat nincs értelme vinni — és
                 // a lejövő oldalon is csak az élő számít (normalize + now).
                 lockdown: LockdownLogic.live(current.lockdown, now),
@@ -286,6 +289,8 @@ enum SyncClient {
                 current.focusRun = merged.run
                 // A jelek az összefésülés eredményéből: az iPhone hordozza őket.
                 current.focusPackMarks = merged.packMarks
+                current.focusPackLoosens = merged.packLoosens
+                current.focusPackOwnMarks = merged.packOwnMarks
                 // A NAPLÓ a többi eszköztől is megjön — ettől lesz a
                 // statisztika a fiók egészéről szóló szám. Egyesítés, tehát a
                 // helyi sorok nem vesznek el.

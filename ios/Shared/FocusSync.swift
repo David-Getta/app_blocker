@@ -45,6 +45,15 @@ public enum FocusSync {
         /// jel nélkül az újabb blob. Az iPhone jelet csak a saját csomag-
         /// szerkesztésénél ír (SyncRevisions.bumpFocus). Lásd `mergePacks`.
         public var packMarks: [String: Int]?
+        /// A csomagok KIFIZETETT ABLAK-LAZÍTÁSAI: azonosító → hányszor
+        /// szűkítették vagy vették le a heti ablakát próbatétellel. A gép bírója
+        /// írja, a teljesítéskor; az iPhone hordozza és fésüli. A törölt csomagé
+        /// is marad. Lásd `mergePacks`.
+        public var packLoosens: [String: Int]?
+        /// A csomagok SAJÁT JELE: a győztes osztály saját legnagyobb jele — csak
+        /// ahol KISEBB a közös jelnél. Az osztályon belül ez dönt, nem a
+        /// felhúzott közös jel. A helyi szerkesztés törli. Lásd `mergePacks`.
+        public var packOwnMarks: [String: Int]?
         /// A ZÁRLAT, ha van. A `rev`-hez SEMMI köze: a fésülése tiszta
         /// magasvízjel, a későbbi vég nyer. A zárlat csak szigorítani tud,
         /// tehát nem kell megvédeni attól, hogy régebbi rekord írja felül.
@@ -94,7 +103,9 @@ public enum FocusSync {
         public init(
             packs: [Focus.Pack] = [], run: Focus.Run? = nil, log: [Focus.LogEntry] = [],
             rev: Double = 0, updatedAt: Double = 0, updatedBy: String = "",
-            packMarks: [String: Int]? = nil, lockdown: LockdownLogic.Lockdown? = nil,
+            packMarks: [String: Int]? = nil,
+            packLoosens: [String: Int]? = nil, packOwnMarks: [String: Int]? = nil,
+            lockdown: LockdownLogic.Lockdown? = nil,
             lockdownWindows: [LockdownLogic.LockdownWindow]? = nil, lockdownWindowsRev: Int? = nil,
             lockdownWindowMarks: [String: Int]? = nil,
             partner: PartnerLogic.PartnerLock? = nil, partnerRev: Int? = nil,
@@ -109,6 +120,8 @@ public enum FocusSync {
             self.updatedAt = updatedAt
             self.updatedBy = updatedBy
             self.packMarks = packMarks
+            self.packLoosens = packLoosens
+            self.packOwnMarks = packOwnMarks
             self.lockdown = lockdown
             self.lockdownWindows = lockdownWindows
             self.lockdownWindowsRev = lockdownWindowsRev
@@ -145,6 +158,9 @@ public enum FocusSync {
             // A jelek TŰRŐEN, értékenként: egy nem-egész érték csak magát vigye
             // (eddig az összes jelet — a gép csak a rosszat dobta).
             packMarks = c.lossyIntMap(.packMarks)
+            // A kifizetett ablak-lazítások és a saját jelek ugyanígy, értékenként.
+            packLoosens = c.lossyIntMap(.packLoosens)
+            packOwnMarks = c.lossyIntMap(.packOwnMarks)
             // Tűrően, mint a jelek: egy sérült zárlat-mező ne vigye el a blobot.
             lockdown = (try? c.decodeIfPresent(
                 LockdownLogic.Lockdown.self, forKey: .lockdown)) ?? nil
@@ -190,7 +206,7 @@ public enum FocusSync {
         // napló: a menet sorsát ez dönti el (a leállítás nyoma a naplósor).
         let log = mergeLog(local.log, incoming.log)
         let (run, carriers) = mergeRun(local, incoming, log: log, now: now)
-        let (packs, packMarks) = mergePacks(newer, older, runPackId: run?.packId, carriers: carriers)
+        let pm = mergePacks(newer, older, runPackId: run?.packId, carriers: carriers)
         // A megbízottak AZONOSSÁG szerint: élő megbízottat csak a nyoma visz el,
         // két különböző élő közül egyik sem esik ki (`PartnerLogic.mergePartners`).
         let partners = PartnerLogic.mergePartners(partnerSet(local), partnerSet(incoming))
@@ -205,7 +221,7 @@ public enum FocusSync {
             KeywordLogic.KeywordSet(keywords: incoming.keywords ?? [], keywordMarks: incoming.keywordMarks)
         )
         return SyncFocus(
-            packs: packs,
+            packs: pm.packs,
             run: run,
             log: log,
             rev: max(local.rev, incoming.rev),
@@ -213,7 +229,9 @@ public enum FocusSync {
             // blobé, és három eszköz bármilyen sorrendben ugyanoda jut.
             updatedAt: newer.updatedAt,
             updatedBy: newer.updatedBy,
-            packMarks: packMarks,
+            packMarks: pm.packMarks,
+            packLoosens: pm.packLoosens,
+            packOwnMarks: pm.packOwnMarks,
             // MAGASVÍZJEL, nem döntés: a későbbi vég nyer, rev-re való tekintet
             // nélkül. Egy hálózat nélkül maradt eszköz így nem tud feloldani
             // semmit azzal, hogy a régi állapotát tolja fel.
@@ -357,48 +375,158 @@ public enum FocusSync {
         let markParts: [String] = (f.packMarks ?? [:]).sorted { utf16Less($0.key, $1.key) }
             .map { "\($0.key)=\($0.value)" }
         let marks: String = markParts.joined(separator: ",")
-        return "\(packs)\u{3}\(run)\u{3}\(marks)"
+        // A kifizetett ablak-lazítások és a saját jelek csak ha vannak: a
+        // nélkülük lévő blob kulcsa ugyanaz, mint a frissítés előtt.
+        let loosens: String = (f.packLoosens ?? [:]).sorted { utf16Less($0.key, $1.key) }
+            .map { "\($0.key)=\($0.value)" }.joined(separator: ",")
+        let owns: String = (f.packOwnMarks ?? [:]).sorted { utf16Less($0.key, $1.key) }
+            .map { "\($0.key)=\($0.value)" }.joined(separator: ",")
+        return "\(packs)\u{3}\(run)\u{3}\(marks)" + (loosens.isEmpty ? "" : "\u{3}\(loosens)")
+            + (owns.isEmpty ? "" : "\u{4}\(owns)")
     }
 
-    /// A csomagok CSOMAGONKÉNT fésülődnek, a jelük szerint: a nagyobb jelnél
-    /// álló állapot (ez a változat, vagy nincs) marad; egyenlő jelnél (a jel
-    /// nélküli csomag is ilyen) az újabb blob állapota, ahogy eddig. A sorrend
-    /// az újabb blobé, a csak a régebbin élő csomagok a végére. Az iPhone jelet
-    /// csak a saját csomag-szerkesztésénél ír (SyncRevisions.bumpFocus),
-    /// egyébként hordozza és fésüli. A merge.ts `mergePacks` tükre.
+    /// A csomagok fésülésének eredménye: a lista és a három jel-térkép.
+    private struct PackMerge {
+        let packs: [Focus.Pack]
+        let packMarks: [String: Int]?
+        let packLoosens: [String: Int]?
+        let packOwnMarks: [String: Int]?
+    }
+
+    /// A csomagok CSOMAGONKÉNT fésülődnek — a focus-merge.ts `mergePacks` tükre.
+    ///
+    /// Előbb az OSZTÁLY dönt, egészében: a kifizetett ablak-lazítások száma (a
+    /// több nyer — a változat vagy a törlése), egyenlő számnál az ABLAKOS
+    /// változat (ablakot felvenni ingyen van, levenni csak próbatétellel — az
+    /// pedig a számláló). Az osztályon belül két ablakos változat mezőnként a
+    /// szigorúbb (`stricterPack`), két ablak nélküli a jel szerint: a nagyobb
+    /// jelnél álló állapot (ez a változat, vagy nincs) marad; egyenlő jelnél (a
+    /// jel nélküli csomag is ilyen) az újabb blob állapota, ahogy eddig.
+    ///
+    /// A jel az osztályon belül a SAJÁT jel: a győztes osztály saját legnagyobb
+    /// jele. A közös jel (`packMarks`) a nagyobb marad — a régi kliens csak azt
+    /// látja —, de egy osztály-döntés vesztesének nagyobb jele különben a
+    /// győztesre ragadna, és három eszköznél a sorrendtől függne, melyik
+    /// változat marad. A sorrend az újabb blobé, a csak a régebbin élő
+    /// csomagok a végére. Az iPhone jelet csak a saját csomag-szerkesztésénél ír.
     private static func mergePacks(
         _ newer: SyncFocus, _ older: SyncFocus, runPackId: String?, carriers: [SyncFocus]
-    ) -> ([Focus.Pack], [String: Int]?) {
+    ) -> PackMerge {
         let en = newer.packMarks ?? [:]
         let eo = older.packMarks ?? [:]
+        let ln = newer.packLoosens ?? [:]
+        let lo = older.packLoosens ?? [:]
+        let sn = newer.packOwnMarks ?? [:]
+        let so = older.packOwnMarks ?? [:]
         // A MENET CSOMAGJA ELÖL: a 30-as plafon vágásából sem eshet ki.
         var ids: [String] = []
-        let candidates = (runPackId.map { [$0] } ?? []) + newer.packs.map { $0.id } + older.packs.map { $0.id }
-            + Array(en.keys).sorted() + Array(eo.keys).sorted()
+        var candidates: [String] = runPackId.map { [$0] } ?? []
+        candidates += newer.packs.map { $0.id } + older.packs.map { $0.id }
+        candidates += Array(en.keys).sorted() + Array(eo.keys).sorted()
+        candidates += Array(ln.keys).sorted() + Array(lo.keys).sorted()
         for id in candidates where !ids.contains(id) { ids.append(id) }
         var chosen: [(pack: Focus.Pack, marked: Bool)] = []
         var marks: [String: Int] = [:]
+        var loosens: [String: Int] = [:]
+        var owns: [String: Int] = [:]
         for id in ids {
             let mn = en[id] ?? 0
             let mo = eo[id] ?? 0
+            let cn = ln[id] ?? 0
+            let co = lo[id] ?? 0
+            // A saját jel alapból a közös: csak ott van külön szám, ahol kisebb.
+            let tn = sn[id] ?? mn
+            let to = so[id] ?? mo
             let pn = newer.packs.first { $0.id == id }
             let po = older.packs.first { $0.id == id }
-            // Egyenlő POZITÍV jelnél a jelenlét nyer; két változat közül a
-            // `preferPack`; jel nélkül az újabb blob.
+            let wn = pn?.recurrence != nil ? 1 : 0
+            let wo = po?.recurrence != nil ? 1 : 0
             var pick: Focus.Pack?
-            if mo > mn { pick = po }
-            else if mn > mo { pick = pn }
-            else if mn > 0 {
-                if let a = pn, let b = po { pick = preferPack(a, b) } else { pick = pn ?? po }
-            } else { pick = pn }
+            let own: Int
+            if cn != co || wn != wo {
+                // AZ OSZTÁLY dönt, egészében — a változat a saját jelével megy tovább.
+                let newerWins = cn != co ? cn > co : wn > wo
+                pick = newerWins ? pn : po
+                own = newerWins ? tn : to
+            } else if let a = pn, let b = po, wn == 1 {
+                pick = stricterPack(a, b, tn, to)
+                own = max(tn, to)
+            } else {
+                // Ablak nélkül a saját jel dönt. Egyenlő POZITÍV jelnél (vagy
+                // kifizetett lazítás után) a jelenlét nyer, két változat közül a
+                // `preferPack`; jel nélkül, az alsó osztályban, az újabb blob.
+                own = max(tn, to)
+                if tn != to { pick = tn > to ? pn : po }
+                else if tn > 0 || cn > 0 {
+                    if let a = pn, let b = po { pick = preferPack(a, b) } else { pick = pn ?? po }
+                } else { pick = pn }
+            }
             if id == runPackId { pick = runPack(id, pick, carriers: carriers, pn: pn, po: po) }
-            if let p = pick { chosen.append((pack: p, marked: id == runPackId || max(mn, mo) > 0)) }
-            if max(mn, mo) > 0 { marks[id] = max(mn, mo) }
+            let m = max(mn, mo)
+            let c = max(cn, co)
+            if let p = pick { chosen.append((pack: p, marked: id == runPackId || m > 0 || c > 0)) }
+            if m > 0 { marks[id] = m }
+            if c > 0 { loosens[id] = c }
+            if own < m { owns[id] = own }
         }
         let packs = capPacks(chosen)
         // Ugyanaz a plafon, mint a bemeneten — különben a három hely három
-        // listát tartana, és sosem érnének össze.
-        return (packs, capPackMarks(marks, packs.map { $0.id }))
+        // listát tartana, és sosem érnének össze. A saját jel a vágott jelekhez
+        // igazodik.
+        let presentIds = packs.map { $0.id }
+        let packMarks = capPackMarks(marks, presentIds)
+        return PackMerge(
+            packs: packs, packMarks: packMarks, packLoosens: capPackMarks(loosens, presentIds),
+            packOwnMarks: cleanOwnMarks(owns, packMarks)
+        )
+    }
+
+    /// Két ABLAKOS változat, azonos kifizetett-számmal: a SZIGORÚBB, mezőnként —
+    /// a focus-merge.ts `stricterPack` tükre. Az ablak a hosszabb (több heti
+    /// perc, holtversenyben a kulcs), a fehérlista a metszet, a név és a hossz a
+    /// nagyobb saját jelű változaté, egyenlő jelnél a kettő kódegység-sorrendje.
+    private static func stricterPack(_ pn: Focus.Pack, _ po: Focus.Pack, _ tn: Int, _ to: Int) -> Focus.Pack {
+        let named: Focus.Pack
+        if tn != to { named = tn > to ? pn : po } else { named = utf16Less(nameKey(po), nameKey(pn)) ? po : pn }
+        let rec: ScheduleLogic.Band?
+        if let a = pn.recurrence, let b = po.recurrence { rec = longerBand(a, b) } else { rec = pn.recurrence ?? po.recurrence }
+        return Focus.Pack(
+            id: named.id, name: named.name,
+            allowSites: meetAllow(pn.allowSites, po.allowSites),
+            allowApps: meetAllow(pn.allowApps, po.allowApps),
+            defaultMinutes: named.defaultMinutes, recurrence: rec
+        )
+    }
+
+    /// A név és a hossz sorrendje a döntetlenhez — bájtra ugyanez a három nyelvben.
+    private static func nameKey(_ p: Focus.Pack) -> String {
+        "\(p.name)\u{1}\(p.defaultMinutes)"
+    }
+
+    /// Két fehérlista szigorúbbja: a METSZET, rendezve (UTF-16 szerint, mint a
+    /// gép és az Android); ha mindkettő engedett valamit, de közös elemük
+    /// nincs, a rövidebb (holtversenyben a rendezett kulcs) — a focus-merge.ts
+    /// `meetAllow` tükre.
+    private static func meetAllow(_ a: [String], _ b: [String]) -> [String] {
+        let common = a.filter { b.contains($0) }.sorted(by: utf16Less)
+        if !common.isEmpty || a.isEmpty || b.isEmpty { return common }
+        let sa = a.sorted(by: utf16Less)
+        let sb = b.sorted(by: utf16Less)
+        if sa.count != sb.count { return sa.count < sb.count ? sa : sb }
+        return utf16Less(sb.joined(separator: "\u{1}"), sa.joined(separator: "\u{1}")) ? sb : sa
+    }
+
+    /// Két heti ablak szigorúbbja: a hosszabb (heti percben), holtversenyben a kulcs.
+    private static func longerBand(_ a: ScheduleLogic.Band, _ b: ScheduleLogic.Band) -> ScheduleLogic.Band {
+        let wa = a.days.count * Focus.bandMinutes(a)
+        let wb = b.days.count * Focus.bandMinutes(b)
+        if wa != wb { return wa > wb ? a : b }
+        return utf16Less(bandKey(b), bandKey(a)) ? b : a
+    }
+
+    private static func bandKey(_ b: ScheduleLogic.Band) -> String {
+        let days: [String] = b.days.sorted().map { String($0) }
+        return "\(days.joined(separator: ","))/\(b.startMin)/\(b.endMin)"
     }
 
     /// A csomagok plafonja (30): a JELES csomag (és a menet csomagja) marad, a
@@ -415,7 +543,9 @@ public enum FocusSync {
     /// A FUTÓ MENET CSOMAGJA: mindig marad, és a fehérlistája nem bővülhet — a
     /// focus-merge.ts `runPack` tükre. A mezői a jelek szerinti győztesé; ha a
     /// jelek szerint törölni kellene, a menetet hordozó blob változata áll (a
-    /// törlés így megsemmisül, nem halasztódik — kimondott ár); a
+    /// törlés így megsemmisül, nem halasztódik — kimondott ár), AZ ABLAKA
+    /// NÉLKÜL: ablakos változattal szemben törlés csak magasabb osztályból
+    /// nyerhet, tehát a levétele ki volt fizetve; a
     /// fehérlistája csak az, ami a menetet hordozó változat(ok)ban IS benne
     /// van (metszet). A menetről már nem a `rev` dönt, tehát a csomagját sem
     /// védheti — egy felhúzott jelű törlés vagy bővítés különben ingyen vinné el
@@ -424,7 +554,13 @@ public enum FocusSync {
         _ id: String, _ pick: Focus.Pack?, carriers: [SyncFocus], pn: Focus.Pack?, po: Focus.Pack?
     ) -> Focus.Pack? {
         let held = carriers.compactMap { f in f.packs.first { $0.id == id } }
-        guard let base = pick ?? held.first ?? pn ?? po else { return nil }
+        let revived: Focus.Pack? = (held.first ?? pn ?? po).map {
+            Focus.Pack(
+                id: $0.id, name: $0.name, allowSites: $0.allowSites, allowApps: $0.allowApps,
+                defaultMinutes: $0.defaultMinutes, recurrence: nil
+            )
+        }
+        guard let base = pick ?? revived else { return nil }
         if held.isEmpty { return base }
         return Focus.Pack(
             id: base.id, name: base.name,
@@ -655,9 +791,13 @@ public enum FocusSync {
         let log = f.log.map {
             "\($0.packId);\($0.startedAt);\($0.endedAt);\($0.plannedEndsAt);\($0.stopped);\($0.cutCount);\(Focus.runOrigin($0))"
         }.joined(separator: "|")
-        // A jelek is: ha csak ők különböznek, akkor is fel kell menniük.
-        let marks = (f.packMarks ?? [:]).sorted { $0.key < $1.key }
-            .map { "\($0.key)=\($0.value)" }.joined(separator: ",")
+        // A jelek is: ha csak ők különböznek, akkor is fel kell menniük. A
+        // kifizetett ablak-lazítások és a saját jelek is: egy levétel
+        // számlálója vagy egy osztály-döntés nyoma nélkül a döntés nem érne át.
+        let markMaps: [[String: Int]] = [f.packMarks ?? [:], f.packLoosens ?? [:], f.packOwnMarks ?? [:]]
+        let marks: String = markMaps.map { (m: [String: Int]) -> String in
+            m.sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" }.joined(separator: ",")
+        }.joined(separator: "~")
         // A ZÁRLAT IS: enélkül egy itt indított zárlat sosem érne fel a
         // kiszolgálóra, mert a kör azt látná, hogy nincs mit feltölteni.
         let lock = f.lockdown.map { "\($0.startedAt);\($0.until)" } ?? "-"
@@ -680,6 +820,19 @@ public enum FocusSync {
         return "\(packs)//\(run)//\(log)//\(marks)//\(lock)//\(windows)//\(f.lockdownWindowsRev ?? 0)"
             + "//\(partner)//\(f.partnerRev ?? 0)//\(keywords)//\(f.keywordsRev ?? 0)"
             + "//\(hide)//\(f.hideSiteListRev ?? 0)//\(f.rev)"
+    }
+
+    /// A saját jelek kiegyenesítése — a focus-merge.ts `cleanOwnMarks` tükre:
+    /// azonosító → nemnegatív egész, KISEBB a csomag közös jelénél. Ami nem
+    /// kisebb, az nem hordoz hírt, és közös jel nélkül saját jel sincs. Üresen nil.
+    static func cleanOwnMarks(_ raw: [String: Int]?, _ marks: [String: Int]?) -> [String: Int]? {
+        guard let raw, let marks else { return nil }
+        var out: [String: Int] = [:]
+        for (k, v) in raw {
+            guard let m = marks[k], v >= 0, v < m else { continue }
+            out[k] = v
+        }
+        return out.isEmpty ? nil : out
     }
 
     /// A csomag-jelek kiegyenesítése: csak azonosító → pozitív egész, legfeljebb
@@ -724,6 +877,11 @@ public enum FocusSync {
         let presentIds = packs.map { $0.id }
         let cleaned = cleanMarks(raw.packMarks, presentIds: presentIds, maxRev: revInt(raw.rev))
         let kept = cleaned?.filter { !seenIds.contains($0.key) || presentIds.contains($0.key) }
+        let marks: [String: Int]? = (kept?.isEmpty ?? true) ? nil : kept
+        // A kifizetett ablak-lazítások ugyanígy: pozitív egész, legfeljebb a rev,
+        // a plafonnal; a kiesett csomagé kiesik.
+        let loosens = cleanMarks(raw.packLoosens, presentIds: presentIds, maxRev: revInt(raw.rev))?
+            .filter { !seenIds.contains($0.key) || presentIds.contains($0.key) }
         // A megbízottak a fésülés szabálya szerint tisztítva (`PartnerLogic.cleanSet`).
         let partners = PartnerLogic.cleanSet(
             partner: raw.partner, partnerCo: raw.partnerCo ?? [], partnersGone: raw.partnersGone ?? []
@@ -740,7 +898,10 @@ public enum FocusSync {
             rev: Double(revInt(raw.rev)),
             updatedAt: raw.updatedAt,
             updatedBy: raw.updatedBy.isEmpty ? fallbackDevice : raw.updatedBy,
-            packMarks: (kept?.isEmpty ?? true) ? nil : kept,
+            packMarks: marks,
+            packLoosens: (loosens?.isEmpty ?? true) ? nil : loosens,
+            // A saját jel a megmaradt közös jelekhez igazodik: nemnegatív, kisebb nála.
+            packOwnMarks: cleanOwnMarks(raw.packOwnMarks, marks),
             // Kívülről jött adat: az értelmetlen vég nem zárlat — és `now`
             // mellett a lejárt sem.
             lockdown: raw.lockdown

@@ -18,6 +18,7 @@ import { normalizeRule, type UrlRule } from '../shared/urlrules';
 import { capGone, capHostnameMarks, isGone, ruleKey, type SyncSite } from '../shared/sync/merge';
 import { cleanWindowMarks, normalizeWindows, parseLockdown } from '../shared/lockdown';
 import { cleanChannelMarks } from '../shared/sync/channels-merge';
+import { cleanOwnMarks, cleanPackMarks } from '../shared/sync/focus-merge';
 import { cleanKeywordMarks, cleanKeywords, type KeywordMarks } from '../shared/keywords';
 import { cleanBrowserHits } from '../shared/browser-hits';
 import { normalizeBurst } from '../shared/burst';
@@ -397,6 +398,20 @@ export interface HelperState {
    * lásd shared/sync/focus-merge.ts. A `revisions.ts` írja a `commit()` elején.
    */
   focusPackMarks?: Record<string, number>;
+  /**
+   * A csomagok KIFIZETETT ABLAK-LAZÍTÁSAI (azonosító → hányszor szűkítették
+   * vagy vették le az ablakát próbatétellel). A bíró írja, a teljesítéskor
+   * (referee.ts) — máshol semmi. A szinkron csomagonként ebből dönt, lásd
+   * shared/sync/focus-merge.ts `mergePacks`.
+   */
+  focusPackLoosens?: Record<string, number>;
+  /**
+   * A csomagok SAJÁT JELE (azonosító → a győztes osztály saját jele), csak
+   * ahol kisebb a közös jelnél. A fésülés írja; a helyi szerkesztés törli
+   * (revisions.ts) — annál a saját jel maga a közös. Lásd
+   * shared/sync/focus-merge.ts `mergePacks`.
+   */
+  focusPackOwnMarks?: Record<string, number>;
   /** a csomagok lenyomata az utolsó léptetéskor/átvételkor — ebből lesz a jel; helyi */
   focusRevPacks?: Record<string, string>;
   /** a lenyomat, amiből kiderül, hogy változott-e (lásd revisions.ts) */
@@ -680,6 +695,18 @@ export function loadState(): HelperState {
         }
         const capped = capHostnameMarks(marks, (site.rules ?? []).map(ruleKey));
         if (capped) site.ruleMarks = capped; else delete site.ruleMarks;
+      }
+      // A csomagok kifizetett ablak-lazításai a mag szűrőjén át — mint a dróton:
+      // pozitív egész, legfeljebb a blob rev-je, a plafonnal.
+      if (parsed.focusPackLoosens !== undefined) {
+        const rev = typeof parsed.focusRev === 'number' && Number.isFinite(parsed.focusRev) ? parsed.focusRev : 0;
+        const l = cleanPackMarks(parsed.focusPackLoosens, (parsed.focusPacks ?? []).map((p) => p.id), rev);
+        if (l) parsed.focusPackLoosens = l; else delete parsed.focusPackLoosens;
+      }
+      // A saját jelek is: nemnegatív egész, kisebb a csomag közös jelénél.
+      if (parsed.focusPackOwnMarks !== undefined) {
+        const o = cleanOwnMarks(parsed.focusPackOwnMarks, parsed.focusPackMarks);
+        if (o) parsed.focusPackOwnMarks = o; else delete parsed.focusPackOwnMarks;
       }
       // A sírkövek: csak tömb, csak rekord-alakú elem (a többit a dróton járó
       // szűrő úgyis tisztítja), és csak HALOTT — ami nem az, az nem sírkő.

@@ -98,7 +98,13 @@ napok, kezdés, vég — csak nem egy csomag indul tőle, hanem a zárlat.
   páronkénti fésülés nem társítható — hogy melyik ablak esik ki, az átmeneti
   állapotokban a szinkron sorrendjétől is függ. A vágás sorrendje (jel,
   méret, kulcs) mindenhol ugyanaz, és az eszközök a kiszolgálón át ugyanarra
-  az állapotra jutnak; csak az út más.
+  az állapotra jutnak; csak az út más. **A plafon kiszoríthat:** a jel a blob
+  számlálója, és egy régóta nem szinkronizált eszközé kisebb lehet — az ott
+  frissen felvett ablak régebbinek látszik egy máshol nemrég felvettnél, és
+  ha a kettő együtt túlmegy a hetes plafonon (vagy a heti szabad órán), azt
+  szoríthatja ki. Két eszközön egymástól függetlenül felvett ablakok közül a
+  plafon fölött valamelyiknek ki kell esnie — és amelyik kiesik, az a saját
+  eszközén élt.
 - A telefonok az ablakot **hordozzák, fésülik és érvényesítik** (a körük
   zárlatot ír belőle), és szerkesztik is: a bíró ugyanaz a
   `setLockdownWindows` (Kotlin, Swift), ugyanazzal a kapuval, ugyanazzal a
