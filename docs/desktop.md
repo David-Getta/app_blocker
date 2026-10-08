@@ -192,3 +192,11 @@ maradna, a titkosított DNS zárolva. Csak a mieinket: a Chromium-családnál
 (Chrome, Edge, Chromium, Brave) az „off” értéket, a Firefoxnál a két saját
 értéket; amit valaki más állított be, marad. Egy szervezet saját házirendjét
 (GPO, MDM) ez nem érinti — azt a következő frissítése úgyis visszaírja.
+
+Ami a szkript után is marad, az a felhasználó saját mappája és a böngésző:
+az app felhasználói mappája (macOS: `~/Library/Application Support/Breaker`,
+Windows: `%APPDATA%\Breaker`) — benne apró beállítások (gyorsbillentyű, a
+helyi szinkron-kiszolgáló kapcsolója), a segéd és a bővítmény-híd kulcsa, és a bővítmény
+kimásolt mappája —, valamint a böngészőbe betöltött bővítmény. Ezek a segéd
+nélkül semmit nem tiltanak; ha nyomtalanul akarod, a mappát töröld kézzel, a
+bővítményt pedig vedd ki a böngésző bővítménykezelőjében.
