@@ -45,26 +45,35 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **Új kategória-csomag: Felnőtt tartalom.** A felvevő kártyán egy kattintással
-          felvehető a legnagyobb felnőtt-videós oldalak és a nagy fizetős és élő
-          platformok tíz címe. Ugyanaz a szabály, mint a többi csomagnál: felvenni
-          ingyen, levenni oldalanként, próbatétellel. Ez sem teljes lista: ami hiányzik,
-          egyenként vehető fel, és egy kulcsszó (például `porn`) a böngészőben a címben
-          és a lap címsorában, a telefonon a hosztnévben is fogja.
+          **Olvashatóbb felület.** A leghalványabb szövegek — címkék, súgósorok, a
+          csomag-gombok, a gyorsbillentyűs réteg alsó sora — eddig a sötét kártyán
+          nehezen voltak olvashatók (3,85:1, kis betűhöz legalább 4,5:1 ajánlott).
+          Mostantól mind legalább ennyi, mindkét témában. A böngésző-bővítmény
+          beállítási lapján a sötét téma fő gombja (2,48:1 helyett 7,8:1), a világos
+          témában a kiválasztott gombok felirata is jól olvasható. A „Nincs keret”
+          alatti percválasztó nem halványul olvashatatlanra: kattintható marad, és
+          látszik is.
 
-          **Egy korlát, kimondva: a böngésző saját biztonságos DNS-e Androidon.** Ha a
-          böngészőben külön szolgáltató van megadva (Chrome: Beállítások › Adatvédelem és
-          biztonság › Biztonságos DNS), a névfeloldás a szűrő mellett megy, és a tiltás
-          abban a böngészőben nem érvényesül. Az alapállás — a jelenlegi szolgáltatóval —
-          rendben van.
+          **A felolvasóprogramok is jobban eligazodnak.** A párbeszéd-ablakok
+          dialógusként, a címükkel nyílnak; a próbatétel mezőinek van neve; a
+          kiválasztott nap vagy perc nem csak színből derül ki; a napgombok neve a
+          látható rövidítéssel kezdődik („Sze (szerda)”), így hangvezérléssel is
+          megnyomhatók. A gépi felületnek van főcíme, a bővítmény lapjainak kijelölt
+          tartalmi része.
 
-          ### Ami a v0.4.244-ben jött
+          Hogy ez így is maradjon, a felület automatikus próbája minden változtatásnál
+          lefuttat egy akadálymentességi ellenőrzést (axe-core) a nézeteken, a
+          párbeszéd-ablakokon, a rétegen és a bővítmény lapjain, mindkét témában, és
+          egyetlen hiba is elbuktatja a próbát. Amit nem néz: a billentyűzetes bejárás
+          sorrendjét, a felolvasó tényleges szövegét és a telefonos appokat.
+
+          ### Ami a v0.4.245-ben jött
+
+          **Új kategória-csomag: Felnőtt tartalom.**
+
+          #### Ami a v0.4.244-ben jött
 
           **Android: a Play Store-ba szánt csomag nem frissíti magát.**
-
-          #### Ami a v0.4.243-ban jött
-
-          **A telefon szól, ha a Breaker értesítései ki vannak kapcsolva.**
           NOTES
           fi
 
