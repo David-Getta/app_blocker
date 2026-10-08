@@ -3109,6 +3109,19 @@ const WIRES = [
     needle: 'applyDohPolicies',
     lost: 'a böngésző saját DNS-e megkerülné a tiltást',
   },
+  // A Windows-ág a közös listából írja a házirendet (Chrome, Edge, Chromium,
+  // Brave és a Firefox registry-kulcsa). Ha a hívás kimarad, a lista és a
+  // teszt rendben van, a házirend mégsem kerül fel.
+  {
+    file: 'desktop/src/helper/hosts.ts',
+    needle: 'for (const c of windowsDohCommands()) await run(c.cmd, c.args);',
+    lost: 'Windowson egyetlen böngésző DoH-ja sem kapcsolódna ki — a hosts-tiltás a böngészőben csendben nem érvényesülne',
+  },
+  {
+    file: '.github/workflows/ci.yml',
+    needle: 'scripts/win-doh-probe.ps1',
+    lost: 'senki nem nézné meg valódi Windowson, hogy a házirend felkerül, és az eltávolító csak a mieinket veszi le',
+  },
 
   // A SÚRLÓDÁS ESZKALÁCIÓJA. Enélkül minden próbatétel a legkönnyebb fokon
   // maradna, és a „nem lesz könnyebb attól, hogy sokszor csinálod” ígéret

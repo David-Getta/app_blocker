@@ -181,6 +181,11 @@ jobs:
           ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
       - run: npx tsc -p tsconfig.json
       - run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/win-pipe-probe.ps1
+      # A böngészők DoH-házirendje: a valódi segéd-kód írja be, a valódi
+      # eltávolító veszi le — és csak a mieinket. A gép saját Firefox
+      # policies.json-ja érintetlen marad (a v0.4.252 előtti segéd az egész
+      # fájlt cserélte), egy idegen registry-érték pedig az eltávolítás után is.
+      - run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/win-doh-probe.ps1
       # Az indítási füstpróba Windowson is (src/main/smoke.ts): a tálca-ikon és a
       # többi csak-Windows indulási út itt fut le. A teljes build kell hozzá (a
       # felület is), és a telepítéskor kihagyott Electron.

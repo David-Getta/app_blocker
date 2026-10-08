@@ -185,3 +185,10 @@ A segéd leszereléséhez rendszergazdai jog és az eltávolító szkript kell:
 sudo sh desktop/scripts/uninstall-macos.sh        # macOS
 powershell -ExecutionPolicy Bypass -File desktop/scripts/uninstall-windows.ps1   # Windows (admin)
 ```
+
+A szkript a böngészők DoH-házirendjét is leveszi, amit a segéd tett fel —
+különben a Breaker törlése után a böngésző „szervezet által felügyelt”
+maradna, a titkosított DNS zárolva. Csak a mieinket: a Chromium-családnál
+(Chrome, Edge, Chromium, Brave) az „off” értéket, a Firefoxnál a két saját
+értéket; amit valaki más állított be, marad. Egy szervezet saját házirendjét
+(GPO, MDM) ez nem érinti — azt a következő frissítése úgyis visszaírja.

@@ -34,10 +34,17 @@ másodpercen belül visszaállítja.
   „csak amíg az app fut” megoldásokhoz képest.
 - **DNS-over-HTTPS elleni védelem:** a böngészők beépített DoH-ja megkerülné a
   hosts fájlt. A helper ezért gépszintű házirenddel kikapcsolja a DoH-t
-  Chrome/Edge/Chromium/Brave/Firefox alatt (best effort, naplózva). Windowson
-  ez házirend-kulcs, tehát zár; **macOS-en MDM-profil nélkül csak alapértelmezés,
-  amit a felhasználó felül tud bírálni** — ezt a korlátok között is kimondjuk.
-  A Firefox app-bundle-jébe szándékosan NEM írunk (lásd lentebb).
+  Chrome/Edge/Chromium/Brave/Firefox alatt (best effort, naplózva; a lista és
+  a parancsok: `src/helper/doh-policy.ts`, a teszt a két platform egyezését
+  nézi). Windowson ez házirend-kulcs a registryben — a Firefoxé is, így a
+  később vagy felhasználónként telepített Firefoxra is hat —, tehát zár;
+  **macOS-en MDM-profil nélkül csak alapértelmezés, amit a felhasználó felül
+  tud bírálni** — ezt a korlátok között is kimondjuk. A Firefox app-bundle-jébe
+  és telepítési mappájába szándékosan NEM írunk (lásd lentebb). Az eltávolító
+  szkript ugyanezt leveszi, de csak a mieinket (a Chromium-kulcsban az „off”
+  értéket, a Firefoxnál a két saját értéket); a CI Windows-próbája
+  (`win-doh-probe.ps1`) a valódi segéd-kóddal írja be, és a valódi
+  eltávolítóval veszi le.
 
 ### Android — VpnService DNS sinkhole
 Egy helyi `VpnService` (nem távoli VPN — a forgalom nem hagyja el a készüléket)
@@ -613,8 +620,12 @@ Ismert megkerülési utak (szándékosan nem próbáljuk „lelakatolni” a gé
   policies.json-t macOS-en az app bundle-jébe kellene tenni, ami érvényteleníti
   a Firefox aláírását, és a saját frissítőjét is elronthatja. Ezt nem tesszük:
   a gépszintű `org.mozilla.firefox` beállítás ugyanazt a házirendet adja, a
-  bundle érintése nélkül. Windowson a telepítési mappa `distribution/`
-  könyvtára a dokumentált hely, ott nincs ilyen mellékhatás.
+  bundle érintése nélkül. Windowson a v0.4.252 előtti segéd a telepítési
+  mappa `distribution/policies.json` fájlját írta — EGÉSZÉBEN, vagyis egy
+  szervezet vagy egy másik program saját Firefox-házirendjét is lecserélte.
+  Ma a registrybe írunk (`Software\Policies\Mozilla\Firefox\DNSOverHTTPS`),
+  amit a Firefox a fájl házirendjeivel összefésül; a fájlhoz nem nyúlunk, az
+  eltávolító csak a pontosan saját tartalmú régit törli.
 - iOS-en MDM/„supervised” mód nélkül a felhasználó a rendszerbeállításokban ki
   tudja kapcsolni a VPN-t; az on-demand szabály csökkenti ennek kényelmét.
 - **A FIÓK JELSZAVÁVAL hamis szinkron-rekord gyártható.** Az összefésülés a

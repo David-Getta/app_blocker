@@ -12,6 +12,9 @@ import { isBlockedNowWithLimit } from '../shared/limits';
 import { closedForMissingMeasurement } from '../shared/measure-guard';
 import type { HelperState } from './state';
 import { hostsFilePath } from './paths';
+import {
+  CHROMIUM_DOH_VALUE, CHROMIUM_TARGETS, FIREFOX_MAC_DOMAIN, windowsDohCommands,
+} from './doh-policy';
 
 /**
  * Jelen van-e MOST az app (a mérés). A segéd indításkor köti be a saját
@@ -159,10 +162,6 @@ export function watchHosts(getState: () => HelperState, log: (m: string) => void
 
 // ------------------------------------------------- browser DoH hardening
 
-const FIREFOX_POLICY = JSON.stringify(
-  { policies: { DNSOverHTTPS: { Enabled: false, Locked: true } } }, null, 2,
-);
-
 /**
  * Browsers with built-in DNS-over-HTTPS can resolve names without touching the
  * hosts file. We push machine-level policies turning DoH off where we can.
@@ -171,31 +170,22 @@ const FIREFOX_POLICY = JSON.stringify(
 export async function applyDohPolicies(log: (m: string) => void): Promise<boolean> {
   try {
     if (process.platform === 'win32') {
-      const regAdd = (key: string) =>
-        run('reg', ['add', key, '/v', 'DnsOverHttpsMode', '/t', 'REG_SZ', '/d', 'off', '/f']);
-      await regAdd('HKLM\\SOFTWARE\\Policies\\Google\\Chrome');
-      await regAdd('HKLM\\SOFTWARE\\Policies\\Microsoft\\Edge');
-      for (const base of [process.env['ProgramFiles'], process.env['ProgramFiles(x86)']]) {
-        if (!base) continue;
-        const ffDir = path.join(base, 'Mozilla Firefox');
-        if (fs.existsSync(ffDir)) {
-          fs.mkdirSync(path.join(ffDir, 'distribution'), { recursive: true });
-          fs.writeFileSync(path.join(ffDir, 'distribution', 'policies.json'), FIREFOX_POLICY);
-        }
-      }
-      log('DoH policies applied (Chrome/Edge registry, Firefox policies.json)');
+      // A Chromium-család (Chrome, Edge, Chromium, Brave) és a Firefox is a
+      // registryből. A Firefox telepítési mappájába (policies.json) NEM írunk
+      // többé: az egész fájlt cseréltük volna, és vele egy szervezet vagy egy
+      // másik program saját házirendjét is. A registry-házirend a később és a
+      // felhasználónként telepített Firefoxra is hat, és a Firefox a fájléval
+      // összefésüli. A lista és a parancsok a doh-policy.ts-ben; az eltávolító
+      // ugyanezeket veszi le.
+      for (const c of windowsDohCommands()) await run(c.cmd, c.args);
+      log('DoH policies applied (Chrome/Edge/Chromium/Brave + Firefox registry)');
       return true;
     }
     if (process.platform === 'darwin') {
       const set = (domain: string, key: string, value: string) =>
         run('/usr/bin/defaults', ['write', domain, key, '-string', value]);
-      for (const domain of [
-        '/Library/Preferences/com.google.Chrome',
-        '/Library/Preferences/com.microsoft.Edge',
-        '/Library/Preferences/org.chromium.Chromium',
-        '/Library/Preferences/com.brave.Browser',
-      ]) {
-        await set(domain, 'DnsOverHttpsMode', 'off');
+      for (const domain of CHROMIUM_TARGETS.map((t) => t.macDomain)) {
+        await set(domain, CHROMIUM_DOH_VALUE.name, CHROMIUM_DOH_VALUE.value);
         // A gépszintű plistet a felhasználóként futó böngészőnek OLVASNIA kell.
         // A `defaults` a démon umaskjával hozza létre; ha az szigorú, a fájl
         // létrejön, a böngésző viszont nem látja — a házirend némán hatástalan
@@ -209,10 +199,10 @@ export async function applyDohPolicies(log: (m: string) => void): Promise<boolea
       // hogy szigorúbb legyen. A konfigurációs profil ugyanezt a házirendet
       // adja, a bundle érintése nélkül.
       await run('/usr/bin/defaults', [
-        'write', '/Library/Preferences/org.mozilla.firefox', 'DNSOverHTTPS',
+        'write', FIREFOX_MAC_DOMAIN, 'DNSOverHTTPS',
         '-dict', 'Enabled', '-bool', 'false', 'Locked', '-bool', 'true',
       ]);
-      try { fs.chmodSync('/Library/Preferences/org.mozilla.firefox.plist', 0o644); } catch { /* ok */ }
+      try { fs.chmodSync(`${FIREFOX_MAC_DOMAIN}.plist`, 0o644); } catch { /* ok */ }
       log('DoH policies applied (Chromium-family + Firefox machine preferences)');
       return true;
     }

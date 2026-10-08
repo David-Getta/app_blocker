@@ -28,6 +28,22 @@ PY
 dscacheutil -flushcache || true
 killall -HUP mDNSResponder || true
 
+echo "A böngészők DoH-házirendjének levétele..."
+# Csak azt vesszük le, amit a Breaker írt (lásd src/helper/doh-policy.ts): a
+# Chromium-család „off” értékét és a Firefox DNSOverHTTPS szótárát, ha a
+# mieink. A felügyelt (MDM) házirend máshol él — azt ez nem érinti.
+for d in /Library/Preferences/com.google.Chrome /Library/Preferences/com.microsoft.Edge \
+         /Library/Preferences/org.chromium.Chromium /Library/Preferences/com.brave.Browser; do
+  if [ "$(defaults read "$d" DnsOverHttpsMode 2>/dev/null)" = "off" ]; then
+    defaults delete "$d" DnsOverHttpsMode 2>/dev/null || true
+  fi
+done
+FF_DOH=$(defaults read /Library/Preferences/org.mozilla.firefox DNSOverHTTPS 2>/dev/null || true)
+case "$FF_DOH" in
+  *"Enabled = 0;"*"Locked = 1;"*)
+    defaults delete /Library/Preferences/org.mozilla.firefox DNSOverHTTPS 2>/dev/null || true ;;
+esac
+
 echo "Állapotfájlok törlése..."
 rm -rf "/Library/Application Support/Breaker" /Library/Logs/Breaker /var/run/breaker.sock
 
