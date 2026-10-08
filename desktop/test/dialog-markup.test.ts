@@ -86,3 +86,21 @@ test('a statikus ablakok is a fókusz-csapdán át nyílnak, és a frissítés n
     assert.ok(m.includes('tabindex="-1"'), `nyitáskor nem fókuszálható: ${m}`);
   }
 });
+
+test('a hiba a felolvasónak is: minden ablaknak saját bejelentője van, a lapnak közös', () => {
+  const helper = dialogHelperBody();
+  assert.ok(helper.includes('modal.appendChild(announcerRegion())'), 'a dinamikus ablaknak nincs bejelentője');
+  for (const tag of html.match(/<div class="modal(?: [\w-]+)*"[^>]*>[\s\S]*?<div class="modal-actions">/g) ?? []) {
+    assert.ok(tag.includes('data-announcer'), `a statikus ablakból hiányzik a bejelentő: ${tag.slice(0, 80)}`);
+  }
+  assert.ok(/<div id="announcer"[^>]*aria-live="assertive"/.test(html), 'nincs közös bejelentő a lapon');
+  assert.ok(ts.includes('\nwatchErrors();\n'), 'a hibafigyelő nem indul el');
+});
+
+test('a fejléc állapotjelzője élő régió, és csak változáskor íródik (setLive)', () => {
+  assert.ok(/<div id="statusPill"[^>]*role="status"/.test(html));
+  const start = ts.indexOf('function render(): void {');
+  const body = ts.slice(start, ts.indexOf('\n}\n', start));
+  assert.ok(!/pill\.textContent\s*=/.test(body),
+    'az állapotjelző közvetlenül íródik: a kétmásodperces frissítés a felolvasóval újra és újra elmondatná');
+});

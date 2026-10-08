@@ -162,12 +162,81 @@ function dialog(cls: string, title: string): HTMLDivElement {
   modal.setAttribute('role', 'dialog');
   modal.setAttribute('aria-modal', 'true');
   modal.setAttribute('aria-labelledby', head.id);
+  // Saját bejelentő-régió: a nyitott ablak a mögötte lévő lapot elrejti a
+  // felolvasó elől, a lap közös bejelentőjével együtt (lásd announce).
+  modal.appendChild(announcerRegion());
   // Nyitáskor maga az ablak kapja a fókuszt (lásd trapDialog), nem az első
   // gombja: így egy elhamarkodott Enter semmit nem nyom meg — a felolvasó
   // pedig az ablak címét mondja.
   modal.tabIndex = -1;
   modal.appendChild(head);
   return modal;
+}
+
+/** Láthatatlan, a felolvasónak szóló bejelentő-régió. */
+function announcerRegion(): HTMLElement {
+  const r = h('div', 'sr-only');
+  r.setAttribute('aria-live', 'assertive');
+  r.setAttribute('aria-atomic', 'true');
+  r.dataset.announcer = '';
+  return r;
+}
+
+/**
+ * Kimondja a felolvasónak — a legfelső nyitott ablak régiójában, ha van ilyen
+ * (az aria-modal a lap többi részét, a lap bejelentőjét is elrejti), különben a
+ * lap közös régiójában. Kiürítés, majd kis szünet után az új szöveg: így az
+ * ugyanaz a mondat másodszor is elhangzik.
+ */
+function announce(text: string): void {
+  const open = Array.from(document.querySelectorAll<HTMLElement>(
+    '.overlay:not(.hidden) [role="dialog"] [data-announcer]'));
+  const region = open[open.length - 1] ?? document.getElementById('announcer');
+  if (!region) return;
+  region.textContent = '';
+  setTimeout(() => { region.textContent = text; }, 60);
+}
+
+/**
+ * A HIBA A FELOLVASÓNAK IS. A hibaüzenet (rossz válasz a próbatételben,
+ * érvénytelen cím, elutasított kérés) eddig csak megjelent: aki nem látja a
+ * képernyőt, nem tudta meg, hogy a gombnyomás nem sikerült. Most minden .error
+ * elem megjelenését és szövegváltozását bejelentjük.
+ *
+ * Nem role="alert"-tel az elemeken: a lista kétmásodpercenként újraépül, és az
+ * újra beszúrt hibát a felolvasó újra és újra elmondaná. Ezért csak MEGLÉVŐ elem
+ * változása számít (az újonnan beszúrt sor nem), és ugyanaz a szöveg ugyanazon
+ * az elemen három másodpercen belül nem hangzik el újra — a frissítés két
+ * másodpercenként ugyanazt írja bele, attól nem ismétlünk. Elrejtés után
+ * viszont igen: az újabb, ugyanolyan hiba újabb hír.
+ */
+function watchErrors(): void {
+  const last = new WeakMap<Element, { text: string; at: number }>();
+  const check = (el: Element): void => {
+    const now = Date.now();
+    const shown = el.classList.contains('error') && !el.classList.contains('hidden')
+      && (el as HTMLElement).offsetParent !== null;
+    const text = shown ? (el.textContent ?? '').trim() : '';
+    const prev = last.get(el);
+    last.set(el, { text, at: now });
+    if (!text) return;
+    if (prev && prev.text === text && now - prev.at < 3000) return;
+    announce(text);
+  };
+  new MutationObserver((records) => {
+    const touched = new Set<Element>();
+    for (const r of records) {
+      const node = r.target instanceof Element ? r.target : r.target.parentElement;
+      const el = node?.closest('.error') ?? (node?.classList.contains('error') ? node : null);
+      if (el) touched.add(el);
+      // Az elrejtés is számít (az újabb, ugyanolyan hiba újabb hír), de csak ha
+      // az elem maga rejtőzött el.
+      else if (r.type === 'attributes' && node && last.has(node)) touched.add(node);
+    }
+    for (const el of touched) check(el);
+  }).observe(document.body, {
+    subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['class'],
+  });
 }
 
 const FOCUSABLE = 'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), '
@@ -903,14 +972,25 @@ function runNotices(): number {
   return nowForBurst;
 }
 
+/**
+ * Élő régió szövege — csak ha tényleg változott. A fejléc állapotjelzője
+ * (role="status") a felolvasónak is szól: a szivárgó tiltás, a lekapcsolódó
+ * védelem nézettől függetlenül elhangzik. A lap viszont kétmásodpercenként
+ * újrarajzol; ugyanannak a szövegnek az újraírása a felolvasóval újra és újra
+ * elmondatná.
+ */
+function setLive(el: HTMLElement, text: string): void {
+  if (el.textContent !== text) el.textContent = text;
+}
+
 function render(): void {
   const pill = $('statusPill');
   if (!helperUp) {
     if (failStreak < 2) {
-      pill.textContent = 'Kapcsolódás…';
+      setLive(pill, 'Kapcsolódás…');
     } else {
-      pill.textContent = helperRefuses ? 'A védelem nem ismeri fel ezt az appot'
-        : everConnected ? 'Újracsatlakozás a védelemhez…' : 'A védelem nincs telepítve';
+      setLive(pill, helperRefuses ? 'A védelem nem ismeri fel ezt az appot'
+        : everConnected ? 'Újracsatlakozás a védelemhez…' : 'A védelem nincs telepítve');
     }
     pill.className = 'pill pill-warn';
   } else {
@@ -920,7 +1000,7 @@ function render(): void {
       // Az önteszt szerint a rendszer feloldója nem a tiltó címet adja: a zöld
       // itt hazugság lenne. A név a lista-elrejtés szabályával íródik ki.
       const more = leaking.length > 1 ? ` (+${leaking.length - 1})` : '';
-      pill.textContent = `A tiltás nem érvényesül: ${hostLabel(leaking[0].host)}${more}`;
+      setLive(pill, `A tiltás nem érvényesül: ${hostLabel(leaking[0].host)}${more}`);
       pill.className = 'pill pill-warn';
     } else {
       // Csak az számít blokkoltnak, ami MOST zár: a szünetelő, a menetrend
@@ -929,9 +1009,9 @@ function render(): void {
       // sorok mást mondanának, mint a fejléc.
       const blocked = status!.sites.filter((s) => s.blockedNow).length;
       const open = n - blocked;
-      pill.textContent = n === 0 ? 'Védelem aktív'
+      setLive(pill, n === 0 ? 'Védelem aktív'
         : open === 0 ? `Védelem aktív — ${n} oldal blokkolva`
-          : `Védelem aktív — ${blocked} oldal blokkolva, ${open} most szabad`;
+          : `Védelem aktív — ${blocked} oldal blokkolva, ${open} most szabad`);
       pill.className = 'pill pill-ok';
     }
   }
@@ -5530,6 +5610,7 @@ setupSelfTest();
 if ('Notification' in window && Notification.permission === 'default') {
   void Notification.requestPermission();
 }
+watchErrors();
 void refresh();
 setInterval(() => {
   if (refreshDue(windowVisible, lastRefreshAt, Date.now())) void refresh();

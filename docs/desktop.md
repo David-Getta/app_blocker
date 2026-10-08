@@ -56,7 +56,11 @@ hogy a fókusz az ablakba ugorjon, a Tab és a Shift+Tab ne szökjön ki belőle
 takart lapra, az Esc zárjon (ahol van Mégse), és a fókusz visszatérjen a
 nyitó gombra. A lap kétmásodpercenként frissül, és a lista ilyenkor újraépül:
 a próba megvárja egy újraépülést, és megköveteli, hogy a fókusz ugyanannak a
-sornak ugyanazon a gombján maradjon.
+sornak ugyanazon a gombján maradjon. A hibaüzenetek bejelentését is nézi: a
+lap hibája a lap közös bejelentőjén, az ablaké az ablak saját bejelentőjén
+hangzik el (a nyitott ablak a lap többi részét elrejti a felolvasó elől), a
+fejléc állapotjelzője élő régió — és egy változatlanul látva maradó hibát a
+kétmásodperces frissítés nem mondathat el újra.
 
 Amit nem lát: a teljes bejárás sorrendjét a fő nézetekben, azt, hogy a
 felolvasó ténylegesen mit mond, és a telefonos appokat — ezek kézi próbát

@@ -363,6 +363,12 @@ body {
 
 .hint { color: var(--text-3); font-size: 0.85rem; margin: var(--s4) 0 0; }
 .error { color: var(--danger); font-size: 0.87rem; margin: var(--s3) 0 0; }
+/* Csak a felolvasónak: a látó felhasználó elől el van takarva, a felolvasó elől
+   nem (display: none-nal mindkettő elől el lenne). */
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
 
 /* -------------------------------------------------------------- sávok */
 

@@ -152,6 +152,9 @@ async function main() {
     undefined, { timeout: 10_000 },
   );
   const error = await page.locator('#error').innerText();
+  if ((await page.getAttribute('#error', 'role')) !== 'alert') {
+    failures.push('a bővítmény hibaüzenete nem szól a felolvasónak (nincs role="alert")');
+  }
   if (!error.includes('youtube.com/@valaki')) failures.push(`a hibaüzenet nem segít: ${error}`);
   if ((await page.locator('#list li').count()) !== 1) {
     failures.push('a hibás bevitelből mégis lett szabály');

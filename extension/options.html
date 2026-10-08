@@ -76,7 +76,9 @@
       <input type="text" id="input" placeholder="youtube.com/@valaki" autocomplete="off" spellcheck="false">
       <button class="primary" id="add">Tiltás</button>
     </div>
-    <p class="error" id="error" hidden></p>
+    <!-- role="alert": a hiba a felolvasónak is elhangzik, amikor megjelenik (csak
+         gombnyomásra jelenik meg, a lap frissítése nem írja újra). -->
+    <p class="error" id="error" role="alert" hidden></p>
     <p class="muted">
       Szabályt felvenni azonnal érvényes. Levenni viszont <span id="delay">tíz perc</span>
       várakozás — addig marad a tiltás.

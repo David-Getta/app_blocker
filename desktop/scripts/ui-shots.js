@@ -1372,6 +1372,35 @@ async function main() {
   if (!/142\.250\.74\.206/.test(selfTestText || '')) {
     failures.push(`az önteszt sora nem mondja ki a címet: ${selfTestText}`);
   }
+  // A FELOLVASÓNAK IS — és egyszer. (1) A fejléc állapotjelzője élő régió
+  // (role="status"): a szivárgás nézettől függetlenül elhangzik, és a lap
+  // kétmásodperces frissítése nem írja újra (az újra elmondatná).
+  const countMutations = (id) => page.evaluate((elId) => new Promise((resolve) => {
+    let n = 0;
+    const mo = new MutationObserver(() => {
+      if ((document.getElementById(elId)?.textContent || '').trim()) n++;
+    });
+    mo.observe(document.getElementById(elId), { childList: true, characterData: true, subtree: true });
+    setTimeout(() => { mo.disconnect(); resolve(n); }, 5000);
+  }), id);
+  if ((await page.getAttribute('#statusPill', 'role')) !== 'status') {
+    failures.push('a fejléc állapotjelzője nem élő régió — a szivárgást a felolvasó nem hallja');
+  }
+  const pillRewrites = await countMutations('statusPill');
+  if (pillRewrites > 0) failures.push(`az állapotjelzőt a frissítés változatlanul újraírta (${pillRewrites}×)`);
+  // (2) Az önteszt hibasora az Oldalak nézetben: a bejelentő egyszer mondja,
+  // pedig a lap minden frissítéskor ugyanazzal a szöveggel újraírja. Rejtett
+  // nézetben nem szól — ott a fejléc jelzője beszél.
+  const viewBefore = await page.evaluate(() => document.querySelector('.view:not(.hidden)')?.dataset.view);
+  await page.evaluate(() => document.querySelector('.tab[data-view="sites"]').click());
+  const leakSaid = await page.waitForFunction(
+    () => /142\.250\.74\.206/.test(document.getElementById('announcer')?.textContent || ''),
+    undefined, { timeout: 8_000 },
+  ).then(() => true, () => false);
+  if (!leakSaid) failures.push('a szivárgó önteszt hibasorát a felolvasó nem hallja');
+  const repeats = await countMutations('announcer');
+  if (repeats > 0) failures.push(`a változatlan hibát a frissítés újra bejelentette (${repeats}×)`);
+  await page.evaluate((v) => document.querySelector(`.tab[data-view="${v}"]`).click(), viewBefore);
   await page.evaluate(() => {
     window.__fakeSelfTest = { at: Date.now(), checked: 6, leaking: [], unresolved: 0 };
   });
@@ -1607,6 +1636,13 @@ async function main() {
   await page.waitForSelector('#stepMessage:not(.hidden)', { timeout: 5_000 });
   const pasteMsg = await page.locator('#stepMessage').textContent();
   if (!/beilleszt/i.test(pasteMsg || '')) failures.push(`paste guard did not fire: ${pasteMsg}`);
+  // A HIBA A FELOLVASÓNAK IS: a próbatétel ablakának saját bejelentője mondja
+  // (a nyitott, aria-modal ablak a lap közös bejelentőjét elrejtené).
+  const saidInModal = await page.waitForFunction(
+    (want) => document.querySelector('#sessionModal [data-announcer]')?.textContent === want,
+    (pasteMsg || '').trim(), { timeout: 5_000 },
+  ).then(() => true, () => false);
+  if (!saidInModal) failures.push('a beillesztés-tiltás hibáját a felolvasó nem hallja (az ablak bejelentője üres)');
   if (await page.inputValue('#stepArea textarea') !== '') failures.push('pasted text was not cleared');
 
   // Typed input: the live feedback marks the first differing character.
@@ -2403,6 +2439,12 @@ async function main() {
     undefined, { timeout: 10_000 },
   );
   const warn = (await page.locator('#addError').innerText()) || '';
+  // A lap hibája a lap közös bejelentőjén hangzik el.
+  const saidOnPage = await page.waitForFunction(
+    () => (document.getElementById('announcer')?.textContent || '').includes('EGÉSZ youtube.com'),
+    undefined, { timeout: 5_000 },
+  ).then(() => true, () => false);
+  if (!saidOnPage) failures.push('a felvevő figyelmeztetését a felolvasó nem hallja (a bejelentő üres)');
   for (const want of ['EGÉSZ youtube.com', 'bővítmény', 'nyomd meg újra']) {
     if (!warn.includes(want)) failures.push(`a figyelmeztetésből hiányzik: ${want} (${warn})`);
   }
