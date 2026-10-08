@@ -574,9 +574,11 @@ Néhány konkrét dolog, amit érdemes előre tudni:
 - **Androidon a böngésző saját biztonságos DNS-e is megkerülheti a szűrőt**, ha
   a böngészőben külön szolgáltató van megadva (Chrome: Beállítások › Adatvédelem
   és biztonság › Biztonságos DNS). Az alapállás — a jelenlegi szolgáltatóval —
-  rendben van: ilyenkor a böngésző is a szűrőt kérdezi. A gépen ezt házirend
-  kapcsolja ki; a telefonon ilyen házirend eszközkezelés nélkül nincs, és az app
-  ma nem is jelzi.
+  rendben van: ilyenkor a böngésző is a szűrőt kérdezi. A Firefox ALAPBÓL
+  bekapcsolt titkosított DNS-ét a szűrő a szabványos jelzéssel (a
+  `use-application-dns.net` „kanárival”) kikapcsoltatja — a KÉZZEL bekapcsoltat
+  nem. A gépen ezt házirend kapcsolja ki; a telefonon ilyen házirend
+  eszközkezelés nélkül nincs, és az app ma nem is jelzi.
 - **A törlés-védelem nem gépzár.** Az eszközadmin elveszi az egykoppintásos
   törlést, de a rendszer Beállításaiban (Biztonság → Eszközadmin-alkalmazások)
   próbatétel nélkül is kikapcsolható — nem tudjuk megakadályozni, és nem is

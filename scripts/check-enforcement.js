@@ -66,6 +66,19 @@ const WIRES = [
     needle: 'Focus.verdict',
     lost: 'az iPhone alagútja nem venné figyelembe a munkamenetet',
   },
+  // A FIREFOX KANÁRIJA: a szabály a magban (DohCanary) tesztelt, de csak akkor
+  // ér valamit, ha a DNS-kezelő meg is kérdezi — enélkül egy alapbeállítású
+  // Firefox a saját titkosított DNS-ével a szűrő mellett oldana fel.
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/vpn/BreakerVpnService.kt',
+    needle: 'DohCanary.matches(',
+    lost: 'Androidon a Firefox alapból bekapcsolt DoH-ja megkerülné a szűrőt',
+  },
+  {
+    file: 'ios/PacketTunnel/PacketTunnelProvider.swift',
+    needle: 'DohCanary.matches(',
+    lost: 'iPhone-on a Firefox alapból bekapcsolt DoH-ja megkerülné a szűrőt',
+  },
   {
     file: 'extension/content.js',
     needle: 'await fetchConfigWithRetry()',

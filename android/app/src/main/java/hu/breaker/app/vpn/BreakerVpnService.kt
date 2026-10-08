@@ -23,6 +23,7 @@ import hu.breaker.app.core.UsageLogic
 import hu.breaker.app.core.AppState
 import hu.breaker.app.core.BreakerStore
 import hu.breaker.app.core.DigestLogic
+import hu.breaker.app.core.DohCanary
 import hu.breaker.app.core.Focus
 import hu.breaker.app.core.LockdownLogic
 import hu.breaker.app.core.Referee
@@ -699,6 +700,16 @@ class BreakerVpnService : VpnService() {
     private fun handleQuery(q: DnsEngine.UdpQuery, payload: ByteArray, output: FileOutputStream) {
         try {
             val name = DnsEngine.queryName(payload)
+            // A FIREFOX KANÁRIJA (DohCanary): NXDOMAIN, hogy az alapból bekapcsolt
+            // titkosított DNS-e kikapcsoljon, és a szűrőn át oldjon fel. Nem
+            // megakadás, nem mérés — a böngésző kérdése, nem a kézé.
+            if (name != null && DohCanary.matches(name)) {
+                DnsEngine.buildNxdomain(payload)?.let { nx ->
+                    val packet = DnsEngine.wrapResponse(q, nx)
+                    synchronized(output) { output.write(packet) }
+                }
+                return
+            }
             val now = System.currentTimeMillis()
             // A döntés MAGA a `Focus.verdict` — a sorrendje ott van leírva, és a
             // legfontosabb pontja, hogy a BLOKKLISTA MINDIG NYER. A munkamenet

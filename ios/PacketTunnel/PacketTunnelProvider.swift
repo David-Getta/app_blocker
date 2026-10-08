@@ -61,6 +61,15 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     private func handle(packet: [UInt8], family: Int32, blocked: Set<String>) {
         guard let q = DnsEngine.parseUdp(packet) else { return }
         let name = DnsEngine.queryName(q.dnsPayload)
+        // A FIREFOX KANÁRIJA (DohCanary): NXDOMAIN, hogy az alapból bekapcsolt
+        // titkosított DNS-e kikapcsoljon, és a szűrőn át oldjon fel. Nem
+        // megakadás — a böngésző kérdése, nem a kézé.
+        if let name, DohCanary.matches(name) {
+            if let nx = DnsEngine.buildNxdomain(q.dnsPayload) {
+                writeBack(DnsEngine.wrapResponse(q, nx), family: family)
+            }
+            return
+        }
         // A döntés MAGA a `Focus.verdict` — a sorrendje ott van leírva, és a
         // legfontosabb pontja, hogy a BLOKKLISTA MINDIG NYER. A munkamenet
         // sosem old fel semmit, csak hozzátesz; enélkül egy csomagba felvett

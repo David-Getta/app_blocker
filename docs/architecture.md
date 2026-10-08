@@ -570,6 +570,13 @@ Ismert megkerülési utak (szándékosan nem próbáljuk „lelakatolni” a gé
   böngészőben nem érvényesül. A gépen ezt a házirend kikapcsolja (lásd fent);
   a telefonon böngésző-házirendet csak eszközkezelés (MDM) adhatna, az app ma
   nem is jelzi. Kikényszeríteni nem tudjuk — a korlátok között kimondjuk.
+  Ami megy: a Firefox szabványos „kanárija” (`use-application-dns.net`). Ha a
+  rendszer DNS-e erre NXDOMAIN-t ad, az ALAPBÓL bekapcsolt DoH-t a Firefox
+  kikapcsolja; a két telefonos szűrő (Android, iPhone) ezért erre mindig
+  NXDOMAIN-t ad (`DohCanary`, a döntés előtt, megakadásként nem számolva). A
+  kézzel bekapcsolt DoH-ra nem hat, a Chrome nem kérdezi; a gép hosts fájlja
+  NXDOMAIN-t nem tud adni (ott a házirend dolgozik). Forrás: [Mozilla — Canary
+  domain](https://support.mozilla.org/kb/canary-domain-use-application-dnsnet).
 - **macOS-en a böngésző-DoH kikapcsolása nem zár, csak alapértelmezést állít.**
   A Chromium a `/Library/Preferences`-ben talált értéket csak akkor kezeli
   kötelező házirendként, ha az „forced” (MDM-profilból jön); enélkül ajánlásnak
