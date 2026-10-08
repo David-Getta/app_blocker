@@ -45,35 +45,22 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **Billentyűzettel is kezelhető.** A párbeszéd-ablak nyitásakor a fókusz
-          eddig a takart lapon maradt: a Tab az ablak mögött járt, az Esc nem zárt.
-          Mostantól a fókusz az ablakba ugrik, a Tab benne marad, az Esc a Mégse, és
-          bezárás után a fókusz oda tér vissza, ahonnan az ablakot nyitottad. Két
-          ablak szándékosan nem zárul Esc-re: a megbízott jelmondata (csak egyszer
-          látszik) és a próbatétel (gépelés közben egy elcsúszott Esc ne csukja be).
+          **A sávok a felolvasónak is mondanak valamit.** A statisztika sávjai — melyik
+          órában, melyik napon akad meg a kéz, mikor ülsz le, mennyi idő megy el — a
+          felolvasóprogramoknak eddig üresek voltak, a telefonokon csak a tengely
+          számait mondták („0, 6, 12…”). Mostantól a sáv egyetlen elem, a nevében a
+          számokkal: a hét napjai mind (a nulla nap is szám — arról is szól, melyik
+          napon nem), az órák közül a nem üresek. A gépen, a böngésző-bővítmény
+          beállítási lapján, Androidon és iPhone-on is.
 
-          **A frissítés nem viszi el a fókuszt.** A lap kétmásodpercenként frissül,
-          és a lista ilyenkor újraépül — aki billentyűzettel egy sor gombján állt, az
-          eddig kétmásodpercenként a lap elejére esett. Most a fókusz ugyanannak a
-          sornak ugyanazon a gombján marad. A böngésző-bővítmény beállítási lapján is:
-          a „Levétel” után a fókusz a „Mégis maradjon” gombon áll, nem a lap elején.
+          ### Ami a v0.4.247-ben jött
 
-          **A telefonokon is.** Androidon a választógombot, a jelölőnégyzetet és a
-          kapcsolót a felolvasó a feliratával együtt mondja, és a szövegre koppintva
-          is működik — eddig csak a kis körre vagy négyzetre lehetett. iPhone-on a
-          saját sáv napgombjainál a VoiceOver kimondja, melyik nap van kijelölve.
+          **Billentyűzettel is kezelhető.** **A frissítés nem viszi el a fókuszt.**
+          **A telefonokon is.** **A letöltőoldal is olvashatóbb.**
 
-          **A letöltőoldal is olvashatóbb.** Ott maradt a régi halvány szürke és egy
-          alig látható link; most ugyanaz a mérce, mint az appban, és ugyanaz az
-          automatikus akadálymentességi próba őrzi.
+          #### Ami a v0.4.246-ban jött
 
-          ### Ami a v0.4.246-ban jött
-
-          **Olvashatóbb felület.** **A felolvasóprogramok is jobban eligazodnak.**
-
-          #### Ami a v0.4.245-ben jött
-
-          **Új kategória-csomag: Felnőtt tartalom.**
+          **Olvashatóbb felület.**
           NOTES
           fi
 
