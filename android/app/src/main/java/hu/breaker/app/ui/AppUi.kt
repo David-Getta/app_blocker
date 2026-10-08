@@ -92,6 +92,7 @@ import hu.breaker.app.core.ChallengeEngine
 import hu.breaker.app.core.ChallengeEngine.Kind
 import hu.breaker.app.core.ChallengeEngine.Step
 import hu.breaker.app.core.DigestLogic
+import hu.breaker.app.core.DohHosts
 import hu.breaker.app.core.LimitLogic
 import hu.breaker.app.core.FilterHitLogic
 import hu.breaker.app.core.KeywordLogic
@@ -387,6 +388,28 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                         )
                         OutlinedButton(onClick = { context.startActivity(PrivateDns.settingsIntent()) }) {
                             Text("Hálózati beállítások")
+                        }
+                    }
+                }
+            }
+
+            // A TITKOSÍTOTT DNS NYOMA. Ha valami egy ismert DoH/DoT-kiszolgáló
+            // nevét kérdezte, a szűrő MELLETT oldhat fel — a kártya kimondja,
+            // tiltás nélkül, és az „Értem” csak ezt a nevet némítja (egy másik
+            // visszahozza). Szigorú Privát DNS mellett hallgat: azt a fenti,
+            // erősebb kártya már mondja, és a nevet a rendszer maga is kérdezi.
+            val dohText = if (vpnRunning && strictDns == null) {
+                DohHosts.cardText(state.dohSeenHost, state.dohSeenAt, state.dohDismissedHost, now, android = true)
+            } else {
+                null
+            }
+            if (dohText != null) {
+                Card {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Titkosított DNS a szűrő mellett?", fontWeight = FontWeight.Bold)
+                        Text(dohText, style = MaterialTheme.typography.bodySmall)
+                        TextButton(onClick = { BreakerStore.mutate { it.copy(dohDismissedHost = it.dohSeenHost) } }) {
+                            Text("Értem")
                         }
                     }
                 }

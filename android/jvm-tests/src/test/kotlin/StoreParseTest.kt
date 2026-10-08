@@ -174,6 +174,16 @@ class StoreParseTest {
         assertNull(parse("{\"sites\":[]}").digestWeekKey, "régi állapot: még sosem szólt")
     }
 
+    @Test fun `a titkositott DNS nyoma tuleli a mentest, es nelkule null`() {
+        val raw = """{"sites":[],"dohSeenHost":"dns.google","dohSeenAt":1700000000000,"dohDismissedHost":"dns.quad9.net"}"""
+        val back = parse(toJson.invoke(BreakerStore, parse(raw)).toString())
+        assertEquals("dns.google", back.dohSeenHost)
+        assertEquals(1_700_000_000_000L, back.dohSeenAt)
+        assertEquals("dns.quad9.net", back.dohDismissedHost, "az „értem” újraindítás után is áll")
+        val old = parse("{\"sites\":[]}")
+        assertNull(old.dohSeenHost); assertNull(old.dohSeenAt); assertNull(old.dohDismissedHost)
+    }
+
     @Test fun `a heti naplo tuleli a mentest, a serult sor nem viszi el a tobbit`() {
         val raw = """{"sites":[],"digestLog":[
             {"week":"2026-08-31","text":"Elmúlt 7 nap: 5 ó 0 p mért idő."},

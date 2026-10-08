@@ -578,7 +578,12 @@ Néhány konkrét dolog, amit érdemes előre tudni:
   bekapcsolt titkosított DNS-ét a szűrő a szabványos jelzéssel (a
   `use-application-dns.net` „kanárival”) kikapcsoltatja — a KÉZZEL bekapcsoltat
   nem. A gépen ezt házirend kapcsolja ki; a telefonon ilyen házirend
-  eszközkezelés nélkül nincs, és az app ma nem is jelzi.
+  eszközkezelés nélkül nincs. Amit a két telefon megtehet: a kézzel megadott
+  szolgáltató nevét a böngésző induláskor a szűrőn át keresi meg — ha ez egy
+  ismert titkosított-DNS-kiszolgáló neve, a főképernyő kártyája kimondja,
+  melyik és mikor (tiltás nélkül: egy elrontott DNS-beállítás az egész
+  internetet vinné el). Csak a listán lévő neveket ismeri fel, és azt nem
+  látja, melyik app kérdezett — a csend tehát nem bizonyíték.
 - **A törlés-védelem nem gépzár.** Az eszközadmin elveszi az egykoppintásos
   törlést, de a rendszer Beállításaiban (Biztonság → Eszközadmin-alkalmazások)
   próbatétel nélkül is kikapcsolható — nem tudjuk megakadályozni, és nem is

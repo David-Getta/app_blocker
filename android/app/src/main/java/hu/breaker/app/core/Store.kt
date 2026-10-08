@@ -214,6 +214,15 @@ data class AppState(
     val hideSiteList: Boolean = false,
     /** Ha nem kéred, csendben marad: az értesítés a sokadik megakadásnál és a csúcs-óra előtt kikapcsolva. Helyi. */
     val quietSuggestions: Boolean = false,
+    /**
+     * A titkosított DNS NYOMA: a legutóbb kérdezett ismert DoH/DoT-kiszolgáló
+     * neve és ideje (a szűrő írja), és a név, amire a felhasználó már azt
+     * mondta: értem. Helyi — a másik eszköznek semmit nem mondana. Lásd
+     * core/DohHosts.kt.
+     */
+    val dohSeenHost: String? = null,
+    val dohSeenAt: Long? = null,
+    val dohDismissedHost: String? = null,
     /** fiók a szinkronhoz; null = nincs bejelentkezve */
     val sync: SyncAccount? = null,
     /**
@@ -630,6 +639,9 @@ object BreakerStore {
         put("protectionOn", s.protectionOn)
         put("hideSiteList", s.hideSiteList)
         put("quietSuggestions", s.quietSuggestions)
+        put("dohSeenHost", s.dohSeenHost ?: JSONObject.NULL)
+        put("dohSeenAt", s.dohSeenAt ?: JSONObject.NULL)
+        put("dohDismissedHost", s.dohDismissedHost ?: JSONObject.NULL)
         // A zárlat a lemezre is megy: egy újraindítás nem oldhatja fel azt,
         // aminek szándékosan nincs visszaútja.
         put("lockdown", s.lockdown?.let { l ->
@@ -1049,6 +1061,9 @@ object BreakerStore {
             abandons = abandons,
             hideSiteList = o.optBoolean("hideSiteList", false),
             quietSuggestions = o.optBoolean("quietSuggestions", false),
+            dohSeenHost = if (o.isNull("dohSeenHost")) null else o.optString("dohSeenHost"),
+            dohSeenAt = if (o.isNull("dohSeenAt")) null else o.optLong("dohSeenAt"),
+            dohDismissedHost = if (o.isNull("dohDismissedHost")) null else o.optString("dohDismissedHost"),
             lockdown = if (o.isNull("lockdown")) null else runCatching {
                 val l = o.getJSONObject("lockdown")
                 LockdownLogic.parse(

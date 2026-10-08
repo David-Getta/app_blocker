@@ -127,6 +127,10 @@ ts.pauseNotify = read('desktop/src/shared/pause-notify.ts');
 kt.pauseNotify = read('android/app/src/main/java/hu/breaker/app/core/PauseNotify.kt');
 sw.pauseNotify = read('ios/Shared/PauseNotify.swift');
 kt.burst = read('android/app/src/main/java/hu/breaker/app/core/Burst.kt');
+kt.dohHosts = read('android/app/src/main/java/hu/breaker/app/core/DohHosts.kt');
+sw.dohHosts = read('ios/Shared/DohHosts.swift');
+kt.dohCanary = read('android/app/src/main/java/hu/breaker/app/core/DohCanary.kt');
+sw.dohCanary = read('ios/Shared/DohCanary.swift');
 
 function scalar(text, re, label) {
   const m = text.match(re);
@@ -669,6 +673,47 @@ const PHONE_PAIRS = [
     phoneScalar(kt.filterHits, /MAX_PER_DAY\s*=\s*([\d_]+)/, 'kt'),
     phoneScalar(sw.filterHits, /maxPerDay\s*=\s*([\d_]+)/, 'sw')],
 ];
+// A TITKOSÍTOTT DNS: a két telefon ugyanazokat a neveket ismeri fel, ugyanazzal
+// a ritkítással jegyzi fel, ugyanannyi ideig mutatja — és a Firefox kanárija is
+// ugyanaz a név. Ha az egyik lista bővül, a másik nem, ugyanaz a böngésző az
+// egyik telefonon szólna, a másikon nem.
+/** Idézett nevek egy halmazból, rendezve — a két nyelv más zárójelet ír. */
+function nameSet(text, re, label) {
+  const m = text.match(re);
+  if (!m) return { missing: label };
+  return (m[1].match(/"([^"]+)"/g) || []).map((q) => q.slice(1, -1)).sort();
+}
+PHONE_PAIRS.push(
+  ['DOH_KNOWN',
+    nameSet(kt.dohHosts, /KNOWN: Set<String> = setOf\(([\s\S]*?)\n {4}\)/, 'kt'),
+    nameSet(sw.dohHosts, /known: Set<String> = \[([\s\S]*?)\n {4}\]/, 'sw')],
+  ['DOH_SUFFIXES',
+    nameSet(kt.dohHosts, /SUFFIXES = listOf\(([^)]*)\)/, 'kt'),
+    nameSet(sw.dohHosts, /suffixes = \[([^\]]*)\]/, 'sw')],
+  ['DOH_NOTE_EVERY_MS',
+    scalar(kt.dohHosts, /NOTE_EVERY_MS\s*=\s*(.+)/, 'kt'),
+    scalar(sw.dohHosts, /noteEveryMs: Double = (.+)/, 'sw')],
+  ['DOH_SHOW_FOR_MS',
+    scalar(kt.dohHosts, /SHOW_FOR_MS\s*=\s*(.+)/, 'kt'),
+    scalar(sw.dohHosts, /showForMs: Double = (.+)/, 'sw')],
+  ['DOH_CANARY',
+    quotedText(kt.dohCanary, /NAME = "([^"]+)"/, 'kt'),
+    quotedText(sw.dohCanary, /name = "([^"]+)"/, 'sw')],
+);
+
+/**
+ * Egy függvény szöveg-literáljai sorban, a behelyettesítés helyén `#`-sel —
+ * a kártya mondata így betűre összevethető, bárhogy tördeli a két nyelv.
+ */
+function literalsOf(text, start, end) {
+  const a = text.indexOf(start);
+  const b = a < 0 ? -1 : text.indexOf(end, a);
+  if (a < 0 || b < 0) return undefined;
+  return (text.slice(a, b).match(/"(?:[^"\\]|\\.)*"/g) || [])
+    .map((q) => q.slice(1, -1).replace(/\$\{[^}]+\}|\$[a-z]+|\\\((?:[^()]|\([^()]*\))*\)/g, '#'))
+    .join('');
+}
+
 // A csúcs-óra felirata is: ha a két telefon mást írna, a heti mondat kétféle lenne.
 const PHONE_LABELS = [
   ['FILTER_HIT_HOUR_LABEL',
@@ -799,6 +844,19 @@ if (SPACE_LISTS.some((l) => !l || l.length === 0)) {
 }
 
 const PHONE_LANGS = ['Kotlin', 'Swift'];
+// A DoH-kártya mondata és az „N perce” szóhasználat: ugyanaz a nyom a két
+// telefonon ugyanazt mondja.
+for (const [name, k, w] of [
+  ['DOH_CARD_TEXT',
+    literalsOf(kt.dohHosts, 'fun cardText(', 'fun agoText('),
+    literalsOf(sw.dohHosts, 'func cardText(', 'func agoText(')],
+  ['DOH_AGO_TEXT',
+    literalsOf(kt.dohHosts, 'fun agoText(', '\n    }\n'),
+    literalsOf(sw.dohHosts, 'func agoText(', '\n    }\n')],
+]) {
+  if (!k || !w) problems.push(`${name}: nem található — a minta elavult vagy a függvény eltűnt`);
+  else if (k !== w) problems.push(`${name} eltér:\n    Kotlin      ${k}\n    Swift       ${w}`);
+}
 for (const [name, kotlinLabel, swiftLabel] of PHONE_LABELS) {
   // A két nyelv a behelyettesítést másképp írja ($hour / \(hour)); a váz ugyanaz kell legyen.
   // A Swift-behelyettesítésben zárójel is lehet (`\((hour + 1) % 24)`): egy

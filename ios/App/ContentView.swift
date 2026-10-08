@@ -86,6 +86,7 @@ struct ContentView: View {
                     if store.fileUnreadable { unreadableBanner }
                     lockdownBanner
                     protectionSection
+                    dohBanner
                     focusSyncErrorBanner
                     focusRunningSection
                     hitNudgeBanner
@@ -397,6 +398,28 @@ struct ContentView: View {
                 .padding()
                 .background(BreakerStyle.surfaceNested)
                 .cornerRadius(10)
+        }
+    }
+
+    /// A TITKOSÍTOTT DNS NYOMA: ha valami egy ismert DoH/DoT-kiszolgáló nevét
+    /// kérdezte, a szűrő MELLETT oldhat fel. A kártya kimondja, tiltás nélkül
+    /// (egy elrontott DNS-beállítás az egész internetet vinné el); az „Értem”
+    /// csak ezt a nevet némítja — egy másik visszahozza. Lásd Shared/DohHosts.swift.
+    @ViewBuilder
+    private var dohBanner: some View {
+        if tunnel.status == .connected,
+           let text = DohHosts.cardText(host: store.state.dohSeenHost, at: store.state.dohSeenAt,
+                                        dismissedHost: store.state.dohDismissedHost, now: now, android: false) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Titkosított DNS a szűrő mellett?").font(.subheadline.bold())
+                Text(text).font(.footnote)
+                Button("Értem") { _ = store.mutate { $0.dohDismissedHost = $0.dohSeenHost } }
+                    .buttonStyle(.bordered)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding()
+            .background(BreakerStyle.surfaceNested)
+            .cornerRadius(10)
         }
     }
 

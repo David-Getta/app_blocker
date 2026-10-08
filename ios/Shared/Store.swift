@@ -205,6 +205,12 @@ struct AppState: Codable, Equatable {
     /// Ha nem kéred, csendben marad: az előjelzés a csúcs-óra előtt kikapcsolva
     /// — a lap kártyája akkor is mondja. Helyi; a hiányzó kulcs nil (szól).
     var quietSuggestions: Bool? = nil
+    /// A titkosított DNS NYOMA: a legutóbb kérdezett ismert DoH/DoT-kiszolgáló
+    /// neve és ideje (epoch ms; a tunnel írja), és a név, amire a felhasználó
+    /// már azt mondta: értem. Helyi. Lásd Shared/DohHosts.swift.
+    var dohSeenHost: String? = nil
+    var dohSeenAt: Double? = nil
+    var dohDismissedHost: String? = nil
     /// Melyik hétről íródott már a heti napló sora (a hétfő dátuma). Helyi,
     /// mint a gépen és Androidon — a szinkronra szándékosan nem megy.
     var digestWeekKey: String? = nil

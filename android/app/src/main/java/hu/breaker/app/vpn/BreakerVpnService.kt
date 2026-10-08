@@ -24,6 +24,7 @@ import hu.breaker.app.core.AppState
 import hu.breaker.app.core.BreakerStore
 import hu.breaker.app.core.DigestLogic
 import hu.breaker.app.core.DohCanary
+import hu.breaker.app.core.DohHosts
 import hu.breaker.app.core.Focus
 import hu.breaker.app.core.LockdownLogic
 import hu.breaker.app.core.Referee
@@ -733,6 +734,19 @@ class BreakerVpnService : VpnService() {
             // Feed the active-time tracker: a resolved (non-blocked) name is our
             // only signal for which page a foreground browser is showing.
             if (!blocked && name != null) UsageTracker.noteDomain(name, now)
+            // A TITKOSÍTOTT DNS NYOMA (DohHosts): egy ismert DoH/DoT-kiszolgáló
+            // neve — valami a szűrő MELLETT akar feloldani. Csak feljegyezzük
+            // (ugyanazt tízpercenként egyszer), a főképernyő kártyája mondja.
+            // Nem tiltjuk: egy elrontott DNS-beállítás az egész internetet
+            // vinné el, és a döntés a felhasználóé.
+            val dohHost = if (!blocked && name != null) DohHosts.hostOf(name) else null
+            if (dohHost != null) {
+                val cur = BreakerStore.state.value
+                if (DohHosts.shouldNote(cur.dohSeenHost, cur.dohSeenAt, dohHost, now)) {
+                    runCatching { BreakerStore.mutate { it.copy(dohSeenHost = dohHost, dohSeenAt = now) } }
+                        .onFailure { Log.w(TAG, "a titkosított DNS nyoma nem íródott: $it") }
+                }
+            }
             // MEGAKADÁS: a tiltott név egy megakadás — hosztonként két percen
             // belül egyszer, mert egy oldalbetöltés tucatnyi lekérdezés. A
             // könyv a statisztikáé és a heti mondaté; a döntést nem lassítja.

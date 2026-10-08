@@ -123,6 +123,18 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
             writeBack(resp, family: family)
             return
         }
+        // A TITKOSÍTOTT DNS NYOMA (DohHosts): egy ismert DoH/DoT-kiszolgáló
+        // neve — valami a szűrő MELLETT akar feloldani. Csak feljegyezzük
+        // (ugyanazt tízpercenként egyszer), az app kártyája mondja. Nem
+        // tiltjuk: egy elrontott DNS-beállítás az egész internetet vinné el,
+        // és a döntés a felhasználóé.
+        if let name, let host = DohHosts.hostOf(name),
+           DohHosts.shouldNote(prevHost: store.state.dohSeenHost, prevAt: store.state.dohSeenAt, host: host, now: now) {
+            store.mutate {
+                $0.dohSeenHost = host
+                $0.dohSeenAt = now
+            }
+        }
         // Relay upstream, then write the response back into the tunnel.
         resolveQueue.async { [weak self] in
             guard let self = self, let answer = self.forwardUpstream(q.dnsPayload) else { return }

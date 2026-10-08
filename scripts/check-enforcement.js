@@ -79,6 +79,45 @@ const WIRES = [
     needle: 'DohCanary.matches(',
     lost: 'iPhone-on a Firefox alapból bekapcsolt DoH-ja megkerülné a szűrőt',
   },
+  // A TITKOSÍTOTT DNS NYOMA: a felismerés a magban (DohHosts) tesztelt, de
+  // csak akkor ér valamit, ha a szűrő feljegyzi, és a felület ki is mondja —
+  // enélkül egy kézzel beállított DoH-s böngésző csendben kerülné meg a
+  // szűrőt, és az app közben zöldet mutatna.
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/vpn/BreakerVpnService.kt',
+    needle: 'DohHosts.hostOf(name)',
+    lost: 'Androidon a szűrő nem jegyezné fel, ha valami saját titkosított DNS-t keres',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/vpn/BreakerVpnService.kt',
+    needle: 'it.copy(dohSeenHost = dohHost, dohSeenAt = now)',
+    lost: 'Androidon a titkosított DNS nyoma nem kerülne az állapotba — a kártya sosem szólna',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/AppUi.kt',
+    needle: 'DohHosts.cardText(state.dohSeenHost, state.dohSeenAt, state.dohDismissedHost, now, android = true)',
+    lost: 'Androidon a titkosított DNS nyomáról nem szólna kártya',
+  },
+  {
+    file: 'ios/PacketTunnel/PacketTunnelProvider.swift',
+    needle: 'let host = DohHosts.hostOf(name)',
+    lost: 'iPhone-on az alagút nem jegyezné fel, ha valami saját titkosított DNS-t keres',
+  },
+  {
+    file: 'ios/PacketTunnel/PacketTunnelProvider.swift',
+    needle: '$0.dohSeenHost = host',
+    lost: 'iPhone-on a titkosított DNS nyoma nem kerülne az állapotba — a kártya sosem szólna',
+  },
+  {
+    file: 'ios/App/ContentView.swift',
+    needle: 'dismissedHost: store.state.dohDismissedHost, now: now, android: false)',
+    lost: 'iPhone-on a titkosított DNS nyomáról nem szólna kártya',
+  },
+  {
+    file: 'ios/App/ContentView.swift',
+    needle: '                    dohBanner\n',
+    lost: 'iPhone-on a DoH-kártya megvan, de a főképernyő nem mutatja',
+  },
   {
     file: 'extension/content.js',
     needle: 'await fetchConfigWithRetry()',

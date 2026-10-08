@@ -568,8 +568,20 @@ Ismert megkerülési utak (szándékosan nem próbáljuk „lelakatolni” a gé
   virtuális DNS-e pedig nem az. Ha viszont a böngészőben külön szolgáltató van
   megadva, a névfeloldás titkosítva, a szűrő mellett megy, és a tiltás abban a
   böngészőben nem érvényesül. A gépen ezt a házirend kikapcsolja (lásd fent);
-  a telefonon böngésző-házirendet csak eszközkezelés (MDM) adhatna, az app ma
-  nem is jelzi. Kikényszeríteni nem tudjuk — a korlátok között kimondjuk.
+  a telefonon böngésző-házirendet csak eszközkezelés (MDM) adhatna.
+  Kikényszeríteni nem tudjuk — a korlátok között kimondjuk, és a NYOMÁT
+  jelezzük: a böngésző a kézzel megadott szolgáltató nevét induláskor a
+  rendszer DNS-én (a szűrőn) át keresi meg. Ha a szűrő egy ismert DoH/DoT-
+  kiszolgáló nevét látja átmenni (`DohHosts`: a Chromium szolgáltatólistája
+  és a gyakori szolgáltatók, a profilonkénti NextDNS/Control D nevek
+  végződés szerint), feljegyzi a nevet és az időt (ugyanazt tízpercenként
+  egyszer; helyi mező, a szinkronra nem megy), és a főképernyő kártyája egy
+  napig mondja. Az „Értem” csak azt a nevet némítja, egy másik visszahozza.
+  Androidon szigorú Privát DNS mellett hallgat — azt az erősebb kártya már
+  mondja. Tiltás nincs: egy elrontott DNS-beállítás az egész internetet
+  vinné el, és a döntés a felhasználóé. Őszinte határ: csak a listán lévő
+  neveket ismeri fel, nem látja, melyik app kérdezett, és egy beépített
+  címmel induló app nem kérdez semmit — a csend nem bizonyíték.
   Ami megy: a Firefox szabványos „kanárija” (`use-application-dns.net`). Ha a
   rendszer DNS-e erre NXDOMAIN-t ad, az ALAPBÓL bekapcsolt DoH-t a Firefox
   kikapcsolja; a két telefonos szűrő (Android, iPhone) ezért erre mindig
