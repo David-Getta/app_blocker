@@ -103,6 +103,7 @@ import hu.breaker.app.core.UrlRules
 import hu.breaker.app.core.UsageLogic
 import hu.breaker.app.admin.UninstallGuard
 import hu.breaker.app.auth.ListLock
+import hu.breaker.app.BuildConfig
 import hu.breaker.app.R
 import hu.breaker.app.update.UpdateChecker
 import hu.breaker.app.usage.UsageTracker
@@ -180,7 +181,9 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
     var updateNote by remember { mutableStateOf<String?>(null) }
     var needsInstallPermission by remember { mutableStateOf(false) }
 
-    LaunchedEffect(Unit) { update = UpdateChecker.check() }
+    // Csak a közvetlen letöltésű ízben: a Play-ből telepített appot a Play
+    // frissíti, a GitHub-os APK-t ott telepíteni sem lehetne (build.gradle.kts).
+    LaunchedEffect(Unit) { if (BuildConfig.SELF_UPDATE) update = UpdateChecker.check() }
 
     // Szinkron az app megnyitásakor.
     //

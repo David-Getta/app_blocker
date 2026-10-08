@@ -8,10 +8,19 @@
 
 ```bash
 cd android
-./gradlew assembleDebug            # APK: app/build/outputs/apk/debug/
+./gradlew assembleDirectDebug      # APK: app/build/outputs/apk/direct/debug/
 # vagy telepítés csatlakoztatott eszközre:
-./gradlew installDebug
+./gradlew installDirectDebug
 ```
+
+**Két íz, egy kód.** A `direct` íz a közvetlen letöltésű APK: maga frissíti
+magát a GitHub-kiadásokból (`UpdateChecker`), ehhez kéri a
+`REQUEST_INSTALL_PACKAGES` engedélyt. A `play` íz a Play Store-ba menő AAB: a
+Play-ből telepített app csak a Play-en át frissülhet, ezért a manifestjéből
+(`src/play/AndroidManifest.xml`) kikerül az engedély és az önfrissítő
+`FileProvider`-e, a `BuildConfig.SELF_UPDATE` pedig hamis — az ellenőrzés el
+sem indul. A kiadás `assembleDirectRelease bundlePlayRelease`-szel épít, és a
+CI is pontosan ezt építi minden pushnál.
 
 ## Hogyan működik
 - A blokkolást egy helyi `VpnService` (DNS sinkhole) végzi. Első bekapcsoláskor

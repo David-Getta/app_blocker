@@ -43,6 +43,28 @@ android {
         }
     }
 
+    // KÉT TERJESZTÉS, KÉT ÍZ. A közvetlen letöltésű APK (`direct`) maga frissíti
+    // magát: a GitHub-kiadásból tölti le az újat, és elindítja a telepítőt
+    // (UpdateChecker) — ehhez kell a REQUEST_INSTALL_PACKAGES. A Play Store-ba
+    // menő AAB-ban (`play`) ez TILOS: a Play szabálya szerint a Play-ből telepített
+    // app csak a Play-en át frissülhet, és a telepítési engedély korlátozott,
+    // önfrissítésre nem adható. A GitHub-os APK ráadásul más kulccsal van
+    // aláírva, mint amit a Play kiad — a telepítő el is utasítaná. Ugyanabból a
+    // kódból két íz: a `play` manifestje (src/play) kiveszi az engedélyt, a
+    // BuildConfig.SELF_UPDATE kikapcsolja az ellenőrzést. A CI a Play-csomag
+    // manifestjét meg is nézi (scripts/check-play-bundle.sh).
+    flavorDimensions += "distribution"
+    productFlavors {
+        create("direct") {
+            dimension = "distribution"
+            buildConfigField("boolean", "SELF_UPDATE", "true")
+        }
+        create("play") {
+            dimension = "distribution"
+            buildConfigField("boolean", "SELF_UPDATE", "false")
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false

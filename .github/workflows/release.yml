@@ -252,13 +252,17 @@ jobs:
           BREAKER_VERSION_CODE: ${{ github.run_number }}
         run: |
           export BREAKER_VERSION_NAME="${BREAKER_VERSION_NAME#v}"
-          ./gradlew assembleRelease bundleRelease --no-daemon
+          # Két íz (build.gradle.kts): a közvetlen letöltésű APK frissíti magát,
+          # a Play-be menő AAB nem — a Play-ből telepített appot a Play frissíti.
+          ./gradlew assembleDirectRelease bundlePlayRelease --no-daemon
+      - name: A Play-csomag nem frissíti magát
+        run: bash ../scripts/check-play-bundle.sh "$(find app/build/outputs/bundle/playRelease -name '*.aab' | head -n1)"
       - name: Assetek átnevezése és feltöltése
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          APK=$(find app/build/outputs/apk/release -name "*.apk" | head -n1)
-          AAB=$(find app/build/outputs/bundle/release -name "*.aab" | head -n1)
+          APK=$(find app/build/outputs/apk/direct/release -name "*.apk" | head -n1)
+          AAB=$(find app/build/outputs/bundle/playRelease -name "*.aab" | head -n1)
           cp "$APK" "Breaker-${VERSION}.apk"
           # Újrapróbálással — a v0.4.32 pont itt bukott egy GitHub-oldali 500-on,
           # és a kiadás APK nélkül ment ki (lásd scripts/release-upload.sh).
@@ -277,7 +281,7 @@ jobs:
         with:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: hu.breaker.app
-          releaseFiles: android/app/build/outputs/bundle/release/*.aab
+          releaseFiles: android/app/build/outputs/bundle/playRelease/*.aab
           track: internal
           status: completed
 

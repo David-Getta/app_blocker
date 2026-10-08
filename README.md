@@ -463,8 +463,8 @@ Dokumentáció:
 # Desktop (a mag + hosts-motor tesztjei itt is lefutnak)
 cd desktop && npm install && npm test && npm start
 
-# Android
-cd android && ./gradlew assembleDebug
+# Android (a közvetlen letöltésű íz; a Play-be menő a `play`)
+cd android && ./gradlew assembleDirectDebug
 
 # iOS / macOS (macOS + Xcode kell)
 cd ios && xcodegen generate && open Breaker.xcodeproj

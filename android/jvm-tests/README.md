@@ -38,7 +38,7 @@ azonos algoritmust valósít meg, és ez a fájl tartja őket szinkronban.
 
 A Compose felület, a `VpnService`, a DNS-csomagkezelés futásidejű viselkedése és
 az Android-specifikus engedélykezelés — ezekhez valódi Android build kell
-(`../gradlew assembleDebug`). A DNS-motor bitszintű logikája viszont szintén
+(`../gradlew assembleDirectDebug`). A DNS-motor bitszintű logikája viszont szintén
 tiszta Kotlin, így az is tesztelhető lenne itt, ha később kell.
 
 ## Stubok

@@ -4214,6 +4214,35 @@ const WIRES = [
   // „electron.app.Breaker”-t mondana; a telepítő parancsikonja az appId-t
   // viseli. Ha a kettő elválik, a Windows nem köti az értesítést a telepített
   // apphoz — és semmi nem hasal el tőle.
+  // A PLAY-CSOMAG NEM FRISSÍTI MAGÁT. A közvetlen letöltésű APK a GitHubról
+  // frissül; a Play-ből telepített app csak a Play-en át — a telepítési
+  // engedély a Play-ben önfrissítésre nem adható. Ha az íz-elválasztás bármelyik
+  // szeme kiesik, semmi nem hasal el — csak a Play utasítja el a csomagot.
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/AppUi.kt',
+    needle: 'if (BuildConfig.SELF_UPDATE) update = UpdateChecker.check()',
+    lost: 'a Play-ből telepített app is a GitHubról akarná frissíteni magát',
+  },
+  {
+    file: 'android/app/build.gradle.kts',
+    needle: 'buildConfigField("boolean", "SELF_UPDATE", "false")',
+    lost: 'a Play-íz is bekapcsolt önfrissítővel épülne',
+  },
+  {
+    file: 'android/app/src/play/AndroidManifest.xml',
+    needle: 'android:name="android.permission.REQUEST_INSTALL_PACKAGES"\n        tools:node="remove"',
+    lost: 'a Play-csomag telepítési engedélyt kérne — a Play ezt önfrissítésre nem adja',
+  },
+  {
+    file: '.github/workflows/ci.yml',
+    needle: 'bash ../scripts/check-play-bundle.sh',
+    lost: 'a Play-csomag manifestjét a push nem nézné meg, csak a kiadás',
+  },
+  {
+    file: '.github/workflows/release.yml',
+    needle: 'run: bash ../scripts/check-play-bundle.sh',
+    lost: 'a kiadás telepítési engedélyt kérő Play-csomagot is feltöltene',
+  },
   {
     file: 'desktop/src/main/main.ts',
     needle: "if (process.platform === 'win32') app.setAppUserModelId(APP_ID);",

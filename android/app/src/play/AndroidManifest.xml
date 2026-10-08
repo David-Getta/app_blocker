@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A Play Store-ba menő íz (build.gradle.kts, `play`). A Play-ből telepített app
+  csak a Play-en át frissülhet: az önfrissítő telepítési engedélye és a letöltött
+  APK átadására szolgáló FileProvider itt nincs. A kód ugyanaz, a BuildConfig.SELF_UPDATE
+  hamis — az ellenőrzés el sem indul. A CI a kész csomag manifestjét is megnézi
+  (scripts/check-play-bundle.sh).
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission
+        android:name="android.permission.REQUEST_INSTALL_PACKAGES"
+        tools:node="remove" />
+
+    <application>
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            tools:node="remove" />
+    </application>
+</manifest>

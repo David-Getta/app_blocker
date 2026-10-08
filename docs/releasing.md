@@ -277,6 +277,15 @@ lefordítja és a lint végzetes hibáit is nézi, de eszközön nem próbálja 
 kiadás előtt érdemes egy telefonon ránézni, hogy semmi nem csúszik az
 állapotsor vagy a navigációs sáv alá.
 
+A feltöltendő AAB a `play` ízből készül (`bundlePlayRelease`), nem ugyanaz a
+csomag, mint a letölthető APK (`direct`). A Play szabálya szerint a Play-ből
+telepített app csak a Play-en át frissülhet, a `REQUEST_INSTALL_PACKAGES` pedig
+korlátozott engedély, önfrissítésre nem adható — a GitHub-os APK ráadásul más
+kulccsal van aláírva, mint amit a Play kiad. A `play` íz manifestjéből ezért
+kimarad az engedély és az önfrissítő, és a kiadás (a CI is, minden pushnál) a
+kész AAB manifestjében meg is nézi (`scripts/check-play-bundle.sh`, egy pozitív
+próbával: az INTERNET engedélyt látnia kell, különben a módszer romlott el).
+
 A következő célszint (API 37, Android 17) a helyi hálózatot is engedélyhez
 köti ([local network permission](https://developer.android.com/privacy-and-security/local-network-permission)):
 a 37-re célzó app egy helyi címet csak futásidőben kért `ACCESS_LOCAL_NETWORK`
