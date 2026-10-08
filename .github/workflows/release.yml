@@ -45,27 +45,29 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **Új kategória-csomag: Szerencsejáték.** A felvevő kártyán a Közösségi, a
-          Videó és stream, a Hírek és a Vásárlás mellett egy ötödik gomb: a hazai
-          engedélyes szerencsejáték-oldalak (a Szerencsejáték Zrt. oldala, a Tippmix és a
-          TippmixPro, az engedélyes online kaszinók) és három nagy nemzetközi név, egy
-          kattintással. Felvenni ingyen, levenni oldalanként, próbatétellel — mint a
-          többi csomagnál. Ez nem teljes lista: a többit egyenként kell felvenni, és egy
-          kulcsszó (casino, kaszino) a böngészőben a címben és a lap címsorában is fogja.
-          A szolgáltatónál kérhető önkizárás ennél erősebb eszköz, a kettő együtt a
-          legjobb.
+          **Régebbi Macre nem kerül olyan frissítés, ami ott el sem indulna.** Az asztali
+          app keretrendszere (az Electron) időnként elengedi a legrégebbi macOS-eket, és
+          a következő asztali verziók a macOS 13-at fogják kérni. A frissítő eddig ezt nem
+          nézte: egy régebbi Macre is feltette volna az új verziót, ami ott el sem indul.
+          Mostantól összeveti a gép rendszerével. Ha a következő verzió ott már nem futna,
+          nem tölt le semmit, és a fiók-panel kimondja, melyik verzió mit kér. A Breaker
+          így is működik tovább — a tiltás, a mérés, minden —, csak újabbat nem kap.
 
-          **Biztonsági javítás az automatikus frissítőben.** Az asztali app a frissítési
-          jegyzéket egy javított YAML-olvasóval olvassa (js-yaml 4.3.2).
+          **Ez a verzió a híd.** A korábbi frissítők a következő asztali verziók csomagját
+          nem ismerik fel. Ha a Maceden a Breaker régóta nem futott, nyisd meg most, hogy
+          ezt a verziót megkapja.
 
-          ### Ami a v0.4.239-ben jött
+          **Minden kiadás előtt kipróbáljuk, elindul-e az asztali app.** A becsomagolt
+          appot Macen és Windowson is elindítjuk, mielőtt kimegy. Ha nem indul el, a
+          kiadás nem jut el hozzád.
+
+          ### Ami a v0.4.240-ben jött
+
+          **Új kategória-csomag: Szerencsejáték.**
+
+          #### Ami a v0.4.239-ben jött
 
           **A végigcsinált próbatétel akkor is hat, ha közben a sor összevonódott.**
-
-          #### Ami a v0.4.238-ban jött
-
-          **Az újra felvett oldalt a régi törlés akkor sem viszi el, ha közben egy
-          harmadik eszköz összevonta őket.**
           NOTES
           fi
 
