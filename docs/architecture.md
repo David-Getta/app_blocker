@@ -967,7 +967,10 @@ teszt köti az `electron-builder.yml`-hez). Az Electron magától
 „electron.app.Breaker”-t mondana, és akkor a Windows az értesítést nem kötné a
 telepített apphoz: se a nevét, se az ikonját nem kapná, a Gépház értesítési
 listáján sem „Breaker” néven állna, és a tálcán a futó app külön ikont kapna a
-kitűzött mellett.
+kitűzött mellett. A váltás (v0.4.243) egy őszinte réssel jár: aki a régi,
+„electron.app.Breaker” soron állított valamit a Gépházban, annak az nem
+öröklődik — az új „Breaker” sor alapállapotból indul; a kiadási jegyzet ezt
+kimondta.
 
 Amit az app NEM lát: hogy egy átvett értesítés tényleg látszott-e. A `show`
 esemény csak annyi, hogy a rendszer átvette — kikapcsolt értesítésnél és
