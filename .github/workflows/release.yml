@@ -45,23 +45,23 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **Macen a böngészők titkosított DNS-e zárolható.** A Breaker Macen a böngészők
-          saját titkosított DNS-ét (DoH) eddig csak alapértelmezésként kapcsolta ki: a
-          böngésző beállításaiban vissza lehetett kapcsolni, és akkor a tiltás abban a
-          böngészőben nem érvényesült. Aki zárat akar, a Kinézet panelen most elmenthet
-          egy konfigurációs profilt, és maga telepíti a Rendszerbeállításokban. Utána a
-          Chrome, az Edge, a Chromium, a Brave és a Firefox nem kapcsolja vissza. A
-          profilt ugyanott bármikor eltávolíthatod — súrlódás, nem lakat.
+          **Macen a DoH-zár megmondja, hatott-e.** A böngészők titkosított DNS-ét zároló
+          profilt a Rendszerbeállításokban telepíted — eddig az app nem mondta meg,
+          sikerült-e. Most a Kinézet panel azt mutatja, ami a gépen tényleg érvényben
+          van: hogy a tilalom mind az öt böngészőben kötelező, csak némelyikben, vagy
+          sehol. A panel minden megnyitásakor újranézi.
 
-          ### Ami a v0.4.253-ban jött
+          Ha más böngészőt használsz (Opera, Vivaldi, Arc), annak saját titkosított
+          DNS-ét a Breaker nem kapcsolja ki — ezt most a leírás is kimondja.
+
+          ### Ami a v0.4.254-ben jött
+
+          **Macen a böngészők titkosított DNS-e zárolható (önkéntes profil).**
+
+          #### Ami a v0.4.253-ban jött
 
           **Macen a Firefox DoH-ja tényleg ki van kapcsolva, és az eltávolító python
           nélkül is végigfut.**
-
-          #### Ami a v0.4.252-ben jött
-
-          **Windowson a Brave és a Chromium sem kerüli meg a tiltást, és az eltávolítás
-          után nem marad nyom a böngészőkben.**
           NOTES
           fi
 
