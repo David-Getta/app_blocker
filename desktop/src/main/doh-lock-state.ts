@@ -19,10 +19,17 @@ export interface DohLockState {
   total: number;
 }
 
-function readManaged(domain: string, key: string): Promise<string | null> {
+/**
+ * Egy kezelt érték a plistből, KÖZVETLENÜL a fájlból (PlistBuddy). Nem a
+ * `defaults`-szal: az a beállítás-szolgáltatáson (cfprefsd) át olvas, ami a
+ * kezelt tartományokat gyorsítótárazhatja — a CI macOS-próbája szerint egy
+ * frissen odakerült értéket nem látott. A kulcsút kettősponttal tagolt
+ * (`DNSOverHTTPS:Enabled`); a logikai érték `true`/`false`.
+ */
+function readManaged(domain: string, keyPath: string): Promise<string | null> {
   return new Promise((resolve) => {
-    execFile('/usr/bin/defaults', ['read', `${MANAGED_PREFS_DIR}/${domain}`, key], { timeout: 5_000 },
-      (err, stdout) => resolve(err ? null : String(stdout).trim()));
+    execFile('/usr/libexec/PlistBuddy', ['-c', `Print :${keyPath}`, `${MANAGED_PREFS_DIR}/${domain}.plist`],
+      { timeout: 5_000 }, (err, stdout) => resolve(err ? null : String(stdout).trim()));
   });
 }
 
@@ -35,8 +42,8 @@ export async function dohLockState(): Promise<DohLockState> {
   // A Firefoxnál két érték kell: a kapcsoló (nélküle a Firefox macOS-en
   // egyetlen házirendet sem olvas) és a zárolt, kikapcsolt DNSOverHTTPS.
   const ff = FIREFOX_MAC_DOMAIN.slice(FIREFOX_MAC_DOMAIN.lastIndexOf('/') + 1);
-  const enabled = await readManaged(ff, FIREFOX_MAC_ENABLE_KEY);
-  const doh = (await readManaged(ff, 'DNSOverHTTPS')) ?? '';
-  if (enabled === '1' && /Enabled = 0;/.test(doh) && /Locked = 1;/.test(doh)) forcedOff.push('Firefox');
+  if (await readManaged(ff, FIREFOX_MAC_ENABLE_KEY) === 'true'
+    && await readManaged(ff, 'DNSOverHTTPS:Enabled') === 'false'
+    && await readManaged(ff, 'DNSOverHTTPS:Locked') === 'true') forcedOff.push('Firefox');
   return { forcedOff, total: CHROMIUM_TARGETS.length + 1 };
 }
