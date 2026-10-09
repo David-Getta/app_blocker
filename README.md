@@ -571,6 +571,12 @@ Néhány konkrét dolog, amit érdemes előre tudni:
   profilt, és maga telepíti: a profilból jövő érték kötelező. Bármikor
   eltávolítható — súrlódás, nem lakat; hogy a böngésző tényleg kötelezőnek
   vette-e, a chrome://policy oldalon látszik.
+- **A gép csak öt böngésző saját DoH-ját kapcsolja ki:** a Chrome, az Edge, a
+  Chromium, a Brave és a Firefox házirendjét ismeri. Más böngésző (például az
+  Opera, a Vivaldi vagy az Arc) saját titkosított DNS-e, ha be van kapcsolva,
+  a hosts-tiltás mellett oldhat fel — ezeknél a böngésző beállításaiban kell
+  kikapcsolni. Ha a bővítmény be van töltve és össze van kötve az appal, ott a
+  listán lévő oldalakat a DNS-től függetlenül is a tiltó lapra viszi.
 - **Androidon a rendszer szigorú Privát DNS-e megkerüli a szűrőt** (megadott
   kiszolgálónévvel a névfeloldás TLS-en, a VPN mellett megy). Kényszeríteni
   nem tudjuk; az app észleli, a korong és a tartós értesítés kimondja, és a
