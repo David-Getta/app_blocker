@@ -99,16 +99,21 @@ MP_CREATED=0
 [ -d "$MP" ] || { mkdir -p "$MP"; MP_CREATED=1; }
 lock() { "$NODE" -e "require('./dist/main/doh-lock-state').dohLockState().then((s) => console.log(s.forcedOff.join(',') + '/' + s.total))"; }
 BEFORE_LOCK=$(lock)
-case "$BEFORE_LOCK" in *Chrome*) bad "a kezelt Chrome-érték már a próba előtt ott van — a gép nem tiszta: $BEFORE_LOCK" ;; esac
+case "$BEFORE_LOCK" in *Chrome*|*Firefox*) bad "a kezelt Chrome-érték már a próba előtt ott van — a gép nem tiszta: $BEFORE_LOCK" ;; esac
 defaults write "$MP/com.google.Chrome" DnsOverHttpsMode -string off
 chmod 644 "$MP/com.google.Chrome.plist" 2>/dev/null
 AFTER_LOCK=$(lock)
 case "$AFTER_LOCK" in
-  *Chrome*/4) ;;
+  *Chrome*/5) ;;
   *) bad "a DoH-zár állapota nem látja a kezelt Chrome-értéket: $AFTER_LOCK" ;;
 esac
-case "$AFTER_LOCK" in *Edge*|*Brave*) bad "a DoH-zár állapota olyan böngészőt is kötelezőnek mond, amelyiknek nincs kezelt értéke: $AFTER_LOCK" ;; esac
-rm -f "$MP/com.google.Chrome.plist"
+case "$AFTER_LOCK" in *Edge*|*Brave*|*Firefox*) bad "a DoH-zár állapota olyan böngészőt is kötelezőnek mond, amelyiknek nincs kezelt értéke: $AFTER_LOCK" ;; esac
+# A Firefoxnál a kapcsoló NÉLKÜL a DNSOverHTTPS nem elég — a Firefox rá se néz.
+defaults write "$MP/org.mozilla.firefox" DNSOverHTTPS -dict Enabled -bool false Locked -bool true
+case "$(lock)" in *Firefox*) bad "a Firefoxot kötelezőnek mondja a házirend-kapcsoló nélkül" ;; esac
+defaults write "$MP/org.mozilla.firefox" EnterprisePoliciesEnabled -bool true
+case "$(lock)" in *Firefox*/5) ;; *) bad "a DoH-zár állapota nem látja a kezelt Firefox-értéket: $(lock)" ;; esac
+rm -f "$MP/com.google.Chrome.plist" "$MP/org.mozilla.firefox.plist"
 [ "$MP_CREATED" = 1 ] && rmdir "$MP" 2>/dev/null
 
 rm -f "$HOSTS_BEFORE"

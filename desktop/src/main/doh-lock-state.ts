@@ -8,7 +8,7 @@
 // közvetlenül is meghívhassa.
 
 import { execFile } from 'child_process';
-import { CHROMIUM_DOH_VALUE, CHROMIUM_TARGETS } from '../helper/doh-policy';
+import { CHROMIUM_DOH_VALUE, CHROMIUM_TARGETS, FIREFOX_MAC_DOMAIN, FIREFOX_MAC_ENABLE_KEY } from '../helper/doh-policy';
 
 export const MANAGED_PREFS_DIR = '/Library/Managed Preferences';
 
@@ -32,5 +32,11 @@ export async function dohLockState(): Promise<DohLockState> {
     const domain = t.macDomain.slice(t.macDomain.lastIndexOf('/') + 1);
     if (await readManaged(domain, CHROMIUM_DOH_VALUE.name) === CHROMIUM_DOH_VALUE.value) forcedOff.push(t.name);
   }
-  return { forcedOff, total: CHROMIUM_TARGETS.length };
+  // A Firefoxnál két érték kell: a kapcsoló (nélküle a Firefox macOS-en
+  // egyetlen házirendet sem olvas) és a zárolt, kikapcsolt DNSOverHTTPS.
+  const ff = FIREFOX_MAC_DOMAIN.slice(FIREFOX_MAC_DOMAIN.lastIndexOf('/') + 1);
+  const enabled = await readManaged(ff, FIREFOX_MAC_ENABLE_KEY);
+  const doh = (await readManaged(ff, 'DNSOverHTTPS')) ?? '';
+  if (enabled === '1' && /Enabled = 0;/.test(doh) && /Locked = 1;/.test(doh)) forcedOff.push('Firefox');
+  return { forcedOff, total: CHROMIUM_TARGETS.length + 1 };
 }

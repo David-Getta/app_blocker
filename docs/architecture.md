@@ -621,7 +621,8 @@ Ismert megkerülési utak (szándékosan nem próbáljuk „lelakatolni” a gé
   (allowUIConfigurationProfileInstallation) tiltja-e a kézi telepítést.
   Hogy a profil hatott-e, azt az app a HATÁSÁBÓL mondja (`dohLockState`): a
   gép kezelt beállításai (`/Library/Managed Preferences`) között böngészőnként
-  megnézi, kötelező-e az „off” — a panel minden megnyitásakor, mert a
+  megnézi, kötelező-e az „off” (a Firefoxnál: a kapcsoló ÉS a zárolt,
+  kikapcsolt DNSOverHTTPS) — a panel minden megnyitásakor, mert a
   telepítés a Rendszerbeállításokban történik. Tükör, nem ígéret: egy
   szervezeti felügyelet ugyanígy látszik, és a sor nem mondja, honnan jön.
 - **A telepítő emelt része nem fájlból olvas** (v0.4.212 óta). Korábban a

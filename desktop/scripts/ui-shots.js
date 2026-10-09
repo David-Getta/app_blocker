@@ -445,7 +445,7 @@ function fakeBridgeSource() {
         return { ok: true, path: '/Users/demo/Downloads/Breaker-DoH.mobileconfig' };
       },
       // A DoH-zár állapota: a füstteszt állítja (window.__fakeDohLock).
-      getDohLockState: async () => window.__fakeDohLock || { forcedOff: [], total: 4 },
+      getDohLockState: async () => window.__fakeDohLock || { forcedOff: [], total: 5 },
       getUpdateState: async () => window.__fakeUpdate,
       getTrackerState: async () => window.__fakeTracker,
       // A füstteszt innen hajtja a frissítési sávot: ugyanaz a csatorna, amit
@@ -2370,14 +2370,14 @@ async function main() {
   if (!(await dohLine()).includes('Most nincs kötelező DoH-tilalom')) {
     failures.push(`a DoH-zár sora nem mondja ki, hogy nincs kötelező tilalom: ${await dohLine()}`);
   }
-  await page.evaluate(() => { window.__fakeDohLock = { forcedOff: ['Chrome', 'Edge', 'Chromium', 'Brave'], total: 4 }; });
+  await page.evaluate(() => { window.__fakeDohLock = { forcedOff: ['Chrome', 'Edge', 'Chromium', 'Brave', 'Firefox'], total: 5 }; });
   await page.locator('#themeBtn').evaluate((b) => b.click());
   await page.waitForFunction(() => (document.getElementById('dohLockLine').textContent || '').includes('Most érvényben'),
     undefined, { timeout: 5_000 }).catch(() => {});
   if (!(await dohLine()).includes('Most érvényben')) {
     failures.push(`a panel újranyitása után a DoH-zár sora nem a friss állapotot mondja: ${await dohLine()}`);
   }
-  await page.evaluate(() => { window.__fakeDohLock = { forcedOff: ['Chrome'], total: 4 }; });
+  await page.evaluate(() => { window.__fakeDohLock = { forcedOff: ['Chrome'], total: 5 }; });
   await page.locator('#themeBtn').evaluate((b) => b.click());
   await page.waitForFunction(() => (document.getElementById('dohLockLine').textContent || '').includes('Részben'),
     undefined, { timeout: 5_000 }).catch(() => {});
