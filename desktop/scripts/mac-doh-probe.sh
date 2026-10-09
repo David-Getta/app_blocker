@@ -13,7 +13,8 @@
 #      kikerül, a hosts többi része érintetlen;
 #   3. ha a Firefox-tartományban már csak a miénk volt, a kapcsoló is megy;
 #   4. a DoH-zár profil a valódi plutil szerint érvényes, és ugyanazt
-#      kényszeríti, amit a segéd beállít.
+#      kényszeríti, amit a segéd beállít;
+#   5. a DoH-zár állapota azt mondja, ami a kezelt beállítások között áll.
 # Kilépési kód 0, ha minden stimmel; különben 1.
 set -u
 cd "$(dirname "$0")/.."
@@ -89,6 +90,26 @@ plutil -convert json -o - "$PROFILE" | "$NODE" -e '
     process.exit(ok ? 0 : 1);
   });' || bad "a DoH-zár profil szerkezete nem az, aminek lennie kell"
 rm -rf "$PROFILE_DIR"
+
+# 6. A DoH-zár állapota (dohLockState): azt mondja, ami a kezelt beállítások
+# között áll — egy szimulált kezelt Chrome-értékkel megnézzük, hogy a valódi
+# függvény meglátja, a többi böngészőt pedig nem mondja kötelezőnek.
+MP="/Library/Managed Preferences"
+MP_CREATED=0
+[ -d "$MP" ] || { mkdir -p "$MP"; MP_CREATED=1; }
+lock() { "$NODE" -e "require('./dist/main/doh-lock-state').dohLockState().then((s) => console.log(s.forcedOff.join(',') + '/' + s.total))"; }
+BEFORE_LOCK=$(lock)
+case "$BEFORE_LOCK" in *Chrome*) bad "a kezelt Chrome-érték már a próba előtt ott van — a gép nem tiszta: $BEFORE_LOCK" ;; esac
+defaults write "$MP/com.google.Chrome" DnsOverHttpsMode -string off
+chmod 644 "$MP/com.google.Chrome.plist" 2>/dev/null
+AFTER_LOCK=$(lock)
+case "$AFTER_LOCK" in
+  *Chrome*/4) ;;
+  *) bad "a DoH-zár állapota nem látja a kezelt Chrome-értéket: $AFTER_LOCK" ;;
+esac
+case "$AFTER_LOCK" in *Edge*|*Brave*) bad "a DoH-zár állapota olyan böngészőt is kötelezőnek mond, amelyiknek nincs kezelt értéke: $AFTER_LOCK" ;; esac
+rm -f "$MP/com.google.Chrome.plist"
+[ "$MP_CREATED" = 1 ] && rmdir "$MP" 2>/dev/null
 
 rm -f "$HOSTS_BEFORE"
 if [ "$fail" -eq 0 ]; then

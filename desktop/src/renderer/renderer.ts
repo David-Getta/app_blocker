@@ -124,6 +124,8 @@ interface Bridge {
   authenticate?(reason: string): Promise<{ ok: boolean; unavailable?: boolean; error?: string }>;
   /** macOS: a böngésző-DoH zár profil mentése és megnyitása; a régi híd nem tudja — akkor nincs gomb */
   saveDohProfile?(): Promise<{ ok: true; path: string } | { ok: false; canceled?: boolean; error?: string }>;
+  /** macOS: érvényben van-e most a kötelező DoH-tilalom; a régi híd nem tudja — akkor nincs sor */
+  getDohLockState?(): Promise<{ forcedOff: string[]; total: number } | null>;
   platform: string;
 }
 declare global { interface Window { breaker: Bridge } }
@@ -1482,11 +1484,37 @@ function setupSelfTest(): void {
  * visszakapcsolható. A profil kötelezővé teszi — a felhasználó maga
  * telepíti, és ugyanott bármikor eltávolíthatja. Csak szigorít.
  */
+/**
+ * A DoH-zár ÁLLAPOTA: ami a gép kezelt beállításai között áll, böngészőnként.
+ * Tükör, nem ígéret — a profil telepítését az app nem látja, csak a hatását.
+ */
+async function refreshDohLockState(): Promise<void> {
+  const line = $('dohLockLine');
+  const get = window.breaker.getDohLockState;
+  if (!get) return;
+  const st = await get().catch(() => null);
+  if (!st) { line.classList.add('hidden'); return; }
+  line.classList.remove('hidden');
+  if (st.forcedOff.length === st.total) {
+    line.textContent = 'Most érvényben: a böngészők DoH-tilalma kötelező (a gép kezelt beállításaiból). '
+      + 'Ha el akarod engedni, a profilt a Rendszerbeállításokban távolíthatod el.';
+  } else if (st.forcedOff.length > 0) {
+    line.textContent = `Részben érvényben: kötelező ${st.forcedOff.join(', ')} alatt; a többi böngészőben `
+      + 'csak alapértelmezés.';
+  } else {
+    line.textContent = 'Most nincs kötelező DoH-tilalom: a böngészők beállításaiban visszakapcsolható.';
+  }
+}
+
 function setupDohProfile(): void {
   const box = $('dohProfileBox');
   const save = window.breaker.saveDohProfile;
   if (window.breaker.platform !== 'darwin' || !save) return;
   box.classList.remove('hidden');
+  void refreshDohLockState();
+  // A telepítés a Rendszerbeállításokban történik, nem itt: a panel minden
+  // megnyitásakor újranézzük, hogy a sor a mostani állapotot mondja.
+  $('themeBtn').addEventListener('click', () => { void refreshDohLockState(); });
   const btn = $('dohProfileBtn') as HTMLButtonElement;
   const note = $('dohProfileNote');
   btn.addEventListener('click', async () => {

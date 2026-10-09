@@ -10,6 +10,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
 import { dohProfileXml } from '../helper/doh-policy';
+import { dohLockState, type DohLockState } from './doh-lock-state';
 
 export type DohProfileOutcome =
   | { ok: true; path: string }
@@ -17,6 +18,10 @@ export type DohProfileOutcome =
   | { ok: false; error: string };
 
 export function registerDohProfileIpc(): void {
+  // Mi áll most a kezelt beállítások között — a felület ebből mondja, hogy a
+  // tilalom kötelező-e (és melyik böngészőben). Nem Macen: nincs mit nézni.
+  ipcMain.handle('breaker:doh-lock-state', async (): Promise<DohLockState | null> =>
+    (process.platform === 'darwin' ? dohLockState() : null));
   ipcMain.handle('breaker:save-doh-profile', async (e): Promise<DohProfileOutcome> => {
     if (process.platform !== 'darwin') return { ok: false, error: 'a profil csak macOS-en kell' };
     const options = {

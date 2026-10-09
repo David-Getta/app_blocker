@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron';
 import type { OverlayShortcutInfo, OverlayShortcutResult } from './overlay-shortcut';
 import type { ExtensionFolderInfo } from './extension-folder';
 import type { DohProfileOutcome } from './doh-profile';
+import type { DohLockState } from './doh-lock-state';
 
 export interface UpdateState {
   status: 'idle' | 'checking' | 'available' | 'downloading' | 'ready' | 'error' | 'unsupported';
@@ -112,6 +113,8 @@ export interface BreakerBridge {
   authenticate(reason: string): Promise<AuthOutcome>;
   /** macOS: a böngésző-DoH zár profil mentése és megnyitása (a telepítés a felhasználóé) */
   saveDohProfile(): Promise<DohProfileOutcome>;
+  /** macOS: érvényben van-e most a kötelező DoH-tilalom (a kezelt beállítások szerint), böngészőnként */
+  getDohLockState(): Promise<DohLockState | null>;
   platform: string;
 }
 
@@ -143,6 +146,7 @@ const bridge: BreakerBridge = {
   openExtensionFolder: () => ipcRenderer.invoke('breaker:open-extension-folder'),
   authenticate: (reason) => ipcRenderer.invoke('breaker:authenticate', reason),
   saveDohProfile: () => ipcRenderer.invoke('breaker:save-doh-profile'),
+  getDohLockState: () => ipcRenderer.invoke('breaker:doh-lock-state'),
   platform: process.platform,
 };
 

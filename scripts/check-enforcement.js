@@ -3145,6 +3145,11 @@ const WIRES = [
     needle: 'setupDohProfile();',
     lost: 'Macen a DoH-zár profil doboza sosem jelenne meg',
   },
+  {
+    file: 'desktop/src/main/doh-profile.ts',
+    needle: "ipcMain.handle('breaker:doh-lock-state'",
+    lost: 'Macen a DoH-zár doboza nem tudná megmondani, érvényben van-e a kötelező tilalom',
+  },
 
   // A SÚRLÓDÁS ESZKALÁCIÓJA. Enélkül minden próbatétel a legkönnyebb fokon
   // maradna, és a „nem lesz könnyebb attól, hogy sokszor csinálod” ígéret

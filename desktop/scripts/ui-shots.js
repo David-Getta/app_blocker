@@ -444,6 +444,8 @@ function fakeBridgeSource() {
         window.__dohProfileSaved = (window.__dohProfileSaved || 0) + 1;
         return { ok: true, path: '/Users/demo/Downloads/Breaker-DoH.mobileconfig' };
       },
+      // A DoH-zár állapota: a füstteszt állítja (window.__fakeDohLock).
+      getDohLockState: async () => window.__fakeDohLock || { forcedOff: [], total: 4 },
       getUpdateState: async () => window.__fakeUpdate,
       getTrackerState: async () => window.__fakeTracker,
       // A füstteszt innen hajtja a frissítési sávot: ugyanaz a csatorna, amit
@@ -2361,6 +2363,32 @@ async function main() {
   if (await page.evaluate(() => window.__dohProfileSaved) !== 1) {
     failures.push('a DoH-zár profil gombja nem hívta a hidat');
   }
+  // A DoH-zár ÁLLAPOTA: tükör — azt mondja, ami a kezelt beállítások között
+  // áll. Kötelező tilalom nélkül kimondja, hogy visszakapcsolható; a profil
+  // után (a panel újranyitásakor) azt, hogy érvényben van; részben a neveket.
+  const dohLine = async () => ((await page.locator('#dohLockLine').textContent()) || '');
+  if (!(await dohLine()).includes('Most nincs kötelező DoH-tilalom')) {
+    failures.push(`a DoH-zár sora nem mondja ki, hogy nincs kötelező tilalom: ${await dohLine()}`);
+  }
+  await page.evaluate(() => { window.__fakeDohLock = { forcedOff: ['Chrome', 'Edge', 'Chromium', 'Brave'], total: 4 }; });
+  await page.locator('#themeBtn').evaluate((b) => b.click());
+  await page.waitForFunction(() => (document.getElementById('dohLockLine').textContent || '').includes('Most érvényben'),
+    undefined, { timeout: 5_000 }).catch(() => {});
+  if (!(await dohLine()).includes('Most érvényben')) {
+    failures.push(`a panel újranyitása után a DoH-zár sora nem a friss állapotot mondja: ${await dohLine()}`);
+  }
+  await page.evaluate(() => { window.__fakeDohLock = { forcedOff: ['Chrome'], total: 4 }; });
+  await page.locator('#themeBtn').evaluate((b) => b.click());
+  await page.waitForFunction(() => (document.getElementById('dohLockLine').textContent || '').includes('Részben'),
+    undefined, { timeout: 5_000 }).catch(() => {});
+  if (!(await dohLine()).includes('Részben érvényben: kötelező Chrome alatt')) {
+    failures.push(`a részleges DoH-zárat a sor nem nevezi meg: ${await dohLine()}`);
+  }
+  await page.evaluate(() => { window.__fakeDohLock = undefined; });
+  // A panelt bezárjuk: a további lépések zárt fiókkal számolnak.
+  await page.locator('#themeClose').evaluate((b) => b.click());
+  await page.waitForSelector('#themePanel.hidden', { state: 'attached', timeout: 5_000 })
+    .catch(() => failures.push('a kinézet-panel nem zárult be a DoH-zár próbája után'));
 
   // A felület a rendszer beállítását követi, tehát KÉT megjelenése van. Ha
   // csak a sötétet néznénk, egy világosban olvashatatlan szín addig maradna
