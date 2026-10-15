@@ -8,6 +8,7 @@ kettővel korábbiban.
 
 | Verzió | Nap | Mi újság |
 |---|---|---|
+| v0.4.256 | 2026-10-15 | a DoH-kiadások átvizsgálásának javításai |
 | v0.4.255 | 2026-10-09 | Macen a DoH-zár megmondja, hatott-e |
 | v0.4.254 | 2026-10-09 | Macen a böngészők titkosított DNS-e zárolható (önkéntes profil) |
 | v0.4.253 | 2026-10-08 | Macen a Firefox DoH-ja tényleg ki van kapcsolva, az eltávolító python nélkül is végigfut |
