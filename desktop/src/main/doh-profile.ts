@@ -13,7 +13,9 @@ import { dohProfileXml } from '../helper/doh-policy';
 import { dohLockState, type DohLockState } from './doh-lock-state';
 
 export type DohProfileOutcome =
-  | { ok: true; path: string }
+  // `openError`: a fájl elkészült, csak a rendszer nem nyitotta meg — a
+  // felhasználó maga nyithatja meg (dupla kattintás a Finderben).
+  | { ok: true; path: string; openError?: string }
   | { ok: false; canceled: true }
   | { ok: false; error: string };
 
@@ -40,7 +42,6 @@ export function registerDohProfileIpc(): void {
     // A megnyitás a rendszert kéri meg, hogy vegye fel a profilt a
     // telepítendők közé; a telepítést a felhasználó hagyja jóvá.
     const openError = await shell.openPath(res.filePath);
-    if (openError) return { ok: false, error: `elmentve (${res.filePath}), de nem nyílt meg: ${openError}` };
-    return { ok: true, path: res.filePath };
+    return openError ? { ok: true, path: res.filePath, openError } : { ok: true, path: res.filePath };
   });
 }

@@ -971,7 +971,34 @@ object SyncClient {
     }
 
     /**
-     * Egy teljes szinkron-kör. BLOKKOL — háttérszálról hívandó.
+     * A szinkron (vagy a belépés) eredménye a FRISS állapotra téve — így kell
+     * alkalmazni: `BreakerStore.mutate { keepLocal(r.state, it) }`.
+     *
+     * A kör egy pillanatkép másolatán dolgozik, és közben másodpercekig vár a
+     * hálózatra. Amit közben a szűrő, a mérő vagy egy gomb ír a CSAK EZEN AZ
+     * ESZKÖZÖN élő mezőkbe (a titkosított DNS nyoma és az „Értem”, a
+     * megakadások, a mérés, a védelem kapcsolója), azt a régi másolat nem
+     * írhatja vissza. Ezeket a mezőket a szinkron soha nem írja, ezért a
+     * frisset tartjuk meg — a szinkron mezői (lista, munkamenet, fiók) az
+     * eredményből jönnek, mint eddig.
+     */
+    fun keepLocal(result: AppState, fresh: AppState): AppState = result.copy(
+        protectionOn = fresh.protectionOn,
+        dohSeenHost = fresh.dohSeenHost,
+        dohSeenAt = fresh.dohSeenAt,
+        dohDismissedHosts = fresh.dohDismissedHosts,
+        filterHits = fresh.filterHits,
+        filterHitHours = fresh.filterHitHours,
+        filterHitHosts = fresh.filterHitHosts,
+        filterHitReasons = fresh.filterHitReasons,
+        filterHitKeywords = fresh.filterHitKeywords,
+        usage = fresh.usage,
+        usageLastSampleAt = fresh.usageLastSampleAt,
+    )
+
+    /**
+     * Egy teljes szinkron-kör. BLOKKOL — háttérszálról hívandó. Az eredményt
+     * a [keepLocal]-lal kell a friss állapotra tenni.
      */
     fun syncNow(state: AppState, now: Long): SyncResult {
         val acc = state.sync ?: throw SyncException("Nincs bejelentkezve.", "NO_ACCOUNT")

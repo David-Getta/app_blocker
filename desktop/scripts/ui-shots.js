@@ -442,10 +442,13 @@ function fakeBridgeSource() {
       // A böngésző-DoH zár profil (macOS): a hamis híd darwin, tehát a gomb látszik.
       saveDohProfile: async () => {
         window.__dohProfileSaved = (window.__dohProfileSaved || 0) + 1;
-        return { ok: true, path: '/Users/demo/Downloads/Breaker-DoH.mobileconfig' };
+        const path = '/Users/demo/Downloads/Breaker-DoH.mobileconfig';
+        return window.__fakeDohOpenError ? { ok: true, path, openError: window.__fakeDohOpenError } : { ok: true, path };
       },
-      // A DoH-zár állapota: a füstteszt állítja (window.__fakeDohLock).
-      getDohLockState: async () => window.__fakeDohLock || { forcedOff: [], total: 5 },
+      // A DoH-zár állapota: a füstteszt állítja (window.__fakeDohLock). Alapból
+      // az, ami profil nélkül, futó segéddel áll: a Firefox a böngészőben zárolva.
+      getDohLockState: async () => window.__fakeDohLock
+        || { browsers: ['Chrome', 'Edge', 'Chromium', 'Brave', 'Firefox'], forcedOff: [], lockedInBrowser: ['Firefox'] },
       getUpdateState: async () => window.__fakeUpdate,
       getTrackerState: async () => window.__fakeTracker,
       // A füstteszt innen hajtja a frissítési sávot: ugyanaz a csatorna, amit
@@ -2357,32 +2360,51 @@ async function main() {
   ).catch(() => {});
   const dohNote = (await page.locator('#dohProfileNote').textContent()) || '';
   if (!dohNote.includes('Elmentve: /Users/demo/Downloads/Breaker-DoH.mobileconfig')
-    || !dohNote.includes('Profilok') || !dohNote.includes('chrome://policy')) {
-    failures.push(`a DoH-zár profil gombja nem mondja, hova mentett és hol kell telepíteni: ${dohNote}`);
+    || !dohNote.includes('Eszközkezelés') || !dohNote.includes('macOS 12-n és előtte: Rendszerbeállítások › Profilok')
+    || !dohNote.includes('chrome://policy')) {
+    failures.push(`a DoH-zár profil gombja nem mondja, hova mentett és hol kell telepíteni (minden macOS-en): ${dohNote}`);
   }
   if (await page.evaluate(() => window.__dohProfileSaved) !== 1) {
     failures.push('a DoH-zár profil gombja nem hívta a hidat');
   }
-  // A DoH-zár ÁLLAPOTA: tükör — azt mondja, ami a kezelt beállítások között
-  // áll. Kötelező tilalom nélkül kimondja, hogy visszakapcsolható; a profil
-  // után (a panel újranyitásakor) azt, hogy érvényben van; részben a neveket.
-  const dohLine = async () => ((await page.locator('#dohLockLine').textContent()) || '');
-  if (!(await dohLine()).includes('Most nincs kötelező DoH-tilalom')) {
-    failures.push(`a DoH-zár sora nem mondja ki, hogy nincs kötelező tilalom: ${await dohLine()}`);
+  // Ha a fájl elkészült, csak a rendszer nem nyitotta meg: nem hiba, hanem
+  // teendő — a felhasználó maga nyitja meg. „Nem készült el” itt hazugság lenne.
+  await page.evaluate(() => { window.__fakeDohOpenError = 'nincs hozzá társított alkalmazás'; });
+  await page.locator('#dohProfileBtn').evaluate((b) => b.click());
+  await page.waitForFunction(() => (document.getElementById('dohProfileNote').textContent || '').includes('magától nem nyílt meg'),
+    undefined, { timeout: 5_000 }).catch(() => {});
+  const dohOpenNote = (await page.locator('#dohProfileNote').textContent()) || '';
+  const dohOpenClass = await page.locator('#dohProfileNote').getAttribute('class');
+  if (!dohOpenNote.includes('magától nem nyílt meg (nincs hozzá társított alkalmazás)') || !dohOpenNote.includes('dupla kattintással')
+    || dohOpenNote.includes('nem készült el') || dohOpenClass !== 'hint') {
+    failures.push(`a mentett, de meg nem nyílt profilról a gomb nem azt mondja, hogy nyisd meg magad: ${dohOpenClass} ${dohOpenNote}`);
   }
-  await page.evaluate(() => { window.__fakeDohLock = { forcedOff: ['Chrome', 'Edge', 'Chromium', 'Brave', 'Firefox'], total: 5 }; });
+  await page.evaluate(() => { window.__fakeDohOpenError = undefined; });
+  // A DoH-zár ÁLLAPOTA: tükör — azt mondja, amit a böngésző olvasna. Kötelező
+  // tilalom nélkül kimondja, hol visszakapcsolható és hol csak felülírható; a
+  // profil után (a panel újranyitásakor) azt, hogy érvényben van; részben a
+  // neveket — és akkor is frissül, ha a felhasználó a Rendszerbeállításokból
+  // visszajön (az ablak fókuszt kap), nyitott panellel.
+  const dohLine = async () => ((await page.locator('#dohLockLine').textContent()) || '');
+  const dohNone = await dohLine();
+  if (!dohNone.includes('Most nincs kötelező DoH-tilalom') || !dohNone.includes('visszakapcsolható: Chrome, Edge, Chromium, Brave.')
+    || !dohNone.includes('felülírható: Firefox')) {
+    failures.push(`a DoH-zár sora nem mondja ki, hogy nincs kötelező tilalom (és hogy a Firefox zárolva, de felülírható): ${dohNone}`);
+  }
+  const ALL_DOH = ['Chrome', 'Edge', 'Chromium', 'Brave', 'Firefox'];
+  await page.evaluate((all) => { window.__fakeDohLock = { browsers: all, forcedOff: all, lockedInBrowser: [] }; }, ALL_DOH);
   await page.locator('#themeBtn').evaluate((b) => b.click());
   await page.waitForFunction(() => (document.getElementById('dohLockLine').textContent || '').includes('Most érvényben'),
     undefined, { timeout: 5_000 }).catch(() => {});
   if (!(await dohLine()).includes('Most érvényben')) {
     failures.push(`a panel újranyitása után a DoH-zár sora nem a friss állapotot mondja: ${await dohLine()}`);
   }
-  await page.evaluate(() => { window.__fakeDohLock = { forcedOff: ['Chrome'], total: 5 }; });
-  await page.locator('#themeBtn').evaluate((b) => b.click());
+  await page.evaluate((all) => { window.__fakeDohLock = { browsers: all, forcedOff: ['Chrome'], lockedInBrowser: ['Firefox'] }; }, ALL_DOH);
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
   await page.waitForFunction(() => (document.getElementById('dohLockLine').textContent || '').includes('Részben'),
     undefined, { timeout: 5_000 }).catch(() => {});
-  if (!(await dohLine()).includes('Részben érvényben: kötelező Chrome alatt')) {
-    failures.push(`a részleges DoH-zárat a sor nem nevezi meg: ${await dohLine()}`);
+  if (!(await dohLine()).includes('Részben érvényben — kötelező: Chrome.')) {
+    failures.push(`a visszatérő ablak (fókusz) után a részleges DoH-zárat a sor nem nevezi meg: ${await dohLine()}`);
   }
   await page.evaluate(() => { window.__fakeDohLock = undefined; });
   // A panelt bezárjuk: a további lépések zárt fiókkal számolnak.

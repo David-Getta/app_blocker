@@ -115,9 +115,13 @@ Részletek: [`feature-uninstall-guard.md`](feature-uninstall-guard.md).
   szűrőn át keresi meg, és ha ez egy ismert DoH/DoT-kiszolgáló neve
   (`DohHosts`), a szolgáltatás feljegyzi, a főképernyő kártyája egy napig
   mondja, melyiket és mikor, és azt is, hol állítható vissza a Chrome. Az
-  „Értem” csak azt a nevet némítja. Szigorú Privát DNS mellett hallgat (azt
-  a lenti, erősebb kártya mondja). Csak a listán lévő neveket ismeri fel, és
-  nem látja, melyik app kérdezett — a csend nem bizonyíték.
+  „Értem” csak azt a nevet némítja (a némított nevek megmaradnak, és egy
+  némított név újabb kérdése nem tünteti el egy másik, még nem látott nevét).
+  Szigorú Privát DNS mellett hallgat (azt a lenti, erősebb kártya mondja), és
+  akkor nem is jegyez: ami ilyenkor a szűrőhöz ér, az a rendszer saját kérdése
+  a beállított kiszolgálóra — a beállítás kikapcsolása után a kártya nem
+  gyanúsít vele egy böngészőt. Csak a listán lévő neveket ismeri fel, és nem
+  látja, melyik app kérdezett — a csend nem bizonyíték.
 - **A rendszer szigorú Privát DNS-e megkerüli a szűrőt** (Beállítások →
   Hálózat és internet → Privát DNS, megadott kiszolgálónévvel): a
   névfeloldás TLS-en, közvetlenül a megadott kiszolgálónak megy, a VPN

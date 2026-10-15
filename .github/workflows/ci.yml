@@ -197,8 +197,10 @@ jobs:
   # A macOS-segéd gépszintű böngésző-házirendje és az eltávolító szkript,
   # valódi macOS-en, rootként. Ez mutatta volna meg időben, hogy a Firefox
   # házirend-kapcsolója (EnterprisePoliciesEnabled) hiányzott — a
-  # DNSOverHTTPS ott állt, a Firefox rá se nézett —, és hogy az eltávolító
-  # pythont futtatott, ami a mai macOS-en gyárilag nincs.
+  # DNSOverHTTPS ott állt, a Firefox rá se nézett. A futón van python, ezért a
+  # próba az eltávolítót egy olyan PATH-szal futtatja, amin a python nem fut
+  # (mint egy gyári Macen); egy abszolút úttal hívott pythont a
+  # doh-policy.test.ts fog ki.
   macos-helper-doh:
     name: macOS DoH-házirend és eltávolító (root)
     runs-on: macos-latest

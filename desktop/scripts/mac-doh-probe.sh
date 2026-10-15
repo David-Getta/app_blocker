@@ -8,13 +8,21 @@
 #      felhasználónak olvasható, és a Firefoxnál a DNSOverHTTPS mellett a
 #      házirend-kapcsoló (EnterprisePoliciesEnabled) is igaz — nélküle a
 #      Firefox macOS-en egyetlen házirendet sem olvas;
-#   2. az eltávolítás után a mieink eltűntek, egy IDEGEN érték és egy idegen
-#      Firefox-házirend viszont marad (és vele a kapcsoló is), a hosts-blokk
-#      kikerül, a hosts többi része érintetlen;
-#   3. ha a Firefox-tartományban már csak a miénk volt, a kapcsoló is megy;
-#   4. a DoH-zár profil a valódi plutil szerint érvényes, és ugyanazt
+#   2. az eltávolítás — python NÉLKÜL (a PATH-on egy python, ami nem fut, mint
+#      egy gyári Macen) — után a mieink eltűntek, egy IDEGEN érték és egy
+#      idegen Firefox-házirend viszont marad, a hosts-blokk kikerül, a hosts
+#      többi része érintetlen;
+#   3. a kapcsolót, ha a segéd kapcsolta be, az eltávolító leveszi — akkor is,
+#      ha mellette egy idegen (addig hatástalan) Firefox-házirend áll; ha
+#      viszont már a segéd előtt ott volt, marad;
+#   4. feljegyzés nélkül (a v0.4.256 előtti segéd) a kapcsoló csak akkor megy,
+#      ha a Firefox-tartományban már csak a miénk volt;
+#   5. a DoH-zár profil a valódi plutil szerint érvényes, és ugyanazt
 #      kényszeríti, amit a segéd beállít;
-#   5. a DoH-zár állapota azt mondja, ami a kezelt beállítások között áll.
+#   6. a DoH-zár állapota azt mondja, amit a böngésző tényleg olvasna: kezelt
+#      érték (a felhasználóé erősebb a gépénél) → kötelező; a Firefox a segéd
+#      gépszintű házirendjével → zárolva a böngészőben, de a felhasználó saját
+#      beállítása felülírja.
 # Kilépési kód 0, ha minden stimmel; különben 1.
 set -u
 cd "$(dirname "$0")/.."
@@ -27,10 +35,25 @@ apply() {
     || bad "az applyDohPolicies nem sikerült"
 }
 FF=/Library/Preferences/org.mozilla.firefox
+MARK="/Library/Application Support/Breaker/firefox-policy-switch"
+STATE_DIR_CREATED=0
+[ -d "/Library/Application Support/Breaker" ] || STATE_DIR_CREATED=1
 
-# 0. Kiindulás: a gép hosts-fájlja, és egy idegen Firefox-házirend.
+# Egy gyári Mac: a python3 csak a fejlesztőeszközök telepítését ajánlja fel.
+# A futón van python, ezért a PATH elejére egy olyat teszünk, ami nem fut.
+NOPY=$(mktemp -d)
+for p in python python3; do printf '#!/bin/sh\necho "nincs python" >&2\nexit 127\n' > "$NOPY/$p"; chmod +x "$NOPY/$p"; done
+NOPY_PATH="$NOPY:/usr/bin:/bin:/usr/sbin:/sbin"
+env PATH="$NOPY_PATH" sh -c 'python3 -c 1' 2>/dev/null && bad "a python-rejtés nem működik — a próba nem nézné, hogy az eltávolító python nélkül is lefut"
+uninstall() { env PATH="$NOPY_PATH" sh scripts/uninstall-macos.sh; }
+
+# 0. Kiindulás: a gép hosts-fájlja, és egy idegen Firefox-házirend KAPCSOLÓ
+# NÉLKÜL (valaki kihagyta a Mozilla leírásának „EnterprisePoliciesEnabled”
+# lépését): a Breaker előtt hatástalan.
 HOSTS_BEFORE=$(mktemp)
 cp /etc/hosts "$HOSTS_BEFORE"
+rm -f "$MARK"
+defaults delete "$FF" EnterprisePoliciesEnabled 2>/dev/null
 defaults write "$FF" DisableAppUpdate -bool true
 
 # 1. A valódi segéd-kód írja be.
@@ -45,13 +68,14 @@ case "$(rd "$FF" DNSOverHTTPS)" in
   *"Enabled = 0;"*"Locked = 1;"*) ;;
   *) bad "a Firefox DNSOverHTTPS-e hiányzik" ;;
 esac
+[ -f "$MARK" ] || bad "a kapcsolót a segéd kapcsolta be, de nem jegyezte fel — az eltávolító nem tudná, hogy a miénk"
 
 # 2. Egy idegen érték (valaki a Brave-et kézzel „secure”-ra állította) és egy hosts-blokk.
 defaults write /Library/Preferences/com.brave.Browser DnsOverHttpsMode -string secure
 printf '\n# >>> BREAKER BLOCK BEGIN — próba\n0.0.0.0 breaker-probe.example\n# <<< BREAKER BLOCK END\n' >> /etc/hosts
 
-# 3. A valódi eltávolító.
-sh scripts/uninstall-macos.sh || bad "az eltávolító hibával állt meg"
+# 3. A valódi eltávolító, python nélkül.
+uninstall || bad "az eltávolító hibával állt meg (python nélkül)"
 
 for d in com.google.Chrome com.microsoft.Edge org.chromium.Chromium; do
   [ -z "$(rd "/Library/Preferences/$d" DnsOverHttpsMode)" ] || bad "$d: a mi „off” értékünk ott maradt"
@@ -59,17 +83,28 @@ done
 [ "$(rd /Library/Preferences/com.brave.Browser DnsOverHttpsMode)" = secure ] || bad "az idegen Brave-érték eltűnt"
 [ -z "$(rd "$FF" DNSOverHTTPS)" ] || bad "a Firefox DNSOverHTTPS-e ott maradt"
 [ "$(rd "$FF" DisableAppUpdate)" = 1 ] || bad "az idegen Firefox-házirend eltűnt"
-[ "$(rd "$FF" EnterprisePoliciesEnabled)" = 1 ] || bad "a házirend-kapcsoló eltűnt, pedig egy idegen Firefox-házirend még használja"
+[ -z "$(rd "$FF" EnterprisePoliciesEnabled)" ] || bad "a kapcsolót a segéd kapcsolta be, mégis ott maradt — az idegen házirend, ami előtte hatástalan volt, most él"
 grep -q 'BREAKER BLOCK' /etc/hosts && bad "a hosts-blokk ott maradt"
 diff <(grep -v '^$' "$HOSTS_BEFORE") <(grep -v '^$' /etc/hosts) >/dev/null || bad "a hosts többi része megváltozott"
 
-# 4. Ha a Firefox-tartományban már csak a miénk van, a kapcsoló is megy.
+# 4. A kapcsoló már a segéd ELŐTT ott volt (egy másik eszköz kapcsolta be):
+# nem a miénk — marad, a mellette álló idegen házirenddel együtt.
+mkdir -p "/Library/Application Support/Breaker"
+defaults write "$FF" EnterprisePoliciesEnabled -bool true
+apply
+[ -f "$MARK" ] && bad "a kapcsoló a segéd előtt is ott volt, mégis a miénknek jegyezte fel"
+uninstall > /dev/null || bad "az eltávolító (második kör) hibával állt meg"
+[ "$(rd "$FF" EnterprisePoliciesEnabled)" = 1 ] || bad "a kapcsoló eltűnt, pedig nem a segéd kapcsolta be, és egy idegen házirend még használja"
+[ "$(rd "$FF" DisableAppUpdate)" = 1 ] || bad "az idegen Firefox-házirend eltűnt (második kör)"
+
+# 5. Feljegyzés nélkül, és a tartományban már csak a miénk: a kapcsoló megy.
+mkdir -p "/Library/Application Support/Breaker"
 defaults delete "$FF" DisableAppUpdate
 apply
-sh scripts/uninstall-macos.sh > /dev/null || bad "az eltávolító (második kör) hibával állt meg"
+uninstall > /dev/null || bad "az eltávolító (harmadik kör) hibával állt meg"
 [ -z "$(rd "$FF" EnterprisePoliciesEnabled)" ] || bad "a házirend-kapcsoló ott maradt, pedig már csak a miénk volt"
 
-# 5. A DoH-zár profil (a felhasználó telepíti): a valódi plutil szerint
+# 6. A DoH-zár profil (a felhasználó telepíti): a valódi plutil szerint
 # érvényes plist, és ugyanazt kényszeríti, amit a segéd beállít.
 PROFILE_DIR=$(mktemp -d)
 PROFILE="$PROFILE_DIR/Breaker-DoH.mobileconfig"
@@ -91,37 +126,56 @@ plutil -convert json -o - "$PROFILE" | "$NODE" -e '
   });' || bad "a DoH-zár profil szerkezete nem az, aminek lennie kell"
 rm -rf "$PROFILE_DIR"
 
-# 6. A DoH-zár állapota (dohLockState): azt mondja, ami a kezelt beállítások
-# között áll — egy szimulált kezelt Chrome-értékkel megnézzük, hogy a valódi
-# függvény meglátja, a többi böngészőt pedig nem mondja kötelezőnek.
+# 7. A DoH-zár állapota (dohLockState): azt mondja, amit a böngésző olvasna.
+# Kezelt értékeket szimulálunk; a kiírás: kötelező|zárolva-a-böngészőben/összes.
 MP="/Library/Managed Preferences"
+ME=$(id -un)
 MP_CREATED=0
 [ -d "$MP" ] || { mkdir -p "$MP"; MP_CREATED=1; }
-lock() { "$NODE" -e "require('./dist/main/doh-lock-state').dohLockState().then((s) => console.log(s.forcedOff.join(',') + '/' + s.total))"; }
+MP_USER_CREATED=0
+[ -d "$MP/$ME" ] || { mkdir -p "$MP/$ME"; MP_USER_CREATED=1; }
+lock() {
+  "$NODE" -e "require('./dist/main/doh-lock-state').dohLockState().then((s) => console.log(s.forcedOff.join(',') + '|' + s.lockedInBrowser.join(',') + '/' + s.browsers.length))"
+}
 BEFORE_LOCK=$(lock)
-case "$BEFORE_LOCK" in *Chrome*|*Firefox*) bad "a kezelt Chrome-érték már a próba előtt ott van — a gép nem tiszta: $BEFORE_LOCK" ;; esac
+[ "$BEFORE_LOCK" = "|/5" ] || bad "a próba előtt nincs mit mutatnia, mégis ezt mondja: $BEFORE_LOCK (a gép nem tiszta?)"
 # A kezelt beállítást a rendszer (egy telepített profil) fájlként teszi ide;
 # a próba is fájlként írja — a `defaults` ezt a mappát a cfprefsd-n át kezeli.
 PB=/usr/libexec/PlistBuddy
 "$PB" -c "Add :DnsOverHttpsMode string off" "$MP/com.google.Chrome.plist" > /dev/null
 chmod 644 "$MP/com.google.Chrome.plist" 2>/dev/null
 AFTER_LOCK=$(lock)
-case "$AFTER_LOCK" in
-  *Chrome*/5) ;;
-  *) bad "a DoH-zár állapota nem látja a kezelt Chrome-értéket: $AFTER_LOCK" ;;
-esac
-case "$AFTER_LOCK" in *Edge*|*Brave*|*Firefox*) bad "a DoH-zár állapota olyan böngészőt is kötelezőnek mond, amelyiknek nincs kezelt értéke: $AFTER_LOCK" ;; esac
+[ "$AFTER_LOCK" = "Chrome|/5" ] || bad "a DoH-zár állapota nem csak a kezelt Chrome-értéket látja: $AFTER_LOCK"
+# A felhasználó kezelt beállítása erősebb a gépénél: ha ott más áll, a gépé
+# hiába „off” — és a felhasználói „off” is kötelező.
+"$PB" -c "Add :DnsOverHttpsMode string secure" "$MP/$ME/com.google.Chrome.plist" > /dev/null
+"$PB" -c "Add :DnsOverHttpsMode string off" "$MP/$ME/com.microsoft.Edge.plist" > /dev/null
+[ "$(lock)" = "Edge|/5" ] || bad "a felhasználó kezelt beállítását nem veszi erősebbnek a gépénél: $(lock)"
+rm -f "$MP/$ME/com.google.Chrome.plist" "$MP/$ME/com.microsoft.Edge.plist"
 # A Firefoxnál a kapcsoló NÉLKÜL a DNSOverHTTPS nem elég — a Firefox rá se néz.
 "$PB" -c "Add :DNSOverHTTPS dict" -c "Add :DNSOverHTTPS:Enabled bool false" \
   -c "Add :DNSOverHTTPS:Locked bool true" "$MP/org.mozilla.firefox.plist" > /dev/null
-case "$(lock)" in *Firefox*) bad "a Firefoxot kötelezőnek mondja a házirend-kapcsoló nélkül" ;; esac
+case "$(lock)" in *Firefox*) bad "a Firefoxot zároltnak mondja a házirend-kapcsoló nélkül: $(lock)" ;; esac
 "$PB" -c "Add :EnterprisePoliciesEnabled bool true" "$MP/org.mozilla.firefox.plist" > /dev/null
-case "$(lock)" in *Firefox*/5) ;; *) bad "a DoH-zár állapota nem látja a kezelt Firefox-értéket: $(lock)" ;; esac
+[ "$(lock)" = "Chrome,Firefox|/5" ] || bad "a DoH-zár állapota nem látja a kezelt Firefox-értéket: $(lock)"
 rm -f "$MP/com.google.Chrome.plist" "$MP/org.mozilla.firefox.plist"
+# A segéd gépszintű házirendje: a Chromium-családban csak ajánlás (nem
+# kötelező), a Firefox viszont zárolja — de a felhasználó saját beállítása
+# (egy `defaults write` a Terminálban) erősebb nála.
+mkdir -p "/Library/Application Support/Breaker"
+apply
+[ "$(lock)" = "|Firefox/5" ] || bad "a segéd házirendjével a Firefox zárolva van a böngészőben, a többi csak ajánlás — ehelyett: $(lock)"
+defaults write org.mozilla.firefox EnterprisePoliciesEnabled -bool false
+[ "$(lock)" = "|/5" ] || bad "a felhasználó saját kapcsolója kikapcsolja a Firefox házirendjét, a sor mégis zároltnak mondja: $(lock)"
+defaults delete org.mozilla.firefox EnterprisePoliciesEnabled 2>/dev/null
+uninstall > /dev/null || bad "az eltávolító (negyedik kör) hibával állt meg"
+[ "$MP_USER_CREATED" = 1 ] && rmdir "$MP/$ME" 2>/dev/null
 [ "$MP_CREATED" = 1 ] && rmdir "$MP" 2>/dev/null
 
 rm -f "$HOSTS_BEFORE"
+rm -rf "$NOPY"
+[ "$STATE_DIR_CREATED" = 1 ] && rm -rf "/Library/Application Support/Breaker"
 if [ "$fail" -eq 0 ]; then
-  echo "DoH-házirend próba OK (macOS: beírás a Firefox-kapcsolóval, levétel, az idegen értékek maradnak, a hosts-blokk kikerül)"
+  echo "DoH-házirend próba OK (macOS: beírás a Firefox-kapcsolóval, levétel python nélkül, a kapcsoló gazdája szerint, az idegen értékek maradnak, a hosts-blokk kikerül, a zár állapota forrásonként)"
 fi
 exit "$fail"

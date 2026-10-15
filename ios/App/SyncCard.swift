@@ -53,7 +53,7 @@ struct SyncCard: View {
             if let r = try? await SyncClient.syncNow(
                 store.state, now: Date().timeIntervalSince1970 * 1000
             ) {
-                _ = store.mutate { $0 = r.state }
+                _ = store.mutate { $0 = SyncClient.keepLocal(r.state, $0) }
             }
         }
         .alert("Helyreállító kód", isPresented: recoveryAlert, presenting: recoveryCode) { _ in
@@ -220,7 +220,7 @@ struct SyncCard: View {
             state: store.state, serverUrl: try resolvedServer(), accountId: account.trimmed(),
             password: password, deviceName: deviceName()
         )
-        _ = store.mutate { $0 = next }
+        _ = store.mutate { $0 = SyncClient.keepLocal(next, $0) }
         password = ""
         try await syncNow()
     }
@@ -230,7 +230,7 @@ struct SyncCard: View {
             state: store.state, serverUrl: try resolvedServer(), accountId: account.trimmed(),
             password: password, deviceName: deviceName()
         )
-        _ = store.mutate { $0 = next }
+        _ = store.mutate { $0 = SyncClient.keepLocal(next, $0) }
         password = ""
         try await syncNow()
         recoveryCode = code
@@ -238,7 +238,7 @@ struct SyncCard: View {
 
     private func syncNow() async throws {
         let r = try await SyncClient.syncNow(store.state, now: Date().timeIntervalSince1970 * 1000)
-        _ = store.mutate { $0 = r.state }
+        _ = store.mutate { $0 = SyncClient.keepLocal(r.state, $0) }
     }
 
     private func deviceName() -> String {

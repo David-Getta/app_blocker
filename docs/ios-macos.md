@@ -91,8 +91,9 @@ tükre; a blobon `keywords` + `keywordsRev`). Lásd `docs/feature-keywords.md`.
   beállítottat nem tiltjuk, de a nyomát jelezzük: ha az alagút egy ismert
   DoH/DoT-kiszolgáló nevét látja átmenni (`DohHosts`), feljegyzi, és az app
   kártyája egy napig mondja, melyiket és mikor; az „Értem” csak azt a nevet
-  némítja. Csak a listán lévő neveket ismeri fel, és nem látja, melyik app
-  kérdezett — a csend nem bizonyíték.
+  némítja (a némított nevek megmaradnak, és egy némított név újabb kérdése nem
+  tünteti el egy másik, még nem látott nevét). Csak a listán lévő neveket
+  ismeri fel, és nem látja, melyik app kérdezett — a csend nem bizonyíték.
 - **A már élő kapcsolat egy darabig még mehet.** A szűrő a névfeloldásokat
   látja: egy tiltás (a menet indulása, a menetrend) az ÚJ kapcsolatokat fogja
   meg. Egy app, aminek már van nyitott kapcsolata — egy szóló videó, egy élő

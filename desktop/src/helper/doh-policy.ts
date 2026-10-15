@@ -37,11 +37,17 @@ export const CHROMIUM_DOH_VALUE = { name: 'DnsOverHttpsMode', value: 'off' } as 
  * Firefoxra is hat, és a felhasználónként, a Program Files-on kívül
  * telepítettre is. A mai Firefox a registry és a policies.json házirendjét
  * összefésüli (ütközésben a registry nyer) — a fájlhoz ezért nem nyúlunk.
+ *
+ * A `Fallback` is a miénk: a kulcs MINDEN értékét egy házirendként olvassa, és
+ * a Firefox szabálya `mode = Enabled ? 2 : 5; if (Fallback === false) mode = 3`
+ * (Policies.sys.mjs). Egy ott maradt Fallback=0 mellett a mi Enabled=0-nk így
+ * „csak DoH”-t jelentene, zárolva — a hosts-tiltás teljesen kimaradna.
  */
 export const FIREFOX_WIN_KEY = 'HKLM\\SOFTWARE\\Policies\\Mozilla\\Firefox\\DNSOverHTTPS';
 export const FIREFOX_WIN_VALUES: readonly { name: string; dword: 0 | 1 }[] = [
   { name: 'Enabled', dword: 0 },
   { name: 'Locked', dword: 1 },
+  { name: 'Fallback', dword: 1 },
 ];
 
 /** A Firefox macOS-tartománya (gépszintű beállítás, a bundle érintése nélkül). */
@@ -56,6 +62,17 @@ export const FIREFOX_MAC_DOMAIN = '/Library/Preferences/org.mozilla.firefox';
  * Firefox-házirendje enélkül hatástalanná válna.
  */
 export const FIREFOX_MAC_ENABLE_KEY = 'EnterprisePoliciesEnabled';
+
+/**
+ * A segéd ezt a fájlt teszi le, ha a Firefox házirend-kapcsolóját Ő kapcsolta
+ * be (előtte nem volt ott). A kapcsolóval a tartomány minden addig hatástalan
+ * Firefox-házirendje is életre kel; az eltávolító ebből tudja, hogy a kapcsoló
+ * a miénk, és akkor is leveszi, ha mellette más kulcs maradt — azok a Breaker
+ * előtt hatástalanok voltak, és nélküle újra azok lesznek. Egyszer íródik, az
+ * első beírás előtt; a v0.4.256 előtti telepítésnél nincs ilyen (akkor az
+ * eltávolító csak akkor veszi le, ha rajta kívül semmi nem maradt).
+ */
+export const FIREFOX_SWITCH_MARK = '/Library/Application Support/Breaker/firefox-policy-switch';
 
 /**
  * A v0.4.252 előtti segéd ezt írta a Firefox telepítési mappájába

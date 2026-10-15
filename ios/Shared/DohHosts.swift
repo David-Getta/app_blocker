@@ -38,7 +38,9 @@ public enum DohHosts {
         "dns.controld.com", "freedns.controld.com",
         // Egyéb a Chromium listájáról és gyakoriak
         "dns0.eu", "doh.dns.sb", "dns.sb", "odvr.nic.cz", "dns.levonet.sk",
-        "protective.joindns4.eu", "public.dns.iij.jp", "doh.xfinity.com", "doh.cox.net",
+        "protective.joindns4.eu", "public.dns.iij.jp", "doh.xfinity.com", "dot.xfinity.com",
+        "doh.cox.net", "dot.cox.net", "doh.quickline.ch", "dot.quickline.ch",
+        "doh-01.spectrum.com", "doh-02.spectrum.com",
     ]
 
     /// Profilonkénti nevek (pl. abc123.dns.nextdns.io): a végződés is elég.
@@ -59,16 +61,23 @@ public enum DohHosts {
 
     public static func matches(_ name: String) -> Bool { hostOf(name) != nil }
 
-    /// Kell-e új feljegyzés: más név, vagy régebbi a ritkításnál (vagy az óra visszaugrott).
-    public static func shouldNote(prevHost: String?, prevAt: Double?, host: String, now: Double) -> Bool {
+    /// Ennyi nevet jegyez meg az „Értem” — a legrégebbi esik ki, ha betelt.
+    public static let maxDismissed = 32
+
+    /// Kell-e új feljegyzés: más név, vagy régebbi a ritkításnál (vagy az óra
+    /// visszaugrott). Amire a felhasználó már azt mondta: értem, az nem kerül a
+    /// helyre — különben egy némított név újabb kérdése kitúrná a még nem
+    /// látott, MÁSIK nyomot, és a kártya aszerint villogna, ki kérdezett utoljára.
+    public static func shouldNote(prevHost: String?, prevAt: Double?, host: String, now: Double, dismissed: [String]) -> Bool {
+        if dismissed.contains(host) { return false }
         guard prevHost == host, let prevAt else { return true }
         return now - prevAt >= noteEveryMs || now < prevAt
     }
 
     /// A kártya szövege — nil, ha nincs friss nyom, vagy a felhasználó erre a
     /// névre már azt mondta: értem (akkor csak egy MÁSIK név hozza vissza).
-    public static func cardText(host: String?, at: Double?, dismissedHost: String?, now: Double, android: Bool) -> String? {
-        guard let host, let at, host != dismissedHost else { return nil }
+    public static func cardText(host: String?, at: Double?, dismissed: [String], now: Double, android: Bool) -> String? {
+        guard let host, let at, !dismissed.contains(host) else { return nil }
         if now - at > showForMs || at - now > 60_000 { return nil }
         let ago = agoText(now - at)
         let device = android ? "a telefonon" : "az eszközön"
@@ -80,6 +89,12 @@ public enum DohHosts {
         return "Valami \(device) titkosított "
             + "DNS-kiszolgálót keresett (\(host), \(ago)). \(place) "
             + "A Breaker csak a nevet látja, azt nem, ki kérdezte."
+    }
+
+    /// Az „Értem”: a név a némítottak végére; ha betelt, a legrégebbi kiesik.
+    public static func dismiss(_ dismissed: [String], _ host: String?) -> [String] {
+        guard let host, !dismissed.contains(host) else { return dismissed }
+        return Array((dismissed + [host]).suffix(maxDismissed))
     }
 
     /// „épp most”, „12 perce”, „3 órája” — a kártya szóhasználata.

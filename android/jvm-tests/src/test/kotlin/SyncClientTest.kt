@@ -198,4 +198,34 @@ class SyncClientTest {
     fun `syncing without an account fails loudly instead of doing nothing`() {
         assertFailsWith<SyncClient.SyncException> { SyncClient.syncNow(AppState(), 1_000) }
     }
+
+    @Test
+    fun `the sync result does not undo what this device wrote meanwhile`() {
+        // A kör egy pillanatképen dolgozott; közben a szűrő egy titkosított-DNS
+        // nyomot és egy megakadást írt, a felhasználó „Értem”-et nyomott, a
+        // mérő mintát vett, a védelem kikapcsolt.
+        val snapshot = AppState(sites = listOf(site("a", "a.example")))
+        val result = snapshot.copy(sites = listOf(site("a", "a.example"), site("b", "b.example")))
+        val fresh = snapshot.copy(
+            protectionOn = !snapshot.protectionOn,
+            dohSeenHost = "dns.google", dohSeenAt = 5_000, dohDismissedHosts = listOf("dns.quad9.net"),
+            filterHits = mapOf("2026-10-15" to 3), filterHitHours = mapOf("2026-10-15" to List(24) { if (it == 9) 3 else 0 }),
+            filterHitHosts = mapOf("2026-10-15" to mapOf("a.example" to 3)),
+            filterHitReasons = mapOf("2026-10-15" to mapOf("list" to 3)),
+            filterHitKeywords = mapOf("2026-10-15" to mapOf("x" to 1)),
+            usageLastSampleAt = 4_000,
+        )
+        val applied = SyncClient.keepLocal(result, fresh)
+        assertEquals(result.sites, applied.sites, "a szinkron mezői az eredményből jönnek")
+        assertEquals(fresh.protectionOn, applied.protectionOn)
+        assertEquals("dns.google", applied.dohSeenHost)
+        assertEquals(5_000L, applied.dohSeenAt)
+        assertEquals(listOf("dns.quad9.net"), applied.dohDismissedHosts)
+        assertEquals(fresh.filterHits, applied.filterHits)
+        assertEquals(fresh.filterHitHours, applied.filterHitHours)
+        assertEquals(fresh.filterHitHosts, applied.filterHitHosts)
+        assertEquals(fresh.filterHitReasons, applied.filterHitReasons)
+        assertEquals(fresh.filterHitKeywords, applied.filterHitKeywords)
+        assertEquals(4_000L, applied.usageLastSampleAt)
+    }
 }

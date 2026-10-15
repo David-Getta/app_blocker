@@ -418,6 +418,30 @@ enum SyncClient {
         return current
     }
 
+    /// A szinkron (vagy a belépés) eredménye a FRISS állapotra téve — így kell
+    /// alkalmazni: `store.mutate { $0 = SyncClient.keepLocal(r.state, $0) }`.
+    ///
+    /// A kör egy pillanatkép másolatán dolgozik, és közben másodpercekig vár a
+    /// hálózatra. Amit közben a tunnel vagy egy gomb ír a CSAK EZEN AZ
+    /// ESZKÖZÖN élő mezőkbe (a titkosított DNS nyoma és az „Értem”, a
+    /// megakadások, a védelem kapcsolója), azt a régi másolat nem írhatja
+    /// vissza. Ezeket a mezőket a szinkron soha nem írja, ezért a frisset
+    /// tartjuk meg — a szinkron mezői az eredményből jönnek, mint eddig.
+    static func keepLocal(_ result: AppState, _ fresh: AppState) -> AppState {
+        var n = result
+        n.protectionOn = fresh.protectionOn
+        n.dohSeenHost = fresh.dohSeenHost
+        n.dohSeenAt = fresh.dohSeenAt
+        n.dohDismissedHosts = fresh.dohDismissedHosts
+        n.dohDismissedHost = fresh.dohDismissedHost
+        n.filterHits = fresh.filterHits
+        n.filterHitHours = fresh.filterHitHours
+        n.filterHitHosts = fresh.filterHitHosts
+        n.filterHitReasons = fresh.filterHitReasons
+        n.filterHitKeywords = fresh.filterHitKeywords
+        return n
+    }
+
     static func syncNow(_ state: AppState, now: Double) async throws -> SyncResult {
         guard let acc = state.sync else { throw SyncError("Nincs bejelentkezve.", "NO_ACCOUNT") }
         guard let keyData = Data(base64Encoded: acc.dataKey) else {

@@ -564,13 +564,17 @@ Néhány konkrét dolog, amit érdemes előre tudni:
   appnak hozzáférést ahhoz, hogy más appokban vagy weboldalakon mennyi idő
   telik; az egyetlen ilyen API külön, egyenként engedélyezett entitlementhez
   kötött. A blokkolás és a heti menetrend iPhone-on is ugyanúgy működik.
-- **macOS-en a böngésző-DoH kikapcsolása nem zár, csak alapértelmezést állít.**
-  MDM-profil nélkül a Chromium ajánlásnak veszi a gépszintű beállítást, tehát
-  visszakapcsolható. Windowson ez házirend-kulcs, ott zár. Aki Macen is zárat
-  akar, az app beállításaiból (Kinézet panel) elmenthet egy konfigurációs
-  profilt, és maga telepíti: a profilból jövő érték kötelező. Bármikor
-  eltávolítható — súrlódás, nem lakat; hogy a böngésző tényleg kötelezőnek
-  vette-e, a chrome://policy oldalon látszik.
+- **macOS-en a böngésző-DoH kikapcsolása profil nélkül nem kötelező.**
+  A Chrome, az Edge, a Chromium és a Brave a gépszintű beállítást csak
+  ajánlásnak veszi, tehát a böngésző beállításaiban visszakapcsolható. A
+  Firefox zárolja (a beállítása szürke), de a felhasználó saját beállítása —
+  egy parancs a Terminálban, rendszergazda nélkül — felülírja. Windowson ez
+  házirend-kulcs, ott zár. Aki Macen is zárat akar, az app beállításaiból
+  (Kinézet panel) elmenthet egy konfigurációs profilt, és maga telepíti: a
+  profilból jövő érték mind az öt böngészőben kötelező, és a panel
+  böngészőnként kimondja, mi érvényes. Bármikor eltávolítható — súrlódás, nem
+  lakat; hogy a böngésző tényleg kötelezőnek vette-e, a chrome://policy
+  (Firefoxban az about:policies) oldalon látszik.
 - **A gép csak öt böngésző saját DoH-ját kapcsolja ki:** a Chrome, az Edge, a
   Chromium, a Brave és a Firefox házirendjét ismeri. Más böngésző (például az
   Opera, a Vivaldi vagy az Arc) saját titkosított DNS-e, ha be van kapcsolva,

@@ -21,6 +21,11 @@ class DohHostsTest {
         assertEquals("mozilla.cloudflare-dns.com", DohHosts.hostOf("mozilla.cloudflare-dns.com"))
         assertTrue(DohHosts.matches("dns.quad9.net"))
         assertTrue(DohHosts.matches("doh.opendns.com"))
+        // A Chromium listájának DoT-nevei és szolgáltatói is (doh_provider_entry.cc).
+        for (n in listOf("dot.xfinity.com", "dot.cox.net", "doh.quickline.ch", "dot.quickline.ch",
+            "doh-01.spectrum.com", "doh-02.spectrum.com")) {
+            assertTrue(DohHosts.matches(n), n)
+        }
     }
 
     @Test
@@ -41,32 +46,61 @@ class DohHostsTest {
     @Test
     fun theSameNameIsNotedAgainOnlyAfterTenMinutes() {
         val t = 1_000_000_000_000L
-        assertTrue(DohHosts.shouldNote(null, null, "dns.google", t))
-        assertFalse(DohHosts.shouldNote("dns.google", t, "dns.google", t + 9 * min))
-        assertTrue(DohHosts.shouldNote("dns.google", t, "dns.google", t + 10 * min))
+        val none = emptyList<String>()
+        assertTrue(DohHosts.shouldNote(null, null, "dns.google", t, none))
+        assertFalse(DohHosts.shouldNote("dns.google", t, "dns.google", t + 9 * min, none))
+        assertTrue(DohHosts.shouldNote("dns.google", t, "dns.google", t + 10 * min, none))
         // Másik név azonnal: a kártya a legutóbbit mondja.
-        assertTrue(DohHosts.shouldNote("dns.google", t, "dns.quad9.net", t + 1))
+        assertTrue(DohHosts.shouldNote("dns.google", t, "dns.quad9.net", t + 1, none))
         // Ha az óra visszaugrott, a régi idő nem némítja el.
-        assertTrue(DohHosts.shouldNote("dns.google", t, "dns.google", t - 1))
+        assertTrue(DohHosts.shouldNote("dns.google", t, "dns.google", t - 1, none))
+    }
+
+    @Test
+    fun aDismissedNameDoesNotPushOutAnUnseenTrace() {
+        // A Chrome a dns.google-t kérdezi, erre már „értem”; aztán a Firefox a
+        // Cloudflare-t. A Chrome következő kérdése nem tüntetheti el a Cloudflare-t.
+        val t = 1_000_000_000_000L
+        val dismissed = listOf("dns.google")
+        assertTrue(DohHosts.shouldNote("dns.google", t, "mozilla.cloudflare-dns.com", t + min, dismissed))
+        assertFalse(DohHosts.shouldNote("mozilla.cloudflare-dns.com", t + min, "dns.google", t + 30 * min, dismissed))
+        assertFalse(DohHosts.shouldNote(null, null, "dns.google", t, dismissed))
+        assertTrue(DohHosts.cardText("mozilla.cloudflare-dns.com", t + min, dismissed, t + 30 * min, true) != null)
+    }
+
+    @Test
+    fun dismissKeepsEveryNameUpToTheCap() {
+        assertEquals(listOf("dns.google"), DohHosts.dismiss(emptyList(), "dns.google"))
+        assertEquals(listOf("dns.google"), DohHosts.dismiss(listOf("dns.google"), "dns.google"))
+        assertEquals(listOf("dns.google"), DohHosts.dismiss(listOf("dns.google"), null))
+        // A második „értem” nem oldja fel az elsőt.
+        val two = DohHosts.dismiss(listOf("dns.google"), "dns.quad9.net")
+        assertEquals(listOf("dns.google", "dns.quad9.net"), two)
+        val full = (1..DohHosts.MAX_DISMISSED).map { "h$it.dns.nextdns.io" }
+        val more = DohHosts.dismiss(full, "dns.sb")
+        assertEquals(DohHosts.MAX_DISMISSED, more.size)
+        assertEquals("h2.dns.nextdns.io", more.first(), "a legrégebbi esik ki")
+        assertEquals("dns.sb", more.last())
     }
 
     @Test
     fun theCardSpeaksOnlyOfAFreshUndismissedTrace() {
         val t = 1_000_000_000_000L
-        assertNull(DohHosts.cardText(null, null, null, t, true))
-        assertNull(DohHosts.cardText("dns.google", t, "dns.google", t, true))
-        assertNull(DohHosts.cardText("dns.google", t, null, t + 24 * hour + 1, true))
-        assertNull(DohHosts.cardText("dns.google", t + 2 * min, null, t, true))
+        val none = emptyList<String>()
+        assertNull(DohHosts.cardText(null, null, none, t, true))
+        assertNull(DohHosts.cardText("dns.google", t, listOf("dns.google"), t, true))
+        assertNull(DohHosts.cardText("dns.google", t, none, t + 24 * hour + 1, true))
+        assertNull(DohHosts.cardText("dns.google", t + 2 * min, none, t, true))
         // Egy MÁSIK név visszahozza a kártyát.
-        val back = DohHosts.cardText("dns.quad9.net", t, "dns.google", t + 5 * min, true)
+        val back = DohHosts.cardText("dns.quad9.net", t, listOf("dns.google"), t + 5 * min, true)
         assertTrue(back != null && back.contains("dns.quad9.net, 5 perce"), back)
     }
 
     @Test
     fun theCardNamesTheChromeSettingOnAndroidOnly() {
         val t = 1_000_000_000_000L
-        val a = DohHosts.cardText("dns.google", t, null, t, true)!!
-        val i = DohHosts.cardText("dns.google", t, null, t, false)!!
+        val a = DohHosts.cardText("dns.google", t, emptyList(), t, true)!!
+        val i = DohHosts.cardText("dns.google", t, emptyList(), t, false)!!
         assertTrue(a.startsWith("Valami a telefonon titkosított DNS-kiszolgálót keresett (dns.google, épp most)."), a)
         assertTrue(a.contains("Biztonságos DNS használata"), a)
         assertTrue(i.startsWith("Valami az eszközön"), i)

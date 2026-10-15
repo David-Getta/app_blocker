@@ -740,19 +740,23 @@
       <p class="hint hidden" id="notifyTestNote"></p>
       <p class="hint hidden" id="notifyDeliveryNote"></p>
       <!--
-        BÖNGÉSZŐ-DoH ZÁR (csak macOS). A segéd gépszintű beállítása Macen csak
-        ajánlás — a böngészőben visszakapcsolható. A profil kötelezővé teszi;
-        a felhasználó telepíti, és bármikor eltávolíthatja. Csak szigorít.
+        BÖNGÉSZŐ-DoH ZÁR (csak macOS). A segéd gépszintű beállítása Macen a
+        Chromium-családban csak ajánlás — a böngészőben visszakapcsolható —, a
+        Firefoxban zárolt, de a felhasználó saját beállítása felülírja. A
+        profil mindegyikben kötelezővé teszi; a felhasználó telepíti, és
+        bármikor eltávolíthatja. Csak szigorít.
       -->
       <div id="dohProfileBox" class="hidden">
         <p class="micro">Böngészők titkosított DNS-e</p>
         <p class="hint">
-          Macen a böngészők saját titkosított DNS-ét (DoH) a Breaker csak
-          alapértelmezésként kapcsolja ki: a böngésző beállításaiban
-          visszakapcsolható, és akkor a tiltás abban a böngészőben nem
-          érvényesül. Egy konfigurációs profillal ez kötelező lesz (Chrome,
-          Edge, Chromium, Brave, Firefox). A profilt te telepíted, és
-          bármikor eltávolíthatod — súrlódás, nem lakat.
+          Macen a böngészők saját titkosított DNS-ét (DoH) a Breaker gépszintű
+          beállítással kapcsolja ki. A Chrome, az Edge, a Chromium és a Brave
+          ezt csak ajánlásnak veszi: a böngésző beállításaiban visszakapcsolható,
+          és akkor a tiltás abban a böngészőben nem érvényesül. A Firefox
+          zárolja, de a saját felhasználói beállításod (egy parancs a
+          Terminálban) felülírja. Egy konfigurációs profillal mind az öt
+          böngészőben kötelező lesz. A profilt te telepíted, és bármikor
+          eltávolíthatod — súrlódás, nem lakat.
         </p>
         <p class="hint hidden" id="dohLockLine"></p>
         <div class="sync-actions">

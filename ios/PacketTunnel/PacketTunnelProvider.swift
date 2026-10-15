@@ -10,6 +10,12 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     private let upstreams = ["1.1.1.1", "8.8.8.8"]
     /// hoszt → az utoljára számolt megakadás ideje; csak a csomag-szálon, nem tárolódik
     private var hitSeen: [String: Double] = [:]
+    /// A titkosított DNS legutóbbi feljegyzése, a tunnel saját memóriájában.
+    /// A `store.state` a mentés után csak a fő sor következő körében frissül,
+    /// és egy DoH-indulás A- és AAAA-kérdése egy csomagban jön: a második a
+    /// régi értéket látná, és a feljegyzés kétszer íródna a lemezre. Csak a
+    /// csomag-olvasó soros hívásából érjük el, mint a `hitSeen`-t.
+    private var dohLast: (host: String, at: Double)?
     private let resolveQueue = DispatchQueue(label: "hu.breaker.resolve", attributes: .concurrent)
 
     override func startTunnel(options: [String: NSObject]?,
@@ -129,7 +135,10 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         // tiltjuk: egy elrontott DNS-beállítás az egész internetet vinné el,
         // és a döntés a felhasználóé.
         if let name, let host = DohHosts.hostOf(name),
-           DohHosts.shouldNote(prevHost: store.state.dohSeenHost, prevAt: store.state.dohSeenAt, host: host, now: now) {
+           DohHosts.shouldNote(prevHost: dohLast?.host ?? store.state.dohSeenHost,
+                               prevAt: dohLast?.at ?? store.state.dohSeenAt,
+                               host: host, now: now, dismissed: store.state.dohDismissedList) {
+            dohLast = (host, now)
             store.mutate {
                 $0.dohSeenHost = host
                 $0.dohSeenAt = now

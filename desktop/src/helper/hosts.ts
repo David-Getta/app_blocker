@@ -13,7 +13,8 @@ import { closedForMissingMeasurement } from '../shared/measure-guard';
 import type { HelperState } from './state';
 import { hostsFilePath } from './paths';
 import {
-  CHROMIUM_DOH_VALUE, CHROMIUM_TARGETS, FIREFOX_MAC_DOMAIN, FIREFOX_MAC_ENABLE_KEY, windowsDohCommands,
+  CHROMIUM_DOH_VALUE, CHROMIUM_TARGETS, FIREFOX_MAC_DOMAIN, FIREFOX_MAC_ENABLE_KEY, FIREFOX_SWITCH_MARK,
+  windowsDohCommands,
 } from './doh-policy';
 
 /**
@@ -45,6 +46,13 @@ export function activeHostnames(state: HelperState, now: number, appPresent = pr
 function run(cmd: string, args: string[]): Promise<void> {
   return new Promise((resolve) => {
     execFile(cmd, args, { timeout: 15_000 }, () => resolve()); // best effort
+  });
+}
+
+/** Egy parancs kimenete — null, ha nem sikerült (pl. nincs ilyen kulcs). */
+function capture(cmd: string, args: string[]): Promise<string | null> {
+  return new Promise((resolve) => {
+    execFile(cmd, args, { timeout: 15_000 }, (err, stdout) => resolve(err ? null : String(stdout).trim()));
   });
 }
 
@@ -205,6 +213,19 @@ export async function applyDohPolicies(log: (m: string) => void): Promise<boolea
       // A Firefox macOS-en CSAK akkor olvas házirendet, ha ez a kapcsoló igaz
       // (nsMacPreferencesReader: PoliciesEnabled). A v0.4.253 előtt ez
       // hiányzott: a DNSOverHTTPS ott állt, a Firefox pedig rá se nézett.
+      //
+      // A KAPCSOLÓ GAZDÁJA: ha előttünk nem volt ott, mi kapcsoljuk be — és
+      // vele a tartomány minden addig hatástalan Firefox-házirendjét is. Ezt
+      // egyszer, az első beírás előtt feljegyezzük (FIREFOX_SWITCH_MARK), hogy
+      // az eltávolító akkor is levegye, ha mellette más kulcs maradt.
+      if (!fs.existsSync(FIREFOX_SWITCH_MARK)
+        && await capture('/usr/bin/defaults', ['read', FIREFOX_MAC_DOMAIN, FIREFOX_MAC_ENABLE_KEY]) === null) {
+        try {
+          fs.mkdirSync(path.dirname(FIREFOX_SWITCH_MARK), { recursive: true });
+          fs.writeFileSync(FIREFOX_SWITCH_MARK,
+            'A Firefox házirend-kapcsolóját (EnterprisePoliciesEnabled) a Breaker kapcsolta be; az eltávolító ebből tudja.\n');
+        } catch { /* feljegyzés nélkül az eltávolító a régi szabállyal dönt */ }
+      }
       await run('/usr/bin/defaults', ['write', FIREFOX_MAC_DOMAIN, FIREFOX_MAC_ENABLE_KEY, '-bool', 'true']);
       try { fs.chmodSync(`${FIREFOX_MAC_DOMAIN}.plist`, 0o644); } catch { /* ok */ }
       log('DoH policies applied (Chromium-family + Firefox machine preferences)');

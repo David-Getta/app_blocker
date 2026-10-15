@@ -206,11 +206,21 @@ struct AppState: Codable, Equatable {
     /// — a lap kártyája akkor is mondja. Helyi; a hiányzó kulcs nil (szól).
     var quietSuggestions: Bool? = nil
     /// A titkosított DNS NYOMA: a legutóbb kérdezett ismert DoH/DoT-kiszolgáló
-    /// neve és ideje (epoch ms; a tunnel írja), és a név, amire a felhasználó
-    /// már azt mondta: értem. Helyi. Lásd Shared/DohHosts.swift.
+    /// neve és ideje (epoch ms; a tunnel írja), és a nevek, amelyekre a
+    /// felhasználó már azt mondta: értem (DohHosts.maxDismissed). Helyi. Lásd
+    /// Shared/DohHosts.swift. A `dohDismissedHost` a v0.4.256 előtti egyetlen
+    /// név — csak olvassuk (`dohDismissedList`), az „Értem” már a listába ír.
     var dohSeenHost: String? = nil
     var dohSeenAt: Double? = nil
+    var dohDismissedHosts: [String]? = nil
     var dohDismissedHost: String? = nil
+
+    /// A némított nevek, a régi egyetlen névvel együtt.
+    var dohDismissedList: [String] {
+        var out = dohDismissedHosts ?? []
+        if let old = dohDismissedHost, !out.contains(old) { out.insert(old, at: 0) }
+        return Array(out.suffix(DohHosts.maxDismissed))
+    }
     /// Melyik hétről íródott már a heti napló sora (a hétfő dátuma). Helyi,
     /// mint a gépen és Androidon — a szinkronra szándékosan nem megy.
     var digestWeekKey: String? = nil

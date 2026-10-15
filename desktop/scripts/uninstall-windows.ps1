@@ -20,10 +20,25 @@ Set-Content -Path $hosts -Value $content -NoNewline
 ipconfig /flushdns | Out-Null
 
 Write-Host "A böngészők DoH-házirendjének levétele..."
-# Csak azt vesszük le, amit a Breaker írt (lásd src/helper/doh-policy.ts): a
-# Chromium-család „off” értékét, a Firefox két registry-értékét és a saját
-# policies.json-unkat — ha pontosan a mieink. Egy szervezet saját házirendjét
-# (GPO) a következő frissítése úgyis visszaírja.
+# Azt vesszük le, amit a Breaker ír (lásd src/helper/doh-policy.ts): a
+# Chromium-család „off” értékét, a Firefox registry-értékeit és a régi segéd
+# policies.json-ját. ÉRTÉK SZERINT döntünk — azt, hogy ki írta, a registry
+# nem tudja: egy ugyanilyen „off” (vagy Firefox Enabled=0 + Locked=1), amit
+# valaki más (egy másik program, egy GPO) tett oda, ugyanígy megy. Egy GPO a
+# házirendje következő alkalmazásakor visszaírja; egy kézzel vagy egy másik
+# programmal beállított érték nem jön vissza. Ami MÁS értéket tart, az marad;
+# és amit a segéd a futása alatt felülírt, azt ez nem állítja vissza.
+function Remove-EmptyKeys($path) {
+  # Az üresen maradt kulcs is nyom: a Firefox egy üres DNSOverHTTPS-kulcsot is
+  # házirendnek vesz ({}), ami egy policies.json DNSOverHTTPS-ét felülírná.
+  # Csak a teljesen üres kulcs megy, alulról fölfelé, a Policies-ig.
+  while ($path -and $path -ne "HKLM:\SOFTWARE\Policies") {
+    $k = Get-Item -Path $path -ErrorAction SilentlyContinue
+    if (-not $k -or $k.ValueCount -ne 0 -or $k.SubKeyCount -ne 0) { return }
+    Remove-Item -Path $path -ErrorAction SilentlyContinue
+    $path = Split-Path $path -Parent
+  }
+}
 foreach ($key in @(
   "HKLM:\SOFTWARE\Policies\Google\Chrome",
   "HKLM:\SOFTWARE\Policies\Microsoft\Edge",
@@ -32,12 +47,17 @@ foreach ($key in @(
 )) {
   $v = (Get-ItemProperty -Path $key -Name "DnsOverHttpsMode" -ErrorAction SilentlyContinue).DnsOverHttpsMode
   if ($v -eq "off") { Remove-ItemProperty -Path $key -Name "DnsOverHttpsMode" -ErrorAction SilentlyContinue }
+  Remove-EmptyKeys $key
 }
 $ff = "HKLM:\SOFTWARE\Policies\Mozilla\Firefox\DNSOverHTTPS"
 $ffv = Get-ItemProperty -Path $ff -ErrorAction SilentlyContinue
 if ($ffv -and $ffv.Enabled -eq 0 -and $ffv.Locked -eq 1) {
   Remove-ItemProperty -Path $ff -Name "Enabled", "Locked" -ErrorAction SilentlyContinue
+  # A v0.4.256 óta a Fallback=1 is a miénk (nélküle egy ott maradt Fallback=0
+  # a „DoH ki”-ből „csak DoH”-t csinálna).
+  if ($ffv.Fallback -eq 1) { Remove-ItemProperty -Path $ff -Name "Fallback" -ErrorAction SilentlyContinue }
 }
+Remove-EmptyKeys $ff
 foreach ($base in @($env:ProgramFiles, ${env:ProgramFiles(x86)})) {
   if (-not $base) { continue }
   $pol = Join-Path $base "Mozilla Firefox\distribution\policies.json"

@@ -175,13 +175,18 @@ class StoreParseTest {
     }
 
     @Test fun `a titkositott DNS nyoma tuleli a mentest, es nelkule null`() {
-        val raw = """{"sites":[],"dohSeenHost":"dns.google","dohSeenAt":1700000000000,"dohDismissedHost":"dns.quad9.net"}"""
+        val raw = """{"sites":[],"dohSeenHost":"dns.google","dohSeenAt":1700000000000,"dohDismissedHosts":["dns.quad9.net","dns.sb"]}"""
         val back = parse(toJson.invoke(BreakerStore, parse(raw)).toString())
         assertEquals("dns.google", back.dohSeenHost)
         assertEquals(1_700_000_000_000L, back.dohSeenAt)
-        assertEquals("dns.quad9.net", back.dohDismissedHost, "az „értem” újraindítás után is áll")
+        assertEquals(listOf("dns.quad9.net", "dns.sb"), back.dohDismissedHosts, "az „értem” újraindítás után is áll")
         val old = parse("{\"sites\":[]}")
-        assertNull(old.dohSeenHost); assertNull(old.dohSeenAt); assertNull(old.dohDismissedHost)
+        assertNull(old.dohSeenHost); assertNull(old.dohSeenAt); assertEquals(emptyList(), old.dohDismissedHosts)
+        // A v0.4.256 előtti állapot egyetlen nevet tartott: az „értem” a frissítés után is áll.
+        val single = parse("""{"sites":[],"dohDismissedHost":"dns.quad9.net"}""")
+        assertEquals(listOf("dns.quad9.net"), single.dohDismissedHosts)
+        assertEquals(emptyList(), parse("""{"sites":[],"dohDismissedHost":null,"dohDismissedHosts":[1,null]}""").dohDismissedHosts,
+            "csak szöveg kerül a listára")
     }
 
     @Test fun `a heti naplo tuleli a mentest, a serult sor nem viszi el a tobbit`() {

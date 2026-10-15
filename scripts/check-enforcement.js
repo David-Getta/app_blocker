@@ -94,9 +94,24 @@ const WIRES = [
     lost: 'Androidon a titkosított DNS nyoma nem kerülne az állapotba — a kártya sosem szólna',
   },
   {
+    file: 'android/app/src/main/java/hu/breaker/app/vpn/BreakerVpnService.kt',
+    needle: 'if (dohHost != null && PrivateDns.strictHostname(this) == null) {',
+    lost: 'Androidon a szigorú Privát DNS saját kérdése (dns.google…) nyomként íródna, és a beállítás kikapcsolása után a kártya egy böngészőt gyanúsítana',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/vpn/BreakerVpnService.kt',
+    needle: 'DohHosts.shouldNote(cur.dohSeenHost, cur.dohSeenAt, dohHost, now, cur.dohDismissedHosts)',
+    lost: 'Androidon egy már „értem”-mel némított név kitúrná a még nem látott, másik nyomot',
+  },
+  {
     file: 'android/app/src/main/java/hu/breaker/app/ui/AppUi.kt',
-    needle: 'DohHosts.cardText(state.dohSeenHost, state.dohSeenAt, state.dohDismissedHost, now, android = true)',
+    needle: 'DohHosts.cardText(state.dohSeenHost, state.dohSeenAt, state.dohDismissedHosts, now, android = true)',
     lost: 'Androidon a titkosított DNS nyomáról nem szólna kártya',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/AppUi.kt',
+    needle: 'BreakerStore.mutate { SyncClient.keepLocal(r.state, it) }',
+    lost: 'Androidon a szinkron a régi pillanatképpel visszaírná, amit közben a szűrő vagy egy gomb írt (az „Értem”, a DoH-nyom, a megakadások)',
   },
   {
     file: 'ios/PacketTunnel/PacketTunnelProvider.swift',
@@ -109,9 +124,19 @@ const WIRES = [
     lost: 'iPhone-on a titkosított DNS nyoma nem kerülne az állapotba — a kártya sosem szólna',
   },
   {
+    file: 'ios/PacketTunnel/PacketTunnelProvider.swift',
+    needle: 'host: host, now: now, dismissed: store.state.dohDismissedList) {\n            dohLast = (host, now)',
+    lost: 'iPhone-on a ritkítás a később frissülő állapotból döntene: egy DoH-indulás A- és AAAA-kérdése kétszer írná a lemezt, és egy némított név kitúrná a másik nyomot',
+  },
+  {
     file: 'ios/App/ContentView.swift',
-    needle: 'dismissedHost: store.state.dohDismissedHost, now: now, android: false)',
+    needle: 'dismissed: store.state.dohDismissedList, now: now, android: false)',
     lost: 'iPhone-on a titkosított DNS nyomáról nem szólna kártya',
+  },
+  {
+    file: 'ios/App/SyncCard.swift',
+    needle: '_ = store.mutate { $0 = SyncClient.keepLocal(r.state, $0) }',
+    lost: 'iPhone-on a szinkron a régi pillanatképpel visszaírná, amit közben a tunnel vagy egy gomb írt (az „Értem”, a DoH-nyom, a megakadások)',
   },
   {
     file: 'ios/App/ContentView.swift',
@@ -3132,6 +3157,21 @@ const WIRES = [
     needle: 'scripts/mac-doh-probe.sh',
     lost: 'senki nem nézné meg valódi macOS-en, hogy a házirend (a Firefox kapcsolójával) felkerül, és az eltávolító python nélkül is lefut',
   },
+  {
+    file: 'desktop/scripts/mac-doh-probe.sh',
+    needle: 'uninstall() { env PATH="$NOPY_PATH" sh scripts/uninstall-macos.sh; }',
+    lost: 'a macOS-próba az eltávolítót a futó pythonjával futtatná — egy pythont hívó eltávolító zöld maradna, a gyári Macen pedig megállna a hosts-blokknál',
+  },
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: 'line.textContent = dohLockLine(st);',
+    lost: 'a DoH-zár sora nem a böngészőnként olvasott állapotot mondaná (a Firefoxot a Chromium-családdal együtt visszakapcsolhatónak)',
+  },
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: "window.addEventListener('focus', () => {\n    if (!$('themePanel').classList.contains('hidden')) void refreshDohLockState();",
+    lost: 'a profil telepítése után, a Rendszerbeállításokból visszatérve a DoH-zár sora a régi állapotot mondaná',
+  },
   // A macOS DoH-zár profil: a fő folyamat regisztrálja a mentést, a felület
   // köti be a gombot. Ha bármelyik kimarad, a doksi egy nem létező lehetőséget
   // ígér.
@@ -4359,6 +4399,19 @@ function stripComments(text) {
     .replace(/\s\/\/.*$/gm, '');
 }
 
+/**
+ * A `#`-es nyelvek (YAML, shell, PowerShell) megjegyzése. Egy CI-lépést a
+ * legkönnyebb úgy kikapcsolni, hogy a sora elé `#` kerül — a tű szövege attól
+ * még ott áll, és az ellenőrző zöld maradna, miközben a próba sosem fut. Csak
+ * az EGÉSZ soros megjegyzés megy: a sor végi ` #…` egy parancs része is lehet
+ * (`$#`, egy idézett „#címke”), és egy kikapcsolt lépés úgyis egész sorokból áll.
+ */
+function stripHashComments(text) {
+  return text.replace(/^\s*#.*$/gm, '');
+}
+
+const HASH_COMMENTED = /\.(ya?ml|sh|ps1)$/;
+
 const problems = [];
 for (const wire of WIRES) {
   const full = path.join(ROOT, wire.file);
@@ -4371,7 +4424,8 @@ for (const wire of WIRES) {
   // magyarázó megjegyzés is tartalmazta a nevet, tehát az ellenőrző a saját
   // dokumentációt találta meg, nem a kódot. Egy ellenőrző, ami a
   // megjegyzésekre reagál, pont akkor hallgat, amikor szólnia kellene.
-  const text = stripComments(fs.readFileSync(full, 'utf8'));
+  const raw = fs.readFileSync(full, 'utf8');
+  const text = HASH_COMMENTED.test(wire.file) ? stripHashComments(raw) : stripComments(raw);
   const uses = text.split(wire.needle).length - 1;
   if (uses === 0) problems.push({ ...wire, why: 'nincs benne hívás' });
 }

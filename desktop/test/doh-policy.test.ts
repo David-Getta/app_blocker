@@ -13,7 +13,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import {
   CHROMIUM_DOH_VALUE, CHROMIUM_TARGETS, FIREFOX_MAC_DOMAIN, FIREFOX_MAC_ENABLE_KEY, FIREFOX_POLICY_JSON,
-  FIREFOX_WIN_KEY, FIREFOX_WIN_VALUES, DOH_PROFILE_ID, dohProfileXml, windowsDohCommands,
+  FIREFOX_SWITCH_MARK, FIREFOX_WIN_KEY, FIREFOX_WIN_VALUES, DOH_PROFILE_ID, dohProfileXml, windowsDohCommands,
 } from '../src/helper/doh-policy';
 
 /** A tár gyökere — a tesztek forrásból és fordított kimenetből (dist-test) is futnak. */
@@ -40,7 +40,7 @@ test('minden Chromium-alapú böngésző mindkét platformon kap házirendet', (
   assert.equal(new Set(CHROMIUM_TARGETS.map((t) => t.macDomain)).size, CHROMIUM_TARGETS.length);
 });
 
-test('a Windows-parancsok: a Chromium-család „off”, a Firefox DWORD-ökkel', () => {
+test('a Windows-parancsok: a Chromium-család „off”, a Firefox DWORD-ökkel (a Fallback is)', () => {
   const cmds = windowsDohCommands();
   assert.equal(cmds.length, CHROMIUM_TARGETS.length + FIREFOX_WIN_VALUES.length);
   for (const [i, t] of CHROMIUM_TARGETS.entries()) {
@@ -52,6 +52,8 @@ test('a Windows-parancsok: a Chromium-család „off”, a Firefox DWORD-ökkel'
   assert.deepEqual(ff.map((c) => c.args), [
     ['add', FIREFOX_WIN_KEY, '/v', 'Enabled', '/t', 'REG_DWORD', '/d', '0', '/f'],
     ['add', FIREFOX_WIN_KEY, '/v', 'Locked', '/t', 'REG_DWORD', '/d', '1', '/f'],
+    // Egy ott maradt Fallback=0 mellett a Firefox az Enabled=0-t „csak DoH”-nak venné.
+    ['add', FIREFOX_WIN_KEY, '/v', 'Fallback', '/t', 'REG_DWORD', '/d', '1', '/f'],
   ]);
   assert.equal(FIREFOX_WIN_KEY, 'HKLM\\SOFTWARE\\Policies\\Mozilla\\Firefox\\DNSOverHTTPS');
 });
@@ -62,7 +64,13 @@ test('a Windows-eltávolító mindent visz, amit a segéd ír — és csak ha a 
   assert.ok(ps.includes(`"${CHROMIUM_DOH_VALUE.name}"`));
   assert.ok(ps.includes(`$v -eq "${CHROMIUM_DOH_VALUE.value}"`), 'csak az „off” értéket vehetjük le');
   assert.ok(ps.includes(`"${psKey(FIREFOX_WIN_KEY)}"`));
+  for (const v of FIREFOX_WIN_VALUES) assert.ok(ps.includes(`"${v.name}"`), `a Firefox ${v.name} értékét nem veszi le`);
   assert.ok(ps.includes('$ffv.Enabled -eq 0 -and $ffv.Locked -eq 1'), 'a Firefoxét is csak ha a miénk');
+  assert.ok(ps.includes('if ($ffv.Fallback -eq 1) { Remove-ItemProperty -Path $ff -Name "Fallback"'), 'a Fallback=1 is a miénk');
+  // Az üresen maradt kulcs is nyom (a Firefox egy üres DNSOverHTTPS-t is házirendnek vesz).
+  assert.ok(ps.includes('Remove-EmptyKeys $ff'));
+  assert.ok(ps.includes('Remove-EmptyKeys $key'));
+  assert.ok(ps.includes('$k.ValueCount -ne 0 -or $k.SubKeyCount -ne 0'), 'csak a teljesen üres kulcs mehet');
   // A régi segéd policies.json-ja: csak a pontosan saját tartalmú fájl megy.
   assert.ok(ps.includes(`'${FIREFOX_POLICY_JSON.replace(/\s/g, '')}'`));
 });
@@ -71,18 +79,46 @@ test('a macOS-eltávolító mindent visz, amit a segéd ír — és csak ha a mi
   const sh = read('desktop/scripts/uninstall-macos.sh');
   for (const t of CHROMIUM_TARGETS) assert.ok(sh.includes(t.macDomain), `hiányzik: ${t.macDomain}`);
   assert.ok(sh.includes(`DnsOverHttpsMode 2>/dev/null)" = "off"`));
-  assert.ok(sh.includes(`defaults delete ${FIREFOX_MAC_DOMAIN} DNSOverHTTPS`));
+  assert.ok(sh.includes('defaults delete $FF DNSOverHTTPS'));
   assert.ok(sh.includes('*"Enabled = 0;"*"Locked = 1;"*'));
-  // A Firefox házirend-kapcsolója csak akkor megy, ha rajta kívül semmi nem maradt.
+  // A Firefox házirend-kapcsolója: ha a segéd kapcsolta be (feljegyezte), vele
+  // megy; feljegyzés nélkül csak akkor, ha rajta kívül semmi nem maradt.
+  assert.ok(sh.includes(`FF_MARK="${FIREFOX_SWITCH_MARK}"`), 'az eltávolító más feljegyzést néz, mint amit a segéd ír');
+  assert.ok(sh.includes(`if [ -f "$FF_MARK" ]; then\n  defaults delete $FF ${FIREFOX_MAC_ENABLE_KEY}`));
   assert.ok(sh.includes(`"{${FIREFOX_MAC_ENABLE_KEY}=1;}"`));
-  assert.ok(sh.includes(`defaults delete ${FIREFOX_MAC_DOMAIN} ${FIREFOX_MAC_ENABLE_KEY}`));
+  assert.ok(sh.includes(`FF=${FIREFOX_MAC_DOMAIN}\n`));
+  // A feljegyzés a segéd állapot-mappájában van: az eltávolító ELŐBB olvassa, aztán törli.
+  assert.ok(sh.indexOf('if [ -f "$FF_MARK" ]') < sh.indexOf('rm -rf "/Library/Application Support/Breaker"'));
+  assert.ok(FIREFOX_SWITCH_MARK.startsWith('/Library/Application Support/Breaker/'));
+});
+
+test('a macOS-eltávolító a DoH-zár profilt is leveszi — vagy megmondja, hol', () => {
+  // Nélküle a böngészők a Breaker törlése után is „felügyeltek” maradnának.
+  const sh = read('desktop/scripts/uninstall-macos.sh');
+  assert.ok(sh.includes(`profiles remove -identifier ${DOH_PROFILE_ID}`));
+  assert.ok(sh.includes(`grep -q '${DOH_PROFILE_ID.replace(/\./g, '\\.')}'`));
+  assert.ok(sh.includes('profil fent maradt: távolítsd el kézzel'));
+});
+
+test('a segéd feljegyzi, ha a Firefox kapcsolóját ő kapcsolta be — az első beírás előtt', () => {
+  const src = read('desktop/src/helper/hosts.ts');
+  const mark = src.indexOf('if (!fs.existsSync(FIREFOX_SWITCH_MARK)');
+  const write = src.indexOf("['write', FIREFOX_MAC_DOMAIN, FIREFOX_MAC_ENABLE_KEY, '-bool', 'true']");
+  assert.ok(mark > 0 && write > mark, 'a feljegyzésnek a kapcsoló beírása ELŐTT kell döntenie');
+  assert.ok(src.includes("capture('/usr/bin/defaults', ['read', FIREFOX_MAC_DOMAIN, FIREFOX_MAC_ENABLE_KEY]) === null"));
 });
 
 test('a macOS-eltávolító python nélkül is kiveszi a hosts-blokkot', () => {
   // A mai macOS-en python3 gyárilag nincs: a `set -e` miatt a szkript a
-  // hosts-blokknál megállt volna, és a tiltás bent marad.
+  // hosts-blokknál megállt volna, és a tiltás bent marad. A python BÁRHOL a
+  // kódban (`/usr/bin/python3 -`, `$(python3 …)`, `| python3 -`) — csak a
+  // megjegyzés nem számít. A macOS-próba a PATH-ról is elrejti.
   const sh = read('desktop/scripts/uninstall-macos.sh');
-  assert.ok(!/^\s*python/m.test(sh), 'a szkript megint pythont futtat');
+  const code = sh.split('\n').filter((l) => !/^\s*#/.test(l)).join('\n');
+  assert.ok(!/\bpython[0-9.]*\b/.test(code), 'a szkript megint pythont futtat');
+  for (const bad of ['/usr/bin/python3 - <<PY', 'HOSTS=$(python3 -c 1)', 'cat /etc/hosts | python3 -']) {
+    assert.ok(/\bpython[0-9.]*\b/.test(bad), `az ellenőrzés nem fogná: ${bad}`);
+  }
   assert.ok(sh.includes("awk '/^# >>> BREAKER BLOCK BEGIN/"));
   assert.ok(sh.includes("grep -q '^# <<< BREAKER BLOCK END' /etc/hosts"), 'csonka blokknál ne dobja ki a fájl végét');
 });
@@ -179,6 +215,13 @@ test('a macOS-profil: érvényes plist, ugyanazokat a böngészőket kényszerí
 });
 
 test('a plist-olvasó tényleg elkapja a rossz profilt', () => {
-  assert.throws(() => parsePlist('<plist version="1.0"><dict><key>a</key><string>x</dict></plist>'));
-  assert.throws(() => parsePlist('<plist version="1.0"><dict><key>a</key><true/><key>a</key><true/></dict></plist>'));
+  // Ugyanazzal a fejjel, amit a profil ír — fej nélkül a bemenet már az első
+  // elemnél elbukna, és a teszt rossz okból lenne zöld.
+  const HDR = '<?xml version="1.0" encoding="UTF-8"?>\n'
+    + '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n';
+  assert.deepEqual(parsePlist(`${HDR}<plist version="1.0"><dict><key>a</key><true/></dict></plist>`), { a: true });
+  assert.throws(() => parsePlist(`${HDR}<plist version="1.0"><dict><key>a</key><string>x</dict></plist>`), /lezáratlan <string>/);
+  assert.throws(() => parsePlist(`${HDR}<plist version="1.0"><dict><key>a</key><true/><key>a</key><true/></dict></plist>`),
+    /kétszer szereplő kulcs: a/);
+  assert.throws(() => parsePlist(`${HDR}<plist version="1.0"><dict><true/></dict></plist>`), /kulcs nélküli érték/);
 });

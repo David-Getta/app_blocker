@@ -739,10 +739,15 @@ class BreakerVpnService : VpnService() {
             // (ugyanazt tízpercenként egyszer), a főképernyő kártyája mondja.
             // Nem tiltjuk: egy elrontott DNS-beállítás az egész internetet
             // vinné el, és a döntés a felhasználóé.
+            // SZIGORÚ Privát DNS mellett nem jegyzünk: akkor az appok kérdése
+            // TLS-en a beállított kiszolgálóhoz megy, ide nem ér el — ami ide
+            // jön, az a rendszer saját kérdése a beállított névre (dns.google,
+            // one.one.one.one…). Feljegyezve a kártya a beállítás kikapcsolása
+            // után egy böngészőt gyanúsítana azzal, amit a rendszer tett.
             val dohHost = if (!blocked && name != null) DohHosts.hostOf(name) else null
-            if (dohHost != null) {
+            if (dohHost != null && PrivateDns.strictHostname(this) == null) {
                 val cur = BreakerStore.state.value
-                if (DohHosts.shouldNote(cur.dohSeenHost, cur.dohSeenAt, dohHost, now)) {
+                if (DohHosts.shouldNote(cur.dohSeenHost, cur.dohSeenAt, dohHost, now, cur.dohDismissedHosts)) {
                     runCatching { BreakerStore.mutate { it.copy(dohSeenHost = dohHost, dohSeenAt = now) } }
                         .onFailure { Log.w(TAG, "a titkosított DNS nyoma nem íródott: $it") }
                 }

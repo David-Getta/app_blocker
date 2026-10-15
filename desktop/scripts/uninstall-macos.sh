@@ -32,27 +32,55 @@ dscacheutil -flushcache || true
 killall -HUP mDNSResponder || true
 
 echo "A böngészők DoH-házirendjének levétele..."
-# Csak azt vesszük le, amit a Breaker írt (lásd src/helper/doh-policy.ts): a
-# Chromium-család „off” értékét és a Firefox DNSOverHTTPS szótárát, ha a
-# mieink. A felügyelt (MDM) házirend máshol él — azt ez nem érinti.
+# Azt vesszük le, amit a Breaker ír (lásd src/helper/doh-policy.ts): a
+# Chromium-család „off” értékét és a Firefox DNSOverHTTPS szótárát. ÉRTÉK
+# SZERINT döntünk — azt, hogy ki írta, a beállítás nem tudja: egy ugyanilyen
+# „off”, amit valaki más tett ide, ugyanígy megy. Ami MÁS értéket tart, az
+# marad; amit a segéd a futása alatt felülírt, azt ez nem állítja vissza. A
+# felügyelt (MDM) házirend máshol él (/Library/Managed Preferences) — azt ez
+# nem érinti.
 for d in /Library/Preferences/com.google.Chrome /Library/Preferences/com.microsoft.Edge \
          /Library/Preferences/org.chromium.Chromium /Library/Preferences/com.brave.Browser; do
   if [ "$(defaults read "$d" DnsOverHttpsMode 2>/dev/null)" = "off" ]; then
     defaults delete "$d" DnsOverHttpsMode 2>/dev/null || true
   fi
 done
-FF_DOH=$(defaults read /Library/Preferences/org.mozilla.firefox DNSOverHTTPS 2>/dev/null || true)
+FF=/Library/Preferences/org.mozilla.firefox
+FF_MARK="/Library/Application Support/Breaker/firefox-policy-switch"
+FF_OURS=0
+FF_DOH=$(defaults read $FF DNSOverHTTPS 2>/dev/null || true)
 case "$FF_DOH" in
   *"Enabled = 0;"*"Locked = 1;"*)
-    defaults delete /Library/Preferences/org.mozilla.firefox DNSOverHTTPS 2>/dev/null || true
-    # A házirend-kapcsolót (EnterprisePoliciesEnabled) csak akkor, ha rajta
-    # kívül semmi nem maradt: egy másik eszköz saját Firefox-házirendje
-    # enélkül hatástalanná válna.
-    FF_REST=$(defaults read /Library/Preferences/org.mozilla.firefox 2>/dev/null | tr -d ' \t\n' || true)
-    if [ "$FF_REST" = "{EnterprisePoliciesEnabled=1;}" ]; then
-      defaults delete /Library/Preferences/org.mozilla.firefox EnterprisePoliciesEnabled 2>/dev/null || true
-    fi ;;
+    defaults delete $FF DNSOverHTTPS 2>/dev/null || true
+    FF_OURS=1 ;;
 esac
+# A házirend-kapcsoló (EnterprisePoliciesEnabled). Ha a segéd kapcsolta be —
+# előtte nem volt ott, és ezt az első beírásakor feljegyezte —, vele megy:
+# különben egy addig hatástalan idegen Firefox-házirend az eltávolítás után is
+# élne, a böngésző „felügyelt” maradna. Feljegyzés nélkül (a v0.4.256 előtti
+# segéd) csak akkor, ha rajta kívül semmi nem maradt: egy másik eszköz saját
+# Firefox-házirendje enélkül hatástalanná válna.
+if [ -f "$FF_MARK" ]; then
+  defaults delete $FF EnterprisePoliciesEnabled 2>/dev/null || true
+elif [ "$FF_OURS" = 1 ]; then
+  FF_REST=$(defaults read $FF 2>/dev/null | tr -d ' \t\n' || true)
+  if [ "$FF_REST" = "{EnterprisePoliciesEnabled=1;}" ]; then
+    defaults delete $FF EnterprisePoliciesEnabled 2>/dev/null || true
+  fi
+fi
+
+# A böngésző-DoH zár profil (hu.breaker.doh), ha a felhasználó a Kinézet
+# panelről telepítette: nélküle a böngészők az eltávolítás után is
+# „felügyeltek” maradnának, a titkosított DNS kötelezően kikapcsolva. Egy
+# kézzel telepített (nem MDM-es) profilt a root levehet; ha mégsem sikerül,
+# megmondjuk, hol veheti le a felhasználó.
+if { profiles list -all 2>/dev/null || profiles list 2>/dev/null; } | grep -q 'hu\.breaker\.doh'; then
+  echo "A böngésző-DoH zár profil eltávolítása..."
+  profiles remove -identifier hu.breaker.doh >/dev/null 2>&1 || true
+  if { profiles list -all 2>/dev/null || profiles list 2>/dev/null; } | grep -q 'hu\.breaker\.doh'; then
+    echo "A „Breaker — böngésző-DoH zár” profil fent maradt: távolítsd el kézzel — Rendszerbeállítások › Általános › Eszközkezelés (régebbi macOS-en: Adatvédelem és biztonság › Profilok; macOS 12-n és előtte: Rendszerbeállítások › Profilok)."
+  fi
+fi
 
 echo "Állapotfájlok törlése..."
 rm -rf "/Library/Application Support/Breaker" /Library/Logs/Breaker /var/run/breaker.sock

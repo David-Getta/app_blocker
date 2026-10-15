@@ -409,11 +409,16 @@ struct ContentView: View {
     private var dohBanner: some View {
         if tunnel.status == .connected,
            let text = DohHosts.cardText(host: store.state.dohSeenHost, at: store.state.dohSeenAt,
-                                        dismissedHost: store.state.dohDismissedHost, now: now, android: false) {
+                                        dismissed: store.state.dohDismissedList, now: now, android: false) {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Titkosított DNS a szűrő mellett?").font(.subheadline.bold())
                 Text(text).font(.footnote)
-                Button("Értem") { _ = store.mutate { $0.dohDismissedHost = $0.dohSeenHost } }
+                Button("Értem") {
+                    _ = store.mutate {
+                        $0.dohDismissedHosts = DohHosts.dismiss($0.dohDismissedList, $0.dohSeenHost)
+                        $0.dohDismissedHost = nil
+                    }
+                }
                     .buttonStyle(.bordered)
             }
             .frame(maxWidth: .infinity, alignment: .leading)

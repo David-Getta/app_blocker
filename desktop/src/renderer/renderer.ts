@@ -42,6 +42,7 @@ import {
   LIMIT_SOON_TITLE, limitFullLine, limitSoonLine, MAX_LIMIT_MINUTES, stepLimitNotices, type LimitWatch,
 } from '../shared/limits.js';
 import { needsMeasurement } from '../shared/measure-guard.js';
+import { dohLockLine, DOH_PROFILE_WHERE, type DohLockState } from '../shared/doh-lock.js';
 import { refreshDue, VISIBLE_REFRESH_MS } from '../shared/refresh-cadence.js';
 import {
   formatRemaining, isRunning as focusIsRunning, isWindowRun, MAX_ALLOW_ENTRIES, MAX_PACK_NAME,
@@ -123,9 +124,9 @@ interface Bridge {
   /** a rejtett lista zárja: a gép azonosítása (Macen Touch ID); a régi híd nem tudja — akkor „nincs mivel” */
   authenticate?(reason: string): Promise<{ ok: boolean; unavailable?: boolean; error?: string }>;
   /** macOS: a böngésző-DoH zár profil mentése és megnyitása; a régi híd nem tudja — akkor nincs gomb */
-  saveDohProfile?(): Promise<{ ok: true; path: string } | { ok: false; canceled?: boolean; error?: string }>;
-  /** macOS: érvényben van-e most a kötelező DoH-tilalom; a régi híd nem tudja — akkor nincs sor */
-  getDohLockState?(): Promise<{ forcedOff: string[]; total: number } | null>;
+  saveDohProfile?(): Promise<{ ok: true; path: string; openError?: string } | { ok: false; canceled?: boolean; error?: string }>;
+  /** macOS: mi érvényes most a böngészők DoH-járól; a régi híd nem tudja — akkor nincs sor */
+  getDohLockState?(): Promise<DohLockState | null>;
   platform: string;
 }
 declare global { interface Window { breaker: Bridge } }
@@ -1480,13 +1481,16 @@ function setupSelfTest(): void {
 
 /**
  * A böngésző-DoH zár (csak macOS). A segéd a gépszintű beállításokba írja a
- * tilalmat, de macOS-en ez csak ajánlás: a böngésző beállításaiban
- * visszakapcsolható. A profil kötelezővé teszi — a felhasználó maga
- * telepíti, és ugyanott bármikor eltávolíthatja. Csak szigorít.
+ * tilalmat; ezt a Chromium-család (Chrome, Edge, Chromium, Brave) csak
+ * ajánlásnak veszi — a böngésző beállításaiban visszakapcsolható —, a
+ * Firefox zárolja, de a felhasználó saját beállítása (Terminálból) felülírja.
+ * A profil mindegyikben kötelezővé teszi — a felhasználó maga telepíti, és
+ * ugyanott bármikor eltávolíthatja. Csak szigorít.
  */
 /**
- * A DoH-zár ÁLLAPOTA: ami a gép kezelt beállításai között áll, böngészőnként.
- * Tükör, nem ígéret — a profil telepítését az app nem látja, csak a hatását.
+ * A DoH-zár ÁLLAPOTA böngészőnként, abból, amit a böngésző tényleg olvasna
+ * (main/doh-lock-state.ts; a mondat: shared/doh-lock.ts). Tükör, nem ígéret —
+ * a profil telepítését az app nem látja, csak a hatását.
  */
 async function refreshDohLockState(): Promise<void> {
   const line = $('dohLockLine');
@@ -1495,15 +1499,7 @@ async function refreshDohLockState(): Promise<void> {
   const st = await get().catch(() => null);
   if (!st) { line.classList.add('hidden'); return; }
   line.classList.remove('hidden');
-  if (st.forcedOff.length === st.total) {
-    line.textContent = 'Most érvényben: a böngészők DoH-tilalma kötelező (a gép kezelt beállításaiból). '
-      + 'Ha el akarod engedni, a profilt a Rendszerbeállításokban távolíthatod el.';
-  } else if (st.forcedOff.length > 0) {
-    line.textContent = `Részben érvényben: kötelező ${st.forcedOff.join(', ')} alatt; a többi böngészőben `
-      + 'csak alapértelmezés.';
-  } else {
-    line.textContent = 'Most nincs kötelező DoH-tilalom: a böngészők beállításaiban visszakapcsolható.';
-  }
+  line.textContent = dohLockLine(st);
 }
 
 function setupDohProfile(): void {
@@ -1513,8 +1509,13 @@ function setupDohProfile(): void {
   box.classList.remove('hidden');
   void refreshDohLockState();
   // A telepítés a Rendszerbeállításokban történik, nem itt: a panel minden
-  // megnyitásakor újranézzük, hogy a sor a mostani állapotot mondja.
+  // megnyitásakor újranézzük, hogy a sor a mostani állapotot mondja — és
+  // akkor is, amikor a felhasználó a Rendszerbeállításokból visszajön (az
+  // ablak újra fókuszt kap), mert a doboz pont oda küldi, nyitott panellel.
   $('themeBtn').addEventListener('click', () => { void refreshDohLockState(); });
+  window.addEventListener('focus', () => {
+    if (!$('themePanel').classList.contains('hidden')) void refreshDohLockState();
+  });
   const btn = $('dohProfileBtn') as HTMLButtonElement;
   const note = $('dohProfileNote');
   btn.addEventListener('click', async () => {
@@ -1524,8 +1525,12 @@ function setupDohProfile(): void {
       note.classList.remove('hidden');
       if (r.ok) {
         note.className = 'hint';
-        note.textContent = `Elmentve: ${r.path}. Telepítés: Rendszerbeállítások › Adatvédelem és `
-          + 'biztonság › Profilok (újabb macOS-en: Általános › Eszközkezelés) — ott jóváhagyod. '
+        // A fájl elkészült; ha a rendszer nem nyitotta meg, a felhasználó maga
+        // nyitja meg — a profil csak a megnyitás után jelenik meg a beállításokban.
+        const opened = r.openError
+          ? `Elmentve: ${r.path}, de magától nem nyílt meg (${r.openError}) — nyisd meg dupla kattintással a Finderben. `
+          : `Elmentve: ${r.path}. `;
+        note.textContent = `${opened}${DOH_PROFILE_WHERE} — ott jóváhagyod. `
           + 'Ellenőrzés: chrome://policy — a DnsOverHttpsMode mellett kötelező (Mandatory) szint '
           + 'áll. A profilt ugyanott bármikor eltávolíthatod.';
       } else if ('canceled' in r && r.canceled) {

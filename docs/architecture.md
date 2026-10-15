@@ -37,20 +37,32 @@ másodpercen belül visszaállítja.
   Chrome/Edge/Chromium/Brave/Firefox alatt (best effort, naplózva; a lista és
   a parancsok: `src/helper/doh-policy.ts`, a teszt a két platform egyezését
   nézi). Windowson ez házirend-kulcs a registryben — a Firefoxé is, így a
-  később vagy felhasználónként telepített Firefoxra is hat —, tehát zár;
-  **macOS-en MDM-profil nélkül csak alapértelmezés, amit a felhasználó felül
-  tud bírálni** — ezt a korlátok között is kimondjuk. A Firefox app-bundle-jébe
-  és telepítési mappájába szándékosan NEM írunk (lásd lentebb). Az eltávolító
-  szkript ugyanezt leveszi, de csak a mieinket (a Chromium-kulcsban az „off”
-  értéket, a Firefoxnál a két saját értéket); a CI Windows-próbája
-  (`win-doh-probe.ps1`) a valódi segéd-kóddal írja be, és a valódi
-  eltávolítóval veszi le. macOS-en a Firefoxnál a házirend-kapcsolót
-  (`EnterprisePoliciesEnabled`) is beírjuk: nélküle a Firefox macOS-en
-  egyetlen házirendet sem olvas (a v0.4.253 előtt ez hiányzott — a
-  DNSOverHTTPS ott állt, hatás nélkül). Az eltávolító a kapcsolót csak akkor
-  veszi le, ha a tartományban rajta kívül semmi nem maradt. A CI
-  macOS-próbája (`mac-doh-probe.sh`) ugyanezt rootként, valódi macOS-en
-  nézi, az eltávolító hosts-takarításával együtt.
+  később vagy felhasználónként telepített Firefoxra is hat —, tehát zár. A
+  Firefox kulcsába a `Fallback=1` is a miénk (v0.4.256): a Firefox a kulcs
+  minden értékét egy házirendként olvassa, és egy ott maradt `Fallback=0`
+  mellett az `Enabled=0` „csak DoH”-t jelentene, zárolva. **macOS-en MDM-profil
+  nélkül a Chromium-család csak ajánlásnak veszi, amit a felhasználó a
+  böngészőben felül tud bírálni; a Firefox zárolja, de a felhasználó saját
+  beállítás-tartománya (Terminálból) erősebb nála** — ezt a korlátok között is
+  kimondjuk. A Firefox app-bundle-jébe és telepítési mappájába szándékosan NEM
+  írunk (lásd lentebb). Az eltávolító szkript ugyanezt leveszi, ÉRTÉK SZERINT
+  (a Chromium-kulcsban az „off”-ot, a Firefoxnál a saját értékeket) — egy
+  ugyanilyen idegen értéket is, mert a beállítás nem tudja, ki írta; a segéd
+  által felülírt korábbi értéket nem állítja vissza; Windowson a teljesen
+  üresen maradt kulcsot is törli, mert a Firefox egy üres `DNSOverHTTPS`
+  kulcsot is házirendnek venne. A CI Windows-próbája (`win-doh-probe.ps1`) a
+  valódi segéd-kóddal írja be, és a valódi eltávolítóval veszi le. macOS-en a
+  Firefoxnál a házirend-kapcsolót (`EnterprisePoliciesEnabled`) is beírjuk:
+  nélküle a Firefox macOS-en egyetlen házirendet sem olvas (a v0.4.253 előtt
+  ez hiányzott — a DNSOverHTTPS ott állt, hatás nélkül). Ha előtte nem volt
+  ott, a segéd ezt egyszer feljegyzi (`FIREFOX_SWITCH_MARK`), és az eltávolító
+  akkor leveszi — a kapcsolóval a tartomány addig hatástalan idegen
+  házirendjei is életre keltek volna, és utána is élnének. Feljegyzés nélkül
+  (a v0.4.256 előtti segéd) csak akkor, ha rajta kívül semmi nem maradt. Ha a
+  felhasználó telepítette, a DoH-zár profilt is leveszi. A CI macOS-próbája
+  (`mac-doh-probe.sh`) ugyanezt rootként, valódi macOS-en nézi, az eltávolító
+  hosts-takarításával együtt — az eltávolítót egy olyan PATH-szal futtatva,
+  amin a python nem indul (a gyári macOS-en nincs).
 
 ### Android — VpnService DNS sinkhole
 Egy helyi `VpnService` (nem távoli VPN — a forgalom nem hagyja el a készüléket)
@@ -588,10 +600,14 @@ Ismert megkerülési utak (szándékosan nem próbáljuk „lelakatolni” a gé
   kiszolgáló nevét látja átmenni (`DohHosts`: a Chromium szolgáltatólistája
   és a gyakori szolgáltatók, a profilonkénti NextDNS/Control D nevek
   végződés szerint), feljegyzi a nevet és az időt (ugyanazt tízpercenként
-  egyszer; helyi mező, a szinkronra nem megy), és a főképernyő kártyája egy
-  napig mondja. Az „Értem” csak azt a nevet némítja, egy másik visszahozza.
-  Androidon szigorú Privát DNS mellett hallgat — azt az erősebb kártya már
-  mondja. Tiltás nincs: egy elrontott DNS-beállítás az egész internetet
+  egyszer; helyi mező, a szinkronra nem megy, és a szinkron sem írja vissza
+  egy régi másolattal — `keepLocal`), és a főképernyő kártyája egy napig
+  mondja. Az „Értem” csak azt a nevet némítja, egy másik visszahozza; a
+  némított nevek listán vannak (legfeljebb 32), és egy némított név újabb
+  kérdése nem túrja ki a még nem látott, másik nyomot. Androidon szigorú
+  Privát DNS mellett hallgat — azt az erősebb kártya már mondja —, és akkor
+  nem is jegyez: az appok kérdése ilyenkor TLS-en a beállított kiszolgálóhoz
+  megy, ami a szűrőhöz ér, az a rendszer saját kérdése a beállított névre. Tiltás nincs: egy elrontott DNS-beállítás az egész internetet
   vinné el, és a döntés a felhasználóé. Őszinte határ: csak a listán lévő
   neveket ismeri fel, nem látja, melyik app kérdezett, és egy beépített
   címmel induló app nem kérdez semmit — a csend nem bizonyíték.
@@ -602,11 +618,16 @@ Ismert megkerülési utak (szándékosan nem próbáljuk „lelakatolni” a gé
   kézzel bekapcsolt DoH-ra nem hat, a Chrome nem kérdezi; a gép hosts fájlja
   NXDOMAIN-t nem tud adni (ott a házirend dolgozik). Forrás: [Mozilla — Canary
   domain](https://support.mozilla.org/kb/canary-domain-use-application-dnsnet).
-- **macOS-en a böngésző-DoH kikapcsolása nem zár, csak alapértelmezést állít.**
-  A Chromium a `/Library/Preferences`-ben talált értéket csak akkor kezeli
-  kötelező házirendként, ha az „forced” (MDM-profilból jön); enélkül ajánlásnak
-  veszi, tehát a felhasználó a böngésző beállításaiban visszakapcsolhatja.
-  Rendes zárás MDM/konfigurációs profilt igényelne. Ezért a felület csak annyit
+- **macOS-en a böngésző-DoH kikapcsolása profil nélkül nem kötelező.**
+  A Chromium (Chrome, Edge, Chromium, Brave) a `/Library/Preferences`-ben
+  talált értéket csak akkor kezeli kötelező házirendként, ha az „forced”
+  (kezelt beállításból, profilból jön); enélkül ajánlásnak veszi, tehát a
+  felhasználó a böngésző beállításaiban visszakapcsolhatja. A Firefox nem tesz
+  ilyen különbséget: a gépszintű `DNSOverHTTPS` (`Locked`) a beállításait
+  szürkére zárja — de a felhasználó saját tartománya (`~/Library/Preferences`,
+  egy `defaults write` a Terminálban, rendszergazda nélkül) erősebb nála, és
+  felülírhatja (akár a kapcsolót is kikapcsolhatja). Rendes zárás kezelt
+  beállítást (konfigurációs profilt) igényel. Ezért a felület csak annyit
   állít, hogy a házirendet alkalmaztuk — nem azt, hogy a DoH nem kapcsolható be.
   A profilt (v0.4.254 óta) az app el is készíti: a Kinézet panelen menthető
   `.mobileconfig` (`dohProfileXml`, a segéddel közös böngészőlistából) egy
@@ -619,12 +640,19 @@ Ismert megkerülési utak (szándékosan nem próbáljuk „lelakatolni” a gé
   plist-olvasóval, a CI macOS-próbája a valódi `plutil`-lal nézi. Amit nem
   tudunk ellenőrizni: hogy egy adott gépen egy szervezeti beállítás
   (allowUIConfigurationProfileInstallation) tiltja-e a kézi telepítést.
-  Hogy a profil hatott-e, azt az app a HATÁSÁBÓL mondja (`dohLockState`): a
-  gép kezelt beállításai (`/Library/Managed Preferences`) között böngészőnként
-  megnézi, kötelező-e az „off” (a Firefoxnál: a kapcsoló ÉS a zárolt,
-  kikapcsolt DNSOverHTTPS) — a panel minden megnyitásakor, mert a
-  telepítés a Rendszerbeállításokban történik. Tükör, nem ígéret: egy
-  szervezeti felügyelet ugyanígy látszik, és a sor nem mondja, honnan jön.
+  Hogy a profil hatott-e, azt az app a HATÁSÁBÓL mondja (`dohLockState`):
+  böngészőnként abból a forrásból olvas, ahonnan a böngésző venné, a
+  CFPreferences sorrendjében — a kezelt beállítás (`/Library/Managed
+  Preferences`, előbb a felhasználóé, aztán a gépé), a felhasználó saját
+  tartománya, a gépszintű tartomány. Kötelező, ha a kezelt beállításban „off”
+  áll (a Firefoxnál: a kapcsoló ÉS a zárolt, kikapcsolt DNSOverHTTPS is
+  kezelt); „zárolva a böngészőben, de felülírható”, ha a Firefox a gépszintű
+  vagy a felhasználói tartományból kapja; a többi a böngészőben
+  visszakapcsolható (a mondat: `shared/doh-lock.ts`). A panel minden
+  megnyitásakor és az ablak fókuszba kerülésekor újranézi, mert a telepítés a
+  Rendszerbeállításokban történik. Tükör, nem ígéret: egy szervezeti
+  felügyelet ugyanígy látszik, a sor nem mondja, honnan jön — ezért a
+  levételt is csak feltételesen ígéri („ha a Breaker profilja adja”).
 - **A telepítő emelt része nem fájlból olvas** (v0.4.212 óta). Korábban a
   privilegizált telepítés egy shell-, illetve PowerShell-szkriptet és egy
   plistet írt a felhasználó temp könyvtárába, és azt futtatta emelt joggal; a

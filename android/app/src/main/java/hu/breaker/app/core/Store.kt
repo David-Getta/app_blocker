@@ -216,13 +216,13 @@ data class AppState(
     val quietSuggestions: Boolean = false,
     /**
      * A titkosított DNS NYOMA: a legutóbb kérdezett ismert DoH/DoT-kiszolgáló
-     * neve és ideje (a szűrő írja), és a név, amire a felhasználó már azt
-     * mondta: értem. Helyi — a másik eszköznek semmit nem mondana. Lásd
-     * core/DohHosts.kt.
+     * neve és ideje (a szűrő írja), és a nevek, amelyekre a felhasználó már
+     * azt mondta: értem (DohHosts.MAX_DISMISSED). Helyi — a másik eszköznek
+     * semmit nem mondana. Lásd core/DohHosts.kt.
      */
     val dohSeenHost: String? = null,
     val dohSeenAt: Long? = null,
-    val dohDismissedHost: String? = null,
+    val dohDismissedHosts: List<String> = emptyList(),
     /** fiók a szinkronhoz; null = nincs bejelentkezve */
     val sync: SyncAccount? = null,
     /**
@@ -641,7 +641,7 @@ object BreakerStore {
         put("quietSuggestions", s.quietSuggestions)
         put("dohSeenHost", s.dohSeenHost ?: JSONObject.NULL)
         put("dohSeenAt", s.dohSeenAt ?: JSONObject.NULL)
-        put("dohDismissedHost", s.dohDismissedHost ?: JSONObject.NULL)
+        put("dohDismissedHosts", JSONArray(s.dohDismissedHosts))
         // A zárlat a lemezre is megy: egy újraindítás nem oldhatja fel azt,
         // aminek szándékosan nincs visszaútja.
         put("lockdown", s.lockdown?.let { l ->
@@ -1063,7 +1063,10 @@ object BreakerStore {
             quietSuggestions = o.optBoolean("quietSuggestions", false),
             dohSeenHost = if (o.isNull("dohSeenHost")) null else o.optString("dohSeenHost"),
             dohSeenAt = if (o.isNull("dohSeenAt")) null else o.optLong("dohSeenAt"),
-            dohDismissedHost = if (o.isNull("dohDismissedHost")) null else o.optString("dohDismissedHost"),
+            // A v0.4.256 előtti állapot egyetlen nevet tartott (dohDismissedHost).
+            dohDismissedHosts = (SyncClient.stringsFromJson(o.optJSONArray("dohDismissedHosts")) +
+                listOfNotNull((o.opt("dohDismissedHost") as? String)))
+                .distinct().takeLast(DohHosts.MAX_DISMISSED),
             lockdown = if (o.isNull("lockdown")) null else runCatching {
                 val l = o.getJSONObject("lockdown")
                 LockdownLogic.parse(

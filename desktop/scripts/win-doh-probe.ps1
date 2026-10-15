@@ -7,8 +7,11 @@
 #      két registry-értéke is;
 #   2. a gép saját Firefox policies.json-ja (ha van) érintetlen marad — a
 #      v0.4.252 előtti segéd az egész fájlt cserélte;
-#   3. az eltávolítás után a mieink eltűntek, egy IDEGEN érték (amit nem mi
-#      írtunk) viszont marad.
+#   3. egy ott talált Fallback=0 nem csinál a „DoH ki”-ből „csak DoH”-t (a
+#      Firefox: `if (Fallback === false) mode = 3`) — a segéd 1-re írja;
+#   4. az eltávolítás után a mieink eltűntek, egy IDEGEN érték (amit nem mi
+#      írtunk) viszont marad, és a próba előtt nem létező kulcs sem marad
+#      üresen (a Firefox egy üres DNSOverHTTPS-kulcsot is házirendnek vesz).
 # Kilépési kód 0, ha minden stimmel; különben 1.
 
 $ErrorActionPreference = 'Stop'
@@ -47,6 +50,15 @@ if (${env:ProgramFiles(x86)}) {
   }
 }
 
+# Melyik házirend-kulcs volt meg a próba ELŐTT — ami nem, az utána se maradjon.
+$keysBefore = @{}
+foreach ($k in $chromium + @($ff, 'HKLM:\SOFTWARE\Policies\Mozilla\Firefox', 'HKLM:\SOFTWARE\Policies\Mozilla')) {
+  $keysBefore[$k] = Test-Path $k
+}
+# Egy ott maradt Fallback=0 (valaki egy „csak DoH” leírást követett).
+New-Item -Force -Path $ff | Out-Null
+New-ItemProperty -Path $ff -Name 'Fallback' -Value 0 -PropertyType DWord -Force | Out-Null
+
 # A gép Firefox-házirendjei, ahogy most vannak.
 $polFiles = @{}
 foreach ($base in @($env:ProgramFiles, ${env:ProgramFiles(x86)})) {
@@ -64,23 +76,29 @@ Pop-Location
 if ($code -ne 0) { Fail "az applyDohPolicies nem sikerült ($code)" }
 foreach ($k in $chromium) { if ((Val $k 'DnsOverHttpsMode') -ne 'off') { Fail "$k : a DnsOverHttpsMode nem off" } }
 if ((Val $ff 'Enabled') -ne 0 -or (Val $ff 'Locked') -ne 1) { Fail 'a Firefox registry-házirendje hiányzik' }
+if ((Val $ff 'Fallback') -ne 1) { Fail "a Firefox Fallback-je nem 1 ($(Val $ff 'Fallback')) — a „DoH ki” így „csak DoH” lenne" }
 
 # 2. A gép policies.json-ja érintetlen.
 foreach ($pol in $polFiles.Keys) {
   if ((Get-Content $pol -Raw) -ne $polFiles[$pol]) { Fail "a segéd átírta: $pol" }
 }
 
-# 3. Egy idegen érték: valaki a Brave-et kézzel „secure”-ra állította.
+# 4. Egy idegen érték: valaki a Brave-et kézzel „secure”-ra állította.
 Set-ItemProperty -Path 'HKLM:\SOFTWARE\Policies\BraveSoftware\Brave' -Name 'DnsOverHttpsMode' -Value 'secure'
 
-# 4. A valódi eltávolító.
+# 5. A valódi eltávolító.
 powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'uninstall-windows.ps1') | Out-Host
 
 foreach ($k in $chromium[0..2]) {
   if ($null -ne (Val $k 'DnsOverHttpsMode')) { Fail "$k : a mi „off” értékünk ott maradt" }
 }
 if ((Val 'HKLM:\SOFTWARE\Policies\BraveSoftware\Brave' 'DnsOverHttpsMode') -ne 'secure') { Fail 'az idegen Brave-érték eltűnt' }
-if ($null -ne (Val $ff 'Enabled') -or $null -ne (Val $ff 'Locked')) { Fail 'a Firefox registry-házirendje ott maradt' }
+if ($null -ne (Val $ff 'Enabled') -or $null -ne (Val $ff 'Locked') -or $null -ne (Val $ff 'Fallback')) { Fail 'a Firefox registry-házirendje ott maradt' }
+foreach ($k in $keysBefore.Keys) {
+  if (-not $keysBefore[$k] -and $k -ne 'HKLM:\SOFTWARE\Policies\BraveSoftware\Brave' -and (Test-Path $k)) {
+    Fail "$k : a próba előtt nem volt, és üresen ott maradt"
+  }
+}
 foreach ($pol in $polFiles.Keys) {
   $before = $polFiles[$pol]
   if (($before -replace '\s', '') -eq $ours) { continue }  # a régi segédé volt: mehet
@@ -89,5 +107,5 @@ foreach ($pol in $polFiles.Keys) {
 
 if ($seedOurs -and (Test-Path $seedOurs)) { Fail "a régi segéd saját policies.json-ja ott maradt: $seedOurs" }
 
-if ($script:fail -eq 0) { Write-Host 'DoH-házirend próba OK (beírás, a gép policies.json-ja érintetlen, levétel, az idegen érték marad)' }
+if ($script:fail -eq 0) { Write-Host 'DoH-házirend próba OK (beírás, Fallback=1, a gép policies.json-ja érintetlen, levétel, az idegen érték marad, üres kulcs nem marad)' }
 exit $script:fail

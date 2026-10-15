@@ -188,18 +188,49 @@ powershell -ExecutionPolicy Bypass -File desktop/scripts/uninstall-windows.ps1  
 
 A szkript a böngészők DoH-házirendjét is leveszi, amit a segéd tett fel —
 különben a Breaker törlése után a böngésző „szervezet által felügyelt”
-maradna, a titkosított DNS zárolva. Csak a mieinket: a Chromium-családnál
-(Chrome, Edge, Chromium, Brave) az „off” értéket, a Firefoxnál a két saját
-értéket; amit valaki más állított be, marad. Egy szervezet saját házirendjét
-(GPO, MDM) ez nem érinti — azt a következő frissítése úgyis visszaírja.
+maradna, a titkosított DNS zárolva. Mit és hogyan:
+
+- **Érték szerint dönt, mert azt, hogy ki írta, a beállítás nem tudja.** A
+  Chromium-családnál (Chrome, Edge, Chromium, Brave) a `DnsOverHttpsMode = off`
+  értéket veszi le, a Firefoxnál a saját értékeit (Windowson `Enabled=0`,
+  `Locked=1` és — a v0.4.256 óta — `Fallback=1`; macOS-en a zárolt, kikapcsolt
+  `DNSOverHTTPS` szótárat). Egy ugyanilyen értéket, amit valaki más tett oda
+  (egy másik program, kézzel, vagy Windowson egy GPO), ugyanígy levesz: egy
+  GPO értékét a házirend következő teljes alkalmazása írja vissza (ez nem
+  feltétlenül a legközelebbi háttérfrissítés — biztosan egy `gpupdate /force`
+  után), egy kézzel vagy egy másik programmal beállított érték nem jön vissza.
+- **Ami más értéket tart, az marad** — például egy „secure”-ra állított
+  Brave, vagy egy idegen Firefox-házirend.
+- **Amit a segéd a futása alatt felülírt, azt nem állítja vissza.** A segéd
+  minden indulásakor a saját értékét írja ezekbe a kulcsokba; ha előtte más
+  állt ott (egy „secure”, egy saját Firefox-DoH-beállítás), az a Breaker
+  mellett már nem élt, és az eltávolítás után sem tér vissza.
+- **A Firefox házirend-kapcsolója macOS-en** (`EnterprisePoliciesEnabled`):
+  ha a segéd kapcsolta be — előtte nem volt ott, és ezt az első beíráskor
+  feljegyezte —, vele megy, akkor is, ha mellette más Firefox-kulcs áll (azok
+  a Breaker előtt hatástalanok voltak, és nélküle újra azok). Ha már előtte
+  ott volt, marad. A v0.4.256 előtti telepítésnél nincs feljegyzés: akkor
+  csak akkor megy, ha rajta kívül semmi nem maradt.
+- **Üres kulcs nem marad** (Windows): a Firefox egy üres `DNSOverHTTPS`
+  kulcsot is házirendnek venne, ami egy `policies.json` DoH-beállítását
+  felülírná. Csak a teljesen üres kulcs megy, a `Policies` alá soha.
+- **macOS-en a DoH-zár profilt is leveszi** (`hu.breaker.doh`), ha a
+  Kinézet panelről telepítetted; ha a rendszer nem engedi, kiírja, hol veheted
+  le kézzel (Rendszerbeállítások › Általános › Eszközkezelés; régebbi
+  macOS-en Adatvédelem és biztonság › Profilok, a 12-esen és előtte
+  Profilok). Egy szervezet MDM-mel telepített profilját és kezelt
+  beállításait (`/Library/Managed Preferences`) nem érinti.
+
 A macOS-szkript pythont nem használ (a mai macOS-en gyárilag nincs): a
 hosts-blokkot `awk` veszi ki, és csak akkor nyúl a fájlhoz, ha a blokk mindkét
-jelölője megvan.
+jelölője megvan. A CI macOS-próbája az eltávolítót egy olyan PATH-szal
+futtatja, amin a python nem indul.
 
 Ami a szkript után is marad, az a felhasználó saját mappája és a böngésző:
 az app felhasználói mappája (macOS: `~/Library/Application Support/Breaker`,
 Windows: `%APPDATA%\Breaker`) — benne apró beállítások (gyorsbillentyű, a
 helyi szinkron-kiszolgáló kapcsolója), a segéd és a bővítmény-híd kulcsa, és a bővítmény
-kimásolt mappája —, valamint a böngészőbe betöltött bővítmény. Ezek a segéd
-nélkül semmit nem tiltanak; ha nyomtalanul akarod, a mappát töröld kézzel, a
-bővítményt pedig vedd ki a böngésző bővítménykezelőjében.
+kimásolt mappája —, a böngészőbe betöltött bővítmény, és macOS-en a mentett
+`Breaker-DoH.mobileconfig` fájl (alapból a Letöltések mappában). Ezek a segéd
+nélkül semmit nem tiltanak; ha nyomtalanul akarod, a mappát és a fájlt töröld
+kézzel, a bővítményt pedig vedd ki a böngésző bővítménykezelőjében.

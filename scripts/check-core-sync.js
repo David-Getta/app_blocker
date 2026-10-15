@@ -677,11 +677,17 @@ const PHONE_PAIRS = [
 // a ritkítással jegyzi fel, ugyanannyi ideig mutatja — és a Firefox kanárija is
 // ugyanaz a név. Ha az egyik lista bővül, a másik nem, ugyanaz a böngésző az
 // egyik telefonon szólna, a másikon nem.
-/** Idézett nevek egy halmazból, rendezve — a két nyelv más zárójelet ír. */
+/**
+ * Idézett nevek egy halmazból, rendezve — a két nyelv más zárójelet ír. A
+ * megjegyzés NEM tag: egy kikommentezett név (`// "doh.cox.net",`) azon a
+ * telefonon már nem ismert, ezért a szöveget és a megjegyzést együtt bontjuk
+ * fel, és csak a szöveg-literál számít (egy `//` a névben így nem vág le semmit).
+ */
 function nameSet(text, re, label) {
   const m = text.match(re);
   if (!m) return { missing: label };
-  return (m[1].match(/"([^"]+)"/g) || []).map((q) => q.slice(1, -1)).sort();
+  const toks = m[1].match(/"(?:[^"\\]|\\.)*"|\/\/[^\n]*|\/\*[\s\S]*?\*\//g) || [];
+  return toks.filter((t) => t[0] === '"').map((q) => q.slice(1, -1)).sort();
 }
 PHONE_PAIRS.push(
   ['DOH_KNOWN',
@@ -696,6 +702,9 @@ PHONE_PAIRS.push(
   ['DOH_SHOW_FOR_MS',
     scalar(kt.dohHosts, /SHOW_FOR_MS\s*=\s*(.+)/, 'kt'),
     scalar(sw.dohHosts, /showForMs: Double = (.+)/, 'sw')],
+  ['DOH_MAX_DISMISSED',
+    scalar(kt.dohHosts, /MAX_DISMISSED\s*=\s*(.+)/, 'kt'),
+    scalar(sw.dohHosts, /maxDismissed = (.+)/, 'sw')],
   ['DOH_CANARY',
     quotedText(kt.dohCanary, /NAME = "([^"]+)"/, 'kt'),
     quotedText(sw.dohCanary, /name = "([^"]+)"/, 'sw')],

@@ -43,7 +43,9 @@ object DohHosts {
         "dns.controld.com", "freedns.controld.com",
         // Egyéb a Chromium listájáról és gyakoriak
         "dns0.eu", "doh.dns.sb", "dns.sb", "odvr.nic.cz", "dns.levonet.sk",
-        "protective.joindns4.eu", "public.dns.iij.jp", "doh.xfinity.com", "doh.cox.net",
+        "protective.joindns4.eu", "public.dns.iij.jp", "doh.xfinity.com", "dot.xfinity.com",
+        "doh.cox.net", "dot.cox.net", "doh.quickline.ch", "dot.quickline.ch",
+        "doh-01.spectrum.com", "doh-02.spectrum.com",
     )
 
     /** Profilonkénti nevek (pl. abc123.dns.nextdns.io): a végződés is elég. */
@@ -63,16 +65,24 @@ object DohHosts {
 
     fun matches(name: String): Boolean = hostOf(name) != null
 
-    /** Kell-e új feljegyzés: más név, vagy régebbi a ritkításnál (vagy az óra visszaugrott). */
-    fun shouldNote(prevHost: String?, prevAt: Long?, host: String, now: Long): Boolean =
-        prevHost != host || prevAt == null || now - prevAt >= NOTE_EVERY_MS || now < prevAt
+    /** Ennyi nevet jegyez meg az „Értem” — a legrégebbi esik ki, ha betelt. */
+    const val MAX_DISMISSED = 32
+
+    /**
+     * Kell-e új feljegyzés: más név, vagy régebbi a ritkításnál (vagy az óra
+     * visszaugrott). Amire a felhasználó már azt mondta: értem, az nem kerül a
+     * helyre — különben egy némított név újabb kérdése kitúrná a még nem
+     * látott, MÁSIK nyomot, és a kártya aszerint villogna, ki kérdezett utoljára.
+     */
+    fun shouldNote(prevHost: String?, prevAt: Long?, host: String, now: Long, dismissed: Collection<String>): Boolean =
+        host !in dismissed && (prevHost != host || prevAt == null || now - prevAt >= NOTE_EVERY_MS || now < prevAt)
 
     /**
      * A kártya szövege — null, ha nincs friss nyom, vagy a felhasználó erre a
      * névre már azt mondta: értem (akkor csak egy MÁSIK név hozza vissza).
      */
-    fun cardText(host: String?, at: Long?, dismissedHost: String?, now: Long, android: Boolean): String? {
-        if (host == null || at == null || host == dismissedHost) return null
+    fun cardText(host: String?, at: Long?, dismissed: Collection<String>, now: Long, android: Boolean): String? {
+        if (host == null || at == null || host in dismissed) return null
         if (now - at > SHOW_FOR_MS || at - now > 60_000L) return null
         val ago = agoText(now - at)
         val device = if (android) "a telefonon" else "az eszközön"
@@ -87,6 +97,10 @@ object DohHosts {
             "DNS-kiszolgálót keresett ($host, $ago). $where " +
             "A Breaker csak a nevet látja, azt nem, ki kérdezte."
     }
+
+    /** Az „Értem”: a név a némítottak végére; ha betelt, a legrégebbi kiesik. */
+    fun dismiss(dismissed: List<String>, host: String?): List<String> =
+        if (host == null || host in dismissed) dismissed else (dismissed + host).takeLast(MAX_DISMISSED)
 
     /** „épp most”, „12 perce”, „3 órája” — a kártya szóhasználata. */
     fun agoText(ms: Long): String {

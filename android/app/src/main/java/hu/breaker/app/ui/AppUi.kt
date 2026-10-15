@@ -201,7 +201,7 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
         withContext(Dispatchers.IO) {
             try {
                 val r = SyncClient.syncNow(BreakerStore.state.value, System.currentTimeMillis())
-                BreakerStore.mutate { r.state }
+                BreakerStore.mutate { SyncClient.keepLocal(r.state, it) }
             } catch (e: Exception) {
                 // Csendben: offline telefonnál a megnyitás nem hibaüzenettel
                 // kezdődik. A fiókkártyán ott lesz, mikor volt utoljára szinkron.
@@ -397,9 +397,10 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
             // nevét kérdezte, a szűrő MELLETT oldhat fel — a kártya kimondja,
             // tiltás nélkül, és az „Értem” csak ezt a nevet némítja (egy másik
             // visszahozza). Szigorú Privát DNS mellett hallgat: azt a fenti,
-            // erősebb kártya már mondja, és a nevet a rendszer maga is kérdezi.
+            // erősebb kártya már mondja — és a szűrő akkor nem is jegyez, mert
+            // a nevet a rendszer maga kérdezi (BreakerVpnService.handleQuery).
             val dohText = if (vpnRunning && strictDns == null) {
-                DohHosts.cardText(state.dohSeenHost, state.dohSeenAt, state.dohDismissedHost, now, android = true)
+                DohHosts.cardText(state.dohSeenHost, state.dohSeenAt, state.dohDismissedHosts, now, android = true)
             } else {
                 null
             }
@@ -408,7 +409,9 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("Titkosított DNS a szűrő mellett?", fontWeight = FontWeight.Bold)
                         Text(dohText, style = MaterialTheme.typography.bodySmall)
-                        TextButton(onClick = { BreakerStore.mutate { it.copy(dohDismissedHost = it.dohSeenHost) } }) {
+                        TextButton(onClick = {
+                            BreakerStore.mutate { it.copy(dohDismissedHosts = DohHosts.dismiss(it.dohDismissedHosts, it.dohSeenHost)) }
+                        }) {
                             Text("Értem")
                         }
                     }
@@ -3011,10 +3014,10 @@ private fun SyncCard(
                             val next = SyncClient.signIn(
                                 BreakerStore.state.value, url, account.trim(), password, deviceName(),
                             )
-                            BreakerStore.mutate { next }
+                            BreakerStore.mutate { SyncClient.keepLocal(next, it) }
                             password = ""
                             val r = SyncClient.syncNow(BreakerStore.state.value, System.currentTimeMillis())
-                            BreakerStore.mutate { r.state }
+                            BreakerStore.mutate { SyncClient.keepLocal(r.state, it) }
                         }
                     }) { Text(if (busy) "Belépés…" else "Belépés") }
                     OutlinedButton(enabled = !busy, onClick = {
@@ -3028,10 +3031,10 @@ private fun SyncCard(
                             val (next, code) = SyncClient.signUp(
                                 BreakerStore.state.value, url, account.trim(), password, deviceName(),
                             )
-                            BreakerStore.mutate { next }
+                            BreakerStore.mutate { SyncClient.keepLocal(next, it) }
                             password = ""
                             val r = SyncClient.syncNow(BreakerStore.state.value, System.currentTimeMillis())
-                            BreakerStore.mutate { r.state }
+                            BreakerStore.mutate { SyncClient.keepLocal(r.state, it) }
                             recovery = code
                         }
                     }) { Text("Új fiók") }
@@ -3078,7 +3081,7 @@ private fun SyncCard(
                     onSync = {
                         background {
                             val r = SyncClient.syncNow(BreakerStore.state.value, System.currentTimeMillis())
-                            BreakerStore.mutate { r.state }
+                            BreakerStore.mutate { SyncClient.keepLocal(r.state, it) }
                         }
                     },
                     onDevices = {
