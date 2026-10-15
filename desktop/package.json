@@ -15,7 +15,7 @@
     "test": "npm run build && tsc -p tsconfig.test.json && node scripts/run-tests.js",
     "dist": "npm run build && electron-builder",
     "ui:check": "npm run build && node scripts/ui-shots.js --check",
- "ext:e2e": "node scripts/extension-e2e.js",
+    "ext:e2e": "node scripts/extension-e2e.js",
     "ui:shots": "npm run build && node scripts/ui-shots.js"
   },
   "dependencies": {
@@ -23,8 +23,8 @@
   },
   "devDependencies": {
     "@types/node": "^22.5.0",
-    "electron": "^31.3.0",
-    "electron-builder": "^24.13.3",
+    "electron": "^44.7.0",
+    "electron-builder": "^26.15.3",
     "typescript": "^5.5.4"
   }
 }

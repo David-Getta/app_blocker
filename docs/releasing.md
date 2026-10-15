@@ -238,7 +238,9 @@ terjesztéshez jó (és konzisztens), a Play Store-hoz viszont saját kulcs kell
 **Aláírás nélkül is működik az egykattintásos frissítés.** A Squirrel.Mac (amit
 az electron-updater hajt) csak Developer ID-vel aláírt appra alkalmaz
 frissítést, ezért aláíratlan buildben az app *magától* frissít: letölti a
-kiadás `-mac.zip` csomagját, ellenőrzi a méretét és a `latest-mac.yml`-ből a
+kiadás frissítő-csomagját (a v0.4.257 óta `-darwin13.zip`: a név hordozza a
+legrégebbi macOS-t, amin fut — régebbin nem tölti le; előtte `-mac.zip`),
+ellenőrzi a méretét és a `latest-mac.yml`-ből a
 sha512-t, `ditto`-val kicsomagolja (ez az egyetlen eszköz, ami egy .app-ot
 épségben hagy), leveszi a karantén jelzőt, kicseréli a bundle-t, és újraindul.
 Ha bármi hibázik, a régi app helyben marad, és a gomb a letöltőoldalt nyitja.

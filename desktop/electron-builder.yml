@@ -51,6 +51,20 @@ mac:
       Az adat a gépeden marad.
   entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.plist
+  # Az Electron 44 a macOS 13-at (Ventura) kéri: régebbin el sem indul.
+  minimumSystemVersion: "13.0"
+  # A FRISSÍTŐ-CSOMAG (zip) neve hordozza ezt a követelményt: -darwin13.zip.
+  # A v0.4.241 óta minden app ebből olvassa ki, hogy régebbi macOS-en NE
+  # frissítsen rá (src/shared/update-manifest.ts, pickMacUpdate) — és a név
+  # szándékosan nem tartalmazza a „mac” szót, mert a v0.4.240-ig kiadott
+  # frissítők minden ilyen zipet felraknának, egy macOS 12-es gépre is. Ha a
+  # követelmény nő, a szám itt és a minimumSystemVersion-ben együtt nő.
+  artifactName: ${productName}-${version}-${arch}-darwin13.${ext}
+# A telepítő (dmg) neve a rendszerkövetelmény nélküli, megszokott alak — csak
+# az x64-é kapja meg mostantól az architektúrát is a nevébe (a felhasználó által
+# megadott névben az electron-builder nem hagyja el).
+dmg:
+  artifactName: ${productName}-${version}-${arch}.${ext}
   # Aláírás + közjegyzőzés (notarization) nélkül a Gatekeeper első indításkor
   # figyelmeztet. Fejlesztői tanúsítvánnyal töltsd ki:
   # identity: "Developer ID Application: ..."

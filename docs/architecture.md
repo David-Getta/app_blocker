@@ -1063,10 +1063,12 @@ kitűzött mellett. A váltás (v0.4.243) egy őszinte réssel jár: aki a régi
 kimondta.
 
 Amit az app NEM lát: hogy egy átvett értesítés tényleg látszott-e. A `show`
-esemény csak annyi, hogy a rendszer átvette — kikapcsolt értesítésnél és
-fókusz-módban is jöhet. A mostani Electron (31) macOS-en a régi
-NSUserNotificationCenteren küld, és annak nincs hibaútja: ott az `error` sosem
-jön; Windowson a kikapcsolt értesítést a rendszer nem feltétlenül jelzi vissza.
+esemény csak annyi, hogy a rendszer átvette — fókusz-módban is jöhet. macOS-en
+az Electron 42 óta a UNNotification küld: a megtagadott engedély és az el nem
+fogadott aláírás (az app ad-hoc aláírású; a csomag füstpróbája ezért nézi, hogy
+az aláírás azonosítója `hu.breaker.app`, és az Info.plist benne van) `error`-ként
+jön — a kettőt az app nem tudja megkülönböztetni. Windowson a kikapcsolt
+értesítést a rendszer nem feltétlenül jelzi vissza.
 Ezért van a beállítások lapján az „Értesítés kipróbálása” gomb, és ezért
 mondja átvételkor azt, hogy „a rendszer átvette”, nem azt, hogy „megjelent”
 (`notifyTestText`; teszt őrzi, hogy egyik kimenetele se állítson többet).

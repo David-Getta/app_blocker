@@ -110,7 +110,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
         with:
-          node-version: "20"
+          node-version: "24"
       - run: npm ci
       - name: Verzió beállítása a tagből
         shell: bash
@@ -180,7 +180,9 @@ jobs:
           set -eu
           cd release
           installers=0
-          for f in *.dmg *.exe *-mac.zip *.blockmap latest*.yml; do
+          # A Mac frissítő-csomagja a v0.4.257 óta -darwinNN.zip (a név hordozza
+          # a legrégebbi macOS-t, amin fut — lásd shared/update-manifest.ts).
+          for f in *.dmg *.exe *-mac.zip *-darwin*.zip *.blockmap latest*.yml; do
             [ -f "$f" ] || continue          # a nem illeszkedő glob önmagát adja
             # A szóközös nevet a GitHub pontokra cseréli, az electron-builder
             # publishere viszont kötőjelesre — így UGYANAZ a telepítő kétszer
@@ -196,6 +198,13 @@ jobs:
             bash ../../scripts/release-upload.sh "$VERSION" "$f"
           done
           [ "$installers" -gt 0 ] || { echo "nem épült telepítő" >&2; exit 1; }
+          # Macen frissítő-csomag nélkül a telepített appok nem kapnák meg ezt
+          # a verziót — és a régi nevű (-mac.zip) csomagot a régi frissítők egy
+          # macOS 13 alatti gépre is felraknák.
+          if [ "$(uname)" = Darwin ]; then
+            ls *-darwin*.zip >/dev/null || { echo "nem épült -darwinNN.zip frissítő-csomag" >&2; exit 1; }
+            if ls *-mac.zip >/dev/null 2>&1; then echo "régi nevű -mac.zip csomag épült" >&2; exit 1; fi
+          fi
           # A frissítés ezen a manifesten áll vagy bukik; ha nincs, ne adjunk ki
           # olyan verziót, amire a telepített appok nem tudnak felfrissülni.
           ls latest*.yml >/dev/null

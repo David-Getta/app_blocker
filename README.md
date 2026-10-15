@@ -374,6 +374,11 @@ egy helyen, a jegyzetek címével: [`docs/changelog.md`](docs/changelog.md)
 Ugyanaz a lista, ami a letöltőoldalon áll; itt azért, hogy a README-ből se
 hiányozzon.
 
+- **Rendszerkövetelmény:** macOS 13 (Ventura) vagy újabb, Windows 10 vagy
+  újabb. A v0.4.257 óta az asztali app az Electron 44-en fut, ami a macOS
+  12-t már nem támogatja; macOS 12-n a v0.4.256 marad, és az app a
+  verziószáma alatt kimondja, miért nem frissül tovább. A macOS első értesítése előtt a
+  rendszer engedélyt kér — az **„Értesítés kipróbálása”** gomb jó első lépés.
 - **Windows / macOS:** a telepítő egyszer kér rendszergazdai jóváhagyást a
   védelemhez (a segéd ettől tud a hosts fájlba írni). macOS-en nem kér újra
   minden indításnál.
@@ -384,7 +389,7 @@ hiányozzon.
 - **macOS első indítás:** amíg nincs Apple fejlesztői aláírás, a macOS 15
   (Sequoia) és újabb kukába teszi az appot („Rosszindulatú szoftver
   blokkolva”) — ez nem kártevőt jelent, csak azt, hogy nincs aláírva. A
-  **DMG**-t töltsd le (a `-mac.zip` a frissítéshez van), húzd az
+  **DMG**-t töltsd le (a `.zip` a frissítéshez van), húzd az
   *Alkalmazások* mappába, majd egyszer Terminálban:
   `xattr -dr com.apple.quarantine /Applications/Breaker.app` — ez a letöltési
   karantén jelzőt veszi le, semmi mást nem kapcsol ki. Ha a rendszer már
@@ -638,10 +643,11 @@ Néhány konkrét dolog, amit érdemes előre tudni:
   azokat a gépen akkor csak a segéd indítja el, a böngésző nem tartja be.
 - **Hogy egy gépi értesítés tényleg látszott-e, azt az app nem tudja** —
   csak azt, ha a rendszer visszautasította; ezt a beállítások lapja csendben
-  kimondja, a bekapcsolás helyével. Ha a Breaker értesítései a rendszerben ki
-  vannak kapcsolva, vagy egy fókusz-mód elnémítja őket, a rendszer ezt nem
-  feltétlenül jelzi vissza (a mostani asztali keretrendszer macOS-en
-  egyáltalán nem). Erre van az **„Értesítés kipróbálása”** gomb: egy
+  kimondja, a bekapcsolás helyével. macOS-en a megtagadott engedély (és ha a
+  rendszer az aláíratlan app értesítését nem fogadja el) ilyen
+  visszautasítás; Windowson a kikapcsolt értesítést a rendszer nem
+  feltétlenül jelzi vissza, és egy fókusz-mód elnémítását egyik rendszer sem.
+  Erre van az **„Értesítés kipróbálása”** gomb: egy
   kattintás, és a saját szemeddel látod. A telefonon a rendszer előre
   megmondja, ha a Breaker értesítései ki vannak kapcsolva: ilyenkor a
   beállítások között egy kártya kimondja, mi marad el, és a kapcsolóhoz visz.

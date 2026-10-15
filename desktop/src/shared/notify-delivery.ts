@@ -13,10 +13,12 @@
 // sor eltűnik.
 //
 // AMIT NEM LÁT. Az `error` csak azt jelzi, amit a rendszer visszautasít. Hogy
-// egy átvett értesítés tényleg látszott-e, azt az app nem tudja: ha a
-// Breakernek a rendszerben ki van kapcsolva az értesítése, vagy egy fókusz-mód
-// elnémítja, a rendszer ezt nem feltétlenül jelzi vissza — a mostani Electron
-// (31) macOS-en egyáltalán nem: ott az értesítésnek nincs hibaútja. Ezért van a
+// egy átvett értesítés tényleg látszott-e, azt az app nem tudja: egy fókusz-mód
+// elnémítását a rendszer nem jelzi vissza, és Windowson a kikapcsolt értesítést
+// sem feltétlenül. macOS-en (Electron 42 óta UNNotification) a megtagadott
+// engedély és az el nem fogadott aláírás visszautasításként jön — a kettőt
+// viszont a rendszer nem különbözteti meg az app előtt, ezért a mondat a
+// bekapcsolás helyét adja, és nem állítja, hogy az az ok. Ezért van a
 // próba-gomb (notifyTestText): egy kattintás, és a felhasználó a saját szemével
 // látja. A `show` esemény ezért „a rendszer átvette”, nem „megjelent”.
 

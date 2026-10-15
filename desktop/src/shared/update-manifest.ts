@@ -42,8 +42,9 @@ function normalize(v: string): number[] {
 /**
  * The zip to download for this Mac.
  *
- * electron-builder names them `Breaker-1.2.3-mac.zip` (Intel),
- * `Breaker-1.2.3-arm64-mac.zip` (Apple silicon) and `…-universal-mac.zip`.
+ * Releases up to v0.4.256 name them `Breaker-1.2.3-mac.zip` (Intel),
+ * `Breaker-1.2.3-arm64-mac.zip` (Apple silicon) and `…-universal-mac.zip`;
+ * later ones carry the minimum macOS instead (`-darwin13.zip`, see below).
  * A universal build runs everywhere, so it is the fallback — but never the
  * first choice, because it is roughly twice the download.
  *
