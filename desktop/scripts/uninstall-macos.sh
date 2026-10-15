@@ -55,7 +55,7 @@ case "$FF_DOH" in
     FF_OURS=1 ;;
 esac
 # A házirend-kapcsoló (EnterprisePoliciesEnabled). Ha a segéd kapcsolta be —
-# előtte nem volt ott, és ezt az első beírásakor feljegyezte —, vele megy:
+# előtte nem volt bekapcsolva, és ezt az első beírásakor feljegyezte —, vele megy:
 # különben egy addig hatástalan idegen Firefox-házirend az eltávolítás után is
 # élne, a böngésző „felügyelt” maradna. Feljegyzés nélkül (a v0.4.256 előtti
 # segéd) csak akkor, ha rajta kívül semmi nem maradt: egy másik eszköz saját

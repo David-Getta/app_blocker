@@ -23,7 +23,11 @@ const guards = fs.readdirSync(__dirname)
   .filter((f) => /^check-[a-z-]+\.js$/.test(f) && f !== self)
   .sort();
 
-const ci = fs.readFileSync(path.join(root, '.github', 'workflows', 'ci.yml'), 'utf8');
+// Az egész soros `#` megjegyzés nem futó lépés: egy kikommentezett
+// `- run: node scripts/check-x.js` mellett az őr soha nem fut, ez a lista
+// mégis lefedettnek látná (a check-enforcement YAML-szabálya ugyanez).
+const ci = fs.readFileSync(path.join(root, '.github', 'workflows', 'ci.yml'), 'utf8')
+  .replace(/^\s*#.*$/gm, '');
 const notInCi = guards.filter((g) => !ci.includes(`node scripts/${g}`));
 
 let failed = 0;

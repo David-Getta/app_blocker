@@ -407,15 +407,18 @@ struct ContentView: View {
     /// csak ezt a nevet némítja — egy másik visszahozza. Lásd Shared/DohHosts.swift.
     @ViewBuilder
     private var dohBanner: some View {
+        // A kártya ezt a nevet mutatja — az „Értem” is ezt némítja, nem azt, amit
+        // a tunnel közben, a koppintás előtt a lemezre írt.
         if tunnel.status == .connected,
-           let text = DohHosts.cardText(host: store.state.dohSeenHost, at: store.state.dohSeenAt,
+           let shown = store.state.dohSeenHost,
+           let text = DohHosts.cardText(host: shown, at: store.state.dohSeenAt,
                                         dismissed: store.state.dohDismissedList, now: now, android: false) {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Titkosított DNS a szűrő mellett?").font(.subheadline.bold())
                 Text(text).font(.footnote)
                 Button("Értem") {
                     _ = store.mutate {
-                        $0.dohDismissedHosts = DohHosts.dismiss($0.dohDismissedList, $0.dohSeenHost)
+                        $0.dohDismissedHosts = DohHosts.dismiss($0.dohDismissedList, shown)
                         $0.dohDismissedHost = nil
                     }
                 }

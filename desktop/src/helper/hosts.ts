@@ -214,12 +214,15 @@ export async function applyDohPolicies(log: (m: string) => void): Promise<boolea
       // (nsMacPreferencesReader: PoliciesEnabled). A v0.4.253 előtt ez
       // hiányzott: a DNSOverHTTPS ott állt, a Firefox pedig rá se nézett.
       //
-      // A KAPCSOLÓ GAZDÁJA: ha előttünk nem volt ott, mi kapcsoljuk be — és
-      // vele a tartomány minden addig hatástalan Firefox-házirendjét is. Ezt
-      // egyszer, az első beírás előtt feljegyezzük (FIREFOX_SWITCH_MARK), hogy
-      // az eltávolító akkor is levegye, ha mellette más kulcs maradt.
+      // A KAPCSOLÓ GAZDÁJA: ha előttünk nem volt bekapcsolva (nem volt ott,
+      // vagy hamis volt), mi kapcsoljuk be — és vele a tartomány minden addig
+      // hatástalan Firefox-házirendjét is. Ezt egyszer, az első beírás előtt
+      // feljegyezzük (FIREFOX_SWITCH_MARK), hogy az eltávolító akkor is
+      // levegye, ha mellette más kulcs maradt (a hiányzó kapcsoló a Firefoxnak
+      // ugyanaz, mint a hamis). Igaznak azt vesszük, amit a Firefox
+      // (NSUserDefaults boolForKey) is annak vesz.
       if (!fs.existsSync(FIREFOX_SWITCH_MARK)
-        && await capture('/usr/bin/defaults', ['read', FIREFOX_MAC_DOMAIN, FIREFOX_MAC_ENABLE_KEY]) === null) {
+        && !/^(1|true|yes)$/i.test(await capture('/usr/bin/defaults', ['read', FIREFOX_MAC_DOMAIN, FIREFOX_MAC_ENABLE_KEY]) ?? '')) {
         try {
           fs.mkdirSync(path.dirname(FIREFOX_SWITCH_MARK), { recursive: true });
           fs.writeFileSync(FIREFOX_SWITCH_MARK,

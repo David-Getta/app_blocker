@@ -1,6 +1,8 @@
 import hu.breaker.app.core.AbandonRec
 import hu.breaker.app.core.AppState
 import hu.breaker.app.core.BurstLogic
+import hu.breaker.app.core.BurstTrip
+import hu.breaker.app.core.DigestLogic
 import hu.breaker.app.core.ChallengeEngine
 import hu.breaker.app.core.SessionRec
 import hu.breaker.app.core.Site
@@ -227,5 +229,34 @@ class SyncClientTest {
         assertEquals(fresh.filterHitReasons, applied.filterHitReasons)
         assertEquals(fresh.filterHitKeywords, applied.filterHitKeywords)
         assertEquals(4_000L, applied.usageLastSampleAt)
+    }
+
+    @Test
+    fun `the burst counters written meanwhile stay with the usage, and follow a fold`() {
+        // A mérő egy írásban tette le a mérést és az adag-számlálókat: a kör
+        // közben betelt az „a” adagja (szünet, betelés-szám, könyv). Közben a
+        // kör az „a”-t a „b”-be vonta össze.
+        val snapshot = AppState(sites = listOf(site("a", "a.example")), quietSuggestions = false)
+        val result = snapshot.copy(sites = listOf(site("b", "a.example")))
+        val cooling = BurstLogic.State(usedSeconds = 0.0, lastAt = 9_000, cooldownUntil = 99_000)
+        val fresh = snapshot.copy(
+            bursts = mapOf("a" to cooling),
+            burstTrips = mapOf("a" to BurstTrip("2026-10-15", 1)),
+            burstTripLog = mapOf("a" to mapOf("2026-10-15" to 1)),
+            quietSuggestions = true,
+            digestWeekKey = "2026-10-12",
+            digestLog = listOf(DigestLogic.Entry("2026-10-12", "Elmúlt 7 nap: 1 ó 0 p mért idő.")),
+        )
+        val folded = SyncClient.keepLocal(result, fresh, mapOf("a" to "b"))
+        assertEquals(mapOf("b" to cooling), folded.bursts, "a betelt adag szünete nem vonódik vissza, és követi az összevonást")
+        assertEquals(mapOf("b" to BurstTrip("2026-10-15", 1)), folded.burstTrips)
+        assertEquals(mapOf("b" to mapOf("2026-10-15" to 1)), folded.burstTripLog)
+        // Összevonás nélkül ugyanazon az azonosítón marad.
+        val plain = SyncClient.keepLocal(snapshot, fresh)
+        assertEquals(mapOf("a" to cooling), plain.bursts)
+        // Az előjelzés kapcsolója és a heti napló is helyi: a kör nem írja vissza.
+        assertEquals(true, folded.quietSuggestions)
+        assertEquals("2026-10-12", folded.digestWeekKey)
+        assertEquals(fresh.digestLog, folded.digestLog)
     }
 }

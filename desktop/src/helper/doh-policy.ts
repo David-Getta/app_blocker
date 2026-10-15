@@ -65,7 +65,7 @@ export const FIREFOX_MAC_ENABLE_KEY = 'EnterprisePoliciesEnabled';
 
 /**
  * A segéd ezt a fájlt teszi le, ha a Firefox házirend-kapcsolóját Ő kapcsolta
- * be (előtte nem volt ott). A kapcsolóval a tartomány minden addig hatástalan
+ * be (előtte nem volt bekapcsolva: hiányzott, vagy hamis volt). A kapcsolóval a tartomány minden addig hatástalan
  * Firefox-házirendje is életre kel; az eltávolító ebből tudja, hogy a kapcsoló
  * a miénk, és akkor is leveszi, ha mellette más kulcs maradt — azok a Breaker
  * előtt hatástalanok voltak, és nélküle újra azok lesznek. Egyszer íródik, az

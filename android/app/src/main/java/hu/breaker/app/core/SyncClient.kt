@@ -845,7 +845,17 @@ object SyncClient {
         )
     }.getOrNull()
 
-    data class SyncResult(val state: AppState, val changed: Boolean, val devices: Int)
+    /**
+     * `folded`: a kör összevonásai (régi oldal-azonosító → megmaradó). A
+     * [keepLocal] ezzel viszi át a közben írt adag-számlálókat az új
+     * azonosítóra.
+     */
+    data class SyncResult(
+        val state: AppState,
+        val changed: Boolean,
+        val devices: Int,
+        val folded: Map<String, String> = emptyMap(),
+    )
 
     /**
      * A munkamenet szinkronja: csomagok + a futó menet.
@@ -972,29 +982,42 @@ object SyncClient {
 
     /**
      * A szinkron (vagy a belépés) eredménye a FRISS állapotra téve — így kell
-     * alkalmazni: `BreakerStore.mutate { keepLocal(r.state, it) }`.
+     * alkalmazni: `BreakerStore.mutate { keepLocal(r.state, it, r.folded) }`.
      *
      * A kör egy pillanatkép másolatán dolgozik, és közben másodpercekig vár a
      * hálózatra. Amit közben a szűrő, a mérő vagy egy gomb ír a CSAK EZEN AZ
      * ESZKÖZÖN élő mezőkbe (a titkosított DNS nyoma és az „Értem”, a
-     * megakadások, a mérés, a védelem kapcsolója), azt a régi másolat nem
-     * írhatja vissza. Ezeket a mezőket a szinkron soha nem írja, ezért a
-     * frisset tartjuk meg — a szinkron mezői (lista, munkamenet, fiók) az
-     * eredményből jönnek, mint eddig.
+     * megakadások, a mérés és vele egy írásban az adag-számlálók, a védelem
+     * kapcsolója, az előjelzés kapcsolója, a heti napló), azt a régi másolat
+     * nem írhatja vissza. Ezeket a szinkron nem írja — az adag-számlálókat
+     * csak egy összevonás viszi át az új azonosítóra, ezért azokra a kör
+     * összevonásait (`folded`) a friss értéken újra alkalmazzuk. A szinkron
+     * mezői (lista, munkamenet, fiók) az eredményből jönnek, mint eddig.
      */
-    fun keepLocal(result: AppState, fresh: AppState): AppState = result.copy(
-        protectionOn = fresh.protectionOn,
-        dohSeenHost = fresh.dohSeenHost,
-        dohSeenAt = fresh.dohSeenAt,
-        dohDismissedHosts = fresh.dohDismissedHosts,
-        filterHits = fresh.filterHits,
-        filterHitHours = fresh.filterHitHours,
-        filterHitHosts = fresh.filterHitHosts,
-        filterHitReasons = fresh.filterHitReasons,
-        filterHitKeywords = fresh.filterHitKeywords,
-        usage = fresh.usage,
-        usageLastSampleAt = fresh.usageLastSampleAt,
-    )
+    fun keepLocal(result: AppState, fresh: AppState, folded: Map<String, String> = emptyMap()): AppState {
+        val meter = carryFolded(fresh, folded)
+        return result.copy(
+            protectionOn = fresh.protectionOn,
+            dohSeenHost = fresh.dohSeenHost,
+            dohSeenAt = fresh.dohSeenAt,
+            dohDismissedHosts = fresh.dohDismissedHosts,
+            filterHits = fresh.filterHits,
+            filterHitHours = fresh.filterHitHours,
+            filterHitHosts = fresh.filterHitHosts,
+            filterHitReasons = fresh.filterHitReasons,
+            filterHitKeywords = fresh.filterHitKeywords,
+            // A mérő EGY írásban teszi le a mérést és az adag-számlálókat:
+            // együtt maradnak, különben a betelt adag szünete visszavonódna.
+            usage = fresh.usage,
+            usageLastSampleAt = fresh.usageLastSampleAt,
+            bursts = meter.bursts,
+            burstTrips = meter.burstTrips,
+            burstTripLog = meter.burstTripLog,
+            quietSuggestions = fresh.quietSuggestions,
+            digestWeekKey = fresh.digestWeekKey,
+            digestLog = fresh.digestLog,
+        )
+    }
 
     /**
      * Egy teljes szinkron-kör. BLOKKOL — háttérszálról hívandó. Az eredményt
@@ -1005,6 +1028,7 @@ object SyncClient {
         val key = SyncCrypto.unb64(acc.dataKey)
         var current = SyncRevisions.bump(state, now)
         var changed = current !== state
+        val foldedAll = mutableMapOf<String, String>()
 
         for (attempt in 0..MAX_CONFLICT_RETRIES) {
             val pulled = call(acc.serverUrl, "/v1/pull", JSONObject().apply {
@@ -1026,6 +1050,7 @@ object SyncClient {
             if (split.sites != toSyncSites(current.sites) || split.gone != toSyncSites(current.goneSites)) {
                 // Ami itt egy másik azonosítóba olvadt, annak a helyi állapota vele megy.
                 val folded = SyncMerge.foldedIds(current.sites.map { it.id to it.domain }, merged)
+                foldedAll.putAll(folded)
                 current = carryFolded(current, folded).copy(
                     sites = fromSyncSites(split.sites, current.sites, folded),
                     goneSites = fromSyncSites(split.gone, current.goneSites, emptyMap()),
@@ -1110,7 +1135,7 @@ object SyncClient {
         }
 
         val account = acc.copy(lastSyncAt = now, lastError = null)
-        return SyncResult(current.copy(sync = account), changed, devices)
+        return SyncResult(current.copy(sync = account), changed, devices, foldedAll.toMap())
     }
 
     /** A többi eszköz mérése, visszafejtve — csak akkor kérjük, ha tényleg megnézik. */

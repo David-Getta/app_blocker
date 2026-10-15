@@ -105,12 +105,17 @@ const WIRES = [
   },
   {
     file: 'android/app/src/main/java/hu/breaker/app/ui/AppUi.kt',
-    needle: 'DohHosts.cardText(state.dohSeenHost, state.dohSeenAt, state.dohDismissedHosts, now, android = true)',
+    needle: 'DohHosts.cardText(dohShown, state.dohSeenAt, state.dohDismissedHosts, now, android = true)',
     lost: 'Androidon a titkosított DNS nyomáról nem szólna kártya',
   },
   {
     file: 'android/app/src/main/java/hu/breaker/app/ui/AppUi.kt',
-    needle: 'BreakerStore.mutate { SyncClient.keepLocal(r.state, it) }',
+    needle: 'DohHosts.dismiss(it.dohDismissedHosts, dohShown)',
+    lost: 'Androidon az „Értem” azt a nevet némítaná, amit a szűrő közben feljegyzett — egy nevet, amit a felhasználó nem is látott',
+  },
+  {
+    file: 'android/app/src/main/java/hu/breaker/app/ui/AppUi.kt',
+    needle: 'BreakerStore.mutate { SyncClient.keepLocal(r.state, it, r.folded) }',
     lost: 'Androidon a szinkron a régi pillanatképpel visszaírná, amit közben a szűrő vagy egy gomb írt (az „Értem”, a DoH-nyom, a megakadások)',
   },
   {
@@ -125,13 +130,21 @@ const WIRES = [
   },
   {
     file: 'ios/PacketTunnel/PacketTunnelProvider.swift',
-    needle: 'host: host, now: now, dismissed: store.state.dohDismissedList) {\n            dohLast = (host, now)',
+    needle: 'DohHosts.shouldNote(prevHost: dohLast?.host ?? store.state.dohSeenHost,\n'
+      + '                               prevAt: dohLast?.at ?? store.state.dohSeenAt,\n'
+      + '                               host: host, now: now, dismissed: store.state.dohDismissedList) {\n'
+      + '            dohLast = (host, now)',
     lost: 'iPhone-on a ritkítás a később frissülő állapotból döntene: egy DoH-indulás A- és AAAA-kérdése kétszer írná a lemezt, és egy némított név kitúrná a másik nyomot',
   },
   {
     file: 'ios/App/ContentView.swift',
     needle: 'dismissed: store.state.dohDismissedList, now: now, android: false)',
     lost: 'iPhone-on a titkosított DNS nyomáról nem szólna kártya',
+  },
+  {
+    file: 'ios/App/ContentView.swift',
+    needle: '$0.dohDismissedHosts = DohHosts.dismiss($0.dohDismissedList, shown)',
+    lost: 'iPhone-on az „Értem” azt a nevet némítaná, amit a tunnel közben a lemezre írt — egy nevet, amit a felhasználó nem is látott',
   },
   {
     file: 'ios/App/SyncCard.swift',

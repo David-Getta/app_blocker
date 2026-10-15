@@ -201,7 +201,7 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
         withContext(Dispatchers.IO) {
             try {
                 val r = SyncClient.syncNow(BreakerStore.state.value, System.currentTimeMillis())
-                BreakerStore.mutate { SyncClient.keepLocal(r.state, it) }
+                BreakerStore.mutate { SyncClient.keepLocal(r.state, it, r.folded) }
             } catch (e: Exception) {
                 // Csendben: offline telefonnál a megnyitás nem hibaüzenettel
                 // kezdődik. A fiókkártyán ott lesz, mikor volt utoljára szinkron.
@@ -399,8 +399,11 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
             // visszahozza). Szigorú Privát DNS mellett hallgat: azt a fenti,
             // erősebb kártya már mondja — és a szűrő akkor nem is jegyez, mert
             // a nevet a rendszer maga kérdezi (BreakerVpnService.handleQuery).
+            // A kártya ezt a nevet mutatja — az „Értem” is ezt némítja, nem azt,
+            // amit a szűrő közben, a koppintás előtt feljegyzett.
+            val dohShown = state.dohSeenHost
             val dohText = if (vpnRunning && strictDns == null) {
-                DohHosts.cardText(state.dohSeenHost, state.dohSeenAt, state.dohDismissedHosts, now, android = true)
+                DohHosts.cardText(dohShown, state.dohSeenAt, state.dohDismissedHosts, now, android = true)
             } else {
                 null
             }
@@ -410,7 +413,7 @@ private fun HomeScreen(now: Long, vpnRunning: Boolean, onOpenChallenge: () -> Un
                         Text("Titkosított DNS a szűrő mellett?", fontWeight = FontWeight.Bold)
                         Text(dohText, style = MaterialTheme.typography.bodySmall)
                         TextButton(onClick = {
-                            BreakerStore.mutate { it.copy(dohDismissedHosts = DohHosts.dismiss(it.dohDismissedHosts, it.dohSeenHost)) }
+                            BreakerStore.mutate { it.copy(dohDismissedHosts = DohHosts.dismiss(it.dohDismissedHosts, dohShown)) }
                         }) {
                             Text("Értem")
                         }
@@ -3017,7 +3020,7 @@ private fun SyncCard(
                             BreakerStore.mutate { SyncClient.keepLocal(next, it) }
                             password = ""
                             val r = SyncClient.syncNow(BreakerStore.state.value, System.currentTimeMillis())
-                            BreakerStore.mutate { SyncClient.keepLocal(r.state, it) }
+                            BreakerStore.mutate { SyncClient.keepLocal(r.state, it, r.folded) }
                         }
                     }) { Text(if (busy) "Belépés…" else "Belépés") }
                     OutlinedButton(enabled = !busy, onClick = {
@@ -3034,7 +3037,7 @@ private fun SyncCard(
                             BreakerStore.mutate { SyncClient.keepLocal(next, it) }
                             password = ""
                             val r = SyncClient.syncNow(BreakerStore.state.value, System.currentTimeMillis())
-                            BreakerStore.mutate { SyncClient.keepLocal(r.state, it) }
+                            BreakerStore.mutate { SyncClient.keepLocal(r.state, it, r.folded) }
                             recovery = code
                         }
                     }) { Text("Új fiók") }
@@ -3081,7 +3084,7 @@ private fun SyncCard(
                     onSync = {
                         background {
                             val r = SyncClient.syncNow(BreakerStore.state.value, System.currentTimeMillis())
-                            BreakerStore.mutate { SyncClient.keepLocal(r.state, it) }
+                            BreakerStore.mutate { SyncClient.keepLocal(r.state, it, r.folded) }
                         }
                     },
                     onDevices = {

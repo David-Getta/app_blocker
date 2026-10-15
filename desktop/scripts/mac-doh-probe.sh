@@ -12,9 +12,10 @@
 #      egy gyári Macen) — után a mieink eltűntek, egy IDEGEN érték és egy
 #      idegen Firefox-házirend viszont marad, a hosts-blokk kikerül, a hosts
 #      többi része érintetlen;
-#   3. a kapcsolót, ha a segéd kapcsolta be, az eltávolító leveszi — akkor is,
-#      ha mellette egy idegen (addig hatástalan) Firefox-házirend áll; ha
-#      viszont már a segéd előtt ott volt, marad;
+#   3. a kapcsolót, ha a segéd kapcsolta be (előtte hiányzott vagy hamis
+#      volt), az eltávolító leveszi — akkor is, ha mellette egy idegen (addig
+#      hatástalan) Firefox-házirend áll; ha viszont már a segéd előtt be volt
+#      kapcsolva, marad;
 #   4. feljegyzés nélkül (a v0.4.256 előtti segéd) a kapcsoló csak akkor megy,
 #      ha a Firefox-tartományban már csak a miénk volt;
 #   5. a DoH-zár profil a valódi plutil szerint érvényes, és ugyanazt
@@ -22,7 +23,7 @@
 #   6. a DoH-zár állapota azt mondja, amit a böngésző tényleg olvasna: kezelt
 #      érték (a felhasználóé erősebb a gépénél) → kötelező; a Firefox a segéd
 #      gépszintű házirendjével → zárolva a böngészőben, de a felhasználó saját
-#      beállítása felülírja.
+#      beállítása (az általános és a gépre kötött is) felülírja.
 # Kilépési kód 0, ha minden stimmel; különben 1.
 set -u
 cd "$(dirname "$0")/.."
@@ -104,6 +105,18 @@ apply
 uninstall > /dev/null || bad "az eltávolító (harmadik kör) hibával állt meg"
 [ -z "$(rd "$FF" EnterprisePoliciesEnabled)" ] || bad "a házirend-kapcsoló ott maradt, pedig már csak a miénk volt"
 
+# 5b. A kapcsoló a segéd előtt HAMIS volt, mellette egy idegen kulcs: a
+# Firefoxnak ez ugyanaz, mint a hiány — a segéd kapcsolja be, tehát a miénk.
+mkdir -p "/Library/Application Support/Breaker"
+defaults write "$FF" EnterprisePoliciesEnabled -bool false
+defaults write "$FF" DisableAppUpdate -bool true
+apply
+[ -f "$MARK" ] || bad "a kapcsoló a segéd előtt hamis volt, a segéd kapcsolta be, mégsem jegyezte fel"
+uninstall > /dev/null || bad "az eltávolító (hamis kapcsoló) hibával állt meg"
+[ -z "$(rd "$FF" EnterprisePoliciesEnabled)" ] || bad "a hamis kapcsolót a segéd kapcsolta be, mégis ott maradt — az idegen házirend most él"
+[ "$(rd "$FF" DisableAppUpdate)" = 1 ] || bad "az idegen Firefox-házirend eltűnt (hamis kapcsoló)"
+defaults delete "$FF" DisableAppUpdate
+
 # 6. A DoH-zár profil (a felhasználó telepíti): a valódi plutil szerint
 # érvényes plist, és ugyanazt kényszeríti, amit a segéd beállít.
 PROFILE_DIR=$(mktemp -d)
@@ -168,6 +181,11 @@ apply
 defaults write org.mozilla.firefox EnterprisePoliciesEnabled -bool false
 [ "$(lock)" = "|/5" ] || bad "a felhasználó saját kapcsolója kikapcsolja a Firefox házirendjét, a sor mégis zároltnak mondja: $(lock)"
 defaults delete org.mozilla.firefox EnterprisePoliciesEnabled 2>/dev/null
+# A gépre kötött (ByHost) felhasználói tartomány még erősebb az általánosnál.
+defaults -currentHost write org.mozilla.firefox EnterprisePoliciesEnabled -bool false
+[ "$(lock)" = "|/5" ] || bad "a felhasználó gépre kötött (ByHost) kapcsolója kikapcsolja a Firefox házirendjét, a sor mégis zároltnak mondja: $(lock)"
+defaults -currentHost delete org.mozilla.firefox EnterprisePoliciesEnabled 2>/dev/null
+[ "$(lock)" = "|Firefox/5" ] || bad "a felülírás levétele után a sor nem mondja újra zároltnak a Firefoxot: $(lock)"
 uninstall > /dev/null || bad "az eltávolító (negyedik kör) hibával állt meg"
 [ "$MP_USER_CREATED" = 1 ] && rmdir "$MP/$ME" 2>/dev/null
 [ "$MP_CREATED" = 1 ] && rmdir "$MP" 2>/dev/null

@@ -138,6 +138,9 @@ final class DohHostsTests: XCTestCase {
         fresh.filterHitHosts = ["2026-10-15": ["a.example": 3]]
         fresh.filterHitReasons = ["2026-10-15": ["list": 3]]
         fresh.filterHitKeywords = ["2026-10-15": ["x": 1]]
+        fresh.quietSuggestions = true
+        fresh.digestWeekKey = "2026-10-12"
+        fresh.digestLog = [DigestLogic.Entry(week: "2026-10-12", text: "Elmúlt 7 nap: 1 ó 0 p mért idő.")]
         let applied = SyncClient.keepLocal(result, fresh)
         XCTAssertEqual(applied.lastCombo, "a szinkroné", "a szinkron mezői az eredményből jönnek")
         XCTAssertEqual(applied.protectionOn, fresh.protectionOn)
@@ -149,5 +152,8 @@ final class DohHostsTests: XCTestCase {
         XCTAssertEqual(applied.filterHitHosts, fresh.filterHitHosts)
         XCTAssertEqual(applied.filterHitReasons, fresh.filterHitReasons)
         XCTAssertEqual(applied.filterHitKeywords, fresh.filterHitKeywords)
+        XCTAssertEqual(applied.quietSuggestions, true)
+        XCTAssertEqual(applied.digestWeekKey, "2026-10-12")
+        XCTAssertEqual(applied.digestLog, fresh.digestLog)
     }
 }

@@ -424,8 +424,8 @@ enum SyncClient {
     /// A kör egy pillanatkép másolatán dolgozik, és közben másodpercekig vár a
     /// hálózatra. Amit közben a tunnel vagy egy gomb ír a CSAK EZEN AZ
     /// ESZKÖZÖN élő mezőkbe (a titkosított DNS nyoma és az „Értem”, a
-    /// megakadások, a védelem kapcsolója), azt a régi másolat nem írhatja
-    /// vissza. Ezeket a mezőket a szinkron soha nem írja, ezért a frisset
+    /// megakadások, a védelem és az előjelzés kapcsolója, a heti napló), azt a
+    /// régi másolat nem írhatja vissza. Ezeket a mezőket a szinkron soha nem írja, ezért a frisset
     /// tartjuk meg — a szinkron mezői az eredményből jönnek, mint eddig.
     static func keepLocal(_ result: AppState, _ fresh: AppState) -> AppState {
         var n = result
@@ -439,6 +439,9 @@ enum SyncClient {
         n.filterHitHosts = fresh.filterHitHosts
         n.filterHitReasons = fresh.filterHitReasons
         n.filterHitKeywords = fresh.filterHitKeywords
+        n.quietSuggestions = fresh.quietSuggestions
+        n.digestWeekKey = fresh.digestWeekKey
+        n.digestLog = fresh.digestLog
         return n
     }
 

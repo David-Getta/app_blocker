@@ -55,7 +55,7 @@ másodpercen belül visszaállítja.
   Firefoxnál a házirend-kapcsolót (`EnterprisePoliciesEnabled`) is beírjuk:
   nélküle a Firefox macOS-en egyetlen házirendet sem olvas (a v0.4.253 előtt
   ez hiányzott — a DNSOverHTTPS ott állt, hatás nélkül). Ha előtte nem volt
-  ott, a segéd ezt egyszer feljegyzi (`FIREFOX_SWITCH_MARK`), és az eltávolító
+  bekapcsolva (hiányzott vagy hamis volt), a segéd ezt egyszer feljegyzi (`FIREFOX_SWITCH_MARK`), és az eltávolító
   akkor leveszi — a kapcsolóval a tartomány addig hatástalan idegen
   házirendjei is életre keltek volna, és utána is élnének. Feljegyzés nélkül
   (a v0.4.256 előtti segéd) csak akkor, ha rajta kívül semmi nem maradt. Ha a
@@ -644,7 +644,8 @@ Ismert megkerülési utak (szándékosan nem próbáljuk „lelakatolni” a gé
   böngészőnként abból a forrásból olvas, ahonnan a böngésző venné, a
   CFPreferences sorrendjében — a kezelt beállítás (`/Library/Managed
   Preferences`, előbb a felhasználóé, aztán a gépé), a felhasználó saját
-  tartománya, a gépszintű tartomány. Kötelező, ha a kezelt beállításban „off”
+  tartományai (az app gépre kötött és általános tartománya, aztán a
+  globális), a gépszintű tartomány. Kötelező, ha a kezelt beállításban „off”
   áll (a Firefoxnál: a kapcsoló ÉS a zárolt, kikapcsolt DNSOverHTTPS is
   kezelt); „zárolva a böngészőben, de felülírható”, ha a Firefox a gépszintű
   vagy a felhasználói tartományból kapja; a többi a böngészőben

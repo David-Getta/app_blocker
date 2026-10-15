@@ -105,7 +105,8 @@ test('a segéd feljegyzi, ha a Firefox kapcsolóját ő kapcsolta be — az els�
   const mark = src.indexOf('if (!fs.existsSync(FIREFOX_SWITCH_MARK)');
   const write = src.indexOf("['write', FIREFOX_MAC_DOMAIN, FIREFOX_MAC_ENABLE_KEY, '-bool', 'true']");
   assert.ok(mark > 0 && write > mark, 'a feljegyzésnek a kapcsoló beírása ELŐTT kell döntenie');
-  assert.ok(src.includes("capture('/usr/bin/defaults', ['read', FIREFOX_MAC_DOMAIN, FIREFOX_MAC_ENABLE_KEY]) === null"));
+  // Nem csak a hiányzó kapcsoló: a hamisat is mi kapcsoljuk be.
+  assert.ok(src.includes("!/^(1|true|yes)$/i.test(await capture('/usr/bin/defaults', ['read', FIREFOX_MAC_DOMAIN, FIREFOX_MAC_ENABLE_KEY]) ?? '')"));
 });
 
 test('a macOS-eltávolító python nélkül is kiveszi a hosts-blokkot', () => {

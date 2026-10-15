@@ -206,10 +206,10 @@ maradna, a titkosított DNS zárolva. Mit és hogyan:
   állt ott (egy „secure”, egy saját Firefox-DoH-beállítás), az a Breaker
   mellett már nem élt, és az eltávolítás után sem tér vissza.
 - **A Firefox házirend-kapcsolója macOS-en** (`EnterprisePoliciesEnabled`):
-  ha a segéd kapcsolta be — előtte nem volt ott, és ezt az első beíráskor
+  ha a segéd kapcsolta be — előtte nem volt bekapcsolva, és ezt az első beíráskor
   feljegyezte —, vele megy, akkor is, ha mellette más Firefox-kulcs áll (azok
   a Breaker előtt hatástalanok voltak, és nélküle újra azok). Ha már előtte
-  ott volt, marad. A v0.4.256 előtti telepítésnél nincs feljegyzés: akkor
+  be volt kapcsolva, marad. A v0.4.256 előtti telepítésnél nincs feljegyzés: akkor
   csak akkor megy, ha rajta kívül semmi nem maradt.
 - **Üres kulcs nem marad** (Windows): a Firefox egy üres `DNSOverHTTPS`
   kulcsot is házirendnek venne, ami egy `policies.json` DoH-beállítását

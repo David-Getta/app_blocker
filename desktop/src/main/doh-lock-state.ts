@@ -11,8 +11,10 @@
 //      felhasználóé (<felhasználónév>/<tartomány>.plist), aztán a gépé; egy
 //      profil vagy egy szervezeti felügyelet teszi ide, és a felhasználó nem
 //      írhatja felül;
-//   2. a felhasználó saját tartománya (~/Library/Preferences — egy
-//      `defaults write` a Terminálban, rendszergazda nélkül);
+//   2. a felhasználó saját tartományai (~/Library/Preferences — egy
+//      `defaults write` a Terminálban, rendszergazda nélkül): előbb az
+//      app-tartomány gépre kötött (ByHost) és általános változata, aztán a
+//      felhasználó globális tartománya ugyanígy;
 //   3. a gépszintű tartomány (/Library/Preferences — ide ír a segéd).
 // A Chromium-család csak az 1. pontot veszi kötelezőnek (AppValueIsForced);
 // a Firefox mindhármat házirendnek olvassa, ezért nála az számít, melyik
@@ -78,8 +80,15 @@ async function firefoxKey(key: string, user: string): Promise<FirefoxKey | null>
       locked: bool(await exec(PLIST_BUDDY, ['-c', `Print :${key}:Locked`, file])),
     };
   }
-  for (const [source, domain] of [['user', ff], ['machine', FIREFOX_MAC_DOMAIN]] as const) {
-    const v = await exec(DEFAULTS, ['read', domain, key]);
+  const unmanaged: ReadonlyArray<readonly [Source, string[]]> = [
+    ['user', ['-currentHost', 'read', ff, key]],
+    ['user', ['read', ff, key]],
+    ['user', ['-currentHost', 'read', '-g', key]],
+    ['user', ['read', '-g', key]],
+    ['machine', ['read', FIREFOX_MAC_DOMAIN, key]],
+  ];
+  for (const [source, args] of unmanaged) {
+    const v = await exec(DEFAULTS, args);
     if (v === null) continue;
     if (!isDict) return { source, on: bool(v) };
     return { source, enabled: dictField(v, 'Enabled'), locked: dictField(v, 'Locked') };

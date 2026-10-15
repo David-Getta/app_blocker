@@ -14,12 +14,19 @@ const fs = require('fs');
 const path = require('path');
 
 const ROOT = path.join(__dirname, '..');
-const EXTS = new Set(['.kt', '.swift', '.ts', '.tsx', '.js', '.html', '.md', '.yml', '.yaml']);
+const EXTS = new Set(['.kt', '.swift', '.ts', '.tsx', '.js', '.html', '.md', '.yml', '.yaml', '.ps1']);
 const SKIP = new Set(['node_modules', '.git', 'dist', 'dist-test', 'build', '.gradle', 'out']);
 
 // Written as escapes so this file is not its own counterexample.
 const OPEN = '\u201E';  // low-9: opens a Hungarian quote
 const CLOSE = '\u201D'; // right double: closes one
+
+// PowerShell a magyar nyitó és záró idézőjelet (és az angol nyitót is)
+// IDÉZŐJELNEK veszi, nem betűnek: egy idézett szót tartalmazó "…" sztring az
+// első magyar nyitójelnél véget ér, a többi külön argumentum lesz, és a
+// hibaüzenet félbe vágva jelenik meg. A kódsorban ezért csak visszafelé
+// aposztróffal (backtick) állhat — az betűvé teszi; a megjegyzésben szabadon.
+const PS_QUOTE = /(^|[^`])[\u201C\u201D\u201E]/;
 
 /** Code: a string literal never spans lines here, so balance per LINE.
  *  Prose: a quotation may wrap, so balance per FILE. */
@@ -51,6 +58,10 @@ for (const file of walk(ROOT)) {
     continue;
   }
   content.split('\n').forEach((line, i) => {
+    if (path.extname(file) === '.ps1' && !/^\s*#/.test(line) && PS_QUOTE.test(line)) {
+      problems.push({ file: rel, line: i + 1, why: 'PowerShellben a „ ” idézőjel — írd így: `„ `”', text: line.trim().slice(0, 110) });
+      return;
+    }
     const opens = count(line, OPEN);
     const closes = count(line, CLOSE);
     if (opens === closes) return;
@@ -65,7 +76,7 @@ if (problems.length === 0) {
 
 console.error('Hibás magyar idézőjel-párok — a záró jel „ ” és nem ASCII " :\n');
 for (const p of problems) {
-  console.error(`  ${p.file}:${p.line}  (${p.opens} nyitó, ${p.closes} záró)`);
+  console.error(`  ${p.file}:${p.line}  ${p.why || `(${p.opens} nyitó, ${p.closes} záró)`}`);
   console.error(`    ${p.text}`);
 }
 console.error('\nKotlinban ez nem elírás, hanem lezáratlan sztring: fordítási hiba.');

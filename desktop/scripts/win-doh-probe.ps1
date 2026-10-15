@@ -76,7 +76,7 @@ Pop-Location
 if ($code -ne 0) { Fail "az applyDohPolicies nem sikerült ($code)" }
 foreach ($k in $chromium) { if ((Val $k 'DnsOverHttpsMode') -ne 'off') { Fail "$k : a DnsOverHttpsMode nem off" } }
 if ((Val $ff 'Enabled') -ne 0 -or (Val $ff 'Locked') -ne 1) { Fail 'a Firefox registry-házirendje hiányzik' }
-if ((Val $ff 'Fallback') -ne 1) { Fail "a Firefox Fallback-je nem 1 ($(Val $ff 'Fallback')) — a „DoH ki” így „csak DoH” lenne" }
+if ((Val $ff 'Fallback') -ne 1) { Fail "a Firefox Fallback-je nem 1 ($(Val $ff 'Fallback')) — a `„DoH ki`” így `„csak DoH`” lenne" }
 
 # 2. A gép policies.json-ja érintetlen.
 foreach ($pol in $polFiles.Keys) {
@@ -90,7 +90,7 @@ Set-ItemProperty -Path 'HKLM:\SOFTWARE\Policies\BraveSoftware\Brave' -Name 'DnsO
 powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'uninstall-windows.ps1') | Out-Host
 
 foreach ($k in $chromium[0..2]) {
-  if ($null -ne (Val $k 'DnsOverHttpsMode')) { Fail "$k : a mi „off” értékünk ott maradt" }
+  if ($null -ne (Val $k 'DnsOverHttpsMode')) { Fail "$k : a mi `„off`” értékünk ott maradt" }
 }
 if ((Val 'HKLM:\SOFTWARE\Policies\BraveSoftware\Brave' 'DnsOverHttpsMode') -ne 'secure') { Fail 'az idegen Brave-érték eltűnt' }
 if ($null -ne (Val $ff 'Enabled') -or $null -ne (Val $ff 'Locked') -or $null -ne (Val $ff 'Fallback')) { Fail 'a Firefox registry-házirendje ott maradt' }
