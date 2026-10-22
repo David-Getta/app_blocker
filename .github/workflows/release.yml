@@ -45,52 +45,57 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
+          **Az asztali app támogatott alapra költözött (Electron 44).**
+          Eddig az Electron 31-en futott, ami 2025 eleje óta nem kap biztonsági
+          javítást. Ezzel a verzióval a beépített böngészőmotor és a Node is friss,
+          javításokat kapó változat.
+
+          Amit ez neked jelent:
+
+          - **Rendszerkövetelmény: macOS 13 (Ventura) vagy újabb, Windows 10 vagy
+            újabb.** Az Electron 44 a macOS 12-t már nem támogatja. macOS 12-n (és
+            régebbin) az app azon a verzión marad, ami fut rajta, és a v0.4.241 óta
+            kiadott verziók a verziószámuk alatt ki is mondják, miért nem frissülnek
+            tovább. Az utolsó verzió, ami macOS 12-n még elindul, a v0.4.256: ha
+            régebbi fut, a DMG-je kézzel letölthető a [v0.4.256 kiadásról](https://github.com/David-Getta/app_blocker/releases/tag/v0.4.256).
+          - **A v0.4.241-nél régebbi Mac-appok ezt a verziót nem látják.** A Mac
+            frissítő-csomagjának neve megváltozott (`…-darwin13.zip` — a név hordozza
+            a rendszerkövetelményt), és ezt csak a v0.4.241 óta kiadott appok értik.
+            Ha ilyen fut, egyszer töltsd le kézzel az új DMG-t; utána megint magától
+            frissül. Az Intel-es DMG nevében mostantól ott az `x64`.
+          - **macOS-en a rendszer megkérdezi, küldhet-e az app értesítést** — az új
+            verzió első megnyitásakor, amikor te is ott vagy, nem egy szünet végi
+            figyelmeztetésnél, ami közben elveszne. Engedd meg; az
+            **„Értesítés kipróbálása”** gomb megmutatja, hogy működik.
+
+          **A visszautasított értesítés most tényleg látszik.** Ha a rendszer egy
+          értesítést nem vesz át (macOS-en nincs engedély; Windowson nem tudja
+          feldobni), a beállítások lapja csendben kimondja, és megmondja, hol
+          kapcsolhatod be. Ezt a v0.4.242 óta ígértük, de a sor sosem jelent meg: a
+          böngészős értesítés hibáját a keretrendszer nem adta tovább az appnak. Most
+          az értesítést maga az app küldi, és a rendszer válasza visszajön — a
+          próba-gomb is ezt mondja: átvette, visszautasította, vagy (ha az app maga
+          hibázna) hogy az az app hibája. A „háttérben fut tovább” jelzés is így megy:
+          ha a rendszer visszautasítja, a következő bezáráskor újra szól.
+
+          **Windowson az eltávolítás után nem marad Breaker a Start menüben.** Az új
+          alap az első értesítéskor a saját Start menüdbe is tesz egy Breaker
+          parancsikont (ez kell az értesítésre kattintáshoz); az eltávolító ezt is
+          leveszi.
+
+          **Macen a fiók-panel nem ígér kilépéskori telepítést.** Az aláíratlan
+          Mac-app a letöltött frissítést az „Újraindítás és frissítés” gombra rakja
+          fel; a panel eddig azt írta, hogy kilépéskor magától települ.
+
+          A védelem, a szabályok és a beállítások nem változtak.
+
+          ### Ami a v0.4.256-ban jött
+
           **Javítások a titkosított DNS (DoH) körül — egy alapos átvizsgálás után.**
-          Az előző öt kiadás DoH-változásait hét szempontból átnéztük; ami hibát
-          találtunk, az itt van javítva.
 
-          Telefonon:
-
-          - **A Privát DNS kikapcsolása után nincs vaklárma.** Androidon szigorú
-            Privát DNS mellett a szűrő már nem jegyzi fel a nevet, amit a rendszer maga
-            kérdez — eddig a beállítás kikapcsolása után a kártya egy böngészőt
-            gyanúsított vele.
-          - **Az „Értem” megmarad.** Több nevet is megjegyez, pontosan azt, amit a
-            kártya mutatott, és egy már némított név nem tünteti el egy másik, még nem
-            látott nevét.
-          - **A szinkron nem ír vissza régi másolatot.** Ami közben a telefonon
-            történt — az „Értem”, egy megakadás, az előjelzés kapcsolója, Androidon a
-            mérés és egy közben betelt adag szünete —, az megmarad.
-
-          Windowson:
-
-          - **A Firefox titkosított DNS-e tényleg ki van kapcsolva**, akkor is, ha a
-            gépen egy korábbi beállításból „csak DoH” maradt.
-          - **Az eltávolító nem hagy üres házirend-kulcsot** — a Firefox azt is
-            házirendnek vette volna.
-
-          Macen:
-
-          - **Az eltávolító a DoH-zár profilt is leveszi** (ha a rendszer nem engedi,
-            megmondja, hol veheted le kézzel), és a Firefox
-            házirend-kapcsolóját is, ha azt a Breaker kapcsolta be.
-          - **A Kinézet panel böngészőnként mondja, mi érvényes:** a Chrome, az Edge, a
-            Chromium és a Brave a profil nélkül visszakapcsolható; a Firefox zárolva,
-            de a saját felhasználói beállításoddal felülírható; a profillal mind az öt
-            kötelező. A panel akkor is frissül, amikor a Rendszerbeállításokból
-            visszajössz, és a profil helyét minden macOS-verzióra megmondja.
-
-          A leírás is őszintébb lett: az eltávolító érték szerint dönt, ezért egy
-          ugyanilyen beállítást akkor is levesz, ha nem a Breaker tette oda, és amit a
-          Breaker felülírt, azt nem állítja vissza.
-
-          ### Ami a v0.4.255-ben jött
+          #### Ami a v0.4.255-ben jött
 
           **Macen a DoH-zár megmondja, hatott-e.**
-
-          #### Ami a v0.4.254-ben jött
-
-          **Macen a böngészők titkosított DNS-e zárolható (önkéntes profil).**
           NOTES
           fi
 
