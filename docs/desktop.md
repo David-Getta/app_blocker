@@ -185,10 +185,20 @@ még használhatja.
 - Windows: kódaláíró tanúsítvány az NSIS csomaghoz, különben SmartScreen szól.
 
 ## Teljes eltávolítás
-A Breaker app törlése önmagában **nem old fel**: a blokkolást a rendszergazdai
-segéd tartja a hosts fájlban, és az a gép indulásakor magától újraindul. Ez
-szándékos — a gépen ez a törlés-védelem (a telefonok eszközadminjának/Képernyő-
-idejének megfelelője, [`feature-uninstall-guard.md`](feature-uninstall-guard.md)).
+A Breaker app törlése önmagában **nem old fel**: a tiltott oldalak a hosts
+fájlban maradnak, és azt csak rendszergazdai joggal lehet átírni. Ez szándékos
+— a gépen ez a törlés-védelem (a telefonok eszközadminjának/Képernyő-idejének
+megfelelője, [`feature-uninstall-guard.md`](feature-uninstall-guard.md)).
+
+**Őszinte korlát (v0.4.257):** a segéd az app saját binárisán fut, tehát az app
+törlése után a következő indulástól nem fut. Onnantól a tiltás **befagy**
+abban az állapotban, ahogy a törléskor állt: ami épp szünetben volt, nyitva
+marad; amit a menetrend, a napi keret vagy egy munkamenet zárt volna később,
+az nem zárul; és a hosts kézi átírását sem állítja vissza senki. macOS-en a
+saját telepítésű `Breaker.app` rendszergazdai jelszó nélkül is a Kukába
+húzható — ez tehát egy ingyenes lazítás. Készül a javítása: a bináris
+hiányában a legszigorúbb blokk álljon be.
+
 A segéd leszereléséhez rendszergazdai jog és az eltávolító szkript kell:
 
 ```bash

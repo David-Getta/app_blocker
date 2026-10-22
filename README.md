@@ -619,6 +619,13 @@ Néhány konkrét dolog, amit érdemes előre tudni:
   tettetjük. A cél a pár másodperc gondolkodás, nem a lehetetlenné tétel.
   Always-on VPN-t sem kényszerít: ahhoz eszköz-tulajdonos DPC kellene, ami
   sokkal több — mi nem vagyunk az.
+- **A gépen az app törlése befagyasztja a tiltást (v0.4.257):** a segéd az
+  app binárisán fut, így a törlés után nem indul újra. A hosts-blokk marad, de
+  abban az állapotban, ahogy a törléskor állt — ami épp szünetben volt, nyitva
+  marad, a menetrend és a keret nem zár többé. macOS-en a saját `.app` jelszó
+  nélkül is törölhető. Készül a javítása (a bináris hiányában a legszigorúbb
+  blokk).
+  [`docs/desktop.md`](docs/desktop.md#teljes-eltávolítás)
 - **A gépen az önteszt tényt mond, nem garanciát:** ötpercenként a rendszer
   feloldóját kérdezi a tiltott nevekről, és szól, ha nem a tiltó címre
   oldódnak — a böngésző saját DoH-ját viszont nem látja.
