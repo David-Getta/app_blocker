@@ -105,6 +105,6 @@ test('a fő folyamat: a bezárás elrejt, a kilépés előbb jelez, a második i
   assert.match(handlerBody(src, 'second-instance'), /showMain\(\)/);
   assert.match(handlerBody(src, 'activate'), /showMain\(\)/);
   // Bejelentkezéskor rejtve, és az indítási bejegyzés pótlása minden indításkor.
-  assert.ok(src.includes('createWindow({ show: !startsHidden(process.argv) });'));
+  assert.ok(src.includes('const visible = !startsHidden(process.argv);\n      createWindow({ show: visible });'));
   assert.ok(src.includes('ensureLoginStart();'));
 });

@@ -1043,12 +1043,24 @@ ismerik fel, tehát ők sem raknak fel semmit (lásd `docs/releasing.md`).
 Az asztali app sok mindent értesítésben mond el — a szünet végét, a betelő
 keretet, a közelgő heti ablakot, a hétfői visszatekintést. Ha a rendszer egy
 értesítést visszautasít (macOS-en az Electron 42-től a UNNotification, ha
-nincs engedély, vagy az app aláírása nem felel meg neki), az eddig
-nyomtalanul elmaradt. Most minden értesítés egy úton megy (`notify` a
-rendererben), és ha a rendszer `error` eseményt ad, a beállítások lapja
-kimondja, csendben, a bekapcsolás helyével együtt (`shared/notify-delivery.ts`);
-a következő átvett értesítés visszavonja. Egy teszt őrzi, hogy a rendererben
-más út ne is legyen. Macen a csomag füstpróbája azt is nézi, hogy az ad-hoc
+nincs engedély, vagy az app aláírása nem felel meg neki), az nyomtalanul
+elmaradna. Minden értesítés egy úton megy: a renderer `notify`-ja a hídon át
+kér, a FŐ FOLYAMAT küldi az Electron saját Notification-jével
+(`main/notify.ts`), és ha a rendszer nem veszi át, annak `failed` eseménye
+visszajön; a beállítások lapja ekkor kimondja, csendben, a bekapcsolás helyével
+együtt (`shared/notify-delivery.ts`); a következő átvett értesítés visszavonja.
+
+Ez a v0.4.257 óta működik így. Előtte a renderer böngészős `new Notification`-t
+használt, és annak `error` eseményére várt — csakhogy az Electron a webes
+értesítés hibáját nem adja tovább a lapnak (a webes értesítés delegáltja a
+`NotificationFailed`-et nem írja felül; se a 31-es, se a 44-es forrásban), így
+a visszautasítás sora sosem jelenhetett meg. Az egységtesztek a szöveget
+nézték, a füstpróba a tárolt állapotot ültette be: az utat magát semmi nem
+járta végig. Most a füstpróba a próba-gombon át a visszautasítást és az
+átvételt is végigjátssza, a becsomagolt app indítási próbája pedig a valódi
+hídon kér egy értesítést, és a CI naplójába írja, mit válaszolt a rendszer.
+Egy teszt őrzi, hogy a rendererben böngészős értesítés ne is legyen, az őr
+(`check-enforcement`) pedig a lánc minden szemét. Macen a csomag füstpróbája azt is nézi, hogy az ad-hoc
 aláírás azonosítója a csomagé (`hu.breaker.app`), és az Info.plist az aláírás
 része — enélkül az értesítések némán vesznének el. Windowson ugyanez az
 azonosító az AppUserModelID: a telepítő parancsikonja ezt viseli, és a futó app
@@ -1066,8 +1078,14 @@ Amit az app NEM lát: hogy egy átvett értesítés tényleg látszott-e. A `sho
 esemény csak annyi, hogy a rendszer átvette — fókusz-módban is jöhet. macOS-en
 az Electron 42 óta a UNNotification küld: a megtagadott engedély és az el nem
 fogadott aláírás (az app ad-hoc aláírású; a csomag füstpróbája ezért nézi, hogy
-az aláírás azonosítója `hu.breaker.app`, és az Info.plist benne van) `error`-ként
-jön — a kettőt az app nem tudja megkülönböztetni. Windowson a kikapcsolt
+az aláírás azonosítója `hu.breaker.app`, és az Info.plist benne van) `failed`-ként
+jön — a kettőt az app nem tudja megkülönböztetni. Az engedélyt a rendszer
+akkor kéri, amikor az Electron az értesítési kapcsolatot megnyitja — magától
+lustán, az első értesítéskor. Az app ezt az ablak első látható megnyitására
+hozza előre (`primeNotifications`), hogy a kérdés ne egy valódi
+figyelmeztetésnél (szünet vége, betelő keret) jöjjön, ami közben elveszne;
+bejelentkezéskori rejtett indulásnál nem kérdez. Ha a próba épp a kérdés
+közben megy ki, a gomb sora ezt is számba veszi. Windowson a kikapcsolt
 értesítést a rendszer nem feltétlenül jelzi vissza.
 Ezért van a beállítások lapján az „Értesítés kipróbálása” gomb, és ezért
 mondja átvételkor azt, hogy „a rendszer átvette”, nem azt, hogy „megjelent”

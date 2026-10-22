@@ -19,6 +19,7 @@
 import { app, type BrowserWindow } from 'electron';
 import * as fs from 'fs';
 import { isSmoke, versionRowText } from '../shared/smoke';
+import { notifyTestText, type NotifyTestOutcome } from '../shared/notify-delivery';
 
 export { isSmoke };
 
@@ -93,13 +94,51 @@ async function probe(win: BrowserWindow): Promise<void> {
       } catch {
         return finish(false, 'az automatikus frissítő (electron-updater) hiányzik a csomagból');
       }
+      const notice = await probeNotify(win);
+      if (notice.startsWith('HIBA:')) return finish(false, notice.slice(5).trim());
       return finish(true, `${want}: a felület betöltött, a renderer indító kódja végigfutott, `
-        + 'a híd válaszol, a frissítő betölthető');
+        + `a híd válaszol, a frissítő betölthető; értesítés: ${notice}`);
     }
     await new Promise((r) => setTimeout(r, 200));
   }
   finish(false, `a felület nem írta ki a verziót (${JSON.stringify(got)} helyett ${JSON.stringify(want)}) — `
     + 'a renderer indító kódja elakadt, vagy a híd nem válaszol');
+}
+
+/**
+ * AZ ÉRTESÍTÉS ÚTJA: a próba-gomb a fő folyamaton át kér értesítést
+ * (main/notify.ts), és a rendszer válasza visszajön a felületre. Ha a gomb
+ * nem a hídon át küld, az hiba — akkor a visszautasítást sem látnánk. A
+ * rendszer válasza viszont a futótól függ (engedély, értesítési szolgáltatás),
+ * ezért az csak a sorba kerül: így a CI naplójából kiderül, mit mond egy friss,
+ * engedély nélküli macOS az ad-hoc aláírású appnak.
+ */
+async function probeNotify(win: BrowserWindow): Promise<string> {
+  const text = (o: NotifyTestOutcome) => notifyTestText(process.platform, o);
+  const read = async () => String(await win.webContents.executeJavaScript(
+    "document.getElementById('notifyTestNote')?.textContent ?? ''",
+  ));
+  try {
+    // A kattintás és az első sor EGY lépésben: a híd válasza (például hogy
+    // ezen a rendszeren nem küldhető) különben a két hívás közé eshet.
+    let note = String(await win.webContents.executeJavaScript(
+      "(() => { document.getElementById('notifyTestBtn')?.click(); "
+        + "return document.getElementById('notifyTestNote')?.textContent ?? ''; })()",
+    ));
+    if (note !== text('sent')) return `HIBA: a próba-gomb nem a hídon át küldött értesítést (${JSON.stringify(note)})`;
+    // Tíz másodperc a rendszer válaszára.
+    for (let i = 0; i < 50 && note === text('sent'); i++) {
+      await new Promise((r) => setTimeout(r, 200));
+      note = await read();
+    }
+    if (note === text('accepted')) return 'a rendszer átvette';
+    if (note === text('failed')) return 'a rendszer visszautasította (a kézbesítési sor ezt mondja)';
+    if (note === text('off')) return 'ezen a rendszeren nem küldhető';
+    if (note === text('sent')) return 'tíz másodperc alatt nem jött válasz';
+    return `HIBA: váratlan sor a próba-gomb alatt: ${JSON.stringify(note)}`;
+  } catch (err) {
+    return `HIBA: az értesítés próbája nem futott le: ${(err as Error).message}`;
+  }
 }
 
 // A modul betöltésekor élesedik, nem egy későbbi hívásra — ezért a main.ts

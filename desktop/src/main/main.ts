@@ -48,6 +48,7 @@ import {
 import type { StatusData } from '../shared/protocol';
 import { APP_ID } from '../shared/app-id';
 import { registerDohProfileIpc } from './doh-profile';
+import { primeNotifications, registerNotifyIpc } from './notify';
 
 const HELPER_MODE = process.argv.includes('--helper');
 /** Indítási füstpróba: a rendes indulás, nyom és hálózat nélkül (smoke.ts). */
@@ -166,6 +167,7 @@ if (HELPER_MODE) {
 
   /** A fő ablak elő: a rejtett megjelenik, a megszűnt helyett új nyílik. */
   const showMain = () => {
+    primeNotifications();
     if (mainWin && !mainWin.isDestroyed()) {
       if (mainWin.isMinimized()) mainWin.restore();
       mainWin.show();
@@ -330,7 +332,11 @@ if (HELPER_MODE) {
       });
 
       buildMenu();
-      createWindow({ show: !startsHidden(process.argv) });
+      const visible = !startsHidden(process.argv);
+      createWindow({ show: visible });
+      // Látható indulás: macOS-en most kérdezzen a rendszer az értesítésekről,
+      // ne egy későbbi figyelmeztetésnél (main/notify.ts).
+      if (visible) primeNotifications();
       // A füstpróba nem hagy nyomot a gépen (bejelentkezéskori indítás) és nem
       // keres frissítést — minden más ugyanúgy indul, mint élesben.
       if (!SMOKE) ensureLoginStart();
@@ -420,6 +426,9 @@ if (HELPER_MODE) {
       // gépszintű beállítása ott csak ajánlás; a profil kötelezővé teszi —
       // ha a felhasználó maga telepíti.
       registerDohProfileIpc();
+      // A gépi értesítés a fő folyamatból megy: csak itt derül ki, ha a
+      // rendszer visszautasította (main/notify.ts).
+      registerNotifyIpc(showMain, (m) => console.log(`[notify] ${m}`));
       // A bővítmény mappája: az app csomagolja ki és tartja frissen, a
       // böngészőbe egyszer kell betölteni — nem minden kiadásnál újra.
       setupExtensionFolder(app.getPath('userData'), (m) => console.log(`[extension] ${m}`));

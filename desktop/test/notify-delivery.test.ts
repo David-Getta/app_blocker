@@ -5,7 +5,10 @@ import { strict as assert } from 'node:assert';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { notifyFailText, notifyTestText, parseFailedAt } from '../src/shared/notify-delivery';
+import {
+  NOTIFY_BODY_MAX, NOTIFY_TITLE_MAX, NotifyMemory, notifyFailText, notifyTestText, parseFailedAt,
+  parseNotifyEvent, parseNotifyRequest,
+} from '../src/shared/notify-delivery';
 
 test('a mondat megmondja, mi maradt el, és hol kapcsolható be — platformonként', () => {
   const mac = notifyFailText('darwin', '09:30');
@@ -25,18 +28,67 @@ test('a tárolt időpont: csak véges, pozitív szám számít hibának', () => 
   assert.equal(parseFailedAt('1791400000000'), 1791400000000);
 });
 
-test('a rendererben MINDEN értesítés a közös úton megy — egy sem kerülheti meg a hibafigyelést', () => {
+test('a rendererben MINDEN értesítés a fő folyamaton át megy — egy sem kerülheti meg a hibafigyelést', () => {
   // A lefordított teszt a dist-test/test alatt fut — a forrás két szinttel feljebb.
-  const src = readFileSync(join(__dirname, '..', '..', 'src', 'renderer', 'renderer.ts'), 'utf8');
-  const raw = src.split('new Notification(').length - 1;
-  assert.equal(raw, 1, 'csak a notify() hozhat létre értesítést, különben a meg nem jelenése némán elveszne');
-  assert.match(src, /n\.addEventListener\('error', \(\) => noteNotifyDelivery\(Date\.now\(\)\)\);/);
-  assert.match(src, /n\.addEventListener\('show', \(\) => noteNotifyDelivery\(null\)\);/);
+  const root = join(__dirname, '..', '..', 'src');
+  const src = readFileSync(join(root, 'renderer', 'renderer.ts'), 'utf8');
+  // A böngészős értesítés hibáját az Electron nem adja tovább a lapnak: egy
+  // ilyen út mellett a visszautasítás némán elveszne.
+  assert.equal(src.split('new Notification(').length - 1, 0, 'a felület nem hozhat létre böngészős értesítést');
+  assert.match(src, /const send = window\.breaker\?\.notify;/);
+  assert.match(src, /window\.breaker\.onNotifyEvent\?\.\(onNotifyEvent\);/);
+  assert.match(src, /ev\.kind === 'failed'\) \{\n\s+noteNotifyDelivery\(Date\.now\(\)\);/);
+  assert.match(src, /ev\.kind === 'shown'\) \{\n\s+noteNotifyDelivery\(null\);/);
+  // A fő folyamat a `failed` eseményt hallgatja, és visszaküldi.
+  const main = readFileSync(join(root, 'main', 'notify.ts'), 'utf8');
+  assert.match(main, /n\.on\('failed', /);
+  assert.match(main, /n\.on\('show', \(\) => send\('shown'\)\);/);
+  assert.match(main, /sender\.send\('breaker:notify-event', /);
+  const preload = readFileSync(join(root, 'main', 'preload.ts'), 'utf8');
+  assert.match(preload, /ipcRenderer\.on\('breaker:notify-event', /);
+  assert.match(preload, /ipcRenderer\.invoke\('breaker:notify', req\)/);
+});
+
+test('a kérés ellenőrzése: csak a várt alak megy át, a hossz kódpontban vágva', () => {
+  assert.deepEqual(parseNotifyRequest({ id: 'n1', title: 'Breaker', body: 'szöveg' }), { id: 'n1', title: 'Breaker', body: 'szöveg' });
+  for (const bad of [null, undefined, 'x', 1, [], {}, { id: 'n1', title: 'T' }, { id: 'n1', body: 'b' },
+    { id: '', title: 'T', body: 'b' }, { id: 'a b', title: 'T', body: 'b' }, { id: 'x'.repeat(41), title: 'T', body: 'b' },
+    { id: 'n1', title: '   ', body: 'b' }, { id: 'n1', title: 5, body: 'b' }, { id: 'n1', title: 'T', body: null }]) {
+    assert.equal(parseNotifyRequest(bad), null, JSON.stringify(bad));
+  }
+  const long = parseNotifyRequest({ id: 'n2', title: '😀'.repeat(NOTIFY_TITLE_MAX + 5), body: 'é'.repeat(NOTIFY_BODY_MAX + 1) });
+  assert.ok(long);
+  assert.equal([...long.title].length, NOTIFY_TITLE_MAX);
+  assert.ok(long.title.endsWith('😀'), 'emodzsi nem törik félbe');
+  assert.equal([...long.body].length, NOTIFY_BODY_MAX);
+});
+
+test('az esemény ellenőrzése a felületen', () => {
+  for (const kind of ['shown', 'failed', 'click'] as const) {
+    assert.deepEqual(parseNotifyEvent({ id: 'n7', kind }), { id: 'n7', kind });
+  }
+  for (const bad of [null, {}, { id: 'n7' }, { id: 'n7', kind: 'error' }, { id: 'n 7', kind: 'shown' }, ['n7', 'shown']]) {
+    assert.equal(parseNotifyEvent(bad), null, JSON.stringify(bad));
+  }
+});
+
+test('a korlátos emlékezet: a legrégebbi esik ki, és visszakapjuk, hogy el lehessen engedni', () => {
+  const m = new NotifyMemory<string>(2);
+  assert.deepEqual(m.add('a', 'A'), []);
+  assert.deepEqual(m.add('b', 'B'), []);
+  assert.deepEqual(m.add('c', 'C'), ['A']);
+  assert.equal(m.get('a'), undefined);
+  assert.equal(m.get('c'), 'C');
+  // Újra felvéve a sor végére kerül: nem az esik ki.
+  assert.deepEqual(m.add('b', 'B2'), []);
+  assert.deepEqual(m.add('d', 'D'), ['C']);
+  m.delete('b');
+  assert.equal(m.size, 1);
 });
 
 test('a próba-gomb nem állítja, hogy az értesítés megjelent — azt csak a felhasználó látja', () => {
-  // A `show` annyi, hogy a rendszer átvette: kikapcsolt értesítésnél és
-  // fókusz-módban is jöhet, a mostani Electron macOS-en hibát sosem ad.
+  // A `show` annyi, hogy a rendszer átvette: fókusz-módban és Windowson a
+  // kikapcsolt értesítésnél is jöhet — hogy látszott-e, azt az app nem tudja.
   for (const platform of ['darwin', 'win32', 'linux']) {
     for (const outcome of ['sent', 'accepted', 'failed', 'off'] as const) {
       const text = notifyTestText(platform, outcome);
@@ -48,4 +100,8 @@ test('a próba-gomb nem állítja, hogy az értesítés megjelent — azt csak a
   assert.ok(notifyTestText('darwin', 'accepted').includes('Rendszerbeállítások › Értesítések › Breaker'));
   assert.ok(notifyTestText('win32', 'accepted').includes('Gépház › Rendszer › Értesítések › Breaker'));
   assert.ok(notifyTestText('darwin', 'accepted').includes('fókusz-mód'));
+  // macOS-en az első értesítés előtt jön az engedély-kérdés: a visszautasított
+  // próba ezt is számba veszi, nem csak a kikapcsolt értesítést.
+  assert.ok(notifyTestText('darwin', 'failed').includes('engedélyt'));
+  assert.ok(!notifyTestText('win32', 'failed').includes('engedélyt'));
 });

@@ -3,6 +3,7 @@ import type { OverlayShortcutInfo, OverlayShortcutResult } from './overlay-short
 import type { ExtensionFolderInfo } from './extension-folder';
 import type { DohProfileOutcome } from './doh-profile';
 import type { DohLockState } from './doh-lock-state';
+import type { NotifyRequest, NotifySendResult } from '../shared/notify-delivery';
 
 export interface UpdateState {
   status: 'idle' | 'checking' | 'available' | 'downloading' | 'ready' | 'error' | 'unsupported';
@@ -115,6 +116,13 @@ export interface BreakerBridge {
   saveDohProfile(): Promise<DohProfileOutcome>;
   /** macOS: érvényben van-e most a kötelező DoH-tilalom (a kezelt beállítások szerint), böngészőnként */
   getDohLockState(): Promise<DohLockState | null>;
+  /**
+   * Gépi értesítés a fő folyamatból (main/notify.ts). Az eredmény az azonnali
+   * válasz; hogy a rendszer átvette-e, az onNotifyEvent-en jön, az azonosítóval.
+   */
+  notify(req: NotifyRequest): Promise<NotifySendResult>;
+  /** egy értesítés sorsa: a rendszer átvette, visszautasította, vagy rákattintottak (ellenőrizetlen alak) */
+  onNotifyEvent(cb: (ev: unknown) => void): void;
   platform: string;
 }
 
@@ -147,6 +155,8 @@ const bridge: BreakerBridge = {
   authenticate: (reason) => ipcRenderer.invoke('breaker:authenticate', reason),
   saveDohProfile: () => ipcRenderer.invoke('breaker:save-doh-profile'),
   getDohLockState: () => ipcRenderer.invoke('breaker:doh-lock-state'),
+  notify: (req) => ipcRenderer.invoke('breaker:notify', req),
+  onNotifyEvent: (cb) => ipcRenderer.on('breaker:notify-event', (_e, ev: unknown) => cb(ev)),
   platform: process.platform,
 };
 

@@ -480,6 +480,20 @@ function fakeBridgeSource() {
       stopSyncServer: async () => { window.__fakeHost = { running: false }; return window.__fakeHost; },
       onUpdateState: (cb) => { window.__pushUpdate = cb; },
       installUpdate: async () => { window.__installCalled = (window.__installCalled || 0) + 1; return { ok: true }; },
+      // GÉPI ÉRTESÍTÉS a fő folyamaton át — csak ha a füstteszt az induláskor
+      // kéri (window.__fakeNotify: 'shown' | 'failed'). Nélküle a híd nem tud
+      // értesíteni, mint egy régi híd: a többi ellenőrzés így nem kap
+      // váratlan értesítést. A rendszer válaszát a KÉRÉS PILLANATÁBAN érvényes
+      // érték adja, így egy lapon belül is váltható.
+      ...(window.__fakeNotify ? {
+        notify: async (req) => {
+          (window.__notified = window.__notified || []).push(req);
+          const kind = window.__fakeNotify;
+          setTimeout(() => { if (window.__pushNotify) window.__pushNotify({ id: req.id, kind }); }, 50);
+          return 'sent';
+        },
+        onNotifyEvent: (cb) => { window.__pushNotify = cb; },
+      } : {}),
     };
   `;
 }
@@ -2345,8 +2359,51 @@ async function main() {
     failures.push(`a meg nem jelent értesítést a beállítások lapja nem mondja ki: ${deliveryNote}`);
   }
   await notifyPage.close();
-  // A PRÓBA GOMBJA mindig mond valamit — a fej nélküli böngészőben nincs
-  // engedély, tehát azt; egy néma gomb elromlottnak látszana.
+  // A VISSZAUTASÍTÁS ÚTJA VÉGIG. Az értesítés a fő folyamaton át megy, és ha
+  // a rendszer nem veszi át, a `failed` esemény visszajön (main/notify.ts). A
+  // böngészős értesítés hibáját az Electron nem adta tovább — ezért ezt az
+  // utat a próba-gombon át járjuk végig: kérés → visszautasítás → a gomb sora
+  // és a kézbesítési sor; aztán átvétel → a sor eltűnik.
+  const failPage = await browser.newPage({ viewport: { width: 1180, height: 900 } });
+  await failPage.addInitScript(() => { window.__fakeNotify = 'failed'; });
+  await failPage.addInitScript(fakeBridgeSource());
+  await failPage.goto(`http://127.0.0.1:${port}/renderer/index.html`);
+  await failPage.waitForSelector('#siteList .site-row', { timeout: 15_000 });
+  await failPage.locator('#notifyTestBtn').evaluate((b) => b.click());
+  await failPage.waitForFunction(
+    () => /nem vette át a próbát/.test(document.getElementById('notifyTestNote')?.textContent || ''),
+    undefined, { timeout: 5_000 },
+  ).catch(() => {});
+  const failNote = (await failPage.locator('#notifyTestNote').textContent()) || '';
+  const failDelivery = (await failPage.locator('#notifyDeliveryNote').textContent()) || '';
+  const sentTitles = await failPage.evaluate(() => (window.__notified || []).map((r) => r.title));
+  if (!sentTitles.includes('Breaker — próba')) {
+    failures.push(`a próba-gomb nem a fő folyamaton át kért értesítést: ${JSON.stringify(sentTitles)}`);
+  }
+  if (!failNote.includes('nem vette át a próbát') || !failNote.includes('engedélyt')) {
+    failures.push(`a visszautasított próbát a gomb sora nem mondja ki: ${failNote}`);
+  }
+  if (await failPage.locator('#notifyDeliveryNote.hidden').count() !== 0
+    || !failDelivery.includes('nem jelenítette meg')
+    || !failDelivery.includes('Rendszerbeállítások › Értesítések › Breaker')) {
+    failures.push(`a visszautasított értesítés után a kézbesítési sor nem jelent meg: ${failDelivery}`);
+  }
+  await failPage.evaluate(() => { window.__fakeNotify = 'shown'; });
+  await failPage.locator('#notifyTestBtn').evaluate((b) => b.click());
+  await failPage.waitForFunction(
+    () => /átvette/.test(document.getElementById('notifyTestNote')?.textContent || ''),
+    undefined, { timeout: 5_000 },
+  ).catch(() => {});
+  const okNote = (await failPage.locator('#notifyTestNote').textContent()) || '';
+  if (!okNote.includes('A rendszer átvette')) {
+    failures.push(`az átvett próbát a gomb sora nem mondja ki: ${okNote}`);
+  }
+  if (await failPage.locator('#notifyDeliveryNote.hidden').count() !== 1) {
+    failures.push('az átvett értesítés után is ott a meg nem jelent értesítés sora');
+  }
+  await failPage.close();
+  // A PRÓBA GOMBJA mindig mond valamit — ha a híd nem tud értesíteni, azt;
+  // egy néma gomb elromlottnak látszana.
   await page.locator('#notifyTestBtn').evaluate((b) => b.click());
   const testNote = (await page.locator('#notifyTestNote').textContent()) || '';
   if (await page.locator('#notifyTestNote.hidden').count() !== 0 || testNote.trim() === '') {

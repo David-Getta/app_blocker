@@ -377,8 +377,10 @@ hiányozzon.
 - **Rendszerkövetelmény:** macOS 13 (Ventura) vagy újabb, Windows 10 vagy
   újabb. A v0.4.257 óta az asztali app az Electron 44-en fut, ami a macOS
   12-t már nem támogatja; macOS 12-n a v0.4.256 marad, és az app a
-  verziószáma alatt kimondja, miért nem frissül tovább. A macOS első értesítése előtt a
-  rendszer engedélyt kér — az **„Értesítés kipróbálása”** gomb jó első lépés.
+  verziószáma alatt kimondja, miért nem frissül tovább. macOS-en az app első
+  megnyitásakor a rendszer megkérdezi, küldhet-e értesítést: engedd meg,
+  különben a szünet vége és a betelő keret jelzése elmarad. Az
+  **„Értesítés kipróbálása”** gomb megmutatja, hogy működik.
 - **Windows / macOS:** a telepítő egyszer kér rendszergazdai jóváhagyást a
   védelemhez (a segéd ettől tud a hosts fájlba írni). macOS-en nem kér újra
   minden indításnál.
@@ -643,7 +645,8 @@ Néhány konkrét dolog, amit érdemes előre tudni:
   azokat a gépen akkor csak a segéd indítja el, a böngésző nem tartja be.
 - **Hogy egy gépi értesítés tényleg látszott-e, azt az app nem tudja** —
   csak azt, ha a rendszer visszautasította; ezt a beállítások lapja csendben
-  kimondja, a bekapcsolás helyével. macOS-en a megtagadott engedély (és ha a
+  kimondja, a bekapcsolás helyével. (A v0.4.257 óta tényleg: előtte az app ezt
+  a jelzést nem kapta meg, és a sor sosem jelent meg.) macOS-en a megtagadott engedély (és ha a
   rendszer az aláíratlan app értesítését nem fogadja el) ilyen
   visszautasítás; Windowson a kikapcsolt értesítést a rendszer nem
   feltétlenül jelzi vissza, és egy fókusz-mód elnémítását egyik rendszer sem.

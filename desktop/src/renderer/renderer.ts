@@ -17,7 +17,10 @@ import {
 import { HELPER_VERSION } from '../shared/protocol.js';
 import { versionRowText } from '../shared/smoke.js';
 import { macTooOldText, type MacTooOld } from '../shared/update-manifest.js';
-import { notifyFailText, notifyTestText, parseFailedAt } from '../shared/notify-delivery.js';
+import {
+  NotifyMemory, notifyFailText, notifyTestText, parseFailedAt, parseNotifyEvent,
+  type NotifyRequest, type NotifySendResult,
+} from '../shared/notify-delivery.js';
 // A .js itt sem elhagyható: a böngésző natív ESM-betöltője oldja fel futásidőben.
 import { normalizeRule, ruleLabel } from '../shared/urlrules.js';
 import { MAX_BURST_MINUTES, MAX_COOLDOWN_MINUTES, normalizeBurst } from '../shared/burst.js';
@@ -127,6 +130,10 @@ interface Bridge {
   saveDohProfile?(): Promise<{ ok: true; path: string; openError?: string } | { ok: false; canceled?: boolean; error?: string }>;
   /** macOS: mi érvényes most a böngészők DoH-járól; a régi híd nem tudja — akkor nincs sor */
   getDohLockState?(): Promise<DohLockState | null>;
+  /** gépi értesítés a fő folyamatból; a régi híd nem tudja — akkor az app nem küld értesítést */
+  notify?(req: NotifyRequest): Promise<NotifySendResult>;
+  /** egy értesítés sorsa a fő folyamatból (ellenőrizetlen alak — parseNotifyEvent) */
+  onNotifyEvent?(cb: (ev: unknown) => void): void;
   platform: string;
 }
 declare global { interface Window { breaker: Bridge } }
@@ -544,19 +551,58 @@ let seenFocusRun: FocusRun | null = null;
 let notifyFailedAt: number | null = null;
 const NOTIFY_FAIL_KEY = 'breaker.notifyFailedAt';
 
+/** Amit egy értesítés sorsára tenni kell: átvette, visszautasította, rákattintottak, vagy nem küldhető. */
+interface NotifyHandlers {
+  onShown?: () => void;
+  onFailed?: () => void;
+  onClick?: () => void;
+  onUnsupported?: () => void;
+}
+
+const notifyHandlers = new NotifyMemory<NotifyHandlers>();
+let notifySeq = 0;
+
+/** Küldhet-e az app értesítést — a fő folyamat útja megvan-e (a hídon). */
+function canNotify(): boolean {
+  return typeof window.breaker?.notify === 'function';
+}
+
 /**
- * Rendszer-értesítés — EGY úton. Engedély híján csendben marad (null): a
- * felület enélkül is mondja, amit kell. Ha a rendszer NEM jeleníti meg (le
- * van tiltva, vagy macOS-en az aláírás nem felel meg a UNNotification-nek),
- * az nem vész el némán: a beállítások lapja kimondja (shared/notify-delivery.ts),
- * a következő megjelenő értesítés pedig visszavonja.
+ * Rendszer-értesítés — EGY úton, a fő folyamaton át (main/notify.ts). Ha nem
+ * küldhető, csendben marad (false): a felület enélkül is mondja, amit kell.
+ * Ha a rendszer NEM veszi át (macOS-en nincs engedély, vagy az aláírás nem
+ * felel meg a UNNotification-nek; Windowson nem tudja feldobni), az nem vész
+ * el némán: a beállítások lapja kimondja (shared/notify-delivery.ts), a
+ * következő átvett értesítés pedig visszavonja.
  */
-function notify(title: string, body: string): Notification | null {
-  if (!('Notification' in window) || Notification.permission !== 'granted') return null;
-  const n = new Notification(title, { body });
-  n.addEventListener('show', () => noteNotifyDelivery(null));
-  n.addEventListener('error', () => noteNotifyDelivery(Date.now()));
-  return n;
+function notify(title: string, body: string, handlers: NotifyHandlers = {}): boolean {
+  const send = window.breaker?.notify;
+  if (typeof send !== 'function') return false;
+  const id = `n${++notifySeq}`;
+  notifyHandlers.add(id, handlers);
+  send({ id, title, body }).then((r) => {
+    if (r === 'sent') return;
+    notifyHandlers.delete(id);
+    if (r === 'unsupported') handlers.onUnsupported?.();
+  }, () => { notifyHandlers.delete(id); });
+  return true;
+}
+
+/** Egy értesítés sorsa a fő folyamatból — egy figyelő, az azonosító szerint. */
+function onNotifyEvent(raw: unknown): void {
+  const ev = parseNotifyEvent(raw);
+  if (!ev) return;
+  const h = notifyHandlers.get(ev.id);
+  if (ev.kind === 'shown') {
+    noteNotifyDelivery(null);
+    h?.onShown?.();
+  } else if (ev.kind === 'failed') {
+    noteNotifyDelivery(Date.now());
+    notifyHandlers.delete(ev.id);
+    h?.onFailed?.();
+  } else {
+    h?.onClick?.();
+  }
 }
 
 function noteNotifyDelivery(failedAt: number | null): void {
@@ -582,7 +628,7 @@ function renderNotifyDelivery(): void {
  * kártya és a felső sori jelzés enélkül is mondja.
  */
 function showWindowRunNotice(run: FocusRun): void {
-  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  if (!canNotify()) return;
   const pack = status?.focusPacks?.find((p) => p.id === run.packId);
   notify('Breaker — munkamenet a heti ablak szerint',
     `${pack?.name ?? 'Csomag'} — eddig: ${fmtClock(run.endsAt)}. `
@@ -598,7 +644,7 @@ let seenLockdown: Lockdown | null = null;
  * enélkül is mondja.
  */
 function showWindowLockdownNotice(lock: Lockdown, now: number): void {
-  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  if (!canNotify()) return;
   notify('Breaker — zárlat a heti ablak szerint',
     `${formatLockdownRemaining(lock.until - now)} van hátra (eddig: ${fmtClock(lock.until)}). `
       + 'Amíg tart, semmilyen lazítás nem indítható — próbatétellel sem.');
@@ -609,7 +655,7 @@ let warnedWindowStart = 0;
 
 /** Tíz perccel a heti ablak beérése előtt egyszer szólunk — ami nyitva van, mentsd el. */
 function showWindowSoonNotice(lock: Lockdown | null, windows: LockdownWindowRow[], now: number): void {
-  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  if (!canNotify()) return;
   const occ = windowStartingSoon(lock, windows, now);
   if (!occ || occ.startsAt === warnedWindowStart) return;
   warnedWindowStart = occ.startsAt;
@@ -630,7 +676,7 @@ let warnedFocusWindow = '';
 function showFocusWindowSoonNotice(
   soon: { packId: string; name: string; startsAt: number; endsAt: number } | null | undefined, now: number,
 ): void {
-  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  if (!canNotify()) return;
   if (!soon) return;
   const key = `${soon.packId}@${soon.startsAt}`;
   if (key === warnedFocusWindow) return;
@@ -827,7 +873,7 @@ function renderSuggestCard(now: number): void {
 }
 
 function showHitNudge(today: number, now: number): void {
-  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  if (!canNotify()) return;
   if (quietSuggestions()) return;
   // Futó menet mellett nincs javaslat: a lépés, amit ajánlanánk, már megvan.
   if (focusIsRunning(status?.focusRun ?? null, now)) return;
@@ -838,9 +884,9 @@ function showHitNudge(today: number, now: number): void {
   try { last = localStorage.getItem('breaker.hitNudge'); } catch { /* nincs tár: szólunk */ }
   if (last === key) return;
   try { localStorage.setItem('breaker.hitNudge', key); } catch { /* nincs tár: legközelebb újra */ }
-  const n = notify('Breaker — sokadik megakadás', hitNudgeText(step) + clickToStartText());
   // EGY KATTINTÁS az értesítésről a menetig: a javaslat nem csak mondat.
-  if (n) n.onclick = () => void startSuggestedSession(true);
+  notify('Breaker — sokadik megakadás', hitNudgeText(step) + clickToStartText(),
+    { onClick: () => void startSuggestedSession(true) });
 }
 
 /**
@@ -849,7 +895,7 @@ function showHitNudge(today: number, now: number): void {
  * ilyenkor jár a kéz magától. Nem tilt, nem ítél — és csak amíg az app fut.
  */
 function showPeakWarning(peak: { hour: number; count: number } | null, now: number): void {
-  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  if (!canNotify()) return;
   if (quietSuggestions()) return;
   // Futó menet mellett nincs előjelzés: a menet már megy, a figyelmeztetés zaj lenne.
   if (focusIsRunning(status?.focusRun ?? null, now)) return;
@@ -859,9 +905,9 @@ function showPeakWarning(peak: { hour: number; count: number } | null, now: numb
   try { last = localStorage.getItem('breaker.peakWarn'); } catch { /* nincs tár: szólunk */ }
   if (last === key) return;
   try { localStorage.setItem('breaker.peakWarn', key); } catch { /* nincs tár: legközelebb újra */ }
-  const n = notify('Breaker — mindjárt a csúcs-óra', peakWarnText(peak) + clickToStartText());
   // EGY KATTINTÁS az értesítésről a menetig: az előjelzés nem csak mondat.
-  if (n) n.onclick = () => void startSuggestedSession(true);
+  notify('Breaker — mindjárt a csúcs-óra', peakWarnText(peak) + clickToStartText(),
+    { onClick: () => void startSuggestedSession(true) });
 }
 
 /**
@@ -873,7 +919,7 @@ function showPeakWarning(peak: { hour: number; count: number } | null, now: numb
 function showFocusHourWarning(
   peak: { hour: number; count: number } | null, hitsPeak: { hour: number; count: number } | null, now: number,
 ): void {
-  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  if (!canNotify()) return;
   if (quietSuggestions()) return;
   if (focusIsRunning(status?.focusRun ?? null, now)) return;
   if (peak === null || (hitsPeak !== null && hitsPeak.hour === peak.hour)) return;
@@ -883,13 +929,13 @@ function showFocusHourWarning(
   try { last = localStorage.getItem('breaker.focusHourWarn'); } catch { /* nincs tár: szólunk */ }
   if (last === key) return;
   try { localStorage.setItem('breaker.focusHourWarn', key); } catch { /* nincs tár: legközelebb újra */ }
-  const n = notify('Breaker — mindjárt a menet-óra', focusHourWarnText(peak) + clickToStartText());
   // EGY KATTINTÁS az értesítésről a menetig: az előjelzés nem csak mondat.
-  if (n) n.onclick = () => void startSuggestedSession(true);
+  notify('Breaker — mindjárt a menet-óra', focusHourWarnText(peak) + clickToStartText(),
+    { onClick: () => void startSuggestedSession(true) });
 }
 
 function showBurstNotice(n: BurstNotice, now: number): void {
-  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  if (!canNotify()) return;
   const body = n.kind === 'tripped'
     ? `${n.label}: az adag betelt — nyit ${fmtRemain(n.until - now)} múlva.`
     : `${n.label}: az adag-szünet letelt, az oldal újra nyitva.`;
@@ -4523,7 +4569,7 @@ function buildDelay(box: HTMLElement, session: SessionInfo, step: StepDisplay): 
     } else if (now <= at + d.claimWindowMs) {
       countdown.textContent = `Átvehető még: ${fmtRemain(at + d.claimWindowMs - now)}`;
       claimBtn.disabled = false;
-      if (notifiedStepId !== step.id && 'Notification' in window && Notification.permission === 'granted') {
+      if (notifiedStepId !== step.id && canNotify()) {
         notifiedStepId = step.id;
         notify('Breaker', 'Letelt a várakozás — 10 perced van átvenni a feloldást.');
       }
@@ -4608,24 +4654,22 @@ function setupModal(): void {
     applyBackground();
   });
   // AZ ÉRTESÍTÉS PRÓBÁJA — a felhasználó kérésére, egy nyugodt pillanatban. Kiderül,
-  // tényleg megjelenik-e; macOS-en (az Electron 42-től) az első értesítés kéri a
-  // rendszer engedélyét, és jobb, ha az itt jön fel, nem egy szünet végi
-  // figyelmeztetésnél. Ha nem jelenik meg, a kézbesítési sor mondja meg, hol
-  // kapcsolható be (notify → noteNotifyDelivery).
+  // hogy a rendszer átveszi-e; macOS-en az engedélyt a rendszer az ablak első
+  // megnyitásakor kéri (main/notify.ts, primeNotifications), és ha a próba épp a
+  // kérdés közben megy ki, a sor ezt is számba veszi. Ha a rendszer nem veszi át,
+  // a kézbesítési sor mondja meg, hol kapcsolható be (onNotifyEvent → noteNotifyDelivery).
   $('notifyTestBtn').addEventListener('click', () => {
     const out = $('notifyTestNote');
     out.classList.remove('hidden');
     const platform = window.breaker.platform;
-    const n = notify('Breaker — próba', 'Ha ezt látod, a Breaker értesítései megjelennek.');
-    if (!n) {
-      out.textContent = notifyTestText(platform, 'off');
-      return;
-    }
-    // A `show` csak annyi, hogy a rendszer átvette — hogy látszott-e, azt a
+    // A `shown` csak annyi, hogy a rendszer átvette — hogy látszott-e, azt a
     // felhasználó tudja, nem az app (shared/notify-delivery.ts).
-    out.textContent = notifyTestText(platform, 'sent');
-    n.addEventListener('show', () => { out.textContent = notifyTestText(platform, 'accepted'); });
-    n.addEventListener('error', () => { out.textContent = notifyTestText(platform, 'failed'); });
+    const sent = notify('Breaker — próba', 'Ha ezt látod, a Breaker értesítései megjelennek.', {
+      onShown: () => { out.textContent = notifyTestText(platform, 'accepted'); },
+      onFailed: () => { out.textContent = notifyTestText(platform, 'failed'); },
+      onUnsupported: () => { out.textContent = notifyTestText(platform, 'off'); },
+    });
+    out.textContent = notifyTestText(platform, sent ? 'sent' : 'off');
   });
   // Ha nem kéred, csendben marad: a kapcsoló a tárba ír, a két értesítés onnan kérdez.
   ($('suggestNotify') as HTMLInputElement).checked = !quietSuggestions();
@@ -4779,7 +4823,7 @@ let digestDoneKey: string | null = null;
  * állapot-körben is feltehető; a statisztikát csak akkor kérjük le, ha igen.
  */
 function digestWanted(): boolean {
-  if (!('Notification' in window) || Notification.permission !== 'granted') return false;
+  if (!canNotify()) return false;
   let last: string | null = null;
   try { last = localStorage.getItem('breaker.digestWeek'); } catch { return false; }
   const key = digestDue(last, Date.now());
@@ -4795,7 +4839,7 @@ function digestWanted(): boolean {
  */
 function maybeDigest(): void {
   if (!statsData || !status) return;
-  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  if (!canNotify()) return;
   let last: string | null = null;
   try { last = localStorage.getItem('breaker.digestWeek'); } catch { /* nincs tár */ }
   const key = digestDue(last, Date.now());
@@ -5682,9 +5726,9 @@ setupShortcutControls();
 void refreshOverlayShortcut();
 setupSelfTest();
 setupDohProfile();
-if ('Notification' in window && Notification.permission === 'default') {
-  void Notification.requestPermission();
-}
+// Az értesítések sorsa a fő folyamatból jön (main/notify.ts); a webes
+// engedély-kérés itt nem kell — macOS-en a rendszer az első értesítéskor kérdez.
+window.breaker.onNotifyEvent?.(onNotifyEvent);
 watchErrors();
 void refresh();
 setInterval(() => {

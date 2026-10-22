@@ -92,7 +92,8 @@ a root démon (macOS) és a SYSTEM-feladat (Windows) nem lát bele a
 felhasználó munkamenetébe, nem tudja, melyik ablak van előtérben
 (`src/main/tracker.ts`). A napi keret és az adag a mért időből fogy, a gépi
 értesítéseket (heti ablak, adag, visszatekintés, előjelzések) pedig az app
-ablakának tartalma adja.
+ablakának tartalma kéri — a fő folyamat küldi, hogy a rendszer visszautasítása
+is visszajöjjön (`src/main/notify.ts`).
 
 Ezért az app nem áll le, ha bezárják az ablakát (`src/shared/background.ts`):
 

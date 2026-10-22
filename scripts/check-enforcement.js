@@ -201,7 +201,7 @@ const WIRES = [
   },
   {
     file: 'desktop/src/main/main.ts',
-    needle: 'createWindow({ show: !startsHidden(process.argv) });',
+    needle: 'const visible = !startsHidden(process.argv);\n      createWindow({ show: visible });',
     lost: 'a bejelentkezéskori indítás ablakkal nyílna — vagy a kapcsoló hatástalan volna',
   },
   // A MÉRÉS-ŐR. Bekapcsolva a kilépés sem kapcsolja ki a keretet: ha az app
@@ -231,6 +231,48 @@ const WIRES = [
     file: 'desktop/src/main/main.ts',
     needle: 'if (!needsMeasurement(site)) continue;',
     lost: 'a híd nem küldené le a mérés-őr hosztjait — app nélkül a böngésző csak egy névfeloldási hibát mutatna',
+  },
+  // A GÉPI ÉRTESÍTÉS a fő folyamatból megy: a felület böngészős értesítésének
+  // hibáját az Electron nem adja tovább, ezért ha a rendszer visszautasít egy
+  // értesítést, azt csak a fő folyamat `failed` eseménye mondja meg. Ha a lánc
+  // bármelyik szeme kiesik, a figyelmeztetés némán elmarad, és a beállítások
+  // lapja sem szól.
+  {
+    file: 'desktop/src/main/main.ts',
+    needle: 'registerNotifyIpc(showMain, ',
+    lost: 'a felület kérésére senki nem küldene értesítést — a szünet vége, a betelő keret némán elmaradna',
+  },
+  // macOS-en az engedély-kérdés a látható ablakkal jön, nem egy valódi
+  // figyelmeztetéssel — az elveszne, amíg a kérdés kint van.
+  {
+    file: 'desktop/src/main/main.ts',
+    needle: 'if (visible) primeNotifications();',
+    lost: 'macOS-en az engedély-kérdés az első valódi figyelmeztetéssel jönne, és az a figyelmeztetés elveszne',
+  },
+  {
+    file: 'desktop/src/main/main.ts',
+    needle: 'const showMain = () => {\n    primeNotifications();',
+    lost: 'a rejtve indult app előhozásakor macOS-en nem jönne az engedély-kérdés',
+  },
+  {
+    file: 'desktop/src/main/notify.ts',
+    needle: "n.on('failed', ",
+    lost: 'a rendszer visszautasítását senki nem hallaná — a beállítások lapja sosem mondaná ki',
+  },
+  {
+    file: 'desktop/src/main/preload.ts',
+    needle: "ipcRenderer.on('breaker:notify-event', ",
+    lost: 'az értesítés sorsa nem jutna vissza a felületre',
+  },
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: 'window.breaker.onNotifyEvent?.(onNotifyEvent);',
+    lost: 'a felület nem hallgatná az értesítések sorsát — a visszautasítás sora sosem jelenne meg',
+  },
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: "} else if (ev.kind === 'failed') {\n    noteNotifyDelivery(Date.now());",
+    lost: 'a visszautasított értesítés nem kerülne a beállítások lapjára',
   },
   {
     file: 'extension/background.js',
@@ -2113,8 +2155,15 @@ const WIRES = [
   },
   {
     file: 'desktop/src/renderer/renderer.ts',
-    needle: 'n.onclick = () => void startSuggestedSession(true);',
+    needle: '{ onClick: () => void startSuggestedSession(true) }',
     lost: 'a gépi értesítés kattintása nem indítana menetet — az ígéret üres',
+  },
+  {
+    // …és a kattintás a fő folyamatból vissza is jön: enélkül a fenti teendő
+    // sosem futna le.
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: 'h?.onClick?.();',
+    lost: 'a gépi értesítés kattintása nem jutna el a teendőig',
   },
   {
     file: 'desktop/src/renderer/renderer.ts',
