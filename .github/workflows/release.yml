@@ -51,7 +51,10 @@ jobs:
           óta így volt. Most egy új próba fogta meg, ami a valódi telepítőt futtatja,
           és a szolgáltatással egy oldalt le is tilt. **Ha a gombot korábban hiába
           nyomtad meg, nyomd meg most újra.** A szolgáltatás mostantól akkumulátoron is
-          fut, napok múlva sem áll le magától, és ha hibával kilép, újraindul.
+          fut, napok múlva sem áll le magától, és ha hibával kilép, újraindul. Az
+          állapotát — benne a szinkron kulcsait — csak a rendszer és a rendszergazdák
+          érik el; ahol eddig is futott (egyedi telepítési helyen), ott a gép többi
+          felhasználója is olvashatta.
 
           **Az asztali app támogatott alapra költözött (Electron 44).**
           Eddig az Electron 31-en futott, ami 2025 eleje óta nem kap biztonsági

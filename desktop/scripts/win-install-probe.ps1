@@ -16,6 +16,8 @@
 #      felel, felvesz egy oldalt, és a rendszer feloldója a tiltó címet adja;
 #      a feladat akkumulátoron is fut, nincs időkorlátja, hiba után újraindul
 #      — és ha valaki az alapértékekre rontja, a segéd induláskor visszateszi;
+#   2a. az állapotmappába a segéd előtt egy sima felhasználó fájlt tehet (a rés
+#      előfeltétele), utána se a state.json-t nem olvassa, se nem ír bele;
 #   4. a kézi eltávolító (uninstall-windows.ps1) egy idegen célú, ugyanilyen
 #      nevű parancsikont meghagy, a Breaker.exe-re mutatót leveszi — és a
 #      segéd feladatát meg a hosts-blokkot is, a hosts többi része a régi.
@@ -98,6 +100,39 @@ $bytes = New-Object byte[] 32
 $key = -join ($bytes | ForEach-Object { $_.ToString('x2') })
 $sha = [System.Security.Cryptography.SHA256]::Create()
 $keyHash = -join ($sha.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($key)) | ForEach-Object { $_.ToString('x2') })
+# 2a. AZ ÁLLAPOTMAPPA EGY SIMA FELHASZNÁLÓ SZEMÉVEL (helper/win-acl.ts). A
+# ProgramData almappái a szülő jogait öröklik: a Users mindent olvashat, és új
+# fájlt is tehet beléjük — így a state.json (benne a szinkron kulcsai) mindenkinek
+# olvasható volt, és egy előre odatett fájlon át az állapot átvehető. A segéd
+# indulása ELŐTT egy friss sima felhasználó odatesz egy fájlt (ez a rés
+# előfeltétele); az indulás UTÁN se olvasnia, se írnia nem szabad.
+$stateDir = Join-Path $env:ProgramData 'Breaker'
+New-Item -ItemType Directory -Force -Path $stateDir | Out-Null
+$planted = Join-Path $stateDir 'planted.tmp'
+$probeUser = 'breakerstate'
+$probePass = 'Pr0be-' + [guid]::NewGuid().ToString('N').Substring(0, 12) + '!aA1'
+New-LocalUser -Name $probeUser -Password (ConvertTo-SecureString $probePass -AsPlainText -Force) -AccountNeverExpires -PasswordNeverExpires | Out-Null
+Add-LocalGroupMember -SID 'S-1-5-32-545' -Member $probeUser
+Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+using Microsoft.Win32.SafeHandles;
+public static class StateProbeLogon {
+  [DllImport("advapi32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+  public static extern bool LogonUser(string user, string domain, string password, int logonType, int provider, out SafeAccessTokenHandle token);
+}
+'@
+$userToken = $null
+foreach ($type in 2, 3) { if ([StateProbeLogon]::LogonUser($probeUser, '.', $probePass, $type, 0, [ref]$userToken)) { break } }
+if (-not $userToken -or $userToken.IsInvalid) { Fail 'a sima felhasználó nem jelentkezett be — az állapotmappa próbája nem futhat' }
+$script:plantResult = 'nem futott'
+if ($userToken -and -not $userToken.IsInvalid) {
+  [System.Security.Principal.WindowsIdentity]::RunImpersonated($userToken, [Action]{
+    try { [System.IO.File]::WriteAllText($planted, 'x'); $script:plantResult = 'odatette' } catch { $script:plantResult = 'nem tehette oda' }
+  })
+}
+Write-Host "a segéd előtt a sima felhasználó fájlt tesz az állapotmappába: $($script:plantResult)"
+
 $installJs = Join-Path $desktop 'dist\shared\install-script.js'
 # Az emelt rész kódolva, ahogy a telepítő adja; a próba már rendszergazda,
 # ezért a nem emelt héj RunAs-ugrása (windowsLauncherCommand) kimarad.
@@ -143,6 +178,25 @@ else {
     Get-Content -LiteralPath $diagOut, $diagErr -ErrorAction SilentlyContinue | Out-Host
   }
   if (-not ([System.IO.File]::ReadAllText($hostsFile) -match 'BREAKER BLOCK BEGIN')) { Fail 'a hosts-ban nincs Breaker-blokk' }
+  # 2a folytatása: a segéd már fut — a mappa le van zárva.
+  if ($userToken -and -not $userToken.IsInvalid) {
+    $script:readState = '-'; $script:writeNew = '-'; $script:writePlanted = '-'
+    [System.Security.Principal.WindowsIdentity]::RunImpersonated($userToken, [Action]{
+      try { [void][System.IO.File]::ReadAllText((Join-Path $stateDir 'state.json')); $script:readState = 'olvasható' } catch { $script:readState = 'tiltva' }
+      try { [System.IO.File]::WriteAllText((Join-Path $stateDir 'uj.tmp'), 'x'); $script:writeNew = 'írható' } catch { $script:writeNew = 'tiltva' }
+      try { [System.IO.File]::AppendAllText($planted, 'y'); $script:writePlanted = 'írható' } catch { $script:writePlanted = 'tiltva' }
+    })
+    Write-Host "a segéd után a sima felhasználónak: state.json $($script:readState), új fájl $($script:writeNew), az odatett fájl $($script:writePlanted)"
+    if ($script:readState -ne 'tiltva') { Fail 'a sima felhasználó olvassa a state.json-t (benne a szinkron kulcsai)' }
+    if ($script:writeNew -ne 'tiltva') { Fail 'a sima felhasználó fájlt tehet az állapotmappába' }
+    if ($script:writePlanted -ne 'tiltva') { Fail 'a sima felhasználó az előre odatett fájlját továbbra is írja' }
+    $owner = (Get-Acl -LiteralPath $stateDir).Owner
+    if ($owner -notmatch 'SYSTEM') { Fail "az állapotmappa tulajdonosa: $owner" }
+    if (Test-Path -LiteralPath $planted) {
+      $po = (Get-Acl -LiteralPath $planted).Owner
+      if ($po -notmatch 'SYSTEM') { Fail "az odatett fájl tulajdonosa maradt: $po" }
+    }
+  }
   # Az önjavítás (helper/win-task.ts): egy régi, alapértékeken ülő feladatot a
   # segéd induláskor a helyes beállításokra tesz — újratelepítés nélkül.
   Stop-HelperTask
@@ -193,5 +247,7 @@ elseif (($hostsAfter -replace "`r`n", "`n").TrimEnd() -ne ($hostsBefore -replace
   Fail 'a hosts többi része megváltozott'; Write-Host $hostsAfter
 }
 
-if ($script:fail -eq 0) { Write-Host 'Telepítés-próba OK (telepítés, értesítés: felhasználói parancsikon és COM-bejegyzés a rögzített azonosítóval; a segéd a telepített exe-ről, SYSTEM-ként: felel és tilt, a feladata egy őrző szolgáltatás beállításaival megy, és a régit maga javítja; eltávolítás: semmi nem marad, a Gépház-bejegyzés sem; a kézi eltávolító csak a mienket veszi le, a segédet és a hosts-blokkot is)' }
+Remove-LocalUser -Name $probeUser -ErrorAction SilentlyContinue
+
+if ($script:fail -eq 0) { Write-Host 'Telepítés-próba OK (telepítés, értesítés: felhasználói parancsikon és COM-bejegyzés a rögzített azonosítóval; a segéd a telepített exe-ről, SYSTEM-ként: felel és tilt, a feladata egy őrző szolgáltatás beállításaival megy, és a régit maga javítja; az állapotmappáját egy sima felhasználó se nem olvassa, se nem írja; eltávolítás: semmi nem marad, a Gépház-bejegyzés sem; a kézi eltávolító csak a mienket veszi le, a segédet és a hosts-blokkot is)' }
 exit $script:fail

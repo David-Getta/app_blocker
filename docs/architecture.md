@@ -542,6 +542,23 @@ A helper root/SYSTEM jogú, ezért a vele kommunikáló helyi socketet szűkítj
   induláskor a saját feladatát is ezekre a beállításokra teszi
   (`helper/win-task.ts`) — egy régebben felvett feladat így újratelepítés
   nélkül is a helyére kerül.
+
+  **Az állapotmappa (`C:\ProgramData\Breaker`) csak a SYSTEM-é és a
+  rendszergazdáké.** A ProgramData almappái a szülő jogait öröklik: a Users
+  mindent olvashat, és új fájlt is tehet beléjük. Így a `state.json` — benne a
+  szinkron `authKey`-e és a titkosítás `dataKey`-e — a gép minden
+  felhasználójának olvasható volt (macOS-en ugyanez 0600, csak rootnak), és a
+  `saveState` kiszámítható ideiglenes nevét (`.state.<pid>.tmp`) előre
+  odatéve az állapot átvehető lett volna: a következő induláskor a szerkesztett
+  lista töltődik be, rendszergazda és próbatétel nélkül. Most a segéd minden
+  induláskor, a betöltés ELŐTT lezárja a mappát (`helper/win-acl.ts`, icacls
+  SID-del: tulajdonos a SYSTEM a mappán és minden fájlon, öröklés nélkül csak a
+  SYSTEM és az Administrators, a fájlok a mappától örökölnek), az ideiglenes
+  fájl neve véletlen, és kizárólagosan jön létre (`wx`). A felhasználó oldala
+  ezt a mappát nem olvassa — a pipe-on beszél. A CI-próba egy friss sima
+  felhasználóval nézi: a segéd előtt fájlt tesz a mappába (ez a rés
+  előfeltétele), utána se olvasni, se írni nem tud, és az odatett fájl
+  tulajdonosa a SYSTEM.
   Őszinte korlát: a named pipe a hálózaton (SMB) is megszólítható — a
   kulcs nélkül ott sem felel, de a kapu a kulcs, nem a hely.
 

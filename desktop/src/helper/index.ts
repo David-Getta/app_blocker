@@ -21,9 +21,16 @@ import { bumpRevisions } from './revisions';
 import { syncNow, syncToday } from './sync-client';
 import { createSyncSchedule } from './sync-schedule';
 import { repairTaskSettings } from './win-task';
+import { hardenStateDir } from './win-acl';
+import { stateFilePath } from './paths';
+import * as path from 'path';
 
 export function runHelper(): void {
   const log = (m: string) => console.log(`[breaker-helper ${new Date().toISOString()}] ${m}`);
+  // Windowson az állapotmappa jogai az állapot betöltése ELŐTT (lásd win-acl.ts):
+  // egy idegen kéz által odatett fájl ne kerülhessen be. Fejlesztői felülírásnál
+  // (BREAKER_STATE) a mappa a fejlesztőé — ahhoz nem nyúlunk.
+  if (!process.env.BREAKER_STATE) hardenStateDir(path.dirname(stateFilePath()), log);
   const state = loadState();
   let dohApplied = state.dohApplied;
 

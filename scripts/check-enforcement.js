@@ -3997,6 +3997,19 @@ const WIRES = [
     needle: '  repairTaskSettings(log);',
     lost: 'a régebben felvett Windows-feladat a rossz beállításain maradna',
   },
+  // A WINDOWS-SEGÉD ÁLLAPOTMAPPÁJA. A ProgramData öröklött jogaival a state.json
+  // (benne a szinkron kulcsai) minden helyi felhasználónak olvasható volt, és
+  // egy előre odatett fájlon át az állapot átvehető — admin nélküli lazítás.
+  {
+    file: 'desktop/src/helper/index.ts',
+    needle: 'if (!process.env.BREAKER_STATE) hardenStateDir(path.dirname(stateFilePath()), log);',
+    lost: 'a Windows-segéd állapotmappája a ProgramData jogait örökölné: bárki olvassa, bárki tehet bele fájlt',
+  },
+  {
+    file: 'desktop/src/helper/state.ts',
+    needle: "fs.writeFileSync(tmp, JSON.stringify(state, null, 2), { mode: 0o600, flag: 'wx' });",
+    lost: 'az állapot egy előre odatett fájlba íródhatna, és az átnevezés után az odatevőé lenne',
+  },
   {
     file: 'desktop/src/main/main.ts',
     needle: "new HelperClient(process.platform === 'win32' ? { key: readHelperKey } : {})",

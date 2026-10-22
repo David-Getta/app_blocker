@@ -748,7 +748,12 @@ export function saveState(state: HelperState): void {
   const file = stateFilePath();
   const dir = path.dirname(file);
   fs.mkdirSync(dir, { recursive: true, mode: 0o755 });
-  const tmp = path.join(dir, `.state.${process.pid}.tmp`);
-  fs.writeFileSync(tmp, JSON.stringify(state, null, 2), { mode: 0o600 });
+  // VÉLETLEN NÉV, KIZÁRÓLAGOS LÉTREHOZÁSSAL ('wx'). A régi `.state.<pid>.tmp`
+  // kiszámítható volt: egy előre odatett fájlba írtunk volna, és az átnevezés
+  // után az állapot annak a tulajdonosáé lett volna — Windowson a ProgramData
+  // almappájába a sima felhasználó is tehet fájlt (a mappát a segéd induláskor
+  // le is zárja, lásd win-acl.ts; ez a második védvonal).
+  const tmp = path.join(dir, `.state.${crypto.randomBytes(8).toString('hex')}.tmp`);
+  fs.writeFileSync(tmp, JSON.stringify(state, null, 2), { mode: 0o600, flag: 'wx' });
   fs.renameSync(tmp, file);
 }
