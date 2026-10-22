@@ -179,6 +179,14 @@ jobs:
           # ott nincs mapfile.
           set -eu
           cd release
+          # Macen frissítő-csomag nélkül a telepített appok nem kapnák meg ezt
+          # a verziót — és a régi nevű (-mac.zip) csomagot a régi frissítők egy
+          # macOS 13 alatti gépre is felraknák. A FELTÖLTÉS ELŐTT nézzük: egy
+          # utólagos megállás után a rossz csomag már a kiadáson ülne.
+          if [ "$(uname)" = Darwin ]; then
+            ls *-darwin*.zip >/dev/null || { echo "nem épült -darwinNN.zip frissítő-csomag" >&2; exit 1; }
+            if ls *-mac.zip >/dev/null 2>&1; then echo "régi nevű -mac.zip csomag épült" >&2; exit 1; fi
+          fi
           installers=0
           # A Mac frissítő-csomagja a v0.4.257 óta -darwinNN.zip (a név hordozza
           # a legrégebbi macOS-t, amin fut — lásd shared/update-manifest.ts).
@@ -198,13 +206,6 @@ jobs:
             bash ../../scripts/release-upload.sh "$VERSION" "$f"
           done
           [ "$installers" -gt 0 ] || { echo "nem épült telepítő" >&2; exit 1; }
-          # Macen frissítő-csomag nélkül a telepített appok nem kapnák meg ezt
-          # a verziót — és a régi nevű (-mac.zip) csomagot a régi frissítők egy
-          # macOS 13 alatti gépre is felraknák.
-          if [ "$(uname)" = Darwin ]; then
-            ls *-darwin*.zip >/dev/null || { echo "nem épült -darwinNN.zip frissítő-csomag" >&2; exit 1; }
-            if ls *-mac.zip >/dev/null 2>&1; then echo "régi nevű -mac.zip csomag épült" >&2; exit 1; fi
-          fi
           # A frissítés ezen a manifesten áll vagy bukik; ha nincs, ne adjunk ki
           # olyan verziót, amire a telepített appok nem tudnak felfrissülni.
           ls latest*.yml >/dev/null
@@ -389,6 +390,27 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
+      # AMI ÉLESBE MEGY, AZ A DRAFT TELJES LISTÁJA — nem csak az, amit ez a
+      # futás feltöltött. Egy ugyanerre a verzióra korábban futott build fájljai
+      # a drafton maradhatnak; egy régi nevű -mac.zip-et a régi frissítők egy
+      # macOS 13 alatti gépre is felraknának, és ott az app el sem indulna.
+      - name: A draft fájljai rendben
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eu
+          names=$(gh release view "$VERSION" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name')
+          echo "$names"
+          if echo "$names" | grep -q -- '-mac\.zip$'; then
+            echo "régi nevű -mac.zip a drafton — töröld, mielőtt élesedik" >&2; exit 1
+          fi
+          for arch in arm64 x64; do
+            echo "$names" | grep -q -- "-$arch-darwin[0-9][0-9]*\.zip\$" \
+              || { echo "hiányzik a(z) $arch Mac frissítő-csomag (-darwinNN.zip)" >&2; exit 1; }
+          done
+          for m in latest.yml latest-mac.yml; do
+            echo "$names" | grep -qx "$m" || { echo "hiányzik a(z) $m" >&2; exit 1; }
+          done
       - name: Draft -> közzététel
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
