@@ -3977,6 +3977,26 @@ const WIRES = [
     needle: 'windowsLauncherCommand(process.execPath, keyHash)',
     lost: 'a telepítő nem adná át a kulcs-lenyomatot a segédnek',
   },
+  // A WINDOWS-SEGÉD FELADATA. A v0.4.257 előtt a schtasks /TR idézése a
+  // Program Files útnál elbukott: a védelem Windowson fel sem települt. Most az
+  // exe és a kapcsolók külön mennek, és a feladat egy őrző szolgáltatás
+  // beállításaival (akkumulátoron is, időkorlát nélkül, hiba után újra) —
+  // a régit a segéd induláskor maga javítja.
+  {
+    file: 'desktop/src/shared/install-script.ts',
+    needle: '  $action = New-ScheduledTaskAction -Execute ${psSingleQuoted(exe)} -Argument ${psSingleQuoted(`--helper ${CLIENT_KEY_ARG}${keyHash}`)}`,',
+    lost: 'a segéd feladata egyetlen idézett szövegben kapná az exe-t — a Program Files útnál a telepítés elbukna',
+  },
+  {
+    file: 'desktop/src/shared/install-script.ts',
+    needle: '  `  $settings = ${WINDOWS_TASK_SETTINGS_PS}`,',
+    lost: 'a segéd feladata a Feladatütemező alapértékein ülne: akkumulátoron nem indul, 72 óra után leáll',
+  },
+  {
+    file: 'desktop/src/helper/index.ts',
+    needle: '  repairTaskSettings(log);',
+    lost: 'a régebben felvett Windows-feladat a rossz beállításain maradna',
+  },
   {
     file: 'desktop/src/main/main.ts',
     needle: "new HelperClient(process.platform === 'win32' ? { key: readHelperKey } : {})",

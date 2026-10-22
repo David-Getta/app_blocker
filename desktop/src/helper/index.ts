@@ -20,6 +20,7 @@ import { journalTick } from './digest-journal';
 import { bumpRevisions } from './revisions';
 import { syncNow, syncToday } from './sync-client';
 import { createSyncSchedule } from './sync-schedule';
+import { repairTaskSettings } from './win-task';
 
 export function runHelper(): void {
   const log = (m: string) => console.log(`[breaker-helper ${new Date().toISOString()}] ${m}`);
@@ -115,6 +116,9 @@ export function runHelper(): void {
 
   log(`starting on ${process.platform}, ${state.sites.length} site(s) in list`);
   commit(); // enforce at boot, before any browser opens
+
+  // Windowson a saját feladatunk beállításai (lásd win-task.ts).
+  repairTaskSettings(log);
 
   void applyDohPolicies(log).then((ok) => {
     if (ok !== dohApplied) {

@@ -13,7 +13,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import {
   appleScriptString, DAEMON_LABEL, encodePowerShell, launchdPlist, macInstallAppleScript, macInstallShell,
-  psSingleQuoted, TASK_NAME, windowsInstallScript, windowsLauncherCommand,
+  psSingleQuoted, TASK_NAME, WINDOWS_TASK_SETTINGS_PS, windowsInstallScript, windowsLauncherCommand,
+  windowsTaskSettingsRepairScript,
 } from '../src/shared/install-script';
 
 const EXEC = '/Applications/Breaker "teszt" & co.app/Contents/MacOS/Breaker';
@@ -66,12 +67,18 @@ const KEY_HASH = 'ab'.repeat(32);
 test('Windows: a kódolt parancsból pontosan a szkript jön vissza, az útvonal idézve', () => {
   const exe = "C:\\Program Files\\Breaker's\\Breaker.exe";
   const script = windowsInstallScript(exe, KEY_HASH);
-  assert.ok(script.includes(`/TR '"C:\\Program Files\\Breaker''s\\Breaker.exe" --helper --client-key-sha256=${KEY_HASH}'`),
-    `az aposztróf nincs duplázva, vagy hiányzik a kulcs-lenyomat:\n${script}`);
-  assert.ok(script.includes(`schtasks /Create /F /TN "${TASK_NAME}" /SC ONSTART /RU SYSTEM`));
-  // A régi példány előbb leáll — különben a /Run nem indítana újat.
-  assert.ok(script.indexOf(`schtasks /End /TN "${TASK_NAME}"`) < script.indexOf('schtasks /Create'),
-    'a /End a /Create előtt');
+  // Az exe és a kapcsolói KÜLÖN mennek a feladatba: nincs egyetlen szöveg,
+  // amiben az exe útját idézni kellene.
+  assert.ok(script.includes(
+    `New-ScheduledTaskAction -Execute 'C:\\Program Files\\Breaker''s\\Breaker.exe' -Argument '--helper --client-key-sha256=${KEY_HASH}'`,
+  ), `az aposztróf nincs duplázva, vagy hiányzik a kulcs-lenyomat:\n${script}`);
+  assert.ok(script.includes(`Register-ScheduledTask -TaskName '${TASK_NAME}' -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Force`));
+  assert.ok(script.includes('New-ScheduledTaskTrigger -AtStartup'));
+  assert.ok(script.includes("New-ScheduledTaskPrincipal -UserId 'SYSTEM' -LogonType ServiceAccount -RunLevel Highest"));
+  // A régi példány előbb leáll — különben az indítás nem indítana újat.
+  assert.ok(script.indexOf(`Stop-ScheduledTask -TaskName '${TASK_NAME}'`) < script.indexOf('Register-ScheduledTask'),
+    'a leállítás a felvétel előtt');
+  assert.ok(script.indexOf('Register-ScheduledTask') < script.indexOf(`Start-ScheduledTask -TaskName '${TASK_NAME}'`));
   assert.equal(decodePowerShell(encodePowerShell(script)), script);
   // Csak a szigorú alak mehet a parancssorba.
   for (const bad of ['', 'AB'.repeat(32), 'ab'.repeat(31), `${'ab'.repeat(31)}a"`, `${KEY_HASH} --x`]) {
@@ -86,6 +93,31 @@ test('Windows: a kódolt parancsból pontosan a szkript jön vissza, az útvonal
   assert.ok(launcher.endsWith('exit $p.ExitCode'), 'a belső kilépési kód továbbmegy');
   assert.ok(!/-File/.test(launcher), 'nincs fájl az emelt indításban');
   assert.equal(psSingleQuoted("a'b"), "'a''b'");
+});
+
+test('Windows: az emelt szkript nem ad natív parancsnak idézőjeles argumentumot', () => {
+  // A Windows PowerShell 5.1 egy natív parancs argumentumában a belső
+  // idézőjelet nem védi: a v0.4.257 előtti `schtasks /TR '"C:\\Program Files\\…" …'`
+  // ezen bukott el minden Program Files alá telepített gépen. Ezért az emelt
+  // szkriptben se schtasks, se dupla idézőjel.
+  const script = windowsInstallScript('C:\\Program Files\\Breaker\\Breaker.exe', KEY_HASH);
+  assert.ok(!/schtasks/i.test(script), script);
+  assert.ok(!script.includes('"'), script);
+  assert.ok(!windowsTaskSettingsRepairScript().includes('"'));
+});
+
+test('Windows: a feladat egy őrző szolgáltatás beállításaival megy fel, és a segéd ugyanide javítja', () => {
+  for (const flag of [
+    '-AllowStartIfOnBatteries', '-DontStopIfGoingOnBatteries', '-ExecutionTimeLimit ([TimeSpan]::Zero)',
+    '-RestartCount 999', '-RestartInterval (New-TimeSpan -Minutes 1)',
+  ]) {
+    assert.ok(WINDOWS_TASK_SETTINGS_PS.includes(flag), flag);
+  }
+  assert.ok(windowsInstallScript('C:\\B\\Breaker.exe', KEY_HASH).includes(`$settings = ${WINDOWS_TASK_SETTINGS_PS}`));
+  const repair = windowsTaskSettingsRepairScript();
+  assert.ok(repair.includes(`Set-ScheduledTask -TaskName '${TASK_NAME}' -Settings (${WINDOWS_TASK_SETTINGS_PS})`));
+  // Csak a beállításokat: az indítás (a kulccsal) és a felhasználó marad.
+  assert.ok(!/-Action|-Principal|-Trigger|-User/.test(repair), repair);
 });
 
 /** A telepítő forrása — a tesztek forrásból és fordított kimenetből is futnak. */

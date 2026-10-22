@@ -82,7 +82,10 @@ helpert:
   admin jóváhagyással. Ezután minden bootnál automatikusan indul — **nincs
   többé engedélykérés induláskor.**
 - **Windows:** `BreakerHelper` SYSTEM ütemezett feladat, egyetlen UAC-jóváhagyással,
-  `ONSTART` triggerrel.
+  a gép indulásakor indul. Akkumulátoron is fut, nincs időkorlátja, és ha
+  hibával kilép, percenként újraindul (a Feladatütemező alapértékein egyik
+  sem így volna). A v0.4.257 előtt a telepítése a `C:\Program Files` alatti
+  appnál hibával megállt — lásd az architektúra-doksit.
 
 Mindkettő az app saját binárisát futtatja (macOS-en node-módban, az
 `app.asar`-ból; Windowson `Breaker.exe --helper`). A CI ezt a becsomagolt appon,

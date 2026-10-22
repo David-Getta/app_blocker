@@ -45,6 +45,14 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
+          **Windowson a védelem végre felmegy.** Ha az app a szokásos helyre
+          (`C:\Program Files`) települt, a „Védelem telepítése” gomb eddig hibával
+          megállt, és a tiltást tartó háttérszolgáltatás fel sem került — a kezdetek
+          óta így volt. Most egy új próba fogta meg, ami a valódi telepítőt futtatja,
+          és a szolgáltatással egy oldalt le is tilt. **Ha a gombot korábban hiába
+          nyomtad meg, nyomd meg most újra.** A szolgáltatás mostantól akkumulátoron is
+          fut, napok múlva sem áll le magától, és ha hibával kilép, újraindul.
+
           **Az asztali app támogatott alapra költözött (Electron 44).**
           Eddig az Electron 31-en futott, ami 2025 eleje óta nem kap biztonsági
           javítást. Ezzel a verzióval a beépített böngészőmotor és a Node is friss,

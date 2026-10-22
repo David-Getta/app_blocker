@@ -524,7 +524,24 @@ A helper root/SYSTEM jogú, ezért a vele kommunikáló helyi socketet szűkítj
   egyetlen parancs sem fut, és a kapcsolat bomlik; hiányzó vagy rossz
   alakú lenyomatnál a pipe a régi, zárt leírójával jön létre — inkább ne
   érje el senki, mint bárki. A telepítő a futó régi példányt leállítja
-  (`schtasks /End`), így az új kulcs azonnal él, újraindítás nélkül.
+  (`Stop-ScheduledTask`), így az új kulcs azonnal él, újraindítás nélkül.
+
+  **A feladatot a ScheduledTasks-parancsok veszik fel, nem a `schtasks`.** A
+  `schtasks /TR` egyetlen szövegben kéri az exe-t és a kapcsolóit, az exe útját
+  idézőjelben — a Windows PowerShell 5.1 viszont egy natív parancs
+  argumentumában a belső idézőjelet nem védi, így a `C:\Program Files\…`
+  útnál a schtasks a `Files\…` részt külön kapcsolónak vette, és a telepítés
+  hibával megállt: a v0.1 óta a Program Files alá telepített gépen a védelem
+  fel sem települt. A becsomagolt segéd CI-próbája találta meg (v0.4.257).
+  Most az exe és a kapcsolók külön mennek (`New-ScheduledTaskAction -Execute
+  … -Argument …`), és egy teszt kiköti, hogy az emelt szkriptben se
+  `schtasks`, se dupla idézőjel ne legyen. A feladat egy őrző szolgáltatás
+  beállításaival megy fel (`WINDOWS_TASK_SETTINGS_PS`): a Feladatütemező
+  alapértékein akkumulátoron nem indulna, akkumulátorra váltáskor és 72 óra
+  futás után leállna, és hibás kilépés után nem indulna újra. A segéd
+  induláskor a saját feladatát is ezekre a beállításokra teszi
+  (`helper/win-task.ts`) — egy régebben felvett feladat így újratelepítés
+  nélkül is a helyére kerül.
   Őszinte korlát: a named pipe a hálózaton (SMB) is megszólítható — a
   kulcs nélkül ott sem felel, de a kapu a kulcs, nem a hely.
 

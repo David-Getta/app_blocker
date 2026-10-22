@@ -14,6 +14,8 @@
 #      gépszintű parancsikon és a Gépház-bejegyzés (HKLM) is eltűnik;
 #   2b. a segéd a telepített exe-ről, SYSTEM-ként, ahogy az app telepíti:
 #      felel, felvesz egy oldalt, és a rendszer feloldója a tiltó címet adja;
+#      a feladat akkumulátoron is fut, nincs időkorlátja, hiba után újraindul
+#      — és ha valaki az alapértékekre rontja, a segéd induláskor visszateszi;
 #   4. a kézi eltávolító (uninstall-windows.ps1) egy idegen célú, ugyanilyen
 #      nevű parancsikont meghagy, a Breaker.exe-re mutatót leveszi — és a
 #      segéd feladatát meg a hosts-blokkot is, a hosts többi része a régi.
@@ -108,6 +110,22 @@ else {
   if (-not $action) { Fail "nincs $taskName feladat" }
   elseif ($action.Execute -ne $exe) { Fail "a feladat nem a telepített exe-t indítja: $($action.Execute)" }
   else { Write-Host "a feladat: $($action.Execute) $($action.Arguments)" }
+  # Egy őrző szolgáltatás beállításai (shared/install-script.ts, WINDOWS_TASK_SETTINGS_PS):
+  # a Feladatütemező alapértékein a segéd akkumulátoron nem indulna, és 72 óra után leállna.
+  function TaskSettingsProblems {
+    $t = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
+    if (-not $t) { return @('nincs feladat') }
+    $p = @()
+    if ($t.Settings.DisallowStartIfOnBatteries) { $p += 'akkumulátoron nem indul' }
+    if ($t.Settings.StopIfGoingOnBatteries) { $p += 'akkumulátorra váltáskor leáll' }
+    if ($t.Settings.ExecutionTimeLimit -ne 'PT0S') { $p += "időkorlát: $($t.Settings.ExecutionTimeLimit)" }
+    if ($t.Settings.RestartCount -lt 1) { $p += 'hiba után nem indul újra' }
+    if ($t.Principal.UserId -ne 'SYSTEM' -or $t.Principal.RunLevel -ne 'Highest') { $p += "felhasználó: $($t.Principal.UserId) $($t.Principal.RunLevel)" }
+    if (-not ($t.Triggers | Where-Object { $_.CimClass.CimClassName -eq 'MSFT_TaskBootTrigger' })) { $p += 'nem indul a géppel' }
+    return $p
+  }
+  $problems = TaskSettingsProblems
+  if ($problems.Count -gt 0) { Fail "a feladat beállításai: $($problems -join '; ')" }
   node (Join-Path $PSScriptRoot 'helper-probe-client.js') '\\.\pipe\breaker-helper' 'example.org' $key | Out-Host
   if ($LASTEXITCODE -ne 0) {
     Fail 'a telepített segéd nem tilt (lásd fent)'
@@ -125,6 +143,16 @@ else {
     Get-Content -LiteralPath $diagOut, $diagErr -ErrorAction SilentlyContinue | Out-Host
   }
   if (-not ([System.IO.File]::ReadAllText($hostsFile) -match 'BREAKER BLOCK BEGIN')) { Fail 'a hosts-ban nincs Breaker-blokk' }
+  # Az önjavítás (helper/win-task.ts): egy régi, alapértékeken ülő feladatot a
+  # segéd induláskor a helyes beállításokra tesz — újratelepítés nélkül.
+  Stop-HelperTask
+  Set-ScheduledTask -TaskName $taskName -Settings (New-ScheduledTaskSettingsSet) | Out-Null
+  if ((TaskSettingsProblems).Count -eq 0) { Fail 'a feladat elrontása nem sikerült — az önjavítás próbája vak lenne' }
+  Start-ScheduledTask -TaskName $taskName
+  for ($i = 0; $i -lt 60 -and (TaskSettingsProblems).Count -gt 0; $i++) { Start-Sleep -Milliseconds 500 }
+  $problems = TaskSettingsProblems
+  if ($problems.Count -gt 0) { Fail "a segéd nem javította meg a feladata beállításait: $($problems -join '; ')" }
+  else { Write-Host 'a segéd induláskor megjavította a feladata beállításait' }
 }
 # Az NSIS-eltávolító előtt a segéd le: futó exe-t nem törölhetne. A feladat
 # és a hosts-blokk marad — azt a kézi eltávolító veszi le (4. lépés).
@@ -162,5 +190,5 @@ elseif (($hostsAfter -replace "`r`n", "`n").TrimEnd() -ne ($hostsBefore -replace
   Fail 'a hosts többi része megváltozott'; Write-Host $hostsAfter
 }
 
-if ($script:fail -eq 0) { Write-Host 'Telepítés-próba OK (telepítés, értesítés: felhasználói parancsikon és COM-bejegyzés a rögzített azonosítóval; a segéd a telepített exe-ről, SYSTEM-ként: felel és tilt; eltávolítás: semmi nem marad, a Gépház-bejegyzés sem; a kézi eltávolító csak a mienket veszi le, a segédet és a hosts-blokkot is)' }
+if ($script:fail -eq 0) { Write-Host 'Telepítés-próba OK (telepítés, értesítés: felhasználói parancsikon és COM-bejegyzés a rögzített azonosítóval; a segéd a telepített exe-ről, SYSTEM-ként: felel és tilt, a feladata egy őrző szolgáltatás beállításaival megy, és a régit maga javítja; eltávolítás: semmi nem marad, a Gépház-bejegyzés sem; a kézi eltávolító csak a mienket veszi le, a segédet és a hosts-blokkot is)' }
 exit $script:fail
