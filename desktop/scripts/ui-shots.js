@@ -1738,21 +1738,30 @@ async function main() {
     site.schedule = { mode: 'scheduled_block', bands: [{ days: [1, 2, 3, 4, 5], startMin: 540, endMin: 1020 }] };
   });
   // (d) A SZABAD SÁV VÉGE: a menetrend szerint szabad oldal sora megmondja,
-  // mikor zár legközelebb. A sáv a teszt saját órájához igazodik: másfél óra
-  // múlva kezdődik, így a sor „1 ó 29 p” vagy „1 ó 30 p” múlvát mond.
+  // mikor zár legközelebb. A sáv a teszt saját órájához igazodik: a következő
+  // egész perctől számított másfél óra múlva kezdődik. A kiírt percet a
+  // MOSTANI órához mérjük, egy perc tűréssel: a lista a saját ütemében
+  // frissül, és a sáv beállítása és a kiírás közé percváltás is eshet — egy
+  // rögzített „29 vagy 30” ilyenkor a jó „28”-at is elutasította.
   await page.evaluate(() => {
     const site = window.__fakeSites.find((x) => x.id === 'site_2');
     const d = new Date();
     const m = d.getHours() * 60 + d.getMinutes();
+    d.setSeconds(0, 0);
+    window.__bandStartAt = d.getTime() + 90 * 60_000;
     site.schedule = { mode: 'scheduled_block', bands: [{
       days: [0, 1, 2, 3, 4, 5, 6], startMin: (m + 90) % 1440, endMin: ((m + 150) % 1440) || 1440,
     }] };
     site.blockedNow = false;
   });
   await page.waitForFunction(
-    () => [...document.querySelectorAll('#siteList .site-row')]
-      .some((r) => /reddit\.com/.test(r.textContent || '')
-        && /Most szabad \(menetrend szerint\) — zár 1 ó (29|30) p múlva/.test(r.textContent || '')),
+    () => [...document.querySelectorAll('#siteList .site-row')].some((r) => {
+      const t = r.textContent || '';
+      const shown = /Most szabad \(menetrend szerint\) — zár 1 ó (\d+) p múlva/.exec(t);
+      if (!/reddit\.com/.test(t) || !shown) return false;
+      const left = Math.floor(Math.ceil((window.__bandStartAt - Date.now()) / 1000) / 60) - 60;
+      return Math.abs(Number(shown[1]) - left) <= 1;
+    }),
     undefined, { timeout: 10_000 },
   ).catch(async () => {
     const row = await redditRow.textContent().catch(() => '');
