@@ -201,6 +201,9 @@ p { margin: 0 0 var(--s3); color: var(--text-2); }
   border-left: 2px solid var(--hairline);
 }
 .note strong { color: var(--text); font-weight: 600; }
+/* A „Jó, ha tudod” linkje is a téma kékje: a böngésző alap-kékje (#0000ee) a
+   sötét lapon 2,1:1 lenne. */
+.note a { color: var(--accent); }
 code {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.86em;
