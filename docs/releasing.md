@@ -174,7 +174,10 @@ letöltőoldal ezt a zipet sem kínálja kézi letöltésre.
 
 Teendő, amikor egy Electron-frissítés feljebb emeli a határt: a Mac-zip
 `artifactName`-je kapja meg a `-darwinNN` végződést (és a `mac.minimumSystemVersion`
-ugyanazt az értéket), a DMG neve marad. A váltás előtt legyen kint legalább egy
+ugyanazt az értéket). A DMG saját `dmg.artifactName`-jét ne bántsd: nélküle a
+`mac`-é öröklődne rá, és a telepítő neve is a követelményt hordozná. (A
+letöltőoldal a DMG-t a nevében lévő `arm64` szerint sorolja Apple szilíciumra
+vagy Intelre.) A váltás előtt legyen kint legalább egy
 olyan kiadás, ami már érti a nevet — különben a régi frissítők egyszerűen nem
 frissítenek tovább, és a felhasználó nem tudja meg, miért.
 
