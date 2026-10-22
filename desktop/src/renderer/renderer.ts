@@ -16,7 +16,7 @@ import {
 } from '../shared/alias.js';
 import { HELPER_VERSION } from '../shared/protocol.js';
 import { versionRowText } from '../shared/smoke.js';
-import { macTooOldText, type MacTooOld } from '../shared/update-manifest.js';
+import { macTooOldText, quitUpdateText, type MacTooOld } from '../shared/update-manifest.js';
 import {
   NotifyMemory, notifyFailText, notifyTestText, parseFailedAt, parseNotifyEvent,
   type NotifyRequest, type NotifySendResult,
@@ -557,6 +557,8 @@ interface NotifyHandlers {
   onFailed?: () => void;
   onClick?: () => void;
   onUnsupported?: () => void;
+  /** a híd hibázott (elutasított hívás, vagy a fő folyamat rossznak találta a kérést) */
+  onError?: () => void;
 }
 
 const notifyHandlers = new NotifyMemory<NotifyHandlers>();
@@ -584,7 +586,11 @@ function notify(title: string, body: string, handlers: NotifyHandlers = {}): boo
     if (r === 'sent') return;
     notifyHandlers.delete(id);
     if (r === 'unsupported') handlers.onUnsupported?.();
-  }, () => { notifyHandlers.delete(id); });
+    else handlers.onError?.();
+  }, () => {
+    notifyHandlers.delete(id);
+    handlers.onError?.();
+  });
   return true;
 }
 
@@ -4668,6 +4674,7 @@ function setupModal(): void {
       onShown: () => { out.textContent = notifyTestText(platform, 'accepted'); },
       onFailed: () => { out.textContent = notifyTestText(platform, 'failed'); },
       onUnsupported: () => { out.textContent = notifyTestText(platform, 'off'); },
+      onError: () => { out.textContent = notifyTestText(platform, 'error'); },
     });
     out.textContent = notifyTestText(platform, sent ? 'sent' : 'off');
   });
@@ -5659,6 +5666,10 @@ function setupStats(): void {
 // ------------------------------------------------------------ auto-update
 
 function renderUpdate(s: UpdateState): void {
+  // A kilépés-sor a frissítő motorját mondja: a Windows- (és a Developer
+  // ID-val aláírt Mac-) frissítő kilépéskor telepít, az aláíratlan Macé nem —
+  // ott a letöltött frissítést a gomb rakja fel (main/updater.ts).
+  $('quitUpdateNote').textContent = quitUpdateText(s.selfManaged === true);
   // Ha a következő verzió ezen a Macen már nem fut, a fiók-panel mondja ki,
   // csendben: nem sáv, nem értesítés — nincs mit tenni vele, csak tudni kell.
   const osNote = $('updateOsNote');

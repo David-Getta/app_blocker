@@ -253,12 +253,23 @@ jobs:
           if [ "$RUNNER_OS" = "macOS" ]; then
             npx electron-builder --mac --dir --arm64 --publish never
           else
-            npx electron-builder --win --dir --x64 --publish never
+            # A telepítő is: a kicsomagolt mappa mellett (win-unpacked) ezt
+            # próbálja a következő lépés.
+            npx electron-builder --win nsis --x64 --publish never
           fi
       - name: Füstpróba — a becsomagolt app elindul
         shell: bash
         timeout-minutes: 3
         run: bash scripts/smoke-packaged.sh
+      # A VALÓDI TELEPÍTŐ ÉS ELTÁVOLÍTÓ (Windows). Az Electron 41 óta az app az
+      # első értesítéskor a felhasználó saját Start menüjébe is tesz egy
+      # parancsikont és egy HKCU COM-bejegyzést; a gépszintű eltávolító erről
+      # magától nem tud. Telepítés, értesítés, eltávolítás — és utána semmi
+      # nem maradhat, a Gépház-bejegyzés sem (scripts/win-install-probe.ps1).
+      - name: Windows — telepítés, értesítés, eltávolítás
+        if: runner.os == 'Windows'
+        timeout-minutes: 8
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/win-install-probe.ps1
 
   android-core-tests:
     name: Android mag tesztek (JVM, SDK nélkül)

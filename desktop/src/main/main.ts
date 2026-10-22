@@ -8,7 +8,7 @@
 // hibakezelőjét — egy betöltéskor elhasaló modul különben párbeszédablakot
 // nyitna, amit a CI-ban senki nem kattint el (lásd smoke.ts).
 import { isSmoke, watchSmoke } from './smoke';
-import { app, BrowserWindow, ipcMain, Menu, Notification, systemPreferences, Tray } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu, systemPreferences, Tray } from 'electron';
 import * as fs from 'fs';
 import { registerSyncServerIpc } from './sync-server';
 import {
@@ -46,9 +46,9 @@ import {
   BACKGROUND_FLAG, closeAction, LAUNCH_AGENT_LABEL, launchAgentPlist, launchAgentUsable, startsHidden, WINDOWS_RUN_NAME,
 } from '../shared/background';
 import type { StatusData } from '../shared/protocol';
-import { APP_ID } from '../shared/app-id';
+import { APP_ID, TOAST_ACTIVATOR_CLSID } from '../shared/app-id';
 import { registerDohProfileIpc } from './doh-profile';
-import { primeNotifications, registerNotifyIpc } from './notify';
+import { mainNotifyId, primeNotifications, registerNotifyIpc, sendNotification } from './notify';
 
 const HELPER_MODE = process.argv.includes('--helper');
 /** Indítási füstpróba: a rendes indulás, nyom és hálózat nélkül (smoke.ts). */
@@ -63,6 +63,13 @@ app.commandLine.appendSwitch('lang', 'hu');
 // Windowson az app ugyanazzal az azonosítóval küld értesítést, amit a telepítő
 // parancsikonja visel (shared/app-id.ts) — még az első ablak és értesítés előtt.
 if (process.platform === 'win32') app.setAppUserModelId(APP_ID);
+// …és a kattintásokat fogadó COM-osztálynak is RÖGZÍTETT azonosítója van: az
+// Electron 41 óta az első értesítéskor a felhasználó Start menüjébe is tesz egy
+// parancsikont és egy HKCU-kulcsot ezzel az azonosítóval, és az eltávolító
+// (build/installer.nsh) csak egy ismert azonosítót tud levenni. Egy véletlen
+// azonosítót az Electron a meglévő parancsikonból örökölne tovább — ezért
+// kell már az első Electron 44-es kiadástól.
+if (process.platform === 'win32') app.setToastActivatorCLSID(TOAST_ACTIVATOR_CLSID);
 
 if (HELPER_MODE) {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -91,18 +98,34 @@ if (HELPER_MODE) {
   /**
    * Az első elrejtéskor egyszer kimondjuk, hogy az app nem állt le — ez új
    * viselkedés, és egy némán tovább futó app meglepetés lenne. Utána csend.
+   *
+   * Csak az ÁTVETT jelzés számít elmondottnak: macOS-en (UNNotification) egy
+   * még meg nem adott vagy megtagadott engedély mellett a rendszer
+   * visszautasítja, és akkor a következő elrejtéskor újra próbáljuk. A sorsa a
+   * felületre is megy (main/notify.ts), mint minden értesítésé.
    */
+  let bgNoticeInFlight = false;
   const noteHiddenOnce = () => {
     const flag = path.join(app.getPath('userData'), 'background-notice-shown');
-    if (fs.existsSync(flag)) return;
-    try { fs.writeFileSync(flag, String(Date.now())); } catch { return; }
-    if (!Notification.isSupported()) return;
-    new Notification({
-      title: 'Breaker — a háttérben fut tovább',
-      body: process.platform === 'win32'
+    if (bgNoticeInFlight || fs.existsSync(flag)) return;
+    bgNoticeInFlight = true;
+    const sent = sendNotification(mainNotifyId(), 'Breaker — a háttérben fut tovább',
+      process.platform === 'win32'
         ? 'A mérés és az értesítések nem állnak le. Kilépni a tálca ikonjáról lehet.'
         : 'A mérés és az értesítések nem állnak le. Kilépni a menüből lehet: Breaker › Kilépés.',
-    }).show();
+      mainWin && !mainWin.isDestroyed() ? mainWin.webContents : null,
+      {
+        shown: () => {
+          bgNoticeInFlight = false;
+          try { fs.writeFileSync(flag, String(Date.now())); } catch { /* legközelebb újra szól */ }
+        },
+        failed: (error) => {
+          bgNoticeInFlight = false;
+          console.log(`[notify] background notice failed: ${error}`);
+        },
+        click: () => showMain(),
+      });
+    if (!sent) bgNoticeInFlight = false;
   };
 
   const createWindow = (opts: { show: boolean } = { show: true }) => {

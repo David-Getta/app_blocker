@@ -359,6 +359,10 @@ A telepítés egy kattintás, és az appok **maguktól frissülnek**:
   bekapcsolása után él; lásd [`docs/releasing.md`](docs/releasing.md).)
 - **Asztali (Windows/macOS):** az app a háttérben ellenőrzi és letölti az új
   verziót, majd egy gombbal újraindulva telepíti — mint az áruházi frissítés.
+  **Kivétel:** a v0.4.241-nél régebbi Mac-appok a v0.4.257 óta kiadott
+  verziókat nem látják (a Mac frissítő-csomagjának neve megváltozott, és
+  ezt csak a v0.4.241 óta értik) — ha ilyen fut, egyszer töltsd le kézzel az
+  új DMG-t; utána megint magától frissül.
 - **Android:** a Play Áruházon kívül telepítve is figyeli az új kiadást, és egy
   gombbal frissít; Play Store-ból az áruház frissíti.
 - **iPhone:** App Store / TestFlight (az Apple szabályai miatt ez az út).
@@ -376,8 +380,12 @@ hiányozzon.
 
 - **Rendszerkövetelmény:** macOS 13 (Ventura) vagy újabb, Windows 10 vagy
   újabb. A v0.4.257 óta az asztali app az Electron 44-en fut, ami a macOS
-  12-t már nem támogatja; macOS 12-n a v0.4.256 marad, és az app a
-  verziószáma alatt kimondja, miért nem frissül tovább. macOS-en az app első
+  12-t már nem támogatja. macOS 12-n (és régebbin) az app azon a verzión
+  marad, ami fut rajta, és a v0.4.241 óta kiadott verziók a verziószámuk
+  alatt ki is mondják, miért nem frissülnek tovább. Az utolsó verzió, ami
+  macOS 12-n még elindul, a v0.4.256: ha régebbi fut, a DMG-je kézzel
+  letölthető a [v0.4.256 kiadásról](https://github.com/David-Getta/app_blocker/releases/tag/v0.4.256)
+  (a letöltőoldal mindig a legújabbat kínálja, az macOS 13-at kér). macOS-en az app első
   megnyitásakor a rendszer megkérdezi, küldhet-e értesítést: engedd meg,
   különben a szünet vége és a betelő keret jelzése elmarad. Az
   **„Értesítés kipróbálása”** gomb megmutatja, hogy működik.

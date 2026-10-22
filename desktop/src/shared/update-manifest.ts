@@ -201,3 +201,15 @@ export function appBundlePath(execPath: string): string | null {
   const i = execPath.indexOf(marker);
   return i === -1 ? null : execPath.slice(0, i + marker.length - 1);
 }
+
+/**
+ * A fiók-panel kilépés-sora. A Squirrel-frissítő (Windows, Developer ID-val
+ * aláírt Mac) kilépéskor telepít; az aláíratlan Mac saját frissítője
+ * (selfManaged) nem — ott a letöltött frissítést az „Újraindítás és frissítés”
+ * gomb rakja fel. A mondat ne ígérjen olyat, amit az adott motor nem tesz.
+ */
+export function quitUpdateText(selfManaged: boolean): string {
+  return selfManaged
+    ? 'A letöltött frissítést az Újraindítás és frissítés gomb rakja fel — a kilépés magában nem telepíti.'
+    : 'Ha van letöltött frissítés, kilépéskor magától települ.';
+}

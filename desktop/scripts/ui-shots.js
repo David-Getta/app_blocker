@@ -488,6 +488,8 @@ function fakeBridgeSource() {
       ...(window.__fakeNotify ? {
         notify: async (req) => {
           (window.__notified = window.__notified || []).push(req);
+          // A híd hibája: a fő folyamat nem fogadja a kérést (pl. nincs kezelő).
+          if (window.__fakeNotify === 'reject') throw new Error('No handler registered for breaker:notify');
           const kind = window.__fakeNotify;
           setTimeout(() => { if (window.__pushNotify) window.__pushNotify({ id: req.id, kind }); }, 50);
           return 'sent';
@@ -1635,6 +1637,16 @@ async function main() {
   if (await page.locator('#updateOsNote.hidden').count() !== 1) {
     failures.push('the too-old-macOS note stays after a newer check cleared it');
   }
+  // A KILÉPÉS-SOR a frissítő motorját mondja: az aláíratlan Mac saját
+  // frissítője (selfManaged) kilépéskor nem telepít — ott ne ígérje.
+  const quitSquirrel = (await page.locator('#quitUpdateNote').textContent()) || '';
+  await page.evaluate(() => window.__pushUpdate({ status: 'idle', selfManaged: true }));
+  const quitSelf = (await page.locator('#quitUpdateNote').textContent()) || '';
+  if (!quitSquirrel.includes('kilépéskor magától települ') || quitSelf.includes('magától települ')
+    || !quitSelf.includes('Újraindítás és frissítés')) {
+    failures.push(`a kilépés-sor nem a frissítő motorját mondja: ${quitSquirrel} / ${quitSelf}`);
+  }
+  await page.evaluate(() => window.__pushUpdate({ status: 'idle', selfManaged: false }));
 
   if (!CHECK_ONLY) {
     fs.mkdirSync(OUT, { recursive: true });
@@ -2400,6 +2412,18 @@ async function main() {
   }
   if (await failPage.locator('#notifyDeliveryNote.hidden').count() !== 1) {
     failures.push('az átvett értesítés után is ott a meg nem jelent értesítés sora');
+  }
+  // A HÍD HIBÁJA az app hibája: a gomb ezt mondja, nem a rendszerre mutat, és
+  // nem marad örökre a „rendszer válaszára vár” soron.
+  await failPage.evaluate(() => { window.__fakeNotify = 'reject'; });
+  await failPage.locator('#notifyTestBtn').evaluate((b) => b.click());
+  await failPage.waitForFunction(
+    () => /a Breaker hibája/.test(document.getElementById('notifyTestNote')?.textContent || ''),
+    undefined, { timeout: 5_000 },
+  ).catch(() => {});
+  const errNote = (await failPage.locator('#notifyTestNote').textContent()) || '';
+  if (!errNote.includes('a Breaker hibája')) {
+    failures.push(`a híd hibáját a próba-gomb nem mondja ki: ${errNote}`);
   }
   await failPage.close();
   // A PRÓBA GOMBJA mindig mond valamit — ha a híd nem tud értesíteni, azt;

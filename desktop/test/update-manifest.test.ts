@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import * as assert from 'node:assert/strict';
 import {
   appBundlePath, compareVersions, macosMajor, macRequirementOf, macTooOldText, pickMacAsset, pickMacUpdate,
-  parseLatestMacYml, manifestEntryFor,
+  parseLatestMacYml, manifestEntryFor, quitUpdateText,
 } from '../src/shared/update-manifest';
 
 const asset = (name: string) => ({ name, url: `https://example/${name}` });
@@ -162,4 +162,12 @@ test('outside a bundle there is nothing to replace', () => {
   // dev run / Linux / a loose build directory: the self-updater must not fire
   assert.equal(appBundlePath('/usr/local/bin/breaker'), null);
   assert.equal(appBundlePath('C:\\Program Files\\Breaker\\Breaker.exe'), null);
+});
+
+test('a kilépés-sor nem ígér kilépéskori telepítést az aláíratlan Mac frissítőjén', () => {
+  // A Squirrel (Windows, Developer ID-s Mac) kilépéskor telepít; az aláíratlan
+  // Mac saját frissítője csak a gombra.
+  assert.match(quitUpdateText(false), /kilépéskor magától települ/);
+  assert.doesNotMatch(quitUpdateText(true), /magától települ/);
+  assert.match(quitUpdateText(true), /Újraindítás és frissítés/);
 });

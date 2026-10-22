@@ -1044,11 +1044,17 @@ Az asztali app sok mindent értesítésben mond el — a szünet végét, a bete
 keretet, a közelgő heti ablakot, a hétfői visszatekintést. Ha a rendszer egy
 értesítést visszautasít (macOS-en az Electron 42-től a UNNotification, ha
 nincs engedély, vagy az app aláírása nem felel meg neki), az nyomtalanul
-elmaradna. Minden értesítés egy úton megy: a renderer `notify`-ja a hídon át
-kér, a FŐ FOLYAMAT küldi az Electron saját Notification-jével
-(`main/notify.ts`), és ha a rendszer nem veszi át, annak `failed` eseménye
-visszajön; a beállítások lapja ekkor kimondja, csendben, a bekapcsolás helyével
-együtt (`shared/notify-delivery.ts`); a következő átvett értesítés visszavonja.
+elmaradna. Minden értesítés egy úton megy: a FŐ FOLYAMAT küldi az Electron
+saját Notification-jével (`main/notify.ts`, `sendNotification`) — a renderer
+`notify`-ja a hídon át kér, a háttérben futás egyszeri jelzését maga a fő
+folyamat küldi —, és ha a rendszer nem veszi át, annak `failed` eseménye
+visszajön a felületre; a beállítások lapja ekkor kimondja, csendben, a
+bekapcsolás helyével együtt (`shared/notify-delivery.ts`); a következő átvett
+értesítés visszavonja. A háttérben futás jelzése csak átvételkor számít
+elmondottnak: egy visszautasított a következő elrejtéskor újra próbálkozik. Ha
+a híd maga hibázik (a fő folyamat nem fogadja a kérést), a próba-gomb ezt
+külön mondja — az app hibája, nem a rendszeré —, és a becsomagolt app indítási
+próbája ettől piros.
 
 Ez a v0.4.257 óta működik így. Előtte a renderer böngészős `new Notification`-t
 használt, és annak `error` eseményére várt — csakhogy az Electron a webes
@@ -1059,8 +1065,11 @@ nézték, a füstpróba a tárolt állapotot ültette be: az utat magát semmi n
 járta végig. Most a füstpróba a próba-gombon át a visszautasítást és az
 átvételt is végigjátssza, a becsomagolt app indítási próbája pedig a valódi
 hídon kér egy értesítést, és a CI naplójába írja, mit válaszolt a rendszer.
-Egy teszt őrzi, hogy a rendererben böngészős értesítés ne is legyen, az őr
-(`check-enforcement`) pedig a lánc minden szemét. Macen a csomag füstpróbája azt is nézi, hogy az ad-hoc
+Egy teszt őrzi, hogy se a rendererben, se a fő folyamat többi fájljában ne
+szülessen értesítés a közös úton kívül; az őr (`check-enforcement`) a lánc
+szemeit: a kérés fogadását (`ipcMain.handle('breaker:notify', …)`), a küldést,
+a `failed` hallgatását, a visszaküldést, a felület figyelőjét és a kézbesítési
+sort. Macen a csomag füstpróbája azt is nézi, hogy az ad-hoc
 aláírás azonosítója a csomagé (`hu.breaker.app`), és az Info.plist az aláírás
 része — enélkül az értesítések némán vesznének el. Windowson ugyanez az
 azonosító az AppUserModelID: a telepítő parancsikonja ezt viseli, és a futó app
@@ -1073,6 +1082,24 @@ kitűzött mellett. A váltás (v0.4.243) egy őszinte réssel jár: aki a régi
 „electron.app.Breaker” soron állított valamit a Gépházban, annak az nem
 öröklődik — az új „Breaker” sor alapállapotból indul; a kiadási jegyzet ezt
 kimondta.
+
+Az Electron 41 óta Windowson az első értesítéskor maga az app is letesz két
+dolgot: a felhasználó SAJÁT Start menüjébe egy „Breaker” parancsikont
+(ugyanezzel az AppUserModelID-vel), és a HKCU alá egy COM-bejegyzést, ami az
+értesítésre kattintást fogadja. A telepítő parancsikonja gépszintű, ez a
+kettő felhasználónkénti — a gépszintű eltávolító magától nem tudna róluk, és a
+parancsikon a törölt exe-re mutatva a Start menüben maradna. Ezért a
+COM-osztály azonosítója rögzített (`TOAST_ACTIVATOR_CLSID`,
+`app.setToastActivatorCLSID`, az első értesítés előtt — magától véletlent
+választana, és azt a meglévő parancsikonból örökölné tovább), az NSIS
+eltávolító (`build/installer.nsh`) leveszi mindkettőt (frissítéskor nem), a
+kézi eltávolító (`uninstall-windows.ps1`) minden profilt végigjár. Egy teszt
+köti össze a három helyet, és a CI a valódi telepítőt futtatja: telepítés, a
+telepített app értesítést küld, eltávolítás — utána semmi nem maradhat, a
+Gépház-bejegyzés sem (`scripts/win-install-probe.ps1`). Őszinte korlát: az
+emelt eltávolító csak a jóváhagyó felhasználó profilját éri el; ha egy sima
+felhasználó egy másik fiók jelszavával hagyta jóvá, az ő parancsikonját a kézi
+eltávolító veszi le.
 
 Amit az app NEM lát: hogy egy átvett értesítés tényleg látszott-e. A `show`
 esemény csak annyi, hogy a rendszer átvette — fókusz-módban is jöhet. macOS-en

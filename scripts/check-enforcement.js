@@ -256,6 +256,34 @@ const WIRES = [
   },
   {
     file: 'desktop/src/main/notify.ts',
+    needle: "ipcMain.handle('breaker:notify', ",
+    lost: 'a felület kérését senki nem fogadná — a próba-gomb a híd hibáját mondaná, az értesítések elmaradnának',
+  },
+  {
+    file: 'desktop/src/main/notify.ts',
+    needle: '\n  n.show();\n',
+    lost: 'az értesítés elkészülne, de a rendszer sosem kapná meg',
+  },
+  {
+    file: 'desktop/src/main/main.ts',
+    needle: "sendNotification(mainNotifyId(), 'Breaker — a háttérben fut tovább'",
+    lost: 'a háttérben futás jelzése a közös úton kívül menne — a visszautasítása elveszne, és sosem próbálkozna újra',
+  },
+  // A Windows-értesítés COM-azonosítója rögzített, és az eltávolító ugyanezt
+  // veszi le (build/installer.nsh) — különben a felhasználói Start menüben
+  // egy halott Breaker parancsikon maradna.
+  {
+    file: 'desktop/src/main/main.ts',
+    needle: "if (process.platform === 'win32') app.setToastActivatorCLSID(TOAST_ACTIVATOR_CLSID);",
+    lost: 'az Electron véletlen azonosítót választana, amit az eltávolító nem tud levenni',
+  },
+  {
+    file: 'desktop/electron-builder.yml',
+    needle: '  include: build/installer.nsh',
+    lost: 'az eltávolító nem venné le a felhasználói parancsikont és a COM-bejegyzést',
+  },
+  {
+    file: 'desktop/src/main/notify.ts',
     needle: "n.on('failed', ",
     lost: 'a rendszer visszautasítását senki nem hallaná — a beállítások lapja sosem mondaná ki',
   },

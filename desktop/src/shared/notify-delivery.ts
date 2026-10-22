@@ -51,8 +51,12 @@ export function parseFailedAt(raw: string | null): number | null {
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
-/** A próba-gomb kimenetele: elküldve, a rendszer átvette, visszautasította, vagy a rendszeren nem küldhető. */
-export type NotifyTestOutcome = 'sent' | 'accepted' | 'failed' | 'off';
+/**
+ * A próba-gomb kimenetele: elküldve, a rendszer átvette, visszautasította, a
+ * rendszeren nem küldhető — vagy az app maga nem jutott el a küldésig (a híd
+ * hibázott). Az utolsó az app hibája, nem a rendszeré: a füstpróba bukik rajta.
+ */
+export type NotifyTestOutcome = 'sent' | 'accepted' | 'failed' | 'off' | 'error';
 
 /**
  * A próba-gomb sora. Átvételkor sem állítja, hogy az értesítés megjelent —
@@ -68,8 +72,15 @@ export function notifyTestText(platform: string, outcome: NotifyTestOutcome): st
       ? 'A rendszer nem vette át a próbát. Ha most kért engedélyt, add meg, és próbáld újra; '
         + 'különben alatta, hol kapcsolható be.'
       : 'A rendszer nem vette át a próbát — alatta, hol kapcsolható be.';
-    case 'accepted': return 'A rendszer átvette. Ha mégsem láttad, a Breaker értesítései ki vannak '
-      + `kapcsolva, vagy egy fókusz-mód elnémítja őket — bekapcsolható: ${settingsPath(platform)}.`;
+    // macOS-en a kikapcsolt értesítés visszautasításként jön (failed), tehát
+    // átvételkor nem az a valószínű ok: egy fókusz-mód, vagy hogy a Breaker
+    // figyelmeztetési stílusa Nincs (akkor csak az Értesítési központba kerül).
+    case 'accepted': return platform === 'darwin'
+      ? 'A rendszer átvette. Ha mégsem láttad, egy fókusz-mód elnémítja, vagy a Breaker '
+        + `figyelmeztetési stílusa Nincs (akkor csak az Értesítési központba kerül) — beállítható: ${settingsPath(platform)}.`
+      : 'A rendszer átvette. Ha mégsem láttad, a Breaker értesítései ki vannak '
+        + `kapcsolva, vagy egy fókusz-mód elnémítja őket — bekapcsolható: ${settingsPath(platform)}.`;
+    case 'error': return 'Az app nem jutott el a küldésig — ez a Breaker hibája, nem a rendszer beállítása.';
   }
 }
 

@@ -69,4 +69,32 @@ foreach ($base in @($env:ProgramFiles, ${env:ProgramFiles(x86)})) {
 Write-Host "Állapotfájlok törlése..."
 Remove-Item -Recurse -Force (Join-Path $env:ProgramData "Breaker") -ErrorAction SilentlyContinue
 
+Write-Host "A felhasználói Start menü parancsikon és az értesítés-kattintás bejegyzése..."
+# Az Electron 41 óta az app az első értesítéskor a felhasználó SAJÁT Start
+# menüjébe is tesz egy Breaker parancsikont, és a HKCU alá bejegyzi az
+# értesítés kattintását fogadó COM-osztályt (rögzített azonosítóval, lásd
+# src/shared/app-id.ts). Az app eltávolítója csak a jóváhagyó felhasználóét
+# éri el; ez minden profilt végigjár. A parancsikont csak akkor vesszük le, ha
+# egy Breaker.exe-re mutat — egy ugyanilyen nevű idegen parancsikon marad.
+$toastClsid = '{E34DF69A-9041-4581-B6D2-54E40EEB0A50}'
+$wsh = New-Object -ComObject WScript.Shell
+$profiles = @(Get-CimInstance Win32_UserProfile -ErrorAction SilentlyContinue | Where-Object { -not $_.Special } | ForEach-Object { $_.LocalPath })
+if ($env:USERPROFILE -and ($profiles -notcontains $env:USERPROFILE)) { $profiles += $env:USERPROFILE }
+foreach ($prof in $profiles) {
+  if (-not $prof) { continue }
+  $lnk = Join-Path $prof 'AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Breaker.lnk'
+  if (-not (Test-Path -LiteralPath $lnk)) { continue }
+  $target = ''
+  try { $target = $wsh.CreateShortcut($lnk).TargetPath } catch { }
+  if ($target -and ((Split-Path -Leaf $target) -eq 'Breaker.exe')) {
+    Remove-Item -LiteralPath $lnk -Force -ErrorAction SilentlyContinue
+  }
+}
+# A futtató felhasználó HKCU-ja, és a betöltött többi profilé.
+Remove-Item -Path "HKCU:\Software\Classes\CLSID\$toastClsid" -Recurse -ErrorAction SilentlyContinue
+Get-ChildItem 'Registry::HKEY_USERS' -ErrorAction SilentlyContinue | ForEach-Object {
+  $k = "Registry::$($_.Name)\Software\Classes\CLSID\$toastClsid"
+  if (Test-Path -LiteralPath $k) { Remove-Item -LiteralPath $k -Recurse -ErrorAction SilentlyContinue }
+}
+
 Write-Host "Kész. Az alkalmazást a Gépház > Alkalmazások alatt távolíthatod el."

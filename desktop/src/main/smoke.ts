@@ -134,6 +134,7 @@ async function probeNotify(win: BrowserWindow): Promise<string> {
     if (note === text('accepted')) return 'a rendszer átvette';
     if (note === text('failed')) return 'a rendszer visszautasította (a kézbesítési sor ezt mondja)';
     if (note === text('off')) return 'ezen a rendszeren nem küldhető';
+    if (note === text('error')) return 'HIBA: a próba-gomb kérését a fő folyamat nem fogadta (a híd hibázott)';
     if (note === text('sent')) return 'tíz másodperc alatt nem jött válasz';
     return `HIBA: váratlan sor a próba-gomb alatt: ${JSON.stringify(note)}`;
   } catch (err) {

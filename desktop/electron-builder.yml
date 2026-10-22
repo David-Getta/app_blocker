@@ -75,3 +75,7 @@ nsis:
   oneClick: false
   perMachine: true
   allowToChangeInstallationDirectory: true
+  # Az eltávolító a felhasználó saját Start menüjéből is leveszi a Breaker
+  # parancsikont és az értesítés-kattintás HKCU-bejegyzését — ezeket az
+  # Electron 41 óta maga az app teszi le az első értesítéskor. Lásd ott.
+  include: build/installer.nsh

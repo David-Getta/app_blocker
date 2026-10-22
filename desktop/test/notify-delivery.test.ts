@@ -2,7 +2,7 @@
 // (shared/notify-delivery.ts): a beállítások lapja kimondja, csendben.
 
 import { strict as assert } from 'node:assert';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import {
@@ -41,9 +41,18 @@ test('a rendererben MINDEN értesítés a fő folyamaton át megy — egy sem ke
   assert.match(src, /ev\.kind === 'shown'\) \{\n\s+noteNotifyDelivery\(null\);/);
   // A fő folyamat a `failed` eseményt hallgatja, és visszaküldi.
   const main = readFileSync(join(root, 'main', 'notify.ts'), 'utf8');
+  assert.match(main, /ipcMain\.handle\('breaker:notify', /);
   assert.match(main, /n\.on\('failed', /);
-  assert.match(main, /n\.on\('show', \(\) => send\('shown'\)\);/);
-  assert.match(main, /sender\.send\('breaker:notify-event', /);
+  assert.match(main, /n\.on\('show', \(\) => \{\n\s+on\.shown\?\.\(\);\n\s+tell\('shown'\);/);
+  assert.match(main, /report\.send\('breaker:notify-event', /);
+  assert.match(main, /\n  n\.show\(\);\n/);
+  // A fő folyamat saját értesítése (a háttérben futás jelzése) is ezen az úton
+  // megy: máshol nem születhet értesítés, különben a sorsa nem jutna vissza.
+  for (const f of readdirSync(join(root, 'main')).filter((n) => n.endsWith('.ts') && n !== 'notify.ts')) {
+    const text = readFileSync(join(root, 'main', f), 'utf8');
+    assert.equal(text.split('new Notification(').length - 1, 0, `${f}: értesítés a közös út mellett`);
+  }
+  assert.match(readFileSync(join(root, 'main', 'main.ts'), 'utf8'), /sendNotification\(mainNotifyId\(\), 'Breaker — a háttérben fut tovább'/);
   const preload = readFileSync(join(root, 'main', 'preload.ts'), 'utf8');
   assert.match(preload, /ipcRenderer\.on\('breaker:notify-event', /);
   assert.match(preload, /ipcRenderer\.invoke\('breaker:notify', req\)/);
@@ -90,7 +99,7 @@ test('a próba-gomb nem állítja, hogy az értesítés megjelent — azt csak a
   // A `show` annyi, hogy a rendszer átvette: fókusz-módban és Windowson a
   // kikapcsolt értesítésnél is jöhet — hogy látszott-e, azt az app nem tudja.
   for (const platform of ['darwin', 'win32', 'linux']) {
-    for (const outcome of ['sent', 'accepted', 'failed', 'off'] as const) {
+    for (const outcome of ['sent', 'accepted', 'failed', 'off', 'error'] as const) {
       const text = notifyTestText(platform, outcome);
       assert.ok(text.trim() !== '', `${platform}/${outcome}: néma`);
       assert.doesNotMatch(text, /megjelent|kézbesít/i, `${platform}/${outcome}: többet állít, mint amit az app tud: ${text}`);
@@ -103,5 +112,12 @@ test('a próba-gomb nem állítja, hogy az értesítés megjelent — azt csak a
   // macOS-en az első értesítés előtt jön az engedély-kérdés: a visszautasított
   // próba ezt is számba veszi, nem csak a kikapcsolt értesítést.
   assert.ok(notifyTestText('darwin', 'failed').includes('engedélyt'));
+  // macOS-en a kikapcsolt értesítés visszautasításként jön — átvételkor nem
+  // arra küldjük a felhasználót, hanem a fókusz-módra és a stílusra.
+  assert.ok(!notifyTestText('darwin', 'accepted').includes('ki vannak kapcsolva'));
+  assert.ok(notifyTestText('darwin', 'accepted').includes('stílusa Nincs'));
+  assert.ok(notifyTestText('win32', 'accepted').includes('ki vannak kapcsolva'));
+  // A híd hibája az app hibája: nem a rendszer beállítására mutat.
+  assert.ok(notifyTestText('darwin', 'error').includes('a Breaker hibája'));
   assert.ok(!notifyTestText('win32', 'failed').includes('engedélyt'));
 });

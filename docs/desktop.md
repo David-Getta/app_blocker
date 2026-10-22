@@ -221,6 +221,12 @@ maradna, a titkosított DNS zárolva. Mit és hogyan:
   macOS-en Adatvédelem és biztonság › Profilok, a 12-esen és előtte
   Profilok). Egy szervezet MDM-mel telepített profilját és kezelt
   beállításait (`/Library/Managed Preferences`) nem érinti.
+- **Windowson a felhasználói Start menü parancsikont is** (`Breaker.lnk` a
+  profilok saját Start menüjében) és az értesítés-kattintás HKCU-bejegyzését —
+  ezeket az Electron 41 óta maga az app teszi le az első értesítéskor. Minden
+  profilt végigjár; a parancsikont csak akkor veszi le, ha egy `Breaker.exe`-re
+  mutat. Az app saját eltávolítója (Gépház › Alkalmazások) ugyanezt teszi, de
+  csak annak a felhasználónak, aki a rendszergazdai jóváhagyást adta.
 
 A macOS-szkript pythont nem használ (a mai macOS-en gyárilag nincs): a
 hosts-blokkot `awk` veszi ki, és csak akkor nyúl a fájlhoz, ha a blokk mindkét
