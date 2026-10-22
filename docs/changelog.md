@@ -8,6 +8,7 @@ kettővel korábbiban.
 
 | Verzió | Nap | Mi újság |
 |---|---|---|
+| v0.4.257 | 2026-10-22 | Electron 44, macOS 13, értesítések |
 | v0.4.256 | 2026-10-15 | a DoH-kiadások átvizsgálásának javításai |
 | v0.4.255 | 2026-10-09 | Macen a DoH-zár megmondja, hatott-e |
 | v0.4.254 | 2026-10-09 | Macen a böngészők titkosított DNS-e zárolható (önkéntes profil) |
