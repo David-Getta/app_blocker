@@ -84,6 +84,12 @@ helpert:
 - **Windows:** `BreakerHelper` SYSTEM ütemezett feladat, egyetlen UAC-jóváhagyással,
   `ONSTART` triggerrel.
 
+Mindkettő az app saját binárisát futtatja (macOS-en node-módban, az
+`app.asar`-ból; Windowson `Breaker.exe --helper`). A CI ezt a becsomagolt appon,
+a telepítő parancsával próbálja ki minden pushnál: a segéd felel, egy felvett
+oldal a rendszer feloldójában a tiltó címre mutat, és az eltávolító után semmi
+nem marad (`scripts/mac-helper-probe.sh`, `scripts/win-install-probe.ps1`).
+
 ## Az app a háttérben fut, és bejelentkezéskor indul
 
 Két dolog él a gépen, és nem ugyanott. A **tiltást** a segéd tartja (lásd

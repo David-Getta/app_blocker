@@ -157,6 +157,15 @@ telepítő nélkül), és a kiadásban a feltöltés előtt — ugyanazzal a szk
 (`desktop/scripts/smoke-packaged.sh`). Ha a kiadásban piros, a kiadás draft
 marad: a felhasználókhoz nem jut el.
 
+Az indulás még nem minden: a **segéd** is az app binárisán fut (macOS-en
+node-módban az `app.asar`-ból, Windowson `Breaker.exe --helper`), és egy
+Electron-frissítés után az app hibátlanul indulhat úgy, hogy a segéd nem —
+akkor a tiltás szűnne meg minden gépen. A CI becsomagolt-app jobja ezért a
+telepítő parancsával telepíti a segédet, felvesz vele egy oldalt, és a
+rendszer feloldójával nézi, hogy tilt-e (`desktop/scripts/mac-helper-probe.sh`,
+`desktop/scripts/win-install-probe.ps1`). Electron-frissítést csak akkor adj
+ki, ha ez a lépés zöld.
+
 ### Amikor az Electron feljebb emeli a legrégebbi macOS-t
 
 Az Electron időnként elengedi a legrégebbi macOS-t (a 38-as a macOS 11-et, a

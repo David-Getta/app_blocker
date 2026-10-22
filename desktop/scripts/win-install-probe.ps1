@@ -12,8 +12,11 @@
 #      nem teszi le, a próba nem azt nézné, amit kell: hiba;
 #   3. csendes eltávolítás: a felhasználói parancsikon, a HKCU-kulcs, a
 #      gépszintű parancsikon és a Gépház-bejegyzés (HKLM) is eltűnik;
+#   2b. a segéd a telepített exe-ről, SYSTEM-ként, ahogy az app telepíti:
+#      felel, felvesz egy oldalt, és a rendszer feloldója a tiltó címet adja;
 #   4. a kézi eltávolító (uninstall-windows.ps1) egy idegen célú, ugyanilyen
-#      nevű parancsikont meghagy, a Breaker.exe-re mutatót leveszi.
+#      nevű parancsikont meghagy, a Breaker.exe-re mutatót leveszi — és a
+#      segéd feladatát meg a hosts-blokkot is, a hosts többi része a régi.
 # Kilépési kód 0, ha minden stimmel; különben 1.
 
 $ErrorActionPreference = 'Stop'
@@ -69,6 +72,66 @@ else {
   if ($server -ne $exe) { Fail "a COM-bejegyzés nem a telepített exe-re mutat: $server" }
 }
 
+# 2b. A SEGÉD A TELEPÍTETT EXE-RŐL. Élesben a SYSTEM-feladat a telepített
+# Breaker.exe-t indítja --helper kapcsolóval — nem a sima Node-ot, amin a többi
+# próba fut. Egy Electron-frissítés után az app hibátlanul indulhat, miközben a
+# segéd el sem indul: a tiltás csendben megszűnne minden gépen. Ezért itt
+# PONTOSAN az app telepítő-szkriptje fut (shared/install-script.ts,
+# windowsInstallScript), a kulccsal, ahogy az app adja; utána a kliens az
+# app módján csatlakozik, felvesz egy oldalt, és a rendszer feloldójával nézi,
+# hogy tilt-e (helper-probe-client.js).
+$taskName = 'BreakerHelper'
+# A feladat leállítása. A Windows PowerShell 5.1 a 'Stop' hibakezelés mellett
+# a natív parancs átirányított hibakimenetének első soránál kivételt dobna (ha
+# a feladat épp nem fut, a schtasks oda ír) — itt ez nem hiba.
+function Stop-HelperTask {
+  $old = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
+  schtasks /End /TN $taskName 2>&1 | Out-Null
+  $ErrorActionPreference = $old
+}
+$hostsFile = Join-Path $env:SystemRoot 'System32\drivers\etc\hosts'
+$hostsBefore = [System.IO.File]::ReadAllText($hostsFile)
+$bytes = New-Object byte[] 32
+[System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes)
+$key = -join ($bytes | ForEach-Object { $_.ToString('x2') })
+$sha = [System.Security.Cryptography.SHA256]::Create()
+$keyHash = -join ($sha.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($key)) | ForEach-Object { $_.ToString('x2') })
+$installJs = Join-Path $desktop 'dist\shared\install-script.js'
+# Az emelt rész kódolva, ahogy a telepítő adja; a próba már rendszergazda,
+# ezért a nem emelt héj RunAs-ugrása (windowsLauncherCommand) kimarad.
+$encoded = node -e "const s = require(process.argv[1]); process.stdout.write(s.encodePowerShell(s.windowsInstallScript(process.argv[2], process.argv[3])))" $installJs $exe $keyHash
+if ($LASTEXITCODE -ne 0 -or -not $encoded) { Fail 'a telepítő parancsa nem állt össze' }
+else {
+  powershell -NoProfile -ExecutionPolicy Bypass -EncodedCommand $encoded | Out-Host
+  if ($LASTEXITCODE -ne 0) { Fail "a segéd telepítő-parancsa hibával lépett ki ($LASTEXITCODE)" }
+  $action = (Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue).Actions | Select-Object -First 1
+  if (-not $action) { Fail "nincs $taskName feladat" }
+  elseif ($action.Execute -ne $exe) { Fail "a feladat nem a telepített exe-t indítja: $($action.Execute)" }
+  else { Write-Host "a feladat: $($action.Execute) $($action.Arguments)" }
+  node (Join-Path $PSScriptRoot 'helper-probe-client.js') '\\.\pipe\breaker-helper' 'example.org' $key | Out-Host
+  if ($LASTEXITCODE -ne 0) {
+    Fail 'a telepített segéd nem tilt (lásd fent)'
+    Get-ScheduledTaskInfo -TaskName $taskName -ErrorAction SilentlyContinue | Format-List | Out-Host
+    Get-Process Breaker -ErrorAction SilentlyContinue | Format-Table Id, SessionId, StartTime -AutoSize | Out-Host
+    # A SYSTEM-feladat kimenete sehova nem megy: egyszer közvetlenül, a
+    # kimenetét elkapva — hogy a CI naplójából kiderüljön, MIÉRT nem fut.
+    Stop-HelperTask
+    $diagOut = Join-Path $env:RUNNER_TEMP 'helper-diag-out.txt'
+    $diagErr = Join-Path $env:RUNNER_TEMP 'helper-diag-err.txt'
+    $d = Start-Process -FilePath $exe -ArgumentList '--helper' -PassThru -RedirectStandardOutput $diagOut -RedirectStandardError $diagErr
+    Start-Sleep -Seconds 10
+    if (-not $d.HasExited) { Stop-Process -Id $d.Id -Force -ErrorAction SilentlyContinue }
+    Write-Host "--- a segéd közvetlenül indítva (kilépett: $($d.HasExited)) ---"
+    Get-Content -LiteralPath $diagOut, $diagErr -ErrorAction SilentlyContinue | Out-Host
+  }
+  if (-not ([System.IO.File]::ReadAllText($hostsFile) -match 'BREAKER BLOCK BEGIN')) { Fail 'a hosts-ban nincs Breaker-blokk' }
+}
+# Az NSIS-eltávolító előtt a segéd le: futó exe-t nem törölhetne. A feladat
+# és a hosts-blokk marad — azt a kézi eltávolító veszi le (4. lépés).
+Stop-HelperTask
+for ($i = 0; $i -lt 20 -and (Get-Process Breaker -ErrorAction SilentlyContinue); $i++) { Start-Sleep -Milliseconds 500 }
+Get-Process Breaker -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+
 # 3. Eltávolítás. Az NSIS-eltávolító magát egy ideiglenes helyre másolja és
 # onnan fut tovább; a _?= kapcsolóval helyben fut, és megvárható.
 $uninst = Join-Path $env:ProgramFiles 'Breaker\Uninstall Breaker.exe'
@@ -91,6 +154,13 @@ New-Item -Path "$clsidKey\LocalServer32" -Force | Out-Null
 powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'uninstall-windows.ps1') | Out-Host
 if (Test-Path -LiteralPath $userLnk) { Fail 'a kézi eltávolító a Breaker parancsikonját ott hagyta' }
 if (Test-Path $clsidKey) { Fail 'a kézi eltávolító a HKCU COM-bejegyzést ott hagyta' }
+# …és a segédet: a feladat és a hosts-blokk megy, a hosts többi része a régi.
+if (Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue) { Fail "a $taskName feladat a kézi eltávolító után is megvan" }
+$hostsAfter = [System.IO.File]::ReadAllText($hostsFile)
+if ($hostsAfter -match 'BREAKER BLOCK') { Fail 'a hosts-blokk a kézi eltávolító után is bent van' }
+elseif (($hostsAfter -replace "`r`n", "`n").TrimEnd() -ne ($hostsBefore -replace "`r`n", "`n").TrimEnd()) {
+  Fail 'a hosts többi része megváltozott'; Write-Host $hostsAfter
+}
 
-if ($script:fail -eq 0) { Write-Host 'Telepítés-próba OK (telepítés, értesítés: felhasználói parancsikon és COM-bejegyzés a rögzített azonosítóval, eltávolítás: semmi nem marad, a Gépház-bejegyzés sem; a kézi eltávolító csak a mienket veszi le)' }
+if ($script:fail -eq 0) { Write-Host 'Telepítés-próba OK (telepítés, értesítés: felhasználói parancsikon és COM-bejegyzés a rögzített azonosítóval; a segéd a telepített exe-ről, SYSTEM-ként: felel és tilt; eltávolítás: semmi nem marad, a Gépház-bejegyzés sem; a kézi eltávolító csak a mienket veszi le, a segédet és a hosts-blokkot is)' }
 exit $script:fail

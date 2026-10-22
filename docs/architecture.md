@@ -28,6 +28,19 @@ hosztneveket `0.0.0.0`-ra (és IPv6 `::`-ra) irányítja egy jelölőkkel határ
 menedzselt blokkban. A helper **figyeli a fájlt**: ha valaki kézzel átírja, ~2
 másodpercen belül visszaállítja.
 
+A segéd az **app saját binárisán** fut, nem külön Node-on: macOS-en a
+LaunchDaemon `ELECTRON_RUN_AS_NODE=1`-gyel indítja, a belépési pont az
+`app.asar`-ban van; Windowson a SYSTEM-feladat a telepített `Breaker.exe`-t
+indítja `--helper` kapcsolóval. Egy Electron-frissítés ezt az utat csendben
+eltörheti (egy kikapcsolt fuse, az asar olvasása node-módban, a SYSTEM-
+munkamenet), miközben az app hibátlanul indul — és a tiltás minden gépen
+megszűnne. Ezért a CI a becsomagolt appon pontosan a telepítő parancsával
+telepíti a segédet (`scripts/mac-helper-probe.sh`, a `win-install-probe.ps1`
+segéd-lépése), az app módján csatlakozik, felvesz egy oldalt, és a rendszer
+feloldójával (a hosts-fájlon át, ahogy a böngésző) nézi, hogy a tiltó címet
+adja-e; utána a valódi eltávolító fut, és semmi nem maradhat. Egy teszt
+(`helper-probe.test.ts`) köti a próbákat a telepítő kódjához.
+
 - **Miért nincs macOS-en „minden indításnál engedélyezés”?** A helper egyszeri
   telepítéskor (egy admin jóváhagyás) LaunchDaemonként települ, és onnantól a
   rendszer indítja minden bootnál, engedélykérés nélkül. Ez a különbség a

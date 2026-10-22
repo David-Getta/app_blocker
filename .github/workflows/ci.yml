@@ -261,14 +261,27 @@ jobs:
         shell: bash
         timeout-minutes: 3
         run: bash scripts/smoke-packaged.sh
+      # A BECSOMAGOLT SEGÉD (macOS). Élesben a LaunchDaemon az app binárisát
+      # indítja ELECTRON_RUN_AS_NODE-dal, a belépési pont az app.asar-ban — nem
+      # a sima Node-ot, amin a többi segéd-próba fut. Egy Electron-frissítés
+      # ezt csendben eltörheti, az app közben hibátlanul indul. A próba a
+      # telepítő valódi parancsával telepít, az app módján csatlakozik, felvesz
+      # egy oldalt, és a rendszer feloldójával nézi, hogy tilt-e; az eltávolító
+      # után semmi nem maradhat (scripts/mac-helper-probe.sh).
+      - name: macOS — a becsomagolt segéd tilt, az eltávolító leveszi
+        if: runner.os == 'macOS'
+        timeout-minutes: 5
+        run: bash scripts/mac-helper-probe.sh release/mac-arm64/Breaker.app
       # A VALÓDI TELEPÍTŐ ÉS ELTÁVOLÍTÓ (Windows). Az Electron 41 óta az app az
       # első értesítéskor a felhasználó saját Start menüjébe is tesz egy
       # parancsikont és egy HKCU COM-bejegyzést; a gépszintű eltávolító erről
-      # magától nem tud. Telepítés, értesítés, eltávolítás — és utána semmi
-      # nem maradhat, a Gépház-bejegyzés sem (scripts/win-install-probe.ps1).
-      - name: Windows — telepítés, értesítés, eltávolítás
+      # magától nem tud. Telepítés, értesítés, a segéd a telepített exe-ről
+      # SYSTEM-ként (felel és tilt), eltávolítás — és utána semmi nem
+      # maradhat, a Gépház-bejegyzés, a segéd feladata és a hosts-blokk sem
+      # (scripts/win-install-probe.ps1).
+      - name: Windows — telepítés, értesítés, segéd, eltávolítás
         if: runner.os == 'Windows'
-        timeout-minutes: 8
+        timeout-minutes: 10
         run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/win-install-probe.ps1
 
   android-core-tests:
