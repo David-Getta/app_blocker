@@ -146,7 +146,10 @@ else {
   # Az önjavítás (helper/win-task.ts): egy régi, alapértékeken ülő feladatot a
   # segéd induláskor a helyes beállításokra tesz — újratelepítés nélkül.
   Stop-HelperTask
-  Set-ScheduledTask -TaskName $taskName -Settings (New-ScheduledTaskSettingsSet) | Out-Null
+  # Az alapértékek (akkumulátor, 72 óra) — az újraindítás száma és ideje együtt
+  # kell, különben a Feladatütemező hibás XML-nek veszi.
+  $bad = New-ScheduledTaskSettingsSet -RestartCount 1 -RestartInterval (New-TimeSpan -Minutes 1)
+  Set-ScheduledTask -TaskName $taskName -Settings $bad | Out-Null
   if ((TaskSettingsProblems).Count -eq 0) { Fail 'a feladat elrontása nem sikerült — az önjavítás próbája vak lenne' }
   Start-ScheduledTask -TaskName $taskName
   for ($i = 0; $i -lt 60 -and (TaskSettingsProblems).Count -gt 0; $i++) { Start-Sleep -Milliseconds 500 }

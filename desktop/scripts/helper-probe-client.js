@@ -13,7 +13,14 @@
 // Használat: node helper-probe-client.js <socket vagy pipe> <domain> [kulcs]
 // A kulcs Windowson kell (shared/client-key.ts): a pipe kulcs nélkül senkinek
 // nem felel. Kilépési kód 0, ha a segéd felel, felveszi az oldalt, és a domain
-// meg a www-alakja a tiltó címre oldódik fel; különben 1.
+// meg a www-alakja tilt; különben 1.
+//
+// MI SZÁMÍT TILTÁSNAK. macOS-en (és Linuxon) a feloldó a hosts tiltó címét adja
+// (0.0.0.0, ::). Windowson a rendszer feloldója ezekre a sorokra SEMMIT nem ad
+// vissza — a név fel sem oldódik, a böngésző nem kapcsolódik: az is zár, csak
+// másképp (a segéd öntesztje is így számol, lásd shared/selftest.ts). Ezt
+// azonban csak akkor fogadjuk el, ha a felvétel ELŐTT a név valódi címre
+// oldódott — különben egy hálózat nélküli gépen a próba vak lenne.
 
 const dns = require('dns');
 const net = require('net');
@@ -64,14 +71,18 @@ function session(s) {
   });
 }
 
+/** A cím-lista, vagy feloldási hibánál `{ error }`. */
 async function lookup(host) {
   try {
     const all = await dns.promises.lookup(host, { all: true, verbatim: true });
-    return all.map((a) => a.address);
+    return { addresses: all.map((a) => a.address) };
   } catch (e) {
-    return [`(${e.code || e.message})`];
+    return { addresses: [], error: e.code || e.message };
   }
 }
+
+const show = (r) => (r.error ? `(${r.error})` : r.addresses.join(', '));
+const sinkholed = (r) => !r.error && r.addresses.length > 0 && r.addresses.every(isSinkhole);
 
 async function main() {
   // A segéd a telepítés után indul: a csatorna pár másodperc múlva nyílik.
@@ -93,11 +104,14 @@ async function main() {
 
   // Előtte: ha a domain már most is a tiltó címre oldódna, a próba vak lenne.
   const before = await lookup(domain);
-  console.log(`${domain} a felvétel előtt: ${before.join(', ')}`);
-  if (before.length > 0 && before.every(isSinkhole)) {
+  console.log(`${domain} a felvétel előtt: ${show(before)}`);
+  if (sinkholed(before)) {
     console.log('HIBA: a domain már a felvétel előtt a tiltó címre oldódik — a próba nem mérne semmit');
     return 1;
   }
+  // Ha előtte valódi címre oldódott, utána a fel nem oldódás is tiltás (Windows).
+  const resolvedBefore = !before.error && before.addresses.length > 0;
+  const blocked = (r) => sinkholed(r) || (resolvedBefore && !!r.error);
 
   const added = await ask({ op: 'add_site', input: domain, usePreset: false });
   if (!added.ok) { console.log(`HIBA: add_site: ${JSON.stringify(added)}`); return 1; }
@@ -110,15 +124,17 @@ async function main() {
   for (const until = Date.now() + ENFORCE_MS; Date.now() < until;) {
     last = {};
     for (const n of names) last[n] = await lookup(n);
-    if (names.every((n) => last[n].length > 0 && last[n].every(isSinkhole))) {
-      for (const n of names) console.log(`${n} most: ${last[n].join(', ')}`);
+    if (names.every((n) => blocked(last[n]))) {
+      for (const n of names) console.log(`${n} most: ${show(last[n])}`);
       s.end();
-      console.log('a segéd tilt: a rendszer feloldója a tiltó címet adja');
+      console.log(names.every((n) => sinkholed(last[n]))
+        ? 'a segéd tilt: a rendszer feloldója a tiltó címet adja'
+        : 'a segéd tilt: a név a felvétel óta nem oldódik fel (előtte igen)');
       return 0;
     }
     await sleep(1000);
   }
-  for (const n of names) console.log(`${n} ${ENFORCE_MS / 1000} mp után: ${(last[n] || []).join(', ')}`);
+  for (const n of names) console.log(`${n} ${ENFORCE_MS / 1000} mp után: ${last[n] ? show(last[n]) : '-'}`);
   console.log('HIBA: a felvett oldal nem a tiltó címre oldódik — a segéd fut, de nem tilt');
   s.end();
   return 1;
