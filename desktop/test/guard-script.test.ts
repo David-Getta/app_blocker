@@ -69,7 +69,7 @@ test('a blokk alakja: idegen cím, hibás jelölő, csonka fájl — nem érvén
 
 interface Rig {
   root: string; dir: string; hosts: string; main: string; bin: string; asar: string; alive: string; script: string;
-  kicked: string; flushes: string; flap: string;
+  kicked: string; flushes: string; flap: string; aliveAfter: string;
 }
 
 const DEAD_SECONDS = 300;
@@ -97,11 +97,15 @@ function rig(): Rig {
   const lctl = path.join(root, 'launchctl');
   // „flap”: egy újra és újra összeomló segéd — minden megnézéskor más azonosító.
   const flap = path.join(root, 'flap');
+  const aliveAfter = path.join(root, 'aliveAfter');
+  const calls = path.join(root, 'calls');
   fs.writeFileSync(lctl, [
     '#!/bin/sh',
     `[ "$2" = system/${DAEMON_LABEL} ] || exit 113`,
     `if [ "$1" = kickstart ]; then echo "$2" >> ${shQuote(kicked)}; exit 0; fi`,
     `if [ -f ${shQuote(flap)} ]; then n=$(cat ${shQuote(flap)}); echo $((n + 1)) > ${shQuote(flap)}; printf '\\tstate = running\\n\\tpid = %s\\n' "$n"; exit 0; fi`,
+    // „aliveAfter”: a segéd az N-edik megnézéstől fut (közben elindult).
+    `if [ -f ${shQuote(aliveAfter)} ]; then c=$(($(cat ${shQuote(calls)} 2>/dev/null || echo 0) + 1)); echo $c > ${shQuote(calls)}; [ $c -ge $(cat ${shQuote(aliveAfter)}) ] && touch ${shQuote(alive)}; fi`,
     `if [ -f ${shQuote(alive)} ]; then printf '\\tstate = running\\n\\tpid = 4242\\n'; else printf '\\tstate = not running\\n'; fi`,
     '',
   ].join('\n'), { mode: 0o755 });
@@ -115,12 +119,30 @@ function rig(): Rig {
     ownerUid: process.getuid ? process.getuid() : 0, trustChain: [], flush: `echo x >> ${shQuote(flushes)}`,
   }));
   fs.writeFileSync(path.join(dir, STRICT_FILE), renderStrictBlock(['old.example', 'paused.example', 'www.paused.example'], NOTE), { mode: 0o600 });
-  return { root, dir, hosts, main, bin, asar, alive, script, kicked, flushes, flap };
+  return { root, dir, hosts, main, bin, asar, alive, script, kicked, flushes, flap, aliveAfter };
+}
+
+// Minden macOS-őr teszt két héjjal fut: dash (szigorú POSIX) és bash --posix
+// (a macOS /bin/sh-ja a bash, sh-módban).
+const SHELLS: Array<[string, string[]]> = ([
+  ['dash', ['/bin/dash']],
+  ['bash --posix', ['/bin/bash', '--posix']],
+] as Array<[string, string[]]>).filter(([, cmd]) => fs.existsSync(cmd[0]));
+let shell: string[] = SHELLS[0][1];
+
+function macTest(name: string, fn: () => void): void {
+  for (const [label, cmd] of SHELLS) {
+    test(`${name} [${label}]`, () => { shell = cmd; fn(); });
+  }
 }
 
 function runGuard(r: Rig): void {
-  execFileSync(process.env.GUARD_SH || '/bin/dash', [r.script], { stdio: 'pipe' });
+  execFileSync(shell[0], [...shell.slice(1), r.script], { stdio: 'pipe' });
 }
+
+test('az őr-teszt mindkét héjjal fut', () => {
+  assert.deepEqual(SHELLS.map(([l]) => l), ['dash', 'bash --posix'], 'a CI-gépen mindkét héj kell');
+});
 
 const read = (f: string) => (fs.existsSync(f) ? fs.readFileSync(f, 'utf8') : '');
 const strictOf = (r: Rig) => fs.readFileSync(path.join(r.dir, STRICT_FILE), 'utf8');
@@ -139,7 +161,7 @@ const expectedRegion = (names: string[], note = NOTE) => [
   MARKER_END,
 ].join('\n');
 
-test('macOS-őr: amíg a segéd fut, semmihez nem nyúl (ellenpróba)', () => {
+macTest('macOS-őr: amíg a segéd fut, semmihez nem nyúl (ellenpróba)', () => {
   const r = rig();
   fs.writeFileSync(r.alive, '');
   const before = read(r.hosts);
@@ -150,7 +172,7 @@ test('macOS-őr: amíg a segéd fut, semmihez nem nyúl (ellenpróba)', () => {
   assert.ok(!fs.existsSync(path.join(r.dir, GUARD_DEAD_FILE)));
 });
 
-test('macOS-őr: ha az app eltűnt, de a segéd még fut (a törölt fájlból), nem ír', () => {
+macTest('macOS-őr: ha az app eltűnt, de a segéd még fut (a törölt fájlból), nem ír', () => {
   const r = rig();
   deleteApp(r);
   fs.writeFileSync(r.alive, '');
@@ -159,7 +181,7 @@ test('macOS-őr: ha az app eltűnt, de a segéd még fut (a törölt fájlból),
   assert.equal(read(r.hosts), before);
 });
 
-test('macOS-őr: ha az app eltűnt és a segéd nem fut, a szigorú blokk kerül a helyére — a szüneteltetett oldal is tilt', () => {
+macTest('macOS-őr: ha az app eltűnt és a segéd nem fut, a szigorú blokk kerül a helyére — a szüneteltetett oldal is tilt', () => {
   const r = rig();
   deleteApp(r);
   runGuard(r);
@@ -184,7 +206,7 @@ test('macOS-őr: ha az app eltűnt és a segéd nem fut, a szigorú blokk kerül
   assert.equal(flushCount(r), 2);
 });
 
-test('macOS-őr: unió — egy elavult szigorú blokk sem vesz ki egy épp tiltott nevet', () => {
+macTest('macOS-őr: unió — egy elavult szigorú blokk sem vesz ki egy épp tiltott nevet', () => {
   const r = rig();
   // Az élő blokkban egy újabb név, ami a (régebbi segéd után elavult) szigorú blokkból hiányzik.
   fs.writeFileSync(r.hosts, `127.0.0.1 localhost\n\n${buildManagedBlock(['new.example', 'old.example'], 'darwin')}\n`);
@@ -193,7 +215,7 @@ test('macOS-őr: unió — egy elavult szigorú blokk sem vesz ki egy épp tilto
   assert.equal(region(read(r.hosts)), expectedRegion(['new.example', 'old.example', 'paused.example', 'www.paused.example']));
 });
 
-test('macOS-őr: a futtathatatlan bináris vagy a hiányzó app.asar is eltűnt app', () => {
+macTest('macOS-őr: a futtathatatlan bináris vagy a hiányzó app.asar is eltűnt app', () => {
   const a = rig();
   fs.chmodSync(a.bin, 0o644);
   runGuard(a);
@@ -204,7 +226,7 @@ test('macOS-őr: a futtathatatlan bináris vagy a hiányzó app.asar is eltűnt 
   assert.ok(read(b.hosts).includes('0.0.0.0 paused.example'));
 });
 
-test('macOS-őr: ha az app a helyén van, de a segéd nem indul, elindítja — és öt perc után a szigorú blokk áll be', () => {
+macTest('macOS-őr: ha az app a helyén van, de a segéd nem indul, elindítja — és öt perc után a szigorú blokk áll be', () => {
   const r = rig();
   const before = read(r.hosts);
   const stamp = path.join(r.dir, GUARD_DEAD_FILE);
@@ -229,7 +251,7 @@ test('macOS-őr: ha az app a helyén van, de a segéd nem indul, elindítja — 
   assert.ok(!fs.existsSync(stamp));
 });
 
-test('macOS-őr: az újra és újra összeomló segéd nem „él” — a pillanatnyi azonosító nem állítja vissza az órát', () => {
+macTest('macOS-őr: az újra és újra összeomló segéd nem „él” — a pillanatnyi azonosító nem állítja vissza az órát', () => {
   const r = rig();
   fs.writeFileSync(r.flap, '100');
   const stamp = path.join(r.dir, GUARD_DEAD_FILE);
@@ -240,7 +262,7 @@ test('macOS-őr: az újra és újra összeomló segéd nem „él” — a pilla
   assert.equal(region(read(r.hosts)), expectedRegion(['old.example', 'paused.example', 'www.paused.example']));
 });
 
-test('macOS-őr: a visszaállított óra nem halasztja — a jövőbeli bélyeget a mostani időre írja', () => {
+macTest('macOS-őr: a visszaállított óra nem halasztja — a jövőbeli bélyeget a mostani időre írja', () => {
   const r = rig();
   const stamp = path.join(r.dir, GUARD_DEAD_FILE);
   const now = Math.floor(Date.now() / 1000);
@@ -254,11 +276,13 @@ test('macOS-őr: a visszaállított óra nem halasztja — a jövőbeli bélyege
   assert.match(read(stamp), /^\d+\n$/);
 });
 
-test('macOS-őr: felemás jelölők és hiányzó hosts — rendbe teszi, nem hagyja annyiban', () => {
-  for (const [label, hosts] of [
-    ['csak a nyitó jelölő maradt', `127.0.0.1 localhost\n${MARKER_BEGIN}\n# saját sor\n`],
-    ['csak a záró jelölő maradt', `127.0.0.1 localhost\n${MARKER_END}\n# saját sor\n`],
-    ['fordított sorrend', `127.0.0.1 localhost\n${MARKER_END}\n# saját sor\n${MARKER_BEGIN}\n`],
+macTest('macOS-őr: felemás jelölők és hiányzó hosts — rendbe teszi, ahogy a segéd', () => {
+  // A záró nélküli nyitó jelölő a fájl végéig tart (mint a segédnél); a nyitó
+  // nélküli záró csak magát viszi.
+  for (const [label, hosts, head] of [
+    ['csak a nyitó jelölő maradt', `127.0.0.1 localhost\n${MARKER_BEGIN}\n# régi megjegyzés\n`, '127.0.0.1 localhost\n\n'],
+    ['csak a záró jelölő maradt', `127.0.0.1 localhost\n${MARKER_END}\n# saját sor\n`, '127.0.0.1 localhost\n# saját sor\n\n'],
+    ['fordított sorrend', `127.0.0.1 localhost\n${MARKER_END}\n# saját sor\n${MARKER_BEGIN}\n`, '127.0.0.1 localhost\n# saját sor\n\n'],
   ] as const) {
     const r = rig();
     deleteApp(r);
@@ -268,21 +292,66 @@ test('macOS-őr: felemás jelölők és hiányzó hosts — rendbe teszi, nem ha
     assert.equal(region(after), expectedRegion(['old.example', 'paused.example', 'www.paused.example']), label);
     assert.equal(after.split(MARKER_BEGIN).length, 2, `${label}: egy nyitó jelölő`);
     assert.equal(after.split(MARKER_END).length, 2, `${label}: egy záró jelölő`);
-    assert.ok(after.startsWith('127.0.0.1 localhost\n# saját sor\n\n'), `${label}: a többi sor marad: ${after}`);
+    assert.ok(after.startsWith(head), `${label}: ${after}`);
     assert.match(logOf(r), /felemások voltak/, label);
   }
-  // A hosts fájl hiányzik: alap hosts + a szigorú blokk, olvasható jogokkal.
+  // Egy félbemaradt írás: a nyitó jelölő után a régi blokk darabja. A tiltó
+  // sorai a blokkba kerülnek (unió), nem maradnak kezeletlen bejegyzésként —
+  // különben se a segéd, se az eltávolító nem venné ki őket soha.
   const r = rig();
   deleteApp(r);
-  fs.rmSync(r.hosts);
+  fs.writeFileSync(r.hosts, `127.0.0.1 localhost\n\n${MARKER_BEGIN}\n${NOTE}\n0.0.0.0 stale.example\n:: stale.example\n`);
   runGuard(r);
   const after = read(r.hosts);
-  assert.ok(after.startsWith('127.0.0.1\tlocalhost\n255.255.255.255\tbroadcasthost\n::1'), after);
+  assert.equal(region(after), expectedRegion(['old.example', 'paused.example', 'stale.example', 'www.paused.example']));
+  assert.equal(after.slice(0, after.indexOf(MARKER_BEGIN)), '127.0.0.1 localhost\n\n', 'a blokkon kívül nem maradhat a régi darabja');
+  // A hosts fájl hiányzik: alap hosts + a szigorú blokk, olvasható jogokkal.
+  const m = rig();
+  deleteApp(m);
+  fs.rmSync(m.hosts);
+  runGuard(m);
+  const fresh = read(m.hosts);
+  assert.ok(fresh.startsWith('127.0.0.1\tlocalhost\n255.255.255.255\tbroadcasthost\n::1'), fresh);
+  assert.equal(region(fresh), expectedRegion(['old.example', 'paused.example', 'www.paused.example']));
+  assert.equal(fs.statSync(m.hosts).mode & 0o777, 0o644);
+});
+
+macTest('macOS-őr: CRLF sorvégű hosts — a jelölőket felismeri, egy blokk marad', () => {
+  // A segéd CRLF-et is felismer (blocklist.ts); az őr se írjon mellé egy másodikat.
+  const r = rig();
+  deleteApp(r);
+  fs.writeFileSync(r.hosts, `127.0.0.1 localhost\r\n\r\n${buildManagedBlock(['old.example'], 'darwin').replace(/\n/g, '\r\n')}\r\n`);
+  runGuard(r);
+  const after = read(r.hosts);
+  assert.equal(after.split(MARKER_BEGIN).length, 2, after);
+  assert.ok(!after.includes('\r'));
   assert.equal(region(after), expectedRegion(['old.example', 'paused.example', 'www.paused.example']));
+});
+
+macTest('macOS-őr: az írás egy átnevezés — nem marad ideiglenes fájl, a hosts új inode', () => {
+  const r = rig();
+  deleteApp(r);
+  const before = fs.statSync(r.hosts).ino;
+  runGuard(r);
+  assert.notEqual(fs.statSync(r.hosts).ino, before, 'helyben írt (egy betelt lemezen félbemaradhatna)');
+  assert.deepEqual(fs.readdirSync(path.dirname(r.hosts)).filter((f) => f.startsWith('.hosts.')), []);
+  assert.deepEqual(fs.readdirSync(r.dir).filter((f) => f.startsWith('.guard.')), [], 'a munkamappa ott maradt');
   assert.equal(fs.statSync(r.hosts).mode & 0o777, 0o644);
 });
 
-test('macOS-őr: idegen sor a szigorú blokkban — kihagyja, a többit beírja; csupa szemétnél nem ír', () => {
+macTest('macOS-őr: ha a segéd közvetlenül írás előtt elindul, nem ír', () => {
+  // A megnézések sorrendje: belépéskor, a várakozás után, írás előtt. Az
+  // utolsónál a segéd már fut — egy most induló segéd és az őr ne írjon felváltva.
+  const r = rig();
+  deleteApp(r);
+  fs.writeFileSync(r.aliveAfter, '3');
+  const before = read(r.hosts);
+  runGuard(r);
+  assert.equal(read(r.hosts), before);
+  assert.equal(flushCount(r), 0);
+});
+
+macTest('macOS-őr: idegen sor a szigorú blokkban — kihagyja, a többit beírja; csupa szemétnél nem ír', () => {
   const r = rig();
   deleteApp(r);
   const f = path.join(r.dir, STRICT_FILE);
@@ -305,7 +374,7 @@ test('macOS-őr: idegen sor a szigorú blokkban — kihagyja, a többit beírja;
   assert.match(logOf(z), /nincs tiltó sor/);
 });
 
-test('macOS-őr: nem megbízható szigorú blokk vagy mappa — nem ír', () => {
+macTest('macOS-őr: nem megbízható szigorú blokk vagy mappa — nem ír', () => {
   for (const [label, spoil, expectLog] of [
     ['csoport is írhatja', (r: Rig) => fs.chmodSync(path.join(r.dir, STRICT_FILE), 0o660), /nem megbízható/],
     ['más is írhatja', (r: Rig) => fs.chmodSync(path.join(r.dir, STRICT_FILE), 0o606), /nem megbízható/],
@@ -330,7 +399,7 @@ test('macOS-őr: nem megbízható szigorú blokk vagy mappa — nem ír', () => 
   }
 });
 
-test('macOS-őr: ahol nem tud dönteni, ott nem ír (nincs segéd, leválasztott kötet, karantén, nincs szigorú blokk)', () => {
+macTest('macOS-őr: ahol nem tud dönteni, ott nem ír (nincs segéd, leválasztott kötet, karantén, nincs szigorú blokk)', () => {
   const cases: Array<[string, (r: Rig) => void]> = [
     ['nincs segéd-leíró', (r) => fs.rmSync(r.main)],
     ['leválasztott kötet', (r) => fs.writeFileSync(r.main, '/Volumes/NincsIlyen/Breaker.app/Contents/MacOS/Breaker\n/Volumes/NincsIlyen/Breaker.app/Contents/Resources/app.asar/dist/helper/index.js\n')],
@@ -347,7 +416,7 @@ test('macOS-őr: ahol nem tud dönteni, ott nem ír (nincs segéd, leválasztott
   }
 });
 
-test('macOS-őr: a leíró percenként futtatja, KeepAlive és naplóút nélkül', () => {
+macTest('macOS-őr: a leíró percenként futtatja, KeepAlive és naplóút nélkül', () => {
   const plist = macGuardPlist();
   assert.ok(plist.includes(`<key>Label</key><string>${GUARD_LABEL}</string>`));
   assert.ok(plist.includes('<string>/bin/sh</string>'));
@@ -395,7 +464,7 @@ test('Windows-őr: csak ASCII, semmi a PATH-ból, és a segéd feladatából olv
   // …és egy nyitva hagyott eltávolító-ablak se tartsa örökké: legfeljebb fél óra.
   assert.ok(s.includes('$installCap = 1800'));
   assert.ok(s.includes('if ((Installing) -and $goneFor -lt $installCap) { exit 0 }'));
-  assert.ok(s.includes('if ((Installing) -and $deadFor -lt $installCap) { exit 0 }'));
+  assert.ok(s.includes('if ($deadFor -ge $deadAfter -and -not ((Installing) -and $deadFor -lt $installCap)) {'));
 });
 
 test('Windows-őr: a segéd állapotmappájába nem ír — a bélyeg és a napló a saját mappájában', () => {
@@ -424,8 +493,17 @@ test('Windows-őr: a futó segédet nem írja felül; a hiányzó meghajtó elt�
   assert.ok(!s.includes('GetPathRoot'), 'a hiányzó meghajtó ne tegye tétlenné az őrt');
   // Unió: a hosts régi blokkjának tiltó sorai is a halmazba kerülnek.
   assert.ok(s.includes('if ($in) { $cur.Add($l); if ($l -cmatch $BlockRe) { [void]$set.Add($l) } } else { $out.Add($l) }'));
-  // Felemás jelölők: csak a jelölő-sorok mennek, és a blokk akkor is beíródik.
-  assert.ok(s.includes('foreach ($l in $lines) { if ($l -cne $B -and $l -cne $E) { $out.Add($l) } }'));
+  // Felemás jelölők, ahogy a segéd érti: a záró nélküli nyitó a fájl végéig
+  // tart, a nyitó nélküli záró csak magát viszi; a blokk akkor is beíródik.
+  assert.ok(s.includes('if ($l -ceq $B) { $in = $true; $cur.Add($l); continue }'));
+  assert.ok(s.includes('if ($l -ceq $E) { if ($in) { $cur.Add($l) }; $in = $false; continue }'));
+  assert.ok(s.includes('if (-not $ok) { $cur.Clear();'));
+  // Az írás egy csere: egy betelt lemez vagy egy leállítás sem hagy félig írt hosts fájlt.
+  assert.ok(s.includes("[IO.File]::Replace($tmp, $hostsFile, [NullString]::Value)"));
+  assert.ok(!s.includes('[IO.File]::WriteAllBytes($hostsFile'), 'helyben írja a hosts fájlt');
+  // A nem induló segéd: előbb a szigorú blokk, csak utána indítjuk — a saját
+  // indításunk különben „futónak” látszana az írás előtti újranézésnél.
+  assert.ok(s.indexOf("      Apply-Strict 'dead'") < s.indexOf("Start-ScheduledTask -TaskName '"), 'előbb indít, aztán ír');
   // Hiányzó hosts: üres listával indul, és ír.
   assert.ok(s.includes('if ([IO.File]::Exists($hostsFile)) { $lines = Lines ([IO.File]::ReadAllBytes($hostsFile)) }'));
   // Idegen sor: kimarad, nem akasztja meg az egészet; méretkorlát nincs.
@@ -447,6 +525,8 @@ test('Windows-őr feladata: a rendszer PowerShellje, SYSTEM, induláskor és öt
   // Nem -File: egy „csak aláírt szkript” csoportházirend azt letiltaná, és az
   // őr csendben sosem futna. A parancs a fájlt szkriptblokként indítja.
   assert.ok(!r.includes('-File') && !r.includes('-ExecutionPolicy'));
+  // A kezdőidőpont a múltban: egy visszaállított óra se állítsa le az ismétlést.
+  assert.ok(r.includes("-Once -At ([DateTime]'2000-01-01T00:00:00') -RepetitionInterval (New-TimeSpan -Minutes 5)"));
   const m = r.match(/-EncodedCommand ([A-Za-z0-9+/=]+)/);
   assert.ok(m, 'nincs kódolt parancs');
   const loader = Buffer.from(m[1], 'base64').toString('utf16le');

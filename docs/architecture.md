@@ -595,14 +595,23 @@ ingyenes lazítás. (v0.4.257-ig így volt.)
   átívelő) eltűnés után, és ha nem fut a saját telepítőnk — legfeljebb fél
   óráig várva rá. Ha az app a helyén van, de a segéd nem fut, az őr elindítja;
   ha percek óta így van (macOS: öt, Windows: tíz perc), a szigorú blokk áll be
-  — a befagyott blokk helyett. A bélyeg a falióra szerint mér, de a jövőbeli
-  bélyeget (visszaállított óra) az őr a mostani időre írja át.
+  — a befagyott blokk helyett. Windowson ilyenkor előbb ír, és csak utána
+  indítja a segédet: a saját indítása különben az írás előtti újranézésnél
+  „futónak” látszana, és egy pár másodperc után leálló segéd mellett sosem
+  írna. A bélyeg a falióra szerint mér, de a jövőbeli bélyeget (visszaállított
+  óra) az őr a mostani időre írja át, és az ötperces feladat kezdőidőpontja a
+  múltban van (2000), így egy visszaállított óra az ismétlést sem állítja le.
 - **Mit ír.** A szigorú blokk tiltó sorainak és a hosts mostani blokkja tiltó
   sorainak unióját, bájtsorrendben, a magyarázó sorral: egy elavult szigorú
   blokk (például egy visszatelepített régebbi segéd után) sem vehet ki egy épp
-  tiltott nevet. Felemás jelölőknél a jelölő-sorokat kiveszi, a többi sort
-  meghagyja, és a blokkot beírja; hiányzó hosts fájlnál egy alap hosts-szal
-  kezd. Változatlan blokkot nem ír újra (és a DNS-t sem üríti).
+  tiltott nevet. A jelölőket úgy érti, ahogy a segéd (`stripLegacyBlocks`): a
+  záró nélküli nyitó a fájl végéig tart (egy félbemaradt blokk tiltó sorai így
+  a blokkba kerülnek, nem maradnak kezeletlen bejegyzésként), a nyitó nélküli
+  záró csak magát viszi; a CR-es sorvég sem téveszti meg. Hiányzó hosts
+  fájlnál egy alap hosts-szal kezd. A hosts fájl mellé ír, és egy cserével
+  (macOS: `mv`, Windows: `File.Replace`) lép a régi helyére: egy betelt lemez
+  vagy egy leállítás sem hagyhat félig írt fájlt; a köztes lépések
+  hibáit is nézi. Változatlan blokkot nem ír újra (és a DNS-t sem üríti).
 - **Bizalom.** Az őr nem rak össze semmit: a szigorú blokkból csak megjegyzést
   és `0.0.0.0` / `::` tiltó sort vesz át a segéd saját hosztnév-mintájával
   (`DOMAIN_RE_SOURCE`, a TS-ben és az őrben ugyanaz a forrás) — egy idegen sort
@@ -632,10 +641,12 @@ ingyenes lazítás. (v0.4.257-ig így volt.)
   nyúl (az app eltávolítása nem lehet ingyenes lazítás), csak kimondja, mi
   marad. A teljes eltávolító előbb a segédet állítja le (egy futó segéd újra
   felvenné az őrt), aztán az őrt, és csak utána veszi ki a hosts-blokkot.
-- **Tesztek.** A macOS-őrt a teszt élesben futtatja dash-sel és bash-sel
-  (csonkolt launchctl és PlistBuddy, egy ideiglenes hosts fájl, megszámolt
-  DNS-ürítés); az új vizsgálatok mutációs próbán is átmentek (az unió, a
-  felemás jelölő, a változatlan blokk, a szimbolikus link). **CI-próba** a
+- **Tesztek.** A macOS-őr minden tesztje élesben fut dash-sel és
+  `bash --posix`-szal is (a macOS `/bin/sh`-ja a bash; a CI-ban is mindkettő),
+  csonkolt launchctl-lel és PlistBuddy-val, egy ideiglenes hosts fájlon,
+  megszámolt DNS-ürítéssel; az új vizsgálatok mutációs próbán is átmentek (az
+  unió, a felemás jelölő, a félbemaradt blokk, a CR-es sorvég, a változatlan
+  blokk, a cserével írás, az írás előtti újranézés, a szimbolikus link). **CI-próba** a
   becsomagolt appon, mindkét gépen: a segéd felteszi az őrt; az app
   elmozdítása / eltávolítása után a szigorú blokk áll be, a kézzel kivettet és
   a magára hagyott jelölő mellé is visszateszi, őr nélkül (ellenpróba) kivéve

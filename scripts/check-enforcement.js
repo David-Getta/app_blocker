@@ -4537,6 +4537,18 @@ const WIRES = [
     needle: 'if ($in) { $cur.Add($l); if ($l -cmatch $BlockRe) { [void]$set.Add($l) } } else { $out.Add($l) }',
     lost: 'Windowson az őr egy elavult szigorú blokkal kivenne egy épp tiltott nevet',
   },
+  // Az őr a hosts fájlt egy cserével írja: egy betelt lemez vagy egy leállítás
+  // sem hagyhat félig írt fájlt (abból az IPv6-sorok vesznek el elsőként).
+  {
+    file: 'desktop/src/shared/guard-script.ts',
+    needle: 'chmod 644 "$TMPH" && mv -f "$TMPH" "$HOSTS"',
+    lost: 'macOS-en az őr helyben írná a hosts fájlt — egy betelt lemezen csonka blokk maradna',
+  },
+  {
+    file: 'desktop/src/shared/guard-script.ts',
+    needle: "[IO.File]::Replace($tmp, $hostsFile, [NullString]::Value)",
+    lost: 'Windowson az őr helyben írná a hosts fájlt — egy betelt lemezen csonka blokk maradna',
+  },
   // A nem induló segéd: az app a helyén, a segéd mégsem fut — enélkül egy
   // félig törölt app (vagy egy elrontott app.asar) ugyanúgy befagyasztaná a
   // tiltást, mint a törlés.

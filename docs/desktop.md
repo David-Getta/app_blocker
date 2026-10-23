@@ -216,12 +216,15 @@ minden induláskor — újabb jelszó nélkül.
   minden, és hol a teljes eltávolító.
 - Az őr csak szigorít: a szigorú blokk és a hosts mostani blokkja tiltó
   sorainak **unióját** írja, egy elavult szigorú blokk sem vehet ki egy épp
-  tiltott nevet. A magára hagyott jelölőt és a hiányzó hosts fájlt is rendbe
-  teszi.
+  tiltott nevet. A magára hagyott jelölőt (ahogy a segéd is: a záró nélküli
+  nyitó a fájl végéig tart), a Windows-sorvéget és a hiányzó hosts fájlt is
+  rendbe teszi. A hosts fájlt egy cserével írja: egy betelt lemez vagy egy
+  leállítás sem hagyhat félig írt fájlt.
 - Az őr nem rak össze semmit, csak ellenőriz és bemásol: a szigorú blokkból
   csak megjegyzést és `0.0.0.0` / `::` tiltó sort vesz át (egy idegen sort
   kihagy és naplóz, a többit beírja), és csak akkor, ha a fájl és a mappája a
-  rooté / a SYSTEM-é. Egy idegen fájl így sem irányíthat el egy nevet.
+  rooté (Windowson a SYSTEM-é vagy a rendszergazdáké). Egy idegen fájl így
+  sem irányíthat el egy nevet.
   Méretkorlát nincs: egy nagyon hosszú lista sem kapcsolhatja ki.
 - Ha az appot **visszateszed ugyanoda**, a segéd újra indul (a launchd, vagy
   ha az feladta, az őr indítja), a saját blokkját írja, és minden a régi.

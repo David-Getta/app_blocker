@@ -110,8 +110,13 @@ export function macGuardScript(o: MacGuardOptions = MAC_GUARD_DEFAULTS): string 
   // Rendben vannak-e a jelölők: mindegyik nyitót egy záró követ, és fordítva.
   const awkWellFormed = `${env} $0==b{if(s)bad=1;s=1;next} $0==e{if(!s)bad=1;s=0} END{exit (bad||s)?1:0}`;
   const awkRegion = `${env} $0==b{p=1} p{print} $0==e{p=0}`;
-  const awkOutside = `${env} $0==b{s=1} !s{l[++n]=$0} $0==e{s=0} ${trimPrint}`;
-  const awkNoMarkers = `${env} $0!=b&&$0!=e{l[++n]=$0} ${trimPrint}`;
+  // A blokkon kívüli sorok a kimenetre, a blokk sorai az RG fájlba. Ugyanaz a
+  // megállapodás, mint a segédé (blocklist.ts, stripLegacyBlocks): a záró
+  // nélküli nyitó jelölő a fájl végéig tart, a nyitó nélküli záró csak magát
+  // viszi — így egy félbemaradt blokk sorai sem maradnak kezeletlen
+  // bejegyzésként a fájlban.
+  const awkSplit = 'BEGIN{b=ENVIRON["B"];e=ENVIRON["E"];rg=ENVIRON["RG"];n=0} '
+    + `$0==b{s=1;next} $0==e{s=0;next} s{print > rg;next} {l[++n]=$0} ${trimPrint}`;
   // A shell-minták csillaga változóból jön: a forrásban a perjel-csillag a
   // tű-ellenőrző (scripts/check-enforcement.js) szemében megjegyzés-kezdet
   // volna, és a fájl további részét nem látná.
@@ -235,45 +240,54 @@ export function macGuardScript(o: MacGuardOptions = MAC_GUARD_DEFAULTS): string 
     'trusted "$STRICT" || { log "nem írok: a szigorú blokk nem megbízható"; exit 0; }',
     '',
     'WORK=$(mktemp -d "$DIR/.guard.XXXXXX") || exit 0',
-    'trap \'rm -rf "$WORK"\' EXIT',
+    'TMPH=',
+    'trap \'rm -rf "$WORK"; [ -n "$TMPH" ] && rm -f "$TMPH"\' EXIT',
+    '# Minden köztes lépést ellenőrzünk: egy betelt lemezen félbemaradt',
+    '# részeredmény sosem kerülhet a hosts fájlba (grep: 1 = nincs találat, nem hiba).',
     '# Csak a tiltó sorok és a megjegyzés jön át; minden más kimarad.',
-    'grep -E -- "$BLOCK" "$STRICT" > "$WORK/s"',
+    'grep -E -- "$BLOCK" "$STRICT" > "$WORK/s"; [ $? -le 1 ] || exit 0',
     '[ -s "$WORK/s" ] || { log "nem írok: a szigorú blokkban nincs tiltó sor"; exit 0; }',
-    'grep -E -- \'^#\' "$STRICT" | grep -Fxv -e "$B" -e "$E" > "$WORK/n"',
+    'grep -E -- \'^#\' "$STRICT" > "$WORK/n0"; [ $? -le 1 ] || exit 0',
+    'grep -Fxv -e "$B" -e "$E" "$WORK/n0" > "$WORK/n"; [ $? -le 1 ] || exit 0',
     'FOREIGN=$(grep -Evc -- "^#|$BLOCK" "$STRICT")',
     '[ "$FOREIGN" = 0 ] || log "a szigorú blokk idegen sorait kihagytam: $FOREIGN"',
     '',
-    '# A hosts fájl pillanatképe — ha nincs meg, egy alap hosts-szal kezdünk.',
+    '# A hosts fájl pillanatképe, sorvég-jel (CR) nélkül, ahogy a segéd is olvassa —',
+    '# ha nincs meg, egy alap hosts-szal kezdünk.',
     'NEW=0',
     'if [ -f "$HOSTS" ]; then',
-    '  cat "$HOSTS" > "$WORK/hosts" || exit 0',
+    '  tr -d \'\\r\' < "$HOSTS" > "$WORK/hosts" || exit 0',
     'else',
     '  NEW=1',
-    '  printf \'127.0.0.1\\tlocalhost\\n255.255.255.255\\tbroadcasthost\\n::1             localhost\\n\' > "$WORK/hosts"',
+    '  printf \'127.0.0.1\\tlocalhost\\n255.255.255.255\\tbroadcasthost\\n::1             localhost\\n\' > "$WORK/hosts" || exit 0',
     'fi',
-    '# Rendben lévő jelölőknél a régi blokk(ok) tiltó sorai is maradnak (unió);',
-    '# felemás jelölőknél csak a jelölő-sorokat vesszük ki, a többi sor marad.',
+    '# A régi blokk(ok) tiltó sorai is maradnak (unió).',
+    ': > "$WORK/rg" || exit 0',
+    `RG="$WORK/rg" awk '${awkSplit}' "$WORK/hosts" > "$WORK/out" || exit 0`,
+    'grep -E -- "$BLOCK" "$WORK/rg" > "$WORK/h"; [ $? -le 1 ] || exit 0',
     `if awk '${awkWellFormed}' "$WORK/hosts"; then`,
-    `  awk '${awkRegion}' "$WORK/hosts" > "$WORK/cur"`,
-    '  grep -E -- "$BLOCK" "$WORK/cur" > "$WORK/h"',
-    `  awk '${awkOutside}' "$WORK/hosts" > "$WORK/out"`,
+    `  awk '${awkRegion}' "$WORK/hosts" > "$WORK/cur" || exit 0`,
     'else',
     '  : > "$WORK/cur"',
-    '  : > "$WORK/h"',
-    `  awk '${awkNoMarkers}' "$WORK/hosts" > "$WORK/out"`,
     '  log "a hosts jelölői felemások voltak: rendbe teszem"',
     'fi',
-    '{ printf \'%s\\n\' "$B"; cat "$WORK/n"; sort -u "$WORK/s" "$WORK/h"; printf \'%s\\n\' "$E"; } > "$WORK/want"',
+    'printf \'%s\\n\' "$B" > "$WORK/want" || exit 0',
+    'cat "$WORK/n" >> "$WORK/want" || exit 0',
+    'sort -u "$WORK/s" "$WORK/h" >> "$WORK/want" || exit 0',
+    'printf \'%s\\n\' "$E" >> "$WORK/want" || exit 0',
     '[ "$NEW" = 0 ] && cmp -s "$WORK/cur" "$WORK/want" && exit 0',
     '',
     '# Közvetlenül írás előtt még egyszer: ha közben a segéd elindult, nem írunk.',
     'still || exit 0',
-    '# Az írást egy leállítás (bootout) se szakítsa félbe: egy félig írt hosts',
-    '# fájlból a localhost sora is hiányozhatna.',
+    '# Az új hosts fájl mellé kerül, és egy átnevezéssel cseréli a régit: egy',
+    '# leállítás vagy egy betelt lemez sem hagyhat félig írt hosts fájlt.',
     "trap '' TERM INT HUP",
-    '{ if [ -s "$WORK/out" ]; then cat "$WORK/out"; printf \'\\n\'; fi; cat "$WORK/want"; } > "$WORK/new" || exit 0',
-    'cat "$WORK/new" > "$HOSTS" || { log "nem tudtam írni a hosts fájlt"; exit 0; }',
-    '[ "$NEW" = 1 ] && chmod 644 "$HOSTS"',
+    'TMPH=$(mktemp "$(dirname "$HOSTS")/.hosts.XXXXXX") || { log "nem tudtam írni a hosts fájlt"; exit 0; }',
+    '{ if [ -s "$WORK/out" ]; then cat "$WORK/out" && printf \'\\n\'; fi && cat "$WORK/want"; } > "$TMPH" \\',
+    '  || { log "nem tudtam írni a hosts fájlt"; exit 0; }',
+    '[ "$(tail -n 1 "$TMPH")" = "$E" ] || { log "nem tudtam írni a hosts fájlt"; exit 0; }',
+    'chmod 644 "$TMPH" && mv -f "$TMPH" "$HOSTS" || { log "nem tudtam írni a hosts fájlt"; exit 0; }',
+    'TMPH=',
     `{ ${o.flush}; } >/dev/null 2>&1`,
     'if [ "$WHY" = dead ]; then',
     '  log "a segéd nem indul: a szigorú blokk a helyén"',
@@ -446,8 +460,10 @@ export function windowsGuardScript(o: WindowsGuardOptions = WINDOWS_GUARD_DEFAUL
     `  if ($foreign -gt 0) { Log (${msg('a szigorú blokk idegen sorait kihagytam: ')} + $foreign) }`,
     '  $lines = New-Object Collections.Generic.List[string]',
     '  if ([IO.File]::Exists($hostsFile)) { $lines = Lines ([IO.File]::ReadAllBytes($hostsFile)) }',
-    // Rendben lévő jelölőknél a régi blokk tiltó sorai is maradnak (unió);
-    // felemásnál csak a jelölő-sorokat vesszük ki, a többi sor marad.
+    // A régi blokk(ok) tiltó sorai is maradnak (unió). Ugyanaz a megállapodás,
+    // mint a segédé: a záró nélküli nyitó jelölő a fájl végéig tart, a nyitó
+    // nélküli záró csak magát viszi — egy félbemaradt blokk sorai így sem
+    // maradnak kezeletlen bejegyzésként a fájlban.
     '  $ok = $true',
     '  $in = $false',
     '  foreach ($l in $lines) {',
@@ -457,17 +473,13 @@ export function windowsGuardScript(o: WindowsGuardOptions = WINDOWS_GUARD_DEFAUL
     '  if ($in) { $ok = $false }',
     '  $cur = New-Object Collections.Generic.List[string]',
     '  $out = New-Object Collections.Generic.List[string]',
-    '  if ($ok) {',
-    '    $in = $false',
-    '    foreach ($l in $lines) {',
-    '      if ($l -ceq $B) { $in = $true }',
-    '      if ($in) { $cur.Add($l); if ($l -cmatch $BlockRe) { [void]$set.Add($l) } } else { $out.Add($l) }',
-    '      if ($l -ceq $E) { $in = $false }',
-    '    }',
-    '  } else {',
-    '    foreach ($l in $lines) { if ($l -cne $B -and $l -cne $E) { $out.Add($l) } }',
-    `    Log ${msg('a hosts jelölői felemások voltak: rendbe teszem')}`,
+    '  $in = $false',
+    '  foreach ($l in $lines) {',
+    '    if ($l -ceq $B) { $in = $true; $cur.Add($l); continue }',
+    '    if ($l -ceq $E) { if ($in) { $cur.Add($l) }; $in = $false; continue }',
+    '    if ($in) { $cur.Add($l); if ($l -cmatch $BlockRe) { [void]$set.Add($l) } } else { $out.Add($l) }',
     '  }',
+    `  if (-not $ok) { $cur.Clear(); Log ${msg('a hosts jelölői felemások voltak: rendbe teszem')} }`,
     '  $want = New-Object Collections.Generic.List[string]',
     '  $want.Add($B)',
     '  foreach ($l in $notes) { $want.Add($l) }',
@@ -480,7 +492,12 @@ export function windowsGuardScript(o: WindowsGuardOptions = WINDOWS_GUARD_DEFAUL
     "  while ($out.Count -gt 0 -and $out[$out.Count - 1] -eq '') { $out.RemoveAt($out.Count - 1) }",
     "  if ($out.Count -gt 0) { $out.Add('') }",
     '  foreach ($l in $want) { $out.Add($l) }',
-    '  [IO.File]::WriteAllBytes($hostsFile, $L1.GetBytes((($out -join "`r`n") + "`r`n")))',
+    // Az új hosts fájl mellé kerül, és egy cserével lép a régi helyére: egy
+    // leállítás vagy egy betelt lemez sem hagyhat félig írt hosts fájlt. (A
+    // Replace a régi fájl jogait és jellemzőit megtartja.)
+    "  $tmp = $hostsFile + '.breaker-guard.tmp'",
+    '  [IO.File]::WriteAllBytes($tmp, $L1.GetBytes((($out -join "`r`n") + "`r`n")))',
+    '  if ([IO.File]::Exists($hostsFile)) { [IO.File]::Replace($tmp, $hostsFile, [NullString]::Value) } else { [IO.File]::Move($tmp, $hostsFile) }',
     "  & (Join-Path $sys 'ipconfig.exe') /flushdns | Out-Null",
     `  if ($why -eq 'dead') { Log ${msg('a segéd nem indul: a szigorú blokk a helyén')} }`,
     `  else { Log ${msg('az app nem található: a szigorú blokk a helyén')} }`,
@@ -496,6 +513,14 @@ export function windowsGuardScript(o: WindowsGuardOptions = WINDOWS_GUARD_DEFAUL
     "  if ($s1.s -eq 'present') {",
     '    Clear-Stamp $goneMark',
     '    $deadFor = Stamp-Age $deadMark',
+    // Ha percek óta nem indul el, a szigorú blokk áll be — a befagyott helyett.
+    // ELŐBB írunk, csak utána indítjuk: a saját indításunk különben az írás
+    // előtti újranézésnél „futónak” látszana, és egy pár másodperc után
+    // leálló segéd mellett az őr sosem írna. Ha a segéd tényleg feláll, a
+    // saját blokkját írja vissza.
+    '    if ($deadFor -ge $deadAfter -and -not ((Installing) -and $deadFor -lt $installCap)) {',
+    "      Apply-Strict 'dead'",
+    '    }',
     // Egy frissítés leállítja a segédet, és a Feladatütemező nem indítja újra:
     // ha a fájlok stabilak és telepítő nem fut, az őr indítja.
     "    if ($s1.state -eq 'Ready') {",
@@ -510,10 +535,6 @@ export function windowsGuardScript(o: WindowsGuardOptions = WINDOWS_GUARD_DEFAUL
     '        }',
     '      }',
     '    }',
-    // Ha percek óta nem indul el, a szigorú blokk áll be — a befagyott helyett.
-    '    if ($deadFor -lt $deadAfter) { exit 0 }',
-    '    if ((Installing) -and $deadFor -lt $installCap) { exit 0 }',
-    "    Apply-Strict 'dead'",
     '    exit 0',
     '  }',
     '  Clear-Stamp $deadMark',
@@ -556,7 +577,9 @@ export function windowsGuardRegisterScript(guardPath: string): string {
     "  $ps = Join-Path $env:SystemRoot 'System32\\WindowsPowerShell\\v1.0\\powershell.exe'",
     `  $action = ScheduledTasks\\New-ScheduledTaskAction -Execute $ps -Argument ${psSingleQuoted(arg)}`,
     '  $boot = ScheduledTasks\\New-ScheduledTaskTrigger -AtStartup',
-    '  $every = ScheduledTasks\\New-ScheduledTaskTrigger -Once -At ([DateTime]::Now.AddMinutes(1)) -RepetitionInterval (New-TimeSpan -Minutes 5)',
+    // A kezdőidőpont a múltban: ha valaki visszaállítja az órát a felvétel
+    // pillanata elé, az ismétlés akkor se álljon le.
+    "  $every = ScheduledTasks\\New-ScheduledTaskTrigger -Once -At ([DateTime]'2000-01-01T00:00:00') -RepetitionInterval (New-TimeSpan -Minutes 5)",
     "  $principal = ScheduledTasks\\New-ScheduledTaskPrincipal -UserId 'SYSTEM' -LogonType ServiceAccount -RunLevel Highest",
     '  $settings = ScheduledTasks\\New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries '
       + '-ExecutionTimeLimit (New-TimeSpan -Minutes 3) -MultipleInstances IgnoreNew -StartWhenAvailable',

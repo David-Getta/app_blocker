@@ -306,10 +306,14 @@ if ((Get-ScheduledTask -TaskName $taskName).State -ne 'Running') { Fail 'az őr 
 else { Write-Host 'az őr elindította a leállított segédet' }
 # Ha a segéd nem indul el (itt: letiltott feladat), az őr nem hagyja befagyva a
 # blokkot: tíz perc után a szigorú blokk áll be. Az első észleléskor még nem.
+# Az előző lépés (a leállított segéd indítása) is ír bélyeget: tiszta lappal
+# indulunk, hogy ez a futás tényleg a letiltott segédet jegyezze fel.
+Remove-Item -LiteralPath $deadMark -Force -ErrorAction SilentlyContinue
 Stop-HelperTask
 Disable-ScheduledTask -TaskName $taskName | Out-Null
 Run-Guard
 if (-not (Test-Path -LiteralPath $deadMark)) { Fail 'az őr nem jegyezte fel, hogy a segéd nem fut'; Show-Guard }
+elseif (((Get-Date) - (Get-Item -LiteralPath $deadMark).LastWriteTime).TotalSeconds -gt 90) { Fail 'a bélyeg nem ebből a futásból való' }
 if ((HostsText).Contains($note)) { Fail 'az őr már az első észleléskor írt — egy frissítés közben is írna' }
 [System.IO.File]::WriteAllText($deadMark, ([DateTime]::UtcNow.AddMinutes(-11)).ToString('o'))
 Run-Guard
@@ -367,13 +371,18 @@ if (-not (HostsText).Contains($note)) { Fail 'a kézzel kivett szigorú blokkot 
 else { Write-Host 'az app eltávolítása után az őr a szigorú blokkot tartja, a kézzel kivettet is visszateszi' }
 # Ha csak a nyitó jelölő maradt (felemás jelölők), azt is rendbe teszi.
 $h = HostsText
-$lone = [regex]::Replace($h, '(?s)(# >>> BREAKER BLOCK BEGIN[^\r\n]*)\r?\n.*?# <<< BREAKER BLOCK END\r?\n?', '$1' + "`r`n")
+# A régi blokkból csak a záró jelölő vész el (félbemaradt írás): a nyitó után a
+# tiltó sorok egy része ott marad — ezek se maradhatnak a blokkon kívül.
+$lone = [regex]::Replace($h, '(?s)(# >>> BREAKER BLOCK BEGIN[^\r\n]*)\r?\n.*?# <<< BREAKER BLOCK END\r?\n?', '$1' + "`r`n0.0.0.0 stale.example`r`n:: stale.example`r`n")
 [System.IO.File]::WriteAllText($hostsFile, $lone, (New-Object System.Text.UTF8Encoding $false))
 if ((HostsText).Contains($note) -or (HostsText).Contains('BREAKER BLOCK END')) { Fail 'a próba nem tudta a nyitó jelölőt magára hagyni' }
 Run-Guard
 $h = HostsText
 if (-not $h.Contains($note)) { Fail 'a magában maradt nyitó jelölő mellé az őr nem tette vissza a blokkot'; Show-Guard }
 elseif (([regex]::Matches($h, 'BREAKER BLOCK BEGIN')).Count -ne 1 -or ([regex]::Matches($h, 'BREAKER BLOCK END')).Count -ne 1) { Fail 'a felemás jelölők után nem egy blokk van' }
+elseif (-not ($h -match '(?s)# >>> BREAKER BLOCK BEGIN.*0\.0\.0\.0 stale\.example.*# <<< BREAKER BLOCK END') -or ([regex]::Matches($h, '(?m)^0\.0\.0\.0 stale\.example')).Count -ne 1) {
+  Fail 'a félbemaradt blokk tiltó sora nem a blokkba került (vagy kívül is ott maradt)'
+}
 
 # 4. A kézi eltávolító — előbb a segéd által a gépre tett másolat, amire a
 # szigorú blokk magyarázata mutat: idegen célú parancsikon marad, a
