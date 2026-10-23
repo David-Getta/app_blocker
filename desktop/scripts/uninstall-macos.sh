@@ -97,6 +97,8 @@ if { profiles list -all 2>/dev/null || profiles list 2>/dev/null; } | grep -q 'h
 fi
 
 echo "Állapotfájlok törlése..."
+# A védett futtatókörnyezet (runtime/: a segéd kódja és a Node.js) is itt van —
+# a segéd és az őr már áll, nincs, ami belőle futna.
 rm -rf "/Library/Application Support/Breaker" /Library/Logs/Breaker /var/run/breaker.sock
 
 echo "Kész. Az alkalmazást a /Applications mappából kézzel töröld, ha szeretnéd."

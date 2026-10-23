@@ -15,6 +15,7 @@ import {
   displayName, displayNameNow, isAliased, isAliasRemoval, MAX_ALIAS_LENGTH, REVEAL_MS, MAX_REASON_LENGTH,
 } from '../shared/alias.js';
 import { HELPER_VERSION } from '../shared/protocol.js';
+import { helperBanner, type OwnBuild } from '../shared/helper-offer.js';
 import { versionRowText } from '../shared/smoke.js';
 import { macTooOldText, quitUpdateText, type MacTooOld } from '../shared/update-manifest.js';
 import {
@@ -115,6 +116,7 @@ interface Bridge {
   onUpdateState(cb: (s: UpdateState) => void): void;
   appVersion?(): Promise<string>;
   installLocation?(): Promise<string | null>;
+  helperPayload?(): Promise<OwnBuild | null>;
   quitApp?(): Promise<void>;
   onVisibility?(cb: (visible: boolean) => void): void;
   openReleases?(): Promise<void>;
@@ -3120,12 +3122,20 @@ function renderLegacyHelperBanner(st: StatusData): void {
  * adunk rá egy gombot: a telepítő újrafuttatása kicseréli a démont, egyetlen
  * jelszókérés árán, újraindítás nélkül.
  */
+/** Az app saját segéd-csomagja (macOS) — a csendes frissítés sávja ehhez mér. */
+let ownHelperBuild: OwnBuild | null = null;
+
 function renderHelperStaleBanner(st: StatusData): void {
   const banner = $('helperStaleBanner');
-  const stale = !!st.helperVersion && st.helperVersion !== HELPER_VERSION;
-  banner.classList.toggle('hidden', !stale);
-  if (!stale) $('helperStaleError').classList.add('hidden');
-  if (stale) {
+  const kind = helperBanner(st, ownHelperBuild, HELPER_VERSION);
+  const show = kind !== 'none';
+  banner.classList.toggle('hidden', !show);
+  if (!show) $('helperStaleError').classList.add('hidden');
+  // Az app frissítése a teendő, nem a segédé: ott nincs mit nyomni.
+  const btn = $<HTMLButtonElement>('helperStaleBtn');
+  btn.classList.toggle('hidden', kind === 'helper-newer');
+  if (!btn.disabled) btn.textContent = kind === 'move' ? 'Áthelyezés a védett helyre' : 'Háttérszolgáltatás frissítése';
+  if (kind === 'stale') {
     // Szándékosan nem nevez meg konkrét funkciót: az eltérés nem mondja meg,
     // MELYIK parancsot nem ismeri a futó helper, csak azt, hogy nem ugyanazt a
     // protokollt beszélik. Egy konkrét ígéret („a napi keret nem működik”) itt
@@ -3133,6 +3143,16 @@ function renderHelperStaleBanner(st: StatusData): void {
     $('helperStaleText').textContent =
       `A háttérszolgáltatás még a régi verzió (${st.helperVersion}, az app ${HELPER_VERSION}). ` +
       'Amíg nem frissül, az újabb beállítások nem biztos, hogy érvényesülnek.';
+  } else if (kind === 'move') {
+    $('helperStaleText').textContent =
+      'A háttérszolgáltatás még az app mappájából fut. A védett helyre költöztetése egyszer rendszergazdai jóváhagyást kér; '
+      + 'utána a frissítései is jelszó nélkül, aláírva érkeznek.';
+  } else if (kind === 'repair') {
+    $('helperStaleText').textContent =
+      'A háttérszolgáltatás csendes frissítése nem sikerült, ezért még a régebbi változat fut. '
+      + 'A gombbal rendszergazdai jóváhagyással frissítheted.';
+  } else if (kind === 'helper-newer') {
+    $('helperStaleText').textContent = 'A háttérszolgáltatás újabb, mint az app: frissítsd az appot.';
   }
 }
 
@@ -4636,6 +4656,11 @@ function setupModal(): void {
   try { notifyFailedAt = parseFailedAt(localStorage.getItem(NOTIFY_FAIL_KEY)); } catch { /* nincs tár */ }
   renderNotifyDelivery();
   // Windowson a Program Files-on kívüli telepítés: tartós sáv a teendővel.
+  // Az app saját segéd-csomagja (macOS): ehhez méri a sáv, kell-e szólni.
+  void window.breaker.helperPayload?.().then((b) => {
+    ownHelperBuild = b ?? null;
+    if (status) renderHelperStaleBanner(status);
+  }).catch(() => { /* régi preload: marad a régi szabály */ });
   void window.breaker.installLocation?.().then((problem) => {
     if (!problem) return;
     $('installLocationText').textContent = problem;
@@ -5545,6 +5570,16 @@ function renderStats(): void {
  * felhasználó nem szánt nyilvánosnak. A blokkolt oldalak SZÁMA még elfér —
  * abból nem derül ki, melyek azok.
  */
+/** Honnan fut a segéd — a diagnosztika csendes sora. */
+function helperPlaceText(st: StatusData | null): string {
+  if (!st?.helperLayout) return '—';
+  if (st.helperLayout === 'root') {
+    const upd = st.helperUpdate && st.helperUpdate.state !== 'idle' ? `, frissítés: ${st.helperUpdate.state}` : '';
+    return `védett futtatókörnyezet (${st.helperRuntime ?? '?'}, app ${st.helperAppVersion ?? '?'}, Node.js ${st.helperNode ?? '?'}${upd})`;
+  }
+  return st.helperLayout === 'bundle' ? 'az app mappájából' : 'fejlesztői futás';
+}
+
 function diagnosticsText(): string {
   const st = status;
   const clock = (t?: number | null): string =>
@@ -5556,6 +5591,7 @@ function diagnosticsText(): string {
     `Idő: ${new Date().toLocaleString('hu-HU')}`,
     `Rendszer: ${window.breaker.platform}`,
     `Segéd verziója: ${st?.helperVersion ?? '—'} (az app ${HELPER_VERSION})`,
+    `Segéd helye: ${helperPlaceText(st)}`,
     '',
     `Mérés bekapcsolva: ${yn(st?.usageEnabled)}`,
     `Szonda lát-e adatot: ${trackerState ? yn(!trackerState.blocked) : '—'}`,

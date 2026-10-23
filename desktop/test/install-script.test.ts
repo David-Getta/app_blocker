@@ -12,10 +12,11 @@ import * as assert from 'node:assert/strict';
 import * as fs from 'fs';
 import * as path from 'path';
 import {
-  appleScriptString, DAEMON_LABEL, encodePowerShell, launchdPlist, macInstallAppleScript, macInstallShell,
+  appleScriptString, DAEMON_LABEL, encodePowerShell, launchdPlist, macInstallShell,
   psSingleQuoted, TASK_NAME, WINDOWS_TASK_SETTINGS_PS, windowsInstallScript, windowsLauncherCommand,
   windowsTaskSettingsRepairScript,
 } from '../src/shared/install-script';
+import { MAC_INSTALL_PROMPT, macInstallScript, macRootCommand } from '../src/shared/runtime-shell';
 
 const EXEC = '/Applications/Breaker "teszt" & co.app/Contents/MacOS/Breaker';
 const ENTRY = '/Applications/Breaker.app/Contents/Resources/app.asar/dist/helper/index.js';
@@ -49,11 +50,19 @@ test('macOS: a gyökér-héj parancsából pontosan a plist fejthető vissza', (
 });
 
 test('macOS: az AppleScript-szövegből a gyökér-héj parancsa változatlanul jön vissza', () => {
-  const plist = launchdPlist(EXEC, ENTRY, 501);
-  const script = macInstallAppleScript(plist);
-  const m = script.match(/^do shell script ("(?:[^"\\]|\\.)*") with administrator privileges$/);
-  assert.ok(m, `nem egy do shell script hívás:\n${script}`);
-  assert.equal(appleScriptUnquote(m![1]), macInstallShell(plist));
+  // Ahogy a telepítő (main/install.ts) rakja össze: a védett futtatókörnyezet
+  // telepítő szkriptje, a gyökér-parancsba csomagolva, AppleScript-szövegként.
+  const script = macInstallScript({
+    ownerUid: 501, payloadTar: '/Applications/Breaker "teszt" & co.app/Contents/Resources/helper/payload.tar',
+    payloadSha256: 'a'.repeat(64), payloadSize: 1234, nodeTar: null, guardScript: '#!/bin/sh\nexit 0\n', guardPlist: '<plist/>',
+  });
+  const command = macRootCommand(script);
+  const apple = `do shell script ${appleScriptString(command)} with prompt ${appleScriptString(MAC_INSTALL_PROMPT)} with administrator privileges`;
+  const m = apple.match(/^do shell script ("(?:[^"\\]|\\.)*") with prompt ("(?:[^"\\]|\\.)*") with administrator privileges$/);
+  assert.ok(m, `nem egy do shell script hívás:\n${apple}`);
+  assert.equal(appleScriptUnquote(m![1]), command);
+  assert.equal(appleScriptUnquote(m![2]), MAC_INSTALL_PROMPT);
+  assert.ok(!command.includes('\n'), 'egy sor: az osascript-szöveg sortörés nélkül');
   assert.equal(appleScriptUnquote(appleScriptString('a "b" \\ c')), 'a "b" \\ c');
 });
 
@@ -136,6 +145,6 @@ test('a telepítő nem ír ideiglenes fájlt, amit emelt joggal futtatna', () =>
   for (const banned of ['writeFileSync', 'mkdtemp', "'-File'", 'install.sh', 'install.ps1', "getPath('temp')", 'tmpdir(']) {
     assert.ok(!code.includes(banned), `a telepítőben ott maradt: ${banned}`);
   }
-  assert.ok(code.includes('macInstallAppleScript(plist)'));
+  assert.ok(code.includes('appleScriptString(macRootCommand(script))'));
   assert.ok(code.includes('windowsLauncherCommand(process.execPath, keyHash)'));
 });

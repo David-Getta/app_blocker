@@ -92,3 +92,12 @@ export function runtimeId(payloadSha256: string, binSha256: string): string {
 
 /** A futtatókörnyezet változatának neve csak ilyen lehet (az őr is ezt nézi). */
 export const RUNTIME_ID_RE = /^[0-9a-f]{16}$/;
+
+/** A macOS-verzió (például „13.5.2”) eléri-e a megadottat. Rossz alakra nem. */
+export function macosAtLeast(version: string, min: readonly [number, number]): boolean {
+  const m = /^(\d+)(?:\.(\d+))?/.exec(version);
+  if (!m) return false;
+  const major = Number(m[1]);
+  const minor = Number(m[2] ?? '0');
+  return major > min[0] || (major === min[0] && minor >= min[1]);
+}

@@ -32,7 +32,9 @@ import { nextCloseAt } from '../shared/schedule';
 import { displayName } from '../shared/alias';
 import * as path from 'path';
 import { HelperClient } from './helper-client';
-import { installHelper } from './install';
+import { helperBundleDir, helperPayloadInfo, installHelper } from './install';
+import { ensureNodeTarball } from './node-runtime';
+import { offerAction } from '../shared/helper-offer';
 import { WINDOWS_LOCATION_BANNER, windowsExeTrusted } from '../shared/install-script';
 import { readHelperKey } from './helper-key';
 import { initUpdater, requestUpdateCheck } from './updater';
@@ -714,11 +716,35 @@ if (HELPER_MODE) {
           return out.slice(0, MAX_SOON_HOSTS);
         },
       );
+      // A SEGÉD CSENDES FRISSÍTÉSE (#151, macOS): ha a védett futtatókörnyezetből
+      // futó segéd csomagja régebbi, felkínáljuk a sajátunkat (a segéd csak
+      // aláírt, újabb csomagot vesz át — helper/update.ts). Ha új Node kell, előbb
+      // letöltjük. Tízpercenként legfeljebb egyszer ugyanarra a párra.
+      const ownBuild = app.isPackaged && process.platform === 'darwin' ? helperPayloadInfo() : null;
+      let lastOffer: { key: string; at: number } | null = null;
+      const maybeOfferHelperUpdate = (st: StatusData): void => {
+        if (!ownBuild || offerAction(st, ownBuild) !== 'offer') return;
+        const key = `${st.helperBuild}|${ownBuild.sha256}`;
+        if (lastOffer && lastOffer.key === key && Date.now() - lastOffer.at < 10 * 60_000) return;
+        lastOffer = { key, at: Date.now() };
+        const offer = async (nodeTar?: string): Promise<void> => {
+          const r = await client.call('helper_update_offer', { bundle: helperBundleDir(), ...(nodeTar ? { nodeTar } : {}) }) as {
+            update?: { ok: boolean; error?: string };
+          };
+          if (r.update && !r.update.ok && r.update.error === 'need-node' && !nodeTar) {
+            await offer(await ensureNodeTarball());
+          }
+        };
+        void offer().catch(() => { /* a következő körben újra; a hiba a segéd státuszában látszik */ });
+      };
+      ipcMain.handle('breaker:helper-payload', () => ownBuild);
+
       // Keep the tracker's view of the switch fresh without extra IPC chatter.
       const refreshFocus = (): void => {
         void client.call('status')
           .then((s) => {
             const st = s as StatusData;
+            maybeOfferHelperUpdate(st);
             usageEnabled = st.usageEnabled;
             const run = st.focusRun;
             focusEndsAt = run && run.endsAt > Date.now() ? run.endsAt : null;

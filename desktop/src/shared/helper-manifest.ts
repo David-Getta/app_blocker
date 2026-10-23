@@ -12,6 +12,7 @@
 // rész van: olvasás, ellenőrzés, összevetés — fájlt nem nyit, hálózatot nem ér.
 
 import * as crypto from 'crypto';
+import { isNewer, VERSION_RE } from './version';
 
 export const MANIFEST_FORMAT = 1;
 export const MANIFEST_PRODUCT = 'hu.breaker.helper';
@@ -59,7 +60,6 @@ export interface ReleaseKey {
   spki: string;
 }
 
-const VERSION_RE = /^\d{1,4}\.\d{1,5}\.\d{1,6}$/;
 const SHA_RE = /^[0-9a-f]{64}$/;
 const KEY_ID_RE = /^[a-z0-9][a-z0-9-]{0,31}$/;
 const NODE_VERSION_RE = /^v\d{1,3}\.\d{1,3}\.\d{1,3}$/;
@@ -168,13 +168,4 @@ export function verifyManifest(bytes: Buffer, sigB64: string, keys: readonly Rel
   return manifest;
 }
 
-/** a > b, számként, tagonként (az alak a VERSION_RE szerinti). */
-export function isNewer(a: string, b: string): boolean {
-  if (!VERSION_RE.test(a) || !VERSION_RE.test(b)) return false;
-  const pa = a.split('.').map(Number);
-  const pb = b.split('.').map(Number);
-  for (let i = 0; i < 3; i++) {
-    if (pa[i] !== pb[i]) return pa[i] > pb[i];
-  }
-  return false;
-}
+export { isNewer };

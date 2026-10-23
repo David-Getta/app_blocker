@@ -231,7 +231,7 @@ jobs:
       matrix:
         os: [macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 60
+    timeout-minutes: 90
     defaults:
       run:
         working-directory: desktop
@@ -244,6 +244,21 @@ jobs:
       - run: npm ci
         env:
           ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+      # A SEGÉD CSENDES FRISSÍTÉSÉNEK PRÓBAKULCSA (macOS, #151). Csak erre a
+      # futásra, a futó gépen születik, és vele hal: a nyilvános fele a
+      # csomagba kerül (test-keys.json — a kiadás ezt nem engedi, lásd
+      # sign-helper-manifest.js --release), a titkos fele a próbáé, ami vele
+      # aláírt csomagokat kínál fel a telepített segédnek.
+      - name: macOS — a segéd-próba ideiglenes kulcsa
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          node -e "
+            const crypto = require('crypto'), fs = require('fs');
+            const { privateKey, publicKey } = crypto.generateKeyPairSync('ed25519');
+            fs.writeFileSync(process.argv[1], privateKey.export({ format: 'pem', type: 'pkcs8' }), { mode: 0o600 });
+            fs.appendFileSync(process.env.GITHUB_ENV, 'BREAKER_HELPER_TEST_PUBKEY=' + publicKey.export({ format: 'der', type: 'spki' }).toString('base64') + '\n');
+          " "$RUNNER_TEMP/probe-key.pem"
       - name: Csomagolás (csak mappa, aláírás nélkül — mint a kiadás tanúsítvány nélkül)
         shell: bash
         env:
@@ -251,6 +266,8 @@ jobs:
         run: |
           npm run build
           if [ "$RUNNER_OS" = "macOS" ]; then
+            # A segéd leírója a próba kulcsával aláírva — a kiadás útján, csak más kulccsal.
+            HELPER_SIGNING_KEY="$(cat "$RUNNER_TEMP/probe-key.pem")" node scripts/sign-helper-manifest.js
             npx electron-builder --mac --dir --arm64 --publish never
           else
             # A telepítő is: a kicsomagolt mappa mellett (win-unpacked) ezt
@@ -261,21 +278,24 @@ jobs:
         shell: bash
         timeout-minutes: 3
         run: bash scripts/smoke-packaged.sh
-      # A BECSOMAGOLT SEGÉD (macOS). Élesben a LaunchDaemon az app binárisát
-      # indítja ELECTRON_RUN_AS_NODE-dal, a belépési pont az app.asar-ban — nem
-      # a sima Node-ot, amin a többi segéd-próba fut. Egy Electron-frissítés
-      # ezt csendben eltörheti, az app közben hibátlanul indul. A próba a
-      # telepítő valódi parancsával telepít, az app módján csatlakozik, felvesz
-      # egy oldalt, és a rendszer feloldójával nézi, hogy tilt-e. AZ ŐR (#149):
-      # a segéd felteszi; az app elmozdítása után a segéd kilép, és az őr a
-      # szigorú blokkot tartja (a kézzel kivettet és a magára hagyott jelölő
-      # mellé is visszateszi); az app visszatételekor a segéd újra fut; ha a
-      # segéd nem indul el (elrontott app.asar), öt perc után a szigorú blokk
-      # áll be. Az eltávolító gépre tett másolata után semmi nem maradhat
-      # (scripts/mac-helper-probe.sh).
-      - name: macOS — a becsomagolt segéd tilt, az őr tart, az eltávolító leveszi
+      # A BECSOMAGOLT SEGÉD (macOS, #151). A rendszerjoggal futó segéd nem az
+      # app-csomagból fut (azt az app tulajdonosa írhatja — K1), hanem a csak
+      # root által írható védett futtatókörnyezetből, a hivatalos Node.js-szel.
+      # A próba a felület telepítő-parancsával dolgozik: előbb a RÉGI
+      # elrendezést teszi fel (ahogy a régi gépeken van), és onnan költöztet;
+      # nézi a futtatókörnyezet jogait és a Node aláíróját; az app módján
+      # tiltat; a sima felhasználó kicseréli az app binárisát, és újraindítás
+      # után sem fut rootként semmi az appból; az app eltűnése után a segéd
+      # tovább tilt; aláírt csendes frissítés jelszó nélkül, a hamis ajánlatok
+      # elutasítva, egy el nem induló frissítés után az őr visszaáll; a
+      # futtatókörnyezet nélkül és a nem induló segéd mellett a szigorú blokk;
+      # az eltávolító gépre tett másolata után semmi nem marad; friss gépre is
+      # települ (scripts/mac-helper-probe.sh).
+      - name: macOS — a segéd a védett futtatókörnyezetből tilt, csendben frissül, az őr tart, az eltávolító leveszi
         if: runner.os == 'macOS'
-        timeout-minutes: 30
+        timeout-minutes: 55
+        env:
+          PROBE_KEY: ${{ runner.temp }}/probe-key.pem
         run: bash scripts/mac-helper-probe.sh release/mac-arm64/Breaker.app
       # A VALÓDI TELEPÍTŐ ÉS ELTÁVOLÍTÓ (Windows). Az Electron 41 óta az app az
       # első értesítéskor a felhasználó saját Start menüjébe is tesz egy

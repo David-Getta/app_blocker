@@ -92,9 +92,12 @@ function xmlEscape(s: string): string {
 }
 
 /**
- * A segéd LaunchDaemon-leírója. A telepítő felhasználó azonosítója a démon
- * kapcsolói közé kerül, hogy a root segéd a socketjét erre a fiókra szűkíthesse
- * (lásd helper/server.ts).
+ * A RÉGI ELRENDEZÉS (#151 előtt) LaunchDaemon-leírója: a démon az app binárisát
+ * indítja ELECTRON_RUN_AS_NODE-dal, az app.asar-ból. Az app már nem így telepít
+ * (shared/runtime-shell.ts: macHelperPlist) — a macOS-próba ezzel állítja elő a
+ * költözés kiinduló állapotát, ahogy a régi gépeken van. A telepítő
+ * felhasználó azonosítója a démon kapcsolói közé kerül, hogy a root segéd a
+ * socketjét erre a fiókra szűkíthesse (lásd helper/server.ts).
  */
 export function launchdPlist(execPath: string, helperEntry: string, ownerUid: number): string {
   return `<?xml version="1.0" encoding="UTF-8"?>
@@ -127,9 +130,10 @@ export function appleScriptString(s: string): string {
 }
 
 /**
- * A macOS gyökér-héj parancsa: könyvtárak, a plist kiírása base64-ből, jogok,
- * a démon újraindítása. EGY sor, `;`-vel: a `set -e` miatt az első hiba
- * megállítja, a `bootout` hibája (nem futott még) szándékosan elnyelve.
+ * A RÉGI ELRENDEZÉS gyökér-héj parancsa (lásd launchdPlist): könyvtárak, a
+ * plist kiírása base64-ből, jogok, a démon újraindítása. EGY sor, `;`-vel: a
+ * `set -e` miatt az első hiba megállítja, a `bootout` hibája (nem futott még)
+ * szándékosan elnyelve. Csak a macOS-próba használja.
  */
 export function macInstallShell(plist: string): string {
   const b64 = Buffer.from(plist, 'utf8').toString('base64');
@@ -143,11 +147,6 @@ export function macInstallShell(plist: string): string {
     `launchctl bootout system/${DAEMON_LABEL} 2>/dev/null || true`,
     `launchctl bootstrap system ${target}`,
   ].join('; ');
-}
-
-/** Az `osascript -e` argumentuma: a teljes gyökér-parancs, idézve. */
-export function macInstallAppleScript(plist: string): string {
-  return `do shell script ${appleScriptString(macInstallShell(plist))} with administrator privileges`;
 }
 
 /** PowerShell egyszeres idézőjeles szöveg belseje: a `'` duplázva. */

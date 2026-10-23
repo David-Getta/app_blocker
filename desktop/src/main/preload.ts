@@ -101,6 +101,8 @@ export interface BreakerBridge {
   appVersion(): Promise<string>;
   /** Windowson: ha az app nem a Program Files alatt van, a teendő mondata; különben null. */
   installLocation(): Promise<string | null>;
+  /** az app saját segéd-csomagja (#151, macOS) — null, ha nincs */
+  helperPayload(): Promise<{ sha256: string; size: number; appVersion: string; helperVersion: string } | null>;
   /** kilépés a felületről; a tiltást nem érinti (az a segédé) */
   quitApp(): Promise<void>;
   /** a kiadási jegyzetek megnyitása a böngészőben */
@@ -148,6 +150,8 @@ const bridge: BreakerBridge = {
   onOverlayWarn: (cb) => ipcRenderer.on('breaker:overlay-warn', () => cb()),
   appVersion: () => ipcRenderer.invoke('breaker:app-version'),
   installLocation: () => ipcRenderer.invoke('breaker:install-location'),
+  /** az app saját segéd-csomagja (#151, macOS) — null, ha nincs (fejlesztői futás, Windows) */
+  helperPayload: () => ipcRenderer.invoke('breaker:helper-payload'),
   quitApp: () => ipcRenderer.invoke('breaker:quit'),
   openReleases: () => ipcRenderer.invoke('breaker:open-releases'),
   getOverlayShortcut: () => ipcRenderer.invoke('breaker:overlay-shortcut'),

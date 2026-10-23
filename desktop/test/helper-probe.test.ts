@@ -18,14 +18,30 @@ const read = (...p: string[]) => readFileSync(join(DESKTOP, ...p), 'utf8');
 test('macOS: a próba a telepítő parancsával telepít, és ott keresi a segédet, ahol az app', () => {
   const probe = read('scripts', 'mac-helper-probe.sh');
   const install = read('src', 'main', 'install.ts');
-  const script = read('src', 'shared', 'install-script.ts');
-  // Az app: launchdPlist(process.execPath, helperEntryPath(), uid) → macInstallAppleScript,
-  // ami a macInstallShell-t futtatja rendszergazdaként.
-  assert.ok(install.includes('launchdPlist(process.execPath, helperEntryPath(), ownerUid)'));
-  assert.ok(script.includes('appleScriptString(macInstallShell(plist))'));
-  assert.ok(probe.includes('s.macInstallShell(s.launchdPlist('), 'a próba nem a telepítő parancsát futtatná');
-  // A belépési pont: a csomagolt appban az app.getAppPath() az app.asar.
-  assert.ok(install.includes("path.join(app.getAppPath(), 'dist', 'helper', 'index.js')"));
+  const nodeRuntime = read('src', 'main', 'node-runtime.ts');
+  // Az app (#151): a védett futtatókörnyezet telepítője, a gyökér-parancsba
+  // csomagolva — a próba ugyanazokkal a bemenetekkel ugyanezt futtatja.
+  assert.ok(install.includes('appleScriptString(macRootCommand(script))'));
+  assert.ok(install.includes('ownerUid, payloadTar, payloadSha256: info.sha256, payloadSize: info.size, nodeTar,'));
+  assert.ok(install.includes('guardScript: macGuardScript(), guardPlist: macGuardPlist(),'));
+  assert.ok(probe.includes('r.macRootCommand(r.macInstallScript({'), 'a próba nem a telepítő parancsát futtatná');
+  assert.ok(probe.includes('payloadSha256: info.sha256, payloadSize: info.size,'));
+  assert.ok(probe.includes('guardScript: g.macGuardScript(), guardPlist: g.macGuardPlist(),'));
+  assert.ok(probe.includes("require('./dist/main/helper-payload.json')"), 'a próba más csomag-leírót olvasna, mint az app');
+  // A csomag ott, ahol az app keresi (process.resourcesPath/helper/payload.tar).
+  assert.ok(install.includes("path.join(process.resourcesPath, 'helper')"));
+  assert.ok(install.includes("path.join(helperBundleDir(), 'payload.tar')"));
+  assert.ok(probe.includes('PAYLOAD="$APP/Contents/Resources/helper/payload.tar"\n'));
+  // A Node: ugyanabba a gyorsítótárba, ugyanazon a néven.
+  assert.ok(nodeRuntime.includes("path.join(app.getPath('home'), 'Library', 'Caches', 'hu.breaker.app', 'node')"));
+  assert.ok(nodeRuntime.includes('nodeTarName(arch)'));
+  assert.ok(probe.includes("'Library/Caches/hu.breaker.app/node', r.nodeTarName('arm64')"));
+  // A futtatókörnyezet és a leíró: ahonnan a launchd indít.
+  assert.ok(read('src', 'shared', 'helper-runtime.ts').includes("export const RUNTIME_ROOT = '/Library/Application Support/Breaker/runtime';"));
+  assert.ok(probe.includes('RT="$SDIR/runtime"\n'));
+  assert.ok(probe.includes('"$RT/current/node"'));
+  // A költözés kiinduló állapota: a RÉGI telepítő parancsa, a régi belépési ponttal.
+  assert.ok(probe.includes('s.macInstallShell(s.launchdPlist('), 'a régi elrendezést a régi telepítő parancsa tegye fel');
   assert.ok(probe.includes('ENTRY="$APP/Contents/Resources/app.asar/dist/helper/index.js"'));
   assert.ok(probe.includes(`LABEL=${DAEMON_LABEL}\n`), 'a próba más démont nézne, mint amit a telepítő tesz fel');
   assert.ok(read('src', 'helper', 'paths.ts').includes("if (process.platform === 'darwin') return '/var/run/breaker.sock';"));
@@ -37,6 +53,9 @@ test('macOS: a próba a telepítő parancsával telepít, és ott keresi a segé
   assert.ok(probe.includes('sudo cmp -s "$SDIR/uninstall-macos.sh" scripts/uninstall-macos.sh'));
   assert.ok(read('src', 'helper', 'paths.ts').includes("return '/Library/Application Support/Breaker/state.json';"));
   assert.ok(probe.includes(`GLABEL=${GUARD_LABEL}\n`), 'a próba más őrt nézne, mint amit a segéd tesz fel');
+  // A csendes frissítés: a protokoll parancsa, ahogy az app küldi.
+  assert.ok(read('src', 'shared', 'protocol.ts').includes("op: 'helper_update_offer'; bundle: string"));
+  assert.ok(probe.includes('\\"op\\":\\"helper_update_offer\\",\\"bundle\\":'));
 });
 
 test('Windows: a próba a telepítő szkriptjével veszi fel a feladatot, és a segéd pipe-jára csatlakozik', () => {
