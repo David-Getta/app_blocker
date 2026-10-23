@@ -262,6 +262,37 @@ aláírás. Részletek: `desktop/src/main/mac-updater.ts`.
 Amit az aláírás így is hoz: eltűnik a Gatekeeper figyelmeztetés az első
 indításnál, és a frissítést az OS ellenőrzi, nem mi.
 
+### A segéd aláíró kulcsa (macOS, #151 — előkészületben)
+
+A macOS-segéd egy védett, csak a root által írható futtatókörnyezetből fog
+futni, és új kódot csak a projekt **kiadási kulcsával aláírt**, a futónál
+újabb csomagból vesz át — jelszó nélkül, de egy fájlművelet az app mappájában
+nem ad rendszerjogot. A kulcs Ed25519; a nyilvános fele a repóban van
+(`desktop/src/shared/helper-keys.ts`), a titkos fele csak a kiadási folyamat
+védett környezetében és egy offline mentésben. Amíg a lista üres, a segéd
+semmit nem fogad el csendben.
+
+Egyszeri beállítás (a saját gépeden, nem a CI-ban):
+
+```bash
+node desktop/scripts/gen-helper-key.js ~/breaker-helper-r1.pem r1
+```
+
+1. A kiírt `{ id: 'r1', spki: '…' }` sor a `helper-keys.ts` listájába kerül
+   (ez nem titok).
+2. GitHub → Settings → Environments → új környezet: `helper-signing`, a
+   „Required reviewers” alatt te magad. Benne egy titok: `HELPER_SIGNING_KEY`,
+   az értéke a `.pem` fájl teljes tartalma.
+3. A `.pem` fájlról offline mentés (például titkosított pendrive), aztán
+   töröld a gépről.
+
+**Kulcscsere.** Az új kulcs nyilvános felét egy kiadással KORÁBBAN kell
+felvenni, mint ahogy aláírnánk vele: a telepített segédek a saját listájukkal
+ellenőriznek. Egy elveszett kulcs után minden Macen egy jelszó kell a
+következő frissítéshez (a régi segéd az új kulcsot nem ismeri); egy
+kiszivárgott kulcs minden telepített Macen rendszerjogot ad — ezért a
+környezet jóváhagyáshoz kötött, és a kulcs sehol máshol nincs.
+
 ### Windows (opcionális)
 Kódaláíró tanúsítvánnyal eltűnik a SmartScreen-figyelmeztetés. Add meg a
 `CSC_LINK` / `CSC_KEY_PASSWORD` secreteket (a workflow már átadja őket).
