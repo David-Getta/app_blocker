@@ -163,6 +163,9 @@ wait_for 100 has_note || bad "a magában maradt nyitó jelölő mellé az őr ne
 [ "$(grep -c '^10\.0\.0\.5 nas\.probe$' /etc/hosts)" = 1 ] \
   && awk '/BREAKER BLOCK BEGIN/{s=1} s&&/^10\.0\.0\.5 nas\.probe$/{f=1} /BREAKER BLOCK END/{s=0} END{exit f?1:0}' /etc/hosts \
   || bad "a félbemaradt blokk utáni saját sor elveszett (vagy a blokkba került)"
+# A próba saját sorát kivesszük: a végén a hosts többi része a régi kell legyen.
+sudo /bin/sh -c "grep -v '^10\.0\.0\.5 nas\.probe\$' /etc/hosts > /tmp/breaker-probe-hosts; cat /tmp/breaker-probe-hosts > /etc/hosts && rm -f /tmp/breaker-probe-hosts"
+grep -q 'nas\.probe' /etc/hosts && bad "a próba saját sorát nem tudtam kivenni"
 
 # 2f. ELLENPRÓBA: őr nélkül a kivett blokk kivéve marad — tehát az előbb
 # tényleg az őr tette vissza, nem egy még futó segéd.

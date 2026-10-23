@@ -387,6 +387,9 @@ elseif (-not ($h -match '(?s)# >>> BREAKER BLOCK BEGIN.*0\.0\.0\.0 stale\.exampl
 elseif (([regex]::Matches($h, '(?m)^10\.0\.0\.5 nas\.probe\r?$')).Count -ne 1 -or $h -match '(?s)# >>> BREAKER BLOCK BEGIN.*10\.0\.0\.5 nas\.probe.*# <<< BREAKER BLOCK END') {
   Fail 'a félbemaradt blokk utáni saját sor elveszett (vagy a blokkba került)'
 }
+# A próba saját sorát kivesszük: a végén a hosts többi része a régi kell legyen.
+[System.IO.File]::WriteAllText($hostsFile, ([regex]::Replace((HostsText), '(?m)^10\.0\.0\.5 nas\.probe\r?\n', '')), (New-Object System.Text.UTF8Encoding $false))
+if ((HostsText).Contains('nas.probe')) { Fail 'a próba saját sorát nem tudtam kivenni' }
 # Egy program nyitva tartja a hosts fájlt (törlés-megosztás nélkül, ahogy egy
 # vírusirtó szokta): a csere nem megy, az őr helyben ír — nem marad le.
 $h = HostsText
