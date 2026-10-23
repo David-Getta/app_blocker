@@ -16,32 +16,35 @@
 // tartja. Ha az app visszakerül, a segéd újra indul és a saját blokkját írja.
 //
 // A fájl alakja maga a kész hosts-blokk (a jelölők, egy magyarázó sor, a
-// tiltó sorok) — az őr nem rak össze semmit, csak ellenőriz és bemásol. Az
-// ellenőrzés szabálya (isValidStrictBlock) ugyanaz, amit az őr a shellben és
-// a PowerShellben tesz: csak megjegyzés vagy 0.0.0.0 / :: tiltó sor lehet
-// benne, a hosztnév a segéd saját mintájával — egy elrontott vagy idegen fájl
-// így sem tud egy nevet máshova irányítani.
+// tiltó sorok). Az őr ebből csak a tiltó sorokat és a megjegyzést veszi át,
+// mindegyiket a segéd saját mintájával ellenőrizve (STRICT_BLOCK_LINE_SOURCE):
+// egy elrontott vagy idegen sor így sem tud egy nevet máshova irányítani —
+// és nem is akasztja meg az egészet, csak kimarad. Méretkorlát nincs: a
+// segéd élő blokkja ugyanekkora, és egy korlát ingyenes kiskapu volna (egy
+// nagyon hosszú lista után az őr semmit nem írna).
 
 import { buildManagedBlock, DOMAIN_RE_SOURCE, MARKER_BEGIN, MARKER_END, normalizeHostname } from './blocklist';
 
-/** A szigorú blokk legfeljebb ekkora — az őr is ezt a határt nézi. */
-export const STRICT_MAX_BYTES = 4 * 1024 * 1024;
+/** Egy tiltó sor mintája: 0.0.0.0 vagy :: és egy hosztnév — semmi más. */
+export const STRICT_BLOCK_LINE_SOURCE = `(0\\.0\\.0\\.0|::) ${DOMAIN_RE_SOURCE}`;
 
 /** Egy szigorú blokk sorának mintája (a jelölőkön kívül): megjegyzés vagy tiltó sor. */
-export const STRICT_LINE_SOURCE = `#.*|(0\\.0\\.0\\.0|::) ${DOMAIN_RE_SOURCE}`;
+export const STRICT_LINE_SOURCE = `#.*|${STRICT_BLOCK_LINE_SOURCE}`;
 
 const STRICT_LINE_RE = new RegExp(`^(${STRICT_LINE_SOURCE})$`);
 
 /**
  * A magyarázó sor — a hosts fájlban ez mondja meg annak, aki belenéz, miért
- * tilt minden, és hogyan lehet teljesen eltávolítani.
+ * tilt minden, és hogyan lehet teljesen eltávolítani. Az őr akkor is ezt teszi
+ * a helyére, ha az app eltűnt, és akkor is, ha a helyén van, de a segéd nem
+ * indul el.
  */
 export function strictNote(platform: string, uninstallPath: string): string {
   const how = platform === 'win32'
     ? `powershell -ExecutionPolicy Bypass -File "${uninstallPath}"`
     : `sudo sh "${uninstallPath}"`;
-  return '# Breaker: az app nem található, ezért a teljes lista tilt. '
-    + 'Ha visszateszed ugyanoda, minden a régi. '
+  return '# Breaker: a védelem segédje nem fut (az app hiányzik, vagy nem indul el), ezért a teljes lista tilt. '
+    + 'Ha az app a helyén van és a segéd újra fut, minden a régi. '
     + `Teljes eltávolítás rendszergazdaként: ${how}`;
 }
 
@@ -70,9 +73,8 @@ export function renderStrictBlock(names: readonly string[], note: string): strin
   return `${lines.join('\n')}\n`;
 }
 
-/** Az őr ellenőrzése: jelölők a helyükön, minden más sor megjegyzés vagy tiltó sor. */
+/** A blokk alakja: jelölők a helyükön, minden más sor megjegyzés vagy tiltó sor. */
 export function isValidStrictBlock(text: string): boolean {
-  if (new TextEncoder().encode(text).length > STRICT_MAX_BYTES) return false;
   if (!text.endsWith('\n')) return false;
   const lines = text.slice(0, -1).split('\n');
   if (lines.length < 2 || lines[0] !== MARKER_BEGIN || lines[lines.length - 1] !== MARKER_END) return false;

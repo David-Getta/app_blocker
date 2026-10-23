@@ -202,40 +202,54 @@ lazítás volt.
 Most a segéd mellett egy kicsi **őr** fut (macOS: `hu.breaker.guard`
 LaunchDaemon, percenként; Windows: `BreakerGuard` ütemezett feladat, a géppel
 és ötpercenként, SYSTEM-ként). A segéd maga teszi fel, rootként/SYSTEM-ként,
-minden induláskor — a meglévő telepítéseken sem kér új jelszót.
+minden induláskor — újabb jelszó nélkül.
 
 - A segéd minden változáskor kiír egy **szigorú blokkot**: a lista minden
   oldalának minden nevét, szünettől, menetrendtől, kerettől függetlenül. Mellé
   az eltávolító szkript másolatát is (macOS: a segéd állapotmappájába,
   Windowson a `C:\Program Files\Breaker Guard` mappába).
-- Az őr **csak akkor** nyúl a hosts fájlhoz, ha az app binárisa nincs meg:
-  akkor a szigorú blokkot teszi a helyére, és a következő futásán visszateszi,
-  ha kiveszik. A blokk első sora megmondja, miért tilt minden, és hol a teljes
-  eltávolító.
-- Az őr nem rak össze semmit, csak ellenőriz és bemásol: a szigorú blokkban
-  csak megjegyzés és `0.0.0.0` / `::` tiltó sor lehet, és csak akkor írja be,
-  ha a fájl és a mappája a rooté / a SYSTEM-é. Egy idegen fájl így sem
-  irányíthat el egy nevet.
+- Az őr **csak akkor** nyúl a hosts fájlhoz, ha a segéd nem tilt: az app
+  binárisa nincs meg, vagy az app a helyén van, de a segéd percek óta nem
+  indul el (macOS-en öt, Windowson tíz perc — addig az őr próbálja
+  elindítani). Akkor a szigorú blokkot teszi a helyére, és a következő
+  futásán visszateszi, ha kiveszik. A blokk első sora megmondja, miért tilt
+  minden, és hol a teljes eltávolító.
+- Az őr csak szigorít: a szigorú blokk és a hosts mostani blokkja tiltó
+  sorainak **unióját** írja, egy elavult szigorú blokk sem vehet ki egy épp
+  tiltott nevet. A magára hagyott jelölőt és a hiányzó hosts fájlt is rendbe
+  teszi.
+- Az őr nem rak össze semmit, csak ellenőriz és bemásol: a szigorú blokkból
+  csak megjegyzést és `0.0.0.0` / `::` tiltó sort vesz át (egy idegen sort
+  kihagy és naplóz, a többit beírja), és csak akkor, ha a fájl és a mappája a
+  rooté / a SYSTEM-é. Egy idegen fájl így sem irányíthat el egy nevet.
+  Méretkorlát nincs: egy nagyon hosszú lista sem kapcsolhatja ki.
 - Ha az appot **visszateszed ugyanoda**, a segéd újra indul (a launchd, vagy
   ha az feladta, az őr indítja), a saját blokkját írja, és minden a régi.
 - macOS-en a segéd a saját kódját is figyeli: ha az app **frissült**, egy-két
-  percen belül újraindul az új kóddal (eddig a régi kód futott a következő
-  újraindításig); ha az app eltűnt, kilép, és az őr veszi át. Windowson egy
-  frissítés leállítja a segédet, és a Feladatütemező magától nem indítja újra
-  — ezt is az őr teszi meg, ha a fájlok a helyükön vannak és nem fut telepítő.
+  percen belül újraindul az új kóddal; ha az app eltűnt, kilép, és az őr veszi
+  át. Windowson egy frissítés leállítja a segédet, és a Feladatütemező magától
+  nem indítja újra — ezt is az őr teszi meg, ha a fájlok a helyükön vannak és
+  nem fut telepítő.
 
 **Őszinte korlátok:**
 
+- **A meglévő telepítéseken az őr a segéd következő indulásakor kerül fel.**
+  macOS-en a frissítés után a régi segéd a következő újraindításig fut: addig
+  az app egy sávot mutat („Háttérszolgáltatás frissítése”, egy jelszó) — amíg
+  ez nem történt meg, az app törlése még a régi módon befagyasztja a tiltást.
 - Az app **áthelyezése** is eltűnésnek számít: aki máshova húzza, annál a
   szigorú blokk áll be, amíg vissza nem teszi — vagy az új helyről újra nem
-  telepíti a segédet.
+  telepíti a segédet. Windowson egy cserélhető meghajtóra telepített app
+  kihúzása is eltűnés.
 - macOS-en lemezképről (`/Volumes/…`) vagy a rendszer karanténmásolatából
   (App Translocation) futó appnál az őr nem lép közbe: egy leválasztott
   lemezt nem tud megkülönböztetni egy kiadott lemeztől. Ezért ilyen helyről a
   segédet nem is telepítjük — előbb az Alkalmazások mappába kell tenni.
 - Windowson az őr csak **tartós** eltűnés után ír (két futása között, kb.
   5–10 perc): egy frissítés pár percre cseréli a fájlokat, és közben nem
-  zárhat le mindent. Az eltávolítás után ennyi ideig még a régi blokk áll.
+  zárhat le mindent. Ha közben a saját telepítőnk vagy eltávolítónk fut (egy
+  nyitva hagyott ablak), legfeljebb fél óráig vár. Az eltávolítás után ennyi
+  ideig még a régi blokk áll.
 - Az NSIS-eltávolító (Gépház → Alkalmazások) a feladatokhoz és a hosts
   fájlhoz nem nyúl — az app eltávolítása nem lehet ingyenes lazítás. Csak
   kimondja, mi marad, és hol a teljes eltávolító.

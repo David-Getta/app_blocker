@@ -2,8 +2,10 @@
 #   powershell -ExecutionPolicy Bypass -File uninstall-windows.ps1
 
 # Ha a szkriptet a saját mappájából (Breaker Guard) futtatod, a végén azt is
-# törölni kell — ne az legyen a munkakönyvtár.
+# törölni kell — ne az legyen a munkakönyvtár. A Set-Location csak a
+# PowerShell helyét váltja, a folyamatét nem: azt külön.
 Set-Location -LiteralPath $env:SystemRoot
+[Environment]::CurrentDirectory = $env:SystemRoot
 
 Write-Host "Breaker helper feladat eltávolítása..."
 schtasks /End /TN "BreakerHelper" 2>$null
@@ -80,7 +82,13 @@ Write-Host "Állapotfájlok törlése..."
 Remove-Item -Recurse -Force (Join-Path $env:ProgramData "Breaker") -ErrorAction SilentlyContinue
 # Az őr és ennek a szkriptnek a másolata (a 64 bites Program Files alatt).
 $pf = if ($env:ProgramW6432) { $env:ProgramW6432 } else { $env:ProgramFiles }
-Remove-Item -Recurse -Force (Join-Path $pf "Breaker Guard") -ErrorAction SilentlyContinue
+$guardDir = Join-Path $pf "Breaker Guard"
+Remove-Item -Recurse -Force $guardDir -ErrorAction SilentlyContinue
+# Ha egy parancssor épp ebben a mappában áll, a Windows a mappát nem engedi
+# törölni (a benne lévő fájlok már mentek) — kimondjuk, nem hallgatjuk el.
+if (Test-Path -LiteralPath $guardDir) {
+  Write-Host "A(z) $guardDir mappa üresen maradt: egy ablak még benne áll. Lépj ki belőle, és töröld kézzel."
+}
 
 Write-Host "A felhasználói Start menü parancsikon és az értesítés-kattintás bejegyzése..."
 # Az Electron 41 óta az app az első értesítéskor a felhasználó SAJÁT Start

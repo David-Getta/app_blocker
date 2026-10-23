@@ -4525,6 +4525,50 @@ const WIRES = [
     lost: 'macOS-en a segéd a törölt appból futna tovább, és az őrrel felváltva írnák a hosts fájlt; '
       + 'frissítés után a régi kód futna az újraindításig',
   },
+  // Az őr csak szigorít: a hosts mostani blokkjának tiltó sorai is maradnak
+  // (unió). Nélküle egy elavult szigorú blokk egy épp tiltott nevet kivenne.
+  {
+    file: 'desktop/src/shared/guard-script.ts',
+    needle: 'sort -u "$WORK/s" "$WORK/h"',
+    lost: 'macOS-en az őr egy elavult szigorú blokkal kivenne egy épp tiltott nevet',
+  },
+  {
+    file: 'desktop/src/shared/guard-script.ts',
+    needle: 'if ($in) { $cur.Add($l); if ($l -cmatch $BlockRe) { [void]$set.Add($l) } } else { $out.Add($l) }',
+    lost: 'Windowson az őr egy elavult szigorú blokkal kivenne egy épp tiltott nevet',
+  },
+  // A nem induló segéd: az app a helyén, a segéd mégsem fut — enélkül egy
+  // félig törölt app (vagy egy elrontott app.asar) ugyanúgy befagyasztaná a
+  // tiltást, mint a törlés.
+  {
+    file: 'desktop/src/shared/guard-script.ts',
+    needle: "'    WHY=dead',",
+    lost: 'macOS-en a helyén lévő, de el nem induló segéd mellett a tiltás befagyna',
+  },
+  {
+    file: 'desktop/src/shared/guard-script.ts',
+    needle: "    Apply-Strict 'dead'",
+    lost: 'Windowson a helyén lévő, de el nem induló segéd mellett a tiltás befagyna',
+  },
+  // Windowson az őr a segéd állapotmappájába nem ír: ha azt valaki törli, egy
+  // sima felhasználó újra létrehozhatja, és egy SYSTEM-írást máshova irányíthat.
+  {
+    file: 'desktop/src/shared/guard-script.ts',
+    needle: '`$goneMark = Join-Path $guardDir \'${GUARD_GONE_FILE}\'`',
+    lost: 'a Windows-őr a sima felhasználó által újra létrehozható mappába írna, SYSTEM-ként',
+  },
+  // A feladat nem fájlként futtatja az őrt: egy „csak aláírt szkript”
+  // csoportházirend azt csendben letiltaná.
+  {
+    file: 'desktop/src/shared/guard-script.ts',
+    needle: '-EncodedCommand ${encodePowerShell(windowsGuardLoader(guardPath))}',
+    lost: 'egy csoportházirend mellett a Windows-őr csendben sosem futna',
+  },
+  {
+    file: 'desktop/src/shared/protocol.ts',
+    needle: "export const HELPER_VERSION = '0.6.8';",
+    lost: 'frissítés után a régi segéd (őr nélkül) futna tovább, és az app nem szólna',
+  },
   {
     file: 'desktop/src/helper/guard.ts',
     needle: "ensureUninstallCopy();\n      if (process.platform === 'darwin') await ensureGuardMac();",

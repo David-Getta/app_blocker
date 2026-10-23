@@ -231,7 +231,7 @@ jobs:
       matrix:
         os: [macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 40
+    timeout-minutes: 60
     defaults:
       run:
         working-directory: desktop
@@ -268,12 +268,14 @@ jobs:
       # telepítő valódi parancsával telepít, az app módján csatlakozik, felvesz
       # egy oldalt, és a rendszer feloldójával nézi, hogy tilt-e. AZ ŐR (#149):
       # a segéd felteszi; az app elmozdítása után a segéd kilép, és az őr a
-      # szigorú blokkot tartja (a kézzel kivettet is visszateszi); az app
-      # visszatételekor a segéd újra fut. Az eltávolító gépre tett másolata
-      # után semmi nem maradhat (scripts/mac-helper-probe.sh).
+      # szigorú blokkot tartja (a kézzel kivettet és a magára hagyott jelölő
+      # mellé is visszateszi); az app visszatételekor a segéd újra fut; ha a
+      # segéd nem indul el (elrontott app.asar), öt perc után a szigorú blokk
+      # áll be. Az eltávolító gépre tett másolata után semmi nem maradhat
+      # (scripts/mac-helper-probe.sh).
       - name: macOS — a becsomagolt segéd tilt, az őr tart, az eltávolító leveszi
         if: runner.os == 'macOS'
-        timeout-minutes: 15
+        timeout-minutes: 30
         run: bash scripts/mac-helper-probe.sh release/mac-arm64/Breaker.app
       # A VALÓDI TELEPÍTŐ ÉS ELTÁVOLÍTÓ (Windows). Az Electron 41 óta az app az
       # első értesítéskor a felhasználó saját Start menüjébe is tesz egy
@@ -286,7 +288,7 @@ jobs:
       # (scripts/win-install-probe.ps1).
       - name: Windows — telepítés, értesítés, segéd, őr, eltávolítás
         if: runner.os == 'Windows'
-        timeout-minutes: 15
+        timeout-minutes: 25
         run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/win-install-probe.ps1
 
   android-core-tests:

@@ -581,20 +581,40 @@ ingyenes lazítás. (v0.4.257-ig így volt.)
 - **Az őr** (`shared/guard-script.ts`): macOS-en egy `/bin/sh` szkript
   percenkénti LaunchDaemonként (`hu.breaker.guard`), Windowson egy csak-ASCII
   PowerShell-szkript a 64 bites Program Files alatt, SYSTEM-feladatként
-  (`BreakerGuard`, a géppel és ötpercenként). A segéd telepíti induláskor
-  (`helper/guard.ts`), a teljes eltávolító másolatával együtt — ez a
-  meglévő gépekre is újabb jóváhagyás nélkül jut el. Az őr a segéd saját
-  leírójából (plist / feladat) olvassa, hol az app, és csak akkor ír, ha a
-  bináris (vagy az `app.asar`) nincs meg, és a segéd sem fut: két megnézés
-  között várva, közvetlenül írás előtt még egyszer nézve; Windowson csak
-  tartós (két futáson átívelő) eltűnés után, és ha nem fut a saját
-  telepítőnk — egy frissítés pár percre cseréli a fájlokat.
-- **Bizalom.** Az őr nem rak össze semmit: a szigorú blokk minden sora
-  megjegyzés vagy `0.0.0.0` / `::` tiltó sor a segéd saját hosztnév-mintájával
-  (`DOMAIN_RE_SOURCE`, a TS-ben és az őrben ugyanaz a forrás), a jelölők a
-  helyükön, a méret korlátos; a fájl és a mappája (macOS-en a szülők is) a
-  rooté / a SYSTEM-é, más nem írhatja, nem szimbolikus link. A hosts fájlban
-  csak a saját jelölői közé ír; felemás jelölőknél nem nyúl hozzá. Ahol nem
+  (`BreakerGuard`, a géppel és ötpercenként; a feladat nem fájlként futtatja,
+  hanem beolvassa és szkriptblokként indítja — egy „csak aláírt szkript”
+  csoportházirend így sem némítja el). A segéd telepíti induláskor
+  (`helper/guard.ts`), a teljes eltávolító másolatával együtt. A meglévő
+  gépeken ehhez a segédnek újra kell indulnia: a `HELPER_VERSION` ezért lépett
+  0.6.8-ra, a régi segéd mellett az app a frissítő sávot mutatja.
+- **Mikor ír.** Ha a segéd fut, soha (macOS: a launchd szerint két megnézésnél
+  ugyanazzal a folyamat-azonosítóval — egy újra és újra összeomló segéd nem
+  „él”; Windows: a feladat fut). Különben, ha a bináris (vagy az `app.asar`,
+  vagy Windowson a meghajtója) nincs meg: két megnézés között várva,
+  közvetlenül írás előtt még egyszer nézve; Windowson csak tartós (két futáson
+  átívelő) eltűnés után, és ha nem fut a saját telepítőnk — legfeljebb fél
+  óráig várva rá. Ha az app a helyén van, de a segéd nem fut, az őr elindítja;
+  ha percek óta így van (macOS: öt, Windows: tíz perc), a szigorú blokk áll be
+  — a befagyott blokk helyett. A bélyeg a falióra szerint mér, de a jövőbeli
+  bélyeget (visszaállított óra) az őr a mostani időre írja át.
+- **Mit ír.** A szigorú blokk tiltó sorainak és a hosts mostani blokkja tiltó
+  sorainak unióját, bájtsorrendben, a magyarázó sorral: egy elavult szigorú
+  blokk (például egy visszatelepített régebbi segéd után) sem vehet ki egy épp
+  tiltott nevet. Felemás jelölőknél a jelölő-sorokat kiveszi, a többi sort
+  meghagyja, és a blokkot beírja; hiányzó hosts fájlnál egy alap hosts-szal
+  kezd. Változatlan blokkot nem ír újra (és a DNS-t sem üríti).
+- **Bizalom.** Az őr nem rak össze semmit: a szigorú blokkból csak megjegyzést
+  és `0.0.0.0` / `::` tiltó sort vesz át a segéd saját hosztnév-mintájával
+  (`DOMAIN_RE_SOURCE`, a TS-ben és az őrben ugyanaz a forrás) — egy idegen sort
+  kihagy és naplóz, de a többit beírja; méretkorlát nincs (egy korlát
+  ingyenes kiskapu volna). A fájlnak és a mappájának (macOS-en a szülőknek is)
+  a rooté kell lennie, más nem írhatja, nem szimbolikus link; Windowson a
+  tulajdonos a SYSTEM vagy a rendszergazdák, nem csatolási pont, és az
+  írásvédelmet a mappa jogai adják (`helper/win-acl.ts`). Windowson az őr a
+  segéd állapotmappáját csak olvassa: a bélyegek és a napló a saját mappájába
+  kerülnek (a Program Files alá sima felhasználó nem hozhat létre semmit — az
+  állapotmappát, ha valaki törli, igen, és egy SYSTEM-írást máshova
+  irányíthatna). macOS-en egy nem megbízható mappába naplót sem ír. Ahol nem
   tud dönteni (nincs segéd-leíró, lemezképről vagy karanténból futó app),
   ott nem ír — ilyen helyről a segédet nem is telepítjük
   (`macInstallLocationProblem`).
@@ -612,11 +632,18 @@ ingyenes lazítás. (v0.4.257-ig így volt.)
   nyúl (az app eltávolítása nem lehet ingyenes lazítás), csak kimondja, mi
   marad. A teljes eltávolító előbb a segédet állítja le (egy futó segéd újra
   felvenné az őrt), aztán az őrt, és csak utána veszi ki a hosts-blokkot.
-- **CI-próba** a becsomagolt appon, mindkét gépen: a segéd felteszi az őrt; az
-  app elmozdítása / eltávolítása után a szigorú blokk áll be, a kézzel
-  kivettet visszateszi, őr nélkül (ellenpróba) kivéve marad; az app
-  visszatételekor a segéd újra fut; a gépre tett eltávolító-másolat után
-  semmi nem marad. Windowson egy sima felhasználó az őr mappáját nem írja.
+- **Tesztek.** A macOS-őrt a teszt élesben futtatja dash-sel és bash-sel
+  (csonkolt launchctl és PlistBuddy, egy ideiglenes hosts fájl, megszámolt
+  DNS-ürítés); az új vizsgálatok mutációs próbán is átmentek (az unió, a
+  felemás jelölő, a változatlan blokk, a szimbolikus link). **CI-próba** a
+  becsomagolt appon, mindkét gépen: a segéd felteszi az őrt; az app
+  elmozdítása / eltávolítása után a szigorú blokk áll be, a kézzel kivettet és
+  a magára hagyott jelölő mellé is visszateszi, őr nélkül (ellenpróba) kivéve
+  marad; ha a segéd nem indul el (macOS: elrontott `app.asar`, Windows:
+  letiltott feladat), a szigorú blokk áll be, és a visszaindult segéd a
+  sajátját írja; az app visszatételekor a segéd újra fut; a gépre tett
+  eltávolító-másolat után semmi nem marad. Windowson egy sima felhasználó az
+  őr mappáját nem írja.
 
 ### A böngésző-híd: kifelé olvas, befelé csak szigorít
 
@@ -1101,7 +1128,9 @@ csak az elsőt cseréli le azonnal: a root démont a launchd (Windowson az
 ütemező) a következő rendszerindításig a régi bináris alapján futtatta. A
 v0.4.258 óta macOS-en a segéd a saját kódját figyeli, és egy-két percen belül
 újraindul az újjal; Windowson a frissítés leállítja, és az őr indítja újra (lásd
-„Az őr: ha az app eltűnik”). Addig a két fél különböző protokollt beszélhet.
+„Az őr: ha az app eltűnik”). A v0.4.258-ra frissítéskor ez még nem segít: ott
+a régi segéd fut tovább — ezért lépett a `HELPER_VERSION`, és ezért mutatja az
+app a sávot. Addig a két fél különböző protokollt beszélhet.
 
 Ezért van a `HELPER_VERSION` a `shared/protocol.ts`-ben. Bumpolni kell, amikor
 új `op` kerül a kérés-unióba vagy egy válasz alakja változik. A GUI minden

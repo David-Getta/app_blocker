@@ -1,7 +1,8 @@
 // Az őr telepítése (shared/guard-script.ts) — a segéd maga végzi, root/SYSTEM-
-// ként, minden induláskor: a meglévő telepítéseken sem kell hozzá újabb
-// jóváhagyás. Mellé teszi a teljes eltávolító szkript másolatát is: ha az app
-// eltűnt, a szigorú blokk magyarázata erre mutat — ennek mindig meg kell lennie.
+// ként, minden induláskor, újabb jóváhagyás nélkül. (Egy régebbi segéd ezt nem
+// teszi: a meglévő gépeken az őr a segéd első új indulásakor kerül fel — a
+// HELPER_VERSION ezért lépett.) Mellé teszi a teljes eltávolító szkript
+// másolatát is: a szigorú blokk magyarázata erre mutat.
 //
 // Sosem dob, és a segédet sosem állítja meg: ha valami nem sikerül, naplózza,
 // és tíz perc múlva még egyszer próbálja.

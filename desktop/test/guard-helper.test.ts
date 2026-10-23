@@ -102,7 +102,7 @@ test('a segéd kiírja a szigorú blokkot: minden oldal minden neve, 0600, és a
   for (const h of ['youtube.com', 'www.youtube.com', 'reddit.com']) {
     assert.ok(text.includes(`0.0.0.0 ${h}\n`), `hiányzik: ${h}`);
   }
-  assert.ok(text.includes('az app nem található'), 'a magyarázó sor hiányzik');
+  assert.ok(text.includes('a teljes lista tilt'), 'a magyarázó sor hiányzik');
   if (process.platform !== 'win32') assert.equal(fs.statSync(file).mode & 0o777, 0o600);
   assert.deepEqual(fs.readdirSync(dir).filter((f) => f.endsWith('.tmp')), [], 'ideiglenes fájl maradt');
 

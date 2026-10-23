@@ -620,11 +620,14 @@ Néhány konkrét dolog, amit érdemes előre tudni:
   Always-on VPN-t sem kényszerít: ahhoz eszköz-tulajdonos DPC kellene, ami
   sokkal több — mi nem vagyunk az.
 - **A gépen az app törlése nem lazít — de az őrnek is vannak határai
-  (v0.4.258):** ha az app binárisa eltűnik, egy kis őr a lista teljes,
+  (v0.4.258):** ha az app binárisa eltűnik, vagy a helyén van, de a
+  háttérszolgáltatás percek óta nem indul el, egy kis őr a lista teljes,
   szigorú blokkját tartja a hosts fájlban (a szünetelő oldalt is), és a
   kézzel kivettet visszateszi. Windowson csak tartós eltűnés után (kb. 5–10
   perc), hogy egy frissítés közben ne zárjon le mindent. Az áthelyezés is
-  eltűnésnek számít; lemezképről futó appra a segéd nem települ.
+  eltűnésnek számít; lemezképről futó appra a segéd nem települ; a meglévő
+  telepítéseken az őr a háttérszolgáltatás frissítésével (egy jelszó, vagy
+  macOS-en a következő újraindítás) kerül fel.
   [`docs/desktop.md`](docs/desktop.md#az-őr-ha-az-app-eltűnik-v04258)
 - **A gépen az önteszt tényt mond, nem garanciát:** ötpercenként a rendszer
   feloldóját kérdezi a tiltott nevekről, és szól, ha nem a tiltó címre

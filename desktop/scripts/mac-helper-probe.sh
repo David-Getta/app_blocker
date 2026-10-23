@@ -19,10 +19,14 @@
 #   2d. az app eltűnik (elmozdítjuk, mint egy Kukába húzáskor): a segéd kilép
 #      (code-watch.ts), az őr a szigorú blokkot teszi a hosts fájlba, és a
 #      rendszer feloldója tilt;
-#   2e. a kézzel kivett blokkot az őr visszateszi;
+#   2e. a kézzel kivett blokkot az őr visszateszi — akkor is, ha csak a nyitó
+#      jelölő maradt a fájlban;
 #   2f. ellenpróba: őr nélkül a kivett blokk kivéve marad — vagyis tényleg az
 #      őr tartja, nem egy még futó segéd; visszatöltve megint beáll;
 #   2g. az app visszakerül: a segéd újra fut, a saját blokkját írja, felel;
+#   2h. az app a helyén van, de a segéd nem indul el (elrontott app.asar): a
+#      segéd kilép, a launchd hiába indítja újra, és öt perc után az őr a
+#      szigorú blokkot teszi a helyére; a javított app után a segéd újra fut;
 #   3. a VALÓDI eltávolító — a segéd által a gépre tett MÁSOLATA, amire a
 #      szigorú blokk magyarázata mutat — után a démon, az őr, a plistek, a
 #      socket, az állapotmappa és a hosts-blokk is eltűnik, a hosts többi része
@@ -44,7 +48,7 @@ LOG=/Library/Logs/Breaker/helper.log
 GLABEL=hu.breaker.guard
 GPLIST=/Library/LaunchDaemons/$GLABEL.plist
 SDIR="/Library/Application Support/Breaker"
-NOTE='az app nem található'
+NOTE='a teljes lista tilt'
 fail=0
 bad() { echo "HIBA: $*"; fail=1; }
 # wait_for <másodperc> <parancs…>: másodpercenként próbálja, amíg igaz nem lesz.
@@ -125,10 +129,18 @@ grep -qx "0.0.0.0 $DOMAIN" /etc/hosts || bad "a hosts szigorú blokkjában nincs
 wait_for 15 blocked || bad "a szigorú blokk mellett a rendszer feloldója nem tilt: $DOMAIN"
 [ "$(grep -c 'BREAKER BLOCK BEGIN' /etc/hosts)" = 1 ] || bad "a hosts-ban nem egy blokk van"
 
-# 2e. A kézzel kivett blokkot visszateszi.
+# 2e. A kézzel kivett blokkot visszateszi — akkor is, ha a nyitó jelölő ott
+# maradt (felemás jelölők: az őr rendbe teszi, nem hagyja annyiban).
 strip_block
 has_block && bad "a próba nem tudta kivenni a blokkot"
 wait_for 100 has_note || bad "a kézzel kivett szigorú blokkot az őr nem tette vissza"
+BEGIN_LINE=$(node -e "process.stdout.write(require('./dist/shared/blocklist.js').MARKER_BEGIN)")
+strip_block
+printf '%s\n' "$BEGIN_LINE" | sudo tee -a /etc/hosts >/dev/null
+has_note && bad "a próba nem tudta kivenni a blokkot (a nyitó jelölő mellől)"
+wait_for 100 has_note || bad "a magában maradt nyitó jelölő mellé az őr nem tette vissza a blokkot"
+[ "$(grep -c 'BREAKER BLOCK BEGIN' /etc/hosts)" = 1 ] && [ "$(grep -c 'BREAKER BLOCK END' /etc/hosts)" = 1 ] \
+  || bad "a felemás jelölők után nem egy blokk van: $(grep -c 'BREAKER BLOCK' /etc/hosts) jelölő"
 
 # 2f. ELLENPRÓBA: őr nélkül a kivett blokk kivéve marad — tehát az előbb
 # tényleg az őr tette vissza, nem egy még futó segéd.
@@ -148,6 +160,18 @@ wait_for 60 no_note || bad "a visszatett app segédje nem írta vissza a saját 
 grep -qx "0.0.0.0 $DOMAIN" /etc/hosts || bad "a segéd blokkjából hiányzik: $DOMAIN"
 wait_for 30 node -e "require('net').connect('$SOCK').on('connect',()=>process.exit(0)).on('error',()=>process.exit(1))" \
   || bad "a visszatett app segédje nem felel a socketen"
+
+# 2h. A SEGÉD NEM INDUL, PEDIG AZ APP A HELYÉN VAN: a futó segéd az app.asar
+# cseréjét észreveszi és kilép, a launchd hiába indítja újra (az üres archívumból
+# nem tud). Az őr indítgatja, és öt perc után a szigorú blokkot teszi a helyére —
+# a befagyott blokk helyett. A javított app után a segéd újra fut.
+ASAR="$APP/Contents/Resources/app.asar"
+mv "$ASAR" "$ASAR.good" && : > "$ASAR" || bad "az app.asar-t nem tudtam elrontani"
+wait_for 600 has_note || bad "a nem induló segéd mellett az őr nem tette a helyére a szigorú blokkot"
+sudo grep -q 'a segéd nem indul' "$SDIR/guard.log" || bad "az őr naplójában nincs: a segéd nem indul"
+rm -f "$ASAR" && mv "$ASAR.good" "$ASAR" || bad "az app.asar-t nem tudtam visszatenni"
+wait_for 150 helper_running || bad "a javított app segédje nem indult el"
+wait_for 60 no_note || bad "a javított app segédje nem írta vissza a saját blokkját"
 [ "$fail" = 0 ] || show_guard
 
 # 3. A valódi eltávolító — a segéd által a gépre tett másolat, amire a szigorú
@@ -173,6 +197,6 @@ if [ -e "$SOCK" ] && node -e "require('net').connect('$SOCK').on('connect',()=>p
 fi
 
 if [ "$fail" = 0 ]; then
-  echo "Segéd-próba OK (a becsomagolt binárison, a telepítő módján indítva: felel, tilt; az őrt maga teszi fel; az app eltűnésekor kilép, és az őr a szigorú blokkot tartja — kézi kivétel után is; az app visszatételekor újra fut; az eltávolító másolata után semmi nem fut, és a hosts a régi)"
+  echo "Segéd-próba OK (a becsomagolt binárison, a telepítő módján indítva: felel, tilt; az őrt maga teszi fel; az app eltűnésekor kilép, és az őr a szigorú blokkot tartja — kézi kivétel és felemás jelölő után is; az app visszatételekor újra fut; ha a segéd nem indul, öt perc után a szigorú blokk áll be; az eltávolító másolata után semmi nem fut, és a hosts a régi)"
 fi
 exit "$fail"

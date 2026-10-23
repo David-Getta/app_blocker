@@ -22,9 +22,12 @@
 #      induláskor és ötpercenként), a mappáját sima felhasználó nem írja; amíg
 #      az app a helyén van, a hosts fájlhoz nem nyúl, a leállított segédet
 #      elindítja (egy frissítés így áll vissza);
+#      ha a segéd nem indul el (letiltott feladat), tíz perc után a szigorú
+#      blokk áll be, és a visszaindult segéd a sajátját írja;
 #   3b. az app eltávolítása után az őr előbb csak feljegyzi az eltűnést (egy
 #      frissítés közben se írjon), tartós eltűnés után a szigorú blokkot teszi
-#      a hosts fájlba — a kézzel kivettet is visszateszi —, és a feloldó tilt;
+#      a hosts fájlba — a kézzel kivettet és a magában maradt jelölő mellé is —,
+#      és a feloldó tilt;
 #   4. a kézi eltávolító — előbb a segéd által a gépre tett MÁSOLATA, amire a
 #      szigorú blokk magyarázata mutat — egy idegen célú, ugyanilyen nevű
 #      parancsikont meghagy, a Breaker.exe-re mutatót leveszi — és a segéd meg
@@ -228,9 +231,12 @@ $guardDir = Join-Path $pf64 'Breaker Guard'
 $guardScript = Join-Path $guardDir 'guard.ps1'
 $uninstallCopy = Join-Path $guardDir 'uninstall-windows.ps1'
 $strictFile = Join-Path $stateDir 'strict-hosts'
-$goneMark = Join-Path $stateDir 'guard-gone'
-$guardLog = Join-Path $stateDir 'guard.log'
-$note = 'az app nem található'
+# A bélyegek és a napló az őr SAJÁT mappájában: a segéd állapotmappájába az őr
+# nem ír (ha az eltűnne, egy sima felhasználó újra létrehozhatná).
+$goneMark = Join-Path $guardDir 'guard-gone'
+$deadMark = Join-Path $guardDir 'guard-dead'
+$guardLog = Join-Path $guardDir 'guard.log'
+$note = 'a teljes lista tilt'
 function Show-Guard {
   Write-Host '--- az őr naplója ---'
   Get-Content -LiteralPath $guardLog -Encoding UTF8 -ErrorAction SilentlyContinue | Select-Object -Last 20 | Out-Host
@@ -250,10 +256,21 @@ else {
   $ga = @($gt.Actions)[0]
   Write-Host "az őr feladata: $($ga.Execute) $($ga.Arguments)"
   if ($ga.Execute -ne (Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe')) { Fail "az őr nem a rendszer PowerShelljével fut: $($ga.Execute)" }
-  if (-not $ga.Arguments.Contains("-File `"$guardScript`"")) { Fail "az őr nem a saját szkriptjét futtatja: $($ga.Arguments)" }
+  # Nem -File: egy „csak aláírt szkript” csoportházirend azt letiltaná. A
+  # kódolt parancs a szkriptet beolvassa és szkriptblokként indítja.
+  if ($ga.Arguments -notmatch '-EncodedCommand (\S+)') { Fail "az őr parancsa nem kódolt: $($ga.Arguments)" }
+  else {
+    $loader = [System.Text.Encoding]::Unicode.GetString([Convert]::FromBase64String($Matches[1]))
+    Write-Host "az őr indítója: $loader"
+    if (-not $loader.Contains($guardScript)) { Fail "az őr nem a saját szkriptjét futtatja: $loader" }
+  }
+  if ($ga.Arguments -match '-File|-ExecutionPolicy') { Fail "az őr szkriptfájlként fut: $($ga.Arguments)" }
   if ($gt.Principal.UserId -ne 'SYSTEM') { Fail "az őr felhasználója: $($gt.Principal.UserId)" }
   if (-not ($gt.Triggers | Where-Object { $_.CimClass.CimClassName -eq 'MSFT_TaskBootTrigger' })) { Fail 'az őr nem indul a géppel' }
-  if (-not ($gt.Triggers | Where-Object { $_.Repetition.Interval -eq 'PT5M' })) { Fail 'az őr nem fut ötpercenként' }
+  $rep = @($gt.Triggers | Where-Object { $_.Repetition.Interval -eq 'PT5M' })
+  if ($rep.Count -eq 0) { Fail 'az őr nem fut ötpercenként' }
+  # Az ismétlés ne álljon le egy nap után: üres időtartam = a végtelenségig.
+  elseif ($rep[0].Repetition.Duration) { Fail "az őr ismétlése korlátos: $($rep[0].Repetition.Duration)" }
 }
 if (-not (Test-Path -LiteralPath $guardScript)) { Fail "nincs meg az őr szkriptje: $guardScript" }
 if (-not (Test-Path -LiteralPath $uninstallCopy)) { Fail "nincs meg az eltávolító másolata: $uninstallCopy" }
@@ -287,6 +304,24 @@ Run-Guard
 for ($i = 0; $i -lt 20 -and (Get-ScheduledTask -TaskName $taskName).State -ne 'Running'; $i++) { Start-Sleep -Milliseconds 500 }
 if ((Get-ScheduledTask -TaskName $taskName).State -ne 'Running') { Fail 'az őr nem indította el a leállított segédet'; Show-Guard }
 else { Write-Host 'az őr elindította a leállított segédet' }
+# Ha a segéd nem indul el (itt: letiltott feladat), az őr nem hagyja befagyva a
+# blokkot: tíz perc után a szigorú blokk áll be. Az első észleléskor még nem.
+Stop-HelperTask
+Disable-ScheduledTask -TaskName $taskName | Out-Null
+Run-Guard
+if (-not (Test-Path -LiteralPath $deadMark)) { Fail 'az őr nem jegyezte fel, hogy a segéd nem fut'; Show-Guard }
+if ((HostsText).Contains($note)) { Fail 'az őr már az első észleléskor írt — egy frissítés közben is írna' }
+[System.IO.File]::WriteAllText($deadMark, ([DateTime]::UtcNow.AddMinutes(-11)).ToString('o'))
+Run-Guard
+if (-not (HostsText).Contains($note)) { Fail 'a nem induló segéd mellett az őr nem tette a helyére a szigorú blokkot'; Show-Guard }
+else { Write-Host 'a nem induló segéd mellett tíz perc után a szigorú blokk áll be' }
+# A segéd újra fut: a saját blokkját írja vissza, a bélyeg megy.
+Enable-ScheduledTask -TaskName $taskName | Out-Null
+Start-ScheduledTask -TaskName $taskName
+for ($i = 0; $i -lt 120 -and (HostsText).Contains($note); $i++) { Start-Sleep -Milliseconds 500 }
+if ((HostsText).Contains($note)) { Fail 'az újraindult segéd nem írta vissza a saját blokkját' }
+Run-Guard
+if (Test-Path -LiteralPath $deadMark) { Fail 'a futó segéd mellett a bélyeg maradt' }
 
 # Az NSIS-eltávolító előtt a segéd le: futó exe-t nem törölhetne. A feladat
 # és a hosts-blokk marad — azt a kézi eltávolító veszi le (4. lépés).
@@ -330,6 +365,15 @@ if ((HostsText).Contains('BREAKER BLOCK')) { Fail 'a próba nem tudta kivenni a 
 Run-Guard
 if (-not (HostsText).Contains($note)) { Fail 'a kézzel kivett szigorú blokkot az őr nem tette vissza'; Show-Guard }
 else { Write-Host 'az app eltávolítása után az őr a szigorú blokkot tartja, a kézzel kivettet is visszateszi' }
+# Ha csak a nyitó jelölő maradt (felemás jelölők), azt is rendbe teszi.
+$h = HostsText
+$lone = [regex]::Replace($h, '(?s)(# >>> BREAKER BLOCK BEGIN[^\r\n]*)\r?\n.*?# <<< BREAKER BLOCK END\r?\n?', '$1' + "`r`n")
+[System.IO.File]::WriteAllText($hostsFile, $lone, (New-Object System.Text.UTF8Encoding $false))
+if ((HostsText).Contains($note) -or (HostsText).Contains('BREAKER BLOCK END')) { Fail 'a próba nem tudta a nyitó jelölőt magára hagyni' }
+Run-Guard
+$h = HostsText
+if (-not $h.Contains($note)) { Fail 'a magában maradt nyitó jelölő mellé az őr nem tette vissza a blokkot'; Show-Guard }
+elseif (([regex]::Matches($h, 'BREAKER BLOCK BEGIN')).Count -ne 1 -or ([regex]::Matches($h, 'BREAKER BLOCK END')).Count -ne 1) { Fail 'a felemás jelölők után nem egy blokk van' }
 
 # 4. A kézi eltávolító — előbb a segéd által a gépre tett másolat, amire a
 # szigorú blokk magyarázata mutat: idegen célú parancsikon marad, a
@@ -357,5 +401,5 @@ elseif (($hostsAfter -replace "`r`n", "`n").TrimEnd() -ne ($hostsBefore -replace
 
 Remove-LocalUser -Name $probeUser -ErrorAction SilentlyContinue
 
-if ($script:fail -eq 0) { Write-Host 'Telepítés-próba OK (telepítés, értesítés: felhasználói parancsikon és COM-bejegyzés a rögzített azonosítóval; a segéd a telepített exe-ről, SYSTEM-ként: felel és tilt, a feladata egy őrző szolgáltatás beállításaival megy, és a régit maga javítja; az állapotmappáját egy sima felhasználó se nem olvassa, se nem írja; eltávolítás: semmi nem marad, a Gépház-bejegyzés sem; az őrt a segéd veszi fel, a mappáját sima felhasználó nem írja, amíg az app megvan, nem ír, a leállított segédet elindítja; az app eltávolítása után tartós eltűnésre a szigorú blokkot tartja, a kézzel kivettet is visszateszi; a kézi eltávolító — a gépre tett másolat is — csak a mienket veszi le, a segédet, az őrt és a hosts-blokkot is)' }
+if ($script:fail -eq 0) { Write-Host 'Telepítés-próba OK (telepítés, értesítés: felhasználói parancsikon és COM-bejegyzés a rögzített azonosítóval; a segéd a telepített exe-ről, SYSTEM-ként: felel és tilt, a feladata egy őrző szolgáltatás beállításaival megy, és a régit maga javítja; az állapotmappáját egy sima felhasználó se nem olvassa, se nem írja; eltávolítás: semmi nem marad, a Gépház-bejegyzés sem; az őrt a segéd veszi fel, a mappáját sima felhasználó nem írja, amíg az app megvan, nem ír, a leállított segédet elindítja, a nem indulót tíz perc után szigorú blokkal pótolja; az app eltávolítása után tartós eltűnésre a szigorú blokkot tartja, a kézzel kivettet is visszateszi; a kézi eltávolító — a gépre tett másolat is — csak a mienket veszi le, a segédet, az őrt és a hosts-blokkot is)' }
 exit $script:fail
