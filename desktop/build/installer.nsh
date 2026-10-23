@@ -27,3 +27,19 @@
     ${endIf}
   ${endIf}
 !macroend
+
+; AZ ŐR (#149): a segéd mellé telepített őr (BreakerGuard feladat, a
+; „Breaker Guard” mappa a 64 bites Program Files alatt) az app törlése után is
+; tart — ha az app nincs meg, a teljes lista tilt. Ez szándékos: az app
+; eltávolítása nem lehet ingyenes lazítás. Ezért ez az eltávolító a feladatokhoz
+; és a hosts fájlhoz NEM nyúl; csak kimondja, mi marad, és hol a teljes
+; eltávolító. Frissítéskor (--updated) és csendes módban nem kérdez.
+!macro customUnInit
+  ${ifNot} ${isUpdated}
+    ${if} ${FileExists} "$PROGRAMFILES64\Breaker Guard\uninstall-windows.ps1"
+      MessageBox MB_OKCANCEL|MB_ICONINFORMATION "A Breaker védelme az app eltávolítása után is megmarad: ha az app nincs meg, a teljes lista tiltva lesz (néhány perc múlva).$\r$\n$\r$\nHa a védelmet is le akarod venni, futtasd rendszergazdaként:$\r$\npowershell -ExecutionPolicy Bypass -File $\"$PROGRAMFILES64\Breaker Guard\uninstall-windows.ps1$\"$\r$\n$\r$\nFolytatod az app eltávolítását?" /SD IDOK IDOK protectionNoticeOk
+      Quit
+      protectionNoticeOk:
+    ${endIf}
+  ${endIf}
+!macroend

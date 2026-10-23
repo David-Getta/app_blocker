@@ -1,9 +1,19 @@
 ﻿# Breaker teljes eltávolítása Windowson. Rendszergazdai PowerShellből futtasd:
 #   powershell -ExecutionPolicy Bypass -File uninstall-windows.ps1
 
+# Ha a szkriptet a saját mappájából (Breaker Guard) futtatod, a végén azt is
+# törölni kell — ne az legyen a munkakönyvtár.
+Set-Location -LiteralPath $env:SystemRoot
+
 Write-Host "Breaker helper feladat eltávolítása..."
 schtasks /End /TN "BreakerHelper" 2>$null
 schtasks /Delete /F /TN "BreakerHelper" 2>$null
+
+Write-Host "Az őr eltávolítása..."
+# A segéd után: egy futó segéd induláskor újra felvenné az őrt. Az őr a szigorú
+# blokkot tartja, ha az app eltűnt — a hosts-takarítás csak utána jöhet.
+schtasks /End /TN "BreakerGuard" 2>$null
+schtasks /Delete /F /TN "BreakerGuard" 2>$null
 
 Write-Host "A bejelentkezéskori indítás eltávolítása..."
 # A „Breaker” bejegyzés a felhasználó saját indítási listájában (HKCU) van:
@@ -68,6 +78,9 @@ foreach ($base in @($env:ProgramFiles, ${env:ProgramFiles(x86)})) {
 
 Write-Host "Állapotfájlok törlése..."
 Remove-Item -Recurse -Force (Join-Path $env:ProgramData "Breaker") -ErrorAction SilentlyContinue
+# Az őr és ennek a szkriptnek a másolata (a 64 bites Program Files alatt).
+$pf = if ($env:ProgramW6432) { $env:ProgramW6432 } else { $env:ProgramFiles }
+Remove-Item -Recurse -Force (Join-Path $pf "Breaker Guard") -ErrorAction SilentlyContinue
 
 Write-Host "A felhasználói Start menü parancsikon és az értesítés-kattintás bejegyzése..."
 # Az Electron 41 óta az app az első értesítéskor a felhasználó SAJÁT Start

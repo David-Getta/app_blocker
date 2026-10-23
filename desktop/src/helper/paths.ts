@@ -34,3 +34,26 @@ export function socketPath(): string {
     ? '/var/run/breaker.sock'
     : path.join(os.homedir(), '.breaker-dev', 'breaker.sock');
 }
+
+/** A szigorú blokk (shared/strict-block.ts) helye: a segéd állapotmappájában. */
+export function strictBlockPath(): string {
+  return path.join(path.dirname(stateFilePath()), 'strict-hosts');
+}
+
+/**
+ * Az őr és az eltávolító másolatának mappája. macOS-en a segéd állapotmappája
+ * (a rooté); Windowson a Program Files alatt — oda sima felhasználó nem írhat,
+ * és a Gépház-eltávolítás sem viszi el (az a Breaker mappáját törli).
+ */
+export function guardDir(): string {
+  if (process.platform === 'win32') {
+    const pf = process.env.ProgramW6432 || process.env.ProgramFiles || 'C:\\Program Files';
+    return path.join(pf, 'Breaker Guard');
+  }
+  return path.dirname(stateFilePath());
+}
+
+/** A teljes eltávolító szkript másolatának helye (a szigorú blokk magyarázata ide mutat). */
+export function uninstallCopyPath(): string {
+  return path.join(guardDir(), process.platform === 'win32' ? 'uninstall-windows.ps1' : 'uninstall-macos.sh');
+}

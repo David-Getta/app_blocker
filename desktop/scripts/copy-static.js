@@ -27,3 +27,14 @@ if (fs.existsSync(serverSrc)) {
   // Csomagolásnál viszont ennek meg KELL lennie — ezért hangos a jelzés.
   console.warn('WARNING: server/ not found, the built app will have no built-in sync server');
 }
+
+// A teljes eltávolító szkriptek is a csomagba kerülnek: a segéd egy másolatot
+// tesz belőlük a rootnak / rendszergazdának írható helyre (helper/guard.ts),
+// mert ha az app eltűnt, a hosts fájl szigorú blokkja erre mutat — onnan is
+// el kell tudni távolítani, ahol az app már nincs meg.
+const uninstallDst = path.join(__dirname, '..', 'dist', 'uninstall');
+fs.mkdirSync(uninstallDst, { recursive: true });
+for (const f of ['uninstall-macos.sh', 'uninstall-windows.ps1']) {
+  fs.copyFileSync(path.join(__dirname, f), path.join(uninstallDst, f));
+}
+console.log('uninstall scripts copied to', uninstallDst);

@@ -231,7 +231,7 @@ jobs:
       matrix:
         os: [macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 25
+    timeout-minutes: 40
     defaults:
       run:
         working-directory: desktop
@@ -266,22 +266,27 @@ jobs:
       # a sima Node-ot, amin a többi segéd-próba fut. Egy Electron-frissítés
       # ezt csendben eltörheti, az app közben hibátlanul indul. A próba a
       # telepítő valódi parancsával telepít, az app módján csatlakozik, felvesz
-      # egy oldalt, és a rendszer feloldójával nézi, hogy tilt-e; az eltávolító
+      # egy oldalt, és a rendszer feloldójával nézi, hogy tilt-e. AZ ŐR (#149):
+      # a segéd felteszi; az app elmozdítása után a segéd kilép, és az őr a
+      # szigorú blokkot tartja (a kézzel kivettet is visszateszi); az app
+      # visszatételekor a segéd újra fut. Az eltávolító gépre tett másolata
       # után semmi nem maradhat (scripts/mac-helper-probe.sh).
-      - name: macOS — a becsomagolt segéd tilt, az eltávolító leveszi
+      - name: macOS — a becsomagolt segéd tilt, az őr tart, az eltávolító leveszi
         if: runner.os == 'macOS'
-        timeout-minutes: 5
+        timeout-minutes: 15
         run: bash scripts/mac-helper-probe.sh release/mac-arm64/Breaker.app
       # A VALÓDI TELEPÍTŐ ÉS ELTÁVOLÍTÓ (Windows). Az Electron 41 óta az app az
       # első értesítéskor a felhasználó saját Start menüjébe is tesz egy
       # parancsikont és egy HKCU COM-bejegyzést; a gépszintű eltávolító erről
       # magától nem tud. Telepítés, értesítés, a segéd a telepített exe-ről
-      # SYSTEM-ként (felel és tilt), eltávolítás — és utána semmi nem
-      # maradhat, a Gépház-bejegyzés, a segéd feladata és a hosts-blokk sem
+      # SYSTEM-ként (felel és tilt), az őre (#149: amíg az app megvan, nem ír;
+      # az app eltávolítása után tartósan a szigorú blokkot tartja),
+      # eltávolítás — és a kézi eltávolító után semmi nem maradhat, a
+      # Gépház-bejegyzés, a feladatok és a hosts-blokk sem
       # (scripts/win-install-probe.ps1).
-      - name: Windows — telepítés, értesítés, segéd, eltávolítás
+      - name: Windows — telepítés, értesítés, segéd, őr, eltávolítás
         if: runner.os == 'Windows'
-        timeout-minutes: 10
+        timeout-minutes: 15
         run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/win-install-probe.ps1
 
   android-core-tests:

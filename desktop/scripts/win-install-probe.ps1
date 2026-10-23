@@ -18,9 +18,18 @@
 #      — és ha valaki az alapértékekre rontja, a segéd induláskor visszateszi;
 #   2a. az állapotmappába a segéd előtt egy sima felhasználó fájlt tehet (a rés
 #      előfeltétele), utána se a state.json-t nem olvassa, se nem ír bele;
-#   4. a kézi eltávolító (uninstall-windows.ps1) egy idegen célú, ugyanilyen
-#      nevű parancsikont meghagy, a Breaker.exe-re mutatót leveszi — és a
-#      segéd feladatát meg a hosts-blokkot is, a hosts többi része a régi.
+#   2c. AZ ŐR (#149, shared/guard-script.ts): a segéd maga veszi fel (SYSTEM,
+#      induláskor és ötpercenként), a mappáját sima felhasználó nem írja; amíg
+#      az app a helyén van, a hosts fájlhoz nem nyúl, a leállított segédet
+#      elindítja (egy frissítés így áll vissza);
+#   3b. az app eltávolítása után az őr előbb csak feljegyzi az eltűnést (egy
+#      frissítés közben se írjon), tartós eltűnés után a szigorú blokkot teszi
+#      a hosts fájlba — a kézzel kivettet is visszateszi —, és a feloldó tilt;
+#   4. a kézi eltávolító — előbb a segéd által a gépre tett MÁSOLATA, amire a
+#      szigorú blokk magyarázata mutat — egy idegen célú, ugyanilyen nevű
+#      parancsikont meghagy, a Breaker.exe-re mutatót leveszi — és a segéd meg
+#      az őr feladatát, az őr mappáját és a hosts-blokkot is, a hosts többi
+#      része a régi.
 # Kilépési kód 0, ha minden stimmel; különben 1.
 
 $ErrorActionPreference = 'Stop'
@@ -211,6 +220,74 @@ else {
   if ($problems.Count -gt 0) { Fail "a segéd nem javította meg a feladata beállításait: $($problems -join '; ')" }
   else { Write-Host 'a segéd induláskor megjavította a feladata beállításait' }
 }
+# 2c. AZ ŐR. A telepítő szkriptje nem tud róla: a segéd veszi fel induláskor,
+# SYSTEM-ként — a meglévő telepítéseken is, újabb UAC-kérdés nélkül.
+$guardTask = 'BreakerGuard'
+$pf64 = if ($env:ProgramW6432) { $env:ProgramW6432 } else { $env:ProgramFiles }
+$guardDir = Join-Path $pf64 'Breaker Guard'
+$guardScript = Join-Path $guardDir 'guard.ps1'
+$uninstallCopy = Join-Path $guardDir 'uninstall-windows.ps1'
+$strictFile = Join-Path $stateDir 'strict-hosts'
+$goneMark = Join-Path $stateDir 'guard-gone'
+$guardLog = Join-Path $stateDir 'guard.log'
+$note = 'az app nem található'
+function Show-Guard {
+  Write-Host '--- az őr naplója ---'
+  Get-Content -LiteralPath $guardLog -Encoding UTF8 -ErrorAction SilentlyContinue | Select-Object -Last 20 | Out-Host
+  Get-ScheduledTaskInfo -TaskName $guardTask -ErrorAction SilentlyContinue | Format-List LastRunTime, LastTaskResult | Out-Host
+}
+# Egy futás az őrből, megvárva a végét (a két megnézés között 20 másodperc).
+function Run-Guard {
+  Start-ScheduledTask -TaskName $guardTask
+  Start-Sleep -Seconds 2
+  for ($i = 0; $i -lt 120 -and (Get-ScheduledTask -TaskName $guardTask).State -eq 'Running'; $i++) { Start-Sleep -Seconds 1 }
+}
+function HostsText { [System.IO.File]::ReadAllText($hostsFile, [System.Text.Encoding]::UTF8) }
+for ($i = 0; $i -lt 60 -and -not (Get-ScheduledTask -TaskName $guardTask -ErrorAction SilentlyContinue); $i++) { Start-Sleep -Seconds 1 }
+$gt = Get-ScheduledTask -TaskName $guardTask -ErrorAction SilentlyContinue
+if (-not $gt) { Fail "az őr feladata ($guardTask) 60 másodperc alatt sem jött létre — a segéd nem vette fel" }
+else {
+  $ga = @($gt.Actions)[0]
+  Write-Host "az őr feladata: $($ga.Execute) $($ga.Arguments)"
+  if ($ga.Execute -ne (Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe')) { Fail "az őr nem a rendszer PowerShelljével fut: $($ga.Execute)" }
+  if (-not $ga.Arguments.Contains("-File `"$guardScript`"")) { Fail "az őr nem a saját szkriptjét futtatja: $($ga.Arguments)" }
+  if ($gt.Principal.UserId -ne 'SYSTEM') { Fail "az őr felhasználója: $($gt.Principal.UserId)" }
+  if (-not ($gt.Triggers | Where-Object { $_.CimClass.CimClassName -eq 'MSFT_TaskBootTrigger' })) { Fail 'az őr nem indul a géppel' }
+  if (-not ($gt.Triggers | Where-Object { $_.Repetition.Interval -eq 'PT5M' })) { Fail 'az őr nem fut ötpercenként' }
+}
+if (-not (Test-Path -LiteralPath $guardScript)) { Fail "nincs meg az őr szkriptje: $guardScript" }
+if (-not (Test-Path -LiteralPath $uninstallCopy)) { Fail "nincs meg az eltávolító másolata: $uninstallCopy" }
+elseif ((Get-FileHash -LiteralPath $uninstallCopy).Hash -ne (Get-FileHash -LiteralPath (Join-Path $PSScriptRoot 'uninstall-windows.ps1')).Hash) {
+  Fail 'az eltávolító másolata eltér a csomagolttól'
+}
+if (-not (Test-Path -LiteralPath $strictFile)) { Fail "nincs szigorú blokk: $strictFile" }
+elseif (-not ([System.IO.File]::ReadAllText($strictFile) -match '(?m)^0\.0\.0\.0 example\.org\r?$')) { Fail 'a szigorú blokkban nincs benne: example.org' }
+# Az őr SYSTEM-ként futtatja a szkriptjét: ha egy sima felhasználó írhatná,
+# az rendszerjog volna. A Program Files öröklött jogai ezt kizárják — nézzük.
+if ($userToken -and -not $userToken.IsInvalid) {
+  $script:guardWrite = '-'; $script:guardNew = '-'
+  [System.Security.Principal.WindowsIdentity]::RunImpersonated($userToken, [Action]{
+    try { [System.IO.File]::AppendAllText($guardScript, '#'); $script:guardWrite = 'írható' } catch { $script:guardWrite = 'tiltva' }
+    try { [System.IO.File]::WriteAllText((Join-Path $guardDir 'x.ps1'), 'x'); $script:guardNew = 'írható' } catch { $script:guardNew = 'tiltva' }
+  })
+  Write-Host "az őr mappája a sima felhasználónak: guard.ps1 $($script:guardWrite), új fájl $($script:guardNew)"
+  if ($script:guardWrite -ne 'tiltva') { Fail 'a sima felhasználó átírhatja az őr SYSTEM-ként futó szkriptjét' }
+  if ($script:guardNew -ne 'tiltva') { Fail 'a sima felhasználó fájlt tehet az őr mappájába' }
+}
+# Amíg az app a helyén van és a segéd fut, az őr a hosts fájlhoz nem nyúl.
+$hostsLive = HostsText
+Run-Guard
+if ((HostsText) -ne $hostsLive) { Fail 'az őr a hosts fájlhoz nyúlt, pedig az app a helyén van' }
+if (Test-Path -LiteralPath $goneMark) { Fail 'az őr eltűntnek jegyezte fel a helyén lévő appot' }
+# A leállított segédet elindítja (egy frissítés leállítja, és a Feladatütemező
+# magától nem indítja újra).
+Stop-HelperTask
+for ($i = 0; $i -lt 20 -and (Get-ScheduledTask -TaskName $taskName).State -eq 'Running'; $i++) { Start-Sleep -Milliseconds 500 }
+Run-Guard
+for ($i = 0; $i -lt 20 -and (Get-ScheduledTask -TaskName $taskName).State -ne 'Running'; $i++) { Start-Sleep -Milliseconds 500 }
+if ((Get-ScheduledTask -TaskName $taskName).State -ne 'Running') { Fail 'az őr nem indította el a leállított segédet'; Show-Guard }
+else { Write-Host 'az őr elindította a leállított segédet' }
+
 # Az NSIS-eltávolító előtt a segéd le: futó exe-t nem törölhetne. A feladat
 # és a hosts-blokk marad — azt a kézi eltávolító veszi le (4. lépés).
 Stop-HelperTask
@@ -228,11 +305,42 @@ if (Test-Path $clsidKey) { Fail "a HKCU COM-bejegyzés ott maradt: $clsidKey" }
 if (Test-Path -LiteralPath $commonLnk) { Fail "a gépszintű parancsikon ott maradt: $commonLnk" }
 if ((UninstallEntries).Count -ne 0) { Fail 'a Gépház-bejegyzés (HKLM) ott maradt — az eltávolító rossz kontextusban zárt' }
 
-# 4. A kézi eltávolító: idegen célú parancsikon marad, a Breaker.exe-re mutató megy.
+# 3b. AZ APP ELTŰNT. Az NSIS-eltávolító a feladatokhoz és a hosts fájlhoz nem
+# nyúl (az app eltávolítása nem lehet ingyenes lazítás): az őr veszi át. Előbb
+# csak feljegyzi az eltűnést — egy frissítés pár percre cseréli a fájlokat —,
+# és csak tartós eltűnés után ír.
+Run-Guard
+if (-not (Test-Path -LiteralPath $goneMark)) { Fail 'az őr nem jegyezte fel, hogy az app eltűnt'; Show-Guard }
+if ((HostsText).Contains($note)) { Fail 'az őr már az első észleléskor írt — egy frissítés közben is írna' }
+# A feljegyzés hat perccel korábbra: mintha két ütemezett futása között
+# végig hiányzott volna.
+[System.IO.File]::WriteAllText($goneMark, ([DateTime]::UtcNow.AddMinutes(-6)).ToString('o'))
+Run-Guard
+$h = HostsText
+if (-not $h.Contains($note)) { Fail 'az őr nem tette a helyére a szigorú blokkot'; Show-Guard }
+elseif (-not ($h -match '(?m)^0\.0\.0\.0 example\.org\r?$')) { Fail 'a hosts szigorú blokkjában nincs: example.org' }
+elseif (([regex]::Matches($h, 'BREAKER BLOCK BEGIN')).Count -ne 1) { Fail 'a hosts-ban nem egy blokk van' }
+# A rendszer feloldója: Windowson a tiltott név fel sem oldódik (vagy a tiltó címet adja).
+node -e "const { isSinkhole } = require(process.argv[1]); require('dns').promises.lookup('example.org', { all: true }).then((a) => process.exit(a.length > 0 && a.every((x) => isSinkhole(x.address)) ? 0 : 1), () => process.exit(0))" (Join-Path $desktop 'dist\shared\selftest.js')
+if ($LASTEXITCODE -ne 0) { Fail 'a szigorú blokk mellett a feloldó nem tilt: example.org' }
+# A kézzel kivett blokkot a következő futás visszateszi.
+$stripped = [regex]::Replace($h, '(?s)\r?\n*# >>> BREAKER BLOCK BEGIN.*?# <<< BREAKER BLOCK END\r?\n?', "`r`n")
+[System.IO.File]::WriteAllText($hostsFile, $stripped, (New-Object System.Text.UTF8Encoding $false))
+if ((HostsText).Contains('BREAKER BLOCK')) { Fail 'a próba nem tudta kivenni a blokkot' }
+Run-Guard
+if (-not (HostsText).Contains($note)) { Fail 'a kézzel kivett szigorú blokkot az őr nem tette vissza'; Show-Guard }
+else { Write-Host 'az app eltávolítása után az őr a szigorú blokkot tartja, a kézzel kivettet is visszateszi' }
+
+# 4. A kézi eltávolító — előbb a segéd által a gépre tett másolat, amire a
+# szigorú blokk magyarázata mutat: idegen célú parancsikon marad, a
+# Breaker.exe-re mutató megy; a segéd, az őr és a mappája is.
 $wsh = New-Object -ComObject WScript.Shell
 $s = $wsh.CreateShortcut($userLnk); $s.TargetPath = "$env:WINDIR\notepad.exe"; $s.Save()
-powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'uninstall-windows.ps1') | Out-Host
+powershell -NoProfile -ExecutionPolicy Bypass -File $uninstallCopy | Out-Host
 if (-not (Test-Path -LiteralPath $userLnk)) { Fail 'a kézi eltávolító egy idegen célú Breaker.lnk-t is levett' }
+if (Get-ScheduledTask -TaskName $guardTask -ErrorAction SilentlyContinue) { Fail "a $guardTask feladat a kézi eltávolító után is megvan" }
+if (Test-Path -LiteralPath $guardDir) { Fail "az őr mappája a kézi eltávolító után is megvan: $guardDir" }
+if ((HostsText).Contains('BREAKER BLOCK')) { Fail 'a szigorú blokk a kézi eltávolító után is bent van' }
 Remove-Item -LiteralPath $userLnk -Force
 $s = $wsh.CreateShortcut($userLnk); $s.TargetPath = 'C:\Program Files\Breaker\Breaker.exe'; $s.Save()
 New-Item -Path "$clsidKey\LocalServer32" -Force | Out-Null
@@ -249,5 +357,5 @@ elseif (($hostsAfter -replace "`r`n", "`n").TrimEnd() -ne ($hostsBefore -replace
 
 Remove-LocalUser -Name $probeUser -ErrorAction SilentlyContinue
 
-if ($script:fail -eq 0) { Write-Host 'Telepítés-próba OK (telepítés, értesítés: felhasználói parancsikon és COM-bejegyzés a rögzített azonosítóval; a segéd a telepített exe-ről, SYSTEM-ként: felel és tilt, a feladata egy őrző szolgáltatás beállításaival megy, és a régit maga javítja; az állapotmappáját egy sima felhasználó se nem olvassa, se nem írja; eltávolítás: semmi nem marad, a Gépház-bejegyzés sem; a kézi eltávolító csak a mienket veszi le, a segédet és a hosts-blokkot is)' }
+if ($script:fail -eq 0) { Write-Host 'Telepítés-próba OK (telepítés, értesítés: felhasználói parancsikon és COM-bejegyzés a rögzített azonosítóval; a segéd a telepített exe-ről, SYSTEM-ként: felel és tilt, a feladata egy őrző szolgáltatás beállításaival megy, és a régit maga javítja; az állapotmappáját egy sima felhasználó se nem olvassa, se nem írja; eltávolítás: semmi nem marad, a Gépház-bejegyzés sem; az őrt a segéd veszi fel, a mappáját sima felhasználó nem írja, amíg az app megvan, nem ír, a leállított segédet elindítja; az app eltávolítása után tartós eltűnésre a szigorú blokkot tartja, a kézzel kivettet is visszateszi; a kézi eltávolító — a gépre tett másolat is — csak a mienket veszi le, a segédet, az őrt és a hosts-blokkot is)' }
 exit $script:fail

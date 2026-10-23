@@ -2,9 +2,23 @@
 # Breaker teljes eltávolítása macOS-en. Futtatás: sudo sh uninstall-macos.sh
 set -e
 
-echo "Breaker helper leállítása és eltávolítása..."
+echo "Breaker helper és őr leállítása és eltávolítása..."
+# A segéd előbb: egy futó segéd induláskor újra telepítené az őrt. Az őr
+# (hu.breaker.guard) a szigorú blokkot tartja, ha az app eltűnt — a
+# hosts-takarítás csak utána jöhet, különben visszaírná.
 launchctl bootout system/hu.breaker.helper 2>/dev/null || true
-rm -f /Library/LaunchDaemons/hu.breaker.helper.plist
+launchctl bootout system/hu.breaker.guard 2>/dev/null || true
+for _ in 1 2 3 4 5 6 7 8 9 10; do
+  launchctl print system/hu.breaker.helper >/dev/null 2>&1 \
+    || launchctl print system/hu.breaker.guard >/dev/null 2>&1 \
+    || break
+  sleep 1
+done
+if launchctl print system/hu.breaker.helper >/dev/null 2>&1 || launchctl print system/hu.breaker.guard >/dev/null 2>&1; then
+  echo "A segéd vagy az őr nem állt le — próbáld újra, vagy indítsd újra a gépet, és utána futtasd ezt." >&2
+  exit 1
+fi
+rm -f /Library/LaunchDaemons/hu.breaker.helper.plist /Library/LaunchDaemons/hu.breaker.guard.plist
 
 echo "A bejelentkezéskori indítás eltávolítása..."
 # A felhasználói indító-ügynök a felhasználó saját mappájában van, nem a

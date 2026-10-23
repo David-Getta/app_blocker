@@ -9,7 +9,7 @@
 import { app } from 'electron';
 import { execFile } from 'child_process';
 import * as path from 'path';
-import { launchdPlist, macInstallAppleScript, windowsLauncherCommand } from '../shared/install-script';
+import { launchdPlist, macInstallAppleScript, macInstallLocationProblem, windowsLauncherCommand } from '../shared/install-script';
 import { clientKeyHash } from '../shared/client-key';
 import { ensureHelperKey } from './helper-key';
 
@@ -37,6 +37,10 @@ function runFile(cmd: string, args: string[]): Promise<{ code: number; out: stri
 // kódot futtató támadó kicserélhette — root/SYSTEM jogért.
 
 async function installMac(): Promise<void> {
+  // Lemezképről vagy karanténból nem: a segéd a leválasztáskor megállna, és
+  // az őr ott nem lép közbe (shared/install-script.ts).
+  const problem = macInstallLocationProblem(process.execPath);
+  if (problem) throw new Error(problem);
   // Bake the installing user's uid into the daemon args so the root helper can
   // restrict its IPC socket to that account (see helper/server.ts).
   const ownerUid = process.getuid ? process.getuid() : -1;

@@ -8,6 +8,7 @@ import { strict as assert } from 'node:assert';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
+import { GUARD_LABEL, GUARD_TASK_NAME } from '../src/shared/guard-script';
 import { DAEMON_LABEL, TASK_NAME } from '../src/shared/install-script';
 
 // A lefordított teszt a dist-test/test alatt fut — a desktop mappa két szinttel feljebb.
@@ -29,7 +30,13 @@ test('macOS: a próba a telepítő parancsával telepít, és ott keresi a segé
   assert.ok(probe.includes(`LABEL=${DAEMON_LABEL}\n`), 'a próba más démont nézne, mint amit a telepítő tesz fel');
   assert.ok(read('src', 'helper', 'paths.ts').includes("if (process.platform === 'darwin') return '/var/run/breaker.sock';"));
   assert.ok(probe.includes('SOCK=/var/run/breaker.sock\n'));
-  assert.ok(probe.includes('sudo sh scripts/uninstall-macos.sh'), 'a valódi eltávolító kell');
+  // Az eltávolító: a segéd által a gépre tett másolat (helper/guard.ts), amire a
+  // szigorú blokk magyarázata mutat — és az a csomagolttal egyezik.
+  assert.ok(probe.includes('SDIR="/Library/Application Support/Breaker"\n'));
+  assert.ok(probe.includes('sudo sh "$SDIR/uninstall-macos.sh"'), 'a gépre tett eltávolító-másolat kell');
+  assert.ok(probe.includes('sudo cmp -s "$SDIR/uninstall-macos.sh" scripts/uninstall-macos.sh'));
+  assert.ok(read('src', 'helper', 'paths.ts').includes("return '/Library/Application Support/Breaker/state.json';"));
+  assert.ok(probe.includes(`GLABEL=${GUARD_LABEL}\n`), 'a próba más őrt nézne, mint amit a segéd tesz fel');
 });
 
 test('Windows: a próba a telepítő szkriptjével veszi fel a feladatot, és a segéd pipe-jára csatlakozik', () => {
@@ -43,6 +50,9 @@ test('Windows: a próba a telepítő szkriptjével veszi fel a feladatot, és a 
   // A telepítő a TELEPÍTETT exe-t adja a feladatnak, ahogy az app a saját útját.
   assert.ok(probe.includes('$installJs $exe $keyHash'));
   assert.ok(probe.includes('elseif ($action.Execute -ne $exe)'));
+  // Az őr: ugyanaz a feladatnév, és a végén a gépre tett eltávolító-másolat fut.
+  assert.ok(probe.includes(`$guardTask = '${GUARD_TASK_NAME}'`));
+  assert.ok(probe.includes("powershell -NoProfile -ExecutionPolicy Bypass -File $uninstallCopy"));
 });
 
 test('a kliens a protokoll parancsait küldi, ahogy az app', () => {

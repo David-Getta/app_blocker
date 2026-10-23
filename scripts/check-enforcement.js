@@ -4499,6 +4499,57 @@ const WIRES = [
     needle: 'run: bash ../scripts/check-play-bundle.sh',
     lost: 'a kiadás telepítési engedélyt kérő Play-csomagot is feltöltene',
   },
+  // AZ ŐR (#149). A segéd az app binárisán fut: ha az appot törlik, a hosts-
+  // blokk befagyott volna abban az állapotban, ahogy épp állt — ami szünetben
+  // volt, nyitva marad, a menetrend és a keret nem zár többé. Ingyenes lazítás,
+  // egy Kukába húzással. Az őr ilyenkor a szigorú blokkot tartja; ha bármelyik
+  // szeme kiesik, semmi nem hasal el — csak a törlés megint lazít.
+  {
+    file: 'desktop/src/helper/index.ts',
+    needle: '    writeStrictBlock(state, Date.now(), log);\n    try {\n      applyBlocklist(state, Date.now());',
+    lost: 'a szigorú blokk nem követné a lista változását — az app törlése után egy régi lista tiltana',
+  },
+  {
+    file: 'desktop/src/helper/index.ts',
+    needle: 'writeStrictBlock(state, Date.now(), log);\n        applyBlocklist(state, Date.now());',
+    lost: 'egy eltűnt szigorú blokkot a segéd körei nem írnák vissza',
+  },
+  {
+    file: 'desktop/src/helper/index.ts',
+    needle: '  setupGuard(log);',
+    lost: 'az őr nem települne: az app törlése megint befagyasztaná a tiltást',
+  },
+  {
+    file: 'desktop/src/helper/index.ts',
+    needle: 'const verdict = codeWatchStep(watch, markOf(watched), Date.now());',
+    lost: 'macOS-en a segéd a törölt appból futna tovább, és az őrrel felváltva írnák a hosts fájlt; '
+      + 'frissítés után a régi kód futna az újraindításig',
+  },
+  {
+    file: 'desktop/src/helper/guard.ts',
+    needle: "ensureUninstallCopy();\n      if (process.platform === 'darwin') await ensureGuardMac();",
+    lost: 'a szigorú blokk magyarázata egy nem létező eltávolítóra mutatna',
+  },
+  {
+    file: 'desktop/scripts/copy-static.js',
+    needle: "for (const f of ['uninstall-macos.sh', 'uninstall-windows.ps1'])",
+    lost: 'az eltávolító nem kerülne a csomagba — a segéd nem tudna másolatot tenni belőle',
+  },
+  {
+    file: 'desktop/scripts/uninstall-macos.sh',
+    needle: 'launchctl bootout system/hu.breaker.guard',
+    lost: 'a teljes eltávolítás után az őr a hosts-blokkot visszaírná, örökre',
+  },
+  {
+    file: 'desktop/scripts/uninstall-windows.ps1',
+    needle: 'schtasks /Delete /F /TN "BreakerGuard"',
+    lost: 'a teljes eltávolítás után az őr a hosts-blokkot visszaírná, örökre',
+  },
+  {
+    file: 'desktop/src/main/install.ts',
+    needle: 'const problem = macInstallLocationProblem(process.execPath);',
+    lost: 'lemezképről telepített segéd a leválasztáskor megállna, és ott az őr sem lép közbe',
+  },
   {
     file: 'desktop/src/main/main.ts',
     needle: "if (process.platform === 'win32') app.setAppUserModelId(APP_ID);",

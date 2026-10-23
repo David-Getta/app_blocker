@@ -23,6 +23,24 @@ import { CLIENT_KEY_ARG, isKeyHash } from './client-key';
 export const DAEMON_LABEL = 'hu.breaker.helper';
 export const TASK_NAME = 'BreakerHelper';
 
+/**
+ * Honnan telepíthető a segéd macOS-en — null, ha rendben, különben a mondat,
+ * amit a felület kiír. A segéd az app binárisán fut: lemezképről (/Volumes)
+ * vagy a rendszer karanténmásolatából (AppTranslocation) indítva a bináris a
+ * leválasztáskor eltűnik, a segéd nem indul többé. Az őr
+ * (shared/guard-script.ts) egy leválasztott lemezt nem tud megkülönböztetni
+ * egy kiadott lemeztől, ezért ott nem lép közbe — ilyen helyről tehát nem is
+ * telepítünk.
+ */
+export function macInstallLocationProblem(execPath: string): string | null {
+  const ok = /\.app\/Contents\/MacOS\/[^/]+$/.test(execPath)
+    && !execPath.includes('/AppTranslocation/')
+    && !execPath.startsWith('/Volumes/');
+  return ok
+    ? null
+    : 'Előbb tedd a Breakert az Alkalmazások mappába, és onnan indítsd: lemezképről vagy letöltésből indítva a segéd a lemez leválasztásakor megállna.';
+}
+
 /** XML-szöveg idézése a plist-be. */
 function xmlEscape(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');

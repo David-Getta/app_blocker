@@ -21,6 +21,9 @@ import { bumpRevisions } from './revisions';
 import { syncNow, syncToday } from './sync-client';
 import { createSyncSchedule } from './sync-schedule';
 import { repairTaskSettings } from './win-task';
+import { writeStrictBlock } from './strict';
+import { setupGuard } from './guard';
+import { codePaths, codeWatchStep, markOf, type CodeWatch } from './code-watch';
 import { hardenStateDir } from './win-acl';
 import { stateFilePath } from './paths';
 import * as path from 'path';
@@ -113,6 +116,9 @@ export function runHelper(): void {
     // helyes számlálók menjenek fel.
     bumpRevisions(state, state.sync?.deviceId ?? 'local', Date.now());
     saveState(state);
+    // A szigorú blokk a hosts ELŐTT: ha az app épp most tűnne el, az őr már a
+    // friss listát tartsa (lásd shared/strict-block.ts).
+    writeStrictBlock(state, Date.now(), log);
     try {
       applyBlocklist(state, Date.now());
     } catch (e) {
@@ -155,6 +161,7 @@ export function runHelper(): void {
         commit();
       } else {
         // periodic belt-and-braces re-check even if fs.watch missed something
+        writeStrictBlock(state, Date.now(), log);
         applyBlocklist(state, Date.now());
       }
     } catch (e) {
@@ -249,6 +256,27 @@ export function runHelper(): void {
     ownerUid: ownerUid !== undefined && Number.isFinite(ownerUid) ? ownerUid : undefined,
     clientKeySha256,
   });
+
+  // AZ ŐR (shared/guard-script.ts): ha az app eltűnik, a szigorú blokkot tartja.
+  // A csatorna UTÁN, és sosem dob: a segéd akkor is felel, ha ez nem sikerül.
+  setupGuard(log);
+
+  // A SAJÁT KÓD FIGYELÉSE (macOS, code-watch.ts): frissítés után újraindulás az
+  // új kóddal, az app eltűnése után kilépés — onnan az őr veszi át.
+  const watched = process.platform === 'darwin' ? codePaths(process.execPath, process.argv[1]) : null;
+  if (watched) {
+    const watch: CodeWatch = { base: markOf(watched), pending: null };
+    setInterval(() => {
+      const verdict = codeWatchStep(watch, markOf(watched), Date.now());
+      if (verdict === 'changed') {
+        log('az app frissült: újraindulok az új kóddal');
+        process.exit(0);
+      } else if (verdict === 'gone') {
+        log('az app eltűnt: kilépek, az őr veszi át');
+        process.exit(0);
+      }
+    }, 15_000);
+  }
 }
 
 // Direct execution: `node dist/helper/index.js` (launchd/schtasks entry).

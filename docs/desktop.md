@@ -190,21 +190,75 @@ fájlban maradnak, és azt csak rendszergazdai joggal lehet átírni. Ez szánd�
 — a gépen ez a törlés-védelem (a telefonok eszközadminjának/Képernyő-idejének
 megfelelője, [`feature-uninstall-guard.md`](feature-uninstall-guard.md)).
 
-**Őszinte korlát (v0.4.257):** a segéd az app saját binárisán fut, tehát az app
-törlése után a következő indulástól nem fut. Onnantól a tiltás **befagy**
-abban az állapotban, ahogy a törléskor állt: ami épp szünetben volt, nyitva
-marad; amit a menetrend, a napi keret vagy egy munkamenet zárt volna később,
-az nem zárul; és a hosts kézi átírását sem állítja vissza senki. macOS-en a
-saját telepítésű `Breaker.app` rendszergazdai jelszó nélkül is a Kukába
-húzható — ez tehát egy ingyenes lazítás. Készül a javítása: a bináris
-hiányában a legszigorúbb blokk álljon be.
+### Az őr: ha az app eltűnik (v0.4.258)
+
+A segéd az app saját binárisán fut — ha az appot törlik, a segéd nem indul
+többé. A v0.4.257-ig a tiltás ilyenkor **befagyott** abban az állapotban, ahogy
+a törléskor állt: ami épp szünetben volt, nyitva maradt; amit a menetrend, a
+napi keret vagy egy munkamenet zárt volna később, az nem zárult. macOS-en a
+saját telepítésű `Breaker.app` jelszó nélkül a Kukába húzható — ingyenes
+lazítás volt.
+
+Most a segéd mellett egy kicsi **őr** fut (macOS: `hu.breaker.guard`
+LaunchDaemon, percenként; Windows: `BreakerGuard` ütemezett feladat, a géppel
+és ötpercenként, SYSTEM-ként). A segéd maga teszi fel, rootként/SYSTEM-ként,
+minden induláskor — a meglévő telepítéseken sem kér új jelszót.
+
+- A segéd minden változáskor kiír egy **szigorú blokkot**: a lista minden
+  oldalának minden nevét, szünettől, menetrendtől, kerettől függetlenül. Mellé
+  az eltávolító szkript másolatát is (macOS: a segéd állapotmappájába,
+  Windowson a `C:\Program Files\Breaker Guard` mappába).
+- Az őr **csak akkor** nyúl a hosts fájlhoz, ha az app binárisa nincs meg:
+  akkor a szigorú blokkot teszi a helyére, és a következő futásán visszateszi,
+  ha kiveszik. A blokk első sora megmondja, miért tilt minden, és hol a teljes
+  eltávolító.
+- Az őr nem rak össze semmit, csak ellenőriz és bemásol: a szigorú blokkban
+  csak megjegyzés és `0.0.0.0` / `::` tiltó sor lehet, és csak akkor írja be,
+  ha a fájl és a mappája a rooté / a SYSTEM-é. Egy idegen fájl így sem
+  irányíthat el egy nevet.
+- Ha az appot **visszateszed ugyanoda**, a segéd újra indul (a launchd, vagy
+  ha az feladta, az őr indítja), a saját blokkját írja, és minden a régi.
+- macOS-en a segéd a saját kódját is figyeli: ha az app **frissült**, egy-két
+  percen belül újraindul az új kóddal (eddig a régi kód futott a következő
+  újraindításig); ha az app eltűnt, kilép, és az őr veszi át. Windowson egy
+  frissítés leállítja a segédet, és a Feladatütemező magától nem indítja újra
+  — ezt is az őr teszi meg, ha a fájlok a helyükön vannak és nem fut telepítő.
+
+**Őszinte korlátok:**
+
+- Az app **áthelyezése** is eltűnésnek számít: aki máshova húzza, annál a
+  szigorú blokk áll be, amíg vissza nem teszi — vagy az új helyről újra nem
+  telepíti a segédet.
+- macOS-en lemezképről (`/Volumes/…`) vagy a rendszer karanténmásolatából
+  (App Translocation) futó appnál az őr nem lép közbe: egy leválasztott
+  lemezt nem tud megkülönböztetni egy kiadott lemeztől. Ezért ilyen helyről a
+  segédet nem is telepítjük — előbb az Alkalmazások mappába kell tenni.
+- Windowson az őr csak **tartós** eltűnés után ír (két futása között, kb.
+  5–10 perc): egy frissítés pár percre cseréli a fájlokat, és közben nem
+  zárhat le mindent. Az eltávolítás után ennyi ideig még a régi blokk áll.
+- Az NSIS-eltávolító (Gépház → Alkalmazások) a feladatokhoz és a hosts
+  fájlhoz nem nyúl — az app eltávolítása nem lehet ingyenes lazítás. Csak
+  kimondja, mi marad, és hol a teljes eltávolító.
+- macOS-en az őr felkerülésekor a rendszer „Háttérelem hozzáadva”
+  értesítést mutathat — ez ő.
+- Az őr a hosts fájlt tartja, nem a böngésző saját titkosított DNS-ét — az
+  ugyanúgy a DoH-házirenden múlik, mint a segéd mellett.
+
+### A teljes eltávolítás
 
 A segéd leszereléséhez rendszergazdai jog és az eltávolító szkript kell:
 
 ```bash
-sudo sh desktop/scripts/uninstall-macos.sh        # macOS
-powershell -ExecutionPolicy Bypass -File desktop/scripts/uninstall-windows.ps1   # Windows (admin)
+sudo sh "/Library/Application Support/Breaker/uninstall-macos.sh"   # macOS — a segéd által a gépre tett másolat
+sudo sh desktop/scripts/uninstall-macos.sh                          # macOS — a tárolóból
+powershell -ExecutionPolicy Bypass -File "C:\Program Files\Breaker Guard\uninstall-windows.ps1"   # Windows (admin) — a gépre tett másolat
+powershell -ExecutionPolicy Bypass -File desktop/scripts/uninstall-windows.ps1                     # Windows (admin) — a tárolóból
 ```
+
+A szkript előbb a segédet állítja le (egy futó segéd induláskor újra
+felvenné az őrt), aztán az őrt, és csak utána veszi ki a hosts-blokkot —
+különben az őr visszaírná. macOS-en, ha bármelyik nem áll le, hangosan
+megáll, nem takarít félig.
 
 A szkript a böngészők DoH-házirendjét is leveszi, amit a segéd tett fel —
 különben a Breaker törlése után a böngésző „szervezet által felügyelt”

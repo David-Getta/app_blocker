@@ -14,8 +14,19 @@
 #   2. a futó felhasználóként, ahogy az app, csatlakozik a socketre, felvesz
 #      egy oldalt, és a rendszer feloldójával nézi, hogy tilt-e
 #      (helper-probe-client.js);
-#   3. a VALÓDI eltávolító után a démon, a plist, a socket és a hosts-blokk is
-#      eltűnik, a hosts többi része érintetlen.
+#   2c. AZ ŐR (#149, shared/guard-script.ts): a segéd maga teszi fel — a
+#      leíró, a szkript, a szigorú blokk és az eltávolító másolata a helyén;
+#   2d. az app eltűnik (elmozdítjuk, mint egy Kukába húzáskor): a segéd kilép
+#      (code-watch.ts), az őr a szigorú blokkot teszi a hosts fájlba, és a
+#      rendszer feloldója tilt;
+#   2e. a kézzel kivett blokkot az őr visszateszi;
+#   2f. ellenpróba: őr nélkül a kivett blokk kivéve marad — vagyis tényleg az
+#      őr tartja, nem egy még futó segéd; visszatöltve megint beáll;
+#   2g. az app visszakerül: a segéd újra fut, a saját blokkját írja, felel;
+#   3. a VALÓDI eltávolító — a segéd által a gépre tett MÁSOLATA, amire a
+#      szigorú blokk magyarázata mutat — után a démon, az őr, a plistek, a
+#      socket, az állapotmappa és a hosts-blokk is eltűnik, a hosts többi része
+#      érintetlen.
 # Kilépési kód 0, ha minden stimmel; különben 1.
 #
 # Használat (a desktop mappából, egy kész csomag mellett):
@@ -30,8 +41,41 @@ LABEL=hu.breaker.helper
 PLIST=/Library/LaunchDaemons/$LABEL.plist
 SOCK=/var/run/breaker.sock
 LOG=/Library/Logs/Breaker/helper.log
+GLABEL=hu.breaker.guard
+GPLIST=/Library/LaunchDaemons/$GLABEL.plist
+SDIR="/Library/Application Support/Breaker"
+NOTE='az app nem található'
 fail=0
 bad() { echo "HIBA: $*"; fail=1; }
+# wait_for <másodperc> <parancs…>: másodpercenként próbálja, amíg igaz nem lesz.
+wait_for() { local n=$1 i; shift; for ((i = 0; i < n; i++)); do "$@" && return 0; sleep 1; done; return 1; }
+helper_running() { sudo launchctl print system/$LABEL 2>/dev/null | grep -Eq '^[[:space:]]*pid = [0-9]+$'; }
+helper_stopped() { ! helper_running; }
+guard_loaded() { sudo launchctl print system/$GLABEL >/dev/null 2>&1; }
+guard_unloaded() { ! guard_loaded; }
+has_note() { grep -q "$NOTE" /etc/hosts; }
+no_note() { ! grep -q "$NOTE" /etc/hosts; }
+has_block() { grep -q 'BREAKER BLOCK BEGIN' /etc/hosts; }
+# A blokk kézi kivétele — ahogy egy root felhasználó tenné; a fájl helyben marad.
+strip_block() {
+  sudo /bin/sh -c "awk '/^# >>> BREAKER BLOCK BEGIN/{s=1} !s{print} /^# <<< BREAKER BLOCK END/{s=0}' /etc/hosts > /tmp/breaker-probe-hosts && cat /tmp/breaker-probe-hosts > /etc/hosts && rm -f /tmp/breaker-probe-hosts"
+}
+# A rendszer feloldója a tiltó címet adja-e (a böngésző útja, hosts-szal együtt).
+blocked() {
+  node -e "
+    const { isSinkhole } = require('./dist/shared/selftest.js');
+    require('dns').promises.lookup(process.argv[1], { all: true }).then(
+      (a) => process.exit(a.length > 0 && a.every((x) => isSinkhole(x.address)) ? 0 : 1),
+      () => process.exit(1));
+  " "$DOMAIN"
+}
+stat_of() { sudo stat -f '%Su %Lp' "$1" 2>&1; }
+show_guard() {
+  echo "--- az őr naplója ---"; sudo cat "$SDIR/guard.log" 2>&1 | tail -20
+  echo "--- a segéd naplója ---"; sudo tail -30 "$LOG" 2>&1
+  echo "--- a segéd démonja ---"; sudo launchctl print system/$LABEL 2>&1 | grep -E 'state|pid|last exit|runs' | head
+  echo "--- a hosts fájl ---"; cat /etc/hosts
+}
 
 [ -x "$EXE" ] || { echo "HIBA: nincs meg a becsomagolt app: $EXE"; exit 1; }
 [ "$(id -u)" != 0 ] || { echo "HIBA: a próbát a sima felhasználó futtassa (a telepítő is az), ne root"; exit 1; }
@@ -58,11 +102,63 @@ fi
 sudo grep -q "BREAKER BLOCK BEGIN" /etc/hosts || bad "a hosts-ban nincs Breaker-blokk"
 ls -l "$SOCK" 2>/dev/null | grep -q "^s.* $(id -un) " || bad "a socket nem a telepítő felhasználóé: $(ls -l "$SOCK" 2>&1)"
 
-# 3. A valódi eltávolító — és utána semmi nem maradhat.
-sudo sh scripts/uninstall-macos.sh >/dev/null || bad "az eltávolító hibával állt meg"
+# 2c. AZ ŐR. A telepítő parancsa nem tud róla: a segéd teszi fel induláskor,
+# rootként — a meglévő telepítéseken is, újabb jelszókérés nélkül.
+wait_for 30 guard_loaded || bad "az őr 30 másodperc alatt sem töltődött be (a segéd nem tette fel)"
+[ "$(stat_of "$GPLIST")" = "root 644" ] || bad "az őr leírója: $(stat_of "$GPLIST")"
+[ "$(stat_of "$SDIR/guard.sh")" = "root 755" ] || bad "az őr szkriptje: $(stat_of "$SDIR/guard.sh")"
+[ "$(stat_of "$SDIR/strict-hosts")" = "root 600" ] || bad "a szigorú blokk: $(stat_of "$SDIR/strict-hosts")"
+sudo grep -qx "0.0.0.0 $DOMAIN" "$SDIR/strict-hosts" || bad "a szigorú blokkban nincs benne: $DOMAIN"
+sudo cmp -s "$SDIR/uninstall-macos.sh" scripts/uninstall-macos.sh \
+  || bad "az eltávolító másolata hiányzik, vagy eltér a csomagolttól"
+sudo grep -q 'az őr a helyén' "$LOG" || bad "a segéd naplójában nincs: az őr a helyén"
+has_note && bad "az őr akkor is a szigorú blokkot írta, amikor az app a helyén volt"
+
+# 2d. AZ APP ELTŰNIK. A segéd a saját kódját figyeli: ha a bináris egy percig
+# hiányzik, kilép (különben a törölt fájlból futna tovább). Utána az őr a
+# következő percében a szigorú blokkot teszi a hosts fájlba.
+mv "$APP" "$APP.away" || bad "az appot nem tudtam elmozdítani"
+wait_for 150 helper_stopped || bad "a segéd az app eltűnése után is fut (a kód-figyelő nem léptette ki)"
+sudo grep -q 'az app eltűnt: kilépek' "$LOG" || bad "a segéd naplójában nincs: az app eltűnt"
+wait_for 150 has_note || bad "az őr nem tette a helyére a szigorú blokkot"
+grep -qx "0.0.0.0 $DOMAIN" /etc/hosts || bad "a hosts szigorú blokkjában nincs: $DOMAIN"
+wait_for 15 blocked || bad "a szigorú blokk mellett a rendszer feloldója nem tilt: $DOMAIN"
+[ "$(grep -c 'BREAKER BLOCK BEGIN' /etc/hosts)" = 1 ] || bad "a hosts-ban nem egy blokk van"
+
+# 2e. A kézzel kivett blokkot visszateszi.
+strip_block
+has_block && bad "a próba nem tudta kivenni a blokkot"
+wait_for 100 has_note || bad "a kézzel kivett szigorú blokkot az őr nem tette vissza"
+
+# 2f. ELLENPRÓBA: őr nélkül a kivett blokk kivéve marad — tehát az előbb
+# tényleg az őr tette vissza, nem egy még futó segéd.
+sudo launchctl bootout system/$GLABEL 2>/dev/null
+wait_for 10 guard_unloaded || bad "az őr nem állt le"
+strip_block
+sleep 75
+has_block && bad "őr nélkül is visszakerült a blokk — akkor nem az őr tartja (fut még a segéd?)"
+sudo launchctl bootstrap system "$GPLIST" || bad "az őr nem töltődött vissza"
+wait_for 60 has_note || bad "visszatöltve az őr nem tette a helyére a szigorú blokkot"
+
+# 2g. AZ APP VISSZAKERÜL: a segéd újra fut (a launchd vagy az őr indítja), és a
+# saját blokkját írja — a magyarázó sor eltűnik, a tiltás marad.
+mv "$APP.away" "$APP" || bad "az appot nem tudtam visszatenni"
+wait_for 120 helper_running || bad "az app visszatétele után a segéd nem indult el"
+wait_for 60 no_note || bad "a visszatett app segédje nem írta vissza a saját blokkját"
+grep -qx "0.0.0.0 $DOMAIN" /etc/hosts || bad "a segéd blokkjából hiányzik: $DOMAIN"
+wait_for 30 node -e "require('net').connect('$SOCK').on('connect',()=>process.exit(0)).on('error',()=>process.exit(1))" \
+  || bad "a visszatett app segédje nem felel a socketen"
+[ "$fail" = 0 ] || show_guard
+
+# 3. A valódi eltávolító — a segéd által a gépre tett másolat, amire a szigorú
+# blokk magyarázata mutat —, és utána semmi nem maradhat.
+sudo sh "$SDIR/uninstall-macos.sh" >/dev/null || bad "az eltávolító hibával állt meg"
 sleep 1
 sudo launchctl print system/$LABEL >/dev/null 2>&1 && bad "a démon az eltávolítás után is fut"
+guard_loaded && bad "az őr az eltávolítás után is be van töltve"
 [ -e "$PLIST" ] && bad "a plist az eltávolítás után is megvan"
+[ -e "$GPLIST" ] && bad "az őr leírója az eltávolítás után is megvan"
+sudo test -e "$SDIR" && bad "az állapotmappa (a szigorú blokkal, az őrrel) az eltávolítás után is megvan"
 pgrep -f "$ENTRY" >/dev/null && bad "a segéd folyamata az eltávolítás után is fut"
 grep -q "BREAKER BLOCK" /etc/hosts && bad "a hosts-blokk az eltávolítás után is bent van"
 # Üres sorok nélkül nézzük: a segéd egy üres sort tesz a blokk elé, és az
@@ -77,6 +173,6 @@ if [ -e "$SOCK" ] && node -e "require('net').connect('$SOCK').on('connect',()=>p
 fi
 
 if [ "$fail" = 0 ]; then
-  echo "Segéd-próba OK (a becsomagolt binárison, a telepítő módján indítva: felel, tilt; az eltávolító után nem fut, és a hosts a régi)"
+  echo "Segéd-próba OK (a becsomagolt binárison, a telepítő módján indítva: felel, tilt; az őrt maga teszi fel; az app eltűnésekor kilép, és az őr a szigorú blokkot tartja — kézi kivétel után is; az app visszatételekor újra fut; az eltávolító másolata után semmi nem fut, és a hosts a régi)"
 fi
 exit "$fail"

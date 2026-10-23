@@ -1,7 +1,12 @@
 // Domain normalization, preset expansion and hosts-file block building.
 // Shared by the privileged helper (authoritative) and by tests.
 
-const DOMAIN_RE = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$/;
+/**
+ * Egy hosztnév alakja, horgonyok nélkül — a segéd őre (shell és PowerShell)
+ * ugyanezzel ellenőrzi a szigorú blokk sorait (shared/strict-block.ts).
+ */
+export const DOMAIN_RE_SOURCE = '[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+';
+const DOMAIN_RE = new RegExp(`^${DOMAIN_RE_SOURCE}$`);
 
 /**
  * Accepts anything the user may paste ("https://www.youtube.com/watch?v=x",

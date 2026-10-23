@@ -562,6 +562,62 @@ A helper root/SYSTEM jogú, ezért a vele kommunikáló helyi socketet szűkítj
   Őszinte korlát: a named pipe a hálózaton (SMB) is megszólítható — a
   kulcs nélkül ott sem felel, de a kapu a kulcs, nem a hely.
 
+### Az őr: ha az app eltűnik
+
+A segéd az app saját binárisán fut (macOS: a LaunchDaemon az app binárisát
+indítja `ELECTRON_RUN_AS_NODE`-dal, a belépési pont az `app.asar`-ban;
+Windows: a SYSTEM-feladat a telepített `Breaker.exe --helper`-t). Ha az appot
+törlik, a segéd nem indul többé, és a hosts-blokk **befagyott** volna abban az
+állapotban, ahogy épp állt — a szünetelő oldal nyitva, a menetrend és a keret
+zárás nélkül. A saját telepítésű `Breaker.app` jelszó nélkül a Kukába húzható:
+ingyenes lazítás. (v0.4.257-ig így volt.)
+
+- **A szigorú blokk** (`shared/strict-block.ts`, `helper/strict.ts`): a segéd
+  minden változáskor — és biztonságból a köreiben is — kiírja az
+  állapotmappájába a kész hosts-blokkot a lista minden oldalának minden
+  nevével, szünettől, menetrendtől, kerettől függetlenül, és egy magyarázó
+  sorral (miért tilt minden, hol a teljes eltávolító). Csak a root/SYSTEM írja,
+  véletlen nevű, kizárólagos ideiglenes fájlon át.
+- **Az őr** (`shared/guard-script.ts`): macOS-en egy `/bin/sh` szkript
+  percenkénti LaunchDaemonként (`hu.breaker.guard`), Windowson egy csak-ASCII
+  PowerShell-szkript a 64 bites Program Files alatt, SYSTEM-feladatként
+  (`BreakerGuard`, a géppel és ötpercenként). A segéd telepíti induláskor
+  (`helper/guard.ts`), a teljes eltávolító másolatával együtt — ez a
+  meglévő gépekre is újabb jóváhagyás nélkül jut el. Az őr a segéd saját
+  leírójából (plist / feladat) olvassa, hol az app, és csak akkor ír, ha a
+  bináris (vagy az `app.asar`) nincs meg, és a segéd sem fut: két megnézés
+  között várva, közvetlenül írás előtt még egyszer nézve; Windowson csak
+  tartós (két futáson átívelő) eltűnés után, és ha nem fut a saját
+  telepítőnk — egy frissítés pár percre cseréli a fájlokat.
+- **Bizalom.** Az őr nem rak össze semmit: a szigorú blokk minden sora
+  megjegyzés vagy `0.0.0.0` / `::` tiltó sor a segéd saját hosztnév-mintájával
+  (`DOMAIN_RE_SOURCE`, a TS-ben és az őrben ugyanaz a forrás), a jelölők a
+  helyükön, a méret korlátos; a fájl és a mappája (macOS-en a szülők is) a
+  rooté / a SYSTEM-é, más nem írhatja, nem szimbolikus link. A hosts fájlban
+  csak a saját jelölői közé ír; felemás jelölőknél nem nyúl hozzá. Ahol nem
+  tud dönteni (nincs segéd-leíró, lemezképről vagy karanténból futó app),
+  ott nem ír — ilyen helyről a segédet nem is telepítjük
+  (`macInstallLocationProblem`).
+- **A segéd a saját kódját figyeli** (`helper/code-watch.ts`, macOS): ha a
+  bináris vagy az `app.asar` megváltozott vagy eltűnt, és egy percig úgy
+  marad, kilép — a launchd (`KeepAlive`) az új kóddal indítja újra, vagy, ha a
+  bináris nincs meg, az őr veszi át. Enélkül a törölt fájlból futna tovább, és
+  az őrrel felváltva írnák a hosts fájlt. (Az `original-fs`-sel néz: az
+  Electron `fs`-e a már megnyitott archívumot gyorsítótárból adná.)
+- **Vissza a régire.** Ha az app a helyén van, de a segéd nem fut, az őr
+  elindítja (macOS-en a launchd feladhatta a hiányzó bináris indítását;
+  Windowson egy frissítés leállítja a feladatot). A segéd a saját blokkját
+  írja, a magyarázó sor eltűnik.
+- **Eltávolítás.** Az NSIS-eltávolító a feladatokhoz és a hosts fájlhoz nem
+  nyúl (az app eltávolítása nem lehet ingyenes lazítás), csak kimondja, mi
+  marad. A teljes eltávolító előbb a segédet állítja le (egy futó segéd újra
+  felvenné az őrt), aztán az őrt, és csak utána veszi ki a hosts-blokkot.
+- **CI-próba** a becsomagolt appon, mindkét gépen: a segéd felteszi az őrt; az
+  app elmozdítása / eltávolítása után a szigorú blokk áll be, a kézzel
+  kivettet visszateszi, őr nélkül (ellenpróba) kivéve marad; az app
+  visszatételekor a segéd újra fut; a gépre tett eltávolító-másolat után
+  semmi nem marad. Windowson egy sima felhasználó az őr mappáját nem írja.
+
 ### A böngésző-híd: kifelé olvas, befelé csak szigorít
 
 A gép és a böngésző-bővítmény között egy helyi HTTP-híd él (`127.0.0.1`,
@@ -1042,8 +1098,10 @@ vakfoltjától.
 
 A desktopon a GUI és a privilegizált helper **külön folyamat**, és a frissítés
 csak az elsőt cseréli le azonnal: a root démont a launchd (Windowson az
-ütemező) a következő rendszerindításig a régi bináris alapján futtatja. Ez a
-normál működés, nem hiba — de a két fél ilyenkor különböző protokollt beszél.
+ütemező) a következő rendszerindításig a régi bináris alapján futtatta. A
+v0.4.258 óta macOS-en a segéd a saját kódját figyeli, és egy-két percen belül
+újraindul az újjal; Windowson a frissítés leállítja, és az őr indítja újra (lásd
+„Az őr: ha az app eltűnik”). Addig a két fél különböző protokollt beszélhet.
 
 Ezért van a `HELPER_VERSION` a `shared/protocol.ts`-ben. Bumpolni kell, amikor
 új `op` kerül a kérés-unióba vagy egy válasz alakja változik. A GUI minden
