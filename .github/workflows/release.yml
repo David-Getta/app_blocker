@@ -45,68 +45,51 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **Windowson a védelem végre felmegy.** Ha az app a szokásos helyre
-          (`C:\Program Files`) települt, a „Védelem telepítése” gomb eddig hibával
-          megállt, és a tiltást tartó háttérszolgáltatás fel sem került — a kezdetek
-          óta így volt. Most egy új próba fogta meg, ami a valódi telepítőt futtatja,
-          és a szolgáltatással egy oldalt le is tilt. **Ha a gombot korábban hiába
-          nyomtad meg, nyomd meg most újra.** A szolgáltatás mostantól akkumulátoron is
-          fut, napok múlva sem áll le magától, és ha hibával kilép, újraindul. Az
-          állapotát — benne a szinkron kulcsait — csak a rendszer és a rendszergazdák
-          érik el; ahol eddig is futott (egyedi telepítési helyen), ott a gép többi
-          felhasználója is olvashatta.
+          **A gépen az app törlése többé nem lazít.** A tiltást tartó háttérszolgáltatás
+          az app saját programfájlján fut. Ha az appot törölted (macOS-en elég volt a
+          Kukába húzni, jelszó nélkül), a szolgáltatás nem indult többé, és a tiltás
+          abban az állapotban maradt, ahogy épp állt: ami épp szünetben volt, nyitva
+          maradt, a menetrend, a napi keret és a munkamenet nem zárt többé.
 
-          **Az asztali app támogatott alapra költözött (Electron 44).**
-          Eddig az Electron 31-en futott, ami 2025 eleje óta nem kap biztonsági
-          javítást. Ezzel a verzióval a beépített böngészőmotor és a Node is friss,
-          javításokat kapó változat.
+          Most a futó szolgáltatás a törölt appból is tovább tilt a beállított
+          szabályokkal, és mellette egy kis **őr** fut. Ha a szolgáltatás leáll
+          (legkésőbb a gép újraindításakor), és az app nincs meg — vagy a helyén van,
+          de a szolgáltatás percek óta nem indul el —, az őr a teljes listádat tiltja,
+          a szünetelő oldalt is; ha valaki kézzel kiveszi, visszateszi. A hosts fájl
+          első sora megmondja, miért tilt minden, és hol a teljes eltávolító. Ha az
+          appot visszateszed ugyanoda, minden a régi. Az őr csak szigorít: amit épp
+          tilt a gép, azt sosem veszi ki.
 
-          Amit ez neked jelent:
+          - **A meglévő gépeken egy jóváhagyás kell.** macOS-en a frissítés után az
+            app a „Háttérszolgáltatás frissítése” sávot mutatja: egy jelszó (vagy egy
+            újraindítás), és az őr felkerül. Windowson, ha a frissítés után az app a
+            védelem telepítését kéri, ugyanígy egy jóváhagyás; különben a következő
+            újraindításkor kerül fel. Addig az app törlése még a régi módon fagyaszt.
+          - **Windowson** az őr csak tartós eltűnés után lép (kb. 5–10 perc): egy
+            frissítés pár percre cseréli a fájlokat, és közben nem zárhat le mindent.
+            A Gépház eltávolítója a védelemhez nem nyúl, csak megmondja, mi marad, és
+            hol a teljes eltávolító. A cserélhető meghajtóra telepített app kihúzása is
+            eltűnésnek számít.
+          - **macOS-en** az őr felkerülésekor a rendszer „Háttérelem hozzáadva”
+            értesítést mutathat.
+          - **Az áthelyezés is eltűnésnek számít.** Ha az appot máshova húzod, a
+            szolgáltatás következő indulásától a teljes lista tilt, amíg vissza nem
+            teszed.
+          - **macOS-en** frissítés után a szolgáltatás — mint eddig — a következő
+            újraindításig (vagy a „Háttérszolgáltatás frissítése” gombig) a régi
+            kóddal fut: szándékosan nem indul újra magától egy fájlváltozásra.
+          - **Lemezképről nem telepíthető a védelem.** Ha a Breakert közvetlenül a
+            letöltött lemezképről indítod, előbb tedd az Alkalmazások mappába — onnan
+            indítva a védelem a lemez leválasztásakor megállna.
 
-          - **Rendszerkövetelmény: macOS 13 (Ventura) vagy újabb, Windows 10 vagy
-            újabb.** Az Electron 44 a macOS 12-t már nem támogatja. macOS 12-n (és
-            régebbin) az app azon a verzión marad, ami fut rajta, és a v0.4.241 óta
-            kiadott verziók a verziószámuk alatt ki is mondják, miért nem frissülnek
-            tovább. Az utolsó verzió, ami macOS 12-n még elindul, a v0.4.256: ha
-            régebbi fut, a DMG-je kézzel letölthető a [v0.4.256 kiadásról](https://github.com/David-Getta/app_blocker/releases/tag/v0.4.256).
-          - **A v0.4.241-nél régebbi Mac-appok ezt a verziót nem látják.** A Mac
-            frissítő-csomagjának neve megváltozott (`…-darwin13.zip` — a név hordozza
-            a rendszerkövetelményt), és ezt csak a v0.4.241 óta kiadott appok értik.
-            Ha ilyen fut, egyszer töltsd le kézzel az új DMG-t; utána megint magától
-            frissül. Az Intel-es DMG nevében mostantól ott az `x64`.
-          - **macOS-en a rendszer megkérdezi, küldhet-e az app értesítést** — az új
-            verzió első megnyitásakor, amikor te is ott vagy, nem egy szünet végi
-            figyelmeztetésnél, ami közben elveszne. Engedd meg; az
-            **„Értesítés kipróbálása”** gomb megmutatja, hogy működik.
+          A teljes eltávolítás rendszergazdai lépés marad: az eltávolító szkript előbb a
+          szolgáltatást, aztán az őrt állítja le, és csak utána veszi ki a tiltást.
 
-          **A visszautasított értesítés most tényleg látszik.** Ha a rendszer egy
-          értesítést nem vesz át (macOS-en nincs engedély; Windowson nem tudja
-          feldobni), a beállítások lapja csendben kimondja, és megmondja, hol
-          kapcsolhatod be. Ezt a v0.4.242 óta ígértük, de a sor sosem jelent meg: a
-          böngészős értesítés hibáját a keretrendszer nem adta tovább az appnak. Most
-          az értesítést maga az app küldi, és a rendszer válasza visszajön — a
-          próba-gomb is ezt mondja: átvette, visszautasította, vagy (ha az app maga
-          hibázna) hogy az az app hibája. A „háttérben fut tovább” jelzés is így megy:
-          ha a rendszer visszautasítja, a következő bezáráskor újra szól.
+          **Windowson a szolgáltatás a rendszer eszközeit a rendszer mappájából
+          indítja**, nem a keresési útvonalról — oda más is tehetne azonos nevű
+          programot.
 
-          **Windowson az eltávolítás után nem marad Breaker a Start menüben.** Az új
-          alap az első értesítéskor a saját Start menüdbe is tesz egy Breaker
-          parancsikont (ez kell az értesítésre kattintáshoz); az eltávolító ezt is
-          leveszi.
-
-          **Macen a fiók-panel nem ígér kilépéskori telepítést.** Az aláíratlan
-          Mac-app a letöltött frissítést az „Újraindítás és frissítés” gombra rakja
-          fel; a panel eddig azt írta, hogy kilépéskor magától települ.
-
-          A védelem, a szabályok és a beállítások nem változtak.
-
-          ### Ami a v0.4.256-ban jött
-
-          **Javítások a titkosított DNS (DoH) körül — egy alapos átvizsgálás után.**
-
-          #### Ami a v0.4.255-ben jött
-
-          **Macen a DoH-zár megmondja, hatott-e.**
+          A szabályok, a beállítások és a telefonos appok nem változtak.
           NOTES
           fi
 
