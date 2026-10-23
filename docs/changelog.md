@@ -8,6 +8,7 @@ kettővel korábbiban.
 
 | Verzió | Nap | Mi újság |
 |---|---|---|
+| v0.4.259 | 2026-10-23 | Windowson a védelem csak a Program Files alól települ |
 | v0.4.258 | 2026-10-23 | a gépen az app törlése többé nem lazít |
 | v0.4.257 | 2026-10-22 | Electron 44, macOS 13, értesítések |
 | v0.4.256 | 2026-10-15 | a DoH-kiadások átvizsgálásának javításai |
