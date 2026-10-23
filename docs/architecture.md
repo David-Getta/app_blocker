@@ -567,10 +567,11 @@ A helper root/SYSTEM jogú, ezért a vele kommunikáló helyi socketet szűkítj
 A segéd az app saját binárisán fut (macOS: a LaunchDaemon az app binárisát
 indítja `ELECTRON_RUN_AS_NODE`-dal, a belépési pont az `app.asar`-ban;
 Windows: a SYSTEM-feladat a telepített `Breaker.exe --helper`-t). Ha az appot
-törlik, a segéd nem indul többé, és a hosts-blokk **befagyott** volna abban az
-állapotban, ahogy épp állt — a szünetelő oldal nyitva, a menetrend és a keret
-zárás nélkül. A saját telepítésű `Breaker.app` jelszó nélkül a Kukába húzható:
-ingyenes lazítás. (v0.4.257-ig így volt.)
+törlik, a futó segéd még tilt, de a következő indulásakor (macOS-en legkésőbb
+a gép újraindításakor) nem indul többé, és a hosts-blokk **befagyott** volna
+abban az állapotban, ahogy épp állt — a szünetelő oldal nyitva, a menetrend
+és a keret zárás nélkül. A saját telepítésű `Breaker.app` jelszó nélkül a
+Kukába húzható: ingyenes lazítás. (v0.4.257-ig így volt.)
 
 - **A szigorú blokk** (`shared/strict-block.ts`, `helper/strict.ts`): a segéd
   minden változáskor — és biztonságból a köreiben is — kiírja az
@@ -638,12 +639,19 @@ ingyenes lazítás. (v0.4.257-ig így volt.)
   tud dönteni (nincs segéd-leíró, lemezképről vagy karanténból futó app),
   ott nem ír — ilyen helyről a segédet nem is telepítjük
   (`macInstallLocationProblem`).
-- **A segéd a saját kódját figyeli** (`helper/code-watch.ts`, macOS): ha a
-  bináris vagy az `app.asar` megváltozott vagy eltűnt, és egy percig úgy
-  marad, kilép — a launchd (`KeepAlive`) az új kóddal indítja újra, vagy, ha a
-  bináris nincs meg, az őr veszi át. Enélkül a törölt fájlból futna tovább, és
-  az őrrel felváltva írnák a hosts fájlt. (Az `original-fs`-sel néz: az
-  Electron `fs`-e a már megnyitott archívumot gyorsítótárból adná.)
+- **A segéd a saját kódját figyeli, de nem lép ki** (`helper/code-watch.ts`,
+  macOS): ha a bináris vagy az `app.asar` megváltozott vagy eltűnt, és egy
+  percig úgy marad, naplózza — és fut tovább. Egy kiadatlan változat ilyenkor
+  kilépett (hogy frissítés után az új kód fusson), de akkor a launchd
+  (`KeepAlive`) — vagy az őr — azt indította volna újra rendszerjoggal, ami épp
+  az app mappájában van: a rendszerjoggal futó kódot egy fájlművelet cserélte
+  volna, nem rendszergazdai lépés vagy újraindítás. A törölt appból futó segéd tovább tilt (a
+  megnyitott fájlok a törlés után is olvashatók); az őr a launchd szerinti
+  folyamat-azonosítóból élőnek látja, és nem ír — a kettő nem írja felváltva a
+  hosts fájlt. Ha leáll, legkésőbb a gép újraindításakor, az őr veszi át. Hogy
+  a segéd kódjában sehol nincs kilépés, azt egy teszt nézi. (Az
+  `original-fs`-sel néz: az Electron `fs`-e a már megnyitott archívumot
+  gyorsítótárból adná.)
 - **Vissza a régire.** Ha az app a helyén van, de a segéd nem fut, az őr
   elindítja (macOS-en a launchd feladhatta a hiányzó bináris indítását;
   Windowson egy frissítés leállítja a feladatot). A segéd a saját blokkját
@@ -1157,12 +1165,11 @@ vakfoltjától.
 
 A desktopon a GUI és a privilegizált helper **külön folyamat**, és a frissítés
 csak az elsőt cseréli le azonnal: a root démont a launchd (Windowson az
-ütemező) a következő rendszerindításig a régi bináris alapján futtatta. A
-v0.4.258 óta macOS-en a segéd a saját kódját figyeli, és egy-két percen belül
-újraindul az újjal; Windowson a frissítés leállítja, és az őr indítja újra (lásd
-„Az őr: ha az app eltűnik”). A v0.4.258-ra frissítéskor ez még nem segít: ott
-a régi segéd fut tovább — ezért lépett a `HELPER_VERSION`, és ezért mutatja az
-app a sávot. Addig a két fél különböző protokollt beszélhet.
+ütemező) a következő rendszerindításig a régi bináris alapján futtatta. macOS-en
+ez így is marad: a segéd egy frissítés után szándékosan nem indul újra magától
+(a rendszerjoggal futó kódot ne egy fájlművelet cserélje — lásd „Az őr: ha az
+app eltűnik”). Windowson a frissítés leállítja, és az őr
+indítja újra. Addig a két fél különböző protokollt beszélhet.
 
 Ezért van a `HELPER_VERSION` a `shared/protocol.ts`-ben. Bumpolni kell, amikor
 új `op` kerül a kérés-unióba vagy egy válasz alakja változik. A GUI minden

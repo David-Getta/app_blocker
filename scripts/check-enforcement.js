@@ -4519,11 +4519,13 @@ const WIRES = [
     needle: '  setupGuard(log);',
     lost: 'az őr nem települne: az app törlése megint befagyasztaná a tiltást',
   },
+  // A kód-figyelő csak naplóz: egy kilépés után a launchd (vagy az őr) azt
+  // indítaná újra rendszerjoggal, ami épp az app mappájában van. Hogy a segéd
+  // sehol nem lép ki, azt a guard-helper teszt nézi.
   {
     file: 'desktop/src/helper/index.ts',
-    needle: 'const verdict = codeWatchStep(watch, markOf(watched), Date.now());',
-    lost: 'macOS-en a segéd a törölt appból futna tovább, és az őrrel felváltva írnák a hosts fájlt; '
-      + 'frissítés után a régi kód futna az újraindításig',
+    needle: "      if (verdict === 'changed' || verdict === 'gone') {\n        watch.base = mark;",
+    lost: 'a segéd naplója percenként ismételné, hogy az app frissült vagy eltűnt — vagy kilépne, és egy fájlművelet cserélné a rendszerjoggal futó kódot',
   },
   // Az őr csak szigorít: a hosts mostani blokkjának tiltó sorai is maradnak
   // (unió). Nélküle egy elavult szigorú blokk egy épp tiltott nevet kivenne.

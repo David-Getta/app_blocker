@@ -73,9 +73,10 @@ legalább kimondjuk, hova.
 - **Windows / macOS:** a gépen a védelmet egy rendszergazdai jogú
   háttérszolgáltatás tartja, ennek eltávolítása eleve rendszergazdai lépés és
   külön eltávolító szkript (`docs/desktop.md`) — ott már megvan a súrlódás.
-  Az app törlése pedig nem lazít: ha a bináris eltűnik, a segéd **őre** a
-  lista teljes, szigorú blokkját tartja a hosts fájlban (v0.4.258, lásd
-  `docs/desktop.md`, „Az őr: ha az app eltűnik”).
+  Az app törlése pedig nem lazít: a futó segéd tovább tilt, és ha leáll,
+  miközben a bináris nincs meg, a segéd **őre** a lista teljes, szigorú
+  blokkját tartja a hosts fájlban (v0.4.258, lásd `docs/desktop.md`, „Az őr:
+  ha az app eltűnik”).
 
 ## Kód
 

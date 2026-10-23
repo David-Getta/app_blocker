@@ -261,19 +261,23 @@ export function runHelper(): void {
   // A csatorna UTÁN, és sosem dob: a segéd akkor is felel, ha ez nem sikerül.
   setupGuard(log);
 
-  // A SAJÁT KÓD FIGYELÉSE (macOS, code-watch.ts): frissítés után újraindulás az
-  // új kóddal, az app eltűnése után kilépés — onnan az őr veszi át.
+  // A SAJÁT KÓD FIGYELÉSE (macOS, code-watch.ts): csak naplóz, SOSEM léptet ki.
+  // A rendszerjoggal futó kódot rendszergazdai lépés vagy a gép újraindítása
+  // cserélje, ne egy fájlművelet az app mappájában (lásd code-watch.ts).
   const watched = process.platform === 'darwin' ? codePaths(process.execPath, process.argv[1]) : null;
   if (watched) {
     const watch: CodeWatch = { base: markOf(watched), pending: null };
     setInterval(() => {
-      const verdict = codeWatchStep(watch, markOf(watched), Date.now());
+      const mark = markOf(watched);
+      const verdict = codeWatchStep(watch, mark, Date.now());
       if (verdict === 'changed') {
-        log('az app frissült: újraindulok az új kóddal');
-        process.exit(0);
+        log('az app frissült: a segéd a következő indulásig a régi kódon fut');
       } else if (verdict === 'gone') {
-        log('az app eltűnt: kilépek, az őr veszi át');
-        process.exit(0);
+        log('az app eltűnt: a segéd a beállított szabályokkal tovább tilt; ha leáll, az őr veszi át');
+      }
+      if (verdict === 'changed' || verdict === 'gone') {
+        watch.base = mark;
+        watch.pending = null;
       }
     }, 15_000);
   }

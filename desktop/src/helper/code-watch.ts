@@ -1,17 +1,21 @@
-// A segéd a saját kódját figyeli (macOS): ha az app frissült, újraindul az új
-// kóddal; ha az app eltűnt, kilép — onnan az őr veszi át.
+// A segéd a saját kódját figyeli (macOS): ha az app frissült vagy eltűnt, és
+// egy percig úgy marad, a segéd NAPLÓZ — de nem lép ki.
 //
-// MIÉRT. A segéd az app binárisán fut, a launchd pedig csak indításkor olvas
-// be: egy frissítés után a régi kód futott tovább a következő újraindításig
-// (ezért szólt a felület „régebbi segéd” sávja). Ha pedig az appot törlik, a
-// segéd a törölt fájlból fut tovább, és az őrrel (shared/guard-script.ts)
-// felváltva írnák a hosts fájlt. Ezért: ha a bináris vagy az app.asar
-// megváltozott — és egy percig nem változik tovább, tehát a csere véget ért —,
-// a segéd kilép. A launchd (KeepAlive) újraindítja az új kóddal; ha a bináris
-// nincs meg, nem tudja, és az őr a szigorú blokkot teszi a helyére.
+// MIÉRT NEM LÉP KI. A rendszerjoggal futó kódot egy rendszergazdai lépés (a
+// telepítés, a frissítő gomb) vagy a gép újraindítása cserélje — ne egy
+// fájlművelet az app mappájában. Ha a segéd egy cserére vagy egy eltűnésre
+// kilépne, a launchd (KeepAlive) — vagy az őr — azt indítaná újra, ami épp a
+// helyén van.
+//
+// A törölt appból futó segéd tovább tilt a beállított szabályokkal (a megnyitott
+// fájlok a törlés után is olvashatók); az őr ilyenkor élőnek látja, és nem ír.
+// Ha leáll — legkésőbb a gép újraindításakor —, a launchd nem tudja elindítani,
+// és az őr a szigorú blokkot teszi a helyére. Frissítés után a régi kód fut a
+// következő indulásig; ezt a felület „régebbi segéd” sávja mondja ki.
 //
 // Windowson nincs rá szükség: futó exe nem cserélhető, a frissítés a segédet
-// leállítja, és az őr indítja újra.
+// leállítja, és az őr indítja újra (az alapértelmezett helyet, a Program Files-t
+// csak rendszergazda írja).
 
 import * as fs from 'fs';
 

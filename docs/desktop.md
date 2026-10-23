@@ -208,9 +208,9 @@ minden induláskor — újabb jelszó nélkül.
   oldalának minden nevét, szünettől, menetrendtől, kerettől függetlenül. Mellé
   az eltávolító szkript másolatát is (macOS: a segéd állapotmappájába,
   Windowson a `C:\Program Files\Breaker Guard` mappába).
-- Az őr **csak akkor** nyúl a hosts fájlhoz, ha a segéd nem tilt: az app
-  binárisa nincs meg, vagy az app a helyén van, de a segéd percek óta nem
-  indul el (macOS-en öt, Windowson tíz perc — addig az őr próbálja
+- Az őr **csak akkor** nyúl a hosts fájlhoz, ha a segéd nem tilt: nem fut,
+  és az app binárisa nincs meg, vagy az app a helyén van, de a segéd percek
+  óta nem indul el (macOS-en öt, Windowson tíz perc — addig az őr próbálja
   elindítani). Akkor a szigorú blokkot teszi a helyére, és a következő
   futásán visszateszi, ha kiveszik. A blokk első sora megmondja, miért tilt
   minden, és hol a teljes eltávolító.
@@ -231,11 +231,15 @@ minden induláskor — újabb jelszó nélkül.
   Méretkorlát nincs: egy nagyon hosszú lista sem kapcsolhatja ki.
 - Ha az appot **visszateszed ugyanoda**, a segéd újra indul (a launchd, vagy
   ha az feladta, az őr indítja), a saját blokkját írja, és minden a régi.
-- macOS-en a segéd a saját kódját is figyeli: ha az app **frissült**, egy-két
-  percen belül újraindul az új kóddal; ha az app eltűnt, kilép, és az őr veszi
-  át. Windowson egy frissítés leállítja a segédet, és a Feladatütemező magától
-  nem indítja újra — ezt is az őr teszi meg, ha a fájlok a helyükön vannak és
-  nem fut telepítő.
+- macOS-en a **futó** segéd az app törlésére vagy cseréjére nem lép ki, csak
+  naplózza: a törölt appból is tovább tilt a beállított szabályokkal (a
+  menetrend, a keret és a munkamenet is zár), és az őr ilyenkor nem ír. Ha a
+  segéd leáll — legkésőbb a gép újraindításakor —, és az app nincs meg, az őr
+  a szigorú blokkot teszi a helyére. Szándékosan nem indul újra magától: a
+  rendszerjoggal futó kódot rendszergazdai lépés vagy a gép újraindítása
+  cserélje, ne egy fájlművelet az app mappájában. Windowson egy
+  frissítés leállítja a segédet, és a Feladatütemező magától nem indítja újra
+  — ezt is az őr teszi meg, ha a fájlok a helyükön vannak és nem fut telepítő.
 
 **Őszinte korlátok:**
 
@@ -244,6 +248,7 @@ minden induláskor — újabb jelszó nélkül.
   az app egy sávot mutat („Háttérszolgáltatás frissítése”, egy jelszó) — amíg
   ez nem történt meg, az app törlése még a régi módon befagyasztja a tiltást.
 - Az app **áthelyezése** is eltűnésnek számít: aki máshova húzza, annál a
+  segéd következő indulásakor (macOS-en legkésőbb az újraindításkor) a
   szigorú blokk áll be, amíg vissza nem teszi — vagy az új helyről újra nem
   telepíti a segédet. Windowson egy cserélhető meghajtóra telepített app
   kihúzása is eltűnés.

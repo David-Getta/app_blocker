@@ -27,7 +27,7 @@ const read = (rel: string): string => fs.readFileSync(path.join(findRepo(), rel)
 
 // ------------------------------------------------------------ a saját kód figyelése
 
-test('a kód-figyelő csak a lecsillapodott változásra dönt — frissítésre újraindul, eltűnésre kilép', () => {
+test('a kód-figyelő csak a lecsillapodott változásra dönt — frissülés vagy eltűnés', () => {
   const w: CodeWatch = { base: 'a|b', pending: null };
   assert.equal(codeWatchStep(w, 'a|b', 0), 'same');
   // Csere közben: az első eltérés még csak „ülepszik”.
@@ -53,6 +53,29 @@ test('a kód-figyelő csak a lecsillapodott változásra dönt — frissítésre
   codeWatchStep(both, 'missing|missing', 0);
   assert.equal(codeWatchStep(both, 'missing|missing', 59_999), 'settling');
   assert.equal(codeWatchStep(both, 'missing|missing', 60_000), 'gone');
+});
+
+test('a segéd sosem lép ki magától — a futó kódot csak rendszergazdai lépés vagy újraindítás cseréli', () => {
+  // Ha a segéd egy csomag-cserére vagy egy eltűnésre kilépne, a launchd
+  // (KeepAlive) — vagy az őr — azt indítaná újra rendszerjoggal, ami épp az app
+  // mappájában van. Ezért a segéd kódjában nincs kilépés; a kód-figyelő csak
+  // naplóz (code-watch.ts).
+  const dir = path.join(findRepo(), 'desktop', 'src', 'helper');
+  const offenders: string[] = [];
+  for (const f of fs.readdirSync(dir).filter((n) => n.endsWith('.ts'))) {
+    const code = fs.readFileSync(path.join(dir, f), 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/\/\/.*$/gm, '');
+    if (/process\.(exit|abort|reallyExit)\b|process\.kill\(\s*process\.pid/.test(code)) offenders.push(f);
+  }
+  assert.deepEqual(offenders, [], `kilépés a segédben: ${offenders.join(', ')}`);
+  // A figyelő be van kötve, és mindkét esetet naplózza.
+  const index = read('desktop/src/helper/index.ts');
+  assert.ok(index.includes('const verdict = codeWatchStep(watch, mark, Date.now());'));
+  assert.ok(index.includes("log('az app frissült: a segéd a következő indulásig a régi kódon fut');"));
+  assert.ok(index.includes("log('az app eltűnt: a segéd a beállított szabályokkal tovább tilt; ha leáll, az őr veszi át');"));
+  // Egy eset egyszer naplózódik: utána az új állapot az alap.
+  assert.ok(index.includes('watch.base = mark;'));
 });
 
 test('a kód-figyelő csak a becsomagolt segédet nézi: a bináris és az app.asar', () => {

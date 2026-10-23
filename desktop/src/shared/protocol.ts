@@ -492,11 +492,11 @@ export type HelperResponse =
  *         kiegészülve a sync mezővel
  * 0.6.5 — set_hostname (hosztnév felvétele ingyen, levétele próbatétellel)
  * 0.6.7 — set_reason (indok: miért tiltottad), a status oldalanként a reason mezővel
- * 0.6.8 — nincs új parancs: a segéd induláskor felteszi az őrt (helper/guard.ts), és
- *         macOS-en a saját kódját figyeli. Egy régebbi segéd egyiket sem teszi, és
- *         macOS-en egy frissítés után a következő újraindításig fut — ezért kell a
- *         sáv a frissítő gombbal. (A fenti 0.6.7-es sorhoz a konstans akkor nem
- *         lépett; ez a lépés azt is pótolja.)
+ * 0.6.8 — nincs új parancs: a segéd induláskor felteszi az őrt (helper/guard.ts).
+ *         Egy régebbi segéd ezt nem teszi, és macOS-en egy frissítés után a
+ *         következő újraindításig fut (az újabb is: szándékosan nem indul újra
+ *         magától) — ezért kell a sáv a frissítő gombbal. (A fenti 0.6.7-es
+ *         sorhoz a konstans akkor nem lépett; ez a lépés azt is pótolja.)
  * 0.6.6 — focus_recurrence (a csomag heti ablaka: felvétel ingyen, szűkítés/levétel próbatétel);
  *         a segéd az ablakban magától indítja a menetet
  * 0.6.4 — self_test (a tiltás tényleg érvényesül-e a rendszer feloldójánál),

@@ -16,8 +16,9 @@
 #      (helper-probe-client.js);
 #   2c. AZ ŐR (#149, shared/guard-script.ts): a segéd maga teszi fel — a
 #      leíró, a szkript, a szigorú blokk és az eltávolító másolata a helyén;
-#   2d. az app eltűnik (elmozdítjuk, mint egy Kukába húzáskor): a segéd kilép
-#      (code-watch.ts), az őr a szigorú blokkot teszi a hosts fájlba, és a
+#   2d. az app eltűnik (elmozdítjuk, mint egy Kukába húzáskor): a futó segéd
+#      NEM lép ki (code-watch.ts csak naplóz), tovább tilt; ha leáll (mint egy
+#      újraindításkor), az őr a szigorú blokkot teszi a hosts fájlba, és a
 #      rendszer feloldója tilt;
 #   2e. a kézzel kivett blokkot az őr visszateszi — akkor is, ha csak a nyitó
 #      jelölő maradt a fájlban;
@@ -25,8 +26,10 @@
 #      őr tartja, nem egy még futó segéd; visszatöltve megint beáll;
 #   2g. az app visszakerül: a segéd újra fut, a saját blokkját írja, felel;
 #   2h. az app a helyén van, de a segéd nem indul el (elrontott app.asar): a
-#      segéd kilép, a launchd hiába indítja újra, és öt perc után az őr a
-#      szigorú blokkot teszi a helyére; a javított app után a segéd újra fut;
+#      futó segéd a cserére NEM lép ki (a rendszerjoggal futó kódot nem egy
+#      fájlművelet cseréli); újraindításkor a launchd hiába indítja, és öt
+#      perc után az őr a szigorú blokkot teszi a helyére; a javított app után a
+#      segéd újra fut;
 #   3. a VALÓDI eltávolító — a segéd által a gépre tett MÁSOLATA, amire a
 #      szigorú blokk magyarázata mutat — után a démon, az őr, a plistek, a
 #      socket, az állapotmappa és a hosts-blokk is eltűnik, a hosts többi része
@@ -54,7 +57,7 @@ bad() { echo "HIBA: $*"; fail=1; }
 # wait_for <másodperc> <parancs…>: másodpercenként próbálja, amíg igaz nem lesz.
 wait_for() { local n=$1 i; shift; for ((i = 0; i < n; i++)); do "$@" && return 0; sleep 1; done; return 1; }
 helper_running() { sudo launchctl print system/$LABEL 2>/dev/null | grep -Eq '^[[:space:]]*pid = [0-9]+$'; }
-helper_stopped() { ! helper_running; }
+helper_pid() { sudo launchctl print system/$LABEL 2>/dev/null | sed -n 's/^[[:space:]]*pid = \([0-9][0-9]*\)$/\1/p' | head -n 1; }
 guard_loaded() { sudo launchctl print system/$GLABEL >/dev/null 2>&1; }
 guard_unloaded() { ! guard_loaded; }
 has_note() { grep -q "$NOTE" /etc/hosts; }
@@ -118,12 +121,22 @@ sudo cmp -s "$SDIR/uninstall-macos.sh" scripts/uninstall-macos.sh \
 sudo grep -q 'az őr a helyén' "$LOG" || bad "a segéd naplójában nincs: az őr a helyén"
 has_note && bad "az őr akkor is a szigorú blokkot írta, amikor az app a helyén volt"
 
-# 2d. AZ APP ELTŰNIK. A segéd a saját kódját figyeli: ha a bináris egy percig
-# hiányzik, kilép (különben a törölt fájlból futna tovább). Utána az őr a
-# következő percében a szigorú blokkot teszi a hosts fájlba.
+# 2d. AZ APP ELTŰNIK. A futó segéd NEM lép ki: a törölt appból tovább tilt a
+# beállított szabályokkal (egy kilépés után a launchd — vagy az őr — azt
+# indítaná újra rendszerjoggal, ami épp az app helyén van).
+# Csak naplóz; az őr élőnek látja, és nem ír. Ha leáll — itt leállítjuk, mint
+# egy újraindításkor —, a launchd nem tudja elindítani, és az őr a következő
+# percében a szigorú blokkot teszi a hosts fájlba.
+PID0=$(helper_pid)
 mv "$APP" "$APP.away" || bad "az appot nem tudtam elmozdítani"
-wait_for 150 helper_stopped || bad "a segéd az app eltűnése után is fut (a kód-figyelő nem léptette ki)"
-sudo grep -q 'az app eltűnt: kilépek' "$LOG" || bad "a segéd naplójában nincs: az app eltűnt"
+sleep 90
+[ -n "$PID0" ] && [ "$(helper_pid)" = "$PID0" ] \
+  || bad "a segéd az app eltűnésére kilépett vagy újraindult (pid: $PID0 → $(helper_pid))"
+wait_for 60 sudo grep -q 'az app eltűnt: a segéd a beállított szabályokkal tovább tilt' "$LOG" \
+  || bad "a segéd naplójában nincs: az app eltűnt"
+has_note && bad "a futó segéd mellett az őr a szigorú blokkot írta"
+wait_for 15 blocked || bad "az app eltűnése után a futó segéd nem tilt: $DOMAIN"
+sudo launchctl kill SIGKILL system/$LABEL || bad "a segédet nem tudtam leállítani"
 wait_for 150 has_note || bad "az őr nem tette a helyére a szigorú blokkot"
 grep -qx "0.0.0.0 $DOMAIN" /etc/hosts || bad "a hosts szigorú blokkjában nincs: $DOMAIN"
 wait_for 15 blocked || bad "a szigorú blokk mellett a rendszer feloldója nem tilt: $DOMAIN"
@@ -170,12 +183,21 @@ grep -qx "0.0.0.0 $DOMAIN" /etc/hosts || bad "a segéd blokkjából hiányzik: $
 wait_for 30 node -e "require('net').connect('$SOCK').on('connect',()=>process.exit(0)).on('error',()=>process.exit(1))" \
   || bad "a visszatett app segédje nem felel a socketen"
 
-# 2h. A SEGÉD NEM INDUL, PEDIG AZ APP A HELYÉN VAN: a futó segéd az app.asar
-# cseréjét észreveszi és kilép, a launchd hiába indítja újra (az üres archívumból
-# nem tud). Az őr indítgatja, és öt perc után a szigorú blokkot teszi a helyére —
-# a befagyott blokk helyett. A javított app után a segéd újra fut.
+# 2h. A SEGÉD NEM INDUL, PEDIG AZ APP A HELYÉN VAN. A futó segéd az app.asar
+# cseréjére NEM lép ki, csak naplóz: a rendszerjoggal futó kódot nem egy
+# fájlművelet cseréli. Újraindításkor (itt: kickstart -k) a launchd
+# hiába indítja (az üres archívumból nem tud); az őr indítgatja, és öt perc
+# után a szigorú blokkot teszi a helyére — a befagyott blokk helyett. A
+# javított app után a segéd újra fut.
 ASAR="$APP/Contents/Resources/app.asar"
+PID1=$(helper_pid)
 mv "$ASAR" "$ASAR.good" && : > "$ASAR" || bad "az app.asar-t nem tudtam elrontani"
+sleep 90
+[ -n "$PID1" ] && [ "$(helper_pid)" = "$PID1" ] \
+  || bad "a segéd az app.asar cseréjére kilépett vagy újraindult (pid: $PID1 → $(helper_pid))"
+wait_for 60 sudo grep -q 'az app frissült: a segéd a következő indulásig a régi kódon fut' "$LOG" \
+  || bad "a segéd naplójában nincs: az app frissült"
+sudo launchctl kickstart -k system/$LABEL || bad "a segédet nem tudtam újraindítani"
 wait_for 600 has_note || bad "a nem induló segéd mellett az őr nem tette a helyére a szigorú blokkot"
 sudo grep -q 'a segéd nem indul' "$SDIR/guard.log" || bad "az őr naplójában nincs: a segéd nem indul"
 rm -f "$ASAR" && mv "$ASAR.good" "$ASAR" || bad "az app.asar-t nem tudtam visszatenni"
@@ -206,6 +228,6 @@ if [ -e "$SOCK" ] && node -e "require('net').connect('$SOCK').on('connect',()=>p
 fi
 
 if [ "$fail" = 0 ]; then
-  echo "Segéd-próba OK (a becsomagolt binárison, a telepítő módján indítva: felel, tilt; az őrt maga teszi fel; az app eltűnésekor kilép, és az őr a szigorú blokkot tartja — kézi kivétel és felemás jelölő után is; az app visszatételekor újra fut; ha a segéd nem indul, öt perc után a szigorú blokk áll be; az eltávolító másolata után semmi nem fut, és a hosts a régi)"
+  echo "Segéd-próba OK (a becsomagolt binárison, a telepítő módján indítva: felel, tilt; az őrt maga teszi fel; az app eltűnésére és cseréjére nem lép ki, tovább tilt; ha leáll, és az app nincs meg, az őr a szigorú blokkot tartja — kézi kivétel és felemás jelölő után is; az app visszatételekor újra fut; ha a segéd nem indul, öt perc után a szigorú blokk áll be; az eltávolító másolata után semmi nem fut, és a hosts a régi)"
 fi
 exit "$fail"
