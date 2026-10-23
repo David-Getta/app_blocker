@@ -37,7 +37,7 @@ import { DAEMON_LABEL } from './install-script';
 import {
   NODE_RUNTIME, PAYLOAD_ENTRY, RUNTIME_ID_RE, RUNTIME_ROOT, runtimeId, type NodeRuntimePin,
 } from './helper-runtime';
-import { NODE_TAR_MAX_BYTES, PAYLOAD_MAX_BYTES } from './helper-manifest';
+import { MANIFEST_MAX_BYTES, NODE_TAR_MAX_BYTES, PAYLOAD_MAX_BYTES } from './helper-manifest';
 
 /** A segéd LaunchDaemon-leírója. */
 export const HELPER_PLIST_PATH = `/Library/LaunchDaemons/${DAEMON_LABEL}.plist`;
@@ -520,7 +520,7 @@ function activatePart(o: MacRuntimeShellOptions, plist: string): string[] {
     'for e in "$RT"/* "$RT"/.[!.]*; do',
     '  [ -e "$e" ] || [ -L "$e" ] || continue',
     '  n=${e##*/}',
-    `  case "$n" in "$B"|current|.lock|.bad|${okMarkName('"$B"')}) continue ;; esac`,
+    `  case "$n" in "$B"|current|.lock|.bad|.offer.json|${okMarkName('"$B"')}) continue ;; esac`,
     '  rm -rf "$e"',
     'done',
     'rm -f "$D/helper.plist.prev" "$D"/.put.*',
@@ -548,6 +548,67 @@ export function macInstallScript(inputs: MacInstallInputs, o: MacRuntimeShellOpt
     ...guardPart(inputs.guardScript, inputs.guardPlist),
     ...placePart(),
     ...activatePart(o, macHelperPlist(inputs.ownerUid, o.runtime)),
+  ].join('\n')}\n`;
+}
+
+/** A csendes frissítés bemenetei: a felülettől kapott utak. */
+export interface MacFetchInputs {
+  /** a csomag mappája (…/Contents/Resources/helper): manifest.json, manifest.sig, payload.tar */
+  bundle: string;
+  /** a letöltött Node tarball (ha a frissítés új Node-ot kér) */
+  nodeTar: string | null;
+}
+
+/**
+ * A frissítés bemeneteinek bemásolása (a segéd futtatja, rootként, a zárat a
+ * segéd tartja): egy `$RT/.in.*` mappába, a telepítő `copy_in`-jével —
+ * időkorláttal, mérethatárral, csak sima fájlt. A kimenet: `in <mappa>`.
+ */
+export function macFetchScript(inputs: MacFetchInputs, o: MacRuntimeShellOptions = MAC_RUNTIME_SHELL_DEFAULTS): string {
+  checkPath(inputs.bundle, 'a csomag mappája');
+  if (inputs.nodeTar !== null) checkPath(inputs.nodeTar, 'a Node');
+  return `${[
+    ...prologue(o),
+    `BUNDLE=${shQuote(inputs.bundle)}`,
+    `NODE_TAR=${inputs.nodeTar === null ? "''" : shQuote(inputs.nodeTar)}`,
+    'S=$(mktemp -d "$RT/.in.XXXXXX") || die fail',
+    `copy_in "$BUNDLE/manifest.json" "$S/manifest.json" ${MANIFEST_MAX_BYTES / 65536} || die copy`,
+    `copy_in "$BUNDLE/manifest.sig" "$S/manifest.sig" 1 || die copy`,
+    `copy_in "$BUNDLE/payload.tar" "$S/payload.tar" ${PAYLOAD_MAX_BYTES / 65536} || die copy`,
+    `if [ -n "$NODE_TAR" ]; then copy_in "$NODE_TAR" "$S/node.tar.xz" ${NODE_TAR_MAX_BYTES / 65536} || die copy; fi`,
+    'IN="$S"',
+    'S=',
+    'printf \'in %s\\n\' "$IN"',
+  ].join('\n')}\n`;
+}
+
+/** A csendes frissítés összeállítása: a már ellenőrzött (aláírt) leíró szerint. */
+export interface MacStageInputs {
+  payloadTar: string;
+  payloadSha256: string;
+  payloadSize: number;
+  nodeTar: string | null;
+}
+
+/**
+ * Egy új változat összeállítása és a helyére tétele (a segéd futtatja, a zárat
+ * a segéd tartja) — ugyanaz az összeállítás, mint a telepítésé, de a `current`
+ * linkhez, a leíróhoz és az őrhöz nem nyúl. A Node rögzítése az aláírt leíróból
+ * jön (`o.pin`), a Team ID és az azonosító a futó segéd kódjából. A kimenet:
+ * `ok <név>`.
+ */
+export function macStageScript(inputs: MacStageInputs, o: MacRuntimeShellOptions = MAC_RUNTIME_SHELL_DEFAULTS): string {
+  if (!SHA_RE.test(inputs.payloadSha256)) throw new Error('érvénytelen csomag-ujjlenyomat');
+  if (!Number.isSafeInteger(inputs.payloadSize) || inputs.payloadSize <= 0 || inputs.payloadSize > PAYLOAD_MAX_BYTES) {
+    throw new Error('érvénytelen csomagméret');
+  }
+  checkPath(inputs.payloadTar, 'a csomag');
+  if (inputs.nodeTar !== null) checkPath(inputs.nodeTar, 'a Node');
+  return `${[
+    ...prologue(o),
+    ...stagePart(o, inputs),
+    ...placePart(),
+    'printf \'ok %s\\n\' "$B"',
   ].join('\n')}\n`;
 }
 

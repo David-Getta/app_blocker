@@ -84,6 +84,14 @@ export interface ServerDeps {
   clientKeySha256?: string;
   /** minden kérés az app jelenléte — a mérés-őr ebből tudja, fut-e (lásd shared/measure-guard.ts) */
   noteClient?: (now: number) => void;
+  /** a csendes frissítés (#151, macOS, csak a védett futtatókörnyezetben) */
+  offerUpdate?: (offer: { bundle: string; nodeTar?: string }) => Promise<{ ok: boolean; error?: string; detail?: string; appVersion?: string }>;
+}
+
+/** A csendes frissítés állapota a status-ban (a segéd állítja be, ha van frissítője). */
+let updateStatusSource: (() => StatusData['helperUpdate']) | null = null;
+export function setUpdateStatusSource(fn: (() => StatusData['helperUpdate']) | null): void {
+  updateStatusSource = fn;
 }
 
 /** A mai nap kezdete helyi idő szerint. */
@@ -104,6 +112,7 @@ function runtimeStatus(): Partial<StatusData> {
     helperBuild: r.payloadSha256,
     helperAppVersion: r.appVersion,
     helperNode: r.nodeVersion,
+    helperUpdate: updateStatusSource ? updateStatusSource() : undefined,
   };
 }
 
@@ -747,6 +756,18 @@ async function handle(req: HelperRequest, deps: ServerDeps): Promise<unknown> {
       );
       deps.commit();
       return { ...r, status: statusOf(state, deps.dohApplied(), deps.selfTest()) };
+    }
+
+    case 'helper_update_offer': {
+      // Csak a védett futtatókörnyezetből futó segéd frissül így; a régi
+      // elrendezésben és Windowson a rendes út (telepítés, frissítő gomb) marad.
+      if (!deps.offerUpdate) {
+        return { update: { ok: false, error: 'unsupported' }, status: statusOf(state, deps.dohApplied(), deps.selfTest()) };
+      }
+      const bundle = typeof req.bundle === 'string' ? req.bundle : '';
+      const nodeTar = typeof req.nodeTar === 'string' ? req.nodeTar : undefined;
+      const r = await deps.offerUpdate({ bundle, ...(nodeTar ? { nodeTar } : {}) });
+      return { update: r, status: statusOf(state, deps.dohApplied(), deps.selfTest()) };
     }
 
     case 'self_test': {

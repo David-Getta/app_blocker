@@ -192,6 +192,8 @@ export interface StatusData {
   helperAppVersion?: string;
   /** a futtatókörnyezet Node-jának verziója (root) */
   helperNode?: string;
+  /** a csendes frissítés állapota (root) — régi segéd nem adja */
+  helperUpdate?: { state: 'idle' | 'working' | 'failed' | 'activating' | 'rolled-back'; error?: string; detail?: string; at?: number };
   sites: SiteInfo[];
   /** difficulty tier 0..3 derived from recent unlocks */
   tier: number;
@@ -392,6 +394,9 @@ export type HelperRequest =
   | { id: number; op: 'usage_stats'; focusKey?: string }
   | { id: number; op: 'usage_enable'; enabled: boolean }
   | { id: number; op: 'self_test' }
+  // A segéd csendes frissítése (#151, macOS): a felület a saját csomagját
+  // kínálja fel (…/Contents/Resources/helper), és ha kell, a letöltött Node-ot.
+  | { id: number; op: 'helper_update_offer'; bundle: string; nodeTar?: string }
   | { id: number; op: 'usage_clear' }
   // Munkamenetek. A csomag mentése és törlése ingyen van — de nem azé, amelyik
   // épp fut. Az indítás szigorítás, tehát szintén ingyen; a `focus_change`
@@ -506,6 +511,9 @@ export type HelperResponse =
  *         kiegészülve a sync mezővel
  * 0.6.5 — set_hostname (hosztnév felvétele ingyen, levétele próbatétellel)
  * 0.6.7 — set_reason (indok: miért tiltottad), a status oldalanként a reason mezővel
+ * 0.7.0 — macOS: a segéd a védett futtatókörnyezetből fut (#151); helper_update_offer
+ *         (csendes, aláírt frissítés), a status a helperLayout / helperRuntime /
+ *         helperBuild / helperAppVersion / helperNode / helperUpdate mezőkkel.
  * 0.6.8 — nincs új parancs: a segéd induláskor felteszi az őrt (helper/guard.ts).
  *         Egy régebbi segéd ezt nem teszi, és macOS-en egy frissítés után a
  *         következő újraindításig fut (az újabb is: szándékosan nem indul újra
@@ -524,5 +532,5 @@ export type HelperResponse =
  * 0.2.0 — set_limit (napi időkeret), a status kiegészülve a keret mezőivel
  * 0.1.0 — első kiadás
  */
-export const HELPER_VERSION = '0.6.8';
+export const HELPER_VERSION = '0.7.0';
 export const PAUSE_CHOICES_MIN = [15, 30, 60];

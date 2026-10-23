@@ -63,14 +63,16 @@ test('a segéd sosem lép ki magától — a futó kódot csak rendszergazdai l�
   // mappájában van. Ezért a segéd kódjában nincs kilépés; a kód-figyelő csak
   // naplóz (code-watch.ts).
   //
-  // KÉT KIVÉTEL, pontosan ezek (#151): a `--selfcheck` (a telepítő próbája, a
-  // segéd el sem indul), és a VÉDETT FUTTATÓKÖRNYEZETBŐL futó segéd, ha a
-  // `current` link másik változatra állt — oda csak root írhat, így a launchd
-  // ott sosem a felhasználó kódját indítja.
+  // HÁROM KIVÉTEL, pontosan ezek (#151): a `--selfcheck` (a telepítő próbája, a
+  // segéd el sem indul); a VÉDETT FUTTATÓKÖRNYEZETBŐL futó segéd, ha a
+  // `current` link másik változatra állt; és ugyanott egy átvett csendes
+  // frissítés után (a frissítő csak ott jön létre). Oda csak root írhat, így a
+  // launchd ott sosem a felhasználó kódját indítja.
   const ALLOWED: Record<string, string[]> = {
     'index.ts': [
       "  if (process.argv.includes('--selfcheck')) {\n    process.stdout.write(selfCheck() ? 'ok\\n' : 'fail\\n');\n    process.exit(0);\n  }",
       "  if (rt.layout === 'root' && rt.id) {\n    const own = rt.id;\n    let away = 0;\n    setInterval(() => {\n      const target = currentTarget();\n      away = target === own ? 0 : away + 1;\n      if (away >= 2) {\n        log(`a futtatókörnyezet másik változatra állt (${target ?? 'nincs'}): újraindulok`);\n        process.exit(0);\n      }\n    }, 15_000);\n  }",
+      "      onActivated: () => {\n        // A válasz előbb menjen ki; aztán a zár el, és ki — a launchd az új\n        // változatot indítja (a current már arra mutat).\n        setTimeout(() => {\n          releaseLock(RUNTIME_ROOT, process.pid);\n          process.exit(0);\n        }, 500);\n      },",
     ],
   };
   const dir = path.join(findRepo(), 'desktop', 'src', 'helper');
@@ -85,6 +87,8 @@ test('a segéd sosem lép ki magától — a futó kódot csak rendszergazdai l�
     if (/process\.(exit|abort|reallyExit)\b|process\.kill\(\s*process\.pid/.test(code)) offenders.push(f);
   }
   assert.deepEqual(offenders, [], `kilépés a segédben: ${offenders.join(', ')}`);
+  // A frissítő (és vele a harmadik kilépés) csak a védett futtatókörnyezetben jön létre.
+  assert.ok(read('desktop/src/helper/index.ts').includes("if (process.platform === 'darwin' && rt.layout === 'root' && rt.id && rt.appVersion && rt.binSha256\n    && typeof process.getuid === 'function' && process.getuid() === 0) {\n    const ownId = rt.id;\n    updater = createUpdater({"));
   // A figyelő be van kötve, és mindkét esetet naplózza.
   const index = read('desktop/src/helper/index.ts');
   assert.ok(index.includes('const verdict = codeWatchStep(watch, mark, Date.now());'));

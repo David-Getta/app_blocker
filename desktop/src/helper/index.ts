@@ -11,7 +11,7 @@
 import { loadState, saveState } from './state';
 import { activeHostnames, applyBlocklist, applyDohPolicies, setPresenceProbe, watchHosts } from './hosts';
 import { appPresent, WAKE_GAP_MS } from '../shared/measure-guard';
-import { startServer } from './server';
+import { setUpdateStatusSource, startServer } from './server';
 import { CLIENT_KEY_ARG, keyHashFromArgs } from '../shared/client-key';
 import { runSelfTest } from './selftest';
 import type { SelfTestReport } from '../shared/selftest';
@@ -26,7 +26,13 @@ import { setupGuard } from './guard';
 import { codePaths, codeWatchStep, markOf, type CodeWatch } from './code-watch';
 import { hardenStateDir } from './win-acl';
 import { stateFilePath } from './paths';
-import { currentTarget, markHealthy, runtimeInfo, selfCheck } from './runtime';
+import { currentTarget, gcRuntime, markHealthy, runtimeInfo, selfCheck } from './runtime';
+import { releaseLock, takeLock, trustedKeys } from './update';
+import { createUpdater, type Updater } from './updater';
+import { RELEASE_KEYS } from '../shared/helper-keys';
+import { RUNTIME_ROOT } from '../shared/helper-runtime';
+import { MAC_RUNTIME_SHELL_DEFAULTS } from '../shared/runtime-shell';
+import { execFile } from 'child_process';
 import * as path from 'path';
 
 export function runHelper(): void {
@@ -233,7 +239,50 @@ export function runHelper(): void {
   setTimeout(selfTestQuietly, 20_000);
   setInterval(selfTestQuietly, SELF_TEST_INTERVAL_MS);
 
+  // A CSENDES FRISSÍTÉS (#151, macOS): csak a védett futtatókörnyezetből futó,
+  // rootként futó segéd. A felület felkínálja a saját csomagját; ha a projekt
+  // kulcsa aláírta és újabb, a segéd átveszi, vált, és kilép — a launchd az új
+  // változatot indítja (helper/update.ts).
+  const rt = runtimeInfo(__dirname);
+  let updater: Updater | null = null;
+  if (process.platform === 'darwin' && rt.layout === 'root' && rt.id && rt.appVersion && rt.binSha256
+    && typeof process.getuid === 'function' && process.getuid() === 0) {
+    const ownId = rt.id;
+    updater = createUpdater({
+      root: RUNTIME_ROOT,
+      ownId,
+      ownAppVersion: rt.appVersion,
+      ownBinSha256: rt.binSha256,
+      arch: process.arch === 'arm64' ? 'arm64' : 'x64',
+      keys: () => trustedKeys(RELEASE_KEYS, RUNTIME_ROOT, ownId),
+      runShell: (script) => new Promise((resolve) => {
+        execFile('/bin/sh', ['-c', script], {
+          env: { PATH: '/usr/bin:/bin:/usr/sbin:/sbin', LC_ALL: 'C' }, timeout: 10 * 60_000, maxBuffer: 1024 * 1024,
+        }, (err, stdout, stderr) => {
+          const code = err ? (typeof (err as { code?: unknown }).code === 'number' ? Number((err as { code: number }).code) : 1) : 0;
+          resolve({ code, out: String(stdout), err: String(stderr) });
+        });
+      }),
+      shellOptions: MAC_RUNTIME_SHELL_DEFAULTS,
+      log,
+      now: () => Date.now(),
+      pid: process.pid,
+      alive: (pid) => { try { process.kill(pid, 0); return true; } catch (e) { return (e as NodeJS.ErrnoException).code === 'EPERM'; } },
+      onActivated: () => {
+        // A válasz előbb menjen ki; aztán a zár el, és ki — a launchd az új
+        // változatot indítja (a current már arra mutat).
+        setTimeout(() => {
+          releaseLock(RUNTIME_ROOT, process.pid);
+          process.exit(0);
+        }, 500);
+      },
+    });
+    setUpdateStatusSource(() => updater?.status());
+    updater.start((fn, ms) => { setTimeout(fn, ms); });
+  }
+
   startServer({
+    offerUpdate: updater ? (o) => (updater as Updater).offer(o) : undefined,
     getState: () => state,
     commit,
     // Minden kérés az apptól jön: jelenlét. Ha épp távollévő volt, és a
@@ -261,10 +310,14 @@ export function runHelper(): void {
   // A VÉDETT FUTTATÓKÖRNYEZET (#151, macOS): a csatorna nyitva, a tiltás az
   // induláskor egyszer már érvényesült (commit) — ez a jel a telepítőnek és az
   // őrnek, hogy ez a változat rendben elindult.
-  const rt = runtimeInfo(__dirname);
+  const alive = (pid: number): boolean => {
+    try { process.kill(pid, 0); return true; } catch (e) { return (e as NodeJS.ErrnoException).code === 'EPERM'; }
+  };
   if (rt.layout === 'root' && rt.id) {
     log(`a védett futtatókörnyezetből fut: ${rt.id} (Node ${rt.nodeVersion ?? '?'}, app ${rt.appVersion ?? '?'})`);
     markHealthy(rt.id, log);
+    const ownId = rt.id;
+    gcRuntime(ownId, () => takeLock(RUNTIME_ROOT, process.pid, alive, Date.now()), () => releaseLock(RUNTIME_ROOT, process.pid), log);
   }
 
   // AZ ŐR (shared/guard-script.ts): ha az app eltűnik, a szigorú blokkot tartja.

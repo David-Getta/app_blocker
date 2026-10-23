@@ -4657,7 +4657,7 @@ const WIRES = [
   },
   {
     file: 'desktop/src/shared/protocol.ts',
-    needle: "export const HELPER_VERSION = '0.6.8';",
+    needle: "export const HELPER_VERSION = '0.7.0';",
     lost: 'frissítés után a régi segéd (őr nélkül) futna tovább, és az app nem szólna',
   },
   {
@@ -4745,6 +4745,33 @@ const WIRES = [
     file: 'desktop/src/shared/guard-script.ts',
     needle: "'if [ \"$LAYOUT\" = root ] && [ \"$S\" != alive ]; then',\n    '  pending_rollback',",
     lost: 'egy el nem induló csendesen frissített segéd után nem állna vissza az előzőre — csak a szigorú blokk jönne',
+  },
+  // #151: a csendes frissítés csak aláírt, újabb, el nem bukott csomagot vesz
+  // át — és a .pending előbb íródik, mint a link átáll (az őr ebből áll vissza).
+  {
+    file: 'desktop/src/helper/update.ts',
+    needle: "manifest = verifyManifest(\n        fs.readFileSync(path.join(inDir, 'manifest.json')),",
+    lost: 'a segéd aláíratlan csomagot is átvenne — egy fájlművelet az app mappájában rendszerjogot adna',
+  },
+  {
+    file: 'desktop/src/helper/update.ts',
+    needle: 'if (!isNewer(manifest.appVersion, d.ownAppVersion)) {',
+    lost: 'egy régebbi, ismert hibájú aláírt csomag visszahozható volna',
+  },
+  {
+    file: 'desktop/src/helper/update.ts',
+    needle: "if (badPayloads(d.root).has(payload.sha)) return { ok: false, error: 'bad' };",
+    lost: 'egy el nem induló csomagot a segéd újra és újra átvenne',
+  },
+  {
+    file: 'desktop/src/helper/update.ts',
+    needle: "fs.writeFileSync(path.join(d.root, '.pending'), `${id}\\n${d.ownId}\\n`, { mode: 0o600 });\n      const tmp = path.join(d.root, '.current.new');",
+    lost: 'egy el nem induló frissítés után az őrnek nem volna mire visszaállnia',
+  },
+  {
+    file: 'desktop/src/helper/server.ts',
+    needle: "case 'helper_update_offer': {",
+    lost: 'a felület ajánlata sosem jutna el a segédig — a segéd csak jelszóval frissülne',
   },
   {
     file: 'desktop/scripts/sign-helper-manifest.js',

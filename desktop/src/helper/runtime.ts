@@ -125,3 +125,31 @@ export function selfCheck(): boolean {
     return false;
   }
 }
+
+/**
+ * Takarítás a rendben elindult változat után: a többi változat, a félbemaradt
+ * bemásolások és összeállítások, a régi jelek mennek. Csak ha a `current` erre
+ * a változatra mutat, és a zár szabad (egy épp futó telepítés vagy frissítés
+ * közben nem nyúlunk semmihez). Ami marad: ez a változat, a link, a zár, a
+ * .bad (az el nem indult csomagok), a megjegyzett ajánlat és a saját jel.
+ */
+export function gcRuntime(
+  id: string, take: () => boolean, release: () => void, log: (m: string) => void, root: string = RUNTIME_ROOT,
+): void {
+  if (currentTarget(root) !== id) return;
+  if (!take()) return;
+  try {
+    const keep = new Set([id, 'current', '.lock', '.bad', '.offer.json', `.ok-${id}`]);
+    let removed = 0;
+    for (const name of fs.readdirSync(root)) {
+      if (keep.has(name)) continue;
+      fs.rmSync(path.join(root, name), { recursive: true, force: true });
+      removed += 1;
+    }
+    if (removed) log(`a futtatókörnyezet takarítva (${removed} elem)`);
+  } catch (e) {
+    log(`a futtatókörnyezet takarítása nem sikerült: ${(e as Error).message}`);
+  } finally {
+    release();
+  }
+}
