@@ -13,6 +13,8 @@
 // BraveSoftware\Brave alól); a Firefox a `Software\Policies\Mozilla\Firefox\
 // DNSOverHTTPS` alól, DWORD értékekkel (mozilla/policy-templates).
 
+import { system32 } from './paths';
+
 /** Egy Chromium-alapú böngésző házirend-helye mindkét platformon. */
 export interface ChromiumPolicyTarget {
   name: string;
@@ -88,12 +90,12 @@ export function windowsDohCommands(): Array<{ cmd: string; args: string[] }> {
   const out: Array<{ cmd: string; args: string[] }> = [];
   for (const t of CHROMIUM_TARGETS) {
     out.push({
-      cmd: 'reg',
+      cmd: system32('reg.exe'),
       args: ['add', t.winKey, '/v', CHROMIUM_DOH_VALUE.name, '/t', 'REG_SZ', '/d', CHROMIUM_DOH_VALUE.value, '/f'],
     });
   }
   for (const v of FIREFOX_WIN_VALUES) {
-    out.push({ cmd: 'reg', args: ['add', FIREFOX_WIN_KEY, '/v', v.name, '/t', 'REG_DWORD', '/d', String(v.dword), '/f'] });
+    out.push({ cmd: system32('reg.exe'), args: ['add', FIREFOX_WIN_KEY, '/v', v.name, '/t', 'REG_DWORD', '/d', String(v.dword), '/f'] });
   }
   return out;
 }

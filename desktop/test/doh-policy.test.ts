@@ -41,14 +41,17 @@ test('minden Chromium-alapú böngésző mindkét platformon kap házirendet', (
 });
 
 test('a Windows-parancsok: a Chromium-család „off”, a Firefox DWORD-ökkel (a Fallback is)', () => {
+  const REG = `${process.env.SystemRoot || 'C:\\Windows'}\\System32\\reg.exe`;
   const cmds = windowsDohCommands();
   assert.equal(cmds.length, CHROMIUM_TARGETS.length + FIREFOX_WIN_VALUES.length);
   for (const [i, t] of CHROMIUM_TARGETS.entries()) {
     assert.deepEqual(cmds[i], {
-      cmd: 'reg', args: ['add', t.winKey, '/v', 'DnsOverHttpsMode', '/t', 'REG_SZ', '/d', 'off', '/f'],
+      cmd: REG, args: ['add', t.winKey, '/v', 'DnsOverHttpsMode', '/t', 'REG_SZ', '/d', 'off', '/f'],
     });
   }
   const ff = cmds.slice(CHROMIUM_TARGETS.length);
+  // A SYSTEM-ként futó segéd a reg.exe-t abszolút úttal indítja, nem a PATH-ból.
+  assert.ok(ff.every((c) => c.cmd === REG));
   assert.deepEqual(ff.map((c) => c.args), [
     ['add', FIREFOX_WIN_KEY, '/v', 'Enabled', '/t', 'REG_DWORD', '/d', '0', '/f'],
     ['add', FIREFOX_WIN_KEY, '/v', 'Locked', '/t', 'REG_DWORD', '/d', '1', '/f'],

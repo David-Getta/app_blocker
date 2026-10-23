@@ -11,7 +11,7 @@ import {
 import { isBlockedNowWithLimit } from '../shared/limits';
 import { closedForMissingMeasurement } from '../shared/measure-guard';
 import type { HelperState } from './state';
-import { hostsFilePath } from './paths';
+import { hostsFilePath, system32 } from './paths';
 import {
   CHROMIUM_DOH_VALUE, CHROMIUM_TARGETS, FIREFOX_MAC_DOMAIN, FIREFOX_MAC_ENABLE_KEY, FIREFOX_SWITCH_MARK,
   windowsDohCommands,
@@ -61,7 +61,7 @@ export async function flushDnsCache(): Promise<void> {
     await run('/usr/bin/dscacheutil', ['-flushcache']);
     await run('/usr/bin/killall', ['-HUP', 'mDNSResponder']);
   } else if (process.platform === 'win32') {
-    await run('ipconfig', ['/flushdns']);
+    await run(system32('ipconfig.exe'), ['/flushdns']);
   }
 }
 

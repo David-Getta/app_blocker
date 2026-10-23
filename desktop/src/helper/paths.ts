@@ -57,3 +57,12 @@ export function guardDir(): string {
 export function uninstallCopyPath(): string {
   return path.join(guardDir(), process.platform === 'win32' ? 'uninstall-windows.ps1' : 'uninstall-macos.sh');
 }
+
+/**
+ * Egy Windows-rendszereszköz abszolút útja. A SYSTEM-ként futó segéd semmit ne
+ * a PATH-ból vagy a munkakönyvtárból indítson: ami ott elébe kerül, az
+ * rendszerjoggal futna.
+ */
+export function system32(exe: string): string {
+  return path.win32.join(process.env.SystemRoot || 'C:\\Windows', 'System32', exe);
+}

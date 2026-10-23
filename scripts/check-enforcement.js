@@ -4550,6 +4550,19 @@ const WIRES = [
     needle: 'const problem = macInstallLocationProblem(process.execPath);',
     lost: 'lemezképről telepített segéd a leválasztáskor megállna, és ott az őr sem lép közbe',
   },
+  // A SYSTEM-KÉNT FUTÓ SEGÉD SEMMIT NEM A PATH-BÓL INDÍT. Egy név szerinti
+  // `ipconfig` vagy `reg` a munkakönyvtárból vagy a PATH-ból jön — ami oda
+  // kerül, rendszerjoggal futna. Semmi nem hasalna el tőle.
+  {
+    file: 'desktop/src/helper/hosts.ts',
+    needle: "await run(system32('ipconfig.exe'), ['/flushdns']);",
+    lost: 'a SYSTEM-ként futó segéd az ipconfig-ot a PATH-ból indítaná',
+  },
+  {
+    file: 'desktop/src/helper/doh-policy.ts',
+    needle: "cmd: system32('reg.exe')",
+    lost: 'a SYSTEM-ként futó segéd a reg-et a PATH-ból indítaná',
+  },
   {
     file: 'desktop/src/main/main.ts',
     needle: "if (process.platform === 'win32') app.setAppUserModelId(APP_ID);",
