@@ -92,7 +92,11 @@ export function takeLock(root: string, pid: number, alive: (pid: number) => bool
   try { holder = Number(fs.readFileSync(path.join(lock, 'pid'), 'utf8').trim()); } catch { /* nincs */ }
   let age = 0;
   try { age = now - fs.statSync(lock).mtimeMs; } catch { /* eltűnt közben */ }
-  const stale = !Number.isSafeInteger(holder) || holder <= 0 || !alive(holder) || age > LOCK_STALE_MS;
+  // Üres vagy rossz azonosító: a tartó lehet, hogy épp most hozta létre — csak
+  // egy perc után vesszük elavultnak.
+  const fresh = age < 60_000;
+  const badHolder = !Number.isSafeInteger(holder) || holder <= 0;
+  const stale = (badHolder && !fresh) || (!badHolder && !alive(holder)) || age > LOCK_STALE_MS;
   if (!stale) return false;
   fs.rmSync(lock, { recursive: true, force: true });
   try {

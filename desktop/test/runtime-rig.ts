@@ -106,12 +106,22 @@ export function rig(over: Partial<MacRuntimeShellOptions> = {}): Rig {
   exe(path.join(tools, 'launchctl'), [
     `echo "$*" >> ${shQuote(calls)}`,
     'lbl=${2#system/}',
+    `dying=${shQuote(loaded)}/"$lbl".dying`,
     'case "$1" in',
-    `  print) [ -f ${shQuote(loaded)}/"$lbl" ] ;;`,
-    `  bootout) rm -f ${shQuote(loaded)}/"$lbl"; exit 0 ;;`,
+    '  print)',
+    '    # Lassú leállás: a kiszállás után még néhány megnézésig „fut”.',
+    '    if [ -f "$dying" ]; then c=$(cat "$dying"); if [ "$c" -gt 0 ]; then echo $((c - 1)) > "$dying"; exit 0; fi; rm -f "$dying"; fi',
+    `    [ -f ${shQuote(loaded)}/"$lbl" ] ;;`,
+    '  bootout)',
+    `    [ -f ${f('slow-bootout')} ] && [ -f ${shQuote(loaded)}/"$lbl" ] && cp ${f('slow-bootout')} "$dying"`,
+    `    rm -f ${shQuote(loaded)}/"$lbl"; exit 0 ;;`,
     '  bootstrap)',
     '    lbl=$(sed -n \'s:.*<key>Label</key><string>\\(.*\\)</string>.*:\\1:p\' "$3")',
-    `    [ -f ${f('bootstrap-fail')} ] && [ "$lbl" = ${DAEMON_LABEL} ] && exit 5`,
+    `    if [ -f ${shQuote(loaded)}/"$lbl".dying ] && [ "$(cat ${shQuote(loaded)}/"$lbl".dying)" -gt 0 ]; then echo "Bootstrap failed: 5: Input/output error" >&2; exit 5; fi`,
+    `    [ -f ${f('note-pending')} ] && [ "$lbl" = ${DAEMON_LABEL} ] && cp ${shQuote(`${rt}/.pending`)} "$(cat ${f('note-pending')})"`,
+    `    [ -f ${f('bootstrap-fail-all')} ] && [ "$lbl" = ${DAEMON_LABEL} ] && exit 5`,
+    `    [ -f ${f('bootstrap-fail')} ] && [ "$lbl" = ${DAEMON_LABEL} ] && grep -qF ${shQuote(`${rt}/current/node`)} "$3" && exit 5`,
+    `    [ -f ${f('term-on-bootstrap')} ] && [ "$lbl" = ${DAEMON_LABEL} ] && grep -qF ${shQuote(`${rt}/current/node`)} "$3" && { rm -f ${f('term-on-bootstrap')}; kill -TERM $PPID; }`,
     `    [ -f ${f('guard-fail')} ] && [ "$lbl" = hu.breaker.guard ] && exit 5`,
     `    touch ${shQuote(loaded)}/"$lbl"`,
     `    if [ "$lbl" = ${DAEMON_LABEL} ] && grep -qF ${shQuote(`${rt}/current/node`)} "$3" && [ ! -f ${f('unhealthy')} ]; then`,
@@ -120,6 +130,7 @@ export function rig(over: Partial<MacRuntimeShellOptions> = {}): Rig {
     '    ;;',
     'esac',
   ].join('\n'));
+  exe(path.join(tools, 'b64d'), `if [ -f ${f('b64-fail')} ]; then head -c 10; exit 1; fi\nexec base64 -d`);
   exe(path.join(tools, 'codesign'), `echo "$*" >> ${shQuote(`${calls}.codesign`)}\n[ ! -f ${f('codesign-bad')} ]`);
   exe(path.join(tools, 'sysctl'), `[ -f ${f('intel')} ] && exit 1\necho 1`);
   exe(path.join(tools, 'sw_vers'), `if [ -f ${f('macos')} ]; then cat ${f('macos')}; else echo 14.6.1; fi`);
@@ -160,7 +171,7 @@ export function rig(over: Partial<MacRuntimeShellOptions> = {}): Rig {
       swVers: path.join(tools, 'sw_vers'),
       plutil: path.join(tools, 'plutil'),
       xattrClear: 'true',
-      base64Decode: 'base64 -d',
+      base64Decode: path.join(tools, 'b64d'),
       aclStrip: 'true',
       aclStripOne: 'true',
       ownRoot: 'true',

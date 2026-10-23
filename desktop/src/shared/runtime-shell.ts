@@ -32,6 +32,7 @@
 // mv -h, ls -le …) egy-egy héjfüggvény mögött vannak, a teszt Linuxon dash-sel,
 // csonkokkal futtatja (test/runtime-shell.test.ts).
 
+import * as crypto from 'crypto';
 import { shQuote } from './guard-script';
 import { DAEMON_LABEL } from './install-script';
 import {
@@ -43,7 +44,12 @@ import { MANIFEST_MAX_BYTES, NODE_TAR_MAX_BYTES, PAYLOAD_MAX_BYTES } from './hel
 export const HELPER_PLIST_PATH = `/Library/LaunchDaemons/${DAEMON_LABEL}.plist`;
 /** A segéd állapotmappája (az őr, a szigorú blokk, a napló is itt). */
 export const BREAKER_DIR = '/Library/Application Support/Breaker';
-export const HELPER_LOG = '/Library/Logs/Breaker/helper.log';
+/**
+ * A segéd naplója a védett elrendezésben: az állapotmappában (a telepítő
+ * ellenőrzi és létrehozza), nem a /Library/Logs alatt — azt a mappát az új
+ * telepítő nem hozná létre, és a launchd a szülő nélkül el sem indítaná a segédet.
+ */
+export const HELPER_LOG = `${BREAKER_DIR}/helper.log`;
 
 /** A futtatókörnyezet jele, hogy az adott változat elindult és tilt. */
 export function okMarkName(id: string): string {
@@ -70,7 +76,7 @@ function xmlEscape(s: string): string {
  * rootnak írható mappára — a hivatalos Node beépített modulmappája egy
  * /Users/admin/… út, amit egy „admin” nevű felhasználó létrehozhatna.
  */
-export function macHelperPlist(ownerUid: number, root: string = RUNTIME_ROOT): string {
+export function macHelperPlist(ownerUid: number, root: string = RUNTIME_ROOT, logPath: string = HELPER_LOG): string {
   if (!Number.isSafeInteger(ownerUid) || ownerUid < 0) throw new Error('érvénytelen felhasználó-azonosító');
   const cur = `${root}/current`;
   const args = [`${cur}/node`, '--disable-sigusr1', '--no-addons', `${cur}/${PAYLOAD_ENTRY}`, `--owner-uid=${ownerUid}`];
@@ -92,8 +98,8 @@ ${args.map((a) => `    <string>${xmlEscape(a)}</string>`).join('\n')}
   <array><string>hu.breaker.app</string></array>
   <key>RunAtLoad</key><true/>
   <key>KeepAlive</key><true/>
-  <key>StandardOutPath</key><string>${HELPER_LOG}</string>
-  <key>StandardErrorPath</key><string>${HELPER_LOG}</string>
+  <key>StandardOutPath</key><string>${xmlEscape(logPath)}</string>
+  <key>StandardErrorPath</key><string>${xmlEscape(logPath)}</string>
 </dict>
 </plist>
 `;
@@ -180,8 +186,8 @@ export const MAC_RUNTIME_SHELL_DEFAULTS: MacRuntimeShellOptions = {
   trustChain: ['/', '/Library', '/Library/Application Support'],
   tools: MAC_SHELL_TOOLS,
   pin: NODE_RUNTIME,
-  copySeconds: 120,
-  selfcheckSeconds: 60,
+  copySeconds: 60,
+  selfcheckSeconds: 30,
   healthSeconds: 45,
   pollSeconds: 1,
   minFreeKb: 400 * 1024,
@@ -241,16 +247,22 @@ function prologue(o: MacRuntimeShellOptions): string[] {
     `acl_list() { ${t.aclList} "$@"; }`,
     `xattr_clear() { ${t.xattrClear} "$@"; }`,
     '',
+    '# A hibakimenet egy saját leírón (3) is: egy csapda kezelője a megszakított',
+    '# parancs átirányításán belül is futhat (dash), és a jel ott nem veszhet el.',
+    'exec 3>&2',
     '# Megállás egy jellel: a felület ebből mond mondatot.',
-    'die() { DIED=1; printf \'BRK:%s\\n\' "$1" >&2; exit 1; }',
+    'die() { DIED=1; printf \'BRK:%s\\n\' "$1" >&3; exit 1; }',
+    '# A zárat csak akkor engedjük el, ha még a miénk (egy átvett zárat nem).',
     'cleanup() {',
     '  rc=$?',
     '  [ -n "$S" ] && rm -rf "$S"',
-    '  [ "$HOLD" = 1 ] && rm -rf "$LOCK"',
-    '  if [ "$rc" != 0 ] && [ -z "$DIED" ]; then printf \'BRK:fail\\n\' >&2; fi',
+    '  if [ "$HOLD" = 1 ] && [ "$(head -n 1 "$LOCK/pid" 2>/dev/null)" = "$$" ]; then rm -rf "$LOCK"; fi',
+    '  if [ "$rc" != 0 ] && [ -z "$DIED" ]; then printf \'BRK:fail\\n\' >&3; fi',
     '}',
     'trap cleanup EXIT',
     "trap 'exit 1' HUP INT TERM",
+    '# Ha a jelszóablak közben feladta (lezárt kimenet), az írás ne ölje meg a héjat.',
+    "trap '' PIPE",
     '',
     '# Egy út a rooté-e, nem link, és se a csoport, se más nem írhatja.',
     'trusted() {',
@@ -260,26 +272,32 @@ function prologue(o: MacRuntimeShellOptions): string[] {
     '# SHA-256 a standard bemenetről (a fájlnév nem kerül a kimenetbe).',
     `sha_of() { ${t.openssl} dgst -sha256 < "$1" | awk '{print $NF}'; }`,
     '',
-    '# Egy KÜLSŐ parancs időkorláttal: ha nem végez, leállítjuk. (Függvényt ne:',
-    '# a háttérbe tett függvény egy köztes héj, a leállítás nem a parancsot érné.)',
+    '# Egy KÜLSŐ parancs időkorláttal. Nem várunk rá vakon: tizedmásodpercenként',
+    '# megnézzük, él-e még; ha lejárt az idő, leállítjuk, és MAGÁRA HAGYJUK — egy',
+    '# meg nem szakítható kernel-várakozásban (egy beragadt hálózati kötet) a',
+    '# leállítás sem érné el azonnal, a telepítő viszont ettől nem akadhat meg.',
+    '# (Függvényt ne: a háttérbe tett függvény egy köztes héj, a leállítás nem a',
+    '# parancsot érné.)',
     'limited() {',
     '  secs=$1; shift',
-    '  "$@" &',
+    '  "$@" 3>&- &',
     '  lp=$!',
-    '  ( sleep "$secs"; kill -9 "$lp" ) >/dev/null 2>&1 &',
-    '  lw=$!',
-    '  lrc=0',
-    '  wait "$lp" || lrc=$?',
-    '  kill "$lw" 2>/dev/null || true',
-    '  return "$lrc"',
+    '  ln=0',
+    '  while kill -0 "$lp" 2>/dev/null; do',
+    '    if [ "$ln" -ge $((secs * 10)) ]; then kill -9 "$lp" 2>/dev/null; return 124; fi',
+    '    sleep 0.1',
+    '    ln=$((ln + 1))',
+    '  done',
+    '  wait "$lp"',
     '}',
     '',
     '# Felhasználói fájl bemásolása: csak sima fájl, legfeljebb N×64 KiB, időkorláttal.',
-    '# A dd maga nyitja a fájlt: egy FIFO-n ő akad meg, és a leállítás őt éri.',
-    '# Utána CSAK a másolatot nézzük — azt a felhasználó már nem cserélheti ki.',
+    '# A felhasználó útjához a root héj maga nem nyúl: a vizsgálat (link? sima fájl?)',
+    '# és a másolás is egy időkorlátos gyermekfolyamatban fut — egy FIFO vagy egy',
+    '# beragadt kötet azt akasztja meg, nem a telepítőt. Utána CSAK a másolatot',
+    '# nézzük: azt a felhasználó már nem cserélheti ki.',
     'copy_in() {',
-    '  if [ -L "$1" ] || [ ! -f "$1" ]; then return 1; fi',
-    `  limited ${o.copySeconds} dd if="$1" of="$2" bs=65536 count="$3" 2>/dev/null`,
+    `  limited ${o.copySeconds} /bin/sh -c '[ ! -L "$1" ] && [ -f "$1" ] && exec dd if="$1" of="$2" bs=65536 count="$3"' copy_in "$1" "$2" "$3" >/dev/null 2>&1`,
     '}',
     '',
     '# A bizalmi lánc: a szülők és az állapotmappa a rooté, más nem írhatja.',
@@ -307,7 +325,12 @@ function lockPart(): string[] {
     '  old=$(head -n 1 "$LOCK/pid" 2>/dev/null || true)',
     "  case \"$old\" in ''|*[!0-9]*) old= ;; esac",
     '  stale=0',
-    '  if [ -z "$old" ] || ! kill -0 "$old" 2>/dev/null; then stale=1; fi',
+    '  # Üres azonosító: lehet, hogy a tartó épp most hozta létre — csak ha már percek óta így áll.',
+    '  if [ -z "$old" ]; then',
+    '    if [ -n "$(find "$LOCK" -prune -mmin +1 2>/dev/null)" ]; then stale=1; fi',
+    '  elif ! kill -0 "$old" 2>/dev/null; then',
+    '    stale=1',
+    '  fi',
     '  if [ -n "$(find "$LOCK" -prune -mmin +10 2>/dev/null)" ]; then stale=1; fi',
     '  [ "$stale" = 1 ] || die busy',
     '  rm -rf "$LOCK"',
@@ -428,31 +451,47 @@ function placePart(): string[] {
     'fi',
     'mv "$S" "$RT/$B"',
     'S=',
+    'sync',
   ];
 }
 
 /** Az őr előbb: ha az új segéd el sem indulna, az őr már az új elrendezést ismeri. */
-function guardPart(guardScript: string, guardPlist: string): string[] {
+function guardPart(o: MacRuntimeShellOptions, guardScript: string, guardPlist: string): string[] {
+  const sha = (x: string) => crypto.createHash('sha256').update(x, 'utf8').digest('hex');
   return [
-    '# Egy fájl a helyére: ideiglenes fájl az állapotmappában, aztán átnevezés.',
+    '# Egy fájl a helyére: ideiglenes fájl az állapotmappában, az ujjlenyomata a',
+    '# parancsba égetett (egy betelt lemezen félbemaradt írás sem kerülhet a',
+    '# helyére), aztán átnevezés. Minden lépés hibája megállít.',
     'put() {',
-    '  pt=$(mktemp "$D/.put.XXXXXX")',
-    '  printf \'%s\' "$1" | b64d > "$pt"',
-    '  own_root "$pt"',
-    '  chmod "$3" "$pt"',
-    '  mv -f "$pt" "$2"',
+    '  pt=$(mktemp "$D/.put.XXXXXX") || return 1',
+    '  printf \'%s\' "$1" | b64d > "$pt" || { rm -f "$pt"; return 1; }',
+    '  [ "$(sha_of "$pt")" = "$4" ] || { rm -f "$pt"; return 1; }',
+    '  { own_root "$pt" && chmod "$3" "$pt" && sync && mv -f "$pt" "$2"; } || { rm -f "$pt"; return 1; }',
     '}',
     `GUARD_SH="$D/guard.sh"`,
     `GUARD_PL="$LD/hu.breaker.guard.plist"`,
-    `put ${shQuote(b64(guardScript))} "$GUARD_SH" 755 || die guard`,
+    `put ${shQuote(b64(guardScript))} "$GUARD_SH" 755 ${sha(guardScript)} || die guard`,
     'GCHANGED=1',
-    `if [ -f "$GUARD_PL" ] && [ "$(cat "$GUARD_PL")" = "$(printf '%s' ${shQuote(b64(guardPlist))} | b64d)" ]; then GCHANGED=0; fi`,
-    `[ "$GCHANGED" = 0 ] || put ${shQuote(b64(guardPlist))} "$GUARD_PL" 644 || die guard`,
-    'if lctl print system/hu.breaker.guard >/dev/null 2>&1; then',
-    '  if [ "$GCHANGED" = 1 ]; then lctl bootout system/hu.breaker.guard >/dev/null 2>&1 || true; lctl bootstrap system "$GUARD_PL" || die guard; fi',
-    'else',
-    '  lctl bootstrap system "$GUARD_PL" || die guard',
+    `if [ -f "$GUARD_PL" ] && [ ! -L "$GUARD_PL" ] && [ "$(sha_of "$GUARD_PL")" = ${sha(guardPlist)} ]; then GCHANGED=0; fi`,
+    'if [ "$GCHANGED" = 1 ]; then',
+    `  put ${shQuote(b64(guardPlist))} "$D/.guard.plist.new" 644 ${sha(guardPlist)} || die guard`,
+    `  ${o.tools.plutil} -lint "$D/.guard.plist.new" >/dev/null 2>&1 || { rm -f "$D/.guard.plist.new"; die guard; }`,
+    '  mv -f "$D/.guard.plist.new" "$GUARD_PL" || { rm -f "$D/.guard.plist.new"; die guard; }',
     'fi',
+    '# Betöltés: ha fut és változott, előbb ki (megvárva), aztán be — próbálkozással.',
+    '# Ha így sem megy, a leíró a helyén van: a gép következő indításakor elindul.',
+    'guard_load() {',
+    '  if lctl print system/hu.breaker.guard >/dev/null 2>&1; then',
+    '    [ "$GCHANGED" = 1 ] || return 0',
+    '    lctl bootout system/hu.breaker.guard >/dev/null 2>&1',
+    '    n=0',
+    `    while lctl print system/hu.breaker.guard >/dev/null 2>&1 && [ $n -lt 10 ]; do sleep ${o.pollSeconds}; n=$((n + 1)); done`,
+    '  fi',
+    '  n=0',
+    `  until lctl bootstrap system "$GUARD_PL" >/dev/null 2>&1; do n=$((n + 1)); [ $n -ge 10 ] && return 1; sleep ${o.pollSeconds}; done`,
+    '  return 0',
+    '}',
+    'guard_load || die guard',
   ];
 }
 
@@ -472,12 +511,16 @@ function activatePart(o: MacRuntimeShellOptions, plist: string): string[] {
     'own_root "$NEWPL"',
     'chmod 644 "$NEWPL"',
     '',
-    '# Innen nincs megállás félúton: minden hiba a visszaállásba fut.',
+    '# Innen nincs megállás félúton: minden hiba a visszaállásba fut. A kattintás',
+    '# előtti állapotot pontosan feljegyezzük — a visszaállás ezt teszi vissza, nem',
+    '# találgat: volt-e leíró, és mire mutatott a current link.',
     'set +e',
-    'PREV=$(readlink "$RT/current" 2>/dev/null)',
-    "case \"$PREV\" in ????????????????) case \"$PREV\" in *[!0-9a-f]*) PREV= ;; esac ;; *) PREV= ;; esac",
+    'HADPL=0',
+    '[ -f "$DP" ] && HADPL=1',
+    'OLDCUR=$(readlink "$RT/current" 2>/dev/null)',
+    "case \"$OLDCUR\" in ????????????????) case \"$OLDCUR\" in *[!0-9a-f]*) OLDCUR= ;; esac ;; *) OLDCUR= ;; esac",
     'BACKUP=',
-    'if [ -f "$DP" ] && ! cmp -s "$DP" "$NEWPL"; then',
+    'if [ "$HADPL" = 1 ] && ! cmp -s "$DP" "$NEWPL"; then',
     '  BACKUP="$D/helper.plist.prev"',
     '  rm -f "$BACKUP"',
     '  cp -p "$DP" "$BACKUP" || { rm -f "$NEWPL"; die fail; }',
@@ -495,20 +538,36 @@ function activatePart(o: MacRuntimeShellOptions, plist: string): string[] {
     `  until lctl bootstrap system "$DP" >/dev/null 2>&1; do n=$((n + 1)); [ $n -ge 10 ] && return 1; sleep ${o.pollSeconds}; done`,
     '  return 0',
     '}',
+    '# Vissza a kattintás előtti állapotba: a current oda, ahová mutatott (vagy',
+    '# sehová), a leíró az előző (vagy semmi, ha nem volt), és újraindítás. Ha az',
+    '# újraindítás sem megy, kimondjuk: a gép következő indításakor indul.',
     'rollback() {',
-    '  if [ -n "$PREV" ] && [ "$PREV" != "$B" ] && [ -d "$RT/$PREV" ]; then set_current "$PREV"; fi',
+    "  trap '' HUP INT TERM",
+    '  if [ -n "$OLDCUR" ]; then',
+    '    [ "$OLDCUR" = "$B" ] || set_current "$OLDCUR"',
+    '  else',
+    '    rm -f "$RT/current"',
+    '  fi',
     '  if [ -n "$BACKUP" ]; then',
     '    mv -f "$BACKUP" "$DP"',
-    '  elif [ -z "$PREV" ]; then',
+    '  elif [ "$HADPL" = 0 ]; then',
     '    rm -f "$DP"',
     '  fi',
-    '  reload',
+    '  rm -f "$RT/.pending" "$NEWPL"',
+    '  sync',
+    '  reload || die restore',
     '  die "$1"',
     '}',
     '',
     `rm -f "$RT/${okMarkName('$B')}"`,
-    'set_current "$B" || { rm -f "$NEWPL"; die fail; }',
+    '# A szándék előbb a lemezre: ha a telepítő félúton leállna (áramszünet,',
+    '# leállítás), az őr ebből tudja, mire álljon vissza (guard-script.ts).',
+    'printf \'%s\\n%s\\n\' "$B" "$OLDCUR" > "$RT/.pending" || { rm -f "$NEWPL"; die fail; }',
+    'sync',
+    "trap 'rollback interrupted' HUP INT TERM",
+    'set_current "$B" || rollback fail',
     'mv -f "$NEWPL" "$DP" || rollback plist',
+    'sync',
     'reload || rollback bootstrap',
     '',
     '# Az új segéd jele: elindult a futtatókörnyezetből, a csatorna nyitva, egy kör lefutott.',
@@ -523,7 +582,8 @@ function activatePart(o: MacRuntimeShellOptions, plist: string): string[] {
     `  case "$n" in "$B"|current|.lock|.bad|.offer.json|${okMarkName('"$B"')}) continue ;; esac`,
     '  rm -rf "$e"',
     'done',
-    'rm -f "$D/helper.plist.prev" "$D"/.put.*',
+    "trap 'exit 1' HUP INT TERM",
+    'rm -f "$D/helper.plist.prev" "$D"/.put.* "$D/.guard.plist.new"',
     'printf \'ok %s\\n\' "$B"',
     'exit 0',
   ];
@@ -545,7 +605,7 @@ export function macInstallScript(inputs: MacInstallInputs, o: MacRuntimeShellOpt
     ...prologue(o),
     ...lockPart(),
     ...stagePart(o, inputs),
-    ...guardPart(inputs.guardScript, inputs.guardPlist),
+    ...guardPart(o, inputs.guardScript, inputs.guardPlist),
     ...placePart(),
     ...activatePart(o, macHelperPlist(inputs.ownerUid, o.runtime)),
   ].join('\n')}\n`;
@@ -613,8 +673,11 @@ export function macStageScript(inputs: MacStageInputs, o: MacRuntimeShellOptions
 }
 
 /**
- * A gyökér-héj parancsa: tiszta környezet (`env -i`), a belső szkript
- * base64-ben — sem a hívó környezete, sem egy idézőjel nem szólhat bele.
+ * A gyökér-héj parancsa: a belső szkript tiszta környezetben (`env -i`) fut,
+ * base64-ben átadva — egy idézőjel sem törheti el. A KÜLSŐ héjat (amit a
+ * `do shell script` indít) az `env -i` nem védi: ezért a felület az osascriptet
+ * maga is tiszta, minimális környezettel indítja (main/install.ts), és itt csak
+ * abszolút utak szerepelnek (exportált függvény nem írhatja felül őket).
  */
 export function macRootCommand(script: string): string {
   return 'exec /usr/bin/env -i PATH=/usr/bin:/bin:/usr/sbin:/sbin LC_ALL=C /bin/sh -c '
@@ -636,10 +699,12 @@ export const MAC_INSTALL_ERRORS: Record<string, string> = {
   verify: 'A telepítendő fájlok nem egyeznek a várttal (sérült vagy módosított letöltés). Töltsd le újra az appot.',
   codesign: 'A Node.js futtató aláírása nem a Node.js Foundationé. A telepítés megállt.',
   selfcheck: 'A háttérszolgáltatás próbaindítása nem sikerült. A telepítés megállt, semmi nem változott.',
-  guard: 'A védelem őrét nem sikerült beállítani. Semmi más nem változott.',
+  guard: 'A védelem őrét nem sikerült elindítani; a gép következő indításakor elindul. A háttérszolgáltatáshoz nem nyúltunk.',
   plist: 'A háttérszolgáltatás leírója hibás lett. Visszaálltunk az előzőre.',
   bootstrap: 'A háttérszolgáltatást nem sikerült elindítani. Visszaálltunk az előzőre.',
   health: 'Az új háttérszolgáltatás nem jelentkezett. Visszaálltunk az előzőre.',
+  interrupted: 'A telepítés megszakadt. Visszaálltunk az előzőre.',
+  restore: 'A telepítés nem sikerült, és az előző háttérszolgáltatást sem sikerült most újraindítani; a gép következő indításakor elindul.',
   fail: 'A telepítés váratlan hibán állt meg.',
 };
 

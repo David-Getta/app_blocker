@@ -213,6 +213,11 @@ test('a zár és a kulcsok: takeLock/releaseLock csak a sajátját engedi; a fut
   assert.ok(fs.existsSync(path.join(r.rt, '.lock')), 'más nem engedheti el');
   assert.equal(takeLock(r.rt, 222, alive, Date.now() + 11 * 60_000), true, 'tíz perc után elavult');
   releaseLock(r.rt, 222);
+  // Azonosító nélküli zár: frissen a tartóé, egy perc után elavult.
+  fs.mkdirSync(path.join(r.rt, '.lock'));
+  assert.equal(takeLock(r.rt, 333, alive, Date.now()), false);
+  assert.equal(takeLock(r.rt, 333, alive, Date.now() + 2 * 60_000), true);
+  releaseLock(r.rt, 333);
   assert.ok(!fs.existsSync(path.join(r.rt, '.lock')));
   const base = [{ id: 'r1', spki: 'AAAA' }];
   assert.deepEqual(trustedKeys(base, r.rt, '0123456789abcdef'), base);

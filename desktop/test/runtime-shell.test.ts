@@ -250,6 +250,14 @@ shTest('a zár: egy élő tartó mellett busy; egy halott tartó zárját átves
   assert.deepEqual(brk(run), ['busy']);
   assert.ok(fs.existsSync(path.join(r.rt, '.lock')), 'a más zárját nem veszi el');
   assert.ok(!fs.existsSync(r.dp));
+  // Azonosító nélküli, friss zár (a tartó épp most hozta létre): busy; percek múlva átvehető.
+  fs.rmSync(path.join(r.rt, '.lock', 'pid'));
+  assert.deepEqual(brk(install(r)), ['busy']);
+  const old = Date.now() / 1000 - 120;
+  fs.utimesSync(path.join(r.rt, '.lock'), old, old);
+  const run1 = install(r);
+  assert.equal(run1.code, 0, run1.err);
+  fs.mkdirSync(path.join(r.rt, '.lock'));
   // Halott tartó: átveszi, és a végén elengedi.
   fs.writeFileSync(path.join(r.rt, '.lock', 'pid'), '999999\n');
   const run2 = install(r);
@@ -336,7 +344,7 @@ shTest('egészség: futtatókörnyezetből frissítve ha az új nem jelentkezik,
   assert.deepEqual(entries(r.rt), [okMarkName(id2), id2, 'current'].sort());
 });
 
-shTest('a segéd nem indítható (bootstrap) — visszaállás, bootstrap jel', () => {
+shTest('a segéd nem indítható (bootstrap) — visszaállás, bootstrap jel; ha a régi sem, restore', () => {
   const r = rig();
   const legacy = '<plist><dict><key>Label</key><string>hu.breaker.helper</string></dict></plist>\n';
   fs.writeFileSync(r.dp, legacy);
@@ -344,6 +352,94 @@ shTest('a segéd nem indítható (bootstrap) — visszaállás, bootstrap jel', 
   const run = install(r);
   assert.deepEqual(brk(run), ['bootstrap'], run.err);
   assert.equal(read(r.dp), legacy);
+  assert.ok(!fs.existsSync(path.join(r.rt, 'current')), 'régi elrendezésből: a current link sem marad');
+  assert.ok(!fs.existsSync(path.join(r.rt, '.pending')));
+  const c = calls(r);
+  assert.equal(c[c.length - 1], `bootstrap system ${r.dp}`, 'a régi segéd újra fut');
+  // Ha a régi sem indul: kimondjuk (a gép következő indításakor indul).
+  const r2 = rig();
+  fs.writeFileSync(r2.dp, legacy);
+  flag(r2, 'bootstrap-fail-all');
+  const run2 = install(r2);
+  assert.deepEqual(brk(run2), ['restore'], run2.err);
+  assert.equal(read(r2.dp), legacy);
+});
+
+shTest('egy elbukott friss telepítés után az újrapróbálás sem hagy ott el nem induló segédet', () => {
+  const r = rig();
+  flag(r, 'unhealthy');
+  assert.deepEqual(brk(install(r)), ['health']);
+  assert.ok(!fs.existsSync(r.dp));
+  assert.ok(!fs.existsSync(path.join(r.rt, 'current')), 'a current sem marad');
+  // Újra (ugyanazzal, és egy más csomaggal is): megint semmi nem marad betöltve.
+  assert.deepEqual(brk(install(r)), ['health']);
+  assert.ok(!fs.existsSync(r.dp), 'nincs leíró — mint a kattintás előtt');
+  assert.ok(!fs.existsSync(path.join(r.rt, 'current')));
+  const c = calls(r);
+  const last = c.lastIndexOf(`bootout system/${DAEMON_LABEL}`);
+  assert.ok(!c.slice(last).some((x) => x.startsWith('bootstrap system') && x.includes(DAEMON_LABEL)));
+});
+
+shTest('megszakítás a váltás közben (leállítás, SIGTERM): visszaáll, interrupted jel', () => {
+  const r = rig();
+  const legacy = '<plist><dict>\n<key>Label</key><string>hu.breaker.helper</string>\n</dict></plist>\n';
+  fs.writeFileSync(r.dp, legacy);
+  flag(r, 'term-on-bootstrap');
+  const run = install(r);
+  assert.deepEqual(brk(run), ['interrupted'], run.err);
+  assert.equal(read(r.dp), legacy, 'a régi leíró vissza');
+  assert.ok(!fs.existsSync(path.join(r.rt, 'current')));
+  assert.ok(!fs.existsSync(path.join(r.rt, '.pending')));
+  assert.ok(!fs.existsSync(path.join(r.rt, '.lock')), 'a zár elengedve');
+});
+
+shTest('a váltás előtt a szándék a lemezen: .pending (új és előző változat) — az őr ebből áll vissza, ha a telepítő félúton leállna', () => {
+  const r = rig();
+  assert.equal(install(r).code, 0);
+  const payload2 = packer.makeTar([
+    { path: PAYLOAD_ENTRY, mode: 0o644, data: Buffer.from('// segéd 3\n') },
+    { path: 'app/package.json', mode: 0o644, data: Buffer.from('{}\n') },
+  ]) as Buffer;
+  fs.writeFileSync(r.inputs.payloadTar, payload2);
+  flag(r, 'unhealthy');
+  // A launchctl-csonk a bootstrapkor feljegyzi, mi volt a .pending-ben.
+  const seen = path.join(r.root, 'pending-seen');
+  fs.writeFileSync(path.join(r.flags, 'note-pending'), seen);
+  const run = install(r, { payloadSha256: sha(payload2), payloadSize: payload2.length, nodeTar: null });
+  assert.deepEqual(brk(run), ['health']);
+  const id2 = runtimeId(sha(payload2), r.pin.arm64.binSha256);
+  assert.equal(read(seen), `${id2}\n${r.id}\n`);
+  assert.ok(!fs.existsSync(path.join(r.rt, '.pending')), 'a visszaállás után eltűnik');
+});
+
+shTest('az őr írása megbukik (betelt lemez a dekódolás közben) — a régi őr marad, guard jel', () => {
+  const r = rig();
+  fs.mkdirSync(r.dir, { recursive: true, mode: 0o755 });
+  fs.writeFileSync(path.join(r.dir, 'guard.sh'), '#!/bin/sh\n# régi őr\n');
+  flag(r, 'b64-fail');
+  const run = install(r);
+  assert.deepEqual(brk(run), ['guard'], run.err);
+  assert.equal(read(path.join(r.dir, 'guard.sh')), '#!/bin/sh\n# régi őr\n');
+  assert.ok(!fs.existsSync(r.dp));
+  assert.deepEqual(entries(r.dir).filter((e) => e.startsWith('.put.')), [], 'ideiglenes fájl nem marad');
+});
+
+shTest('az őr újratöltése: a változott leírónál kivárja a leállást és újrapróbál; a változatlant nem tölti újra', () => {
+  const r = rig();
+  // Az őr fut, a leírója régi; a leállás lassú (három megnézésig még „fut”).
+  fs.writeFileSync(path.join(r.ld, 'hu.breaker.guard.plist'), '<plist><dict><key>Label</key><string>hu.breaker.guard</string><string>régi</string></dict></plist>\n');
+  fs.writeFileSync(path.join(r.root, 'loaded', 'hu.breaker.guard'), '');
+  flag(r, 'slow-bootout', '3');
+  const run = install(r);
+  assert.equal(run.code, 0, run.err);
+  assert.equal(read(path.join(r.ld, 'hu.breaker.guard.plist')), r.inputs.guardPlist);
+  const c = calls(r);
+  assert.ok(c.includes('bootout system/hu.breaker.guard'));
+  assert.ok(fs.existsSync(path.join(r.root, 'loaded', 'hu.breaker.guard')), 'az őr fut');
+  // Másodszor: a leíró ugyanaz — nem tölti újra.
+  fs.writeFileSync(r.calls, '');
+  assert.equal(install(r).code, 0);
+  assert.ok(!calls(r).includes('bootout system/hu.breaker.guard'));
 });
 
 shTest('az őr nem tölthető be — megáll, mielőtt bármi a segédhez nyúlna', () => {
@@ -366,7 +462,7 @@ test('a leíró: a futtatókörnyezet Node-ja, kötött kapcsolók, csak az Open
     `${rt}/current/ossl-modules`,
     `${rt}/current`,
     'hu.breaker.app',
-    '/Library/Logs/Breaker/helper.log', '/Library/Logs/Breaker/helper.log',
+    '/Library/Application Support/Breaker/helper.log', '/Library/Application Support/Breaker/helper.log',
   ]);
   assert.match(p, /<key>EnvironmentVariables<\/key>\s*<dict>\s*<key>OPENSSL_MODULES<\/key><string>[^<]+<\/string>\s*<\/dict>/);
   assert.ok(!/ELECTRON_|DYLD_|NODE_|app\.asar|\.app\//.test(p), p);
