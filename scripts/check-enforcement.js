@@ -4534,8 +4534,21 @@ const WIRES = [
   },
   {
     file: 'desktop/src/shared/guard-script.ts',
-    needle: 'if ($in) { $cur.Add($l); if ($l -cmatch $BlockRe) { [void]$set.Add($l) } } else { $out.Add($l) }',
+    needle: "'    $cur.Add($l)',\n    '    if ($l -cmatch $BlockRe) { [void]$set.Add($l) }',",
     lost: 'Windowson az őr egy elavult szigorú blokkal kivenne egy épp tiltott nevet',
+  },
+  // Egy félbemaradt írás (záró nélküli nyitó jelölő) után álló saját sorokat
+  // (például a Docker bejegyzéseit) az őr nem törölheti: csak a tiltó sorok és
+  // a mi megjegyzésünk kerül a blokkba.
+  {
+    file: 'desktop/src/shared/guard-script.ts',
+    needle: `'grep -Ev -- "$BLOCK|^# Breaker:" "$WORK/ur" >> "$WORK/out0"; [ $? -le 1 ] || exit 0',`,
+    lost: 'macOS-en az őr kitörölné a félbemaradt blokk utáni saját hosts-sorokat',
+  },
+  {
+    file: 'desktop/src/shared/guard-script.ts',
+    needle: "-and -not $l.StartsWith('# Breaker:', [StringComparison]::Ordinal)) { $tail.Add($l) }\",\n    '  }',\n    \"  while ($out.Count -gt 0 -and $out[$out.Count - 1] -eq '') { $out.RemoveAt($out.Count - 1) }\",\n    '  foreach ($l in $tail) { $out.Add($l) }',",
+    lost: 'Windowson az őr kitörölné a félbemaradt blokk utáni saját hosts-sorokat',
   },
   // Az őr a hosts fájlt egy cserével írja: egy betelt lemez vagy egy leállítás
   // sem hagyhat félig írt fájlt (abból az IPv6-sorok vesznek el elsőként).
@@ -4546,8 +4559,20 @@ const WIRES = [
   },
   {
     file: 'desktop/src/shared/guard-script.ts',
-    needle: "[IO.File]::Replace($tmp, $hostsFile, [NullString]::Value)",
+    needle: "'      try { [IO.File]::Replace($tmp, $hostsFile, [NullString]::Value) }',",
     lost: 'Windowson az őr helyben írná a hosts fájlt — egy betelt lemezen csonka blokk maradna',
+  },
+  // Ha a csere nem megy (egy program nyitva tartja a hosts fájlt), helyben ír —
+  // különben az őr ilyenkor soha nem írna; és ideiglenes fájl nem marad.
+  {
+    file: 'desktop/src/shared/guard-script.ts',
+    needle: "'      catch {',\n    '        Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue',\n    '        [IO.File]::WriteAllBytes($hostsFile, $bytes)',",
+    lost: 'Windowson egy a hosts fájlt nyitva tartó program mellett az őr sosem írna',
+  },
+  {
+    file: 'desktop/src/shared/guard-script.ts',
+    needle: "'  } finally {',\n    '    if ([IO.File]::Exists($tmp)) { Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue }',",
+    lost: 'Windowson egy félbemaradt írás ideiglenes fájlja a hosts mellett maradna',
   },
   // A nem induló segéd: az app a helyén, a segéd mégsem fut — enélkül egy
   // félig törölt app (vagy egy elrontott app.asar) ugyanúgy befagyasztaná a
@@ -4559,8 +4584,8 @@ const WIRES = [
   },
   {
     file: 'desktop/src/shared/guard-script.ts',
-    needle: "    Apply-Strict 'dead'",
-    lost: 'Windowson a helyén lévő, de el nem induló segéd mellett a tiltás befagyna',
+    needle: "'    if ($deadFor -ge $deadAfter -and -not ((Installing) -and $deadFor -lt $installCap)) {',\n    \"      try { Apply-Strict 'dead' } catch { Log (\" + msg('hiba: ') + ' + $_.Exception.Message) }',\n    '    }',",
+    lost: 'Windowson a helyén lévő, de el nem induló segéd mellett a tiltás befagyna (vagy egy írási hiba az indítást is elvinné)',
   },
   // Windowson az őr a segéd állapotmappájába nem ír: ha azt valaki törli, egy
   // sima felhasználó újra létrehozhatja, és egy SYSTEM-írást máshova irányíthat.

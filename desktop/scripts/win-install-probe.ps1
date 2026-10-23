@@ -373,7 +373,8 @@ else { Write-Host 'az app eltávolítása után az őr a szigorú blokkot tartja
 $h = HostsText
 # A régi blokkból csak a záró jelölő vész el (félbemaradt írás): a nyitó után a
 # tiltó sorok egy része ott marad — ezek se maradhatnak a blokkon kívül.
-$lone = [regex]::Replace($h, '(?s)(# >>> BREAKER BLOCK BEGIN[^\r\n]*)\r?\n.*?# <<< BREAKER BLOCK END\r?\n?', '$1' + "`r`n0.0.0.0 stale.example`r`n:: stale.example`r`n")
+# Utána egy később hozzáfűzött saját sor: az a blokkon kívül marad.
+$lone = [regex]::Replace($h, '(?s)(# >>> BREAKER BLOCK BEGIN[^\r\n]*)\r?\n.*?# <<< BREAKER BLOCK END\r?\n?', '$1' + "`r`n0.0.0.0 stale.example`r`n:: stale.example`r`n10.0.0.5 nas.probe`r`n")
 [System.IO.File]::WriteAllText($hostsFile, $lone, (New-Object System.Text.UTF8Encoding $false))
 if ((HostsText).Contains($note) -or (HostsText).Contains('BREAKER BLOCK END')) { Fail 'a próba nem tudta a nyitó jelölőt magára hagyni' }
 Run-Guard
@@ -383,6 +384,24 @@ elseif (([regex]::Matches($h, 'BREAKER BLOCK BEGIN')).Count -ne 1 -or ([regex]::
 elseif (-not ($h -match '(?s)# >>> BREAKER BLOCK BEGIN.*0\.0\.0\.0 stale\.example.*# <<< BREAKER BLOCK END') -or ([regex]::Matches($h, '(?m)^0\.0\.0\.0 stale\.example')).Count -ne 1) {
   Fail 'a félbemaradt blokk tiltó sora nem a blokkba került (vagy kívül is ott maradt)'
 }
+elseif (([regex]::Matches($h, '(?m)^10\.0\.0\.5 nas\.probe\r?$')).Count -ne 1 -or $h -match '(?s)# >>> BREAKER BLOCK BEGIN.*10\.0\.0\.5 nas\.probe.*# <<< BREAKER BLOCK END') {
+  Fail 'a félbemaradt blokk utáni saját sor elveszett (vagy a blokkba került)'
+}
+# Egy program nyitva tartja a hosts fájlt (törlés-megosztás nélkül, ahogy egy
+# vírusirtó szokta): a csere nem megy, az őr helyben ír — nem marad le.
+$h = HostsText
+$stripped = [regex]::Replace($h, '(?s)\r?\n*# >>> BREAKER BLOCK BEGIN.*?# <<< BREAKER BLOCK END\r?\n?', "`r`n")
+[System.IO.File]::WriteAllText($hostsFile, $stripped, (New-Object System.Text.UTF8Encoding $false))
+$idBefore = (fsutil file queryfileid $hostsFile) -join ' '
+$lock = [System.IO.File]::Open($hostsFile, 'Open', 'Read', 'ReadWrite')
+try { Run-Guard } finally { $lock.Dispose() }
+$h = HostsText
+if (-not $h.Contains($note)) { Fail 'a nyitva tartott hosts fájlba az őr nem írta be a szigorú blokkot'; Show-Guard }
+else {
+  $how = if (((fsutil file queryfileid $hostsFile) -join ' ') -eq $idBefore) { 'helyben' } else { 'cserével' }
+  Write-Host "a nyitva tartott hosts fájlba is beírta a szigorú blokkot ($how)"
+}
+if (Test-Path -LiteralPath ($hostsFile + '.breaker-guard.tmp')) { Fail 'az őr ideiglenes fájlja a hosts mellett maradt' }
 
 # 4. A kézi eltávolító — előbb a segéd által a gépre tett másolat, amire a
 # szigorú blokk magyarázata mutat: idegen célú parancsikon marad, a

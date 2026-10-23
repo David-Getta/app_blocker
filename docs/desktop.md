@@ -216,10 +216,13 @@ minden induláskor — újabb jelszó nélkül.
   minden, és hol a teljes eltávolító.
 - Az őr csak szigorít: a szigorú blokk és a hosts mostani blokkja tiltó
   sorainak **unióját** írja, egy elavult szigorú blokk sem vehet ki egy épp
-  tiltott nevet. A magára hagyott jelölőt (ahogy a segéd is: a záró nélküli
-  nyitó a fájl végéig tart), a Windows-sorvéget és a hiányzó hosts fájlt is
-  rendbe teszi. A hosts fájlt egy cserével írja: egy betelt lemez vagy egy
-  leállítás sem hagyhat félig írt fájlt.
+  tiltott nevet. A magára hagyott jelölőt, a Windows-sorvéget és a hiányzó
+  hosts fájlt is rendbe teszi: egy félbemaradt blokk tiltó sorai a blokkba
+  kerülnek, a mögötte álló saját soraid (például egy később hozzáfűzött
+  bejegyzés) maradnak. A hosts fájlt egy cserével írja: egy betelt lemez vagy
+  egy leállítás sem hagyhat félig írt fájlt. Ha Windowson egy program (például
+  egy vírusirtó) nyitva tartja a hosts fájlt, és a csere nem megy, helyben
+  írja — nem marad le.
 - Az őr nem rak össze semmit, csak ellenőriz és bemásol: a szigorú blokkból
   csak megjegyzést és `0.0.0.0` / `::` tiltó sort vesz át (egy idegen sort
   kihagy és naplóz, a többit beírja), és csak akkor, ha a fájl és a mappája a

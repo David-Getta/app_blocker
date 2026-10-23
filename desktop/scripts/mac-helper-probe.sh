@@ -136,8 +136,9 @@ has_block && bad "a próba nem tudta kivenni a blokkot"
 wait_for 100 has_note || bad "a kézzel kivett szigorú blokkot az őr nem tette vissza"
 BEGIN_LINE=$(node -e "process.stdout.write(require('./dist/shared/blocklist.js').MARKER_BEGIN)")
 strip_block
-# Félbemaradt írás: a nyitó jelölő után a régi blokk egy darabja, záró nélkül.
-printf '%s\n0.0.0.0 stale.example\n:: stale.example\n' "$BEGIN_LINE" | sudo tee -a /etc/hosts >/dev/null
+# Félbemaradt írás: a nyitó jelölő után a régi blokk egy darabja, záró nélkül,
+# utána egy később hozzáfűzött saját sor (az a blokkon kívül marad).
+printf '%s\n0.0.0.0 stale.example\n:: stale.example\n10.0.0.5 nas.probe\n' "$BEGIN_LINE" | sudo tee -a /etc/hosts >/dev/null
 has_note && bad "a próba nem tudta kivenni a blokkot (a nyitó jelölő mellől)"
 wait_for 100 has_note || bad "a magában maradt nyitó jelölő mellé az őr nem tette vissza a blokkot"
 [ "$(grep -c 'BREAKER BLOCK BEGIN' /etc/hosts)" = 1 ] && [ "$(grep -c 'BREAKER BLOCK END' /etc/hosts)" = 1 ] \
@@ -146,6 +147,9 @@ wait_for 100 has_note || bad "a magában maradt nyitó jelölő mellé az őr ne
 [ "$(grep -c '^0\.0\.0\.0 stale\.example$' /etc/hosts)" = 1 ] \
   && awk '/BREAKER BLOCK BEGIN/{s=1} s&&/^0\.0\.0\.0 stale\.example$/{f=1} /BREAKER BLOCK END/{s=0} END{exit f?0:1}' /etc/hosts \
   || bad "a félbemaradt blokk tiltó sora nem a blokkba került (vagy kívül is ott maradt)"
+[ "$(grep -c '^10\.0\.0\.5 nas\.probe$' /etc/hosts)" = 1 ] \
+  && awk '/BREAKER BLOCK BEGIN/{s=1} s&&/^10\.0\.0\.5 nas\.probe$/{f=1} /BREAKER BLOCK END/{s=0} END{exit f?1:0}' /etc/hosts \
+  || bad "a félbemaradt blokk utáni saját sor elveszett (vagy a blokkba került)"
 
 # 2f. ELLENPRÓBA: őr nélkül a kivett blokk kivéve marad — tehát az előbb
 # tényleg az őr tette vissza, nem egy még futó segéd.

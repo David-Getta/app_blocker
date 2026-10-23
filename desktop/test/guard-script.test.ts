@@ -3,8 +3,10 @@
 // A macOS-őrt itt ÉLESBEN futtatjuk, dash-sel (a macOS /bin/sh-ja is POSIX):
 // csonkolt PlistBuddy-val (a segéd leírójából a bináris és a belépési pont) és
 // launchctl-lel (fut-e a segéd, kit indít el), egy ideiglenes hosts fájlon, és
-// megszámoljuk, hányszor ürítené a DNS-gyorsítótárat. A Windows-őrt a
-// CI-próba futtatja élesben; itt a szövegét nézzük.
+// megszámoljuk, hányszor ürítené a DNS-gyorsítótárat. A Windows-őr hosts-írását
+// (Apply-Strict) PowerShell 7-tel futtatjuk, és ugyanarra a hosts fájlra a két őr
+// eredményét összevetjük; a többi részét (Feladatütemező, jogok) a CI-próba
+// futtatja élesben Windowson, itt a szövegét nézzük.
 
 import { strict as assert } from 'node:assert';
 import { execFileSync } from 'node:child_process';
@@ -15,7 +17,7 @@ import { test } from 'node:test';
 import { MARKER_BEGIN, MARKER_END, buildManagedBlock } from '../src/shared/blocklist';
 import {
   GUARD_DEAD_FILE, GUARD_GONE_FILE, GUARD_LABEL, GUARD_TASK_NAME, MAC_GUARD_DEFAULTS, macGuardPlist, macGuardScript,
-  shQuote, STRICT_FILE, windowsGuardLoader, windowsGuardRegisterScript, windowsGuardScript,
+  shQuote, STRICT_FILE, WINDOWS_GUARD_DEFAULTS, windowsGuardLoader, windowsGuardRegisterScript, windowsGuardScript,
 } from '../src/shared/guard-script';
 import { isValidStrictBlock, renderStrictBlock, strictHostnames, strictNote } from '../src/shared/strict-block';
 import { DAEMON_LABEL, TASK_NAME } from '../src/shared/install-script';
@@ -277,10 +279,13 @@ macTest('macOS-őr: a visszaállított óra nem halasztja — a jövőbeli bély
 });
 
 macTest('macOS-őr: felemás jelölők és hiányzó hosts — rendbe teszi, ahogy a segéd', () => {
-  // A záró nélküli nyitó jelölő a fájl végéig tart (mint a segédnél); a nyitó
-  // nélküli záró csak magát viszi.
+  // A záró nélküli nyitó jelölő: a mögötte álló tiltó sorok és a saját
+  // megjegyzésünk a blokkba kerülnek, a felhasználó többi sora (például egy
+  // később hozzáfűzött saját bejegyzés) marad. A nyitó nélküli záró csak magát viszi.
   for (const [label, hosts, head] of [
-    ['csak a nyitó jelölő maradt', `127.0.0.1 localhost\n${MARKER_BEGIN}\n# régi megjegyzés\n`, '127.0.0.1 localhost\n\n'],
+    ['csak a nyitó jelölő maradt, utána saját sorok',
+      `127.0.0.1 localhost\n${MARKER_BEGIN}\n# Added by Docker Desktop\n192.168.65.2 host.docker.internal\n`,
+      '127.0.0.1 localhost\n# Added by Docker Desktop\n192.168.65.2 host.docker.internal\n\n'],
     ['csak a záró jelölő maradt', `127.0.0.1 localhost\n${MARKER_END}\n# saját sor\n`, '127.0.0.1 localhost\n# saját sor\n\n'],
     ['fordított sorrend', `127.0.0.1 localhost\n${MARKER_END}\n# saját sor\n${MARKER_BEGIN}\n`, '127.0.0.1 localhost\n# saját sor\n\n'],
   ] as const) {
@@ -295,16 +300,18 @@ macTest('macOS-őr: felemás jelölők és hiányzó hosts — rendbe teszi, aho
     assert.ok(after.startsWith(head), `${label}: ${after}`);
     assert.match(logOf(r), /felemások voltak/, label);
   }
-  // Egy félbemaradt írás: a nyitó jelölő után a régi blokk darabja. A tiltó
-  // sorai a blokkba kerülnek (unió), nem maradnak kezeletlen bejegyzésként —
-  // különben se a segéd, se az eltávolító nem venné ki őket soha.
+  // Egy félbemaradt írás: a nyitó jelölő után a régi blokk darabja (a régi
+  // megjegyzéssel), majd egy később hozzáfűzött saját sor. A tiltó sorok a
+  // blokkba kerülnek (unió), nem maradnak kezeletlen bejegyzésként — különben se
+  // a segéd, se az eltávolító nem venné ki őket soha —, a saját sor marad.
   const r = rig();
   deleteApp(r);
-  fs.writeFileSync(r.hosts, `127.0.0.1 localhost\n\n${MARKER_BEGIN}\n${NOTE}\n0.0.0.0 stale.example\n:: stale.example\n`);
+  fs.writeFileSync(r.hosts, `127.0.0.1 localhost\n\n${MARKER_BEGIN}\n${NOTE}\n0.0.0.0 stale.example\n:: stale.example\n10.0.0.5 nas.local\n`);
   runGuard(r);
   const after = read(r.hosts);
   assert.equal(region(after), expectedRegion(['old.example', 'paused.example', 'stale.example', 'www.paused.example']));
-  assert.equal(after.slice(0, after.indexOf(MARKER_BEGIN)), '127.0.0.1 localhost\n\n', 'a blokkon kívül nem maradhat a régi darabja');
+  assert.equal(after.slice(0, after.indexOf(MARKER_BEGIN)), '127.0.0.1 localhost\n10.0.0.5 nas.local\n\n', after);
+  assert.equal(after.split('stale.example').length, 3, 'a régi tiltó sorok egyszer, a blokkban');
   // A hosts fájl hiányzik: alap hosts + a szigorú blokk, olvasható jogokkal.
   const m = rig();
   deleteApp(m);
@@ -326,6 +333,44 @@ macTest('macOS-őr: CRLF sorvégű hosts — a jelölőket felismeri, egy blokk 
   assert.equal(after.split(MARKER_BEGIN).length, 2, after);
   assert.ok(!after.includes('\r'));
   assert.equal(region(after), expectedRegion(['old.example', 'paused.example', 'www.paused.example']));
+  // Csak a sor végi CR megy: a sor közepi CR a felhasználó bájtja (a segéd is
+  // csak a CRLF-et olvassa LF-nek) — két sora nem forrhat össze.
+  const m = rig();
+  deleteApp(m);
+  fs.writeFileSync(m.hosts, '127.0.0.1 localhost\r\n10.0.0.1 a\rb\n');
+  runGuard(m);
+  assert.ok(read(m.hosts).startsWith('127.0.0.1 localhost\n10.0.0.1 a\rb\n\n'), JSON.stringify(read(m.hosts).slice(0, 60)));
+});
+
+macTest('macOS-őr: ami a hosts helyén áll, de nem fájl, ahhoz nem nyúl', () => {
+  const r = rig();
+  deleteApp(r);
+  fs.rmSync(r.hosts);
+  fs.mkdirSync(r.hosts);
+  runGuard(r);
+  assert.deepEqual(fs.readdirSync(r.hosts), [], 'a mappába tett egy fájlt');
+  assert.match(logOf(r), /nem tudtam írni a hosts fájlt: nem fájl/);
+  assert.equal(flushCount(r), 0);
+});
+
+macTest('macOS-őr: betelt lemez — a hosts fájl érintetlen, ideiglenes fájl nem marad', () => {
+  // Fájlméret-korlát (ulimit -f, 512 bájtos egységek): a munkafájlok elférnek,
+  // az új hosts fájl (a régi sorok + a blokk) nem. A régi helyben írás itt csonka
+  // blokkot hagyott — elsőként az IPv6-sorok vesztek el.
+  const r = rig();
+  deleteApp(r);
+  const user = Array.from({ length: 60 }, (_, i) => `10.0.${i}.1 host${i}.lan`).join('\n');
+  fs.writeFileSync(r.hosts, `${user}\n`);
+  fs.writeFileSync(path.join(r.dir, STRICT_FILE), renderStrictBlock(Array.from({ length: 30 }, (_, i) => `blocked${i}.example`), NOTE), { mode: 0o600 });
+  const before = read(r.hosts);
+  const strictSize = fs.statSync(path.join(r.dir, STRICT_FILE)).size;
+  assert.ok(before.length > 1000 && strictSize > 1000 && before.length + strictSize > 2200 && strictSize < 1900,
+    `a próba mérete: ${before.length} + ${strictSize}`);
+  execFileSync('/bin/sh', ['-c', 'trap "" XFSZ; ulimit -f 4; exec "$@"', 'sh', ...shell, r.script], { stdio: 'pipe' });
+  assert.equal(read(r.hosts), before, 'a hosts fájl megváltozott');
+  assert.deepEqual(fs.readdirSync(path.dirname(r.hosts)).filter((f) => f.startsWith('.hosts.')), [], 'ideiglenes fájl maradt');
+  assert.match(logOf(r), /nem tudtam írni a hosts fájlt/);
+  assert.equal(flushCount(r), 0);
 });
 
 macTest('macOS-őr: az írás egy átnevezés — nem marad ideiglenes fájl, a hosts új inode', () => {
@@ -491,19 +536,38 @@ test('Windows-őr: a futó segédet nem írja felül; a hiányzó meghajtó elt�
   assert.ok(s.indexOf("return @{ s = 'alive' }") < s.indexOf("return @{ s = 'gone' }"));
   // A kihúzott meghajtó nem „semleges” többé: eltűnt app.
   assert.ok(!s.includes('GetPathRoot'), 'a hiányzó meghajtó ne tegye tétlenné az őrt');
-  // Unió: a hosts régi blokkjának tiltó sorai is a halmazba kerülnek.
-  assert.ok(s.includes('if ($in) { $cur.Add($l); if ($l -cmatch $BlockRe) { [void]$set.Add($l) } } else { $out.Add($l) }'));
-  // Felemás jelölők, ahogy a segéd érti: a záró nélküli nyitó a fájl végéig
-  // tart, a nyitó nélküli záró csak magát viszi; a blokk akkor is beíródik.
-  assert.ok(s.includes('if ($l -ceq $B) { $in = $true; $cur.Add($l); continue }'));
-  assert.ok(s.includes('if ($l -ceq $E) { if ($in) { $cur.Add($l) }; $in = $false; continue }'));
+  // Unió: a hosts régi blokkjának tiltó sorai is a halmazba kerülnek. (A
+  // felemás jelölőket és a sorvégeket az élő próba nézi lent.)
+  assert.ok(s.includes('    if ($l -cmatch $BlockRe) { [void]$set.Add($l) }'));
   assert.ok(s.includes('if (-not $ok) { $cur.Clear();'));
-  // Az írás egy csere: egy betelt lemez vagy egy leállítás sem hagy félig írt hosts fájlt.
-  assert.ok(s.includes("[IO.File]::Replace($tmp, $hostsFile, [NullString]::Value)"));
-  assert.ok(!s.includes('[IO.File]::WriteAllBytes($hostsFile'), 'helyben írja a hosts fájlt');
+  // A nyelvi beállítás szerinti összevetés nem dönthet: minden StartsWith sorszámos.
+  assert.ok(!/\.(StartsWith|EndsWith)\('[^']*'\)/.test(s), 'nyelvi beállítás szerinti StartsWith/EndsWith');
+  assert.ok(!s.includes('TrimEnd('), 'a TrimEnd az összes sor végi CR-t vinné');
+  // Az írás egy csere: egy betelt lemez vagy egy leállítás sem hagy félig írt
+  // hosts fájlt. Helyben csak akkor ír, ha a csere nem megy — és az ideiglenes
+  // fájl ilyenkor is eltűnik.
+  const lines = s.split('\r\n');
+  const rep = lines.indexOf('      try { [IO.File]::Replace($tmp, $hostsFile, [NullString]::Value) }');
+  assert.ok(rep > 0, 'nincs csere');
+  assert.deepEqual(lines.slice(rep + 1, rep + 5), [
+    '      catch {',
+    '        Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue',
+    '        [IO.File]::WriteAllBytes($hostsFile, $bytes)',
+    '      }',
+  ]);
+  assert.equal(s.split('[IO.File]::WriteAllBytes($hostsFile').length, 2, 'helyben írás a cserén kívül is');
+  const fin = lines.indexOf('  } finally {', rep);
+  assert.ok(fin > rep && lines[fin + 1] === '    if ([IO.File]::Exists($tmp)) { Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue }');
   // A nem induló segéd: előbb a szigorú blokk, csak utána indítjuk — a saját
-  // indításunk különben „futónak” látszana az írás előtti újranézésnél.
-  assert.ok(s.indexOf("      Apply-Strict 'dead'") < s.indexOf("Start-ScheduledTask -TaskName '"), 'előbb indít, aztán ír');
+  // indításunk különben „futónak” látszana az írás előtti újranézésnél. Az írás
+  // hibája (például egy zárolt hosts fájl) nem akadályozhatja meg az indítást.
+  const deadIf = lines.indexOf('    if ($deadFor -ge $deadAfter -and -not ((Installing) -and $deadFor -lt $installCap)) {');
+  assert.ok(deadIf > 0, 'nincs dead-ág');
+  assert.match(lines[deadIf + 1], /^ {6}try \{ Apply-Strict 'dead' \} catch \{ Log \(\(U '[A-Za-z0-9+/=]+'\) \+ \$_\.Exception\.Message\) \}$/);
+  assert.equal(lines[deadIf + 2], '    }');
+  const start = lines.findIndex((l) => l.includes("Start-ScheduledTask -TaskName '"));
+  assert.ok(start > deadIf + 2, 'előbb indít, aztán ír');
+  assert.equal(s.split("Apply-Strict 'dead'").length, 2);
   // Hiányzó hosts: üres listával indul, és ír.
   assert.ok(s.includes('if ([IO.File]::Exists($hostsFile)) { $lines = Lines ([IO.File]::ReadAllBytes($hostsFile)) }'));
   // Idegen sor: kimarad, nem akasztja meg az egészet; méretkorlát nincs.
@@ -511,6 +575,205 @@ test('Windows-őr: a futó segédet nem írja felül; a hiányzó meghajtó elt�
   assert.ok(!/\$bytes\.Length -gt/.test(s));
   // A jövőbeli bélyeg (visszaállított óra) a mostani időre íródik.
   assert.ok(s.includes('if ($null -eq $since -or $since -gt $now) { [IO.File]::WriteAllText($p, $now.ToString(\'o\')); return 0 }'));
+});
+
+// ------------------------------------------------ Windows őr élesben (pwsh)
+//
+// A Windows-őr hosts-írását (Apply-Strict) a kiszállított szövegből futtatjuk
+// PowerShell 7-tel: a GitHub Linux-gépein van (ott kötelező), helyben a PWSH
+// változó mutathat rá. A gép-specifikus részeket (Feladatütemező, tulajdonos-
+// ellenőrzés, DNS-ürítés) csonkoljuk; az összefésülés, a sorvégek és az írás a
+// valódi kód. Ugyanarra a hosts fájlra a két őrnek ugyanazt kell írnia — a
+// sorvég kivételével (Windowson CRLF).
+
+function findPwsh(): string | null {
+  if (process.env.PWSH) return process.env.PWSH;
+  for (const d of (process.env.PATH ?? '').split(path.delimiter)) {
+    if (d && fs.existsSync(path.join(d, 'pwsh'))) return path.join(d, 'pwsh');
+  }
+  return null;
+}
+const PWSH = findPwsh();
+
+test('a Windows-őr élő próbája a CI-ban fut', () => {
+  if (process.env.CI) assert.ok(PWSH, 'a CI-gépen pwsh kell');
+});
+
+interface WinRig { root: string; hosts: string; strict: string; flushes: string; log: string; script: string }
+
+const psQuote = (p: string) => `'${p.replace(/'/g, "''")}'`;
+
+function winRig(hosts: Buffer | null, strict: string, extra: string[] = []): WinRig {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'wguard-'));
+  const sys = path.join(root, 'sys');
+  fs.mkdirSync(sys);
+  const flushes = path.join(root, 'flushes');
+  fs.writeFileSync(path.join(sys, 'ipconfig.exe'), `#!/bin/sh\necho "$1" >> ${shQuote(flushes)}\n`, { mode: 0o755 });
+  const hostsFile = path.join(root, 'hosts');
+  if (hosts) fs.writeFileSync(hostsFile, hosts);
+  const strictFile = path.join(root, STRICT_FILE);
+  fs.writeFileSync(strictFile, strict);
+  const log = path.join(root, 'guard.log');
+  // A PATH és a modulút sorát kihagyjuk: a pwsh a saját moduljait innen tölti.
+  const lines = windowsGuardScript(WINDOWS_GUARD_DEFAULTS).split('\r\n')
+    .filter((l) => !l.startsWith('$env:PATH =') && !l.startsWith('$env:PSModulePath ='));
+  const main = lines.indexOf('try {');
+  assert.ok(main > 0, 'nincs fő rész');
+  const script = path.join(root, 'guard.ps1');
+  fs.writeFileSync(script, [
+    ...lines.slice(0, main),
+    `$strict = ${psQuote(strictFile)}`,
+    `$hostsFile = ${psQuote(hostsFile)}`,
+    `$logFile = ${psQuote(log)}`,
+    `$sys = ${psQuote(sys)}`,
+    '$guardOk = $true',
+    'function Owner-Ok([string]$p) { return $true }',
+    'function Trusted-Dir([string]$p) { return $true }',
+    "function Get-State { return @{ s = 'gone' } }",
+    ...extra,
+    "try { Apply-Strict 'gone' } catch { Log ('hiba: ' + $_.Exception.Message); exit 3 }",
+    'exit 0',
+    '',
+  ].join('\n'));
+  return { root, hosts: hostsFile, strict: strictFile, flushes, log, script };
+}
+
+function runWin(r: WinRig): void {
+  execFileSync(PWSH as string, ['-NoLogo', '-NoProfile', '-NonInteractive', '-File', r.script], {
+    stdio: 'pipe', env: { ...process.env, SystemRoot: r.root, ProgramData: r.root, ProgramW6432: r.root },
+  });
+}
+
+const winTest = (name: string, fn: () => void) => test(name, { skip: PWSH ? false : 'nincs pwsh' }, fn);
+const latin1 = (f: string) => fs.readFileSync(f).toString('latin1');
+
+// Ugyanazok a bájtok mindkét őrnek. A felemás jelölők, a sorvégek és az ékezetek
+// azok a helyek, ahol két külön írt értelmező szét szokott csúszni.
+const MIRROR_CASES: Array<[string, Buffer]> = ([
+  ['nincs blokk', '127.0.0.1 localhost\n10.0.0.1 nas.lan\n'],
+  ['régi blokk, utána saját sor', `127.0.0.1 localhost\n\n${buildManagedBlock(['old.example', 'zzz.example'], 'darwin')}\n# utána\n10.0.0.9 z.lan\n`],
+  ['CRLF', `127.0.0.1 localhost\r\n\r\n${MARKER_BEGIN}\r\n0.0.0.0 crlf.example\r\n${MARKER_END}\r\n`],
+  ['sor közepi CR', '127.0.0.1 localhost\r\n10.0.0.1 a\rb\n'],
+  ['két CR a sor végén', '10.0.0.1 a\r\r\n10.0.0.2 b\n'],
+  ['csak nyitó, utána saját sorok',
+    `127.0.0.1 localhost\n\n${MARKER_BEGIN}\n${NOTE}\n0.0.0.0 stale.example\n:: stale.example\n# Added by Docker Desktop\n192.168.65.2 host.docker.internal\n\n`],
+  ['csak záró', `127.0.0.1 localhost\n${MARKER_END}\n10.0.0.2 b.lan\n`],
+  ['két blokk', `${MARKER_BEGIN}\n0.0.0.0 a.example\n${MARKER_END}\n10.0.0.3 c.lan\n${MARKER_BEGIN}\n:: b.example\n# második belső\n${MARKER_END}\n`],
+  ['egymásba ágyazott nyitó', `${MARKER_BEGIN}\n0.0.0.0 a1.example\n${MARKER_BEGIN}\n0.0.0.0 a2.example\n${MARKER_END}\n10.0.0.3 c.lan\n`],
+  ['blokk, majd záró nélküli nyitó',
+    `${MARKER_BEGIN}\n0.0.0.0 x.example\n# belső\n${MARKER_END}\n10.0.0.4 d.lan\n${MARKER_BEGIN}\n# régi\n10.0.0.5 e.lan\n:: y.example\n# Breaker: régi megjegyzés\n# Breaker2 marad\n`],
+  ['üres', ''],
+  ['csak üres sorok', '\n\n\n'],
+  ['üres sorok elöl és hátul', '\n\n127.0.0.1 localhost\n\n\n'],
+  ['záró sorvég nélkül', '127.0.0.1 localhost'],
+  ['ékezetes saját sorok', '# Ügyfél gépe — tükör\n10.0.0.6 ügyfél.lan\n'],
+  ['szóköz a jelölő végén (nem jelölő)', `${MARKER_BEGIN} \n0.0.0.0 z.example\n${MARKER_END}\n`],
+  ['tiltó sor a blokkon kívül', '0.0.0.0 kint.example\n127.0.0.1 localhost\n'],
+] as Array<[string, string]>).map(([n, t]) => [n, Buffer.from(t, 'utf8')] as [string, Buffer]);
+
+// Érvénytelen UTF-8 bájt is: mindkét őr bájtra megőrzi.
+MIRROR_CASES.push(['érvénytelen UTF-8 bájt', Buffer.concat([Buffer.from('10.0.0.7 '), Buffer.from([0xe9, 0xff]), Buffer.from('.lan\n')])]);
+
+winTest('a Windows-oldali szkriptek szintaktikailag hibátlanok (a PowerShell saját elemzőjével)', () => {
+  // Egy elírt zárójel a Windows-őrben csak a becsomagolt próbán derülne ki,
+  // fél óra múlva — vagy sehol, ha az az ág ott nem fut.
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'wparse-'));
+  const files: Array<[string, string]> = [
+    ['guard.ps1', windowsGuardScript()],
+    ['register.ps1', windowsGuardRegisterScript('C:\\Program Files\\Breaker Guard\\guard.ps1')],
+  ];
+  for (const [name, text] of files) fs.writeFileSync(path.join(root, name), text);
+  const paths = [
+    ...files.map(([name]) => path.join(root, name)),
+    path.join(__dirname, '..', '..', 'scripts', 'uninstall-windows.ps1'),
+    path.join(__dirname, '..', '..', 'scripts', 'win-install-probe.ps1'),
+  ];
+  for (const p of paths) assert.ok(fs.existsSync(p), p);
+  const parse = path.join(root, 'parse.ps1');
+  fs.writeFileSync(parse, [
+    '$bad = 0',
+    'foreach ($p in $args) {',
+    '  $e = $null',
+    '  [void][Management.Automation.Language.Parser]::ParseFile($p, [ref]$null, [ref]$e)',
+    '  foreach ($x in $e) { $bad++; Write-Output ($p + ":" + $x.Extent.StartLineNumber + ": " + $x.Message) }',
+    '}',
+    'Write-Output ("errors: " + $bad + " / files: " + $args.Count)',
+    '',
+  ].join('\n'));
+  const out = execFileSync(PWSH as string, ['-NoLogo', '-NoProfile', '-NonInteractive', '-File', parse, ...paths], { encoding: 'utf8' });
+  assert.match(out, new RegExp(`^errors: 0 / files: ${paths.length}\\s*$`), out);
+});
+
+winTest('a két őr ugyanazt írja: a Windows-őr a macOS-őr tükre (sorvég nélkül)', () => {
+  const strict = renderStrictBlock(['old.example', 'paused.example', 'www.paused.example'], NOTE);
+  shell = SHELLS[0][1];
+  for (const [label, hosts] of MIRROR_CASES) {
+    const m = rig();
+    deleteApp(m);
+    fs.writeFileSync(m.hosts, hosts);
+    runGuard(m);
+    const w = winRig(hosts, strict);
+    runWin(w);
+    const mac = latin1(m.hosts);
+    const win = latin1(w.hosts);
+    assert.ok(!win.replace(/\r\n/g, '').includes('\n'), `${label}: a Windows-őr LF-et írt`);
+    assert.equal(win.replace(/\r\n/g, '\n'), mac, `${label}:\n${JSON.stringify(win)}\n${JSON.stringify(mac)}`);
+    assert.equal(read(w.flushes), '/flushdns\n', `${label}: egy ürítés`);
+    // Másodszor egyik sem ír.
+    runGuard(m);
+    runWin(w);
+    assert.equal(latin1(m.hosts), mac, `${label}: a macOS-őr újraírta`);
+    assert.equal(latin1(w.hosts), win, `${label}: a Windows-őr újraírta`);
+    assert.equal(flushCount(m), 1, `${label}: a macOS-őr újra ürített`);
+    assert.equal(read(w.flushes), '/flushdns\n', `${label}: a Windows-őr újra ürített`);
+    assert.deepEqual(fs.readdirSync(w.root).filter((f) => f.includes('.tmp')), [], `${label}: ideiglenes fájl maradt`);
+  }
+});
+
+winTest('Windows-őr élesben: a hiányzó hosts fájlt létrehozza; idegen sor kimarad; üres lista nem ír', () => {
+  const strict = renderStrictBlock(['a.example'], NOTE);
+  const w = winRig(null, strict);
+  runWin(w);
+  assert.equal(read(w.hosts), strict.replace(/\n/g, '\r\n'));
+  const f = winRig(Buffer.from('127.0.0.1 localhost\r\n'), `${strict}10.0.0.1 idegen.example\n`);
+  runWin(f);
+  assert.ok(!latin1(f.hosts).includes('idegen'), 'az idegen sor bekerült');
+  assert.match(read(f.log), /idegen sorait kihagytam: 1/);
+  const e = winRig(Buffer.from('127.0.0.1 localhost\r\n'), `${MARKER_BEGIN}\n${NOTE}\n${MARKER_END}\n`);
+  runWin(e);
+  assert.equal(latin1(e.hosts), '127.0.0.1 localhost\r\n');
+  assert.equal(read(e.flushes), '');
+});
+
+winTest('Windows-őr élesben: ha a csere nem megy, helyben ír; ideiglenes fájl nem marad', () => {
+  // A Replace hibáját csonkoljuk (Windowson egy a hosts fájlt nyitva tartó
+  // program okozza); a helyben írás a valódi kód.
+  const strict = renderStrictBlock(['a.example'], NOTE);
+  const w = winRig(Buffer.from('127.0.0.1 localhost\r\n'), strict);
+  const src = fs.readFileSync(w.script, 'utf8');
+  const broken = src.replace('[IO.File]::Replace($tmp, $hostsFile, [NullString]::Value)', "throw 'zárolva'");
+  assert.notEqual(broken, src);
+  fs.writeFileSync(w.script, broken);
+  runWin(w);
+  assert.ok(latin1(w.hosts).includes('0.0.0.0 a.example\r\n'), latin1(w.hosts));
+  assert.deepEqual(fs.readdirSync(w.root).filter((f) => f.includes('.tmp')), []);
+  // Ha a helyben írás sem megy: hiba a naplóban, a hosts érintetlen, ideiglenes fájl nincs.
+  const z = winRig(Buffer.from('127.0.0.1 localhost\r\n'), strict);
+  fs.writeFileSync(z.script, fs.readFileSync(z.script, 'utf8')
+    .replace('[IO.File]::Replace($tmp, $hostsFile, [NullString]::Value)', "throw 'zárolva'")
+    .replace('[IO.File]::WriteAllBytes($hostsFile, $bytes)', "throw 'ez is'"));
+  assert.throws(() => runWin(z));
+  assert.equal(latin1(z.hosts), '127.0.0.1 localhost\r\n');
+  assert.match(read(z.log), /hiba: ez is/);
+  assert.deepEqual(fs.readdirSync(z.root).filter((f) => f.includes('.tmp')), []);
+  assert.equal(read(z.flushes), '');
+  // Az ideiglenes fájl írása közben jön a hiba (betelt lemez): a fél fájl sem marad.
+  const d = winRig(Buffer.from('127.0.0.1 localhost\r\n'), strict);
+  fs.writeFileSync(d.script, fs.readFileSync(d.script, 'utf8')
+    .replace('[IO.File]::WriteAllBytes($tmp, $bytes)', "[IO.File]::WriteAllBytes($tmp, $bytes); throw 'betelt'"));
+  assert.throws(() => runWin(d));
+  assert.equal(latin1(d.hosts), '127.0.0.1 localhost\r\n');
+  assert.deepEqual(fs.readdirSync(d.root).filter((f) => f.includes('.tmp')), []);
 });
 
 test('Windows-őr feladata: a rendszer PowerShellje, SYSTEM, induláskor és ötpercenként — szkriptfájl nélkül', () => {

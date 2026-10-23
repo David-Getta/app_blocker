@@ -604,14 +604,25 @@ ingyenes lazítás. (v0.4.257-ig így volt.)
 - **Mit ír.** A szigorú blokk tiltó sorainak és a hosts mostani blokkja tiltó
   sorainak unióját, bájtsorrendben, a magyarázó sorral: egy elavult szigorú
   blokk (például egy visszatelepített régebbi segéd után) sem vehet ki egy épp
-  tiltott nevet. A jelölőket úgy érti, ahogy a segéd (`stripLegacyBlocks`): a
-  záró nélküli nyitó a fájl végéig tart (egy félbemaradt blokk tiltó sorai így
-  a blokkba kerülnek, nem maradnak kezeletlen bejegyzésként), a nyitó nélküli
-  záró csak magát viszi; a CR-es sorvég sem téveszti meg. Hiányzó hosts
-  fájlnál egy alap hosts-szal kezd. A hosts fájl mellé ír, és egy cserével
-  (macOS: `mv`, Windows: `File.Replace`) lép a régi helyére: egy betelt lemez
-  vagy egy leállítás sem hagyhat félig írt fájlt; a köztes lépések
-  hibáit is nézi. Változatlan blokkot nem ír újra (és a DNS-t sem üríti).
+  tiltott nevet. A nyitó nélküli záró jelölő csak magát viszi. A záró nélküli
+  nyitó után (egy félbemaradt írás) a tiltó sorok és a saját megjegyzésünk
+  (`# Breaker:`) a blokkba kerülnek — nem maradnak kezeletlen bejegyzésként,
+  amit se a segéd, se az eltávolító nem venne ki —, a felhasználó többi sora
+  (például egy később hozzáfűzött Docker-bejegyzés) a blokkon kívül marad. Ez
+  szándékosan kíméletesebb, mint a segéd `stripLegacyBlocks`-a (ott a magára
+  hagyott nyitó a fájl végéig visz mindent): az őr egy felügyelet nélküli
+  gépen ír, és tiltást nem veszít vele. Sorvégből csak egy CR-t vesz le (mint
+  a segéd a CRLF-nél); a sor közepi CR a felhasználó bájtja. Hiányzó hosts
+  fájlnál egy alap hosts-szal kezd (macOS), illetve csak a blokkot írja
+  (Windows); ami a hosts helyén áll, de nem fájl, ahhoz nem nyúl. A hosts
+  fájl mellé ír, és egy cserével (macOS: `mv`, Windows: `File.Replace`) lép a
+  régi helyére: egy betelt lemez vagy egy leállítás sem hagyhat félig írt
+  fájlt; a köztes lépések hibáit is nézi, és ideiglenes fájl nem marad.
+  Windowson, ha a csere nem megy (egy program — jellemzően egy vírusirtó —
+  törlés-megosztás nélkül tartja nyitva a hosts fájlt), helyben ír: az
+  ideiglenes fájl után a hely megvan. Ha az írás a nem induló segéd mellett
+  hibázik, az őr ettől még megpróbálja elindítani a segédet. Változatlan
+  blokkot nem ír újra (és a DNS-t sem üríti).
 - **Bizalom.** Az őr nem rak össze semmit: a szigorú blokkból csak megjegyzést
   és `0.0.0.0` / `::` tiltó sort vesz át a segéd saját hosztnév-mintájával
   (`DOMAIN_RE_SOURCE`, a TS-ben és az őrben ugyanaz a forrás) — egy idegen sort
@@ -645,16 +656,26 @@ ingyenes lazítás. (v0.4.257-ig így volt.)
   `bash --posix`-szal is (a macOS `/bin/sh`-ja a bash; a CI-ban is mindkettő),
   csonkolt launchctl-lel és PlistBuddy-val, egy ideiglenes hosts fájlon,
   megszámolt DNS-ürítéssel; az új vizsgálatok mutációs próbán is átmentek (az
-  unió, a felemás jelölő, a félbemaradt blokk, a CR-es sorvég, a változatlan
-  blokk, a cserével írás, az írás előtti újranézés, a szimbolikus link). **CI-próba** a
+  unió, a felemás jelölő, a félbemaradt blokk és a mögötte álló saját sorok, a
+  CR-es sorvég, a nem fájl hosts, a változatlan blokk, a cserével írás és a
+  betelt lemez, az írás előtti újranézés, a szimbolikus link). A Windows-őr
+  hosts-írását (`Apply-Strict`) a kiszállított szövegből PowerShell 7-tel
+  futtatjuk (a CI Linux-gépén is), és tizennyolc hosts fájlon — felemás és
+  egymásba ágyazott jelölők, CRLF és magányos CR, ékezet és érvénytelen UTF-8,
+  üres fájl — a macOS-őr eredményével vetjük össze: a kettő a sorvégen kívül
+  bájtra ugyanazt írja, és másodszor egyik sem ír. A csere hibája, a helyben
+  írás hibája és a félbeszakadt ideiglenes fájl is élő próbát kapott, a
+  Windows-oldali szkriptek szintaxisát pedig a PowerShell saját elemzője nézi.
+  **CI-próba** a
   becsomagolt appon, mindkét gépen: a segéd felteszi az őrt; az app
   elmozdítása / eltávolítása után a szigorú blokk áll be, a kézzel kivettet és
   a magára hagyott jelölő mellé is visszateszi, őr nélkül (ellenpróba) kivéve
   marad; ha a segéd nem indul el (macOS: elrontott `app.asar`, Windows:
   letiltott feladat), a szigorú blokk áll be, és a visszaindult segéd a
   sajátját írja; az app visszatételekor a segéd újra fut; a gépre tett
-  eltávolító-másolat után semmi nem marad. Windowson egy sima felhasználó az
-  őr mappáját nem írja.
+  eltávolító-másolat után semmi nem marad. A félbemaradt blokk utáni saját sor
+  mindkét gépen a helyén marad; Windowson a nyitva tartott hosts fájlba is
+  beírja a blokkot, és egy sima felhasználó az őr mappáját nem írja.
 
 ### A böngésző-híd: kifelé olvas, befelé csak szigorít
 

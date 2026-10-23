@@ -110,13 +110,20 @@ export function macGuardScript(o: MacGuardOptions = MAC_GUARD_DEFAULTS): string 
   // Rendben vannak-e a jelölők: mindegyik nyitót egy záró követ, és fordítva.
   const awkWellFormed = `${env} $0==b{if(s)bad=1;s=1;next} $0==e{if(!s)bad=1;s=0} END{exit (bad||s)?1:0}`;
   const awkRegion = `${env} $0==b{p=1} p{print} $0==e{p=0}`;
-  // A blokkon kívüli sorok a kimenetre, a blokk sorai az RG fájlba. Ugyanaz a
-  // megállapodás, mint a segédé (blocklist.ts, stripLegacyBlocks): a záró
-  // nélküli nyitó jelölő a fájl végéig tart, a nyitó nélküli záró csak magát
-  // viszi — így egy félbemaradt blokk sorai sem maradnak kezeletlen
-  // bejegyzésként a fájlban.
-  const awkSplit = 'BEGIN{b=ENVIRON["B"];e=ENVIRON["E"];rg=ENVIRON["RG"];n=0} '
-    + `$0==b{s=1;next} $0==e{s=0;next} s{print > rg;next} {l[++n]=$0} ${trimPrint}`;
+  // A blokkon kívüli sorok a kimenetre, a lezárt blokkok sorai az RG fájlba,
+  // a záró nélküli nyitó jelölő utáni sorok az UR fájlba. Két menet ugyanazon a
+  // fájlon: az első megmondja, hol kezdődik a le nem zárt blokk (ha van). A
+  // lezárt blokk a miénk, egészében; a le nem zárt blokkból csak a tiltó sorok
+  // és a saját megjegyzésünk jönnek át (a többi sor a felhasználóé lehet, egy
+  // félbemaradt írás után hozzáfűzött saját bejegyzés — azt meghagyjuk).
+  const awkSplit = 'BEGIN{b=ENVIRON["B"];e=ENVIRON["E"];rg=ENVIRON["RG"];ur=ENVIRON["UR"];n=0} '
+    + 'NR==FNR{if($0==b){if(!s){s=1;st=FNR}}else if($0==e){s=0};next} '
+    + 'FNR==1{u=s?st:0;s=0} '
+    + '$0==b{s=1;next} $0==e{s=0;next} '
+    + 's&&u&&FNR>u{print > ur;next} s{print > rg;next} '
+    + `{l[++n]=$0} ${trimPrint}`;
+  // Sorvégi üres sorok levágása (a hozzáfűzött felhasználói sorok után is).
+  const awkTrim = `BEGIN{n=0} {l[++n]=$0} ${trimPrint}`;
   // A shell-minták csillaga változóból jön: a forrásban a perjel-csillag a
   // tű-ellenőrző (scripts/check-enforcement.js) szemében megjegyzés-kezdet
   // volna, és a fájl további részét nem látná.
@@ -252,19 +259,26 @@ export function macGuardScript(o: MacGuardOptions = MAC_GUARD_DEFAULTS): string 
     'FOREIGN=$(grep -Evc -- "^#|$BLOCK" "$STRICT")',
     '[ "$FOREIGN" = 0 ] || log "a szigorú blokk idegen sorait kihagytam: $FOREIGN"',
     '',
-    '# A hosts fájl pillanatképe, sorvég-jel (CR) nélkül, ahogy a segéd is olvassa —',
+    '# A hosts fájl pillanatképe, a sor végi CR nélkül (a CRLF-et a segéd is LF-nek',
+    '# olvassa; a sor közepi CR a felhasználó bájtja, az marad) —',
     '# ha nincs meg, egy alap hosts-szal kezdünk.',
     'NEW=0',
+    '# Ami a hosts helyén áll, de nem fájl (például egy mappa), ahhoz nem nyúlunk.',
+    'if [ -e "$HOSTS" ] && [ ! -f "$HOSTS" ]; then log "nem tudtam írni a hosts fájlt: nem fájl"; exit 0; fi',
     'if [ -f "$HOSTS" ]; then',
-    '  tr -d \'\\r\' < "$HOSTS" > "$WORK/hosts" || exit 0',
+    `  awk '{sub(/\\r$/,"")}1' "$HOSTS" > "$WORK/hosts" || exit 0`,
     'else',
     '  NEW=1',
     '  printf \'127.0.0.1\\tlocalhost\\n255.255.255.255\\tbroadcasthost\\n::1             localhost\\n\' > "$WORK/hosts" || exit 0',
     'fi',
     '# A régi blokk(ok) tiltó sorai is maradnak (unió).',
     ': > "$WORK/rg" || exit 0',
-    `RG="$WORK/rg" awk '${awkSplit}' "$WORK/hosts" > "$WORK/out" || exit 0`,
-    'grep -E -- "$BLOCK" "$WORK/rg" > "$WORK/h"; [ $? -le 1 ] || exit 0',
+    ': > "$WORK/ur" || exit 0',
+    `RG="$WORK/rg" UR="$WORK/ur" awk '${awkSplit}' "$WORK/hosts" "$WORK/hosts" > "$WORK/out0" || exit 0`,
+    'grep -hE -- "$BLOCK" "$WORK/rg" "$WORK/ur" > "$WORK/h"; [ $? -le 1 ] || exit 0',
+    '# A le nem zárt blokk többi sora (ami nem tiltó sor és nem a mi megjegyzésünk) marad.',
+    'grep -Ev -- "$BLOCK|^# Breaker:" "$WORK/ur" >> "$WORK/out0"; [ $? -le 1 ] || exit 0',
+    `awk '${awkTrim}' "$WORK/out0" > "$WORK/out" || exit 0`,
     `if awk '${awkWellFormed}' "$WORK/hosts"; then`,
     `  awk '${awkRegion}' "$WORK/hosts" > "$WORK/cur" || exit 0`,
     'else',
@@ -436,9 +450,15 @@ export function windowsGuardScript(o: WindowsGuardOptions = WINDOWS_GUARD_DEFAUL
     "  return [bool](@(Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.ProcessName -match '^(Au_|Un_A|Un_)$|^Breaker[ -]Setup|^Uninstall Breaker' }).Count)",
     '}',
     '',
+    // Csak egy sor végi CR megy (mint a segédnél és a macOS-őrnél): a sor közepi
+    // CR a felhasználó bájtja. Sorszámmal nézzük, nem EndsWith-szel — az a
+    // .NET Frameworkön a nyelvi beállítás szerint hasonlítana.
     'function Lines([byte[]]$bytes) {',
     '  $out = New-Object Collections.Generic.List[string]',
-    '  foreach ($l in ($L1.GetString($bytes) -split "`n")) { $out.Add($l.TrimEnd("`r")) }',
+    '  foreach ($l in ($L1.GetString($bytes) -split "`n")) {',
+    '    if ($l.Length -gt 0 -and [int]$l[$l.Length - 1] -eq 13) { $l = $l.Substring(0, $l.Length - 1) }',
+    '    $out.Add($l)',
+    '  }',
     "  if ($out.Count -gt 0 -and $out[$out.Count - 1] -eq '') { $out.RemoveAt($out.Count - 1) }",
     '  return ,$out',
     '}',
@@ -453,32 +473,43 @@ export function windowsGuardScript(o: WindowsGuardOptions = WINDOWS_GUARD_DEFAUL
     '  foreach ($l in (Lines ([IO.File]::ReadAllBytes($strict)))) {',
     '    if ($l -ceq $B -or $l -ceq $E) { continue }',
     '    if ($l -cmatch $BlockRe) { [void]$set.Add($l) }',
-    "    elseif ($l.StartsWith('#')) { $notes.Add($l) }",
+    "    elseif ($l.StartsWith('#', [StringComparison]::Ordinal)) { $notes.Add($l) }",
     '    else { $foreign++ }',
     '  }',
     `  if ($set.Count -eq 0) { Log ${msg('nem írok: a szigorú blokkban nincs tiltó sor')}; return }`,
     `  if ($foreign -gt 0) { Log (${msg('a szigorú blokk idegen sorait kihagytam: ')} + $foreign) }`,
     '  $lines = New-Object Collections.Generic.List[string]',
     '  if ([IO.File]::Exists($hostsFile)) { $lines = Lines ([IO.File]::ReadAllBytes($hostsFile)) }',
-    // A régi blokk(ok) tiltó sorai is maradnak (unió). Ugyanaz a megállapodás,
-    // mint a segédé: a záró nélküli nyitó jelölő a fájl végéig tart, a nyitó
-    // nélküli záró csak magát viszi — egy félbemaradt blokk sorai így sem
-    // maradnak kezeletlen bejegyzésként a fájlban.
+    // A régi blokk(ok) tiltó sorai is maradnak (unió). A nyitó nélküli záró
+    // csak magát viszi. A záró nélküli nyitó jelölő után (egy félbemaradt írás)
+    // a tiltó sorok és a mi megjegyzésünk a blokkba kerülnek — különben
+    // kezeletlen bejegyzésként maradnának, és se a segéd, se az eltávolító nem
+    // venné ki őket —, a felhasználó többi sora (például egy később hozzáfűzött
+    // saját bejegyzés) a blokkon kívül marad.
     '  $ok = $true',
     '  $in = $false',
-    '  foreach ($l in $lines) {',
-    '    if ($l -ceq $B) { if ($in) { $ok = $false }; $in = $true }',
+    '  $openAt = -1',
+    '  for ($i = 0; $i -lt $lines.Count; $i++) {',
+    '    $l = $lines[$i]',
+    '    if ($l -ceq $B) { if ($in) { $ok = $false } else { $openAt = $i }; $in = $true }',
     '    elseif ($l -ceq $E) { if (-not $in) { $ok = $false }; $in = $false }',
     '  }',
-    '  if ($in) { $ok = $false }',
+    '  if ($in) { $ok = $false } else { $openAt = -1 }',
     '  $cur = New-Object Collections.Generic.List[string]',
     '  $out = New-Object Collections.Generic.List[string]',
+    '  $tail = New-Object Collections.Generic.List[string]',
     '  $in = $false',
-    '  foreach ($l in $lines) {',
+    '  for ($i = 0; $i -lt $lines.Count; $i++) {',
+    '    $l = $lines[$i]',
     '    if ($l -ceq $B) { $in = $true; $cur.Add($l); continue }',
     '    if ($l -ceq $E) { if ($in) { $cur.Add($l) }; $in = $false; continue }',
-    '    if ($in) { $cur.Add($l); if ($l -cmatch $BlockRe) { [void]$set.Add($l) } } else { $out.Add($l) }',
+    '    if (-not $in) { $out.Add($l); continue }',
+    '    $cur.Add($l)',
+    '    if ($l -cmatch $BlockRe) { [void]$set.Add($l) }',
+    "    elseif ($openAt -ge 0 -and $i -gt $openAt -and -not $l.StartsWith('# Breaker:', [StringComparison]::Ordinal)) { $tail.Add($l) }",
     '  }',
+    "  while ($out.Count -gt 0 -and $out[$out.Count - 1] -eq '') { $out.RemoveAt($out.Count - 1) }",
+    '  foreach ($l in $tail) { $out.Add($l) }',
     `  if (-not $ok) { $cur.Clear(); Log ${msg('a hosts jelölői felemások voltak: rendbe teszem')} }`,
     '  $want = New-Object Collections.Generic.List[string]',
     '  $want.Add($B)',
@@ -494,10 +525,23 @@ export function windowsGuardScript(o: WindowsGuardOptions = WINDOWS_GUARD_DEFAUL
     '  foreach ($l in $want) { $out.Add($l) }',
     // Az új hosts fájl mellé kerül, és egy cserével lép a régi helyére: egy
     // leállítás vagy egy betelt lemez sem hagyhat félig írt hosts fájlt. (A
-    // Replace a régi fájl jogait és jellemzőit megtartja.)
+    // Replace a régi fájl jogait és jellemzőit megtartja.) Ha a csere nem megy
+    // (egy másik program nyitva tartja a hosts fájlt), helyben írunk: az
+    // ideiglenes fájl után a hely megvan. Ideiglenes fájl sosem marad.
+    '  $bytes = $L1.GetBytes((($out -join "`r`n") + "`r`n"))',
     "  $tmp = $hostsFile + '.breaker-guard.tmp'",
-    '  [IO.File]::WriteAllBytes($tmp, $L1.GetBytes((($out -join "`r`n") + "`r`n")))',
-    '  if ([IO.File]::Exists($hostsFile)) { [IO.File]::Replace($tmp, $hostsFile, [NullString]::Value) } else { [IO.File]::Move($tmp, $hostsFile) }',
+    '  try {',
+    '    [IO.File]::WriteAllBytes($tmp, $bytes)',
+    '    if ([IO.File]::Exists($hostsFile)) {',
+    '      try { [IO.File]::Replace($tmp, $hostsFile, [NullString]::Value) }',
+    '      catch {',
+    '        Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue',
+    '        [IO.File]::WriteAllBytes($hostsFile, $bytes)',
+    '      }',
+    '    } else { [IO.File]::Move($tmp, $hostsFile) }',
+    '  } finally {',
+    '    if ([IO.File]::Exists($tmp)) { Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue }',
+    '  }',
     "  & (Join-Path $sys 'ipconfig.exe') /flushdns | Out-Null",
     `  if ($why -eq 'dead') { Log ${msg('a segéd nem indul: a szigorú blokk a helyén')} }`,
     `  else { Log ${msg('az app nem található: a szigorú blokk a helyén')} }`,
@@ -518,8 +562,10 @@ export function windowsGuardScript(o: WindowsGuardOptions = WINDOWS_GUARD_DEFAUL
     // előtti újranézésnél „futónak” látszana, és egy pár másodperc után
     // leálló segéd mellett az őr sosem írna. Ha a segéd tényleg feláll, a
     // saját blokkját írja vissza.
+    // Egy írási hiba (például egy zárolt hosts fájl) nem akadályozhatja meg az
+    // indítást alább.
     '    if ($deadFor -ge $deadAfter -and -not ((Installing) -and $deadFor -lt $installCap)) {',
-    "      Apply-Strict 'dead'",
+    "      try { Apply-Strict 'dead' } catch { Log (" + msg('hiba: ') + ' + $_.Exception.Message) }',
     '    }',
     // Egy frissítés leállítja a segédet, és a Feladatütemező nem indítja újra:
     // ha a fájlok stabilak és telepítő nem fut, az őr indítja.
