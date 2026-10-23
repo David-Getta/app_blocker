@@ -178,6 +178,20 @@ export interface SyncCombinedInfo {
 export interface StatusData {
   helperVersion: string;
   platform: string;
+  /**
+   * Honnan fut a segéd (#151, macOS): a védett futtatókörnyezetből (root), az
+   * app-csomagból (bundle, a régi mód), vagy fejlesztői futás (dev). Régi segéd
+   * nem adja.
+   */
+  helperLayout?: 'root' | 'bundle' | 'dev';
+  /** a futtatókörnyezet változatának neve (root) */
+  helperRuntime?: string;
+  /** a segéd csomagjának ujjlenyomata (root) — a felület ebből tudja, frissebb-e a sajátja */
+  helperBuild?: string;
+  /** az app verziója, amivel a futó csomag készült (root) */
+  helperAppVersion?: string;
+  /** a futtatókörnyezet Node-jának verziója (root) */
+  helperNode?: string;
   sites: SiteInfo[];
   /** difficulty tier 0..3 derived from recent unlocks */
   tier: number;

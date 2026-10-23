@@ -62,12 +62,26 @@ test('a segéd sosem lép ki magától — a futó kódot csak rendszergazdai l�
   // (KeepAlive) — vagy az őr — azt indítaná újra rendszerjoggal, ami épp az app
   // mappájában van. Ezért a segéd kódjában nincs kilépés; a kód-figyelő csak
   // naplóz (code-watch.ts).
+  //
+  // KÉT KIVÉTEL, pontosan ezek (#151): a `--selfcheck` (a telepítő próbája, a
+  // segéd el sem indul), és a VÉDETT FUTTATÓKÖRNYEZETBŐL futó segéd, ha a
+  // `current` link másik változatra állt — oda csak root írhat, így a launchd
+  // ott sosem a felhasználó kódját indítja.
+  const ALLOWED: Record<string, string[]> = {
+    'index.ts': [
+      "  if (process.argv.includes('--selfcheck')) {\n    process.stdout.write(selfCheck() ? 'ok\\n' : 'fail\\n');\n    process.exit(0);\n  }",
+      "  if (rt.layout === 'root' && rt.id) {\n    const own = rt.id;\n    let away = 0;\n    setInterval(() => {\n      const target = currentTarget();\n      away = target === own ? 0 : away + 1;\n      if (away >= 2) {\n        log(`a futtatókörnyezet másik változatra állt (${target ?? 'nincs'}): újraindulok`);\n        process.exit(0);\n      }\n    }, 15_000);\n  }",
+    ],
+  };
   const dir = path.join(findRepo(), 'desktop', 'src', 'helper');
   const offenders: string[] = [];
   for (const f of fs.readdirSync(dir).filter((n) => n.endsWith('.ts'))) {
-    const code = fs.readFileSync(path.join(dir, f), 'utf8')
-      .replace(/\/\*[\s\S]*?\*\//g, '')
-      .replace(/\/\/.*$/gm, '');
+    let code = fs.readFileSync(path.join(dir, f), 'utf8');
+    for (const block of ALLOWED[f] ?? []) {
+      assert.ok(code.includes(block), `${f}: a megengedett kilépés szövege változott — nézd át: ${block.slice(0, 60)}`);
+      code = code.replace(block, '');
+    }
+    code = code.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
     if (/process\.(exit|abort|reallyExit)\b|process\.kill\(\s*process\.pid/.test(code)) offenders.push(f);
   }
   assert.deepEqual(offenders, [], `kilépés a segédben: ${offenders.join(', ')}`);

@@ -26,6 +26,7 @@ import { setupGuard } from './guard';
 import { codePaths, codeWatchStep, markOf, type CodeWatch } from './code-watch';
 import { hardenStateDir } from './win-acl';
 import { stateFilePath } from './paths';
+import { currentTarget, markHealthy, runtimeInfo, selfCheck } from './runtime';
 import * as path from 'path';
 
 export function runHelper(): void {
@@ -257,9 +258,34 @@ export function runHelper(): void {
     clientKeySha256,
   });
 
+  // A VÉDETT FUTTATÓKÖRNYEZET (#151, macOS): a csatorna nyitva, a tiltás az
+  // induláskor egyszer már érvényesült (commit) — ez a jel a telepítőnek és az
+  // őrnek, hogy ez a változat rendben elindult.
+  const rt = runtimeInfo(__dirname);
+  if (rt.layout === 'root' && rt.id) {
+    log(`a védett futtatókörnyezetből fut: ${rt.id} (Node ${rt.nodeVersion ?? '?'}, app ${rt.appVersion ?? '?'})`);
+    markHealthy(rt.id, log);
+  }
+
   // AZ ŐR (shared/guard-script.ts): ha az app eltűnik, a szigorú blokkot tartja.
   // A csatorna UTÁN, és sosem dob: a segéd akkor is felel, ha ez nem sikerül.
   setupGuard(log);
+
+  // A VÉDETT FUTTATÓKÖRNYEZETBEN a `current` link dönt: ha másik változatra
+  // mutat (egy telepítés vagy egy visszaállás átállította), kilépünk, és a launchd
+  // azt indítja — ide csak root írhat, így ez nem ad utat a felhasználó kódjának.
+  if (rt.layout === 'root' && rt.id) {
+    const own = rt.id;
+    let away = 0;
+    setInterval(() => {
+      const target = currentTarget();
+      away = target === own ? 0 : away + 1;
+      if (away >= 2) {
+        log(`a futtatókörnyezet másik változatra állt (${target ?? 'nincs'}): újraindulok`);
+        process.exit(0);
+      }
+    }, 15_000);
+  }
 
   // A SAJÁT KÓD FIGYELÉSE (macOS, code-watch.ts): csak naplóz, SOSEM léptet ki.
   // A rendszerjoggal futó kódot rendszergazdai lépés vagy a gép újraindítása
@@ -284,6 +310,12 @@ export function runHelper(): void {
 }
 
 // Direct execution: `node dist/helper/index.js` (launchd/schtasks entry).
+// `--selfcheck`: a telepítő próbája (helper/runtime.ts) — a teljes kód
+// betöltődött; a segéd nem indul el, semmihez nem nyúl.
 if (require.main === module) {
+  if (process.argv.includes('--selfcheck')) {
+    process.stdout.write(selfCheck() ? 'ok\n' : 'fail\n');
+    process.exit(0);
+  }
   runHelper();
 }

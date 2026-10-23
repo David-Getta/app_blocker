@@ -6,6 +6,7 @@ import * as net from 'net';
 import * as path from 'path';
 import type { HelperRequest, HelperResponse, StatusData } from '../shared/protocol';
 import { HELPER_VERSION } from '../shared/protocol';
+import { runtimeInfo, type RuntimeInfo } from './runtime';
 import { clientKeyMatches } from '../shared/client-key';
 import { normalizeDomain, expandHostnames } from '../shared/blocklist';
 import { computeTier } from '../shared/challenges';
@@ -92,6 +93,20 @@ function startOfDay(now: number): number {
   return d.getTime();
 }
 
+/** A futó változat adatai (#151) — egyszer olvassuk: a futás alatt nem változnak. */
+let runtimeCache: RuntimeInfo | null = null;
+function runtimeStatus(): Partial<StatusData> {
+  runtimeCache ??= runtimeInfo(__dirname);
+  const r = runtimeCache;
+  return {
+    helperLayout: r.layout,
+    helperRuntime: r.id,
+    helperBuild: r.payloadSha256,
+    helperAppVersion: r.appVersion,
+    helperNode: r.nodeVersion,
+  };
+}
+
 export function statusOf(
   state: HelperState, dohApplied: boolean, selfTest: SelfTestReport | null = null,
 ): StatusData {
@@ -99,6 +114,7 @@ export function statusOf(
   return {
     helperVersion: HELPER_VERSION,
     platform: process.platform,
+    ...runtimeStatus(),
     // Az önteszt jelentése MINDEN status-válaszban: ha csak a `status` parancs
     // hordozná, a többi parancs válasza (ami szintén status) kiürítené, és a
     // korong két másodpercenként villogna.
