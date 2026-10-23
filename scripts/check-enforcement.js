@@ -4549,7 +4549,7 @@ const WIRES = [
   },
   {
     file: 'desktop/src/shared/guard-script.ts',
-    needle: "-and -not $l.StartsWith('# Breaker:', [StringComparison]::Ordinal)) { $tail.Add($l) }\",\n    '  }',\n    \"  while ($out.Count -gt 0 -and $out[$out.Count - 1] -eq '') { $out.RemoveAt($out.Count - 1) }\",\n    '  foreach ($l in $tail) { $out.Add($l) }',",
+    needle: "-and -not $l.StartsWith('# Breaker:', [StringComparison]::Ordinal)) { $tail.Add($l) }\",\n    '  }',\n    '  while ($out.Count -gt 0 -and $out[$out.Count - 1].Length -eq 0) { $out.RemoveAt($out.Count - 1) }',\n    '  foreach ($l in $tail) { $out.Add($l) }',",
     lost: 'Windowson az őr kitörölné a félbemaradt blokk utáni saját hosts-sorokat',
   },
   // Az őr a hosts fájlt egy cserével írja: egy betelt lemez vagy egy leállítás

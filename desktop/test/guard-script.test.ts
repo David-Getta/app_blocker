@@ -353,6 +353,34 @@ macTest('macOS-őr: ami a hosts helyén áll, de nem fájl, ahhoz nem nyúl', ()
   assert.equal(flushCount(r), 0);
 });
 
+macTest('macOS-őr: a hosts helyén álló linket a saját fájlja váltja fel — mint a segédnél', () => {
+  // Egy link nem állíthatja le az őrt örökre: ha fájlra mutat, annak sorai
+  // maradnak; ha mappára, eszközre vagy sehova, alap hosts-szal kezd. A link
+  // célja érintetlen marad.
+  const cases: Array<[string, (r: Rig) => string, string]> = [
+    ['mappára', (r) => { const d = path.join(r.root, 'dir'); fs.mkdirSync(d); return d; }, '127.0.0.1\tlocalhost'],
+    ['sehova', (r) => path.join(r.root, 'nincs'), '127.0.0.1\tlocalhost'],
+    ['fájlra', (r) => { const f = path.join(r.root, 'other'); fs.writeFileSync(f, '10.9.9.9 cel.lan\n'); return f; }, '10.9.9.9 cel.lan'],
+    ['csőre', (r) => { const f = path.join(r.root, 'fifo'); execFileSync('mkfifo', [f]); return f; }, '127.0.0.1\tlocalhost'],
+  ];
+  for (const [label, target, head] of cases) {
+    const r = rig();
+    deleteApp(r);
+    fs.rmSync(r.hosts);
+    const t = target(r);
+    const before = fs.existsSync(t) && fs.statSync(t).isFile() ? read(t) : null;
+    fs.symlinkSync(t, r.hosts);
+    execFileSync(shell[0], [...shell.slice(1), r.script], { stdio: 'pipe', timeout: 20_000 });
+    assert.ok(!fs.lstatSync(r.hosts).isSymbolicLink(), `${label}: a link maradt`);
+    const after = read(r.hosts);
+    assert.ok(after.startsWith(head), `${label}: ${JSON.stringify(after.slice(0, 40))}`);
+    assert.equal(region(after), expectedRegion(['old.example', 'paused.example', 'www.paused.example']), label);
+    if (fs.existsSync(t) && fs.statSync(t).isDirectory()) assert.deepEqual(fs.readdirSync(t), [], `${label}: a mappába írt`);
+    if (before !== null) assert.equal(read(t), before, `${label}: a link célját átírta`);
+    assert.equal(flushCount(r), 1, label);
+  }
+});
+
 macTest('macOS-őr: betelt lemez — a hosts fájl érintetlen, ideiglenes fájl nem marad', () => {
   // Fájlméret-korlát (ulimit -f, 512 bájtos egységek): a munkafájlok elférnek,
   // az új hosts fájl (a régi sorok + a blokk) nem. A régi helyben írás itt csonka
@@ -540,8 +568,13 @@ test('Windows-őr: a futó segédet nem írja felül; a hiányzó meghajtó elt�
   // felemás jelölőket és a sorvégeket az élő próba nézi lent.)
   assert.ok(s.includes('    if ($l -cmatch $BlockRe) { [void]$set.Add($l) }'));
   assert.ok(s.includes('if (-not $ok) { $cur.Clear();'));
-  // A nyelvi beállítás szerinti összevetés nem dönthet: minden StartsWith sorszámos.
-  assert.ok(!/\.(StartsWith|EndsWith)\('[^']*'\)/.test(s), 'nyelvi beállítás szerinti StartsWith/EndsWith');
+  // A nyelvi összevetés nem dönthet: minden StartsWith/EndsWith sorszámos, és
+  // szöveget -ceq/-eq '' helyett a Same (bájtra azonos) hasonlít.
+  const calls = [...s.matchAll(/\.(StartsWith|EndsWith)\(([^)]*)\)/g)];
+  assert.ok(calls.length >= 3);
+  for (const c of calls) assert.ok(c[2].includes('[StringComparison]::Ordinal'), c[0]);
+  assert.ok(!/-ceq|-eq ''|-ne ''/.test(s), 'nyelvi szöveg-összevetés az őrben');
+  assert.ok(s.includes("function Same([string]$a, [string]$b) { return [string]::Equals($a, $b, [StringComparison]::Ordinal) }"));
   assert.ok(!s.includes('TrimEnd('), 'a TrimEnd az összes sor végi CR-t vinné');
   // Az írás egy csere: egy betelt lemez vagy egy leállítás sem hagy félig írt
   // hosts fájlt. Helyben csak akkor ír, ha a csere nem megy — és az ideiglenes
@@ -673,6 +706,21 @@ const MIRROR_CASES: Array<[string, Buffer]> = ([
 
 // Érvénytelen UTF-8 bájt is: mindkét őr bájtra megőrzi.
 MIRROR_CASES.push(['érvénytelen UTF-8 bájt', Buffer.concat([Buffer.from('10.0.0.7 '), Buffer.from([0xe9, 0xff]), Buffer.from('.lan\n')])]);
+// A nyelvi összevetés figyelmen kívül hagyja a vezérlőbájtokat és a lágy
+// kötőjelet (Latin-1 0xAD): az ilyen bájttal elrontott tiltó sort a blokk
+// változatlannak, a jelölőt jelölőnek, az egybájtos sort üresnek látná.
+{
+  const want = expectedRegion(['old.example', 'paused.example', 'www.paused.example']);
+  const [pre, post] = want.split('0.0.0.0 old.example');
+  MIRROR_CASES.push(['lágy kötőjel egy tiltó sorban (különben változatlan blokk)', Buffer.concat([
+    Buffer.from(`127.0.0.1 localhost\n\n${pre}0.0.0.0 old.ex`), Buffer.from([0xad]), Buffer.from(`ample${post}\n`)])]);
+  MIRROR_CASES.push(['vezérlőbájt egy tiltó sorban', Buffer.concat([
+    Buffer.from(`127.0.0.1 localhost\n\n${pre}0.0.0.0 old.`), Buffer.from([0x01]), Buffer.from(`example${post}\n`)])]);
+  MIRROR_CASES.push(['vezérlőbájt a jelölő végén (nem jelölő)', Buffer.concat([
+    Buffer.from(`10.0.0.8 f.lan\n${MARKER_BEGIN}`), Buffer.from([0x1f]), Buffer.from('\n0.0.0.0 z.example\n')])]);
+  MIRROR_CASES.push(['egyetlen vezérlőbájtból álló sor a végén', Buffer.concat([
+    Buffer.from('127.0.0.1 localhost\n'), Buffer.from([0x01]), Buffer.from('\n')])]);
+}
 
 winTest('a Windows-oldali szkriptek szintaktikailag hibátlanok (a PowerShell saját elemzőjével)', () => {
   // Egy elírt zárójel a Windows-őrben csak a becsomagolt próbán derülne ki,

@@ -222,7 +222,9 @@ minden induláskor — újabb jelszó nélkül.
   bejegyzés) maradnak. A hosts fájlt egy cserével írja: egy betelt lemez vagy
   egy leállítás sem hagyhat félig írt fájlt. Ha Windowson egy program (például
   egy vírusirtó) nyitva tartja a hosts fájlt, és a csere nem megy, helyben
-  írja — nem marad le.
+  írja — ha a program az írást megengedi. Ha azt sem (csak olvasásra osztja
+  meg), az őr — ahogy a segéd is — addig nem tud írni, naplózza, és a
+  következő futásán újrapróbálja.
 - Az őr nem rak össze semmit, csak ellenőriz és bemásol: a szigorú blokkból
   csak megjegyzést és `0.0.0.0` / `::` tiltó sort vesz át (egy idegen sort
   kihagy és naplóz, a többit beírja), és csak akkor, ha a fájl és a mappája a

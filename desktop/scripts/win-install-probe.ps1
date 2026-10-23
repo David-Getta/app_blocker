@@ -405,6 +405,22 @@ else {
   Write-Host "a nyitva tartott hosts fájlba is beírta a szigorú blokkot ($how)"
 }
 if (Test-Path -LiteralPath ($hostsFile + '.breaker-guard.tmp')) { Fail 'az őr ideiglenes fájlja a hosts mellett maradt' }
+# A korlát: ha a program csak az olvasást osztja meg, helyben sem írhat (a
+# megosztási mód a SYSTEM-re is áll). Az őr ilyenkor hibát naplóz, nem hagy
+# ideiglenes fájlt, és a zár után a következő futásán pótolja.
+$h = HostsText
+$stripped = [regex]::Replace($h, '(?s)\r?\n*# >>> BREAKER BLOCK BEGIN.*?# <<< BREAKER BLOCK END\r?\n?', "`r`n")
+[System.IO.File]::WriteAllText($hostsFile, $stripped, (New-Object System.Text.UTF8Encoding $false))
+$logBefore = @(Get-Content -LiteralPath $guardLog -ErrorAction SilentlyContinue).Count
+$lock = [System.IO.File]::Open($hostsFile, 'Open', 'Read', 'Read')
+try { Run-Guard } finally { $lock.Dispose() }
+$logNew = (@(Get-Content -LiteralPath $guardLog -ErrorAction SilentlyContinue) | Select-Object -Skip $logBefore) -join "`n"
+if ((HostsText).Contains($note)) { Write-Host 'a csak olvasásra megosztott hosts fájlba is beírta (a korlát itt nem állt fenn)' }
+elseif (-not ($logNew -match 'hiba: ')) { Fail 'a csak olvasásra megosztott hosts mellett az őr nem naplózott hibát'; Show-Guard }
+if (Test-Path -LiteralPath ($hostsFile + '.breaker-guard.tmp')) { Fail 'az őr ideiglenes fájlja a hosts mellett maradt (olvasási zár)' }
+Run-Guard
+if (-not (HostsText).Contains($note)) { Fail 'a zár után az őr nem pótolta a szigorú blokkot'; Show-Guard }
+else { Write-Host 'a csak olvasásra megosztott hosts mellett hibát naplózott, a zár után pótolta' }
 
 # 4. A kézi eltávolító — előbb a segéd által a gépre tett másolat, amire a
 # szigorú blokk magyarázata mutat: idegen célú parancsikon marad, a

@@ -621,7 +621,10 @@ Kukába húzható: ingyenes lazítás. (v0.4.257-ig így volt.)
   fájlt; a köztes lépések hibáit is nézi, és ideiglenes fájl nem marad.
   Windowson, ha a csere nem megy (egy program — jellemzően egy vírusirtó —
   törlés-megosztás nélkül tartja nyitva a hosts fájlt), helyben ír: az
-  ideiglenes fájl után a hely megvan. Ha az írás a nem induló segéd mellett
+  ideiglenes fájl után a hely megvan. Ez csak akkor megy, ha a program az
+  írást megosztja; ha csak az olvasást, a helyben írás sem nyílik meg (a
+  megosztási mód a SYSTEM-re is áll) — az őr ilyenkor naplóz, és a következő
+  futásán újrapróbálja. A CI-próba mindkét esetet élesben nézi. Ha az írás a nem induló segéd mellett
   hibázik, az őr ettől még megpróbálja elindítani a segédet. Változatlan
   blokkot nem ír újra (és a DNS-t sem üríti).
 - **Bizalom.** Az őr nem rak össze semmit: a szigorú blokkból csak megjegyzést
