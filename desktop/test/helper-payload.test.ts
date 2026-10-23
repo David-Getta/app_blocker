@@ -259,12 +259,50 @@ test('aláírás: elavult leíró (a csomag változott) — nem írjuk alá', ()
   assert.throws(() => signer.sign({ dir: r.out, pem: k.pem, keys: [k.key] }), /nem ehhez a payload\.tar-hoz/);
 });
 
+test('átvétel (a kiadás útja): a másik jobban aláírt leíró csak a bájtra egyező csomag mellé kerül', () => {
+  const k = keyPair('r1');
+  // Az aláíró job buildje, és a csomagolóé: ugyanabból a forrásból, tehát ugyanaz.
+  const signedBuild = packTo();
+  signer.sign({ dir: signedBuild.out, pem: k.pem, keys: [k.key], release: true });
+  const own = packTo();
+  assert.deepEqual(signer.adopt({ dir: own.out, from: signedBuild.out, keys: [k.key] }), { signed: true, keyId: 'r1' });
+  const m = verifyManifest(fs.readFileSync(path.join(own.out, 'manifest.json')), fs.readFileSync(path.join(own.out, 'manifest.sig'), 'utf8'), [k.key]);
+  assert.equal(m.payload.sha256, packer.sha256(fs.readFileSync(path.join(own.out, 'payload.tar'))));
+  // Más forrás (itt: más verzió) — más csomag: megáll, és semmit nem ír.
+  const other = packTo({ appVersion: '0.4.301' });
+  const before = fs.readFileSync(path.join(other.out, 'manifest.json'));
+  assert.throws(() => signer.adopt({ dir: other.out, from: signedBuild.out, keys: [k.key] }), /eltér/);
+  assert.ok(fs.readFileSync(path.join(other.out, 'manifest.json')).equals(before));
+  assert.ok(!fs.existsSync(path.join(other.out, 'manifest.sig')));
+  // Ugyanaz a csomag, de a leíró más (itt: a protokoll): megáll.
+  const proto = packTo();
+  const pm = JSON.parse(fs.readFileSync(path.join(proto.out, 'manifest.json'), 'utf8'));
+  fs.writeFileSync(path.join(proto.out, 'manifest.json'), `${JSON.stringify({ ...pm, helperVersion: '9.9.9' }, null, 2)}\n`);
+  assert.throws(() => signer.adopt({ dir: proto.out, from: signedBuild.out, keys: [k.key] }), /más \(verzió/);
+  // Egy másik, azonos azonosítójú kulcs a listán: az aláírás nem érvényes.
+  assert.throws(() => signer.adopt({ dir: packTo().out, from: signedBuild.out, keys: [keyPair('r1').key] }), /nem érvényes/);
+  // Aláíratlan leíró: csak amíg nincs kiadási kulcs; a próba-kulcsos csomag soha.
+  const unsignedBuild = packTo();
+  const plain = packTo();
+  fs.writeFileSync(path.join(plain.out, 'manifest.sig'), 'régi\n');
+  assert.deepEqual(signer.adopt({ dir: plain.out, from: unsignedBuild.out, keys: [] }), { signed: false, keyId: UNSIGNED_KEY_ID });
+  assert.ok(!fs.existsSync(path.join(plain.out, 'manifest.sig')), 'egy régi aláírás nem maradhat');
+  assert.throws(() => signer.adopt({ dir: packTo().out, from: unsignedBuild.out, keys: [k.key] }), /aláírt leírót kér/);
+  const t = keyPair(TEST_KEY_ID);
+  assert.throws(() => signer.adopt({ dir: packTo({ testPubkey: t.key.spki }).out, from: unsignedBuild.out, keys: [] }), /CI-próba kulcsa/);
+});
+
 test('a parancssor: a build kimenete, kulcs nélkül fejlesztői módban; ismeretlen kapcsoló hiba', () => {
   const script = path.join(ROOT, 'scripts', 'sign-helper-manifest.js');
   const r = packTo();
   const env = { ...process.env, HELPER_SIGNING_KEY: '', BREAKER_HELPER_TEST_PUBKEY: '' };
   assert.match(execFileSync(process.execPath, [script, r.out], { env, encoding: 'utf8' }), /aláíratlan/);
   assert.throws(() => execFileSync(process.execPath, [script, '--force', r.out], { env, stdio: 'pipe' }));
+  assert.throws(() => execFileSync(process.execPath, [script, '--adopt'], { env, stdio: 'pipe' }));
+  assert.throws(() => execFileSync(process.execPath, [script, '--adopt', r.out, '--release', r.out], { env, stdio: 'pipe' }));
+  // Az átvétel a parancssorból: a csomag mellé, a figyelmeztetéssel, amíg nincs kiadási kulcs.
+  const own = packTo();
+  assert.match(execFileSync(process.execPath, [script, '--adopt', r.out, own.out], { env, encoding: 'utf8' }), /::warning::.*aláíratlan/);
   const k = keyPair(TEST_KEY_ID);
   const t = packTo({ testPubkey: k.key.spki });
   const out = execFileSync(process.execPath, [script, t.out], {

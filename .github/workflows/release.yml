@@ -75,9 +75,54 @@ jobs:
           NOTES
           fi
 
+  # A SEGÉD CSOMAGJÁNAK ALÁÍRÁSA (macOS, #151). A telepített segéd a későbbi
+  # kiadásokat jelszó nélkül veszi át — de csak a kiadási kulccsal aláírt
+  # csomagot (src/shared/helper-keys.ts). A kulcs CSAK ebben a jobban van: a
+  # helper-signing környezet titka (HELPER_SIGNING_KEY); a csomagoló és a
+  # feltöltő job nem látja. A környezethez jóváhagyót is lehet rendelni: akkor
+  # minden kiadás az ő jóváhagyására vár. Amíg nincs kiadási kulcs, a leíró
+  # aláíratlan marad (figyelmeztetés a futás lapján), és a segédek a gombbal,
+  # jelszóval frissülnek. A macOS-csomagoló a saját buildje mellé veszi át a
+  # leírót — csak ha a két build bájtra ugyanazt a csomagot adta
+  # (sign-helper-manifest.js --adopt).
+  helper-sign:
+    name: A segéd csomagjának aláírása
+    needs: prepare
+    runs-on: ubuntu-latest
+    environment: helper-signing
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+      # Telepítő-szkriptek nélkül: a fordításhoz nem kellenek, és ahol a kulcs
+      # megfordul, ott egy függőség se futtasson semmit magától.
+      - run: npm ci --ignore-scripts
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+      - name: Verzió beállítása a tagből
+        run: npm version "${VERSION#v}" --no-git-tag-version --allow-same-version
+      - run: npm run build
+      - name: Aláírás (a kiadás módja)
+        env:
+          HELPER_SIGNING_KEY: ${{ secrets.HELPER_SIGNING_KEY }}
+        run: node scripts/sign-helper-manifest.js --release
+      - uses: actions/upload-artifact@v6
+        with:
+          name: helper-manifest
+          path: |
+            desktop/dist-payload/helper/manifest.json
+            desktop/dist-payload/helper/manifest.sig
+          if-no-files-found: error
+          retention-days: 7
+
   desktop:
     name: Asztali telepítő (${{ matrix.os }})
-    needs: prepare
+    needs: [prepare, helper-sign]
     strategy:
       fail-fast: false
       matrix:
@@ -96,6 +141,11 @@ jobs:
       - name: Verzió beállítása a tagből
         shell: bash
         run: npm version "${VERSION#v}" --no-git-tag-version --allow-same-version
+      - uses: actions/download-artifact@v7
+        if: runner.os == 'macOS'
+        with:
+          name: helper-manifest
+          path: ${{ runner.temp }}/helper-manifest
       - name: Build + publish (electron-builder)
         shell: bash
         env:
@@ -133,7 +183,14 @@ jobs:
               export CSC_KEY_PASSWORD="$SIGN_WIN_CSC_KEY_PASSWORD"
             fi
           fi
-          npm run dist -- --publish always
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            # A segéd leírója a helper-sign jobból — csak a bájtra egyező csomag mellé.
+            npm run build
+            node scripts/sign-helper-manifest.js --adopt "$RUNNER_TEMP/helper-manifest"
+            npx electron-builder --publish always
+          else
+            npm run dist -- --publish always
+          fi
       # FÜSTPRÓBA A BECSOMAGOLT APPON. A telepített appok maguktól frissülnek:
       # egy el sem induló build minden gépre kimenne, és onnan a következő
       # javítást már nem tudná letölteni. A próba a rendes indulást futtatja

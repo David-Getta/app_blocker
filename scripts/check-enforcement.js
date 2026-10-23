@@ -4778,6 +4778,42 @@ const WIRES = [
     needle: 'verifyManifest(bytes, sig, trust);',
     lost: 'egy rossz aláírás csak a felhasználók gépén derülne ki',
   },
+  // #151: AZ APP A VÉDETT FUTTATÓKÖRNYEZETBE TELEPÍT, és felkínálja a saját
+  // csomagját. Ha a telepítő a régi parancsot futtatná, semmi nem hasalna el —
+  // csak a root segéd megint a felhasználó által írható app-csomagból futna (K1).
+  {
+    file: 'desktop/src/main/install.ts',
+    needle: 'const appleScript = `do shell script ${appleScriptString(macRootCommand(script))}`',
+    lost: 'a telepítő nem a védett futtatókörnyezetbe telepítene — a root segéd az app-csomagból futna',
+  },
+  {
+    file: 'desktop/src/main/main.ts',
+    needle: "await client.call('helper_update_offer', { bundle: helperBundleDir(),",
+    lost: 'az app sosem kínálná fel a saját csomagját — a segéd minden kiadásnál jelszót kérne',
+  },
+  // A kiadás: a kulcs csak az aláíró jobban; a Mac-csomag az aláírt leírót
+  // csak a bájtra egyező csomag mellé veszi át.
+  {
+    file: '.github/workflows/release.yml',
+    needle: 'run: node scripts/sign-helper-manifest.js --release',
+    lost: 'a kiadás leírója aláíratlan maradna — a telepített segédek csak jelszóval frissülnének',
+  },
+  {
+    file: '.github/workflows/release.yml',
+    needle: 'node scripts/sign-helper-manifest.js --adopt "$RUNNER_TEMP/helper-manifest"',
+    lost: 'a Mac-csomagba nem az aláírt leíró kerülne, vagy egy másik buildé',
+  },
+  {
+    file: '.github/workflows/release.yml',
+    needle: '    environment: helper-signing\n',
+    lost: 'az aláíró kulcs a környezet védelme (jóváhagyó, ág-szabály) nélkül volna elérhető',
+  },
+  // A CI-próba a csendes frissítést a próba saját kulcsával nézi.
+  {
+    file: '.github/workflows/ci.yml',
+    needle: 'PROBE_KEY: ${{ runner.temp }}/probe-key.pem',
+    lost: 'a macOS-próba nem tudna aláírt csomagot felkínálni — a csendes frissítés útja próbálatlan maradna',
+  },
 ];
 
 /**
