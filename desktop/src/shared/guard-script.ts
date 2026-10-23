@@ -25,6 +25,15 @@
 // után) így sem vehet ki egy épp tiltott nevet — az őr csak szigorít. A
 // felemás jelölőket és a hiányzó hosts fájlt is rendbe teszi.
 //
+// A VÉDETT FUTTATÓKÖRNYEZET (#151, macOS). Ha a segéd leírója a
+// futtatókörnyezet Node-ját indítja (runtime-shell.ts), az őr ott nézi, megvan-e
+// a segéd; újraindítani csak akkor indítja, ha a futtatókörnyezet megbízható
+// (root:wheel 0700, a változatban minden a rooté, semmi nem írható másnak, nincs
+// link és ACL) — különben a holt-időzítő után a szigorú blokk áll be. Egy
+// félbemaradt csendes frissítést (.pending, percek óta nincs jel az új
+// változattól) az előző változatra állít vissza, és a csomagot feljegyzi
+// (.bad), hogy a segéd többé ne vegye át.
+//
 // MIBEN BÍZIK. A szigorú blokkot a segéd írja egy csak rootnak / csak
 // SYSTEM-nek és rendszergazdáknak írható mappába; az őr ezt ellenőrzi
 // (tulajdonos, jogok, szimbolikus link / csatolási pont), és soronként is:
@@ -35,6 +44,7 @@
 // mappáján kívül semmit nem ír, csak a hosts fájlt.
 
 import { MARKER_BEGIN, MARKER_END } from './blocklist';
+import { PAYLOAD_ENTRY, RUNTIME_ROOT } from './helper-runtime';
 import { DAEMON_LABEL, encodePowerShell, psSingleQuoted, TASK_NAME } from './install-script';
 import { STRICT_BLOCK_LINE_SOURCE } from './strict-block';
 
@@ -81,6 +91,14 @@ export interface MacGuardOptions {
   trustChain: string[];
   /** a DNS-gyorsítótár ürítése */
   flush: string;
+  /** a védett futtatókörnyezet (#151): ha a segéd innen fut, ezt is nézzük */
+  runtime: string;
+  /** egy fa listája ACL-sorokkal (macOS: ls -leR) */
+  aclList: string;
+  /** egy linket cserél egy másikra (macOS: mv -fh) */
+  swapLink: string;
+  /** egy félbemaradt csendes frissítést ennyi perc után állítunk vissza */
+  pendingMinutes: number;
 }
 
 export const MAC_GUARD_DEFAULTS: MacGuardOptions = {
@@ -95,6 +113,10 @@ export const MAC_GUARD_DEFAULTS: MacGuardOptions = {
   ownerUid: 0,
   trustChain: ['/', '/Library', '/Library/Application Support'],
   flush: '/usr/bin/dscacheutil -flushcache; /usr/bin/killall -HUP mDNSResponder',
+  runtime: RUNTIME_ROOT,
+  aclList: '/bin/ls -leR',
+  swapLink: '/bin/mv -fh',
+  pendingMinutes: 3,
 };
 
 /** Az őr útja macOS-en (a segéd állapotmappájában). */
@@ -142,6 +164,9 @@ export function macGuardScript(o: MacGuardOptions = MAC_GUARD_DEFAULTS): string 
     `HOSTS=${shQuote(o.hosts)}`,
     `PB=${shQuote(o.plistBuddy)}`,
     `LCTL=${shQuote(o.launchctl)}`,
+    `RT=${shQuote(o.runtime)}`,
+    `RT_NODE="$RT/current/node"`,
+    `RT_ENTRY="$RT/current/${PAYLOAD_ENTRY}"`,
     `STRICT="$DIR/${STRICT_FILE}"`,
     'LOG="$DIR/guard.log"',
     `DEAD="$DIR/${GUARD_DEAD_FILE}"`,
@@ -153,6 +178,29 @@ export function macGuardScript(o: MacGuardOptions = MAC_GUARD_DEFAULTS): string 
     '# Egy út a rooté-e, nem szimbolikus link, és se a csoport, se más nem írhatja.',
     'trusted() {',
     `  [ ! -L "$1" ] && [ -n "$(find "$1" -prune -user ${o.ownerUid} ! -perm -0020 ! -perm -0002 2>/dev/null)" ]`,
+    '}',
+    '',
+    '# A védett futtatókörnyezet (#151): root:wheel 0700, a current egy root',
+    '# linkje egy 16 hexa jegyű nevű változatra, abban minden a rooté, semmi nem',
+    '# írható másnak, nincs link és nincs ACL. Csak ilyet indítunk újra, és csak',
+    '# ilyenre állunk vissza.',
+    'valid_id() {',
+    "  case \"$1\" in ????????????????) case \"$1\" in *[!0-9a-f]*) return 1 ;; esac ;; *) return 1 ;; esac",
+    '}',
+    'rt_base_trusted() {',
+    `  [ ! -L "$RT" ] && [ -d "$RT" ] && [ -n "$(find "$RT" -prune -user ${o.ownerUid} -perm 0700 2>/dev/null)" ]`,
+    '}',
+    'rt_ver_trusted() {',
+    '  valid_id "$1" || return 1',
+    '  trusted "$RT/$1" || return 1',
+    `  [ -z "$(find "$RT/$1" \\( ! -user ${o.ownerUid} -o -perm -0020 -o -perm -0002 -o -type l \\) -print 2>/dev/null | head -n 1)" ] || return 1`,
+    `  if ${o.aclList} "$RT/$1" 2>/dev/null | grep -Eq '^ [0-9]+: '; then return 1; fi`,
+    '  return 0',
+    '}',
+    'rt_trusted() {',
+    '  rt_base_trusted || return 1',
+    `  [ -L "$RT/current" ] && [ -n "$(find "$RT/current" -prune -user ${o.ownerUid} 2>/dev/null)" ] || return 1`,
+    '  rt_ver_trusted "$(readlink "$RT/current")"',
     '}',
     '',
     '# A mappa és a szülei: ha nem megbízhatóak, semmit nem írunk bele — naplót sem.',
@@ -176,9 +224,27 @@ export function macGuardScript(o: MacGuardOptions = MAC_GUARD_DEFAULTS): string 
     '',
     '# inert: nincs mit nézni (nincs segéd, vagy egy le nem csatolt kötetről fut);',
     '# alive: a segéd fut; present: az app a helyén, a segéd nem fut; gone: az app eltűnt.',
+    '# A segéd elrendezése a leírója szerint: root (a védett futtatókörnyezetből fut,',
+    '# #151) vagy bundle (az app-csomagból, a régi mód).',
+    'layout() {',
+    '  [ "$("$PB" -c \'Print :ProgramArguments:0\' "$MAIN" 2>/dev/null)" = "$RT_NODE" ] && echo root || echo bundle',
+    '}',
+    '',
     'state() {',
     '  [ -f "$MAIN" ] || { echo inert; return; }',
     '  BIN=$("$PB" -c \'Print :ProgramArguments:0\' "$MAIN" 2>/dev/null) || { echo inert; return; }',
+    '  if [ "$BIN" = "$RT_NODE" ]; then',
+    '    ENTRY=$("$PB" -c \'Print :ProgramArguments:3\' "$MAIN" 2>/dev/null) || { echo inert; return; }',
+    '    [ "$ENTRY" = "$RT_ENTRY" ] || { echo inert; return; }',
+    '    P1=$(pid)',
+    '    if [ -n "$P1" ]; then',
+    `      sleep ${o.pidCheckSeconds}`,
+    '      [ "$(pid)" = "$P1" ] && { echo alive; return; }',
+    '    fi',
+    '    if [ -f "$BIN" ] && [ -x "$BIN" ] && [ -f "$ENTRY" ]; then echo present; return; fi',
+    '    echo gone',
+    '    return',
+    '  fi',
     '  ENTRY=$("$PB" -c \'Print :ProgramArguments:1\' "$MAIN" 2>/dev/null) || { echo inert; return; }',
     `  case "$BIN" in /${S}) ;; ${S}) echo inert; return ;; esac`,
     `  case "$ENTRY" in /${S}/app.asar/${S}) ;; ${S}) echo inert; return ;; esac`,
@@ -207,7 +273,44 @@ export function macGuardScript(o: MacGuardOptions = MAC_GUARD_DEFAULTS): string 
     '  [ "$S2" = gone ] || { [ "$S2" = present ] && [ "$WHY" = dead ]; }',
     '}',
     '',
+    '# Egy félbemaradt csendes frissítés (#151): a segéd a .pending-be írja az új és',
+    '# az előző változat nevét, mielőtt átállítja a current linket, és törli, amint',
+    '# az új változat jelentkezett (.ok-<név>). Ha percek múlva sincs jel, az előzőre',
+    '# állunk vissza, és a csomagot feljegyezzük (.bad) — a segéd többé nem veszi át.',
+    '# Amíg egy élő folyamat tartja a zárat (épp frissít), nem nyúlunk hozzá.',
+    'pending_rollback() {',
+    '  [ "$OK" = 1 ] || return 0',
+    '  PF="$RT/.pending"',
+    '  [ -f "$PF" ] && [ ! -L "$PF" ] || return 0',
+    '  rt_base_trusted || return 0',
+    `  [ -n "$(find "$PF" -prune -user ${o.ownerUid} -mmin +${o.pendingMinutes} 2>/dev/null)" ] || return 0`,
+    '  if [ -d "$RT/.lock" ]; then',
+    '    LP=$(head -n 1 "$RT/.lock/pid" 2>/dev/null)',
+    "    case \"$LP\" in ''|*[!0-9]*) ;; *) kill -0 \"$LP\" 2>/dev/null && return 0 ;; esac",
+    '  fi',
+    '  NEWB=$(sed -n 1p "$PF")',
+    '  PREVB=$(sed -n 2p "$PF")',
+    '  valid_id "$NEWB" && valid_id "$PREVB" || { rm -f "$PF"; return 0; }',
+    '  # Már továbblépett (vagy az új jelentkezett): nincs mit visszaállítani.',
+    '  [ "$(readlink "$RT/current")" = "$NEWB" ] || { rm -f "$PF"; return 0; }',
+    '  [ -f "$RT/.ok-$NEWB" ] && { rm -f "$PF"; return 0; }',
+    '  rt_ver_trusted "$PREVB" || { log "az új segéd nem indult el, és az előző változat nem megbízható: nem állok vissza"; return 0; }',
+    '  rm -f "$RT/.current.new"',
+    `  ln -s "$PREVB" "$RT/.current.new" && ${o.swapLink} "$RT/.current.new" "$RT/current" || return 0`,
+    `  BADSHA=$(sed -n 's/.*"payloadSha256":"\\([0-9a-f]\\{64\\}\\)".*/\\1/p' "$RT/$NEWB/runtime.json" 2>/dev/null | head -n 1)`,
+    '  [ -n "$BADSHA" ] && printf \'%s\\n\' "$BADSHA" >> "$RT/.bad"',
+    '  rm -f "$PF"',
+    `  "$LCTL" kickstart -k system/${DAEMON_LABEL} >/dev/null 2>&1`,
+    '  log "az új segéd nem indult el: visszaálltam az előzőre"',
+    '}',
+    '',
     'S=$(state)',
+    'LAYOUT=bundle',
+    '[ "$S" = inert ] || LAYOUT=$(layout)',
+    'if [ "$LAYOUT" = root ] && [ "$S" != alive ]; then',
+    '  pending_rollback',
+    '  S=$(state)',
+    'fi',
     'case "$S" in',
     '  inert) exit 0 ;;',
     '  alive)',
@@ -218,7 +321,13 @@ export function macGuardScript(o: MacGuardOptions = MAC_GUARD_DEFAULTS): string 
     '    # Az app a helyén, a segéd mégsem fut (visszatették, és a launchd közben',
     '    # feladta; vagy elindul, de rögtön leáll): elindítjuk. Ha percek óta így',
     '    # van, a szigorú blokk áll be — a befagyott blokk helyett.',
-    `    "$LCTL" kickstart system/${DAEMON_LABEL} >/dev/null 2>&1 && log "a segéd nem futott: elindítottam"`,
+    '    # A védett futtatókörnyezetből csak akkor, ha az megbízható — különben a',
+    '    # holt-időzítő után a szigorú blokk áll be.',
+    '    if [ "$LAYOUT" = root ] && ! rt_trusted; then',
+    '      log "nem megbízható futtatókörnyezet: nem indítom"',
+    '    else',
+    `      "$LCTL" kickstart system/${DAEMON_LABEL} >/dev/null 2>&1 && log "a segéd nem futott: elindítottam"`,
+    '    fi',
     '    [ "$OK" = 1 ] || exit 0',
     '    [ -L "$DEAD" ] && exit 0',
     '    NOW=$(date +%s)',

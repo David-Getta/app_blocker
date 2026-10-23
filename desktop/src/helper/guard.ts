@@ -14,6 +14,7 @@ import * as path from 'path';
 import {
   GUARD_LABEL, MAC_GUARD_SCRIPT, macGuardPlist, macGuardScript, windowsGuardRegisterEncoded, windowsGuardScript,
 } from '../shared/guard-script';
+import { RUNTIME_ROOT } from '../shared/helper-runtime';
 import { guardDir, uninstallCopyPath } from './paths';
 
 /** Ír, ha a tartalom más — véletlen nevű, kizárólagos ideiglenes fájlon át. Igaz, ha írt. */
@@ -81,12 +82,21 @@ async function ensureGuardWin(): Promise<void> {
   if (r.code !== 0) throw new Error(`az őr feladata nem jött létre (${r.code}) ${r.out.trim()}`.trim());
 }
 
-/** Csak a becsomagolt, root/SYSTEM-ként futó segédnél — a fejlesztői futás nem telepít őrt. */
+/**
+ * Csak a becsomagolt, root/SYSTEM-ként futó segédnél — a fejlesztői futás nem
+ * telepít őrt. Becsomagolt: az app.asar-ból fut, vagy macOS-en a védett
+ * futtatókörnyezetből (#151, helper-runtime.ts).
+ */
+export function guardAppliesTo(dir: string, platform: string, env: Record<string, string | undefined>, uid: number | null): boolean {
+  if (env.BREAKER_STATE) return false;
+  const packaged = dir.includes('app.asar') || (platform === 'darwin' && dir.startsWith(`${RUNTIME_ROOT}/`));
+  if (!packaged) return false;
+  if (platform === 'darwin') return uid === 0;
+  return platform === 'win32';
+}
+
 export function guardApplies(): boolean {
-  if (process.env.BREAKER_STATE) return false;
-  if (!__dirname.includes('app.asar')) return false;
-  if (process.platform === 'darwin') return typeof process.getuid === 'function' && process.getuid() === 0;
-  return process.platform === 'win32';
+  return guardAppliesTo(__dirname, process.platform, process.env, typeof process.getuid === 'function' ? process.getuid() : null);
 }
 
 export function setupGuard(log: (m: string) => void): void {

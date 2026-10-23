@@ -4734,6 +4734,18 @@ const WIRES = [
     needle: 'parseManifest(manifestBytes);',
     lost: 'a build olyan leírót is kiírhatna, amit a segéd elutasít — a csendes frissítés sosem menne át',
   },
+  // #151: az őr a védett futtatókörnyezetet csak megbízható állapotban indítja
+  // újra, és egy félbemaradt csendes frissítést visszaállít.
+  {
+    file: 'desktop/src/shared/guard-script.ts',
+    needle: "'    if [ \"$LAYOUT\" = root ] && ! rt_trusted; then',",
+    lost: 'az őr egy megbízhatatlan futtatókörnyezetet is újraindítana, rootként',
+  },
+  {
+    file: 'desktop/src/shared/guard-script.ts',
+    needle: "'if [ \"$LAYOUT\" = root ] && [ \"$S\" != alive ]; then',\n    '  pending_rollback',",
+    lost: 'egy el nem induló csendesen frissített segéd után nem állna vissza az előzőre — csak a szigorú blokk jönne',
+  },
   {
     file: 'desktop/scripts/sign-helper-manifest.js',
     needle: 'verifyManifest(bytes, sig, trust);',

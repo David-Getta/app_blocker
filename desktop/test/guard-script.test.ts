@@ -92,7 +92,7 @@ function rig(): Rig {
   fs.writeFileSync(main, `${bin}\n${asar}/dist/helper/index.js\n`);
   // PlistBuddy: a „leíró” első sora a bináris, a második a belépési pont.
   const pb = path.join(root, 'PlistBuddy');
-  fs.writeFileSync(pb, '#!/bin/sh\ncase "$2" in *:0) sed -n 1p "$3";; *:1) sed -n 2p "$3";; *) exit 1;; esac\n', { mode: 0o755 });
+  fs.writeFileSync(pb, '#!/bin/sh\ncase "$2" in *:0) sed -n 1p "$3";; *:1) sed -n 2p "$3";; *:3) sed -n 4p "$3";; *) exit 1;; esac\n', { mode: 0o755 });
   // launchctl: ha a jelzőfájl megvan, a segéd fut; a kickstartot feljegyzi.
   const alive = path.join(root, 'alive');
   const kicked = path.join(root, 'kicked');
@@ -103,8 +103,10 @@ function rig(): Rig {
   const calls = path.join(root, 'calls');
   fs.writeFileSync(lctl, [
     '#!/bin/sh',
-    `[ "$2" = system/${DAEMON_LABEL} ] || exit 113`,
-    `if [ "$1" = kickstart ]; then echo "$2" >> ${shQuote(kicked)}; exit 0; fi`,
+    'verb=$1; shift',
+    'k=; [ "$1" = -k ] && { k="-k "; shift; }',
+    `[ "$1" = system/${DAEMON_LABEL} ] || exit 113`,
+    `if [ "$verb" = kickstart ]; then echo "$k$1" >> ${shQuote(kicked)}; exit 0; fi`,
     `if [ -f ${shQuote(flap)} ]; then n=$(cat ${shQuote(flap)}); echo $((n + 1)) > ${shQuote(flap)}; printf '\\tstate = running\\n\\tpid = %s\\n' "$n"; exit 0; fi`,
     // „aliveAfter”: a segéd az N-edik megnézéstől fut (közben elindult).
     `if [ -f ${shQuote(aliveAfter)} ]; then c=$(($(cat ${shQuote(calls)} 2>/dev/null || echo 0) + 1)); echo $c > ${shQuote(calls)}; [ $c -ge $(cat ${shQuote(aliveAfter)}) ] && touch ${shQuote(alive)}; fi`,
@@ -503,6 +505,187 @@ macTest('macOS-őr: a leíró percenként futtatja, KeepAlive és naplóút nél
   for (const banned of ['pgrep', 'ps -', 'awk -v', 'wc -c < "$STRICT"']) assert.ok(!script.includes(banned), banned);
   assert.ok(script.includes(`print system/${DAEMON_LABEL}`));
   assert.ok(script.includes('deadSeconds') === false && script.includes('-ge 300 ]'), 'öt perc a nem induló segédre');
+});
+
+// ---------------------------------------------- macOS őr: védett futtatókörnyezet (#151)
+
+interface RootRig extends Rig {
+  rt: string;
+  /** a futó (current) változat */
+  cur: string;
+  /** egy előző változat (a visszaállás célja) */
+  prev: string;
+  aclFlag: string;
+}
+
+const PREV_ID = '00000000000000aa';
+const CUR_ID = '00000000000000bb';
+const CUR_SHA = 'c'.repeat(64);
+
+function makeVersion(rt: string, id: string, paySha: string): string {
+  const v = path.join(rt, id);
+  fs.mkdirSync(path.join(v, 'app', 'dist', 'helper'), { recursive: true });
+  fs.mkdirSync(path.join(v, 'ossl-modules'));
+  fs.writeFileSync(path.join(v, 'node'), '#!/bin/sh\n', { mode: 0o755 });
+  fs.writeFileSync(path.join(v, 'app', 'dist', 'helper', 'index.js'), '//\n', { mode: 0o644 });
+  fs.writeFileSync(path.join(v, 'runtime.json'), `{"payloadSha256":"${paySha}","binSha256":"${'d'.repeat(64)}","nodeVersion":"v1.2.3","arch":"arm64"}\n`);
+  for (const d of [v, path.join(v, 'app'), path.join(v, 'app', 'dist'), path.join(v, 'app', 'dist', 'helper'), path.join(v, 'ossl-modules')]) fs.chmodSync(d, 0o755);
+  return v;
+}
+
+/** A segéd a védett futtatókörnyezetből fut: a leírója a current Node-ját indítja. */
+function rootRig(): RootRig {
+  const r = rig();
+  const rt = path.join(r.root, 'runtime');
+  fs.mkdirSync(rt);
+  fs.chmodSync(rt, 0o700);
+  const prev = makeVersion(rt, PREV_ID, 'a'.repeat(64));
+  const cur = makeVersion(rt, CUR_ID, CUR_SHA);
+  fs.symlinkSync(CUR_ID, path.join(rt, 'current'));
+  fs.writeFileSync(r.main, `${rt}/current/node\n--disable-sigusr1\n--no-addons\n${rt}/current/app/dist/helper/index.js\n`);
+  const aclFlag = path.join(r.root, 'acl');
+  const lsle = path.join(r.root, 'lsle');
+  fs.writeFileSync(lsle, `#!/bin/sh\nls -lR "$@"\n[ -f ${shQuote(aclFlag)} ] && echo ' 0: group:everyone allow write'\nexit 0\n`, { mode: 0o755 });
+  fs.writeFileSync(r.script, macGuardScript({
+    ...MAC_GUARD_DEFAULTS,
+    dir: r.dir, main: r.main, hosts: r.hosts, plistBuddy: path.join(r.root, 'PlistBuddy'), launchctl: path.join(r.root, 'launchctl'),
+    settleSeconds: 0, deadSeconds: DEAD_SECONDS, pidCheckSeconds: 0,
+    ownerUid: process.getuid ? process.getuid() : 0, trustChain: [], flush: `echo x >> ${shQuote(r.flushes)}`,
+    runtime: rt, aclList: lsle, swapLink: 'mv -fT', pendingMinutes: 3,
+  }));
+  return { ...r, rt, cur, prev, aclFlag };
+}
+
+const ROOT_STRICT = ['old.example', 'paused.example', 'www.paused.example'];
+const deadStamp = (r: Rig) => path.join(r.dir, GUARD_DEAD_FILE);
+const ageDead = (r: Rig) => fs.writeFileSync(deadStamp(r), `${Math.floor(Date.now() / 1000) - DEAD_SECONDS - 5}\n`);
+
+macTest('macOS-őr, védett futtatókörnyezet: amíg a segéd fut, semmihez nem nyúl', () => {
+  const r = rootRig();
+  fs.writeFileSync(r.alive, '');
+  const before = read(r.hosts);
+  runGuard(r);
+  assert.equal(read(r.hosts), before);
+  assert.ok(!fs.existsSync(r.kicked));
+  assert.equal(logOf(r), '');
+});
+
+macTest('macOS-őr, védett futtatókörnyezet: nem fut — elindítja; öt perc után a szigorú blokk', () => {
+  const r = rootRig();
+  const before = read(r.hosts);
+  runGuard(r);
+  assert.equal(read(r.hosts), before);
+  assert.equal(read(r.kicked), `system/${DAEMON_LABEL}\n`);
+  assert.match(logOf(r), /a segéd nem futott: elindítottam/);
+  ageDead(r);
+  runGuard(r);
+  assert.equal(region(read(r.hosts)), expectedRegion(ROOT_STRICT));
+  assert.match(logOf(r), /a segéd nem indul: a szigorú blokk a helyén/);
+});
+
+macTest('macOS-őr, védett futtatókörnyezet: nem megbízható futtatókörnyezetet nem indít — öt perc után szigorú blokk', () => {
+  const spoils: Array<[string, (r: RootRig) => void]> = [
+    ['egy fájlt a csoport is írhat', (r) => fs.chmodSync(path.join(r.cur, 'app', 'dist', 'helper', 'index.js'), 0o664)],
+    ['egy mappát más is írhat', (r) => fs.chmodSync(path.join(r.cur, 'app'), 0o757)],
+    ['link a változatban', (r) => fs.symlinkSync('/etc/hosts', path.join(r.cur, 'app', 'x.js'))],
+    ['ACL-sor', (r) => fs.writeFileSync(r.aclFlag, '')],
+    ['a futtatókörnyezet nem 0700', (r) => fs.chmodSync(r.rt, 0o755)],
+    ['a current nem link', (r) => {
+      fs.rmSync(path.join(r.rt, 'current'));
+      fs.cpSync(r.cur, path.join(r.rt, 'current'), { recursive: true });
+    }],
+    ['a current rossz nevű változatra mutat', (r) => {
+      fs.renameSync(r.cur, path.join(r.rt, 'evil'));
+      fs.rmSync(path.join(r.rt, 'current'));
+      fs.symlinkSync('evil', path.join(r.rt, 'current'));
+    }],
+  ];
+  for (const [label, spoil] of spoils) {
+    const r = rootRig();
+    spoil(r);
+    runGuard(r);
+    assert.ok(!fs.existsSync(r.kicked), `${label}: nem indíthatja`);
+    assert.match(logOf(r), /nem megbízható futtatókörnyezet: nem indítom/, label);
+    ageDead(r);
+    runGuard(r);
+    assert.equal(region(read(r.hosts)), expectedRegion(ROOT_STRICT), label);
+  }
+});
+
+macTest('macOS-őr, védett futtatókörnyezet: ha eltűnt, a szigorú blokk; ha a leíró más belépési pontot ad, nem dönt', () => {
+  const r = rootRig();
+  fs.rmSync(r.rt, { recursive: true });
+  runGuard(r);
+  assert.equal(region(read(r.hosts)), expectedRegion(ROOT_STRICT));
+  assert.match(logOf(r), /az app nem található: a szigorú blokk a helyén/);
+  const r2 = rootRig();
+  fs.rmSync(r2.rt, { recursive: true });
+  fs.writeFileSync(r2.main, `${r2.rt}/current/node\n--disable-sigusr1\n--no-addons\n/tmp/mas.js\n`);
+  const before = read(r2.hosts);
+  runGuard(r2);
+  assert.equal(read(r2.hosts), before, 'idegen belépési pont: inert');
+});
+
+/** Egy félbemaradt csendes frissítés: a current az új változatra mutat, a .pending percek óta ott. */
+function pending(r: RootRig, ageMin = 10, body = `${CUR_ID}\n${PREV_ID}\n`): string {
+  const pf = path.join(r.rt, '.pending');
+  fs.writeFileSync(pf, body);
+  const t = Date.now() / 1000 - ageMin * 60;
+  fs.utimesSync(pf, t, t);
+  return pf;
+}
+
+macTest('macOS-őr: a félbemaradt csendes frissítést visszaállítja — current az előzőre, a csomag a .bad-be, újraindítás', () => {
+  const r = rootRig();
+  const pf = pending(r);
+  runGuard(r);
+  assert.equal(fs.readlinkSync(path.join(r.rt, 'current')), PREV_ID);
+  assert.equal(read(path.join(r.rt, '.bad')), `${CUR_SHA}\n`);
+  assert.ok(!fs.existsSync(pf));
+  assert.ok(read(r.kicked).split('\n').includes(`-k system/${DAEMON_LABEL}`), read(r.kicked));
+  assert.match(logOf(r), /az új segéd nem indult el: visszaálltam az előzőre/);
+  assert.ok(fs.existsSync(r.cur), 'a hibás változatot nem törli (a segéd takarít)');
+  assert.ok(!fs.existsSync(path.join(r.rt, '.current.new')));
+});
+
+macTest('macOS-őr: nem állít vissza, ha az új jelentkezett, ha friss, ha épp frissít, ha a segéd él, vagy ha az előző nem megbízható', () => {
+  const cases: Array<[string, (r: RootRig) => void, boolean]> = [
+    ['az új jelentkezett', (r) => { pending(r); fs.writeFileSync(path.join(r.rt, `.ok-${CUR_ID}`), ''); }, true],
+    ['még friss', (r) => { pending(r, 1); }, false],
+    ['élő folyamat tartja a zárat', (r) => {
+      pending(r);
+      fs.mkdirSync(path.join(r.rt, '.lock'));
+      fs.writeFileSync(path.join(r.rt, '.lock', 'pid'), `${process.pid}\n`);
+    }, false],
+    ['a segéd él', (r) => { pending(r); fs.writeFileSync(r.alive, ''); }, false],
+    ['már továbblépett', (r) => { pending(r, 10, `${'0'.repeat(14)}cc\n${PREV_ID}\n`); }, true],
+    ['szemét a .pending-ben', (r) => { pending(r, 10, '../x\nvalami\n'); }, true],
+    ['az előző nem megbízható', (r) => { pending(r); fs.chmodSync(path.join(r.prev, 'node'), 0o777); }, false],
+  ];
+  for (const [label, setup, removed] of cases) {
+    const r = rootRig();
+    setup(r);
+    runGuard(r);
+    assert.equal(fs.readlinkSync(path.join(r.rt, 'current')), CUR_ID, `${label}: nem állhat vissza`);
+    assert.ok(!fs.existsSync(path.join(r.rt, '.bad')), label);
+    assert.equal(fs.existsSync(path.join(r.rt, '.pending')), !removed, `${label}: a .pending ${removed ? 'megy' : 'marad'}`);
+    assert.ok(!read(r.kicked).includes('-k'), label);
+  }
+  // A félbemaradt zár (halott tartó) nem tartja vissza.
+  const r = rootRig();
+  pending(r);
+  fs.mkdirSync(path.join(r.rt, '.lock'));
+  fs.writeFileSync(path.join(r.rt, '.lock', 'pid'), '999999\n');
+  runGuard(r);
+  assert.equal(fs.readlinkSync(path.join(r.rt, 'current')), PREV_ID);
+});
+
+macTest('macOS-őr: nem megbízható állapotmappánál a .pending-hez sem nyúl', () => {
+  const r = rootRig();
+  pending(r);
+  fs.chmodSync(r.dir, 0o777);
+  runGuard(r);
+  assert.equal(fs.readlinkSync(path.join(r.rt, 'current')), CUR_ID);
 });
 
 // ------------------------------------------------------------- Windows őr

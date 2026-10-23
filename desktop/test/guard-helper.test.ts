@@ -9,6 +9,8 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { test } from 'node:test';
 import { codePaths, codeWatchStep, fileMark, markOf, type CodeWatch } from '../src/helper/code-watch';
+import { guardAppliesTo } from '../src/helper/guard';
+import { RUNTIME_ROOT } from '../src/shared/helper-runtime';
 import { strictBlockPath } from '../src/helper/paths';
 import { defaultState } from '../src/helper/state';
 import { writeStrictBlock } from '../src/helper/strict';
@@ -257,4 +259,17 @@ test('az NSIS-eltávolító nem nyúl a feladatokhoz és a hosts fájlhoz — cs
   assert.ok(code.includes('/SD IDOK'), 'csendes módban se akadjon el');
   assert.ok(code.includes('$PROGRAMFILES64\\Breaker Guard\\uninstall-windows.ps1'));
   assert.ok(!/schtasks|BreakerGuard|BreakerHelper|drivers\\etc\\hosts|ExecWait|nsExec/i.test(code), 'az app eltávolítása nem lehet ingyenes lazítás');
+});
+
+test('az őrt a becsomagolt, rootként futó segéd telepíti — az app.asar-ból vagy a védett futtatókörnyezetből (#151)', () => {
+  const asar = '/Applications/Breaker.app/Contents/Resources/app.asar/dist/helper';
+  const rt = `${RUNTIME_ROOT}/0123456789abcdef/app/dist/helper`;
+  assert.equal(guardAppliesTo(asar, 'darwin', {}, 0), true);
+  assert.equal(guardAppliesTo(rt, 'darwin', {}, 0), true);
+  assert.equal(guardAppliesTo(rt, 'darwin', {}, 501), false, 'nem rootként nem');
+  assert.equal(guardAppliesTo(rt, 'darwin', { BREAKER_STATE: '/tmp/s.json' }, 0), false, 'fejlesztői felülírásnál nem');
+  assert.equal(guardAppliesTo(`${RUNTIME_ROOT}x/a/dist/helper`, 'darwin', {}, 0), false, 'csak a futtatókörnyezet alól');
+  assert.equal(guardAppliesTo('/Users/x/app_blocker/desktop/dist/helper', 'darwin', {}, 0), false, 'a repóból futó segéd nem');
+  assert.equal(guardAppliesTo(rt, 'win32', {}, null), false, 'Windowson a futtatókörnyezet útja nem számít');
+  assert.equal(guardAppliesTo('C:\\Program Files\\Breaker\\resources\\app.asar\\dist\\helper', 'win32', {}, null), true);
 });
