@@ -98,9 +98,10 @@ jobs:
     runs-on: ${{ inputs.ubuntu || 'ubuntu-latest' }}
     # Az alapértelmezett korlát hat óra. A böngésző telepítése egyszer
     # beragadt, és csak kézi leállítás vetett véget neki — a többi job zöld
-    # volt, a kiadás mégis állt. Rendesen négy perc alatt végez; húsz perc
-    # bőven elég, és egy akadás így pirosként látszik, nem várakozásként.
-    timeout-minutes: 20
+    # volt, a kiadás mégis állt. Rendesen négy perc alatt végez; negyven perc
+    # egy lassú csomagtükörre is elég, és egy akadás így pirosként látszik,
+    # nem várakozásként.
+    timeout-minutes: 40
     defaults:
       run:
         working-directory: desktop
@@ -118,8 +119,11 @@ jobs:
       # az ubuntu-latest pedig október 19-től oda vált. Az axe-core az
       # akadálymentességi próbáé (scripts/a11y-check.js): a CI-ban kötelező.
       - run: npm i --no-save playwright@1.63.0 axe-core@4.14.0
+      # A rendszercsomagok az Ubuntu tükréről jönnek, ami néha percekig
+      # csorog: két futáson is a tíz perces korlátnál halt meg a letöltés, a
+      # teszt el sem indult. A korlát a beragadást fogja meg, nem a lassút.
       - run: npx playwright install --with-deps chromium
-        timeout-minutes: 10
+        timeout-minutes: 25
       # AZ APP MAGA, Electronban. A többi lépés a felületet egy sima böngészőben
       # nézi; azt, hogy a fő folyamat, a preload és a felület EGYÜTT feláll-e,
       # semmi (src/main/smoke.ts). Egy Electron-frissítés vagy egy elkapatlan
