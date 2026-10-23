@@ -28,17 +28,21 @@ hosztneveket `0.0.0.0`-ra (és IPv6 `::`-ra) irányítja egy jelölőkkel határ
 menedzselt blokkban. A helper **figyeli a fájlt**: ha valaki kézzel átírja, ~2
 másodpercen belül visszaállítja.
 
-A segéd az **app saját binárisán** fut, nem külön Node-on: macOS-en a
-LaunchDaemon `ELECTRON_RUN_AS_NODE=1`-gyel indítja, a belépési pont az
-`app.asar`-ban van; Windowson a SYSTEM-feladat a telepített `Breaker.exe`-t
-indítja `--helper` kapcsolóval. Egy Electron-frissítés ezt az utat csendben
-eltörheti (egy kikapcsolt fuse, az asar olvasása node-módban, a SYSTEM-
-munkamenet), miközben az app hibátlanul indul — és a tiltás minden gépen
-megszűnne. Ezért a CI a becsomagolt appon pontosan a telepítő parancsával
-telepíti a segédet (`scripts/mac-helper-probe.sh`, a `win-install-probe.ps1`
-segéd-lépése), az app módján csatlakozik, felvesz egy oldalt, és a rendszer
-feloldójával (a hosts-fájlon át, ahogy a böngésző) nézi, hogy a tiltó címet
-adja-e; utána a valódi eltávolító fut, és semmi nem maradhat. Egy teszt
+A segéd **Windowson az app saját binárisán** fut: a SYSTEM-feladat a
+telepített `Breaker.exe`-t indítja `--helper` kapcsolóval (csak a Program Files
+alól). **macOS-en a saját, védett futtatókörnyezetéből** (#151, lásd lent): a
+LaunchDaemon a hivatalos Node.js-t indítja egy csak root által írható
+mappából, a segéd lefordított kódjával — az app-csomagból semmit. (A v0.4.260
+előtti telepítéseken a LaunchDaemon az app binárisát indította
+`ELECTRON_RUN_AS_NODE=1`-gyel, a belépési pont az `app.asar`-ban volt; ezeket
+az app egy sávval költözteti.) Egy Electron-frissítés a Windows-utat, egy
+Node- vagy csomagolási hiba a macOS-utat csendben eltörheti, miközben az app
+hibátlanul indul — és a tiltás minden gépen megszűnne. Ezért a CI a
+becsomagolt appon pontosan a telepítő parancsával telepíti a segédet
+(`scripts/mac-helper-probe.sh`, a `win-install-probe.ps1` segéd-lépése), az
+app módján csatlakozik, felvesz egy oldalt, és a rendszer feloldójával (a
+hosts-fájlon át, ahogy a böngésző) nézi, hogy a tiltó címet adja-e; utána a
+valódi eltávolító fut, és semmi nem maradhat. Egy teszt
 (`helper-probe.test.ts`) köti a próbákat a telepítő kódjához.
 
 - **Miért nincs macOS-en „minden indításnál engedélyezés”?** A helper egyszeri
@@ -576,12 +580,139 @@ A helper root/SYSTEM jogú, ezért a vele kommunikáló helyi socketet szűkítj
   Őszinte korlát: a named pipe a hálózaton (SMB) is megszólítható — a
   kulcs nélkül ott sem felel, de a kapu a kulcs, nem a hely.
 
+### A segéd a saját, védett futtatókörnyezetéből fut (macOS, #151)
+
+**Miért.** A v0.4.260 előtt a LaunchDaemon az app binárisát indította
+`ELECTRON_RUN_AS_NODE`-dal, a belépési pont az `app.asar`-ban volt. A
+`Breaker.app` az azt telepítő felhasználóé: ő — vagy bármi, ami a nevében
+fut — jelszó nélkül kicserélhette a binárist vagy az `app.asar`-t, és a
+következő induláskor (legkésőbb a gép újraindításakor) a csere rendszerjoggal
+futott. A kilépés nélküli kódfigyelő (v0.4.258) ezt csak az újraindításig
+tolta ki.
+
+**Hogyan.** A segéd egy csak root által írható mappából fut:
+
+```
+/Library/Application Support/Breaker/runtime/   root:wheel 0700
+  <16 hexa jegy>/        egy változat — a neve a csomag és a Node ujjlenyomatából
+    node                 a hivatalos Node.js (rögzített ujjlenyomat, a Node.js Foundation aláírása)
+    app/dist/…           a segéd lefordított kódja (csak a Node beépített moduljaival)
+    app/package.json, ossl-modules/, runtime.json
+  current -> <név>       a futó változat
+```
+
+A LaunchDaemon a `runtime/current/node`-ot indítja `--disable-sigusr1
+--no-addons` kapcsolóval; a környezetből csak az `OPENSSL_MODULES` megy át, a
+napló a `/Library/Application Support/Breaker/helper.log`.
+
+- **A csomag** (`scripts/pack-helper-payload.js`): a build a segéd belépési
+  pontjából elérhető kódot, az eltávolítót és egy kis `package.json`-t teszi
+  egy determinisztikus tar-ba (rendezett sorrend, mtime 0, rögzített jogok) —
+  ugyanabból a forrásból bájtra ugyanaz. Rootként csak a Node beépített
+  moduljai tölthetők be: egy npm-függőség a segéd zárlatában build-hiba.
+  Mellé a leíró (`manifest.json`): a csomag ujjlenyomata és mérete, a
+  rögzített Node, az app és a protokoll verziója.
+- **A telepítés** (`shared/runtime-shell.ts`, egy jelszó): a felület letölti
+  a rögzített Node-ot a felhasználó gyorsítótárába, és ujjlenyomat szerint
+  ellenőrzi. A gyökér-héj a bemeneteket méretkorláttal, időkorláttal, link és
+  nem-fájl nélkül másolja be egy root mappába, és ott **újra** ellenőriz: a
+  Node tarball méretét és ujjlenyomatát, a kibontott bináris ujjlenyomatát és
+  aláíróját (`codesign --verify --strict`, a Node.js Foundation Team ID-ja),
+  a csomag méretét és ujjlenyomatát. Kibontás tulajdonos, kiterjesztett
+  attribútum és ACL nélkül; utána minden a rooté, semmi nem írható másnak,
+  nincs link — ezt a héj ellenőrzi is. Egy önellenőrzés (`--selfcheck`, üres
+  környezettel) betölti a teljes kódot. Aztán a váltás: a leíró (lintelve), a
+  `current` link, a démon újratöltése, és a jel (`.ok-<név>`), hogy az új
+  változat elindult — ha 45 másodpercen belül nem jön, az előző áll vissza
+  (link, leíró, démon). A héj zárat tart, egy megszakítás is visszaállít, a
+  hibái egy szóval jönnek vissza, és a felület magyarul mondja ki őket.
+- **A csendes frissítés** (`helper/update.ts`, jelszó nélkül): a felület
+  húszmásodpercenként megnézi, más-e a segéd csomagja, mint a sajátja; ha a
+  miénk újabb és aláírt, felkínálja (`helper_update_offer`: a csomag mappája
+  az app-csomagban, és ha kell, a letöltött Node). A segéd ugyanazzal a
+  szigorral másolja be, mint a telepítő, és csak akkor veszi át, ha a leírót a
+  projekt kiadási kulcsa írta alá (Ed25519, `shared/helper-keys.ts`), a
+  verzió újabb, a csomag a leírónak megfelel, és nincs a rossznak jelöltek
+  között. A Node rögzítése az aláírt leíróból jön, a Team ID és az azonosító
+  a futó kódból — azt a leíró sem írhatja felül. Összeállítja az új
+  változatot, feljegyzi, mire áll át (`.pending`), átállítja a linket, és
+  kilép; a launchd az új változatot indítja. A LaunchDaemon leírója nem
+  változik: nincs újabb „háttérelem” értesítés.
+- **Visszaállás.** Ha az új változat három percen belül nem jelentkezik, az
+  őr (`shared/guard-script.ts`) az előzőre áll vissza — csak megbízható
+  változatra, és amíg egy élő frissítés tartja a zárat, nem nyúl hozzá —, a
+  csomagot rossznak jelöli (`.bad`, a segéd többé nem veszi át), és
+  újraindítja a segédet. A segéd ezt a státuszában mondja ki, a felület egy
+  javító sávot mutat.
+- **Az őr** a védett futtatókörnyezetből csak megbízhatót indít újra (root:wheel
+  0700, a változatban minden a rooté, nincs link, nincs ACL); ha a
+  futtatókörnyezet eltűnt, vagy a segéd percek óta nem indul, a szigorú blokk
+  áll be (lásd az őrt).
+- **Költözés.** Az app frissítése után a régi elrendezésű LaunchDaemon már az
+  új kódot futtatja, a régi helyről; ilyenkor az app egy sávot mutat
+  („Áthelyezés a védett helyre”, egy jelszó) — a telepítő ugyanaz, mint az
+  első telepítésnél, és a régi leírót is lecseréli.
+- **Az app törlése** a védett futtatókörnyezetből futó segédet nem érinti: a
+  beállított szabályokkal tovább tilt (a menetrend, a keret és a munkamenet is
+  zár). Teljes eltávolítás: a gépre tett eltávolító, rendszergazdaként.
+- **A kiadás** (`release.yml`): a leírót egy külön job írja alá (a
+  `helper-signing` környezet titkával — csak ott van a kulcs, és ott a
+  függőségek telepítő-szkriptje sem fut); a macOS-csomagoló a saját buildje
+  mellé csak akkor veszi át, ha a két build bájtra ugyanazt a csomagot adta
+  (`sign-helper-manifest.js --adopt`). Amíg nincs kiadási kulcs, a leíró
+  aláíratlan, a felület nem kínálja fel, és a futás lapja figyelmeztet.
+- **Próba.** A gyökér-héjak és az őr tesztjei élesben futnak dash-sel és
+  `bash --posix`-szal, csonkolt rendszereszközökkel (launchctl, codesign,
+  tar, plutil …), a hibaágakkal, megszakítással és zár-versennyel együtt. A
+  macOS CI-próba (`scripts/mac-helper-probe.sh`) egy valódi gépen a régi
+  elrendezésből költöztet; nézi a jogokat, az ACL-t és a Node aláíróját; a
+  sima felhasználó kicseréli az app binárisát és elrontja az `app.asar`-t, és
+  egy újraindítás után sem fut rootként semmi az appból; az app eltűnésére a
+  segéd tovább tilt; egy CI-ben született kulccsal aláírt csomagot jelszó
+  nélkül átvesz, a hamis ajánlatokat (kicserélt csomag, régebbi, idegen kulcs,
+  FIFO) gyorsan elutasítja; egy el nem induló, aláírt frissítés után az őr
+  visszaáll; a futtatókörnyezet nélkül és a nem induló segéd mellett a szigorú
+  blokk áll; az eltávolító után semmi nem marad, és friss gépre is települ.
+
+**Őszinte korlátok:**
+
+- **Az első telepítés bizalmon alapul.** Az első telepítéskor (és
+  javításkor) a rendszergazda azt hagyja jóvá, amit a gépen lévő app
+  felkínál. Ha az appot egy sima felhasználó előtte módosítja, a jóváhagyással
+  ez is rendszerjogot kap — ezért a védelmet rendszergazda telepítse, az
+  Alkalmazások mappából. A jelszót kérő ablakot bármely, a felhasználó
+  nevében futó program feldobhatja; ez ellen szoftver nem véd.
+- **A csendes frissítés a projekt kiadási kulcsában bízik.** Ha a kulcs
+  kiszivárog, minden telepített Mac-en rendszerjogot ad — a régi
+  elrendezésben ugyanezt egy kiadás feltörése adta, a következő
+  újraindításkor.
+- **Kulcs nélkül nincs csendes frissítés.** Amíg a projektnek nincs kiadási
+  kulcsa (és a fejlesztői buildeknél), a védett helyen futó segéd csak akkor
+  frissül, ha az app protokollja változik — egy sávval, egy jelszóval. A
+  diagnosztika kimondja, ha egy korábbi kiadás fut.
+- **macOS 13.0–13.4-en a védett futtatókörnyezet nem települ** (a Node.js 24
+  13.5-öt kér): a telepítés megmondja, hogy a rendszert frissíteni kell
+  (ingyenes). Egy ott korábban felrakott segéd a régi elrendezésben, az app
+  mappájából fut tovább — rá a fenti rés áll, amíg a rendszer nem frissül.
+- **A költözés a múltat nem teszi meg nem történtté:** ami előtte
+  rendszerjoggal futott, az lefutott.
+- **Letöltés és hely:** a telepítés egyszer kb. 28 MB-ot tölt le (a
+  Node.js-t), a futtatókörnyezet kb. 125 MB a `/Library` alatt (egy
+  frissítéskor átmenetileg két változat; a telepítő 400 MB szabad helyet kér).
+- **Egy régebbi (v0.4.260 előtti) app** „Háttérszolgáltatás frissítése”
+  gombja a régi, kevésbé védett elrendezést teszi vissza.
+- A rendszer „Háttérelemek” listáján a segéd „node” néven vagy a Node.js
+  Foundation neve alatt is megjelenhet; a védett mappába a felhasználó nem
+  lát bele (0700).
+
 ### Az őr: ha az app eltűnik
 
-A segéd az app saját binárisán fut (macOS: a LaunchDaemon az app binárisát
-indítja `ELECTRON_RUN_AS_NODE`-dal, a belépési pont az `app.asar`-ban;
-Windows: a SYSTEM-feladat a telepített `Breaker.exe --helper`-t). Ha az appot
-törlik, a futó segéd még tilt, de a következő indulásakor (macOS-en legkésőbb
+A segéd Windowson az app saját binárisán fut (a SYSTEM-feladat a telepített
+`Breaker.exe --helper`-t), macOS-en a régi elrendezésben is (a LaunchDaemon az
+app binárisát indítja `ELECTRON_RUN_AS_NODE`-dal, a belépési pont az
+`app.asar`-ban). A macOS védett futtatókörnyezetéből futó segédet (fent) az
+app törlése nem érinti; ott az őr akkor lép közbe, ha a futtatókörnyezet tűnik
+el, vagy a segéd nem indul. Ha az appot törlik, a futó segéd még tilt, de a következő indulásakor (macOS-en legkésőbb
 a gép újraindításakor) nem indul többé, és a hosts-blokk **befagyott** volna
 abban az állapotban, ahogy épp állt — a szünetelő oldal nyitva, a menetrend
 és a keret zárás nélkül. A saját telepítésű `Breaker.app` jelszó nélkül a

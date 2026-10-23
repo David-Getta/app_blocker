@@ -78,9 +78,18 @@ npm run dist       # electron-builder → release/ (macOS: dmg/zip, Windows: nsi
 
 A GUI-ban a **„Védelem telepítése (egyszeri engedély)”** gomb telepíti a
 helpert:
-- **macOS:** LaunchDaemon `/Library/LaunchDaemons/hu.breaker.helper.plist`, egyetlen
-  admin jóváhagyással. Ezután minden bootnál automatikusan indul — **nincs
-  többé engedélykérés induláskor.**
+- **macOS:** a segéd a saját, **védett futtatókörnyezetébe** települ
+  (`/Library/Application Support/Breaker/runtime`, csak a root írja és látja,
+  a hivatalos Node.js-szel, amit a telepítés egyszer letölt), és onnan
+  indítja a LaunchDaemon (`/Library/LaunchDaemons/hu.breaker.helper.plist`) —
+  egyetlen admin jóváhagyással. Ezután minden bootnál automatikusan indul —
+  **nincs többé engedélykérés induláskor** —, és az app későbbi kiadásait
+  jelszó nélkül, aláírva veszi át (amíg a kiadások aláíratlanok, csak
+  protokollváltáskor, a sáv gombjával). Az app-csomagból semmit nem futtat
+  rootként: azt a telepítő felhasználó jelszó nélkül módosíthatná. macOS 13.5
+  vagy újabb kell. A v0.4.260 előtt telepített segédet az app egy sávval
+  költözteti („Áthelyezés a védett helyre”, egy jelszó). A részletek és az
+  őszinte korlátok: [architektúra](architecture.md#a-segéd-a-saját-védett-futtatókörnyezetéből-fut-macos-151).
 - **Windows:** `BreakerHelper` SYSTEM ütemezett feladat, egyetlen UAC-jóváhagyással,
   a gép indulásakor indul. Akkumulátoron is fut, nincs időkorlátja, és ha
   hibával kilép, percenként újraindul (a Feladatütemező alapértékein egyik
@@ -207,8 +216,11 @@ megfelelője, [`feature-uninstall-guard.md`](feature-uninstall-guard.md)).
 
 ### Az őr: ha az app eltűnik (v0.4.258)
 
-A segéd az app saját binárisán fut — ha az appot törlik, a segéd nem indul
-többé. A v0.4.257-ig a tiltás ilyenkor **befagyott** abban az állapotban, ahogy
+A segéd Windowson — és macOS-en a v0.4.260 előtti, régi elrendezésben — az
+app saját binárisán fut: ha az appot törlik, a segéd nem indul többé. (macOS-en
+a védett futtatókörnyezetből futó segédet az app törlése nem érinti: tovább
+tilt a beállított szabályokkal; ott az őr akkor lép közbe, ha a
+futtatókörnyezet tűnik el, vagy a segéd percek óta nem indul.) A v0.4.257-ig a tiltás ilyenkor **befagyott** abban az állapotban, ahogy
 a törléskor állt: ami épp szünetben volt, nyitva maradt; amit a menetrend, a
 napi keret vagy egy munkamenet zárt volna később, az nem zárult. macOS-en a
 saját telepítésű `Breaker.app` jelszó nélkül a Kukába húzható — ingyenes
@@ -266,7 +278,8 @@ minden induláskor — újabb jelszó nélkül.
   macOS-en a frissítés után a régi segéd a következő újraindításig fut: addig
   az app egy sávot mutat („Háttérszolgáltatás frissítése”, egy jelszó) — amíg
   ez nem történt meg, az app törlése még a régi módon befagyasztja a tiltást.
-- Az app **áthelyezése** is eltűnésnek számít: aki máshova húzza, annál a
+- Az app **áthelyezése** is eltűnésnek számít (macOS-en csak a régi
+  elrendezésben): aki máshova húzza, annál a
   segéd következő indulásakor (macOS-en legkésőbb az újraindításkor) a
   szigorú blokk áll be, amíg vissza nem teszi — vagy az új helyről újra nem
   telepíti a segédet. Windowson egy cserélhető meghajtóra telepített app

@@ -14,6 +14,7 @@ import {
   appleScriptString, macInstallLocationProblem, windowsInstallLocationProblem, windowsLauncherCommand,
 } from '../shared/install-script';
 import { macGuardPlist, macGuardScript } from '../shared/guard-script';
+import { UNSIGNED_KEY_ID } from '../shared/helper-manifest';
 import { macosAtLeast, NODE_RUNTIME } from '../shared/helper-runtime';
 import {
   MAC_INSTALL_ERRORS, MAC_INSTALL_PROMPT, macInstallError, macInstallScript, macRootCommand,
@@ -22,15 +23,31 @@ import { ensureNodeTarball } from './node-runtime';
 import { clientKeyHash } from '../shared/client-key';
 import { ensureHelperKey } from './helper-key';
 
-/** Az app saját segéd-csomagja: a build írja (scripts/pack-helper-payload.js). */
-export interface HelperPayloadInfo { sha256: string; size: number; appVersion: string; helperVersion: string }
+/**
+ * Az app saját segéd-csomagja: a build írja (scripts/pack-helper-payload.js).
+ * `signed`: a leírója alá van-e írva — aláíratlan csomagot a segéd csendben
+ * nem vesz át, így felkínálni sincs értelme.
+ */
+export interface HelperPayloadInfo { sha256: string; size: number; appVersion: string; helperVersion: string; signed: boolean }
 
 export function helperPayloadInfo(): HelperPayloadInfo | null {
   try {
-    const v = JSON.parse(fs.readFileSync(path.join(__dirname, 'helper-payload.json'), 'utf8')) as HelperPayloadInfo;
-    return /^[0-9a-f]{64}$/.test(v.sha256) && Number.isSafeInteger(v.size) && v.size > 0 ? v : null;
+    const v = JSON.parse(fs.readFileSync(path.join(__dirname, 'helper-payload.json'), 'utf8')) as Omit<HelperPayloadInfo, 'signed'>;
+    if (!/^[0-9a-f]{64}$/.test(v.sha256) || !Number.isSafeInteger(v.size) || v.size <= 0) return null;
+    return { sha256: v.sha256, size: v.size, appVersion: v.appVersion, helperVersion: v.helperVersion, signed: bundleSigned() };
   } catch {
     return null;
+  }
+}
+
+/** A csomag leírója aláírt-e (a kulcsot nem itt ellenőrizzük — azt a segéd teszi). */
+function bundleSigned(): boolean {
+  try {
+    const m = JSON.parse(fs.readFileSync(path.join(helperBundleDir(), 'manifest.json'), 'utf8')) as { keyId?: unknown };
+    return typeof m.keyId === 'string' && m.keyId !== UNSIGNED_KEY_ID
+      && fs.statSync(path.join(helperBundleDir(), 'manifest.sig')).isFile();
+  } catch {
+    return false;
   }
 }
 

@@ -29,7 +29,9 @@ ingyen van, rövidíteni vagy visszavonni sehogy.
 - **DNS-szintű tiltás**, ezért **minden böngészőben és appban** hat, beleértve az
   **inkognitó/privát és vendég** munkameneteket.
 - **macOS-en nincs „minden indításnál engedélyezés”**: a háttérszolgáltatás
-  egyszeri jóváhagyással települ, és onnantól magától indul.
+  egyszeri jóváhagyással települ, és onnantól magától indul — a saját, csak a
+  root által írható helyéről, nem az app mappájából, így az app módosítása
+  sem ad rendszerjogot. A későbbi kiadásait aláírva, jelszó nélkül veszi át.
 - **Súrlódásos, változatos feloldás** (lásd lentebb).
 - **Végleges törlés 24 órás türelmi idővel** — a legnehezebb út, ami impulzusból
   nem végezhető el.
@@ -391,7 +393,10 @@ hiányozzon.
   **„Értesítés kipróbálása”** gomb megmutatja, hogy működik.
 - **Windows / macOS:** a telepítő egyszer kér rendszergazdai jóváhagyást a
   védelemhez (a segéd ettől tud a hosts fájlba írni). macOS-en nem kér újra
-  minden indításnál.
+  minden indításnál. macOS-en a telepítés egyszer kb. 28 MB-ot tölt le (a
+  hivatalos Node.js-t, amin a háttérszolgáltatás fut), és macOS 13.5-öt kér.
+  A v0.4.260 előtt telepített védelmet az app egy sávval áthelyezi a védett
+  helyre (egy jelszó).
 - **Windows, a v0.4.227 előtti telepítés:** az app addig nem érte el a
   segédet (a csatorna csak olvasható volt a nem emelt appnak), ezért a
   „Védelem telepítése” gomb ott maradt. Frissítés után egyszer még kérd a
@@ -627,9 +632,19 @@ Néhány konkrét dolog, amit érdemes előre tudni:
   blokkját tartja a hosts fájlban (a szünetelő oldalt is), és a kézzel
   kivettet visszateszi. Windowson csak tartós eltűnés után (kb. 5–10 perc),
   hogy egy frissítés közben ne zárjon le mindent. Az áthelyezés is
-  eltűnésnek számít; lemezképről futó appra a segéd nem települ; a meglévő
-  telepítéseken az őr a háttérszolgáltatás frissítésével (egy jelszó, vagy
-  macOS-en a következő újraindítás) kerül fel.
+  eltűnésnek számít (macOS-en csak a régi elrendezésben — a védett helyről
+  futó háttérszolgáltatást az app törlése vagy áthelyezése nem érinti);
+  lemezképről futó appra a segéd nem települ; a meglévő telepítéseken az őr a
+  háttérszolgáltatás frissítésével (egy jelszó, vagy macOS-en a következő
+  újraindítás) kerül fel.
+- **A Mac védett futtatókörnyezetének is vannak határai (v0.4.260):** az
+  első telepítést a rendszergazda hagyja jóvá — azt, amit a gépen lévő app
+  felkínál, ezért az Alkalmazások mappából, rendszergazda telepítse; a csendes
+  frissítés a projekt kiadási kulcsában bízik; amíg a kiadások aláíratlanok,
+  a háttérszolgáltatás csak protokollváltáskor, egy jelszóval frissül; macOS
+  13.0–13.4-en nem települ (ott a régi elrendezés marad, amíg a rendszer nem
+  frissül); egy v0.4.260 előtti app frissítő gombja a régi elrendezést tenné
+  vissza. [`docs/architecture.md`](docs/architecture.md#a-segéd-a-saját-védett-futtatókörnyezetéből-fut-macos-151)
   [`docs/desktop.md`](docs/desktop.md#az-őr-ha-az-app-eltűnik-v04258)
 - **A gépen az önteszt tényt mond, nem garanciát:** ötpercenként a rendszer
   feloldóját kérdezi a tiltott nevekről, és szól, ha nem a tiltó címre

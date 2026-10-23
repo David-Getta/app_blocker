@@ -13,7 +13,8 @@ import { cachedTarballOk, downloadVerified, type FetchFn } from '../src/shared/n
 import { isNewer } from '../src/shared/version';
 import { isNewer as manifestIsNewer } from '../src/shared/helper-manifest';
 
-const OWN: OwnBuild = { sha256: 'a'.repeat(64), appVersion: '0.4.301', helperVersion: '0.7.0' };
+const OWN: OwnBuild = { sha256: 'a'.repeat(64), appVersion: '0.4.301', helperVersion: '0.7.0', signed: true };
+const UNSIGNED: OwnBuild = { ...OWN, signed: false };
 const root = (over: Partial<HelperFacts> = {}): HelperFacts => ({
   platform: 'darwin', helperVersion: '0.7.0', helperLayout: 'root', helperBuild: 'b'.repeat(64), helperAppVersion: '0.4.300',
   helperUpdate: { state: 'idle' }, ...over,
@@ -31,6 +32,17 @@ test('felkínálás: csak a védett futtatókörnyezetből futó, a frissítést
   assert.equal(offerAction(root({ helperUpdate: { state: 'working' } }), OWN), 'none');
   assert.equal(offerAction(root({ helperUpdate: { state: 'activating' } }), OWN), 'none');
   assert.equal(offerAction(root({ helperUpdate: { state: 'failed', error: 'stage' } }), OWN), 'offer', 'a türelmi időt a segéd tartja');
+  // Aláíratlan saját csomag (fejlesztői build, kulcs előtti kiadás): a segéd úgysem venné át.
+  assert.equal(offerAction(root(), UNSIGNED), 'none');
+  assert.equal(offerAction(root({ helperAppVersion: '0.4.302' }), UNSIGNED), 'helper-newer', 'az app frissítése így is a teendő');
+});
+
+test('aláíratlan saját csomagnál nincs csendes út: a sáv a régi szabály szerint (csak protokoll-eltérésre) szól', () => {
+  assert.equal(helperBanner(root(), UNSIGNED, '0.7.0'), 'none', 'ugyanaz a protokoll: csendben (a diagnosztika mondja ki)');
+  assert.equal(helperBanner(root(), UNSIGNED, '0.7.1'), 'stale', 'más protokoll: gomb, egy jelszó');
+  assert.equal(helperBanner(root({ helperUpdate: { state: 'failed', error: 'unsigned' } }), UNSIGNED, '0.7.0'), 'none');
+  assert.equal(helperBanner(root({ helperAppVersion: '0.4.400', helperVersion: '0.7.1' }), UNSIGNED, '0.7.0'), 'helper-newer');
+  assert.equal(helperBanner(root({ helperBuild: OWN.sha256 }), UNSIGNED, '0.7.0'), 'none');
 });
 
 test('a sáv: régi segéd → frissítő gomb; csendes frissítés hibája → javítás; újabb segéd → app-frissítés; különben semmi', () => {

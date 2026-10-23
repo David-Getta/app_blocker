@@ -5575,7 +5575,11 @@ function helperPlaceText(st: StatusData | null): string {
   if (!st?.helperLayout) return '—';
   if (st.helperLayout === 'root') {
     const upd = st.helperUpdate && st.helperUpdate.state !== 'idle' ? `, frissítés: ${st.helperUpdate.state}` : '';
-    return `védett futtatókörnyezet (${st.helperRuntime ?? '?'}, app ${st.helperAppVersion ?? '?'}, Node.js ${st.helperNode ?? '?'}${upd})`;
+    // Aláíratlan kiadásnál nincs csendes frissítés: kimondjuk, ha egy korábbi fut.
+    const older = ownHelperBuild && !ownHelperBuild.signed && st.helperBuild && st.helperBuild !== ownHelperBuild.sha256
+      ? '; egy korábbi kiadásé — ez a kiadás aláíratlan, ezért csak protokollváltáskor, a sáv gombjával frissül'
+      : '';
+    return `védett futtatókörnyezet (${st.helperRuntime ?? '?'}, app ${st.helperAppVersion ?? '?'}, Node.js ${st.helperNode ?? '?'}${upd}${older})`;
   }
   return st.helperLayout === 'bundle' ? 'az app mappájából' : 'fejlesztői futás';
 }

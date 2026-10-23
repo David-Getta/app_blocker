@@ -358,6 +358,7 @@ wait_for 15 blocked || bad "a visszaállás után a segéd nem tilt"
 # tudja indítani, az őr a szigorú blokkot tartja.
 sudo mv "$RT" "$RT.away" || bad "a futtatókörnyezetet nem tudtam elmozdítani"
 wait_for 200 has_note || bad "a futtatókörnyezet nélkül az őr nem tette a helyére a szigorú blokkot"
+sudo grep -q 'a segéd futtatókörnyezete nem található' "$SDIR/guard.log" || bad "az őr naplójában nincs: a futtatókörnyezet nem található"
 grep -qx "0.0.0.0 $DOMAIN" /etc/hosts || bad "a hosts szigorú blokkjában nincs: $DOMAIN"
 wait_for 15 blocked || bad "a szigorú blokk mellett a rendszer feloldója nem tilt"
 [ "$(grep -c 'BREAKER BLOCK BEGIN' /etc/hosts)" = 1 ] || bad "a hosts-ban nem egy blokk van"

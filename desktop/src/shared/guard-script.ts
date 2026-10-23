@@ -418,6 +418,8 @@ export function macGuardScript(o: MacGuardOptions = MAC_GUARD_DEFAULTS): string 
     `{ ${o.flush}; } >/dev/null 2>&1`,
     'if [ "$WHY" = dead ]; then',
     '  log "a segéd nem indul: a szigorú blokk a helyén"',
+    'elif [ "$LAYOUT" = root ]; then',
+    '  log "a segéd futtatókörnyezete nem található: a szigorú blokk a helyén"',
     'else',
     '  log "az app nem található: a szigorú blokk a helyén"',
     'fi',

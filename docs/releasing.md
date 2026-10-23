@@ -262,15 +262,21 @@ aláírás. Részletek: `desktop/src/main/mac-updater.ts`.
 Amit az aláírás így is hoz: eltűnik a Gatekeeper figyelmeztetés az első
 indításnál, és a frissítést az OS ellenőrzi, nem mi.
 
-### A segéd aláíró kulcsa (macOS, #151 — előkészületben)
+### A segéd aláíró kulcsa (macOS, #151)
 
-A macOS-segéd egy védett, csak a root által írható futtatókörnyezetből fog
-futni, és új kódot csak a projekt **kiadási kulcsával aláírt**, a futónál
-újabb csomagból vesz át — jelszó nélkül, de egy fájlművelet az app mappájában
-nem ad rendszerjogot. A kulcs Ed25519; a nyilvános fele a repóban van
-(`desktop/src/shared/helper-keys.ts`), a titkos fele csak a kiadási folyamat
-védett környezetében és egy offline mentésben. Amíg a lista üres, a segéd
-semmit nem fogad el csendben.
+A macOS-segéd egy védett, csak a root által írható futtatókörnyezetből fut
+(v0.4.260 óta), és új kódot csak a projekt **kiadási kulcsával aláírt**, a
+futónál újabb csomagból vesz át — jelszó nélkül, de egy fájlművelet az app
+mappájában nem ad rendszerjogot. A kulcs Ed25519; a nyilvános fele a repóban
+van (`desktop/src/shared/helper-keys.ts`), a titkos fele csak a kiadási
+folyamat védett környezetében és egy offline mentésben.
+
+**Amíg a lista üres**, a kiadás aláíratlan leírót visz (a futás lapján
+figyelmeztetéssel), a felület nem kínálja fel a csomagot, és a védett helyen
+futó segédek csak akkor frissülnek, ha a protokoll változik (a sáv gombja,
+egy jelszó). Ha addig a segéd kódjában olyan javítás megy ki, aminek el kell
+jutnia a gépekre, emeld a `HELPER_VERSION`-t (`shared/protocol.ts`) — enélkül a
+régi kód fut tovább, és csak a diagnosztika mondja ki.
 
 Egyszeri beállítás (a saját gépeden, nem a CI-ban):
 
@@ -280,8 +286,10 @@ node desktop/scripts/gen-helper-key.js ~/breaker-helper-r1.pem r1
 
 1. A kiírt `{ id: 'r1', spki: '…' }` sor a `helper-keys.ts` listájába kerül
    (ez nem titok). Onnantól minden kiadás aláírt csomagot kér.
-2. GitHub → Settings → Environments → új környezet: `helper-signing`. A
-   „Deployment branches and tags” alatt csak a kiadás ága. Benne egy titok:
+2. GitHub → Settings → Environments → `helper-signing` (az első kiadás
+   magától létrehozza, védelem nélkül — ezért állítsd be). A „Deployment
+   branches and tags” alatt csak az, amiről a kiadás fut: a `v*` címkék, és ha
+   kézzel indítod (Run workflow), az az ág is. Benne egy titok:
    `HELPER_SIGNING_KEY`, az értéke a `.pem` fájl teljes tartalma. Ha a
    „Required reviewers” alatt te magad is ott vagy, minden kiadás megvárja a
    jóváhagyásodat — ez erősebb, de a kiadás addig áll.
@@ -293,11 +301,27 @@ node desktop/scripts/gen-helper-key.js ~/breaker-helper-r1.pem r1
 lefordított fájlok (rootként csak a Node beépített moduljai — egy
 npm-függőség a zárlatban hiba), az eltávolító és egy kis `package.json`, egy
 determinisztikus tarban (`dist-payload/helper/payload.tar`), mellé a leíró
-(`manifest.json`: a csomag és a rögzített Node ujjlenyomata). Az `npm run dist`
-ezt írja alá (`scripts/sign-helper-manifest.js`); kulcs nélkül aláíratlan
-marad (fejlesztői build). A Mac-csomagban `Contents/Resources/helper/` alatt
-van; a füstpróba (`scripts/smoke-packaged.sh`) ellenőrzi, hogy ott van, és az
-ujjlenyomata a leíróé.
+(`manifest.json`: a csomag és a rögzített Node ujjlenyomata). Helyben az `npm
+run dist` írja alá (`scripts/sign-helper-manifest.js`, a `HELPER_SIGNING_KEY`
+változóból); kulcs nélkül aláíratlan marad (fejlesztői build). A Mac-csomagban
+`Contents/Resources/helper/` alatt van; a füstpróba (`scripts/smoke-packaged.sh`)
+ellenőrzi, hogy ott van, és az ujjlenyomata a leíróé.
+
+**A kiadásban** (`release.yml`) a leírót egy külön job írja alá (`helper-sign`,
+a `helper-signing` környezetben — csak ott van a kulcs, és ott a függőségek
+telepítő-szkriptje sem fut: `npm ci --ignore-scripts`), `--release` módban: a
+csomagban nem lehet a CI-próba kulcsa, és ha van kiadási kulcs, az aláírás
+kötelező. A macOS-csomagoló a saját buildje mellé veszi át
+(`sign-helper-manifest.js --adopt`) — csak ha a két build bájtra ugyanazt a
+csomagot adta, a leíró többi része is egyezik, és az aláírás a kulcslistával
+érvényes. Egy eltérésnél a kiadás megáll: a csomag determinisztikus, tehát
+valami más forrásból vagy más eszközzel épült.
+
+**A CI** a macOS-próbához minden futáskor egy ideiglenes kulcsot generál: a
+nyilvános fele (`BREAKER_HELPER_TEST_PUBKEY`) a csomag `test-keys.json`-jába
+kerül, a titkos fele a próbáé, ami vele aláírt csomagokat kínál fel a
+telepített segédnek. Kiadásba ilyen csomag nem mehet (a `--release` és az
+`--adopt` is elutasítja).
 
 **Kulcscsere.** Az új kulcs nyilvános felét egy kiadással KORÁBBAN kell
 felvenni, mint ahogy aláírnánk vele: a telepített segédek a saját listájukkal

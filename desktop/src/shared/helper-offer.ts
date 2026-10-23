@@ -9,6 +9,8 @@ export interface OwnBuild {
   sha256: string;
   appVersion: string;
   helperVersion: string;
+  /** a leírója aláírt — aláíratlant (fejlesztői build, kulcs előtti kiadás) a segéd nem vesz át */
+  signed: boolean;
 }
 
 /** Amit a döntés a segéd státuszából néz. */
@@ -33,8 +35,9 @@ export type OfferAction = 'none' | 'offer' | 'helper-newer';
 /**
  * Felkínáljuk-e a saját csomagunkat a segédnek. Csak a védett
  * futtatókörnyezetből futó, a frissítést ismerő segédnek, csak ha a csomagja
- * más, és a miénk újabb. Ha a segédé újabb (az appot visszaállították), az app
- * frissítése a teendő — azt mondjuk ki.
+ * más, a miénk újabb, és aláírt (aláíratlant a segéd úgysem venne át). Ha a
+ * segédé újabb (az appot visszaállították), az app frissítése a teendő — azt
+ * mondjuk ki.
  */
 export function offerAction(st: HelperFacts, own: OwnBuild): OfferAction {
   if (st.platform !== 'darwin' || st.helperLayout !== 'root') return 'none';
@@ -42,6 +45,7 @@ export function offerAction(st: HelperFacts, own: OwnBuild): OfferAction {
   if (!st.helperBuild || st.helperBuild === own.sha256) return 'none';
   if (st.helperAppVersion && isNewer(st.helperAppVersion, own.appVersion)) return 'helper-newer';
   if (st.helperAppVersion && !isNewer(own.appVersion, st.helperAppVersion)) return 'none';
+  if (!own.signed) return 'none';
   const u = st.helperUpdate?.state;
   if (u === 'working' || u === 'activating') return 'none';
   return 'offer';
@@ -63,13 +67,17 @@ export type HelperBanner =
  * A felület sávja. A régi (0.7.0 előtti) segéd és az app-csomagból futó segéd
  * a gombbal frissül; a védett futtatókörnyezetből futó segéd csendben — ott
  * csak akkor szólunk, ha a csendes frissítés elbukott, vagy a segéd újabb.
+ * Aláíratlan saját csomagnál nincs csendes út: ott a régi szabály áll (csak a
+ * protokoll eltérése kér gombot), a diagnosztika mondja ki, melyik kiadás fut.
  */
 export function helperBanner(st: HelperFacts, own: OwnBuild | null, appHelperVersion: string): HelperBanner {
   if (!st.helperVersion) return 'none';
   if (st.helperLayout === 'root' && atLeast(st.helperVersion, OFFER_MIN_HELPER) && own) {
     const action = offerAction(st, own);
     if (action === 'helper-newer') return 'helper-newer';
-    if (action === 'none' && st.helperBuild === own.sha256) return 'none';
+  }
+  if (st.helperLayout === 'root' && atLeast(st.helperVersion, OFFER_MIN_HELPER) && own?.signed) {
+    if (st.helperBuild === own.sha256) return 'none';
     const u = st.helperUpdate;
     if (u && (u.state === 'failed' || u.state === 'rolled-back') && u.error !== 'need-node') return 'repair';
     return 'none';

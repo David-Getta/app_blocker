@@ -617,7 +617,7 @@ macTest('macOS-őr, védett futtatókörnyezet: ha eltűnt, a szigorú blokk; ha
   fs.rmSync(r.rt, { recursive: true });
   runGuard(r);
   assert.equal(region(read(r.hosts)), expectedRegion(ROOT_STRICT));
-  assert.match(logOf(r), /az app nem található: a szigorú blokk a helyén/);
+  assert.match(logOf(r), /a segéd futtatókörnyezete nem található: a szigorú blokk a helyén/);
   const r2 = rootRig();
   fs.rmSync(r2.rt, { recursive: true });
   fs.writeFileSync(r2.main, `${r2.rt}/current/node\n--disable-sigusr1\n--no-addons\n/tmp/mas.js\n`);
