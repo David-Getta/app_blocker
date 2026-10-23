@@ -256,7 +256,9 @@ minden induláskor — újabb jelszó nélkül.
   rendszerjoggal futó kódot rendszergazdai lépés vagy a gép újraindítása
   cserélje, ne egy fájlművelet az app mappájában. Windowson egy
   frissítés leállítja a segédet, és a Feladatütemező magától nem indítja újra
-  — ezt is az őr teszi meg, ha a fájlok a helyükön vannak és nem fut telepítő.
+  — ezt is az őr teszi meg, ha a fájlok a helyükön vannak, nem fut telepítő,
+  és az app a Program Files alatt van. Máshonnan nem indítja: ott a frissítés
+  után a gép újraindításáig a szigorú blokk tilt (lásd fent).
 
 **Őszinte korlátok:**
 

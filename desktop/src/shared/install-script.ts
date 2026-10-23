@@ -73,7 +73,8 @@ export const WINDOWS_LOCATION_BANNER =
   'A Breaker nem a Program Files mappában van, így a védelmét egy sima felhasználó is megkerülheti. '
   + 'Futtasd újra a telepítőt, a mappaválasztásnál add meg a Program Files alatti mappát '
   + '(alapból C:\\Program Files\\Breaker), és az onnan induló appban telepítsd újra a védelmet. '
-  + 'Ha a védelem már fel volt telepítve, az áttelepítés után — amíg újra nem telepíted — a teljes lista tilt.';
+  + 'Amíg nem költözteted, minden frissítés után a gép újraindításáig a teljes lista tilt; '
+  + 'ha a védelem már fel volt telepítve, az áttelepítés után is, amíg újra nem telepíted.';
 
 /** Az exe a Program Files (vagy a ProgramFiles) alatt van-e — szöveg szerint, a `..` és társai nélkül. */
 export function windowsExeTrusted(execPath: string, env: Record<string, string | undefined>): boolean {

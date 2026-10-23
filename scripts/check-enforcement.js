@@ -4587,6 +4587,23 @@ const WIRES = [
     needle: "$('installLocationBanner').classList.remove('hidden');",
     lost: 'a telepítési hely sávja sosem jelenne meg',
   },
+  {
+    file: 'desktop/src/main/preload.ts',
+    needle: "installLocation: () => ipcRenderer.invoke('breaker:install-location'),",
+    lost: 'a telepítési hely sávja a hídon át sosem kapna választ',
+  },
+  {
+    file: 'desktop/src/main/main.ts',
+    needle: "ipcMain.handle('breaker:install-location', () =>",
+    lost: 'a telepítési hely kérdésére a főfolyamat nem felelne',
+  },
+  // A „Háttérszolgáltatás frissítése” hibája külön, felolvasott elembe megy —
+  // a sáv szövegét a következő frissítés újraírná.
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: "err.textContent = r.ok ? '' : `A frissítés nem sikerült: ${r.error}`;",
+    lost: 'a háttérszolgáltatás frissítésének hibája egy pillanat alatt eltűnne',
+  },
   // Közvetlenül írás előtt újranéz: ha közben a segéd elindult, az őr nem ír —
   // különben a kettő felváltva írná a hosts fájlt.
   {

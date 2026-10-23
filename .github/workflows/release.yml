@@ -45,51 +45,33 @@ jobs:
               --notes-file - <<'NOTES'
           ## Mi újság ebben a verzióban
 
-          **A gépen az app törlése többé nem lazít.** A tiltást tartó háttérszolgáltatás
-          az app saját programfájlján fut. Ha az appot törölted (macOS-en elég volt a
-          Kukába húzni, jelszó nélkül), a szolgáltatás nem indult többé, és a tiltás
-          abban az állapotban maradt, ahogy épp állt: ami épp szünetben volt, nyitva
-          maradt, a menetrend, a napi keret és a munkamenet nem zárt többé.
+          **Windowson a védelem csak a Program Files alól települ.** A tiltást tartó
+          háttérszolgáltatás rendszerjoggal az app saját programfájlját futtatja. Ha az
+          app máshova (például `C:\Breaker`) települt, azt a mappát a gép bármely
+          felhasználója módosíthatja — így azt is, amit a szolgáltatás rendszerjoggal
+          futtat. Mostantól:
 
-          Most a futó szolgáltatás a törölt appból is tovább tilt a beállított
-          szabályokkal, és mellette egy kis **őr** fut. Ha a szolgáltatás leáll
-          (legkésőbb a gép újraindításakor), és az app nincs meg — vagy a helyén van,
-          de a szolgáltatás percek óta nem indul el —, az őr a teljes listádat tiltja,
-          a szünetelő oldalt is; ha valaki kézzel kiveszi, visszateszi. A hosts fájl
-          első sora megmondja, miért tilt minden, és hol a teljes eltávolító. Ha az
-          appot visszateszed ugyanoda, minden a régi. Az őr csak szigorít: amit épp
-          tilt a gép, azt sosem veszi ki.
+          - A „Védelem telepítése” és a „Háttérszolgáltatás frissítése” csak a Program
+            Files alól működik; máshonnan megmondja, mit kell tenni.
+          - Ha az app nem a Program Files alatt van, egy tartós sáv kéri az
+            áttelepítést — akkor is, ha a védelem onnan már korábban felkerült. A
+            teendő: futtasd újra a telepítőt, a mappaválasztásnál add meg a Program
+            Files alatti mappát (alapból `C:\Program Files\Breaker`), és az onnan induló
+            appban telepítsd újra a védelmet.
+          - Az őr máshonnan nem indítja újra a leállított szolgáltatást. Ezért amíg nem
+            költözteted, egy frissítés után a gép újraindításáig a teljes lista tilt.
+          - Az áttelepítés a régi mappát törli; ha a védelem fel volt telepítve, amíg az
+            új helyről újra nem telepíted, a teljes lista tilt.
 
-          - **A meglévő gépeken egy jóváhagyás kell.** macOS-en a frissítés után az
-            app a „Háttérszolgáltatás frissítése” sávot mutatja: egy jelszó (vagy egy
-            újraindítás), és az őr felkerül. Windowson, ha a frissítés után az app a
-            védelem telepítését kéri, ugyanígy egy jóváhagyás; különben a következő
-            újraindításkor kerül fel. Addig az app törlése még a régi módon fagyaszt.
-          - **Windowson** az őr csak tartós eltűnés után lép (kb. 5–10 perc): egy
-            frissítés pár percre cseréli a fájlokat, és közben nem zárhat le mindent.
-            A Gépház eltávolítója a védelemhez nem nyúl, csak megmondja, mi marad, és
-            hol a teljes eltávolító. A cserélhető meghajtóra telepített app kihúzása is
-            eltűnésnek számít.
-          - **macOS-en** az őr felkerülésekor a rendszer „Háttérelem hozzáadva”
-            értesítést mutathat.
-          - **Az áthelyezés is eltűnésnek számít.** Ha az appot máshova húzod, a
-            szolgáltatás következő indulásától a teljes lista tilt, amíg vissza nem
-            teszed.
-          - **macOS-en** frissítés után a szolgáltatás — mint eddig — a következő
-            újraindításig (vagy a „Háttérszolgáltatás frissítése” gombig) a régi
-            kóddal fut: szándékosan nem indul újra magától egy fájlváltozásra.
-          - **Lemezképről nem telepíthető a védelem.** Ha a Breakert közvetlenül a
-            letöltött lemezképről indítod, előbb tedd az Alkalmazások mappába — onnan
-            indítva a védelem a lemez leválasztásakor megállna.
+          **Őszinte korlát:** egy korábban máshonnan telepített szolgáltatást a Windows
+          a gép indulásakor továbbra is onnan indít, amíg a védelmet a Program Files
+          alól újra nem telepíted.
 
-          A teljes eltávolítás rendszergazdai lépés marad: az eltávolító szkript előbb a
-          szolgáltatást, aztán az őrt állítja le, és csak utána veszi ki a tiltást.
+          **A „Háttérszolgáltatás frissítése” hibája látható marad** — eddig a
+          következő frissítés egy pillanat alatt eltüntette, és a felolvasó sem mondta
+          el.
 
-          **Windowson a szolgáltatás a rendszer eszközeit a rendszer mappájából
-          indítja**, nem a keresési útvonalról — oda más is tehetne azonos nevű
-          programot.
-
-          A szabályok, a beállítások és a telefonos appok nem változtak.
+          macOS-en, Androidon és iPhone-on semmi nem változott.
           NOTES
           fi
 

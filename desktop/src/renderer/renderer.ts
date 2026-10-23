@@ -3124,6 +3124,7 @@ function renderHelperStaleBanner(st: StatusData): void {
   const banner = $('helperStaleBanner');
   const stale = !!st.helperVersion && st.helperVersion !== HELPER_VERSION;
   banner.classList.toggle('hidden', !stale);
+  if (!stale) $('helperStaleError').classList.add('hidden');
   if (stale) {
     // Szándékosan nem nevez meg konkrét funkciót: az eltérés nem mondja meg,
     // MELYIK parancsot nem ismeri a futó helper, csak azt, hogy nem ugyanazt a
@@ -4759,9 +4760,11 @@ function setupModal(): void {
     const r = await window.breaker.install();
     btn.disabled = false;
     btn.textContent = original;
-    if (!r.ok) {
-      $('helperStaleText').textContent = `A frissítés nem sikerült: ${r.error}`;
-    }
+    // A hiba külön elembe megy: a sáv szövegét a következő frissítés újraírja,
+    // és a hiba-elemet a felolvasó is bejelenti.
+    const err = $('helperStaleError');
+    err.textContent = r.ok ? '' : `A frissítés nem sikerült: ${r.error}`;
+    err.classList.toggle('hidden', r.ok);
     await refresh();
   });
   for (const btn of $('pauseDialog').querySelectorAll<HTMLButtonElement>('button[data-minutes]')) {

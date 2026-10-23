@@ -1186,7 +1186,9 @@ csak az elsőt cseréli le azonnal: a root démont a launchd (Windowson az
 ez így is marad: a segéd egy frissítés után szándékosan nem indul újra magától
 (a rendszerjoggal futó kódot ne egy fájlművelet cserélje — lásd „Az őr: ha az
 app eltűnik”). Windowson a frissítés leállítja, és az őr
-indítja újra. Addig a két fél különböző protokollt beszélhet.
+indítja újra — ha az app a Program Files alatt van; máshonnan nem, ott a gép
+újraindításáig a szigorú blokk tilt. Addig a két fél különböző protokollt
+beszélhet.
 
 Ezért van a `HELPER_VERSION` a `shared/protocol.ts`-ben. Bumpolni kell, amikor
 új `op` kerül a kérés-unióba vagy egy válasz alakja változik. A GUI minden

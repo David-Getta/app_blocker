@@ -413,7 +413,7 @@ function fakeBridgeSource() {
         }
         return { ok: true, data: {} };
       },
-      install: async () => ({ ok: true }),
+      install: async () => (window.__fakeInstallFail ? { ok: false, error: window.__fakeInstallFail } : { ok: true }),
       checkUpdate: async () => ({ ok: true }),
       appVersion: async () => '0.0.0-demó',
       // Windows: a Program Files-on kívüli telepítés sávja; alapból nincs.
@@ -1462,8 +1462,22 @@ async function main() {
   if (!staleText || !staleText.includes('0.0.1-regi')) {
     failures.push(`the stale-helper banner does not name the running version: ${staleText}`);
   }
+  // A frissítő gomb hibája külön elemben marad látható — a sáv szövegét a
+  // következő (kétmásodperces) frissítés újraírja, a hibát nem.
+  await page.evaluate(() => { window.__fakeInstallFail = 'PRÓBA-HIBA: nem a Program Files alól'; });
+  await page.evaluate(() => document.getElementById('helperStaleBtn').click());
+  await page.waitForSelector('#helperStaleError:not(.hidden)', { timeout: 15_000 });
+  await page.waitForTimeout(4500);
+  const staleErr = await page.locator('#helperStaleError:not(.hidden)').textContent().catch(() => null);
+  if (!staleErr || !staleErr.includes('PRÓBA-HIBA')) {
+    failures.push(`the helper-update error does not stay visible after a refresh: ${staleErr}`);
+  }
+  await page.evaluate(() => { window.__fakeInstallFail = null; });
   await page.evaluate((v) => { window.__fakeHelperVersion = v; }, helperVersion());
   await page.waitForSelector('#helperStaleBanner', { state: 'hidden', timeout: 15_000 });
+  if (await page.locator('#helperStaleError:not(.hidden)').count() !== 0) {
+    failures.push('the helper-update error stays visible after the helper caught up');
+  }
 
   // A mérés bekapcsolva, de a szonda nem lát semmit (macOS-en megtagadott
   // automatizálási engedély). Ezt ki KELL írni: enélkül a statisztika örökre
