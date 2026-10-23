@@ -416,6 +416,8 @@ function fakeBridgeSource() {
       install: async () => ({ ok: true }),
       checkUpdate: async () => ({ ok: true }),
       appVersion: async () => '0.0.0-demó',
+      // Windows: a Program Files-on kívüli telepítés sávja; alapból nincs.
+      installLocation: async () => window.__fakeInstallLocation ?? null,
       // A LISTA ZÁRJÁNAK hamis kapuja: alapból enged; a füstteszt állítja át.
       authenticate: async () => window.__fakeAuth || { ok: true },
       quitApp: async () => { window.__quitCalled = (window.__quitCalled || 0) + 1; },
@@ -1442,6 +1444,10 @@ async function main() {
   const quitCalled = await page.evaluate(() => window.__quitCalled || 0);
   if (quitCalled !== 1) failures.push('the quit button does not reach the bridge');
 
+  // A telepítési hely sávja csak akkor látszik, ha a főfolyamat mond rá valamit.
+  if (await page.locator('#installLocationBanner:not(.hidden)').count() !== 0) {
+    failures.push('the install-location banner shows although the app is in place');
+  }
   // Egyező protokollverziónál a figyelmeztető sáv NEM látszik...
   if (await page.locator('#helperStaleBanner:not(.hidden)').count() !== 0) {
     failures.push('the stale-helper banner shows even though the versions match');
@@ -2864,6 +2870,24 @@ async function main() {
     await openDialog('Új csomag', a11yPage.locator('#focusNewBtn'));
     await a11yPage.close();
   }
+  // Windows, Program Files-on kívüli telepítés: a sáv megjelenik a főfolyamat
+  // mondatával — tartósan, nem csak a telepítés gombjára (a segéd ilyenkor már
+  // fut, azt a gombot senki nem nyomja). A felolvasó is látja (axe).
+  const locPage = await browser.newPage({ viewport: { width: 1180, height: 900 } });
+  await installAxe(locPage, failures);
+  await locPage.addInitScript(fakeBridgeSource());
+  await locPage.addInitScript(() => { window.__fakeInstallLocation = 'PRÓBA: a Breaker nem a Program Files mappában van.'; });
+  await locPage.goto(`http://127.0.0.1:${port}/renderer/index.html`);
+  try {
+    await locPage.waitForSelector('#installLocationBanner:not(.hidden)', { timeout: 15_000 });
+    const t = await locPage.locator('#installLocationText').textContent();
+    if (!t || !t.includes('PRÓBA: a Breaker nem a Program Files')) failures.push(`the install-location banner text is wrong: ${t}`);
+    await checkA11y(locPage, 'telepítési hely sávja', failures);
+  } catch {
+    failures.push('the install-location banner does not show when the main process reports a bad location');
+  }
+  await locPage.close();
+
   const a11yOver = await browser.newPage({ viewport: { width: 760, height: 560 } });
   await installAxe(a11yOver, failures);
   await a11yOver.addInitScript(fakeBridgeSource());

@@ -9,7 +9,9 @@
 import { app } from 'electron';
 import { execFile } from 'child_process';
 import * as path from 'path';
-import { launchdPlist, macInstallAppleScript, macInstallLocationProblem, windowsLauncherCommand } from '../shared/install-script';
+import {
+  launchdPlist, macInstallAppleScript, macInstallLocationProblem, windowsInstallLocationProblem, windowsLauncherCommand,
+} from '../shared/install-script';
 import { clientKeyHash } from '../shared/client-key';
 import { ensureHelperKey } from './helper-key';
 
@@ -50,6 +52,10 @@ async function installMac(): Promise<void> {
 }
 
 async function installWindows(): Promise<void> {
+  // Csak a Program Files alól: máshonnan egy sima felhasználó kicserélhetné,
+  // amit a segéd SYSTEM-ként futtat (shared/install-script.ts).
+  const problem = windowsInstallLocationProblem(process.execPath, process.env);
+  if (problem) throw new Error(problem);
   // A KULCS LENYOMATA a feladat parancssorába (shared/client-key.ts): a segéd
   // ezzel ismeri fel a telepítő felhasználó appját — a pipe-ja enélkül
   // senkinek nem írható, vele bárkinek, de csak a kulcs birtokosa kap szót.

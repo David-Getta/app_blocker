@@ -74,6 +74,11 @@ win:
 nsis:
   oneClick: false
   perMachine: true
+  # A mappaválasztás MARAD: egy korábban máshova (például C:\Breaker) telepített
+  # appot csak így lehet a Program Files alá költöztetni — e nélkül a telepítő
+  # a régi mappát olvasná vissza a rendszerleíró adatbázisból. A védelmet az app
+  # csak a Program Files alól telepíti (shared/install-script.ts,
+  # windowsInstallLocationProblem), máshonnan az áttelepítést kéri.
   allowToChangeInstallationDirectory: true
   # Az eltávolító a felhasználó saját Start menüjéből is leveszi a Breaker
   # parancsikont és az értesítés-kattintás HKCU-bejegyzését — ezeket az

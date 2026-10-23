@@ -99,6 +99,8 @@ export interface BreakerBridge {
   onOverlayWarn(cb: () => void): void;
   /** a futó app verziója — a fiók-panel mutatja, hogy látszódjon, MI fut */
   appVersion(): Promise<string>;
+  /** Windowson: ha az app nem a Program Files alatt van, a teendő mondata; különben null. */
+  installLocation(): Promise<string | null>;
   /** kilépés a felületről; a tiltást nem érinti (az a segédé) */
   quitApp(): Promise<void>;
   /** a kiadási jegyzetek megnyitása a böngészőben */
@@ -145,6 +147,7 @@ const bridge: BreakerBridge = {
   onVisibility: (cb) => ipcRenderer.on('breaker:visibility', (_e, v: unknown) => cb(v === true)),
   onOverlayWarn: (cb) => ipcRenderer.on('breaker:overlay-warn', () => cb()),
   appVersion: () => ipcRenderer.invoke('breaker:app-version'),
+  installLocation: () => ipcRenderer.invoke('breaker:install-location'),
   quitApp: () => ipcRenderer.invoke('breaker:quit'),
   openReleases: () => ipcRenderer.invoke('breaker:open-releases'),
   getOverlayShortcut: () => ipcRenderer.invoke('breaker:overlay-shortcut'),

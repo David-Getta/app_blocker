@@ -114,6 +114,7 @@ interface Bridge {
   stopSyncServer(): Promise<SyncServerState>;
   onUpdateState(cb: (s: UpdateState) => void): void;
   appVersion?(): Promise<string>;
+  installLocation?(): Promise<string | null>;
   quitApp?(): Promise<void>;
   onVisibility?(cb: (visible: boolean) => void): void;
   openReleases?(): Promise<void>;
@@ -4633,6 +4634,12 @@ function setupModal(): void {
   // sort: a rendszer beállítása attól még ugyanaz.
   try { notifyFailedAt = parseFailedAt(localStorage.getItem(NOTIFY_FAIL_KEY)); } catch { /* nincs tár */ }
   renderNotifyDelivery();
+  // Windowson a Program Files-on kívüli telepítés: tartós sáv a teendővel.
+  void window.breaker.installLocation?.().then((problem) => {
+    if (!problem) return;
+    $('installLocationText').textContent = problem;
+    $('installLocationBanner').classList.remove('hidden');
+  }).catch(() => undefined);
   void window.breaker.appVersion?.().then((v) => {
     // A szöveg a füstpróbával közös (shared/smoke.ts): a próba ezt várja.
     $('appVersionRow').textContent = versionRowText(v);

@@ -41,6 +41,50 @@ export function macInstallLocationProblem(execPath: string): string | null {
     : 'Előbb tedd a Breakert az Alkalmazások mappába, és onnan indítsd: lemezképről vagy letöltésből indítva a segéd a lemez leválasztásakor megállna.';
 }
 
+/**
+ * Honnan telepíthető a segéd Windowson — null, ha rendben, különben a mondat,
+ * amit a felület kiír. A segéd SYSTEM-ként az app exe-jét futtatja: csak a
+ * 64 bites Program Files (vagy a ProgramFiles) alól, amit csak rendszergazda
+ * írhat. Egy máshova telepített appot (például C:\\Breaker — a C:\\ alá
+ * létrehozott mappát alapból minden bejelentkezett felhasználó módosíthatja)
+ * egy sima felhasználó kicserélhetne, és a csere SYSTEM-jogot kapna.
+ *
+ * Szöveg szerint döntünk, a biztonságos oldalra tévedve: \\ kezdetű (hálózati
+ * vagy \\?\ alakú), / jelet vagy . / .. tagot tartalmazó utat nem fogadunk el,
+ * és egy rövid (8.3) alakot sem. Ugyanez a szabály dönt az őrben is
+ * (shared/guard-script.ts, Exe-Trusted) — a kettőt egy közös próba veti össze.
+ */
+export function windowsInstallLocationProblem(execPath: string, env: Record<string, string | undefined>): string | null {
+  return windowsExeTrusted(execPath, env) ? null : WINDOWS_LOCATION_PROBLEM;
+}
+
+export const WINDOWS_LOCATION_PROBLEM =
+  'A védelem csak a Program Files mappába telepített appal működik. Futtasd újra a Breaker telepítőjét, '
+  + 'a mappaválasztásnál add meg a Program Files alatti mappát (alapból C:\\Program Files\\Breaker), '
+  + 'és az onnan induló appban telepítsd újra a védelmet.';
+
+/**
+ * A felület tartós sávja, ha az app (és vele a már telepített segéd) nem a
+ * Program Files alól fut. Kimondja a teendőt, és azt is, mi jön utána: az
+ * áttelepítés a régi mappát törli, a régi segéd nem indul, és amíg a védelmet
+ * az új helyről újra nem telepíted, az őr a teljes listát tiltja.
+ */
+export const WINDOWS_LOCATION_BANNER =
+  'A Breaker nem a Program Files mappában van, így a védelmét egy sima felhasználó is megkerülheti. '
+  + 'Futtasd újra a telepítőt, a mappaválasztásnál add meg a Program Files alatti mappát '
+  + '(alapból C:\\Program Files\\Breaker), és az onnan induló appban telepítsd újra a védelmet. '
+  + 'Ha a védelem már fel volt telepítve, az áttelepítés után — amíg újra nem telepíted — a teljes lista tilt.';
+
+/** Az exe a Program Files (vagy a ProgramFiles) alatt van-e — szöveg szerint, a `..` és társai nélkül. */
+export function windowsExeTrusted(execPath: string, env: Record<string, string | undefined>): boolean {
+  if (execPath.startsWith('\\\\') || execPath.includes('/') || /(^|\\)\.\.?(\\|$)/.test(execPath)) return false;
+  const exe = execPath.toLowerCase();
+  return [env.ProgramW6432, env.ProgramFiles]
+    .filter((r): r is string => typeof r === 'string' && /^[a-z]:\\[^\\]/i.test(r))
+    .map((r) => `${r.replace(/\\+$/, '').toLowerCase()}\\`)
+    .some((root) => exe.length > root.length && exe.startsWith(root));
+}
+
 /** XML-szöveg idézése a plist-be. */
 function xmlEscape(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');

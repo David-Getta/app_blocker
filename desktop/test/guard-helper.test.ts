@@ -12,7 +12,7 @@ import { codePaths, codeWatchStep, fileMark, markOf, type CodeWatch } from '../s
 import { strictBlockPath } from '../src/helper/paths';
 import { defaultState } from '../src/helper/state';
 import { writeStrictBlock } from '../src/helper/strict';
-import { macInstallLocationProblem } from '../src/shared/install-script';
+import { macInstallLocationProblem, windowsInstallLocationProblem } from '../src/shared/install-script';
 import { isValidStrictBlock } from '../src/shared/strict-block';
 
 function findRepo(): string {
@@ -168,6 +168,47 @@ test('macOS-en lemezképről és karanténból nem telepítünk segédet', () =>
   const src = read('desktop/src/main/install.ts');
   const check = src.indexOf('macInstallLocationProblem(process.execPath)');
   assert.ok(check > 0 && check < src.indexOf("runFile('/usr/bin/osascript'"), 'a hely ellenőrzése a jelszókérés ELŐTT jön');
+});
+
+test('Windowson csak a Program Files alól telepítünk segédet — máshonnan egy sima felhasználó cserélhetné, amit a SYSTEM futtat', () => {
+  const env = { ProgramW6432: 'C:\\Program Files', ProgramFiles: 'C:\\Program Files' };
+  for (const ok of [
+    'C:\\Program Files\\Breaker\\Breaker.exe',
+    'c:\\program files\\Breaker\\Breaker.exe',
+    'C:\\Program Files\\Breaker..x\\Breaker.exe',
+  ]) {
+    assert.equal(windowsInstallLocationProblem(ok, env), null, ok);
+  }
+  // A 32 bites folyamat ProgramFiles-a is rendszergazdai hely.
+  assert.equal(windowsInstallLocationProblem('D:\\Apps\\x86\\Breaker\\Breaker.exe', { ProgramFiles: 'D:\\Apps\\x86' }), null);
+  for (const bad of [
+    'C:\\Breaker\\Breaker.exe',
+    'C:\\Program Files Evil\\Breaker\\Breaker.exe',
+    'C:\\Program Files\\..\\Breaker\\Breaker.exe',
+    'C:\\Users\\anna\\AppData\\Local\\Programs\\Breaker\\Breaker.exe',
+    'D:\\Program Files\\Breaker\\Breaker.exe',
+    '\\\\?\\C:\\Program Files\\Breaker\\Breaker.exe',
+    '\\\\server\\share\\Program Files\\Breaker\\Breaker.exe',
+    'C:\\PROGRA~1\\Breaker\\Breaker.exe',
+    'C:\\Program Files',
+    'C:\\Program Files\\',
+    // Szöveg szerint döntünk: a . és .. tagot, a / jelet nem oldjuk fel, hanem elutasítjuk.
+    'C:\\Program Files\\Breaker\\..\\Breaker\\Breaker.exe',
+    'C:\\Program Files\\.\\Breaker\\Breaker.exe',
+    'C:/Program Files/Breaker/Breaker.exe',
+    // A / is elválasztó Windowson: a ..-tag mögötte is kivezetne a Program Files alól.
+    'C:\\Program Files\\x/../../Breaker\\Breaker.exe',
+  ]) {
+    assert.match(windowsInstallLocationProblem(bad, env) ?? '', /Program Files mappába telepített/, bad);
+  }
+  // Hiányzó vagy nem meghajtós környezeti változó: semmit nem fogad el.
+  assert.ok(windowsInstallLocationProblem('C:\\Program Files\\Breaker\\Breaker.exe', {}));
+  assert.ok(windowsInstallLocationProblem('C:\\Program Files\\Breaker\\Breaker.exe', { ProgramFiles: 'Program Files' }));
+  // Egy meghajtó gyökere nem Program Files: azzal minden út átmenne.
+  assert.ok(windowsInstallLocationProblem('C:\\Breaker\\Breaker.exe', { ProgramFiles: 'C:\\' }));
+  const src = read('desktop/src/main/install.ts');
+  const check = src.indexOf('windowsInstallLocationProblem(process.execPath, process.env)');
+  assert.ok(check > 0 && check < src.indexOf("runFile('powershell.exe'"), 'a hely ellenőrzése az UAC-kérés ELŐTT jön');
 });
 
 // ------------------------------------------------------------ az eltávolítók

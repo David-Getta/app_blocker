@@ -4564,6 +4564,29 @@ const WIRES = [
     needle: "'      try { [IO.File]::Replace($tmp, $hostsFile, [NullString]::Value) }',",
     lost: 'Windowson az őr helyben írná a hosts fájlt — egy betelt lemezen csonka blokk maradna',
   },
+  // Windowson a segéd SYSTEM-ként az app exe-jét futtatja: csak a Program Files
+  // alól telepítjük, az őr máshonnan nem indítja, és az app tartósan kéri az
+  // áttelepítést (egy már máshonnan futó segédnél a gombot senki nem nyomja).
+  {
+    file: 'desktop/src/main/install.ts',
+    needle: 'const problem = windowsInstallLocationProblem(process.execPath, process.env);\n  if (problem) throw new Error(problem);',
+    lost: 'Windowson egy sima felhasználó által írható mappából telepítenénk a SYSTEM-segédet',
+  },
+  {
+    file: 'desktop/src/shared/guard-script.ts',
+    needle: "\"    if ($s1.state -eq 'Ready' -and -not (Exe-Trusted $s1.exe)) {\",",
+    lost: 'a Windows-őr egy Program Files-on kívüli (kicserélhető) exe-t indítana SYSTEM-ként',
+  },
+  {
+    file: 'desktop/src/main/main.ts',
+    needle: "(process.platform === 'win32' && app.isPackaged && !windowsExeTrusted(process.execPath, process.env)",
+    lost: 'a Program Files-on kívül telepített Windows-appban senki nem mondaná ki, hogy a védelme megkerülhető',
+  },
+  {
+    file: 'desktop/src/renderer/renderer.ts',
+    needle: "$('installLocationBanner').classList.remove('hidden');",
+    lost: 'a telepítési hely sávja sosem jelenne meg',
+  },
   // Közvetlenül írás előtt újranéz: ha közben a segéd elindult, az őr nem ír —
   // különben a kettő felváltva írná a hosts fájlt.
   {

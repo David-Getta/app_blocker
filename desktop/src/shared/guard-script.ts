@@ -450,6 +450,20 @@ export function windowsGuardScript(o: WindowsGuardOptions = WINDOWS_GUARD_DEFAUL
     '',
     '# Our installer or uninstaller is running (an update swaps the files for a while).',
     '# Only our own names: any process called *Setup* would keep the guard off forever.',
+    // Az exe a Program Files (vagy a ProgramFiles) alatt van-e — szöveg szerint,
+    // ugyanazzal a szabállyal, mint a telepítő (install-script.ts,
+    // windowsExeTrusted). Máshonnan nem indítunk: ott egy sima felhasználó is
+    // kicserélhetné, amit a SYSTEM futtat.
+    'function Exe-Trusted([string]$exe) {',
+    "  if ($exe.StartsWith('\\\\', [StringComparison]::Ordinal) -or $exe.Contains('/') -or $exe -match '(^|\\\\)\\.\\.?(\\\\|$)') { return $false }",
+    '  foreach ($r in @($env:ProgramW6432, $env:ProgramFiles)) {',
+    "    if (-not $r -or $r -notmatch '^[A-Za-z]:\\\\[^\\\\]') { continue }",
+    "    $root = ($r -replace '\\\\+$', '') + [char]92",
+    '    if ($exe.Length -gt $root.Length -and $exe.StartsWith($root, [StringComparison]::OrdinalIgnoreCase)) { return $true }',
+    '  }',
+    '  return $false',
+    '}',
+    '',
     'function Installing {',
     "  return [bool](@(Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.ProcessName -match '^(Au_|Un_A|Un_)$|^Breaker[ -]Setup|^Uninstall Breaker' }).Count)",
     '}',
@@ -579,7 +593,11 @@ export function windowsGuardScript(o: WindowsGuardOptions = WINDOWS_GUARD_DEFAUL
     '    }',
     // Egy frissítés leállítja a segédet, és a Feladatütemező nem indítja újra:
     // ha a fájlok stabilak és telepítő nem fut, az őr indítja.
-    "    if ($s1.state -eq 'Ready') {",
+    // Program Files-on kívüli exe-t nem indítunk: a halott-óra ettől még jár, és
+    // tíz perc után a szigorú blokk áll be (az app ilyenkor az áttelepítést kéri).
+    "    if ($s1.state -eq 'Ready' -and -not (Exe-Trusted $s1.exe)) {",
+    `      Log ${msg('nem indítom: a segéd nem a Program Files alól fut')}`,
+    "    } elseif ($s1.state -eq 'Ready') {",
     '      $f1 = "$((Get-Item -LiteralPath $s1.exe).Length)/$((Get-Item -LiteralPath $s1.asar).Length)"',
     '      Start-Sleep -Seconds $settle',
     '      $s2 = Get-State',

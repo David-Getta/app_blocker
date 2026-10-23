@@ -33,6 +33,7 @@ import { displayName } from '../shared/alias';
 import * as path from 'path';
 import { HelperClient } from './helper-client';
 import { installHelper } from './install';
+import { WINDOWS_LOCATION_BANNER, windowsExeTrusted } from '../shared/install-script';
 import { readHelperKey } from './helper-key';
 import { initUpdater, requestUpdateCheck } from './updater';
 import { UsageTracker } from './tracker';
@@ -337,6 +338,14 @@ if (HELPER_MODE) {
       // letöltött frissítést viszont pont a kilépés engedi települni.
       ipcMain.handle('breaker:quit', () => { app.quit(); });
       ipcMain.handle('breaker:app-version', () => app.getVersion());
+      // Windowson a védelem csak a Program Files alól biztonságos: máshonnan egy
+      // sima felhasználó is kicserélhetné, amit a segéd SYSTEM-ként futtat. A
+      // felület ezt tartósan kimondja (nem csak a telepítés gombjára) — egy
+      // korábban máshova telepített gépen a segéd már fut, a gombot senki nem nyomja.
+      ipcMain.handle('breaker:install-location', () =>
+        (process.platform === 'win32' && app.isPackaged && !windowsExeTrusted(process.execPath, process.env)
+          ? WINDOWS_LOCATION_BANNER
+          : null));
 
       // A LISTA ZÁRJA: a rejtett blokklista felfedése a gép azonosítását kéri.
       // Macen a Touch ID a rendszeré — mi csak igen/nem választ kapunk. Ahol

@@ -20,7 +20,7 @@ import {
   shQuote, STRICT_FILE, WINDOWS_GUARD_DEFAULTS, windowsGuardLoader, windowsGuardRegisterScript, windowsGuardScript,
 } from '../src/shared/guard-script';
 import { isValidStrictBlock, renderStrictBlock, strictHostnames, strictNote } from '../src/shared/strict-block';
-import { DAEMON_LABEL, TASK_NAME } from '../src/shared/install-script';
+import { DAEMON_LABEL, TASK_NAME, windowsExeTrusted } from '../src/shared/install-script';
 
 const NOTE = strictNote('darwin', '/Library/Application Support/Breaker/uninstall-macos.sh');
 
@@ -601,6 +601,11 @@ test('Windows-őr: a futó segédet nem írja felül; a hiányzó meghajtó elt�
   assert.equal(lines[deadIf + 2], '    }');
   const start = lines.findIndex((l) => l.includes("Start-ScheduledTask -TaskName '"));
   assert.ok(start > deadIf + 2, 'előbb indít, aztán ír');
+  // Program Files-on kívüli exe-t nem indít: az indítás ága az Exe-Trusted mögött van.
+  const gate = lines.indexOf("    if ($s1.state -eq 'Ready' -and -not (Exe-Trusted $s1.exe)) {");
+  assert.ok(gate > deadIf && gate < start, 'az indítás nincs az Exe-Trusted mögött');
+  assert.equal(lines[gate + 2], "    } elseif ($s1.state -eq 'Ready') {");
+  assert.equal(s.split('Start-ScheduledTask -TaskName').length, 2, 'az őr máshol is indít');
   assert.equal(s.split("Apply-Strict 'dead'").length, 2);
   // Hiányzó hosts: üres listával indul, és ír.
   assert.ok(s.includes('if ([IO.File]::Exists($hostsFile)) { $lines = Lines ([IO.File]::ReadAllBytes($hostsFile)) }'));
@@ -809,6 +814,47 @@ winTest('Windows-őr élesben: közvetlenül írás előtt újranéz — ha köz
     assert.equal(latin1(w.hosts).includes('0.0.0.0 a.example'), writes, label);
     assert.equal(read(w.flushes), writes ? '/flushdns\n' : '', label);
   }
+});
+
+winTest('a Windows-őr ugyanúgy dönt az exe helyéről, mint a telepítő (Exe-Trusted = windowsExeTrusted)', () => {
+  // Az őr Program Files-on kívüli exe-t nem indít (ott egy sima felhasználó is
+  // kicserélhetné, amit a SYSTEM futtat); a telepítő onnan nem telepít. A két
+  // szabály két nyelven íródott — itt ugyanazokon az utakon vetjük össze.
+  const envs: Array<Record<string, string>> = [
+    { ProgramW6432: 'C:\\Program Files', ProgramFiles: 'C:\\Program Files (x86)' },
+    { ProgramW6432: 'D:\\Apps\\', ProgramFiles: '' },
+    { ProgramW6432: 'C:\\', ProgramFiles: 'relative\\x' },
+  ];
+  const paths = [
+    'C:\\Program Files\\Breaker\\Breaker.exe', 'c:\\PROGRAM FILES\\breaker\\breaker.exe',
+    'C:\\Program Files (x86)\\Breaker\\Breaker.exe', 'C:\\Program Files Evil\\Breaker.exe',
+    'C:\\Program Files', 'C:\\Program Files\\', 'C:\\Breaker\\Breaker.exe', 'D:\\Apps\\Breaker\\Breaker.exe',
+    'D:\\Apps', 'C:\\Program Files\\..\\Breaker\\Breaker.exe', 'C:\\Program Files\\.\\Breaker.exe',
+    'C:\\Program Files\\Breaker..x\\Breaker.exe', 'C:/Program Files/Breaker/Breaker.exe',
+    '\\\\?\\C:\\Program Files\\Breaker\\Breaker.exe', '\\\\srv\\share\\Program Files\\B.exe',
+    'C:\\PROGRA~1\\Breaker\\Breaker.exe', 'C:\\Program Files\\Breaker\\..', '',
+    'C:\\Program Files\\x/../../Breaker\\Breaker.exe',
+  ];
+  // Csak a függvényt futtatjuk (a szkript eleje Windows-meghajtókat keres).
+  const lines = windowsGuardScript().split('\r\n');
+  const from = lines.indexOf('function Exe-Trusted([string]$exe) {');
+  const head = lines.slice(from, lines.indexOf('}', from) + 1);
+  assert.ok(from > 0 && head.length > 5, 'nincs Exe-Trusted');
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'wexe-'));
+  const script = path.join(root, 'exe.ps1');
+  fs.writeFileSync(script, [...head, ...paths.map((p) => `Write-Output ([int](Exe-Trusted ${psQuote(p)}))`), ''].join('\n'));
+  for (const env of envs) {
+    const out = execFileSync(PWSH as string, ['-NoLogo', '-NoProfile', '-NonInteractive', '-File', script], {
+      encoding: 'utf8', env: { ...process.env, SystemRoot: root, ProgramData: root, ...env },
+    }).trim().split(/\r?\n/);
+    assert.equal(out.length, paths.length, out.join('|'));
+    paths.forEach((p, i) => {
+      assert.equal(out[i] === '1', windowsExeTrusted(p, env), `${JSON.stringify(env)} ${JSON.stringify(p)}`);
+    });
+  }
+  // És a két kiemelt eset, hogy a próba ne legyen üres.
+  assert.equal(windowsExeTrusted('C:\\Program Files\\Breaker\\Breaker.exe', envs[0]), true);
+  assert.equal(windowsExeTrusted('C:\\Breaker\\Breaker.exe', envs[0]), false);
 });
 
 winTest('Windows-őr élesben: ha a csere nem megy, helyben ír; ideiglenes fájl nem marad', () => {

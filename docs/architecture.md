@@ -543,6 +543,20 @@ A helper root/SYSTEM jogú, ezért a vele kommunikáló helyi socketet szűkítj
   (`helper/win-task.ts`) — egy régebben felvett feladat így újratelepítés
   nélkül is a helyére kerül.
 
+  **Csak a Program Files alól.** A SYSTEM-feladat az app exe-jét futtatja: egy
+  máshova telepített appot (a `C:\` alá létrehozott mappát alapból minden
+  bejelentkezett felhasználó módosíthatja) egy sima felhasználó kicserélhetne.
+  A telepítés ezért csak a Program Files alól megy (`windowsExeTrusted`,
+  szöveg szerint, a biztonságos oldalra tévedve: `\\` kezdet, `/`, `.` és `..`
+  tag nem fér át), az app máshonnan tartós sávban kéri az áttelepítést, és a
+  Windows-őr ugyanezzel a szabállyal (`Exe-Trusted`, a kettőt egy közös
+  pwsh-próba veti össze) nem indít el máshonnan futó segédet. A telepítő
+  mappaválasztása szándékosan marad: a perMachine telepítő a régi mappát a
+  rendszerleíró adatbázisból olvassa vissza, és költözni csak így lehet. A
+  már máshonnan felvett feladatot a Feladatütemező a géppel továbbra is
+  elindítja, amíg a védelem a Program Files alól újra fel nem kerül — ez
+  őszinte korlát, a sáv ezért tartós.
+
   **Az állapotmappa (`C:\ProgramData\Breaker`) csak a SYSTEM-é és a
   rendszergazdáké.** A ProgramData almappái a szülő jogait öröklik: a Users
   mindent olvashat, és új fájlt is tehet beléjük. Így a `state.json` — benne a
@@ -657,8 +671,8 @@ Kukába húzható: ingyenes lazítás. (v0.4.257-ig így volt.)
   gyorsítótárból adná.)
 - **Vissza a régire.** Ha az app a helyén van, de a segéd nem fut, az őr
   elindítja (macOS-en a launchd feladhatta a hiányzó bináris indítását;
-  Windowson egy frissítés leállítja a feladatot). A segéd a saját blokkját
-  írja, a magyarázó sor eltűnik.
+  Windowson egy frissítés leállítja a feladatot — de csak Program Files alatti
+  exe-t, lásd fent). A segéd a saját blokkját írja, a magyarázó sor eltűnik.
 - **Eltávolítás.** Az NSIS-eltávolító a feladatokhoz és a hosts fájlhoz nem
   nyúl (az app eltávolítása nem lehet ingyenes lazítás), csak kimondja, mi
   marad. A teljes eltávolító előbb a segédet állítja le (egy futó segéd újra

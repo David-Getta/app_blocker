@@ -86,6 +86,21 @@ helpert:
   hibával kilép, percenként újraindul (a Feladatütemező alapértékein egyik
   sem így volna). A v0.4.257 előtt a telepítése a `C:\Program Files` alatti
   appnál hibával megállt — lásd az architektúra-doksit.
+  A védelmet az app **csak a Program Files alól** telepíti: a segéd SYSTEM-ként
+  az app exe-jét futtatja, és egy máshova (például `C:\Breaker`) telepített
+  appot egy sima felhasználó is kicserélhetne — a csere SYSTEM-jogot kapna.
+  Máshonnan a telepítés (és a „Háttérszolgáltatás frissítése”) hibát ad, az
+  app pedig — akkor is, ha a védelem onnan már korábban felkerült — egy tartós
+  sávban kéri az áttelepítést: a telepítőt újra kell futtatni, és a
+  mappaválasztásnál a Program Files alatti mappát megadni (a telepítő
+  magától a régi mappát kínálja fel), aztán az onnan induló appban a védelmet
+  újratelepíteni. Az áttelepítés a régi mappát törli; ha a védelem fel volt
+  telepítve, az őr addig — amíg újra nem telepíted — a teljes listát tiltja.
+  A Windows-őr Program Files-on kívüli exe-t nem indít el (a nem induló segéd
+  mellett tíz perc után a szigorú blokk áll be). **Őszinte korlát:** egy
+  korábban máshonnan telepített segédet a Feladatütemező a gép indulásakor
+  továbbra is onnan indít, amíg a védelmet a Program Files alól újra nem
+  telepíted — az app eltávolítása után is, mert a feladat a régi útra mutat.
 
 Mindkettő az app saját binárisát futtatja (macOS-en node-módban, az
 `app.asar`-ból; Windowson `Breaker.exe --helper`). A CI ezt a becsomagolt appon,
