@@ -4704,6 +4704,41 @@ const WIRES = [
     lost: 'Windowson az értesítések nem a telepített Breakerhez tartoznának: se név, se ikon, '
       + 'és a Gépház listáján sem „Breaker” néven állnának',
   },
+  // #151: A SEGÉD CSOMAGJA. A védett futtatókörnyezet (macOS) ebből települ, és
+  // ebből frissül csendben. Ha a build nem írja, vagy a Mac-csomagba nem kerül
+  // be, semmi nem hasal el — csak a segéd marad az app-csomagban.
+  {
+    file: 'desktop/package.json',
+    needle: 'node scripts/check-esm-specifiers.js && node scripts/pack-helper-payload.js"',
+    lost: 'a build nem írná meg a segéd csomagját — a védett futtatókörnyezet nem tudna települni',
+  },
+  {
+    file: 'desktop/package.json',
+    needle: '"dist": "npm run build && node scripts/sign-helper-manifest.js && electron-builder"',
+    lost: 'a kiadott csomag leírója aláíratlan maradna — a telepített segédek csak jelszóval frissülnének',
+  },
+  {
+    file: 'desktop/electron-builder.yml',
+    needle: '  extraResources:\n    - from: dist-payload/helper\n      to: helper',
+    lost: 'a Mac-csomagban nem lenne ott a segéd csomagja',
+  },
+  // Rootként csak a Node beépített moduljai: egy npm-függőség a segéd
+  // zárlatában a függőség teljes ellátási láncának rendszerjogot adna.
+  {
+    file: 'desktop/scripts/pack-helper-payload.js',
+    needle: "} else if (!isBuiltin(spec)) {\n        throw new PackError(",
+    lost: 'egy npm-függőség észrevétlenül rootként futna a védett futtatókörnyezetben',
+  },
+  {
+    file: 'desktop/scripts/pack-helper-payload.js',
+    needle: 'parseManifest(manifestBytes);',
+    lost: 'a build olyan leírót is kiírhatna, amit a segéd elutasít — a csendes frissítés sosem menne át',
+  },
+  {
+    file: 'desktop/scripts/sign-helper-manifest.js',
+    needle: 'verifyManifest(bytes, sig, trust);',
+    lost: 'egy rossz aláírás csak a felhasználók gépén derülne ki',
+  },
 ];
 
 /**

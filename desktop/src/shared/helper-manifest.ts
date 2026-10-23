@@ -20,6 +20,14 @@ export const MANIFEST_MAX_BYTES = 64 * 1024;
 export const SIGNATURE_MAX_BYTES = 1024;
 export const PAYLOAD_MAX_BYTES = 8 * 1024 * 1024;
 export const NODE_TAR_MAX_BYTES = 40 * 1024 * 1024;
+/**
+ * Az aláíratlan leíró keyId-ja (a fejlesztői build és a még kulcs nélküli
+ * kiadás így írja). Kiadási kulcs nem kaphatja ezt a nevet, és a CI-próba
+ * ideiglenes kulcsának nevét sem — így egy aláíratlan vagy próba-leíró sosem
+ * illik egy valódi kulcsra.
+ */
+export const UNSIGNED_KEY_ID = 'unsigned';
+export const TEST_KEY_ID = 'ci-test';
 
 /** Egy architektúra rögzített Node-ja: a hivatalos tarball és benne a bináris. */
 export interface NodePin {

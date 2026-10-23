@@ -42,6 +42,29 @@ if [ "$(uname -s)" = "Darwin" ]; then
     exit 1
   fi
   echo "aláírás: hu.breaker.app, az Info.plist az aláírás része"
+
+  # A SEGÉD CSOMAGJA (#151): a védett futtatókörnyezet ebből települ. A Mac-
+  # csomag saját extraResources-a a felső szintű mellé kerül (a bővítmény is
+  # marad); a leíró ujjlenyomata a csomagban lévő tarra szól; és a macOS saját
+  # tar-ja (bsdtar) olvassa — a telepítő azzal bontja ki.
+  res="$bundle/Contents/Resources"
+  for f in helper/payload.tar helper/manifest.json extension/manifest.json; do
+    if [ ! -f "$res/$f" ]; then
+      echo "hiányzik a csomagból: Contents/Resources/$f" >&2
+      exit 1
+    fi
+  done
+  want=$(sed -n 's/^    "sha256": "\([0-9a-f]\{64\}\)",$/\1/p' "$res/helper/manifest.json")
+  got=$(shasum -a 256 "$res/helper/payload.tar" | cut -d' ' -f1)
+  if [ -z "$want" ] || [ "$want" != "$got" ]; then
+    echo "a segéd csomagjának ujjlenyomata nem egyezik a leíróval: leíró=$want, tar=$got" >&2
+    exit 1
+  fi
+  if ! tar -tf "$res/helper/payload.tar" | grep -qx 'app/dist/helper/index.js'; then
+    echo "a bsdtar nem látja a segéd belépési pontját a csomagban" >&2
+    exit 1
+  fi
+  echo "a segéd csomagja: Contents/Resources/helper/payload.tar, sha256 $got"
 fi
 
 out="${RUNNER_TEMP:-${TMPDIR:-/tmp}}/breaker-smoke.txt"

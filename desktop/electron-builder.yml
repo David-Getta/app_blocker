@@ -31,6 +31,13 @@ publish:
   repo: app_blocker
 mac:
   category: public.app-category.productivity
+  # A segéd csomagja (#151): a védett futtatókörnyezet ebből települ, és a
+  # telepített segéd ebből frissül csendben (payload.tar + aláírt leíró). A
+  # build írja (scripts/pack-helper-payload.js); a felső szintű extraResources
+  # mellé kerül, nem helyette.
+  extraResources:
+    - from: dist-payload/helper
+      to: helper
   # Mindkét architektúra kell: a GitHub macOS futtatója ma Apple szilícium,
   # és arch megadása nélkül CSAK arm64 telepítő készülne — egy Intel Mac-en
   # az le sem futna. Külön arm64 és x64 csomag (nem universal), mert az

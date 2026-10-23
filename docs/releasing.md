@@ -279,19 +279,52 @@ node desktop/scripts/gen-helper-key.js ~/breaker-helper-r1.pem r1
 ```
 
 1. A kiírt `{ id: 'r1', spki: '…' }` sor a `helper-keys.ts` listájába kerül
-   (ez nem titok).
-2. GitHub → Settings → Environments → új környezet: `helper-signing`, a
-   „Required reviewers” alatt te magad. Benne egy titok: `HELPER_SIGNING_KEY`,
-   az értéke a `.pem` fájl teljes tartalma.
+   (ez nem titok). Onnantól minden kiadás aláírt csomagot kér.
+2. GitHub → Settings → Environments → új környezet: `helper-signing`. A
+   „Deployment branches and tags” alatt csak a kiadás ága. Benne egy titok:
+   `HELPER_SIGNING_KEY`, az értéke a `.pem` fájl teljes tartalma. Ha a
+   „Required reviewers” alatt te magad is ott vagy, minden kiadás megvárja a
+   jóváhagyásodat — ez erősebb, de a kiadás addig áll.
 3. A `.pem` fájlról offline mentés (például titkosított pendrive), aztán
    töröld a gépről.
+
+**Mit csinál a build.** Az `npm run build` utolsó lépése a segéd csomagja
+(`scripts/pack-helper-payload.js`): a `dist/helper/index.js`-ből elérhető
+lefordított fájlok (rootként csak a Node beépített moduljai — egy
+npm-függőség a zárlatban hiba), az eltávolító és egy kis `package.json`, egy
+determinisztikus tarban (`dist-payload/helper/payload.tar`), mellé a leíró
+(`manifest.json`: a csomag és a rögzített Node ujjlenyomata). Az `npm run dist`
+ezt írja alá (`scripts/sign-helper-manifest.js`); kulcs nélkül aláíratlan
+marad (fejlesztői build). A Mac-csomagban `Contents/Resources/helper/` alatt
+van; a füstpróba (`scripts/smoke-packaged.sh`) ellenőrzi, hogy ott van, és az
+ujjlenyomata a leíróé.
 
 **Kulcscsere.** Az új kulcs nyilvános felét egy kiadással KORÁBBAN kell
 felvenni, mint ahogy aláírnánk vele: a telepített segédek a saját listájukkal
 ellenőriznek. Egy elveszett kulcs után minden Macen egy jelszó kell a
 következő frissítéshez (a régi segéd az új kulcsot nem ismeri); egy
 kiszivárgott kulcs minden telepített Macen rendszerjogot ad — ezért a
-környezet jóváhagyáshoz kötött, és a kulcs sehol máshol nincs.
+környezet ághoz (és ha kéred, jóváhagyáshoz) kötött, és a kulcs sehol máshol
+nincs.
+
+### A Node-futtató rögzítése (macOS, #151)
+
+A védett futtatókörnyezetben a segédet a hivatalos Node.js futtatja, nem az
+Electron. A verziót, a két tarball (arm64, x64) és benne a bináris SHA-256-ját
+a `desktop/src/shared/helper-runtime.ts` rögzíti (`NODE_RUNTIME`), az aláíró
+Apple Team ID-val együtt (Node.js Foundation, `HX7739G8FX`). Csere csak így:
+
+1. Le a `SHASUMS256.txt`-t és a `SHASUMS256.txt.asc`-t a
+   `https://nodejs.org/dist/<verzió>/` alól; a Node kiadói kulcsait a
+   [nodejs/release-keys](https://github.com/nodejs/release-keys) adja.
+   `gpg --verify SHASUMS256.txt.asc SHASUMS256.txt` — „Good signature”
+   nélkül tovább ne.
+2. A két `node-<verzió>-darwin-{arm64,x64}.tar.xz` SHA-256-ja és mérete a
+   SHASUMS szerint; a `bin/node` kibontva, a SHA-256-ja a `binSha256`.
+3. A Node-nak a támogatott legrégebbi macOS-en is futnia kell
+   (`minMacos`, és az `electron-builder.yml` `minimumSystemVersion`-je).
+4. Egy új rögzítés az app minden Mac-telepítésénél új Node-letöltést jelent;
+   a telepített segédek a csendes frissítéskor az új tarballt is kérik.
 
 ### Windows (opcionális)
 Kódaláíró tanúsítvánnyal eltűnik a SmartScreen-figyelmeztetés. Add meg a
